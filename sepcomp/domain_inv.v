@@ -7,8 +7,12 @@ Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.sminj_lemmas.
 Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.pred_lemmas.
 
 Require Import msl.Axioms.
+
+Require Import compcert.common.Memory.
+Require Import ZArith.
 
 (** Domain Invariant: 
     ~~~~~~~~~~~~~~~~~
@@ -53,6 +57,18 @@ rewrite !restrict_sm_pub; rewrite/restrict; case: (X b1)=> //.
 by rewrite restrict_sm_locBlocksSrc restrict_sm_locBlocksTgt; apply: H4.
 Qed.
 
+Lemma disjinv_restrict' mu0 mu X : 
+  disjinv mu0 mu -> disjinv mu0 (restrict_sm mu X).
+Proof.
+case=> H H2 H3 H4; apply: Build_disjinv. 
+by rewrite !restrict_sm_locBlocksSrc.
+by rewrite restrict_sm_frgnBlocksSrc.
+by rewrite !restrict_sm_locBlocksTgt.
+rewrite !restrict_sm_foreign=> b1 b2 d. 
+rewrite/restrict; case: (X b1)=> //.
+by apply: H4.
+Qed.
+
 Lemma relinv_restrict mu0 mu X : 
   relinv mu0 mu -> relinv (restrict_sm mu0 X) (restrict_sm mu X).
 Proof.
@@ -71,36 +87,6 @@ case=> A B; split; first by apply: disjinv_restrict.
 by apply: relinv_restrict.
 Qed.
 
-(* I'm probably missing these in the ssreflect libraries ... *)
-
-Section pred_lems.
-
-Context {T} {pTy : predType T} (p q r : pTy).
-
-Lemma predI0 : [predI p & pred0] =i pred0.
-Proof. by rewrite/eq_mem/=/in_mem/=/andb=> x; case: (x \in p). Qed.
-
-Lemma predIT : [predI predT & p] =i p.
-Proof. by rewrite/eq_mem/=/in_mem/=/andb/in_mem => x. Qed.
-
-Lemma predIC : [predI p & q] =i [predI q & p].
-Proof. 
-by rewrite/eq_mem/in_mem/=/andb=> x; case: (x \in p); case: (x \in q).
-Qed.
-
-Lemma in_predI b : b \in [predI p & q] = [&& b \in p & b \in q].
-Proof. by rewrite/in_mem. Qed.
-
-Lemma in_pred0 (b : T) : b \in pred0 = false.
-Proof. by rewrite/pred0/in_mem. Qed.
-
-Lemma eq_mem_trans : p =i q -> q =i r -> p =i r.
-Proof. 
-by rewrite/eq_mem/in_mem/= => H H2 x; rewrite -(H2 x) (H x). 
-Qed.
-
-End pred_lems.
-
 Lemma disjinv_relat_empty mu : disjinv mu (reestablish SMInj.empty mu).
 Proof.
 apply: Build_disjinv; case: mu=> //=.
@@ -108,7 +94,29 @@ by move=> s _ _ _ _ _ _ _ _ _; apply: predI0.
 by move=> _ t _ _ _ _ _ _ _ _; apply: predI0. 
 Qed.
 
-Lemma disjinv_intern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 :
+Lemma disjinv_call_aux mu0 mu S T :
+  {subset (pubBlocksSrc mu0) <= S} -> 
+  {subset (pubBlocksTgt mu0) <= T} -> 
+  disjinv mu0 mu -> disjinv (replace_locals mu0 S T) mu.
+Proof.
+move=> H1 H2; case: mu0 H1 H2=> a b c d e a' b' c' d' e' /= H1 H2.
+case=> /= A B C D; apply: Build_disjinv=> //=.
+by apply: (my_subset_trans _ H1).
+move=> b1 b2 d2 H3 H4; move: (D _ _ _ H3 H4); case E: (c b1)=> // H5.
+by have ->: (S b1) by apply: H1.
+Qed.
+
+Lemma disjinv_call (mu0 : SMInj.t) mu m10 m20 vals1 vals2 :
+  let: pubSrc := [predI (locBlocksSrc mu0) & REACH m10 (exportedSrc mu0 vals1)] in
+  let: pubTgt := [predI (locBlocksTgt mu0) & REACH m20 (exportedTgt mu0 vals2)] in
+  let: nu0    := replace_locals mu0 pubSrc pubTgt in
+  disjinv mu0 mu -> disjinv nu0 mu.
+Proof.
+apply: disjinv_call_aux; first by apply: pubBlocksLocReachSrc.
+by apply: pubBlocksLocReachTgt.
+Qed.
+
+Lemma disjinv_intern_step mu0 (mu mu' : SMInj.t) m10 m20 m1 m2 :
   disjinv mu0 mu -> 
   intern_incr mu mu' -> 
   mem_forward m10 m1 -> 
@@ -160,7 +168,51 @@ case; case=> /= ? ? ? ? ? ? ? ? ? ? ?.
 by move=> ? ? ? -> ? ? ? ? ->. 
 Qed.
 
-Lemma relinv_intern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 :
+Lemma disjinv_unchanged_on_src 
+  mu0 mu (E : Values.block -> BinNums.Z -> bool) m m' :
+  (forall b ofs, E b ofs -> vis mu b) -> 
+  Memory.Mem.unchanged_on (fun b ofs => E b ofs = false) m m' -> 
+  disjinv mu0 mu -> 
+  Memory.Mem.unchanged_on (fun b => 
+    [fun _ => locBlocksSrc mu0 b=true /\ pubBlocksSrc mu0 b=false]) m m'.
+Proof.
+move=> A B; case=> C D _ _; apply: (RGSrc_multicore mu E m m' A B mu0)=> //.
+move=> b F; move: (C b); rewrite/in_mem /=; move/andP=> G.
+case H: (locBlocksSrc mu b)=> //; rewrite/in_mem /= H in G; elimtype False.
+by apply: G; split.
+Qed.
+
+Lemma disjinv_unchanged_on_tgt
+  mu0 (mu : SMInj.t) (Esrc Etgt : Values.block -> BinNums.Z -> bool)
+  m1 m1' m2 m2' (fwd : mem_forward m1 m1') (valid : smvalid_src mu0 m1) :
+  (forall b ofs, Etgt b ofs -> 
+     [/\ Mem.valid_block m2 b
+       & locBlocksTgt mu b = false ->
+         exists b1 delta1, 
+           [/\ foreign_of mu b1 = Some(b, delta1)
+             & Esrc b1 (ofs-delta1)%Z]]) -> 
+  Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
+  (forall b1 ofs, Esrc b1 ofs -> Memory.Mem.perm m1' b1 ofs Max Nonempty) -> 
+  disjinv mu0 mu -> 
+  Memory.Mem.unchanged_on (local_out_of_reach mu0 m1) m2 m2'.
+Proof.
+move=> A B C; case=> _ _ D E.
+apply: (effect_semantics.unch_on_validblock _ _ _ 
+         (local_out_of_reach mu0 m1'))=> //.
+move=> b ofs val []F G; split=> // b' d' H; case: (G _ _ H)=> I.
+left=> J; apply: I; case: (fwd b')=> //. 
+apply: (valid b'); apply/orP; left. 
+by case: (local_DomRng mu0 (SMInj_wd mu0) _ _ _ H).
+by move=> _; apply.
+by right.
+apply (RGTgt_multicore mu Etgt Esrc m2 m2' (SMInj_wd mu) A B m1' C).
+move=> b F; move: (D b); rewrite/in_mem /=; move/andP=> G.
+case H: (locBlocksTgt mu b)=> //; rewrite/in_mem /= H in G; elimtype False.
+by apply: G; split.
+by apply: E.
+Qed.
+
+Lemma relinv_intern_step mu0 (mu mu' : SMInj.t) m10 m20 m1 m2 :
   relinv mu0 mu -> 
   intern_incr mu mu' -> 
   mem_forward m10 m1 -> 
@@ -223,7 +275,7 @@ case G: (DomTgt mu0 b2)=> //.
 by elimtype False; apply: N; apply: (F G).
 Qed.
 
-Lemma dominv_intern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 :
+Lemma dominv_intern_step mu0 (mu mu' : SMInj.t) m10 m20 m1 m2 :
   dominv mu0 mu -> 
   intern_incr mu mu' -> 
   mem_forward m10 m1 -> 
@@ -240,31 +292,31 @@ Qed.
 
 (* The analogous lemma for extern_incr doesn't appear to hold: *)
 
-Lemma disjinv_extern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 :
-  disjinv mu0 mu -> 
-  extern_incr mu mu' -> 
-  mem_forward m10 m1 -> 
-  mem_forward m20 m2 ->   
-  sm_inject_separated mu0 mu m10 m20 -> 
-  sm_inject_separated mu mu' m1 m2  -> 
-  sm_valid mu0 m10 m20 -> 
-  disjinv mu0 mu'.
-Proof.
-move=> inv H2 H3 H4 H5 H6 Hvalid; case: H2.
-move=> H7 []H8 []H9 []H10 []H11 []H12 []H13 []H14 []H15 H16.
-apply: Build_disjinv.
-by rewrite -H11; apply: (disj_locsrc inv).
-move=> b A; apply: (disj_pubfrgnsrc inv). 
-move: A; rewrite !in_predI; move/andP=> []. 
-rewrite/in_mem /= => A B; apply/andP; split=> //.
-admit. (*not true?*)
-by rewrite -H12; apply: (disj_loctgt inv).
-move=> b1 b2 d A B. 
-case C: (foreign_of mu b1)=> [[b2' d']|].
-have D: extern_of mu b1 = Some (b2', d') by apply: foreign_in_extern.
-have E: extern_of mu' b1 = Some (b2, d)  by apply: foreign_in_extern.
-move: (H7 _ _ _ D) B; rewrite E; case=> -> ->.
-by apply: (disj_pubfrgntgt inv).
-case D: (pub_of mu0 b1)=> [[b2' d']|]. admit. (*easy case*)
-admit. (*not true?*)
-Abort.
+(* Lemma disjinv_extern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 : *)
+(*   disjinv mu0 mu ->  *)
+(*   extern_incr mu mu' ->  *)
+(*   mem_forward m10 m1 ->  *)
+(*   mem_forward m20 m2 ->    *)
+(*   sm_inject_separated mu0 mu m10 m20 ->  *)
+(*   sm_inject_separated mu mu' m1 m2  ->  *)
+(*   sm_valid mu0 m10 m20 ->  *)
+(*   disjinv mu0 mu'. *)
+(* Proof. *)
+(* move=> inv H2 H3 H4 H5 H6 Hvalid; case: H2. *)
+(* move=> H7 []H8 []H9 []H10 []H11 []H12 []H13 []H14 []H15 H16. *)
+(* apply: Build_disjinv. *)
+(* by rewrite -H11; apply: (disj_locsrc inv). *)
+(* move=> b A; apply: (disj_pubfrgnsrc inv).  *)
+(* move: A; rewrite !in_predI; move/andP=> [].  *)
+(* rewrite/in_mem /= => A B; apply/andP; split=> //. *)
+(* admit. (*not true?*) *)
+(* by rewrite -H12; apply: (disj_loctgt inv). *)
+(* move=> b1 b2 d A B.  *)
+(* case C: (foreign_of mu b1)=> [[b2' d']|]. *)
+(* have D: extern_of mu b1 = Some (b2', d') by apply: foreign_in_extern. *)
+(* have E: extern_of mu' b1 = Some (b2, d)  by apply: foreign_in_extern. *)
+(* move: (H7 _ _ _ D) B; rewrite E; case=> -> ->. *)
+(* by apply: (disj_pubfrgntgt inv). *)
+(* case D: (pub_of mu0 b1)=> [[b2' d']|]. admit. (*easy case*) *)
+(* admit. (*not true?*) *)
+(* Abort. *)
