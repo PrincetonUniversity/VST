@@ -2780,7 +2780,7 @@ forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
   (MatchMu : Match_cores st1 mu st1 m1 st2 m2)
   (AtExtSrc : at_external cmin_eff_sem st1 = Some (e, ef_sig, vals1))
   (AtExtTgt : at_external cminsel_eff_sem st2 = Some (e', ef_sig', vals2))
-  (ValInjMu : Forall2 (val_inject (as_inj mu)) vals1 vals2)
+  (ValInjMu : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
   (pubSrc' : Values.block -> bool)
   (pubSrcHyp : pubSrc' =
               (fun b : Values.block =>
@@ -3145,15 +3145,13 @@ assert (GDE: genvs_domain_eq ge tge).
     destruct c1; inv H0. destruct k; inv H1.
     inv MC. exists v'.
     split. assumption.
-    split. eapply val_inject_incr; try eassumption.
-           apply restrict_incr.
+    split. assumption.
     simpl. inv H1. trivial. }
 (* at_external*)
   { intros. destruct H as [MC [RC [PG [GFP [Glob [VAL [WD INJ]]]]]]].
     split. inv MC; trivial.
     destruct c1; inv H0. destruct f; inv H1.
     inv MC. simpl. exists args'; intuition. 
-      eapply forall_vals_inject_restrictD. 
       apply val_list_inject_forall_inject; eassumption.
     simpl.
     admit. (*ISSUE: the translation turns certain external calls 

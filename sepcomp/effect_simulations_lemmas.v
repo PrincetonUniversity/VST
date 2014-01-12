@@ -47,6 +47,13 @@ Section Eff_INJ_SIMU_DIAGRAMS.
    Hypothesis match_validblocks: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 ->
           sm_valid mu m1 m2.
+(*experimental
+   Hypothesis match_protected: forall d mu c1 m1 c2 m2, 
+          match_states d mu c1 m1 c2 m2 ->
+          forall b, REACH m1 (extBlocksSrc mu) b = true ->
+                    locBlocksSrc mu b = true ->
+                    REACH m1 (frgnBlocksSrc mu) b = true.
+*)
 
 (*
     Hypothesis match_genv: forall d mu c1 m1 c2 m2,  match_state d mu c1 m1 c2 m2 -> 
@@ -86,7 +93,7 @@ Section Eff_INJ_SIMU_DIAGRAMS.
 
       exists v2, 
              Mem.inject (as_inj mu) m1 m2 /\
-             val_inject (as_inj mu) v1 v2 /\
+             val_inject (restrict (as_inj mu) (vis mu)) v1 v2 /\
              halted Sem2 c2 = Some v2.
 
   Hypothesis inj_at_external : 
@@ -95,7 +102,7 @@ Section Eff_INJ_SIMU_DIAGRAMS.
         at_external Sem1 c1 = Some (e,ef_sig,vals1) ->
         ( Mem.inject (as_inj mu) m1 m2 /\ 
           exists vals2, 
-            Forall2 (val_inject (as_inj mu)) vals1 vals2 /\ 
+            Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\ 
             at_external Sem2 c2 = Some (e,ef_sig,vals2)).
 
 
@@ -107,7 +114,7 @@ Section Eff_INJ_SIMU_DIAGRAMS.
 
         (AtExtTgt: at_external Sem2 st2 = Some (e',ef_sig',vals2)) 
 
-        (ValInjMu: Forall2 (val_inject (as_inj mu)) vals1 vals2)  
+        (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)  
 
         pubSrc' (pubSrcHyp: pubSrc' = fun b => andb (locBlocksSrc mu b)
                                                     (REACH m1 (exportedSrc mu vals1) b))
@@ -166,13 +173,7 @@ Hypothesis order_wf: well_founded order.
 
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-            order st1' st1)
-(*
-          /\ Mem.unchanged_on (fun b2 ofs => extBlocksTgt mu b2 = true /\
-                                 ~ exists b1 d, foreign_of mu b1=Some (b2,d)) m2 m2' 
-          /\ forall b ofs, Mem.unchanged_on (fun b' ofs' => b'=b /\ ofs'=ofs) m1 m1' ->
-              forall b2 d, foreign_of mu b = Some(b2,d) -> 
-                           Mem.unchanged_on (fun b' ofs' => b'=b2 /\ ofs'=ofs+d) m2 m2'*).
+            order st1' st1).
 
     Hypothesis inj_effcore_diagram : 
       forall st1 m1 st1' m1' U1, 
@@ -259,15 +260,12 @@ Proof.
 clear - match_sm_wd. intros. destruct H; subst. eauto.
 assumption.
 clear - match_genv. intros. destruct MC; subst. eauto.
-(*clear - match_norm. intros. destruct H; subst.
-     destruct (match_norm _ _ _ _ _ _ H0).
-     split; trivial.
-     intros. split; trivial.  eauto.*)
 clear - match_visible. intros. destruct H; subst. eauto.
-(*clear - match_erase. intros. destruct H; subst. eauto.*)
 clear - match_restrict. intros. destruct H; subst. eauto.
 clear - match_validblocks. intros.
     destruct H; subst. eauto.
+(*clear - match_protected. intros.
+    destruct H; subst. eauto. *)
 clear - inj_initial_cores. intros.
     destruct (inj_initial_cores _ _ _ H
          _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 H5 H6 H7)
@@ -307,7 +305,7 @@ clear - inj_after_external. intros.
       pubSrcHyp _ pubTgtHyp _ NuHyp _ _ _ _ _ INC SEP
       WDnu' SMvalNu' MemInjNu' RValInjNu' FwdSrc FwdTgt 
       _ frgnSrcHyp _ frgnTgtHyp _ Mu'Hyp 
-      UnchPrivSrc UnchLOOR (*CONF*))
+      UnchPrivSrc UnchLOOR)
     as [st1' [st2' [AftExt1 [AftExt2 MS']]]].
   exists st1', st1', st2'. intuition.
 Qed.
@@ -331,13 +329,7 @@ Section EFF_INJ_SIMULATION_STAR.
           SM_wd mu' /\ sm_valid mu' m1' m2' /\
 
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2'))
-(*
-          /\ Mem.unchanged_on (fun b2 ofs => extBlocksTgt mu b2 = true /\
-                                 ~ exists b1 d, foreign_of mu b1=Some (b2,d)) m2 m2' 
-          /\ forall b ofs, Mem.unchanged_on (fun b' ofs' => b'=b /\ ofs'=ofs) m1 m1' ->
-              forall b2 d, foreign_of mu b = Some(b2,d) -> 
-                           Mem.unchanged_on (fun b' ofs' => b'=b2 /\ ofs'=ofs+d) m2 m2'*).
+            ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2')).
 
     Hypothesis inj_effcore_diagram : 
       forall st1 m1 st1' m1' U1, 
@@ -1298,3 +1290,12 @@ Qed.
 
 Lemma vis_compose_sm: forall mu nu, vis (compose_sm mu nu) = vis mu.
 Proof. intros. unfold vis. destruct mu; simpl. reflexivity. Qed.
+
+Lemma restrict_compose: forall j k X, 
+  restrict (compose_meminj j k) X = compose_meminj (restrict j X) k.
+Proof. intros.
+  extensionality b.
+  unfold compose_meminj, restrict.
+  remember (X b) as d.
+  destruct d; trivial.
+Qed.

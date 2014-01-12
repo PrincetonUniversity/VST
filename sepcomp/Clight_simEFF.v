@@ -222,12 +222,13 @@ Proof. intros. red; intros.
          remember (locBlocksSrc mu b) as d.
          destruct d; trivial; apply eq_sym in Heqd; simpl in *.
          apply andb_true_iff.
-         assert (frgnBlocksSrc nu' b = true).
-           eapply INC. rewrite replace_locals_frgnBlocksSrc. assumption.
+         assert (frgnBlocksSrc (replace_locals mu PubS PubT) = frgnBlocksSrc nu'). eapply INC.
+         rewrite replace_locals_frgnBlocksSrc in H1. rewrite H1 in *.
          split. 
-           unfold DomSrc. apply frgnBlocksSrc_extBlocksSrc in H1; trivial. intuition.
+           unfold DomSrc. 
+           apply frgnBlocksSrc_extBlocksSrc in H0; trivial. rewrite H0; intuition.
          apply REACH_nil. unfold exportedSrc.
-           apply frgnSrc_shared in H1; trivial. intuition.
+           apply frgnSrc_shared in H0; trivial. intuition.
 Qed.
 
 Lemma match_temp_env_after_external: forall te te' mu  m1'
@@ -276,12 +277,13 @@ Proof. intros. red; intros. rewrite PTree.gsspec in H.
            remember (locBlocksSrc mu b) as d.
            destruct d; trivial; apply eq_sym in Heqd; simpl in *.
            apply andb_true_iff.
-           assert (frgnBlocksSrc nu' b = true).
-             eapply INC. rewrite replace_locals_frgnBlocksSrc. assumption.
-           split. 
-             unfold DomSrc. apply frgnBlocksSrc_extBlocksSrc in H3; trivial. intuition.
-           apply REACH_nil. unfold exportedSrc.
-             apply frgnSrc_shared in H3; trivial. intuition.
+         assert (frgnBlocksSrc (replace_locals mu PubS PubT) = frgnBlocksSrc nu'). eapply INC.
+         rewrite replace_locals_frgnBlocksSrc in H3. rewrite H3 in *.
+         split. 
+           unfold DomSrc. 
+           apply frgnBlocksSrc_extBlocksSrc in H2; trivial. rewrite H2; intuition.
+         apply REACH_nil. unfold exportedSrc.
+           apply frgnSrc_shared in H2; trivial. intuition.
          rewrite PTree.gso; assumption.
 Qed.
 
@@ -291,7 +293,7 @@ forall ge mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
       (MatchMu : MATCH ge st1 mu st1 m1 st2 m2)
       (AtExtSrc : at_external cln_eff_sem st1 = Some (e, ef_sig, vals1))
       (AtExtTgt : at_external CL_eff_sem2 st2 = Some (e', ef_sig', vals2))
-      (ValInjMu : Forall2 (val_inject (as_inj mu)) vals1 vals2)
+      (ValInjMu : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
       (pubSrc' : block -> bool)
       (pubSrcHyp : pubSrc' =
             (fun b : block =>
@@ -452,7 +454,7 @@ assert (RR1: REACH_closed m1'
         specialize (RC _ Rb). unfold vis in RC.
            rewrite Heqq in RC; simpl in *.
         assert (frgnBlocksSrc nu' b = true).
-          apply FRGnu'. rewrite replace_locals_frgnBlocksSrc. assumption.
+          rewrite replace_locals_frgnBlocksSrc in FRGnu'. rewrite <- FRGnu'. assumption.
         apply andb_true_iff.  
         split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H2). intuition.
         apply REACH_nil. unfold exportedSrc.
@@ -498,15 +500,17 @@ assert (GFnu': forall b, isGlobalBlock ge b = true ->
                DomSrc nu' b &&
                (negb (locBlocksSrc nu' b) && REACH m1' (exportedSrc nu' (ret1 :: nil)) b) = true).
      intros. specialize (GF _ H0).
-       assert (FF: frgnBlocksSrc nu' b = true).
-           eapply INC. rewrite replace_locals_frgnBlocksSrc. eassumption.
-       rewrite (frgnBlocksSrc_locBlocksSrc _ WDnu' _ FF). 
+       assert (FSRC:= extern_incr_frgnBlocksSrc _ _ INC).
+          rewrite replace_locals_frgnBlocksSrc in FSRC.
+       rewrite FSRC in GF.
+       rewrite (frgnBlocksSrc_locBlocksSrc _ WDnu' _ GF). 
        apply andb_true_iff; simpl.
         split.
-          unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ FF). intuition.
+          unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ GF). intuition.
           apply REACH_nil. unfold exportedSrc.
-          rewrite (frgnSrc_shared _ WDnu' _ FF). intuition.
-split. 
+          rewrite (frgnSrc_shared _ WDnu' _ GF). intuition.
+split.
+  unfold vis in *. 
   econstructor; try eassumption.
     unfold vis in *. rewrite replace_externs_as_inj.
       rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc in *.

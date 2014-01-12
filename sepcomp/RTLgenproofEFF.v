@@ -2130,7 +2130,7 @@ Lemma MATCH_afterExternal: forall
       (MatchMu: MATCH st1 mu st1 m1 st2 m2)
       (AtExtSrc : at_external cminsel_eff_sem st1 = Some (e, ef_sig, vals1))
       (AtExtTgt : at_external rtl_eff_sem st2 = Some (e', ef_sig', vals2))
-      (ValInjMu : Forall2 (val_inject (as_inj mu)) vals1 vals2)
+      (ValInjMu : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
       (pubSrc' : block -> bool)
       (pubSrcHyp : pubSrc' =
                  (fun b : block => 
@@ -3813,15 +3813,13 @@ assert (GDE: genvs_domain_eq ge tge).
     destruct c1; inv H0. destruct k; inv H1.
     inv MC. exists tv.
     split. assumption.
-    split. eapply val_inject_incr; try eassumption.
-           apply restrict_incr.
+    split. eassumption.
     simpl. inv MS. trivial. }
 (* at_external*)
   { intros. destruct H as [MC [RC [PG [GFP [Glob [VAL [WD INJ]]]]]]].
     split; trivial.
     destruct c1; inv H0. destruct f; inv H1.
     inv MC. simpl. exists targs; intuition. 
-      eapply forall_vals_inject_restrictD. 
       apply val_list_inject_forall_inject; eassumption.
     inv TF. trivial. }
 (* after_external*)

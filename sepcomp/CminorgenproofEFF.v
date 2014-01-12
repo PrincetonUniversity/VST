@@ -578,7 +578,20 @@ Inductive structured_match_cores: core_data -> SM_Injection -> CSharpMin_core ->
       (*(PG: meminj_preserves_globals ge (as_inj mu))*),
       structured_match_cores d mu (CSharpMin_Returnstate v k) m
                    (CMin_Returnstate tv tk) tm.
+(*
+Definition protected m mu:=
+   forall b, REACH m (extBlocksSrc mu) b = true ->
+             locBlocksSrc mu b = true -> 
+             REACH m (frgnBlocksSrc mu) b = true.
 
+Lemma protected_restr: forall m mu X
+      (PROT : protected m mu), protected m (restrict_sm mu X).
+Proof. intros.
+red. rewrite restrict_sm_frgnBlocksSrc, restrict_sm_extBlocksSrc, 
+             restrict_sm_locBlocksSrc; intros.
+  eapply PROT; eassumption.
+Qed.
+*)
 Definition Match_cores d mu c1 m1 c2 m2:Prop :=
   structured_match_cores d mu c1 m1 c2 m2 (*(restrict_sm mu (vis mu)) doesn't work here, since 
                               some of the conditions of match_env are "global"*) /\
@@ -586,7 +599,7 @@ Definition Match_cores d mu c1 m1 c2 m2:Prop :=
   meminj_preserves_globals ge (as_inj mu) /\
   (forall b, isGlobalBlock ge b = true -> frgnBlocksSrc mu b = true) /\
   sm_valid mu m1 m2 /\ SM_wd mu /\
-  Mem.inject (as_inj mu) m1 m2.
+  Mem.inject (as_inj mu) m1 m2(* /\ protected m1 mu*).
 
 Lemma Match_sm_wd: forall d mu c1 m1 c2 m2, 
           Match_cores d mu c1 m1 c2 m2 -> 
@@ -696,6 +709,7 @@ split.
 split. assumption.
 rewrite restrict_sm_all.
   eapply inject_restrict; eassumption.
+(*apply protected_restr; trivial.*)
 Qed.
 
 Lemma Match_validblocks: 
@@ -794,6 +808,7 @@ destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
    as [AA [BB [CC [DD [EE [FF GG]]]]]].
 intuition. rewrite initial_SM_as_inj. assumption.
 rewrite initial_SM_as_inj. assumption.
+(*protected: red. simpl. intros. discriminate.*)
 Qed.
 
 Lemma Match_AfterExternal: 
@@ -802,7 +817,7 @@ forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
   (MatchMu : Match_cores st1 mu st1 m1 st2 m2)
   (AtExtSrc : at_external csharpmin_eff_sem st1 = Some (e, ef_sig, vals1))
   (AtExtTgt : at_external cmin_eff_sem st2 = Some (e', ef_sig', vals2))
-  (ValInjMu : Forall2 (val_inject (as_inj mu)) vals1 vals2)
+  (ValInjMu : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
   (pubSrc' : Values.block -> bool)
   (pubSrcHyp : pubSrc' =
               (fun b : Values.block =>
@@ -1029,7 +1044,8 @@ split.
     eapply structured_match_callstack_incr_bound.
       eapply structured_match_callstack_ext with
        (mu:=mu)(nu':=nu'); try reflexivity; try eassumption.
-       eapply eff_after_check1 with (mu:=mu); try eassumption; reflexivity.
+       eapply eff_after_check1 with (mu:=mu); try eassumption; try reflexivity.
+         eapply forall_vals_inject_restrictD; eassumption.
        apply (forward_nextblock _ _ FwdSrc).
        apply (forward_nextblock _ _ FwdTgt).
     rewrite (*restrict_sm_all, *)replace_externs_as_inj.
@@ -1050,34 +1066,40 @@ rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
 destruct (eff_after_check2 _ _ _ _ _ MemInjNu' RValInjNu' 
       _ (eq_refl _) _ (eq_refl _) _ (eq_refl _) WDnu' SMvalNu').
 intuition.
+(*protected:
+red; simpl. rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc, replace_externs_extBlocksSrc.
+  clear - PROT UnchPrivSrc.
+  rewrite replace_locals_pubBlocksSrc, replace_locals_locBlocksSrc in UnchPrivSrc.
+*)
 Qed.
 
 Lemma MATCH_safely_halted: forall cd mu c1 m1 c2 m2 v1
      (SMC: structured_match_cores cd mu c1 m1 c2 m2)
      (HALT: halted CSharpMin_core_sem  c1 = Some v1),
 exists v2, halted CMin_core_sem c2 = Some v2 /\ 
-           val_inject (as_inj mu) v1 v2.
+           val_inject (restrict (as_inj mu) (vis mu)) v1 v2.
 Proof.
   intros.
   inv SMC; simpl in *; inv HALT.
   destruct k; inv H0. exists tv.
   inv MK. split; trivial.
-  eapply val_inject_incr; try eassumption.
-    apply restrict_incr.
+(*  eapply val_inject_incr; try eassumption.
+    apply restrict_incr.*)
 Qed.
 
 Lemma Match_at_external: forall mu st1 m1 st2 m2 e vals1 sig
      (MC: structured_match_cores st1 mu st1 m1 st2 m2) 
      (AtExt: at_external CSharpMin_core_sem st1 = Some (e, sig, vals1)),
-  exists vals2, Forall2 (val_inject (as_inj mu)) vals1 vals2 /\
+  exists vals2, Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\
                 at_external CMin_core_sem st2 = Some (e, sig, vals2).
 Proof.
   intros. 
   inv MC; simpl in *; inv AtExt.
   destruct fd; inv H0.
   exists targs.
-  split. eapply forall_vals_inject_restrictD. 
-           apply val_list_inject_forall_inject; eassumption.
+  split. apply val_list_inject_forall_inject; eassumption. 
+         (*eapply forall_vals_inject_restrictD.
+           apply val_list_inject_forall_inject; eassumption.*)
   inv TR. trivial.
 Qed.
 Lemma match_callstack_freelist:
@@ -1894,7 +1916,7 @@ Proof. intros.
     apply sm_inject_separated_mem in SEP; trivial.
     eapply meminj_preserves_incr_sep; eassumption. 
   assert (frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply IINCR.
-     rewrite <- H6. apply (H0 _ H4).  
+     rewrite <- H6. apply (H0 _ H4).
 Qed.
 End InternalCall.
 
@@ -4298,6 +4320,22 @@ assert (GDE: genvs_domain_eq ge tge).
   apply Match_restrict.
 (*match_valid*)
   apply Match_validblocks.
+(*match_protected
+  intros. rewrite REACHAX in H0. destruct H0 as [L HL].
+  generalize dependent b.
+  induction L; simpl; intros; inv HL.
+    inv H.
+    destruct (disjoint_extern_local_Src mu) with (b:=b) as [D |D]; 
+      try eapply H3; rewrite D in *; discriminate.
+  specialize (IHL _ H3).
+    remember (locBlocksSrc mu b') as d'.
+    destruct d'; apply eq_sym in Heqd'.
+      eapply REACH_cons; try eassumption. apply IHL; trivial.
+    remember (frgnBlocksSrc mu b') as q'.
+    destruct q'; apply eq_sym in Heqq'.
+      eapply REACH_cons; try eassumption.
+      apply REACH_nil. trivial.
+     assumption.*)
 (*match_genv*)
   apply Match_genv.
 (*initial_core*)

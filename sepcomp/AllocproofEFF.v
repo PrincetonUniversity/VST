@@ -2359,7 +2359,7 @@ Lemma MATCH_afterExternal: forall
       (MatchMu: MATCH mu st1 m1 st2 m2)
       (AtExtSrc : at_external rtl_eff_sem st1 = Some (e, ef_sig, vals1))
       (AtExtTgt : at_external LTL_eff_sem st2 = Some (e', ef_sig', vals2))
-      (ValInjMu : Forall2 (val_inject (as_inj mu)) vals1 vals2)
+      (ValInjMu : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
       (pubSrc' : block -> bool)
       (pubSrcHyp : pubSrc' =
                  (fun b : block => 
@@ -5042,7 +5042,8 @@ assert (GDE: genvs_domain_eq ge tge).
   { intros. destruct H as [MC [RC [PG [GFP [Glob [VAL [WD INJ]]]]]]].
     split. inv MC; trivial.
     destruct c1; inv H0. destruct f; inv H1.
-    inv MC. simpl. eexists. split. apply val_list_inject_forall_inject. eapply val_list_inject_incr; try eassumption. apply restrict_incr.
+    inv MC. simpl. eexists. split.
+        apply val_list_inject_forall_inject. eassumption.
     inv FUN. simpl.
     rewrite <- call_regs_param_values.
     admit. (*TODO: decode long*) }

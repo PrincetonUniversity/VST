@@ -1502,6 +1502,14 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
           match_state d mu c1 m1 c2 m2 ->
           sm_valid mu m1 m2;               
 
+(*experimental condition
+    match_protected: forall d mu c1 m1 c2 m2, 
+          match_state d mu c1 m1 c2 m2 ->
+          forall b, REACH m1 (extBlocksSrc mu) b = true ->
+                    locBlocksSrc mu b = true ->
+                    REACH m1 (frgnBlocksSrc mu) b = true;
+*)
+
     core_initial : forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
        forall vals1 c1 m1 j vals2 m2 DomS DomT,
@@ -1679,7 +1687,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 
       exists v2, 
              Mem.inject (as_inj mu) m1 m2 /\
-             val_inject (as_inj mu) v1 v2 /\
+             val_inject (restrict (as_inj mu) (vis mu)) v1 v2 /\
              halted Sem2 c2 = Some v2;
 
     core_at_external : 
@@ -1689,7 +1697,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
         ( Mem.inject (as_inj mu) m1 m2 /\ 
 
          exists vals2, 
-            Forall2 (val_inject (as_inj mu)) vals1 vals2 /\ 
+            Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\ 
             at_external Sem2 c2 = Some (e,ef_sig,vals2)); 
           (*Like in coreHalted, one might consider a variant that
              asserts Mem.inject m1 m2 and val_inject vals1 vals2
@@ -1713,7 +1721,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
             ValInjMu since vals2 occurs in pubTgtHyp) *)
         (AtExtTgt: at_external Sem2 st2 = Some (e',ef_sig',vals2)) 
 
-        (ValInjMu: Forall2 (val_inject (as_inj mu)) vals1 vals2)  
+        (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)  
 
         (*Lemma eff_atexternal_check in effect_properties.v shows that 
             global blocks from ge1 are in REACH m1 (exportedSrc mu vals1 and
@@ -2058,6 +2066,31 @@ Proof. intros.
   rewrite LB in H; trivial; clear LB.
   rewrite PB in H1; trivial. intuition.
 Qed.
+Lemma RGSrc_multicore': forall mu (WDmu: SM_wd mu) Esrc m m'
+         (SrcHyp: forall b ofs, Esrc b ofs = true -> vis mu b = true)
+         (Unch: Mem.unchanged_on (fun b z => Esrc b z = false) m m')
+          nu (WDnu: SM_wd nu) 
+         (LB: forall b, locBlocksSrc nu b = true -> locBlocksSrc mu b = false)
+         (X2: forall b1 b2 d, foreign_of mu b1 = Some(b2, d) -> 
+                              locBlocksSrc nu b1 || locBlocksTgt nu b2 = true ->
+                              pub_of nu b1 = Some(b2,d)),
+         Mem.unchanged_on (fun b ofs => locBlocksSrc nu b = true /\ 
+                                        pubBlocksSrc nu b = false) m m'.
+Proof. intros.
+  eapply mem_unchanged_on_sub; try eassumption.
+  intros b1 ofs H2. simpl.
+  case_eq (Esrc b1 ofs); intros; trivial; simpl in *. 
+  apply SrcHyp in H. unfold vis in H.  
+  clear Unch SrcHyp.
+  destruct H2. 
+  rewrite LB in H; trivial; clear LB.
+  simpl in H.
+  destruct (frgnSrc _ WDmu _ H) as [b2 [d [Frg FT]]].
+  apply X2 in Frg.
+     destruct (pubChar _ WDnu _ _ _ Frg).
+     rewrite H1 in H2. discriminate.
+  rewrite H0; reflexivity.
+Qed.
 
 Lemma RGTgt_multicore: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu)
             (TgtHyp: forall b ofs, Etgt b ofs = true -> 
@@ -2093,6 +2126,49 @@ Proof. intros.
     apply pub_in_local. apply X2.
     specialize (SrcPerm _ _ ES). contradiction.
   rewrite (pubSrcContra _ _ H2) in X2. inv X2. 
+Qed.
+
+Lemma RGTgt_multicorePerm': forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
+            (TgtHyp: forall b ofs, Etgt b ofs = true -> 
+                       (Mem.valid_block m2 b /\
+                         (locBlocksTgt mu b = false ->
+                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
+                           Esrc b1 (ofs-delta1) = true /\ Mem.perm m1 b1 (ofs-delta1) Max Nonempty)))
+            (Unch2: Mem.unchanged_on (fun b z => Etgt b z = false) m2 m2')
+            nu (WDnu: SM_wd nu) (AI: inject_incr (as_inj nu) (as_inj mu))
+             (SEP: sm_inject_separated nu mu m1 m2)
+         (X1: forall b, locBlocksTgt nu b = true -> locBlocksTgt mu b = false)
+         (PB: forall b, frgnBlocksSrc mu b && locBlocksSrc nu b = true ->
+                        pubBlocksSrc nu b = true),
+            Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'.
+Proof. intros.
+  eapply mem_unchanged_on_sub; try eassumption; clear Unch2.
+  intros. simpl. rename b into b2.
+  case_eq (Etgt b2 ofs); intros; trivial.
+  destruct (TgtHyp _ _ H0) as [VB2 F]; clear TgtHyp.
+  destruct H.
+  specialize (X1 _ H). 
+  destruct (F X1) as [b1 [d1 [Frg [ES P]]]]; clear F.
+  destruct (foreign_DomRng _ WD _ _ _ Frg) as [AA [BB [CC [DD [EE [FF [GG HH]]]]]]].
+  clear DD.
+  assert (LOC: local_of nu b1 = Some (b2, d1)).
+    apply foreign_in_all in Frg.
+    remember (as_inj nu b1) as d.
+    destruct d; apply eq_sym in Heqd.
+      destruct p. rewrite (AI _ _ _ Heqd) in Frg. inv Frg.
+      destruct (joinD_Some _ _ _ _ _ Heqd); try eauto.
+        assert (locBlocksTgt nu b2 = false)
+           by eapply (extern_DomRng' _ WDnu _ _ _ H2).
+        rewrite H3 in H; discriminate.
+      apply H2.
+    destruct SEP as [SEPa [SEPb SEPc]].
+      destruct (SEPa _ _ _ Heqd Frg).
+      eelim SEPc; try eassumption.
+      eapply (as_inj_DomRng); eassumption.
+  destruct (local_DomRng _ WDnu _ _ _ LOC).
+  specialize (PB b1); rewrite EE, H2 in PB; simpl in PB.
+  destruct (H1 _ _ LOC). contradiction.
+  rewrite PB in H4; intuition. 
 Qed.
 
 Lemma RGTgt_multicorePerm: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
@@ -2251,5 +2327,29 @@ intuition.
   eapply reestablish_sm_injsep; try eassumption.
   eapply reestablish_sm_valid; try eassumption.
   eapply (reestablish_internstep mu0 mu mu'); try eassumption.
+Qed.
+
+Lemma atExternal_Protected: forall mu m1
+         (MatchProtected: forall b, REACH m1 (extBlocksSrc mu) b = true ->
+                        locBlocksSrc mu b = true ->
+                        REACH m1 (sharedSrc mu) b = true)
+        vals1 vals2
+        (ValInjMu: Forall2 (val_inject (as_inj mu)) vals1 vals2)  
+        pubSrc' (pubSrcHyp: pubSrc' = fun b => andb (locBlocksSrc mu b)
+                                                    (REACH m1 (exportedSrc mu vals1) b))
+
+        pubTgt' 
+        nu (NuHyp: nu = replace_locals mu pubSrc' pubTgt'),
+    forall b, REACH m1 (extBlocksSrc nu) b = true ->
+                        locBlocksSrc nu b = true ->
+                        pubBlocksSrc nu b = true.
+Proof. intros. subst.
+  rewrite replace_locals_pubBlocksSrc.
+  rewrite replace_locals_locBlocksSrc in H0.
+  rewrite replace_locals_extBlocksSrc in H.
+  rewrite H0; simpl.
+  specialize (MatchProtected _ H H0).
+  eapply REACH_mono; try eapply MatchProtected.
+  unfold exportedSrc. intuition.
 Qed.
 
