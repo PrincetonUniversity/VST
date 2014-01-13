@@ -29,6 +29,8 @@ set      : {i : 'I_N} (d : t) (x : types i), t
 ord      : t -> t -> Prop
 wf_ord   : well_founded ord
 ord_set  : (i : 'I_N) (d : t) (x : types i), ords i x (get i d) -> ord (set d x) d
+gss      : (i : 'I_N) (x : types i) (d : t), get i (set i x d) = x
+gso      : (i j : 'I_N) (x : types i) (d : t), i <> j -> get j (set i x d) = get j d
 *)
 
 Lemma ord_dec (N : nat) (i j : 'I_N) : {i=j} + {~i=j}.
@@ -91,6 +93,11 @@ Parameter set : forall (i : 'I_N) (x : types i), t -> t.
 Parameter ord_upd : 
   forall (i : 'I_N) (x : types i) (d : t),
   ords x (get i d) -> ord (set x d) d.
+Parameter gss : 
+  forall (i : 'I_N) (x : types i) (d : t), get i (set x d) = x.
+Parameter gso : 
+  forall (i j : 'I_N) (x : types i) (d : t), i <> j -> 
+    get j (set x d) = get j d.
 
 End lex. End LEX.
 

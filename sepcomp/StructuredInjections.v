@@ -1301,6 +1301,13 @@ split. apply inject_incr_refl.
 intuition.
 Qed.
 
+Definition smvalid_src (mu : SM_Injection) m1 := 
+  forall b1, DOM mu b1 -> Memory.Mem.valid_block m1 b1.
+
+Lemma sm_valid_smvalid_src mu m1 m2 : 
+  sm_valid mu m1 m2 -> smvalid_src mu m1.
+Proof. destruct 1; intros b X; apply (H _ X). Qed.
+
 Lemma extern_incr_refl: forall mu, extern_incr mu mu.
 Proof. intros.
 split. apply inject_incr_refl.

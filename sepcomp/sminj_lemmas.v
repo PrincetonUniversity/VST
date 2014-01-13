@@ -146,5 +146,27 @@ case: sep2=> A' []B' C'; split.
   by move: (C' _ F E)=> V1 V0; apply: V1; case: (fwd2 b2).
 Qed.
 
-Definition smvalid_src (mu : SMInj.t) m1 := 
-  forall b1, DOM mu b1 -> Memory.Mem.valid_block m1 b1.
+Lemma DOM_replace_locals mu S T b :
+  DOM (replace_locals mu S T) b -> 
+  DOM mu b.
+Proof. by case: mu. Qed.
+
+Lemma smvalid_src_replace_locals mu m S T : 
+  smvalid_src mu m -> 
+  smvalid_src (replace_locals mu S T) m.
+Proof. by move=> H b H2; apply: (H b); apply (DOM_replace_locals H2). Qed.
+
+Lemma smvalid_src_DOM_valid mu m b :
+  smvalid_src mu m -> 
+  DOM mu b -> 
+  Memory.Mem.valid_block m b.
+Proof. by apply. Qed.
+
+Lemma smvalid_src_mem_forward mu m m' : 
+  smvalid_src mu m -> 
+  mem_forward m m' -> 
+  smvalid_src mu m'.
+Proof.
+move=> H H2 b; move: (H2 b)=> H3 H4; case: H3=> //.
+by apply: (smvalid_src_DOM_valid H H4).
+Qed.

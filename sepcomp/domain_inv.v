@@ -169,8 +169,8 @@ by move=> ? ? ? -> ? ? ? ? ->.
 Qed.
 
 Lemma disjinv_unchanged_on_src 
-  mu0 mu (E : Values.block -> BinNums.Z -> bool) m m' :
-  (forall b ofs, E b ofs -> vis mu b) -> 
+  mu0 mu (E : Values.block -> BinNums.Z -> bool) m m' (val : smvalid_src mu0 m) :
+  (forall b ofs, E b ofs -> Mem.valid_block m b -> vis mu b) -> 
   Memory.Mem.unchanged_on (fun b ofs => E b ofs = false) m m' -> 
   disjinv mu0 mu -> 
   Memory.Mem.unchanged_on (fun b => 
@@ -182,21 +182,30 @@ case H: (locBlocksSrc mu b)=> //; rewrite/in_mem /= H in G; elimtype False.
 by apply: G; split.
 Qed.
 
+(*
+forall b ofs, Etgt b ofs = true -> 
+                       (Mem.valid_block m2 b /\
+                         (locBlocksTgt mu b = false ->
+                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
+                           Esrc b1 (ofs-delta1) = true /\ Mem.perm m1 b1 (ofs-delta1) Max Nonempty))
+*)
+
 Lemma disjinv_unchanged_on_tgt
-  mu0 (mu : SMInj.t) (Esrc Etgt : Values.block -> BinNums.Z -> bool)
+  (mu0 mu : SMInj.t) (Esrc Etgt : Values.block -> BinNums.Z -> bool)
   m1 m1' m2 m2' (fwd : mem_forward m1 m1') (valid : smvalid_src mu0 m1) :
-  (forall b ofs, Etgt b ofs -> 
-     [/\ Mem.valid_block m2 b
-       & locBlocksTgt mu b = false ->
-         exists b1 delta1, 
-           [/\ foreign_of mu b1 = Some(b, delta1)
-             & Esrc b1 (ofs-delta1)%Z]]) -> 
+  (forall (b : Values.block) (ofs : Z),
+    Etgt b ofs = true ->
+    Mem.valid_block m2 b /\
+    (locBlocksTgt mu b = false ->
+      exists (b1 : Values.block) (delta1 : Z),
+        foreign_of mu b1 = Some (b, delta1) /\
+        Esrc b1 (ofs - delta1)%Z = true /\
+        Mem.perm m1' b1 (ofs - delta1) Max Nonempty)) -> 
   Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
-  (forall b1 ofs, Esrc b1 ofs -> Memory.Mem.perm m1' b1 ofs Max Nonempty) -> 
   disjinv mu0 mu -> 
   Memory.Mem.unchanged_on (local_out_of_reach mu0 m1) m2 m2'.
 Proof.
-move=> A B C; case=> _ _ D E.
+move=> A B; case=> _ _ D E.
 apply: (effect_semantics.unch_on_validblock _ _ _ 
          (local_out_of_reach mu0 m1'))=> //.
 move=> b ofs val []F G; split=> // b' d' H; case: (G _ _ H)=> I.
@@ -205,7 +214,7 @@ apply: (valid b'); apply/orP; left.
 by case: (local_DomRng mu0 (SMInj_wd mu0) _ _ _ H).
 by move=> _; apply.
 by right.
-apply (RGTgt_multicore mu Etgt Esrc m2 m2' (SMInj_wd mu) A B m1' C).
+apply: (RGTgt_multicorePerm mu Etgt Esrc m2 m2' (SMInj_wd mu) m1' A B). 
 move=> b F; move: (D b); rewrite/in_mem /=; move/andP=> G.
 case H: (locBlocksTgt mu b)=> //; rewrite/in_mem /= H in G; elimtype False.
 by apply: G; split.
