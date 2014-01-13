@@ -2045,12 +2045,14 @@ Proof. intros.
   rewrite FLIPpubBlocksSrc in H2. congruence. 
 Qed.
 
+
 (*Once these RG results are used in a linker/concurrency machine,
   we will need to remove all blocks b with isGlobalBlock ge from pubBlocks*)
 Lemma RGSrc_multicore: forall mu Esrc m m'
-         (SrcHyp: forall b ofs, Esrc b ofs = true -> vis mu b = true)
+         (SrcHyp: forall b ofs, Esrc b ofs = true -> Mem.valid_block m b -> vis mu b = true)
          (Unch: Mem.unchanged_on (fun b z => Esrc b z = false) m m')
           nu
+         (VAL: smvalid_src nu m)
          (LB: forall b, locBlocksSrc nu b = true -> locBlocksSrc mu b = false) 
          (PB: forall b, frgnBlocksSrc mu b && locBlocksSrc nu b = true ->
                         pubBlocksSrc nu b = true),
@@ -2065,7 +2067,11 @@ Proof. intros.
   destruct H2. 
   rewrite LB in H; trivial; clear LB.
   rewrite PB in H1; trivial. intuition.
+  destruct H2.
+  apply (VAL b1). unfold DOM, DomSrc. rewrite H0; auto.
 Qed.
+
+
 Lemma RGSrc_multicore': forall mu (WDmu: SM_wd mu) Esrc m m'
          (SrcHyp: forall b ofs, Esrc b ofs = true -> vis mu b = true)
          (Unch: Mem.unchanged_on (fun b z => Esrc b z = false) m m')
