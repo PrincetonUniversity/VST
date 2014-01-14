@@ -26,6 +26,33 @@ Defined.
 
 Set Implicit Arguments.
 
+Definition oval_inject j (v tv : option val) :=
+  match v, tv with
+    | None, None => True
+    | Some v', Some tv' => val_inject j v' tv'
+    | _, _ => False
+  end.
+
+Record injection_closed (Z : Type) (spec : ext_spec Z) :=
+  { P_closed : 
+      forall ef (x : ext_spec_type spec ef) j tys vals z m tvals tm, 
+      ext_spec_pre spec ef x tys vals z m -> 
+      val_list_inject j vals tvals -> 
+      Mem.inject j m tm -> 
+      ext_spec_pre spec ef x tys tvals z tm
+  ; Q_closed : 
+      forall ef (x : ext_spec_type spec ef) j oty ov z m otv tm, 
+      ext_spec_post spec ef x oty ov z m -> 
+      oval_inject j ov otv ->
+      Mem.inject j m tm -> 
+      ext_spec_post spec ef x oty otv z tm 
+  ; exit_closed : 
+      forall j ov z m otv tm,
+      ext_spec_exit spec ov z m -> 
+      oval_inject j ov otv -> 
+      Mem.inject j m tm -> 
+      ext_spec_exit spec otv z tm }.
+
 Definition ef_ext_spec (M Z: Type) := external_specification M AST.external_function Z.
 
 Definition spec_of (M Z: Type) (ef: AST.external_function) (Sigma: ef_ext_spec M Z) :=

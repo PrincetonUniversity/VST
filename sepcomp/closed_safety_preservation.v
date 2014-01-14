@@ -290,6 +290,8 @@ simpl in source_safe.
 rewrite HALT' in source_safe.
 split; auto.
 eapply P_good; eauto.
+apply inject_restrict; auto.
+admit. (*TODO: REACH_closed m (vis j)*)
 }
 {
 destruct H as [cd' [j' [c' [m' [STEPN ?]]]]].
@@ -327,6 +329,7 @@ simpl in H.
 rewrite HALT' in H.
 split; auto.
 eapply P_good; eauto.
+admit. (*REACH_closed*)
 }
 Qed.
 
@@ -484,7 +487,7 @@ Qed.
 Lemma halted_safe: 
   forall c m c' m' (P: val -> mem -> Prop) rv, 
   corestep_star source geS c m c' m' -> 
-  halted source c = Some rv -> 
+  halted source c' = Some rv -> 
   P rv m' -> 
   (forall n, safeN source geS P n c m).
 Proof.
@@ -494,13 +497,12 @@ revert c m H H0.
 induction n0.
 simpl. intros. inv H.
 destruct n; simpl; auto.
-rewrite H0; auto.
-intros.
-simpl in H.
-destruct H as [c2 [m2 [? ?]]].
-apply corestep_not_halted in H.
-rewrite H in H0.
-congruence.
+solve[rewrite H0; auto].
+simpl.
+intros c0 m0 [c2 [m2 [STEP STEPN]]] HALTED.
+apply (safe_corestep_backward _ _ _ _ _ _ _ _ STEP).
+generalize (IHn0 _ _ STEPN HALTED); intros SAFEN.
+solve[apply safe_downward with (n1 := n); auto; omega].
 Qed.
 
 End safety_preservation.
