@@ -16,6 +16,44 @@ Require Import sepcomp.effect_semantics.
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.effect_simulations.
 
+Goal forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
+            (TgtHyp: forall b ofs, Etgt b ofs = true -> 
+                       (Mem.valid_block m2 b /\
+                         (locBlocksTgt mu b = false ->
+                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
+                           Esrc b1 (ofs-delta1) = true /\ Mem.perm m1 b1 (ofs-delta1) Max Nonempty)))
+            (Unch2: Mem.unchanged_on (fun b z => Etgt b z = false) m2 m2')
+            (*(SrcHyp: forall b ofs, Esrc b ofs = true -> vis mu b = true)*)
+            nu (WDnu: SM_wd nu)
+         (X1: forall b, locBlocksTgt nu b = true -> locBlocksTgt mu b = false)
+         (X2: forall b1 b2 d, foreign_of mu b1 = Some(b2, d) -> 
+                              locBlocksSrc nu b1 || locBlocksTgt nu b2 = true ->
+                              pub_of nu b1 = Some(b2,d)),
+   Mem.unchanged_on (fun b2 z => locBlocksTgt nu b2 = true /\ 
+                      forall b1 d, (as_inj nu) b1 = Some (b2,d) ->
+                                 loc_out_of_bounds m1 b1 (z-d)) m2 m2'.
+Proof. intros.
+  eapply mem_unchanged_on_sub; try eassumption; clear Unch2.
+  unfold loc_out_of_bounds; simpl; intros. rename b into b2.
+  case_eq (Etgt b2 ofs); intros; trivial.
+  destruct (TgtHyp _ _ H0) as [VB2 F]; clear TgtHyp.
+  destruct H.
+  specialize (X1 _ H). 
+  destruct (F X1) as [b1 [d1 [Frg [ES P]]]]; clear F.
+  destruct (foreign_DomRng _ WD _ _ _ Frg) as [AA [BB [CC [DD [EE [FF [GG HH]]]]]]].
+  clear DD.
+  (*destruct (SrcHyp _ _ ES); clear SrcHyp.
+    rewrite H2 in *. inv CC.
+  clear H2.*)
+  specialize (X2 _ _ _ Frg). rewrite H in X2.
+  rewrite orb_true_r in X2. specialize (X2 (eq_refl _)). 
+  destruct (H1 b1 d1).
+    apply pub_in_all in X2; trivial.
+  assumption. 
+Qed.
+
+
+
 Lemma FreeEffect_validblock: forall m lo hi sp b ofs
         (EFF: FreeEffect m lo hi sp b ofs = true),
       Mem.valid_block m b.

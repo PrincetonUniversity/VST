@@ -2071,6 +2071,26 @@ Proof. intros.
   apply (VAL b1). unfold DOM, DomSrc. rewrite H0; auto.
 Qed.
 
+Lemma RGSrc_multicore'': forall mu Esrc m m'
+         (SrcHyp: forall b ofs, Esrc b ofs = true -> Mem.valid_block m b -> vis mu b = true)
+         (Unch: Mem.unchanged_on (fun b z => Esrc b z = false) m m')
+          nu
+(*         (VAL: smvalid_src nu m)*)
+         (LB: forall b, locBlocksSrc nu b = true -> locBlocksSrc mu b = false) 
+         (PB: forall b, frgnBlocksSrc mu b && locBlocksSrc nu b = true ->
+                        pubBlocksSrc nu b = true),
+         Mem.unchanged_on (fun b ofs => locBlocksSrc nu b = true /\ 
+                                        pubBlocksSrc nu b = false) m m'.
+Proof. intros.
+  eapply unch_on_validblock; try eassumption.
+  intros b1 ofs VAL H2. simpl.
+  case_eq (Esrc b1 ofs); intros; trivial; simpl in *. 
+  apply SrcHyp in H; trivial. unfold vis in H.  
+  clear Unch SrcHyp.
+  destruct H2. 
+  rewrite LB in H; trivial; clear LB.
+  rewrite PB in H1; trivial. intuition.
+Qed.
 
 Lemma RGSrc_multicore': forall mu (WDmu: SM_wd mu) Esrc m m'
          (SrcHyp: forall b ofs, Esrc b ofs = true -> vis mu b = true)
