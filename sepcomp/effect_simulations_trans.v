@@ -277,6 +277,118 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
     destruct H as [c2 [m2 [mu12 [mu23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
     simpl. apply (match_protected12 _ _ _ _ _ _ MC12 _ H0 H1).*)
  (*initial_core*)
+   (*version where envirnment delivers structured injection:
+     to complete this proof, we'd have to replace the call to 
+     initial_inject_split 3 line down to one to variant that merges 
+     the results of the two lemmas in effect_interpolants, namely
+     effect_interp_II and interpolate_II_strongHeqMKI. That should be possible 
+     but is left as future work.
+   clear - EPC genvs_dom_eq12 core_initial12 genvs_dom_eq23 core_initial23.
+   intros. rename m2 into m3. rename v2 into v3. rename vals2 into vals3. 
+    rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
+    (*assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). 
+      eapply forall_valinject_hastype; eassumption.*)
+    destruct (initial_inject_split _ _ _ H1) 
+       as [m2 [j1 [j2 [J [Inj12 [Inj23 [X [Y [XX YY]]]]]]]]].
+    subst. rewrite J in *.
+    destruct (Forward_simulation_trans.forall_val_inject_split _ _ _ _ H2)
+       as [vals2 [ValsInj12 ValsInj23]].
+    assert (PG1: meminj_preserves_globals g1 j1).
+      clear - X Y XX YY H3 H4.
+      apply meminj_preserves_genv2blocks.
+      apply meminj_preserves_genv2blocks in H3.
+      destruct H3 as [AA [BB CC]].
+      split; intros.
+         specialize (AA _ H).
+         destruct (compose_meminjD_Some _ _ _ _ _ AA)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear AA.
+         destruct (XX _ _ _ J1); subst. trivial.
+      split; intros.
+         specialize (BB _ H).
+         destruct (compose_meminjD_Some _ _ _ _ _ BB)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear BB.
+         destruct (XX _ _ _ J1); subst. trivial.
+      destruct (XX _ _ _ H0); subst. trivial.
+  assert (PG2: meminj_preserves_globals g2 j2).
+    clear - XX YY X Y PG1 H3 genvs_dom_eq12.
+    apply meminj_preserves_genv2blocks.
+     apply meminj_preserves_genv2blocks in H3.
+      destruct H3 as [AA [BB CC]].
+     apply meminj_preserves_genv2blocks in PG1.
+      destruct PG1 as [AA1 [BB1 CC1]].
+      destruct genvs_dom_eq12.
+      split; intros.
+         apply H in H1.
+         specialize (AA1 _ H1). specialize (AA _ H1).
+         destruct (compose_meminjD_Some _ _ _ _ _ AA)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear AA.
+         rewrite J1 in AA1. inv AA1. simpl in D. subst. trivial.
+      split; intros.
+         apply H0 in H1.
+         specialize (BB1 _ H1). specialize (BB _ H1).
+         destruct (compose_meminjD_Some _ _ _ _ _ BB)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear BB.
+         rewrite J1 in BB1. inv BB1. simpl in D. subst. trivial.
+      apply H0 in H1.
+         specialize (BB1 _ H1). specialize (BB _ H1). rename b2 into b3.
+         destruct (compose_meminjD_Some _ _ _ _ _ BB)
+            as [b2 [d1 [d2 [J1 [J2 D]]]]]; subst; clear BB.
+         destruct (XX _ _ _ J1); subst. simpl in D. subst.
+         clear BB1 XX.
+         destruct (YY _ _ _ H2) as [XX | [XX | XX]].
+           apply flatinj_E in XX. destruct XX as [? [? ?]]; subst. trivial.
+           destruct XX as [? ?]; subst.
+             apply (CC _ _ _ H1 H4).
+           destruct XX as [mm [? ?]]; subst.
+             apply (CC _ _ _ H1 H4).
+     exploit (core_initial12 _ _ _ EP12 vals1 _ _ _ vals2 _ H0 Inj12). with (vals2:=vals3); try eassumption.
+         rewrite J. eassumption.
+         rewrite J. eassumption.
+         rewrite J. eassumption.
+         (*eapply forall_valinject_hastype; eassumption.*)
+         intros. eapply H6. 
+              rewrite (genvs_domain_eq_isGlobal _ _ genvs_dom_eq23) in H.
+              assumption.
+       intros [d12 [c2 [Ini2 MC12]]].
+     exploit (core_initial23 _ _ _ EP23 vals2); try eassumption.
+         rewrite J. eassumption.
+         rewrite J. eassumption.
+         rewrite J. eassumption.
+         (*eapply forall_valinject_hastype; eassumption.*)
+         intros. eapply H6. 
+              rewrite (genvs_domain_eq_isGlobal _ _ genvs_dom_eq23) in H.
+              assumption.
+
+        assert (Q: forall b,  isGlobalBlock g2 b || getBlocks vals2 b = true ->
+                   exists jb d, j2 b = Some (jb, d) /\ 
+                           isGlobalBlock g3 jb || getBlocks vals3 jb = true).
+          intros b' Hb'. apply orb_true_iff in Hb'. 
+          destruct Hb' as [Hb' | Hb'].
+            rewrite (meminj_preserves_globals_isGlobalBlock _ _ PG2 _ Hb').
+              exists b', 0.
+              rewrite (genvs_domain_eq_isGlobal _ _ genvs_dom_eq23) in Hb'.
+              rewrite Hb'. intuition.
+          destruct (getBlocks_inject _ _ _  ValsInj23 _ Hb') as [bb [ofs [J2 GB2]]].
+              exists bb, ofs. intuition.
+        specialize (REACH_inject _ _ _ Inj23 
+            (fun b' : block => isGlobalBlock g2 b' || getBlocks vals2 b')
+            (fun b' : block => isGlobalBlock g3 b' || getBlocks vals3 b')
+            Q). intros. as [b3 [d2 [J2 R3]]].
+        rewrite J2.
+        destruct (Y _ _ _ J2) as [b1 [d COMP]].
+        apply (H4 _ _ _ COMP).
+      intros b2 Hb2. remember (j2 b2) as d.
+        destruct d; inv Hb2; apply eq_sym in Heqd. destruct p.
+        eapply Mem.valid_block_inject_1; eassumption.
+      (*eapply forall_valinject_hastype; eassumption.*)
+      intros. destruct (X b1) as [_ J1Comp]. 
+              destruct J1Comp as [b3 [dd COMP]]. exists b2, d; trivial.
+              specialize (H4 _ _ _ COMP).
+              destruct (compose_meminjD_Some _ _ _ _ _ COMP)
+                as [bb2 [dd1 [dd2 [J1 [J2 D]]]]]; subst; clear COMP.
+              rewrite J1 in H; inv H. rewrite J2. apply H4.
+      intros.*)
+ (*initial_core*)
    clear - EPC genvs_dom_eq12 core_initial12 genvs_dom_eq23 core_initial23.
    intros. rename m2 into m3. rename v2 into v3. rename vals2 into vals3. 
     rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].

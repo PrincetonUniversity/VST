@@ -62,6 +62,24 @@ Section Eff_INJ_SIMU_DIAGRAMS.
           meminj_preserves_globals ge1 (extern_of mu) /\
           (forall b, isGlobalBlock ge1 b = true -> frgnBlocksSrc mu b = true).
   
+(*Version if the environment provides structured injections:
+   Hypothesis 
+    core_initial_sm : forall v1 v2 sig,
+       In (v1,v2,sig) entry_points -> 
+       forall vals1 c1 m1 mu vals2 m2,
+          initial_core Sem1 ge1 v1 vals1 = Some c1 ->
+          Mem.inject (as_inj mu) m1 m2 -> 
+          Forall2 (val_inject (as_inj mu)) vals1 vals2 ->
+          meminj_preserves_globals ge1 (as_inj mu) ->
+          SM_wd mu -> sm_valid mu m1 m2 ->
+          (forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> 
+                     DomTgt mu b = true) ->
+       exists c2, 
+            initial_core Sem2 ge2 v2 vals2 = Some c2 /\
+            match_states c1 (mkinitial_SM mu (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))
+                                            (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)))
+                           c1 m1 c2 m2.
+*)
    Hypothesis inj_initial_cores: forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
        forall vals1 c1 m1 j vals2 m2 DomS DomT,
@@ -266,7 +284,12 @@ clear - match_validblocks. intros.
     destruct H; subst. eauto.
 (*clear - match_protected. intros.
     destruct H; subst. eauto. *)
-clear - inj_initial_cores. intros.
+(*version with structured injections
+clear - core_initial_sm. intros.
+    exploit (core_initial_sm _ _ _ H); try eassumption.
+    intros [c2 [INI MS]].
+  exists c1, c2. intuition. *)
+  clear - inj_initial_cores. intros.
     destruct (inj_initial_cores _ _ _ H
          _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 H5 H6 H7)
     as [c2 [INI MS]].

@@ -208,6 +208,14 @@ destruct (GH b); try (right; assumption).
 left. apply joinI_None; assumption.
 Qed.
 
+Lemma join_None_rightneutral: forall j, join j (fun b => None) = j.
+Proof. unfold join; intros. extensionality b.
+  destruct (j b); trivial. destruct p; trivial.
+Qed.
+Lemma join_None_leftneutral: forall j, join (fun b => None) j = j.
+Proof. unfold join; intros. extensionality b. trivial. Qed.
+
+
 (*
 Record shareable_injection := {
    si_blocksL: block -> Prop;

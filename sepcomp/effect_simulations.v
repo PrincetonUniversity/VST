@@ -1445,13 +1445,82 @@ split; intros.
     apply (frgnBlocksExternTgt _ WD _ H).
 Qed.
 
-
 Lemma restrict_sm_preserves_globals: forall {F V} (ge:Genv.t F V) mu X
   (PG : meminj_preserves_globals ge (as_inj mu))
   (Glob : forall b, isGlobalBlock ge b = true -> X b = true),
 meminj_preserves_globals ge (as_inj (restrict_sm mu X)).
 Proof. intros. rewrite restrict_sm_all.
   eapply restrict_preserves_globals; assumption.
+Qed.
+
+Definition mkinitial_SM (mu: SM_Injection) frgnS frgnT :=
+  match mu with 
+  Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern =>
+  Build_SM_Injection (fun b => false) (fun b => false) (fun b => false) (fun b => false) (fun b => None) 
+                     (DomSrc mu) (DomTgt mu) frgnS frgnT (as_inj mu)
+  end. 
+
+Lemma mkinitial_SM_as_inj: forall mu S T,
+  as_inj (mkinitial_SM mu S T) = as_inj mu.
+Proof. intros. destruct mu; simpl. 
+  unfold as_inj; simpl. 
+  apply join_None_rightneutral.
+Qed. 
+Lemma mkinitial_SM_local: forall mu S T,
+  local_of (mkinitial_SM mu S T) = fun b => None.
+Proof. intros. destruct mu; simpl. trivial. Qed. 
+Lemma mkinitial_SM_extern: forall mu S T,
+  extern_of (mkinitial_SM mu S T) = as_inj mu.
+Proof. intros. destruct mu; simpl. trivial. Qed. 
+
+Lemma mkinitial_SM_foreign: forall mu S T b1,
+  foreign_of (mkinitial_SM mu S T) b1 =
+  if S b1 then as_inj mu b1 else None.
+Proof. intros. destruct mu; simpl. trivial. Qed. 
+
+Lemma mkinitial_SM_DomSrc: forall mu S T,
+  DomSrc (mkinitial_SM mu S T) = DomSrc mu.
+Proof. intros. destruct mu; simpl. trivial. Qed.
+Lemma mkinitial_SM_DOM: forall mu S T,
+  DOM (mkinitial_SM mu S T) = DOM mu.
+Proof. intros. destruct mu; simpl. trivial. Qed.
+Lemma mkinitial_SM_DomTgt: forall mu S T,
+  DomTgt (mkinitial_SM mu S T) = DomTgt mu.
+Proof. intros. destruct mu; simpl. trivial. Qed.
+Lemma mkinitial_SM_RBG: forall mu S T,
+  RNG (mkinitial_SM mu S T) = RNG mu.
+Proof. intros. destruct mu; simpl. trivial. Qed. 
+
+Lemma mkinitial_SM_equals_initial_SM: forall mu S T,
+  mkinitial_SM mu S T = initial_SM (DomSrc mu) (DomTgt mu) S T (as_inj mu).
+Proof. intros.
+  unfold initial_SM, mkinitial_SM. 
+  destruct mu; simpl in *.
+  f_equal; trivial.
+Qed.
+
+Lemma mkinitial_SM_ok: forall {F1 V1 F2 V2:Type} 
+        (g1: Genv.t F1 V1) (g2: Genv.t F2 V2) (G:genvs_domain_eq g1 g2)
+        mu (WD: SM_wd mu) 
+        (PG: meminj_preserves_globals g1 (as_inj mu))
+        vals1 vals2 (VALS: Forall2 (val_inject (as_inj mu)) vals1 vals2)
+        m1 m2 (SMV: sm_valid mu m1 m2) (INJ: Mem.inject (as_inj mu) m1 m2)
+        (RchTgt: forall b, REACH m2 (fun b' => isGlobalBlock g2 b' || getBlocks vals2 b') b = true -> DomTgt mu b = true) 
+        nu (NU: nu = mkinitial_SM mu 
+                         (REACH m1 (fun b => isGlobalBlock g1 b || getBlocks vals1 b))
+                         (REACH m2 (fun b => isGlobalBlock g2 b || getBlocks vals2 b))),
+  SM_wd nu /\ sm_valid nu m1 m2 /\ 
+       meminj_preserves_globals g1 (extern_of nu) /\
+       (forall b, isGlobalBlock g1 b = true -> frgnBlocksSrc nu b = true) /\
+       REACH_closed m1 (vis nu) /\
+       REACH_closed m1 (mapped (as_inj nu)).
+Proof. intros. rewrite mkinitial_SM_equals_initial_SM in NU.
+  destruct (@core_initial_wd _ _ _ _ g1 g2 vals1 m1 (as_inj mu) vals2 m2 (DomSrc mu) (DomTgt mu))
+     with (mu0:=nu)
+  as [_ A]; trivial.
+  intros. eapply (as_inj_DomRng); eassumption.
+    intros. eapply SMV. apply H.
+    intros. eapply SMV. apply H.
 Qed.
 
 Module SM_simulation. Section SharedMemory_simulation_inject. 
@@ -1510,6 +1579,23 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
                     REACH m1 (frgnBlocksSrc mu) b = true;
 *)
 
+(*version if the environment provides a structured injection:
+    core_initial_sm : forall v1 v2 sig,
+       In (v1,v2,sig) entry_points -> 
+       forall vals1 c1 m1 mu vals2 m2,
+          initial_core Sem1 ge1 v1 vals1 = Some c1 ->
+          Mem.inject (as_inj mu) m1 m2 -> 
+          Forall2 (val_inject (as_inj mu)) vals1 vals2 ->
+          meminj_preserves_globals ge1 (as_inj mu) ->
+          SM_wd mu -> sm_valid mu m1 m2 ->
+          (forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> 
+                     DomTgt mu b = true) ->
+       exists cd, exists c2, 
+            initial_core Sem2 ge2 v2 vals2 = Some c2 /\
+            match_state cd (mkinitial_SM mu (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))
+                                            (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)))
+                           c1 m1 c2 m2;
+*)
     core_initial : forall v1 v2 sig,
        In (v1,v2,sig) entry_points -> 
        forall vals1 c1 m1 j vals2 m2 DomS DomT,
@@ -1787,6 +1873,82 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 (*The following lemma shows that the incoming memories are injected not only
 by initial_SM, but by locvisible(initial_SM). Lemma halted_loc_check 
 is the counterpart of this. *)
+
+(*version where environment delivers structured injections
+Lemma initial_sm_locvisible: forall (I:SM_simulation_inject) v1 v2 sig,
+  In (v1,v2,sig) entry_points -> 
+       forall vals1 c1 m1 mu vals2 m2,
+          initial_core Sem1 ge1 v1 vals1 = Some c1 ->
+          Mem.inject (as_inj mu) m1 m2 -> 
+          Forall2 (val_inject (as_inj mu)) vals1 vals2 ->
+          meminj_preserves_globals ge1 (as_inj mu) ->
+          SM_wd mu -> sm_valid mu m1 m2 ->
+          (forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> 
+                     DomTgt mu b = true) ->
+       exists cd, exists c2, 
+            initial_core Sem2 ge2 v2 vals2 = Some c2 /\
+            match_state I cd (mkinitial_SM mu (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))
+                                            (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)))
+                           c1 m1 c2 m2 /\
+           Mem.inject (locvisible_of (mkinitial_SM mu (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))
+                                            (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)))) m1 m2.
+Proof. intros.
+   exploit (core_initial_sm I _ _ _ H); try eassumption.
+   intros [cd [c2 [IC MS]]].
+  exists cd, c2.
+  split; trivial.
+  split. trivial.
+  specialize (match_validblocks I _ _ _ _ _ _ MS). intros VB.
+  unfold locvisible_of. simpl.
+  rewrite mkinitial_SM_local, join_None_rightneutral.
+  split.  
+    split; intros; rewrite mkinitial_SM_foreign in *.
+      remember (REACH m1 (fun b' : block => isGlobalBlock ge1 b' || 
+                                            getBlocks vals1 b') b1)
+        as d; destruct d; try discriminate.
+      eapply H1; eassumption.
+      remember (REACH m1 (fun b' : block => isGlobalBlock ge1 b' || 
+                                            getBlocks vals1 b') b1)
+        as d; destruct d; try discriminate.
+      eapply H1; eassumption.
+      remember (REACH m1 (fun b' : block => isGlobalBlock ge1 b' || 
+                                            getBlocks vals1 b') b1)
+        as d; destruct d; try discriminate.
+        specialize (Mem.mi_memval  _ _ _ (Mem.mi_inj _ _ _ H1) _ _ _ _ H7 H8).
+         intros MV; inv MV; try econstructor.
+           rewrite mkinitial_SM_foreign.
+           apply eq_sym in H9. apply eq_sym in Heqd.
+           assert (R: REACH m1 (fun b : block => isGlobalBlock ge1 b || 
+                                             getBlocks vals1 b) b0 = true).
+             eapply REACH_cons; try eassumption.
+           rewrite R; eassumption.
+           trivial.
+    intros. rewrite mkinitial_SM_foreign. 
+       remember (REACH m1 (fun b' : block => isGlobalBlock ge1 b' || 
+                                             getBlocks vals1 b') b)
+          as d; destruct d; trivial; apply eq_sym in Heqd.
+      remember (as_inj mu b) as q. destruct q; trivial. destruct p; apply eq_sym in Heqq.
+       elim H7. eapply H5. eapply as_inj_DomRng; eassumption.
+    intros. rewrite mkinitial_SM_foreign in H7. 
+       remember (REACH m1 (fun b' : block => isGlobalBlock ge1 b' || 
+                                             getBlocks vals1 b') b)
+          as d; destruct d; try discriminate. apply eq_sym in Heqd.
+       eapply H5. eapply as_inj_DomRng; eassumption.
+   intros b1; intros. rewrite mkinitial_SM_foreign in *.
+      remember (REACH m1 (fun b : block => isGlobalBlock ge1 b || 
+                                            getBlocks vals1 b) b1).
+       destruct b; try discriminate.
+         remember (REACH m1 (fun b : block => isGlobalBlock ge1 b || 
+                                              getBlocks vals1 b) b2).
+          destruct b; try discriminate.
+          eapply H1; eassumption.
+   intros. rewrite mkinitial_SM_foreign in *.
+       remember (REACH m1 (fun b' : block => isGlobalBlock ge1 b' || 
+                                             getBlocks vals1 b') b).
+       destruct b0; try discriminate.
+         eapply H1; eassumption.
+Qed.
+*)
 Lemma initial_locvisible: forall (I:SM_simulation_inject) v1 v2 sig,
   In (v1,v2,sig) entry_points -> 
        forall vals1 c1 m1 j vals2 m2 DomS DomT,
