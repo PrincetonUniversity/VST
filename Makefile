@@ -87,8 +87,9 @@ LINKING_FILES= \
   cast.v \
   wf_lemmas.v \
   core_semantics_lemmas.v \
-  domain_inv.v \
+  pred_lemmas.v \
   sminj_lemmas.v \
+  domain_inv.v \
   linking.v \
   linking_lemmas.v \
   linking_sim.v
