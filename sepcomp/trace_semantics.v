@@ -30,10 +30,10 @@ End Event.
 
 Module TraceSemantics. Section trace_semantics.
 
-Context {G C Z : Type}.
+Context {G C : Type}.
 
 Variable sem : @EffectSem G C.
-Variable Hspec : ext_spec Z.
+Variable spec : ext_spec unit.
 Variable Espec : effect_spec.
 
 Inductive effstep : 
@@ -45,11 +45,13 @@ Inductive effstep :
   effstep_plus sem ge U c m c' m' -> 
   effstep ge U (tr,c) m (tr,c') m'
 | trace_extstep : 
-  forall ge U tr c m c' m' ef sig args rv,
+  forall ge U tr c m c' m' ef sig args rv x,
   at_external sem c = Some (ef, sig, args) -> 
   (forall b ofs, Mem.valid_block m b -> Espec ef args m b ofs=true -> U b ofs=true) -> 
   Mem.unchanged_on (fun b ofs => U b ofs = false) m m' ->   
   mem_forward m m' -> 
+  ext_spec_pre spec ef x (sig_args sig) args tt m -> 
+  ext_spec_post spec ef x (sig_res sig) rv tt m' -> 
   after_external sem rv c = Some c' -> 
   effstep ge U (tr,c) m (Event.mk m m' args rv :: tr,c') m'.
 
@@ -112,7 +114,7 @@ apply unch_on_validblock with (V := fun b ofs => U b ofs=false); auto.
 intros.
 case_eq (U b ofs); auto.
 intros A.
-generalize (H _ _ H5 A); congruence.
+generalize (H _ _ H7 A); congruence.
 Qed.
 
 Program Definition effsem : @EffectSem G (list Event.t*C) :=
