@@ -810,8 +810,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
       INC SEP nu12_valid nu23_valid)
      as [m2' [nu12' [nu23' [X [Incr12 [Incr23 [MInj12'
         [Fwd2 [MInj23' [Sep12 [Sep23 [nu12'valid
-        [nu23'valid [GLUEINV' [Norm' [UnchMidA
-        [UnchMidB UnchMidC]]]]]]]]]]]]]]]]]; simpl in *.
+        [nu23'valid [GLUEINV' [Norm' [UnchMidA UnchMidB]]]]]]]]]]]]]]]]; simpl in *.
     (*discharge the unchOn application conditions*)
        subst; apply UnchPrivSrc.
        subst. apply UnchLOOR13. 
@@ -853,7 +852,65 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
         rewrite compose_sm_local in LOC.
           destruct (compose_meminjD_Some _ _ _ _ _ LOC) as [bb2 [dd1 [dd2 [E1 [E2 D]]]]].
           destruct (disjoint_extern_local _ WDmu12 b1); congruence.
-           
+  assert (UnchMidC : Mem.unchanged_on (local_out_of_reach (replace_locals mu23 pubSrcMid' pubTgt') m2) m3 m3').
+    clear - WDmu23 HeqpubTgtMid' HeqpubSrcMid' MinjNu12 UnchLOOR13 WDnu12 NU pubSrcHyp Heqnmu12 HeqRESTR GLUEINV.
+    subst nmu12.
+    remember (replace_locals (restrict_sm mu12 RESTR) pubSrc' pubTgtMid') as kappa12.
+    remember (replace_locals mu23 pubSrcMid' pubTgt') as kappa23.
+    assert (GluePubKappa : forall b : block,
+          pubBlocksTgt kappa12 b = true -> pubBlocksSrc kappa23 b = true).
+       clear UnchLOOR13 WDnu12 MinjNu12.
+       subst kappa12 kappa23. rewrite replace_locals_pubBlocksSrc, replace_locals_pubBlocksTgt.
+       subst. rewrite restrict_sm_locBlocksTgt; intros; trivial.
+              apply andb_true_iff in H. destruct H.
+              destruct GLUEINV as [Ga [Gb [Gc Gd]]]. rewrite Ga in H.
+              rewrite H; simpl.
+              eapply REACH_mono; try eassumption.
+              unfold exportedTgt, exportedSrc, sharedTgt. rewrite sharedSrc_iff_frgnpub.
+              rewrite restrict_sm_frgnBlocksTgt, restrict_sm_pubBlocksTgt.
+              intros. do 2 rewrite orb_true_iff in H1.
+                do 2 rewrite orb_true_iff. intuition.
+           assumption.
+    clear Heqkappa12 Heqkappa23 GLUEINV.
+    subst.
+    unfold local_out_of_reach.
+    split; intros; rename b into b3.
+      destruct H as[locTgt3 LOOR23].
+      eapply UnchLOOR13; trivial; simpl. 
+        split; simpl; trivial.
+        intros b1; intros; simpl in *. 
+        remember (pubBlocksSrc kappa12 b1) as d.
+        destruct d; try (right; reflexivity).
+        left. apply eq_sym in Heqd.
+        destruct (compose_meminjD_Some _ _ _ _ _ H)
+          as [b2 [d1 [d2 [LOC1 [LOC2 D]]]]]; subst; clear H.
+        destruct (pubSrc _ WDnu12 _ Heqd) as [bb2 [dd1 [Pub12 PubTgt2]]].
+        rewrite (pub_in_local _ _ _ _ Pub12) in LOC1. inv LOC1.
+        apply GluePubKappa in PubTgt2.
+        destruct (LOOR23 _ _ LOC2); clear LOOR23.
+          intros N. apply H.
+          assert (Arith : ofs - (d1 + d2) + d1 = ofs - d2) by omega.
+          rewrite <- Arith.
+          eapply MinjNu12. eapply pub_in_all; try eassumption. apply N.
+        rewrite H in PubTgt2. discriminate.
+    destruct H as[locTgt3 LOOR23].
+      eapply UnchLOOR13; trivial; simpl. 
+        split; trivial.
+        intros b1; intros; simpl in *.
+        remember (pubBlocksSrc kappa12 b1) as d.
+        destruct d; try (right; reflexivity).
+        left. apply eq_sym in Heqd.
+        destruct (compose_meminjD_Some _ _ _ _ _ H)
+          as [b2 [d1 [d2 [LOC1 [LOC2 D]]]]]; subst; clear H.
+        destruct (pubSrc _ WDnu12 _ Heqd) as [bb2 [dd1 [Pub12 PubTgt2]]].
+        rewrite (pub_in_local _ _ _ _ Pub12) in LOC1. inv LOC1.
+        apply GluePubKappa in PubTgt2.
+        destruct (LOOR23 _ _ LOC2); clear LOOR23.
+          intros N. apply H.
+          assert (Arith : ofs - (d1 + d2) + d1 = ofs - d2) by omega.
+          rewrite <- Arith.
+          eapply MinjNu12. eapply pub_in_all; try eassumption. apply N.
+        rewrite H in PubTgt2. discriminate.
   (*next, prepare for application of eff_after_external12*)
   destruct GLUEINV' as [WDnu12' [WDnu23' [GLUEa' [GLUEb' [GLUEc' GLUEd']]]]].
   assert (exists ret2, val_inject (as_inj nu12') ret1 ret2 /\ 

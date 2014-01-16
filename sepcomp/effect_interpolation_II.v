@@ -341,7 +341,7 @@ Lemma effect_interp_OK: forall m1 m2 nu12
      Mem.unchanged_on (fun b ofs => locBlocksSrc nu23 b = true /\ 
                                     pubBlocksSrc nu23 b = false) m2 m2' /\
      Mem.unchanged_on (local_out_of_reach nu12 m1) m2 m2' /\
-     Mem.unchanged_on (local_out_of_reach nu23 m2) m3 m3' /\
+(*     Mem.unchanged_on (local_out_of_reach nu23 m2) m3 m3' /\*)
      exists (nu12' nu23':SM_Injection), 
            nu12'  = (convertL nu12 (removeUndefs (as_inj nu12) (as_inj nu') prej12')
                     (*FreshSrc:*) (fun b => andb (DomSrc nu' b) (negb (DomSrc nu12 b)))
@@ -544,8 +544,10 @@ assert (UNCHB: Mem.unchanged_on (local_out_of_reach nu12 m1) m2 m2').
           exfalso. 
           apply Mem.perm_valid_block in H0. contradiction.
 split; trivial.
+
 assert (UNCHC: Mem.unchanged_on (local_out_of_reach nu23 m2) m3 m3').
   (*third UnchOn condition - corresponds to UnchLOOR3*)
+   clear - UnchLOOR13 WDnu12 GluePub MInj12.
    unfold local_out_of_reach.
    split; intros; rename b into b3.
       destruct H as[locTgt3 LOOR23].
@@ -584,7 +586,7 @@ assert (UNCHC: Mem.unchanged_on (local_out_of_reach nu23 m2) m3 m3').
           rewrite <- Arith.
           eapply MInj12. eapply pub_in_all; try eassumption. apply N.
         rewrite H in PubTgt2. discriminate.
-split; trivial.
+(*split; trivial.*)
 assert (VBj23': forall b2 b3 d2, j23' b2 = Some(b3,d2) -> Mem.valid_block m2' b2).
     assert (Val2: forall b2 b3 d2, as_inj nu23 b2 = Some(b3,d2) -> Mem.valid_block m2 b2).
        intros. eapply SMV23. eapply as_inj_DomRng; eassumption.
@@ -3118,7 +3120,7 @@ Lemma EFF_interp_II_strong: forall m1 m2 nu12
                               Mem.unchanged_on (fun b ofs => locBlocksSrc nu23 b = true /\ 
                                                              pubBlocksSrc nu23 b = false) m2 m2' /\
                               Mem.unchanged_on (local_out_of_reach nu12 m1) m2 m2' /\
-                              Mem.unchanged_on (local_out_of_reach nu23 m2) m3 m3' /\
+                 (*             Mem.unchanged_on (local_out_of_reach nu23 m2) m3 m3' /\*)
                    (forall b1 b2 d1, as_inj nu12' b1 = Some(b2,d1) -> 
                        as_inj nu12 b1 = Some(b2,d1) \/
                        exists b3 d, as_inj nu' b1 = Some(b3,d)) /\
@@ -3192,9 +3194,9 @@ destruct HH as [? [? [? [? ?]]]]. subst.
       (mkEFF nu23 nu12 (as_inj nu23) (as_inj nu12) m1 m1' m2
                   (MINMAX_Offset nu12 (as_inj nu12) m1' m2)
                (MINMAX nu12 (as_inj nu12) m1' m2 inc12 VB1' JJ12) WDnu12 _ (Pos.le_refl _) VBj12_2))
-     as [unchA [unchB [unchC [nu12' [nu23' [Hnu12' [Hnu23'
+     as [unchA [unchB (*[unchC*) [nu12' [nu23' [Hnu12' [Hnu23'
            [Hnu' [extInc12 [extInc23 [smSep12 [smSep23
-             [smvNu12' [smvNu23' [Glue123 [Ext123 [Fwd2 [MInjNu12' InjNu23']]]]]]]]]]]]]]]]]].
+             [smvNu12' [smvNu23' [Glue123 [Ext123 [Fwd2 [MInjNu12' InjNu23']]]]]]]]]]]]]]]]].
    (*discharge application condition "nextblock" *)
      unfold mkEFF. 
      destruct (mkAccessMap_EFF_existsT nu23 nu12 (as_inj nu23) (as_inj nu12) m1 m1' m2 (Mem.nextblock m2)
@@ -3332,7 +3334,7 @@ destruct HH as [? [? [? [? ?]]]]. subst.
   split; trivial.
   split; trivial.
   split; trivial.
-  split; trivial.
+(*  split; trivial.*)
   split; intros.
     clear - H1 extInc12 Hnu12' Glue123.
     remember (as_inj nu12 b1) as d.
@@ -3465,9 +3467,9 @@ destruct HH as [N [? [? [? ?]]]]. subst.
                (MINMAX nu12 (removeUndefs (as_inj nu12) (as_inj nu') j12')
                     m1' m2 INC12RU VB1' JJ12)
                 WDnu12 _ VB2 VBj12'_2))
-       as [unchA [unchB [unchC [nu12' [nu23' [Hnu12' [Hnu23'
+       as [unchA [unchB (*[unchC*) [nu12' [nu23' [Hnu12' [Hnu23'
            [Hnu' [extInc12 [extInc23 [smSep12 [smSep23
-             [smvNu12' [smvNu23' [Glue123 [Ext123 [Fwd2 [MInjNu12' InjNu23']]]]]]]]]]]]]]]]]].
+             [smvNu12' [smvNu23' [Glue123 [Ext123 [Fwd2 [MInjNu12' InjNu23']]]]]]]]]]]]]]]]].
    (*discharge application condition "nextblock" *)
      unfold mkEFF. 
      destruct (mkAccessMap_EFF_existsT nu23 nu12 j23'
@@ -3683,7 +3685,7 @@ destruct HH as [N [? [? [? ?]]]]. subst.
   split; trivial.
   split; trivial.
   split; trivial.
-  split; trivial.
+(*  split; trivial.*)
   split; intros.
     clear - H0 extInc12 Hnu12' Glue123.
     remember (as_inj nu12 b1) as d.
@@ -3807,77 +3809,12 @@ Lemma EFF_interp_II: forall m1 m2 nu12
                                      exists b3 d2, extern_of nu23' b2 = Some(b3, d2)) /\ 
                               Mem.unchanged_on (fun b ofs => locBlocksSrc nu23 b = true /\ 
                                                              pubBlocksSrc nu23 b = false) m2 m2' /\
-                              Mem.unchanged_on (local_out_of_reach nu12 m1) m2 m2' /\
-                              Mem.unchanged_on (local_out_of_reach nu23 m2) m3 m3'.
+                              Mem.unchanged_on (local_out_of_reach nu12 m1) m2 m2' 
+                          (* /\ Mem.unchanged_on (local_out_of_reach nu23 m2) m3 m3'*).
 Proof. intros.
   destruct (EFF_interp_II_strong _ _ _ MInj12 _ Fwd1 _ _ MInj23 _ 
               Fwd3 _ WDnu' SMvalNu' MemInjNu' ExtIncr SMInjSep
               SMV12 SMV23 UnchPrivSrc UnchLOOR13 GlueInvNu Norm12)
-  as [m2' [nu12' [nu23' [A [B [C [D [E [F [G [H [I [J [K [L [M [N [P _]]]]]]]]]]]]]]]]]].
+  as [m2' [nu12' [nu23' [A [B [C [D [E [F [G [H [I [J [K [L [M [N P]]]]]]]]]]]]]]]]].
   exists m2', nu12', nu23'. intuition.
-Qed.
-
-Goal (* eff_II_ok_CHEAT:*) forall m1 m2 nu12 (MInj12 : Mem.inject (as_inj nu12) m1 m2) m1'
-                             (Fwd1: mem_forward m1 m1') nu23 m3
-                             (MInj23 : Mem.inject (as_inj nu23) m2 m3) m3'
-                             (Fwd3: mem_forward m3 m3')
-                              nu' (WDnu' : SM_wd nu')
-                             (SMvalNu' : sm_valid nu' m1' m3')
-                             (MemInjNu' : Mem.inject (as_inj nu') m1' m3')
-                             
-                             (ExternIncr: extern_incr (compose_sm nu12 nu23) nu')
-                             (InjSep: sm_inject_separated (compose_sm nu12 nu23) nu' m1 m3)
-                             (SMV12: sm_valid nu12 m1 m2)
-                             (SMV23: sm_valid nu23 m2 m3)
-                             (GlueInvNu: SM_wd nu12 /\ SM_wd nu23 /\
-                                         locBlocksTgt nu12 = locBlocksSrc nu23 /\
-                                         extBlocksTgt nu12 = extBlocksSrc nu23 /\
-                                         (forall b, pubBlocksTgt nu12 b = true -> 
-                                                    pubBlocksSrc nu23 b = true) /\
-                                         (forall b, frgnBlocksTgt nu12 b = true -> 
-                                                    frgnBlocksSrc nu23 b = true))
-               prej12' j23' n1' n2'
-               (HeqMKI: mkInjections m1 m1' m2 (as_inj nu12) (as_inj nu23) (as_inj nu') = 
-                            (prej12', j23', n1', n2'))
-               j12' (Hj12': j12'= removeUndefs (as_inj nu12) (as_inj nu') prej12')
-               m2'
-               (NB: m2'.(Mem.nextblock)=n2')
-               (CONT:  Content_II_Property (as_inj nu12) j12' j23' m1 m1' m2 
-                                           (m2'.(Mem.mem_contents)))
-               (ACCESS: AccessMap_II_Property (as_inj nu12) (as_inj nu23) j12' m1 m1' m2 
-                                               (m2'.(Mem.mem_access))),
-          (as_inj nu') =compose_meminj j12' j23' /\
-               inject_incr (as_inj nu12) j12' /\ inject_incr (as_inj nu23) j23' /\
-
-               Mem.inject j12' m1' m2' /\ mem_forward m2 m2' /\
-               Mem.inject j23' m2' m3' /\
-                     inject_separated (as_inj nu12) j12' m1 m2 /\
-                     inject_separated (as_inj nu23) j23' m2 m3.
-Proof. intros.
-assert (InjIncr: inject_incr (compose_meminj (as_inj nu12) (as_inj nu23)) (as_inj nu')).
-  subst. apply extern_incr_inject_incr; eassumption.
-assert (Sep: inject_separated (compose_meminj (as_inj nu12) (as_inj nu23)) (as_inj nu') m1 m3).
-  subst. clear CONT ACCESS HeqMKI.
-  apply sm_inject_separated_mem in InjSep.  
-  rewrite compose_sm_as_inj in InjSep.
-    assumption.
-    eapply GlueInvNu.
-    eapply GlueInvNu.
-    eapply GlueInvNu.
-    eapply GlueInvNu.
-    assumption.
-assert (CHEAT_Unch1: Mem.unchanged_on (loc_unmapped (compose_meminj (as_inj nu12) (as_inj nu23))) m1 m1').
-           admit. (*admit is OK - it's only a "goal"*)
-assert (CHEAT_Unch2: Mem.unchanged_on (loc_out_of_reach (compose_meminj (as_inj nu12) (as_inj nu23)) m1) m3 m3').
-           admit. (*admit is OK - it's only a "goal"*)
-specialize (II_ok _ _ _ MInj12 _ Fwd1 _ _ MInj23 _ Fwd3 _ MemInjNu' 
-  InjIncr Sep CHEAT_Unch1 CHEAT_Unch2 _ _ _ _ HeqMKI
-  _ Hj12' _ NB CONT ACCESS). intros.
-split; try eapply H.
-split; try eapply H.
-split; try eapply H.
-split; try eapply H.
-split; try eapply H.
-split; try eapply H.
-split; try eapply H.
 Qed.

@@ -59,8 +59,10 @@ Parameter effect_interp_II: forall m1 m2 nu12
                                      exists b3 d2, extern_of nu23' b2 = Some(b3, d2)) /\ 
                               Mem.unchanged_on (fun b ofs => locBlocksSrc nu23 b = true /\ 
                                                              pubBlocksSrc nu23 b = false) m2 m2' /\
-                              Mem.unchanged_on (local_out_of_reach nu12 m1) m2 m2' /\
-                              Mem.unchanged_on (local_out_of_reach nu23 m2) m3 m3'.
+                              Mem.unchanged_on (local_out_of_reach nu12 m1) m2 m2' (* /\
+                              the following fact is not any longer exported, since it can be established 
+                              outside of interpolation, in the transitivioty proof:
+                              Mem.unchanged_on (local_out_of_reach nu23 m2) m3 m3'*).
 
 (*The following lemma from mem_interpolation (pre- structured-injection! is used in the proof of
   Lemma initial_inject_split in effect_simulations_trans. Prior to reintegrating global environments,
