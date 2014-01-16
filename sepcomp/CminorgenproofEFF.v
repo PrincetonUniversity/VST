@@ -66,7 +66,7 @@ Record match_env (f: meminj) (cenv: compilenv)
       exists id, exists sz, PTree.get id e = Some(b, sz)
 
 
-(*; MOVED TO structured_match_callstack below 
+(*LENB: MOVED TO structured_match_callstack below
     me_incr:
       forall b tb delta,
       f b = Some(tb, delta) -> Plt b lo -> Plt tb sp*)
@@ -91,6 +91,7 @@ Proof.
 (* below 
   intros. rewrite H2 in H; eauto.*)
 Qed.
+
 Lemma match_env_restrict_invariant:
   forall f1 cenv e sp lo hi f2 (WD1: SM_wd f1) (WD2: SM_wd f2)
   (ME: match_env (restrict (as_inj f1) (vis f1)) cenv e sp lo hi)
@@ -191,7 +192,6 @@ Proof.
        elim H5. apply H3.
 Qed.
 
-
 Inductive structured_match_callstack mu (m: mem) (tm: mem):
                           callstack -> Values.block -> Values.block -> Prop :=
   | st_mcs_nil:
@@ -209,7 +209,7 @@ Inductive structured_match_callstack mu (m: mem) (tm: mem):
         (PERM: padding_freeable (restrict (as_inj mu) (vis mu)) e tm sp tf.(fn_stackspace))
         (SPlocal: locBlocksTgt mu sp = true) (*NEW*)
 
-        (*Here is the condition me_incr from match_env above,
+        (*LENB: Here is the condition me_incr from match_env above,
            but we assert it on the entire as_inj mu*)
         (ME_INCR: forall b tb delta,
                (as_inj mu) b = Some(tb, delta) -> Plt b lo -> Plt tb sp)
@@ -529,9 +529,9 @@ induction cs; intros bound HBound tbound MCS HTbound.
       xomega.
 Qed.
 
-(*We omit the clauses INJ and PG, since they are required for the enitre mu, 
-  not just restrict mu (vis mu), and hence better enforced uniformly 
-  in definition MatchCore below*)
+(*LENB: We omit the clauses INJ and PG, since they are required for the 
+  enitre mu, not just restrict mu (vis mu), and hence better enforced 
+  uniformly in definition MatchCore below*)
 Inductive structured_match_cores: core_data -> SM_Injection -> CSharpMin_core -> mem -> CMin_core -> mem -> Prop :=
   | SMC_states:
       forall d fn s k e le m tfn ts tk sp te tm cenv xenv mu lo hi cs sz
@@ -862,7 +862,7 @@ exists (st1' : CSharpMin_core) (st2' : CMin_core),
   Match_cores st1' mu' st1' m1' st2' m2'.
 Proof. intros. 
  destruct MatchMu as [MC [RC [PG [GF [VAL [WDmu INJ]]]]]].
- (*assert (PGG: meminj_preserves_globals (Genv.globalenv prog)
+ (*assert (PGR: meminj_preserves_globals (Genv.globalenv prog)
                   (restrict (as_inj mu) (vis mu))).
       eapply restrict_preserves_globals; try eassumption.
         unfold vis; intuition.*)
@@ -874,7 +874,6 @@ Proof. intros.
     split. reflexivity.
   simpl in *.
 inv TR.
-(*rename PG0 into PGRestrictMu.*)
 assert (INCvisNu': inject_incr
   (restrict (as_inj nu')
      (vis
@@ -1337,49 +1336,6 @@ Proof.
 (* incr 
   intros. rewrite OTHER in H. eauto. unfold block in *; xomega.*)
 Qed.
-(*
-Lemma match_env_alloc_restr:
-  forall mu1 id cenv e sp lo m1 sz m2 b ofs mu2 (WD2: SM_wd mu2),
-  match_env (restrict (as_inj mu1) (PTree.remove id cenv) e sp lo (Mem.nextblock m1) ->
-  Mem.alloc m1 0 sz = (m2, b) ->
-  cenv!id = Some ofs ->
-  intern_incr mu1 mu2 ->
-  as_inj mu2 b = Some(sp, ofs) ->
-  (forall b', b' <> b -> as_inj mu2 b' = as_inj mu1 b') ->
-  e!id = None ->
-  match_env (as_inj mu2) cenv (PTree.set id (b, sz) e) sp lo (Mem.nextblock m2).
-Proof.
-  intros until mu2; intros WD2 ME ALLOC CENV INCR SAME OTHER ENV.
-  exploit Mem.nextblock_alloc; eauto. intros NEXTBLOCK.
-  exploit Mem.alloc_result; eauto. intros RES.
-  inv ME; constructor.
-(* vars *)
-  intros. rewrite PTree.gsspec. destruct (peq id0 id).
-  (* the new var *)
-  subst id0. rewrite CENV. constructor. econstructor. eauto. 
-  rewrite Int.add_commut; rewrite Int.add_zero; auto.
-  (* old vars *)
-  generalize (me_vars0 id0). rewrite PTree.gro; auto. intros M; inv M.
-  constructor.
-    inv H1. apply (intern_incr_as_inj _ _ INCR) in H5; trivial.
-            econstructor; eassumption.
-  constructor. 
-(* low-high *)
-  rewrite NEXTBLOCK; xomega.
-(* bounded *)
-  intros. rewrite PTree.gsspec in H. destruct (peq id0 id).
-  inv H. rewrite NEXTBLOCK; xomega.
-  exploit me_bounded0; eauto. rewrite NEXTBLOCK; xomega.
-(* inv *)
-  intros. destruct (eq_block b (Mem.nextblock m1)).
-  subst b. rewrite SAME in H; inv H. exists id; exists sz. apply PTree.gss. 
-  rewrite OTHER in H; auto. exploit me_inv0; eauto. 
-  intros [id1 [sz1 EQ]]. exists id1; exists sz1. rewrite PTree.gso; auto. 
-    intros N. subst id1. rewrite EQ in ENV. discriminate.
-(* incr 
-  intros. rewrite OTHER in H. eauto. unfold block in *; xomega.*)
-Qed.
-*)
 
 Lemma structured_match_callstack_alloc_left:
   forall mu1 m1 tm id cenv tf e lenv te sp lo cs sz m2 b mu2 ofs
@@ -1450,10 +1406,10 @@ Proof.
           intros N; subst. clear - LO H6. xomega.   
   eapply (structured_match_callstack_intern_invariant mu1) with (m1 := m1); eauto. 
   intros. eapply Mem.perm_alloc_4; eauto.
-    (*idea why old proof unfold block in *; xomega. doesn't work here any more*)
+    (*no idea why old proof unfold block in *; xomega. doesn't work here any more*)
     intros N; subst. clear - LO H.  xomega.
   intros. apply H4. 
-    (*idea why old proof unfold block in *; xomega. doesn't work here any more*)
+    (*no idea why old proof unfold block in *; xomega. doesn't work here any more*)
     intros N; subst. clear - LO H.  xomega. 
   intros. destruct (eq_block b0 b). 
   subst b0. rewrite H3 in H. inv H. xomegaContradiction. 
@@ -1570,7 +1526,7 @@ Proof.
       intros N. eapply CC; try eassumption.
 Qed.
 
-(*Lemma is modified - we need to put sp into locBlocksTgt mu*)
+(*LENB: Lemma is modified - we need to put sp into locBlocksTgt mu*)
 Lemma structured_match_callstack_alloc_right:
   forall mu cenv m tm cs tf tm' sp le te (WD: SM_wd mu) (SMV: sm_valid mu m tm),
   structured_match_callstack mu m tm cs (Mem.nextblock m) (Mem.nextblock tm) ->
@@ -1651,7 +1607,7 @@ Lemma MS_structured_match_callstack_alloc_variables_aux:
   /\ Mem.inject (as_inj mu') m2 tm2
   /\ intern_incr mu mu'
 (****************The following three conditions are new******************)
-(* In the third clause, we now stepfrom  m' to m, and also from f' to f and from tm' to tm******************)
+(* In the third clause, we now step from  m' to m, and also from f' to f and from tm' to tm******************)
   /\ (forall b, Mem.valid_block m1 b -> (as_inj mu') b = (as_inj mu) b)
   /\ (forall b b' d', as_inj mu b = None -> as_inj mu' b = Some (b',d') -> b' = sp)
   /\ sm_locally_allocated mu mu' m1 tm1 m2 tm2
@@ -1951,7 +1907,7 @@ Lemma MS_step_case_SkipSeq: forall
 (MK : match_cont (Csharpminor.Kseq s k) tk cenv xenv cs),
 exists st2' : CMin_core, 
   exists m2' mu',
-   corestep_plus cmin_core_sem tge
+   corestep_plus CMin_core_sem tge
      (CMin_State tfn Sskip tk (Vptr sp Int.zero) te) tm st2' m2' 
   /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
@@ -2386,7 +2342,7 @@ Lemma MS_step_case_Ite: forall
 (EQ0 : transl_stmt cenv xenv s2 = OK x2),
 exists c2' : CMin_core,
   exists m2' mu',
-        corestep_plus cmin_core_sem tge
+        corestep_plus CMin_core_sem tge
      (CMin_State tfn (Sifthenelse x x1 x2) tk (Vptr sp Int.zero) te) tm c2' m2' /\
      intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
@@ -2423,7 +2379,7 @@ Lemma MS_step_case_Loop: forall
 (EQ : transl_stmt cenv xenv s = OK x),
 exists c2' : CMin_core,
   exists m2' mu',
-      corestep_plus cmin_core_sem tge
+      corestep_plus CMin_core_sem tge
      (CMin_State tfn (Sloop x) tk (Vptr sp Int.zero) te) tm c2' m2' /\
      intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
@@ -2458,7 +2414,7 @@ Lemma MS_step_case_Block: forall
 (EQ : transl_stmt cenv (true :: xenv) s = OK x),
 exists c2' : CMin_core,
   exists m2' mu',
-        corestep_plus cmin_core_sem tge
+        corestep_plus CMin_core_sem tge
            (CMin_State tfn (Sblock x) tk (Vptr sp Int.zero) te) tm c2' m2' /\
      intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
@@ -2537,7 +2493,7 @@ Lemma MS_step_case_ExitBlockZero: forall
 (MK : match_cont (Csharpminor.Kblock k) tk cenv xenv cs),
 exists c2' : CMin_core,
   exists m2' mu',
-   corestep_plus cmin_core_sem tge
+   corestep_plus CMin_core_sem tge
      (CMin_State tfn (Sexit (shift_exit xenv 0)) tk (Vptr sp Int.zero) te) tm c2' m2'
   /\ Match_cores (CSharpMin_State f Csharpminor.Sskip k e lenv) mu'
     (CSharpMin_State f Csharpminor.Sskip k e lenv) m c2' m2'
@@ -2576,7 +2532,7 @@ Lemma MS_step_case_ExitBlockNonzero: forall
  n (MK : match_cont (Csharpminor.Kblock k) tk cenv xenv cs),
 exists c2' : CMin_core,
   exists m2' mu',
-        corestep_plus cmin_core_sem tge
+        corestep_plus CMin_core_sem tge
      (CMin_State tfn (Sexit (shift_exit xenv (S n))) tk (Vptr sp Int.zero) te) tm c2' m2' /\ 
        Match_cores (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) mu'
     (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) m c2' m2'
@@ -2617,7 +2573,7 @@ Lemma MS_switch_MSI: forall
     (MK: match_cont k tk cenv xenv cs)
     (TK: transl_lblstmt_cont cenv xenv ls tk tk'),
   exists S, exists m2' mu',
-  corestep_plus cmin_core_sem  tge (CMin_State tfn (Sexit O) tk' (Vptr sp Int.zero) te) tm S m2'
+  corestep_plus CMin_core_sem  tge (CMin_State tfn (Sexit O) tk' (Vptr sp Int.zero) te) tm S m2'
   /\ Match_cores (CSharpMin_State f (seq_of_lbl_stmt ls) k e lenv) mu'
                  (CSharpMin_State f (seq_of_lbl_stmt ls) k e lenv) m
                  S m2'
@@ -2671,7 +2627,7 @@ Lemma MS_step_case_Switch: forall
       OK ts),
 exists c2' : CMin_core,
   exists m2' mu',
-          corestep_plus cmin_core_sem tge
+          corestep_plus CMin_core_sem tge
              (CMin_State tfn ts tk (Vptr sp Int.zero) te) tm c2' m2' /\
          Match_cores (CSharpMin_State f (seq_of_lbl_stmt (select_switch n cases)) k e lenv) mu'
     (CSharpMin_State f (seq_of_lbl_stmt (select_switch n cases)) k e lenv) m c2' m2'
@@ -2713,10 +2669,6 @@ Lemma Match_corestep: forall st1 m1 st1' m1'
             corestep_star cmin_eff_sem tge st2 m2 st2' m2').
 Proof.
   intros. unfold core_data in *.
-   (*destruct (CSharpMin_corestep_2_CompCertStep _ _ _ _ _ CS1) as [t Ht].
-   simpl in *.
-   apply CSharpMin_corestep_not_at_external in CS1.
-   inv Ht; simpl in *.*)
    inv CS1.
   (*skip seq*)
       destruct MC as [SMC PRE].
@@ -4402,9 +4354,9 @@ assert (GDE: genvs_domain_eq ge tge).
 (* Match_corestep*)
   { apply Match_corestep. }
 (* Match_effect_diagram *)
-  { admit. (* ok - we're not proving the Match_effect_diagram clause*)}
+  { admit. (*admit is ok - we're instead proving the stronger effcore_diagram_strong_perm*)}
 (* effcore_diagram_strong*)
-  { admit. (* ok - we're not proving the _diagram_strong clause*) }
+  { admit. (*admit is ok - we're instead proving the stronger effcore_diagram_strong_perm*) }
 (* effcore_diagram_strong_perm*)
   { apply Match_eff_diagram_strong_perm. }
 Qed.

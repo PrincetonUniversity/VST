@@ -225,48 +225,6 @@ Inductive CMin_corestep (ge : genv) : CMin_core -> mem -> CMin_core -> mem -> Pr
       CMin_corestep ge (CMin_Returnstate v (Kcall optid f sp e k)) m
        (CMin_State f Sskip k sp (set_optvar optid v e)) m.
 
-(*
-Definition CMin_corestep (ge : genv)  (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem) : Prop.
-  destruct q; destruct q'.
-  (*State - State*)
-       apply (exists t, Cminor.step ge (State f s k sp e m)  t (State f0 s0 k0 sp0 e0 m')).
-  (*State - Callstate: two cases: step_call, step_tailcall*)
-       apply (exists t, Cminor.step ge (State f s k sp e m)  t (Callstate f0 args k0 m')).
-  (*State - Returnstate - three cases: step_skip_call, step_return_0, step_return_1*)
-       apply (exists t, Cminor.step ge (State f s k sp e m)  t (Returnstate v k0 m')).
-  (*Callstate - State: only case: step_internal_function*)
-       apply (match f with
-                Internal ff => 
-                  exists t, Cminor.step ge (Callstate f args k m) t (State f0 s k0 sp e m')
-              | External _ => False
-              end).
-  (*Callstate - Callstate: no case*)
-       apply False.
-  (*Callstate - Returnstate: one case: step_external_function : we don't want this as a step in this semantics, since
-                    stepping should not happen at_external*)
-       apply False.
-  (*Returnstate - State: one case: step_return*)
-       apply (exists t, Cminor.step ge (Returnstate v k m) t (State f s k0 sp e m')).
-  (*Returnstate - Callstate: no case*)
-       apply False.
-  (*Returnstate - Returnstate: no case*)
-       apply False.
-Defined.
-
-Lemma CMin_corestep_not_at_external:
-       forall ge m q m' q', CMin_corestep ge q m q' m' -> CMin_at_external q = None.
-  Proof. intros.
-     unfold CMin_corestep in H. 
-     destruct q; destruct q'; simpl in *; try reflexivity.
-       (*case step_internal_function*) 
-             destruct f; try contradiction. 
-             destruct H as [t Ht]. inversion Ht; subst. reflexivity.
-       (*Call - Call: no case*)
-             contradiction.
-       (*Call - Return: no case in Cmin_corestep*)
-             contradiction.
-  Qed.
-*)
 Lemma CMin_corestep_not_at_external:
        forall ge m q m' q', CMin_corestep ge q m q' m' -> CMin_at_external q = None.
   Proof. intros. inv H; reflexivity. Qed.
@@ -277,21 +235,7 @@ Definition CMin_halted (q : CMin_core): option val :=
        CMin_Returnstate v Kstop => Some v
      | _ => None
     end.
-(*
-Lemma CMin_corestep_not_halted : forall ge m q m' q', 
-       CMin_corestep ge q m q' m' -> CMin_halted q = None.
-  Proof. intros.
-     unfold CMin_corestep in H. 
-     destruct q; destruct q'; simpl in *; try reflexivity.
-          (*case step_return*) 
-             destruct H as [t Ht]. inversion Ht; subst. 
-             destruct v; reflexivity.
-       (*Returnstate - Callstate: no case*)
-             contradiction.
-       (*Returnstate - Returnstate: no case in Cmin_corestep*)
-             contradiction.
-  Qed.
-*)
+
 Lemma CMin_corestep_not_halted : forall ge m q m' q', 
        CMin_corestep ge q m q' m' -> CMin_halted q = None.
   Proof. intros. inv H; reflexivity. Qed.
@@ -321,43 +265,6 @@ Defined.
 
 (************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)
 
-(*A global assumption we need on external calls, in particular builtins
-mem_wd deprecated
-Parameter external_call_mem_wd:
-  forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
-    (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
-    external_call ef ge vargs m1 t vres m2 -> mem_wd m1 -> mem_wd m2.
-*)
-(*
-Lemma CMin_forward : forall g c m c' m' (CS: CMin_corestep g c m c' m'), 
-      mem_lemmas.mem_forward m m'.
-  Proof. intros.
-     unfold CMin_corestep in CS. 
-     destruct c; destruct c'; simpl in *; try contradiction. 
-       destruct CS as [t CS].
-         inv CS; try apply mem_forward_refl.
-         (*Storev*)
-          destruct vaddr; simpl in H14; inv H14. 
-          eapply store_forward; eassumption. 
-         (*builtin*) 
-          eapply external_call_mem_forward; eassumption.
-       destruct CS as [t CS].
-         inv CS; simpl; try apply mem_forward_refl.
-         (*free*)
-         eapply free_forward. apply H14.
-       destruct CS as [t CS].
-         inv CS; simpl; try apply mem_forward_refl.
-         eapply free_forward. apply H10.
-         eapply free_forward. apply H6.
-         eapply free_forward. apply H10.
-       destruct f; try contradiction.
-         destruct CS as [t CS].
-         inv CS; simpl; try apply mem_forward_refl.
-         eapply alloc_forward. apply H4.
-       destruct CS as [t CS].
-         inv CS; simpl; try apply mem_forward_refl.
-Qed.
-*)
 Lemma CMin_forward : forall g c m c' m' (CS: CMin_corestep g c m c' m'), 
       mem_lemmas.mem_forward m m'.
   Proof. intros.
@@ -374,151 +281,8 @@ Lemma CMin_forward : forall g c m c' m' (CS: CMin_corestep g c m c' m'),
          eapply alloc_forward; eassumption. 
 Qed.
 
-Definition coopstep g c m c' m' :=
-   CMin_corestep g c m c' m'.
-
-Lemma cmin_coopstep_not_at_external: forall ge m q m' q',
-  coopstep ge q m q' m' -> CMin_at_external q = None.
-Proof.
-  intros.
-  eapply CMin_corestep_not_at_external. apply H. 
-Qed.
-
-Lemma cmin_coopstep_not_halted :
-  forall ge m q m' q', coopstep ge q m q' m' -> CMin_halted q = None.
-Proof.
-  intros.
-  eapply CMin_corestep_not_halted. apply H.
-Qed.
-
-Program Definition cmin_core_sem : 
-  CoreSemantics Cminor.genv CMin_core mem :=
-  @Build_CoreSemantics _ _ _ (*_*)
-    (*cl_init_mem*)
-    CMin_initial_core
-    CMin_at_external
-    CMin_after_external
-    CMin_halted
-    coopstep
-    cmin_coopstep_not_at_external
-    cmin_coopstep_not_halted 
-    CMin_at_external_halted_excl
-    CMin_after_at_external_excl.
-
-Lemma cmin_coop_forward : forall g c m c' m' (CS: coopstep g c m c' m'), 
-      mem_lemmas.mem_forward m m'.
-Proof. intros. eapply CMin_forward. apply CS. Qed.
-
 Program Definition cmin_coop_sem : 
   CoopCoreSem Cminor.genv CMin_core.
-apply Build_CoopCoreSem with (coopsem := cmin_core_sem).
-  apply cmin_coop_forward.
+apply Build_CoopCoreSem with (coopsem := CMin_core_sem).
+  apply CMin_forward.
 Defined.
-(*
-Lemma CMin_corestep_2_CompCertStep: forall (ge : genv)  (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem) ,
-   CMin_corestep ge q m q' m' -> 
-   exists t, step ge (ToState q m) t (ToState q' m').
-Proof.
-  intros. destruct q; destruct q'; try assumption; try contradiction.
-  unfold CMin_corestep in H.
-     destruct f; try contradiction.
-        apply H.
-Qed.
-*)
-(*
-Lemma CompCertStep_CMin_corestep: forall (ge : genv)  (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem)  t,
-   step ge (ToState q m) t (ToState q' m') ->
-   CMin_at_external q = None ->
-   CMin_corestep ge q m q' m'.
-Proof.
-  intros. destruct q; destruct q'; simpl in *; try eexists; try eassumption.
-     inv H. eexists. econstructor; trivial.
-     inv H.
-     inv H. inv H0.
-     inv H.
-     inv H.
-Qed.
-
-Lemma CompCertStep_CMin_corestep': forall (ge : genv)  (q : CMin_core) (m : mem) c' t,
-   step ge (ToState q m) t c' ->
-   CMin_at_external q = None -> 
-     CMin_corestep ge q m (fst (FromState c')) (snd (FromState c')).
-Proof.
-  intros. destruct q; destruct c'; simpl in *; try eexists; try eassumption.
-     inv H. eexists. econstructor; trivial.
-     inv H.
-     inv H. inv H0.
-     inv H.
-     inv H.
-Qed.
-*)
-(*
-Lemma CMin_corestepSN_2_CompCertStepStar: forall (ge : genv) n (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem),
-   corestepN CMin_corestepN ge n q m q' m' -> 
-   exists t, Smallstep.star step ge (ToState q m) t (ToState q' m').
-Proof.
-  intros ge n.
-  induction n; simpl; intros.
-      inv H. eexists. apply Smallstep.star_refl.
-  destruct H as [c2 [m2 [Step1 Steps]]].
-     destruct (IHn _ _ _ _ Steps) as [t Ht].
-     destruct (CMin_corestep_2_CompCertStep _ _ _ _ _ Step1) as [t1 Ht1].
-     eexists. econstructor. eassumption. eassumption.
-       reflexivity.
-Qed.
- 
-Lemma CMin_corestepSN_2_CompCertStepPlus: forall (ge : genv) n (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem),
-   corestepN CMin_CompcertCoreSem ge (S n) q m q' m' -> 
-   exists t, Smallstep.plus step ge (ToState q m) t (ToState q' m').
-Proof.
-  intros.
-  destruct H as [c2 [m2 [H X]]].
-  destruct (CMin_corestep_2_CompCertStep _ _ _ _ _ H) as [t1 Ht1]. clear H.
-  destruct (CMin_corestepSN_2_CompCertStepStar _ _ _ _ _ _ X) as [t2 Ht2]. clear X.
-  eexists. econstructor. eassumption. eassumption. reflexivity.
-Qed. 
-
-Lemma CMin_corestep_plus_2_CompCertStep_plus: forall (ge : genv)  (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem) ,
-   corestep_plus CMin_CompcertCoreSem ge q m q' m' -> 
-   exists t, Smallstep.plus step ge (ToState q m) t (ToState q' m').
-Proof.
-  intros. destruct H as [n Hn].
-  eapply CMin_corestepSN_2_CompCertStepPlus. apply Hn. 
-Qed.
-
-Lemma CMin_corestep_star_2_CompCertStep_star: forall (ge : genv)  (q : CMin_core) (m : mem) (q' : CMin_core) (m' : mem) ,
-   corestep_star CMin_CompcertCoreSem ge q m q' m' -> 
-   exists t, Smallstep.star step ge (ToState q m) t (ToState q' m').
-Proof.
-  intros. destruct H as [n Hn].
-  eapply CMin_corestepSN_2_CompCertStepStar. apply Hn. 
-Qed.
-*)
-(*
-Lemma CompCertStep_2_CMin_corestep: forall (ge : genv)  (q : CMin_core) (m : mem) t c',
-   step ge (ToState q m) t c' ->
-   CMin_at_external q = None ->
-   exists q', exists m', c' = ToState q' m' /\ CMin_corestep ge q m q' m'.
-Proof.
-  intros. destruct q; destruct c'; simpl in *.
-     exists (CMin_State f0 s0 k0 sp0 e0). exists m0; simpl. split. trivial. eexists. eassumption.
-     exists (CMin_Callstate f0 args  k0). exists m0; simpl. split. trivial. eexists. eassumption.
-     exists (CMin_Returnstate v k0). exists m0; simpl. split. trivial. eexists. eassumption.
-     exists (CMin_State f0 s k0 sp e). exists m0; simpl. split. trivial.
-        destruct f. eexists. eassumption.
-        inv H0.
-     inv H.
-     inv H. inv H0. 
-     exists (CMin_State f s k0 sp e). exists m0; simpl. split. trivial. eexists. eassumption.
-     inv H. 
-     inv H.
-Qed.
-*)
-Lemma CMin_core2state_injective: forall q m q' m', 
- ToState q m = ToState q' m' -> q'=q /\ m'=m.
-  Proof. intros.
-    destruct q; destruct q'; simpl in *; inv H; split; trivial.
-  Qed.
-
-
-     

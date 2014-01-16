@@ -163,18 +163,7 @@ intros.
   split. unfold corestep, coopsem; simpl. econstructor; try eassumption. trivial.
          eapply FreeEffect_free; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; try eassumption.
-  (*       destruct ef; inv H0.
-         eapply BUILTIN. econstructor; eauto. 
-         eapply BUILTIN. econstructor; eauto.
-         admit. (*volatile load*) 
-         admit. (*volatile store*) 
-         admit. (*volatile load*) 
-         admit. (*volatile store*) 
-         eapply BUILTIN. econstructor; eauto.
-         eapply BUILTIN. econstructor; eauto.
-         eapply BUILTIN. econstructor; eauto.
-         eapply BUILTIN. econstructor; eauto. simpl. eassumption.  *) 
-admit. (*TODO: builtin - correct spec and treatment of volatiles*)
+         eapply ec_builtinEffectPolymorphic; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -241,17 +230,6 @@ intros. inv H.
     eexists. eapply cmin_effstep_internal_function; try eassumption. reflexivity. 
     eexists. eapply cmin_effstep_return; try eassumption. 
 Qed.
-(*
-Lemma cmin_effstep_sub: forall g U V c m c' m'
-         (UV: forall b ofs, U b ofs = true -> V b ofs = true),
-         (cmin_effstep g U c m c' m' -> cmin_effstep g V c m c' m').
-Qed.
-*)
-(*
-Definition cmin_effstep (g: Cminor.genv) (E:block -> Z -> bool) 
-   (c : CMin_core) m (c' : CMin_core) m': Prop :=
-   coopstep g c m c' m' /\ Mem.unchanged_on (fun b ofs => E b ofs = false) m m'.
-*)
 
 Program Definition cmin_eff_sem : 
   @EffectSem Cminor.genv CMin_core.

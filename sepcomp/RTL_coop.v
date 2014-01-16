@@ -134,76 +134,7 @@ Inductive RTL_corestep (ge:genv): RTL_core -> mem -> RTL_core -> mem -> Prop :=
       forall res f sp pc rs s vres m,
       RTL_corestep ge (RTL_Returnstate (Stackframe res f sp pc rs :: s) vres) m
         (RTL_State s f sp pc (rs#res <- vres)) m.
-
-(* IMO this should be redefined from scratch. *)
-Definition RTL_corestepX (ge:genv) (p: RTL_core) (m: mem) (q: RTL_core) (m0: mem): Prop.
-  destruct p; destruct q.
-  apply (exists t, step ge (State stack f sp pc rs m) t (State stack0 f0 sp0 pc0 rs0 m0)).
-  apply (exists t, step ge (State stack f sp pc rs m) t (Callstate stack0 f0 args m0)).
-  apply (exists t, step ge (State stack f sp pc rs m) t (Returnstate stack0 v m0)).
-  apply (match f with
-             Internal f' =>
-             exists t, step ge (Callstate stack f args m) t (State stack0 f0 sp pc rs m0)
-           | External _ => False 
-         end).
-  apply False.
-  apply False.
-  apply (exists t, step ge (Returnstate stack v m) t (State stack0 f sp pc rs m0)).
-  apply False.
-  apply False.
-Defined.
-
-Goal forall ge p m q m0,
-     RTL_corestep ge p m q m0 -> RTL_corestepX ge p m q m0.
-Proof. intros.
-  inv H; simpl in *.
-  eexists; eapply exec_Inop; eauto.
-  eexists; eapply exec_Iop; eauto.
-  eexists; eapply exec_Iload; eauto.
-  eexists; eapply exec_Istore; eauto.
-  eexists; eapply exec_Icall; eauto.
-  eexists; eapply exec_Itailcall; eauto.
-  eexists; eapply exec_Ibuiltin; eauto.
-  eexists; eapply exec_Icond; eauto.
-  eexists; eapply exec_Ijumptable; eauto.
-  eexists; eapply exec_Ireturn; eauto.
-  eexists; eapply exec_function_internal; eauto.
-  eexists; eapply exec_return; eauto.
-Qed.
-Goal forall ge p m q m0,
-     RTL_corestepX ge p m q m0 -> RTL_corestep ge p m q m0.
-Proof. intros.
-  destruct p; destruct q; simpl in *; try contradiction.
-  destruct H.
-    inv H.
-     eapply rtl_corestep_exec_Inop; eauto.
-     eapply rtl_corestep_exec_Iop; eauto.
-     eapply rtl_corestep_exec_Iload; eauto.
-     eapply rtl_corestep_exec_Istore; eauto.
-     eapply rtl_corestep_exec_Ibuiltin; eauto.
-     eapply rtl_corestep_exec_Icond; eauto.
-     eapply rtl_corestep_exec_Ijumptable; eauto.
-  destruct H.
-    inv H.
-     eapply rtl_corestep_exec_Icall; eauto.
-     eapply rtl_corestep_exec_Itailcall; eauto.
-  destruct H.
-    inv H.
-     eapply rtl_corestep_exec_Ireturn; eauto.
-  destruct f; try contradiction.
-  destruct H.
-    inv H.
-      eapply rtl_corestep_exec_function_internal; eauto.
-  destruct H.
-    inv H.
-      eapply rtl_corestep_exec_return; eauto.
-Qed.
 End RELSEM.
-
-(** Execution of whole programs are described as sequences of transitions
-  from an initial state to a final state.  An initial state is a [Callstate]
-  corresponding to the invocation of the ``main'' function of the program
-  without arguments and with an empty call stack. *)
 
 Require Import sepcomp.core_semantics.
 
@@ -265,21 +196,6 @@ Qed.
 Lemma corestep_not_halted: forall (ge : genv) (m : mem) (q : RTL_core) (m' : mem) (q' : RTL_core),
                              RTL_corestep ge q m q' m' -> RTL_halted q = None.
 Proof. intros. inv H; try reflexivity. Qed.
-(*Old proof:
-Lemma corestep_not_halted: forall (ge : genv) (m : mem) (q : RTL_core) (m' : mem) (q' : RTL_core),
-                             RTL_corestep ge q m q' m' -> RTL_halted q = None.
-Proof. intros.
-  destruct q; destruct q'; simpl in *; try reflexivity; try contradiction.
-  intros. inv H. inversion H.
-  Lemma list_false: forall A s (a:A) , s = a::s -> False.  
-    induction s.
-    discriminate.
-    inversion 1.
-    apply IHs in H2; trivial.
-  Qed.
-  apply list_false in H5. contradiction.
-Qed. 
-*)
 
 Lemma external_xor_halted: forall q : RTL_core, RTL_at_external q = None \/ RTL_halted q = None.
   destruct q; simpl; try (left; reflexivity); try (right; reflexivity).

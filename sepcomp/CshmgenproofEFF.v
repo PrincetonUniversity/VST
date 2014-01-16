@@ -2058,7 +2058,6 @@ Proof.
   split; auto; econstructor; eauto.
 Qed.
 
-
 Lemma varinfo_preserved:
   forall b, (exists gv : globvar type, Genv.find_var_info ge b = Some gv) <->
             (exists gv : globvar unit, Genv.find_var_info tge b = Some gv).
@@ -2132,6 +2131,12 @@ Proof. intros.
       rewrite Arith'.
        eapply Z.divide_add_r. eassumption.
        specialize (alignof_blockcopy_1248 ty); intros.
+         eapply Z.divide_trans. eapply alignof_blockcopy_divides.
+         eapply Z.divide_trans. eapply sizeof_alignof_compat. (*
+        specialize (Mem.mi_align _ _ _ (Mem.mi_inj _ _ _ MInj) b1 b3 delta0 (chunk_of_type ty)).
+        destruct ty; simpl in *; unfold alignof_blockcopy, alignof; simpl. 
+            rewrite Z.min_r. apply Z.divide_1_l. omega.
+            destruct a; simpl in *. unfold alignof_blockcopy in H7.
      (*  eapply Z.divide_trans.
          eapply alignof_blockcopy_divides.
        eapply Z.divide_trans.
@@ -2189,9 +2194,55 @@ Proof. intros.
       rewrite (Int.unsigned_repr delta); try omega.
       rewrite Int.unsigned_repr; trivial.
  eassumption.
-*)
+*)*)
 Admitted.
 (*
+H : eval_lvalue ge e le m1 a1 loc ofs
+H0 : Clight.eval_expr ge e le m1 a2 v2
+H1 : sem_cast v2 (typeof a2) (typeof a1) = Some v
+H2 : assign_loc (typeof a1) m1 loc ofs v m1'
+PC : REACH_closed m1 (vis mu)
+PG : meminj_preserves_globals ge (as_inj mu)
+GF : globalfunction_ptr_inject (as_inj mu)
+Glob : forall b : block,
+       isGlobalBlock ge b = true -> frgnBlocksSrc mu b = true
+SMV : sm_valid mu m1 m2
+WD : SM_wd mu
+INJ : Mem.inject (as_inj mu) m1 m2
+nbrk : nat
+ncnt : nat
+tf : function
+ts : stmt
+tk : cont
+te : env
+tle : temp_env
+TRF : transl_function f = OK tf
+MENV : match_env (restrict (as_inj mu) (vis mu)) e te
+TENV : match_tempenv (restrict (as_inj mu) (vis mu)) le tle
+MK : match_cont (restrict (as_inj mu) (vis mu)) (fn_return f) nbrk ncnt k tk
+x : expr
+EQ : transl_lvalue a1 = OK x
+x0 : expr
+EQ1 : transl_expr a2 = OK x0
+x1 : expr
+EQ0 : make_cast (typeof a2) (typeof a1) x0 = OK x1
+EQ3 : make_store x (typeof a1) x1 = OK ts
+MTR : match_transl ts tk ts tk
+MinjR : Mem.inject (restrict (as_inj mu) (vis mu)) m1 m2
+PGR : meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))
+b2 : block
+delta : Z
+H5 : restrict (as_inj mu) (vis mu) loc = Some (b2, delta)
+EvalX : eval_expr tge te tle m2 x (Vptr b2 (Int.add ofs (Int.repr delta)))
+uu : val
+VinjU : val_inject (restrict (as_inj mu) (vis mu)) v2 uu
+EvalX0 : eval_expr tge te tle m2 x0 uu
+x2 : val
+H3 : sem_cast uu (typeof a2) (typeof a1) = Some x2
+H4 : val_inject (restrict (as_inj mu) (vis mu)) v x2
+EVAL : eval_expr tge te tle m2 x1 x2
+
+
 Lemma assign_loc_inject: forall ty m1 b1 ofs v m1'
   (ASS: assign_loc ty m1 b1 ofs v m1')
   j v2 (V:val_inject j v v2) b2 delta (J: j b1 = Some(b2,delta))
@@ -3444,8 +3495,6 @@ Proof.
   destruct MC as [SMC PRE].
   inv SMC; simpl in *.
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
-(*assert (FE = function_entry2). admit. (*admit is in comment What about other cases?*)
-subst FE.*)
   inv H. monadInv TR. monadInv EQ.
   exploit match_cont_is_call_cont; eauto. intros [A B].
   exploit match_env_alloc_variables; try eassumption. 
@@ -3557,7 +3606,8 @@ Proof.
       assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
            rewrite <- restrict_sm_all. 
            eapply restrict_sm_preserves_globals; try eassumption.
-           unfold vis. intuition. admit. (*
+           unfold vis. intuition.
+ admit. (*
       eexists. eexists. exists mu.
       split.              
          destruct (transl_lvalue_correct _ _ _ _ _ _ _ MENV TENV MinjR PGR _ _ _ H _ EQ)
@@ -3566,8 +3616,9 @@ Proof.
             as [uu [VinjU EvalX0]].
          destruct (sem_cast_inject _ _ _ _ _ _ H1 VinjU) as [? [? ?]].
          assert (EVAL:= make_cast_correct _ _ _ _ _ _ _ _ _ _ EQ0 EvalX0 H3).
-         apply corestep_plus_one.
-         eapply make_store_correct. eassumption. eassumption. eassumption.
+         exists  (*suitable assign_loc_effect*) assign_loc - see above
+         split. apply effstep_plus_one.
+                  eapply make_store_correct. eassumption. eassumption. eassumption.
        
          unfold make_store in EQ3. 
          inv H2. rewrite H6 in *. inv EQ3.
@@ -4132,8 +4183,6 @@ unfold make_store in EQ3.
   destruct MC as [SMC PRE].
   inv SMC; simpl in *.
   destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
-(*assert (FE = function_entry2). admit. (*admit is in comment -  What about other cases?*)
-subst FE.*)
   inv H. monadInv TR. monadInv EQ.
   exploit match_cont_is_call_cont; eauto. intros [A B].
   exploit match_env_alloc_variables; try eassumption. 

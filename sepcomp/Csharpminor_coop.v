@@ -178,45 +178,10 @@ Inductive CSharpMin_corestep (ge : genv) : CSharpMin_core -> mem -> CSharpMin_co
   | csharpmin_corestep_return: forall v optid f e le k m,
       CSharpMin_corestep ge (CSharpMin_Returnstate v (Kcall optid f e le k)) m
         (CSharpMin_State f Sskip k e (Cminor.set_optvar optid v le)) m.
-(*OLD DEFINITION:
-Definition CSharpMin_corestep (ge : genv)  (q : CSharpMin_core) (m : mem) (q' : CSharpMin_core) (m' : mem) : Prop.
-  destruct q; destruct q'.
-  (*State - State*)
-       apply (exists t, step ge (State f s k e le m)  t (State f0 s0 k0 e0 le0 m')).
-  (*State - Callstate: one case: step_call*)
-       apply (exists t, step ge (State f s k e le m)  t (Callstate f0 args k0 m')).
-  (*State - Returnstate - three cases: step_skip_call, step_return_0, step_return_1*)
-       apply (exists t, step ge (State f s k e le m)  t (Returnstate v k0 m')).
-  (*Callstate - State: only case: step_internal_function*)
-       apply (exists t, step ge (Callstate f args k m) t (State f0 s k0 e le m')).
-  (*Callstate - Callstate: no case*)
-       apply False.
-  (*Callstate - Returnstate: one case: step_external_function : we don't want this as a step in this semantics, since
-                    stepping should not happen at_external*)
-       apply False.
-  (*Returnstate - State: one case: step_return*)
-       apply (exists t, step ge (Returnstate v k m) t (State f s k0 e le m')).
-  (*Returnstate - Callstate: no case*)
-       apply False.
-  (*Returnstate - Returnstate: no case*)
-       apply False.
-Defined.
 
 Lemma CSharpMin_corestep_not_at_external:
-       forall ge m q m' q', CSharpMin_corestep ge q m q' m' -> CSharpMin_at_external q = None.
-  Proof. intros.
-     unfold CSharpMin_corestep in H. 
-     destruct q; destruct q'; simpl in *; try reflexivity.
-       (*case step_internal_function*)  
-             destruct H as [t Ht]. inversion Ht; subst. reflexivity.
-       (*Call - Call: no case*)
-             contradiction.
-       (*Call - Return: no case in Cmin_corestep*)
-             contradiction.
-  Qed.
-*)
-Lemma CSharpMin_corestep_not_at_external:
-       forall ge m q m' q', CSharpMin_corestep ge q m q' m' -> CSharpMin_at_external q = None.
+       forall ge m q m' q', CSharpMin_corestep ge q m q' m' -> 
+       CSharpMin_at_external q = None.
   Proof. intros. inv H; reflexivity. Qed.
 
 Definition CSharpMin_halted (q : CSharpMin_core): option val :=
@@ -224,20 +189,7 @@ Definition CSharpMin_halted (q : CSharpMin_core): option val :=
        CSharpMin_Returnstate v Kstop => Some v
      | _ => None
     end.
-(*
-Lemma CSharpMin_corestep_not_halted : forall ge m q m' q', 
-       CSharpMin_corestep ge q m q' m' -> CSharpMin_halted q = None.
-  Proof. intros.
-     unfold CSharpMin_corestep in H. 
-     destruct q; destruct q'; simpl in *; try reflexivity.
-          (*case step_return*) 
-             destruct H as [t Ht]. inversion Ht; subst. 
-             destruct v; reflexivity.
-       (*Returnstate - Callstate: no case*)
-             contradiction.
-       (*Returnstate - Returnstate: no case in Cmin_corestep*)
-             contradiction.
-  Qed.*)
+
 Lemma CSharpMin_corestep_not_halted : forall ge m q m' q', 
        CSharpMin_corestep ge q m q' m' -> CSharpMin_halted q = None.
   Proof. intros. inv H; reflexivity. Qed.
@@ -301,15 +253,7 @@ Definition CSharpMin_core_sem : CoreSemantics genv CSharpMin_core mem.
     apply CSharpMin_after_at_external_excl.
 Defined.
 
-(*
-Lemma CSharpMin_corestep_2_CompCertStep: forall (ge : genv)  (q : CSharpMin_core) (m : mem) (q' : CSharpMin_core) (m' : mem) ,
-   CSharpMin_corestep ge q m q' m' -> 
-   exists t, step ge (ToState q m) t (ToState q' m').
-Proof.
-  intros. destruct q; destruct q'; induction H; simpl; eauto. 
-Qed.
-*)
-
+(************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)
 Lemma alloc_variables_forward: forall vars m e e2 m'
       (M: alloc_variables e m vars e2 m'),
       mem_forward m m'.
@@ -319,36 +263,9 @@ Proof. intros.
   apply alloc_forward in H.
   eapply mem_forward_trans; eassumption. 
 Qed.
-(*
+
 Lemma CSharpMin_forward : forall g c m c' m' (CS: CSharpMin_corestep g c m c' m'), 
-      mem_lemmas.mem_forward m m'.
-  Proof. intros.
-     unfold CSharpMin_corestep in CS. 
-     destruct c; destruct c'; simpl in *; try contradiction. 
-       destruct CS as [t CS].
-         inv CS; try apply mem_forward_refl.
-         (*Storev*)
-          destruct vaddr; simpl in H14; inv H14. 
-          eapply store_forward; eassumption. 
-         (*builtin*) 
-          eapply external_call_mem_forward; eassumption.
-       destruct CS as [t CS].
-         inv CS; simpl; try apply mem_forward_refl.
-       destruct CS as [t CS].
-         inv CS; simpl; try apply mem_forward_refl.
-         (*free*)
-         eapply freelist_forward. apply H10.
-         eapply freelist_forward. apply H6.
-         eapply freelist_forward. apply H10.
-       destruct CS as [t CS].
-         inv CS; simpl; try apply mem_forward_refl.
-         eapply alloc_variables_forward. apply H13.
-       destruct CS as [t CS].
-         inv CS; simpl; try apply mem_forward_refl.
-Qed.
-*)
-Lemma CSharpMin_forward : forall g c m c' m' (CS: CSharpMin_corestep g c m c' m'), 
-      mem_lemmas.mem_forward m m'.
+      mem_forward m m'.
 Proof. intros.
      induction CS; try apply mem_forward_refl.
          eapply freelist_forward; eassumption.
@@ -362,6 +279,12 @@ Proof. intros.
          eapply alloc_variables_forward; eassumption.
 Qed.
 
+Program Definition csharpmin_coop_sem : 
+  CoopCoreSem Csharpminor.genv CSharpMin_core.
+apply Build_CoopCoreSem with (coopsem := CSharpMin_core_sem).
+  apply CSharpMin_forward.
+Defined.
+(*
 Definition coopstep g c m c' m' :=
    CSharpMin_corestep g c m c' m'.
 
@@ -403,3 +326,4 @@ Program Definition csharpmin_coop_sem :
 apply Build_CoopCoreSem with (coopsem := csharpmin_core_sem).
   apply csharpmin_coop_forward.
 Defined.
+*)

@@ -148,12 +148,6 @@ Inductive csharpmin_effstep (g: Csharpminor.genv):  (block -> Z -> bool) ->
       csharpmin_effstep g E c m c' m' ->
       csharpmin_effstep g EE c m c' m'.
 
-(*
-Definition csharpmin_effstep (g: Csharpminor.genv) (E:block -> Z -> bool) 
-   (c : CSharpMin_core) m (c' : CSharpMin_core) m': Prop :=
-   coopstep g c m c' m' /\ Mem.unchanged_on (fun b ofs => E b ofs = false) m m'.
-*)
-
 Lemma csharpminstep_effax1: forall (M : block -> Z -> bool) g c m c' m'
       (H: csharpmin_effstep g M c m c' m'),
        corestep csharpmin_coop_sem g c m c' m' /\
@@ -173,7 +167,8 @@ intros.
          eapply StoreEffect_Storev; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; try eassumption.
          apply Mem.unchanged_on_refl.
-admit. (*TODO: builtin - modify spec*)
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
+         eapply ec_builtinEffectPolymorphic; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -203,7 +198,6 @@ admit. (*TODO: builtin - modify spec*)
   (*no external call*) 
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  (*rule effstep_sub_val*)
   (*effstep_sub_val*)
     destruct IHcsharpmin_effstep.
     split; trivial.

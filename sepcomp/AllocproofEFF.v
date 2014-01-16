@@ -2597,17 +2597,33 @@ split.
                apply REACH_nil. unfold exportedSrc. 
                  apply frgnSrc_shared in H11; trivial. rewrite H11; intuition.
       (*rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc. *)
-       admit. admit. (*Try later eapply restrict_val_list_inject; try eassumption.
-       intros.
-        destruct (getBlocks_inject (as_inj nu') (ret1::nil) (ret2::nil))
-           with (b:=b) as [bb [dd [JJ' GBbb]]]; try eassumption.
-          constructor. assumption. constructor.
-        remember (locBlocksSrc nu' b) as d.
-        destruct d; simpl; trivial. apply andb_true_iff.
-        split. eapply as_inj_DomRng; eassumption.
-        apply REACH_nil. unfold exportedSrc.
-           rewrite H. trivial.*)
-       admit.
+       unfold loc_result.
+       remember (sig_res (ef_sig e')) as o.
+         destruct o; simpl.
+         (*Some t*)
+           destruct t. admit. (*Tint: Should hold
+               simpl. econstructor; try constructor.
+               simpl. rewrite Locmap.gss.
+                eapply restrict_val_inject; try eassumption.
+                intros. 
+               inv RValInjNu'; try econstructor. 
+               eapply restrictI_Some; try eassumption.
+               destruct (as_inj_DomRng _ _ _ _ H); trivial.
+               rewrite H0; simpl. unfold DomSrc in H0.
+               remember (locBlocksSrc nu' b1) as d.
+               destruct d; simpl in *. trivial.
+               eapply REACH_nil. unfold exportedSrc. apply orb_true_iff; left.
+                     unfold getBlocks.*)
+           admit. (*TFloat: Should hold*)
+           admit. (*TLong: Should hold*)
+           admit. (*Tsingle: Should hold*)
+           simpl. rewrite Locmap.gss. econstructor; try constructor.
+                eapply restrict_val_inject; try eassumption. 
+                 admit. (* Should hold*)
+        red; intros. rewrite AG. apply eq_sym. apply Locmap.gsetlisto. 
+                admit. (*Correct later*)
+                  assumption.
+          admit. (*type info*)
 unfold vis.
 rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
         replace_externs_as_inj.
@@ -3751,7 +3767,7 @@ induction CS;
 (* op move *)
 - (*inv MSTATE. try UseShape. 
   destruct (invert_code _ _ _ _ _ _ _ WTF H EQ) as (eafter & bsh & bb & AFTER & BSH & TCODE & EBS & TR & WTI).
-  inv EBS. unfold transfer_aux in TR; MonadInv. admit.
+  inv EBS. unfold transfer_aux in TR; MonadInv. 
  unfold transfer_aux in TR; MonadInv.
   | [ WT: wt_function _ _, CODE: (RTL.fn_code _)!_ = Some _, EQ: transfer _ _ _ _ _ = OK _ |- _ ] =>
       destruct (invert_code _ _ _ _ _ _ _ WT CODE EQ) as (eafter & bsh & bb & AFTER & BSH & TCODE & EBS & TR & WTI); 
@@ -4476,8 +4492,8 @@ simpl in LD4.
            unfold Val.add in VADDR'. inv VADDR'. 
            eapply (Mem.valid_block_inject_2 (restrict (as_inj mu) (vis mu))); try eassumption.
     apply orb_true_iff in H2. 
-    admit. (*TODO: propagate left in tow store-steps.
-          Alternative: prove that the uniotn of the two effects is a Mint64 StoreEffect  destruct H2.
+    admit. (*TODO: propagate left in two store-steps.
+          Alternative: prove that the union of the two effects is a Mint64 StoreEffect  destruct H2.
        specialize StoreEffect_PropagateLeft. eassumption. *)
      
 (* call *)

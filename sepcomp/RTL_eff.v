@@ -172,7 +172,7 @@ intros.
          eapply FreeEffect_free; eassumption. 
   split. unfold corestep, coopsem; simpl. 
          eapply rtl_corestep_exec_Ibuiltin; eassumption.
-admit. (*TODO: builtin - correct spec and treatment of volatiles*)
+         eapply ec_builtinEffectPolymorphic; eassumption.
   split. unfold corestep, coopsem; simpl. 
          eapply rtl_corestep_exec_Icond; eassumption. 
          apply Mem.unchanged_on_refl.

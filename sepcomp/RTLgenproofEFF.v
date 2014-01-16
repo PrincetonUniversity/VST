@@ -571,9 +571,9 @@ Qed.
 
 (** ** Semantic preservation for the translation of expressions *)
 
-(*NEW: translation of sp. Contrary to selection phase,
+(*LENB: translation of sp. Contrary to selection phase,
   the use of eval_operation (and the existing lemmas about
-  eval_operation_inject) here suggest we should 
+  eval_operation_inject) here suggests we should 
   require sp=Vptr b Int.zero and sp' = Vptr b' Int.zero instead
   of sp=Vptr b i and sp' = Vptr b' i for some arbitrary i.
   Let's see whether this works...*)
@@ -903,8 +903,8 @@ Qed.
 
 (*LENB: Lemma should not be needed any more since external calls are
  handled by coresemantics interface now. We can probably eliminate
-  external expressions from CminorSel.v, but that's a language definieiotn modification*)
-
+  external expressions from CminorSel.v, but that's a modification of a
+  language definition*)
 Lemma transl_expr_Eexternal_correct:
   forall le id sg al b ef vl v,
   Genv.find_symbol ge id = Some b ->
@@ -915,7 +915,8 @@ Lemma transl_expr_Eexternal_correct:
   external_call ef ge vl m E0 v m ->
   transl_expr_prop le (Eexternal id sg al) v.
 Admitted.
-(*Proof.
+(*
+Proof.
   intros; red; intros. inv TE.
   exploit H3; eauto. intros [rs1 [tm1 [EX1 [ME1 [RR1 [RO1 EXT1]]]]]].
   exploit external_call_mem_extends; eauto. 

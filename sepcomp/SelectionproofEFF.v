@@ -244,7 +244,7 @@ Lemma eval_coopstore:
   eval_expr tge sp e m nil a1 v1 ->
   eval_expr tge sp e m nil a2 v2 ->
   Mem.storev chunk m v1 v2 = Some m' ->
-  coopstep tge (CMinSel_State f (store chunk a1 a2) k sp e) m
+  CMinSel_corestep tge (CMinSel_State f (store chunk a1 a2) k sp e) m
         (CMinSel_State f Sskip k sp e) m'.
 Proof.
   intros. generalize H1; destruct v1; simpl; intro; try discriminate.

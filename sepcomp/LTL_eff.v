@@ -16,7 +16,8 @@ Require Import Locations. (*for locmap.set etc*)
 Require Import sepcomp.LTL.
 Require Import sepcomp.LTL_coop.
 
-(*We're using the BuilinEffect also for Lannot - maybe we should define a separate effect?*)
+(*We're using the BuiltEffect also for Lannot - 
+  maybe we should define a separate effect?*)
 
 Inductive ltl_effstep (g:genv):  (block -> Z -> bool) ->
             LTL_core -> mem -> LTL_core -> mem -> Prop :=
@@ -66,12 +67,13 @@ Inductive ltl_effstep (g:genv):  (block -> Z -> bool) ->
   | ltl_effstep_Lbuiltin: forall s f sp ef args res bb rs m t vl rs' m',
       external_call' ef g (reglist rs args) m t vl m' ->
       rs' = Locmap.setlist (map R res) vl (undef_regs (destroyed_by_builtin ef) rs) ->
-      ltl_effstep g (BuiltinEffect g (ef_sig ef) vl m)
+      ltl_effstep g 
+         (BuiltinEffect g (ef_sig ef) (decode_longs (sig_args (ef_sig ef)) (reglist rs args)) m)
          (LTL_Block s f sp (Lbuiltin ef args res :: bb) rs) m
          (LTL_Block s f sp bb rs') m'
   | ltl_effstep_Lannot: forall s f sp ef args bb rs m t vl m',
       external_call' ef g (map rs args) m t vl m' ->
-      ltl_effstep g (BuiltinEffect g (ef_sig ef) vl m)
+      ltl_effstep g (BuiltinEffect g (ef_sig ef) (decode_longs (sig_args (ef_sig ef)) (map rs args)) m)
          (LTL_Block s f sp (Lannot ef args :: bb) rs) m
          (LTL_Block s f sp bb rs) m'
   | ltl_effstep_Lbranch: forall s f sp pc bb rs m,
@@ -142,9 +144,9 @@ intros.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply FreeEffect_free; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
-         admit. (*externalcall/builtin*)
+         inv H. eapply ec_builtinEffectPolymorphic; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
-         admit. (*externalcall/builtin*)
+         inv H. eapply ec_builtinEffectPolymorphic; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
