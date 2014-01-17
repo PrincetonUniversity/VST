@@ -20,111 +20,6 @@ Require Import sepcomp.extspec.
 
 Import SM_simulation.
 
-(** * Safety and semantics preservation *)
-
-Section safety.
-Context { G C D : Type }
-        (Hcore : CoopCoreSem G C)
-        (ge : G).
-
-Fixpoint safeN (n:nat) (c:C) (m:mem) : Prop :=
-  match n with
-    | O => True
-    | S n' => 
-      match halted Hcore c with
-        | None => 
-          exists c', exists m',
-            corestep Hcore ge c m c' m' /\
-            safeN n' c' m'
-        | Some i => True
-      end
-  end.
-
-Definition corestep_fun  :=
-  forall ge m q m1 q1 m2 q2 ,
-    corestep Hcore ge q m q1 m1 -> 
-    corestep Hcore ge q m q2 m2 -> 
-    (q1, m1) = (q2, m2).
-
-Lemma safe_downward1 :
-  forall n c m,
-    safeN (S n) c m -> safeN n c m.
-Proof.
-  induction n; simpl; intros; auto.
-  destruct (halted Hcore c); auto.
-  destruct H as [c' [m' [? ?]]].
-  exists c', m'; split; auto.
-Qed.
-
-Lemma safe_downward : 
-  forall (n n' : nat) c m,
-    le n' n ->
-    safeN n c m -> safeN n' c m.
-Proof.
-  do 6 intro. revert c m H0. induction H; auto.
-  intros. apply IHle. apply safe_downward1. auto.
-Qed.
-
-Lemma safe_corestep_forward:
-  corestep_fun -> 
-  forall c m c' m' n,
-    corestep Hcore ge c m c' m' -> safeN (S n) c m -> safeN n c' m'.
-Proof.
-  simpl; intros.
-  erewrite corestep_not_halted in H1; eauto.
-  destruct H1 as [c'' [m'' [? ?]]].
-  assert ((c',m') = (c'',m'')).
-  eapply H; eauto.
-  inv H3; auto.
-Qed.
-
-Lemma safe_corestepN_forward:
-  corestep_fun -> 
-  forall c m c' m' n n0,
-    corestepN Hcore ge n0 c m c' m' -> safeN (n + S n0) c m -> safeN n c' m'.
-Proof.
-  intros.
-  revert c m c' m' n H0 H1.
-  induction n0; intros; auto.
-  simpl in H0; inv H0.
-  eapply safe_downward in H1; eauto. omega.
-  simpl in H0. destruct H0 as [c2 [m2 [STEP STEPN]]].
-  apply (IHn0 _ _ _ _ n STEPN). 
-  assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.
-  rewrite Heq in H1.
-  eapply safe_corestep_forward in H1; eauto.
-Qed.
-
-Lemma safe_corestep_backward:
-  forall c m c' m' n,
-    corestep Hcore ge c m c' m' -> safeN (n - 1) c' m' -> safeN n c m.
-Proof.
-  simpl; intros.
-  induction n; simpl; auto.
-  erewrite corestep_not_halted; eauto.
-  exists c', m'; split; auto.
-  assert (Heq: (n = S n - 1)%nat) by omega.
-  rewrite Heq; auto.
-Qed.
-
-Lemma safe_corestepN_backward:
-  forall c m c' m' n n0,
-    corestepN Hcore ge n0 c m c' m' -> safeN (n - n0) c' m' -> safeN n c m.
-Proof.
-  simpl; intros.
-  revert c m c' m' n H H0.
-  induction n0; intros; auto.
-  simpl in H; inv H.
-  solve[assert (Heq: (n = n - 0)%nat) by omega; rewrite Heq; auto].
-  simpl in H. destruct H as [c2 [m2 [STEP STEPN]]].
-  assert (H: safeN (n - 1 - n0) c' m'). 
-  eapply safe_downward in H0; eauto. omega.
-  specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H). 
-  eapply safe_corestep_backward; eauto.
-Qed.
-
-End safety.
-
 Definition target_accessible mu m tm args b ofs :=
   Mem.valid_block tm b /\ 
   (locBlocksTgt mu b=false -> 
@@ -385,7 +280,15 @@ Lemma yielded_source_yielded_target {cd j c d m tm} :
   match_state cd j c m d tm -> 
   TraceSemantics.yielded source c -> 
   TraceSemantics.yielded target d.
-Admitted.
+Proof.
+intros MATCH [[ef [sig [args X]]]|[rv X]].
+eapply core_at_external in MATCH; eauto.
+destruct MATCH as [? [? [? ?]]]; left.
+exists ef, sig, x; auto.
+eapply core_halted in MATCH; eauto.
+destruct MATCH as [? [? [? ?]]].
+right; exists x; auto.
+Qed.
 
 Arguments match_sm_wd : default implicits.
 
@@ -402,23 +305,6 @@ Proof.
 intros H; apply REACH_mono with (B1 := getBlocks args); auto.
 intros b0 H2; unfold exportedTgt; rewrite H2; auto. 
 Qed.
-
-Lemma REACH_as_inj_backward :
-  forall mu : SM_Injection,
-  SM_wd mu ->
-  forall (m1 m2 : mem) (vals1 vals2 : list val),
-  Mem.inject (as_inj mu) m1 m2 ->
-  Forall2 (val_inject (as_inj mu)) vals1 vals2 ->
-  forall B : block -> bool,
-  (forall (b b2 : block) (d : BinNums.Z),
-   shared_of mu b = Some (b2, d) -> B b2 = true) ->
-  forall b2, REACH m2 (fun b : block => getBlocks vals2 b || B b) b2 = true -> 
-    exists b1 d, as_inj mu b1 = Some (b2, d).
-Proof.
-intros.
-SearchAbout as_inj.
-case_eq (as_inj mu b1).
-Admitted.
 
 Lemma semantics_preservation_aux {n c c' d m m' tm cd j} : 
   trace_match_state cd j c m d tm -> 
@@ -547,41 +433,6 @@ assert (EINCR: extern_incr nu nu2).
     destruct INCR as [X [Y W]]; apply W.
     unfold mu, nu, marshal, DomTgt; simpl; rewrite replace_locals_extBlocksTgt, H2.
     solve[rewrite !orb_true_iff; auto]. }
-
-assert (REACH_IN_DOMSRC_NU: forall b, 
-  REACH m (getBlocks args) b=true -> DomSrc nu b=true).
-  { intros b RC.
-    apply (reach_in_exported_src j) in RC; auto.
-    apply REACH_as_inj 
-      with (m2 := tm) (vals2 := targs) (B := sharedTgt j)
-      in RC; auto.
-    destruct RC as [b2 [d2 [INJ' RC]]].
-    apply as_inj_DomRng in INJ'; auto.
-    unfold nu; rewrite replace_locals_DomSrc; destruct INJ'; auto.
-    intros b0 b2 d0 SHARED.
-    assert (H: exists b2 d0, shared_of j b0 = Some (b2,d0))
-      by (exists b2, d0; auto).
-    rewrite <-sharedSrc_iff in H.
-    apply shared_SrcTgt in H; auto.
-    destruct H as [jb [d2 [H H2]]]; auto.
-    rewrite H in SHARED; inv SHARED; auto. }
-
-assert (REACH_IN_DOMTGT_NU: forall b, 
-  REACH tm (getBlocks targs) b=true -> DomTgt nu b=true).
-  { intros b RC.
-    apply (reach_in_exported_tgt j) in RC.
-    apply REACH_as_inj_backward 
-      with (mu := j) (m1 := m) (vals1 := args) in RC; auto.
-    destruct RC as [b1 [d1 INJ']].
-    apply as_inj_DomRng in INJ'; auto.
-    unfold nu; rewrite replace_locals_DomTgt; destruct INJ'; auto.
-    intros b0 b2 d0 SHARED.
-    assert (H: exists b2 d0, shared_of j b0 = Some (b2,d0))
-      by (exists b2, d0; auto).
-    rewrite <-sharedSrc_iff in H.
-    apply shared_SrcTgt in H; auto.
-    destruct H as [jb [d3 [H H2]]].
-    rewrite H in SHARED; inv SHARED; auto. }
 
 assert (NUMU2_SEP: sm_inject_separated nu mu2 m tm).
   { apply injsep_marshal' in SEP2; auto. }

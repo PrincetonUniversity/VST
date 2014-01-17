@@ -37,7 +37,7 @@ Variable sem : @CoopCoreSem G C.
 Variable spec : ext_spec Z.
 
 Definition yielded c :=
-  exists ef sig args, at_external sem c = Some (ef, sig, args) 
+  (exists ef sig args, at_external sem c = Some (ef, sig, args))
   \/ exists rv, halted sem c = Some rv.
 
 Inductive step : G -> (Z*list Event.t*C) -> mem -> (Z*list Event.t*C) -> mem -> Prop :=
