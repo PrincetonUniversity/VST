@@ -41,6 +41,16 @@ Definition list_int_type := no_eqb_type (list int).
 
 Definition int_type := no_eqb_type int.
 
+Definition Z_type := no_eqb_type Z.
+
+Definition nat_type := no_eqb_type nat.
+
+Definition positive_type := no_eqb_type positive.
+
+Definition bool_type := no_eqb_type bool.
+
+Definition comparison_type := no_eqb_type comparison.
+
 Module Type unknown_types.
 Parameter (unknown_types : (list Expr.type)).
 End unknown_types.
@@ -57,33 +67,32 @@ Definition our_types :=(cons tycontext_type
                        (cons ident_type
                        (cons list_val_type 
                        (cons list_int_type  
-                       (cons int_type nil
-                       )))))))))).
+                       (cons int_type
+                       (cons Z_type
+                       (cons nat_type
+                       (cons positive_type
+                       (cons bool_type
+                       (cons comparison_type nil
+                       ))))))))))))))).
 
 Definition all_types := our_types ++ unknown_types.
 
 
 Definition tycontext_tv := Expr.tvType 0.
-
 Definition c_expr_tv := Expr.tvType 1.
-
 Definition c_type_tv := Expr.tvType 2.
-
 Definition environ_tv := Expr.tvType 3.
-
 Definition val_tv := Expr.tvType 4.
-
 Definition share_tv := Expr.tvType 5.
-
 Definition ident_tv := Expr.tvType 6.
-
 Definition list_val_tv := Expr.tvType 7.
-
 Definition list_int_tv := Expr.tvType 8.
-
 Definition int_tv := Expr.tvType 9.
-
-Definition mpred_tv := Expr.tvType 10.
+Definition Z_tv := Expr.tvType 10.
+Definition nat_tv := Expr.tvType 11.
+Definition positive_tv := Expr.tvType 12.
+Definition bool_tv := Expr.tvType 13.
+Definition comparison_tv := Expr.tvType 14.
 
 (*Some common consts *)
 Definition our_const tv val :=

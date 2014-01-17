@@ -18,6 +18,8 @@ Module our_funcs := funcs uk.
 Import our_funcs.
 Import all_types.
 
+Check Z.lt.
+
 (* From entailer.v. Need to pare this down... *)
 (*
 Inductive computable: forall {A}(x: A), Prop :=
@@ -70,45 +72,21 @@ Inductive computable: forall {A}(x: A), Prop :=
 (* Builtins *)
 
 (* Have cases for all our built-in functions that the solver needs to handle *)
-Print tvProp.
-Print Func.
-
-Check Func.
-Check func.
-Print eval_id_f.
-Print id.
-Print tvarD.
-Print tvProp.
-Check @eq.
-
 Check tc_environ.
-
-(*
-Definition tc_environ_f := 0%nat.
-Definition eq_val_f := 1%nat.
-Definition force_ptr_f := 2%nat.
-Definition app_val_f := 3%nat.
-Definition eval_id_f := 4%nat.
-Definition and_f := 5%nat.
-Definition eq_list_val_f := 6%nat.
-Definition cons_val_f := 7%nat.
-Definition int_sub_f := 8%nat.
-Definition vint_f := 9%nat.
-Definition map_Vint_f := 10%nat.
-Definition typed_true_f := 11%nat.
-Definition int_add_f := 12%nat.
-*)
 
 Local Open Scope nat.
 Import ListNotations.
 
 (* Perform computation on reified objects *)
+(* For now, assume a fancy is_const; and assume that we will get datatypes as consts
+ * Don't treat data constructors as functions *)
+
 Fixpoint compute (e : expr all_types) : expr all_types :=
   let our_const tv val := @Const all_types tv val in
   match e with
     (* Func 0 is tc_environ_f; not computable *)
 
-    (* Func 1 is eq_val_f; need to replace *)
+    | Func 1 (* O_f *) [] => our_const (tvType 11 (* nat_tv *)) O
 
     | Func 2  (* force_ptr_f *) [tv] =>
       match compute tv with
@@ -133,6 +111,16 @@ Fixpoint compute (e : expr all_types) : expr all_types :=
         | Const tvProp p1' =>
           match compute p2 with
             | Const tvProp p2' => our_const tvProp (p1' /\ p2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 6 (* align_f *) [v amnt] =>
+      match compute v with
+        | Cons (tvType 10 (* Z_tv *)) v' =>
+          match compute amnt with
+            | Cons (tvType 10 (* Z_tv *)) amnt' => our_const (tvType 10 (* Z_tv *)) (align v' amnt')
             | _ => e
           end
         | _ => e
@@ -182,15 +170,258 @@ Fixpoint compute (e : expr all_types) : expr all_types :=
         | _ => e
       end
 
-    | Func 12%nat (* int_add_f *) [v1; v2] =>
+    | Func 12 (* int_add_f *) [v1; v2] =>
       match compute v1 with
-        | Const (tvType 9) (* int_tv *) v1 =>
+        | Const (tvType 9 (* int_tv *)) v1' =>
           match compute v2 with
-            | Const (tvType 9) (* int_tv *) v2 => our_const (tvType 9) (* int_tv *) (Int.add v1 v2)
+            | Const (tvType 9 (* int_tv *)) v2' => our_const (tvType 9 (* int_tv *))  (Int.add v1' v2')
             | _ => e
           end
         | _ => e
       end
 
-    | _ (* default case *) => e
+    | Func 13 (* S_f *) [n] =>
+      match compute n with
+        | Const (tvType 11 (* nat_tv *)) n' => our_const (tvType 11 (* nat_tv *)) (S n')
+        | _ => e
+      end
+
+    | Func 14 (* Z_lt_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 10 (* Z_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 10 (* Z_tv *)) v2' => our_const tvProp (Z.lt v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 15 (* Z_le_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 10 (* Z_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 10 (* Z_tv *)) v2' => our_const tvProp (Z.le v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 16 (* Z_gt_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 10 (* Z_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 10 (* Z_tv *)) v2' => our_const tvProp (Z.gt v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 17 (* Z_ge_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 10 (* Z_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 10 (* Z_tv *)) v2' => our_const tvProp (Z.ge v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 18 (* Zpos_f *) [p] =>
+      match compute p with
+        | Const (tvType 12 (* positive_tv *)) p' => our_const (tvType 10 (* Z_tv *)) (Zpos p')
+        | _ => e
+      end
+
+    | Func 19 (* Zneg_f *) [p] =>
+      match compute p with
+        | Const (tvType 12 (* positive_tv *)) p' => our_const (tvType 10 (* Z_tv *)) (Zneg p')
+        | _ => e
+      end
+
+    | Func 20 (* Z0_f *) [] => our_const (tvType 10 (* Z_tv *)) Z0
+
+    | Func 21 (* xI_f *) [p] =>
+      match compute p with
+        | Const (tvType 12 (* positive_tv *)) p' => our_const (tvType 12 (* positive_tv *)) (xI p')
+        | _ => e
+      end
+
+    | Func 22 (* xO_f *) [p] =>
+      match compute p with
+        | Const (tvType 12 (* positive_tv *)) p' => our_const (tvType 12 (* positive_tv *)) (xO p')
+        | _ => e
+      end
+
+    | Func 23 (* xH_f *) [] => our_const (tvType 12 (* positive_tv *)) xH
+
+    | Func 24 (* int_lt_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 9 (* int_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 9 (* int_tv *)) v2' => our_const (tvType 13 (* bool_tv *)) (Int.lt v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 25 (* int_ltu_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 9 (* int_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 9 (* int_tv *)) v2' => our_const (tvType 13 (* bool_tv *)) (Int.ltu v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 26 (* int_mul_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 9 (* int_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 9 (* int_tv *)) v2' => our_const (tvType 9 (* int_tv *)) (Int.mul v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 27 (* int_neg_f *) [v] =>
+      match compute v with
+        | Const (tvType 9 (* int_tv *)) v' => our_const (tvType 9 (* int_tv *)) (Int.neg v')
+        | _ => e
+      end
+
+    | Func 28 (* Z_add_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 10 (* Z_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 10 (* Z_tv *)) v2' => our_const (tvType 10 (* Z_tv *)) (Z.add v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 29 (* Z_sub_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 10 (* Z_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 10 (* Z_tv *)) v2' => our_const (tvType 10 (* Z_tv *)) (Z.sub v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 30 (* Z_mul_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 10 (* Z_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 10 (* Z_tv *)) v2' => our_const (tvType 10 (* Z_tv *)) (Z.mul v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 31 (* Z_div_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 10 (* Z_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 10 (* Z_tv *)) v2' => our_const (tvType 10 (* Z_tv *)) (Z.div v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 32 (* Z_mod_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 10 (* Z_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 10 (* Z_tv *)) v2' => our_const (tvType 10 (* Z_tv *)) (Z.mod v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 33 (* Z_max_f *) [v1; v2] =>
+      match compute v1 with
+        | Const (tvType 10 (* Z_tv *)) v1' =>
+          match compute v2 with
+            | Const (tvType 10 (* Z_tv *)) v2' => our_const (tvType 10 (* Z_tv *)) (Z.max v1' v2')
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 34 (* Z_opp_f *) [v] =>
+      match compute v with
+        | Const (tvType 10 (* Z_tv *)) v' => our_const (tvType 10 (* Z_tv *)) (Z.opp v')
+        | _ => e
+      end
+
+    | Func 35 (* Ceq_f *) [] => our_const (tvType 14 (* comparison_tv *)) Ceq.
+
+    | Func 36 (* Cne_f *) [] => our_const (tvType 14 (* comparison_tv *)) Cne.
+
+    | Func 37 (* Clt_f *) [] => our_const (tvType 14 (* comparison_tv *)) Clt.
+
+    | Func 38 (* Cle_f *) [] => our_const (tvType 14 (* comparison_tv *)) Cle.
+
+    | Func 39 (* Cgt_f *) [] => our_const (tvType 14 (* comparison_tv *)) Cgt.
+
+    | Func 40 (* Cge_f *) [] => our_const (tvType 14 (* comparison_tv *)) Cge.
+
+    | Func 41 (* int_cmp_f *) [c; v1; v2] =>
+      match compute c with
+        | Const (tvType 14 (* comparison_tv *)) c' =>
+          match compute v1 with
+            | Const (tvType 9 (* int_tv *)) v1' =>
+              match compute v2 with
+                | Const (tvType 9 (* int_tv *)) v2' => our_const (tvType 13 (* bool_tv *)) (Int.cmp c' v1' v2')
+                | _ => e
+              end
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 42 (* int_cmpu_f *) [c; v1; v2] =>
+      match compute c with
+        | Const (tvType 14 (* comparison_tv *)) c' =>
+          match compute v1 with
+            | Const (tvType 9 (* int_tv *)) v1' =>
+              match compute v2 with
+                | Const (tvType 9 (* int_tv *)) v2' => our_const (tvType 13 (* bool_tv *)) (Int.cmpu c' v1' v2')
+                | _ => e
+              end
+            | _ => e
+          end
+        | _ => e
+      end
+
+    | Func 43 (* int_repr_f *) [v] =>
+      match compute v with
+        | Const (tvType 10 (* Z_tv *)) v' => our_const (tvType 9 (* int_tv *)) (Int.repr v')
+        | _ => e
+      end
+
+    | Func 44 (* int_signed_f *) [v] =>
+      match compute v with
+        | Const (tvType 9 (* int_tv *)) v' => our_const (tvType 10 (* Z_tv *)) (Int.signed v')
+        | _ => e
+      end
+
+    | Func 45 (* int_unsigned_f *) [v] =>
+      match compute v with
+        | Const (tvType 9 (* int_tv *)) v' => our_const (tvType 10 (* Z_tv *)) (Int.unsigned v')
+        | _ => e
+      end
+
+    | Func 46 (* two_power_nat_f *) [n] =>
+      match compute n with
+        | Const (tvType 11 (* nat_tv *)) n' => our_const (tvType 10 (* Z_tv *)) (two_power_nat n')
+        | _ => e
+      end
+
+    | Func 47 (* int_max_unsigned_f *) [] => our_const (tvType 10 (* Z_tv *)) Int.max_unsigned
+
+    | _ => e
+
   end.
