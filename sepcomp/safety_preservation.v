@@ -44,6 +44,28 @@ Definition corestep_fun  :=
     corestep Hcore ge q m q2 m2 -> 
     (q1, m1) = (q2, m2).
 
+
+Lemma corestep_star_fun : 
+  corestep_fun -> 
+  forall c m c' m' c'' m'' n,
+  corestepN Hcore ge n c m c' m' -> 
+  corestepN Hcore ge n c m c'' m'' -> 
+  c'=c'' /\ m'=m''.
+Proof.
+intro FUN. intros. revert c m H H0. induction n; auto.
+simpl. intros ? ?. inversion 1; subst. inversion 1; subst. 
+split; auto.
+simpl.
+intros c m H H2.
+destruct H as [c2 [m2 [STEP STEPN]]].
+destruct H2 as [c2' [m2' [STEP' STEPN']]].
+assert ((c2,m2)=(c2',m2')).
+  unfold corestep_fun in FUN.
+  eapply FUN; eauto.
+inv H.
+eapply IHn; eauto.
+Qed.
+
 Lemma safe_downward1 :
   forall n c m,
     safeN (S n) c m -> safeN n c m.
@@ -435,7 +457,7 @@ Lemma safety_preservation:
   (MATCH : exists (cd: data) (j: meminj), match_state cd j c m d tm)
   (source_safe : forall n, safeN source geS P n c m),
 
-  forall n, safeN target geT P n d tm.
+  (forall n, safeN target geT P n d tm).
 Proof.
 intros until n.
 destruct MATCH as [cd [j MATCH2]].
@@ -492,5 +514,114 @@ apply (safe_corestep_backward _ _ _ _ _ _ _ _ STEP).
 generalize (IHn0 _ _ STEPN HALTED); intros SAFEN.
 solve[apply safe_downward with (n1 := n); auto; omega].
 Qed.
+
+Lemma safely_halted d tm d' tm' P rv n :
+  (forall n, safeN target geT P n d tm) -> 
+  corestepN target geT n d tm d' tm' -> 
+  halted target d' = Some rv -> 
+  P rv tm'.
+Proof.
+revert d tm; induction n.
+intros d tm ?. inversion 1; subst. intros HALT.
+generalize (H (S O)); simpl.
+rewrite HALT; auto.
+intros.
+destruct H0 as [d2 [tm2 [H2 H3]]].
+apply IHn with (d := d2) (tm := tm2); auto.
+intros n0; apply safe_corestep_forward with (c := d) (m := tm); auto.
+Qed.
+
+Lemma halted_same_num_steps d tm d' tm' d'' tm'' rv rv' n n' :
+  corestepN target geT n d tm d' tm' -> 
+  corestepN target geT n' d tm d'' tm'' -> 
+  halted target d' = Some rv -> 
+  halted target d'' = Some rv' -> 
+  n=n'.
+Proof.
+revert d tm n'; induction n.
+intros d tm. simpl. inversion 1; subst. 
+destruct n'. simpl. inversion 1; subst; auto.
+simpl. intros [d2 [m2 [STEP STEP']]] HALT HALT'.
+apply corestep_not_halted in STEP.
+rewrite HALT in STEP; congruence.
+intros.
+destruct H as [d2 [tm2 [H H']]].
+destruct n'.
+simpl in H0. inv H0. 
+apply corestep_not_halted in H.
+rewrite H2 in H; congruence.
+erewrite IHn; eauto.
+destruct H0 as [d2' [tm2' [? ?]]].
+generalize (TGT_DET _ _ _ _ _ _ _ H H0).
+inversion 1; subst; auto.
+Qed.
+
+Lemma semantics_preservation:
+  forall c m d tm c' m' rv (P: val -> mem -> Prop) cd j,
+  Forward_simulation_inject source target geS geT entry_points data match_state ord -> 
+  (forall j v tv m tm, val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm) -> 
+  corestep_star source geS c m c' m' -> 
+  halted source c' = Some rv -> 
+  P rv m' -> 
+  match_state cd j c m d tm -> 
+  (exists d' tm' rv', corestep_star target geT d tm d' tm'
+    /\ halted target d' = Some rv' 
+    /\ P rv' tm') /\
+  (forall d' tm' rv', 
+    corestep_star target geT d tm d' tm' ->
+    halted target d' = Some rv' ->
+    P rv' tm').
+Proof.
+intros until j; intros sim P_good H1 H2 H3 H4.
+generalize (halted_safe _ _ _ _ _ _ H1 H2 H3); intros safe.
+generalize H2 as H2'; intro.
+eapply termination_preservation in H2; eauto.
+destruct H2 as [d' [tm' [rv2 [[n H] H0]]]].
+generalize (safety_preservation sim c d m tm _ P_good); intro SAFE.
+assert (A: 
+  exists (d'0 : D) (tm'0 : mem) (rv' : val),
+    corestep_star target geT d tm d'0 tm'0 /\
+    halted target d'0 = Some rv' /\ P rv' tm'0).
+{ exists d', tm', rv2; split; auto. exists n; auto. split; auto.
+  apply safely_halted 
+    with (d := d) (tm := tm) (tm' := tm') (P := P) (n := n) in H0; auto.
+  eauto. }
+split; auto.
+intros d'' tm'' rv'' TSTEPN THALT.
+assert (rv''=rv2 /\ tm''=tm') as [-> ->]. 
+{ generalize (@corestep_star_fun _ _ target geT TGT_DET
+              d tm d' tm' d'' tm'').
+  intros B.
+  destruct TSTEPN as [n0 TSTEPN].
+  generalize H as H'.
+  eapply halted_same_num_steps in H; eauto.
+  intros; subst n0; apply B in TSTEPN; auto.
+  destruct TSTEPN as [? ?]; subst.
+  rewrite H0 in THALT; inv THALT; auto. }
+apply safely_halted 
+  with (d := d) (tm := tm) (tm' := tm') (P := P) (n := n) in H0; auto.
+eauto.
+Qed.
+
+(*
+Print Assumptions semantics_preservation.
+Section Variables:
+C : Type
+D : Type
+F : Type
+SRC_DET : corestep_fun source
+TF : Type
+TGT_DET : corestep_fun target
+TV : Type
+V : Type
+data : Type
+entry_points : list (val * val * signature)
+geS : Genv.t F V
+geT : Genv.t TF TV
+match_state : data -> meminj -> C -> mem -> D -> mem -> Prop
+ord : data -> data -> Prop
+source : CoreSemantics (Genv.t F V) C mem
+target : CoreSemantics (Genv.t TF TV) D mem
+*)
 
 End safety_preservation.
