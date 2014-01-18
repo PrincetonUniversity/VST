@@ -81,6 +81,10 @@ Import ListNotations.
 (* For now, assume a fancy is_const; and assume that we will get datatypes as consts
  * Don't treat data constructors as functions *)
 
+(* TODO - rewrite in terms of is_const and compute
+ * is compute. Leverage exprD since it already has the mapping of funcs to reflections *)
+
+(*
 Fixpoint compute (e : expr all_types) : expr all_types :=
   let our_const tv val := @Const all_types tv val in
   match e with
@@ -88,9 +92,9 @@ Fixpoint compute (e : expr all_types) : expr all_types :=
 
     | Func 1 (* O_f *) [] => our_const (tvType 11 (* nat_tv *)) O
 
-    | Func 2  (* force_ptr_f *) [tv] =>
-      match compute tv with
-        | Const (tvType 4 (* val_tv *)) tv' => our_const (tvType 4 (* val_tv *)) (force_ptr tv')
+    | Func 2  (* force_ptr_f *) [v] =>
+      match compute v with
+        | Const (tvType 4 (* val_tv *)) v' => our_const (tvType 4 (* val_tv *)) (force_ptr v')
         | _ => e
       end
     
@@ -116,11 +120,11 @@ Fixpoint compute (e : expr all_types) : expr all_types :=
         | _ => e
       end
 
-    | Func 6 (* align_f *) [v amnt] =>
+    | Func 6 (* align_f *) [v; amnt] =>
       match compute v with
-        | Cons (tvType 10 (* Z_tv *)) v' =>
+        | Const (tvType 10 (* Z_tv *)) v' =>
           match compute amnt with
-            | Cons (tvType 10 (* Z_tv *)) amnt' => our_const (tvType 10 (* Z_tv *)) (align v' amnt')
+            | Const (tvType 10 (* Z_tv *)) amnt' => our_const (tvType 10 (* Z_tv *)) (align v' amnt')
             | _ => e
           end
         | _ => e
@@ -334,7 +338,7 @@ Fixpoint compute (e : expr all_types) : expr all_types :=
       match compute v1 with
         | Const (tvType 10 (* Z_tv *)) v1' =>
           match compute v2 with
-            | Const (tvType 10 (* Z_tv *)) v2' => our_const (tvType 10 (* Z_tv *)) (Z.mod v1' v2')
+            | Const (tvType 10 (* Z_tv *)) v2' => our_const (tvType 10 (* Z_tv *)) (Zmod v1' v2')
             | _ => e
           end
         | _ => e
@@ -356,17 +360,17 @@ Fixpoint compute (e : expr all_types) : expr all_types :=
         | _ => e
       end
 
-    | Func 35 (* Ceq_f *) [] => our_const (tvType 14 (* comparison_tv *)) Ceq.
+    | Func 35 (* Ceq_f *) [] => our_const (tvType 14 (* comparison_tv *)) Ceq
 
-    | Func 36 (* Cne_f *) [] => our_const (tvType 14 (* comparison_tv *)) Cne.
+    | Func 36 (* Cne_f *) [] => our_const (tvType 14 (* comparison_tv *)) Cne
 
-    | Func 37 (* Clt_f *) [] => our_const (tvType 14 (* comparison_tv *)) Clt.
+    | Func 37 (* Clt_f *) [] => our_const (tvType 14 (* comparison_tv *)) Clt
 
-    | Func 38 (* Cle_f *) [] => our_const (tvType 14 (* comparison_tv *)) Cle.
+    | Func 38 (* Cle_f *) [] => our_const (tvType 14 (* comparison_tv *)) Cle
 
-    | Func 39 (* Cgt_f *) [] => our_const (tvType 14 (* comparison_tv *)) Cgt.
+    | Func 39 (* Cgt_f *) [] => our_const (tvType 14 (* comparison_tv *)) Cgt
 
-    | Func 40 (* Cge_f *) [] => our_const (tvType 14 (* comparison_tv *)) Cge.
+    | Func 40 (* Cge_f *) [] => our_const (tvType 14 (* comparison_tv *)) Cge
 
     | Func 41 (* int_cmp_f *) [c; v1; v2] =>
       match compute c with
@@ -425,3 +429,120 @@ Fixpoint compute (e : expr all_types) : expr all_types :=
     | _ => e
 
   end.
+*)
+
+(* Nicer version of compute. Makes compute_correct not awful *)
+Check fold_right.
+Fixpoint is_const (e : expr all_types) : bool :=
+  let is_const_l (es : list (expr all_types)) : bool :=
+      fold_right andb true (map is_const es)
+  in
+  match e with
+    (* See if we can immediately convert it to a const
+     * (i.e., not standing in for somhting above the line*)
+    | Func n [] =>
+      match n with
+        | 1 (* O_f *)
+        | 20 (* Z0_f *)
+        | 23 (* xH_f *)
+        | 35 (* Ceq_f *)
+        | 36 (* Cne_f *)
+        | 37 (* Clt_f *)
+        | 38 (* Cle_f *)
+        | 39 (* Cgt_f *)
+        | 40 (* Cge_f *)
+        | 47 (* int_max_unsigned *)
+          => true
+
+        (* If no arguments and can't compute, give up *)
+        | _ => false
+      end
+
+    | Func _ a => is_const_l a 
+    | Const _ _ => true
+    | _ => false
+  end.
+
+Require Import wrapExpr.
+Check @Const.
+
+(* TODO: eventually don't require caller to pass in t? *)
+Definition compute (e : expr all_types) (t : tvar) : expr all_types :=
+if is_const e then
+  match (@exprD all_types functions nil nil e t) with
+    | Some v => Const v
+    | None => e
+  end
+else
+  e.
+
+Check exprD.
+
+Check lookupAs.
+
+Check nth_error.
+
+Lemma exprD_nil_vars_correct : forall (e : expr all_types) (t : tvar) (vars uvars : env all_types),
+(exists v, exprD functions [] [] e t = Some v) ->
+exprD functions [] [] e t = exprD functions vars uvars e t.
+Proof.
+induction e.
+- reflexivity.
+- intros.
+  inversion H; subst; simpl.
+  inversion H0; subst; simpl.
+  destruct x; unfold lookupAs; simpl; destruct uvars; inversion H2.
+- intros.
+  inversion H; subst; simpl.
+  inversion H0; subst; simpl.
+  destruct x; unfold lookupAs; simpl; destruct vars; inversion H2.
+- intros.
+  inversion H; subst.
+  * reflexivity.
+  * inversion H0; subst.
+    simpl. Admitted.
+ 
+
+Lemma compute_correct : forall (e : expr all_types) (t : tvar) (vars uvars : env all_types),
+exprD functions vars uvars e t =
+exprD functions vars uvars (compute e t) t.
+Proof.
+  intros e t vars uvars.
+  unfold compute.
+  remember (is_const e) as econst.
+  destruct econst; simpl.
+  - remember (exprD functions [] [] e t) as eD_nil.
+    remember (exprD functions vars uvars e t) as eD_vars.
+    destruct eD_nil; simpl.
+    + destruct (equiv_dec t t); unfold equiv in *.
+      * rewrite (UIP_refl _ _ e0).
+        rewrite -> HeqeD_nil.
+        rewrite -> HeqeD_vars.
+        symmetry. eapply exprD_nil_vars_correct.
+        eexists. symmetry. eapply HeqeD_nil.
+      * unfold complement in c. apply False_ind. auto.
+    + assumption.
+  - reflexivity.
+Qed.
+
+Print Sep.sexpr.
+Import Sep.
+
+Fixpoint compute_s (se : sexpr all_types) (t : tvar) : sexpr all_types :=
+match se with
+  | Emp => Emp all_types
+  | Inj e => Inj (compute e t)
+  | Star e1 e2 => Star (compute_s e1 t) (compute_s e2 t)
+  | Exists tv e => Exists tv (compute_s e t)
+  | Func f es => Func f (map (fun x => compute x t) es)
+  | Const hp => Const all_types hp
+end.
+
+Check Sep.sexprD.
+  
+(* Lemma compute_s_correct : forall (e : sexpr all_types) (t : tvar),
+sexprD functions nil nil e t =
+sexprD _ _ (compute_s e t) t. *)
+
+
+(* also compute_goal; and correctness proofs *)
