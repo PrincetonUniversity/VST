@@ -18,7 +18,7 @@ Require Import Clight_coop.
 
 Definition assign_loc_Effect (ty:type) (b: block) (ofs: int) v : (block -> Z -> bool)  :=
   match access_mode ty with
-     By_value chunk => fun b' z' => eq_block b' b 
+     By_value chunk => fun b' z' => eq_block b b' 
               && zle (Int.unsigned ofs) z' 
               && zlt z' ((Int.unsigned ofs) + Z.of_nat (length (encode_val chunk v)))
    | By_copy => fun b' z' => eq_block b' b 
@@ -42,7 +42,7 @@ inv H0.
   (*memcontents*)
     rewrite (Mem.store_mem_contents _ _ _ _ _ _ H2).
     unfold assign_loc_Effect in H0; rewrite H in H0.
-    destruct (eq_block b loc); subst; simpl in H0.
+    destruct (eq_block loc b); subst; simpl in H0.
       rewrite PMap.gss. rewrite andb_false_iff in H0.
       apply Mem.setN_other. intros; intros N. subst.
       destruct H3.
@@ -51,7 +51,7 @@ inv H0.
         destruct (zlt ofs0 (Int.unsigned ofs + Z.of_nat (length (encode_val chunk v)))); simpl in *. discriminate.
         omega.
       omega.
-    rewrite PMap.gso; trivial.
+    rewrite PMap.gso; trivial. intros N; subst; apply n; trivial.
 (*access_mode (typeof a) = By_copy*)
   split; intros.
   (*perm*)
@@ -278,7 +278,7 @@ intros.
   split. econstructor; try eassumption.
          apply Mem.unchanged_on_refl.
   split. econstructor; try eassumption.
-         admit. (*Builtin effect*)
+         eapply ec_builtinEffectPolymorphic; eassumption.
   split. econstructor; try eassumption.
          apply Mem.unchanged_on_refl.
   split. econstructor; try eassumption.

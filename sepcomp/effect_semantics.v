@@ -1115,14 +1115,32 @@ Qed.
 
 Parameter BuiltinEffect : forall {F V: Type} (ge: Genv.t F V) (sg: signature) 
                     (vargs:list val) (m:mem), block -> Z -> bool.
-(*
-Axiom BUILTIN: forall (name: ident) (F V: Type) (ge: Genv.t F V) (sg: signature) 
-                    (vargs:list val)
-                       (m:mem) (t:trace) (v: val) (m': mem),
-      extcall_io_sem name sg ge vargs m t v m' ->
-      Mem.unchanged_on (fun b z => BuiltinEffect ge sg vargs m b z = false) m m'.
-*)
+
 Axiom ec_builtinEffectPolymorphic:
    forall {F V:Type} ef (g : Genv.t F V) vargs m t vres m',
    external_call ef g vargs m t vres m' ->
    Mem.unchanged_on (fun b z=> BuiltinEffect g (ef_sig ef) vargs m b z = false) m m'.
+
+(*preliminary material for the support of builtins,
+AXIOM BUILTIN: forall (name: ident) (F V: Type) (ge: Genv.t F V) (sg: signature) 
+                    (vargs:list val)
+                       (m:mem) (t:trace) (v: val) (m': mem),
+      extcall_io_sem name sg ge vargs m t v m' ->
+      Mem.unchanged_on (fun b z => BuiltinEffect ge sg vargs m b z = false) m m'.
+
+Lemma ec_builtinEffectPolymorphic:
+   forall {F V:Type} ef (g : Genv.t F V) vargs m t vres m',
+   external_call ef g vargs m t vres m' ->
+   Mem.unchanged_on (fun b z=> BuiltinEffect g (ef_sig ef) vargs m b z = false) m m'.
+Proof. intros. simpl in H.
+  destruct ef; try (eapply BUILTIN; eassumption).
+Focus 7. simpl in H. inv H.
+Qed.
+Lemma ec_builtinEffectPolymorphic:
+   forall {F V:Type} name sg (g : Genv.t F V) vargs m t vres m',
+   external_call (EF_builtin name sg) g vargs m t vres m' ->
+   Mem.unchanged_on (fun b z=> BuiltinEffect g sg vargs m b z = false) m m'.
+Proof. intros. simpl in H.
+  eapply BUILTIN. eassumption.
+Qed.
+*)

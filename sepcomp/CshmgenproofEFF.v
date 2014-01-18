@@ -699,7 +699,55 @@ Proof.
   apply sizeof_pos. 
   eapply Zdivide_trans. apply alignof_blockcopy_divides. apply sizeof_alignof_compat.
 Qed.
- 
+Lemma make_memcpy_correct_BuiltinEffect:
+     forall f dst src ty k e le m b ofs v m',
+       eval_expr ge e le m dst (Vptr b ofs) ->
+       eval_expr ge e le m src v ->
+       assign_loc ty m b ofs v m' ->
+       access_mode ty = By_copy ->
+  exists b' ofs', v = Vptr b' ofs' /\
+  effstep csharpmin_eff_sem ge
+          (BuiltinEffect ge (ef_sig (EF_memcpy (sizeof ty) (alignof_blockcopy ty)))
+                            (Vptr b ofs :: Vptr b' ofs' :: nil) m)
+          (CSharpMin_State f (make_memcpy dst src ty) k e le) m
+          (CSharpMin_State f Sskip k e le) m'.
+Proof.
+  intros. inv H1; try congruence. 
+  unfold make_memcpy. change le with (set_optvar None Vundef le) at 2. 
+  exists b', ofs'. split; trivial.
+  econstructor.
+  econstructor. eauto. econstructor. eauto. constructor. 
+  econstructor; eauto. 
+  apply alignof_blockcopy_1248.
+  apply sizeof_pos. 
+  eapply Zdivide_trans. apply alignof_blockcopy_divides. apply sizeof_alignof_compat.  
+Qed.
+
+Lemma make_memcpy_correct_assignlocEffect:
+     forall f dst src ty k e le m b ofs v m',
+       eval_expr ge e le m dst (Vptr b ofs) ->
+       eval_expr ge e le m src v ->
+       assign_loc ty m b ofs v m' ->
+       access_mode ty = By_copy ->
+  exists b' ofs', v = Vptr b' ofs' /\
+  effstep csharpmin_eff_sem ge
+          (assign_loc_Effect ty b ofs v)
+          (CSharpMin_State f (make_memcpy dst src ty) k e le) m
+          (CSharpMin_State f Sskip k e le) m'.
+Proof.
+  intros. inv H1; try congruence. 
+  unfold make_memcpy. change le with (set_optvar None Vundef le) at 2. 
+  exists b', ofs'. split; trivial.
+  eapply csharpmin_effstep_sub_val.
+  Focus 2. econstructor.
+           econstructor. eauto. econstructor. eauto. constructor.  
+           econstructor; eauto.  
+           apply alignof_blockcopy_1248.
+           apply sizeof_pos.  
+           eapply Zdivide_trans. apply alignof_blockcopy_divides.
+           apply sizeof_alignof_compat.
+  intros.
+Admitted. (* this admit is related to builtins: need to define the builtin-effect of memcpy to equal/imply the assign_loc effect*)
 (*
 Lemma make_store_correct:
   forall addr ty rhs code e le m b ofs v m' f k,
@@ -735,6 +783,63 @@ Proof.
   (* by copy *)
   rewrite H in MKSTORE; inv MKSTORE. 
   eapply make_memcpy_correct; eauto. 
+Qed.
+
+Lemma make_store_correct_StoreEffect:
+  forall addr ty rhs code e le m b ofs v m' f k,
+  make_store addr ty rhs = OK code ->
+  eval_expr ge e le m addr (Vptr b ofs) ->
+  eval_expr ge e le m rhs v ->
+  assign_loc ty m b ofs v m' ->
+  match access_mode ty with
+   By_value chunk =>
+             effstep csharpmin_eff_sem ge 
+                (StoreEffect (Vptr b ofs) (encode_val chunk v))
+                (CSharpMin_State f code k e le) m
+                (CSharpMin_State f Sskip k e le) m'
+| By_copy => exists b' ofs', v = Vptr b' ofs' /\
+             effstep csharpmin_eff_sem ge 
+                (BuiltinEffect ge (ef_sig (EF_memcpy (sizeof ty) (alignof_blockcopy ty)))
+                                  (Vptr b ofs :: Vptr b' ofs' :: nil) m)
+                (CSharpMin_State f code k e le) m
+                (CSharpMin_State f Sskip k e le) m'
+  | _ => False
+  end.
+Proof.
+  unfold make_store. intros until k; intros MKSTORE EV1 EV2 ASSIGN.
+  inversion ASSIGN; subst.
+  (* nonvolatile scalar *)
+  rewrite H in MKSTORE; inv MKSTORE.
+  rewrite H. econstructor; eauto. 
+  (* by copy *)
+  rewrite H in MKSTORE; inv MKSTORE.
+  rewrite H. 
+  eapply make_memcpy_correct_BuiltinEffect; eauto.
+Qed.
+
+Lemma make_store_correct_AssignlocEffect:
+  forall addr ty rhs code e le m b ofs v m' f k,
+  make_store addr ty rhs = OK code ->
+  eval_expr ge e le m addr (Vptr b ofs) ->
+  eval_expr ge e le m rhs v ->
+  assign_loc ty m b ofs v m' ->
+  effstep csharpmin_eff_sem ge 
+          (assign_loc_Effect ty b ofs v)
+          (CSharpMin_State f code k e le) m
+          (CSharpMin_State f Sskip k e le) m'.
+Proof.
+  unfold make_store. intros until k; intros MKSTORE EV1 EV2 ASSIGN.
+  inversion ASSIGN; subst.
+  (* nonvolatile scalar *)
+  rewrite H in MKSTORE; inv MKSTORE.
+  eapply csharpmin_effstep_sub_val; try (econstructor; eauto).
+  unfold StoreEffect, assign_loc_Effect; intros.
+  rewrite H. apply H2. 
+  (* by copy *)
+  rewrite H in MKSTORE; inv MKSTORE.
+  destruct (make_memcpy_correct_assignlocEffect f _ _ _ k _ _ _ _ _ _ _ 
+      EV1 EV2 ASSIGN H) as [b'' [ofs'' [V STEP]]]; inv V.
+  assumption.
 Qed.
 
 End CONSTRUCTORS.
@@ -832,7 +937,6 @@ Proof.
   rewrite H1 in H4; inv H4.
   rewrite Int.add_zero. trivial.
 Qed.
-
 
 (** * Matching between environments *)
 
@@ -1317,206 +1421,18 @@ Lemma binary_op_inject: forall op v1 v2 ty1 ty2 m u
            (SBO:sem_binary_operation op v1 ty1 v2 ty2 m = Some u)
            j tm (MINJ : Mem.inject j m tm) 
            tv1 (V1: val_inject j v1 tv1) tv2 (V2: val_inject j v2 tv2),
-      exists tu, val_inject j u tu /\ 
-           sem_binary_operation op tv1 ty1 tv2 ty2 tm = Some tu.
+      exists tu, 
+           sem_binary_operation op tv1 ty1 tv2 ty2 tm = Some tu
+           /\ val_inject j u tu.
 Proof. intros.
-  destruct op; simpl in *.
-(*16:add*)
-  unfold sem_add in *.
-  remember (classify_add ty1 ty2) as cc.
-  destruct cc.
-    destruct v1; destruct v2; inv SBO.
-      inv V1; inv V2; try inv SBO.
-        eexists; split. econstructor. eassumption. reflexivity.
-        remember (Int.mul (Int.repr (sizeof ty)) i0) as w; clear Heqw.
-        rewrite (Int.add_assoc i).
-        rewrite (Int.add_assoc i).
-        rewrite (Int.add_commut w).
-        trivial.
-      inv V1; inv V2; try inv SBO.
-        eexists; split. econstructor. eassumption. reflexivity.
-        remember (Int.mul (Int.repr (sizeof ty)) i) as w; clear Heqw.
-        rewrite (Int.add_assoc ofs1).
-        rewrite (Int.add_assoc ofs1).
-        rewrite (Int.add_commut w).
-        trivial.
-      inv V1; inv V2; try inv SBO.
-        eexists; split. econstructor. eassumption. reflexivity.
-        remember (Int.mul (Int.repr (sizeof ty))
-                          (Int.repr (Int64.unsigned i))) as w; clear Heqw.
-        rewrite (Int.add_assoc ofs1).
-        rewrite (Int.add_assoc ofs1).
-        rewrite (Int.add_commut w).
-        trivial.
-      inv V1; inv V2; try inv SBO.
-        eexists; split. econstructor. eassumption. reflexivity.
-        remember (Int.mul (Int.repr (sizeof ty))
-                          (Int.repr (Int64.unsigned i))) as w; clear Heqw.
-        rewrite (Int.add_assoc ofs1).
-        rewrite (Int.add_assoc ofs1).
-        rewrite (Int.add_commut w).
-        trivial.
-    unfold sem_binarith in *.
-      remember (sem_cast v1 ty1 (binarith_type (classify_binarith ty1 ty2))) as q1.
-      destruct q1; apply eq_sym in Heqq1; inv SBO.
-      remember (sem_cast v2 ty2 (binarith_type (classify_binarith ty1 ty2))) as q2.
-      destruct q2; apply eq_sym in Heqq2; inv H0.
-      destruct (sem_cast_inject _ _ _ _ _ _ Heqq1 V1) as [tv1' [SC1 TV1]].
-      destruct (sem_cast_inject _ _ _ _ _ _ Heqq2 V2) as [tv2' [SC2 TV2]].
-      rewrite SC1, SC2.
-      destruct (classify_binarith ty1 ty2).
-      destruct v; inv H1.
-        destruct v0; inv H0. inv TV1; inv TV2.
-        eexists; split. econstructor. reflexivity.
-      destruct v; inv H1.
-        destruct v0; inv H0. inv TV1; inv TV2.
-        eexists; split. econstructor. reflexivity.
-      destruct v; inv H1.
-        destruct v0; inv H0. inv TV1; inv TV2.
-        eexists; split. econstructor. reflexivity.
-      inv H1.
-  admit. (*sub*)
-  admit. (*mul*)
-  admit. (*div*)
-  admit. (*mod*)
-  admit. (*and*)
-  admit. (*or*)
-  admit. (*xor*)
-  admit. (*shl*)
-  admit. (*shr*)
-(*6:Ceq*)
-  unfold sem_cmp in *.
-  remember (classify_cmp ty1 ty2) as cc.
-  destruct cc.
-    destruct v1; destruct v2; inv SBO.
-      inv V1; inv V2.
-        eexists; split. apply val_inject_of_bool. reflexivity.
-      inv V1; inv V2. unfold option_map in H0.
-        remember (Int.eq i Int.zero) as q.
-        destruct q; inv H0.
-        eexists; split. econstructor. simpl. rewrite <- Heqq. reflexivity.
-      inv V1; inv V2. unfold option_map in H0.
-        remember (Int.eq i0 Int.zero) as q.
-        destruct q; inv H0.
-        eexists; split. econstructor. simpl. rewrite <- Heqq. reflexivity.
-      inv V1; inv V2. unfold option_map in H0.
-        remember (eq_block b b0) as q. 
-        destruct q; inv H0.
-          rewrite H2 in H3; inv H3. clear Heqq.
-          assert (WP:= Mem.weak_valid_pointer_inject _ _ _ _ (Int.unsigned i) _ _ H2 MINJ).
-          assert (WP0:= Mem.weak_valid_pointer_inject _ _ _ _ (Int.unsigned i0) _ _ H2 MINJ).
-          remember ((Mem.valid_pointer m b0 (Int.unsigned i)
-              || Mem.valid_pointer m b0 (Int.unsigned i - 1)) &&
-             (Mem.valid_pointer m b0 (Int.unsigned i0)
-              || Mem.valid_pointer m b0 (Int.unsigned i0 - 1))) as r.
-          destruct r; inv H1.
-          eexists; split. apply val_inject_of_bool.
-          apply eq_sym in Heqr. apply andb_true_iff in Heqr.
-          destruct Heqr.
-          destruct (Mem.mi_representable _ _ _ MINJ _ _ _ i H2).
-          apply orb_true_iff in H. 
-          destruct H; apply Mem.valid_pointer_nonempty_perm in H. 
-             left. eapply Mem.perm_max; eassumption. 
-             right. eapply Mem.perm_max; eassumption.
-          destruct (Mem.mi_representable _ _ _ MINJ _ _ _ i0 H2).
-          apply orb_true_iff in H0. 
-          destruct H0; apply Mem.valid_pointer_nonempty_perm in H0. 
-             left. eapply Mem.perm_max; eassumption. 
-             right. eapply Mem.perm_max; eassumption.
-          clear H4.
-          assert (delta0 <= Int.max_unsigned). destruct H3. 
-              destruct (Int.unsigned_range_2 i). omega.
-          apply WP in H. apply WP0 in H0. clear WP WP0. simpl.
-          remember (eq_block b3 b3). destruct s; try (elim n; trivial).
-          rewrite Int.translate_eq. clear e Heqs.
-          unfold Mem.weak_valid_pointer in H, H0. simpl. 
-          assert ((Int.unsigned (Int.add i (Int.repr delta0))) =
-                 Int.unsigned i + delta0).
-             unfold Int.add. rewrite (Int.unsigned_repr delta0).
-             apply Int.unsigned_repr. trivial. omega.
-          rewrite H6.
-          assert ((Int.unsigned (Int.add i0 (Int.repr delta0))) =
-                 Int.unsigned i0 + delta0).
-             unfold Int.add. rewrite (Int.unsigned_repr delta0).
-             apply Int.unsigned_repr. trivial. omega.
-          rewrite H7, H, H0. simpl. f_equal.
-      remember (Mem.valid_pointer m b (Int.unsigned i) &&
-           Mem.valid_pointer m b0 (Int.unsigned i0)) as r.
-        destruct r; inv H1. apply eq_sym in Heqr.
-        apply andb_true_iff in Heqr. destruct Heqr.
-        eexists; split. econstructor.
-        destruct (Mem.mi_representable _ _ _ MINJ _ _ _ i H2).
-          left. eapply Mem.perm_max.
-                eapply Mem.valid_pointer_nonempty_perm; eassumption.
-        destruct (Mem.mi_representable _ _ _ MINJ _ _ _ i0 H3).
-          left. eapply Mem.perm_max.
-                eapply Mem.valid_pointer_nonempty_perm; eassumption.
-        simpl.
-        assert (delta0 <= Int.max_unsigned). destruct H6. 
-              destruct (Int.unsigned_range_2 i0). omega.
-        assert ((Int.unsigned (Int.add i0 (Int.repr delta0))) =
-                 Int.unsigned i0 + delta0).
-             unfold Int.add. rewrite (Int.unsigned_repr delta0).
-             apply Int.unsigned_repr. trivial. omega.
-        assert (delta <= Int.max_unsigned). destruct H4. 
-              destruct (Int.unsigned_range_2 i). omega.
-        assert ((Int.unsigned (Int.add i (Int.repr delta))) =
-                 Int.unsigned i + delta).
-             unfold Int.add. rewrite (Int.unsigned_repr delta).
-             apply Int.unsigned_repr. trivial. omega.
-        rewrite H10, H8. 
-        rewrite (Mem.valid_pointer_inject _ _ _ _ _ _ _ H2 MINJ H).
-        rewrite (Mem.valid_pointer_inject _ _ _ _ _ _ _ H3 MINJ H0).
-        simpl.
-        apply Mem.valid_pointer_nonempty_perm in H.
-        apply Mem.valid_pointer_nonempty_perm in H0.
-        apply Mem.perm_max in H.
-        apply Mem.perm_max in H0.
-        destruct (Mem.mi_no_overlap _ _ _ MINJ _ _ _ _ _ _ _ _ n H2 H3 H H0).
-           remember (eq_block b2 b3) as w.
-           destruct w; try contradiction. simpl. f_equal.
-        remember (eq_block b2 b3) as w.
-           destruct w; simpl; trivial. f_equal.
-           rewrite Int.eq_false. trivial. 
-           intros N. unfold Int.add in N.
-             rewrite (Int.unsigned_repr delta) in N.
-             rewrite (Int.unsigned_repr delta0) in N. 
-             rewrite <- H10 in N. rewrite <- H8 in N. 
-             rewrite <- H10 in H11. rewrite <- H8 in H11. 
-             rewrite Int.repr_unsigned in N.
-             rewrite Int.repr_unsigned in N. apply H11. rewrite N. trivial.
-             omega. omega.
-       destruct v2; inv SBO. inv V2. 
-         unfold option_map in *.
-         remember (Val.cmpu_bool (Mem.valid_pointer m) Ceq v1
-         (Vint (Int.repr (Int64.unsigned i)))) as q.
-         destruct q; inv H0. unfold Val.cmpu_bool in *.
-         destruct v1; inv Heqq. inv V1.
-           eexists. split; try reflexivity.
-           unfold Val.of_bool. simpl. 
-           destruct (Int.eq i0 (Int.repr (Int64.unsigned i))); constructor.
-         inv V1. 
-           remember (Int.eq (Int.repr (Int64.unsigned i)) Int.zero) as w.
-           destruct w; simpl. inv H0. simpl.
-             eexists. split. constructor. reflexivity.
-         inv H0.
-       destruct v1; inv SBO. inv V1.
-         destruct v2; inv H0; inv V2.
-           eexists. split; try reflexivity.
-           unfold Val.of_bool. simpl. 
-           destruct (Int.eq (Int.repr (Int64.unsigned i)) i0); constructor.
-         simpl in *. remember (Int.eq (Int.repr (Int64.unsigned i)) Int.zero)  as w.
-         destruct w; inv H1; apply eq_sym in Heqw.
-           simpl in *. eexists; split; try reflexivity.
-           constructor.
-      simpl in SBO.
-     admit. (* sem_binarith - should hold as result is always int or float*)
-  admit. (*cmp Cne - similar*)
-  admit. (*cmp Clt- similar*)
-  admit. (*cmp Cgt- similar*)
-  admit. (*cmp Cle- similar*)
-  admit. (*cmp Cge- similar*)
-Qed.
+eapply sem_binary_operation_inj; try eassumption.
+  intros. eapply Mem.valid_pointer_inject_val; try eassumption.
+          econstructor. eassumption. trivial.
+  intros. eapply Mem.weak_valid_pointer_inject_val; try eassumption.
+          econstructor. eassumption. trivial.
+  intros. eapply Mem.weak_valid_pointer_inject_no_overflow; try eassumption.
+  intros. eapply Mem.different_pointers_inject; try eassumption.
+Qed. 
 
 Section EXPR.
 
@@ -2067,9 +1983,10 @@ Proof. intros.
     destruct (var_info_rev_translated _ _ H). exists x0; apply H0.
 Qed.
 
-Lemma assign_loc_inject: forall ty m1 b1 ofs v m1'
+Lemma assign_loc_inject: forall ty m1 b1 ofs v m1' R
   (ASS: assign_loc ty m1 b1 ofs v m1')
-  j v2 (V:val_inject j v v2) b2 delta (J: j b1 = Some(b2,delta))
+  j v2 (V:val_inject (restrict j R) v v2) b2 delta 
+  (J: restrict j R b1 = Some(b2,delta))
   m2 (MInj: Mem.inject j m1 m2),
 exists m2',
   assign_loc ty m2 b2 (Int.add ofs (Int.repr delta)) v2 m2' /\
@@ -2078,16 +1995,24 @@ Proof. intros.
   inv ASS.
 (*By_value*)
   assert (Jb: val_inject j (Vptr b1 ofs) (Vptr b2 (Int.add ofs (Int.repr delta)))).
+     destruct (restrictD_Some _ _ _ _ _ J).
      econstructor. eassumption. trivial. 
-  destruct (Mem.storev_mapped_inject _ _ _ _ _ _ _ _ _ MInj H0 Jb V) as [m2' [ST' MInj']].
+  assert (Jv: val_inject j v v2).
+     eapply val_inject_incr; try eassumption.
+     apply restrict_incr.
+  destruct (Mem.storev_mapped_inject _ _ _ _ _ _ _ _ _ MInj H0 Jb Jv) as [m2' [ST' MInj']].
   exists m2'. split; trivial. eapply assign_loc_value; eassumption.
 (*By_copy*) 
+  destruct (restrictD_Some _ _ _ _ _ J).
   assert (Jb: val_inject j (Vptr b1 ofs) (Vptr b2 (Int.add ofs (Int.repr delta)))).
-     econstructor. eassumption. trivial.
-  inv V. 
-  destruct (Mem.loadbytes_inj _ _ _ _ _ _ _ _ _ (Mem.mi_inj _ _ _ MInj) H3 H7)
+     econstructor. eassumption. trivial. 
+  assert (Jv: val_inject j (Vptr b' ofs') v2).
+     eapply val_inject_incr; try eassumption.
+     apply restrict_incr.
+  inv Jv. 
+  destruct (Mem.loadbytes_inj _ _ _ _ _ _ _ _ _ (Mem.mi_inj _ _ _ MInj) H3 H9)
      as [bytes2 [LoadBytes2 BytesInj]].
-  destruct (Mem.storebytes_mapped_inject _ _ _ _ _ _ _ _ _ bytes2 MInj H4 J BytesInj)
+  destruct (Mem.storebytes_mapped_inject _ _ _ _ _ _ _ _ _ bytes2 MInj H4 H5 BytesInj)
    as [m2' [StoreBytes2 Inj']].
   exists m2'. split; trivial.
   assert (P: Mem.perm m1 b1 (Int.unsigned ofs) Max Nonempty).
@@ -2099,7 +2024,7 @@ Proof. intros.
                       specialize (sizeof_pos ty); intros.  
                       rewrite nat_of_Z_eq. omega. omega.            
                 constructor.
-  destruct (Mem.mi_representable _ _ _ MInj _ _ _ ofs J).
+  destruct (Mem.mi_representable _ _ _ MInj _ _ _ ofs H5).
         left; trivial. 
   specialize (Int.unsigned_range_2 ofs); intros.
   assert (D: delta <= Int.max_unsigned). omega.
@@ -2115,7 +2040,7 @@ Proof. intros.
                    eapply Mem.loadbytes_range_perm. eassumption.
                     split. omega. specialize (sizeof_pos ty); intros. omega.
                 constructor.
-  destruct (Mem.mi_representable _ _ _ MInj _ _ _ ofs' H7).
+  destruct (Mem.mi_representable _ _ _ MInj _ _ _ ofs' H9).
         left; trivial.
   specialize (Int.unsigned_range_2 ofs'); intros.
   assert (D0: delta0 <= Int.max_unsigned). omega.
@@ -2126,7 +2051,7 @@ Proof. intros.
       rewrite Int.unsigned_repr; trivial.
   rewrite <- Arith' in LoadBytes2.
   destruct (eq_block b' b1); subst.
-    rewrite J in H7; inv H7.
+    rewrite H9 in H5; inv H5.
     eapply assign_loc_copy; try eassumption.
       rewrite Arith'.
        eapply Z.divide_add_r. eassumption.
@@ -2154,7 +2079,7 @@ Proof. intros.
         trivial.
   eapply assign_loc_copy; try eassumption.
   eapply assign_loc_copy; try eassumption.
-    admit. admit.
+    admit. admit. (*admits are in comment*)
     destruct (eq_block b3 b2); subst; try (left; assumption).
     right.
     unfold Int.add.
@@ -2177,7 +2102,7 @@ Proof. intros.
         destruct H2. rewrite H2 in *. apply n; trivial.
         remember (sizeof ty) as s.
         destruct H2. omega. omega.
-      destruct H2. admit. 
+      destruct H2. admit. (*admit is in comment*)
       destruct H2. rewrite H2 in *. 
         remember (Int.unsigned ofs + delta0).
         remember (Int.unsigned ofs + delta). omega. apply n; trivial.
@@ -2195,7 +2120,7 @@ Proof. intros.
       rewrite Int.unsigned_repr; trivial.
  eassumption.
 *)*)
-Admitted.
+Admitted. (*TODO: assign_loc_inject, case of by_copy, ie for the BUILTIN memcpy*)
 (*
 H : eval_lvalue ge e le m1 a1 loc ofs
 H0 : Clight.eval_expr ge e le m1 a2 v2
@@ -2290,7 +2215,7 @@ Proof. intros.
   specialize (Int.unsigned_range_2 ofs); intros.
   assert (D: delta <= Int.max_unsigned). omega.
   eapply assign_loc_copy; try eassumption.
-    admit. admit.
+    admit. admit. (*admits are in comment*)
     destruct (eq_block b3 b2); subst; try (left; assumption).
     right.
     unfold Int.add.
@@ -2313,7 +2238,7 @@ Proof. intros.
         destruct H2. rewrite H2 in *. apply n; trivial.
         remember (sizeof ty) as s.
         destruct H2. omega. omega.
-      destruct H2. admit. 
+      destruct H2. admit. (*admit is in comment*)
       destruct H2. rewrite H2 in *. 
         remember (Int.unsigned ofs + delta0).
         remember (Int.unsigned ofs + delta). omega. apply n; trivial.
@@ -2931,7 +2856,7 @@ Proof.
             as [uu [VinjU EvalX0]].
       destruct (sem_cast_inject _ _ _ _ _ _ H1 VinjU) as [? [? ?]].
          assert (EVAL:= make_cast_correct _ _ _ _ _ _ _ _ _ _ EQ0 EvalX0 H3).
-      destruct (assign_loc_inject _ _ _ _ _ _ H2 _ _ H4 _ _ H5 _ MinjR)
+      destruct (assign_loc_inject _ _ _ _ _ _ _ H2 _ _ H4 _ _ H5 _ INJ)
             as [m2' [AL2 MINJ']].
       eexists. eexists. exists mu.
       split.          
@@ -2988,13 +2913,13 @@ Proof.
                induction MapBytes; inv Hbb.
                inv H. apply (restrictD_Some _ _ _ _ _ H4).
                apply (IHMapBytes H0).
-        assert (VI: val_inject (as_inj mu) v x2).
+        (*assert (VI: val_inject (as_inj mu) v x2).
            eapply val_inject_incr; try eassumption.
            eapply restrict_incr.
         destruct (restrictD_Some _ _ _ _ _ H5). 
         destruct (assign_loc_inject _ _ _ _ _ _ H2 _ _ VI _ _ H6 _ INJ)
            as [m2'' [AL2' INJ'']]. 
-        rewrite (assign_loc_unique _ _ _ _ _ _ _ AL2 AL2'). assumption.
+        rewrite (assign_loc_unique _ _ _ _ _ _ _ AL2 AL2'). assumption.*)
   (*clight_corestep_set*)
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
@@ -3552,6 +3477,20 @@ Proof.
       intuition.
 Qed.
 
+Lemma restrict_vis_foreign: forall mu (WD: SM_wd mu) b1 b2 delta
+         (R: restrict (as_inj mu) (vis mu) b1 = Some (b2, delta))
+         (LT: locBlocksTgt mu b2 = false),
+      foreign_of mu b1 = Some (b2, delta).
+Proof. intros.
+  destruct (restrictD_Some _ _ _ _ _ R).
+  unfold vis in H0.
+  destruct (joinD_Some _ _ _ _ _ H) as [EXT | [_ LOC]].
+    assert (LS: locBlocksSrc mu b1 = false). eapply extern_DomRng'; try eassumption.
+    rewrite LS in *; simpl in *. destruct (frgnSrc _ WD _ H0) as [bb2 [dd [FRG FT]]].
+      rewrite FRG. rewrite (foreign_in_all _ _ _ _ FRG) in H. trivial.
+  destruct (local_DomRng _ WD _ _ _ LOC). rewrite H2 in LT; discriminate.
+Qed.
+
 Lemma Match_eff_diagram_strong_perm: forall
 (*  (FE : Clight.function ->
      list val -> mem -> Clight.env -> Clight.temp_env -> mem -> Prop)
@@ -3606,37 +3545,109 @@ Proof.
       assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
            rewrite <- restrict_sm_all. 
            eapply restrict_sm_preserves_globals; try eassumption.
-           unfold vis. intuition.
- admit. (*
-      eexists. eexists. exists mu.
-      split.              
-         destruct (transl_lvalue_correct _ _ _ _ _ _ _ MENV TENV MinjR PGR _ _ _ H _ EQ)
+           unfold vis. intuition.      
+      destruct (transl_lvalue_correct _ _ _ _ _ _ _ MENV TENV MinjR PGR _ _ _ H _ EQ)
             as [vv [Hvv1 EvalX]]; inv Hvv1. 
-         destruct (transl_expr_correct _ _ _ _ _ _ _ MENV TENV MinjR PGR _ _ H0 _ EQ1)
+      destruct (transl_expr_correct _ _ _ _ _ _ _ MENV TENV MinjR PGR _ _ H0 _ EQ1)
             as [uu [VinjU EvalX0]].
-         destruct (sem_cast_inject _ _ _ _ _ _ H1 VinjU) as [? [? ?]].
-         assert (EVAL:= make_cast_correct _ _ _ _ _ _ _ _ _ _ EQ0 EvalX0 H3).
-         exists  (*suitable assign_loc_effect*) assign_loc - see above
-         split. apply effstep_plus_one.
-                  eapply make_store_correct. eassumption. eassumption. eassumption.
-       
-         unfold make_store in EQ3. 
-         inv H2. rewrite H6 in *. inv EQ3.
-clear - H2. x
-           eapply transl_lvalue_correct; eauto. eassumption. 
-         unfold csharpmin_core_sem. simpl. unfold coopstep. 
-unfold make_store in EQ3.
-         eapply csharpmin_corestep_skip_seq. csharpmin_corestep_set. econstructor; eauto. reflexivity. 
-            reflexivity. reflexivity. 
-      simpl. exists mu; intuition. 
+      destruct (sem_cast_inject _ _ _ _ _ _ H1 VinjU) as [? [? ?]].
+      assert (EVAL:= make_cast_correct _ _ _ _ _ _ _ _ _ _ EQ0 EvalX0 H3).
+      destruct (assign_loc_inject _ _ _ _ _ _ _ H2 _ _ H4 _ _ H5 _ INJ)
+        as [m2' [AssignLoc' Minj']].
+      exploit (make_store_correct_AssignlocEffect tge x (typeof a1) x1); try eassumption.
+      intros MSCE. (* remember (access_mode (typeof a1)) as Mode.
+      destruct Mode.*)
+        eexists. eexists. exists mu.
+        split. exists (assign_loc_Effect (typeof a1) b2 (Int.add ofs (Int.repr delta)) x2).
+               split. apply effstep_plus_one. eassumption.
+        intros. unfold assign_loc_Effect in H6. unfold assign_loc_Effect.
+                inv H2. inv AssignLoc'; rewrite H2 in H7; inv H7.
+                   rewrite H2 in *.
+                   destruct (eq_block b2 b); subst; simpl in *; try discriminate.
+                   destruct (restrictD_Some _ _ _ _ _ H5).
+                   split. eapply SMV. eapply as_inj_DomRng; eassumption.
+                   intros. exists loc, delta.
+                   split. eapply restrict_vis_foreign; eassumption.
+                   assert (WR:Mem.perm m loc (Int.unsigned ofs) Cur Writable).
+                      eapply Mem.store_valid_access_3; try eassumption. specialize (size_chunk_pos chunk); intros. omega.
+                   specialize (Mem.address_inject _ _ _ loc ofs b delta Writable INJ WR H7). intros.
+                   destruct (eq_block loc loc); simpl. 
+                     clear e0. rewrite H12 in H6. 
+                               destruct (zle (Int.unsigned ofs + delta) ofs0); simpl in H6; try discriminate.
+                               destruct (zle (Int.unsigned ofs) (ofs0 - delta)); simpl.
+                               Focus 2. exfalso. clear - l g. omega.
+                               rewrite encode_val_length.  rewrite encode_val_length in H6.
+                               destruct (zlt ofs0 (Int.unsigned ofs + delta + Z.of_nat (size_chunk_nat chunk))); try discriminate.
+                               destruct (zlt (ofs0 - delta) (Int.unsigned ofs + Z.of_nat (size_chunk_nat chunk))); simpl.
+                               Focus 2. exfalso. clear - l1 g. omega.
+                               split; trivial. rewrite <- size_chunk_conv in l2. 
+                               eapply Mem.perm_implies. 
+                                  eapply Mem.perm_max.
+                                    eapply Mem.store_valid_access_3; eauto.
+                                  apply perm_any_N.
+                   elim n; trivial. 
+                 inv AssignLoc'; rewrite H2 in H7; inv H7. rewrite H2 in *. 
+                   destruct (eq_block b b2); subst; simpl in *; try discriminate.
+                   destruct (restrictD_Some _ _ _ _ _ H5).
+                   split. eapply SMV. eapply as_inj_DomRng; eassumption.
+                   intros. exists loc, delta.
+                   split. eapply restrict_vis_foreign; eassumption.
+                   assert (WR:Mem.perm m loc (Int.unsigned ofs) Cur Writable).
+                      eapply Mem.storebytes_range_perm; try eassumption.
+                         rewrite (Mem.loadbytes_length _ _ _ _ _ H11).
+                         specialize (sizeof_pos (typeof a1)); intros.
+                         rewrite nat_of_Z_eq.
+                         omega. omega.
+                   specialize (Mem.address_inject _ _ _ loc ofs b2 delta Writable INJ WR H7). intros.
+                   destruct (eq_block loc loc); simpl. 
+                     clear e0. rewrite H20 in H6. 
+                               destruct (zle (Int.unsigned ofs + delta) ofs0); simpl in H6; try discriminate.
+                               destruct (zle (Int.unsigned ofs) (ofs0 - delta)); simpl.
+                               Focus 2. exfalso. clear - l g. omega.
+                               specialize (sizeof_pos (typeof a1)); intros.
+                               destruct (zlt ofs0 (Int.unsigned ofs + delta + sizeof (typeof a1))); try discriminate.
+                               destruct (zlt (ofs0 - delta) (Int.unsigned ofs + sizeof (typeof a1))); simpl.
+                               Focus 2. exfalso. clear - l1 g. omega.
+                               split; trivial.
+                               eapply Mem.perm_implies. 
+                                  eapply Mem.perm_max.
+                                    eapply Mem.storebytes_range_perm; eauto.
+                                     split. omega. specialize (Mem.loadbytes_length _ _ _ _ _ H11); intros. rewrite H22. rewrite nat_of_Z_eq. assumption. omega. 
+                                  apply perm_any_N.
+                   elim n; trivial. 
+      intuition. 
       apply intern_incr_refl. 
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-        repeat split; extensionality b; 
-        try rewrite freshloc_irrefl; intuition.
+        repeat split; extensionality b.
+        rewrite (assign_loc_freshloc _ _ _ _ _ _ H2). intuition.
+        rewrite (assign_loc_freshloc _ _ _ _ _ _ AssignLoc'). intuition.
+        rewrite (assign_loc_freshloc _ _ _ _ _ _ H2). intuition.
+        rewrite (assign_loc_freshloc _ _ _ _ _ _ AssignLoc'). intuition.
       econstructor.
-        econstructor; eauto.
-        intuition.*)
+        econstructor; eauto. reflexivity. constructor.
+        destruct (restrictD_Some _ _ _ _ _ H5).
+        intuition.
+        clear MSCE AssignLoc'.
+        inv H2. inv H9.
+           eapply REACH_Store; try eassumption.
+           intros. rewrite getBlocks_char in H2. 
+             destruct H2.
+             destruct H2; try contradiction; subst.
+             inv H4. destruct (restrictD_Some _ _ _ _ _ H11); trivial.
+        inv H4. destruct (restrictD_Some _ _ _ _ _ H15).
+          eapply REACH_Storebytes; try eassumption.
+          simpl; intros.
+          destruct (Mem.loadbytes_inject _ _ _ _ _ _ _ _ _ MinjR H12 H15) as [bytes' [_ MVInj]].
+          clear H12 H13.
+          induction MVInj; simpl in *. contradiction.
+          destruct H14; subst. 
+            inv H12. destruct (restrictD_Some _ _ _ _ _ H18); trivial.
+          apply (IHMVInj H13).
+
+       split; intros; eapply assign_loc_forward; try eassumption.
+          eapply SMV; apply H8.
+          eapply SMV; apply H8.          
   (*clight_corestep_set*)
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
