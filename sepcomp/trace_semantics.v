@@ -46,7 +46,8 @@ Definition yielded c :=
   (exists ef sig args, at_external sem c = Some (ef, sig, args))
   \/ exists rv, halted sem c = Some rv.
 
-Inductive step : G -> (Z*list Event.t*C) -> mem -> (Z*list Event.t*C) -> mem -> Prop :=
+Inductive step 
+: G -> (Z*list Event.t*C) -> mem -> (Z*list Event.t*C) -> mem -> Prop :=
 | trace_step :
   forall ge tr z c m c' m',
   corestep sem ge c m c' m' -> 
