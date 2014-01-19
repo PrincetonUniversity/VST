@@ -18,6 +18,12 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Definition corestep_fun {G C : Type} (sem : @CoopCoreSem G C) :=
+  forall (m m' m'' : mem) ge c c' c'',
+  corestep sem ge c m c' m' -> 
+  corestep sem ge c m c'' m'' -> 
+  c'=c'' /\ m'=m''.
+
 Module Event.
 
 Record t : Type := 
@@ -43,8 +49,7 @@ Definition yielded c :=
 Inductive step : G -> (Z*list Event.t*C) -> mem -> (Z*list Event.t*C) -> mem -> Prop :=
 | trace_step :
   forall ge tr z c m c' m',
-  corestep_plus sem ge c m c' m' -> 
-  yielded c' -> 
+  corestep sem ge c m c' m' -> 
   step ge (z,tr,c) m (z,tr,c') m'
 | trace_extern : 
   forall ge tr z c m z' c' m' ef sig args rv x,
@@ -74,26 +79,166 @@ Program Definition coresem : CoreSemantics G (Z*list Event.t*C) mem :=
   step
   _ _ _ _.
 Next Obligation.
-destruct H.
-destruct H as [n H].
-hnf in H.
-destruct H as [c2 [m2 [H1 H2]]].
-apply corestep_not_halted in H1.
-unfold halted.
-solve[auto].
-solve[destruct (at_external_halted_excl sem c1); try congruence; auto].
+inv H; unfold halted; simpl.
+solve[apply corestep_not_halted in H9; auto].
+solve[destruct (at_external_halted_excl sem c0); try congruence; auto].
 Qed.
 
 Program Definition coopsem : CoopCoreSem G (Z*list Event.t*C) :=
   @Build_CoopCoreSem G (Z*list Event.t*C) coresem _.
 Next Obligation.
 destruct CS; auto.
-destruct H as [n H].
-hnf in H.
-destruct H as [c2 [m2 [H1 H2]]].
-apply corestep_fwd in H1.
-apply corestepN_fwd in H2.
-solve[eapply mem_forward_trans; eauto].
+solve[apply corestep_fwd in H; auto].
+Qed.
+
+Lemma corestep_CORESTEP ge c m c' m' z tr :
+  corestep sem ge c m c' m' -> 
+  corestep coopsem ge (z,tr,c) m (z,tr,c') m'.
+Proof. intros; solve[constructor; auto]. Qed.
+
+Lemma corestepN_CORESTEPN ge c m c' m' z tr n :
+  corestepN sem ge n c m c' m' -> 
+  corestepN coopsem ge n (z,tr,c) m (z,tr,c') m'.
+Proof.
+revert c m; induction n; simpl.
+solve[intros ? ?; inversion 1; subst; auto].
+intros c m [c2 [m2 [STEP STEPN]]].
+exists (z,tr,c2), m2; split.
+apply corestep_CORESTEP; auto.
+solve[eapply IHn; eauto].
+Qed.
+
+Lemma corestepN_splits_lt ge c m c' m' c'' m'' z tr z' tr' n1 n2 :
+  corestep_fun sem -> 
+  corestepN sem ge (S n1) c m c' m' -> 
+  corestepN coopsem ge n2 (z,tr,c) m (z',tr',c'') m'' -> 
+  (n1 < n2)%nat -> 
+  exists a b,
+    (a > O)%nat
+    /\ n2 = plus a b 
+    /\ corestepN coopsem ge a (z,tr,c) m (z,tr,c') m'
+    /\ corestepN coopsem ge b (z,tr,c') m' (z',tr',c'') m''.
+Proof.
+intros FN H1 H2 LT.
+revert c m n1 H1 H2 LT.
+induction n2; intros.
+destruct n1; try inv LT.
+destruct n1. 
+destruct H1 as [c2' [m2' [STEP STEPN]]].
+inv STEPN.
+exists (S O), n2.
+split; try omega.
+split; try omega.
+destruct H2 as [c2'' [m2'' [STEP' STEPN']]].
+inv STEP'.
+destruct (FN _ _ _ _ _ _ _ STEP H6).
+subst c'0 m2''.
+split; auto.
+exists (z,tr,c'),m'. 
+split. constructor; auto. hnf; auto.
+apply corestep_not_at_external in STEP.
+solve[rewrite STEP in H2; congruence].
+assert (n1 < n2)%nat by omega.
+destruct H1 as [c2 [m2 [STEP STEPN]]].
+destruct H2 as [c2' [m2' [STEP' STEPN']]].
+assert (c2'=(z,tr,c2) /\ m2=m2') as [? ?].
+  { inv STEP'.
+    destruct (FN _ _ _ _ _ _ _ STEP H7).
+    subst c2 m2; split; auto. 
+    apply corestep_not_at_external in STEP.
+    rewrite STEP in H3; congruence. }
+subst c2' m2; auto.
+destruct (IHn2 c2 m2' n1); auto.
+destruct H0 as [n1' [H0 [H1 [H2 H3]]]].
+exists (S x), n1'.
+split; auto.
+split. omega.
+split; auto.
+exists (z,tr,c2),m2'.
+split; auto.
+Qed.
+
+Lemma corestepN_geq ge c m c' m' c'' m'' z tr z' tr' n1 n2 :
+  corestep_fun sem -> 
+  corestepN sem ge n1 c m c' m' -> 
+  corestepN coopsem ge n2 (z,tr,c) m (z',tr',c'') m'' -> 
+  (n1 >= n2)%nat -> 
+  z=z' /\ tr=tr'.
+Proof.
+intros FN H1 H2 GEQ.
+revert c m n2 H1 H2 GEQ.
+induction n1; intros.
+destruct n2.
+inv H2; auto.
+omega.
+destruct n2. 
+inv H2; auto.
+destruct H1 as [c2 [m2 [STEP STEPN]]].
+destruct H2 as [c2' [m2' [STEP' STEPN']]].
+assert (GEQ': (n1 >= n2)%nat) by omega.
+assert (c2'=(z,tr,c2) /\ m2=m2') as [? ?].
+  { inv STEP'.
+    destruct (FN _ _ _ _ _ _ _ STEP H6).
+    subst c2 m2; split; auto. 
+    apply corestep_not_at_external in STEP.
+    rewrite STEP in H2; congruence. }
+subst c2' m2'.
+apply (IHn1 _ _ _ STEPN STEPN'); auto.
+Qed.
+
+Lemma yielded_dec c : {yielded c}+{~yielded c}.
+Proof. 
+unfold yielded.
+case_eq (at_external sem c).
+intros [[ef sig] args] AT.
+left. left. exists ef, sig, args. auto.
+intros NONE.
+case_eq (core_semantics.halted sem c).
+intros v HALT.
+left. right. exists v. auto.
+intros NONE'.
+right. intros CONTRA. destruct CONTRA.
+destruct H as [? [? [? ?]]]. congruence.
+destruct H as [? ?]. congruence.
+Qed.
+
+Lemma corestep_nyielded {ge c m c' m'} : 
+  corestep sem ge c m c' m' -> ~yielded c. 
+Proof.
+intros STEP NY.
+unfold yielded in NY.
+destruct NY as [AT|HALT].
+destruct AT as [? [? [? AT]]].
+apply corestep_not_at_external in STEP.
+rewrite STEP in AT; congruence.
+destruct HALT as [rv HALT].
+apply corestep_not_halted in STEP.
+rewrite STEP in HALT; congruence.
+Qed.
+
+Lemma nyielded_natext {c} :
+  ~yielded c -> core_semantics.at_external sem c = None.
+Proof.
+unfold yielded.
+case_eq (at_external sem c); auto.
+intros [[ef sig] args] AT.
+generalize (@at_external_halted_excl _ _ _ sem c).
+rewrite AT. intros [|W]; try congruence; auto. 
+intros CONTRA; elimtype False; apply CONTRA.
+left; exists ef, sig, args; auto.
+Qed.
+
+Lemma nyielded_nhalted {c} : ~yielded c -> core_semantics.halted sem c = None.
+Proof.
+unfold yielded.
+case_eq (at_external sem c).
+intros [[ef sig] args] AT.
+generalize (@at_external_halted_excl _ _ _ sem c).
+rewrite AT. intros [|W]; try congruence; auto. intros AT.
+case_eq (core_semantics.halted sem c); auto.
+intros v HALT.
+intros CONTRA; elimtype False; apply CONTRA.
+right; exists v; auto.
 Qed.
 
 End trace_semantics. End TraceSemantics.

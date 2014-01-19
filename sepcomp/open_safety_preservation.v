@@ -114,6 +114,32 @@ Notation tr_target := (TraceSemantics.coopsem z_init target spec).
 
 Arguments core_diagram : default implicits.
 
+Lemma corestep_matchN {c m d tm c' m' cd j n} :
+  corestepN source geS n c m c' m' -> 
+  match_state cd j c m d tm -> 
+  exists d' tm' cd' j' n', 
+    corestepN target geT n' d tm d' tm'
+    /\ match_state cd' j' c' m' d' tm'.
+Proof.
+revert cd j c m d tm; induction n; simpl; intros cd j c m d tm.
+inversion 1; subst.
+intros MATCH; exists d, tm, cd, j, O; split; simpl; auto.
+intros [c2 [m2 [STEP STEPN]]] MATCH.
+generalize STEP as STEP'; intro.
+eapply core_diagram in STEP; eauto.
+destruct STEP as [d2 [tm2 [cd2 [j2 [? [? [? [MATCH2 [? [? TSTEPN]]]]]]]]]].
+assert (exists n', corestepN target geT n' d tm d2 tm2) as [n' TSTEPN'].
+{ destruct TSTEPN as [[n' X]|[[n' X] _]].
+  exists (S n'); auto.
+  exists n'; auto. }
+assert (STEPN': corestepN source geS (S O) c m c2 m2).
+{ simpl; exists c2, m2; split; auto. }
+destruct (IHn _ _ _ _ _ _ STEPN MATCH2)
+  as [d'' [tm'' [cd'' [j'' [n'' [TSTEPN'' MATCH']]]]]].
+exists d'', tm'', cd'', j'', (plus n' n''); split; auto.
+rewrite corestepN_add; exists d2, tm2; split; auto.
+Qed.
+(*
 Lemma corestepN_match {c m d tm c' m' cd j n} :
   corestepN source geS n c m c' m' -> 
   match_state cd j c m d tm -> 
@@ -139,8 +165,8 @@ destruct (IHn _ _ _ _ _ _ STEPN MATCH2)
 exists d'', tm'', cd'', j'', (plus n' n''); split; auto.
 rewrite corestepN_add; exists d2, tm2; split; auto.
 Qed.
-
-Lemma yielded_src_target {cd j c d m tm} :
+*)
+Lemma yielded_src_tgt {cd j c d m tm} :
   match_state cd j c m d tm -> 
   TraceSemantics.yielded source c -> 
   TraceSemantics.yielded target d.
@@ -153,57 +179,6 @@ eapply core_halted in MATCH; eauto.
 destruct MATCH as [? [? [? ?]]].
 right; exists x; auto.
 Qed.
-
-Definition my_P := fun (x: data) => 
-   forall (j : SM_Injection) c m d tm c' m' n,
-   corestepN source geS n c m c' m' -> 
-   TraceSemantics.yielded source c' -> 
-   match_state x j c m d tm -> 
-   exists d' tm' cd' j', 
-     corestep_plus target geT d tm d' tm'
-     /\ match_state cd' j' c' m' d' tm'.
-
-Lemma corestep_yield_match {c m d tm c' m' cd j n} :
-  corestepN source geS n c m c' m' -> 
-  TraceSemantics.yielded source c' -> 
-  match_state cd j c m d tm -> 
-  exists d' tm' cd' j', 
-    corestep_plus target geT d tm d' tm'
-    /\ match_state cd' j' c' m' d' tm'.
-Proof.
-assert (my_well_founded_induction
-     : (forall x, (forall y, ord y x -> my_P y) -> my_P x) ->
-       forall a, my_P a)
-  by (apply well_founded_induction; destruct sim; auto).
-unfold my_P in my_well_founded_induction.
-revert cd j c m d tm c' m' n.
-apply my_well_founded_induction; auto.
-intros x IH j c m d tm c' m' n.
-
-
-
-intros X Y M; destruct X as [c2 [m2 [STEP STEPN]]].
-generalize STEP as STEP'; intro.
-eapply core_diagram in STEP; eauto.
-destruct STEP 
-  as [d2 [tm2 [? [? [? [? [? [M2 [? [? 
-     [[n2 P]|[[n2 S] ORD]]]]]]]]]]]]. 
-{ (* target plus case *)
-  eapply corestepN_match in STEPN; eauto.
-  destruct STEPN as [d' [tm' [cd' [j' [n' [TSTEPN MATCH']]]]]].
-  exists d', tm', cd', j'; split; auto.
-  destruct P as [d3 [tm3 [? ?]]].
-  exists (plus n2 n'); exists d3, tm3; split; auto.
-  rewrite corestepN_add; exists d2, tm2; split; auto. }
-{ (* target star case *)
-  destruct n2. inv S.
-  generalize (IH _ ORD _ _ _ _ _ _ _ PLUS M).
-
-
-  assert (PLUS: corestep_plus source geS c m c' m')
-    by (exists n, c2, m2; split; auto).
-
-  
 
 Lemma REACH_mono':
   forall B1 B2 : block -> bool,
@@ -396,19 +371,29 @@ destruct c as [[z tr2] c].
 destruct d as [[tz ttr] d].
 assert (MATCH: match_state cd j c m d tm). 
   solve[inv TRMATCH; auto].
-inv STEP; rename H8 into STEPP.
+inv STEP. rename H8 into STEP.
 { (*internal step case*)
-generalize (corestep_plus_match STEPP MATCH).
-intros [d2 [tm2 [cd2 [j2 [STEPP' MATCH2]]]]].
+generalize (corestepN_match STEPNN MATCH).
+intros [d2 [tm2 [cd2 [j2 [nn' [STEPNN' MATCH2]]]]]].
 assert (TRMATCH2: trace_match_state cd2 j2 (z2,tr,c2) m2 (z2,ttr,d2) tm2).
-  constructor; auto.
-  solve[inv TRMATCH; auto].
+  {  constructor; auto; solve[inv TRMATCH; auto]. }
 generalize (IHn _ _ _ _ _ _ TRMATCH2 STEPN).
 intros [cd' [j' [d' [tm' [TSTEPN' TRMATCH']]]]].
 exists cd', j', d', tm'; split; auto.
 exists (tz,ttr,d2), tm2; split; auto.
 constructor; auto.
-solve[eapply yielded_source_yielded_target in H9; eauto].
+
+intros TYIELD.
+cut (nn' = O). intro A.
+rewrite A in STEPNN'; inv STEPNN'.
+apply NYIELD.
+
+
+assert (TraceSemantics.yielded target d2).
+  eapply yielded_src_tgt in H10; eauto.
+
+solve[exists nn'; auto]. 
+solve[eapply yielded_src_tgt in H10; eauto].
 assert (tz = z2) as -> by (inv TRMATCH; auto). 
 solve[auto].
 }
