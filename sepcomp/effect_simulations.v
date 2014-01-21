@@ -2280,6 +2280,33 @@ Proof. intros.
   rewrite H0; reflexivity.
 Qed.
 
+Lemma RGSrc_multicoreLICSpaper: forall mu (WDmu: SM_wd mu) Esrc m m'
+         (SrcHyp: forall b ofs, Esrc b ofs = true -> vis mu b = true)
+         (Unch: Mem.unchanged_on (fun b z => Esrc b z = false) m m')
+          nu (WDnu: SM_wd nu) 
+         (LB: forall b, locBlocksSrc nu b = true -> locBlocksSrc mu b = true -> False)
+         (X2: forall b1 b2 d, foreign_of mu b1 = Some(b2, d) -> 
+                              locBlocksSrc nu b1 || locBlocksTgt nu b2 = true ->
+                              pub_of nu b1 = Some(b2,d)),
+         Mem.unchanged_on (fun b ofs => locBlocksSrc nu b = true /\ 
+                                        pubBlocksSrc nu b = false) m m'.
+Proof. intros.
+  eapply mem_unchanged_on_sub; try eassumption.
+  intros b1 ofs H2. simpl.
+  case_eq (Esrc b1 ofs); intros; trivial; simpl in *. 
+  apply SrcHyp in H. unfold vis in H.  
+  clear Unch SrcHyp.
+  destruct H2. 
+  specialize (LB b1 H0).
+  remember (locBlocksSrc mu b1) as d.
+  destruct d; simpl in *; try contradiction. clear LB.
+  destruct (frgnSrc _ WDmu _ H) as [b2 [d [Frg FT]]].
+  apply X2 in Frg.
+     destruct (pubChar _ WDnu _ _ _ Frg).
+     rewrite H1 in H2. discriminate.
+  rewrite H0; reflexivity.
+Qed.
+
 Lemma RGTgt_multicore: forall mu Etgt Esrc m2 m2' (WD: SM_wd mu)
             (TgtHyp: forall b ofs, Etgt b ofs = true -> 
                        (Mem.valid_block m2 b /\
