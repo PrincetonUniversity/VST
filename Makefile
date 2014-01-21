@@ -107,7 +107,8 @@ COMPCOMP_FILES= \
   Machregs.v Locations.v Conventions1.v Conventions.v LTL.v \
   Subtyping.v RTLtyping.v LTL_coop.v LTL_eff.v \
   Lattice.v Wfsimpl.v Iteration.v Heaps.v Kildall.v \
-  FSetAVLplus.v Allocation.v AllocproofEFF.v
+  FSetAVLplus.v Allocation.v AllocproofEFF.v \
+  Inlining.v Inliningspec.v Inliningproof.v
 #Selectionproof.v
 
 VERIC_FILES= \

@@ -44,6 +44,10 @@ Heaps.v
 Kildall.v
 Allocation.v
 
+Inlining.v
+Inliningspec.v
+Inliningproof.v
+
 Please refer to the following files for further details about the license.
 
 ../LICENSE
