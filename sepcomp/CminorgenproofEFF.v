@@ -3842,22 +3842,7 @@ Proof. intros.
 Qed.
 End EFF_InternalCall.
 
-Definition StoreEffectD : forall tv vl b z
-      (ST: StoreEffect tv vl b z = true), 
-      exists ofs, tv = Vptr b ofs /\ 
-                 (Int.unsigned ofs) <= z < (Int.unsigned ofs + Z.of_nat (length vl)).
-Proof. intros.
-  unfold StoreEffect in ST.
-  destruct tv; inv ST.
-  exists i.
-  destruct (eq_block b0 b); try discriminate. subst. simpl in *.
-  split; trivial.
-  destruct (zle (Int.unsigned i) z); try discriminate. simpl in *.
-  destruct (zlt z (Int.unsigned i + Z.of_nat (length vl))); try discriminate. simpl in *.
-  split; trivial.
-Qed.
-
-Lemma Match_eff_diagram_strong_perm:
+Lemma Match_effcore_diagram:
 forall st1 m1 st1' m1' (U1 : Values.block -> Z -> bool)
        (EFFSTEP: effstep csharpmin_eff_sem ge U1 st1 m1 st1' m1')
        st2 mu m2
@@ -4351,14 +4336,10 @@ assert (GDE: genvs_domain_eq ge tge).
             (frgnSrc':=frgnSrc') (frgnTgt':=frgnTgt')
             (nu:=nu) (nu':=nu') (mu':=mu');
      try assumption; try reflexivity. }
-(* Match_corestep*)
+(* core_diagram*)
   { apply Match_corestep. }
-(* Match_effect_diagram *)
-  { admit. (*admit is ok - we're instead proving the stronger effcore_diagram_strong_perm*)}
-(* effcore_diagram_strong*)
-  { admit. (*admit is ok - we're instead proving the stronger effcore_diagram_strong_perm*) }
-(* effcore_diagram_strong_perm*)
-  { apply Match_eff_diagram_strong_perm. }
+(* effcore_diagram*)
+  { apply Match_effcore_diagram. }
 Qed.
 End TRANSLATION.
 

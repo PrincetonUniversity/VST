@@ -1510,7 +1510,7 @@ Lemma Efftransl_expr_Eexternal_correct:
   Efftransl_exprlist_prop le al vl ->
   external_call ef ge vl m E0 v m ->
   Efftransl_expr_prop le (Eexternal id sg al) v.
-Admitted.
+Admitted. (*eliminate extern calls from CminorSel.v expressions*)
 (*Proof.
   intros; red; intros. inv TE.
   exploit H3; eauto. intros [rs1 [tm1 [EX1 [ME1 [RR1 [RO1 EXT1]]]]]].
@@ -3017,7 +3017,7 @@ Proof. intros.
       intuition.
 Qed.  
 
-Lemma MATCH_eff_diagram_strong_perm: forall 
+Lemma MATCH_effcore_diagram: forall 
          st1 m1 st1' m1' (U1 : block -> Z -> bool)
          (CS: effstep cminsel_eff_sem ge U1 st1 m1 st1' m1')
          st2 mu m2 
@@ -3827,13 +3827,12 @@ assert (GDE: genvs_domain_eq ge tge).
   { apply MATCH_afterExternal. assumption. }
 (* order_wf *)
   { apply lt_state_wf. }
-(* Match_effstep*)
+(* core_diagram*)
   { intros. exploit MATCH_corestep; try eassumption.
      intros [st2' [m2' [mu' [CS' X]]]]. 
      exists st2', m2', mu'. intuition. }
- { admit. (*ok, we don't prove this case.*) }
- { admit. (*ok, we don't prove this case.*) }
- { intros. exploit MATCH_eff_diagram_strong_perm; try eassumption.
+(*effcore_diagram*)
+ { intros. exploit MATCH_effcore_diagram; try eassumption.
     intros [st2' [m2' [mu' [U2 [CS2 [? [? [? [? ?]]]]]]]]].
     exists st2', m2', mu'.
     repeat (split; trivial).

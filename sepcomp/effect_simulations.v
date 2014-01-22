@@ -192,7 +192,7 @@ Lemma replace_locals_wd: forall mu (WD: SM_wd mu) pSrc' pTgt'
 Proof. intros.
   destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *. 
   constructor; simpl; try apply WD.
-    intros. rewrite H. apply (SRC _ H).
+    intros. apply (SRC _ H).
     assumption.
 Qed.
 
@@ -357,7 +357,7 @@ Lemma replace_externs_wd: forall mu (WD: SM_wd mu) fSrc' fTgt'
 Proof. intros.
   destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern]; simpl in *. 
   constructor; simpl; try apply WD.
-    intros. rewrite H. apply (SRC _ H).
+    intros. apply (SRC _ H).
     assumption.
 Qed.
 
@@ -1428,15 +1428,17 @@ split; intros.
     rewrite restrict_sm_extern in H.
     eapply WD. eapply restrictD_Some. apply H.
   rewrite restrict_sm_pubBlocksSrc in H. 
-    destruct (pubSrc _ WD _ H) as [b2 [d1 [PUB1 PT2]]].
-    rewrite restrict_sm_pubBlocksTgt. 
-    exists b2, d1. 
-    rewrite restrict_sm_pub'; intuition.
+    destruct (pubSrcAx _ WD _ H) as [b2 [d1 [PUB1 PT2]]].
+    rewrite restrict_sm_pubBlocksTgt, restrict_sm_local. 
+    exists b2, d1. split; trivial. 
+    apply restrictI_Some; intuition.
+    apply HX. unfold vis. rewrite (pubBlocksLocalSrc _ WD _ H). intuition.
   rewrite restrict_sm_frgnBlocksSrc in H. 
-    destruct (frgnSrc _ WD _ H) as [b2 [d1 [FRG1 FT2]]].
-    rewrite restrict_sm_frgnBlocksTgt. 
-    exists b2, d1. 
-    rewrite restrict_sm_foreign'; intuition.
+    destruct (frgnSrcAx _ WD _ H) as [b2 [d1 [FRG1 FT2]]].
+    rewrite restrict_sm_frgnBlocksTgt, restrict_sm_extern. 
+    exists b2, d1. split; trivial.
+    apply restrictI_Some; intuition.
+    apply HX. unfold vis. rewrite H. intuition.
   rewrite restrict_sm_locBlocksTgt. 
     rewrite restrict_sm_pubBlocksTgt in H.
     apply (pubBlocksLocalTgt _ WD _ H).
@@ -1669,71 +1671,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
             step m m' /\ step m' m'' /\ Estep E m m'' does imply 
             Estep E m m' /\ Estep E m' m''.*);
 
-    effcore_diagram : 
-      forall st1 m1 st1' m1' U1, 
-        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
-
-      forall cd st2 mu m2,
-        match_state cd mu st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists mu',
-          intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
-
-          (*new condition: corestep evolution is soundly and completely 
-                           tracked by the local knowledge*)
-          sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
-
-          match_state cd' mu' st1' m1' st2' m2' /\
-
-          (*could add the following 2 assertions here, too, but 
-             we checked already that they're satisfied in the previous
-             clause SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
-
-          exists U2,              
-            ((effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
-              (effstep_star Sem2 ge2 U2 st2 m2 st2' m2' /\
-               core_ord cd' cd)) /\ 
-
-             forall b ofs, U2 b ofs = true -> 
-                       (Mem.valid_block m2 b /\
-                         (locBlocksTgt mu b = false ->
-                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
-                           Mem.valid_block m1 b1 /\ U1 b1 (ofs-delta1) = true)));
-
-    (*additionally requires U1 to be disjoint from unknown etc, in UHyp*)
-    effcore_diagram_strong : 
-      forall st1 m1 st1' m1' U1, 
-        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
-
-      forall cd st2 mu m2
-        (UHyp: forall b1 z, U1 b1 z = true -> vis mu b1 = true),
-        match_state cd mu st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists mu',
-          intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
-
-          (*new condition: corestep evolution is soundly and completely 
-                           tracked by the local knowledge*)
-          sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
-
-          match_state cd' mu' st1' m1' st2' m2' /\
-
-          (*could add the following 2 assertions here, too, but 
-             we checked already that they're satisfied in the previous
-             clause SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
-
-          exists U2,              
-            ((effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
-              (effstep_star Sem2 ge2 U2 st2 m2 st2' m2' /\
-               core_ord cd' cd)) /\
-
-             forall b ofs, U2 b ofs = true -> 
-                       (Mem.valid_block m2 b /\
-                         (locBlocksTgt mu b = false ->
-                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
-                           U1 b1 (ofs-delta1) = true)));
-
-      effcore_diagram_strong_perm : 
+      effcore_diagram : 
       forall st1 m1 st1' m1' U1, 
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
@@ -2244,7 +2182,7 @@ Lemma RGSrc_multicore'': forall mu Esrc m m'
          Mem.unchanged_on (fun b ofs => locBlocksSrc nu b = true /\ 
                                         pubBlocksSrc nu b = false) m m'.
 Proof. intros.
-  eapply unch_on_validblock; try eassumption.
+  eapply unchanged_on_validblock; try eassumption.
   intros b1 ofs VAL H2. simpl.
   case_eq (Esrc b1 ofs); intros; trivial; simpl in *. 
   apply SrcHyp in H; trivial. unfold vis in H.  
@@ -2421,32 +2359,6 @@ Proof. intros.
   rewrite (pubSrcContra _ _ H2) in X2. inv X2. 
 Qed.
 
-Lemma Fwd_unch: forall m m' (FWD: mem_forward m m')
-           b ofs (P: ~ Mem.perm m b ofs Max Nonempty),
-     Mem.unchanged_on (fun b' ofs' => b' = b /\ ofs' = ofs) m m'.
-Proof. intros.
-split; intros. 
-  destruct H; subst. 
-  split; intros; elim P. eapply Mem.perm_max. eapply Mem.perm_implies; try eassumption. apply perm_any_N. 
-      eapply FWD. assumption. eapply Mem.perm_max. eapply Mem.perm_implies; try eassumption. apply perm_any_N.
-destruct H; subst. 
-  elim P. eapply Mem.perm_max. eapply Mem.perm_implies; try eassumption. apply perm_any_N.
-Qed.
-
-Lemma unchanged_on_union:
-      forall m m' P Q (HP: Mem.unchanged_on P m m') (HQ: Mem.unchanged_on Q m m')
-             (PQ: block -> Z -> Prop) (HPQ: forall b ofs, PQ b ofs -> P b ofs \/ Q b ofs),
-      Mem.unchanged_on PQ m m'.
-Proof. intros.
-  split; intros.
-    destruct (HPQ _ _ H).
-      eapply HP; eassumption.
-      eapply HQ; eassumption.
-    destruct (HPQ _ _ H).
-      eapply HP; eassumption.
-      eapply HQ; eassumption.
-Qed.
-
 Lemma RGTgt_multicoreNOEFFECTS: forall mu m2 m2' (WD: SM_wd mu)
             (TgtHyp1: Mem.unchanged_on (fun b2 ofs => extBlocksTgt mu b2 = true /\
                                            ~ exists b1 d, foreign_of mu b1=Some (b2,d)) m2 m2')
@@ -2481,7 +2393,7 @@ split; intros b2; intros.
     eapply TgtHyp2; clear TgtHyp2; try eassumption.
     Focus 2. split. trivial. instantiate (1:=ofs-dd). omega.
     destruct (H1 _ _ H5); clear H1.
-      eapply Fwd_unch; assumption.      
+      eapply forward_unchanged_on; assumption.      
     eapply mem_unchanged_on_sub; try eassumption.
       intros. destruct H1; subst. split; trivial.
       eapply (local_DomRng _ WDnu _ _ _ H5).
@@ -2498,7 +2410,7 @@ split; intros b2; intros.
     eapply TgtHyp2; clear TgtHyp2; try eassumption.
     Focus 2. split. trivial. instantiate (1:=ofs-dd). omega.
     destruct (H1 _ _ H5); clear H1.
-      eapply Fwd_unch; assumption.      
+      eapply forward_unchanged_on; assumption.      
     eapply mem_unchanged_on_sub; try eassumption.
       intros. destruct H1; subst. split; trivial.
       eapply (local_DomRng _ WDnu _ _ _ H5).

@@ -3712,7 +3712,7 @@ simpl in LD4.
   split; eapply PRE. 
 Qed.
 
-Lemma Match_eff_diagram_strong_perm: 
+Lemma Match_effcore_diagram: 
   forall (GDE : genvs_domain_eq ge tge)
       st1 m1 st1' m1' (U1 : block -> Z -> bool)
       (CS: effstep rtl_eff_sem ge U1 st1 m1 st1' m1')
@@ -5065,16 +5065,12 @@ assert (GDE: genvs_domain_eq ge tge).
     admit. (*TODO: decode long*) }
 (* after_external*)
   { apply MATCH_afterExternal. eassumption. }
-(* Match_corestep*)
+(* core_diagram*)
   { intros x; intros. exploit MATCH_corestep; eauto.
     intros [st2' [m2' [mu' [CS2 MU']]]].
     exists st2', m2', mu'. intuition. }
-(* Match_effect_diagram *)
-  { admit. (* ok - we're not proving the Match_effect_diagram clause*)}
-(* effcore_diagram_strong*)
-  { admit. (* ok - we're not proving the _diagram_strong clause*) }
-(* effcore_diagram_strong_perm*)
-  { intros. exploit Match_eff_diagram_strong_perm; eauto. 
+(* effcore_diagram*)
+  { intros. exploit Match_effcore_diagram; eauto. 
     intros [st2' [m2' [U2 [CS2 [mu' [? [? [? [? [? [? ?]]]]]]]]]]].
     exists st2', m2', mu'.
     repeat (split; try assumption).

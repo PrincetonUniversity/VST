@@ -1052,10 +1052,7 @@ destruct mu; simpl in *.
     destruct H0. rewrite Heqd in H1. destruct (extern_of b1); inv H1.
 simpl in *. destruct (pubSrc _ WD _ H) as [b2 [d [Hb1 Hb2]]]; simpl in *.
     exists b2, d. apply pub_in_local in Hb1.
-      unfold join. rewrite H, Hb1, Hb2. split; trivial.
-simpl in *. destruct (frgnSrc _ WD _ H) as [b2 [d [Hb1 Hb2]]]; simpl in *.
-    exists b2, d. apply foreign_in_extern in Hb1.
-      rewrite H, Hb1, Hb2. split; trivial.
+      unfold join. rewrite Hb1, Hb2. split; trivial.
 simpl in *. rewrite (pubBlocksLocalTgt _ WD _ H). intuition.
 Qed.
 
@@ -3158,15 +3155,11 @@ assert (GDE: genvs_domain_eq ge tge).
                     into builtins - that's not permitted by our notion!*) }
 (* after_external*)
   { apply Match_AfterExternal. }
-(* Match_corestep*)
+(* core_diagram*)
   { intros. exploit Match_corestep; eauto.
     intros [st2' [m2' [CS2 [mu' MU']]]].
     exists st2', m2', mu'. intuition. }
-(* Match_effect_diagram *)
-  { admit. (* ok - we're not proving the Match_effect_diagram clause*)}
-(* effcore_diagram_strong*)
-  { admit. (* ok - we're not proving the _diagram_strong clause*) }
-(* effcore_diagram_strong_perm*)
+(* effcore_diagram*)
   { intros. exploit Match_eff_diagram_strong_perm; eauto. 
     intros [st2' [m2' [U2 [CS2 [mu' [? [? [? [? [? [? ?]]]]]]]]]]].
     exists st2', m2', mu'.

@@ -12,68 +12,6 @@ Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.StructuredInjections.
 
-Lemma unch_on_validblock: forall m m' (U V: Values.block -> Z -> Prop)
-   (UV: forall b ofs, Mem.valid_block m b -> (U b ofs -> V b ofs)),
-   Mem.unchanged_on V m m' -> Mem.unchanged_on U m m'.
-  Proof. intros.
-    destruct H.
-    split; intros. 
-       eapply unchanged_on_perm; try eassumption. eauto.
-       eapply unchanged_on_contents; try eassumption. 
-       apply Mem.perm_valid_block in H0. eauto.
-Qed.
-
-Lemma unch_on_validblock_invariant: forall m m' U V
-   (UV: forall b ofs, Mem.valid_block m b -> (U b ofs <-> V b ofs)),
-   Mem.unchanged_on V m m' <-> Mem.unchanged_on U m m'.
-  Proof. intros.
-    split; intros. 
-       eapply unch_on_validblock; try eassumption.
-          intros. destruct (UV _ ofs H0). eauto.
-       eapply unch_on_validblock; try eassumption.
-          intros. destruct (UV _ ofs H0). eauto.
-Qed.
-
-Lemma unch_on_perm_intersection: forall m m' U (Fwd: mem_forward m m'),
-   Mem.unchanged_on U m m' <-> 
-   Mem.unchanged_on (fun b z => U b z /\ Mem.perm m b z Max Nonempty)  m m'.
-  Proof. intros.
-    split; intros Hyp.
-    split; intros; eapply Hyp; eauto. apply H. apply H.
-    split; intros.
-      remember (Mem.perm_dec m b ofs Max Nonempty).
-      destruct s; clear Heqs.
-         eapply Hyp; eauto.
-      split; intros. exfalso. apply n; clear Hyp n.
-         eapply Mem.perm_implies. eapply Mem.perm_max; eassumption. 
-               apply perm_any_N.
-        exfalso. apply n; clear Hyp n.
-         eapply (Fwd _ H0).
-           eapply Mem.perm_implies. eapply Mem.perm_max; eassumption. 
-               apply perm_any_N.
-     eapply Hyp; trivial.
-       split; trivial.
-        eapply Mem.perm_implies. eapply Mem.perm_max; eassumption. 
-               apply perm_any_N.
-Qed.
-
-
-Lemma mem_unchanged_on_trans: forall m1 m2 m3 U
-      (U1: Mem.unchanged_on U m1 m2) 
-      (U2: Mem.unchanged_on U m2 m3)
-      (Fwd12: mem_forward m1 m2),
-  Mem.unchanged_on U m1 m3.
-Proof. intros.
-split; intros.
-  split; intros.
-    eapply U2; trivial. apply Fwd12; trivial.
-    eapply U1; trivial.
-  eapply U1; trivial. eapply U2; trivial. apply Fwd12; trivial.
-destruct U1 as [P1 V1]; destruct U2 as [P2 V2].
-  rewrite (V2 _ _ H).
-    apply V1; trivial.
-  apply P1; trivial. eapply Mem.perm_valid_block; eassumption.
-Qed.
  
 Record EffectSem {G C} :=
   { sem :> CoopCoreSem G C;
@@ -97,253 +35,29 @@ Record EffectSem {G C} :=
 
 Section effsemlemmas.
   Context {G C:Type} (Sem: @EffectSem G C) (g:G).
-(*
-Lemma effstep_perm: forall M g c m c' m',
-      effstep Sem g M c m c' m' -> 
-      forall b ofs, M b ofs = true -> Mem.valid_block m b -> Mem.perm m b ofs Max Nonempty.
-Proof. intros.
-  apply effax in H.
-  destruct H. apply H; assumption.
-Qed.
-*)
-Lemma effstep_corestep: forall M g c m c' m',
-      effstep Sem g M c m c' m' -> corestep Sem g c m c' m'. 
-Proof. intros.
-  apply effax1 in H. apply H.
-Qed.
 
-Lemma effstep_unchanged: forall M g c m c' m',
-      effstep Sem g M c m c' m' -> 
-      Mem.unchanged_on (fun b ofs => M b ofs = false) m m'.
-Proof. intros.
-  apply effax1 in H. apply H.
-Qed.
-(*
-Lemma effstep_rev: forall M g c m c' m',
-      corestep Sem g c m c' m' ->
-      Mem.unchanged_on (fun b ofs => M b ofs = false) m m' ->
-      (forall b ofs, M b ofs = true -> Mem.valid_block m b) -> 
-      effstep Sem g M c m c' m'.
-Proof. intros.
-  apply effax. 
-  split; trivial.
-Qed.
-*)
+  Lemma effstep_corestep: forall M g c m c' m',
+      effstep Sem g M c m c' m' -> corestep Sem g c m c' m'. 
+  Proof. intros. apply effax1 in H. apply H. Qed.
+
+  Lemma effstep_unchanged: forall M g c m c' m',
+        effstep Sem g M c m c' m' -> 
+        Mem.unchanged_on (fun b ofs => M b ofs = false) m m'.
+  Proof. intros. apply effax1 in H. apply H. Qed.
+
   Lemma effstep_fwd: forall U c m c' m',
     effstep Sem g U c m c' m' -> mem_forward m m'.
   Proof. intros. destruct Sem.
          eapply corestep_fwd. eapply effax1. apply H.
   Qed.
 
-Lemma effstep_sub: forall U V c m c' m'
+  Lemma effstep_sub: forall U V c m c' m'
          (UV: forall b ofs, U b ofs = true -> V b ofs = true),
          (effstep Sem g U c m c' m' -> effstep Sem g V c m c' m').
-Proof. intros. eapply (effstep_sub_val _ _ U V). intuition. assumption.
-Qed.
-(*
-Lemma effstep_sub_val: forall U V c m c' m'
-         (UV: forall b ofs, Mem.valid_block m b -> U b ofs = true -> V b ofs = true),
-         (effstep Sem g U c m c' m' -> effstep Sem g V c m c' m').
-Proof. intros. rewrite effax; rewrite effax in H.
-  destruct H as [CS Unch].
-      split; trivial.
-      split; intros; eapply Unch; trivial.
-          remember (U b ofs) as d.
-          destruct d; try reflexivity. apply eq_sym in Heqd.
-          rewrite (UV _ _ H0 Heqd) in H. inv H.
-
-          remember (U b ofs) as d.
-          destruct d; try reflexivity. apply eq_sym in Heqd.
-          apply Mem.perm_valid_block in H0.
-          rewrite (UV _ _ H0 Heqd) in H. inv H.
-Qed.
-*)         
-(*
-Record EffectSem {G C} :=
-  { sem :> CoopCoreSem G C;
-
-    effstep: G -> (block -> Z -> bool) -> C -> mem -> C -> mem -> Prop;
-
-    effax: forall M g c m c' m',
-       effstep g M c m c' m' <->
-       (corestep sem g c m c' m' /\ 
-        Mem.unchanged_on (fun b ofs => M b ofs = false /\ Mem.perm m b ofs Max Nonempty) m m')
- }.
-
-Record EffectSemA {G C} :=
-  { semA :> CoopCoreSem G C;
-
-    effstepA: G -> (block -> Z -> bool) -> C -> mem -> C -> mem -> Prop;
-
-    effaxA: forall M g c m c' m',
-       effstepA g M c m c' m' <->
-       (corestep semA g c m c' m' /\ 
-        Mem.unchanged_on (fun b ofs => M b ofs = false) m m');
-    effstep_perm: forall M g c m c' m',
-       effstepA g M c m c' m' -> 
-       forall b ofs, M b ofs = true -> Mem.perm m b ofs Max Nonempty
-  }.
- 
-
-Goal forall G C, @EffectSem G C -> @EffectSemA G C.
-Proof. intros. destruct X.
-eapply Build_EffectSemA with (effstepA := effstep0)(semA:=sem0).
-intros.
-split; intros.
-  split. eapply effax0. apply H.
-  apply effax0 in H. destruct H.
-  apply unch_on_perm_intersection in H0. apply H0.
-  apply corestep_fwd in H. assumption.
-destruct H.
-  apply effax0; clear effax0.
-  split; trivial.
-  apply unch_on_perm_intersection. 
-    apply corestep_fwd in H. assumption.
-    apply H0.
-Qed.
-Goal forall G C, @EffectSemA G C -> @EffectSem G C.
-Proof. intros. destruct X.
-eapply Build_EffectSem with (effstep := effstepA0)(sem:=semA0).
-intros.
-split; intros.
-  split. eapply effaxA0. apply H.
-  apply effaxA0 in H. destruct H.
-  apply unch_on_perm_intersection.
-    apply corestep_fwd in H. assumption.
-     apply H0.
-
-  apply effaxA0. destruct H. split; trivial.
-  apply unch_on_perm_intersection in H0. apply H0.
-    apply corestep_fwd in H. assumption.
-
-intros.
-  apply effaxA0 in H. destruct H.
-destruct H.
-  apply effax0; clear effax0.
-  split; trivial.
-  apply unch_on_perm_intersection. 
-    apply corestep_fwd in H. assumption.
-    apply H0.
-Qed.
-
-
-But, since sem :> CoopCoreSem G C implies that 
-
-Section effsemlemmas.
-  Context {G C:Type} (Sem: @EffectSem G C) (g:G).
-
-Lemma effstep_valid_block: forall U V c m c' m'
-         (UV: forall b ofs, Mem.valid_block m b -> (U b ofs = V b ofs)),
-         (effstep Sem g U c m c' m' <-> effstep Sem g V c m c' m').
-Proof. intros.
-  split; intros H; rewrite effax; rewrite effax in H;
-    destruct H as [CS Unch]; split; trivial.
-    split; intros; eapply Unch; trivial.
-      rewrite (UV _ _ H0). apply H.
-    apply Mem.perm_valid_block in H0.
-      rewrite (UV _ _ H0). apply H.
-
-    split; intros; eapply Unch; trivial.
-      rewrite <- (UV _ _ H0). apply H.
-    apply Mem.perm_valid_block in H0.
-      rewrite <- (UV _ _ H0). apply H.
-Qed.
-  *)
-(*
-Lemma effchar: forall c m c' m' Mod, 
- effstep sem g Mod c m c' m' <->
-    ( corestep sem g c m c' m' /\
-      forall b ofs, Mod b ofs = true \/ 
-       Mem.unchanged_on (fun bb z => bb=b /\ z=ofs) m m').
-Proof. intros.
-split; intros.
-  apply effax in H. destruct H.
-  split; intros; trivial.
-  remember  (Mod b ofs) as d.
-  destruct d; apply eq_sym in Heqd.
-    left; trivial.
-  right.
-  destruct H0.
-  split; intros.
-    destruct H0; subst. auto.
-    destruct H0; subst.
-    apply unchanged_on_contents.
-    apply Mem.perm_valid_block in H1. auto.
-    assumption.
-apply effax. destruct H.
-  split; trivial.
-  split; intros.
-     destruct (H0 b ofs) as [HMod | Hunch].
-        rewrite HMod in H1; intuition. 
-     eapply Hunch; auto.
-  destruct (H0 b ofs) as [HMod | Hunch].
-        rewrite HMod in H1; intuition. 
-     eapply Hunch; auto.
-Qed.
-*)
-(*
-Lemma effchar': forall {G C} (sem : @EffectSem G C) (g:G)
-    c m c' m' Mod, effstep sem g Mod c m c' m' <->
-    ( corestep sem g c m c' m' /\
-      forall b ofs, Mem.valid_block m b ->
-       Mod b ofs = true \/ 
-       Mem.unchanged_on (fun bb z => bb=b /\ z=ofs) m m').
-Proof. intros.
-split; intros.
-  apply effax in H. destruct H.
-  split; intros; trivial.
-  remember  (Mod b ofs) as d.
-  destruct d; apply eq_sym in Heqd.
-    left; trivial.
-  right.
-  destruct H0.
-  split; intros.
-    destruct H0; subst. auto.
-    destruct H0; subst. auto.
-apply effax. destruct H.
-  split; trivial.
-  split; intros.
-     specialize (H1 H2).
-     destruct (H0 b ofs H2) as [HMod | Hunch].
-        rewrite HMod in H1; intuition. 
-     eapply Hunch; auto.
-  assert (VB:= Mem.perm_valid_block _ _ _ _ _ H2).
-  destruct (H0 b ofs VB) as [HMod | Hunch].
-        rewrite HMod in H1; intuition. 
-     eapply Hunch; auto.
-Qed.
-    
-*)(*
-  Lemma effstep_sub: forall c m c' m' (U V : block -> Z -> bool),
-     effstep Sem g U c m c' m' ->
-     (forall b z, V b z = true -> Mem.valid_block m b -> Mem.perm m b z Max Nonempty) -> 
-     (forall b z, U b z = true -> V b z = true) ->
-     effstep Sem g V c m c' m'.
-  Proof. intros.
-    rewrite effax. rewrite effax in H.
-    destruct H as [Perm [CS Unch]].
-    split; trivial. 
-    split; trivial.
-      split; intros; eapply Unch; trivial.
-         remember (U b ofs) as d.
-         destruct d; trivial; apply eq_sym in Heqd.
-         rewrite (H1 _ _ Heqd) in H. inv H.
-
-         remember (U b ofs) as d.
-         destruct d; trivial; apply eq_sym in Heqd.
-         rewrite (H1 _ _ Heqd) in H. inv H.
-  Qed.*)
-(*
-  Lemma effstep_sub: forall c m c' m' (U V : block -> Z -> bool),
-     effstep Sem g U c m c' m' ->
-     (forall b z, U b z = true -> V b z = true) ->
-     effstep Sem g V c m c' m'.
-  Proof. intros. apply effchar in H. apply effchar. 
-     destruct H. split; trivial.
-     intros.
-     destruct (H1 b ofs); auto.
+  Proof. intros. eapply (effstep_sub_val _ _ U V). 
+         intuition. assumption.
   Qed.
-*)
+
   Fixpoint effstepN (n:nat) : (block -> Z -> bool) -> C -> mem -> C -> mem -> Prop :=
     match n with
       | O => fun U c m c' m' => (c,m) = (c',m')
@@ -400,27 +114,7 @@ Qed.
         apply E; try eassumption.  rewrite H; simpl.
         apply freshloc_charF. apply Mem.perm_valid_block in H0. left; assumption.
        apply E; try assumption. apply Mem.perm_valid_block in H0. apply H0.
-Qed.
-
-(*
-  Lemma effstepN_perm: forall n M c m c' m'
-       (Step: effstepN n M c m c' m'),
-       (c,m) = (c',m') \/
-       (forall b ofs, M b ofs = true -> Mem.valid_block m b -> Mem.perm m b ofs Max Nonempty).
-  Proof. intros n.
-     induction n; simpl; intros. left; assumption. 
-     destruct Step as [c2 [m2 [Step StepN]]]. 
-     right. intros. eapply effstep_perm; eassumption.
   Qed.
-
-  Lemma effstepSN_perm: forall n M c m c' m'
-       (Step: effstepN (S n) M c m c' m'),
-       forall b ofs, M b ofs = true -> Mem.valid_block m b -> Mem.perm m b ofs Max Nonempty.
-  Proof. intros. 
-     destruct Step as [c2 [m2 [Step StepN]]]. 
-     eapply effstep_perm; eassumption.
-  Qed.
-*)
 
   Lemma effstepN_sub: forall n U V c m c' m'
          (UV: forall b ofs, U b ofs = true -> V b ofs = true),
@@ -476,27 +170,6 @@ Qed.
            rewrite <- orb_assoc.
            rewrite freshloc_trans; trivial.
   Qed.
-(*
-  Lemma effstepN_add : forall n m U c1 m1 c3 m3,
-    effstepN (n+m) U c1 m1 c3 m3 <->
-    exists c2, exists m2,
-      effstepN n U c1 m1 c2 m2 /\
-      effstepN m U c2 m2 c3 m3.
-  Proof.
-    induction n; simpl; intuition.
-    firstorder. firstorder.
-    inv H. auto.
-    decompose [ex and] H. clear H.
-    destruct (IHn m U x x0 c3 m3).
-    apply H in H2. 
-    decompose [ex and] H2. clear H2.
-    repeat econstructor; eauto.
-    decompose [ex and] H. clear H.
-    exists x1. exists x2; split; auto.
-    destruct (IHn m U x1 x2 c3 m3). 
-    eauto.
-  Qed.
-*)
 
   Definition effstep_plus U c m c' m' :=
     exists n, effstepN (S n) U c m c' m'.
@@ -651,333 +324,6 @@ Qed.
     destruct EFF as [n EFF].
     exists n. eapply effstepN_sub_val; eassumption.
   Qed. 
-(*
-  Lemma effstep_sub_valid: forall c m c' m' (U V : block -> Z -> bool),
-     effstep Sem g U c m c' m' ->
-     (forall b z, Mem.valid_block m b -> U b z = true -> V b z = true) ->
-     effstep Sem g V c m c' m'.
-  Proof. intros.
-    rewrite effax. rewrite effax in H. destruct H as [CS Unch].
-    split; trivial.
-    split; intros; eapply Unch; trivial. 
-        remember (U b ofs) as d.
-        destruct d; trivial; apply eq_sym in Heqd.
-        rewrite (H0 _ _ H1 Heqd) in H. inv H.
-    remember (U b ofs) as d.
-        destruct d; trivial; apply eq_sym in Heqd.
-        apply Mem.perm_valid_block in H1. 
-        rewrite (H0 _ _ H1 Heqd) in H. inv H.
-   Qed.
-    
-    
-    apply (effstep_valid_block Sem U (fun b ofs => if valid_block_dec m b then U b ofs else false)) in H.
-    apply effchar in H. apply effchar. 
-     destruct H. split; trivial.
-     intros.
-     destruct (H1 b ofs); eauto.
-     left.
-      case_eq (valid_block_dec m b); intros; rewrite H3 in H2.
-        auto.
-       discriminate.
-     intros. 
-      case_eq (valid_block_dec m b); intros. trivial. contradiction.
-  Qed.
-
-  Lemma effstep_plus_perm: forall M c m c' m'
-       (Step: effstep_plus M c m c' m'),
-       forall b ofs, M b ofs = true -> Mem.perm m b ofs Max Nonempty.
-  Proof. intros. 
-     destruct Step as [n Stepn]. 
-     eapply effstepSN_perm; eassumption.
-  Qed.
-
-  Lemma effstep_star_perm: forall M c m c' m'
-       (Step: effstep_star M c m c' m'),
-       (c,m) = (c',m') \/
-       (forall b ofs, M b ofs = true -> Mem.perm m b ofs Max Nonempty).
-  Proof. intros. 
-     destruct Step as [n Stepn]. 
-     eapply effstepN_perm; eassumption.
-  Qed.
-*)
-(*
-  Lemma eff_comp: forall n n' M M' c m c' m' c'' m'' 
-    (EX1: effstepN n M c m c' m') (EX2: effstepN n' M' c' m' c'' m''),
-    effstepN (n+n') (fun b ofs => if M b ofs then true 
-                            else if M' b ofs then valid_block_dec m b else false)
-              c m c'' m''.
-  Proof. intros n.
-         induction n; simpl; intros.
-           inv EX1. eapply effstepN_sub. eassumption.
-           intros. remember (M b z) as d.
-           destruct d. trivial.
-           rewrite H. admit. admit is OK - it's in a comment
-         rewrite effchar in EX1, EX2. rewrite effchar.
-         destruct 
-
-  Lemma effstepN_valid_block_aux: forall n m0 U V c m c' m'
-         (UV: forall b ofs, Mem.valid_block m0 b -> (U b ofs = V b ofs)),
-         mem_forward m0 m ->
-         (effstepN n (fun b ofs => if valid_block_dec m0 b then U b ofs else false) c m c' m' <-> 
-          effstepN n (fun b ofs => if valid_block_dec m0 b then V b ofs else false) c m c' m').
-  Proof. intros n.
-    induction n; simpl; intros.
-      split; intros; assumption.
-    split; intros.
-      destruct H0 as [c2 [m2 [Step StepN]]].
-      exists c2, m2.
-      split. eapply effstep_valid_block; try eassumption.
-             intros. simpl. 
-             remember (valid_block_dec m0 b) as d.
-             destruct d; trivial. 
-             rewrite UV; trivial.
-      eapply IHn; try eassumption.
-        intros. rewrite UV; trivial.
-      apply effstep_fwd in Step.
-        eapply mem_forward_trans; eassumption.
-    destruct H0 as [c2 [m2 [Step StepN]]].
-      exists c2, m2.
-      split. eapply effstep_valid_block; try eassumption.
-             intros. simpl. 
-             remember (valid_block_dec m0 b) as d.
-             destruct d; trivial. 
-             rewrite UV; trivial.
-      eapply IHn; try eassumption.
-      apply effstep_fwd in Step.
-        eapply mem_forward_trans; eassumption.
-Qed.
-  Lemma effstepN_valid_block_aux1: forall n P U V 
-         (UV: forall b ofs, P b ofs = true -> (U b ofs = V b ofs))
-         (Hyp: forall c m c' m',effstep Sem g (fun b ofs => if P b ofs then U b ofs else false) c m c' m' <-> 
-                   effstep Sem g (fun b ofs => if P b ofs then V b ofs else false) c m c' m')
-         c m c' m',
-        (effstepN n (fun b ofs => if P b ofs then U b ofs else false) c m c' m' <-> 
-          effstepN n (fun b ofs => if P b ofs then V b ofs else false) c m c' m').
-  Proof. intros n.
-    induction n; simpl; intros.
-      split; intros; assumption.
-    split; intros.
-      destruct H as [c2 [m2 [Step StepN]]].
-      exists c2, m2.
-      split. eapply Hyp; try eassumption.
-      eapply IHn; simpl.
-        intros. rewrite UV; trivial.
-        intros. rewrite Hyp. split; intros; trivial.
-      apply StepN.
-    destruct H as [c2 [m2 [Step StepN]]].
-      exists c2, m2.
-      split. eapply Hyp; try eassumption.
-      eapply IHn; simpl.
-        intros. rewrite UV; trivial.
-        intros. rewrite Hyp. split; intros; trivial.
-      apply StepN.
-Qed.
-*)
-(*
-
-  Lemma effstepN_valid_block_aux1: forall n m0 U V c m c' m'
-         (UV: forall b ofs, Mem.valid_block m0 b -> (U b ofs = V b ofs)),
-         mem_forward m0 m' ->
-         (effstepN n (fun b ofs => if valid_block_dec m0 b then U b ofs else false) c m c' m' <-> 
-          effstepN n (fun b ofs => if valid_block_dec m0 b then V b ofs else false) c m c' m').
-  Proof. intros n.
-    induction n; simpl; intros.
-      split; intros; assumption.
-    split; intros.
-      destruct H0 as [c2 [m2 [Step StepN]]].
-      exists c2, m2.
-      split. eapply effstep_valid_block; try eassumption.
-             intros. simpl. 
-             remember (valid_block_dec m0 b) as d.
-             destruct d; trivial. 
-             rewrite UV; trivial.
-      eapply IHn; try eassumption.
-        intros. rewrite UV; trivial.
-      apply effstep_fwd in Step.
-        eapply mem_forward_trans; eassumption.
-    destruct H0 as [c2 [m2 [Step StepN]]].
-      exists c2, m2.
-      split. eapply effstep_valid_block; try eassumption.
-             intros. simpl. 
-             remember (valid_block_dec m0 b) as d.
-             destruct d; trivial. 
-             rewrite UV; trivial.
-      eapply IHn; try eassumption.
-      apply effstep_fwd in Step.
-        eapply mem_forward_trans; eassumption.
-Qed.
-
-  Lemma effstepN_valid_block_aux': forall n m0 U V c m c' m'
-         (UV: forall b ofs, Mem.valid_block m0 b -> (U b ofs = V b ofs)),
-         mem_forward m0 m ->
-         (effstepN n U c m c' m' <-> 
-          effstepN n V c m c' m').
-  Proof. intros.
-    induction n; simpl; intros.
-      split; intros; assumption.
-    split; intros.
-      destruct H0 as [c2 [m2 [Step StepN]]].
-      exists c2, m2.
-      split. eapply effstep_valid_block; try eassumption.
-             intros. simpl. 
-             rewrite UV; trivial.
-      eapply IHn; try eassumption.
-        intros. rewrite UV; trivial.
-      apply effstep_fwd in Step.
-        eapply mem_forward_trans; eassumption.
-    destruct H0 as [c2 [m2 [Step StepN]]].
-      exists c2, m2.
-      split. eapply effstep_valid_block; try eassumption.
-             intros. simpl. 
-             remember (valid_block_dec m0 b) as d.
-             destruct d; trivial. 
-             rewrite UV; trivial.
-      eapply IHn; try eassumption.
-      apply effstep_fwd in Step.
-        eapply mem_forward_trans; eassumption.  intros n.
-  Lemma effstepN_valid_block: forall n U V c m c' m'
-         (UV: forall b ofs, Mem.valid_block m b -> (U b ofs = V b ofs)),
-         (effstepN n U c m c' m' <-> 
-          effstepN n V c m c' m').
-  Proof. intros.
-    destruct (effstepN_valid_block_aux n m U V c m c' m' UV (mem_forward_refl _)).
-    split; intros.
-      
-     intros.
-extensionality b. rewrite UV. trivial.
-      eapply IHn; try eassumption. 
-
-  Lemma effstepN_valid_block_aux: forall n m0 U V c m c' m'
-         (UV: forall b ofs, Mem.valid_block m0 b -> (U b ofs = V b ofs)),
-         mem_forward m0 m ->
-         (effstepN n U c m c' m' <-> effstepN n V c m c' m').
-  Proof. intros n.
-    induction n; simpl; intros.
-      split; intros; assumption.
-    specialize (IHn m0 (fun b ofs => if valid_block_dec m0 b then U b ofs else false) (fun b ofs => if valid_block_dec m0 b then V b ofs else false)).
-    split; intros.
-      destruct H0 as [c2 [m2 [Step StepN]]].
-      exists c2, m2.
-      split. eapply effstep_valid_block; try eassumption.
-             intros. rewrite UV. trivial.
-      eapply IHn; try eassumption. 
-
-
-  Lemma effstepN_sub_valid: 
-  forall n c m c' m' (U V : block -> Z -> bool),
-     effstepN n U c m c' m' ->
-     (forall b z, Mem.valid_block m b -> U b z = true -> V b z = true) ->
-     effstepN n V c m c' m'.
-  Proof. intros n. 
-    apply (effstep_valid_block Sem U (fun b ofs => if valid_block_dec m b then U b ofs else false)) in H.
-    apply effchar in H. apply effchar. 
-     destruct H. split; trivial.
-     intros.
-     destruct (H1 b ofs); eauto.
-     left.
-      case_eq (valid_block_dec m b); intros; rewrite H3 in H2.
-        auto.
-       discriminate.
-     intros. 
-      case_eq (valid_block_dec m b); intros. trivial. contradiction.
-  Qed.
-  Lemma effstepN_sub_valid: 
-  forall n c m c' m' (U V : block -> Z -> bool),
-     effstepN n U c m c' m' ->
-     (forall b z, Mem.valid_block m b -> U b z = true -> V b z = true) ->
-     effstepN n V c m c' m'.
-  Proof. intros n. 
-     induction n; simpl; intros.
-        apply H.
-     destruct H as [c2 [m2 [Step StepN]]].
-     exists c2, m2; split.
-       eapply effstep_sub_valid; try eassumption.
-       specialize (IHn c2 m2 c' m' (fun b ofs => if valid_block_dec m b then U b ofs else true) V).
-       eapply IHn; try eassumption.
-         eapply effstepN_sub; try eassumption.
-         intros. rewrite H.
-         case_eq (valid_block_dec m b); intros; trivial.
-       intros. apply effstep_fwd in Step.
-         apply H0; auto.
-  Qed.
-
-  Lemma effstep_plus_sub_valid:
-  forall c m c' m' (U V : block -> Z -> bool),
-     effstep_plus U c m c' m' ->
-     (forall b z, Mem.valid_block m b -> U b z = true -> V b z = true) ->
-     effstep_plus V c m c' m'.
-  Proof. intros.
-    destruct H as [n H].
-    exists n. eapply effstepN_sub; eassumption.
-  Qed. 
-
-  Lemma effstep_star_sub_valid:
-  forall c m c' m' (U V : block -> Z -> bool),
-     effstep_plus U c m c' m' ->
-     (forall b z, Mem.valid_block m b -> U b z = true -> V b z = true) ->
-     effstep_star V c m c' m'.
-  Proof. intros.
-    destruct H as [n H].
-    exists (S n). eapply effstepN_sub; eassumption.
-  Qed. 
-*)
-(*
-Lemma effstep_validblock: forall U c m c' m'
-        (E: effstep Sem g U c m c' m'),
-         effstep Sem g (fun b z => if valid_block_dec m b then U b z else false) c m c' m'.
-Proof. intros. rewrite effax; rewrite effax in E.
-  destruct E as [CS Unch].
-      split; trivial.
-      split; intros; eapply Unch; trivial.
-       remember (U b ofs) as d.
-       destruct d; trivial; apply eq_sym in Heqd.
-       remember (valid_block_dec m b) as d.
-       destruct d. inv H. contradiction.
-
-       remember (U b ofs) as d.
-       destruct d; trivial; apply eq_sym in Heqd.
-       remember (valid_block_dec m b) as d.
-       destruct d. inv H. apply Mem.perm_valid_block in H0. contradiction.
-Qed.
-
-Lemma effstepN_validblock: forall n U c m c' m'
-        (E: effstepN n U c m c' m'),
-         effstepN n (fun b z => if valid_block_dec m b then U b z else false) c m c' m'.
-Proof. intros n.
-  induction n; simpl; intros. apply E.
-  destruct E as [c2 [m2 [E EN]]].
-  apply effstep_validblock in E.
-  eexists. eexists. split. eassumption.
-    assert (FWD: mem_forward m m2).
-      eapply corestep_fwd. apply effax in E. apply E.
-  clear E.
-  assert (effstepN n ( c2 m2 c' m').
-  eapply effstepN_sub. eassumption.
-  intros. 
-  remember (valid_block_dec m b). simpl in H.
-  destruct s; clear Heqs.
-    assert (FWD: mem_forward m m2).
-      eapply corestep_fwd. apply effax in E. apply E.
-    destruct (FWD _ v).  
-    destruct (valid_block_dec m2 b). trivial. contradiction.
-  remember (valid_block_dec m2 b).
-  destruct s. admit. inv H. admit is OK - it's in a comment
-  
- rewrite effax; rewrite effax in E.
-  destruct E as [CS Unch].
-      split; trivial.
-      split; intros; eapply Unch; trivial.
-       remember (U b ofs) as d.
-       destruct d; trivial; apply eq_sym in Heqd.
-       remember (valid_block_dec m b) as d.
-       destruct d. inv H. contradiction.
-
-       remember (U b ofs) as d.
-       destruct d; trivial; apply eq_sym in Heqd.
-       remember (valid_block_dec m b) as d.
-       destruct d. inv H. apply Mem.perm_valid_block in H0. contradiction.
-Qed.
-*)
 
 End effsemlemmas.
 
@@ -1074,11 +420,11 @@ Proof. intros L.
     destruct d; try inv FL. apply eq_sym in Heqd.
     specialize (IHL _ _ H0).
     assert (FF:= FreeEffect_free _ _ _ _ _ Heqd). 
-    eapply (mem_unchanged_on_trans _ m0 _).
+    eapply (unchanged_on_trans _ m0 _). 
       eapply mem_unchanged_on_sub; try eassumption.
         intuition. apply orb_false_iff in H. apply H.
       clear FF.
-      specialize (unch_on_validblock_invariant m0 m' (fun (b : block) (ofs : Z) => FreelistEffect m0 L b ofs = false) (fun (b : block) (ofs : Z) => FreelistEffect m L b ofs = false)).
+      specialize (unchanged_on_validblock_invariant m0 m' (fun (b : block) (ofs : Z) => FreelistEffect m0 L b ofs = false) (fun (b : block) (ofs : Z) => FreelistEffect m L b ofs = false)).
       intros. apply H in IHL. clear H.
         eapply mem_unchanged_on_sub; try eassumption.
         intuition. apply orb_false_iff in H. apply H.
@@ -1111,6 +457,21 @@ Proof. intros.
     right. remember (Z.of_nat (length (encode_val chunk tv'))).
        destruct (zlt ofs (Int.unsigned i + z)); simpl in *. inv H. apply g.
   rewrite PMap.gso. trivial. intros N; subst. elim n; trivial. 
+Qed.
+
+Definition StoreEffectD : forall tv vl b z
+      (ST: StoreEffect tv vl b z = true), 
+      exists ofs, tv = Vptr b ofs /\ 
+                 (Int.unsigned ofs) <= z < (Int.unsigned ofs + Z.of_nat (length vl)).
+Proof. intros.
+  unfold StoreEffect in ST.
+  destruct tv; inv ST.
+  exists i.
+  destruct (eq_block b0 b); try discriminate. subst. simpl in *.
+  split; trivial.
+  destruct (zle (Int.unsigned i) z); try discriminate. simpl in *.
+  destruct (zlt z (Int.unsigned i + Z.of_nat (length vl))); try discriminate. simpl in *.
+  split; trivial.
 Qed.
 
 Parameter BuiltinEffect : forall {F V: Type} (ge: Genv.t F V) (sg: signature) 

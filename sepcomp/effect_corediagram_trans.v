@@ -31,7 +31,7 @@ Context {F1 V1 C1 F2 V2 C2 F3 V3 C3:Type}
         epts12 epts23 epts13
         (EPC : entrypoints_compose epts12 epts23 epts13).
 
-Lemma diagram_injinj: forall
+Lemma core_diagram_trans: forall
 (core_data12 : Type)
 (match_core12 : core_data12 -> SM_Injection -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -375,7 +375,8 @@ Proof.
    apply t_step. constructor 1; auto.
 Qed.
 
-Lemma effdiagram_injinj: forall
+(*Not used - proof that the first preliminary version of effcore_diagram is transitive*)
+Goal (*Lemma effdiagram_injinj:*) forall
 (core_data12 : Type)
 (match_core12 : core_data12 -> SM_Injection -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -800,7 +801,8 @@ Proof.
      intros. inv H.
 Qed.
 
-Lemma effdiagram_strong_injinj: forall
+(*not used - proof that the second preliminary version of effcore_diagram is transitive*)
+Goal (*Lemma effdiagram_strong_injinj:*) forall
 (core_data12 : Type)
 (match_core12 : core_data12 -> SM_Injection -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)
@@ -1242,7 +1244,7 @@ Proof.
      intros. inv H.
 Qed.
 
-Lemma effdiagram_strong_perm_injinj: forall
+Lemma effcore_diagram_trans: forall
 (core_data12 : Type)
 (match_core12 : core_data12 -> SM_Injection -> C1 -> mem -> C2 -> mem -> Prop)
 (core_ord12 : core_data12 -> core_data12 -> Prop)

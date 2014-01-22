@@ -2520,10 +2520,12 @@ split. (*Glue invariant*)
             unfold removeUndefs in H0. rewrite Heqqq in H0.
                assert (AI: as_inj nu12 b1 = None). apply joinI_None; eassumption.
                rewrite AI in H0. inv H0.
-   (*5/8*) rewrite convertL_pubBlocksSrc, convertL_pubBlocksTgt, convertL_pub.
+   (*5/8*) rewrite convertL_pubBlocksSrc, convertL_pubBlocksTgt, convertL_local.
             apply WDnu12.
    (*6/8*) rewrite convertL_frgnBlocksSrc, convertL_frgnBlocksTgt.
-            rewrite convertL_foreign; trivial. apply WDnu12.
+            rewrite convertL_extern; trivial. intros. 
+            destruct (frgnSrcAx _ WDnu12 _ H) as [b2 [d [EXT FT]]]. 
+             unfold join. rewrite EXT. exists b2, d. split; trivial.
    (*7/8*) rewrite convertL_pubBlocksTgt, convertL_locBlocksTgt.
            apply WDnu12.
    (*8/8*) rewrite convertL_frgnBlocksTgt, convertL_extBlocksTgt.
@@ -2588,10 +2590,12 @@ split. (*This is GOAL9: SM_wd
              (*3/3*) destruct MK as [mm [? [? ?]]].
                    eapply as_inj_DomRng; eassumption.
            rewrite H. intuition.  
-   (*5/8*) rewrite convertR_pubBlocksTgt, convertR_pubBlocksSrc, convertR_pub.
+   (*5/8*) rewrite convertR_pubBlocksTgt, convertR_pubBlocksSrc, convertR_local.
            apply WDnu23. 
    (*6/8*) rewrite convertR_frgnBlocksTgt, convertR_frgnBlocksSrc.
-           rewrite convertR_foreign; trivial. apply WDnu23.           
+           rewrite convertR_extern; trivial. intros.
+           destruct (frgnSrcAx _ WDnu23 _ H) as [b2 [d [EXT FT]]].
+           exists b2, d; unfold join. rewrite EXT; split; trivial.
    (*7/8*) rewrite convertR_locBlocksTgt, convertR_pubBlocksTgt.
             apply WDnu23.
    (*8/8*) rewrite convertR_frgnBlocksTgt, convertR_extBlocksTgt.

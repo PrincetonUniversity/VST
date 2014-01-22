@@ -932,3 +932,92 @@ Proof. intros.
        specialize (BB _ H).
        destruct (VB _ _ _ BB). contradiction.
 Qed.
+
+Lemma forward_unchanged_on: forall m m' (FWD: mem_forward m m')
+           b ofs (P: ~ Mem.perm m b ofs Max Nonempty),
+     Mem.unchanged_on (fun b' ofs' => b' = b /\ ofs' = ofs) m m'.
+Proof. intros.
+split; intros. 
+  destruct H; subst. 
+  split; intros; elim P. eapply Mem.perm_max. eapply Mem.perm_implies; try eassumption. apply perm_any_N. 
+      eapply FWD. assumption. eapply Mem.perm_max. eapply Mem.perm_implies; try eassumption. apply perm_any_N.
+destruct H; subst. 
+  elim P. eapply Mem.perm_max. eapply Mem.perm_implies; try eassumption. apply perm_any_N.
+Qed.
+
+Lemma unchanged_on_union:
+      forall m m' P Q (HP: Mem.unchanged_on P m m') (HQ: Mem.unchanged_on Q m m')
+             (PQ: block -> Z -> Prop) (HPQ: forall b ofs, PQ b ofs -> P b ofs \/ Q b ofs),
+      Mem.unchanged_on PQ m m'.
+Proof. intros.
+  split; intros.
+    destruct (HPQ _ _ H).
+      eapply HP; eassumption.
+      eapply HQ; eassumption.
+    destruct (HPQ _ _ H).
+      eapply HP; eassumption.
+      eapply HQ; eassumption.
+Qed.
+
+Lemma unchanged_on_validblock: forall m m' (U V: Values.block -> Z -> Prop)
+   (UV: forall b ofs, Mem.valid_block m b -> (U b ofs -> V b ofs)),
+   Mem.unchanged_on V m m' -> Mem.unchanged_on U m m'.
+  Proof. intros.
+    destruct H.
+    split; intros. 
+       eapply unchanged_on_perm; try eassumption. eauto.
+       eapply unchanged_on_contents; try eassumption. 
+       apply Mem.perm_valid_block in H0. eauto.
+Qed.
+
+Lemma unchanged_on_validblock_invariant: forall m m' U V
+   (UV: forall b ofs, Mem.valid_block m b -> (U b ofs <-> V b ofs)),
+   Mem.unchanged_on V m m' <-> Mem.unchanged_on U m m'.
+  Proof. intros.
+    split; intros. 
+       eapply unchanged_on_validblock; try eassumption.
+          intros. destruct (UV _ ofs H0). eauto.
+       eapply unchanged_on_validblock; try eassumption.
+          intros. destruct (UV _ ofs H0). eauto.
+Qed.
+
+Lemma unchanged_on_perm_intersection: forall m m' U (Fwd: mem_forward m m'),
+   Mem.unchanged_on U m m' <-> 
+   Mem.unchanged_on (fun b z => U b z /\ Mem.perm m b z Max Nonempty)  m m'.
+  Proof. intros.
+    split; intros Hyp.
+    split; intros; eapply Hyp; eauto. apply H. apply H.
+    split; intros.
+      remember (Mem.perm_dec m b ofs Max Nonempty).
+      destruct s; clear Heqs.
+         eapply Hyp; eauto.
+      split; intros. exfalso. apply n; clear Hyp n.
+         eapply Mem.perm_implies. eapply Mem.perm_max; eassumption. 
+               apply perm_any_N.
+        exfalso. apply n; clear Hyp n.
+         eapply (Fwd _ H0).
+           eapply Mem.perm_implies. eapply Mem.perm_max; eassumption. 
+               apply perm_any_N.
+     eapply Hyp; trivial.
+       split; trivial.
+        eapply Mem.perm_implies. eapply Mem.perm_max; eassumption. 
+               apply perm_any_N.
+Qed.
+
+
+Lemma unchanged_on_trans: forall m1 m2 m3 U
+      (U1: Mem.unchanged_on U m1 m2) 
+      (U2: Mem.unchanged_on U m2 m3)
+      (Fwd12: mem_forward m1 m2),
+  Mem.unchanged_on U m1 m3.
+Proof. intros.
+split; intros.
+  split; intros.
+    eapply U2; trivial. apply Fwd12; trivial.
+    eapply U1; trivial.
+  eapply U1; trivial. eapply U2; trivial. apply Fwd12; trivial.
+destruct U1 as [P1 V1]; destruct U2 as [P2 V2].
+  rewrite (V2 _ _ H).
+    apply V1; trivial.
+  apply P1; trivial. eapply Mem.perm_valid_block; eassumption.
+Qed.

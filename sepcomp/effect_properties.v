@@ -1699,13 +1699,6 @@ econstructor; simpl in *; try solve [eapply WD].
       eapply WD.
   intros.
     destruct (local_DomRng _ WD _ _ _ H). intuition.
-  intros.
-    destruct (pubSrc _ WD _ H) as [bb [dd [PB PT]]].
-    rewrite H in *.
-    exists bb, dd. rewrite (pub_in_local _ _ _ _ PB).
-    split; trivial.
-  intros. rewrite H. destruct (frgnSrc _ WD _ H) as [bb [dd [FRG FT]]].
-       rewrite (foreign_in_extern _ _ _ _ FRG). exists bb, dd; split; trivial. 
   intros. rewrite (pubBlocksLocalTgt _ WD _ H). intuition. 
 Qed.
 
@@ -1757,20 +1750,16 @@ econstructor; simpl in *; try solve [eapply WD].
   intros. 
     remember (eq_block b0 b1) as d.
       destruct d; simpl in *; apply eq_sym in Heqd. inv H. split; trivial.
-    apply (local_DomRng _ WD _ _ _ H). 
+    apply (local_DomRng _ WD _ _ _ H).
   intros.
     destruct (pubSrc _ WD _ H) as [bb [dd [PB PT]]].
-    rewrite H in *.
     exists bb, dd.
     remember (eq_block b0 b1) as d.
       destruct d; simpl in *; apply eq_sym in Heqd.
         subst. unfold DomSrc in NEW1.
         rewrite (pubBlocksLocalSrc _ WD _ H) in NEW1. simpl in *. discriminate.
       rewrite (pub_in_local _ _ _ _ PB).
-      split; trivial.
-  intros. rewrite H. destruct (frgnSrc _ WD _ H) as [bb [dd [FRG FT]]].
-       rewrite (foreign_in_extern _ _ _ _ FRG). exists bb, dd; split; trivial. 
-  (*intros. rewrite (pubBlocksLocalTgt _ WD _ H). intuition. *)
+      split; trivial. 
 Qed.
 
 Lemma alloc_left_sm_as_inj_same: forall mu b1 b2 delta (WD: SM_wd mu)

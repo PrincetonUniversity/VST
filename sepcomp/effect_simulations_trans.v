@@ -168,15 +168,15 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
     as [core_data12 match_core12 core_ord12 core_ord_wf12 
       match_sm_wd12 genvs_dom_eq12 match_genv12
       match_visible12 match_restrict12 
-      match_sm_valid12 (*match_protected12*) core_initial12 core_diagram12 eff_diagram12 
-      strong_diagram12 strongperm_diagram12
+      match_sm_valid12 (*match_protected12*) core_initial12 
+      core_diagram12 effcore_diagram12
       core_halted12 core_at_external12 eff_after_external12].  
   destruct SIM23 
     as [core_data23 match_core23 core_ord23 core_ord_wf23 
       match_sm_wd23 genvs_dom_eq23 match_genv23
       match_visible23 match_restrict23
-      match_sm_valid23 (*match_protected23*) core_initial23 core_diagram23 eff_diagram23
-      strong_diagram23 strongperm_diagram23
+      match_sm_valid23 (*match_protected23*) core_initial23 
+      core_diagram23 effcore_diagram23
       core_halted23 core_at_external23 eff_after_external23].
   eapply Build_SM_simulation_inject with
     (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
@@ -519,28 +519,14 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   intros. rename st2 into st3. rename m2 into m3.
   destruct cd as [[d12 cc2] d23].
   destruct H0 as [c2 [m2 [mu12 [mu23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
-  eapply diagram_injinj; try eassumption.
- (*eff_diagram*)
-  clear - match_sm_wd12 match_sm_valid12 eff_diagram12 
-          match_sm_wd23 match_sm_valid23 eff_diagram23.
+  eapply core_diagram_trans; try eassumption.
+ (*effcore_diagram*)
+  clear - match_sm_wd12 match_sm_valid12 effcore_diagram12 
+          match_sm_wd23 match_sm_valid23 effcore_diagram23.
   intros. rename st2 into st3. rename m2 into m3.
   destruct cd as [[d12 cc2] d23].
   destruct H0 as [c2 [m2 [mu12 [mu23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
-  eapply effdiagram_injinj; try eassumption.
- (*strong_diagram*)
-  clear - match_sm_wd12 match_sm_valid12 strong_diagram12 
-          match_sm_wd23 match_sm_valid23 strong_diagram23.
-  intros. rename st2 into st3. rename m2 into m3.
-  destruct cd as [[d12 cc2] d23].
-  destruct H0 as [c2 [m2 [mu12 [mu23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
-  eapply effdiagram_strong_injinj; try eassumption. 
- (*strongperm_diagram*)
-  clear - match_sm_wd12 match_sm_valid12 strongperm_diagram12 
-          match_sm_wd23 match_sm_valid23 strongperm_diagram23.
-  intros. rename st2 into st3. rename m2 into m3.
-  destruct cd as [[d12 cc2] d23].
-  destruct H0 as [c2 [m2 [mu12 [mu23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
-  eapply effdiagram_strong_perm_injinj; eassumption.
+  eapply effcore_diagram_trans; eassumption.
 (*halted*)
   clear - match_sm_wd12 core_halted12 match_sm_wd23 core_halted23.
   intros. rename c2 into c3. rename m2 into m3.  

@@ -215,58 +215,6 @@ Qed.
 Lemma join_None_leftneutral: forall j, join (fun b => None) j = j.
 Proof. unfold join; intros. extensionality b. trivial. Qed.
 
-
-(*
-Record shareable_injection := {
-   si_blocksL: block -> Prop;
-   si_blocksR: block -> Prop;
-   si_f: meminj;
-   si_sharedL: block -> Prop; (*subset of DOM f, hence of blocksL*)
-   si_sharedR: block -> Prop; (*subset of RNG f, hence of blocksR*)
-
-   si_sharedL_f: forall b1, si_sharedL b1 -> exists b2 delta,
-                         si_f b1 = Some(b2,delta) /\ si_sharedR b2;
-
-   si_sharedR_f: forall b2, si_sharedR b2 -> exists b1 delta, 
-                         si_f b1 = Some(b2,delta); (*b1 not necessarily in sharedL!*)
-
-   si_dom_rng: forall b1 b2 delta, si_f b1 = Some(b2, delta) ->
-                         si_blocksL b1 /\ si_blocksR b2
-}.
-
-Record sh_inj j m1 m2 := {
-   shi_inj: Mem.inject (si_f j) m1 m2;
-   shi_L: forall b, Mem.valid_block m1 b <-> si_blocksL j b;
-   shi_R: forall b, Mem.valid_block m2 b <-> si_blocksR j b
-}.      
-
-Definition distinct (A B: block -> Prop) :=
-  forall b, A b -> B b -> False.
-
-Lemma distinct': forall A B (D: distinct A B) b, B b -> A b -> False.
-Proof. intros. eapply D; eauto. Qed.
-
-Record structured_Injection := {
-   st_intern: shareable_injection; (*knowlegde about locally allocated blocks*)
-   st_extern: shareable_injection; (*knowlegde about foreign blocks*)
-   st_distL: distinct (si_blocksL st_intern) (si_blocksL st_extern); 
-   st_distR: distinct (si_blocksR st_intern) (si_blocksR st_extern)
-}.
-
-Definition st_blocksL (j:structured_Injection) (b:block):Prop := 
-   si_blocksL (st_intern j) b \/ si_blocksL (st_extern j) b.
-Definition st_blocksR (j:structured_Injection) (b:block):Prop := 
-   si_blocksR (st_intern j) b \/ si_blocksR (st_extern j) b.
-
-Record st_inj j m1 m2 := {
-   sti_inj: Mem.inject (join (si_f (st_intern j)) (si_f (st_extern j))) m1 m2;
-   sti_L: forall b, Mem.valid_block m1 b <-> st_blocksL j b;
-   sti_R: forall b, Mem.valid_block m2 b <-> st_blocksR j b
-}.      
-
-*)
-
-
 Record SM_Injection :=
   { locBlocksSrc : block -> bool;
                      (* The blocks allocated by THIS module in the
@@ -405,11 +353,11 @@ Record SM_wd (mu:SM_Injection):Prop := {
   extern_DomRng: forall b1 b2 z, extern_of mu b1 = Some(b2,z) -> 
                (extBlocksSrc mu b1 = true /\ extBlocksTgt mu b2 = true);
 
-  pubSrc: forall b1, pubBlocksSrc mu b1 = true -> 
-              exists b2 z, pub_of mu b1 = Some(b2,z) /\
+  pubSrcAx: forall b1, pubBlocksSrc mu b1 = true -> 
+              exists b2 z, local_of mu b1 = Some(b2,z) /\
                            pubBlocksTgt mu b2 = true;
-  frgnSrc: forall b1, frgnBlocksSrc mu b1 = true -> 
-              exists b2 z, foreign_of mu b1 = Some(b2,z) /\
+  frgnSrcAx: forall b1, frgnBlocksSrc mu b1 = true -> 
+              exists b2 z, extern_of mu b1 = Some(b2,z) /\
                            frgnBlocksTgt mu b2 = true;
 
   pubBlocksLocalTgt: forall b, pubBlocksTgt mu b = true -> 
@@ -417,6 +365,24 @@ Record SM_wd (mu:SM_Injection):Prop := {
   frgnBlocksExternTgt: forall b, frgnBlocksTgt mu b = true -> 
                               extBlocksTgt mu b = true
 }.
+
+Lemma pubSrc: forall mu (WD: SM_wd mu) b1, pubBlocksSrc mu b1 = true -> 
+              exists b2 z, pub_of mu b1 = Some(b2,z) /\
+                           pubBlocksTgt mu b2 = true.
+Proof. intros.
+  destruct (pubSrcAx _ WD _ H) as [b2 [d [LOC PT]]].
+  unfold pub_of. exists b2, d. destruct mu; simpl in *. 
+  rewrite H; split; assumption.
+Qed.
+
+Lemma frgnSrc: forall mu (WD: SM_wd mu) b1, frgnBlocksSrc mu b1 = true -> 
+              exists b2 z, foreign_of mu b1 = Some(b2,z) /\
+                           frgnBlocksTgt mu b2 = true.
+Proof. intros.
+  destruct (frgnSrcAx _ WD _ H) as [b2 [d [EXT PT]]].
+  unfold foreign_of. exists b2, d. destruct mu; simpl in *. 
+  rewrite H; split; assumption.
+Qed.
 
 Lemma extBlocksSrc_locBlocksSrc: forall mu (WD: SM_wd mu) b, 
       extBlocksSrc mu b = true -> locBlocksSrc mu b = false.
@@ -1615,7 +1581,7 @@ constructor; unfold initial_SM; simpl in *; intros; try (solve [inv H]).
   left; trivial.
   left; trivial.
   destruct (EXT _ _ _ H). auto. 
-  rewrite H. auto. 
+  auto. 
   auto.
 Qed. 
 
@@ -1810,8 +1776,7 @@ Proof. intros.
           rewrite H5 in Heqd. discriminate.
       destruct (SEP _ _ _ Heqw H1). apply orb_false_iff in H3. destruct H3.
         rewrite H3. apply H0.
-    apply (pubSrc _ WD0 _ H). 
-    rewrite H. 
+    apply (pubSrcAx _ WD0 _ H).
       specialize (frgnBlocksSrc_locBlocksSrc _ WD0 _ H); simpl; intros.
       rewrite H0.
       destruct (frgnSrc _ WD0 _ H) as [b2 [z [FRG FT]]]; simpl in *.
@@ -1851,8 +1816,7 @@ Proof. intros.
           rewrite H, H0. split; intuition. 
       destruct (local_DomRng _ WD _ _ _ LOC); simpl in *. 
         rewrite H, H0; simpl. split; trivial.
-    apply (pubSrc _ WD0 _ H). 
-    rewrite H. 
+    apply (pubSrcAx _ WD0 _ H).
       specialize (frgnBlocksSrc_locBlocksSrc _ WD0 _ H); simpl; intros.
       rewrite H0.
       destruct (frgnSrc _ WD0 _ H) as [b2 [z [FRG FT]]]; simpl in *.

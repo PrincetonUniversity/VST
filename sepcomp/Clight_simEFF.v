@@ -786,14 +786,10 @@ assert (GDE: genvs_domain_eq ge ge).
             (frgnSrc':=frgnSrc') (frgnTgt':=frgnTgt')
             (nu:=nu) (nu':=nu') (mu':=mu');
      try assumption; try reflexivity. }
-(* Match_corestep*)
+(* core_diagram*)
   { apply Match_corestep. }
-(* Match_effect_diagram *)
-  { admit. (* ok - we're not proving the Match_effect_diagram clause*)}
-(* effcore_diagram_strong*)
-  { admit. (* ok - we're not proving the _diagram_strong clause*) }
-(* effcore_diagram_strong_perm*)
-  { apply Match_eff_diagram_strong_perm. }
+(* effcore_diagram*)
+  { apply Match_eff_diagram. }
 Qed.
 End TRANSLATION.
 

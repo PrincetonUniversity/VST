@@ -2057,239 +2057,9 @@ Proof. intros.
        eapply Z.divide_add_r. eassumption.
        specialize (alignof_blockcopy_1248 ty); intros.
          eapply Z.divide_trans. eapply alignof_blockcopy_divides.
-         eapply Z.divide_trans. eapply sizeof_alignof_compat. (*
-        specialize (Mem.mi_align _ _ _ (Mem.mi_inj _ _ _ MInj) b1 b3 delta0 (chunk_of_type ty)).
-        destruct ty; simpl in *; unfold alignof_blockcopy, alignof; simpl. 
-            rewrite Z.min_r. apply Z.divide_1_l. omega.
-            destruct a; simpl in *. unfold alignof_blockcopy in H7.
-     (*  eapply Z.divide_trans.
-         eapply alignof_blockcopy_divides.
-       eapply Z.divide_trans.
-         eapply sizeof_alignof_compat. alignof_blockcopy_divides.
-       apply Mem.loadbytes_range_perm in H3.
-        Z.divide_trans
-      rewrite Int.unsigned_repr; trivial.
-      destruct (zeq (Int.unsigned ofs' + delta0) (Int.unsigned ofs + delta)).
-        left; trivial.
-      right. 
-      destruct (zle (Int.unsigned ofs' + delta0 + sizeof ty) (Int.unsigned ofs + delta)).
-        left; trivial.
-      right. 
-      destruct (zle (Int.unsigned ofs + delta + sizeof ty) (Int.unsigned ofs' + delta0)).
-        trivial.
-  eapply assign_loc_copy; try eassumption.
-  eapply assign_loc_copy; try eassumption.
-    admit. admit. (*admits are in comment*)
-    destruct (eq_block b3 b2); subst; try (left; assumption).
-    right.
-    unfold Int.add.
-      rewrite (Int.unsigned_repr delta0); try omega.
-      rewrite (Int.unsigned_repr delta); try omega.
-      rewrite Int.unsigned_repr; trivial.
-      rewrite Int.unsigned_repr; trivial.
-      destruct (zeq (Int.unsigned ofs' + delta0) (Int.unsigned ofs + delta)).
-        left; trivial.
-      right. 
-      destruct (zle (Int.unsigned ofs' + delta0 + sizeof ty) (Int.unsigned ofs + delta)).
-        left; trivial.
-      right. 
-      destruct (zle (Int.unsigned ofs + delta + sizeof ty) (Int.unsigned ofs' + delta0)).
-        trivial.
-      exfalso.
-      destruct (eq_block b' b1); subst.
-        rewrite H7 in J. inv J.
-        destruct H2. elim H2; trivial.
-        destruct H2. rewrite H2 in *. apply n; trivial.
-        remember (sizeof ty) as s.
-        destruct H2. omega. omega.
-      destruct H2. admit. (*admit is in comment*)
-      destruct H2. rewrite H2 in *. 
-        remember (Int.unsigned ofs + delta0).
-        remember (Int.unsigned ofs + delta). omega. apply n; trivial.
-        remember (sizeof ty) as s.
-        destruct H2. omega. omega.
-      destruct (Mem.mi_no_overlap _ _ _ MInj b' _ _ _ _ _ _ _ n0 H7 J P' P) as [KK | KK].
-        apply KK; trivial.
-        right. right.
-      right. 
-    unfold Int.add. 
-      rewrite (Int.unsigned_repr delta0); try omega.
-      rewrite Int.unsigned_repr; trivial. eassumption.
-    unfold Int.add. 
-      rewrite (Int.unsigned_repr delta); try omega.
-      rewrite Int.unsigned_repr; trivial.
- eassumption.
-*)*)
-Admitted. (*TODO: assign_loc_inject, case of by_copy, ie for the BUILTIN memcpy*)
-(*
-H : eval_lvalue ge e le m1 a1 loc ofs
-H0 : Clight.eval_expr ge e le m1 a2 v2
-H1 : sem_cast v2 (typeof a2) (typeof a1) = Some v
-H2 : assign_loc (typeof a1) m1 loc ofs v m1'
-PC : REACH_closed m1 (vis mu)
-PG : meminj_preserves_globals ge (as_inj mu)
-GF : globalfunction_ptr_inject (as_inj mu)
-Glob : forall b : block,
-       isGlobalBlock ge b = true -> frgnBlocksSrc mu b = true
-SMV : sm_valid mu m1 m2
-WD : SM_wd mu
-INJ : Mem.inject (as_inj mu) m1 m2
-nbrk : nat
-ncnt : nat
-tf : function
-ts : stmt
-tk : cont
-te : env
-tle : temp_env
-TRF : transl_function f = OK tf
-MENV : match_env (restrict (as_inj mu) (vis mu)) e te
-TENV : match_tempenv (restrict (as_inj mu) (vis mu)) le tle
-MK : match_cont (restrict (as_inj mu) (vis mu)) (fn_return f) nbrk ncnt k tk
-x : expr
-EQ : transl_lvalue a1 = OK x
-x0 : expr
-EQ1 : transl_expr a2 = OK x0
-x1 : expr
-EQ0 : make_cast (typeof a2) (typeof a1) x0 = OK x1
-EQ3 : make_store x (typeof a1) x1 = OK ts
-MTR : match_transl ts tk ts tk
-MinjR : Mem.inject (restrict (as_inj mu) (vis mu)) m1 m2
-PGR : meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))
-b2 : block
-delta : Z
-H5 : restrict (as_inj mu) (vis mu) loc = Some (b2, delta)
-EvalX : eval_expr tge te tle m2 x (Vptr b2 (Int.add ofs (Int.repr delta)))
-uu : val
-VinjU : val_inject (restrict (as_inj mu) (vis mu)) v2 uu
-EvalX0 : eval_expr tge te tle m2 x0 uu
-x2 : val
-H3 : sem_cast uu (typeof a2) (typeof a1) = Some x2
-H4 : val_inject (restrict (as_inj mu) (vis mu)) v x2
-EVAL : eval_expr tge te tle m2 x1 x2
+         eapply Z.divide_trans. eapply sizeof_alignof_compat. 
+Admitted. (*BUILTIN: complete lemma assign_loc_inject, case of by_copy, ie memcpy*)
 
-
-Lemma assign_loc_inject: forall ty m1 b1 ofs v m1'
-  (ASS: assign_loc ty m1 b1 ofs v m1')
-  j v2 (V:val_inject j v v2) b2 delta (J: j b1 = Some(b2,delta))
-  m2 (MInj: Mem.inject j m1 m2),
-exists m2',
-  assign_loc ty m2 b2 (Int.add ofs (Int.repr delta)) v2 m2' /\
-  Mem.inject j m1' m2'.
-Proof. intros.
-  inv ASS.
-(*By_value*)
-  assert (Jb: val_inject j (Vptr b1 ofs) (Vptr b2 (Int.add ofs (Int.repr delta)))).
-     econstructor. eassumption. trivial. 
-  destruct (Mem.storev_mapped_inject _ _ _ _ _ _ _ _ _ MInj H0 Jb V) as [m2' [ST' MInj']].
-  exists m2'. split; trivial. eapply assign_loc_value; eassumption.
-(*By_copy*)
-  assert (Jb: val_inject j (Vptr b1 ofs) (Vptr b2 (Int.add ofs (Int.repr delta)))).
-     econstructor. eassumption. trivial.
-  inv V. 
-  destruct (Mem.loadbytes_inj _ _ _ _ _ _ _ _ _ (Mem.mi_inj _ _ _ MInj) H3 H7)
-     as [bytes2 [LoadBytes2 BytesInj]].
-  destruct (Mem.storebytes_mapped_inject _ _ _ _ _ _ _ _ _ bytes2 MInj H4 J BytesInj)
-   as [m2' [StoreBytes2 Inj']].
-  exists m2'. split; trivial.
-  assert (P': Mem.perm m1 b' (Int.unsigned ofs') Max Nonempty).
-              eapply Mem.perm_implies.
-                eapply Mem.perm_max.
-                   eapply Mem.loadbytes_range_perm. eassumption.
-                    split. omega. specialize (sizeof_pos ty); intros. omega.
-                constructor.
-  destruct (Mem.mi_representable _ _ _ MInj _ _ _ ofs' H7).
-        left; trivial.
-  assert (P: Mem.perm m1 b1 (Int.unsigned ofs) Max Nonempty).
-             eapply Mem.perm_implies.
-                eapply Mem.perm_max.
-                   eapply Mem.storebytes_range_perm. eassumption.
-                    split. omega. 
-                    apply Mem.loadbytes_length in H3. rewrite H3.
-                      specialize (sizeof_pos ty); intros.  
-                      rewrite nat_of_Z_eq. omega. omega.            
-                constructor.
-  destruct (Mem.mi_representable _ _ _ MInj _ _ _ ofs J).
-        left; trivial. 
-  specialize (Int.unsigned_range_2 ofs'); intros.
-  assert (D0: delta0 <= Int.max_unsigned). omega.
-  specialize (Int.unsigned_range_2 ofs); intros.
-  assert (D: delta <= Int.max_unsigned). omega.
-  eapply assign_loc_copy; try eassumption.
-    admit. admit. (*admits are in comment*)
-    destruct (eq_block b3 b2); subst; try (left; assumption).
-    right.
-    unfold Int.add.
-      rewrite (Int.unsigned_repr delta0); try omega.
-      rewrite (Int.unsigned_repr delta); try omega.
-      rewrite Int.unsigned_repr; trivial.
-      rewrite Int.unsigned_repr; trivial.
-      destruct (zeq (Int.unsigned ofs' + delta0) (Int.unsigned ofs + delta)).
-        left; trivial.
-      right. 
-      destruct (zle (Int.unsigned ofs' + delta0 + sizeof ty) (Int.unsigned ofs + delta)).
-        left; trivial.
-      right. 
-      destruct (zle (Int.unsigned ofs + delta + sizeof ty) (Int.unsigned ofs' + delta0)).
-        trivial.
-      exfalso.
-      destruct (eq_block b' b1); subst.
-        rewrite H7 in J. inv J.
-        destruct H2. elim H2; trivial.
-        destruct H2. rewrite H2 in *. apply n; trivial.
-        remember (sizeof ty) as s.
-        destruct H2. omega. omega.
-      destruct H2. admit. (*admit is in comment*)
-      destruct H2. rewrite H2 in *. 
-        remember (Int.unsigned ofs + delta0).
-        remember (Int.unsigned ofs + delta). omega. apply n; trivial.
-        remember (sizeof ty) as s.
-        destruct H2. omega. omega.
-      destruct (Mem.mi_no_overlap _ _ _ MInj b' _ _ _ _ _ _ _ n0 H7 J P' P) as [KK | KK].
-        apply KK; trivial.
-        right. right.
-      right. 
-    unfold Int.add. 
-      rewrite (Int.unsigned_repr delta0); try omega.
-      rewrite Int.unsigned_repr; trivial. eassumption.
-    unfold Int.add. 
-      rewrite (Int.unsigned_repr delta); try omega.
-      rewrite Int.unsigned_repr; trivial.
- eassumption.
-    
-      rewrite Int.unsigned_repr; trivial.
-      destruct H2.
-        destruct (eq_block b3 b2); subst; try (left; assumption).
-        destruct (Mem.mi_no_overlap _ _ _ MInj b' _ _ _ _ _ _ _ H2 H7 J P' P) as [KK | KK].
-          left; trivial.
-        right. right.
-          destruct (zle (Int.unsigned ofs' + delta0 + sizeof ty) (Int.unsigned ofs + delta)).
-            left; trivial. 
-          destruct (zle (Int.unsigned ofs + delta + sizeof ty) (Int.unsigned ofs' + delta0)).
-             left; trivial.
-           remember (Int.unsigned ofs' + delta0) as w.
-           remember (Int.unsigned ofs + delta) as ww.
-           exfalso. clear - g l. 
-           assert (ww < w + s omega.
-      destruct (eq_block b' b1); subst.
-        rewrite J in H7; inv H7.
-        destruct H2 as [HH | HH]. (*[HH | [HH | HH]]].*)
-          elim HH; trivial.
-          right. destruct HH as [HH | HH]. left. rewrite HH. trivial.
-          right. destruct HH as [HH | HH]. left. omega.
-          right. omega.
-      destruct (eq_block b3 b2); subst.
-        destruct (Mem.mi_no_overlap _ _ _ MInj b' _ _ _ _ _ _ _ n H7 J P' P) as [KK | KK].
-          left; trivial.
-          right. right. [KK | [KK | KK]]]]. rewrite H2. trivial. omega.
-          right; left. rewrite HH. trivial.
-          right; right; left. rewrite HH.
-        destruct (Mem.mi_representable _ _ _ MInj _ _ _ ofs' J).
-          left. Mem.loadbytes_range_perm
-           omega. rewrite HH. trivial.
-        right; left. unfold Int.add. rewrite HH. trivial.
-
- constructor. eassumption.
-   *)
 Lemma assign_loc_unique: forall t m b z v m1 m2
   (AL1: assign_loc t m b z v m1)
   (AL2: assign_loc t m b z v m2), m1=m2.
@@ -3491,7 +3261,7 @@ Proof. intros.
   destruct (local_DomRng _ WD _ _ _ LOC). rewrite H2 in LT; discriminate.
 Qed.
 
-Lemma Match_eff_diagram_strong_perm: forall
+Lemma Match_effcore_diagram: forall
 (*  (FE : Clight.function ->
      list val -> mem -> Clight.env -> Clight.temp_env -> mem -> Prop)
   (FE_FWD : forall (f : Clight.function) (vargs : list val) (m : mem)
@@ -4382,13 +4152,12 @@ assert (GDE: genvs_domain_eq ge tge).
       destruct b; inv TR. trivial. }
 (* after_external*)
   { apply MATCH_afterExternal. assumption. }
-(* Match_corestep*)
+(* core_diagram*)
   { intros. exploit MATCH_corestep; try eassumption.
     intros [st2' [m2' [mu' [CS2 MU']]]].
     exists st2', m2', mu'. intuition. }
- { admit. (*ok, we don't prove this case.*) }
- { admit. (*ok, we don't prove this case.*) }
- { intros. exploit Match_eff_diagram_strong_perm; try eassumption.
+(* effcore_diagram*)
+ { intros. exploit Match_effcore_diagram; try eassumption.
     intros [st2' [m2' [mu' [[U2 CS2] MU']]]].
     exists st2', m2', mu'. intuition.
     exists U2. split. left; assumption. assumption. }

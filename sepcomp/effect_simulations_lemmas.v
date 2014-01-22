@@ -193,55 +193,7 @@ Hypothesis order_wf: well_founded order.
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             order st1' st1).
 
-    Hypothesis inj_effcore_diagram : 
-      forall st1 m1 st1' m1' U1, 
-        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
-
-      forall st2 mu m2,
-        match_states st1 mu st1 m1 st2 m2 ->
-        exists st2', exists m2', exists mu',
-          intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
-          sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
-
-          match_states st1' mu' st1' m1' st2' m2' /\
-          exists U2,              
-            ((effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
-              (effstep_star Sem2 ge2 U2 st2 m2 st2' m2' /\
-               order st1' st1)) /\ 
-
-             forall b ofs, U2 b ofs = true -> 
-                       (Mem.valid_block m2 b /\
-                         (locBlocksTgt mu b = false ->
-                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
-                           Mem.valid_block m1 b1 /\ U1 b1 (ofs-delta1) = true))).
-
-  Hypothesis inj_effect_diagram_strong : 
-      forall st1 m1 st1' m1' U1, 
-        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
-
-      forall st2 mu m2
-        (UHyp: forall b z, U1 b z = true -> vis mu b = true),
-        match_states st1 mu st1 m1 st2 m2 ->
-        exists st2', exists m2', exists mu',
-          intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
-          sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
-
-          match_states st1' mu' st1' m1' st2' m2' /\
-
-          exists U2,              
-            ((effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
-              (effstep_star Sem2 ge2 U2 st2 m2 st2' m2' /\
-               order st1' st1)) /\
-
-             forall b ofs, U2 b ofs = true -> 
-                       (Mem.valid_block m2 b /\
-                         (locBlocksTgt mu b = false ->
-                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
-                           U1 b1 (ofs-delta1) = true))).
-
-  Hypothesis inj_effect_diagram_strong_perm : 
+  Hypothesis inj_effcore_diagram : 
       forall st1 m1 st1' m1' U1, 
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
@@ -299,19 +251,9 @@ clear - inj_core_diagram.
   destruct (inj_core_diagram _ _ _ _ H _ _ _ H1) as 
     [c2' [m2' [mu' [INC [SEP [LAC [MC' [WD [Valid' Step]]]]]]]]].
   exists c2'. exists m2'. exists st1'. exists mu'. intuition.
-clear - inj_effcore_diagram.
+clear - inj_effcore_diagram. 
   intros. destruct H0; subst.
-  destruct (inj_effcore_diagram _ _ _ _ _ H _ _ _ H1) as 
-    [c2' [m2' [mu' [INC [SEP [LAC [MC' XX]]]]]]]. 
-  exists c2'. exists m2'. exists st1'. exists mu'. intuition.
-clear - inj_effect_diagram_strong. 
-  intros. destruct H0; subst.
-  destruct (inj_effect_diagram_strong _ _ _ _ _ H _ _ _ UHyp H1) as 
-    [c2' [m2' [mu' [INC [SEP [LAC [MC' XX]]]]]]]. 
-  exists c2'. exists m2'. exists st1'. exists mu'. intuition.
-clear - inj_effect_diagram_strong_perm. 
-  intros. destruct H0; subst.
-  destruct (inj_effect_diagram_strong_perm _ _ _ _ _ H _ _ _ UHyp H1) as 
+  destruct (inj_effcore_diagram _ _ _ _ _ H _ _ _ UHyp H1) as 
     [c2' [m2' [mu' [INC [SEP [LAC [MC' XX]]]]]]]. 
   exists c2'. exists m2'. exists st1'. exists mu'. intuition.
 clear - inj_halted. intros. destruct H; subst.
@@ -354,53 +296,7 @@ Section EFF_INJ_SIMULATION_STAR.
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2')).
 
-    Hypothesis inj_effcore_diagram : 
-      forall st1 m1 st1' m1' U1, 
-        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
-
-      forall st2 mu m2,
-        match_states st1 mu st1 m1 st2 m2 ->
-        exists st2', exists m2', exists mu',
-          intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
-          sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
-
-          match_states st1' mu' st1' m1' st2' m2' /\
-          exists U2,              
-            (effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
-             ((measure st1' < measure st1)%nat /\ effstep_star Sem2 ge2 U2 st2 m2 st2' m2'))
-           /\ 
-             forall b ofs, U2 b ofs = true -> 
-                       (Mem.valid_block m2 b /\
-                         (locBlocksTgt mu b = false ->
-                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
-                           Mem.valid_block m1 b1 /\ U1 b1 (ofs-delta1) = true)).
-
-  Hypothesis inj_simulation_strong : 
-      forall st1 m1 st1' m1' U1, 
-        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
-
-      forall st2 mu m2
-        (UHyp: forall b ofs, U1 b ofs = true -> vis mu b = true),
-        match_states st1 mu st1 m1 st2 m2 ->
-        exists st2', exists m2', exists mu',
-          intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
-          sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
-
-          match_states st1' mu' st1' m1' st2' m2' /\
-
-          exists U2,              
-            (effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
-             ((measure st1' < measure st1)%nat /\ effstep_star Sem2 ge2 U2 st2 m2 st2' m2'))
-            /\
-             forall b ofs, U2 b ofs = true -> 
-                       (Mem.valid_block m2 b /\
-                         (locBlocksTgt mu b = false ->
-                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
-                           U1 b1 (ofs-delta1) = true)).
-
-  Hypothesis inj_simulation_strong_perm : 
+  Hypothesis inj_effcore_diagram : 
       forall st1 m1 st1' m1' U1, 
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
@@ -438,19 +334,7 @@ clear - inj_core_diagram. intros.
   exists c2'. exists m2'. exists mu'.
   intuition.
 clear - inj_effcore_diagram. intros.
-  destruct (inj_effcore_diagram _ _ _ _ _ H _ _ _ H0) 
-    as [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 XX]]]]]]]].
-  exists c2'. exists m2'. exists mu'. intuition.
-  exists U2. intuition.
-  exists U2. intuition.
-clear - inj_simulation_strong. intros.
-  destruct (inj_simulation_strong _ _ _ _ _ H _ _ _ UHyp H0) 
-    as [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 XX]]]]]]]].
-  exists c2'. exists m2'. exists mu'. intuition.
-  exists U2. intuition.
-  exists U2. intuition.
-clear - inj_simulation_strong_perm. intros.
-  destruct (inj_simulation_strong_perm _ _ _ _ _ H _ _ _ UHyp H0) 
+  destruct (inj_effcore_diagram _ _ _ _ _ H _ _ _ UHyp H0) 
     as [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 XX]]]]]]]].
   exists c2'. exists m2'. exists mu'. intuition.
   exists U2. intuition.
@@ -460,7 +344,8 @@ Qed.
 End EFF_INJ_SIMULATION_STAR.
 
 Section EFF_INJ_SIMULATION_PLUS.
-  Variable measure: C1 -> nat. 
+  Variable measure: C1 -> nat.
+ 
   Hypothesis inj_core_diagram : 
       forall st1 m1 st1' m1', 
         corestep Sem1 ge1 st1 m1 st1' m1' ->
@@ -475,61 +360,9 @@ Section EFF_INJ_SIMULATION_PLUS.
           SM_wd mu' /\ sm_valid mu' m1' m2' /\
 
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
-            ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2'))
-(*
-          /\ Mem.unchanged_on (fun b2 ofs => extBlocksTgt mu b2 = true /\
-                                 ~ exists b1 d, foreign_of mu b1=Some (b2,d)) m2 m2' 
-          /\ forall b ofs, Mem.unchanged_on (fun b' ofs' => b'=b /\ ofs'=ofs) m1 m1' ->
-              forall b2 d, foreign_of mu b = Some(b2,d) -> 
-                           Mem.unchanged_on (fun b' ofs' => b'=b2 /\ ofs'=ofs+d) m2 m2'*).
+            ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2')).
 
-    Hypothesis inj_effcore_diagram : 
-      forall st1 m1 st1' m1' U1, 
-        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
-
-      forall st2 mu m2,
-        match_states st1 mu st1 m1 st2 m2 ->
-        exists st2', exists m2', exists mu',
-          intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
-          sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
-
-          match_states st1' mu' st1' m1' st2' m2' /\
-          exists U2,              
-            (effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
-             ((measure st1' < measure st1)%nat /\ effstep_star Sem2 ge2 U2 st2 m2 st2' m2'))
-           /\ 
-             forall b ofs, U2 b ofs = true -> 
-                       (Mem.valid_block m2 b /\
-                         (locBlocksTgt mu b = false ->
-                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
-                           Mem.valid_block m1 b1 /\ U1 b1 (ofs-delta1) = true)).
-
-  Hypothesis inj_simulation_strong : 
-      forall st1 m1 st1' m1' U1, 
-        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
-
-      forall st2 mu m2
-        (UHyp: forall b ofs, U1 b ofs = true -> vis mu b = true),
-        match_states st1 mu st1 m1 st2 m2 ->
-        exists st2', exists m2', exists mu',
-          intern_incr mu mu' /\
-          sm_inject_separated mu mu' m1 m2 /\
-          sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
-
-          match_states st1' mu' st1' m1' st2' m2' /\
-
-          exists U2,              
-            (effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
-             ((measure st1' < measure st1)%nat /\ effstep_star Sem2 ge2 U2 st2 m2 st2' m2'))
-            /\
-             forall b ofs, U2 b ofs = true -> 
-                       (Mem.valid_block m2 b /\
-                         (locBlocksTgt mu b = false ->
-                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
-                           U1 b1 (ofs-delta1) = true)).
-
-  Hypothesis inj_simulation_strong_perm : 
+  Hypothesis inj_effcore_diagram : 
       forall st1 m1 st1' m1' U1, 
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
@@ -565,19 +398,7 @@ clear - inj_core_diagram. intros.
   exists c2'. exists m2'. exists mu'.
   intuition.
 clear - inj_effcore_diagram. intros.
-  destruct (inj_effcore_diagram _ _ _ _ _ H _ _ _ H0) 
-    as [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 XX]]]]]]]].
-  exists c2'. exists m2'. exists mu'. intuition.
-  exists U2. intuition.
-  exists U2. intuition.
-clear - inj_simulation_strong. intros.
-  destruct (inj_simulation_strong _ _ _ _ _ H _ _ _ UHyp H0) 
-    as [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 XX]]]]]]]].
-  exists c2'. exists m2'. exists mu'. intuition.
-  exists U2. intuition.
-  exists U2. intuition.
-clear - inj_simulation_strong_perm. intros.
-  destruct (inj_simulation_strong_perm _ _ _ _ _ H _ _ _ UHyp H0) 
+  destruct (inj_effcore_diagram _ _ _ _ _ H _ _ _ UHyp H0) 
     as [c2' [m2' [mu' [INC [SEP [LAC [MC' [U2 XX]]]]]]]].
   exists c2'. exists m2'. exists mu'. intuition.
   exists U2. intuition.
@@ -740,14 +561,14 @@ apply WD2.
   split. eapply WD1. apply EXT1. 
          eapply WD2. apply EXT2. 
 (*pubSrc*)
-  intros. rewrite H. 
+  intros. 
   destruct (pubSrc _ WD1 _ H) as [b2 [d1 [Loc1 Tgt1]]]. simpl in *.
   apply HypPub in Tgt1. 
   destruct (pubSrc _ WD2 _ Tgt1) as [b3 [d2 [Loc2 Tgt2]]]. simpl in *.
   unfold compose_meminj. exists b3, (d1+d2).
   rewrite H in *. rewrite Tgt1 in *. rewrite Loc1. rewrite Loc2. auto.
 (*frgnSrc*)
-  intros. rewrite H. 
+  intros.
   destruct (frgnSrc _ WD1 _ H) as [b2 [d1 [Ext1 Tgt1]]]. simpl in *.
   apply HypFrg in Tgt1. 
   destruct (frgnSrc _ WD2 _ Tgt1) as [b3 [d2 [Ext2 Tgt2]]]. simpl in *.
@@ -1044,272 +865,6 @@ split.
 simpl.
   split. apply DomTgt12. apply Sep23.
 Qed.
-
-(*         
-
-Lemma sm_inject_incr_pub: forall mu j (WD: SM_wd mu)
-         (Incr : inject_incr (shared_of mu) j) b1 b2 z
-         (P: pubInj mu b1 = Some(b2,z)), 
-          j b1 = Some(b2,z).
-Proof. intros.
-  destruct mu as [BSrc1 BTgt1 pSrc1 pTgt1 frgn1 pub1 priv1].
-  destruct WD as [dist [locDom [frgnDom [SrcDec TgtDec]]]].
-  simpl in *.
-  apply Incr.
-  unfold join. rewrite P.
-  remember (frgn1 b1) as u.
-  destruct u; apply eq_sym in Hequ; trivial.
-      destruct p. destruct (frgnDom _ _ _ Hequ).
-      exfalso. apply H. apply (locDom b1 b2 z).
-      unfold join. rewrite P. trivial.
-Qed.
-
-Lemma compose_sm_extend_foreign: forall mu1 mu2 j1 j2 m1 m2 m3
-          (Incr12 : inject_incr (shared_of mu1) j1)
-          (Incr23 : inject_incr (shared_of mu2) j2)
-          (Sep12 : inject_separated (shared_of mu1) j1 m1 m2)
-          (Sep23 : inject_separated (shared_of mu2) j2 m2 m3)
-          (SMV1: sm_valid mu1 m1 m2) (SMV2: sm_valid mu2 m2 m3) 
-          (WD1: SM_wd mu1) (WD2: SM_wd mu2)
-          (BB: locBlocksTgt mu1 = locBlocksSrc mu2),
-      extend_foreign (compose_sm mu1 mu2) (compose_meminj j1 j2) m1 m3 =
-      compose_sm (extend_foreign mu1 j1 m1 m2) (extend_foreign mu2 j2 m2 m3).
-Proof. intros.
-  destruct mu1 as [BSrc1 BTgt1 pSrc1 pTgt1 frgn1 pub1 priv1].
-  destruct mu2 as [BSrc2 BTgt2 pSrc2 pTgt2 frgn2 pub2 priv2].
-  unfold compose_sm, extend_foreign in *; simpl in *. subst.
-  f_equal.
-  extensionality b1.
-  unfold compose_meminj.
-  remember (pub1 b1) as d.
-  destruct d; apply eq_sym in Heqd.
-    destruct p as [b2 z1].
-    assert (J1: j1 b1 = Some (b2,z1)).
-      apply (sm_inject_incr_pub _ _ WD1 Incr12); eauto.
-    rewrite J1.
-    remember (pub2 b2) as q.
-    destruct q; apply eq_sym in Heqq.
-      destruct p as [b3 z2]. trivial.
-    remember (frgn2 b2) as f.
-    destruct f; apply eq_sym in Heqf.
-      destruct p.
-      destruct WD2 as [_ [_ [F2 _]]]. simpl in *.
-      destruct (F2 _ _ _ Heqf).
-      exfalso. apply H; clear F2 H H0. 
-      destruct WD1 as [_ [PUB1 _]]. simpl in *.
-      eapply (PUB1 b1). unfold join. rewrite Heqd. reflexivity.
-    assert (Shared2: join frgn2 pub2 b2 = None).
-      unfold join. rewrite Heqq, Heqf. trivial.
-    remember (j2 b2) as a.
-    destruct a; apply eq_sym in Heqa; trivial.
-      destruct p as [b3 z3].
-      destruct (Sep23 _ _ _ Shared2 Heqa).
-      exfalso. apply H; clear H H0.
-      eapply SMV1. simpl. left.
-      destruct WD1 as [_ [PUB1 _]]. simpl in *.
-      eapply (PUB1 b1). unfold join. rewrite Heqd. reflexivity.
-  remember (j1 b1) as q.
-  destruct q; apply eq_sym in Heqq; trivial.
-    destruct p as [b2 z1].
-    remember (frgn1 b1) as w.
-    destruct w; apply eq_sym in Heqw.
-      destruct p as [bb2 zz1].
-      assert (j1 b1 =  Some (bb2, zz1)).
-         apply Incr12. unfold join. rewrite Heqw. trivial.
-      rewrite H in Heqq. inv Heqq.
-      destruct WD1 as [_ [_ [F1 _]]]. simpl in *.
-      destruct (F1 _ _ _ Heqw).
-      remember (pub2 b2) as a.
-      destruct a; apply eq_sym in Heqa.
-        destruct p as [b3 z2].
-        exfalso. apply H1; clear H0 H1.
-        destruct WD2 as [_ [PUB2 _]]. simpl in *.
-        eapply PUB2. unfold join. rewrite Heqa. reflexivity.
-      reflexivity.
-   assert (Shared1: join frgn1 pub1 b1 = None).
-     unfold join. rewrite Heqd, Heqw. trivial.
-   destruct (Sep12 _ _ _ Shared1 Heqq).
-   remember (pub2 b2) as a.
-   destruct a; apply eq_sym in Heqa.
-     destruct p as [b3 z2].
-     exfalso. apply H0; clear H H0.
-     eapply SMV2. simpl. left.
-      destruct WD2 as [_ [PUB2 _]]. simpl in *.
-      eapply PUB2. unfold join. rewrite Heqa. trivial. 
-   reflexivity.
-Qed.
-
-Lemma compose_sm_foreign_extend_foreign: forall mu1 mu2 j1 j2 m1 m2 m3
-          (Incr12 : inject_incr (foreign_of mu1) j1)
-          (Incr23 : inject_incr (foreign_of mu2) j2)
-          (Sep12 : inject_separated (foreign_of mu1) j1 m1 m2)
-          (Sep23 : inject_separated (foreign_of mu2) j2 m2 m3)
-          (SMV1: sm_valid mu1 m1 m2) (SMV2: sm_valid mu2 m2 m3) 
-          (WD1: SM_wd mu1) (WD2: SM_wd mu2)
-          (BB: locBlocksTgt mu1 = locBlocksSrc mu2),
-      extend_foreign (compose_sm mu1 mu2) (compose_meminj j1 j2) m1 m3 =
-      compose_sm (extend_foreign mu1 j1 m1 m2) (extend_foreign mu2 j2 m2 m3).
-Proof. intros.
-  destruct mu1 as [BSrc1 BTgt1 pSrc1 pTgt1 frgn1 pub1 priv1].
-  destruct mu2 as [BSrc2 BTgt2 pSrc2 pTgt2 frgn2 pub2 priv2].
-  unfold compose_sm, extend_foreign in *; simpl in *. subst.
-  f_equal.
-  extensionality b1.
-  unfold compose_meminj.
-  specialize (sm_wd_disjoint_foreign_pub _ WD2); intros D2.
-  specialize (sm_wd_disjoint_foreign_pub _ WD1); intros D1.
-  simpl in *.
-  remember (frgn1 b1) as d.
-  destruct d; apply eq_sym in Heqd.
-    destruct p as [b2 z1].
-    destruct (D1 b1); rewrite H in *.
-      discriminate.
-   specialize (Incr12 _ _ _ Heqd).
-   rewrite Incr12.
-   remember (pub2 b2) as q.
-   destruct q; apply eq_sym in Heqq.
-     destruct p.
-     exfalso. 
-     destruct WD1 as [? [? [? _]]]. simpl in *.
-     destruct (H2 _ _ _ Heqd).
-     apply H4; clear H3 H4. subst.
-     eapply WD2. unfold join; simpl.
-     rewrite Heqq; reflexivity.
-  trivial.
-remember (pub1 b1) as e.
-  destruct e; apply eq_sym in Heqe.
-    destruct p as [b2 z1].
-    remember (j1 b1) as q. 
-    destruct q; apply eq_sym in Heqq. 
-      destruct p. 
-      destruct (Sep12 _ _ _ Heqd Heqq).
-      exfalso. apply H; clear H H0.
-      eapply SMV1. left. eapply WD1. 
-      unfold join; simpl. rewrite Heqe. reflexivity.
-    remember (pub2 b2) as t.
-    destruct t; apply eq_sym in Heqt.
-      destruct p as [b3 z2]. trivial. trivial.
-  remember (j1 b1) as q. 
-    destruct q; apply eq_sym in Heqq; trivial. 
-    destruct p.
-    destruct (Sep12 _ _ _ Heqd Heqq). 
-    remember (pub2 b) as f.
-    destruct f; apply eq_sym in Heqf; trivial.
-      destruct p. exfalso. apply H0; clear H H0.
-      eapply SMV2. left. eapply WD2.
-      unfold join; simpl. rewrite Heqf. reflexivity.
-Qed.
-
-Lemma extend_foreign_locBlocksTgt: forall mu j m1 m2,
-  locBlocksTgt (extend_foreign mu j m1 m2) = locBlocksTgt mu.
-Proof. intros.
-  destruct mu as [BSrc1 BTgt1 pSrc1 pTgt1 frgn1 pub1 priv1].
-  reflexivity.
-Qed.
-
-Lemma extend_foreign_locBlocksSrc: forall mu j m1 m2,
-  locBlocksSrc (extend_foreign mu j m1 m2) = locBlocksSrc mu.
-Proof. intros.
-  destruct mu as [BSrc1 BTgt1 pSrc1 pTgt1 frgn1 pub1 priv1].
-  reflexivity.
-Qed.
-
-Lemma compose_pub_join: forall j12' j23' mu1 mu2 m1 m2 m3
-     (Incr12 : inject_incr (frgnInj mu1) j12')
-     (Incr23 : inject_incr (frgnInj mu2) j23')
-     (Sep12 : inject_separated (frgnInj mu1) j12' m1 m2)
-     (Sep23 : inject_separated (frgnInj mu2) j23' m2 m3)
-     (WD12: SM_wd mu1)  (WD23: SM_wd mu2)
-     (SMV12: sm_valid mu1 m1 m2)
-     (SMV23: sm_valid mu2 m2 m3)
-     (B: locBlocksTgt mu1 = locBlocksSrc mu2),
-   join (compose_meminj j12' j23')
-           (compose_meminj (pub_of mu1) (pub_of mu2))
-  = compose_meminj (join j12' (pub_of mu1)) (join j23' (pub_of mu2)).
-Proof. intros.
-  specialize (sm_wd_disjoint_foreign_pub _ WD12).
-  specialize (sm_wd_disjoint_foreign_pub _ WD23).
-  destruct mu1 as [BSrc1 BTgt1 pSrc1 pTgt1 frgn1 pub1 priv1].
-  destruct mu2 as [BSrc2 BTgt2 pSrc2 pTgt2 frgn2 pub2 priv2].
-  simpl in *.
-  unfold join, compose_meminj. intros D23 D12.
-  extensionality b.
-  remember (j12' b) as d.
-  destruct d.
-    destruct p as [b1 delta1].
-    remember (j23' b1) as q.
-    destruct q.
-      destruct p as [b2 delta2]. trivial.
-    remember (frgn1 b) as w.
-    destruct w; apply eq_sym in Heqw.
-      destruct p as [bb dd].
-      rewrite (Incr12 _ _ _ Heqw) in Heqd. inv Heqd.
-      destruct (D12 b).
-      rewrite H in Heqw. discriminate.
-      rewrite H.
-      remember (pub2 bb) as r.
-      destruct r; apply eq_sym in Heqr.
-        destruct p.
-        destruct WD12 as [_ [? [? [? _]]]].
-        destruct WD23 as [_ [? [? [? _]]]].
-        simpl in *.
-        destruct (H1 _ _ _ Heqw).
-        exfalso. apply H7; clear H6 H7.
-        eapply H3. unfold join. rewrite Heqr. reflexivity.
-      trivial.
-   apply eq_sym in Heqd.
-     destruct (Sep12 _ _ _ Heqw Heqd).
-     remember (pub1 b) as r.
-     destruct r; apply eq_sym in Heqr.
-       destruct p. exfalso.
-       apply H; clear H H0.
-       eapply SMV12. unfold DOM. left. 
-        eapply WD12. simpl in *.
-         unfold join.
-         rewrite Heqr. reflexivity.
-     remember (pub2 b1) as a.
-     destruct a; trivial; apply eq_sym in Heqa.
-     destruct p. exfalso. apply H0; clear H H0.
-     eapply SMV23. unfold DOM; simpl. left.
-        subst. eapply WD23. unfold join; simpl.
-        rewrite Heqa. reflexivity.
-  remember (pub1 b) as w.  
-  destruct w; trivial; apply eq_sym in Heqw.
-  destruct p as [b2 delta2].
-  remember (j23' b2) as q.
-  destruct q; trivial; apply eq_sym in Heqq.
-  destruct p as [b3 delta3].
-  remember (pub2 b2) as t.
-  destruct t; apply eq_sym in Heqt.
-    destruct p.
-    exfalso.
-    destruct (D23 b2).
-      destruct (Sep23 _ _ _ H Heqq).
-      apply H0; clear H0 H1.
-      eapply SMV23. left. 
-      eapply WD23. simpl. unfold join. 
-        rewrite Heqt. reflexivity. 
-    rewrite H in Heqt. discriminate.
-  exfalso. 
-  remember (frgn2 b2) as a.
-  destruct a; apply eq_sym in Heqa.
-    destruct p.
-    destruct WD12 as [_ [? [? [? _]]]].
-    destruct WD23 as [_ [? [? [? _]]]].
-    simpl in *.
-    destruct (H3 _ _ _ Heqa).
-    apply H5; clear H5 H6.
-    subst. eapply (H b). unfold join.
-     rewrite Heqw. reflexivity.
-  destruct (Sep23 _ _ _ Heqa Heqq).
-    apply H; clear H0 H.
-    eapply SMV12. simpl. left.
-    destruct WD12 as [_ [? [? [? _]]]].
-    eapply (H b). unfold join; simpl.
-    rewrite Heqw. reflexivity.
-Qed.
-
-*)
 
 Lemma vis_compose_sm: forall mu nu, vis (compose_sm mu nu) = vis mu.
 Proof. intros. unfold vis. destruct mu; simpl. reflexivity. Qed.
