@@ -18,12 +18,6 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Definition corestep_fun {G C : Type} (sem : @CoopCoreSem G C) :=
-  forall (m m' m'' : mem) ge c c' c'',
-  corestep sem ge c m c' m' -> 
-  corestep sem ge c m c'' m'' -> 
-  c'=c'' /\ m'=m''.
-
 Module Event.
 
 Record t : Type := 
@@ -203,7 +197,7 @@ destruct H as [? [? [? ?]]]. congruence.
 destruct H as [? ?]. congruence.
 Qed.
 
-Lemma corestep_nyielded {ge c m c' m'} : 
+Lemma corestep_nyielded ge c m c' m' : 
   corestep sem ge c m c' m' -> ~yielded c. 
 Proof.
 intros STEP NY.
@@ -217,7 +211,7 @@ apply corestep_not_halted in STEP.
 rewrite STEP in HALT; congruence.
 Qed.
 
-Lemma nyielded_natext {c} :
+Lemma nyielded_natext c :
   ~yielded c -> core_semantics.at_external sem c = None.
 Proof.
 unfold yielded.
@@ -229,7 +223,7 @@ intros CONTRA; elimtype False; apply CONTRA.
 left; exists ef, sig, args; auto.
 Qed.
 
-Lemma nyielded_nhalted {c} : ~yielded c -> core_semantics.halted sem c = None.
+Lemma nyielded_nhalted c : ~yielded c -> core_semantics.halted sem c = None.
 Proof.
 unfold yielded.
 case_eq (at_external sem c).

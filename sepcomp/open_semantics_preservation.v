@@ -1,14 +1,7 @@
-(*CompCert imports*)
-Require Import compcert.common.Events.
-Require Import compcert.common.Memory.
-Require Import compcert.lib.Coqlib.
-Require Import compcert.common.Values.
-Require Import compcert.lib.Maps.
-Require Import compcert.lib.Integers.
-Require Import compcert.common.AST.
-Require Import compcert.common.Globalenvs.
+Require Import sepcomp.compcert. Import CompcertAll.
 
 Require Import msl.Axioms.
+
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
 Require Import sepcomp.core_semantics.
@@ -18,104 +11,14 @@ Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.effect_properties.
 Require Import sepcomp.extspec.
+Require Import sepcomp.arguments.
+Require Import sepcomp.closed_safety.
+
+Set Implicit Arguments.
+Unset Strict Implicit.
+Unset Printing Implicit Defensive.
 
 Import SM_simulation.
-
-Section safety.
-Context {G C D Z : Type} (Hcore : @CoopCoreSem G C) (ge : G).
-
-Fixpoint safeN (n:nat) (c:C) (m:mem) : Prop :=
-  match n with
-    | O => True
-    | S n' => 
-      match halted Hcore c with
-        | None => 
-          exists c', exists m',
-            corestep Hcore ge c m c' m' /\
-            safeN n' c' m'
-        | Some i => True
-      end
-  end.
-
-Lemma safe_downward1 :
-  forall n c m,
-    safeN (S n) c m -> safeN n c m.
-Proof.
-  induction n; simpl; intros; auto.
-  destruct (halted Hcore c); auto.
-  destruct H as [c' [m' [? ?]]].
-  exists c', m'; split; auto.
-Qed.
-
-Lemma safe_downward : 
-  forall (n n' : nat) c m,
-    le n' n ->
-    safeN n c m -> safeN n' c m.
-Proof.
-  do 6 intro. revert c m H0. induction H; auto.
-  intros. apply IHle. apply safe_downward1. auto.
-Qed.
-
-Lemma safe_corestep_forward:
-  corestep_fun Hcore -> 
-  forall c m c' m' n,
-    corestep Hcore ge c m c' m' -> safeN (S n) c m -> safeN n c' m'.
-Proof.
-  simpl; intros.
-  erewrite corestep_not_halted in H1; eauto.
-  destruct H1 as [c'' [m'' [? ?]]].
-  assert ((c',m') = (c'',m'')).
-  destruct (H _ _ _ _ _ _ _ H0 H1).
-  subst; auto.
-  inv H3; auto.
-Qed.
-
-Lemma safe_corestepN_forward:
-  corestep_fun Hcore -> 
-  forall c m c' m' n n0,
-    corestepN Hcore ge n0 c m c' m' -> safeN (n + S n0) c m -> safeN n c' m'.
-Proof.
-  intros.
-  revert c m c' m' n H0 H1.
-  induction n0; intros; auto.
-  simpl in H0; inv H0.
-  eapply safe_downward in H1; eauto. omega.
-  simpl in H0. destruct H0 as [c2 [m2 [STEP STEPN]]].
-  apply (IHn0 _ _ _ _ n STEPN). 
-  assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.
-  rewrite Heq in H1.
-  eapply safe_corestep_forward in H1; eauto.
-Qed.
-
-Lemma safe_corestep_backward:
-  forall c m c' m' n,
-    corestep Hcore ge c m c' m' -> safeN (n - 1) c' m' -> safeN n c m.
-Proof.
-  simpl; intros.
-  induction n; simpl; auto.
-  erewrite corestep_not_halted; eauto.
-  exists c', m'; split; auto.
-  assert (Heq: (n = S n - 1)%nat) by omega.
-  rewrite Heq; auto.
-Qed.
-
-Lemma safe_corestepN_backward:
-  forall c m c' m' n n0,
-    corestepN Hcore ge n0 c m c' m' -> safeN (n - n0) c' m' -> safeN n c m.
-Proof.
-  simpl; intros.
-  revert c m c' m' n H H0.
-  induction n0; intros; auto.
-  simpl in H; inv H.
-  solve[assert (Heq: (n = n - 0)%nat) by omega; rewrite Heq; auto].
-  simpl in H. destruct H as [c2 [m2 [STEP STEPN]]].
-  assert (H: safeN (n - 1 - n0) c' m'). 
-  eapply safe_downward in H0; eauto. omega.
-  specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H). 
-  eapply safe_corestep_backward; eauto.
-Qed.
-
-End safety.
 
 Definition target_accessible mu m tm args b ofs :=
   Mem.valid_block tm b /\ 
@@ -130,36 +33,56 @@ Definition incr mu mu' :=
   /\ (forall b, DomSrc mu b=true -> DomSrc mu' b=true)
   /\ (forall b, DomTgt mu b=true -> DomTgt mu' b=true).
 
-Section semantics_preservation.
-Context  {F V TF TV C D Z : Type}
-         {source : @EffectSem (Genv.t F V) C}
-         {target : @EffectSem (Genv.t TF TV) D}
-         {geS : Genv.t F V}
-         {geT : Genv.t TF TV}
-         {entry_points : list (val*val*signature)}
+Section open_semantics_preservation.
 
-  (z_init : Z)
+Variable (F V TF TV C D Z : Type) (z_init : Z).
 
-  (spec : ext_spec Z)
-  (spec_closed : injection_closed spec)
-  (spec_ok : 
-    forall ef x tys args targs m rty rv m' tm z z' j,
-    ext_spec_pre spec ef x tys args z m -> 
-    ext_spec_post spec ef x rty rv z' m' -> 
-    Mem.inject (as_inj j) m tm -> 
-    val_list_inject (restrict (as_inj j) (vis j)) args targs -> 
-    mem_forward m m' -> 
-    Mem.unchanged_on (fun b ofs => REACH m (getBlocks args) b=false) m m' -> 
-    exists j' rv' tm',
-      incr j j'
-      /\ oval_inject (as_inj j') rv rv'
-      /\ Mem.inject (as_inj j') m' tm'
-      /\ sm_inject_separated j j' m tm 
-      /\ SM_wd j'
-      /\ sm_valid j' m' tm'
-      /\ mem_forward tm tm'
-      /\ Mem.unchanged_on (fun b ofs => 
-           ~target_accessible j m tm args b ofs) tm tm').
+Variable source : @EffectSem (Genv.t F V) C.
+Variable target : @EffectSem (Genv.t TF TV) D.
+
+Variable (geS : Genv.t F V) (geT : Genv.t TF TV). 
+Variable entry_points : list (val*val*signature).
+
+Variable spec : ext_spec Z.
+
+(* External function specifications P,Q,EXIT closed under injection of 
+   arguments, return values, and memories: *)
+
+Variable spec_closed : injection_closed spec.
+
+(* External function specs commute w/ injection in the following sense: *)
+
+Variable spec_ok : 
+  forall ef x tys args targs m rty rv m' tm z z' j,
+  ext_spec_pre spec ef x tys args z m -> 
+  ext_spec_post spec ef x rty rv z' m' -> 
+  Mem.inject (as_inj j) m tm -> 
+  val_list_inject (restrict (as_inj j) (vis j)) args targs -> 
+  mem_forward m m' -> 
+  Mem.unchanged_on (fun b ofs => REACH m (getBlocks args) b=false) m m' -> 
+  exists j' rv' tm',
+    incr j j'
+    /\ oval_inject (as_inj j') rv rv'
+    /\ Mem.inject (as_inj j') m' tm'
+    /\ sm_inject_separated j j' m tm 
+    /\ SM_wd j'
+    /\ sm_valid j' m' tm'
+    /\ mem_forward tm tm'
+    /\ Mem.unchanged_on (fun b ofs => 
+         ~target_accessible j m tm args b ofs) tm tm'.
+
+Variable sim : SM_simulation_inject source target geS geT entry_points.
+
+Variable src_det : corestep_fun source.  
+Variable tgt_det : corestep_fun target.
+
+Notation tr_source := (TraceSemantics.coopsem z_init source spec).
+Notation tr_target := (TraceSemantics.coopsem z_init target spec).
+
+(* Also follows from determinism of ext calls + src/tgt_det above *)
+
+Variable tr_src_det : corestep_fun tr_source.
+Variable tr_tgt_det : corestep_fun tr_target.
 
 Definition ogetBlock (ov : option val) : block -> bool :=
   match ov with
@@ -182,14 +105,10 @@ Inductive match_event : Event.t -> Event.t -> Prop :=
   let m1' := ev1.(post_mem) in
   let m2 := ev2.(pre_mem) in
   let m2' := ev2.(post_mem) in
-  (forall b, REACH m1 (getBlocks args1) b=true -> 
-    exists b' d', as_inj j b = Some (b',d')) -> 
-  (forall b, REACH m1' (ogetBlock rv1) b=true -> 
-    exists b' d', as_inj j' b = Some (b',d')) -> 
   inject_incr (as_inj j) (as_inj j') -> 
   Mem.inject (as_inj j) m1 m2 -> 
   Mem.inject (as_inj j') m1' m2' -> 
-  Forall2 (val_inject (restrict (as_inj j) (vis j))) args1 args2 -> 
+  Forall2 (val_inject (as_inj j)) args1 args2 -> 
   oval_inject (as_inj j') rv1 rv2 -> 
   match_event ev1 ev2.
 
@@ -203,8 +122,6 @@ Inductive match_trace : list Event.t -> list Event.t -> Prop :=
   match_trace tr1 tr2 -> 
   match_trace (ev1 :: tr1) (ev2 :: tr2).
 
-Variable sim : SM_simulation_inject source target geS geT entry_points.
-
 Notation data := (sim.(SM_simulation.core_data _ _ _ _ _)).
 Notation ord  := (sim.(SM_simulation.core_ord _ _ _ _ _)).
 Notation match_state := (sim.(SM_simulation.match_state _ _ _ _ _)).
@@ -216,19 +133,6 @@ Inductive trace_match_state :
   match_trace tr ttr -> 
   match_state cd j c m d tm -> 
   trace_match_state cd j (z,tr,c) m (z,ttr,d) tm. 
-
-Variables SRC_DET : corestep_fun source.  
-Variables TGT_DET : corestep_fun target.
-
-Notation tr_source := (TraceSemantics.coopsem z_init source spec).
-Notation tr_target := (TraceSemantics.coopsem z_init target spec).
-
-(* Ideally, we'd prove these by determinism of ext calls + SRC/TGT_DET above *)
-
-Variable src_det : corestep_fun tr_source.
-Variable tgt_det : corestep_fun tr_target.
-
-Arguments core_diagram : default implicits.
 
 Lemma corestep_matchN {c m d tm c' m' cd j n} :
   corestepN source geS n c m c' m' -> 
@@ -307,7 +211,7 @@ Lemma REACH_as_inj_REACH': forall mu (WD: SM_wd mu) m1 m2 vals1 vals2
       exists b2 d, as_inj mu b1 = Some (b2, d) /\ 
                    REACH m2 (getBlocks vals2) b2 = true.
 Proof. intros.
-  destruct (REACH_as_inj' _ WD _ _ _ _ MemInjMu ValInjMu _ R (fun b => true))
+  destruct (@REACH_as_inj' _ WD _ _ _ _ MemInjMu ValInjMu _ R (fun b => true))
        as [b2 [d [ASI _]]]. trivial.
   exists b2, d. split; trivial.
   destruct (REACH_inject _ _ _ MemInjMu) 
@@ -317,10 +221,6 @@ Proof. intros.
   destruct H as [bb2 [ASI' RR]]; rewrite ASI' in ASI; inv ASI.
   assumption.
 Qed.
-
-Definition visSrc mu b := locBlocksSrc mu b || frgnBlocksSrc mu b.
-
-Definition visTgt mu b := locBlocksTgt mu b || frgnBlocksTgt mu b.
 
 Definition marshal j m args tm targs := 
   Build_SM_Injection
@@ -368,7 +268,7 @@ Lemma vis_marshal j m args tm targs :
   vis (marshal j m args tm targs) = REACH m (getBlocks args).
 Proof. unfold marshal, vis; simpl; auto. Qed.
 
-Lemma injsep_marshal {j j' m args tm targs m1 m2} :
+Lemma injsep_marshal j j' m args tm targs m1 m2 :
   sm_inject_separated j (marshal j' m args tm targs) m1 m2 ->
   sm_inject_separated j j' m1 m2.
 Proof.
@@ -383,7 +283,7 @@ apply H2; auto.
 apply H3; auto.
 Qed.
 
-Lemma injsep_marshal' {j j' m args tm targs m1 m2} :
+Lemma injsep_marshal' j j' m args tm targs m1 m2 :
   sm_inject_separated (marshal j m args tm targs) j' m1 m2 ->
   sm_inject_separated j j' m1 m2.
 Proof.
@@ -436,14 +336,14 @@ unfold restrict.
 rewrite INJ'; destruct (DomSrc j b); auto.
 Qed.
 
-Arguments match_sm_wd : default implicits.
-
-Lemma reach_in_exported_src {b m args} j :
+Lemma reach_in_exported_src b m args j :
   REACH m (getBlocks args) b=true -> REACH m (exportedSrc j args) b=true.
 Proof. 
 intros H; apply REACH_mono with (B1 := getBlocks args); auto.
 intros b0 H2; unfold exportedSrc; rewrite H2; auto. 
 Qed.
+
+Arguments reach_in_exported_src {b m args} j _.
 
 Lemma reach_in_exported_tgt {b m args} j :
   REACH m (getBlocks args) b=true -> REACH m (exportedTgt j args) b=true.
@@ -452,7 +352,9 @@ intros H; apply REACH_mono with (B1 := getBlocks args); auto.
 intros b0 H2; unfold exportedTgt; rewrite H2; auto. 
 Qed.
 
-Lemma extern_semantics_preservation {c c' d m m' tm cd j ef sig args} : 
+Arguments reach_in_exported_tgt {b m args} j _.
+
+Lemma extern_semantics_preservation c c' d m m' tm cd j ef sig args : 
   trace_match_state cd j c m d tm -> 
   corestep tr_source geS c m c' m' -> 
   at_external source (snd c) = Some (ef, sig, args) -> 
@@ -471,7 +373,6 @@ elimtype False.
 apply corestep_not_at_external in STEP.
 simpl in ATEXTSRC; rewrite STEP in ATEXTSRC; inv ATEXTSRC. }
 
-Arguments core_at_external : default implicits.
 { (*external step case*)
 assert (exists targs, 
   at_external target d = Some (ef, sig, targs)
@@ -510,11 +411,10 @@ assert (MU_VALINJ:
 simpl in ATEXTSRC; rewrite H2 in ATEXTSRC; inv ATEXTSRC.
 rename H3 into UNCH; rename H4 into FORWARD. 
 rename H6 into PRE; rename H10 into POST.
-generalize (spec_ok ef x (sig_args sig) args targs m 
+generalize (@spec_ok ef x (sig_args sig) args targs m 
   (sig_res sig) (Some rv) m' tm _ _ mu PRE POST MU_INJ MU_VALINJ FORWARD UNCH).
 intros [mu2 [trv [tm2 [INCR [RVALINJ [INJ2 [SEP2 [WD2 
   [VAL2 [TFWD2 TUNCH]]]]]]]]]].
-
 set (nu2 := reestablish nu mu2).
 set (frgnSrc' := fun b : block =>
      DomSrc nu2 b && (negb (locBlocksSrc nu2 b) 
@@ -631,7 +531,6 @@ assert (NU2_INJ: Mem.inject (as_inj nu2) m' tm2).
     unfold DomSrc in H; rewrite LOC in H; inv H.
     unfold as_inj, join.
     assert (extern_of nu b = None) as ->; auto.
-      Arguments disjoint_extern_local_Src : default implicits.
       generalize (disjoint_extern_local_Src NU_WD b).
       rewrite LOC; inversion 1; subst. congruence.
       case_eq (extern_of nu b); auto; intros [? ?] EXT.
@@ -655,7 +554,7 @@ generalize (@eff_after_external _ _ _ _ _ _ _ _ _ _ _
   nu' refl_equal).
 
 destruct 1 as [acd [ac [ad [AFT1 [AFT2 AMATCH]]]]]; auto. 
-apply unch_on_validblock with (V := 
+apply unchanged_on_validblock with (V := 
   fun b ofs => REACH m (getBlocks args) b=false); auto.
 intros b ofs BVAL [X Y].
 unfold nu in Y; unfold pubSrc', pubTgt' in Y. 
@@ -665,7 +564,7 @@ rewrite X in Y; simpl in Y.
 apply REACH_mono' with (B2 := exportedSrc j args); auto.
 solve[intros b'; unfold exportedSrc; intros ->; auto].
 
-apply unch_on_validblock with (V := 
+apply unchanged_on_validblock with (V := 
   fun b ofs => ~target_accessible mu m tm args b ofs); auto.
 intros b ofs BVAL [X Y].
 unfold nu in Y; unfold pubSrc', pubTgt' in Y. 
@@ -715,7 +614,7 @@ exists acd, nu', (z',ttr',ad), tm2.
 split; auto.
 econstructor; eauto.
 
-apply unch_on_validblock with (V := 
+apply unchanged_on_validblock with (V := 
   fun b ofs => ~target_accessible mu m tm args b ofs); auto.
 intros b ofs X Y. 
 unfold target_accessible; intros [VAL TA]. 
@@ -743,28 +642,12 @@ destruct H0 as [VAL [INJ' VINJ]].
 apply mk_match_event 
   with (j := replace_locals j pubSrc' pubTgt')
        (j' := nu2); auto.
-intros b. simpl. intros HREACH.
-eapply REACH_as_inj_REACH' in HREACH; eauto.
-destruct HREACH as [b2 [d2 [? ?]]].
-solve[exists b2, d2; auto].
-intros b. simpl. intros HREACH.
-assert (RVINJ: Forall2 (val_inject (as_inj nu2)) (rv :: nil) (trv0 :: nil)).
-  { apply val_list_inject_forall_inject.
-    constructor; auto. }
-destruct (REACH_as_inj_REACH' 
-  nu2 NU2_WD m' tm2 (rv::nil) (trv0::nil) NU2_INJ RVINJ b HREACH)
-  as [b' [d' [? ?]]].
-exists b', d'; auto.
-
 solve[apply extern_incr_as_inj; auto].
-simpl; rewrite replace_locals_as_inj; unfold vis. 
-rewrite replace_locals_locBlocksSrc, replace_locals_frgnBlocksSrc.
-solve[apply val_list_inject_forall_inject; auto].
 solve[inv TRMATCH; auto].
 solve[rewrite H11 in AFT1; inv AFT1; auto]. }
 Qed.
 
-Lemma safe_match_target_step {cd j c m d tm z tr} :
+Lemma safe_match_target_step cd j c m d tm z tr :
   (forall n, safeN tr_source geS n (z,tr,c) m) -> 
   match_state cd j c m d tm -> 
   ~TraceSemantics.yielded target d -> 
@@ -824,7 +707,7 @@ eapply TraceSemantics.nyielded_natext in n; eauto.
 solve[rewrite n in H9; congruence].
 Qed.
 
-Lemma safe_match_target_atext {cd j c m d tm z tr ef sig args} :
+Lemma safe_match_target_atext cd j c m d tm z tr ef sig args :
   (forall n, safeN tr_source geS n (z,tr,c) m) -> 
   match_state cd j c m d tm -> 
   at_external target d = Some (ef, sig, args) -> 
@@ -891,6 +774,8 @@ left; exists ef0, sig0, args0; auto.
 exists x, j; auto.
 Qed.
 
+(* Trace refinement: *)
+
 Lemma semantics_preservation z z' c d d' m tm tm' tr0 ttr0 ttr cd j tn :
   match_state cd j c m d tm -> 
   match_trace tr0 ttr0 -> 
@@ -954,7 +839,7 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
     corestepN tr_target geT (S x) (z,ttr0,d) tm (z',ttr,d') tm').
     { exists (z,ttr0,d2), tm2; split; auto. }
   case_eq (lt_dec tn0 (S x)). intros LT _.
-  generalize (TraceSemantics.corestepN_splits_lt TGT_DET TSTEPN' TSTEPN'' LT).
+  generalize (TraceSemantics.corestepN_splits_lt tgt_det TSTEPN' TSTEPN'' LT).
   intros [nx [ny [EQ [POS [A B]]]]].
 
   assert (LT': (ny < S x)%nat) by omega.
@@ -966,7 +851,7 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
   exists (z,tr0,c2), m2; split; auto.
   solve[apply TraceSemantics.corestepN_CORESTEPN; auto].
   intros NLT _. assert (GEQ: (S tn0 >= S x)%nat) by omega.
-  generalize (TraceSemantics.corestepN_geq TGT_DET TSTEPN' TSTEPN'' GEQ).
+  generalize (TraceSemantics.corestepN_geq tgt_det TSTEPN' TSTEPN'' GEQ).
   intros [? ?]; subst z' ttr.
   exists z,c,m,tr0,O; split; auto.
   simpl; auto. }
@@ -986,7 +871,7 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
       rewrite ATEXT'' in TATEXT; inv TATEXT; exists args'; auto.
       destruct H as [rv' HALT].
       Arguments core_halted : default implicits.
-      eapply (core_halted sim) in HALT; eauto.
+      eapply core_halted in HALT; eauto.
       destruct HALT as [? [? [? THALT]]].
       generalize (@at_external_halted_excl _ _ _ target d).
       rewrite THALT. intros [W|W]; try congruence. }
@@ -1008,7 +893,7 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
   eapply extern_semantics_preservation in STEP; eauto.
   destruct STEP as [cd3 [j3 [[[z'' ttr'] d3] [tm3 [TSTEP'' TRMATCH']]]]].
   assert ((z'',ttr',d3) = d2' /\ tm2=tm3) as [EQ1 EQ2].
-    { destruct (tgt_det _ _ _ _ _ _ _ TSTEP' TSTEP'').
+    { destruct (tr_tgt_det TSTEP' TSTEP'').
       subst d2'; subst tm2; inv H1; auto. }
   inversion EQ1. subst z'' ttr' d3.
   inversion EQ2. subst tm3.
@@ -1044,12 +929,8 @@ Import Event.
 Definition injclosed (P : Event.t -> Prop) :=
   forall vals1 vals2 orv1 orv2 m1 m2 m1' m2' j j',
   P (Event.mk m1 m1' vals1 orv1) -> 
-  (forall b, REACH m1 (getBlocks vals1) b=true -> 
-    exists b' d', as_inj j b = Some (b',d')) -> 
-  (forall b, REACH m1' (ogetBlock orv1) b=true -> 
-    exists b' d', as_inj j' b = Some (b',d')) -> 
   Mem.inject (as_inj j) m1 m2 -> 
-  val_list_inject (restrict (as_inj j) (vis j)) vals1 vals2 -> 
+  val_list_inject (as_inj j) vals1 vals2 -> 
   Mem.inject (as_inj j') m1' m2' -> 
   oval_inject (as_inj j') orv1 orv2 -> 
   P (Event.mk m2 m2' vals2 orv2).
@@ -1083,7 +964,7 @@ destruct tr'; simpl; auto.
 split.
 inv E.
 inv H3.
-apply forall_inject_val_list_inject in H7.
+apply forall_inject_val_list_inject in H4.
 unfold injclosed in A.
 destruct t0, t1.
 eapply A; eauto.
@@ -1092,20 +973,29 @@ inv E; auto.
 Qed. 
 
 Lemma corollary c d m tm cd j Ps z :
+  (* trace semantics source configuration <z,nil,c> is safe *)
   (forall n, safeN tr_source geS n (z,nil,c) m) -> 
+
+  (* matching configurations: <c,m> ~j <d,tm> *)
   match_state cd j c m d tm -> 
+
+  (* P closed under ~EVENT *)
   tracepred_injclosed Ps -> 
+
+  (* <c,m> --tr-->* <c',m'> /\ tr |- Ps *)
   (forall c' m' z' tr, 
     corestep_star tr_source geS (z,nil,c) m (z',tr,c') m' -> 
     app_tracepred Ps tr) -> 
-  forall d' tm' z' tr,
-    corestep_star tr_target geT (z,nil,d) tm (z',tr,d') tm' ->
-    app_tracepred Ps tr.
+
+  (* \forall d' tm' tr'. <d,tm> --tr'-->* <d',tm'>  ==>  tr' |- Ps *)
+  forall d' tm' z' tr',
+    corestep_star tr_target geT (z,nil,d) tm (z',tr',d') tm' ->
+    app_tracepred Ps tr'.
 Proof.
 intros SAFE MATCH CLOSED PSRC ? ? ? ? [n TSTEPN].
 assert (TRMATCH: match_trace nil nil) by constructor.
 eapply semantics_preservation in MATCH; eauto.
-destruct MATCH as [z'' [c' [m' [tr' [n' [STEPN TRMATCH']]]]]].
+destruct MATCH as [z'' [c' [m' [tr'' [n' [STEPN TRMATCH']]]]]].
 eapply app_match_trace; eauto.
 eapply PSRC; exists n'; eauto.
 Qed.
@@ -1117,7 +1007,6 @@ C : Type
 D : Type
 F : Type
 TF : Type
-TGT_DET : corestep_fun target
 TV : Type
 V : Type
 Z : Type
@@ -1152,9 +1041,10 @@ spec_ok : forall (ef : external_function) (x : ext_spec_type spec ef)
             Mem.unchanged_on
               (fun (b : block) (ofs : BinNums.Z) =>
                ~ target_accessible j m tm args b ofs) tm tm'
-src_det : corestep_fun (TraceSemantics.coopsem z_init source spec)
 target : EffectSem
-tgt_det : corestep_fun (TraceSemantics.coopsem z_init target spec)
+tgt_det : corestep_fun target
+tr_src_det : corestep_fun (TraceSemantics.coopsem z_init source spec)
+tr_tgt_det : corestep_fun (TraceSemantics.coopsem z_init target spec)
 z_init : Z
 Axioms:
 REACH : mem -> (block -> bool) -> block -> bool
@@ -1166,4 +1056,7 @@ functional_extensionality_dep : forall (A : Type) (B : A -> Type)
                                   (f g : forall x : A, B x),
                                 (forall x : A, f x = g x) -> f = g *)
 
-End semantics_preservation.
+
+End corollary.
+
+End open_semantics_preservation.

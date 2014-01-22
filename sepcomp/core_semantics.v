@@ -100,6 +100,12 @@ Record CoreSemantics {G C M : Type} : Type :=
 
 Implicit Arguments CoreSemantics [].
 
+Definition corestep_fun {G C M : Type} (sem : CoreSemantics G C M) :=
+  forall (m m' m'' : M) ge c c' c'',
+  corestep sem ge c m c' m' -> 
+  corestep sem ge c m c'' m'' -> 
+  c'=c'' /\ m'=m''.
+
 (** This module defines a core semantics typeclass, for building 
     functors over coresem-like objects.  *)
 
@@ -250,15 +256,10 @@ End corestepN.
    pointers. *)
 
 Record CoopCoreSem {G C} :=
-  { coopsem :> CoreSemantics G C mem;
-    corestep_fwd : forall g c m c' m' (CS: corestep coopsem g c m c' m'), 
-      mem_forward m m'
-(*;
-    corestep_wdmem: forall g c m c' m' (CS: corestep coopsem g c m c' m'), 
-      mem_wd m -> mem_wd m'*)
-   (*Doesn't make sense any longer: initial_mem is a property of program, not cores;
-    initmem_wd: forall g m d, initial_mem coopsem g m d -> mem_wd m*) 
-}.
+  { coopsem :> CoreSemantics G C mem
+  ; corestep_fwd : 
+      forall g c m c' m' (CS: corestep coopsem g c m c' m'), 
+      mem_forward m m' }.
 
 Implicit Arguments CoopCoreSem [].
 

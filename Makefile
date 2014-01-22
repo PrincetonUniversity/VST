@@ -79,7 +79,9 @@ SEPCOMP_FILES= \
   effect_simulations_lemmas.v effect_corediagram_trans.v \
   effect_properties.v effect_interpolants.v effect_simulations_trans.v \
   effect_interpolation_II.v effect_interpolation_proofs.v \
-  wf_lemmas_old.v linking_old.v linking_simulations_old.v linking_proof_old.v
+  arguments.v closed_safety.v compcert.v open_semantics_preservation.v \
+  trace_semantics.v \
+  wf_lemmas_old.v linking_old.v linking_simulations_old.v linking_proof_old.v 
 
 LINKING_FILES= \
   pos.v \
