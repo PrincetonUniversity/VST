@@ -991,7 +991,7 @@ Lemma corollary c d m tm cd j Ps z :
   (* P closed under ~EVENT *)
   tracepred_injclosed Ps -> 
 
-  (* <c,m> --tr-->* <c',m'> /\ tr |- Ps *)
+  (* \forall c' m' z' tr', <c,m> --tr-->* <c',m'>  ==>  tr |- Ps *)
   (forall c' m' z' tr, 
     corestep_star tr_source geS (z,nil,c) m (z',tr,c') m' -> 
     app_tracepred Ps tr) -> 
