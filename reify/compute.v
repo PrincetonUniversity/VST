@@ -433,6 +433,51 @@ Fixpoint compute (e : expr all_types) : expr all_types :=
 
 (* Nicer version of compute. Makes compute_correct not awful *)
 Check fold_right.
+
+Section Is_Const.
+
+(* User supplied function saying which user Funcs compute to consts *)
+Parameter is_const_user : func -> bool.
+
+(* make a section with is_const_user as parameter *)
+(* Listing of which functions compute directly into consts (taking no arguments)
+ * and which do not. *)
+Definition is_const_base (f : func) :=
+  match f with
+    | 1  (* O_f *)
+    | 20 (* Z0_f *)
+    | 23 (* xH_f *)
+    | 35 (* Ceq_f *)
+    | 36 (* Cne_f *)
+    | 37 (* Clt_f *)
+    | 38 (* Cle_f *)
+    | 39 (* Cgt_f *)
+    | 40 (* Cge_f *)
+    | 47 (* int_max_unsigned *)
+      => true
+
+    | _ => false
+  end.            
+
+
+
+(* Parameterize with an environment (function taking number
+ * and returns true/false)
+ * Say it only holds if that function returns true or any of the terms
+ * I list match
+ * Also, generalize: n represents a constant and list is all constants *)
+Fixpoint is_const (e : expr all_types) :=
+  let is_const_l (es : list (expr all_types)) : bool :=
+      fold_right andb true (map is_const es)
+  in
+  match e with
+      (* it and its arguments must be const *)
+    | Func f es => andb (orb (is_const_base f) (is_const_user f)) (is_const_l es)
+    | Const _ _ => true
+    | _ => false
+  end.             
+
+(*
 Fixpoint is_const (e : expr all_types) : bool :=
   let is_const_l (es : list (expr all_types)) : bool :=
       fold_right andb true (map is_const es)
@@ -458,15 +503,25 @@ Fixpoint is_const (e : expr all_types) : bool :=
         | _ => false
       end
 
+        (* not always true; depends on function *)
+        (* need to allow user defined functions, and see if function
+         * is one of the user-defined const functions, or one of our
+         * pre-defined constant functions *)
     | Func _ a => is_const_l a 
     | Const _ _ => true
     | _ => false
   end.
+*)
+Check exprD_weaken.
 
 Require Import wrapExpr.
 Check @Const.
 
 (* TODO: eventually don't require caller to pass in t? *)
+(* option (typeD all_types t) as return type - more precise 
+ * Then correctness easier: just need to prove that if compute
+ * returns Some x then exprD does also (quantify over variable envs) *)
+(*
 Definition compute (e : expr all_types) (t : tvar) : expr all_types :=
 if is_const e then
   match (@exprD all_types functions nil nil e t) with
@@ -475,59 +530,50 @@ if is_const e then
   end
 else
   e.
+*)
 
-Check exprD.
+(*
+Definition compute (e : expr all_types) (t : tvar) : typeD all_types t :=
+if is_const e then
+  match (@exprD all_types functions nil nil e t) with
+    | Some v => Const v
+    | None => e
+  end
+else
+  e.
+*)
 
-Check lookupAs.
+Definition compute (e : expr all_types) (t : tvar) : 
+option (tvarD all_types t) := (*expr all_types :=*)
+if is_const e then
+  match (@exprD all_types functions nil nil e t) with
+    | Some v => Some v
+    | None => None (** should be dead code if e is well typed **)
+  end
+else
+  None.
 
-Check nth_error.
 
-Lemma exprD_nil_vars_correct : forall (e : expr all_types) (t : tvar) (vars uvars : env all_types),
-(exists v, exprD functions [] [] e t = Some v) ->
-exprD functions [] [] e t = exprD functions vars uvars e t.
+(* Supply a correctness proof of user const function? *)
+Lemma compute_correct : forall (e : expr all_types) (t : tvar) (v : tvarD all_types t),
+compute e t = Some v ->
+forall (vars uvars : env all_types),
+exprD functions uvars vars e t = Some v.
 Proof.
-induction e.
-- reflexivity.
-- intros.
-  inversion H; subst; simpl.
-  inversion H0; subst; simpl.
-  destruct x; unfold lookupAs; simpl; destruct uvars; inversion H2.
-- intros.
-  inversion H; subst; simpl.
-  inversion H0; subst; simpl.
-  destruct x; unfold lookupAs; simpl; destruct vars; inversion H2.
-- intros.
+  intros.
+  unfold compute in *.
+  destruct (is_const e); try congruence.
+  remember (exprD functions [] [] e t) as exprDf.
+  destruct exprDf; try congruence.
   inversion H; subst.
-  * reflexivity.
-  * inversion H0; subst.
-    simpl. Admitted.
- 
-
-Lemma compute_correct : forall (e : expr all_types) (t : tvar) (vars uvars : env all_types),
-exprD functions vars uvars e t =
-exprD functions vars uvars (compute e t) t.
-Proof.
-  intros e t vars uvars.
-  unfold compute.
-  remember (is_const e) as econst.
-  destruct econst; simpl.
-  - remember (exprD functions [] [] e t) as eD_nil.
-    remember (exprD functions vars uvars e t) as eD_vars.
-    destruct eD_nil; simpl.
-    + destruct (equiv_dec t t); unfold equiv in *.
-      * rewrite (UIP_refl _ _ e0).
-        rewrite -> HeqeD_nil.
-        rewrite -> HeqeD_vars.
-        symmetry. eapply exprD_nil_vars_correct.
-        eexists. symmetry. eapply HeqeD_nil.
-      * unfold complement in c. apply False_ind. auto.
-    + assumption.
-  - reflexivity.
+  symmetry in HeqexprDf.
+  eapply exprD_weaken in HeqexprDf. simpl in HeqexprDf. eassumption.
 Qed.
 
 Print Sep.sexpr.
 Import Sep.
 
+(*
 Fixpoint compute_s (se : sexpr all_types) (t : tvar) : sexpr all_types :=
 match se with
   | Emp => Emp all_types
@@ -537,6 +583,7 @@ match se with
   | Func f es => Func f (map (fun x => compute x t) es)
   | Const hp => Const all_types hp
 end.
+*)
 
 Check Sep.sexprD.
   
