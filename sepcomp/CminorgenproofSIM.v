@@ -783,7 +783,7 @@ Proof. intros.
             simpl; trivial.
 Qed.
 
-Lemma MS_step_case_Builtin:
+(*Lemma MS_step_case_Builtin:
 forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x t ef optid vres m' bl vargs
 (EvalArgs: Csharpminor.eval_exprlist ge e lenv m bl vargs)
 (ExtCall: Events.external_call ef ge vargs m t vres m')
@@ -835,7 +835,7 @@ Opaque PTree.set.
   eapply match_callstack_set_temp; eauto. 
   auto.
 solve [eapply meminj_preserves_incr_sep; eassumption].
-Qed.
+Qed.*)
 
 Lemma MS_step_case_Ite: 
 forall cenv sz f tfn j m tm e lenv te sp lo hi cs k tk xenv x x0 x1 x2 b v a s1 s2
@@ -1631,13 +1631,13 @@ Proof.
       split. apply inject_separated_same_meminj.
       auto.
   (*builtin*)
-      inv MSTATE; simpl in *. 
+  (*  inv MSTATE; simpl in *. 
       monadInv TR.
       destruct c2; simpl in *; try inv H9.
       destruct (MS_step_case_Builtin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ optid 
         _ _ _ _ H0 H1 TRF MINJ MCS MK EQ PG) 
         as [c2' [m2' [cstepPlus [j' [InjIncr [InjSep MS]]]]]].
-      left. exists c2'. exists m2'.  exists j'. auto.
+      left. exists c2'. exists m2'.  exists j'. auto.*)
   (* seq *)
       inv MSTATE. 
       (*Case 1*) 

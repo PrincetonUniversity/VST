@@ -54,41 +54,42 @@ Proof. intros m B L.
       econstructor; try eassumption.
 Qed.
 
-(*Fixpoint reach'' (m:mem) (B:block -> bool) (L:list (block * Z)): block -> bool:=
+Fixpoint reach'' (m:mem) (B:block -> bool) (L:list (block * Z)): block -> bool:=
   match L with
     nil => B
   | l::L => match l with 
              (b',z) => match ZMap.get z (PMap.get b' (Mem.mem_contents m))
                        with Pointer b off n => fun bb => eq_block bb b &&
                                                Mem.perm_dec m b' z Cur Readable  &&
-                                               reach' m B L b'
+                                               reach'' m B L b'
                            | _ => fun bb => false
                        end
             end
   end.
 
-Lemma reach_reach': forall m L B b1, reach m (fun b => B b = true) L b1 <-> reach' m B L b1 = true.
-Proof. intros m L.
-  induction L; simpl; split; intros.
+Lemma reach_reach'' m B L b1 : 
+  reach m (fun b => B b=true) L b1 <-> reach'' m B L b1=true.
+Proof. 
+  revert b1. induction L; simpl; split; intros.
     inv H. trivial. constructor. trivial.
-  destruct a as [b' z]. destruct (IHL B b') as [IHa IHb]; clear IHL.
+  destruct a as [b' z]. destruct (IHL b') as [IHa IHb]; clear IHL.
     inv H. rewrite H6.
     destruct (Mem.perm_dec m b' z Cur Readable); try contradiction; simpl.
-    destruct (eq_block b1 b1); simpl. apply IHa. apply H3.
-    exfalso. apply n0; trivial. 
+    rewrite !andb_true_iff. split; auto. split; auto. 
+    case (eq_block b1 b1); auto.
   destruct a as [b' z]. 
     remember (ZMap.get z (Mem.mem_contents m) !! b') as v.
-    specialize (IHL (fun bb=> B bb = Mem.perm_dec m b' z Cur Readable && reach' m B L b') b').
-    destruct v; try inv H. apply eq_sym in Heqv.
-    destruct (eq_block b1 b); simpl in *; try inv H1.
-      econstructor; try eassumption. 
-      destruct IHL. clear H.
-        apply (IHL (Mem.perm_dec m b' z Cur Readable && reach' m B L b')). b').
-      apply andb_true_iff in H1; destruct H1. 
-      apply IHb in H0. clear IHa IHb.
-      econstructor; try eassumption.
-Qed.    
-*)
+    destruct v; try solve[inv H]. apply eq_sym in Heqv.
+    rewrite !andb_true_iff in H. destruct H as [[H1 X] H0]. 
+    apply IHL in H0. econstructor; try eassumption.
+    revert X.
+    case_eq (Mem.perm_dec m b' z Cur Readable); auto.
+    simpl. intros. congruence.
+    revert H1.
+    case_eq (eq_block b1 b).
+    intros ->. simpl. eauto.
+    simpl; intros. congruence.
+Qed.
 
 Lemma reach_inject: forall m1 m2 j (J: Mem.inject j m1 m2)
                  L1 b1 B1 (R: reach m1 B1 L1 b1) B2
@@ -120,26 +121,10 @@ Proof. intros.
     eexists. eapply reach_cons; eassumption.
 Qed.
 
-(*
-Parameter reachable : mem -> list block -> block -> bool.
-Axioms reachAX: forall m B b, reachable m B b = true 
-                    <-> exists L, reach m (fun bb => In bb B) L b.
-
-Lemma reachable_inject: forall m1 m2 j (J: Mem.inject j m1 m2) B1 B2
-                 (HB: forall b, In b B1 -> exists jb d, j b = Some(jb,d) /\ In jb B2)
-                 b1 (R: reachable m1 B1 b1 = true),
-                 exists b2 d, j b1 = Some(b2,d) /\ reachable m2 B2 b2 = true.
-Proof.
-  intros. apply reachAX in R. destruct R as [L1 R].
-  destruct (reach_inject _ _ _ J _ _ _ R _ HB) as [b2 [L2 [off [J2 R2]]]].
-  exists b2, off. split; trivial.
-    apply reachAX. exists L2; assumption.
-Qed.
-*)
-
 Parameter REACH : mem -> (block -> bool) -> block -> bool.
-Axioms REACHAX: forall m B b, REACH m B b = true 
-                    <-> exists L, reach m (fun bb => B bb = true) L b.
+Axiom REACHAX : (* Constructible via FiniteMaps.v, relying on finiteness of memories *)
+  forall m B b, REACH m B b = true 
+  <-> exists L, reach m (fun bb => B bb = true) L b.
 
 Lemma REACH_nil: forall m B b, B b = true -> REACH m B b = true.
 Proof. intros. apply REACHAX.

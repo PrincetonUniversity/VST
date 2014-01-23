@@ -166,11 +166,11 @@ all:     .loadpath $(FILES:.v=.vo) version.vo
 
 msl:     .loadpath $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
-linking: .loadpath $(CC_TARGET) $(LINKING_FILES:%.v=sepcomp/%.vo)
+linking: .loadpath $(CC_TARGET) $(LINKING_FILES:%.v=sepcomp/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo) floyd/floyd.coq
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
-compcomp: .loadpath $(COMPCOMP_FILES:%.v=sepcomp/%.vo)
+compcomp: .loadpath $(COMPCOMP_FILES:%.v=sepcomp/%.vo) 
 
 
 ifdef CLIGHTGEN
@@ -210,6 +210,9 @@ depend:
 
 depend-linking:
 	$(COQDEP) $(DEPFLAGS) $(FILES) $(LINKING_FILES) > .depend
+
+depend-compcomp:
+	$(COQDEP) $(DEPFLAGS) $(FILES) $(COMPCOMP_FILES) > .depend
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend

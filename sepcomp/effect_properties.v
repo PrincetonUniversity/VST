@@ -1500,17 +1500,6 @@ Proof.
     inv H0. eassumption. 
 Qed.
 
-Axiom AllocContentsUndef2: forall m1 lo hi m2 b
-      (ALLOC:Mem.alloc m1 lo hi = (m2, b)),
-     (Mem.mem_contents m2) !! b = ZMap.init Undef.
-Lemma AllocContentsUndef1: forall m1 lo hi m2 b
-      (ALLOC:Mem.alloc m1 lo hi = (m2, b)) z,
-     ZMap.get z (Mem.mem_contents m2) !! b = Undef.
-Proof. intros. rewrite (AllocContentsUndef2 _ _ _ _ _ ALLOC). apply ZMap.gi. Qed.
-
-(*Axiom AllocContentsUndef2 can easily be proven in Memory.v,
-   in section ALLOC, but repeating the proof here doesn't 
-   work, even if we do Opaque Mem.alloc. 
 Section ALLOC.
 
 Variable m1: mem.
@@ -1519,13 +1508,20 @@ Variable m2: mem.
 Variable b: Values.block.
 Hypothesis ALLOC: Mem.alloc m1 lo hi = (m2, b).
 
-Lemma AllocContentsUndef: (Mem.mem_contents m2) !! b = ZMap.init Undef.
+Transparent Mem.alloc.
+
+Lemma AllocContentsUndef2: (Mem.mem_contents m2) !! b = ZMap.init Undef.
 Proof.
    injection ALLOC. intros. simpl in H0. subst.
    simpl. rewrite PMap.gss. reflexivity.
 Qed.
+
 End ALLOC.
-*)
+
+Lemma AllocContentsUndef1: forall m1 lo hi m2 b
+      (ALLOC:Mem.alloc m1 lo hi = (m2, b)) z,
+     ZMap.get z (Mem.mem_contents m2) !! b = Undef.
+Proof. intros. rewrite (AllocContentsUndef2 _ _ _ _ _ ALLOC). apply ZMap.gi. Qed.
 
 (*The following 2 lemmas are from Cminorgenproof.v*)
 Lemma nextblock_storev:

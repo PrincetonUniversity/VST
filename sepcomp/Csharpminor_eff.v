@@ -63,12 +63,13 @@ Inductive csharpmin_effstep (g: Csharpminor.genv):  (block -> Z -> bool) ->
       csharpmin_effstep g EmptyEffect (CSharpMin_State f (Scall optid sig a bl) k e le) m
         (CSharpMin_Callstate fd vargs (Kcall optid f e le k)) m
 
-  | csharpmin_effstep_builtin: forall f optid ef bl k e le m vargs t vres m',
+(* WE DO NOT TREAT BUILTINS *)
+(*  | csharpmin_effstep_builtin: forall f optid ef bl k e le m vargs t vres m',
       eval_exprlist g e le m bl vargs ->
       external_call ef g vargs m t vres m' ->
       csharpmin_effstep g (BuiltinEffect g (ef_sig ef) vargs m)
          (CSharpMin_State f (Sbuiltin optid ef bl) k e le) m
-         (CSharpMin_State f Sskip k e (Cminor.set_optvar optid vres le)) m'
+         (CSharpMin_State f Sskip k e (Cminor.set_optvar optid vres le)) m'*)
 
   | csharpmin_effstep_seq: forall f s1 s2 k e le m,
       csharpmin_effstep g EmptyEffect (CSharpMin_State f (Sseq s1 s2) k e le) m
@@ -167,8 +168,8 @@ intros.
          eapply StoreEffect_Storev; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; try eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
-         eapply ec_builtinEffectPolymorphic; eassumption.
+(*  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
+         eapply ec_builtinEffectPolymorphic; eassumption.*)
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -218,7 +219,7 @@ intros. inv H.
     eexists. eapply csharpmin_effstep_set; eassumption.
     eexists. eapply csharpmin_effstep_store; eassumption.
     eexists. eapply csharpmin_effstep_call; try eassumption. reflexivity. 
-    eexists. eapply csharpmin_effstep_builtin; eassumption.
+(*    eexists. eapply csharpmin_effstep_builtin; eassumption.*)
     eexists. eapply csharpmin_effstep_seq.
     eexists. eapply csharpmin_effstep_ifthenelse; eassumption.
     eexists. eapply csharpmin_effstep_loop.
