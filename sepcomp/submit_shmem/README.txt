@@ -14,7 +14,7 @@ The files in this directory are excerpted from a larger proof development,
 the VST, or Princeton Verified Software Toolchain.  
 
 To build, and to get a sense of the larger context of the proof development,
-please download VST revision ?????, which is linked at
+please download VST revision 5992, which is linked at
 
     http://vst.cs.princeton.edu/download
 
