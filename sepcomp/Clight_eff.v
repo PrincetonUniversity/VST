@@ -83,7 +83,7 @@ Proof. intros P args.
     apply Mem.unchanged_on_refl.
   apply IHargs  in H7.
   specialize (alloc_forward _ _ _ _ _ H4). intros.
-  eapply mem_unchanged_on_trans;  try eassumption.
+  eapply unchanged_on_trans;  try eassumption.
   eapply Mem.alloc_unchanged_on. eassumption.
 Qed.
 
@@ -140,13 +140,14 @@ Inductive clight_effstep (ge:genv): (block -> Z -> bool) ->
       clight_effstep ge EmptyEffect (CL_State f (Scall optid a al) k e le) m
         (CL_Callstate fd vargs (Kcall optid f e le k)) m
 
+(* WE DO NOT TREAT BUILTINS 
   | clight_effstep_builtin:   forall f optid ef tyargs al k e le m vargs t vres m',
       eval_exprlist ge e le m al tyargs vargs ->
       external_call ef ge vargs m t vres m' ->
       clight_effstep ge (BuiltinEffect ge (ef_sig ef) vargs m)
          (CL_State f (Sbuiltin optid ef tyargs al) k e le) m
          (CL_State f Sskip k e (set_opttemp optid vres le)) m'
-
+*)
   | clight_effstep_seq:  forall f s1 s2 k e le m,
       clight_effstep ge EmptyEffect (CL_State f (Ssequence s1 s2) k e le) m
         (CL_State f s1 (Kseq s2 k) e le) m
@@ -277,8 +278,8 @@ intros.
          apply Mem.unchanged_on_refl.
   split. econstructor; try eassumption.
          apply Mem.unchanged_on_refl.
-  split. econstructor; try eassumption.
-         eapply ec_builtinEffectPolymorphic; eassumption.
+(*  split. econstructor; try eassumption.
+         eapply ec_builtinEffectPolymorphic; eassumption.*)
   split. econstructor; try eassumption.
          apply Mem.unchanged_on_refl.
   split. econstructor; try eassumption.
@@ -322,7 +323,7 @@ intros.
   (*effstep_sub_val*)
     destruct IHclight_effstep.
     split; trivial.
-    eapply unch_on_validblock; try eassumption.
+    eapply unchanged_on_validblock; try eassumption.
     intros; simpl. remember (E b ofs) as d.
     destruct d; trivial. apply eq_sym in Heqd.
     rewrite (H _ _ H3 Heqd) in H4. discriminate.
@@ -336,7 +337,7 @@ intros. inv H.
   eexists. eapply clight_effstep_assign; eassumption.
   eexists. eapply clight_effstep_set; eassumption.
   eexists. eapply clight_effstep_call; eassumption.
-  eexists. eapply clight_effstep_builtin; eassumption.
+(*  eexists. eapply clight_effstep_builtin; eassumption.*)
   eexists. eapply clight_effstep_seq; eassumption.
   eexists. eapply clight_effstep_skip_seq; eassumption.
   eexists. eapply clight_effstep_continue_seq; eassumption.
@@ -379,10 +380,10 @@ Proof. intros. inv H.
     destruct (alloc_variables_freshblocks _ _ _ _ _ H1 _ _ _ H); trivial.
       rewrite PTree.gempty in H3. discriminate.
   clear H0.
-  apply unch_on_validblock with (V:= fun b z => Mem.valid_block m b /\ EmptyEffect b z = false).
+  apply unchanged_on_validblock with (V:= fun b z => Mem.valid_block m b /\ EmptyEffect b z = false).
     simpl; intros. split; trivial.
   specialize (alloc_variables_forward _ _ _ _ _ H1).
-  eapply mem_unchanged_on_trans; try eassumption.
+  eapply unchanged_on_trans; try eassumption.
     eapply alloc_variables_unchanged_on; eassumption.
   clear H1. remember (fn_params f) as pars. clear Heqpars.
   generalize dependent m1. generalize dependent vargs.
@@ -390,7 +391,7 @@ Proof. intros. inv H.
     inv H2. apply Mem.unchanged_on_refl.
     inv H2. specialize (IHpars _ _ H7).
     apply FRESH in H1. 
-    eapply mem_unchanged_on_trans; try eassumption;
+    eapply unchanged_on_trans; try eassumption;
       try (eapply assign_loc_forward; eassumption).
     clear H7 IHpars FRESH.
     inv H4.

@@ -66,13 +66,14 @@ Inductive cminsel_effstep (g:genv):  (block -> Z -> bool) ->
         (CMinSel_State f (Stailcall sig a bl) k (Vptr sp Int.zero) e) m
         (CMinSel_Callstate fd vargs (call_cont k)) m'
 
+(* WE DO NOT TREAT BUILTINS 
   | cminsel_effstep_builtin: forall f optid ef al k sp e m vl t v m',
       CminorSel.eval_exprlist g sp e m nil al vl ->
       external_call ef g vl m t v m' ->
       cminsel_effstep g (BuiltinEffect g (ef_sig ef) vl m)
           (CMinSel_State f (Sbuiltin optid ef al) k sp e) m
           (CMinSel_State f Sskip k sp (Cminor.set_optvar optid v e)) m'
-
+*)
   | cminsel_effstep_seq: forall f s1 s2 k sp e m,
       cminsel_effstep g EmptyEffect (CMinSel_State f (Sseq s1 s2) k sp e) m
          (CMinSel_State f s1 (Kseq s2 k) sp e) m
@@ -177,8 +178,8 @@ intros.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; try eassumption. trivial.
          eapply FreeEffect_free; eassumption.
-  split. unfold corestep, coopsem; simpl. econstructor; try eassumption.
-         eapply ec_builtinEffectPolymorphic; eassumption.
+(*  split. unfold corestep, coopsem; simpl. econstructor; try eassumption.
+         eapply ec_builtinEffectPolymorphic; eassumption.*)
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -229,7 +230,7 @@ intros. inv H.
     eexists. eapply cminsel_effstep_store; eassumption.
     eexists. eapply cminsel_effstep_call; try eassumption. reflexivity.
     eexists. eapply cminsel_effstep_tailcall; try eassumption. reflexivity.
-    eexists. eapply cminsel_effstep_builtin; eassumption.
+(*    eexists. eapply cminsel_effstep_builtin; eassumption.*)
     eexists. eapply cminsel_effstep_seq.
     eexists. eapply cminsel_effstep_ifthenelse; eassumption.
     eexists. eapply cminsel_effstep_loop.

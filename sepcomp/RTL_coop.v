@@ -88,12 +88,15 @@ Inductive RTL_corestep (ge:genv): RTL_core -> mem -> RTL_core -> mem -> Prop :=
       Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
       RTL_corestep ge (RTL_State s f (Vptr stk Int.zero) pc rs) m
         (RTL_Callstate s fd rs##args) m'
+
+(* WE DO NOT TREAT BUILTINS 
   | rtl_corestep_exec_Ibuiltin:
       forall s f sp pc rs m ef args res pc' t v m',
       (fn_code f)!pc = Some(Ibuiltin ef args res pc') ->
       external_call ef ge rs##args m t v m' ->
       RTL_corestep ge (RTL_State s f sp pc rs) m
          (RTL_State s f sp pc' (rs#res <- v)) m'
+*)
   | rtl_corestep_exec_Icond:
       forall s f sp pc rs m cond args ifso ifnot b pc',
       (fn_code f)!pc = Some(Icond cond args ifso ifnot) ->
@@ -228,7 +231,7 @@ Proof. intros.
           eapply store_forward. eassumption. 
          eapply free_forward; eassumption.
          (*builtin*) 
-          eapply external_call_mem_forward; eassumption.
+          (*eapply external_call_mem_forward; eassumption.*)
          eapply free_forward; eassumption.
          eapply alloc_forward; eassumption.
 Qed.

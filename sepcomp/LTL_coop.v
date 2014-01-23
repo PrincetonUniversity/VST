@@ -110,6 +110,7 @@ Inductive ltl_corestep: LTL_core -> mem -> LTL_core -> mem -> Prop :=
       Mem.free m sp 0 f.(fn_stacksize) = Some m' ->
       ltl_corestep (LTL_Block s f (Vptr sp Int.zero) (Ltailcall sig ros :: bb) rs) m
         (LTL_Callstate s fd rs') m'
+(* WE DO NOT TREAT BUILTINS
   | ltl_exec_Lbuiltin: forall s f sp ef args res bb rs m t vl rs' m',
       external_call' ef ge (reglist rs args) m t vl m' ->
       rs' = Locmap.setlist (map R res) vl (undef_regs (destroyed_by_builtin ef) rs) ->
@@ -118,7 +119,7 @@ Inductive ltl_corestep: LTL_core -> mem -> LTL_core -> mem -> Prop :=
   | ltl_exec_Lannot: forall s f sp ef args bb rs m t vl m',
       external_call' ef ge (map rs args) m t vl m' ->
       ltl_corestep (LTL_Block s f sp (Lannot ef args :: bb) rs) m
-         (LTL_Block s f sp bb rs) m'
+         (LTL_Block s f sp bb rs) m'*)
   | ltl_exec_Lbranch: forall s f sp pc bb rs m,
       ltl_corestep (LTL_Block s f sp (Lbranch pc :: bb) rs) m
         (LTL_State s f sp pc rs) m
@@ -264,11 +265,11 @@ Lemma LTL_forward : forall g c m c' m' (CS: ltl_corestep g c m c' m'),
          (*Ltailcall*)
            eapply free_forward; eassumption.
          (*Lbuiltin*) 
-           inv H. 
+           (*inv H. 
            eapply external_call_mem_forward; eassumption.
          (*Lannot*) 
            inv H. 
-           eapply external_call_mem_forward; eassumption.
+           eapply external_call_mem_forward; eassumption.*)
          (*free*)
            eapply free_forward; eassumption.
          (*internal function*)

@@ -64,6 +64,7 @@ Inductive ltl_effstep (g:genv):  (block -> Z -> bool) ->
       ltl_effstep g (FreeEffect m 0 (f.(fn_stacksize)) sp) 
         (LTL_Block s f (Vptr sp Int.zero) (Ltailcall sig ros :: bb) rs) m
         (LTL_Callstate s fd rs') m'
+(* WE DO NOT TREAT BUILTINS
   | ltl_effstep_Lbuiltin: forall s f sp ef args res bb rs m t vl rs' m',
       external_call' ef g (reglist rs args) m t vl m' ->
       rs' = Locmap.setlist (map R res) vl (undef_regs (destroyed_by_builtin ef) rs) ->
@@ -71,11 +72,14 @@ Inductive ltl_effstep (g:genv):  (block -> Z -> bool) ->
          (BuiltinEffect g (ef_sig ef) (decode_longs (sig_args (ef_sig ef)) (reglist rs args)) m)
          (LTL_Block s f sp (Lbuiltin ef args res :: bb) rs) m
          (LTL_Block s f sp bb rs') m'
+*)
+(* WE DO NOT TREAT BUILTINS
   | ltl_effstep_Lannot: forall s f sp ef args bb rs m t vl m',
       external_call' ef g (map rs args) m t vl m' ->
       ltl_effstep g (BuiltinEffect g (ef_sig ef) (decode_longs (sig_args (ef_sig ef)) (map rs args)) m)
          (LTL_Block s f sp (Lannot ef args :: bb) rs) m
          (LTL_Block s f sp bb rs) m'
+*)
   | ltl_effstep_Lbranch: forall s f sp pc bb rs m,
       ltl_effstep g EmptyEffect (LTL_Block s f sp (Lbranch pc :: bb) rs) m
         (LTL_State s f sp pc rs) m
@@ -143,10 +147,10 @@ intros.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply FreeEffect_free; eassumption.
-  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
+(*  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          inv H. eapply ec_builtinEffectPolymorphic; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
-         inv H. eapply ec_builtinEffectPolymorphic; eassumption.
+         inv H. eapply ec_builtinEffectPolymorphic; eassumption.*)
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -183,8 +187,8 @@ intros. unfold corestep, coopsem in H; simpl in H.
     eexists. eapply ltl_effstep_Lstore; try eassumption; trivial.
     eexists. eapply ltl_effstep_Lcall; try eassumption; trivial.  
     eexists. eapply ltl_effstep_Ltailcall; try eassumption; trivial. 
-    eexists. eapply ltl_effstep_Lbuiltin; try eassumption; trivial. 
-    eexists. eapply ltl_effstep_Lannot; eassumption.
+(*    eexists. eapply ltl_effstep_Lbuiltin; try eassumption; trivial. 
+    eexists. eapply ltl_effstep_Lannot; eassumption.*)
     eexists. eapply ltl_effstep_Lbranch; eassumption.
     eexists. eapply ltl_effstep_Lcond; try eassumption; trivial.
     eexists. eapply ltl_effstep_Ljumptable; try eassumption; trivial.

@@ -1428,7 +1428,7 @@ Proof.
            apply call_cont_commut; auto.
            eapply inject_restrict; eassumption.
          intuition.
-  (* Sbuiltin *)
+  (* Sbuiltin 
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -1605,7 +1605,7 @@ Heqmu' : mu' = sm_add_intern mu j' (freshloc m1 m1') (freshloc m2 m2')
 ______________________________________(1/16)
 intern_incr mu mu'
 *)
- admit.  (* can't use exists mu -- need to add the stuff new in j' . simpl.
+  (* can't use exists mu -- need to add the stuff new in j' . simpl.
        intuition.
        apply intern_incr_refl. 
        apply sm_inject_separated_same_sminj.
@@ -1613,6 +1613,7 @@ intern_incr mu mu'
        (*builtins as external calls?*)
       constructor; intuition.
        constructor; eauto.*)
+   *)
   (* Seq *)
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
@@ -2382,7 +2383,7 @@ induction CS; simpl in *.
          intuition.
          eapply FreeEffect_validblock; eassumption.
       eapply FreeEffect_PropagateLeft; eassumption.         
-  (* Sbuiltin *) admit. (*TODO, but see above , in diagram case without effects*)
+  (* Sbuiltin TODO, but see above , in diagram case without effects*)
   (* Seq *)
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.

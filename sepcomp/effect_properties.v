@@ -1509,19 +1509,19 @@ Variable b: Values.block.
 Hypothesis ALLOC: Mem.alloc m1 lo hi = (m2, b).
 
 Transparent Mem.alloc.
-
-Lemma AllocContentsUndef2: (Mem.mem_contents m2) !! b = ZMap.init Undef.
+Lemma AllocContentsUndef: 
+     (Mem.mem_contents m2) !! b = ZMap.init Undef.
 Proof.
-   injection ALLOC. intros. simpl in H0. subst.
+   injection ALLOC. simpl; intros. subst.
    simpl. rewrite PMap.gss. reflexivity.
 Qed.
+Opaque Mem.alloc.
+
+Lemma AllocContentsUndef1: forall z,
+     ZMap.get z (Mem.mem_contents m2) !! b = Undef.
+Proof. intros. rewrite AllocContentsUndef . apply ZMap.gi. Qed.
 
 End ALLOC.
-
-Lemma AllocContentsUndef1: forall m1 lo hi m2 b
-      (ALLOC:Mem.alloc m1 lo hi = (m2, b)) z,
-     ZMap.get z (Mem.mem_contents m2) !! b = Undef.
-Proof. intros. rewrite (AllocContentsUndef2 _ _ _ _ _ ALLOC). apply ZMap.gi. Qed.
 
 (*The following 2 lemmas are from Cminorgenproof.v*)
 Lemma nextblock_storev:

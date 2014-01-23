@@ -61,6 +61,8 @@ Inductive RTL_effstep (ge:genv):  (block -> Z -> bool) ->
       RTL_effstep ge (FreeEffect m 0 (f.(fn_stacksize)) stk)
         (RTL_State s f (Vptr stk Int.zero) pc rs) m
         (RTL_Callstate s fd rs##args) m'
+
+(* WE DO NOT TREAT BUILTINS 
   | rtl_effstep_exec_Ibuiltin:
       forall s f sp pc rs m ef args res pc' t v m',
       (fn_code f)!pc = Some(Ibuiltin ef args res pc') ->
@@ -69,6 +71,7 @@ Inductive RTL_effstep (ge:genv):  (block -> Z -> bool) ->
          (BuiltinEffect ge (ef_sig ef) (rs##args) m)
          (RTL_State s f sp pc rs) m
          (RTL_State s f sp pc' (rs#res <- v)) m'
+*)
   | rtl_effstep_exec_Icond:
       forall s f sp pc rs m cond args ifso ifnot b pc',
       (fn_code f)!pc = Some(Icond cond args ifso ifnot) ->
@@ -170,9 +173,9 @@ intros.
   split. unfold corestep, coopsem; simpl. 
          eapply rtl_corestep_exec_Itailcall; eassumption. 
          eapply FreeEffect_free; eassumption. 
-  split. unfold corestep, coopsem; simpl. 
+(*  split. unfold corestep, coopsem; simpl. 
          eapply rtl_corestep_exec_Ibuiltin; eassumption.
-         eapply ec_builtinEffectPolymorphic; eassumption.
+         eapply ec_builtinEffectPolymorphic; eassumption.*)
   split. unfold corestep, coopsem; simpl. 
          eapply rtl_corestep_exec_Icond; eassumption. 
          apply Mem.unchanged_on_refl.
@@ -208,7 +211,7 @@ intros. inv H.
     eexists. eapply rtl_effstep_exec_Istore; eassumption.
     eexists. eapply rtl_effstep_exec_Icall; try eassumption. trivial.
     eexists. eapply rtl_effstep_exec_Itailcall; try eassumption. trivial.
-    eexists. eapply rtl_effstep_exec_Ibuiltin; eassumption.
+   (* eexists. eapply rtl_effstep_exec_Ibuiltin; eassumption.*)
     eexists. eapply rtl_effstep_exec_Icond; try eassumption. trivial.
     eexists. eapply rtl_effstep_exec_Ijumptable; eassumption.
     eexists. eapply rtl_effstep_exec_Ireturn; eassumption.

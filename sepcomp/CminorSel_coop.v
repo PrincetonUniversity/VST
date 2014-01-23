@@ -113,12 +113,13 @@ Inductive CMinSel_corestep (ge : genv) : CMinSel_core -> mem ->
       CMinSel_corestep ge (CMinSel_State f (Stailcall sig a bl) k (Vptr sp Int.zero) e) m
         (CMinSel_Callstate fd vargs (call_cont k)) m'
 
+(* WE DO NOT TREAT BUILTINS 
   | cminsel_corestep_builtin: forall f optid ef al k sp e m vl t v m',
       eval_exprlist ge sp e m nil al vl ->
       external_call ef ge vl m t v m' ->
       CMinSel_corestep ge (CMinSel_State f (Sbuiltin optid ef al) k sp e) m
          (CMinSel_State f Sskip k sp (Cminor.set_optvar optid v e)) m'
-
+*)
   | cminsel_corestep_seq: forall f s1 s2 k sp e m,
       CMinSel_corestep ge (CMinSel_State f (Sseq s1 s2) k sp e) m
         (CMinSel_State f s1 (Kseq s2 k) sp e) m
@@ -247,7 +248,7 @@ Lemma CMinSel_forward : forall g c m c' m' (CS: CMinSel_corestep g c m c' m'),
           eapply store_forward; eassumption. 
          eapply free_forward; eassumption.
          (*builtin*) 
-          eapply external_call_mem_forward; eassumption.
+          (*eapply external_call_mem_forward; eassumption.*)
          eapply free_forward; eassumption.
          eapply free_forward; eassumption.
          eapply alloc_forward; eassumption.

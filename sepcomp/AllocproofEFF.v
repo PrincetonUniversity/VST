@@ -3453,8 +3453,8 @@ simpl in LD4.
          eapply REACH_closed_free; eassumption.
   split; trivial. 
 
-(* builtin *)
-- admit. (*TODO: builtin assert (WTRS': wt_regset env (rs#res <- v)) by (eapply wt_exec_Ibuiltin; eauto).
+(* builtin 
+-  assert (WTRS': wt_regset env (rs#res <- v)) by (eapply wt_exec_Ibuiltin; eauto).
   exploit (exec_moves mv1); eauto. intros [ls1 [A1 B1]]. 
   exploit external_call_mem_extends; eauto.
   eapply add_equations_args_lessdef; eauto.
@@ -3485,8 +3485,8 @@ simpl in LD4.
   intros [enext [U V]]. 
   econstructor; eauto.*)
  
-(* annot *)
--  admit. (*TODO: annot is extenal call, like builtin?
+(* annot 
+-  annot is extenal call, like builtin?
    exploit (exec_moves mv); eauto. intros [ls1 [A1 B1]]. 
    exploit external_call_mem_extends; eauto. eapply add_equations_args_lessdef; eauto.
   inv WTI. eapply Val.has_subtype_list; eauto. apply wt_regset_list; auto. 
@@ -4620,8 +4620,8 @@ simpl in LD4.
           eapply FreeEffect_PropagateLeft; eassumption.
           destruct (transf_function_inv _ _ FUN); auto.
 
-(* builtin *)
-- admit. (*TODO: builtin assert (WTRS': wt_regset env (rs#res <- v)) by (eapply wt_exec_Ibuiltin; eauto).
+(* builtin 
+-  assert (WTRS': wt_regset env (rs#res <- v)) by (eapply wt_exec_Ibuiltin; eauto).
   exploit (Eff_exec_moves mv1); eauto. intros [ls1 [A1 B1]]. 
   exploit external_call_mem_extends; eauto.
   eapply add_equations_args_lessdef; eauto.
@@ -4652,8 +4652,8 @@ simpl in LD4.
   intros [enext [U V]]. 
   econstructor; eauto.*)
  
-(* annot *)
--  admit. (*TODO: annot is extenal call, like builtin?
+(* annot 
+-  annot is extenal call, like builtin?
    exploit (Eff_exec_moves mv); eauto. intros [ls1 [A1 B1]]. 
    exploit external_call_mem_extends; eauto. eapply add_equations_args_lessdef; eauto.
   inv WTI. eapply Val.has_subtype_list; eauto. apply wt_regset_list; auto. 

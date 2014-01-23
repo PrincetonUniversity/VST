@@ -876,7 +876,7 @@ Lemma transl_expr_Ebuiltin_correct:
   transl_exprlist_prop le al vl ->
   external_call ef ge vl m E0 v m ->
   transl_expr_prop le (Ebuiltin ef al) v.
-Admitted. (*TODO: builtin*)
+Admitted. (*TODO: Ebuiltin for 64bits*)
 (*Proof.
   intros; red; intros. inv TE.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RR1 [RO1 EXT1]]]]]].
@@ -914,7 +914,7 @@ Lemma transl_expr_Eexternal_correct:
   transl_exprlist_prop le al vl ->
   external_call ef ge vl m E0 v m ->
   transl_expr_prop le (Eexternal id sg al) v.
-Admitted.
+Admitted. (*Builtin for 64bits*)
 (*
 Proof.
   intros; red; intros. inv TE.
@@ -1093,8 +1093,8 @@ Proof
      transl_expr_Econdition_correct
      transl_expr_Elet_correct
      transl_expr_Eletvar_correct
-     transl_expr_Ebuiltin_correct (*TODO: admit - eliminate builtins from CminorSel.expressions?*)
-     transl_expr_Eexternal_correct (*TODO: admit - eliminate externals from CminorSel.expressions?*)
+     transl_expr_Ebuiltin_correct
+     transl_expr_Eexternal_correct
      transl_exprlist_Enil_correct
      transl_exprlist_Econs_correct
      transl_condexpr_CEcond_correct
@@ -1472,7 +1472,7 @@ Lemma Efftransl_expr_Ebuiltin_correct:
   Efftransl_exprlist_prop le al vl ->
   external_call ef ge vl m E0 v m ->
   Efftransl_expr_prop le (Ebuiltin ef al) v.
-Admitted. (*TODO: builtin*)
+Admitted. (*TODO: builtin ofr 64bit*)
 (*Proof.
   intros; red; intros. inv TE.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RR1 [RO1 EXT1]]]]]].
@@ -1510,7 +1510,7 @@ Lemma Efftransl_expr_Eexternal_correct:
   Efftransl_exprlist_prop le al vl ->
   external_call ef ge vl m E0 v m ->
   Efftransl_expr_prop le (Eexternal id sg al) v.
-Admitted. (*eliminate extern calls from CminorSel.v expressions*)
+Admitted. (*builtin for 64bit*)
 (*Proof.
   intros; red; intros. inv TE.
   exploit H3; eauto. intros [rs1 [tm1 [EX1 [ME1 [RR1 [RO1 EXT1]]]]]].
@@ -1688,8 +1688,8 @@ Proof
      Efftransl_expr_Econdition_correct
      Efftransl_expr_Elet_correct
      Efftransl_expr_Eletvar_correct
-     Efftransl_expr_Ebuiltin_correct (*TODO: admit - eliminate builtins from CminorSel.expressions?*)
-     Efftransl_expr_Eexternal_correct (*TODO: admit - eliminate externals from CminorSel.expressions?*)
+     Efftransl_expr_Ebuiltin_correct 
+     Efftransl_expr_Eexternal_correct
      Efftransl_exprlist_Enil_correct
      Efftransl_exprlist_Econs_correct
      Efftransl_condexpr_CEcond_correct
@@ -2694,7 +2694,7 @@ Proof. intros.
          destruct (restrictD_Some _ _ _ _ _ Rsp).
            eapply free_free_inject; try eassumption.
 
-  (* builtin *) admit. (*TODO: builtin
+  (* builtin TODO
   inv TS. 
   exploit transl_exprlist_correct; eauto.
   intros [rs' [tm' [E [F [G [J K]]]]]].
@@ -3354,7 +3354,7 @@ Proof. intros st1 m1 st1' m1' U1 CS.
          eapply FreeEffect_validblock; eassumption.         
          eapply FreeEffect_PropagateLeft; try eassumption.
 
-  (* builtin *) admit. (*TODO: builtin
+  (* builtin TODO
   inv TS. 
   exploit transl_exprlist_correct; eauto.
   intros [rs' [tm' [E [F [G [J K]]]]]].

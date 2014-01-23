@@ -681,6 +681,8 @@ Proof.
   apply sizeof_pos. 
   eapply Zdivide_trans. apply alignof_blockcopy_divides. apply sizeof_alignof_compat.
 Qed.*)
+
+(*Will be needed for builtin:
 Lemma make_memcpy_correct:
   forall f dst src ty k e le m b ofs v m',
   eval_expr ge e le m dst (Vptr b ofs) ->
@@ -699,6 +701,8 @@ Proof.
   apply sizeof_pos. 
   eapply Zdivide_trans. apply alignof_blockcopy_divides. apply sizeof_alignof_compat.
 Qed.
+*)
+(*
 Lemma make_memcpy_correct_BuiltinEffect:
      forall f dst src ty k e le m b ofs v m',
        eval_expr ge e le m dst (Vptr b ofs) ->
@@ -722,7 +726,8 @@ Proof.
   apply sizeof_pos. 
   eapply Zdivide_trans. apply alignof_blockcopy_divides. apply sizeof_alignof_compat.  
 Qed.
-
+*)
+(*WILL be needed for builtin
 Lemma make_memcpy_correct_assignlocEffect:
      forall f dst src ty k e le m b ofs v m',
        eval_expr ge e le m dst (Vptr b ofs) ->
@@ -747,7 +752,8 @@ Proof.
            eapply Zdivide_trans. apply alignof_blockcopy_divides.
            apply sizeof_alignof_compat.
   intros.
-Admitted. (* this admit is related to builtins: need to define the builtin-effect of memcpy to equal/imply the assign_loc effect*)
+ is related to builtins: need to define the builtin-effect 
+              of memcpy to equal/imply the assign_loc effect*)
 (*
 Lemma make_store_correct:
   forall addr ty rhs code e le m b ofs v m' f k,
@@ -782,7 +788,8 @@ Proof.
   econstructor; eauto. 
   (* by copy *)
   rewrite H in MKSTORE; inv MKSTORE. 
-  eapply make_memcpy_correct; eauto. 
+  admit. (*BUILTIN memcpy*)
+    (*eapply make_memcpy_correct; eauto. *)
 Qed.
 
 Lemma make_store_correct_StoreEffect:
@@ -797,12 +804,13 @@ Lemma make_store_correct_StoreEffect:
                 (StoreEffect (Vptr b ofs) (encode_val chunk v))
                 (CSharpMin_State f code k e le) m
                 (CSharpMin_State f Sskip k e le) m'
-| By_copy => exists b' ofs', v = Vptr b' ofs' /\
+| By_copy => True (*WILL be needed for builtin:
+             exists b' ofs', v = Vptr b' ofs' /\
              effstep csharpmin_eff_sem ge 
                 (BuiltinEffect ge (ef_sig (EF_memcpy (sizeof ty) (alignof_blockcopy ty)))
                                   (Vptr b ofs :: Vptr b' ofs' :: nil) m)
                 (CSharpMin_State f code k e le) m
-                (CSharpMin_State f Sskip k e le) m'
+                (CSharpMin_State f Sskip k e le) m'*)
   | _ => False
   end.
 Proof.
@@ -814,7 +822,8 @@ Proof.
   (* by copy *)
   rewrite H in MKSTORE; inv MKSTORE.
   rewrite H. 
-  eapply make_memcpy_correct_BuiltinEffect; eauto.
+  admit. (*BUILTIN memcpy*)
+    (* eapply make_memcpy_correct_BuiltinEffect; eauto.*)
 Qed.
 
 Lemma make_store_correct_AssignlocEffect:
@@ -836,10 +845,11 @@ Proof.
   unfold StoreEffect, assign_loc_Effect; intros.
   rewrite H. apply H2. 
   (* by copy *)
-  rewrite H in MKSTORE; inv MKSTORE.
+  admit. (*BUILTIN memcpy*)
+  (*rewrite H in MKSTORE; inv MKSTORE.
   destruct (make_memcpy_correct_assignlocEffect f _ _ _ k _ _ _ _ _ _ _ 
       EV1 EV2 ASSIGN H) as [b'' [ofs'' [V STEP]]]; inv V.
-  assumption.
+  assumption.*)
 Qed.
 
 End CONSTRUCTORS.
@@ -2050,15 +2060,16 @@ Proof. intros.
       rewrite (Int.unsigned_repr delta0); try omega.
       rewrite Int.unsigned_repr; trivial.
   rewrite <- Arith' in LoadBytes2.
-  destruct (eq_block b' b1); subst.
+  admit. (*BUILTIN memcpy*)
+(*  destruct (eq_block b' b1); subst.
     rewrite H9 in H5; inv H5.
     eapply assign_loc_copy; try eassumption.
       rewrite Arith'.
        eapply Z.divide_add_r. eassumption.
        specialize (alignof_blockcopy_1248 ty); intros.
          eapply Z.divide_trans. eapply alignof_blockcopy_divides.
-         eapply Z.divide_trans. eapply sizeof_alignof_compat. 
-Admitted. (*BUILTIN: complete lemma assign_loc_inject, case of by_copy, ie memcpy*)
+         eapply Z.divide_trans. eapply sizeof_alignof_compat. *)
+Qed. 
 
 Lemma assign_loc_unique: forall t m b z v m1 m2
   (AL1: assign_loc t m b z v m1)
@@ -2743,11 +2754,10 @@ Proof.
         econstructor; eauto.    
           econstructor.
       intuition. 
-(* builtin *)
+(* builtin 
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
       monadInv TR. inv MTR. 
-      admit. (*TODO: builtin
        econstructor; split.
       apply plus_one. econstructor. 
       eapply transl_arglist_correct; eauto. 
@@ -3475,11 +3485,10 @@ Proof.
         econstructor; eauto.    
           econstructor.
       intuition. 
-(* builtin *)
+(* builtin 
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
       monadInv TR. inv MTR. 
-      admit. (*TODO: builtin
        econstructor; split.
       apply plus_one. econstructor. 
       eapply transl_arglist_correct; eauto. 
