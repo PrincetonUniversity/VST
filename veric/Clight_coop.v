@@ -121,11 +121,13 @@ Inductive clight_corestep: CL_core -> mem-> CL_core -> mem -> Prop :=
       clight_corestep (CL_State f (Scall optid a al) k e le) m
         (CL_Callstate fd vargs (Kcall optid f e le k)) m
 
+(* WE DO NOT TREAT BUILTINS 
   | clight_corestep_builtin:   forall f optid ef tyargs al k e le m vargs t vres m',
       eval_exprlist ge e le m al tyargs vargs ->
       external_call ef ge vargs m t vres m' ->
       clight_corestep (CL_State f (Sbuiltin optid ef tyargs al) k e le) m
          (CL_State f Sskip k e (set_opttemp optid vres le)) m'
+*)
 
   | clight_corestep_seq:  forall f s1 s2 k e le m,
       clight_corestep (CL_State f (Ssequence s1 s2) k e le) m
@@ -274,7 +276,7 @@ Lemma CL_forward :
           eapply store_forward. eassumption. 
           eapply storebytes_forward. eassumption.
          (*builtin*) 
-          eapply external_call_mem_forward; eassumption.
+          (*eapply external_call_mem_forward; eassumption.*)
          (*free*)
          eapply freelist_forward; eassumption.
          eapply freelist_forward; eassumption.
