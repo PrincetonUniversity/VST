@@ -10,7 +10,7 @@ Require Import sepcomp.trace_semantics.
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.effect_properties.
-Require Import sepcomp.extspec.
+Require Import sepcomp.extspec. Import ExtSpecProperties.
 Require Import sepcomp.arguments.
 Require Import sepcomp.closed_safety.
 
@@ -48,7 +48,7 @@ Variable spec : ext_spec Z.
 (* External function specifications P,Q,EXIT closed under injection of 
    arguments, return values, and memories: *)
 
-Variable spec_closed : injection_closed spec.
+Variable spec_closed : ExtSpecProperties.closed spec.
 
 (* External function specs commute w/ injection in the following sense: *)
 
@@ -75,14 +75,18 @@ Variable sim : SM_simulation_inject source target geS geT entry_points.
 
 Variable src_det : corestep_fun source.  
 Variable tgt_det : corestep_fun target.
+Variable ext_spec_det : ExtSpecProperties.det spec.
 
 Notation tr_source := (TraceSemantics.coopsem z_init source spec).
 Notation tr_target := (TraceSemantics.coopsem z_init target spec).
 
-(* Also follows from determinism of ext calls + src/tgt_det above *)
+(* Follow from determinism of ext calls + src/tgt_det above *)
 
-Variable tr_src_det : corestep_fun tr_source.
-Variable tr_tgt_det : corestep_fun tr_target.
+Lemma tr_src_det : corestep_fun tr_source.
+Proof. apply TraceSemantics.fun_FUN; auto. Qed.
+
+Lemma tr_tgt_det : corestep_fun tr_target. 
+Proof. apply TraceSemantics.fun_FUN; auto. Qed.
 
 Definition ogetBlock (ov : option val) : block -> bool :=
   match ov with
@@ -127,7 +131,8 @@ Notation ord  := (sim.(SM_simulation.core_ord _ _ _ _ _)).
 Notation match_state := (sim.(SM_simulation.match_state _ _ _ _ _)).
 
 Inductive trace_match_state : 
-  data -> SM_Injection -> Z*list Event.t*C -> mem -> Z*list Event.t*D -> mem -> Prop :=
+  data -> SM_Injection -> Z*list Event.t*C -> mem -> 
+                          Z*list Event.t*D -> mem -> Prop :=
 | mk_trace_match_state :
   forall j tr z c m ttr d tm cd,
   match_trace tr ttr -> 
@@ -695,7 +700,7 @@ destruct H0 as [[n0 TSTEPN] ORD].
 assert (SAFE': forall n,
   safeN (TraceSemantics.coopsem z_init source spec) geS n (z', tr', c2) m2).
   { intros n1; specialize (SAFE (S n1)).
-    eapply safe_corestep_forward; eauto. 
+    eapply safe_corestep_forward; eauto. apply tr_src_det.
     constructor; auto. }
 destruct n0. inv TSTEPN.
 generalize (IH _ ORD _ c2 m2 d2 tm2 _ _ SAFE' MATCH2 H2).
@@ -756,7 +761,7 @@ destruct H0 as [[n0 TSTEPN] ORD].
 destruct n0. inv TSTEPN.
 assert (SAFE2: forall n, safeN tr_source geS n (z',tr',c2) m2).
   { intros n1; specialize (SAFE (S n1)).
-    eapply safe_corestep_forward in SAFE; eauto. 
+    eapply safe_corestep_forward in SAFE; eauto.  apply tr_src_det.
     constructor; auto. }
 generalize (IH _ ORD _ _ _ SAFE2 MATCH2 H2).
 intros [c' [m' [n0 [STEPN [SY MATCH']]]]].
@@ -831,7 +836,8 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
   assert (SSAFE': forall n,
     safeN (TraceSemantics.coopsem z_init source spec) geS n (z, tr0, c2) m2).
     { intros n1; specialize (SSAFE (plus n1 (S n))).
-      eapply TraceSemantics.corestepN_CORESTEPN in STEPN; eauto.
+      generalize tr_src_det. intro.
+      eapply TraceSemantics.corestepN_CORESTEPN in STEPN; eauto. 
       eapply safe_corestepN_forward in STEPN; eauto. }
 
   destruct MATCH2 as [cd2 [j2 MATCH2]].
@@ -878,6 +884,7 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
   assert (SSAFE': forall n,
     safeN (TraceSemantics.coopsem z_init source spec) geS n (z, tr0, c2) m2).
     { intros n1; specialize (SSAFE (plus n1 (S n))).
+      generalize tr_src_det. intro.
       eapply TraceSemantics.corestepN_CORESTEPN in STEPN; eauto.
       eapply safe_corestepN_forward in STEPN; eauto. }
   generalize SSAFE' as SSAFE''; intro.
@@ -904,7 +911,8 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
     { intros n1; specialize (SSAFE' (S O)).
       assert (STEPN': corestepN tr_source geS (S O) (z,tr0,c2) m2 c2' m2').
         { exists c2', m2'; split; auto. simpl; auto. }
-      eapply safe_corestepN_forward in STEPN'; eauto. }
+      eapply safe_corestepN_forward in STEPN'; eauto. 
+      apply tr_src_det. }
   set (ttr' := Event.mk tm tm2 args (Some rv) :: ttr0) in *.
   assert (LT: (x < S x)%nat) by omega.
   destruct (IHtn x LT c0 _ _ _ _ _ _ _ _ MATCH' SSAFE''' TMATCH' TSTEPN)
@@ -970,7 +978,7 @@ destruct t0, t1.
 eapply A; eauto.
 eapply IHPs; eauto.
 inv E; auto.
-Qed. 
+Qed.
 
 Lemma corollary c d m tm cd j Ps z :
   (* trace semantics source configuration <z,nil,c> is safe *)
@@ -1000,62 +1008,61 @@ eapply app_match_trace; eauto.
 eapply PSRC; exists n'; eauto.
 Qed.
 
-(* Print Assumptions corollary. 
+(* Print Assumptions corollary.  *)
 
-Section Variables:
-C : Type
-D : Type
-F : Type
-TF : Type
-TV : Type
-V : Type
-Z : Type
-entry_points : list (val * val * signature)
-geS : Genv.t F V
-geT : Genv.t TF TV
-sim : SM_simulation_inject source target geS geT entry_points
-source : EffectSem
-spec : ext_spec Z
-spec_closed : injection_closed spec
-spec_ok : forall (ef : external_function) (x : ext_spec_type spec ef)
-            (tys : list typ) (args targs : list val) 
-            (m : mem) (rty : option typ) (rv : option val) 
-            (m' tm : mem) (z z' : Z) (j : SM_Injection),
-          ext_spec_pre spec ef x tys args z m ->
-          ext_spec_post spec ef x rty rv z' m' ->
-          Mem.inject (as_inj j) m tm ->
-          val_list_inject (restrict (as_inj j) (vis j)) args targs ->
-          mem_forward m m' ->
-          Mem.unchanged_on
-            (fun (b : block) (_ : BinNums.Z) =>
-             REACH m (getBlocks args) b = false) m m' ->
-          exists (j' : SM_Injection) (rv' : option val) 
-          (tm' : mem),
-            incr j j' /\
-            oval_inject (as_inj j') rv rv' /\
-            Mem.inject (as_inj j') m' tm' /\
-            sm_inject_separated j j' m tm /\
-            SM_wd j' /\
-            sm_valid j' m' tm' /\
-            mem_forward tm tm' /\
-            Mem.unchanged_on
-              (fun (b : block) (ofs : BinNums.Z) =>
-               ~ target_accessible j m tm args b ofs) tm tm'
-target : EffectSem
-tgt_det : corestep_fun target
-tr_src_det : corestep_fun (TraceSemantics.coopsem z_init source spec)
-tr_tgt_det : corestep_fun (TraceSemantics.coopsem z_init target spec)
-z_init : Z
-Axioms:
-REACH : mem -> (block -> bool) -> block -> bool
-REACHAX : forall (m : mem) (B : block -> bool) (b : block),
-          REACH m B b = true <->
-          (exists L : list (block * BinNums.Z),
-             reach m (fun bb : block => B bb = true) L b)
-functional_extensionality_dep : forall (A : Type) (B : A -> Type)
-                                  (f g : forall x : A, B x),
-                                (forall x : A, f x = g x) -> f = g *)
-
+(* Section Variables: *)
+(* C : Type *)
+(* D : Type *)
+(* F : Type *)
+(* TF : Type *)
+(* TV : Type *)
+(* V : Type *)
+(* Z : Type *)
+(* entry_points : list (val * val * signature) *)
+(* ext_spec_det : det spec *)
+(* geS : Genv.t F V *)
+(* geT : Genv.t TF TV *)
+(* sim : SM_simulation_inject source target geS geT entry_points *)
+(* source : EffectSem *)
+(* spec : ext_spec Z *)
+(* spec_closed : closed spec *)
+(* spec_ok : forall (ef : external_function) (x : ext_spec_type spec ef) *)
+(*             (tys : list typ) (args targs : list val)  *)
+(*             (m : mem) (rty : option typ) (rv : option val)  *)
+(*             (m' tm : mem) (z z' : Z) (j : SM_Injection), *)
+(*           ext_spec_pre spec ef x tys args z m -> *)
+(*           ext_spec_post spec ef x rty rv z' m' -> *)
+(*           Mem.inject (as_inj j) m tm -> *)
+(*           val_list_inject (restrict (as_inj j) (vis j)) args targs -> *)
+(*           mem_forward m m' -> *)
+(*           Mem.unchanged_on *)
+(*             (fun (b : block) (_ : BinNums.Z) => *)
+(*              REACH m (getBlocks args) b = false) m m' -> *)
+(*           exists (j' : SM_Injection) (rv' : option val)  *)
+(*           (tm' : mem), *)
+(*             incr j j' /\ *)
+(*             oval_inject (as_inj j') rv rv' /\ *)
+(*             Mem.inject (as_inj j') m' tm' /\ *)
+(*             sm_inject_separated j j' m tm /\ *)
+(*             SM_wd j' /\ *)
+(*             sm_valid j' m' tm' /\ *)
+(*             mem_forward tm tm' /\ *)
+(*             Mem.unchanged_on *)
+(*               (fun (b : block) (ofs : BinNums.Z) => *)
+(*                ~ target_accessible j m tm args b ofs) tm tm' *)
+(* src_det : corestep_fun source *)
+(* target : EffectSem *)
+(* tgt_det : corestep_fun target *)
+(* z_init : Z *)
+(* Axioms: *)
+(* REACH : mem -> (block -> bool) -> block -> bool *)
+(* REACHAX : forall (m : mem) (B : block -> bool) (b : block), *)
+(*           REACH m B b = true <-> *)
+(*           (exists L : list (block * BinNums.Z), *)
+(*              reach m (fun bb : block => B bb = true) L b) *)
+(* functional_extensionality_dep : forall (A : Type) (B : A -> Type) *)
+(*                                   (f g : forall x : A, B x), *)
+(*                                 (forall x : A, f x = g x) -> f = g  *)
 
 End corollary.
 

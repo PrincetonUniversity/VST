@@ -11,7 +11,7 @@ Require Import compcert.common.Events.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.
 Require Import sepcomp.effect_simulations.
-Require Import sepcomp.extspec.
+Require Import sepcomp.extspec. 
 Require Import sepcomp.mem_lemmas.
 
 Set Implicit Arguments.
@@ -234,6 +234,25 @@ case_eq (core_semantics.halted sem c); auto.
 intros v HALT.
 intros CONTRA; elimtype False; apply CONTRA.
 right; exists v; auto.
+Qed.
+
+Lemma fun_FUN : 
+  ExtSpecProperties.det spec -> 
+  corestep_fun sem -> 
+  corestep_fun coopsem.
+Proof.
+intros A B.
+unfold corestep_fun.
+intros until c''; intros X Y; inv X; inv Y.
+destruct (B _ _ _ _ _ _ _ H H7); subst; auto.
+apply corestep_not_at_external in H. rewrite H in H3; congruence.
+apply corestep_not_at_external in H12. rewrite H12 in H; congruence.
+rewrite H8 in H; inv H.
+destruct (A _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H12 H16 H2 H3)
+  as [? [X [? ?]]].
+inv X; subst; split; auto.
+f_equal; auto.
+rewrite H17 in H4; inv H4; auto.
 Qed.
 
 End trace_semantics. End TraceSemantics.
