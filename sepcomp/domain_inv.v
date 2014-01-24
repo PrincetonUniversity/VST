@@ -5,6 +5,9 @@ Unset Printing Implicit Defensive.
 
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.effect_simulations.
+Require Import sepcomp.rg_lemmas.
+Require Import sepcomp.mem_lemmas.
+
 Require Import sepcomp.sminj_lemmas.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.pred_lemmas.
@@ -206,7 +209,7 @@ Lemma disjinv_unchanged_on_tgt
   Memory.Mem.unchanged_on (local_out_of_reach mu0 m1) m2 m2'.
 Proof.
 move=> A B; case=> _ _ D E.
-apply: (effect_semantics.unch_on_validblock _ _ _ 
+apply: (mem_lemmas.unchanged_on_validblock _ _ _ 
          (local_out_of_reach mu0 m1'))=> //.
 move=> b ofs val []F G; split=> // b' d' H; case: (G _ _ H)=> I.
 left=> J; apply: I; case: (fwd b')=> //. 
