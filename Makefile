@@ -72,10 +72,10 @@ SEPCOMP_FILES= \
   mem_interpolation_EE.v mem_interpolation_EI.v mem_interpolation_IE.v mem_interpolation_II.v \
   mem_interpolation_proofs.v compiler_correctness.v \
   core_semantics.v forward_simulations.v forward_simulations_trans.v \
-  forward_simulations_lemmas.v rg_forward_simulations.v rg_semantics.v rg_forward_simulations_lemmas.v \
+  forward_simulations_lemmas.v \
   compiler_correctness_trans.v compiler_correctness_progless_trans.v \
   safety_preservation.v \
-  StructuredInjections.v effect_semantics.v effect_simulations.v \
+  StructuredInjections.v effect_semantics.v effect_simulations.v rg_lemmas.v \
   effect_simulations_lemmas.v effect_corediagram_trans.v \
   effect_properties.v effect_interpolants.v effect_simulations_trans.v \
   effect_interpolation_II.v effect_interpolation_proofs.v \
