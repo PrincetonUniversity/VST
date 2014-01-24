@@ -343,7 +343,7 @@ have mu0_wd: SM_wd mu0.
 apply: Build_frame_inv=> //; first by apply: (mem_forward_trans _ _ _ fwd1 B).
 by apply: (mem_forward_trans _ _ _ fwd2 C).
 
-apply: (effect_semantics.mem_unchanged_on_trans m10 m1 m1')=> //.
+apply: (mem_lemmas.unchanged_on_trans m10 m1 m1')=> //.
 have F: disjinv mu0 mu by case: mu_disj.
 have G: disjinv mu0 mu'.
   by apply (disjinv_intern_step F A fwd1 fwd2 sep D val).
@@ -357,7 +357,7 @@ move: (sm_valid_smvalid_src _ _ _ val)=> val'.
 apply: smvalid_src_replace_locals=> //=.
 by apply: (smvalid_src_mem_forward val' fwd1).
 
-apply: (effect_semantics.mem_unchanged_on_trans m20 m2 m2')=> //.
+apply: (mem_lemmas.unchanged_on_trans m20 m2 m2')=> //.
 have F: disjinv mu0 mu by case: mu_disj. 
 have G: disjinv mu0 mu'.
   by apply: (disjinv_intern_step F A fwd1 fwd2 sep D val).
@@ -548,10 +548,6 @@ eapply Build_SM_simulation_inject
 
 (* NOT NEEDED diagram1 *)
 - by admit.
-(* NOT NEEDED diagram2 *)
-- by admit.
-(* NOT NEEDED diagram3 *)
-- by admit.
 
 (* real diagram *)
 - move=> st1 m1 st1' m1' U1 STEP data st2 mu m2 U1_DEF INV.
@@ -575,7 +571,7 @@ case: STEP.
     by rewrite ST1'' in ST1'; rewrite -(updCore_inj_upd ST1'). }
 
  (* specialize core diagram at module (Core.i c1) *)
- move: (effcore_diagram_strong_perm _ _ _ _ _ (sims (Core.i c1))).  
+ move: (effcore_diagram _ _ _ _ _ (sims (Core.i c1))).  
  move/(_ _ _ _ _ _ EFFSTEP).
  move/(_ _ _ _ _ U1_DEF).
  move: (peek_match INV)=> []cd MATCH.
