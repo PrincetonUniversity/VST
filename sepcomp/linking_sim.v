@@ -292,19 +292,6 @@ case: s2'=> // b s2' /= [] ? H2.
 by rewrite (IH _ _ _ H2).
 Qed.
 
-Lemma tail_inv_aux_restrict (X : block -> bool)  
-  (vis_pf : forall b : block, vis mu b -> X b) 
-  (rc_pf  : REACH_closed m1 X) :
-  tail_inv_aux mus (restrict_sm mu X) s1 s2 m1 m2.
-Proof.
-move: mu s1 s2 inv vis_pf rc_pf; elim: mus=> // mu0 mus' IH mu'.
-case=> // a s1'; case=> // b s2'.
-move=> [][pf][cd][m10][e1][sig1][vals1][m20][e2][sig2][vals2][]; split.
-exists pf, cd, m10, e1, sig1, vals1, m20, e2, sig2, vals2. 
-apply: Build_frame_inv=> //; last by apply: sm_inject_separated_restrict.
-by apply: IH.
-Qed.
-
 Lemma tail_inv_aux_step 
   (Esrc Etgt : Values.block -> BinNums.Z -> bool) 
   (mu' : SMInj.t) m1' m2' 
@@ -408,6 +395,49 @@ by apply: (one_disjoint_r_step H H2 incr sep).
 by apply (@tail_inv_aux_step _ _ _ _ _ _ H2 Esrc Etgt).
 Qed.
 
+Lemma one_disjoint_restrict 
+  (X : block -> bool) (mu : SM_Injection) mus :
+  one_disjoint mu mus -> 
+  one_disjoint (restrict_sm mu X) (map (restrict_sm^~ X) mus).
+Proof.
+elim: mus mu vis=> //=mu0 mus' IH mu vis => [][]A B.
+split; first by apply: dominv_restrict. by apply: IH.
+Qed.
+
+Lemma one_disjoint_r_restrict 
+  (X : block -> bool) (mu : SMInj.t) mus 
+  (vis : forall b : block, vis mu b -> X b) :
+  let: mu' := SMInj.Build_t (restrict_sm_WD mu (SMInj_wd mu) X vis) in
+  one_disjoint_r mu mus -> 
+  one_disjoint_r (SMInj.Build_t (restrict_sm_WD mu (SMInj_wd mu) X vis))
+    (map (restrict_sm^~ X) mus).
+Proof.
+elim: mus mu vis=> //=mu0 mus' IH mu vis => [][]A B.
+split; first by apply: dominv_restrict. by apply: IH.
+Qed.
+
+Lemma all_disjoint_restrict 
+  (X : block -> bool) mus :
+  all_disjoint mus -> 
+  all_disjoint (map (restrict_sm^~ X) mus).
+Proof.
+elim: mus=> //=mu0 mus' IH=> [][]A B; split. 
+by apply: one_disjoint_restrict.
+by apply: IH.
+Qed.
+
+Lemma tail_inv_aux_restrict (X : block -> bool) mus mu s1 s2 m1 m2 :
+  tail_inv_aux mus mu s1 s2 m1 m2 -> 
+  tail_inv_aux (map (restrict_sm^~ X) mus) (restrict_sm mu X) s1 s2 m1 m2.
+Proof.
+move: mu s1 s2; elim: mus=> // mu0 mus' IH mu'.
+case=> // a s1'; case=> // b s2'.
+move=> [][pf][cd][m10][e1][sig1][vals1][m20][e2][sig2][vals2][]; split; 
+ last by apply: IH.
+exists pf, cd, m10, e1, sig1, vals1, m20, e2, sig2, vals2. 
+apply: Build_frame_inv=> //.
+Admitted. (*likely true*) 
+
 Lemma tail_inv_restrict (X : block -> bool) (mu : SMInj.t) s1 s2 m1 m2 
   (vis : forall b : block, vis mu b -> X b)
   (reach : REACH_closed m1 X) :
@@ -417,7 +447,10 @@ Lemma tail_inv_restrict (X : block -> bool) (mu : SMInj.t) s1 s2 m1 m2
 Proof. 
 move=> []mus []A B C. 
 exists (map (restrict_sm^~ X) mus); split=> //.
-Admitted. (*FIXME: not quite true as stated, unfortunately*)
+by apply: one_disjoint_r_restrict.
+by apply: all_disjoint_restrict.
+by apply: tail_inv_aux_restrict.
+Qed.
 
 Section R.
 

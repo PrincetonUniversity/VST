@@ -359,6 +359,58 @@ intros b0 H2; unfold exportedTgt; rewrite H2; auto.
 Qed.
 
 Arguments reach_in_exported_tgt {b m args} j _.
+(*
+mu 
+
+pubSrc' := fun b => 
+  andb (locBlocksSrc j b) (REACH m (exportedSrc j args) b)
+
+pubTgt' := fun b => 
+  andb (locBlocksTgt j b) (REACH tm (exportedTgt j targs) b)
+
+nu := replace_locals j pubSrc' pubTgt'
+
+mu2 := marshal nu m args tm targs
+
+incr mu2 mu2' 
+
+nu' := reestablish nu mu2'
+
+frgnSrc' := fun b : block =>
+     DomSrc nu2 b && (negb (locBlocksSrc nu2 b) 
+       && REACH m' (exportedSrc nu2 (rv :: nil)) b)
+
+frgnTgt' := fun b : block =>
+     DomTgt nu2 b && (negb (locBlocksTgt nu2 b) 
+       && REACH tm2 (exportedTgt nu2 (trv0 :: nil)) b)
+
+nu'' := replace_externs nu' frgnSrc' frgnTgt'
+*)
+(*
+set (pubSrc' := fun b => 
+  andb (locBlocksSrc j b) (REACH m (exportedSrc j args) b)).
+set (pubTgt' := fun b => 
+  andb (locBlocksTgt j b) (REACH tm (exportedTgt j targs) b)).
+set (nu := replace_locals j pubSrc' pubTgt').
+set (mu := marshal nu m args tm targs).
+
+  INCR : incr mu mu2
+  RVALINJ : oval_inject (as_inj mu2) (Some rv) trv
+  INJ2 : Mem.inject (as_inj mu2) m' tm2
+  SEP2 : sm_inject_separated mu mu2 m tm
+  WD2 : SM_wd mu2
+  VAL2 : sm_valid mu2 m' tm2
+  TFWD2 : mem_forward tm tm2
+  TUNCH : Mem.unchanged_on
+            (fun (b : block) (ofs : BinNums.Z) =>
+             ~ target_accessible mu m tm args b ofs) tm tm2
+
+set (nu2 := reestablish nu mu2).
+set (frgnSrc' := fun b : block =>
+     DomSrc nu2 b && (negb (locBlocksSrc nu2 b) 
+       && REACH m' (exportedSrc nu2 (rv :: nil)) b)).
+
+*)
 
 Lemma extern_semantics_preservation c c' d m m' tm cd j ef sig args : 
   trace_match_state cd j c m d tm -> 
@@ -392,65 +444,29 @@ assert (INJ: Mem.inject (as_inj j) m tm).
   { inv TRMATCH; eapply core_at_external in ATEXTSRC; eauto.
     solve[destruct ATEXTSRC as [? _]; auto]. }
 
-set (pubSrc' := fun b => 
-  andb (locBlocksSrc j b) (REACH m (exportedSrc j args) b)).
-set (pubTgt' := fun b => 
-  andb (locBlocksTgt j b) (REACH tm (exportedTgt j targs) b)).
-set (nu := replace_locals j pubSrc' pubTgt').
-set (mu := marshal nu m args tm targs).
-
-assert (MU_INJ: Mem.inject (as_inj mu) m tm)
-  by (unfold mu, nu; rewrite as_inj_marshal, replace_locals_as_inj; auto).
-
-assert (MU_VALINJ: 
-  val_list_inject (restrict (as_inj mu) (vis mu)) args targs).
-  { inv TRMATCH; eapply core_at_external in ATEXTSRC; eauto.
-    destruct ATEXTSRC as [_ [? [VALINJ' ATEXT]]].
-    rewrite ATEXT in AT; inv AT.
-    unfold mu; rewrite as_inj_marshal, vis_marshal.
-    apply forall_inject_val_list_inject.
-    unfold nu; rewrite replace_locals_as_inj.
-    apply forall_vals_inject_restrictD in VALINJ'.
-    apply restrict_forall_vals_inject; auto.
-    intros b GET; apply REACH_nil; auto. }
-
-simpl in ATEXTSRC; rewrite H2 in ATEXTSRC; inv ATEXTSRC.
-rename H3 into UNCH; rename H4 into FORWARD. 
-rename H6 into PRE; rename H10 into POST.
-generalize (@spec_ok ef x (sig_args sig) args targs m 
-  (sig_res sig) (Some rv) m' tm _ _ mu PRE POST MU_INJ MU_VALINJ FORWARD UNCH).
-intros [mu2 [trv [tm2 [INCR [RVALINJ [INJ2 [SEP2 [WD2 
-  [VAL2 [TFWD2 TUNCH]]]]]]]]]].
-set (nu2 := reestablish nu mu2).
-set (frgnSrc' := fun b : block =>
-     DomSrc nu2 b && (negb (locBlocksSrc nu2 b) 
-       && REACH m' (exportedSrc nu2 (rv :: nil)) b)).
-
-assert (exists trv0, trv = Some trv0) as [trv0 ->]. 
-  { simpl in RVALINJ; destruct trv as [trv|]; try solve[elimtype False; auto].
-    solve[exists trv; auto]. }
-
-set (frgnTgt' := fun b : block =>
-     DomTgt nu2 b && (negb (locBlocksTgt nu2 b) 
-       && REACH tm2 (exportedTgt nu2 (trv0 :: nil)) b)).
-
-set (nu' := replace_externs nu2 frgnSrc' frgnTgt').
-
-assert (VALINJ': Forall2 (val_inject (as_inj j)) args targs). 
-  { apply val_list_inject_forall_inject in MU_VALINJ.
-    apply forall_vals_inject_restrictD in MU_VALINJ.
-    generalize MU_VALINJ; unfold mu; rewrite as_inj_marshal.
-    unfold nu; rewrite replace_locals_as_inj; auto. }
-
-assert (VALINJ'': 
-  Forall2 (val_inject (restrict (as_inj j) (vis j))) args targs)
-  by (apply val_list_inject_forall_inject; auto).
-
 assert (J_WD: SM_wd j) 
   by (apply (match_sm_wd sim _ _ _ _ _ _ MATCH)).
 
 assert (J_VAL: sm_valid j m tm) 
   by (apply match_validblocks in MATCH; auto).
+
+assert (VALINJ': Forall2 (val_inject (as_inj j)) args targs). 
+  { inv TRMATCH; eapply core_at_external in ATEXTSRC; eauto.
+    destruct ATEXTSRC as [_ [? [VALINJ' ATEXT]]].
+    rewrite ATEXT in AT; inv AT.
+    apply forall_vals_inject_restrictD in VALINJ'; auto. }
+
+assert (VALINJ'': 
+  Forall2 (val_inject (restrict (as_inj j) (vis j))) args targs)
+  by (apply val_list_inject_forall_inject; auto).
+
+(* construct nu *)
+
+set (pubSrc' := fun b => 
+  andb (locBlocksSrc j b) (REACH m (exportedSrc j args) b)).
+set (pubTgt' := fun b => 
+  andb (locBlocksTgt j b) (REACH tm (exportedTgt j targs) b)).
+set (nu := replace_locals j pubSrc' pubTgt').
 
 assert (NU_WD: SM_wd nu).
   { edestruct eff_after_check1 
@@ -463,75 +479,91 @@ assert (NU_VAL: sm_valid nu m tm).
       (pubSrc' := pubSrc') (pubTgt' := pubTgt'); auto. 
     destruct H0; auto. }
 
-assert (EINCR: extern_incr nu nu2).
-  { apply reestablish_extern_incr'; auto.
+(* construct mu2 [callee-local injection] *)
+
+set (mu2 := marshal nu m args tm targs).
+
+assert (MU2_INJ: Mem.inject (as_inj mu2) m tm)
+  by (unfold mu2, nu; rewrite as_inj_marshal, replace_locals_as_inj; auto).
+
+assert (MU2_VALINJ: 
+  val_list_inject (restrict (as_inj mu2) (vis mu2)) args targs).
+  { unfold mu2; rewrite as_inj_marshal, vis_marshal.
     unfold nu; rewrite replace_locals_as_inj.
-    apply inject_incr_trans with (f2 := as_inj mu); auto.
-    unfold mu, nu; rewrite as_inj_marshal, replace_locals_as_inj.
-    apply inject_incr_refl. 
-    destruct INCR; auto.
-    intros b; unfold nu; rewrite replace_locals_extBlocksSrc; intros A.
-    destruct INCR as [X [Y W]]; apply Y.
-    unfold mu, nu, marshal, DomSrc; simpl. 
-    rewrite replace_locals_extBlocksSrc, A.
-    solve[rewrite !orb_true_iff; auto].
-    intros b; unfold nu; rewrite replace_locals_extBlocksTgt; intros A.
-    destruct INCR as [X [Y W]]; apply W.
-    unfold mu, nu, marshal, DomTgt; simpl. 
-    rewrite replace_locals_extBlocksTgt, A.
-    solve[rewrite !orb_true_iff; auto]. }
+    apply forall_inject_val_list_inject.
+    apply restrict_forall_vals_inject; auto.    
+    intros b GET; apply REACH_nil; auto. }
 
-assert (NUMU2_SEP: sm_inject_separated nu mu2 m tm).
-  { apply injsep_marshal' in SEP2; auto. }
+simpl in ATEXTSRC; rewrite H2 in ATEXTSRC; inv ATEXTSRC.
+rename H3 into UNCH; rename H4 into FORWARD. 
+rename H6 into PRE; rename H10 into POST.
+generalize (@spec_ok ef x (sig_args sig) args targs m 
+  (sig_res sig) (Some rv) m' tm _ _ mu2 PRE POST MU2_INJ MU2_VALINJ FORWARD UNCH).
 
-assert (RESTRICT_MU2_NU: restrict (as_inj mu2) (DomSrc nu) = as_inj nu).
+(* intro mu2' >= mu2 *)
+
+intros [mu2' [trv [tm2 [INCR [RVALINJ [INJ2 [SEP2 [WD2 
+  [VAL2 [TFWD2 TUNCH]]]]]]]]]].
+
+assert (NUMU2'_SEP: sm_inject_separated nu mu2' m tm).
+  { apply injsep_marshal' in SEP2; auto. } 
+
+assert (RESTRICT_MU2'_NU: restrict (as_inj mu2') (DomSrc nu) = as_inj nu).
   { apply restrict_as_inj_eq with (m1 := m) (m2 := tm); auto.
     destruct INCR as [INCR _].
-    apply inject_incr_trans with (f2 := as_inj mu); auto.
-    unfold mu; rewrite as_inj_marshal.
+    apply inject_incr_trans with (f2 := as_inj mu2); auto.
+    unfold mu2; rewrite as_inj_marshal.
     apply inject_incr_refl. }
 
 assert (LOCNU_IN_DOMSRC: 
-  forall b, locBlocksSrc nu b=true -> DomSrc mu2 b=true).
+  forall b, locBlocksSrc nu b=true -> DomSrc mu2' b=true).
   { unfold nu; rewrite replace_locals_locBlocksSrc. 
-    intros b LOC. cut (DomSrc mu b=true). intro DOM.
+    intros b LOC. cut (DomSrc mu2 b=true). intro DOM.
     destruct INCR as [X [Y W]]; auto.
-    unfold mu; rewrite DomSrc_marshal. 
+    unfold mu2; rewrite DomSrc_marshal. 
     unfold nu; rewrite replace_locals_DomSrc.
     unfold DomSrc; rewrite LOC; auto. }
 
 assert (LOCNU_IN_DOMTGT: 
-  forall b, locBlocksTgt nu b=true -> DomTgt mu2 b=true).
-  { intros b LOC. cut (DomTgt mu b=true). intro DOM.
+  forall b, locBlocksTgt nu b=true -> DomTgt mu2' b=true).
+  { intros b LOC. cut (DomTgt mu2 b=true). intro DOM.
     destruct INCR as [X [Y W]]; auto.
-    unfold mu; rewrite DomTgt_marshal. 
+    unfold mu2; rewrite DomTgt_marshal. 
     unfold nu; rewrite replace_locals_DomTgt.
     unfold nu in LOC; rewrite replace_locals_locBlocksTgt in LOC.
     unfold DomTgt. rewrite LOC; auto. }
 
-assert (NU_SEP: sm_inject_separated nu nu2 m tm)
-  by (unfold nu; apply reestablish_sm_injsep in NUMU2_SEP; auto).
+(* construct nu' [relativization of nu by mu2'] *)
 
-assert (NU2_WD: SM_wd nu2).
+set (nu' := reestablish nu mu2').
+
+assert (exists trv0, trv = Some trv0) as [trv0 ->]. 
+  { simpl in RVALINJ; destruct trv as [trv|]; try solve[elimtype False; auto].
+    solve[exists trv; auto]. }
+
+assert (NU'_SEP: sm_inject_separated nu nu' m tm)
+  by (unfold nu; apply reestablish_sm_injsep in NUMU2'_SEP; auto).
+
+assert (NU'_WD: SM_wd nu').
   { apply reestablish_wd; auto.
-    solve[destruct NUMU2_SEP; auto].
+    solve[destruct NUMU2'_SEP; auto].
     intros b; unfold nu; rewrite replace_locals_extBlocksTgt.
-    intros EXT. cut (DomTgt mu b=true). intro DOM.
+    intros EXT. cut (DomTgt mu2 b=true). intro DOM.
     destruct INCR as [X [Y W]]; auto.
-    unfold mu; rewrite DomTgt_marshal. 
+    unfold mu2; rewrite DomTgt_marshal. 
     unfold nu; rewrite replace_locals_DomTgt.
     unfold DomTgt; rewrite EXT; rewrite orb_true_iff; auto. }
 
-assert (NU2_VAL: sm_valid nu2 m' tm2) 
+assert (NU'_VAL: sm_valid nu' m' tm2) 
   by (apply reestablish_sm_valid; auto).
 
-assert (NU2_INJ: Mem.inject (as_inj nu2) m' tm2). 
-  { unfold nu2; rewrite reestablish_as_inj'; auto.
-    unfold mu in INCR; destruct INCR as [X _].
+assert (NU'_INJ: Mem.inject (as_inj nu') m' tm2). 
+  { unfold nu'; rewrite reestablish_as_inj'; auto.
+    unfold mu2 in INCR; destruct INCR as [X _].
     rewrite as_inj_marshal in X; auto.
-    intros b LOC LOCOF; case_eq (as_inj mu2 b); auto.
+    intros b LOC LOCOF; case_eq (as_inj mu2' b); auto.
     intros [b0 d0] ASINJ; elimtype False.
-    destruct NUMU2_SEP as [X Y].
+    destruct NUMU2'_SEP as [X Y].
     cut (as_inj nu b = None). intro ASINJ'.
     destruct (X _ _ _ ASINJ' ASINJ).
     unfold DomSrc in H; rewrite LOC in H; inv H.
@@ -543,8 +575,36 @@ assert (NU2_INJ: Mem.inject (as_inj nu2) m' tm2).
       apply extern_DomRng in EXT; auto.
       destruct EXT as [W _]; rewrite H0 in W; congruence. }
 
-assert (NU2_VINJ: val_inject (as_inj nu2) rv trv0)
-  by (simpl in RVALINJ; unfold nu2; rewrite reestablish_as_inj; auto).
+assert (NU'_VINJ: val_inject (as_inj nu') rv trv0)
+  by (simpl in RVALINJ; unfold nu'; rewrite reestablish_as_inj; auto).
+
+assert (EINCR: extern_incr nu nu').
+  { apply reestablish_extern_incr'; auto.
+    unfold nu; rewrite replace_locals_as_inj.
+    apply inject_incr_trans with (f2 := as_inj mu2); auto.
+    unfold mu2, nu; rewrite as_inj_marshal, replace_locals_as_inj.
+    apply inject_incr_refl. 
+    destruct INCR; auto.
+    intros b; unfold nu; rewrite replace_locals_extBlocksSrc; intros A.
+    destruct INCR as [X [Y W]]; apply Y.
+    unfold mu2, nu, marshal, DomSrc; simpl. 
+    rewrite replace_locals_extBlocksSrc, A.
+    solve[rewrite !orb_true_iff; auto].
+    intros b; unfold nu; rewrite replace_locals_extBlocksTgt; intros A.
+    destruct INCR as [X [Y W]]; apply W.
+    unfold mu2, nu, marshal, DomTgt; simpl. 
+    rewrite replace_locals_extBlocksTgt, A.
+    solve[rewrite !orb_true_iff; auto]. }
+
+(* construct mu' = leakIn of nu' w/r/t return val *)
+
+set (frgnSrc' := fun b : block =>
+     DomSrc nu' b && (negb (locBlocksSrc nu' b) 
+       && REACH m' (exportedSrc nu' (rv :: nil)) b)).
+set (frgnTgt' := fun b : block =>
+     DomTgt nu' b && (negb (locBlocksTgt nu' b) 
+       && REACH tm2 (exportedTgt nu' (trv0 :: nil)) b)).
+set (mu' := replace_externs nu' frgnSrc' frgnTgt').
 
 rename H2 into ATEXTSRC.
 
@@ -553,11 +613,11 @@ generalize (@eff_after_external _ _ _ _ _ _ _ _ _ _ _
   ATEXTSRC AT VALINJ''
   pubSrc' refl_equal
   pubTgt' refl_equal
-  nu refl_equal nu2 rv m' trv0 tm2 
-  EINCR NU_SEP NU2_WD NU2_VAL NU2_INJ NU2_VINJ FORWARD TFWD2
+  nu refl_equal nu' rv m' trv0 tm2 
+  EINCR NU'_SEP NU'_WD NU'_VAL NU'_INJ NU'_VINJ FORWARD TFWD2
   frgnSrc' refl_equal
   frgnTgt' refl_equal
-  nu' refl_equal).
+  mu' refl_equal).
 
 destruct 1 as [acd [ac [ad [AFT1 [AFT2 AMATCH]]]]]; auto. 
 apply unchanged_on_validblock with (V := 
@@ -571,13 +631,13 @@ apply REACH_mono' with (B2 := exportedSrc j args); auto.
 solve[intros b'; unfold exportedSrc; intros ->; auto].
 
 apply unchanged_on_validblock with (V := 
-  fun b ofs => ~target_accessible mu m tm args b ofs); auto.
+  fun b ofs => ~target_accessible mu2 m tm args b ofs); auto.
 intros b ofs BVAL [X Y].
 unfold nu in Y; unfold pubSrc', pubTgt' in Y. 
 rewrite replace_locals_pubBlocksSrc in Y.
 rewrite replace_locals_local in Y.
 unfold nu in X; rewrite replace_locals_locBlocksTgt in X.
-unfold target_accessible; unfold mu; simpl; intros [VAL TA].
+unfold target_accessible; unfold mu2; simpl; intros [VAL TA].
 destruct TA as [b0 [d0 [INJ0 [HR' PERM]]]]; auto.
 assert (HR'': REACH m (exportedSrc j args) b0=true).
   apply REACH_mono with (B1 := getBlocks args); auto.
@@ -616,12 +676,12 @@ edestruct eff_after_check1
 set (tr2' := Event.mk m m' args (Some rv) :: tr2).
 set (ttr' := Event.mk tm tm2 targs (Some trv0) :: ttr).
 
-exists acd, nu', (z',ttr',ad), tm2.
+exists acd, mu', (z',ttr',ad), tm2.
 split; auto.
 econstructor; eauto.
 
 apply unchanged_on_validblock with (V := 
-  fun b ofs => ~target_accessible mu m tm args b ofs); auto.
+  fun b ofs => ~target_accessible mu2 m tm args b ofs); auto.
 intros b ofs X Y. 
 unfold target_accessible; intros [VAL TA]. 
 destruct TA as [b0 [d0 [FR [RC PERM]]]]; auto.
@@ -629,7 +689,7 @@ apply REACH_as_inj_REACH' with (m2 := tm) (vals2 := targs) (mu := j) in RC; auto
 destruct RC as [b2 [d2 [INJ' RR]]].
 assert (b = b2). 
   apply foreign_in_all in FR. 
-  unfold mu, nu in FR; rewrite as_inj_marshal, replace_locals_as_inj in FR.
+  unfold mu2, nu in FR; rewrite as_inj_marshal, replace_locals_as_inj in FR.
   solve[rewrite FR in INJ'; inv INJ'; auto].
 solve[subst; congruence].
 
@@ -647,7 +707,7 @@ constructor. constructor.
 destruct H0 as [VAL [INJ' VINJ]].
 apply mk_match_event 
   with (j := replace_locals j pubSrc' pubTgt')
-       (j' := nu2); auto.
+       (j' := nu'); auto.
 solve[apply extern_incr_as_inj; auto].
 solve[inv TRMATCH; auto].
 solve[rewrite H11 in AFT1; inv AFT1; auto]. }
@@ -693,7 +753,7 @@ inv STEP.
 rename H11 into STEP.
 generalize STEP as STEP'; intro.
 eapply (core_diagram sim) in STEP; eauto.
-destruct STEP as [d2 [tm2 [cd2 [mu2 [_ [_ [_ [MATCH2 [_ [_ STEP2]]]]]]]]]].
+destruct STEP as [d2 [tm2 [cd2 [mu2' [_ [_ [_ [MATCH2 [_ [_ STEP2]]]]]]]]]].
 destruct STEP2.
 destruct H0 as [n0 TSTEPN].
 solve[exists c2, m2, d2, tm2, (S O), n0; split; simpl; eauto].
@@ -752,7 +812,7 @@ inv STEP.
 rename H11 into STEP.
 generalize STEP as STEP'; intro.
 eapply (core_diagram sim) in STEP; eauto.
-destruct STEP as [d2 [tm2 [cd2 [mu2 [_ [_ [_ [MATCH2 [_ [_ STEP2]]]]]]]]]].
+destruct STEP as [d2 [tm2 [cd2 [mu2' [_ [_ [_ [MATCH2 [_ [_ STEP2]]]]]]]]]].
 destruct STEP2.
 destruct H0 as [n0 TSTEPN].
 destruct TSTEPN as [? [? [TSTEP _]]].
