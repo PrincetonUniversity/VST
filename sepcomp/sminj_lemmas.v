@@ -3,6 +3,8 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Require Import compcert.common.Globalenvs.
+
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.effect_simulations.
@@ -214,7 +216,8 @@ case: (local_DomRng _ (SMInj_wd mu1) _ _ _ H).
 by case: A=> -> _; rewrite/mem/in_mem/= => -> ->.
 case: (local_DomRng _ (SMInj_wd mu2) _ _ _ A).
 by rewrite/mem/in_mem/= => -> ->; split; apply/orP; right.
-move=> b1 b2 z A.
+move=> b1 b2 z A; split.
+apply/andP.
 Admitted. (*tedious*)
 
 Fixpoint join_all (mus : seq SMInj.t) : SM_Injection :=
@@ -229,20 +232,122 @@ have A: SM_wd (join_sm mu (SMInj.Build_t IH)) by apply: join_sm_wd.
 by apply: A.
 Qed.
 
-Definition assimilated mu1 mu2 := join_sm mu1 mu2 = mu2.
+Definition assimilated mu0 mu := join_sm mu0 mu = mu.
 
-Lemma assimilated_sub_locSrc mu1 mu2 :
-  assimilated mu1 mu2 -> {subset (locBlocksSrc mu1) <= locBlocksSrc mu2}. 
+Lemma assimilated_sub_locSrc mu0 mu :
+  assimilated mu0 mu -> {subset (locBlocksSrc mu0) <= locBlocksSrc mu}. 
 Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
 
-Lemma assimilated_sub_locTgt mu1 mu2 :
-  assimilated mu1 mu2 -> {subset (locBlocksTgt mu1) <= locBlocksTgt mu2}. 
+Lemma assimilated_sub_locTgt mu0 mu :
+  assimilated mu0 mu -> {subset (locBlocksTgt mu0) <= locBlocksTgt mu}. 
 Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
 
-Lemma assimilated_sub_pubSrc mu1 mu2 :
-  assimilated mu1 mu2 -> {subset (pubBlocksSrc mu1) <= pubBlocksSrc mu2}. 
+Lemma assimilated_sub_pubSrc mu0 mu :
+  assimilated mu0 mu -> {subset (pubBlocksSrc mu0) <= pubBlocksSrc mu}. 
 Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
 
-Lemma assimilated_sub_pubTgt mu1 mu2 :
-  assimilated mu1 mu2 -> {subset (pubBlocksTgt mu1) <= pubBlocksTgt mu2}. 
+Lemma assimilated_sub_pubTgt mu0 mu :
+  assimilated mu0 mu -> {subset (pubBlocksTgt mu0) <= pubBlocksTgt mu}. 
 Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
+
+Lemma assimilated_sub_extSrc mu0 mu :
+  assimilated mu0 mu -> {subset (locBlocksSrc mu0) <= locBlocksSrc mu}. 
+Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
+
+Lemma join_sm_extSrc mu1 mu2 : 
+  {subset (extBlocksSrc (join_sm mu1 mu2)) 
+  <= [predU (extBlocksSrc mu1) & extBlocksSrc mu2]}.
+Proof. by rewrite/join_sm/= => b; rewrite/in_mem/=; move/andP=> []A B. Qed.
+
+Lemma join_sm_extTgt mu1 mu2 : 
+  {subset (extBlocksTgt (join_sm mu1 mu2)) 
+  <= [predU (extBlocksTgt mu1) & extBlocksTgt mu2]}.
+Proof. by rewrite/join_sm/= => b; rewrite/in_mem/=; move/andP=> []A B. Qed.
+
+Lemma join_sm_frgnSrc mu1 mu2 : 
+  {subset (frgnBlocksSrc (join_sm mu1 mu2)) 
+  <= [predU (frgnBlocksSrc mu1) & frgnBlocksSrc mu2]}.
+Proof. by rewrite/join_sm/= => b; rewrite/in_mem/=; move/andP=> []A B. Qed.
+
+Lemma join_sm_frgnTgt mu1 mu2 : 
+  {subset (frgnBlocksTgt (join_sm mu1 mu2)) 
+  <= [predU (frgnBlocksTgt mu1) & frgnBlocksTgt mu2]}.
+Proof. by rewrite/join_sm/= => b; rewrite/in_mem/=; move/andP=> []A B. Qed.
+
+Lemma join_sm_preserves_globals F V (ge : Genv.t F V) (mu1 mu2 : SMInj.t) : 
+  Events.meminj_preserves_globals ge (extern_of mu1) -> 
+  Events.meminj_preserves_globals ge (extern_of mu2) -> 
+  Events.meminj_preserves_globals ge (extern_of (join_sm mu1 mu2)).
+Proof.
+move=> []A []B C []D []E G; rewrite/join_sm/=; split.
+move=> id b H; move: (A _ _ H); move: (D _ _ H).
+rewrite/restrict/=/in_mem/=/in_mem/=/join=> H2 H3.
+have H4: extBlocksSrc mu1 b = true.
+  by case: (extern_DomRng _ (SMInj_wd mu1) _ _ _ H3).
+have H5: extBlocksSrc mu2 b = true.
+  by case: (extern_DomRng _ (SMInj_wd mu2) _ _ _ H2).
+have ->: locBlocksSrc mu1 b = false.
+  by move: H4; case: (disjoint_extern_local_Src _ (SMInj_wd mu1) b)=> // ->.
+have ->: locBlocksSrc mu2 b = false.
+  case: (extern_DomRng _ (SMInj_wd mu2) _ _ _ H2).
+  by move: H5; case: (disjoint_extern_local_Src _ (SMInj_wd mu2) b)=> // ->.
+by rewrite H4 H5 H3.
+split.
+move=> b gv H. move: (B _ _ H); move: (E _ _ H). 
+rewrite/restrict/=/in_mem/=/in_mem/=/join=> H2 H3.
+have H4: extBlocksSrc mu1 b = true.
+  by case: (extern_DomRng _ (SMInj_wd mu1) _ _ _ H3).
+have H5: extBlocksSrc mu2 b = true.
+  by case: (extern_DomRng _ (SMInj_wd mu2) _ _ _ H2).
+have ->: locBlocksSrc mu1 b = false.
+  by move: H4; case: (disjoint_extern_local_Src _ (SMInj_wd mu1) b)=> // ->.
+have ->: locBlocksSrc mu2 b = false.
+  case: (extern_DomRng _ (SMInj_wd mu2) _ _ _ H2).
+  by move: H5; case: (disjoint_extern_local_Src _ (SMInj_wd mu2) b)=> // ->.
+by rewrite H4 H5 H3.
+move=> b1 b2 z gv H; move/restrictD_Some=> []; rewrite/join=> H2 H3.
+move: H2; case H4: (extern_of mu1 b1)=> // [[b' z']|].
+by move=> EQ; move: EQ H H4; case=> <- _ H H4; move: (C _ _ _ _ H H4).
+by apply/(G _ _ _ _ H).
+Qed.
+
+Lemma join_sm_id mu : join_sm mu mu = mu.
+Proof.
+case: mu=> ? ? ? ? ? ? ? ? ? ?; rewrite/join_sm /=.
+f_equal=> //.
+Admitted.
+
+Lemma join_sm_empty mu : join_sm mu SMInj.empty' = mu.
+Proof.
+case: mu=> ? ? ? ? ? ? ? ? ? ?; rewrite/join_sm /=.
+f_equal=> //.
+Admitted.
+
+Lemma join_all_id mu : join_all [:: mu] = mu.
+Proof. by rewrite/join_all; rewrite join_sm_empty. Qed.
+
+Fixpoint All T P (l : seq T) :=
+  match l with
+    | nil => True
+    | a :: l' => [/\ P a & All P l']
+  end.
+
+Lemma join_all_preserves_globals F V (ge : Genv.t F V) (mus : seq.seq SMInj.t) : 
+  length mus > 0 ->
+  All (Events.meminj_preserves_globals ge \o extern_of \o SMInj.mu) mus -> 
+  Events.meminj_preserves_globals ge (extern_of (join_all mus)).
+Proof.
+elim: mus=> // mu0 mus' IH; case: mus' IH.
+by move=> _ _; rewrite join_all_id; case.
+move=> mu1 mus' IH A B.
+change (Events.meminj_preserves_globals 
+  ge (extern_of (join_sm mu0 (join_all [:: mu1 & mus'])))).
+have wd: SM_wd (join_all [:: mu1 & mus']) by apply: join_all_wd.
+change (Events.meminj_preserves_globals 
+  ge (extern_of (join_sm mu0 (SMInj.Build_t wd)))).
+apply: join_sm_preserves_globals; first by case: B.
+by move: B=> []C []D E; apply: IH.
+Qed.
+
+
+

@@ -22,6 +22,7 @@ Require Import sepcomp.sminj_lemmas.
 Require Import sepcomp.linking.
 Require Import sepcomp.linking_lemmas.
 Require Import sepcomp.domain_inv.
+Require Import sepcomp.arguments.
 
 (* compcert imports *)
 
@@ -49,11 +50,6 @@ Section linkingSimulation.
 Import SM_simulation.
 Import Linker.
 Import Static.
-
-Arguments core_data {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2} _ _.
-Arguments core_ord  {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 entry_points} _ _ _.
-Arguments match_state {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 entry_points} 
-  _ _ _ _ _ _ _.
 
 Variable N : pos.
 Variable (cores_S cores_T : 'I_N -> Static.t). 
@@ -305,17 +301,21 @@ Fixpoint frame_all (mus : seq frame_pkg) m1 m2 s1 s2 :=
     | _,_,_ => False
   end.
 
-Definition tail_inv mus mu s1 s2 m1 m2 :=
-  [/\ all_wrt_callers rel_inv_pred mu mus & frame_all mus m1 m2 s1 s2].
+Definition tail_inv_aux mus mu s1 s2 m1 m2 :=
+  [/\ all_wrt_callers rel_inv_pred mu mus
+    & frame_all mus m1 m2 s1 s2].
 
-(* Definition restrict_sm_wd  *)
-(*   (mu : SMInj.t) (X : block -> bool) *)
-(*   (vis_pf : forall b : block, vis mu b -> X b)  *)
-(*   (rc_pf  : REACH_closed m1 X) : SMInj.t :=  *)
-(*   SMInj.Build_t (restrict_sm_WD _ (SMInj_wd mu) X vis_pf). *)
+Definition tail_inv mu s1 s2 m1 m2 := 
+  exists mus, tail_inv_aux mus mu s1 s2 m1 m2.
+
+Definition restrict_sm_wd m1
+  (mu : SMInj.t) (X : block -> bool)
+  (vis_pf : forall b : block, vis mu b -> X b)
+  (rc_pf  : REACH_closed m1 X) : SMInj.t :=
+  SMInj.Build_t (restrict_sm_WD _ (SMInj_wd mu) X vis_pf).
 
 (* Lemma tail_len_eq (mus : seq frame_pkg) (mu : SMInj.t) s1 s2 m1 m2 : *)
-(*   tail_inv mus mu s1 s2 m1 m2 -> length s1 = length s2. *)
+(*   tail_inv_aux mus mu s1 s2 m1 m2 -> length s1 = length s2. *)
 (* Proof. *)
 (* move: s1 s2 mu; elim: mus. *)
 (* case; case=> //; first by move=> ? ? ?; case. *)
@@ -330,7 +330,7 @@ Definition tail_inv mus mu s1 s2 m1 m2 :=
 (* have mu0_wd: SM_wd mu0. *)
 (*   move: (sims (Core.i x)).(match_sm_wd _ _ _ _ _).  *)
 (*   by move/(_ _ _ _ _ _ _ frmatch). *)
-(* have C': tail_inv mus' (SMInj.Build_t mu0_wd) s1' s2' m1 m2. *)
+(* have C': tail_inv_aux mus' (SMInj.Build_t mu0_wd) s1' s2' m1 m2. *)
 (*   split=> //. *)
 (* by rewrite (IH _ _ _ C'). *)
 (* Qed. *)
@@ -497,7 +497,7 @@ eapply IH; eauto.
 by eapply all_wrt_callers_switch; eauto.
 Qed.
 
-Lemma tail_inv_step 
+Lemma tail_inv_aux_step 
   (Esrc Etgt : Values.block -> BinNums.Z -> bool) 
   mus (mu mu' : SMInj.t) m1' m2' s1 s2 m1 m2 :
   (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
@@ -516,46 +516,73 @@ Lemma tail_inv_step
   mem_forward m2 m2' ->   
   sm_inject_separated mu mu' m1 m2  -> 
   sm_valid mu m1 m2 -> 
-  tail_inv mus mu s1 s2 m1 m2 -> 
-  tail_inv mus mu' s1 s2 m1' m2'.
+  tail_inv_aux mus mu s1 s2 m1 m2 -> 
+  tail_inv_aux mus mu' s1 s2 m1' m2'.
 Proof.
 move=> ? ? ? ? ? ? ? ? ? []A B; split.
 by eapply all_wrt_callers_step; eauto.
 by eapply frame_all_step; eauto.
 Qed.
 
-(* Lemma tail_inv_restrict (X : block -> bool) mus mu s1 s2 m1 m2 : *)
-(*   tail_inv mus mu s1 s2 m1 m2 ->  *)
-(*   tail_inv (map (restrict_sm^~ X) mus) (restrict_sm mu X) s1 s2 m1 m2. *)
-(* Proof. *)
-(* move: mu s1 s2; elim: mus=> // mu0 mus' IH mu'. *)
-(* case=> // a s1'; case=> // b s2'. *)
-(* move=> [][pf][cd][m10][e1][sig1][vals1][m20][e2][sig2][vals2][]; split;  *)
-(*  last by apply: IH. *)
-(* exists pf, cd, m10, e1, sig1, vals1, m20, e2, sig2, vals2.  *)
-(* apply: Build_frame_inv=> //. *)
+Lemma tail_inv_step 
+  (mu : SMInj.t) s1 s2 m1 m2 
+  (Esrc Etgt : Values.block -> BinNums.Z -> bool) 
+  (mu' : SMInj.t) m1' m2' : 
+  (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
+  Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
+  Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
+  (forall (b0 : block) (ofs : Z),
+   Etgt b0 ofs = true ->
+   Mem.valid_block m2 b0 /\
+   (locBlocksTgt mu b0 = false ->
+    exists (b1 : block) (delta1 : Z),
+      foreign_of mu b1 = Some (b0, delta1) /\
+      Esrc b1 (ofs - delta1) = true /\
+      Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) -> 
+  intern_incr mu mu' -> 
+  mem_forward m1 m1' -> 
+  mem_forward m2 m2' ->   
+  sm_inject_separated mu mu' m1 m2  -> 
+  sm_valid mu m1 m2 -> 
+  tail_inv mu s1 s2 m1 m2 -> 
+  tail_inv mu' s1 s2 m1' m2'.
+Proof.
+move=> ? ? ? ? ? ? ? ? ? []mus ?.
+by exists mus; eapply tail_inv_aux_step; eauto.
+Qed.
 
-(* Lemma tail_inv_restrict (X : block -> bool) (mu : SMInj.t) s1 s2 m1 m2  *)
-(*   (vis : forall b : block, vis mu b -> X b) *)
-(*   (reach : REACH_closed m1 X) : *)
-(*   let: mu' := SMInj.Build_t (restrict_sm_WD mu (SMInj_wd mu) X vis) in *)
-(*   tail_inv mu s1 s2 m1 m2 -> *)
-(*   tail_inv mu' s1 s2 m1 m2. *)
-(* Proof.  *)
-(* move=> []mus []A B C.  *)
-(* exists (map (restrict_sm^~ X) mus); split=> //. *)
-(* by apply: one_disjoint_r_restrict. *)
-(* by apply: all_disjoint_restrict. *)
-(* by apply: tail_inv_restrict. *)
-(* Qed. *)
+(*Lemma tail_inv_aux_restrict (X : block -> bool) mus mu s1 s2 m1 m2 :
+  tail_inv_aux mus mu s1 s2 m1 m2 -> 
+  tail_inv_aux (map (restrict_sm^~ X) mus) (restrict_sm mu X) s1 s2 m1 m2.
+Proof.
+move: mu s1 s2; elim: mus=> // mu0 mus' IH mu'.
+case=> // a s1'; case=> // b s2'.
+move=> [][pf][cd][m10][e1][sig1][vals1][m20][e2][sig2][vals2][]; split; 
+ last by apply: IH.
+exists pf, cd, m10, e1, sig1, vals1, m20, e2, sig2, vals2. 
+apply: Build_frame_inv=> //.
+Admitted. (*likely true*) 
+
+Lemma tail_inv_restrict (X : block -> bool) (mu : SMInj.t) s1 s2 m1 m2 
+  (vis : forall b : block, vis mu b -> X b)
+  (reach : REACH_closed m1 X) :
+  let: mu' := SMInj.Build_t (restrict_sm_WD mu (SMInj_wd mu) X vis) in
+  tail_inv mu s1 s2 m1 m2 ->
+  tail_inv mu' s1 s2 m1 m2.
+Proof. 
+move=> []mus []A B C. 
+exists (map (restrict_sm^~ X) mus); split=> //.
+by apply: one_disjoint_r_restrict.
+by apply: all_disjoint_restrict.
+by apply: tail_inv_aux_restrict.
+Qed.*)
 
 Section R.
 
 Import CallStack.
 Import Linker.
-Import SMInj.
 
-Record R (data : Lex.t types) (mu_top : SM_Injection)
+Record R (data : Lex.t types) (mu : SM_Injection)
          (x1 : linker N cores_S) m1 (x2 : linker N cores_T) m2 := 
   { (* local defns. *)
     s1  := x1.(stack) 
@@ -566,13 +593,12 @@ Record R (data : Lex.t types) (mu_top : SM_Injection)
   ; d   := STACK.head _ pf2 
 
     (* invariants *)
-  ; R_cd   : c.(Core.i)=d.(Core.i) 
-  ; R_muhd : SMInj.t
-  ; R_mus  : seq frame_pkg
-  ; R_mu   : mu_top = join_all (R_muhd :: [seq frame_mu0 x | x <- R_mus])
-  ; R_head : @head_inv c d R_cd (Lex.get c.(Core.i) data) R_muhd m1 m2 
-  ; R_tail : tail_inv R_mus R_muhd 
-             (STACK.pop s1.(callStack)) (STACK.pop s2.(callStack)) m1 m2 }.
+  ; R_head : 
+    exists (pf : c.(Core.i)=d.(Core.i)), 
+    @head_inv c d pf (Lex.get c.(Core.i) data) mu m1 m2 
+
+  ; R_tail : 
+    tail_inv mu (STACK.pop s1.(callStack)) (STACK.pop s2.(callStack)) m1 m2 }.
 
 End R.
 
@@ -584,31 +610,22 @@ Import CallStack.
 Import Linker.
 
 Lemma peek_ieq : Core.i (peekCore x1) = Core.i (peekCore x2).
-Proof. by apply: (R_cd pf). Qed.
+Proof. by move: (R_head pf)=> []A=> _; apply: A. Qed.
 
 Lemma peek_match :
   exists cd, 
-  match_state (sims (Core.i (peekCore x1))) cd (R_muhd pf)
+  match_state (sims (Core.i (peekCore x1))) cd mu 
   (Core.c (peekCore x1)) m1 
   (cast peek_ieq (Core.c (peekCore x2))) m2.
 Proof.
-move: (R_head pf); move/head_match=> MATCH.
-have ->: (cast peek_ieq (Core.c (peekCore x2)) 
-          = cast (R_cd pf) (Core.c (peekCore x2)))
+move: (R_head pf)=> []A; move/head_match=> MATCH.
+have ->: (cast peek_ieq (Core.c (peekCore x2)) = cast A (Core.c (peekCore x2)))
   by f_equal; f_equal; apply proof_irr.
 by exists (Lex.get (Core.i (peekCore x1)) data).
 Qed.
 
 Lemma R_wd : SM_wd mu.
-Proof. 
-rewrite (R_mu pf). 
-have A: SM_wd (join_all [seq frame_mu0 x | x <- R_mus pf])
-  by apply: join_all_wd.
-cut (SM_wd (join_sm (R_muhd pf) (SMInj.Build_t A))). apply.
-by apply: join_sm_wd.
-Qed.
-
-(* HERE *)
+Proof. by move: (R_head pf)=> [A]; move/head_match; apply: match_sm_wd. Qed.
 
 Lemma R_pres_globs : Events.meminj_preserves_globals my_ge (extern_of mu).
 Proof. 
@@ -644,8 +661,9 @@ Lemma R_match_restrict (X : block -> bool)
 Proof.
 move: (R_head pf)=> [A] C; move: (head_inv_restrict C vis reach)=> H.
 apply: Build_R; first by exists A.
-by apply: tail_inv_restrict=> //; apply: (R_tail pf). 
-Qed.
+(*by apply: tail_inv_restrict=> //; apply: (R_tail pf).*)
+(*Qed.*)
+Admitted. (*TODO*)
 
 Lemma R_match_validblocks : sm_valid mu m1 m2.
 Proof. 
@@ -735,8 +753,6 @@ case: STEP.
      by apply: cast_cast_eq.
    by rewrite Lex.gss; apply: MATCH'. 
 
- (* TODO: move Argument declarations ahead into appropriate file(s) *)
-
  (* tail_inv *)
  + move: (R_tail INV); rewrite/s1/s2/st2'; generalize dependent st1.
    case=> ?; case; case=> //; case=> ai a l1 pf1. 
@@ -744,28 +760,20 @@ case: STEP.
    move: EQ A B D=> -> /= STEP_EFFSTEP STEP0.
    move=> STEP EFFSTEP cd MATCH c2' cd' MATCH' STEP_ORD. 
    move=> tlinv.
-   Arguments match_sm_wd 
-     {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 entry_points s d mu c1 m1 c2 m2} _.
    have mu_wd: SM_wd mu by apply: match_sm_wd MATCH.
    have mu'_wd: SM_wd mu' by apply: match_sm_wd MATCH'.
    have H: tail_inv (SMInj.Build_t mu'_wd) l1 l2 m1' m2'.
    apply: (@tail_inv_step (SMInj.Build_t mu_wd) _ _ m1 m2 U1 U2)=> //=.
-   Arguments effect_semantics.effax1 {G C e M g c m c' m'} _.
    by case: (effect_semantics.effax1 EFFSTEP)=> _ ?.
    case: STEP_ORD.
    - by case=> n; apply: effect_semantics.effstepN_unchanged.
    - case; case=> n=> EFFSTEPN _. 
-   Arguments effect_semantics.effstepN_unchanged {G C Sem g n U c1 m1 c2 m2} _.
      by apply: (effect_semantics.effstepN_unchanged EFFSTEPN).
-   Arguments corestep_fwd {G C c g c0 m c' m'} _ _ _.
    by apply: (corestep_fwd STEP).
    case: STEP_ORD.
    - by case=> n; apply: effect_semantics.effstepN_fwd.
    - case; case=> n=> EFFSTEPN _.
-   Arguments effect_semantics.effstepN_fwd {G C Sem g n U c m c' m'} _ _ _.
      by apply: (effect_semantics.effstepN_fwd EFFSTEPN).   
-   Arguments match_validblocks 
-     {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 entry_points} s {d mu c1 m1 c2 m2} _.
    by apply: (match_validblocks (sims ai) MATCH).
    by apply: H.
 
