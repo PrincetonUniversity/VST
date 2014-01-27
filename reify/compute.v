@@ -18,7 +18,6 @@ Module our_funcs := funcs uk.
 Import our_funcs.
 Import all_types.
 
-Check Z.lt.
 
 (* From entailer.v. Need to pare this down... *)
 (*
@@ -72,17 +71,12 @@ Inductive computable: forall {A}(x: A), Prop :=
 (* Builtins *)
 
 (* Have cases for all our built-in functions that the solver needs to handle *)
-Check tc_environ.
-
 Local Open Scope nat.
 Import ListNotations.
 
 (* Perform computation on reified objects *)
 (* For now, assume a fancy is_const; and assume that we will get datatypes as consts
  * Don't treat data constructors as functions *)
-
-(* TODO - rewrite in terms of is_const and compute
- * is compute. Leverage exprD since it already has the mapping of funcs to reflections *)
 
 (*
 Fixpoint compute (e : expr all_types) : expr all_types :=
@@ -432,8 +426,6 @@ Fixpoint compute (e : expr all_types) : expr all_types :=
 *)
 
 (* Nicer version of compute. Makes compute_correct not awful *)
-Check fold_right.
-
 Section Is_Const.
 
 (* User supplied function saying which user Funcs compute to consts *)
@@ -512,10 +504,8 @@ Fixpoint is_const (e : expr all_types) : bool :=
     | _ => false
   end.
 *)
-Check exprD_weaken.
 
 Require Import wrapExpr.
-Check @Const.
 
 (* TODO: eventually don't require caller to pass in t? *)
 (* option (typeD all_types t) as return type - more precise 
@@ -570,8 +560,7 @@ Proof.
   eapply exprD_weaken in HeqexprDf. simpl in HeqexprDf. eassumption.
 Qed.
 
-Print Sep.sexpr.
-Import Sep.
+End Is_Const.
 
 (*
 Fixpoint compute_s (se : sexpr all_types) (t : tvar) : sexpr all_types :=
@@ -585,11 +574,10 @@ match se with
 end.
 *)
 
-Check Sep.sexprD.
-  
 (* Lemma compute_s_correct : forall (e : sexpr all_types) (t : tvar),
 sexprD functions nil nil e t =
 sexprD _ _ (compute_s e t) t. *)
 
 
 (* also compute_goal; and correctness proofs *)
+End compute.
