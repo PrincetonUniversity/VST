@@ -80,10 +80,10 @@ SEPCOMP_FILES= \
   effect_properties.v effect_interpolants.v effect_simulations_trans.v \
   effect_interpolation_II.v effect_interpolation_proofs.v \
   arguments.v closed_safety.v compcert.v open_semantics_preservation.v \
-  trace_semantics.v \
-  wf_lemmas_old.v linking_old.v linking_simulations_old.v linking_proof_old.v 
+  trace_semantics.v 
 
 LINKING_FILES= \
+  ssrbool_extras.v \
   pos.v \
   stack.v \
   cast.v \
@@ -166,7 +166,7 @@ all:     .loadpath $(FILES:.v=.vo) version.vo
 
 msl:     .loadpath $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
-linking: .loadpath $(CC_TARGET) $(LINKING_FILES:%.v=sepcomp/%.vo) 
+linking: .loadpath sepcomp/linking_sim.vo $(LINKING_FILES:%.v=sepcomp/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo) floyd/floyd.coq
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
@@ -209,10 +209,10 @@ depend:
 	$(COQDEP) $(DEPFLAGS) $(FILES) > .depend
 
 depend-linking:
-	$(COQDEP) $(DEPFLAGS) $(FILES) $(LINKING_FILES) > .depend
+	$(COQDEP) $(DEPFLAGS) $(FILES) $(LINKING_FILES:%.v=sepcomp/%.v) > .depend
 
 depend-compcomp:
-	$(COQDEP) $(DEPFLAGS) $(FILES) $(COMPCOMP_FILES) > .depend
+	$(COQDEP) $(DEPFLAGS) $(FILES) $(COMPCOMP_FILES:%.v=sepcomp/%.v) > .depend
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
