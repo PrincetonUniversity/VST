@@ -1282,8 +1282,8 @@ Proof.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
         repeat split; extensionality b; 
-          try rewrite (store_freshloc _ _ _ _ _ P);
-          try rewrite (store_freshloc _ _ _ _ _ H1); intuition.
+          try rewrite (storev_freshloc _ _ _ _ _ P);
+          try rewrite (storev_freshloc _ _ _ _ _ H1); intuition.
       econstructor.
         econstructor; trivial. 
       intuition.
@@ -2231,8 +2231,8 @@ induction CS; simpl in *.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
         repeat split; extensionality b; 
-          try rewrite (store_freshloc _ _ _ _ _ P);
-          try rewrite (store_freshloc _ _ _ _ _ H1); intuition.
+          try rewrite (storev_freshloc _ _ _ _ _ P);
+          try rewrite (storev_freshloc _ _ _ _ _ H1); intuition.
       econstructor.
         econstructor; trivial. 
       intuition.

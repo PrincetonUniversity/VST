@@ -84,7 +84,7 @@ Proof. intros P args.
     apply Mem.unchanged_on_refl.
   apply IHargs  in H7.
   specialize (alloc_forward _ _ _ _ _ H4). intros.
-  eapply mem_unchanged_on_trans;  try eassumption.
+  eapply unchanged_on_trans;  try eassumption.
   eapply Mem.alloc_unchanged_on. eassumption.
 Qed.
 
@@ -246,7 +246,7 @@ intros.
   (*effstep_sub_val*)
     destruct IHcln_effstep.
     split; trivial.
-    eapply unch_on_validblock; try eassumption.
+    eapply unchanged_on_validblock; try eassumption.
     intros; simpl. remember (E b ofs) as d.
     destruct d; trivial. apply eq_sym in Heqd.
     rewrite (H _ _ H3 Heqd) in H4. discriminate.

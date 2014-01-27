@@ -1552,7 +1552,7 @@ Proof.
 Qed.
 
 
-Lemma store_freshloc: forall ch m addr v m' 
+Lemma storev_freshloc: forall ch m addr v m' 
          (ST: Mem.storev ch m addr v = Some m'),
          freshloc m m' = fun b => false.
 Proof. intros.
@@ -1562,6 +1562,18 @@ Proof. intros.
   specialize (storev_valid_block_1 _ _ _ _ _ ST b); intros.*)
   apply freshloc_charF.
   unfold Mem.valid_block. rewrite ST. xomega.
+Qed.
+
+Lemma store_freshloc: forall ch m b ofs v m' 
+         (ST: Mem.store ch m b ofs v = Some m'),
+         freshloc m m' = fun b => false.
+Proof. intros.
+  extensionality bb.
+  apply freshloc_charF.
+  remember (valid_block_dec m bb).
+  destruct s. left; trivial.
+  right; intros N. apply n.
+  eapply Mem.store_valid_block_2; eassumption.
 Qed.
 
 Lemma freshloc_alloc: forall m1 lo hi m2 b 

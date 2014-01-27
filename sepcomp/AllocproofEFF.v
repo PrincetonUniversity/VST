@@ -3157,8 +3157,8 @@ Proof. intros.
   split. apply sm_inject_separated_same_sminj.
   split. apply sm_locally_allocatedChar.
          repeat split; extensionality bb; 
-            try rewrite (store_freshloc _ _ _ _ _ P);
-            try rewrite (store_freshloc _ _ _ _ _ H1); intuition.
+            try rewrite (storev_freshloc _ _ _ _ _ P);
+            try rewrite (storev_freshloc _ _ _ _ _ H1); intuition.
   split. exploit satisf_successors; eauto. simpl; eauto. 
           eapply can_undef_satisf; eauto. eapply add_equations_satisf; eauto.
          intros [enext [U V]].
@@ -3290,10 +3290,10 @@ Proof. intros.
          repeat split; extensionality bb;
             try (rewrite <- (freshloc_trans m m1 m'); trivial);
             try (rewrite <- (freshloc_trans m2 m1' m2'); trivial);
-            try (rewrite (store_freshloc _ _ _ _ _ STORE1));
-            try (rewrite (store_freshloc _ _ _ _ _ STORE2));
-            try (rewrite (store_freshloc _ _ _ _ _ STORE1'));
-            try (rewrite (store_freshloc _ _ _ _ _ STORE2')); intuition.
+            try (rewrite (storev_freshloc _ _ _ _ _ STORE1));
+            try (rewrite (storev_freshloc _ _ _ _ _ STORE2));
+            try (rewrite (storev_freshloc _ _ _ _ _ STORE1'));
+            try (rewrite (storev_freshloc _ _ _ _ _ STORE2')); intuition.
   split. exploit satisf_successors; eauto. simpl; eauto.
            eapply can_undef_satisf. eauto.
            eapply add_equation_satisf. eapply add_equations_satisf; eauto.
@@ -4274,8 +4274,8 @@ induction CS;
   split. apply sm_inject_separated_same_sminj.
   split. apply sm_locally_allocatedChar.
          repeat split; extensionality bb; 
-            try rewrite (store_freshloc _ _ _ _ _ P);
-            try rewrite (store_freshloc _ _ _ _ _ H1); intuition.
+            try rewrite (storev_freshloc _ _ _ _ _ P);
+            try rewrite (storev_freshloc _ _ _ _ _ H1); intuition.
   split. exploit satisf_successors; eauto. simpl; eauto. 
           eapply can_undef_satisf; eauto. eapply add_equations_satisf; eauto.
          intros [enext [U V]].
@@ -4431,10 +4431,10 @@ induction CS;
          repeat split; extensionality bb;
             try (rewrite <- (freshloc_trans m m1 m'); trivial);
             try (rewrite <- (freshloc_trans m2 m1' m2'); trivial);
-            try (rewrite (store_freshloc _ _ _ _ _ STORE1));
-            try (rewrite (store_freshloc _ _ _ _ _ STORE2));
-            try (rewrite (store_freshloc _ _ _ _ _ STORE1'));
-            try (rewrite (store_freshloc _ _ _ _ _ STORE2')); intuition.
+            try (rewrite (storev_freshloc _ _ _ _ _ STORE1));
+            try (rewrite (storev_freshloc _ _ _ _ _ STORE2));
+            try (rewrite (storev_freshloc _ _ _ _ _ STORE1'));
+            try (rewrite (storev_freshloc _ _ _ _ _ STORE2')); intuition.
   split. exploit satisf_successors; eauto. simpl; eauto.
            eapply can_undef_satisf. eauto.
            eapply add_equation_satisf. eapply add_equations_satisf; eauto.

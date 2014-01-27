@@ -45,7 +45,7 @@ Qed.
 Lemma assign_loc_freshloc: forall ty m b ofs v m' (AL:assign_loc ty m b ofs v m'),
   freshloc m m' = fun b => false.
 Proof. intros.
-  inv AL. apply (store_freshloc _ _ _ _ _ H0).
+  inv AL. apply (storev_freshloc _ _ _ _ _ H0).
   apply (storebytes_freshloc _ _ _ _ _ H4).
 Qed. 
 

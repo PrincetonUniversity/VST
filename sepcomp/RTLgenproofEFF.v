@@ -2537,8 +2537,8 @@ Proof. intros.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
       repeat split; extensionality bb;
-        try rewrite (store_freshloc _ _ _ _ _ H2);
-        try rewrite (store_freshloc _ _ _ _ _ H6); intuition.
+        try rewrite (storev_freshloc _ _ _ _ _ H2);
+        try rewrite (storev_freshloc _ _ _ _ _ H6); intuition.
       econstructor. econstructor; eauto. constructor.
         exists spb, spb'. split; trivial. split; trivial.
       intuition.
@@ -3175,8 +3175,8 @@ Proof. intros st1 m1 st1' m1' U1 CS.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
       repeat split; extensionality bb;
-        try rewrite (store_freshloc _ _ _ _ _ H2);
-        try rewrite (store_freshloc _ _ _ _ _ H6); intuition.
+        try rewrite (storev_freshloc _ _ _ _ _ H2);
+        try rewrite (storev_freshloc _ _ _ _ _ H6); intuition.
       econstructor. econstructor; eauto. constructor.
         exists spb, spb'. split; trivial. split; trivial.
       intuition.
