@@ -3,8 +3,6 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import sepcomp.ssrbool_extras.
-
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.effect_simulations.
@@ -180,7 +178,7 @@ split; first by move=> ? ->; discriminate.
 by move=> ? ->; discriminate.
 Qed.
 
-Definition join_sm mu1 mu2 : SM_Injection :=
+Definition join_sm' mu1 mu2 : SM_Injection :=
   Build_SM_Injection 
     [predU (locBlocksSrc mu1) & locBlocksSrc mu2]
     [predU (locBlocksTgt mu1) & locBlocksTgt mu2]
@@ -193,9 +191,43 @@ Definition join_sm mu1 mu2 : SM_Injection :=
     [predU (frgnBlocksTgt mu1) & frgnBlocksTgt mu2]
     (join (extern_of mu1) (extern_of mu2)).
 
-Fixpoint join_all mus : SM_Injection :=
+Definition join_sm mu1 mu2 := 
+  let mu := join_sm' mu1 mu2 in
+  let extSrc := [predD (extBlocksSrc mu) & locBlocksSrc mu] in
+  Build_SM_Injection
+    (locBlocksSrc mu) (locBlocksTgt mu)
+    (pubBlocksSrc mu) (pubBlocksTgt mu)
+    (local_of mu)
+    [predD (extBlocksSrc mu) & locBlocksSrc mu] 
+    [predD (extBlocksTgt mu) & locBlocksTgt mu] 
+    [predD (frgnBlocksSrc mu) & locBlocksSrc mu] 
+    [predD (frgnBlocksTgt mu) & locBlocksTgt mu] 
+    (restrict (extern_of mu) extSrc).
+
+Lemma join_sm_wd (mu1 mu2 : SMInj.t) : SM_wd (join_sm mu1 mu2).
+Proof.
+apply: Build_SM_wd=> /=.
+by move=> b; case H: (b \in [predU _ & _]); [right|left].
+by move=> b; case H: (b \in [predU _ & _]); [right|left].
+move=> b1 b2 z; rewrite/join; case H: (local_of mu1 b1)=> [[b' d']|] A.
+case: (local_DomRng _ (SMInj_wd mu1) _ _ _ H).
+by case: A=> -> _; rewrite/mem/in_mem/= => -> ->.
+case: (local_DomRng _ (SMInj_wd mu2) _ _ _ A).
+by rewrite/mem/in_mem/= => -> ->; split; apply/orP; right.
+move=> b1 b2 z A.
+Admitted. (*tedious*)
+
+Fixpoint join_all (mus : seq SMInj.t) : SM_Injection :=
   if mus is [:: mu & mus] then join_sm mu (join_all mus)
   else SMInj.empty'.
+
+Lemma join_all_wd (mus : seq SMInj.t) : SM_wd (join_all mus).
+Proof.
+elim: mus=> //; first by apply: SMInj.wd_empty'.
+move=> mu mus' IH /=.
+have A: SM_wd (join_sm mu (SMInj.Build_t IH)) by apply: join_sm_wd.
+by apply: A.
+Qed.
 
 Definition assimilated mu1 mu2 := join_sm mu1 mu2 = mu2.
 
@@ -213,20 +245,4 @@ Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
 
 Lemma assimilated_sub_pubTgt mu1 mu2 :
   assimilated mu1 mu2 -> {subset (pubBlocksTgt mu1) <= pubBlocksTgt mu2}. 
-Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
-
-Lemma assimilated_sub_extSrc mu1 mu2 :
-  assimilated mu1 mu2 -> {subset (extBlocksSrc mu1) <= extBlocksSrc mu2}. 
-Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
-
-Lemma assimilated_sub_extTgt mu1 mu2 :
-  assimilated mu1 mu2 -> {subset (extBlocksTgt mu1) <= extBlocksTgt mu2}. 
-Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
-
-Lemma assimilated_sub_frgnSrc mu1 mu2 :
-  assimilated mu1 mu2 -> {subset (frgnBlocksSrc mu1) <= frgnBlocksSrc mu2}. 
-Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
-
-Lemma assimilated_sub_frgnTgt mu1 mu2 :
-  assimilated mu1 mu2 -> {subset (frgnBlocksTgt mu1) <= frgnBlocksTgt mu2}. 
 Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
