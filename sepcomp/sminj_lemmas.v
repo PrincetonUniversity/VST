@@ -3,6 +3,8 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Require Import sepcomp.ssrbool_extras.
+
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.effect_simulations.
@@ -111,7 +113,7 @@ by case: (local_locBlocks mu (SMInj_wd mu) _ _ _ E)=> _; case.
 by move=> b /andP /= => [] []; rewrite/in_mem /= => C D.
 Qed.
 
-Lemma sm_sep_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2
+Lemma sm_sep_step (mu0 mu : SM_Injection) (mu' : SMInj.t) m10 m20 m1 m2
   (val : sm_valid mu0 m10 m20)
   (sep1 : sm_inject_separated mu0 mu m10 m20)
   (sep2 : sm_inject_separated mu mu' m1 m2)
@@ -170,3 +172,61 @@ Proof.
 move=> H H2 b; move: (H2 b)=> H3 H4; case: H3=> //.
 by apply: (smvalid_src_DOM_valid H H4).
 Qed.
+
+Lemma sm_inject_separated_refl mu m m' : sm_inject_separated mu mu m m'.
+Proof.
+split; first by move=> ? ? ? ->; discriminate.
+split; first by move=> ? ->; discriminate.
+by move=> ? ->; discriminate.
+Qed.
+
+Definition join_sm mu1 mu2 : SM_Injection :=
+  Build_SM_Injection 
+    [predU (locBlocksSrc mu1) & locBlocksSrc mu2]
+    [predU (locBlocksTgt mu1) & locBlocksTgt mu2]
+    [predU (pubBlocksSrc mu1) & pubBlocksSrc mu2]
+    [predU (pubBlocksTgt mu1) & pubBlocksTgt mu2]
+    (join (local_of mu1) (local_of mu2))
+    [predU (extBlocksSrc mu1) & extBlocksSrc mu2]
+    [predU (extBlocksTgt mu1) & extBlocksTgt mu2]
+    [predU (frgnBlocksSrc mu1) & frgnBlocksSrc mu2]
+    [predU (frgnBlocksTgt mu1) & frgnBlocksTgt mu2]
+    (join (extern_of mu1) (extern_of mu2)).
+
+Fixpoint join_all mus : SM_Injection :=
+  if mus is [:: mu & mus] then join_sm mu (join_all mus)
+  else SMInj.empty'.
+
+Definition assimilated mu1 mu2 := join_sm mu1 mu2 = mu2.
+
+Lemma assimilated_sub_locSrc mu1 mu2 :
+  assimilated mu1 mu2 -> {subset (locBlocksSrc mu1) <= locBlocksSrc mu2}. 
+Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
+
+Lemma assimilated_sub_locTgt mu1 mu2 :
+  assimilated mu1 mu2 -> {subset (locBlocksTgt mu1) <= locBlocksTgt mu2}. 
+Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
+
+Lemma assimilated_sub_pubSrc mu1 mu2 :
+  assimilated mu1 mu2 -> {subset (pubBlocksSrc mu1) <= pubBlocksSrc mu2}. 
+Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
+
+Lemma assimilated_sub_pubTgt mu1 mu2 :
+  assimilated mu1 mu2 -> {subset (pubBlocksTgt mu1) <= pubBlocksTgt mu2}. 
+Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
+
+Lemma assimilated_sub_extSrc mu1 mu2 :
+  assimilated mu1 mu2 -> {subset (extBlocksSrc mu1) <= extBlocksSrc mu2}. 
+Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
+
+Lemma assimilated_sub_extTgt mu1 mu2 :
+  assimilated mu1 mu2 -> {subset (extBlocksTgt mu1) <= extBlocksTgt mu2}. 
+Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
+
+Lemma assimilated_sub_frgnSrc mu1 mu2 :
+  assimilated mu1 mu2 -> {subset (frgnBlocksSrc mu1) <= frgnBlocksSrc mu2}. 
+Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.
+
+Lemma assimilated_sub_frgnTgt mu1 mu2 :
+  assimilated mu1 mu2 -> {subset (frgnBlocksTgt mu1) <= frgnBlocksTgt mu2}. 
+Proof. by rewrite/assimilated/join_sm=> <- b /= => A; apply/orP; left. Qed.

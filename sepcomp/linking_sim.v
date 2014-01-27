@@ -19,9 +19,9 @@ Require Import sepcomp.cast.
 Require Import sepcomp.wf_lemmas.
 Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.sminj_lemmas.
-Require Import sepcomp.domain_inv.
 Require Import sepcomp.linking.
 Require Import sepcomp.linking_lemmas.
+Require Import sepcomp.domain_inv.
 
 (* compcert imports *)
 
@@ -167,15 +167,27 @@ Require Import compcert.lib.Coqlib. (*for Forall2*)
    -[m1], [m2]: Active memories. 
 *)
 
-Record frame_inv cd0 mu0 mu 
-                 m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2 : Prop :=
+Definition incr mu mu' :=
+  inject_incr (as_inj mu) (as_inj mu') 
+  /\ (forall b, DomSrc mu b=true -> DomSrc mu' b=true)
+  /\ (forall b, DomTgt mu b=true -> DomTgt mu' b=true).
+
+Lemma intern_incr_incr mu mu' : intern_incr mu mu' -> incr mu mu'.
+Admitted. (*proved at home*)
+
+Lemma incr_trans mu mu'' mu' : incr mu mu'' -> incr mu'' mu' -> incr mu mu'.
+Admitted. (*proved at home*)
+
+Record frame_inv 
+  cd0 mu0 m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2 : Prop :=
   { (* local definitions *)
     pubSrc := [predI (locBlocksSrc mu0) & REACH m10 (exportedSrc mu0 vals1)] 
   ; pubTgt := [predI (locBlocksTgt mu0) & REACH m20 (exportedTgt mu0 vals2)] 
   ; nu0    := replace_locals mu0 pubSrc pubTgt
 
-    (* invariants required to instantiate after_external *)
+    (* unary invariants on mu0,m10,m20 *)
   ; frame_inj0  : Mem.inject (as_inj mu0) m10 m20
+  ; frame_valid : sm_valid mu0 m10 m20 
   ; frame_match : (sims c.(i)).(match_state) cd0 mu0 
                     c.(Core.c) m10 (cast pf d.(Core.c)) m20 
   ; frame_at1   : at_external (cores_S c.(i)).(coreSem) c.(Core.c) 
@@ -183,15 +195,21 @@ Record frame_inv cd0 mu0 mu
   ; frame_at2   : at_external (cores_T c.(i)).(coreSem) (cast pf d.(Core.c)) 
                     = Some (e2, ef_sig2, vals2) 
   ; frame_vinj  : Forall2 (val_inject (as_inj mu0)) vals1 vals2  
+
+    (* invariants relating m10,m20 to active memories m1,m2*)
   ; frame_fwd1  : mem_forward m10 m1
   ; frame_fwd2  : mem_forward m20 m2
   ; frame_unch1 : Mem.unchanged_on [fun b ofs => 
                     [/\ locBlocksSrc nu0 b & pubBlocksSrc nu0 b=false]] m10 m1
-  ; frame_unch2 : Mem.unchanged_on (local_out_of_reach nu0 m10) m20 m2 
-  ; frame_sep   : StructuredInjections.sm_inject_separated mu0 mu m10 m20 
-  ; frame_valid : sm_valid mu0 m10 m20 }.
+  ; frame_unch2 : Mem.unchanged_on (local_out_of_reach nu0 m10) m20 m2 }.
 
 End frame_inv.
+
+Record rel_inv mu0 mu m10 m20 : Prop :=
+  { (* invariants relating mu0,mu *)    
+    frame_incr       : incr mu0 mu
+  ; frame_sep        : sm_inject_separated mu0 mu m10 m20
+  ; frame_disj       : disjinv mu0 mu }.
 
 Section head_inv.
 
@@ -221,82 +239,128 @@ Qed.
 
 End head_inv_lems.
 
-Fixpoint tail_inv_aux (mus : seq.seq SM_Injection) mu
-  (s1 : Stack.t (Core.t cores_S)) (s2 : Stack.t (Core.t cores_T)) m1 m2 :=
+Import seq.
+
+Record frame_pkg : Type := 
+  { frame_mu0 : SMInj.t
+  ; frame_m10 : Memory.mem
+  ; frame_m20 : Memory.mem
+  ; frame_val : sm_valid frame_mu0 frame_m10 frame_m20 }.
+
+(* [P mu m1 m2] holds w/r/t the injections/memories in [mus]          *)
+
+Fixpoint wrt_callers P (mu : SM_Injection) (mus : seq frame_pkg) :=
+  match mus with
+    | pkg :: mus' => [/\ P mu pkg & wrt_callers P mu mus']
+    | nil => True
+  end.
+
+(* For every [mu0] in [mu :: ... :: mu0 :: mus], [P mu0 m1 m2] holds  *)
+(* w/r/t the injections/memories in [mus]                             *)
+
+Fixpoint all_wrt_callers P (mu : SM_Injection) (mus : seq frame_pkg) :=
+  wrt_callers P mu mus
+  /\ match mus with
+       | pkg :: mus' => all_wrt_callers P pkg.(frame_mu0) mus'
+       | nil => True
+     end.
+
+Lemma all_wrt_callers_switch P mu mu' mus :
+  wrt_callers P mu mus -> 
+  all_wrt_callers P mu' mus -> 
+  all_wrt_callers P mu mus.
+Proof. by elim: mus mu=> // mu0 mus' IH mu /= []A B [][]C D E; split. Qed.
+
+Definition rel_inv_pred mu pkg := 
+  let mu0 := frame_mu0 pkg in
+  let m10 := frame_m10 pkg in
+  let m20 := frame_m20 pkg in
+  rel_inv mu0 mu m10 m20.
+
+Fixpoint frame_all (mus : seq frame_pkg) m1 m2 s1 s2 :=
   match mus, s1, s2 with
-    | mu0 :: mus', c :: s1', d :: s2' => 
+    | Build_frame_pkg mu0 m10 m20 _ :: mus', c :: s1', d :: s2' => 
       [/\ exists (pf : c.(Core.i)=d.(Core.i)) cd0,
-          exists m10 e1 ef_sig1 vals1,
-          exists m20 e2 ef_sig2 vals2, 
-          @frame_inv c d pf cd0 mu0 mu 
-                     m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2
-       & tail_inv_aux mus' mu s1' s2' m1 m2]
-    | _, _, _ => False
+          exists e1 ef_sig1 vals1,
+          exists e2 ef_sig2 vals2, 
+            @frame_inv c d pf cd0 mu0 
+            m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2
+        & frame_all mus' m1 m2 s1' s2']
+    | nil,nil,nil => True
+    | _,_,_ => False
   end.
 
-Fixpoint one_disjoint_aux f (mu0 : SM_Injection) (mus : seq.seq SM_Injection) :=
-  match mus with 
-    | mu' :: mus' => [/\ f mu0 mu' & one_disjoint_aux f mu0 mus']
-    | nil => True
-  end.
-
-Definition one_disjoint := one_disjoint_aux dominv.
-
-Definition one_disjoint_r := one_disjoint_aux (fun mu0 mu => dominv mu mu0).
-
-Lemma one_disjoint_r_step (mu mu' : SMInj.t) mus s1 s2 m1 m2 :
-  one_disjoint_r mu mus -> 
-  tail_inv_aux mus mu s1 s2 m1 m2 -> 
-  intern_incr mu mu' -> 
-  sm_inject_separated mu mu' m1 m2  -> 
-  one_disjoint_r mu' mus.
-Proof.
-elim: mus mu s1 s2 m1 m2=> // mu0 mus'=> IH mu s1 s2 m1 m2.
-case: s1=> // a l1; case: s2=> // b l2 A B C D.
-have [E F]: dominv mu0 mu /\ one_disjoint_r mu mus' by case: A.
-move: B=> /=[][pf][cd][m10][e1][sig1][vals1][m20][e2][sig2][vals2][].
-move=> ? ? ? ? ? ? ? ? fwd1 fwd2 ? ? sep val INV; split.
-by apply: (dominv_intern_step E C fwd1 fwd2 sep D val).
-by apply: (IH _ _ _ _ _ F INV C D).
-Qed.
-
-Fixpoint all_disjoint (mus : seq.seq SM_Injection) : Prop :=
-  match mus with 
-    | mu0 :: mus' => [/\ one_disjoint mu0 mus' & all_disjoint mus']
-    | nil => True
-  end.
+Definition tail_inv_aux mus mu s1 s2 m1 m2 :=
+  [/\ all_wrt_callers rel_inv_pred mu mus
+    & frame_all mus m1 m2 s1 s2].
 
 Definition tail_inv mu s1 s2 m1 m2 := 
-  exists mus : seq.seq SM_Injection,
-    [/\ one_disjoint_r mu mus
-      , all_disjoint mus
-      & tail_inv_aux mus mu s1 s2 m1 m2].
+  exists mus, tail_inv_aux mus mu s1 s2 m1 m2.
 
-Section tail_inv_lems.
+(* Definition restrict_sm_wd  *)
+(*   (mu : SMInj.t) (X : block -> bool) *)
+(*   (vis_pf : forall b : block, vis mu b -> X b)  *)
+(*   (rc_pf  : REACH_closed m1 X) : SMInj.t :=  *)
+(*   SMInj.Build_t (restrict_sm_WD _ (SMInj_wd mu) X vis_pf). *)
 
-Context (mus : seq.seq SM_Injection) (mu : SMInj.t).
+(* Lemma tail_len_eq (mus : seq frame_pkg) (mu : SMInj.t) s1 s2 m1 m2 : *)
+(*   tail_inv_aux mus mu s1 s2 m1 m2 -> length s1 = length s2. *)
+(* Proof. *)
+(* move: s1 s2 mu; elim: mus. *)
+(* case; case=> //; first by move=> ? ? ?; case. *)
+(* by move=> ? ? ? ? ?; case. *)
+(* move=> pkg mus' IH s1' s2' mu'. *)
+(* case: s1'; first by case: s2'=> // ? ?; case; case: pkg. *)
+(* move=> x s1'; case: s2'; first by case; case: pkg. *)
+(* move=> y s2' /=; case=> A B. *)
+(* move: B A; case: pkg=> /= mu0 m10 m20. *)
+(* move=> [][]eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2. *)
+(* case=> ? ? ? ? ? frmatch ? ? ? fwd1 fwd2 ? ? A [][]B C. *)
+(* have mu0_wd: SM_wd mu0. *)
+(*   move: (sims (Core.i x)).(match_sm_wd _ _ _ _ _).  *)
+(*   by move/(_ _ _ _ _ _ _ frmatch). *)
+(* have C': tail_inv_aux mus' (SMInj.Build_t mu0_wd) s1' s2' m1 m2. *)
+(*   split=> //. *)
+(* by rewrite (IH _ _ _ C'). *)
+(* Qed. *)
 
-Context s1 s2 m1 m2 (inv : tail_inv_aux mus mu s1 s2 m1 m2).
-
-Definition restrict_sm_wd 
-  (mu : SMInj.t) (X : block -> bool)
-  (vis_pf : forall b : block, vis mu b -> X b) 
-  (rc_pf  : REACH_closed m1 X) : SMInj.t := 
-  SMInj.Build_t (restrict_sm_WD _ (SMInj_wd mu) X vis_pf).
-
-Lemma tail_len_eq : length s1 = length s2.
+Lemma rel_inv_pred_step 
+  pkg (mu : SMInj.t) m1 m2
+  (Esrc Etgt : Values.block -> BinNums.Z -> bool) 
+  (mu' : SMInj.t) m1' m2' :
+  (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
+  Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
+  Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
+  (forall (b0 : block) (ofs : Z),
+   Etgt b0 ofs = true ->
+   Mem.valid_block m2 b0 /\
+   (locBlocksTgt mu b0 = false ->
+    exists (b1 : block) (delta1 : Z),
+      foreign_of mu b1 = Some (b0, delta1) /\
+      Esrc b1 (ofs - delta1) = true /\
+      Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) -> 
+  intern_incr mu mu' -> 
+  mem_forward pkg.(frame_m10) m1 -> 
+  mem_forward pkg.(frame_m20) m2 -> 
+  mem_forward m1 m1' -> 
+  mem_forward m2 m2' ->   
+  sm_inject_separated mu mu' m1 m2  -> 
+  sm_valid mu m1 m2 -> 
+  rel_inv_pred mu pkg -> 
+  rel_inv_pred mu' pkg.
 Proof.
-move: s1 s2 mu inv; elim: mus=> // mu0 mus' IH s1' s2' mu'.
-case: s1'=> // a s1'.
-case: s2'=> // b s2' /= [] ? H2.
-by rewrite (IH _ _ _ H2).
+move=> H1 H2 H3 H4 incr fwd10 fwd20 fwd1 fwd2 sep val []incr' sep' disj.
+split; first by apply: (incr_trans incr' (intern_incr_incr incr)).
+have incr'': inject_incr (as_inj mu) (as_inj mu').
+  apply: intern_incr_as_inj=> /=; first by apply: incr.
+  by generalize dependent mu'; case.
+by apply: (sm_sep_step (frame_val pkg) sep' sep fwd10 fwd20 incr'').
+by apply: (disjinv_intern_step disj incr fwd10 fwd20 sep' sep (frame_val pkg)).
 Qed.
 
-Lemma tail_inv_aux_step 
-  (Esrc Etgt : Values.block -> BinNums.Z -> bool) 
-  (mu' : SMInj.t) m1' m2' 
-  (mu_disj : one_disjoint_r mu mus) 
-  (mus_disj : all_disjoint mus) :
+Lemma wrt_callers_step 
+  mus (mu : SMInj.t) (mu' : SMInj.t) m1' m2' s1 s2 m1 m2 
+  (Esrc Etgt : Values.block -> BinNums.Z -> bool) :
   (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
   Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
   Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
@@ -313,59 +377,141 @@ Lemma tail_inv_aux_step
   mem_forward m2 m2' ->   
   sm_inject_separated mu mu' m1 m2  -> 
   sm_valid mu m1 m2 -> 
-  tail_inv_aux mus mu' s1 s2 m1' m2'.
+  frame_all mus m1 m2 s1 s2 -> 
+  wrt_callers rel_inv_pred mu mus -> 
+  wrt_callers rel_inv_pred mu' mus.
 Proof.
-move: inv.
-elim: mus s1 s2 mu_disj mus_disj=> // mu0 mus' IH s1' s2'.
-move=> []mu_disj mu_disj' []mu0_disj mus'_disj.
-case: s1'=> // a s1'; case: s2'=> // b s2' /= [].
-move=> []eq_ab []cd0 []m10 []e1 []sig1 []vals1 []m20 []e2 []sig2 []vals2.
-move=> finv tinv H1 H2 H3 H4 A B C D E.
-split; last by apply: IH. 
-exists eq_ab, cd0, m10, e1, sig1, vals1, m20, e2, sig2, vals2.
-case: finv=> ? ? ? ? frmatch ? ? ? fwd1 fwd2 ? ? sep val.
-have mu0_wd: SM_wd mu0.
-  move: (sims (Core.i a)).(match_sm_wd _ _ _ _ _). 
-  by move/(_ _ _ _ _ _ _ frmatch).
+elim: mus mu mu' s1 s2=> // pkg mus' IH mu mu' s1' s2'.
+move=> H1 H2 H3 H4 A B C D E F /= []G H.
+move: F G; case: s1'=> //; first by case: s2'; case: pkg.
+move=> a s1'; case: s2'; first by case: pkg.
+move=> b s2'; case: pkg=> ? ? ? ? /= [].
+move=> []eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2.
+case=> ? ? ? ? ? frmatch ? ? ? fwd1 fwd2 ? ? ? ?; split.
+by eapply rel_inv_pred_step; eauto.
+by eapply IH; eauto.
+Qed.
+
+Lemma all_wrt_callers_step 
+  mus (mu : SMInj.t) (mu' : SMInj.t) m1' m2' s1 s2 m1 m2 
+  (Esrc Etgt : Values.block -> BinNums.Z -> bool) :
+  (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
+  Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
+  Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
+  (forall (b0 : block) (ofs : Z),
+   Etgt b0 ofs = true ->
+   Mem.valid_block m2 b0 /\
+   (locBlocksTgt mu b0 = false ->
+    exists (b1 : block) (delta1 : Z),
+      foreign_of mu b1 = Some (b0, delta1) /\
+      Esrc b1 (ofs - delta1) = true /\
+      Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) -> 
+  intern_incr mu mu' -> 
+  mem_forward m1 m1' -> 
+  mem_forward m2 m2' ->   
+  sm_inject_separated mu mu' m1 m2  -> 
+  sm_valid mu m1 m2 -> 
+  frame_all mus m1 m2 s1 s2 -> 
+  all_wrt_callers rel_inv_pred mu mus -> 
+  all_wrt_callers rel_inv_pred mu' mus.
+Proof.
+elim: mus mu mu' s1 s2=> // pkg mus' IH mu mu' s1' s2'.
+move=> H1 H2 H3 H4 A B C D E F /= []G H.
+move: F G H; case: s1'=> //; first by case: s2'; case: pkg.
+move=> a s1'; case: s2'; first by case: pkg.
+move=> b s2'; case: pkg=> ? ? ? ? /= [].
+move=> []eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2.
+case=> ? ? ? ? ? frmatch ? ? ? fwd1 fwd2 ? ? ? []? ? ?; split.
+split; first by eapply rel_inv_pred_step; eauto.
+by eapply wrt_callers_step; eauto.
+by [].
+Qed.
+
+Lemma frame_all_step 
+  mus (mu : SMInj.t) (mu' : SMInj.t) m1' m2' s1 s2 m1 m2 
+  (Esrc Etgt : Values.block -> BinNums.Z -> bool) :
+  (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
+  Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
+  Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
+  (forall (b0 : block) (ofs : Z),
+   Etgt b0 ofs = true ->
+   Mem.valid_block m2 b0 /\
+   (locBlocksTgt mu b0 = false ->
+    exists (b1 : block) (delta1 : Z),
+      foreign_of mu b1 = Some (b0, delta1) /\
+      Esrc b1 (ofs - delta1) = true /\
+      Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) -> 
+  intern_incr mu mu' -> 
+  mem_forward m1 m1' -> 
+  mem_forward m2 m2' ->   
+  sm_inject_separated mu mu' m1 m2  -> 
+  sm_valid mu m1 m2 -> 
+  all_wrt_callers rel_inv_pred mu mus -> 
+  frame_all mus m1 m2 s1 s2 -> 
+  frame_all mus m1' m2' s1 s2.
+Proof.
+elim: mus mu mu' s1 s2=> // pkg mus' IH mu mu' s1' s2'.
+move=> H1 H2 H3 H4 A B C D E.
+case: s1'=> // a s1'; case: s2'=> // b s2'; case: pkg=> mu0 m10 m20 val. 
+move=> /= [][]F G H [] []eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2.
+case=> ? ? ? ? val' frmatch ? ? ? fwd1 fwd2 ? ? ?; split.
+exists eq_ab, cd0, e1, sig1, vals1, e2, sig2, vals2.
+
 apply: Build_frame_inv=> //; first by apply: (mem_forward_trans _ _ _ fwd1 B).
 by apply: (mem_forward_trans _ _ _ fwd2 C).
 
 apply: (mem_lemmas.unchanged_on_trans m10 m1 m1')=> //.
-have F: disjinv mu0 mu by case: mu_disj.
-have G: disjinv mu0 mu'.
-  by apply (disjinv_intern_step F A fwd1 fwd2 sep D val).
 set pubSrc' := [predI locBlocksSrc mu0 & REACH m10 (exportedSrc mu0 vals1)].
 set pubTgt' := [predI locBlocksTgt mu0 & REACH m20 (exportedTgt mu0 vals2)].
-set mu0'    := replace_locals (SMInj.Build_t mu0_wd) pubSrc' pubTgt'.
+set mu0'    := replace_locals mu0 pubSrc' pubTgt'.
 have wd: SM_wd mu0' by apply: replace_reach_wd.
-have H: disjinv mu0' mu by apply: disjinv_call.
+have J: disjinv mu0' mu by case: F=> /= ? ? ?; apply: disjinv_call.
 apply: (@disjinv_unchanged_on_src (SMInj.Build_t wd) mu Esrc)=> //.
-move: (sm_valid_smvalid_src _ _ _ val)=> val'.
+move: (sm_valid_smvalid_src _ _ _ val)=> val''.
 apply: smvalid_src_replace_locals=> //=.
-by apply: (smvalid_src_mem_forward val' fwd1).
+by apply: (smvalid_src_mem_forward val'' fwd1).
 
 apply: (mem_lemmas.unchanged_on_trans m20 m2 m2')=> //.
-have F: disjinv mu0 mu by case: mu_disj. 
-have G: disjinv mu0 mu'.
-  by apply: (disjinv_intern_step F A fwd1 fwd2 sep D val).
 set pubSrc' := [predI locBlocksSrc mu0 & REACH m10 (exportedSrc mu0 vals1)].
 set pubTgt' := [predI locBlocksTgt mu0 & REACH m20 (exportedTgt mu0 vals2)].
-set mu0'    := replace_locals (SMInj.Build_t mu0_wd) pubSrc' pubTgt'.
-have H: disjinv mu0' mu by apply: disjinv_call.
+set mu0'    := replace_locals mu0 pubSrc' pubTgt'.
+have J: disjinv mu0' mu by case: F=> /= ? ? ?; apply: disjinv_call.
 have wd: SM_wd mu0' by apply: replace_reach_wd.
 apply: (@disjinv_unchanged_on_tgt (SMInj.Build_t wd) mu Esrc Etgt 
   m10 m1 m2 m2' fwd1)=> //.
-move=> b'; case: val; move/(_ b')=> I _ J; apply: I.
-by rewrite replace_locals_DOM in J.
+move=> b'; case: val'; move/(_ b')=> I _ Q; apply: I.
+by rewrite replace_locals_DOM in Q.
 
-have val': sm_valid (SMInj.Build_t mu0_wd) m10 m20 by [].
-have incr: inject_incr (as_inj mu) (as_inj mu').
-  apply: intern_incr_as_inj=> /=; first by apply: A.
-  by generalize dependent mu'; case.
-by apply: (sm_sep_step val' sep D fwd1 fwd2 incr).
+eapply IH; eauto.
+by eapply all_wrt_callers_switch; eauto.
 Qed.
 
-End tail_inv_lems.
+Lemma tail_inv_aux_step 
+  (Esrc Etgt : Values.block -> BinNums.Z -> bool) 
+  mus (mu mu' : SMInj.t) m1' m2' s1 s2 m1 m2 :
+  (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
+  Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
+  Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
+  (forall (b0 : block) (ofs : Z),
+   Etgt b0 ofs = true ->
+   Mem.valid_block m2 b0 /\
+   (locBlocksTgt mu b0 = false ->
+    exists (b1 : block) (delta1 : Z),
+      foreign_of mu b1 = Some (b0, delta1) /\
+      Esrc b1 (ofs - delta1) = true /\
+      Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) -> 
+  intern_incr mu mu' -> 
+  mem_forward m1 m1' -> 
+  mem_forward m2 m2' ->   
+  sm_inject_separated mu mu' m1 m2  -> 
+  sm_valid mu m1 m2 -> 
+  tail_inv_aux mus mu s1 s2 m1 m2 -> 
+  tail_inv_aux mus mu' s1 s2 m1' m2'.
+Proof.
+move=> ? ? ? ? ? ? ? ? ? []A B; split.
+by eapply all_wrt_callers_step; eauto.
+by eapply frame_all_step; eauto.
+Qed.
 
 Lemma tail_inv_step 
   (mu : SMInj.t) s1 s2 m1 m2 
@@ -390,41 +536,11 @@ Lemma tail_inv_step
   tail_inv mu s1 s2 m1 m2 -> 
   tail_inv mu' s1 s2 m1' m2'.
 Proof.
-move=> ? ? ? ? incr ? ? sep ? []mus []H H1 H2; exists mus; split=> //. 
-by apply: (one_disjoint_r_step H H2 incr sep).
-by apply (@tail_inv_aux_step _ _ _ _ _ _ H2 Esrc Etgt).
+move=> ? ? ? ? ? ? ? ? ? []mus ?.
+by exists mus; eapply tail_inv_aux_step; eauto.
 Qed.
 
-Lemma one_disjoint_restrict 
-  (X : block -> bool) (mu : SM_Injection) mus :
-  one_disjoint mu mus -> 
-  one_disjoint (restrict_sm mu X) (map (restrict_sm^~ X) mus).
-Proof.
-elim: mus mu vis=> //=mu0 mus' IH mu vis => [][]A B.
-split; first by apply: dominv_restrict. by apply: IH.
-Qed.
-
-Lemma one_disjoint_r_restrict 
-  (X : block -> bool) (mu : SMInj.t) mus 
-  (vis : forall b : block, vis mu b -> X b) :
-  let: mu' := SMInj.Build_t (restrict_sm_WD mu (SMInj_wd mu) X vis) in
-  one_disjoint_r mu mus -> 
-  one_disjoint_r (SMInj.Build_t (restrict_sm_WD mu (SMInj_wd mu) X vis))
-    (map (restrict_sm^~ X) mus).
-Proof.
-elim: mus mu vis=> //=mu0 mus' IH mu vis => [][]A B.
-split; first by apply: dominv_restrict. by apply: IH.
-Qed.
-
-Lemma all_disjoint_restrict 
-  (X : block -> bool) mus :
-  all_disjoint mus -> 
-  all_disjoint (map (restrict_sm^~ X) mus).
-Proof.
-elim: mus=> //=mu0 mus' IH=> [][]A B; split. 
-by apply: one_disjoint_restrict.
-by apply: IH.
-Qed.
+(* HERE!!!!!! *)
 
 Lemma tail_inv_aux_restrict (X : block -> bool) mus mu s1 s2 m1 m2 :
   tail_inv_aux mus mu s1 s2 m1 m2 -> 
