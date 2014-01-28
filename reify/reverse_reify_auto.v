@@ -19,6 +19,19 @@ pose (functions := functions);
 pose (types := all_types);
 pose (preds := sep_predicates).
 
+Definition p (d:nat) : mpred:= emp.
+
+Goal emp |-- emp.
+pose_env.
+reify_derives.
+Admitted.
+
+Goal p O |-- emp.
+pose_env.
+reify_derives.
+simpl.
+Admitted.
+
 Lemma distribute_lift : forall {A B} (a:B->A) (b:B),
 `(a b) = `a `b.
 auto.
@@ -45,30 +58,32 @@ match goal with
   [ H : ?P  |- _] => tag H P
 end.
 
-Ltac reify_tagged funcs uenv k:=
+Ltac reify_tagged uenv funcs k:=
 let types := get_types in
-let rec reify_t funcs uvars r k' :=
+let rec reify_t uvars funcs k' :=
+    idtac "reify_t";
     match goal with
-      | [ H : to_reify ?E |- _] => unfold to_reify in H; reify_expr is_const E types funcs uvars nil 
-                                    ltac:(fun funcs' uvars' r' => reify_t funcs' uvars' r'
-                                              ltac:(fun funcs'' uvars'' r'' =>
+      | [ H : to_reify ?E |- _] => unfold to_reify in H; reify_expr is_const E types funcs uvars nil
+                                    ltac:(fun uvars' funcs' r' => reify_t uvars' funcs'
+                                              ltac:(fun uvars'' funcs'' r'' =>
                                                       let r''' := constr:(r':: r'') in
-                                                      k' funcs'' uvars'' r'''
+                                                      k' uvars'' funcs'' r'''
   ))  
-      | _ => k' funcs uvars (@nil (Expr.expr all_types))
+      | _ => k' uvars funcs (@nil (Expr.expr all_types))
     end
 in
-reify_t funcs uenv nil k.
+reify_t uenv funcs k.
+
 
 Ltac revert_reify k :=
-(fun funcs uenv es =>
+(fun uenv funcs es =>
 try
 let types := get_types in
 let rec rr es' :=
 match es' with
 | ?h :: ?t => cut (force_Opt (@Expr.exprD types funcs uenv nil h Expr.tvProp)False); 
    [rr t | simpl; try assumption]
-| nil => k funcs uenv es
+| nil => k uenv funcs es
 end
 in 
 rr es).
@@ -102,6 +117,7 @@ let ci := collect_imp in
 let gd := get_derives in
 constr:(goalD types funcs preds uenv nil (ci, (gd))).
 
+
 Ltac finish_reify funcs preds uenv :=
 let types:= get_types in
 let g := make_goal types funcs preds uenv in
@@ -110,11 +126,10 @@ match goal with
 end.
 
 Ltac revert_cont preds ls rs ls_r rs_r :=
-fun funcs uenv es =>
+fun uenv funcs es =>
 replace_reify_s2 ls funcs preds uenv ls_r;
 replace_reify_s2 rs funcs preds uenv rs_r;
 finish_reify funcs preds uenv.
-
 
 Ltac reify_derives2 :=
 prepare_reify;
@@ -130,7 +145,7 @@ ReifySepM.reify_sexpr is_const ls types funcs tt tt preds uenv nil
 ltac:(fun uenv' funcs' preds' ls_r => 
       ReifySepM.reify_sexpr is_const rs types funcs' tt tt  preds' uenv' nil 
         ltac:(fun uenv'' funcs'' preds'' rs_r =>
-            reify_tagged funcs'' uenv'' ltac:(revert_reify ltac:(revert_cont preds'' ls rs ls_r rs_r))))
+            reify_tagged uenv'' funcs'' ltac:(revert_reify ltac:(revert_cont preds'' ls rs ls_r rs_r))))
 end;
 try finish_reify.
 
@@ -142,7 +157,26 @@ fold_dependent.
 repeat rewrite distribute_lift.
 Admitted.
 
-Goal forall rho sh contents,
+
+Goal forall (rho:environ), True -> True -> 
+   emp |-- emp.
+Proof.
+intros.
+pose_env.
+prepare_reify.
+reify_derives2.
+Admitted.
+
+Goal True -> p O |-- emp.
+intros.
+pose_env.
+reify_derives2.
+Admitted.
+
+
+
+Goal forall rho sh contents, 
+True ->
 (lseg LS sh (map Vint contents) (eval_id _p rho) nullval * emp) |-- emp.
 Proof.
 intros.
@@ -160,16 +194,6 @@ intros.
 pose_env. 
 reify_derives.
 Admitted.
-
-Goal forall (rho:environ), True -> True ->
-   emp |-- emp.
-Proof.
-intros.
-pose_env.
-
-
-
-reify_derives2.
 
 
 Goal forall sh contents rho,

@@ -5,8 +5,6 @@ Require Import progs.reverse.
 Require Import progs.list_dt.
 Require Import sep.
 Require Import wrapExpr.
-Require Import MirrorShard.ReifySepExpr.
-Require Import MirrorShard.ReifyExpr.
 Local Open Scope logic.
 
 Unset Ltac Debug.
