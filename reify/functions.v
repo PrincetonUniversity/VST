@@ -196,11 +196,11 @@ Expr.Sig all_types nil Z_tv Int.max_unsigned.
 Import ListNotations.
 
 Definition functions :=
-[ tc_environ_signature
+[ two_power_nat_signature 
 ; O_signature
 ; force_ptr_signature
 ; app_val_signature
-; eval_id_signature
+; int_max_unsigned_signature 
 ; and_signature
 ; align_signature
 ; cons_val_signature 
@@ -242,16 +242,15 @@ Definition functions :=
 ; int_repr_signature
 ; int_signed_signature
 ; int_unsigned_signature
-; two_power_nat_signature
-; int_max_unsigned_signature
+; tc_environ_signature
+; eval_id_signature
 ].
 
-
-Definition tc_environ_f := 0%nat.
+Definition two_power_nat_f := 0%nat.
 Definition O_f := 1%nat.
 Definition force_ptr_f := 2%nat.
 Definition app_val_f := 3%nat.
-Definition eval_id_f := 4%nat.
+Definition int_max_unsigned_f := 4%nat.
 Definition and_f := 5%nat.
 Definition align_f := 6%nat.
 Definition cons_val_f := 7%nat.
@@ -293,10 +292,11 @@ Definition int_cmpu_f := 42%nat.
 Definition int_repr_f := 43%nat.
 Definition int_signed_f := 44%nat.
 Definition int_unsigned_f := 45%nat.
-Definition two_power_nat_f := 46%nat.
-Definition int_max_unsigned_f := 47%nat.
+(* Past this point are functions that should not compute into Consts *)
+Definition tc_environ_f := 46%nat.
+Definition eval_id_f := 47%nat.
 
-Check field_at.
+Definition end_const_index := 46%nat.
 
 
 (*Separation Logic predicates *)

@@ -1,5 +1,8 @@
 (* compute.v - Mario Alvarez - January 2014
  * Implementation of "compute" solver plugin for MirrorShard *)
+(* WARNING - this file is out of date, and most of its useful
+ * functionality is now in do_computation.v. Part of this file
+ * may be inconsistent with the current functions.v. *)
 
 (* Need all of these? *)
 Require Import floyd.proofauto.
@@ -450,7 +453,6 @@ Definition is_const_base (f : func) :=
 
     | _ => false
   end.            
-
 
 
 (* Parameterize with an environment (function taking number
