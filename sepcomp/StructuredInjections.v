@@ -1278,9 +1278,16 @@ Qed.
 Definition smvalid_src (mu : SM_Injection) m1 := 
   forall b1, DOM mu b1 -> Memory.Mem.valid_block m1 b1.
 
+Definition smvalid_tgt (mu : SM_Injection) m2 := 
+  forall b2, RNG mu b2 -> Memory.Mem.valid_block m2 b2.
+
 Lemma sm_valid_smvalid_src mu m1 m2 : 
   sm_valid mu m1 m2 -> smvalid_src mu m1.
 Proof. destruct 1; intros b X; apply (H _ X). Qed.
+
+Lemma sm_valid_smvalid_tgt mu m1 m2 : 
+  sm_valid mu m1 m2 -> smvalid_tgt mu m2.
+Proof. destruct 1; intros b X; apply (H0 _ X). Qed.
 
 Lemma extern_incr_refl: forall mu, extern_incr mu mu.
 Proof. intros.

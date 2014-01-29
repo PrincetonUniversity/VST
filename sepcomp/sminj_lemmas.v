@@ -3,7 +3,11 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Require Import Bool.
+
 Require Import compcert.common.Globalenvs.
+
+Require Import msl.Axioms.
 
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.mem_lemmas.
@@ -171,6 +175,187 @@ Lemma smvalid_src_mem_forward mu m m' :
 Proof.
 move=> H H2 b; move: (H2 b)=> H3 H4; case: H3=> //.
 by apply: (smvalid_src_DOM_valid H H4).
+Qed.
+
+Definition validblock (m : Memory.Mem.mem) (b : Values.block) :=
+  BinPos.Pos.ltb b (Memory.Mem.nextblock m).
+
+Lemma validblock_valid_block m b : 
+  validblock m b <-> Memory.Mem.valid_block m b.
+Proof.
+by rewrite/validblock/Memory.Mem.valid_block /Coqlib.Plt -BinPos.Pos.ltb_lt.
+Qed.
+
+Lemma smvalid_locsrc_bound mu m :
+  smvalid_src mu m -> 
+  [pred b | locBlocksSrc mu b]
+  = [predI (locBlocksSrc mu) & [pred b | validblock m b]].
+Proof.
+rewrite/smvalid_src/DOM/DomSrc=> A.
+rewrite/predI/in_mem/=; f_equal; extensionality a.
+case H: (a \in [pred b | validblock m b]); first by rewrite/in_mem/=andb_true_r.
+rewrite/in_mem/= in H; move: (@validblock_valid_block m a); rewrite H.
+case=> // _ B; move: (A a); case: (locBlocksSrc mu a)=> //= C. 
+by move: (B (C erefl)).
+by case: (a \in locBlocksSrc mu).
+Qed.
+
+Lemma smvalid_loctgt_bound mu m :
+  smvalid_tgt mu m -> 
+  [pred b | locBlocksTgt mu b]
+  = [predI (locBlocksTgt mu) & [pred b | validblock m b]].
+Proof.
+rewrite/smvalid_tgt/RNG/DomTgt=> A.
+rewrite/predI/in_mem/=; f_equal; extensionality a.
+case H: (a \in [pred b | validblock m b]); first by rewrite/in_mem/=andb_true_r.
+rewrite/in_mem/= in H; move: (@validblock_valid_block m a); rewrite H.
+case=> // _ B; move: (A a); case: (locBlocksTgt mu a)=> //= C. 
+by move: (B (C erefl)).
+by case: (a \in locBlocksTgt mu).
+Qed.
+
+Lemma smvalid_extsrc_bound mu m :
+  smvalid_src mu m -> 
+  [pred b | extBlocksSrc mu b]
+  = [predI (extBlocksSrc mu) & [pred b | validblock m b]].
+Proof.
+rewrite/smvalid_src/DOM/DomSrc=> A.
+rewrite/predI/in_mem/=; f_equal; extensionality a.
+case H: (a \in [pred b | validblock m b]); first by rewrite/in_mem/=andb_true_r.
+rewrite/in_mem/= in H; move: (@validblock_valid_block m a); rewrite H.
+case=> // _ B; move: (A a); case: (extBlocksSrc mu a)=> //= C. 
+by rewrite orb_true_r in C; move: (B (C erefl)).
+by case: (a \in extBlocksSrc mu).
+Qed.
+
+Lemma smvalid_exttgt_bound mu m :
+  smvalid_tgt mu m -> 
+  [pred b | extBlocksTgt mu b]
+  = [predI (extBlocksTgt mu) & [pred b | validblock m b]].
+Proof.
+rewrite/smvalid_tgt/RNG/DomTgt=> A.
+rewrite/predI/in_mem/=; f_equal; extensionality a.
+case H: (a \in [pred b | validblock m b]); first by rewrite/in_mem/=andb_true_r.
+rewrite/in_mem/= in H; move: (@validblock_valid_block m a); rewrite H.
+case=> // _ B; move: (A a); case: (extBlocksTgt mu a)=> //= C. 
+by rewrite orb_true_r in C; move: (B (C erefl)).
+by case: (a \in extBlocksTgt mu).
+Qed.
+
+Lemma pubsrc_sub_locsrc (mu : SMInj.t) : 
+  {subset (pubBlocksSrc mu) <= locBlocksSrc mu}.
+Proof. 
+move=> b; apply: StructuredInjections.pubBlocksLocalSrc.
+by apply: SMInj_wd.
+Qed.
+
+Lemma pubtgt_sub_loctgt (mu : SMInj.t) : 
+  {subset (pubBlocksTgt mu) <= locBlocksTgt mu}.
+Proof. 
+move=> b; apply: StructuredInjections.pubBlocksLocalTgt.
+by apply: SMInj_wd.
+Qed.
+
+Lemma frgnsrc_sub_extsrc (mu : SMInj.t) : 
+  {subset (frgnBlocksSrc mu) <= extBlocksSrc mu}.
+Proof. 
+move=> b; apply: frgnBlocksSrc_extBlocksSrc.
+by apply: SMInj_wd.
+Qed.
+
+Lemma frgntgt_sub_exttgt (mu : SMInj.t) : 
+  {subset (frgnBlocksTgt mu) <= extBlocksTgt mu}.
+Proof. 
+move=> b A; case: (SMInj_wd mu)=> ? ? ? ? ? ? ?.
+by move/(_ b A).
+Qed.
+
+Lemma smvalid_pubsrc_bound (mu : SMInj.t) m :
+  smvalid_src mu m -> 
+  [pred b | pubBlocksSrc mu b]
+  = [predI (pubBlocksSrc mu) & [pred b | validblock m b]].
+Proof.
+move=> A.
+by rewrite -(predI_sub3 (sym_eq (smvalid_locsrc_bound A)) 
+            (@pubsrc_sub_locsrc mu)).
+Qed.
+
+Lemma smvalid_pubtgt_bound (mu : SMInj.t) m :
+  smvalid_tgt mu m -> 
+  [pred b | pubBlocksTgt mu b]
+  = [predI (pubBlocksTgt mu) & [pred b | validblock m b]].
+Proof.
+move=> A.
+by rewrite -(predI_sub3 (sym_eq (smvalid_loctgt_bound A)) 
+            (@pubtgt_sub_loctgt mu)).
+Qed.
+
+Lemma smvalid_frgnsrc_bound (mu : SMInj.t) m :
+  smvalid_src mu m -> 
+  [pred b | frgnBlocksSrc mu b]
+  = [predI (frgnBlocksSrc mu) & [pred b | validblock m b]].
+Proof.
+move=> A.
+by rewrite -(predI_sub3 (sym_eq (smvalid_extsrc_bound A)) 
+            (@frgnsrc_sub_extsrc mu)).
+Qed.
+
+Lemma smvalid_frgntgt_bound (mu : SMInj.t) m :
+  smvalid_tgt mu m -> 
+  [pred b | frgnBlocksTgt mu b]
+  = [predI (frgnBlocksTgt mu) & [pred b | validblock m b]].
+Proof.
+move=> A.
+by rewrite -(predI_sub3 (sym_eq (smvalid_exttgt_bound A)) 
+            (@frgntgt_sub_exttgt mu)).
+Qed.
+
+Lemma smvalid_locsrc_disjoint mu m :
+  smvalid_src mu m -> 
+  Disjoint (locBlocksSrc mu) [pred b | ~~ validblock m b].
+Proof.
+move/smvalid_locsrc_bound=> A.
+change (Disjoint [pred b | locBlocksSrc mu b] [pred b | ~~ validblock m b]).
+by rewrite A; apply: DisjointInI.
+Qed.
+
+Lemma smvalid_loctgt_disjoint mu m :
+  smvalid_tgt mu m -> 
+  Disjoint (locBlocksTgt mu) [pred b | ~~ validblock m b].
+Proof.
+move/smvalid_loctgt_bound=> A.
+change (Disjoint [pred b | locBlocksTgt mu b] [pred b | ~~ validblock m b]).
+by rewrite A; apply: DisjointInI.
+Qed.
+
+Lemma sminjsep_locsrc mu (mu' : SMInj.t) m1 m2 :
+  intern_incr mu mu' -> 
+  sm_valid mu m1 m2 -> 
+  sm_inject_separated mu mu' m1 m2 -> 
+  {subset [predD (locBlocksSrc mu') & locBlocksSrc mu]
+  <= [pred b | ~~ validblock m1 b]}.
+Proof.
+move=> INCR V []A []B C b; rewrite in_predD; move/andP. 
+rewrite/in_mem/= => [][]D; rewrite/is_true negb_true_iff=> E. 
+apply/negP; rewrite validblock_valid_block=> F; move: (B b). 
+rewrite /DomSrc D E; apply=> //=; case H: (extBlocksSrc _ _)=> //.
+move: H; case: INCR=> []_ []_ []_ []_ []_ []_ []_ []_ []-> _ G.
+by case: (SMInj_wd mu'); move/(_ b); rewrite D G; case.
+Qed.
+
+Lemma sminjsep_loctgt mu (mu' : SMInj.t) m1 m2 :
+  intern_incr mu mu' -> 
+  sm_valid mu m1 m2 -> 
+  sm_inject_separated mu mu' m1 m2 -> 
+  {subset [predD (locBlocksTgt mu') & locBlocksTgt mu]
+  <= [pred b | ~~ validblock m2 b]}.
+Proof.
+move=> INCR V []A []B C b; rewrite in_predD; move/andP. 
+rewrite/in_mem/= => [][]D; rewrite/is_true negb_true_iff=> E. 
+apply/negP; rewrite validblock_valid_block=> F; move: (C b).
+rewrite /DomTgt D E; apply=> //=; case H: (extBlocksTgt mu b)=> //.
+move: H; case: INCR=> []_ []_ []_ []_ []_ []_ []_ []_ []_ -> G.
+by case: (SMInj_wd mu')=> _; move/(_ b); rewrite D G; case.
 Qed.
 
 Lemma sm_inject_separated_refl mu m m' : sm_inject_separated mu mu m m'.

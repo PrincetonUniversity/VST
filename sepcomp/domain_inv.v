@@ -3,6 +3,11 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
+Require Import msl.Axioms.
+
+Require Import compcert.common.Memory.
+Require Import ZArith.
+
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.rg_lemmas.
@@ -11,11 +16,6 @@ Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.sminj_lemmas.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.pred_lemmas.
-
-Require Import msl.Axioms.
-
-Require Import compcert.common.Memory.
-Require Import ZArith.
 
 (** Domain Invariant: 
     ~~~~~~~~~~~~~~~~~
@@ -28,10 +28,10 @@ Require Import ZArith.
 *)
 
 Record disjinv mu0 mu : Type := 
-  { disj_locsrc : [predI (locBlocksSrc mu0) & locBlocksSrc mu] =i pred0
+  { disj_locsrc : Disjoint (locBlocksSrc mu0) (locBlocksSrc mu)
   ; disj_pubfrgnsrc : {subset [predI (frgnBlocksSrc mu) & locBlocksSrc mu0] 
                       <= pubBlocksSrc mu0}
-  ; disj_loctgt : [predI (locBlocksTgt mu0) & locBlocksTgt mu] =i pred0
+  ; disj_loctgt : Disjoint (locBlocksTgt mu0) (locBlocksTgt mu)
   ; disj_pubfrgntgt : forall b1 b2 d, 
                       foreign_of mu b1 = Some (b2, d) -> 
                       (b1 \in locBlocksSrc mu0) || (b2 \in locBlocksTgt mu0) -> 
@@ -93,8 +93,8 @@ Qed.
 Lemma disjinv_relat_empty mu : disjinv mu (reestablish SMInj.empty mu).
 Proof.
 apply: Build_disjinv; case: mu=> //=.
-by move=> s _ _ _ _ _ _ _ _ _; apply: predI0.
-by move=> _ t _ _ _ _ _ _ _ _; apply: predI0. 
+by move=> s _ _ _ _ _ _ _ _ _; apply: predI01.
+by move=> _ t _ _ _ _ _ _ _ _; apply: predI01. 
 Qed.
 
 Lemma disjinv_call_aux mu0 mu S T :
@@ -104,7 +104,7 @@ Lemma disjinv_call_aux mu0 mu S T :
 Proof.
 move=> H1 H2; case: mu0 H1 H2=> a b c d e a' b' c' d' e' /= H1 H2.
 case=> /= A B C D; apply: Build_disjinv=> //=.
-by apply: (my_subset_trans _ H1).
+by apply: (subset_trans' _ H1).
 move=> b1 b2 d2 H3 H4; move: (D _ _ _ H3 H4); case E: (c b1)=> // H5.
 by have ->: (S b1) by apply: H1.
 Qed.
@@ -119,6 +119,40 @@ apply: disjinv_call_aux; first by apply: pubBlocksLocReachSrc.
 by apply: pubBlocksLocReachTgt.
 Qed.
 
+Lemma smvalid_src_fwd mu m m' : 
+  mem_forward m m' -> 
+  smvalid_src mu m -> smvalid_src mu m'.
+Proof.
+by move=> A B b C; move: {A B}(A b) (B b)=> A B; case: (A (B C)).
+Qed.
+
+Lemma smvalid_tgt_fwd mu m m' : 
+  mem_forward m m' -> 
+  smvalid_tgt mu m -> smvalid_tgt mu m'.
+Proof.
+by move=> A B b C; move: {A B}(A b) (B b)=> A B; case: (A (B C)).
+Qed.
+
+Lemma intern_incr_frgnsrc mu mu' : 
+  intern_incr mu mu' -> frgnBlocksSrc mu=frgnBlocksSrc mu'.
+Proof. by case=> _ []_ []_ []_ []_ []_ []->. Qed.
+
+Lemma intern_incr_frgntgt mu mu' : 
+  intern_incr mu mu' -> frgnBlocksTgt mu=frgnBlocksTgt mu'.
+Proof. by case=> _ []_ []_ []_ []_ []_ []_ []->. Qed.
+
+Lemma intern_incr_extsrc mu mu' : 
+  intern_incr mu mu' -> extBlocksSrc mu=extBlocksSrc mu'.
+Proof. by case=> _ []_ []_ []_ []_ []_ []_ []_ []->. Qed.
+
+Lemma intern_incr_exttgt mu mu' : 
+  intern_incr mu mu' -> extBlocksTgt mu=extBlocksTgt mu'.
+Proof. by case=> _ []_ []_ []_ []_ []_ []_ []_ []_ ->. Qed.
+
+Lemma intern_incr_extern mu mu' : 
+  intern_incr mu mu' -> extern_of mu=extern_of mu'.
+Proof. by case=> _ []->. Qed.
+
 Lemma disjinv_intern_step mu0 (mu mu' : SMInj.t) m10 m20 m1 m2 :
   disjinv mu0 mu -> 
   intern_incr mu mu' -> 
@@ -127,48 +161,43 @@ Lemma disjinv_intern_step mu0 (mu mu' : SMInj.t) m10 m20 m1 m2 :
   sm_inject_separated mu0 mu m10 m20 -> 
   sm_inject_separated mu mu' m1 m2  -> 
   sm_valid mu0 m10 m20 -> 
+  sm_valid mu m1 m2 -> 
   disjinv mu0 mu'.
 Proof.
-move=> inv H2 H3 H4 H5 H6 Hvalid; case: H2.
-move=> H7 []H8 []H9 []H10 []H11 []H12 []H13 []H14 []H15 H16.
-apply: Build_disjinv.
-move=> b; case: H6=> []_ []; move/(_ b)=> H17 _; rewrite in_predI.
-case A: (b \in locBlocksSrc mu).
-by case: inv; move/(_ b); rewrite in_predI A; case (b \in locBlocksSrc mu0).
-case B: (b \in locBlocksSrc mu'). 
-rewrite/in_mem /= in A B; rewrite/DomSrc A B /= in H17.
-have Q: extBlocksSrc mu b = false.
-  move: (SMInj_wd mu')=> []; move/(_ b); rewrite B; case=> // D _ _ _ _ _ _ _.
-  by rewrite -H15 in D.
-have C: ~Memory.Mem.valid_block m1 b by apply: H17.
-have D: ~Memory.Mem.valid_block m10 b by move=> C'; apply: C; case: (H3 b).
-case E: (locBlocksSrc mu0 b). 
-case: Hvalid=> []; move/(_ b); rewrite/DOM/DomSrc E /= => F _.
-by elimtype False; apply: D; apply: F.
-by rewrite/in_mem/= E.
-by case: (b \in _).
-by case: inv; rewrite -H13.
-move=> b; case: H6=> []_ []; move=> _; move/(_ b)=> H17.
-case A: (b \in locBlocksTgt mu). 
-  + case: inv=> _ _; move/(_ b). 
-    by rewrite !in_predI A; case (b \in locBlocksTgt mu0).
-case B: (b \in locBlocksTgt mu'). 
-rewrite/in_mem /= in A B; rewrite/DomTgt A B /= in H17.
-have Q: extBlocksTgt mu b = false.
-  move: (SMInj_wd mu')=> []; move=> _; move/(_ b). 
-  by rewrite B; case=> // D _ _ _ _ _ _; rewrite -H16 in D.
-have C: ~Memory.Mem.valid_block m2 b by apply: H17.
-have D: ~Memory.Mem.valid_block m20 b by move=> C'; apply: C; case: (H4 b).
-case E: (locBlocksTgt mu0 b). 
-case: Hvalid=> [] _; move/(_ b); rewrite/RNG/DomTgt E /= => F.
-by elimtype False; apply: D; apply: F.
-by rewrite in_predI /in_mem /= E.
-by rewrite in_predI B in_pred0; case: (b \in _).
-case: inv; rewrite/foreign_of. 
-generalize dependent mu; generalize dependent mu'.
-case; case=> /= ? ? ? ? ? ? ? ? ? ? ?. 
-case; case=> /= ? ? ? ? ? ? ? ? ? ? ?. 
-by move=> ? ? ? -> ? ? ? ? ->. 
+move=> inv INCR H3 H4 H5 H6 VAL VAL'.
+apply: Build_disjinv. 
++ have A: Disjoint (locBlocksSrc mu0) (locBlocksSrc mu) by case: inv.
+  have B: Disjoint (locBlocksSrc mu0) [pred b | ~~ validblock m1 b].
+    apply: smvalid_locsrc_disjoint. 
+    by apply: (smvalid_src_fwd H3 (sm_valid_smvalid_src _ _ _ VAL)). 
+  have C: {subset [predD (locBlocksSrc mu') & locBlocksSrc mu]
+          <= [pred b | ~~ validblock m1 b]}.
+    by apply: (sminjsep_locsrc INCR VAL').
+  have D: Disjoint (locBlocksSrc mu0) 
+                   [predD (locBlocksSrc mu') & locBlocksSrc mu].
+    by apply: (Disjoint_sub1 B C).
+  by apply: (Disjoint_incr A D).
++ have A: [predI (frgnBlocksSrc mu') & locBlocksSrc mu0]
+          = [predI (frgnBlocksSrc mu) & locBlocksSrc mu0].
+    by rewrite (intern_incr_frgnsrc INCR).  
+  by rewrite A; case: inv.
++ have A: Disjoint (locBlocksTgt mu0) (locBlocksTgt mu) by case: inv.
+  have B: Disjoint (locBlocksTgt mu0) [pred b | ~~ validblock m2 b].
+    apply: smvalid_loctgt_disjoint. 
+    by apply: (smvalid_tgt_fwd H4 (sm_valid_smvalid_tgt _ _ _ VAL)). 
+  have C: {subset [predD (locBlocksTgt mu') & locBlocksTgt mu]
+          <= [pred b | ~~ validblock m2 b]}.
+    by apply: (sminjsep_loctgt INCR VAL').
+  have D: Disjoint (locBlocksTgt mu0) 
+                   [predD (locBlocksTgt mu') & locBlocksTgt mu].
+    by apply: (Disjoint_sub1 B C).
+  by apply: (Disjoint_incr A D).
++ case: inv; rewrite/foreign_of. 
+  generalize dependent mu; generalize dependent mu'.
+  case; case=> /= ? ? ? ? ? ? ? ? ? ? ?. 
+  case; case=> /= ? ? ? ? ? ? ? ? ? ? ? incr.
+  move: (intern_incr_frgnsrc incr) (intern_incr_frgntgt incr)=> /= -> ->.
+  by move: (intern_incr_extern incr)=> /= ->.
 Qed.
 
 Lemma disjinv_unchanged_on_src 
@@ -180,6 +209,7 @@ Lemma disjinv_unchanged_on_src
     [fun _ => locBlocksSrc mu0 b=true /\ pubBlocksSrc mu0 b=false]) m m'.
 Proof.
 move=> A B; case=> C D _ _; apply: (RGSrc_multicore mu E m m' A B mu0)=> //.
+move: C; rewrite DisjointInE=> C.
 move=> b F; move: (C b); rewrite/in_mem /=; move/andP=> G.
 case H: (locBlocksSrc mu b)=> //; rewrite/in_mem /= H in G; elimtype False.
 by apply: G; split.
@@ -210,6 +240,7 @@ by case: (local_DomRng mu0 (SMInj_wd mu0) _ _ _ H).
 by move=> _; apply.
 by right.
 apply: (RGTgt_multicorePerm mu Etgt Esrc m2 m2' (SMInj_wd mu) m1' A B). 
+move: D; rewrite DisjointInE=> D.
 move=> b F; move: (D b); rewrite/in_mem /=; move/andP=> G.
 case H: (locBlocksTgt mu b)=> //; rewrite/in_mem /= H in G; elimtype False.
 by apply: G; split.
@@ -287,10 +318,11 @@ Lemma dominv_intern_step mu0 (mu mu' : SMInj.t) m10 m20 m1 m2 :
   sm_inject_separated mu0 mu m10 m20 -> 
   sm_inject_separated mu mu' m1 m2  -> 
   sm_valid mu0 m10 m20 -> 
+  sm_valid mu m1 m2 -> 
   dominv mu0 mu'.
 Proof.
-case=> A B C D E F G H.
-split; first by apply: (disjinv_intern_step A C D E F G H).
+case=> A B C D E F G H I.
+split; first by apply: (disjinv_intern_step A C D E F G H I).
 by apply: (relinv_intern_step B C D E F G H).
 Qed.
 
