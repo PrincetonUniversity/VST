@@ -1,10 +1,10 @@
 Reification using mirror-shard
 
 This folder uses its own build path because it depends on
-mirror-shard and coq-ext-lib.
+coq-ext-lib and a branch of mirror-shard.
 These can be downloaded at
 
-https://github.com/gmalecha/mirror-shard
+https://github.com/dist0rtedwave/mirror-shard
 https://github.com/coq-ext-lib/coq-ext-lib
 
 mirror-shard should be in the same folder as vst and coq-ext-lib
