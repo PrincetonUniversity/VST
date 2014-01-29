@@ -326,6 +326,11 @@ Admitted.
 Lemma join_all_id mu : join_all [:: mu] = mu.
 Proof. by rewrite/join_all; rewrite join_sm_empty. Qed.
 
+Lemma join_all_frgnSrc mu1 mu2 : 
+  {subset (frgnBlocksSrc (join_sm mu1 mu2)) 
+  <= [predU (frgnBlocksSrc mu1) & frgnBlocksSrc mu2]}.
+Proof. by rewrite/join_sm/= => b; rewrite/in_mem/=; move/andP=> []A B. Qed.
+
 Fixpoint All T P (l : seq T) :=
   match l with
     | nil => True
