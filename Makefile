@@ -83,7 +83,6 @@ SEPCOMP_FILES= \
   trace_semantics.v 
 
 LINKING_FILES= \
-  ssrbool_extras.v \
   pos.v \
   stack.v \
   cast.v \
