@@ -27,10 +27,15 @@ Record EffectSem {G C} :=
        corestep sem g c m c' m' ->
        exists M, effstep g M c m c' m';
 
+    effstep_valid: forall M g c m c' m',
+       effstep g M c m c' m' ->
+       forall b z, M b z = true -> Mem.valid_block m b
+(*
     effstep_sub_val: forall g U V c m c' m'
          (UV: forall b ofs, Mem.valid_block m b -> 
               U b ofs = true -> V b ofs = true),
          effstep g U c m c' m' -> effstep g V c m c' m'
+*)
  }.
 
 Section effsemlemmas.
@@ -51,27 +56,33 @@ Section effsemlemmas.
          eapply corestep_fwd. eapply effax1. apply H.
   Qed.
 
-  Lemma effstep_sub: forall U V c m c' m'
-         (UV: forall b ofs, U b ofs = true -> V b ofs = true),
-         (effstep Sem g U c m c' m' -> effstep Sem g V c m c' m').
-  Proof. intros. eapply (effstep_sub_val _ _ U V). 
-         intuition. assumption.
-  Qed.
-
   Fixpoint effstepN (n:nat) : (block -> Z -> bool) -> C -> mem -> C -> mem -> Prop :=
     match n with
-      | O => fun U c m c' m' => (c,m) = (c',m')
-      | S k => fun U c1 m1 c3 m3 => exists c2, exists m2,
-        effstep Sem g U c1 m1 c2 m2 /\
-        effstepN k (fun b ofs => U b ofs  || freshloc m1 m2 b)  c2 m2 c3 m3
+      | O => fun U c m c' m' => (c,m) = (c',m') /\ U = (fun b z => false)
+      | S k => fun U c1 m1 c3 m3 => exists c2, exists m2, exists U1, exists U2,
+        effstep Sem g U1 c1 m1 c2 m2 /\
+        effstepN k U2 c2 m2 c3 m3 /\ U = (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b))
     end.
+
+Lemma effstepN_valid: forall n U c1 m1 c2 m2, effstepN n U c1 m1 c2 m2 ->
+       forall b z, U b z = true -> Mem.valid_block m1 b.
+Proof. intros n.
+  induction n; simpl; intros. destruct H; subst. discriminate.
+  destruct H as [c [m [U1 [U2 [Step [StepN UU]]]]]]; subst; simpl.
+  specialize (IHn _ _ _ _ _ StepN). 
+  specialize (effstep_valid _ _ _ _ _ _ _ Step b z). intros.
+  remember (U1 b z) as d.
+  destruct d; simpl in *. apply H; trivial.
+  destruct (valid_block_dec m1 b). trivial. simpl in *.
+  rewrite andb_false_r in H0. inv H0.
+Qed.
 
   Lemma effstepN_fwd: forall n U c m c' m',
     effstepN n U c m c' m' -> mem_forward m m'.
   Proof. intros n.
-         induction n; intros; simpl in *.
+         induction n; intros; simpl in *. destruct H.
            inv H. eapply mem_forward_refl.
-         destruct H as [c1 [c2 [Eff1 Eff2]]].
+         destruct H as [c1 [c2 [Eff1 [Eff2 [Step1 [Step2 HU]]]]]].
          eapply mem_forward_trans.
            eapply effstep_fwd; eassumption.
            eapply IHn; eassumption. 
@@ -80,12 +91,12 @@ Section effsemlemmas.
   Lemma effstepN_corestepN: forall n E c m c' m',
       effstepN n E c m c' m' -> corestepN Sem g n c m c' m'. 
   Proof. intros n.
-    induction n; intros.
-      inv H. constructor.
-      destruct H as [c1 [m1 [Estep EN]]].
+    induction n; intros; simpl in *.
+        apply H. 
+      destruct H as [c1 [m1 [U1 [U2 [Estep [EN HE]]]]]].
         apply effstep_corestep in Estep.
-        apply IHn in EN. econstructor.
-        exists m1. split; eassumption.
+        apply IHn in EN. exists c1, m1.
+        split; eassumption.
   Qed.
 
   Lemma effstepN_unchanged: forall n U c1 m1 c2 m2,
@@ -93,83 +104,82 @@ Section effsemlemmas.
         Mem.unchanged_on (fun b z => U b z = false) m1 m2.
   Proof. intros n.
     induction n; simpl; intros.
-      inv H. apply Mem.unchanged_on_refl.
+      destruct H. inv H. apply Mem.unchanged_on_refl.
     rename c2 into c3. rename m2 into m3.
-    destruct H as [c2 [m2 [E EN]]].
-    apply IHn in EN; clear IHn.
-    assert (FWD:= effstep_fwd _ _ _ _ _ E).
-    apply effstep_unchanged in E.
+    destruct H as [c2 [m2 [E1 [E2 [Step1 [Step2 HE]]]]]].
+    apply IHn in Step2; clear IHn. subst.
+    assert (FWD:= effstep_fwd _ _ _ _ _ Step1).
+    apply effstep_unchanged in Step1.
     split; intros.
-     split; intros. apply EN. rewrite H; simpl.
-        apply freshloc_charF. left; assumption.
-        apply (FWD _ H0). 
-     apply E; try assumption.
+     apply orb_false_iff in H. destruct H.
+     remember (valid_block_dec m1 b) as v.
+     destruct v; simpl in *; try contradiction.
+     clear H0 Heqv.
+     rewrite andb_true_r in H1.     
+     split; intros. apply Step2; trivial.
+        apply (FWD _ v). 
+     apply Step1; try assumption.
 
-     apply E; try assumption.
-       apply EN; try assumption. rewrite H; simpl.
-        apply freshloc_charF. left; assumption.
-        apply (FWD _ H0).
+     apply Step1; try assumption.
+       apply Step2; try assumption. 
+        apply (FWD _ v).
 
-     destruct EN. rewrite unchanged_on_contents.
-        apply E; try eassumption.  rewrite H; simpl.
-        apply freshloc_charF. apply Mem.perm_valid_block in H0. left; assumption.
-       apply E; try assumption. apply Mem.perm_valid_block in H0. apply H0.
+   apply orb_false_iff in H. destruct H.
+     remember (valid_block_dec m1 b) as v.
+     destruct v; simpl in *; try contradiction.
+     clear Heqv.
+     rewrite andb_true_r in H1.
+     destruct Step2. rewrite unchanged_on_contents; trivial.
+       eapply Step1; try eassumption.
+       eapply Step1; try eassumption.
+     elim n0. eapply Mem.perm_valid_block; eassumption.
   Qed.
 
-  Lemma effstepN_sub: forall n U V c m c' m'
-         (UV: forall b ofs, U b ofs = true -> V b ofs = true),
-         (effstepN n U c m c' m' -> effstepN n V c m c' m').
-  Proof. intros n.
-    induction n; simpl; intros; trivial.
-    rename c' into c3. rename m' into m3.
-    destruct H as [c2 [m2 [E EN]]].
-    exists c2, m2.
-    split. eapply effstep_sub; eassumption.
-      eapply IHn; try eassumption.
-      simpl; intros.
-      apply orb_true_iff. apply orb_true_iff in H.
-      destruct H; eauto.
-  Qed.
+Lemma effstepN_trans: forall n1 n2 U1 st1 m1 st2 m2 U2 st3 m3,
+      effstepN n1 U1 st1 m1 st2 m2 ->
+      effstepN n2 U2 st2 m2 st3 m3 ->
+   effstepN (n1+n2)
+        (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b)) st1 m1 st3 m3.
+Proof. intros n1.
+induction n1; simpl.
+  intros. destruct H; subst. inv H. simpl.
+  assert (U2 = (fun b z => U2 b z && valid_block_dec m2 b)).
+    extensionality b; extensionality z.
+    remember (U2 b z) as d. destruct d; trivial.
+    apply eq_sym in Heqd.
+    apply (effstepN_valid _ _ _ _ _ _ H0) in Heqd.
+    remember (valid_block_dec m2 b) as q.
+    destruct q; trivial. contradiction.
+  rewrite H in H0. apply H0.
+intros. rename st3 into st4. rename m3 into m4.
+   rename st2 into st3. rename m2 into m3.
+   rename U1 into U. rename U2 into U3.
+   destruct H as [st2 [m2 [U1 [U2 [Step1 [Step2 HU]]]]]].
+   subst; simpl in *.
+   exists st2, m2, U1; simpl.
+   specialize (IHn1 _ _ _ _ _ _ _ _ _ Step2 H0). 
+   clear Step2 H0.
+   eexists; split. assumption.
+   split. eassumption.
+   extensionality b; extensionality z; simpl.
+   remember (U1 b z) as d. destruct d; simpl; trivial; apply eq_sym in Heqd.
+   remember (U2 b z) as q. destruct q; simpl; trivial; apply eq_sym in Heqq.
+     remember (valid_block_dec m1 b) as u.
+     destruct u; trivial; simpl. apply andb_false_r.
+   remember (U3 b z) as p. destruct p; simpl; trivial; apply eq_sym in Heqp.
+     remember (valid_block_dec m1 b) as u.
+     destruct u; trivial; simpl. clear Hequ. rewrite andb_true_r.
+       apply effstep_fwd in Step1. apply Step1 in v.
+       destruct (valid_block_dec m2 b); trivial. destruct v; contradiction.
+     rewrite andb_false_r. trivial.
+Qed.
 
-  Lemma effstepN_add : forall n m U c1 m1 c3 m3,
-    effstepN (n+m) U c1 m1 c3 m3 <->
-    exists c2, exists m2,
-      effstepN n U c1 m1 c2 m2 /\
-      effstepN m (fun b z => U b z || freshloc m1 m2 b) c2 m2 c3 m3.
-  Proof.
-    induction n; simpl; intuition.
-     exists c1, m1; split; trivial.
-       eapply effstepN_sub; try eassumption.
-       intros. intuition. 
-     destruct H as [c2 [m2 [EQ EN]]]. inv EQ. 
-       eapply effstepN_sub; try eassumption.
-       simpl; intros. rewrite freshloc_irrefl in H.
-       rewrite orb_false_r in H. assumption.
-     destruct H as [c2 [m2 [E EN]]].
-       rename c3 into c4. rename m3 into m4.
-       apply IHn in EN; clear IHn.
-       destruct EN as [c3 [m3 [En Em]]].
-       exists c3, m3; split.
-         exists c2, m2; split; trivial.
-         eapply effstepN_sub; try eassumption.
-           simpl; intros.
-           apply effstep_fwd in E.
-           apply effstepN_fwd in En. clear Em.
-           rewrite <- orb_assoc in H.
-           rewrite freshloc_trans in H; trivial.
-     rename c3 into c4. rename m3 into m4.
-       destruct H as [c3 [m3 [E Em]]].
-       destruct E as [c2 [m2 [E En]]].
-       exists c2, m2; split; trivial.
-         eapply IHn; clear IHn.
-         exists c3, m3; split; trivial.
-         eapply effstepN_sub; try eassumption.
-           simpl; intros.
-           apply effstep_fwd in E.
-           apply effstepN_fwd in En. clear Em.
-           rewrite <- orb_assoc.
-           rewrite freshloc_trans; trivial.
-  Qed.
+Lemma effstepN_trans': forall n1 n2 U U1 st1 m1 st2 m2 U2 st3 m3,
+      effstepN n1 U1 st1 m1 st2 m2 ->
+      effstepN n2 U2 st2 m2 st3 m3 ->
+      U = (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b)) ->
+   effstepN (n1+n2) U st1 m1 st3 m3.
+Proof. intros; subst. eapply effstepN_trans; eassumption. Qed.
 
   Definition effstep_plus U c m c' m' :=
     exists n, effstepN (S n) U c m c' m'.
@@ -181,80 +191,101 @@ Section effsemlemmas.
     effstep_plus U c1 m1 c2 m2 -> effstep_star U c1 m1 c2 m2.
   Proof. intros. destruct H as [n1 H1]. eexists. apply H1. Qed.
 
-  Lemma effstep_plus_trans : forall U c1 c2 c3 m1 m2 m3,
-    effstep_plus U c1 m1 c2 m2 -> effstep_plus U c2 m2 c3 m3 -> 
-    effstep_plus U c1 m1 c3 m3.
+  Lemma effstep_plus_trans : forall U1 c1 c2 c3 U2 m1 m2 m3,
+    effstep_plus U1 c1 m1 c2 m2 -> effstep_plus U2 c2 m2 c3 m3 -> 
+    effstep_plus (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b)) c1 m1 c3 m3.
   Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
-    destruct (effstepN_add (S n1) (S n2) U c1 m1 c3 m3) as [_ H].
-    eexists. apply H. exists c2. exists m2. split; try assumption.
-    eapply effstepN_sub; try eassumption.
-    simpl; intros. rewrite H0; trivial.
+    exists ((n1 + (S n2))%nat). simpl.
+    apply (effstepN_trans (S n1) (S n2) U1 c1 m1 c2 m2 U2 c3 m3 H1 H2).
   Qed.
-
-  Lemma effstep_star_plus_trans : forall U c1 c2 c3 m1 m2 m3,
-    effstep_star U c1 m1 c2 m2 -> effstep_plus U c2 m2 c3 m3 -> 
+  Lemma effstep_plus_trans' : forall U U1 c1 c2 c3 U2 m1 m2 m3,
+    effstep_plus U1 c1 m1 c2 m2 -> effstep_plus U2 c2 m2 c3 m3 -> 
+    U = (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b)) ->
     effstep_plus U c1 m1 c3 m3.
-  Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
-    destruct (effstepN_add n1 (S n2) U c1 m1 c3 m3) as [_ H]. 
-    rewrite <- plus_n_Sm in H.
-    eexists. apply H.  exists c2. exists m2.  split; try assumption.
-    eapply effstepN_sub; try eassumption.
-    simpl; intros. rewrite H0; trivial.
-  Qed.
+  Proof. intros; subst. eapply effstep_plus_trans; eassumption. Qed.
 
-  Lemma effstep_plus_star_trans: forall U c1 c2 c3 m1 m2 m3,
-    effstep_plus U c1 m1 c2 m2 -> effstep_star U c2 m2 c3 m3 -> 
+  Lemma effstep_star_plus_trans : forall U1 c1 c2 c3 U2 m1 m2 m3,
+    effstep_star U1 c1 m1 c2 m2 -> effstep_plus U2 c2 m2 c3 m3 -> 
+    effstep_plus (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b)) c1 m1 c3 m3.
+  Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
+    exists ((n1 + n2)%nat).
+    specialize (effstepN_trans n1 (S n2) U1 c1 m1 c2 m2 U2 c3 m3 H1 H2); intros H.
+    rewrite <- plus_n_Sm in H. assumption.
+  Qed.
+  Lemma effstep_star_plus_trans' : forall U U1 c1 c2 c3 U2 m1 m2 m3,
+    effstep_star U1 c1 m1 c2 m2 -> effstep_plus U2 c2 m2 c3 m3 -> 
+    U = (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b)) ->
     effstep_plus U c1 m1 c3 m3.
-  Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
-    destruct (effstepN_add (S n1) n2 U c1 m1 c3 m3) as [_ H]. 
-    rewrite plus_Sn_m in H.
-    eexists. apply H.  exists c2. exists m2. split; try assumption.
-    eapply effstepN_sub; try eassumption.
-    simpl; intros. rewrite H0; trivial.
-  Qed.
+  Proof. intros; subst. eapply effstep_star_plus_trans; eassumption. Qed. 
 
-  Lemma effstep_star_trans: forall U c1 c2 c3 m1 m2 m3, 
-    effstep_star U c1 m1 c2 m2 -> effstep_star U c2 m2 c3 m3 -> 
+  Lemma effstep_plus_star_trans: forall U1 c1 c2 c3 U2 m1 m2 m3,
+    effstep_plus U1 c1 m1 c2 m2 -> effstep_star U2 c2 m2 c3 m3 -> 
+    effstep_plus (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b)) c1 m1 c3 m3.
+  Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
+    exists ((n1 + n2)%nat).
+    apply (effstepN_trans _ _  U1 c1 m1 c2 m2 U2 c3 m3 H1 H2).
+  Qed.
+  Lemma effstep_plus_star_trans': forall U U1 c1 c2 c3 U2 m1 m2 m3,
+    effstep_plus U1 c1 m1 c2 m2 -> effstep_star U2 c2 m2 c3 m3 -> 
+    U = (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b)) ->
+    effstep_plus U c1 m1 c3 m3.
+  Proof. intros; subst. eapply effstep_plus_star_trans; eassumption. Qed. 
+
+  Lemma effstep_star_trans: forall U1 c1 c2 c3 U2 m1 m2 m3, 
+    effstep_star U1 c1 m1 c2 m2 -> effstep_star U2 c2 m2 c3 m3 -> 
+    effstep_star (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b)) c1 m1 c3 m3.
+  Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
+    eexists.
+    eapply (effstepN_trans _ _ U1 c1 m1 c2 m2 U2 c3 m3 H1 H2).
+  Qed.
+  Lemma effstep_star_trans': forall U U1 c1 c2 c3 U2 m1 m2 m3, 
+    effstep_star U1 c1 m1 c2 m2 -> effstep_star U2 c2 m2 c3 m3 -> 
+    U = (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b)) ->
     effstep_star U c1 m1 c3 m3.
-  Proof. intros. destruct H as [n1 H1]. destruct H0 as [n2 H2].
-    destruct (effstepN_add n1 n2 U c1 m1 c3 m3) as [_ H]. 
-    eexists. apply H.  exists c2. exists m2. split; try assumption.
-    eapply effstepN_sub; try eassumption.
-    simpl; intros. rewrite H0; trivial.
-  Qed.
+  Proof. intros; subst. eapply effstep_star_trans; eassumption. Qed. 
 
   Lemma effstep_plus_one: forall U c m c' m',
     effstep Sem g U c m c' m' -> effstep_plus U c m c' m'.
-  Proof. intros. unfold effstep_plus, effstepN. simpl.
-    exists O. exists c'. exists m'. eauto. 
+  Proof. intros. exists O. simpl. exists c', m', U, (fun b z =>false).
+    intuition.
+    extensionality b; extensionality z; simpl.
+    rewrite orb_false_r. trivial.
   Qed.
 
-  Lemma effstep_plus_two: forall U c m c' m' c'' m'',
-    effstep  Sem g U c m c' m' -> effstep Sem g U c' m' c'' m'' -> 
-    effstep_plus U c m c'' m''.
+  Lemma effstep_plus_two: forall U1 c m c' m' U2 c'' m'',
+    effstep  Sem g U1 c m c' m' -> effstep Sem g U2 c' m' c'' m'' -> 
+    effstep_plus (fun b z => U1 b z || (U2 b z && valid_block_dec m b)) c m c'' m''.
   Proof. intros. 
-    exists (S O). exists c'. exists m'. split; trivial. 
-    exists c''. exists m''. 
-    split. eapply effstep_sub; try eassumption; intuition.
-           reflexivity. 
+    exists (S O). exists c', m', U1, U2. split; trivial.
+    split; trivial. simpl. 
+    exists c'', m'', U2, (fun b z =>false).
+    intuition.
+    extensionality b; extensionality z; simpl.
+    rewrite orb_false_r. trivial.
   Qed.
 
-  Lemma effstep_star_zero: forall U c m, effstep_star U c m c m.
-  Proof. intros. exists O. reflexivity. Qed.
+  Lemma effstep_star_zero: forall c m, effstep_star (fun b z =>false) c m c m.
+  Proof. intros. exists O. simpl. split; reflexivity. Qed.
 
   Lemma effstep_star_one: forall U c m c' m',
     effstep  Sem g U c m c' m' -> effstep_star U c m c' m'.
   Proof. intros. 
-    exists (S O). exists c'. exists m'. split; trivial. reflexivity. 
+    exists (S O). exists c', m', U, (fun b z =>false).
+    simpl; split; trivial. split. split; reflexivity.
+    extensionality b; extensionality z; simpl.
+    rewrite orb_false_r. trivial.     
   Qed.
 
   Lemma effstep_plus_split: forall U c m c' m',
     effstep_plus U c m c' m' ->
-    exists c'', exists m'', effstep Sem g U c m c'' m'' /\ 
-      effstep_star (fun b z => U b z || freshloc m m'' b) c'' m'' c' m'.
+    exists c'', exists m'', exists U1, exists U2,
+      effstep Sem g U1 c m c'' m'' /\ 
+      effstep_star U2 c'' m'' c' m' /\
+      U = (fun b z => U1 b z || (U2 b z && valid_block_dec m b)).
   Proof. intros.
-    destruct H as [n [c2 [m2 [Hstep Hstar]]]]. simpl in*. 
-    exists c2. exists m2. split. assumption. exists n. assumption.
+    destruct H as [n [c2 [m2 [U1 [U2 [Hstep [Hstar HU]]]]]]].
+    exists c2, m2, U1, U2. split. assumption. split; try assumption.
+    exists n. assumption. 
   Qed.
 
   Lemma effstep_star_fwd: forall U c m c' m',
@@ -268,62 +299,6 @@ Section effsemlemmas.
   Proof. intros. destruct H as [n H]. 
       eapply effstepN_fwd; eassumption.
   Qed.
-
-  Lemma effstep_plus_sub: forall c m c' m' (U V : block -> Z -> bool),
-     effstep_plus U c m c' m' ->
-     (forall b z, U b z = true -> V b z = true) ->
-     effstep_plus V c m c' m'.
-  Proof. intros.
-    destruct H as [n H].
-    exists n. eapply effstepN_sub; eassumption.
-  Qed. 
-
-  Lemma effstep_star_sub: forall c m c' m' (U V : block -> Z -> bool),
-     effstep_star U c m c' m' ->
-     (forall b z, U b z = true -> V b z = true) ->
-     effstep_star V c m c' m'.
-  Proof. intros.
-    destruct H as [n H].
-    exists n. eapply effstepN_sub; eassumption.
-  Qed. 
-
-  Lemma effstepN_sub_val: forall n c m c' m' (U V : block -> Z -> bool),
-     effstepN n U c m c' m' ->
-     (forall b z, Mem.valid_block m b -> U b z = true -> V b z = true) ->
-     effstepN n V c m c' m'.
-  Proof. intros n. 
-     induction n; simpl; intros.
-        apply H.
-    rename c' into c3. rename m' into m3.
-    destruct H as [c2 [m2 [E EN]]].
-    exists c2, m2.
-    split. eapply effstep_sub_val; eassumption.
-      eapply IHn; try eassumption.
-      simpl; intros.
-      apply orb_true_iff. apply orb_true_iff in H1.
-      remember (freshloc m m2 b) as d.
-      destruct d; try (right; reflexivity); apply eq_sym in Heqd.
-      destruct H1; try (right; assumption). left.
-      apply freshloc_charF in Heqd. destruct Heqd; intuition.
-  Qed.
-
-  Lemma effstep_plus_sub_val: forall c m c' m' (U V : block -> Z -> bool),
-     effstep_plus U c m c' m' ->
-     (forall b z, Mem.valid_block m b -> U b z = true -> V b z = true) ->
-     effstep_plus V c m c' m'.
-  Proof. intros.
-    destruct H as [n H].
-    exists n. eapply effstepN_sub_val; eassumption.
-  Qed. 
-
-  Lemma effstep_star_sub_val: forall c m c' m' (U : block -> Z -> bool)
-     (EFF: effstep_star U c m c' m') (V : block -> Z -> bool),
-     (forall b z, Mem.valid_block m b -> U b z = true -> V b z = true) ->
-     effstep_star V c m c' m'.
-  Proof. intros.
-    destruct EFF as [n EFF].
-    exists n. eapply effstepN_sub_val; eassumption.
-  Qed. 
 
 End effsemlemmas.
 
@@ -340,6 +315,18 @@ Definition FreeEffect m lo hi (sp b:Values.block) (ofs:Z): bool :=
    if valid_block_dec m b 
    then eq_block b sp && zle lo ofs && zlt ofs hi
    else false.
+
+Lemma FreeEffectD: forall m lo hi sp b z 
+   (FREE:FreeEffect m lo hi sp b z = true),
+   b = sp /\ Mem.valid_block m b /\ lo <= z /\ z < hi.
+Proof. intros.
+  unfold FreeEffect in FREE.
+  destruct (valid_block_dec m b); simpl in *; try discriminate.
+  destruct (eq_block b sp); subst; simpl in *; try discriminate.
+  destruct (zle lo z); simpl in *; try discriminate.
+  destruct (zlt z hi); simpl in *; try discriminate.
+  auto.
+Qed.
 
 Lemma FreeEffect_free: forall m sp lo hi m'
              (FREE: Mem.free m sp lo hi = Some m'),
@@ -433,6 +420,27 @@ Proof. intros L.
    eapply free_forward; eassumption.
 Qed.
 
+Lemma FreeEffect_validblock: forall m lo hi sp b ofs
+        (EFF: FreeEffect m lo hi sp b ofs = true),
+      Mem.valid_block m b.
+Proof. intros.
+  unfold FreeEffect in EFF.
+  destruct (valid_block_dec m b); trivial; inv EFF.
+Qed.
+
+Lemma FreelistEffect_validblock: forall l m b ofs
+        (EFF: FreelistEffect m l b ofs = true),
+      Mem.valid_block m b.
+Proof. intros l.
+  induction l; unfold FreelistEffect; simpl; intros.
+     unfold EmptyEffect in EFF. inv EFF.
+  destruct a as [[bb lo] hi].
+  apply orb_true_iff in EFF.
+  destruct EFF.
+  apply IHl in H. assumption.
+  eapply FreeEffect_validblock; eassumption.
+Qed.
+
 Definition StoreEffect (tv:val)(vl : list memval) (b:Values.block) (z:Z):bool := 
   match tv with Vptr bb ofs => eq_block bb b && 
              zle (Int.unsigned ofs) z && zlt z (Int.unsigned ofs + Z.of_nat (length vl))
@@ -459,19 +467,17 @@ Proof. intros.
   rewrite PMap.gso. trivial. intros N; subst. elim n; trivial. 
 Qed.
 
-Definition StoreEffectD : forall tv vl b z
-      (ST: StoreEffect tv vl b z = true), 
-      exists ofs, tv = Vptr b ofs /\ 
-                 (Int.unsigned ofs) <= z < (Int.unsigned ofs + Z.of_nat (length vl)).
+Lemma StoreEffectD: forall vaddr v b ofs
+      (STE: StoreEffect vaddr v b ofs = true),
+      exists i, vaddr = Vptr b i /\
+        (Int.unsigned i) <= ofs < (Int.unsigned i + Z.of_nat (length v)).
 Proof. intros.
-  unfold StoreEffect in ST.
-  destruct tv; inv ST.
+  unfold StoreEffect in STE. destruct vaddr; inv STE.
+  destruct (eq_block b0 b); inv H0.
   exists i.
-  destruct (eq_block b0 b); try discriminate. subst. simpl in *.
-  split; trivial.
-  destruct (zle (Int.unsigned i) z); try discriminate. simpl in *.
-  destruct (zlt z (Int.unsigned i + Z.of_nat (length vl))); try discriminate. simpl in *.
-  split; trivial.
+  destruct (zle (Int.unsigned i) ofs); inv H1.
+  destruct (zlt ofs (Int.unsigned i + Z.of_nat (length v))); inv H0.
+  intuition.
 Qed.
 
 (* Parameter BuiltinEffect : forall {F V: Type} (ge: Genv.t F V) (sg: signature)  *)

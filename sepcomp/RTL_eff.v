@@ -116,13 +116,13 @@ Inductive RTL_effstep (ge:genv):  (block -> Z -> bool) ->
       forall res f sp pc rs s vres m,
       RTL_effstep ge EmptyEffect
         (RTL_Returnstate (Stackframe res f sp pc rs :: s) vres) m
-        (RTL_State s f sp pc (rs#res <- vres)) m
-
+        (RTL_State s f sp pc (rs#res <- vres)) m.
+(*
   | rtl_effstep_sub_val: forall E EE c m c' m',
       (forall b ofs, Mem.valid_block m b ->
                      E b ofs = true -> EE b ofs = true) ->
       RTL_effstep ge E c m c' m' ->
-      RTL_effstep ge EE c m c' m'.
+      RTL_effstep ge EE c m c' m'.*)
 
 Lemma rtl_eff_exec_Iload':
   forall ge s f sp pc rs m chunk addr args dst pc' rs' a v,
@@ -191,13 +191,13 @@ intros.
   split. unfold corestep, coopsem; simpl.
          eapply rtl_corestep_exec_return; eassumption.
          apply Mem.unchanged_on_refl.
-  (*effstep_sub_val*)
+  (*effstep_sub_val
     destruct IHRTL_effstep.
     split; trivial.
     eapply unchanged_on_validblock; try eassumption.
     intros; simpl. remember (E b ofs) as d.
     destruct d; trivial. apply eq_sym in Heqd.
-    rewrite (H _ _ H3 Heqd) in H4. discriminate.
+    rewrite (H _ _ H3 Heqd) in H4. discriminate.*)
 Qed.
 
 Lemma rtl_effax2: forall  g c m c' m',
@@ -231,12 +231,28 @@ Definition cmin_effstep ge (E:block -> Z -> bool)
    coopstep g c m c' m' /\ Mem.unchanged_on (fun b ofs => E b ofs = false) m m'.
 *)
 
+Lemma rtl_effstep_valid: forall (M : block -> Z -> bool) g c m c' m',
+      RTL_effstep g M c m c' m' ->
+       forall b z, M b z = true -> Mem.valid_block m b.
+Proof.
+intros.
+  induction H; try (solve [inv H0]).
+
+  apply StoreEffectD in H0. destruct H0 as [ofs [VADDR ARITH]]; subst.
+  inv H2. apply Mem.store_valid_access_3 in H3.
+  eapply Mem.valid_access_valid_block.
+  eapply Mem.valid_access_implies; try eassumption. constructor.
+
+  eapply FreeEffect_validblock; eassumption.
+  eapply FreeEffect_validblock; eassumption.
+Qed.
+
 Program Definition rtl_eff_sem : 
   @EffectSem genv RTL_core.
 eapply Build_EffectSem with (sem := rtl_coop_sem)(effstep:=RTL_effstep).
 apply rtl_effax1.
 apply rtl_effax2.
-intros.
-eapply rtl_effstep_sub_val; eassumption.
+apply rtl_effstep_valid.
+(*intros. eapply rtl_effstep_sub_val; eassumption.*)
 Defined.
 

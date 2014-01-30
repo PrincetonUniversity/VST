@@ -140,14 +140,13 @@ Inductive csharpmin_effstep (g: Csharpminor.genv):  (block -> Z -> bool) ->
 
   | csharpmin_effstep_return: forall v optid f e le k m,
       csharpmin_effstep g EmptyEffect (CSharpMin_Returnstate v (Kcall optid f e le k)) m
-        (CSharpMin_State f Sskip k e (Cminor.set_optvar optid v le)) m
-
-
+        (CSharpMin_State f Sskip k e (Cminor.set_optvar optid v le)) m.
+(*
   | csharpmin_effstep_sub_val: forall E EE c m c' m',
       (forall b ofs, Mem.valid_block m b ->
                      E b ofs = true -> EE b ofs = true) ->
       csharpmin_effstep g E c m c' m' ->
-      csharpmin_effstep g EE c m c' m'.
+      csharpmin_effstep g EE c m c' m'*)
 
 Lemma csharpminstep_effax1: forall (M : block -> Z -> bool) g c m c' m'
       (H: csharpmin_effstep g M c m c' m'),
@@ -199,13 +198,13 @@ intros.
   (*no external call*) 
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  (*effstep_sub_val*)
+  (*effstep_sub_val
     destruct IHcsharpmin_effstep.
     split; trivial.
     eapply unchanged_on_validblock; try eassumption.
     intros; simpl. remember (E b ofs) as d.
     destruct d; trivial. apply eq_sym in Heqd.
-    rewrite (H _ _ H3 Heqd) in H4. discriminate.
+    rewrite (H _ _ H3 Heqd) in H4. discriminate.*)
 Qed.
 
 Lemma csharpminstep_effax2: forall  g c m c' m',
@@ -236,10 +235,30 @@ intros. inv H.
     eexists. eapply csharpmin_effstep_return.
 Qed.
 
+Lemma csharpmin_effstep_valid: forall (M : block -> Z -> bool) g c m c' m',
+      csharpmin_effstep g M c m c' m' ->
+       forall b z, M b z = true -> Mem.valid_block m b.
+Proof.
+intros.
+  induction H; try (solve [inv H0]).
+
+  eapply FreelistEffect_validblock; eassumption.
+
+  apply StoreEffectD in H0. destruct H0 as [ofs [VADDR ARITH]]; subst.
+  inv H2. apply Mem.store_valid_access_3 in H3.
+  eapply Mem.valid_access_valid_block.
+  eapply Mem.valid_access_implies; try eassumption. constructor.
+
+  eapply FreelistEffect_validblock; eassumption.
+
+  eapply FreelistEffect_validblock; eassumption.
+Qed.
+ 
 Program Definition csharpmin_eff_sem : 
   @EffectSem Csharpminor.genv CSharpMin_core.
 eapply Build_EffectSem with (sem := csharpmin_coop_sem)(effstep:=csharpmin_effstep).
 apply csharpminstep_effax1.
 apply csharpminstep_effax2. 
-apply csharpmin_effstep_sub_val. 
+apply csharpmin_effstep_valid. 
+(*csharpmin_effstep_sub_val. *)
 Defined.

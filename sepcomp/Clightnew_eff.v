@@ -193,13 +193,13 @@ le' ->
       (CUR: current_function k = Some f),
       find_label lbl f.(fn_body) (Kseq (Sreturn None) :: (call_cont k)) = Some k' ->
       cln_effstep ge EmptyEffect 
-          (State ve te (Kseq (Sgoto lbl) :: k)) m (State ve te k') m
-
+          (State ve te (Kseq (Sgoto lbl) :: k)) m (State ve te k') m.
+(*
   | cln_effstep_sub_val: forall E EE c m c' m',
       (forall b ofs, Mem.valid_block m b ->
                      E b ofs = true -> EE b ofs = true) ->
       cln_effstep ge E c m c' m' ->
-      cln_effstep ge EE c m c' m'.
+      cln_effstep ge EE c m c' m'.*)
 
 Lemma clightnew_effax1: forall (M : block -> Z -> bool) ge c m c' m'
       (H: cln_effstep ge M c m c' m'),
@@ -243,13 +243,13 @@ intros.
           assumption.
   split. econstructor; try eassumption.
          apply Mem.unchanged_on_refl.
-  (*effstep_sub_val*)
+  (*effstep_sub_val
     destruct IHcln_effstep.
     split; trivial.
     eapply unchanged_on_validblock; try eassumption.
     intros; simpl. remember (E b ofs) as d.
     destruct d; trivial. apply eq_sym in Heqd.
-    rewrite (H _ _ H3 Heqd) in H4. discriminate.
+    rewrite (H _ _ H3 Heqd) in H4. discriminate.*)
 Qed.
 
 Lemma clightnew_effax2: forall ge c m c' m',
@@ -279,12 +279,40 @@ intros. induction H.
   eexists. eapply cln_effstep_goto; eassumption.
 Qed.
 
+Lemma clightnew_effstep_valid: forall (M : block -> Z -> bool) g c m c' m',
+      cln_effstep g M c m c' m' ->
+       forall b z, M b z = true -> Mem.valid_block m b.
+Proof.
+intros.
+  induction H; try (solve [inv H0; auto]).
+
+  inv H4; unfold assign_loc_Effect in H0; rewrite H5 in H0.
+     destruct (eq_block b loc); subst; simpl in *; try discriminate.
+     apply Mem.store_valid_access_3 in H6.
+     eapply Mem.perm_valid_block. eapply H6. 
+       destruct (zle (Int.unsigned ofs) z); simpl in *; try discriminate.
+       destruct (zlt z (Int.unsigned ofs + Z.of_nat (length (encode_val chunk v)))); simpl in *; try discriminate.
+       split. eassumption. rewrite encode_val_length in l0. rewrite <- size_chunk_conv in l0. trivial.
+
+     destruct (eq_block b loc); subst; simpl in *; try discriminate.
+     apply Mem.loadbytes_length in H9.
+     eapply Mem.perm_valid_block with (ofs:=z). 
+        eapply Mem.storebytes_range_perm. eassumption.
+       destruct (zle (Int.unsigned ofs) z); simpl in *; try discriminate.
+       destruct (zlt z (Int.unsigned ofs + sizeof (typeof a1))); simpl in *; try discriminate.
+       split. eassumption. rewrite H9. rewrite nat_of_Z_eq. trivial. 
+              specialize (sizeof_pos (typeof a1)). omega.
+
+  eapply FreelistEffect_validblock; eassumption.
+Qed.
+
 Definition cln_eff_sem  
   :  @EffectSem Clight.genv corestate.
 eapply Build_EffectSem with (sem := CLN_coop_sem)
          (effstep:=cln_effstep).
 apply clightnew_effax1. 
 apply clightnew_effax2. 
-apply cln_effstep_sub_val. 
+apply clightnew_effstep_valid.
+(*apply cln_effstep_sub_val. *)
 Defined.
 End EFFSEM.

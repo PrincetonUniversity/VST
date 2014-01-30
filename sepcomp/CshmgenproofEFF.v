@@ -841,9 +841,10 @@ Proof.
   inversion ASSIGN; subst.
   (* nonvolatile scalar *)
   rewrite H in MKSTORE; inv MKSTORE.
-  eapply csharpmin_effstep_sub_val; try (econstructor; eauto).
-  unfold StoreEffect, assign_loc_Effect; intros.
-  rewrite H. apply H2. 
+  assert (assign_loc_Effect ty b ofs v = StoreEffect (Vptr b ofs) (encode_val chunk v)).
+    unfold StoreEffect, assign_loc_Effect. rewrite H. trivial.
+  rewrite H1.
+  econstructor; eauto.
   (* by copy *)
   admit. (* We do not yet support external builtin [memcpy] *)
   (*rewrite H in MKSTORE; inv MKSTORE.
@@ -1102,6 +1103,22 @@ Proof. intros.
   destruct (match_env_free_blocks_parallel_inject _ _ _ _ _ _ MENV INJ FL1)
        as [tm [FL_tm Inj_tm]].
   rewrite FL_tm in FL2. inv FL2. assumption.
+Qed.
+
+Lemma FreelistEffect_exists_FreeEffect: forall m L b ofs
+      (F:FreelistEffect m L b ofs = true),
+      exists bb lo hi, In (bb, lo, hi) L /\  
+        FreeEffect m lo hi bb b ofs = true.
+Proof. intros m L.
+  induction L; simpl; intros. 
+    unfold EmptyEffect in F. discriminate.
+  destruct a as [[bb lo] hi].
+    apply orb_true_iff in F.
+    destruct F.
+      destruct (IHL _ _ H) as [b' [lo' [hi' [INL FEFF]]]].
+      exists b', lo', hi'; split; trivial. right; trivial.
+    exists bb, lo, hi; split; trivial.
+      left; trivial.
 Qed.
 
 Lemma FreelistEffect_PropagateLeft: forall
@@ -2589,6 +2606,7 @@ Proof. intros.
   exists x. eapply PTree.elements_complete. apply Hx.
 Qed.
 
+
 Lemma MATCH_corestep: forall
  (*(FE : Clight.function -> list val -> 
         mem -> Clight.env -> Clight.temp_env -> mem -> Prop)
@@ -3257,20 +3275,6 @@ Proof.
       intuition.
 Qed.
 
-Lemma restrict_vis_foreign: forall mu (WD: SM_wd mu) b1 b2 delta
-         (R: restrict (as_inj mu) (vis mu) b1 = Some (b2, delta))
-         (LT: locBlocksTgt mu b2 = false),
-      foreign_of mu b1 = Some (b2, delta).
-Proof. intros.
-  destruct (restrictD_Some _ _ _ _ _ R).
-  unfold vis in H0.
-  destruct (joinD_Some _ _ _ _ _ H) as [EXT | [_ LOC]].
-    assert (LS: locBlocksSrc mu b1 = false). eapply extern_DomRng'; try eassumption.
-    rewrite LS in *; simpl in *. destruct (frgnSrc _ WD _ H0) as [bb2 [dd [FRG FT]]].
-      rewrite FRG. rewrite (foreign_in_all _ _ _ _ FRG) in H. trivial.
-  destruct (local_DomRng _ WD _ _ _ LOC). rewrite H2 in LT; discriminate.
-Qed.
-
 Lemma Match_effcore_diagram: forall
 (*  (FE : Clight.function ->
      list val -> mem -> Clight.env -> Clight.temp_env -> mem -> Prop)
@@ -3288,15 +3292,14 @@ Lemma Match_effcore_diagram: forall
 (*  (EFFSTEP: effstep (clight_eff_sem FE FE_FWD FE_UNCH) ge U1 st1 m1 st1' m1')*)
   (EFFSTEP: effstep CL_eff_sem2 ge U1 st1 m1 st1' m1')
   (st2 : CSharpMin_core) (mu : SM_Injection) (m2 : mem)
-  (UHyp: forall b z, U1 b z = true -> 
-          Mem.valid_block m1 b -> vis mu b = true) 
+  (UHyp: forall b z, U1 b z = true -> vis mu b = true) 
   (MC: MATCH st1 mu st1 m1 st2 m2),
 exists (st2' : CSharpMin_core) (m2' : mem) (mu' : SM_Injection),
   (exists U2 : block -> Z -> bool,
      (effstep_plus csharpmin_eff_sem tge U2 st2 m2 st2' m2' /\
      (forall (b : block) (ofs : Z),
       U2 b ofs = true ->
-      Mem.valid_block m2 b /\
+      visTgt mu b = true /\
       (locBlocksTgt mu b = false ->
        exists (b1 : block) (delta1 : Z),
          foreign_of mu b1 = Some (b, delta1) /\
@@ -3342,11 +3345,11 @@ Proof.
                split. apply effstep_plus_one. eassumption.
         intros. unfold assign_loc_Effect in H6. unfold assign_loc_Effect.
                 inv H2. inv AssignLoc'; rewrite H2 in H7; inv H7.
-                   rewrite H2 in *.
-                   destruct (eq_block b2 b); subst; simpl in *; try discriminate.
-                   destruct (restrictD_Some _ _ _ _ _ H5).
-                   split. eapply SMV. eapply as_inj_DomRng; eassumption.
-                   intros. exists loc, delta.
+                rewrite H2 in *.
+                destruct (eq_block b2 b); subst; simpl in *; try discriminate.
+                split. eapply visPropagateR; try eassumption.
+                destruct (restrictD_Some _ _ _ _ _ H5).
+                intros. exists loc, delta.
                    split. eapply restrict_vis_foreign; eassumption.
                    assert (WR:Mem.perm m loc (Int.unsigned ofs) Cur Writable).
                       eapply Mem.store_valid_access_3; try eassumption. specialize (size_chunk_pos chunk); intros. omega.
@@ -3368,8 +3371,8 @@ Proof.
                    elim n; trivial. 
                  inv AssignLoc'; rewrite H2 in H7; inv H7. rewrite H2 in *. 
                    destruct (eq_block b b2); subst; simpl in *; try discriminate.
+                   split. eapply visPropagateR; try eassumption.
                    destruct (restrictD_Some _ _ _ _ _ H5).
-                   split. eapply SMV. eapply as_inj_DomRng; eassumption.
                    intros. exists loc, delta.
                    split. eapply restrict_vis_foreign; eassumption.
                    assert (WR:Mem.perm m loc (Int.unsigned ofs) Cur Writable).
@@ -3746,8 +3749,14 @@ Proof.
   eexists; eexists. exists mu.
   split. eexists; split.
            apply effstep_plus_one. constructor. eassumption.
-         intros b2 ofs FEff2. 
-         split. eapply FreelistEffect_validblock; eassumption.
+         intros b2 ofs FEff2.
+         split. 
+           apply FreelistEffect_exists_FreeEffect in FEff2.
+           destruct FEff2 as [bb [lo [hi [NIB FEF]]]].
+           apply FreeEffectD in FEF. destruct FEF as [? [VB Arith2]]; subst.
+           apply blocks_of_envD in NIB. destruct NIB as [? [id ID]]; subst.
+           apply (me_local_inv _ _ _ MENV) in ID. destruct ID as [b [ty [RES EE]]].
+           eapply visPropagateR; try eassumption.
          intros. eapply FreelistEffect_PropagateLeft; eassumption.
   assert (SMV': sm_valid mu m' m2').
     split; intros;  
@@ -3790,8 +3799,14 @@ Proof.
            apply effstep_plus_one.
              constructor; try eassumption.
              eapply make_cast_correct; eauto.
-         intros b2 ofs FEff2. 
-         split. eapply FreelistEffect_validblock; eassumption.
+         intros b2 ofs FEff2.
+         split. 
+           apply FreelistEffect_exists_FreeEffect in FEff2.
+           destruct FEff2 as [bb [lo [hi [NIB FEF]]]].
+           apply FreeEffectD in FEF. destruct FEF as [? [VB Arith2]]; subst.
+           apply blocks_of_envD in NIB. destruct NIB as [? [id ID]]; subst.
+           apply (me_local_inv _ _ _ MENV) in ID. destruct ID as [b [ty [RES EE]]].
+           eapply visPropagateR; try eassumption.
          intros. eapply FreelistEffect_PropagateLeft; eassumption.
   assert (SMV': sm_valid mu m' m2').
     split; intros;  
@@ -3827,9 +3842,15 @@ Proof.
            apply effstep_plus_one.
              apply csharpmin_effstep_skip_call. auto.
              eassumption.
-         intros b2 ofs FEff2. 
-         split. eapply FreelistEffect_validblock; eassumption.
-         intros. eapply FreelistEffect_PropagateLeft; eassumption.
+         intros b2 ofs FEff2.
+         split. 
+           apply FreelistEffect_exists_FreeEffect in FEff2.
+           destruct FEff2 as [bb [lo [hi [NIB FEF]]]].
+           apply FreeEffectD in FEF. destruct FEF as [? [VB Arith2]]; subst.
+           apply blocks_of_envD in NIB. destruct NIB as [? [id ID]]; subst.
+           apply (me_local_inv _ _ _ MENV) in ID. destruct ID as [b [ty [RES EE]]].
+           eapply visPropagateR; try eassumption.
+         intros. eapply FreelistEffect_PropagateLeft; eassumption. 
   assert (SMV': sm_valid mu m' m2').
     split; intros;  
       eapply freelist_forward; try eassumption.
@@ -4032,7 +4053,7 @@ Proof.
           eapply match_tempenv_set; eassumption.
           simpl. assumption.
       intuition.
-(*inductive case*)
+(*inductive case - sub_val
   destruct IHEFFSTEP as [c2' [m2' [mu' X]]].
     intros. eapply UHyp. apply H. assumption. eassumption.
     assumption. assumption.
@@ -4044,7 +4065,7 @@ Proof.
   intros. destruct (H6 H0) as [b1 [delta [Frg [HE HP]]]]; clear H6.
   exists b1, delta. split; trivial. split; trivial.
   apply Mem.perm_valid_block in HP. 
-  apply H; assumption. 
+  apply H; assumption. *)
 Qed.
 
 (** The simulation proof *)

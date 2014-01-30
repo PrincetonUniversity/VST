@@ -135,12 +135,12 @@ Inductive cmin_effstep (g: Cminor.genv):  (block -> Z -> bool) ->
   | cmin_effstep_return: forall v optid f sp e k m,
       cmin_effstep g EmptyEffect (CMin_Returnstate v (Kcall optid f sp e k)) m
         (CMin_State f Sskip k sp (set_optvar optid v e)) m
-
+(*
   | cmin_effstep_sub_val: forall E EE c m c' m',
       (forall b ofs, Mem.valid_block m b ->
                      E b ofs = true -> EE b ofs = true) ->
       cmin_effstep g E c m c' m' ->
-      cmin_effstep g EE c m c' m'.
+      cmin_effstep g EE c m c' m'*).
 
 Lemma cminstep_effax1: forall (M : block -> Z -> bool) g c m c' m',
       cmin_effstep g M c m c' m' ->
@@ -194,13 +194,13 @@ intros.
   (*no external call*) 
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  (*effstep_sub_val*)
+  (*effstep_sub_val
     destruct IHcmin_effstep.
     split; trivial.
     eapply unchanged_on_validblock; try eassumption.
     intros; simpl. remember (E b ofs) as d.
     destruct d; trivial. apply eq_sym in Heqd.
-    rewrite (H _ _ H3 Heqd) in H4. discriminate.
+    rewrite (H _ _ H3 Heqd) in H4. discriminate.*)
 Qed.
 
 Lemma cminstep_effax2: forall  g c m c' m',
@@ -232,11 +232,30 @@ intros. inv H.
     eexists. eapply cmin_effstep_return; try eassumption. 
 Qed.
 
+Lemma cmin_effstep_valid: forall (M : block -> Z -> bool) g c m c' m',
+      cmin_effstep g M c m c' m' ->
+       forall b z, M b z = true -> Mem.valid_block m b.
+Proof.
+intros.
+  induction H; try (solve [inv H0]).
+
+  eapply FreeEffect_validblock; eassumption.
+
+  apply StoreEffectD in H0. destruct H0 as [ofs [VADDR ARITH]]; subst.
+  inv H2. apply Mem.store_valid_access_3 in H3.
+  eapply Mem.valid_access_valid_block.
+  eapply Mem.valid_access_implies; try eassumption. constructor.
+
+  eapply FreeEffect_validblock; eassumption.
+  eapply FreeEffect_validblock; eassumption.
+  eapply FreeEffect_validblock; eassumption.
+Qed.
+ 
 Program Definition cmin_eff_sem : 
   @EffectSem Cminor.genv CMin_core.
 eapply Build_EffectSem with (sem := cmin_coop_sem)(effstep:=cmin_effstep).
 apply cminstep_effax1.
 apply cminstep_effax2.
-intros.
-eapply cmin_effstep_sub_val; eassumption.
+apply cmin_effstep_valid; eassumption.
+(*eapply cmin_effstep_sub_val; eassumption.*)
 Defined.

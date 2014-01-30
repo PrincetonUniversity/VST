@@ -500,7 +500,7 @@ Proof.
   destruct Y. auto.
   destruct H.
   destruct H. destruct x.
-  right. split; auto.
+  right. simpl in H. destruct H. split; auto.
   left. exists x; auto.
   clear Y. destruct ZZ as [CS2 | [CS2 ord12']].
  (*case1*) 
@@ -620,11 +620,11 @@ Proof.
   revert U2 mu23 d23 st2 m2 st3 m3 H MC23 HypPubTgt12' HypFrgnTgt12'.
   induction x; intros.
    (*base case*) simpl in H.
-    destruct H as [c2 [m2'' [? ?]]].
-    inv H0.
+    destruct H as [c2 [m2'' [U3 [U4 [? [? ?]]]]]].
+    destruct H0. inv H0; simpl in *. 
     destruct (eff_diagram23 _ _ _ _ _ H _ _ _ _ MC23) 
       as [st3' [m3' [d23' [mu23' [InjInc23 [InjSep23
-          [LocAlloc23 [? [U3 [? MOD32]]]]]]]]]]; clear eff_diagram23.
+          [LocAlloc23 [? [U5 [? MOD32]]]]]]]]]]; clear eff_diagram23.
     exists st3'. exists m3'. exists d23'. exists mu23'. 
     split. 
       assert (pubBlock23: pubBlocksSrc mu23 = pubBlocksSrc mu23') by apply InjInc23.
@@ -639,18 +639,20 @@ Proof.
     split; trivial.
     split; trivial.
     split; trivial.
-    exists U3. 
+    exists U5. 
     split. destruct H1. left; assumption.
            destruct H1. right. split; trivial.
            apply t_step. constructor 2. apply H2.
-    apply MOD32. 
+    intros. destruct (MOD32 _ _ H2). split; trivial.
+       intros. destruct (H4 H5) as [b1 [d D]].
+       exists b1, d. rewrite orb_false_r. apply D.
    (*inductive case*)
     remember (S x) as x'. simpl in H.
     rename st2' into st2''. rename m2' into m2''.
-    destruct H as [st2' [m2' [Step2 StepN2]]]. subst x'.
+    destruct H as [st2' [m2' [U4 [U3 [Step2 [StepN2 HU]]]]]]. subst x'.
     destruct (eff_diagram23 _ _ _ _ _ Step2 _ _ _ _ MC23) 
       as [c3' [m3' [d23' [mu23' [InjInc23 [InjSep23 
-             [LocAlloc23 [MC23' [U3 [Steps3 MOD32]]]]]]]]]]; clear eff_diagram23.
+             [LocAlloc23 [MC23' [U5 [Steps3 MOD32]]]]]]]]]]; clear eff_diagram23.
     assert (pubSrc23: pubBlocksSrc mu23 = pubBlocksSrc mu23') by eapply InjInc23.
     assert (frgnSrc23: frgnBlocksSrc mu23 = frgnBlocksSrc mu23') by eapply InjInc23.
     assert (XX1: forall b : block, pubTgt12' b = true -> pubBlocksSrc mu23' b = true).
@@ -690,55 +692,39 @@ Proof.
            eauto.  
     split. eapply sm_locally_allocated_trans; eassumption.
     split. apply MC23''.
-    exists (fun b z => U3 b z || (U3' b z && valid_block_dec m3 b)). 
-    assert (Union1: forall b z, Mem.valid_block m3' b -> U3' b z = true -> (U3 b z || (U3' b z && valid_block_dec m3 b) || freshloc m3 m3' b) = true).
+    exists (fun b z => U5 b z || (U3' b z && valid_block_dec m3 b)). 
+(*    assert (Union1: forall b z, Mem.valid_block m3' b -> U3' b z = true -> (U3 b z || (U3' b z && valid_block_dec m3 b) || freshloc m3 m3' b) = true).
       intros. case_eq (U3 b z); simpl; intros; trivial. rewrite H0; simpl.
         apply orb_true_iff. unfold freshloc. 
         destruct (valid_block_dec m3 b); simpl. left; trivial. right. 
         destruct (valid_block_dec m3' b); simpl. trivial. contradiction.
     assert (Union2: forall b z, Mem.valid_block m3 b -> U3 b z = true -> (U3 b z || (U3' b z && valid_block_dec m3 b)) = true).
-      intros. rewrite H0. trivial.
+      intros. rewrite H0. trivial.*)
     split. clear MOD32 MOD32' ZZ. 
            destruct Steps3; destruct StepN3.
            (*1/4*)
-              left. destruct H as [n1 StepA]. destruct H0 as [n2 StepB].
-                      exists (n1 + S n2)%nat.
-                      change (S (n1 + S n2)) with (S n1 + S n2)%nat.
-                      rewrite effstepN_add. 
-                      exists c3', m3'.
-                      split; eapply effstepN_sub_val; try eassumption.
+              left. eapply effstep_plus_trans; eassumption.
            (*2/4*)
-               destruct H0 as [EFF3 CT].
-               left. destruct H as [n1 StepA]. destruct EFF3 as [n2 StepB].
-                       exists (n1 + n2)%nat.
-                       change (S (n1 + n2)) with (S n1 + n2)%nat.
-                       rewrite effstepN_add. 
-                       exists c3', m3'.
-                       split; eapply effstepN_sub_val; try eassumption.
-          (*3/4*)
+              left. destruct H0 as [EFF3 CT].
+              eapply effstep_plus_star_trans; eassumption. 
+           (*3/4*)
                left. destruct H as [EFF3 CORD].
-                       destruct EFF3 as [n1 StepA]. destruct H0 as [n2 StepB].
-                       exists (n1 + n2)%nat.
-                       replace (S (n1 + n2)) with (n1 + S n2)%nat by omega.
-                       rewrite effstepN_add.
-                       exists c3', m3'.
-                       split; eapply effstepN_sub_val; try eassumption.
+               eapply effstep_star_plus_trans; eassumption.
            (*4/4*)
                right. destruct H as [EFF3 CORD].
-               destruct H0 as [EFF3' CT].
-               split. destruct EFF3 as [n1 StepA]. destruct EFF3' as [n2 StepB].
-                      exists (n1 + n2)%nat.
-                      rewrite effstepN_add.
-                       exists c3', m3'.
-                       split; eapply effstepN_sub_val; try eassumption.
+                      destruct H0 as [EFF3' CT].
+               split. eapply effstep_star_trans; eassumption.
                eapply t_trans.
                  apply CT. clear CT.  
                  apply t_step.
                  constructor 2. apply CORD.
-    (*MOD32-clause*) intros b3 ofs HU3.
+    (*MOD32-clause*) subst U2. intros b3 ofs HU3.
       apply orb_true_iff in HU3.
       destruct HU3.
-        apply MOD32. apply H.
+        destruct (MOD32 _ _ H). split; trivial.
+        intros. destruct (H1 H2) as [b1 [d1 [Frg [VB HU4]]]].
+        exists b1, d1. rewrite HU4; simpl.
+        split; trivial. split; trivial.
       apply andb_true_iff in H. destruct H.
          destruct (valid_block_dec m3 b3); try inv H0.
          split; trivial.
@@ -752,14 +738,14 @@ Proof.
                  destruct (UHyp32' (eq_refl _)) as [b2 [d2 [F23' [vb2' UU]]]]; clear UHyp32'.
                    exists b2, d2. 
                    rewrite <- (intern_incr_foreign _ _ InjInc23) in F23'.
-                   split; trivial.
+                   split; trivial. 
+                   rewrite UU. 
                    assert (Mem.valid_block m2 b2).
                      apply (match_validblock23 _ _ _ _ _ _ MC23).
                        eapply foreign_DomRng. eauto. apply F23'.
                    split; trivial.
-                   apply orb_true_iff in UU.
-                   destruct UU; trivial. 
-                   apply freshloc_charT in H2. destruct H2; contradiction.
+                   destruct (valid_block_dec m2 b2); simpl. intuition.
+                   contradiction.
   (*case 2*)
    inv CS2.
    apply sm_locally_allocatedChar in LocAlloc12.
@@ -922,7 +908,7 @@ exists
         U1 b1 (ofs - delta1) = true)))).
 Proof.
   intros. rewrite vis_compose_sm in UHyp. simpl in UHyp.
-  intros. 
+  intros.
   destruct (eff_diagram12 _ _ _ _ _ CS1 _ _ _ _ UHyp MC12)
     as [st2' [m2' [d12' [mu12' [InjIncr12 [InjSep12 [LocAlloc12
        [MC12' [U2 [Y MOD21]]]]]]]]]]; clear eff_diagram12.
@@ -931,7 +917,7 @@ Proof.
   destruct Y. auto.
   destruct H.
   destruct H. destruct x.
-  right. split; auto.
+  right. simpl in H. destruct H. split; auto.
   left. exists x; auto.
   clear Y. destruct ZZ as [CS2 | [CS2 ord12']].
  (*case1*) 
@@ -1054,11 +1040,14 @@ Proof.
   revert U2 mu23 d23 st2 m2 st3 m3 H MC23 HypPubTgt12' HypFrgnTgt12' UHyp2.
   induction x; intros.
    (*base case*) simpl in H.
-    destruct H as [c2 [m2'' [? ?]]].
-    inv H0.
-    destruct (eff_diagram23 _ _ _ _ _ H _ _ _ _ UHyp2 MC23) 
+    destruct H as [c2 [m2'' [U3 [U4 [? [? ?]]]]]].
+    destruct H0. inv H0; simpl in *. 
+    assert (UHYP2: forall b2 z, U3 b2 z = true -> vis mu23 b2 = true).
+      intros. eapply (UHyp2 _ z). rewrite H0. trivial.
+    clear UHyp2.
+    destruct (eff_diagram23 _ _ _ _ _ H _ _ _ _ UHYP2 MC23) 
       as [st3' [m3' [d23' [mu23' [InjInc23 [InjSep23
-          [LocAlloc23 [? [U3 [? MOD32]]]]]]]]]]; clear eff_diagram23.
+          [LocAlloc23 [? [U5 [? MOD32]]]]]]]]]]; clear eff_diagram23.
     exists st3'. exists m3'. exists d23'. exists mu23'. 
     split. 
       assert (pubBlock23: pubBlocksSrc mu23 = pubBlocksSrc mu23') by apply InjInc23.
@@ -1073,18 +1062,22 @@ Proof.
     split; trivial.
     split; trivial.
     split; trivial.
-    exists U3. 
+    exists U5. 
     split. destruct H1. left; assumption.
            destruct H1. right. split; trivial.
            apply t_step. constructor 2. apply H2.
-    apply MOD32. 
+    intros. destruct (MOD32 _ _ H2). split; trivial.
+       intros. destruct (H4 H5) as [b1 [d D]].
+       exists b1, d. rewrite orb_false_r. apply D.
    (*inductive case*)
     remember (S x) as x'. simpl in H.
     rename st2' into st2''. rename m2' into m2''.
-    destruct H as [st2' [m2' [Step2 StepN2]]]. subst x'.
-    destruct (eff_diagram23 _ _ _ _ _ Step2 _ _ _ _ UHyp2 MC23) 
+    destruct H as [st2' [m2' [U4 [U3 [Step2 [StepN2 HU]]]]]]. subst x'.
+    assert (UHyp4: forall b2 z, U4 b2 z = true -> vis mu23 b2 = true).
+      subst; intros. eapply (UHyp2 _ z). rewrite H; trivial.
+    destruct (eff_diagram23 _ _ _ _ _ Step2 _ _ _ _ UHyp4 MC23) 
       as [c3' [m3' [d23' [mu23' [InjInc23 [InjSep23 
-             [LocAlloc23 [MC23' [U3 [Steps3 MOD32]]]]]]]]]]; clear eff_diagram23.
+             [LocAlloc23 [MC23' [U5 [Steps3 MOD32]]]]]]]]]]; clear eff_diagram23.
     assert (pubSrc23: pubBlocksSrc mu23 = pubBlocksSrc mu23') by eapply InjInc23.
     assert (frgnSrc23: frgnBlocksSrc mu23 = frgnBlocksSrc mu23') by eapply InjInc23.
     assert (XX1: forall b : block, pubTgt12' b = true -> pubBlocksSrc mu23' b = true).
@@ -1098,17 +1091,24 @@ Proof.
     assert (FWD3: mem_forward m3 m3').
         destruct Steps3 as [[n K] | [[n K] _]];
              eapply effstepN_fwd; eassumption.
-    assert (U2'Hyp: forall b2 z, U2 b2 z || freshloc m2 m2' b2 = true ->
-                vis mu23' b2 = true).
-        intros. clear IHx StepN2.
-        apply orb_true_iff in H.
-        destruct H. apply UHyp2 in H. eapply intern_incr_vis; eassumption. 
-        unfold vis.
-          assert (locBlocksSrc mu23' = (fun b : block => locBlocksSrc mu23 b || freshloc m2 m2' b)).
-                   apply sm_locally_allocatedChar in LocAlloc23. eapply LocAlloc23.
-          rewrite H0; clear H0. rewrite H. intuition. 
-
-    destruct (IHx _ _ d23' _ _ c3' m3' StepN2 MC23' XX1 XX2 U2'Hyp)
+    assert (UHyp3: forall b2 z, U3 b2 z = true -> vis mu23' b2 = true).
+      intros. 
+      assert (U3valid:= effstepN_valid _ _ _ _ _ _ _ _ StepN2 _ _ H).
+      clear IHx Steps3 MOD32. subst.
+      assert (LB23': locBlocksSrc mu23' =
+             (fun b => locBlocksSrc mu23 b || freshloc m2 m2' b)). 
+          apply sm_locally_allocatedChar in LocAlloc23. eapply LocAlloc23.
+      specialize (UHyp2 b2 z).
+        destruct (valid_block_dec m2 b2); simpl in *.
+          assert (vis mu23 b2 = true). eapply UHyp2. rewrite H; simpl. intuition.
+          unfold vis; unfold vis in H0. rewrite LB23'. rewrite frgnSrc23 in H0.
+          rewrite <- (orb_comm (freshloc m2 m2' b2)).
+          rewrite <- orb_assoc. rewrite H0. intuition.
+        unfold vis. rewrite LB23'. clear LB23' UHyp2.
+          assert (FL: freshloc m2 m2' b2 = true).
+            eapply freshloc_charT. split; trivial. 
+          rewrite FL.  intuition. 
+    destruct (IHx _ mu23' d23' _ _ c3' m3' StepN2 MC23' XX1 XX2 UHyp3)
         as [c3'' [m3'' [d23'' [mu23'' [ZZ [InjIncr' 
              [InjSep' [LocAlloc23' [MC23'' [U3' [StepN3 MOD32']]]]]]]]]]]; clear IHx.
     assert (FWD3': mem_forward m3' m3'').
@@ -1134,55 +1134,32 @@ Proof.
            eauto.  
     split. eapply sm_locally_allocated_trans; eassumption.
     split. apply MC23''.
-    exists (fun b z => U3 b z || (U3' b z && valid_block_dec m3 b)). 
-    assert (Union1: forall b z, Mem.valid_block m3' b -> U3' b z = true -> (U3 b z || (U3' b z && valid_block_dec m3 b) || freshloc m3 m3' b) = true).
-      intros. case_eq (U3 b z); simpl; intros; trivial. rewrite H0; simpl.
-        apply orb_true_iff. unfold freshloc. 
-        destruct (valid_block_dec m3 b); simpl. left; trivial. right. 
-        destruct (valid_block_dec m3' b); simpl. trivial. contradiction.
-    assert (Union2: forall b z, Mem.valid_block m3 b -> U3 b z = true -> (U3 b z || (U3' b z && valid_block_dec m3 b)) = true).
-      intros. rewrite H0. trivial.
+    exists (fun b z => U5 b z || (U3' b z && valid_block_dec m3 b)). 
     split. clear MOD32 MOD32' ZZ. 
            destruct Steps3; destruct StepN3.
            (*1/4*)
-              left. destruct H as [n1 StepA]. destruct H0 as [n2 StepB].
-                      exists (n1 + S n2)%nat.
-                      change (S (n1 + S n2)) with (S n1 + S n2)%nat.
-                      rewrite effstepN_add. 
-                      exists c3', m3'.
-                      split; eapply effstepN_sub_val; try eassumption.
+              left. eapply effstep_plus_trans; eassumption.
            (*2/4*)
-               destruct H0 as [EFF3 CT].
-               left. destruct H as [n1 StepA]. destruct EFF3 as [n2 StepB].
-                       exists (n1 + n2)%nat.
-                       change (S (n1 + n2)) with (S n1 + n2)%nat.
-                       rewrite effstepN_add. 
-                       exists c3', m3'.
-                       split; eapply effstepN_sub_val; try eassumption.
-          (*3/4*)
+              left. destruct H0 as [EFF3 CT].
+              eapply effstep_plus_star_trans; eassumption. 
+           (*3/4*)
                left. destruct H as [EFF3 CORD].
-                       destruct EFF3 as [n1 StepA]. destruct H0 as [n2 StepB].
-                       exists (n1 + n2)%nat.
-                       replace (S (n1 + n2)) with (n1 + S n2)%nat by omega.
-                       rewrite effstepN_add.
-                       exists c3', m3'.
-                       split; eapply effstepN_sub_val; try eassumption.
+               eapply effstep_star_plus_trans; eassumption.
            (*4/4*)
                right. destruct H as [EFF3 CORD].
-               destruct H0 as [EFF3' CT].
-               split. destruct EFF3 as [n1 StepA]. destruct EFF3' as [n2 StepB].
-                      exists (n1 + n2)%nat.
-                      rewrite effstepN_add.
-                       exists c3', m3'.
-                       split; eapply effstepN_sub_val; try eassumption.
+                      destruct H0 as [EFF3' CT].
+               split. eapply effstep_star_trans; eassumption.
                eapply t_trans.
                  apply CT. clear CT.  
                  apply t_step.
                  constructor 2. apply CORD.
-    (*MOD32-clause*) intros b3 ofs HU3.
+    (*MOD32-clause*) subst U2. intros b3 ofs HU3.
       apply orb_true_iff in HU3.
       destruct HU3.
-        apply MOD32. apply H.
+        destruct (MOD32 _ _ H). split; trivial.
+        intros. destruct (H1 H2) as [b1 [d1 [Frg HU4]]].
+        exists b1, d1. rewrite HU4; simpl.
+        split; trivial. 
       apply andb_true_iff in H. destruct H.
          destruct (valid_block_dec m3 b3); try inv H0.
          split; trivial.
@@ -1197,12 +1174,12 @@ Proof.
                    exists b2, d2. 
                    rewrite <- (intern_incr_foreign _ _ InjInc23) in F23'.
                    split; trivial.
+                   rewrite UU. simpl.
                    assert (Mem.valid_block m2 b2).
                      apply (match_validblock23 _ _ _ _ _ _ MC23).
                        eapply foreign_DomRng. eauto. apply F23'.
-                   apply orb_true_iff in UU.
-                   destruct UU; trivial. 
-                   apply freshloc_charT in H2. destruct H2; contradiction.
+                   destruct (valid_block_dec m2 b2); simpl. intuition.
+                   contradiction.
   (*case 2*)
    inv CS2.
    apply sm_locally_allocatedChar in LocAlloc12.
@@ -1253,8 +1230,7 @@ Lemma effcore_diagram_trans: forall
                  effstep Sem1 g1 U1 st1 m1 st1' m1' ->
                  forall (cd : core_data12) (st2 : C2) (mu : SM_Injection)
                    (m2 : mem),
-                 (forall b ofs, U1 b ofs = true -> Mem.valid_block m1 b ->
-                                vis mu b = true) ->
+                 (forall b ofs, U1 b ofs = true -> vis mu b = true) ->
                  match_core12 cd mu st1 m1 st2 m2 ->
                  exists
                    (st2' : C2) (m2' : mem) (cd' : core_data12) (mu' : SM_Injection),
@@ -1266,9 +1242,8 @@ Lemma effcore_diagram_trans: forall
                       (effstep_plus Sem2 g2 U2 st2 m2 st2' m2' \/
                        (effstep_star Sem2 g2 U2 st2 m2 st2' m2' /\
                         core_ord12 cd' cd))
-                    (*/\ (forall b ofs, U2 b ofs = true -> Mem.valid_block m2 b)*)
                     /\ (forall b ofs, U2 b ofs = true -> 
-                           (Mem.valid_block m2 b /\
+                           (visTgt mu b = true /\ (*Mem.valid_block m2 b /\*)
                            (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true /\
@@ -1281,8 +1256,7 @@ Lemma effcore_diagram_trans: forall
                  effstep Sem2 g2 U1 st1 m1 st1' m1' ->
                  forall (cd : core_data23) (st2 : C3) (mu : SM_Injection)
                    (m2 : mem),
-                 (forall b ofs, U1 b ofs = true -> Mem.valid_block m1 b ->
-                                vis mu b = true) ->
+                 (forall b ofs, U1 b ofs = true -> vis mu b = true) ->
                  match_core23 cd mu st1 m1 st2 m2 ->
                  exists
                    (st2' : C3) (m2' : mem) (cd' : core_data23) (mu' : SM_Injection),
@@ -1295,7 +1269,7 @@ Lemma effcore_diagram_trans: forall
                        (effstep_star Sem3 g3 U2 st2 m2 st2' m2' /\
                         core_ord23 cd' cd)) 
                     /\ (forall b ofs, U2 b ofs = true ->
-                          (Mem.valid_block m2 b /\
+                          (visTgt mu b = true /\ (*Mem.valid_block m2 b /\*)
                            (locBlocksTgt mu b = false->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true /\
@@ -1334,8 +1308,7 @@ Lemma effcore_diagram_trans: forall
          frgnBlocksTgt mu12 b = true -> frgnBlocksSrc mu23 b = true))
   (MC12 : match_core12 d12 mu12 st1 m1 st2 m2)
   (MC23 : match_core23 d23 mu23 st2 m2 st3 m3)
-  (UHyp : forall b ofs, U1 b ofs = true -> Mem.valid_block m1 b ->
-          vis (compose_sm mu12 mu23) b = true),
+  (UHyp : forall b ofs, U1 b ofs = true -> vis (compose_sm mu12 mu23) b = true),
 exists
   (st2' : C3) (m2' : mem) (cd' : core_data12 * option C2 * core_data23) (mu' : SM_Injection),
   intern_incr (compose_sm mu12 mu23) mu' /\
@@ -1362,7 +1335,7 @@ exists
         (sem_compose_ord_eq_eq core_ord12 core_ord23 C2) cd'
         (d12, Some st2, d23)) 
     /\ (forall b ofs, U3 b ofs = true -> 
-         (Mem.valid_block m3 b /\
+         (visTgt (compose_sm mu12 mu23) b = true /\ (*Mem.valid_block m3 b /\*)
       (locBlocksTgt (compose_sm mu12 mu23) b = false ->
       exists (b1 : block) (delta1 : Z),
         foreign_of (compose_sm mu12 mu23) b1 = Some (b, delta1) /\
@@ -1370,7 +1343,7 @@ exists
         Mem.perm m1 b1 (ofs-delta1) Max Nonempty)))).
 Proof.
   intros. rewrite vis_compose_sm in UHyp. simpl in UHyp.
-  intros. 
+  intros.
   destruct (eff_diagram12 _ _ _ _ _ CS1 _ _ _ _ UHyp MC12)
     as [st2' [m2' [d12' [mu12' [InjIncr12 [InjSep12 [LocAlloc12
        [MC12' [U2 [Y MOD21]]]]]]]]]]; clear eff_diagram12.
@@ -1379,7 +1352,7 @@ Proof.
   destruct Y. auto.
   destruct H.
   destruct H. destruct x.
-  right. split; auto.
+  right. simpl in H. destruct H. split; auto.
   left. exists x; auto.
   clear Y. destruct ZZ as [CS2 | [CS2 ord12']].
  (*case1*) 
@@ -1403,7 +1376,7 @@ Proof.
                (d12', Some st2', d23')
         (d12, Some st2,d23)))
     /\ forall b ofs, U3 b ofs = true -> 
-        (Mem.valid_block m3 b /\
+        (visTgt mu23 b = true /\
            (locBlocksTgt mu23 b = false ->
            exists b2 delta2, foreign_of mu23 b2 = Some(b,delta2) /\
                U2 b2 (ofs-delta2) = true /\
@@ -1473,43 +1446,40 @@ Proof.
          eapply InjIncr12. 
   assert (frgnAlloc12': frgnBlocksTgt mu12 = frgnBlocksTgt mu12').
          eapply InjIncr12. 
-  
   rewrite locLocAlloc12', extLocAlloc12' in *. clear locLocAlloc12' extLocAlloc12'.
-  destruct INV as [? [? [? ?]]]. 
-  rewrite H0 in *. clear H0.
-  rewrite H1 in *. clear H1.
+  destruct INV as [lBlocks2 [eBlocks2 [pBlocks2 fBlocks2]]]. 
+  rewrite lBlocks2, eBlocks2 in *. 
   subst.
-  assert (UHyp2 : forall b2 z, U2 b2 z = true -> Mem.valid_block m2 b2 ->
-                          vis mu23 b2 = true).
-      intros. clear H1. unfold vis.
-      destruct (MOD21 _ _ H0).
+  assert (UHyp2 : forall b2 z, U2 b2 z = true -> vis mu23 b2 = true).
+      intros. unfold vis.
+      destruct (MOD21 _ _ H0) as [VS _]. unfold visTgt in VS.
+      rewrite lBlocks2 in VS.
       remember (locBlocksSrc mu23 b2) as d.
-      destruct d; apply eq_sym in Heqd. trivial.
-      destruct (H4 (eq_refl _)) as [b1 [d1 [Frg1 HU1]]]; clear H2.
-      simpl.
-      apply H3.
-      eapply (foreign_DomRng _ (match_sm_wd12 _ _ _ _ _ _ MC12) _ _ _ Frg1).
+      destruct d; apply eq_sym in Heqd; simpl in *; intuition.
   clear MC12 InjIncr12 InjSep12 MC12' match_sm_wd12 match_validblock12 (*MatchHyp12*). 
   clear LocAlloc12 (*FRGN12 mySrcTgt*).
   clear st1 m1 st1' m1' UHyp MOD21.
   rewrite pubAlloc12' in *; clear pubAlloc12'.
   rewrite frgnAlloc12' in *; clear frgnAlloc12'.
-  clear mu12.
+  clear lBlocks2 eBlocks2 mu12.
   remember (pubBlocksTgt mu12') as pubTgt12'.
   remember (frgnBlocksTgt mu12') as frgnTgt12'.
   clear HeqpubTgt12' HeqfrgnTgt12'. 
   clear mu12'.
   clear C1 Sem1 match_core12 g1.
-  rename H2 into HypPubTgt12'.
-  rename H3 into HypFrgnTgt12'.
+  rename pBlocks2 into HypPubTgt12'.
+  rename fBlocks2 into HypFrgnTgt12'.
   revert U2 mu23 d23 st2 m2 st3 m3 H MC23 HypPubTgt12' HypFrgnTgt12' UHyp2.
   induction x; intros.
    (*base case*) simpl in H.
-    destruct H as [c2 [m2'' [? ?]]].
-    inv H0.
-    destruct (eff_diagram23 _ _ _ _ _ H _ _ _ _ UHyp2 MC23) 
+    destruct H as [c2 [m2'' [U3 [U4 [? [? ?]]]]]].
+    destruct H0. inv H0; simpl in *. 
+    assert (UHYP2: forall b2 z, U3 b2 z = true -> vis mu23 b2 = true).
+      intros. eapply (UHyp2 _ z). rewrite H0. trivial.
+    clear UHyp2.
+    destruct (eff_diagram23 _ _ _ _ _ H _ _ _ _ UHYP2 MC23) 
       as [st3' [m3' [d23' [mu23' [InjInc23 [InjSep23
-          [LocAlloc23 [? [U3 [? MOD32]]]]]]]]]]; clear eff_diagram23.
+          [LocAlloc23 [? [U5 [? MOD32]]]]]]]]]]; clear eff_diagram23.
     exists st3'. exists m3'. exists d23'. exists mu23'. 
     split. 
       assert (pubBlock23: pubBlocksSrc mu23 = pubBlocksSrc mu23') by apply InjInc23.
@@ -1524,18 +1494,22 @@ Proof.
     split; trivial.
     split; trivial.
     split; trivial.
-    exists U3. 
+    exists U5. 
     split. destruct H1. left; assumption.
            destruct H1. right. split; trivial.
            apply t_step. constructor 2. apply H2.
-    apply MOD32. 
+    intros. destruct (MOD32 _ _ H2). split; trivial.
+       intros. destruct (H4 H5) as [b1 [d D]].
+       exists b1, d. rewrite orb_false_r. apply D.
    (*inductive case*)
     remember (S x) as x'. simpl in H.
     rename st2' into st2''. rename m2' into m2''.
-    destruct H as [st2' [m2' [Step2 StepN2]]]. subst x'.
-    destruct (eff_diagram23 _ _ _ _ _ Step2 _ _ _ _ UHyp2 MC23) 
+    destruct H as [st2' [m2' [U4 [U3 [Step2 [StepN2 HU]]]]]]. subst x'.
+    assert (UHyp4: forall b2 z, U4 b2 z = true -> vis mu23 b2 = true).
+      subst; intros. eapply (UHyp2 _ z). rewrite H; trivial.
+    destruct (eff_diagram23 _ _ _ _ _ Step2 _ _ _ _ UHyp4 MC23) 
       as [c3' [m3' [d23' [mu23' [InjInc23 [InjSep23 
-             [LocAlloc23 [MC23' [U3 [Steps3 MOD32]]]]]]]]]]; clear eff_diagram23.
+             [LocAlloc23 [MC23' [U5 [Steps3 MOD32]]]]]]]]]]; clear eff_diagram23.
     assert (pubSrc23: pubBlocksSrc mu23 = pubBlocksSrc mu23') by eapply InjInc23.
     assert (frgnSrc23: frgnBlocksSrc mu23 = frgnBlocksSrc mu23') by eapply InjInc23.
     assert (XX1: forall b : block, pubTgt12' b = true -> pubBlocksSrc mu23' b = true).
@@ -1549,29 +1523,26 @@ Proof.
     assert (FWD3: mem_forward m3 m3').
         destruct Steps3 as [[n K] | [[n K] _]];
              eapply effstepN_fwd; eassumption.
-    assert (U2'Hyp: forall b2 z, (U2 b2 z && valid_block_dec m2 b2) || freshloc m2 m2' b2 = true ->
-                Mem.valid_block m2' b2 ->
-                vis mu23' b2 = true).
-        intros. clear IHx StepN2.
-        apply orb_true_iff in H.
-        destruct H. apply andb_true_iff in H. destruct H. 
-          destruct (valid_block_dec m2 b2); simpl; inv H1.
-            specialize (UHyp2 _ _ H v).
-            eapply intern_incr_vis; eassumption.
-          assert (locBlocksSrc mu23' = (fun b : block => locBlocksSrc mu23 b || freshloc m2 m2' b)).
-                   apply sm_locally_allocatedChar in LocAlloc23. eapply LocAlloc23.
-          unfold vis. rewrite H1; clear H1. rewrite H. intuition.
-
-    destruct (IHx _ _ d23' _ _ c3' m3' StepN2 MC23' XX1 XX2)
+    assert (UHyp3: forall b2 z, U3 b2 z = true -> vis mu23' b2 = true).
+      intros. 
+      assert (U3valid:= effstepN_valid _ _ _ _ _ _ _ _ StepN2 _ _ H).
+      clear IHx Steps3 MOD32. subst.
+      assert (LB23': locBlocksSrc mu23' =
+             (fun b => locBlocksSrc mu23 b || freshloc m2 m2' b)). 
+          apply sm_locally_allocatedChar in LocAlloc23. eapply LocAlloc23.
+      specialize (UHyp2 b2 z).
+        destruct (valid_block_dec m2 b2); simpl in *.
+          assert (vis mu23 b2 = true). eapply UHyp2. rewrite H; simpl. intuition.
+          unfold vis; unfold vis in H0. rewrite LB23'. rewrite frgnSrc23 in H0.
+          rewrite <- (orb_comm (freshloc m2 m2' b2)).
+          rewrite <- orb_assoc. rewrite H0. intuition.
+        unfold vis. rewrite LB23'. clear LB23' UHyp2.
+          assert (FL: freshloc m2 m2' b2 = true).
+            eapply freshloc_charT. split; trivial. 
+          rewrite FL.  intuition. 
+    destruct (IHx _ mu23' d23' _ _ c3' m3' StepN2 MC23' XX1 XX2 UHyp3)
         as [c3'' [m3'' [d23'' [mu23'' [ZZ [InjIncr' 
              [InjSep' [LocAlloc23' [MC23'' [U3' [StepN3 MOD32']]]]]]]]]]]; clear IHx.
-       intros. eapply U2'Hyp. apply orb_true_iff in H. 
-         destruct (valid_block_dec m2 b2); simpl.
-           rewrite freshloc_charT in H. 
-           destruct H. apply orb_true_iff. left. apply andb_true_iff. split; trivial. apply H.
-           destruct H. contradiction.
-         apply orb_true_iff. right. rewrite freshloc_charT. split; trivial.
-        assumption.     
     assert (FWD3': mem_forward m3' m3'').
         destruct StepN3 as [[n K] | [[n K] _]];
              eapply effstepN_fwd; eassumption.
@@ -1595,76 +1566,62 @@ Proof.
            eauto.  
     split. eapply sm_locally_allocated_trans; eassumption.
     split. apply MC23''.
-    exists (fun b z => U3 b z || (U3' b z && valid_block_dec m3 b)). 
-    assert (Union1: forall b z, Mem.valid_block m3' b -> U3' b z = true -> (U3 b z || (U3' b z && valid_block_dec m3 b) || freshloc m3 m3' b) = true).
-      intros. case_eq (U3 b z); simpl; intros; trivial. rewrite H0; simpl.
-        apply orb_true_iff. unfold freshloc. 
-        destruct (valid_block_dec m3 b); simpl. left; trivial. right. 
-        destruct (valid_block_dec m3' b); simpl. trivial. contradiction.
-    assert (Union2: forall b z, Mem.valid_block m3 b -> U3 b z = true -> (U3 b z || (U3' b z && valid_block_dec m3 b)) = true).
-      intros. rewrite H0. trivial.
+    exists (fun b z => U5 b z || (U3' b z && valid_block_dec m3 b)). 
     split. clear MOD32 MOD32' ZZ. 
            destruct Steps3; destruct StepN3.
            (*1/4*)
-              left. destruct H as [n1 StepA]. destruct H0 as [n2 StepB].
-                      exists (n1 + S n2)%nat.
-                      change (S (n1 + S n2)) with (S n1 + S n2)%nat.
-                      rewrite effstepN_add. 
-                      exists c3', m3'.
-                      split; eapply effstepN_sub_val; try eassumption.
+              left. eapply effstep_plus_trans; eassumption.
            (*2/4*)
-               destruct H0 as [EFF3 CT].
-               left. destruct H as [n1 StepA]. destruct EFF3 as [n2 StepB].
-                       exists (n1 + n2)%nat.
-                       change (S (n1 + n2)) with (S n1 + n2)%nat.
-                       rewrite effstepN_add. 
-                       exists c3', m3'.
-                       split; eapply effstepN_sub_val; try eassumption.
-          (*3/4*)
+              left. destruct H0 as [EFF3 CT].
+              eapply effstep_plus_star_trans; eassumption. 
+           (*3/4*)
                left. destruct H as [EFF3 CORD].
-                       destruct EFF3 as [n1 StepA]. destruct H0 as [n2 StepB].
-                       exists (n1 + n2)%nat.
-                       replace (S (n1 + n2)) with (n1 + S n2)%nat by omega.
-                       rewrite effstepN_add.
-                       exists c3', m3'.
-                       split; eapply effstepN_sub_val; try eassumption.
+               eapply effstep_star_plus_trans; eassumption.
            (*4/4*)
                right. destruct H as [EFF3 CORD].
-               destruct H0 as [EFF3' CT].
-               split. destruct EFF3 as [n1 StepA]. destruct EFF3' as [n2 StepB].
-                      exists (n1 + n2)%nat.
-                      rewrite effstepN_add.
-                       exists c3', m3'.
-                       split; eapply effstepN_sub_val; try eassumption.
+                      destruct H0 as [EFF3' CT].
+               split. eapply effstep_star_trans; eassumption.
                eapply t_trans.
                  apply CT. clear CT.  
                  apply t_step.
                  constructor 2. apply CORD.
-    (*MOD32-clause*) intros b3 ofs HU3.
+    (*MOD32-clause*) subst U2. intros b3 ofs HU3.
       apply orb_true_iff in HU3.
       destruct HU3.
-        apply MOD32. apply H.
+        destruct (MOD32 _ _ H). split; trivial.
+        intros. destruct (H1 H2) as [b1 [d1 [Frg [HU4 Perm2]]]].
+        exists b1, d1. rewrite HU4; simpl.
+        split; trivial. 
+        split; trivial. 
       apply andb_true_iff in H. destruct H.
          destruct (valid_block_dec m3 b3); try inv H0.
-         split; trivial.
-         destruct (MOD32' _ _ H) as [vb3' UHyp32']; clear MOD32' StepN3.
+         destruct (MOD32' _ _ H) as [VIS23' UHyp32']; clear MOD32' StepN3.
+         split. unfold visTgt. unfold visTgt in VIS23'.
+                assert (FF: frgnBlocksTgt mu23 = frgnBlocksTgt mu23') by eapply InjInc23.
+                rewrite FF. clear FF.
+                assert (locBlocksTgt mu23' = (fun b => locBlocksTgt mu23 b || freshloc m3 m3' b)). 
+                   apply sm_locally_allocatedChar in LocAlloc23. eapply LocAlloc23.
+                rewrite H0 in VIS23'; clear UHyp32' H0.
+                unfold freshloc in VIS23'. destruct (valid_block_dec m3 b3); try contradiction.
+                simpl in *. rewrite andb_false_r, orb_false_r in VIS23'. assumption.
          intros. remember (locBlocksTgt mu23' b3) as d.
                  destruct d; apply eq_sym in Heqd.
                    apply sm_locally_allocatedChar in LocAlloc23.
                    destruct LocAlloc23 as [AA [BB [CC [DD [EE FF]]]]].
                    rewrite DD, H0 in Heqd. simpl in Heqd.
                    apply freshloc_charT in Heqd. destruct Heqd; contradiction.
-                 destruct (UHyp32' (eq_refl _)) as [b2 [d2 [F23' [UU UUPerm]]]]; clear UHyp32'.
+                 destruct (UHyp32' (eq_refl _)) as [b2 [d2 [F23' [UU Perm2']]]]; clear UHyp32'.
                    exists b2, d2. 
                    rewrite <- (intern_incr_foreign _ _ InjInc23) in F23'.
                    split; trivial.
+                   rewrite UU. simpl.
                    assert (Mem.valid_block m2 b2).
                      apply (match_validblock23 _ _ _ _ _ _ MC23).
                        eapply foreign_DomRng. eauto. apply F23'.
-                   apply orb_true_iff in UU.
-                   split. destruct UU; trivial. 
-                          apply freshloc_charT in H2. destruct H2; contradiction.
-                   apply FWD2. apply H1. apply UUPerm.
+                   destruct (valid_block_dec m2 b2); simpl. 
+                   split. intuition.
+                      apply FWD2; assumption.
+                   contradiction.
   (*case 2*)
    inv CS2.
    apply sm_locally_allocatedChar in LocAlloc12.

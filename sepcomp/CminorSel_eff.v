@@ -149,13 +149,13 @@ Inductive cminsel_effstep (g:genv):  (block -> Z -> bool) ->
   | cminsel_effstep_return: forall v optid f sp e k m,
       cminsel_effstep g EmptyEffect
         (CMinSel_Returnstate v (Kcall optid f sp e k)) m
-        (CMinSel_State f Sskip k sp (Cminor.set_optvar optid v e)) m
-
+        (CMinSel_State f Sskip k sp (Cminor.set_optvar optid v e)) m.
+(*
   | cminsel_effstep_sub_val: forall E EE c m c' m',
       (forall b ofs, Mem.valid_block m b ->
                      E b ofs = true -> EE b ofs = true) ->
       cminsel_effstep g E c m c' m' ->
-      cminsel_effstep g EE c m c' m'.
+      cminsel_effstep g EE c m c' m'.*)
 
 Lemma cminselstep_effax1: forall (M : block -> Z -> bool) g c m c' m',
       cminsel_effstep g M c m c' m' ->
@@ -209,13 +209,13 @@ intros.
   (*no external call*) 
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  (*effstep_sub_val*)
+  (*effstep_sub_val
     destruct IHcminsel_effstep.
     split; trivial.
     eapply unchanged_on_validblock; try eassumption.
     intros; simpl. remember (E b ofs) as d.
     destruct d; trivial. apply eq_sym in Heqd.
-    rewrite (H _ _ H3 Heqd) in H4. discriminate.
+    rewrite (H _ _ H3 Heqd) in H4. discriminate.*)
 Qed.
 
 Lemma cminselstep_effax2: forall  g c m c' m',
@@ -247,11 +247,30 @@ intros. inv H.
     eexists. eapply cminsel_effstep_return; try eassumption.
 Qed.
 
+Lemma cminsel_effstep_valid: forall (M : block -> Z -> bool) g c m c' m',
+      cminsel_effstep g M c m c' m' ->
+       forall b z, M b z = true -> Mem.valid_block m b.
+Proof.
+intros.
+  induction H; try (solve [inv H0]).
+
+  eapply FreeEffect_validblock; eassumption.
+
+  apply StoreEffectD in H0. destruct H0 as [ofs [VADDR ARITH]]; subst.
+  inv H2. apply Mem.store_valid_access_3 in H3.
+  eapply Mem.valid_access_valid_block.
+  eapply Mem.valid_access_implies; try eassumption. constructor.
+
+  eapply FreeEffect_validblock; eassumption.
+  eapply FreeEffect_validblock; eassumption.
+  eapply FreeEffect_validblock; eassumption.
+Qed.
+ 
 Program Definition cminsel_eff_sem : 
   @EffectSem genv CMinSel_core.
 eapply Build_EffectSem with (sem := cminsel_coop_sem)(effstep:=cminsel_effstep).
 apply cminselstep_effax1.
 apply cminselstep_effax2.
-intros.
-eapply cminsel_effstep_sub_val; eassumption.
+apply cminsel_effstep_valid.
+(*intros. eapply cminsel_effstep_sub_val; eassumption.*)
 Defined.

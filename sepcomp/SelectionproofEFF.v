@@ -2069,13 +2069,12 @@ destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
     rewrite initial_SM_as_inj. assumption. 
 Qed.
 
-Lemma Match_eff_diagram_strong_perm: 
+Lemma Match_effcore_diagram: 
   forall (GDE : genvs_domain_eq ge tge)
       st1 m1 st1' m1' (U1 : block -> Z -> bool)
       (CS: effstep cmin_eff_sem ge U1 st1 m1 st1' m1')
       st2 mu m2 
-      (EffSrc: forall b ofs, U1 b ofs = true -> 
-               Mem.valid_block m1 b -> vis mu b = true)
+      (EffSrc: forall b ofs, U1 b ofs = true -> vis mu b = true)
       (MC: Match_cores st1 mu st1 m1 st2 m2)
       (R: list_norepet (map fst (prog_defs prog))),
   exists st2' m2' (U2 : block -> Z -> bool),
@@ -2091,7 +2090,7 @@ Lemma Match_eff_diagram_strong_perm:
      sm_valid mu' m1' m2' /\
     (forall b2 ofs,
       U2 b2 ofs = true ->
-      Mem.valid_block m2 b2 /\
+      visTgt mu b2 = true /\
       (locBlocksTgt mu b2 = false ->
        exists (b1 : block) (delta1 : Z),
          foreign_of mu b1 = Some (b2, delta1) /\
@@ -2172,7 +2171,8 @@ induction CS; simpl in *.
         eapply REACH_closed_free; eassumption.
         destruct (restrictD_Some _ _ _ _ _ Jsp). 
         eapply free_free_inject; eassumption. *)
-      eapply FreeEffect_validblock; eassumption.
+      apply FreeEffectD in H3. destruct H3 as [? [VB Arith2]]; subst.
+        eapply visPropagateR; eassumption.
       eapply FreeEffect_PropagateLeft; eassumption.
   (* assign *)
       destruct MC as [SMC PRE].
@@ -2251,10 +2251,8 @@ induction CS; simpl in *.
       destruct (Mem.storev_mapped_inject _ _ _ _ _ _ _ _ _ 
           INJ H1 VaddrMu VMu) as [mm [Hmm1 Hmm2]].
         rewrite Hmm1 in P. inv P. assumption.
-      apply StoreEffectD in H2. destruct H2 as [i [VADDR' _]]. subst. 
-        simpl in P. inv B.
-           eapply (Mem.valid_block_inject_2 (restrict (as_inj mu) (vis mu))); try eassumption.
-           inv H1.
+      apply StoreEffectD in H2. destruct H2 as [i [VADDR' _]]. subst.
+        inv B; inv H1. eapply visPropagateR; eassumption.
       eapply StoreEffect_PropagateLeft; eassumption.
   (* Scall *)
       destruct MC as [SMC PRE].
@@ -2381,7 +2379,8 @@ induction CS; simpl in *.
            apply call_cont_commut; auto.
            eapply inject_restrict; eassumption.
          intuition.
-         eapply FreeEffect_validblock; eassumption.
+         apply FreeEffectD in H5. destruct H5 as [? [VB Arith2]]; subst.
+           eapply visPropagateR; eassumption.
       eapply FreeEffect_PropagateLeft; eassumption.         
   (* Sbuiltin TODO, but see above , in diagram case without effects*)
   (* Seq *)
@@ -2573,9 +2572,10 @@ induction CS; simpl in *.
         destruct (restrictD_Some _ _ _ _ _ Hsp). 
         eapply free_free_inject; try eassumption.
           simpl.  rewrite Zplus_0_r. apply P.
-        eapply FreeEffect_validblock; eassumption.
+        apply FreeEffectD in H0. destruct H0 as [? [VB Arith2]]; subst.
+          eapply visPropagateR; eassumption.
         destruct (restrictD_Some _ _ _ _ _ Hsp).
-        eapply FreeEffect_PropagateLeft; eassumption.  
+          eapply FreeEffect_PropagateLeft; eassumption.  
   (* Sreturn Some *)
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
@@ -2614,9 +2614,10 @@ induction CS; simpl in *.
         destruct (restrictD_Some _ _ _ _ _ Hsp). 
         eapply free_free_inject; try eassumption. 
           simpl. rewrite Zplus_0_r. apply P.
-        eapply FreeEffect_validblock; eassumption.
+        apply FreeEffectD in H1. destruct H1 as [? [VB Arith2]]; subst.
+          eapply visPropagateR; eassumption.
         destruct (restrictD_Some _ _ _ _ _ Hsp).
-        eapply FreeEffect_PropagateLeft; eassumption.   
+        eapply FreeEffect_PropagateLeft; eassumption.
   (* Slabel *)
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
@@ -2756,7 +2757,7 @@ induction CS; simpl in *.
            eapply set_var_inject; auto.
          assumption.
        intuition.
-(*inductive case*)
+(*inductive case
   destruct IHCS as [c2' [m2' [U2 [HH1 [mu'  HH2]]]]].
     intros. eapply EffSrc. apply H. assumption. eassumption.
     assumption. assumption.
@@ -2769,7 +2770,7 @@ induction CS; simpl in *.
     destruct (H10 H8) as [b1 [delta [Frg [HE HP]]]]; clear H6.
     exists b1, delta. split; trivial. split; trivial.
     apply Mem.perm_valid_block in HP. 
-    apply H; assumption. 
+    apply H; assumption. *)
 Qed. 
 
 Lemma Match_AfterExternal: 
@@ -3161,7 +3162,7 @@ assert (GDE: genvs_domain_eq ge tge).
     intros [st2' [m2' [CS2 [mu' MU']]]].
     exists st2', m2', mu'. intuition. }
 (* effcore_diagram*)
-  { intros. exploit Match_eff_diagram_strong_perm; eauto. 
+  { intros. exploit Match_effcore_diagram; eauto. 
     intros [st2' [m2' [U2 [CS2 [mu' [? [? [? [? [? [? ?]]]]]]]]]]].
     exists st2', m2', mu'.
     repeat (split; try assumption).

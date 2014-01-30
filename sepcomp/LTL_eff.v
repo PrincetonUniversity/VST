@@ -116,13 +116,13 @@ Inductive ltl_effstep (g:genv):  (block -> Z -> bool) ->
   | ltl_effstep_return: forall f sp rs1 bb s rs m,
       ltl_effstep g EmptyEffect 
         (LTL_Returnstate (Stackframe f sp rs1 bb :: s) rs) m
-        (LTL_Block s f sp bb rs) m
-
+        (LTL_Block s f sp bb rs) m.
+(*
   | ltl_effstep_sub_val: forall E EE c m c' m',
       (forall b ofs, Mem.valid_block m b ->
                      E b ofs = true -> EE b ofs = true) ->
       ltl_effstep g E c m c' m' ->
-      ltl_effstep g EE c m c' m'.
+      ltl_effstep g EE c m c' m'.*)
 
 Lemma ltlstep_effax1: forall (M : block -> Z -> bool) g c m c' m',
       ltl_effstep g M c m c' m' ->
@@ -164,13 +164,13 @@ intros.
   (*no external call*) 
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  (*effstep_sub_val*)
+  (*effstep_sub_val
     destruct IHltl_effstep.
     split; trivial.
     eapply unchanged_on_validblock; try eassumption.
     intros; simpl. remember (E b ofs) as d.
     destruct d; trivial. apply eq_sym in Heqd.
-    rewrite (H _ _ H3 Heqd) in H4. discriminate.
+    rewrite (H _ _ H3 Heqd) in H4. discriminate.*)
 Qed.
 
 Lemma ltlstep_effax2: forall  g c m c' m',
@@ -197,11 +197,26 @@ intros. unfold corestep, coopsem in H; simpl in H.
     eexists. eapply ltl_effstep_return.
 Qed.
 
+Lemma ltl_effstep_valid: forall (M : block -> Z -> bool) g c m c' m',
+      ltl_effstep g M c m c' m' ->
+       forall b z, M b z = true -> Mem.valid_block m b.
+Proof.
+intros.
+  induction H; try (solve [inv H0]).
+
+  apply StoreEffectD in H0. destruct H0 as [ofs [VADDR ARITH]]; subst.
+  inv H1. apply Mem.store_valid_access_3 in H2.
+  eapply Mem.valid_access_valid_block.
+  eapply Mem.valid_access_implies; try eassumption. constructor.
+
+  eapply FreeEffect_validblock; eassumption.
+  eapply FreeEffect_validblock; eassumption.
+Qed.
 Program Definition LTL_eff_sem : 
   @EffectSem genv LTL_core.
 eapply Build_EffectSem with (sem := LTL_coop_sem)(effstep:=ltl_effstep).
 apply ltlstep_effax1.
 apply ltlstep_effax2.
-intros.
-eapply ltl_effstep_sub_val; eassumption.
+apply ltl_effstep_valid.
+(*intros. eapply ltl_effstep_sub_val; eassumption.*)
 Defined.

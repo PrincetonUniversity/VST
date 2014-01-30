@@ -16,6 +16,7 @@ Require Import sepcomp.effect_semantics.
 Require Import sepcomp.StructuredInjections.
 
 Definition vis mu := fun b => locBlocksSrc mu b || frgnBlocksSrc mu b.
+Definition visTgt mu := fun b => locBlocksTgt mu b || frgnBlocksTgt mu b.
   
 Inductive reach (m:mem) (B:block -> Prop): list (block * Z) -> block -> Prop :=
   reach_nil: forall b, B b -> reach m B nil b
@@ -1661,8 +1662,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall cd st2 mu m2
-        (UHyp: forall b1 z, U1 b1 z = true -> Mem.valid_block m1 b1 ->
-                            vis mu b1 = true),
+        (UHyp: forall b1 z, U1 b1 z = true -> vis mu b1 = true),
         match_state cd mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists cd', exists mu',
           intern_incr mu mu' /\
@@ -1684,7 +1684,7 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
                core_ord cd' cd)) /\
 
              forall b ofs, U2 b ofs = true -> 
-                       (Mem.valid_block m2 b /\
+                       (visTgt mu b = true /\ (*Mem.valid_block m2 b /\*)
                          (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true /\ 
@@ -1979,6 +1979,128 @@ Proof. intros.
        destruct H6; discriminate.
 Qed.
 
+
 End SharedMemory_simulation_inject. 
 
 End SM_simulation.
+(*
+      effcore_diagram : 
+      forall cd st1 mu m1 U1 (MS: match_state cd U1 mu st1 m1 st2 m2),
+        (UHyp: forall b1 z, U1 b1 z = true -> Mem.valid_block m1 b1 ->
+                            vis mu b1 = true) /\
+        (corestep Sem1 ge1 st1 m1 st1' m1' ->
+          (effstep Sem1 ge1 U1 st1 m1 st1' m1' /\
+          exists st2', exists m2', exists cd', exists mu', ...))
+    and then add axiom that 
+         match_state cd U mu st1 m1 st2 m2 ->
+         match_state cd U mu' st1 m1 st2 m2 for 
+         any extension mu' of mu such that Mem.inject (as_inj mu') m1 m2*)
+(*
+Definition locally_extends mu j mu' m1 m2:=
+   local_of mu' = join j (local_of mu) /\
+   extern_of mu' = extern_of mu /\
+   (locBlocksSrc mu' = (fun b => locBlocksSrc mu b || (*??*) mapped j b)) /\
+   (extBlocksTgt mu' = extBlocksTgt mu) /\
+   (frgnBlocksSrc mu' = frgnBlocksSrc mu) /\
+   (*privSrc/Tgt mu' = privSrcTgt mu ??*)
+   (forall b1 b2 d, j b1 = Some(b2,d) -> (DomSrc mu b1 = false /\ DomTgt mu b2 = false /\
+                              Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2))
+   /\ SM_wd mu'.
+
+Lemma EXTENDS: forall (I:SM_simulation_inject)
+        st1 m1 st1' m1' U1, 
+        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
+
+      forall cd st2 mu m2
+        (UHyp: forall b1 z, U1 b1 z = true -> vis mu b1 = true)
+        j muE (EXT: locally_extends mu j muE m1 m2),
+        match_state I cd mu st1 m1 st2 m2 ->
+        exists st2', exists m2', exists cd', exists mu',
+          intern_incr muE mu' /\
+          sm_inject_separated muE mu' m1 m2 /\
+
+          (*new condition: corestep evolution is soundly and completely 
+                           tracked by the local knowledge*)
+          sm_locally_allocated muE mu' m1 m2 m1' m2' /\ 
+
+          match_state I cd' mu' st1' m1' st2' m2' /\
+
+          (*could add the following 2 assertions here, too, but 
+             we checked already that they're satisfied in the previous
+             clause SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
+
+          exists U2,              
+            ((effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
+              (effstep_star Sem2 ge2 U2 st2 m2 st2' m2' /\
+               core_ord I cd' cd)) /\
+
+             forall b ofs, U2 b ofs = true -> 
+                       (visTgt mu b = true /\ (*we probably want visTgt mu hereMem.valid_block m2 b /\*)
+                         (locBlocksTgt mu b = false ->
+                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
+                           U1 b1 (ofs-delta1) = true /\ 
+                           Mem.perm m1 b1 (ofs-delta1) Max Nonempty))).
+Proof. intros.
+(*
+  assert (UHypE: forall b1 z, U1 b1 z = true -> 
+          Mem.valid_block m1 b1 -> vis muE b1 = true).
+    intros. specialize (UHyp _ _ H1 H2). unfold vis in *.
+    destruct EXT as [_ [_ [? [_ [? _]]]]]. rewrite H3, H4; simpl.
+    destruct (locBlocksSrc mu b1); simpl in *. trivial.
+    rewrite UHyp; intuition.*)
+(*  assert (MCE: match_state I cd muE st1 m1 st2 m2). admit.*)
+  destruct (effcore_diagram I _ _ _ _ _ H cd st2 mu m2 UHyp H0)
+    as [st2' [m2' [cd' [mu' [INC [SEP [LALLOC [MC' [U2 [STEP2 U2Hyp]]]]]]]]]].
+  exists st2', m2', cd'.
+  assert (exists muE', locally_extends mu' j muE' m1' m2'). admit.
+  destruct H1 as [muE' HmuE']. exists muE'.
+  assert (WDmu' := match_sm_wd I _ _ _ _ _ _ MC').
+  split. admit. (*  clear - WDmu' HmuE' INC EXT.
+    destruct EXT as [muEA [muEB [muEC wdMuE]]].
+    destruct HmuE' as [muE'A [muE'B [muE'C wdMuE']]].
+    split. rewrite muEA, muE'A. 
+           eapply inject_incr_join. apply inject_incr_refl. apply INC.
+           red; intros. remember (j b) as d.
+             destruct d; apply eq_sym in Heqd.
+               destruct p. destruct (muE'C _ _ _ Heqd); clear muEC muE'C.
+               remember (local_of mu' b) as q.
+               destruct q; apply eq_sym in Heqq.
+                 destruct p. apply local_in_all in Heqq; trivial.
+                 destruct (as_inj_DomRng _ _ _ _ Heqq); trivial.
+                 rewrite H1 in H. discriminate.
+               right; trivial.
+             left; trivial.
+      split. assert (extern_of mu = extern_of muE) by eapply muEB. 
+             assert (extern_of mu' = extern_of muE') by eapply muE'B.
+             rewrite <- H, <- H0. eapply INC.
+      split. assert (locBlocksSrc muE destruct HmuE' as [_ [? _]]. rewrite H; clear H.
+             destruct EXT as [_ [? _]]. rewrite H; clear H.
+             eapply INC.
+      split. destruct HmuE' as [_ [_ [? _]]]. rewrite H; clear H.
+             destruct EXT as [_ [_ [? _]]]. rewrite H; clear H. 
+             intros. remember (locBlocksSrc mu b) as d.
+               destruct d; apply eq_sym in Heqd; simpl in *.
+               assert (locBlocksSrc mu' b = true). eapply INC. trivial.
+               rewrite H0; trivial.
+
+               rewrite H; intuition.
+      split. destruct HmuE' as [_ [_ [_ [? _]]]]. rewrite H; clear H.
+             destruct EXT as [_ [_ [? _]]]. rewrite H; clear H. 
+             intros. remember (locBlocksSrc mu b) as d.
+               destruct d; apply eq_sym in Heqd; simpl in *.
+               assert (locBlocksSrc mu' b = true). eapply INC. trivial.
+               rewrite H0; trivial.
+
+               rewrite H; intuition.
+
+
+             eapply INC. remember (local_of mu' b) as q. destruct q; apply eq_sym in Heqq.
+
+    destruct INC.*)
+  split. admit.
+  split. admit.
+  split. clear U2Hyp STEP2. admit. (*needs axiom, and maybe some reach-closure assumption on j*)
+  exists U2.
+  split; trivial.
+Qed.
+*)

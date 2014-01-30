@@ -2935,6 +2935,12 @@ Proof.
       assumption.
 Qed. 
 
+Lemma orb_same: forall b b', b = b || b && b'.
+Proof. intros. destruct b; intuition. Qed.
+
+Lemma andb_same: forall b b' (HBb': b=true -> b'= true), b = b && b'.
+Proof. intros. destruct b; intuition. Qed.
+
 Lemma EFF_switch_descent:
   forall cenv xenv k ls body s,
   transl_lblstmt cenv (switch_env ls xenv) ls body = OK s ->
@@ -2949,21 +2955,25 @@ Proof.
   monadInv H.
   eexists; split.
       econstructor; eauto.
-  intros. eapply effstep_plus_trans. 
+  intros. eapply effstep_plus_trans'. 
             apply effstep_plus_one.
               constructor. 
               apply effstep_plus_one.
-                constructor.  
+                constructor.
+              extensionality b; extensionality z.
+                apply orb_same.
 (*2*)
   monadInv H. exploit IHls; eauto. intros [k' [A B]]. 
   eexists; split.
       econstructor; eauto.
-  intros. eapply effstep_plus_star_trans. eauto. 
+  intros. eapply effstep_plus_star_trans'. eauto. 
   eapply effstep_star_trans. 
       apply effstep_star_one.
         constructor. 
         apply effstep_star_one.
           constructor.
+        extensionality b; extensionality z.
+                apply orb_same.
 Qed.
 
 Lemma EFF_switch_ascent:
@@ -2993,13 +3003,15 @@ Proof.
   rewrite (length_switch_table ls 1%nat 0%nat). 
   rewrite switch_table_shift.
   exists k2; split; try exact B.
-  eapply effstep_star_trans.
+  eapply effstep_star_trans'.
     eapply effstep_star_one.
       constructor. 
       eapply effstep_star_trans.
         eapply effstep_star_one.
           econstructor. 
-          apply A. 
+          apply A.
+      extensionality b; extensionality z.
+                apply orb_same. 
 Qed.
 
 Lemma eff_make_store_correct:
@@ -3100,10 +3112,12 @@ Proof. intros.
   intros [T2 [m2 [nu [A C]]]].
   exists T2. exists m2. exists nu. 
   split.
-     eapply effstep_star_plus_trans.
+     eapply effstep_star_plus_trans'.
         apply effstep_star_one.
           constructor. 
      simpl. apply A. 
+    extensionality b; extensionality z.
+                apply orb_same.
   apply C.
 Qed.
 
@@ -3144,10 +3158,12 @@ Proof. intros.
   intros [T2 [m2 [nu [A C]]]].
   exists T2; exists m2; exists nu.
   split.
-     eapply effstep_star_plus_trans.
+     eapply effstep_star_plus_trans'.
         apply effstep_star_one.
           constructor.
         simpl. apply A. 
+    extensionality b; extensionality z.
+                apply orb_same.
   (* simpl in *. exists c'.*) apply C.
 Qed.
 
@@ -3170,9 +3186,11 @@ Proof. intros MCS.
      apply effstep_star_zero. split. exact I. econstructor; eauto.
   exploit IHMK; eauto.
   intros [tk' [A B]]. exists tk'; split.
-  eapply effstep_star_trans; eauto.
+  eapply effstep_star_trans'; eauto.
      apply effstep_star_one. constructor.
-     auto.
+     extensionality b; extensionality z.
+                apply orb_same.
+    auto.
   econstructor; split.
      apply effstep_star_zero. split. exact I.
   econstructor; eauto.
@@ -3203,11 +3221,13 @@ Proof. intros.
 
   eexists. eexists. exists mu. 
   split. 
-    eapply effstep_star_plus_trans.
-      eapply effstep_star_sub_val. apply A. 
-        intros. unfold FreeEffect. destruct (valid_block_dec tm b).
-          unfold EmptyEffect in H0. inv H0. contradiction.
+    eapply effstep_star_plus_trans'.
+      (*eapply effstep_star_sub_val.*) apply A. 
       apply effstep_plus_one. apply cmin_effstep_skip_call; eassumption.
+      extensionality b; extensionality z.
+        unfold EmptyEffect; simpl.
+       apply andb_same. intros. apply FreeEffect_validblock in H.
+          destruct (valid_block_dec tm b); trivial; contradiction.
   assert (SMV': sm_valid mu m' tm').
     split; intros.
       assert (Mem.valid_block m b1).
@@ -3565,18 +3585,22 @@ Proof. intros.
   exploit IHMK; eauto. intros [c2' [m2' [mu' [A B]]]].
   exists c2'. exists m2'. exists mu'. 
   split; auto. 
-     eapply effstep_plus_trans. 
+     eapply effstep_plus_trans'. 
        apply effstep_plus_one.
          constructor.
        simpl. apply A.
+     extensionality b; extensionality z. 
+       apply orb_same.
 
   exploit IHMK; eauto.  intros [c2' [m2' [mu' [A B]]]].
   exists c2'. exists m2'. exists mu'.
   split; auto. 
-     eapply effstep_plus_trans. 
+     eapply effstep_plus_trans'. 
          apply effstep_plus_one.
            constructor. 
          simpl. apply A.
+     extensionality b; extensionality z. 
+       apply orb_same.
 Qed.
 
 Lemma EFF_step_case_ExitBlockZero: forall 
@@ -3614,10 +3638,12 @@ Proof. intros.
   exploit IHMK; eauto. intros [c2' [m2' [mu' [A B]]]].
   exists c2'. exists m2', mu'. 
   split; auto. 
-     eapply effstep_plus_trans. 
+     eapply effstep_plus_trans'. 
          apply effstep_plus_one.
            constructor. 
          simpl. apply A.
+     extensionality b; extensionality z. 
+       apply orb_same.
 Qed.
 
 Lemma EFF_step_case_ExitBlockNonzero: forall 
@@ -3655,10 +3681,12 @@ Proof. intros.
   exploit IHMK; eauto. intros [c2' [m2' [mu' [A B]]]].
   exists c2'. exists m2', mu'. 
   split; auto. 
-     eapply effstep_plus_trans. 
+     eapply effstep_plus_trans'. 
        apply effstep_plus_one.
          constructor. 
          simpl. apply A.
+     extensionality b; extensionality z. 
+       apply orb_same.
 Qed.
 
 Lemma EFF_switch_MSI: forall 
@@ -3684,11 +3712,13 @@ Proof.
   intros. destruct ls; simpl.
 (*1*)
   inv TK. eexists; eexists; exists mu; split. 
-     eapply effstep_plus_trans.
+     eapply effstep_plus_trans'.
          eapply effstep_plus_one.
            constructor.
            simpl. eapply effstep_plus_one.
-                   constructor. 
+                   constructor.
+         extensionality b; extensionality z. 
+           apply orb_same. 
     intuition. econstructor; eauto. econstructor; eauto.
     intuition.
      apply intern_incr_refl.
@@ -3698,11 +3728,13 @@ Proof.
        try rewrite freshloc_irrefl; intuition.
 (*2*) 
   inv TK. econstructor; eexists; exists mu; split.
-     eapply effstep_plus_trans.
+     eapply effstep_plus_trans'.
          eapply effstep_plus_one.
            constructor. 
            simpl. eapply effstep_plus_one.
-                    constructor. 
+                    constructor.
+         extensionality b; extensionality z. 
+           apply orb_same. 
      simpl; split. split. eapply SMC_state_seq; try eassumption.
           simpl. eapply  switch_match_cont; eauto. 
           intuition.
@@ -3745,7 +3777,7 @@ Proof. intros.
   exploit transl_lblstmt_suffix; eauto. simpl. intros [body' [ts' E]].
   exploit EFF_switch_MSI; eauto. intros [T2 [m2' [mu' [F [G HH]]]]].
   exists T2; exists m2'; exists mu'; split.
-      eapply effstep_plus_star_trans.
+      eapply effstep_plus_star_trans'.
         eapply B. 
       eapply effstep_star_trans.
          eapply effstep_star_one.
@@ -3754,6 +3786,8 @@ Proof. intros.
         eapply effstep_star_trans.
          apply C.
          eapply effstep_plus_star. eapply F.
+      extensionality b; extensionality z.  
+        apply orb_same.
   intuition.
 Qed.
 End EFFSTEP_PERM.
@@ -3836,8 +3870,7 @@ Lemma Match_effcore_diagram:
 forall st1 m1 st1' m1' (U1 : Values.block -> Z -> bool)
        (EFFSTEP: effstep csharpmin_eff_sem ge U1 st1 m1 st1' m1')
        st2 mu m2
-       (UHyp: forall b ofs,  U1 b ofs = true -> Mem.valid_block m1 b ->
-                             vis mu b = true)
+       (UHyp: forall b ofs,  U1 b ofs = true -> vis mu b = true)
        (MC: Match_cores st1 mu st1 m1 st2 m2),
 exists st2' m2' mu',
   intern_incr mu mu' /\
@@ -3850,7 +3883,7 @@ exists st2' m2' mu',
       effstep_star cmin_eff_sem tge U2 st2 m2 st2' m2') /\
      (forall (b : Values.block) (ofs : Z),
       U2 b ofs = true ->
-      Mem.valid_block m2 b /\
+      visTgt mu b = true /\
       (locBlocksTgt mu b = false ->
        exists (b1 : Values.block) (delta1 : Z),
          foreign_of mu b1 = Some (b, delta1) /\
@@ -3892,13 +3925,10 @@ induction EFFSTEP; simpl in *.
       exists c2'. exists m2'. exists mu'. 
       intuition.
       exists (FreeEffect m2 0 (fn_stackspace tfn) sp). intuition.
-        unfold FreeEffect in H11.
-        destruct (valid_block_dec m2 b); trivial. discriminate.
-      unfold FreeEffect in H11.
-        destruct (valid_block_dec m2 b); try discriminate.
-        destruct (eq_block b sp); simpl in *; subst.
-          inv MCS. rewrite H14 in SPlocal. discriminate.
-        discriminate.
+        apply FreeEffectD in H11. destruct H11 as [? [VB Arith]]; subst.
+        inv MCS. unfold visTgt. rewrite SPlocal. trivial.
+      apply FreeEffectD in H11. destruct H11 as [? [VB Arith]]; subst.
+        inv MCS. rewrite H14 in SPlocal. discriminate.
   (*assign*)
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
@@ -3919,14 +3949,23 @@ induction EFFSTEP; simpl in *.
       intuition.
       exists (StoreEffect vv (encode_val chunk u)).
       intuition.
-      unfold StoreEffect in H15. destruct vv; inv H15.
-        repeat rewrite andb_true_iff in H19.
-        destruct H19 as [[HH1 HH2] HH3].
-        destruct (eq_block b0 b); subst; simpl in *; try discriminate. 
-          apply Mem.store_valid_access_3 in STORE'.
-          eapply Mem.perm_valid_block with (k:=Cur). 
-          eapply Mem.valid_access_perm. apply STORE'.
-      eapply StoreEffect_PropagateLeft; eassumption.
+      apply StoreEffectD in H15.
+        destruct H15 as [i [VV Arith]]. subst.
+        destruct vaddr; inv H1.
+        inv H3.
+        eapply visPropagateR; try eassumption.
+        
+      apply StoreEffectD in H15.
+        destruct H15 as [i [VV Arith]]. subst.
+        destruct vaddr; inv H1. 
+        eapply StoreEffect_PropagateLeft; try eassumption.
+        unfold StoreEffect.
+        destruct (eq_block b b); simpl.
+          destruct (zle (Int.unsigned i) ofs); simpl in *.
+           destruct (zlt ofs (Int.unsigned i + Z.of_nat (length (encode_val chunk u)))); trivial.
+           omega.
+          omega.
+        elim n. trivial.  
    (*call*)
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
@@ -3975,6 +4014,7 @@ induction EFFSTEP; simpl in *.
          exists EmptyEffect. 
          intuition. right. split. omega.
                 exists O. constructor.
+          trivial. reflexivity.
 (* ifthenelse *) 
       destruct MC as [SMC PRE].
       inv SMC. 
@@ -4058,12 +4098,10 @@ induction EFFSTEP; simpl in *.
                 intuition.
                 left. apply effstep_plus_one.
                    eapply cmin_effstep_return_0. eauto.
-                unfold FreeEffect in H5. 
-                 destruct (valid_block_dec m2 b); trivial. discriminate.
-           unfold FreeEffect in H5. 
-             destruct (valid_block_dec m2 b); try discriminate.
-             destruct (eq_block b sp); subst; simpl in *; try discriminate.
-             inv MCS. rewrite H7 in SPlocal. discriminate.
+                apply FreeEffectD in H5. destruct H5 as [? [VB Arith]]; subst. 
+                  inv MCS. unfold visTgt. rewrite SPlocal; trivial.
+           apply FreeEffectD in H5. destruct H5 as [? [VB Arith]]; subst. 
+                  inv MCS. rewrite SPlocal in *. discriminate.
        apply intern_incr_refl.
         apply sm_inject_separated_same_sminj.
         apply sm_locally_allocatedChar.
@@ -4100,12 +4138,10 @@ induction EFFSTEP; simpl in *.
                 intuition.
                 left. apply effstep_plus_one.
                    eapply cmin_effstep_return_1. eauto. eauto. 
-              unfold FreeEffect in H6. 
-                 destruct (valid_block_dec m2 b); trivial. discriminate.
-           unfold FreeEffect in H6. 
-             destruct (valid_block_dec m2 b); try discriminate.
-             destruct (eq_block b sp); subst; simpl in *; try discriminate.
-             inv MCS. rewrite SPlocal in *. discriminate.
+                apply FreeEffectD in H6. destruct H6 as [? [VB Arith]]; subst. 
+                  inv MCS. unfold visTgt. rewrite SPlocal; trivial.
+           apply FreeEffectD in H6. destruct H6 as [? [VB Arith]]; subst. 
+                  inv MCS. rewrite SPlocal in *. discriminate.
         apply intern_incr_refl.
         apply sm_inject_separated_same_sminj.
         apply sm_locally_allocatedChar.
@@ -4184,7 +4220,7 @@ induction EFFSTEP; simpl in *.
         unfold set_optvar. destruct optid; simpl option_map; econstructor; eauto.
         eapply match_temps_assign. assumption. assumption.
       simpl; intuition.
-(*inductive case*)
+(*inductive case - sub_val
   destruct IHEFFSTEP as [c2' [m2' [mu' X]]].
     intros. eapply UHyp. apply H. assumption. eassumption.
     assumption. assumption.
@@ -4196,7 +4232,7 @@ induction EFFSTEP; simpl in *.
   intros. destruct (H6 H4) as [b1 [delta [Frg [HE HP]]]]; clear H6.
   exists b1, delta. split; trivial. split; trivial.
   apply Mem.perm_valid_block in HP. 
-  apply H; assumption. 
+  apply H; assumption. *)
 Qed. 
 
 (*program structure not yet updated to module*)

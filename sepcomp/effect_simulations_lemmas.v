@@ -198,8 +198,7 @@ Hypothesis order_wf: well_founded order.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall st2 mu m2
-        (UHyp: forall b z, U1 b z = true -> Mem.valid_block m1 b ->
-                           vis mu b = true),
+        (UHyp: forall b z, U1 b z = true -> vis mu b = true),
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
@@ -214,7 +213,7 @@ Hypothesis order_wf: well_founded order.
                order st1' st1)) /\
 
              forall b ofs, U2 b ofs = true -> 
-                       (Mem.valid_block m2 b /\
+                       (visTgt mu b = true /\ (*Mem.valid_block m2 b /\*)
                          (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true /\
@@ -301,8 +300,7 @@ Section EFF_INJ_SIMULATION_STAR.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall st2 mu m2
-        (UHyp: forall b ofs, U1 b ofs = true -> Mem.valid_block m1 b ->
-                  vis mu b = true),
+        (UHyp: forall b ofs, U1 b ofs = true -> vis mu b = true),
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
@@ -316,7 +314,7 @@ Section EFF_INJ_SIMULATION_STAR.
              ((measure st1' < measure st1)%nat /\ effstep_star Sem2 ge2 U2 st2 m2 st2' m2'))
             /\
              forall b ofs, U2 b ofs = true -> 
-                       (Mem.valid_block m2 b /\
+                       (visTgt mu b = true /\ (*Mem.valid_block m2 b /\*)
                          (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true /\
@@ -367,8 +365,7 @@ Section EFF_INJ_SIMULATION_PLUS.
         effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
       forall st2 mu m2
-        (UHyp: forall b ofs, U1 b ofs = true -> Mem.valid_block m1 b ->
-                             vis mu b = true),
+        (UHyp: forall b ofs, U1 b ofs = true -> vis mu b = true),
         match_states st1 mu st1 m1 st2 m2 ->
         exists st2', exists m2', exists mu',
           intern_incr mu mu' /\
@@ -382,7 +379,7 @@ Section EFF_INJ_SIMULATION_PLUS.
              ((measure st1' < measure st1)%nat /\ effstep_star Sem2 ge2 U2 st2 m2 st2' m2'))
             /\
              forall b ofs, U2 b ofs = true -> 
-                       (Mem.valid_block m2 b /\
+                       (visTgt mu b = true /\ (*Mem.valid_block m2 b /\*)
                          (locBlocksTgt mu b = false ->
                            exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
                            U1 b1 (ofs-delta1) = true /\

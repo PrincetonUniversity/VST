@@ -1176,21 +1176,24 @@ Proof.
   simpl. rewrite H2. simpl. congruence.
   exploit IHtr_switch; eauto. intros [nd1 [rs1 [EX [NTH ME]]]].
   exists nd1; exists rs1; intuition.
-  eapply effstep_star_trans. 
+  eapply effstep_star_trans'. 
     eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := false); eauto.  
       simpl. rewrite H2. simpl. congruence. eexact EX.
+   extensionality b; extensionality z. rewrite absoption_orb; trivial.
 (* iflt *)
   caseEq (Int.ltu i key); intro EQ; rewrite EQ in H5.
   exploit IHtr_switch1; eauto. intros [nd1 [rs1 [EX [NTH ME]]]].
   exists nd1; exists rs1; intuition.
-  eapply effstep_star_trans. 
+  eapply effstep_star_trans'. 
     eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := true); eauto.  
     simpl. rewrite H2. simpl. congruence. eexact EX.
+    extensionality b; extensionality z. rewrite absoption_orb; trivial.
   exploit IHtr_switch2; eauto. intros [nd1 [rs1 [EX [NTH ME]]]].
   exists nd1; exists rs1; intuition.
-  eapply effstep_star_trans. 
+  eapply effstep_star_trans'. 
     eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := false); eauto. 
     simpl. rewrite H2. simpl. congruence. eexact EX.
+    extensionality b; extensionality z. rewrite absoption_orb; trivial.
 (* jumptable *)
   set (rs1 := rs#rt <- (Vint(Int.sub i ofs))).
   assert (ME1: match_env j map e nil rs1).
@@ -1203,21 +1206,23 @@ Proof.
   caseEq (Int.ltu (Int.sub i ofs) sz); intro EQ; rewrite EQ in H9.
   exploit H5; eauto. intros [nd [A B]].
   exists nd; exists rs1; intuition.
-  eapply effstep_star_trans. 
+  eapply effstep_star_trans'. 
     eapply effstep_star_one. eexact EX1.
-  eapply effstep_star_trans. 
-    eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := true); eauto.  
-    simpl. unfold rs1. rewrite Regmap.gss. simpl. congruence. 
-  apply effstep_star_one. eapply rtl_effstep_exec_Ijumptable; eauto. unfold rs1. apply Regmap.gss.
+    eapply effstep_star_trans. 
+      eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := true); eauto.  
+      simpl. unfold rs1. rewrite Regmap.gss. simpl. congruence.  
+    apply effstep_star_one. eapply rtl_effstep_exec_Ijumptable; eauto. unfold rs1. apply Regmap.gss.    
+    extensionality b; extensionality z. rewrite absoption_orb; trivial.
   exploit (IHtr_switch rs1); eauto. unfold rs1. rewrite Regmap.gso; auto.
   intros [nd [rs' [EX [NTH ME]]]].
   exists nd; exists rs'; intuition.
-  eapply effstep_star_trans. 
+  eapply effstep_star_trans'. 
     eapply effstep_star_one. eexact EX1.
-  eapply effstep_star_trans. 
-    eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := false); eauto. 
-    simpl. unfold rs1. rewrite Regmap.gss. simpl. congruence.
-  eexact EX. 
+    eapply effstep_star_trans. 
+      eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := false); eauto. 
+      simpl. unfold rs1. rewrite Regmap.gss. simpl. congruence.
+    eexact EX.
+  extensionality b; extensionality z. rewrite absoption_orb; trivial. 
 Qed.
 
 Variable sp: val.
@@ -1332,10 +1337,11 @@ Proof.
 
   exists (rs1#rd <- v'); exists tm1.
 (* Exec *)
-  split. eapply effstep_star_trans. eexact EX1.
-  eapply effstep_star_one. eapply rtl_effstep_exec_Iop; eauto.
-  rewrite (@eval_operation_preserved CminorSel.fundef _ _ _ ge tge). eauto.
-  exact symbols_preserved. 
+  split. eapply effstep_star_trans'. eexact EX1.
+    eapply effstep_star_one. eapply rtl_effstep_exec_Iop; eauto.
+      rewrite (@eval_operation_preserved CminorSel.fundef _ _ _ ge tge). eauto.
+      exact symbols_preserved.
+    extensionality b; extensionality z. rewrite absoption_orb; trivial. 
 (* Match-env *)
   split. eauto with rtlg.
 (* Result reg *)
@@ -1365,11 +1371,12 @@ Proof.
   edestruct Mem.loadv_inject as [v' []]; eauto.
   exists (rs1#rd <- v'); exists tm1.
 (* Exec *)
-  split. eapply effstep_star_trans. eexact EX1.
+  split. eapply effstep_star_trans'. eexact EX1.
     eapply effstep_star_one.
       eapply rtl_effstep_exec_Iload; try eassumption. 
     rewrite (eval_addressing_preserved ge). assumption.
        exact symbols_preserved.
+    extensionality b; extensionality z. rewrite absoption_orb; trivial.
 (* Match-env *)
   split. eauto with rtlg. 
 (* Result *)
@@ -1396,8 +1403,9 @@ Proof.
   exploit H2; eauto. intros [rs2 [tm2 [EX2 [ME2 [RES2 [OTHER2 EXT2]]]]]].
   exists rs2; exists tm2.
 (* Exec *)
-  split. eapply effstep_star_trans.
+  split. eapply effstep_star_trans'.
            apply effstep_plus_star. eexact EX1. eexact EX2.
+    extensionality b; extensionality z. rewrite absoption_orb; trivial.
 (* Match-env *)
   split. assumption.
 (* Result value *)
@@ -1424,7 +1432,7 @@ Proof.
   intros [rs2 [tm2 [EX2 [ME3 [RES2 [OTHER2 EXT2]]]]]].
   exists rs2; exists tm2.
 (* Exec *)
-  split. eapply effstep_star_trans. eexact EX1. eexact EX2. auto.
+  split. eapply effstep_star_trans'. eexact EX1. eexact EX2. auto.
 (* Match-env *)
   split. eapply match_env_unbind_letvar; eauto.
 (* Result *)
@@ -1571,7 +1579,7 @@ Proof.
   exploit H2; eauto. intros [rs2 [tm2 [EX2 [ME2 [RES2 [OTHER2 [EXT2 X2]]]]]]]; subst.
   exists rs2; exists tm2.
 (* Exec *)
-  split. eapply effstep_star_trans. eexact EX1. eexact EX2. auto. 
+  split. eapply effstep_star_trans'. eexact EX1. eexact EX2. auto. 
 (* Match-env *)
   split. assumption.
 (* Results *)
@@ -1597,10 +1605,11 @@ Proof.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RES1 [OTHER1 [EXT1 X]]]]]]]; subst.
   exists rs1; exists tm1.
 (* Exec *)
-  split. eapply effstep_star_plus_trans. eexact EX1.
+  split. eapply effstep_star_plus_trans'. eexact EX1.
       eapply effstep_plus_one. eapply rtl_effstep_exec_Icond. eauto. 
       (*eapply eval_condition_lessdef; eauto.*)
     eapply eval_condition_inject; eauto. auto.
+    auto.
 (* Match-env *)
   split. assumption.
 (* Other regs *)
@@ -1624,7 +1633,7 @@ Proof.
   exploit H2; eauto. intros [rs2 [tm2 [EX2 [ME2 [OTHER2 [EXT2 X]]]]]]; subst.
   exists rs2; exists tm2.
 (* Exec *)
-  split. eapply effstep_plus_trans. eexact EX1. eexact EX2.
+  split. eapply effstep_plus_trans'. eexact EX1. eexact EX2. auto.
 (* Match-env *)
   split. assumption.
 (* Other regs *)
@@ -1649,7 +1658,7 @@ Proof.
   intros [rs2 [tm2 [EX2 [ME3 [OTHER2 [EXT2 X]]]]]]; subst.
   exists rs2; exists tm2.
 (* Exec *)
-  split. eapply effstep_star_plus_trans. eexact EX1. eexact EX2.
+  split. eapply effstep_star_plus_trans'. eexact EX1. eexact EX2. eauto.
 (* Match-env *)
   split. eapply match_env_unbind_letvar; eauto.
 (* Other regs *)
@@ -3029,8 +3038,7 @@ Lemma MATCH_effcore_diagram: forall
          st1 m1 st1' m1' (U1 : block -> Z -> bool)
          (CS: effstep cminsel_eff_sem ge U1 st1 m1 st1' m1')
          st2 mu m2 
-         (UHyp: forall b z, U1 b z = true -> 
-                Mem.valid_block m1 b -> vis mu b = true)
+         (UHyp: forall b z, U1 b z = true -> vis mu b = true)
          (MTCH: MATCH st1 mu st1 m1 st2 m2),
 exists st2' m2' mu', exists U2 : block -> Z -> bool,
   (effstep_plus rtl_eff_sem tge U2 st2 m2 st2' m2' \/
@@ -3041,7 +3049,7 @@ exists st2' m2' mu', exists U2 : block -> Z -> bool,
   MATCH st1' mu' st1' m1' st2' m2' /\
      (forall (b : block) (ofs : Z),
       U2 b ofs = true ->
-      Mem.valid_block m2 b /\
+      visTgt mu b = true /\
       (locBlocksTgt mu b = false ->
        exists (b1 : block) (delta1 : Z),
          foreign_of mu b1 = Some (b, delta1) /\
@@ -3111,9 +3119,9 @@ Proof. intros st1 m1 st1' m1' U1 CS.
       intuition.
       eapply REACH_closed_free; try eassumption.
       eapply (free_free_inject _ m m' m2); try eassumption.
-  eapply FreeEffect_validblock; eassumption.
-  rewrite H3 in H8. eapply FreeEffect_PropagateLeft; eassumption.
-
+      apply FreeEffectD in H8. destruct H8 as [? [VB Arith2]]; subst.
+        eapply visPropagateR; eassumption.
+      rewrite H3 in H8. eapply FreeEffect_PropagateLeft; eassumption.
   (* assign *)
   destruct MTCH as [MSTATE PRE]. inv MSTATE.
   inv TS.
@@ -3161,15 +3169,26 @@ Proof. intros st1 m1 st1' m1' U1 CS.
         eapply SMV; assumption.
   eexists; exists tm''', mu.
     exists (StoreEffect vaddr' (encode_val chunk (rs'' # rd))).
-    split. left; eapply effstep_star_plus_trans.
-      eapply effstep_star_trans. 
-         eapply effstep_star_sub. eexact A. intuition.
-         eapply effstep_star_sub. eexact F. intuition.
+    split. left; eapply effstep_star_plus_trans'.
+      eapply effstep_star_trans.
+         eexact A. intuition.
+         eexact F. intuition.
+(*         eapply effstep_star_sub. eexact A. intuition.
+         eapply effstep_star_sub. eexact F. intuition.*)
       eapply effstep_plus_one. 
         eapply rtl_effstep_exec_Istore with (a := vaddr'). eauto.
         rewrite <- H4. rewrite shift_stack_addressing_zero.
         eapply eval_addressing_preserved. exact symbols_preserved.
-      eassumption.
+        eassumption.
+     extensionality bb; extensionality z. rewrite absoption_orb.
+       unfold EmptyEffect; simpl.
+       remember (StoreEffect vaddr' (encode_val chunk rs'' # rd) bb z) as d.
+       destruct d; simpl; apply eq_sym in Heqd; trivial.
+         destruct (valid_block_dec tm'' bb); trivial.
+         elim n; clear n.
+         destruct vaddr; inv H2. inv H5. 
+         apply StoreEffectD in Heqd. destruct Heqd as [ii [VV Arith]].
+         inv VV. eapply Mem.valid_block_inject_2; eassumption.
   intuition. 
       apply intern_incr_refl. 
       apply sm_inject_separated_same_sminj.
@@ -3198,9 +3217,7 @@ Proof. intros st1 m1 st1' m1' U1 CS.
       rewrite Hmm1 in H6. inv H6. assumption.
       destruct (StoreEffectD _ _ _ _ H8) as [i [HI OFF]]. subst.
         simpl in H6. inv H5; inv H2.
-          destruct (restrictD_Some _ _ _ _ _ H12).
-          destruct (as_inj_DomRng _ _ _ _ H2); trivial. 
-          eapply SMV. apply H11.  
+        eapply visPropagateR; eassumption.
       eapply StoreEffect_PropagateLeft; eassumption.
 
   (* call *)
@@ -3223,12 +3240,13 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   inv C. destruct (restrictD_Some _ _ _ _ _ H5). rewrite H in muBB. inv muBB.
   rewrite Int.add_zero in H3.
   eexists; eexists; exists mu, EmptyEffect; split.
-    left; eapply effstep_star_plus_trans.
+    left; eapply effstep_star_plus_trans'.
             eapply effstep_star_trans. eexact A. eexact E.
-          eapply effstep_plus_one. 
-            eapply rtl_effstep_exec_Icall; eauto.
+            eapply effstep_plus_one. 
+              eapply rtl_effstep_exec_Icall; eauto.
                simpl. rewrite J. rewrite <- H3. eassumption. simpl; eauto.
                apply sig_transl_function; auto.
+            auto.
   intuition.
       apply intern_incr_refl. 
       apply sm_inject_separated_same_sminj.
@@ -3249,10 +3267,11 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   rewrite Genv.find_funct_find_funct_ptr in H1.
   destruct (GFP _ _ H1) as [muBB isGlobalBB].
   eexists; eexists; exists mu, EmptyEffect; split.
-    left. eapply effstep_star_plus_trans. eexact E.
-          eapply effstep_plus_one. eapply rtl_effstep_exec_Icall; eauto. simpl. rewrite symbols_preserved. rewrite H4. 
-             rewrite Genv.find_funct_find_funct_ptr in P. eauto. 
-             apply sig_transl_function; auto.
+    left. eapply effstep_star_plus_trans'. eexact E.
+            eapply effstep_plus_one. eapply rtl_effstep_exec_Icall; eauto. simpl. rewrite symbols_preserved. rewrite H4. 
+              rewrite Genv.find_funct_find_funct_ptr in P. eauto. 
+              apply sig_transl_function; auto.
+           auto.
   intuition. 
       apply intern_incr_refl. 
       apply sm_inject_separated_same_sminj.
@@ -3285,19 +3304,25 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   destruct (GFP _ _ H1) as [muBB isGlobalBB].
   inv C. destruct (restrictD_Some _ _ _ _ _ H10). rewrite H7 in muBB. inv muBB.
   rewrite Int.add_zero in H9.
+  repeat rewrite Zplus_0_r in H2.
   eexists; exists tm'''; exists mu.
     exists (FreeEffect tm'' 0 (fn_stacksize tf) spb').
     split.
-    left; eapply effstep_star_plus_trans.
+    left; eapply effstep_star_plus_trans'.
            eapply effstep_star_trans.
-              eapply effstep_star_sub. eexact A. intuition. 
-              eapply effstep_star_sub. eexact E. intuition.
+              eexact A. intuition. 
+              eexact E. intuition.
            eapply effstep_plus_one.
              eapply rtl_effstep_exec_Itailcall; eauto.
              simpl. rewrite J. rewrite <- H9. eassumption.
              simpl; eauto.
              apply sig_transl_function; auto.
-  simpl in H2; rewrite Zplus_0_r in H2. rewrite H; eauto.
+            rewrite H; trivial.
+          extensionality b'; extensionality z. unfold EmptyEffect; simpl.
+            remember (FreeEffect tm'' 0 (fn_stacksize tf) spb' b' z) as d.
+            destruct d; simpl; trivial. apply eq_sym in Heqd.
+            apply FreeEffect_validblock in Heqd.
+            destruct (valid_block_dec tm'' b'); trivial; contradiction.
   rewrite H in *.
   assert (SMV': sm_valid mu m' tm''').
     split; intros;
@@ -3315,7 +3340,9 @@ Proof. intros st1 m1 st1' m1' U1 CS.
       intuition.
          eapply REACH_closed_free; eassumption.
            eapply free_free_inject; try eassumption.
-         eapply FreeEffect_validblock; eassumption.         
+             repeat rewrite Zplus_0_r; trivial.
+         apply FreeEffectD in H15. destruct H15 as [? [VB Arith2]]; subst.
+           eapply visPropagateR; eassumption.      
          eapply FreeEffect_PropagateLeft; try eassumption.
   (* direct *)
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
@@ -3333,14 +3360,19 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   eexists; exists tm''', mu.
     exists (FreeEffect tm'' 0 (fn_stacksize tf) spb').
     split. 
-    left; eapply effstep_star_plus_trans.
-            eapply effstep_star_sub. eexact E. intuition.
+    left; eapply effstep_star_plus_trans'.
+            eexact E. intuition.
           eapply effstep_plus_one.
             eapply rtl_effstep_exec_Itailcall; eauto.
              simpl. rewrite symbols_preserved. rewrite H5. 
              rewrite Genv.find_funct_find_funct_ptr in P. eauto. 
              apply sig_transl_function; auto.
-  simpl in H2; rewrite Zplus_0_r in H2; rewrite H; eauto.
+            simpl in H2; rewrite Zplus_0_r in H2; rewrite H; eauto.
+          extensionality b'; extensionality z. unfold EmptyEffect; simpl.
+            remember (FreeEffect tm'' 0 (fn_stacksize tf) spb' b' z) as d.
+            destruct d; simpl; trivial. apply eq_sym in Heqd.
+            apply FreeEffect_validblock in Heqd.
+            destruct (valid_block_dec tm'' b'); trivial; contradiction.
   rewrite H in *.
   assert (SMV': sm_valid mu m' tm''').
     split; intros;
@@ -3359,7 +3391,8 @@ Proof. intros st1 m1 st1' m1' U1 CS.
          eapply REACH_closed_free; eassumption.
          destruct (restrictD_Some _ _ _ _ _ Rsp).
            eapply free_free_inject; try eassumption.
-         eapply FreeEffect_validblock; eassumption.         
+         apply FreeEffectD in H8. destruct H8 as [? [VB Arith2]]; subst.
+           eapply visPropagateR; eassumption. 
          eapply FreeEffect_PropagateLeft; try eassumption.
 
   (* builtin TODO
@@ -3512,7 +3545,7 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   exploit Efftransl_switch_correct; eauto. inv C. auto.
   intros [nd [rs'' [E [F G]]]].
   eexists; eexists; exists mu, EmptyEffect; split.
-    right; split. eapply effstep_star_trans. eexact A. eexact E. Lt_state. 
+    right; split. eapply effstep_star_trans'. eexact A. eexact E. auto. Lt_state. 
   intuition. 
       apply intern_incr_refl. 
       apply sm_inject_separated_same_sminj.
@@ -3554,7 +3587,8 @@ Proof. intros st1 m1 st1' m1' U1 CS.
          eapply REACH_closed_free; eassumption.
          destruct (restrictD_Some _ _ _ _ _ Rsp).
            eapply free_free_inject; try eassumption.
-         eapply FreeEffect_validblock; eassumption.         
+         apply FreeEffectD in H6. destruct H6 as [? [VB Arith2]]; subst.
+           eapply visPropagateR; eassumption.
          eapply FreeEffect_PropagateLeft; try eassumption.
 
   (* return some *)
@@ -3575,10 +3609,15 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   exists (FreeEffect tm' 0 (fn_stacksize tf) spb').
   split. 
     simpl in H5; rewrite Zplus_0_r in H5. rewrite <- H4 in H5. 
-    left; eapply effstep_star_plus_trans. 
-             eapply effstep_star_sub. eexact A. intuition.
-          eapply effstep_plus_one.
-            eapply rtl_effstep_exec_Ireturn; eauto.
+    left; eapply effstep_star_plus_trans'. 
+            eexact A. intuition.
+            eapply effstep_plus_one.
+              eapply rtl_effstep_exec_Ireturn; eauto.
+          extensionality b'; extensionality z. unfold EmptyEffect; simpl.
+            remember (FreeEffect tm' 0 (fn_stacksize tf) spb' b' z) as d.
+            destruct d; simpl; trivial. apply eq_sym in Heqd.
+            apply FreeEffect_validblock in Heqd.
+            destruct (valid_block_dec tm' b'); trivial; contradiction.
   assert (SMV': sm_valid mu m' tm'').
     split; intros;
       eapply Mem.valid_block_free_1; try eassumption;
@@ -3597,7 +3636,8 @@ Proof. intros st1 m1 st1' m1' U1 CS.
          eapply REACH_closed_free; eassumption.
          destruct (restrictD_Some _ _ _ _ _ Rsp).
            eapply free_free_inject; try eassumption.
-         eapply FreeEffect_validblock; eassumption.         
+         apply FreeEffectD in H9. destruct H9 as [? [VB Arith2]]; subst.
+           eapply visPropagateR; eassumption.
          eapply FreeEffect_PropagateLeft; try eassumption.
 
   (* label *)
@@ -3715,7 +3755,7 @@ Proof. intros st1 m1 st1' m1' U1 CS.
              eapply match_env_update_dest; eauto.
       intuition.
 
-(*inductive case*)
+(*inductive case
   assert (EHyp: forall b z, E b z = true -> 
            Mem.valid_block m b -> vis mu b = true).
      intros. eapply UHyp; eauto.
@@ -3728,7 +3768,7 @@ Proof. intros st1 m1 st1' m1' U1 CS.
     destruct (H8 H6) as [b1 [delta [Frg [HE HP]]]]; clear H8.
     exists b1, delta. split; trivial. split; trivial.
     apply Mem.perm_valid_block in HP. 
-    apply H; assumption. 
+    apply H; assumption. *)
 Qed.  
 
 (** The simulation proof *)

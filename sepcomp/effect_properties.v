@@ -52,42 +52,6 @@ Proof. intros.
   assumption. 
 Qed.
 
-
-
-Lemma FreeEffect_validblock: forall m lo hi sp b ofs
-        (EFF: FreeEffect m lo hi sp b ofs = true),
-      Mem.valid_block m b.
-Proof. intros.
-  unfold FreeEffect in EFF.
-  destruct (valid_block_dec m b); trivial; inv EFF.
-Qed.
-
-Lemma FreelistEffect_validblock: forall l m b ofs
-        (EFF: FreelistEffect m l b ofs = true),
-      Mem.valid_block m b.
-Proof. intros l.
-  induction l; unfold FreelistEffect; simpl; intros.
-     unfold EmptyEffect in EFF. inv EFF.
-  destruct a as [[bb lo] hi].
-  apply orb_true_iff in EFF.
-  destruct EFF.
-  apply IHl in H. assumption.
-  eapply FreeEffect_validblock; eassumption.
-Qed.
-
-Lemma StoreEffectD: forall vaddr v b ofs
-      (STE: StoreEffect vaddr v b ofs = true),
-      exists i, vaddr = Vptr b i /\
-        (Int.unsigned i) <= ofs < (Int.unsigned i + Z.of_nat (length v)).
-Proof. intros.
-  unfold StoreEffect in STE. destruct vaddr; inv STE.
-  destruct (eq_block b0 b); inv H0.
-  exists i.
-  destruct (zle (Int.unsigned i) ofs); inv H1.
-  destruct (zlt ofs (Int.unsigned i + Z.of_nat (length v))); inv H0.
-  intuition.
-Qed.
-
 Lemma StoreEffect_PropagateLeft: forall chunk m vaddr v m'
           (ST: Mem.storev chunk m vaddr v = Some m')
           mu m2 (WD: SM_wd mu) (INJ : Mem.inject (as_inj mu) m m2)
@@ -2220,4 +2184,38 @@ Proof. intros j m1 l.
   eapply Mem.free_right_inject; try eassumption.
     intros. eapply Hyp; try eassumption. left; trivial.
   intros. eapply Hyp; try eassumption. right; trivial.
+Qed.
+
+Lemma restrict_vis_foreign: forall mu (WD: SM_wd mu) b1 b2 delta
+         (R: restrict (as_inj mu) (vis mu) b1 = Some (b2, delta))
+         (LT: locBlocksTgt mu b2 = false),
+      foreign_of mu b1 = Some (b2, delta).
+Proof. intros.
+  destruct (restrictD_Some _ _ _ _ _ R).
+  unfold vis in H0.
+  destruct (joinD_Some _ _ _ _ _ H) as [EXT | [_ LOC]].
+    assert (LS: locBlocksSrc mu b1 = false). eapply extern_DomRng'; try eassumption.
+    rewrite LS in *; simpl in *. destruct (frgnSrc _ WD _ H0) as [bb2 [dd [FRG FT]]].
+      rewrite FRG. rewrite (foreign_in_all _ _ _ _ FRG) in H. trivial.
+  destruct (local_DomRng _ WD _ _ _ LOC). rewrite H2 in LT; discriminate.
+Qed.
+
+Lemma visPropagate: forall mu (WD: SM_wd mu) b (V: vis mu b = true) 
+     b' d (AI:as_inj mu b = Some(b',d)) , visTgt mu b' = true.
+Proof. intros. unfold visTgt. unfold vis in V.
+   destruct (joinD_Some _ _ _ _ _ AI) as [EXT | [EXT LOC]].
+   destruct (extern_DomRng' _ WD _ _ _ EXT) as [_ [_ [? [? _]]]].
+   rewrite H in *; simpl in *. rewrite H0; simpl. 
+   destruct (frgnSrcAx _ WD _ V) as [bb2 [dd [EX FT]]].
+     rewrite EX in EXT. inv EXT; trivial.
+   destruct (local_DomRng _ WD _ _ _ LOC). 
+     rewrite H0; trivial.
+Qed. 
+
+Lemma visPropagateR: forall mu (WD: SM_wd mu) b b' d 
+     (AI:restrict (as_inj mu) (vis mu) b = Some(b',d)), 
+     visTgt mu b' = true.
+Proof. intros.
+  destruct (restrictD_Some _ _ _ _ _ AI).
+  eapply visPropagate; eassumption.
 Qed.
