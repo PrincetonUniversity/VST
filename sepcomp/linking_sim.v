@@ -724,9 +724,8 @@ split; first by apply: R_pres_globs.
 move: R_match=> []? []mu_trash []mu_top []mus []A _. 
 move/head_match/match_genv=> []_.
 rewrite -(genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i (c pf)))).
-move=> H _ b H2; move: (H _ H2). 
-rewrite A.
-Admitted.
+move=> H _ b H2; move: (H _ H2); rewrite A.
+
 
 (* HERE *)
 

@@ -63,6 +63,7 @@ Program Definition effSem {G C: Type} : @EffectSem G C :=
   Build_EffectSem G C (@coopSem G C) (fun _ _ _ _ _ _ => False) _ _ _.
 Next Obligation. by []. Qed.
 Next Obligation. by []. Qed.
+Next Obligation. by []. Qed.
 
 Axiom genv: forall {F V}, Genv.t F V. (*FIXME*)
 

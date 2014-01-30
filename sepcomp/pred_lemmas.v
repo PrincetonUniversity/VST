@@ -194,6 +194,14 @@ by move: B; case: (p a).
 by move: B; case: (q a).
 Qed.
 
+Lemma DisjointInU (p q r : pred T) :
+  Disjoint p q -> Disjoint p r -> Disjoint p [predU q & r].
+Proof.
+move/DisjointP=> A; move/DisjointP=> B; apply/DisjointP=> a.
+move: (A a) (B a)=> /=; rewrite/in_mem/=.
+by case: (p a); case: (q a); case: (r a).
+Qed.
+
 Lemma Disjoint_incr (p q r : pred T) : 
   Disjoint p q -> 
   Disjoint p [predD r & q] -> 
