@@ -35,6 +35,14 @@ Context {G C Z : Type}.
 Variable z_init : Z.
 Variable sem : @CoopCoreSem G C.
 Variable spec : ext_spec Z.
+Variable trace_of :
+  forall ef (x : ext_spec_type spec ef), 
+  option val -> Z -> mem -> list Event.t -> list Event.t -> Prop.
+Variable trace_of_det : 
+  forall ef (x x' : ext_spec_type spec ef) rv z m tr tr' tr'',
+  trace_of x rv z m tr tr' -> 
+  trace_of x' rv z m tr tr'' -> 
+  tr'=tr''.
 
 Definition yielded c :=
   (exists ef sig args, at_external sem c = Some (ef, sig, args))
@@ -47,14 +55,15 @@ Inductive step
   corestep sem ge c m c' m' -> 
   step ge (z,tr,c) m (z,tr,c') m'
 | trace_extern : 
-  forall ge tr z c m z' c' m' ef sig args rv x,
+  forall ge tr z c m z' c' m' ef sig args rv x tr',
   at_external sem c = Some (ef, sig, args) -> 
   Mem.unchanged_on (fun b ofs => REACH m (getBlocks args) b=false) m m' ->   
   mem_forward m m' -> 
   ext_spec_pre spec ef x (sig_args sig) args z m -> 
   ext_spec_post spec ef x (sig_res sig) (Some rv) z' m' -> 
+  trace_of x (Some rv) z' m' tr tr' -> 
   after_external sem (Some rv) c = Some c' -> 
-  step ge (z,tr,c) m (z',Event.mk m m' args (Some rv) :: tr,c') m'.
+  step ge (z,tr,c) m (z',Event.mk m m' args (Some rv) :: tr' ++ tr,c') m'.
 
 Definition initial_core (ge : G) (v : val) (vs : list val) 
   : option (Z*list Event.t*C) := 
@@ -246,13 +255,14 @@ unfold corestep_fun.
 intros until c''; intros X Y; inv X; inv Y.
 destruct (B _ _ _ _ _ _ _ H H7); subst; auto.
 apply corestep_not_at_external in H. rewrite H in H3; congruence.
-apply corestep_not_at_external in H12. rewrite H12 in H; congruence.
-rewrite H8 in H; inv H.
-destruct (A _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H12 H16 H2 H3)
+apply corestep_not_at_external in H13. rewrite H13 in H; congruence.
+rewrite H9 in H; inv H.
+destruct (A _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H12 H14 H2 H3)
   as [? [X [? ?]]].
 inv X; subst; split; auto.
-f_equal; auto.
-rewrite H17 in H4; inv H4; auto.
+do 3 f_equal; auto.
+solve[generalize (trace_of_det H4 H18); intros ->; auto].
+rewrite H19 in H5; inv H5; auto.
 Qed.
 
 End trace_semantics. End TraceSemantics.
