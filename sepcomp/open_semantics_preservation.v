@@ -46,31 +46,20 @@ Variable entry_points : list (val*val*signature).
 
 Variable spec : ext_spec Z.
 
+Variable trace_of :
+  forall ef (x : ext_spec_type spec ef), 
+  option val -> Z -> mem -> list Event.t -> list Event.t -> Prop.
+
+Variable trace_of_det : 
+  forall ef (x x' : ext_spec_type spec ef) rv z m tr tr' tr'',
+  trace_of x rv z m tr tr' -> 
+  trace_of x' rv z m tr tr'' -> 
+  tr'=tr''.
+
 (* External function specifications P,Q,EXIT closed under injection of 
    arguments, return values, and memories: *)
 
 Variable spec_closed : ExtSpecProperties.closed spec.
-
-(* External function specs commute w/ injection in the following sense: *)
-
-Variable spec_ok : 
-  forall ef x tys args targs m rty rv m' tm z z' j,
-  ext_spec_pre spec ef x tys args z m -> 
-  ext_spec_post spec ef x rty rv z' m' -> 
-  Mem.inject (as_inj j) m tm -> 
-  val_list_inject (restrict (as_inj j) (vis j)) args targs -> 
-  mem_forward m m' -> 
-  Mem.unchanged_on (fun b ofs => REACH m (getBlocks args) b=false) m m' -> 
-  exists j' rv' tm',
-    incr j j'
-    /\ oval_inject (as_inj j') rv rv'
-    /\ Mem.inject (as_inj j') m' tm'
-    /\ sm_inject_separated j j' m tm 
-    /\ SM_wd j'
-    /\ sm_valid j' m' tm'
-    /\ mem_forward tm tm'
-    /\ Mem.unchanged_on (fun b ofs => 
-         ~target_accessible j m tm args b ofs) tm tm'.
 
 Variable sim : SM_simulation_inject source target geS geT entry_points.
 
@@ -78,8 +67,8 @@ Variable src_det : corestep_fun source.
 Variable tgt_det : corestep_fun target.
 Variable ext_spec_det : ExtSpecProperties.det spec.
 
-Notation tr_source := (TraceSemantics.coopsem z_init source spec).
-Notation tr_target := (TraceSemantics.coopsem z_init target spec).
+Notation tr_source := (TraceSemantics.coopsem z_init source trace_of).
+Notation tr_target := (TraceSemantics.coopsem z_init target trace_of).
 
 (* Follow from determinism of ext calls + src/tgt_det above *)
 
@@ -127,9 +116,34 @@ Inductive match_trace : list Event.t -> list Event.t -> Prop :=
   match_trace tr1 tr2 -> 
   match_trace (ev1 :: tr1) (ev2 :: tr2).
 
-Notation data := (sim.(SM_simulation.core_data _ _ _ _ _)).
-Notation ord  := (sim.(SM_simulation.core_ord _ _ _ _ _)).
-Notation match_state := (sim.(SM_simulation.match_state _ _ _ _ _)).
+(* External function specs commute w/ injection in the following sense: *)
+
+Variable spec_ok : 
+  forall ef x tys args targs m rty rv m' tm z z' tr0 ttr0 tr j,
+  ext_spec_pre spec ef x tys args z m -> 
+  ext_spec_post spec ef x rty rv z' m' -> 
+  trace_of x rv z' m' tr0 tr ->  
+  match_trace tr0 ttr0 -> 
+  Mem.inject (as_inj j) m tm -> 
+  val_list_inject (restrict (as_inj j) (vis j)) args targs -> 
+  mem_forward m m' -> 
+  Mem.unchanged_on (fun b ofs => REACH m (getBlocks args) b=false) m m' -> 
+  exists j' rv' tm' tr',
+    incr j j'
+    /\ oval_inject (as_inj j') rv rv'
+    /\ Mem.inject (as_inj j') m' tm'
+    /\ sm_inject_separated j j' m tm 
+    /\ SM_wd j'
+    /\ sm_valid j' m' tm'
+    /\ mem_forward tm tm'
+    /\ match_trace tr tr' 
+    /\ trace_of x rv' z' tm' ttr0 tr' 
+    /\ Mem.unchanged_on (fun b ofs => 
+         ~target_accessible j m tm args b ofs) tm tm'.
+
+Notation data := (SM_simulation.core_data _ sim). 
+Notation ord  := (SM_simulation.core_ord sim). 
+Notation match_state := (SM_simulation.match_state sim). 
 
 Inductive trace_match_state : 
   data -> SM_Injection -> Z*list Event.t*C -> mem -> 
@@ -328,8 +342,8 @@ intros INJ.
 case_eq (as_inj j' b).
 intros [ofs d] INJ'.
 assert (H5: DomSrc j b=false). 
-{ destruct H3 as [H3 H4].
-  destruct H2 as [H5 [H6 H7]].
+{ destruct H3 as [H3 H4].  
+  destruct H2 as [H5 [H6 H7]].  
   destruct (H5 _ _ _ INJ INJ'); auto. }
 assert (H6: ~Mem.valid_block m1 b).
 { destruct H3 as [H3 H4].
@@ -359,58 +373,6 @@ intros b0 H2; unfold exportedTgt; rewrite H2; auto.
 Qed.
 
 Arguments reach_in_exported_tgt {b m args} j _.
-(*
-mu 
-
-pubSrc' := fun b => 
-  andb (locBlocksSrc j b) (REACH m (exportedSrc j args) b)
-
-pubTgt' := fun b => 
-  andb (locBlocksTgt j b) (REACH tm (exportedTgt j targs) b)
-
-nu := replace_locals j pubSrc' pubTgt'
-
-mu2 := marshal nu m args tm targs
-
-incr mu2 mu2' 
-
-nu' := reestablish nu mu2'
-
-frgnSrc' := fun b : block =>
-     DomSrc nu2 b && (negb (locBlocksSrc nu2 b) 
-       && REACH m' (exportedSrc nu2 (rv :: nil)) b)
-
-frgnTgt' := fun b : block =>
-     DomTgt nu2 b && (negb (locBlocksTgt nu2 b) 
-       && REACH tm2 (exportedTgt nu2 (trv0 :: nil)) b)
-
-nu'' := replace_externs nu' frgnSrc' frgnTgt'
-*)
-(*
-set (pubSrc' := fun b => 
-  andb (locBlocksSrc j b) (REACH m (exportedSrc j args) b)).
-set (pubTgt' := fun b => 
-  andb (locBlocksTgt j b) (REACH tm (exportedTgt j targs) b)).
-set (nu := replace_locals j pubSrc' pubTgt').
-set (mu := marshal nu m args tm targs).
-
-  INCR : incr mu mu2
-  RVALINJ : oval_inject (as_inj mu2) (Some rv) trv
-  INJ2 : Mem.inject (as_inj mu2) m' tm2
-  SEP2 : sm_inject_separated mu mu2 m tm
-  WD2 : SM_wd mu2
-  VAL2 : sm_valid mu2 m' tm2
-  TFWD2 : mem_forward tm tm2
-  TUNCH : Mem.unchanged_on
-            (fun (b : block) (ofs : BinNums.Z) =>
-             ~ target_accessible mu m tm args b ofs) tm tm2
-
-set (nu2 := reestablish nu mu2).
-set (frgnSrc' := fun b : block =>
-     DomSrc nu2 b && (negb (locBlocksSrc nu2 b) 
-       && REACH m' (exportedSrc nu2 (rv :: nil)) b)).
-
-*)
 
 Lemma extern_semantics_preservation c c' d m m' tm cd j ef sig args : 
   trace_match_state cd j c m d tm -> 
@@ -445,7 +407,7 @@ assert (INJ: Mem.inject (as_inj j) m tm).
     solve[destruct ATEXTSRC as [? _]; auto]. }
 
 assert (J_WD: SM_wd j) 
-  by (apply (match_sm_wd sim _ _ _ _ _ _ MATCH)).
+  by (apply (match_sm_wd MATCH)).
 
 assert (J_VAL: sm_valid j m tm) 
   by (apply match_validblocks in MATCH; auto).
@@ -496,14 +458,19 @@ assert (MU2_VALINJ:
 
 simpl in ATEXTSRC; rewrite H2 in ATEXTSRC; inv ATEXTSRC.
 rename H3 into UNCH; rename H4 into FORWARD. 
-rename H6 into PRE; rename H10 into POST.
+rename H5 into PRE; rename H7 into POST; rename H11 into TRACE.
+
+assert (TRMATCH0: match_trace tr2 ttr).
+  { inv TRMATCH; auto. }
+
 generalize (@spec_ok ef x (sig_args sig) args targs m 
-  (sig_res sig) (Some rv) m' tm _ _ mu2 PRE POST MU2_INJ MU2_VALINJ FORWARD UNCH).
+  (sig_res sig) (Some rv) m' tm _ _ _ ttr tr' mu2 
+  PRE POST TRACE TRMATCH0 MU2_INJ MU2_VALINJ FORWARD UNCH).
 
 (* intro mu2' >= mu2 *)
 
-intros [mu2' [trv [tm2 [INCR [RVALINJ [INJ2 [SEP2 [WD2 
-  [VAL2 [TFWD2 TUNCH]]]]]]]]]].
+intros [mu2' [trv [tm2 [tr'' [INCR [RVALINJ [INJ2 [SEP2 [WD2 
+  [VAL2 [TFWD2 [TRMATCH' [TRACE' TUNCH]]]]]]]]]]]]].
 
 assert (NUMU2'_SEP: sm_inject_separated nu mu2' m tm).
   { apply injsep_marshal' in SEP2; auto. } 
@@ -569,11 +536,11 @@ assert (NU'_INJ: Mem.inject (as_inj nu') m' tm2).
     unfold DomSrc in H; rewrite LOC in H; inv H.
     unfold as_inj, join.
     assert (extern_of nu b = None) as ->; auto.
-      generalize (disjoint_extern_local_Src NU_WD b).
-      rewrite LOC; inversion 1; subst. congruence.
-      case_eq (extern_of nu b); auto; intros [? ?] EXT.
-      apply extern_DomRng in EXT; auto.
-      destruct EXT as [W _]; rewrite H0 in W; congruence. }
+    generalize (disjoint_extern_local_Src NU_WD b).
+    rewrite LOC; inversion 1; subst. congruence.
+    case_eq (extern_of nu b); auto; intros [? ?] EXT.
+    apply extern_DomRng in EXT; auto.
+    destruct EXT as [W _]; rewrite H0 in W; congruence. }
 
 assert (NU'_VINJ: val_inject (as_inj nu') rv trv0)
   by (simpl in RVALINJ; unfold nu'; rewrite reestablish_as_inj; auto).
@@ -642,7 +609,7 @@ destruct TA as [b0 [d0 [INJ0 [HR' PERM]]]]; auto.
 assert (HR'': REACH m (exportedSrc j args) b0=true).
   apply REACH_mono with (B1 := getBlocks args); auto.
   solve[unfold exportedSrc; intros ? ->; auto].
-generalize (match_sm_wd sim _ _ _ _ _ _ MATCH); intros WD.
+generalize (match_sm_wd MATCH); intros WD.
 apply REACH_as_inj_REACH with (m2 := tm) (vals2 := targs) in HR''; auto.
 destruct HR'' as [b' [d' [INJ'' HR'']]].
 assert (b = b' /\ d0 = d') as [? ?]. 
@@ -673,8 +640,8 @@ edestruct eff_after_check1
   with (mu := j) (m1 := m) (m2 := tm) (vals1 := args) (vals2 := targs)
        (pubSrc' := pubSrc') (pubTgt' := pubTgt'); auto.
 
-set (tr2' := Event.mk m m' args (Some rv) :: tr2).
-set (ttr' := Event.mk tm tm2 targs (Some trv0) :: ttr).
+set (tr2' := Event.mk m m' args (Some rv) :: tr' ++ tr2).
+set (ttr' := Event.mk tm tm2 targs (Some trv0) :: tr'' ++ ttr).
 
 exists acd, mu', (z',ttr',ad), tm2.
 split; auto.
@@ -693,7 +660,6 @@ assert (b = b2).
   solve[rewrite FR in INJ'; inv INJ'; auto].
 solve[subst; congruence].
 
-instantiate (1 := x).
 assert (VALINJ''' : val_list_inject (as_inj j) args targs). 
   solve[apply forall_inject_val_list_inject; auto].
 generalize (P_closed spec_closed ef x (sig_args sig) z PRE VALINJ''' INJ).
@@ -709,8 +675,24 @@ apply mk_match_event
   with (j := replace_locals j pubSrc' pubTgt')
        (j' := nu'); auto.
 solve[apply extern_incr_as_inj; auto].
-solve[inv TRMATCH; auto].
-solve[rewrite H11 in AFT1; inv AFT1; auto]. }
+
+Lemma match_trace_app tr1 tr2 tr1' tr2' :
+  match_trace tr1 tr1' -> 
+  match_trace tr2 tr2' -> 
+  match_trace (tr1 ++ tr2) (tr1' ++ tr2').
+Proof.
+revert tr1' tr2 tr2'.
+induction tr1.
+inversion 1; subst.
+intros H2; auto.
+destruct tr1'. inversion 1; subst.
+inversion 1; subst. intros ?. simpl. constructor.
+inv H; auto. 
+apply IHtr1; auto.
+Qed.
+
+apply match_trace_app; auto.
+solve[rewrite H12 in AFT1; inv AFT1; auto]. }
 Qed.
 
 Lemma safe_match_target_step cd j c m d tm z tr :
@@ -759,7 +741,7 @@ destruct H0 as [n0 TSTEPN].
 solve[exists c2, m2, d2, tm2, (S O), n0; split; simpl; eauto].
 destruct H0 as [[n0 TSTEPN] ORD].
 assert (SAFE': forall n,
-  safeN (TraceSemantics.coopsem z_init source spec) geS n (z', tr', c2) m2).
+  safeN (TraceSemantics.coopsem z_init source trace_of) geS n (z', tr', c2) m2).
   { intros n1; specialize (SAFE (S n1)).
     eapply safe_corestep_forward; eauto. apply tr_src_det.
     constructor; auto. }
@@ -770,7 +752,7 @@ exists c', m', d', tm', (S n'), tn'; split; auto.
 solve[exists c2, m2; split; auto].
 solve[exists c2, m2, d2, tm2, (S O), n0; split; simpl; eauto].
 eapply TraceSemantics.nyielded_natext in n; eauto.
-solve[rewrite n in H9; congruence].
+solve[rewrite n in H8; congruence].
 Qed.
 
 Lemma safe_match_target_atext cd j c m d tm z tr ef sig args :
@@ -860,14 +842,14 @@ set (my_P := fun (x: nat) =>
      (j : SM_Injection) (tr0 ttr0 : list Event.t),
    match_state cd j c m d tm ->
    (forall n : nat,
-    safeN (TraceSemantics.coopsem z_init source spec) geS n (z, tr0, c) m) ->
+    safeN (TraceSemantics.coopsem z_init source trace_of) geS n (z, tr0, c) m) ->
    match_trace tr0 ttr0 ->
-   corestepN (TraceSemantics.coopsem z_init target spec) geT x 
+   corestepN (TraceSemantics.coopsem z_init target trace_of) geT x 
      (z, ttr0, d) tm (z', ttr, d') tm' ->
    trace_match_state cd j (z, tr0, c) m (z, ttr0, d) tm ->
    exists (z'' : Z) (c' : C) (m' : mem) (tr : list Event.t) 
    (n : nat),
-     corestepN (TraceSemantics.coopsem z_init source spec) geS n 
+     corestepN (TraceSemantics.coopsem z_init source trace_of) geS n 
        (z, tr0, c) m (z'', tr, c') m' /\ match_trace tr ttr).
 assert (my_well_founded_induction
      : (forall x, (forall y, lt y x -> my_P y) -> my_P x) ->
@@ -895,7 +877,7 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
   solve[apply TraceSemantics.corestep_nyielded in TSTEP; auto].
 
   assert (SSAFE': forall n,
-    safeN (TraceSemantics.coopsem z_init source spec) geS n (z, tr0, c2) m2).
+    safeN (TraceSemantics.coopsem z_init source trace_of) geS n (z, tr0, c2) m2).
     { intros n1; specialize (SSAFE (plus n1 (S n))).
       generalize tr_src_det. intro.
       eapply TraceSemantics.corestepN_CORESTEPN in STEPN; eauto. 
@@ -925,7 +907,7 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
 
 { (* target at external *)
   rename H2 into TATEXT; rename c' into d2.
-  set (d2' := (z'0,Event.mk tm tm2 args (Some rv)::ttr0,d2)) in *.
+  set (d2' := (z'0,Event.mk tm tm2 args (Some rv)::tr'++ttr0,d2)) in *.
   generalize (safe_match_target_atext SSAFE MATCH TATEXT).
   intros [c2 [m2 [n [STEPN [SY [cd2 [j2 MATCH2]]]]]]].
   assert (exists args, at_external source c2 = Some (ef,sig,args)) 
@@ -943,7 +925,7 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
       generalize (@at_external_halted_excl _ _ _ target d).
       rewrite THALT. intros [W|W]; try congruence. }
   assert (SSAFE': forall n,
-    safeN (TraceSemantics.coopsem z_init source spec) geS n (z, tr0, c2) m2).
+    safeN (TraceSemantics.coopsem z_init source trace_of) geS n (z, tr0, c2) m2).
     { intros n1; specialize (SSAFE (plus n1 (S n))).
       generalize tr_src_det. intro.
       eapply TraceSemantics.corestepN_CORESTEPN in STEPN; eauto.
@@ -965,10 +947,10 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
       subst d2'; subst tm2; inv H1; auto. }
   inversion EQ1. subst z'' ttr' d3.
   inversion EQ2. subst tm3.
-  inv TRMATCH'. rename H15 into TMATCH'; rename H16 into MATCH'. 
+  inv TRMATCH'. rename H16 into TMATCH'; rename H17 into MATCH'. 
   set (c2' := (z'0,tr,c0)) in *.
   assert (SSAFE''': forall n,
-    safeN (TraceSemantics.coopsem z_init source spec) geS n c2' m2').
+    safeN (TraceSemantics.coopsem z_init source trace_of) geS n c2' m2').
     { intros n1; specialize (SSAFE' (S O)).
       assert (STEPN': corestepN tr_source geS (S O) (z,tr0,c2) m2 c2' m2').
         { exists c2', m2'; split; auto. simpl; auto. }
@@ -977,9 +959,9 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
   set (ttr' := Event.mk tm tm2 args (Some rv) :: ttr0) in *.
   assert (LT: (x < S x)%nat) by omega.
   destruct (IHtn x LT c0 _ _ _ _ _ _ _ _ MATCH' SSAFE''' TMATCH' TSTEPN)
-    as [z'' [c' [m' [tr' [n' [STEPN' MATCH'']]]]]].
+    as [z'' [c' [m' [tr'' [n' [STEPN' MATCH'']]]]]].
   solve[constructor; auto].
-  exists z'', c', m', tr', (plus (S n) n'); split; auto.
+  exists z'', c', m', tr'', (plus (S n) n'); split; auto.
   rewrite corestepN_add.
   exists (z'0,tr,c0), m2'; split; auto.
   clear - STEPN STEP'.
