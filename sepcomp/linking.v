@@ -591,7 +591,8 @@ Definition inner_effstep (ge: ge_ty)
 Definition effstep (ge: ge_ty) V
   (l: linker N my_cores) m (l': linker N my_cores) m' := 
   [/\ Sem.corestep ge l m l' m' 
-    & Sem.corestep0 l m l' m' -> effstep0 V l m l' m'].
+    , Sem.corestep0 l m l' m' -> effstep0 V l m l' m'
+    & ~Sem.corestep0 l m l' m' -> forall b ofs, ~~ V b ofs].
 
 Section csem.
 
@@ -649,9 +650,10 @@ by exists [fun _ _ => false]; split=> //; right.
 Qed.
 
 Next Obligation.
-move: H; rewrite/effstep=>[[H1]] H2; split=> // H3; move: (H2 H3). 
-rewrite/effstep0=> [][]x []STEP ->.
-by move: (effstep_sub_val _ _ _ _ _ _ _ _ UV STEP)=> STEP'; exists x; split.
+move: H; rewrite/effstep=> [][]; case.
+move=> H; move/(_ H); rewrite/effstep0. 
+by move=> []? []H2 _ _; apply: (effstep_valid _ _ _ _ _ _ _ H2 _ _ H0).
+by move=> []_ []nstep _ _; move/(_ nstep b z); rewrite H0.
 Qed.
 
 End effingLinker.

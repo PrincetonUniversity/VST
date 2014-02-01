@@ -90,7 +90,7 @@ case=> A B; split; first by apply: disjinv_restrict.
 by apply: relinv_restrict.
 Qed.
 
-Lemma disjinv_relat_empty mu : disjinv mu (reestablish SMInj.empty mu).
+Lemma disjinv_relat_empty mu : disjinv mu (reestablish Inj.empty mu).
 Proof.
 apply: Build_disjinv; case: mu=> //=.
 by move=> s _ _ _ _ _ _ _ _ _; apply: predI01.
@@ -109,7 +109,7 @@ move=> b1 b2 d2 H3 H4; move: (D _ _ _ H3 H4); case E: (c b1)=> // H5.
 by have ->: (S b1) by apply: H1.
 Qed.
 
-Lemma disjinv_call (mu0 : SMInj.t) mu m10 m20 vals1 vals2 :
+Lemma disjinv_call (mu0 : Inj.t) mu m10 m20 vals1 vals2 :
   let: pubSrc := [predI (locBlocksSrc mu0) & REACH m10 (exportedSrc mu0 vals1)] in
   let: pubTgt := [predI (locBlocksTgt mu0) & REACH m20 (exportedTgt mu0 vals2)] in
   let: nu0    := replace_locals mu0 pubSrc pubTgt in
@@ -153,7 +153,7 @@ Lemma intern_incr_extern mu mu' :
   intern_incr mu mu' -> extern_of mu=extern_of mu'.
 Proof. by case=> _ []->. Qed.
 
-Lemma disjinv_intern_step mu0 (mu mu' : SMInj.t) m10 m20 m1 m2 :
+Lemma disjinv_intern_step mu0 (mu mu' : Inj.t) m10 m20 m1 m2 :
   disjinv mu0 mu -> 
   intern_incr mu mu' -> 
   mem_forward m10 m1 -> 
@@ -216,7 +216,7 @@ by apply: G; split.
 Qed.
 
 Lemma disjinv_unchanged_on_tgt
-  (mu0 mu : SMInj.t) (Esrc Etgt : Values.block -> BinNums.Z -> bool)
+  (mu0 mu : Inj.t) (Esrc Etgt : Values.block -> BinNums.Z -> bool)
   m1 m1' m2 m2' (fwd : mem_forward m1 m1') (valid : smvalid_src mu0 m1) :
   (forall (b : Values.block) (ofs : Z),
     Etgt b ofs = true ->
@@ -236,10 +236,10 @@ apply: (mem_lemmas.unchanged_on_validblock _ _ _
 move=> b ofs val []F G; split=> // b' d' H; case: (G _ _ H)=> I.
 left=> J; apply: I; case: (fwd b')=> //. 
 apply: (valid b'); apply/orP; left. 
-by case: (local_DomRng mu0 (SMInj_wd mu0) _ _ _ H).
+by case: (local_DomRng mu0 (Inj_wd mu0) _ _ _ H).
 by move=> _; apply.
 by right.
-apply: (RGTgt_multicorePerm mu Etgt Esrc m2 m2' (SMInj_wd mu) m1' A B). 
+apply: (RGTgt_multicorePerm mu Etgt Esrc m2 m2' (Inj_wd mu) m1' A B). 
 move: D; rewrite DisjointInE=> D.
 move=> b F; move: (D b); rewrite/in_mem /=; move/andP=> G.
 case H: (locBlocksTgt mu b)=> //; rewrite/in_mem /= H in G; elimtype False.
@@ -247,7 +247,7 @@ by apply: G; split.
 by apply: E.
 Qed.
 
-Lemma relinv_intern_step mu0 (mu mu' : SMInj.t) m10 m20 m1 m2 :
+Lemma relinv_intern_step mu0 (mu mu' : Inj.t) m10 m20 m1 m2 :
   relinv mu0 mu -> 
   intern_incr mu mu' -> 
   mem_forward m10 m1 -> 
@@ -276,7 +276,7 @@ case B: (local_of mu' b)=> // [[b' d']]; case: H6; move/(_ b b' d').
 rewrite/as_inj/join E; move/(_ A); rewrite -H8 E; move/(_ B)=> [C D] [].
 move/(_ b C).
 have F: DomSrc mu' b. 
-  by rewrite/DomSrc; move: (local_locBlocks _ (SMInj_wd mu') _ _ _ B)=> []->.
+  by rewrite/DomSrc; move: (local_locBlocks _ (Inj_wd mu') _ _ _ B)=> []->.
 move/(_ F)=> G _.
 have H: Memory.Mem.valid_block m10 b.
   by case: Hvalid; move/(_ b)=> H _; apply: H.
@@ -294,13 +294,13 @@ move=> _.
 have M: ~Memory.Mem.valid_block m10 b1.
   have N: ~Memory.Mem.valid_block m1 b1.
     case: H6; move/(_ b1 b2 d C B); case=> D E.
-    case: (as_inj_DomRng _ _ _ _ B (SMInj_wd mu'))=> O ?.
+    case: (as_inj_DomRng _ _ _ _ B (Inj_wd mu'))=> O ?.
     by case; move/(_ b1 D O).
   by move=> M; apply: N; case: (H3 b1 M). 
 have N: ~Memory.Mem.valid_block m20 b2.
   have P: ~Memory.Mem.valid_block m2 b2.
     case: H6; move/(_ b1 b2 d C B); case=> D E.
-    case: (as_inj_DomRng _ _ _ _ B (SMInj_wd mu'))=> ? O.
+    case: (as_inj_DomRng _ _ _ _ B (Inj_wd mu'))=> ? O.
     by case=> _; move/(_ b2 E O).
   by move=> Q; apply: P; case: (H4 b2 Q). 
 case: Hvalid. move/(_ b1)=> E. move/(_ b2)=> F; split.
@@ -310,7 +310,7 @@ case G: (DomTgt mu0 b2)=> //.
 by elimtype False; apply: N; apply: (F G).
 Qed.
 
-Lemma dominv_intern_step mu0 (mu mu' : SMInj.t) m10 m20 m1 m2 :
+Lemma dominv_intern_step mu0 (mu mu' : Inj.t) m10 m20 m1 m2 :
   dominv mu0 mu -> 
   intern_incr mu mu' -> 
   mem_forward m10 m1 -> 
@@ -328,7 +328,7 @@ Qed.
 
 (* The analogous lemma for extern_incr doesn't appear to hold: *)
 
-(* Lemma disjinv_extern_step (mu0 mu mu' : SMInj.t) m10 m20 m1 m2 : *)
+(* Lemma disjinv_extern_step (mu0 mu mu' : Inj.t) m10 m20 m1 m2 : *)
 (*   disjinv mu0 mu ->  *)
 (*   extern_incr mu mu' ->  *)
 (*   mem_forward m10 m1 ->  *)

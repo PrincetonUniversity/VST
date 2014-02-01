@@ -253,7 +253,7 @@ End head_inv_lems.
 Import seq.
 
 Record frame_pkg : Type := 
-  { frame_mu0 : SMInj.t
+  { frame_mu0 : Inj.t
   ; frame_m10 : Memory.mem
   ; frame_m20 : Memory.mem
   ; frame_val : sm_valid frame_mu0 frame_m10 frame_m20 }.
@@ -306,12 +306,12 @@ Definition tail_inv mus mu s1 s2 m1 m2 :=
     & frame_all mus m1 m2 s1 s2].
 
 Definition restrict_sm_wd m1
-  (mu : SMInj.t) (X : block -> bool)
+  (mu : Inj.t) (X : block -> bool)
   (vis_pf : forall b : block, vis mu b -> X b)
-  (rc_pf  : REACH_closed m1 X) : SMInj.t :=
-  SMInj.Build_t (restrict_sm_WD _ (SMInj_wd mu) X vis_pf).
+  (rc_pf  : REACH_closed m1 X) : Inj.t :=
+  Inj.mk (restrict_sm_WD _ (Inj_wd mu) X vis_pf).
 
-(* Lemma tail_len_eq (mus : seq frame_pkg) (mu : SMInj.t) s1 s2 m1 m2 : *)
+(* Lemma tail_len_eq (mus : seq frame_pkg) (mu : Inj.t) s1 s2 m1 m2 : *)
 (*   tail_inv mus mu s1 s2 m1 m2 -> length s1 = length s2. *)
 (* Proof. *)
 (* move: s1 s2 mu; elim: mus. *)
@@ -327,7 +327,7 @@ Definition restrict_sm_wd m1
 (* have mu0_wd: SM_wd mu0. *)
 (*   move: (sims (Core.i x)).(match_sm_wd _ _ _ _ _).  *)
 (*   by move/(_ _ _ _ _ _ _ frmatch). *)
-(* have C': tail_inv mus' (SMInj.Build_t mu0_wd) s1' s2' m1 m2. *)
+(* have C': tail_inv mus' (Inj.mk mu0_wd) s1' s2' m1 m2. *)
 (*   split=> //. *)
 (* by rewrite (IH _ _ _ C'). *)
 (* Qed. *)
@@ -399,7 +399,7 @@ Arguments genvs_domain_eq_match_genvs {_ _ _ _ _ _} _.
 
 Lemma tail_inv_preserves_globals mus mu_top s1 s2 m1 m2 :
   tail_inv mus mu_top s1 s2 m1 m2 -> 
-  All ((Events.meminj_preserves_globals my_ge \o extern_of) \o SMInj.mu)
+  All ((Events.meminj_preserves_globals my_ge \o extern_of) \o Inj.mu)
     [seq frame_mu0 x | x <- mus].
 Proof.
 move: mu_top s1 s2; elim: mus=> // mu0 mus' IH mu_top s1 s2.
@@ -413,9 +413,9 @@ by apply: (IH _ _ _ TL).
 Qed.
 
 Lemma rel_inv_pred_step 
-  pkg (mu : SMInj.t) m1 m2
+  pkg (mu : Inj.t) m1 m2
   (Esrc Etgt : Values.block -> BinNums.Z -> bool) 
-  (mu' : SMInj.t) m1' m2' :
+  (mu' : Inj.t) m1' m2' :
   (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
   Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
   Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
@@ -447,7 +447,7 @@ by apply: (disjinv_intern_step disj incr fwd10 fwd20 sep' sep (frame_val pkg)).
 Qed.
 
 Lemma wrt_callers_step 
-  mus (mu : SMInj.t) (mu' : SMInj.t) m1' m2' s1 s2 m1 m2 
+  mus (mu : Inj.t) (mu' : Inj.t) m1' m2' s1 s2 m1 m2 
   (Esrc Etgt : Values.block -> BinNums.Z -> bool) :
   (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
   Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
@@ -481,7 +481,7 @@ by eapply IH; eauto.
 Qed.
 
 Lemma all_wrt_callers_step 
-  mus (mu : SMInj.t) (mu' : SMInj.t) m1' m2' s1 s2 m1 m2 
+  mus (mu : Inj.t) (mu' : Inj.t) m1' m2' s1 s2 m1 m2 
   (Esrc Etgt : Values.block -> BinNums.Z -> bool) :
   (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
   Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
@@ -516,7 +516,7 @@ by [].
 Qed.
 
 Lemma frame_all_step 
-  mus (mu : SMInj.t) (mu' : SMInj.t) m1' m2' s1 s2 m1 m2 
+  mus (mu : Inj.t) (mu' : Inj.t) m1' m2' s1 s2 m1 m2 
   (Esrc Etgt : Values.block -> BinNums.Z -> bool) :
   (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
   Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
@@ -554,7 +554,7 @@ set pubTgt' := [predI locBlocksTgt mu0 & REACH m20 (exportedTgt mu0 vals2)].
 set mu0'    := replace_locals mu0 pubSrc' pubTgt'.
 have wd: SM_wd mu0' by apply: replace_reach_wd.
 have J: disjinv mu0' mu by case: F=> /= ? ? ?; apply: disjinv_call.
-apply: (@disjinv_unchanged_on_src (SMInj.Build_t wd) mu Esrc)=> //.
+apply: (@disjinv_unchanged_on_src (Inj.mk wd) mu Esrc)=> //.
 move: (sm_valid_smvalid_src _ _ _ val)=> val''.
 apply: smvalid_src_replace_locals=> //=.
 by apply: (smvalid_src_mem_forward val'' fwd1).
@@ -565,7 +565,7 @@ set pubTgt' := [predI locBlocksTgt mu0 & REACH m20 (exportedTgt mu0 vals2)].
 set mu0'    := replace_locals mu0 pubSrc' pubTgt'.
 have J: disjinv mu0' mu by case: F=> /= ? ? ?; apply: disjinv_call.
 have wd: SM_wd mu0' by apply: replace_reach_wd.
-apply: (@disjinv_unchanged_on_tgt (SMInj.Build_t wd) mu Esrc Etgt 
+apply: (@disjinv_unchanged_on_tgt (Inj.mk wd) mu Esrc Etgt 
   m10 m1 m2 m2' fwd1)=> //.
 move=> b'; case: val'; move/(_ b')=> I _ Q; apply: I.
 by rewrite replace_locals_DOM in Q.
@@ -576,7 +576,7 @@ Qed.
 
 Lemma tail_inv_step 
   (Esrc Etgt : Values.block -> BinNums.Z -> bool) 
-  mus (mu mu' : SMInj.t) m1' m2' s1 s2 m1 m2 :
+  mus (mu mu' : Inj.t) m1' m2' s1 s2 m1 m2 :
   (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
   Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
   Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
@@ -613,10 +613,10 @@ exists pf, cd, m10, e1, sig1, vals1, m20, e2, sig2, vals2.
 apply: Build_frame_inv=> //.
 Admitted. (*likely true*) 
 
-Lemma tail_inv_restrict (X : block -> bool) (mu : SMInj.t) s1 s2 m1 m2 
+Lemma tail_inv_restrict (X : block -> bool) (mu : Inj.t) s1 s2 m1 m2 
   (vis : forall b : block, vis mu b -> X b)
   (reach : REACH_closed m1 X) :
-  let: mu' := SMInj.Build_t (restrict_sm_WD mu (SMInj_wd mu) X vis) in
+  let: mu' := Inj.mk (restrict_sm_WD mu (Inj_wd mu) X vis) in
   tail_inv mu s1 s2 m1 m2 ->
   tail_inv mu' s1 s2 m1 m2.
 Proof. 
@@ -646,7 +646,7 @@ Record R (data : Lex.t types) (mu : SM_Injection)
     (* invariant *)
   ; R_inv : 
     exists (pf : c.(Core.i)=d.(Core.i)) mu_trash mu_top mus, 
-    [/\ mu = join_all (mu_trash :: mu_top :: [seq frame_mu0 x | x <- mus])
+    [/\ mu = join_all mu_trash (mu_top :: [seq frame_mu0 x | x <- mus])
       , Events.meminj_preserves_globals my_ge (extern_of mu_trash)
       , @head_inv c d pf (Lex.get c.(Core.i) data) mu_top m1 m2 
       & tail_inv mus mu_top (pop s1) (pop s2) m1 m2] }.
@@ -677,7 +677,7 @@ Qed.
 
 Lemma R_match :
   exists (pf0 : (c pf).(Core.i)=(d pf).(Core.i)) mu_trash mu_top mus, 
-  [/\ mu = join_all (mu_trash :: mu_top :: [seq frame_mu0 x | x <- mus])
+  [/\ mu = join_all mu_trash (mu_top :: [seq frame_mu0 x | x <- mus])
     , Events.meminj_preserves_globals my_ge (extern_of mu_trash)
     , @head_inv (c pf) (d pf) pf0 (Lex.get (c pf).(Core.i) data) mu_top m1 m2 
     & tail_inv mus mu_top (STACK.pop x1.(stack)) (STACK.pop x2.(stack)) m1 m2].
@@ -695,12 +695,17 @@ case: R_match=> []pf0 []? []mu_top []? []A B; move/head_match=> C D.
 by exists pf0, mu_top.
 Qed.
 
+Lemma R_alldisjoint :
+  (AllDisjoint locBlocksSrc \o map Inj.mu)
+  ([seq frame_mu0 x | x <- mus] ++ [:: mu_top]).
+
+
 Lemma R_wd : SM_wd mu.
 Proof.
 move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B _ ? ?; rewrite B.
-have C: SM_wd (join_all (mu_top :: [seq frame_mu0 x | x <- mus]))
-  by apply: join_all_wd.
-cut (SM_wd (join_sm mu_trash (SMInj.Build_t C))). apply.
+have C: SM_wd (join_all mu_top ([seq frame_mu0 x | x <- mus])).
+  apply: join_all_wd.
+cut (SM_wd (join_sm mu_trash (Inj.mk C))). apply.
 by apply: join_sm_wd.
 Qed.
 
@@ -738,7 +743,7 @@ Qed.
 Lemma R_match_restrict (X : block -> bool) 
   (vis : forall b : block, vis mu b -> X b)
   (reach : REACH_closed m1 X) :
-  R data (@restrict_sm_wd  _ (SMInj.Build_t R_wd) _ vis reach) x1 m1 x2 m2.
+  R data (@restrict_sm_wd  _ (Inj.mk R_wd) _ vis reach) x1 m1 x2 m2.
 Proof.
 move: (R_head pf)=> [A] C; move: (head_inv_restrict C vis reach)=> H.
 apply: Build_R; first by exists A.
@@ -843,8 +848,8 @@ case: STEP.
    move=> tlinv.
    have mu_wd: SM_wd mu by apply: match_sm_wd MATCH.
    have mu'_wd: SM_wd mu' by apply: match_sm_wd MATCH'.
-   have H: tail_inv (SMInj.Build_t mu'_wd) l1 l2 m1' m2'.
-   apply: (@tail_inv_step (SMInj.Build_t mu_wd) _ _ m1 m2 U1 U2)=> //=.
+   have H: tail_inv (Inj.mk mu'_wd) l1 l2 m1' m2'.
+   apply: (@tail_inv_step (Inj.mk mu_wd) _ _ m1 m2 U1 U2)=> //=.
    by case: (effect_semantics.effax1 EFFSTEP)=> _ ?.
    case: STEP_ORD.
    - by case=> n; apply: effect_semantics.effstepN_unchanged.
