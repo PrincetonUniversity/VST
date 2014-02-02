@@ -304,11 +304,11 @@ Lemma unpack_globvar_star:
    (glob_types Delta) ! i = Some (Global_var (gvar_info gv)) ->
    no_attr_type (gvar_info gv) = true ->
    gvar_volatile gv = false ->
-   gvar_readonly gv = false ->
    init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Int.max_unsigned ->
    local (tc_environ Delta) && globvar2pred(i, gv) |-- 
        id2pred_star Delta (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) (gvar_info gv) (eval_var i (gvar_info gv)) 0 (gvar_init gv).
 Proof.
+assert (H5:=true).
 intros until 4.
 remember (gvar_info gv) as t eqn:H3; symmetry in H3.
 remember (gvar_init gv) as idata eqn:H4; symmetry in H4.
@@ -346,12 +346,13 @@ Lemma tc_globalvar_sound_space:
    gvar_volatile gv = false ->
    gvar_info gv = t ->
    gvar_init gv = Init_space (sizeof t) :: nil ->
-   gvar_readonly gv = false ->
+(*   gvar_readonly gv = false -> *)
    sizeof t <= Int.max_unsigned ->
    tc_environ Delta rho ->
    globvar2pred(i, gv) rho |-- 
-   data_at_ Ews t (eval_var i t rho).
+   data_at_ (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) t (eval_var i t rho).
 Proof.
+assert (H4 := true).
 intros until 1. intros ? Hno; intros.
 eapply derives_trans; [eapply tc_globalvar_sound; eassumption | ].
 simpl.
@@ -360,9 +361,10 @@ destruct (tc_eval_gvar_zero _ _ _ _ H6 H H0) as [b ?].
 rewrite H7.
 unfold mapsto_zeros. rewrite sepcon_emp.
 rewrite Int.unsigned_zero.
-pose proof (mapsto_zeros_memory_block Ews (sizeof t) b 0).
+pose proof (mapsto_zeros_memory_block
+  (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) (sizeof t) b 0).
 unfold mapsto_zeros in H8. change (Int.repr 0) with Int.zero in H8.
-rewrite Int.unsigned_zero in H8. rewrite H4. apply H8.
+rewrite Int.unsigned_zero in H8. (*rewrite H4.*) apply H8.
 pose (sizeof_pos t); omega. omega. omega.
 Qed.
 
@@ -373,23 +375,44 @@ replace (lo-lo) with 0 by omega.
 simpl. auto.
 Qed.
 
-Lemma idpred2_star_ZnthV_tint:
- forall Delta sh n v (data: list int) mdata,
+
+Definition inttype2init_data (sz: intsize) : (int -> init_data) :=
+ match sz with 
+ | IBool  =>  Init_int8
+ | I8  =>  Init_int8
+ | I16 =>  Init_int16
+ | I32 =>  Init_int32
+ end.
+
+Definition notboolsize (sz: intsize) : Prop :=
+  match sz with IBool => False | _ => True end.
+
+Lemma mapsto_unsigned_signed:
+ forall sign1 sign2 sh sz v i,
+  mapsto sh (Tint sz sign1 noattr) v (Vint (cast_int_int sz sign1 i)) =
+  mapsto sh (Tint sz sign2 noattr) v (Vint (cast_int_int sz sign2 i)).
+Admitted. (* probably true, believe it or not *)
+
+Lemma id2pred_star_ZnthV_Tint:
+ forall Delta sh n v (data: list int) sz sign mdata
+  (NBS: notboolsize sz),
   n = Zlength mdata ->
-  mdata = map Init_int32 data ->
-  local (`isptr v) && id2pred_star Delta sh (tarray tint n) v 0 mdata |--
-  `(array_at tint sh (ZnthV tint (map Vint data)) 0 n) v.
+  mdata = map (inttype2init_data sz) data ->
+  local (`isptr v) && id2pred_star Delta sh (tarray (Tint sz sign noattr) n) v 0 mdata |--
+  `(array_at (Tint sz sign noattr) sh (ZnthV (Tint sz sign noattr) 
+           (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data)) 0 n) v.
 Proof.
 intros. subst n mdata.
-replace (Zlength (map Init_int32 data)) with (Zlength data)
+replace (Zlength (map  (inttype2init_data sz) data)) with (Zlength data)
  by (repeat rewrite Zlength_correct; rewrite map_length; auto).
 go_lowerx.
 set (ofs:=0%Z).
 unfold ofs at 1.
-change 0 with (ofs*4)%Z.
+change 0 with (ofs* sizeof (Tint sz sign noattr))%Z.
 set (N := Zlength data). unfold N at 2. clearbody N.
 replace (Zlength data) with (ofs + Zlength data) by (unfold ofs; omega).
-replace (ZnthV tint (map Vint data)) with (fun i => ZnthV tint (map Vint data) (i-ofs))
+replace (ZnthV (Tint sz sign noattr) (map (Basics.compose Vint (cast_int_int sz sign)) data))
+   with (fun i => ZnthV (Tint sz sign noattr) (map (Basics.compose Vint (cast_int_int sz sign)) data) (i-ofs))
   by (extensionality i; unfold ofs; rewrite Z.sub_0_r; auto).
 clearbody ofs.
 rename H into H'.
@@ -399,23 +422,48 @@ induction data; intros; simpl; auto.
 * rewrite Zlength_nil. unfold array_at, rangespec; simpl.
  replace (ofs+0-ofs) with 0 by omega. simpl. normalize.
 * rewrite Zlength_cons.
-replace (ofs*4+4) with ((Z.succ ofs) * 4)%Z 
- by (unfold Z.succ; rewrite Z.mul_add_distr_r; reflexivity).
+set (w := match sz with
+             | I8 => 1
+             | I16 => 2
+             | I32 => 4
+             | IBool => 1
+             end).
+replace (sizeof (Tint sz sign noattr)) with w in IHdata by (destruct sz; reflexivity).
+replace (align w w) with w by (unfold w; destruct sz; reflexivity).
+replace (init_data_size (inttype2init_data sz a))
+  with w by (destruct sz; reflexivity).
+replace (ofs*w+w) with ((Z.succ ofs) * w)%Z 
+ by (destruct sz; unfold Z.succ; rewrite Z.mul_add_distr_r; reflexivity).
 replace (ofs + Z.succ (Zlength data)) with (Z.succ ofs + Zlength data) by omega.
 rewrite (split3_array_at ofs).
 rewrite array_at_emp.
 rewrite prop_true_andp by auto. rewrite emp_sepcon.
 apply sepcon_derives; auto.
 unfold_lift.
-rewrite mapsto_tuint_tint.
+apply derives_trans with
+  (`(mapsto sh (Tint sz sign noattr))
+   (fun x : environ => offset_val (Int.repr (ofs * w)) (v x))
+   `(Vint (cast_int_int sz sign a)) rho).
+apply derives_refl'.
+destruct sz; simpl; unfold_lift; auto.
+destruct sign; simpl; auto.
+apply (mapsto_unsigned_signed Unsigned Signed sh I8).
+destruct sign; simpl; auto.
+apply (mapsto_unsigned_signed Unsigned Signed sh I16).
+contradiction.
+simpl_data_at; fold w.
+replace ((w-1)/w*w)%Z with 0%Z by (destruct sz; reflexivity).
+simpl.
+unfold_lift.
 rewrite mapsto_isptr.
 apply derives_extract_prop. intro.
 destruct (v rho); inv H.
 simpl offset_val.
 unfold add_ptr_int; simpl.
+fold w.
 rewrite mul_repr.
 unfold ZnthV.
-change (align 4 4) with 4.
+replace (align w w) with w by (destruct sz; reflexivity).
 rewrite Zmult_comm.
 rewrite if_false by omega.
 rewrite Z.sub_diag. simpl nth. auto.
@@ -432,19 +480,62 @@ rewrite Zlength_correct; clear; omega.
 Qed.
 
 
+Lemma id2pred_star_ZnthV_tint:
+ forall Delta sh n v (data: list int) mdata,
+  n = Zlength mdata ->
+  mdata = map Init_int32 data ->
+  local (`isptr v) && id2pred_star Delta sh (tarray tint n) v 0 mdata |--
+  `(array_at tint sh (ZnthV tint (map Vint data)) 0 n) v.
+Proof. intros; apply id2pred_star_ZnthV_Tint; auto; apply I.
+Qed.
+
+Lemma unpack_globvar_array:
+  forall t sz sign (data: list int)  n Delta i gv,
+   (var_types Delta) ! i = None ->
+   (glob_types Delta) ! i = Some (Global_var (gvar_info gv)) ->
+   gvar_info gv = tarray t n ->
+   gvar_volatile gv = false ->
+   t = Tint sz sign noattr -> 
+  forall    (NBS: notboolsize sz),
+   n = Zlength (gvar_init gv) ->
+   gvar_init gv = map (inttype2init_data sz) data ->
+   init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Int.max_unsigned ->
+   local (tc_environ Delta) && globvar2pred(i, gv) |-- 
+      `(array_at (Tint sz sign noattr) (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
+    (ZnthV (Tint sz sign noattr) (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data)) 0 n) (eval_var i (tarray t n)).
+Proof.
+ intros. subst t.
+ match goal with |- ?A |-- _ =>
+ eapply derives_trans with (local (`isptr (eval_var i (tarray (Tint sz sign noattr) n))) && A)
+ end.
+ apply andp_right; auto.
+ go_lowerx. apply prop_right. eapply eval_var_isptr; eauto.
+ right; split; auto. rewrite <- H1; auto.
+ eapply derives_trans;[ apply andp_derives; 
+                                    [ apply derives_refl 
+                                    | eapply unpack_globvar_star; try eassumption; try reflexivity ] |].
+rewrite H1; reflexivity.
+ rewrite H1. (* rewrite H3.*)  rewrite H5.
+(* change (Share.splice extern_retainer (readonly2share false)) with Ews. *)
+ eapply derives_trans; [ |  apply id2pred_star_ZnthV_Tint; auto].
+ apply derives_refl.
+ rewrite <- H5. auto.
+Qed.
+
+
 Lemma map_instantiate:
   forall {A B} (f: A -> B) (x: A) (y: list B) z,
     y = map f z ->  f x :: y = map f (x :: z).
 Proof. intros. subst. reflexivity. Qed.
 
-
+(*
 Lemma unpack_globvar_array:
   forall data n Delta i gv, 
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (Global_var (gvar_info gv)) ->
    gvar_info gv = tarray tint n ->
    gvar_volatile gv = false ->
-   gvar_readonly gv = false ->
+(*   gvar_readonly gv = false -> *)
    n = Zlength (gvar_init gv) ->
    gvar_init gv = map Init_int32 data ->
    init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Int.max_unsigned ->
@@ -452,6 +543,7 @@ Lemma unpack_globvar_array:
       `(array_at tint (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
     (ZnthV tint (map Vint data)) 0 n) (eval_var i (tarray tint n)).
 Proof.
+ assert (H3:=true).
  intros.
  match goal with |- ?A |-- _ =>
  eapply derives_trans with (local (`isptr (eval_var i (tarray tint n))) && A)
@@ -463,12 +555,13 @@ Proof.
                                     [ apply derives_refl 
                                     | eapply unpack_globvar_star; try eassumption; try reflexivity ] |].
 rewrite H1; reflexivity.
- rewrite H1. rewrite H3. rewrite H5.
- change (Share.splice extern_retainer (readonly2share false)) with Ews. 
- eapply derives_trans; [ |  apply idpred2_star_ZnthV_tint].
+ rewrite H1. (* rewrite H3.*)  rewrite H5.
+(* change (Share.splice extern_retainer (readonly2share false)) with Ews. *)
+ eapply derives_trans; [ |  apply id2pred_star_ZnthV_tint].
  apply derives_refl.
  rewrite <- H5. auto. auto.
 Qed.
+*)
 
 Lemma main_pre_eq:
  forall prog u, main_pre prog u = 
@@ -525,13 +618,13 @@ first [
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence ]
  | eapply unpack_globvar_array;
-      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply I 
       | compute; clear; congruence 
       | repeat eapply map_instantiate; symmetry; apply map_nil
       | compute; split; clear; congruence ]
  | eapply derives_trans;
     [ apply unpack_globvar_star; 
-        [reflexivity | reflexivity | reflexivity | reflexivity
+        [reflexivity | reflexivity | reflexivity
         | reflexivity | compute; split; clear; congruence ]
     |  cbv beta; simpl gvar_info; simpl gvar_readonly; simpl readonly2share;
       change (Share.splice extern_retainer Tsh) with Ews
@@ -544,6 +637,10 @@ Lemma start_main_pre:
 Proof. intros. unfold_for_go_lower. simpl. extensionality rho; normalize.
 Qed.
 
+
+Definition Ers (* Extern read share *) := 
+    Share.splice extern_retainer Share.Lsh.
+
 Ltac expand_main_pre :=
  rewrite start_main_pre, main_pre_eq; simpl map; 
   unfold fold_right_sepcon'; repeat flatten_sepcon_in_SEP;
@@ -555,7 +652,8 @@ Ltac expand_main_pre :=
  | ];
  cbv beta;
  simpl init_data2pred';
- change (Share.splice extern_retainer Tsh) with Ews.
-
-
+ fold Ews; fold Ers; fold tint; fold tuint; fold tuchar; fold tschar; fold tshort; fold tushort.
+(*
+ change (Share.splice extern_retainer Tsh) with Ews;
+*)
 

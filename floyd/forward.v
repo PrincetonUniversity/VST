@@ -828,7 +828,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
-   | solve [entailer; cancel]
+   | solve [entailer; unfold at_offset; cancel]
    | try apply I; try assumption; reflexivity
    ]
  end
@@ -846,7 +846,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
-   | solve [entailer; cancel]
+   | solve [entailer; unfold at_offset; cancel]
    | try apply I; try assumption; reflexivity
    ]
  end
@@ -854,20 +854,20 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
   eapply (semax_load_field'');
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | try solve [entailer]
-   | solve [entailer; cancel]
+   | solve [entailer; unfold at_offset; cancel]
    | try apply I; try assumption; reflexivity
    ]
  | |- semax _ _ (Sset _ (Ecast (Efield _ _ _) _)) _ =>
   eapply (semax_cast_load_field'');
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | try solve [entailer]
-   | solve [entailer; cancel]
+   | solve [entailer; unfold at_offset; cancel]
    | try apply I; try assumption; reflexivity
    ]
  | |- semax _ _ (Sset _ (Ederef (Ebinop Oadd ?e1 ?e2 _) _)) _ =>
     eapply semax_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
       [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-      | solve [entailer; cancel]
+      | solve [entailer; unfold at_offset; cancel]
       | ]
  | |- _ => eapply semax_load_37';
    [reflexivity | reflexivity
@@ -1191,9 +1191,15 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
               |new_load_tac]
   | Sset _ (Ederef ?e _) => 
          no_loads_expr e true; new_load_tac
-  | Sset (Ecast (Ederef ?e _) _) => 
-         no_loads_expr e true; new_load_tac
-  | Sset _ (Evar _ _)  => new_load_tac
+  | Sset (Ecast (Ederef ?e _) ?t) => 
+         no_loads_expr e true; 
+      first [unify true (match t with Tarray _ _ _ => true | _ => false end);
+               forward_setx
+              |new_load_tac]
+  | Sset _ (Evar _ ?t)  => 
+      first [unify true (match t with Tarray _ _ _ => true | _ => false end);
+               forward_setx
+              |new_load_tac]
   | Sset _ (Ecast (Evar _ _) _) => new_load_tac
   | Sset _ ?e => no_loads_expr e false; (bool_compute e; forward_ptr_cmp) || forward_setx
   | Sifthenelse ?e _ _ => no_loads_expr e false; forward_ifthenelse
