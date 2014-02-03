@@ -277,18 +277,6 @@ The lemma goes here, because it imports from both forward_lemmas and call_lemmas
  See also BEGIN HORRIBLE1 , later in this file
 *)
  
-Lemma neutral_isCastResultType:
- forall t v rho, is_neutral_cast t t = true -> 
-   denote_tc_assert (isCastResultType t t t v) rho.
-Proof.
-intros.
- unfold isCastResultType;
- destruct t; inv H; try apply I.
-* destruct i; inv H1; simpl. if_tac; apply I.
-* admit. (* Tlong case *)
-* simpl. if_tac; apply I.
-Qed.
-
 Lemma semax_call_id1_x:
  forall Espec Delta P Q R ret ret' id retty bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
