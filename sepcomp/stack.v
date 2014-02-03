@@ -1,5 +1,8 @@
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+Require Import ssreflect ssrbool ssrnat ssrfun seq.
 Set Implicit Arguments.
+
+(* This file defines the type of stacks used to model callstacks in       *)
+(* linking.v.                                                             *)
 
 Module SeqStack. Section seqStack.
 Variable T : Type.

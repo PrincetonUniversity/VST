@@ -1,4 +1,4 @@
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+Require Import ssreflect ssrbool ssrnat fintype.
 Set Implicit Arguments.
 
 Record pos := mkPos { n :> nat ; N_pos : (0 < n)%coq_nat }.

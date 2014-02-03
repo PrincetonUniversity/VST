@@ -16,7 +16,10 @@ Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.pred_lemmas.
 
-(* This file collects lemmas on structured injections. *)
+(* This file collects lemmas on structured injections.                    *)
+
+(* [Inj.t] is the type of well-defined structured injections. It is       *)
+(* coercible to [SM_Injection] via the coercion [Inj.mu].                 *)
 
 Module Inj.
 
@@ -42,6 +45,8 @@ Variable mu : Inj.t.
 
 Lemma Inj_wd : SM_wd mu.
 Proof. by case: mu. Qed.
+
+(* Local-Frgn/Extern disjointness *)
 
 Lemma Inj_DisjointLFS : Disjoint (locBlocksSrc mu) (frgnBlocksSrc mu).
 Proof.
@@ -197,13 +202,6 @@ Lemma smvalid_src_DOM_valid mu m b :
   smvalid_src mu m -> DOM mu b -> Memory.Mem.valid_block m b.
 Proof. by apply. Qed.
 
-Lemma smvalid_src_mem_forward mu m m' : 
-  smvalid_src mu m -> mem_forward m m' -> smvalid_src mu m'.
-Proof.
-move=> H H2 b; move: (H2 b)=> H3 H4; case: H3=> //.
-by apply: (smvalid_src_DOM_valid H H4).
-Qed.
-
 Definition validblock (m : Memory.Mem.mem) (b : Values.block) :=
   BinPos.Pos.ltb b (Memory.Mem.nextblock m).
 
@@ -355,6 +353,40 @@ change (Disjoint [pred b | locBlocksTgt mu b] [pred b | ~~ validblock m b]).
 by rewrite A; apply: DisjointInI.
 Qed.
 
+Lemma smvalid_src_fwd mu m m' : 
+  mem_forward m m' -> 
+  smvalid_src mu m -> smvalid_src mu m'.
+Proof.
+by move=> A B b C; move: {A B}(A b) (B b)=> A B; case: (A (B C)).
+Qed.
+
+Lemma smvalid_tgt_fwd mu m m' : 
+  mem_forward m m' -> 
+  smvalid_tgt mu m -> smvalid_tgt mu m'.
+Proof.
+by move=> A B b C; move: {A B}(A b) (B b)=> A B; case: (A (B C)).
+Qed.
+
+Lemma intern_incr_frgnsrc mu mu' : 
+  intern_incr mu mu' -> frgnBlocksSrc mu=frgnBlocksSrc mu'.
+Proof. by case=> _ []_ []_ []_ []_ []_ []->. Qed.
+
+Lemma intern_incr_frgntgt mu mu' : 
+  intern_incr mu mu' -> frgnBlocksTgt mu=frgnBlocksTgt mu'.
+Proof. by case=> _ []_ []_ []_ []_ []_ []_ []->. Qed.
+
+Lemma intern_incr_extsrc mu mu' : 
+  intern_incr mu mu' -> extBlocksSrc mu=extBlocksSrc mu'.
+Proof. by case=> _ []_ []_ []_ []_ []_ []_ []_ []->. Qed.
+
+Lemma intern_incr_exttgt mu mu' : 
+  intern_incr mu mu' -> extBlocksTgt mu=extBlocksTgt mu'.
+Proof. by case=> _ []_ []_ []_ []_ []_ []_ []_ []_ ->. Qed.
+
+Lemma intern_incr_extern mu mu' : 
+  intern_incr mu mu' -> extern_of mu=extern_of mu'.
+Proof. by case=> _ []->. Qed.
+
 Lemma sminjsep_locsrc mu (mu' : Inj.t) m1 m2 :
   intern_incr mu mu' -> 
   sm_valid mu m1 m2 -> 
@@ -392,9 +424,10 @@ split; first by move=> ? ->; discriminate.
 by move=> ? ->; discriminate.
 Qed.
 
-(* The following variation of [join] is appropriate for shared resources       *)
-(* like extern injections: each core must have a consistent mapping on         *)
-(* extern blocks but the domains of the mappings are not necessarily disjoint. *)
+(* The following variation of [join] is appropriate for shared resources  *)
+(* like extern injections: each core must have a consistent mapping on    *)
+(* extern blocks but the domains of the mappings are not necessarily      *)
+(* disjoint.                                                              *)
 
 Definition join2 (j  k : Values.meminj) b :=
   match j b with
@@ -420,6 +453,29 @@ move=> []-> ->; case H: (_ && _)=> //; move: H; move/andP=> []; split.
 by rewrite/is_true Pos.eqb_eq.
 by rewrite/is_true -Zeq_is_eq_bool.
 Qed.
+
+(* [join_sm mu1 mu2] is a union operator on structured injections. If     *)
+(* we have struct. injections                                             *)
+(*                                                                        *)
+(*   mu1 = LOC1, locof1, EXT1, extof1                                     *)
+(*   mu2 = LOC2, locof2, EXT2, extof2                                     *)
+(*                                                                        *)
+(* then [join_sm mu1 mu2 = mu12] is equal to                              *)
+(*                                                                        *)
+(*   LOC1 \cup LOC2, join locof1 locof2,                                  *)
+(*   EXT1 \cap EXT2, join2 extof1 extof2                                  *)
+(*                                                                        *)
+(* w/ PUB12 = \emptyset, FRGN12 = FRGN1 \cap FRGN2.                       *)
+(*                                                                        *)
+(* While conceptually, LOC1 \cup LOC2 is disjoint union, in practice we   *)
+(* make [join_sm] a total operation.  However, [mu12] is only             *)
+(* well-defined if                                                        *)
+(*                                                                        *)
+(*   1) LOC1 \cap \LOC2 = \emptyset; and                                  *)
+(*   2) extof1 and extof2 are "consistent"                                *)
+(*                                                                        *)
+(* We say that two injections [j],[k] are consistent when the following   *)
+(* condition holds:                                                       *)
 
 Definition consistent (j k : Values.meminj) := 
   forall b1 b2 b2' d2 d2', 
@@ -479,6 +535,9 @@ move=> b; move/andP=> [].
 move/frgntgt_sub_exttgt; rewrite/in_mem/= => ->.
 by move/frgntgt_sub_exttgt; rewrite/in_mem/= => ->.
 Qed.
+
+(* The following definitions/lemmas extend [join2] to nonempty sequences  *)
+(* of struct. injections.                                                 *)
 
 Fixpoint All T P (l : seq T) :=
   match l with

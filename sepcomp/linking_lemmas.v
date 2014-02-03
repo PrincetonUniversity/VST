@@ -5,7 +5,7 @@ Require Import sepcomp.effect_semantics.
 Require Import sepcomp.pos.
 Require Import sepcomp.linking.
 
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
 Set Implicit Arguments.
 
 Require Import compcert.common.AST. (*for ident*)

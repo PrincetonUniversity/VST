@@ -89,11 +89,11 @@ LINKING_FILES= \
   wf_lemmas.v \
   core_semantics_lemmas.v \
   pred_lemmas.v \
-  sminj_lemmas.v \
-  domain_inv.v \
+  inj_lemmas.v \
+  disjointness.v \
   linking.v \
   linking_lemmas.v \
-  linking_sim.v
+  linking_proof.v
 
 COMPCOMP_FILES= \
   Ordered.v Switch.v Cminor.v Cminor_coop.v Cminor_eff.v \

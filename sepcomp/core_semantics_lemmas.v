@@ -23,7 +23,7 @@ Definition Coresem2CoreSemantics {G C M} (csem: @Coresem.t G C M) :=
 
 Coercion Coresem2CoreSemantics : Coresem.t >-> CoreSemantics.
 
-(** * Uniform interface to inhabited CoreSemantics-like types [t] *)
+(* Uniform interface to inhabited CoreSemantics-like types [t] *)
 
 Module Type CORESEM.
 
@@ -37,7 +37,7 @@ Declare Instance instance {G C: Type} `{T : t G C} : @Coresem.t G C M.
 
 End CORESEM.
 
-(** * Dummy signatures, external functions, and core semantics *)
+(* Dummy signatures, external functions, and core semantics *)
 
 Module Dummy.
 
@@ -69,7 +69,7 @@ Axiom genv: forall {F V}, Genv.t F V. (*FIXME*)
 
 End Dummy.
 
-(** * Instances of CORESEM for CoopCoreSem, EffectSem *)
+(* Instances of CORESEM for CoopCoreSem, EffectSem *)
 
 Arguments core_instance {G C M} _.
 

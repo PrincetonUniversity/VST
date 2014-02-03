@@ -1,10 +1,12 @@
-Add LoadPath "..".
-Require Import JMeq.
-
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+Require Import ssreflect ssrbool ssrnat ssrfun eqtype fintype.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
+
+Require Import JMeq.
+
+(* This file defines cast operations and lemmas useful for doing rewrites *)
+(* in dependent types.                                                    *)
 
 Definition cast_ty (T1 T2 : Type) (pf : T1=T2) : T1 -> T2 :=
   eq_rect_r (fun y : Type => y -> T2) id pf.

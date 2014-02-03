@@ -7,8 +7,12 @@ Unset Printing Implicit Defensive.
 
 Require Import msl.Axioms.
 
-(* A small library of lemmas on Ssreflect boolean predicates, all assuming 
-   function extensionality so we can state the lemmas in rewrite form. *)
+(* A small library of lemmas on Ssreflect boolean predicates, all         *)
+(* assuming function extensionality so we can state the lemmas in rewrite *)
+(* form.                                                                  *)
+(*                                                                        *)
+(* Ssreflect seems to include many similar lemmas, though most(/all?) are *)
+(* only stated on finite types for some reason.                           *)
 
 Notation Disjoint p q := ([predI p & q] = pred0).
 

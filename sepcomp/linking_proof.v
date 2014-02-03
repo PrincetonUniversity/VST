@@ -13,15 +13,16 @@ Require Import sepcomp.core_semantics.
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.effect_properties.
+
 Require Import sepcomp.pos.
 Require Import sepcomp.stack.
 Require Import sepcomp.cast.
 Require Import sepcomp.wf_lemmas.
 Require Import sepcomp.core_semantics_lemmas.
-Require Import sepcomp.sminj_lemmas.
+Require Import sepcomp.inj_lemmas.
 Require Import sepcomp.linking.
 Require Import sepcomp.linking_lemmas.
-Require Import sepcomp.domain_inv.
+Require Import sepcomp.disjointness.
 Require Import sepcomp.arguments.
 
 (* compcert imports *)
@@ -32,7 +33,7 @@ Require Import compcert.common.Memory.
 
 (* ssreflect *)
 
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+Require Import ssreflect ssrbool seq.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.

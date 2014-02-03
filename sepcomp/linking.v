@@ -22,50 +22,48 @@ Require Import compcert.lib.Integers.
 
 Require Import ZArith.
 
-(** file: linking.v
-    ~~~~~~~~~~~~~~~
-
-This file gives the operational semantics of multi-language linking
-via a functor [CoreLinker (Csem : CORESEM)].  [CoreLinker] defines the
-following types/modules:
-
-  -[Static.t]: the type of compile-time semantics corresponding to a
-  particular translation unit, written in a particular programming
-  language and w/ a particular statically allocated initial global
-  environment
-
-  -[Core.t]: Runtime states corresponding to dynamic invocations of
-  [Static.t]s, initialized from a [Static] module to handle a
-  particular external function call made by another [Core]
-
-  -[CallStack.t]: just lists of [Core.t]s satisfying a few
-  well-formedness properties
-
-  -[Linker.t]: The type of linker corestates.  Linker states contain:
-
-     =[cores], a function from module id's ('I_N, or integers in the
-      range [0..N-1]) to genvs and core semantics
-
-     =[fn_tbl], a table mapping external function id's to module id's,
-     and
-
-     =[stack], a callstack used to maintain a stack of cores at
-    runtime.  Above, parameter [N] is the number of static modules in
-    the program.
-
-  -[LinkerSem]: defines the actual linking semantics. In later parts
-  of the file, the [LinkerSem] semantics is shown to be both a
-  [CoopCoreSem] and an [EffectSem] (cf. core_semantics.v,
-  effect_semantics.v).  *)
-
-(** * Linking semantics *)
-
-(** The [CoreLinker] module gives the operational semantics of linking. 
-    It is parameterized by a core semantics [Csem]. *)
+(* This file gives the operational semantics of multi-language linking    *)
+(* via a functor [CoreLinker (Csem : CORESEM)].  [CoreLinker] defines the *)
+(* following types/modules:                                               *)
+(*                                                                        *)
+(*   -[Static.t]: the type of compile-time semantics corresponding to a   *)
+(*   particular translation unit, written in a particular programming     *)
+(*   language and w/ a particular statically allocated initial global     *)
+(*   environment                                                          *)
+(*                                                                        *)
+(*   -[Core.t]: Runtime states corresponding to dynamic invocations of    *)
+(*   [Static.t]s, initialized from a [Static] module to handle a          *)
+(*   particular external function call made by another [Core]             *)
+(*                                                                        *)
+(*   -[CallStack.t]: just lists of [Core.t]s satisfying a few             *)
+(*   well-formedness properties                                           *)
+(*                                                                        *)
+(*   -[Linker.t]: The type of linker corestates.  Linker states contain:  *)
+(*                                                                        *)
+(*      =[cores], a function from module id's ('I_N, or integers in the   *)
+(*       range [0..N-1]) to genvs and core semantics                      *)
+(*                                                                        *)
+(*      =[fn_tbl], a table mapping external function id's to module id's, *)
+(*      and                                                               *)
+(*                                                                        *)
+(*      =[stack], a callstack used to maintain a stack of cores at        *)
+(*     runtime.  Above, parameter [N] is the number of static modules in  *)
+(*     the program.                                                       *)
+(*                                                                        *)
+(*   -[LinkerSem]: defines the actual linking semantics. In later parts   *)
+(*   of the file, the [LinkerSem] semantics is shown to be both a         *)
+(*   [CoopCoreSem] and an [EffectSem] (cf. core_semantics.v,              *)
+(*   effect_semantics.v).                                                 *)
 
 Module CoreLinker (Csem : CORESEM).
 
-(** Static semantics of translation units *)
+(* The [CoreLinker] module gives the operational semantics of linking.    *)
+(* It is parameterized by the type of core semantics [Csem] (e.g., effect *)
+(* semantics, coop semantics, vanilla core semantics) used to the dynamic *)
+(* semantics of each translation unit.  Note that each module may still   *)
+(* have its own core type C, function definition type F, etc.             *)
+
+(* Static semantics of translation units *)
 
 Module Static. 
 
@@ -82,7 +80,7 @@ Definition dummy := @mk unit unit Dummy.genv unit Csem.dummy tt.
 
 End Static.
 
-(** [Cores] are runtime execution units. *)
+(* [Cores] are runtime execution units. *)
 
 Module Core. Section core.
 
@@ -115,9 +113,9 @@ Arguments Core.c {N cores} !t /.
 
 Arguments Core.upd {N cores} !core _ /.
 
-(** Linking semantics invariants: 
-    -All cores except the topmost one are at_external. 
-    -The call stack always contains at least one core. *)
+(* Linking semantics invariants:                                          *)
+(*  -All cores except the topmost one are at_external.                    *)
+(*  -The call stack always contains at least one core.                    *)
 
 Import Coresem.
 
@@ -182,15 +180,18 @@ End callStackDefs.
 
 End callStack. End CallStack.
 
-(** * [Linker.t]
-
-   The first two fields of this record are static configuration data:  
-   -[cores] is a function from module id's ('I_n, or integers in the range [0..n-1]) 
-    to genvs and core semantics, with existentially quantified core type [C]. 
-   -[fn_tbl] maps external function id's to module id's
-
-   [stack] is used to maintain a stack of cores, at runtime. 
-   Parameter [N] is the number of static modules in the program. *)
+(* [Linker.t]                                                             *)
+(*                                                                        *)
+(*  The first two fields of this record are static configuration data:    *)
+(*                                                                        *)
+(*    -[cores] is a function from module id's ('I_n, or integers in the   *)
+(*     range [0..n-1]) to genvs and core semantics, with existentially    *)
+(*     quantified core type [C].                                          *)
+(*                                                                        *)
+(*    -[fn_tbl] maps external function id's to module id's                *)
+(*                                                                        *)
+(*  [stack] is used to maintain a stack of cores, at runtime.             *)
+(*  Parameter [N] is the number of static modules in the program.         *)
 
 Module Linker. Section linker.
 
@@ -231,11 +232,11 @@ Definition updStack (newStack : CallStack.t my_cores) :=
    ; stack  := newStack
    |}.
 
-(** [inContext]: The top core on the call stack has a return context *)
+(* [inContext]: The top core on the call stack has a return context  *)     
 
 Definition inContext (l0 : linker N my_cores) := callStackSize l0.(stack) > 1.
 
-(** [updCore]: Replace the top core on the call stack with [newCore] *)
+(* [updCore]: Replace the top core on the call stack with [newCore]  *)     
 
 Program Definition updCore (newCore: Core.t my_cores) := 
   updStack (CallStack.mk (STACK.push (STACK.pop l.(stack)) newCore) _).  
@@ -253,8 +254,8 @@ case=> H1; move: (EqdepFacts.eq_sigT_snd H1); move=> <-.
 by rewrite -Eqdep.Eq_rect_eq.eq_rect_eq.
 Qed.
 
-(** [pushCore]: Push a new core onto the call stack.  
-    Succeeds only if all cores are currently at_external. *)
+(* [pushCore]: Push a new core onto the call stack.                       *)
+(* Succeeds only if all cores are currently at_external.                  *)
 
 Program Definition pushCore 
   (newCore: Core.t my_cores) 
@@ -263,8 +264,8 @@ Program Definition pushCore
 
 Next Obligation. by rewrite/wf_callStack; apply/andP; split. Qed.
 
-(** [popCore]: Pop the top core on the call stack.  
-    Succeeds only if the top core is running in a return context. *)
+(* [popCore]: Pop the top core on the call stack.                         *)
+(* Succeeds only if the top core is running in a return context.          *)
 
 Lemma inContext_wf (stk : Stack.t (Core.t my_cores)) : 
   size stk > 1 -> wf_callStack stk -> wf_callStack (STACK.pop stk).
@@ -275,9 +276,11 @@ rewrite/wf_callStack=> H1; move/andP=> [H2 H3]; apply/andP; split.
 Qed.
 
 Program Definition popCore : option (linker N my_cores) := 
-  (match inContext l as pf return (pf = inContext l -> option (linker N my_cores)) with
+  (match inContext l as pf 
+         return (pf = inContext l -> option (linker N my_cores)) with
     | true => fun pf => 
-        Some (updStack (CallStack.mk (STACK.pop l.(stack)) (inContext_wf _ _ _)))
+        Some (updStack (CallStack.mk (STACK.pop l.(stack)) 
+                                     (inContext_wf _ _ _)))
     | false => fun pf => None
   end) Logic.eq_refl.
 
@@ -320,10 +323,10 @@ Variable N : pos.  (* Number of (compile-time) modules *)
 Variable my_cores : 'I_N  -> Static.t.
 Variable my_fn_tbl: ident -> option 'I_N.
 
-(** [handle id l args] looks up function id [id] in function table [l.fn_tbl], 
-    producing an optional module index [ix : 'I_N].  The index is used to 
-    construct a new core to handle the call to function [id]. The new core 
-    is pushed onto the call stack. *)
+(* [handle id l args] looks up function id [id] in function table         *)
+(* [l.fn_tbl], producing an optional module index [ix : 'I_N].  The index *)
+(* is used to construct a new core to handle the call to function         *)
+(* [id]. The new core is pushed onto the call stack.                      *)
 
 Section handle.
 
@@ -345,14 +348,13 @@ Definition handle :=
 
 End handle.
 
-(** Initial core *)
-
 Definition initial_core (tt: ge_ty) (v: val) (args: list val)
   : option (linker N my_cores) :=
   if v is Vptr id ofs then handle id (empty_linker my_cores my_fn_tbl) args 
   else None.
 
-(** Is the running core at_external? *)
+(* Functions suffixed w/ 0 always operate on the running core on the (top *)
+(* of the) call stack.                                                    *)
 
 Definition at_external0 (l: linker N my_cores) :=
   let: c   := peekCore l in
@@ -364,8 +366,6 @@ Definition at_external0 (l: linker N my_cores) :=
 
 Arguments at_external0 !l.
 
-(** Is the running core halted? *)
-
 Definition halted0 (l: linker N my_cores) :=
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
@@ -376,7 +376,8 @@ Definition halted0 (l: linker N my_cores) :=
 
 Arguments halted0 !l.
 
-(** Lift a running core step to linker step *)
+(* [corestep0] lifts a corestep of the runing core to a corestep of the   *)
+(* whole program semantics.                                               *)
 
 Definition corestep0 
   (l: linker N my_cores) (m: Csem.M) (l': linker N my_cores) (m': Csem.M) := 
@@ -395,9 +396,9 @@ Arguments corestep0 !l m l' m'.
 Definition fun_id (ef: external_function) : option ident :=
   if ef is (EF_external id sig) then Some id else None.
 
-(** The linker is [at_external] whenever the top core is [at_external] and 
-    the [id] of the called external function isn't handleable by any 
-    compilation unit. *)
+(* The linker is [at_external] whenever the top core is [at_external] and *)
+(* the [id] of the called external function isn't handleable by any       *)
+(* compilation unit.                                                      *)
 
 Definition at_external (l: linker N my_cores) :=
   if at_external0 l is Some (ef, dep_sig, args) 
@@ -417,18 +418,18 @@ Definition after_external (mv: option val) (l: linker N my_cores) :=
       is Some c' then Some (updCore l (Core.upd c c'))
     else None.
 
-(** The linker is [halted] when the last core on the call stack is halted. *)
+(* The linker is [halted] when the last core on the call stack is halted. *)
 
 Definition halted (l: linker N my_cores) := 
   if ~~inContext l then 
   if halted0 l is Some rv then Some rv
   else None else None.
 
-(** Corestep relation of linking semantics *)
+(* Corestep relation of linking semantics *)
 
 Definition corestep 
   (ge: ge_ty) 
-  (l: linker N my_cores) (m: Csem.M) 
+  (l: linker N my_cores) (m: Csem.M)
   (l': linker N my_cores) (m': Csem.M) := 
 
   (** 1- The running core takes a step, or *)
@@ -539,7 +540,7 @@ End CoreLinker.
 Module Linker := CoreLinker Effectsem. Import Linker.
 Module Sem    := Linker.LinkerSem.
 
-(** Specialize to effect semantics *)
+(* Specialize to effect semantics *)
 
 Section effingLinker.
 
@@ -598,7 +599,8 @@ Section csem.
 
 Notation mycsem := (Sem.coresem N my_cores my_fun_tbl).
 
-Program Definition csem : CoreSemantics ge_ty (linker N my_cores) Memory.Mem.mem := 
+Program Definition csem 
+  : CoreSemantics ge_ty (linker N my_cores) Memory.Mem.mem := 
   Build_CoreSemantics _ _ _
     (initial_core mycsem)
     (at_external mycsem)
@@ -621,8 +623,6 @@ Next Obligation. by apply (Sem.after_at_external_excl _ _ H). Qed.
 
 End csem.
 
-(** Reconstruct coopsem *)
-
 Program Definition coopsem := Build_CoopCoreSem _ _ csem _.
 
 Next Obligation. 
@@ -630,8 +630,6 @@ move: CS; case; move=>[H1|[<- [H0 H1]]].
 by move/(_ H1)=>{H1} [U EFF]; apply (effstep0_forward EFF).
 by move=> ?; apply mem_forward_refl.
 Qed.
-
-(** Reconstruct effsem *)
 
 Program Definition effsem := Build_EffectSem _ _ coopsem effstep _ _ _.
 
