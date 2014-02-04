@@ -94,7 +94,7 @@ endif
 #                    #
 ######################
 
-VFILES:=sep.v types.v functions.v wrapExpr.v reify_derives.v reverse_defs.v compute.v
+VFILES:=sep.v types.v functions.v wrapExpr.v reify_derives.v reverse_defs.v do_computation.v
 
 
 -include $(addsuffix .d,$(VFILES))

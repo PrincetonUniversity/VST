@@ -11,6 +11,7 @@ Require Import sep.
 Require Import Expr.
 
 Module do_computation (uk : unknown_types).
+Locate Module funcs.
 Module our_funcs := funcs uk.
 Import our_funcs.
 Import all_types.
@@ -40,9 +41,8 @@ Definition is_const_base (f : func) :=
     | _ => false
   end.            
 *)
-
 Definition is_const_base (f : func) :=
-NPeano.ltb f end_const_index.
+NPeano.ltb f computable_prefix_length.
 
 (* Decide if an expression can compute directly into a Const
  * (by converting the pre-defined functions we have defined
@@ -55,6 +55,7 @@ Fixpoint is_const (e : expr all_types) :=
       (* it and its arguments must be const *)
     | Func f es => andb (is_const_base f) (is_const_l es)
     | Const _ _ => true
+    | Equal _ l r => andb (is_const l) (is_const r)
     | _ => false
   end.             
 
@@ -62,7 +63,7 @@ Fixpoint is_const (e : expr all_types) :=
  * Expects that a user-supplied Ltac will have already converted
  * user-defined functions into Consts, as appropriate *)
 Definition do_computation (user_functions : list (signature all_types)) (e : expr all_types) (t : tvar) : 
-option (tvarD all_types t) := (*expr all_types :=*)
+option (tvarD all_types t) :=
 if is_const e then
   match (@exprD all_types (functions ++ user_functions) nil nil e t) with
     | Some v => Some v
@@ -70,7 +71,6 @@ if is_const e then
   end
 else
   None.
-
 
 Lemma do_computation_correct : forall (user_functions : list (signature all_types)) (e : expr all_types) (t : tvar) (v : tvarD all_types t),
 do_computation user_functions e t = Some v ->
@@ -91,5 +91,8 @@ Qed.
 
 (* Some fun little examples *)
 Eval vm_compute in (do_computation nil (Func 13 [(Func 1 [])]) (tvType 11)).
+Eval vm_compute in (do_computation nil (Equal nat_tv (Func 1 []) (Func 1 [])) tvProp).
+Eval vm_compute in (do_computation nil (Equal nat_tv (Func 13 [(Func 1 [])]) (Func 1 [])) tvProp).
+Eval vm_compute in (do_computation nil (Equal nat_tv (Func 13 [(Func 1 [])]) (Func 13 [(Func 1 [])])) tvProp).
 
 End do_computation.

@@ -187,15 +187,25 @@ Expr.Sig all_types (nat_tv :: nil) Z_tv two_power_nat.
 Definition int_max_unsigned_signature :=
 Expr.Sig all_types nil Z_tv Int.max_unsigned.
 
+(* Our types. Let's see which of these we want to have equalities for *)
+(*
+                       (cons val_type done
+                       (cons list_val_type done
+                       (cons list_int_type  
+                       (cons int_type
+                       (cons Z_type
+                       (cons nat_type
+                       (cons positive_type
+                       (cons bool_type
+                       (cons comparison_type nil
+                       ))))))))))))))).
+*)
 
-
-
-(* Maybe this isn't a good idea. I don't know.
- * I hope this is OK because this is a long list and it's more readable/editable
- * if we don't have to deal with tons of close-parens at the end*)
+(* This way we don't have to deal with tons of close-parens at the end 
+ * Important, since functions is a long list. *)
 Import ListNotations.
 
-Definition functions :=
+Definition computable_functions :=
 [ two_power_nat_signature 
 ; O_signature
 ; force_ptr_signature
@@ -242,9 +252,15 @@ Definition functions :=
 ; int_repr_signature
 ; int_signed_signature
 ; int_unsigned_signature
-; tc_environ_signature
+].
+
+Definition non_computable_functions :=
+[ tc_environ_signature
 ; eval_id_signature
 ].
+
+Definition functions := computable_functions ++ non_computable_functions.
+Definition computable_prefix_length := length computable_functions.
 
 Definition two_power_nat_f := 0%nat.
 Definition O_f := 1%nat.
@@ -292,11 +308,10 @@ Definition int_cmpu_f := 42%nat.
 Definition int_repr_f := 43%nat.
 Definition int_signed_f := 44%nat.
 Definition int_unsigned_f := 45%nat.
+
 (* Past this point are functions that should not compute into Consts *)
 Definition tc_environ_f := 46%nat.
 Definition eval_id_f := 47%nat.
-
-Definition end_const_index := 46%nat.
 
 
 (*Separation Logic predicates *)
