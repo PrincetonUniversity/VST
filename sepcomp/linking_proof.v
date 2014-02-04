@@ -200,36 +200,6 @@ Record rel_inv mu0 mu m10 m20 : Prop :=
   ; frame_sep        : sm_inject_separated mu0 mu m10 m20
   ; frame_disj       : disjinv mu0 mu }.
 
-Section head_inv.
-
-Import Core.
-
-Variables (c : t cores_S) (d : t cores_T). 
-Variable  (pf : c.(i)=d.(i)).
-
-Record head_inv cd mu m1 m2 : Type :=
-  { head_match : (sims c.(i)).(match_state) cd mu 
-                 c.(Core.c) m1 (cast pf d.(Core.c)) m2 }.
-
-End head_inv.
-
-Section head_inv_lems.
-
-Context c d pf cd mu m1 m2 (inv : @head_inv c d pf cd mu m1 m2).
-
-Lemma head_inv_restrict (X : block -> bool) : 
-  (forall b : block, vis mu b -> X b) -> 
-  REACH_closed m1 X -> 
-  @head_inv c d pf cd (restrict_sm mu X) m1 m2.
-Proof.
-case: inv=> H H2 H3; apply: Build_head_inv.
-by apply: (match_restrict _ _ _ _ _ (sims (Core.i c))).
-Qed.
-
-End head_inv_lems.
-
-Import seq.
-
 Record frame_pkg : Type := 
   { frame_mu0 :> Inj.t
   ; frame_m10 : Memory.mem
@@ -241,6 +211,37 @@ Definition rel_inv_pred mu pkg :=
   let m10 := frame_m10 pkg in
   let m20 := frame_m20 pkg in
   rel_inv mu0 mu m10 m20.
+
+Section head_inv.
+
+Import Core.
+
+Variables (c : t cores_S) (d : t cores_T). 
+Variable  (pf : c.(i)=d.(i)).
+
+Record head_inv cd mu mus m1 m2 : Type :=
+  { head_match : (sims c.(i)).(match_state) cd mu 
+                 c.(Core.c) m1 (cast pf d.(Core.c)) m2 
+  ; head_rel   : All2_aux rel_inv_pred mu mus }.
+
+End head_inv.
+
+Section head_inv_lems.
+
+Context c d pf cd mu mus m1 m2 (inv : @head_inv c d pf cd mu mus m1 m2).
+
+(* Lemma head_inv_restrict (X : block -> bool) :                          *)
+(*   (forall b : block, vis mu b -> X b) ->                               *)
+(*   REACH_closed m1 X ->                                                 *)
+(*   @head_inv c d pf cd (restrict_sm mu X) m1 m2.                        *)
+(* Proof.                                                                 *)
+(* case: inv=> H H2 H3; apply: Build_head_inv.                            *)
+(* by apply: (match_restrict _ _ _ _ _ (sims (Core.i c))).                *)
+(* Qed.                                                                   *)
+
+End head_inv_lems.
+
+Import seq.
 
 Fixpoint frame_all (mus : seq frame_pkg) m1 m2 s1 s2 :=
   match mus, s1, s2 with
@@ -255,9 +256,8 @@ Fixpoint frame_all (mus : seq frame_pkg) m1 m2 s1 s2 :=
     | _,_,_ => False
   end.
 
-Definition tail_inv mus mu s1 s2 m1 m2 :=
-  [/\ All2 (rel_inv_pred \o frame_mu0) (mu :: mus)
-    & frame_all mus m1 m2 s1 s2].
+Definition tail_inv mus s1 s2 m1 m2 :=
+  [/\ All2 (rel_inv_pred \o frame_mu0) mus & frame_all mus m1 m2 s1 s2].
 
 Lemma all_wrt_callers_switch T P (a b : T) (l : seq T) :
   All2_aux P b l -> All2 P (a :: l) ->All2 P (b :: l).
@@ -269,26 +269,26 @@ Definition restrict_sm_wd m1
   (rc_pf  : REACH_closed m1 X) : Inj.t :=
   Inj.mk (restrict_sm_WD _ (Inj_wd mu) X vis_pf).
 
-(* Lemma tail_len_eq (mus : seq frame_pkg) (mu : Inj.t) s1 s2 m1 m2 : *)
-(*   tail_inv mus mu s1 s2 m1 m2 -> length s1 = length s2. *)
-(* Proof. *)
-(* move: s1 s2 mu; elim: mus. *)
-(* case; case=> //; first by move=> ? ? ?; case. *)
-(* by move=> ? ? ? ? ?; case. *)
-(* move=> pkg mus' IH s1' s2' mu'. *)
-(* case: s1'; first by case: s2'=> // ? ?; case; case: pkg. *)
-(* move=> x s1'; case: s2'; first by case; case: pkg. *)
-(* move=> y s2' /=; case=> A B. *)
-(* move: B A; case: pkg=> /= mu0 m10 m20. *)
-(* move=> [][]eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2. *)
-(* case=> ? ? ? ? ? frmatch ? ? ? fwd1 fwd2 ? ? A [][]B C. *)
-(* have mu0_wd: SM_wd mu0. *)
-(*   move: (sims (Core.i x)).(match_sm_wd _ _ _ _ _).  *)
-(*   by move/(_ _ _ _ _ _ _ frmatch). *)
-(* have C': tail_inv mus' (Inj.mk mu0_wd) s1' s2' m1 m2. *)
-(*   split=> //. *)
-(* by rewrite (IH _ _ _ C'). *)
-(* Qed. *)
+(* Lemma tail_len_eq (mus : seq frame_pkg) (mu : Inj.t) s1 s2 m1 m2 :     *)
+(*   tail_inv mus mu s1 s2 m1 m2 -> length s1 = length s2.                *)
+(* Proof.                                                                 *)
+(* move: s1 s2 mu; elim: mus.                                             *)
+(* case; case=> //; first by move=> ? ? ?; case.                          *)
+(* by move=> ? ? ? ? ?; case.                                             *)
+(* move=> pkg mus' IH s1' s2' mu'.                                        *)
+(* case: s1'; first by case: s2'=> // ? ?; case; case: pkg.               *)
+(* move=> x s1'; case: s2'; first by case; case: pkg.                     *)
+(* move=> y s2' /=; case=> A B.                                           *)
+(* move: B A; case: pkg=> /= mu0 m10 m20.                                 *)
+(* move=> [][]eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2.        *)
+(* case=> ? ? ? ? ? frmatch ? ? ? fwd1 fwd2 ? ? A [][]B C.                *)
+(* have mu0_wd: SM_wd mu0.                                                *)
+(*   move: (sims (Core.i x)).(match_sm_wd _ _ _ _ _).                     *)
+(*   by move/(_ _ _ _ _ _ _ frmatch).                                     *)
+(* have C': tail_inv mus' (Inj.mk mu0_wd) s1' s2' m1 m2.                  *)
+(*   split=> //.                                                          *)
+(* by rewrite (IH _ _ _ C').                                              *)
+(* Qed.                                                                   *)
 
 Lemma frame_all_inv mu0 m10 m20 x mus m1 m2 s1 s2 :
   frame_all (@Build_frame_pkg mu0 m10 m20 x :: mus) m1 m2 s1 s2 -> 
@@ -323,28 +323,27 @@ exists c, s1', d, s2'; split=> //.
 by exists pf, cd; case: A.
 Qed.
 
-Lemma tail_inv_inv mu0 m10 m20 x mus mu_top s1 s2 m1 m2 :
-  tail_inv (@Build_frame_pkg mu0 m10 m20 x :: mus) mu_top s1 s2 m1 m2 -> 
+Lemma tail_inv_inv mu0 m10 m20 x mus s1 s2 m1 m2 :
+  tail_inv (@Build_frame_pkg mu0 m10 m20 x :: mus) s1 s2 m1 m2 -> 
   exists c s1' d s2',
     [/\ s1 = c :: s1'
       , s2 = d :: s2' 
-      , rel_inv_pred mu_top (@Build_frame_pkg mu0 m10 m20 x)
       , (exists (pf : c.(Core.i)=d.(Core.i)) cd0,
          exists e1 ef_sig1 vals1,
          exists e2 ef_sig2 vals2, 
            @frame_inv c d pf cd0 mu0 
            m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2)
-       & tail_inv mus (@Build_frame_pkg mu0 m10 m20 x) 
-                      (STACK.pop s1) (STACK.pop s2) m1 m2].
+       & tail_inv mus (STACK.pop s1) (STACK.pop s2) m1 m2].
 Proof.
-case; case: s1=> // c s1'; case: s2=> // d s2'=> /= [][][]? ? ?.
-move=> [][]pf => [][]cd []ef1 []sig1 []vals1 []ef2 []sig2 []vals2 A B.
-exists c, s1', d, s2'; split=> //.
+case; case=> H1 H2; move/frame_all_inv=> []c []s1' []d []s2' []B C.
+move=> []pf []cd []ef1 []sig1 []vals1 []ef2 []sig2 []vals2 []D E.
+exists c,s1',d,s2'; split=> //.
 by exists pf,cd,ef1,sig1,vals1,ef2,sig2,vals2.
+by split=> //; rewrite B C.
 Qed.
 
-Lemma tail_inv_match mu0 m10 m20 x mus mu_top s1 s2 m1 m2 :
-  tail_inv (@Build_frame_pkg mu0 m10 m20 x :: mus) mu_top s1 s2 m1 m2 -> 
+Lemma tail_inv_match mu0 m10 m20 x mus s1 s2 m1 m2 :
+  tail_inv (@Build_frame_pkg mu0 m10 m20 x :: mus) s1 s2 m1 m2 -> 
   exists c s1' d s2',
     [/\ s1 = c :: s1'
       , s2 = d :: s2' 
@@ -353,19 +352,19 @@ Lemma tail_inv_match mu0 m10 m20 x mus mu_top s1 s2 m1 m2 :
           c.(Core.c) m10 (cast pf d.(Core.c)) m20].
 Proof. by move=> []_; move/frame_all_match. Qed.
 
-Lemma tail_inv_preserves_globals mus mu_top s1 s2 m1 m2 :
-  tail_inv mus mu_top s1 s2 m1 m2 -> 
+Lemma tail_inv_preserves_globals mus s1 s2 m1 m2 :
+  tail_inv mus s1 s2 m1 m2 -> 
   All (Events.meminj_preserves_globals my_ge \o extern_of \o Inj.mu)
     [seq frame_mu0 x | x <- mus].
 Proof.
-move: mu_top s1 s2; elim: mus=> // mu0 mus' IH mu_top s1 s2.
-case: mu0=> ? ? ? ?; move/tail_inv_inv=> []c []? []d []? []_ _ _ []pf []cd.
-move=> []? []? []? []? []? []? []? ? ? ? ?.
+move: s1 s2; elim: mus=> // mu0 mus' IH s1 s2.
+case: mu0=> ? ? ? ?; move/tail_inv_inv=> []c []? []d []? []-> ->.
+move=> []? []? []? []? []? []? []? []? [] ? ? ? ? ?. 
 move/match_genv=> [] /= X ? ? ? ? ? ? ? ? TL; split.
 rewrite -meminj_preserves_genv2blocks; move: X.
 rewrite (genvs_domain_eq_match_genvs (my_ge_S (Core.i c))).
 by rewrite meminj_preserves_genv2blocks.
-by apply: (IH _ _ _ TL).
+by apply: (IH _ _ TL).
 Qed.
 
 Lemma rel_inv_pred_step 
@@ -422,8 +421,8 @@ Lemma wrt_callers_step
   sm_inject_separated mu mu' m1 m2  -> 
   sm_valid mu m1 m2 -> 
   frame_all mus m1 m2 s1 s2 -> 
-  All2_aux (rel_inv_pred \o frame_mu0) mu mus -> 
-  All2_aux (rel_inv_pred \o frame_mu0) mu' mus.
+  All2_aux rel_inv_pred mu mus -> 
+  All2_aux rel_inv_pred mu' mus.
 Proof.
 elim: mus mu mu' s1 s2=> // pkg mus' IH mu mu' s1' s2'.
 move=> H1 H2 H3 H4 A B C D E F /= []G H.
@@ -436,40 +435,40 @@ by eapply rel_inv_pred_step; eauto.
 by eapply IH; eauto.
 Qed.
 
-Lemma all_wrt_callers_step 
-  mus (mu mu' : frame_pkg) m1' m2' s1 s2 m1 m2 
-  (Esrc Etgt : Values.block -> BinNums.Z -> bool) :
-  (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
-  Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
-  Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
-  (forall (b0 : block) (ofs : Z),
-   Etgt b0 ofs = true ->
-   Mem.valid_block m2 b0 /\
-   (locBlocksTgt mu b0 = false ->
-    exists (b1 : block) (delta1 : Z),
-      foreign_of mu b1 = Some (b0, delta1) /\
-      Esrc b1 (ofs - delta1) = true /\
-      Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) -> 
-  intern_incr mu mu' -> 
-  mem_forward m1 m1' -> 
-  mem_forward m2 m2' ->   
-  sm_inject_separated mu mu' m1 m2  -> 
-  sm_valid mu m1 m2 -> 
-  frame_all mus m1 m2 s1 s2 -> 
-  All2 (rel_inv_pred \o frame_mu0) (mu :: mus) -> 
-  All2 (rel_inv_pred \o frame_mu0) (mu' :: mus).
-Proof.
-elim: mus mu mu' s1 s2=> // pkg mus' IH mu mu' s1' s2'.
-move=> H1 H2 H3 H4 A B C D E F /= []G H.
-move: F G H; case: s1'=> //; first by case: s2'; case: pkg.
-move=> a s1'; case: s2'; first by case: pkg.
-move=> b s2'; case: pkg=> ? ? ? ? /= [].
-move=> []eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2.
-case=> ? ? ? ? ? frmatch ? ? ? fwd1 fwd2 ? ? ? []? ? ?; split.
-split; first by eapply rel_inv_pred_step; eauto.
-by eapply wrt_callers_step; eauto.
-by [].
-Qed.
+(* Lemma all_wrt_callers_step                                             *)
+(*   mus (mu mu' : frame_pkg) m1' m2' s1 s2 m1 m2                         *)
+(*   (Esrc Etgt : Values.block -> BinNums.Z -> bool) :                    *)
+(*   (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) ->    *)
+(*   Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' ->  *)
+(*   Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' ->  *)
+(*   (forall (b0 : block) (ofs : Z),                                      *)
+(*    Etgt b0 ofs = true ->                                               *)
+(*    Mem.valid_block m2 b0 /\                                            *)
+(*    (locBlocksTgt mu b0 = false ->                                      *)
+(*     exists (b1 : block) (delta1 : Z),                                  *)
+(*       foreign_of mu b1 = Some (b0, delta1) /\                          *)
+(*       Esrc b1 (ofs - delta1) = true /\                                 *)
+(*       Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) ->                  *)
+(*   intern_incr mu mu' ->                                                *)
+(*   mem_forward m1 m1' ->                                                *)
+(*   mem_forward m2 m2' ->                                                *)
+(*   sm_inject_separated mu mu' m1 m2  ->                                 *)
+(*   sm_valid mu m1 m2 ->                                                 *)
+(*   frame_all mus m1 m2 s1 s2 ->                                         *)
+(*   All2 (rel_inv_pred \o frame_mu0) (mu :: mus) ->                      *)
+(*   All2 (rel_inv_pred \o frame_mu0) (mu' :: mus).                       *)
+(* Proof.                                                                 *)
+(* elim: mus mu mu' s1 s2=> // pkg mus' IH mu mu' s1' s2'.                *)
+(* move=> H1 H2 H3 H4 A B C D E F /= []G H.                               *)
+(* move: F G H; case: s1'=> //; first by case: s2'; case: pkg.            *)
+(* move=> a s1'; case: s2'; first by case: pkg.                           *)
+(* move=> b s2'; case: pkg=> ? ? ? ? /= [].                               *)
+(* move=> []eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2.          *)
+(* case=> ? ? ? ? ? frmatch ? ? ? fwd1 fwd2 ? ? ? []? ? ?; split.         *)
+(* split; first by eapply rel_inv_pred_step; eauto.                       *)
+(* by eapply wrt_callers_step; eauto.                                     *)
+(* by [].                                                                 *)
+(* Qed.                                                                   *)
 
 Lemma frame_all_step 
   mus (mu mu' : frame_pkg) m1' m2' s1 s2 m1 m2 
@@ -485,19 +484,18 @@ Lemma frame_all_step
       foreign_of mu b1 = Some (b0, delta1) /\
       Esrc b1 (ofs - delta1) = true /\
       Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) -> 
-  intern_incr mu mu' -> 
   mem_forward m1 m1' -> 
   mem_forward m2 m2' ->   
   sm_inject_separated mu mu' m1 m2  -> 
-  sm_valid mu m1 m2 -> 
-  All2 (rel_inv_pred \o frame_mu0) (mu :: mus) -> 
+  sm_valid mu m1 m2 ->
+  All2_aux rel_inv_pred mu mus -> 
   frame_all mus m1 m2 s1 s2 -> 
   frame_all mus m1' m2' s1 s2.
 Proof.
 elim: mus mu mu' s1 s2=> // pkg mus' IH mu mu' s1' s2'.
-move=> H1 H2 H3 H4 A B C D E.
+move=> H1 H2 H3 (*H4*) A B C D E.
 case: s1'=> // a s1'; case: s2'=> // b s2'; case: pkg=> mu0 m10 m20 val. 
-move=> /= [][]F G H [] []eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2.
+move=> /= []F G [][]eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2.
 case=> ? ? ? ? val' frmatch ? ? ? fwd1 fwd2 ? ? ?; split.
 exists eq_ab, cd0, e1, sig1, vals1, e2, sig2, vals2.
 
@@ -526,8 +524,7 @@ apply: (@disjinv_unchanged_on_tgt (Inj.mk wd) mu Esrc Etgt
 move=> b'; case: val'; move/(_ b')=> I _ Q; apply: I.
 by rewrite replace_locals_DOM in Q.
 
-eapply IH; eauto.
-by eapply all_wrt_callers_switch; eauto.
+by eapply IH; eauto.
 Qed.
 
 Lemma tail_inv_step 
@@ -544,44 +541,43 @@ Lemma tail_inv_step
       foreign_of mu b1 = Some (b0, delta1) /\
       Esrc b1 (ofs - delta1) = true /\
       Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) -> 
-  intern_incr mu mu' -> 
   mem_forward m1 m1' -> 
   mem_forward m2 m2' ->   
   sm_inject_separated mu mu' m1 m2  -> 
   sm_valid mu m1 m2 -> 
-  tail_inv mus mu s1 s2 m1 m2 -> 
-  tail_inv mus mu' s1 s2 m1' m2'.
+  All2_aux rel_inv_pred mu mus -> 
+  tail_inv mus s1 s2 m1 m2 -> 
+  tail_inv mus s1 s2 m1' m2'.
 Proof.
-move=> ? ? ? ? ? ? ? ? ? []A B; split.
-by eapply all_wrt_callers_step; eauto.
+move=> ? ? ? ? ? ? ? ? ? []A B; split=> //.
 by eapply frame_all_step; eauto.
 Qed.
 
-(*Lemma tail_inv_restrict (X : block -> bool) mus mu s1 s2 m1 m2 :
-  tail_inv mus mu s1 s2 m1 m2 -> 
-  tail_inv (map (restrict_sm^~ X) mus) (restrict_sm mu X) s1 s2 m1 m2.
-Proof.
-move: mu s1 s2; elim: mus=> // mu0 mus' IH mu'.
-case=> // a s1'; case=> // b s2'.
-move=> [][pf][cd][m10][e1][sig1][vals1][m20][e2][sig2][vals2][]; split; 
- last by apply: IH.
-exists pf, cd, m10, e1, sig1, vals1, m20, e2, sig2, vals2. 
-apply: Build_frame_inv=> //.
-Admitted. (*likely true*) 
-
-Lemma tail_inv_restrict (X : block -> bool) (mu : Inj.t) s1 s2 m1 m2 
-  (vis : forall b : block, vis mu b -> X b)
-  (reach : REACH_closed m1 X) :
-  let: mu' := Inj.mk (restrict_sm_WD mu (Inj_wd mu) X vis) in
-  tail_inv mu s1 s2 m1 m2 ->
-  tail_inv mu' s1 s2 m1 m2.
-Proof. 
-move=> []mus []A B C. 
-exists (map (restrict_sm^~ X) mus); split=> //.
-by apply: one_disjoint_r_restrict.
-by apply: all_disjoint_restrict.
-by apply: tail_inv_restrict.
-Qed.*)
+(* Lemma tail_inv_restrict (X : block -> bool) mus mu s1 s2 m1 m2 :       *)
+(*   tail_inv mus mu s1 s2 m1 m2 ->                                       *)
+(*   tail_inv (map (restrict_sm^~ X) mus) (restrict_sm mu X) s1 s2 m1 m2. *)
+(* Proof.                                                                 *)
+(* move: mu s1 s2; elim: mus=> // mu0 mus' IH mu'.                        *)
+(* case=> // a s1'; case=> // b s2'.                                      *)
+(* move=> [][pf][cd][m10][e1][sig1][vals1][m20][e2][sig2][vals2][]; split;  *)
+(*  last by apply: IH.                                                    *)
+(* exists pf, cd, m10, e1, sig1, vals1, m20, e2, sig2, vals2.             *)
+(* apply: Build_frame_inv=> //.                                           *)
+(* Admitted. (*likely true*)                                              *)
+(*                                                                        *)
+(* Lemma tail_inv_restrict (X : block -> bool) (mu : Inj.t) s1 s2 m1 m2   *)
+(*   (vis : forall b : block, vis mu b -> X b)                            *)
+(*   (reach : REACH_closed m1 X) :                                        *)
+(*   let: mu' := Inj.mk (restrict_sm_WD mu (Inj_wd mu) X vis) in          *)
+(*   tail_inv mu s1 s2 m1 m2 ->                                           *)
+(*   tail_inv mu' s1 s2 m1 m2.                                            *)
+(* Proof.                                                                 *)
+(* move=> []mus []A B C.                                                  *)
+(* exists (map (restrict_sm^~ X) mus); split=> //.                        *)
+(* by apply: one_disjoint_r_restrict.                                     *)
+(* by apply: all_disjoint_restrict.                                       *)
+(* by apply: tail_inv_restrict.                                           *)
+(* Qed.                                                                   *)
 
 Section R.
 
@@ -607,8 +603,8 @@ Record R (data : Lex.t types) (mu : SM_Injection)
       , All2_aux DisjointLS mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
       , All2_aux DisjointLT mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
       , All2_aux Consistent mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
-      , @head_inv c d pf (Lex.get c.(Core.i) data) mu_top m1 m2 
-      & tail_inv mus mu_top (pop s1) (pop s2) m1 m2] }.
+      , @head_inv c d pf (Lex.get c.(Core.i) data) mu_top mus m1 m2 
+      & tail_inv mus (pop s1) (pop s2) m1 m2] }.
 
 End R.
 
@@ -642,8 +638,8 @@ Lemma R_match :
     , All2_aux DisjointLS mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
     , All2_aux DisjointLT mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
     , All2_aux Consistent mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
-    , @head_inv (c pf) (d pf) pf0 (Lex.get (c pf).(Core.i) data) mu_top m1 m2 
-    & tail_inv mus mu_top (STACK.pop x1.(stack)) (STACK.pop x2.(stack)) m1 m2].
+    , @head_inv (c pf) (d pf) pf0 (Lex.get (c pf).(Core.i) data) mu_top mus m1 m2 
+    & tail_inv mus (STACK.pop x1.(stack)) (STACK.pop x2.(stack)) m1 m2].
 Proof.
 case: (R_inv pf)=> pf0 []mu_trash []mu_top []mus []A B C D.
 by exists pf0, mu_trash, mu_top, mus; split.
@@ -655,8 +651,7 @@ Lemma R_match' :
     (Core.c (c pf)) m1 (cast pf0 (Core.c (d pf))) m2.
 Proof.
 case: R_match=> []pf0 []? []mu_top []? []A B _ _ _. 
-move/head_match=> C D.
-by exists pf0, mu_top.
+by move/head_match=> C D; exists pf0, mu_top.
 Qed.
 
 Lemma R_AllDisjointS (mu_trash mu_top : frame_pkg) (mus : seq frame_pkg) :
@@ -669,7 +664,7 @@ set P := (rel_inv_pred \o _)=> A B.
 have PC: forall mu mu', P mu mu' -> DisjointLS mu mu'.
   by move=> a b; rewrite/P; case=> _ _; case=> ? _ _ _ _ /=; rewrite DisjointC. 
 (*why does Ssreflect apply fail here?*)
-by move: (All2_sub B PC); split=> //; rewrite -All2_comp'.
+by move: (All2_sub B PC); split=> //; rewrite -All2_comp3.
 Qed.
 
 Lemma R_AllDisjointT (mu_trash mu_top : frame_pkg) (mus : seq frame_pkg) :
@@ -681,7 +676,7 @@ Proof.
 set P := (rel_inv_pred \o _)=> A B.
 have PC: forall mu mu', P mu mu' -> DisjointLT mu mu'.
   by move=> a b; rewrite/P; case=> _ _; case=> _ ? _ _ _ /=; rewrite DisjointC. 
-by move: (All2_sub B PC); split=> //; rewrite -All2_comp'.
+by move: (All2_sub B PC); split=> //; rewrite -All2_comp3.
 Qed.
 
 Lemma R_AllConsistent (mu_trash mu_top : frame_pkg) (mus : seq frame_pkg) :
@@ -694,35 +689,36 @@ set P := (rel_inv_pred \o _)=> A B.
 have PC: forall mu mu', P mu mu' -> Consistent mu mu'.
   move=> a b; rewrite/P; case=> _ _; case=> _ _ _ _ ? /=. 
   by apply: consistentC.
-by move: (All2_sub B PC); split=> //; rewrite -All2_comp'.
+by move: (All2_sub B PC); split=> //; rewrite -All2_comp3.
 Qed.
 
 Lemma R_wd : SM_wd mu.
 Proof.
-move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B _ C D E F []G H.
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B _ C D E []F G []H I.
+have J: All2 (rel_inv_pred \o (fun f : frame_pkg => f)) $ mu_top :: mus.
+  by split=> //; rewrite -All2_aux_comp2.
 rewrite B; apply: join_all_wd. 
-by move: (R_AllDisjointS C G)=> /=; rewrite map_comp.
-by move: (R_AllDisjointT D G)=> /=; rewrite map_comp.
-by move: (R_AllConsistent E G)=> /=; rewrite map_comp.
+by move: (R_AllDisjointS C J)=> /=; rewrite map_comp.
+by move: (R_AllDisjointT D J)=> /=; rewrite map_comp.
+by move: (R_AllConsistent E J)=> /=; rewrite map_comp.
 Qed.
 
 Arguments genvs_domain_eq_match_genvs {_ _ _ _ _ _} _.
 
 Lemma R_pres_globs : Events.meminj_preserves_globals my_ge (extern_of mu).
 Proof. 
-move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B H X Y Z W []U V. 
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B H X Y Z []W V []U M.
+have J: All2 (rel_inv_pred \o (fun f : frame_pkg => f)) $ mu_top :: mus.
+  by split=> //; rewrite -All2_aux_comp2.
 rewrite B; apply: join_all_preserves_globals=> //.
-by move: (R_AllDisjointS X U)=> /=; rewrite map_comp.
-by move: (R_AllDisjointT Y U)=> /=; rewrite map_comp.
-by move: (R_AllConsistent Z U)=> /=; rewrite map_comp.
-move: (tail_inv_preserves_globals (conj U V)); split=> //.
-
-(* HERE! *)
-
-case: X=> X; case: (match_genv X); rewrite -meminj_preserves_genv2blocks.
+by move: (R_AllDisjointS X J)=> /=; rewrite map_comp.
+by move: (R_AllDisjointT Y J)=> /=; rewrite map_comp.
+by move: (R_AllConsistent Z J)=> /=; rewrite map_comp.
+split=> //.
+case: (match_genv W); rewrite -meminj_preserves_genv2blocks.
 rewrite -(genvs_domain_eq_match_genvs (my_ge_S (Core.i (c pf)))).
 by rewrite meminj_preserves_genv2blocks.
-by apply: (tail_inv_preserves_globals Y).
+by apply: (tail_inv_preserves_globals (conj U M)).
 Qed.
 
 Lemma R_match_genv :
@@ -730,11 +726,13 @@ Lemma R_match_genv :
   forall b : block, isGlobalBlock my_ge b -> frgnBlocksSrc mu b.
 Proof.
 split; first by apply: R_pres_globs.
-move: R_match=> []? []mu_trash []mu_top []mus []A _. 
+move: R_match=> []? []mu_trash []mu_top []mus []A _ _ _ _. 
 move/head_match/match_genv=> []_.
 rewrite -(genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i (c pf)))).
-move=> H _ b H2; move: (H _ H2); rewrite A.
+move=> H _ b H2; move: (H _ H2); rewrite A=> /= B.
+apply/andP; split=> //.
 
+(* HERE *)
 
 Lemma R_match_visible : REACH_closed m1 (vis mu).
 move: (R_head pf)=> [A]; move/head_match=> H. 

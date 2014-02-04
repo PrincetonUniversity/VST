@@ -9,7 +9,7 @@ Fixpoint All T P (l : seq T) :=
     | a :: l' => [/\ P a & All P l']
   end.
 
-Fixpoint All2_aux T P (a : T) (l : seq T) :=
+Fixpoint All2_aux U T (P : U -> T -> Prop) (a : U) (l : seq T) :=
   if l is [:: a' & l'] then
     [/\ P a a' & All2_aux P a l']
   else True. 
@@ -56,6 +56,14 @@ by move=> /= []A B; split=> //; rewrite -IH.
 by move=> /= []A B; split=> //; rewrite IH.
 Qed.
 
+Lemma All2_aux_comp2 T U W (P : U -> W -> Prop) (f : T -> U) a l :
+  All2_aux P (f a) l <-> All2_aux (P \o f) a l.
+Proof.
+move: a; elim: l=> // a' l' IH a''; split.
+by move=> /= []A B; split=> //; rewrite -IH.
+by move=> /= []A B; split=> //; rewrite IH.
+Qed.
+
 Lemma All2_comp T U (P : T -> T -> Prop) (f : U -> T) l :
   All2 (fun a b => P (f a) (f b)) l <-> 
   (All2 P \o map f) l.
@@ -67,16 +75,14 @@ move=> /= []A B; split; first by rewrite All2_aux_comp.
 by case: IH=> _; move/(_ B).
 Qed.
 
-Lemma All2_comp' T U (P : T -> T -> Prop) (f : U -> T) l :
+Lemma All2_comp2 T U (P : T -> T -> Prop) (f : U -> T) l :
+  (All2 P \o map f) l <-> All2 P (map f l).
+Proof. by []. Qed.
+
+Lemma All2_comp3 T U (P : T -> T -> Prop) (f : U -> T) l :
   All2 (fun a b => P (f a) (f b)) l <-> 
   All2 P (map f l).
-Proof.
-cut (All2 (fun a b => P (f a) (f b)) l <-> 
-    (All2 P \o map f) l).
-by move=> ->.
-by apply: All2_comp.
-Qed.
-
+Proof. by rewrite All2_comp All2_comp2. Qed.
 
 
 
