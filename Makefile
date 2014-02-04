@@ -86,6 +86,7 @@ LINKING_FILES= \
   pos.v \
   stack.v \
   cast.v \
+  seq_lemmas.v \
   wf_lemmas.v \
   core_semantics_lemmas.v \
   pred_lemmas.v \

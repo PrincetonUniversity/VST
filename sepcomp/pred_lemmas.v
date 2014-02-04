@@ -7,6 +7,74 @@ Unset Printing Implicit Defensive.
 
 Require Import msl.Axioms.
 
+(* Some utilities; probably should go elsewhere.  *)                        
+
+(* Like Haskell '$'. Should bind more tightly than =, <> (level 70), etc. *)
+
+Notation "f '$' g" := (f g) (at level 69, right associativity, only parsing).
+
+(* Extend Ssreflect [/\ ... & ...] notation 6-10 conjuncts. Ought to      *)
+(* do the same for \/ but hasn't yet been necessary.                      *)
+
+Inductive and6 (P1 P2 P3 P4 P5 P6 : Prop) : Prop :=
+  And6 of P1 & P2 & P3 & P4 & P5 & P6.
+
+Inductive and7 (P1 P2 P3 P4 P5 P6 P7 : Prop) : Prop :=
+  And7 of P1 & P2 & P3 & P4 & P5 & P6 & P7.
+
+Inductive and8 (P1 P2 P3 P4 P5 P6 P7 P8 : Prop) : Prop :=
+  And8 of P1 & P2 & P3 & P4 & P5 & P6 & P7 & P8.
+
+Inductive and9 (P1 P2 P3 P4 P5 P6 P7 P8 P9 : Prop) : Prop :=
+  And9 of P1 & P2 & P3 & P4 & P5 & P6 & P7 & P8 & P9.
+
+Inductive and10 (P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 : Prop) : Prop :=
+  And10 of P1 & P2 & P3 & P4 & P5 & P6 & P7 & P8 & P9 & P10.
+
+Notation "[ /\ P1 , P2 , P3 , P4 , P5 & P6 ]" := 
+  (and6 P1 P2 P3 P4 P5 P6) : type_scope.
+Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 & P7 ]" := 
+  (and7 P1 P2 P3 P4 P5 P6 P7) : type_scope.
+Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 & P8 ]" := 
+  (and8 P1 P2 P3 P4 P5 P6 P7 P8) : type_scope.
+Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 & P9 ]" := 
+  (and9 P1 P2 P3 P4 P5 P6 P7 P8 P9) : type_scope.
+Notation "[ /\ P1 , P2 , P3 , P4 , P5 , P6 , P7 , P8 , P9 & P10 ]" := 
+  (and10 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10) : type_scope.
+
+Section AllAnd.
+
+Variables (T : Type) (P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 : T -> Prop).
+Local Notation a P := (forall x, P x).
+
+Lemma all_and6 (hP : forall x, [/\ P1 x, P2 x, P3 x, P4 x, P5 x & P6 x]) :
+  [/\ a P1, a P2, a P3, a P4, a P5 & a P6].
+Proof. by split=> x; case: (hP x). Qed.
+
+Lemma all_and7 
+  (hP : forall x, [/\ P1 x, P2 x, P3 x, P4 x, P5 x, P6 x & P7 x]) :
+  [/\ a P1, a P2, a P3, a P4, a P5, a P6 & a P7].
+Proof. by split=> x; case: (hP x). Qed.
+
+Lemma all_and8 
+  (hP : forall x, [/\ P1 x, P2 x, P3 x, P4 x, P5 x, P6 x, P7 x & P8 x]) :
+  [/\ a P1, a P2, a P3, a P4, a P5, a P6, a P7 & a P8].
+Proof. by split=> x; case: (hP x). Qed.
+
+Lemma all_and9 
+  (hP : forall x, [/\ P1 x, P2 x, P3 x, P4 x, P5 x, P6 x, P7 x, P8 x 
+                    & P9 x]) :
+  [/\ a P1, a P2, a P3, a P4, a P5, a P6, a P7, a P8 & a P9].
+Proof. by split=> x; case: (hP x). Qed.
+
+Lemma all_and10 
+  (hP : forall x, [/\ P1 x, P2 x, P3 x, P4 x, P5 x, P6 x, P7 x, P8 x 
+                    , P9 x & P10 x]) :
+  [/\ a P1, a P2, a P3, a P4, a P5, a P6, a P7, a P8, a P9 & a P10].
+Proof. by split=> x; case: (hP x). Qed.
+
+End AllAnd.
+
 (* A small library of lemmas on Ssreflect boolean predicates, all         *)
 (* assuming function extensionality so we can state the lemmas in rewrite *)
 (* form.                                                                  *)

@@ -15,6 +15,7 @@ Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.pred_lemmas.
+Require Import sepcomp.seq_lemmas.
 
 (* This file collects lemmas on structured injections.                    *)
 
@@ -481,6 +482,15 @@ Definition consistent (j k : Values.meminj) :=
   forall b1 b2 b2' d2 d2', 
   j b1 = Some (b2,d2) -> k b1 = Some (b2',d2') -> [/\ b2=b2' & d2=d2'].
 
+Definition DisjointLS := 
+  [fun mu mu' => Disjoint (locBlocksSrc mu) (locBlocksSrc mu')].
+
+Definition DisjointLT := 
+  [fun mu mu' => Disjoint (locBlocksTgt mu) (locBlocksTgt mu')].
+
+Definition Consistent := 
+  [fun mu mu' => consistent (extern_of mu) (extern_of mu')].
+
 Definition join_sm mu1 mu2 : SM_Injection :=
   Build_SM_Injection 
     [predU (locBlocksSrc mu1) & locBlocksSrc mu2]
@@ -495,9 +505,9 @@ Definition join_sm mu1 mu2 : SM_Injection :=
     (join2 (extern_of mu1) (extern_of mu2)).
 
 Lemma join_sm_wd (mu1 : Inj.t) (mu2 : Inj.t) :
-  Disjoint (locBlocksSrc mu1) (locBlocksSrc mu2) -> 
-  Disjoint (locBlocksTgt mu1) (locBlocksTgt mu2) -> 
-  consistent (extern_of mu1) (extern_of mu2) -> 
+  DisjointLS mu1 mu2 -> 
+  DisjointLT mu1 mu2 -> 
+  Consistent mu1 mu2 -> 
   SM_wd (join_sm mu1 mu2).
 Proof.
 move=> D1 D2 C12; apply: Build_SM_wd; rewrite/join_sm/=/in_mem/=/in_mem/=.
@@ -539,25 +549,6 @@ Qed.
 (* The following definitions/lemmas extend [join2] to nonempty sequences  *)
 (* of struct. injections.                                                 *)
 
-Fixpoint All T P (l : seq T) :=
-  match l with
-    | nil => True
-    | a :: l' => [/\ P a & All P l']
-  end.
-
-Fixpoint All2_aux T P (a : T) (l : seq T) :=
-  if l is [:: a' & l'] then
-    [/\ P a a' & All2_aux P a l']
-  else True. 
-
-Fixpoint All2 T (P : T -> T -> Prop) (l : seq T) :=
-  if l is [:: a & l'] then [/\ All2_aux P a l' & All2 P l']
-  else True.
-
-Lemma All2_cons T P (a : T) (l : seq T) :
-  All2 P [:: a & l] <-> [/\ All2_aux P a l & All2 P l].
-Proof. by split=> /= => [][]A B; split. Qed.
-
 Definition AllDisjoint (proj : SM_Injection -> Values.block -> bool) := 
   All2 (fun mu mu' => Disjoint (proj mu) (proj mu')).
 
@@ -571,21 +562,21 @@ Fixpoint join_all (mu0 : Inj.t) (mus : seq Inj.t) : SM_Injection :=
 Lemma join_all_disjoint_src mu0 (mu : Inj.t) mus :
   All2_aux 
     (fun mu mu' => Disjoint (locBlocksSrc mu) (locBlocksSrc mu'))  
-    mu0 (map Inj.mu (mus ++ [:: mu])) -> 
+    mu0 (map Inj.mu (mu :: mus)) -> 
   Disjoint (locBlocksSrc mu0) (locBlocksSrc (join_all mu mus)).
 Proof.
 elim: mus=> //=; first by move=> [].
-by move=> mu' mus' IH []A B; move: (IH B)=> C; apply: DisjointInU.
+by move=> mu' mus' IH []A []B C; move: (IH (conj A C))=> D; apply: DisjointInU.
 Qed.
 
 Lemma join_all_disjoint_tgt mu0 (mu : Inj.t) mus :
   All2_aux 
     (fun mu mu' => Disjoint (locBlocksTgt mu) (locBlocksTgt mu'))  
-    mu0 (map Inj.mu (mus ++ [:: mu])) -> 
+    mu0 (map Inj.mu (mu :: mus)) -> 
   Disjoint (locBlocksTgt mu0) (locBlocksTgt (join_all mu mus)).
 Proof.
 elim: mus=> //=; first by move=> [].
-by move=> mu' mus' IH []A B; move: (IH B)=> C; apply: DisjointInU.
+by move=> mu' mus' IH []A []B C; move: (IH (conj A C))=> D; apply: DisjointInU.
 Qed.
 
 Lemma join2_consistent j k k' :
@@ -600,25 +591,41 @@ Qed.
 Lemma join_all_consistent mu0 (mu : Inj.t) mus :
   All2_aux 
     (fun mu mu' => consistent (extern_of mu) (extern_of mu'))  
-    mu0 (map Inj.mu (mus ++ [:: mu])) -> 
+    mu0 (map Inj.mu (mu :: mus)) -> 
   consistent (extern_of mu0) (extern_of (join_all mu mus)).
 Proof.
 elim: mus=> //=; first by move=> [].
-by move=> mu' mus' IH []A B; move: (IH B)=> C; apply: join2_consistent.
+by move=> mu' mus' IH []A []B C; move: (IH (conj A C))=> D; 
+   apply: join2_consistent.
+Qed.
+
+Lemma Disjoint_locSrcC mu mu' : DisjointLS mu mu' -> DisjointLS mu' mu.
+Proof. by rewrite /= DisjointC. Qed.
+
+Lemma Disjoint_locTgtC mu mu' : DisjointLT mu mu' -> DisjointLT mu' mu.
+Proof. by rewrite /= DisjointC. Qed.
+
+Lemma consistentC mu mu' : Consistent mu mu' -> Consistent mu' mu.
+Proof. 
+rewrite /= /consistent=> A b1 b2 b2' d2 d2' B C.
+by case: (A _ _ _ _ _ C B)=> -> ->.
 Qed.
 
 Lemma join_all_wd mu (mus : seq Inj.t) :
-  (AllDisjoint locBlocksSrc \o map Inj.mu) (mus ++ [:: mu]) -> 
-  (AllDisjoint locBlocksTgt \o map Inj.mu) (mus ++ [:: mu]) -> 
-  (AllConsistent \o map Inj.mu) (mus ++ [:: mu]) -> 
+  (AllDisjoint locBlocksSrc \o map Inj.mu) (mu :: mus) -> 
+  (AllDisjoint locBlocksTgt \o map Inj.mu) (mu :: mus) -> 
+  (AllConsistent \o map Inj.mu) (mu :: mus) -> 
   SM_wd (join_all mu mus).
 Proof.
 elim: mus=> /=; first by move=> _ _ _; apply: (Inj_wd mu).
-move=> mu0 mus IH.
+move=> mu0 mus IH A B C.
+move: {A B C} 
+  (All2C A Disjoint_locSrcC) (All2C B Disjoint_locTgtC)
+  (All2C C consistentC).
 move/All2_cons=> []A B. 
 move/All2_cons=> []C D.
 move/All2_cons=> []E F.
-have wd: SM_wd (join_all mu mus) by apply: (IH B D).
+have wd: SM_wd (join_all mu mus) by apply IH.
 change (SM_wd (join_sm mu0 (Inj.mk wd))).
 apply: join_sm_wd=> /=.
 by apply: join_all_disjoint_src.
@@ -691,13 +698,16 @@ Proof. by []. Qed.
 Lemma join_all_preserves_globals 
       F V (ge : Genv.t F V) (mu : Inj.t) (mus : seq Inj.t) : 
   Events.meminj_preserves_globals ge (extern_of mu) ->
-  (AllDisjoint locBlocksSrc \o map Inj.mu) (mus ++ [:: mu]) -> 
-  (AllDisjoint locBlocksTgt \o map Inj.mu) (mus ++ [:: mu]) -> 
-  (AllConsistent \o map Inj.mu) (mus ++ [:: mu]) -> 
+  (AllDisjoint locBlocksSrc \o map Inj.mu) (mu :: mus) -> 
+  (AllDisjoint locBlocksTgt \o map Inj.mu) (mu :: mus) -> 
+  (AllConsistent \o map Inj.mu) (mu :: mus) -> 
   All (Events.meminj_preserves_globals ge \o extern_of \o Inj.mu) mus -> 
   Events.meminj_preserves_globals ge (extern_of (join_all mu mus)).
 Proof.
-elim: mus=> //= mu' mus' IH A. 
+elim: mus=> //= mu' mus' IH PRES A B C. 
+move: {A B C} 
+  (All2C A Disjoint_locSrcC) (All2C B Disjoint_locTgtC)
+  (All2C C consistentC).
 move/All2_cons=> []B C.
 move/All2_cons=> []D E.
 move/All2_cons=> []G H.
@@ -708,6 +718,8 @@ change (Events.meminj_preserves_globals ge
 apply: join_sm_preserves_globals=> //.
 by apply: IH.
 Qed.
+
+
 
 
 

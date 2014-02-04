@@ -17,9 +17,9 @@ Require Import sepcomp.inj_lemmas.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.pred_lemmas.
 
-(* [disjinv] enforces disjointness conditions on the local, public and    *)
-(* foreign block sets declared by [mu0] and [mu].  The definition is used *)
-(* to state one of the invariants used in the linking simulation proof.   *)
+(* [disjinv] enforces disjointness conditions on the local, public and     *)
+(* foreign block sets declared by [mu0] and [mu].  The definition is used  *)
+(* to state one of the invariants used in the linking simulation proof.    *)
 
 Record disjinv mu0 mu : Type := 
   { disj_locsrc : Disjoint (locBlocksSrc mu0) (locBlocksSrc mu)
@@ -29,12 +29,13 @@ Record disjinv mu0 mu : Type :=
   ; disj_pubfrgntgt : forall b1 b2 d, 
                       foreign_of mu b1 = Some (b2, d) -> 
                       (b1 \in locBlocksSrc mu0) || (b2 \in locBlocksTgt mu0) -> 
-                      pub_of mu0 b1 = Some (b2, d) }.
+                      pub_of mu0 b1 = Some (b2, d)
+  ; disj_consistent : consistent (extern_of mu0) (extern_of mu) }.
 
 Lemma disjinv_restrict mu0 mu X : 
   disjinv mu0 mu -> disjinv (restrict_sm mu0 X) (restrict_sm mu X).
 Proof.
-case=> H H2 H3 H4; apply: Build_disjinv. 
+case=> H H2 H3 H4 H5; apply: Build_disjinv. 
 by rewrite !restrict_sm_locBlocksSrc.
 by rewrite !restrict_sm_locBlocksTgt.
 by rewrite restrict_sm_frgnBlocksSrc restrict_sm_pubBlocksSrc 
@@ -42,18 +43,26 @@ by rewrite restrict_sm_frgnBlocksSrc restrict_sm_pubBlocksSrc
 rewrite !restrict_sm_foreign=> b1 b2 d. 
 rewrite !restrict_sm_pub; rewrite/restrict; case: (X b1)=> //.
 by rewrite restrict_sm_locBlocksSrc restrict_sm_locBlocksTgt; apply: H4.
+move=> ? ? ? ? ?.
+rewrite !restrict_sm_extern.
+move/restrictD_Some=> []A _.
+move/restrictD_Some=> []B _.
+by case: (H5 _ _ _ _ _ A B)=> -> ->.
 Qed.
 
 Lemma disjinv_restrict' mu0 mu X : 
   disjinv mu0 mu -> disjinv mu0 (restrict_sm mu X).
 Proof.
-case=> H H2 H3 H4; apply: Build_disjinv. 
+case=> H H2 H3 H4 H5; apply: Build_disjinv. 
 by rewrite !restrict_sm_locBlocksSrc.
 by rewrite !restrict_sm_locBlocksTgt.
 by rewrite restrict_sm_frgnBlocksSrc.
 rewrite !restrict_sm_foreign=> b1 b2 d. 
 rewrite/restrict; case: (X b1)=> //.
 by apply: H4.
+move=> ? ? ? ? ?.
+rewrite !restrict_sm_extern=> A; move/restrictD_Some=> []B _.
+by case: (H5 _ _ _ _ _ A B)=> -> ->.
 Qed.
 
 Lemma disjinv_relat_empty mu : disjinv mu (reestablish Inj.empty mu).
@@ -61,6 +70,8 @@ Proof.
 apply: Build_disjinv; case: mu=> //=.
 by move=> s _ _ _ _ _ _ _ _ _; apply: predI01.
 by move=> _ t _ _ _ _ _ _ _ _; apply: predI01. 
+move=> _ _ _ _ ? _ _ _ _ extern_of ? ? ? ? ?; rewrite/join=> ->.
+by case=> -> ->.
 Qed.
 
 Lemma disjinv_call_aux mu0 mu S T :
@@ -69,9 +80,9 @@ Lemma disjinv_call_aux mu0 mu S T :
   disjinv mu0 mu -> disjinv (replace_locals mu0 S T) mu.
 Proof.
 move=> H1 H2; case: mu0 H1 H2=> a b c d e a' b' c' d' e' /= H1 H2.
-case=> /= A B C D; apply: Build_disjinv=> //=.
+case=> /= A B C D E; apply: Build_disjinv=> //=.
 by apply: (subset_trans' _ H1).
-move=> b1 b2 d2 H3 H4; move: (D _ _ _ H3 H4); case E: (c b1)=> // H5.
+move=> b1 b2 d2 H3 H4; move: (D _ _ _ H3 H4); case F: (c b1)=> // H5.
 by have ->: (S b1) by apply: H1.
 Qed.
 
@@ -130,6 +141,8 @@ apply: Build_disjinv.
   case; case=> /= ? ? ? ? ? ? ? ? ? ? ? incr.
   move: (intern_incr_frgnsrc incr) (intern_incr_frgntgt incr)=> /= -> ->.
   by move: (intern_incr_extern incr)=> /= ->.
++ move=> b1 ? ? ? ?; case: INCR=> []_ []<- _ A B; case: inv=> _ _ _ _ C.
+  by move: (C _ _ _ _ _ A B); case=> -> ->.
 Qed.
 
 Lemma disjinv_unchanged_on_src 
@@ -140,7 +153,7 @@ Lemma disjinv_unchanged_on_src
   Memory.Mem.unchanged_on (fun b => 
     [fun _ => locBlocksSrc mu0 b=true /\ pubBlocksSrc mu0 b=false]) m m'.
 Proof.
-move=> A B; case=> C _ D _; apply: (RGSrc_multicore mu E m m' A B mu0)=> //.
+move=> A B; case=> C _ D _ _; apply: (RGSrc_multicore mu E m m' A B mu0)=> //.
 move: C; rewrite DisjointInE=> C.
 move=> b F; move: (C b); rewrite/in_mem /=; move/andP=> G.
 case H: (locBlocksSrc mu b)=> //; rewrite/in_mem /= H in G; elimtype False.
@@ -162,7 +175,7 @@ Lemma disjinv_unchanged_on_tgt
   disjinv mu0 mu -> 
   Memory.Mem.unchanged_on (local_out_of_reach mu0 m1) m2 m2'.
 Proof.
-move=> A B; case=> _ D _ E.
+move=> A B; case=> _ D _ E _.
 apply: (mem_lemmas.unchanged_on_validblock _ _ _ 
          (local_out_of_reach mu0 m1'))=> //.
 move=> b ofs val []F G; split=> // b' d' H; case: (G _ _ H)=> I.

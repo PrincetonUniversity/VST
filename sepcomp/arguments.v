@@ -1,6 +1,7 @@
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.effect_simulations.
+Require Import sepcomp.mem_lemmas.
 
 Import SM_simulation.
 
@@ -22,3 +23,6 @@ Arguments corestep_fwd {G C c g c0 m c' m'} _ _ _.
 Arguments effect_semantics.effstepN_fwd {G C Sem g n U c m c' m'} _ _ _.
 Arguments match_validblocks 
   {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 entry_points} s {d mu c1 m1 c2 m2} _.
+
+Arguments match_genv {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _} _.
+Arguments genvs_domain_eq_match_genvs {_ _ _ _ _ _} _.
