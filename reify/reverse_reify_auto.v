@@ -44,3 +44,36 @@ go_lower0.
 pose_env.
 reify_derives.
 Admitted.
+
+Definition P (n:nat) := emp.
+
+Lemma try_ex :
+  emp |-- EX x : nat, P x.
+Proof.
+pose_env.
+prepare_reify.
+reify_derives.
+Admitted.
+
+Lemma while_entail2 :
+  name _t ->
+  name _p ->
+  name _s ->
+  name _h ->
+  forall (sh : share) (contents : list int),
+  PROP  ()
+  LOCAL  (tc_environ Delta;
+         `eq (eval_id _t) (eval_expr (Etempvar _p (tptr t_struct_list)));
+         `eq (eval_id _s) (eval_expr (Econst_int (Int.repr 0) tint)))
+  SEP  (`(lseg LS sh (map Vint contents)) (eval_id _p) `nullval)
+          |-- EX  cts : list int,
+  PROP  ()
+  LOCAL 
+        (`(eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id _s))
+  SEP  (TT; `(lseg LS sh (map Vint cts)) (eval_id _t) `nullval).
+Proof.
+intros.
+go_lower0.
+pose_env.
+(*reify_derives.*)
+Admitted.

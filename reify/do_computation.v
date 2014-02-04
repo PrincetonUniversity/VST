@@ -8,10 +8,10 @@ Require Import functions.
 Require Import progs.reverse.
 Require Import progs.list_dt.
 Require Import sep.
-Require Import Expr.
+Require Import MirrorShard.Expr.
 
 Module do_computation (uk : unknown_types).
-Locate Module funcs.
+
 Module our_funcs := funcs uk.
 Import our_funcs.
 Import all_types.
