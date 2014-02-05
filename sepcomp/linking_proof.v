@@ -323,6 +323,31 @@ exists c, s1', d, s2'; split=> //.
 by exists pf, cd; case: A.
 Qed.
 
+Lemma frame_all_globs mus m1 m2 s1 s2 : 
+  frame_all mus m1 m2 s1 s2 -> 
+  All (fun mu0 => forall b, isGlobalBlock my_ge b -> frgnBlocksSrc mu0 b)  
+  $ map (Inj.mu \o frame_mu0) mus.
+Proof.
+move: m1 m2 s1 s2; elim: mus=> //; case=> mu' ? ? ? mus' IH m1 m2 s1 s2 A.
+move: (frame_all_inv A)=> []c []s1' []d []s2' []_ _.
+move=> []pf []cd []? []? []? []? []? []? []B C.
+case: B=> ? ? ? ? ?; move/match_genv=> []_ D; split.
+by rewrite (genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i c))); apply: D.
+by apply: (IH _ _ _ _ C).
+Qed.
+
+Lemma frame_all_valid mus m1 m2 s1 s2 : 
+  frame_all mus m1 m2 s1 s2 -> 
+  All (fun mu0 => sm_valid (Inj.mu mu0) m1 m2) $ map frame_mu0 mus.
+Proof.
+move: m1 m2 s1 s2; elim: mus=> //; case=> mu' ? ? ? mus' IH m1 m2 s1 s2 A.
+move: (frame_all_inv A)=> []c []s1' []d []s2' []_ _.
+move=> []pf []cd []? []? []? []? []? []? []B C.
+case: B=> ? ? ? ? val; move/match_genv=> []_ D; split=> /=.
+by apply: (sm_valid_fwd val).
+by apply: (IH _ _ _ _ C).
+Qed.
+
 Lemma tail_inv_inv mu0 m10 m20 x mus s1 s2 m1 m2 :
   tail_inv (@Build_frame_pkg mu0 m10 m20 x :: mus) s1 s2 m1 m2 -> 
   exists c s1' d s2',
@@ -599,10 +624,16 @@ Record R (data : Lex.t types) (mu : SM_Injection)
   ; R_inv : 
     exists (pf : c.(Core.i)=d.(Core.i)) mu_trash mu_top mus, 
     [/\ mu = join_all (frame_mu0 mu_trash) $ map frame_mu0 (mu_top :: mus)
+      , REACH_closed m1 (vis mu)
       , Events.meminj_preserves_globals my_ge $ extern_of mu_trash
-      , All2_aux DisjointLS mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
-      , All2_aux DisjointLT mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
-      , All2_aux Consistent mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
+      , (forall b, isGlobalBlock my_ge b -> frgnBlocksSrc mu_trash b)
+      , sm_valid mu_trash m1 m2
+      , All2_aux DisjointLS mu_trash 
+        $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
+      , All2_aux DisjointLT mu_trash 
+        $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
+      , All2_aux Consistent mu_trash 
+        $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
       , @head_inv c d pf (Lex.get c.(Core.i) data) mu_top mus m1 m2 
       & tail_inv mus (pop s1) (pop s2) m1 m2] }.
 
@@ -624,7 +655,7 @@ Lemma peek_match :
   (Core.c (peekCore x1)) m1 
   (cast peek_ieq (Core.c (peekCore x2))) m2.
 Proof.
-move: (R_inv pf)=> []A []? []mu_top []? []? _ _ _ _. 
+move: (R_inv pf)=> []A []? []mu_top []? [] _ _ _ _ _ _ _ _. 
 move/head_match=> MATCH ?.
 have ->: (cast peek_ieq (Core.c (peekCore x2)) = cast A (Core.c (peekCore x2)))
   by f_equal; f_equal; apply proof_irr.
@@ -634,7 +665,10 @@ Qed.
 Lemma R_match :
   exists (pf0 : (c pf).(Core.i)=(d pf).(Core.i)) mu_trash mu_top mus, 
   [/\ mu = join_all (frame_mu0 mu_trash) $ map frame_mu0 (mu_top :: mus)
+    , REACH_closed m1 (vis mu)
     , Events.meminj_preserves_globals my_ge $ extern_of mu_trash
+    , (forall b, isGlobalBlock my_ge b -> frgnBlocksSrc mu_trash b)
+    , sm_valid mu_trash m1 m2
     , All2_aux DisjointLS mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
     , All2_aux DisjointLT mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
     , All2_aux Consistent mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
@@ -650,7 +684,7 @@ Lemma R_match' :
     match_state (sims (Core.i (c pf))) (Lex.get (c pf).(Core.i) data) mu_top
     (Core.c (c pf)) m1 (cast pf0 (Core.c (d pf))) m2.
 Proof.
-case: R_match=> []pf0 []? []mu_top []? []A B _ _ _. 
+case: R_match=> []pf0 []? []mu_top []? []A B _ _ _ _ _ _.  
 by move/head_match=> C D; exists pf0, mu_top.
 Qed.
 
@@ -694,7 +728,7 @@ Qed.
 
 Lemma R_wd : SM_wd mu.
 Proof.
-move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B _ C D E []F G []H I.
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B _ _ _ _ C D E []F G []H I.
 have J: All2 (rel_inv_pred \o (fun f : frame_pkg => f)) $ mu_top :: mus.
   by split=> //; rewrite -All2_aux_comp2.
 rewrite B; apply: join_all_wd. 
@@ -707,7 +741,7 @@ Arguments genvs_domain_eq_match_genvs {_ _ _ _ _ _} _.
 
 Lemma R_pres_globs : Events.meminj_preserves_globals my_ge (extern_of mu).
 Proof. 
-move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B H X Y Z []W V []U M.
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B _ ? _ _ X Y Z []W V []U M.
 have J: All2 (rel_inv_pred \o (fun f : frame_pkg => f)) $ mu_top :: mus.
   by split=> //; rewrite -All2_aux_comp2.
 rewrite B; apply: join_all_preserves_globals=> //.
@@ -723,16 +757,12 @@ Qed.
 
 Lemma R_isGlob b : isGlobalBlock my_ge b -> frgnBlocksSrc mu b.
 Proof.
-move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B H X Y Z []W V []U M.
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B _ _ ? _ X Y Z []W V []U M.
 rewrite B.
-apply: join_all_isGlob=> //.
-admit.
-split.
-move=> b0 H2.
-rewrite (genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i (c pf)))) in H2.
-case: (match_genv W)=> _ H3. 
-by apply: (H3  _ H2).
-admit.
+apply: join_all_isGlob=> //; split.
+move=> b0; rewrite (genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i (c pf)))).
+by case: (match_genv W)=> _ H4; apply/(H4 _).
+by move: (frame_all_globs M); rewrite map_comp.
 Qed.
 
 Lemma R_match_genv :
@@ -744,10 +774,8 @@ Qed.
 
 Lemma R_match_visible : REACH_closed m1 (vis mu).
 Proof.
-move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B H X Y Z []W V []U M.
-rewrite B=> /=.
-rewrite/join_sm /vis /=.
-Admitted.
+by move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B H.
+Qed.
 
 Lemma R_match_restrict (X : block -> bool) 
   (vis : forall b : block, vis mu b -> X b)
@@ -758,7 +786,11 @@ Admitted. (*TODO*)
 
 Lemma R_match_validblocks : sm_valid mu m1 m2.
 Proof. 
-Admitted.
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B ? ? ? H X Y Z []W V []U M.
+rewrite B; apply: join_all_valid=> //=; split. 
+by apply: (match_validblocks _ W).
+by apply: (frame_all_valid M). 
+Qed.
 
 End R_lems.
 
@@ -783,13 +815,13 @@ eapply Build_SM_simulation_inject
 - by move=> data mu c1 m1 c2 m2; apply: R_match_genv.
 
 (* match_visible *)
-- by move=> ? ? ? ? ? ? ?; apply: R_match_visible.
+- by apply: R_match_visible.
 
 (* match_restrict *)
 - by move=> data mu c1 m1 c2 m2 X H; apply: (R_match_restrict H).
 
 (* match_validblocks *)
-- by move=> ? ? ? ? ? ? ?; apply: R_match_validblocks.
+- by apply: R_match_validblocks.
 
 (* core_initial *)
 - by admit. (* TODO *)
@@ -821,8 +853,11 @@ case: STEP.
  (* specialize core diagram at module (Core.i c1) *)
  move: (effcore_diagram _ _ _ _ _ (sims (Core.i c1))).  
  move/(_ _ _ _ _ _ EFFSTEP).
+
+(*HERE: must introduce per-core effect tracking in lieue of U1_DEF*)
  move/(_ _ _ _ _ U1_DEF).
- move: (peek_match INV)=> []cd MATCH.
+ move: (peek_match INV)=> []cd []mu_top MATCH.
+ rewrite/c1.
  move/(_ _ _ _ MATCH).
  move=> []c2' []m2' []cd' []mu'.
  move=> []INCR []SEP []LOCALLOC []MATCH' []U2 []STEP' PERM.

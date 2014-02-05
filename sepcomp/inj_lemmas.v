@@ -368,6 +368,23 @@ Proof.
 by move=> A B b C; move: {A B}(A b) (B b)=> A B; case: (A (B C)).
 Qed.
 
+Lemma valid_block_fwd b m m' :
+  Memory.Mem.valid_block m b -> 
+  mem_forward m m' -> 
+  Memory.Mem.valid_block m' b.
+Proof. by move=> A; move/(_ b A); case. Qed.
+
+Lemma sm_valid_fwd mu m1 m1' m2 m2' :
+  sm_valid mu m1 m2 ->   
+  mem_forward m1 m1' -> 
+  mem_forward m2 m2' -> 
+  sm_valid mu m1' m2'.
+Proof.
+move=> []A B C D; split=> b.
+by move/(A _)=> E; apply: (valid_block_fwd E C).
+by move/(B _)=> E; apply: (valid_block_fwd E D).
+Qed.
+
 Lemma intern_incr_frgnsrc mu mu' : 
   intern_incr mu mu' -> frgnBlocksSrc mu=frgnBlocksSrc mu'.
 Proof. by case=> _ []_ []_ []_ []_ []_ []->. Qed.
@@ -739,7 +756,43 @@ by apply: (B _ D).
 by apply: IH.
 Qed.
 
+Lemma join_sm_valid mu1 mu2 m1 m2 :
+  sm_valid mu1 m1 m2 -> 
+  sm_valid mu2 m1 m2 -> 
+  sm_valid (join_sm mu1 mu2) m1 m2.
+Proof.
+rewrite/join_sm/sm_valid/DOM/RNG/DomSrc/DomTgt /= => [][]A B []C D; split.
+move=> b1; move/orP; case.
+move/orP; case=> E.
+by apply: A; apply/orP; left.
+by apply: C; apply/orP; left.
+move/andP=> []E F.
+by apply: A; apply/orP; right.
+move=> b2; move/orP; case.
+move/orP; case=> E.
+by apply: B; apply/orP; left.
+by apply: D; apply/orP; left.
+move/andP=> []E F.
+by apply: D; apply/orP; right.
+Qed.
 
+Lemma join_all_valid (mu : Inj.t) mus m1 m2 :
+  sm_valid mu m1 m2 -> 
+  All (fun mu0 => sm_valid (Inj.mu mu0) m1 m2) mus -> 
+  sm_valid (join_all mu mus) m1 m2.
+Proof.
+move: mu m1 m2; elim: mus=> // mu' mus' IH mu m1 m2 A /= []B C.
+by apply: join_sm_valid=> //; apply: IH.
+Qed.
 
+Lemma DisjointLS_restrict mu1 mu2 X Y : 
+  DisjointLS mu1 mu2 -> 
+  DisjointLS (restrict_sm mu1 X) (restrict_sm mu2 Y).
+Proof. by case: mu1; case: mu2. Qed.
+
+Lemma DisjointLT_restrict mu1 mu2 X Y : 
+  DisjointLT mu1 mu2 -> 
+  DisjointLT (restrict_sm mu1 X) (restrict_sm mu2 Y).
+Proof. by case: mu1; case: mu2. Qed.
 
 
