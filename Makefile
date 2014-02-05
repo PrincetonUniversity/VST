@@ -92,6 +92,7 @@ LINKING_FILES= \
   pred_lemmas.v \
   inj_lemmas.v \
   disjointness.v \
+  rc_semantics.v \
   linking.v \
   linking_lemmas.v \
   linking_proof.v
