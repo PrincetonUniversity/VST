@@ -30,13 +30,7 @@ Record EffectSem {G C} :=
     effstep_valid: forall M g c m c' m',
        effstep g M c m c' m' ->
        forall b z, M b z = true -> Mem.valid_block m b
-(*
-    effstep_sub_val: forall g U V c m c' m'
-         (UV: forall b ofs, Mem.valid_block m b -> 
-              U b ofs = true -> V b ofs = true),
-         effstep g U c m c' m' -> effstep g V c m c' m'
-*)
- }.
+  }.
 
 Section effsemlemmas.
   Context {G C:Type} (Sem: @EffectSem G C) (g:G).
@@ -61,7 +55,8 @@ Section effsemlemmas.
       | O => fun U c m c' m' => (c,m) = (c',m') /\ U = (fun b z => false)
       | S k => fun U c1 m1 c3 m3 => exists c2, exists m2, exists U1, exists U2,
         effstep Sem g U1 c1 m1 c2 m2 /\
-        effstepN k U2 c2 m2 c3 m3 /\ U = (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b))
+        effstepN k U2 c2 m2 c3 m3 /\ 
+        U = (fun b z => U1 b z || (U2 b z && valid_block_dec m1 b))
     end.
 
 Lemma effstepN_valid: forall n U c1 m1 c2 m2, effstepN n U c1 m1 c2 m2 ->
@@ -346,11 +341,12 @@ Proof. intros.
                  eapply (FREE lo). omega.
 Qed. 
 
-Definition FreelistEffect m (L: list (Values.block * Z * Z)) (b:Values.block) (ofs:Z): bool := 
+Definition FreelistEffect 
+  m (L: list (Values.block * Z * Z)) (b:Values.block) (ofs:Z): bool := 
   List.fold_right (fun X E b z => match X with (bb,lo,hi) =>
                                    E b z || FreeEffect m lo hi bb b z
                                  end) 
-                 EmptyEffect L b ofs.
+                  EmptyEffect L b ofs.
 
 Lemma FreelistEffect_Dfalse: forall m bb lo hi L b ofs
       (F:FreelistEffect m ((bb, lo, hi) :: L) b ofs = false),
@@ -411,7 +407,9 @@ Proof. intros L.
       eapply mem_unchanged_on_sub; try eassumption.
         intuition. apply orb_false_iff in H. apply H.
       clear FF.
-      specialize (unchanged_on_validblock_invariant m0 m' (fun (b : block) (ofs : Z) => FreelistEffect m0 L b ofs = false) (fun (b : block) (ofs : Z) => FreelistEffect m L b ofs = false)).
+      specialize (unchanged_on_validblock_invariant m0 m' 
+           (fun (b : block) (ofs : Z) => FreelistEffect m0 L b ofs = false) 
+           (fun (b : block) (ofs : Z) => FreelistEffect m L b ofs = false)).
       intros. apply H in IHL. clear H.
         eapply mem_unchanged_on_sub; try eassumption.
         intuition. apply orb_false_iff in H. apply H.
@@ -449,7 +447,9 @@ Definition StoreEffect (tv:val)(vl : list memval) (b:Values.block) (z:Z):bool :=
 
 Lemma StoreEffect_Storev: forall m chunk tv tv' m' 
          (STORE : Mem.storev chunk m tv tv' = Some m'),
-      Mem.unchanged_on (fun b ofs => StoreEffect tv (encode_val chunk tv') b ofs = false) m m'.
+      Mem.unchanged_on 
+        (fun b ofs => StoreEffect tv (encode_val chunk tv') b ofs = false) 
+        m m'.
 Proof. intros.
   destruct tv; inv STORE.
   unfold StoreEffect.
@@ -479,34 +479,41 @@ Proof. intros.
   destruct (zlt ofs (Int.unsigned i + Z.of_nat (length v))); inv H0.
   intuition.
 Qed.
+                                                                      
+(* Parameter BuiltinEffect :                                              *)
+(*   forall {F V: Type} (ge: Genv.t F V) (sg: signature)                  *)
+(*          (vargs:list val) (m:mem), block -> Z -> bool.                 *)
+(*                                                                        *)
+(* Axiom ec_builtinEffectPolymorphic:                                     *)
+(*    forall {F V:Type} ef (g : Genv.t F V) vargs m t vres m',            *)
+(*    external_call ef g vargs m t vres m' ->                             *)
+(*    Mem.unchanged_on                                                    *)
+(*      (fun b z=> BuiltinEffect g (ef_sig ef) vargs m b z = false) m m'.  *)
+(*                                                                        *)
+(* preliminary material for the support of builtins,                      *)
+(* AXIOM BUILTIN: forall (name: ident) (F V: Type) (ge: Genv.t F V)       *)
+(*                       (sg: signature)                                  *)
+(*                       (vargs:list val)                                 *)
+(*                       (m:mem) (t:trace) (v: val) (m': mem),            *)
+(*       extcall_io_sem name sg ge vargs m t v m' ->                      *)
+(*       Mem.unchanged_on                                                 *)
+(*         (fun b z => BuiltinEffect ge sg vargs m b z = false) m m'.     *)
+(*                                                                        *)
+(* Lemma ec_builtinEffectPolymorphic:                                     *)
+(*    forall {F V:Type} ef (g : Genv.t F V) vargs m t vres m',            *)
+(*    external_call ef g vargs m t vres m' ->                             *)
+(*    Mem.unchanged_on                                                    *)
+(*      (fun b z=> BuiltinEffect g (ef_sig ef) vargs m b z = false) m m'.  *)
+(* Proof. intros. simpl in H.                                             *)
+(*   destruct ef; try (eapply BUILTIN; eassumption).                      *)
+(* Focus 7. simpl in H. inv H.                                            *)
+(* Qed.                                                                   *)
+(* Lemma ec_builtinEffectPolymorphic:                                     *)
+(*    forall {F V:Type} name sg (g : Genv.t F V) vargs m t vres m',       *)
+(*    external_call (EF_builtin name sg) g vargs m t vres m' ->           *)
+(*    Mem.unchanged_on                                                    *)
+(*      (fun b z=> BuiltinEffect g sg vargs m b z = false) m m'.          *)
+(* Proof. intros. simpl in H.                                             *)
+(*   eapply BUILTIN. eassumption.                                         *)
+(* Qed.  *)                                                                 
 
-(* Parameter BuiltinEffect : forall {F V: Type} (ge: Genv.t F V) (sg: signature)  *)
-(*                     (vargs:list val) (m:mem), block -> Z -> bool. *)
-
-(* Axiom ec_builtinEffectPolymorphic: *)
-(*    forall {F V:Type} ef (g : Genv.t F V) vargs m t vres m', *)
-(*    external_call ef g vargs m t vres m' -> *)
-(*    Mem.unchanged_on (fun b z=> BuiltinEffect g (ef_sig ef) vargs m b z = false) m m'. *)
-
-(* preliminary material for the support of builtins, *)
-(* AXIOM BUILTIN: forall (name: ident) (F V: Type) (ge: Genv.t F V) (sg: signature)  *)
-(*                     (vargs:list val) *)
-(*                        (m:mem) (t:trace) (v: val) (m': mem), *)
-(*       extcall_io_sem name sg ge vargs m t v m' -> *)
-(*       Mem.unchanged_on (fun b z => BuiltinEffect ge sg vargs m b z = false) m m'. *)
-
-(* Lemma ec_builtinEffectPolymorphic: *)
-(*    forall {F V:Type} ef (g : Genv.t F V) vargs m t vres m', *)
-(*    external_call ef g vargs m t vres m' -> *)
-(*    Mem.unchanged_on (fun b z=> BuiltinEffect g (ef_sig ef) vargs m b z = false) m m'. *)
-(* Proof. intros. simpl in H. *)
-(*   destruct ef; try (eapply BUILTIN; eassumption). *)
-(* Focus 7. simpl in H. inv H. *)
-(* Qed. *)
-(* Lemma ec_builtinEffectPolymorphic: *)
-(*    forall {F V:Type} name sg (g : Genv.t F V) vargs m t vres m', *)
-(*    external_call (EF_builtin name sg) g vargs m t vres m' -> *)
-(*    Mem.unchanged_on (fun b z=> BuiltinEffect g sg vargs m b z = false) m m'. *)
-(* Proof. intros. simpl in H. *)
-(*   eapply BUILTIN. eassumption. *)
-(* Qed. *)
