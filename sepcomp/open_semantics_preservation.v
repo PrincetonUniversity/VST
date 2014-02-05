@@ -167,7 +167,7 @@ intros MATCH; exists d, tm, cd, j, O; split; simpl; auto.
 intros [c2 [m2 [STEP STEPN]]] MATCH.
 generalize STEP as STEP'; intro.
 eapply core_diagram in STEP; eauto.
-destruct STEP as [d2 [tm2 [cd2 [j2 [? [? [? [MATCH2 [? [? TSTEPN]]]]]]]]]].
+destruct STEP as [d2 [tm2 [cd2 [j2 [? [? [? [MATCH2 TSTEPN]]]]]]]].
 assert (exists n', corestepN target geT n' d tm d2 tm2) as [n' TSTEPN'].
 { destruct TSTEPN as [[n' X]|[[n' X] _]].
   exists (S n'); auto.
@@ -735,7 +735,7 @@ inv STEP.
 rename H11 into STEP.
 generalize STEP as STEP'; intro.
 eapply (core_diagram sim) in STEP; eauto.
-destruct STEP as [d2 [tm2 [cd2 [mu2' [_ [_ [_ [MATCH2 [_ [_ STEP2]]]]]]]]]].
+destruct STEP as [d2 [tm2 [cd2 [mu2' [_ [_ [_ [MATCH2 STEP2]]]]]]]].
 destruct STEP2.
 destruct H0 as [n0 TSTEPN].
 solve[exists c2, m2, d2, tm2, (S O), n0; split; simpl; eauto].
@@ -794,7 +794,7 @@ inv STEP.
 rename H11 into STEP.
 generalize STEP as STEP'; intro.
 eapply (core_diagram sim) in STEP; eauto.
-destruct STEP as [d2 [tm2 [cd2 [mu2' [_ [_ [_ [MATCH2 [_ [_ STEP2]]]]]]]]]].
+destruct STEP as [d2 [tm2 [cd2 [mu2' [_ [_ [_ [MATCH2 STEP2]]]]]]]].
 destruct STEP2.
 destruct H0 as [n0 TSTEPN].
 destruct TSTEPN as [? [? [TSTEP _]]].

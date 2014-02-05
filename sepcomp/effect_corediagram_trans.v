@@ -46,7 +46,7 @@ Lemma core_diagram_trans: forall
                    sm_inject_separated mu mu' m1 m2 /\
                    sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
                    match_core12 cd' mu' st1' m1' st2' m2' /\
-                   (*temporarily added:*) SM_wd mu' /\ sm_valid mu' m1' m2' /\
+                   (*temporarily added: SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
                    (corestep_plus Sem2 g2 st2 m2 st2' m2' \/
                     corestep_star Sem2 g2 st2 m2 st2' m2' /\
                     core_ord12 cd' cd))
@@ -64,7 +64,7 @@ Lemma core_diagram_trans: forall
                    sm_inject_separated mu mu' m1 m2 /\
                    sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
                    match_core23 cd' mu' st1' m1' st2' m2' /\
-                   (*temporarily added:*) SM_wd mu' /\ sm_valid mu' m1' m2' /\
+                   (*temporarily added: SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
                    (corestep_plus Sem3 g3 st2 m2 st2' m2' \/
                     corestep_star Sem3 g3 st2 m2 st2' m2' /\
                     core_ord23 cd' cd))
@@ -119,7 +119,7 @@ exists
       (forall b : block,
        frgnBlocksTgt mu1 b = true -> frgnBlocksSrc mu2 b = true)) /\
      match_core12 d1 mu1 st1' m1' c0 m0 /\ match_core23 d2 mu2 c0 m0 st2' m2') /\
-  (*temporarily added:*) SM_wd mu' /\ sm_valid mu' m1' m2' /\
+  (*temporarily added: SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
   (corestep_plus Sem3 g3 st3 m3 st2' m2' \/
    corestep_star Sem3 g3 st3 m3 st2' m2' /\
    clos_trans
@@ -130,7 +130,7 @@ Proof.
   intros. 
   destruct (core_diagram12 _ _ _ _ CS1 _ _ _ _ MC12)
     as [st2' [m2' [d12' [mu12' [InjIncr12 [InjSep12 [LocAlloc12
-       [MC12' [WD12' [SMVal12' Y]]]]]]]]]]; clear core_diagram12.
+       [MC12' (*[WD12' [SMVal12'*) Y(*]]*)]]]]]]]]; clear core_diagram12.
   assert (ZZ: corestep_plus Sem2 g2 st2 m2 st2' m2' \/
     (st2,m2) = (st2',m2') /\ core_ord12 d12' d12).
   destruct Y. auto.
@@ -152,7 +152,7 @@ Proof.
     sm_inject_separated mu23 mu23' m2 m3 /\
     sm_locally_allocated mu23 mu23' m2 m3 m2' m3' /\
     match_core23 d23' mu23' st2' m2' st3' m3' /\
-   (*temporarily added:*) SM_wd mu23' /\ sm_valid mu23' m2' m3' /\
+   (*temporarily added: SM_wd mu23' /\ sm_valid mu23' m2' m3' /\*)
     (corestep_plus Sem3 g3 st3 m3 st3' m3' \/
       (corestep_star Sem3 g3 st3 m3 st3' m3' /\
         clos_trans (core_data12 * option C2 * core_data23)
@@ -160,7 +160,7 @@ Proof.
                (d12', Some st2', d23')
                (d12, Some st2, d23)))).
   intros XX; destruct XX as [st3' [m3' [d23' [mu23' [INV' [InjIncr23 [InjSep23
-          (*[PUB13*) [LocAlloc23 [MC23' [WD23' [SMVal23' ZZ]]]]]]]]]]].
+          (*[PUB13*) [LocAlloc23 [MC23' (*[WD23' [SMVal23'*) ZZ(*]]*)]]]]]]]]].
   exists st3'. exists m3'. 
   exists (d12', Some st2', d23').
   exists (compose_sm mu12' mu23').
@@ -187,9 +187,10 @@ Proof.
          split; trivial.
          split; assumption.
      split; assumption.
-  split. eapply (compose_sm_wd _ _ WD12' WD23'). 
+(*  split. eapply (compose_sm_wd _ _ WD12' WD23'). 
          eapply INV'. eapply INV'. 
   split. eapply (compose_sm_valid _ _ _ _ _ _ SMVal12' SMVal23').
+*)
   simpl. 
          destruct mu12. destruct mu12'. destruct mu23. destruct mu23'. 
          simpl in *. 
@@ -220,12 +221,12 @@ Proof.
   subst.
   rewrite pubAlloc12' in *; clear pubAlloc12'.
   rewrite frgnAlloc12' in *; clear frgnAlloc12'.
-  clear st1 m1 st1' m1' SMVal12'.
+  clear st1 m1 st1' m1' (*SMVal12'*).
   clear mu12.
   remember (pubBlocksTgt mu12') as pubTgt12'.
   remember (frgnBlocksTgt mu12') as frgnTgt12'.
   clear HeqpubTgt12' HeqfrgnTgt12'. 
-  clear mu12' WD12'.
+  clear mu12' (*WD12'*).
   clear C1 Sem1 match_core12 g1.
   rename H2 into HypPubTgt12'.
   rename H3 into HypFrgnTgt12'.
@@ -236,7 +237,7 @@ Proof.
     inv H0.
     destruct (core_diagram23 _ _ _ _ H _ _ _ _ MC23) 
       as [st3' [m3' [d23' [mu23' [InjInc23 [InjSep23
-          [LocAlloc23 [? [WD23' [SMVal23' ?]]]]]]]]]]; clear core_diagram23.
+          [LocAlloc23 [? (*[WD23' [SMVal23'*) ?(*]]*)]]]]]]]]; clear core_diagram23.
     exists st3'. exists m3'. exists d23'. exists mu23'. 
     split. 
       assert (pubBlock23: pubBlocksSrc mu23 = pubBlocksSrc mu23') by apply InjInc23.
@@ -250,8 +251,9 @@ Proof.
     split; trivial.
     split; trivial.
     split; trivial.
+(*    split; trivial.
     split; trivial.
-    split; trivial.
+*)
     split; trivial.
     destruct H1. left; assumption.
            destruct H1. right. split; trivial.
@@ -261,12 +263,12 @@ Proof.
     destruct H as [st2'' [m2'' [? ?]]]. subst x'.
     destruct (core_diagram23 _ _ _ _  H _ _ _ _ MC23) 
       as [c3' [m3' [d23' [mu23' [InjInc23 [InjSep23 
-             [LocAlloc23 [? [WD23' [SMVal23' ?]]]]]]]]]]; clear core_diagram23.
+             [LocAlloc23 [? (*[WD23' [SMVal23'*) ?(*]]*)]]]]]]]]; clear core_diagram23.
     specialize (IHx mu23' d23' _ _ c3' m3' H0 H1).
     assert (pubSrc23: pubBlocksSrc mu23 = pubBlocksSrc mu23') by eapply InjInc23.
     assert (frgnSrc23: frgnBlocksSrc mu23 = frgnBlocksSrc mu23') by eapply InjInc23.
     destruct IHx as [c3'' [m3'' [d23'' [mu23'' [ZZ [InjIncr' 
-             [InjSep' [LocAlloc23' [MC' [WD23'' [SMVal23'' XX]]]]]]]]]]].
+             [InjSep' [LocAlloc23' [MC' (*[WD23'' [SMVal23''*) XX(*]]*)]]]]]]]]].
       rewrite pubSrc23 in *. assumption. 
       rewrite frgnSrc23 in *. assumption.
     assert (FWD2: mem_forward m2 m2'').
@@ -299,8 +301,9 @@ Proof.
            eauto. 
     split. eapply sm_locally_allocated_trans; eassumption.
     split. apply MC'.
+(*    split; trivial.
     split; trivial.
-    split; trivial.
+*)
     destruct H2; destruct XX.
            (*1/4*)
               left. destruct H2 as [n1 ?]. destruct H3 as [n2 ?].
@@ -363,6 +366,7 @@ Proof.
        assert (frgnBlocksTgt mu12 = frgnBlocksTgt mu12') by eapply InjIncr12.
               rewrite H0 in *; clear H0.
               apply INVd. trivial.
+(*
    split. eapply compose_sm_wd.
                    assumption.
                    eauto.
@@ -371,6 +375,7 @@ Proof.
                    assert (TGT: frgnBlocksTgt mu12 = frgnBlocksTgt mu12') by eapply InjIncr12.
                      rewrite <- TGT. assumption.
    split. eapply compose_sm_valid. eassumption.  eauto. (*USE of match_WD is ok*) 
+*)
    right. split. exists O. simpl; auto.
    apply t_step. constructor 1; auto.
 Qed.

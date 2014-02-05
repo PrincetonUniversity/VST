@@ -187,7 +187,7 @@ Hypothesis order_wf: well_founded order.
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
           match_states st1' mu' st1' m1' st2' m2' /\
 
-          SM_wd mu' /\ sm_valid mu' m1' m2' /\
+(*          SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
 
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
@@ -248,7 +248,7 @@ clear - core_initial_sm. intros.
 clear - inj_core_diagram.
   intros. destruct H0; subst.
   destruct (inj_core_diagram _ _ _ _ H _ _ _ H1) as 
-    [c2' [m2' [mu' [INC [SEP [LAC [MC' [WD [Valid' Step]]]]]]]]].
+    [c2' [m2' [mu' [INC [SEP [LAC [MC' (*[WD [Valid'*) Step(*]]*)]]]]]]].
   exists c2'. exists m2'. exists st1'. exists mu'. intuition.
 clear - inj_effcore_diagram. 
   intros. destruct H0; subst.
@@ -290,7 +290,7 @@ Section EFF_INJ_SIMULATION_STAR.
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
           match_states st1' mu' st1' m1' st2' m2' /\
 
-          SM_wd mu' /\ sm_valid mu' m1' m2' /\
+(*          SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
 
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2')).
@@ -328,7 +328,7 @@ Proof.
   apply  (well_founded_ltof _ measure).
 clear - inj_core_diagram. intros.
   destruct (inj_core_diagram _ _ _ _ H _ _ _ H0) 
-    as [c2' [m2' [mu' [INC [SEP [LAC [MC' [WD' [VAL' STEP]]]]]]]]]. 
+    as [c2' [m2' [mu' [INC [SEP [LAC [MC' (*[WD' [VAL'*) STEP (*]]*)]]]]]]]. 
   exists c2'. exists m2'. exists mu'.
   intuition.
 clear - inj_effcore_diagram. intros.
@@ -355,7 +355,7 @@ Section EFF_INJ_SIMULATION_PLUS.
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
           match_states st1' mu' st1' m1' st2' m2' /\
 
-          SM_wd mu' /\ sm_valid mu' m1' m2' /\
+(*          SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
 
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2')).
@@ -391,7 +391,7 @@ Proof.
   apply inj_simulation_star with (measure:=measure).
 clear - inj_core_diagram. intros.
   destruct (inj_core_diagram _ _ _ _ H _ _ _ H0) 
-    as [c2' [m2' [mu' [INC [SEP [LAC [MC' [WD' [VAL' STEP]]]]]]]]]. 
+    as [c2' [m2' [mu' [INC [SEP [LAC [MC' (*[WD' [VAL'*) STEP(*]]*)]]]]]]]. 
   exists c2'. exists m2'. exists mu'.
   intuition.
 clear - inj_effcore_diagram. intros.

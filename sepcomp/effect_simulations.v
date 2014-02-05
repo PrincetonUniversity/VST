@@ -1632,8 +1632,8 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
           (*formally, the following 2 conditions already follow
             from match_state_wd and match_state_sm_valid, but we
             temporarily duplicate them here in order to check that 
-            the constructions in the transitivity proof are ok:*)
-          SM_wd mu' /\ sm_valid mu' m1' m2' /\
+            the constructions in the transitivity proof are ok:
+          SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
 
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
