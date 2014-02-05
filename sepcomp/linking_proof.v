@@ -721,41 +721,44 @@ by rewrite meminj_preserves_genv2blocks.
 by apply: (tail_inv_preserves_globals (conj U M)).
 Qed.
 
+Lemma R_isGlob b : isGlobalBlock my_ge b -> frgnBlocksSrc mu b.
+Proof.
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B H X Y Z []W V []U M.
+rewrite B.
+apply: join_all_isGlob=> //.
+admit.
+split.
+move=> b0 H2.
+rewrite (genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i (c pf)))) in H2.
+case: (match_genv W)=> _ H3. 
+by apply: (H3  _ H2).
+admit.
+Qed.
+
 Lemma R_match_genv :
   Events.meminj_preserves_globals my_ge (extern_of mu) /\
   forall b : block, isGlobalBlock my_ge b -> frgnBlocksSrc mu b.
-Proof.
-split; first by apply: R_pres_globs.
-move: R_match=> []? []mu_trash []mu_top []mus []A _ _ _ _. 
-move/head_match/match_genv=> []_.
-rewrite -(genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i (c pf)))).
-move=> H _ b H2; move: (H _ H2); rewrite A=> /= B.
-apply/andP; split=> //.
-
-(* HERE *)
+Proof. 
+split; first by apply: R_pres_globs. by apply: R_isGlob. 
+Qed.
 
 Lemma R_match_visible : REACH_closed m1 (vis mu).
-move: (R_head pf)=> [A]; move/head_match=> H. 
-by apply: (@match_visible _ _ _ _ _ _ _ _ _ _ _ 
-          (sims (Core.i (c pf))) _ _ _ _ _ _ H).
-Qed.
+Proof.
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B H X Y Z []W V []U M.
+rewrite B=> /=.
+rewrite/join_sm /vis /=.
+Admitted.
 
 Lemma R_match_restrict (X : block -> bool) 
   (vis : forall b : block, vis mu b -> X b)
   (reach : REACH_closed m1 X) :
   R data (@restrict_sm_wd  _ (Inj.mk R_wd) _ vis reach) x1 m1 x2 m2.
 Proof.
-move: (R_head pf)=> [A] C; move: (head_inv_restrict C vis reach)=> H.
-apply: Build_R; first by exists A.
-(*by apply: tail_inv_restrict=> //; apply: (R_tail pf).*)
-(*Qed.*)
 Admitted. (*TODO*)
 
 Lemma R_match_validblocks : sm_valid mu m1 m2.
 Proof. 
-move: (R_head pf)=> [A]; move/head_match. 
-by apply: match_validblocks. 
-Qed.
+Admitted.
 
 End R_lems.
 
@@ -780,13 +783,13 @@ eapply Build_SM_simulation_inject
 - by move=> data mu c1 m1 c2 m2; apply: R_match_genv.
 
 (* match_visible *)
-- by apply: R_match_visible.
+- by move=> ? ? ? ? ? ? ?; apply: R_match_visible.
 
 (* match_restrict *)
 - by move=> data mu c1 m1 c2 m2 X H; apply: (R_match_restrict H).
 
 (* match_validblocks *)
-- by move=> ??; apply: R_match_validblocks.
+- by move=> ? ? ? ? ? ? ?; apply: R_match_validblocks.
 
 (* core_initial *)
 - by admit. (* TODO *)

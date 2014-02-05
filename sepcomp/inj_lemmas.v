@@ -692,6 +692,15 @@ split.
   by move: X Y Z W H1 H2=> -> -> -> -> //; move/(C _ _ _ _ H)=> <-.
 Qed.
 
+Lemma join_sm_isGlob F V (ge : Genv.t F V) (mu1 mu2 : Inj.t) :
+ (forall b, isGlobalBlock ge b -> frgnBlocksSrc mu1 b) -> 
+ (forall b, isGlobalBlock ge b -> frgnBlocksSrc mu2 b) -> 
+ forall b, isGlobalBlock ge b -> frgnBlocksSrc (join_sm mu1 mu2) b.
+Proof.
+rewrite/join_sm /= => A B b C; move: (A _ C) (B _ C)=> ? ?.
+by apply/andP; split.
+Qed.
+
 Lemma join_all_id mu : join_all mu [::] = mu.
 Proof. by []. Qed.
 
@@ -716,6 +725,17 @@ move=> []I J.
 change (Events.meminj_preserves_globals ge 
   (extern_of (join_sm mu' (Inj.mk wd)))).
 apply: join_sm_preserves_globals=> //.
+by apply: IH.
+Qed.
+
+Lemma join_all_isGlob F V (ge : Genv.t F V) (mu : Inj.t) (mus : seq Inj.t) :
+ (forall b, isGlobalBlock ge b -> frgnBlocksSrc mu b) -> 
+ All (fun mu => forall b, isGlobalBlock ge b -> frgnBlocksSrc mu b) 
+     (map Inj.mu mus) -> 
+ forall b, isGlobalBlock ge b -> frgnBlocksSrc (join_all mu mus) b.
+Proof.
+elim: mus mu=> // mu' mus' IH mu A /= []B C b D; apply/andP; split=> //.
+by apply: (B _ D).
 by apply: IH.
 Qed.
 
