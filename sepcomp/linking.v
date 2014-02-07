@@ -73,10 +73,7 @@ Record t := mk
   ; ge  : Genv.t F V
   ; C   : Type
   ; coreSem : Csem.t (Genv.t F V) C
-  ; init : C
-  }.
-
-Definition dummy := @mk unit unit Dummy.genv unit Csem.dummy tt.
+  ; init : C }.
 
 End Static.
 
@@ -91,21 +88,15 @@ Import Static.
 
 Record t := mk
   { i  : 'I_N
-  ; c  :> (cores i).(C)
-  }.
+  ; c  :> (cores i).(C) }.
 
 Definition upd (core : t) (newC : (cores core.(i)).(C)) :=
   {| i := core.(i)
-   ; c := newC 
-   |}.
-
-Definition dummy : t := mk (i0 N) (cores (i0 N)).(init).
+   ; c := newC |}.
 
 End core. End Core.
 
 Arguments Core.t {N} cores.
-
-Arguments Core.dummy {N} cores. 
 
 Arguments Core.i {N cores} !t /.
 
@@ -151,12 +142,9 @@ Context {N : pos} (cores : 'I_N -> Static.t).
 
 Record t : Type := mk
   { callStack :> Stack.t (Core.t cores)
-  ; _         :  wf_callStack callStack 
-  }.
+  ; _         :  wf_callStack callStack }.
 
 Program Definition singl (core: Core.t cores) := mk [:: core] _.
-
-Definition dummy := singl (Core.dummy cores).
 
 Section callStackDefs.
 
@@ -200,8 +188,7 @@ Variable cores : 'I_N  -> Static.t.
 
 Record t := mkLinker 
   { fn_tbl : ident -> option 'I_N
-  ; stack  :> CallStack.t cores
-  }.
+  ; stack  :> CallStack.t cores }.
 
 End linker. End Linker.
 
@@ -215,22 +202,9 @@ Context {N : pos} (my_cores : 'I_N -> Static.t) (l : linker N my_cores).
 
 Import CallStack. (*for coercion [callStack]*)
 
-Definition dummy_linker := 
-  let: my_cores := fun _ : 'I_N => Static.dummy in
-  @mkLinker _ my_cores (fun id => None) (dummy my_cores).
-
-Section emptyLinker.
-
-Variable my_fun_tbl : ident -> option 'I_N.
-
-Definition empty_linker := @mkLinker _ my_cores my_fun_tbl (dummy my_cores).
-
-End emptyLinker.
-
 Definition updStack (newStack : CallStack.t my_cores) :=
   {| fn_tbl := l.(fn_tbl)
-   ; stack  := newStack
-   |}.
+   ; stack  := newStack |}.
 
 (* [inContext]: The top core on the call stack has a return context  *)     
 
@@ -240,7 +214,6 @@ Definition inContext (l0 : linker N my_cores) := callStackSize l0.(stack) > 1.
 
 Program Definition updCore (newCore: Core.t my_cores) := 
   updStack (CallStack.mk (STACK.push (STACK.pop l.(stack)) newCore) _).  
-
 Next Obligation. apply/andP; split=>/=; last by []; by apply: callStack_ext. Qed.
 
 Lemma updCore_inj newCore newCore' : 
@@ -261,7 +234,6 @@ Program Definition pushCore
   (newCore: Core.t my_cores) 
   (_ : all (atExternal my_cores) l.(stack).(callStack)) := 
   updStack (CallStack.mk (STACK.push l.(stack) newCore) _).
-
 Next Obligation. by rewrite/wf_callStack; apply/andP; split. Qed.
 
 (* [popCore]: Pop the top core on the call stack.                         *)
@@ -283,7 +255,6 @@ Program Definition popCore : option (linker N my_cores) :=
                                      (inContext_wf _ _ _)))
     | false => fun pf => None
   end) Logic.eq_refl.
-
 Next Obligation. by apply: callStack_wf. Qed.
 
 Definition peekCore := STACK.head l.(stack) (callStack_nonempty l.(stack)).
@@ -350,8 +321,11 @@ End handle.
 
 Definition initial_core (tt: ge_ty) (v: val) (args: list val)
   : option (linker N my_cores) :=
-  if v is Vptr id ofs then handle id (empty_linker my_cores my_fn_tbl) args 
-  else None.
+  if v is Vptr id ofs then 
+  if my_fn_tbl id is Some ix then
+  if initCore my_cores ix (Vptr id Int.zero) args is Some c 
+  then Some (mkLinker my_fn_tbl (CallStack.singl c))
+  else None else None else None.
 
 (* Functions suffixed w/ 0 always operate on the running core on the (top *)
 (* of the) call stack.                                                    *)

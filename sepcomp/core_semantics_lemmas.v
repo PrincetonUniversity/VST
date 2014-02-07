@@ -31,43 +31,9 @@ Axiom M : Type. (*memories*)
 
 Axiom t : forall (G C: Type), Type.
 
-Axiom dummy : forall {G C}, t G C.
-
 Declare Instance instance {G C: Type} `{T : t G C} : @Coresem.t G C M.
 
 End CORESEM.
-
-(* Dummy signatures, external functions, and core semantics *)
-
-Module Dummy.
-
-Definition sig := mksignature [::] None.
-
-Definition ef  := EF_external xH sig.
-
-Program Definition coreSem {G C M: Type} : @CoreSemantics G C M :=
-  Build_CoreSemantics G C M
-    (fun _ _ _ => None)
-    (fun _ => Some (ef, sig, [::]))
-    (fun _ _ => None)
-    (fun _ => None)
-    (fun _ _ _ _ _ => False)
-    _ _ _ _.
-Next Obligation. by []. Qed.
-
-Program Definition coopSem {G C: Type} : @CoopCoreSem G C :=
-  Build_CoopCoreSem G C (@coreSem G C Memory.mem) _.
-Next Obligation. by []. Qed.
-
-Program Definition effSem {G C: Type} : @EffectSem G C :=
-  Build_EffectSem G C (@coopSem G C) (fun _ _ _ _ _ _ => False) _ _ _.
-Next Obligation. by []. Qed.
-Next Obligation. by []. Qed.
-Next Obligation. by []. Qed.
-
-Axiom genv: forall {F V}, Genv.t F V. (*FIXME*)
-
-End Dummy.
 
 (* Instances of CORESEM for CoopCoreSem, EffectSem *)
 
@@ -82,8 +48,6 @@ Definition M := Memory.mem.
 
 Definition t (G C: Type) := @CoopCoreSem G C.
 
-Definition dummy (G C: Type) := @Dummy.coopSem G C.
-
 Definition instance (G C: Type) (csem : t G C) := core_instance csem.
 
 End Coopsem.
@@ -93,7 +57,6 @@ Definition Coopsem2CoreSemantics {G C} (csem : @Coopsem.t G C)
 
 Coercion Coopsem2CoreSemantics : Coopsem.t >-> CoreSemantics.
 
-
 Instance effect_instance (G C : Type) (csem : @EffectSem G C) 
   : @Coresem.t G C Memory.mem := core_instance csem.
 
@@ -102,8 +65,6 @@ Module Effectsem <: CORESEM.
 Definition M := Memory.mem.
 
 Definition t (G C: Type) := @EffectSem G C.
-
-Definition dummy (G C: Type) := @Dummy.effSem G C.
 
 Definition instance (G C: Type) (csem : t G C) := effect_instance csem.
 
