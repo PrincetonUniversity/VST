@@ -286,6 +286,9 @@ Definition emptyStack := if l.(stack).(callStack) is [::] then true else false.
 
 Import Static.
 
+(* We take the RC initial core here because we want to make sure the args *)
+(* are properly stashed in the [c] tuple.                                 *)
+
 Definition initCore (ix: 'I_N) (v: val) (args: list val) 
   : option (Core.t my_cores):=
   if @RC.initial_core _ _ _ 
@@ -403,6 +406,10 @@ Definition at_external (l: linker N my_cores) :=
          if handle id l args is None then Some (ef, dep_sig, args) else None
          else None
   else at_external0 l.
+
+(* We call the RC version of after_external here to ensure that the       *)
+(* return value [mv] of the external call is properly stashed in the      *)
+(* state tuple [c].                                                       *)
 
 Definition after_external (mv: option val) (l: linker N my_cores) :=
   let: c   := peekCore l in

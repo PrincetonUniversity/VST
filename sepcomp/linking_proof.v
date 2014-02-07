@@ -140,6 +140,26 @@ split=> b G; first by apply: (E _ (B _ G)).
 by apply: (F _ (C _ G)).
 Qed.
 
+(* NOTE TO SELF:                                                          *)
+(* Initial core asserts that we match w/ SM_injection                     *)
+(*   initial_SM DomS DomT                                                 *)
+(*     (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))     *)
+(*     (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j)  *)
+(* where the clauses beginning REACH... give frgnSrc/Tgt respectively.    *)
+(*                                                                        *)
+(* I.e., we establish initially that                                      *)
+(*                                                                        *)
+(*   (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))       *)
+(*                                                                        *)
+(* is a subset of the visible set for the injection of the initialized    *)
+(* core.  TODO: We need to record this fact (really, a slight             *)
+(* modification of the invariant that accounts for return values as well) *)
+(* as an invariant of execution for both the head and tail cores. Then    *)
+(* the guarantees we get from RC executions (that write effects are       *)
+(* limited to blocks in the RC of initial args, rets, local blocks) will  *)
+(* imply that effects are also a subset of the visible region for each    *)
+(* core.                                                                  *)
+
 Record frame_inv 
   cd0 mu0 m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2 : Prop :=
   { (* local definitions *)
