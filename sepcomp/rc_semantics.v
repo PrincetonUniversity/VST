@@ -7,6 +7,7 @@ Require Import compcert. Import CompcertCommon.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.
 Require Import sepcomp.effect_simulations.
+Require Import sepcomp.core_semantics_lemmas.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -36,17 +37,22 @@ Unset Printing Implicit Defensive.
 (* allocated or which were revealed to it by interaction at an external   *)
 (* call point.                                                            *)
 
-Module RCSem. Section rc_sem.
+Module RC. Section rc.
 
 Variables F V C : Type.
 
 Variable sem : @EffectSem (Genv.t F V) C.
 
 Record state : Type := 
-  mk { core : C
+  mk { core :> C
      ; args : list val
      ; rets : list val
      ; locs : block -> bool }.
+
+Definition updC (c : C) (st : state) :=
+  match st with
+    | mk _ args rets locs => mk c args rets locs
+  end.
 
 Definition initial_core ge v vs := 
   match initial_core sem ge v vs with
@@ -153,7 +159,7 @@ destruct 1 as [H [H2 [H3 [H4 H5]]]].
 intros b ofs. eapply effstep_valid; eauto.
 Qed.
 
-Definition effsem : @EffectSem (Genv.t F V) state := 
-  Build_EffectSem _ _ coopsem effstep my_effax1 my_effax2 my_effstep_valid.
+Definition effsem : @Effsem.t (Genv.t F V) state := 
+  Effsem.Build_t _ _ coopsem effstep my_effax1 my_effax2 my_effstep_valid.
 
-End rc_sem. End RCSem. 
+End rc. End RC.

@@ -11,6 +11,7 @@ Require Import msl.Axioms. (*for proof_irr*)
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.StructuredInjections.
+Require Import sepcomp.effect_semantics.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.effect_properties.
 
@@ -22,10 +23,11 @@ Require Import sepcomp.seq_lemmas.
 Require Import sepcomp.wf_lemmas.
 Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.inj_lemmas.
-Require Import sepcomp.linking.
+Require Import sepcomp.compcert_linking.
 Require Import sepcomp.linking_lemmas.
 Require Import sepcomp.disjointness.
 Require Import sepcomp.arguments.
+Require Import sepcomp.rc_semantics.
 
 (* compcert imports *)
 
@@ -42,11 +44,33 @@ Unset Printing Implicit Defensive.
 
 Require Import compcert.common.Values.   
 
-(** * Linking simulation proof 
-
-This file states and proves the main linking simulation result.
-
-*)
+(* This file states and proves the main linking simulation result.        *)
+(* Informally,                                                            *)
+(*   - Assume a multi-module program with N translation units:            *)
+(*                                                                        *)
+(*       M_0, M_1, ..., M_{N-1}, and                                      *)
+(*                                                                        *)
+(*   - For each module M_i, we have an induced                            *)
+(*       o Source effect semantics Source_i operating on source states    *)
+(*         C_i of source language S_i                                     *)
+(*       o Target effect semantics Target_i operating on target states    *)
+(*         D_i of target language T_i                                     *)
+(*     (Note that it's not required that S_i = S_j for i<>j.)             *)
+(*                                                                        *)
+(*   - Assume we also have, for each 0 <= i < N, a simulation relation    *)
+(*     from S_i to T_i.                                                   *)
+(*                                                                        *)
+(* Then we can construct a simulation relation Sim between the source     *)
+(* semantics                                                              *)
+(*                                                                        *)
+(*   S_0 >< S_1 >< ... >< S_{N-1}                                         *)
+(*                                                                        *)
+(* and target semantics                                                   *)
+(*                                                                        *)
+(*   T_0 >< T_1 >< ... >< T_{N-1}                                         *)
+(*                                                                        *)
+(* where >< denotes the semantic linking operation defined in             *)
+(* compcert_linking.v.                                                    *)
 
 Section linkingSimulation.
 
@@ -90,57 +114,6 @@ Variable  pf : c.(i)=d.(i).
 
 Require Import compcert.lib.Coqlib. (*for Forall2*)
 
-(** Frame Invariant: 
-    ~~~~~~~~~~~~~~~~
-
-   The frame invariant applies to cores in caller positions in the
-   call stack.  I.e, to cores that are waiting [at_external] for the
-   environment to return. Main arguments are:
-
-   * Existentially quantified when [frame_inv] is applied:
-   -[mu0]: [SM_injection] at point of external call
-
-   -[nu0]: [SM_injection] derived from [mu0] by restricting [pubSrc]
-   and [pubTgt] to reachable local blocks.  [nu0] is used primarily to
-   state the [unchOn] invariants assumable by THIS core.
-
-   -[m10], [m20]: Source and target memories active at call point. 
-
-   * True parameters: 
-   -[mu]: The [SM_injection] of the currently running core (/not/ this
-    one).  Things to note:
-
-     + Resuming a core:
-     ~~~~~~~~~~~~~~~~~~
-
-     When we resume a core, we do not use [mu] directly.  Instead, we
-     employ the derived [SM_injection]:
-       mu' := { local_of  := local_of mu0
-              ; extern_of := extern_of mu0 
-                             + {extern_of mu | REACH m1' m2' ret1 ret2}
-              ; ... }
-     This [SM_injection] satisfies [extern_incr mu0 mu'], among other
-     properties required by the [after_external] clause of structured
-     simulations.
-
-
-     + The [frame_dom] invariant [dominv mu0 mu]: 
-     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-     [mu0] is always disjoint, in the way specified by [dominv], 
-     from the active injection [mu].  This is to ensure that we can 
-     re-establish over steps of the active core the [frame_unch1] 
-     and [frame_unch2] invariants given below (which in turn are 
-     required by [after_external]).
-     
-     In order to re-establish [dominv] when a core returns to its
-     context, we track as an additional invariant that [dominv mu0
-     mu_head], where [mu_head] is the existentially quantified
-     injection of the callee.
-
-   -[m1], [m2]: Active memories. 
-*)
-
 Definition incr mu mu' :=
   inject_incr (as_inj mu) (as_inj mu') 
   /\ (forall b, DomSrc mu b=true -> DomSrc mu' b=true)
@@ -178,10 +151,10 @@ Record frame_inv
   ; frame_inj0  : Mem.inject (as_inj mu0) m10 m20
   ; frame_valid : sm_valid mu0 m10 m20 
   ; frame_match : (sims c.(i)).(match_state) cd0 mu0 
-                    c.(Core.c) m10 (cast pf d.(Core.c)) m20 
-  ; frame_at1   : at_external (cores_S c.(i)).(coreSem) c.(Core.c) 
+                    (RC.core c.(Core.c)) m10 (cast pf (RC.core d.(Core.c))) m20 
+  ; frame_at1   : at_external (cores_S c.(i)).(coreSem) (RC.core c.(Core.c))
                     = Some (e1, ef_sig1, vals1) 
-  ; frame_at2   : at_external (cores_T c.(i)).(coreSem) (cast pf d.(Core.c)) 
+  ; frame_at2   : at_external (cores_T c.(i)).(coreSem) (cast pf (RC.core d.(Core.c))) 
                     = Some (e2, ef_sig2, vals2) 
   ; frame_vinj  : Forall2 (val_inject (as_inj mu0)) vals1 vals2  
 
@@ -221,7 +194,7 @@ Variable  (pf : c.(i)=d.(i)).
 
 Record head_inv cd mu mus m1 m2 : Type :=
   { head_match : (sims c.(i)).(match_state) cd mu 
-                 c.(Core.c) m1 (cast pf d.(Core.c)) m2 
+                 (RC.core c.(Core.c)) m1 (cast pf (RC.core d.(Core.c))) m2 
   ; head_rel   : All2_aux rel_inv_pred mu mus }.
 
 End head_inv.
@@ -229,15 +202,6 @@ End head_inv.
 Section head_inv_lems.
 
 Context c d pf cd mu mus m1 m2 (inv : @head_inv c d pf cd mu mus m1 m2).
-
-(* Lemma head_inv_restrict (X : block -> bool) :                          *)
-(*   (forall b : block, vis mu b -> X b) ->                               *)
-(*   REACH_closed m1 X ->                                                 *)
-(*   @head_inv c d pf cd (restrict_sm mu X) m1 m2.                        *)
-(* Proof.                                                                 *)
-(* case: inv=> H H2 H3; apply: Build_head_inv.                            *)
-(* by apply: (match_restrict _ _ _ _ _ (sims (Core.i c))).                *)
-(* Qed.                                                                   *)
 
 End head_inv_lems.
 
@@ -260,7 +224,7 @@ Definition tail_inv mus s1 s2 m1 m2 :=
   [/\ All2 (rel_inv_pred \o frame_mu0) mus & frame_all mus m1 m2 s1 s2].
 
 Lemma all_wrt_callers_switch T P (a b : T) (l : seq T) :
-  All2_aux P b l -> All2 P (a :: l) ->All2 P (b :: l).
+  All2_aux P b l -> All2 P (a :: l) -> All2 P (b :: l).
 Proof. by elim: l a b=> // a' l' IH a b /= []A B [][]C D []E F. Qed.
 
 Definition restrict_sm_wd m1
@@ -268,27 +232,6 @@ Definition restrict_sm_wd m1
   (vis_pf : forall b : block, vis mu b -> X b)
   (rc_pf  : REACH_closed m1 X) : Inj.t :=
   Inj.mk (restrict_sm_WD _ (Inj_wd mu) X vis_pf).
-
-(* Lemma tail_len_eq (mus : seq frame_pkg) (mu : Inj.t) s1 s2 m1 m2 :     *)
-(*   tail_inv mus mu s1 s2 m1 m2 -> length s1 = length s2.                *)
-(* Proof.                                                                 *)
-(* move: s1 s2 mu; elim: mus.                                             *)
-(* case; case=> //; first by move=> ? ? ?; case.                          *)
-(* by move=> ? ? ? ? ?; case.                                             *)
-(* move=> pkg mus' IH s1' s2' mu'.                                        *)
-(* case: s1'; first by case: s2'=> // ? ?; case; case: pkg.               *)
-(* move=> x s1'; case: s2'; first by case; case: pkg.                     *)
-(* move=> y s2' /=; case=> A B.                                           *)
-(* move: B A; case: pkg=> /= mu0 m10 m20.                                 *)
-(* move=> [][]eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2.        *)
-(* case=> ? ? ? ? ? frmatch ? ? ? fwd1 fwd2 ? ? A [][]B C.                *)
-(* have mu0_wd: SM_wd mu0.                                                *)
-(*   move: (sims (Core.i x)).(match_sm_wd _ _ _ _ _).                     *)
-(*   by move/(_ _ _ _ _ _ _ frmatch).                                     *)
-(* have C': tail_inv mus' (Inj.mk mu0_wd) s1' s2' m1 m2.                  *)
-(*   split=> //.                                                          *)
-(* by rewrite (IH _ _ _ C').                                              *)
-(* Qed.                                                                   *)
 
 Lemma frame_all_inv mu0 m10 m20 x mus m1 m2 s1 s2 :
   frame_all (@Build_frame_pkg mu0 m10 m20 x :: mus) m1 m2 s1 s2 -> 
@@ -315,7 +258,7 @@ Lemma frame_all_match mu0 m10 m20 x mus m1 m2 s1 s2 :
       , s2 = d :: s2' 
       & exists (pf : c.(Core.i)=d.(Core.i)) cd0,
         (sims c.(Core.i)).(match_state) cd0 mu0 
-          c.(Core.c) m10 (cast pf d.(Core.c)) m20].
+          (RC.core c.(Core.c)) m10 (cast pf (RC.core d.(Core.c))) m20].
 Proof.
 case: s1=> // c s1'; case: s2=> // d s2' /=.
 move=> [][]pf => [][]cd []ef1 []sig1 []vals1 []ef2 []sig2 []vals2 A B.
@@ -374,7 +317,7 @@ Lemma tail_inv_match mu0 m10 m20 x mus s1 s2 m1 m2 :
       , s2 = d :: s2' 
       & exists (pf : c.(Core.i)=d.(Core.i)) cd0,
         (sims c.(Core.i)).(match_state) cd0 mu0 
-          c.(Core.c) m10 (cast pf d.(Core.c)) m20].
+          (RC.core c.(Core.c)) m10 (cast pf (RC.core d.(Core.c))) m20].
 Proof. by move=> []_; move/frame_all_match. Qed.
 
 Lemma tail_inv_preserves_globals mus s1 s2 m1 m2 :
@@ -460,41 +403,6 @@ by eapply rel_inv_pred_step; eauto.
 by eapply IH; eauto.
 Qed.
 
-(* Lemma all_wrt_callers_step                                             *)
-(*   mus (mu mu' : frame_pkg) m1' m2' s1 s2 m1 m2                         *)
-(*   (Esrc Etgt : Values.block -> BinNums.Z -> bool) :                    *)
-(*   (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) ->    *)
-(*   Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' ->  *)
-(*   Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' ->  *)
-(*   (forall (b0 : block) (ofs : Z),                                      *)
-(*    Etgt b0 ofs = true ->                                               *)
-(*    Mem.valid_block m2 b0 /\                                            *)
-(*    (locBlocksTgt mu b0 = false ->                                      *)
-(*     exists (b1 : block) (delta1 : Z),                                  *)
-(*       foreign_of mu b1 = Some (b0, delta1) /\                          *)
-(*       Esrc b1 (ofs - delta1) = true /\                                 *)
-(*       Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) ->                  *)
-(*   intern_incr mu mu' ->                                                *)
-(*   mem_forward m1 m1' ->                                                *)
-(*   mem_forward m2 m2' ->                                                *)
-(*   sm_inject_separated mu mu' m1 m2  ->                                 *)
-(*   sm_valid mu m1 m2 ->                                                 *)
-(*   frame_all mus m1 m2 s1 s2 ->                                         *)
-(*   All2 (rel_inv_pred \o frame_mu0) (mu :: mus) ->                      *)
-(*   All2 (rel_inv_pred \o frame_mu0) (mu' :: mus).                       *)
-(* Proof.                                                                 *)
-(* elim: mus mu mu' s1 s2=> // pkg mus' IH mu mu' s1' s2'.                *)
-(* move=> H1 H2 H3 H4 A B C D E F /= []G H.                               *)
-(* move: F G H; case: s1'=> //; first by case: s2'; case: pkg.            *)
-(* move=> a s1'; case: s2'; first by case: pkg.                           *)
-(* move=> b s2'; case: pkg=> ? ? ? ? /= [].                               *)
-(* move=> []eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2.          *)
-(* case=> ? ? ? ? ? frmatch ? ? ? fwd1 fwd2 ? ? ? []? ? ?; split.         *)
-(* split; first by eapply rel_inv_pred_step; eauto.                       *)
-(* by eapply wrt_callers_step; eauto.                                     *)
-(* by [].                                                                 *)
-(* Qed.                                                                   *)
-
 Lemma frame_all_step 
   mus (mu mu' : frame_pkg) m1' m2' s1 s2 m1 m2 
   (Esrc Etgt : Values.block -> BinNums.Z -> bool) :
@@ -578,32 +486,6 @@ move=> ? ? ? ? ? ? ? ? ? []A B; split=> //.
 by eapply frame_all_step; eauto.
 Qed.
 
-(* Lemma tail_inv_restrict (X : block -> bool) mus mu s1 s2 m1 m2 :       *)
-(*   tail_inv mus mu s1 s2 m1 m2 ->                                       *)
-(*   tail_inv (map (restrict_sm^~ X) mus) (restrict_sm mu X) s1 s2 m1 m2. *)
-(* Proof.                                                                 *)
-(* move: mu s1 s2; elim: mus=> // mu0 mus' IH mu'.                        *)
-(* case=> // a s1'; case=> // b s2'.                                      *)
-(* move=> [][pf][cd][m10][e1][sig1][vals1][m20][e2][sig2][vals2][]; split;  *)
-(*  last by apply: IH.                                                    *)
-(* exists pf, cd, m10, e1, sig1, vals1, m20, e2, sig2, vals2.             *)
-(* apply: Build_frame_inv=> //.                                           *)
-(* Admitted. (*likely true*)                                              *)
-(*                                                                        *)
-(* Lemma tail_inv_restrict (X : block -> bool) (mu : Inj.t) s1 s2 m1 m2   *)
-(*   (vis : forall b : block, vis mu b -> X b)                            *)
-(*   (reach : REACH_closed m1 X) :                                        *)
-(*   let: mu' := Inj.mk (restrict_sm_WD mu (Inj_wd mu) X vis) in          *)
-(*   tail_inv mu s1 s2 m1 m2 ->                                           *)
-(*   tail_inv mu' s1 s2 m1 m2.                                            *)
-(* Proof.                                                                 *)
-(* move=> []mus []A B C.                                                  *)
-(* exists (map (restrict_sm^~ X) mus); split=> //.                        *)
-(* by apply: one_disjoint_r_restrict.                                     *)
-(* by apply: all_disjoint_restrict.                                       *)
-(* by apply: tail_inv_restrict.                                           *)
-(* Qed.                                                                   *)
-
 Section R.
 
 Import CallStack.
@@ -653,12 +535,13 @@ Proof. by move: (R_inv pf); move=> []A _; apply: A. Qed.
 Lemma peek_match :
   exists cd mu_top, 
   match_state (sims (Core.i (peekCore x1))) cd mu_top 
-  (Core.c (peekCore x1)) m1 
-  (cast peek_ieq (Core.c (peekCore x2))) m2.
+  (RC.core (Core.c (peekCore x1))) m1 
+  (cast peek_ieq (RC.core (Core.c (peekCore x2)))) m2.
 Proof.
 move: (R_inv pf)=> []A []? []mu_top []? [] _ _ _ _ _ _ _ _. 
 move/head_match=> MATCH ?.
-have ->: (cast peek_ieq (Core.c (peekCore x2)) = cast A (Core.c (peekCore x2)))
+have ->: (cast peek_ieq (RC.core (Core.c (peekCore x2))) 
+         = cast A (RC.core (Core.c (peekCore x2))))
   by f_equal; f_equal; apply proof_irr.
 by exists (Lex.get (Core.i (peekCore x1)) data), mu_top.
 Qed.
@@ -684,7 +567,7 @@ Qed.
 Lemma R_match' :
   exists (pf0 : (c pf).(Core.i)=(d pf).(Core.i)) mu_top,
     match_state (sims (Core.i (c pf))) (Lex.get (c pf).(Core.i) data) mu_top
-    (Core.c (c pf)) m1 (cast pf0 (Core.c (d pf))) m2.
+    (RC.core (Core.c (c pf))) m1 (cast pf0 (RC.core (Core.c (d pf)))) m2.
 Proof.
 case: R_match=> []pf0 []? []mu_top []? []A B _ _ _ _ _ _.  
 by move/head_match=> C D; exists pf0, mu_top.
@@ -856,15 +739,15 @@ case: STEP.
          exists c' : C (cores_S (Core.i c1)), 
          Coresem.corestep 
             (t := Effectsem.instance (coreSem (cores_S (Core.i c1)))) 
-            (ge (cores_S (Core.i c1))) (Core.c c1) m1 c' m1' 
-         /\ st1' = updCore st1 (Core.upd c1 c').
-  { by move: STEP; rewrite/Sem.corestep0=> [][]c' []B C; exists c'; split. }
+            (ge (cores_S (Core.i c1))) (RC.core (Core.c c1)) m1 c' m1' 
+         /\ st1' = updCore st1 (Core.updC c1 c').
+  { by move: STEP; rewrite/LinkerSem.corestep0=> [][]c' []B C; exists c'; split. }
 
  have EFFSTEP: 
         effect_semantics.effstep (coreSem (cores_S (Core.i c1))) 
-        (ge (cores_S (Core.i c1))) U1 (Core.c c1) m1 c1' m1'.
+        (ge (cores_S (Core.i c1))) U1 (RC.core (Core.c c1)) m1 c1' m1'.
   { move: (STEP_EFFSTEP STEP); rewrite/effstep0=> [][] c1'' [] STEP0' ST1''.
-    by rewrite ST1'' in ST1'; rewrite -(updCore_inj_upd ST1'). }
+    by rewrite ST1'' in ST1'; rewrite -(updCore_inj_updC ST1'). }
 
  (* specialize core diagram at module (Core.i c1) *)
  move: (effcore_diagram _ _ _ _ _ (sims (Core.i c1))).  
