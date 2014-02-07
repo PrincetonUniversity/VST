@@ -60,7 +60,7 @@ Coercion Coopsem2CoreSemantics : Coopsem.t >-> CoreSemantics.
 Instance effect_instance (G C : Type) (csem : @EffectSem G C) 
   : @Coresem.t G C Memory.mem := core_instance csem.
 
-Module Effectsem <: CORESEM.
+Module EffectsemCore <: CORESEM.
 
 Definition M := Memory.mem.
 
@@ -68,9 +68,61 @@ Definition t (G C: Type) := @EffectSem G C.
 
 Definition instance (G C: Type) (csem : t G C) := effect_instance csem.
 
+End EffectsemCore.
+
+Definition EffectsemCore2CoreSemantics {G C} (csem : @EffectsemCore.t G C) 
+  : @CoreSemantics G C Memory.mem := EffectsemCore.instance csem.
+
+Coercion EffectsemCore2CoreSemantics : EffectsemCore.t >-> CoreSemantics.
+
+(* Module type wrapper over effect semantics *)
+
+Definition Effsem2EffectSem {G C} (sem: @Effsem.t G C) := 
+  @Build_EffectSem G C 
+   (@Effsem.sem _ _ sem)
+   (@Effsem.effstep _ _ sem)
+   (@Effsem.effax1 _ _ sem)
+   (@Effsem.effax2 _ _ sem)
+   (@Effsem.effstep_valid _ _ sem).
+
+Coercion Effsem2EffectSem : Effsem.t >-> EffectSem.
+
+Definition Effsem2Coresem {G C} (sem : @Effsem.t G C) 
+  : @Coresem.t G C Memory.mem := coop_instance sem.
+
+Coercion Effsem2Coresem : Effsem.t >-> Coresem.t.
+
+Module Type EFFSEM.
+
+Axiom t : forall (G C: Type), Type.
+
+Declare Instance instance {G C: Type} `{T : t G C} : @Effsem.t G C.
+
+End EFFSEM.
+
+(* Instance of EFFSEM for EffectSem *)
+
+Module Effectsem <: EFFSEM.
+
+Definition t (G C: Type) := @EffectSem G C.
+
+Definition instance (G C : Type) (sem : t G C) := effsem_instance _ _ sem.
+
 End Effectsem.
 
-Definition Effectsem2CoreSemantics {G C} (csem : @Effectsem.t G C) 
-  : @CoreSemantics G C Memory.mem := Effectsem.instance csem.
+Definition Effectsem_to_EffectSem {G C} (sem : @Effectsem.t G C) 
+  : @EffectSem G C := sem.
 
-Coercion Effectsem2CoreSemantics : Effectsem.t >-> CoreSemantics.
+Coercion Effectsem_to_EffectSem : Effectsem.t >-> EffectSem.
+
+Definition Effectsem_to_CoreSemantics {G C} (sem : @Effectsem.t G C) 
+  : @CoreSemantics G C Memory.mem := sem.
+
+Coercion Effectsem_to_CoreSemantics : Effectsem.t >-> CoreSemantics.
+
+Definition Effectsem_to_Coresem {G C} (sem : @Effectsem.t G C) 
+  : @Coresem.t G C Memory.mem := Effectsem.instance sem.
+
+Coercion Effectsem_to_Coresem : Effectsem.t >-> Coresem.t.
+
+  

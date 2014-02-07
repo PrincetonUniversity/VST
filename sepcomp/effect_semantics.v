@@ -32,6 +32,33 @@ Record EffectSem {G C} :=
        forall b z, M b z = true -> Mem.valid_block m b
   }.
 
+(** This module defines an effect semantics typeclass, for building 
+    functors over effsem-like objects.  *)
+
+Module Effsem.
+Class t {G C : Type} : Type :=
+  { sem :> CoopCoreSem G C;
+    effstep: G -> (block -> Z -> bool) -> C -> mem -> C -> mem -> Prop;
+    effax1: forall M g c m c' m',
+       effstep g M c m c' m' ->
+            corestep sem g c m c' m'  
+         /\ Mem.unchanged_on (fun b ofs => M b ofs = false) m m';
+    effax2: forall g c m c' m',
+       corestep sem g c m c' m' ->
+       exists M, effstep g M c m c' m';
+    effstep_valid: forall M g c m c' m',
+       effstep g M c m c' m' ->
+       forall b z, M b z = true -> Mem.valid_block m b }.
+End Effsem.
+
+Instance effsem_instance (G C : Type) (sem : @EffectSem G C) : @Effsem.t G C :=
+  Effsem.Build_t G C  
+    sem
+    (effstep sem)
+    (effax1 sem) 
+    (effax2 sem)
+    (effstep_valid sem).
+
 Section effsemlemmas.
   Context {G C:Type} (Sem: @EffectSem G C) (g:G).
 

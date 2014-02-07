@@ -18,6 +18,7 @@ Set Implicit Arguments.
 Require Import compcert.common.AST.    (*for typ*)
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
 
 Require Import ZArith.
@@ -55,7 +56,7 @@ Require Import ZArith.
 (*   [CoopCoreSem] and an [EffectSem] (cf. core_semantics.v,              *)
 (*   effect_semantics.v).                                                 *)
 
-Module CoreLinker (Csem : CORESEM).
+Module CoreLinker (Csem : EFFSEM).
 
 (* The [CoreLinker] module gives the operational semantics of linking.    *)
 (* It is parameterized by the type of core semantics [Csem] (e.g., effect *)
@@ -123,7 +124,7 @@ Definition atExternal (c: Core.t cores) :=
   let: V := (cores i).(V) in
   let: C := (cores i).(C) in
   let: coreSem := (cores i).(coreSem) in
-  if @at_external (Genv.t F V) C Csem.M (Csem.instance (T:=coreSem)) c is 
+  if @at_external (Genv.t F V) C Mem.mem (Csem.instance (T:=coreSem)) c is 
     Some (ef, dep_sig, args) then true
   else false.
 
@@ -354,7 +355,7 @@ Arguments halted0 !l.
 (* whole program semantics.                                               *)
 
 Definition corestep0 
-  (l: linker N my_cores) (m: Csem.M) (l': linker N my_cores) (m': Csem.M) := 
+  (l: linker N my_cores) (m: Mem.mem) (l': linker N my_cores) (m': Mem.mem) := 
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
   let: sem := (my_cores ix).(Static.coreSem) in
@@ -403,8 +404,8 @@ Definition halted (l: linker N my_cores) :=
 
 Definition corestep 
   (ge: ge_ty) 
-  (l: linker N my_cores) (m: Csem.M)
-  (l': linker N my_cores) (m': Csem.M) := 
+  (l: linker N my_cores) (m: Mem.mem)
+  (l': linker N my_cores) (m': Mem.mem) := 
 
   (** 1- The running core takes a step, or *)
   corestep0 l m l' m' \/
@@ -445,7 +446,7 @@ Lemma corestep_not_halted0 m c m' c' : corestep0 c m c' m' -> halted c = None.
 Proof.
 move=> []newCore []H1 H2; rewrite/halted.
 case Hcx: (~~ inContext _)=>//; case Hht: (halted0 _)=>//.
-by move: Hht; rewrite/halted0; apply corestep_not_halted in H1; rewrite /= H1.
+by move: Hht; rewrite/halted0; apply corestep_not_halted in H1; rewrite H1.
 Qed.
 
 Lemma corestep_not_at_external ge m c m' c' : 
@@ -492,11 +493,11 @@ case Heq: (Coresem.after_external _ _)=>//.
 inversion 1; subst.
 case Hat: (at_external0 _)=>//[[[ef sig] args]].
 move: Hat; rewrite/at_external0=>/= H2.
-by apply after_at_external_excl in Heq; rewrite Heq in H2. 
+by apply after_at_external_excl in Heq; move: Heq H2=> /= ->.
 Qed.
 
-Definition coresem : CoreSemantics ge_ty (linker N my_cores) Csem.M :=
-  Build_CoreSemantics ge_ty (linker N my_cores) Csem.M 
+Definition coresem : CoreSemantics ge_ty (linker N my_cores) Mem.mem :=
+  Build_CoreSemantics ge_ty (linker N my_cores) Mem.mem 
     initial_core
     at_external
     after_external
@@ -511,7 +512,7 @@ End linkerSem. End LinkerSem.
 
 End CoreLinker.
 
-Module Linker := CoreLinker EffectsemCore. Import Linker.
+Module Linker := CoreLinker EffectsemInstance. Import Linker.
 Module Sem    := Linker.LinkerSem.
 
 (* Specialize to effect semantics *)
@@ -537,7 +538,7 @@ Definition effstep0 U (l: linker N my_cores) m (l': linker N my_cores) m' :=
 
 Lemma effstep0_unchanged U l m l' m' : 
   effstep0 U l m l' m' ->
-  Memory.Mem.unchanged_on (fun b ofs => U b ofs = false) m m'.
+  Mem.unchanged_on (fun b ofs => U b ofs = false) m m'.
 Proof. 
 rewrite/effstep0; case=> ? [STEP].
 by move: {STEP}(effax1 _ _ _ _ _ _ _ STEP)=> [STEP]UNCH H2.
@@ -574,7 +575,7 @@ Section csem.
 Notation mycsem := (Sem.coresem N my_cores my_fun_tbl).
 
 Program Definition csem 
-  : CoreSemantics ge_ty (linker N my_cores) Memory.Mem.mem := 
+  : CoreSemantics ge_ty (linker N my_cores) Mem.mem := 
   Build_CoreSemantics _ _ _
     (initial_core mycsem)
     (at_external mycsem)

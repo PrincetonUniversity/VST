@@ -94,6 +94,7 @@ LINKING_FILES= \
   disjointness.v \
   rc_semantics.v \
   linking.v \
+  compcert_linking.v \
   linking_lemmas.v \
   linking_proof.v
 
