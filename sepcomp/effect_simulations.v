@@ -1441,6 +1441,16 @@ Proof. intros. rewrite restrict_sm_all.
   eapply restrict_preserves_globals; assumption.
 Qed.
 
+Lemma restrict_sm_preserves_globals' F V (ge:Genv.t F V) mu X :
+  Events.meminj_preserves_globals ge (extern_of mu) -> 
+  (forall b, isGlobalBlock ge b = true -> X b = true) ->
+  Events.meminj_preserves_globals ge (extern_of (restrict_sm mu X)).
+Proof. 
+intros. 
+rewrite restrict_sm_extern.
+eapply restrict_preserves_globals; assumption.
+Qed.
+
 Definition mkinitial_SM (mu: SM_Injection) frgnS frgnT :=
   match mu with 
   Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern =>

@@ -623,7 +623,8 @@ Record R (data : Lex.t types) (mu : SM_Injection)
     (* invariant *)
   ; R_inv : 
     exists (pf : c.(Core.i)=d.(Core.i)) mu_trash mu_top mus, 
-    [/\ mu = join_all (frame_mu0 mu_trash) $ map frame_mu0 (mu_top :: mus)
+    let mu_tot := join_all (frame_mu0 mu_trash) $ map frame_mu0 (mu_top :: mus) in
+    [/\ mu = restrict_sm mu_tot (vis mu_tot) 
       , REACH_closed m1 (vis mu)
       , Events.meminj_preserves_globals my_ge $ extern_of mu_trash
       , (forall b, isGlobalBlock my_ge b -> frgnBlocksSrc mu_trash b)
@@ -664,7 +665,8 @@ Qed.
 
 Lemma R_match :
   exists (pf0 : (c pf).(Core.i)=(d pf).(Core.i)) mu_trash mu_top mus, 
-  [/\ mu = join_all (frame_mu0 mu_trash) $ map frame_mu0 (mu_top :: mus)
+  let mu_tot := join_all (frame_mu0 mu_trash) $ map frame_mu0 (mu_top :: mus) in
+  [/\ mu = restrict_sm mu_tot (vis mu_tot) 
     , REACH_closed m1 (vis mu)
     , Events.meminj_preserves_globals my_ge $ extern_of mu_trash
     , (forall b, isGlobalBlock my_ge b -> frgnBlocksSrc mu_trash b)
@@ -731,7 +733,7 @@ Proof.
 move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B _ _ _ _ C D E []F G []H I.
 have J: All2 (rel_inv_pred \o (fun f : frame_pkg => f)) $ mu_top :: mus.
   by split=> //; rewrite -All2_aux_comp2.
-rewrite B; apply: join_all_wd. 
+rewrite B; apply: restrict_sm_WD=> //; apply: join_all_wd. 
 by move: (R_AllDisjointS C J)=> /=; rewrite map_comp.
 by move: (R_AllDisjointT D J)=> /=; rewrite map_comp.
 by move: (R_AllConsistent E J)=> /=; rewrite map_comp.
@@ -739,12 +741,23 @@ Qed.
 
 Arguments genvs_domain_eq_match_genvs {_ _ _ _ _ _} _.
 
+Lemma R_isGlob b : isGlobalBlock my_ge b -> frgnBlocksSrc mu b.
+Proof.
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B _ _ ? _ X Y Z []W V []U M.
+rewrite B restrict_sm_frgnBlocksSrc; apply: join_all_isGlob=> //; split.
+move=> b0; rewrite (genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i (c pf)))).
+by case: (match_genv W)=> _ H4; apply/(H4 _).
+by move: (frame_all_globs M); rewrite map_comp.
+Qed.
+
 Lemma R_pres_globs : Events.meminj_preserves_globals my_ge (extern_of mu).
 Proof. 
 move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B _ ? _ _ X Y Z []W V []U M.
 have J: All2 (rel_inv_pred \o (fun f : frame_pkg => f)) $ mu_top :: mus.
   by split=> //; rewrite -All2_aux_comp2.
-rewrite B; apply: join_all_preserves_globals=> //.
+rewrite B.
+apply: restrict_sm_preserves_globals'=> //.
+apply: join_all_preserves_globals=> //.
 by move: (R_AllDisjointS X J)=> /=; rewrite map_comp.
 by move: (R_AllDisjointT Y J)=> /=; rewrite map_comp.
 by move: (R_AllConsistent Z J)=> /=; rewrite map_comp.
@@ -753,23 +766,16 @@ case: (match_genv W); rewrite -meminj_preserves_genv2blocks.
 rewrite -(genvs_domain_eq_match_genvs (my_ge_S (Core.i (c pf)))).
 by rewrite meminj_preserves_genv2blocks.
 by apply: (tail_inv_preserves_globals (conj U M)).
-Qed.
-
-Lemma R_isGlob b : isGlobalBlock my_ge b -> frgnBlocksSrc mu b.
-Proof.
-move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B _ _ ? _ X Y Z []W V []U M.
-rewrite B.
-apply: join_all_isGlob=> //; split.
-move=> b0; rewrite (genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i (c pf)))).
-by case: (match_genv W)=> _ H4; apply/(H4 _).
-by move: (frame_all_globs M); rewrite map_comp.
+move=> b; move/R_isGlob; rewrite B restrict_sm_frgnBlocksSrc. 
+by apply: frgnBlocksSrc_vis.
 Qed.
 
 Lemma R_match_genv :
   Events.meminj_preserves_globals my_ge (extern_of mu) /\
   forall b : block, isGlobalBlock my_ge b -> frgnBlocksSrc mu b.
 Proof. 
-split; first by apply: R_pres_globs. by apply: R_isGlob. 
+split; first by apply: R_pres_globs. 
+by apply: R_isGlob. 
 Qed.
 
 Lemma R_match_visible : REACH_closed m1 (vis mu).
@@ -782,12 +788,22 @@ Lemma R_match_restrict (X : block -> bool)
   (reach : REACH_closed m1 X) :
   R data (@restrict_sm_wd  _ (Inj.mk R_wd) _ vis reach) x1 m1 x2 m2.
 Proof.
-Admitted. (*TODO*)
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B _ ? _ _ X0 Y Z []W V []U M.
+simpl.
+rewrite B.
+rewrite restrict_sm_com.
+rewrite restrict_sm_nest.
+by rewrite -B.
+move: vis.
+rewrite B.
+by rewrite vis_restrict_sm.
+Qed.
 
 Lemma R_match_validblocks : sm_valid mu m1 m2.
 Proof. 
 move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B ? ? ? H X Y Z []W V []U M.
-rewrite B; apply: join_all_valid=> //=; split. 
+rewrite B /sm_valid /DOM restrict_sm_DomSrc /RNG restrict_sm_DomTgt.
+apply: join_all_valid=> //=; split. 
 by apply: (match_validblocks _ W).
 by apply: (frame_all_valid M). 
 Qed.

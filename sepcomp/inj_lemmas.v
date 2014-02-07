@@ -18,7 +18,6 @@ Require Import sepcomp.pred_lemmas.
 Require Import sepcomp.seq_lemmas.
 
 (* This file collects lemmas on structured injections.                    *)
-
 (* [Inj.t] is the type of well-defined structured injections. It is       *)
 (* coercible to [SM_Injection] via the coercion [Inj.mu].                 *)
 
@@ -795,4 +794,17 @@ Lemma DisjointLT_restrict mu1 mu2 X Y :
   DisjointLT (restrict_sm mu1 X) (restrict_sm mu2 Y).
 Proof. by case: mu1; case: mu2. Qed.
 
+Lemma vis_join_sm mu1 mu2 :
+  vis (join_sm mu1 mu2) 
+  = [predU [predU (locBlocksSrc mu1) & locBlocksSrc mu2]
+         & [predI (frgnBlocksSrc mu1) & frgnBlocksSrc mu2]].
+Proof. 
+by rewrite/vis/join_sm/=; extensionality b=> /=; rewrite/predU. 
+Qed.
+
+Lemma locBlocksSrc_vis mu : {subset (locBlocksSrc mu) <= vis mu}.
+Proof. by rewrite/vis=> b; rewrite/in_mem/= => A; apply/orP; left. Qed.
+
+Lemma frgnBlocksSrc_vis mu : {subset (frgnBlocksSrc mu) <= vis mu}.
+Proof. by rewrite/vis=> b; rewrite/in_mem/= => A; apply/orP; right. Qed.
 
