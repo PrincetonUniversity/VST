@@ -14,7 +14,7 @@ end.
 
 Fixpoint assumptionsD types functions meta_env var_env assumptions (g : Prop):=
 match assumptions with 
-| cons h t => force_Opt (@Expr.exprD types functions meta_env var_env h tvProp) True -> assumptionsD types functions meta_env var_env t g
+| cons h t => force_Opt (@Expr.exprD types functions meta_env var_env h tvProp) False -> assumptionsD types functions meta_env var_env t g
 | nil => g
 end.
 
@@ -25,7 +25,7 @@ let (l,r) := der in
 @Sep.sexprD types functions preds meta_env var_env r. 
 
 
-Fixpoint goalD types functions preds meta_env var_env (goal : goal types) :=
+Definition goalD types functions preds meta_env var_env (goal : goal types) :=
 let (assumptions, derives) := goal in
 match assumptions with 
 | nil => derivesD types functions preds meta_env var_env derives

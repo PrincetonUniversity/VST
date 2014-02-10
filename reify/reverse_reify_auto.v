@@ -9,8 +9,49 @@ Require Import reify_derives.
 Require Import MirrorShard.ReifySepExpr.
 Require Import MirrorShard.ReifyExpr.
 Require Import reverse_defs.
+Require Import mirror_cancel.
+Require Import Provers.
 Local Open Scope logic.
 
+
+Goal  emp |-- emp.
+Proof.
+pose_env.
+reify_derives.
+mirror_cancel_default.
+simpl.
+split; auto; apply derives_refl.
+Qed.
+
+Definition P (n : nat) := emp.
+
+Goal forall a,  a |-- a.
+Proof.
+intros.
+pose_env.
+reify_derives.
+mirror_cancel_default.
+simpl.
+split; auto; apply derives_refl.
+Qed.
+
+Goal forall a b, a * b |-- b * a.
+intros.
+pose_env.
+reify_derives.
+mirror_cancel_default.
+simpl.
+split; auto; apply derives_refl.
+Qed.
+
+Goal forall (a b: nat), a = b -> P a |-- P b.
+Proof.
+intros.
+pose_env.
+reify_derives.
+mirror_cancel_default.
+simpl.
+Admitted.
 
 Goal forall n contents,
 `(map Vint contents) = n.
@@ -43,9 +84,9 @@ intros.
 go_lower0.
 pose_env.
 reify_derives.
+mirror_cancel_default.
+simpl. unfold Basics.impl.
 Admitted.
-
-Definition P (n:nat) := emp.
 
 Lemma try_ex :
   emp |-- EX x : nat, P x.
@@ -75,5 +116,6 @@ Proof.
 intros.
 go_lower0.
 pose_env.
+reify_derives.
 (*reify_derives.*)
 Admitted.
