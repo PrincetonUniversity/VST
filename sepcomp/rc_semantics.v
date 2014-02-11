@@ -162,4 +162,10 @@ Qed.
 Definition effsem : @Effsem.t (Genv.t F V) state := 
   Effsem.Build_t _ _ coopsem effstep my_effax1 my_effax2 my_effstep_valid.
 
+Definition reach_set (ge : Genv.t F V) (c : state) (m : Mem.mem) :=
+  REACH m (fun b => isGlobalBlock ge b
+                 || getBlocks (args c) b
+                 || getBlocks (rets c) b
+                 || locs c b).
+
 End rc. End RC.

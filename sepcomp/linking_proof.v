@@ -140,7 +140,6 @@ split=> b G; first by apply: (E _ (B _ G)).
 by apply: (F _ (C _ G)).
 Qed.
 
-(* NOTE TO SELF:                                                          *)
 (* Initial core asserts that we match w/ SM_injection                     *)
 (*   initial_SM DomS DomT                                                 *)
 (*     (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))     *)
@@ -160,6 +159,15 @@ Qed.
 (* imply that effects are also a subset of the visible region for each    *)
 (* core.                                                                  *)
 
+Section vis_inv.
+
+Import Core.
+
+Record vis_inv (c : t cores_S) mu m : Type :=
+  { vis_sup : {subset (RC.reach_set my_ge c m) <= vis mu} }.
+
+End vis_inv.
+
 Record frame_inv 
   cd0 mu0 m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2 : Prop :=
   { (* local definitions *)
@@ -177,6 +185,7 @@ Record frame_inv
   ; frame_at2   : at_external (cores_T c.(i)).(coreSem) (cast pf (RC.core d.(Core.c))) 
                     = Some (e2, ef_sig2, vals2) 
   ; frame_vinj  : Forall2 (val_inject (as_inj mu0)) vals1 vals2  
+  ; frame_vis   : vis_inv c mu0 m10
 
     (* invariants relating m10,m20 to active memories m1,m2*)
   ; frame_fwd1  : mem_forward m10 m1
@@ -215,7 +224,8 @@ Variable  (pf : c.(i)=d.(i)).
 Record head_inv cd mu mus m1 m2 : Type :=
   { head_match : (sims c.(i)).(match_state) cd mu 
                  (RC.core c.(Core.c)) m1 (cast pf (RC.core d.(Core.c))) m2 
-  ; head_rel   : All2_aux rel_inv_pred mu mus }.
+  ; head_rel   : All2_aux rel_inv_pred mu mus 
+  ; head_vis   : vis_inv c mu m1 }.
 
 End head_inv.
 
@@ -348,7 +358,7 @@ Proof.
 move: s1 s2; elim: mus=> // mu0 mus' IH s1 s2.
 case: mu0=> ? ? ? ?; move/tail_inv_inv=> []c []? []d []? []-> ->.
 move=> []? []? []? []? []? []? []? []? [] ? ? ? ? ?. 
-move/match_genv=> [] /= X ? ? ? ? ? ? ? ? TL; split.
+move/match_genv=> [] /= X ? ? ? ? ? ? ? ? ? TL; split.
 rewrite -meminj_preserves_genv2blocks; move: X.
 rewrite (genvs_domain_eq_match_genvs (my_ge_S (Core.i c))).
 by rewrite meminj_preserves_genv2blocks.
