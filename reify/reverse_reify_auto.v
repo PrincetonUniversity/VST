@@ -10,6 +10,7 @@ Require Import MirrorShard.ReifySepExpr.
 Require Import MirrorShard.ReifyExpr.
 Require Import reverse_defs.
 Require Import mirror_cancel.
+Require Import Prover.
 Require Import Provers.
 Local Open Scope logic.
 

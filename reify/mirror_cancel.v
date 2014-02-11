@@ -7,8 +7,10 @@ Require Import FMapInterface.
 Require Import SimpleInstantiation.
 Require Import MirrorShard.ExprUnifySynGenRec.
 Require Import wrapExpr.
-Require Import Provers.
+Require Import Prover.
+Require Import MirrorShard.provers.ReflexivityProver.
 Require Import reify_derives.
+Require Import symmetry_prover.
 
 Module SH := SepHeap.Make VericSepLogic Sep.
 Module SL := SepLemma VericSepLogic Sep.
@@ -98,9 +100,26 @@ apply H1.
 auto.
 Qed.
 
+
+
 Ltac mirror_cancel boundf boundb prover prover_proof leftr rightr:=
 eapply (ApplyCancelSep_with_eq_goal boundf boundb _ _ _ _ _ prover leftr rightr); auto; try solve[ constructor]; try apply prover_proof.
 
+Section typed.
+  Variable ts : list type.
+  
+  Definition vst_prover : ProverT ts :=
+    composite_ProverT (@reflexivityProver ts) (symmetryProver ts).
+
+  Variable fs : functions ts.
+
+  Definition trivialProver_correct : ProverT_correct vst_prover fs.
+  Proof.
+    eapply composite_ProverT_correct; 
+      auto using reflexivityProver_correct, symmetryProver_correct.
+  Qed.
+End typed.
+
 Ltac mirror_cancel_default :=
 let types := get_types in 
-eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (Provers.trivialProver types) nil nil); auto; try solve[ constructor]; try apply trivialProver_correct.
+eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types) nil nil); auto; try solve[ constructor]; try apply trivialProver_correct.
