@@ -858,6 +858,9 @@ case: STEP.
                 (join_all mu_trash $ mu_top' :: map frame_mu0 mus)
                 (vis (join_all mu_trash $ mu_top' :: map frame_mu0 mus)).
  exists st2', m2', data', mu'; split=> //.
+
+
+
  admit.
  split.
  admit.

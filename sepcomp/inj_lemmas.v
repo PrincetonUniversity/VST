@@ -575,6 +575,10 @@ Fixpoint join_all (mu0 : Inj.t) (mus : seq Inj.t) : SM_Injection :=
   if mus is [:: mu & mus] then join_sm mu (join_all mu0 mus)
   else mu0.
 
+Lemma join_all_cons mu0 mu mus : 
+  join_all mu0 (mu :: mus) = join_sm mu (join_all mu0 mus).
+Proof. by []. Qed.
+
 Lemma join_all_disjoint_src mu0 (mu : Inj.t) mus :
   All2_aux 
     (fun mu mu' => Disjoint (locBlocksSrc mu) (locBlocksSrc mu'))  
@@ -1015,5 +1019,23 @@ have C: forall b b' ofs,
 by apply: intern_incr_restrict.
 Qed.
 
-
-
+Lemma join_all_restrict_incr mu_trash (mu mu' : Inj.t) (mus : seq Inj.t) m1 m2 : 
+  All (fun mu2 => disjoint (local_of mu') (local_of (Inj.mu mu2))) mus -> 
+  (AllDisjoint locBlocksSrc \o map Inj.mu) (mu_trash :: mus) -> 
+  (AllDisjoint locBlocksTgt \o map Inj.mu) (mu_trash :: mus) -> 
+  (AllConsistent \o map Inj.mu) (mu_trash :: mus) -> 
+  All (fun mu2 => sm_valid (Inj.mu mu2) m1 m2) mus -> 
+  intern_incr mu mu' -> 
+  sm_inject_separated mu mu' m1 m2 -> 
+  sm_valid (Inj.mu mu_trash) m1 m2 -> 
+  let mu_tot  := join_all mu_trash (mu :: mus) in
+  let mu_tot' := join_all mu_trash (mu' :: mus) in
+  intern_incr (restrict_sm mu_tot (vis mu_tot)) (restrict_sm mu_tot' (vis mu_tot')).
+Proof.
+move=> A disj_S disj_T consist B C D E top top'; rewrite/top/top' 2!join_all_cons.
+have G: SM_wd (join_all mu_trash mus) by apply: join_all_wd.
+have H: sm_valid (Inj.mk G) m1 m2 by apply: join_all_valid.
+have I: disjoint (local_of mu') (local_of (Inj.mk G)). 
+  admit.
+by apply: (join_sm_restrict_incr I C D H).
+Qed.
