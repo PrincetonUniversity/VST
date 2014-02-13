@@ -86,10 +86,11 @@ Variable N : pos.
 Variable (cores_S cores_T : 'I_N -> Static.t). 
 Variable fun_tbl : ident -> option 'I_N.
 Variable entry_points : seq (val*val*signature).
-Variable (sims : forall i : 'I_N, 
+Variable sims : forall i : 'I_N, 
   let s := cores_S i in
   let t := cores_T i in
-  SM_simulation_inject s.(coreSem) t.(coreSem) s.(ge) t.(ge) entry_points).
+  SM_simulation_inject s.(coreSem) t.(coreSem) s.(ge) t.(ge) entry_points.
+Variable dets_S : forall i : 'I_N, effstep_fun (cores_S i).(coreSem).
 Variable my_ge : ge_ty.
 Variable my_ge_S : forall (i : 'I_N), genvs_domain_eq my_ge (cores_S i).(ge).
 Variable my_ge_T : forall (i : 'I_N), genvs_domain_eq my_ge (cores_T i).(ge).
@@ -528,6 +529,28 @@ move=> ? ? ? ? ? ? ? ? ? []A B; split=> //.
 by eapply frame_all_step; eauto.
 Qed.
 
+Lemma head_inv_step 
+    c d (pf : Core.i c=Core.i d) 
+    c' d' (pf' : Core.i c'=Core.i d') cd cd' 
+    mus (mu mu' : frame_pkg) z m1 m2 m1' m2' :
+  mem_forward m1 m1' -> 
+  mem_forward m2 m2' ->   
+  sm_inject_separated mu mu' m1 m2  -> 
+  sm_valid mu m1 m2 -> 
+  intern_incr mu mu' -> 
+   match_state (sims (Core.i c')) cd' mu' (RC.core (Core.c c')) m1'
+     (cast pf' (RC.core (Core.c d'))) m2' ->
+  head_inv pf cd mu mus z m1 m2 -> 
+  head_inv pf' cd' mu' mus z m1' m2'.
+Proof.
+move=> fwd1 fwd2 sep val incr MATCH []MATCH' all1 visinv safe.
+apply: Build_head_inv=> //.
+admit. (*easy*)
+apply: Build_vis_inv.
+admit.
+admit. (*easy*)
+Qed.
+
 Section R.
 
 Import CallStack.
@@ -775,13 +798,32 @@ case: STEP.
  (* Case: corestep0 *)
  + move=> STEP. 
  set c1 := peekCore st1.
- have [c1' [STEP0 ST1']]: 
+ have [c1' [STEP0 [U1'_EQ ST1']]]: 
          exists c' : C (cores_S (Core.i c1)), 
          Coresem.corestep 
             (t := Effectsem.instance (coreSem (cores_S (Core.i c1)))) 
             (ge (cores_S (Core.i c1))) (RC.core (Core.c c1)) m1 c' m1' 
+         /\ (forall b ofs, U1 b ofs -> 
+             RC.reach_set (ge (cores_S (Core.i c1))) (Core.c c1) m1 b)
          /\ st1' = updCore st1 (Core.updC c1 c').
-  { by move: STEP; rewrite/LinkerSem.corestep0=> [][]c' []B C; exists c'; split. }
+  { move: (STEP_EFFSTEP STEP)=> EFFSTEP.
+    move: STEP; rewrite/LinkerSem.corestep0=> [][]c' []B C. 
+    exists c'; split=> //; split=> //.
+    case: (R_inv INV)=> pf []pkg []mu_top []mus []z.   
+    move=> []? ? ? ? ? ? ? ? []_ _ _; move/(_ (S O))=> /=. 
+    rewrite/RC.at_external/RC.halted.
+    rewrite (corestep_not_at_external _ _ _ _ _ _ B).
+    rewrite (corestep_not_halted _ _ _ _ _ _ B).
+    move=> []c1'' []m1'' [][]U1' []EFFSTEP' []SUB []eq1 []eq2 eq3 _ _.
+    cut (U1=U1'); first by move=> ->.
+    move: EFFSTEP EFFSTEP'. rewrite/effstep0.
+    move=> []c1' [] EFFSTEP _.
+    generalize dependent INV; move=> INV.
+    have ->: c INV = peekCore st1.
+      generalize dependent INV.
+      rewrite/c/peekCore. case. simpl. rewrite/s1/pf1. intros. f_equal.
+    intros.
+    by case: (dets_S EFFSTEP EFFSTEP'). }
 
  have EFFSTEP: 
         effect_semantics.effstep (coreSem (cores_S (Core.i c1))) 
@@ -792,29 +834,63 @@ case: STEP.
  (* specialize core diagram at module (Core.i c1) *)
  move: (effcore_diagram _ _ _ _ _ (sims (Core.i c1))).  
  move/(_ _ _ _ _ _ EFFSTEP).
+ case: (R_inv INV)=> pf []mu_trash []mupkg []mus []z []mu_eq.
+ move=> rclosed presglobs globfrgn smval all1 all2 all3 hdinv tlinv.
 
-(*HERE: must introduce per-core effect tracking in lieue of U1_DEF*)
- move/(_ _ _ _ _ U1_DEF).
- move: (peek_match INV)=> []cd []mu_top MATCH.
- rewrite/c1.
- move/(_ _ _ _ MATCH).
- move=> []c2' []m2' []cd' []mu'.
+ have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b.
+   admit.
+
+ move: (head_match hdinv)=> MATCH.
+ move/(_ _ _ _ _ U1_DEF' MATCH).
+ move=> []c2' []m2' []cd' []mu_top0.
  move=> []INCR []SEP []LOCALLOC []MATCH' []U2 []STEP' PERM.
 
+ have mu_top'_wd: SM_wd mu_top0. admit.
+ set mu_top'   := Inj.mk mu_top'_wd.
+ have mu_top'_valid: sm_valid mu_top' m1' m2'.
+   { by apply: (match_validblocks _ MATCH'). }
+
  (* instantiate existentials *)
- set c2''  := cast' (peek_ieq INV) c2'.
- set st2'  := updCore st2 (Core.upd (peekCore st2) c2'').
- set data' := Lex.set (Core.i c1) cd' data.
- exists st2', m2', data', mu'; do 4 split=> //.
+ set c2''    := cast' (peek_ieq INV) c2'.
+ set st2'    := updCore st2 (Core.updC (peekCore st2) c2'').
+ set data'   := Lex.set (Core.i c1) cd' data.
+ set mu'     := restrict_sm 
+                (join_all mu_trash $ mu_top' :: map frame_mu0 mus)
+                (vis (join_all mu_trash $ mu_top' :: map frame_mu0 mus)).
+ exists st2', m2', data', mu'; split=> //.
+ admit.
+ split.
+ admit.
+ split.
+ admit.
+ split.
 
  (* re-establish invariant *)
- apply: Build_R; rewrite ST1'; rewrite /st2' /=.
+ apply: Build_R; rewrite ST1'; rewrite /st2'.
+
+ set mupkg' := Build_frame_pkg mu_top'_valid.
+ exists pf,mu_trash,mupkg',mus,z.
+ split=> //.
+
+ admit. (*tricky*)
+ admit. (*easy*)
+ admit. (*easy*)
+ admit. (*easy*)
+ admit. (*easy*)
 
  (* head_inv *)
- + exists (peek_ieq INV); apply: Build_head_inv. 
-   have ->: cast (peek_ieq INV) (cast' (peek_ieq INV) c2') = c2' 
-     by apply: cast_cast_eq.
-   by rewrite Lex.gss; apply: MATCH'. 
+ + eapply head_inv_step; eauto.
+   by apply: (corestep_fwd STEP0).
+   case: STEP'=> A; first by apply: (effstep_plus_fwd _ _ _ _ _ _ _ A). 
+   by case: A=> A _; apply: (effstep_star_fwd _ _ _ _ _ _ _ A).
+   by apply: (match_validblocks _ MATCH).
+   move: MATCH'; rewrite/data' Lex.gss /c2''. 
+   have ->: peek_ieq INV = pf by apply: proof_irr.
+   have ->: cast pf (RC.core (RC.updC (cast' pf c2') (Core.c (peekCore st2)))) 
+            = c2'.
+     rewrite/RC.updC; case: (Core.c _)=> ? ? ? ? /=.
+     by rewrite (@cast_cast_eq _ (fun i => C (cores_T i)) _ _ pf c2').
+   by rewrite/RC.core/RC.updC/=; case: (Core.c c1).
 
  (* tail_inv *)
  + move: (R_tail INV); rewrite/s1/s2/st2'; generalize dependent st1.

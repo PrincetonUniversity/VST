@@ -808,3 +808,150 @@ Proof. by rewrite/vis=> b; rewrite/in_mem/= => A; apply/orP; left. Qed.
 Lemma frgnBlocksSrc_vis mu : {subset (frgnBlocksSrc mu) <= vis mu}.
 Proof. by rewrite/vis=> b; rewrite/in_mem/= => A; apply/orP; right. Qed.
 
+Lemma join_sm_incr mu1 mu1' mu2 mu2' : 
+  disjoint (local_of mu1') (local_of mu2') -> 
+  intern_incr mu1 mu1' -> 
+  intern_incr mu2 mu2' -> 
+  intern_incr (join_sm mu1 mu2) (join_sm mu1' mu2').
+Proof.
+rewrite/intern_incr/join_sm/= => disj. 
+move=> []incr1 []<- []A []B []? []? []<- []<- []<- <-.
+move=> []incr2 []<- []C []D []? []? []<- []<- []<- <-. 
+split=> //. 
+apply: inject_incr_join=> //.
+split=> //.
+split=> //. 
+move=> b; move/orP; case=> H.
+by rewrite/in_mem/= (A _ H).
+by rewrite/in_mem/= (C _ H); apply/orP; right.
+split=> //. 
+move=> b; move/orP; case=> H.
+by rewrite/in_mem/= (B _ H).
+by rewrite/in_mem/= (D _ H); apply/orP; right.
+Qed.
+
+Lemma join_all_incr (mu_trash mu mu' : Inj.t) (mus : seq Inj.t) : 
+  disjoint (local_of mu') (local_of (join_all mu_trash mus)) ->
+  intern_incr mu mu' -> 
+  intern_incr (join_all mu_trash (mu :: mus)) 
+              (join_all mu_trash (mu':: mus)).
+Proof. by move=> /= A B; apply: join_sm_incr. Qed.
+
+(* Why is this lemma not in ZArith?!? *)
+
+Lemma Zeq_bool_refl x : Zeq_bool x x.
+Proof. by case: (Zeq_is_eq_bool x x)=> A _; apply: A. Qed.
+
+Lemma join2_restrict j k X :
+  join2 (restrict j X) (restrict k X) = restrict (join2 j k) X.
+Proof.
+extensionality b.
+case A: (join2 _ _ b)=> [[b' ofs]|].
+move: A; move/join2P=> []. 
+move/restrictD_Some=> []A B; move/restrictD_Some=> []C _.
+by rewrite/join2/restrict B A C Pos.eqb_refl Zeq_bool_refl.
+move: A; rewrite/join2.
+case A: (restrict j X b)=> [[b' ofs]|].
+case B: (restrict k X b)=> [[b'' ofs']|].
+case C: (Pos.eqb b' b'') A B.
+case D: (Zeq_bool ofs ofs')=> //=.
+by rewrite/restrict; case E: (X b)=> //; move=> -> ->; rewrite C D.
+by rewrite/restrict; case E: (X b)=> //; move=> -> ->; rewrite C.
+move: A; move/restrictD_Some=> []C D; rewrite/restrict D C.
+move: B; move/restrictD_None; case: (k b)=> // [[b'' ofs']]. 
+by move/(_ b'' ofs' erefl); move: D=> ->.
+rewrite/restrict; case B: (j b)=> // [[b' ofs]|].
+by move: A; move/restrictD_None; move/(_ b' ofs B)=> ->.
+by case: (X b).
+Qed.
+
+Lemma join_sm_restrict mu1 mu2 X :
+  restrict_sm (join_sm mu1 mu2) X 
+  = join_sm (restrict_sm mu1 X) (restrict_sm mu2 X).
+Proof.
+rewrite/join_sm/=; f_equal.
+by rewrite !restrict_sm_locBlocksSrc.
+by rewrite !restrict_sm_locBlocksTgt.
+by rewrite -!join_restrict !restrict_sm_local.
+by rewrite !restrict_sm_extBlocksSrc.
+by rewrite !restrict_sm_extBlocksTgt.
+by rewrite !restrict_sm_frgnBlocksSrc.
+by rewrite !restrict_sm_frgnBlocksTgt.
+by rewrite -!join2_restrict !restrict_sm_extern.
+Qed.
+
+Lemma disjoint_restrict j k X : 
+  disjoint j k -> 
+  disjoint (restrict j X) (restrict k X).
+Proof. by rewrite/disjoint/restrict=> A b; case: (X b)=> //; left. Qed.
+
+Lemma restrict_incr' j j' X X' :
+  {subset X <= X'} -> 
+  Values.inject_incr j j' -> 
+  Values.inject_incr (restrict j X) (restrict j' X').
+Proof.
+move=> A; rewrite/Values.inject_incr=> B b b' ofs.
+move/restrictD_Some=> []C; move/A; rewrite/in_mem/= => D.
+by rewrite/restrict D; apply: (B _ _ _ C).
+Qed.
+
+Lemma restrict_disj j X X' :
+  {subset X <= X'} -> 
+  (forall b b' ofs, j b = Some (b',ofs) -> ~~ [predD X' & X] b) -> 
+  restrict j X = restrict j X'.
+Proof.
+move=> A B; rewrite/restrict; extensionality b.
+case C: (X b); first by move: (A b C); rewrite/in_mem/= => ->.
+case D: (X' b)=> //.
+case E: (j b)=> // [[b' ofs]].
+move: (B _ _ _ E).
+rewrite notin_predD; move/orP; case.
+by rewrite/in_mem/= D.
+by rewrite/in_mem/= C.
+Qed.
+
+Lemma intern_incr_restrict mu mu' X X' :
+  intern_incr mu mu' -> 
+  {subset X <= X'} -> 
+  (forall b b' ofs, extern_of mu' b = Some (b',ofs) -> ~~ [predD X' & X] b) -> 
+  intern_incr (restrict_sm mu X) (restrict_sm mu' X').
+Proof.
+case=> A []B []C []D []E []F []G []H []I J K; split=> //.
+by rewrite 2!restrict_sm_local; apply: restrict_incr'.
+split; first by rewrite 2!restrict_sm_extern; rewrite B; apply: restrict_disj.
+split; first by rewrite 2!restrict_sm_locBlocksSrc; apply: C.
+split; first by rewrite 2!restrict_sm_locBlocksTgt; apply: D.
+split; first by rewrite 2!restrict_sm_pubBlocksSrc E.
+split; first by rewrite 2!restrict_sm_pubBlocksTgt F.
+split; first by rewrite 2!restrict_sm_frgnBlocksSrc G.
+split; first by rewrite 2!restrict_sm_frgnBlocksTgt H.
+split; first by rewrite 2!restrict_sm_extBlocksSrc I.
+by rewrite 2!restrict_sm_extBlocksTgt J.
+Qed.
+
+Lemma join_sm_restrict_incr mu1 (mu1' mu2 : Inj.t) :
+  disjoint (local_of mu1') (local_of mu2) -> 
+  intern_incr mu1 mu1' -> 
+  let mu12  := join_sm mu1 mu2 in
+  let mu12' := join_sm mu1' mu2 in
+  intern_incr (restrict_sm mu12 (vis mu12)) (restrict_sm mu12' (vis mu12')).
+Proof.
+move=> A B mu12 mu12'; rewrite 2!join_sm_restrict.
+apply: join_sm_incr=> //. 
+by rewrite 2!restrict_sm_local; apply: (disjoint_restrict _ A).
+have C: forall b b' ofs, 
+  extern_of mu1' b = Some (b',ofs) -> ~~[predD (vis mu12') & (vis mu12)] b.
+  { move=> b b' ofs; rewrite/mu12'/= => C; apply/negP; move/andP=> []E F. 
+    cut (locBlocksSrc mu1' b). 
+    by move/(locBlocksSrc_externNone _ (Inj_wd _)); rewrite C.
+    move: E F; rewrite/mu12/vis/in_mem/=; move/negP; rewrite/in_mem/=.
+    case: B=> _ []_ []_ []_ []_ []_ []<- []_ []_ _.
+    case: (locBlocksSrc mu1 b)=> //; case: (locBlocksSrc mu2 b)=> //.
+    by case: (locBlocksSrc mu1' b). }
+apply: (intern_incr_restrict B)=> //.
+admit.
+admit.
+Qed.
+
+
+

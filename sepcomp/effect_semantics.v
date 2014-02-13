@@ -59,6 +59,12 @@ Instance effsem_instance (G C : Type) (sem : @EffectSem G C) : @Effsem.t G C :=
     (effax2 sem)
     (effstep_valid sem).
 
+Definition effstep_fun {G C : Type} (sem : @EffectSem G C) :=
+  forall (m m' m'' : mem) ge c c' c'' U U',
+  effstep sem ge U c m c' m' -> 
+  effstep sem ge U' c m c'' m'' -> 
+  U=U' /\ c'=c'' /\ m'=m''.
+
 Section effsemlemmas.
   Context {G C:Type} (Sem: @EffectSem G C) (g:G).
 

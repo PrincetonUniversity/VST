@@ -230,6 +230,13 @@ Lemma in_predD (p q : pred T) b :
   b \in [predD p & q] = [&& b \in p & b \notin q].
 Proof. by rewrite/in_mem/=/in_mem/= andb_comm. Qed.
 
+Lemma notin_predD (p q : pred T) b : 
+  b \notin [predD p & q] = [|| b \notin p | b \in q].
+Proof. 
+rewrite/in_mem/=; rewrite/in_mem/=.
+by case: (p b)=> //; case: (q b)=> //.
+Qed.
+
 Lemma DisjointIn1 (p q : pred T) : 
   [predD p & q]=[pred x | p x] -> Disjoint p q.
 Proof.

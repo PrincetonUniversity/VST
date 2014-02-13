@@ -81,14 +81,15 @@ Arguments halted /.
 Definition newBlocks (m m' : mem) := 
   fun b => (Pos.leb (Mem.nextblock m) b && Pos.ltb b (Mem.nextblock m')).
 
+Definition reach_set (ge : Genv.t F V) (c : state) (m : Mem.mem) :=
+  REACH m (fun b => isGlobalBlock ge b
+                 || getBlocks (args c) b
+                 || getBlocks (rets c) b
+                 || locs c b).
+
 Definition effstep ge U c m c' m' :=
   effstep sem ge U (core c) m (core c') m' 
-  /\ (forall b ofs, 
-      U b ofs=true -> 
-      REACH m (fun b => 
-        isGlobalBlock ge b
-        || getBlocks (args c++rets c) b 
-        || locs c b) b=true)
+  /\ (forall b ofs, U b ofs=true -> reach_set ge c m b=true)
   /\ args c'=args c
   /\ rets c'=rets c
   /\ locs c' = fun b => locs c b || newBlocks m m' b.
@@ -161,11 +162,5 @@ Qed.
 
 Definition effsem : @Effsem.t (Genv.t F V) state := 
   Effsem.Build_t _ _ coopsem effstep my_effax1 my_effax2 my_effstep_valid.
-
-Definition reach_set (ge : Genv.t F V) (c : state) (m : Mem.mem) :=
-  REACH m (fun b => isGlobalBlock ge b
-                 || getBlocks (args c) b
-                 || getBlocks (rets c) b
-                 || locs c b).
 
 End rc. End RC.
