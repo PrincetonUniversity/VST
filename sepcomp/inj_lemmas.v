@@ -580,9 +580,8 @@ Lemma join_all_cons mu0 mu mus :
 Proof. by []. Qed.
 
 Lemma join_all_disjoint_src mu0 (mu : Inj.t) mus :
-  All2_aux 
-    (fun mu mu' => Disjoint (locBlocksSrc mu) (locBlocksSrc mu'))  
-    mu0 (map Inj.mu (mu :: mus)) -> 
+  All (fun mu' => Disjoint (locBlocksSrc mu0) (locBlocksSrc mu')) 
+    (map Inj.mu (mu :: mus)) -> 
   Disjoint (locBlocksSrc mu0) (locBlocksSrc (join_all mu mus)).
 Proof.
 elim: mus=> //=; first by move=> [].
@@ -590,9 +589,8 @@ by move=> mu' mus' IH []A []B C; move: (IH (conj A C))=> D; apply: DisjointInU.
 Qed.
 
 Lemma join_all_disjoint_tgt mu0 (mu : Inj.t) mus :
-  All2_aux 
-    (fun mu mu' => Disjoint (locBlocksTgt mu) (locBlocksTgt mu'))  
-    mu0 (map Inj.mu (mu :: mus)) -> 
+  All (fun mu' => Disjoint (locBlocksTgt mu0) (locBlocksTgt mu'))  
+    (map Inj.mu (mu :: mus)) -> 
   Disjoint (locBlocksTgt mu0) (locBlocksTgt (join_all mu mus)).
 Proof.
 elim: mus=> //=; first by move=> [].
@@ -609,9 +607,8 @@ by move/join2P=> []D E; case: (A _ _ _ _ _ C D).
 Qed.
 
 Lemma join_all_consistent mu0 (mu : Inj.t) mus :
-  All2_aux 
-    (fun mu mu' => consistent (extern_of mu) (extern_of mu'))  
-    mu0 (map Inj.mu (mu :: mus)) -> 
+  All (fun mu' => consistent (extern_of mu0) (extern_of mu'))  
+    (map Inj.mu (mu :: mus)) -> 
   consistent (extern_of mu0) (extern_of (join_all mu mus)).
 Proof.
 elim: mus=> //=; first by move=> [].
@@ -797,6 +794,42 @@ Lemma DisjointLT_restrict mu1 mu2 X Y :
   DisjointLT mu1 mu2 -> 
   DisjointLT (restrict_sm mu1 X) (restrict_sm mu2 Y).
 Proof. by case: mu1; case: mu2. Qed.
+
+Lemma DisjointLS_E1 mu1 mu2 b : 
+  DisjointLS mu1 mu2 -> 
+  locBlocksSrc mu1 b -> 
+  locBlocksSrc mu2 b=false.
+Proof.
+move/DisjointP; move/(_ b); case; first by contradiction.
+by case: (locBlocksSrc mu2 b).
+Qed.
+
+Lemma DisjointLS_E2 mu1 mu2 b : 
+  DisjointLS mu1 mu2 -> 
+  locBlocksSrc mu2 b -> 
+  locBlocksSrc mu1 b=false.
+Proof.
+move/DisjointP; move/(_ b); case; first by case: (locBlocksSrc mu1 b).
+by contradiction.
+Qed.
+
+Lemma DisjointLT_E1 mu1 mu2 b : 
+  DisjointLT mu1 mu2 -> 
+  locBlocksTgt mu1 b -> 
+  locBlocksTgt mu2 b=false.
+Proof.
+move/DisjointP; move/(_ b); case; first by contradiction.
+by case: (locBlocksTgt mu2 b).
+Qed.
+
+Lemma DisjointLT_E2 mu1 mu2 b : 
+  DisjointLT mu1 mu2 -> 
+  locBlocksTgt mu2 b -> 
+  locBlocksTgt mu1 b=false.
+Proof.
+move/DisjointP; move/(_ b); case; first by case: (locBlocksTgt mu1 b).
+by contradiction.
+Qed.
 
 Lemma vis_join_sm mu1 mu2 :
   vis (join_sm mu1 mu2) 
@@ -1019,11 +1052,39 @@ have C: forall b b' ofs,
 by apply: intern_incr_restrict.
 Qed.
 
-Lemma join_all_restrict_incr mu_trash (mu mu' : Inj.t) (mus : seq Inj.t) m1 m2 : 
-  All (fun mu2 => disjoint (local_of mu') (local_of (Inj.mu mu2))) mus -> 
-  (AllDisjoint locBlocksSrc \o map Inj.mu) (mu_trash :: mus) -> 
-  (AllDisjoint locBlocksTgt \o map Inj.mu) (mu_trash :: mus) -> 
-  (AllConsistent \o map Inj.mu) (mu_trash :: mus) -> 
+Lemma All_disjoint (mu_trash : Inj.t) (mu : Inj.t) mus : 
+  disjoint (local_of mu) (local_of mu_trash) -> 
+  All (fun mu2 : Inj.t => disjoint (local_of mu) (local_of mu2)) mus -> 
+  disjoint (local_of mu) (local_of (join_all mu_trash mus)).
+Proof.
+elim: mus=> // mu0 mus' IH A /= []B C.
+rewrite disjoint_com; apply: join_disjoint; first by rewrite disjoint_com.
+by rewrite disjoint_com; apply: IH.
+Qed.
+
+Lemma DisjointLS_disjoint (mu mu' : Inj.t) : 
+  DisjointLS mu mu' -> disjoint (local_of mu) (local_of mu').
+Proof.
+move=> A b.
+case B: (local_of mu b)=> [[? ?]|].
+case: (local_DomRng _ (Inj_wd _) _ _ _ B)=> C _.
+case E: (local_of mu' b)=> [[? ?]|].
+case: (local_DomRng _ (Inj_wd _) _ _ _ E)=> D _.
+by move: D; move: (DisjointLS_E1 A C)=> ->.
+by right.
+by left.
+Qed.
+
+Lemma join_all_restrict_incr (mu_trash mu mu' : Inj.t) (mus : seq Inj.t) m1 m2 : 
+  All (fun mu2 : Inj.t => disjoint (local_of mu') (local_of mu2)) mus -> 
+  All (DisjointLS mu_trash) $ map Inj.mu mus -> 
+  All (DisjointLT mu_trash) $ map Inj.mu mus -> 
+  All (fun mu2 => consistent (extern_of mu_trash) (extern_of mu2)) 
+      $ map Inj.mu mus -> 
+  disjoint (local_of mu') (local_of mu_trash) -> 
+  AllDisjoint locBlocksSrc \o map Inj.mu $ mus -> 
+  AllDisjoint locBlocksTgt \o map Inj.mu $ mus -> 
+  AllConsistent \o map Inj.mu $ mus -> 
   All (fun mu2 => sm_valid (Inj.mu mu2) m1 m2) mus -> 
   intern_incr mu mu' -> 
   sm_inject_separated mu mu' m1 m2 -> 
@@ -1032,10 +1093,11 @@ Lemma join_all_restrict_incr mu_trash (mu mu' : Inj.t) (mus : seq Inj.t) m1 m2 :
   let mu_tot' := join_all mu_trash (mu' :: mus) in
   intern_incr (restrict_sm mu_tot (vis mu_tot)) (restrict_sm mu_tot' (vis mu_tot')).
 Proof.
-move=> A disj_S disj_T consist B C D E top top'; rewrite/top/top' 2!join_all_cons.
+move=> A disj_S disj_T consist disj_trash allS allT allC B C D E top top'. 
+rewrite/top/top' 2!join_all_cons.
 have G: SM_wd (join_all mu_trash mus) by apply: join_all_wd.
 have H: sm_valid (Inj.mk G) m1 m2 by apply: join_all_valid.
-have I: disjoint (local_of mu') (local_of (Inj.mk G)). 
-  admit.
+have I: disjoint (local_of mu') (local_of (Inj.mk G)).
+  by apply: All_disjoint.
 by apply: (join_sm_restrict_incr I C D H).
 Qed.

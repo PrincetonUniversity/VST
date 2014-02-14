@@ -234,7 +234,7 @@ Variable  (pf : c.(i)=d.(i)).
 Record head_inv cd mu mus z m1 m2 : Type :=
   { head_match : (sims c.(i)).(match_state) cd mu 
                  (RC.core c.(Core.c)) m1 (cast pf (RC.core d.(Core.c))) m2 
-  ; head_rel   : All2_aux rel_inv_pred mu mus 
+  ; head_rel   : All (rel_inv_pred mu) mus 
   ; head_vis   : vis_inv c mu m1 
   ; head_safe  : forall n, 
                  safeN (RC.effsem (cores_S c.(i)).(coreSem)) 
@@ -267,7 +267,7 @@ Definition tail_inv mus (z : tZ) s1 s2 m1 m2 :=
   [/\ All2 (rel_inv_pred \o frame_mu0) mus & frame_all mus z m1 m2 s1 s2].
 
 Lemma all_wrt_callers_switch T P (a b : T) (l : seq T) :
-  All2_aux P b l -> All2 P (a :: l) -> All2 P (b :: l).
+  All (P b) l -> All2 P (a :: l) -> All2 P (b :: l).
 Proof. by elim: l a b=> // a' l' IH a b /= []A B [][]C D []E F. Qed.
 
 Definition restrict_sm_wd m1
@@ -432,8 +432,8 @@ Lemma wrt_callers_step
   sm_inject_separated mu mu' m1 m2  -> 
   sm_valid mu m1 m2 -> 
   frame_all mus z m1 m2 s1 s2 -> 
-  All2_aux rel_inv_pred mu mus -> 
-  All2_aux rel_inv_pred mu' mus.
+  All (rel_inv_pred mu) mus -> 
+  All (rel_inv_pred mu') mus.
 Proof.
 elim: mus mu mu' s1 s2=> // pkg mus' IH mu mu' s1' s2'.
 move=> H1 H2 H3 H4 A B C D E F /= []G H.
@@ -464,7 +464,7 @@ Lemma frame_all_step
   mem_forward m2 m2' ->   
   sm_inject_separated mu mu' m1 m2  -> 
   sm_valid mu m1 m2 ->
-  All2_aux rel_inv_pred mu mus -> 
+  All (rel_inv_pred mu) mus -> 
   frame_all mus z m1 m2 s1 s2 -> 
   frame_all mus z m1' m2' s1 s2.
 Proof.
@@ -521,7 +521,7 @@ Lemma tail_inv_step
   mem_forward m2 m2' ->   
   sm_inject_separated mu mu' m1 m2  -> 
   sm_valid mu m1 m2 -> 
-  All2_aux rel_inv_pred mu mus -> 
+  All (rel_inv_pred mu) mus -> 
   tail_inv mus z s1 s2 m1 m2 -> 
   tail_inv mus z s1 s2 m1' m2'.
 Proof.
@@ -576,11 +576,11 @@ Record R (data : Lex.t types) (mu : SM_Injection)
       , Events.meminj_preserves_globals my_ge $ extern_of mu_trash
       , (forall b, isGlobalBlock my_ge b -> frgnBlocksSrc mu_trash b)
       , sm_valid mu_trash m1 m2
-      , All2_aux DisjointLS mu_trash 
+      , All (DisjointLS mu_trash)
         $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
-      , All2_aux DisjointLT mu_trash 
+      , All (DisjointLT mu_trash)
         $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
-      , All2_aux Consistent mu_trash 
+      , All (Consistent mu_trash)
         $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
       , @head_inv c d pf (Lex.get c.(Core.i) data) mu_top mus z m1 m2 
       & tail_inv mus z (pop s1) (pop s2) m1 m2] }.
@@ -619,9 +619,9 @@ Lemma R_match :
     , Events.meminj_preserves_globals my_ge $ extern_of mu_trash
     , (forall b, isGlobalBlock my_ge b -> frgnBlocksSrc mu_trash b)
     , sm_valid mu_trash m1 m2
-    , All2_aux DisjointLS mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
-    , All2_aux DisjointLT mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
-    , All2_aux Consistent mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
+    , All (DisjointLS mu_trash) $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
+    , All (DisjointLT mu_trash) $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
+    , All (Consistent mu_trash) $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
     , @head_inv (c pf) (d pf) pf0 (Lex.get (c pf).(Core.i) data) mu_top mus z m1 m2 
     & tail_inv mus z (STACK.pop x1.(stack)) (STACK.pop x2.(stack)) m1 m2].
 Proof.
@@ -639,7 +639,7 @@ by move/head_match=> C D; exists pf0, mu_top.
 Qed.
 
 Lemma R_AllDisjointS (mu_trash mu_top : frame_pkg) (mus : seq frame_pkg) :
-  All2_aux DisjointLS mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus -> 
+  All (DisjointLS mu_trash) $ map (Inj.mu \o frame_mu0) $ mu_top :: mus -> 
   All2 (rel_inv_pred \o frame_mu0) (mu_top :: mus) -> 
   (AllDisjoint locBlocksSrc \o map (Inj.mu \o frame_mu0)) 
   $ mu_trash :: mu_top :: mus.
@@ -652,7 +652,7 @@ by move: (All2_sub B PC); split=> //; rewrite -All2_comp3.
 Qed.
 
 Lemma R_AllDisjointT (mu_trash mu_top : frame_pkg) (mus : seq frame_pkg) :
-  All2_aux DisjointLT mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus -> 
+  All (DisjointLT mu_trash) $ map (Inj.mu \o frame_mu0) $ mu_top :: mus -> 
   All2 (rel_inv_pred \o frame_mu0) (mu_top :: mus) -> 
   (AllDisjoint locBlocksTgt \o map (Inj.mu \o frame_mu0)) 
   $ mu_trash :: mu_top :: mus.
@@ -664,7 +664,7 @@ by move: (All2_sub B PC); split=> //; rewrite -All2_comp3.
 Qed.
 
 Lemma R_AllConsistent (mu_trash mu_top : frame_pkg) (mus : seq frame_pkg) :
-  All2_aux Consistent mu_trash $ map (Inj.mu \o frame_mu0) $ mu_top :: mus -> 
+  All (Consistent mu_trash) $ map (Inj.mu \o frame_mu0) $ mu_top :: mus -> 
   All2 (rel_inv_pred \o frame_mu0) (mu_top :: mus) -> 
   (AllConsistent \o map (Inj.mu \o frame_mu0)) 
   $ mu_trash :: mu_top :: mus.
@@ -849,6 +849,7 @@ case: STEP.
  set mu_top'   := Inj.mk mu_top'_wd.
  have mu_top'_valid: sm_valid mu_top' m1' m2'.
    { by apply: (match_validblocks _ MATCH'). }
+ set mupkg' := Build_frame_pkg mu_top'_valid.
 
  (* instantiate existentials *)
  set c2''    := cast' (peek_ieq INV) c2'.
@@ -859,8 +860,17 @@ case: STEP.
                 (vis (join_all mu_trash $ mu_top' :: map frame_mu0 mus)).
  exists st2', m2', data', mu'; split=> //.
 
-
-
+ rewrite mu_eq.
+ apply join_all_restrict_incr with (m1 := m1) (m2 := m2)=> //.
+ admit.
+ admit.
+ admit.
+ admit.
+ admit.
+ admit.
+ move: (head_rel hdinv). *)
+ 
+ admit.
  admit.
  split.
  admit.
@@ -871,7 +881,6 @@ case: STEP.
  (* re-establish invariant *)
  apply: Build_R; rewrite ST1'; rewrite /st2'.
 
- set mupkg' := Build_frame_pkg mu_top'_valid.
  exists pf,mu_trash,mupkg',mus,z.
  split=> //.
 
@@ -881,16 +890,14 @@ case: STEP.
  admit. (*easy*)
  admit. (*easy*)
 
- (* head_inv *)
  + eapply head_inv_step; eauto.
    by apply: (corestep_fwd STEP0).
    case: STEP'=> A; first by apply: (effstep_plus_fwd _ _ _ _ _ _ _ A). 
    by case: A=> A _; apply: (effstep_star_fwd _ _ _ _ _ _ _ A).
    by apply: (match_validblocks _ MATCH).
-   move: MATCH'; rewrite/data' Lex.gss /c2''. 
+   move: MATCH'; rewrite/data' Lex.gss /c2''.
    have ->: peek_ieq INV = pf by apply: proof_irr.
-   have ->: cast pf (RC.core (RC.updC (cast' pf c2') (Core.c (peekCore st2)))) 
-            = c2'.
+   have ->: cast pf (RC.core (Core.c (d INV))) = c2'.
      rewrite/RC.updC; case: (Core.c _)=> ? ? ? ? /=.
      by rewrite (@cast_cast_eq _ (fun i => C (cores_T i)) _ _ pf c2').
    by rewrite/RC.core/RC.updC/=; case: (Core.c c1).
