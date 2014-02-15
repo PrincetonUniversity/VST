@@ -153,7 +153,7 @@ Qed.
 (*                                                                        *)
 (* I.e., we establish initially that                                      *)
 (*                                                                        *)
-(*   (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))       *)
+(*   fun b => isGlobalBlock ge1 b || getBlocks vals1 b                    *)
 (*                                                                        *)
 (* is a subset of the visible set for the injection of the initialized    *)
 (* core.  TODO: We need to record this fact (really, a slight             *)
@@ -168,8 +168,8 @@ Section vis_inv.
 
 Import Core.
 
-Record vis_inv (c : t cores_S) mu m : Type :=
-  { vis_sup : {subset (RC.reach_set my_ge c m) <= vis mu} }.
+Record vis_inv (c : t cores_S) mu : Type :=
+  { vis_sup : {subset (RC.reach_basis my_ge c) <= vis mu} }.
 
 End vis_inv.
 
@@ -192,7 +192,7 @@ Record frame_inv
   ; frame_vinj  : Forall2 (val_inject (as_inj mu0)) vals1 vals2  
 
     (* source state invariants *)
-  ; frame_vis   : vis_inv c mu0 m10
+  ; frame_vis   : vis_inv c mu0
   ; frame_safe  : forall n, 
                   safeN (RC.effsem (cores_S c.(i)).(coreSem)) 
                   espec_S (cores_S c.(i)).(ge) n z c m10 
@@ -325,7 +325,7 @@ Record head_inv cd mu mus z m1 m2 : Type :=
   { head_match : (sims c.(i)).(match_state) cd mu 
                  (RC.core c.(Core.c)) m1 (cast pf (RC.core d.(Core.c))) m2 
   ; head_rel   : All (rel_inv_pred mu) mus 
-  ; head_vis   : vis_inv c mu m1 
+  ; head_vis   : vis_inv c mu 
   ; head_safe  : forall n, 
                  safeN (RC.effsem (cores_S c.(i)).(coreSem)) 
                  espec_S (cores_S c.(i)).(ge) n z c m1 }.
@@ -432,6 +432,33 @@ case: s1=> // c s1'; case: s2=> // d s2' /=.
 move=> [][]pf => [][]cd []ef1 []sig1 []vals1 []ef2 []sig2 []vals2 A B.
 exists c, s1', d, s2'; split=> //.
 by exists pf, cd; case: A.
+Qed.
+
+Lemma frame_all_fwd1 pkg mus z m1 m2 s1 s2 :
+  frame_all (pkg :: mus) z m1 m2 s1 s2 -> 
+  mem_forward pkg.(frame_m10) m1.
+Proof.
+case: pkg=> ? ? ? ?.
+move/frame_all_inv=> []? []? []? []? []? ? []? []? []? []? []? []? []? []? [].
+by case.
+Qed.
+
+Lemma frame_all_fwd2 pkg mus z m1 m2 s1 s2 :
+  frame_all (pkg :: mus) z m1 m2 s1 s2 -> 
+  mem_forward pkg.(frame_m20) m2.
+Proof.
+case: pkg=> ? ? ? ?.
+move/frame_all_inv=> []? []? []? []? []? ? []? []? []? []? []? []? []? []? [].
+by case.
+Qed.
+
+Lemma frame_all_tail pkg mus z m1 m2 s1 s2 :
+  frame_all (pkg :: mus) z m1 m2 s1 s2 -> 
+  frame_all mus z m1 m2 (STACK.pop s1) (STACK.pop s2).
+Proof.
+case: pkg=> ? ? ? ?.
+move/frame_all_inv=> []? []? []? []? []-> ->. 
+by move=> []? []? []? []? []? []? []? []? [] _.
 Qed.
 
 Section frame_all_lems.
@@ -555,32 +582,36 @@ Definition restrict_sm_wd m1
   (rc_pf  : REACH_closed m1 X) : Inj.t :=
   Inj.mk (restrict_sm_WD _ (Inj_wd mu) X vis_pf).
 
-Lemma rel_inv_pred_step 
-  pkg (mu : Inj.t) m1 m2
-  (Esrc Etgt : Values.block -> BinNums.Z -> bool) 
-  (mu' : Inj.t) m1' m2' :
-  (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
-  Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
-  Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
-  (forall (b0 : block) (ofs : Z),
+Section step_lems.
+
+Context
+(mu : Inj.t) m1 m2
+(Esrc Etgt : Values.block -> BinNums.Z -> bool) 
+(mu' : Inj.t) m1' m2'
+(unch1 : Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1')
+(unch2 : Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2')
+(fwd1 : mem_forward m1 m1')
+(fwd2 : mem_forward m2 m2')
+(val : forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) 
+(effs : 
+   (forall (b0 : block) (ofs : Z),
    Etgt b0 ofs = true ->
    Mem.valid_block m2 b0 /\
    (locBlocksTgt mu b0 = false ->
     exists (b1 : block) (delta1 : Z),
       foreign_of mu b1 = Some (b0, delta1) /\
       Esrc b1 (ofs - delta1) = true /\
-      Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) -> 
-  intern_incr mu mu' -> 
-  mem_forward pkg.(frame_m10) m1 -> 
-  mem_forward pkg.(frame_m20) m2 -> 
-  mem_forward m1 m1' -> 
-  mem_forward m2 m2' ->   
-  sm_inject_separated mu mu' m1 m2  -> 
-  sm_valid mu m1 m2 -> 
-  rel_inv_pred mu pkg -> 
-  rel_inv_pred mu' pkg.
+      Mem.perm m1 b1 (ofs - delta1) Max Nonempty)))
+(valid : sm_valid mu m1 m2)
+(incr : intern_incr mu mu')
+(sep : sm_inject_separated mu mu' m1 m2).
+
+Lemma rel_inv_pred_step pkg 
+  (fwd10 : mem_forward pkg.(frame_m10) m1)
+  (fwd20 : mem_forward pkg.(frame_m20) m2) :
+  rel_inv_pred mu pkg -> rel_inv_pred mu' pkg.
 Proof.
-move=> H1 H2 H3 H4 incr fwd10 fwd20 fwd1 fwd2 sep val []incr' sep' disj.
+move=> []incr' sep' disj.
 split; first by apply: (incr_trans incr' (intern_incr_incr incr)).
 have incr'': inject_incr (as_inj mu) (as_inj mu').
   apply: intern_incr_as_inj=> /=; first by apply: incr.
@@ -589,146 +620,100 @@ by apply: (sm_sep_step (frame_val pkg) sep' sep fwd10 fwd20 incr'').
 by apply: (disjinv_intern_step disj incr fwd10 fwd20 sep' sep (frame_val pkg)).
 Qed.
 
-Lemma wrt_callers_step 
-  mus (mu mu' : frame_pkg) z m1' m2' s1 s2 m1 m2 
-  (Esrc Etgt : Values.block -> BinNums.Z -> bool) :
-  (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
-  Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
-  Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
-  (forall (b0 : block) (ofs : Z),
-   Etgt b0 ofs = true ->
-   Mem.valid_block m2 b0 /\
-   (locBlocksTgt mu b0 = false ->
-    exists (b1 : block) (delta1 : Z),
-      foreign_of mu b1 = Some (b0, delta1) /\
-      Esrc b1 (ofs - delta1) = true /\
-      Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) -> 
-  intern_incr mu mu' -> 
-  mem_forward m1 m1' -> 
-  mem_forward m2 m2' ->   
-  sm_inject_separated mu mu' m1 m2  -> 
-  sm_valid mu m1 m2 -> 
+Lemma all_relinv_step mus z s1 s2 :
   frame_all mus z m1 m2 s1 s2 -> 
   All (rel_inv_pred mu) mus -> 
   All (rel_inv_pred mu') mus.
 Proof.
-elim: mus mu mu' s1 s2=> // pkg mus' IH mu mu' s1' s2'.
-move=> H1 H2 H3 H4 A B C D E F /= []G H.
-move: F G; case: s1'=> //; first by case: s2'; case: pkg.
-move=> a s1'; case: s2'; first by case: pkg.
-move=> b s2'; case: pkg=> ? ? ? ? /= [].
-move=> []eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2.
-case=> ? ? ? ? ? frmatch ? ? ? fwd1 fwd2 ? ? ? ?; split.
-by eapply rel_inv_pred_step; eauto.
-by eapply IH; eauto.
+elim: mus s1 s2=> // pkg mus' IH s1 s2 A /= => [][] B C.
+move: (rel_inv_pred_step (frame_all_fwd1 A) (frame_all_fwd2 A) B)=> D.
+by split=> //; last by apply: (IH _ _ (frame_all_tail A) C).
 Qed.
 
-Lemma frame_all_step 
-  mus (mu mu' : frame_pkg) z m1' m2' s1 s2 m1 m2 
-  (Esrc Etgt : Values.block -> BinNums.Z -> bool) :
-  (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
-  Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
-  Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
-  (forall (b0 : block) (ofs : Z),
-   Etgt b0 ofs = true ->
-   Mem.valid_block m2 b0 /\
-   (locBlocksTgt mu b0 = false ->
-    exists (b1 : block) (delta1 : Z),
-      foreign_of mu b1 = Some (b0, delta1) /\
-      Esrc b1 (ofs - delta1) = true /\
-      Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) -> 
-  mem_forward m1 m1' -> 
-  mem_forward m2 m2' ->   
-  sm_inject_separated mu mu' m1 m2  -> 
-  sm_valid mu m1 m2 ->
+Lemma frame_all_step mus z s1 s2 :
   All (rel_inv_pred mu) mus -> 
   frame_all mus z m1 m2 s1 s2 -> 
   frame_all mus z m1' m2' s1 s2.
 Proof.
-elim: mus mu mu' s1 s2=> // pkg mus' IH mu mu' s1' s2'.
-move=> H1 H2 H3 (*H4*) A B C D E.
-case: s1'=> // a s1'; case: s2'=> // b s2'; case: pkg=> mu0 m10 m20 val. 
-move=> /= []F G [][]eq_ab []cd0 []e1 []sig1 []vals1 []e2 []sig2 []vals2.
-case=> ? ? ? ? val' frmatch ? ? ? visinv safe fwd1 fwd2 ? ? ?; split.
-exists eq_ab, cd0, e1, sig1, vals1, e2, sig2, vals2.
+elim: mus s1 s2=> // pkg mus' IH s1' s2' E.
+simpl in E; case: E=> E F.
+case: pkg E=> mu0 m10 m20 val' E.
 
-apply: Build_frame_inv=> //; first by apply: (mem_forward_trans _ _ _ fwd1 B).
-by apply: (mem_forward_trans _ _ _ fwd2 C).
+move/frame_all_inv.
+move=> []c []s1'' []d []s2'' []-> ->.
+move=> []pf []cd []e1 []sig1 []vals1 []e2 []sig2 []vals2.
+move=> []inv all /=.
+
+split.
+exists pf,cd,e1,sig1,vals1,e2,sig2,vals2.
+
+case: inv=> ? ? ? ? val'' frmatch ? ? ? visinv safe fwd1' fwd2' ? ?. 
+apply: Build_frame_inv=> //.
+
+by apply: (mem_forward_trans _ _ _ fwd1' fwd1). 
+by apply: (mem_forward_trans _ _ _ fwd2' fwd2). 
 
 apply: (mem_lemmas.unchanged_on_trans m10 m1 m1')=> //.
 set pubSrc' := [predI locBlocksSrc mu0 & REACH m10 (exportedSrc mu0 vals1)].
 set pubTgt' := [predI locBlocksTgt mu0 & REACH m20 (exportedTgt mu0 vals2)].
 set mu0'    := replace_locals mu0 pubSrc' pubTgt'.
 have wd: SM_wd mu0' by apply: replace_reach_wd.
-have J: disjinv mu0' mu by case: F=> /= ? ? ?; apply: disjinv_call.
+have J: disjinv mu0' mu by case: E=> /= ? ? ?; apply: disjinv_call.
 apply: (@disjinv_unchanged_on_src (Inj.mk wd) mu Esrc)=> //.
-move: (sm_valid_smvalid_src _ _ _ val)=> val''.
+move: (sm_valid_smvalid_src _ _ _ val')=> ?.
 apply: smvalid_src_replace_locals=> //=.
-by apply: (smvalid_src_fwd fwd1).
+by apply: (smvalid_src_fwd fwd1').
 
 apply: (mem_lemmas.unchanged_on_trans m20 m2 m2')=> //.
 set pubSrc' := [predI locBlocksSrc mu0 & REACH m10 (exportedSrc mu0 vals1)].
 set pubTgt' := [predI locBlocksTgt mu0 & REACH m20 (exportedTgt mu0 vals2)].
 set mu0'    := replace_locals mu0 pubSrc' pubTgt'.
-have J: disjinv mu0' mu by case: F=> /= ? ? ?; apply: disjinv_call.
+have J: disjinv mu0' mu by case: E=> /= ? ? ?; apply: disjinv_call.
 have wd: SM_wd mu0' by apply: replace_reach_wd.
 apply: (@disjinv_unchanged_on_tgt (Inj.mk wd) mu Esrc Etgt 
-  m10 m1 m2 m2' fwd1)=> //.
-move=> b'; case: val'; move/(_ b')=> I _ Q; apply: I.
+  m10 m1 m2 m2' fwd1')=> //.
+move=> b'; case: val''; move/(_ b')=> I _ Q; apply: I.
 by rewrite replace_locals_DOM in Q.
 
 by eapply IH; eauto.
 Qed.
 
-Lemma tail_inv_step 
-  (Esrc Etgt : Values.block -> BinNums.Z -> bool) 
-  mus (mu mu' : frame_pkg) z m1' m2' s1 s2 m1 m2 :
-  (forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) -> 
-  Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1' -> 
-  Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2' -> 
-  (forall (b0 : block) (ofs : Z),
-   Etgt b0 ofs = true ->
-   Mem.valid_block m2 b0 /\
-   (locBlocksTgt mu b0 = false ->
-    exists (b1 : block) (delta1 : Z),
-      foreign_of mu b1 = Some (b0, delta1) /\
-      Esrc b1 (ofs - delta1) = true /\
-      Mem.perm m1 b1 (ofs - delta1) Max Nonempty)) -> 
-  mem_forward m1 m1' -> 
-  mem_forward m2 m2' ->   
-  sm_inject_separated mu mu' m1 m2  -> 
-  sm_valid mu m1 m2 -> 
+Lemma tail_inv_step mus z s1 s2 :
   All (rel_inv_pred mu) mus -> 
   tail_inv mus z s1 s2 m1 m2 -> 
   tail_inv mus z s1 s2 m1' m2'.
-Proof.
-move=> ? ? ? ? ? ? ? ? ? []A B; split=> //.
-by eapply frame_all_step; eauto.
+Proof. 
+by move=> A []B C; split=> //; last by apply: frame_all_step. 
 Qed.
 
 Lemma head_inv_step 
     c d (pf : Core.i c=Core.i d) 
-    c' d' (pf' : Core.i c'=Core.i d') cd cd' 
-    mus (mu mu' : frame_pkg) z m1 m2 m1' m2' :
-  mem_forward m1 m1' -> 
-  mem_forward m2 m2' ->   
-  sm_inject_separated mu mu' m1 m2  -> 
-  sm_valid mu m1 m2 -> 
-  intern_incr mu mu' -> 
+    c' d' (pf' : Core.i c'=Core.i d') cd cd' mus z s1 s2 :
+  frame_all mus z m1 m2 s1 s2 -> 
   match_state (sims (Core.i c')) cd' mu' (RC.core (Core.c c')) m1'
     (cast pf' (RC.core (Core.c d'))) m2' ->
   head_inv pf cd mu mus z m1 m2 -> 
   head_inv pf' cd' mu' mus z m1' m2'.
 Proof.
-move=> fwd1 fwd2 sep val incr MATCH []MATCH' all1 visinv safe.
+move=> frameall MATCH A.
 apply: Build_head_inv=> //.
-elim: mus all1=> // mu0 mus' IH /= []A B; split=> //.
-admit. (*easy*)
-by apply: IH.
+apply: (all_relinv_step frameall).
+by apply: (head_rel A).
+case: A.
+move=> ? ?.
+case.
+move=> A.
+move=> _.
 apply: Build_vis_inv.
+move=> b H.
+move: (A b).
+move=> B.
+(*HERE*)
 admit.
-admit. (*easy*)
+admit.
 Qed.
+
+End step_lems.
 
 Section R.
 
@@ -1004,7 +989,7 @@ case: STEP.
  admit.
  admit.
  admit.
- move: (head_rel hdinv). *)
+ move: (head_rel hdinv). 
  
  admit.
  admit.
