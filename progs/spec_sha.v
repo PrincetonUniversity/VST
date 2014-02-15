@@ -1,8 +1,72 @@
 Require Import floyd.proofauto.
 Require Import progs.sha.
 Require Import progs.SHA256.
-Require Import progs.sha_lemmas.
 Local Open Scope logic.
+
+Definition swap (i: int) : int :=
+ Int.or (Int.shl (Int.and i (Int.repr 255)) (Int.repr 24))
+   (Int.or (Int.shl (Int.and (Rt 8 i) (Int.repr 255)) (Int.repr 16))
+      (Int.or (Int.shl (Int.and (Rt 16 i) (Int.repr 255)) (Int.repr 8))
+         (Rt 24 i))).
+
+Definition big_endian_integer (contents: Z -> int) : int :=
+  Int.or (Int.shl (contents 3) (Int.repr 24))
+  (Int.or (Int.shl (contents 2) (Int.repr 16))
+   (Int.or (Int.shl (contents 1) (Int.repr 8))
+      (contents 0))).
+
+Definition LBLOCK : nat := 16%nat.   (* length of a block, in 32-bit integers *)
+Definition CBLOCK : nat := (LBLOCK * 4)%nat.  (* length of a block, in characters *)
+
+Global Opaque LBLOCK.  (* so that LBLOCK-i  does not inappropriately simplify *)
+
+Definition s256state := (list val * (val * (val * (list val * val))))%type.
+Definition s256_h (s: s256state) := fst s.
+Definition s256_Nl (s: s256state) := fst (snd s).
+Definition s256_Nh (s: s256state) := fst (snd (snd s)).
+Definition s256_data (s: s256state) := fst (snd (snd (snd s))).
+Definition s256_num (s: s256state) := snd (snd (snd (snd s))).
+Arguments s256_h  !s.
+Arguments s256_Nl  !s.
+Arguments s256_Nh  !s.
+Arguments s256_data  !s.
+Arguments s256_num  !s.
+Arguments fst _ _ !p.
+Arguments snd _ _ !p.
+
+Inductive s256abs :=  (* SHA-256 abstract state *)
+ S256abs: forall (hashed: list int)   (* words hashed, so far *)
+                         (data: list Z)  (* bytes in the partial block not yet hashed *),
+                     s256abs.
+
+Definition s256a_regs (a: s256abs) : list int :=
+ match a with S256abs hashed _  => 
+          process_msg init_registers hashed 
+ end.
+
+Definition s256a_len (a: s256abs) := 
+  match a with S256abs hashed data => Zlength hashed end.
+
+Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
+
+Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
+     match a with S256abs hashed data =>
+         s256_h r = map Vint (process_msg init_registers hashed) 
+       /\ (exists hi, exists lo, s256_Nh r = Vint hi /\ s256_Nl r = Vint lo /\
+             Zlength hashed * 4 + Zlength data = hilo hi lo)%Z
+       /\ (exists dd, data = map Int.unsigned dd /\ s256_data r = map Vint dd)
+       /\ length data < CBLOCK
+       /\ NPeano.divide LBLOCK (length hashed)
+       /\ s256_num r = Vint (Int.repr (Zlength data))
+     end%nat.
+
+Definition init_s256abs : s256abs := S256abs nil nil.
+
+Definition sha_finish (a: s256abs) : list Z :=
+ match a with
+ | S256abs hashed data => 
+     SHA_256 (intlist_to_Zlist (map swap hashed) ++ data)
+ end.
 
 Definition cVint (f: Z -> int) (i: Z) := Vint (f i).
 
@@ -23,6 +87,12 @@ Definition sha256_length (len: Z)  (c: val) : mpred :=
 Definition sha256state_ (a: s256abs) (c: val) : mpred :=
    EX r:s256state, 
     !!  s256_relate a r  &&  data_at Tsh t_struct_SHA256state_st r c.
+
+Definition tuints (vl: list int) := ZnthV tuint (map Vint vl).
+Definition tuchars (vl: list int) :=  ZnthV tuchar (map Vint vl).
+
+Definition data_block (sh: share) (contents: list Z) :=
+  array_at tuchar sh (tuchars (map Int.repr contents)) 0 (Zlength contents).
 
 Definition __builtin_read32_reversed_spec :=
  DECLARE ___builtin_read32_reversed
@@ -115,14 +185,14 @@ Definition SHA256_Init_spec :=
 
 Inductive update_abs: list Z -> s256abs -> s256abs -> Prop :=
  Update_abs:
-   forall msg hashed blocks oldfrag newfrag,
+   (forall msg hashed blocks oldfrag newfrag,
         length oldfrag < CBLOCK ->
         length newfrag < CBLOCK ->
        NPeano.divide LBLOCK (length hashed) ->
        NPeano.divide LBLOCK (length blocks) -> 
        oldfrag++msg = intlist_to_Zlist (map swap blocks) ++ newfrag ->
    update_abs msg (S256abs hashed oldfrag) 
-                              (S256abs (hashed++blocks) newfrag).
+                              (S256abs (hashed++blocks) newfrag))%nat.
 
 Definition BOUND : Z := (Int64.modulus - Int.modulus)%Z.
 Opaque BOUND.
@@ -131,7 +201,7 @@ Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update
    WITH a: s256abs, data: list Z, c : val, d: val, sh: share, len : nat
    PRE [ _c OF tptr t_struct_SHA256state_st, _data_ OF tptr tvoid, _len OF tuint ]
-         PROP (len <= length data; (s256a_len a < BOUND)%Z)
+         PROP ((len <= length data)%nat; (s256a_len a < BOUND)%Z)
          LOCAL (`(eq c) (eval_id _c); `(eq d) (eval_id _data_); 
                                   `(eq (Z.of_nat len)) (`Int.unsigned (`force_int (eval_id _len))))
          SEP(K_vector; `(sha256state_ a c); `(data_block sh data d))

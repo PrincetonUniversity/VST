@@ -414,6 +414,8 @@ apply semax_while.
   transitivity (len - (length blocks*4 - length dd)); [ | clear - H; omega].
   apply Hlen_ge.
   clear - Hlen_ge H H3; omega.
+  clear - Hblocks Hlen_ge.
+  admit.
  simple apply (SHA256_Update_aux Espec sh hashed dd data c d len (process_msg init_registers hashed) lo hi Delta blocks bl); 
    try assumption.
 simplify_Delta; reflexivity.

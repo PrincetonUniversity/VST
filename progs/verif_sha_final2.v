@@ -41,7 +41,8 @@ Definition Body_final_if1 :=
 
 Definition invariant_after_if1 hashed dd c md shmd  hi lo:= 
    (EX hashed':list int, EX dd': list int, EX pad:Z,
-   PROP  (length (map Int.unsigned dd') + 8 <= CBLOCK;
+   PROP  (pad=0%Z \/ dd'=nil;
+              length (map Int.unsigned dd') + 8 <= CBLOCK;
               (0 <= pad < 8)%Z;
               NPeano.divide LBLOCK (length hashed');
               intlist_to_Zlist (map swap hashed') ++ map Int.unsigned dd' =
@@ -84,7 +85,8 @@ Lemma ifbody_final_if1:
   (hi lo : int) (dd : list int)
  (H4: NPeano.divide LBLOCK (length hashed))
  (H7: (Zlength hashed * 4 + Zlength dd = hilo hi lo)%Z)
- (H3: length dd < CBLOCK),
+ (H3: length dd < CBLOCK)
+ (DDbytes: Forall isbyteZ (map Int.unsigned dd)),
   semax Delta_final_if1
   (PROP  ()
    LOCAL 
@@ -212,6 +214,8 @@ rewrite length_zeros.
 simpl.
 change (LBLOCK*4)%nat with CBLOCK.
 Omega1.
+ unfold ddz; clear - DDbytes.
+ admit.
  forward. (* sha256_block_data_order (c,p); *)
  match goal with H : True |- _ => clear H 
             (* WARNING__ is a bit over-eager;
@@ -320,30 +324,6 @@ Definition final_loop :=
                     (Sset _xn
                        (Ebinop Oadd (Etempvar _xn tuint)
                           (Econst_int (Int.repr 1) tint) tuint)))).
-
-Lemma lastblock_lemma:
-  forall (hi lo : int) (pad : Z) (hashed dd hashed' dd' : list int),
-length (map Int.unsigned dd') + 8 <= CBLOCK ->
-(0 <= pad < 8)%Z ->
-NPeano.divide LBLOCK (length hashed') ->
-length dd < CBLOCK ->
-NPeano.divide LBLOCK (length hashed) ->
-intlist_to_Zlist (map swap hashed') ++ map Int.unsigned dd' =
-intlist_to_Zlist (map swap hashed) ++
-map Int.unsigned dd ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
-(Zlength hashed * 4 + Zlength dd)%Z = hilo hi lo ->
-map Int.repr
-  (intlist_to_Zlist
-     (map swap
-        (list_drop (length hashed')
-           (generate_and_pad
-              (intlist_to_Zlist (map swap hashed) ++ map Int.unsigned dd) 0)))) =
-dd' ++
-zeros (Z.of_nat CBLOCK - 8 - Zlength dd') ++
-map Int.repr (intlist_to_Zlist (map swap [hi, lo])).
-Proof.
-intros.
-Admitted.
 
 Lemma final_part4:
  forall (Espec: OracleKind) md c shmd hashedmsg,

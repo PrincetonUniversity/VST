@@ -419,8 +419,8 @@ forward. (*previous = NULL;*)
 forward. (*insert_value = insert_node -> head;*)
 forward. (*index = sorted; *)
 normalize. simpl.
-
-xxx.  (* done up to here, more or less *)
+Abort.  (* done up to here, more or less *)
+(*
 forward_if
  (if isptrb sorted_ptr
   then 
@@ -1091,7 +1091,6 @@ unfold typed_false, logical_and_result in *.
 simpl in H4. destruct (Int.lt sorted_val insert_value); inv H4; auto.
 } 
 Qed.
- 
 
 Lemma sorted_sound : forall xs, sorted xs = true <-> LocallySorted Zle xs.
 intuition.
@@ -1173,3 +1172,4 @@ intros.
 split. apply insertion_sort_sorted.
 apply insertion_sort_permutation.
 Qed.
+*)

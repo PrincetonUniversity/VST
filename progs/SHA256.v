@@ -33,9 +33,9 @@ Proof.
 Defined.
 
 Definition padlen (n: Z) : list Int.int :=
-    let p := Zdiv (n+4) 4 + 2 (* number of words with trailing 128-byte, 
+    let p := n/4+3 (* number of words with trailing 128-byte, 
                                                       up to 3 zero bytes, and 2 length words *)
-    in let q := 16 - (Zmod p 16)   (* number of zero-pad words *)
+    in let q := (p+15)/16*16 - p   (* number of zero-pad words *)
       in zeros q ++ [Int.repr (n * 8 / Int.modulus), Int.repr (n * 8)].
 
 Fixpoint generate_and_pad (n: list Z) len : list Int.int :=
