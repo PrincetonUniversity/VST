@@ -13,29 +13,29 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-(* Reach-closed semantics extend effect semantics w/:                     *)
-(*   1) args: the arguments passed to initial_core at initialization      *)
-(*   2) rets: the list of values returned to the core at inter. points    *)
-(*   3) locs: the set of blocks allocated by this core                    *)
-(*                                                                        *)
-(* We say that the /reachable set/ of a reach-closed configuration        *)
-(*   <(c,args,rets,locs), m>                                              *)
-(* in global env. ge is                                                   *)
-(*   REACH m                                                              *)
-(*     (globalBlocks ge                                                   *)
-(*     \cup blocksOf args                                                 *)
-(*     \cup blocksOf rets                                                 *)
-(*     \cup locs)                                                         *)
-(*                                                                        *)
-(* RC semantics are /reach closed/ in the sense that whenever             *)
-(*   effstep rcsem ge U (c,args,rets,locs) m                              *)
-(*                      (c',args,rets,locs\cup newBlocks m m') m'         *)
-(* then                                                                   *)
-(*   U is a subset of the reachable set of <(c,args,rets,locs),m>.        *)
-(*                                                                        *)
-(* That is, a reach-closed core only writes to blocks that it             *)
-(* allocated or which were revealed to it by interaction at an external   *)
-(* call point.                                                            *)
+(* Reach-closed semantics extend effect semantics w/:                      *)
+(*   1) args: the arguments passed to initial_core at initialization       *)
+(*   2) rets: the list of values returned to the core at inter. points     *)
+(*   3) locs: the set of blocks allocated by this core                     *)
+(*                                                                         *)
+(* We say that the /reachable set/ of a reach-closed configuration         *)
+(*   <(c,args,rets,locs), m>                                               *)
+(* in global env. ge is                                                    *)
+(*   REACH m                                                               *)
+(*     (globalBlocks ge                                                    *)
+(*     \cup blocksOf args                                                  *)
+(*     \cup blocksOf rets                                                  *)
+(*     \cup locs)                                                          *)
+(*                                                                         *)
+(* RC semantics are /reach closed/ in the sense that whenever              *)
+(*   effstep rcsem ge U (c,args,rets,locs) m                               *)
+(*                      (c',args,rets,locs\cup newBlocks m m') m'          *)
+(* then                                                                    *)
+(*   U is a subset of the reachable set of <(c,args,rets,locs),m>.         *)
+(*                                                                         *)
+(* That is, a reach-closed core only writes to blocks that it              *)
+(* allocated or which were revealed to it by interaction at an external    *)
+(* call point.                                                             *)
 
 Module RC. Section rc.
 
@@ -81,11 +81,14 @@ Arguments halted /.
 Definition newBlocks (m m' : mem) := 
   fun b => (Pos.leb (Mem.nextblock m) b && Pos.ltb b (Mem.nextblock m')).
 
-Definition reach_set (ge : Genv.t F V) (c : state) (m : Mem.mem) :=
-  REACH m (fun b => isGlobalBlock ge b
-                 || getBlocks (args c) b
-                 || getBlocks (rets c) b
-                 || locs c b).
+Definition reach_basis (ge : Genv.t F V) (c : state) := 
+  fun b => isGlobalBlock ge b
+        || getBlocks (args c) b
+        || getBlocks (rets c) b
+        || locs c b.
+
+Definition reach_set (ge : Genv.t F V) (c : state) (m : mem) := 
+  REACH m (reach_basis ge c).
 
 Definition effstep ge U c m c' m' :=
   effstep sem ge U (core c) m (core c') m' 
