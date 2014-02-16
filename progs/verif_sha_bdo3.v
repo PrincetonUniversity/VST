@@ -89,6 +89,8 @@ repeat rewrite (Int.add_assoc (Int.add l h)).
 reflexivity.
 Qed.
 
+Local Open Scope nat.
+
 Lemma rearrange_aux2: 
 forall (Espec : OracleKind) (i : nat)(w k : int) ctx
       (a b c d e f g h : int) (eqofs : val -> Prop),
@@ -181,7 +183,7 @@ Lemma rearrange_regs_proof:
    `(eq (Vint (big_endian_integer
              (fun z : Z =>
               force_int
-                (tuchars (map Int.repr (intlist_to_Zlist (map swap bl)))
+                (tuchars (map Int.repr (intlist_to_Zlist bl))
                    (z + Z.of_nat i * 4))))))
        (eval_id _l);
    `(eq (nth_error K i)) (`Some  (`force_int (eval_id _Ki)));
@@ -309,7 +311,7 @@ forall sh b i N,
              (big_endian_integer
                 (fun z : Z =>
                  force_int
-                   (tuchars (map Int.repr (intlist_to_Zlist (map swap b)))
+                   (tuchars (map Int.repr (intlist_to_Zlist b))
                       (z + Z.of_nat i * 4))))))
         0 (Z.of_nat N) =
   array_at tuint sh

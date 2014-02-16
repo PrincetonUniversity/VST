@@ -3,6 +3,7 @@ Require Import progs.sha.
 Require Import progs.SHA256.
 Require Import progs.sha_lemmas.
 Require Import progs.spec_sha.
+Local Open Scope nat.
 Local Open Scope logic.
 
 Lemma example1:  (* from rearrange_regs_proof *)
@@ -40,7 +41,7 @@ LOCAL  (tc_environ Delta'; `(eq ctx) (eval_id _ctx);
        (big_endian_integer
           (fun z : Z =>
            force_int
-             (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist (map swap bl))))
+             (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist bl)))
                 (z + Z.of_nat i * 4)))))) (eval_id _l);
 `(eq (nth_error K i)) (`Some (`force_int (eval_id _Ki)));
 `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);

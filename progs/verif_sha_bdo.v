@@ -67,7 +67,7 @@ Definition load8 id ofs :=
 Lemma sha256_block_load8:
   forall (Espec : OracleKind) 
      (data: val) (r_h: list int) (ctx: val)
-   (H5 : length r_h = 8),
+   (H5 : length r_h = 8%nat),
      semax  
       (initialized _data
          (func_tycontext f_sha256_block_data_order Vprog Gtot))
@@ -211,7 +211,7 @@ name data_ _data.
 unfold sha256state_.
 simpl_stackframe_of. 
 remember (process_msg init_registers hashed) as regs eqn:Hregs.
-assert (Lregs: length regs = 8) 
+assert (Lregs: length regs = 8%nat) 
   by (subst regs; apply length_process_msg).
 assert (Zregs: Zlength regs = 8%Z)
  by (rewrite Zlength_correct; rewrite Lregs; reflexivity).
@@ -252,7 +252,7 @@ simpl; abbreviate_semax.
 
 eapply semax_frame_seq
  with (Frame := [`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8) (eval_id _ctx),
-                          `(data_block sh (intlist_to_Zlist (map swap b)) data)]).
+                          `(data_block sh (intlist_to_Zlist b) data)]).
 apply sha256_block_data_order_loop2_proof
               with (regs:=regs)(b:=b); eassumption.
 entailer!.
@@ -264,7 +264,7 @@ eapply semax_frame1
  with (Frame := [
    K_vector,
   `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16)),
-  `(data_block sh (intlist_to_Zlist (map swap b)) data)]).
+  `(data_block sh (intlist_to_Zlist b) data)]).
 apply (add_them_back_proof _ b regs ctx hashed); try eassumption.
 simplify_Delta; reflexivity.
 rewrite <- Hregs; rewrite Zregs.

@@ -3,34 +3,35 @@ Require Import progs.sha.
 Require Import progs.SHA256.
 Require Import progs.sha_lemmas.
 Require Import progs.spec_sha.
+Local Open Scope nat.
 Local Open Scope logic.
 
 Definition sha_update_inv sh hashed len c d (frag: list int) data r_Nh r_Nl (done: bool) :=
    (EX blocks:list int,
    PROP  (len >= length blocks*4 - length frag /\
               NPeano.divide LBLOCK (length blocks) /\ 
-              intlist_to_Zlist (map swap blocks) = map Int.unsigned frag ++ firstn (length blocks * 4 - length frag) data /\
+              intlist_to_Zlist blocks = map Int.unsigned frag ++ firstn (length blocks * 4 - length frag) data /\
              if done then len-(length blocks*4 - length frag) < CBLOCK else True)
    LOCAL  (`(eq (offset_val (Int.repr 40) c)) (eval_id _p);
    `(eq c) (eval_id _c); `(eq (offset_val (Int.repr (Z.of_nat (length blocks*4-length frag))) d)) (eval_id _data);
    `(eq (Vint (Int.repr (Z.of_nat (len- (length blocks*4 - length frag)))))) (eval_id _len))
    SEP  (K_vector;
     `(array_at tuint Tsh (tuints (process_msg init_registers (hashed ++ blocks))) 0 8 c);
-    `(sha256_length (hilo r_Nh r_Nl + Z.of_nat len) c);
+    `(sha256_length (hilo r_Nh r_Nl + (Z.of_nat len)*8) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
    `(field_at_ Tsh t_struct_SHA256state_st _num c);
    `(data_block sh data d))).
 
 Lemma Hblocks'lem:
  forall {blocks frag: list int} {data},
- intlist_to_Zlist (map swap blocks) = map Int.unsigned frag ++ firstn (length blocks * 4 - length frag) data ->
+ intlist_to_Zlist blocks = map Int.unsigned frag ++ firstn (length blocks * 4 - length frag) data ->
  length frag <= length blocks * 4.
 Proof.
 intros.
-assert (length (intlist_to_Zlist (map swap blocks)) = 
+assert (length (intlist_to_Zlist blocks) = 
                length (   map Int.unsigned frag ++
      firstn (length blocks * 4 - length frag) data)) by congruence.
- rewrite length_intlist_to_Zlist, map_length, app_length in H0.
+ rewrite length_intlist_to_Zlist, app_length in H0.
  rewrite map_length in H0.
  rewrite mult_comm; omega.
 Qed.
@@ -52,13 +53,13 @@ Lemma intro_update_inv:
  forall (len: nat) (blocks : list int) (frag: list int) (data: list Z) (P' Q: Prop),
   (forall (Hblocks_len: len >= length blocks * 4 - length frag)
             (Hdiv: NPeano.divide LBLOCK (length blocks))
-            (Hblocks: intlist_to_Zlist (map swap blocks) = map Int.unsigned frag ++ firstn (length blocks * 4 - length frag) data)
+            (Hblocks: intlist_to_Zlist blocks = map Int.unsigned frag ++ firstn (length blocks * 4 - length frag) data)
             (DONE: P')
             (Hblocks': length blocks * 4 >= length frag),
             Q) ->
     (len >= length blocks*4 - length frag /\
     NPeano.divide LBLOCK (length blocks) /\ 
-    intlist_to_Zlist (map swap blocks) = map Int.unsigned frag ++ firstn (length blocks * 4 - length frag) data /\
+    intlist_to_Zlist blocks = map Int.unsigned frag ++ firstn (length blocks * 4 - length frag) data /\
               P' -> Q). 
 Proof.
 intros.
@@ -77,14 +78,14 @@ Lemma SHA256_Update_aux:
  (Hdiv: NPeano.divide LBLOCK (length blocks))
  (HBOUND: (s256a_len (S256abs hashed (map Int.unsigned r_data)) < BOUND)%Z)
  (H0: r_h = process_msg init_registers hashed)
- (H1: Zlength (intlist_to_Zlist hashed ++ map Int.unsigned r_data) = hilo r_Nh r_Nl)
+ (H1: (Zlength (intlist_to_Zlist hashed ++ map Int.unsigned r_data)*8 = hilo r_Nh r_Nl)%Z)
  (H4: NPeano.divide LBLOCK (length hashed))
- (Hblocks: intlist_to_Zlist (map swap blocks) = (map Int.unsigned r_data) ++ firstn (length blocks * 4 - length r_data) data)
+ (Hblocks: intlist_to_Zlist blocks = (map Int.unsigned r_data) ++ firstn (length blocks * 4 - length r_data) data)
  (H3 : length (map Int.unsigned r_data) < CBLOCK)
  (Hlen: (Z.of_nat len <= Int.max_unsigned)%Z)
  (Hlen_ge: len - (length blocks * 4 - length r_data) >= CBLOCK)
  (H6: firstn CBLOCK (list_drop (length blocks * 4 - length r_data) data) =
-     intlist_to_Zlist (map swap bl))
+     intlist_to_Zlist bl)
  (H7: length bl = LBLOCK),
 semax Delta
   (PROP  ()
@@ -110,7 +111,7 @@ semax Delta
    (K_vector;
     `(array_at tuint Tsh
         (tuints (process_msg init_registers (hashed ++ blocks))) 0 8 c);
-   `(sha256_length (hilo r_Nh r_Nl + Z.of_nat len) c);
+   `(sha256_length (hilo r_Nh r_Nl + (Z.of_nat len)*8) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
    `(field_at_ Tsh t_struct_SHA256state_st _num c);
    `(data_block sh data d)))
@@ -167,7 +168,7 @@ replace_SEP 0%Z
   (`(array_at tuint Tsh
           (tuints
              (process_msg init_registers ((hashed ++ blocks) ++ bl))) 0 8 c) *
-      `(data_block sh (intlist_to_Zlist (map swap bl))
+      `(data_block sh (intlist_to_Zlist bl)
           (offset_val
              (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d)) *
       K_vector). {
@@ -217,7 +218,7 @@ replace_SEP 0%Z
  clear - Hdiv H7. rewrite H7. destruct Hdiv as [x ?]; exists (S x).
  simpl; omega.
 *
- rewrite map_app; rewrite intlist_to_Zlist_app.
+ rewrite intlist_to_Zlist_app.
  rewrite Hblocks; rewrite <- H6.
  rewrite app_ass.
  f_equal. rewrite app_length. rewrite H7.
@@ -258,6 +259,27 @@ Lemma Zlength_intlist_to_Zlist_app:
     (Zlength (intlist_to_Zlist al) + Zlength (intlist_to_Zlist bl))%Z.
 Proof.
 Admitted.
+
+Lemma data_block_isbyteZ:
+ forall sh data v, data_block sh data v = !! Forall isbyteZ data && data_block sh data v.
+Proof.
+Admitted.  (* not currently true *)
+
+Lemma Forall_firstn:
+  forall A (f: A -> Prop) n l, Forall f l -> Forall f (firstn n l).
+Proof.
+induction n; destruct l; intros.
+constructor. constructor. constructor.
+inv H. simpl. constructor; auto.
+Qed.
+
+Lemma Forall_list_drop:
+  forall A (f: A -> Prop) n l, Forall f l -> Forall f (list_drop n l).
+Proof.
+induction n; destruct l; intros.
+constructor. inv H; constructor; auto. constructor.
+inv H. simpl.  auto.
+Qed.
 
 Lemma body_SHA256_Update: semax_body Vprog Gtot f_SHA256_Update SHA256_Update_spec.
 Proof.
@@ -313,7 +335,7 @@ apply semax_pre with
    `(eq c) (eval_id _c); `(eq d) (eval_id _data);
    `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len))
    SEP  (`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8 c);
-    `(sha256_length (hilo hi lo + Z.of_nat len) c);
+    `(sha256_length (hilo hi lo + (Z.of_nat len)*8) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint dd)) 0 64 (offset_val (Int.repr 40) c));
    `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd))) c);
    K_vector;
@@ -387,9 +409,10 @@ apply semax_while.
   rewrite insert_local.
   apply semax_extract_PROP; apply intro_update_inv; intros.
  match goal with |- semax _ (PROPx _ ?QR) _ _ =>
- apply semax_pre with (PROP (len - (length blocks*4 - length dd) >= CBLOCK) QR)
+ apply semax_pre with (PROP (Forall isbyteZ data; len - (length blocks*4 - length dd) >= CBLOCK) QR)
  end.
- {entailer.
+rewrite (data_block_isbyteZ sh data d).
+ {entailer. rename H2 into H2'.
   rewrite mul_repr in H1; rewrite H1. 
   apply prop_right; split; [ | reflexivity].
   rewrite negb_true_iff in H1;
@@ -404,18 +427,33 @@ apply semax_while.
   rewrite Nat2Z.inj_sub by auto.
   omega.
 }
-
+  apply semax_extract_PROP; intro BYTESdata.
   apply semax_extract_PROP; intro Hlen_ge.
-  destruct (exists_intlist_to_Zlist' LBLOCK (firstn CBLOCK (list_drop (length blocks*4 - length dd) data)))
-      as [bl [? ?]].
-  rewrite firstn_length.
-  rewrite min_l; [reflexivity |].
- rewrite list_drop_length.
-  transitivity (len - (length blocks*4 - length dd)); [ | clear - H; omega].
-  apply Hlen_ge.
-  clear - Hlen_ge H H3; omega.
-  clear - Hblocks Hlen_ge.
-  admit.
+pose (bl := Zlist_to_intlist (firstn CBLOCK (list_drop (length blocks * 4 - length dd) data) )).
+assert (H97: CBLOCK <= length (list_drop (length blocks * 4 - length dd) data)). {
+rewrite list_drop_length
+ by (clear - H Hblocks' Hblocks_len; omega).
+change (4*LBLOCK)%nat with CBLOCK.
+clear - Hlen_ge Hblocks' H Hblocks_len; omega.
+}
+assert (H1: length bl = LBLOCK). {
+unfold bl.
+apply length_Zlist_to_intlist.
+assert (H98: length data >= length blocks * 4 - length dd)
+ by (clear - H Hblocks' Hblocks_len; omega).
+rewrite firstn_length.
+apply min_l; auto.
+}
+assert (H0:  firstn CBLOCK (list_drop (length blocks * 4 - length dd) data) =
+      intlist_to_Zlist bl). {
+unfold bl; rewrite Zlist_to_intlist_to_Zlist; auto.
+rewrite firstn_length.
+rewrite min_l by auto.
+exists LBLOCK; reflexivity.
+apply Forall_firstn.
+apply Forall_list_drop; auto.
+}
+clearbody bl; clear H97.
  simple apply (SHA256_Update_aux Espec sh hashed dd data c d len (process_msg init_registers hashed) lo hi Delta blocks bl); 
    try assumption.
 simplify_Delta; reflexivity.

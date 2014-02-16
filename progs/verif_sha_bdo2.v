@@ -21,12 +21,12 @@ Lemma sha256_block_data_order_return:
               (rnd_64 regs K (rev (generate_word (rev b) 48))))) 0 8 ctx);
    K_vector;
    `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16));
-   `(data_block sh (intlist_to_Zlist (map swap b)) data))) (Sreturn None)
+   `(data_block sh (intlist_to_Zlist b) data))) (Sreturn None)
   (frame_ret_assert
      (function_body_ret_assert tvoid
         (`(array_at tuint Tsh
              (tuints (process_msg init_registers (hashed ++ b))) 0 8 ctx) *
-         `(data_block sh (intlist_to_Zlist (map swap b)) data) *
+         `(data_block sh (intlist_to_Zlist b) data) *
          K_vector))
      (stackframe_of f_sha256_block_data_order)).
 Proof.

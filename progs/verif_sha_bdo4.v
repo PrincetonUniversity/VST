@@ -3,7 +3,6 @@ Require Import progs.sha.
 Require Import progs.SHA256.
 Require Import progs.sha_lemmas.
 Require Import progs.spec_sha.
-Require Import progs.verif_sha_bdo2.
 Require Import progs.verif_sha_bdo3.
 Local Open Scope logic.
 
@@ -29,7 +28,7 @@ Lemma sha256_block_data_order_loop1_proof:
 ))))
    SEP ( K_vector;
            `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16));
-           `(data_block sh (intlist_to_Zlist (map swap b)) data)))
+           `(data_block sh (intlist_to_Zlist b) data)))
   block_data_order_loop1
   (normal_ret_assert
     (PROP () 
@@ -40,7 +39,7 @@ Lemma sha256_block_data_order_loop1_proof:
 ))))
      SEP (K_vector;
            `(array_at tuint Tsh (tuints b) 0 16) (eval_var _X (tarray tuint 16));
-           `(data_block sh (intlist_to_Zlist (map swap b)) data))) ).
+           `(data_block sh (intlist_to_Zlist b) data))) ).
 Proof.
 unfold block_data_order_loop1, Delta_loop1.
 intros.
@@ -64,7 +63,7 @@ name data_ _data.
 assert (LBE := LBLOCK_zeq).
 
 Definition loop1_inv (rg0: list int) (sh: share) (b: list int) ctx (data: val) (delta: Z) (i: nat) :=
-    PROP ( i <= 16 )
+    PROP ( (i <= 16)%nat )
     LOCAL  (`(eq ctx) (eval_id _ctx); `(eq (Vint (Int.repr (Z.of_nat i - delta)))) (eval_id _i);
                `(eq (offset_val (Int.repr ((Z.of_nat i)*4)) data)) (eval_id _data);
      `(eq (map Vint (rnd_64 rg0 K (firstn i b))))
@@ -77,12 +76,12 @@ Definition loop1_inv (rg0: list int) (sh: share) (b: list int) ctx (data: val) (
                         (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
      SEP (K_vector;
     `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i) ) 0 (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16));
-   `(data_block sh (intlist_to_Zlist (map swap b)) data)).
+   `(data_block sh (intlist_to_Zlist b) data)).
 
 apply semax_pre with (EX i:nat, loop1_inv regs sh b ctx data 0 i).
 (* 345,184   326,392*)
 abstract (unfold loop1_inv;
-          apply exp_right with 0;
+          apply exp_right with 0%nat;
           rewrite array_at_f_upto_lo;
           entailer!; omega).
 (* 419,452   431,980 *)
@@ -106,7 +105,7 @@ apply exp_right with i;
 apply extract_exists_pre; intro i.
 unfold loop1_inv.
 forward_if (
-PROP  (i < 16)
+PROP  ((i < 16)%nat)
    LOCAL  (`(eq ctx) (eval_id _ctx); 
                 `(eq (Vint (Int.repr (Z.of_nat (0 + i))))) (eval_id _i);
                `(eq (offset_val (Int.repr ((Z.of_nat i)*4)) data)) (eval_id _data);
@@ -121,7 +120,7 @@ PROP  (i < 16)
    SEP 
    (K_vector;
    `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i)) 0 (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16));
-   `(data_block sh (intlist_to_Zlist (map swap b)) data))).
+   `(data_block sh (intlist_to_Zlist b) data))).
 (* 587,640  592,608 *)
 abstract entailer.
 (* 613,416  655,716 *)
@@ -133,9 +132,9 @@ abstract (forward; (* skip; *)
 abstract (forward;  (* break; *)
 (* 738,188  709,784 *)
   entailer; 
- assert (i=16) by omega; subst i; 
+ assert (i=16)%nat by omega; subst i; 
  apply andp_right; [ apply prop_right | cancel];
- replace 16 with LBLOCK in H3 by omega;
+ change 16%nat with LBLOCK in H3;
  repeat split; auto).
 (* 854,860 750,176 *)
 unfold MORE_COMMANDS, POSTCONDITION, abbreviate;
@@ -164,8 +163,8 @@ eapply semax_frame_seq
                     (`cons (eval_id _g) (`cons (eval_id _h) `[]))))))))])
          (Frame := [K_vector,
    `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i)) 0 (Z.of_nat LBLOCK)) (eval_var _X (tarray tuint 16))]); 
-   [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) 0 (Zlength (intlist_to_Zlist (map swap b))) data _ sh 
-                     (tuchars (map Int.repr (intlist_to_Zlist (map swap b)))));
+   [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) 0 (Zlength (intlist_to_Zlist b)) data _ sh 
+                     (tuchars (map Int.repr (intlist_to_Zlist b))));
     [ reflexivity | reflexivity | reflexivity | auto 50 with closed | 
       intros; apply ZnthV_map_Vint_is_int; rewrite Zlength_correct, map_length;
           rewrite Zlength_correct in H1; apply H1
@@ -174,7 +173,7 @@ eapply semax_frame_seq
 (* 945,760 834,556 *)
 abstract solve [entailer!; repeat split; auto; try omega; 
  rewrite Zlength_correct; rewrite length_intlist_to_Zlist; 
-            rewrite map_length; rewrite H;
+            (*rewrite map_length;*) rewrite H;
  replace (Z.of_nat (4 * LBLOCK) - 4)%Z
   with ((Z.of_nat LBLOCK - 1) * 4)%Z; 
     [apply Zmult_le_compat_r; omega | ];
@@ -186,9 +185,9 @@ abstract solve [entailer!].
 (* 1,078,128 849,172 *)
 auto 50 with closed.
 simpl.
-change (array_at tuchar sh (tuchars (map Int.repr (intlist_to_Zlist (map swap b)))) 0
+change (array_at tuchar sh (tuchars (map Int.repr (intlist_to_Zlist b))) 0
         (Zlength (intlist_to_Zlist (map swap b))) data)
-  with (data_block sh (intlist_to_Zlist (map swap b)) data).
+  with (data_block sh (intlist_to_Zlist b) data).
 
 forward. (* l := l'; *)
 forward. (* data := data + 4; *)
@@ -204,7 +203,7 @@ instantiate (2:= Z.of_nat i).
 instantiate (1:= Vint (big_endian_integer
           (fun z : Z =>
            force_int
-             (tuchars (map Int.repr (intlist_to_Zlist (map swap b)))
+             (tuchars (map Int.repr (intlist_to_Zlist b))
                 (z + Z.of_nat i * 4))))).
 abstract (entailer; apply prop_right; repeat split; try omega; eapply eval_var_isptr; eauto).
 

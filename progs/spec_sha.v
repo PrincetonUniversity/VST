@@ -10,10 +10,10 @@ Definition swap (i: int) : int :=
          (Rt 24 i))).
 
 Definition big_endian_integer (contents: Z -> int) : int :=
-  Int.or (Int.shl (contents 3) (Int.repr 24))
-  (Int.or (Int.shl (contents 2) (Int.repr 16))
-   (Int.or (Int.shl (contents 1) (Int.repr 8))
-      (contents 0))).
+  Int.or (Int.shl (contents 0) (Int.repr 24))
+  (Int.or (Int.shl (contents 1) (Int.repr 16))
+   (Int.or (Int.shl (contents 2) (Int.repr 8))
+      (contents 3))).
 
 Definition LBLOCK : nat := 16%nat.   (* length of a block, in 32-bit integers *)
 Definition CBLOCK : nat := (LBLOCK * 4)%nat.  (* length of a block, in characters *)
@@ -53,7 +53,7 @@ Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
      match a with S256abs hashed data =>
          s256_h r = map Vint (process_msg init_registers hashed) 
        /\ (exists hi, exists lo, s256_Nh r = Vint hi /\ s256_Nl r = Vint lo /\
-             Zlength hashed * 4 + Zlength data = hilo hi lo)%Z
+             (Zlength hashed * 4 + Zlength data)*8 = hilo hi lo)%Z
        /\ (exists dd, data = map Int.unsigned dd /\ s256_data r = map Vint dd)
        /\ length data < CBLOCK
        /\ NPeano.divide LBLOCK (length hashed)
@@ -65,7 +65,7 @@ Definition init_s256abs : s256abs := S256abs nil nil.
 Definition sha_finish (a: s256abs) : list Z :=
  match a with
  | S256abs hashed data => 
-     SHA_256 (intlist_to_Zlist (map swap hashed) ++ data)
+     SHA_256 (intlist_to_Zlist hashed ++ data)
  end.
 
 Definition cVint (f: Z -> int) (i: Z) := Vint (f i).
@@ -156,11 +156,11 @@ Definition sha256_block_data_order_spec :=
          PROP(length b = LBLOCK; NPeano.divide LBLOCK (length hashed)) 
          LOCAL (`(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
          SEP (`(array_at tuint Tsh  (tuints (process_msg init_registers hashed)) 0 8 ctx);
-                `(data_block sh (intlist_to_Zlist (map swap b)) data);
+                `(data_block sh (intlist_to_Zlist b) data);
                  K_vector)
    POST [ tvoid ]
           (`(array_at tuint Tsh  (tuints (process_msg init_registers (hashed++b))) 0 8 ctx) *
-          `(data_block sh (intlist_to_Zlist (map swap b)) data) *
+          `(data_block sh (intlist_to_Zlist b) data) *
           K_vector).
  
 Definition SHA256_addlength_spec :=
@@ -172,7 +172,7 @@ Definition SHA256_addlength_spec :=
                `(eq c) (eval_id _c))
    SEP (`(sha256_length n c))
  POST [ tvoid ]
-   `(sha256_length (n+Z.of_nat len) c).
+   `(sha256_length (n+(Z.of_nat len)*8) c).
 
 Definition SHA256_Init_spec :=
   DECLARE _SHA256_Init
@@ -190,7 +190,7 @@ Inductive update_abs: list Z -> s256abs -> s256abs -> Prop :=
         length newfrag < CBLOCK ->
        NPeano.divide LBLOCK (length hashed) ->
        NPeano.divide LBLOCK (length blocks) -> 
-       oldfrag++msg = intlist_to_Zlist (map swap blocks) ++ newfrag ->
+       oldfrag++msg = intlist_to_Zlist blocks ++ newfrag ->
    update_abs msg (S256abs hashed oldfrag) 
                               (S256abs (hashed++blocks) newfrag))%nat.
 

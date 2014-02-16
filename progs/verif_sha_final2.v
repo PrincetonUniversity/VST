@@ -12,6 +12,24 @@ Definition Delta_final_if1 : tycontext :=
           (initialized _p
      (func_tycontext f_SHA256_Final Vprog Gtot)).
 
+Lemma map_swap_involutive:
+ forall l, map swap (map swap l)  = l.
+Proof. intros.
+ rewrite map_map. 
+ replace (fun x => swap (swap x)) with (@Datatypes.id int).
+ apply map_id. extensionality x. symmetry; apply swap_swap.
+Qed.
+
+Lemma K_vector_globals:
+  forall Delta rho g,  tc_environ Delta rho /\
+       (var_types Delta) ! _K256 = None /\ (glob_types Delta) ! _K256 = Some g ->
+       K_vector (globals_only rho) = K_vector rho.
+Proof. 
+  intros; unfold K_vector.
+  unfold_lift.
+  erewrite elim_globals_only; eauto.
+Qed.
+
 Definition Body_final_if1 := 
   (Ssequence
               (Ssequence
@@ -42,11 +60,11 @@ Definition Body_final_if1 :=
 Definition invariant_after_if1 hashed dd c md shmd  hi lo:= 
    (EX hashed':list int, EX dd': list int, EX pad:Z,
    PROP  (pad=0%Z \/ dd'=nil;
-              length (map Int.unsigned dd') + 8 <= CBLOCK;
+              (length (map Int.unsigned dd') + 8 <= CBLOCK)%nat;
               (0 <= pad < 8)%Z;
               NPeano.divide LBLOCK (length hashed');
-              intlist_to_Zlist (map swap hashed') ++ map Int.unsigned dd' =
-              intlist_to_Zlist (map swap hashed) ++ map Int.unsigned dd 
+              intlist_to_Zlist hashed' ++ map Int.unsigned dd' =
+              intlist_to_Zlist hashed ++ map Int.unsigned dd 
                   ++ [128%Z] ++ map Int.unsigned (zeros pad)   )          
    LOCAL 
    (`(eq (Vint (Int.repr (Zlength dd')))) (eval_id _n);
@@ -62,30 +80,12 @@ Definition invariant_after_if1 hashed dd c md shmd  hi lo:=
      K_vector;
    `(memory_block shmd (Int.repr 32) md))).
 
-Lemma map_swap_involutive:
- forall l, map swap (map swap l)  = l.
-Proof. intros.
- rewrite map_map. 
- replace (fun x => swap (swap x)) with (@Datatypes.id int).
- apply map_id. extensionality x. symmetry; apply swap_swap.
-Qed.
-
-Lemma K_vector_globals:
-  forall Delta rho g,  tc_environ Delta rho /\
-       (var_types Delta) ! _K256 = None /\ (glob_types Delta) ! _K256 = Some g ->
-       K_vector (globals_only rho) = K_vector rho.
-Proof. 
-  intros; unfold K_vector.
-  unfold_lift.
-  erewrite elim_globals_only; eauto.
-Qed.
-
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
   (hi lo : int) (dd : list int)
  (H4: NPeano.divide LBLOCK (length hashed))
- (H7: (Zlength hashed * 4 + Zlength dd = hilo hi lo)%Z)
- (H3: length dd < CBLOCK)
+ (H7: ((Zlength hashed * 4 + Zlength dd)*8 = hilo hi lo)%Z)
+ (H3: (length dd < CBLOCK)%nat)
  (DDbytes: Forall isbyteZ (map Int.unsigned dd)),
   semax Delta_final_if1
   (PROP  ()
@@ -123,7 +123,6 @@ name ignore _ignore.
 intros.
 assert (Hddlen: (0 <= Zlength dd < 64)%Z) by Omega1.
 set (ddlen := Zlength dd) in *.
-(*assert (H3': (ddlen < 64)%Z) by Omega1. *)
  unfold Delta_final_if1; simplify_Delta; unfold Body_final_if1; abbreviate_semax.
  forward.
   {instantiate (1:= (Tsh,
@@ -204,18 +203,30 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
  simpl. Omega1.
  + Omega1.
  }
-
-destruct (exists_intlist_to_Zlist' LBLOCK (map Int.unsigned ddz))
-  as [ddzw [? ?]].
-rewrite map_length. 
-apply Nat2Z.inj.
+pose (ddzw := Zlist_to_intlist (map Int.unsigned ddz)).
+assert (H0': length ddz = CBLOCK). {
 unfold ddz; repeat rewrite app_length.
-rewrite length_zeros.
-simpl.
-change (LBLOCK*4)%nat with CBLOCK.
-Omega1.
- unfold ddz; clear - DDbytes.
- admit.
+rewrite length_zeros by omega.
+rewrite Z2Nat.inj_sub by omega.
+rewrite Z2Nat.inj_add by omega.
+rewrite (Nat2Z.id). unfold ddlen; rewrite Zlength_correct. 
+rewrite (Nat2Z.id). simpl length; change (Z.to_nat 1) with 1%nat; omega.
+}
+assert (H1: length ddzw = LBLOCK). {
+unfold ddzw.
+apply length_Zlist_to_intlist. rewrite map_length. apply H0'.
+}
+assert (H0: map Int.unsigned ddz = intlist_to_Zlist ddzw). {
+unfold ddzw; rewrite Zlist_to_intlist_to_Zlist; auto.
+rewrite map_length, H0'; exists LBLOCK; reflexivity.
+unfold ddz; repeat rewrite map_app; repeat rewrite Forall_app; repeat split; auto.
+constructor. compute. clear; split; congruence.
+constructor.
+apply isbyte_zeros.
+}
+clear H0'.
+clearbody ddzw.
+
  forward. (* sha256_block_data_order (c,p); *)
  match goal with H : True |- _ => clear H 
             (* WARNING__ is a bit over-eager;
@@ -241,11 +252,11 @@ instantiate (1:=(hashed,
  replace (fun x => Int.repr (Int.unsigned x)) with (@id int) by 
   (extensionality xx; rewrite Int.repr_unsigned; auto).
  symmetry; apply map_id.
- rewrite Zlength_correct;rewrite length_intlist_to_Zlist; rewrite map_length;
+ rewrite Zlength_correct;rewrite length_intlist_to_Zlist;
   rewrite H1; reflexivity.
 }
 unfold invariant_after_if1.
- apply exp_right with (hashed ++ (* map swap *) ddzw).
+ apply exp_right with (hashed ++ ddzw).
 set (pad := (Z.of_nat CBLOCK - (ddlen+1))%Z) in *.
  apply exp_right with (@nil int).
  apply exp_right with pad.
@@ -257,7 +268,7 @@ assert (0 <= pad < 8)%Z.
 unfold pad.
 change (16*4)%Z with (Z.of_nat CBLOCK) in H5. 
 change (64)%Z with (Z.of_nat CBLOCK) in Hddlen; omega.
-assert (length (zeros pad) < 8). 
+assert (length (zeros pad) < 8)%nat. 
 rewrite length_zeros.
 apply Nat2Z.inj_lt.
 rewrite Z2Nat.id by omega.
@@ -265,27 +276,22 @@ Omega1.
 entailer!.
 * clear; Omega1.
 * apply divide_length_app.
-  auto. exists 1; rewrite H1; reflexivity.
+  auto. exists 1%nat; rewrite H1; reflexivity.
 * rewrite <- app_nil_end.
-  rewrite map_app. 
   rewrite intlist_to_Zlist_app.
-  repeat rewrite app_ass.
   f_equal.
   rewrite <- H0.
   unfold ddz.
   repeat rewrite map_app.
   repeat rewrite app_ass.
-  simpl.
-  rewrite Int.unsigned_repr; auto.
-  repable_signed.
+ reflexivity.
 * erewrite K_vector_globals by (split3; [eassumption | reflexivity.. ]).
   cancel.
   unfold data_block.
-  replace (Zlength (intlist_to_Zlist (map swap ddzw))) with 64%Z.
+  replace (Zlength (intlist_to_Zlist ddzw)) with 64%Z.
  apply array_at__array_at.
  rewrite Zlength_correct; rewrite length_intlist_to_Zlist.
- rewrite map_length; rewrite H1.
- reflexivity.
+ rewrite H1;  reflexivity.
 Qed.
 
 
@@ -327,7 +333,7 @@ Definition final_loop :=
 
 Lemma final_part4:
  forall (Espec: OracleKind) md c shmd hashedmsg,
- length hashedmsg = 8 ->
+ length hashedmsg = 8%nat ->
  writable_share shmd ->
 semax
   (initialized _ignore'2
@@ -357,8 +363,8 @@ rewrite memory_block_isptr by computable.
 normalize. rename H1 into Hmd.
 forward.  (* xn=0; *)
 
-Definition part4_inv  c shmd hashedmsg md delta i :=
-   (PROP  (i <= 8)
+Definition part4_inv  c shmd hashedmsg md delta (i: nat) :=
+   (PROP  ((i <= 8)%nat)
    LOCAL  (`(eq (Vint (Int.repr (Z.of_nat i - delta)))) (eval_id _xn);
       `(eq (offset_val (Int.repr (Z.of_nat i * 4)) md)) (eval_id _md);
    `(eq c) (eval_id _c))
@@ -376,7 +382,7 @@ forward_for
    (EX i:_, part4_inv c shmd hashedmsg md 0 i) 
    (EX i:_, part4_inv c shmd hashedmsg md 1 i) 
    (part4_inv c shmd hashedmsg md 0 8).
-* apply exp_right with 0. unfold part4_inv; rewrite Z.sub_0_r.
+* apply exp_right with 0%nat. unfold part4_inv; rewrite Z.sub_0_r.
   entailer!.
   change 32%Z with (sizeof (tarray tuchar 32)).
   rewrite memory_block_typed by reflexivity.
@@ -390,14 +396,14 @@ forward_for
  simpl_compare.
  change (Int.divs (Int.repr 32) (Int.repr 4)) with (Int.repr 8) in H5.
  apply ltu_repr_false in H5; try repable_signed; try omega.
- assert (i=8) by omega.
+ assert (i=8)%nat by omega.
  subst i. change (Z.of_nat 8) with 8%Z.
  entailer!.
   rewrite (firstn_same _ 8) by omega. auto. 
 * unfold part4_inv.
  rewrite insert_local.
  match goal with |- semax _ (PROPx _ (LOCALx (_:: ?Q) ?R)) _ _ =>
-   apply semax_pre with (PROP (i<8) (LOCALx Q R))
+   apply semax_pre with (PROP ((i<8)%nat) (LOCALx Q R))
   end.
  rewrite Z.sub_0_r.
  entailer!.
@@ -413,7 +419,7 @@ forward_for
   apply I.
   omega.
  pose (w := nth i hashedmsg Int.zero).
- pose (bytes := Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist ([swap w])))))).
+ pose (bytes := Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist [w]))))).
   forward. (* builtin_write32_reversed *)
   instantiate (1:= (offset_val (Int.repr (Z.of_nat i * 4)) md,
                              shmd, bytes)) in (Value of witness).
@@ -431,12 +437,12 @@ forward_for
  replace (fun x : Z =>
    force_int
      (ZnthV tuchar
-        (map Vint (map Int.repr (intlist_to_Zlist ([swap w])))) x))
+        (map Vint (map Int.repr (intlist_to_Zlist [w]))) x))
   with 
   (fun x : Z =>
    force_int
      (ZnthV tuchar
-        (map Vint (map Int.repr (intlist_to_Zlist (map swap [w])))) 
+        (map Vint (map Int.repr (intlist_to_Zlist [w]))) 
               (x + Z.of_nat O * 4)))
  by (extensionality j; repeat f_equal; simpl; apply Z.add_0_r).
  apply nth_big_endian_integer.

@@ -110,7 +110,120 @@ Lemma exists_intlist_to_Zlist:
    exists bl, al = intlist_to_Zlist bl /\ length bl = n.
 Abort.  (* provable, but any use of it is probably wrong. *)
 
-Open Scope nat.
+Lemma length_intlist_to_Zlist:
+  forall l, length (intlist_to_Zlist l) = (4 * length l)%nat.
+Proof.
+induction l.
+simpl. reflexivity. simpl. omega.
+Qed.
+
+Lemma Zlength_intlist_to_Zlist: forall l,
+  Zlength (intlist_to_Zlist l) = 4*Zlength l.
+Proof.
+intros. repeat rewrite Zlength_correct. rewrite length_intlist_to_Zlist.
+rewrite Nat2Z.inj_mul. reflexivity.
+Qed.
+
+Fixpoint Zlist_to_intlist (nl: list Z) : list int :=
+  match nl with
+  | h1::h2::h3::h4::t => Z_to_Int h1 h2 h3 h4 :: Zlist_to_intlist t
+  | _ => nil
+  end.
+
+Lemma intlist_to_Zlist_Z_to_int_cons:
+  forall a b c d l, 
+      isbyteZ a -> isbyteZ b -> isbyteZ c -> isbyteZ d ->
+     intlist_to_Zlist (Z_to_Int a b c d :: l) = 
+     a::b::c::d:: intlist_to_Zlist l.
+Proof.
+intros. simpl.
+unfold isbyteZ in *.
+assert (Int.zwordsize=32)%Z by reflexivity.
+unfold Z_to_Int, swap, Rt; simpl.
+change 255%Z with (Z.ones 8).
+repeat f_equal; auto;
+match goal with |- _ = ?A => transitivity (Int.unsigned (Int.repr A));
+   [f_equal | apply Int.unsigned_repr; repable_signed]
+end;
+apply Int.same_bits_eq; intros;
+autorewrite with testbit.
+*
+if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
+rewrite (isbyteZ_testbit b) by omega.
+rewrite (isbyteZ_testbit c) by omega.
+rewrite (isbyteZ_testbit d) by omega.
+autorewrite with testbit; auto.
+*
+if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
+if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
+rewrite (isbyteZ_testbit c) by omega.
+rewrite (isbyteZ_testbit d) by omega.
+autorewrite with testbit; auto.
+*
+if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
+if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
+if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
+rewrite (isbyteZ_testbit d) by omega.
+autorewrite with testbit; auto.
+*
+destruct (zlt i 8); autorewrite with testbit;  [ | symmetry; apply isbyteZ_testbit; omega].
+auto.
+Qed.
+
+Lemma Zlist_to_intlist_to_Zlist:
+  forall nl: list Z, 
+  NPeano.divide 4 (length nl) ->
+  Forall isbyteZ nl ->
+  intlist_to_Zlist (Zlist_to_intlist nl) = nl.
+Proof.
+intros nl [k H].
+revert nl H; induction k; intros.
+destruct nl; inv H; reflexivity.
+simpl in H.
+destruct nl as [ | a [ | b [ | c [ | d ?]]]]; inv H.
+inv H0. inv H4. inv H5. inv H6.
+unfold Zlist_to_intlist; fold Zlist_to_intlist.
+rewrite intlist_to_Zlist_Z_to_int_cons by auto.
+repeat f_equal; auto.
+Qed.
+
+Lemma Ztest_Inttest:
+ forall a, Z.testbit (Int.unsigned a) = Int.testbit a.
+Proof. reflexivity. Qed.
+Hint Rewrite Ztest_Inttest : testbit.
+
+Lemma intlist_to_Zlist_to_intlist:
+  forall il: list int,
+   Zlist_to_intlist (intlist_to_Zlist il) = il.
+Proof.
+induction il.
+reflexivity.
+simpl.
+f_equal; auto. clear.
+assert (Int.zwordsize=32)%Z by reflexivity.
+unfold Z_to_Int, Rt; simpl.
+change 255%Z with (Z.ones 8).
+apply Int.same_bits_eq; intros.
+rewrite Int.repr_unsigned.
+autorewrite with testbit.
+if_tac; autorewrite with testbit; [ | f_equal; omega].
+if_tac; autorewrite with testbit; [ | f_equal; omega].
+if_tac; autorewrite with testbit; [ | f_equal; omega].
+auto.
+Qed.
+
+Lemma length_Zlist_to_intlist: forall n l, length l = (4*n)%nat -> length (Zlist_to_intlist l) = n.
+Proof.
+induction n; intros.
+destruct l; inv H; reflexivity.
+replace (S n) with (1 + n)%nat in H by omega.
+rewrite mult_plus_distr_l in H.
+destruct l as [|i0 l]; [ inv H |].
+destruct l as [|i1 l]; [ inv H |].
+destruct l as [|i2 l]; [ inv H |].
+destruct l as [|i3 l]; [ inv H |].
+simpl. f_equal. apply IHn. forget (4*n)%nat as A. inv H; auto.
+Qed.
 
 Lemma big_endian_integer_ext:
  forall f f', (forall z, (0 <= z < 4)%Z -> f z = f' z) ->
@@ -127,15 +240,26 @@ Lemma nth_big_endian_integer:
     w = big_endian_integer
                  (fun z : Z =>
                   force_int
-                    (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist (map swap bl))))
+                    (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist bl)))
                        (z + Z.of_nat i * 4))).
 Proof.
 induction i; destruct bl; intros; inv H.
-simpl.
-unfold big_endian_integer; simpl.
-repeat rewrite Int.repr_unsigned.
-change (w = swap (swap w)).
-symmetry; apply swap_swap.
+*
+ simpl.
+ unfold big_endian_integer; simpl.
+ repeat rewrite Int.repr_unsigned.
+ assert (Int.zwordsize=32)%Z by reflexivity.
+ unfold Z_to_Int, swap, Rt; simpl.
+ change 255%Z with (Z.ones 8).
+ apply Int.same_bits_eq; intros;
+ autorewrite with testbit.
+ if_tac; simpl.
+ if_tac; simpl.
+ if_tac; simpl; autorewrite with testbit. auto. f_equal; omega.
+ rewrite if_false by omega. autorewrite with testbit. f_equal; omega.
+ rewrite if_false by omega. rewrite if_false by omega.
+ autorewrite with testbit. f_equal; omega.
+*
 specialize (IHi _ _ H1).
 rewrite IHi; clear IHi.
 apply big_endian_integer_ext; intros j ?.
@@ -143,7 +267,7 @@ f_equal.
 rewrite inj_S.
 unfold Z.succ.
 unfold ZnthV.
-assert (i < length bl).
+assert (i < length bl)%nat.
 revert w bl H1; induction i; destruct bl; intros; inv H1; simpl; try omega.
 apply IHi in H2. omega.
 clear w H1.
@@ -152,14 +276,16 @@ simpl default_val.
 rewrite Z.mul_add_distr_r.
 change (1*4)%Z with 4%Z.
 simpl.
-assert (Z.to_nat (j + (Z.of_nat i * 4 + 4)) = 4 + Z.to_nat (j + Z.of_nat i * 4)).
+assert (Z.to_nat (j + (Z.of_nat i * 4 + 4)) = 4 + Z.to_nat (j + Z.of_nat i * 4))%nat.
 repeat rewrite (Z2Nat.inj_add j) by omega.
 rewrite Z2Nat.inj_add by omega.
-change (Z.to_nat 4) with 4.
+change (Z.to_nat 4) with 4%nat.
 omega.
 rewrite H2. simpl.
 auto.
 Qed.
+
+Local Open Scope nat.
 
 Lemma firstn_same:
   forall A n (b: list A), n >= length b -> firstn n b = b.
@@ -341,13 +467,6 @@ Fixpoint sequenceN (n: nat) (s: statement) : list statement :=
  | S n', Ssequence a s' => a::sequenceN n' s'
  | _, _ => nil
  end.
-
-Lemma length_intlist_to_Zlist:
-  forall l, length (intlist_to_Zlist l) = (4 * length l).
-Proof.
-induction l.
-simpl. reflexivity. simpl. omega.
-Qed.
 
 Lemma process_msg_eq2:
  forall regs hashed b,
@@ -1156,46 +1275,6 @@ symmetry; apply Z.gtb_lt; auto; omega.
 omega.
 Qed.
 
-Lemma intlist_to_Zlist_Z_to_int_cons:
-  forall a b c d l, 
-      isbyteZ a -> isbyteZ b -> isbyteZ c -> isbyteZ d ->
-     intlist_to_Zlist (Z_to_Int a b c d :: l) = 
-     a::b::c::d:: intlist_to_Zlist l.
-Proof.
-intros. simpl.
-unfold isbyteZ in *.
-assert (Int.zwordsize=32)%Z by reflexivity.
-unfold Z_to_Int, swap, Rt; simpl.
-change 255%Z with (Z.ones 8).
-repeat f_equal; auto;
-match goal with |- _ = ?A => transitivity (Int.unsigned (Int.repr A));
-   [f_equal | apply Int.unsigned_repr; repable_signed]
-end;
-apply Int.same_bits_eq; intros;
-autorewrite with testbit.
-*
-if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
-rewrite (isbyteZ_testbit b) by omega.
-rewrite (isbyteZ_testbit c) by omega.
-rewrite (isbyteZ_testbit d) by omega.
-autorewrite with testbit; auto.
-*
-if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
-if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
-rewrite (isbyteZ_testbit c) by omega.
-rewrite (isbyteZ_testbit d) by omega.
-autorewrite with testbit; auto.
-*
-if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
-if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
-if_tac; autorewrite with testbit; [ | symmetry; apply isbyteZ_testbit; omega].
-rewrite (isbyteZ_testbit d) by omega.
-autorewrite with testbit; auto.
-*
-destruct (zlt i 8); autorewrite with testbit;  [ | symmetry; apply isbyteZ_testbit; omega].
-auto.
-Qed.
-
 Lemma zeros_Zsucc:
  forall n, n >= 0 -> zeros (Z.succ n) = Int.repr 0 :: zeros n.
 Proof.
@@ -1323,61 +1402,6 @@ omega.
 replace (n+12) with (1*4+(n+8)) by omega.
  rewrite Z_div_plus_full_l by computable.
 omega.
-Qed.
-
-Lemma Zlength_intlist_to_Zlist: forall l,
-  Zlength (intlist_to_Zlist l) = 4*Zlength l.
-Proof.
-intros. repeat rewrite Zlength_correct. rewrite length_intlist_to_Zlist.
-rewrite Nat2Z.inj_mul. reflexivity.
-Qed.
-
-Fixpoint Zlist_to_intlist (nl: list Z) : list int :=
-  match nl with
-  | h1::h2::h3::h4::t => Z_to_Int h1 h2 h3 h4 :: Zlist_to_intlist t
-  | _ => nil
-  end.
-
-Lemma Zlist_to_intlist_to_Zlist:
-  forall nl: list Z, 
-  NPeano.divide 4 (length nl) ->
-  Forall isbyteZ nl ->
-  intlist_to_Zlist (Zlist_to_intlist nl) = nl.
-Proof.
-intros nl [k H].
-revert nl H; induction k; intros.
-destruct nl; inv H; reflexivity.
-simpl in H.
-destruct nl as [ | a [ | b [ | c [ | d ?]]]]; inv H.
-inv H0. inv H4. inv H5. inv H6.
-unfold Zlist_to_intlist; fold Zlist_to_intlist.
-rewrite intlist_to_Zlist_Z_to_int_cons by auto.
-repeat f_equal; auto.
-Qed.
-
-Lemma Ztest_Inttest:
- forall a, Z.testbit (Int.unsigned a) = Int.testbit a.
-Proof. reflexivity. Qed.
-Hint Rewrite Ztest_Inttest : testbit.
-
-Lemma intlist_to_Zlist_to_intlist:
-  forall il: list int,
-   Zlist_to_intlist (intlist_to_Zlist il) = il.
-Proof.
-induction il.
-reflexivity.
-simpl.
-f_equal; auto. clear.
-assert (Int.zwordsize=32)%Z by reflexivity.
-unfold Z_to_Int, Rt; simpl.
-change 255%Z with (Z.ones 8).
-apply Int.same_bits_eq; intros.
-rewrite Int.repr_unsigned.
-autorewrite with testbit.
-if_tac; autorewrite with testbit; [ | f_equal; omega].
-if_tac; autorewrite with testbit; [ | f_equal; omega].
-if_tac; autorewrite with testbit; [ | f_equal; omega].
-auto.
 Qed.
 
 (*
