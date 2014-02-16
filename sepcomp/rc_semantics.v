@@ -54,6 +54,11 @@ Definition updC (c : C) (st : state) :=
     | mk _ args rets locs => mk c args rets locs
   end.
 
+Definition upd_locs locs (st : state) :=
+  match st with
+    | mk c args rets _ => mk c args rets locs
+  end.
+
 Definition initial_core ge v vs := 
   match initial_core sem ge v vs with
     | Some c => Some (mk c vs nil (fun _ => false))

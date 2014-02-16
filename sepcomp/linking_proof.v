@@ -108,7 +108,7 @@ Let ord := @Lex.ord N types ords.
 
 Notation cast' pf x := (cast (C \o cores_T) pf x).
 
-Notation cast pf x := (cast (C \o cores_T) (sym_eq pf) x).
+Notation cast'' pf x := (cast (C \o cores_T) (sym_eq pf) x).
 
 Section frame_inv.
 
@@ -184,10 +184,10 @@ Record frame_inv
   ; frame_inj0  : Mem.inject (as_inj mu0) m10 m20
   ; frame_valid : sm_valid mu0 m10 m20 
   ; frame_match : (sims c.(i)).(match_state) cd0 mu0 
-                    (RC.core c.(Core.c)) m10 (cast pf (RC.core d.(Core.c))) m20 
+                    (RC.core c.(Core.c)) m10 (cast'' pf (RC.core d.(Core.c))) m20 
   ; frame_at1   : at_external (cores_S c.(i)).(coreSem) (RC.core c.(Core.c))
                     = Some (e1, ef_sig1, vals1) 
-  ; frame_at2   : at_external (cores_T c.(i)).(coreSem) (cast pf (RC.core d.(Core.c))) 
+  ; frame_at2   : at_external (cores_T c.(i)).(coreSem) (cast'' pf (RC.core d.(Core.c))) 
                     = Some (e2, ef_sig2, vals2) 
   ; frame_vinj  : Forall2 (val_inject (as_inj mu0)) vals1 vals2  
 
@@ -323,7 +323,7 @@ Variable  (pf : c.(i)=d.(i)).
 
 Record head_inv cd mu mus z m1 m2 : Type :=
   { head_match : (sims c.(i)).(match_state) cd mu 
-                 (RC.core c.(Core.c)) m1 (cast pf (RC.core d.(Core.c))) m2 
+                 (RC.core c.(Core.c)) m1 (cast'' pf (RC.core d.(Core.c))) m2 
   ; head_rel   : All (rel_inv_pred mu) mus 
   ; head_vis   : vis_inv c mu 
   ; head_safe  : forall n, 
@@ -426,7 +426,7 @@ Lemma frame_all_match mu0 m10 m20 x mus z m1 m2 s1 s2 :
       , s2 = d :: s2' 
       & exists (pf : c.(Core.i)=d.(Core.i)) cd0,
         (sims c.(Core.i)).(match_state) cd0 mu0 
-          (RC.core c.(Core.c)) m10 (cast pf (RC.core d.(Core.c))) m20].
+          (RC.core c.(Core.c)) m10 (cast'' pf (RC.core d.(Core.c))) m20].
 Proof.
 case: s1=> // c s1'; case: s2=> // d s2' /=.
 move=> [][]pf => [][]cd []ef1 []sig1 []vals1 []ef2 []sig2 []vals2 A B.
@@ -533,7 +533,7 @@ Lemma tail_inv_match mu0 m10 m20 z x mus s1 s2 m1 m2 :
       , s2 = d :: s2' 
       & exists (pf : c.(Core.i)=d.(Core.i)) cd0,
         (sims c.(Core.i)).(match_state) cd0 mu0 
-          (RC.core c.(Core.c)) m10 (cast pf (RC.core d.(Core.c))) m20].
+          (RC.core c.(Core.c)) m10 (cast'' pf (RC.core d.(Core.c))) m20].
 Proof. by move=> []_; move/frame_all_match. Qed.
 
 Section tail_inv_lems.
@@ -686,31 +686,74 @@ Proof.
 by move=> A []B C; split=> //; last by apply: frame_all_step. 
 Qed.
 
-Lemma head_inv_step 
-    c d (pf : Core.i c=Core.i d) 
-    c' d' (pf' : Core.i c'=Core.i d') cd cd' mus z s1 s2 :
-  frame_all mus z m1 m2 s1 s2 -> 
-  match_state (sims (Core.i c')) cd' mu' (RC.core (Core.c c')) m1'
-    (cast pf' (RC.core (Core.c d'))) m2' ->
-  head_inv pf cd mu mus z m1 m2 -> 
-  head_inv pf' cd' mu' mus z m1' m2'.
+Lemma vis_inv_step c c' :
+  vis_inv c mu -> 
+  RC.args (Core.c c)=RC.args (Core.c c') -> 
+  RC.rets (Core.c c)=RC.rets (Core.c c') -> 
+  (forall b, 
+   RC.locs (Core.c c) b=false -> 
+   RC.locs (Core.c c') b -> 
+   locBlocksSrc mu' b) -> 
+  vis_inv c' mu'.
 Proof.
-move=> frameall MATCH A.
+move=> E A B C; move: E.
+case=> E; apply: Build_vis_inv=> b F; move: {E}(E b)=> E.
+move: E F; rewrite/RC.reach_basis/in_mem/= => E.
+move/orP=> [|F].
+rewrite -A -B=> F. 
+by apply: (intern_incr_vis _ _ incr); apply: E; apply/orP; left.
+case G: (RC.locs (Core.c c) b). 
+by apply: (intern_incr_vis _ _ incr); apply: E; apply/orP; right.
+by move: (C _ G F)=> H; rewrite/vis H.
+Qed.
+
+Lemma core_upd_args (c : Core.t cores_S) c' : 
+  RC.args (Core.c c) = RC.args (Core.c (Core.updC c c')).
+Proof.
+by rewrite/Core.updC/RC.updC; case: (Core.c c)=> ? ? ? ?.
+Qed.
+
+Lemma core_upd_rets (c : Core.t cores_S) c' : 
+  RC.rets (Core.c c) = RC.rets (Core.c (Core.updC c c')).
+Proof.
+by rewrite/Core.updC/RC.updC; case: (Core.c c)=> ? ? ? ?.
+Qed.
+
+Lemma head_inv_step 
+    c d (pf : Core.i c=Core.i d) c' (d' : RC.state (C (cores_T (Core.i d))))
+    cd cd' mus z s1 s2 U :
+  head_inv pf cd mu mus z m1 m2 -> 
+  frame_all mus z m1 m2 s1 s2 -> 
+  RC.args (Core.c c)=RC.args c' -> 
+  RC.rets (Core.c c)=RC.rets c' -> 
+  RC.locs c' = (fun b => RC.locs (Core.c c) b || RC.newBlocks m1 m1' b) ->
+  effect_semantics.effstep 
+    (coreSem (cores_S (Core.i c))) (ge (cores_S (Core.i c))) U 
+    (RC.core (Core.c c)) m1 (RC.core c') m1' -> 
+  match_state (sims (Core.i (Core.upd c c'))) cd' mu'
+    (RC.core (Core.c (Core.upd c c'))) m1'
+    (cast'' pf (RC.core (Core.c (Core.upd d d')))) m2' -> 
+  (forall b : block,
+   RC.locs (Core.c c) b = false ->
+   RC.locs c' b -> locBlocksSrc mu' b) -> 
+  @head_inv (Core.upd c c') (Core.upd d d') pf cd' mu' mus z m1' m2'.
+Proof.
+move=> hdinv frame args rets mylocs effstep mtch locs.
 apply: Build_head_inv=> //.
-apply: (all_relinv_step frameall).
-by apply: (head_rel A).
-case: A.
-move=> ? ?.
-case.
-move=> A.
-move=> _.
-apply: Build_vis_inv.
-move=> b H.
-move: (A b).
-move=> B.
-(*HERE*)
-admit.
-admit.
+by apply: (all_relinv_step frame); apply: (head_rel hdinv).
+by case: hdinv=> ? ? A _; apply: (vis_inv_step A)=> //.
+case: hdinv=> ? ? _ A; move: (effax1 effstep)=> []step _. 
+move=> n; move: (A (S n))=> /=; rewrite/RC.at_external/RC.halted.
+rewrite (corestep_not_at_external _ _ _ _ _ _ step).
+rewrite (corestep_not_halted _ _ _ _ _ _ step).
+move=> []c1'' []m1'' [][]U1' []effstep' []SUB []eq1 []eq2 eq3 SAFE'. 
+case: (dets_S effstep effstep')=> []eqU []eq4 eq5; move: SAFE'.
+have ->: c1'' = c'.
+  case: c1'' effstep' eq1 eq2 eq3 eq4. 
+  case: c' cd' mtch args rets effstep locs mylocs step=> /= ? ? ? ? ? ? -> ->.
+  move=> ? ? -> ? ? ? ? ? ? -> -> -> <-.
+  by rewrite eq5.
+by rewrite eq5.
 Qed.
 
 End step_lems.
@@ -757,12 +800,12 @@ Lemma peek_match :
   exists cd mu_top, 
   match_state (sims (Core.i (peekCore x1))) cd mu_top 
   (RC.core (Core.c (peekCore x1))) m1 
-  (cast peek_ieq (RC.core (Core.c (peekCore x2)))) m2.
+  (cast'' peek_ieq (RC.core (Core.c (peekCore x2)))) m2.
 Proof.
 move: (R_inv pf)=> []A []? []mu_top []? []? []? _ _. 
 move/head_match=> MATCH ?.
-have ->: (cast peek_ieq (RC.core (Core.c (peekCore x2))) 
-         = cast A (RC.core (Core.c (peekCore x2))))
+have ->: (cast'' peek_ieq (RC.core (Core.c (peekCore x2))) 
+         = cast'' A (RC.core (Core.c (peekCore x2))))
   by f_equal; f_equal; apply proof_irr.
 by exists (Lex.get (Core.i (peekCore x1)) data), mu_top.
 Qed.
@@ -916,41 +959,46 @@ eapply Build_SM_simulation_inject
 - move=> st1 m1 st1' m1' U1 STEP data st2 mu m2 U1_DEF INV.
 case: STEP=> STEP STEP_EFFSTEP.
 case: STEP.
- (* Case: corestep0 *)
+
+(* Case: corestep0 *)
  + move=> STEP. 
+
  set c1 := peekCore st1.
- have [c1' [STEP0 [U1'_EQ ST1']]]: 
-         exists c' : C (cores_S (Core.i c1)), 
-         Coresem.corestep 
-            (t := Effectsem.instance (coreSem (cores_S (Core.i c1)))) 
-            (ge (cores_S (Core.i c1))) (RC.core (Core.c c1)) m1 c' m1' 
-         /\ (forall b ofs, U1 b ofs -> 
-             RC.reach_set (ge (cores_S (Core.i c1))) (Core.c c1) m1 b)
-         /\ st1' = updCore st1 (Core.updC c1 c').
+ set c2 := peekCore st2.
+
+ have [c1' [STEP0 [U1'_EQ ST1']]]:
+   exists c1',
+       Coresem.corestep 
+         (t := RC.effsem (coreSem (cores_S (Core.i c1)))) 
+         (ge (cores_S (Core.i c1))) (Core.c c1) m1 c1' m1' 
+   /\ (forall b ofs, U1 b ofs -> 
+       RC.reach_set (ge (cores_S (Core.i c1))) (Core.c c1) m1 b)
+   /\ st1' = updCore st1 (Core.upd c1 c1').
+
   { move: (STEP_EFFSTEP STEP)=> EFFSTEP.
     move: STEP; rewrite/LinkerSem.corestep0=> [][]c' []B C. 
     exists c'; split=> //; split=> //.
-    case: (R_inv INV)=> pf []pkg []mu_top []mus []z []E ? X Y Z.   
-    move: (head_safe Y).
-    move/(_ (S O))=> /=.
-    rewrite/RC.at_external/RC.halted.
+    case: (R_inv INV)=> pf []pkg []mu_top []mus []z []E ? trinv hdinv tlinv.
+    move: (head_safe hdinv); move/(_ (S O)); rewrite/safeN.
     rewrite (corestep_not_at_external _ _ _ _ _ _ B).
     rewrite (corestep_not_halted _ _ _ _ _ _ B).
     move=> []c1'' []m1'' [][]U1' []EFFSTEP' []SUB []eq1 []eq2 eq3 _. 
     move: SUB; cut (U1=U1'); first by move=> ->.
     move: EFFSTEP EFFSTEP'; rewrite/effstep0. 
-    move=> []c1' [] EFFSTEP _.
+    move=> []c1' []/=; rewrite/RC.effstep=> [][]EFFSTEP _ _.
     generalize dependent INV; move=> INV.
-    have ->: c INV = peekCore st1.
+    have ->: c INV = c1.
       generalize dependent INV.
       by rewrite/c/peekCore; case=> /=; rewrite/s1/pf1; intros; f_equal.
     by intros; case: (dets_S EFFSTEP EFFSTEP'). }
 
  have EFFSTEP: 
-        effect_semantics.effstep (coreSem (cores_S (Core.i c1))) 
-        (ge (cores_S (Core.i c1))) U1 (RC.core (Core.c c1)) m1 c1' m1'.
+    effect_semantics.effstep (coreSem (cores_S (Core.i c1))) 
+    (ge (cores_S (Core.i c1))) U1 (RC.core (Core.c c1)) m1 (RC.core c1') m1'.
+
   { move: (STEP_EFFSTEP STEP); rewrite/effstep0=> [][] c1'' [] STEP0' ST1''.
-    by rewrite ST1'' in ST1'; rewrite -(updCore_inj_updC ST1'). }
+    rewrite ST1'' in ST1'; rewrite -(updCore_inj_upd ST1'). 
+    by move: STEP0'=> /=; rewrite/RC.effstep/= => [][]. }
 
  (* specialize core diagram at module (Core.i c1) *)
  move: (effcore_diagram _ _ _ _ _ (sims (Core.i c1))).  
@@ -958,8 +1006,7 @@ case: STEP.
  case: (R_inv INV)=> pf []mu_trash []mupkg []mus []z []mu_eq.
  move=> rclosed trinv hdinv tlinv.
 
- have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b.
-   admit.
+ have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b. admit.
 
  move: (head_match hdinv)=> MATCH.
  move/(_ _ _ _ _ U1_DEF' MATCH).
@@ -973,43 +1020,54 @@ case: STEP.
  set mupkg' := Build_frame_pkg mu_top'_valid.
 
  (* instantiate existentials *)
- set c2''    := cast' (peek_ieq INV) c2'.
- set st2'    := updCore st2 (Core.updC (peekCore st2) c2'').
- set data'   := Lex.set (Core.i c1) cd' data.
- set mu'     := restrict_sm 
+ set c2_3   := cast' (peek_ieq INV) c2'.
+ set c2''   := RC.upd_locs 
+                 (fun b => RC.locs (Core.c c2) b || RC.newBlocks m2 m2' b)
+                 (RC.updC c2_3 (Core.c c2)).
+ set st2'   := updCore st2 (Core.upd c2 c2'').
+ set data'  := Lex.set (Core.i c1) cd' data.
+ set mu'    := restrict_sm 
                 (join_all mu_trash $ mu_top' :: map frame_mu0 mus)
                 (vis (join_all mu_trash $ mu_top' :: map frame_mu0 mus)).
- exists st2', m2', data', mu'; split=> //.
 
- rewrite mu_eq.
- apply join_all_restrict_incr with (m1 := m1) (m2 := m2)=> //.
- admit.
- admit.
- admit.
- admit.
- admit.
- admit.
- move: (head_rel hdinv). 
- 
- admit.
- admit.
- split.
- admit.
- split.
- admit.
+ exists st2', m2', data', mu'. 
+
+ split. admit. (*incr*)
+ split. admit. (*sep*)
+ split. admit. (*loc-alloc*)
+
  split.
 
  (* re-establish invariant *)
  apply: Build_R; rewrite ST1'; rewrite /st2'.
 
- exists pf,mu_trash,mupkg',mus,z.
- split=> //.
+ exists pf, mu_trash, mupkg', mus, z; split=> //.
 
- admit. (*tricky*)
- admit. (*easy*)
- admit. (*easy*)
- admit. (*easy*)
- admit. (*easy*)
+ admit. (*rc vis mu' - tricky*)
+ admit. (*trinv - easy*)
+
+(*HERE*)
+ 
+ + apply: head_inv_step.
+   (@head_inv_step mupkg m1 m2 mu_top' m1' m2'
+                   (head_valid hdinv)
+                   INCR 
+                   SEP
+                   (c INV) (d INV) pf c1' c2'').
+                   (Lex.get (Core.i (c INV)) data) cd' mus z
+                   (CallStack.callStack (s1 INV)) 
+                   (CallStack.callStack (s2 INV)) 
+                   U1).
+                   frameall).
+
+
+ + case: tlinv=> allrel frameall. Set Printing Implicit.
+
+                   
+                   _ _ _ _ _ _ _ _ _ _ _ _ _ _ frameall).
+mu_top'_valid               
+     intern_incr).
+
 
  + eapply head_inv_step; eauto.
    by apply: (corestep_fwd STEP0).

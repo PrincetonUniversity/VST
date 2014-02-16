@@ -378,6 +378,7 @@ Arguments halted0 !l.
 
 (* [corestep0] lifts a corestep of the runing core to a corestep of the   *)
 (* whole program semantics.                                               *)
+(* Note: we call the RC version of corestep here.                         *)                        
 
 Definition corestep0 
   (l: linker N my_cores) (m: Mem.mem) (l': linker N my_cores) (m': Mem.mem) := 
@@ -388,8 +389,8 @@ Definition corestep0
   let: V   := (my_cores ix).(Static.V) in
   let: ge  := (my_cores ix).(Static.ge) in
     exists c', 
-      @corestep (Genv.t F V) _ _ sem ge (RC.core (Core.c c)) m c' m'
-   /\ l' = updCore l (Core.updC c c').
+      @corestep (Genv.t F V) _ _ (RC.effsem sem) ge (Core.c c) m c' m'
+   /\ l' = updCore l (Core.upd c c').
 
 Arguments corestep0 !l m l' m'.
 
@@ -475,7 +476,8 @@ Lemma corestep_not_halted0 m c m' c' : corestep0 c m c' m' -> halted c = None.
 Proof.
 move=> []newCore []H1 H2; rewrite/halted.
 case Hcx: (~~ inContext _)=>//; case Hht: (halted0 _)=>//.
-by move: Hht; rewrite/halted0; apply corestep_not_halted in H1; rewrite H1.
+move: Hht; rewrite/halted0; apply corestep_not_halted in H1. 
+by move: H1=> /=; rewrite/RC.halted=> ->.
 Qed.
 
 Lemma corestep_not_at_external ge m c m' c' : 
@@ -558,8 +560,8 @@ Definition effstep0 U (l: linker N my_cores) m (l': linker N my_cores) m' :=
   let: V   := (my_cores ix).(Static.V) in
   let: ge  := (my_cores ix).(Static.ge) in
     exists c', 
-      @effstep (Genv.t F V) _ sem ge U (RC.core (Core.c c)) m c' m'
-   /\ l' = updCore l (Core.updC c c').
+      @effstep (Genv.t F V) _ (RC.effsem sem) ge U (Core.c c) m c' m'
+   /\ l' = updCore l (Core.upd c c').
 
 Lemma effstep0_unchanged U l m l' m' : 
   effstep0 U l m l' m' ->
