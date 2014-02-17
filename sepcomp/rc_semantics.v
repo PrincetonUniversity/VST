@@ -5,6 +5,7 @@ Require Import BinPos.
 Require Import compcert. Import CompcertCommon.
 
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.effect_semantics.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.core_semantics_lemmas.
@@ -83,11 +84,23 @@ Definition halted c := halted sem (core c).
 
 Arguments halted /.
 
-Definition reach_basis (ge : Genv.t F V) (c : state) := 
+Definition reach_basis F V (ge : Genv.t F V) (c : state) := 
   fun b => isGlobalBlock ge b
         || getBlocks (args c) b
         || getBlocks (rets c) b
         || locs c b.
+
+Lemma reach_basis_domains_eq 
+    F1 F2 V1 V2 (ge1 : Genv.t F1 V1) (ge2 : Genv.t F2 V2) c b : 
+  genvs_domain_eq ge1 ge2 -> 
+  reach_basis ge1 c b=true -> 
+  reach_basis ge2 c b=true.
+Proof.
+unfold reach_basis; intros A.
+case_eq (isGlobalBlock ge2 b); simpl; auto.
+intros B. cut (isGlobalBlock ge1 b=false). intros ->; auto.
+erewrite genvs_domain_eq_isGlobal; eauto.
+Qed.
 
 Definition reach_set (ge : Genv.t F V) (c : state) (m : mem) := 
   REACH m (reach_basis ge c).

@@ -998,27 +998,27 @@ case: STEP.
   { move: (STEP_EFFSTEP STEP); rewrite/effstep0=> [][] c1'' [] STEP0' ST1''. 
     by rewrite ST1'' in ST1'; rewrite -(updCore_inj_upd ST1'). }
 
- (*have EFFSTEP: 
-    effect_semantics.effstep (coreSem (cores_S (Core.i c1))) 
-    (ge (cores_S (Core.i c1))) U1 (RC.core (Core.c c1)) m1 (RC.core c1') m1'.
-
-  { by case: RC_EFFSTEP. }*)
-
  (* specialize core diagram at module (Core.i c1) *)
  move: (effcore_diagram _ _ _ _ _ (sims (Core.i c1))).  
  move/(_ _ _ _ _ _ EFFSTEP).
  case: (R_inv INV)=> pf []mu_trash []mupkg []mus []z []mu_eq.
  move=> rclosed trinv hdinv tlinv.
 
- have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b. admit. (*TODO*)
+ have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b. 
+
+   { case: hdinv=> mtch ?; case=> visinv _ b ofs A; move: (U1'_EQ _ _ A).
+     rewrite/RC.reach_set=> B; apply match_visible in mtch; apply: mtch.
+     move: B; apply REACH_mono with (B1 := RC.reach_basis _ _)=> b'=> B.
+     apply: (visinv b'); move: B; apply: RC.reach_basis_domains_eq.
+     by apply: genvs_domain_eq_sym; apply: (my_ge_S (Core.i c1)). }
 
  move: (head_match hdinv)=> MATCH.
  move/(_ _ _ _ _ U1_DEF' MATCH).
  move=> []c2' []m2' []cd' []mu_top0.
  move=> []INCR []SEP []LOCALLOC []MATCH' []U2 []STEP' PERM.
 
- have mu_top'_wd: SM_wd mu_top0. admit. (*TODO*)
- set mu_top'   := Inj.mk mu_top'_wd.
+ have mu_top'_wd: SM_wd mu_top0 by move: MATCH'; apply: match_sm_wd.
+ set mu_top' := Inj.mk mu_top'_wd.
  have mu_top'_valid: sm_valid mu_top' m1' m2'
    by apply: (match_validblocks _ MATCH').
  set mupkg' := Build_frame_pkg mu_top'_valid.
@@ -1074,7 +1074,7 @@ case: STEP.
    - case; case=> n=> EFFSTEPN _.
      by apply: (effect_semantics.effstepN_fwd EFFSTEPN).   
    move=> ? ? X; move: (PERM _ _ X)=> []Y Z; split=> //.
-   admit. (*easy*)   
+   admit. (*easy, by effstep_valid*)   
    by apply: (head_rel hdinv).
 
  (* matching execution *)
