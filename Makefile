@@ -96,6 +96,7 @@ LINKING_FILES= \
   linking.v \
   compcert_linking.v \
   linking_lemmas.v \
+  compcert_linking_lemmas.v \
   linking_proof.v
 
 COMPCOMP_FILES= \
@@ -225,6 +226,9 @@ clean-linking:
 
 count:
 	wc $(FILES)
+
+count-linking:
+	wc $(LINKING_FILES:%.v=sepcomp/%.v)
 
 $(CC_TARGET): compcert/make
 	(cd compcert; ./make)

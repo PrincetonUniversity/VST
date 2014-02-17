@@ -65,15 +65,16 @@ End ind_natdep.
 Section ind_natdep2.
 
 Variable N : nat.
-Variables T : 'I_N -> Type.
-Variables i j : 'I_N.
-Variable P : forall i : 'I_N, T i -> T i -> Type.
+Variable T : 'I_N -> Type.
+Variable U : 'I_N -> Type.
+Variable i j : 'I_N.
+Variable P : forall i : 'I_N, T i -> U i -> Type.
 Variable x : T i.
-Variable y : T j.
+Variable y : U j.
 
 Lemma cast_indnatdep2 (eq : j = i) : 
   P (cast_ty (lift_eq T (sym_eq eq)) x) y -> 
-  P x (cast_ty (lift_eq T eq) y).
+  P x (cast_ty (lift_eq U eq) y).
 Proof. destruct eq=> //. Qed.
 
 End ind_natdep2.
@@ -84,6 +85,14 @@ Lemma cast_cast_eq A F (i j : A) (pf : i = j) (x : F i) :
   cast F (sym_eq pf) (cast F pf x)  = x.
 Proof. 
 have EQ: JMeq (cast F (sym_eq pf) (cast F pf x)) x 
+  by do 2 rewrite cast_ty_JMeq.
+by rewrite EQ.
+Qed.
+
+Lemma cast_cast_eq' A F (i j : A) (pf1 : j = i) (pf2 : i = j) (x : F i) : 
+  cast F pf1 (cast F pf2 x)  = x.
+Proof. 
+have EQ: JMeq (cast F pf1 (cast F pf2 x)) x 
   by do 2 rewrite cast_ty_JMeq.
 by rewrite EQ.
 Qed.

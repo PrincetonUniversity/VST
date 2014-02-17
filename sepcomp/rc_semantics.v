@@ -29,7 +29,7 @@ Unset Printing Implicit Defensive.
 (*                                                                         *)
 (* RC semantics are /reach closed/ in the sense that whenever              *)
 (*   effstep rcsem ge U (c,args,rets,locs) m                               *)
-(*                      (c',args,rets,locs\cup newBlocks m m') m'          *)
+(*                      (c',args,rets,locs\cup freshlocs m m') m'          *)
 (* then                                                                    *)
 (*   U is a subset of the reachable set of <(c,args,rets,locs),m>.         *)
 (*                                                                         *)
@@ -83,9 +83,6 @@ Definition halted c := halted sem (core c).
 
 Arguments halted /.
 
-Definition newBlocks (m m' : mem) := 
-  fun b => (Pos.leb (Mem.nextblock m) b && Pos.ltb b (Mem.nextblock m')).
-
 Definition reach_basis (ge : Genv.t F V) (c : state) := 
   fun b => isGlobalBlock ge b
         || getBlocks (args c) b
@@ -100,7 +97,7 @@ Definition effstep ge U c m c' m' :=
   /\ (forall b ofs, U b ofs=true -> reach_set ge c m b=true)
   /\ args c'=args c
   /\ rets c'=rets c
-  /\ locs c' = fun b => locs c b || newBlocks m m' b.
+  /\ locs c' = fun b => locs c b || StructuredInjections.freshloc m m' b.
 
 Arguments effstep /.
 

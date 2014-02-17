@@ -26,7 +26,7 @@ Require Import sepcomp.wf_lemmas.
 Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.inj_lemmas.
 Require Import sepcomp.compcert_linking.
-Require Import sepcomp.linking_lemmas.
+Require Import sepcomp.compcert_linking_lemmas.
 Require Import sepcomp.disjointness.
 Require Import sepcomp.arguments.
 Require Import sepcomp.rc_semantics.
@@ -89,7 +89,8 @@ Variable entry_points : seq (val*val*signature).
 Variable sims : forall i : 'I_N, 
   let s := cores_S i in
   let t := cores_T i in
-  SM_simulation_inject s.(coreSem) t.(coreSem) s.(ge) t.(ge) entry_points.
+  SM_simulation_inject 
+  (RC.effsem s.(coreSem)) (RC.effsem t.(coreSem)) s.(ge) t.(ge) entry_points.
 Variable dets_S : forall i : 'I_N, effstep_fun (cores_S i).(coreSem).
 Variable my_ge : ge_ty.
 Variable my_ge_S : forall (i : 'I_N), genvs_domain_eq my_ge (cores_S i).(ge).
@@ -109,6 +110,10 @@ Let ord := @Lex.ord N types ords.
 Notation cast' pf x := (cast (C \o cores_T) pf x).
 
 Notation cast'' pf x := (cast (C \o cores_T) (sym_eq pf) x).
+
+Notation rc_cast' pf x := (cast (RC.state \o C \o cores_T) pf x).
+
+Notation rc_cast'' pf x := (cast (RC.state \o C \o cores_T) (sym_eq pf) x).
 
 Section frame_inv.
 
@@ -184,7 +189,7 @@ Record frame_inv
   ; frame_inj0  : Mem.inject (as_inj mu0) m10 m20
   ; frame_valid : sm_valid mu0 m10 m20 
   ; frame_match : (sims c.(i)).(match_state) cd0 mu0 
-                    (RC.core c.(Core.c)) m10 (cast'' pf (RC.core d.(Core.c))) m20 
+                   c.(Core.c) m10 (rc_cast'' pf d.(Core.c)) m20 
   ; frame_at1   : at_external (cores_S c.(i)).(coreSem) (RC.core c.(Core.c))
                     = Some (e1, ef_sig1, vals1) 
   ; frame_at2   : at_external (cores_T c.(i)).(coreSem) (cast'' pf (RC.core d.(Core.c))) 
@@ -323,7 +328,7 @@ Variable  (pf : c.(i)=d.(i)).
 
 Record head_inv cd mu mus z m1 m2 : Type :=
   { head_match : (sims c.(i)).(match_state) cd mu 
-                 (RC.core c.(Core.c)) m1 (cast'' pf (RC.core d.(Core.c))) m2 
+                 c.(Core.c) m1 (rc_cast'' pf d.(Core.c)) m2 
   ; head_rel   : All (rel_inv_pred mu) mus 
   ; head_vis   : vis_inv c mu 
   ; head_safe  : forall n, 
@@ -426,7 +431,7 @@ Lemma frame_all_match mu0 m10 m20 x mus z m1 m2 s1 s2 :
       , s2 = d :: s2' 
       & exists (pf : c.(Core.i)=d.(Core.i)) cd0,
         (sims c.(Core.i)).(match_state) cd0 mu0 
-          (RC.core c.(Core.c)) m10 (cast'' pf (RC.core d.(Core.c))) m20].
+        c.(Core.c) m10 (rc_cast'' pf d.(Core.c)) m20].
 Proof.
 case: s1=> // c s1'; case: s2=> // d s2' /=.
 move=> [][]pf => [][]cd []ef1 []sig1 []vals1 []ef2 []sig2 []vals2 A B.
@@ -533,7 +538,7 @@ Lemma tail_inv_match mu0 m10 m20 z x mus s1 s2 m1 m2 :
       , s2 = d :: s2' 
       & exists (pf : c.(Core.i)=d.(Core.i)) cd0,
         (sims c.(Core.i)).(match_state) cd0 mu0 
-          (RC.core c.(Core.c)) m10 (cast'' pf (RC.core d.(Core.c))) m20].
+        c.(Core.c) m10 (rc_cast'' pf d.(Core.c)) m20].
 Proof. by move=> []_; move/frame_all_match. Qed.
 
 Section tail_inv_lems.
@@ -726,13 +731,13 @@ Lemma head_inv_step
   frame_all mus z m1 m2 s1 s2 -> 
   RC.args (Core.c c)=RC.args c' -> 
   RC.rets (Core.c c)=RC.rets c' -> 
-  RC.locs c' = (fun b => RC.locs (Core.c c) b || RC.newBlocks m1 m1' b) ->
+  RC.locs c' = (fun b => RC.locs (Core.c c) b || freshloc m1 m1' b) ->
   effect_semantics.effstep 
     (coreSem (cores_S (Core.i c))) (ge (cores_S (Core.i c))) U 
     (RC.core (Core.c c)) m1 (RC.core c') m1' -> 
   match_state (sims (Core.i (Core.upd c c'))) cd' mu'
-    (RC.core (Core.c (Core.upd c c'))) m1'
-    (cast'' pf (RC.core (Core.c (Core.upd d d')))) m2' -> 
+    (Core.c (Core.upd c c')) m1'
+    (rc_cast'' pf (Core.c (Core.upd d d'))) m2' -> 
   (forall b : block,
    RC.locs (Core.c c) b = false ->
    RC.locs c' b -> locBlocksSrc mu' b) -> 
@@ -799,13 +804,13 @@ Proof. by move: (R_inv pf); move=> []A _; apply: A. Qed.
 Lemma peek_match :
   exists cd mu_top, 
   match_state (sims (Core.i (peekCore x1))) cd mu_top 
-  (RC.core (Core.c (peekCore x1))) m1 
-  (cast'' peek_ieq (RC.core (Core.c (peekCore x2)))) m2.
+  (Core.c (peekCore x1)) m1 
+  (rc_cast'' peek_ieq (Core.c (peekCore x2))) m2.
 Proof.
 move: (R_inv pf)=> []A []? []mu_top []? []? []? _ _. 
 move/head_match=> MATCH ?.
-have ->: (cast'' peek_ieq (RC.core (Core.c (peekCore x2))) 
-         = cast'' A (RC.core (Core.c (peekCore x2))))
+have ->: (rc_cast'' peek_ieq (Core.c (peekCore x2)) 
+         = rc_cast'' A (Core.c (peekCore x2)))
   by f_equal; f_equal; apply proof_irr.
 by exists (Lex.get (Core.i (peekCore x1)) data), mu_top.
 Qed.
@@ -952,8 +957,7 @@ eapply Build_SM_simulation_inject
 (* core_initial *)
 - by admit. (* TODO *)
 
-(* NOT NEEDED diagram1 *)
-- by admit.
+- by admit. (* NOT NEEDED diagram1 *)
 
 (* real diagram *)
 - move=> st1 m1 st1' m1' U1 STEP data st2 mu m2 U1_DEF INV.
@@ -966,39 +970,39 @@ case: STEP.
  set c1 := peekCore st1.
  set c2 := peekCore st2.
 
- have [c1' [STEP0 [U1'_EQ ST1']]]:
+ have [c1' [STEP0 [U1'_EQ [c1_args [c1_rets [c1_locs ST1']]]]]]:
    exists c1',
        Coresem.corestep 
          (t := RC.effsem (coreSem (cores_S (Core.i c1)))) 
          (ge (cores_S (Core.i c1))) (Core.c c1) m1 c1' m1' 
    /\ (forall b ofs, U1 b ofs -> 
        RC.reach_set (ge (cores_S (Core.i c1))) (Core.c c1) m1 b)
+   /\ RC.args (Core.c (c INV)) = RC.args c1'
+   /\ RC.rets (Core.c (c INV)) = RC.rets c1'
+   /\ RC.locs c1' 
+      = (fun b => RC.locs (Core.c (c INV)) b || freshloc m1 m1' b)
    /\ st1' = updCore st1 (Core.upd c1 c1').
 
   { move: (STEP_EFFSTEP STEP)=> EFFSTEP.
-    move: STEP; rewrite/LinkerSem.corestep0=> [][]c' []B C. 
-    exists c'; split=> //; split=> //.
-    case: (R_inv INV)=> pf []pkg []mu_top []mus []z []E ? trinv hdinv tlinv.
-    move: (head_safe hdinv); move/(_ (S O)); rewrite/safeN.
-    rewrite (corestep_not_at_external _ _ _ _ _ _ B).
-    rewrite (corestep_not_halted _ _ _ _ _ _ B).
-    move=> []c1'' []m1'' [][]U1' []EFFSTEP' []SUB []eq1 []eq2 eq3 _. 
-    move: SUB; cut (U1=U1'); first by move=> ->.
-    move: EFFSTEP EFFSTEP'; rewrite/effstep0. 
-    move=> []c1' []/=; rewrite/RC.effstep=> [][]EFFSTEP _ _.
-    generalize dependent INV; move=> INV.
-    have ->: c INV = c1.
-      generalize dependent INV.
-      by rewrite/c/peekCore; case=> /=; rewrite/s1/pf1; intros; f_equal.
-    by intros; case: (dets_S EFFSTEP EFFSTEP'). }
+    move: STEP; rewrite/LinkerSem.corestep0=> [][]c1' []B C. 
+    move: EFFSTEP; rewrite/effstep0.
+    move=> []? []/=; rewrite/RC.effstep=> [][]EFFSTEP []u1 []args []rets locs D.
+    exists c1'. split=> //. split=> //.
+    by move: C D=> ->; move/updCore_inj_upd=> ->; split. }
 
  have EFFSTEP: 
+    effect_semantics.effstep 
+    (RC.effsem (coreSem (cores_S (Core.i c1))))
+    (ge (cores_S (Core.i c1))) U1 (Core.c c1) m1 c1' m1'.
+
+  { move: (STEP_EFFSTEP STEP); rewrite/effstep0=> [][] c1'' [] STEP0' ST1''. 
+    by rewrite ST1'' in ST1'; rewrite -(updCore_inj_upd ST1'). }
+
+ (*have EFFSTEP: 
     effect_semantics.effstep (coreSem (cores_S (Core.i c1))) 
     (ge (cores_S (Core.i c1))) U1 (RC.core (Core.c c1)) m1 (RC.core c1') m1'.
 
-  { move: (STEP_EFFSTEP STEP); rewrite/effstep0=> [][] c1'' [] STEP0' ST1''.
-    rewrite ST1'' in ST1'; rewrite -(updCore_inj_upd ST1'). 
-    by move: STEP0'=> /=; rewrite/RC.effstep/= => [][]. }
+  { by case: RC_EFFSTEP. }*)
 
  (* specialize core diagram at module (Core.i c1) *)
  move: (effcore_diagram _ _ _ _ _ (sims (Core.i c1))).  
@@ -1006,29 +1010,26 @@ case: STEP.
  case: (R_inv INV)=> pf []mu_trash []mupkg []mus []z []mu_eq.
  move=> rclosed trinv hdinv tlinv.
 
- have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b. admit.
+ have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b. admit. (*TODO*)
 
  move: (head_match hdinv)=> MATCH.
  move/(_ _ _ _ _ U1_DEF' MATCH).
  move=> []c2' []m2' []cd' []mu_top0.
  move=> []INCR []SEP []LOCALLOC []MATCH' []U2 []STEP' PERM.
 
- have mu_top'_wd: SM_wd mu_top0. admit.
+ have mu_top'_wd: SM_wd mu_top0. admit. (*TODO*)
  set mu_top'   := Inj.mk mu_top'_wd.
  have mu_top'_valid: sm_valid mu_top' m1' m2'
    by apply: (match_validblocks _ MATCH').
  set mupkg' := Build_frame_pkg mu_top'_valid.
 
  (* instantiate existentials *)
- set c2_3   := cast' (peek_ieq INV) c2'.
- set c2''   := RC.upd_locs 
-                 (fun b => RC.locs (Core.c c2) b || RC.newBlocks m2 m2' b)
-                 (RC.updC c2_3 (Core.c c2)).
+ set c2''   := rc_cast' (peek_ieq INV) c2'.
  set st2'   := updCore st2 (Core.upd c2 c2'').
  set data'  := Lex.set (Core.i c1) cd' data.
  set mu'    := restrict_sm 
-                (join_all mu_trash $ mu_top' :: map frame_mu0 mus)
-                (vis (join_all mu_trash $ mu_top' :: map frame_mu0 mus)).
+               (join_all mu_trash $ mu_top' :: map frame_mu0 mus)
+               (vis (join_all mu_trash $ mu_top' :: map frame_mu0 mus)).
 
  exists st2', m2', data', mu'. 
 
@@ -1046,100 +1047,65 @@ case: STEP.
  admit. (*rc vis mu' - tricky*)
  admit. (*trinv - easy*)
 
-(*HERE*)
- 
- + apply: head_inv_step.
-   (@head_inv_step mupkg m1 m2 mu_top' m1' m2'
-                   (head_valid hdinv)
-                   INCR 
-                   SEP
-                   (c INV) (d INV) pf c1' c2'').
-                   (Lex.get (Core.i (c INV)) data) cd' mus z
-                   (CallStack.callStack (s1 INV)) 
-                   (CallStack.callStack (s2 INV)) 
-                   U1).
-                   frameall).
-
-
- + case: tlinv=> allrel frameall. Set Printing Implicit.
-
-                   
-                   _ _ _ _ _ _ _ _ _ _ _ _ _ _ frameall).
-mu_top'_valid               
-     intern_incr).
-
-
- + eapply head_inv_step; eauto.
-   by apply: (corestep_fwd STEP0).
-   case: STEP'=> A; first by apply: (effstep_plus_fwd _ _ _ _ _ _ _ A). 
-   by case: A=> A _; apply: (effstep_star_fwd _ _ _ _ _ _ _ A).
-   by apply: (match_validblocks _ MATCH).
-   move: MATCH'; rewrite/data' Lex.gss /c2''.
-   have ->: peek_ieq INV = pf by apply: proof_irr.
-   have ->: cast pf (RC.core (Core.c (d INV))) = c2'.
-     rewrite/RC.updC; case: (Core.c _)=> ? ? ? ? /=.
-     by rewrite (@cast_cast_eq _ (fun i => C (cores_T i)) _ _ pf c2').
-   by rewrite/RC.core/RC.updC/=; case: (Core.c c1).
+ (* head_inv *)
+ + case: tlinv=> allrel frameall.
+   apply: (@head_inv_step 
+     mupkg m1 m2 mu_top' m1' m2' (head_valid hdinv) INCR SEP
+     (c INV) (d INV) pf c1' c2'' (Lex.get (Core.i (c INV)) data) _ mus z
+     (STACK.pop (CallStack.callStack (s1 INV))) 
+     (STACK.pop (CallStack.callStack (s2 INV))) U1 hdinv frameall)=> //=.
+   by case: EFFSTEP.
+   have ->: rc_cast'' pf c2'' = c2' by apply: cast_cast_eq'.
+   by rewrite Lex.gss.
+   rewrite c1_locs=> b -> /=; move: (LOCALLOC). 
+   rewrite sm_locally_allocatedChar; case=> _ []_ []-> _ A.
+   by apply/orP; right.
 
  (* tail_inv *)
- + move: (R_tail INV); rewrite/s1/s2/st2'; generalize dependent st1.
-   case=> ?; case; case=> //; case=> ai a l1 pf1. 
-   case: st2=> ?; case; case=> //; case=> bi b l2 pf2 /= INV A B c1' D EQ.
-   move: EQ A B D=> -> /= STEP_EFFSTEP STEP0.
-   move=> STEP EFFSTEP cd MATCH c2' cd' MATCH' STEP_ORD. 
-   move=> tlinv.
-   have mu_wd: SM_wd mu by apply: match_sm_wd MATCH.
-   have mu'_wd: SM_wd mu' by apply: match_sm_wd MATCH'.
-   have H: tail_inv (Inj.mk mu'_wd) l1 l2 m1' m2'.
-   apply: (@tail_inv_step (Inj.mk mu_wd) _ _ m1 m2 U1 U2)=> //=.
-   by case: (effect_semantics.effax1 EFFSTEP)=> _ ?.
-   case: STEP_ORD.
+ + eapply tail_inv_step with (Etgt := U2); eauto.
+   by apply: (effstep_unchanged _ _ _ _ _ _ _ EFFSTEP).
+   case: STEP'.
    - by case=> n; apply: effect_semantics.effstepN_unchanged.
    - case; case=> n=> EFFSTEPN _. 
      by apply: (effect_semantics.effstepN_unchanged EFFSTEPN).
-   by apply: (corestep_fwd STEP).
-   case: STEP_ORD.
+   by move: (effax1 EFFSTEP)=> []; move/corestep_fwd.
+   case: STEP'.
    - by case=> n; apply: effect_semantics.effstepN_fwd.
    - case; case=> n=> EFFSTEPN _.
      by apply: (effect_semantics.effstepN_fwd EFFSTEPN).   
-   by apply: (match_validblocks (sims ai) MATCH).
-   by apply: H.
+   move=> ? ? X; move: (PERM _ _ X)=> []Y Z; split=> //.
+   admit. (*easy*)   
+   by apply: (head_rel hdinv).
 
  (* matching execution *)
- + exists U2; split=> //; case: STEP'=> STEP'. 
-   left; apply: stepPLUS_STEPPLUS=> //.
-   set T := C \o cores_T.
-   set P := fun ix (x : T ix) (y : T ix) => 
-               effect_semantics.effstep_plus 
-               (coreSem (cores_T ix)) (ge (cores_T ix)) U2 x m2 y m2'.
-   set c2 := peekCore st2.
-   change (P (Core.i c2) (Core.c c2) (cast.cast T (peek_ieq INV) c2')).
-   by apply: cast_indnatdep2.
+ + exists U2; split=> //; case: STEP'=> STEP'.
 
-   case: STEP'=> [][]n EFFSTEPN ORD; right; split=> //. 
-   exists n; apply: stepN_STEPN=> //.
-   set T := C \o cores_T.
-   set P := fun ix (x : T ix) (y : T ix) => 
-               effect_semantics.effstepN
-               (coreSem (cores_T ix)) (ge (cores_T ix)) n U2 x m2 y m2'.
-   set c2 := peekCore st2.
-   change (P (Core.i c2) (Core.c c2) (cast.cast T (peek_ieq INV) c2')).
-   by apply: cast_indnatdep2.
+   have STEP'': 
+     effstep_plus (RC.effsem (coreSem (cores_T (Core.i c2))))
+     (ge (cores_T (Core.i c2))) U2 (Core.c (d INV)) m2 c2'' m2'. 
 
+   { set T := RC.state \o C \o cores_T.
+     set P := fun ix (x : T ix) (y : T ix) => 
+               effstep_plus (RC.effsem (coreSem (cores_T ix)))
+               (ge (cores_T ix)) U2 x m2 y m2'.
+     change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
+     by move: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr. }
+
+   by left; move: STEP''; apply: stepPLUS_STEPPLUS.
+
+   have STEP'': 
+     effstep_star (RC.effsem (coreSem (cores_T (Core.i c2))))
+     (ge (cores_T (Core.i c2))) U2 (Core.c c2) m2 c2'' m2'. 
+
+   { set T := RC.state \o C \o cores_T.
+     set P := fun ix (x : T ix) (y : T ix) => 
+               effstep_star (RC.effsem (coreSem (cores_T ix)))
+               (ge (cores_T ix)) U2 x m2 y m2'.
+     change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
+     by case: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr; by []. }
+
+   right; split; first by move: STEP''; apply: stepSTAR_STEPSTAR.
    apply: Lex.ord_upd; admit. (*FIXME: tail_inv cannot existentially quant. cd's*)
-
-- case=> <-; case=> NSTEP.
-case CTX: (inContext st1)=> //.
-case AT0: (Sem.at_external0 st1)=> [[[ef sig] args]|].
-case FID: (Sem.fun_id ef)=> // [f].
-case HDL: (Sem.handle f st1 args)=> // [st1''] EQ; subst st1''.
-Arguments core_at_external 
-  {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 entry_points s cd mu c1 m1 c2 m2 e vals1 ef_sig} _ _.
-move: (R_head INV)=> []pf; move/head_match=> MATCH.
-case: (core_at_external MATCH AT0)=> tinj []targs []tvinj TATEXT0.
-have [st2' H]: (exists st2', Sem.handle f st2 targs = Some st2').
-  admit.
-exists st2', m2, data.
 
 Admitted. (*WORK-IN-PROGRESS*)
 
