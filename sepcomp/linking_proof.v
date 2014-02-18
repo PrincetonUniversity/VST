@@ -313,9 +313,12 @@ Record trash_inv mu_trash mu_top mus m1 m2 : Type :=
   { trash_presglob : Events.meminj_preserves_globals my_ge $ extern_of mu_trash
   ; trash_isglob   : (forall b, isGlobalBlock my_ge b -> frgnBlocksSrc mu_trash b)
   ; trash_valid    : sm_valid mu_trash m1 m2
-  ; trash_disj_S   : All (DisjointLS mu_trash) $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
-  ; trash_disj_T   : All (DisjointLT mu_trash) $ map (Inj.mu \o frame_mu0) $ mu_top :: mus
-  ; trash_consist  : All (Consistent mu_trash) $ map (Inj.mu \o frame_mu0) $ mu_top :: mus }.
+  ; trash_disj_S   : All (DisjointLS mu_trash) 
+                       [seq (Inj.mu \o frame_mu0) x | x <- mu_top :: mus]
+  ; trash_disj_T   : All (DisjointLT mu_trash) 
+                       [seq (Inj.mu \o frame_mu0) x | x <-  mu_top :: mus]
+  ; trash_consist  : All (Consistent mu_trash) 
+                       [seq (Inj.mu \o frame_mu0) x | x <- mu_top :: mus] }.
 
 End trash_inv.
 
@@ -1033,7 +1036,28 @@ case: STEP.
 
  exists st2', m2', data', mu'. 
 
- split. admit. (*incr*)
+ split. 
+
+ (*incr*)
+ rewrite mu_eq; apply join_all_restrict_incr with (m1 := m1) (m2 := m2)=> //.
+ move: (head_AllDisjointLS hdinv); rewrite All_comp2=> A.
+ move: (tail_valid tlinv); rewrite -map_comp=> B.
+ move: (AllDisjointLS_incr A INCR SEP LOCALLOC B).
+ rewrite -All_comp3=> C; rewrite -All_comp; apply (All_sub C). 
+ by move=> pkg D; apply: DisjointLS_disjoint.
+ by move: (trash_disj_S trinv)=> /= []; rewrite map_comp.
+ by move: (trash_disj_T trinv)=> /= []; rewrite map_comp.
+ by move: (trash_consist trinv)=> /= []; rewrite map_comp.
+ apply: DisjointLS_disjoint.
+ have A: DisjointLS mupkg mu_trash. 
+   by move: (trash_disj_S trinv)=> /= []; rewrite DisjointC.
+ by apply: (DisjointLS_incr A INCR SEP LOCALLOC (trash_valid trinv)).
+ by move: (tail_AllDisjointLS tlinv); rewrite All2_comp2 map_comp.
+ by move: (tail_AllDisjointLT tlinv); rewrite All2_comp2 map_comp.
+ by move: (tail_AllConsistent tlinv); rewrite All2_comp2 map_comp. 
+ by move: (tail_valid tlinv); rewrite -All_comp3.
+ by apply: (trash_valid trinv).
+
  split. admit. (*sep*)
  split. admit. (*loc-alloc*)
 

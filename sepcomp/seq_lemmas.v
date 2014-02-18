@@ -50,6 +50,18 @@ by move=> /= []A B; split=> //; rewrite -IH.
 by move=> /= []A B; split=> //; rewrite IH.
 Qed.
 
+Lemma All_comp2 T U (P : T -> Prop) (f : U -> T) l :
+  (All P \o map f) l <-> All P (map f l).
+Proof. by []. Qed.
+
+Lemma All_comp3 T U (P : T -> Prop) (f : U -> T) l :
+  All (fun a => P (f a)) l <-> All P (map f l).
+Proof. 
+elim: l=> // a' l' IH; split=> //= [][]A B; split=> //.
+by rewrite -IH.
+by rewrite IH.
+Qed.
+
 Lemma All2_comp T U (P : T -> T -> Prop) (f : U -> T) l :
   All2 (fun a b => P (f a) (f b)) l <-> (All2 P \o map f) l.
 Proof.

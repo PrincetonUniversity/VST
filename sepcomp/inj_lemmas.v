@@ -831,6 +831,66 @@ move/DisjointP; move/(_ b); case; first by case: (locBlocksTgt mu1 b).
 by contradiction.
 Qed.
 
+Lemma DisjointLS_incr mu1 mu1' mu2 m1 m2 m1' m2' : 
+  DisjointLS mu1 mu2 -> 
+  intern_incr mu1 mu1' -> 
+  sm_inject_separated mu1 mu1' m1 m2 -> 
+  sm_locally_allocated mu1 mu1' m1 m2 m1' m2' -> 
+  sm_valid mu2 m1 m2 -> 
+  DisjointLS mu1' mu2.
+Proof.
+move/DisjointP=> A B C D E /=; rewrite DisjointP=> b; move: (A b).
+case=> // F. 
+case G: (locBlocksSrc mu2 b); last by right. left=> H.
+have F': locBlocksSrc mu1 b = false by move: F; case: (locBlocksSrc mu1 b).
+case: (sm_inject_separated_intern_MYB _ _ _ _ _ _ C D); move/(_ b F' H)=> I _.
+by case: E; move/(_ b); rewrite/DOM/DomSrc G=> J _; apply: I; apply: J.
+by right.
+Qed.
+
+Lemma DisjointLT_incr mu1 mu1' mu2 m1 m2 m1' m2' : 
+  DisjointLT mu1 mu2 -> 
+  intern_incr mu1 mu1' -> 
+  sm_inject_separated mu1 mu1' m1 m2 -> 
+  sm_locally_allocated mu1 mu1' m1 m2 m1' m2' -> 
+  sm_valid mu2 m1 m2 -> 
+  DisjointLT mu1' mu2.
+Proof.
+move/DisjointP=> A B C D E /=; rewrite DisjointP=> b; move: (A b).
+case=> // F. 
+case G: (locBlocksTgt mu2 b); last by right. left=> H.
+have F': locBlocksTgt mu1 b = false by move: F; case: (locBlocksTgt mu1 b).
+case: (sm_inject_separated_intern_MYB _ _ _ _ _ _ C D)=> _; move/(_ b F' H)=> I.
+by case: E=> _; move/(_ b); rewrite/RNG/DomTgt G => J; apply: I; apply: J.
+by right.
+Qed.
+
+Lemma AllDisjointLS_incr mu1 mu1' mus m1 m2 m1' m2' : 
+  All (fun mu0 => DisjointLS mu1 mu0) mus -> 
+  intern_incr mu1 mu1' -> 
+  sm_inject_separated mu1 mu1' m1 m2 -> 
+  sm_locally_allocated mu1 mu1' m1 m2 m1' m2' -> 
+  All (fun mu0 => sm_valid mu0 m1 m2) mus -> 
+  All (fun mu0 => DisjointLS mu1' mu0) mus.
+Proof.
+elim: mus=> // mu0 mus' IH /= []A B C D E []F G.
+split; first by apply: (DisjointLS_incr A C D E F).
+by apply: IH.
+Qed.
+
+Lemma AllDisjointLT_incr mu1 mu1' mus m1 m2 m1' m2' : 
+  All (fun mu0 => DisjointLT mu1 mu0) mus -> 
+  intern_incr mu1 mu1' -> 
+  sm_inject_separated mu1 mu1' m1 m2 -> 
+  sm_locally_allocated mu1 mu1' m1 m2 m1' m2' -> 
+  All (fun mu0 => sm_valid mu0 m1 m2) mus -> 
+  All (fun mu0 => DisjointLT mu1' mu0) mus.
+Proof.
+elim: mus=> // mu0 mus' IH /= []A B C D E []F G.
+split; first by apply: (DisjointLT_incr A C D E F).
+by apply: IH.
+Qed.
+
 Lemma vis_join_sm mu1 mu2 :
   vis (join_sm mu1 mu2) 
   = [predU [predU (locBlocksSrc mu1) & locBlocksSrc mu2]
