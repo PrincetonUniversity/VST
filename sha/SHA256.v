@@ -32,23 +32,17 @@ Proof.
    simpl in H. change (Z.to_nat 1) with 1%nat. omega.
 Defined.
 
-Definition padlen (n: Z) : list Int.int :=
-    let p := n/4+3 (* number of words with trailing 128-byte, 
-                                                      up to 3 zero bytes, and 2 length words *)
-    in let q := (p+15)/16*16 - p   (* number of zero-pad words *)
-      in zeros q ++ [Int.repr (n * 8 / Int.modulus), Int.repr (n * 8)].
-
-Fixpoint generate_and_pad (n: list Z) len : list Int.int :=
-  match n with
-  | nil => Z_to_Int 128 0 0 0 :: padlen len
-  | [h1]=> Z_to_Int h1 128 0 0 :: padlen (len+1)
-  | [h1, h2] => Z_to_Int h1 h2 128 0 :: padlen (len+2)
-  | [h1, h2, h3] => Z_to_Int h1 h2 h3 128 :: padlen (len+3)
-  | h1::h2::h3::h4::t => Z_to_Int h1 h2 h3 h4 :: generate_and_pad t (len+4)
+Fixpoint Zlist_to_intlist (nl: list Z) : list int :=
+  match nl with
+  | h1::h2::h3::h4::t => Z_to_Int h1 h2 h3 h4 :: Zlist_to_intlist t
+  | _ => nil
   end.
 
-Definition generate_and_pad_msg (n: list Z) : list Int.int :=
-   generate_and_pad n 0.
+Definition generate_and_pad msg := 
+  let n := Zlength msg in
+   Zlist_to_intlist (msg ++ [128%Z] 
+                ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) 0)
+           ++ [Int.repr (n * 8 / Int.modulus), Int.repr (n * 8)].
 
 (* FUNCTIONS USED ONLY FOR DEBUGGING AND TESTING *)
 Definition hexdigit(a: Z) : Z :=
@@ -203,7 +197,7 @@ Fixpoint intlist_to_Zlist (l: list int) : list Z :=
  end.
 
 Definition SHA_256 (str : list Z) : list Z :=
-    intlist_to_Zlist (process_msg init_registers (generate_and_pad_msg str)).
+    intlist_to_Zlist (process_msg init_registers (generate_and_pad str)).
 
 (*EXAMPLES*)
 
@@ -226,4 +220,24 @@ Proof. vm_compute; auto. Qed.
 Goal check "The Secure Hash Algorithm is a family of cryptographic hash functions published by the National Institute of Standards and Technology (NIST) as a U.S. Federal Information Processing Standard (FIPS)"
  "27c3971526f07a22decc4dc01340c6c4b972ba6d31b74fb1fbb2edf2bce5fea6".
 Proof. vm_compute; auto. Qed.
+
+(* Alternate, faster implementation of generate_and_pad,
+  proved equivalent. *)
+Definition padlen (n: Z) : list Int.int :=
+    let p := n/4+3 (* number of words with trailing 128-byte, 
+                                                      up to 3 zero bytes, and 2 length words *)
+    in let q := (p+15)/16*16 - p   (* number of zero-pad words *)
+      in zeros q ++ [Int.repr (n * 8 / Int.modulus), Int.repr (n * 8)].
+
+Fixpoint generate_and_pad' (n: list Z) len : list Int.int :=
+  match n with
+  | nil => Z_to_Int 128 0 0 0 :: padlen len
+  | [h1]=> Z_to_Int h1 128 0 0 :: padlen (len+1)
+  | [h1, h2] => Z_to_Int h1 h2 128 0 :: padlen (len+2)
+  | [h1, h2, h3] => Z_to_Int h1 h2 h3 128 :: padlen (len+3)
+  | h1::h2::h3::h4::t => Z_to_Int h1 h2 h3 h4 :: generate_and_pad' t (len+4)
+  end.
+
+Definition generate_and_pad_alt (n: list Z) : list Int.int :=
+   generate_and_pad' n 0.
 
