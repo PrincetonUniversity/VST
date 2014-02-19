@@ -136,21 +136,26 @@ FLOYD_FILES= \
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v \
-  SHA256.v sha_lemmas.v sha_lemmas2.v \
-  sha.v spec_sha.v verif_sha_update.v verif_sha_init.v \
-  verif_sha_bdo.v verif_sha_bdo2.v verif_sha_bdo3.v verif_sha_bdo4.v verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
-   entail_examples.v entail_examples2.v \
+   entail_examples.v \
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
   verif_float.v
 
-C_FILES = reverse.c queue.c sumarray.c message.c sha.c insertionsort.c float.c
+SHA_FILES= \
+  SHA256.v sha_lemmas.v sha_lemmas2.v \
+  sha.v spec_sha.v verif_sha_update.v verif_sha_init.v \
+  verif_sha_bdo.v verif_sha_bdo2.v verif_sha_bdo3.v verif_sha_bdo4.v \
+  verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
+  entail_examples2.v 
+
+C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
  $(SEPCOMP_FILES:%=sepcomp/%) \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
- $(PROGS_FILES:%=progs/%) 
+ $(PROGS_FILES:%=progs/%) \
+ $(SHA_FILES:%=sha/%) 
 
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
@@ -174,10 +179,13 @@ linking: .loadpath sepcomp/linking_proof.vo $(LINKING_FILES:%.v=sepcomp/%.vo)
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo) floyd/floyd.coq
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
+sha:     .loadpath $(SHA_FILES:%.v=sha/%.vo)
 compcomp: .loadpath $(COMPCOMP_FILES:%.v=sepcomp/%.vo) 
 
 
 ifdef CLIGHTGEN
+sha/sha.v: sha/sha.c
+	$(CLIGHTGEN) -DCOMPCERT $<
 # Is there a way to generate the next 5 rules automatically from C_FILES? 
 progs/revarray.v: progs/revarray.c
 	$(CLIGHTGEN) -DCOMPCERT $<
@@ -188,8 +196,6 @@ progs/queue.v: progs/queue.c
 progs/sumarray.v: progs/sumarray.c
 	$(CLIGHTGEN) -DCOMPCERT $<
 progs/message.v: progs/message.c
-	$(CLIGHTGEN) -DCOMPCERT $<
-progs/sha.v: progs/sha.c
 	$(CLIGHTGEN) -DCOMPCERT $<
 progs/insertionsort.v: progs/insertionsort.c
 	$(CLIGHTGEN) -DCOMPCERT $<
