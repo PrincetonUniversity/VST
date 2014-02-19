@@ -764,6 +764,25 @@ have ->: c1'' = c'.
 by rewrite eq5.
 Qed.
 
+Lemma trash_inv_step mu_trash mupkg mupkg' (mus : seq frame_pkg) : 
+  frame_mu0 mupkg=mu -> 
+  frame_mu0 mupkg'=mu' -> 
+  trash_inv mu_trash mupkg mus m1 m2 -> 
+  trash_inv mu_trash mupkg' mus m1' m2'.
+Proof.
+move=> A B; case=> C D E /= []F G []H I []K L; apply: Build_trash_inv=> //=.
+by apply: (sm_valid_fwd E fwd1 fwd2).
+split=> //.
+rewrite B; eapply DisjointLS_intern_step; eauto.
+by move: F; rewrite A.
+split=> //.
+eapply DisjointLT_intern_step; eauto; first by move: H; rewrite A.
+by move: incr; rewrite B.
+by move: sep; rewrite B.
+split=> //. 
+by case: incr; move: K; rewrite A B=> K _ []<-.
+Qed.
+
 End step_lems.
 
 Section R.
@@ -1096,7 +1115,16 @@ case: STEP.
  exists pf, mu_trash, mupkg', mus, z; split=> //.
 
  admit. (*rc vis mu' - tricky*)
- admit. (*trinv - easy*)
+
+ (*trash_inv*)
+ apply trash_inv_step 
+   with (m1 := m1) (m2 := m2)
+        (mu := mupkg) (mu' := mu_top') (mupkg := mupkg)=> //.
+  by apply: (effstep_fwd _ _ _ _ _ _ _ EFFSTEP).
+  case: STEP'=> [STEP'|[STEP' _]]. 
+  by apply: (effstep_plus_fwd _ _ _ _ _ _ _ STEP').
+  by apply: (effstep_star_fwd _ _ _ _ _ _ _ STEP').
+  by apply: (head_valid hdinv).
 
  (* head_inv *)
  + case: tlinv=> allrel frameall.
@@ -1125,7 +1153,13 @@ case: STEP.
    - case; case=> n=> EFFSTEPN _.
      by apply: (effect_semantics.effstepN_fwd EFFSTEPN).   
    move=> ? ? X; move: (PERM _ _ X)=> []Y Z; split=> //.
-   admit. (*easy, by effstep_valid*)   
+   have [n STEPN]: 
+     exists n, effstepN (RC.effsem (coreSem (cores_T (Core.i c1))))
+               (ge (cores_T (Core.i c1))) n U2 
+               (rc_cast'' pf (Core.c (d INV))) m2 c2' m2'.
+     case: STEP'; first by move=> []n ?; exists (S n). 
+     by move=> [][]n ? _; exists n.
+   by eapply effstepN_valid in STEPN; eauto.
    by apply: (head_rel hdinv).
 
  (* matching execution *)

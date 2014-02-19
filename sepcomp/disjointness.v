@@ -96,6 +96,48 @@ apply: disjinv_call_aux; first by apply: pubBlocksLocReachSrc.
 by apply: pubBlocksLocReachTgt.
 Qed.
 
+Lemma DisjointLS_intern_step mu0 (mu mu' : Inj.t) m1 m2 :
+  DisjointLS mu0 mu -> 
+  intern_incr mu mu' -> 
+  sm_inject_separated mu mu' m1 m2  -> 
+  sm_valid mu0 m1 m2 -> 
+  sm_valid mu m1 m2 -> 
+  DisjointLS mu0 mu'.
+Proof.
+move=> disj incr sep val1 val2.
+have B: Disjoint (locBlocksSrc mu0) [pred b | ~~ validblock m1 b].
+  apply: smvalid_locsrc_disjoint=> //. 
+  by apply: (sm_valid_smvalid_src _ _ _ val1).
+have C: {subset [predD (locBlocksSrc mu') & locBlocksSrc mu]
+          <= [pred b | ~~ validblock m1 b]}.
+  by apply: (sminjsep_locsrc incr val2).
+have D: Disjoint (locBlocksSrc mu0) 
+                 [predD (locBlocksSrc mu') & locBlocksSrc mu].
+  by apply: (Disjoint_sub1 B C).
+by apply: (Disjoint_incr disj D).
+Qed.
+
+Lemma DisjointLT_intern_step mu0 (mu mu' : Inj.t) m1 m2 :
+  DisjointLT mu0 mu -> 
+  intern_incr mu mu' -> 
+  sm_inject_separated mu mu' m1 m2  -> 
+  sm_valid mu0 m1 m2 -> 
+  sm_valid mu m1 m2 -> 
+  DisjointLT mu0 mu'.
+Proof.
+move=> disj incr sep val1 val2.
+have B: Disjoint (locBlocksTgt mu0) [pred b | ~~ validblock m2 b].
+  apply: smvalid_loctgt_disjoint=> //. 
+  by apply: (sm_valid_smvalid_tgt _ _ _ val1).
+have C: {subset [predD (locBlocksTgt mu') & locBlocksTgt mu]
+          <= [pred b | ~~ validblock m2 b]}.
+  by apply: (sminjsep_loctgt incr val2).
+have D: Disjoint (locBlocksTgt mu0) 
+                 [predD (locBlocksTgt mu') & locBlocksTgt mu].
+  by apply: (Disjoint_sub1 B C).
+by apply: (Disjoint_incr disj D).
+Qed.
+
 Lemma disjinv_intern_step mu0 (mu mu' : Inj.t) m10 m20 m1 m2 :
   disjinv mu0 mu -> 
   intern_incr mu mu' -> 
@@ -108,29 +150,12 @@ Lemma disjinv_intern_step mu0 (mu mu' : Inj.t) m10 m20 m1 m2 :
   disjinv mu0 mu'.
 Proof.
 move=> inv INCR H3 H4 H5 H6 VAL VAL'.
+have VAL2: sm_valid mu0 m1 m2 by apply: (sm_valid_fwd VAL H3 H4).
 apply: Build_disjinv. 
 + have A: Disjoint (locBlocksSrc mu0) (locBlocksSrc mu) by case: inv.
-  have B: Disjoint (locBlocksSrc mu0) [pred b | ~~ validblock m1 b].
-    apply: smvalid_locsrc_disjoint. 
-    by apply: (smvalid_src_fwd H3 (sm_valid_smvalid_src _ _ _ VAL)). 
-  have C: {subset [predD (locBlocksSrc mu') & locBlocksSrc mu]
-          <= [pred b | ~~ validblock m1 b]}.
-    by apply: (sminjsep_locsrc INCR VAL').
-  have D: Disjoint (locBlocksSrc mu0) 
-                   [predD (locBlocksSrc mu') & locBlocksSrc mu].
-    by apply: (Disjoint_sub1 B C).
-  by apply: (Disjoint_incr A D).
+  by apply: (DisjointLS_intern_step A INCR H6 VAL2 VAL').
 + have A: Disjoint (locBlocksTgt mu0) (locBlocksTgt mu) by case: inv.
-  have B: Disjoint (locBlocksTgt mu0) [pred b | ~~ validblock m2 b].
-    apply: smvalid_loctgt_disjoint. 
-    by apply: (smvalid_tgt_fwd H4 (sm_valid_smvalid_tgt _ _ _ VAL)). 
-  have C: {subset [predD (locBlocksTgt mu') & locBlocksTgt mu]
-          <= [pred b | ~~ validblock m2 b]}.
-    by apply: (sminjsep_loctgt INCR VAL').
-  have D: Disjoint (locBlocksTgt mu0) 
-                   [predD (locBlocksTgt mu') & locBlocksTgt mu].
-    by apply: (Disjoint_sub1 B C).
-  by apply: (Disjoint_incr A D).
+  by apply: (DisjointLT_intern_step A INCR H6 VAL2 VAL').
 + have A: [predI (frgnBlocksSrc mu') & locBlocksSrc mu0]
           = [predI (frgnBlocksSrc mu) & locBlocksSrc mu0].
     by rewrite (intern_incr_frgnsrc INCR).  
