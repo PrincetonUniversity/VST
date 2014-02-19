@@ -1067,9 +1067,18 @@ case: STEP.
  by move: (tail_valid tlinv); rewrite -All_comp3.
  by move: (trash_consist trinv)=> /= []; rewrite map_comp; move/consistentC.
  by apply: (trash_valid trinv).
+ by apply: (match_validblocks _ MATCH).
  apply: join_all_valid=> /=; first by apply: (trash_valid trinv).
  split; first by apply: (head_valid hdinv).
  by move: (tail_valid tlinv); rewrite -All_comp3.
+ change (SM_wd (join_all mu_trash [seq (frame_mu0 i) | i <- mus])).
+ apply: join_all_wd.
+ split; first by move: (trash_disj_S trinv); rewrite -map_comp; case.
+ by move: (tail_AllDisjointLS tlinv); rewrite -map_comp.
+ split; first by move: (trash_disj_T trinv); rewrite -map_comp; case.
+ by move: (tail_AllDisjointLT tlinv); rewrite -map_comp.
+ split; first by move: (trash_consist trinv); rewrite -map_comp; case.
+ by move: (tail_AllConsistent tlinv); rewrite -map_comp.
  change (SM_wd (join_all mu_trash [seq (frame_mu0 i) | i <- mupkg :: mus])).
  apply: join_all_wd.
  by move: (R_AllDisjointS trinv hdinv tlinv); rewrite All2_comp2 map_comp.

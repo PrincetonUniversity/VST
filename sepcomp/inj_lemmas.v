@@ -1257,41 +1257,249 @@ have C: forall b b' ofs,
 by apply: intern_incr_restrict.
 Qed.
 
-Lemma join_sm_inject_separated (mu1 mu1' : Inj.t) mu2 m1 m2 : 
+Lemma join_sm_inject_separated (mu1 mu1' mu2 : Inj.t) m1 m2 m1' m2' : 
   Consistent mu1 mu2 -> 
-  sm_valid mu2 m1 m2 -> 
+  intern_incr mu1 mu1' -> 
   sm_inject_separated mu1 mu1' m1 m2 -> 
+  sm_locally_allocated mu1 mu1' m1 m2 m1' m2' -> 
+  sm_valid mu1 m1 m2 -> 
+  sm_valid mu2 m1 m2 -> 
   sm_inject_separated (join_sm mu1 mu2) (join_sm mu1' mu2) m1 m2.
 Proof.
-move=> consist val []A []B C; split.
+move=> consistent A []B []C D E val F.
+rewrite ->sm_locally_allocatedChar in E.
+case: E=> E1 []E2 []E3 []E4 []E5 E6.
+split.
 move=> b1 b2 d.
-move/as_injE'=> []; move/local_of_join_smE'=> []D E.
-move/(extern_of_join_smE' consist).
-move=> F.
-move/as_injE; case.
-move/local_of_join_smE; case.
-move=> G.
-have [H I]: DomSrc mu1 b1=false /\ DomTgt mu1 b2=false.
-  admit.
-Admitted. (*true, but very tedious*)
+rewrite/join_sm/DomSrc/DomTgt/as_inj/in_mem/=/in_mem/=.
+move/joinP'=> []G. move/joinP'=> []H I.
+move/joinP=> J.
+rewrite ->join2P' in G=> //.
+case: J.
+move/join2P=> []J K.
+case: G=> L.
+case: (B b1 b2 d).
+by rewrite/as_inj/join L H.
+by rewrite/as_inj/join J.
+move=> M N.
+split.
+move: M N; rewrite/DomSrc/DomTgt.
+case: (locBlocksSrc mu1 b1)=> //.
+case: (extBlocksSrc mu1 b1)=> //.
+case: (locBlocksTgt mu1 b2)=> //=.
+case: (extern_DomRng _ (Inj_wd _) _ _ _ K)=> _ M.
+have ->: locBlocksSrc mu2 b1 = false. 
+  case: (extern_DomRng _ (Inj_wd _) _ _ _ K).
+  by move/(extBlocksSrc_locBlocksSrc _ (Inj_wd _))=> ->.
+by [].
+move: M N; rewrite/DomSrc/DomTgt.
+case: (locBlocksSrc mu1 b1)=> //.
+case: (extBlocksSrc mu1 b1)=> //.
+case: (locBlocksTgt mu1 b2)=> //=.
+case: (extBlocksTgt mu1 b2)=> //=.
+case: (extern_DomRng _ (Inj_wd _) _ _ _ K)=> M N.
+have ->: locBlocksTgt mu2 b2 = false. 
+  case: (extern_DomRng _ (Inj_wd _) _ _ _ K)=> _.
+  by move/(extBlocksTgt_locBlocksTgt _ (Inj_wd _))=> ->.
+by [].
+rewrite K in L; congruence.
+move=> []. move/join2P'=> J.
+move/joinP=> K.
+case: K. move=> K.
+case: G=> G.
+case: (B b1 b2 d).
+by rewrite/as_inj/join G H.
+rewrite/as_inj/join.
+have ->: extern_of mu1' b1=None. 
+  case X: (extern_of mu1' b1)=> // [[? ?]].
+  case: (extern_DomRng _ (Inj_wd _) _ _ _ X)=> Y _.
+  case: (local_DomRng _ (Inj_wd _) _ _ _ K)=> Z _.
+  by move: Y Z; move/(extBlocksSrc_locBlocksSrc _ (Inj_wd _))=> ->.
+by [].
+move=> M N.
+split.
+move: M N; rewrite/DomSrc/DomTgt.
+case X: (locBlocksSrc mu1 b1)=> //.
+case Y: (extBlocksSrc mu1 b1)=> //.
+case: (locBlocksTgt mu1 b2)=> //.
+case: (extBlocksTgt mu1 b2)=> //.
+simpl.
+have L: ~Memory.Mem.valid_block m1 b1.
+  apply: C.
+  by rewrite/DomSrc X Y.
+  case: (local_DomRng _ (Inj_wd _) _ _ _ K).
+  rewrite/DomSrc.
+  by move=> ->.
+case M: (locBlocksSrc mu2 b1)=> //.
+case: F; move/(_ b1)=> N.
+elimtype False.
+apply: L; apply: N.
+by rewrite/DOM/DomSrc M.
+move: M N; rewrite/DomSrc/DomTgt.
+case: (locBlocksSrc mu1 b1)=> //.
+case: (extBlocksSrc mu1 b1)=> //.
+case X: (locBlocksTgt mu1 b2)=> //.
+case Y: (extBlocksTgt mu1 b2)=> //.
+simpl.
+have L: ~Memory.Mem.valid_block m2 b2.
+  apply: D.
+  by rewrite/DomTgt X Y.
+  case: (local_DomRng _ (Inj_wd _) _ _ _ K).
+  rewrite/DomTgt.
+  by move=> _ ->.
+case M: (locBlocksTgt mu2 b2)=> //.
+case: F=> _; move/(_ b2)=> N.
+elimtype False.
+apply: L; apply: N.
+by rewrite/RNG/DomTgt M.
+case: (local_DomRng _ (Inj_wd _) _ _ _ K)=> M N.
+rewrite E3 in M.
+rewrite E4 in N.
+have O: extern_of mu1 b1=None. 
+  case X: (extern_of mu1 b1)=> // [[? ?]].
+  case: (extern_DomRng _ (Inj_wd _) _ _ _ X)=> O P.
+  case: val; move/(_ b1)=> Q.
+  move: M; case Y: (locBlocksSrc mu1 b1)=> //=.
+  rewrite extBlocksSrc_locBlocksSrc in Y=> //.
+  by apply: Inj_wd.
+  rewrite freshloc_charT=> [][]Z W _.
+  elimtype False.
+  apply: W.
+  apply: Q.
+  by rewrite/DOM/DomSrc O; apply/orP; right.
+case: (B b1 b2 d).
+by rewrite/as_inj/join O H.
+rewrite/as_inj/join. 
+have ->: extern_of mu1' b1=None. 
+  case P: (extern_of mu1' b1)=> // [[? ?]].
+  case: (extern_DomRng _ (Inj_wd _) _ _ _ P)=> Q R.
+  case: (local_DomRng _ (Inj_wd _) _ _ _ K)=> S T.
+  rewrite extBlocksSrc_locBlocksSrc in S=> //.
+  by apply: Inj_wd.
+by [].
+move=> P Q.
+split.
+move: P; rewrite/DomSrc.
+case X: (locBlocksSrc mu1 b1)=> //.
+case Y: (extBlocksSrc mu1 b1)=> //.
+simpl.
+case Z: (locBlocksSrc mu2 b1)=> //.
+have L: ~Memory.Mem.valid_block m1 b1.
+  apply: C.
+  by rewrite/DomSrc X Y.
+  case: (local_DomRng _ (Inj_wd _) _ _ _ K).
+  rewrite/DomSrc.
+  by move=> ->.
+case R: (locBlocksSrc mu2 b1)=> //.
+case: F; move/(_ b1)=> S.
+elimtype False.
+apply: L; apply: S.
+by rewrite/DOM/DomSrc Z.
+rewrite Z in R.
+congruence.
+move: Q; rewrite/DomTgt.
+case X: (locBlocksTgt mu1 b2)=> //.
+case Y: (extBlocksTgt mu1 b2)=> //.
+simpl.
+case Z: (locBlocksTgt mu2 b2)=> //.
+have L: ~Memory.Mem.valid_block m2 b2.
+  apply: D.
+  by rewrite/DomTgt X Y.
+  case: (local_DomRng _ (Inj_wd _) _ _ _ K).
+  rewrite/DomTgt.
+  by move=> _ ->.
+case R: (locBlocksTgt mu2 b2)=> //.
+case: F=> _; move/(_ b2)=> S.
+elimtype False.
+apply: L; apply: S.
+by rewrite/RNG/DomTgt Z.
+rewrite Z in R.
+congruence.
+by rewrite I=> [][].
+split.
+{ move=> b1.
+rewrite/DomSrc/join_sm/=/in_mem/=.
+move=> G H.
+have G1: locBlocksSrc mu1 b1=false.
+  move: G.
+  by case: (locBlocksSrc mu1 b1).
+have G2: locBlocksSrc mu2 b1=false.
+  move: G.
+  rewrite G1.
+  by case: (locBlocksSrc mu2 b1).
+have G3: (extBlocksSrc mu1 b1 && extBlocksSrc mu2 b1)=false.
+  move: G.
+  case: (extBlocksSrc mu1 b1 && extBlocksSrc mu2 b1)=> //.
+  case/orP.
+  by right.
+have H1: locBlocksSrc mu1' b1=true.
+  move: H.
+  rewrite G2.
+  rewrite E5.
+  rewrite G3=> /=.
+  by case: (locBlocksSrc mu1' b1).
+have G4: extBlocksSrc mu1 b1=false.
+  rewrite -E5.
+  apply locBlocksSrc_extBlocksSrc in H1=> //.
+  by apply: Inj_wd.
+apply: C.
+by rewrite/DomSrc G1 G4.
+by rewrite/DomSrc H1. }
+{ move=> b1.
+rewrite/DomTgt/join_sm/=/in_mem/=.
+move=> G H.
+have G1: locBlocksTgt mu1 b1=false.
+  move: G.
+  by case: (locBlocksTgt mu1 b1).
+have G2: locBlocksTgt mu2 b1=false.
+  move: G.
+  rewrite G1.
+  by case: (locBlocksTgt mu2 b1).
+have G3: (extBlocksTgt mu1 b1 && extBlocksTgt mu2 b1)=false.
+  move: G.
+  case: (extBlocksTgt mu1 b1 && extBlocksTgt mu2 b1)=> //.
+  case/orP.
+  by right.
+have H1: locBlocksTgt mu1' b1=true.
+  move: H.
+  rewrite G2.
+  rewrite E6.
+  rewrite G3=> /=.
+  by case: (locBlocksTgt mu1' b1).
+have G4: extBlocksTgt mu1 b1=false.
+  rewrite -E6.
+  apply locBlocksTgt_extBlocksTgt in H1=> //.
+  by apply: Inj_wd.
+apply: D.
+by rewrite/DomTgt G1 G4.
+by rewrite/DomTgt H1. }
+Qed.
 
 Lemma join_all_sm_inject_separated 
-    (mu_trash : Inj.t) (mu1 mu1' : Inj.t) (mus : seq Inj.t) m1 m2 :
+    (mu_trash : Inj.t) (mu1 mu1' : Inj.t) (mus : seq Inj.t) m1 m2 m1' m2' :
   All (fun mu0 => Consistent mu1 mu0) [seq Inj.mu x | x <- mus] -> 
   All (fun mu0 => sm_valid mu0 m1 m2) [seq Inj.mu x | x <- mus] -> 
+  SM_wd (join_all mu_trash $ mus) -> 
   Consistent mu1 mu_trash ->
-  sm_valid mu_trash m1 m2 -> 
+  intern_incr mu1 mu1' -> 
   sm_inject_separated mu1 mu1' m1 m2 -> 
+  sm_locally_allocated mu1 mu1' m1 m2 m1' m2' -> 
+  sm_valid mu1 m1 m2 -> 
+  sm_valid mu_trash m1 m2 -> 
   sm_inject_separated 
     (join_all mu_trash $ mu1 :: mus) (join_all mu_trash $ mu1' :: mus) m1 m2.
 Proof.
-elim: mus; first by move=> _ _; apply: join_sm_inject_separated.
-move=> mu0 mus' IH A /= []B C D E F.
+elim: mus; first by move=> _ _ _; apply: join_sm_inject_separated.
+move=> mu0 mus' IH cons1 /=. 
+move=> []val1 allval wd cons2 incr sep localloc val2 valtr.
 have B': All [eta Consistent mu1] [seq Inj.mu x | x <- mu_trash :: mus'].
-  by move=> /=; split=> //; move: A=> /= [].
-move: (join_all_consistent B')=> G; apply: join_sm_inject_separated=> //.
-by rewrite/join_sm/=; apply: join2_consistent=> //; move: A=> //= [].
-apply: join_sm_valid=> //; apply: join_all_valid=> //; move: C.
+  by move=> /=; split=> //; move: cons1=> /= [].
+move: (join_all_consistent B')=> G. 
+change (sm_inject_separated (join_sm mu1 (Inj.mk wd)) 
+                            (join_sm mu1' (Inj.mk wd)) m1 m2).
+apply join_sm_inject_separated with (m1':=m1') (m2':=m2')=> //.
+by rewrite/join_sm/=; apply: join2_consistent=> //; move: cons1=> //= [].
+apply: join_sm_valid=> //; apply: join_all_valid=> //; move: allval.
 by rewrite -All_comp.
 Qed.
 
@@ -1351,20 +1559,23 @@ Lemma join_all_restrict_sep
   All (fun mu0 => sm_valid mu0 m1 m2) [seq Inj.mu x | x <- mus] -> 
   Consistent mu1 mu_trash ->
   sm_valid mu_trash m1 m2 -> 
+  sm_valid mu1 m1 m2 -> 
   intern_incr mu1 mu1' -> 
   sm_inject_separated mu1 mu1' m1 m2 -> 
   sm_locally_allocated mu1 mu1' m1 m2 m1' m2' -> 
   let mu_tot  := join_all mu_trash (mu1 :: mus) in
   let mu_tot' := join_all mu_trash (mu1' :: mus) in
   sm_valid mu_tot m1 m2 ->
+  SM_wd (join_all mu_trash mus) -> 
   SM_wd mu_tot -> 
   sm_inject_separated  
     (restrict_sm mu_tot (vis mu_tot)) 
     (restrict_sm mu_tot' (vis mu_tot')) m1 m2.
 Proof.
-move=> A B C D incr E loc_alloc mu_tot mu_tot' F tot_wd.
+move=> A B C D val incr E loc_alloc mu_tot mu_tot' F tot'_wd tot_wd.
 have Cut: sm_inject_separated mu_tot mu_tot' m1 m2.
-  by apply: join_all_sm_inject_separated.
+  apply: join_all_sm_inject_separated=> //.
+  by eapply loc_alloc.
 set mu_tot2 := Inj.mk tot_wd. 
 change (sm_inject_separated 
          (restrict_sm mu_tot2 (vis mu_tot2))
@@ -1372,7 +1583,7 @@ change (sm_inject_separated
   apply: sm_sep_restrict2=> //.
 move=> b Y Z.
 have [G H]: [/\ locBlocksSrc mu1 b=false & locBlocksSrc mu1' b=true].
-  by apply: (join_sm_vis_loc incr Y Z).
+  by apply (join_sm_vis_loc incr Y Z).
 apply sm_locally_allocatedChar in loc_alloc.
 case loc_alloc=> A1 []A2 []A3 []A4 []A5 A6.
 rewrite A3 G /= in H.
