@@ -78,10 +78,6 @@ Qed.
 
 End Inj_lems.
 
-Lemma restrict_some mu b1 b2 d X : 
-  (restrict mu X) b1 = Some (b2, d) -> mu b1 = Some (b2, d).
-Proof. by rewrite/restrict; case: (X b1). Qed.
-
 Lemma restrict_sm_domsrc mu b1 X : 
   DomSrc (restrict_sm mu X) b1 -> DomSrc mu b1.
 Proof. by rewrite/restrict_sm; case: mu. Qed.
@@ -95,10 +91,59 @@ Lemma sm_inject_separated_restrict mu mu' m1 m2 X :
   sm_inject_separated mu (restrict_sm mu' X) m1 m2.
 Proof.
 move=>[]H []H2 H3; split.
-move=> b1 b2 d A; rewrite restrict_sm_all; move/restrict_some=> B.
+move=> b1 b2 d A; rewrite restrict_sm_all; move/restrictD_Some=> []B _.
 by apply: (H _ _ _ A B).
 split; first by move=> b1 A; move/restrict_sm_domsrc=> B; apply: (H2 _ A B).
 by move=> b2 A; move/restrict_sm_domtgt=> B; apply: (H3 _ A B).
+Qed.
+
+Lemma as_inj_restrict_smE' mu X b1 : 
+  as_inj (restrict_sm mu X) b1 = None -> 
+  [\/ as_inj mu b1 = None | X b1=false].
+Proof.
+rewrite restrict_sm_all /restrict.
+case: (X b1)=> //.
+by left.
+by right.
+Qed.
+
+Lemma sm_sep_restrict2 (mu : Inj.t) mu' m1 m2 X Y : 
+  sm_valid mu m1 m2 -> 
+  sm_inject_separated mu mu' m1 m2 -> 
+  (forall b, X b=false -> Y b=true -> ~Memory.Mem.valid_block m1 b) -> 
+  sm_inject_separated (restrict_sm mu X) (restrict_sm mu' Y) m1 m2.
+Proof.
+move=> W; move=> []H []H2 H3 Z; split.
+move=> b1 b2 d A; rewrite restrict_sm_all. 
+move/restrictD_Some=> []B C.
+move: {A}(as_inj_restrict_smE' A); case.
+rewrite restrict_sm_DomSrc restrict_sm_DomTgt.
+by move=> A; apply: (H _ _ _ A B).
+move=> D; move: {Z}(Z _ D C)=> E.
+case: (W); move/(_ b1)=> U; move/(_ b2); move: U.
+rewrite/DOM/RNG=> U V; split; move: U V. 
+rewrite restrict_sm_DomSrc; case: (DomSrc mu b1)=> //. 
+by move=> U; elimtype False; apply: E; apply U.
+rewrite restrict_sm_DomTgt; case K: (DomTgt mu b2)=> //.
+case G: (as_inj mu b1)=> [[? ?]|].
+elimtype False.
+case: (as_inj_DomRng _ _ _ _ G (Inj_wd _))=> I J.
+case: W; rewrite/DOM; move/(_ b1); rewrite I=> Contra _.
+by apply: E; apply: Contra.
+by case: (H _ _ _ G B); rewrite K.
+split.
+rewrite !restrict_sm_DomSrc; move=> b1 A B.
+by apply: (H2 _ A B).
+rewrite !restrict_sm_DomTgt; move=> b1 A B.
+by apply: (H3 _ A B).
+Qed.
+
+Lemma sm_sep_restrict (mu : Inj.t) mu' m1 m2 X : 
+  sm_valid mu m1 m2 -> 
+  sm_inject_separated mu mu' m1 m2 -> 
+  sm_inject_separated (restrict_sm mu X) (restrict_sm mu' X) m1 m2.
+Proof.
+by move=> Z W; apply (sm_sep_restrict2 Z W); move=> b ->.
 Qed.
 
 Lemma pubBlocksLocalSrc (mu : Inj.t) :
@@ -616,6 +661,28 @@ by move=> mu' mus' IH []A []B C; move: (IH (conj A C))=> D;
    apply: join2_consistent.
 Qed.
 
+(* Why is this lemma not in ZArith?!? *)
+
+Lemma Zeq_bool_refl x : Zeq_bool x x.
+Proof. by case: (Zeq_is_eq_bool x x)=> A _; apply: A. Qed.
+
+Lemma join2P' (j k : SM_Injection) b1 :                                
+  Consistent j k ->                                                    
+  (join2 (extern_of j) (extern_of k) b1 = None <->                     
+   [\/ extern_of j b1 = None | extern_of k b1 = None]).                
+Proof.                                                                 
+rewrite /=/consistent=> C.                                             
+rewrite/join2; split.                                                  
+case A: (extern_of j b1)=> // [[? ?]|].                                
+case B: (extern_of k b1)=> // [[? ?]|].                                
+case: (C _ _ _ _ _ A B)=> -> ->.                                       
+by rewrite Pos.eqb_refl Zeq_bool_refl /=.
+by right.                                                              
+by left.                                                               
+case=> ->; first by [].                             
+by case: (extern_of j b1)=> // [[? ?]].                                
+Qed.                                                                   
+
 Lemma Disjoint_locSrcC mu mu' : DisjointLS mu mu' -> DisjointLS mu' mu.
 Proof. by rewrite /= DisjointC. Qed.
 
@@ -629,9 +696,9 @@ by case: (A _ _ _ _ _ C B)=> -> ->.
 Qed.
 
 Lemma join_all_wd mu (mus : seq Inj.t) :
-  (AllDisjoint locBlocksSrc \o map Inj.mu) (mu :: mus) -> 
-  (AllDisjoint locBlocksTgt \o map Inj.mu) (mu :: mus) -> 
-  (AllConsistent \o map Inj.mu) (mu :: mus) -> 
+  AllDisjoint locBlocksSrc $ map Inj.mu (mu :: mus) -> 
+  AllDisjoint locBlocksTgt $ map Inj.mu (mu :: mus) -> 
+  AllConsistent $ map Inj.mu (mu :: mus) -> 
   SM_wd (join_all mu mus).
 Proof.
 elim: mus=> /=; first by move=> _ _ _; apply: (Inj_wd mu).
@@ -934,10 +1001,63 @@ Lemma join_all_incr (mu_trash mu mu' : Inj.t) (mus : seq Inj.t) :
               (join_all mu_trash (mu':: mus)).
 Proof. by move=> /= A B; apply: join_sm_incr. Qed.
 
-(* Why is this lemma not in ZArith?!? *)
+Lemma joinP j k b1 b2 d :
+  join j k b1 = Some (b2,d) <->
+  j b1 = Some (b2,d) \/ (j b1 = None /\ k b1 = Some (b2,d)).
+Proof.
+rewrite/join; split.
+case: (j b1)=> // [[? ?]|->]; first by case=> -> ->; left.
+by right. case=> A; first by rewrite A.
+by case: A=> ->.
+Qed.
 
-Lemma Zeq_bool_refl x : Zeq_bool x x.
-Proof. by case: (Zeq_is_eq_bool x x)=> A _; apply: A. Qed.
+Lemma joinP' j k b1 :
+  join j k b1 = None <-> j b1 = None /\ k b1 = None.
+Proof.
+rewrite/join; split; first by case: (j b1)=> //; first by case.
+by move=> []-> ->.
+Qed.
+                                                                      
+Lemma as_injE mu b1 b2 d :
+  as_inj mu b1 = Some (b2,d) -> 
+  [\/ local_of mu b1 = Some (b2,d) | extern_of mu b1 = Some (b2,d)].
+Proof.
+rewrite/as_inj/join; case: (extern_of mu b1)=> // [[? ?]|].
+by case=> -> ->; right.
+by left.
+Qed.
+
+Lemma as_injE' mu b1 :
+  as_inj mu b1 = None -> 
+  [/\ local_of mu b1 = None & extern_of mu b1 = None].
+Proof.
+rewrite/as_inj/join; case: (extern_of mu b1)=> // [[? ?]].
+by discriminate.
+Qed.
+
+Lemma local_of_join_smE mu1 mu2 b1 b2 d : 
+  local_of (join_sm mu1 mu2) b1 = Some (b2,d) -> 
+  [\/ local_of mu1 b1 = Some (b2,d) 
+    | [/\ local_of mu1 b1 = None & local_of mu2 b1 = Some (b2,d)]].
+Proof. by rewrite/join_sm/=; move/joinP. Qed.
+
+Lemma local_of_join_smE' mu1 mu2 b1 :
+  local_of (join_sm mu1 mu2) b1 = None -> 
+  [/\ local_of mu1 b1 = None & local_of mu2 b1 = None].
+Proof. by rewrite/join_sm/=; move/joinP'. Qed.
+
+Lemma extern_of_join_smE mu1 mu2 b1 b2 d : 
+  extern_of (join_sm mu1 mu2) b1 = Some (b2,d) -> 
+  [/\ extern_of mu1 b1 = Some (b2,d) 
+    & extern_of mu2 b1 = Some (b2,d)].
+Proof. by rewrite/join_sm/=; move/join2P. Qed.
+
+Lemma extern_of_join_smE' mu1 mu2 b1 :                                 
+  Consistent mu1 mu2 ->                                                
+  extern_of (join_sm mu1 mu2) b1 = None ->                             
+  [\/ extern_of mu1 b1 = None                                          
+    | extern_of mu2 b1 = None].                                        
+Proof. by rewrite/join_sm/=; move/(join2P' b1)=> ->. Qed.              
 
 Lemma join2_restrict j k X :
   join2 (restrict j X) (restrict k X) = restrict (join2 j k) X.
@@ -1026,6 +1146,31 @@ split; first by rewrite 2!restrict_sm_extBlocksSrc I.
 by rewrite 2!restrict_sm_extBlocksTgt J.
 Qed.
 
+Lemma join_sm_vis_loc mu1 (mu1' : Inj.t) mu2 b : 
+  intern_incr mu1 mu1' -> 
+  vis (join_sm mu1 mu2) b=false -> 
+  vis (join_sm mu1' mu2) b -> 
+  locBlocksSrc mu1 b=false /\ locBlocksSrc mu1' b.
+Proof.
+rewrite 2!vis_join_sm /=/in_mem/=/in_mem/=.
+move=> incr D E.
+have F: locBlocksSrc mu1 b=false by move: D; case: (locBlocksSrc mu1 b).
+rewrite F in D; move: D=> /= => D.
+have G: locBlocksSrc mu2 b=false by move: D; case: (locBlocksSrc mu2 b).
+rewrite G in D; move: D=> /= => D.
+have H: (frgnBlocksSrc mu1 b=false \/ frgnBlocksSrc mu2 b=false).
+  move: D; case: (frgnBlocksSrc mu1 b); case: (frgnBlocksSrc mu2 b)=> //=.
+  by right. by left. by right.
+have I: (frgnBlocksSrc mu1' b && frgnBlocksSrc mu2 b = false).
+  move: H; case: incr=> _ []_ []_ []_ []_ []_ []<- []_ _.
+  case: (frgnBlocksSrc mu1 b)=> //.
+  case: (frgnBlocksSrc mu2 b)=> //.  
+  by case.
+have J: locBlocksSrc mu1' b.
+  by move: E; rewrite G I=> /=; move/orP; case=> //; move/orP; case.
+by split.
+Qed.
+
 Lemma join_sm_vis_dom mu1 (mu1' : Inj.t) mu2 b : 
   intern_incr mu1 mu1' -> 
   vis (join_sm mu1 mu2) b=false -> 
@@ -1112,6 +1257,44 @@ have C: forall b b' ofs,
 by apply: intern_incr_restrict.
 Qed.
 
+Lemma join_sm_inject_separated (mu1 mu1' : Inj.t) mu2 m1 m2 : 
+  Consistent mu1 mu2 -> 
+  sm_valid mu2 m1 m2 -> 
+  sm_inject_separated mu1 mu1' m1 m2 -> 
+  sm_inject_separated (join_sm mu1 mu2) (join_sm mu1' mu2) m1 m2.
+Proof.
+move=> consist val []A []B C; split.
+move=> b1 b2 d.
+move/as_injE'=> []; move/local_of_join_smE'=> []D E.
+move/(extern_of_join_smE' consist).
+move=> F.
+move/as_injE; case.
+move/local_of_join_smE; case.
+move=> G.
+have [H I]: DomSrc mu1 b1=false /\ DomTgt mu1 b2=false.
+  admit.
+Admitted. (*true, but very tedious*)
+
+Lemma join_all_sm_inject_separated 
+    (mu_trash : Inj.t) (mu1 mu1' : Inj.t) (mus : seq Inj.t) m1 m2 :
+  All (fun mu0 => Consistent mu1 mu0) [seq Inj.mu x | x <- mus] -> 
+  All (fun mu0 => sm_valid mu0 m1 m2) [seq Inj.mu x | x <- mus] -> 
+  Consistent mu1 mu_trash ->
+  sm_valid mu_trash m1 m2 -> 
+  sm_inject_separated mu1 mu1' m1 m2 -> 
+  sm_inject_separated 
+    (join_all mu_trash $ mu1 :: mus) (join_all mu_trash $ mu1' :: mus) m1 m2.
+Proof.
+elim: mus; first by move=> _ _; apply: join_sm_inject_separated.
+move=> mu0 mus' IH A /= []B C D E F.
+have B': All [eta Consistent mu1] [seq Inj.mu x | x <- mu_trash :: mus'].
+  by move=> /=; split=> //; move: A=> /= [].
+move: (join_all_consistent B')=> G; apply: join_sm_inject_separated=> //.
+by rewrite/join_sm/=; apply: join2_consistent=> //; move: A=> //= [].
+apply: join_sm_valid=> //; apply: join_all_valid=> //; move: C.
+by rewrite -All_comp.
+Qed.
+
 Lemma All_disjoint (mu_trash : Inj.t) (mu : Inj.t) mus : 
   disjoint (local_of mu) (local_of mu_trash) -> 
   All (fun mu2 : Inj.t => disjoint (local_of mu) (local_of mu2)) mus -> 
@@ -1160,4 +1343,39 @@ have H: sm_valid (Inj.mk G) m1 m2 by apply: join_all_valid.
 have I: disjoint (local_of mu') (local_of (Inj.mk G)).
   by apply: All_disjoint.
 by apply: (join_sm_restrict_incr I C D H).
+Qed.
+
+Lemma join_all_restrict_sep
+    (mu_trash : Inj.t) (mu1 mu1' : Inj.t) (mus : seq Inj.t) m1 m2 m1' m2' :
+  All (fun mu0 => Consistent mu1 mu0) [seq Inj.mu x | x <- mus] -> 
+  All (fun mu0 => sm_valid mu0 m1 m2) [seq Inj.mu x | x <- mus] -> 
+  Consistent mu1 mu_trash ->
+  sm_valid mu_trash m1 m2 -> 
+  intern_incr mu1 mu1' -> 
+  sm_inject_separated mu1 mu1' m1 m2 -> 
+  sm_locally_allocated mu1 mu1' m1 m2 m1' m2' -> 
+  let mu_tot  := join_all mu_trash (mu1 :: mus) in
+  let mu_tot' := join_all mu_trash (mu1' :: mus) in
+  sm_valid mu_tot m1 m2 ->
+  SM_wd mu_tot -> 
+  sm_inject_separated  
+    (restrict_sm mu_tot (vis mu_tot)) 
+    (restrict_sm mu_tot' (vis mu_tot')) m1 m2.
+Proof.
+move=> A B C D incr E loc_alloc mu_tot mu_tot' F tot_wd.
+have Cut: sm_inject_separated mu_tot mu_tot' m1 m2.
+  by apply: join_all_sm_inject_separated.
+set mu_tot2 := Inj.mk tot_wd. 
+change (sm_inject_separated 
+         (restrict_sm mu_tot2 (vis mu_tot2))
+         (restrict_sm mu_tot' (vis mu_tot')) m1 m2).
+  apply: sm_sep_restrict2=> //.
+move=> b Y Z.
+have [G H]: [/\ locBlocksSrc mu1 b=false & locBlocksSrc mu1' b=true].
+  by apply: (join_sm_vis_loc incr Y Z).
+apply sm_locally_allocatedChar in loc_alloc.
+case loc_alloc=> A1 []A2 []A3 []A4 []A5 A6.
+rewrite A3 G /= in H.
+rewrite ->freshloc_charT in H.
+by case: H.
 Qed.
