@@ -1,10 +1,10 @@
 Require Import floyd.proofauto.
-Require Import progs.sha.
-Require Import progs.SHA256.
-Require Import progs.spec_sha.
-Require Import progs.sha_lemmas.
-Require Import progs.sha_lemmas2.
-Require Import progs.verif_sha_final2.
+Require Import sha.sha.
+Require Import sha.SHA256.
+Require Import sha.spec_sha.
+Require Import sha.sha_lemmas.
+Require Import sha.sha_lemmas2.
+Require Import sha.verif_sha_final2.
 Local Open Scope logic.
 
 
@@ -42,7 +42,7 @@ forall (Espec : OracleKind) (md c : val) (shmd : share)
  (Hshmd: writable_share shmd),
  NPeano.divide LBLOCK (length hashed) ->
  length lastblock = LBLOCK ->
- generate_and_pad_msg msg = hashed++lastblock ->
+ generate_and_pad msg = hashed++lastblock ->
 semax
   (initialized _cNl
      (initialized _cNh
@@ -84,6 +84,7 @@ entailer!.
  erewrite K_vector_globals by (split3; [eassumption | reflexivity.. ]).
 cancel.
 unfold data_block.
+simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
 rewrite array_at_ZnthV_nil.
 rewrite Zlength_correct.
 rewrite length_intlist_to_Zlist.
@@ -109,7 +110,7 @@ replace_SEP 0%Z (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
 entailer!.
 forward.  (* ignore = ignore'; *)
 fold t_struct_SHA256state_st.
-pose proof (length_process_msg (generate_and_pad_msg msg)).
+pose proof (length_process_msg (generate_and_pad msg)).
 replace Delta with
  (initialized _ignore'2 (initialized _cNl (initialized _cNh (initialized _ignore (initialized _ignore'1 Delta_final_if1)))))
  by (simplify_Delta; reflexivity).
@@ -340,7 +341,7 @@ semax (initialized _ignore (initialized _ignore'1 Delta_final_if1))
       `(data_block shmd
           (intlist_to_Zlist
              (process_msg init_registers
-                (generate_and_pad_msg
+                (generate_and_pad
                    (intlist_to_Zlist hashed ++ map Int.unsigned dd))))
           md)))).
 Proof.
@@ -485,6 +486,8 @@ eapply semax_pre; [ | apply (sha_final_part3 Espec md c shmd hashed' lastblock')
      repeat rewrite Int.add_assoc; f_equal; reflexivity.
  + 
 unfold lastblock', data_block. (*rewrite map_swap_involutive.*)
+simpl.
+rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
 rewrite Zlist_to_intlist_to_Zlist; [ |rewrite map_length; rewrite H10; exists LBLOCK; reflexivity | assumption].
 rewrite Forall_isbyte_repr_unsigned.
 rewrite (Zlength_correct (map _ lastblock)). try rewrite map_length; rewrite H10.

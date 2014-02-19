@@ -1,9 +1,9 @@
 Require Import floyd.proofauto.
-Require Import progs.sha.
-Require Import progs.SHA256.
-Require Import progs.sha_lemmas.
-Require Import progs.spec_sha.
-Require Import progs.verif_sha_bdo3.
+Require Import sha.sha.
+Require Import sha.SHA256.
+Require Import sha.sha_lemmas.
+Require Import sha.spec_sha.
+Require Import sha.verif_sha_bdo3.
 Local Open Scope logic.
 
 Definition block_data_order_loop1 := 
@@ -181,14 +181,18 @@ abstract solve [entailer!; repeat split; auto; try omega;
  rewrite Z.mul_sub_distr_l;
  reflexivity].
 (* 990,216 849,172 *)
+unfold data_block.
+rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
 abstract solve [entailer!].
 (* 1,078,128 849,172 *)
 auto 50 with closed.
 simpl.
-change (array_at tuchar sh (tuchars (map Int.repr (intlist_to_Zlist b))) 0
-        (Zlength (intlist_to_Zlist (map swap b))) data)
-  with (data_block sh (intlist_to_Zlist b) data).
-
+replace (array_at tuchar sh (tuchars (map Int.repr (intlist_to_Zlist b))) 0
+        (Zlength (intlist_to_Zlist b)) data)
+  with (data_block sh (intlist_to_Zlist b) data) 
+ by (unfold data_block;
+       rewrite prop_true_andp by apply isbyte_intlist_to_Zlist;
+       reflexivity).
 forward. (* l := l'; *)
 forward. (* data := data + 4; *)
 (* 1,194,800 849,172 *)

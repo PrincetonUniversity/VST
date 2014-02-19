@@ -1,15 +1,135 @@
 Require Import proofauto.
-Require Import progs.SHA256.
-Require Import progs.spec_sha.
-Require Import progs.sha_lemmas.
+Require Import sha.SHA256.
+Require Import sha.spec_sha.
+Require Import sha.sha_lemmas.
 
 Local Open Scope Z.
 
-Definition generate_and_pad' msg := 
-  let n := Zlength msg in
-   Zlist_to_intlist (msg ++ [128%Z] 
-                ++ list_repeat (Z.to_nat (-(n + 9) mod CBLOCKz)) 0)
-           ++ [Int.repr (n * 8 / Int.modulus), Int.repr (n * 8)].
+Definition padlen' (n: Z) : list Int.int :=
+     let q := (n+8)/64*16 + 15 - (n+8)/4   (* number of zero-pad words *)
+      in zeros q ++ [Int.repr (n * 8 / Int.modulus), Int.repr (n * 8)].
+
+Lemma padlen_eq: padlen=padlen'.
+Proof.
+extensionality n.
+unfold padlen,padlen'; simpl.
+f_equal. f_equal.
+assert ((n+12)/4 = n/4+3).
+intros.
+replace (n+12) with (3*4+n) by omega.
+ rewrite Z_div_plus_full_l by computable. omega.
+rewrite <- H.
+replace ((n+12)/4) with ((n+8)/4+1).
+rewrite <- Z.add_assoc.
+change (1+15) with (1*16).
+rewrite <- (Z.add_comm (1*16)).
+ rewrite Z_div_plus_full_l by computable.
+rewrite Z.mul_add_distr_r.
+rewrite Z.div_div by computable.
+change (4*16) with 64.
+omega.
+replace (n+12) with (1*4+(n+8)) by omega.
+ rewrite Z_div_plus_full_l by computable.
+omega.
+Qed.
+
+Lemma length_generate_and_pad'':
+  forall (l: list Z) (k: Z),
+     k >= 0 ->
+     k + Zlength (generate_and_pad' l (k*4)) = roundup (((k*4+Zlength l)+12)/4) 16.
+Proof.
+intro l.
+remember (S (length l)) as L.
+assert (length l < L)%nat by omega.
+clear HeqL; revert l H; clear; induction L; intros.
+inversion H.
+destruct l.
+simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
+rewrite Zlength_padlen
+  by (apply Z.le_ge; apply Z.mul_nonneg_nonneg; omega).
+unfold Z.succ.
+replace (k*4+0+12) with (k*4+4+8) by omega.
+change 8 with (2*4).
+rewrite Z_div_plus_full by omega.
+replace ((k*4+4)/4)%Z with (k+1)%Z
+ by (replace ((k*4+4)/4)%Z with (k*4/4 + 1)%Z
+         by (symmetry; apply (Z_div_plus (k*4) 1 4); omega);
+      rewrite Z_div_mult by omega; auto).
+rewrite Z.sub_add.
+rewrite Z.div_mul by congruence.
+replace (k+1+2) with (k+3) by omega.
+omega.
+assert (k*4 >= 0).
+apply Z.le_ge; apply Z.mul_nonneg_nonneg; omega.
+destruct l.
+simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
+rewrite Zlength_padlen by omega.
+unfold Z.succ. rewrite Z.sub_add.
+replace (k*4+(0+1)+12) with (k*4+1+4+8) by omega.
+change 8 with (2*4).
+rewrite Z_div_plus_full by omega.
+change (k * 4 + 1 + 4) with (k * 4 + 1 + 1*4).
+rewrite (Z_div_plus (k*4+1) 1 4) by omega.
+rewrite (Z.add_comm (k*4)).
+rewrite Z_div_plus by omega.
+change (1/4) with 0.
+rewrite Z.add_0_l.
+replace (k+1+2) with (k+3) by omega.
+omega.
+destruct l.
+simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
+rewrite Zlength_padlen by omega.
+unfold Z.succ. rewrite Z.sub_add.
+replace (k*4+(0+1+1)+12) with (k*4+2+4+8) by omega.
+change 8 with (2*4).
+rewrite Z_div_plus_full by omega.
+change (k * 4 + 2 + 4) with (k * 4 + 2 + 1*4).
+rewrite (Z_div_plus (k*4+2) 1 4) by omega.
+rewrite (Z.add_comm (k*4)).
+rewrite Z_div_plus by omega.
+change (2/4) with 0.
+rewrite Z.add_0_l.
+replace (k+1+2) with (k+3) by omega.
+omega.
+destruct l.
+simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
+rewrite Zlength_padlen by omega.
+unfold Z.succ. rewrite Z.sub_add.
+replace (k*4+(0+1+1+1)+12) with (k*4+3+4+8) by omega.
+change 8 with (2*4).
+rewrite Z_div_plus_full by omega.
+change (k * 4 + 3 + 4) with (k * 4 + 3 + 1*4).
+rewrite (Z_div_plus (k*4+3) 1 4) by omega.
+rewrite (Z.add_comm (k*4)).
+rewrite Z_div_plus by omega.
+change (3/4) with 0.
+rewrite Z.add_0_l.
+replace (k+1+2) with (k+3) by omega.
+omega.
+simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
+unfold Z.succ.
+transitivity (k+1 + (Zlength (generate_and_pad' l ((k+1) * 4)))).
+rewrite Z.mul_add_distr_r.
+change (1*4) with 4.
+omega.
+simpl in H.
+rewrite IHL; try omega.
+f_equal.
+f_equal.
+omega.
+Qed.
+
+Lemma length_generate_and_pad':
+  forall (l: list Z),
+     Zlength (generate_and_pad' l 0) = roundup ((Zlength l +12)/4) 16.
+Proof.
+intros.
+transitivity (0 + Zlength (generate_and_pad' l (0*4))).
+rewrite Z.add_0_l.
+reflexivity.
+apply length_generate_and_pad''.
+omega.
+Qed.
 
 Lemma roundup_ge:
  forall a b,  b > 0 -> roundup a b >= a.
@@ -20,51 +140,14 @@ rewrite roundup_minus by auto.
 pose proof (Z.mod_pos_bound (-a) b); omega.
 Qed.
 
-Lemma list_drop_app1:
- forall A n (al bl: list A),
-  (n <= length al)%nat ->
-  list_drop n (al++bl) = list_drop n al ++ bl.
-Proof.
-intros. revert al H;
-induction n; destruct al; intros; simpl in *; try omega; auto.
-apply IHn; omega.
-Qed.
 
 
-Lemma list_drop_skipn: @list_drop = @skipn.
-Proof.
-extensionality A n al.
-revert al; induction n; destruct al; simpl; intros; auto.
-Qed.
-
-Lemma list_repeat_app: forall A a b (x:A),
-  list_repeat a x ++ list_repeat b x = list_repeat (a+b) x.
-Proof.
-intros; induction a; simpl; f_equal.
-auto.
-Qed.
-
-Lemma list_drop_nil: forall A n, list_drop n (@nil A) = nil.
-Proof. induction n; simpl; auto.
-Qed.
-
-Lemma list_drop_drop:
- forall A n m (al: list A), list_drop n (list_drop m al) = list_drop (n+m) al.
-Proof.
-induction m; intros.
-* simpl; auto. f_equal; omega.
-* replace (n + S m)%nat with (S (n + m))%nat by omega.
-  destruct al; [ rewrite list_drop_nil; auto | ].
-  unfold list_drop at 3; fold list_drop.
- rewrite <- IHm.
- f_equal.
-Qed.
 
 Lemma generate_and_pad'_eq:
- generate_and_pad' = generate_and_pad_msg.
+ generate_and_pad = generate_and_pad_alt.
 Proof.
 extensionality msg.
-unfold generate_and_pad',  generate_and_pad_msg.
+unfold generate_and_pad,  generate_and_pad_alt.
 match goal with |- context [Zlist_to_intlist ?A] =>
   remember A as PADDED eqn:HP
 end.
@@ -101,6 +184,7 @@ rewrite Z.mul_assoc.
 rewrite Z_div_mult_full by computable.
 auto.
 rewrite <- roundup_minus by (change CBLOCKz with 64; computable).
+change 64 with CBLOCKz.
 forget (roundup (Zlength msg + 9) CBLOCKz) as N.
 rewrite Zlength_correct in H0|-*.
 forget (length msg) as L.
@@ -221,6 +305,7 @@ rewrite Z_div_plus_full by computable.
 rewrite Z.mul_add_distr_r.
 omega.
 }
+change 64 with CBLOCKz.
 rewrite H4.
 assert (0 <= Zlength ccc < 4)
  by (clear - H3; rewrite Zlength_correct; omega).
@@ -255,7 +340,7 @@ end. {
 }
 set (Q4 := Z.to_nat (4 * Q)) in *.
 destruct ccc as [|a [|b [|c [|]]]]; simpl in H3; try omega; clear H3;
- unfold generate_and_pad; rewrite padlen_eq; unfold padlen'; 
+ unfold generate_and_pad'; rewrite padlen_eq; unfold padlen'; 
  simpl;
 repeat rewrite Zlength_cons; rewrite Zlength_nil.
 + (* ccc = [] *)
@@ -321,7 +406,7 @@ apply min_l. omega.
 destruct (firstn 4 (list_drop (Q - 4) msg))
  as [ | z0 [| z1 [| z2 [|z3 [|]]]]];inv H3.
 unfold app at 2. unfold app at 4.
-unfold generate_and_pad; fold generate_and_pad.
+unfold generate_and_pad'; fold generate_and_pad'.
 unfold Zlist_to_intlist; fold Zlist_to_intlist.
 replace (Z.of_nat (Q-4) + 4) with (Z.of_nat Q)
  by (rewrite Nat2Z.inj_sub by omega; 
@@ -349,15 +434,15 @@ Lemma lastblock_lemma:
      msg ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
   (Zlength msg * 8)%Z = hilo hi lo ->
   Forall isbyteZ msg ->
-  intlist_to_Zlist (generate_and_pad_msg msg) =
+  intlist_to_Zlist (generate_and_pad msg) =
      (msg ++ [128%Z] ++ map Int.unsigned (zeros pad)) ++
   map Int.unsigned (zeros ( -(Zlength msg + 9) mod CBLOCKz - pad) ++
      map Int.repr (intlist_to_Zlist [hi, lo])).
 Proof.
 intros.
 assert (LM: 0 <= Zlength msg) by (rewrite Zlength_correct; omega).
-rewrite <- generate_and_pad'_eq.
-unfold generate_and_pad'.
+(*rewrite <- generate_and_pad'_eq. *)
+unfold generate_and_pad.
 rewrite intlist_to_Zlist_app.
 rewrite Zlist_to_intlist_to_Zlist.
 Focus 2. {
@@ -464,6 +549,7 @@ rewrite <- app_ass.
 f_equal.
 rewrite <- map_app.
 rewrite zeros_app by omega.
+change 64 with CBLOCKz.
 forget (- (Zlength msg + 9) mod CBLOCKz) as B.
 replace (pad + (B - pad)) with B by omega.
 clear - H5 H0.
@@ -490,7 +576,7 @@ apply Forall_app; split; auto.
 apply Forall_app; split; auto.
 repeat constructor. omega.
 clear.
-induction  (Z.to_nat (- (Zlength msg + 9) mod CBLOCKz)).
+induction  (Z.to_nat (- (Zlength msg + 9) mod 64)).
 constructor.
 simpl. constructor; auto. split; repable_signed.
 Qed.

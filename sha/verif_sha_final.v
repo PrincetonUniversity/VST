@@ -1,11 +1,11 @@
 Require Import floyd.proofauto.
-Require Import progs.sha.
-Require Import progs.SHA256.
-Require Import progs.spec_sha.
-Require Import progs.sha_lemmas.
-Require Import progs.sha_lemmas2.
-Require Import progs.verif_sha_final2.
-Require Import progs.verif_sha_final3.
+Require Import sha.sha.
+Require Import sha.SHA256.
+Require Import sha.spec_sha.
+Require Import sha.sha_lemmas.
+Require Import sha.sha_lemmas2.
+Require Import sha.verif_sha_final2.
+Require Import sha.verif_sha_final3.
 Local Open Scope logic.
 
 Lemma body_SHA256_Final: semax_body Vprog Gtot f_SHA256_Final SHA256_Final_spec.

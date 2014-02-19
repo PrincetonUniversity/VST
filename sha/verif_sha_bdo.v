@@ -1,11 +1,11 @@
 Require Import floyd.proofauto.
-Require Import progs.sha.
-Require Import progs.SHA256.
-Require Import progs.sha_lemmas.
-Require Import progs.spec_sha.
-Require Import progs.verif_sha_bdo2.
-Require Import progs.verif_sha_bdo3.
-Require Import progs.verif_sha_bdo4.
+Require Import sha.sha.
+Require Import sha.SHA256.
+Require Import sha.sha_lemmas.
+Require Import sha.spec_sha.
+Require Import sha.verif_sha_bdo2.
+Require Import sha.verif_sha_bdo3.
+Require Import sha.verif_sha_bdo4.
 Local Open Scope logic.
 
 Lemma local_and_retval: (* do we need this? *)

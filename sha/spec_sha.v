@@ -1,6 +1,6 @@
 Require Import floyd.proofauto.
-Require Import progs.sha.
-Require Import progs.SHA256.
+Require Import sha.sha.
+Require Import sha.SHA256.
 Local Open Scope logic.
 
 Definition swap (i: int) : int :=
@@ -90,8 +90,10 @@ Definition sha256state_ (a: s256abs) (c: val) : mpred :=
 
 Definition tuints (vl: list int) := ZnthV tuint (map Vint vl).
 Definition tuchars (vl: list int) :=  ZnthV tuchar (map Vint vl).
+Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.
 
 Definition data_block (sh: share) (contents: list Z) :=
+  !! Forall isbyteZ contents &&
   array_at tuchar sh (tuchars (map Int.repr contents)) 0 (Zlength contents).
 
 Definition __builtin_read32_reversed_spec :=

@@ -1,8 +1,8 @@
 Require Import floyd.proofauto.
-Require Import progs.sha.
-Require Import progs.SHA256.
-Require Import progs.sha_lemmas.
-Require Import progs.spec_sha.
+Require Import sha.sha.
+Require Import sha.SHA256.
+Require Import sha.sha_lemmas.
+Require Import sha.spec_sha.
 Local Open Scope logic.
 
 Hint Rewrite eval_var_env_set : norm. (* needed? *)
@@ -245,6 +245,9 @@ instantiate (1:=(hashed,
  cancel.
  repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
  unfold data_block.
+ simpl. apply andp_right.
+ apply prop_right.
+ apply isbyte_intlist_to_Zlist.
  apply derives_refl'; f_equal. 
  unfold tuchars. f_equal. f_equal.
  rewrite <- H0.
@@ -288,6 +291,7 @@ entailer!.
 * erewrite K_vector_globals by (split3; [eassumption | reflexivity.. ]).
   cancel.
   unfold data_block.
+ simpl. apply andp_left2.
   replace (Zlength (intlist_to_Zlist ddzw)) with 64%Z.
  apply array_at__array_at.
  rewrite Zlength_correct; rewrite length_intlist_to_Zlist.
@@ -550,6 +554,7 @@ forward_for
  simpl_data_at.
  repeat rewrite array_at_ZnthV_nil.
  unfold at_offset.  unfold data_block.
+ rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
  replace (Zlength (intlist_to_Zlist hashedmsg)) with 32%Z.
 Hint Resolve array_at__array_at : cancel.
  cancel.

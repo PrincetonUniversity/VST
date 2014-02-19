@@ -1,8 +1,8 @@
 Require Import floyd.proofauto.
-Require Import progs.sha.
-Require Import progs.SHA256.
-Require Import progs.sha_lemmas.
-Require Import progs.spec_sha.
+Require Import sha.sha.
+Require Import sha.SHA256.
+Require Import sha.sha_lemmas.
+Require Import sha.spec_sha.
 Local Open Scope nat.
 Local Open Scope logic.
 
@@ -263,7 +263,11 @@ Admitted.
 Lemma data_block_isbyteZ:
  forall sh data v, data_block sh data v = !! Forall isbyteZ data && data_block sh data v.
 Proof.
-Admitted.  (* not currently true *)
+unfold data_block; intros.
+simpl.
+normalize.
+f_equal. f_equal. apply prop_ext. intuition.
+Qed.
 
 Lemma Forall_firstn:
   forall A (f: A -> Prop) n l, Forall f l -> Forall f (firstn n l).
@@ -511,7 +515,7 @@ unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
  apply andp_right; [apply prop_right | cancel].
  repeat split; simpl; auto.
  exists x0,x. split3; auto.
- rewrite Zlength_nil. rewrite H2. 
+ rewrite Zlength_nil. rewrite H5. 
  rewrite <- H7.
  rewrite H7'.
  rewrite initial_world.Zlength_app.

@@ -1,6 +1,6 @@
 Require Import proofauto.
-Require Import progs.SHA256.
-Require Import progs.spec_sha.
+Require Import sha.SHA256.
+Require Import sha.spec_sha.
 
 Hint Rewrite Int.bits_or using omega : testbit.
 Hint Rewrite Int.bits_shl using omega : testbit.
@@ -27,8 +27,6 @@ assert (32 < Int.max_unsigned) by (compute; auto).
 autorewrite with testbit.
 if_tac; [if_tac; [if_tac | ] | ]; autorewrite with testbit; f_equal; omega.
 Qed.
-
-Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.
 
 Lemma isbyteZ_testbit:
   forall i j, 0 <= i < 256 -> j >= 8 -> Z.testbit i j = false.
@@ -123,12 +121,6 @@ Proof.
 intros. repeat rewrite Zlength_correct. rewrite length_intlist_to_Zlist.
 rewrite Nat2Z.inj_mul. reflexivity.
 Qed.
-
-Fixpoint Zlist_to_intlist (nl: list Z) : list int :=
-  match nl with
-  | h1::h2::h3::h4::t => Z_to_Int h1 h2 h3 h4 :: Zlist_to_intlist t
-  | _ => nil
-  end.
 
 Lemma intlist_to_Zlist_Z_to_int_cons:
   forall a b c d l, 
@@ -606,9 +598,10 @@ Qed.
 
 Lemma datablock_local_facts:
  forall sh f data,
-  data_block sh f data |-- prop (isptr data).
+  data_block sh f data |-- prop (isptr data /\ Forall isbyteZ f).
 Proof.
 intros. unfold data_block.
+simpl.
 entailer.
 Qed.
 Hint Resolve datablock_local_facts : saturate_local.
@@ -646,6 +639,65 @@ rewrite (array_at_ext t sh f f' lo hi); auto.
 f_equal; auto.
 Qed.
 
+
+Lemma Forall_app :
+forall {A} P (l1 l2 :list A),
+Forall P (l1 ++ l2) <->
+Forall P l1 /\ Forall P l2.
+intros.
+split; induction l1; intros.
+inv H. destruct l2; inv H0. auto.
+split. auto. simpl in H2. inv H2.
+constructor; auto.
+split. inv H. constructor; auto. apply IHl1 in H3.
+intuition.
+inv H. apply IHl1 in H3. intuition.
+simpl. intuition.
+simpl. constructor.
+destruct H. inv H. auto.
+apply IHl1. intuition.
+inv H0; auto.
+Qed.
+Lemma list_repeat_app: forall A a b (x:A),
+  list_repeat a x ++ list_repeat b x = list_repeat (a+b) x.
+Proof.
+intros; induction a; simpl; f_equal.
+auto.
+Qed.
+
+Lemma list_drop_nil: forall A n, list_drop n (@nil A) = nil.
+Proof. induction n; simpl; auto.
+Qed.
+
+Lemma list_drop_drop:
+ forall A n m (al: list A), list_drop n (list_drop m al) = list_drop (n+m) al.
+Proof.
+induction m; intros.
+* simpl; auto. f_equal; omega.
+* replace (n + S m)%nat with (S (n + m))%nat by omega.
+  destruct al; [ rewrite list_drop_nil; auto | ].
+  unfold list_drop at 3; fold list_drop.
+ rewrite <- IHm.
+ f_equal.
+Qed.
+
+Lemma list_drop_app1:
+ forall A n (al bl: list A),
+  (n <= length al)%nat ->
+  list_drop n (al++bl) = list_drop n al ++ bl.
+Proof.
+intros. revert al H;
+induction n; destruct al; intros; simpl in *; try omega; auto.
+apply IHn; omega.
+Qed.
+
+
+Lemma list_drop_skipn: @list_drop = @skipn.
+Proof.
+extensionality A n al.
+revert al; induction n; destruct al; simpl; intros; auto.
+Qed.
+
 Lemma split3_data_block:
   forall lo n sh data d,
   lo+n <= length data ->
@@ -658,6 +710,18 @@ intros.
 assert (isptr d \/ ~isptr d) by (clear; destruct d; simpl; intuition).
 destruct H0; [ | apply pred_ext; entailer].
 unfold data_block.
+simpl.
+normalize.
+f_equal. f_equal.
+apply prop_ext.
+rewrite plus_comm.
+rewrite <- list_drop_drop.
+rewrite (and_comm (Forall _ (list_drop _ _))).
+repeat rewrite <- Forall_app.
+rewrite list_drop_skipn.
+rewrite firstn_skipn.
+rewrite firstn_skipn.
+intuition.
 rewrite (split_array_at (Z.of_nat (lo+n))).
 rewrite (split_array_at (Z.of_nat lo)).
 f_equal; [f_equal | ].
@@ -928,104 +992,6 @@ rewrite Z.mul_comm.
 destruct (Z.mod_pos_bound e 16); omega.
 Qed.
 
-Lemma length_generate_and_pad':
-  forall (l: list Z) (k: Z),
-     k >= 0 ->
-     k + Zlength (generate_and_pad l (k*4)) = roundup (((k*4+Zlength l)+12)/4) 16.
-Proof.
-intro l.
-remember (S (length l)) as L.
-assert (length l < L)%nat by omega.
-clear HeqL; revert l H; clear; induction L; intros.
-inversion H.
-destruct l.
-simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
-rewrite Zlength_padlen
-  by (apply Z.le_ge; apply Z.mul_nonneg_nonneg; omega).
-unfold Z.succ.
-replace (k*4+0+12) with (k*4+4+8) by omega.
-change 8 with (2*4).
-rewrite Z_div_plus_full by omega.
-replace ((k*4+4)/4)%Z with (k+1)%Z
- by (replace ((k*4+4)/4)%Z with (k*4/4 + 1)%Z
-         by (symmetry; apply (Z_div_plus (k*4) 1 4); omega);
-      rewrite Z_div_mult by omega; auto).
-rewrite Z.sub_add.
-rewrite Z.div_mul by congruence.
-replace (k+1+2) with (k+3) by omega.
-omega.
-assert (k*4 >= 0).
-apply Z.le_ge; apply Z.mul_nonneg_nonneg; omega.
-destruct l.
-simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
-rewrite Zlength_padlen by omega.
-unfold Z.succ. rewrite Z.sub_add.
-replace (k*4+(0+1)+12) with (k*4+1+4+8) by omega.
-change 8 with (2*4).
-rewrite Z_div_plus_full by omega.
-change (k * 4 + 1 + 4) with (k * 4 + 1 + 1*4).
-rewrite (Z_div_plus (k*4+1) 1 4) by omega.
-rewrite (Z.add_comm (k*4)).
-rewrite Z_div_plus by omega.
-change (1/4) with 0.
-rewrite Z.add_0_l.
-replace (k+1+2) with (k+3) by omega.
-omega.
-destruct l.
-simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
-rewrite Zlength_padlen by omega.
-unfold Z.succ. rewrite Z.sub_add.
-replace (k*4+(0+1+1)+12) with (k*4+2+4+8) by omega.
-change 8 with (2*4).
-rewrite Z_div_plus_full by omega.
-change (k * 4 + 2 + 4) with (k * 4 + 2 + 1*4).
-rewrite (Z_div_plus (k*4+2) 1 4) by omega.
-rewrite (Z.add_comm (k*4)).
-rewrite Z_div_plus by omega.
-change (2/4) with 0.
-rewrite Z.add_0_l.
-replace (k+1+2) with (k+3) by omega.
-omega.
-destruct l.
-simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
-rewrite Zlength_padlen by omega.
-unfold Z.succ. rewrite Z.sub_add.
-replace (k*4+(0+1+1+1)+12) with (k*4+3+4+8) by omega.
-change 8 with (2*4).
-rewrite Z_div_plus_full by omega.
-change (k * 4 + 3 + 4) with (k * 4 + 3 + 1*4).
-rewrite (Z_div_plus (k*4+3) 1 4) by omega.
-rewrite (Z.add_comm (k*4)).
-rewrite Z_div_plus by omega.
-change (3/4) with 0.
-rewrite Z.add_0_l.
-replace (k+1+2) with (k+3) by omega.
-omega.
-simpl; repeat rewrite Zlength_cons; repeat rewrite Zlength_nil.
-unfold Z.succ.
-transitivity (k+1 + (Zlength (generate_and_pad l ((k+1) * 4)))).
-rewrite Z.mul_add_distr_r.
-change (1*4) with 4.
-omega.
-simpl in H.
-rewrite IHL; try omega.
-f_equal.
-f_equal.
-omega.
-Qed.
-
-Lemma length_generate_and_pad:
-  forall (l: list Z),
-     Zlength (generate_and_pad l 0) = roundup ((Zlength l +12)/4) 16.
-Proof.
-intros.
-transitivity (0 + Zlength (generate_and_pad l (0*4))).
-rewrite Z.add_0_l.
-reflexivity.
-apply length_generate_and_pad'.
-omega.
-Qed.
-
 Local Open Scope logic.
 
 Lemma mapsto_tuchar_isbyteZ:
@@ -1092,25 +1058,6 @@ rewrite <- (andp_TT (!! _)).
 normalize.
 Qed.
 
-
-Lemma Forall_app :
-forall {A} P (l1 l2 :list A),
-Forall P (l1 ++ l2) <->
-Forall P l1 /\ Forall P l2.
-intros.
-split; induction l1; intros.
-inv H. destruct l2; inv H0. auto.
-split. auto. simpl in H2. inv H2.
-constructor; auto.
-split. inv H. constructor; auto. apply IHl1 in H3.
-intuition.
-inv H. apply IHl1 in H3. intuition.
-simpl. intuition.
-simpl. constructor.
-destruct H. inv H. auto.
-apply IHl1. intuition.
-inv H0; auto.
-Qed.
 
 Lemma isbyte_zeros: forall n, Forall isbyteZ (map Int.unsigned (zeros n)).
 Proof.
@@ -1375,36 +1322,3 @@ rewrite Z.div_small; try omega.
 pose proof (Z_mod_lt a b H).
 omega.
 Qed.
-
-Definition padlen' (n: Z) : list Int.int :=
-     let q := (n+8)/64*16 + 15 - (n+8)/4   (* number of zero-pad words *)
-      in zeros q ++ [Int.repr (n * 8 / Int.modulus), Int.repr (n * 8)].
-
-Lemma padlen_eq: padlen=padlen'.
-Proof.
-extensionality n.
-unfold padlen,padlen'; simpl.
-f_equal. f_equal.
-assert ((n+12)/4 = n/4+3).
-intros.
-replace (n+12) with (3*4+n) by omega.
- rewrite Z_div_plus_full_l by computable. omega.
-rewrite <- H.
-replace ((n+12)/4) with ((n+8)/4+1).
-rewrite <- Z.add_assoc.
-change (1+15) with (1*16).
-rewrite <- (Z.add_comm (1*16)).
- rewrite Z_div_plus_full_l by computable.
-rewrite Z.mul_add_distr_r.
-rewrite Z.div_div by computable.
-change (4*16) with 64.
-omega.
-replace (n+12) with (1*4+(n+8)) by omega.
- rewrite Z_div_plus_full_l by computable.
-omega.
-Qed.
-
-(*
-Fixpoint zerosZ (n : nat) : list Z :=
- match n with S n' => 0 :: zerosZ n' | O => nil end.
-*)
