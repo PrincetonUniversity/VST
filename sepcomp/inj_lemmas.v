@@ -146,6 +146,20 @@ Proof.
 by move=> Z W; apply (sm_sep_restrict2 Z W); move=> b ->.
 Qed.
 
+Lemma sm_locally_allocated_restrict mu mu' m1 m2 m1' m2' X Y :
+  sm_locally_allocated mu mu' m1 m2 m1' m2' -> 
+  sm_locally_allocated (restrict_sm mu X) (restrict_sm mu' Y) m1 m2 m1' m2'.
+Proof.
+rewrite 2!sm_locally_allocatedChar.
+move=> []A []B []C []D []E []F.
+split; first by rewrite !restrict_sm_DomSrc.
+split; first by rewrite !restrict_sm_DomTgt.
+split; first by rewrite !restrict_sm_locBlocksSrc.
+split; first by rewrite !restrict_sm_locBlocksTgt.
+split; first by rewrite !restrict_sm_extBlocksSrc.
+by rewrite !restrict_sm_extBlocksTgt.
+Qed.
+
 Lemma pubBlocksLocalSrc (mu : Inj.t) :
   {subset (pubBlocksSrc mu) <= locBlocksSrc mu}.  
 Proof. by move=> b; apply: pubBlocksLocalSrc; apply: Inj_wd. Qed.
@@ -1501,6 +1515,73 @@ apply join_sm_inject_separated with (m1':=m1') (m2':=m2')=> //.
 by rewrite/join_sm/=; apply: join2_consistent=> //; move: cons1=> //= [].
 apply: join_sm_valid=> //; apply: join_all_valid=> //; move: allval.
 by rewrite -All_comp.
+Qed.
+
+Lemma join_sm_DomSrc mu1 mu2 : 
+  DomSrc (join_sm mu1 mu2) 
+  = (fun b => locBlocksSrc mu1 b || locBlocksSrc mu2 b
+           || extBlocksSrc mu1 b && extBlocksSrc mu2 b).
+Proof. by []. Qed.
+
+Lemma join_sm_DomTgt mu1 mu2 : 
+  DomTgt (join_sm mu1 mu2) 
+  = (fun b => locBlocksTgt mu1 b || locBlocksTgt mu2 b
+           || extBlocksTgt mu1 b && extBlocksTgt mu2 b).
+Proof. by []. Qed.
+
+Lemma join_sm_locBlocksSrc mu1 mu2 : 
+  locBlocksSrc (join_sm mu1 mu2) 
+  = (fun b => locBlocksSrc mu1 b || locBlocksSrc mu2 b).
+Proof. by []. Qed.
+
+Lemma join_sm_locBlocksTgt mu1 mu2 : 
+  locBlocksTgt (join_sm mu1 mu2) 
+  = (fun b => locBlocksTgt mu1 b || locBlocksTgt mu2 b).
+Proof. by []. Qed.
+
+Lemma join_sm_extBlocksSrc mu1 mu2 : 
+  extBlocksSrc (join_sm mu1 mu2) 
+  = (fun b => extBlocksSrc mu1 b && extBlocksSrc mu2 b).
+Proof. by []. Qed.
+
+Lemma join_sm_extBlocksTgt mu1 mu2 : 
+  extBlocksTgt (join_sm mu1 mu2) 
+  = (fun b => extBlocksTgt mu1 b && extBlocksTgt mu2 b).
+Proof. by []. Qed.
+
+Lemma join_sm_locally_allocated mu1 mu1' mu2 m1 m2 m1' m2' :
+  sm_locally_allocated mu1 mu1' m1 m2 m1' m2' -> 
+  sm_locally_allocated (join_sm mu1 mu2) (join_sm mu1' mu2) m1 m2 m1' m2'.
+Proof.
+rewrite 2!sm_locally_allocatedChar.
+move=> []A []B []C []D []E F.
+rewrite !join_sm_DomSrc !join_sm_DomTgt. 
+rewrite !join_sm_locBlocksSrc !join_sm_locBlocksTgt.
+rewrite !join_sm_extBlocksSrc !join_sm_extBlocksTgt.
+split.
+extensionality b; rewrite C E -(orb_comm (freshloc _ _ _)) -!orb_assoc.
+by rewrite (orb_comm (freshloc _ _ _)) !orb_assoc.
+split.
+extensionality b; rewrite D F -(orb_comm (freshloc _ _ _)) -!orb_assoc.
+by rewrite (orb_comm (freshloc _ _ _)) !orb_assoc.
+split.
+by extensionality b; rewrite C -orb_assoc (orb_comm (freshloc _ _ _)) orb_assoc.
+split.
+extensionality b; rewrite D. 
+by rewrite -orb_assoc (orb_comm (freshloc _ _ _)) orb_assoc.
+split; extensionality b; first by rewrite E.
+by rewrite F.
+Qed.
+
+Lemma join_all_locally_allocated mu_trash (mu mu' : Inj.t) mus m1 m2 m1' m2' :
+  sm_locally_allocated mu mu' m1 m2 m1' m2' -> 
+  sm_locally_allocated 
+    (join_all mu_trash (mu :: mus)) 
+    (join_all mu_trash (mu' :: mus)) m1 m2 m1' m2'.
+Proof.
+elim: mus; first by rewrite !join_all_cons; apply: join_sm_locally_allocated.
+move=> mu0 mus' IH A; rewrite 2!join_all_cons. 
+by apply: join_sm_locally_allocated.
 Qed.
 
 Lemma All_disjoint (mu_trash : Inj.t) (mu : Inj.t) mus : 

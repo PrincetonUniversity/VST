@@ -1085,7 +1085,8 @@ case: STEP.
  by move: (R_AllDisjointT trinv hdinv tlinv); rewrite All2_comp2 map_comp.
  by move: (R_AllConsistent trinv hdinv tlinv); rewrite All2_comp2 map_comp.
 
- split. admit. (*loc-alloc*)
+ (*loc_alloc*)
+ split; first by rewrite mu_eq; apply: join_all_locally_allocated.
 
  split.
 
