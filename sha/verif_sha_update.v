@@ -84,7 +84,7 @@ Lemma SHA256_Update_aux:
  (H3 : length (map Int.unsigned r_data) < CBLOCK)
  (Hlen: (Z.of_nat len <= Int.max_unsigned)%Z)
  (Hlen_ge: len - (length blocks * 4 - length r_data) >= CBLOCK)
- (H6: firstn CBLOCK (list_drop (length blocks * 4 - length r_data) data) =
+ (H6: firstn CBLOCK (skipn (length blocks * 4 - length r_data) data) =
      intlist_to_Zlist bl)
  (H7: length bl = LBLOCK),
 semax Delta
@@ -277,8 +277,8 @@ constructor. constructor. constructor.
 inv H. simpl. constructor; auto.
 Qed.
 
-Lemma Forall_list_drop:
-  forall A (f: A -> Prop) n l, Forall f l -> Forall f (list_drop n l).
+Lemma Forall_skipn:
+  forall A (f: A -> Prop) n l, Forall f l -> Forall f (skipn n l).
 Proof.
 induction n; destruct l; intros.
 constructor. inv H; constructor; auto. constructor.
@@ -433,9 +433,9 @@ rewrite (data_block_isbyteZ sh data d).
 }
   apply semax_extract_PROP; intro BYTESdata.
   apply semax_extract_PROP; intro Hlen_ge.
-pose (bl := Zlist_to_intlist (firstn CBLOCK (list_drop (length blocks * 4 - length dd) data) )).
-assert (H97: CBLOCK <= length (list_drop (length blocks * 4 - length dd) data)). {
-rewrite list_drop_length
+pose (bl := Zlist_to_intlist (firstn CBLOCK (skipn (length blocks * 4 - length dd) data) )).
+assert (H97: CBLOCK <= length (skipn (length blocks * 4 - length dd) data)). {
+rewrite skipn_length
  by (clear - H Hblocks' Hblocks_len; omega).
 change (4*LBLOCK)%nat with CBLOCK.
 clear - Hlen_ge Hblocks' H Hblocks_len; omega.
@@ -448,14 +448,14 @@ assert (H98: length data >= length blocks * 4 - length dd)
 rewrite firstn_length.
 apply min_l; auto.
 }
-assert (H0:  firstn CBLOCK (list_drop (length blocks * 4 - length dd) data) =
+assert (H0:  firstn CBLOCK (skipn (length blocks * 4 - length dd) data) =
       intlist_to_Zlist bl). {
 unfold bl; rewrite Zlist_to_intlist_to_Zlist; auto.
 rewrite firstn_length.
 rewrite min_l by auto.
 exists LBLOCK; reflexivity.
 apply Forall_firstn.
-apply Forall_list_drop; auto.
+apply Forall_skipn; auto.
 }
 clearbody bl; clear H97.
  simple apply (SHA256_Update_aux Espec sh hashed dd data c d len (process_msg init_registers hashed) lo hi Delta blocks bl); 

@@ -582,15 +582,15 @@ Lemma intlist_to_Zlist_app:
 Proof. intros; induction al; simpl; auto. repeat f_equal; auto. Qed.
 
 Lemma firstn_app:
- forall {A} n m (al: list A), firstn n al ++ firstn m (list_drop n al) =
+ forall {A} n m (al: list A), firstn n al ++ firstn m (skipn n al) =
   firstn (n+m) al.
 Proof. induction n; destruct al; intros; simpl; auto.
 destruct m; reflexivity.
 f_equal; auto.
 Qed.
 
-Lemma list_drop_length:
-  forall {A} n (al: list A), length al >= n -> length (list_drop n al) = length al -n.
+Lemma skipn_length:
+  forall {A} n (al: list A), length al >= n -> length (skipn n al) = length al -n.
 Proof.
  induction n; destruct al; simpl; intros; auto.
  apply IHn. omega.
@@ -615,9 +615,9 @@ revert n al H; induction i; destruct n,al; simpl; intros; auto; try omega.
 apply IHi; omega.
 Qed.
 
-Lemma nth_list_drop:
+Lemma nth_skipn:
   forall A i n data (d:A),
-       nth i (list_drop n data) d = nth (i+n) data d.
+       nth i (skipn n data) d = nth (i+n) data d.
 Proof.
 intros.
 revert i data; induction n; simpl; intros.
@@ -665,26 +665,26 @@ intros; induction a; simpl; f_equal.
 auto.
 Qed.
 
-Lemma list_drop_nil: forall A n, list_drop n (@nil A) = nil.
+Lemma skipn_nil: forall A n, skipn n (@nil A) = nil.
 Proof. induction n; simpl; auto.
 Qed.
 
-Lemma list_drop_drop:
- forall A n m (al: list A), list_drop n (list_drop m al) = list_drop (n+m) al.
+Lemma skipn_drop:
+ forall A n m (al: list A), skipn n (skipn m al) = skipn (n+m) al.
 Proof.
 induction m; intros.
 * simpl; auto. f_equal; omega.
 * replace (n + S m)%nat with (S (n + m))%nat by omega.
-  destruct al; [ rewrite list_drop_nil; auto | ].
-  unfold list_drop at 3; fold list_drop.
+  destruct al; [ rewrite skipn_nil; auto | ].
+  unfold skipn at 3; fold skipn.
  rewrite <- IHm.
  f_equal.
 Qed.
 
-Lemma list_drop_app1:
+Lemma skipn_app1:
  forall A n (al bl: list A),
   (n <= length al)%nat ->
-  list_drop n (al++bl) = list_drop n al ++ bl.
+  skipn n (al++bl) = skipn n al ++ bl.
 Proof.
 intros. revert al H;
 induction n; destruct al; intros; simpl in *; try omega; auto.
@@ -692,19 +692,13 @@ apply IHn; omega.
 Qed.
 
 
-Lemma list_drop_skipn: @list_drop = @skipn.
-Proof.
-extensionality A n al.
-revert al; induction n; destruct al; simpl; intros; auto.
-Qed.
-
 Lemma split3_data_block:
   forall lo n sh data d,
   lo+n <= length data ->
   data_block sh data d = 
   (data_block sh (firstn lo data) d *
-  data_block sh (firstn n (list_drop lo data)) (offset_val (Int.repr (Z.of_nat lo)) d) *
-  data_block sh (list_drop (lo+n) data)  (offset_val (Int.repr (Z.of_nat (lo+n))) d))%logic.
+  data_block sh (firstn n (skipn lo data)) (offset_val (Int.repr (Z.of_nat lo)) d) *
+  data_block sh (skipn (lo+n) data)  (offset_val (Int.repr (Z.of_nat (lo+n))) d))%logic.
 Proof.
 intros.
 assert (isptr d \/ ~isptr d) by (clear; destruct d; simpl; intuition).
@@ -715,10 +709,9 @@ normalize.
 f_equal. f_equal.
 apply prop_ext.
 rewrite plus_comm.
-rewrite <- list_drop_drop.
-rewrite (and_comm (Forall _ (list_drop _ _))).
+rewrite <- skipn_drop.
+rewrite (and_comm (Forall _ (skipn _ _))).
 repeat rewrite <- Forall_app.
-rewrite list_drop_skipn.
 rewrite firstn_skipn.
 rewrite firstn_skipn.
 intuition.
@@ -762,7 +755,7 @@ rewrite <- offset_val_array_at.
  repeat rewrite @nth_map' with (d':=0%Z).
  f_equal. f_equal.
  rewrite nth_firstn_low; auto.
- rewrite nth_list_drop; auto.
+ rewrite nth_skipn; auto.
  f_equal.
  rewrite Z2Nat.inj_sub by omega.
  rewrite Nat2Z.id.
@@ -770,7 +763,7 @@ rewrite <- offset_val_array_at.
  rewrite <- (Z2Nat.id i) in H1 by omega.
  apply Nat2Z.inj_le in H1.
  omega.
- rewrite list_drop_length.
+ rewrite skipn_length.
  rewrite Z2Nat.inj_sub by omega.
  rewrite <- (Z2Nat.id i) in H1 by omega.
  destruct H1.
@@ -786,7 +779,7 @@ rewrite <- offset_val_array_at.
  rewrite Z2Nat.inj_sub by omega.
  rewrite Nat2Z.id.
  rewrite firstn_length.
- rewrite list_drop_length.
+ rewrite skipn_length.
  rewrite min_l by omega.
  omega.
  omega.
@@ -798,7 +791,7 @@ rewrite <- offset_val_array_at.
  omega.
  rewrite Zlength_correct.
  rewrite firstn_length.
- rewrite list_drop_length by omega.
+ rewrite skipn_length by omega.
  rewrite min_l by omega.
  rewrite Nat2Z.inj_add.
  omega.
@@ -813,7 +806,7 @@ rewrite <- offset_val_array_at.
  repeat rewrite map_map.
  repeat rewrite @nth_map' with (d':=0%Z).
  f_equal. f_equal.
- rewrite nth_list_drop; auto.
+ rewrite nth_skipn; auto.
  f_equal.
  rewrite Z2Nat.inj_sub by omega.
  rewrite <- (Z2Nat.id i) in H1 by omega.
@@ -826,7 +819,7 @@ rewrite <- offset_val_array_at.
  destruct H1.
  apply Nat2Z.inj_le in H1.
  apply Nat2Z.inj_lt in H2.
- rewrite list_drop_length.
+ rewrite skipn_length.
  rewrite Z2Nat.inj_sub by omega.
  rewrite Nat2Z.id.
  omega.
@@ -838,7 +831,7 @@ rewrite <- offset_val_array_at.
  omega.
  omega.
  repeat rewrite Zlength_correct.
- rewrite list_drop_length by omega.
+ rewrite skipn_length by omega.
  rewrite Nat2Z.inj_sub.
  omega.
  auto.

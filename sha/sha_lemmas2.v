@@ -198,8 +198,8 @@ rewrite Z2Nat.inj_add by omega.
 f_equal.
 }
 remember (Z.to_nat (Zlength msg / 4)) as n.
-change PADDED with (list_drop 0 PADDED).
-change msg with (list_drop 0 msg) at 3.
+change PADDED with (skipn 0 PADDED).
+change msg with (skipn 0 msg) at 3.
 change 0 with (Z.of_nat 0).
 replace 0%nat with ((Z.to_nat (Zlength msg / 4) - n)*4)%nat
  by (rewrite Heqn, minus_diag; reflexivity).
@@ -232,8 +232,8 @@ destruct (Z.mod_pos_bound (Zlength msg) 4); omega.
 rewrite Z2Nat.id by omega.
 change (Z.of_nat 4) with 4.
 rewrite Z.mul_comm in H2.
-assert (length (list_drop (Z.to_nat (Zlength msg / 4) * 4) msg) < 4)%nat.
-rewrite list_drop_length.
+assert (length (skipn (Z.to_nat (Zlength msg / 4) * 4) msg) < 4)%nat.
+rewrite skipn_length.
 apply Nat2Z.inj_lt.
 rewrite Nat2Z.inj_sub. rewrite <- Zlength_correct.
 rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4.
@@ -242,8 +242,8 @@ destruct (Z.mod_pos_bound (Zlength msg) 4); omega.
 omega.
 omega.
 rewrite HP.
-rewrite list_drop_app1 by omega.
-remember (list_drop (Z.to_nat (Zlength msg / 4) * 4) msg) as ccc.
+rewrite skipn_app1 by omega.
+remember (skipn (Z.to_nat (Zlength msg / 4) * 4) msg) as ccc.
 assert (HQ: (Zlength msg + 8) / 64 * 16 + 15 - (Zlength msg + 8) / 4 >= 0). {
 clear - H0.
 assert (0 <= Zlength msg + 8) by omega.
@@ -260,9 +260,9 @@ omega.
 }
 assert (- (Zlength msg + 9) mod CBLOCKz = 
            (3 - Zlength ccc) + 4* ((Zlength msg+8)/64 * 16 + 15 - (Zlength msg + 8) / 4)). {
-assert (LL: length ccc = length (list_drop (Z.to_nat (Zlength msg / 4) * 4) msg))
+assert (LL: length ccc = length (skipn (Z.to_nat (Zlength msg / 4) * 4) msg))
  by congruence.
-rewrite list_drop_length in LL.
+rewrite skipn_length in LL.
 Focus 2.
 apply Nat2Z.inj_ge; rewrite <- Zlength_correct. 
  rewrite Nat2Z.inj_mul. rewrite Z2Nat.id by auto. change (Z.of_nat 4) with 4.
@@ -314,8 +314,8 @@ rewrite <- list_repeat_app.
 replace (Zlength msg / 4 * 4) with (Zlength msg - Zlength ccc).
 Focus 2. {
 rewrite Heqccc.
-rewrite (Zlength_correct (list_drop _ _)).
-rewrite list_drop_length by omega.
+rewrite (Zlength_correct (skipn _ _)).
+rewrite skipn_length by omega.
 rewrite Nat2Z.inj_sub by omega.
 rewrite <- Zlength_correct.
 rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4.
@@ -379,8 +379,8 @@ rewrite Nat2Z.inj_sub
 change 4 with (1*4) at 3.
 apply Zmult_ge_reg_r with 4; omega.
 }
-rewrite <- (firstn_skipn 4 (list_drop (Q-4) PADDED)), <- list_drop_skipn, list_drop_drop.
-rewrite <- (firstn_skipn 4 (list_drop (Q-4) msg)), <- list_drop_skipn, list_drop_drop.
+rewrite <- (firstn_skipn 4 (skipn (Q-4) PADDED)), skipn_drop.
+rewrite <- (firstn_skipn 4 (skipn (Q-4) msg)), skipn_drop.
 replace (4 + (Q-4))%nat with Q by omega.
 rewrite HP at 1.
 assert (QL: (Q <= length msg)%nat). {
@@ -397,13 +397,13 @@ apply Nat2Z.inj_le.
  rewrite Z2Nat.id by auto.
 omega.
 }
-rewrite list_drop_app1 by omega.
+rewrite skipn_app1 by omega.
 rewrite firstn_app1
- by (rewrite list_drop_length by omega; omega).
-assert (length (firstn 4 (list_drop (Q - 4) msg)) = 4)%nat.
-rewrite firstn_length. rewrite list_drop_length by omega.
+ by (rewrite skipn_length by omega; omega).
+assert (length (firstn 4 (skipn (Q - 4) msg)) = 4)%nat.
+rewrite firstn_length. rewrite skipn_length by omega.
 apply min_l. omega.
-destruct (firstn 4 (list_drop (Q - 4) msg))
+destruct (firstn 4 (skipn (Q - 4) msg))
  as [ | z0 [| z1 [| z2 [|z3 [|]]]]];inv H3.
 unfold app at 2. unfold app at 4.
 unfold generate_and_pad'; fold generate_and_pad'.
