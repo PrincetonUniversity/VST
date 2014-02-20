@@ -93,6 +93,7 @@ LINKING_FILES= \
   inj_lemmas.v \
   disjointness.v \
   rc_semantics.v \
+  reach_lemmas.v \
   linking.v \
   compcert_linking.v \
   linking_lemmas.v \
