@@ -119,18 +119,17 @@ entailer!.
 Qed.
 
 Lemma final_part5:
-forall (hashed dd hashed' dd' : list int) (pad : Z) (hi' lo' : list Z)
+forall (hashed: list int) (dd:list Z) (hashed': list int) (dd' : list Z) (pad : Z) (hi' lo' : list Z)
   (hi lo : int) c_,
 (* (pad=0%Z \/ dd'=nil) -> *)
 NPeano.divide LBLOCK (length hashed) ->
 (length dd < CBLOCK)%nat ->
 (Zlength dd < 64)%Z ->
-(length (map Int.unsigned dd') + 8 <= CBLOCK)%nat ->
+(length dd' + 8 <= CBLOCK)%nat ->
 (0 <= pad < 8)%Z ->
 NPeano.divide LBLOCK (length hashed') ->
-intlist_to_Zlist hashed' ++ map Int.unsigned dd' =
-intlist_to_Zlist hashed ++
-map Int.unsigned dd ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
+intlist_to_Zlist hashed' ++ dd' =
+intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
 length hi' = 4%nat ->
 length lo' = 4%nat ->
 isptr c_ ->
@@ -142,12 +141,12 @@ array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr hi'))) 0 4
 array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
   (Z.of_nat CBLOCK - 8 - Zlength dd')
   (offset_val (Int.repr (Zlength dd' + 40)) c_) *
-array_at tuchar Tsh (ZnthV tuchar (map Vint dd')) 0 (Zlength dd')
+array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 (Zlength dd')
   (offset_val (Int.repr 40) c_)
 |-- array_at tuchar Tsh
       (ZnthV tuchar
          (map Vint
-            (dd' ++
+            (map Int.repr dd' ++
              zeros (Z.of_nat CBLOCK - 8 - Zlength dd') ++
              map Int.repr (hi' ++ lo')))) 0 64 (offset_val (Int.repr 40) c_).
 Proof.
@@ -155,10 +154,10 @@ intros until c_.
 intros H4 H3 H3' H0 H1 H2 H5 Lhi Llo Pc_ Hhilo.
  rewrite (split_array_at (Zlength dd') tuchar Tsh _ 0 64)
   by (clear - H0; rewrite Zlength_correct; change CBLOCK with 64%nat in H0;
-  rewrite map_length in H0; omega).
+  omega).
  rewrite (split_array_at 56 tuchar Tsh _ (Zlength dd') 64)
   by (clear - H0; rewrite Zlength_correct; change CBLOCK with 64%nat in H0;
-  rewrite map_length in H0; omega).
+  omega).
  rewrite (split_array_at 60 tuchar Tsh _ 56 64) by omega.
  replace (offset_val (Int.repr 100) c_) with
             (offset_val (Int.repr (sizeof tuchar * 60)) (offset_val (Int.repr 40) c_))
@@ -172,7 +171,7 @@ intros H4 H3 H3' H0 H1 H2 H5 Lhi Llo Pc_ Hhilo.
  forget (offset_val (Int.repr 40) c_) as cc.
  repeat rewrite <- offset_val_array_at.
  apply derives_trans with
-  (array_at tuchar Tsh (ZnthV tuchar (map Vint dd')) 0 (Zlength dd') cc *
+  (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 (Zlength dd') cc *
    array_at tuchar Tsh (fun _ : Z => Vint Int.zero) (Zlength dd' + 0)
    (Zlength dd' + (Z.of_nat CBLOCK - 8 - Zlength dd')) cc *
    array_at tuchar Tsh (fun i : Z => ZnthV tuchar (map Vint (map Int.repr hi')) (i - 56)) 
@@ -184,8 +183,8 @@ intros H4 H3 H3' H0 H1 H2 H5 Lhi Llo Pc_ Hhilo.
  replace (Zlength dd' + (Z.of_nat CBLOCK - 8 - Zlength dd'))%Z
   with 56%Z by (change (Z.of_nat CBLOCK) with 64%Z; clear; omega).
  assert (Zlength dd' >= 0)%Z by (rewrite Zlength_correct; omega).
- assert (Zlength dd' = Z.of_nat (length (map Vint dd'))).
- rewrite Zlength_correct, map_length; reflexivity.
+ assert (Zlength dd' = Z.of_nat (length (map Vint (map Int.repr dd')))).
+ rewrite Zlength_correct; repeat rewrite map_length; reflexivity.
  assert (Z.of_nat CBLOCK - 8 - Z.of_nat (length dd') >= 0)%Z.
     clear - H0; admit. (* tedious *)
  repeat rewrite sepcon_assoc;
@@ -232,19 +231,20 @@ name _n ->
 name _cNl ->
 name _cNh ->
 name _ignore ->
-forall (hi lo : int) (dd : list int),
+forall (hi lo : int) (dd : list Z),
 NPeano.divide LBLOCK (length hashed) ->
 ((Zlength hashed * 4 + Zlength dd)*8)%Z = hilo hi lo ->
 (length dd < CBLOCK)%nat ->
 (Zlength dd < 64)%Z ->
-forall (hashed' dd' : list int) (pad : Z),
+ (Forall isbyteZ dd) ->
+forall (hashed': list int) (dd' : list Z) (pad : Z),
+ (Forall isbyteZ dd') ->
  (pad=0%Z \/ dd'=nil) ->
-(length (map Int.unsigned dd') + 8 <= CBLOCK)%nat ->
+(length dd' + 8 <= CBLOCK)%nat ->
 (0 <= pad < 8)%Z ->
 NPeano.divide LBLOCK (length hashed') ->
-intlist_to_Zlist hashed' ++ map Int.unsigned dd' =
-intlist_to_Zlist hashed ++
-map Int.unsigned dd ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
+intlist_to_Zlist hashed' ++ dd' =
+intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
 forall p0 : val,
 semax (initialized _ignore (initialized _ignore'1 Delta_final_if1))
   (PROP  ()
@@ -261,9 +261,9 @@ semax (initialized _ignore (initialized _ignore'1 Delta_final_if1))
        (ZnthV tuint (map Vint (process_msg init_registers hashed'))) 0 8 c);
    `(field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c);
-   `(array_at tuchar Tsh (ZnthV tuchar (map Vint dd')) 0 (Zlength dd')
+   `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 (Zlength dd')
        (offset_val (Int.repr 40) c));
-   `(array_at tuchar Tsh (ZnthV tuchar (map Vint dd')) (Z.of_nat CBLOCK - 8)
+   `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) (Z.of_nat CBLOCK - 8)
        64 (offset_val (Int.repr 40) c));
    `(field_at_ Tsh t_struct_SHA256state_st _num c); K_vector;
    `(memory_block shmd (Int.repr 32) md)))
@@ -342,11 +342,12 @@ semax (initialized _ignore (initialized _ignore'1 Delta_final_if1))
           (intlist_to_Zlist
              (process_msg init_registers
                 (generate_and_pad
-                   (intlist_to_Zlist hashed ++ map Int.unsigned dd))))
+                   (intlist_to_Zlist hashed ++ dd))))
           md)))).
 Proof.
  intros Espec hashed md c shmd H md_ c_ p n cNl cNh ignore
- hi lo dd H4 H7 H3 H3' hashed' dd' pad PAD H0 H1 H2 H5 p0.
+ hi lo dd H4 H7 H3 H3' DDbytes hashed' dd' pad 
+ DDbytes' PAD H0 H1 H2 H5 p0.
  pose (hibytes := Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist [hi]))))).
  pose (lobytes := Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist [lo]))))).
  rewrite (split_array_at 60%Z tuchar Tsh _ (Z.of_nat CBLOCK - 8)%Z 64%Z)
@@ -363,7 +364,7 @@ Proof.
  f_equal; extensionality z; unfold Basics.compose.
  f_equal; f_equal.
  change (Z.of_nat 0 * 4)%Z with 0%Z. clear; omega.
- pull_left   (array_at tuchar Tsh (ZnthV tuchar (map Vint dd'))
+ pull_left   (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd')))
             (Z.of_nat CBLOCK - 8) 60 (offset_val (Int.repr 40) c)) .
  repeat rewrite sepcon_assoc.
  apply sepcon_derives; [ | cancel_frame].
@@ -388,7 +389,7 @@ clear - H0 H9.
  change CBLOCK with 64%nat in H0.
  assert (56 <= i-40)%Z by omega.
  apply Z2Nat.inj_le in H; try omega.
- change (Z.to_nat 56) with 56%nat in H; omega.
+ change (Z.to_nat 56) with 56%nat in H; rewrite map_length; omega.
  forward. (* p += 4; *)
  entailer!.
  forward. (* cNl=c->Nl; *)
@@ -403,7 +404,7 @@ clear - H0 H9.
  f_equal; extensionality z; unfold Basics.compose.
  f_equal; f_equal.
  change (Z.of_nat 0 * 4)%Z with 0%Z. clear; omega.
- pull_left   (array_at tuchar Tsh (ZnthV tuchar (map Vint dd'))
+ pull_left   (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd')))
              60 64 (offset_val (Int.repr 40) c)) .
  repeat rewrite sepcon_assoc.
  apply sepcon_derives; [ | cancel_frame].
@@ -428,7 +429,7 @@ clear - H0 H10.
  change CBLOCK with 64%nat in H0.
  assert (60 <= i-40)%Z by omega.
  apply Z2Nat.inj_le in H; try omega.
- change (Z.to_nat 60) with 60%nat in H; omega.
+ change (Z.to_nat 60) with 60%nat in H; rewrite map_length; omega.
  autorewrite with subst.
  normalize.
  forward. (* p += 4; *)
@@ -456,25 +457,26 @@ rewrite (nth_map' Vint Vundef Int.zero)
        rewrite Z2Nat.id; change (Z.of_nat 4) with 4%Z; omega).
  reflexivity.
 clear lobytes hibytes.
-rewrite (Zlength_correct dd').
-rewrite (array_at_tuchar_isbyteZ _ dd').
-rewrite <- (Zlength_correct dd').
+(* rewrite (Zlength_correct dd').
+ rewrite (array_at_tuchar_isbyteZ _ (map Int.repr dd')).
+rewrite <- (Zlength_correct dd').*)
 normalize.
-rename H10 into Hforall; rewrite firstn_same in Hforall by (rewrite map_length; clear; omega).
+(* rename H10 into Hforall; rewrite firstn_same in Hforall by (rewrite map_length; clear; rewrite map_length; omega). *)
 pose (lastblock := (
-         (dd' ++ zeros (Z.of_nat CBLOCK - 8 - Zlength dd')
+         (map Int.repr dd' ++ zeros (Z.of_nat CBLOCK - 8 - Zlength dd')
           ++  map Int.repr (intlist_to_Zlist [hi,lo])))).
 assert (H10: length lastblock = CBLOCK).
 unfold lastblock; repeat rewrite app_length.
 rewrite length_zeros; simpl.
 clear - H0.
 rewrite Zlength_correct. repeat rewrite Z2Nat.inj_sub by omega.
-repeat rewrite Nat2Z.id. rewrite map_length in H0. simpl Z.to_nat. omega.
+repeat rewrite Nat2Z.id. simpl Z.to_nat. rewrite map_length; omega.
 assert (BYTESlastblock: Forall isbyteZ (map Int.unsigned lastblock)). {
  unfold lastblock.
  repeat rewrite map_app.
  repeat rewrite Forall_app.
  repeat split; auto.
+ apply Forall_isbyteZ_unsigned_repr; auto.
  apply isbyte_zeros.
  apply isbyte_intlist_to_Zlist'.
 }
@@ -501,28 +503,51 @@ apply length_Zlist_to_intlist.
 rewrite map_length; assumption.
 *
 apply intlist_to_Zlist_inj.
-rewrite (lastblock_lemma _ hashed' (map Int.unsigned dd') pad hi lo); auto.
-2: destruct PAD as [PAD|PAD];[left|right]; rewrite PAD; reflexivity.
+rewrite (lastblock_lemma _ hashed' dd' pad hi lo); auto.
 2: repeat rewrite app_ass; apply H5.
-rewrite (app_ass _ (map Int.unsigned dd)); rewrite <- H5.
+2: rewrite <- H7; f_equal; rewrite initial_world.Zlength_app,
+        Zlength_intlist_to_Zlist, Z.mul_comm; reflexivity.
+2: apply Forall_app; split; auto;apply isbyte_intlist_to_Zlist.
+rewrite (app_ass _ dd); rewrite <- H5.
 rewrite app_ass; rewrite intlist_to_Zlist_app.
 f_equal.
 unfold lastblock'.
-rewrite Zlist_to_intlist_to_Zlist; auto.
-2:  rewrite map_length, H10; eexists;reflexivity.
+rewrite Zlist_to_intlist_to_Zlist;
+ [  | rewrite map_length, H10; eexists;reflexivity | auto].
 unfold lastblock; repeat rewrite map_app.
 f_equal.
+symmetry; apply map_unsigned_repr_isbyte; auto.
 f_equal.
 f_equal.
 f_equal.
-admit.
-rewrite <- H7; f_equal.
-rewrite initial_world.Zlength_app, initial_world.Zlength_map.
-rewrite Zlength_intlist_to_Zlist.
-rewrite Z.mul_comm; reflexivity.
-rewrite Forall_app; split; [apply isbyte_intlist_to_Zlist | ].
-  assert (Forall isbyteZ (intlist_to_Zlist hashed' ++ map Int.unsigned dd' )).
-rewrite Forall_app; split; [apply isbyte_intlist_to_Zlist | auto].
-rewrite H5 in H11.
-clear - H11; repeat rewrite Forall_app in H11; intuition.
+clear dependent p1. clear dependent p2. clear p0 p3.
+clear Delta POSTCONDITION MORE_COMMANDS.
+clear DDbytes DDbytes'.
+clear lastblock'.
+clear dependent lastblock.
+clear dependent hi; clear lo.
+clear dependent shmd.
+destruct PAD; subst; simpl in *.
+rewrite Z.sub_0_r.
+replace (Zlength (intlist_to_Zlist hashed ++ dd) + 9)
+  with (Zlength (intlist_to_Zlist hashed') + Zlength dd' + 8).
+admit.  (* looks fine *)
+admit.  (* easy *)
+clear H0.
+rewrite Zlength_nil, Z.sub_0_r.
+rewrite <- app_nil_end in H5.
+assert (Zlength dd + 1 + pad = CBLOCKz)
+ by admit.
+transitivity (- (Zlength dd + 9) mod CBLOCKz - pad).
+ admit. (* fine *)
+replace (Zlength dd) with (CBLOCKz - (1+pad)) by omega.
+replace (CBLOCKz - (1+pad) + 9) with (CBLOCKz + (8-pad)) by omega.
+rewrite Z.mod_opp_l_nz by admit.
+rewrite Z.add_mod by (intro Hx; inv Hx).
+rewrite Z_mod_same by (change CBLOCKz with 64; omega).
+rewrite Z.add_0_l.
+rewrite Z.mod_mod by (change CBLOCKz with 64; omega).
+rewrite Z.mod_small by (change CBLOCKz with 64; omega).
+change (Z.of_nat CBLOCK) with CBLOCKz; omega.
 Qed.
+

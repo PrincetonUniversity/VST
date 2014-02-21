@@ -57,14 +57,15 @@ Definition Body_final_if1 :=
                   ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
                    (Etempvar _p (tptr tuchar)) :: nil)))).
 
-Definition invariant_after_if1 hashed dd c md shmd  hi lo:= 
-   (EX hashed':list int, EX dd': list int, EX pad:Z,
-   PROP  (pad=0%Z \/ dd'=nil;
-              (length (map Int.unsigned dd') + 8 <= CBLOCK)%nat;
+Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo:= 
+   (EX hashed':list int, EX dd': list Z, EX pad:Z,
+   PROP  (Forall isbyteZ dd';
+              pad=0%Z \/ dd'=nil;
+              (length dd' + 8 <= CBLOCK)%nat;
               (0 <= pad < 8)%Z;
               NPeano.divide LBLOCK (length hashed');
-              intlist_to_Zlist hashed' ++ map Int.unsigned dd' =
-              intlist_to_Zlist hashed ++ map Int.unsigned dd 
+              intlist_to_Zlist hashed' ++ dd' =
+              intlist_to_Zlist hashed ++  dd 
                   ++ [128%Z] ++ map Int.unsigned (zeros pad)   )          
    LOCAL 
    (`(eq (Vint (Int.repr (Zlength dd')))) (eval_id _n);
@@ -74,7 +75,7 @@ Definition invariant_after_if1 hashed dd c md shmd  hi lo:=
    SEP  (`(array_at tuint Tsh (ZnthV tuint (map Vint (process_msg init_registers hashed'))) 0 8 c);
    `(field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c);
-   `(array_at tuchar Tsh (ZnthV tuchar (map Vint dd')) 0 64 
+   `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 64 
                           (offset_val (Int.repr 40) c));
    `(field_at_ Tsh t_struct_SHA256state_st _num c);
      K_vector;
@@ -82,11 +83,11 @@ Definition invariant_after_if1 hashed dd c md shmd  hi lo:=
 
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
-  (hi lo : int) (dd : list int)
+  (hi lo : int) (dd : list Z)
  (H4: NPeano.divide LBLOCK (length hashed))
  (H7: ((Zlength hashed * 4 + Zlength dd)*8 = hilo hi lo)%Z)
  (H3: (length dd < CBLOCK)%nat)
- (DDbytes: Forall isbyteZ (map Int.unsigned dd)),
+ (DDbytes: Forall isbyteZ dd),
   semax Delta_final_if1
   (PROP  ()
    LOCAL 
@@ -106,7 +107,7 @@ Lemma ifbody_final_if1:
    `(field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c);
    `(array_at tuchar Tsh
-       (ZnthV tuchar (map Vint dd ++ [Vint (Int.repr 128)])) 0 64
+       (ZnthV tuchar (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)])) 0 64
        (offset_val (Int.repr 40) c));
    `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd))) c);
    K_vector; `(memory_block shmd (Int.repr 32) md))) Body_final_if1
@@ -134,7 +135,7 @@ set (ddlen := Zlength dd) in *.
   + normalize in H1; rewrite H1; reflexivity.
   + rewrite (split_array_at (ddlen+1) tuchar) by omega.
    repeat rewrite <- sepcon_assoc;
-    pull_left (array_at tuchar Tsh (ZnthV tuchar (map Vint dd ++ [Vint (Int.repr 128)]))
+    pull_left (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)]))
    (ddlen + 1) 64 (offset_val (Int.repr 40) c)).
    repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
   change (Z.of_nat CBLOCK) with 64%Z.
@@ -162,7 +163,7 @@ replace_SEP 0%Z (
           (offset_val (Int.repr (ddlen + 1)) (offset_val (Int.repr 40) c)))).
 entailer!.
 gather_SEP 4%Z 0%Z.
-pose (ddz := ((dd ++ [Int.repr 128]) ++ zeros (Z.of_nat CBLOCK-(ddlen+1)))%Z).
+pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ zeros (Z.of_nat CBLOCK-(ddlen+1)))%Z).
 replace_SEP 0%Z (  `(array_at tuchar Tsh
         (ZnthV tuchar (map Vint ddz)) 0 64
         (offset_val (Int.repr 40) c))).
@@ -176,13 +177,13 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
     unfold ZnthV. if_tac; try omega.
     unfold ddz.
     repeat rewrite map_app. simpl map.
-   set (dd1 :=  map Vint dd ++ [Vint (Int.repr 128)%Z]).
+   set (dd1 :=  map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)%Z]).
    rewrite app_nth1. auto. 
    unfold dd1; rewrite app_length. 
    clear - H1; unfold ddlen in *; rewrite Zlength_correct in *;
    rewrite map_length in *. simpl.
     apply Nat2Z.inj_lt. rewrite Z2Nat.id by Omega1.
-  rewrite Nat2Z.inj_add; Omega1.
+  rewrite map_length; rewrite Nat2Z.inj_add; Omega1.
  +  clear - Pc_ Hddlen.
  assert (ddlen = Zlength dd) by reflexivity.
   replace (Int.repr (40+(ddlen+1))%Z)
@@ -199,8 +200,8 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
  unfold ddz. clear ddz. rewrite map_app.
  rewrite app_nth2;  rewrite map_length; rewrite app_length.
  rewrite nth_map_zeros; [reflexivity |].
- simpl. Omega1.
- simpl. Omega1.
+ simpl. rewrite map_length; Omega1.
+ simpl. rewrite map_length;  Omega1.
  + Omega1.
  }
 pose (ddzw := Zlist_to_intlist (map Int.unsigned ddz)).
@@ -210,7 +211,7 @@ rewrite length_zeros by omega.
 rewrite Z2Nat.inj_sub by omega.
 rewrite Z2Nat.inj_add by omega.
 rewrite (Nat2Z.id). unfold ddlen; rewrite Zlength_correct. 
-rewrite (Nat2Z.id). simpl length; change (Z.to_nat 1) with 1%nat; omega.
+rewrite (Nat2Z.id). rewrite map_length; simpl length; change (Z.to_nat 1) with 1%nat; omega.
 }
 assert (H1: length ddzw = LBLOCK). {
 unfold ddzw.
@@ -220,6 +221,14 @@ assert (H0: map Int.unsigned ddz = intlist_to_Zlist ddzw). {
 unfold ddzw; rewrite Zlist_to_intlist_to_Zlist; auto.
 rewrite map_length, H0'; exists LBLOCK; reflexivity.
 unfold ddz; repeat rewrite map_app; repeat rewrite Forall_app; repeat split; auto.
+Lemma Forall_isbyteZ_unsigned_repr:
+ forall l, Forall isbyteZ l -> Forall isbyteZ (map Int.unsigned (map Int.repr l)).
+Proof. induction 1. constructor.
+constructor. rewrite Int.unsigned_repr; auto.
+unfold isbyteZ in H; repable_signed.
+apply IHForall.
+Qed.
+apply Forall_isbyteZ_unsigned_repr; auto.
 constructor. compute. clear; split; congruence.
 constructor.
 apply isbyte_zeros.
@@ -261,7 +270,7 @@ instantiate (1:=(hashed,
 unfold invariant_after_if1.
  apply exp_right with (hashed ++ ddzw).
 set (pad := (Z.of_nat CBLOCK - (ddlen+1))%Z) in *.
- apply exp_right with (@nil int).
+ apply exp_right with (@nil Z).
  apply exp_right with pad.
 entailer.
 normalize in H5.
@@ -287,7 +296,11 @@ entailer!.
   unfold ddz.
   repeat rewrite map_app.
   repeat rewrite app_ass.
- reflexivity.
+ f_equal.
+ clear - DDbytes; induction dd; simpl.
+  auto.
+ inv DDbytes; f_equal; auto.
+ apply Int.unsigned_repr; unfold isbyteZ in H1; repable_signed.
 * erewrite K_vector_globals by (split3; [eassumption | reflexivity.. ]).
   cancel.
   unfold data_block.

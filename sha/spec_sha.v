@@ -48,14 +48,15 @@ Definition s256a_len (a: s256abs) :=
   match a with S256abs hashed data => Zlength hashed end.
 
 Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
+Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.
 
 Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
      match a with S256abs hashed data =>
          s256_h r = map Vint (process_msg init_registers hashed) 
        /\ (exists hi, exists lo, s256_Nh r = Vint hi /\ s256_Nl r = Vint lo /\
              (Zlength hashed * 4 + Zlength data)*8 = hilo hi lo)%Z
-       /\ (exists dd, data = map Int.unsigned dd /\ s256_data r = map Vint dd)
-       /\ length data < CBLOCK
+       /\ s256_data r = map Vint (map Int.repr data)
+       /\ (length data < CBLOCK /\ Forall isbyteZ data)
        /\ NPeano.divide LBLOCK (length hashed)
        /\ s256_num r = Vint (Int.repr (Zlength data))
      end%nat.
@@ -90,7 +91,6 @@ Definition sha256state_ (a: s256abs) (c: val) : mpred :=
 
 Definition tuints (vl: list int) := ZnthV tuint (map Vint vl).
 Definition tuchars (vl: list int) :=  ZnthV tuchar (map Vint vl).
-Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.
 
 Definition data_block (sh: share) (contents: list Z) :=
   !! Forall isbyteZ contents &&

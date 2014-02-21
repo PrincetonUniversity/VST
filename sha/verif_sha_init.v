@@ -36,7 +36,6 @@ simpl_data_at.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
 entailer!.
 exists Int.zero, Int.zero; repeat split; reflexivity.
-exists nil; split; reflexivity.
 simpl; change CBLOCK with 64; omega.
 exists 0; simpl; reflexivity.
 apply derives_refl'; f_equal.

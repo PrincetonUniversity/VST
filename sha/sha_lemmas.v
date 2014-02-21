@@ -1258,6 +1258,41 @@ apply IHn.
 omega.
 Qed.
 
+Lemma Zlength_intlist_to_Zlist_app:
+ forall al bl,  Zlength (intlist_to_Zlist (al++bl)) =
+    (Zlength (intlist_to_Zlist al) + Zlength (intlist_to_Zlist bl))%Z.
+Proof.
+induction al; simpl; intros; auto.
+repeat rewrite Zlength_cons.
+rewrite IHal.
+omega.
+Qed.
+
+Lemma data_block_isbyteZ:
+ forall sh data v, data_block sh data v = !! Forall isbyteZ data && data_block sh data v.
+Proof.
+unfold data_block; intros.
+simpl.
+normalize.
+f_equal. f_equal. apply prop_ext. intuition.
+Qed.
+
+Lemma Forall_firstn:
+  forall A (f: A -> Prop) n l, Forall f l -> Forall f (firstn n l).
+Proof.
+induction n; destruct l; intros.
+constructor. constructor. constructor.
+inv H. simpl. constructor; auto.
+Qed.
+
+Lemma Forall_skipn:
+  forall A (f: A -> Prop) n l, Forall f l -> Forall f (skipn n l).
+Proof.
+induction n; destruct l; intros.
+constructor. inv H; constructor; auto. constructor.
+inv H. simpl.  auto.
+Qed.
+
 Local Open Scope Z.
 
 Lemma hilo_lemma:
