@@ -23,13 +23,15 @@ Require Import sepcomp.inj_lemmas.
 
 (* nwp = no wild pointers *)
 
-Definition nwp m (bs : block -> bool) :=
+Definition nwp_aux m (IN OUT : block -> bool) :=
   forall b ofs, 
-  bs b -> 
+  IN b -> 
   Mem.perm m b ofs Cur Readable -> 
   forall b' ofs' n, 
     ZMap.get ofs (Mem.mem_contents m) !! b = Pointer b' ofs' n -> 
-    bs b'.
+    OUT b'.
+
+Definition nwp m := [fun bs => nwp_aux m bs bs].
 
 Lemma nwp_REACH_closed1 bs m : 
   nwp m bs -> 
@@ -58,6 +60,40 @@ split; first by apply: nwp_REACH_closed2.
 by apply: nwp_REACH_closed1.
 Qed.
 
+(* nwp_aux is invariant over disjoint memory updates -- phi1 is the frame *)
+
+Lemma nwp_aux_update phi1 phi2 m m' : 
+  (forall b, phi2 b=true -> Mem.valid_block m b) -> 
+  nwp_aux m phi2 (fun b => phi1 b || phi2 b) -> 
+  Mem.unchanged_on (fun b ofs => phi2 b) m m' -> 
+  nwp_aux m' phi1 (fun b => phi1 b || phi2 b) -> 
+  nwp_aux m' phi2 (fun b => phi1 b || phi2 b).
+Proof.
+move=> val A unch C b ofs D E b' ofs' n F.
+have G: Mem.perm m b ofs Cur Readable.
+  by case: unch; move/(_ b ofs Cur Readable D (val _ D))=> ->.
+apply: (A b ofs D G b' ofs' n).
+by case: unch=> _; move/(_ _ _ D G)=> <-.
+Qed.
+
+Lemma nwp_aux_pre phi1 phi1' phi2 m :
+  {subset phi1' <= phi1} -> 
+  nwp_aux m phi1 phi2 -> 
+  nwp_aux m phi1' phi2.
+Proof.
+move=> sub A b ofs B C b' ofs' n D.
+by move: (sub _ B); move/(A b ofs); move/(_ C b' ofs' n D).
+Qed.
+
+Lemma nwp_aux_post phi1 phi2 phi2' m :
+  {subset phi2 <= phi2'} -> 
+  nwp_aux m phi1 phi2 -> 
+  nwp_aux m phi1 phi2'.
+Proof.
+move=> sub A b ofs B C b' ofs' n D.
+by apply: sub; apply: (A _ _ B C b' ofs' n D).
+Qed.
+
 Lemma nwp_unchanged_on m m' bs : 
   nwp m bs -> 
   mem_forward m m' -> 
@@ -65,13 +101,8 @@ Lemma nwp_unchanged_on m m' bs :
   (forall b, bs b -> Mem.valid_block m b) ->
   nwp m' bs.
 Proof.
-move=> A fwd B U b ofs C D b' ofs' n E.
-have V: Mem.valid_block m b by move: C; apply: U.
-have D': Mem.perm m b ofs Cur Readable.
-  by case: B; move/(_ b ofs Cur Readable C V)=> ->.
-have E': ZMap.get ofs (Mem.mem_contents m) !! b = Pointer b' ofs' n.
-  by case: B=> _; move/(_ b ofs C D')=> <-.
-by move: (A b ofs C D' _ _ _ E')=> F.
+by move=> A B C D; apply nwp_aux_update 
+  with (phi1 := fun b => false) (phi2 := bs) (m := m).
 Qed.
 
 Lemma join_sm_REACH_closed mu1 mu1' mu2 m1 m1' : 
