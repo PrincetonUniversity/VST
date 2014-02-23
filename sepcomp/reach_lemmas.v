@@ -218,25 +218,32 @@ Qed.
 Lemma join_sm_REACH_closed mu1 mu1' mu2 m1 m1' : 
   Mem.unchanged_on (fun b ofs => 
     locBlocksSrc mu2 b && ~~frgnBlocksSrc mu1 b) m1 m1' -> 
-  (forall b, frgnBlocksSrc mu1 b -> locBlocksSrc mu2 b || frgnBlocksSrc mu2 b) -> 
+  (forall b, 
+     frgnBlocksSrc mu1 b -> 
+     locBlocksSrc mu2 b || frgnBlocksSrc mu2 b) -> 
   intern_incr mu1 mu1' -> 
+  smvalid_src mu2 m1 -> 
   REACH_closed m1 (vis (join_sm mu1 mu2)) ->
   REACH_closed m1' (vis mu1') ->
   REACH_closed m1' (vis (join_sm mu1' mu2)).
 Proof.
 rewrite !REACH_closedP.
-move=> A contain B.
+move=> A contain B valid.
 rewrite/vis/join_sm/=/in_mem/= => C D.
 set phi1 := (fun b => 
   locBlocksSrc mu1 b || frgnBlocksSrc mu1 b).
 set phi1' := (fun b => 
   locBlocksSrc mu1' b || frgnBlocksSrc mu1 b).
 set phi2 := (fun b => locBlocksSrc mu2 b && ~~frgnBlocksSrc mu1 b).
-have val: forall b, phi2 b = true -> Mem.valid_block m1 b. admit. (*by sm_valid*)
+have val: forall b, phi2 b = true -> Mem.valid_block m1 b. 
+  rewrite/phi2=> b; move/andP=> []X Y.  
+  by move: (valid b); rewrite/DOM/DomSrc X; apply.
 set phi0 := fun b => locBlocksSrc mu1 b || locBlocksSrc mu2 b
                || frgnBlocksSrc mu1 b && frgnBlocksSrc mu2 b.
 have sub: forall b, phi1 b = true -> phi1' b = true.
-  admit. (*by intern_incr*)
+  rewrite/phi1/phi1'=> b; case/orP=> X.
+  by case: B=> _ []_ []; move/(_ b); rewrite X=> Y _; rewrite Y.
+  by rewrite X; apply/orP; right.
 have sub':
   forall b,
     locBlocksSrc mu1 b || locBlocksSrc mu2 b
@@ -253,7 +260,8 @@ have X: nwp_aux m1 phi2 (fun b : block => phi1 b || phi2 b).
   apply: (nwp_aux_post (phi2 := phi0))=> //.
   move=> b; rewrite/phi2/phi0/in_mem/=.
   by move/andP=> []-> _; apply/orP; left; apply/orP; right.
-have eq: (frgnBlocksSrc mu1=frgnBlocksSrc mu1'). admit. (*by intern_incr*)
+have eq: (frgnBlocksSrc mu1=frgnBlocksSrc mu1'). 
+  by case: B=> _ []_ []_ []_ []_ []_ []->.
 have Y: nwp_aux m1' phi1' (fun b : block => phi1' b || phi2 b).
   apply: (nwp_aux_pre 
     (phi1 := (fun b => locBlocksSrc mu1' b || frgnBlocksSrc mu1' b))).
@@ -276,6 +284,56 @@ move=> _.
 by case: (frgnBlocksSrc mu1 b).
 rewrite eq.
 by move/andP=> [] -> _.
+Qed.
+
+Lemma join_sm_REACH_closed' mu1 mu1' mu2 m1 m1' : 
+  DisjointLS mu1 mu2 -> 
+  Mem.unchanged_on (fun b ofs => vis mu1 b = false) m1 m1' -> 
+  (forall b, 
+     frgnBlocksSrc mu1 b -> 
+     locBlocksSrc mu2 b || frgnBlocksSrc mu2 b) -> 
+  intern_incr mu1 mu1' -> 
+  smvalid_src mu2 m1 -> 
+  REACH_closed m1 (vis (join_sm mu1 mu2)) ->
+  REACH_closed m1' (vis mu1') ->
+  REACH_closed m1' (vis (join_sm mu1' mu2)).
+Proof.
+move=> A B C D E F G.
+have unch: 
+  Mem.unchanged_on (fun b ofs => 
+    locBlocksSrc mu2 b && ~~frgnBlocksSrc mu1 b) m1 m1'.
+  apply mem_unchanged_on_sub with (Q:=(fun b ofs => vis mu1 b=false))=> //.
+  move=> b _; rewrite/vis.
+  case H: (locBlocksSrc mu2 b)=> //=.
+  case I: (frgnBlocksSrc mu1 b)=> //=.                                   
+  move: A; move/(DisjointP _); move/(_ b); rewrite H.
+  by case=> //; case: (locBlocksSrc mu1 b).
+by apply: (join_sm_REACH_closed unch C D E F G).
+Qed.
+
+Lemma join_all_REACH_closed 
+      (mu_trash mu mu' : Inj.t) (mus : seq Inj.t) m1 m1' : 
+  DisjointLS mu mu_trash -> 
+  All (DisjointLS mu) [seq Inj.mu x | x <- mus] -> 
+  Mem.unchanged_on (fun b ofs => vis mu b = false) m1 m1' -> 
+  (forall b, 
+     frgnBlocksSrc mu b -> 
+     let mu_rest := join_all mu_trash mus 
+     in locBlocksSrc mu_rest b || frgnBlocksSrc mu_rest b) -> 
+  intern_incr mu mu' -> 
+  smvalid_src mu_trash m1 -> 
+  All (fun mu0 => smvalid_src mu0 m1) [seq Inj.mu x | x <- mus] -> 
+  REACH_closed m1 (vis (join_all mu_trash (mu :: mus))) -> 
+  REACH_closed m1' (vis mu') ->
+  REACH_closed m1' (vis (join_all mu_trash (mu' :: mus))).
+Proof.
+move=> /= A B C D E F G H I.
+have disj: DisjointLS mu (join_all mu_trash mus). 
+  by apply: join_all_disjoint_src; split.
+have val: smvalid_src (join_all mu_trash mus) m1. 
+  apply: join_all_valid_src=> //.
+  by move: G; rewrite -All_comp3.
+by apply: (join_sm_REACH_closed' disj C D E val H I).
 Qed.
 
   

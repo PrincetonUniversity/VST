@@ -857,6 +857,20 @@ move/andP=> []E F.
 by apply: D; apply/orP; right.
 Qed.
 
+Lemma join_smvalid_src mu1 mu2 m1 :
+  smvalid_src mu1 m1 ->
+  smvalid_src mu2 m1 ->
+  smvalid_src (join_sm mu1 mu2) m1.
+Proof.
+rewrite/join_sm/smvalid_src/DOM/RNG/DomSrc/DomTgt /= => []A B.
+move=> b1; move/orP; case.
+move/orP; case=> E.
+by apply: A; apply/orP; left.
+by apply: B; apply/orP; left.
+move/andP=> []E F.
+by apply: A; apply/orP; right.
+Qed.
+
 Lemma join_all_valid (mu : Inj.t) mus m1 m2 :
   sm_valid mu m1 m2 -> 
   All (fun mu0 => sm_valid (Inj.mu mu0) m1 m2) mus -> 
@@ -864,6 +878,15 @@ Lemma join_all_valid (mu : Inj.t) mus m1 m2 :
 Proof.
 move: mu m1 m2; elim: mus=> // mu' mus' IH mu m1 m2 A /= []B C.
 by apply: join_sm_valid=> //; apply: IH.
+Qed.
+
+Lemma join_all_valid_src (mu : Inj.t) mus m1 :
+  smvalid_src mu m1 ->
+  All (fun mu0 => smvalid_src (Inj.mu mu0) m1) mus -> 
+  smvalid_src (join_all mu mus) m1.
+Proof.
+move: mu m1; elim: mus=> // mu' mus' IH mu m1 A /= []B C.
+by apply: join_smvalid_src=> //; apply: IH.
 Qed.
 
 Lemma DisjointLS_restrict mu1 mu2 X Y : 
@@ -1670,4 +1693,9 @@ case loc_alloc=> A1 []A2 []A3 []A4 []A5 A6.
 rewrite A3 G /= in H.
 rewrite ->freshloc_charT in H.
 by case: H.
+Qed.
+
+Lemma vis_restrict_sm mu X : vis (restrict_sm mu X) = vis mu.
+Proof.
+by extensionality b; case: mu.
 Qed.
