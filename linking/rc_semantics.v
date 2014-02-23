@@ -8,7 +8,8 @@ Require Import sepcomp.core_semantics.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.effect_semantics.
 Require Import sepcomp.effect_simulations.
-Require Import sepcomp.core_semantics_lemmas.
+
+Require Import linking.core_semantics_lemmas.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

@@ -2,10 +2,8 @@ Require Import msl.Axioms.
 
 Require Import sepcomp.effect_semantics.
 
-Require Import sepcomp.pos.
-Require Import sepcomp.compcert_linking.
-Require Import sepcomp.rc_semantics.
-Require Import sepcomp.core_semantics_lemmas.
+Require Import linking.pos.
+Require Import linking.linking.
 
 Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
 Set Implicit Arguments.
@@ -27,39 +25,39 @@ Variable my_ge : ge_ty.
 
 Let linker := effsem N cores fun_tbl.
 
-Lemma peek_upd (st : Linker.t N cores) : 
+Lemma peek_upd (st : Linker.linker N cores) : 
   updCore st (peekCore st) = st.
 Proof.
 case: st=> fn_tbl; case; case=> //= a l pf.
 by case: a pf=> ? c pf /=; do 2 f_equal=> //=; apply: proof_irr.
 Qed.
 
-Lemma upd_peek (st : Linker.t N cores) c : peekCore (updCore st c) = c.
+Lemma upd_peek (st : Linker.linker N cores) c : peekCore (updCore st c) = c.
 Proof. by []. Qed.
 
-Lemma upd_upd (st : Linker.t N cores) c c' :
+Lemma upd_upd (st : Linker.linker N cores) c c' :
   updCore (updCore st c) c' = updCore st c'.
 Proof. by case: st=> ? ? /=; do 2 f_equal; apply: proof_irr. Qed.
 
 Lemma step_STEP {U st1 m1 c1' m1'} : 
   let: c1 := peekCore st1 in
   effect_semantics.effstep 
-    (RC.effsem (coreSem (cores (Core.i c1)))) 
-    (ge (cores (Core.i c1))) U (Core.c c1) m1 c1' m1' -> 
+    (coreSem (cores (Core.i c1))) (ge (cores (Core.i c1))) 
+    U (Core.c c1) m1 c1' m1' -> 
   effect_semantics.effstep linker my_ge 
   U st1 m1 (updCore st1 (Core.upd c1 c1')) m1'.
 Proof.
 move=> STEP; move: (@effstep_corestep _ _ _ _ _ _ _ _ _ STEP)=> STEP'; split.
 by left; exists c1'; split.
 by move=> ?; exists c1'; split.
-by move=> H b ofs; case: H; rewrite/LinkerSem.corestep0; exists c1'; split.
+by move=> H b ofs; case: H; rewrite/Sem.corestep0; exists c1'; split.
 Qed.
 
 Lemma stepN_STEPN {U st1 m1 c1' m1' n} :
   let: c1 := peekCore st1 in
   effect_semantics.effstepN 
-    (RC.effsem (coreSem (cores (Core.i c1)))) 
-    (ge (cores (Core.i c1))) n U (Core.c c1) m1 c1' m1' -> 
+    (coreSem (cores (Core.i c1))) (ge (cores (Core.i c1))) 
+    n U (Core.c c1) m1 c1' m1' -> 
   effect_semantics.effstepN linker my_ge 
   n U st1 m1 (updCore st1 (Core.upd c1 c1')) m1'.
 Proof.
@@ -78,8 +76,8 @@ Qed.
 Lemma stepPLUS_STEPPLUS {U st1 m1 c1' m1'} :
   let: c1 := peekCore st1 in
   effect_semantics.effstep_plus 
-    (RC.effsem (coreSem (cores (Core.i c1)))) 
-    (ge (cores (Core.i c1))) U (Core.c c1) m1 c1' m1' -> 
+    (coreSem (cores (Core.i c1))) (ge (cores (Core.i c1))) 
+    U (Core.c c1) m1 c1' m1' -> 
   effect_semantics.effstep_plus linker my_ge 
   U st1 m1 (updCore st1 (Core.upd c1 c1')) m1'.
 Proof. by rewrite/effstep_plus=> [][]n; move/stepN_STEPN=> B; exists n. Qed.
@@ -87,8 +85,8 @@ Proof. by rewrite/effstep_plus=> [][]n; move/stepN_STEPN=> B; exists n. Qed.
 Lemma stepSTAR_STEPSTAR {U st1 m1 c1' m1'} :
   let: c1 := peekCore st1 in
   effect_semantics.effstep_star
-    (RC.effsem (coreSem (cores (Core.i c1)))) 
-    (ge (cores (Core.i c1))) U (Core.c c1) m1 c1' m1' -> 
+    (coreSem (cores (Core.i c1))) (ge (cores (Core.i c1))) 
+    U (Core.c c1) m1 c1' m1' -> 
   effect_semantics.effstep_star linker my_ge 
   U st1 m1 (updCore st1 (Core.upd c1 c1')) m1'.
 Proof. by rewrite/effstep_star=> [][]n; move/stepN_STEPN=> B; exists n. Qed.

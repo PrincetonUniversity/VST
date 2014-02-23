@@ -14,8 +14,9 @@ Require Import msl.Axioms.
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.effect_simulations.
-Require Import sepcomp.pred_lemmas.
-Require Import sepcomp.seq_lemmas.
+
+Require Import linking.pred_lemmas.
+Require Import linking.seq_lemmas.
 
 (* This file collects lemmas on structured injections.                    *)
 (* [Inj.t] is the type of well-defined structured injections. It is       *)

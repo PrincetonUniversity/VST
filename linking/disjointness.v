@@ -13,9 +13,8 @@ Require Import sepcomp.effect_simulations.
 Require Import sepcomp.rg_lemmas.
 Require Import sepcomp.mem_lemmas.
 
-Require Import sepcomp.inj_lemmas.
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.pred_lemmas.
+Require Import linking.inj_lemmas.
+Require Import linking.pred_lemmas.
 
 (* [disjinv] enforces disjointness conditions on the local, public and     *)
 (* foreign block sets declared by [mu0] and [mu].  The definition is used  *)

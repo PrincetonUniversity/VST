@@ -17,9 +17,10 @@ Require Import msl.Axioms.
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.effect_simulations.
-Require Import sepcomp.pred_lemmas.
-Require Import sepcomp.seq_lemmas.
-Require Import sepcomp.inj_lemmas.
+
+Require Import linking.pred_lemmas.
+Require Import linking.seq_lemmas.
+Require Import linking.inj_lemmas.
 
 (* nwp = no wild pointers *)
 

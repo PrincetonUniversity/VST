@@ -6,10 +6,10 @@ Require Import sepcomp.step_lemmas.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.effect_simulations.
 
-Require Import sepcomp.pos.
-Require Import sepcomp.stack. 
-Require Import sepcomp.core_semantics_lemmas.
-Require Import sepcomp.rc_semantics.
+Require Import linking.pos.
+Require Import linking.stack. 
+Require Import linking.core_semantics_lemmas.
+Require Import linking.rc_semantics.
 
 Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.

@@ -17,20 +17,21 @@ Require Import sepcomp.effect_properties.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.extspec.
 
-Require Import sepcomp.pos.
-Require Import sepcomp.stack.
-Require Import sepcomp.cast.
-Require Import sepcomp.pred_lemmas.
-Require Import sepcomp.seq_lemmas.
-Require Import sepcomp.wf_lemmas.
-Require Import sepcomp.core_semantics_lemmas.
-Require Import sepcomp.inj_lemmas.
-Require Import sepcomp.reach_lemmas.
-Require Import sepcomp.compcert_linking.
-Require Import sepcomp.compcert_linking_lemmas.
-Require Import sepcomp.disjointness.
 Require Import sepcomp.arguments.
-Require Import sepcomp.rc_semantics.
+
+Require Import linking.pos.
+Require Import linking.stack.
+Require Import linking.cast.
+Require Import linking.pred_lemmas.
+Require Import linking.seq_lemmas.
+Require Import linking.wf_lemmas.
+Require Import linking.core_semantics_lemmas.
+Require Import linking.inj_lemmas.
+Require Import linking.reach_lemmas.
+Require Import linking.compcert_linking.
+Require Import linking.compcert_linking_lemmas.
+Require Import linking.disjointness.
+Require Import linking.rc_semantics.
 
 (* compcert imports *)
 

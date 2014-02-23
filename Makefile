@@ -18,7 +18,7 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric floyd progs sha
+DIRS= msl sepcomp veric floyd progs sha linking
 INCLUDE= $(foreach a,$(DIRS), -I $(a) -as $(a)) -R $(COMPCERT) -as compcert
 # $(foreach a,$(CC_DIRS), -R $(COMPCERT)/$(a) -as compcert.$(a)) -I $(COMPCERT)/flocq -as compcert.flocq
 
@@ -83,6 +83,7 @@ SEPCOMP_FILES= \
   trace_semantics.v 
 
 LINKING_FILES= \
+  arguments.v \
   pos.v \
   stack.v \
   cast.v \
@@ -176,7 +177,7 @@ all:     .loadpath $(FILES:.v=.vo) version.vo
 
 msl:     .loadpath $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
-linking: .loadpath sepcomp/linking_proof.vo $(LINKING_FILES:%.v=sepcomp/%.vo) 
+linking: .loadpath linking/linking_proof.vo $(LINKING_FILES:%.v=sepcomp/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo) floyd/floyd.coq
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
@@ -220,7 +221,7 @@ depend:
 	$(COQDEP) $(DEPFLAGS) $(FILES) > .depend
 
 depend-linking:
-	$(COQDEP) $(DEPFLAGS) $(FILES) $(LINKING_FILES:%.v=sepcomp/%.v) > .depend
+	$(COQDEP) $(DEPFLAGS) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
 
 depend-compcomp:
 	$(COQDEP) $(DEPFLAGS) $(FILES) $(COMPCOMP_FILES:%.v=sepcomp/%.v) > .depend
@@ -229,13 +230,13 @@ clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
 
 clean-linking:
-	rm -f $(LINKING_FILES:%.v=sepcomp/%.vo) $(LINKING_FILES:%.v=sepcomp/%.glob) 
+	rm -f $(LINKING_FILES:%.v=linking/%.vo) $(LINKING_FILES:%.v=linking/%.glob) 
 
 count:
 	wc $(FILES)
 
 count-linking:
-	wc $(LINKING_FILES:%.v=sepcomp/%.v)
+	wc $(LINKING_FILES:%.v=linking/%.v)
 
 $(CC_TARGET): compcert/make
 	(cd compcert; ./make)

@@ -1,12 +1,14 @@
 Require Import compcert.lib.Coqlib.
 Require Import sepcomp.Coqlib2.
-Require Import sepcomp.pos.
 
+(* deliberately imported here *)
 Require Import Coq.Wellfounded.Inclusion.
 Require Import Coq.Wellfounded.Inverse_Image.
 
 Require Import ssreflect ssrbool ssrnat ssrfun fintype.
 Set Implicit Arguments.
+
+Require Import linking.pos.
 
 (* This file defines a generalized lexicographic order on dependently     *)
 (* typed products.  It exposes the following interface:                   *)
