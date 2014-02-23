@@ -2,6 +2,7 @@ Require Import proofauto.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
+Require Import sha.sha.
 
 Local Open Scope Z.
 

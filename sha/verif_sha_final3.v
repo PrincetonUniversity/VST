@@ -72,8 +72,6 @@ forward. (* sha256_block_data_order (c,p); *)
 instantiate (1:= (hashed, lastblock, c, (offset_val (Int.repr 40) c), Tsh))
   in (Value of witness).
 entailer!.
- erewrite K_vector_globals by (split3; [eassumption | reflexivity.. ]).
-cancel.
 normalize.
 replace_SEP 0%Z  (`(array_at tuint Tsh
           (tuints
@@ -81,8 +79,6 @@ replace_SEP 0%Z  (`(array_at tuint Tsh
       `(at_offset 40 (array_at tuchar Tsh (ZnthV tuchar []) 0 64) c) *
       K_vector).
 entailer!.
- erewrite K_vector_globals by (split3; [eassumption | reflexivity.. ]).
-cancel.
 unfold data_block.
 simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
 rewrite array_at_ZnthV_nil.

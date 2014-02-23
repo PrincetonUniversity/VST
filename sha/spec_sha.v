@@ -148,6 +148,21 @@ Definition memset_spec :=
 Definition K_vector : environ -> mpred :=
   `(array_at tuint Tsh (tuints K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64)).
 
+Lemma K_vector_globals:
+  forall rho,  
+   (exists Delta, tc_environ Delta rho /\
+       (var_types Delta) ! _K256 = None /\ isSome ((glob_types Delta) ! _K256)) ->
+       K_vector (globals_only rho) = K_vector rho.
+Proof. 
+  intros; unfold K_vector.
+  unfold_lift.
+ destruct H as [Delta [?[? ?]]].
+  destruct ((glob_types Delta) ! _K256) eqn:?; try contradiction.
+  erewrite elim_globals_only; eauto.
+Qed.
+
+Hint Rewrite K_vector_globals using (eexists; split3; [eassumption | reflexivity | apply I]) : norm.
+
 Lemma K_vector_closed:
   forall S, closed_wrt_vars S K_vector.
 Proof. unfold K_vector; auto with closed. Qed.
@@ -229,8 +244,8 @@ Definition SHA256_spec :=
   DECLARE _SHA256
    WITH d: val, len: Z, dsh: share, msh: share, data: list Z, md: val
    PRE [ _d OF tptr tuchar, _n OF tuint, _md OF tptr tuchar ]
-         PROP (writable_share msh) 
-         LOCAL (`(eq d) (eval_id _data_);
+         PROP (writable_share msh; Z.of_nat (length data) * 8 < two_p 64) 
+         LOCAL (`(eq d) (eval_id _d);
                      `(eq (Z.of_nat (length data))) (`Int.unsigned (`force_int (eval_id _n)));
                      `(eq md) (eval_id _md))
          SEP(K_vector; `(data_block dsh data d); `(memory_block msh (Int.repr 32) md))

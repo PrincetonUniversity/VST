@@ -20,16 +20,6 @@ Proof. intros.
  apply map_id. extensionality x. symmetry; apply swap_swap.
 Qed.
 
-Lemma K_vector_globals:
-  forall Delta rho g,  tc_environ Delta rho /\
-       (var_types Delta) ! _K256 = None /\ (glob_types Delta) ! _K256 = Some g ->
-       K_vector (globals_only rho) = K_vector rho.
-Proof. 
-  intros; unfold K_vector.
-  unfold_lift.
-  erewrite elim_globals_only; eauto.
-Qed.
-
 Definition Body_final_if1 := 
   (Ssequence
               (Ssequence
@@ -221,13 +211,6 @@ assert (H0: map Int.unsigned ddz = intlist_to_Zlist ddzw). {
 unfold ddzw; rewrite Zlist_to_intlist_to_Zlist; auto.
 rewrite map_length, H0'; exists LBLOCK; reflexivity.
 unfold ddz; repeat rewrite map_app; repeat rewrite Forall_app; repeat split; auto.
-Lemma Forall_isbyteZ_unsigned_repr:
- forall l, Forall isbyteZ l -> Forall isbyteZ (map Int.unsigned (map Int.repr l)).
-Proof. induction 1. constructor.
-constructor. rewrite Int.unsigned_repr; auto.
-unfold isbyteZ in H; repable_signed.
-apply IHForall.
-Qed.
 apply Forall_isbyteZ_unsigned_repr; auto.
 constructor. compute. clear; split; congruence.
 constructor.
@@ -250,8 +233,7 @@ instantiate (1:=(hashed,
                            Tsh)) in (Value of witness).
 {entailer!.
 * subst;  simpl in *. normalize in H5.
-* erewrite K_vector_globals by (split3; [eassumption | reflexivity.. ]).
- cancel.
+* cancel.
  repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
  unfold data_block.
  simpl. apply andp_right.
@@ -301,8 +283,7 @@ entailer!.
   auto.
  inv DDbytes; f_equal; auto.
  apply Int.unsigned_repr; unfold isbyteZ in H1; repable_signed.
-* erewrite K_vector_globals by (split3; [eassumption | reflexivity.. ]).
-  cancel.
+* cancel.
   unfold data_block.
  simpl. apply andp_left2.
   replace (Zlength (intlist_to_Zlist ddzw)) with 64%Z.
@@ -562,8 +543,6 @@ forward_for
  unfold part4_inv. 
   rewrite (firstn_same _ 8) by omega.
  forward. (* return; *)
- unfold K_vector; normalize;
- erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
  simpl_data_at.
  repeat rewrite array_at_ZnthV_nil.
  unfold at_offset.  unfold data_block.

@@ -1350,3 +1350,11 @@ rewrite Z.div_small; try omega.
 pose proof (Z_mod_lt a b H).
 omega.
 Qed.
+
+Lemma Forall_isbyteZ_unsigned_repr:
+ forall l, Forall isbyteZ l -> Forall isbyteZ (map Int.unsigned (map Int.repr l)).
+Proof. induction 1. constructor.
+constructor. rewrite Int.unsigned_repr; auto.
+unfold isbyteZ in H; repable_signed.
+apply IHForall.
+Qed.

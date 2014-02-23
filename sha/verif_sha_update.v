@@ -139,10 +139,9 @@ instantiate (1:=(hashed++ blocks,
 entailer!.
 rewrite mul_repr in H5; rewrite H5; reflexivity.
 apply divide_length_app; auto.
-unfold K_vector at 2.
 unfold_lift.
 repeat rewrite eval_var_env_set.
-erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
+(*erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]). *)
 change (array_at tuint Tsh (tuints K) 0 (Zlength K)
       (eval_var _K256 (tarray tuint 64) rho)) with (K_vector rho).
  rewrite <- H6.
@@ -157,13 +156,7 @@ replace_SEP 0%Z
           (offset_val
              (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d)) *
       K_vector). {
-  go_lower.
-  unfold K_vector at 1. unfold_lift.
-  erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
-  auto.
-  change (array_at tuint Tsh (tuints K) 0 (Zlength K)
-      (eval_var _K256 (tarray tuint 64) rho)) with (K_vector rho).
-  entailer.
+  entailer!.
 }
  normalize.
  forward. (* data += SHA_CBLOCK; *)
@@ -604,9 +597,6 @@ unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
  cancel.
  apply extract_exists_pre; intro a'.
  forward.
- unfold K_vector; unfold_lift.
  apply exp_right with a'.
- erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]) .
-           (* should try to automate the line above *)
  entailer!.
 Qed.
