@@ -4,7 +4,7 @@ Require Import Coqlib.
 Require Import Integers.
 Require Import compcert.common.Values.
 Require Import Maps.
-Require Import Axioms.
+Require Import msl.Axioms.
 
 Require Import FiniteMaps.
 Require Import sepcomp.StructuredInjections.

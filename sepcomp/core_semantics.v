@@ -7,7 +7,7 @@ Require Import Maps.
 Require Import Integers.
 Require Import AST. 
 Require Import Globalenvs.
-Require Import Axioms.
+Require Import msl.Axioms.
 
 Require Import sepcomp.mem_lemmas.
 

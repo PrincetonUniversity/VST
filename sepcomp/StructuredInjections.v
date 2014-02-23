@@ -2,7 +2,7 @@ Require Import Events.
 Require Import Memory.
 Require Import Coqlib.
 Require Import compcert.common.Values.
-Require Import Axioms.
+Require Import msl.Axioms.
 
 Require Import sepcomp.mem_lemmas.
 

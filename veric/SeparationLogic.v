@@ -1,4 +1,4 @@
-Require Export Axioms.
+Require Export compcert.lib.Axioms.
 Require Import Coqlib.
 Require Export AST.
 Require Export Integers.

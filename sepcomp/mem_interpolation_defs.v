@@ -5,7 +5,7 @@ Require Import Coqlib.
 Require Import Integers.
 Require Import compcert.common.Values.
 Require Import Maps.
-Require Import Axioms.
+Require Import msl.Axioms.
 
 Require Import sepcomp.mem_lemmas.
 
