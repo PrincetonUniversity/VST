@@ -35,22 +35,6 @@ assert (length (intlist_to_Zlist blocks) =
  rewrite mult_comm; omega.
 Qed.
 
-(*
-Lemma Hblocks'lem:
- forall {blocks frag: list int} {data},
- intlist_to_Zlist blocks = map Int.unsigned frag ++ firstn (length blocks * 4 - length frag) data ->
- length frag <= length blocks * 4.
-Proof.
-intros.
-assert (length (intlist_to_Zlist blocks) = 
-               length (   map Int.unsigned frag ++
-     firstn (length blocks * 4 - length frag) data)) by congruence.
- rewrite length_intlist_to_Zlist, app_length in H0.
- rewrite map_length in H0.
- rewrite mult_comm; omega.
-Qed.
-*)
-
 Lemma intro_update_inv:
  forall (len: nat) (blocks : list int) (frag data: list Z) (P' Q: Prop),
   (forall (Hblocks_len: len >= length blocks * 4 - length frag)
@@ -78,7 +62,6 @@ Lemma SHA256_Update_aux:
                      (func_tycontext f_SHA256_Update Vprog Gtot))))
  (H: len <= length data)
  (Hdiv: NPeano.divide LBLOCK (length blocks))
- (HBOUND: (s256a_len (S256abs hashed r_data) < BOUND)%Z)
  (H0: r_h = process_msg init_registers hashed)
  (H1: (Zlength (intlist_to_Zlist hashed ++ r_data)*8 = hilo r_Nh r_Nl)%Z)
  (H4: NPeano.divide LBLOCK (length hashed))
@@ -415,15 +398,19 @@ rewrite H1. apply Int.unsigned_range_2.
 apply semax_extract_PROP; intro Hlen.
 
 forward.  (* SHA256_addlength(c, len); *)
-instantiate (1:= (len, c, hilo hi lo)) in (Value of witness).
+instantiate (1:= (Z.of_nat len, c, hilo hi lo)) in (Value of witness). {
 entailer!.
-unfold sha256_length.
-normalize; apply exp_right with lo. 
-normalize; apply exp_right with hi.
-entailer!.
-cbv beta iota.
-normalize.
+* rewrite <- H7. repeat rewrite <- (Z.mul_comm 8). rewrite <- (Z.mul_comm 4).
+ rewrite Z.mul_add_distr_l. rewrite Z.mul_assoc.  change (8*4)%Z with 32%Z.
+ repeat rewrite Zlength_correct;  omega.
+* simpl in HBOUND. rewrite <- H7. apply HBOUND.
+* unfold sha256_length.
+ normalize; apply exp_right with lo. 
+ normalize; apply exp_right with hi.
+ entailer!.
+}
 
+cbv beta iota. normalize.
 forward. (* n = c->num; *)
 forward. (* p=c->data; *)
 entailer. simpl.

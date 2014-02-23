@@ -44,8 +44,10 @@ Definition s256a_regs (a: s256abs) : list int :=
           process_msg init_registers hashed 
  end.
 
-Definition s256a_len (a: s256abs) := 
-  match a with S256abs hashed data => Zlength hashed end.
+Definition s256a_len (a: s256abs) : Z := 
+  match a with S256abs hashed data => 
+    (Zlength hashed * 4 + Zlength data) * 8 
+  end%Z.
 
 Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
 Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.
@@ -167,14 +169,14 @@ Definition sha256_block_data_order_spec :=
  
 Definition SHA256_addlength_spec :=
  DECLARE _SHA256_addlength
- WITH len : nat, c: val, n: Z
+ WITH len : Z, c: val, n: Z
  PRE [ _c OF tptr t_struct_SHA256state_st , _len OF tuint ]
-   PROP ( ) 
-   LOCAL (`(eq (Z.of_nat len)) (`Int.unsigned (`force_int (eval_id _len))); 
+   PROP ( 0 <= n+len*8 < two_p 64) 
+   LOCAL (`(eq len) (`Int.unsigned (`force_int (eval_id _len))); 
                `(eq c) (eval_id _c))
    SEP (`(sha256_length n c))
  POST [ tvoid ]
-   `(sha256_length (n+(Z.of_nat len)*8) c).
+   `(sha256_length (n+len*8) c).
 
 Definition SHA256_Init_spec :=
   DECLARE _SHA256_Init
@@ -196,14 +198,12 @@ Inductive update_abs: list Z -> s256abs -> s256abs -> Prop :=
    update_abs msg (S256abs hashed oldfrag) 
                               (S256abs (hashed++blocks) newfrag))%nat.
 
-Definition BOUND : Z := (Int64.modulus - Int.modulus)%Z.
-Opaque BOUND.
-
 Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update
    WITH a: s256abs, data: list Z, c : val, d: val, sh: share, len : nat
    PRE [ _c OF tptr t_struct_SHA256state_st, _data_ OF tptr tvoid, _len OF tuint ]
-         PROP ((len <= length data)%nat; (s256a_len a < BOUND)%Z)
+         PROP ((len <= length data)%nat; 
+                   (s256a_len a + Z.of_nat len * 8 < two_p 64)%Z)
          LOCAL (`(eq c) (eval_id _c); `(eq d) (eval_id _data_); 
                                   `(eq (Z.of_nat len)) (`Int.unsigned (`force_int (eval_id _len))))
          SEP(K_vector; `(sha256state_ a c); `(data_block sh data d))

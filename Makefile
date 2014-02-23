@@ -147,7 +147,7 @@ SHA_FILES= \
   sha.v spec_sha.v verif_sha_update.v verif_sha_init.v \
   verif_sha_bdo.v verif_sha_bdo2.v verif_sha_bdo3.v verif_sha_bdo4.v \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
-  entail_examples2.v 
+  verif_addlength.v entail_examples2.v 
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c
 
