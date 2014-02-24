@@ -4,26 +4,20 @@
 (* Need all of these? *)
 Require Import floyd.proofauto.
 Require Import types.
+Require Import MirrorShard.Expr.
 Require Import functions.
 Require Import progs.reverse.
 Require Import progs.list_dt.
 Require Import sep.
-Require Import MirrorShard.Expr.
 
-Module do_computation (uk : unknown_types).
+(* Cleaner syntax for Nat pattern-matches and function lists *)
+Local Open Scope nat.
+Import List.
+Import ListNotations.
 
-  Module our_funcs := funcs uk.
-  Import our_funcs.
-  Import all_types.
-
-  (* Cleaner syntax for Nat pattern-matches and function lists *)
-  Local Open Scope nat.
-  Import List.
-  Import ListNotations.
-
-  (* Listing of which functions compute directly into consts (taking no arguments)
-   * and which do not. *)
-  (*
+(* Listing of which functions compute directly into consts (taking no arguments)
+ * and which do not. *)
+(*
 Definition is_const_base (f : func) :=
   match f with
     | 1  (* O_f *)
@@ -40,9 +34,15 @@ Definition is_const_base (f : func) :=
 
     | _ => false
   end.
-   *)
+ *)
+Section typed.
+  Variable user_types : list type.
+  (* shadow definitions from functions.v with more useful ones *)
+  Let all_types := (all_types_r user_types).
+  Let functions := our_functions user_types.
+
   Definition is_const_base (f : func) :=
-    NPeano.ltb f computable_prefix_length.
+    NPeano.ltb f (computable_prefix_length user_types).
 
   (* Decide if an expression can compute directly into a Const
    * (by converting the pre-defined functions we have defined
@@ -63,6 +63,7 @@ Definition is_const_base (f : func) :=
   (* Simplify an expression, if we can.
    * Expects that a user-supplied Ltac will have already converted
    * user-defined functions into Consts, as appropriate *)
+
   Definition do_computation (user_functions : list (signature all_types)) (e : expr all_types) (t : tvar) :
     option (tvarD all_types t) :=
     if is_const e then
@@ -82,11 +83,16 @@ Definition is_const_base (f : func) :=
     unfold do_computation in *.
     destruct (is_const e); try congruence.
     remember (exprD (functions ++ user_functions) [] [] e t) as exprDf.
+    fold all_types in HeqexprDf, H.
+    rewrite <- HeqexprDf in H.
     destruct exprDf.
-    - inversion H; subst.
-      symmetry in HeqexprDf.
+    - symmetry in HeqexprDf.
       eapply exprD_weaken in HeqexprDf.
-      eassumption.
+      rewrite app_nil_l in HeqexprDf.
+      rewrite app_nil_l in HeqexprDf.
+      rewrite HeqexprDf.
+      assumption.
+
     - inversion H.
   Qed.
 
@@ -96,7 +102,7 @@ Definition is_const_base (f : func) :=
   Eval vm_compute in (do_computation nil (Equal nat_tv (Func 1 []) (Func 1 [])) tvProp).
   Eval vm_compute in (do_computation nil (Equal nat_tv (Func 13 [(Func 1 [])]) (Func 1 [])) tvProp).
   Eval vm_compute in (do_computation nil (Equal nat_tv (Func 13 [(Func 1 [])]) (Func 13 [(Func 1 [])])) tvProp).
-  
+
   Definition do_computation_equal (user_functions : list (signature all_types)) (e : expr all_types) : bool :=
     match e with
       | Equal t l r =>
@@ -134,4 +140,4 @@ Definition is_const_base (f : func) :=
       exists t0. rewrite <- H. split; reflexivity.
   Qed.
 
-End do_computation.
+End typed.
