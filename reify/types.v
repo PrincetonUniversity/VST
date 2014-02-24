@@ -89,7 +89,7 @@ Defined.
 
 Definition c_expr_type := no_eqb_type expr.
 
-Definition all_types :=(cons tycontext_type
+Definition our_types :=(cons tycontext_type
                        (cons c_expr_type 
                        (cons c_type_type 
                        (cons environ_type 
@@ -124,7 +124,7 @@ Definition comparison_tv := Expr.tvType 14.
 
 (*Some common consts *)
 Definition our_const tv val :=
-@Expr.Const all_types tv val.
+@Expr.Const our_types tv val.
 
 Definition share_const sh :=
   our_const share_tv sh.

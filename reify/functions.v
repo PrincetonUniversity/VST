@@ -2,8 +2,15 @@ Require Import types.
 Require Import floyd.proofauto.
 Require Import sep.
 Require Import progs.list_dt.
-Require Import MirrorShard.Expr.
+Require Import MirrorShard.Expr MirrorShard.Env.
 
+Definition all_types_r := repr (listToRepr types.our_types EmptySet_type).
+
+Section typed.
+
+Variable user_types : list type.
+
+Definition all_types := all_types_r user_types.
 
 Definition tc_environ_signature :=
 Expr.Sig all_types (cons tycontext_tv (cons environ_tv nil)) tvProp tc_environ.
@@ -254,7 +261,10 @@ Definition non_computable_functions :=
 ; True_signature
 ].
 
-Definition functions := computable_functions ++ non_computable_functions.
+Definition functions := 
+computable_functions ++ non_computable_functions.
+
+
 Definition computable_prefix_length := length computable_functions.
 
 Definition two_power_nat_f := 0%nat.
@@ -355,3 +365,4 @@ Definition typed_true_func t v :=
 Definition field_at_func sh ty id v1 v2:= @Sep.Func all_types field_at_p
 (sh :: ty :: id :: v1 :: v2 :: nil).
 
+End typed.
