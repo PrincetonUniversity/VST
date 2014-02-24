@@ -433,6 +433,24 @@ Definition main_post (prog: program) : unit -> environ->mpred :=
 Definition match_globvars (gvs: list (ident * globvar type)) (V: varspecs) :=
   forall id t, In (id,t) V -> exists g: globvar type, gvar_info g = t /\ In (id,g) gvs.
 
+
+Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
+ match sz, sgn with
+ | I8, Signed => -128 <= Int.signed i < 128
+ | I8, Unsigned => 0 <= Int.unsigned i < 256
+ | I16, Signed => -32768 <= Int.signed i < 32768
+ | I16, Unsigned => 0 <= Int.unsigned i < 65536
+ | I32, Signed => -2147483648 <= Int.signed i < 2147483648
+ | I32, Unsigned => 0 <= Int.unsigned i < 4294967296
+ | IBool, _ => 0 <= Int.unsigned i < 256
+end.
+
+Lemma mapsto_value_range:
+ forall sh v sz sgn i, mapsto sh (Tint sz sgn noattr) v (Vint i) =
+    !! int_range sz sgn i && mapsto sh (Tint sz sgn noattr) v (Vint i).
+Proof. exact seplog.mapsto_value_range. Qed.
+
+
 (* Don't know why this next Hint doesn't work unless fully instantiated;
    perhaps because one needs both "contractive" and "typeclass_instances"
    Hint databases if this next line is not added. *)

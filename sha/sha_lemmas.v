@@ -990,7 +990,9 @@ Local Open Scope logic.
 Lemma mapsto_tuchar_isbyteZ:
   forall sh v i, mapsto sh tuchar v (Vint i) =
     !! (0 <= Int.unsigned i < 256)%Z && mapsto sh tuchar v (Vint i).
-Admitted.  (* definitely provable, but need to put in veric *)
+Proof.
+intros. apply mapsto_value_range.
+Qed.
 
 Lemma array_at_tuchar_isbyteZ:
  forall sh dd n v,

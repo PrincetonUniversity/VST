@@ -6,6 +6,7 @@ Require Import veric.slice.
 Require Import veric.res_predicates.
 Require Import veric.expr.
 
+
 Definition assert := environ -> mpred.  (* Unfortunately
    can't export this abbreviation through SeparationLogic.v because
   it confuses the Lift system *)
@@ -79,6 +80,78 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
     end
   | _ => FF
   end. 
+
+Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
+ match sz, sgn with
+ | I8, Signed => -128 <= Int.signed i < 128
+ | I8, Unsigned => 0 <= Int.unsigned i < 256
+ | I16, Signed => -32768 <= Int.signed i < 32768
+ | I16, Unsigned => 0 <= Int.unsigned i < 65536
+ | I32, Signed => -2147483648 <= Int.signed i < 2147483648
+ | I32, Unsigned => 0 <= Int.unsigned i < 4294967296
+ | IBool, _ => 0 <= Int.unsigned i < 256
+end.
+
+Lemma mapsto_value_range:
+ forall sh v sz sgn i, mapsto sh (Tint sz sgn noattr) v (Vint i) =
+    !! int_range sz sgn i && mapsto sh (Tint sz sgn noattr) v (Vint i).
+Proof.
+intros.
+assert (GG: forall a b, (a || !!(Vint i = Vundef) && b) = a). {
+intros. apply pred_ext; intros ? ?. hnf in H.
+destruct H; auto; hnf in H; destruct H; discriminate.
+left; auto.
+}
+apply pred_ext; [ | apply andp_left2; auto].
+assert (MAX: Int.max_signed = 2147483648 - 1) by reflexivity.
+assert (MIN: Int.min_signed = -2147483648) by reflexivity.
+apply andp_right; auto.
+unfold mapsto; intros.
+simpl. 
+destruct sz, sgn, v; (try rewrite FF_and; auto);
+change (!!True) with TT; rewrite TT_and; repeat rewrite GG;
+unfold address_mapsto; apply exp_left; intro bl;
+apply prop_andp_left; intros [? [? ?]] ? ?; hnf; clear - MIN MAX H0;
+unfold decode_val in H0; destruct bl; simpl in H0.
+unfold decode_int, rev_if_be in H0.
+destruct big_endian; inv H0.
+apply (Int.sign_ext_range 8); compute; auto.
+apply (Int.sign_ext_range 8); compute; auto.
+destruct m; try discriminate.
+destruct (proj_bytes bl); inv H0.
+apply (Int.sign_ext_range 8);  compute; auto.
+unfold decode_int, rev_if_be in H0.
+destruct big_endian; inv H0.
+apply (Int.zero_ext_range 8); compute; split; congruence.
+apply (Int.zero_ext_range 8); compute; split; congruence.
+destruct m; try discriminate.
+destruct (proj_bytes bl); inv H0.
+apply (Int.zero_ext_range 8); compute; split; congruence.
+unfold decode_int, rev_if_be in H0.
+destruct big_endian; inv H0.
+apply (Int.sign_ext_range 16);  compute; auto.
+apply (Int.sign_ext_range 16);  compute; auto.
+destruct m; try discriminate.
+destruct (proj_bytes bl); inv H0.
+apply (Int.sign_ext_range 16);  compute; auto.
+inv H0.
+apply (Int.zero_ext_range 16); compute; split; congruence.
+destruct m; try discriminate.
+destruct (proj_bytes bl); inv H0.
+apply (Int.zero_ext_range 16); compute; split; congruence.
+pose proof (Int.signed_range i);omega.
+pose proof (Int.signed_range i);omega.
+apply (Int.unsigned_range i).
+apply (Int.unsigned_range i).
+inv H0; apply (Int.zero_ext_range 8); compute; split; congruence.
+destruct m; try discriminate.
+destruct (proj_bytes bl); inv H0.
+apply (Int.zero_ext_range 8); compute; split; congruence.
+inv H0; apply (Int.zero_ext_range 8); compute; split; congruence.
+destruct m; try discriminate.
+destruct (proj_bytes bl); inv H0.
+apply (Int.zero_ext_range 8); compute; split; congruence.
+Qed.
 
 Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
