@@ -80,10 +80,10 @@ SEPCOMP_FILES= \
   effect_properties.v effect_interpolants.v effect_simulations_trans.v \
   effect_interpolation_II.v effect_interpolation_proofs.v \
   arguments.v closed_safety.v compcert.v open_semantics_preservation.v \
-  trace_semantics.v 
+  trace_semantics.v \
+  arguments.v 
 
 LINKING_FILES= \
-  arguments.v \
   pos.v \
   stack.v \
   cast.v \
@@ -177,7 +177,7 @@ all:     .loadpath $(FILES:.v=.vo) version.vo
 
 msl:     .loadpath $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
-linking: .loadpath linking/linking_proof.vo $(LINKING_FILES:%.v=sepcomp/%.vo) 
+linking: .loadpath linking/linking_proof.vo $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo) floyd/floyd.coq
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)

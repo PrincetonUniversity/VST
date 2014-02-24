@@ -13,6 +13,7 @@ Require Import msl.Axioms.
 
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.reach.
 Require Import sepcomp.effect_simulations.
 
 Require Import linking.pred_lemmas.

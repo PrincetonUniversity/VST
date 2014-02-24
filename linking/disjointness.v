@@ -9,6 +9,7 @@ Require Import compcert.common.Memory.
 Require Import ZArith.
 
 Require Import sepcomp.StructuredInjections.
+Require Import sepcomp.reach.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.rg_lemmas.
 Require Import sepcomp.mem_lemmas.

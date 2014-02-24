@@ -7,6 +7,7 @@ Require Import compcert. Import CompcertCommon.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.effect_semantics.
+Require Import sepcomp.reach.
 Require Import sepcomp.effect_simulations.
 
 Require Import linking.core_semantics_lemmas.
