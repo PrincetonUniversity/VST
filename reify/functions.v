@@ -4,15 +4,6 @@ Require Import sep.
 Require Import progs.list_dt.
 Require Import MirrorShard.Expr.
 
-Module funcs (uk : unknown_types).
-Import uk.
-
-Module ut_module <: unknown_types.
-Definition unknown_types := unknown_types.
-End ut_module.
-
-Module all_types := our_types ut_module.
-Import all_types.
 
 Definition tc_environ_signature :=
 Expr.Sig all_types (cons tycontext_tv (cons environ_tv nil)) tvProp tc_environ.
@@ -187,6 +178,9 @@ Expr.Sig all_types (nat_tv :: nil) Z_tv two_power_nat.
 Definition int_max_unsigned_signature :=
 Expr.Sig all_types nil Z_tv Int.max_unsigned.
 
+Definition True_signature :=
+Expr.Sig all_types nil tvProp True.
+
 (* Our types. Let's see which of these we want to have equalities for *)
 (*
                        (cons val_type done
@@ -257,6 +251,7 @@ Definition computable_functions :=
 Definition non_computable_functions :=
 [ tc_environ_signature
 ; eval_id_signature
+; True_signature
 ].
 
 Definition functions := computable_functions ++ non_computable_functions.
@@ -310,8 +305,9 @@ Definition int_signed_f := 44%nat.
 Definition int_unsigned_f := 45%nat.
 
 (* Past this point are functions that should not compute into Consts *)
-Definition tc_environ_f := 46%nat.
-Definition eval_id_f := 47%nat.
+Definition tc_environ_f := length computable_functions.
+Definition eval_id_f := S (tc_environ_f).
+Definition True_f := S (eval_id_f).
 
 
 (*Separation Logic predicates *)
@@ -359,5 +355,3 @@ Definition typed_true_func t v :=
 Definition field_at_func sh ty id v1 v2:= @Sep.Func all_types field_at_p
 (sh :: ty :: id :: v1 :: v2 :: nil).
 
-
-End funcs.

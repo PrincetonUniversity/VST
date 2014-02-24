@@ -1,5 +1,7 @@
 Require Import floyd.proofauto.
 Require Import sep.
+Require Import msl.Axioms.
+Require Import val_eq.
 Import Sep.
 
 (*Type definitions in this file are defined by us before reifier runs*)
@@ -9,25 +11,24 @@ intros.
 refine ({| Expr.Impl := t
      ; Expr.Eqb := fun _ _ => false
      ; Expr.Eqb_correct := _ |}).
-intros; inv H.
+abstract ( intros; inv H).
 Defined.
-
 
 Definition tycontext_type := no_eqb_type tycontext.
 
-Definition c_expr_type := no_eqb_type tycontext.
 
 Definition c_type_type := 
  ({| Expr.Impl := type
-     ; Expr.Eqb := type_eq
-     ; Expr.Eqb_correct := environ_lemmas.type_eq_true |}).
+     ; Expr.Eqb := eqb_type
+     ; Expr.Eqb_correct := eqb_type_true |}).
 
 Definition environ_type : Expr.type := no_eqb_type environ.
 
-Definition val_type : Expr.type := no_eqb_type val. 
-(*TODO: might want equality here*)
-(* but we might have to define it ourselves... *)
-
+Definition val_type : Expr.type.
+refine ({| Expr.Impl := val
+         ; Expr.Eqb := beq_val
+         ; Expr.Eqb_correct := beq_val_true |}).
+Defined. 
 
 Definition share_type : Expr.type := no_eqb_type share.
 
@@ -40,68 +41,11 @@ Definition list_val_type : Expr.type := no_eqb_type (list val).
 
 Definition int_type : Expr.type.
   refine ({| Expr.Impl := int
-             ; Expr.Eqb := Int.eq
-             ; Expr.Eqb_correct := _ |}).
-  (* have to reverse arguments to this lemma *)
-  intros. symmetry in H. apply binop_lemmas.int_eq_true in H.
-  assumption.
+             ; Expr.Eqb := beq_int
+             ; Expr.Eqb_correct := beq_int_true |}).
 Defined.
 
-(* Generic equality procedure for lists of things *)
-(* I'll do this later if it looks like it will actually be necessary *)
-(*Fixpoint lists_exact_zip (T1 T2 T3 : Type)
-         (f : T1 -> T2 -> T3) (l1 : list T1) (l2 : list T2) : option T3 := 
-match l1 with
-  | h1
-  | (cons h1 t1) =>
-    match l2 with
-      | (cons h2 t2) =>
-        (cons (f h1 h2) (lists_exact_zip T1 T2 T3 f t1 t2))
-      | nil => nil
-    end
-  | nil => nil
-end.
-
-Definition make_list_eqb (T : Type) (beq : (T -> T -> bool)) (l1 l2 : list T) : bool :=
-  let each_equal := lists_zip T T bool beq l1 l2 in
-  fold_right andb true each_equal.
-*)
-Fixpoint beq_list_int (l1 l2 : list int) : bool :=
-  match l1 with
-    | nil => 
-      match l2 with
-        | nil => true
-        | _ => false
-      end
-    | (cons h1 t1) =>
-      match l2 with
-        | nil => false
-        | (cons h2 t2) =>
-          (andb (Int.eq h1 h2) (beq_list_int t1 t2))
-      end
-  end.  
-
-Definition list_int_type : Expr.type.
-  refine ({| Expr.Impl := list int
-             ; Expr.Eqb := beq_list_int
-             ; Expr.Eqb_correct := _ |}).
-  intro x. induction x.
-  - intros.
-    destruct y.
-    + reflexivity.
-    + inversion H.
-  - intros.
-    destruct y.
-    + inversion H.
-    + inversion H.
-      symmetry in H1.
-      apply andb_true_eq in H1. inversion H1.
-      symmetry in H2.
-      apply IHx in H2. 
-      symmetry in H0.
-      apply int_eq_e in H0.
-      rewrite H0. rewrite H2. reflexivity.
-Defined.
+Definition list_int_type : Expr.type := list_eqb_type beq_int_true.
 
 Definition Z_type :=
   ({| Expr.Impl := Z
@@ -143,14 +87,9 @@ Definition comparison_type : Expr.type.
   destruct x; destruct y; inversion H; reflexivity.
 Defined.
 
-Module Type unknown_types.
-Parameter (unknown_types : (list Expr.type)).
-End unknown_types.
+Definition c_expr_type := no_eqb_type expr.
 
-Module our_types (uk : unknown_types).
-Import uk.
-
-Definition our_types :=(cons tycontext_type
+Definition all_types :=(cons tycontext_type
                        (cons c_expr_type 
                        (cons c_type_type 
                        (cons environ_type 
@@ -166,9 +105,6 @@ Definition our_types :=(cons tycontext_type
                        (cons bool_type
                        (cons comparison_type nil
                        ))))))))))))))).
-
-Definition all_types := our_types ++ unknown_types.
-
 
 Definition tycontext_tv := Expr.tvType 0.
 Definition c_expr_tv := Expr.tvType 1.
@@ -214,6 +150,5 @@ our_const Expr.tvProp p.
 Definition tycontext_const Delta :=
 our_const tycontext_tv Delta.
 
-End our_types.
 
 

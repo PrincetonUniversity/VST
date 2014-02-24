@@ -7,8 +7,6 @@ Require Import sep.
 Require Import wrapExpr.
 Local Open Scope logic.
 
-Unset Ltac Debug.
-
 (*Some definitions needed from the example file (verif_reverse.v) *)
 Instance LS: listspec t_struct_list _tail.
 Proof. eapply mk_listspec; reflexivity. Defined.
@@ -254,22 +252,6 @@ Definition Delta :=
                           (WITH u : unit PRE  []main_pre prog u POST  [tint]
                            main_post prog u))) PTree.Leaf) None PTree.Leaf)))).
 
-
-
-
-(*types we need that aren't defined yet... 
-this is just an example, we don't really need this one*)
-Definition LS_type := cons (no_eqb_type (listspec t_struct_list _tail)) nil.
-
-Module uk_types <: unknown_types.
-Definition unknown_types := LS_type.
-End uk_types.
-
-Module funcs := funcs uk_types.
-Import funcs.
-Import all_types.
-
-Definition list_spec_tv := Expr.tvType (length our_types).
 
 
 (*Separation logic predicate just for this file *)

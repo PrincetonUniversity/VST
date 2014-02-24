@@ -9,14 +9,6 @@ Require Import MirrorShard.ReifySepExpr.
 Require Import MirrorShard.ReifyExpr.
 Local Open Scope logic.
 
-Module uk_types <: unknown_types.
-Definition unknown_types := @nil Expr.type.
-End uk_types.
-
-Module funcs := funcs uk_types.
-Import funcs.
-Import all_types.
-
 
 Module ReifySepM := ReifySepExpr VericSepLogic Sep.
 
@@ -80,6 +72,7 @@ autorewrite with gather_prop;
 match goal with 
 | [ |- !!?X && _ |-- !!?Y && _] => rewrite (convert_inj X); rewrite (convert_inj Y)
 | [ |- !!?X && _ |-- _] => rewrite (convert_inj X)
+| [ |- _ |-- !!?X && _] => rewrite (convert_inj X)
 | [ |- _ |-- _] => idtac
 end;
 fold_seplog;
@@ -213,10 +206,8 @@ match type of e with
 | _ => 
   match e with 
   | nil => constr:(true)
-  | nullval => constr:(true)
   | !!True => constr:(true)
   | 0 => constr:(true)
-  | True => true
   | False => true
   | _ => constr:(false)
   end

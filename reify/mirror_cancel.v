@@ -1,25 +1,30 @@
 Require Import MirrorShard.CancelTacBedrock.
-Require Import MirrorShard.Expr MirrorShard.SepExpr.
+Require Export MirrorShard.Expr MirrorShard.SepExpr.
 Require Import MirrorShard.SepHeap MirrorShard.SepCancel.
 Require Import MirrorShard.SepLemma.
-Require Import sep.
+Require Import MirrorShard.ReifyHints.
+Require Export sep.
 Require Import FMapInterface.
-Require Import SimpleInstantiation.
+Require Import SimpleInstantiation RawInstantiation.
 Require Import MirrorShard.ExprUnifySynGenRec.
-Require Import wrapExpr.
+Require Export wrapExpr.
 Require Import Prover.
 Require Import MirrorShard.provers.ReflexivityProver.
-Require Import reify_derives.
+Require Export reify_derives.
 Require Import symmetry_prover.
+Require Import seplog.
 
 Module SH := SepHeap.Make VericSepLogic Sep.
 Module SL := SepLemma VericSepLogic Sep.
 Module FM := FMapList.Make NatMap.Ordered_nat.
 Module SUBST := SimpleInstantiation.Make FM.
+Module SUBST_RAW := RawInstantiation.Make SUBST.
 Module UNIFY := ExprUnifySynGenRec.Make SUBST.
 Module UNF := Unfolder.Make VericSepLogic Sep SH SUBST UNIFY SL.
 
 Module CancelModule := CancelTacBedrock.Make VericSepLogic Sep SH SL SUBST UNIFY UNF.
+
+Module HintModule := ReifyHints.Make VericSepLogic Sep SL. 
 
 Definition reflect_e types functions meta_env var_env :=
 fun h => force_Opt (@Expr.exprD types functions meta_env var_env h Expr.tvProp) False.
@@ -100,20 +105,23 @@ apply H1.
 auto.
 Qed.
 
-
+Lemma derives_emp : seplog.derives seplog.emp  seplog.emp.
+apply seplog.derives_refl.
+Proof.
+Qed.
 
 Ltac mirror_cancel boundf boundb prover prover_proof leftr rightr:=
 eapply (ApplyCancelSep_with_eq_goal boundf boundb _ _ _ _ _ prover leftr rightr); auto; try solve[ constructor]; try apply prover_proof.
 
 Section typed.
-  Variable ts : list type.
-  
+  Variable ts : list Expr.type.
+
   Definition vst_prover : ProverT ts :=
     composite_ProverT (@reflexivityProver ts) (symmetryProver ts).
 
   Variable fs : functions ts.
 
-  Definition trivialProver_correct : ProverT_correct vst_prover fs.
+  Definition vstProver_correct : ProverT_correct vst_prover fs.
   Proof.
     eapply composite_ProverT_correct; 
       auto using reflexivityProver_correct, symmetryProver_correct.
@@ -122,4 +130,10 @@ End typed.
 
 Ltac mirror_cancel_default :=
 let types := get_types in 
-eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types) nil nil); auto; try solve[ constructor]; try apply trivialProver_correct.
+eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types) nil nil); 
+[ reflexivity
+| constructor
+| constructor
+| apply vstProver_correct
+| reflexivity
+| try (split; [try apply I | try apply derives_emp])].
