@@ -325,11 +325,23 @@ Record trash_inv mu_trash mu_top mus m1 m2 : Type :=
 
 End trash_inv.
 
-Definition frgn_contained mu_trash mu mus :=
+Definition frgnS_contained mu_trash mu mus :=
   forall b, 
-    frgnBlocksSrc mu b -> 
-    let mu_rest := join_all mu_trash (map frame_mu0 mus) 
-    in locBlocksSrc mu_rest b || frgnBlocksSrc mu_rest b.
+  frgnBlocksSrc mu b -> 
+  let mu_rest := join_all mu_trash (map frame_mu0 mus) 
+  in locBlocksSrc mu_rest b || frgnBlocksSrc mu_rest b.
+
+Definition frgnT_contained mu_trash mu mus :=
+  forall b, 
+  frgnBlocksTgt mu b -> 
+  let mu_rest := join_all mu_trash (map frame_mu0 mus) 
+  in locBlocksTgt mu_rest b || frgnBlocksTgt mu_rest b.
+
+Definition frgnS_mapped mu_trash mu mus :=
+  forall b b' d', 
+  foreign_of mu b = Some (b',d') -> 
+  let mu_rest := join_all mu_trash (map frame_mu0 mus)
+  in as_inj mu_rest b = Some (b',d').
 
 Section head_inv.
 
@@ -338,7 +350,7 @@ Import Core.
 Variables (c : t cores_S) (d : t cores_T). 
 Variable  (pf : c.(i)=d.(i)).
 
-Record head_inv cd mu_trash mu mus z m1 m2 : Type :=
+Record head_inv cd mu_trash (mu : Inj.t) mus z m1 m2 : Type :=
   { head_match : (sims c.(i)).(match_state) cd mu 
                  c.(Core.c) m1 (rc_cast'' pf d.(Core.c)) m2 
   ; head_rel   : All (rel_inv_pred mu) mus 
@@ -346,7 +358,12 @@ Record head_inv cd mu_trash mu mus z m1 m2 : Type :=
   ; head_safe  : forall n, 
                  safeN (RC.effsem (cores_S c.(i)).(coreSem)) 
                  espec_S (cores_S c.(i)).(ge) n z c m1 
-  ; head_ctned : frgn_contained mu_trash mu mus }.
+  ; head_ctndS : frgnS_contained mu_trash mu mus 
+  ; head_ctndT : frgnT_contained mu_trash mu mus 
+  ; head_mapdS : frgnS_mapped mu_trash mu mus 
+  ; head_ctns  : if mus is [:: mu' & mus] then 
+                   {subset (sharedSrc mu') <= sharedSrc mu} 
+                 else True }.
 
 End head_inv.
 
@@ -397,7 +414,7 @@ Qed.
 
 Lemma head_valid : sm_valid mu m1 m2.
 Proof.
-by case: inv=> // A _ _ _ _; apply: (match_validblocks _ A).
+by case: inv=> // A _ _ _ _ _ _ _; apply: (match_validblocks _ A).
 Qed.
 
 End head_inv_lems.
@@ -412,10 +429,12 @@ Fixpoint frame_all mu_trash (mus : seq frame_pkg) (z : tZ) m1 m2 s1 s2 :=
           exists e2 ef_sig2 vals2, 
             [/\ @frame_inv c d pf cd0 mu0 z
                   m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2
-              & (forall b, 
-                 frgnBlocksSrc mu0 b -> 
-                 let mu_rest := join_all mu_trash (map frame_mu0 mus') 
-                 in locBlocksSrc mu_rest b || frgnBlocksSrc mu_rest b)]
+              , frgnS_contained mu_trash mu0 mus' 
+              , frgnT_contained mu_trash mu0 mus' 
+              , frgnS_mapped mu_trash mu0 mus' 
+              & if mus' is [:: mu' & mus''] then 
+                  {subset (sharedSrc mu') <= sharedSrc mu0}
+                else True]
         & frame_all mu_trash mus' z m1 m2 s1' s2']
     | nil,nil,nil => True
     | _,_,_ => False
@@ -436,10 +455,12 @@ Lemma frame_all_inv mu_trash mu0 z m10 m20 x mus m1 m2 s1 s2 :
         exists e2 ef_sig2 vals2, 
           [/\ @frame_inv c d pf cd0 mu0 z
                 m10 m1 e1 ef_sig1 vals1 m20 m2 e2 ef_sig2 vals2
-            , (forall b, 
-               frgnBlocksSrc mu0 b -> 
-               let mu_rest := join_all mu_trash (map frame_mu0 mus) 
-               in locBlocksSrc mu_rest b || frgnBlocksSrc mu_rest b)
+            , frgnS_contained mu_trash mu0 mus 
+            , frgnT_contained mu_trash mu0 mus 
+            , frgnS_mapped mu_trash mu0 mus 
+            , if mus is [:: mu' & mus'] then 
+                {subset (sharedSrc mu') <= sharedSrc mu0}
+              else True
             & frame_all mu_trash mus z m1 m2 s1' s2']].
 Proof.
 case: s1=> // c s1'; case: s2=> // d s2' /=.
@@ -503,7 +524,7 @@ Proof.
 move: frameall.
 move: m1 m2 s1 s2; elim: mus=> //; case=> mu' ? ? ? mus' IH m1' m2' s1' s2' A.
 move: (frame_all_inv A)=> []c []s1'' []d []s2'' []_ _.
-move=> []pf []cd []? []? []? []? []? []? []B X C.
+move=> []pf []cd []? []? []? []? []? []? []B XS MS XT Y C.
 case: B=> ? ? ? ? ?; move/match_genv=> []_ D; split.
 by rewrite (genvs_domain_eq_isGlobal _ _ (my_ge_S (Core.i c))); apply: D.
 by apply: (IH _ _ _ _ C).
@@ -516,7 +537,7 @@ Proof.
 move: frameall.
 move: m1 m2 s1 s2; elim: mus=> //; case=> mu' ? ? ? mus' IH m1' m2' s1' s2' A.
 move: (frame_all_inv A)=> []c []s1'' []d []s2'' []_ _.
-move=> []pf []cd []? []? []? []? []? []? []B X C.
+move=> []pf []cd []? []? []? []? []? []? []B XS MS XT Y C.
 case: B=> ? ? ? ? ?; move/match_genv=> []D _; split=> /=.
 rewrite -meminj_preserves_genv2blocks.
 rewrite (genvs_domain_eq_match_genvs (my_ge_S (Core.i c))).
@@ -530,7 +551,7 @@ Proof.
 move: frameall.
 move: m1 m2 s1 s2; elim: mus=> //; case=> mu' ? ? ? mus' IH m1' m2' s1' s2' A.
 move: (frame_all_inv A)=> []c []s1'' []d []s2'' []_ _.
-move=> []pf []cd []? []? []? []? []? []? []B X C.
+move=> []pf []cd []? []? []? []? []? []? []B XS MS XT Y C.
 case: B=> ? ? ? ? val; move/match_genv=> []_ D; split=> /=.
 by apply: (sm_valid_fwd val).
 by apply: (IH _ _ _ _ C).
@@ -624,6 +645,56 @@ Definition restrict_sm_wd m1
   (rc_pf  : REACH_closed m1 X) : Inj.t :=
   Inj.mk (restrict_sm_WD _ (Inj_wd mu) X vis_pf).
 
+Lemma intern_incr_sharedSrc mu mu' : 
+  intern_incr mu mu' -> 
+  {subset (sharedSrc mu) <= sharedSrc mu'}.
+Proof.
+case. 
+rewrite/sharedSrc/shared_of/join/foreign_of.
+case: mu=> /=; case: mu'=> /= ? ? ? ? ? ? ? ? ? ?. 
+move=> loc ? pub ? loc_of ? ? frgn ? ext.
+move=> incr []<- []_ []_ []<- []_ []<- []_ _ b; rewrite/in_mem/=.
+case: (frgn b)=> //. 
+case: (ext b)=> //.
+case: (pub b)=> //.
+rewrite/inject_incr in incr.
+case A: (loc_of b)=> [[? ?]|//]; first by move=> _; rewrite (incr _ _ _ A).
+case: (pub b)=> //.
+case A: (loc_of b)=> [[? ?]|//]; first by move=> _; rewrite (incr _ _ _ A).
+Qed.
+
+Lemma foreign_of_extern_of mu b b' d' : 
+  foreign_of mu b = Some (b',d') -> 
+  extern_of mu b = Some (b',d').
+Proof.
+rewrite /foreign_of; case: mu=> ??????????.
+by case: (_ b).
+Qed.
+
+Lemma mapped_frgnS_frgnT (mu : Inj.t) b b' d' : 
+  as_inj mu b = Some (b',d') -> 
+  vis mu b -> 
+  (frgnBlocksSrc mu b <-> frgnBlocksTgt mu b').
+Proof.
+rewrite /as_inj /join; case E: (extern_of _ _)=> [[b'' d'']|].
+case=> <- _ A; split=> B.
+move: (frgnSrc _ (Inj_wd _) _ B)=> []b''' []d''' []C D.
+have ->: b''=b''' by move: (foreign_of_extern_of C); rewrite E; case=> ->.
+by apply: D.
+case F: (frgnBlocksSrc mu b)=> //.
+have G: unknown_of mu b = Some (b'',d'').
+  have H: locBlocksSrc mu b=false. 
+    case: (extern_DomRng _ (Inj_wd _) _ _ _ E).
+    by move/(extBlocksSrc_locBlocksSrc _ (Inj_wd _) _)=> ->.
+  rewrite/unknown_of; move: A E F H. 
+  by case: (Inj.mu _)=> ??????????? /= -> -> ->.
+move: (unknown_DomRng _ (Inj_wd _) _ _ _ G)=> []_ []_ []H _.
+by move: A; rewrite /vis H /= F.
+move/(local_DomRng _ (Inj_wd _) _)=> [].
+move/(locBlocksSrc_frgnBlocksSrc _ (Inj_wd _))=> ->.
+by move/(locBlocksTgt_frgnBlocksTgt _ (Inj_wd _))=> ->.
+Qed.
+
 Section step_lems.
 
 Context
@@ -684,7 +755,7 @@ case: pkg E=> mu0 m10 m20 val' E.
 move/frame_all_inv.
 move=> []c []s1'' []d []s2'' []-> ->.
 move=> []pf []cd []e1 []sig1 []vals1 []e2 []sig2 []vals2.
-move=> []inv contain all /=.
+move=> []inv containS mapS containT all /=.
 
 split.
 exists pf,cd,e1,sig1,vals1,e2,sig2,vals2.
@@ -718,8 +789,10 @@ apply: (@disjinv_unchanged_on_tgt (Inj.mk wd) mu Esrc Etgt
 move=> b'; case: val''; move/(_ b')=> I _ Q; apply: I.
 by rewrite replace_locals_DOM in Q.
 
-by apply: contain.
-
+by apply: containS.
+by apply: mapS.
+by apply: containT.
+by move: all; case: mus' IH F containS mapS containT p.
 by eapply IH; eauto.
 Qed.
 
@@ -786,8 +859,8 @@ Proof.
 move=> hdinv frame args rets mylocs effstep mtch locs.
 apply: Build_head_inv=> //.
 by apply: (all_relinv_step frame); apply: (head_rel hdinv).
-by case: hdinv=> ? ? A _ _; apply: (vis_inv_step A)=> //.
-case: hdinv=> ? ? _ A _; move: (effax1 effstep)=> []step _. 
+by case: hdinv=> ? ? A _ _ _ _ _; apply: (vis_inv_step A)=> //.
+case: hdinv=> ? ? _ A _ _ _ _; move: (effax1 effstep)=> []step _. 
 move=> n; move: (A (S n))=> /=; rewrite/RC.at_external/RC.halted.
 rewrite (corestep_not_at_external _ _ _ _ _ _ step).
 rewrite (corestep_not_halted _ _ _ _ _ _ step).
@@ -799,8 +872,11 @@ have ->: c1'' = c'.
   move=> ? ? -> ? ? ? ? ? ? -> -> -> <-.
   by rewrite eq5.
 by rewrite eq5.
-case: hdinv=> ? ? _ _ A; rewrite/frgn_contained -(intern_incr_frgnsrc incr).
-by apply: A.
+by move: (head_ctndS hdinv); rewrite/frgnS_contained -(intern_incr_frgnsrc incr).
+by move: (head_ctndT hdinv); rewrite/frgnT_contained -(intern_incr_frgntgt incr).
+by move: (head_mapdS hdinv); rewrite/frgnS_mapped -(intern_incr_foreign _ _ incr).
+move: (head_ctns hdinv); generalize dependent mus; case=> //.
+by move=> mu0 ? _ _ A b; move/A; apply: intern_incr_sharedSrc.
 Qed.
 
 Lemma trash_inv_step mu_trash mupkg mupkg' (mus : seq frame_pkg) : 
@@ -1067,7 +1143,7 @@ case: STEP.
 
  have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b. 
 
-   { case: hdinv=> mtch ?; case=> visinv _ _ b ofs A; move: (U1'_EQ _ _ A).
+   { case: hdinv=> mtch ?; case=> visinv _ _ _ _ _ b ofs A; move: (U1'_EQ _ _ A).
      rewrite/RC.reach_set=> B; apply match_visible in mtch; apply: mtch.
      move: B; apply REACH_mono with (B1 := RC.reach_basis _ _)=> b'=> B.
      apply: (visinv b'); move: B; apply: RC.reach_basis_domains_eq.
@@ -1154,31 +1230,31 @@ case: STEP.
  exists pf, mu_trash, mupkg', mus, z; split=> //.
 
  (*rc m1' (vis mu')*)
- apply: (join_all_REACH_closed (mu := mupkg) (m1 := m1))=> //.
- by move: (trash_disj_S trinv)=> /= []; rewrite DisjointC.
- by move: (head_AllDisjointLS hdinv); rewrite -map_comp.
- apply mem_unchanged_on_sub with (Q := fun b ofs => U1 b ofs=false).
- by apply effstep_unchanged in EFFSTEP; apply: EFFSTEP.
- move=> b ofs X; move: (U1_DEF' b ofs); rewrite X=> Y.
- by case W: (U1 b ofs)=> //; rewrite W in Y; rewrite Y.  
- by case: hdinv=> _ _ _ _; apply.
- by move: (trash_valid trinv); apply/sm_valid_smvalid_src.
- by move: (tail_valid_src tlinv); rewrite -All_comp3. 
- by move: rclosed; rewrite mu_eq vis_restrict_sm.
- by eapply match_visible; eauto.
+ - apply: (join_all_REACH_closed (mu := mupkg) (m1 := m1))=> //.
+   by move: (trash_disj_S trinv)=> /= []; rewrite DisjointC.
+   by move: (head_AllDisjointLS hdinv); rewrite -map_comp.
+   apply mem_unchanged_on_sub with (Q := fun b ofs => U1 b ofs=false).
+   by apply effstep_unchanged in EFFSTEP; apply: EFFSTEP.
+   move=> b ofs X; move: (U1_DEF' b ofs); rewrite X=> Y.
+   by case W: (U1 b ofs)=> //; rewrite W in Y; rewrite Y.
+   by apply: (head_ctndS hdinv).  
+   by move: (trash_valid trinv); apply/sm_valid_smvalid_src.
+   by move: (tail_valid_src tlinv); rewrite -All_comp3. 
+   by move: rclosed; rewrite mu_eq vis_restrict_sm.
+   by eapply match_visible; eauto.
 
  (*trash_inv*)
- apply trash_inv_step 
+ - apply trash_inv_step 
    with (m1 := m1) (m2 := m2)
         (mu := mupkg) (mu' := mu_top') (mupkg := mupkg)=> //.
-  by apply: (effstep_fwd _ _ _ _ _ _ _ EFFSTEP).
-  case: STEP'=> [STEP'|[STEP' _]]. 
-  by apply: (effstep_plus_fwd _ _ _ _ _ _ _ STEP').
-  by apply: (effstep_star_fwd _ _ _ _ _ _ _ STEP').
-  by apply: (head_valid hdinv).
+   by apply: (effstep_fwd _ _ _ _ _ _ _ EFFSTEP).
+   case: STEP'=> [STEP'|[STEP' _]]. 
+   by apply: (effstep_plus_fwd _ _ _ _ _ _ _ STEP').
+   by apply: (effstep_star_fwd _ _ _ _ _ _ _ STEP').
+   by apply: (head_valid hdinv).
 
  (* head_inv *)
- + case: tlinv=> allrel frameall.
+ - case: tlinv=> allrel frameall.
    apply: (@head_inv_step 
      mupkg m1 m2 mu_top' m1' m2' (head_valid hdinv) INCR SEP
      (c INV) (d INV) pf c1' c2'' (Lex.get (Core.i (c INV)) data) _ _ mus z
@@ -1192,16 +1268,16 @@ case: STEP.
    by apply/orP; right.
 
  (* tail_inv *)
- + eapply tail_inv_step with (Etgt := U2); eauto.
+ - eapply tail_inv_step with (Etgt := U2); eauto.
    by apply: (effstep_unchanged _ _ _ _ _ _ _ EFFSTEP).
    case: STEP'.
-   - by case=> n; apply: effect_semantics.effstepN_unchanged.
-   - case; case=> n=> EFFSTEPN _. 
+   -- by case=> n; apply: effect_semantics.effstepN_unchanged.
+   -- case; case=> n=> EFFSTEPN _. 
      by apply: (effect_semantics.effstepN_unchanged EFFSTEPN).
    by move: (effax1 EFFSTEP)=> []; move/corestep_fwd.
    case: STEP'.
-   - by case=> n; apply: effect_semantics.effstepN_fwd.
-   - case; case=> n=> EFFSTEPN _.
+   -- by case=> n; apply: effect_semantics.effstepN_fwd.
+   -- case; case=> n=> EFFSTEPN _.
      by apply: (effect_semantics.effstepN_fwd EFFSTEPN).   
    move=> ? ? X; move: (PERM _ _ X)=> []Y Z; split=> //.
    have [n STEPN]: 
@@ -1213,37 +1289,113 @@ case: STEP.
    by eapply effstepN_valid in STEPN; eauto.
    by apply: (head_rel hdinv).
 
+ (* effects refinement *)
+ - have EFFECTS_REFINEMENT: 
+     forall b ofs, U2 b ofs = true ->
+     visTgt mu b = true /\
+     (locBlocksTgt mu b = false ->
+       exists b1 d1, 
+         foreign_of mu b1 = Some (b, d1) /\
+         U1 b1 (ofs - d1) = true /\
+         Mem.perm m1 b1 (ofs - d1) Max Nonempty).
+
+   { move=> b ofs X; move: (PERM _ _ X)=> []H Y; split.
+     move: H; rewrite mu_eq /visTgt /= /in_mem /=. 
+     move/orP; case; first by move=> ->; apply/orP; left; apply/orP; left.
+     move=> H; apply/orP; move: (head_ctndT hdinv H); move/orP; case=> LTGT.
+     by left; apply/orP; right; apply: LTGT.
+     by right; rewrite H; apply: LTGT.
+
+     move=> LTGT.
+
+     have LTGT_MU: locBlocksTgt mupkg b=false. 
+       move: LTGT; rewrite mu_eq /= /in_mem /=. 
+       by case: (locBlocksTgt mupkg b).
+
+     case: (Y LTGT_MU)=> b' []d' []FRGN []V PERM'; exists b', d'; split=> //.
+     rewrite mu_eq /= /in_mem /=.
+
+     have FRGNS: frgnBlocksSrc mupkg b'. 
+       have FRGN': foreign_of (frame_mu0 mupkg) b' = Some (b,d') by [].
+       case: (foreign_DomRng _ (Inj_wd _) _ _ _ FRGN'). 
+       by move=> _ []_ []_ []_ [] ->.
+
+     have FRGNT: frgnBlocksTgt mupkg b. 
+       case: (frgnSrc _ (Inj_wd _) _ FRGNS)=> b'' []d'' []FRGN' ?.       
+       by rewrite FRGN' in FRGN; case: FRGN=> <- _.
+
+     have VIS: vis (join_all mu_trash [seq frame_mu0 i | i <- mus]) b'.
+       rewrite /vis; move: (head_ctndS hdinv FRGNS); case/orP=> -> //.
+       by apply/orP; right.
+
+     have WD: SM_wd (join_all mu_trash (List.map frame_mu0 mus)). 
+       apply: join_all_wd=> /=; split.
+       by move: (trash_disj_S trinv)=> /= []_; rewrite -map_comp.
+       by move: (tail_AllDisjointLS tlinv); rewrite map_comp. 
+       by move: (trash_disj_T trinv)=> /= []_; rewrite -map_comp.
+       by move: (tail_AllDisjointLT tlinv); rewrite map_comp. 
+       by move: (trash_consist trinv)=> /= []_; rewrite -map_comp.
+       by move: (tail_AllConsistent tlinv); rewrite map_comp. 
+       
+     move: (head_ctndT hdinv FRGNT); move/orP; case.
+     by move: LTGT; rewrite mu_eq /= /in_mem /= LTGT_MU /= => ->.
+     move=> FRGNTT.
+
+     move: (head_mapdS hdinv FRGN)=> INJ.
+
+     have INJ': as_inj (Inj.mk WD) b' = Some (b,d') by apply: INJ.
+
+     have VIS': vis (Inj.mk WD) b' by apply: VIS.
+
+     have FRGNSS: 
+         frgnBlocksSrc (join_all mu_trash [seq frame_mu0 i | i <- mus]) b'.
+       by move: (mapped_frgnS_frgnT INJ' VIS)=> ->; apply: FRGNTT.
+
+     rewrite FRGNS /= FRGNSS /restrict /vis /= /in_mem /= FRGNS FRGNSS.
+
+     have FRGNSS': frgnBlocksSrc (Inj.mk WD) b' by apply: FRGNSS.
+
+     case: (frgnSrc _ (Inj_wd _) _ FRGNSS')=> b'' []d'' [] FRGN_OF _.
+
+     have [eq1 eq2]: [/\ b=b'' & d'=d'']. 
+       move: (foreign_in_all (Inj.mk WD)); move/(_ _ _ _ FRGN_OF).
+       by rewrite INJ'; case=> -> ->.
+       
+     case E: (locBlocksSrc mupkg b' || _ || _); rewrite/join2; move: E.
+       -- rewrite (foreign_of_extern_of FRGN).
+          move: FRGN_OF; move/foreign_of_extern_of=> ->.
+          by rewrite -eq1 -eq2 Pos.eqb_refl Zeq_bool_refl.
+       -- by rewrite orb_true_r. }
+
  (* matching execution *)
- + exists U2; split=> //; case: STEP'=> STEP'.
+ exists U2; split=> //; case: STEP'=> STEP'.
 
-   have STEP'': 
-     effstep_plus (RC.effsem (coreSem (cores_T (Core.i c2))))
-     (ge (cores_T (Core.i c2))) U2 (Core.c (d INV)) m2 c2'' m2'. 
+ have STEP'': 
+   effstep_plus (RC.effsem (coreSem (cores_T (Core.i c2))))
+   (ge (cores_T (Core.i c2))) U2 (Core.c (d INV)) m2 c2'' m2'. 
 
-   { set T := RC.state \o C \o cores_T.
-     set P := fun ix (x : T ix) (y : T ix) => 
-               effstep_plus (RC.effsem (coreSem (cores_T ix)))
-               (ge (cores_T ix)) U2 x m2 y m2'.
-     change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
-     by move: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr. }
+ { set T := RC.state \o C \o cores_T.
+   set P := fun ix (x : T ix) (y : T ix) => 
+             effstep_plus (RC.effsem (coreSem (cores_T ix)))
+             (ge (cores_T ix)) U2 x m2 y m2'.
+   change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
+   by move: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr. }
 
-   by left; move: STEP''; apply: stepPLUS_STEPPLUS.
+ by left; move: STEP''; apply: stepPLUS_STEPPLUS.
 
-   have STEP'': 
-     effstep_star (RC.effsem (coreSem (cores_T (Core.i c2))))
-     (ge (cores_T (Core.i c2))) U2 (Core.c c2) m2 c2'' m2'. 
+ have STEP'': 
+    effstep_star (RC.effsem (coreSem (cores_T (Core.i c2))))
+    (ge (cores_T (Core.i c2))) U2 (Core.c c2) m2 c2'' m2'. 
 
-   { set T := RC.state \o C \o cores_T.
-     set P := fun ix (x : T ix) (y : T ix) => 
-               effstep_star (RC.effsem (coreSem (cores_T ix)))
-               (ge (cores_T ix)) U2 x m2 y m2'.
-     change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
-     by case: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr; by []. }
+ { set T := RC.state \o C \o cores_T.
+   set P := fun ix (x : T ix) (y : T ix) => 
+             effstep_star (RC.effsem (coreSem (cores_T ix)))
+             (ge (cores_T ix)) U2 x m2 y m2'.
+   change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
+   by case: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr; by []. }
 
-   right; split; first by move: STEP''; apply: stepSTAR_STEPSTAR.
-   apply: Lex.ord_upd; admit. (*FIXME: tail_inv cannot existentially quant. cd's*)
-
- 
+ right; split; first by move: STEP''; apply: stepSTAR_STEPSTAR.
+ apply: Lex.ord_upd; admit. (*FIXME: tail_inv cannot existentially quant. cd's*)
 
 Admitted. (*WORK-IN-PROGRESS*)
 
