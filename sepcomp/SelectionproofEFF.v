@@ -2000,9 +2000,14 @@ Lemma Match_init_cores: forall (v1 v2 : val) (sig : signature) entrypoints
   (R : list_norepet (map fst (prog_defs prog)))
   (J: forall b1 b2 d, j b1 = Some (b2, d) -> 
                       DomS b1 = true /\ DomT b2 = true)
-  (RCH: forall b, REACH m2
+  (RCH1: forall b, REACH m1 
+        (fun b' : Values.block => isGlobalBlock ge b' || getBlocks vals1 b') b =
+         true -> DomS b = true)
+  (RCH2: forall b, REACH m2 
         (fun b' : Values.block => isGlobalBlock tge b' || getBlocks vals2 b') b =
          true -> DomT b = true)
+  (RCL: REACH_closed m1 DomS) 
+  (MS: forall b1, DomS b1=true -> exists b2 d, j b1 = Some(b2,d) /\ DomT b2=true)
   (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
       /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
       /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))
@@ -2012,12 +2017,7 @@ Lemma Match_init_cores: forall (v1 v2 : val) (sig : signature) entrypoints
 exists c2 : CMinSel_core,
   initial_core cminsel_eff_sem tge v2 vals2 = Some c2 /\
   Match_cores c1
-    (initial_SM DomS DomT
-       (REACH m1
-          (fun b : Values.block => isGlobalBlock ge b || getBlocks vals1 b))
-       (REACH m2
-          (fun b : Values.block => isGlobalBlock tge b || getBlocks vals2 b))
-       j) c1 m1 c2 m2. 
+    (initial_SM DomS DomT DomS DomT j) c1 m1 c2 m2. 
 Proof. intros.
   inversion CSM_Ini.
   unfold  CMin_initial_core in H0. unfold ge in *. unfold tge in *.
@@ -2038,7 +2038,7 @@ Proof. intros.
   solve[elimtype False; auto].
   destruct InitMem as [m0 [INIT_MEM [A B]]].
 destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
-    VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
+    VInj J RCH1 RCH2 PG GDE MS HDomS HDomT RCL _ (eq_refl _))
    as [AA [BB [CC [DD [EE [FF GG]]]]]].
   intuition.
   split.
@@ -2047,13 +2047,13 @@ destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
       unfold vis, initial_SM; simpl.
       apply forall_inject_val_list_inject.
       eapply restrict_forall_vals_inject; try eassumption.
-        intros. apply REACH_nil. rewrite H; intuition.
+      intros. apply AA. apply REACH_nil. rewrite H; intuition.
       rewrite initial_SM_as_inj. unfold vis, initial_SM; simpl.
         eapply inject_mapped; try eassumption.
     rewrite initial_SM_as_inj in GG.
       unfold vis, initial_SM in FF; simpl in FF.
-      eapply restrict_mapped_closed; eassumption.
-     apply restrict_incr.
+      eapply restrict_mapped_closed; eauto.
+      apply restrict_incr.
    intuition. 
     rewrite match_genv_meminj_preserves_extern_iff_all. assumption.
     apply BB.
@@ -3121,7 +3121,7 @@ assert (GDE: genvs_domain_eq ge tge).
     apply A in H3.
     assert (Mem.valid_block m1 (Mem.nextblock m1)).
       eapply Mem.valid_block_inject_1; eauto.
-    clear - H8; unfold Mem.valid_block in H8.
+    clear - H11; unfold Mem.valid_block in H11.
     xomega.
 
     destruct (P (Mem.nextblock m0) (Mem.nextblock m2)); auto.
@@ -3130,7 +3130,7 @@ assert (GDE: genvs_domain_eq ge tge).
     apply A in H3.
     assert (Mem.valid_block m2 (Mem.nextblock m2)).
       eapply Mem.valid_block_inject_2; eauto.
-    clear - H8; unfold Mem.valid_block in H8.
+    clear - H11; unfold Mem.valid_block in H11.
     xomega.
     
     intros b LT.    

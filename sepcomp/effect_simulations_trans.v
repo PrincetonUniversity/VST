@@ -447,17 +447,16 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
              apply (CC _ _ _ H1 H4).
            destruct XX as [mm [? ?]]; subst.
              apply (CC _ _ _ H1 H4).
-    destruct (core_initial12 _ _ _ EP12 _ _ _ _ vals2 _ 
-       DomS (fun b => match j2 b with None => false | Some (b3,d) => DomT b3 end) H0 Inj12)
-     as [d12 [c2 [Ini2 MC12]]]; try assumption.
-      (*eapply forall_valinject_hastype; eassumption.*)
-      intros. destruct (X b1) as [_ J1Comp]. 
-              destruct J1Comp as [b3 [dd COMP]]. exists b2, d; trivial.
-              specialize (H4 _ _ _ COMP).
-              destruct (compose_meminjD_Some _ _ _ _ _ COMP)
-                as [bb2 [dd1 [dd2 [J1 [J2 D]]]]]; subst; clear COMP.
-              rewrite J1 in H; inv H. rewrite J2. apply H4.
-      intros.
+
+    assert (REACH2: 
+              forall b : block,
+                REACH m2 (fun b' : block => isGlobalBlock g2 b' || getBlocks vals2 b') b =
+                true ->
+                match j2 b with
+                  | Some (b3, _) => DomT b3
+                  | None => false
+                end = true).
+    {   intros.
         assert (Q: forall b,  isGlobalBlock g2 b || getBlocks vals2 b = true ->
                    exists jb d, j2 b = Some (jb, d) /\ 
                            isGlobalBlock g3 jb || getBlocks vals3 jb = true).
@@ -475,35 +474,73 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
             Q _ H) as [b3 [d2 [J2 R3]]].
         rewrite J2.
         destruct (Y _ _ _ J2) as [b1 [d COMP]].
-        apply (H4 _ _ _ COMP).
-      intros b2 Hb2. remember (j2 b2) as d.
-        destruct d; inv Hb2; apply eq_sym in Heqd. destruct p.
-        eapply Mem.valid_block_inject_1; eassumption.
+        apply (H4 _ _ _ COMP). }
+
+    destruct (core_initial12 _ _ _ EP12 _ _ _ _ vals2 _ 
+       DomS (*(fun b => match j2 b with None => false | Some (b3,d) => DomT b3 end)*) 
+       (mapped j2) H0 Inj12)
+     as [d12 [c2 [Ini2 MC12]]]; try assumption.
+      (*eapply forall_valinject_hastype; eassumption.*)
+      { intros. destruct (X b1) as [_ J1Comp]. 
+              destruct J1Comp as [b3 [dd COMP]]. exists b2, d; trivial.
+              specialize (H4 _ _ _ COMP).
+              destruct (compose_meminjD_Some _ _ _ _ _ COMP)
+                as [bb2 [dd1 [dd2 [J1 [J2 D]]]]]; subst; clear COMP.
+              rewrite J1 in H; inv H. destruct H4. rewrite H. split; auto.
+              unfold mapped. rewrite J2. auto. }
+      { intros b RC. 
+        generalize (REACH2 _ RC). unfold mapped.
+        destruct (j2 b); auto. }
+
+      { intros b1 H. 
+        destruct (H8 _ H) as [b2 [d [comp HH]]].
+        unfold compose_meminj in comp.
+        remember (j1 b1) as xx.
+        destruct xx as [[? ?]|]; try congruence.
+        remember (j2 b) as yy.
+        destruct yy as [[? ?]|]; try congruence.
+        exists b, z. split; auto. 
+        unfold mapped. rewrite <-Heqyy. auto. }
+
+      { unfold mapped. intros b.
+        remember (j2 b) as xx.
+        destruct xx; auto. destruct Inj23. intros _.
+        remember (valid_block_dec m2 b) as yy.
+        destruct yy; auto.
+        generalize (mi_freeblocks _ n); rewrite <-Heqxx; congruence. 
+        congruence. }
+
     destruct (core_initial23 _ _ _ EP23 _ _ _ _ vals3 _ 
-       (fun b => match j2 b with None => false | Some (b3,d) => DomT b3 end) DomT Ini2 Inj23)
+       (mapped j2) DomT Ini2 Inj23)
      as [d23 [c3 [Ini3 MC23]]]; try assumption. 
-       intros b2 b3 d2 J2. rewrite J2.
+
+      { intros b2 b3 d2 J2. unfold mapped. rewrite J2.
          destruct (Y _ _ _ J2) as [b1 [d COMP]].
-         destruct (H4 _ _ _ COMP). split; trivial.
-    intros b2 Hb2. remember (j2 b2) as d.
-        destruct d; inv Hb2; apply eq_sym in Heqd. destruct p.
-        eapply Mem.valid_block_inject_1; eassumption.
-    remember (initial_SM DomS
-            (fun b : block =>
-             match j2 b with
-             | Some (b3, _) => DomT b3
-             | None => false
-             end) (REACH m1 (fun b => isGlobalBlock g1 b || getBlocks vals1 b))
-                  (REACH m2 (fun b => isGlobalBlock g2 b || getBlocks vals2 b))
-            j1) as mu1.
-  remember (initial_SM
-            (fun b : block =>
-             match j2 b with
-             | Some (b3, _) => DomT b3
-             | None => false
-             end) DomT (REACH m2 (fun b => isGlobalBlock g2 b || getBlocks vals2 b))
-                       (REACH m3 (fun b => isGlobalBlock g3 b || getBlocks vals3 b))
-             j2) as mu2.
+         destruct (H4 _ _ _ COMP). split; auto. }
+ 
+      { intros b H. generalize (REACH2 _ H). unfold mapped.
+        destruct (j2 b); auto. }
+
+      { apply inject_REACH_closed with (m2 := m3); auto. }
+
+      { unfold mapped. intros b.
+        remember (j2 b) as xx.
+        destruct xx as [[b3 d]|]; try congruence.
+        intros _. exists b3, d. split; auto.
+        symmetry in Heqxx.
+        destruct (Y _ _ _ Heqxx) as [b' [d' COMP']].
+        destruct (H4 _ _ _ COMP'); auto. }
+
+      { unfold mapped. intros b.
+        remember (j2 b) as xx.
+        destruct xx; auto. destruct Inj23. intros _.
+        remember (valid_block_dec m2 b) as yy.
+        destruct yy; auto.
+        generalize (mi_freeblocks _ n); rewrite <-Heqxx; congruence. 
+        congruence. }
+
+    remember (initial_SM DomS (mapped j2) DomS (mapped j2) j1) as mu1.
+    remember (initial_SM (mapped j2) DomT (mapped j2) DomT j2) as mu2.
   exists (d12,Some c2,d23).
   exists c3. 
   split; trivial. 
@@ -512,7 +549,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   split. subst. unfold initial_SM, compose_sm; simpl.
            f_equal.
   split. subst; simpl. repeat (split; trivial).
-  split; trivial. 
+  solve[split; trivial]. 
  (*core_diagram*)
   clear - match_sm_wd12 match_sm_valid12 core_diagram12 
           match_sm_wd23 match_sm_valid23 core_diagram23.

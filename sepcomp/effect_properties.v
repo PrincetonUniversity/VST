@@ -308,7 +308,8 @@ Proof. intros.
        destruct d; congruence.
 Qed.
 
-Lemma core_initial_wd_as_inj : forall {F1 V1 F2 V2} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) 
+(* NOT USED
+ Lemma core_initial_wd_as_inj : forall {F1 V1 F2 V2} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) 
                                vals1 m1 j vals2 m2 DomS DomT
           (MInj: Mem.inject j m1 m2)
           (VInj: Forall2 (val_inject j) vals1 vals2)
@@ -333,7 +334,7 @@ Proof. intros.
     as [RDom [WDmu [SMVmu [PGext GF]]]].
   intuition.
   rewrite match_genv_meminj_preserves_extern_iff_all; assumption. 
-Qed.
+Qed.*)
 
 Lemma intern_incr_meminj_preserves_globals_frgn: 
       forall {F V} (ge: Genv.t F V) mu

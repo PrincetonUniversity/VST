@@ -1122,15 +1122,19 @@ Lemma core_initial_wd : forall {F1 V1 F2 V2} (ge1: Genv.t F1 V1) (ge2: Genv.t F2
           (MInj: Mem.inject j m1 m2)
           (VInj: Forall2 (val_inject j) vals1 vals2)
           (HypJ: forall b1 b2 d, j b1 = Some (b2, d) -> DomS b1 = true /\ DomT b2 = true)
-          (R: forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> 
-                        DomT b = true)
+          (R1: forall b, REACH m1 (fun b' => isGlobalBlock ge1 b' || getBlocks vals1 b') b = true -> 
+                         DomS b = true)
+          (R2: forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> 
+                         DomT b = true)
           (PG: meminj_preserves_globals ge1 j)
           (GenvsDomEQ: genvs_domain_eq ge1 ge2)
+          (MS: forall b1 : block,
+                 DomS b1 = true ->
+                 exists (b2 : block) (z : Z), j b1 = Some (b2, z) /\ DomT b2 = true)
           (HS: forall b, DomS b = true -> Mem.valid_block m1 b)
           (HT: forall b, DomT b = true -> Mem.valid_block m2 b)
-          mu (Hmu: mu = initial_SM DomS DomT
-                         (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b)) 
-                         (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j),
+          (RC: REACH_closed m1 DomS)
+          mu (Hmu: mu = initial_SM DomS DomT DomS DomT j),
        (forall b, REACH m1 (fun b' => isGlobalBlock ge1 b' || getBlocks vals1 b') b = true -> 
                   DomS b = true) /\
        SM_wd mu /\ sm_valid mu m1 m2 /\ 
@@ -1140,31 +1144,21 @@ Lemma core_initial_wd : forall {F1 V1 F2 V2} (ge1: Genv.t F1 V1) (ge2: Genv.t F2
        REACH_closed m1 (mapped (as_inj mu)).
 Proof. intros.
   specialize (getBlocks_inject _ _ _ VInj); intros.
-  assert (HR: forall b1, REACH m1 (fun b : block => isGlobalBlock ge1 b || getBlocks vals1 b) b1 = true ->
-            exists b2 z, j b1 = Some (b2, z) /\
-                         REACH m2 (fun b : block => isGlobalBlock ge2 b || getBlocks vals2 b) b2 = true).
-         eapply (REACH_inject _ _ _ MInj).
-              intros. clear R mu Hmu HS HT.
-              apply orb_true_iff in H0.
-              destruct H0. 
-                rewrite (meminj_preserves_globals_isGlobalBlock _ _ PG _ H0).
-                exists b, 0. rewrite <- (genvs_domain_eq_isGlobal _ _ GenvsDomEQ).
-                intuition.
-              destruct (H _ H0) as [b2 [d [J GB2]]]. exists b2, d; intuition.
-  split. intros. 
-         destruct (HR _ H0) as [b2 [d [J R2]]].
-         apply (HypJ _ _ _ J).
-  subst.
-  split. eapply initial_SM_wd; try eassumption.
-           intros. destruct (HR _ H0) as [b2 [d [J R2]]].
-             apply (HypJ _ _ _ J).
-  split. split; intros. apply (HS _ H0). apply (HT _ H0). 
+  rewrite Hmu.
+  split.
+  apply R1.
+  split.
+  split; simpl; try solve[left; auto|intros; congruence].
+  apply HypJ.
+  apply MS.
+  split.
+  split; unfold DOM, DomSrc; simpl. apply HS.
+  unfold RNG, DomTgt; simpl. apply HT.
   split. eapply meminj_preserves_globals_initSM; intuition.
-  split. apply meminj_preserves_globals_init_REACH_frgn; try eassumption.
-    intuition.
-  split. simpl. apply REACH_is_closed.
-  rewrite initial_SM_as_inj. 
-    apply (inject_REACH_closed _ _ _ MInj).     
+  split. simpl. 
+    { intros. apply R1. apply REACH_nil. rewrite H0; auto. }
+  split. unfold vis; simpl. apply RC.
+  rewrite initial_SM_as_inj. apply (inject_REACH_closed _ _ _ MInj).     
 Qed.
 
 (*Proof the match_genv is preserved by callsteps*)
@@ -1497,13 +1491,19 @@ Proof. intros.
   f_equal; trivial.
 Qed.
 
-Lemma mkinitial_SM_ok: forall {F1 V1 F2 V2:Type} 
+(* DEPRECATED
+   Lemma mkinitial_SM_ok: forall {F1 V1 F2 V2:Type} 
         (g1: Genv.t F1 V1) (g2: Genv.t F2 V2) (G:genvs_domain_eq g1 g2)
         mu (WD: SM_wd mu) 
         (PG: meminj_preserves_globals g1 (as_inj mu))
         vals1 vals2 (VALS: Forall2 (val_inject (as_inj mu)) vals1 vals2)
         m1 m2 (SMV: sm_valid mu m1 m2) (INJ: Mem.inject (as_inj mu) m1 m2)
-        (RchTgt: forall b, REACH m2 (fun b' => isGlobalBlock g2 b' || getBlocks vals2 b') b = true -> DomTgt mu b = true) 
+        (RchSrc: forall b, 
+                   REACH m1 (fun b' => isGlobalBlock g1 b' 
+                                    || getBlocks vals1 b') b = true -> DomSrc mu b = true) 
+        (RchTgt: forall b, 
+                   REACH m2 (fun b' => isGlobalBlock g2 b' 
+                                    || getBlocks vals2 b') b = true -> DomTgt mu b = true) 
         nu (NU: nu = mkinitial_SM mu 
                          (REACH m1 (fun b => isGlobalBlock g1 b || getBlocks vals1 b))
                          (REACH m2 (fun b => isGlobalBlock g2 b || getBlocks vals2 b))),
@@ -1519,7 +1519,7 @@ Proof. intros. rewrite mkinitial_SM_equals_initial_SM in NU.
   intros. eapply (as_inj_DomRng); eassumption.
     intros. eapply SMV. apply H.
     intros. eapply SMV. apply H.
-Qed.
+Qed. *)
 
 Module SM_simulation. Section SharedMemory_simulation_inject. 
   Context {F1 V1 C1 F2 V2 C2:Type}
@@ -1605,7 +1605,17 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
         (*the next two conditions are required to guarantee intialSM_wd*)
          (forall b1 b2 d, j b1 = Some (b2, d) -> 
                           DomS b1 = true /\ DomT b2 = true) ->
-         (forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> DomT b = true) ->
+
+         (forall b, 
+            REACH m1 (fun b' => isGlobalBlock ge1 b' 
+                             || getBlocks vals1 b') b = true -> DomS b = true) ->
+
+         (forall b, 
+            REACH m2 (fun b' => isGlobalBlock ge2 b' 
+                             || getBlocks vals2 b') b = true -> DomT b = true) ->
+
+         REACH_closed m1 DomS -> 
+         (forall b1, DomS b1=true -> exists b2 d, j b1 = Some(b2,d) /\ DomT b2=true) -> 
 
         (*the next two conditions ensure the initialSM satisfies sm_valid*)
          (forall b, DomS b = true -> Mem.valid_block m1 b) ->
@@ -1621,8 +1631,8 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
                               m1 m2 holds*)
             match_state cd (initial_SM DomS
                                        DomT 
-                                       (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b)) 
-                                       (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j)
+                                       DomS
+                                       DomT j)
                            c1 m1 c2 m2;
 
     core_diagram : 
@@ -1882,235 +1892,7 @@ Proof. intros.
          eapply H1; eassumption.
 Qed.
 *)
-Lemma initial_locvisible: forall (I:SM_simulation_inject) v1 v2 sig,
-  In (v1,v2,sig) entry_points -> 
-       forall vals1 c1 m1 j vals2 m2 DomS DomT,
-          initial_core Sem1 ge1 v1 vals1 = Some c1 ->
-          Mem.inject j m1 m2 -> 
-          Forall2 (val_inject j) vals1 vals2 ->
-          meminj_preserves_globals ge1 j ->
-
-        (*the next two conditions are required to guarantee intialSM_wd*)
-         (forall b1 b2 d, j b1 = Some (b2, d) -> 
-                          DomS b1 = true /\ DomT b2 = true) ->
-         (forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> DomT b = true) ->
-
-        (*the next two conditions ensure the initialSM satisfies sm_valid*)
-         (forall b, DomS b = true -> Mem.valid_block m1 b) ->
-         (forall b, DomT b = true -> Mem.valid_block m2 b) ->
-
-       exists cd, exists c2, 
-            initial_core Sem2 ge2 v2 vals2 = Some c2 /\
-            match_state I cd (initial_SM DomS
-                                       DomT 
-                                       (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b))
-                                       (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j)
-                           c1 m1 c2 m2 /\
-           Mem.inject (locvisible_of (initial_SM DomS
-                                       DomT 
-                                       (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b)) 
-                                       (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j)) m1 m2.
-Proof. intros.
-  destruct (core_initial I _ _ _ H _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 H5 H6 H7)
-    as [cd [c2 [IC MS]]].
-  clear H6 H7.
-  exists cd, c2.
-  split; trivial.
-  split. trivial.
-  specialize (match_validblocks I _ _ _ _ _ _ MS). intros VB.
-  unfold locvisible_of. simpl.
-  split; intros.
-    split; intros.
-       apply joinD_Some in H6. 
-       destruct H6; simpl.
-       remember (REACH m1 (fun b : block => isGlobalBlock ge1 b || 
-                                             getBlocks vals1 b) b1).
-       destruct b; try inv H6.
-         solve [eapply H1; eassumption].
-       destruct H6; discriminate. 
-    apply joinD_Some in H6. 
-       destruct H6; simpl.
-       remember (REACH m1 (fun b : block => isGlobalBlock ge1 b || 
-                                             getBlocks vals1 b) b1).
-       destruct b; try inv H6.
-         solve [eapply H1; eassumption].
-       destruct H6; discriminate.
-    apply joinD_Some in H6. 
-       destruct H6; simpl.
-       remember (REACH m1 (fun b : block => isGlobalBlock ge1 b || 
-                                             getBlocks vals1 b) b1).
-       destruct b; try inv H6.
-         specialize (Mem.mi_memval  _ _ _ (Mem.mi_inj _ _ _ H1) _ _ _ _ H9 H7).
-         intros. inv H6; try econstructor.
-           apply joinI. left. 
-           assert (R: REACH m1 (fun b : block => isGlobalBlock ge1 b || 
-                                             getBlocks vals1 b) b0 = true).
-             apply REACHAX. apply eq_sym in Heqb. apply REACHAX in Heqb.
-             destruct Heqb as [L HL].
-             eexists. eapply reach_cons. apply HL. apply H7. rewrite <- H8. reflexivity.
-           rewrite R. eassumption.
-           trivial.
-       destruct H6; discriminate.
-
-    unfold join. 
-      remember (REACH m1 (fun b' : block => isGlobalBlock ge1 b' || 
-                                            getBlocks vals1 b') b).
-      destruct b0; trivial.
-      remember (j b). destruct o; trivial. destruct p; apply eq_sym in Heqo.
-       exfalso. apply H6. eapply VB. apply (H4 _ _ _ Heqo).
-    apply joinD_Some in H6. 
-       destruct H6; simpl.
-       remember (REACH m1 (fun b' : block => isGlobalBlock ge1 b' || 
-                                             getBlocks vals1 b') b).
-       destruct b0; try inv H6. eapply VB. apply (H4 _ _ _ H8).
-       destruct H6; discriminate.
-
-   intros b1; intros. 
-    apply joinD_Some in H7. 
-      destruct H7; simpl.
-      remember (REACH m1 (fun b : block => isGlobalBlock ge1 b || 
-                                            getBlocks vals1 b) b1).
-       destruct b; try inv H7.
-       apply joinD_Some in H8. 
-         destruct H8; simpl.
-         remember (REACH m1 (fun b : block => isGlobalBlock ge1 b || 
-                                              getBlocks vals1 b) b2).
-          destruct b; try inv H7.
-          eapply H1; eassumption.
-       destruct H7; discriminate. 
-     destruct H7; discriminate.
-
-     apply joinD_Some in H6. 
-       destruct H6; simpl.
-       remember (REACH m1 (fun b' : block => isGlobalBlock ge1 b' || 
-                                             getBlocks vals1 b') b).
-       destruct b0; try inv H6.
-         eapply H1; eassumption.
-       destruct H6; discriminate.
-Qed.
-
 
 End SharedMemory_simulation_inject. 
 
 End SM_simulation.
-(*
-      effcore_diagram : 
-      forall cd st1 mu m1 U1 (MS: match_state cd U1 mu st1 m1 st2 m2),
-        (UHyp: forall b1 z, U1 b1 z = true -> Mem.valid_block m1 b1 ->
-                            vis mu b1 = true) /\
-        (corestep Sem1 ge1 st1 m1 st1' m1' ->
-          (effstep Sem1 ge1 U1 st1 m1 st1' m1' /\
-          exists st2', exists m2', exists cd', exists mu', ...))
-    and then add axiom that 
-         match_state cd U mu st1 m1 st2 m2 ->
-         match_state cd U mu' st1 m1 st2 m2 for 
-         any extension mu' of mu such that Mem.inject (as_inj mu') m1 m2*)
-(*
-Definition locally_extends mu j mu' m1 m2:=
-   local_of mu' = join j (local_of mu) /\
-   extern_of mu' = extern_of mu /\
-   (locBlocksSrc mu' = (fun b => locBlocksSrc mu b || (*??*) mapped j b)) /\
-   (extBlocksTgt mu' = extBlocksTgt mu) /\
-   (frgnBlocksSrc mu' = frgnBlocksSrc mu) /\
-   (*privSrc/Tgt mu' = privSrcTgt mu ??*)
-   (forall b1 b2 d, j b1 = Some(b2,d) -> (DomSrc mu b1 = false /\ DomTgt mu b2 = false /\
-                              Mem.valid_block m1 b1 /\ Mem.valid_block m2 b2))
-   /\ SM_wd mu'.
-
-Lemma EXTENDS: forall (I:SM_simulation_inject)
-        st1 m1 st1' m1' U1, 
-        effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
-
-      forall cd st2 mu m2
-        (UHyp: forall b1 z, U1 b1 z = true -> vis mu b1 = true)
-        j muE (EXT: locally_extends mu j muE m1 m2),
-        match_state I cd mu st1 m1 st2 m2 ->
-        exists st2', exists m2', exists cd', exists mu',
-          intern_incr muE mu' /\
-          sm_inject_separated muE mu' m1 m2 /\
-
-          (*new condition: corestep evolution is soundly and completely 
-                           tracked by the local knowledge*)
-          sm_locally_allocated muE mu' m1 m2 m1' m2' /\ 
-
-          match_state I cd' mu' st1' m1' st2' m2' /\
-
-          (*could add the following 2 assertions here, too, but 
-             we checked already that they're satisfied in the previous
-             clause SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
-
-          exists U2,              
-            ((effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' \/
-              (effstep_star Sem2 ge2 U2 st2 m2 st2' m2' /\
-               core_ord I cd' cd)) /\
-
-             forall b ofs, U2 b ofs = true -> 
-                       (visTgt mu b = true /\ (*we probably want visTgt mu hereMem.valid_block m2 b /\*)
-                         (locBlocksTgt mu b = false ->
-                           exists b1 delta1, foreign_of mu b1 = Some(b,delta1) /\
-                           U1 b1 (ofs-delta1) = true /\ 
-                           Mem.perm m1 b1 (ofs-delta1) Max Nonempty))).
-Proof. intros.
-(*
-  assert (UHypE: forall b1 z, U1 b1 z = true -> 
-          Mem.valid_block m1 b1 -> vis muE b1 = true).
-    intros. specialize (UHyp _ _ H1 H2). unfold vis in *.
-    destruct EXT as [_ [_ [? [_ [? _]]]]]. rewrite H3, H4; simpl.
-    destruct (locBlocksSrc mu b1); simpl in *. trivial.
-    rewrite UHyp; intuition.*)
-(*  assert (MCE: match_state I cd muE st1 m1 st2 m2). admit.*)
-  destruct (effcore_diagram I _ _ _ _ _ H cd st2 mu m2 UHyp H0)
-    as [st2' [m2' [cd' [mu' [INC [SEP [LALLOC [MC' [U2 [STEP2 U2Hyp]]]]]]]]]].
-  exists st2', m2', cd'.
-  assert (exists muE', locally_extends mu' j muE' m1' m2'). admit.
-  destruct H1 as [muE' HmuE']. exists muE'.
-  assert (WDmu' := match_sm_wd I _ _ _ _ _ _ MC').
-  split. admit. (*  clear - WDmu' HmuE' INC EXT.
-    destruct EXT as [muEA [muEB [muEC wdMuE]]].
-    destruct HmuE' as [muE'A [muE'B [muE'C wdMuE']]].
-    split. rewrite muEA, muE'A. 
-           eapply inject_incr_join. apply inject_incr_refl. apply INC.
-           red; intros. remember (j b) as d.
-             destruct d; apply eq_sym in Heqd.
-               destruct p. destruct (muE'C _ _ _ Heqd); clear muEC muE'C.
-               remember (local_of mu' b) as q.
-               destruct q; apply eq_sym in Heqq.
-                 destruct p. apply local_in_all in Heqq; trivial.
-                 destruct (as_inj_DomRng _ _ _ _ Heqq); trivial.
-                 rewrite H1 in H. discriminate.
-               right; trivial.
-             left; trivial.
-      split. assert (extern_of mu = extern_of muE) by eapply muEB. 
-             assert (extern_of mu' = extern_of muE') by eapply muE'B.
-             rewrite <- H, <- H0. eapply INC.
-      split. assert (locBlocksSrc muE destruct HmuE' as [_ [? _]]. rewrite H; clear H.
-             destruct EXT as [_ [? _]]. rewrite H; clear H.
-             eapply INC.
-      split. destruct HmuE' as [_ [_ [? _]]]. rewrite H; clear H.
-             destruct EXT as [_ [_ [? _]]]. rewrite H; clear H. 
-             intros. remember (locBlocksSrc mu b) as d.
-               destruct d; apply eq_sym in Heqd; simpl in *.
-               assert (locBlocksSrc mu' b = true). eapply INC. trivial.
-               rewrite H0; trivial.
-
-               rewrite H; intuition.
-      split. destruct HmuE' as [_ [_ [_ [? _]]]]. rewrite H; clear H.
-             destruct EXT as [_ [_ [? _]]]. rewrite H; clear H. 
-             intros. remember (locBlocksSrc mu b) as d.
-               destruct d; apply eq_sym in Heqd; simpl in *.
-               assert (locBlocksSrc mu' b = true). eapply INC. trivial.
-               rewrite H0; trivial.
-
-               rewrite H; intuition.
-
-
-             eapply INC. remember (local_of mu' b) as q. destruct q; apply eq_sym in Heqq.
-
-    destruct INC.*)
-  split. admit.
-  split. admit.
-  split. clear U2Hyp STEP2. admit. (*needs axiom, and maybe some reach-closure assumption on j*)
-  exists U2.
-  split; trivial.
-Qed.
-*)

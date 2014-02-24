@@ -2278,9 +2278,14 @@ Lemma MATCH_initial: forall v1 v2 sig entrypoints
       (R : list_norepet (map fst (prog_defs prog)))
       (J: forall b1 b2 delta, j b1 = Some (b2, delta) -> 
             (DomS b1 = true /\ DomT b2 = true))
-      (RCH: forall b, REACH m2 
-          (fun b' : block => isGlobalBlock tge b' || getBlocks vals2 b') b = true ->
-          DomT b = true)
+      (RCH1: forall b, REACH m1 
+        (fun b' : Values.block => isGlobalBlock ge b' || getBlocks vals1 b') b =
+         true -> DomS b = true)
+      (RCH2: forall b, REACH m2 
+        (fun b' : Values.block => isGlobalBlock tge b' || getBlocks vals2 b') b =
+         true -> DomT b = true)
+      (RCL: REACH_closed m1 DomS) 
+      (MS: forall b1, DomS b1=true -> exists b2 d, j b1 = Some(b2,d) /\ DomT b2=true)
       (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
                /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
                /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))   
@@ -2290,10 +2295,7 @@ Lemma MATCH_initial: forall v1 v2 sig entrypoints
 exists c2,
   initial_core LTL_eff_sem tge v2 vals2 = Some c2 /\
   MATCH
-    (initial_SM DomS DomT
-       (REACH m1 (fun b : block => isGlobalBlock ge b || getBlocks vals1 b))
-       (REACH m2 (fun b : block => isGlobalBlock tge b || getBlocks vals2 b))
-       j) c1 m1 c2 m2.
+    (initial_SM DomS DomT DomS DomT j) c1 m1 c2 m2.
 Proof. intros.
   inversion Ini.
   unfold RTL_initial_core in H0. unfold ge in *. unfold tge in *.
@@ -2314,7 +2316,7 @@ Proof. intros.
     intros CONTRA.
     solve[elimtype False; auto].
   destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
-     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
+     VInj J RCH1 RCH2 PG GDE MS HDomS HDomT RCL _ (eq_refl _))
     as [AA [BB [CC [DD [EE [FF GG]]]]]].
   split.
     eapply match_states_call.
@@ -2327,7 +2329,7 @@ Proof. intros.
           apply forall_inject_val_list_inject.
           eapply restrict_forall_vals_inject; try eassumption.
            admit. (*TODO: presumably need length vals1=length loc_arguments(funsig f/tf)*)(* clear - VInj. induction VInj; simpl. *)
-        intros. apply REACH_nil. rewrite H; intuition.
+        intros. apply AA. apply REACH_nil. rewrite H; intuition.
         simpl. admit. (*FALSE*) 
 (*    rewrite initial_SM_as_inj.
       unfold vis, initial_SM; simpl.
@@ -5062,7 +5064,7 @@ assert (GDE: genvs_domain_eq ge tge).
     apply A in H3.
     assert (Mem.valid_block m1 (Mem.nextblock m1)).
       eapply Mem.valid_block_inject_1; eauto.
-    clear - H8; unfold Mem.valid_block in H8.
+    clear - H11; unfold Mem.valid_block in H11.
     xomega.
 
     destruct (P (Mem.nextblock m0) (Mem.nextblock m2)); auto.
@@ -5071,7 +5073,7 @@ assert (GDE: genvs_domain_eq ge tge).
     apply A in H3.
     assert (Mem.valid_block m2 (Mem.nextblock m2)).
       eapply Mem.valid_block_inject_2; eauto.
-    clear - H8; unfold Mem.valid_block in H8.
+    clear - H11; unfold Mem.valid_block in H11.
     xomega.
     
     intros b LT.    
