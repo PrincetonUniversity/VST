@@ -9,6 +9,7 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Events.
 
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.reach.
 Require Import sepcomp.effect_semantics.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.extspec. 

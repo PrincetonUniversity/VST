@@ -12,7 +12,7 @@ Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.effect_semantics.
-Require Import sepcomp.effect_simulations.
+Require Import sepcomp.effect_simulations. 
 Require Import sepcomp.effect_properties.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.extspec.
@@ -1241,6 +1241,8 @@ case: STEP.
 
    right; split; first by move: STEP''; apply: stepSTAR_STEPSTAR.
    apply: Lex.ord_upd; admit. (*FIXME: tail_inv cannot existentially quant. cd's*)
+
+ 
 
 Admitted. (*WORK-IN-PROGRESS*)
 

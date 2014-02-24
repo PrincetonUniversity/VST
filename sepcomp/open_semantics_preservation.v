@@ -8,6 +8,7 @@ Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.
 Require Import sepcomp.trace_semantics.
 Require Import sepcomp.StructuredInjections.
+Require Import sepcomp.reach.
 Require Import sepcomp.effect_simulations.
 Require Import sepcomp.effect_properties.
 Require Import sepcomp.rg_lemmas.

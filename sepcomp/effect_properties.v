@@ -14,6 +14,7 @@ Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.
 Require Import sepcomp.StructuredInjections.
+Require Import sepcomp.reach.
 Require Import sepcomp.effect_simulations.
 
 Goal forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1

@@ -38,6 +38,7 @@ Require Import Allocation.
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.reach.
 Require Import sepcomp.effect_semantics.
 Require Import StructuredInjections.
 Require Import effect_simulations.

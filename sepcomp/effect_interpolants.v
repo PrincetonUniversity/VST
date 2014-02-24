@@ -10,6 +10,7 @@ Require Import Integers.
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.StructuredInjections.
+Require Import sepcomp.reach.
 Require Import effect_simulations.
 Require Import effect_simulations_lemmas.
 
