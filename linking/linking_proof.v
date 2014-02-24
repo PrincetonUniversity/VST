@@ -1071,43 +1071,41 @@ eapply Build_SM_simulation_inject
        (match_state := R).
 
 (* well_founded ord *)
-- by apply: Lex.wf_ord.
+{ by apply: Lex.wf_ord. }
 
 (* match -> SM_wd mu *)
-- by apply: R_wd. 
+{ by apply: R_wd. }
 
 (* genvs_domain_eq *)
-- by apply: genvs_domain_eq_refl.
+{ by apply: genvs_domain_eq_refl. }
 
 (* match_genv *)
-- by move=> data mu c1 m1 c2 m2; apply: R_match_genv.
+{ by move=> data mu c1 m1 c2 m2; apply: R_match_genv. }
 
 (* match_visible *)
-- by apply: R_match_visible.
+{ by apply: R_match_visible. }
 
 (* match_restrict *)
-- by move=> data mu c1 m1 c2 m2 X H; apply: (R_match_restrict H).
+{ by move=> data mu c1 m1 c2 m2 X H; apply: (R_match_restrict H). }
 
 (* match_validblocks *)
-- by apply: R_match_validblocks.
+{ by apply: R_match_validblocks. }
 
 (* core_initial *)
-- by admit. (* TODO *)
+{ by admit. (* TODO *) }
 
-- by admit. (* NOT NEEDED diagram1 *)
+{ by admit. (* NOT NEEDED diagram1 *) }
 
-(* real diagram *)
-- move=> st1 m1 st1' m1' U1 STEP data st2 mu m2 U1_DEF INV.
-case: STEP=> STEP STEP_EFFSTEP.
-case: STEP.
+{(*[Case: diagram]*)
+move=> st1 m1 st1' m1' U1 STEP data st2 mu m2 U1_DEF INV.
+case: STEP=> STEP STEP_EFFSTEP; case: STEP.
 
-(* Case: corestep0 *)
- + move=> STEP. 
+{(*[Subcase: corestep0]*)
+move=> STEP. 
+set c1 := peekCore st1.
+set c2 := peekCore st2.
 
- set c1 := peekCore st1.
- set c2 := peekCore st2.
-
- have [c1' [STEP0 [U1'_EQ [c1_args [c1_rets [c1_locs ST1']]]]]]:
+have [c1' [STEP0 [U1'_EQ [c1_args [c1_rets [c1_locs ST1']]]]]]:
    exists c1',
        Coresem.corestep 
          (t := RC.effsem (coreSem (cores_S (Core.i c1)))) 
@@ -1127,7 +1125,7 @@ case: STEP.
     exists c1'. split=> //. split=> //.
     by move: C D=> ->; move/updCore_inj_upd=> ->; split. }
 
- have EFFSTEP: 
+have EFFSTEP: 
     effect_semantics.effstep 
     (RC.effsem (coreSem (cores_S (Core.i c1))))
     (ge (cores_S (Core.i c1))) U1 (Core.c c1) m1 c1' m1'.
@@ -1135,102 +1133,100 @@ case: STEP.
   { move: (STEP_EFFSTEP STEP); rewrite/effstep0=> [][] c1'' [] STEP0' ST1''. 
     by rewrite ST1'' in ST1'; rewrite -(updCore_inj_upd ST1'). }
 
- (* specialize core diagram at module (Core.i c1) *)
- move: (effcore_diagram _ _ _ _ _ (sims (Core.i c1))).  
- move/(_ _ _ _ _ _ EFFSTEP).
- case: (R_inv INV)=> pf []mu_trash []mupkg []mus []z []mu_eq.
- move=> rclosed trinv hdinv tlinv.
+(* specialize core diagram at module (Core.i c1) *)
+move: (effcore_diagram _ _ _ _ _ (sims (Core.i c1))).  
+move/(_ _ _ _ _ _ EFFSTEP).
+case: (R_inv INV)=> pf []mu_trash []mupkg []mus []z []mu_eq.
+move=> rclosed trinv hdinv tlinv.
 
- have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b. 
+have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b. 
 
-   { case: hdinv=> mtch ?; case=> visinv _ _ _ _ _ b ofs A; move: (U1'_EQ _ _ A).
-     rewrite/RC.reach_set=> B; apply match_visible in mtch; apply: mtch.
-     move: B; apply REACH_mono with (B1 := RC.reach_basis _ _)=> b'=> B.
-     apply: (visinv b'); move: B; apply: RC.reach_basis_domains_eq.
-     by apply: genvs_domain_eq_sym; apply: (my_ge_S (Core.i c1)). }
+  { case: hdinv=> mtch ?; case=> visinv _ _ _ _ _ b ofs A; move: (U1'_EQ _ _ A).
+    rewrite/RC.reach_set=> B; apply match_visible in mtch; apply: mtch.
+    move: B; apply REACH_mono with (B1 := RC.reach_basis _ _)=> b'=> B.
+    apply: (visinv b'); move: B; apply: RC.reach_basis_domains_eq.
+    by apply: genvs_domain_eq_sym; apply: (my_ge_S (Core.i c1)). }
 
- move: (head_match hdinv)=> MATCH.
- move/(_ _ _ _ _ U1_DEF' MATCH).
- move=> []c2' []m2' []cd' []mu_top0.
- move=> []INCR []SEP []LOCALLOC []MATCH' []U2 []STEP' PERM.
+move: (head_match hdinv)=> MATCH.
+move/(_ _ _ _ _ U1_DEF' MATCH).
+move=> []c2' []m2' []cd' []mu_top0.
+move=> []INCR []SEP []LOCALLOC []MATCH' []U2 []STEP' PERM.
 
- have mu_top'_wd: SM_wd mu_top0 by move: MATCH'; apply: match_sm_wd.
- set mu_top' := Inj.mk mu_top'_wd.
- have mu_top'_valid: sm_valid mu_top' m1' m2'
-   by apply: (match_validblocks _ MATCH').
- set mupkg' := Build_frame_pkg mu_top'_valid.
+have mu_top'_wd: SM_wd mu_top0 by move: MATCH'; apply: match_sm_wd.
+set mu_top' := Inj.mk mu_top'_wd.
+have mu_top'_valid: sm_valid mu_top' m1' m2'
+  by apply: (match_validblocks _ MATCH').
+set mupkg' := Build_frame_pkg mu_top'_valid.
 
- (* instantiate existentials *)
- set c2''   := rc_cast' (peek_ieq INV) c2'.
- set st2'   := updCore st2 (Core.upd c2 c2'').
- set data'  := Lex.set (Core.i c1) cd' data.
- set mu'    := restrict_sm 
-               (join_all mu_trash $ mu_top' :: map frame_mu0 mus)
-               (vis (join_all mu_trash $ mu_top' :: map frame_mu0 mus)).
+(* instantiate existentials *)
+set c2''   := rc_cast' (peek_ieq INV) c2'.
+set st2'   := updCore st2 (Core.upd c2 c2'').
+set data'  := Lex.set (Core.i c1) cd' data.
+set mu'    := restrict_sm 
+              (join_all mu_trash $ mu_top' :: map frame_mu0 mus)
+              (vis (join_all mu_trash $ mu_top' :: map frame_mu0 mus)).
+exists st2', m2', data', mu'. 
+split. 
 
- exists st2', m2', data', mu'. 
+(*incr*)
+{ rewrite mu_eq; apply join_all_restrict_incr with (m1 := m1) (m2 := m2)=> //.
+move: (head_AllDisjointLS hdinv); rewrite All_comp2=> A.
+move: (tail_valid tlinv); rewrite -map_comp=> B.
+move: (AllDisjointLS_incr A INCR SEP LOCALLOC B).
+rewrite -All_comp3=> C; rewrite -All_comp; apply (All_sub C). 
+by move=> pkg D; apply: DisjointLS_disjoint.
+by move: (trash_disj_S trinv)=> /= []; rewrite map_comp.
+by move: (trash_disj_T trinv)=> /= []; rewrite map_comp.
+by move: (trash_consist trinv)=> /= []; rewrite map_comp.
+apply: DisjointLS_disjoint.
+have A: DisjointLS mupkg mu_trash. 
+  by move: (trash_disj_S trinv)=> /= []; rewrite DisjointC.
+by apply: (DisjointLS_incr A INCR SEP LOCALLOC (trash_valid trinv)).
+by move: (tail_AllDisjointLS tlinv); rewrite All2_comp2 map_comp.
+by move: (tail_AllDisjointLT tlinv); rewrite All2_comp2 map_comp.
+by move: (tail_AllConsistent tlinv); rewrite All2_comp2 map_comp. 
+by move: (tail_valid tlinv); rewrite -All_comp3.
+by apply: (trash_valid trinv). }
 
- split. 
+split. 
 
- (*incr*)
- rewrite mu_eq; apply join_all_restrict_incr with (m1 := m1) (m2 := m2)=> //.
- move: (head_AllDisjointLS hdinv); rewrite All_comp2=> A.
- move: (tail_valid tlinv); rewrite -map_comp=> B.
- move: (AllDisjointLS_incr A INCR SEP LOCALLOC B).
- rewrite -All_comp3=> C; rewrite -All_comp; apply (All_sub C). 
- by move=> pkg D; apply: DisjointLS_disjoint.
- by move: (trash_disj_S trinv)=> /= []; rewrite map_comp.
- by move: (trash_disj_T trinv)=> /= []; rewrite map_comp.
- by move: (trash_consist trinv)=> /= []; rewrite map_comp.
- apply: DisjointLS_disjoint.
- have A: DisjointLS mupkg mu_trash. 
-   by move: (trash_disj_S trinv)=> /= []; rewrite DisjointC.
- by apply: (DisjointLS_incr A INCR SEP LOCALLOC (trash_valid trinv)).
- by move: (tail_AllDisjointLS tlinv); rewrite All2_comp2 map_comp.
- by move: (tail_AllDisjointLT tlinv); rewrite All2_comp2 map_comp.
- by move: (tail_AllConsistent tlinv); rewrite All2_comp2 map_comp. 
- by move: (tail_valid tlinv); rewrite -All_comp3.
- by apply: (trash_valid trinv).
-
- split. 
-
- (*sep*)
- rewrite mu_eq. apply join_all_restrict_sep 
+(*sep*)
+{ rewrite mu_eq. apply join_all_restrict_sep 
    with (m1 := m1) (m2 := m2) (m1' := m1') (m2' := m2')=> //.
- by move: (head_AllConsistent hdinv); rewrite All_comp2 {1}map_comp.
- by move: (tail_valid tlinv); rewrite -All_comp3.
- by move: (trash_consist trinv)=> /= []; rewrite map_comp; move/consistentC.
- by apply: (trash_valid trinv).
- by apply: (match_validblocks _ MATCH).
- apply: join_all_valid=> /=; first by apply: (trash_valid trinv).
- split; first by apply: (head_valid hdinv).
- by move: (tail_valid tlinv); rewrite -All_comp3.
- change (SM_wd (join_all mu_trash [seq (frame_mu0 i) | i <- mus])).
- apply: join_all_wd.
- split; first by move: (trash_disj_S trinv); rewrite -map_comp; case.
- by move: (tail_AllDisjointLS tlinv); rewrite -map_comp.
- split; first by move: (trash_disj_T trinv); rewrite -map_comp; case.
- by move: (tail_AllDisjointLT tlinv); rewrite -map_comp.
- split; first by move: (trash_consist trinv); rewrite -map_comp; case.
- by move: (tail_AllConsistent tlinv); rewrite -map_comp.
- change (SM_wd (join_all mu_trash [seq (frame_mu0 i) | i <- mupkg :: mus])).
- apply: join_all_wd.
- by move: (R_AllDisjointS trinv hdinv tlinv); rewrite All2_comp2 map_comp.
- by move: (R_AllDisjointT trinv hdinv tlinv); rewrite All2_comp2 map_comp.
- by move: (R_AllConsistent trinv hdinv tlinv); rewrite All2_comp2 map_comp.
+by move: (head_AllConsistent hdinv); rewrite All_comp2 {1}map_comp.
+by move: (tail_valid tlinv); rewrite -All_comp3.
+by move: (trash_consist trinv)=> /= []; rewrite map_comp; move/consistentC.
+by apply: (trash_valid trinv).
+by apply: (match_validblocks _ MATCH).
+apply: join_all_valid=> /=; first by apply: (trash_valid trinv).
+split; first by apply: (head_valid hdinv).
+by move: (tail_valid tlinv); rewrite -All_comp3.
+change (SM_wd (join_all mu_trash [seq (frame_mu0 i) | i <- mus])).
+apply: join_all_wd.
+split; first by move: (trash_disj_S trinv); rewrite -map_comp; case.
+by move: (tail_AllDisjointLS tlinv); rewrite -map_comp.
+split; first by move: (trash_disj_T trinv); rewrite -map_comp; case.
+by move: (tail_AllDisjointLT tlinv); rewrite -map_comp.
+split; first by move: (trash_consist trinv); rewrite -map_comp; case.
+by move: (tail_AllConsistent tlinv); rewrite -map_comp.
+change (SM_wd (join_all mu_trash [seq (frame_mu0 i) | i <- mupkg :: mus])).
+apply: join_all_wd.
+by move: (R_AllDisjointS trinv hdinv tlinv); rewrite All2_comp2 map_comp.
+by move: (R_AllDisjointT trinv hdinv tlinv); rewrite All2_comp2 map_comp.
+by move: (R_AllConsistent trinv hdinv tlinv); rewrite All2_comp2 map_comp. }
 
- (*loc_alloc*)
- split; first by rewrite mu_eq; apply: join_all_locally_allocated.
+(*loc_alloc*)
+split; first by rewrite mu_eq; apply: join_all_locally_allocated.
 
- split.
+split.
 
- (* re-establish invariant *)
+{(* Label: [re-establish invariant] *) 
  apply: Build_R; rewrite ST1'; rewrite /st2'.
 
  exists pf, mu_trash, mupkg', mus, z; split=> //.
 
  (*rc m1' (vis mu')*)
- - apply: (join_all_REACH_closed (mu := mupkg) (m1 := m1))=> //.
+ { apply: (join_all_REACH_closed (mu := mupkg) (m1 := m1))=> //.
    by move: (trash_disj_S trinv)=> /= []; rewrite DisjointC.
    by move: (head_AllDisjointLS hdinv); rewrite -map_comp.
    apply mem_unchanged_on_sub with (Q := fun b ofs => U1 b ofs=false).
@@ -1241,20 +1237,20 @@ case: STEP.
    by move: (trash_valid trinv); apply/sm_valid_smvalid_src.
    by move: (tail_valid_src tlinv); rewrite -All_comp3. 
    by move: rclosed; rewrite mu_eq vis_restrict_sm.
-   by eapply match_visible; eauto.
+   by eapply match_visible; eauto. }
 
  (*trash_inv*)
- - apply trash_inv_step 
+ { apply trash_inv_step 
    with (m1 := m1) (m2 := m2)
         (mu := mupkg) (mu' := mu_top') (mupkg := mupkg)=> //.
    by apply: (effstep_fwd _ _ _ _ _ _ _ EFFSTEP).
    case: STEP'=> [STEP'|[STEP' _]]. 
    by apply: (effstep_plus_fwd _ _ _ _ _ _ _ STEP').
    by apply: (effstep_star_fwd _ _ _ _ _ _ _ STEP').
-   by apply: (head_valid hdinv).
+   by apply: (head_valid hdinv). }
 
  (* head_inv *)
- - case: tlinv=> allrel frameall.
+ { case: tlinv=> allrel frameall.
    apply: (@head_inv_step 
      mupkg m1 m2 mu_top' m1' m2' (head_valid hdinv) INCR SEP
      (c INV) (d INV) pf c1' c2'' (Lex.get (Core.i (c INV)) data) _ _ mus z
@@ -1265,19 +1261,19 @@ case: STEP.
    by rewrite Lex.gss.
    rewrite c1_locs=> b -> /=; move: (LOCALLOC). 
    rewrite sm_locally_allocatedChar; case=> _ []_ []-> _ A.
-   by apply/orP; right.
+   by apply/orP; right. }
 
  (* tail_inv *)
- - eapply tail_inv_step with (Etgt := U2); eauto.
+ { eapply tail_inv_step with (Etgt := U2); eauto.
    by apply: (effstep_unchanged _ _ _ _ _ _ _ EFFSTEP).
    case: STEP'.
-   -- by case=> n; apply: effect_semantics.effstepN_unchanged.
-   -- case; case=> n=> EFFSTEPN _. 
+   - by case=> n; apply: effect_semantics.effstepN_unchanged.
+   - case; case=> n=> EFFSTEPN _. 
      by apply: (effect_semantics.effstepN_unchanged EFFSTEPN).
    by move: (effax1 EFFSTEP)=> []; move/corestep_fwd.
    case: STEP'.
-   -- by case=> n; apply: effect_semantics.effstepN_fwd.
-   -- case; case=> n=> EFFSTEPN _.
+   - by case=> n; apply: effect_semantics.effstepN_fwd.
+   - case; case=> n=> EFFSTEPN _.
      by apply: (effect_semantics.effstepN_fwd EFFSTEPN).   
    move=> ? ? X; move: (PERM _ _ X)=> []Y Z; split=> //.
    have [n STEPN]: 
@@ -1287,10 +1283,10 @@ case: STEP.
      case: STEP'; first by move=> []n ?; exists (S n). 
      by move=> [][]n ? _; exists n.
    by eapply effstepN_valid in STEPN; eauto.
-   by apply: (head_rel hdinv).
-
- (* effects refinement *)
- - have EFFECTS_REFINEMENT: 
+   by apply: (head_rel hdinv). } } (*end [re-establish invariant]*)
+ 
+ {(* Label: [matching execution] *) 
+ have EFFECTS_REFINEMENT: 
      forall b ofs, U2 b ofs = true ->
      visTgt mu b = true /\
      (locBlocksTgt mu b = false ->
@@ -1362,17 +1358,16 @@ case: STEP.
        by rewrite INJ'; case=> -> ->.
        
      case E: (locBlocksSrc mupkg b' || _ || _); rewrite/join2; move: E.
-       -- rewrite (foreign_of_extern_of FRGN).
-          move: FRGN_OF; move/foreign_of_extern_of=> ->.
-          by rewrite -eq1 -eq2 Pos.eqb_refl Zeq_bool_refl.
-       -- by rewrite orb_true_r. }
+       - rewrite (foreign_of_extern_of FRGN).
+         move: FRGN_OF; move/foreign_of_extern_of=> ->.
+         by rewrite -eq1 -eq2 Pos.eqb_refl Zeq_bool_refl.
+       - by rewrite orb_true_r. }
 
- (* matching execution *)
- exists U2; split=> //; case: STEP'=> STEP'.
+exists U2; split=> //; case: STEP'=> STEP'.
 
- have STEP'': 
-   effstep_plus (RC.effsem (coreSem (cores_T (Core.i c2))))
-   (ge (cores_T (Core.i c2))) U2 (Core.c (d INV)) m2 c2'' m2'. 
+have STEP'': 
+  effstep_plus (RC.effsem (coreSem (cores_T (Core.i c2))))
+  (ge (cores_T (Core.i c2))) U2 (Core.c (d INV)) m2 c2'' m2'. 
 
  { set T := RC.state \o C \o cores_T.
    set P := fun ix (x : T ix) (y : T ix) => 
@@ -1381,11 +1376,11 @@ case: STEP.
    change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
    by move: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr. }
 
- by left; move: STEP''; apply: stepPLUS_STEPPLUS.
+by left; move: STEP''; apply: stepPLUS_STEPPLUS.
 
- have STEP'': 
-    effstep_star (RC.effsem (coreSem (cores_T (Core.i c2))))
-    (ge (cores_T (Core.i c2))) U2 (Core.c c2) m2 c2'' m2'. 
+have STEP'': 
+  effstep_star (RC.effsem (coreSem (cores_T (Core.i c2))))
+  (ge (cores_T (Core.i c2))) U2 (Core.c c2) m2 c2'' m2'. 
 
  { set T := RC.state \o C \o cores_T.
    set P := fun ix (x : T ix) (y : T ix) => 
@@ -1394,8 +1389,33 @@ case: STEP.
    change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
    by case: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr; by []. }
 
- right; split; first by move: STEP''; apply: stepSTAR_STEPSTAR.
- apply: Lex.ord_upd; admit. (*FIXME: tail_inv cannot existentially quant. cd's*)
+right; split; first by move: STEP''; apply: stepSTAR_STEPSTAR.
+apply: Lex.ord_upd; admit. (*FIXME: tail_inv cannot existentially quant. cd's*) 
+} (*end [Label: matching execution]*)
+
+} (*end [Subcase: corestep0]*)
+
+move=> []<- []NSTEP.
+case CTXT: (inContext st1)=> //.
+case AT1: (LinkerSem.at_external0 st1)=> [[[ef1 sig1] args1]|].
+
+{(*[Subcase: at_external0]*)
+case FID: (LinkerSem.fun_id ef1)=> [id|//].
+case HDL: (LinkerSem.handle _)=> [st1''|//] eq1 A.
+admit. (*TODO*)
+}(*end [Subcase: at_external0]*)
+
+case HLT1: (LinkerSem.halted0 st1)=> [rv|].
+
+{(*[Subcase: halted0]*)
+case POP1: (popCore st1)=> [st1''|//].
+case AFT1: (LinkerSem.after_external (Some rv) st1'')=> [st1'''|//] eq1 A.
+admit. (*TODO*)
+}(*end [Subcase: halted0]*)
+
+by [].
+
+} (*end [Case: diagram]*)
 
 Admitted. (*WORK-IN-PROGRESS*)
 
