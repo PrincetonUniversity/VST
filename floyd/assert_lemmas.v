@@ -172,6 +172,16 @@ apply proj_sumbool_is_true.
 auto.
 Qed.
 
+Lemma overridePost_overridePost:
+ forall P Q R, overridePost P (overridePost Q R) = overridePost P R.
+Proof.
+intros.
+unfold overridePost.
+extensionality ek vl; simpl.
+if_tac; auto.
+Qed.
+Hint Rewrite overridePost_overridePost : norm.
+
 Lemma overridePost_normal':
   forall P R, overridePost P R EK_normal None = P.
 Proof.
@@ -898,6 +908,95 @@ Proof. reflexivity. Qed.
 Lemma unfold_make_args_nil: make_args nil nil = globals_only.
 Proof. reflexivity. Qed.
 Hint Rewrite unfold_make_args_cons unfold_make_args_nil : norm.
+
+Lemma clear_make_args':
+ forall (P: mpred) fsig args,
+    @liftx (Tarrow environ (LiftEnviron mpred))
+                    (@liftx (LiftEnviron mpred) P)
+      (make_args' fsig args) = `P.
+Proof. intros. reflexivity. Qed.
+Hint Rewrite clear_make_args': norm.
+
+
+Lemma eval_make_args':
+  forall (Q: val -> Prop) i fsig args,
+  @liftx (Tarrow environ (LiftEnviron Prop))
+      (@liftx (Tarrow val (LiftEnviron Prop)) Q (eval_id i))
+   (make_args' fsig args) =
+  `Q (`(eval_id i) (make_args' fsig args)).
+Proof. reflexivity. Qed.
+Hint Rewrite eval_make_args' : norm.
+
+Lemma eval_make_args_same:
+ forall i t fsig t0 tl (e: expr) el,
+ `(eval_id i) (make_args' ((i,t)::fsig, t0) (eval_exprlist (t::tl) (e::el))) = 
+   `force_val (`(sem_cast (typeof e) t) (eval_expr e)).
+Proof.
+intros.
+extensionality rho.
+unfold make_args'.
+unfold_lift.
+simpl.
+unfold eval_id.
+simpl.
+rewrite Map.gss.
+simpl.
+unfold_lift.
+reflexivity.
+Qed.
+
+Lemma eval_make_args_other:
+ forall i j fsig t0 t t' tl (e: expr) el,
+   i<>j ->
+  `(eval_id i) (make_args' ((j,t)::fsig, t0) (eval_exprlist (t'::tl) (e::el))) =
+   `(eval_id i) (make_args' (fsig, t0) (eval_exprlist tl el)).
+Proof.
+intros. extensionality rho.
+unfold make_args'.
+unfold_lift.
+simpl.
+unfold eval_id.
+simpl.
+rewrite Map.gso; auto.
+Qed.
+
+Hint Rewrite eval_make_args_same : norm.
+Hint Rewrite eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
+
+Infix "oo" := Basics.compose (at level 54, right associativity).
+Arguments Basics.compose {A B C} g f x / .
+
+Lemma compose_backtick:
+  forall A B C (F: B -> C) (G: A -> B) (J: environ -> A),
+   `F (`G  J) = `(Basics.compose F G) J.
+Proof. reflexivity. Qed.
+Hint Rewrite compose_backtick : norm.
+
+Lemma compose_eval_make_args_same:
+  forall (Q: val -> Prop) i t fsig t0 tl e el,
+  @liftx (Tarrow environ (LiftEnviron Prop))
+      (Q oo (eval_id i)) (make_args' ((i,t)::fsig,t0) (eval_exprlist (t::tl) (e::el))) =
+  `Q (`force_val (`(sem_cast (typeof e) t) (eval_expr e))).
+Proof. 
+  intros.
+  rewrite <- compose_backtick.
+  f_equal. apply eval_make_args_same.
+Qed.
+
+Lemma compose_eval_make_args_other:
+  forall Q i j fsig t0 t t' tl (e: expr) el,
+   i<>j ->
+    @liftx (Tarrow environ (LiftEnviron Prop))
+     (Q oo (eval_id i)) (make_args' ((j,t)::fsig, t0) (eval_exprlist (t'::tl) (e::el))) =
+     `Q (`(eval_id i) (make_args' (fsig, t0) (eval_exprlist tl el))).
+Proof.
+  intros.
+  rewrite <- compose_backtick.
+  f_equal. apply eval_make_args_other; auto.
+Qed.
+
+Hint Rewrite compose_eval_make_args_same : norm.
+Hint Rewrite compose_eval_make_args_other using (solve [clear; intro Hx; inversion Hx]) : norm.
 
 Lemma substopt_unfold {A}: forall id v, @substopt A (Some id) v = @subst A id v.
 Proof. reflexivity. Qed.

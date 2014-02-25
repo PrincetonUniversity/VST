@@ -1,26 +1,12 @@
 Require Import floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
-Require Import sha.sha_lemmas.
 Require Import sha.spec_sha.
+Require Import sha.sha_lemmas.
+Require Import sha.verif_sha_update2.
 Local Open Scope nat.
 Local Open Scope logic.
 
-Definition sha_update_inv sh hashed len c d (frag: list Z) (data: list Z) r_Nh r_Nl (done: bool) :=
-   (EX blocks:list int,
-   PROP  (len >= length blocks*4 - length frag /\
-              NPeano.divide LBLOCK (length blocks) /\ 
-              intlist_to_Zlist blocks = frag ++ firstn (length blocks * 4 - length frag) data /\
-             if done then len-(length blocks*4 - length frag) < CBLOCK else True)
-   LOCAL  (`(eq (offset_val (Int.repr 40) c)) (eval_id _p);
-   `(eq c) (eval_id _c); `(eq (offset_val (Int.repr (Z.of_nat (length blocks*4-length frag))) d)) (eval_id _data);
-   `(eq (Vint (Int.repr (Z.of_nat (len- (length blocks*4 - length frag)))))) (eval_id _len))
-   SEP  (K_vector;
-    `(array_at tuint Tsh (tuints (process_msg init_registers (hashed ++ blocks))) 0 8 c);
-    `(sha256_length (hilo r_Nh r_Nl + (Z.of_nat len)*8) c);
-   `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
-   `(field_at_ Tsh t_struct_SHA256state_st _num c);
-   `(data_block sh data d))).
 
 Lemma Hblocks_lem:
  forall {blocks: list int} {frag: list Z} {data},
@@ -230,128 +216,6 @@ rewrite NPeano.Nat.add_sub_swap by auto.
   by omega.
  cancel.
 apply derives_refl'. f_equal. auto.
-Qed.
-
-Definition update_inner_if :=
-           (Sifthenelse
-              (Ebinop Oge (Etempvar _len tuint) (Etempvar _fragment tuint)
-                 tint)
-              (Ssequence
-                 (Scall None
-                    (Evar _memcpy
-                       (Tfunction
-                          (Tcons (tptr tvoid)
-                             (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                          (tptr tvoid)))
-                    [Ebinop Oadd (Etempvar _p (tptr tuchar))
-                       (Etempvar _n tuint) (tptr tuchar),
-                    Etempvar _data (tptr tuchar), Etempvar _fragment tuint])
-                 (Ssequence
-                    (Scall None
-                       (Evar _sha256_block_data_order
-                          (Tfunction
-                             (Tcons (tptr t_struct_SHA256state_st)
-                                (Tcons (tptr tvoid) Tnil)) tvoid))
-                       [Etempvar _c (tptr t_struct_SHA256state_st),
-                       Etempvar _p (tptr tuchar)])
-                    (Ssequence
-                       (Sset _data
-                          (Ebinop Oadd (Etempvar _data (tptr tuchar))
-                             (Etempvar _fragment tuint) (tptr tuchar)))
-                       (Ssequence
-                          (Sset _len
-                             (Ebinop Osub (Etempvar _len tuint)
-                                (Etempvar _fragment tuint) tuint))
-                          (Scall None
-                             (Evar _memset
-                                (Tfunction
-                                   (Tcons (tptr tvoid)
-                                      (Tcons tint (Tcons tuint Tnil)))
-                                   (tptr tvoid)))
-                             [Etempvar _p (tptr tuchar),
-                             Econst_int (Int.repr 0) tint,
-                             Ebinop Omul (Econst_int (Int.repr 16) tint)
-                               (Econst_int (Int.repr 4) tint) tint])))))
-              (Ssequence
-                 (Scall None
-                    (Evar _memcpy
-                       (Tfunction
-                          (Tcons (tptr tvoid)
-                             (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                          (tptr tvoid)))
-                    [Ebinop Oadd (Etempvar _p (tptr tuchar))
-                       (Etempvar _n tuint) (tptr tuchar),
-                    Etempvar _data (tptr tuchar), Etempvar _len tuint])
-                 (Ssequence
-                    (Sassign
-                       (Efield
-                          (Ederef
-                             (Etempvar _c (tptr t_struct_SHA256state_st))
-                             t_struct_SHA256state_st) _num tuint)
-                       (Ebinop Oadd (Etempvar _n tuint)
-                          (Ecast (Etempvar _len tuint) tuint) tuint))
-                    (Sreturn None)))).
-
-Lemma overridePost_overridePost:
- forall P Q R, overridePost P (overridePost Q R) = overridePost P R.
-Proof.
-intros.
-unfold overridePost.
-extensionality ek vl; simpl.
-if_tac; auto.
-Qed.
-Hint Rewrite overridePost_overridePost : norm.
-
-Definition inv_at_inner_if sh hashed len c d dd data hi lo:=
- (PROP ()
-   (LOCAL 
-   (`(eq  (offset_val (Int.repr 40) c)) (eval_id _p);
-   `(eq (Vint (Int.repr (Zlength dd)))) (eval_id _n);
-   `(eq c) (eval_id _c); `(eq d) (eval_id _data);
-   `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len))
-   SEP  (`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8 c);
-    `(sha256_length (hilo hi lo + (Z.of_nat len)*8) c);
-   `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64 (offset_val (Int.repr 40) c));
-   `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd))) c);
-   K_vector;
-   `(data_block sh data d)))).
-
-Lemma update_inner_if_proof:
- forall (Espec: OracleKind) (hashed: list int) (dd data: list Z)
-            (c d: val) (sh: share) (len: nat) (hi lo: int)
- (H: len <= length data)
- (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
- (H3 : length dd < CBLOCK)
- (H3' : Forall isbyteZ dd)
- (H4 : NPeano.divide LBLOCK (length hashed))
- (Hlen : (Z.of_nat len <= Int.max_unsigned)%Z),
-semax
-  (initialized _fragment  (initialized _p
-     (initialized _n
-        (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot)))))
-  (inv_at_inner_if sh hashed len c d dd data hi lo)
-  update_inner_if
-  (overridePost (sha_update_inv sh hashed len c d dd data hi lo false)
-     (function_body_ret_assert tvoid
-        (EX  a' : s256abs,
-         PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
-         LOCAL ()
-         SEP  (K_vector; `(sha256state_ a' c); `(data_block sh data d))))).
-Proof.
-intros.
-simplify_Delta.
-unfold sha_update_inv, inv_at_inner_if, update_inner_if.
-abbreviate_semax.
-rewrite semax_seq_skip.
-forward_if (sha_update_inv sh hashed len c d dd data hi lo false).
- + entailer!.  (* cond-expression typechecks *)
- + (* then clause: len >= fragment *)
-   admit.
- + (* else clause: len < fragment *)
-    admit.
- + forward. (* bogus skip *)
-    rewrite overridePost_normal'.
-    apply andp_left2; auto.
 Qed.
 
 Lemma body_SHA256_Update: semax_body Vprog Gtot f_SHA256_Update SHA256_Update_spec.

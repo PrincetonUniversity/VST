@@ -174,7 +174,7 @@ destruct (zlt 0 (Z.of_nat CBLOCK - 8 - Zlength dd'));
  simpl eval_binop. normalize.
  unfold force_val2. simpl force_val. rewrite mul_repr, sub_repr.
 
- replace Delta with (initialized _ignore (initialized _ignore'1 (Delta_final_if1)))
+ replace Delta with (initialized _ignore (initialized _ignore'5 (Delta_final_if1)))
   by (simplify_Delta; reflexivity).
 
 eapply final_part2; eassumption.

@@ -1238,13 +1238,13 @@ Ltac unfold_for_go_lower :=
   cbv delta [PROPx LOCALx SEPx
                        eval_exprlist eval_expr eval_lvalue cast_expropt 
                        sem_cast eval_binop eval_unop force_val1 force_val2
-                      tc_expropt tc_expr tc_lvalue 
-                      typecheck_expr typecheck_lvalue
+                      tc_expropt tc_expr tc_exprlist tc_lvalue 
+                      typecheck_expr typecheck_exprlist typecheck_lvalue
                       function_body_ret_assert 
                       make_args' bind_ret get_result1 retval
                        classify_cast 
                        (* force_val sem_cast_neutral ... NOT THESE TWO!  *) 
-                      denote_tc_assert
+                      denote_tc_assert (* tc_andp tc_iszero *)
     liftx LiftEnviron Tarrow Tend lift_S lift_T
     lift_prod lift_last lifted lift_uncurry_open lift_curry 
      local lift lift0 lift1 lift2 lift3 

@@ -23,7 +23,7 @@ Qed.
 Definition Body_final_if1 := 
   (Ssequence
               (Ssequence
-                (Scall (Some _ignore')
+                (Scall (Some _ignore'4)
                   (Evar _memset (Tfunction
                                   (Tcons (tptr tvoid)
                                     (Tcons tint (Tcons tuint Tnil)))
@@ -35,7 +35,7 @@ Definition Body_final_if1 :=
                      (Ebinop Omul (Econst_int (Int.repr 16) tint)
                        (Econst_int (Int.repr 4) tint) tint)
                      (Etempvar _n tuint) tuint) :: nil))
-                (Sset _ignore (Etempvar _ignore' (tptr tvoid))))
+                (Sset _ignore (Etempvar _ignore'4 (tptr tvoid))))
               (Ssequence
                 (Sset _n (Econst_int (Int.repr 0) tint))
                 (Scall None
@@ -334,10 +334,10 @@ Lemma final_part4:
  length hashedmsg = 8%nat ->
  writable_share shmd ->
 semax
-  (initialized _ignore'2
+  (initialized _ignore'6
      (initialized _cNl
         (initialized _cNh
-           (initialized _ignore (initialized _ignore'1 Delta_final_if1)))))
+           (initialized _ignore (initialized _ignore'5 Delta_final_if1)))))
   (PROP  ()
    LOCAL  (`(eq md) (eval_id _md); `(eq c) (eval_id _c))
    SEP 
@@ -548,7 +548,6 @@ forward_for
  unfold at_offset.  unfold data_block.
  rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
  replace (Zlength (intlist_to_Zlist hashedmsg)) with 32%Z.
-Hint Resolve array_at__array_at : cancel.
  cancel.
  rewrite Zlength_correct; rewrite length_intlist_to_Zlist; rewrite H; reflexivity.
 Qed.

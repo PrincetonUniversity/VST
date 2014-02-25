@@ -132,15 +132,13 @@ simpl_compare.
 split3.
 symmetry; apply H4. reflexivity. omega.
 normalize.
- rewrite (Int.signed_repr 1) by repable_signed.
- rewrite (Int.signed_repr (size-j)) by repable_signed.
- rewrite (Int.signed_repr)  by repable_signed.
 forward. (* lo++; *)
 forward. (* hi--; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold reverse_Inv.
 apply exp_right with (Zsucc j).
 entailer.
+repeat rewrite (Int.signed_repr)  by repable_signed.
  simpl in H6,H8. rewrite Int.sub_signed in H6,H8.
  rewrite (Int.signed_repr 1) in H6,H8 by repable_signed.
  rewrite (Int.signed_repr (size-j)) in H6,H8 by repable_signed.
@@ -156,6 +154,9 @@ entailer.
  unfold upd. if_tac. subst.
  normalize.
  unfold flip_between.
+ rewrite (Int.signed_repr (size-i)) by repable_signed.
+ rewrite (Int.signed_repr 1)  by repable_signed.
+ rewrite Int.signed_repr by repable_signed.
  rewrite if_false by omega.
  rewrite if_true by omega.
  rewrite if_true by omega.

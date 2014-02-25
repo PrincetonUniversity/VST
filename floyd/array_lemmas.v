@@ -576,6 +576,8 @@ unfold data_at.
 auto.
 Qed.
 
+Hint Resolve array_at__array_at : cancel.
+
 Lemma split_array_at:
   forall (i : Z) (ty : type) (sh : Share.t) (contents : Z -> reptype ty)
     (lo hi : Z) (v : val),
@@ -672,6 +674,24 @@ Proof.
  simpl_data_at. rewrite array_at_ZnthV_nil.
   auto.
   rewrite sizeof_tarray_tuchar; auto.
+Qed.
+
+Lemma memory_block_array_tuchar':
+ forall sh n p, 
+   isptr p ->
+   (n>=0)%Z -> 
+   memory_block sh (Int.repr n) p = array_at_ tuchar sh 0 n p.
+Proof.
+ intros.
+ destruct p; try contradiction. clear H.
+ assert (n=0 \/ n>0)%Z by omega.
+ destruct H.
+ subst n. 
+ rewrite memory_block_zero.
+ unfold array_at_, array_at. rewrite prop_true_andp by apply I.
+ unfold rangespec;  simpl. reflexivity.
+ apply equal_f; 
+  apply memory_block_array_tuchar; auto.
 Qed.
 
 Lemma offset_val_array_at_:

@@ -25,7 +25,7 @@ Definition sha_final_epilog :=
            (Econst_int (Int.repr 0) tint))
         (Ssequence
            (Ssequence
-              (Scall (Some _ignore'2)
+              (Scall (Some _ignore'6)
                  (Evar _memset
                     (Tfunction
                        (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
@@ -33,7 +33,7 @@ Definition sha_final_epilog :=
                  [Etempvar _p (tptr tuchar), Econst_int (Int.repr 0) tint,
                  Ebinop Omul (Econst_int (Int.repr 16) tint)
                    (Econst_int (Int.repr 4) tint) tint])
-              (Sset _ignore (Etempvar _ignore'2 (tptr tvoid))))
+              (Sset _ignore (Etempvar _ignore'6 (tptr tvoid))))
            (Ssequence final_loop (Sreturn None))))).
 
 Lemma sha_final_part3:
@@ -46,7 +46,7 @@ forall (Espec : OracleKind) (md c : val) (shmd : share)
 semax
   (initialized _cNl
      (initialized _cNh
-        (initialized _ignore (initialized _ignore'1 Delta_final_if1))))
+        (initialized _ignore (initialized _ignore'5 Delta_final_if1))))
   (PROP  ()
    LOCAL  (`(eq (offset_val (Int.repr 40) c)) (eval_id _p);
    `(eq md) (eval_id _md); `(eq c) (eval_id _c))
@@ -107,8 +107,13 @@ entailer!.
 forward.  (* ignore = ignore'; *)
 fold t_struct_SHA256state_st.
 pose proof (length_process_msg (generate_and_pad msg)).
+
 replace Delta with
- (initialized _ignore'2 (initialized _cNl (initialized _cNh (initialized _ignore (initialized _ignore'1 Delta_final_if1)))))
+ (initialized _ignore'6
+   (initialized _cNl (initialized _cNh 
+   (initialized _ignore 
+     (initialized _ignore'5
+     Delta_final_if1)))))
  by (simplify_Delta; reflexivity).
 eapply semax_pre; [ | apply final_part4; auto].
 entailer!.
@@ -242,7 +247,7 @@ NPeano.divide LBLOCK (length hashed') ->
 intlist_to_Zlist hashed' ++ dd' =
 intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
 forall p0 : val,
-semax (initialized _ignore (initialized _ignore'1 Delta_final_if1))
+semax (initialized _ignore (initialized _ignore'5 Delta_final_if1))
   (PROP  ()
    LOCAL 
    (`(eq (force_val (sem_add_pi tuchar p0 (Vint (Int.repr (16 * 4 - 8))))))
@@ -316,7 +321,7 @@ semax (initialized _ignore (initialized _ignore'1 Delta_final_if1))
                           (Econst_int (Int.repr 0) tint))
                        (Ssequence
                           (Ssequence
-                             (Scall (Some _ignore'2)
+                             (Scall (Some _ignore'6)
                                 (Evar _memset
                                    (Tfunction
                                       (Tcons (tptr tvoid)
@@ -326,7 +331,7 @@ semax (initialized _ignore (initialized _ignore'1 Delta_final_if1))
                                 Econst_int (Int.repr 0) tint,
                                 Ebinop Omul (Econst_int (Int.repr 16) tint)
                                   (Econst_int (Int.repr 4) tint) tint])
-                             (Sset _ignore (Etempvar _ignore'2 (tptr tvoid))))
+                             (Sset _ignore (Etempvar _ignore'6 (tptr tvoid))))
                           (Ssequence
                              final_loop
                              (Sreturn None))))))))))

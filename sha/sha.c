@@ -164,6 +164,7 @@ void SHA256_Update (SHA256_CTX *c, const void *data_, size_t len) {
 	const unsigned char *data=data_;
 	unsigned char *p;
 	size_t   n, fragment;
+        void *ignore;
 
         SHA256_addlength(c, len);
 
@@ -172,14 +173,14 @@ void SHA256_Update (SHA256_CTX *c, const void *data_, size_t len) {
 	if (n != 0)	{
                 fragment = SHA_CBLOCK-n;
 		if (len >= fragment)  {
-			memcpy (p+n,data,fragment);
+			ignore=memcpy (p+n,data,fragment);
 			sha256_block_data_order (c,p);
 			data  += fragment;
 			len   -= fragment;
-			memset (p,0,SHA_CBLOCK);	/* keep it zeroed */
+			ignore=memset (p,0,SHA_CBLOCK);	/* keep it zeroed */
 		}
 		else  {
-			memcpy (p+n,data,len);
+			ignore=memcpy (p+n,data,len);
 			c->num = n+(unsigned int)len;
 			return;
 		}
@@ -193,7 +194,7 @@ void SHA256_Update (SHA256_CTX *c, const void *data_, size_t len) {
 
         c->num=len;
 	if (len != 0) {
-		memcpy (p,data,len);
+		ignore=memcpy (p,data,len);
         }
         return;
 }
