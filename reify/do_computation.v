@@ -36,13 +36,13 @@ Definition is_const_base (f : func) :=
   end.
  *)
 Section typed.
-  Variable user_types : list type.
+  Variable all_types : list type.
+  Variable all_functions : list (signature all_types).
   (* shadow definitions from functions.v with more useful ones *)
-  Let all_types := (all_types_r user_types).
-  Let functions := our_functions user_types.
+  (* Let all_types := (all_types_r user_types). *)
 
   Definition is_const_base (f : func) :=
-    NPeano.ltb f (computable_prefix_length user_types).
+    NPeano.ltb f (computable_prefix_length all_types).
 
   (* Decide if an expression can compute directly into a Const
    * (by converting the pre-defined functions we have defined
@@ -64,27 +64,30 @@ Section typed.
    * Expects that a user-supplied Ltac will have already converted
    * user-defined functions into Consts, as appropriate *)
 
-  Definition do_computation (user_functions : list (signature all_types)) (e : expr all_types) (t : tvar) :
+  Definition do_computation (e : expr all_types) (t : tvar) :
     option (tvarD all_types t) :=
     if is_const e then
-      match (@exprD all_types (functions ++ user_functions) nil nil e t) with
+      match (@exprD all_types (*(functions ++*) all_functions nil nil e t) with
         | Some v => Some v
         | None => None (** should be dead code if e is well typed **)
       end
     else
       None.
 
-  Lemma do_computation_correct : forall (user_functions : list (signature all_types)) (e : expr all_types) (t : tvar) (v : tvarD all_types t),
+  (*Lemma do_computation_correct : forall (user_functions : list (signature all_types)) (e : expr all_types) (t : tvar) (v : tvarD all_types t),
                                    do_computation user_functions e t = Some v ->
                                    forall (vars uvars : env all_types),
-                                     exprD (functions ++ user_functions) uvars vars e t = Some v.
+                                     exprD (functions ++ user_functions) uvars vars e t = Some v.*)
+  Lemma do_computation_correct : forall (e : expr all_types) (t : tvar) (v : tvarD all_types t),
+                                   do_computation e t = Some v ->
+                                   forall (vars uvars : env all_types),
+                                     exprD (all_functions) uvars vars e t = Some v.
   Proof.
     intros.
     unfold do_computation in *.
     destruct (is_const e); try congruence.
-    remember (exprD (functions ++ user_functions) [] [] e t) as exprDf.
-    fold all_types in HeqexprDf, H.
-    rewrite <- HeqexprDf in H.
+    remember (exprD (all_functions) [] [] e t) as exprDf.
+    (* rewrite HeqexprDf in H. *)
     destruct exprDf.
     - symmetry in HeqexprDf.
       eapply exprD_weaken in HeqexprDf.
@@ -96,19 +99,19 @@ Section typed.
     - inversion H.
   Qed.
 
-  (* Some fun little examples *)
+  (* Some fun little examples *) (*
   Eval vm_compute in (do_computation nil (Func 13 [(Func 1 [])]) (tvType 11)).
 
   Eval vm_compute in (do_computation nil (Equal nat_tv (Func 1 []) (Func 1 [])) tvProp).
   Eval vm_compute in (do_computation nil (Equal nat_tv (Func 13 [(Func 1 [])]) (Func 1 [])) tvProp).
-  Eval vm_compute in (do_computation nil (Equal nat_tv (Func 13 [(Func 1 [])]) (Func 13 [(Func 1 [])])) tvProp).
+  Eval vm_compute in (do_computation nil (Equal nat_tv (Func 13 [(Func 1 [])]) (Func 13 [(Func 1 [])])) tvProp). *)
 
-  Definition do_computation_equal (user_functions : list (signature all_types)) (e : expr all_types) : bool :=
+  Definition do_computation_equal (e : expr all_types) : bool :=
     match e with
       | Equal t l r =>
-        match do_computation user_functions l t with
+        match do_computation l t with
           | Some l' =>
-            match do_computation user_functions r t with
+            match do_computation r t with
               | Some r' => get_Eq all_types t l' r'
               | _ => false
             end
@@ -118,23 +121,23 @@ Section typed.
     end.
 
   (* some tests for do_computation_equal *)
-  Eval vm_compute in (do_computation nil (Func 1 []) (tvType 11)).
-  Eval vm_compute in (do_computation_equal nil (Equal (tvType 11) (Func 13 [(Func 1 [])]) (Func 13 [(Func 1 [])]))).
+  Eval vm_compute in (do_computation (Func 1 []) (tvType 11)).
+  Eval vm_compute in (do_computation_equal (Equal (tvType 11) (Func 13 [(Func 1 [])]) (Func 13 [(Func 1 [])]))).
 
   (* consider tactic needed for this correctness proof *)
   Require Import ExtLib.Tactics.Consider.
   Lemma do_computation_equal_correct :
-    forall (user_functions : list (signature all_types)) (t : tvar) (l r : expr all_types),
-      do_computation_equal user_functions (Equal t l r) = true ->
+    forall (t : tvar) (l r : expr all_types),
+      do_computation_equal (Equal t l r) = true ->
       exists (res : tvarD all_types t),
-        do_computation user_functions l t = Some res /\
-        do_computation user_functions r t = Some res.
+        do_computation l t = Some res /\
+        do_computation r t = Some res.
 
   Proof.
     intros.
     simpl in H.
-    remember (do_computation user_functions r t) as do_rhs.
-    remember (do_computation user_functions l t) as do_lhs.
+    remember (do_computation r t) as do_rhs.
+    remember (do_computation l t) as do_lhs.
     destruct do_lhs; destruct do_rhs; try (solve [inversion H]).
     - consider (get_Eq all_types t t0 t1). intro.
       exists t0. rewrite <- H. split; reflexivity.
