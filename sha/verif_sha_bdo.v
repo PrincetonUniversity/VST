@@ -8,19 +8,6 @@ Require Import sha.verif_sha_bdo3.
 Require Import sha.verif_sha_bdo4.
 Local Open Scope logic.
 
-Lemma local_and_retval: (* do we need this? *)
- forall (i: ident) (P: val -> Prop) (R: mpred),
-    `(local (`P retval) && `R) (get_result1 i) = local (`P (eval_id i)) && `R.
-Proof.
-intros.
-extensionality rho.
-super_unfold_lift.
-unfold get_result1. simpl.
-unfold local, lift1.
-f_equal; auto.
-Qed.
-Hint Rewrite local_and_retval: norm.
-
 Lemma sha256_block_data_order_loop2_proof:
   forall (Espec : OracleKind)
      (b: list int) ctx (regs: list int),

@@ -1360,3 +1360,50 @@ constructor. rewrite Int.unsigned_repr; auto.
 unfold isbyteZ in H; repable_signed.
 apply IHForall.
 Qed.
+
+Lemma local_and_retval: 
+ forall (i: ident) (P: val -> Prop) (R: mpred),
+    `(local (`P retval) && `R) (get_result1 i) = local (`P (eval_id i)) && `R.
+Proof.
+intros.
+extensionality rho.
+super_unfold_lift.
+unfold get_result1. simpl.
+unfold local, lift1.
+f_equal; auto.
+Qed.
+
+Lemma intro_PROP:
+ forall P1 Espec Delta P Q R c Post,
+  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- !! P1 ->
+  (P1 -> @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post) ->
+  @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post .
+Proof.
+intros.
+apply (semax_pre (PROPx (P1::P) (LOCALx Q (SEPx R)))).
+apply derives_trans with (!!P1 && PROPx P (LOCALx Q (SEPx R))).
+apply andp_right; auto.
+rewrite <- insert_local; apply andp_left2; auto.
+entailer.
+apply semax_extract_PROP; apply H0.
+Qed.
+
+Lemma cVint_force_int_ZnthV:
+ forall sh contents hi, 
+  (hi <= Zlength contents)%Z ->
+  array_at tuchar sh (cVint (force_int oo ZnthV tuchar (map Vint contents))) 0 hi = 
+  array_at tuchar sh (ZnthV tuchar (map Vint contents)) 0 hi.
+Proof.
+unfold ZnthV; simpl.
+intros.
+apply array_at_ext; intros.
+unfold cVint,Basics.compose.
+if_tac. omega.
+assert (Z.to_nat i < length contents)%nat.
+apply Nat2Z.inj_lt.
+rewrite <- Zlength_correct; rewrite Z2Nat.id by omega.
+omega.
+clear - H2; revert contents H2; induction (Z.to_nat i); intros; destruct contents; 
+simpl in *; try omega; auto.
+apply IHn. omega.
+Qed.
