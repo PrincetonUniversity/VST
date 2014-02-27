@@ -25,6 +25,9 @@ Unset Printing Implicit Defensive.
 
 Module GHOST. Section ghost.
 
+(* G is the type of global environments                                   *)
+(* C is the type of sem "core" states                                     *)
+
 Variables G C : Type.
 
 Variable sem : CoreSemantics G C mem.
@@ -37,11 +40,26 @@ Definition ghost_state := forall (adr : address), option T.
 
 Arguments ghost_state /.
 
-(* states in our extended core semantics are pairs of a 'core' and a ghost map *)
+(* States in our extended core semantics are pairs of a 'core' and a      *)
+(* ghost map.  It's also possible to pair the ghost state w/ the memories *)
+(* instead of w/ the core state.  In the latter case, you end up with a   *)
+(* core semantics of type                                                 *)
+(*                                                                        *)
+(*   CoreSemantics G C (mem*ghost_state)                                  *)
+(*                                                                        *)
+(* or perhaps more generally                                              *)
+(*                                                                        *)
+(*   CoreSemantics G C \phi                                               *)
+(*                                                                        *)
+(* where \phi is related to mem by some projection function \pi.  This    *)
+(* second type is similar to what we use in the VST [see files            *)
+(* veric/juicy_extspec.v, veric/juicy_mem.v]                              *)
 
 Record state : Type := 
   mk { core :> C
      ; ghost : ghost_state }.
+
+(* convenience operations for updating ghost state *)                       
 
 Definition updC (c : C) (st : state) :=
   match st with
@@ -52,8 +70,6 @@ Definition updGhost (x : ghost_state) (st : state) :=
   match st with
     | mk c _ => mk c x
   end.
-
-(* convenience operations for updating ghost state *)                       
 
 Definition get_ghost (st : state) (adr : address) : option T := ghost st adr.
 
@@ -87,8 +103,13 @@ Arguments halted /.
 (* Steps in the new operational semantics are either                      *)
 (*   1) steps of the old semantics, or                                    *)
 (*   2) "ghost" steps -- updates to ghost state of some form.             *)
+(*                                                                        *)
 (*      Note that we are parametric here in exactly how/when these        *)
-(*      updates are performed.                                            *)
+(*      updates are performed (that's what the relation R is doing).      *)
+(*                                                                        *)
+(*      Also, the wellfounded relation [ord] ensures that we don't        *)
+(*      take infinitely many ghost transitions all at once in the         *)
+(*      ghost semantics.                                                  *)
 
 Variable R : G -> ghost_state -> C -> mem -> ghost_state -> Prop.
 
@@ -142,7 +163,13 @@ Qed.
 
 End ghost. End GHOST.
 
+(* One possible erasure theorem -- "sem" simulates "ghostsem". *)          
+
 Section erasure.
+
+(* F, V are the usual CompCert types.                                     *)
+(* C is the type of core states of the parameterized semantics [sem].     *)
+(* T is the type of ghost states associated w/ each address.              *)
 
 Variables F V C T : Type.
 
@@ -162,22 +189,16 @@ Definition match_core (st0 : GHOST.ghost_state T) (st : GHOST.state C T) (c : C)
   GHOST.ghost st=st0 /\ GHOST.core st=c.
 
 Variable entry_points : list (val*val*signature).
+Variable entry_points_hyp : 
+  forall v1 v2 sig, 
+  List.In (v1,v2,sig) entry_points -> v1=v2.
 
 Variable ge : genv.
-
-Variable initial_core_hyp : 
-  forall v1 v2 sig vals,
-  List.In (v1, v2, sig) entry_points ->
-  exists c, 
-    initial_core sem ge v1 vals = Some c /\
-    initial_core sem ge v2 vals = Some c.
 
 Variable after_external_hyp :
   forall c ef sig vals,
   at_external sem c = Some (ef, sig, vals) ->
   forall ret, exists c', after_external sem (Some ret) c = Some c'.
-
-(* One possible erasure theorem -- "sem" simulates "ghostsem". *)          
 
 Lemma erasure : Forward_simulation_equals ghostsem sem ge ge entry_points.
 Proof.
@@ -200,11 +221,13 @@ apply Build_Forward_simulation_equals
   solve[exists O; simpl; auto]. }
   
 { intros until sig.
-  intros A vals.
-  destruct (initial_core_hyp vals A) as [c [H1 H2]].
-  exists (fun _ => None), (GHOST.mk c (fun _ => None)), c; simpl.
-  unfold GHOST.initial_core; rewrite H1.
-  split; auto.
+  intros c vals IN init.
+  exists (fun _ => None), (GHOST.core c); simpl.
+  assert (eq : v1=v2). solve[apply entry_points_hyp with (sig := sig); auto].
+  subst v1.
+  inversion init. generalize H0. unfold GHOST.initial_core.
+  case (initial_core sem ge v2 vals); try congruence.
+  intros c'; simpl; inversion 1; subst; simpl.
   split; auto.
   split; auto. }
 
