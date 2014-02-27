@@ -31,11 +31,11 @@ Section Sim_EQ_SIMU_DIAGRAMS.
   Hypothesis genvs_dom_eq: genvs_domain_eq ge1 ge2.
 
   Hypothesis match_initial_cores: 
-        forall v1 v2 sig, In (v1,v2,sig) entry_points ->
-        forall vals, 
-        exists c1 : C1, exists c2 : C2,
-                initial_core Sem1 ge1 v1 vals = Some c1 /\
-                initial_core Sem2 ge2 v2 vals = Some c2 /\ match_cores c1 c1 c2.
+        forall v1 v2 sig c1 vals, 
+          In (v1,v2,sig) entry_points ->
+          initial_core Sem1 ge1 v1 vals = Some c1 ->
+          exists c2 : C2,
+            initial_core Sem2 ge2 v2 vals = Some c2 /\ match_cores c1 c1 c2.
 
   Hypothesis eq_halted:
       forall (cd : core_data) (c1 : C1) (c2 : C2) v ,
@@ -83,8 +83,8 @@ Proof.
   assumption.
   intros. destruct H0; subst.  destruct (eq_simulation _ _ _ _ H _ H1) as [c2' [MC' Step]].
   exists c2'.  exists st1'.  split; eauto. clear eq_simulation eq_after_external eq_at_external .
-  intros. destruct (match_initial_cores _ _ _ H vals) as [c1' [c2' [MIC1 [MIC2 MC]]]].
-  exists c1'. exists c1'. exists c2'. split; eauto.
+  intros. destruct (match_initial_cores _ _ _ c1 vals H H0) as [c2' [MIC2 MC]].
+  exists c1. exists c2'. split; eauto.
   intros.  clear eq_simulation eq_after_external eq_at_external . destruct H; subst.
   eapply eq_halted; eauto.
   apply eq_at_external.
@@ -152,15 +152,15 @@ Section Sim_EXT_SIMU_DIAGRAMS.
       match_states cd c1 m1 c2 m2 -> forall b,
       (Mem.valid_block m1 b <-> Mem.valid_block m2 b).
 
-  Hypothesis match_initial_cores: forall v1 v2 sig,
+  Hypothesis match_initial_cores: forall v1 v2 sig c1 vals,
       In (v1,v2,sig) entry_points ->
+      initial_core Sem1 ge1 v1 vals = Some c1 -> 
         forall vals vals' m1 m2,
           Forall2 Val.lessdef vals vals' ->
           Mem.extends m1 m2 ->
-          exists c1, exists c2,
-            initial_core Sem1 ge1 v1 vals = Some c1 /\
+          exists cd, exists c2,
             initial_core Sem2 ge2 v2 vals' = Some c2 /\
-            match_states c1 c1 m1 c2 m2.
+            match_states cd c1 m1 c2 m2.
 
   Hypothesis ext_halted:
       forall cd st1 m1 st2 m2 v1,
@@ -172,7 +172,7 @@ Section Sim_EXT_SIMU_DIAGRAMS.
 
   Hypothesis ext_at_external: 
         forall d st1 m1 st2 m2 e vals1 sig,
-          (d = st1 /\ match_states d st1 m1 st2 m2) ->
+         match_states d st1 m1 st2 m2 ->
          at_external Sem1 st1 = Some (e, sig, vals1) ->
          exists vals2,
           Mem.extends m1 m2 /\
@@ -181,7 +181,7 @@ Section Sim_EXT_SIMU_DIAGRAMS.
 
   Hypothesis ext_after_external:
       forall d st1 st2 m1 m2 e vals1 vals2 ret1 ret2 m1' m2' sig,
-        (d=st1 /\ match_states d st1 m1 st2 m2) ->
+        match_states d st1 m1 st2 m2 ->
         at_external Sem1 st1 = Some (e,sig,vals1) ->
         at_external Sem2 st2 = Some (e,sig,vals2) ->
 
@@ -197,7 +197,7 @@ Section Sim_EXT_SIMU_DIAGRAMS.
         exists st1', exists st2', exists d',
           after_external Sem1 (Some ret1) st1 = Some st1' /\
           after_external Sem2 (Some ret2) st2 = Some st2' /\
-          d' = st1' /\ match_states d' st1' m1' st2' m2'. 
+          match_states d' st1' m1' st2' m2'. 
 
 Section EXT_SIMULATION_STAR_WF.
 Variable order: C1 -> C1 -> Prop.
@@ -205,31 +205,28 @@ Hypothesis order_wf: well_founded order.
 
 Hypothesis ext_simulation:
   forall c1 m1 c1' m1',  corestep Sem1 ge1 c1 m1 c1' m1' ->
-    forall c2 m2, match_states c1 c1 m1 c2 m2 ->
-      exists c2', exists m2', 
-        match_states c1' c1' m1' c2' m2' /\
+    forall cd c2 m2, match_states cd c1 m1 c2 m2 ->
+      exists cd', exists c2', exists m2', 
+        match_states cd' c1' m1' c2' m2' /\
         (corestep_plus Sem2 ge2  c2 m2 c2' m2' \/ 
-          (corestep_star Sem2 ge2 c2 m2 c2' m2' /\ order c1' c1)).
-
+          (corestep_star Sem2 ge2 c2 m2 c2' m2' /\ order cd' cd)).
 
 Lemma ext_simulation_star_wf: 
   Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   eapply Forward_simulation_ext.Build_Forward_simulation_extends with
         (core_ord := order)
-        (match_state := fun d c1 m1 c2 m2 => d = c1 /\ match_states d c1 m1 c2 m2).
+        (match_state := match_states).
    apply order_wf.
    assumption.
-   intros. destruct H; subst. 
-           apply (Hyp_valid _ _ _ _ _ H0).
-   intros. destruct H0; subst.
-              destruct (ext_simulation _ _ _ _ H _ _ H1) as [c2' [m2' [MC' Step]]].
-              exists c2'. exists m2'. exists st1'.  split; eauto.
-   intros. destruct (match_initial_cores _ _ _ H _ _ _ _ H0 H1) 
-    as [c1' [c2' [MIC1 [MIC2 MC]]]].
-        exists c1'. exists c1'. exists c2'. split; eauto.
-   intros. destruct H; subst.
-     destruct (ext_halted _ _ _ _ _ _ H1 H0)
+   intros. apply (Hyp_valid _ _ _ _ _ H).
+   intros. destruct (ext_simulation _ _ _ _ H _ _ _ H0) as [cd' [c2' [m2' [MC' Step]]]].              
+           exists c2'. exists m2'. exists cd'.  split; eauto.
+   intros. destruct (match_initial_cores _ _ _ _ _ H H0 _ _ _ _ H1 H2)
+    as [cd [c2' [MIC2 MC]]].
+        exists cd. exists c2'. split; eauto. 
+   intros. 
+     destruct (ext_halted _ _ _ _ _ _ H H0)
         as [v2 [LD2 [Halted2 Ext2]]].
      exists v2. split; trivial. split; trivial.
    intros. eapply ext_at_external; eauto. 
@@ -244,13 +241,14 @@ Section EXT_SIMULATION_STAR.
   Hypothesis ext_star_simulation:
     forall (c1 : C1) (m1 : mem) (c1' : C1) (m1' : mem),
       corestep Sem1 ge1 c1 m1 c1' m1' ->
-      forall (c2 : C2) (m2 : mem),
-        match_states c1 c1 m1 c2 m2 ->
-        exists c2' : C2,
-          exists m2' : mem,
-            match_states c1' c1' m1' c2' m2' /\
-            (corestep_plus Sem2 ge2 c2 m2 c2' m2' \/ 
-             corestep_star Sem2 ge2 c2 m2 c2' m2' /\ ltof C1 measure c1' c1).
+      forall cd (c2 : C2) (m2 : mem),
+        match_states cd c1 m1 c2 m2 ->
+        exists cd',
+          exists c2' : C2,
+            exists m2' : mem,
+              match_states cd' c1' m1' c2' m2' /\
+              (corestep_plus Sem2 ge2 c2 m2 c2' m2' \/ 
+                corestep_star Sem2 ge2 c2 m2 c2' m2' /\ ltof C1 measure cd' cd).
 
 Lemma ext_simulation_star: 
   Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 ge1 ge2 entry_points.
@@ -258,8 +256,8 @@ Proof.
   eapply ext_simulation_star_wf.
   apply  (well_founded_ltof _ measure).
   intros.
-  destruct (ext_star_simulation _ _ _ _ H _ _ H0) as [c2' [m2' [CSP MC']]].
-  exists c2'; exists m2'; split; auto.
+  destruct (ext_star_simulation _ _ _ _ H _ _ _ H0) as [cd' [c2' [m2' [CSP MC']]]].
+  exists cd'; exists c2'; exists m2'; split; auto.
 Qed.
 
 End EXT_SIMULATION_STAR.
@@ -268,17 +266,17 @@ Section EXT_SIMULATION_PLUS.
   Variable measure: C1 -> nat. 
   Hypothesis ext_plus_simulation:
     forall c1 m1 c1' m1', corestep Sem1 ge1 c1 m1 c1' m1'  -> 
-    forall c2 m2, match_states c1 c1 m1 c2 m2 ->
-      exists c2', exists m2', 
+    forall cd c2 m2, match_states cd c1 m1 c2 m2 ->
+      exists cd', exists c2', exists m2', 
         corestep_plus Sem2 ge2 c2 m2 c2' m2' /\ 
-        match_states c1' c1' m1' c2' m2'.
+        match_states cd' c1' m1' c2' m2'.
 
 Lemma ext_simulation_plus: 
   Forward_simulation_ext.Forward_simulation_extends Sem1 Sem2 ge1 ge2 entry_points.
 Proof.
   apply ext_simulation_star with (measure:=measure).
-  intros. destruct (ext_plus_simulation _ _ _ _ H _ _ H0) as [c2' [m2' [MC STEP]]].
-  eexists; eexists; split; eauto.
+  intros. destruct (ext_plus_simulation _ _ _ _ H _ _ _ H0) as [cd' [c2' [m2' [MC STEP]]]].
+  eexists; eexists; eexists; split; eauto.
 Qed.
 
 End EXT_SIMULATION_PLUS.

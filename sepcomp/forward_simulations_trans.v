@@ -231,10 +231,9 @@ Proof. intros.
   eapply (diagram_eqeq _ _ _ core_diagram12 _ _ _ core_diagram23); eassumption. 
            (*initial_core*)
   intros. rename v2 into v3. rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
-  destruct (core_initial12 _ _ _ EP12 vals) as [d12 [c1 [c2 [Ini1 [Ini2 MC12]]]]].
-  destruct (core_initial23 _ _ _ EP23 vals) as [d23 [c22 [c3 [Ini22 [Ini3 MC23]]]]].
-  rewrite Ini22 in Ini2. inv Ini2.
-  exists (d12,Some c2,d23). exists c1. exists c3. split; trivial. split; trivial. 
+  destruct (core_initial12 _ _ _ _ _ EP12 H0) as [d12 [c2 [Ini2 MC12]]].
+  destruct (core_initial23 _ _ _ _ _ EP23 Ini2) as [d23 [c3 [Ini3 MC23]]].
+  exists (d12,Some c2,d23). exists c3. split; trivial. 
     exists c2. split; trivial. split; trivial.
            (*halted*)
   intros. rename c2 into c3. destruct cd as [[d12 cc2] d23]. 
@@ -420,12 +419,11 @@ Proof. intros.
   eapply (diagram_eqext _ _ _ core_diagram12 _ _ _ core_diagram23); eassumption. 
            (*initial_core*)
   intros. rename v2 into v3. rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
-  destruct (core_initial12 _ _ _ EP12 vals) as [d12 [c1 [c2 [Ini1 [Ini2 MC12]]]]].
-  destruct (core_initial23 _ _ _ EP23 vals vals' _ _ H0 H1)
-    as [d23 [c22 [c3 [Ini22 [Ini3 MC23]]]]].
-  rewrite Ini22 in Ini2. inv Ini2.
-  exists (d12,Some c2,d23). exists c1. exists c3. 
-  split; trivial. split; trivial. exists c2. split; trivial. split; trivial.
+  destruct (core_initial12 _ _ _ _ _ EP12 H0) as [d12 [c2 [Ini2 MC12]]].
+  destruct (core_initial23 _ _ _ _ _ EP23 Ini2 vals0 vals' _ _ H1 H2)
+    as [d23 [c3 [Ini3 MC23]]].
+  exists (d12,Some c2,d23). exists c3. 
+  split; trivial. exists c2. split; auto.
            (*halted*)
   intros. rename st2 into c3. 
     destruct cd as [[d12 cc2] d23]. 
@@ -667,9 +665,9 @@ Proof. intros.
             (*initial_core*)
                   intros. rename v2 into v3. rewrite (EPC v1 v3 sig) in H. 
                     destruct H as [v2 [EP12 EP23]].
-                  destruct (core_initial12 _ _ _ EP12 vals1) 
-                    as [d12 [c11 [c2 [Ini1 [Ini2 MC12]]]]]. rewrite Ini1 in H0. inv H0.
-                  destruct (core_initial23 _ _ _ EP23 _ _ _ _ _ _  Ini2 H1 H2) 
+                  destruct (core_initial12 _ _ _ _ _ EP12 H0)
+                    as [d12 [c2 [Ini2 MC12]]]. 
+                  destruct (core_initial23 _ _ _ EP23 _ _ _ _ _ _ Ini2 H1 H2) 
                     as [d23 [c3 [Ini3 MC23]]].
                   apply meminj_preserves_genv2blocks.
                      apply meminj_preserves_genv2blocks in H3.
@@ -887,12 +885,12 @@ Proof. intros.
             (*initial_core*)
                   intros. rename v2 into v3. rewrite (EPC v1 v3 sig) in H. 
                     destruct H as [v2 [EP12 EP23]].
-                  destruct (core_initial12 _ _ _ EP12 _ _ _ _ H0 H1) 
-                    as [d12 [c1 [c2 [Ini1 [Ini2 MC12]]]]].
-                  destruct (core_initial23 _ _ _ EP23 vals') as [d23 [c22 [c3 [Ini22 [Ini3 MC23]]]]].
-                  rewrite Ini22 in Ini2. inv Ini2.
-                  exists (d12,Some c2, d23). exists c1. exists c3. 
-                  split; trivial. split; trivial. exists c2. split; trivial. split; trivial.
+                  destruct (core_initial12 _ _ _ _ _ EP12 H0 _ _ _ _ H1 H2) 
+                    as [d12 [c2 [Ini2 MC12]]].
+                  destruct (core_initial23 _ _ _ _ _ EP23 Ini2) 
+                    as [d23 [c3 [Ini3 MC23]]].
+                  exists (d12,Some c2, d23). exists c3. 
+                  split; trivial. exists c2. split; trivial. split; trivial.
              (*halted*)
                   intros. rename st2 into c3.  destruct cd as [[d12 cc2] d23]. 
                     destruct H as [c2 [X [MC12 MC23]]]; subst. 
@@ -1099,12 +1097,11 @@ Proof. intros.
  (*initial_core*)
   intros. rename m2 into m3. rename vals' into args3. rename vals into args1. rename v2 into v3.
   rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
-  destruct (core_initial12 _ _ _ EP12 _ _ m1 _ (forall_lessdef_refl args1) (extends_refl _)) 
-    as [d12 [c1 [c2 [Ini1 [Ini2 MC12]]]]]; try assumption.
-  destruct (core_initial23 _ _ _ EP23 _ _ _ _ H0 H1) 
-    as [d23 [c22 [c3 [Ini22 [Ini3 MC23]]]]]; try assumption.
-  rewrite Ini22 in Ini2. inv Ini2.
-  exists (d12,Some c2, d23). exists c1. exists c3. split; trivial. split; trivial.
+  destruct (core_initial12 _ _ _ _ _ EP12 H0 _ _ m1 _ (forall_lessdef_refl args1) (extends_refl _))
+    as [d12 [c2 [Ini2 MC12]]]; try assumption.
+  destruct (core_initial23 _ _ _ _ _ EP23 Ini2 _ _ _ _ H1 H2) 
+    as [d23 [c3 [Ini3 MC23]]]; try assumption.
+  exists (d12,Some c2, d23). exists c3. split; trivial. 
   exists c2. exists m1. split; trivial. split; trivial.
  (*halted*)
   intros. rename st2 into c3. rename m2 into m3.  destruct cd as [[d12 cc2] d23]. 
@@ -1387,9 +1384,9 @@ Proof. intros.
             (*initial_core*)
                  intros. rename v2 into v3. rename vals2 into vals3. rename m2 into m3.
                  rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
-                 destruct (core_initial12 _ _ _ EP12 _ _ _ _ 
+                 destruct (core_initial12 _ _ _ _ _ EP12 H0 _ _ _ _ 
                             ( forall_lessdef_refl vals1) (Mem.extends_refl m1))
-                   as [d12 [c11 [c2 [Ini1 [Ini2 MC12]]]]]. rewrite Ini1 in H0. inv H0.
+                   as [d12 [c2 [Ini2 MC12]]].
                  destruct (core_initial23 _ _ _ EP23 _ _ _ _ _ _  Ini2 H1 H2) 
                    as [d23 [c3 [Ini3 MC23]]].
                  apply meminj_preserves_genv2blocks.
@@ -1662,9 +1659,8 @@ Proof. intros.
                     destruct H as [v2 [EP12 EP23]].
                   destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ H0 H1 H2 H3) 
                     as [d12 [c2 [Ini2 MC12]]].
-                  destruct (core_initial23 _ _ _ EP23 vals2) 
-                    as [d23 [c22 [c3 [Ini22 [Ini3 MC23]]]]].
-                  rewrite Ini22 in Ini2. inv Ini2.
+                  destruct (core_initial23 _ _ _ _ _ EP23 Ini2) 
+                    as [d23 [c3 [Ini3 MC23]]].
                   exists (d12,Some c2,d23). exists c3. split; trivial.
                   exists c2. split; trivial. split; trivial.
              (*halted*)
@@ -1914,10 +1910,9 @@ Proof. intros.
                     rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
                   destruct (core_initial12 _ _ _ EP12 _ _ _ _ _ _ H0 H1 H2 H3) 
                     as [d12 [c2 [Ini2 MC12]]].
-                  destruct (core_initial23 _ _ _ EP23 _ _ _ _ 
+                  destruct (core_initial23 _ _ _ _ _ EP23 Ini2 _ _ _ _ 
                     (forall_lessdef_refl vals2) (extends_refl m3)) 
-                    as [d23 [c22 [c3 [Ini22 [Ini3 MC23]]]]].
-                  rewrite Ini22 in Ini2. inv Ini2.
+                    as [d23 [c3 [Ini3 MC23]]].
                   exists (d12,Some c2,d23). exists c3. split; trivial.
                   exists c2. exists m3. split; trivial. split; assumption.
            (*halted*)

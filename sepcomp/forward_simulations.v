@@ -48,13 +48,12 @@ Module Forward_simulation_eq. Section Forward_simulation_equals.
             corestep_star Sem2 ge2 st2 m st2' m' /\
             core_ord d' d);
 
-    core_initial : forall v1 v2 sig,
+    core_initial : forall v1 v2 sig c1 vals,
       In (v1,v2,sig) entry_points ->
-        forall vals,
-          exists cd, exists c1, exists c2,
-            initial_core Sem1 ge1 v1 vals = Some c1 /\
-            initial_core Sem2 ge2 v2 vals = Some c2 /\
-            match_core cd c1 c2;
+      initial_core Sem1 ge1 v1 vals = Some c1 -> 
+      exists cd, exists c2,
+        initial_core Sem2 ge2 v2 vals = Some c2 /\
+        match_core cd c1 c2;
 
     core_halted : forall cd c1 c2 v,
       match_core cd c1 c2 ->
@@ -123,13 +122,13 @@ Module Forward_simulation_ext. Section Forward_simulation_extends.
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             core_ord cd' cd);
 
-    core_initial : forall v1 v2 sig,
+    core_initial : forall v1 v2 sig c1 vals,
       In (v1,v2,sig) entry_points ->
+      initial_core Sem1 ge1 v1 vals = Some c1 -> 
         forall vals vals' m1 m2,
           Forall2 Val.lessdef vals vals' ->
           Mem.extends m1 m2 ->
-          exists cd, exists c1, exists c2,
-            initial_core Sem1 ge1 v1 vals = Some c1 /\
+          exists cd, exists c2,
             initial_core Sem2 ge2 v2 vals' = Some c2 /\
             match_state cd c1 m1 c2 m2;
 

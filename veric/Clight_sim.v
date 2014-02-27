@@ -1795,14 +1795,15 @@ Proof.
  (* initial states *)
       intros. unfold cl_core_sem, CC_core_sem; simpl. 
       unfold cl_initial_core, CC_initial_core; simpl.
-     eexists. eexists. split. reflexivity. split. reflexivity.
+     eexists. split. eexists. (*split. reflexivity. split. reflexivity.*)
        assert (v1=v2). unfold  CompilerCorrectness.entryPts_ok in ext_ok.
           admit. (*again some Genv/entrypojnts/ext_ok stuff*)
-       subst.
-       econstructor. simpl.
+       subst. 
+       (*econstructor. simpl.
           admit. (*Definition of CC_initial_core seems to be wrong here*)
          simpl. assert (myStatement = Sskip). admit. 
-          rewrite H0. econstructor. simpl. constructor. simpl. constructor.
+          rewrite H0. econstructor. simpl. constructor. simpl. constructor.*)
+       admit. (* initial_core case needs fixing *)
  (* final states *)  
       intros. unfold cl_core_sem in H0. simpl in H0. unfold cl_halted  in H0. inv H0.
   (*at_external*)
