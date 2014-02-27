@@ -41,7 +41,26 @@ intros.
  apply Hblocks_lem in Hblocks; auto.
 Qed.
 
-Lemma SHA256_Update_aux:
+Definition sha_update_loop_body :=
+  (Ssequence
+     (Scall None
+        (Evar _sha256_block_data_order
+           (Tfunction
+              (Tcons (tptr t_struct_SHA256state_st) (Tcons (tptr tvoid) Tnil))
+              tvoid))
+        [Etempvar _c (tptr t_struct_SHA256state_st),
+        Etempvar _data (tptr tuchar)])
+     (Ssequence
+        (Sset _data
+           (Ebinop Oadd (Etempvar _data (tptr tuchar))
+              (Ebinop Omul (Econst_int (Int.repr 16) tint)
+                 (Econst_int (Int.repr 4) tint) tint) (tptr tuchar)))
+        (Sset _len
+           (Ebinop Osub (Etempvar _len tuint)
+              (Ebinop Omul (Econst_int (Int.repr 16) tint)
+                 (Econst_int (Int.repr 4) tint) tint) tuint)))).
+
+Lemma update_loop_body_proof:
  forall (Espec : OracleKind) (sh: share) (hashed : list int) (r_data data : list Z) (c d : val)
   (len : nat) (r_h : list int) (r_Nl r_Nh : int)
    (Delta : tycontext) (blocks bl : list int)
@@ -87,23 +106,7 @@ semax Delta
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
    `(field_at_ Tsh t_struct_SHA256state_st _num c);
    `(data_block sh data d)))
-  (Ssequence
-     (Scall None
-        (Evar _sha256_block_data_order
-           (Tfunction
-              (Tcons (tptr t_struct_SHA256state_st) (Tcons (tptr tvoid) Tnil))
-              tvoid))
-        [Etempvar _c (tptr t_struct_SHA256state_st),
-        Etempvar _data (tptr tuchar)])
-     (Ssequence
-        (Sset _data
-           (Ebinop Oadd (Etempvar _data (tptr tuchar))
-              (Ebinop Omul (Econst_int (Int.repr 16) tint)
-                 (Econst_int (Int.repr 4) tint) tint) (tptr tuchar)))
-        (Sset _len
-           (Ebinop Osub (Etempvar _len tuint)
-              (Ebinop Omul (Econst_int (Int.repr 16) tint)
-                 (Econst_int (Int.repr 4) tint) tint) tuint))))
+   sha_update_loop_body
   (loop1_ret_assert
      (sha_update_inv sh hashed len c d r_data data r_Nh r_Nl false)
      (normal_ret_assert
@@ -116,6 +119,7 @@ name len' _len.
 name data' _data.
 name p _p.
 name n _n.
+unfold sha_update_loop_body.
 subst Delta; simplify_Delta; abbreviate_semax.
 forward. (* sha256_block_data_order (c,data); *)
 instantiate (1:=(hashed++ blocks, 
@@ -219,66 +223,74 @@ rewrite NPeano.Nat.add_sub_swap by auto.
 apply derives_refl'. f_equal. auto.
 Qed.
 
-Lemma body_SHA256_Update: semax_body Vprog Gtot f_SHA256_Update SHA256_Update_spec.
+Definition update_outer_if :=
+     Sifthenelse
+        (Ebinop One (Etempvar _n tuint) (Econst_int (Int.repr 0) tint) tint)
+        (Ssequence
+           (Sset _fragment
+              (Ebinop Osub
+                 (Ebinop Omul (Econst_int (Int.repr 16) tint)
+                    (Econst_int (Int.repr 4) tint) tint) (Etempvar _n tuint)
+                 tuint)) update_inner_if)
+        Sskip.
+
+Lemma update_outer_if_proof:
+ forall  (Espec : OracleKind) (hashed : list int) 
+           (dd data : list Z) (c d : val) (sh : share) (len : nat)
+   (H : len <= length data)
+   (HBOUND : (s256a_len (S256abs hashed dd) + Z.of_nat len * 8 < two_p 64)%Z)
+   (c' : name _c)
+   (data_ : name _data_)
+   (len' : name _len)
+   (data' : name _data)
+   (p : name _p)
+   (n : name _n)
+   (fragment : name _fragment)
+   (hi : int)
+   (lo : int)
+   (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
+   (H3 : length dd < CBLOCK)
+   (H3' : Forall isbyteZ dd) 
+   (H4 : NPeano.divide LBLOCK (length hashed))
+   (Hlen : (Z.of_nat len <= Int.max_unsigned)%Z),
+semax
+  (initialized _p
+     (initialized _n
+        (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))
+  (PROP  ()
+   LOCAL 
+   (`eq (eval_id _p)
+      (`(deref_noload (tarray tuchar 64))
+         (`(offset_val (Int.repr (align 40 1))) (`force_ptr (eval_id _c))));
+   `(eq (Vint (Int.repr (Zlength dd)))) (eval_id _n);
+   `eq (eval_id _data) (eval_id _data_); `(eq c) (eval_id _c);
+   `(eq d) (eval_id _data_);
+   `((eq (Z.of_nat len) oo Int.unsigned) oo force_int) (eval_id _len))
+   SEP  (`(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
+   `(array_at tuint Tsh
+       (ZnthV tuint (map Vint (process_msg init_registers hashed))) 0 8 c);
+   `(at_offset 40
+       (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64)
+       c);
+   `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd)))
+       c); K_vector; `(data_block sh data d))) update_outer_if
+  (overridePost (sha_update_inv sh hashed len c d dd data hi lo false)
+     (function_body_ret_assert tvoid
+        (EX  a' : s256abs,
+         PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
+         LOCAL ()
+         SEP  (K_vector; `(sha256state_ a' c); `(data_block sh data d))))).
 Proof.
-start_function.
-name c' _c.
-name data_ _data_.
-name len' _len.
-name data' _data.
-name p _p.
-name n _n.
-name fragment _fragment.
-rename H0 into HBOUND.
-forward.  (* data=data_; *)
+intros.
+unfold update_outer_if.
+simplify_Delta; abbreviate_semax.
+unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 
-unfold sha256_length, sha256state_.
-normalize.
-intros [r_h [r_Nl [r_Nh [r_data r_num]]]].
-normalize.
-unfold s256a_len.
-unfold s256_relate in H0.
-destruct a as [hashed dd].
-simpl_data_at.
-unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
-destruct H0 as [H0 [H1 [H8 [[H3 H3'] [H4 H5]]]]].
-destruct H1 as [hi [lo [H1 [H6 H7]]]].
-subst r_Nh r_Nl.
-rename H8 into H1.
-subst r_data.
-subst r_h r_num.
-match goal with |- semax _ (PROPx nil ?Q) _ _ =>
- apply semax_pre with (PROPx ((Z.of_nat len <= Int.max_unsigned)%Z::nil) Q)
-end. (* TODO: make a tactic for this pattern of proving a new pure thing
-             followed by semax_extract_PROP *)
-entailer!.
-rewrite H1. apply Int.unsigned_range_2.
-apply semax_extract_PROP; intro Hlen.
-
-forward.  (* SHA256_addlength(c, len); *)
-instantiate (1:= (Z.of_nat len, c, hilo hi lo)) in (Value of witness). {
-entailer!.
-* rewrite <- H7. repeat rewrite <- (Z.mul_comm 8). rewrite <- (Z.mul_comm 4).
- rewrite Z.mul_add_distr_l. rewrite Z.mul_assoc.  change (8*4)%Z with 32%Z.
- repeat rewrite Zlength_correct;  omega.
-* simpl in HBOUND. rewrite <- H7. apply HBOUND.
-* unfold sha256_length.
- normalize; apply exp_right with lo. 
- normalize; apply exp_right with hi.
- entailer!.
-}
-
-cbv beta iota. normalize.
-forward. (* n = c->num; *)
-forward. (* p=c->data; *)
-entailer. simpl.
 forward_if (sha_update_inv sh hashed len c d dd data hi lo false).
 * entailer!.   (* cond-expression typechecks *)
 * (* then clause *)
 forward.  (* fragment = SHA_CBLOCK-n; *)
 rewrite semax_seq_skip.
-
-fold update_inner_if.
 
 apply semax_pre with (inv_at_inner_if sh hashed len c d dd data hi lo).
 unfold inv_at_inner_if; entailer!.
@@ -315,9 +327,36 @@ rewrite Zlength_correct in H6; destruct dd; inv H6.
  +  rewrite NPeano.Nat.sub_0_r, H2.
    apply Int.repr_unsigned.
  + rewrite <- app_nil_end. cancel.
-* (* after if (n!=0) *)
-eapply semax_seq' with
-     (sha_update_inv sh hashed len c d dd data hi lo true).
+Qed.
+
+Lemma update_while_proof:
+ forall (Espec : OracleKind) (hashed : list int) (dd data: list Z)
+    (c d : val) (sh : share) (len : nat) 
+  (H : len <= length data)
+  (HBOUND : (s256a_len (S256abs hashed dd) + Z.of_nat len * 8 < two_p 64)%Z)
+  (c' : name _c) (data_ : name _data_) (len' : name _len)  
+  (data' : name _data) (p : name _p) (n : name _n)  (fragment : name _fragment)
+  (hi lo : int)
+  (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
+  (H3 : length dd < CBLOCK)
+  (H3' : Forall isbyteZ dd) 
+  (H4 : NPeano.divide LBLOCK (length hashed)) 
+  (Hlen : (Z.of_nat len <= Int.max_unsigned)%Z),
+ semax
+  (update_tycon
+     (initialized _p
+        (initialized _n
+           (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))
+     update_outer_if) (sha_update_inv sh hashed len c d dd data hi lo false)
+  (Swhile
+     (Ebinop Oge (Etempvar _len tuint)
+        (Ebinop Omul (Econst_int (Int.repr 16) tint)
+           (Econst_int (Int.repr 4) tint) tint) tint) sha_update_loop_body)
+  (normal_ret_assert (sha_update_inv sh hashed len c d dd data hi lo true)).
+Proof.
+intros.
+simplify_Delta; abbreviate_semax.
+unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 apply semax_while.
 + reflexivity.
 + entailer!.
@@ -339,19 +378,16 @@ apply semax_while.
   split; [ clear; omega | ].
   rewrite Nat2Z.inj_sub by auto.
  omega.
-+ unfold LOOP_BODY, abbreviate; clear LOOP_BODY MORE_COMMANDS POSTCONDITION.
++ unfold LOOP_BODY, abbreviate; clear LOOP_BODY.
   unfold sha_update_inv at 1.
   normalize.
   apply extract_exists_pre; intro blocks.
   rewrite insert_local.
   apply semax_extract_PROP; apply intro_update_inv; intros.
- match goal with |- semax _ (PROPx _ ?QR) _ _ =>
- apply semax_pre with (PROP (Forall isbyteZ data; len - (length blocks*4 - length dd) >= CBLOCK) QR)
- end.
-rewrite (data_block_isbyteZ sh data d).
- {entailer. rename H2 into H2'.
-  rewrite mul_repr in H1; rewrite H1. 
-  apply prop_right; split; [ | reflexivity].
+ apply (intro_PROP (Forall isbyteZ data /\ len - (length blocks*4 - length dd) >= CBLOCK));
+  [ | intros [BYTESdata Hlen_ge]]. {
+  rewrite (data_block_isbyteZ sh data d).
+  entailer!. rename H2 into H2'.
   rewrite negb_true_iff in H1;
    unfold Int.ltu in H1;
   if_tac in H1; inv H1.
@@ -364,8 +400,6 @@ rewrite (data_block_isbyteZ sh data d).
   rewrite Nat2Z.inj_sub by auto.
   omega.
 }
-  apply semax_extract_PROP; intro BYTESdata.
-  apply semax_extract_PROP; intro Hlen_ge.
 pose (bl := Zlist_to_intlist (firstn CBLOCK (skipn (length blocks * 4 - length dd) data) )).
 assert (H97: CBLOCK <= length (skipn (length blocks * 4 - length dd) data)). {
 rewrite skipn_length
@@ -391,7 +425,7 @@ apply Forall_firstn.
 apply Forall_skipn; auto.
 }
 clearbody bl; clear H97.
- simple apply (SHA256_Update_aux Espec sh hashed dd data c d len (process_msg init_registers hashed) lo hi Delta blocks bl); 
+ simple apply (update_loop_body_proof Espec sh hashed dd data c d len (process_msg init_registers hashed) lo hi Delta blocks bl); 
    try assumption.
 simplify_Delta; reflexivity.
 reflexivity.
@@ -399,23 +433,96 @@ rewrite initial_world.Zlength_app.
 rewrite <- H7; f_equal.
 rewrite Zlength_intlist_to_Zlist.
 f_equal. apply Z.mul_comm.
-+
-  abbreviate_semax.
-  unfold sha_update_inv.   apply extract_exists_pre; intro blocks.
-  apply semax_extract_PROP; apply intro_update_inv; intros.
-  forward.    (* c->num=len; *)
-  forward_if  (EX  a' : s256abs,
-                    PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
-                    LOCAL ()
-                    SEP 
-                    (K_vector; `(sha256state_ a' c); `(data_block sh data d))).
- entailer.
- admit.  (* then-clause *)
- forward. (* else-clause *)
+Qed.
+
+Definition update_last_if :=
+  Sifthenelse
+     (Ebinop One (Etempvar _len tuint) (Econst_int (Int.repr 0) tint) tint)
+     (Ssequence
+        (Scall (Some _ignore'3)
+           (Evar _memcpy
+              (Tfunction
+                 (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                 (tptr tvoid)))
+           [Etempvar _p (tptr tuchar), Etempvar _data (tptr tuchar),
+           Etempvar _len tuint])
+        (Sset _ignore (Etempvar _ignore'3 (tptr tvoid)))) 
+   Sskip.
+Lemma update_last_if_proof:
+ forall  (Espec : OracleKind) (hashed : list int) 
+           (dd data : list Z) (c d : val) (sh : share) (len : nat)
+   (H : len <= length data)
+   (HBOUND : (s256a_len (S256abs hashed dd) + Z.of_nat len * 8 < two_p 64)%Z)
+   (c' : name _c)
+   (data_ : name _data_)
+   (len' : name _len)
+   (data' : name _data)
+   (p : name _p)
+   (n : name _n)
+   (fragment : name _fragment)
+   (hi : int)
+   (lo : int)
+   (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
+   (H3 : length dd < CBLOCK)
+   (H3' : Forall isbyteZ dd) 
+   (H4 : NPeano.divide LBLOCK (length hashed))
+   (Hlen : (Z.of_nat len <= Int.max_unsigned)%Z)
+   (blocks : list int)
+   (Hblocks_len : len >= length blocks * 4 - length dd)
+   (Hdiv : NPeano.divide LBLOCK (length blocks)) 
+   (Hblocks : intlist_to_Zlist blocks =
+          dd ++ firstn (length blocks * 4 - length dd) data)
+   (DONE : len - (length blocks * 4 - length dd) < CBLOCK) 
+   (Hblocks' : length blocks * 4 >= length dd),
+semax
+  (initialized _p
+     (initialized _n
+        (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))
+  (PROP  ()
+   LOCAL  (`(eq (offset_val (Int.repr 40) c)) (eval_id _p);
+   `(eq c) (eval_id _c);
+   `(eq (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length dd))) d))
+     (eval_id _data);
+   `(eq (Vint (Int.repr (Z.of_nat (len - (length blocks * 4 - length dd))))))
+     (eval_id _len))
+   SEP  (K_vector;
+   `(array_at tuint Tsh
+       (tuints (process_msg init_registers (hashed ++ blocks))) 0 8 c);
+   `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
+   `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
+   `(field_at Tsh
+       (Tstruct _struct_SHA256state_st
+          (Fcons _h (tarray tuint 8)
+             (Fcons _Nl tuint
+                (Fcons _Nh tuint
+                   (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
+          noattr) _num)
+     (`force_val
+        (`(sem_cast (typeof (Etempvar _len tuint)) tuint)
+           (eval_expr (Etempvar _len tuint))))
+     (eval_lvalue
+        (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
+           t_struct_SHA256state_st)); `(data_block sh data d)))
+  update_last_if
+  (normal_ret_assert
+     (EX  a' : s256abs,
+      PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
+      LOCAL ()
+      SEP  (K_vector; `(sha256state_ a' c); `(data_block sh data d)))).
+Proof.
+intros.
+unfold update_last_if; simplify_Delta; abbreviate_semax.
+forward_if'.
+ - entailer. (* if-condition evaluates *)
+ - (* then-clause *)
+  admit.
+ (*
+   forward. (* ignore=memcpy (p,data,len); *)
+*)
+ - (* else-clause *)
+ forward. 
  normalize.
- rewrite overridePost_normal'.
- apply exp_right 
-   with (S256abs (hashed++blocks) nil).
+ apply exp_right with (S256abs (hashed++blocks) nil).
  entailer.
  rewrite negb_false_iff in H1; apply int_eq_e in H1.
  assert (H2': Int.unsigned (Int.repr (Z.of_nat (len - (length blocks * 4 - length dd)))) = 
@@ -460,8 +567,102 @@ unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
  apply divide_length_app; auto.
  rewrite H2'.
  cancel.
+Qed.
+
+Lemma body_SHA256_Update: semax_body Vprog Gtot f_SHA256_Update SHA256_Update_spec.
+Proof.
+start_function.
+name c' _c.
+name data_ _data_.
+name len' _len.
+name data' _data.
+name p _p.
+name n _n.
+name fragment _fragment.
+rename H0 into HBOUND.
+
+fold update_inner_if_then in *.
+fold update_inner_if_else in *.
+fold update_inner_if in *.
+fold sha_update_loop_body in *.
+forward.  (* data=data_; *)
+
+unfold sha256_length, sha256state_.
+normalize.
+intros [r_h [r_Nl [r_Nh [r_data r_num]]]].
+normalize.
+unfold s256a_len.
+unfold s256_relate in H0.
+destruct a as [hashed dd].
+simpl_data_at.
+unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
+destruct H0 as [H0 [H1 [H8 [[H3 H3'] [H4 H5]]]]].
+destruct H1 as [hi [lo [H1 [H6 H7]]]].
+subst r_Nh r_Nl.
+rename H8 into H1.
+subst r_data.
+subst r_h r_num.
+apply (intro_PROP (Z.of_nat len <= Int.max_unsigned)%Z); 
+   [ | intro Hlen]. {
+entailer!.
+rewrite H1. apply Int.unsigned_range_2.
+}
+
+forward.  (* SHA256_addlength(c, len); *)
+instantiate (1:= (Z.of_nat len, c, hilo hi lo)) in (Value of witness). {
+entailer!.
+* rewrite <- H7. repeat rewrite <- (Z.mul_comm 8). rewrite <- (Z.mul_comm 4).
+ rewrite Z.mul_add_distr_l. rewrite Z.mul_assoc.  change (8*4)%Z with 32%Z.
+ repeat rewrite Zlength_correct;  omega.
+* simpl in HBOUND. rewrite <- H7. apply HBOUND.
+* unfold sha256_length.
+ normalize; apply exp_right with lo. 
+ normalize; apply exp_right with hi.
+ entailer!.
+}
+
+cbv beta iota. normalize.
+forward. (* n = c->num; *)
+forward. (* p=c->data; *)
+entailer. 
+simpl.
+replace Delta with (initialized _p (initialized _n (initialized _data
+                     (func_tycontext f_SHA256_Update Vprog Gtot))))
+ by (simplify_Delta; reflexivity).
+fold update_outer_if.
+apply semax_seq with (sha_update_inv sh hashed len c d dd data hi lo false).
+unfold POSTCONDITION, abbreviate.
+apply update_outer_if_proof; assumption.
+(* after if (n!=0) *)
+eapply semax_seq' with
+     (sha_update_inv sh hashed len c d dd data hi lo true).
+clear POSTCONDITION MORE_COMMANDS Delta.
+apply update_while_proof; assumption.
+simplify_Delta; abbreviate_semax.
+unfold sha_update_inv.   apply extract_exists_pre; intro blocks.
+apply semax_extract_PROP; apply intro_update_inv; intros.
+forward.    (* c->num=len; *)
+
+apply semax_seq with (EX  a' : s256abs,
+                    PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
+                    LOCAL ()
+                    SEP 
+                    (K_vector; `(sha256state_ a' c); `(data_block sh data d))).
+
+replace Delta with (initialized _p (initialized _n (initialized _data
+                     (func_tycontext f_SHA256_Update Vprog Gtot))))
+ by (simplify_Delta; reflexivity).
+ unfold POSTCONDITION, abbreviate; clear POSTCONDITION Delta MORE_COMMANDS.
+
+make_sequential.
+rewrite overridePost_normal'.
+fold update_last_if.
+
+apply update_last_if_proof; assumption.
+abbreviate_semax.
+(* after the last if *)
  apply extract_exists_pre; intro a'.
- forward.
+ forward.  (* return; *)
  apply exp_right with a'.
  entailer!.
 Qed.

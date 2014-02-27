@@ -128,14 +128,19 @@ Focus 1.
 abstract (forward; (* skip; *)
 (* 619,968  655,716 *)
    entailer; apply prop_right; rewrite Z.sub_0_r; auto).
-(* 726,056  709,784 *)
-abstract (forward;  (* break; *)
-(* 738,188  709,784 *)
-  entailer; 
- assert (i=16)%nat by omega; subst i; 
- apply andp_right; [ apply prop_right | cancel];
- change 16%nat with LBLOCK in H3;
- repeat split; auto).
+(* 726,056  709,784 *) 
+abstract (
+   apply semax_extract_PROP; intro;
+   forward; (* break; *)
+   cbv beta;
+   rewrite overridePost_EK_break,
+       loop1_ret_assert_EK_break,
+        normal_ret_assert_elim;
+   entailer;
+   assert (i=16)%nat by omega; subst i;
+   apply andp_right; [ apply prop_right | cancel];
+   change 16%nat with LBLOCK in H3;
+   repeat split; auto).
 (* 854,860 750,176 *)
 unfold MORE_COMMANDS, POSTCONDITION, abbreviate;
  clear MORE_COMMANDS POSTCONDITION.

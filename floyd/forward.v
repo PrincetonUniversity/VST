@@ -527,17 +527,31 @@ Ltac forward_for Inv PreIncr Postcond :=
        ])
     ]; abbreviate_semax; autorewrite with ret_assert.
 
-Ltac forward_if post :=
-first [ignore (post: environ->mpred) 
-      | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
-apply semax_seq with post;
-[match goal with 
+
+Ltac forward_if' := 
+match goal with 
 | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                                  (Sifthenelse ?e _ _) _ => 
 (apply semax_pre with (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
 [ | apply semax_ifthenelse_PQR; 
     [ reflexivity | | ]] || fail 2 "semax_ifthenelse_PQR did not match"
-end | ]; abbreviate_semax; autorewrite with ret_assert.
+end.
+
+Ltac forward_if post :=
+first [ignore (post: environ->mpred) 
+      | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
+match goal with
+ | |- semax _ _ (Sifthenelse _ _ _) (overridePost post _) =>
+       forward_if' 
+ | |- semax _ _ (Sifthenelse _ _ _) ?P =>
+      apply (semax_post_flipped (overridePost post P)); 
+      [ forward_if'
+      | try solve [normalize]
+      ]
+   | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ =>
+     apply semax_seq with post;
+      [forward_if' | abbreviate_semax; autorewrite with ret_assert]
+end.
 
 Ltac normalize :=
  try match goal with |- context[subst] =>  autorewrite with subst typeclass_instances end;
