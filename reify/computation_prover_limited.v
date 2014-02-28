@@ -115,7 +115,6 @@ Section ComputationProver.
     Theorem computationProverCorrect : ProverCorrect all_functions computationValid computationProve.
     Proof.
       apply ProverCorrect_ProverCorrect'.
-      Opaque repr.
       t.
       destruct goal; try (solve [inversion H0]).
       (* equal case *)
@@ -135,6 +134,18 @@ Section ComputationProver.
 
       (* take care of the requirement that funcs can be extended appropriately *)
       intros.
+      apply repr_listToRepr_extend.
+      unfold repr_functions in H5.
+      Check listToRepr.
+      assert (forall l s, repr (listToRepr l s) nil = l). 
+      unfold nth_error.
+      unfold nth_error in H5.
+      unfold repr in H5. simpl in *.
+      unfold repr_functions in H5.
+      u
+      simpl in H5.
+      eapply H5.
+      unfold repr in H5.
       clear H2 H0.
       unfold repr_functions in H5.
       SearchAbout listToRepr.
