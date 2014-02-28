@@ -1,4 +1,3 @@
-Require Import Checkless.Checkless.
 Require Import floyd.proofauto.
 Require Import progs.reverse.
 Require Import progs.list_dt.
@@ -20,44 +19,12 @@ match res with
 Some (new_vars, new_uvars, SH.sheapD lhs', SH.sheapD rhs', SUBST_RAW.from_subst subst)
 | None => None
 end.
-
+Ltac id_this x := assert (forall n, x=n).
 
 Goal  emp |-- emp.
 Proof.
 pose_env.
 reify_derives.
-
-(*let types := get_types in 
-eapply (ApplyCancelSep_with_eq_goal 10 10 _ _ _ _ _ (vst_prover types) nil nil _ _ _ ). 
-apply eq_refl.
- constructor.
- constructor.
- apply vstProver_correct.
-
-
-assert (exists e, package_cancel (CancelModule.canceller (Sep.typeof_preds preds) nil nil
-     (vst_prover funcs.all_types.all_types) 10 10 (typeof_env uenv) nil
-     Sep.Emp Sep.Emp) = Some e).
-eexists.
-match goal with
-[ |- ?X = Some ?n] =>  
-let p := fresh p in pose (p:=X); fold p; vm_compute in p; unfold p; reflexivity
-end.
-simpl.
-pose (x:=CancelModule.canceller (Sep.typeof_preds preds) nil nil
-     (vst_prover funcs.all_types.all_types) 10 10 (typeof_env uenv) nil
-     Sep.Emp Sep.Emp).
-fold x.
-vm_compute in x; unfold x; reflexivity.
-Check vst_prover.
-let x:= eval vm_compute in ((fun _ => 1) (vst_prover funcs.all_types.all_types)) in idtac.
-let x:= eval vm_compute in (funcs.all_types.all_types) in idtac.
-Locate vst_prover.
-Print expr_seq_dec.
-Check ApplyCancelSep_with_eq_goal.
-let x:= eval compute in types in idtac. 
-vm_compute in Heqo. *)
-
 mirror_cancel_default.
 Qed.
 
@@ -82,7 +49,7 @@ Parameter Q : nat -> mpred.
 
 Axiom PQ : forall n, P n |--  Q n.
 
-Definition hint  : list (SL.sepLemma funcs.all_types.all_types).
+Definition hint  : list (SL.sepLemma types.our_types).
 pose_env.
 
 (*HintModule.reify_hints ltac:(fun x => x) tt tt isConst PQ types functions preds ltac:(fun funcs preds hints => idtac).*)

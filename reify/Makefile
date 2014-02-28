@@ -101,7 +101,6 @@ VFILES:=do_computation.v\
   functions.v\
   mirror_cancel.v\
   reify_derives.v\
-  reify_expr.v\
   reverse_defs.v\
   sep.v\
   symmetry_prover.v\

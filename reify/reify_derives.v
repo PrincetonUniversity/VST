@@ -12,11 +12,13 @@ Local Open Scope logic.
 
 Module ReifySepM := ReifySepExpr VericSepLogic Sep.
 
+Definition all_funcs :  list (Expr.signature our_types):= functions.our_functions nil.
+Definition all_preds : list (Sep.predicate our_types) := functions.sep_predicates nil.
 
 Ltac pose_env :=
-pose (functions := functions);
-pose (types := all_types);
-pose (preds := sep_predicates).
+pose (types := our_types);
+pose (functions := all_funcs);
+pose (preds := all_preds).
 
 (*Tactics for reifying derives and hypothesis *)
 
@@ -256,7 +258,7 @@ let rec reify_t uvars funcs k' :=
                                                       let r''' := constr:(r':: r'') in
                                                       k' uvars'' funcs'' r'''
   ))  
-      | _ => k' uvars funcs (@nil (Expr.expr all_types))
+      | _ => k' uvars funcs (@nil (Expr.expr our_types))
     end
 in
 reify_t uenv funcs k.
@@ -281,7 +283,7 @@ match P with
 | force_Opt (Expr.exprD _ _ _ ?e _) _ -> ?B => 
 let Bb := ci B in
 constr:(e :: Bb)
-| _ => constr:(@nil (Expr.expr all_types))
+| _ => constr:(@nil (Expr.expr our_types))
 end
 in
 match goal with 
