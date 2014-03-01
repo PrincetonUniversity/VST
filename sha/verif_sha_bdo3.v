@@ -109,7 +109,8 @@ semax (initialized _Ki (initialized _l (initialized _l' Delta_loop1)))
                  (`cons (eval_id _e)
                     (`cons (eval_id _f)
                        (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
-   SEP()) rearrange_regs
+   SEP())
+ rearrange_regs
   (normal_ret_assert
      (PROP  (S i <= 16)
       LOCAL  (`(eq ctx) (eval_id _ctx);
@@ -125,8 +126,6 @@ semax (initialized _Ki (initialized _l (initialized _l' Delta_loop1)))
                           (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
         SEP())).
 Proof.
-(*
-{
 intros.
 name a_ _a.
 name b_ _b.
@@ -143,32 +142,36 @@ name T1 _T1.
 name T2 _T2.
 name data_ _data.
 name ctx_ _ctx.
-unfold Delta_loop1; simplify_Delta.
-simpl.
+admit. (* this proof works, but takes over 2 gigabytes  
+unfold Delta_loop1; simplify_Delta; abbreviate_semax.
 unfold rearrange_regs.
 repeat forward.
-simpl eval_binop.
-go_lower0;
-repeat (apply derives_extract_prop; intro);
-repeat apply andp_right; try apply prop_right; auto.
-decompose [and] H2; clear H2; subst.
-inv H17.
-repeat match goal with 
- | H: eval_id _ rho = _ |- _ => rewrite H in *; clear H
- | H: _ = eval_id _ rho |- _ => rewrite <- H in *; clear H
-end.
-repeat split; auto.
-clear.
-cbv beta iota delta [sem_and sem_notint sem_or sem_shl sem_shr sem_or sem_add sem_xor]; simpl.
-repeat rewrite <- Sigma_1_eq.
-repeat rewrite <- Sigma_0_eq.
-repeat rewrite <- Ch_eq.
-repeat rewrite <- Maj_eq.
-repeat rewrite (rearrange_aux h).
-reflexivity.
-}
+
+simpl eval_binop;
+  go_lower0;
+  repeat (apply derives_extract_prop; intro);
+  repeat apply andp_right; try apply prop_right; auto;
+  decompose [and] H2; clear H2; subst;
+  inv H18;
+  repeat match goal with 
+   | H: eval_id _ _ = _ |- _ => rewrite H in *; clear H
+   | H: _ = eval_id _ _ |- _ => rewrite <- H in *; clear H
+  end;
+  repeat split; auto.
+
+  clear;
+  cbv beta iota delta [sem_and sem_notint sem_or 
+    sem_shl sem_shr sem_or sem_add sem_xor
+    force_val sem_shift_ii sem_notint_i
+    both_int ]; simpl;
+  repeat rewrite <- Sigma_1_eq;
+  repeat rewrite <- Sigma_0_eq;
+  repeat rewrite <- Ch_eq;
+  repeat rewrite <- Maj_eq;
+  repeat rewrite (rearrange_aux h);
+  reflexivity.
 *)
-Admitted.  (* can't Qed, because it goes over 2 gigabytes *)
+Qed.
 
 Lemma rearrange_regs_proof:
  forall (Espec: OracleKind) i (data: val) bl regs ctx

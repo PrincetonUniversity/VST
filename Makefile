@@ -145,7 +145,7 @@ PROGS_FILES= \
 SHA_FILES= \
   SHA256.v sha_lemmas.v sha_lemmas2.v \
   sha.v spec_sha.v verif_sha_init.v \
-  verif_sha_update.v verif_sha_update2.v verif_sha_update3.v \
+  verif_sha_update.v verif_sha_update2.v verif_sha_update3.v verif_sha_update4.v \
   verif_sha_bdo.v verif_sha_bdo2.v verif_sha_bdo3.v verif_sha_bdo4.v \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
   verif_addlength.v verif_SHA256.v entail_examples2.v 
