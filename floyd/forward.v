@@ -856,14 +856,14 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
   eapply (semax_load_field'');
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | try solve [entailer]
-   | solve [entailer; unfold at_offset; cancel]
+   | solve [entailer; simpl_data_at; unfold at_offset; simpl; cancel]
    | try apply I; try assumption; reflexivity
    ]
  | |- semax _ _ (Sset _ (Ecast (Efield _ _ _) _)) _ =>
   eapply (semax_cast_load_field'');
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | try solve [entailer]
-   | solve [entailer; unfold at_offset; cancel]
+   | solve [entailer; simpl_data_at; unfold at_offset; simpl; cancel]
    | try apply I; try assumption; reflexivity
    ]
  | |- semax _ _ (Sset _ (Ederef (Ebinop Oadd ?e1 ?e2 _) _)) _ =>
@@ -1014,7 +1014,7 @@ match goal with
 (**** 12.8 seconds to here ****)
  apply (semax_pre_later (PROPx P (LOCALx Q 
                 (SEPx (replace_nth n R (`(field_at_ sh (typeof e) fld) (eval_lvalue e)))))));
- [ eapply (fast_entail n); [reflexivity | entailer; cancel] | ];
+ [ eapply (fast_entail n); [reflexivity | entailer; unfold at_offset; simpl; cancel] | ];
 (**** 14.2 seconds to here  *)
  eapply (semax_store_field_nth _ _ n sh); 
    [reflexivity | auto | reflexivity | reflexivity | reflexivity
