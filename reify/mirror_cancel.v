@@ -13,9 +13,9 @@ Require Import MirrorShard.provers.ReflexivityProver.
 Require Export reify_derives.
 Require Import symmetry_prover.
 Require Import seplog.
+Require Import hints.
 
 Module SH := SepHeap.Make VericSepLogic Sep.
-Module SL := SepLemma VericSepLogic Sep.
 Module FM := FMapList.Make NatMap.Ordered_nat.
 Module SUBST := SimpleInstantiation.Make FM.
 Module SUBST_RAW := RawInstantiation.Make SUBST.
@@ -24,7 +24,6 @@ Module UNF := Unfolder.Make VericSepLogic Sep SH SUBST UNIFY SL.
 
 Module CancelModule := CancelTacBedrock.Make VericSepLogic Sep SH SL SUBST UNIFY UNF.
 
-Module HintModule := ReifyHints.Make VericSepLogic Sep SL. 
 
 Definition reflect_e types functions meta_env var_env :=
 fun h => force_Opt (@Expr.exprD types functions meta_env var_env h Expr.tvProp) False.
@@ -130,10 +129,10 @@ End typed.
 
 Ltac mirror_cancel_default :=
 let types := get_types in 
-eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types) nil nil); 
+eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types) left_lemmas right_lemmas); 
 [ reflexivity
-| constructor
-| constructor
+| HintModule.prove left_hints
+| HintModule.prove right_hints
 | apply vstProver_correct
 | reflexivity
 | try (split; [try apply I | try apply derives_emp])].

@@ -3,23 +3,16 @@ Require Import progs.reverse.
 Require Import progs.list_dt.
 Require Import reverse_defs.
 Require Import mirror_cancel.
-Require Import MirrorShard.ReifyHints.
+Require Import hints.
+
 Local Open Scope logic.
 
-Parameter mycon : Prop -> Prop -> mpred.
-
-Definition package_cancel {types} (res : option (CancelModule.CancellerResult types)) :=
-match res with 
-| Some {| CancelModule.AllExt := new_vars
-           ; CancelModule.ExExt  := new_uvars
-           ; CancelModule.Lhs    := lhs'
-           ; CancelModule.Rhs    := rhs'
-           ; CancelModule.Subst  := subst
-          |} =>
-Some (new_vars, new_uvars, SH.sheapD lhs', SH.sheapD rhs', SUBST_RAW.from_subst subst)
-| None => None
-end.
-Ltac id_this x := assert (forall n, x=n).
+Goal forall n, functions.P n |-- functions.Q n.
+intros.
+pose_env.
+reify_derives.
+mirror_cancel_default.
+Qed.
 
 Goal  emp |-- emp.
 Proof.
@@ -27,7 +20,6 @@ pose_env.
 reify_derives.
 mirror_cancel_default.
 Qed.
-
 
 Goal forall a,  a |-- a.
 Proof.
@@ -40,20 +32,14 @@ Qed.
 Goal forall a b, a * b |-- b * a.
 intros.
 pose_env.
+prepare_reify.
 reify_derives.
 mirror_cancel_default.
 Qed.
 
-Parameter P : nat -> mpred.
-Parameter Q : nat -> mpred.
 
-Axiom PQ : forall n, P n |--  Q n.
-
-Definition hint  : list (SL.sepLemma types.our_types).
-pose_env.
-
-(*HintModule.reify_hints ltac:(fun x => x) tt tt isConst PQ types functions preds ltac:(fun funcs preds hints => idtac).*)
- 
+Check ApplyCancelSep_with_eq_goal.
+Print SL.sepLemma.
 Goal forall (a b c d: nat), a = b -> b = c -> c = d -> P a |-- P d.
 Proof.
 intros.
@@ -138,10 +124,6 @@ match l with
 end . 
 
 
-SearchAbout Expr.signature.
-
-Print signature.
-
 Lemma provable_flatten_unflatten :  forall uenv nil e f,
 @Provable funcs.all_types.all_types (funcs.functions++f) uenv nil e <->
 Provable (funcs.functions ++f) uenv nil (unflatten_conjuncts (flatten_conjuncts e)).
@@ -220,5 +202,4 @@ intros.
 go_lower0.
 pose_env.
 reify_derives.
-(*reify_derives.*)
 Admitted.

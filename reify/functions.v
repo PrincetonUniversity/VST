@@ -1,9 +1,7 @@
 Require Import types.
-Require Import floyd.proofauto.
 Require Import sep.
 Require Import progs.list_dt.
 Require Import MirrorShard.Expr MirrorShard.Env.
-
 Definition all_types_r := repr (listToRepr types.our_types EmptySet_type).
 
 Section typed.
@@ -11,6 +9,13 @@ Section typed.
 Variable user_types : list type.
 
 Let all_types := all_types_r user_types.
+
+Locate tc_environ.
+
+Import SeparationLogic.
+Import Coqlib.
+Import field_mapsto.
+
 
 Definition tc_environ_signature :=
 Expr.Sig all_types (cons tycontext_tv (cons environ_tv nil)) tvProp tc_environ.
@@ -321,11 +326,22 @@ Definition True_f := S (eval_id_f).
 
 
 (*Separation Logic predicates *)
+Locate field_at.
 Definition field_at_f :=
 Sep.PSig all_types (share_tv :: c_type_tv :: ident_tv :: val_tv :: val_tv :: nil)
 field_at.
 
-Definition sep_predicates : list (Sep.predicate all_types) := field_at_f :: nil.
+(*Junk for testing*)
+Parameter P : nat -> mpred.
+Parameter Q : nat -> mpred.
+
+Definition sep_predicates : list (Sep.predicate all_types) :=
+field_at_f 
+     :: Sep.PSig all_types (tvType 11 :: nil)  P
+        :: Sep.PSig all_types (tvType 11 :: nil) Q :: nil.
+ 
+(*End junk, go back to following when tests are done*)
+(*Definition sep_predicates : list (Sep.predicate all_types) := field_at_f :: nil.*)
 
 Definition field_at_p := 0%nat.
 

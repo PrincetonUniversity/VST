@@ -106,7 +106,8 @@ VFILES:=do_computation.v\
   symmetry_prover.v\
   types.v\
   val_eq.v\
-  wrapExpr.v
+  wrapExpr.v\
+  hints.v
 
 -include $(addsuffix .d,$(VFILES))
 .SECONDARY: $(addsuffix .d,$(VFILES))
