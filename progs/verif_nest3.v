@@ -3,6 +3,10 @@ Require Import progs.nest3.
 
 Local Open Scope logic.
 
+Eval compute in (reptype' t_struct_c).
+Check data_at.
+Eval compute in (reptype t_struct_c).
+Check repinj.
 Definition get_spec :=
  DECLARE _get
   WITH v : reptype' t_struct_c
@@ -10,8 +14,8 @@ Definition get_spec :=
          PROP () LOCAL()
         SEP(`(data_at Ews t_struct_c (repinj _ v)) (eval_var _p t_struct_c))
   POST [ tint ]
-        `(data_at Ews t_struct_c (repinj _ v)) (eval_var _p t_struct_c).
-
+         PROP() (LOCAL (`(eq (Vint (snd (snd (snd v))))) (eval_id 1%positive))
+         SEP (`(data_at Ews t_struct_c (repinj _ v)) (eval_var _p t_struct_c))).
 
 Definition update222 (i: int) (v: reptype' t_struct_c) : reptype' t_struct_c :=
    (fst v, (fst (snd v), (fst (snd (snd v)), i))).
@@ -38,6 +42,7 @@ Proof.
 name i _i.
 apply (remember_value (eval_var _p t_struct_c)); intro p.
 simpl_data_at.
+ fold t_struct_a.
 forward.
 forward.
 erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
