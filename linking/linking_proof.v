@@ -924,7 +924,8 @@ Record R (data : Lex.t types) (mu : SM_Injection)
       , REACH_closed m1 (vis mu)
       , trash_inv mu_trash mu_top mus m1 m2
       , @head_inv c d pf (Lex.get c.(Core.i) data) mu_trash mu_top mus z m1 m2 
-      & tail_inv mu_trash mus z (pop s1) (pop s2) m1 m2] }.
+      & tail_inv mu_trash mus z (pop s1) (pop s2) m1 m2] 
+  ; R_fntbl : x1.(fn_tbl)=x2.(fn_tbl) }.
 
 End R.
 
@@ -1061,6 +1062,55 @@ by move: (tail_valid Z); rewrite -!All_comp.
 Qed.
 
 End R_lems.
+
+Section call_lems.
+
+Context
+(mu : Inj.t) m1 m2 ef sig args1 
+(st1 st1' : linker N cores_S) cd st2 id 
+(valid : sm_valid mu m1 m2)
+(fid : LinkerSem.fun_id ef = Some id)
+(atext1 : LinkerSem.at_external0 st1 = Some (ef,sig,args1))
+(hdl1 : LinkerSem.handle id st1 args1 = Some st1')
+(inv : R cd mu st1 m1 st2 m2).
+
+Lemma atext2 : 
+  exists args2, 
+    LinkerSem.at_external0 st2 = Some (ef,sig,args2)
+    /\ val_list_inject (as_inj mu) args1 args2.
+Proof.
+case: (R_inv inv)=> pf []mu_trash []mu_top []mus []x []_.
+move=> rc _; move/head_match.
+ unfold LinkerSem.at_external0 in atext1.
+have atext1':
+  at_external 
+    (RC.effsem (coreSem (cores_S (Core.i (peekCore st1))))) 
+    (Core.c (peekCore st1)) =
+  Some (ef,sig,args1). 
+  admit.
+move=> hd_match _.
+case: (core_at_external (sims (Core.i (c inv))) 
+      _ _ _ _ _ _ hd_match atext1').
+move=> inj []args2 []valinj atext2. 
+exists args2.
+split.
+rewrite /LinkerSem.at_external0.
+move: atext2.
+simpl.
+rewrite /RC.at_external. admit.
+apply: forall_inject_val_list_inject.
+admit.
+Qed.
+
+Lemma hdl2 args2 : 
+  LinkerSem.at_external0 st2 = Some (ef,sig,args2) -> 
+  val_list_inject (as_inj mu) args1 args2 -> 
+  exists st2',
+    LinkerSem.handle id st2 args2 = Some st2'
+    /\ R cd mu st1' m1 st2' m2.
+Admitted.
+
+End call_lems.
 
 Lemma link : SM_simulation_inject linker_S linker_T my_ge my_ge entry_points.
 Proof.
@@ -1283,7 +1333,11 @@ split.
      case: STEP'; first by move=> []n ?; exists (S n). 
      by move=> [][]n ? _; exists n.
    by eapply effstepN_valid in STEPN; eauto.
-   by apply: (head_rel hdinv). } } (*end [re-establish invariant]*)
+   by apply: (head_rel hdinv). } 
+
+ (* fn_tbl *)
+ { by rewrite (R_fntbl INV). } 
+ } (*end [re-establish invariant]*)
  
  {(* Label: [matching execution] *) 
  have EFFECTS_REFINEMENT: 
