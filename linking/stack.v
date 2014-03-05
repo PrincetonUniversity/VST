@@ -95,4 +95,12 @@ End Stack.
 
 Canonical Structure seq_stackTy T : STACK.type T := Stack.t T.
 
+Lemma pop_size U T (stack1 : seq U) (stack2 : seq T)
+  (pf1 : 1 <= size stack1) (pf2 : 1 <= size stack2) :
+  size (STACK.pop stack1) = size (STACK.pop stack2) -> 
+  size stack1 = size stack2.
+Proof.
+by case: stack1 pf1=> // a s1 ? /=; case: stack2 pf2=> // b s2 ? /= => ->.
+Qed.
+
 

@@ -253,11 +253,17 @@ Qed.
 (* [pushCore]: Push a new core onto the call stack.                       *)
 (* Succeeds only if all cores are currently at_external.                  *)
 
-Program Definition pushCore 
+Lemma stack_push_wf newCore :
+  all (atExternal my_cores) l.(stack).(callStack) -> 
+  wf_callStack (SeqStack.updStack (newCore :: l.(stack).(callStack))).
+Proof.
+by rewrite/wf_callStack=> H; apply/andP; split.
+Qed.
+
+Definition pushCore 
   (newCore: Core.t my_cores) 
-  (_ : all (atExternal my_cores) l.(stack).(callStack)) := 
-  updStack (CallStack.mk (STACK.push l.(stack) newCore) _).
-Next Obligation. by rewrite/wf_callStack; apply/andP; split. Qed.
+  (pf : all (atExternal my_cores) l.(stack).(callStack)) := 
+  updStack (CallStack.mk (STACK.push l.(stack) newCore) (stack_push_wf _ pf)).
 
 (* [popCore]: Pop the top core on the call stack.                         *)
 (* Succeeds only if the top core is running in a return context.          *)
@@ -333,17 +339,37 @@ Import CallStack.
 
 Definition handle :=
   (match all (atExternal my_cores) l.(stack).(callStack) as pf 
-        return (pf = all (atExternal my_cores) l.(stack).(callStack) 
+        return (all (atExternal my_cores) l.(stack).(callStack) = pf
                -> option (linker N my_cores)) with
     | true => fun pf => 
         if l.(fn_tbl) id is Some ix then
         if initCore my_cores ix (Vptr id Int.zero) args is Some c 
-          then Some (pushCore l c (Logic.eq_sym pf))
+          then Some (pushCore l c pf)
         else None else None
     | false => fun _ => None
-  end) Logic.eq_refl.
+  end) erefl.
 
 End handle.
+
+Section handle_lems.
+
+Import CallStack.
+
+Lemma handleP id l args l' :
+  handle id l args = Some l' <-> 
+  (exists (pf : all (atExternal my_cores) l.(stack).(callStack)) ix c,
+     [/\ l.(fn_tbl) id = Some ix 
+       , initCore my_cores ix (Vptr id Int.zero) args = Some c
+       & l' = pushCore l c pf]).
+Proof.
+rewrite/handle.
+set (x := all (atExternal my_cores) (callStack (stack l))).
+move: (erefl x).
+(*pattern x at 3 4 5 6.
+case pf: (all (atExternal my_cores) (callStack (stack l))).*)
+Admitted. (*dependent pattern matching idiocy*)
+
+End handle_lems.
 
 Definition initial_core (tt: ge_ty) (v: val) (args: list val)
   : option (linker N my_cores) :=

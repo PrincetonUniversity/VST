@@ -1701,3 +1701,12 @@ Lemma vis_restrict_sm mu X : vis (restrict_sm mu X) = vis mu.
 Proof.
 by extensionality b; case: mu.
 Qed.
+
+Lemma sm_locally_allocated_refl mu m1 m2 :
+  sm_locally_allocated mu mu m1 m2 m1 m2.
+Proof.
+case: mu=> // ? ? ? ? ? ? ? ? ? ? /=; split=> //.
+by extensionality b; rewrite freshloc_irrefl orb_false_r. 
+split; first by extensionality b; rewrite freshloc_irrefl orb_false_r. 
+by split.
+Qed.

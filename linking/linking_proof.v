@@ -557,6 +557,13 @@ by apply: (sm_valid_fwd val).
 by apply: (IH _ _ _ _ C).
 Qed.
 
+Lemma frame_all_size_eq : size s1 = size s2.
+Proof.
+elim: mus s1 s2 m1 m2 frameall=> //; first by case=> //; case.
+case=> ? ? ? ? mus' IH; case=> // a s1'; case=> // b s2' ? ?.
+by move/frame_all_tail=> /= H; f_equal; apply: (IH _ _ _ _ H).
+Qed.
+
 End frame_all_lems.
 
 Lemma tail_inv_inv mu_trash mu0 m10 m20 (z : tZ) x mus s1 s2 m1 m2 :
@@ -631,6 +638,11 @@ Lemma tail_valid_src :
 Proof. 
 case: tlinv=> _; move/frame_all_valid; rewrite -!All_comp=> H. 
 by apply: (All_sub H)=> pkg /=; apply: sm_valid_smvalid_src.
+Qed.
+
+Lemma tail_size_eq : size s1 = size s2.
+Proof.
+by case: tlinv=> _; move/frame_all_size_eq.
 Qed.
 
 End tail_inv_lems.
@@ -916,7 +928,7 @@ Record R (data : Lex.t types) (mu : SM_Injection)
   ; c   := STACK.head _ pf1 
   ; d   := STACK.head _ pf2 
 
-    (* invariant *)
+    (* main invariant *)
   ; R_inv : 
     exists (pf : c.(Core.i)=d.(Core.i)) mu_trash mu_top mus z, 
     let mu_tot := join_all (frame_mu0 mu_trash) $ map frame_mu0 (mu_top :: mus) in
@@ -925,7 +937,10 @@ Record R (data : Lex.t types) (mu : SM_Injection)
       , trash_inv mu_trash mu_top mus m1 m2
       , @head_inv c d pf (Lex.get c.(Core.i) data) mu_trash mu_top mus z m1 m2 
       & tail_inv mu_trash mus z (pop s1) (pop s2) m1 m2] 
+
+    (* side conditions *)
   ; R_fntbl : x1.(fn_tbl)=x2.(fn_tbl) }.
+(*  ; R_leneq : length (callStack x1) = length (callStack x2) }.*)
 
 End R.
 
@@ -1061,6 +1076,22 @@ split; first by apply: (head_valid Y).
 by move: (tail_valid Z); rewrite -!All_comp.
 Qed.
 
+Lemma R_len_callStack : size (callStack x1) = size (callStack x2).
+Proof.
+case: (R_inv pf)=> []pf0 []? []? []? []? []A B C D.
+move/tail_size_eq; rewrite /s1 /s2.
+have l1: ssrnat.leq 1 (size (callStack x1)). 
+  by move: (callStack_wf x1); move/andP=> [].
+have l2: ssrnat.leq 1 (size (callStack x2)). 
+  by move: (callStack_wf x2); move/andP=> [].
+by apply: pop_size.
+Qed.
+
+Lemma R_inContext : inContext x1 -> inContext x2.
+Proof.
+by rewrite /inContext /callStackSize R_len_callStack.
+Qed.
+
 End R_lems.
 
 Section call_lems.
@@ -1086,21 +1117,18 @@ have atext1':
   at_external 
     (RC.effsem (coreSem (cores_S (Core.i (peekCore st1))))) 
     (Core.c (peekCore st1)) =
-  Some (ef,sig,args1). 
-  admit.
+  Some (ef,sig,args1) by rewrite /RC.at_external.
 move=> hd_match _.
 case: (core_at_external (sims (Core.i (c inv))) 
       _ _ _ _ _ _ hd_match atext1').
-move=> inj []args2 []valinj atext2. 
-exists args2.
-split.
-rewrite /LinkerSem.at_external0.
-move: atext2.
-simpl.
-rewrite /RC.at_external. admit.
+move=> inj []args2 []valinj atext2; exists args2; split.
+rewrite /LinkerSem.at_external0; move: atext2.
+rewrite /= /RC.at_external. admit. (*stupid casting business*)
 apply: forall_inject_val_list_inject.
-admit.
+admit. (*vals injected by mu_top should be injected by mu*)
 Qed.
+
+Import CallStack.
 
 Lemma hdl2 args2 : 
   LinkerSem.at_external0 st2 = Some (ef,sig,args2) -> 
@@ -1108,7 +1136,29 @@ Lemma hdl2 args2 :
   exists st2',
     LinkerSem.handle id st2 args2 = Some st2'
     /\ R cd mu st1' m1 st2' m2.
-Admitted.
+Proof.
+move=> A B.
+case: (R_inv inv)=> pf []mu_trash []mu_top []mus []x []_.
+move=> rc trinv hdinv tlinv.
+move: hdl1.
+rewrite LinkerSem.handleP.
+move=> []all_at1 []ix []c1 []fntbl1 init1 st1'_eq.
+have [c2 init2]: 
+  exists c2, initCore cores_T ix (Vptr id Integers.Int.zero) args2 = Some c2.
+  admit.
+have all_at2: all (atExternal cores_T) (CallStack.callStack st2).
+  move: (callStack_wf st2); move/andP=> []atext_tail _.
+  admit. (*at_external0 st2 and all atext tail st2 -> all atext st2*)
+set (st2' := pushCore st2 c2 all_at2).
+exists st2'.
+split.
+rewrite LinkerSem.handleP.
+exists all_at2,ix,c2; split=> //.
+admit. (*easy condition in match; add interface lem to R_lems*)
+rewrite st1'_eq /st2'.
+move: inv.
+admit. (*need lemma re: pushCore,R,match*)
+Qed.
 
 End call_lems.
 
@@ -1456,7 +1506,33 @@ case AT1: (LinkerSem.at_external0 st1)=> [[[ef1 sig1] args1]|].
 {(*[Subcase: at_external0]*)
 case FID: (LinkerSem.fun_id ef1)=> [id|//].
 case HDL: (LinkerSem.handle _)=> [st1''|//] eq1 A.
-admit. (*TODO*)
+have wd: SM_wd mu by apply: (R_wd INV).
+have INV': R data (Inj.mk wd) st1 m1 st2 m2 by [].
+case: (atext2 AT1 INV')=> args2 []AT2 VINJ.
+case: (hdl2 HDL INV' AT2 VINJ)=> st2' []HDL2 INV2.
+exists st2',m2,data,mu.
+split=> //.
+split=> //.
+by apply: sm_inject_separated_refl.
+split=> //.
+by apply sm_locally_allocated_refl.
+rewrite -eq1 in INV2; split=> //.
+set (empty_U := fun (_ : block) (_ : Z) => false).
+exists empty_U.
+split=> //.
+left.
+exists O=> /=; exists st2',m2,empty_U,empty_U.
+split=> //.
+constructor=> //.
+right.
+split=> //.
+split=> //.
+move/LinkerSem.corestep_not_at_external0.
+by rewrite AT2.
+have in_ctx2: inContext st2 by apply: (R_inContext INV).
+by rewrite in_ctx2 AT2 FID HDL2.
+move/LinkerSem.corestep_not_at_external0.
+by rewrite AT2.
 }(*end [Subcase: at_external0]*)
 
 case HLT1: (LinkerSem.halted0 st1)=> [rv|].
