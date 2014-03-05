@@ -374,15 +374,6 @@ auto.
 Qed.
 Hint Resolve closed_wrt_eval_var : closed.
 
-Lemma closed_wrt_eval_expr: forall S e,
-  expr_closed_wrt_vars S e -> 
-  closed_wrt_vars S (eval_expr e).
-Proof.
-intros.
-apply H.
-Qed.
-Hint Resolve closed_wrt_eval_expr : closed.
-
 Lemma closed_wrt_cmp_ptr : forall S e1 e2 c,
   expr_closed_wrt_vars S e1 ->
   expr_closed_wrt_vars S e2 ->
@@ -504,7 +495,7 @@ Lemma closed_wrt_tc_temp_id :
                          expr_closed_wrt_vars S (Etempvar id t) ->
              closed_wrt_vars S (tc_temp_id id t Delta e).
 Admitted.
-Hint Resolve closed_wrt_tc_expr : closed.
+Hint Resolve closed_wrt_tc_temp_id : closed.
 
 
 Lemma expr_closed_tempvar:
@@ -606,20 +597,7 @@ apply (closed_wrt_subset _ _ H). auto.
 auto.
 Qed.
 
-Lemma closed_wrt_lvalue: forall S e,
-  access_mode (typeof e) = By_reference ->
-  closed_wrt_vars S (eval_expr e) -> closed_wrt_vars S (eval_lvalue e).
-Proof.
-intros.
-destruct e; simpl in *; auto with closed;
-unfold closed_wrt_vars in *;
-intros; specialize (H0 _ _ H1); clear H1; super_unfold_lift;
-unfold deref_noload in *; auto; rewrite H in H0; auto.
-Qed.
-Hint Resolve closed_wrt_lvalue : closed.
-
 Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : norm.
-
 
 Lemma closed_wrt_subst:
   forall {A} id e (P: environ -> A), closed_wrt_vars (eq id) P -> subst id e P = P.
@@ -1685,3 +1663,162 @@ Proof.
 intros. destruct p; reflexivity.
 Qed.
 Hint Rewrite isptr_force_ptr' : norm.
+
+Fixpoint subst_eval_expr (j: ident) (v: environ -> val) (e: expr) : environ -> val :=
+ match e with
+ | Econst_int i ty => `(Vint i)
+ | Econst_long i ty => `(Vlong i)
+ | Econst_float f ty => `(Vfloat f)
+ | Etempvar id ty => if eqb_ident j id then v else eval_id id 
+ | Eaddrof a ty => subst_eval_lvalue j v a 
+ | Eunop op a ty =>  `(eval_unop op (typeof a)) (subst_eval_expr j v a) 
+ | Ebinop op a1 a2 ty =>  
+                  `(eval_binop op (typeof a1) (typeof a2)) (subst_eval_expr j v a1) (subst_eval_expr j v a2)
+ | Ecast a ty => `(eval_cast (typeof a) ty) (subst_eval_expr j v a)
+ | Evar id ty => `(deref_noload ty) (eval_var id ty)
+ | Ederef a ty => `(deref_noload ty) (`force_ptr (subst_eval_expr j v a))
+ | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (subst_eval_lvalue j v a))
+ end
+
+ with subst_eval_lvalue (j: ident) (v: environ -> val) (e: expr) : environ -> val := 
+ match e with 
+ | Evar id ty => eval_var id ty
+ | Ederef a ty => `force_ptr (subst_eval_expr j v a)
+ | Efield a i ty => `(eval_field (typeof a) i) (subst_eval_lvalue j v a)
+ | _  => `Vundef
+ end.
+
+Lemma subst_eval_expr_eq:
+    forall j v e, subst j v (eval_expr e) = subst_eval_expr j v e
+with subst_eval_lvalue_eq: 
+    forall j v e, subst j v (eval_lvalue e) = subst_eval_lvalue j v e.
+Proof.
+intros j v; clear subst_eval_expr_eq; induction e; intros; simpl; try auto.
+unfold eqb_ident.
+unfold subst, eval_id, env_set, te_of. extensionality rho. 
+pose proof (Pos.eqb_spec j i).
+destruct H. subst. rewrite Map.gss. reflexivity.
+rewrite Map.gso; auto.
+rewrite <- IHe; clear IHe.
+unfold_lift.
+extensionality rho; unfold subst.
+reflexivity.
+unfold_lift.
+extensionality rho; unfold subst.
+rewrite <- IHe; reflexivity.
+unfold_lift.
+extensionality rho; unfold subst.
+rewrite <- IHe1, <- IHe2; reflexivity.
+unfold_lift.
+extensionality rho; unfold subst.
+rewrite <- IHe; reflexivity.
+unfold_lift.
+rewrite <- subst_eval_lvalue_eq.
+extensionality rho; unfold subst.
+f_equal. f_equal.
+
+intros j v; clear subst_eval_lvalue_eq; induction e; intros; simpl; try auto.
+unfold_lift.
+rewrite <- subst_eval_expr_eq.
+extensionality rho; unfold subst.
+f_equal.
+unfold_lift.
+extensionality rho; unfold subst.
+rewrite <- IHe.
+f_equal.
+Qed.
+
+Hint Rewrite subst_eval_expr_eq subst_eval_lvalue_eq : subst.
+
+Lemma closed_wrt_map_subst':
+   forall {A: Type} id e (Q: list (environ -> A)),
+         Forall (closed_wrt_vars (eq id)) Q ->
+         @map (LiftEnviron A) _ (subst id e) Q = Q.
+Proof.
+apply @closed_wrt_map_subst.
+Qed.
+
+Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : norm.
+Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : subst.
+Lemma closed_wrt_subst_eval_expr:
+  forall j v e, 
+   closed_wrt_vars (eq j) (eval_expr e) ->
+   subst_eval_expr j v e = eval_expr e.
+Proof.
+intros; rewrite <- subst_eval_expr_eq.
+apply closed_wrt_subst; auto.
+Qed.
+Lemma closed_wrt_subst_eval_lvalue:
+  forall j v e, 
+   closed_wrt_vars (eq j) (eval_lvalue e) ->
+   subst_eval_lvalue j v e = eval_lvalue e.
+Proof.
+intros; rewrite <- subst_eval_lvalue_eq.
+apply closed_wrt_subst; auto.
+Qed.
+Hint Rewrite closed_wrt_subst_eval_expr using solve [auto 50 with closed] : subst.
+Hint Rewrite closed_wrt_subst_eval_lvalue using solve [auto 50 with closed] : subst.
+
+Fixpoint closed_eval_expr (j: ident) (e: expr) : bool :=
+ match e with
+ | Econst_int i ty => true
+ | Econst_long i ty => true
+ | Econst_float f ty => true
+ | Etempvar id ty => negb (eqb_ident j id)
+ | Eaddrof a ty => closed_eval_lvalue j a 
+ | Eunop op a ty =>  closed_eval_expr j a
+ | Ebinop op a1 a2 ty =>  andb (closed_eval_expr j a1) (closed_eval_expr j a2)
+ | Ecast a ty => closed_eval_expr j a
+ | Evar id ty => true
+ | Ederef a ty => closed_eval_expr j a
+ | Efield a i ty => closed_eval_lvalue j a
+ end
+
+ with closed_eval_lvalue (j: ident) (e: expr) : bool := 
+ match e with 
+ | Evar id ty => true
+ | Ederef a ty => closed_eval_expr j a
+ | Efield a i ty => closed_eval_lvalue j a
+ | _  => false
+ end.
+
+Lemma closed_eval_expr_e: 
+    forall j e, closed_eval_expr j e = true -> closed_wrt_vars (eq j) (eval_expr e)
+with closed_eval_lvalue_e: 
+    forall j e, closed_eval_lvalue j e = true -> closed_wrt_vars (eq j) (eval_lvalue e).
+Proof.
+intros j e; clear closed_eval_expr_e; induction e; intros; simpl; auto with closed.
+simpl in H. destruct (eqb_ident j i) eqn:?; inv H.
+apply Pos.eqb_neq in Heqb. auto with closed.
+simpl in H.
+rewrite andb_true_iff in H. destruct H.
+auto with closed.
+intros j e; clear closed_eval_lvalue_e; induction e; intros; simpl; auto with closed.
+Qed.
+
+Hint Extern 2 (closed_wrt_vars (eq _) (eval_expr _)) => (apply closed_eval_expr_e; reflexivity) : closed.
+Hint Extern 2 (closed_wrt_vars (eq _) (eval_lvalue _)) => (apply closed_eval_lvalue_e; reflexivity) : closed.
+
+Lemma closed_wrt_eval_expr: forall S e,
+  expr_closed_wrt_vars S e -> 
+  closed_wrt_vars S (eval_expr e).
+Proof.
+intros.
+apply H.
+Qed.
+(* Hint Resolve closed_wrt_eval_expr : closed. *)
+
+Lemma closed_wrt_lvalue: forall S e,
+  access_mode (typeof e) = By_reference ->
+  closed_wrt_vars S (eval_expr e) -> closed_wrt_vars S (eval_lvalue e).
+Proof.
+intros.
+destruct e; simpl in *; auto with closed;
+unfold closed_wrt_vars in *;
+intros; specialize (H0 _ _ H1); clear H1; super_unfold_lift;
+unfold deref_noload in *; auto; rewrite H in H0; auto.
+Qed.
+(* Hint Resolve closed_wrt_lvalue : closed. *)
+
+
+

@@ -142,12 +142,22 @@ name T1 _T1.
 name T2 _T2.
 name data_ _data.
 name ctx_ _ctx.
-admit. (* this proof works, but takes over 2 gigabytes  
 unfold Delta_loop1; simplify_Delta; abbreviate_semax.
 unfold rearrange_regs.
-repeat forward.
-
-simpl eval_binop;
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+(* 1,732,160 *)
+simpl typeof.
+simpl update_tycon.
+simplify_Delta.
   go_lower0;
   repeat (apply derives_extract_prop; intro);
   repeat apply andp_right; try apply prop_right; auto;
@@ -158,7 +168,7 @@ simpl eval_binop;
    | H: _ = eval_id _ _ |- _ => rewrite <- H in *; clear H
   end;
   repeat split; auto.
-
+(* 1,732,164 *)
   clear;
   cbv beta iota delta [sem_and sem_notint sem_or 
     sem_shl sem_shr sem_or sem_add sem_xor
@@ -170,8 +180,8 @@ simpl eval_binop;
   repeat rewrite <- Maj_eq;
   repeat rewrite (rearrange_aux h);
   reflexivity.
-*)
-Qed.
+(* 1,743,816  ;   without the computational closedness: 1,913,256 *)
+Admitted. (* this proof works, but takes over 2 gigabytes  *)
 
 Lemma rearrange_regs_proof:
  forall (Espec: OracleKind) i (data: val) bl regs ctx

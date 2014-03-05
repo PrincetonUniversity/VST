@@ -570,8 +570,30 @@ Ltac normalize :=
     floyd.client_lemmas.normalize
   end.
 
-Ltac unfold_fold_eval_expr :=
-  unfold eval_expr,eval_lvalue, sem_cast; fold sem_cast; fold eval_expr; fold eval_lvalue.
+Lemma eqb_ident_true: forall i, eqb_ident i i = true.
+Proof.
+intros; apply Pos.eqb_eq. auto.
+Qed.
+
+Lemma eqb_ident_false: forall i j, i<>j -> eqb_ident i j = false.
+Proof.
+intros; destruct (eqb_ident i j) eqn:?; auto.
+apply Pos.eqb_eq in Heqb. congruence.
+Qed.
+
+Hint Rewrite eqb_ident_true : subst.
+Hint Rewrite eqb_ident_false using solve [auto] : subst.
+
+Ltac do_subst_eval_expr :=
+  autorewrite with subst; unfold subst_eval_expr, subst_eval_lvalue, sem_cast;
+     simpl eqb_ident; cbv iota;
+     fold sem_cast; fold eval_expr; fold eval_lvalue.
+
+(* old verion:
+Ltac do_subst_eval_expr :=
+  unfold eval_expr,eval_lvalue, sem_cast; fold sem_cast; fold eval_expr; fold eval_lvalue;
+  autorewrite with subst.
+*)
 
 Ltac forward_setx_aux1 :=
       apply forward_setx; 
@@ -581,8 +603,8 @@ Ltac forward_setx_aux1 :=
 Ltac forward_setx_aux2 id :=
            match goal with 
            | Name: name id |- _ => 
-                let x:= fresh Name in intro x; unfold_fold_eval_expr; autorewrite with subst; try clear x
-           | |- _ => let x:= fresh in intro x; unfold_fold_eval_expr; autorewrite with subst; try clear x
+                let x:= fresh Name in intro x; do_subst_eval_expr; try clear x
+           | |- _ => let x:= fresh in intro x; do_subst_eval_expr; try clear x
            end.
 
 Ltac forward_setx :=
@@ -605,9 +627,9 @@ Ltac intro_old_var' id :=
   match goal with 
   | Name: name id |- _ => 
         let x := fresh Name in
-        intro x; unfold_fold_eval_expr; autorewrite with subst; try clear x
+        intro x; do_subst_eval_expr; try clear x
   | |- _ => let x := fresh "x" in 
-        intro x; unfold_fold_eval_expr; autorewrite with subst; try clear x  
+        intro x; do_subst_eval_expr; try clear x  
   end.
 
 Ltac intro_old_var c :=
@@ -615,7 +637,7 @@ Ltac intro_old_var c :=
   | Sset ?id _ => intro_old_var' id
   | Scall (Some ?id) _ _ => intro_old_var' id
   | Ssequence _ (Sset ?id _) => intro_old_var' id
-  | _ => intro x; unfold_fold_eval_expr; autorewrite with subst; try clear x
+  | _ => intro x; do_subst_eval_expr; try clear x
   end.
 
 Ltac intro_old_var'' id :=

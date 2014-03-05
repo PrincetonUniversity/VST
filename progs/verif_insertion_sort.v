@@ -363,10 +363,12 @@ entailer. apply (exp_right sorted); entailer!.
 apply extract_exists_pre. intros sorted_val.
 forward.  (* sorted = insert(index, sorted); *)
 instantiate (1:= (sh, (insertion_sort sorted_list), insert_val, sorted_val)) in (Value of witness).
-unfold witness. 
+unfold witness.  simpl @snd.
 entailer!.
-autorewrite with subst. 
-forward. (* sorted := sorted'; *)
+auto with closed.
+autorewrite with subst.
+(* forward. (* sorted := sorted'; *) 
+entailer!.*)
 forward. (* index = next;*)
 unfold body_invariant.
 entailer.

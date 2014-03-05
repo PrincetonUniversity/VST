@@ -3,10 +3,6 @@ Require Import progs.nest3.
 
 Local Open Scope logic.
 
-Eval compute in (reptype' t_struct_c).
-Check data_at.
-Eval compute in (reptype t_struct_c).
-Check repinj.
 Definition get_spec :=
  DECLARE _get
   WITH v : reptype' t_struct_c

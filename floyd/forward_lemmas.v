@@ -270,17 +270,6 @@ rewrite andp_assoc; repeat rewrite insert_local; auto.
 rewrite insert_local; auto.
 Qed.
 
-Lemma closed_wrt_map_subst':
-   forall {A: Type} id e (Q: list (environ -> A)),
-         Forall (closed_wrt_vars (eq id)) Q ->
-         @map (LiftEnviron A) _ (subst id e) Q = Q.
-Proof.
-apply @closed_wrt_map_subst.
-Qed.
-
-Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : norm.
-Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : subst.
-
 Lemma forward_setx_closed_now':
   forall Espec Delta P (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e,
   Forall (closed_wrt_vars (eq id)) Q ->
@@ -765,7 +754,17 @@ apply semax_ifthenelse_PQR.
         unfold isCastResultType. destruct (typeof e2); 
                                         inv H0; simpl; apply I.
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
-        autorewrite with subst.  
+          rewrite (@closed_wrt_subst _ tid _ (eval_expr (Ecast e2 tbool)))
+    by (simpl; auto with closed).
+    rewrite (closed_wrt_map_subst _ _ R) by auto.
+   repeat rewrite map_cons. 
+   rewrite closed_wrt_subst by auto with closed.
+   rewrite closed_wrt_subst by auto with closed.
+    rewrite (closed_wrt_map_subst _ _ Q) by auto.
+    unfold tc_temp_id.
+   unfold typecheck_temp_id. rewrite H1.  simpl denote_tc_assert.
+   autorewrite with subst.
+   (* very strange here: look at the `False  term *)
         apply (semax_pre ((PROPx P
         (LOCALx
            (tc_environ (initialized tid Delta) ::
@@ -775,7 +774,8 @@ apply semax_ifthenelse_PQR.
                     (tc_expr Delta e2)
                   :: Q)
            (SEPx R))))).
-       go_lowerx. repeat apply andp_right; auto. apply prop_right; auto.
+       go_lowerx.  (*H7 is the very strange thing *)
+     contradiction; (* old stuff was: *) repeat apply andp_right; auto.
         eapply semax_post_flipped.
         eapply forward_setx.
         go_lowerx. apply andp_right; apply prop_right; auto.
@@ -790,9 +790,9 @@ apply semax_ifthenelse_PQR.
         repeat rewrite exp_andp2. apply exp_left; intro.
        simpl eval_expr. 
        autorewrite with subst.
-       rewrite (closed_wrt_subst _ _ (eval_expr e1)) by auto.
+(*       rewrite (closed_wrt_subst_eval_expr _ _ e1) by auto.
        rewrite (closed_wrt_subst _ _ (eval_expr e2)) by auto.
-       go_lowerx. apply andp_right; auto. apply prop_right; split; auto.
+ *)      go_lowerx. apply andp_right; auto. apply prop_right; split; auto.
        rewrite H6. rewrite H8.
         unfold logical_or_result.
         subst ek vl. simpl in  H2.
@@ -836,6 +836,17 @@ apply semax_ifthenelse_PQR.
         unfold isCastResultType. destruct (typeof e2); 
                                         inv H0; simpl; apply I.
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
+          rewrite (@closed_wrt_subst _ tid _ (eval_expr (Ecast e2 tbool)))
+    by (simpl; auto with closed).
+    rewrite (closed_wrt_map_subst _ _ R) by auto.
+   repeat rewrite map_cons. 
+   rewrite closed_wrt_subst by auto with closed.
+   rewrite closed_wrt_subst by auto with closed.
+    rewrite (closed_wrt_map_subst _ _ Q) by auto.
+    unfold tc_temp_id.
+   unfold typecheck_temp_id. rewrite H1.  simpl denote_tc_assert.
+   autorewrite with subst.
+   (* very strange here: look at the `False  term *)
         autorewrite with subst.  
         apply (semax_pre ((PROPx P
         (LOCALx
@@ -846,7 +857,8 @@ apply semax_ifthenelse_PQR.
                     (tc_expr Delta e2)
                   :: Q)
            (SEPx R))))).
-       go_lowerx. repeat apply andp_right; auto. apply prop_right; auto.
+       go_lowerx.
+     contradiction; (* old stuff was: *) repeat apply andp_right; auto.
         eapply semax_post_flipped.
         eapply forward_setx.
         go_lowerx. apply andp_right; apply prop_right; auto.
@@ -861,8 +873,6 @@ apply semax_ifthenelse_PQR.
         repeat rewrite exp_andp2. apply exp_left; intro.
        simpl eval_expr. 
        autorewrite with subst.
-       rewrite (closed_wrt_subst _ _ (eval_expr e1)) by auto.
-       rewrite (closed_wrt_subst _ _ (eval_expr e2)) by auto.
        go_lowerx. apply andp_right; auto. apply prop_right; split; auto.
        rewrite H6. rewrite H8.
         unfold logical_and_result.

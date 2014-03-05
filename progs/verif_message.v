@@ -324,6 +324,10 @@ Proof.
 Admitted.  (* needs to go in veric *)
 Hint Resolve func_ptr_isptr: saturate_local.
 
+Section HINTS.
+Hint Resolve closed_wrt_eval_expr : closed.
+Hint Resolve closed_wrt_lvalue : closed.
+
 Lemma call_serialize:
  forall Espec (Delta: tycontext) (ser id x: ident)
            (sh_obj : share) (e_obj: expr) (d_obj: environ -> val)
@@ -510,6 +514,7 @@ go_lowerx. normalize.
 unfold serialize_post, serialize_spec.
 normalize. rename x0 into len.
 subst.
+
 rewrite H3;
 rewrite <- H9.
 simpl force_int.
@@ -587,6 +592,8 @@ Lemma call_deserialize:
                `(mf_assert msg sh_buf) d_buf d_len`v::
                 R))))).
 Admitted.
+
+End HINTS.
 
 Lemma intpair_message_length:
   forall sh p (len: environ -> Z) v P Q R,
