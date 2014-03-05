@@ -52,7 +52,7 @@ the left rules *)
 pose_env.
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const right_hints types functions preds 
 ltac:(fun funcs preds hints => id_this (funcs, preds, hints)). *)
-Admitted.
+(* Admitted. *)
 
 (*Copied from above goal*)
 Definition right_lemmas : list (Lemma.lemma types.our_types (SL.sepConcl types.our_types)) :=

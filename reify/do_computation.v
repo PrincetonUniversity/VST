@@ -2,7 +2,7 @@
  * Implementation of "compute" solver plugin for MirrorShard *)
 
 (* Need all of these? *)
-Require Import floyd.proofauto.
+(* Require Import floyd.proofauto. *)
 Require Import types.
 Require Import MirrorShard.Expr.
 Require Import functions.
