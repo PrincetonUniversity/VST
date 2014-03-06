@@ -317,11 +317,11 @@ Record trash_inv mu_trash mu_top mus m1 m2 : Type :=
   ; trash_isglob   : (forall b, isGlobalBlock my_ge b -> frgnBlocksSrc mu_trash b)
   ; trash_valid    : sm_valid mu_trash m1 m2
   ; trash_disj_S   : All (DisjointLS mu_trash) 
-                       [seq (Inj.mu \o frame_mu0) x | x <- mu_top :: mus]
+                     $ mu_top :: [seq (Inj.mu \o frame_mu0) x | x <- mus]
   ; trash_disj_T   : All (DisjointLT mu_trash) 
-                       [seq (Inj.mu \o frame_mu0) x | x <-  mu_top :: mus]
+                     $ mu_top :: [seq (Inj.mu \o frame_mu0) x | x <- mus]
   ; trash_consist  : All (Consistent mu_trash) 
-                       [seq (Inj.mu \o frame_mu0) x | x <- mu_top :: mus] }.
+                     $ mu_top :: [seq (Inj.mu \o frame_mu0) x | x <- mus] }.
 
 End trash_inv.
 
@@ -645,6 +645,33 @@ Proof.
 by case: tlinv=> _; move/frame_all_size_eq.
 Qed.
 
+Lemma head_tail_inv c d pf cd (mu : frame_pkg) e sig args1 args2
+  (val : sm_valid mu m1 m2)
+  (atext1 : at_external (coreSem (cores_S (Core.i c))) 
+            (RC.core (Core.c c)) = Some (e,sig,args1))
+  (atext2 : at_external (coreSem (cores_T (Core.i c))) 
+            (cast'' pf (RC.core (Core.c d))) = Some (e,sig,args2))
+  (inj : Mem.inject (as_inj mu) m1 m2)
+  (vals_inj : Forall2 (val_inject (as_inj mu)) args1 args2) 
+  (inv : @head_inv c d pf cd mu_trash mu mus z m1 m2) :
+  tail_inv mu_trash [:: Build_frame_pkg val & mus] z [:: c & s1] [:: d & s2] m1 m2.
+Proof.
+split=> /=.
+split; first by apply: (head_rel inv).
+by case: tlinv.
+split. 
+exists pf,cd,e,sig,args1,e,sig,args2; split.
+apply: Build_frame_inv=> //.
+by apply: (head_match inv).
+by apply: (head_vis inv).
+by apply: (head_safe inv).
+by apply: (head_ctndS inv).
+by apply: (head_ctndT inv).
+by apply: (head_mapdS inv).
+by apply: (head_ctns inv).
+by case: tlinv.
+Qed.
+
 End tail_inv_lems.
 
 Lemma all_wrt_callers_switch T P (a b : T) (l : seq T) :
@@ -930,8 +957,8 @@ Record R (data : Lex.t types) (mu : SM_Injection)
 
     (* main invariant *)
   ; R_inv : 
-    exists (pf : c.(Core.i)=d.(Core.i)) mu_trash mu_top mus z, 
-    let mu_tot := join_all (frame_mu0 mu_trash) $ map frame_mu0 (mu_top :: mus) in
+    exists (pf : c.(Core.i)=d.(Core.i)) mu_trash (mu_top : Inj.t) mus z, 
+    let mu_tot := join_all (frame_mu0 mu_trash) $ mu_top :: map frame_mu0 mus in
     [/\ mu = restrict_sm mu_tot (vis mu_tot) 
       , REACH_closed m1 (vis mu)
       , trash_inv mu_trash mu_top mus m1 m2
@@ -940,7 +967,6 @@ Record R (data : Lex.t types) (mu : SM_Injection)
 
     (* side conditions *)
   ; R_fntbl : x1.(fn_tbl)=x2.(fn_tbl) }.
-(*  ; R_leneq : length (callStack x1) = length (callStack x2) }.*)
 
 End R.
 
@@ -1013,10 +1039,12 @@ Qed.
 Lemma R_wd : SM_wd mu.
 Proof.
 move: (R_inv pf)=> []A []mu_trash []mu_top []mus []z []B C D E F.
+have valid: sm_valid mu_top m1 m2 by apply: (match_validblocks _ (head_match E)).
+have D': trash_inv mu_trash (Build_frame_pkg valid) mus m1 m2 by [].
 rewrite B; apply: restrict_sm_WD=> //; apply: join_all_wd.
-by move: (R_AllDisjointS D E F)=> /=; rewrite map_comp.
-by move: (R_AllDisjointT D E F)=> /=; rewrite map_comp.
-by move: (R_AllConsistent D E F)=> /=; rewrite map_comp.
+by move: (R_AllDisjointS D' E F)=> /=; rewrite map_comp.
+by move: (R_AllDisjointT D' E F)=> /=; rewrite map_comp.
+by move: (R_AllConsistent D' E F)=> /=; rewrite map_comp.
 Qed.
 
 Lemma R_isGlob b : isGlobalBlock my_ge b -> frgnBlocksSrc mu b.
@@ -1031,13 +1059,15 @@ Qed.
 Lemma R_presglobs : Events.meminj_preserves_globals my_ge (extern_of mu).
 Proof. 
 move: (R_inv pf)=> []A []mu_trash []mu_top []mus []z []B ? X Y Z.
+have valid: sm_valid mu_top m1 m2 by apply: (match_validblocks _ (head_match Y)).
+have X': trash_inv mu_trash (Build_frame_pkg valid) mus m1 m2 by [].
 rewrite B. 
 apply: restrict_sm_preserves_globals'.
 apply: join_all_preserves_globals.
 by apply: (trash_presglob X).
-by move: (R_AllDisjointS X Y Z)=> /=; rewrite map_comp.
-by move: (R_AllDisjointT X Y Z)=> /=; rewrite map_comp.
-by move: (R_AllConsistent X Y Z)=> /=; rewrite map_comp.
+by move: (R_AllDisjointS X' Y Z)=> /=; rewrite map_comp.
+by move: (R_AllDisjointT X' Y Z)=> /=; rewrite map_comp.
+by move: (R_AllConsistent X' Y Z)=> /=; rewrite map_comp.
 split; first by apply: (head_presglobs Y).
 by move: (tail_presglobs Z); rewrite !All_comp.
 move=> b; move/R_isGlob; rewrite B restrict_sm_frgnBlocksSrc. 
@@ -1123,7 +1153,7 @@ case: (core_at_external (sims (Core.i (c inv)))
       _ _ _ _ _ _ hd_match atext1').
 move=> inj []args2 []valinj atext2; exists args2; split.
 rewrite /LinkerSem.at_external0; move: atext2.
-rewrite /= /RC.at_external. admit. (*stupid casting business*)
+rewrite /= /RC.at_external=> <-. admit. (*stupid casting business*)
 apply: forall_inject_val_list_inject.
 admit. (*vals injected by mu_top should be injected by mu*)
 Qed.
@@ -1133,12 +1163,12 @@ Import CallStack.
 Lemma hdl2 args2 : 
   LinkerSem.at_external0 st2 = Some (ef,sig,args2) -> 
   val_list_inject (as_inj mu) args1 args2 -> 
-  exists st2',
+  exists cd' st2',
     LinkerSem.handle id st2 args2 = Some st2'
-    /\ R cd mu st1' m1 st2' m2.
+    /\ R cd' mu st1' m1 st2' m2.
 Proof.
 move=> A B.
-case: (R_inv inv)=> pf []mu_trash []mu_top []mus []x []_.
+case: (R_inv inv)=> pf []mu_trash []mu_top []mus []x []mu_eq.
 move=> rc trinv hdinv tlinv.
 move: hdl1.
 rewrite LinkerSem.handleP.
@@ -1150,14 +1180,68 @@ have all_at2: all (atExternal cores_T) (CallStack.callStack st2).
   move: (callStack_wf st2); move/andP=> []atext_tail _.
   admit. (*at_external0 st2 and all atext tail st2 -> all atext st2*)
 set (st2' := pushCore st2 c2 all_at2).
-exists st2'.
+
+have pf_new: Core.i c1 = Core.i c2. admit.
+
+(*must specify shape of mu_new here*)
+have [cd_new [mu_new [trinv_new hdinv_new]]]: 
+  exists cd_new mu_new, 
+  [/\ trash_inv mu_trash mu_new (mu_top :: mus) m1 m2
+    & head_inv pf_new cd_new mu_trash mu_new (mu_top :: mus) x m1 m2].
+  admit.
+
+exists (Lex.set (Core.i c1) cd_new cd),st2'.
 split.
 rewrite LinkerSem.handleP.
 exists all_at2,ix,c2; split=> //.
-admit. (*easy condition in match; add interface lem to R_lems*)
+by move: fntbl1; rewrite (R_fntbl inv).
 rewrite st1'_eq /st2'.
-move: inv.
-admit. (*need lemma re: pushCore,R,match*)
+
+set (mu_tot := join_all mu_trash [seq frame_mu0 i | i <- mu_top :: mus]).
+set (mu_tot_new := 
+  join_all mu_trash [seq frame_mu0 i | i <- mu_new :: mu_top :: mus]).
+
+have mu_tot_new_eq: mu_tot_new = mu_tot. admit. (*relies on spec. of mu_new*)
+
+apply: Build_R.
+exists pf_new,mu_trash,mu_new,[:: mu_top & mus],x; split=> //.
+by move: mu_tot_new_eq; rewrite /mu_tot_new /mu_tot=> ->.
+by rewrite Lex.gss.
+rewrite /pushCore /=.
+
+have st1_eq: callStack (stack st1) = [:: c inv & STACK.pop st1].
+  admit.
+
+have st2_eq: callStack (stack st2) = [:: d inv & STACK.pop st2].
+  admit.
+
+rewrite st1_eq st2_eq.
+
+have atext1': 
+  at_external (coreSem (cores_S (Core.i (c inv)))) (RC.core (Core.c (c inv))) 
+  = Some (ef,sig,args1) by [].
+
+have atext2': 
+  at_external (coreSem (cores_T (Core.i (c inv)))) 
+              (cast'' pf (RC.core (Core.c (d inv))))
+  = Some (ef,sig,args2). admit.
+
+have inj: Mem.inject (as_inj mu_top) m1 m2. admit.
+
+have vinj: Forall2 (val_inject (as_inj mu_top)) args1 args2. admit.
+
+have valid': sm_valid mu_top m1 m2. admit.
+
+move: (head_tail_inv tlinv valid' atext1' atext2' inj vinj hdinv).
+rewrite /s1 /s2.
+
+move: mu_eq trinv trinv_new hdinv hdinv_new. 
+move: mu_tot mu_tot_new mu_tot_new_eq valid' inj vinj.
+case: mu_top. simpl. intros.
+apply: head_tail_inv0.
+
+apply head_tail_inv.
+admit. 
 Qed.
 
 End call_lems.
