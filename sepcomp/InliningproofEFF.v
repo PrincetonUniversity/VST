@@ -67,7 +67,19 @@ exists st2' m2' mu', exists U2 : block -> Z -> bool,
          foreign_of mu b1 = Some (b, delta1) /\
          U1 b1 (ofs - delta1)%Z = true /\
          Mem.perm m1 b1 (ofs - delta1) Max Nonempty)).
-intros st1 m1 st1' m1' U1 ge' CS.
+(*New script*)
+intros st1 m1 st1' m1' U1 ge' CS. intros. 
+eexists. exists m2, mu, EmptyEffect.
+split.
+right.
+
+
+
+
+
+
+intros st1 m1 st1' m1' U1 ge'. CS.
+
 induction CS; intros; eexists. (*12 Cases*)
 
 (*Case: skip seq*)
@@ -133,11 +145,13 @@ intros. unfold EmptyEffect in H2.
 contradict H2; auto.
 
 (*assign*)
+
 exists m2, mu.
+
 exists EmptyEffect. (*This should change*)
 split. 
 right.
-unfold effstep_star; exists O; simpl.
+unfold effstep_star. exists O. simpl.
 reflexivity.
 
 split.
@@ -146,19 +160,13 @@ apply intern_incr_refl.
 split.
 apply sm_inject_separated_same_sminj.
 
-Print sm_locally_allocated.
 
-split.
-apply sm_locally_allocatedChar.
-split_all.
-admit.
-admit.
-unfold locBlocksSrc.
-
-apply sm_locally_allocated_refl.
+split. admit.
 
 intros. unfold EmptyEffect in H2.
 contradict H2; auto.
+
+
 
 
 split_allsplit.
