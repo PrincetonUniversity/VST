@@ -23,7 +23,7 @@ Require Import sepcomp.effect_properties.
 Require Import effect_simulations_lemmas.
 
 Require Export Axioms.
-Require Import CminorSel_coop.
+(*Require Import CminorSel_coop.*)
 Require Import RTL_eff.
 Require Import RTL_coop.
 
@@ -35,6 +35,13 @@ Hypothesis TRANSF: transf_program SrcProg = OK TrgProg.
 Let SrcGe : RTL.genv := Genv.globalenv SrcProg.
 Let TrgGe : RTL.genv := Genv.globalenv TrgProg.
 Let fenv := funenv_program SrcProg.
+
+
+Lemma function_ptr_translated:
+  forall (b: block) (f: fundef),
+  Genv.find_funct_ptr SrcGe b = Some f ->
+  exists f', Genv.find_funct_ptr TrgGe b = Some f' /\ Inlining.transf_fundef fenv f = OK f'.
+Proof (Genv.find_funct_ptr_transf_partial (transf_fundef fenv) _ TRANSF).
 
 Lemma symbols_preserved:
   forall (s: ident), Genv.find_symbol TrgGe s = Genv.find_symbol SrcGe s.
@@ -54,7 +61,7 @@ Definition globalfunction_ptr_inject (j:meminj):=
               j b = Some(b,0) /\ isGlobalBlock SrcGe b = true. 
 
 (*The new match_states*)
-Inductive match_states (j:meminj): RTL_core -> mem -> RTL_core -> mem -> Prop :=
+(*Inductive match_states (j:meminj): RTL_core -> mem -> RTL_core -> mem -> Prop :=
 | match_state:
     forall f s k sp e m tm cs tf ns rs (*map ncont nexits ngoto nret rret*) sp'
            (*(MWF: map_wf map)*)
@@ -85,11 +92,153 @@ Inductive match_states (j:meminj): RTL_core -> mem -> RTL_core -> mem -> Prop :=
     (*(MEXT: Mem.extends m tm)*)
     (*(MINJ: Mem.inject j m tm)*),
       match_states j (RTL_Returnstate v k) m
-                   (RTL_Returnstate cs tv) tm.
+                   (RTL_Returnstate cs tv) tm.*)
 
-Print restrict.
+(*Tool kit for match states: *)
+
+Definition agree_regs (F: meminj) (ctx: context) (rs rs': regset) :=
+  (forall r, Ple r ctx.(mreg) -> val_inject F rs#r rs'#(sreg ctx r))
+/\(forall r, Plt ctx.(mreg) r -> rs#r = Vundef).
+
+Definition val_reg_charact (F: meminj) (ctx: context) (rs': regset) (v: val) (r: reg) :=
+  (Plt ctx.(mreg) r /\ v = Vundef) \/ (Ple r ctx.(mreg) /\ val_inject F v rs'#(sreg ctx r)).
+
+(** ** Memory invariants *)
+
+(** A stack location is private if it is not the image of a valid
+   location and we have full rights on it. *)
+
+Definition loc_private (F: meminj) (m m': mem) (sp: block) (ofs: Z) : Prop :=
+  Mem.perm m' sp ofs Cur Freeable /\
+  (forall b delta, F b = Some(sp, delta) -> ~Mem.perm m b (ofs - delta) Max Nonempty).
+
+(** Likewise, for a range of locations. *)
+
+Definition range_private (F: meminj) (m m': mem) (sp: block) (lo hi: Z) : Prop :=
+  forall ofs, lo <= ofs < hi -> loc_private F m m' sp ofs.
+
+Inductive match_globalenvs (F: meminj)(bound: block): Prop :=
+  | mk_match_globalenvs
+      (DOMAIN: forall b, Plt b bound -> F b = Some(b, 0))
+      (IMAGE: forall b1 b2 delta, F b1 = Some(b2, delta) -> Plt b2 bound -> b1 = b2)
+      (SYMBOLS: forall id b, Genv.find_symbol SrcGe id = Some b -> Plt b bound)
+      (FUNCTIONS: forall b fd, Genv.find_funct_ptr SrcGe b = Some fd -> Plt b bound)
+      (VARINFOS: forall b gv, Genv.find_var_info SrcGe b = Some gv -> Plt b bound).
+
+Inductive match_stacks (mu: SM_Injection) (m m': mem):
+             list stackframe -> list stackframe -> block -> Prop :=
+  | match_stacks_nil: forall bound1 bound
+        (MG: match_globalenvs (as_inj mu) bound1)
+        (BELOW: Ple bound1 bound),
+      match_stacks mu m m' nil nil bound
+  | match_stacks_cons: forall res f sp pc rs stk f' sp' rs' stk' bound ctx
+        (MS: match_stacks_inside mu m m' stk stk' f' ctx sp' rs')
+        (FB: tr_funbody fenv f'.(fn_stacksize) ctx f f'.(fn_code))
+        (AG: agree_regs (as_inj mu) ctx rs rs')
+        (SP: (as_inj mu) sp = Some(sp', ctx.(dstk)))
+(*locBlockSrc mu sp = true*)
+(*locBlockTrg mu sp' = true*)
+        (PRIV: range_private (as_inj mu) m m' sp' (ctx.(dstk) + ctx.(mstk)) f'.(fn_stacksize))
+        (SSZ1: 0 <= f'.(fn_stacksize) < Int.max_unsigned)
+        (SSZ2: forall ofs, Mem.perm m' sp' ofs Max Nonempty -> 0 <= ofs <= f'.(fn_stacksize))
+        (RES: Ple res ctx.(mreg))
+        (BELOW: Plt sp' bound),
+      match_stacks (mu) m m'
+                   (Stackframe res f (Vptr sp Int.zero) pc rs :: stk)
+                   (Stackframe (sreg ctx res) f' (Vptr sp' Int.zero) (spc ctx pc) rs' :: stk')
+                   bound
+  | match_stacks_untailcall: forall stk res f' sp' rpc rs' stk' bound ctx
+        (MS: match_stacks_inside (mu) m m' stk stk' f' ctx sp' rs')
+        (PRIV: range_private (as_inj mu) m m' sp' ctx.(dstk) f'.(fn_stacksize))
+        (SSZ1: 0 <= f'.(fn_stacksize) < Int.max_unsigned)
+        (SSZ2: forall ofs, Mem.perm m' sp' ofs Max Nonempty -> 0 <= ofs <= f'.(fn_stacksize))
+        (RET: ctx.(retinfo) = Some (rpc, res))
+(*locBlockTrg mu sp' = true*)
+        (BELOW: Plt sp' bound),
+      match_stacks (mu) m m'
+                   stk
+                   (Stackframe res f' (Vptr sp' Int.zero) rpc rs' :: stk')
+                   bound
+
+with match_stacks_inside (mu: SM_Injection) (m m': mem):
+        list stackframe -> list stackframe -> function -> context -> block -> regset -> Prop :=
+  | match_stacks_inside_base: forall stk stk' f' ctx sp' rs'
+        (MS: match_stacks (mu) m m' stk stk' sp')
+(*locBlockTrg mu sp' = true*)(*Maybe*)
+        (RET: ctx.(retinfo) = None)
+        (DSTK: ctx.(dstk) = 0),
+      match_stacks_inside (mu) m m' stk stk' f' ctx sp' rs'
+  | match_stacks_inside_inlined: forall res f sp pc rs stk stk' f' ctx sp' rs' ctx'
+        (MS: match_stacks_inside (mu) m m' stk stk' f' ctx' sp' rs')
+        (FB: tr_funbody fenv f'.(fn_stacksize) ctx' f f'.(fn_code))
+        (AG: agree_regs (as_inj mu) ctx' rs rs')
+        (SP: (as_inj mu) sp = Some(sp', ctx'.(dstk)))
+(*locBlockSrc mu sp = true*)
+(*locBlockTrg mu sp' = true*)
+        (PAD: range_private (as_inj mu) m m' sp' (ctx'.(dstk) + ctx'.(mstk)) ctx.(dstk))
+        (RES: Ple res ctx'.(mreg))
+        (RET: ctx.(retinfo) = Some (spc ctx' pc, sreg ctx' res))
+        (BELOW: context_below ctx' ctx)
+        (SBELOW: context_stack_call ctx' ctx),
+      match_stacks_inside (mu) m m' (Stackframe res f (Vptr sp Int.zero) pc rs :: stk)
+                                 stk' f' ctx sp' rs'.
+
+Inductive match_states: RTL_core -> mem -> RTL_core -> mem -> Prop :=
+  | match_regular_states: forall (mu: SM_Injection) stk f sp pc rs m stk' f' sp' rs' m' ctx
+        (MS: match_stacks_inside mu m m' stk stk' f' ctx sp' rs')
+        (FB: tr_funbody fenv f'.(fn_stacksize) ctx f f'.(fn_code))
+        (AG: agree_regs (as_inj mu) ctx rs rs')
+        (SP: (as_inj mu) sp = Some(sp', ctx.(dstk)))
+        (MINJ: Mem.inject (as_inj mu) m m')
+        (VB: Mem.valid_block m' sp')
+        (PRIV: range_private (as_inj mu) m m' sp' (ctx.(dstk) + ctx.(mstk)) f'.(fn_stacksize))
+        (SSZ1: 0 <= f'.(fn_stacksize) < Int.max_unsigned)
+        (SSZ2: forall ofs, Mem.perm m' sp' ofs Max Nonempty -> 0 <= ofs <= f'.(fn_stacksize)),
+      match_states (RTL_State stk f (Vptr sp Int.zero) pc rs) m
+                   (RTL_State stk' f' (Vptr sp' Int.zero) (spc ctx pc) rs') m'
+  | match_call_states: forall (mu: SM_Injection) stk fd args m stk' fd' args' m'
+        (MS: match_stacks mu m m' stk stk' (Mem.nextblock m'))
+        (FD: transf_fundef fenv fd = OK fd')
+        (VINJ: val_list_inject  (as_inj mu) args args')
+        (MINJ: Mem.inject (as_inj mu) m m'),
+      match_states (RTL_Callstate stk fd args) m
+                   (RTL_Callstate stk' fd' args') m'
+  | match_call_regular_states: forall (mu: SM_Injection) stk f vargs m stk' f' sp' rs' m' ctx ctx' pc' pc1' rargs
+        (MS: match_stacks_inside mu m m' stk stk' f' ctx sp' rs')
+        (FB: tr_funbody fenv f'.(fn_stacksize) ctx f f'.(fn_code))
+        (BELOW: context_below ctx' ctx)
+        (NOP: f'.(fn_code)!pc' = Some(Inop pc1'))
+        (MOVES: tr_moves f'.(fn_code) pc1' (sregs ctx' rargs) (sregs ctx f.(fn_params)) (spc ctx f.(fn_entrypoint)))
+        (VINJ: list_forall2 (val_reg_charact (as_inj mu) ctx' rs') vargs rargs)
+        (MINJ: Mem.inject (as_inj mu) m m')
+        (VB: Mem.valid_block m' sp')
+        (PRIV: range_private  (as_inj mu) m m' sp' ctx.(dstk) f'.(fn_stacksize))
+        (SSZ1: 0 <= f'.(fn_stacksize) < Int.max_unsigned)
+        (SSZ2: forall ofs, Mem.perm m' sp' ofs Max Nonempty -> 0 <= ofs <= f'.(fn_stacksize)),
+      match_states (RTL_Callstate stk (Internal f) vargs) m
+                   (RTL_State stk' f' (Vptr sp' Int.zero) pc' rs') m'
+  | match_return_states: forall (mu: SM_Injection) stk v m stk' v' m'
+        (MS: match_stacks mu m m' stk stk' (Mem.nextblock m'))
+        (VINJ: val_inject (as_inj mu) v v')
+        (MINJ: Mem.inject (as_inj mu) m m'),
+      match_states (RTL_Returnstate stk v) m
+                   (RTL_Returnstate stk' v') m'
+  | match_return_regular_states: forall (mu: SM_Injection)stk v m stk' f' sp' rs' m' ctx pc' or rinfo
+        (MS: match_stacks_inside mu m m' stk stk' f' ctx sp' rs')
+        (RET: ctx.(retinfo) = Some rinfo)
+        (AT: f'.(fn_code)!pc' = Some(inline_return ctx or rinfo))
+        (VINJ: match or with None => v = Vundef | Some r => val_inject (as_inj mu) v rs'#(sreg ctx r) end)
+        (MINJ: Mem.inject (as_inj mu) m m')
+        (VB: Mem.valid_block m' sp')
+        (PRIV: range_private (as_inj mu) m m' sp' ctx.(dstk) f'.(fn_stacksize))
+        (SSZ1: 0 <= f'.(fn_stacksize) < Int.max_unsigned)
+        (SSZ2: forall ofs, Mem.perm m' sp' ofs Max Nonempty -> 0 <= ofs <= f'.(fn_stacksize)),
+      match_states (RTL_Returnstate stk v) m
+                   (RTL_State stk' f' (Vptr sp' Int.zero) pc' rs') m'.
+
+
 Definition MATCH (d:RTL_core) mu c1 m1 c2 m2:Prop :=
-  match_states (restrict (as_inj mu) (vis mu)) c1 m1 c2 m2 /\
+  match_states (*(restrict (as_inj mu) (vis mu))*) c1 m1 c2 m2 /\
   REACH_closed m1 (vis mu) /\
   meminj_preserves_globals SrcGe (as_inj mu) /\
   globalfunction_ptr_inject (as_inj mu) /\
@@ -116,29 +265,30 @@ Theorem transl_program_correct:
   intros.
   eapply sepcomp.effect_simulations_lemmas.inj_simulation_star_wf.
 
-  Lemma genvs_domain_eq_implication: (exists m0:mem, Genv.init_mem SrcProg = Some m0) -> 
+  Lemma environment_equality: (exists m0:mem, Genv.init_mem SrcProg = Some m0) -> 
                                      genvs_domain_eq SrcGe TrgGe.
     descend;
     destruct H0 as [b0]; exists b0;
     rewriter_back;
     [rewrite symbols_preserved| rewrite <- symbols_preserved| rewrite varinfo_preserved| rewrite <- varinfo_preserved]; reflexivity.
   Qed.
-  Hint Resolve genvs_domain_eq_implication: trans_correct.
+  Hint Resolve environment_equality: trans_correct.
   auto with trans_correct.
 
-Lemma MATCH_wd: forall (d : RTL_core) (mu : SM_Injection) (c1 : RTL_core) 
-                                   (m1 : mem) (c2 : RTL_core) (m2 : mem) (MC:MATCH d mu c1 m1 c2 m2), SM_wd mu.
-intros. eapply MC. Qed.
-Hint Resolve MATCH_wd: trans_correct.
-eauto with trans_correct.
-Lemma MATCH_RC: forall (d : RTL_core) (mu : SM_Injection) (c1 : RTL_core) 
-                             (m1 : mem) (c2 : RTL_core) (m2 : mem) (MC:
-                        MATCH d mu c1 m1 c2 m2), REACH_closed m1 (vis mu).
-intros. eapply MC. Qed.
-Hint Resolve MATCH_RC: trans_correct.
-eauto with trans_correct.
+  Lemma MATCH_wd: forall (d : RTL_core) (mu : SM_Injection) (c1 : RTL_core) 
+                         (m1 : mem) (c2 : RTL_core) (m2 : mem) (MC:MATCH d mu c1 m1 c2 m2), SM_wd mu.
+    intros. eapply MC. Qed.
+  Hint Resolve MATCH_wd: trans_correct.
+  eauto with trans_correct.
 
-Lemma restrict_preserves_globalfun_ptr: forall j X
+  Lemma MATCH_RC: forall (d : RTL_core) (mu : SM_Injection) (c1 : RTL_core) 
+                         (m1 : mem) (c2 : RTL_core) (m2 : mem) (MC:
+                                                                  MATCH d mu c1 m1 c2 m2), REACH_closed m1 (vis mu).
+    intros. eapply MC. Qed.
+  Hint Resolve MATCH_RC: trans_correct.
+  eauto with trans_correct.
+
+  Lemma restrict_preserves_globalfun_ptr: forall j X
   (PG : globalfunction_ptr_inject j)
   (Glob : forall b, isGlobalBlock SrcGe b = true -> X b = true),
 globalfunction_ptr_inject (restrict j X).
@@ -156,9 +306,9 @@ Proof. intros.
 assert (WDR: SM_wd (restrict_sm mu X)).
    apply restrict_sm_WD; assumption.
 split.
-  rewrite vis_restrict_sm.
-  rewrite restrict_sm_all.
-  rewrite restrict_nest; intuition.
+  (*rewrite vis_restrict_sm.*)
+  (*rewrite restrict_sm_all.*)
+  (*rewrite restrict_nest;*) intuition.
 split. unfold vis.
   rewrite restrict_sm_locBlocksSrc, restrict_sm_frgnBlocksSrc.
   apply RC.
@@ -183,11 +333,12 @@ split. assumption.
 Qed.
 Hint Resolve MATCH_restrict: trans_correct.
 auto with trans_correct.
+
 Lemma MATCH_valid:  forall (d : RTL_core) (mu : SM_Injection) (c1 : RTL_core) 
                               (m1 : mem) (c2 : RTL_core) (m2 : mem)
                          (MC: MATCH d mu c1 m1 c2 m2), sm_valid mu m1 m2.
 intros.
-eapply MC.
+apply MC.
 Qed.
 
 Hint Resolve MATCH_valid: trans_correct.
@@ -209,7 +360,78 @@ Proof.
 Qed.
 Hint Resolve MATCH_PG: trans_correct.
 eauto with trans_correct.
-Lemma MATCH_initial: forall v1 v2 sig entrypoints
+
+admit.
+
+Lemma Match_Halted: forall (cd : RTL_core) (mu : SM_Injection) (c1 : RTL_core) 
+     (m1 : mem) (c2 : RTL_core) (m2 : mem) (v1 : val)(MC:
+   MATCH cd mu c1 m1 c2 m2)(HL:
+   halted rtl_eff_sem c1 = Some v1),
+   exists v2 : val,
+     Mem.inject (as_inj mu) m1 m2 /\
+     val_inject (restrict (as_inj mu) (vis mu)) v1 v2 /\
+     halted rtl_eff_sem c2 = Some v2.
+Proof.
+intros.
+inv MC.
+repeat  match goal with
+      | H: _ /\ _ |- _ => inv H
+  end.
+Print val_inject.
+destruct H.
+(*match_regular_states*)
+eexists v1.
+split; try assumption.
+split. 
+Focus 2.
+
+
+destruct v1; try constructor.
+Print val_inject.
+eapply val_inject_ptr.
+
+(*match_call_states*)
+(*match_call_regular_states*)
+(*match_return_states*)
+(*match_return_regular_states*)
+
+
+eexists.
+split. apply H7.
+induction H.
+
+
+
+
+
+
+
+
+
+
+Lemma MATCH_safely_halted: forall mu c1 m1 c2 m2 v1
+     (SMC: match_states c1 m1 c2 m2)
+     (HALT: halted rtl_eff_sem c1 = Some v1),
+exists v2, halted rtl_eff_sem c2 = Some v2 /\ 
+           val_inject (restrict (as_inj mu) (vis mu)) v1 v2.
+Proof.
+  intros.
+  inv SMC; simpl in *; inv HALT.
+  destruct stk; inv H0.
+  destruct stk'.
+  exists v'; split; try reflexivity.
+
+  (*eapply restrict_val_inject.*) eapply VINJ.
+exists nil.
+  inv MK. split; trivial.
+(*  eapply val_inject_incr; try eassumption.
+    apply restrict_incr.*)
+Qed.*)
+
+
+
+
+Lemma MATCH_initial_core: forall v1 v2 sig entrypoints
       (EP: In (v1, v2, sig) entrypoints)
       (entry_points_ok : forall (v1 v2 : val) (sig : signature),
                   In (v1, v2, sig) entrypoints ->
@@ -242,41 +464,243 @@ exists c2,
        (REACH m1 (fun b : block => isGlobalBlock SrcGe b || getBlocks vals1 b))
        (REACH m2 (fun b : block => isGlobalBlock TrgGe b || getBlocks vals2 b))
        j) c1 m1 c2 m2.
-intros.
+  intros.
   inversion Ini.
-  unfold CMinSel_initial_core in H0. unfold ge in *. unfold TrgGe in *.
+  unfold RTL_initial_core in H0. unfold ge in *. unfold TrgGe in *.
   destruct v1; inv H0.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
-  remember (Genv.find_funct_ptr (Genv.globalenv SrcProg) b) as zz; destruct zz; inv H0. 
+  remember (Genv.find_funct_ptr (Genv.globalenv SrcProg) b) as zz. destruct zz. 
+  unfold SrcGe in H0. inv H0. 
     apply eq_sym in Heqzz.
-    Lemma function_ptr_translated:
-  forall (b: block) (f: CminorSel.fundef),
-  Genv.find_funct_ptr ge b = Some f ->
-  exists tf,
-  Genv.find_funct_ptr TrgGe b = Some tf /\ transl_fundef f = OK tf.
-Proof
-  (Genv.find_funct_ptr_transf_partial transl_fundef _ TRANSL).
+  rewrite Heqzz in H1.
   exploit function_ptr_translated; eauto. intros [tf [FP TF]].
   exists (RTL_Callstate nil tf vals2).
   split.
     destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
-    subst. inv A. rewrite C in Heqzz. inv Heqzz.
-    unfold tge in FP. rewrite D in FP. inv FP.
-    unfold cminsel_eff_sem, cminsel_coop_sem. simpl.
+    subst. inv A. unfold SrcGe in *; rewrite C in Heqzz. inv Heqzz. 
+    unfold TrgGe in FP. rewrite D in FP. inv FP.
+    unfold rtl_eff_sem. simpl.
     case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
     solve[rewrite D; auto].
 
+    intros CONTRA; contradiction CONTRA; reflexivity.
+    inv H1.
+
+(*  assert (exists targs tres, type_of_fundef f = Tfunction targs tres).
+         destruct f; simpl. eexists; eexists. reflexivity.
+         eexists; eexists. reflexivity.
+  destruct H as [targs [tres Tfun]].*)
+  destruct (core_initial_wd SrcGe TrgGe _ _ _ _ _ _ _  Inj
+     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
+    as [AA [BB [CC [DD [EE [FF GG]]]]]].
+  split.
+    eapply match_call_states; try eassumption.
+      econstructor.
+      Print match_globalenvs.
+      Print initial_SM_as_inj.
+      rewrite initial_SM_as_inj.
+        unfold vis, initial_SM; simpl.
+        apply forall_inject_val_list_inject.
+        eapply restrict_forall_vals_inject; try eassumption.
+          intros. apply REACH_nil. rewrite H; intuition.
+    rewrite initial_SM_as_inj.
+      unfold vis, initial_SM; simpl.
+      eapply inject_restrict; eassumption.
+  intuition.
+    rewrite match_genv_meminj_preserves_extern_iff_all.
+      assumption.
+      apply BB.
+      apply EE.
+    (*as in selectionprffEFF*)
+    rewrite initial_SM_as_inj.
+      red; intros. specialize (Genv.find_funct_ptr_not_fresh prog). intros.
+         destruct InitMem as [m0 [INIT_MEM [? ?]]].
+         specialize (H0 _ _ _ INIT_MEM H). 
+         destruct (valid_init_is_global _ R _ INIT_MEM _ H0) as [id Hid]. 
+           destruct PG as [PGa [PGb PGc]]. split. eapply PGa; eassumption.
+         unfold isGlobalBlock. 
+          apply orb_true_iff. left. apply genv2blocksBool_char1.
+            simpl. exists id; eassumption.
+    rewrite initial_SM_as_inj; assumption.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(*Proof 0.2*)
+intros.
+  inversion Ini.
+  unfold  RTL_initial_core in H0. unfold SrcGe in *. unfold TrgGe in *.
+  destruct v1; inv H0.
+  remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
+  remember (Genv.find_funct_ptr (Genv.globalenv SrcProg) b) as zz; destruct zz; inv H0. 
+    apply eq_sym in Heqzz.
+  exploit function_ptr_translated; eauto. intros [tf [FIND TR]].
+  eexists (RTL_Callstate _ _ _).
+  split.
+  simpl. 
+  destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
+  subst. inv A. rewrite C in Heqzz. inv Heqzz. unfold TrgGe in *; rewrite D in FIND. inv FIND.
+  unfold RTL_initial_core. 
+  case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
+  solve[rewrite D; auto].
+  intros CONTRA.
+  solve[elimtype False; auto].
+  destruct InitMem as [m0 [INIT_MEM [A B]]].
+  split.
+  eapply match_call_states; try eassumption.
+  (*eapply RTL_Callstate (*with (cenv:=PTree.empty _)(cs := @nil frame)*); try eassumption.*)
+    eapply match_stacks_nil.
+(*
+        (MS: match_stacks F m m' stk stk' (Mem.nextblock m'))
+        (FD: transf_fundef fenv fd = OK fd')
+        (VINJ: val_list_inject F args args')
+        (MINJ: Mem.inject F m m'),
+*)
+
+    (*assert (Genv.init_mem TrgProg = Some m0).*)
+    unfold match_globalenvs.
+      unfold transl_program in TRANSL.
+      solve[eapply Genv.init_mem_transf_partial in TRANSL; eauto].
+    (*rewrite initial_SM_as_inj. unfold vis. unfold initial_SM; simpl.
+      eapply inject_mapped; try eassumption.
+       eapply restrict_mapped_closed.
+         eapply inject_REACH_closed; eassumption.
+         apply REACH_is_closed.
+       apply restrict_incr.*)
+    (*rewrite initial_SM_as_inj. *)
+      apply st_mcs_nil with (Mem.nextblock m0).
+    eapply (match_globalenvs_init' _ R _ _ INIT_MEM).
+      (*rewrite restrict_sm_all.*) rewrite initial_SM_as_inj.
+      eapply restrict_preserves_globals; try eassumption.
+      unfold vis, initial_SM; simpl; intros.
+      apply REACH_nil. rewrite H0; trivial.
+    apply A. apply B.
+    econstructor. simpl. trivial.
+    (*rewrite restrict_sm_all.*) rewrite initial_SM_as_inj.
+      unfold vis, initial_SM; simpl.
+      apply forall_inject_val_list_inject.
+      eapply restrict_forall_vals_inject; try eassumption.
+        intros. apply REACH_nil. rewrite H; intuition.
+(*
+    eapply restrict_preserves_globals; try eassumption.
+      rewrite initial_SM_as_inj. assumption.
+      intros. unfold vis, initial_SM; simpl. 
+      apply REACH_nil. rewrite H; trivial.*)
+destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
+    VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
+   as [AA [BB [CC [DD [EE [FF GG]]]]]].
+intuition. rewrite initial_SM_as_inj. assumption.
+rewrite initial_SM_as_inj. assumption.
+(*protected: red. simpl. intros. discriminate.*)
+Qed.
+
+
+
+
+
+Lemma MATCH_safely_halted: forall mu c1 m1 c2 m2 v1
+     (SMC: match_states c1 m1 c2 m2)
+     (HALT: halted rtl_eff_sem c1 = Some v1),
+exists v2, halted rtl_eff_sem c2 = Some v2 /\ 
+           val_inject (restrict (as_inj mu) (vis mu)) v1 v2.
+Proof.
+  intros.
+  inv SMC; simpl in *; inv HALT.
+  destruct stk; inv H0.
+  destruct stk'.
+  exists v'; split; try reflexivity. eapply VINJ.
+  Print val.
+exists nil.
+  inv MK. split; trivial.
+(*  eapply val_inject_incr; try eassumption.
+    apply restrict_incr.*)
+Qed.*)
+
+Lemma inject_val_inject_halted: forall (cd : RTL_core) (mu : SM_Injection) (c1 : RTL_core) 
+                                       (m1 : mem) (c2 : RTL_core) (m2 : mem) (v1 : val) (MC: MATCH cd mu c1 m1 c2 m2) (Hl: halted rtl_eff_sem c1 = Some v1 ),
+                                  exists v2 : val,
+                                    Mem.inject (as_inj mu) m1 m2 /\
+                                    val_inject (restrict (as_inj mu) (vis mu)) v1 v2 /\
+                                    halted rtl_eff_sem c2 = Some v2.
+Proof.
+intros. 
+eexists.
+unfold MATCH in MC.
+destruct MC as [? MC].
+inv H. simpl in *. inv Hl.  
+destruct 
+split; [|split].
+unfold Mem.inject.
+eapply MC.
+
+{ intros. destruct H as [MC [RC [PG [GF [VAL [WD INJ]]]]]]. 
+    eapply MATCH_safely_halted in MC; eauto.
+    destruct MC as [v2 [A B]].
+    exists v2. intuition. }
+
+
+unfold MATCH in MC.  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(*Old proof*)
+  inversion Ini.
+  unfold RTL_initial_core in H0. unfold ge in *. unfold TrgGe in *.
+  destruct v1; inv H0.
+  remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
+  remember (Genv.find_funct_ptr (Genv.globalenv SrcProg) b) as zz; destruct zz; inv H0. 
+    apply eq_sym in Heqzz.
+
+  (*exploit function_ptr_translated; eauto.*)
+  destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
+  eexists (RTL_Callstate nil _ vals2).
+  split.
+    subst. inv A. unfold SrcGe in C. rewrite C in Heqzz. inv Heqzz.
+    unfold rtl_eff_sem (*, RTL_coop_sem*). simpl.
+    case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
+    solve[rewrite D; auto].
     intros CONTRA.
     solve[elimtype False; auto].
 (*  assert (exists targs tres, type_of_fundef f = Tfunction targs tres).
          destruct f; simpl. eexists; eexists. reflexivity.
          eexists; eexists. reflexivity.
   destruct H as [targs [tres Tfun]].*)
-  destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
+  destruct (core_initial_wd SrcGe TrgGe _ _ _ _ _ _ _  Inj
      VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
     as [AA [BB [CC [DD [EE [FF GG]]]]]].
   split.
-    eapply match_callstate; try eassumption.
+  simpl in Ini.
+  (* There is a better way to do this *)
+  destruct Int.eq_dec in Ini; [destruct Genv.find_funct_ptr in Ini| ]; [ |discriminate | discriminate].
+  inversion Ini.
+    eapply match_call_states; try eassumption.
+    eapply match_stacks_nil.
+    unfold match_globalenvs.
       constructor.
       rewrite initial_SM_as_inj.
         unfold vis, initial_SM; simpl.
@@ -308,15 +732,7 @@ Qed.
 
 
 apply MATCH_REACH_REACH.
-Lemma inject_val_inject_halted: forall (cd : RTL_core) (mu : SM_Injection) (c1 : RTL_core) 
-                                       (m1 : mem) (c2 : RTL_core) (m2 : mem) (v1 : val),
-                                  MATCH cd mu c1 m1 c2 m2 ->
-                                  halted rtl_eff_sem c1 = Some v1 ->
-                                  exists v2 : val,
-                                    Mem.inject (as_inj mu) m1 m2 /\
-                                    val_inject (restrict (as_inj mu) (vis mu)) v1 v2 /\
-                                    halted rtl_eff_sem c2 = Some v2.
-Admitted.
+
 apply inject_val_inject_halted.
 Lemma at_external_lemma: forall (mu : SM_Injection) (c1 : RTL_core) (m1 : mem) 
                                 (c2 : RTL_core) (m2 : mem) (e : external_function) 
