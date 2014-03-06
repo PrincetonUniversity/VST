@@ -72,7 +72,7 @@ Inductive match_states (j:meminj): RTL_core -> mem -> RTL_core -> mem -> Prop :=
     (*(TF: transl_fundef f = OK tf)*)
     (*(MS: match_stacks j k cs)*)
     (*(LD: Val.lessdef_list args targs)*)
-    (*(AINJ: val_list_inject j args targs)*)
+    (*(AINJ: val_list_inject j args targs) *)
     (*(MEXT: Mem.extends m tm)*)
     (*(MINJ: Mem.inject j m tm)*),
       match_states j (RTL_Callstate f args k) m
