@@ -180,6 +180,8 @@ repeat
 | |- let y := ?A in _ => cbv delta [A]
 | |- semax ?D ?P ?c ?R =>
       change (let x := D in semax x P c R)
+| |- PROPx ?P (LOCALx (tc_environ ?D :: ?Q) ?R) |-- ?S =>
+     change (let x := D in PROPx P (LOCALx (tc_environ x :: Q) R) |-- S)
 | |- ?A = _ => unfold A, abbreviate
 | |- _ = ?B => unfold B, abbreviate
 | |- initialized ?i _ = ?initialized ?i _ => f_equal
@@ -594,11 +596,18 @@ Ltac do_subst_eval_expr :=
   unfold eval_expr,eval_lvalue, sem_cast; fold sem_cast; fold eval_expr; fold eval_lvalue;
   autorewrite with subst.
 *)
+Lemma forward_setx_aux1:
+  forall P (X Y: environ -> Prop),
+  (forall rho, X rho) ->
+  (forall rho, Y rho) ->
+   P |-- local X && local Y.
+Proof.
+intros; intro rho; rewrite andp_unfold; apply andp_right; apply prop_right; auto.
+Qed.
 
 Ltac forward_setx_aux1 :=
       apply forward_setx; 
-      try solve [intro rho; rewrite andp_unfold; apply andp_right; apply prop_right;
-                            repeat split ].
+      try solve [apply forward_setx_aux1; intros; repeat split ].
 
 Ltac forward_setx_aux2 id :=
            match goal with 
@@ -613,9 +622,7 @@ first [apply forward_setx_closed_now;
             | try solve [intro rho; apply prop_right; repeat split]
             | try solve [intro rho; apply prop_right; repeat split]
             |  ]
-        | apply forward_setx; 
-            try solve [intro rho; rewrite andp_unfold; apply andp_right; apply prop_right;
-                            repeat split ]
+        | forward_setx_aux1
         ].
 
 Ltac hoist_later_in_pre :=
@@ -1272,7 +1279,7 @@ Ltac forward_with F1 :=
              [ftac; derives_after_forward
              | unfold replace_nth; cbv beta;
                try (apply extract_exists_pre; intro_old_var c);
-               abbreviate_semax
+               abbreviate_semax; simpl typeof (* TODO: move simpl typeof into abbreviate semax?*)
              ]) 
         ||  fail 0)  (* see comment FORWARD_FAILOVER below *)
   | |- semax _ _ (Ssequence (Ssequence _ _) _) _ =>

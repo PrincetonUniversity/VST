@@ -154,9 +154,7 @@ forward.
 forward.
 forward.
 forward.
-(* 1,732,160 *)
-simpl typeof.
-simpl update_tycon.
+(* 1,577,248    1,732,160 *)
 simplify_Delta.
   go_lower0;
   repeat (apply derives_extract_prop; intro);
@@ -168,7 +166,7 @@ simplify_Delta.
    | H: _ = eval_id _ _ |- _ => rewrite <- H in *; clear H
   end;
   repeat split; auto.
-(* 1,732,164 *)
+(* 1,666,568   1,732,164 *)
   clear;
   cbv beta iota delta [sem_and sem_notint sem_or 
     sem_shl sem_shr sem_or sem_add sem_xor
@@ -180,7 +178,7 @@ simplify_Delta.
   repeat rewrite <- Maj_eq;
   repeat rewrite (rearrange_aux h);
   reflexivity.
-(* 1,743,816  ;   without the computational closedness: 1,913,256 *)
+(* 1,685,788    1,743,816  ;   without the computational closedness: 1,913,256 *)
 Admitted. (* this proof works, but takes over 2 gigabytes  *)
 
 Lemma rearrange_regs_proof:
