@@ -1124,6 +1124,61 @@ Qed.
 
 End R_lems.
 
+Section initCore_lems.
+
+Context (my_cores : 'I_N -> t) c1 ix v vs 
+        (init1 : initCore my_cores ix v vs = Some c1).
+
+Lemma initCore_ix : ix = Core.i c1.
+Proof.
+move: init1; rewrite /init1 /initCore.
+by case: (RC.initial_core _ _ _ _)=> // c; case; case: c1=> ? ?; case.
+Qed.
+
+End initCore_lems.
+
+(* Lemma initCore_match id args1 c1 args2 j mu m1 m2  *)
+(*   (jmu   : j = as_inj (restrict_sm mu (sharedSrc mu))) *)
+(*   (init1 : initCore cores_S (Core.i c1) (Vptr id Integers.Int.zero) args1 = Some c1)  *)
+(*   (vinj  : val_list_inject j args1 args2)  *)
+(*   (globs : meminj_preserves_globals (ge (cores_S (Core.i c1))) j)  *)
+(*   (valid : sm_valid mu m1 m2) : *)
+(*   let domS := REACH m1 (fun b' => isGlobalBlock (ge (cores_S (Core.i c1))) b' *)
+(*                                || getBlocks args1 b' *)
+(*                                || sharedSrc mu b') in *)
+(*   let domT := REACH m2 (fun b' => isGlobalBlock (ge (cores_T (Core.i c1))) b' *)
+(*                                || getBlocks args2 b' *)
+(*                                || sharedTgt mu b') in *)
+(*   exists (cd : core_data entry_points (sims (Core.i c1)))  *)
+(*          (c2 : Core.t cores_T) *)
+(*          (pf : Core.i c1 = Core.i c2), *)
+(*   [/\ initCore cores_T (Core.i c1) (Vptr id Integers.Int.zero) args2 = Some c2 *)
+(*     & match_state (sims (Core.i c1)) cd  *)
+(*       (initial_SM domS domT domS domT j)  *)
+(*       (Core.c c1) m1  *)
+(*       (rc_cast'' pf (Core.c c2)) m2]. *)
+(* Proof. *)
+(* move=> domS domT. *)
+(* move: init1; rewrite /initCore /RC.initial_core. *)
+(* case e: (initial_core _ _ _ _)=> [c1'|]. *)
+(* case.  *)
+(* (*apply core_initial  *)
+(*   with (Sem2 := coreSem (cores_T (Core.i c1)))  *)
+(*        (j0 := restrict (as_inj mu) domS) *)
+(*        (DomS := domS) *)
+(*        (DomT := domT) *)
+(*        (s := sims (Core.i c1)) *)
+(*        (m3 := m1) *)
+(*        (m4 := m2) *)
+(*        (entry_points0 := entry_points) *)
+(*        (vals2 := args2) *)
+(*        (v2 := Vptr id Integers.Int.zero) *)
+(*        (ge2 := ge (cores_T (Core.i c1))) *)
+(*        (sig := sig) *)
+(*   in e=> //. *)
+(* move: e.*) *)
+(* Admitted. *)
+
 Section call_lems.
 
 Context
@@ -1173,21 +1228,39 @@ move=> rc trinv hdinv tlinv.
 move: hdl1.
 rewrite LinkerSem.handleP.
 move=> []all_at1 []ix []c1 []fntbl1 init1 st1'_eq.
-have [c2 init2]: 
-  exists c2, initCore cores_T ix (Vptr id Integers.Int.zero) args2 = Some c2.
+
+set (j := extern_of mu_top).
+set (domS := extBlocksSrc mu_top).
+set (domT := extBlocksTgt mu_top).
+set (frgnS := frgnBlocksSrc mu_top).
+set (frgnT := frgnBlocksTgt mu_top).
+
+have [cd2 [c2 [pf_new [init2 mtch_new]]]]:
+  exists (cd : core_data entry_points (sims (Core.i c1))) 
+         (c2 : Core.t cores_T)
+         (pf : Core.i c1 = Core.i c2),
+  [/\ initCore cores_T (Core.i c1) (Vptr id Integers.Int.zero) args2 = Some c2
+    & match_state (sims (Core.i c1)) cd 
+      (initial_SM domS domT frgnS frgnT j) 
+      (Core.c c1) m1 
+      (rc_cast'' pf (Core.c c2)) m2].
   admit.
+
 have all_at2: all (atExternal cores_T) (CallStack.callStack st2).
   move: (callStack_wf st2); move/andP=> []atext_tail _.
   admit. (*at_external0 st2 and all atext tail st2 -> all atext st2*)
+
 set (st2' := pushCore st2 c2 all_at2).
 
-have pf_new: Core.i c1 = Core.i c2. admit.
+have valid': sm_valid mu_top m1 m2. admit.
 
-(*must specify shape of mu_new here*)
-have [cd_new [mu_new [trinv_new hdinv_new]]]: 
-  exists cd_new mu_new, 
-  [/\ trash_inv mu_trash mu_new (mu_top :: mus) m1 m2
-    & head_inv pf_new cd_new mu_trash mu_new (mu_top :: mus) x m1 m2].
+set (pkg := Build_frame_pkg valid').
+
+have [cd_new [mu_new [mu_new_eq [trinv_new hdinv_new]]]]: 
+  exists cd_new (mu_new : Inj.t), 
+  [/\ Inj.mu mu_new = initial_SM domS domT frgnS frgnT j
+    , trash_inv mu_trash mu_new (pkg :: mus) m1 m2
+    & head_inv pf_new cd_new mu_trash mu_new (pkg :: mus) x m1 m2].
   admit.
 
 exists (Lex.set (Core.i c1) cd_new cd),st2'.
@@ -1195,25 +1268,47 @@ split.
 rewrite LinkerSem.handleP.
 exists all_at2,ix,c2; split=> //.
 by move: fntbl1; rewrite (R_fntbl inv).
+have ix_eq: ix = Core.i c1 by apply: (initCore_ix init1).
+by rewrite ix_eq.
 rewrite st1'_eq /st2'.
 
-set (mu_tot := join_all mu_trash [seq frame_mu0 i | i <- mu_top :: mus]).
-set (mu_tot_new := 
-  join_all mu_trash [seq frame_mu0 i | i <- mu_new :: mu_top :: mus]).
+have valid_new: sm_valid mu_new m1 m2. 
+admit. (*easy*)
 
-have mu_tot_new_eq: mu_tot_new = mu_tot. admit. (*relies on spec. of mu_new*)
+set (pkg_new := Build_frame_pkg valid_new).
+
+set (mu_tot := join_all mu_trash [seq frame_mu0 i | i <- pkg :: mus]).
+set (mu_tot_new := 
+  join_all mu_trash [seq frame_mu0 i | i <- pkg_new :: pkg :: mus]).
+
+have mu_tot_new_eq: mu_tot_new = mu_tot. 
+{ rewrite /mu_tot_new /mu_tot /pkg_new /= join_sm_absorb'=> //. 
+  by rewrite mu_new_eq; apply: inject_incr_empty.
+  by rewrite mu_new_eq /j.
+  by rewrite mu_new_eq; apply: subset0.
+  by rewrite mu_new_eq; apply: subset0.
+  by rewrite mu_new_eq /j.
+  by rewrite mu_new_eq /j.
+  by rewrite mu_new_eq.
+  by rewrite mu_new_eq. }
 
 apply: Build_R.
-exists pf_new,mu_trash,mu_new,[:: mu_top & mus],x; split=> //.
+exists pf_new,mu_trash,mu_new,[:: pkg & mus],x; split=> //.
 by move: mu_tot_new_eq; rewrite /mu_tot_new /mu_tot=> ->.
 by rewrite Lex.gss.
 rewrite /pushCore /=.
 
+have st1_len: (ssrnat.leq 1 (size (callStack (stack st1)))).
+{ by move: (callStack_wf st1); move/andP=> []_ ?. }
+
+have st2_len: (ssrnat.leq 1 (size (callStack (stack st2)))).
+{ by move: (callStack_wf st2); move/andP=> []_ ?. }
+
 have st1_eq: callStack (stack st1) = [:: c inv & STACK.pop st1].
-  admit.
+{ by rewrite /c /s1; case: st1 inv=> //= ?; case=> //=; case. }
 
 have st2_eq: callStack (stack st2) = [:: d inv & STACK.pop st2].
-  admit.
+{ by rewrite /d /s2; case: st2 inv=> //= ?; case=> //=; case. }
 
 rewrite st1_eq st2_eq.
 
@@ -1224,24 +1319,25 @@ have atext1':
 have atext2': 
   at_external (coreSem (cores_T (Core.i (c inv)))) 
               (cast'' pf (RC.core (Core.c (d inv))))
-  = Some (ef,sig,args2). admit.
+  = Some (ef,sig,args2). admit. (*casting business*)
 
-have inj: Mem.inject (as_inj mu_top) m1 m2. admit.
+have inj: Mem.inject (as_inj mu_top) m1 m2.
+  move: (head_match hdinv)=> mtch.
+  move: (@core_at_external _ _ _ _ _ _
+         (coreSem (cores_S (Core.i (c inv))))
+         (coreSem (cores_T (Core.i (c inv)))))=> mtch'.
+  admit. (*easy*)
 
-have vinj: Forall2 (val_inject (as_inj mu_top)) args1 args2. admit.
+have vinj: Forall2 (val_inject (as_inj mu_top)) args1 args2. admit. (*easy*)
 
-have valid': sm_valid mu_top m1 m2. admit.
+have valid'': sm_valid pkg m1 m2 by apply: valid'.
 
-move: (head_tail_inv tlinv valid' atext1' atext2' inj vinj hdinv).
+move: (head_tail_inv tlinv valid'' atext1' atext2' inj vinj hdinv).
 rewrite /s1 /s2.
 
-move: mu_eq trinv trinv_new hdinv hdinv_new. 
-move: mu_tot mu_tot_new mu_tot_new_eq valid' inj vinj.
-case: mu_top. simpl. intros.
-apply: head_tail_inv0.
-
-apply head_tail_inv.
-admit. 
+generalize dependent mu_top; case; intros.
+by apply: head_tail_inv0.
+by apply: (R_fntbl inv).
 Qed.
 
 End call_lems.

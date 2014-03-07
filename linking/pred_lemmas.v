@@ -157,6 +157,19 @@ Lemma in_predI (p q : pred T) b :
   b \in [predI p & q] = [&& b \in p & b \in q].
 Proof. by rewrite/in_mem. Qed.
 
+Lemma predI_absorb (p q : pred T) : 
+  [predI p & [predI p & q]] = [predI p & q].
+Proof.
+rewrite/predI; f_equal; extensionality a=>/=.
+by rewrite/in_mem/=; case: (p a).
+Qed.
+
+Lemma predI_refl (p : pred T) : [predI p & p] = [pred x | p x].
+Proof.
+rewrite/predI; f_equal; extensionality a=> /=; rewrite /in_mem /=.
+by case: (p a). 
+Qed.
+
 Lemma predUC (p q : pred T) : [predU p & q] = [predU q & p].
 Proof. by rewrite/predU; f_equal; extensionality a; rewrite orb_comm. Qed.
 
@@ -182,6 +195,28 @@ Proof. by rewrite predUC predUT2. Qed.
 Lemma in_predU (p q : pred T) b : 
   b \in [predU p & q] = [|| b \in p | b \in q].
 Proof. by rewrite/in_mem. Qed.
+
+Lemma predU_absorb (p q : pred T) : 
+  [predU p & [predU p & q]] = [predU p & q].
+Proof.
+rewrite/predU; f_equal; extensionality a=>/=.
+by rewrite/in_mem/=; case: (p a).
+Qed.
+
+Lemma predU_absorb' (p' p q : pred T) : 
+  {subset p' <= p} -> 
+  [predU p' & [predU p & q]] = [predU p & q].
+Proof.
+rewrite/predU=> A; f_equal; extensionality a=>/=.
+move: (A a); rewrite/in_mem/=; case: (p' a)=> //.
+by move=> ->.
+Qed.
+
+Lemma predU_refl (p : pred T) : [predU p & p] = [pred x | p x].
+Proof.
+rewrite/predU; f_equal; extensionality a=> /=; rewrite /in_mem /=.
+by case: (p a). 
+Qed.
 
 Lemma predD02 (p : pred T) : [predD pred0 & p] = pred0.
 Proof. 
@@ -328,5 +363,8 @@ Proof.
 move=> A B b C; apply/andP=> /=; split; first by apply: A.
 by apply: B.
 Qed.
+
+Lemma subset0 (p : pred T) : {subset pred0 <= p}.
+Proof. by []. Qed.
 
 End pred_lems.

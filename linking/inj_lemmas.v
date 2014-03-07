@@ -7,7 +7,7 @@ Require Import Bool.
 Require Import Zbool.
 Require Import BinPos. 
 
-Require Import compcert.common.Globalenvs.
+Require Import compcert. Import CompcertCommon.
 
 Require Import msl.Axioms.
 
@@ -1697,6 +1697,84 @@ rewrite ->freshloc_charT in H.
 by case: H.
 Qed.
 
+Lemma join_absorb f g : join f (join f g) = join f g.
+Proof.
+by rewrite /join; extensionality a; case: (f a).
+Qed.
+
+Lemma join_absorb' f' f g : 
+  inject_incr f' f -> 
+  join f' (join f g) = join f g.
+Proof.
+move=> A; rewrite /join; extensionality a.
+by case e: (f' a)=> // [[b ofs]]; rewrite (A _ _ _ e).
+Qed.
+
+Lemma join_sm_absorb mu1 mu2 : 
+  join_sm mu1 (join_sm mu1 mu2) = join_sm mu1 mu2.
+Proof.
+case: mu1=> ? ? ? ? ? ? ? ? ? ?; rewrite /join_sm /join2 /=; f_equal.
+by rewrite predU_absorb.
+by rewrite predU_absorb.
+by rewrite join_absorb.
+by rewrite predI_absorb.
+by rewrite predI_absorb.
+by rewrite predI_absorb.
+by rewrite predI_absorb.
+extensionality a.
+case: (_ a)=> //.
+move=> [b ofs].
+case: (extern_of _ _)=> //.
+move=> [b' ofs'].
+case: (_ && _)=> //.
+by rewrite Pos.eqb_refl Zeq_bool_refl.
+Qed.
+
+Lemma join_sm_absorb' mu0 mu1 mu2 : 
+  inject_incr (local_of mu0) (local_of mu1) -> 
+  extern_of mu0 = extern_of mu1 -> 
+  {subset (locBlocksSrc mu0) <= locBlocksSrc mu1} -> 
+  {subset (locBlocksTgt mu0) <= locBlocksTgt mu1} -> 
+  extBlocksSrc mu0 = extBlocksSrc mu1 -> 
+  extBlocksTgt mu0 = extBlocksTgt mu1 -> 
+  frgnBlocksSrc mu0 = frgnBlocksSrc mu1 -> 
+  frgnBlocksTgt mu0 = frgnBlocksTgt mu1 -> 
+  join_sm mu0 (join_sm mu1 mu2) = join_sm mu1 mu2.
+Proof.
+case: mu0=> ? ? ? ? ? ? ? ? ? ?. 
+case: mu1=> ? ? ? ? ? ? ? ? ? ?; rewrite /join_sm /join2 /=.
+move=> A B C D E F G H; f_equal.
+by rewrite predU_absorb'.
+by rewrite predU_absorb'.
+by rewrite join_absorb'.
+by rewrite E predI_absorb.
+by rewrite F predI_absorb.
+by rewrite G predI_absorb.
+by rewrite H predI_absorb.
+extensionality a.
+rewrite B.
+case: (_ a)=> //.
+move=> [b ofs].
+case: (extern_of _ _)=> //.
+move=> [b' ofs'].
+case: (_ && _)=> //.
+by rewrite Pos.eqb_refl Zeq_bool_refl.
+Qed.
+
+Lemma join_all_absorb' mu_trash (mu0 mu1 : Inj.t) (mus : seq Inj.t) : 
+  inject_incr (local_of mu0) (local_of mu1) -> 
+  extern_of mu0 = extern_of mu1 -> 
+  {subset (locBlocksSrc mu0) <= locBlocksSrc mu1} -> 
+  {subset (locBlocksTgt mu0) <= locBlocksTgt mu1} -> 
+  extBlocksSrc mu0 = extBlocksSrc mu1 -> 
+  extBlocksTgt mu0 = extBlocksTgt mu1 -> 
+  frgnBlocksSrc mu0 = frgnBlocksSrc mu1 -> 
+  frgnBlocksTgt mu0 = frgnBlocksTgt mu1 -> 
+  join_all mu_trash [:: mu0, mu1 & mus] = join_all mu_trash [:: mu1 & mus].
+Proof.
+by move=> A B C D E F G H /=; rewrite join_sm_absorb'.
+Qed.
+
 Lemma vis_restrict_sm mu X : vis (restrict_sm mu X) = vis mu.
 Proof.
 by extensionality b; case: mu.
@@ -1709,4 +1787,9 @@ case: mu=> // ? ? ? ? ? ? ? ? ? ? /=; split=> //.
 by extensionality b; rewrite freshloc_irrefl orb_false_r. 
 split; first by extensionality b; rewrite freshloc_irrefl orb_false_r. 
 by split.
+Qed.
+
+Lemma inject_incr_empty j : inject_incr (fun _ => None) j.
+Proof.
+by move=> b b' ofs; discriminate.
 Qed.
