@@ -1741,8 +1741,8 @@ Lemma join_sm_absorb' mu0 mu1 mu2 :
   frgnBlocksTgt mu0 = frgnBlocksTgt mu1 -> 
   join_sm mu0 (join_sm mu1 mu2) = join_sm mu1 mu2.
 Proof.
-case: mu0=> ? ? ? ? ? ? ? ? ? ?. 
-case: mu1=> ? ? ? ? ? ? ? ? ? ?; rewrite /join_sm /join2 /=.
+case: mu0=> ? ? ? ? ? ? ? ? ? ef1. 
+case: mu1=> ? ? ? ? ? ? ? ? ? ef2; rewrite /join_sm /join2 /=.
 move=> A B C D E F G H; f_equal.
 by rewrite predU_absorb'.
 by rewrite predU_absorb'.

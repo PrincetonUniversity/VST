@@ -417,6 +417,15 @@ Proof.
 by case: inv=> // A _ _ _ _ _ _ _; apply: (match_validblocks _ A).
 Qed.
 
+Lemma head_atext_inj ef sig args : 
+  at_external (coreSem (cores_S (Core.i c))) (RC.core (Core.c c)) 
+    = Some (ef,sig,args) -> 
+  Mem.inject (as_inj mu) m1 m2.
+Proof.
+move=> atext; move: (head_match inv)=> mtch.
+by case: (core_at_external (sims (Core.i c)) _ _ _ _ _ _ mtch atext).
+Qed.
+
 End head_inv_lems.
 
 Import seq.
@@ -1206,7 +1215,7 @@ have atext1':
 move=> hd_match _.
 case: (core_at_external (sims (Core.i (c inv))) 
       _ _ _ _ _ _ hd_match atext1').
-move=> inj []args2 []valinj atext2; exists args2; split.
+move=> inj []rc' []args2 []valinj atext2; exists args2; split.
 rewrite /LinkerSem.at_external0; move: atext2.
 rewrite /= /RC.at_external=> <-. admit. (*stupid casting business*)
 apply: forall_inject_val_list_inject.
@@ -1229,30 +1238,45 @@ move: hdl1.
 rewrite LinkerSem.handleP.
 move=> []all_at1 []ix []c1 []fntbl1 init1 st1'_eq.
 
-set (j := extern_of mu_top).
-set (domS := extBlocksSrc mu_top).
-set (domT := extBlocksTgt mu_top).
-set (frgnS := frgnBlocksSrc mu_top).
-set (frgnT := frgnBlocksTgt mu_top).
+set (j := as_inj mu_top).
+set (domS := DomSrc mu_top).
+set (domT := DomTgt mu_top).
+set (frgnS := sharedSrc mu_top).
+set (frgnT := sharedTgt mu_top).
 
-have [cd2 [c2 [pf_new [init2 mtch_new]]]]:
+have [cd2 [c2 [pf_new init2]]]:
   exists (cd : core_data entry_points (sims (Core.i c1))) 
          (c2 : Core.t cores_T)
          (pf : Core.i c1 = Core.i c2),
-  [/\ initCore cores_T (Core.i c1) (Vptr id Integers.Int.zero) args2 = Some c2
-    & match_state (sims (Core.i c1)) cd 
-      (initial_SM domS domT frgnS frgnT j) 
-      (Core.c c1) m1 
-      (rc_cast'' pf (Core.c c2)) m2].
-  admit.
+    initCore cores_T (Core.i c1) (Vptr id Integers.Int.zero) args2 = Some c2.
+{ move: init1.
+  rewrite /initCore /RC.initial_core.
+  case e1: (initial_core _ _ _ _)=> //; case=> X.
+  admit. }
+
+have st1_len: (ssrnat.leq 1 (size (callStack (stack st1)))).
+{ by move: (callStack_wf st1); move/andP=> []_ ?. }
+
+have st2_len: (ssrnat.leq 1 (size (callStack (stack st2)))).
+{ by move: (callStack_wf st2); move/andP=> []_ ?. }
+
+have st1_eq: callStack (stack st1) = [:: c inv & STACK.pop st1].
+{ by rewrite /c /s1; case: st1 inv=> //= ?; case=> //=; case. }
+
+have st2_eq: callStack (stack st2) = [:: d inv & STACK.pop st2].
+{ by rewrite /d /s2; case: st2 inv=> //= ?; case=> //=; case. }
 
 have all_at2: all (atExternal cores_T) (CallStack.callStack st2).
-  move: (callStack_wf st2); move/andP=> []atext_tail _.
-  admit. (*at_external0 st2 and all atext tail st2 -> all atext st2*)
+{ move: (callStack_wf st2); move/andP=> []atext_tail _; rewrite st2_eq.
+  move=> /=; apply/andP; split=> //.
+  move: A; rewrite /LinkerSem.at_external0 /atExternal.
+  rewrite /d /s2 /pf2 /peekCore.
+  by case: (STACK.head _ _)=> ? /= d atext2; rewrite /RC.at_external atext2. }
 
 set (st2' := pushCore st2 c2 all_at2).
 
-have valid': sm_valid mu_top m1 m2. admit.
+have valid': sm_valid mu_top m1 m2. 
+{ by apply: (head_valid hdinv). }
 
 set (pkg := Build_frame_pkg valid').
 
@@ -1273,7 +1297,12 @@ by rewrite ix_eq.
 rewrite st1'_eq /st2'.
 
 have valid_new: sm_valid mu_new m1 m2. 
-admit. (*easy*)
+{ rewrite mu_new_eq /initial_SM /sm_valid /DOM /RNG /DomSrc /DomTgt /=.
+  rewrite /domS /domT; split=> b; generalize dependent valid'; case.
+  move=> X ? ? ? ? ? ? H; apply: (X b); rewrite /DOM /DomSrc H.
+  by apply/orP; right.
+  move=> ? X ? ? ? ? ? H; apply: (X b); rewrite /RNG /DomTgt H.
+  by apply/orP; right. }
 
 set (pkg_new := Build_frame_pkg valid_new).
 
@@ -1298,18 +1327,6 @@ by move: mu_tot_new_eq; rewrite /mu_tot_new /mu_tot=> ->.
 by rewrite Lex.gss.
 rewrite /pushCore /=.
 
-have st1_len: (ssrnat.leq 1 (size (callStack (stack st1)))).
-{ by move: (callStack_wf st1); move/andP=> []_ ?. }
-
-have st2_len: (ssrnat.leq 1 (size (callStack (stack st2)))).
-{ by move: (callStack_wf st2); move/andP=> []_ ?. }
-
-have st1_eq: callStack (stack st1) = [:: c inv & STACK.pop st1].
-{ by rewrite /c /s1; case: st1 inv=> //= ?; case=> //=; case. }
-
-have st2_eq: callStack (stack st2) = [:: d inv & STACK.pop st2].
-{ by rewrite /d /s2; case: st2 inv=> //= ?; case=> //=; case. }
-
 rewrite st1_eq st2_eq.
 
 have atext1': 
@@ -1319,14 +1336,17 @@ have atext1':
 have atext2': 
   at_external (coreSem (cores_T (Core.i (c inv)))) 
               (cast'' pf (RC.core (Core.c (d inv))))
-  = Some (ef,sig,args2). admit. (*casting business*)
+  = Some (ef,sig,args2).
+ { set T := C \o cores_T.
+   set P := fun ix (x : T ix) => 
+              at_external (coreSem (cores_T ix)) x
+              = Some (ef, sig, args2).
+   have: (P (Core.i (d inv)) (RC.core (Core.c (d inv))))
+     by rewrite /LinkerSem.at_external0.
+   by apply: cast_indnatdep. }
 
 have inj: Mem.inject (as_inj mu_top) m1 m2.
-  move: (head_match hdinv)=> mtch.
-  move: (@core_at_external _ _ _ _ _ _
-         (coreSem (cores_S (Core.i (c inv))))
-         (coreSem (cores_T (Core.i (c inv)))))=> mtch'.
-  admit. (*easy*)
+{ by apply: (head_atext_inj hdinv atext1'). }
 
 have vinj: Forall2 (val_inject (as_inj mu_top)) args1 args2. admit. (*easy*)
 
