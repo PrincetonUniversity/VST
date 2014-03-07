@@ -1146,48 +1146,6 @@ Qed.
 
 End initCore_lems.
 
-(* Lemma initCore_match id args1 c1 args2 j mu m1 m2  *)
-(*   (jmu   : j = as_inj (restrict_sm mu (sharedSrc mu))) *)
-(*   (init1 : initCore cores_S (Core.i c1) (Vptr id Integers.Int.zero) args1 = Some c1)  *)
-(*   (vinj  : val_list_inject j args1 args2)  *)
-(*   (globs : meminj_preserves_globals (ge (cores_S (Core.i c1))) j)  *)
-(*   (valid : sm_valid mu m1 m2) : *)
-(*   let domS := REACH m1 (fun b' => isGlobalBlock (ge (cores_S (Core.i c1))) b' *)
-(*                                || getBlocks args1 b' *)
-(*                                || sharedSrc mu b') in *)
-(*   let domT := REACH m2 (fun b' => isGlobalBlock (ge (cores_T (Core.i c1))) b' *)
-(*                                || getBlocks args2 b' *)
-(*                                || sharedTgt mu b') in *)
-(*   exists (cd : core_data entry_points (sims (Core.i c1)))  *)
-(*          (c2 : Core.t cores_T) *)
-(*          (pf : Core.i c1 = Core.i c2), *)
-(*   [/\ initCore cores_T (Core.i c1) (Vptr id Integers.Int.zero) args2 = Some c2 *)
-(*     & match_state (sims (Core.i c1)) cd  *)
-(*       (initial_SM domS domT domS domT j)  *)
-(*       (Core.c c1) m1  *)
-(*       (rc_cast'' pf (Core.c c2)) m2]. *)
-(* Proof. *)
-(* move=> domS domT. *)
-(* move: init1; rewrite /initCore /RC.initial_core. *)
-(* case e: (initial_core _ _ _ _)=> [c1'|]. *)
-(* case.  *)
-(* (*apply core_initial  *)
-(*   with (Sem2 := coreSem (cores_T (Core.i c1)))  *)
-(*        (j0 := restrict (as_inj mu) domS) *)
-(*        (DomS := domS) *)
-(*        (DomT := domT) *)
-(*        (s := sims (Core.i c1)) *)
-(*        (m3 := m1) *)
-(*        (m4 := m2) *)
-(*        (entry_points0 := entry_points) *)
-(*        (vals2 := args2) *)
-(*        (v2 := Vptr id Integers.Int.zero) *)
-(*        (ge2 := ge (cores_T (Core.i c1))) *)
-(*        (sig := sig) *)
-(*   in e=> //. *)
-(* move: e.*) *)
-(* Admitted. *)
-
 Section call_lems.
 
 Context
@@ -1216,8 +1174,36 @@ move=> hd_match _.
 case: (core_at_external (sims (Core.i (c inv))) 
       _ _ _ _ _ _ hd_match atext1').
 move=> inj []rc' []args2 []valinj atext2; exists args2; split.
-rewrite /LinkerSem.at_external0; move: atext2.
-rewrite /= /RC.at_external=> <-. admit. (*stupid casting business*)
+set T := C \o cores_T.
+rewrite /LinkerSem.at_external0.
+set P := fun ix (x : T ix) => 
+            at_external (coreSem (cores_T ix)) x
+            = Some (ef, sig, args2).
+change (P (Core.i (peekCore st2)) (RC.core (Core.c (peekCore st2)))).
+have X: (P (Core.i (c inv)) (cast'' pf (RC.core (Core.c (d inv))))).
+{ move: atext2=> /=; rewrite /RC.at_external /P /=.
+  have eq: at_external (coreSem (cores_T (Core.i (c inv))))
+            (cast'' pf (RC.core (Core.c (d inv)))) =
+           at_external (coreSem (cores_T (Core.i (d inv))))
+            (RC.core (Core.c (d inv))). 
+  { set T' := C \o cores_T.
+    set P' := fun ix (x : T' ix) => 
+                 at_external (coreSem (cores_T ix)) x
+                 = at_external (coreSem (cores_T (Core.i (d inv))))
+                     (RC.core (Core.c (d inv))).
+    change (P' (Core.i (c inv)) 
+               (cast T' (eq_sym pf) (RC.core (Core.c (d inv))))).
+    by apply: cast_indnatdep. }
+  rewrite eq=> X.
+  set T' := RC.state \o C \o cores_T.
+  set P' := fun ix (x : T' ix) => 
+               at_external (coreSem (cores_T ix)) (RC.core x)
+               = Some (ef, sig, args2).
+  change (P' (Core.i (d inv))  (Core.c (d inv))).
+  have X': (P' (Core.i (c inv)) (rc_cast'' pf (Core.c (d inv))))
+    by apply: X.
+  by apply: (cast_indnatdep' X'). }
+by apply: (cast_indnatdep' X).
 apply: forall_inject_val_list_inject.
 admit. (*vals injected by mu_top should be injected by mu*)
 Qed.
