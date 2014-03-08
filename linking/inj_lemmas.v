@@ -356,6 +356,75 @@ move=> b A; case: (Inj_wd mu)=> ? ? ? ? ? ? ?.
 by move/(_ b A).
 Qed.
 
+Lemma extsrc_sub_domsrc (mu : Inj.t) : 
+  {subset (extBlocksSrc mu) <= DomSrc mu}.
+Proof. 
+by move=> b; rewrite /DomSrc /in_mem /= => ->; apply/orP; right.
+Qed.
+
+Lemma exttgt_sub_domtgt (mu : Inj.t) : 
+  {subset (extBlocksTgt mu) <= DomTgt mu}.
+Proof. 
+by move=> b; rewrite /DomTgt /in_mem /= => ->; apply/orP; right.
+Qed.
+
+Lemma frgnsrc_sub_domsrc (mu : Inj.t) : 
+  {subset (frgnBlocksSrc mu) <= DomSrc mu}.
+Proof. 
+by move=> A; move/frgnsrc_sub_extsrc; apply: extsrc_sub_domsrc.
+Qed.
+
+Lemma frgntgt_sub_domtgt (mu : Inj.t) : 
+  {subset (frgnBlocksTgt mu) <= DomTgt mu}.
+Proof. 
+by move=> A; move/frgntgt_sub_exttgt; apply: exttgt_sub_domtgt.
+Qed.
+
+Lemma frgnsrc_sub_sharedsrc (mu : Inj.t) : 
+  {subset (frgnBlocksSrc mu) <= sharedSrc mu}.
+Proof.
+move=> a; rewrite /sharedSrc /shared_of /join /in_mem /=.
+by move/(frgnSrc _ (Inj_wd _) _)=> []x []y []-> B.
+Qed.
+
+Lemma frgntgt_sub_sharedtgt (mu : Inj.t) : 
+  {subset (frgnBlocksTgt mu) <= sharedTgt mu}.
+Proof.
+by move=> a; rewrite /sharedTgt /shared_of /join /in_mem /= => ->.
+Qed.
+
+Lemma frgnsrc_sub_exportedsrc (mu : Inj.t) vals : 
+  {subset (frgnBlocksSrc mu) <= exportedSrc mu vals}.
+Proof.
+move=> a; rewrite /exportedSrc; move/frgnsrc_sub_sharedsrc.
+by rewrite /in_mem /= => ->; apply/orP; right.
+Qed.
+
+Lemma frgntgt_sub_exportedtgt (mu : Inj.t) vals : 
+  {subset (frgnBlocksTgt mu) <= exportedTgt mu vals}.
+Proof.
+move=> a; rewrite /exportedTgt; move/frgntgt_sub_sharedtgt.
+by rewrite /in_mem /= => ->; apply/orP; right.
+Qed.
+
+Lemma sharedsrc_sub_domsrc (mu : Inj.t) :
+  {subset (sharedSrc mu) <= DomSrc mu}.
+Proof.
+move=> a; rewrite /sharedSrc /in_mem /=.
+case e: (_ a)=> //[[? ?]].
+move: (shared_in_all _ (Inj_wd _) _ _ _ e)=> asinj.
+by case: (as_inj_DomRng _ _ _ _ asinj (Inj_wd _)).
+Qed.
+
+Lemma sharedtgt_sub_domtgt (mu : Inj.t) :
+  {subset (sharedTgt mu) <= DomTgt mu}.
+Proof.
+move=> a; rewrite /sharedTgt /in_mem /=.
+rewrite /DomTgt; case/orP.
+by move/frgntgt_sub_exttgt; rewrite /in_mem /= => ->; apply/orP; right.
+by move/pubtgt_sub_loctgt; rewrite /in_mem /= => ->.
+Qed.
+
 Lemma smvalid_pubsrc_bound (mu : Inj.t) m :
   smvalid_src mu m -> 
   [pred b | pubBlocksSrc mu b]
@@ -1732,44 +1801,57 @@ Qed.
 
 Lemma join_sm_absorb' mu0 mu1 mu2 : 
   inject_incr (local_of mu0) (local_of mu1) -> 
-  extern_of mu0 = extern_of mu1 -> 
+  inject_incr (extern_of mu1) (extern_of mu0) -> 
   {subset (locBlocksSrc mu0) <= locBlocksSrc mu1} -> 
   {subset (locBlocksTgt mu0) <= locBlocksTgt mu1} -> 
-  extBlocksSrc mu0 = extBlocksSrc mu1 -> 
-  extBlocksTgt mu0 = extBlocksTgt mu1 -> 
-  frgnBlocksSrc mu0 = frgnBlocksSrc mu1 -> 
-  frgnBlocksTgt mu0 = frgnBlocksTgt mu1 -> 
+  {subset (extBlocksSrc mu1) <= extBlocksSrc mu0} -> 
+  {subset (extBlocksTgt mu1) <= extBlocksTgt mu0} -> 
+  {subset (frgnBlocksSrc mu1) <= frgnBlocksSrc mu0} -> 
+  {subset (frgnBlocksTgt mu1) <= frgnBlocksTgt mu0} -> 
   join_sm mu0 (join_sm mu1 mu2) = join_sm mu1 mu2.
 Proof.
-case: mu0=> ? ? ? ? ? ? ? ? ? ef1. 
-case: mu1=> ? ? ? ? ? ? ? ? ? ef2; rewrite /join_sm /join2 /=.
+case: mu0=> ? ? ? ? ? ex0s ex0t fr0s fr0t ef0. 
+case: mu1=> ? ? ? ? ? ex1s ex1t fr1s fr1t ef1; rewrite /join_sm /join2 /=.
 move=> A B C D E F G H; f_equal.
 by rewrite predU_absorb'.
 by rewrite predU_absorb'.
 by rewrite join_absorb'.
-by rewrite E predI_absorb.
-by rewrite F predI_absorb.
-by rewrite G predI_absorb.
-by rewrite H predI_absorb.
+by rewrite -predI_absorb_sub.
+by rewrite -predI_absorb_sub.
+by rewrite -predI_absorb_sub.
+by rewrite -predI_absorb_sub.
 extensionality a.
-rewrite B.
-case: (_ a)=> //.
-move=> [b ofs].
-case: (extern_of _ _)=> //.
-move=> [b' ofs'].
-case: (_ && _)=> //.
-by rewrite Pos.eqb_refl Zeq_bool_refl.
+case e0: (ef0 a)=> // [[b ofs]|].
+case e1: (ef1 a)=> // [[b' ofs']].
+case e2: (extern_of _ _)=> // [[b'' ofs'']].
+case f: (_ && _)=> //.
+case: (andP f).
+move/Peqb_true_eq=> ->.
+move/Zeq_bool_eq=> ->.
+case g: (_ && _)=> //.
+case: (andP g).
+move/Peqb_true_eq=> ->.
+by move/Zeq_bool_eq=> ->.
+move: (B _ _ _ e1); rewrite e0; case.
+case: (andP f).
+move/Peqb_true_eq=> ->.
+move/Zeq_bool_eq=> ->.
+move=> eq1 eq2.
+rewrite eq1 eq2 Pos.eqb_refl Zeq_bool_refl /= in g.
+congruence.
+case e1: (ef1 a)=> // [[b ofs]].
+move: (B _ _ _ e1); rewrite e0; congruence.
 Qed.
 
 Lemma join_all_absorb' mu_trash (mu0 mu1 : Inj.t) (mus : seq Inj.t) : 
   inject_incr (local_of mu0) (local_of mu1) -> 
-  extern_of mu0 = extern_of mu1 -> 
+  inject_incr (extern_of mu1) (extern_of mu0) -> 
   {subset (locBlocksSrc mu0) <= locBlocksSrc mu1} -> 
   {subset (locBlocksTgt mu0) <= locBlocksTgt mu1} -> 
-  extBlocksSrc mu0 = extBlocksSrc mu1 -> 
-  extBlocksTgt mu0 = extBlocksTgt mu1 -> 
-  frgnBlocksSrc mu0 = frgnBlocksSrc mu1 -> 
-  frgnBlocksTgt mu0 = frgnBlocksTgt mu1 -> 
+  {subset (extBlocksSrc mu1) <= extBlocksSrc mu0} -> 
+  {subset (extBlocksTgt mu1) <= extBlocksTgt mu0} -> 
+  {subset (frgnBlocksSrc mu1) <= frgnBlocksSrc mu0} -> 
+  {subset (frgnBlocksTgt mu1) <= frgnBlocksTgt mu0} -> 
   join_all mu_trash [:: mu0, mu1 & mus] = join_all mu_trash [:: mu1 & mus].
 Proof.
 by move=> A B C D E F G H /=; rewrite join_sm_absorb'.
@@ -1792,4 +1874,14 @@ Qed.
 Lemma inject_incr_empty j : inject_incr (fun _ => None) j.
 Proof.
 by move=> b b' ofs; discriminate.
+Qed.
+
+Import StructuredInjections.
+
+Lemma sharedTgt_DomTgt (mu : Inj.t) :
+  forall b, sharedTgt mu b -> DomTgt mu b.
+Proof.
+rewrite /sharedTgt /DomTgt=> b; move/orP; case.
+by move/(frgnBlocksExternTgt _ (Inj_wd _) _)=> ->; apply/orP; right.
+by move/(pubBlocksLocalTgt _ (Inj_wd _) _)=> ->; apply/orP; left.
 Qed.

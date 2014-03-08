@@ -164,6 +164,16 @@ rewrite/predI; f_equal; extensionality a=>/=.
 by rewrite/in_mem/=; case: (p a).
 Qed.
 
+Lemma predI_absorb_sub (p' p q : pred T) : 
+  {subset p <= p'} -> 
+  [predI p & q] = [predI p' & [predI p & q]].
+Proof.
+move=> A; rewrite/predI; f_equal; extensionality a=>/=.
+rewrite /in_mem/=/in_mem/=.
+case x: (p a)=> //=; first by move: (A _ x); rewrite /in_mem/= => ->.
+by case: (p' a).
+Qed.
+
 Lemma predI_refl (p : pred T) : [predI p & p] = [pred x | p x].
 Proof.
 rewrite/predI; f_equal; extensionality a=> /=; rewrite /in_mem /=.
