@@ -33,13 +33,12 @@ to the appropriate list in functions.v
 NOTE2: you might need to change to a form of record notation where you can give the
 implicit argument. Do this if you are having type errors
 *)
-Definition left_lemmas: list (Lemma.lemma types.our_types (SL.sepConcl types.our_types))  := 
-{|   Lemma.Foralls := tvType 11 :: nil;
-     Lemma.Hyps := nil;
-     Lemma.Concl := (Sep.Func 1%nat (Var 0%nat :: nil),
-                    Sep.Func 2%nat (Var 0%nat :: nil)) |} :: nil.
-
-
+Definition left_lemmas: list (Lemma.lemma types.our_types (SL.sepConcl types.our_types)).
+pose_env. 
+HintModule.reify_hints ltac:(fun x => x) tt tt is_const left_hints types functions preds 
+ltac:(fun funcs preds hints => apply hints). 
+Defined.
+ 
 Axiom QP : forall n,  VericSepLogic_Kernel.himp (Q n) (P n).
 
 Definition right_hints := QP.
@@ -55,9 +54,8 @@ ltac:(fun funcs preds hints => id_this (funcs, preds, hints)). *)
 (* Admitted. *)
 
 (*Copied from above goal*)
-Definition right_lemmas : list (Lemma.lemma types.our_types (SL.sepConcl types.our_types)) :=
-{|
-     Lemma.Foralls := tvType 11 :: nil;
-     Lemma.Hyps := nil;
-     Lemma.Concl := (Sep.Func 2%nat (Var 0%nat :: nil),
-                    Sep.Func 1%nat (Var 0%nat :: nil)) |} :: nil.
+Definition right_lemmas : list (Lemma.lemma types.our_types (SL.sepConcl types.our_types)).
+pose_env. 
+HintModule.reify_hints ltac:(fun x => x) tt tt is_const right_hints types functions preds 
+ltac:(fun funcs preds hints => apply hints). 
+Defined.

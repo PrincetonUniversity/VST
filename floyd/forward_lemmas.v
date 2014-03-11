@@ -764,18 +764,7 @@ apply semax_ifthenelse_PQR.
     unfold tc_temp_id.
    unfold typecheck_temp_id. rewrite H1.  simpl denote_tc_assert.
    autorewrite with subst.
-   (* very strange here: look at the `False  term *)
-        apply (semax_pre ((PROPx P
-        (LOCALx
-           (tc_environ (initialized tid Delta) ::
-             `eq (eval_id tid) (eval_expr (Ecast e2 tbool))
-            :: `(typed_false (typeof e1)) (eval_expr e1)
-               :: `or (`(typed_true (typeof e1)) (eval_expr e1))
-                    (tc_expr Delta e2)
-                  :: Q)
-           (SEPx R))))).
-       go_lowerx.  (*H7 is the very strange thing *)
-     contradiction; (* old stuff was: *) repeat apply andp_right; auto.
+   repeat apply andp_right; auto.
         eapply semax_post_flipped.
         eapply forward_setx.
         go_lowerx. apply andp_right; apply prop_right; auto.
@@ -790,19 +779,13 @@ apply semax_ifthenelse_PQR.
         repeat rewrite exp_andp2. apply exp_left; intro.
        simpl eval_expr. 
        autorewrite with subst.
-(*       rewrite (closed_wrt_subst_eval_expr _ _ e1) by auto.
-       rewrite (closed_wrt_subst _ _ (eval_expr e2)) by auto.
- *)      go_lowerx. apply andp_right; auto. apply prop_right; split; auto.
-       rewrite H6. rewrite H8.
-        unfold logical_or_result.
+       go_lowerx. apply andp_right; auto. apply prop_right; split; auto.
+       rewrite H6. rewrite H7. 
+        unfold logical_or_result. rewrite H8.
         subst ek vl. simpl in  H2.
-        rewrite H9.
-       unfold subst in *.
-       apply bool_cast.
-      replace (eval_expr e2 rho) with (eval_expr e2 (env_set rho tid x))
-      by (symmetry; apply CLOSE2; intro i; destruct (eq_dec tid i); [left; auto | right]; rewrite Map.gso by auto; auto).
-      eapply expr_lemmas.typecheck_expr_sound; eauto.
-    apply tc_expr_init. destruct H10; congruence.
+       apply bool_cast. destruct H9. congruence.
+      eapply expr_lemmas.typecheck_expr_sound. apply H2.
+      apply tc_expr_init. apply tc_expr_init. auto.
 Qed.
 
 Lemma semax_logical_and:
@@ -846,19 +829,7 @@ apply semax_ifthenelse_PQR.
     unfold tc_temp_id.
    unfold typecheck_temp_id. rewrite H1.  simpl denote_tc_assert.
    autorewrite with subst.
-   (* very strange here: look at the `False  term *)
-        autorewrite with subst.  
-        apply (semax_pre ((PROPx P
-        (LOCALx
-           (tc_environ (initialized tid Delta) ::
-             `eq (eval_id tid) (eval_expr (Ecast e2 tbool))
-            :: `(typed_true (typeof e1)) (eval_expr e1)
-               :: `or (`(typed_false (typeof e1)) (eval_expr e1))
-                    (tc_expr Delta e2)
-                  :: Q)
-           (SEPx R))))).
-       go_lowerx.
-     contradiction; (* old stuff was: *) repeat apply andp_right; auto.
+   repeat apply andp_right; auto.
         eapply semax_post_flipped.
         eapply forward_setx.
         go_lowerx. apply andp_right; apply prop_right; auto.
@@ -874,17 +845,13 @@ apply semax_ifthenelse_PQR.
        simpl eval_expr. 
        autorewrite with subst.
        go_lowerx. apply andp_right; auto. apply prop_right; split; auto.
-       rewrite H6. rewrite H8.
+       rewrite H6. rewrite H7.
         unfold logical_and_result.
         subst ek vl. simpl in  H2.
-        rewrite H9.
-       unfold subst in *.
-       apply bool_cast.
-      replace (eval_expr e2 rho) with (eval_expr e2 (env_set rho tid x))
-      by (symmetry; apply CLOSE2; intro i; destruct (eq_dec tid i); [left; auto | right]; rewrite Map.gso by auto; auto).
-        eapply expr_lemmas.typecheck_expr_sound; eauto.
-        destruct H10; try congruence.
-    apply tc_expr_init; congruence.
+        rewrite H8.
+       apply bool_cast.  destruct H9. congruence.
+      eapply expr_lemmas.typecheck_expr_sound. apply H2.
+      apply tc_expr_init. apply tc_expr_init. auto.
 - eapply semax_pre. apply derives_refl.
      eapply semax_post_flipped.
      apply forward_setx. 

@@ -337,7 +337,7 @@ Parameter Q : nat -> mpred.
 
 Definition sep_predicates : list (Sep.predicate all_types) :=
 field_at_f 
-     :: Sep.PSig all_types (tvType 11 :: nil)  P
+     :: Sep.PSig all_types (tvType 11 :: nil)  P  
         :: Sep.PSig all_types (tvType 11 :: nil) Q :: nil.
  
 (*End junk, go back to following when tests are done*)

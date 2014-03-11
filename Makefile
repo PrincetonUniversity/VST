@@ -137,11 +137,12 @@ FLOYD_FILES= \
 
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
-  insertionsort.v reverse.v queue.v sumarray.v message.v \
+  insertionsort.v reverse.v queue.v sumarray.v message.v landshark_proof.v\
    entail_examples.v \
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
   verif_float.v \
   verif_nest3.v \
+  logical_compare.v verif_logical_compare.v
 
 SHA_FILES= \
   SHA256.v sha_lemmas.v sha_lemmas2.v \

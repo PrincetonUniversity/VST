@@ -109,7 +109,8 @@ VFILES:=do_computation.v\
   wrapExpr.v\
   hints.v\
   computation_prover.v\
-  mirror_cancel.v
+  mirror_cancel.v\
+  denote_tc_assert_b.v
 
 -include $(addsuffix .d,$(VFILES))
 .SECONDARY: $(addsuffix .d,$(VFILES))
