@@ -16,6 +16,7 @@ Require Import RTL.
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.reach.
 Require Import sepcomp.effect_semantics.
 Require Import StructuredInjections.
 Require Import effect_simulations.
@@ -56,9 +57,9 @@ Proof.
 Qed.
 
 (*LENB: GFP as in selectionproofEFF*)
-Definition globalfunction_ptr_inject (j:meminj):=
+(*Definition globalfunction_ptr_inject (j:meminj):=
   forall b f, Genv.find_funct_ptr SrcGe b = Some f -> 
-              j b = Some(b,0) /\ isGlobalBlock SrcGe b = true. 
+              j b = Some(b,0) /\ isGlobalBlock SrcGe b = true. *)
 
 (*The new match_states*)
 
@@ -212,8 +213,8 @@ Definition MATCH (d:RTL_core) mu c1 m1 c2 m2:Prop :=
   (forall b, isGlobalBlock SrcGe b = true -> frgnBlocksSrc mu b = true) /\
   sm_valid mu m1 m2 /\
   SM_wd mu /\
-  Mem.inject (as_inj mu) m1 m2 /\ 
-  globalfunction_ptr_inject (as_inj mu) .
+  Mem.inject (as_inj mu) m1 m2 (*/\ 
+  globalfunction_ptr_inject (as_inj mu)*) .
 
 (** The simulation proof *)
 Theorem transl_program_correct:
@@ -232,7 +233,14 @@ Theorem transl_program_correct:
                                        rtl_eff_sem SrcGe TrgGe entrypoints.
 
   intros.
-  eapply sepcomp.effect_simulations_lemmas.inj_simulation_star_wf.
+  (*eapply sepcomp.effect_simulations_lemmas.inj_simulation_star_wf.*)
+  Definition RTL_measure (S: RTL_core) : nat :=
+  match S with
+  | RTL_State _ _ _ _ _ => 1%nat
+  | RTL_Callstate _ _ _ => 0%nat
+  | RTL_Returnstate _ _ => 0%nat
+  end.
+  eapply sepcomp.effect_simulations_lemmas.inj_simulation_star with (match_states:= MATCH)(measure:= RTL_measure).
 
   Lemma environment_equality: (exists m0:mem, Genv.init_mem SrcProg = Some m0) -> 
                                      genvs_domain_eq SrcGe TrgGe.
@@ -257,7 +265,7 @@ Theorem transl_program_correct:
   Hint Resolve MATCH_RC: trans_correct.
   eauto with trans_correct.
 
-  Lemma restrict_preserves_globalfun_ptr: forall j X
+  (*Lemma restrict_preserves_globalfun_ptr: forall j X
   (PG : globalfunction_ptr_inject j)
   (Glob : forall b, isGlobalBlock SrcGe b = true -> X b = true),
 globalfunction_ptr_inject (restrict j X).
@@ -266,7 +274,7 @@ Proof. intros.
   destruct (PG _ _ H). split; trivial.
   apply restrictI_Some; try eassumption.
   apply (Glob _ H1).
-Qed.
+Qed.*)
 
 Lemma MATCH_restrict: forall (d : RTL_core) (mu : SM_Injection) (c1 : RTL_core) 
                                  (m1 : mem) (c2 : RTL_core) (m2 : mem) (X : block -> bool) (MC: MATCH d mu c1 m1 c2 m2)(HX: forall b : block, vis mu b = true -> X b = true)(RC0:REACH_closed m1 X), MATCH d (restrict_sm mu X) c1 m1 c2 m2.
@@ -303,12 +311,9 @@ unfold sm_valid.
     rewrite restrict_sm_RNG.
     split; intros; intuition.
 split. assumption.
-split.
+(*split.*)
  rewrite restrict_sm_all.
-eapply  inject_restrict; assumption.
- rewrite restrict_sm_all.
-  eapply restrict_preserves_globalfun_ptr; try eassumption.
-  unfold vis in HX. intuition.
+eapply  inject_restrict; repeat (first [assumption| split]).
 Qed.
 Hint Resolve MATCH_restrict: trans_correct.
 auto with trans_correct.
@@ -365,11 +370,11 @@ Lemma MATCH_initial_core: forall (v1 v2 : val) (sig : signature) entrypoints
    exists c2 : RTL_core,
      initial_core rtl_eff_sem TrgGe v2 vals2 = Some c2 /\
      MATCH c1
-       (initial_SM DomS DomT
+       (initial_SM DomS DomT DomS DomT j) (*
           (REACH m1
              (fun b : block => isGlobalBlock SrcGe b || getBlocks vals1 b))
           (REACH m2
-             (fun b : block => isGlobalBlock TrgGe b || getBlocks vals2 b)) j)
+             (fun b : block => isGlobalBlock TrgGe b || getBlocks vals2 b)) j)*)
        c1 m1 c2 m2.
  Proof.
   intros.
@@ -750,12 +755,67 @@ rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
 destruct (eff_after_check2 _ _ _ _ _ MemInjNu' RValInjNu' 
       _ (eq_refl _) _ (eq_refl _) _ (eq_refl _) WDnu' SMvalNu').
 intuition.
-unfold globalfunction_ptr_inject.
-admit.
 Qed.
 
 Hint Resolve Match_AfterExternal: trans_correct.
 eauto with trans_correct.
+
+Ltac openHyp:= match goal with
+                     | [H: and _ _ |- _] => destruct H
+                     | [H: exists _, _ |- _] => destruct H
+                 end.
+
+
+Lemma corestep_plus_star: 
+   forall (st1 : RTL_core) (m1 : mem) (st1' : RTL_core) (m1' : mem)
+   (CS: corestep rtl_eff_sem SrcGe st1 m1 st1' m1')
+   (st2 : RTL_core) (mu : SM_Injection) (m2 : mem)
+   (MC: MATCH st1 mu st1 m1 st2 m2),
+   exists (st2' : RTL_core) (m2' : mem) (mu' : SM_Injection),
+     intern_incr mu mu' /\
+     sm_inject_separated mu mu' m1 m2 /\
+     sm_locally_allocated mu mu' m1 m2 m1' m2' /\
+     MATCH st1' mu' st1' m1' st2' m2' /\
+     (*SM_wd mu' /\
+     sm_valid mu' m1' m2' /\*)
+     (corestep_plus rtl_eff_sem TrgGe st2 m2 st2' m2' \/
+      (RTL_measure st1' < RTL_measure st1)%nat /\
+      corestep_star rtl_eff_sem TrgGe st2 m2 st2' m2').
+intros.
+inv CS.
+(*Skip *)
+      destruct MC as [SMC PRE].
+      inv SMC; simpl in *. 
+      (*monadInv TR.*)
+      destruct (MS_step_case_SkipSeq _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+        PRE TRF MCS MK) as [c2' [m2' [mu' [cstepPlus MS]]]].
+      exists c2'. exists m2'. exists mu'. 
+      intuition.
+destruct MC as []
+unfold corestep in *.
+unfold core_data in *.
+Check exploit.
+exploit Match_corestep; eauto.
+    intros [? [? [? [? [? [? [? [? [? ?]]]]]]]]].
+    exists x, x0, x1.
+    split; auto.
+
+inv MC; 
+repeat openHyp.
+inv H.
+ intros.
+    exploit Match_corestep; eauto.
+    intros [? [? [? [? [? [? [? [? [? ?]]]]]]]]].
+    exists x, x0, x1.
+    split; auto.
+
+eapply corestep_plus_star; auto.
+intros.
+inv MC.
+inv H; simpl in *.
+
+SearchAbout intern_incr.
+
 
 unfold   well_founded.
 Print Acc.
