@@ -42,7 +42,7 @@ Require Import compcert.common.Memory.
 
 (* ssreflect *)
 
-Require Import ssreflect ssrbool ssrfun seq fintype.
+Require Import ssreflect ssrbool ssrfun seq eqtype fintype.
 Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
@@ -1191,7 +1191,7 @@ have X: (P (Core.i (c inv)) (cast'' pf (RC.core (Core.c (d inv))))).
                  = at_external (coreSem (cores_T (Core.i (d inv))))
                      (RC.core (Core.c (d inv))).
     change (P' (Core.i (c inv)) 
-               (cast T' (eq_sym pf) (RC.core (Core.c (d inv))))).
+               (cast T' (sym_eq pf) (RC.core (Core.c (d inv))))).
     by apply: cast_indnatdep. }
   rewrite eq=> X.
   set T' := RC.state \o C \o cores_T.
@@ -1302,16 +1302,20 @@ have globs_frgnS:
   forall b,
   isGlobalBlock (ge (cores_S (Core.i c1))) b ->
   frgnBlocksSrc mu_top b.
-{ move=> b H; case: (match_genv (head_match hdinv))=> _; move/(_ b).
-  admit. }
+{ move=> b H; case: (match_genv (head_match hdinv))=> _; move/(_ b); apply.  
+  move: H; rewrite -(initCore_ix init1).
+  have eq: genvs_domain_eq (ge (cores_S ix)) (ge (cores_S (Core.i (c inv)))).
+    apply genvs_domain_eq_trans with (ge2 := my_ge)=> //.
+    by apply: (genvs_domain_eq_sym _ _ (my_ge_S ix)).
+  by rewrite (genvs_domain_eq_isGlobal _ _ eq). }
 
 have presglobs: meminj_preserves_globals (ge (cores_S (Core.i c1))) j.
 { move: (head_presglobs hdinv).
   rewrite -meminj_preserves_genv2blocks.
   rewrite (genvs_domain_eq_match_genvs (my_ge_S (Core.i c1))).
   rewrite meminj_preserves_genv2blocks.
-  rewrite /j.
-  admit. (*easy*) }
+  rewrite match_genv_meminj_preserves_extern_iff_all=> //.
+  by apply: Inj_wd. }
 
 have j_domS_domT:
   forall b1 b2 d0,
@@ -1333,7 +1337,21 @@ have globs_frgnT:
   forall b,
   isGlobalBlock (ge (cores_T (Core.i c1))) b ->
   frgnBlocksTgt mu_top b.
-{ admit. }
+{ move=> b H; case: (match_genv (head_match hdinv))=> _; move=> I. 
+  have fS: frgnBlocksSrc mu_top b.
+  { apply: I; move: H; rewrite -(initCore_ix init1).
+    have eq: genvs_domain_eq (ge (cores_T ix)) (ge (cores_S (Core.i (c inv)))).
+      apply genvs_domain_eq_trans with (ge2 := my_ge)=> //.
+      by apply: (genvs_domain_eq_sym _ _ (my_ge_T ix)).
+    by rewrite (genvs_domain_eq_isGlobal _ _ eq). }
+  case: (frgnSrc _ (Inj_wd _) _ fS)=> b' []d []fOf fT.
+  have eq: b=b'. 
+  { case: (match_genv (head_match hdinv))=> [][]J []K L _.
+    move: H; rewrite /isGlobalBlock /=.
+    case e1: (Genv.invert_symbol _ _)=> //.
+    move: (Genv.invert_find_symbol _ _ e1)=> M O.
+    admit. admit. }
+  by rewrite eq. }
 
 have reach_frgnT:  
   forall b,
@@ -1394,13 +1412,18 @@ have [cd_new [c2 [pf_new [init2 mtch12]]]]:
 { move: init1; rewrite /initCore.
   case init1: (RC.initial_core _ _ _ _)=> //[c1']; case=> X.
   generalize dependent c1; case=> c1_i c1; intros.
-  move: X init1; case=> eq _ init1; subst ix=> /=.
+  move: (X) init1; case=> eq _ init1; subst ix=> /=.
   case: (core_initial _ _ _ _ _ (sims c1_i) _ _ _ ep args1
         _ m1 j args2 m2 frgnS frgnT domS domT init1 inj vinj')=> //.
   move=> cd' []c2' []init2 mtch_init12.
   exists cd',(Core.mk N cores_T c1_i c2'),erefl.
   move: init2=> /= ->; split=> //=.
-  admit. (*just type casting*)}
+  rewrite cast_ty_erefl; move: X; case=> X.
+  move: (EqdepFacts.eq_sigT_snd X)=> /= <-. 
+  rewrite -Eqdep_dec.eq_rect_eq_dec; first by apply: mtch_init12.
+  move=> m n; case e: (m == n); first by left; move: (eqP e).
+  right=> Contra; rewrite Contra in e. 
+  by rewrite eq_refl in e. }
 
 set (st2' := pushCore st2 c2 all_at2).
 
@@ -1426,13 +1449,96 @@ have mu_new_wd: SM_wd mu_new.
 
 set mu_new' := Inj.mk mu_new_wd.
 
+have cons_trash_j: consistent (extern_of mu_trash) j.
+{ rewrite /j /consistent=> b1 b2 b2' d2 d2' eOf asInj.
+  have eOf': extern_of mu_top b1 = Some (b2',d2'). 
+  { move: asInj; rewrite /as_inj /join.
+    case e: (extern_of _ _)=> [[? ?]|]; first by case=> <- <-.
+    admit. (*need to expand extern_of mu_trash to include shared_of mu_top*)
+  } 
+  case: trinv=> X Y Z W U V.
+  move: V=> /=; case=> AA BB.
+  by apply: (AA b1 b2 b2' d2 d2' eOf eOf'). }
+
+have cons_mutop_j: consistent (extern_of mu_top) j.
+{ rewrite /j /consistent=> b1 b2 b2' d2 d2' eOf asInj.
+  have eOf': extern_of mu_top b1 = Some (b2',d2'). 
+  { move: asInj; rewrite /as_inj /join.
+    case e: (extern_of _ _)=> [[? ?]|]; first by case=> <- <-.
+    by rewrite e in eOf.
+  } 
+  by rewrite eOf in eOf'; case: eOf'=> -> ->. }
+
+have mu_new_rel_inv_pkg: rel_inv_pred mu_new pkg.
+{ rewrite /mu_new; apply: Build_rel_inv.
+  split=> //; first by rewrite initial_SM_as_inj /j; apply: inject_incr_refl.
+  split; first by rewrite initial_SM_as_inj /j /pkg /= => ? ? ? ->.
+  split; first by rewrite /pkg /initial_SM /domS /DomSrc /= => ? ->.
+  by rewrite /pkg /initial_SM /domT /DomTgt /= => ? ->.
+  apply: Build_disjinv.
+  by rewrite /initial_SM /= predI01.
+  by rewrite /initial_SM /= predI01.
+  move=> b; rewrite /in_mem /= /in_mem /= /frgnS; move/andP=> []X Y.
+  move: rc_exportedSrc; rewrite /exportedSrc=> Z.
+  rewrite (sharedSrc_iff_frgnpub mu_top (Inj_wd _)) in Z.
+  cut [|| getBlocks args1 b, frgnBlocksSrc mu_top b | pubBlocksSrc mu_top b].
+  case/orP. admit. (*args1 must be in sharedSrc*)
+  case/orP=> //. 
+  by move/(frgnBlocksSrc_locBlocksSrc _ (Inj_wd _)); rewrite Y.
+  apply: Z; apply: REACH_nil.  
+  move: X; rewrite /exportedSrc sharedSrc_iff_frgnpub.
+  by move=> ->.
+  by apply: Inj_wd.
+  rewrite /initial_SM /frgnS /= => b1 b2 d'.
+  case e: (exportedSrc _ _ _)=> // J.
+  rewrite /in_mem /=; case/orP.
+  move: e; rewrite /exportedSrc sharedSrc_iff_frgnpub.
+  admit.
+  by apply: Inj_wd. move=> ?.
+  rewrite /exportedSrc in e.
+  rewrite /pub_of. case: (Inj.mu _)=> ? ? ? ? ? ? ? ? ? ? /=.
+  admit.
+  by apply: cons_mutop_j. }
+
+have mu_new_rel_inv_all: 
+  All (rel_inv_pred (initial_SM domS domT frgnS frgnT j)) mus.
+{ admit. }
+
+have mu_new_vis_inv: vis_inv c1 mu_new'.
+{ apply: Build_vis_inv=> // b; rewrite /in_mem /= => Y.
+  rewrite /vis /mu_new /frgnS /exportedSrc /=.
+  move: Y; rewrite /RC.reach_basis; case/orP.
+  case/orP.
+  case/orP.
+  admit. (*b is global*)
+  admit. 
+  admit.
+  admit. }
+
 have trinv_new:
   trash_inv mu_trash mu_new' (pkg :: mus) m1 m2.
-{ admit. (*trash inv*) }
+{ case: trinv=> X Y Z W U V.
+  apply: Build_trash_inv=> //=.
+  split=> //; first by rewrite predI01.
+  split=> //; first by rewrite predI01. }
 
 have hdinv_new:
   head_inv pf_new cd_new mu_trash mu_new' (pkg :: mus) x m1 m2.
-{ admit. (*head inv*) }
+{ apply: Build_head_inv=> //.
+  admit.  (*safeN*)
+  move=> b; rewrite /mu_new' /= /frgnS /= /in_mem /= /exportedSrc /=.
+  case/orP. admit.
+  rewrite sharedSrc_iff_frgnpub; last by apply: Inj_wd. 
+  case/orP. admit.
+  by move/pubsrc_sub_locsrc; rewrite /in_mem /= => ->.
+  move=> b; rewrite /mu_new' /= /frgnT /= /in_mem /= /exportedTgt /=.
+  case/orP. admit.
+  rewrite /sharedTgt; case/orP. admit.
+  by move/pubtgt_sub_loctgt; rewrite /in_mem /= => ->.
+  rewrite /linkingSimulation.frgnS_mapped.
+  admit. (*should hold from fact that 
+            frgnS = exportedSrc _ _ <= pub_of pkg *)
+  admit. (*should hold by defn. of mu_new'*)}
 
 exists (Lex.set (Core.i c1) cd_new cd),st2'; split.
 rewrite LinkerSem.handleP; exists all_at2,ix,c2; split=> //.
@@ -1604,6 +1710,9 @@ by move: (tail_AllConsistent tlinv); rewrite All2_comp2 map_comp.
 by move: (tail_valid tlinv); rewrite -All_comp3.
 by apply: (trash_valid trinv). }
 
+have val0: sm_valid mupkg m1 m2 by apply: (head_valid hdinv).
+set mupkg0 := Build_frame_pkg val0.
+
 split. 
 
 (*sep*)
@@ -1613,7 +1722,6 @@ by move: (head_AllConsistent hdinv); rewrite All_comp2 {1}map_comp.
 by move: (tail_valid tlinv); rewrite -All_comp3.
 by move: (trash_consist trinv)=> /= []; rewrite map_comp; move/consistentC.
 by apply: (trash_valid trinv).
-by apply: (match_validblocks _ MATCH).
 apply: join_all_valid=> /=; first by apply: (trash_valid trinv).
 split; first by apply: (head_valid hdinv).
 by move: (tail_valid tlinv); rewrite -All_comp3.
@@ -1625,11 +1733,12 @@ split; first by move: (trash_disj_T trinv); rewrite -map_comp; case.
 by move: (tail_AllDisjointLT tlinv); rewrite -map_comp.
 split; first by move: (trash_consist trinv); rewrite -map_comp; case.
 by move: (tail_AllConsistent tlinv); rewrite -map_comp.
-change (SM_wd (join_all mu_trash [seq (frame_mu0 i) | i <- mupkg :: mus])).
+change (SM_wd (join_all mu_trash [seq (frame_mu0 i) | i <- mupkg0 :: mus])).
+have trinv': trash_inv mu_trash mupkg0 mus m1 m2 by [].
 apply: join_all_wd.
-by move: (R_AllDisjointS trinv hdinv tlinv); rewrite All2_comp2 map_comp.
-by move: (R_AllDisjointT trinv hdinv tlinv); rewrite All2_comp2 map_comp.
-by move: (R_AllConsistent trinv hdinv tlinv); rewrite All2_comp2 map_comp. }
+by move: (R_AllDisjointS trinv' hdinv tlinv); rewrite All2_comp2 map_comp.
+by move: (R_AllDisjointT trinv' hdinv tlinv); rewrite All2_comp2 map_comp.
+by move: (R_AllConsistent trinv' hdinv tlinv); rewrite All2_comp2 map_comp. }
 
 (*loc_alloc*)
 split; first by rewrite mu_eq; apply: join_all_locally_allocated.
@@ -1658,12 +1767,11 @@ split.
  (*trash_inv*)
  { apply trash_inv_step 
    with (m1 := m1) (m2 := m2)
-        (mu := mupkg) (mu' := mu_top') (mupkg := mupkg)=> //.
+        (mu := mupkg) (mu' := mu_top') (mupkg := mupkg0)=> //.
    by apply: (effstep_fwd _ _ _ _ _ _ _ EFFSTEP).
    case: STEP'=> [STEP'|[STEP' _]]. 
    by apply: (effstep_plus_fwd _ _ _ _ _ _ _ STEP').
-   by apply: (effstep_star_fwd _ _ _ _ _ _ _ STEP').
-   by apply: (head_valid hdinv). }
+   by apply: (effstep_star_fwd _ _ _ _ _ _ _ STEP'). }
 
  (* head_inv *)
  { case: tlinv=> allrel frameall.
@@ -1732,7 +1840,7 @@ split.
      rewrite mu_eq /= /in_mem /=.
 
      have FRGNS: frgnBlocksSrc mupkg b'. 
-       have FRGN': foreign_of (frame_mu0 mupkg) b' = Some (b,d') by [].
+       have FRGN': foreign_of (frame_mu0 mupkg0) b' = Some (b,d') by [].
        case: (foreign_DomRng _ (Inj_wd _) _ _ _ FRGN'). 
        by move=> _ []_ []_ []_ [] ->.
 
@@ -1824,9 +1932,9 @@ case FID: (LinkerSem.fun_id ef1)=> [id|//].
 case HDL: (LinkerSem.handle _)=> [st1''|//] eq1 A.
 have wd: SM_wd mu by apply: (R_wd INV).
 have INV': R data (Inj.mk wd) st1 m1 st2 m2 by [].
-case: (atext2 AT1 INV')=> args2 []AT2 VINJ.
-case: (hdl2 HDL INV' AT2 VINJ)=> st2' []HDL2 INV2.
-exists st2',m2,data,mu.
+case: (atext2 AT1 INV')=> args2 AT2.
+case: (hdl2 AT1 HDL INV' AT2)=> cd' []st2' []HDL2 INV2.
+exists st2',m2,cd',mu.
 split=> //.
 split=> //.
 by apply: sm_inject_separated_refl.
