@@ -1502,6 +1502,23 @@ have cons_mutop_j: consistent (as_inj mu_top) j.
 { rewrite /j /consistent=> b1 b2 b2' d2 d2' eOf asInj.
   by rewrite eOf in asInj; case: asInj=> -> ->. }
 
+have getBlocks1_frgnpub b:
+  getBlocks args1 b -> 
+  [\/ pubBlocksSrc mu_top b | frgnBlocksSrc mu_top b].
+{ move=> H1; case: (getBlocks_inject _ _ _ vinj b H1)=> b' []d' []res get2.
+  case: (restrictD_Some _ _ _ _ _ res)=> asInj.
+  rewrite sharedSrc_iff_frgnpub; last by apply: Inj_wd.
+  case/orP=> //.
+  by move=> ->; right.
+  by move=> ->; left. }
+
+have getBlocks1_locpub b: 
+  locBlocksSrc mu_top b -> 
+  getBlocks args1 b -> 
+  pubBlocksSrc mu_top b.
+{ move=> H1 H2; case: (getBlocks1_frgnpub _ H2)=> //.
+  by rewrite (locBlocksSrc_frgnBlocksSrc _ _ _ H1); last by apply: Inj_wd. }
+
 have mu_new_rel_inv_pkg: rel_inv_pred mu_new pkg.
 { rewrite /mu_new; apply: Build_rel_inv.
   split=> //; first by rewrite initial_SM_as_inj /j; apply: inject_incr_refl.
@@ -1515,7 +1532,7 @@ have mu_new_rel_inv_pkg: rel_inv_pred mu_new pkg.
   move: rc_exportedSrc; rewrite /exportedSrc=> Z.
   rewrite (sharedSrc_iff_frgnpub mu_top (Inj_wd _)) in Z.
   cut [|| getBlocks args1 b, frgnBlocksSrc mu_top b | pubBlocksSrc mu_top b].
-  case/orP. admit. (*args1 must be in sharedSrc*)
+  case/orP; first by apply: getBlocks1_locpub.
   case/orP=> //. 
   by move/(frgnBlocksSrc_locBlocksSrc _ (Inj_wd _)); rewrite Y.
   apply: Z; apply: REACH_nil.  
@@ -1526,11 +1543,47 @@ have mu_new_rel_inv_pkg: rel_inv_pred mu_new pkg.
   case e: (exportedSrc _ _ _)=> // J.
   rewrite /in_mem /=; case/orP.
   move: e; rewrite /exportedSrc sharedSrc_iff_frgnpub.
-  admit.
-  by apply: Inj_wd. move=> ?.
-  rewrite /exportedSrc in e.
-  rewrite /pub_of. case: (Inj.mu _)=> ? ? ? ? ? ? ? ? ? ? /=.
-  admit.
+  case/orP. 
+  move=> H1 H2; move: (getBlocks1_locpub _ H2 H1)=> H3.
+  case: (StructuredInjections.pubSrc _ (Inj_wd _) _ H3)=> ? []? []X Y.
+  rewrite /j in J; move: (pub_in_all _ (Inj_wd _) _ _ _ X); rewrite J.
+  by case=> -> ->.
+  case/orP; first by move/(frgnBlocksSrc_locBlocksSrc _ (Inj_wd _))=> ->.
+  move=> H3.
+  case: (StructuredInjections.pubSrc _ (Inj_wd _) _ H3)=> ? []? []X Y.
+  rewrite /j in J; move: (pub_in_all _ (Inj_wd _) _ _ _ X); rewrite J.
+  by case=> -> ->.
+  by apply: Inj_wd. 
+  move=> H3.
+  case: (orP e)=> H1.
+  case fS: (frgnBlocksSrc mu_top b1).
+  have fT: (frgnBlocksTgt mu_top b2).
+  { case: (frgnSrc _ (Inj_wd _) _ fS)=> []? []? []fOf fT'.
+    move: (foreign_in_all _ _ _ _ fOf); rewrite /j in J; rewrite J.
+    by case=> e1 _; rewrite -e1 in fT'. }
+  by rewrite (frgnBlocksTgt_locBlocksTgt _ (Inj_wd _) _ fT) in H3.
+  have lS: (locBlocksSrc mu_top b1).
+  { move: e; rewrite /exportedSrc sharedSrc_iff_frgnpub.
+    rewrite fS /=; case/orP.
+    case/getBlocks1_frgnpub; first by apply: pubsrc_sub_locsrc.
+    by rewrite fS.
+    by apply: pubsrc_sub_locsrc.
+    by apply: Inj_wd. }
+  move: (getBlocks1_locpub _ lS H1)=> H4.
+  case: (StructuredInjections.pubSrc _ (Inj_wd _) _ H4)=> ? []? []X Y.
+  rewrite /j in J; move: (pub_in_all _ (Inj_wd _) _ _ _ X); rewrite J.
+  by case=> -> ->.
+  rewrite sharedSrc_iff_frgnpub in H1.
+  case: (orP H1).
+  case/(frgnSrc _ (Inj_wd _) _)=> ? []? []fOf fT'.
+  move: (foreign_in_all _ _ _ _ fOf); rewrite /j in J; rewrite J.
+  case=> e1 _; rewrite -e1 in fT'. 
+  by rewrite (frgnBlocksTgt_locBlocksTgt _ (Inj_wd _) _ fT') in H3.
+  move=> H4.
+  case: (StructuredInjections.pubSrc _ (Inj_wd _) _ H4)=> ? []? []X Y.
+  rewrite /j in J; move: (pub_in_all _ (Inj_wd _) _ _ _ X); rewrite J.
+  by case=> -> ->.
+  by apply: Inj_wd.
   by move=> /=; rewrite initial_SM_as_inj; apply: cons_mutop_j. }
 
 have mu_new_rel_inv_all: 
