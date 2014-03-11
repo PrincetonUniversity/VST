@@ -740,6 +740,28 @@ move/(locBlocksSrc_frgnBlocksSrc _ (Inj_wd _))=> ->.
 by move/(locBlocksTgt_frgnBlocksTgt _ (Inj_wd _))=> ->.
 Qed.
 
+Lemma intern_incr_as_inj_eq (mu mu' : Inj.t) b1 b2 b2' d2 d2' :
+  intern_incr mu mu' -> 
+  as_inj mu b1 = Some (b2,d2) -> 
+  as_inj mu' b1 = Some (b2',d2') -> 
+  b2=b2' /\ d2=d2'.
+Proof.
+rewrite /as_inj /join.
+case e1: (extern_of mu b1)=> [[x y]|].
+case e2: (extern_of _ _)=> [[x' y']|].
+move=> incr; case=> <- <-; case=> <- <-.
+case: incr=> _; case=> eq.
+by rewrite eq in e1; rewrite e1 in e2; case: e2=> -> ->.
+move=> incr; case=> <- <- L.
+case: incr=> _; case=> eq.
+by rewrite eq in e1; rewrite e1 in e2.
+move=> incr L.
+case e: (extern_of mu' b1)=> [[x y]|].
+case: incr=> _; case=> eq.
+by rewrite eq in e1; rewrite e1 in e.
+by case: incr; move/(_ _ _ _ L)=> -> _; case=> -> ->.
+Qed.
+
 Section step_lems.
 
 Context
@@ -924,7 +946,7 @@ move: (head_ctns hdinv); generalize dependent mus; case=> //.
 by move=> mu0 ? _ _ A b; move/A; apply: intern_incr_sharedSrc.
 Qed.
 
-Lemma trash_inv_step mu_trash mupkg mupkg' (mus : seq frame_pkg) : 
+Lemma trash_inv_step (mu_trash : Inj.t) mupkg mupkg' (mus : seq frame_pkg) : 
   frame_mu0 mupkg=mu -> 
   frame_mu0 mupkg'=mu' -> 
   trash_inv mu_trash mupkg mus m1 m2 -> 
@@ -936,13 +958,23 @@ split=> //.
 rewrite B; eapply DisjointLS_intern_step; eauto.
 by move: F; rewrite A.
 split=> //.
-eapply DisjointLT_intern_step; eauto; first by move: H; rewrite A.
+eapply DisjointLT_intern_step 
+  with (mu := mu) (m1 := m1) (m2 := m2)=> //. 
+by move: H; rewrite A.
 by move: incr; rewrite B.
 by move: sep; rewrite B.
 split=> //. 
-case: incr; move: K. rewrite A B=> K _ [].
-rewrite /consistent.
-admit.
+move=> b1 b2 b2' d2 d2' A1 A2.
+case e: (as_inj mupkg b1)=> [[b2'' d2'']|].
+rewrite A in e; rewrite B in A2.
+case: (intern_incr_as_inj_eq incr e A2)=> eq1 eq2.
+rewrite -eq1 -eq2.
+rewrite -A in e; apply: (K _ _ _ _ _ A1 e).
+case: sep; rewrite -A -B; move/(_ _ _ _ e A2); case=> DS _.
+case; move/(_ _ DS); case. 
+by case: (as_inj_DomRng _ _ _ _ A2 (Inj_wd _)).
+case: E=> H1 H2; apply: H1; rewrite /DOM.
+by case: (as_inj_DomRng _ _ _ _ A1 (Inj_wd _))=> ->.
 Qed.
 
 End step_lems.
