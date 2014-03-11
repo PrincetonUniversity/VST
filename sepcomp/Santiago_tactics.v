@@ -35,3 +35,8 @@ Ltac edescend':= repeat (first [split | eexists| open_eHyp | progress intros | s
 Ltac split_all:= repeat split.
 
 Ltac esplit_all:= repeat esplit.
+
+Ltac open_Hyp:= match goal with
+                     | [H: and _ _ |- _] => destruct H
+                     | [H: exists _, _ |- _] => destruct H
+                 end.
