@@ -1381,7 +1381,17 @@ have globs_frgnT:
     move: H; rewrite /isGlobalBlock /=.
     case e1: (Genv.invert_symbol _ _)=> //.
     move: (Genv.invert_find_symbol _ _ e1)=> M O.
-    admit. admit. }
+    have M': Genv.find_symbol (ge (cores_S (Core.i (c inv)))) id = Some b.
+    { admit. (*follows from genv_domains_eq*) }
+    move: (J _ _ M')=> E.
+    by move: (foreign_in_extern _ _ _ _ fOf); rewrite E; case.
+    case e2: (Genv.find_var_info _ _)=> //[gv].
+    have [gv' M']: 
+      exists gv',
+      Genv.find_var_info (ge (cores_S (Core.i (c inv)))) b = Some gv'.
+    { admit. (*follows from genv_domains_eq*) }
+    move: (K _ _ M').
+    by move: (foreign_in_extern _ _ _ _ fOf)=> ->; case. }
   by rewrite eq. }
 
 have reach_frgnT:  
@@ -1429,7 +1439,9 @@ have domT_valid:
 
 have ep: 
   In (Vptr id Int.zero,Vptr id Int.zero,sig) entry_points. 
-{ admit. }
+{ admit. (*this is a ridiculous side condition that needs to be 
+           communicated to the semantics somehow; e.g., whenever
+           we're at external w/ fid id, then (id,id) in entry_points*) }
 
 have [cd_new [c2 [pf_new [init2 mtch12]]]]:
   exists (cd_new : core_data entry_points (sims (Core.i c1))) 
@@ -1476,7 +1488,7 @@ set pkg := Build_frame_pkg valid'.
 set mu_new := initial_SM domS domT frgnS frgnT j.
 
 have mu_new_wd: SM_wd mu_new.
-  admit. (*by core_initial_wd*)
+{ admit. (*by core_initial_wd*) }
 
 set mu_new' := Inj.mk mu_new_wd.
 
@@ -1523,7 +1535,7 @@ have mu_new_rel_inv_pkg: rel_inv_pred mu_new pkg.
 
 have mu_new_rel_inv_all: 
   All (rel_inv_pred (initial_SM domS domT frgnS frgnT j)) mus.
-{ admit. }
+{ admit. (*provable, i think*)}
 
 have mu_new_vis_inv: vis_inv c1 mu_new'.
 { apply: Build_vis_inv=> // b; rewrite /in_mem /= => Y.
@@ -1532,9 +1544,9 @@ have mu_new_vis_inv: vis_inv c1 mu_new'.
   case/orP.
   case/orP.
   admit. (*b is global*)
-  admit. 
-  admit.
-  admit. }
+  admit. (*easy*)
+  admit. (*easy*)
+  admit. (*easy*) }
 
 have trinv_new:
   trash_inv mu_trash mu_new' (pkg :: mus) m1 m2.
@@ -1559,8 +1571,20 @@ have hdinv_new:
   by move/pubtgt_sub_loctgt; rewrite /in_mem /= => ->.
   rewrite /linkingSimulation.frgnS_mapped.
   admit. (*should hold from fact that 
-            frgnS = exportedSrc _ _ <= pub_of pkg *)
-  admit. (*should hold by defn. of mu_new'*)}
+            frgnS = exportedSrc _ _ = sharedSrc pkg = (pubSrc pkg \/ frgnSrc pkg)
+            and (1) pubSrc is contained in locBlocksSrc of join_all ... 
+              ; (2) frgnSrc pkg is mapped by rest of the guys*)
+  rewrite /mu_new' /= /mu_new=> b; rewrite /in_mem /= /is_true. 
+  rewrite sharedSrc_iff_frgnpub. 
+  rewrite sharedSrc_iff_frgnpub /= /frgnS /exportedSrc sharedSrc_iff_frgnpub.
+  by case/orP=> ->; rewrite -!(orb_comm true).
+  by apply: Inj_wd.
+  move: mu_new_wd mu_new' mu_new_vis_inv trinv_new.
+  rewrite /mu_new /frgnS /exportedSrc sharedSrc_iff_frgnpub.
+  by move=> H ? ? ?; apply: H.
+  by apply: Inj_wd.
+  by apply: Inj_wd.
+  by apply: Inj_wd. }
 
 exists (Lex.set (Core.i c1) cd_new cd),st2'; split.
 rewrite LinkerSem.handleP; exists all_at2,ix,c2; split=> //.
