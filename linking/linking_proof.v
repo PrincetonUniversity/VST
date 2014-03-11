@@ -242,7 +242,7 @@ Proof. by case: rinv=> _ _; case; move/DisjointC. Qed.
 Lemma relinv_DisjointLT : DisjointLT mu (frame_mu0 pkg).
 Proof. by case: rinv=> _ _; case=> _; move/DisjointC. Qed.
 
-Lemma relinv_consistent : consistent (extern_of mu) (extern_of (frame_mu0 pkg)).
+Lemma relinv_consistent : Consistent mu (frame_mu0 pkg).
 Proof. by case: rinv=> _ _; case=> _ _ _ _; move/consistentC. Qed.
 
 End rel_inv_pred_lems.
@@ -268,8 +268,7 @@ by apply: IH.
 Qed.
 
 Lemma relinv_All_consistent :
-  All (fun mu2 => consistent (extern_of mu) (extern_of mu2)) 
-  $ map (Inj.mu \o frame_mu0) mus.
+  All (fun mu2 => Consistent mu mu2) $ map (Inj.mu \o frame_mu0) mus.
 Proof.
 move: all_rinv; elim: mus=> // mu0 mus' IH /= => [][]A B; split.
 by apply: (relinv_consistent A).
@@ -389,9 +388,7 @@ by apply: IH.
 Qed.
 
 Lemma head_AllConsistent : 
-  All (fun mu2 => consistent (extern_of mu) (extern_of mu2)) 
-      \o map (Inj.mu \o frame_mu0) 
-  $ mus.
+  All (fun mu2 => Consistent mu mu2) \o map (Inj.mu \o frame_mu0) $ mus.
 Proof.
 move: (head_rel inv); elim: mus=> // mu0 mus' IH /= []A B; split.
 by apply: (relinv_consistent A).
@@ -943,7 +940,9 @@ eapply DisjointLT_intern_step; eauto; first by move: H; rewrite A.
 by move: incr; rewrite B.
 by move: sep; rewrite B.
 split=> //. 
-by case: incr; move: K; rewrite A B=> K _ []<-.
+case: incr; move: K. rewrite A B=> K _ [].
+rewrite /consistent.
+admit.
 Qed.
 
 End step_lems.
@@ -1449,25 +1448,15 @@ have mu_new_wd: SM_wd mu_new.
 
 set mu_new' := Inj.mk mu_new_wd.
 
-have cons_trash_j: consistent (extern_of mu_trash) j.
+have cons_trash_j: consistent (as_inj mu_trash) j.
 { rewrite /j /consistent=> b1 b2 b2' d2 d2' eOf asInj.
-  have eOf': extern_of mu_top b1 = Some (b2',d2'). 
-  { move: asInj; rewrite /as_inj /join.
-    case e: (extern_of _ _)=> [[? ?]|]; first by case=> <- <-.
-    admit. (*need to expand extern_of mu_trash to include shared_of mu_top*)
-  } 
   case: trinv=> X Y Z W U V.
   move: V=> /=; case=> AA BB.
-  by apply: (AA b1 b2 b2' d2 d2' eOf eOf'). }
+  by apply: (AA b1 b2 b2' d2 d2' eOf asInj). }
 
-have cons_mutop_j: consistent (extern_of mu_top) j.
+have cons_mutop_j: consistent (as_inj mu_top) j.
 { rewrite /j /consistent=> b1 b2 b2' d2 d2' eOf asInj.
-  have eOf': extern_of mu_top b1 = Some (b2',d2'). 
-  { move: asInj; rewrite /as_inj /join.
-    case e: (extern_of _ _)=> [[? ?]|]; first by case=> <- <-.
-    by rewrite e in eOf.
-  } 
-  by rewrite eOf in eOf'; case: eOf'=> -> ->. }
+  by rewrite eOf in asInj; case: asInj=> -> ->. }
 
 have mu_new_rel_inv_pkg: rel_inv_pred mu_new pkg.
 { rewrite /mu_new; apply: Build_rel_inv.
@@ -1498,7 +1487,7 @@ have mu_new_rel_inv_pkg: rel_inv_pred mu_new pkg.
   rewrite /exportedSrc in e.
   rewrite /pub_of. case: (Inj.mu _)=> ? ? ? ? ? ? ? ? ? ? /=.
   admit.
-  by apply: cons_mutop_j. }
+  by move=> /=; rewrite initial_SM_as_inj; apply: cons_mutop_j. }
 
 have mu_new_rel_inv_all: 
   All (rel_inv_pred (initial_SM domS domT frgnS frgnT j)) mus.
@@ -1518,9 +1507,10 @@ have mu_new_vis_inv: vis_inv c1 mu_new'.
 have trinv_new:
   trash_inv mu_trash mu_new' (pkg :: mus) m1 m2.
 { case: trinv=> X Y Z W U V.
-  apply: Build_trash_inv=> //=.
-  split=> //; first by rewrite predI01.
-  split=> //; first by rewrite predI01. }
+  apply: Build_trash_inv=> //.
+  split=> //=; first by rewrite predI01.
+  split=> //=; first by rewrite predI01. 
+  by split=> //=; rewrite /mu_new initial_SM_as_inj. }
 
 have hdinv_new:
   head_inv pf_new cd_new mu_trash mu_new' (pkg :: mus) x m1 m2.

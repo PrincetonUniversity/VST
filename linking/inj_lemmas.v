@@ -635,7 +635,7 @@ Definition DisjointLT :=
   [fun mu mu' => Disjoint (locBlocksTgt mu) (locBlocksTgt mu')].
 
 Definition Consistent := 
-  [fun mu mu' => consistent (extern_of mu) (extern_of mu')].
+  [fun mu mu' => consistent (as_inj mu) (as_inj mu')].
 
 Definition join_sm mu1 mu2 : SM_Injection :=
   Build_SM_Injection 
@@ -683,7 +683,11 @@ move: (frgnSrcAx _ (Inj_wd _) _ A)=> []b2 []d2 []A0 A'.
 move: (frgnSrcAx _ (Inj_wd _) _ B)=> []b2' []d2' []B0 B'.
 exists b2,d2; move: A' B'; rewrite A0 B0; case H: (_ && _).
 by move: H; move/andP=> []; move/Peqb_true_eq=> <- _ -> ->.
-move: (C12 _ _ _ _ _ A0 B0) H; case=> <- <-; move/andP=> []; split.
+have A0': as_inj mu1 b1 = Some (b2,d2).
+  by rewrite /as_inj /join A0.
+have B0': as_inj mu2 b1 = Some (b2',d2').
+  by rewrite /as_inj /join B0.
+move: (C12 _ _ _ _ _ A0' B0') H; case=> <- <-; move/andP=> []; split.
 by rewrite/is_true Pos.eqb_eq.
 by rewrite/is_true -Zeq_is_eq_bool.
 by [].
@@ -699,7 +703,7 @@ Definition AllDisjoint (proj : SM_Injection -> Values.block -> bool) :=
   All2 (fun mu mu' => Disjoint (proj mu) (proj mu')).
 
 Definition AllConsistent := 
-  All2 (fun mu mu' => consistent (extern_of mu) (extern_of mu')).
+  All2 (fun mu mu' => consistent (as_inj mu) (as_inj mu')).
 
 Fixpoint join_all (mu0 : Inj.t) (mus : seq Inj.t) : SM_Injection :=
   if mus is [:: mu & mus] then join_sm mu (join_all mu0 mus)
@@ -736,14 +740,93 @@ rewrite/consistent=> A B b1 b2 b2' d2 d2' C.
 by move/join2P=> []D E; case: (A _ _ _ _ _ C D).
 Qed.
 
+Lemma local_some_extern_none (mu : Inj.t) b1 b2 d2 : 
+  local_of mu b1 = Some (b2,d2) -> 
+  extern_of mu b1 = None.
+Proof.
+case/local_DomRng; first by apply Inj_wd.
+move/locBlocksSrc_externNone=> -> //.
+by apply: Inj_wd.
+Qed.
+
+Lemma locof_extof_False (mu : Inj.t) (mus : seq Inj.t) b1 b2 d2 b2' d2' :
+  local_of (join_all mu mus) b1 = Some (b2, d2) -> 
+  extern_of (join_all mu mus) b1 = Some (b2', d2') -> 
+  False.
+Proof.
+elim: mus=> //; first by move/local_some_extern_none=> ->.
+move=> mu0 mus' IH /=; rewrite /join.
+case e: (local_of mu0 b1)=> [[b' ofs']|].
+case=> e1 e2; rewrite e1 e2 in e.
+by move/join2P=> []; move: (local_some_extern_none e)=> ->.
+move=> A; move/join2P=> []B C.
+apply: (IH A C).
+Qed.
+
+Lemma join_sm_consistent mu0 (mu1 mu2 : Inj.t) :
+  Consistent mu0 mu1 -> 
+  Consistent mu0 mu2 -> 
+  Consistent mu0 (join_sm mu1 mu2).
+Proof.
+move=> A B b1 b2 b2' d2 d2' E /=; rewrite /join_sm /as_inj /join /=.
+case e: (join2 _ _ _)=> // [[b' ofs']|].
+case=> e1 e2; rewrite e1 e2 in e.
+move: e; move/join2P=> []E1 E2.
+have E1': as_inj mu1 b1 = Some (b2',d2').
+  by rewrite /as_inj /join E1.
+by apply: (A _ _ _ _ _ E E1').
+case f: (local_of _ _)=> // [[b' ofs']|].
+case=> e1 e2.
+rewrite e1 e2 in f.
+have F: extern_of mu1 b1 = None.
+  by apply: (local_some_extern_none f).
+have G: as_inj mu1 b1 = Some (b2',d2').
+  by rewrite /as_inj /join F f.
+by apply: (A _ _ _ _ _ E G).
+move=> F. 
+have G: as_inj mu2 b1 = Some (b2',d2').
+  rewrite /as_inj /join F.
+  case G: (extern_of _ _)=> //[[b' ofs']].
+  by rewrite (local_some_extern_none F) in G.
+by apply: (B _ _ _ _ _ E G).
+Qed.
+
+Lemma join_sm_consistent' mu0 (mu1 mu2 : Inj.t) (mus : seq Inj.t) :
+  Consistent mu0 mu1 -> 
+  Consistent mu0 (join_all mu2 mus) -> 
+  Consistent mu0 (join_sm mu1 (join_all mu2 mus)).
+Proof.
+move=> A B b1 b2 b2' d2 d2' E /=; rewrite /join_sm /as_inj /join /=.
+case e: (join2 _ _ _)=> // [[b' ofs']|].
+case=> e1 e2; rewrite e1 e2 in e.
+move: e; move/join2P=> []E1 E2.
+have E1': as_inj mu1 b1 = Some (b2',d2').
+  by rewrite /as_inj /join E1.
+by apply: (A _ _ _ _ _ E E1').
+case f: (local_of _ _)=> // [[b' ofs']|].
+case=> e1 e2.
+rewrite e1 e2 in f.
+have F: extern_of mu1 b1 = None.
+  by apply: (local_some_extern_none f).
+have G: as_inj mu1 b1 = Some (b2',d2').
+  by rewrite /as_inj /join F f.
+by apply: (A _ _ _ _ _ E G).
+move=> F. 
+have G: as_inj (join_all mu2 mus) b1 = Some (b2',d2').
+  rewrite /as_inj /join F.
+  case G: (extern_of _ _)=> //[[b' ofs']].
+  by elimtype False; apply: (locof_extof_False F G).
+by apply: (B _ _ _ _ _ E G).
+Qed.
+
 Lemma join_all_consistent mu0 (mu : Inj.t) mus :
-  All (fun mu' => consistent (extern_of mu0) (extern_of mu'))  
+  All (fun mu' => consistent (as_inj mu0) (as_inj mu'))  
     (map Inj.mu (mu :: mus)) -> 
-  consistent (extern_of mu0) (extern_of (join_all mu mus)).
+  consistent (as_inj mu0) (as_inj (join_all mu mus)).
 Proof.
 elim: mus=> //=; first by move=> [].
-by move=> mu' mus' IH []A []B C; move: (IH (conj A C))=> D; 
-   apply: join2_consistent.
+move=> mu' mus' IH []A []B C; move: (IH (conj A C))=> D.
+by apply: join_sm_consistent'.
 Qed.
 
 (* Why is this lemma not in ZArith?!? *)
@@ -758,9 +841,11 @@ Lemma join2P' (j k : SM_Injection) b1 :
 Proof.                                                                 
 rewrite /=/consistent=> C.                                             
 rewrite/join2; split.                                                  
-case A: (extern_of j b1)=> // [[? ?]|].                                
-case B: (extern_of k b1)=> // [[? ?]|].                                
-case: (C _ _ _ _ _ A B)=> -> ->.                                       
+case A: (extern_of j b1)=> // [[x y]|].                                
+case B: (extern_of k b1)=> // [[x' y']|].                                
+have A': as_inj j b1 = Some (x,y) by rewrite /as_inj /join A.
+have B': as_inj k b1 = Some (x',y') by rewrite /as_inj /join B.
+case: (C _ _ _ _ _ A' B')=> -> ->.                                       
 by rewrite Pos.eqb_refl Zeq_bool_refl /=.
 by right.                                                              
 by left.                                                               
@@ -799,7 +884,7 @@ change (SM_wd (join_sm mu0 (Inj.mk wd))).
 apply: join_sm_wd=> /=.
 by apply: join_all_disjoint_src.
 by apply: join_all_disjoint_tgt.
-by apply: join_all_consistent.
+by apply join_all_consistent.
 Qed.
 
 Lemma join_sm_frgn (mu1 mu2 : Inj.t) b : 
@@ -1606,7 +1691,10 @@ move: (join_all_consistent B')=> G.
 change (sm_inject_separated (join_sm mu1 (Inj.mk wd)) 
                             (join_sm mu1' (Inj.mk wd)) m1 m2).
 apply join_sm_inject_separated with (m1':=m1') (m2':=m2')=> //.
-by rewrite/join_sm/=; apply: join2_consistent=> //; move: cons1=> //= [].
+move: cons1=> /= []H I. 
+have J: Consistent mu1 (join_all mu_trash mus').
+  by apply: join_all_consistent.
+by apply: (join_sm_consistent' H J).
 apply: join_sm_valid=> //; apply: join_all_valid=> //; move: allval.
 by rewrite -All_comp.
 Qed.
@@ -1705,8 +1793,7 @@ Lemma join_all_restrict_incr (mu_trash mu mu' : Inj.t) (mus : seq Inj.t) m1 m2 :
   All (fun mu2 : Inj.t => disjoint (local_of mu') (local_of mu2)) mus -> 
   All (DisjointLS mu_trash) $ map Inj.mu mus -> 
   All (DisjointLT mu_trash) $ map Inj.mu mus -> 
-  All (fun mu2 => consistent (extern_of mu_trash) (extern_of mu2)) 
-      $ map Inj.mu mus -> 
+  All (fun mu2 => Consistent mu_trash mu2) $ map Inj.mu mus -> 
   disjoint (local_of mu') (local_of mu_trash) -> 
   AllDisjoint locBlocksSrc \o map Inj.mu $ mus -> 
   AllDisjoint locBlocksTgt \o map Inj.mu $ mus -> 

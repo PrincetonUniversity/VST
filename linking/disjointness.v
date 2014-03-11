@@ -30,7 +30,7 @@ Record disjinv mu0 mu : Type :=
                       foreign_of mu b1 = Some (b2, d) -> 
                       (b1 \in locBlocksSrc mu0) || (b2 \in locBlocksTgt mu0) -> 
                       pub_of mu0 b1 = Some (b2, d)
-  ; disj_consistent : consistent (extern_of mu0) (extern_of mu) }.
+  ; disj_consistent : Consistent mu0 mu }.
 
 Lemma disjinv_restrict mu0 mu X : 
   disjinv mu0 mu -> disjinv (restrict_sm mu0 X) (restrict_sm mu X).
@@ -44,7 +44,7 @@ rewrite !restrict_sm_foreign=> b1 b2 d.
 rewrite !restrict_sm_pub; rewrite/restrict; case: (X b1)=> //.
 by rewrite restrict_sm_locBlocksSrc restrict_sm_locBlocksTgt; apply: H4.
 move=> ? ? ? ? ?.
-rewrite !restrict_sm_extern.
+rewrite !restrict_sm_all.
 move/restrictD_Some=> []A _.
 move/restrictD_Some=> []B _.
 by case: (H5 _ _ _ _ _ A B)=> -> ->.
@@ -61,17 +61,8 @@ rewrite !restrict_sm_foreign=> b1 b2 d.
 rewrite/restrict; case: (X b1)=> //.
 by apply: H4.
 move=> ? ? ? ? ?.
-rewrite !restrict_sm_extern=> A; move/restrictD_Some=> []B _.
+rewrite !restrict_sm_all=> A; move/restrictD_Some=> []B _.
 by case: (H5 _ _ _ _ _ A B)=> -> ->.
-Qed.
-
-Lemma disjinv_relat_empty mu : disjinv mu (reestablish Inj.empty mu).
-Proof.
-apply: Build_disjinv; case: mu=> //=.
-by move=> s _ _ _ _ _ _ _ _ _; apply: predI01.
-by move=> _ t _ _ _ _ _ _ _ _; apply: predI01. 
-move=> _ _ _ _ ? _ _ _ _ extern_of ? ? ? ? ?; rewrite/join=> ->.
-by case=> -> ->.
 Qed.
 
 Lemma disjinv_call_aux mu0 mu S T :
@@ -138,7 +129,31 @@ have D: Disjoint (locBlocksTgt mu0)
 by apply: (Disjoint_incr disj D).
 Qed.
 
-Lemma disjinv_intern_step mu0 (mu mu' : Inj.t) m10 m20 m1 m2 :
+Lemma loc_of_as_inj (mu : Inj.t) b1 b2 d2 : 
+  local_of mu b1 = Some (b2,d2) -> 
+  as_inj mu b1 = Some (b2,d2).
+Proof.
+move=> L; rewrite /as_inj /join.
+case e: (extern_of mu b1)=> // [[b2' d2']].
+by rewrite (local_some_extern_none L) in e.
+Qed.
+
+Lemma ext_of_as_inj (mu : Inj.t) b1 b2 d2 : 
+  extern_of mu b1 = Some (b2,d2) -> 
+  as_inj mu b1 = Some (b2,d2).
+Proof.
+by move=> L; rewrite /as_inj /join L.
+Qed.
+
+Lemma leNone_as_injNone (mu : Inj.t) b1 :
+  local_of mu b1 = None -> 
+  extern_of mu b1 = None -> 
+  as_inj mu b1 = None.
+Proof.
+by move=> L E; rewrite /as_inj /join L E.
+Qed.
+
+Lemma disjinv_intern_step (mu0 mu mu' : Inj.t) m10 m20 m1 m2 :
   disjinv mu0 mu -> 
   intern_incr mu mu' -> 
   mem_forward m10 m1 -> 
@@ -166,8 +181,44 @@ apply: Build_disjinv.
   case; case=> /= ? ? ? ? ? ? ? ? ? ? ? incr.
   move: (intern_incr_frgnsrc incr) (intern_incr_frgntgt incr)=> /= -> ->.
   by move: (intern_incr_extern incr)=> /= ->.
-+ move=> b1 ? ? ? ?; case: INCR=> []_ []<- _ A B; case: inv=> _ _ _ _ C.
-  by move: (C _ _ _ _ _ A B); case=> -> ->.
++ move=> b1 b2 b2' d2 d2'; case: INCR=> []X []. 
+  rewrite /as_inj /join=> <- _ Z W; case: inv=> _ _ _ _ C.
+  move: Z W.
+  case e: (extern_of mu0 b1)=> //[[b0 d0]|].
+  case f: (extern_of mu b1)=> //[[b1' d1']|].
+  case=> <- <-; case=> <- <-.
+  by apply: (C _ _ _ _ _ (ext_of_as_inj e) (ext_of_as_inj f)).
+  case=> <- <- l.
+  case m: (local_of mu b1)=> //[[b2'' d2'']|].
+  move: (X _ _ _ m); rewrite l; case=> -> ->.
+  by apply: (C _ _ _ _ _ (ext_of_as_inj e) (loc_of_as_inj m)).   
+  have M: as_inj mu b1 = None by rewrite /as_inj /join m f.
+  case: H6; case/(_ _ _ _ M (loc_of_as_inj l))=> Z W.
+  have W': DomSrc mu' b1.
+    move: l; move/local_DomRng; case; first by apply: Inj_wd.
+    by rewrite /DomSrc=> ->.
+  case; case/(_ _ Z W').
+  case: VAL2=> H1 H2; apply: H1; rewrite /DOM /DomSrc.
+  move: e; move/extern_DomRng; case; first by apply: Inj_wd.
+  by move=> -> _; apply/orP; right.
+  move=> L.
+  case f: (extern_of _ _)=> [[b1' d1']|].
+  case=> <- <-.
+  by move: (C _ _ _ _ _ (loc_of_as_inj L) (ext_of_as_inj f)).
+  move=> M.
+  case g: (local_of mu b1)=> [[b3 d3]|].
+  move: (X _ _ _ g).
+  rewrite M; case=> -> ->.
+  by apply: (C _ _ _ _ _ (loc_of_as_inj L) (loc_of_as_inj g)).
+  case: H6.
+  case/(_ _ _ _ (leNone_as_injNone g f) (loc_of_as_inj M))=> DS DT.
+  move=> []; move/(_ _ DS); case.
+  rewrite /DomSrc.
+  case: (local_DomRng _ _ _ _ _ M); first by apply Inj_wd.
+  by move=> -> _; apply/orP; left.
+  case: VAL2=> H1 H2; apply: H1; rewrite /DOM /DomSrc.
+  case: (local_DomRng _ _ _ _ _ L); first by apply Inj_wd.  
+  by move=> -> _; apply/orP; left.
 Qed.
 
 Lemma disjinv_unchanged_on_src 
