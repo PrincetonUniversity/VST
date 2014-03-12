@@ -308,6 +308,18 @@ by rewrite (findVar_findSymT_None _ j) in l.
 by [].
 Qed.
 
+Lemma isGlob_iffS' ix1 ix2 b :
+  isGlobalBlock (ge (cores_S ix1)) b <-> isGlobalBlock (ge (cores_S ix2)) b. 
+Proof. by split; rewrite -!isGlob_iffS. Qed.
+
+Lemma isGlob_iffT' ix1 ix2 b :
+  isGlobalBlock (ge (cores_T ix1)) b <-> isGlobalBlock (ge (cores_T ix2)) b. 
+Proof. by split; rewrite -!isGlob_iffT. Qed.
+
+Lemma isGlob_iffST' ix1 ix2 b :
+  isGlobalBlock (ge (cores_S ix1)) b <-> isGlobalBlock (ge (cores_T ix2)) b. 
+Proof. by split; rewrite -isGlob_iffS -isGlob_iffT. Qed.
+
 End glob_lems.
 
 Section vis_inv.
@@ -372,7 +384,7 @@ Definition rel_inv_pred mu pkg :=
 
 Section rel_inv_pred_lems.
 
-Context (mu : Inj.t) pkg (rinv : rel_inv_pred mu pkg).
+Context mu pkg (rinv : rel_inv_pred mu pkg).
 
 Lemma relinv_DisjointLS : DisjointLS mu (frame_mu0 pkg).
 Proof. by case: rinv=> _ _; case; move/DisjointC. Qed.
@@ -382,65 +394,6 @@ Proof. by case: rinv=> _ _; case=> _; move/DisjointC. Qed.
 
 Lemma relinv_consistent : Consistent mu (frame_mu0 pkg).
 Proof. by case: rinv=> _ _; case=> _ _ _ _; move/consistentC. Qed.
-
-Lemma relinv_init args1 args2 : 
-  val_list_inject (restrict (as_inj mu) (sharedSrc mu)) args1 args2 -> 
-  rel_inv_pred 
-    (initial_SM 
-      (DomSrc mu) (DomTgt mu) 
-      (exportedSrc mu args1) (exportedTgt mu args2) (as_inj mu)) pkg.
-Proof.
-move=> vinj.
-apply: Build_rel_inv. 
-split; first by rewrite initial_SM_as_inj; case: rinv; case.
-split=> b; rewrite /DomSrc /DomTgt /= => H1.
-by case: rinv; case=> _ []H2 H3 _ _; apply: H2.
-by case: rinv; case=> _ []H2 H3 _ _; apply: H3.
-split. 
-rewrite initial_SM_as_inj.
-case: rinv=> _ []H1 ? _ b1 b2 d H2 H3.
-by apply: (H1 _ _ _ H2 H3).
-split; rewrite /DomSrc /DomTgt /=.
-by case: rinv=> _; case=> _ []H1 H2 _; apply: H1.
-by case: rinv=> _; case=> _ []H1 H2 _; apply: H2.
-
-case: rinv=> _ _ []d1 d2 sub frgn cons.
-apply: Build_disjinv.
-by rewrite /= predI01.
-by rewrite /= predI01.
-move=> b; rewrite /in_mem /= /in_mem /=; move/andP=> []H1 H2.
-rewrite /exportedSrc in H1; case: (orP H1)=> H3.
-move: (val_list_inject_forall_inject _ _ _ vinj)=> vinj'.
-case: (getBlocks_inject _ _ _ vinj' _ H3)=> b' []d []res get2.
-case: (restrictD_Some _ _ _ _ _ res)=> asInj shrdS.
-rewrite sharedSrc_iff_frgnpub in shrdS.
-case: (orP shrdS)=> H4.
-by apply: sub; rewrite /in_mem /= /in_mem /=; apply/andP; split.
-move: (pubsrc_sub_locsrc H4); rewrite /in_mem /= => l.
-move: d1; rewrite DisjointC; move/DisjointLS_E1.
-by move/(_ b l); rewrite H2.
-by apply: Inj_wd.
-rewrite sharedSrc_iff_frgnpub in H3.
-case: (orP H3)=> H4.
-by apply: sub; rewrite /in_mem /= /in_mem /=; apply/andP; split.
-move: (pubsrc_sub_locsrc H4); rewrite /in_mem /= => l.
-move: d1; rewrite DisjointC; move/DisjointLS_E1.
-by move/(_ b l); rewrite H2.
-by apply: Inj_wd.
-move=> b1 b2 d /=.
-case e: (exportedSrc _ _ _)=> //.
-move=> H1; rewrite /in_mem /=; case/orP=> H2.
-apply: frgn.
-move: e; rewrite /exportedSrc; case/orP.
-admit. (*true*)
-admit. (*true*)
-by apply/orP; rewrite /in_mem /= H2; left.
-apply: frgn.
-admit. (*true, but tedious*)
-by apply/orP; rewrite /in_mem /= H2; right.
-move=> b1 b2 b2' d3 d3' H1; rewrite initial_SM_as_inj=> H2.
-by apply: (cons _ _ _ _ _ H1 H2).
-Qed.
 
 End rel_inv_pred_lems.
 
@@ -766,6 +719,114 @@ by apply: Inj_wd.
 Qed.
 
 End contain_lems2.
+
+Section rel_inv_init_lems.
+
+Context (mu : Inj.t) pkg (rinv : rel_inv_pred mu pkg).
+
+Lemma relinv_init args1 args2 : 
+  val_list_inject (restrict (as_inj mu) (sharedSrc mu)) args1 args2 -> 
+  rel_inv_pred 
+    (initial_SM 
+      (DomSrc mu) (DomTgt mu) 
+      (exportedSrc mu args1) (exportedTgt mu args2) (as_inj mu)) pkg.
+Proof.
+move=> vinj.
+apply: Build_rel_inv. 
+split; first by rewrite initial_SM_as_inj; case: rinv; case.
+split=> b; rewrite /DomSrc /DomTgt /= => H1.
+by case: rinv; case=> _ []H2 H3 _ _; apply: H2.
+by case: rinv; case=> _ []H2 H3 _ _; apply: H3.
+split. 
+rewrite initial_SM_as_inj.
+case: rinv=> _ []H1 ? _ b1 b2 d H2 H3.
+by apply: (H1 _ _ _ H2 H3).
+split; rewrite /DomSrc /DomTgt /=.
+by case: rinv=> _; case=> _ []H1 H2 _; apply: H1.
+by case: rinv=> _; case=> _ []H1 H2 _; apply: H2.
+
+move: (val_list_inject_forall_inject _ _ _ vinj)=> vinj'.
+case: rinv=> _ _ []d1 d2 sub frgn cons.
+apply: Build_disjinv.
+by rewrite /= predI01.
+by rewrite /= predI01.
+move=> b; rewrite /in_mem /= /in_mem /=; move/andP=> []H1 H2.
+rewrite /exportedSrc in H1; case: (orP H1)=> H3.
+case: (getBlocks_inject _ _ _ vinj' _ H3)=> b' []d []res get2.
+case: (restrictD_Some _ _ _ _ _ res)=> asInj shrdS.
+rewrite sharedSrc_iff_frgnpub in shrdS.
+case: (orP shrdS)=> H4.
+by apply: sub; rewrite /in_mem /= /in_mem /=; apply/andP; split.
+move: (pubsrc_sub_locsrc H4); rewrite /in_mem /= => l.
+move: d1; rewrite DisjointC; move/DisjointLS_E1.
+by move/(_ _ l); rewrite H2.
+by apply: Inj_wd.
+rewrite sharedSrc_iff_frgnpub in H3.
+case: (orP H3)=> H4.
+by apply: sub; rewrite /in_mem /= /in_mem /=; apply/andP; split.
+move: (pubsrc_sub_locsrc H4); rewrite /in_mem /= => l.
+move: d1; rewrite DisjointC; move/DisjointLS_E1.
+by move/(_ _ l); rewrite H2.
+by apply: Inj_wd.
+move=> b1 b2 d /=.
+case e: (exportedSrc _ _ _)=> //.
+move=> H1; rewrite /in_mem /=; case/orP=> H2.
+apply: frgn.
+move: e; rewrite /exportedSrc; case/orP.
+case/(getBlocks_frgnpubS vinj').
+move/pubsrc_sub_locsrc; rewrite /in_mem /= => l.
+move: d1; rewrite DisjointC; move/DisjointLS_E1.
+by move/(_ _ l); rewrite H2.
+case/frgnSrc; first by apply: Inj_wd.
+move=> ? []? []fOf _.
+by move: (foreign_in_all _ _ _ _ fOf); rewrite H1; case=> -> ->.
+rewrite sharedSrc_iff_frgnpub.
+case/orP=> H3.
+case: (frgnSrc _ _ _ H3); first by apply: Inj_wd.
+move=> ? []? []fOf _.
+by move: (foreign_in_all _ _ _ _ fOf); rewrite H1; case=> -> ->.
+move: (pubsrc_sub_locsrc H3); rewrite /in_mem /= => l.
+move: d1; rewrite DisjointC; move/DisjointLS_E1.
+by move/(_ _ l); rewrite H2.
+by apply: Inj_wd.
+by apply/orP; rewrite /in_mem /= H2; left.
+apply: frgn.
+
+move: e; rewrite /exportedSrc; case/orP.
+case/(getBlocks_frgnpubS vinj').
+move/pubsrc_sub_locsrc; rewrite /in_mem /= => l.
+have eOf: extern_of mu b1 = None.
+{ case e: (extern_of mu b1)=> //[[? ?]].
+  case: (extern_DomRng _ (Inj_wd _) _ _ _ e).
+  by move/(extBlocksSrc_locBlocksSrc _ (Inj_wd _) _); rewrite l. }  
+rewrite /as_inj /join eOf in H1.
+case: (local_DomRng _ (Inj_wd _) _ _ _ H1)=> _ lT.
+move: d2; rewrite DisjointC; move/DisjointLT_E1; move/(_ _ lT)=> H3.
+by rewrite H3 in H2.
+case/frgnSrc; first by apply: Inj_wd.
+move=> ? []? []fOf _.
+by move: (foreign_in_all _ _ _ _ fOf); rewrite H1; case=> -> ->.
+rewrite sharedSrc_iff_frgnpub.
+case/orP=> H3.
+case: (frgnSrc _ _ _ H3); first by apply: Inj_wd.
+move=> ? []? []fOf _.
+by move: (foreign_in_all _ _ _ _ fOf); rewrite H1; case=> -> ->.
+move: (pubsrc_sub_locsrc H3); rewrite /in_mem /= => l.
+have eOf: extern_of mu b1 = None.
+{ case e: (extern_of mu b1)=> //[[? ?]].
+  case: (extern_DomRng _ (Inj_wd _) _ _ _ e).
+  by move/(extBlocksSrc_locBlocksSrc _ (Inj_wd _) _); rewrite l. }
+rewrite /as_inj /join eOf in H1.
+case: (local_DomRng _ (Inj_wd _) _ _ _ H1)=> _ lT.
+move: d2; rewrite DisjointC; move/DisjointLT_E1; move/(_ _ lT)=> H4.
+by rewrite H4 in H2.
+by apply: Inj_wd.
+by apply/orP; rewrite /in_mem /= H2; right.
+move=> b1 b2 b2' d3 d3' H1; rewrite initial_SM_as_inj=> H2.
+by apply: (cons _ _ _ _ _ H1 H2).
+Qed.
+
+End rel_inv_init_lems.
 
 Section head_inv_lems.
 
@@ -1800,21 +1861,15 @@ have globs_frgnT:
   case: (frgnSrc _ (Inj_wd _) _ fS)=> b' []d []fOf fT.
   have eq: b=b'. 
   { case: (match_genv (head_match hdinv))=> [][]J []K L _.
-    move: H; rewrite /isGlobalBlock /=.
-    case e1: (Genv.invert_symbol _ _)=> //.
+    have H': isGlobalBlock (ge (cores_S (Core.i (c inv)))) b.
+    { erewrite isGlob_iffST'; eauto. }
+    move: H'; rewrite /isGlobalBlock /=.
+    case e1: (Genv.invert_symbol _ _)=> //=.
     move: (Genv.invert_find_symbol _ _ e1)=> M O.
-    have [id' M']: 
-      exists id', 
-      Genv.find_symbol (ge (cores_S (Core.i (c inv)))) id' = Some b.
-    { admit. (*follows from genv_domains_eq*) }
-    move: (J _ _ M')=> E.
+    move: (J _ _ M)=> E.
     by move: (foreign_in_extern _ _ _ _ fOf); rewrite E; case.
     case e2: (Genv.find_var_info _ _)=> //[gv].
-    have [gv' M']: 
-      exists gv',
-      Genv.find_var_info (ge (cores_S (Core.i (c inv)))) b = Some gv'.
-    { admit. (*follows from genv_domains_eq*) }
-    move: (K _ _ M').
+    move: (K _ _ e2).
     by move: (foreign_in_extern _ _ _ _ fOf)=> ->; case. }
   by rewrite eq. }
 
