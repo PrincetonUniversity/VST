@@ -1609,35 +1609,38 @@ have trinv_new:
   split=> //=; first by rewrite predI01. 
   by split=> //=; rewrite /mu_new initial_SM_as_inj. }
 
-have hdinv_new:
-  head_inv pf_new cd_new mu_trash mu_new' (pkg :: mus) x m1 m2.
-{ apply: Build_head_inv=> //.
-  admit.  (*safeN*)
-  move=> b; rewrite /mu_new' /= /frgnS /= /in_mem /= /exportedSrc /=.
-  case/orP. admit.
-  rewrite sharedSrc_iff_frgnpub; last by apply: Inj_wd. 
-  case/orP. admit.
-  by move/pubsrc_sub_locsrc; rewrite /in_mem /= => ->.
-  move=> b; rewrite /mu_new' /= /frgnT /= /in_mem /= /exportedTgt /=.
-  case/orP. admit.
-  rewrite /sharedTgt; case/orP. admit.
-  by move/pubtgt_sub_loctgt; rewrite /in_mem /= => ->.
-  rewrite /linkingSimulation.frgnS_mapped.
-  admit. (*should hold from fact that 
+have mu_new'_ctndS: 
+  frgnS_contained mu_trash mu_new' (pkg :: mus).
+{ admit. }
+
+have mu_new'_ctndT: 
+  frgnT_contained mu_trash mu_new' (pkg :: mus).
+{ admit. }
+
+have mu_new'_mapd: 
+  linkingSimulation.frgnS_mapped mu_trash mu_new' (pkg :: mus).
+{ admit. }(*should hold from fact that 
             frgnS = exportedSrc _ _ = sharedSrc pkg = (pubSrc pkg \/ frgnSrc pkg)
             and (1) pubSrc is contained in locBlocksSrc of join_all ... 
               ; (2) frgnSrc pkg is mapped by rest of the guys*)
-  rewrite /mu_new' /= /mu_new=> b; rewrite /in_mem /= /is_true. 
+
+have shrd_pkg_sub_mu_new':
+ {subset sharedSrc pkg <= sharedSrc mu_new'}.
+{ rewrite /mu_new' /= /mu_new=> b; rewrite /in_mem /= /is_true. 
   rewrite sharedSrc_iff_frgnpub. 
   rewrite sharedSrc_iff_frgnpub /= /frgnS /exportedSrc sharedSrc_iff_frgnpub.
   by case/orP=> ->; rewrite -!(orb_comm true).
   by apply: Inj_wd.
-  move: mu_new_wd mu_new' mu_new_vis_inv trinv_new.
+  move: mu_new_wd mu_new' mu_new_vis_inv trinv_new 
+    mu_new'_ctndS mu_new'_ctndT mu_new'_mapd.
   rewrite /mu_new /frgnS /exportedSrc sharedSrc_iff_frgnpub.
-  by move=> H ? ? ?; apply: H.
-  by apply: Inj_wd.
-  by apply: Inj_wd.
-  by apply: Inj_wd. }
+  by move=> H ? ? ? ? ? ?; apply: H.
+  by apply: Inj_wd. by apply: Inj_wd. by apply: Inj_wd. }
+
+have hdinv_new:
+  head_inv pf_new cd_new mu_trash mu_new' (pkg :: mus) x m1 m2.
+{ apply: Build_head_inv=> //.
+  admit.  (*safeN*) }
 
 exists (Lex.set (Core.i c1) cd_new cd),st2'; split.
 rewrite LinkerSem.handleP; exists all_at2,ix,c2; split=> //.
@@ -1646,8 +1649,8 @@ by move: fntbl1; rewrite (R_fntbl inv).
 have valid_new: sm_valid mu_new' m1 m2. 
 { rewrite /initial_SM /sm_valid /DOM /RNG /DomSrc /DomTgt /=.
   rewrite /domS /domT; split=> b; generalize dependent valid'; case.
-  by move=> X ? ? ? ? H; apply: (X b).
-  by move=> ? X ? ? ? H; apply: (X b). }
+  by move=> X ? ? ? ? ? ? ? ? H; apply: (X b).
+  by move=> ? X ? ? ? ? ? ? ? H; apply: (X b). }
 
 set (pkg_new := Build_frame_pkg valid_new).
 set (mu_tot := join_all mu_trash [seq frame_mu0 i | i <- pkg :: mus]).
