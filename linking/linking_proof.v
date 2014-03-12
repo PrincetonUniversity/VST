@@ -372,7 +372,7 @@ Definition rel_inv_pred mu pkg :=
 
 Section rel_inv_pred_lems.
 
-Context mu pkg (rinv : rel_inv_pred mu pkg).
+Context (mu : Inj.t) pkg (rinv : rel_inv_pred mu pkg).
 
 Lemma relinv_DisjointLS : DisjointLS mu (frame_mu0 pkg).
 Proof. by case: rinv=> _ _; case; move/DisjointC. Qed.
@@ -382,6 +382,65 @@ Proof. by case: rinv=> _ _; case=> _; move/DisjointC. Qed.
 
 Lemma relinv_consistent : Consistent mu (frame_mu0 pkg).
 Proof. by case: rinv=> _ _; case=> _ _ _ _; move/consistentC. Qed.
+
+Lemma relinv_init args1 args2 : 
+  val_list_inject (restrict (as_inj mu) (sharedSrc mu)) args1 args2 -> 
+  rel_inv_pred 
+    (initial_SM 
+      (DomSrc mu) (DomTgt mu) 
+      (exportedSrc mu args1) (exportedTgt mu args2) (as_inj mu)) pkg.
+Proof.
+move=> vinj.
+apply: Build_rel_inv. 
+split; first by rewrite initial_SM_as_inj; case: rinv; case.
+split=> b; rewrite /DomSrc /DomTgt /= => H1.
+by case: rinv; case=> _ []H2 H3 _ _; apply: H2.
+by case: rinv; case=> _ []H2 H3 _ _; apply: H3.
+split. 
+rewrite initial_SM_as_inj.
+case: rinv=> _ []H1 ? _ b1 b2 d H2 H3.
+by apply: (H1 _ _ _ H2 H3).
+split; rewrite /DomSrc /DomTgt /=.
+by case: rinv=> _; case=> _ []H1 H2 _; apply: H1.
+by case: rinv=> _; case=> _ []H1 H2 _; apply: H2.
+
+case: rinv=> _ _ []d1 d2 sub frgn cons.
+apply: Build_disjinv.
+by rewrite /= predI01.
+by rewrite /= predI01.
+move=> b; rewrite /in_mem /= /in_mem /=; move/andP=> []H1 H2.
+rewrite /exportedSrc in H1; case: (orP H1)=> H3.
+move: (val_list_inject_forall_inject _ _ _ vinj)=> vinj'.
+case: (getBlocks_inject _ _ _ vinj' _ H3)=> b' []d []res get2.
+case: (restrictD_Some _ _ _ _ _ res)=> asInj shrdS.
+rewrite sharedSrc_iff_frgnpub in shrdS.
+case: (orP shrdS)=> H4.
+by apply: sub; rewrite /in_mem /= /in_mem /=; apply/andP; split.
+move: (pubsrc_sub_locsrc H4); rewrite /in_mem /= => l.
+move: d1; rewrite DisjointC; move/DisjointLS_E1.
+by move/(_ b l); rewrite H2.
+by apply: Inj_wd.
+rewrite sharedSrc_iff_frgnpub in H3.
+case: (orP H3)=> H4.
+by apply: sub; rewrite /in_mem /= /in_mem /=; apply/andP; split.
+move: (pubsrc_sub_locsrc H4); rewrite /in_mem /= => l.
+move: d1; rewrite DisjointC; move/DisjointLS_E1.
+by move/(_ b l); rewrite H2.
+by apply: Inj_wd.
+move=> b1 b2 d /=.
+case e: (exportedSrc _ _ _)=> //.
+move=> H1; rewrite /in_mem /=; case/orP=> H2.
+apply: frgn.
+move: e; rewrite /exportedSrc; case/orP.
+admit. (*true*)
+admit. (*true*)
+by apply/orP; rewrite /in_mem /= H2; left.
+apply: frgn.
+admit. (*true, but tedious*)
+by apply/orP; rewrite /in_mem /= H2; right.
+move=> b1 b2 b2' d3 d3' H1; rewrite initial_SM_as_inj=> H2.
+by apply: (cons _ _ _ _ _ H1 H2).
+Qed.
 
 End rel_inv_pred_lems.
 
@@ -1947,7 +2006,11 @@ have mu_new_rel_inv_pkg: rel_inv_pred mu_new pkg.
 
 have mu_new_rel_inv_all: 
   All (rel_inv_pred (initial_SM domS domT frgnS frgnT j)) mus.
-{ admit. (*provable, i think*)}
+{ move: (head_rel hdinv)=> rel.
+  clear - vinj rel; elim: mus rel=> //= mu0 mus' IH []rel1 rel2; split.
+  apply: relinv_init=> //.
+  by apply: forall_inject_val_list_inject.
+  by apply: IH. }
 
 have mu_new_vis_inv: vis_inv c1 mu_new'.
 { apply: Build_vis_inv=> // b; rewrite /in_mem /= => Y.
