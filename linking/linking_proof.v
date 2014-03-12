@@ -172,6 +172,144 @@ Qed.
 (* imply that effects are also a subset of the visible region for each    *)
 (* core.                                                                  *)
 
+Section glob_lems.
+
+Lemma invSym_findSymS ix id b :
+  Genv.invert_symbol my_ge b = Some id -> 
+  exists id', Genv.find_symbol (ge (cores_S ix)) id' = Some b.
+Proof.
+case: (my_ge_S ix)=> H1 H2.
+rewrite /genv2blocks /= in H1.
+case: {H1}(H1 b)=> H1 H3.
+move/Genv.invert_find_symbol=> H4.
+case: H1; first by exists id.
+by move=> x H5; exists x.
+Qed.
+
+Lemma invSym_findSymT ix id b :
+  Genv.invert_symbol my_ge b = Some id -> 
+  exists id', Genv.find_symbol (ge (cores_T ix)) id' = Some b.
+Proof.
+case: (my_ge_T ix)=> H1 H2.
+rewrite /genv2blocks /= in H1.
+case: {H1}(H1 b)=> H1 H3.
+move/Genv.invert_find_symbol=> H4.
+case: H1; first by exists id.
+by move=> x H5; exists x.
+Qed.
+
+Lemma invSym_findSymS_None ix b :
+  Genv.invert_symbol my_ge b = None -> 
+  forall id, Genv.find_symbol (ge (cores_S ix)) id = Some b -> False.
+Proof.
+case: (my_ge_S ix)=> H1 H2.
+rewrite /genv2blocks /= in H1.
+move=> H3 id H4.
+case: (H1 b)=> H5 H6.
+case: H6; first by exists id.
+by move=> x; move/Genv.find_invert_symbol; rewrite H3.
+Qed.
+
+Lemma invSym_findSymT_None ix b :
+  Genv.invert_symbol my_ge b = None -> 
+  forall id, Genv.find_symbol (ge (cores_T ix)) id = Some b -> False.
+Proof.
+case: (my_ge_T ix)=> H1 H2.
+rewrite /genv2blocks /= in H1.
+move=> H3 id H4.
+case: (H1 b)=> H5 H6.
+case: H6; first by exists id.
+by move=> x; move/Genv.find_invert_symbol; rewrite H3.
+Qed.
+
+Lemma findVar_findSymS ix inf b :
+  Genv.find_var_info my_ge b = Some inf -> 
+  exists inf', Genv.find_var_info (ge (cores_S ix)) b = Some inf'.
+Proof.
+case: (my_ge_S ix)=> H1 H2.
+rewrite /genv2blocks /= in H2.
+case: {H2}(H2 b)=> H2 H3 H4.
+case: H2; first by exists inf.
+by move=> x H5; exists x.
+Qed.
+
+Lemma findVar_findSymT ix inf b :
+  Genv.find_var_info my_ge b = Some inf -> 
+  exists inf', Genv.find_var_info (ge (cores_T ix)) b = Some inf'.
+Proof.
+case: (my_ge_T ix)=> H1 H2.
+rewrite /genv2blocks /= in H2.
+case: {H2}(H2 b)=> H2 H3 H4.
+case: H2; first by exists inf.
+by move=> x H5; exists x.
+Qed.
+
+Lemma findVar_findSymS_None ix b :
+  Genv.find_var_info my_ge b = None -> 
+  Genv.find_var_info (ge (cores_S ix)) b = None.
+Proof.
+case: (my_ge_S ix)=> H1 H2.
+rewrite /genv2blocks /= in H2.
+case: {H2}(H2 b)=> H2 H3 H4.
+case g: (Genv.find_var_info _ _)=> //[gv].
+case: H3; first by exists gv.
+by move=> x; rewrite H4.
+Qed.
+
+Lemma findVar_findSymT_None ix b :
+  Genv.find_var_info my_ge b = None -> 
+  Genv.find_var_info (ge (cores_T ix)) b = None.
+Proof.
+case: (my_ge_T ix)=> H1 H2.
+rewrite /genv2blocks /= in H2.
+case: {H2}(H2 b)=> H2 H3 H4.
+case g: (Genv.find_var_info _ _)=> //[gv].
+case: H3; first by exists gv.
+by move=> x; rewrite H4.
+Qed.
+
+Lemma isGlob_iffS ix b : 
+  isGlobalBlock my_ge b <-> isGlobalBlock (ge (cores_S ix)) b.
+Proof.
+rewrite /isGlobalBlock /genv2blocksBool /=.
+case i: (Genv.invert_symbol _ _)=> [id|].
+case: (invSym_findSymS ix i)=> x fnd.
+rewrite (Genv.find_invert_symbol _ _ fnd).
+by split.
+case j: (Genv.find_var_info my_ge b)=> [inf|].
+case: (findVar_findSymS ix j)=> x=> ->; split=> //=.
+by move=> _; apply/orP; right.
+move: (@invSym_findSymS_None ix _ i)=> H1.
+case k: (Genv.invert_symbol _ _)=> [id|].
+move: (Genv.invert_find_symbol _ _ k)=> H2. 
+by elimtype False; apply: (H1 _ H2).
+case l: (Genv.find_var_info _ _)=> [inf|].
+by rewrite (findVar_findSymS_None _ j) in l.
+by [].
+Qed.
+
+Lemma isGlob_iffT ix b : 
+  isGlobalBlock my_ge b <-> isGlobalBlock (ge (cores_T ix)) b.
+Proof.
+rewrite /isGlobalBlock /genv2blocksBool /=.
+case i: (Genv.invert_symbol _ _)=> [id|].
+case: (invSym_findSymT ix i)=> x fnd.
+rewrite (Genv.find_invert_symbol _ _ fnd).
+by split.
+case j: (Genv.find_var_info my_ge b)=> [inf|].
+case: (findVar_findSymT ix j)=> x=> ->; split=> //=.
+by move=> _; apply/orP; right.
+move: (@invSym_findSymT_None ix _ i)=> H1.
+case k: (Genv.invert_symbol _ _)=> [id|].
+move: (Genv.invert_find_symbol _ _ k)=> H2. 
+by elimtype False; apply: (H1 _ H2).
+case l: (Genv.find_var_info _ _)=> [inf|].
+by rewrite (findVar_findSymT_None _ j) in l.
+by [].
+Qed.
+
+End glob_lems.
+
 Section vis_inv.
 
 Import Core.
@@ -1379,6 +1517,27 @@ move: init1; rewrite /init1 /initCore.
 by case: (RC.initial_core _ _ _ _)=> // c; case; case: c1=> ? ?; case.
 Qed.
 
+Lemma initCore_args : RC.args (Core.c c1) = vs.
+Proof.
+move: init1; rewrite /init1 /initCore /RC.initial_core.
+case: (initial_core _ _ _ _)=> // c. 
+by case; case: c1=> ?; case=> ? ? ? ? /=; case=> _ _ ->.
+Qed.
+
+Lemma initCore_rets : RC.rets (Core.c c1) = [::].
+Proof.
+move: init1; rewrite /init1 /initCore /RC.initial_core.
+case: (initial_core _ _ _ _)=> // c. 
+by case; case: c1=> ?; case=> ? ? ? ? /=; case=> _ _ _ ->.
+Qed.
+
+Lemma initCore_locs : RC.locs (Core.c c1) = (fun _ => false).
+Proof.
+move: init1; rewrite /init1 /initCore /RC.initial_core.
+case: (initial_core _ _ _ _)=> // c. 
+by case; case: c1=> ?; case=> ? ? ? ? /=; case=> _ _ _ _ ->.
+Qed.
+
 End initCore_lems.
 
 Section call_lems.
@@ -1585,7 +1744,9 @@ have globs_frgnT:
     move: H; rewrite /isGlobalBlock /=.
     case e1: (Genv.invert_symbol _ _)=> //.
     move: (Genv.invert_find_symbol _ _ e1)=> M O.
-    have M': Genv.find_symbol (ge (cores_S (Core.i (c inv)))) id = Some b.
+    have [id' M']: 
+      exists id', 
+      Genv.find_symbol (ge (cores_S (Core.i (c inv)))) id' = Some b.
     { admit. (*follows from genv_domains_eq*) }
     move: (J _ _ M')=> E.
     by move: (foreign_in_extern _ _ _ _ fOf); rewrite E; case.
@@ -1792,12 +1953,22 @@ have mu_new_vis_inv: vis_inv c1 mu_new'.
 { apply: Build_vis_inv=> // b; rewrite /in_mem /= => Y.
   rewrite /vis /mu_new /frgnS /exportedSrc /=.
   move: Y; rewrite /RC.reach_basis; case/orP.
-  case/orP.
-  case/orP.
-  admit. (*b is global*)
-  admit. (*easy*)
-  admit. (*easy*)
-  admit. (*easy*) }
+  case/orP. case/orP. move=> H1.
+  have H1': isGlobalBlock (ge (cores_S (Core.i (c inv)))) b.
+  { by rewrite -isGlob_iffS. }
+  apply/orP; right; rewrite sharedSrc_iff_frgnpub. 
+  apply/orP; left.
+  by case: (match_genv (head_match hdinv))=> _; move/(_ b H1').
+  by apply: Inj_wd.
+  have eq: RC.args (Core.c c1) = args1. 
+  { erewrite initCore_args; eauto. }
+  by rewrite eq=> ->.
+  have eq: RC.rets (Core.c c1) = [::]. 
+  { erewrite initCore_rets; eauto. }
+  by rewrite eq getBlocksD_nil.
+  have eq: RC.locs (Core.c c1) = (fun _ => false).
+  { erewrite initCore_locs; eauto. }
+  by rewrite eq. }
 
 have trinv_new:
   trash_inv mu_trash mu_new' (pkg :: mus) m1 m2.
