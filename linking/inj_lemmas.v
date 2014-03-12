@@ -1969,3 +1969,56 @@ rewrite /sharedTgt /DomTgt=> b; move/orP; case.
 by move/(frgnBlocksExternTgt _ (Inj_wd _) _)=> ->; apply/orP; right.
 by move/(pubBlocksLocalTgt _ (Inj_wd _) _)=> ->; apply/orP; left.
 Qed.
+
+Section getBlocks_lems.
+
+Context args1 args2 j (vinj : val_list_inject j args1 args2).
+
+Lemma getBlocks_tail v vs b : 
+  getBlocks vs b -> 
+  getBlocks (v :: vs) b.
+Proof.
+by case: v=> //? ? ?; rewrite getBlocksD; apply/orP; right.  
+Qed.
+
+Lemma vals_def_getBlocksTS b' : 
+  vals_def args1 -> 
+  getBlocks args2 b' -> 
+  exists b d', [/\ getBlocks args1 b & j b = Some (b',d')].
+Proof.
+move=> H1 H2.
+elim: args2 args1 vinj H1 H2=> //.
+move=> a2 args2' IH args1' vinj' H1 H2.
+move: H2 vinj' H1; rewrite getBlocksD. 
+case: args1'; first by move=> ?; inversion 1.
+move=> a1 args1' /=; case: a2=> //.
+move=> A; inversion 1; subst; move/andP=> []C D.
+case: (IH _ H4 D A)=> x []y []? ?; exists x,y; split=> //.
+by apply: getBlocks_tail.
+move=> i A; inversion 1; subst; move/andP=> []C D.
+case: (IH _ H4 D A)=> x []y []? ?; exists x,y; split=> //.
+by apply: getBlocks_tail.
+move=> i A; inversion 1; subst; move/andP=> []C D.
+case: (IH _ H4 D A)=> x []y []? ?; exists x,y; split=> //.
+by apply: getBlocks_tail.
+move=> i A; inversion 1; subst; move/andP=> []C D.
+case: (IH _ H4 D A)=> x []y []? ?; exists x,y; split=> //.
+by apply: getBlocks_tail.
+move=> b i; case/orP. 
+move/Coqlib.proj_sumbool_true=> eq; subst b'.
+inversion 1; subst; move/andP=> []H5 H6.
+inversion H2; subst=> //.
+exists b1,delta; split=> //.
+rewrite getBlocksD; apply/orP; left.
+by apply: Coqlib.proj_sumbool_is_true.
+move=> A; inversion 1; subst; case/andP=> B C.
+case: (IH _ H4 C A)=> x []y []? ?; exists x,y; split=> //.
+by apply: getBlocks_tail.
+Qed.
+
+End getBlocks_lems.
+
+
+
+
+  

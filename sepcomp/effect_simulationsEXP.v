@@ -20,8 +20,8 @@ Require Import sepcomp.reach.
 
 Definition is_vundef (v : val) : bool :=
   match v with 
-    | Vundef => false
-    | _ => true
+    | Vundef => true
+    | _ => false
   end.
 
 Definition vals_def (vs : list val) := 

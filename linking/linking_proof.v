@@ -155,13 +155,14 @@ Qed.
 (*   fun b => isGlobalBlock ge1 b || getBlocks vals1 b                    *)
 (*                                                                        *)
 (* is a subset of the visible set for the injection of the initialized    *)
-(* core.  TODO: We need to record this fact (really, a slight             *)
-(* modification of the invariant that accounts for return values as well) *)
-(* as an invariant of execution for both the head and tail cores. Then    *)
-(* the guarantees we get from RC executions (that write effects are       *)
-(* limited to blocks in the RC of initial args, rets, local blocks) will  *)
-(* imply that effects are also a subset of the visible region for each    *)
 (* core.                                                                  *)
+(*                                                                        *)
+(* We record this fact (really, a slight modification of the invariant    *)
+(* that accounts for return values as well) as an invariant of execution  *)
+(* for both the head and tail cores. Then the guarantees we get from RC   *)
+(* executions (that write effects are limited to blocks in the RC of      *)
+(* initial args, rets, local blocks) imply that effects are also a        *)
+(* subset of the visible region for each core.                            *)
 
 Section glob_lems.
 
@@ -517,6 +518,8 @@ Let j := as_inj mu.
 
 Variable vinj : Forall2 (val_inject (restrict j (sharedSrc mu))) args1 args2.
 
+Variable defs : vals_def args1.
+
 Lemma getBlocks_frgnpubS b :
   getBlocks args1 b -> 
   [\/ pubBlocksSrc mu b | frgnBlocksSrc mu b].
@@ -537,7 +540,10 @@ move=> H1.
 have [b0 [d [H2 H3]]]: 
   exists b0 d, 
   [/\ getBlocks args1 b0 
-    & j b0 = Some (b,d)]. admit. (*assumes no Vundefs at extcall argument sites*)
+    & j b0 = Some (b,d)]. 
+{ move: (forall_inject_val_list_inject _ _ _ vinj)=> vinj'.
+  case: (vals_def_getBlocksTS vinj' defs H1)=> x []y []? res.
+  exists x,y; split=> //; last by case: (restrictD_Some _ _ _ _ _ res). }
 case: (getBlocks_frgnpubS H2).
 case/pubSrcAx; first by apply: Inj_wd.
 move=> b' []d' []lOf pT.
@@ -582,6 +588,8 @@ Let frgnT := exportedTgt mu args2.
 
 Variable vinj : Forall2 (val_inject (restrict j (sharedSrc mu))) args1 args2.
 
+Variable defs : vals_def args1.
+
 Lemma init_ctndS : 
   frgnS_contained mu_trash (initial_SM domS domT frgnS frgnT j) [:: mu & mus].
 Proof.
@@ -608,7 +616,7 @@ Lemma init_ctndT :
 Proof.
 move: ctndT; rewrite /frgnT_contained=> A b /= C; rewrite /in_mem /=.
 rewrite /frgnT /exportedTgt in C; case: (orP C)=> D.
-case: (getBlocks_frgnpubT vinj D).
+case: (getBlocks_frgnpubT vinj defs D).
 by move/pubtgt_sub_loctgt; rewrite /in_mem /= => -> .
 move=> E; rewrite E; case: (orP (A _ E))=> F; rewrite F /=.
 by rewrite -(orb_comm true).
@@ -1755,7 +1763,8 @@ have atext2'':
 
 case: (core_at_external (sims (Core.i (c inv))) 
       _ _ _ _ _ _ (head_match hdinv) atext1').
-move=> inj []rc_exportedSrc []defs2 []args2' []vinj []atext2''' rc_exportedTgt.
+move=> inj []rc_exportedSrc []defs1 []args2' []vinj []atext2'''. 
+move=> []rc_exportedTgt defs2.
 
 have eq: args2 = args2' by move: atext2'''; rewrite atext2''; case.
 subst args2'.
@@ -1776,9 +1785,10 @@ have exportedTgt_DomTgt:
     exists b0 ofs, 
     [/\ getBlocks args1 b0
       & as_inj mu_top b0 = Some (b,ofs)]. 
-  { move: get2. 
-    rewrite /is_true getBlocks_char=> [][]ofs Hin.
-    admit. (*assumes no Vundef at extcall points*) }
+  { move: (forall_inject_val_list_inject _ _ _ vinj)=> vinj'.
+    case: (vals_def_getBlocksTS vinj' defs1 get2)=> x' []y' []? res.
+    exists x',y'; split=> //.
+    by case: (restrictD_Some _ _ _ _ _ res). }
   by case: (as_inj_DomRng _ _ _ _ asinj1 (Inj_wd _))=> _ ->. 
   by apply: sharedtgt_sub_domtgt. }
  
@@ -1962,7 +1972,25 @@ set pkg := Build_frame_pkg valid'.
 set mu_new := initial_SM domS domT frgnS frgnT j.
 
 have mu_new_wd: SM_wd mu_new.
-{ admit. (*by core_initial_wd*) }
+{ rewrite /mu_new; apply: Build_SM_wd=> //=.
+  by move=> ?; left.
+  by move=> ?; left.
+  rewrite /frgnS /frgnT /exportedSrc /exportedTgt=> b1; case/orP=> get1.
+  case: (getBlocks_inject _ _ _ vinj _ get1)=> x' []y' [].
+  case/restrictD_Some=> ? ? get2.
+  by exists x',y'; split=> //; apply/orP; left.
+  rewrite sharedSrc_iff_frgnpub in get1. 
+  case: (orP get1)=> H1.
+  case: (Inj_wd mu_top)=> _ _ _ _ _; case/(_ b1 H1)=> x' []y' []H2 H3 _ _.
+  exists x',y'; rewrite /j /as_inj /join H2; split=> //.
+  by apply/orP; rewrite /sharedTgt H3; right; apply/orP; left.
+  case: (Inj_wd mu_top)=> _ _ _ _; case/(_ b1 H1)=> x' []y' []H2 H3 _ _ _.
+  exists x',y'; rewrite /j /as_inj /join H2; split=> //.
+  have ->: extern_of mu_top b1 = None.
+  { by rewrite (local_some_extern_none H2). }
+  by [].
+  by apply/orP; rewrite /sharedTgt H3; right; apply/orP; right.
+  by apply: Inj_wd. }
 
 set mu_new' := Inj.mk mu_new_wd.
 
@@ -2109,8 +2137,7 @@ have mu_new'_ctndT:
     frgnT_contained mu_trash
      (initial_SM (DomSrc pkg) (DomTgt pkg) (exportedSrc pkg args1)
         (exportedTgt pkg args2) j) (pkg :: mus))=> //.
-  apply: init_ctndT.
-  by apply: vinj. 
+  apply: init_ctndT=> //.
   by apply: (head_ctndT hdinv). }
 
 have mu_new'_mapd: 
@@ -2120,8 +2147,7 @@ have mu_new'_mapd:
    linkingSimulation.frgnS_mapped mu_trash
      (initial_SM (DomSrc pkg) (DomTgt pkg) (exportedSrc pkg args1)
         (exportedTgt pkg args2) (as_inj pkg)) (pkg :: mus))=> //.
-  apply: init_frgnS_mapped.
-  by apply: vinj. 
+  apply: init_frgnS_mapped=> //.
   by apply: (head_mapdS hdinv). }
 
 have shrd_pkg_sub_mu_new':
@@ -2140,7 +2166,7 @@ have shrd_pkg_sub_mu_new':
 have hdinv_new:
   head_inv pf_new cd_new mu_trash mu_new' (pkg :: mus) x m1 m2.
 { apply: Build_head_inv=> //.
-  admit.  (*safeN*) }
+  admit.  (*safeN -- this invariant is no longer needed*) }
 
 exists (Lex.set (Core.i c1) cd_new cd),st2'; split.
 rewrite LinkerSem.handleP; exists all_at2,ix,c2; split=> //.
@@ -2175,6 +2201,7 @@ apply: Build_R.
 exists pf_new',mu_trash,mu_new',[:: pkg & mus],x; split=> //.
 by move: mu_tot_new_eq; rewrite /mu_tot_new /mu_tot=> ->.
 rewrite ->st1'_eq in *.
+move: hdinv_new.
 admit. (*by Lex.gss & hdinv_new*)
 have valid'': sm_valid pkg m1 m2 by apply: valid'.
 
