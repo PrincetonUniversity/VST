@@ -8,16 +8,7 @@ Require Import msl.Axioms. (*for proof_irr*)
 
 (* sepcomp imports *)
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.StructuredInjections.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.reach. 
-Require Import sepcomp.effect_simulations. 
-Require Import sepcomp.effect_properties.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.extspec.
-
+Require Import linking.sepcomp. Import SepComp. 
 Require Import sepcomp.arguments.
 
 Require Import linking.pos.
@@ -1686,7 +1677,7 @@ have atext1':
 move=> hd_match _.
 case: (core_at_external (sims (Core.i (c inv))) 
       _ _ _ _ _ _ hd_match atext1').
-move=> inj []rc1 []args2 []valinj []atext2 rc2; exists args2.
+move=> inj []rc1 []defs []args2 []valinj []atext2 rc2; exists args2.
 set T := C \o cores_T.
 rewrite /LinkerSem.at_external0.
 set P := fun ix (x : T ix) => 
@@ -1764,7 +1755,7 @@ have atext2'':
 
 case: (core_at_external (sims (Core.i (c inv))) 
       _ _ _ _ _ _ (head_match hdinv) atext1').
-move=> inj []rc_exportedSrc []args2' []vinj []atext2''' rc_exportedTgt.
+move=> inj []rc_exportedSrc []defs2 []args2' []vinj []atext2''' rc_exportedTgt.
 
 have eq: args2 = args2' by move: atext2'''; rewrite atext2''; case.
 subst args2'.
@@ -1779,11 +1770,15 @@ have exportedSrc_DomSrc:
 
 have exportedTgt_DomTgt:
   forall b, exportedTgt mu_top args2 b -> DomTgt mu_top b.
-{ rewrite /exportedTgt=> b; move/orP; case. 
+{ rewrite /exportedTgt=> b; move/orP; case.
+  move=> get2.
   have [b0 [ofs [getbs1 asinj1]]]: 
     exists b0 ofs, 
     [/\ getBlocks args1 b0
-      & as_inj mu_top b0 = Some (b,ofs)]. admit. (*assumes no Vundef at extcall points*)
+      & as_inj mu_top b0 = Some (b,ofs)]. 
+  { move: get2. 
+    rewrite /is_true getBlocks_char=> [][]ofs Hin.
+    admit. (*assumes no Vundef at extcall points*) }
   by case: (as_inj_DomRng _ _ _ _ asinj1 (Inj_wd _))=> _ ->. 
   by apply: sharedtgt_sub_domtgt. }
  

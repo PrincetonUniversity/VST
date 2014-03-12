@@ -81,9 +81,11 @@ SEPCOMP_FILES= \
   effect_interpolation_II.v effect_interpolation_proofs.v \
   arguments.v closed_safety.v compcert.v open_semantics_preservation.v \
   trace_semantics.v \
-  arguments.v 
+  arguments.v \
+  effect_simulationsEXP.v
 
 LINKING_FILES= \
+  sepcomp.v \
   pos.v \
   stack.v \
   cast.v \

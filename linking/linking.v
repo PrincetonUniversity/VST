@@ -1,10 +1,4 @@
-Require Import sepcomp.extspec.
-Require Import sepcomp.Address.
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.effect_simulations.
+Require Import linking.sepcomp. Import SepComp.
 
 Require Import linking.pos.
 Require Import linking.stack. 
@@ -540,14 +534,14 @@ Lemma effstep0_unchanged U l m l' m' :
   Memory.Mem.unchanged_on (fun b ofs => U b ofs = false) m m'.
 Proof. 
 rewrite/effstep0; case=> ? [STEP].
-by move: {STEP}(effax1 _ _ _ _ _ _ _ STEP)=> [STEP]UNCH H2.
+by move: {STEP}(effax1 STEP)=> [STEP]UNCH H2.
 Qed.
 
 Lemma effstep0_corestep0 U l m l' m' : 
   effstep0 U l m l' m' -> Sem.corestep0 l m l' m'.
 Proof. 
 rewrite/effstep0/Sem.corestep0; case=> c' [STEP].
-move: {STEP}(effax1 _ _ _ _ _ _ _ STEP)=> [STEP]UNCH H2.
+move: {STEP}(effax1 STEP)=> [STEP]UNCH H2.
 by exists c'; split.
 Qed.
 
@@ -555,7 +549,7 @@ Lemma effstep0_forward U l m l' m' :
   effstep0 U l m l' m' -> mem_forward m m'.
 Proof. 
 move/effstep0_corestep0; rewrite/Sem.corestep0. 
-by move=> []c' []STEP H1; apply: {STEP}(corestep_fwd _ _ _ _ _ _ STEP). 
+by move=> []c' []STEP H1; apply: {STEP}(corestep_fwd STEP). 
 Qed.
 
 Definition inner_effstep (ge: ge_ty)

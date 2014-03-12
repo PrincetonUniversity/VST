@@ -4,11 +4,8 @@ Require Import BinPos.
 
 Require Import compcert. Import CompcertCommon.
 
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.reach.
-Require Import sepcomp.effect_simulations.
+Require Import linking.sepcomp. Import SepComp.
+Require Import sepcomp.arguments.
 
 Require Import linking.core_semantics_lemmas.
 
@@ -141,11 +138,11 @@ Program Definition coresem : CoreSemantics (Genv.t F V) state mem :=
     halted
     corestep _ _ _ after_at_external_excl.
 Next Obligation. 
-destruct (effax1 _ _ _ _ _ _ _ H0) as [X Y].
+destruct (effax1 H0) as [X Y].
 revert X; apply corestep_not_at_external; auto. 
 Qed.
 Next Obligation. 
-destruct (effax1 _ _ _ _ _ _ _ H0) as [X Y].
+destruct (effax1 H0) as [X Y].
 revert X; apply corestep_not_halted; auto.
 Qed.
 Next Obligation. case_eq (at_external_halted_excl sem (core q)); auto. Qed.
@@ -153,7 +150,7 @@ Next Obligation. case_eq (at_external_halted_excl sem (core q)); auto. Qed.
 Program Definition coopsem : CoopCoreSem (Genv.t F V) state :=
   Build_CoopCoreSem _ _ coresem _.
 Next Obligation. 
-destruct (effax1 _ _ _ _ _ _ _ H) as [X Y].
+destruct (effax1 H) as [X Y].
 revert X; apply corestep_fwd. 
 Qed.
 

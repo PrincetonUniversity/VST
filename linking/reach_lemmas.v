@@ -14,10 +14,7 @@ Require Import compcert.lib.Maps.
 
 Require Import msl.Axioms.
 
-Require Import sepcomp.StructuredInjections.
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.reach.
-Require Import sepcomp.effect_simulations.
+Require Import linking.sepcomp. Import SepComp.
 
 Require Import linking.pred_lemmas.
 Require Import linking.seq_lemmas.
