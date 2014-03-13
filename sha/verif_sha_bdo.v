@@ -6,32 +6,9 @@ Require Import sha.spec_sha.
 Require Import sha.verif_sha_bdo2.
 Require Import sha.verif_sha_bdo3.
 Require Import sha.verif_sha_bdo4.
+Require Import sha.verif_sha_bdo5.
+Require Import sha.verif_sha_bdo6.
 Local Open Scope logic.
-
-Lemma sha256_block_data_order_loop2_proof:
-  forall (Espec : OracleKind)
-     (b: list int) ctx (regs: list int),
-     length b = LBLOCK ->
-     semax  Delta_loop1
- (PROP ()
-   LOCAL (`(eq ctx) (eval_id _ctx);
-               `(eq (map Vint (rnd_64 regs K b))) 
-                   (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
-                     (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
-))))
-   SEP ( K_vector;
-           `(array_at tuint Tsh (tuints b) 0 16) (eval_var _X (tarray tuint 16))))
-  block_data_order_loop2
-  (normal_ret_assert
-    (PROP () 
-     LOCAL(`(eq ctx) (eval_id _ctx);
-                `(eq (map Vint (rnd_64 regs K (rev (generate_word (rev b) 48)))))
-                   (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
-                     (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
-))))
-     SEP (K_vector;
-           `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16))))).
-Admitted.
 
 Lemma semax_seq_congr:  (* not provable *)
  forall (Espec: OracleKind) s1 s1' s2 s2',

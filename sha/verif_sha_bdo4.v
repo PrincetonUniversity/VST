@@ -9,9 +9,6 @@ Local Open Scope logic.
 Definition block_data_order_loop1 := 
    nth 0 (loops (fn_body f_sha256_block_data_order)) Sskip.
 
-Definition block_data_order_loop2 := 
-   nth 1 (loops (fn_body f_sha256_block_data_order)) Sskip.
-
 Lemma sha256_block_data_order_loop1_proof:
   forall (Espec : OracleKind) (sh: share)
      (b: list int) ctx (data: val) (regs: list int)
