@@ -732,7 +732,7 @@ Proof.
        apply (forward_nextblock _ _ FwdSrc).
        apply (forward_nextblock _ _ FwdTgt).*)
 admit.
-Check replace_externs_as_inj.
+
     rewrite replace_externs_as_inj. assumption.
     (*Check restrict_val_inject.
     eapply restrict_val_inject; try eassumption.
@@ -760,10 +760,55 @@ Qed.
 Hint Resolve Match_AfterExternal: trans_correct.
 eauto with trans_correct.
 
+Focus 1.
+intros.
+inv H0.
+inv H1.
+simpl in *.
+Print RTL_corestep.
+induction H; simpl in *.
+eexists. eexists. exists mu. 
+Focus 1.
+intuition.
+apply intern_incr_refl.
+apply sm_inject_separated_same_sminj.
+apply sm_locally_allocatedChar.
+Check corestep_plus_one.
+repeat split; extensionality b;
+rewrite freshloc_irrefl;
+intuition.
+
+split; intuition.
+destruct sp0. 
+eapply match_regular_states; eauto.
+
+econstructor.
+
+
+
 Ltac openHyp:= match goal with
                      | [H: and _ _ |- _] => destruct H
                      | [H: exists _, _ |- _] => destruct H
                  end.
+
+(*Lemma MS_step_case_SkipSeq: forall 
+(MCS : structured_match_callstack mu m tm
+               (Frame cenv tfn e lenv te sp lo hi :: cs)
+               (Mem.nextblock m)
+               (Mem.nextblock tm))
+(MK : match_cont (Csharpminor.Kseq s k) tk cenv xenv cs),
+exists st2' : CMin_core, 
+  exists m2' mu',
+   corestep_plus CMin_core_sem tge
+     (CMin_State tfn Sskip tk (Vptr sp Int.zero) te) tm st2' m2' 
+  /\ intern_incr mu mu' /\
+  sm_inject_separated mu mu' m tm /\
+  sm_locally_allocated mu mu' m tm m m2' /\
+  Match_cores (CSharpMin_State f s k e lenv) mu'
+    (CSharpMin_State f s k e lenv) m st2' m2' /\
+  SM_wd mu' /\ sm_valid mu' m m2'.*)
+
+Admitted.
 
 
 Lemma corestep_plus_star: 
@@ -783,9 +828,58 @@ Lemma corestep_plus_star:
       corestep_star rtl_eff_sem TrgGe st2 m2 st2' m2').
 intros.
 inv CS.
+
 (*Skip *)
       destruct MC as [SMC PRE].
-      inv SMC; simpl in *. 
+      Check match_states.
+      inv SMC; simpl in *.
+      Check match_cont.
+  dependent induction MK.
+
+  eexists. eexists. exists mu. 
+  split.
+    apply corestep_plus_one. 
+        econstructor. 
+  simpl. (* exists (CSharpMin_State f s k e le).
+     left. *) intuition. 
+    apply intern_incr_refl.
+    apply sm_inject_separated_same_sminj.
+    apply sm_locally_allocatedChar.
+      repeat split; extensionality b; 
+      try rewrite freshloc_irrefl; intuition.
+    split; intuition.
+    eapply SMC_states; eauto. 
+
+  eexists. eexists. exists mu. 
+  split.
+    apply corestep_plus_one. 
+        econstructor. 
+   simpl. (*exists (CSharpMin_State f (Csharpminor.Sseq s1 s2) k e le).
+      left.  *) intuition. 
+    apply intern_incr_refl.
+    apply sm_inject_separated_same_sminj.
+    apply sm_locally_allocatedChar.
+      repeat split; extensionality b; 
+      try rewrite freshloc_irrefl; intuition.
+    split; intuition.
+    eapply SMC_state_seq; eauto.
+
+  exploit IHMK; eauto. clear IHMK. 
+  intros [T2 [m2 [nu [A C]]]].
+  exists T2. exists m2. exists nu. 
+  split.
+     eapply corestep_star_plus_trans.
+        apply corestep_star_one. 
+        constructor.
+        simpl. apply A. 
+  apply C.
+
+
+
+
+
+
+      
       (*monadInv TR.*)
       destruct (MS_step_case_SkipSeq _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
         PRE TRF MCS MK) as [c2' [m2' [mu' [cstepPlus MS]]]].
