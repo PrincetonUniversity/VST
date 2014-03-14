@@ -339,7 +339,7 @@ Record frame_inv
                     = Some (e1, ef_sig1, vals1) 
   ; frame_at2   : at_external (cores_T c.(i)).(coreSem) (cast'' pf (RC.core d.(Core.c))) 
                     = Some (e2, ef_sig2, vals2) 
-  ; frame_vinj  : Forall2 (val_inject (as_inj mu0)) vals1 vals2  
+  ; frame_vinj  : Forall2 (val_inject (restrict (as_inj mu0) (vis mu0))) vals1 vals2  
 
     (* source state invariants *)
   ; frame_vis   : vis_inv c mu0
@@ -1119,7 +1119,7 @@ Lemma head_tail_inv c d pf cd (mu : frame_pkg) e sig args1 args2
   (atext2 : at_external (coreSem (cores_T (Core.i c))) 
             (cast'' pf (RC.core (Core.c d))) = Some (e,sig,args2))
   (inj : Mem.inject (as_inj mu) m1 m2)
-  (vals_inj : Forall2 (val_inject (as_inj mu)) args1 args2) 
+  (vals_inj : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) args1 args2) 
   (inv : @head_inv c d pf cd mu_trash mu mus z m1 m2) :
   tail_inv mu_trash [:: Build_frame_pkg val & mus] z [:: c & s1] [:: d & s2] m1 m2.
 Proof.
@@ -1289,7 +1289,7 @@ split.
 exists pf,cd,e1,sig1,vals1,e2,sig2,vals2.
 
 split.
-case: inv=> ? ? ? ? val'' frmatch ? ? ? visinv safe fwd1' fwd2' ? ?. 
+case: inv=> ? ? ? ? val'' frmatch ? ? frvinj visinv safe fwd1' fwd2' ? ?. 
 apply: Build_frame_inv=> //.
 
 by apply: (mem_forward_trans _ _ _ fwd1' fwd1). 
@@ -1299,7 +1299,9 @@ apply: (mem_lemmas.unchanged_on_trans m10 m1 m1')=> //.
 set pubSrc' := [predI locBlocksSrc mu0 & REACH m10 (exportedSrc mu0 vals1)].
 set pubTgt' := [predI locBlocksTgt mu0 & REACH m20 (exportedTgt mu0 vals2)].
 set mu0'    := replace_locals mu0 pubSrc' pubTgt'.
-have wd: SM_wd mu0' by apply: replace_reach_wd.
+have wd: SM_wd mu0'. 
+{ apply: replace_reach_wd=> //.
+  by apply: (forall_vals_inject_restrictD _ _ _ _ frvinj). }
 have J: disjinv mu0' mu by case: E=> /= ? ? ?; apply: disjinv_call.
 apply: (@disjinv_unchanged_on_src (Inj.mk wd) mu Esrc)=> //.
 move: (sm_valid_smvalid_src _ _ _ val')=> ?.
@@ -1311,7 +1313,9 @@ set pubSrc' := [predI locBlocksSrc mu0 & REACH m10 (exportedSrc mu0 vals1)].
 set pubTgt' := [predI locBlocksTgt mu0 & REACH m20 (exportedTgt mu0 vals2)].
 set mu0'    := replace_locals mu0 pubSrc' pubTgt'.
 have J: disjinv mu0' mu by case: E=> /= ? ? ?; apply: disjinv_call.
-have wd: SM_wd mu0' by apply: replace_reach_wd.
+have wd: SM_wd mu0'. 
+{ apply: replace_reach_wd=> //.
+  by apply: (forall_vals_inject_restrictD _ _ _ _ frvinj). }
 apply: (@disjinv_unchanged_on_tgt (Inj.mk wd) mu Esrc Etgt 
   m10 m1 m2 m2' fwd1')=> //.
 move=> b'; case: val''; move/(_ b')=> I _ Q; apply: I.
@@ -2204,8 +2208,13 @@ rewrite ->st1'_eq in *.
 move: hdinv_new.
 admit. (*by Lex.gss & hdinv_new*)
 have valid'': sm_valid pkg m1 m2 by apply: valid'.
-
-move: (head_tail_inv tlinv valid'' atext1' atext2' inj vinj' hdinv).
+have vinj'': 
+  Forall2 (val_inject (restrict (as_inj mu_top) (vis mu_top))) args1 args2.
+{ apply: restrict_forall_vals_inject=> //.
+  rewrite /vis=> b get; case: (getBlocks1_frgnpub _ get).
+  by move/pubsrc_sub_locsrc; rewrite /in_mem /= => ->.
+  by move=> ->; apply/orP; right. }
+move: (head_tail_inv tlinv valid'' atext1' atext2' inj vinj'' hdinv).
 rewrite /s1 /s2 st1'_eq /st2' /pkg /= => tlinv'. 
 by rewrite st1_eq st2_eq; apply: tlinv'.
 by rewrite st1'_eq /st2'; apply: (R_fntbl inv).
@@ -2242,6 +2251,7 @@ Admitted.
 Lemma aft2 : 
   exists rv2 st2'' (st2' : linker N cores_T) cd', 
   [/\ LinkerSem.halted0 st2 = Some rv2
+    , inContext st2
     , popCore st2 = Some st2''
     , LinkerSem.after_external (Some rv2) st2'' = Some st2'
     & R cd' mu st1' m1 st2' m2].
@@ -2266,9 +2276,68 @@ have [hd2 [tl2 [pf20 st2''_eq]]]:
 
 rewrite st2''_eq.
 
-move: (head_match hdinv).
+have [mu0 [mus' mus_eq]]:
+  exists mu0 mus',
+  mus = [:: mu0 & mus'].
+{ admit. }
 
-have [hd2' [pf_eq22' [pf_eq12' [cd' [mu' [aft2' mtch12']]]]]]:
+rewrite mus_eq /tail_inv in tlinv.
+case: tlinv=> allinv tlinv; move: tlinv=> /=.
+case: mu0 mus_eq allinv=> /= mu0 m10 m20 mu0_val mus_eq []all0 allinv.
+case pop1_eq: (SeqStack.pop _)=> //[c0 tl1'].
+case pop2_eq: (SeqStack.pop _)=> //[d0 tl2'].
+case; case=> pf0 []cd0 []x0 []sig01 []vals01 []e0 []sig02 []vals02.
+case=> fr0 ctndS0 ctndT0 mapdS0 sub0 frametail.
+
+have pf_hd2_c0: Core.i hd2 = Core.i c0. 
+  admit.
+
+have pf_hd1'_c0 : Core.i hd1' = Core.i c0.
+  admit.    
+
+move: (frame_inj0 fr0)=> inj0.
+move: (frame_match fr0)=> mtch0.
+move: (frame_at1 fr0)=> at01.
+move: (frame_at2 fr0)=> at02.
+move: (frame_vinj fr0)=> vinj0.
+move: (frame_fwd1 fr0)=> fwd1.
+move: (frame_fwd2 fr0)=> fwd2.
+move: (frame_unch1 fr0)=> unch1.
+move: (frame_unch2 fr0)=> unch2.
+
+have at02':
+  at_external (RC.effsem (coreSem (cores_T (Core.i c0))))
+    (rc_cast'' pf0 (Core.c d0)) 
+  = Some (e0,sig02,vals02).
+  admit.
+
+set pubSrc' := fun b => 
+  locBlocksSrc mu0 b && REACH m10 (exportedSrc mu0 vals01) b.
+set pubTgt' := fun b => 
+  locBlocksTgt mu0 b && REACH m20 (exportedTgt mu0 vals02) b.
+set nu := replace_locals mu0 pubSrc' pubTgt'.
+
+have nu_wd: SM_wd nu.
+{ admit. }
+
+have nu_valid: sm_valid nu m1 m2.
+{ admit. }
+
+have nu_inj: Mem.inject (as_inj nu) m1 m2.
+{ admit. }
+
+have retsinj: val_inject (as_inj nu) rv1 rv2.
+{ admit. }
+
+set frgnSrc' := fun b => 
+  [&& DomSrc nu b, ~~locBlocksSrc nu b
+    & REACH m1 (exportedSrc nu [:: rv1]) b].
+set frgnTgt' := fun b => 
+  [&& DomTgt nu b, ~~locBlocksTgt nu b
+    & REACH m2 (exportedTgt nu [:: rv2]) b].
+set mu' := replace_externs nu frgnSrc' frgnTgt'.
+
+have [hd2' [pf_eq22' [pf_eq12' [cd' [mu'' [aft2' mtch12']]]]]]:
   exists hd2' (pf_eq22' : Core.i hd2 = Core.i hd2') 
               (pf_eq12' : Core.i hd1' = Core.i hd2')
          cd' mu',
@@ -2277,13 +2346,53 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [mu' [aft2' mtch12']]]]]]:
       = Some (rc_cast'' pf_eq22' (Core.c hd2'))
     & match_state (sims (Core.i hd1')) cd' mu' 
       (Core.c hd1') m1 (rc_cast'' pf_eq12' (Core.c hd2')) m2].
-{ admit. }
+{ case: (popCoreE _ p2)=> wf_pf []inCtx2 st2''_eq'.
+  rewrite st2''_eq' in st2''_eq.
+  rewrite /updStack in st2''_eq; case: st2''_eq=> fntbl_eq pop2_eq'.
+  move: (@eff_after_external 
+  _ _ _ _ _ _ _ _ 
+  _ _ _ 
+  (sims (Core.i c0))
+  _ _ _ _ _ _ _ _ _ _ _ _
+  inj0 mtch0 at01 at02' vinj0
+
+  pubSrc' erefl pubTgt' erefl nu erefl
+
+  nu rv1 m1 rv2 m2
+
+  (extern_incr_refl nu)
+  (sm_inject_separated_refl nu m10 m20)
+  nu_wd nu_valid nu_inj retsinj
+  fwd1 fwd2
+
+  frgnSrc' erefl frgnTgt' erefl mu' erefl
+
+  unch1 unch2).
+  case=> cd' []c0' []d0' []aft1'' []aft2'' mtch12'.
+  exists (Core.mk _ cores_T (Core.i c0) d0')=> /=.
+  exists pf_hd2_c0,pf_hd1'_c0.   
+
+  have mtch12'': 
+    match_state (sims (Core.i hd1')) 
+    (cast (fun ix => core_data entry_points (sims ix)) (sym_eq pf_hd1'_c0) cd') mu' 
+    (Core.c hd1') m1 (rc_cast'' pf_hd1'_c0 d0') m2.
+  { admit. (*dependent type casting*) }
+    
+  exists (cast (fun ix => core_data entry_points (sims ix)) 
+           (sym_eq pf_hd1'_c0) cd').
+  exists mu'.
+  split=> //.
+  move: aft2''=> /=.
+  admit. (*dependent type casting*) }
 
 set st2' := {| fn_tbl := fntbl; stack := CallStack.mk (hd2'::tl2) pf20 |}.
 
 exists st2',(Lex.set (Core.i hd1') cd' cd).
 
 split=> //.
+
+move: hlt2.
+admit. (*dependent type casting*)
 
 admit.
 
@@ -2294,10 +2403,11 @@ rewrite /st2'; f_equal.
 
 rewrite /SeqStack.updStack /Core.upd. admit.
 
-apply: Build_R. simpl. 
+apply: Build_R=> /=. 
 exists pf_eq12'.
-case: mu_trash mu_eq trinv hdinv tlinv.
-move=> mu_trash x1 x2 xval /= mu_eq trinv hdinv tlinv.
+case: mu_trash mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail.
+move=> mu_trash x1 x2 xval.
+move=> /= mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail.
 
 set mu_trash'' := join_sm mu' mu_trash.
 
