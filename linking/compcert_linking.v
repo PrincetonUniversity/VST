@@ -4,6 +4,7 @@ Require Import linking.sepcomp. Import SepComp.
 
 Require Import linking.pos.
 Require Import linking.stack. 
+Require Import linking.cast.
 Require Import linking.core_semantics_lemmas.
 Require Import linking.rc_semantics.
 
@@ -550,20 +551,22 @@ apply after_at_external_excl in Heq.
 by move: Heq H2; rewrite/=/RC.at_external=> ->.
 Qed.
 
+Notation cast'' pf x := (cast (RC.state \o Static.C \o my_cores) (sym_eq pf) x).
+
 Lemma after_externalE rv c c' : 
   after_external rv c = Some c' -> 
-  exists fn_tbl hd hd' tl pf pf',
+  exists fn_tbl hd hd' tl pf pf' (eq_pf : Core.i hd = Core.i hd'),
   [/\ c  = mkLinker fn_tbl (CallStack.mk [:: hd & tl] pf)
-    , c' = mkLinker fn_tbl (CallStack.mk [:: hd' & tl] pf')
+    , c' = mkLinker fn_tbl (CallStack.mk [:: hd' & tl]  pf')
     & core_semantics.after_external
-       (RC.effsem (Static.coreSem (my_cores (Core.i (peekCore c))))) rv
-       (Core.c (peekCore c))].
+       (RC.effsem (Static.coreSem (my_cores (Core.i hd)))) rv (Core.c hd)
+      = Some (cast'' eq_pf (Core.c hd'))].
 Proof.
 case: c=> fntbl; case; case=> // hd stk pf aft; exists fntbl,hd.
 move: aft; rewrite /after_external /=.
 case e: (RC.after_external _ _ _)=> // [hd']; case=> <-.
 exists (Core.mk N my_cores (Core.i hd) hd'),stk,pf,pf.
-split=> //; f_equal; f_equal.
+rewrite /=; exists refl_equal; split=> //; f_equal; f_equal.
 by apply: proof_irr.
 Qed.
 

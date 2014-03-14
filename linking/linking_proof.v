@@ -2254,10 +2254,79 @@ case: (core_halted (sims (Core.i (peekCore st1)))
        => rv2 []inj12 []vinj hlt2.
 exists rv2.
 case: pop2=> st2'' p2.
+case: (LinkerSem.after_externalE _ _ aft1)=> fntbl []hd1 []hd1' []tl1.
+move=> []pf1 []pf2 []e1 []st1''_eq st1'_eq aft1'; rewrite st1'_eq.
+exists st2''.
+rewrite /s1 /s2 in tlinv.
 
+have [hd2 [tl2 [pf20 st2''_eq]]]:
+  exists hd2 tl2 pf2,
+  st2'' = {| fn_tbl := fntbl; stack := CallStack.mk (hd2::tl2) pf2 |}.
+{ admit. }
 
+rewrite st2''_eq.
 
-Admitted.
+move: (head_match hdinv).
+
+have [hd2' [pf_eq22' [pf_eq12' [cd' [mu' [aft2' mtch12']]]]]]:
+  exists hd2' (pf_eq22' : Core.i hd2 = Core.i hd2') 
+              (pf_eq12' : Core.i hd1' = Core.i hd2')
+         cd' mu',
+  [/\ after_external (RC.effsem (coreSem (cores_T (Core.i hd2))))
+        (Some rv2) (Core.c hd2) 
+      = Some (rc_cast'' pf_eq22' (Core.c hd2'))
+    & match_state (sims (Core.i hd1')) cd' mu' 
+      (Core.c hd1') m1 (rc_cast'' pf_eq12' (Core.c hd2')) m2].
+{ admit. }
+
+set st2' := {| fn_tbl := fntbl; stack := CallStack.mk (hd2'::tl2) pf20 |}.
+
+exists st2',(Lex.set (Core.i hd1') cd' cd).
+
+split=> //.
+
+admit.
+
+by rewrite p2 st2''_eq.
+
+move: aft2'; rewrite /LinkerSem.after_external /= => ->; f_equal=> //.
+rewrite /st2'; f_equal.
+
+rewrite /SeqStack.updStack /Core.upd. admit.
+
+apply: Build_R. simpl. 
+exists pf_eq12'.
+case: mu_trash mu_eq trinv hdinv tlinv.
+move=> mu_trash x1 x2 xval /= mu_eq trinv hdinv tlinv.
+
+set mu_trash'' := join_sm mu' mu_trash.
+
+have mu_trash''_wd : SM_wd mu_trash''.
+{ admit. }
+
+set mu_trash' := Inj.mk mu_trash''_wd.
+
+have mu_trash'_val : sm_valid mu_trash' m1 m2.
+{ admit. }
+
+have mu'_wd : SM_wd mu'.
+{ admit. }
+
+exists (Build_frame_pkg mu_trash'_val),(Inj.mk mu'_wd),(tl mus),x.
+
+move=> /=; split=> //.
+
+admit.
+
+admit. 
+
+rewrite Lex.gss.
+admit.
+
+admit. (*tail_tail_inv*)
+
+by [].
+Qed.
 
 End return_lems.
   
@@ -2641,7 +2710,31 @@ case HLT1: (LinkerSem.halted0 st1)=> [rv|].
 {(*[Subcase: halted0]*)
 case POP1: (popCore st1)=> [st1''|//].
 case AFT1: (LinkerSem.after_external (Some rv) st1'')=> [st1'''|//] eq1 A.
-admit. (*TODO*)
+
+have mu_wd: SM_wd mu. admit.
+
+have INV': R data (Inj.mk mu_wd) st1 m1 st2 m2.
+{ by apply: INV. }
+
+case: (aft2 HLT1 AFT1 INV')=> rv2 []st2'' []st2' []cd' []HLT2 POP2 AFT2 INV''.
+exists st2',m2,cd',mu.
+split; first by apply: intern_incr_refl.
+split; first by apply: sm_inject_separated_refl.
+split; first by apply: sm_locally_allocated_refl.
+split=> //; first by rewrite eq1.
+exists (fun _ _ => false); split=> //.
+left; exists O=> /=; exists st2',m2,(fun _ _ => false),(fun _ _ => false).
+split=> //.
+rewrite /effstep; split=> //.
+rewrite /LinkerSem.corestep; right; split=> //.
+split=> //. admit.
+have inCtx: (inContext st2). admit.
+rewrite inCtx.
+have atExt2: (LinkerSem.at_external0 st2 = None).
+{ case: (LinkerSem.at_external_halted_excl0 st2)=> //.
+  by rewrite HLT2. }
+by rewrite atExt2 HLT2 POP2 AFT2.
+admit. (*easy*)
 }(*end [Subcase: halted0]*)
 
 by [].
