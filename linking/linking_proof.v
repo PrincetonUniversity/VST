@@ -2213,6 +2213,54 @@ Qed.
 
 End call_lems.
 
+Section return_lems.
+
+Context
+(mu : Inj.t) m1 m2 rv1 st1''
+(st1 st1' : linker N cores_S) cd st2  
+(valid : sm_valid mu m1 m2)
+(hlt1 : LinkerSem.halted0 st1 = Some rv1)
+(pop1 : popCore st1 = Some st1'')
+(aft1 : LinkerSem.after_external (Some rv1) st1'' = Some st1')
+(inv : R cd mu st1 m1 st2 m2).
+
+Lemma hlt2 : exists rv2, LinkerSem.halted0 st2 = Some rv2.
+Proof.
+case: (R_inv inv)=> pf []mu_trash []mu_top []mus []x []mu_eq.
+move=> rc trinv hdinv tlinv.
+move: hlt1; rewrite /LinkerSem.halted0=> hlt10.
+case: (core_halted (sims (Core.i (peekCore st1)))
+       _ _ _ _ _ _ (head_match hdinv) hlt10)
+       => rv2 []inj12 []vinj hlt2.
+exists rv2.
+admit.
+Qed.
+
+Lemma pop2 : exists st2'', popCore st2 = Some st2''.
+Admitted.
+
+Lemma aft2 : 
+  exists rv2 st2'' (st2' : linker N cores_T) cd', 
+  [/\ LinkerSem.halted0 st2 = Some rv2
+    , popCore st2 = Some st2''
+    , LinkerSem.after_external (Some rv2) st2'' = Some st2'
+    & R cd' mu st1' m1 st2' m2].
+Proof.
+case: (R_inv inv)=> pf []mu_trash []mu_top []mus []x []mu_eq.
+move=> rc trinv hdinv tlinv.
+move: hlt1; rewrite /LinkerSem.halted0=> hlt10.
+case: (core_halted (sims (Core.i (peekCore st1)))
+       _ _ _ _ _ _ (head_match hdinv) hlt10)
+       => rv2 []inj12 []vinj hlt2.
+exists rv2.
+case: pop2=> st2'' p2.
+
+
+
+Admitted.
+
+End return_lems.
+  
 Lemma link : SM_simulation_inject linker_S linker_T my_ge my_ge entry_points.
 Proof.
 

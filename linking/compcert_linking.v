@@ -1,10 +1,5 @@
-(*Require Import sepcomp.extspec.
-Require Import sepcomp.Address.
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.step_lemmas.
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.effect_simulations.*)
+Require Import msl.Axioms.
+
 Require Import linking.sepcomp. Import SepComp.
 
 Require Import linking.pos.
@@ -553,6 +548,23 @@ case Hat: (at_external0 _)=>//[[[ef sig] args]].
 move: Hat; rewrite/at_external0=>/= H2.
 apply after_at_external_excl in Heq.
 by move: Heq H2; rewrite/=/RC.at_external=> ->.
+Qed.
+
+Lemma after_externalE rv c c' : 
+  after_external rv c = Some c' -> 
+  exists fn_tbl hd hd' tl pf pf',
+  [/\ c  = mkLinker fn_tbl (CallStack.mk [:: hd & tl] pf)
+    , c' = mkLinker fn_tbl (CallStack.mk [:: hd' & tl] pf')
+    & core_semantics.after_external
+       (RC.effsem (Static.coreSem (my_cores (Core.i (peekCore c))))) rv
+       (Core.c (peekCore c))].
+Proof.
+case: c=> fntbl; case; case=> // hd stk pf aft; exists fntbl,hd.
+move: aft; rewrite /after_external /=.
+case e: (RC.after_external _ _ _)=> // [hd']; case=> <-.
+exists (Core.mk N my_cores (Core.i hd) hd'),stk,pf,pf.
+split=> //; f_equal; f_equal.
+by apply: proof_irr.
 Qed.
 
 Definition coresem : CoreSemantics ge_ty (linker N my_cores) Mem.mem :=

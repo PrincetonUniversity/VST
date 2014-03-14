@@ -8,6 +8,7 @@ Import SM_simulation.
 Arguments core_diagram : default implicits.
 Arguments match_sm_wd : default implicits.
 Arguments core_at_external : default implicits.
+Arguments core_halted : default implicits.
 Arguments disjoint_extern_local_Src : default implicits.
 
 Arguments core_data {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2} _ _.
