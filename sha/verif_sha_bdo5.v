@@ -248,13 +248,7 @@ semax
    SEP 
    (`(array_at tuint Tsh (tuints K) 0 (Zlength K))
       (eval_var _K256 (tarray tuint 64));
-   `(array_at tuint Tsh
-       (upd (Xarray bb (Z.of_nat i)) (Z.of_nat i mod 16)
-          (Vint
-             (Int.add (nthB bb i 0)
-                (Int.add
-                   (Int.add (sigma_0 (nthB bb i 1)) (sigma_1 (nthB bb i 14)))
-                   (nthB bb i 9))))) 0 LBLOCKz)
+   `(array_at tuint Tsh (Xarray bb (Z.of_nat (i + 1))) 0 LBLOCKz)
      (eval_var _X (tarray tuint LBLOCKz)))) rearrange_regs2c
   (normal_ret_assert
      (EX  i0 : nat,
@@ -298,7 +292,7 @@ entailer.
 clear Delta H3.
 symmetry in H5; inv H5.
 rewrite H4; clear H4 e_.
-apply andp_right; [apply prop_right | ].
+apply prop_right.
 clear TC H6 H7 ctx_ rho.
 split.
 f_equal. rewrite Nat2Z.inj_add. change (Z.of_nat 1) with 1%Z; clear; omega.
@@ -323,41 +317,4 @@ rewrite rev_length.
 rewrite length_generate_word; auto.
 rewrite rev_length.
 rewrite H. apply H0.
-apply sepcon_derives; auto.
-apply derives_refl'.
-apply equal_f.
-clear H6 TC ctx_ rho.
-change (Z.of_nat LBLOCK) with 16.
-apply array_at_ext; intros j ?.
-unfold upd.
-if_tac.
-subst j.
-unfold f_upto, tuints, ZnthV.
-rewrite if_false.
-rewrite (@nth_map' int val _ _ Int.zero).
-f_equal.
-
-rewrite <- (nth_rev_generate_word _ (i + 1 - LBLOCK)); auto.
-admit.  (* might even be true *)
-omega.
-rewrite rev_length, firstn_length, length_generate_word, rev_length, H.
-rewrite min_l by omega.
-apply Nat2Z.inj_lt.
-rewrite Z2Nat.id by omega. apply H3.
-clear - H3; omega.
-unfold tuints, ZnthV.
-rewrite if_false by omega.
-rewrite if_false by omega.
-rewrite (@nth_map' int val _ _ Int.zero).
-rewrite (@nth_map' int val _ _ Int.zero).
-f_equal.
-admit.  (* looks good *)
-rewrite rev_length, firstn_length, length_generate_word, rev_length, H.
-rewrite min_l by omega.
-apply Nat2Z.inj_lt.
-rewrite Z2Nat.id by omega. apply H3.
-rewrite rev_length, firstn_length, length_generate_word, rev_length, H.
-rewrite min_l by omega.
-apply Nat2Z.inj_lt.
-rewrite Z2Nat.id by omega. apply H3.
 Qed.

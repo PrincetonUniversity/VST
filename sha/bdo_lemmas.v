@@ -3,6 +3,8 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 
+Transparent generate_word.
+
 Lemma generate_word_lemma1:
   forall b n, length b = LBLOCK ->
    firstn LBLOCK (rev (generate_word (rev b) n)) = b.
@@ -10,7 +12,6 @@ Proof.
 intros.
 change (rev b) with (nil ++ rev b).
 forget (@nil int) as a.
-Transparent generate_word.
 revert a; induction n; intro.
 unfold generate_word.
 rewrite rev_app_distr.
@@ -21,7 +22,6 @@ unfold generate_word; fold generate_word.
 change (W (a ++ rev b) :: a ++ rev b) with 
       ((W (a ++ rev b) ::a) ++ rev b).
 apply IHn.
-Opaque generate_word.
 Qed.
 
 Lemma length_generate_word: forall b n,
@@ -35,7 +35,6 @@ omega.
 unfold generate_word; fold generate_word.
 rewrite IHn.
 simpl. omega.
-Opaque generate_word.
 Qed.
 
 Lemma and_mod_15_lem:
@@ -52,8 +51,6 @@ apply Int.unsigned_range. clear; omega. clear; omega.
 rewrite Int.signed_repr; auto.
 repable_signed.
 Qed.
-
-Transparent generate_word.
 
 Lemma nth_generate_word_S:
   forall k i n b', 
@@ -275,6 +272,7 @@ rewrite Int.add_commut.
 rewrite <- Int.add_assoc.
 auto.
 Qed.
+
 Opaque generate_word.
 
 Lemma nth_error_nth:
@@ -284,5 +282,86 @@ induction i; destruct al; simpl; intros; auto.
 inv H.
 inv H.
 apply IHi; omega.
+Qed.
+
+Lemma Xarray_update:
+ forall i bb,
+  length bb = LBLOCK ->
+  (16 <= i < 64)%nat ->
+   array_at tuint Tsh 
+   (upd (Xarray bb (Z.of_nat i)) (Z.of_nat i mod 16)
+          (Vint
+             (Int.add (nthB bb i 0)
+                (Int.add
+                   (Int.add (sigma_0 (nthB bb i 1)) (sigma_1 (nthB bb i 14)))
+                   (nthB bb i 9))))) 0 LBLOCKz =
+  array_at tuint Tsh (Xarray bb (Z.of_nat (i + 1))) 0 LBLOCKz.
+Proof.
+intros.
+change LBLOCKz with 16. change LBLOCK with 16%nat.
+apply array_at_ext; intros j ?.
+unfold upd, Xarray, tuints, ZnthV.
+
+assert ((Z.of_nat (i + 1) - 16 + (Z.of_nat i mod 16 - Z.of_nat (i + 1)) mod 16)
+            = Z.of_nat i). {
+rewrite Nat2Z.inj_add. change (Z.of_nat 1) with 1%Z.
+rewrite Zminus_mod. rewrite Z.mod_mod by computable.
+rewrite <- Zminus_mod.
+replace (Z.of_nat i - (Z.of_nat i + 1)) with (-1)%Z by omega.
+change (-1 mod 16) with 15%Z.
+replace (Z.of_nat i + 1 - 16 + 15) with (Z.of_nat i) by omega.
+auto.
+}
+if_tac.
+subst j.
+rewrite H2.
+rewrite if_false by omega.
+rewrite (@nth_map' int val _ _ Int.zero)
+ by (rewrite rev_length, length_generate_word, rev_length, H, Nat2Z.id; apply H0).
+f_equal.
+rewrite nth_rev_generate_word; try rewrite Nat2Z.id; auto.
+rewrite if_false.
+rewrite if_false.
+f_equal. f_equal.
+rewrite Nat2Z.inj_add. change (Z.of_nat 1) with 1.
+replace ((j - Z.of_nat i) mod 16) with ((j - (Z.of_nat i + 1)) mod 16 + 1); [omega|].
+replace (j - (Z.of_nat i + 1)) with (j-Z.of_nat i - 1) by (clear; omega).
+rewrite Zminus_mod.
+rewrite (Zminus_mod j).
+rewrite (Z.mod_small _ _ H1).
+clear - H1 H3.
+assert (0 <= Z.of_nat i mod 16 < 16) by (apply Z.mod_pos_bound; omega).
+forget (Z.of_nat i mod 16) as k.
+clear i.
+assert ((j-k) mod 16 <> 0).
+intro.
+assert (-16 < j-k < 16) by omega.
+destruct (zlt (j-k) 0).
+apply Z.mod_opp_l_z in H0; try computable.
+replace (-(j-k)) with (k-j) in H0 by omega.
+rewrite Z.mod_small in H0 by omega. omega.
+rewrite Z.mod_small in H0 by omega. omega.
+forget (j-k) as n.
+clear - H0.
+rewrite Z.mod_small.
+change (1 mod 16) with 1; omega.
+change (1 mod 16) with 1.
+assert (0 <= n mod 16 < 16)  by (apply Z.mod_pos_bound; omega).
+omega.
+apply Zle_not_lt.
+clear - H0.
+assert (0 <= (j - Z.of_nat (i + 1)) mod 16 < 16)  by (apply Z.mod_pos_bound; omega).
+forget ((j - Z.of_nat (i + 1)) mod 16) as m.
+destruct H0 as [H0 _].
+apply Nat2Z.inj_le in H0. change (Z.of_nat 16) with 16 in H0.
+rewrite Nat2Z.inj_add. change (Z.of_nat 1) with 1.
+omega.
+apply Zle_not_lt.
+clear - H0.
+assert (0 <= (j - Z.of_nat i) mod 16 < 16)  by (apply Z.mod_pos_bound; omega).
+forget ((j - Z.of_nat i) mod 16) as m.
+destruct H0 as [H0 _].
+apply Nat2Z.inj_le in H0. change (Z.of_nat 16) with 16 in H0.
+omega.
 Qed.
 

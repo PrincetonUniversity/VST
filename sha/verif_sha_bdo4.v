@@ -30,6 +30,7 @@ Lemma sha256_block_data_order_loop1_proof:
   (normal_ret_assert
     (PROP () 
      LOCAL(`(eq ctx) (eval_id _ctx);
+                `(eq (Vint (Int.repr 16))) (eval_id _i);
                 `(eq (map Vint (rnd_64 regs K b))) 
                    (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
                      (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
@@ -249,9 +250,7 @@ change (match b with
 replace Delta with (initialized _Ki (initialized _l (initialized _l' Delta_loop1)))
  by (unfold Delta, Delta_loop1; simplify_Delta; reflexivity).
 eapply semax_pre; [ | simple apply rearrange_regs_proof with (bl:=b)(i:=i)(data:=data); auto ].
-Admitted.
-
-(* the rest of this is correct, probably, but runs out of memory.
+Admitted.  (* the rest of this is correct but goes over 2 gigabytes.
 abstract (entailer!;
  [destruct data; inv Hdata; simpl; f_equal;
   rewrite Int.add_assoc;
