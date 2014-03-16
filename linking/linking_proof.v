@@ -2263,7 +2263,7 @@ case: (core_halted (sims (Core.i (peekCore st1)))
        _ _ _ _ _ _ (head_match hdinv) hlt10)
        => rv2 []inj12 []vinj hlt2.
 exists rv2.
-case: pop2=> st2'' p2.
+case: pop2=> st2'' pop2.
 case: (LinkerSem.after_externalE _ _ aft1)=> fntbl []hd1 []hd1' []tl1.
 move=> []pf1 []pf2 []e1 []st1''_eq st1'_eq aft1'; rewrite st1'_eq.
 exists st2''.
@@ -2272,14 +2272,23 @@ rewrite /s1 /s2 in tlinv.
 have [hd2 [tl2 [pf20 st2''_eq]]]:
   exists hd2 tl2 pf2,
   st2'' = {| fn_tbl := fntbl; stack := CallStack.mk (hd2::tl2) pf2 |}.
-{ admit. }
+{ case: (popCoreE _ pop2)=> wf_pf []inCtx2 st2''_eq.
+  move: wf_pf st2''_eq; rewrite /updStack.
+  case: (STACK.pop (CallStack.callStack st2))=> // x0 xs wf_pf ->.
+  exists x0,xs,wf_pf; f_equal=> //; rewrite -(R_fntbl inv).
+  by case: (popCoreE _ pop1)=> ? []_; rewrite st1''_eq; case. }
 
 rewrite st2''_eq.
 
 have [mu0 [mus' mus_eq]]:
   exists mu0 mus',
   mus = [:: mu0 & mus'].
-{ admit. }
+{ clear - pop1 pop2 tlinv; case: mus pop1 pop2 tlinv.
+  case/popCoreE=> []wf_pf1 []_ eq1; case/popCoreE=> []wf_pf2 []_ eq2.
+  move: wf_pf1 eq1; case: (STACK.pop (CallStack.callStack st1))=> // x0 xs ? ?.
+  move: wf_pf2 eq2; case: (STACK.pop (CallStack.callStack st2))=> // y0 ys ? ?.
+  by case.
+  by move=> mu0 mus' ? ? ?; exists mu0,mus'. }
 
 rewrite mus_eq /tail_inv in tlinv.
 case: tlinv=> allinv tlinv; move: tlinv=> /=.
@@ -2290,10 +2299,12 @@ case; case=> pf0 []cd0 []x0 []sig01 []vals01 []e0 []sig02 []vals02.
 case=> fr0 ctndS0 ctndT0 mapdS0 sub0 frametail.
 
 have pf_hd2_c0: Core.i hd2 = Core.i c0. 
-  admit.
+{ rewrite pf0; case: (popCoreE _ pop2)=> ? []inCtx2; rewrite /updStack.
+  by rewrite st2''_eq; case; rewrite pop2_eq=> _; case=> ->. }
 
 have pf_hd1'_c0 : Core.i hd1' = Core.i c0.
-  admit.    
+{ rewrite -e1; move: (popCoreE _ pop1)=> []? []_; rewrite st1''_eq.
+  by rewrite /updStack; case; rewrite pop1_eq=> _; case=> ->. }
 
 move: (frame_inj0 fr0)=> inj0.
 move: (frame_match fr0)=> mtch0.
@@ -2309,7 +2320,7 @@ have at02':
   at_external (RC.effsem (coreSem (cores_T (Core.i c0))))
     (rc_cast'' pf0 (Core.c d0)) 
   = Some (e0,sig02,vals02).
-  admit.
+{ admit. }
 
 set pubSrc' := fun b => 
   locBlocksSrc mu0 b && REACH m10 (exportedSrc mu0 vals01) b.
@@ -2317,14 +2328,27 @@ set pubTgt' := fun b =>
   locBlocksTgt mu0 b && REACH m20 (exportedTgt mu0 vals02) b.
 set nu := replace_locals mu0 pubSrc' pubTgt'.
 
-have nu_wd: SM_wd nu.
-{ admit. }
+have mu0_wd: SM_wd mu0.
+{ by apply: Inj_wd. }
 
-have nu_valid: sm_valid nu m1 m2.
-{ admit. }
+have vinj0': Forall2 (val_inject (as_inj mu0)) vals01 vals02.
+{ by apply: (forall_vals_inject_restrictD _ _ _ _ vinj0). }
 
-have nu_inj: Mem.inject (as_inj nu) m1 m2.
-{ admit. }
+have [nu_wd [nu_valid0 [nu_inj0 nu_vinj]]]:
+  SM_wd nu
+  /\ sm_valid nu m10 m20 
+  /\ Mem.inject (as_inj nu) m10 m20 
+  /\ Forall2 (val_inject (as_inj nu)) vals01 vals02.
+{ by apply: (eff_after_check1 
+  _ mu0_wd 
+  _ _ mu0_val
+  inj0 
+  _ _ vinj0' 
+  pubSrc' erefl
+  pubTgt' erefl 
+  nu erefl). }
+
+set nu' := 
 
 have retsinj: val_inject (as_inj nu) rv1 rv2.
 { admit. }
@@ -2346,7 +2370,7 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [mu'' [aft2' mtch12']]]]]]:
       = Some (rc_cast'' pf_eq22' (Core.c hd2'))
     & match_state (sims (Core.i hd1')) cd' mu' 
       (Core.c hd1') m1 (rc_cast'' pf_eq12' (Core.c hd2')) m2].
-{ case: (popCoreE _ p2)=> wf_pf []inCtx2 st2''_eq'.
+{ case: (popCoreE _ pop2)=> wf_pf []inCtx2 st2''_eq'.
   rewrite st2''_eq' in st2''_eq.
   rewrite /updStack in st2''_eq; case: st2''_eq=> fntbl_eq pop2_eq'.
   move: (@eff_after_external 
@@ -2356,7 +2380,7 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [mu'' [aft2' mtch12']]]]]]:
   _ _ _ _ _ _ _ _ _ _ _ _
   inj0 mtch0 at01 at02' vinj0
 
-  pubSrc' erefl pubTgt' erefl nu erefl
+  pubSrc' erefl pubTgt' erefl nu erefl).
 
   nu rv1 m1 rv2 m2
 
@@ -2394,14 +2418,14 @@ split=> //.
 move: hlt2.
 admit. (*dependent type casting*)
 
-admit.
+admit. (*easy*)
 
-by rewrite p2 st2''_eq.
+by rewrite pop2 st2''_eq.
 
 move: aft2'; rewrite /LinkerSem.after_external /= => ->; f_equal=> //.
 rewrite /st2'; f_equal.
 
-rewrite /SeqStack.updStack /Core.upd. admit.
+rewrite /SeqStack.updStack /Core.upd. admit. (*easy*)
 
 apply: Build_R=> /=. 
 exists pf_eq12'.
