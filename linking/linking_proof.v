@@ -2222,6 +2222,19 @@ Qed.
 
 End call_lems.
 
+
+Lemma sm_inject_separated_replace_locals mu X Y mu' m1 m2 : 
+  sm_inject_separated mu mu' m1 m2 -> 
+  sm_inject_separated (replace_locals mu X Y) mu' m1 m2.
+Proof.
+case.
+rewrite /sm_inject_separated.
+rewrite replace_locals_DomSrc.
+rewrite replace_locals_DomTgt.
+rewrite replace_locals_as_inj.
+by [].
+Qed.
+
 Section return_lems.
 
 Context
@@ -2348,18 +2361,114 @@ have [nu_wd [nu_valid0 [nu_inj0 nu_vinj]]]:
   pubTgt' erefl 
   nu erefl). }
 
-set nu' := 
+set nu' := reestablish nu mu_top.
 
-have retsinj: val_inject (as_inj nu) rv1 rv2.
-{ admit. }
+have restrict_mu_top_nu:
+  restrict (as_inj mu_top) (DomSrc nu) = as_inj nu.
+{ rewrite /restrict /as_inj /join; extensionality b.
+  move: (head_rel hdinv); rewrite mus_eq /= => [][]. 
+  case=> /= incr_mu0_top sep_mu0_top disj_mu0_top _.
+  case e: (DomSrc nu b)=> //.
+  case eOf_nu: (extern_of nu b)=> [[x' y']|].  
+  rewrite /nu replace_locals_extern in eOf_nu.
+  case eOf_top: (extern_of mu_top b)=> [[x'' y'']|].
+  case: incr_mu0_top; rewrite /as_inj /join.
+  by move/(_ b x' y'); rewrite eOf_nu eOf_top=> H1 H2; apply: H1.
+  case: incr_mu0_top; rewrite /as_inj /join; move/(_ b x' y').
+  by rewrite eOf_nu eOf_top=> H1 H2; apply: H1.
+  rewrite /nu replace_locals_extern in eOf_nu.
+  rewrite /nu replace_locals_DomSrc in e.
+  case eOf_top: (extern_of mu_top b)=> [[x' y']|].
+  case lOf_nu: (local_of nu b)=> [[x'' y'']|].
+  case: incr_mu0_top=> inj_incr []H1 H2.  
+  move: (inj_incr b x'' y''); rewrite /as_inj /join.
+  rewrite /nu replace_locals_local in lOf_nu.
+  by rewrite eOf_nu eOf_top lOf_nu; apply.
+  case: sep_mu0_top; move/(_ b x' y').
+  rewrite /nu replace_locals_local in lOf_nu.
+  rewrite /as_inj /join eOf_nu lOf_nu eOf_top; case=> //.
+  by rewrite e.
+  case: incr_mu0_top=> inj_incr []H1 H2.
+  case lOf_nu: (local_of nu b)=> [[x' y']|].
+  rewrite /nu replace_locals_local in lOf_nu.
+  case lOf_top: (local_of mu_top b)=> [[x'' y'']|].
+  move: (inj_incr b x' y'); rewrite /as_inj /join.
+  by rewrite lOf_nu lOf_top eOf_nu eOf_top; apply.
+  move: (inj_incr b x' y'); rewrite /as_inj /join.
+  by rewrite lOf_nu lOf_top eOf_nu eOf_top; move/(_ erefl).
+  rewrite /nu replace_locals_local in lOf_nu.
+  case lOf_top: (local_of mu_top b)=> //[[x' y']].
+  case: (local_locBlocks _ (Inj_wd _) _ _ _ lOf_top).
+  case: sep_mu0_top; move/(_ b x' y').
+  rewrite /as_inj /join eOf_nu lOf_nu eOf_top lOf_top; case=> //.
+  by rewrite e. 
+  case eOf_nu: (extern_of nu b)=> [[x' y']|].
+  rewrite /nu replace_locals_extern in eOf_nu.
+  case: (extern_DomRng' _ (Inj_wd _) _ _ _ eOf_nu).
+  move=> _ []_ []_ []_ []_ []_ []dSrc _.
+  by rewrite /nu replace_locals_DomSrc dSrc in e.
+  case lOf_nu: (local_of nu b)=> //[[x' y']].
+  rewrite /nu replace_locals_local in lOf_nu.
+  case: (local_DomRng _ (Inj_wd _) _ _ _ lOf_nu)=> H1 _.  
+  by rewrite /DomSrc /nu replace_locals_locBlocksSrc H1 /= in e. }
+
+have asInj_nu'_nu: as_inj nu' = as_inj mu_top.
+{ by apply: reestablish_as_inj. }
+
+have nu'_vinj: val_inject (as_inj nu') rv1 rv2.
+{ rewrite asInj_nu'_nu.
+  by apply: (val_inject_restrictD _ _ _ _ vinj). }
+
+move: (head_rel hdinv); rewrite mus_eq /= => [][].  
+case=> /= incr0_top sep0_top disj0_top _.
+
+have extsrc_nu_top b: extBlocksSrc nu b -> DomSrc mu_top b.
+{ rewrite /nu replace_locals_extBlocksSrc=> H1.
+  case: incr0_top=> _ []; move/(_ b); rewrite /DomSrc H1.
+  by move=> H2 _; apply: H2; apply/orP; right. }
+
+have exttgt_nu_top b: extBlocksTgt nu b -> DomTgt mu_top b.
+{ rewrite /nu replace_locals_extBlocksTgt=> H1.
+  case: incr0_top=> _ [] _; move/(_ b); rewrite /DomTgt H1.
+  by apply; apply/orP; right. }
+
+have nu_nu'_eincr: extern_incr nu nu'.
+{ apply: reestablish_extern_incr=> //; first by apply: Inj_wd. }
+
+have locsrc_nu_top b: locBlocksSrc nu b -> DomSrc mu_top b.
+{ rewrite /nu replace_locals_locBlocksSrc=> H1.
+  case: incr0_top=> _ []; move/(_ b); rewrite /DomSrc H1.
+  by move=> H2 _; apply: H2. }
+
+have loctgt_nu_top b: locBlocksTgt nu b -> DomTgt mu_top b.
+{ rewrite /nu replace_locals_locBlocksTgt=> H1.
+  by case: incr0_top=> _ [] _; move/(_ b); rewrite /DomTgt H1; apply. }
+
+have nu_nu'_sep: sm_inject_separated nu nu' m10 m20.
+{ apply: reestablish_sm_injsep=> //; first by apply: Inj_wd.
+  by apply: sm_inject_separated_replace_locals. }
+
+have nu'_wd: SM_wd nu'.
+{ apply: reestablish_wd=> //; first by apply: Inj_wd.
+  case: sep0_top=> H1 _; rewrite /nu. 
+  rewrite replace_locals_DomSrc replace_locals_DomTgt. 
+  by rewrite replace_locals_as_inj. }
+
+have nu'_valid: sm_valid nu' m1 m2.
+{ apply: reestablish_sm_valid=> //.
+  by apply: Inj_wd.
+  by apply: (head_valid hdinv). }
+
+have nu'_inj: Mem.inject (as_inj nu') m1 m2.
+{ by rewrite /nu' reestablish_as_inj. }
 
 set frgnSrc' := fun b => 
-  [&& DomSrc nu b, ~~locBlocksSrc nu b
-    & REACH m1 (exportedSrc nu [:: rv1]) b].
+  [&& DomSrc nu' b, ~~locBlocksSrc nu' b
+    & REACH m1 (exportedSrc nu' [:: rv1]) b].
 set frgnTgt' := fun b => 
-  [&& DomTgt nu b, ~~locBlocksTgt nu b
-    & REACH m2 (exportedTgt nu [:: rv2]) b].
-set mu' := replace_externs nu frgnSrc' frgnTgt'.
+  [&& DomTgt nu' b, ~~locBlocksTgt nu' b
+    & REACH m2 (exportedTgt nu' [:: rv2]) b].
+set mu' := replace_externs nu' frgnSrc' frgnTgt'.
 
 have [hd2' [pf_eq22' [pf_eq12' [cd' [mu'' [aft2' mtch12']]]]]]:
   exists hd2' (pf_eq22' : Core.i hd2 = Core.i hd2') 
@@ -2380,13 +2489,12 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [mu'' [aft2' mtch12']]]]]]:
   _ _ _ _ _ _ _ _ _ _ _ _
   inj0 mtch0 at01 at02' vinj0
 
-  pubSrc' erefl pubTgt' erefl nu erefl).
+  pubSrc' erefl pubTgt' erefl nu erefl
 
-  nu rv1 m1 rv2 m2
+  nu' rv1 m1 rv2 m2
 
-  (extern_incr_refl nu)
-  (sm_inject_separated_refl nu m10 m20)
-  nu_wd nu_valid nu_inj retsinj
+  nu_nu'_eincr nu_nu'_sep
+  nu'_wd nu'_valid nu'_inj nu'_vinj
   fwd1 fwd2
 
   frgnSrc' erefl frgnTgt' erefl mu' erefl
@@ -2433,7 +2541,7 @@ case: mu_trash mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail.
 move=> mu_trash x1 x2 xval.
 move=> /= mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail.
 
-set mu_trash'' := join_sm mu' mu_trash.
+set mu_trash'' := join_sm mu_top mu_trash.
 
 have mu_trash''_wd : SM_wd mu_trash''.
 { admit. }
