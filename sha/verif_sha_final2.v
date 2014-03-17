@@ -62,7 +62,7 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo:=
    `eq (eval_id _p)
      (`(offset_val (Int.repr 40)) (`force_ptr (eval_id _c)));
    `(eq md) (eval_id _md); `(eq c) (eval_id _c))
-   SEP  (`(array_at tuint Tsh (ZnthV tuint (map Vint (process_msg init_registers hashed'))) 0 8 c);
+   SEP  (`(array_at tuint Tsh (ZnthV tuint (map Vint (hash_blocks init_registers hashed'))) 0 8 c);
    `(field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 64 
@@ -93,7 +93,7 @@ Lemma ifbody_final_if1:
    `(eq md) (eval_id _md); `(eq c) (eval_id _c))
    SEP 
    (`(array_at tuint Tsh
-        (ZnthV tuint (map Vint (process_msg init_registers hashed))) 0 8 c);
+        (ZnthV tuint (map Vint (hash_blocks init_registers hashed))) 0 8 c);
    `(field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c);
    `(array_at tuchar Tsh

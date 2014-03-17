@@ -54,7 +54,7 @@ semax
    (`(data_block Tsh (intlist_to_Zlist lastblock)
                  (offset_val (Int.repr 40) c));
    `(array_at tuint Tsh
-       (ZnthV tuint (map Vint (process_msg init_registers hashed))) 0 8 c);
+       (ZnthV tuint (map Vint (hash_blocks init_registers hashed))) 0 8 c);
    `(field_at_ Tsh t_struct_SHA256state_st _Nl c);
    `(field_at_ Tsh t_struct_SHA256state_st _Nh c);
    `(field_at_ Tsh t_struct_SHA256state_st _num c); K_vector;
@@ -75,7 +75,7 @@ entailer!.
 normalize.
 replace_SEP 0%Z  (`(array_at tuint Tsh
           (tuints
-             (process_msg init_registers (hashed ++ lastblock))) 0 8 c) *
+             (hash_blocks init_registers (hashed ++ lastblock))) 0 8 c) *
       `(at_offset 40 (array_at tuchar Tsh (ZnthV tuchar []) 0 64) c) *
       K_vector).
 entailer!.
@@ -106,7 +106,7 @@ replace_SEP 0%Z (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
 entailer!.
 forward.  (* ignore = ignore'; *)
 fold t_struct_SHA256state_st.
-pose proof (length_process_msg (generate_and_pad msg)).
+pose proof (length_hash_blocks (generate_and_pad msg)).
 
 replace Delta with
  (initialized _ignore'6
@@ -117,12 +117,13 @@ replace Delta with
  by (simplify_Delta; reflexivity).
 eapply semax_pre; [ | apply final_part4; auto].
 entailer!.
+apply length_hash_blocks; auto.
+rewrite length_generate_and_pad; apply roundup_divide; computable.
 Qed.
 
 Lemma final_part5:
 forall (hashed: list int) (dd:list Z) (hashed': list int) (dd' : list Z) (pad : Z) (hi' lo' : list Z)
   (hi lo : int) c_,
-(* (pad=0%Z \/ dd'=nil) -> *)
 NPeano.divide LBLOCK (length hashed) ->
 (length dd < CBLOCK)%nat ->
 (Zlength dd < 64)%Z ->
@@ -259,7 +260,7 @@ semax (initialized _ignore (initialized _ignore'5 Delta_final_if1))
         (Z.of_nat CBLOCK - 8 - Zlength dd')
         (offset_val (Int.repr (40 + Zlength dd')) c));
    `(array_at tuint Tsh
-       (ZnthV tuint (map Vint (process_msg init_registers hashed'))) 0 8 c);
+       (ZnthV tuint (map Vint (hash_blocks init_registers hashed'))) 0 8 c);
    `(field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 (Zlength dd')
@@ -341,7 +342,7 @@ semax (initialized _ignore (initialized _ignore'5 Delta_final_if1))
       SEP  (K_vector; `(data_at_ Tsh t_struct_SHA256state_st c);
       `(data_block shmd
           (intlist_to_Zlist
-             (process_msg init_registers
+             (hash_blocks init_registers
                 (generate_and_pad
                    (intlist_to_Zlist hashed ++ dd))))
           md)))).
@@ -481,8 +482,10 @@ assert (BYTESlastblock: Forall isbyteZ (map Int.unsigned lastblock)). {
  apply isbyte_zeros.
  apply isbyte_intlist_to_Zlist'.
 }
+unfold POSTCONDITION, abbreviate.
+fold (SHA_256 (intlist_to_Zlist hashed ++ dd)).
 pose (lastblock' := Zlist_to_intlist (map Int.unsigned lastblock)).
-eapply semax_pre; [ | apply (sha_final_part3 Espec md c shmd hashed' lastblock'); auto].
+eapply semax_pre; [ | simple apply (sha_final_part3 Espec md c shmd hashed' lastblock'); auto].
 * entailer!.
  + destruct c_; try (contradiction Pc_); simpl;
      f_equal; rewrite Int.sub_add_opp;

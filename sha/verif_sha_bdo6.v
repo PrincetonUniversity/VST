@@ -3,6 +3,7 @@ Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
+Require Import sha.sha_lemmas2.
 Require Import sha.bdo_lemmas.
 Require Import sha.verif_sha_bdo5.
 Local Open Scope logic.

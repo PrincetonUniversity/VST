@@ -2,6 +2,7 @@ Require Import floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.sha_lemmas.
+Require Import sha.sha_lemmas2.
 Require Import sha.spec_sha.
 Local Open Scope logic.
 

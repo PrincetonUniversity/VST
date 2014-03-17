@@ -3,6 +3,7 @@ Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
+Require Import sha.sha_lemmas2.
 
 Local Open Scope logic.
 
@@ -64,7 +65,7 @@ clear - H2.
 inv H2.
 simpl in *.
 rewrite <- H8.
-f_equal.
-apply firstn_same.
-omega.
+rewrite firstn_same.
+auto.
+clear; omega.
 Qed.

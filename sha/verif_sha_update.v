@@ -72,7 +72,7 @@ semax
      (eval_id _len))
    SEP  (K_vector;
    `(array_at tuint Tsh
-       (tuints (process_msg init_registers (hashed ++ blocks))) 0 8 c);
+       (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
    `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
    `(field_at Tsh
@@ -298,7 +298,7 @@ unfold sha256state_.
 set (dd' := firstn (len - (length blocks * 4 - length dd))
               (skipn (length blocks * 4 - length dd) data)).
  apply exp_right with 
-              (map Vint (process_msg init_registers (hashed ++ blocks)),
+              (map Vint (hash_blocks init_registers (hashed ++ blocks)),
                 (Vint lo', (Vint hi', (map Vint (map Int.repr dd'), 
                  Vint (Int.repr (Zlength dd')))))).
 assert (Z.of_nat (len-b4d) = Zlength dd'). {
@@ -431,7 +431,7 @@ apply divide_length_app; auto.
  unfold sha256_length.
  normalize.
  apply exp_right with 
-              (map Vint (process_msg init_registers (hashed ++ blocks)),
+              (map Vint (hash_blocks init_registers (hashed ++ blocks)),
                 (Vint x, (Vint x0, (nil, 
                  Vint Int.zero)))).
  simpl_data_at; unfold s256_relate.
@@ -487,7 +487,7 @@ subst r_Nh r_Nl.
 rename H8 into H1.
 subst r_data.
 subst r_h r_num.
-apply (intro_PROP (Z.of_nat len <= Int.max_unsigned)%Z); 
+apply (assert_PROP (Z.of_nat len <= Int.max_unsigned)%Z); 
    [ | intro Hlen]. {
 entailer!.
 rewrite H1. apply Int.unsigned_range_2.

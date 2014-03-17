@@ -68,7 +68,7 @@ Lemma update_loop_body_proof:
                      (func_tycontext f_SHA256_Update Vprog Gtot))))
  (H: len <= length data)
  (Hdiv: NPeano.divide LBLOCK (length blocks))
- (H0: r_h = process_msg init_registers hashed)
+ (H0: r_h = hash_blocks init_registers hashed)
  (H1: (Zlength (intlist_to_Zlist hashed ++ r_data)*8 = hilo r_Nh r_Nl)%Z)
  (H4: NPeano.divide LBLOCK (length hashed))
  (Hblocks: intlist_to_Zlist blocks =  r_data ++ firstn (length blocks * 4 - length r_data) data)
@@ -101,7 +101,7 @@ semax Delta
    SEP 
    (K_vector;
     `(array_at tuint Tsh
-        (tuints (process_msg init_registers (hashed ++ blocks))) 0 8 c);
+        (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
    `(sha256_length (hilo r_Nh r_Nl + (Z.of_nat len)*8) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
    `(field_at_ Tsh t_struct_SHA256state_st _num c);
@@ -142,7 +142,7 @@ change (array_at tuint Tsh (tuints K) 0 (Zlength K)
 replace_SEP 0%Z
   (`(array_at tuint Tsh
           (tuints
-             (process_msg init_registers ((hashed ++ blocks) ++ bl))) 0 8 c) *
+             (hash_blocks init_registers ((hashed ++ blocks) ++ bl))) 0 8 c) *
       `(data_block sh (intlist_to_Zlist bl)
           (offset_val
              (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d)) *
@@ -269,7 +269,7 @@ semax
    `((eq (Z.of_nat len) oo Int.unsigned) oo force_int) (eval_id _len))
    SEP  (`(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
    `(array_at tuint Tsh
-       (ZnthV tuint (map Vint (process_msg init_registers hashed))) 0 8 c);
+       (ZnthV tuint (map Vint (hash_blocks init_registers hashed))) 0 8 c);
    `(at_offset 40
        (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64)
        c);
@@ -385,7 +385,7 @@ apply semax_while.
   apply extract_exists_pre; intro blocks.
   rewrite insert_local.
   apply semax_extract_PROP; apply intro_update_inv; intros.
- apply (intro_PROP (Forall isbyteZ data /\ len - (length blocks*4 - length dd) >= CBLOCK));
+ apply (assert_PROP (Forall isbyteZ data /\ len - (length blocks*4 - length dd) >= CBLOCK));
   [ | intros [BYTESdata Hlen_ge]]. {
   rewrite (data_block_isbyteZ sh data d).
   entailer!. rename H2 into H2'.
@@ -426,7 +426,7 @@ apply Forall_firstn.
 apply Forall_skipn; auto.
 }
 clearbody bl; clear H97.
- simple apply (update_loop_body_proof Espec sh hashed dd data c d len (process_msg init_registers hashed) lo hi Delta blocks bl); 
+ simple apply (update_loop_body_proof Espec sh hashed dd data c d len (hash_blocks init_registers hashed) lo hi Delta blocks bl); 
    try assumption.
 simplify_Delta; reflexivity.
 reflexivity.

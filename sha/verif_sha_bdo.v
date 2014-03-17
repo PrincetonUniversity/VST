@@ -1,8 +1,9 @@
 Require Import floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
-Require Import sha.sha_lemmas.
 Require Import sha.spec_sha.
+Require Import sha.sha_lemmas.
+Require Import sha.sha_lemmas2.
 Require Import sha.verif_sha_bdo2.
 Require Import sha.verif_sha_bdo3.
 Require Import sha.verif_sha_bdo4.
@@ -121,36 +122,6 @@ Definition add_them_back :=
   get_h 5, add_h 5 _f,
   get_h 6, add_h 6 _g,
   get_h 7, add_h 7 _h].
-
-Lemma assert_PROP:
- forall P1 Espec Delta P Q R c Post,
-    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- !! P1 ->
-   (P1 -> @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post) ->
-   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
-Proof.
-intros.
-eapply semax_pre.
-apply andp_right.
-apply H.
-rewrite <- insert_local.
-apply andp_left2; apply derives_refl.
-apply semax_extract_prop.
-auto.
-Qed.
-
-Lemma drop_LOCAL':
-  forall (n: nat)  P Q R Post,
-   PROPx P (LOCALx (delete_nth n Q) (SEPx R)) |-- Post ->
-   PROPx P (LOCALx Q (SEPx R)) |-- Post.
-Proof.
-intros.
-eapply derives_trans; try apply H.
-apply andp_derives; auto.
-apply andp_derives; auto.
-intro rho; unfold local, lift1; unfold_lift. apply prop_derives; simpl.
-clear.
-revert Q; induction n; destruct Q; simpl; intros; intuition.
-Qed.
 
 Fixpoint add_upto (k: nat) (u v: list int) {struct k} :=
  match k with
@@ -346,14 +317,14 @@ Qed.
 
 Lemma add_them_back_proof:
   forall (Espec : OracleKind)
-     (b: list int) (r_h: list int)(ctx: val)(hashed: list int),
-     length r_h = 8%nat ->
-     length b = LBLOCK ->
+     (regs regs': list int) (ctx: val),
+     length regs = 8%nat ->
+     length regs' = 8%nat ->
      semax  Delta_loop1
    (PROP  ()
    LOCAL 
    (`(eq ctx) (eval_id _ctx);
-    `(eq (map Vint (rnd_64 r_h K (rev (generate_word (rev b) 48)))))
+    `(eq (map Vint regs'))
       (`cons (eval_id _a)
          (`cons (eval_id _b)
             (`cons (eval_id _c)
@@ -362,15 +333,11 @@ Lemma add_them_back_proof:
                      (`cons (eval_id _f)
                         (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
    SEP 
-   (`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0
-       (Zlength (process_msg init_registers hashed)) ctx)))
+   (`(array_at tuint Tsh (tuints regs) 0 8 ctx)))
    (sequence add_them_back Sskip)
   (normal_ret_assert
    (PROP() LOCAL(`(eq ctx) (eval_id _ctx)) 
-    SEP (`(array_at tuint Tsh (tuints
-                   (map2 Int.add (process_msg init_registers hashed)
-                                         (rnd_64 r_h K (rev (generate_word (rev b) 48)))))
-            0 (Zlength (process_msg init_registers hashed)) ctx)))).
+    SEP (`(array_at tuint Tsh (tuints (map2 Int.add regs regs')) 0 8 ctx)))).
 Proof.
 intros.
 name a_ _a.
@@ -383,14 +350,7 @@ name g_ _g.
 name h_ _h.
 name t_ _t.
 name ctx_ _ctx.
-assert (length (rnd_64 r_h K (rev (generate_word (rev b) 48))) = 8%nat).
-apply length_rnd_64; auto.
-forget (rnd_64 r_h K (rev (generate_word (rev b) 48))) as atoh.
-assert (length (process_msg init_registers hashed) = 8%nat).
-apply length_process_msg.
-forget (process_msg init_registers hashed) as regs.
-clear b H0 r_h H hashed.
-rewrite Zlength_correct, H2. change (Z.of_nat 8) with 8.
+rename regs' into atoh.
 
 assert (forall j : nat,
    (j < 8)%nat ->
@@ -408,15 +368,14 @@ unfold sequence, add_them_back.
  change (tuints regs) with (tuints (add_upto 0 regs atoh)).
 do 8 (simple apply add_one_back; auto; try (clear; omega)).
 
-clear H H0.
 forward.
 apply (drop_LOCAL' 0); unfold delete_nth.
 apply (drop_LOCAL' 1); unfold delete_nth.
 replace (add_upto 8 regs atoh) with  (map2 Int.add regs atoh).
 auto.
 unfold registers in *.
-destruct atoh as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; inv H1.
-destruct regs as [ | a' [ | b' [ | c' [ | d' [ | e' [ | f' [ | g' [ | h' [ | ]]]]]]]]]; inv H2.
+destruct atoh as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; inv H0.
+destruct regs as [ | a' [ | b' [ | c' [ | d' [ | e' [ | f' [ | g' [ | h' [ | ]]]]]]]]]; inv H.
 reflexivity.
 Qed.
 
@@ -443,11 +402,11 @@ name in_ _in.
 name ctx_ _ctx.
 name i_ _i.
 name data_ _data.
-unfold sha256state_.
+rewrite divide_hashed in *.
 simpl_stackframe_of. 
-remember (process_msg init_registers hashed) as regs eqn:Hregs.
+remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
 assert (Lregs: length regs = 8%nat) 
-  by (subst regs; apply length_process_msg).
+  by (subst regs; apply length_hash_blocks; auto).
 assert (Zregs: Zlength regs = 8%Z)
  by (rewrite Zlength_correct; rewrite Lregs; reflexivity).
 forward. (* data = in; *)
@@ -474,7 +433,7 @@ simpl.
 forward.  (* i = 0; *)
 
 eapply semax_frame_seq
- with (Frame:= [`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8) (eval_id _ctx) ]).
+ with (Frame:= [`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8) (eval_id _ctx) ]).
 replace Delta with Delta_loop1
  by (simplify_Delta; reflexivity).
 simple apply (sha256_block_data_order_loop1_proof
@@ -486,7 +445,7 @@ auto 50 with closed.
 simpl; abbreviate_semax.
 
 eapply semax_frame_seq
- with (Frame := [`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8) (eval_id _ctx),
+ with (Frame := [`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8) (eval_id _ctx),
                           `(data_block sh (intlist_to_Zlist b) data)]).
 apply sha256_block_data_order_loop2_proof
               with (regs:=regs)(b:=b); eassumption.
@@ -500,9 +459,12 @@ eapply semax_frame1
    K_vector,
   `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16)),
   `(data_block sh (intlist_to_Zlist b) data)]).
-apply (add_them_back_proof _ b regs ctx hashed); try eassumption.
+apply (add_them_back_proof _ regs (rnd_64 regs K (rev (generate_word (rev b) 48)))
+             ctx); try eassumption.
+apply length_rnd_64; auto.
 simplify_Delta; reflexivity.
-rewrite <- Hregs; rewrite Zregs.
+unfold app.
+rewrite <- Hregs.
 entailer!.
 auto 50 with closed.
 simpl; abbreviate_semax.
@@ -510,8 +472,10 @@ unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 replace Delta with (initialized _t Delta_loop1) 
  by (unfold Delta, Delta_loop1; simplify_Delta; reflexivity).
 clear Delta H2.
-rewrite <- Hregs. rewrite Zregs.
-simple apply sha256_block_data_order_return; assumption.
+fold (process_block regs (rev b)).
+rewrite process_block_hash_block by auto.
+simple apply sha256_block_data_order_return; auto.
+apply divide_hashed; auto.
 Qed.
 
 

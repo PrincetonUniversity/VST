@@ -5,9 +5,9 @@ Local Open Scope logic.
 
 Definition swap (i: int) : int :=
  Int.or (Int.shl (Int.and i (Int.repr 255)) (Int.repr 24))
-   (Int.or (Int.shl (Int.and (Rt 8 i) (Int.repr 255)) (Int.repr 16))
-      (Int.or (Int.shl (Int.and (Rt 16 i) (Int.repr 255)) (Int.repr 8))
-         (Rt 24 i))).
+   (Int.or (Int.shl (Int.and (Shr 8 i) (Int.repr 255)) (Int.repr 16))
+      (Int.or (Int.shl (Int.and (Shr 16 i) (Int.repr 255)) (Int.repr 8))
+         (Shr 24 i))).
 
 Definition big_endian_integer (contents: Z -> int) : int :=
   Int.or (Int.shl (contents 0) (Int.repr 24))
@@ -41,7 +41,7 @@ Inductive s256abs :=  (* SHA-256 abstract state *)
 
 Definition s256a_regs (a: s256abs) : list int :=
  match a with S256abs hashed _  => 
-          process_msg init_registers hashed 
+          hash_blocks init_registers hashed 
  end.
 
 Definition s256a_len (a: s256abs) : Z := 
@@ -54,7 +54,7 @@ Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.
 
 Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
      match a with S256abs hashed data =>
-         s256_h r = map Vint (process_msg init_registers hashed) 
+         s256_h r = map Vint (hash_blocks init_registers hashed) 
        /\ (exists hi, exists lo, s256_Nh r = Vint hi /\ s256_Nl r = Vint lo /\
              (Zlength hashed * 4 + Zlength data)*8 = hilo hi lo)%Z
        /\ s256_data r = map Vint (map Int.repr data)
@@ -174,11 +174,11 @@ Definition sha256_block_data_order_spec :=
    PRE [ _ctx OF tptr t_struct_SHA256state_st, _in OF tptr tvoid ]
          PROP(length b = LBLOCK; NPeano.divide LBLOCK (length hashed)) 
          LOCAL (`(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
-         SEP (`(array_at tuint Tsh  (tuints (process_msg init_registers hashed)) 0 8 ctx);
+         SEP (`(array_at tuint Tsh  (tuints (hash_blocks init_registers hashed)) 0 8 ctx);
                 `(data_block sh (intlist_to_Zlist b) data);
                  K_vector)
    POST [ tvoid ]
-          (`(array_at tuint Tsh  (tuints (process_msg init_registers (hashed++b))) 0 8 ctx) *
+          (`(array_at tuint Tsh  (tuints (hash_blocks init_registers (hashed++b))) 0 8 ctx) *
           `(data_block sh (intlist_to_Zlist b) data) *
           K_vector).
  

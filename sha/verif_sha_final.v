@@ -159,7 +159,7 @@ destruct (zlt 0 (Z.of_nat CBLOCK - 8 - Zlength dd'));
           (Z.of_nat CBLOCK - 8 - Zlength dd')
           (offset_val (Int.repr (Zlength dd')) (offset_val (Int.repr 40) c)));
    `(array_at tuint Tsh
-       (ZnthV tuint (map Vint (process_msg init_registers hashed'))) 0 8 c);
+       (ZnthV tuint (map Vint (hash_blocks init_registers hashed'))) 0 8 c);
    `(field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 (Zlength dd')
@@ -176,6 +176,6 @@ destruct (zlt 0 (Z.of_nat CBLOCK - 8 - Zlength dd'));
 
  replace Delta with (initialized _ignore (initialized _ignore'5 (Delta_final_if1)))
   by (simplify_Delta; reflexivity).
-
-eapply final_part2; eassumption.
+unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
+simple eapply final_part2; eassumption.
 Qed.

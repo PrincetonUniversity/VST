@@ -581,3 +581,486 @@ induction  (Z.to_nat (- (Zlength msg + 9) mod 64)).
 constructor.
 simpl. constructor; auto. split; repable_signed.
 Qed.
+
+
+Lemma length_generate_and_pad:
+  forall (l: list Z),
+     Zlength (generate_and_pad l) = roundup ((Zlength l +12)/4) 16.
+Proof.
+intros.
+rewrite generate_and_pad'_eq.
+unfold generate_and_pad_alt.
+apply length_generate_and_pad'.
+Qed.
+
+Lemma and_mod_15_lem:
+ forall (n: Z), 0 <= Int.signed (Int.and (Int.repr n) (Int.repr 15)) < 16.
+Proof.
+intro n.
+unfold Int.and.
+rewrite (Int.unsigned_repr 15) by repable_signed.
+change 15 with (Z.ones 4).
+assert (0 <= Z.land (Int.unsigned (Int.repr n)) (Z.ones 4) < 16).
+rewrite Z.land_ones.
+apply Z.mod_bound_pos. 
+apply Int.unsigned_range. clear; omega. clear; omega.
+rewrite Int.signed_repr; auto.
+repable_signed.
+Qed.
+
+Transparent generate_word.
+
+Lemma generate_word_lemma1:
+  forall b n, length b = LBLOCK ->
+   firstn LBLOCK (rev (generate_word (rev b) n)) = b.
+Proof.
+intros.
+change (rev b) with (nil ++ rev b).
+forget (@nil int) as a.
+revert a; induction n; intro.
+unfold generate_word.
+rewrite rev_app_distr.
+rewrite rev_involutive.
+rewrite firstn_app1 by omega.
+rewrite firstn_same; auto; omega.
+unfold generate_word; fold generate_word.
+change (Wnext (a ++ rev b) :: a ++ rev b) with 
+      ((Wnext (a ++ rev b) ::a) ++ rev b).
+apply IHn.
+Qed.
+
+Lemma length_generate_word: forall b n,
+  length (generate_word b n) = (length b + n)%nat.
+Proof.
+intros.
+revert b; induction n; intros; simpl.
+unfold generate_word; fold generate_word.
+omega.
+unfold generate_word; fold generate_word.
+rewrite IHn.
+simpl. omega.
+Qed.
+
+Lemma nth_generate_word_S:
+  forall k i n b', 
+   nth (i+k) (generate_word b' (n+k)) = nth i (generate_word b' n).
+Proof.
+induction k; intros.
+repeat rewrite plus_0_r. auto.
+replace (n + S k)%nat with (S (n + k))%nat by omega.
+unfold generate_word; fold generate_word.
+replace (i + S k)%nat with (S i + k)%nat by omega.
+rewrite IHk by (simpl; omega).
+clear IHk.
+revert i b' ; induction n; intros.
+unfold generate_word; fold generate_word.
+extensionality d; reflexivity.
+unfold generate_word; fold generate_word.
+apply IHn.
+Qed.
+
+Lemma generate_word_small:
+  forall i b n,
+           length b = 16%nat ->
+           (i < length b)%nat -> 
+           nth i (rev (generate_word (rev b) n)) = nth i b.
+Proof.
+intros.
+extensionality d.
+rewrite <- (nth_firstn_low _ _ LBLOCK).
+rewrite (generate_word_lemma1 b n H).
+auto.
+rewrite rev_length, length_generate_word, rev_length, H.
+change LBLOCK with 16%nat. omega.
+Qed.
+
+Lemma generate_word_plus:
+  forall msg a b, (16 <= length msg)%nat ->
+         generate_word msg (a+b) = generate_word (generate_word msg a) b.
+Proof.
+intros msg a b.
+revert msg b; induction a; simpl; intros.
+unfold generate_word; fold generate_word.
+auto.
+unfold generate_word; fold generate_word.
+rewrite IHa by (simpl; omega).
+auto.
+Qed.
+
+Definition nthB (b: list int) (i: nat) (n: Z) :=
+  nth (Z.to_nat (Z.of_nat i - 16 + n)) (rev (generate_word (rev b) 48)) Int.zero.
+
+Lemma nth_rev_generate_word:
+ forall i b,
+   length b = LBLOCK -> 
+   (LBLOCK <= i < 64)%nat ->
+    nth i (rev (generate_word (rev b) 48)) Int.zero =
+  Int.add (nthB b i 0)
+    (Int.add (Int.add (sigma_0 (nthB b i 1)) (sigma_1 (nthB b i 14)))
+       (nthB b i 9)).
+Proof.
+intros.
+unfold nthB.
+rewrite <- rev_length in H.
+forget (rev b) as b'.
+clear b.
+change LBLOCK with 16%nat in *.
+assert (length (generate_word b' 48) = 64)%nat 
+ by (rewrite length_generate_word, H; reflexivity).
+rewrite rev_nth by omega.
+repeat rewrite rev_nth
+ by (rewrite H1; change 64%nat with (Z.to_nat 64); apply Z2Nat.inj_lt; omega).
+rewrite H1.
+rewrite <- (plus_0_l (64 - S i)).
+assert (48 = (i - 16) + 1 + (64 - S i))%nat by (clear - H0; omega).
+rewrite H2 at 2.
+rewrite nth_generate_word_S.
+rewrite generate_word_plus by omega.
+unfold generate_word at 1. 
+unfold nth at 1.
+assert (forall n:nat, (n < 16) ->
+    ((64 - S (Z.to_nat (Z.of_nat i - 16 + Z.of_nat n))) =
+      (16-n) + (48 - S (Z.to_nat (Z.of_nat i - 16)))))%nat.
+clear - H0.
+intros.
+rewrite Z2Nat.inj_add by omega.
+rewrite Nat2Z.id.
+rewrite Z2Nat.inj_sub by omega.
+rewrite Nat2Z.id.
+change (Z.to_nat 16) with 16%nat.
+omega.
+change 0%Z with (Z.of_nat 0); rewrite H3 by (clear; omega).
+change 1%Z with (Z.of_nat 1); rewrite H3 by (clear; omega).
+change 14%Z with (Z.of_nat 14); rewrite H3 by (clear; omega).
+change 9%Z with (Z.of_nat 9); rewrite H3 by (clear; omega).
+clear H3.
+assert (48 = S (Z.to_nat (Z.of_nat i - 16)) + (48 - S (Z.to_nat (Z.of_nat i - 16))))%nat.
+clear - H0.
+rewrite Z2Nat.inj_sub by omega.
+rewrite Nat2Z.id.
+change (Z.to_nat 16) with 16%nat.
+omega.
+pattern (generate_word b' 48).
+rewrite H3 at 1.
+repeat rewrite nth_generate_word_S.
+rewrite Z2Nat.inj_sub by omega.
+rewrite Nat2Z.id.
+change (Z.to_nat 16) with 16%nat.
+simpl.
+change (nth 16) with (@nth int (15+1)).
+change (nth 15) with (@nth int (14+1)).
+change (nth 2) with (@nth int (1+1)).
+change (nth 7) with (@nth int (6+1)).
+replace (S (i-16)) with ((i-16)+1)%nat by omega.
+repeat rewrite nth_generate_word_S.
+assert (length (generate_word b' (i-16)) >= 16)%nat.
+rewrite length_generate_word, H; omega.
+clear - H4.
+forget (generate_word b' (i-16)) as s.
+rename H4 into H.
+do 16 (destruct s; [simpl in H; omega | ]).
+simpl.
+rewrite <- Int.add_assoc.
+rewrite Int.add_commut.
+f_equal.
+rewrite Int.add_commut.
+rewrite <- Int.add_assoc.
+auto.
+Qed.
+
+Opaque generate_word.
+
+Lemma nth_error_nth:
+  forall A (d: A) i al, (i < length al)%nat -> nth_error al i = Some (nth i al d).
+Proof.
+induction i; destruct al; simpl; intros; auto.
+inv H.
+inv H.
+apply IHi; omega.
+Qed.
+
+Lemma length_Round:
+  forall regs f n, 
+   length regs = 8%nat ->
+   length (Round regs f n) = 8%nat.
+Proof.
+intros.
+destruct (zlt n 0).
+rewrite Round_equation.
+rewrite if_true by auto; auto.
+replace n with (n+1-1) by omega.
+rewrite <- (Z2Nat.id (n+1)) by omega.
+revert regs H; induction (Z.to_nat (n+1)); intros.
+rewrite Round_equation.
+change (Z.of_nat 0 - 1) with (-1).
+rewrite if_true by omega. auto.
+clear n g. rename n0 into n.
+rewrite Round_equation.
+rewrite inj_S.
+unfold Z.succ.
+rewrite Z.add_simpl_r.
+rewrite if_false by omega.
+specialize (IHn0 _ H).
+clear - IHn0.
+rename f into f'.
+destruct (Round regs f' (Z.of_nat n - 1))
+  as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; try inv IHn0.
+reflexivity.
+Qed.
+
+Lemma length_hash_block:
+ forall regs block, 
+   length regs = 8%nat ->
+   length block = 16%nat ->
+   length (hash_block regs block) = 8%nat.
+Proof.
+intros.
+unfold hash_block.
+rewrite (length_map2 _ _ _ _ _ _ 8%nat); auto.
+apply length_Round; auto.
+Qed.
+
+Definition c48 := 48%nat. Opaque c48.
+
+
+Lemma generate_word_W:
+ forall block n
+ (LB: length block = 16%nat),
+  0 <= n < 64 ->
+  nthi (rev (generate_word (rev block) 48)) n =
+  W (nthi block) n.
+Proof.
+intros.
+assert (forall i, (i <= Z.to_nat 64)%nat ->
+              forall n, 0 <= n < Z.of_nat i ->
+ nthi (rev (generate_word (rev block) 48)) n = W (nthi block) n).
+Focus 2. {
+apply (H0 (S (Z.to_nat n))).
+apply Nat2Z.inj_le. rewrite inj_S.
+repeat rewrite Z2Nat.id by omega. omega.
+rewrite inj_S.
+rewrite Z2Nat.id by omega. omega.
+} Unfocus.
+clear H n.
+induction i; intros.
+change (Z.of_nat 0) with 0 in H0; omega.
+spec IHi; [ omega | ].
+unfold nthi at 1.
+destruct (zlt n 16).
+rewrite generate_word_small; auto.
+Focus 2.
+rewrite LB.
+apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega. apply l.
+rewrite W_equation.
+rewrite if_true by auto.
+reflexivity.
+rewrite nth_rev_generate_word; auto.
+Focus 2. {
+split.
+apply Nat2Z.inj_le. change (Z.of_nat LBLOCK) with 16.
+rewrite Z2Nat.id by omega. omega.
+apply Nat2Z.inj_lt.
+rewrite Z2Nat.id by omega. 
+change (Z.of_nat 64) with 64.
+apply Nat2Z.inj_le in H.
+rewrite Z2Nat.id in H by omega.
+omega.
+} Unfocus.
+rewrite W_equation.
+rewrite if_false by omega.
+rewrite inj_S in H0.
+rewrite <- IHi by omega.
+rewrite <- IHi by omega.
+rewrite <- IHi by omega.
+rewrite <- IHi by omega.
+unfold nthB.
+rewrite Z2Nat.id by omega.
+replace (n - 16 + 14) with (n-2) by omega.
+replace (n - 16 + 9) with (n - 7) by omega.
+replace (n - 16 + 0) with (n-16) by omega.
+replace (n - 16 + 1) with (n - 15) by omega.
+unfold nthi.
+forget (nth (Z.to_nat (n - 16)) (rev (generate_word (rev block) 48)) Int.zero)
+  as A.
+forget (sigma_1
+        (nth (Z.to_nat (n - 2)) (rev (generate_word (rev block) 48)) Int.zero))
+  as B.
+forget  (sigma_0
+           (nth (Z.to_nat (n - 15)) (rev (generate_word (rev block) 48))
+              Int.zero))
+  as C.
+forget (nth (Z.to_nat (n - 7)) (rev (generate_word (rev block) 48)) Int.zero)
+  as D.
+rewrite Int.add_commut.
+repeat rewrite <- Int.add_assoc.
+f_equal.
+rewrite <- (Int.add_commut D).
+rewrite <- (Int.add_commut D).
+rewrite Int.add_assoc.
+f_equal.
+apply Int.add_commut.
+Qed.
+
+Lemma process_block_hash_block:
+ forall regs block, 
+   length regs = 8%nat ->
+   length block = 16%nat ->
+   process_block regs (rev block) = hash_block regs block.
+Proof.
+intros.
+unfold process_block.
+unfold hash_block.
+f_equal.
+rewrite <- (firstn_same _ 64 (rev (generate_word _ _)))
+ by (rewrite rev_length, length_generate_word, rev_length; omega).
+change 64%nat with (48+16)%nat.
+change 63%Z with (Z.of_nat (48+16)-1).
+assert (48 <= 48)%nat by omega.
+remember 48%nat as n.
+rewrite Heqn at 2.
+rewrite Heqn in H1 at 2.
+clear Heqn. rename H1 into H7.
+revert regs H H7; induction n; intros.
+simpl plus.
+change 48%nat with c48 in H7 |- *. 
+remember 16%nat as n.
+rewrite Heqn in H0.
+assert (n <= 16)%nat by omega.
+clear Heqn H7.
+revert H1; induction n; intros.
+* (* n=0 *)
+simpl.
+rewrite Round_equation.
+rewrite if_true by omega.
+reflexivity.
+* (*0 < n <= 16 *)
+rewrite Round_equation.
+rewrite inj_S.
+rewrite if_false by omega.
+replace (Z.succ (Z.of_nat n) - 1) with (Z.of_nat n) by omega.
+rewrite <- IHn by omega. clear IHn.
+rewrite (rnd_64_S _ _ _
+    (nthi K (Z.of_nat n))
+    (nthi block (Z.of_nat n))).
+2: (unfold nthi; rewrite Nat2Z.id; apply nth_error_nth; simpl; omega).
+Focus 2.
+unfold nthi; rewrite Nat2Z.id.
+rewrite (nth_error_nth _ Int.zero n).
+2: rewrite rev_length, length_generate_word, rev_length, H0;
+  change c48 with 48%nat; omega.
+f_equal.
+rewrite generate_word_small by omega.
+auto.
+unfold rnd_function.
+destruct (rnd_64 regs K (firstn n (rev (generate_word (rev block) c48))))
+  as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; auto.
+rewrite W_equation.
+rewrite if_true; auto.
+omega.
+* (* 16 <= n < 64 *)
+change (S n + 16)%nat with (S (n + 16)).
+rewrite inj_S.
+unfold Z.succ.
+rewrite Z.add_simpl_r.
+rewrite (rnd_64_S _ _ _
+    (nthi K (Z.of_nat (n+16)))
+    (nthi (rev (generate_word (rev block) c48)) (Z.of_nat (n+16)))).
+2: (unfold nthi; rewrite Nat2Z.id; apply nth_error_nth; simpl; omega).
+Focus 2.
+unfold nthi; rewrite Nat2Z.id.
+apply (nth_error_nth _ Int.zero (n+16)).
+rewrite rev_length, length_generate_word, rev_length, H0;
+  change c48 with 48%nat; omega.
+rewrite Round_equation.
+rewrite <- IHn by omega.
+rewrite if_false by omega.
+forget (rnd_64 regs K (firstn (n + 16) (rev (generate_word (rev block) 48))))
+   as regs'.
+unfold rnd_function.
+destruct regs'
+  as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; auto.
+replace (W (nthi block) (Z.of_nat (n + 16)))
+  with  (nthi (rev (generate_word (rev block) c48)) (Z.of_nat (n + 16)));
+auto.
+change c48 with 48%nat.
+apply generate_word_W; auto.
+rewrite Nat2Z.inj_add. change (Z.of_nat 16) with 16.
+omega.
+Qed.
+
+Lemma length_hash_blocks: forall regs blocks,
+  length regs = 8%nat ->
+  (16 | Zlength blocks) ->
+  length (hash_blocks regs blocks) = 8%nat.
+Proof.
+intros.
+destruct H0 as [n ?].
+rewrite Zlength_correct in H0.
+rewrite <- (Z2Nat.id n) in H0.
+change 16 with (Z.of_nat 16) in H0.
+rewrite <- Nat2Z.inj_mul in H0.
+apply Nat2Z.inj in H0.
+revert regs blocks H H0; induction (Z.to_nat n); intros.
+destruct blocks; inv H0.
+rewrite hash_blocks_equation. auto.
+rewrite hash_blocks_equation.
+destruct blocks. inv H0.
+forget (i::blocks) as bb.
+apply IHn0; auto.
+apply length_hash_block; auto.
+rewrite firstn_length. apply min_l; omega.
+rewrite skipn_length by omega.
+rewrite H0; omega.
+rewrite Z.mul_comm in H0.
+omega.
+Qed.
+
+Lemma process_msg_hash_blocks:
+  forall regs blocks,
+    (16 | Zlength blocks) ->
+    length regs = 8%nat ->
+    process_msg regs blocks = hash_blocks regs blocks.
+Proof.
+intros.
+destruct H as [n ?].
+rewrite Zlength_correct in H.
+assert (0 <= n).
+ apply Zmult_le_0_reg_r with 16; auto. computable.
+ omega.
+rewrite <- (Z2Nat.id n) in H by omega.
+change 16 with (Z.of_nat 16) in H.
+rewrite <- Nat2Z.inj_mul in H.
+apply Nat2Z.inj in H.
+clear H1.
+revert blocks H regs H0; induction (Z.to_nat n); intros.
+destruct blocks; inv H.
+rewrite process_msg_equation, hash_blocks_equation.
+reflexivity.
+assert (length (firstn 16 blocks) = 16)%nat
+ by (rewrite firstn_length, H; simpl; omega).
+rewrite hash_blocks_equation.
+destruct blocks; [ inv H | ].
+forget (i::blocks) as bb.
+clear n i blocks; rename bb into blocks.
+rewrite <- (firstn_skipn 16 blocks) at 1.
+rewrite process_msg_eq2 by auto.
+rewrite process_block_hash_block; auto.
+apply IHn0.
+rewrite skipn_length; omega.
+apply length_hash_block; auto.
+Qed.
+
+Lemma SHA_256'_eq:  SHA_256' = SHA_256.
+Proof.
+extensionality msg.
+unfold SHA_256', SHA_256.
+f_equal.
+rewrite <- generate_and_pad'_eq.
+assert (16 | Zlength (generate_and_pad msg)).
+rewrite (length_generate_and_pad msg).
+apply roundup_divide; computable.
+assert (length init_registers = 8%nat) by reflexivity.
+forget init_registers as regs.
+forget (generate_and_pad msg) as blocks.
+apply process_msg_hash_blocks; auto.
+Qed.

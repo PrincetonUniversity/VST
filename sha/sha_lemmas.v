@@ -16,10 +16,14 @@ Hint Rewrite orb_false_r orb_true_r andb_false_r andb_true_r : testbit.
 Hint Rewrite orb_false_l orb_true_l andb_false_l andb_true_l : testbit.
 Hint Rewrite Z.add_simpl_r : testbit.
 Hint Rewrite Int.unsigned_repr using repable_signed : testbit.
+Lemma Ztest_Inttest:
+ forall a, Z.testbit (Int.unsigned a) = Int.testbit a.
+Proof. reflexivity. Qed.
+Hint Rewrite Ztest_Inttest : testbit.
 
 Lemma swap_swap: forall w, swap (swap w) = w.
 Proof.
-unfold swap, Rt; intros.
+unfold swap, Shr; intros.
 apply Int.same_bits_eq; intros.
 assert (Int.zwordsize=32) by reflexivity.
 change 255 with (Z.ones 8).
@@ -34,7 +38,8 @@ Proof.
 intros; erewrite Byte.Ztestbit_above with (n:=8%nat); auto.
 Qed.
 
-Lemma exists_intlist_to_Zlist': 
+(*
+Lemma exists_intlist_to_Zlist: 
   forall n (al: list Z), 
    length al = (n * 4)%nat ->
    Forall isbyteZ al ->
@@ -61,7 +66,7 @@ assert (Int.zwordsize=32) by reflexivity.
 assert (32 < Int.max_unsigned) by (compute; auto).
 assert (256 < Int.max_unsigned) by (compute; auto).
 change 255 with (Z.ones 8).
-unfold swap, Rt; repeat f_equal; auto; clear -H3 H1 H4 H5 H6 H8 H9;
+unfold swap, Shr; repeat f_equal; auto; clear -H3 H1 H4 H5 H6 H8 H9;
 match goal with |- ?i = _ => rewrite <- (Int.unsigned_repr i) at 1 by omega end;
 f_equal; change 255 with (Z.ones 8);
 apply Int.same_bits_eq; intros j ?; autorewrite with testbit.
@@ -100,13 +105,7 @@ apply Int.same_bits_eq; intros j ?; autorewrite with testbit.
   rewrite (isbyteZ_testbit i3); auto; try omega.
   rewrite (isbyteZ_testbit i3); auto; try omega.
 Qed.
-
-Lemma exists_intlist_to_Zlist:
-  forall n (al: list Z), 
-   length al = (n * 4)%nat ->
-   Forall isbyteZ al ->
-   exists bl, al = intlist_to_Zlist bl /\ length bl = n.
-Abort.  (* provable, but any use of it is probably wrong. *)
+*)
 
 Lemma length_intlist_to_Zlist:
   forall l, length (intlist_to_Zlist l) = (4 * length l)%nat.
@@ -131,7 +130,7 @@ Proof.
 intros. simpl.
 unfold isbyteZ in *.
 assert (Int.zwordsize=32)%Z by reflexivity.
-unfold Z_to_Int, swap, Rt; simpl.
+unfold Z_to_Int, swap, Shr; simpl.
 change 255%Z with (Z.ones 8).
 repeat f_equal; auto;
 match goal with |- _ = ?A => transitivity (Int.unsigned (Int.repr A));
@@ -179,11 +178,6 @@ rewrite intlist_to_Zlist_Z_to_int_cons by auto.
 repeat f_equal; auto.
 Qed.
 
-Lemma Ztest_Inttest:
- forall a, Z.testbit (Int.unsigned a) = Int.testbit a.
-Proof. reflexivity. Qed.
-Hint Rewrite Ztest_Inttest : testbit.
-
 Lemma intlist_to_Zlist_to_intlist:
   forall il: list int,
    Zlist_to_intlist (intlist_to_Zlist il) = il.
@@ -193,7 +187,7 @@ reflexivity.
 simpl.
 f_equal; auto. clear.
 assert (Int.zwordsize=32)%Z by reflexivity.
-unfold Z_to_Int, Rt; simpl.
+unfold Z_to_Int, Shr; simpl.
 change 255%Z with (Z.ones 8).
 apply Int.same_bits_eq; intros.
 rewrite Int.repr_unsigned.
@@ -241,7 +235,7 @@ induction i; destruct bl; intros; inv H.
  unfold big_endian_integer; simpl.
  repeat rewrite Int.repr_unsigned.
  assert (Int.zwordsize=32)%Z by reflexivity.
- unfold Z_to_Int, swap, Rt; simpl.
+ unfold Z_to_Int, swap, Shr; simpl.
  change 255%Z with (Z.ones 8).
  apply Int.same_bits_eq; intros;
  autorewrite with testbit.
@@ -346,7 +340,6 @@ Lemma length_process_block:
   forall r b, length r = 8 -> length (process_block r b) = 8.
 Proof.
  intros. unfold process_block.
- unfold registers_add.
  apply length_map2; auto.
  apply length_rnd_64; auto.
 Qed.
@@ -504,7 +497,7 @@ repeat (rename H0 into H2; destruct b as [ | ?x b]; inv H2).
 do 2 rewrite process_msg_equation.
 unfold grab_and_process_block.
 rewrite process_msg_equation.
-unfold j,process_block, registers_add. simpl rev.
+unfold j,process_block. simpl rev.
 reflexivity.
 *
 rewrite mult_succ_r in H0. rewrite plus_comm in H0.
@@ -589,12 +582,14 @@ destruct m; reflexivity.
 f_equal; auto.
 Qed.
 
+(* moved to SHA256.v 
 Lemma skipn_length:
   forall {A} n (al: list A), length al >= n -> length (skipn n al) = length al -n.
 Proof.
  induction n; destruct al; simpl; intros; auto.
  apply IHn. omega.
 Qed.
+*)
 
 Lemma datablock_local_facts:
  forall sh f data,
@@ -1089,7 +1084,7 @@ split; [ | omega].
 apply Int.size_range.
 compute; congruence.
 compute; congruence.
-unfold Rt, isbyteZ; repeat constructor; try apply Int.unsigned_range; auto; clear IHl.
+unfold Shr, isbyteZ; repeat constructor; try apply Int.unsigned_range; auto; clear IHl.
 rewrite <- (Int.divu_pow2 a (Int.repr (2 ^ 24)) (Int.repr 24) (eq_refl _)).
 unfold Int.divu.
 rewrite Int.unsigned_repr.
@@ -1161,7 +1156,7 @@ apply int_unsigned_inj in H1.
 apply int_unsigned_inj in H2.
 apply int_unsigned_inj in H3.
 apply int_unsigned_inj in H4.
-unfold Rt in *.
+unfold Shr in *.
 apply Int.same_bits_eq; intros.
 assert (Int.zwordsize=32)%Z by reflexivity.
 change 255%Z with (Z.ones 8) in *.
@@ -1373,21 +1368,6 @@ unfold local, lift1.
 f_equal; auto.
 Qed.
 
-Lemma intro_PROP:
- forall P1 Espec Delta P Q R c Post,
-  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- !! P1 ->
-  (P1 -> @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post) ->
-  @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post .
-Proof.
-intros.
-apply (semax_pre (PROPx (P1::P) (LOCALx Q (SEPx R)))).
-apply derives_trans with (!!P1 && PROPx P (LOCALx Q (SEPx R))).
-apply andp_right; auto.
-rewrite <- insert_local; apply andp_left2; auto.
-entailer.
-apply semax_extract_PROP; apply H0.
-Qed.
-
 Lemma cVint_force_int_ZnthV:
  forall sh contents hi, 
   (hi <= Zlength contents)%Z ->
@@ -1440,7 +1420,7 @@ Lemma Sigma_1_eq: forall f_,
                     (Int.sub (Int.repr 32) (Int.repr 7))))).
 Proof.
 intros.
-unfold Sigma_1, Sh.
+unfold Sigma_1, Rotr.
 repeat rewrite and_mone'.
 repeat rewrite <- Int.or_ror by reflexivity.
 change (Int.sub (Int.repr 32) (Int.repr 26)) with (Int.repr 6).
@@ -1464,7 +1444,7 @@ Lemma  Sigma_0_eq: forall b_,
               (Int.sub (Int.repr 32) (Int.repr 10))))).
 Proof.
 intros.
-unfold Sigma_0, Sh.
+unfold Sigma_0, Rotr.
 repeat rewrite and_mone'.
 repeat rewrite <- Int.or_ror by reflexivity.
 change (Int.sub (Int.repr 32) (Int.repr 19)) with (Int.repr 13).
@@ -1504,9 +1484,9 @@ intros.
 unfold sigma_1.
 f_equal. f_equal.
 repeat rewrite <- Int.or_ror by reflexivity.
-unfold Sh. f_equal.
+unfold Rotr. f_equal.
 repeat rewrite <- Int.or_ror by reflexivity.
-unfold Sh. f_equal.
+unfold Rotr. f_equal.
 Qed.
 
 Lemma sigma_0_eq:
@@ -1523,13 +1503,43 @@ intros.
 unfold sigma_0.
 f_equal. f_equal.
 repeat rewrite <- Int.or_ror by reflexivity.
-unfold Sh. f_equal.
+unfold Rotr. f_equal.
 repeat rewrite <- Int.or_ror by reflexivity.
-unfold Sh. f_equal.
+unfold Rotr. f_equal.
 Qed.
 
 
 (* MOVE THESE TO FLOYD *)
+
+Lemma assert_PROP:
+ forall P1 Espec Delta P Q R c Post,
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- !! P1 ->
+   (P1 -> @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post) ->
+   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+intros.
+eapply semax_pre.
+apply andp_right.
+apply H.
+rewrite <- insert_local.
+apply andp_left2; apply derives_refl.
+apply semax_extract_prop.
+auto.
+Qed.
+
+Lemma drop_LOCAL':
+  forall (n: nat)  P Q R Post,
+   PROPx P (LOCALx (delete_nth n Q) (SEPx R)) |-- Post ->
+   PROPx P (LOCALx Q (SEPx R)) |-- Post.
+Proof.
+intros.
+eapply derives_trans; try apply H.
+apply andp_derives; auto.
+apply andp_derives; auto.
+intro rho; unfold local, lift1; unfold_lift. apply prop_derives; simpl.
+clear.
+revert Q; induction n; destruct Q; simpl; intros; intuition.
+Qed.
 
 Lemma assert_LOCAL:
  forall Q1 Espec Delta P Q R c Post,
@@ -1558,5 +1568,23 @@ clear.
 revert Q; induction n; destruct Q; simpl; intros; intuition.
 Qed.
 
+(* END move these to Floyd *)
 
-
+Lemma divide_hashed:
+ forall (bb: list int), 
+    NPeano.divide LBLOCK (length bb) <->
+    (16 | Zlength bb).
+Proof.
+intros; split; intros [n ?].
+exists (Z.of_nat n). rewrite Zlength_correct, H.
+change 16%Z with (Z.of_nat 16).
+rewrite <- Nat2Z.inj_mul; auto.
+exists (Z.to_nat n).
+rewrite Zlength_correct in H.
+assert (0 <= n).
+rewrite Z.mul_comm in H; omega.
+rewrite <- (Z2Nat.id (n*16)%Z) in H by omega.
+apply Nat2Z.inj in H. rewrite H.
+change LBLOCK with (Z.to_nat 16).
+rewrite Z2Nat.inj_mul; try omega.
+Qed.

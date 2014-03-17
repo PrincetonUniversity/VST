@@ -41,7 +41,7 @@ semax
    `(eq d) (eval_id _data);
    `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len))
    SEP 
-   (`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8 c);
+   (`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8 c);
    `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64
        (offset_val (Int.repr 40) c));
@@ -149,7 +149,7 @@ Focus 2. {
  unfold sha256_length,  tuchars, tuints.
  normalize. rename x1 into hi'; rename x0 into lo'.
  apply exp_right with
-    (map Vint (process_msg init_registers hashed),
+    (map Vint (hash_blocks init_registers hashed),
      (Vint lo',
      (Vint hi',
      (map Vint (map Int.repr (dd ++ firstn len data)),

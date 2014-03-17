@@ -81,7 +81,7 @@ Definition inv_at_inner_if sh hashed len c d dd data hi lo:=
    `(eq (Vint (Int.repr (Zlength dd)))) (eval_id _n);
    `(eq c) (eval_id _c); `(eq d) (eval_id _data);
    `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len))
-   SEP  (`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8 c);
+   SEP  (`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8 c);
     `(sha256_length (hilo hi lo + (Z.of_nat len)*8) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64 (offset_val (Int.repr 40) c));
    `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd))) c);
@@ -98,7 +98,7 @@ Definition sha_update_inv sh hashed len c d (frag: list Z) (data: list Z) r_Nh r
    `(eq c) (eval_id _c); `(eq (offset_val (Int.repr (Z.of_nat (length blocks*4-length frag))) d)) (eval_id _data);
    `(eq (Vint (Int.repr (Z.of_nat (len- (length blocks*4 - length frag)))))) (eval_id _len))
    SEP  (K_vector;
-    `(array_at tuint Tsh (tuints (process_msg init_registers (hashed ++ blocks))) 0 8 c);
+    `(array_at tuint Tsh (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
     `(sha256_length (hilo r_Nh r_Nl + (Z.of_nat len)*8) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
    `(field_at_ Tsh t_struct_SHA256state_st _num c);
@@ -158,7 +158,7 @@ semax
    `(eq d) (eval_id _data);
    `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len))
    SEP 
-   (`(array_at tuint Tsh (tuints (process_msg init_registers hashed)) 0 8 c);
+   (`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8 c);
    `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64
        (offset_val (Int.repr 40) c));
