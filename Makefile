@@ -91,6 +91,7 @@ LINKING_FILES= \
   cast.v \
   seq_lemmas.v \
   wf_lemmas.v \
+  reestablish.v \
   core_semantics_lemmas.v \
   pred_lemmas.v \
   inj_lemmas.v \

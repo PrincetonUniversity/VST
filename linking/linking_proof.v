@@ -17,6 +17,7 @@ Require Import linking.cast.
 Require Import linking.pred_lemmas.
 Require Import linking.seq_lemmas.
 Require Import linking.wf_lemmas.
+Require Import linking.reestablish.
 Require Import linking.core_semantics_lemmas.
 Require Import linking.inj_lemmas.
 Require Import linking.reach_lemmas.
@@ -2544,21 +2545,85 @@ move=> /= mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail.
 set mu_trash'' := join_sm mu_top mu_trash.
 
 have mu_trash''_wd : SM_wd mu_trash''.
-{ admit. }
+{ case: trinv=> /= ? ? ? []H1 H2 []H3 H4 []H5 H6.
+(*  apply: join_sm_wd=> //; first by move: H1; rewrite DisjointC; apply.
+  by move: H3; rewrite DisjointC; apply.
+  by move: H5; move/consistentC; apply.*)
+  admit. }
 
 set mu_trash' := Inj.mk mu_trash''_wd.
 
 have mu_trash'_val : sm_valid mu_trash' m1 m2.
-{ admit. }
+{ apply: join_sm_valid; first by apply: (head_valid hdinv).
+  by apply: (trash_valid trinv). }
 
 have mu'_wd : SM_wd mu'.
-{ admit. }
+{ case: (eff_after_check2 nu' rv1 m1 m2 rv2 nu'_inj nu'_vinj
+        frgnSrc' erefl frgnTgt' erefl mu' erefl nu'_wd nu'_valid)=> H1 H2.
+  by apply: H1. }
 
 exists (Build_frame_pkg mu_trash'_val),(Inj.mk mu'_wd),(tl mus),x.
 
 move=> /=; split=> //.
 
-admit.
+rewrite mu_eq mus_eq; f_equal=> /=.
+
+{ extensionality b. 
+  rewrite join_all_shift_locBlocksSrc.
+  rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
+  rewrite replace_externs_locBlocksSrc.
+  rewrite reestablish_locBlocksSrc.
+  by rewrite replace_locals_locBlocksSrc. }
+
+{ extensionality b. 
+  rewrite join_all_shift_locBlocksTgt.
+  rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
+  rewrite replace_externs_locBlocksTgt.
+  rewrite reestablish_locBlocksTgt.
+  by rewrite replace_locals_locBlocksTgt. }
+
+{ rewrite join_all_shift_local_of.
+  rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
+  rewrite !replace_externs_local.
+  rewrite !reestablish_local_of.
+  rewrite !replace_locals_local.
+  set ll := (join (local_of mu0) 
+    (local_of (join_all (Inj.mk mu_trash''_wd) [seq frame_mu0 i | i <- mus']))).
+  rewrite /join_sm /vis /= /in_mem /= /in_mem /=.
+  rewrite !replace_externs_locBlocksSrc.
+  rewrite !replace_externs_frgnBlocksSrc.
+  rewrite reestablish_locBlocksSrc.
+  rewrite replace_locals_locBlocksSrc.
+  rewrite /frgnSrc' /nu' /nu. 
+  (*rewrite reestablish_DomSrc.*)
+  rewrite !reestablish_locBlocksSrc.
+  rewrite !replace_locals_locBlocksSrc.
+  admit. (*need join_all lems for frgnBlocks,
+           need lem relating sharedSrc/reestablish/replace_locals*) 
+  admit. (*disjointness*) }
+
+{ extensionality b.
+  rewrite join_all_shift_frgnBlocksSrc.
+  rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
+  rewrite replace_externs_extBlocksSrc.
+  rewrite reestablish_extBlocksSrc.
+  rewrite replace_locals_locBlocksSrc. 
+  cut ((extBlocksSrc mu0 b /\
+        extBlocksSrc (join_all (Inj.mk mu_trash''_wd) 
+          [seq frame_mu0 i | i <- mus']) b) 
+       <-> ((if locBlocksSrc mu0 b then false else DomSrc mu_top b) /\
+           (extBlocksSrc (join_all (Inj.mk mu_trash''_wd) 
+             [seq frame_mu0 i | i <- mus']) b))).
+  admit. (*easy*)
+  rewrite join_all_extBlocksSrc /= /in_mem /=.
+  case lSrc0: (locBlocksSrc mu0 b).
+  have eSrc0_f: extBlocksSrc mu0 b = false. 
+  { admit. (*easy*) }
+  by rewrite eSrc0_f; split.
+  split=> //. admit. (*easy direction*)
+  admit. }
+
+admit. admit. admit. admit.
 
 admit. 
 
@@ -2857,7 +2922,7 @@ split.
 
      have INJ': as_inj (Inj.mk WD) b' = Some (b,d') by apply: INJ.
 
-     have VIS': vis (Inj.mk WD) b' by apply: VIS.
+     (*have VIS': vis (Inj.mk WD) b' by apply: VIS.*)
 
      have FRGNSS: 
          frgnBlocksSrc (join_all mu_trash [seq frame_mu0 i | i <- mus]) b'.
@@ -2958,7 +3023,8 @@ have mu_wd: SM_wd mu. admit.
 have INV': R data (Inj.mk mu_wd) st1 m1 st2 m2.
 { by apply: INV. }
 
-case: (aft2 HLT1 AFT1 INV')=> rv2 []st2'' []st2' []cd' []HLT2 POP2 AFT2 INV''.
+case: (aft2 HLT1 POP1 AFT1 INV')=> 
+  rv2 []st2'' []st2' []cd' []HLT2 CTX2 POP2 AFT2 INV''.
 exists st2',m2,cd',mu.
 split; first by apply: intern_incr_refl.
 split; first by apply: sm_inject_separated_refl.
