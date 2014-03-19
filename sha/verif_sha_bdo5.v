@@ -215,7 +215,7 @@ Lemma rearrange_regs2c_proof:
  forall (Espec : OracleKind)
    (bb : list int) (ctx : val) ( regs : list int) (i : nat)
    (regs': registers) (a b c d e f g h: int),
-  length bb = LBLOCK ->
+  Zlength bb = LBLOCKz ->
   (LBLOCK <= i < c64)%nat ->
   16 <= Z.of_nat i < 64 ->
   rnd_64 regs K (firstn i (rev (generate_word (rev bb) c48))) =
@@ -307,15 +307,18 @@ f_equal.
 f_equal.
 rewrite Int.add_commut.
 f_equal.
-apply nth_rev_generate_word; assumption.
+apply nth_rev_generate_word; try assumption.
+apply Zlength_length; auto.
 
 f_equal. f_equal. f_equal. f_equal.
 simpl. f_equal. f_equal. rewrite Int.add_commut. f_equal.
-apply nth_rev_generate_word; assumption.
+apply nth_rev_generate_word; try assumption.
+apply Zlength_length; auto.
 apply nth_error_nth. apply H0.
 apply nth_error_nth.
 rewrite rev_length. 
 rewrite length_generate_word; auto.
 rewrite rev_length.
+apply Zlength_length in H; auto.
 rewrite H. apply H0.
 Qed.

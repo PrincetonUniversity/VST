@@ -48,13 +48,13 @@ Lemma update_last_if_proof:
    (hi : int)
    (lo : int)
    (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
-   (H3 : length dd < CBLOCK)
+   (H3 : (Zlength dd < CBLOCKz)%Z)
    (H3' : Forall isbyteZ dd) 
-   (H4 : NPeano.divide LBLOCK (length hashed))
+   (H4 : (LBLOCKz | Zlength hashed)%Z)
    (Hlen : (Z.of_nat len <= Int.max_unsigned)%Z)
    (blocks : list int)
    (Hblocks_len : len >= length blocks * 4 - length dd)
-   (Hdiv : NPeano.divide LBLOCK (length blocks)) 
+   (Hdiv : (LBLOCKz | Zlength blocks)) 
    (Hblocks : intlist_to_Zlist blocks =
           dd ++ firstn (length blocks * 4 - length dd) data)
    (DONE : len - (length blocks * 4 - length dd) < CBLOCK) 
@@ -118,28 +118,6 @@ instantiate (1:= ((sh,Tsh), offset_val (Int.repr 40) c,
  entailer.
  rewrite H1.
  clear H1; pose (H5:=True).
-(* rewrite negb_true_iff in H1.
- unfold Int.eq in H1.
- if_tac in H1; inv H1.
- change (Int.repr 0) with Int.zero in H5; rewrite Int.unsigned_zero in H5.
- rewrite Int.unsigned_repr in H5.
-Focus 2. {
- split.
- apply Z2Nat.inj_le; try omega.
- rewrite Nat2Z.id. change (Z.to_nat 0) with O.
- clear - Hblocks_len.
- omega.
- clear - DONE.
- apply Z2Nat.inj_le; try omega.
- compute; congruence.
- rewrite Nat2Z.id.
- assert (CBLOCK < Z.to_nat Int.max_unsigned).
- apply Nat2Z.inj_lt. rewrite Z2Nat.id by (compute; congruence).
- change (Z.of_nat CBLOCK) with 64%Z.
- compute. congruence.
- omega.
-} Unfocus.
-*)
 assert (H1: (Z.of_nat len >= Z.of_nat b4d)%Z) by
  (rewrite <- Nat2Z.inj_ge; auto).
  unfold tuchars.
@@ -242,6 +220,8 @@ clear TC3 TC2 TC1 TC TC0.
  rewrite prop_true_andp. 
 Focus 2. {
  apply Update_abs; auto.
+ rewrite Zlength_correct; change CBLOCKz with (Z.of_nat CBLOCK);
+  apply Nat2Z.inj_lt;
  rewrite firstn_length. rewrite min_l.
  auto.
  rewrite skipn_length.
@@ -397,6 +377,8 @@ change (Z.of_nat 4) with 4%Z;
 omega.
 rewrite Zlength_correct in H5.
 apply Nat2Z.inj in H5.
+rewrite Zlength_correct; change CBLOCKz with (Z.of_nat CBLOCK);
+ apply Nat2Z.inj_lt.
 omega.
 unfold dd'.
 apply Forall_firstn.
@@ -421,7 +403,7 @@ apply divide_length_app; auto.
  apply andp_right.
  apply prop_right.
  constructor; auto.
- change CBLOCK with 64; simpl; clear; omega.
+ rewrite Zlength_nil; change CBLOCKz with 64%Z; clear; omega.
  rewrite <- app_nil_end.
  rewrite Hblocks.
  rewrite <- H7'.
@@ -448,7 +430,6 @@ unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
  rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4%Z.
  rewrite (Zlength_correct blocks), (Zlength_correct dd).
  clear; omega.
- change CBLOCK with 64; clear; omega.
  apply divide_length_app; auto.
  rewrite H2'.
  cancel.
@@ -517,12 +498,12 @@ replace Delta with (initialized _p (initialized _n (initialized _data
 fold update_outer_if.
 apply semax_seq with (sha_update_inv sh hashed len c d dd data hi lo false).
 unfold POSTCONDITION, abbreviate.
-apply update_outer_if_proof; assumption.
+simple apply update_outer_if_proof; assumption.
 (* after if (n!=0) *)
 eapply semax_seq' with
      (sha_update_inv sh hashed len c d dd data hi lo true).
 clear POSTCONDITION MORE_COMMANDS Delta.
-apply update_while_proof; assumption.
+simple apply update_while_proof; assumption.
 simplify_Delta; abbreviate_semax.
 unfold sha_update_inv.   apply extract_exists_pre; intro blocks.
 apply semax_extract_PROP; apply intro_update_inv; intros.
@@ -543,7 +524,7 @@ make_sequential.
 rewrite overridePost_normal'.
 fold update_last_if.
 
-apply update_last_if_proof; assumption.
+simple apply update_last_if_proof; assumption.
 abbreviate_semax.
 (* after the last if *)
  apply extract_exists_pre; intro a'.

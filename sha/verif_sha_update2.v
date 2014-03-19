@@ -91,7 +91,7 @@ Definition inv_at_inner_if sh hashed len c d dd data hi lo:=
 Definition sha_update_inv sh hashed len c d (frag: list Z) (data: list Z) r_Nh r_Nl (done: bool) :=
    (EX blocks:list int,
    PROP  (len >= length blocks*4 - length frag /\
-              NPeano.divide LBLOCK (length blocks) /\ 
+              (LBLOCKz | Zlength blocks) /\ 
               intlist_to_Zlist blocks = frag ++ firstn (length blocks * 4 - length frag) data /\
              if done then len-(length blocks*4 - length frag) < CBLOCK else True)
    LOCAL  (`(eq (offset_val (Int.repr 40) c)) (eval_id _p);
@@ -130,9 +130,9 @@ Lemma update_inner_if_then_proof:
           (hi lo: int) 
    (H : (Z.of_nat len <= Zlength data)%Z)
    (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
-   (H3 : length dd < CBLOCK)
+   (H3 : (Zlength dd < CBLOCKz)%Z)
    (H3' : Forall isbyteZ dd)
-   (H4 : NPeano.divide LBLOCK (length hashed))
+   (H4 : (LBLOCKz | Zlength hashed))
    (Hlen : (Z.of_nat len <= Int.max_unsigned)%Z)
    (c' : name _c) (data_ : name _data) (len' : name _len) 
    (data' : name _data) (p : name _p) (n : name _n)
@@ -300,7 +300,8 @@ rewrite <- offset_val_array_at_.
   apply length_Zlist_to_intlist. apply H9.
 }
  apply andp_right; [apply prop_right |].
- split; [assumption | reflexivity].
+ split3. rewrite Zlength_correct, H10. reflexivity.
+ auto.
  replace (data_block Tsh
       (intlist_to_Zlist (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)))
       (offset_val (Int.repr 40) c))
@@ -441,8 +442,11 @@ assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK). {
   rewrite Nat2Z.inj_sub.
  change (Z.of_nat (LBLOCK*4)) with 64%Z.
  rewrite <- Zlength_correct; omega.
- change (LBLOCK*4)%nat with CBLOCK; clear - H3; omega.
- rewrite H5. exists 1; reflexivity.
+ clear - H3. apply Nat2Z.inj_le. rewrite <- Zlength_correct.
+ change (Z.of_nat (LBLOCK*4)%nat) with CBLOCKz; clear - H3; omega.
+ 
+ apply Zlength_length in H5; auto.
+ rewrite H5. exists 1%Z; reflexivity.
  rewrite H5. rewrite Zlist_to_intlist_to_Zlist.
  f_equal. f_equal. clear - H0.
  rewrite Z2Nat.inj_sub by omega.

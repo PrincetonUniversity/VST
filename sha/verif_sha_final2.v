@@ -12,14 +12,6 @@ Definition Delta_final_if1 : tycontext :=
           (initialized _p
      (func_tycontext f_SHA256_Final Vprog Gtot)).
 
-Lemma map_swap_involutive:
- forall l, map swap (map swap l)  = l.
-Proof. intros.
- rewrite map_map. 
- replace (fun x => swap (swap x)) with (@Datatypes.id int).
- apply map_id. extensionality x. symmetry; apply swap_swap.
-Qed.
-
 Definition Body_final_if1 := 
   (Ssequence
               (Ssequence
@@ -53,7 +45,7 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo:=
               pad=0%Z \/ dd'=nil;
               (length dd' + 8 <= CBLOCK)%nat;
               (0 <= pad < 8)%Z;
-              NPeano.divide LBLOCK (length hashed');
+              (LBLOCKz | Zlength hashed')%Z;
               intlist_to_Zlist hashed' ++ dd' =
               intlist_to_Zlist hashed ++  dd 
                   ++ [128%Z] ++ map Int.unsigned (zeros pad)   )          
@@ -74,9 +66,9 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo:=
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
   (hi lo : int) (dd : list Z)
- (H4: NPeano.divide LBLOCK (length hashed))
+ (H4: (LBLOCKz  | Zlength hashed))
  (H7: ((Zlength hashed * 4 + Zlength dd)*8 = hilo hi lo)%Z)
- (H3: (length dd < CBLOCK)%nat)
+ (H3: Zlength dd < CBLOCKz)
  (DDbytes: Forall isbyteZ dd),
   semax Delta_final_if1
   (PROP  ()
@@ -112,7 +104,7 @@ name cNl _cNl.
 name cNh _cNh.
 name ignore _ignore.
 intros.
-assert (Hddlen: (0 <= Zlength dd < 64)%Z) by Omega1.
+assert (Hddlen: (0 <= Zlength dd < CBLOCKz)%Z) by Omega1.
 set (ddlen := Zlength dd) in *.
  unfold Delta_final_if1; simplify_Delta; unfold Body_final_if1; abbreviate_semax.
  forward.
@@ -123,7 +115,10 @@ set (ddlen := Zlength dd) in *.
   unfold tc_exprlist. simpl denote_tc_assert.  (* this line should not be necessary *)
   entailer!.
   + normalize in H1; rewrite H1; reflexivity.
-  + rewrite (split_array_at (ddlen+1) tuchar) by omega.
+  + rewrite Int.unsigned_repr; auto. 
+      change CBLOCKz with 64 in Hddlen; repable_signed.
+  + change CBLOCKz with 64 in Hddlen.
+   rewrite (split_array_at (ddlen+1) tuchar) by omega.
    repeat rewrite <- sepcon_assoc;
     pull_left (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)]))
    (ddlen + 1) 64 (offset_val (Int.repr 40) c)).
@@ -159,6 +154,7 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
         (offset_val (Int.repr 40) c))).
 {entailer!.
  normalize in H0. (* rewrite mul_repr, sub_repr in H0. *)
+ change CBLOCKz with 64 in Hddlen.
  apply ltu_repr in H0; [ | Omega1 | Omega1].
  change (16*4)%Z with (Z.of_nat CBLOCK) in H0.
  rewrite (split_array_at (ddlen+1) tuchar _ _ 0 64).
@@ -201,7 +197,13 @@ rewrite length_zeros by omega.
 rewrite Z2Nat.inj_sub by omega.
 rewrite Z2Nat.inj_add by omega.
 rewrite (Nat2Z.id). unfold ddlen; rewrite Zlength_correct. 
-rewrite (Nat2Z.id). rewrite map_length; simpl length; change (Z.to_nat 1) with 1%nat; omega.
+rewrite (Nat2Z.id).
+rewrite map_length; simpl length; change (Z.to_nat 1) with 1%nat.
+clear - Hddlen. unfold ddlen in Hddlen.
+destruct Hddlen. 
+change CBLOCKz with (Z.of_nat CBLOCK) in H0.
+rewrite Zlength_correct in H0.
+apply Nat2Z.inj_lt in H0. omega.
 }
 assert (H1: length ddzw = LBLOCK). {
 unfold ddzw.
@@ -233,6 +235,7 @@ instantiate (1:=(hashed,
                            Tsh)) in (Value of witness).
 {entailer!.
 * subst;  simpl in *. normalize in H5.
+* rewrite Zlength_correct, H1; reflexivity.
 * cancel.
  repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
  unfold data_block.
@@ -256,12 +259,13 @@ set (pad := (Z.of_nat CBLOCK - (ddlen+1))%Z) in *.
  apply exp_right with pad.
 entailer.
 normalize in H5.
-apply ltu_repr in H5; [ | split; computable | Omega1].
+apply ltu_repr in H5; [ | split; computable 
+  | change CBLOCKz with 64 in Hddlen; Omega1].
 simpl in H2.
 assert (0 <= pad < 8)%Z.
 unfold pad.
 change (16*4)%Z with (Z.of_nat CBLOCK) in H5. 
-change (64)%Z with (Z.of_nat CBLOCK) in Hddlen; omega.
+change (Z.of_nat CBLOCK) with CBLOCKz in H5|-*; omega.
 assert (length (zeros pad) < 8)%nat. 
 rewrite length_zeros.
 apply Nat2Z.inj_lt.
@@ -269,8 +273,10 @@ rewrite Z2Nat.id by omega.
 Omega1. 
 entailer!.
 * clear; Omega1.
-* apply divide_length_app.
-  auto. exists 1%nat; rewrite H1; reflexivity.
+* rewrite initial_world.Zlength_app.
+   apply Zlength_length in H1; [ | auto]. rewrite H1.
+ clear - H4; destruct H4 as [n ?]; exists (n+1). 
+  rewrite Z.mul_add_distr_r; omega.
 * rewrite <- app_nil_end.
   rewrite intlist_to_Zlist_app.
   f_equal.

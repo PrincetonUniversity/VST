@@ -430,7 +430,7 @@ Lemma lastblock_lemma:
   (PAD: pad=0 \/ d=nil),
   (length d + 8 <= CBLOCK)%nat ->
   (0 <= pad < 8)%Z ->
-  NPeano.divide LBLOCK (length hashed) ->
+  (LBLOCKz | Zlength hashed) ->
   intlist_to_Zlist hashed ++ d =
      msg ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
   (Zlength msg * 8)%Z = hilo hi lo ->
@@ -441,6 +441,17 @@ Lemma lastblock_lemma:
      map Int.repr (intlist_to_Zlist [hi, lo])).
 Proof.
 intros.
+assert (NPeano.divide LBLOCK (length hashed)).
+clear - H1.
+destruct H1.
+assert (0 <= x).
+apply Zmult_le_0_reg_r with LBLOCKz.
+change LBLOCKz with 16; computable.
+rewrite Zlength_correct in H; omega.
+exists (Z.to_nat x).
+apply Zlength_length in H; [ | rewrite Zlength_correct in H; omega].
+rewrite Z2Nat.inj_mul in H; auto.
+clear H1; rename H5 into H1.
 assert (LM: 0 <= Zlength msg) by (rewrite Zlength_correct; omega).
 (*rewrite <- generate_and_pad'_eq. *)
 unfold generate_and_pad.
@@ -581,7 +592,6 @@ induction  (Z.to_nat (- (Zlength msg + 9) mod 64)).
 constructor.
 simpl. constructor; auto. split; repable_signed.
 Qed.
-
 
 Lemma length_generate_and_pad:
   forall (l: list Z),

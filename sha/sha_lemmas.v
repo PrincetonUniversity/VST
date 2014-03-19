@@ -2,6 +2,20 @@ Require Import proofauto.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 
+Lemma Zlength_length:
+  forall A (al: list A) (n: Z),
+    0 <= n ->
+    (Zlength al = n <-> length al = Z.to_nat n).
+Proof.
+intros. rewrite Zlength_correct.
+split; intro.
+rewrite <- (Z2Nat.id n) in H0 by omega.
+apply Nat2Z.inj in H0; auto.
+rewrite H0.
+apply Z2Nat.inj; try omega.
+rewrite Nat2Z.id; auto.
+Qed.
+
 Hint Rewrite Int.bits_or using omega : testbit.
 Hint Rewrite Int.bits_shl using omega : testbit.
 Hint Rewrite Int.bits_and using omega : testbit.
@@ -16,10 +30,17 @@ Hint Rewrite orb_false_r orb_true_r andb_false_r andb_true_r : testbit.
 Hint Rewrite orb_false_l orb_true_l andb_false_l andb_true_l : testbit.
 Hint Rewrite Z.add_simpl_r : testbit.
 Hint Rewrite Int.unsigned_repr using repable_signed : testbit.
+
 Lemma Ztest_Inttest:
  forall a, Z.testbit (Int.unsigned a) = Int.testbit a.
 Proof. reflexivity. Qed.
 Hint Rewrite Ztest_Inttest : testbit.
+
+Definition swap (i: int) : int :=
+ Int.or (Int.shl (Int.and i (Int.repr 255)) (Int.repr 24))
+   (Int.or (Int.shl (Int.and (Shr 8 i) (Int.repr 255)) (Int.repr 16))
+      (Int.or (Int.shl (Int.and (Shr 16 i) (Int.repr 255)) (Int.repr 8))
+         (Shr 24 i))).
 
 Lemma swap_swap: forall w, swap (swap w) = w.
 Proof.
@@ -32,80 +53,19 @@ autorewrite with testbit.
 if_tac; [if_tac; [if_tac | ] | ]; autorewrite with testbit; f_equal; omega.
 Qed.
 
+Lemma map_swap_involutive:
+ forall l, map swap (map swap l)  = l.
+Proof. intros.
+ rewrite map_map. 
+ replace (fun x => swap (swap x)) with (@Datatypes.id int).
+ apply map_id. extensionality x. symmetry; apply swap_swap.
+Qed.
+
 Lemma isbyteZ_testbit:
   forall i j, 0 <= i < 256 -> j >= 8 -> Z.testbit i j = false.
 Proof.
 intros; erewrite Byte.Ztestbit_above with (n:=8%nat); auto.
 Qed.
-
-(*
-Lemma exists_intlist_to_Zlist: 
-  forall n (al: list Z), 
-   length al = (n * 4)%nat ->
-   Forall isbyteZ al ->
-   exists bl, al = intlist_to_Zlist (map swap bl) /\ length bl = n.
-Proof.
-induction n; intros.
-destruct al; inv H.
-exists nil. split; reflexivity.
-destruct al as [|i0 al]; [ inv H |].
-destruct al as [|i1 al]; [ inv H |].
-destruct al as [|i2 al]; [ inv H |].
-destruct al as [|i3 al]; [ inv H |].
-simpl in H. inv H.
-inv H0. inv H4. inv H5. inv H6.
-specialize (IHn _ H2 H7).
-destruct IHn as [bl [? ?]].
-exists (Int.or (Int.shl (Int.repr i3) (Int.repr 24))
-            (Int.or (Int.shl (Int.repr i2) (Int.repr 16))
-             (Int.or (Int.shl (Int.repr i1) (Int.repr 8))
-              (Int.repr i0))) :: bl).
-split; simpl; auto.
-unfold isbyteZ in *.
-assert (Int.zwordsize=32) by reflexivity.
-assert (32 < Int.max_unsigned) by (compute; auto).
-assert (256 < Int.max_unsigned) by (compute; auto).
-change 255 with (Z.ones 8).
-unfold swap, Shr; repeat f_equal; auto; clear -H3 H1 H4 H5 H6 H8 H9;
-match goal with |- ?i = _ => rewrite <- (Int.unsigned_repr i) at 1 by omega end;
-f_equal; change 255 with (Z.ones 8);
-apply Int.same_bits_eq; intros j ?; autorewrite with testbit.
-*
- if_tac; autorewrite with testbit.
- f_equal; omega.
-  rewrite (isbyteZ_testbit i0); auto; try omega.
-*
- if_tac; autorewrite with testbit.
- if_tac; autorewrite with testbit.
-   rewrite (isbyteZ_testbit i0); auto; try omega.
- autorewrite with testbit.
- f_equal; omega.
-  rewrite (isbyteZ_testbit i1); auto; try omega.
-  rewrite (isbyteZ_testbit i1); auto; try omega.
-*
- if_tac; autorewrite with testbit.
- if_tac; autorewrite with testbit.
- if_tac; autorewrite with testbit.
-  rewrite (isbyteZ_testbit i1); auto; try omega.
-   rewrite (isbyteZ_testbit i0); auto; try omega.
- autorewrite with testbit.
- auto.
-  rewrite (isbyteZ_testbit i2); auto; try omega.
-  rewrite (isbyteZ_testbit i2); auto; try omega.
-  rewrite (isbyteZ_testbit i2); auto; try omega.
-*
- if_tac; autorewrite with testbit.
- if_tac; autorewrite with testbit.
- if_tac; autorewrite with testbit.
-  rewrite (isbyteZ_testbit i1); auto; try omega.
-   rewrite (isbyteZ_testbit i0); auto; try omega.
-  rewrite (isbyteZ_testbit i2); auto; try omega.
- autorewrite with testbit; auto.
-  rewrite (isbyteZ_testbit i3); auto; try omega.
-  rewrite (isbyteZ_testbit i3); auto; try omega.
-  rewrite (isbyteZ_testbit i3); auto; try omega.
-Qed.
-*)
 
 Lemma length_intlist_to_Zlist:
   forall l, length (intlist_to_Zlist l) = (4 * length l)%nat.
@@ -130,7 +90,7 @@ Proof.
 intros. simpl.
 unfold isbyteZ in *.
 assert (Int.zwordsize=32)%Z by reflexivity.
-unfold Z_to_Int, swap, Shr; simpl.
+unfold Z_to_Int, Shr; simpl.
 change 255%Z with (Z.ones 8).
 repeat f_equal; auto;
 match goal with |- _ = ?A => transitivity (Int.unsigned (Int.repr A));
@@ -235,7 +195,7 @@ induction i; destruct bl; intros; inv H.
  unfold big_endian_integer; simpl.
  repeat rewrite Int.repr_unsigned.
  assert (Int.zwordsize=32)%Z by reflexivity.
- unfold Z_to_Int, swap, Shr; simpl.
+ unfold Z_to_Int, Shr; simpl.
  change 255%Z with (Z.ones 8).
  apply Int.same_bits_eq; intros;
  autorewrite with testbit.
@@ -283,14 +243,23 @@ apply IHn.
 omega.
 Qed.
 
-Definition LBLOCKz := Z.of_nat LBLOCK.
-Definition CBLOCKz := Z.of_nat CBLOCK.
+Definition LBLOCK : nat := Z.to_nat LBLOCKz.   
+Definition CBLOCK : nat := Z.to_nat CBLOCKz.
+Opaque LBLOCK CBLOCK.
 
 Lemma LBLOCK_zeq: Z.of_nat LBLOCK = 16%Z.
 Proof. reflexivity. Qed.
 
 Lemma CBLOCK_zeq: (Z.of_nat CBLOCK = 64%Z).
 Proof. reflexivity. Qed.
+
+Lemma LBLOCKz_pos: (0 <= LBLOCKz)%Z.
+Proof. change LBLOCKz with 16%Z; omega. Qed.
+Hint Resolve LBLOCKz_pos.
+
+Lemma CBLOCKz_pos: (0 <= CBLOCKz)%Z.
+Proof. change CBLOCKz with 64%Z; omega. Qed.
+Hint Resolve CBLOCKz_pos.
 
 Lemma length_map2:
  forall A B C (f: A -> B -> C) al bl n,

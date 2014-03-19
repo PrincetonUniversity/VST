@@ -31,9 +31,7 @@ destruct H1 as [hi [lo [? [? ?]]]].
 destruct H2 as [dd [? ?]]. *)
 subst r_Nh r_Nl r_num r_data. rename data into dd.
 (*revert POSTCONDITION; subst data; intro.*)
-assert (H3': (Zlength dd < 64)%Z).
-rewrite Zlength_correct. change 64%Z with (Z.of_nat CBLOCK).
-apply Nat2Z.inj_lt; auto.
+assert (H3': (Zlength dd < 64)%Z) by assumption.
 unfold at_offset.
 forward. (* p = c->data;  *)
 entailer!.
@@ -177,5 +175,5 @@ destruct (zlt 0 (Z.of_nat CBLOCK - 8 - Zlength dd'));
  replace Delta with (initialized _ignore (initialized _ignore'5 (Delta_final_if1)))
   by (simplify_Delta; reflexivity).
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-simple eapply final_part2; eassumption.
+simple apply final_part2 with pad; assumption.
 Qed.

@@ -40,8 +40,8 @@ Lemma sha_final_part3:
 forall (Espec : OracleKind) (md c : val) (shmd : share)
   (hashed lastblock: list int) msg
  (Hshmd: writable_share shmd),
- NPeano.divide LBLOCK (length hashed) ->
- length lastblock = LBLOCK ->
+ (LBLOCKz | Zlength hashed) ->
+ Zlength lastblock = LBLOCKz ->
  generate_and_pad msg = hashed++lastblock ->
 semax
   (initialized _cNl
@@ -84,7 +84,7 @@ simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
 rewrite array_at_ZnthV_nil.
 rewrite Zlength_correct.
 rewrite length_intlist_to_Zlist.
-rewrite H0.
+apply Zlength_length in H0; auto; rewrite H0.
 change (Z.of_nat (4 * LBLOCK))%Z with 64%Z.
 unfold at_offset.
 apply array_at__array_at.
@@ -124,12 +124,11 @@ Qed.
 Lemma final_part5:
 forall (hashed: list int) (dd:list Z) (hashed': list int) (dd' : list Z) (pad : Z) (hi' lo' : list Z)
   (hi lo : int) c_,
-NPeano.divide LBLOCK (length hashed) ->
-(length dd < CBLOCK)%nat ->
-(Zlength dd < 64)%Z ->
+ (LBLOCKz | Zlength hashed) ->
+(Zlength dd < CBLOCKz) ->
 (length dd' + 8 <= CBLOCK)%nat ->
 (0 <= pad < 8)%Z ->
-NPeano.divide LBLOCK (length hashed') ->
+(LBLOCKz | Zlength hashed') ->
 intlist_to_Zlist hashed' ++ dd' =
 intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
 length hi' = 4%nat ->
@@ -153,7 +152,7 @@ array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 (Zlength dd')
              map Int.repr (hi' ++ lo')))) 0 64 (offset_val (Int.repr 40) c_).
 Proof.
 intros until c_.
-intros H4 H3 H3' H0 H1 H2 H5 Lhi Llo Pc_ Hhilo.
+intros H4 H3 H0 H1 H2 H5 Lhi Llo Pc_ Hhilo.
  rewrite (split_array_at (Zlength dd') tuchar Tsh _ 0 64)
   by (clear - H0; rewrite Zlength_correct; change CBLOCK with 64%nat in H0;
   omega).
@@ -234,17 +233,16 @@ name _cNl ->
 name _cNh ->
 name _ignore ->
 forall (hi lo : int) (dd : list Z),
-NPeano.divide LBLOCK (length hashed) ->
+(LBLOCKz | Zlength hashed) ->
 ((Zlength hashed * 4 + Zlength dd)*8)%Z = hilo hi lo ->
-(length dd < CBLOCK)%nat ->
-(Zlength dd < 64)%Z ->
+(Zlength dd < CBLOCKz) ->
  (Forall isbyteZ dd) ->
 forall (hashed': list int) (dd' : list Z) (pad : Z),
  (Forall isbyteZ dd') ->
  (pad=0%Z \/ dd'=nil) ->
 (length dd' + 8 <= CBLOCK)%nat ->
 (0 <= pad < 8)%Z ->
-NPeano.divide LBLOCK (length hashed') ->
+(LBLOCKz | Zlength hashed') ->
 intlist_to_Zlist hashed' ++ dd' =
 intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
 forall p0 : val,
@@ -348,7 +346,7 @@ semax (initialized _ignore (initialized _ignore'5 Delta_final_if1))
           md)))).
 Proof.
  intros Espec hashed md c shmd H md_ c_ p n cNl cNh ignore
- hi lo dd H4 H7 H3 H3' DDbytes hashed' dd' pad 
+ hi lo dd H4 H7 H3 DDbytes hashed' dd' pad 
  DDbytes' PAD H0 H1 H2 H5 p0.
  pose (hibytes := Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist [hi]))))).
  pose (lobytes := Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist [lo]))))).
@@ -491,7 +489,7 @@ eapply semax_pre; [ | simple apply (sha_final_part3 Espec md c shmd hashed' last
      f_equal; rewrite Int.sub_add_opp;
      repeat rewrite Int.add_assoc; f_equal; reflexivity.
  + 
-unfold lastblock', data_block. (*rewrite map_swap_involutive.*)
+unfold lastblock', data_block.
 simpl.
 rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
 rewrite Zlist_to_intlist_to_Zlist; [ |rewrite map_length; rewrite H10; exists LBLOCK; reflexivity | assumption].
@@ -501,9 +499,9 @@ change (Z.of_nat CBLOCK) with 64%Z at 2.
 change (intlist_to_Zlist [hi, lo])
   with (intlist_to_Zlist [hi] ++intlist_to_Zlist [lo]).
 apply (final_part5 hashed dd hashed' dd' pad (intlist_to_Zlist [hi]) (intlist_to_Zlist [lo]) hi lo);
-  auto.
+  auto. 
 * unfold lastblock'.
-apply length_Zlist_to_intlist.
+apply Zlength_length; auto; apply length_Zlist_to_intlist.
 rewrite map_length; assumption.
 *
 apply intlist_to_Zlist_inj.
@@ -517,7 +515,7 @@ rewrite app_ass; rewrite intlist_to_Zlist_app.
 f_equal.
 unfold lastblock'.
 rewrite Zlist_to_intlist_to_Zlist;
- [  | rewrite map_length, H10; eexists;reflexivity | auto].
+ [  | rewrite map_length, H10; exists LBLOCK;reflexivity | auto].
 unfold lastblock; repeat rewrite map_app.
 f_equal.
 symmetry; apply map_unsigned_repr_isbyte; auto.

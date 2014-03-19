@@ -7,15 +7,22 @@ Require Import sha.verif_sha_update2.
 Local Open Scope nat.
 Local Open Scope logic.
 
+Lemma map_firstn: forall A B (f: A -> B) len data,
+    map f (firstn len data) = firstn len (map f data).
+Proof.
+induction len; destruct data; simpl; auto.
+f_equal; auto.
+Qed.
+
 Lemma update_inner_if_else_proof:
  forall (Espec : OracleKind) (hashed : list int)
           (dd data : list Z) (c d: val) (sh: share) (len: nat)
           (hi lo: int) Post
    (H : (Z.of_nat len <= Zlength data)%Z)
    (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
-   (H3 : length dd < CBLOCK)
+   (H3 : (Zlength dd < CBLOCKz)%Z)
    (H3' : Forall isbyteZ dd)
-   (H4 : NPeano.divide LBLOCK (length hashed))
+   (H4 : (LBLOCKz | Zlength hashed))
    (Hlen : (Z.of_nat len <= Int.max_unsigned)%Z)
    (c' : name _c) (data_ : name _data) (len' : name _len) 
    (data' : name _data) (p : name _p) (n : name _n)
@@ -137,12 +144,14 @@ Focus 2. {
  split; auto.
  rewrite (app_nil_end hashed) at 2.
  apply (Update_abs _ hashed nil dd (dd++firstn len data)); auto.
+ change CBLOCKz with (Z.of_nat CBLOCK).
+ rewrite Zlength_correct. apply Nat2Z.inj_lt.
  rewrite app_length. rewrite firstn_length. rewrite min_l.
  apply Nat2Z.inj_lt. rewrite Nat2Z.inj_add.
  rewrite <- Zlength_correct. change (Z.of_nat CBLOCK) with 64%Z.
  omega.
  apply Nat2Z.inj_le; rewrite <- Zlength_correct; assumption.
- exists 0. reflexivity.
+ exists 0%Z. reflexivity.
 } Unfocus.
  unfold sha256state_.
  normalize. clear H8.
@@ -199,12 +208,6 @@ rewrite <- offset_val_array_at.
  repeat rewrite map_map.
  rewrite map_app.
  rewrite app_nth2; auto.
-Lemma map_firstn: forall A B (f: A -> B) len data,
-    map f (firstn len data) = firstn len (map f data).
-Proof.
-induction len; destruct data; simpl; auto.
-f_equal; auto.
-Qed.
  rewrite map_firstn, nth_firstn_low.
  rewrite map_length.
 assert (Z.to_nat (i - Zlength dd) < length data). {
@@ -256,6 +259,8 @@ rewrite Z2Nat.id by omega.
  rewrite firstn_length; apply min_l.
  apply Nat2Z.inj_ge.
  rewrite <- Zlength_correct; omega.
+ change CBLOCKz with (Z.of_nat CBLOCK).
+ rewrite Zlength_correct. apply Nat2Z.inj_lt.
  rewrite app_length.
  rewrite firstn_length, min_l.
  apply Nat2Z.inj_lt. 
@@ -282,9 +287,9 @@ Lemma update_inner_if_proof:
             (c d: val) (sh: share) (len: nat) (hi lo: int)
  (H: len <= length data)
  (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
- (H3 : length dd < CBLOCK)
+ (H3 : (Zlength dd < CBLOCKz)%Z)
  (H3' : Forall isbyteZ dd)
- (H4 : NPeano.divide LBLOCK (length hashed))
+ (H4 : (LBLOCKz | Zlength hashed))
  (Hlen : (Z.of_nat len <= Int.max_unsigned)%Z),
 semax
   (initialized _fragment  (initialized _p
@@ -313,11 +318,10 @@ abbreviate_semax.
 rewrite semax_seq_skip.
  set (j := (40 + Zlength dd)%Z).
  set (k := (64-Zlength dd)%Z).
-assert (0 < k <= 64)%Z
- by (unfold k; clear - H3;
-     apply Nat2Z.inj_lt in H3; rewrite Zlength_correct;
-    change (Z.of_nat CBLOCK) with 64%Z in *;
-    omega).
+assert (0 < k <= 64)%Z.
+ unfold k; clear - H3; change CBLOCKz with 64%Z in H3.
+ assert (0 <= Zlength dd)%Z by (rewrite Zlength_correct; clear; omega).
+ omega.
  assert (64 < Int.max_unsigned)%Z
   by (compute; reflexivity).
 apply Nat2Z.inj_le in H; rewrite <- Zlength_correct in H.
@@ -330,8 +334,9 @@ forward_if (sha_update_inv sh hashed len c d dd data hi lo false).
  by (simplify_Delta; reflexivity).
  simpl typeof.
  unfold POSTCONDITION, abbreviate.
- rewrite overridePost_overridePost. 
- eapply update_inner_if_then_proof; eassumption.
+ rewrite overridePost_overridePost.
+ unfold k. 
+ simple eapply update_inner_if_then_proof; try eassumption.
  + (* else clause: len < fragment *)
  replace Delta with (initialized _fragment (initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot)))))

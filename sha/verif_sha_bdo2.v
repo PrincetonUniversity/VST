@@ -9,8 +9,8 @@ Local Open Scope logic.
 Lemma sha256_block_data_order_return:
    forall (Espec : OracleKind) (hashed b : list int) (ctx data : val)
             (sh : share) (regs : registers),
-  length b = LBLOCK ->
-  NPeano.divide LBLOCK (length hashed) ->
+  Zlength b = LBLOCKz ->
+  (LBLOCKz | Zlength hashed) ->
   regs = hash_blocks init_registers hashed ->
   semax (initialized _t Delta_loop1)
   (PROP  ()
@@ -30,11 +30,9 @@ Lemma sha256_block_data_order_return:
      (stackframe_of f_sha256_block_data_order)).
 Proof.
 intros.
-assert (H0': (16 | Zlength hashed))
- by (apply divide_hashed; auto).
 rewrite <- process_block_hash_block. (* FIXME to avoid using process_block at all *)
 2: rewrite H1; apply length_hash_blocks; auto.
-2: assumption.
+2: apply Zlength_length in H; auto.
 unfold process_block.
 unfold Delta_loop1; simplify_Delta.
 forward. (* return; *)
@@ -58,10 +56,11 @@ unfold regs.
 rewrite <- process_msg_hash_blocks; auto.
 rewrite <- process_msg_hash_blocks; auto.
 apply process_msg_block; auto.
+apply Zlength_length in H; auto.
+apply divide_hashed; auto.
 rewrite initial_world.Zlength_app.
-clear - H0' H.
-destruct H0' as [n ?]; exists (n+1).
+clear - H0 H.
+destruct H0 as [n ?]; exists (n+1)%Z.
 rewrite Z.mul_add_distr_r.
 f_equal; auto.
-rewrite Zlength_correct, H. reflexivity.
 Qed.

@@ -3,22 +3,15 @@ Require Import sha.sha.
 Require Import sha.SHA256.
 Local Open Scope logic.
 
-Definition swap (i: int) : int :=
- Int.or (Int.shl (Int.and i (Int.repr 255)) (Int.repr 24))
-   (Int.or (Int.shl (Int.and (Shr 8 i) (Int.repr 255)) (Int.repr 16))
-      (Int.or (Int.shl (Int.and (Shr 16 i) (Int.repr 255)) (Int.repr 8))
-         (Shr 24 i))).
-
 Definition big_endian_integer (contents: Z -> int) : int :=
   Int.or (Int.shl (contents 0) (Int.repr 24))
   (Int.or (Int.shl (contents 1) (Int.repr 16))
    (Int.or (Int.shl (contents 2) (Int.repr 8))
       (contents 3))).
 
-Definition LBLOCK : nat := 16%nat.   (* length of a block, in 32-bit integers *)
-Definition CBLOCK : nat := (LBLOCK * 4)%nat.  (* length of a block, in characters *)
-
-Global Opaque LBLOCK.  (* so that LBLOCK-i  does not inappropriately simplify *)
+Definition LBLOCKz : Z := 16. (* length of a block, in 32-bit integers *)
+Definition CBLOCKz : Z := 64. (* length of a block, in characters *)
+Global Opaque CBLOCKz LBLOCKz.
 
 Definition s256state := (list val * (val * (val * (list val * val))))%type.
 Definition s256_h (s: s256state) := fst s.
@@ -40,7 +33,7 @@ Inductive s256abs :=  (* SHA-256 abstract state *)
                      s256abs.
 
 Definition s256a_regs (a: s256abs) : list int :=
- match a with S256abs hashed _  => 
+ match a with S256abs hashed data  => 
           hash_blocks init_registers hashed 
  end.
 
@@ -58,10 +51,10 @@ Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
        /\ (exists hi, exists lo, s256_Nh r = Vint hi /\ s256_Nl r = Vint lo /\
              (Zlength hashed * 4 + Zlength data)*8 = hilo hi lo)%Z
        /\ s256_data r = map Vint (map Int.repr data)
-       /\ (length data < CBLOCK /\ Forall isbyteZ data)
-       /\ NPeano.divide LBLOCK (length hashed)
+       /\ (Zlength data < CBLOCKz /\ Forall isbyteZ data)
+       /\ (LBLOCKz | Zlength hashed)
        /\ s256_num r = Vint (Int.repr (Zlength data))
-     end%nat.
+     end.
 
 Definition init_s256abs : s256abs := S256abs nil nil.
 
@@ -172,7 +165,7 @@ Definition sha256_block_data_order_spec :=
   DECLARE _sha256_block_data_order
     WITH hashed: list int, b: list int, ctx : val, data: val, sh: share
    PRE [ _ctx OF tptr t_struct_SHA256state_st, _in OF tptr tvoid ]
-         PROP(length b = LBLOCK; NPeano.divide LBLOCK (length hashed)) 
+         PROP(Zlength b = LBLOCKz; (LBLOCKz | Zlength hashed)) 
          LOCAL (`(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
          SEP (`(array_at tuint Tsh  (tuints (hash_blocks init_registers hashed)) 0 8 ctx);
                 `(data_block sh (intlist_to_Zlist b) data);
@@ -205,13 +198,13 @@ Definition SHA256_Init_spec :=
 Inductive update_abs: list Z -> s256abs -> s256abs -> Prop :=
  Update_abs:
    (forall msg hashed blocks oldfrag newfrag,
-        length oldfrag < CBLOCK ->
-        length newfrag < CBLOCK ->
-       NPeano.divide LBLOCK (length hashed) ->
-       NPeano.divide LBLOCK (length blocks) -> 
+        Zlength oldfrag < CBLOCKz ->
+        Zlength newfrag < CBLOCKz ->
+       (LBLOCKz | Zlength hashed) ->
+       (LBLOCKz | Zlength blocks) -> 
        oldfrag++msg = intlist_to_Zlist blocks ++ newfrag ->
    update_abs msg (S256abs hashed oldfrag) 
-                              (S256abs (hashed++blocks) newfrag))%nat.
+                              (S256abs (hashed++blocks) newfrag)).
 
 Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update

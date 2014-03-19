@@ -37,8 +37,7 @@ unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
 entailer!.
 rewrite hash_blocks_equation. reflexivity.
 exists Int.zero, Int.zero; repeat split; reflexivity.
-simpl; change CBLOCK with 64; omega.
-exists 0; simpl; reflexivity.
+exists 0%Z; simpl; reflexivity.
 apply derives_refl'; f_equal.
 f_equal.
 repeat (apply f_equal2; [f_equal; apply int_eq_e; compute; reflexivity | ]); auto.

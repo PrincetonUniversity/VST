@@ -13,7 +13,7 @@ Local Open Scope nat.
 Lemma bdo_loop2_body_proof:
  forall (Espec : OracleKind)
    (b : list int) (ctx : val) ( regs : list int) (i : nat)
-   (H : length b = LBLOCK)
+   (H : Zlength b = LBLOCKz)
    (H0 : (LBLOCK <= i < c64)%nat),
 semax Delta_loop1
   (PROP  ()
@@ -76,19 +76,18 @@ assert (16 <= Z.of_nat i < 64)%Z. {
 
 forward.	(*s0 = X[(i+1)&0x0f]; *)
 entailer; apply prop_right; split;
- [ apply X_subscript_aux; assumption | apply and_mod_15_lem].
+ [ apply X_subscript_aux; auto; apply Zlength_length in H; auto | apply and_mod_15_lem].
 
 forward. (* s0 = sigma0(s0); *)
 rename x into s0'.
-
-
 
 apply (assert_LOCAL (`(eq (Vint (sigma_0 (nthB b i 1)))) (eval_id _s0))).
 entailer; apply prop_right. 
 rewrite add_repr in H3.
 rewrite X_subscript_aux2 in H3 by repable_signed.
 
-rewrite extract_from_b in H3 by omega.
+rewrite extract_from_b in H3;
+ try apply Zlength_length in H; auto; try omega.
 simpl in H3.
 rewrite Int.and_mone in H3.
 inv H3.
@@ -99,7 +98,7 @@ clear s0'.
 
 forward. (* s1 = X[(i+14)&0x0f]; *)
 entailer; apply prop_right; split;
- [apply X_subscript_aux; assumption | apply and_mod_15_lem].
+ [apply X_subscript_aux; auto; apply Zlength_length in H; auto | apply and_mod_15_lem].
 forward. (* s1 = sigma1(s1); *)
 rename x into s1'.
 
@@ -107,7 +106,8 @@ apply (assert_LOCAL (`(eq (Vint (sigma_1 (nthB b i 14)))) (eval_id _s1))).
 entailer; apply prop_right. 
 rewrite add_repr in H3.
 rewrite X_subscript_aux2 in H3 by repable_signed.
-rewrite extract_from_b in H3 by omega.
+rewrite extract_from_b in H3;
+ try apply Zlength_length in H; auto; try omega.
 simpl in H3.
 rewrite Int.and_mone in H3.
 inv H3.
@@ -120,14 +120,14 @@ unfold MORE_COMMANDS, POSTCONDITION, abbreviate; clear MORE_COMMANDS POSTCONDITI
 replace Delta with (initialized _s1 (initialized _s0 Delta_loop1))
   by (simplify_Delta; reflexivity).
 clear Delta.
-apply sha_bdo_loop2b; assumption.
+simple apply sha_bdo_loop2b; assumption.
 Qed.
 
 
 Lemma sha256_block_data_order_loop2_proof:
   forall (Espec : OracleKind)
      (b: list int) ctx (regs: list int),
-     length b = LBLOCK ->
+     Zlength b = LBLOCKz ->
      semax  Delta_loop1
  (PROP ()
    LOCAL (`(eq ctx) (eval_id _ctx);
@@ -187,14 +187,15 @@ Definition loop2_inv (rg0: list int) (b: list int) ctx  (delta: Z) (i: nat) :=
 
 apply semax_pre with (EX i:nat, loop2_inv regs b ctx 0 i).
 clear POSTCONDITION; 
-abstract(
+abstract (
  unfold loop2_inv;  apply exp_right with LBLOCK;
  change LBLOCKz with 16%Z;
   change (Z.of_nat LBLOCK) with LBLOCKz;
- rewrite array_at_Xarray by auto;
+ rewrite array_at_Xarray
+ by (apply Zlength_length in H; auto);
   entailer!;
   [change LBLOCK with 16%nat; change c64 with 64%nat; clear; omega
-  | rewrite generate_word_lemma1; auto]
+  | rewrite generate_word_lemma1; auto; apply Zlength_length in H; auto]
 ).
 
 apply semax_post' with (loop2_inv regs b ctx 0 c64). 
@@ -204,7 +205,8 @@ abstract (
  unfold loop2_inv;
  entailer;
  rewrite firstn_same in H2
-  by(rewrite rev_length, length_generate_word, rev_length, H;
+  by(apply Zlength_length in H; auto;
+      rewrite rev_length, length_generate_word, rev_length, H;
       change (64>=64)%nat; auto);
  rewrite prop_true_andp by auto;
   cancel).
@@ -257,6 +259,6 @@ normalize.
 replace Delta with
   (Delta_loop1) by (simplify_Delta; reflexivity).
 
-apply bdo_loop2_body_proof; auto.
+simple apply bdo_loop2_body_proof; auto.
 Qed.
 

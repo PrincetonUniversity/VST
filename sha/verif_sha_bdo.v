@@ -402,7 +402,6 @@ name in_ _in.
 name ctx_ _ctx.
 name i_ _i.
 name data_ _data.
-rewrite divide_hashed in *.
 simpl_stackframe_of. 
 remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
 assert (Lregs: length regs = 8%nat) 
@@ -438,6 +437,7 @@ replace Delta with Delta_loop1
  by (simplify_Delta; reflexivity).
 simple apply (sha256_block_data_order_loop1_proof
   _ sh b ctx data regs); auto.
+apply Zlength_length in H; auto.
 rewrite Zregs.
 simpl_data_at.
 entailer!.
@@ -471,11 +471,11 @@ simpl; abbreviate_semax.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 replace Delta with (initialized _t Delta_loop1) 
  by (unfold Delta, Delta_loop1; simplify_Delta; reflexivity).
-clear Delta H2.
+clear Delta.
 fold (process_block regs (rev b)).
-rewrite process_block_hash_block by auto.
+rewrite process_block_hash_block 
+  by (apply Zlength_length in H; auto).
 simple apply sha256_block_data_order_return; auto.
-apply divide_hashed; auto.
 Qed.
 
 

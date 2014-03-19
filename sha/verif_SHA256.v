@@ -61,8 +61,8 @@ forward. (* return; *)
 unfold frame_ret_assert; simpl.
 entailer!.
 replace (SHA_256 data) with (sha_finish a); auto.
-clear - H2.
-inv H2.
+clear - H1.
+inv H1.
 simpl in *.
 rewrite <- H8.
 rewrite firstn_same.

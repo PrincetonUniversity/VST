@@ -25,13 +25,13 @@ Qed.
 Lemma intro_update_inv:
  forall (len: nat) (blocks : list int) (frag data: list Z) (P' Q: Prop),
   (forall (Hblocks_len: len >= length blocks * 4 - length frag)
-            (Hdiv: NPeano.divide LBLOCK (length blocks))
+            (Hdiv: (LBLOCKz | Zlength blocks))
             (Hblocks: intlist_to_Zlist blocks = frag ++ firstn (length blocks * 4 - length frag) data)
             (DONE: P')
             (Hblocks': length blocks * 4 >= length frag),
             Q) ->
     (len >= length blocks*4 - length frag /\
-    NPeano.divide LBLOCK (length blocks) /\ 
+    (LBLOCKz | Zlength blocks) /\ 
     intlist_to_Zlist blocks = frag ++ firstn (length blocks * 4 - length frag) data /\
               P' -> Q). 
 Proof.
@@ -67,17 +67,17 @@ Lemma update_loop_body_proof:
  (HDelta: Delta = initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot))))
  (H: len <= length data)
- (Hdiv: NPeano.divide LBLOCK (length blocks))
+ (Hdiv: (LBLOCKz | Zlength blocks))
  (H0: r_h = hash_blocks init_registers hashed)
  (H1: (Zlength (intlist_to_Zlist hashed ++ r_data)*8 = hilo r_Nh r_Nl)%Z)
- (H4: NPeano.divide LBLOCK (length hashed))
+ (H4: (LBLOCKz | Zlength hashed))
  (Hblocks: intlist_to_Zlist blocks =  r_data ++ firstn (length blocks * 4 - length r_data) data)
- (H3 : length r_data < CBLOCK)
+ (H3 : (Zlength r_data < CBLOCKz)%Z)
  (Hlen: (Z.of_nat len <= Int.max_unsigned)%Z)
  (Hlen_ge: len - (length blocks * 4 - length r_data) >= CBLOCK)
  (H6: firstn CBLOCK (skipn (length blocks * 4 - length r_data) data) =
      intlist_to_Zlist bl)
- (H7: length bl = LBLOCK),
+ (H7: Zlength bl = LBLOCKz),
 semax Delta
   (PROP  ()
    LOCAL 
@@ -129,6 +129,19 @@ instantiate (1:=(hashed++ blocks,
                            sh)) in (Value of witness).
 entailer!.
 rewrite mul_repr in H5; rewrite H5; reflexivity.
+
+ Lemma divide_length_app:
+ forall {A} n (al bl: list A), 
+      (n | Zlength al) -> 
+      (n | Zlength bl) ->
+      (n | Zlength (al++bl)).
+Proof.
+ intros. destruct H,H0. exists (x+x0)%Z.
+ rewrite initial_world.Zlength_app,H,H0;  
+ rewrite Z.mul_add_distr_r; omega.
+Qed.
+
+
 apply divide_length_app; auto.
 unfold_lift.
 repeat rewrite eval_var_env_set.
@@ -136,6 +149,8 @@ repeat rewrite eval_var_env_set.
 change (array_at tuint Tsh (tuints K) 0 (Zlength K)
       (eval_var _K256 (tarray tuint 64) rho)) with (K_vector rho).
  rewrite <- H6.
+ rewrite Zlength_correct in H3; change CBLOCKz with (Z.of_nat CBLOCK) in H3;
+  apply Nat2Z.inj_lt in H3;
  rewrite (split3_data_block (length blocks * 4 - length r_data) CBLOCK sh data) by omega.
  cancel.
 
@@ -175,22 +190,21 @@ replace_SEP 0%Z
  rewrite  mult_plus_distr_r. 
  rewrite plus_comm.
  rewrite <- NPeano.Nat.add_sub_assoc by (clear - Hblocks'; omega).
- rewrite H7.
+ apply Zlength_length in H7; auto. rewrite H7.
  clear - H0.
  rewrite Nat2Z.inj_sub_max in H0.
  rewrite Zmax_spec in H0. if_tac in H0; try omega.
  clear H.
  apply Nat2Z.inj_ge.
  rewrite Nat2Z.inj_add.
- change (Z.of_nat (LBLOCK*4)) with 64%Z. omega.
-* rewrite app_length.
- clear - Hdiv H7. rewrite H7. destruct Hdiv as [x ?]; exists (S x).
- simpl; omega.
+ change (Z.of_nat (Z.to_nat LBLOCKz *4)) with 64%Z. omega.
+* apply divide_length_app; auto. rewrite H7. exists 1%Z; reflexivity.
 *
  rewrite intlist_to_Zlist_app.
  rewrite Hblocks; rewrite <- H6.
  rewrite app_ass.
- f_equal. rewrite app_length. rewrite H7.
+ f_equal. rewrite app_length. apply Zlength_length in H7; auto.
+  rewrite H7.
   rewrite  mult_plus_distr_r. change (LBLOCK*4)%nat with CBLOCK.
  rewrite NPeano.Nat.add_sub_swap by auto.
  apply firstn_app.
@@ -198,6 +212,7 @@ replace_SEP 0%Z
  destruct d; inv Pd; simpl. f_equal.
   f_equal.
  rewrite app_length.
+ apply Zlength_length in H7; auto.
  rewrite H7.
  f_equal.
  rewrite  mult_plus_distr_r.
@@ -207,7 +222,8 @@ rewrite NPeano.Nat.add_sub_swap by auto.
  reflexivity.
 *
  f_equal.
- rewrite app_length. rewrite mult_plus_distr_r. rewrite H7.
+ rewrite app_length. rewrite mult_plus_distr_r. 
+ apply Zlength_length in H7; auto. rewrite H7.
  change (16*4)%Z with  (Z.of_nat (LBLOCK*4)).
  symmetry.  rewrite <- Nat2Z.inj_sub by auto.
  f_equal.
@@ -217,6 +233,8 @@ rewrite NPeano.Nat.add_sub_swap by auto.
  auto.
 *
  rewrite app_ass.
+ rewrite Zlength_correct in H3; change CBLOCKz with (Z.of_nat CBLOCK) in H3;
+  apply Nat2Z.inj_lt in H3;
  rewrite (split3_data_block (length blocks * 4 - length r_data) CBLOCK sh data)
   by omega.
  cancel.
@@ -250,9 +268,9 @@ Lemma update_outer_if_proof:
    (hi : int)
    (lo : int)
    (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
-   (H3 : length dd < CBLOCK)
+   (H3 : (Zlength dd < CBLOCKz)%Z)
    (H3' : Forall isbyteZ dd) 
-   (H4 : NPeano.divide LBLOCK (length hashed))
+   (H4 : (LBLOCKz | Zlength hashed))
    (Hlen : (Z.of_nat len <= Int.max_unsigned)%Z),
 semax
   (initialized _p
@@ -305,7 +323,8 @@ replace Delta with (initialized _fragment (initialized _p (initialized _n (initi
  by (simplify_Delta; reflexivity).
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION Delta.
 autorewrite with norm.
-apply (update_inner_if_proof Espec hashed dd data c d sh len hi lo); assumption.
+simple apply (update_inner_if_proof Espec hashed dd data c d sh len hi lo); 
+  try assumption.
 forward. 
 rewrite overridePost_normal'. apply andp_left2; auto.
 * (* else clause *)
@@ -316,15 +335,12 @@ entailer.
  rewrite negb_false_iff in H1;  apply int_eq_e in H1.
 assert (Int.unsigned (Int.repr (Zlength dd)) = Int.unsigned (Int.repr 0)) by (f_equal; auto).
 rewrite (Int.unsigned_repr 0) in H6 by repable_signed.
-rewrite Int.unsigned_repr in H6 
- by (clear - H3;
-      assert (Zlength dd < 64)%Z
-      by (rewrite Zlength_correct; change 64%Z with (Z.of_nat 64);
-       apply Nat2Z.inj_lt; assumption);
-      split; [rewrite Zlength_correct; omega | repable_signed]).
+rewrite Int.unsigned_repr in H6
+ by (clear - H3; change CBLOCKz with 64%Z in H3;
+  rewrite Zlength_correct in *; repable_signed).
 rewrite Zlength_correct in H6; destruct dd; inv H6.
  apply andp_right; [apply prop_right; repeat split | ].
- + exists 0; reflexivity.
+ + exists 0%Z; reflexivity.
  +  rewrite NPeano.Nat.sub_0_r, H2.
    apply Int.repr_unsigned.
  + rewrite <- app_nil_end. cancel.
@@ -339,9 +355,9 @@ Lemma update_while_proof:
   (data' : name _data) (p : name _p) (n : name _n)  (fragment : name _fragment)
   (hi lo : int)
   (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
-  (H3 : length dd < CBLOCK)
+  (H3 : (Zlength dd < CBLOCKz)%Z)
   (H3' : Forall isbyteZ dd) 
-  (H4 : NPeano.divide LBLOCK (length hashed)) 
+  (H4 : (LBLOCKz | Zlength hashed)) 
   (Hlen : (Z.of_nat len <= Int.max_unsigned)%Z),
  semax
   (update_tycon
@@ -434,4 +450,5 @@ rewrite initial_world.Zlength_app.
 rewrite <- H7; f_equal.
 rewrite Zlength_intlist_to_Zlist.
 f_equal. apply Z.mul_comm.
+apply Zlength_length; auto.
 Qed.
