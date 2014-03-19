@@ -598,6 +598,49 @@ by rewrite/is_true Pos.eqb_eq.
 by rewrite/is_true -Zeq_is_eq_bool.
 Qed.
 
+(* Why is this lemma not in ZArith?!? *)
+
+Lemma Zeq_bool_refl x : Zeq_bool x x.
+Proof. by case: (Zeq_is_eq_bool x x)=> A _; apply: A. Qed.
+
+Lemma Zeq_bool_sym x y : Zeq_bool x y = Zeq_bool y x.
+Proof. 
+case e: (Zeq_bool x y).
+rewrite (Zeq_bool_eq _ _ e).
+by rewrite Zeq_bool_refl.
+move: (Zeq_bool_neq _ _ e)=> neq.
+case f: (Zeq_bool y x)=> //.
+move: (Zeq_bool_eq _ _ f)=> eq. 
+by subst x; elimtype False; apply: neq.
+Qed.
+
+Lemma join2_inject_incr j k : 
+  inject_incr j k -> 
+  join2 j k = j.
+Proof.
+move=> incr; rewrite /join2; extensionality b.
+case jj: (j b)=> //[[x y]].
+move: (incr _ _ _ jj).
+case kk: (k b)=> [[x' y']|//].
+case=> -> ->.
+by rewrite Pos.eqb_refl Zeq_bool_refl.
+Qed.
+
+Lemma join2C j k : join2 j k = join2 k j.
+Proof.
+rewrite /join2; extensionality b.
+case: (j b)=> [[x y]|].
+case: (k b)=> [[x' y']|].
+rewrite Pos.eqb_sym.
+rewrite Zeq_bool_sym.
+case e: (_ && _)=> //.
+case: (andP e).
+move/Peqb_true_eq=> ->.
+by move/Zeq_bool_eq=> ->.
+by [].
+by case: (k b)=> [[? ?]|].
+Qed.
+
 (* [join_sm mu1 mu2] is a union operator on structured injections. If     *)
 (* we have struct. injections                                             *)
 (*                                                                        *)
@@ -845,11 +888,6 @@ elim: mus=> //=; first by move=> [].
 move=> mu' mus' IH []A []B C; move: (IH (conj A C))=> D.
 by apply: join_sm_consistent'.
 Qed.
-
-(* Why is this lemma not in ZArith?!? *)
-
-Lemma Zeq_bool_refl x : Zeq_bool x x.
-Proof. by case: (Zeq_is_eq_bool x x)=> A _; apply: A. Qed.
 
 Lemma join2P' (j k : SM_Injection) b1 :                                
   Consistent j k ->                                                    
