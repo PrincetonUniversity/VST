@@ -10,8 +10,9 @@ Require Import ZArith.
 
 Require Import linking.sepcomp. Import SepComp.
 
-Require Import linking.inj_lemmas.
 Require Import linking.pred_lemmas.
+Require Import linking.inj_lemmas.
+Require Import linking.join_sm.
 
 (* [disjinv] enforces disjointness conditions on the local, public and     *)
 (* foreign block sets declared by [mu0] and [mu].  The definition is used  *)

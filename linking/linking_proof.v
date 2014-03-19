@@ -20,6 +20,7 @@ Require Import linking.wf_lemmas.
 Require Import linking.reestablish.
 Require Import linking.core_semantics_lemmas.
 Require Import linking.inj_lemmas.
+Require Import linking.join_sm.
 Require Import linking.reach_lemmas.
 Require Import linking.compcert_linking.
 Require Import linking.compcert_linking_lemmas.

@@ -19,6 +19,7 @@ Require Import linking.sepcomp. Import SepComp.
 Require Import linking.pred_lemmas.
 Require Import linking.seq_lemmas.
 Require Import linking.inj_lemmas.
+Require Import linking.join_sm.
 
 (* nwp = no wild pointers *)
 

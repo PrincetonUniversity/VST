@@ -95,6 +95,7 @@ LINKING_FILES= \
   core_semantics_lemmas.v \
   pred_lemmas.v \
   inj_lemmas.v \
+  join_sm.v \
   disjointness.v \
   rc_semantics.v \
   reach_lemmas.v \
