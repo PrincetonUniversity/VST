@@ -153,6 +153,24 @@ case: (p a); case: (p' a); case: (q a)=> //; first by case.
 by move=> _; move/(_ erefl).
 Qed.
 
+Lemma predI_sub4 (p q : pred T) :
+  {subset p <= q} -> 
+  [predI p & q] = [pred x | p x].
+Proof.
+move=> S; rewrite !pred_exteta=> a.
+rewrite /in_mem /= /in_mem /=.
+case pa: (p a)=> //.
+by move: (S _ pa); rewrite /in_mem /= => ->.
+Qed.
+
+Lemma predI_sub5 (p q : bool) :
+  (p -> q) ->
+  (p && q) = p.
+Proof.
+move=> S; case: p S; case: q=> //=.
+by case/(_ erefl).
+Qed.
+
 Lemma in_predI (p q : pred T) b : 
   b \in [predI p & q] = [&& b \in p & b \in q].
 Proof. by rewrite/in_mem. Qed.

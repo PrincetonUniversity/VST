@@ -454,6 +454,24 @@ End rel_inv_pred_all2_lems.
 
 Section trash_inv.
 
+Record trash_minimal mu_trash mu_top mus : Type :=
+  { trash_ctnd_topS   : {subset (extBlocksSrc mu_trash) <= extBlocksSrc mu_top} 
+  ; trash_ctnd_topT   : {subset (extBlocksTgt mu_trash) <= extBlocksTgt mu_top} 
+  ; trash_ctnd_restS  : forall mu, List.In mu mus -> 
+                        {subset (extBlocksSrc mu_trash) <= extBlocksSrc mu} 
+  ; trash_ctnd_restT  : forall mu, List.In mu mus -> 
+                        {subset (extBlocksTgt mu_trash) <= extBlocksTgt mu} 
+
+  ; trash_fctnd_topS  : {subset (frgnBlocksSrc mu_trash) <= frgnBlocksSrc mu_top} 
+  ; trash_fctnd_topT  : {subset (frgnBlocksTgt mu_trash) <= frgnBlocksTgt mu_top} 
+  ; trash_fctnd_restS : forall mu, List.In mu mus -> 
+                        {subset (frgnBlocksSrc mu_trash) <= frgnBlocksSrc mu} 
+  ; trash_fctnd_restT : forall mu, List.In mu mus -> 
+                        {subset (frgnBlocksTgt mu_trash) <= frgnBlocksTgt mu} 
+  ; trash_eincr_top   : inject_incr (extern_of mu_trash) (extern_of mu_top)
+  ; trash_eincr_rest  : forall mu, List.In mu mus -> 
+                        inject_incr (extern_of mu_trash) (extern_of mu) }.
+
 Record trash_inv mu_trash mu_top mus m1 m2 : Type :=
   { trash_presglob : Events.meminj_preserves_globals my_ge $ extern_of mu_trash
   ; trash_isglob   : (forall b, isGlobalBlock my_ge b -> frgnBlocksSrc mu_trash b)
@@ -464,14 +482,437 @@ Record trash_inv mu_trash mu_top mus m1 m2 : Type :=
                      $ mu_top :: [seq (Inj.mu \o frame_mu0) x | x <- mus]
   ; trash_consist  : All (Consistent mu_trash) 
                      $ mu_top :: [seq (Inj.mu \o frame_mu0) x | x <- mus] 
-  ; trash_ctnd_topS  : {subset (extBlocksSrc mu_trash) <= extBlocksSrc mu_top} 
-  ; trash_ctnd_topT  : {subset (extBlocksTgt mu_trash) <= extBlocksTgt mu_top} 
-  ; trash_ctnd_restS : forall mu, List.In mu mus -> 
-                       {subset (extBlocksSrc mu_trash) <= extBlocksSrc mu} 
-  ; trash_ctnd_restT : forall mu, List.In mu mus -> 
-                       {subset (extBlocksTgt mu_trash) <= extBlocksTgt mu} }.
+  ; trash_min      : trash_minimal mu_trash mu_top [seq (Inj.mu \o frame_mu0) x | x <- mus] }.
 
 End trash_inv.
+
+Section trash_inv_lems.
+
+Context (mu_trash : Inj.t) mu_top mus m1 m2 
+  (trinv : trash_inv mu_trash mu_top mus m1 m2).
+
+Lemma frgnS_join_all : 
+    frgnBlocksSrc (join_all mu_trash [seq frame_mu0 x | x <- mus])
+  = frgnBlocksSrc mu_trash.
+Proof.
+move: (trash_fctnd_restS (trash_min trinv)).
+elim: mus=> // mu0 mus' IH /= ctnd; rewrite IH.
+extensionality b; case fmu_tr: (frgnBlocksSrc mu_trash b)=> //=.
+rewrite (ctnd mu0) /in_mem //; first by left.
+by rewrite /in_mem /= fmu_tr andb_false_r.
+by move=> mu H; apply: (ctnd mu); right.
+Qed.
+
+Lemma frgnS_join_all_sub mus' : 
+  (forall mu, List.In mu mus' -> List.In mu [seq frame_mu0 x | x <- mus]) -> 
+    frgnBlocksSrc (join_all mu_trash mus')
+  = frgnBlocksSrc mu_trash.
+Proof.
+move=> H1.
+cut (frgnBlocksSrc (join_all mu_trash mus')
+   = frgnBlocksSrc (join_all mu_trash [seq frame_mu0 x | x <- mus])).
+move=> ->.
+apply: frgnS_join_all.
+elim: mus' H1=> /=.
+by move=> _; rewrite frgnS_join_all.
+move=> mu2 mus2 /= IH H.
+rewrite IH. 
+rewrite frgnS_join_all.
+move: (trash_fctnd_restS (trash_min trinv))=> /= S.
+have IN: In (Inj.mu mu2) [seq (Inj.mu \o frame_mu0) x | x <- mus].
+{ cut (In mu2 [seq frame_mu0 x | x <- mus]).
+  move=> IN; clear - IN; elim: mus IN=> //=.  
+  move=> ? ? IH; case; first by move=> ->; left.
+  by move=> IN; right; apply: (IH IN). 
+  by apply: (H _ (or_introl erefl)). }
+by rewrite predIC (predI_sub4 (S _ IN)).
+by move=> mu H2; apply: (H mu (or_intror H2)).
+Qed.
+
+Let mu_trash'' := join_sm mu_top mu_trash.
+
+Variable mu_trash''_wd : SM_wd mu_trash''.
+
+Let mu_trash' := Inj.mk mu_trash''_wd.
+
+Lemma frgnS_join_all' : 
+    frgnBlocksSrc (join_all mu_trash' [seq frame_mu0 x | x <- mus])
+  = frgnBlocksSrc mu_trash.
+Proof.
+move: (trash_fctnd_topS (trash_min trinv)).
+move: (trash_fctnd_restS (trash_min trinv)).
+elim: mus. 
+move=> ctndr ctndt=> /=; extensionality b=> /=.
+case fmu_tr: (frgnBlocksSrc mu_trash b)=> //=.
+rewrite ctndt=> //.
+by rewrite /in_mem /= fmu_tr andb_false_r.
+move=> mu0 mus' IH /= ctndr ctndt; rewrite IH.
+extensionality b; case fmu_tr: (frgnBlocksSrc mu_trash b)=> //=.
+rewrite (ctndr mu0) /in_mem //; first by left.
+by rewrite /in_mem /= fmu_tr andb_false_r.
+by move=> mu H; apply: (ctndr mu); right.
+by [].
+Qed.
+
+Lemma frgnS_join_all'_sub mus' : 
+  (forall mu, List.In mu mus' -> List.In mu [seq frame_mu0 x | x <- mus]) -> 
+    frgnBlocksSrc (join_all mu_trash' mus')
+  = frgnBlocksSrc mu_trash.
+Proof.
+move=> H1.
+cut (frgnBlocksSrc (join_all mu_trash' mus')
+   = frgnBlocksSrc (join_all mu_trash' [seq frame_mu0 x | x <- mus])).
+move=> ->.
+apply: frgnS_join_all'.
+elim: mus' H1=> /=.
+move=> _; rewrite frgnS_join_all'.
+move: (trash_fctnd_topS (trash_min trinv))=> S.
+by rewrite predIC (predI_sub4 S).
+move=> mu2 mus2 /= IH H.
+rewrite IH. 
+rewrite frgnS_join_all'.
+move: (trash_fctnd_restS (trash_min trinv))=> /= S.
+have IN: In (Inj.mu mu2) [seq (Inj.mu \o frame_mu0) x | x <- mus].
+{ cut (In mu2 [seq frame_mu0 x | x <- mus]).
+  move=> IN; clear - IN; elim: mus IN=> //=.  
+  move=> ? ? IH; case; first by move=> ->; left.
+  by move=> IN; right; apply: (IH IN). 
+  by apply: (H _ (or_introl erefl)). }
+by rewrite predIC (predI_sub4 (S _ IN)).
+by move=> mu H2; apply: (H mu (or_intror H2)).
+Qed.
+
+Lemma frgnT_join_all : 
+    frgnBlocksTgt (join_all mu_trash [seq frame_mu0 x | x <- mus])
+  = frgnBlocksTgt mu_trash.
+Proof.
+move: (trash_fctnd_restT (trash_min trinv)).
+elim: mus=> // mu0 mus' IH /= ctnd; rewrite IH.
+extensionality b; case fmu_tr: (frgnBlocksTgt mu_trash b)=> //=.
+rewrite (ctnd mu0) /in_mem //; first by left.
+by rewrite /in_mem /= fmu_tr andb_false_r.
+by move=> mu H; apply: (ctnd mu); right.
+Qed.
+
+Lemma frgnT_join_all_sub mus' : 
+  (forall mu, List.In mu mus' -> List.In mu [seq frame_mu0 x | x <- mus]) -> 
+    frgnBlocksTgt (join_all mu_trash mus')
+  = frgnBlocksTgt mu_trash.
+Proof.
+move=> H1.
+cut (frgnBlocksTgt (join_all mu_trash mus')
+   = frgnBlocksTgt (join_all mu_trash [seq frame_mu0 x | x <- mus])).
+move=> ->.
+apply: frgnT_join_all.
+elim: mus' H1=> /=.
+by move=> _; rewrite frgnT_join_all.
+move=> mu2 mus2 /= IH H.
+rewrite IH. 
+rewrite frgnT_join_all.
+move: (trash_fctnd_restT (trash_min trinv))=> /= S.
+have IN: In (Inj.mu mu2) [seq (Inj.mu \o frame_mu0) x | x <- mus].
+{ cut (In mu2 [seq frame_mu0 x | x <- mus]).
+  move=> IN; clear - IN; elim: mus IN=> //=.  
+  move=> ? ? IH; case; first by move=> ->; left.
+  by move=> IN; right; apply: (IH IN). 
+  by apply: (H _ (or_introl erefl)). }
+by rewrite predIC (predI_sub4 (S _ IN)).
+by move=> mu H2; apply: (H mu (or_intror H2)).
+Qed.
+
+Lemma frgnT_join_all' : 
+    frgnBlocksTgt (join_all mu_trash' [seq frame_mu0 x | x <- mus])
+  = frgnBlocksTgt mu_trash.
+Proof.
+move: (trash_fctnd_topT (trash_min trinv)).
+move: (trash_fctnd_restT (trash_min trinv)).
+elim: mus. 
+move=> ctndr ctndt=> /=; extensionality b=> /=.
+case fmu_tr: (frgnBlocksTgt mu_trash b)=> //=.
+rewrite ctndt=> //.
+by rewrite /in_mem /= fmu_tr andb_false_r.
+move=> mu0 mus' IH /= ctndr ctndt; rewrite IH.
+extensionality b; case fmu_tr: (frgnBlocksTgt mu_trash b)=> //=.
+rewrite (ctndr mu0) /in_mem //; first by left.
+by rewrite /in_mem /= fmu_tr andb_false_r.
+by move=> mu H; apply: (ctndr mu); right.
+by [].
+Qed.
+
+Lemma frgnT_join_all'_sub mus' : 
+  (forall mu, List.In mu mus' -> List.In mu [seq frame_mu0 x | x <- mus]) -> 
+    frgnBlocksTgt (join_all mu_trash' mus')
+  = frgnBlocksTgt mu_trash.
+Proof.
+move=> H1.
+cut (frgnBlocksTgt (join_all mu_trash' mus')
+   = frgnBlocksTgt (join_all mu_trash' [seq frame_mu0 x | x <- mus])).
+move=> ->.
+apply: frgnT_join_all'.
+elim: mus' H1=> /=.
+move=> _; rewrite frgnT_join_all'.
+move: (trash_fctnd_topT (trash_min trinv))=> S.
+by rewrite predIC (predI_sub4 S).
+move=> mu2 mus2 /= IH H.
+rewrite IH. 
+rewrite frgnT_join_all'.
+move: (trash_fctnd_restT (trash_min trinv))=> /= S.
+have IN: In (Inj.mu mu2) [seq (Inj.mu \o frame_mu0) x | x <- mus].
+{ cut (In mu2 [seq frame_mu0 x | x <- mus]).
+  move=> IN; clear - IN; elim: mus IN=> //=.  
+  move=> ? ? IH; case; first by move=> ->; left.
+  by move=> IN; right; apply: (IH IN). 
+  by apply: (H _ (or_introl erefl)). }
+by rewrite predIC (predI_sub4 (S _ IN)).
+by move=> mu H2; apply: (H mu (or_intror H2)).
+Qed.
+
+Lemma extS_join_all : 
+    extBlocksSrc (join_all mu_trash [seq frame_mu0 x | x <- mus])
+  = extBlocksSrc mu_trash.
+Proof.
+move: (trash_ctnd_restS (trash_min trinv)).
+elim: mus=> // mu0 mus' IH /= ctnd; rewrite IH.
+extensionality b; case fmu_tr: (extBlocksSrc mu_trash b)=> //=.
+rewrite (ctnd mu0) /in_mem //; first by left.
+by rewrite /in_mem /= fmu_tr andb_false_r.
+by move=> mu H; apply: (ctnd mu); right.
+Qed.
+
+Lemma extS_join_all_sub mus' : 
+  (forall mu, List.In mu mus' -> List.In mu [seq frame_mu0 x | x <- mus]) -> 
+    extBlocksSrc (join_all mu_trash mus')
+  = extBlocksSrc mu_trash.
+Proof.
+move=> H1.
+cut (extBlocksSrc (join_all mu_trash mus')
+   = extBlocksSrc (join_all mu_trash [seq frame_mu0 x | x <- mus])).
+move=> ->.
+apply: extS_join_all.
+elim: mus' H1=> /=.
+by move=> _; rewrite extS_join_all.
+move=> mu2 mus2 /= IH H.
+rewrite IH. 
+rewrite extS_join_all.
+move: (trash_ctnd_restS (trash_min trinv))=> /= S.
+have IN: In (Inj.mu mu2) [seq (Inj.mu \o frame_mu0) x | x <- mus].
+{ cut (In mu2 [seq frame_mu0 x | x <- mus]).
+  move=> IN; clear - IN; elim: mus IN=> //=.  
+  move=> ? ? IH; case; first by move=> ->; left.
+  by move=> IN; right; apply: (IH IN). 
+  by apply: (H _ (or_introl erefl)). }
+by rewrite predIC (predI_sub4 (S _ IN)).
+by move=> mu H2; apply: (H mu (or_intror H2)).
+Qed.
+
+Lemma extS_join_all' : 
+    extBlocksSrc (join_all mu_trash' [seq frame_mu0 x | x <- mus])
+  = extBlocksSrc mu_trash.
+Proof.
+move: (trash_ctnd_topS (trash_min trinv)).
+move: (trash_ctnd_restS (trash_min trinv)).
+elim: mus. 
+move=> ctndr ctndt=> /=; extensionality b=> /=.
+case fmu_tr: (extBlocksSrc mu_trash b)=> //=.
+rewrite ctndt=> //.
+by rewrite /in_mem /= fmu_tr andb_false_r.
+move=> mu0 mus' IH /= ctndr ctndt; rewrite IH.
+extensionality b; case fmu_tr: (extBlocksSrc mu_trash b)=> //=.
+rewrite (ctndr mu0) /in_mem //; first by left.
+by rewrite /in_mem /= fmu_tr andb_false_r.
+by move=> mu H; apply: (ctndr mu); right.
+by [].
+Qed.
+
+Lemma extS_join_all'_sub mus' : 
+  (forall mu, List.In mu mus' -> List.In mu [seq frame_mu0 x | x <- mus]) -> 
+    extBlocksSrc (join_all mu_trash' mus')
+  = extBlocksSrc mu_trash.
+Proof.
+move=> H1.
+cut (extBlocksSrc (join_all mu_trash' mus')
+   = extBlocksSrc (join_all mu_trash' [seq frame_mu0 x | x <- mus])).
+move=> ->.
+apply: extS_join_all'.
+elim: mus' H1=> /=.
+move=> _; rewrite extS_join_all'.
+move: (trash_ctnd_topS (trash_min trinv))=> S.
+by rewrite predIC (predI_sub4 S).
+move=> mu2 mus2 /= IH H.
+rewrite IH. 
+rewrite extS_join_all'.
+move: (trash_ctnd_restS (trash_min trinv))=> /= S.
+have IN: In (Inj.mu mu2) [seq (Inj.mu \o frame_mu0) x | x <- mus].
+{ cut (In mu2 [seq frame_mu0 x | x <- mus]).
+  move=> IN; clear - IN; elim: mus IN=> //=.  
+  move=> ? ? IH; case; first by move=> ->; left.
+  by move=> IN; right; apply: (IH IN). 
+  by apply: (H _ (or_introl erefl)). }
+by rewrite predIC (predI_sub4 (S _ IN)).
+by move=> mu H2; apply: (H mu (or_intror H2)).
+Qed.
+
+Lemma extT_join_all : 
+    extBlocksTgt (join_all mu_trash [seq frame_mu0 x | x <- mus])
+  = extBlocksTgt mu_trash.
+Proof.
+move: (trash_ctnd_restT (trash_min trinv)).
+elim: mus=> // mu0 mus' IH /= ctnd; rewrite IH.
+extensionality b; case fmu_tr: (extBlocksTgt mu_trash b)=> //=.
+rewrite (ctnd mu0) /in_mem //; first by left.
+by rewrite /in_mem /= fmu_tr andb_false_r.
+by move=> mu H; apply: (ctnd mu); right.
+Qed.
+
+Lemma extT_join_all_sub mus' : 
+  (forall mu, List.In mu mus' -> List.In mu [seq frame_mu0 x | x <- mus]) -> 
+    extBlocksTgt (join_all mu_trash mus')
+  = extBlocksTgt mu_trash.
+Proof.
+move=> H1.
+cut (extBlocksTgt (join_all mu_trash mus')
+   = extBlocksTgt (join_all mu_trash [seq frame_mu0 x | x <- mus])).
+move=> ->.
+apply: extT_join_all.
+elim: mus' H1=> /=.
+by move=> _; rewrite extT_join_all.
+move=> mu2 mus2 /= IH H.
+rewrite IH. 
+rewrite extT_join_all.
+move: (trash_ctnd_restT (trash_min trinv))=> /= S.
+have IN: In (Inj.mu mu2) [seq (Inj.mu \o frame_mu0) x | x <- mus].
+{ cut (In mu2 [seq frame_mu0 x | x <- mus]).
+  move=> IN; clear - IN; elim: mus IN=> //=.  
+  move=> ? ? IH; case; first by move=> ->; left.
+  by move=> IN; right; apply: (IH IN). 
+  by apply: (H _ (or_introl erefl)). }
+by rewrite predIC (predI_sub4 (S _ IN)).
+by move=> mu H2; apply: (H mu (or_intror H2)).
+Qed.
+
+Lemma extT_join_all' : 
+    extBlocksTgt (join_all mu_trash' [seq frame_mu0 x | x <- mus])
+  = extBlocksTgt mu_trash.
+Proof.
+move: (trash_ctnd_topT (trash_min trinv)).
+move: (trash_ctnd_restT (trash_min trinv)).
+elim: mus. 
+move=> ctndr ctndt=> /=; extensionality b=> /=.
+case fmu_tr: (extBlocksTgt mu_trash b)=> //=.
+rewrite ctndt=> //.
+by rewrite /in_mem /= fmu_tr andb_false_r.
+move=> mu0 mus' IH /= ctndr ctndt; rewrite IH.
+extensionality b; case fmu_tr: (extBlocksTgt mu_trash b)=> //=.
+rewrite (ctndr mu0) /in_mem //; first by left.
+by rewrite /in_mem /= fmu_tr andb_false_r.
+by move=> mu H; apply: (ctndr mu); right.
+by [].
+Qed.
+
+Lemma extT_join_all'_sub mus' : 
+  (forall mu, List.In mu mus' -> List.In mu [seq frame_mu0 x | x <- mus]) -> 
+    extBlocksTgt (join_all mu_trash' mus')
+  = extBlocksTgt mu_trash.
+Proof.
+move=> H1.
+cut (extBlocksTgt (join_all mu_trash' mus')
+   = extBlocksTgt (join_all mu_trash' [seq frame_mu0 x | x <- mus])).
+move=> ->.
+apply: extT_join_all'.
+elim: mus' H1=> /=.
+move=> _; rewrite extT_join_all'.
+move: (trash_ctnd_topT (trash_min trinv))=> S.
+by rewrite predIC (predI_sub4 S).
+move=> mu2 mus2 /= IH H.
+rewrite IH. 
+rewrite extT_join_all'.
+move: (trash_ctnd_restT (trash_min trinv))=> /= S.
+have IN: In (Inj.mu mu2) [seq (Inj.mu \o frame_mu0) x | x <- mus].
+{ cut (In mu2 [seq frame_mu0 x | x <- mus]).
+  move=> IN; clear - IN; elim: mus IN=> //=.  
+  move=> ? ? IH; case; first by move=> ->; left.
+  by move=> IN; right; apply: (IH IN). 
+  by apply: (H _ (or_introl erefl)). }
+by rewrite predIC (predI_sub4 (S _ IN)).
+by move=> mu H2; apply: (H mu (or_intror H2)).
+Qed.
+
+Lemma extern_of_trash_join_all : 
+    extern_of (join_all mu_trash [seq frame_mu0 x | x <- mus])
+  = extern_of mu_trash.
+Proof.
+extensionality b.
+move: (trash_eincr_rest (trash_min trinv)).
+elim: mus=> // mu0 mus' IH /= eincr.
+rewrite /join2.
+rewrite IH.
+case eOf0: (extern_of mu0 b)=> [[x y]|].
+case eOftr: (extern_of mu_trash b)=> [[x' y']|//].
+rewrite (eincr mu0 (or_introl erefl) _ _ _ eOftr) in eOf0.
+by case: eOf0=> -> ->; rewrite Pos.eqb_refl Zeq_bool_refl.
+case eOftr: (extern_of mu_trash b)=> [[x' y']|//].
+by move: (eincr mu0 (or_introl erefl) _ _ _ eOftr); rewrite eOf0.
+by move=> mu H; apply: (eincr mu (or_intror H)).
+Qed.
+
+Lemma extern_of_trash_join_all_sub mus' :
+  (forall mu, List.In mu mus' -> List.In mu mus) -> 
+    extern_of (join_all mu_trash [seq frame_mu0 x | x <- mus'])
+  = extern_of mu_trash.
+Proof.
+move=> S. 
+suff: extern_of (join_all mu_trash [seq frame_mu0 x | x <- mus']) 
+    = extern_of (join_all mu_trash [seq frame_mu0 x | x <- mus]).
+move=> ->; apply: extern_of_trash_join_all.
+elim EQ: mus' S=> [|mu0 mus''] /=.
+by move=> S; rewrite extern_of_trash_join_all.
+move=> /= IH H; rewrite IH.
+rewrite extern_of_trash_join_all.
+rewrite /join2; extensionality b.
+move: (trash_eincr_rest (trash_min trinv)).
+move: (H mu0 (or_introl erefl))=> IN0.
+have IN: 
+  In ((Inj.mu \o frame_mu0) mu0) [seq (Inj.mu \o frame_mu0) x0 | x0 <- mus].
+{ elim: mus IN0=> //= ? ? IH'; case; first by move=> ->; left.
+  by move=> H'; right; apply: (IH' H'). }
+move=> eincr.
+case eOf0: (extern_of mu0 b)=> [[x y]|].
+case eOftr: (extern_of mu_trash b)=> [[x' y']|//].
+move: (eincr mu0 IN _ _ _ eOftr); rewrite eOf0; case=> -> ->.
+by rewrite Pos.eqb_refl Zeq_bool_refl.
+case eOftr: (extern_of mu_trash b)=> [[x' y']|//].
+by move: (eincr mu0 IN _ _ _ eOftr); rewrite eOf0.
+by move=> mu IN; apply: H; right.
+Qed.
+
+Lemma extern_of_trash_join_all' : 
+    extern_of (join_all mu_trash' [seq frame_mu0 x | x <- mus])
+  = extern_of mu_trash.
+Proof.
+extensionality b.
+move: (trash_eincr_top (trash_min trinv)).
+move: (trash_eincr_rest (trash_min trinv)).
+elim: mus. 
+move=> eincr_r eincr_t; rewrite /= /join2.
+case eOf0: (extern_of mu_top b)=> [[x y]|].
+case eOftr: (extern_of mu_trash b)=> [[x' y']|//].
+rewrite (eincr_t _ _ _ eOftr) in eOf0.
+by case: eOf0=> -> ->; rewrite Pos.eqb_refl Zeq_bool_refl.
+case eOftr: (extern_of mu_trash b)=> [[x' y']|//].
+by move: (eincr_t _ _ _ eOftr); rewrite eOf0.
+move=> mu0 mus' IH eincr_r eincr_t; rewrite /= /join2.
+rewrite IH.
+case eOf0: (extern_of mu0 b)=> [[x y]|].
+case eOftr: (extern_of mu_trash b)=> [[x' y']|//].
+rewrite (eincr_r mu0 (or_introl erefl) _ _ _ eOftr) in eOf0.
+by case: eOf0=> -> ->; rewrite Pos.eqb_refl Zeq_bool_refl.
+case eOftr: (extern_of mu_trash b)=> [[x' y']|//].
+by move: (eincr_r mu0 (or_introl erefl) _ _ _ eOftr); rewrite eOf0.
+by move=> mu H; apply: (eincr_r mu (or_intror H)).
+by [].
+Qed.
+
+End trash_inv_lems.
 
 Definition frgnS_contained mu_trash mu mus :=
   forall b, 
@@ -1424,7 +1865,7 @@ Lemma trash_inv_step (mu_trash : Inj.t) mupkg mupkg' (mus : seq frame_pkg) :
   trash_inv mu_trash mupkg mus m1 m2 -> 
   trash_inv mu_trash mupkg' mus m1' m2'.
 Proof.
-move=> A B; case=> C D E /= []F G []H I []K L CtS CtT CrS CrT. 
+move=> A B; case=> C D E /= []F G []H I []K L Min.
 apply: Build_trash_inv=> //=.
 by apply: (sm_valid_fwd E fwd1 fwd2).
 split=> //.
@@ -1448,10 +1889,17 @@ case; move/(_ _ DS); case.
 by case: (as_inj_DomRng _ _ _ _ A2 (Inj_wd _)).
 case: E=> H1 H2; apply: H1; rewrite /DOM.
 by case: (as_inj_DomRng _ _ _ _ A1 (Inj_wd _))=> ->.
+case: Min=> CtS CtT CrS CrT FS FT FrS FrT EiT EiR.
+apply: Build_trash_minimal=> //.
 move=> b X; move: (CtS _ X); rewrite /in_mem /=.
 by rewrite A B (intern_incr_extsrc incr).
 move=> b X; move: (CtT _ X); rewrite /in_mem /=.
 by rewrite A B (intern_incr_exttgt incr).
+move=> b X; move: (FS _ X); rewrite /in_mem /=.
+by rewrite A B (intern_incr_frgnsrc incr).
+move=> b X; move: (FT _ X); rewrite /in_mem /=.
+by rewrite A B (intern_incr_frgntgt incr).
+by rewrite B -(intern_incr_extern incr) -A.
 Qed.
 
 End step_lems.
@@ -2012,7 +2460,7 @@ set mu_new' := Inj.mk mu_new_wd.
 
 have cons_trash_j: consistent (as_inj mu_trash) j.
 { rewrite /j /consistent=> b1 b2 b2' d2 d2' eOf asInj.
-  case: trinv=> X Y Z W U V ? ? ? ?.
+  case: trinv=> X Y Z W U V; case=> ? ? ? ? ? ? ? ? ? ?.
   move: V=> /=; case=> AA BB.
   by apply: (AA b1 b2 b2' d2 d2' eOf asInj). }
 
@@ -2129,17 +2577,32 @@ have mu_new_vis_inv: vis_inv c1 mu_new'.
 
 have trinv_new:
   trash_inv mu_trash mu_new' (pkg :: mus) m1 m2.
-{ case: trinv=> X Y Z W U V CtS CtT CrS CrT.
+{ case: trinv=> X Y Z W U V; case=> CtS CtT CrS CrT FS FT FrS FrT EiT EiR.
   apply: Build_trash_inv=> //.
   split=> //=; first by rewrite predI01.
   split=> //=; first by rewrite predI01. 
   by split=> //=; rewrite /mu_new initial_SM_as_inj. 
+  apply: Build_trash_minimal=> //.
   move=> b AA; move: (CtS _ AA); rewrite /in_mem /= /domS /DomSrc.
   by move=> ->; apply/orP; right.
   move=> b AA; move: (CtT _ AA); rewrite /in_mem /= /domT /DomTgt.
   by move=> ->; apply/orP; right.
   move=> mu0 /=; case; first by move=> <-. by apply: (CrS mu0).
-  move=> mu0 /=; case; first by move=> <-. by apply: (CrT mu0). }
+  move=> mu0 /=; case; first by move=> <-. by apply: (CrT mu0).
+  move=> b AA; move: (FS _ AA); rewrite /in_mem /= /frgnS /DomSrc.
+  rewrite /exportedSrc sharedSrc_iff_frgnpub. 
+  by move=> ->; apply/orP; right.
+  by apply: Inj_wd.
+  move=> b AA; move: (FT _ AA); rewrite /in_mem /= /frgnT /DomTgt.
+  by rewrite /exportedTgt /sharedTgt; move=> ->; apply/orP; right.
+  move=> mu0 /=; case; first by move=> <-. by apply: (FrS mu0).
+  move=> mu0 /=; case; first by move=> <-. by apply: (FrT mu0). 
+  rewrite /mu_new' /= /j.
+  apply: (inject_incr_trans 
+    (extern_of mu_trash) (extern_of mu_top) (as_inj mu_top))=> //.
+  by apply: extern_in_all.
+  move=> /= mu0; case; first by move=> <-.
+  by apply: EiR. }
 
 have mu_new'_ctndS: 
   frgnS_contained mu_trash mu_new' (pkg :: mus).
@@ -2561,11 +3024,10 @@ move=> /= mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail.
 set mu_trash'' := join_sm mu_top mu_trash.
 
 have mu_trash''_wd : SM_wd mu_trash''.
-{ case: trinv=> /= ? ? ? []H1 H2 []H3 H4 []H5 H6.
-(*  apply: join_sm_wd=> //; first by move: H1; rewrite DisjointC; apply.
+{ case: trinv=> /= ? ? ? []H1 H2 []H3 H4 []H5 H6; case=> ? ? ? ? ? ? ? ? ? ?.
+  apply: join_sm_wd=> //; first by move: H1; rewrite DisjointC; apply.
   by move: H3; rewrite DisjointC; apply.
-  by move: H5; move/consistentC; apply.*)
-  admit. }
+  by move: H5; move/consistentC; apply. }
 
 set mu_trash' := Inj.mk mu_trash''_wd.
 
@@ -2581,6 +3043,65 @@ have mu'_wd : SM_wd mu'.
 exists (Build_frame_pkg mu_trash'_val),(Inj.mk mu'_wd),(tl mus),x.
 
 move=> /=; split=> //.
+
+set mu0_pkg := {| frame_mu0 := mu0; frame_m10 := m10; frame_m20 := m20;
+                  frame_val := mu0_val |}.
+
+have vis_eq: 
+  (vis (join_sm mu_top 
+    (join_sm mu0 (join_all mu_trash [seq frame_mu0 i | i <- mus'])))
+  = vis (join_sm mu' (join_all mu_trash' [seq frame_mu0 i | i <- mus']))).
+{ rewrite /vis /mu_trash' /mu' /join_sm /in_mem /= /in_mem /=; f_equal=> //=.
+  extensionality b; rewrite /in_mem /=.
+  rewrite replace_externs_locBlocksSrc /nu'.
+  rewrite reestablish_locBlocksSrc /nu replace_locals_locBlocksSrc.
+  rewrite replace_externs_frgnBlocksSrc.
+  rewrite /frgnSrc' /nu' reestablish_DomSrc /nu.
+  rewrite reestablish_locBlocksSrc replace_locals_locBlocksSrc.
+  rewrite (frgnS_join_all'_sub trinv).
+  set ll := [&& DomSrc mu_top b, _ & _].
+  have S: frgnBlocksSrc mu_trash b -> ll.
+  { move=> F; clear - F trinv mus_eq nu'_wd; rewrite /ll; apply/andP; split.
+    apply/orP; right; apply: (trash_ctnd_topS (trash_min trinv)).
+    by rewrite /in_mem /=; apply: (frgnsrc_sub_extsrc F).
+    apply/andP; split.
+    suff: extBlocksSrc mu0 b.
+    by move/(extBlocksSrc_locBlocksSrc _ (Inj_wd _) _)=> ->.
+    apply: (trash_ctnd_restS (trash_min trinv)).
+    by rewrite mus_eq /=; left.
+    by rewrite /in_mem /=; apply: (frgnsrc_sub_extsrc F).
+    apply: REACH_nil.
+    rewrite /exportedSrc sharedSrc_iff_frgnpub.
+    apply/orP; right; apply/orP; left.
+    suff: frgnBlocksSrc (replace_locals mu0 pubSrc' pubTgt') b.
+    by rewrite reestablish_frgnBlocksSrc.
+    rewrite replace_locals_frgnBlocksSrc.
+    apply: (trash_fctnd_restS (trash_min trinv))=> //.
+    by rewrite mus_eq /=; left.
+    by apply: nu'_wd. }
+  have eq: (ll && frgnBlocksSrc mu_trash b) = frgnBlocksSrc mu_trash b.
+  { by rewrite andb_comm predI_sub5. }
+  rewrite eq.
+  rewrite (frgnS_join_all_sub trinv).
+  rewrite (andb_comm (frgnBlocksSrc mu0 b)).
+  rewrite andb_assoc.
+  rewrite (andb_comm (frgnBlocksSrc mu_top b)).
+  rewrite predI_sub5.
+  rewrite predI_sub5.
+  rewrite join_all_shift_locBlocksSrcE /= /in_mem /=.
+  rewrite orb_assoc.
+  rewrite (orb_comm (locBlocksSrc mu_top b)).
+  by rewrite (orb_assoc (locBlocksSrc mu0 b)).
+  by apply: (trash_fctnd_topS (trash_min trinv)).
+  case/andP=> H1 H2; move: (trash_fctnd_restS (trash_min trinv)).
+  have IN: In (Inj.mu mu0) 
+              [seq (Inj.mu \o frame_mu0) x | x <- mus].
+  { by rewrite mus_eq /=; left. }
+  by move/(_ mu0 IN); apply.
+  by rewrite mus_eq /= => mu1 IN; right. 
+  by rewrite mus_eq /= => mu1 IN; right. 
+  rewrite replace_locals_locBlocksSrc=> b0 locS.
+  by case: incr0_top=> _ []incrS _; apply: incrS; apply/orP; left. }
 
 rewrite mu_eq mus_eq; f_equal=> /=.
 
@@ -2598,28 +3119,22 @@ rewrite mu_eq mus_eq; f_equal=> /=.
   rewrite reestablish_locBlocksTgt.
   by rewrite replace_locals_locBlocksTgt. }
 
-{ rewrite join_all_shift_local_of.
-  rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
-  rewrite !replace_externs_local.
-  rewrite !reestablish_local_of.
-  rewrite !replace_locals_local.
-  set ll := (join (local_of mu0) 
-    (local_of (join_all (Inj.mk mu_trash''_wd) [seq frame_mu0 i | i <- mus']))).
-  rewrite /join_sm /vis /= /in_mem /= /in_mem /=.
-  rewrite !replace_externs_locBlocksSrc.
-  rewrite !replace_externs_frgnBlocksSrc.
-  rewrite reestablish_locBlocksSrc.
-  rewrite replace_locals_locBlocksSrc.
-  rewrite /frgnSrc' /nu' /nu. 
-  (*rewrite reestablish_DomSrc.*)
-  rewrite !reestablish_locBlocksSrc.
-  rewrite !replace_locals_locBlocksSrc.
-  admit. (*need join_all lems for frgnBlocks,
-           need lem relating sharedSrc/reestablish/replace_locals*) 
-  admit. (*disjointness*) }
+{ have inj_eq: 
+  (join (local_of mu_top)
+    (join (local_of mu0) 
+          (local_of (join_all mu_trash [seq frame_mu0 i | i <- mus'])))
+  = (join (local_of mu') 
+          (local_of (join_all mu_trash' [seq frame_mu0 i | i <- mus'])))).
+  { rewrite join_all_shift_local_of.
+    rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
+    rewrite !replace_externs_local.
+    rewrite !reestablish_local_of.
+    by rewrite !replace_locals_local. 
+    admit. (*disjointness*) }
+  by rewrite inj_eq vis_eq. }
 
 { extensionality b.
-  rewrite join_all_shift_frgnBlocksSrc.
+  rewrite join_all_shift_extBlocksSrc.
   rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
   rewrite replace_externs_extBlocksSrc.
   rewrite reestablish_extBlocksSrc.
@@ -2639,12 +3154,61 @@ rewrite mu_eq mus_eq; f_equal=> /=.
   by rewrite eSrc0_f; split.
   split; case=> H1 []H2 H3; split=> //.
   by case: (andP H2)=> AA BB; rewrite /DomSrc AA; apply/orP; right.
-  case: (andP H2)=> AA BB; move: (trash_ctnd_restS trinv); rewrite mus_eq.
-  set mu0_pkg := {| frame_mu0 := mu0; frame_m10 := m10; frame_m20 := m20;
-                    frame_val := mu0_val |}.
+  case: (andP H2)=> AA BB. 
+  move: (trash_min trinv); rewrite mus_eq; move/trash_ctnd_restS.
   by move/(_ mu0_pkg); apply=> //=; left. }
 
-admit. admit. admit. admit.
+{ extensionality b.
+  rewrite join_all_shift_extBlocksTgt.
+  rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
+  rewrite replace_externs_extBlocksTgt.
+  rewrite reestablish_extBlocksTgt.
+  rewrite replace_locals_locBlocksTgt. 
+  cut ((extBlocksTgt mu0 b /\
+        extBlocksTgt (join_all (Inj.mk mu_trash''_wd) 
+          [seq frame_mu0 i | i <- mus']) b) 
+       <-> ((if locBlocksTgt mu0 b then false else DomTgt mu_top b) /\
+           (extBlocksTgt (join_all (Inj.mk mu_trash''_wd) 
+             [seq frame_mu0 i | i <- mus']) b))).
+  admit. (*easy*)
+  rewrite join_all_extBlocksTgt /= /in_mem /=.
+  case lTgt0: (locBlocksTgt mu0 b).
+  have eTgt0_f: extBlocksTgt mu0 b = false. 
+  { case eOf: (extBlocksTgt mu0 b)=> //.
+    by rewrite (extBlocksTgt_locBlocksTgt _ (Inj_wd _) _ eOf) in lTgt0. }
+  by rewrite eTgt0_f; split.
+  split; case=> H1 []H2 H3; split=> //.
+  by case: (andP H2)=> AA BB; rewrite /DomTgt AA; apply/orP; right.
+  case: (andP H2)=> AA BB. 
+  move: (trash_min trinv); rewrite mus_eq; move/trash_ctnd_restT.
+  by move/(_ mu0_pkg); apply=> //=; left. }
+
+{ rewrite -join_all_frgnS_cons. 
+  have eq: (mu0 :: [seq frame_mu0 i | i <- mus'])
+         = [seq frame_mu0 i | i <- [:: mu0_pkg & mus']] by [].
+  rewrite eq -mus_eq.
+  rewrite (frgnS_join_all trinv).
+  rewrite (frgnS_join_all'_sub trinv).
+  admit. (*pretty easy*)
+  by rewrite mus_eq=> /= mu1 IN; right. } 
+
+{ rewrite -join_all_frgnT_cons. 
+  have eq: (mu0 :: [seq frame_mu0 i | i <- mus'])
+         = [seq frame_mu0 i | i <- [:: mu0_pkg & mus']] by [].
+  rewrite eq -mus_eq.
+  rewrite (frgnT_join_all trinv).
+  rewrite (frgnT_join_all'_sub trinv).
+  admit. (*pretty easy*)
+  by rewrite mus_eq=> /= mu1 IN; right. } 
+
+{ have inj_eq: 
+  (join2 (extern_of mu_top)
+    (join2 (extern_of mu0) 
+          (extern_of (join_all mu_trash [seq frame_mu0 i | i <- mus'])))
+  = (join2 (extern_of mu') 
+          (extern_of (join_all mu_trash' [seq frame_mu0 i | i <- mus'])))).
+  { admit. }
+  by rewrite inj_eq vis_eq. }
 
 admit. 
 

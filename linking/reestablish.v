@@ -23,6 +23,16 @@ Lemma reestablish_extBlocksTgt mu0 mu :
   = (fun b => if locBlocksTgt mu0 b then false else DomTgt mu b).
 Proof. by case: mu0; case: mu. Qed.
 
+Lemma reestablish_frgnBlocksSrc mu0 mu : 
+  frgnBlocksSrc (reestablish mu0 mu) 
+  = frgnBlocksSrc mu0.
+Proof. by case: mu0; case: mu. Qed.
+
+Lemma reestablish_frgnBlocksTgt mu0 mu : 
+  frgnBlocksTgt (reestablish mu0 mu) 
+  = frgnBlocksTgt mu0.
+Proof. by case: mu0; case: mu. Qed.
+
 Lemma reestablish_local_of mu0 mu :
   local_of (reestablish mu0 mu) = local_of mu0.
 Proof. by case: mu0; case: mu. Qed.

@@ -710,6 +710,26 @@ Lemma join_all_cons mu0 mu mus :
   join_all mu0 (mu :: mus) = join_sm mu (join_all mu0 mus).
 Proof. by []. Qed.
 
+Lemma join_all_frgnS_cons mu0 mu mus : 
+  frgnBlocksSrc (join_all mu0 (mu :: mus))
+  = [predI (frgnBlocksSrc mu) & frgnBlocksSrc (join_all mu0 mus)].
+Proof. by rewrite join_all_cons. Qed.
+
+Lemma join_all_frgnT_cons mu0 mu mus : 
+  frgnBlocksTgt (join_all mu0 (mu :: mus))
+  = [predI (frgnBlocksTgt mu) & frgnBlocksTgt (join_all mu0 mus)].
+Proof. by rewrite join_all_cons. Qed.
+
+Lemma join_all_extS_cons mu0 mu mus : 
+  extBlocksSrc (join_all mu0 (mu :: mus))
+  = [predI (extBlocksSrc mu) & extBlocksSrc (join_all mu0 mus)].
+Proof. by rewrite join_all_cons. Qed.
+
+Lemma join_all_extT_cons mu0 mu mus : 
+  extBlocksTgt (join_all mu0 (mu :: mus))
+  = [predI (extBlocksTgt mu) & extBlocksTgt (join_all mu0 mus)].
+Proof. by rewrite join_all_cons. Qed.
+
 Lemma join_all_disjoint_src mu0 (mu : Inj.t) mus :
   All (fun mu' => Disjoint (locBlocksSrc mu0) (locBlocksSrc mu')) 
     (map Inj.mu (mu :: mus)) -> 
@@ -2054,18 +2074,17 @@ Variable mu_trash''_wd : SM_wd mu_trash''.
 
 Let mu_trash' := Inj.mk mu_trash''_wd.
 
-Lemma join_all_shift_locBlocksSrc :
-    [predU (locBlocksSrc mu0) 
-    & locBlocksSrc (join_all mu_trash [:: mu1 & mus])]
-  = [predU (locBlocksSrc mu1)
-    & locBlocksSrc (join_all mu_trash' mus)].
+Lemma join_all_shift_locBlocksSrcE :
+  locBlocksSrc (join_all mu_trash' mus)
+  = [predU (locBlocksSrc mu0)
+    & locBlocksSrc (join_all mu_trash mus)].
 Proof.
 rewrite /= /predU; f_equal; extensionality b; rewrite /in_mem /= /in_mem /=.
 case lOf0: (locBlocksSrc mu0)=> /=.
 have H: locBlocksSrc (join_all mu_trash' mus) b.
 { rewrite join_all_locBlocksSrc; left; rewrite /mu_trash' /=.
   by apply/orP; rewrite /in_mem /=; left. }
-by rewrite H; rewrite orb_true_r.
+by [].
 have H: 
       is_true (locBlocksSrc (join_all mu_trash mus) b) 
   <-> is_true (locBlocksSrc (join_all mu_trash' mus) b).
@@ -2080,18 +2099,27 @@ have H2:
 by rewrite H2. 
 Qed.
 
-Lemma join_all_shift_locBlocksTgt :
-    [predU (locBlocksTgt mu0) 
-    & locBlocksTgt (join_all mu_trash [:: mu1 & mus])]
-  = [predU (locBlocksTgt mu1)
-    & locBlocksTgt (join_all mu_trash' mus)].
+Lemma join_all_shift_locBlocksSrc :
+    [predU (locBlocksSrc mu0) 
+    & locBlocksSrc (join_all mu_trash [:: mu1 & mus])]
+  = [predU (locBlocksSrc mu1)
+    & locBlocksSrc (join_all mu_trash' mus)].
+Proof.
+rewrite join_all_shift_locBlocksSrcE /=.
+by rewrite predUA predUC -predUA.
+Qed.
+
+Lemma join_all_shift_locBlocksTgtE :
+  locBlocksTgt (join_all mu_trash' mus)
+  = [predU (locBlocksTgt mu0)
+    & locBlocksTgt (join_all mu_trash mus)].
 Proof.
 rewrite /= /predU; f_equal; extensionality b; rewrite /in_mem /= /in_mem /=.
 case lOf0: (locBlocksTgt mu0)=> /=.
 have H: locBlocksTgt (join_all mu_trash' mus) b.
 { rewrite join_all_locBlocksTgt; left; rewrite /mu_trash' /=.
   by apply/orP; rewrite /in_mem /=; left. }
-by rewrite H; rewrite orb_true_r.
+by [].
 have H: 
       is_true (locBlocksTgt (join_all mu_trash mus) b) 
   <-> is_true (locBlocksTgt (join_all mu_trash' mus) b).
@@ -2106,72 +2134,108 @@ have H2:
 by rewrite H2. 
 Qed.
 
-Lemma join_all_shift_frgnBlocksSrc :
-    [predI (extBlocksSrc mu0) 
-    & extBlocksSrc (join_all mu_trash [:: mu1 & mus])]
-  = [predI (extBlocksSrc mu1)
-    & extBlocksSrc (join_all mu_trash' mus)].
+Lemma join_all_shift_locBlocksTgt :
+    [predU (locBlocksTgt mu0) 
+    & locBlocksTgt (join_all mu_trash [:: mu1 & mus])]
+  = [predU (locBlocksTgt mu1)
+    & locBlocksTgt (join_all mu_trash' mus)].
+Proof.
+rewrite join_all_shift_locBlocksTgtE /=.
+by rewrite predUA predUC -predUA.
+Qed.
+
+Lemma join_all_shift_extBlocksSrcE :
+  extBlocksSrc (join_all mu_trash' mus)
+  = [predI (extBlocksSrc mu0)
+    & extBlocksSrc (join_all mu_trash mus)].
 Proof.
 rewrite /= /predI; f_equal; extensionality b; rewrite /in_mem /= /in_mem /=.
 case eOf0: (extBlocksSrc mu0)=> /=.
-cut ((extBlocksSrc mu1 b 
-      /\ extBlocksSrc (join_all mu_trash mus) b)
-     <->
-     (extBlocksSrc mu1 b
-     /\ extBlocksSrc (join_all mu_trash' mus) b)).
+cut (extBlocksSrc (join_all mu_trash mus) b
+ <-> extBlocksSrc (join_all mu_trash' mus) b).
 case: (extBlocksSrc mu1 b)=> //.
 case: (extBlocksSrc _ _)=> //.
 case: (extBlocksSrc _ _)=> //.
-by case; case.
+case. by move/(_ erefl). case.
 case: (extBlocksSrc _ _)=> //.
 case: (extBlocksSrc _ _)=> //.
-by case=> _; case.
-by case=> _; case.
+by move=> _; move/(_ erefl). 
+by move=> _; move/(_ erefl).
+case. 
+case: (extBlocksSrc _ _)=> //.
+case: (extBlocksSrc _ _)=> //.
+by move/(_ erefl). 
+case: (extBlocksSrc _ _)=> //.
+case: (extBlocksSrc _ _)=> //.
+by move=> _; move/(_ erefl). 
+by move=> _; move/(_ erefl).
 rewrite 2!join_all_extBlocksSrc.
 have H: (extBlocksSrc mu_trash b = extBlocksSrc mu_trash' b).
 { by rewrite /mu_trash' /= /in_mem /= eOf0. }
 by rewrite -H.
 cut (false 
- <-> extBlocksSrc mu1 b /\ extBlocksSrc (join_all mu_trash' mus) b).
-case: (extBlocksSrc mu1 b)=> //.
+ <-> extBlocksSrc (join_all mu_trash' mus) b).
 case: (extBlocksSrc _ _)=> //.
-by case=> _ H1; move: (H1 (conj erefl erefl)). 
+by case=> _; move/(_ erefl).
 rewrite join_all_extBlocksSrc /mu_trash' /= /in_mem /= eOf0 /=.
-by split=> //; last by case=> []_ [].
+by split=> //; last by case.
 Qed.
 
-Lemma join_all_shift_frgnBlocksTgt :
-    [predI (extBlocksTgt mu0) 
-    & extBlocksTgt (join_all mu_trash [:: mu1 & mus])]
-  = [predI (extBlocksTgt mu1)
-    & extBlocksTgt (join_all mu_trash' mus)].
+Lemma join_all_shift_extBlocksSrc :
+    [predI (extBlocksSrc mu0) 
+    & extBlocksSrc (join_all mu_trash [:: mu1 & mus])]
+  = [predI (extBlocksSrc mu1)
+    & extBlocksSrc (join_all mu_trash' mus)].
+Proof.
+rewrite join_all_shift_extBlocksSrcE /=.
+by rewrite predIA predIC -predIA.
+Qed.
+
+Lemma join_all_shift_extBlocksTgtE :
+  extBlocksTgt (join_all mu_trash' mus)
+  = [predI (extBlocksTgt mu0)
+    & extBlocksTgt (join_all mu_trash mus)].
 Proof.
 rewrite /= /predI; f_equal; extensionality b; rewrite /in_mem /= /in_mem /=.
 case eOf0: (extBlocksTgt mu0)=> /=.
-cut ((extBlocksTgt mu1 b 
-      /\ extBlocksTgt (join_all mu_trash mus) b)
-     <->
-     (extBlocksTgt mu1 b
-     /\ extBlocksTgt (join_all mu_trash' mus) b)).
+cut (extBlocksTgt (join_all mu_trash mus) b
+ <-> extBlocksTgt (join_all mu_trash' mus) b).
 case: (extBlocksTgt mu1 b)=> //.
 case: (extBlocksTgt _ _)=> //.
 case: (extBlocksTgt _ _)=> //.
-by case; case.
+case. by move/(_ erefl). case.
 case: (extBlocksTgt _ _)=> //.
 case: (extBlocksTgt _ _)=> //.
-by case=> _; case.
-by case=> _; case.
+by move=> _; move/(_ erefl). 
+by move=> _; move/(_ erefl).
+case. 
+case: (extBlocksTgt _ _)=> //.
+case: (extBlocksTgt _ _)=> //.
+by move/(_ erefl). 
+case: (extBlocksTgt _ _)=> //.
+case: (extBlocksTgt _ _)=> //.
+by move=> _; move/(_ erefl). 
+by move=> _; move/(_ erefl).
 rewrite 2!join_all_extBlocksTgt.
 have H: (extBlocksTgt mu_trash b = extBlocksTgt mu_trash' b).
 { by rewrite /mu_trash' /= /in_mem /= eOf0. }
 by rewrite -H.
 cut (false 
- <-> extBlocksTgt mu1 b /\ extBlocksTgt (join_all mu_trash' mus) b).
-case: (extBlocksTgt mu1 b)=> //.
+ <-> extBlocksTgt (join_all mu_trash' mus) b).
 case: (extBlocksTgt _ _)=> //.
-by case=> _ H1; move: (H1 (conj erefl erefl)). 
+by case=> _; move/(_ erefl).
 rewrite join_all_extBlocksTgt /mu_trash' /= /in_mem /= eOf0 /=.
-by split=> //; last by case=> []_ [].
+by split=> //; last by case.
+Qed.
+
+Lemma join_all_shift_extBlocksTgt :
+    [predI (extBlocksTgt mu0) 
+    & extBlocksTgt (join_all mu_trash [:: mu1 & mus])]
+  = [predI (extBlocksTgt mu1)
+    & extBlocksTgt (join_all mu_trash' mus)].
+Proof.
+rewrite join_all_shift_extBlocksTgtE /=.
+by rewrite predIA predIC -predIA.
 Qed.
 
 Lemma join_all_shift_local_of :
@@ -2371,7 +2435,3 @@ Qed.
 
 End getBlocks_lems.
 
-
-
-
-  
