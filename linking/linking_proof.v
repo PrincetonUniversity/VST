@@ -463,7 +463,13 @@ Record trash_inv mu_trash mu_top mus m1 m2 : Type :=
   ; trash_disj_T   : All (DisjointLT mu_trash) 
                      $ mu_top :: [seq (Inj.mu \o frame_mu0) x | x <- mus]
   ; trash_consist  : All (Consistent mu_trash) 
-                     $ mu_top :: [seq (Inj.mu \o frame_mu0) x | x <- mus] }.
+                     $ mu_top :: [seq (Inj.mu \o frame_mu0) x | x <- mus] 
+  ; trash_ctnd_topS  : {subset (extBlocksSrc mu_trash) <= extBlocksSrc mu_top} 
+  ; trash_ctnd_topT  : {subset (extBlocksTgt mu_trash) <= extBlocksTgt mu_top} 
+  ; trash_ctnd_restS : forall mu, List.In mu mus -> 
+                       {subset (extBlocksSrc mu_trash) <= extBlocksSrc mu} 
+  ; trash_ctnd_restT : forall mu, List.In mu mus -> 
+                       {subset (extBlocksTgt mu_trash) <= extBlocksTgt mu} }.
 
 End trash_inv.
 
@@ -1418,7 +1424,8 @@ Lemma trash_inv_step (mu_trash : Inj.t) mupkg mupkg' (mus : seq frame_pkg) :
   trash_inv mu_trash mupkg mus m1 m2 -> 
   trash_inv mu_trash mupkg' mus m1' m2'.
 Proof.
-move=> A B; case=> C D E /= []F G []H I []K L; apply: Build_trash_inv=> //=.
+move=> A B; case=> C D E /= []F G []H I []K L CtS CtT CrS CrT. 
+apply: Build_trash_inv=> //=.
 by apply: (sm_valid_fwd E fwd1 fwd2).
 split=> //.
 rewrite B; eapply DisjointLS_intern_step; eauto.
@@ -1441,6 +1448,10 @@ case; move/(_ _ DS); case.
 by case: (as_inj_DomRng _ _ _ _ A2 (Inj_wd _)).
 case: E=> H1 H2; apply: H1; rewrite /DOM.
 by case: (as_inj_DomRng _ _ _ _ A1 (Inj_wd _))=> ->.
+move=> b X; move: (CtS _ X); rewrite /in_mem /=.
+by rewrite A B (intern_incr_extsrc incr).
+move=> b X; move: (CtT _ X); rewrite /in_mem /=.
+by rewrite A B (intern_incr_exttgt incr).
 Qed.
 
 End step_lems.
@@ -2001,7 +2012,7 @@ set mu_new' := Inj.mk mu_new_wd.
 
 have cons_trash_j: consistent (as_inj mu_trash) j.
 { rewrite /j /consistent=> b1 b2 b2' d2 d2' eOf asInj.
-  case: trinv=> X Y Z W U V.
+  case: trinv=> X Y Z W U V ? ? ? ?.
   move: V=> /=; case=> AA BB.
   by apply: (AA b1 b2 b2' d2 d2' eOf asInj). }
 
@@ -2118,11 +2129,17 @@ have mu_new_vis_inv: vis_inv c1 mu_new'.
 
 have trinv_new:
   trash_inv mu_trash mu_new' (pkg :: mus) m1 m2.
-{ case: trinv=> X Y Z W U V.
+{ case: trinv=> X Y Z W U V CtS CtT CrS CrT.
   apply: Build_trash_inv=> //.
   split=> //=; first by rewrite predI01.
   split=> //=; first by rewrite predI01. 
-  by split=> //=; rewrite /mu_new initial_SM_as_inj. }
+  by split=> //=; rewrite /mu_new initial_SM_as_inj. 
+  move=> b AA; move: (CtS _ AA); rewrite /in_mem /= /domS /DomSrc.
+  by move=> ->; apply/orP; right.
+  move=> b AA; move: (CtT _ AA); rewrite /in_mem /= /domT /DomTgt.
+  by move=> ->; apply/orP; right.
+  move=> mu0 /=; case; first by move=> <-. by apply: (CrS mu0).
+  move=> mu0 /=; case; first by move=> <-. by apply: (CrT mu0). }
 
 have mu_new'_ctndS: 
   frgnS_contained mu_trash mu_new' (pkg :: mus).
@@ -2222,7 +2239,6 @@ by rewrite st1'_eq /st2'; apply: (R_fntbl inv).
 Qed.
 
 End call_lems.
-
 
 Lemma sm_inject_separated_replace_locals mu X Y mu' m1 m2 : 
   sm_inject_separated mu mu' m1 m2 -> 
@@ -2618,10 +2634,15 @@ rewrite mu_eq mus_eq; f_equal=> /=.
   rewrite join_all_extBlocksSrc /= /in_mem /=.
   case lSrc0: (locBlocksSrc mu0 b).
   have eSrc0_f: extBlocksSrc mu0 b = false. 
-  { admit. (*easy*) }
+  { case eOf: (extBlocksSrc mu0 b)=> //.
+    by rewrite (extBlocksSrc_locBlocksSrc _ (Inj_wd _) _ eOf) in lSrc0. }
   by rewrite eSrc0_f; split.
-  split=> //. admit. (*easy direction*)
-  admit. }
+  split; case=> H1 []H2 H3; split=> //.
+  by case: (andP H2)=> AA BB; rewrite /DomSrc AA; apply/orP; right.
+  case: (andP H2)=> AA BB; move: (trash_ctnd_restS trinv); rewrite mus_eq.
+  set mu0_pkg := {| frame_mu0 := mu0; frame_m10 := m10; frame_m20 := m20;
+                    frame_val := mu0_val |}.
+  by move/(_ mu0_pkg); apply=> //=; left. }
 
 admit. admit. admit. admit.
 
