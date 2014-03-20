@@ -310,9 +310,24 @@ unfold upd, tuints, ZnthV.
  rewrite Nat2Z.id.
  rewrite (@nth_map' int val _ _ Int.zero).
  f_equal.
- admit.  (* easy *)
- rewrite LENADD. auto.
- admit. (* easy *)
+ assert (i < length regs /\ length atoh = length regs)%nat.
+   split; omega. clear - H2; destruct H2.
+ revert atoh regs H H0; induction i; destruct regs, atoh; simpl; intros;
+   auto; try omega.
+ rewrite <- IHi; auto. omega.
+ rewrite LENADD; auto.
+ destruct H1.
+ apply Z2Nat.inj_lt in H3; try omega.
+ change (Z.to_nat 8) with 8%nat in H3.
+ assert (i <> Z.to_nat j). contradict H2; subst.
+ rewrite Z2Nat.id by omega; auto.
+ clear LENADD H2.
+ forget 8%nat as k.
+ revert i k atoh regs H3 H4 H5 H H0; clear; induction (Z.to_nat j); 
+      simpl; intros; destruct i,k,atoh,regs; auto; try omega.
+ unfold add_upto; fold add_upto.
+ unfold map; fold map. simpl. 
+ apply (IHn _ k); auto; try omega.
 Qed.
 
 Lemma add_them_back_proof:

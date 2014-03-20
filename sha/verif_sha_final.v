@@ -120,9 +120,19 @@ pull_left (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) (Zle
 repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
 replace (offset_val (Int.repr (40 + Zlength dd')) c)%Z
     with (offset_val (Int.repr (sizeof tuchar * Zlength dd')) (offset_val (Int.repr 40) c))%Z.
-destruct (zlt 0 (Z.of_nat CBLOCK - 8 - Zlength dd'));
-  [ | admit].  (* the zero case is simple enough; a similar one is handled above *)
-    replace (Z.of_nat CBLOCK - 8 - Zlength dd')%Z
+destruct (zlt 0 (Z.of_nat CBLOCK - 8 - Zlength dd')).
+Focus 2. {
+  assert (Z.of_nat CBLOCK - 8 - Zlength dd' = 0)%Z.
+    clear - g H0. apply Nat2Z.inj_le in H0. rewrite Nat2Z.inj_add in H0.
+ change (Z.of_nat 8) with 8 in H0; rewrite <- Zlength_correct in H0.
+  omega. 
+ rewrite H8. replace (Z.of_nat CBLOCK - 8) with (Zlength dd') by omega.
+ rewrite array_at_emp. 
+ destruct c; try (contradiction Pc).
+ simpl; rewrite memory_block_zero.
+ apply andp_left2; auto.
+} Unfocus.
+   replace (Z.of_nat CBLOCK - 8 - Zlength dd')%Z
      with (sizeof (tarray tuchar (Z.of_nat CBLOCK - 8 - Zlength dd')))%Z
     by (apply sizeof_tarray_tuchar; omega).
  rewrite memory_block_typed.
@@ -134,16 +144,25 @@ destruct (zlt 0 (Z.of_nat CBLOCK - 8 - Zlength dd'));
   with (Z.of_nat CBLOCK - 8)%Z by (clear; omega).
  apply array_at_ext; intros.
  unfold ZnthV.
-  rewrite if_false by admit. (* easy *)
+  rewrite if_false
+  by (clear - H8; destruct H8 as [H8 _]; rewrite Zlength_correct in H8; omega).
   rewrite if_false by omega.
-  rewrite nth_overflow by admit. (* easy *)
-  rewrite nth_overflow by admit. (* easy *)
+rewrite nth_overflow
+ by (rewrite map_map, map_length;
+     clear - H8; destruct H8 as [H8 _]; rewrite Zlength_correct in H8;
+     rewrite <- (Z2Nat.id i) in H8 by omega; 
+     apply Nat2Z.inj_le; auto).
+  rewrite nth_overflow by (clear; simpl length; omega).
   reflexivity.
   reflexivity.
   change (sizeof tuchar) with 1%Z; rewrite Z.mul_1_l.
   rewrite offset_offset_val. rewrite add_repr; auto.
-  clear - H0; admit.  (* easy *)
-  clear - H0; admit.  (* easy *)
+  clear - H0. apply Nat2Z.inj_le in H0. rewrite Nat2Z.inj_add in H0.
+  rewrite Zlength_correct; change (Z.of_nat CBLOCK) with 64 in *;
+  change (Z.of_nat 8) with 8 in H0; omega.
+  clear - H0. apply Nat2Z.inj_le in H0. rewrite Nat2Z.inj_add in H0.
+  rewrite Zlength_correct; change (Z.of_nat CBLOCK) with 64 in *;
+  change (Z.of_nat 8) with 8 in H0; omega.
   cbv beta iota. autorewrite with subst.
   forward. (* finish the call *)
   apply semax_pre with

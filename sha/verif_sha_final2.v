@@ -298,6 +298,14 @@ entailer!.
  rewrite H1;  reflexivity.
 Qed.
 
+Lemma nth_intlist_to_Zlist_eq:
+ forall d (n i j k: nat) al, (i < n)%nat -> (i < j*4)%nat -> (i < k*4)%nat -> 
+    nth i (intlist_to_Zlist (firstn j al)) d = nth i (intlist_to_Zlist (firstn k al)) d.
+Proof.
+ induction n; destruct i,al,j,k; simpl; intros; auto; try omega.
+ destruct i; auto. destruct i; auto. destruct i; auto.
+ apply IHn; omega.
+Qed.
 
 Definition final_loop :=
  (Ssequence (Sset _xn (Econst_int (Int.repr 0) tint))
@@ -334,6 +342,50 @@ Definition final_loop :=
                     (Sset _xn
                        (Ebinop Oadd (Etempvar _xn tuint)
                           (Econst_int (Int.repr 1) tint) tuint)))).
+
+Lemma nth_intlist_to_Zlist_first_hack:
+  forall  j i al, 
+    (i*4 <= j)%nat ->
+    nth (j-i*4) (intlist_to_Zlist [nth i al Int.zero]) 0 =
+    nth j (intlist_to_Zlist (firstn (S i) al)) 0.
+Proof.
+intros.
+ assert (j= (j-i*4) + i*4)%nat by omega.
+ rewrite H0 at 2.
+ forget (j-i*4)%nat as n. clear.
+ revert n al; induction i; intros.
+ change (0*4)%nat with O.  
+ rewrite NPeano.Nat.add_0_r.
+ destruct al; try reflexivity.
+ simpl firstn.
+ rewrite (nth_overflow nil) by (simpl; auto).
+ simpl intlist_to_Zlist.
+ destruct n; try reflexivity.
+ destruct n; try reflexivity.
+ destruct n; try reflexivity.
+ destruct n; try reflexivity.
+ destruct n; try reflexivity.
+ replace (n + S i * 4)%nat with (n+4 + i*4)%nat
+  by (simpl; omega).
+ destruct al as [ | a al].
+ rewrite (nth_overflow nil) by (simpl; clear; omega).
+ simpl firstn. simpl intlist_to_Zlist.
+ rewrite (nth_overflow nil) by (simpl; clear; omega).
+ destruct n; try reflexivity.
+ destruct n; try reflexivity.
+ destruct n; try reflexivity.
+ destruct n; try reflexivity.
+ destruct n; try reflexivity.
+ simpl nth at 2.
+ replace (firstn (S (S i)) (a :: al)) with (a :: firstn (S i) al).
+ unfold intlist_to_Zlist at 2; fold intlist_to_Zlist.
+ rewrite IHi. clear IHi.
+ replace (n + 4 + i*4)%nat with (S (S (S (S (n + i*4)))))%nat by omega.
+ reflexivity.
+ clear.
+ forget (S i) as j.
+ revert al; induction j; simpl; intros; auto.
+Qed.
 
 Lemma final_part4:
  forall (Espec: OracleKind) md c shmd hashedmsg,
@@ -451,6 +503,7 @@ forward_for
  by (extensionality j; repeat f_equal; simpl; apply Z.add_0_r).
  apply nth_big_endian_integer.
  reflexivity.
+{
  entailer.
  change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))); 
   rewrite memory_block_typed by reflexivity; simpl_data_at.
@@ -474,11 +527,13 @@ forward_for
    [ apply array_at__array_at |].
  rewrite inj_S. unfold Z.succ.
  rewrite Z.mul_add_distr_r. reflexivity.
+}
  normalize.
  forward.
  entailer!.
  unfold loop1_ret_assert;  simpl update_tycon.
  unfold part4_inv. apply exp_right with (S i). rewrite inj_S.
+{
  entailer!.
  f_equal; omega.
  destruct md; try (contradiction Hmd); simpl; f_equal.
@@ -487,7 +542,8 @@ forward_for
  replace (match hashedmsg with
                | [] => []
                | a :: l => a :: firstn i l
-               end) with (firstn (S i) hashedmsg).
+               end) with (firstn (S i) hashedmsg)
+  by (clear; destruct hashedmsg; auto).
  rewrite (split_array_at (Z.of_nat i * 4) tuchar _ _ 0 32 md)
   by (split; omega).
  rewrite (split_array_at (Z.of_nat (S i) * 4) tuchar _ _ (Z.of_nat i * 4) 32 md)
@@ -505,36 +561,97 @@ forward_for
  unfold tuchars, ZnthV. rewrite if_false by omega.
  rewrite if_false by omega.
  rewrite map_map. rewrite map_map.
- rewrite (nth_map' _ _ 0%Z)
-   by admit.  (* straightforward *)
- rewrite (nth_map' _ _ 0%Z)
-   by admit.  (* straightforward *)
+ rewrite (nth_map' _ _ 0%Z).
+Focus 2.
+ clear - H4 H H1. rewrite length_intlist_to_Zlist. rewrite firstn_length.
+  rewrite min_l by omega. destruct H4.
+  apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
+  rewrite Nat2Z.inj_mul; rewrite Z.mul_comm; auto.
+ rewrite (nth_map' _ _ 0%Z).
+Focus 2. clear - H4 H H1. rewrite length_intlist_to_Zlist. rewrite firstn_length.
+  rewrite min_l by omega. destruct H4.
+  apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
+  rewrite Nat2Z.inj_mul. 
+ rewrite Z.mul_comm; rewrite inj_S.
+ unfold Z.succ; rewrite Z.mul_add_distr_r. 
+ change (1 * Z.of_nat 4) with 4.  change (Z.of_nat 4) with 4; omega.
  do 2 f_equal.
- admit. (* straightforward, probably even true *)
+apply (nth_intlist_to_Zlist_eq _ (S (Z.to_nat i0))); try omega.
+ apply Nat2Z.inj_lt. rewrite Z2Nat.id by (clear - H4; omega).
+  rewrite Nat2Z.inj_mul; apply H4.
+ apply Nat2Z.inj_lt. rewrite Z2Nat.id by (clear - H4; omega).
+ clear - H4; rewrite Nat2Z.inj_mul; rewrite inj_S;
+  unfold Z.succ; rewrite Z.mul_add_distr_r.
+  change (Z.of_nat 4) with 4; omega.
  rewrite Z.add_0_r.
  replace  (Z.of_nat (S i) * 4)%Z  with (Z.of_nat i * 4 + 4)%Z
   by (rewrite inj_S; unfold Z.succ; rewrite Z.mul_add_distr_r; reflexivity).
  apply derives_refl'; apply equal_f; apply array_at_ext; intros.
  unfold cVint, bytes, tuchars, ZnthV, Basics.compose.
  rewrite if_false by omega. rewrite if_false by omega.
- rewrite (nth_map' _ _ Int.zero).
- rewrite (nth_map' _ _ Int.zero).
- unfold force_int. f_equal.
- admit. (* straightforward *)
- admit. (* straightforward *)
- admit. (* straightforward *)
+ repeat rewrite map_map.
+ rewrite (nth_map' _ _ 0).
+Focus 2.
+ simpl. apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
+ change (Z.of_nat 4) with 4; omega.
+ rewrite (nth_map' _ _ 0).
+Focus 2. clear - H4 H H1. rewrite length_intlist_to_Zlist. 
+ rewrite firstn_length;  rewrite min_l by omega. destruct H4.
+  apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
+  rewrite Nat2Z.inj_mul. 
+ rewrite Z.mul_comm; rewrite inj_S.
+ unfold Z.succ; rewrite Z.mul_add_distr_r. 
+ change (1 * Z.of_nat 4) with 4.  change (Z.of_nat 4) with 4; omega.
+ unfold force_int. f_equal. f_equal.
+ clear - H4.
+ assert (Z.to_nat i0 = (Z.to_nat i0 - i*4) + (i * 4))%nat.
+ destruct H4 as [? _]. apply Z2Nat.inj_le in H; try omega.
+ change 4 with (Z.of_nat 4) in H. rewrite <- Nat2Z.inj_mul in H.  
+ rewrite Nat2Z.id in H. omega. clear H4.
+ unfold w; clear w.
+ rewrite Z2Nat.inj_sub by omega.
+  change 4 with (Z.of_nat 4). rewrite <- Nat2Z.inj_mul.  
+ rewrite Nat2Z.id. 
+ assert (i*4 <= Z.to_nat i0)%nat by omega.
+ apply nth_intlist_to_Zlist_first_hack; auto.
  rewrite inj_S.
  apply derives_refl'; apply equal_f; apply array_at_ext; intros.
  unfold tuchars, ZnthV. rewrite if_false by omega.
  rewrite if_false by omega.
  rewrite map_map. rewrite map_map.
- rewrite (nth_map' _ _ 0%Z)
-   by admit.  (* straightforward *)
- rewrite (nth_map' _ _ 0%Z)
-   by admit.  (* straightforward *)
- do 2 f_equal.
- admit. (* straightforward, perhaps even true *)
- simpl. auto.
+ rewrite nth_overflow.
+Focus 2. {
+  rewrite map_length, length_intlist_to_Zlist, firstn_length.
+   rewrite min_l by omega.
+  unfold Z.succ in H4.
+  destruct H4 as [H4 _].
+ apply Z2Nat.inj_le in H4; try omega.
+ rewrite Z.mul_add_distr_r in H4.
+ rewrite Z2Nat.inj_add in H4 by omega.
+ change (Z.to_nat (1*4)) with 4%nat in H4.
+ rewrite mult_comm.
+ replace (i*4)%nat with (Z.to_nat (Z.of_nat i * 4)); [omega | ].
+ clear. change 4 with (Z.of_nat 4); rewrite <- Nat2Z.inj_mul;
+  rewrite Nat2Z.id; auto.
+} Unfocus.
+ rewrite nth_overflow; [reflexivity | ]. {
+ rewrite map_length, length_intlist_to_Zlist, firstn_length.
+  rewrite min_l by omega.
+ clear - H4 H H1.
+ destruct H4 as [H4 _].
+ apply Z2Nat.inj_le in H4; try omega.
+ unfold Z.succ in H4.
+ rewrite Z.mul_add_distr_r in H4.
+ rewrite Z.mul_1_l in H4.
+ change 4 with (Z.of_nat 4) in H4.
+ rewrite <- Nat2Z.inj_mul, <- Nat2Z.inj_add in H4.
+ rewrite Nat2Z.id in H4.
+ rewrite mult_comm.
+ replace (S i) with (i+1)%nat by omega.
+ rewrite  NPeano.Nat.mul_add_distr_r.
+ apply H4.
+}
+}
 * (* for-loop increment *)
  unfold part4_inv. apply extract_exists_pre; intro i.
  normalize.
