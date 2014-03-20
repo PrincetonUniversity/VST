@@ -3005,11 +3005,11 @@ have restrict_mu_top_nu:
   case: (local_DomRng _ (Inj_wd _) _ _ _ lOf_nu)=> H1 _.  
   by rewrite /DomSrc /nu replace_locals_locBlocksSrc H1 /= in e. }
 
-have asInj_nu'_nu: as_inj nu' = as_inj mu_top.
+have asInj_nu'_mu_top: as_inj nu' = as_inj mu_top.
 { by apply: reestablish_as_inj. }
 
 have nu'_vinj: val_inject (as_inj nu') rv1 rv2.
-{ rewrite asInj_nu'_nu.
+{ rewrite asInj_nu'_mu_top.
   by apply: (val_inject_restrictD _ _ _ _ vinj). }
 
 move: (head_rel hdinv); rewrite mus_eq /= => [][].  
@@ -3188,6 +3188,46 @@ have mu0_mu'_incr : incr mu0 mu'.
   move: (head_rel hdinv); rewrite mus_eq /=; case; case=> /=; case.
   move=> _; case=> _; move/(_ b)=> H _ _ _; apply: H.
   by rewrite /DomTgt E; apply/orP; right. }
+
+have as_inj_mu'_mu_top : as_inj mu' = as_inj mu_top.
+{ by rewrite replace_externs_as_inj asInj_nu'_mu_top. }
+
+have DomSrc_mu'_mu_top : DomSrc mu' = DomSrc mu_top.
+{ by rewrite /mu' replace_externs_DomSrc reestablish_DomSrc. }
+
+have DomTgt_mu'_mu_top : DomTgt mu' = DomTgt mu_top.
+{ by rewrite /mu' replace_externs_DomTgt reestablish_DomTgt. }
+
+have mu_top_mu'_incr : incr mu_top mu'.
+{ split; first by rewrite as_inj_mu'_mu_top; apply: inject_incr_refl.
+  split; first by rewrite DomSrc_mu'_mu_top.
+  by rewrite DomTgt_mu'_mu_top. }
+
+have locBlocksSrc_mu'_eq : locBlocksSrc mu' = locBlocksSrc mu0.
+{ rewrite /mu' replace_externs_locBlocksSrc /nu'.
+  by rewrite reestablish_locBlocksSrc /nu replace_locals_locBlocksSrc. }
+
+have locBlocksTgt_mu'_eq : locBlocksTgt mu' = locBlocksTgt mu0.
+{ rewrite /mu' replace_externs_locBlocksTgt /nu'.
+  by rewrite reestablish_locBlocksTgt /nu replace_locals_locBlocksTgt. }
+
+have extBlocksSrc_mu'_eq : 
+  extBlocksSrc mu' 
+= (fun b => if locBlocksSrc mu0 b then false else DomSrc mu_top b).
+{ rewrite /mu' replace_externs_extBlocksSrc /nu'.
+  by rewrite reestablish_extBlocksSrc /nu replace_locals_locBlocksSrc. }
+
+have extBlocksTgt_mu'_eq : 
+  extBlocksTgt mu' 
+= (fun b => if locBlocksTgt mu0 b then false else DomTgt mu_top b).
+{ rewrite /mu' replace_externs_extBlocksTgt /nu'.
+  by rewrite reestablish_extBlocksTgt /nu replace_locals_locBlocksTgt. }
+
+have frgnBlocksSrc_mu'_eq : frgnBlocksSrc mu' = frgnSrc'.
+{ by rewrite /mu' replace_externs_frgnBlocksSrc. }
+
+have frgnBlocksTgt_mu'_eq : frgnBlocksTgt mu' = frgnTgt'.
+{ by rewrite /mu' replace_externs_frgnBlocksTgt. }
 
 have mu0_mu'_sep : sm_inject_separated mu0 mu' m10 m20.
 { by apply: (eff_after_check5 mu0 pubSrc' pubTgt' nu erefl nu'
@@ -3507,38 +3547,60 @@ apply: Build_trash_minimal=> //=.
 rewrite Lex.gss.
 apply: Build_head_inv=> //.
 { move: (head_rel hdinv); rewrite mus_eq /= => rel. 
+  move: (head_ctns hdinv); rewrite mus_eq /= => ctns.
   move {mus_eq allinv sub0 ctndS0 ctndT0 mapdS0 frametail}.
   case: rel=> _ rel; elim: mus' all0 rel=> // a mus' IH.
   move=> /= []H1 H2 []H3 H4; split. 
   case: H1=> incr1 sep1 disj1; case: H3=> incr3 sep3 disj3.
   apply: Build_rel_inv; first by apply: (incr_trans incr1).
-  case: mu0_mu'_incr=> X []Y Z; case: mu0_mu'_sep=> OO []PP QQ.
-  case: sep1=> AA []BB CC; case: sep3=> XX []YY ZZ; split.
+  case: mu_top_mu'_incr=> AA []BB CC; case: sep3=> XX []YY ZZ; split.
   move=> b1 b2 d1 asInj asInj'.  
-  case e: (as_inj mu0 b1)=> [[x y]|].
-  move: (X _ _ _ e); rewrite asInj'; case=> -> _.
-  by apply: (AA _ _ _ asInj e).
-  case: (OO _ _ _ e asInj')=> S T.
-  have [S' T']: [/\ DomSrc mu' b1 & DomTgt mu' b2].
-  { by case: (as_inj_DomRng _ _ _ _ asInj'). }
-  move: (PP _ S S') (QQ _ T T')=> nvalS nvalT.
-  have nvalS': ~Mem.valid_block (frame_m10 a) b1.
-  { admit. }
-  have nvalT': ~Mem.valid_block (frame_m20 a) b2.
-  { admit. }
-  case: (frame_val a); rewrite /DOM /RNG => X1 X2; split.
-  case dS: (DomSrc a b1)=> //.
-  by elimtype False; apply: nvalS'; apply: (X1 _ dS).
-  case dT: (DomTgt a b2)=> //.
-  by elimtype False; apply: nvalT'; apply: (X2 _ dT).
-  
+  case e: (as_inj mu_top b1)=> [[x y]|].
+  move: (AA _ _ _ e); rewrite asInj'; case=> -> _.
+  by apply: (XX _ _ _ asInj e).
+  by rewrite as_inj_mu'_mu_top in asInj'; rewrite asInj' in e.
+  by rewrite DomSrc_mu'_mu_top DomTgt_mu'_mu_top; split.
+  case: disj1=> X Y Z W U.
+  apply: Build_disjinv.
+  by rewrite locBlocksSrc_mu'_eq.
+  by rewrite locBlocksTgt_mu'_eq.
+  rewrite frgnBlocksSrc_mu'_eq.
+  rewrite /frgnSrc' /nu' /exportedSrc.
+  have eq: sharedSrc (reestablish nu mu_top) = sharedSrc nu.
+  { rewrite !sharedSrc_iff_frgnpub=> //; extensionality b.
+    rewrite reestablish_frgnBlocksSrc.
+    admit. (*requires reestablish_pubBlocksSrc*) }
+  rewrite eq.
+  move=> b; rewrite /in_mem /= /in_mem /=; case/andP=> XX YY.
+  case: disj3=> A B C D E.
+  case: {XX}(andP XX)=> H5; case/andP=> H6 H7.
+  rewrite reestablish_locBlocksSrc replace_locals_locBlocksSrc in H6.
+  rewrite reestablish_DomSrc in H5.
+  have REACH_sub: 
+    {subset REACH m1 (fun b => getBlocks [:: rv1] b || sharedSrc mu_top b)
+    <= sharedSrc mu_top}. 
+  { admit. (*would be provided by halted*) }
+  have sub b0: 
+     (getBlocks [:: rv1] b0 || sharedSrc nu b0)
+  -> (getBlocks [:: rv1] b0 || sharedSrc mu_top b0).
+  { case/orP=> H; first by apply/orP; left.
+    apply/orP; right; apply: ctns; rewrite /in_mem /=.
+    move: H; rewrite !sharedSrc_iff_frgnpub=> //.
+    rewrite replace_locals_frgnBlocksSrc.
+    admit. (*reestablish_pubBlocksSrc*) }
+  have H8: REACH m1 (fun b => getBlocks [:: rv1] b || sharedSrc mu_top b) b.
+  { by apply: (REACH_mono (fun b => getBlocks [:: rv1] b || sharedSrc nu b)). }
+  move: (REACH_sub _ H8); rewrite sharedSrc_iff_frgnpub /in_mem /=.
+  case/orP=> H9.
+  apply: C; rewrite /in_mem /= /in_mem /=; apply/andP; split=> //.
+  admit. (*inconsistent by H9 and disjointness*)
+  by apply: Inj_wd.
+  rewrite /nu replace_locals_locBlocksSrc=> b0 H8.
+  by case: incr0_top=> _ []H9 _; apply: (H9 b0); apply/orP; left; rewrite H8.
+  admit.
+  admit.
+  by apply: IH. }
 
-  case: allval=> aval allval.
-  case: aval; rewrite /DOM /RNG.
-    
-  
-
-admit. (*rel_inv*)
 apply: Build_vis_inv.
 rewrite /vis /=.
 rewrite /mu'.
@@ -3553,8 +3615,7 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
   rewrite reestablish_extBlocksSrc.
   rewrite replace_locals_locBlocksSrc.
   have lN: locBlocksSrc mu0 b = false.
-  { move: (trash_ctnd_restS (trash_min trinv) mu0_in H); rewrite /in_mem /=.
-    by move/(extBlocksSrc_locBlocksSrc _ (Inj_wd _) _). }
+  { by move: (extBlocksSrc_locBlocksSrc _ (Inj_wd _) _ (frgnsrc_sub_extsrc H)). }
   rewrite lN /=.
   rewrite /exportedSrc sharedSrc_iff_frgnpub.
   rewrite reestablish_frgnBlocksSrc.
