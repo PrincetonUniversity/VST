@@ -13,6 +13,14 @@ Lemma reestablish_locBlocksTgt mu0 mu :
   locBlocksTgt (reestablish mu0 mu) = locBlocksTgt mu0.
 Proof. by case: mu0; case: mu. Qed.
 
+Lemma reestablish_pubBlocksSrc mu0 mu : 
+  pubBlocksSrc (reestablish mu0 mu) = pubBlocksSrc mu0.
+Proof. by case: mu0; case: mu. Qed.
+
+Lemma reestablish_pubBlocksTgt mu0 mu : 
+  pubBlocksTgt (reestablish mu0 mu) = pubBlocksTgt mu0.
+Proof. by case: mu0; case: mu. Qed.
+
 Lemma reestablish_extBlocksSrc mu0 mu : 
   extBlocksSrc (reestablish mu0 mu) 
   = (fun b => if locBlocksSrc mu0 b then false else DomSrc mu b).
