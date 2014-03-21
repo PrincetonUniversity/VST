@@ -90,6 +90,29 @@ by [].
 by case: (k b)=> [[? ?]|].
 Qed.
 
+Lemma join2A j k l : join2 j (join2 k l) = join2 (join2 j k) l.
+Proof.
+rewrite /join2; extensionality b.
+case: (j b)=> [[x y]|] //.
+case: (k b)=> [[x' y']|] //.
+case: (l b)=> [[x'' y'']|] //.
+rewrite Pos.eqb_sym.
+rewrite Zeq_bool_sym.
+case e: (_ && _)=> //.
+case: (andP e).
+move/Peqb_true_eq=> ->.
+move/Zeq_bool_eq=> ->.
+rewrite Pos.eqb_sym.
+rewrite Zeq_bool_sym.
+case f: (_ && _)=> //.
+case: (andP f).
+move/Peqb_true_eq=> ->.
+move/Zeq_bool_eq=> ->.
+by rewrite Pos.eqb_refl Zeq_bool_refl.
+admit. (*TODO*)
+admit. (*TODO*)
+Qed.
+
 (* [join_sm mu1 mu2] is a union operator on structured injections. If     *)
 (* we have struct. injections                                             *)
 (*                                                                        *)
@@ -1498,10 +1521,42 @@ by apply: H2; left.
 by rewrite H; split=> //; move=> mu0 H3; apply: H2; right.
 Qed.
 
+Lemma join_all_frgnBlocksSrc mu mus b :
+  frgnBlocksSrc (join_all mu mus) b
+  <-> frgnBlocksSrc mu b
+      /\ (forall mu0, List.In mu0 mus -> frgnBlocksSrc mu0 b).
+Proof.
+elim: mus mu=> //=; split=> H1; first by split.
+by case: H1=> //; move=> []? [].
+case: (andP H1); rewrite /in_mem /= => H2; rewrite H; case=> H3 H4.
+split=> //; move=> mu0; case; first by move=> <-.
+by move=> H5; apply: (H4 _ H5).
+case: H1=> H1 H2.
+apply/andP; rewrite /in_mem /=; split.
+by apply: H2; left.
+by rewrite H; split=> //; move=> mu0 H3; apply: H2; right.
+Qed.
+
 Lemma join_all_extBlocksTgt mu mus b :
   extBlocksTgt (join_all mu mus) b
   <-> extBlocksTgt mu b
       /\ (forall mu0, List.In mu0 mus -> extBlocksTgt mu0 b).
+Proof.
+elim: mus mu=> //=; split=> H1; first by split.
+by case: H1=> //; move=> []? [].
+case: (andP H1); rewrite /in_mem /= => H2; rewrite H; case=> H3 H4.
+split=> //; move=> mu0; case; first by move=> <-.
+by move=> H5; apply: (H4 _ H5).
+case: H1=> H1 H2.
+apply/andP; rewrite /in_mem /=; split.
+by apply: H2; left.
+by rewrite H; split=> //; move=> mu0 H3; apply: H2; right.
+Qed.
+
+Lemma join_all_frgnBlocksTgt mu mus b :
+  frgnBlocksTgt (join_all mu mus) b
+  <-> frgnBlocksTgt mu b
+      /\ (forall mu0, List.In mu0 mus -> frgnBlocksTgt mu0 b).
 Proof.
 elim: mus mu=> //=; split=> H1; first by split.
 by case: H1=> //; move=> []? [].
@@ -1678,6 +1733,43 @@ rewrite join_all_shift_extBlocksSrcE /=.
 by rewrite predIA predIC -predIA.
 Qed.
 
+Lemma join_all_shift_frgnBlocksSrcE :
+  frgnBlocksSrc (join_all mu_trash' mus)
+  = [predI (frgnBlocksSrc mu0)
+    & frgnBlocksSrc (join_all mu_trash mus)].
+Proof.
+rewrite /= /predI; f_equal; extensionality b; rewrite /in_mem /= /in_mem /=.
+case eOf0: (frgnBlocksSrc mu0)=> /=.
+cut (frgnBlocksSrc (join_all mu_trash mus) b
+ <-> frgnBlocksSrc (join_all mu_trash' mus) b).
+case: (frgnBlocksSrc mu1 b)=> //.
+case: (frgnBlocksSrc _ _)=> //.
+case: (frgnBlocksSrc _ _)=> //.
+case. by move/(_ erefl). case.
+case: (frgnBlocksSrc _ _)=> //.
+case: (frgnBlocksSrc _ _)=> //.
+by move=> _; move/(_ erefl). 
+by move=> _; move/(_ erefl).
+case. 
+case: (frgnBlocksSrc _ _)=> //.
+case: (frgnBlocksSrc _ _)=> //.
+by move/(_ erefl). 
+case: (frgnBlocksSrc _ _)=> //.
+case: (frgnBlocksSrc _ _)=> //.
+by move=> _; move/(_ erefl). 
+by move=> _; move/(_ erefl).
+rewrite 2!join_all_frgnBlocksSrc.
+have H: (frgnBlocksSrc mu_trash b = frgnBlocksSrc mu_trash' b).
+{ by rewrite /mu_trash' /= /in_mem /= eOf0. }
+by rewrite -H.
+cut (false 
+ <-> frgnBlocksSrc (join_all mu_trash' mus) b).
+case: (frgnBlocksSrc _ _)=> //.
+by case=> _; move/(_ erefl).
+rewrite join_all_frgnBlocksSrc /mu_trash' /= /in_mem /= eOf0 /=.
+by split=> //; last by case.
+Qed.
+
 Lemma join_all_shift_extBlocksTgtE :
   extBlocksTgt (join_all mu_trash' mus)
   = [predI (extBlocksTgt mu0)
@@ -1725,6 +1817,54 @@ rewrite join_all_shift_extBlocksTgtE /=.
 by rewrite predIA predIC -predIA.
 Qed.
 
+Lemma join_all_shift_frgnBlocksTgtE :
+  frgnBlocksTgt (join_all mu_trash' mus)
+  = [predI (frgnBlocksTgt mu0)
+    & frgnBlocksTgt (join_all mu_trash mus)].
+Proof.
+rewrite /= /predI; f_equal; extensionality b; rewrite /in_mem /= /in_mem /=.
+case eOf0: (frgnBlocksTgt mu0)=> /=.
+cut (frgnBlocksTgt (join_all mu_trash mus) b
+ <-> frgnBlocksTgt (join_all mu_trash' mus) b).
+case: (frgnBlocksTgt mu1 b)=> //.
+case: (frgnBlocksTgt _ _)=> //.
+case: (frgnBlocksTgt _ _)=> //.
+case. by move/(_ erefl). case.
+case: (frgnBlocksTgt _ _)=> //.
+case: (frgnBlocksTgt _ _)=> //.
+by move=> _; move/(_ erefl). 
+by move=> _; move/(_ erefl).
+case. 
+case: (frgnBlocksTgt _ _)=> //.
+case: (frgnBlocksTgt _ _)=> //.
+by move/(_ erefl). 
+case: (frgnBlocksTgt _ _)=> //.
+case: (frgnBlocksTgt _ _)=> //.
+by move=> _; move/(_ erefl). 
+by move=> _; move/(_ erefl).
+rewrite 2!join_all_frgnBlocksTgt.
+have H: (frgnBlocksTgt mu_trash b = frgnBlocksTgt mu_trash' b).
+{ by rewrite /mu_trash' /= /in_mem /= eOf0. }
+by rewrite -H.
+cut (false 
+ <-> frgnBlocksTgt (join_all mu_trash' mus) b).
+case: (frgnBlocksTgt _ _)=> //.
+by case=> _; move/(_ erefl).
+rewrite join_all_frgnBlocksTgt /mu_trash' /= /in_mem /= eOf0 /=.
+by split=> //; last by case.
+Qed.
+
+Lemma join_all_shift_local_ofE :
+  All (fun mu1 => DisjointLS mu0 mu1) [seq Inj.mu x | x <- mus] -> 
+  local_of (join_all mu_trash' mus)
+  = join (local_of mu0) (local_of (join_all mu_trash mus)).
+Proof.
+move=> D; elim: mus D=> // a mus' IH /= []D E.
+rewrite IH // join_assoc (join_com (local_of a)).
+by rewrite -join_assoc.
+by rewrite disjoint_com; apply: DisjointLS_disjoint D.
+Qed.
+
 Lemma join_all_shift_local_of :
   AllDisjoint locBlocksSrc [seq Inj.mu x | x <- [:: mu_trash, mu0, mu1 & mus]] -> 
     join (local_of mu0) (local_of (join_all mu_trash [:: mu1 & mus]))
@@ -1770,6 +1910,15 @@ case: (local_of a b)=> //.
 apply: IH.
 by case: D=> /= [][]H1 []H2 []H3 H4 [][]H5 []H6 H7 [][]H8 H9 []H10 H11; split.
 by case: D=> /= [][]H1 []H2 H3 [][]H4 H5 []H6 H7; split.
+Qed.
+
+Lemma join_all_shift_extern_ofE : 
+  extern_of (join_all mu_trash' mus)
+  = join2 (extern_of mu0) (extern_of (join_all mu_trash mus)).
+Proof.
+elim: mus=> // a mus' IH /=.
+rewrite IH //.
+by rewrite join2A (join2C (extern_of a)) -join2A.
 Qed.
 
 End join_all_shift.

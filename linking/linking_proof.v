@@ -3862,7 +3862,9 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
   by move: L; rewrite /in_mem /= => ->.
   by left; rewrite join_all_shift_locBlocksSrcE; apply/orP; right.
   case/andP=> _ F; right.
-  admit. (*add join_all_shift lem for frgnBlocks*) }
+  rewrite join_all_shift_frgnBlocksSrcE; rewrite /in_mem /= /in_mem /=.
+  by apply/andP; split.
+  refine mu0. (*an unnecessary assumption in lemma statement*) }
 
 { move=> b; rewrite frgnBlocksTgt_mu'_eq=> H1; apply/orP.
   move: (frgnTgt'_pub_frgn _ H1); rewrite /in_mem /= /in_mem /=; case/orP=> PT.
@@ -3875,9 +3877,33 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
   by move: L; rewrite /in_mem /= => ->.
   by left; rewrite join_all_shift_locBlocksTgtE; apply/orP; right.
   case/andP=> _ F; right.
-  admit. (*add join_all_shift lem for frgnBlocks*) }
+  rewrite join_all_shift_frgnBlocksTgtE; rewrite /in_mem /= /in_mem /=.
+  by apply/andP; split.
+  refine mu0. (*an unnecessary assumption in lemma statement*) }
 
-{ admit. }
+{ move=> b b' d' /=; move: (mapdS0 b b' d').
+  move: (@head_mapdS _ _ _ _ _ _ _ _ _ hdinv b b' d')=> mapH map0.
+  rewrite /mu' replace_externs_foreign; case e: (frgnSrc' b)=> //.
+  rewrite reestablish_extern_of replace_locals_locBlocksSrc.
+  case f: (locBlocksSrc mu0 b)=> // asInj.
+  move: (frgnSrc'_pub_frgn _ e); rewrite /in_mem /=; case/orP.
+  move=> PS; case: (pubSrcAx _ (Inj_wd _) _ PS)=> x []y []lOf PT.
+  rewrite /as_inj /join; case g: (extern_of _ _)=> [[? ?]|].
+  rewrite join_all_shift_extern_ofE in g; move: g; move/join2P; case=> H1 H2. 
+  by rewrite (extern_in_all _ _ _ _ H1) in asInj; case: asInj=> -> ->.
+  have lOf': local_of mu_top b = Some (b',d').
+  { rewrite (local_in_all _ _ _ _ _ lOf) in asInj. 
+    by case: asInj=> <- <-.
+    by apply: Inj_wd. }
+  rewrite join_all_shift_local_ofE /join; first by rewrite lOf'.
+  move: (relinv_AllDisjointLS rel).
+  rewrite !map_comp /= -list_map_compose /=. admit.
+  rewrite /in_mem /= => F. 
+  have fOf: foreign_of mu_top b = Some (b',d').
+  { case: (frgnSrc _ (Inj_wd _) _ F)=> ? []? []H I.
+    by move: (foreign_in_all _ _ _ _ H); rewrite asInj; case=> -> ->. }
+  move: (mapH fOf)=> /=; rewrite mus_eq /=.
+  admit. }
 
 { move: sub0S=> /=; clear - shrdS_mu0_mu'; elim: mus'=> // a mus' IH shrd.
   by move=> b H; move: (shrd _ H); apply: shrdS_mu0_mu'. }
@@ -3888,7 +3914,68 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
 
 split; first by move: allinv; rewrite mus_eq.
 
-admit.
+{(*frame_all mu_trash' ...*)
+  rewrite mus_eq /=; move: frametail.
+  move: st1''_eq st2''_eq pop1 pop2 pop1_eq pop2_eq.
+  move=> -> ->.
+  have ->: hd1 = c0. admit.
+  have ->: hd2 = d0. admit.
+  case/popCoreE=> wff []in_st1; rewrite /updStack; case.
+  move=> fntbl1_eq <-.
+  case/popCoreE=> wfg []in_st2; rewrite /updStack; case.
+  move=> fntbl2_eq <-.
+  case=> <-.
+  case=> <-.
+  
+  rewrite mus_eq /= in hdinv; clear - hdinv sub0S sub0T.
+  move: (head_ctnsS hdinv) (head_ctnsT hdinv)=> ctnsS ctnsT; clear hdinv.
+  elim: mus' sub0S sub0T tl1 tl2=> // a mus' IH; case: a.
+  move=> mua m1a m2a vala sub0S sub0T tl1 tl2.
+  case/frame_all_inv=> ca []tl1' []da []tl2'.
+  case=> -> -> []pfa []cda []e1a []sig1a []vals1a []e2a []sig2a []vals2a.
+  case=> AA BB CC DD EE FF GG /=; split.
+  exists pfa,cda,e1a,sig1a,vals1a,e2a,sig2a,vals2a.
+  split=> //.
+  
+  { move=> b F; move: (BB _ F)=> /=; case/orP.
+  rewrite join_all_shift_locBlocksSrcE=> G; rewrite /in_mem /=; apply/orP.
+  by left; apply/orP; right.
+  have G: (sharedSrc mu_top b).
+  { apply: ctnsS; apply: sub0S=> /=; rewrite /in_mem /= sharedSrc_iff_frgnpub.
+    by rewrite F. 
+    by apply: Inj_wd. }
+  rewrite sharedSrc_iff_frgnpub in G. 
+  case: (orP G)=> H.
+  move=> I; apply/orP; right.
+  rewrite join_all_shift_frgnBlocksSrcE; rewrite /in_mem //=; apply/andP.
+  by split.
+  move=> I; apply/orP; left.
+  rewrite join_all_shift_locBlocksSrcE; rewrite /in_mem /=; apply/orP; left.
+  by apply: (pubsrc_sub_locsrc H).
+  by apply: Inj_wd. }
+
+  { move=> b F; move: (CC _ F)=> /=; case/orP.
+  rewrite join_all_shift_locBlocksTgtE=> G; rewrite /in_mem /=; apply/orP.
+  by left; apply/orP; right.
+  have G: (sharedTgt mu_top b).
+  { apply: ctnsT; apply: sub0T=> /=; rewrite /in_mem /= /sharedTgt.
+    by rewrite F. }
+  case: (orP G)=> H.
+  move=> I; apply/orP; right.
+  rewrite join_all_shift_frgnBlocksTgtE; rewrite /in_mem //=; apply/andP.
+  by split.
+  move=> I; apply/orP; left.
+  rewrite join_all_shift_locBlocksTgtE; rewrite /in_mem /=; apply/orP; left.
+  by apply: (pubtgt_sub_loctgt H). }
+
+  { move=> b b' d' F; move: (DD _ _ _ F)=> /=.
+  admit. }
+
+  { apply: IH=> //.
+  clear - sub0S EE; elim: mus' sub0S EE=> //= a mus' IH A B.
+  by move=> ? C; apply: A; apply: B.
+  clear - sub0T FF; elim: mus' sub0T FF=> //= a mus' IH A B.
+  by move=> ? C; apply: A; apply: B. } }(*END frame_all mu_trash' ...*)
 
 by [].
 Qed.
