@@ -474,6 +474,25 @@ destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern
 reflexivity.
 Qed.
 
+
+Lemma replace_locals_sharedSrc mu pubSrc' pubTgt': forall
+      (HPUB1: forall b,  pubSrc' b = true -> local_of mu b <> None)
+      (HPUB2: forall b,  pubBlocksSrc mu b = true -> pubSrc' b = true),
+      sharedSrc (replace_locals mu pubSrc' pubTgt') = 
+      fun b => pubSrc' b || sharedSrc mu b.
+Proof. intros. unfold sharedSrc. rewrite replace_locals_shared. 
+extensionality b. unfold  shared_of, join.
+remember (foreign_of mu b) as d.
+destruct d; simpl; trivial.
+  destruct p. intuition.
+remember (pubSrc' b) as q. symmetry in Heqq.
+destruct q; simpl. apply HPUB1 in Heqq.
+  destruct (local_of mu b); trivial. congruence.
+unfold pub_of. destruct mu; simpl in *.
+specialize (HPUB2 b).
+destruct (pubBlocksSrc b); trivial. rewrite Heqq in HPUB2. intuition.
+Qed.
+
 Definition getBlocks (V:list val) (b: block): bool :=
    in_dec eq_block b 
     (fold_right (fun v L => match v with Vptr b' z => b'::L | _ => L end) nil V).
@@ -764,6 +783,60 @@ Proof. intros. unfold exportedSrc in SRC. unfold exportedTgt.
       rewrite G. intuition.
 Qed.
 
+Lemma val_inject_sub_on j k: forall v1 v2
+        (V:  val_inject j v1 v2)
+        (HK: forall b, getBlocks (v1::nil) b = true -> j b = k b),
+      val_inject k v1 v2.
+Proof. intros.
+  inv V; eauto.
+    econstructor; trivial. rewrite <- HK; trivial.
+    rewrite getBlocks_char. eexists; left. reflexivity. 
+Qed.
+
+Lemma val_inject_sub_on' j k: forall v1 v2
+        (V:  val_inject j v1 v2)
+        (HK: forall b b2 d, getBlocks (v1::nil) b = true -> 
+              j b = Some(b2,d) -> k b = Some(b2,d)),
+      val_inject k v1 v2.
+Proof. intros.
+  inv V; eauto.
+    econstructor; trivial. eapply HK; trivial.
+    rewrite getBlocks_char. eexists; left. reflexivity. 
+Qed.
+
+Lemma val_list_inject_sub_on j k: forall vals1 vals2
+        (V:  val_list_inject j vals1 vals2)
+        (HK: forall b, getBlocks vals1 b = true -> j b = k b),
+      val_list_inject k vals1 vals2.
+Proof. intros.
+  induction V; try econstructor.
+  clear IHV. eapply val_inject_sub_on; try eassumption. 
+    intros. eapply HK. 
+    rewrite getBlocks_char. rewrite getBlocks_char in H0.
+    destruct H0. destruct H0. eexists; left. eassumption.
+     inv H0.
+ apply IHV. intros. apply HK. 
+    rewrite getBlocks_char. rewrite getBlocks_char in H0.
+    destruct H0. eexists; right. eassumption.
+Qed.
+Lemma val_list_inject_sub_on' j k: forall vals1 vals2
+        (V:  val_list_inject j vals1 vals2)
+        (HK: forall b b2 d, getBlocks vals1 b = true -> 
+              j b = Some(b2,d) -> k b = Some(b2,d)),
+      val_list_inject k vals1 vals2.
+Proof. intros.
+  induction V; try econstructor.
+  clear IHV. eapply val_inject_sub_on'; try eassumption.
+    intros. eapply HK; trivial. 
+    rewrite getBlocks_char. rewrite getBlocks_char in H0.
+    destruct H0. destruct H0. eexists; left. eassumption.
+     inv H0.
+  apply IHV; clear IHV.
+    intros. apply HK; trivial.
+    rewrite getBlocks_char. rewrite getBlocks_char in H0.
+    destruct H0. eexists; right. eassumption.
+Qed.
+
 Lemma REACH_shared_of: forall mu (WD: SM_wd mu) m1 m2 vals1 vals2 
         (MemInjMu : Mem.inject (shared_of mu) m1 m2)
         (ValInjMu : Forall2 (val_inject (shared_of mu)) vals1 vals2) b1
@@ -906,10 +979,17 @@ Proof. intros.
     intuition.
 Qed.
 
-Goal forall m1 mu (WD: SM_wd mu) vals b, pubBlocksSrc mu b = true ->
+Lemma pubBlocksSrc_REACH: forall m1 mu (WD: SM_wd mu) vals b, pubBlocksSrc mu b = true ->
            REACH m1 (exportedSrc mu vals) b = true.
 Proof. intros. apply REACH_nil.
   apply orb_true_iff. right. apply pubSrc_shared; trivial. 
+Qed.
+
+Lemma getBlocks_REACH_exportedSrc m mu vals b: forall
+         (GB: getBlocks vals b = true),
+      REACH m (exportedSrc mu vals) b = true.
+Proof. intros. eapply REACH_nil.
+ unfold exportedSrc. rewrite GB; trivial.
 Qed.
 
 Definition local_out_of_reach mu (m : mem) (b : block) (ofs : Z): Prop := 
@@ -1262,6 +1342,35 @@ intros.
   apply (frgnSrc_shared _ WDnu') in F'.
   apply REACH_nil. unfold exportedSrc. intuition.
 Qed.
+
+Lemma restrict_SharedSrc mu: SM_wd mu ->
+  restrict (as_inj mu) (sharedSrc mu) = shared_of mu.
+Proof. unfold sharedSrc, restrict. intros. 
+  extensionality b.
+  remember (shared_of mu b) as d.
+  destruct d; simpl; trivial.
+  destruct p; apply eq_sym in Heqd.
+  apply shared_in_all in Heqd; trivial. 
+Qed.
+
+Lemma restrict_vis_foreign_local mu: forall (WD: SM_wd mu),
+      restrict (as_inj mu) (vis mu) = join (foreign_of mu) (local_of mu).
+Proof. intros.
+  extensionality b.
+  unfold restrict, join, vis.
+  remember (frgnBlocksSrc mu b) as f.
+  destruct f; apply eq_sym in Heqf.
+    rewrite orb_true_r. 
+    destruct (frgnSrc _ WD _ Heqf) as [b2 [d [F FT]]].
+    rewrite F. apply foreign_in_all; trivial.
+  rewrite orb_false_r.
+    rewrite (frgnBlocksSrc_false_foreign_None _ _ Heqf).
+    remember (locBlocksSrc mu b) as l.
+    destruct l; apply eq_sym in Heql.
+      eapply locBlocksSrc_as_inj_local; eassumption.
+    rewrite (locBlocksSrc_false_local_None _ _ WD Heql); trivial.
+Qed.
+
 
 Definition restrict_sm mu (X:block -> bool) :=
 match mu with

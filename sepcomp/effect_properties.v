@@ -1050,6 +1050,24 @@ Lemma vis_restrict_sm: forall mu X,
       vis (restrict_sm mu X) = vis mu.
 Proof. intros. unfold vis. destruct mu; trivial. Qed.
 
+Lemma extern_incr_vis mu mu': forall (INC: extern_incr mu mu'),
+      vis mu = vis mu'.
+Proof. intros. 
+ destruct INC as [_ [_ [ _ [_ [? [_ [_ [_ [? _]]]]]]]]].
+ unfold vis. rewrite H, H0. trivial.
+Qed.
+
+Lemma extern_incr_restrict mu mu': forall
+      (INC: extern_incr mu mu') (WD': SM_wd mu'),
+      inject_incr (restrict (as_inj mu) (vis mu))
+                  (restrict (as_inj mu') (vis mu')).
+Proof. intros. rewrite (extern_incr_vis _ _ INC).
+  red; intros. 
+  destruct (restrictD_Some _ _ _ _ _ H).
+  apply (extern_incr_as_inj _ _ INC) in H0; trivial.
+  eapply restrictI_Some; eassumption.
+Qed.
+
 Lemma REACH_split: forall m X Y b
       (RCH:REACH m (fun b' => X b' || Y b') b = true),
       REACH m X b = true \/ REACH m Y b = true.
@@ -1517,6 +1535,17 @@ Proof.
   intros. eauto with mem.
 Qed.
 
+Lemma storebytes_freshloc: forall m b z bytes m'
+  (SB: Mem.storebytes m b z bytes = Some m'),
+  freshloc m m' = (fun _ : block => false).
+Proof. intros.
+  extensionality bb. apply freshloc_charF.
+  destruct (valid_block_dec m bb).
+    left; trivial. 
+  right; intros N. 
+  apply n. 
+  apply (Mem.storebytes_valid_block_2 _ _ _ _ _ SB _ N).
+Qed.
 
 Lemma storev_freshloc: forall ch m addr v m' 
          (ST: Mem.storev ch m addr v = Some m'),
@@ -2221,3 +2250,34 @@ Proof. intros.
   destruct (restrictD_Some _ _ _ _ _ AI).
   eapply visPropagate; eassumption.
 Qed.
+
+Lemma FreelistEffect_exists_FreeEffect: forall m L b ofs
+      (F:FreelistEffect m L b ofs = true),
+      exists bb lo hi, In (bb, lo, hi) L /\  
+        FreeEffect m lo hi bb b ofs = true.
+Proof. intros m L.
+  induction L; simpl; intros. 
+    unfold EmptyEffect in F. discriminate.
+  destruct a as [[bb lo] hi].
+    apply orb_true_iff in F.
+    destruct F.
+      destruct (IHL _ _ H) as [b' [lo' [hi' [INL FEFF]]]].
+      exists b', lo', hi'; split; trivial. right; trivial.
+    exists bb, lo, hi; split; trivial.
+      left; trivial.
+Qed.
+
+Lemma replace_locals_vis mu PS PT: 
+  vis (replace_locals mu PS PT) = vis mu.
+Proof.
+  unfold vis.
+  rewrite replace_locals_locBlocksSrc,
+          replace_locals_frgnBlocksSrc.
+  trivial.
+Qed.
+
+Lemma replace_externs_vis mu PS PT:
+      vis (replace_externs mu PS PT) = (fun b : block => locBlocksSrc mu b || PS b).
+Proof. intros; unfold vis.
+  rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc. trivial.
+Qed. 

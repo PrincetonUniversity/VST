@@ -1985,4 +1985,66 @@ Proof. intros. destruct VAL.
     rewrite reestablish_DomTgt in H1; eauto.
 Qed.
 
+Lemma as_inj_locBlocks mu b1 b2 delta: forall (WD: SM_wd mu)
+      (A: as_inj mu b1 = Some(b2,delta)),
+      locBlocksSrc mu b1 = locBlocksTgt mu b2.
+Proof. intros.
+  destruct (joinD_Some _ _ _ _ _ A) as [EXT | [_ LOC]].
+  destruct (extern_DomRng _ WD _ _ _ EXT).
+    rewrite (extBlocksSrc_locBlocksSrc _ WD _ H).
+    rewrite (extBlocksTgt_locBlocksTgt _ WD _ H0). trivial.
+  destruct (local_DomRng _ WD _ _ _ LOC). rewrite H, H0; trivial.
+Qed.
 
+Lemma as_inj_extBlocks mu b1 b2 delta: forall (WD: SM_wd mu)
+      (A: as_inj mu b1 = Some(b2,delta)),
+      extBlocksSrc mu b1 = extBlocksTgt mu b2.
+Proof. intros.
+  destruct (joinD_Some _ _ _ _ _ A) as [EXT | [_ LOC]].
+  destruct (extern_DomRng _ WD _ _ _ EXT). rewrite H, H0; trivial.
+  destruct (local_DomRng _ WD _ _ _ LOC). 
+    rewrite (locBlocksSrc_extBlocksSrc _ WD _ H).
+    rewrite (locBlocksTgt_extBlocksTgt _ WD _ H0). trivial.
+Qed.
+
+
+Lemma locBlocksSrc_as_inj_local mu b: forall (WD: SM_wd mu)
+       (L: locBlocksSrc mu b = true),
+      as_inj mu b = local_of mu b.
+Proof. intros.
+  unfold as_inj, join.
+  rewrite (locBlocksSrc_externNone _ WD _ L). trivial.
+Qed.
+
+Lemma frgnBlocksSrc_false_foreign_None mu b: forall
+      (F: frgnBlocksSrc mu b = false),
+      foreign_of mu b = None.
+Proof. intros.
+  unfold foreign_of. destruct mu; simpl in *. 
+  rewrite F; trivial.
+Qed.
+
+Lemma foreign_None_frgnBlocksSrc_false mu b: forall (WD: SM_wd mu)
+        (F: foreign_of mu b = None),
+       as_inj mu b = None \/ frgnBlocksSrc mu b = false.
+Proof. intros.
+  remember (as_inj mu b) as d.
+  destruct d.
+    apply eq_sym in Heqd; destruct p.
+    destruct (joinD_Some _ _ _ _ _ Heqd); clear Heqd.
+      unfold foreign_of in F. destruct mu; simpl in *.
+      right. rewrite H in F. destruct (frgnBlocksSrc0 b); trivial; discriminate.
+    destruct H. right. eapply local_locBlocks; eassumption.
+  left; trivial.
+Qed.
+
+Lemma locBlocksSrc_false_local_None mu b: forall (WD: SM_wd mu)
+        (L: locBlocksSrc mu b = false),
+      local_of mu b = None.
+Proof. intros.
+    remember (local_of mu b) as q.
+      destruct q; trivial.
+      apply eq_sym in Heqq; destruct p.
+      destruct (local_DomRng _ WD _ _ _ Heqq).
+      rewrite H in L; discriminate.
+Qed.
