@@ -993,20 +993,51 @@ move=> I; rewrite join_all_shift_local_ofE //.
 by rewrite /join l I.
 Qed.
 
-Lemma as_inj_shift_mu_trash b b' d' mus' (mu0 : Inj.t) :
+Lemma as_inj_shift_mu_trash b b' d' mus' :
   All [eta DisjointLS mu_top] [seq (Inj.mu \o frame_mu0) x | x <- mus] -> 
   (forall mu, List.In mu mus' -> List.In mu mus) -> 
-  In mu0 [seq frame_mu0 x | x <- mus] -> 
   as_inj (join_all mu_trash [seq frame_mu0 x | x <- mus']) b = Some (b', d') ->
   as_inj (join_all mu_trash' 
     [seq frame_mu0 x | x <- mus']) b = Some (b', d').
 Proof.
-move=> D H mu0_in I; apply: as_inj_shift=> //.
+move=> D H I; apply: as_inj_shift=> //.
 move: I; rewrite /as_inj /join /=.
 rewrite extern_of_trash_join_all_sub //.
 rewrite join2_extern_top_trash.
 case e: (extern_of _ _)=> [[x y]|] //.
 rewrite join_com /join; first by move=> ->.
+admit. (*disjointness*)
+Qed.
+
+Lemma as_inj_shift_mu0_trash b b' d' mus' (mu0 : Inj.t) :
+  All [eta DisjointLS mu_top] [seq (Inj.mu \o frame_mu0) x | x <- mus] -> 
+  (forall mu, List.In mu mus' -> List.In mu mus) -> 
+  Consistent mu_top (join_all mu_trash [seq frame_mu0 x | x <- mus']) -> 
+  SM_wd (join_all mu_trash [seq frame_mu0 x | x <- mus']) ->
+  In mu0 [seq frame_mu0 x | x <- mus] -> 
+  as_inj (join_sm mu0 (join_all mu_trash [seq frame_mu0 x | x <- mus'])) b 
+    = Some (b', d') ->
+  as_inj (join_sm mu0 (join_all mu_trash' [seq frame_mu0 x | x <- mus'])) b 
+    = Some (b', d').
+Proof.
+move=> D H CC WD mu0_in I. 
+move: I; rewrite /as_inj /join /=.
+rewrite extern_of_trash_join_all_sub //.
+rewrite join2_extern_mu0_trash //.
+rewrite extern_of_trash_join_all'_sub //.
+rewrite join2_extern_mu0_trash //.
+case e: (extern_of _ _)=> [[x y]|] //.
+rewrite /join.
+case l: (local_of _ _)=> [[x' y']|] //.
+rewrite join_all_shift_local_ofE /join.
+case lT: (local_of mu_top b)=> [[x'' y'']|//].
+have asInj: as_inj mu_top b = Some (x'',y'').
+{ by rewrite /as_inj /join (local_some_extern_none lT). }
+move=> lA.
+have asInjA: as_inj (join_all mu_trash 
+  [seq frame_mu0 x | x <- mus']) b = Some (b', d').
+{ by apply: (local_in_all _ _ _ _ _ lA). }
+by case: (CC _ _ _ _ _ asInj asInjA)=> -> ->.
 admit. (*disjointness*)
 Qed.
 
@@ -3021,7 +3052,7 @@ have at02':
   at_external (RC.effsem (coreSem (cores_T (Core.i c0))))
     (rc_cast'' pf0 (Core.c d0)) 
   = Some (e0,sig02,vals02).
-{ admit. }
+{ admit. (*dependent type casting*) }
 
 set pubSrc' := fun b => 
   locBlocksSrc mu0 b && REACH m10 (exportedSrc mu0 vals01) b.
@@ -3213,14 +3244,14 @@ split=> //.
 move: hlt2.
 admit. (*dependent type casting*)
 
-admit. (*easy*)
-
+by case: (popCoreE _ pop2)=> ? [].
 by rewrite pop2 st2''_eq.
 
 move: aft2'; rewrite /LinkerSem.after_external /= => ->; f_equal=> //.
 rewrite /st2'; f_equal.
 
-rewrite /SeqStack.updStack /Core.upd. admit. (*easy*)
+rewrite /SeqStack.updStack /Core.upd. 
+admit. (*easy*)
 
 apply: Build_R=> /=. 
 exists pf_eq12'.
@@ -3671,10 +3702,16 @@ apply: Build_trash_inv.
   rewrite replace_externs_locBlocksSrc reestablish_locBlocksSrc.
   move=> []H1 H2; split.
   rewrite /nu replace_locals_locBlocksSrc.
-  admit. 
-  admit. }
-{ admit. (*symmetric to previous*) }
-{ admit. }
+  admit. (*disjointness*)
+  admit. (*disjointness*) }
+{ move: (trash_disj_T trinv). 
+  rewrite /mu_trash'' /mu' /nu' /=. 
+  rewrite replace_externs_locBlocksTgt reestablish_locBlocksTgt.
+  move=> []H1 H2; split.
+  rewrite /nu replace_locals_locBlocksTgt.
+  admit. (*disjointness*)
+  admit. (*disjointness*) }
+{ admit. (*consistent*) }
 
 have trmin0: 
   trash_minimal mu_trash'' mu0 
@@ -3718,12 +3755,12 @@ case: rel; case=> /= incr1 sep1 disj1 rel.
 have REACH_subS: 
   {subset REACH m1 (fun b => getBlocks [:: rv1] b || sharedSrc mu_top b)
   <= sharedSrc mu_top}. 
-{ admit. (*would be provided by halted*) }
+{ admit. (*will be provided by new halted*) }
 
 have REACH_subT: 
   {subset REACH m2 (fun b => getBlocks [:: rv2] b || sharedTgt mu_top b)
   <= sharedTgt mu_top}. 
-{ admit. (*would be provided by halted*) }
+{ admit. (*will be provided by new halted*) }
 
 have RRSrc b0:
   REACH m10 (exportedSrc mu0 vals01) b0 -> b0 \in sharedSrc mu0.
@@ -3913,7 +3950,7 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
   by rewrite /in_mem /= => ->; apply/orP; right.
   by apply: REACH_nil; apply/orP; right; apply/orP; left.
   by apply: nu'_wd. }
-{ admit. } }(*END vis_inv*)
+{ admit. (*by vis_sup mu0, subFS, and defn. of RC.reach_basis*) } }(*END vis_inv*)
 
 { move=> b; rewrite frgnBlocksSrc_mu'_eq=> H1; apply/orP.
   move: (frgnSrc'_pub_frgn _ H1); rewrite /in_mem /= /in_mem /=; case/orP=> PT.
@@ -3961,26 +3998,31 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
     by apply: Inj_wd. }
   rewrite join_all_shift_local_ofE /join; first by rewrite lOf'.
   move: (relinv_AllDisjointLS rel).
-  rewrite !map_comp /= -list_map_compose /=. admit.
+  rewrite !map_comp /= -list_map_compose /=. 
+  admit. (*map condition*)
   rewrite /in_mem /= => F. 
   have fOf: foreign_of mu_top b = Some (b',d').
   { case: (frgnSrc _ (Inj_wd _) _ F)=> ? []? []H I.
     by move: (foreign_in_all _ _ _ _ H); rewrite asInj; case=> -> ->. }
-  move: (mapH fOf)=> /=; rewrite mus_eq /=.
-  rewrite /as_inj /=.
+  move: (mapH fOf)=> /=; rewrite mus_eq /= /as_inj /=.
   have IN: (forall mu, In mu mus' -> In mu mus).
-  { admit. (*easy*) }
+  { by rewrite mus_eq /= => ? ?; right. }
   rewrite (extern_of_trash_join_all_sub trinv) //.
   rewrite (join2_extern_mu0_trash trinv).
   rewrite (extern_of_trash_join_all'_sub trinv) //.
   rewrite /join.
   case g: (extern_of _ _)=> [//|].
   have lN: local_of mu0 b = None.
-  { admit. (*easy*) }
-  rewrite lN.
-  rewrite join_all_shift_local_ofE /=.
+  { case h: (local_of mu0 b)=> // [[? ?]].
+    by case: (local_DomRng _ (Inj_wd _) _ _ _ h); rewrite f. }
+  rewrite lN join_all_shift_local_ofE /=.
   have ltopN: local_of mu_top b = None.
-  { admit. }
+  { case h: (local_of mu_top b)=> // [[? ?]].
+    have i: locBlocksSrc mu_top b = false.
+    { move: (frgnsrc_sub_extsrc F).
+      move/extBlocksSrc_locBlocksSrc.
+      by move/(_ (Inj_wd _)). }
+    by case: (local_DomRng _ (Inj_wd _) _ _ _ h); rewrite i. }
   by move=> H; rewrite /join ltopN; apply: H.
   admit. (*disjointness*)
   by rewrite mus_eq /=; left. }
@@ -3996,21 +4038,15 @@ split; first by move: allinv; rewrite mus_eq.
 
 {(*frame_all mu_trash' ...*)
   rewrite mus_eq /=; move: frametail.
-  move: st1''_eq st2''_eq pop1 pop2 pop1_eq pop2_eq.
-  move=> -> ->.
-  have ->: hd1 = c0. admit.
-  have ->: hd2 = d0. admit.
-  case/popCoreE=> wff []in_st1; rewrite /updStack; case.
-  move=> fntbl1_eq <-.
-  case/popCoreE=> wfg []in_st2; rewrite /updStack; case.
-  move=> fntbl2_eq <-.
-  case=> <-.
-  case=> <-.
-  
-  rewrite mus_eq /= in hdinv; clear - trinv hdinv sub0S sub0T mus_eq.
+  move: st1''_eq st2''_eq pop1 pop2 pop1_eq pop2_eq; move=> -> ->.
+  case/popCoreE=> wff []in_st1; rewrite /updStack; case; move=> fntbl1_eq <-.
+  case/popCoreE=> wfg []in_st2; rewrite /updStack; case; move=> fntbl2_eq <-. 
+  case=> eq1 <-; case=> eq2 <-.
+
+  rewrite mus_eq /= in hdinv; clear - mus_eq hdinv trinv sub0S sub0T.
   move: (head_ctnsS hdinv) (head_ctnsT hdinv)=> ctnsS ctnsT; clear hdinv.
-  elim: mus' sub0S sub0T tl1 tl2 mus_eq=> // a mus' IH; case: a.
-  move=> mua m1a m2a vala sub0S sub0T tl1 tl2 mus_eq.
+  elim: mus' sub0S sub0T tl1 tl2 mus mus_eq trinv=> // a mus' IH; case: a.
+  move=> mua m1a m2a vala sub0S sub0T tl1 tl2 mus mus_eq trinv.
   case/frame_all_inv=> ca []tl1' []da []tl2'.
   case=> -> -> []pfa []cda []e1a []sig1a []vals1a []e2a []sig2a []vals2a.
   case=> AA BB CC DD EE FF GG /=; split.
@@ -4051,14 +4087,16 @@ split; first by move: allinv; rewrite mus_eq.
   { move=> b b' d' F; move: (DD _ _ _ F)=> /= => G.
     apply: (as_inj_shift_mu_trash trinv)=> //.
     admit. (*disjointness*)
-    by rewrite mus_eq=> ? ? /=; right; right.
-    by rewrite mus_eq /=; left; refine erefl. }
+    by rewrite mus_eq; move=> ? ? /=; right; right. }
 
-  { apply: IH=> //.
-  clear - sub0S EE; elim: mus' sub0S EE=> //= a mus' IH A B.
-  by move=> ? C; apply: A; apply: B.
-  clear - sub0T FF; elim: mus' sub0T FF=> //= a mus' IH A B.
-  by move=> ? C; apply: A; apply: B. } }(*END frame_all mu_trash' ...*)
+  { apply: IH=> //. 
+    clear - sub0S EE; elim: mus' sub0S EE=> //= a mus' IH A B.
+    by move=> ? C; apply: A; apply: B.    
+    clear - sub0T FF; elim: mus' sub0T FF=> //= a mus' IH A B.
+    by move=> ? C; apply: A; apply: B. 
+    admit. (*new lemma: trash_inv mu_trash mu_top (a :: b :: rest) 
+                     -> trash_inv mu_trash mu_top (a :: rest)*)} 
+  }(*END frame_all mu_trash' ...*)
 
 by [].
 Qed.
@@ -4144,7 +4182,7 @@ move=> rclosed trinv hdinv tlinv.
 
 have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b. 
 
-  { case: hdinv=> mtch ?; case=> visinv _ _ _ _ b ofs A; move: (U1'_EQ _ _ A).
+  { case: hdinv=> mtch ?; case=> visinv _ _ _ _ _ b ofs A; move: (U1'_EQ _ _ A).
     rewrite/RC.reach_set=> B; apply match_visible in mtch; apply: mtch.
     move: B; apply REACH_mono with (B1 := RC.reach_basis _ _)=> b'=> B.
     apply: (visinv b'); move: B; apply: RC.reach_basis_domains_eq.
@@ -4446,7 +4484,8 @@ case HLT1: (LinkerSem.halted0 st1)=> [rv|].
 case POP1: (popCore st1)=> [st1''|//].
 case AFT1: (LinkerSem.after_external (Some rv) st1'')=> [st1'''|//] eq1 A.
 
-have mu_wd: SM_wd mu. admit.
+have mu_wd: SM_wd mu. 
+{ by apply: (R_wd INV). }
 
 have INV': R data (Inj.mk mu_wd) st1 m1 st2 m2.
 { by apply: INV. }
@@ -4463,14 +4502,18 @@ left; exists O=> /=; exists st2',m2,(fun _ _ => false),(fun _ _ => false).
 split=> //.
 rewrite /effstep; split=> //.
 rewrite /LinkerSem.corestep; right; split=> //.
-split=> //. admit.
-have inCtx: (inContext st2). admit.
-rewrite inCtx.
+have nStep: ~LinkerSem.corestep0 st2 m2 st2' m2.
+{ admit. (*easy*) }
+split=> //. 
+rewrite CTX2.
 have atExt2: (LinkerSem.at_external0 st2 = None).
 { case: (LinkerSem.at_external_halted_excl0 st2)=> //.
   by rewrite HLT2. }
 by rewrite atExt2 HLT2 POP2 AFT2.
-admit. (*easy*)
+move: HLT2; rewrite /LinkerSem.halted0 /LinkerSem.corestep0.
+move=> HLT2' []c' []; move=> STEP _.
+apply corestep_not_halted in STEP.
+by move: STEP HLT2'=> /=; rewrite/RC.halted=> ->.
 }(*end [Subcase: halted0]*)
 
 by [].
