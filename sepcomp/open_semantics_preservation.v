@@ -142,6 +142,16 @@ Variable spec_ok :
     /\ Mem.unchanged_on (fun b ofs => 
          ~target_accessible j m tm args b ofs) tm tm'.
 
+(* copied from sepcomp.arguments -- argument declarations not activated 
+   otherwise for some reason *)
+Arguments core_data {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2} _ _.
+Arguments core_ord  {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 entry_points} _ _ _.
+Arguments match_state {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 entry_points} 
+  _ _ _ _ _ _ _.
+
+Arguments match_sm_wd 
+  {F1 V1 C1 F2 V2 C2 Sem1 Sem2 ge1 ge2 entry_points s d mu c1 m1 c2 m2} _.
+
 Notation data := (SM_simulation.core_data _ sim). 
 Notation ord  := (SM_simulation.core_ord sim). 
 Notation match_state := (SM_simulation.match_state sim). 
@@ -735,7 +745,7 @@ intros [[[z' tr'] c2] [m2 [STEP _]]].
 inv STEP.
 rename H11 into STEP.
 generalize STEP as STEP'; intro.
-eapply (core_diagram sim) in STEP; eauto.
+eapply core_diagram in STEP; eauto.
 destruct STEP as [d2 [tm2 [cd2 [mu2' [_ [_ [_ [MATCH2 STEP2]]]]]]]].
 destruct STEP2.
 destruct H0 as [n0 TSTEPN].
@@ -794,7 +804,7 @@ intros [[[z' tr'] c2] [m2 [STEP _]]].
 inv STEP.
 rename H11 into STEP.
 generalize STEP as STEP'; intro.
-eapply (core_diagram sim) in STEP; eauto.
+eapply (core_diagram) in STEP; eauto.
 destruct STEP as [d2 [tm2 [cd2 [mu2' [_ [_ [_ [MATCH2 STEP2]]]]]]]].
 destruct STEP2.
 destruct H0 as [n0 TSTEPN].
@@ -916,7 +926,7 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
     { destruct SY as [H|H].
       destruct H as [ef' [sig' [args' ATEXT]]].
       generalize ATEXT as ATEXT'; intro.
-      eapply (core_at_external sim) in ATEXT; eauto.
+      eapply (core_at_external) in ATEXT; eauto.
       destruct ATEXT as [_ [? [? ATEXT'']]].
       rewrite ATEXT'' in TATEXT; inv TATEXT; exists args'; auto.
       destruct H as [rv' HALT].
