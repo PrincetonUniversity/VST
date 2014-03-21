@@ -48,6 +48,16 @@ Inlining.v
 Inliningspec.v
 Inliningproof.v
 
+Linear.v
+Lineartyping.v
+Bounds.v Stacklayout.v Stacking.v
+Asmgen.v 
+
+In addition, our language definitions Lang_coop.v and Lang_eff.v
+are based on Lang.v, and our proofs PhaseprofEFF.v were derived from
+Phaseproof.v.
+ 
+
 Please refer to the following files for further details about the license.
 
 ../LICENSE
