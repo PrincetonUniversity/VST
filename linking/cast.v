@@ -43,6 +43,19 @@ Qed.
 
 End ind.
 
+Section cast_f.
+
+Variable N : nat.
+Variable T U : 'I_N -> Type.
+Variable i j : 'I_N.
+Variable f : forall i : 'I_N, T i -> U i.
+
+Lemma cast_f (x : T i) (eq : i=j) : 
+  f (cast_ty (lift_eq T eq) x) = cast_ty (lift_eq U eq) (f x).
+Proof. by rewrite <-eq; rewrite !cast_ty_erefl. Qed.
+
+End cast_f.
+
 Section ind_natdep.
 
 Variable N : nat.
@@ -140,6 +153,30 @@ Lemma cast_indnatdep32 (eq : j = i) :
 Proof. destruct eq=> //. Qed.
 
 End ind_natdep32.
+
+Section ind_natdep33.
+
+Variable N : nat.
+Variable T : 'I_N -> Type.
+Variable U : 'I_N -> Type.
+Variable V : 'I_N -> Type.
+Variable i j : 'I_N.
+Variable P : forall i : 'I_N, T i -> U i -> V i -> Type.
+Variable x : T i.
+Variable y : U j.
+Variable z : V i.
+
+Lemma cast_indnatdep33 (eq : i = j) :
+  P x (cast_ty (lift_eq U (sym_eq eq)) y) z -> 
+  P (cast_ty (lift_eq T eq) x) y (cast_ty (lift_eq V eq) z).
+Proof. destruct eq=> //. Qed.
+
+Lemma cast_indnatdep33' (eq : j = i) :
+  P x (cast_ty (lift_eq U eq) y) z -> 
+  P (cast_ty (lift_eq T (sym_eq eq)) x) y (cast_ty (lift_eq V (sym_eq eq)) z).
+Proof. destruct eq=> //. Qed.
+
+End ind_natdep33.
 
 Notation cast F pf x := (cast_ty (lift_eq F pf) x).
 
