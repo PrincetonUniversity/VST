@@ -3751,18 +3751,68 @@ apply: Build_trash_inv.
 { move: (trash_disj_S trinv). 
   rewrite /mu_trash'' /mu' /nu' /=. 
   rewrite replace_externs_locBlocksSrc reestablish_locBlocksSrc.
-  move=> []H1 H2; split.
-  rewrite /nu replace_locals_locBlocksSrc.
-  admit. (*disjointness*)
-  admit. (*disjointness*) }
+  move=> []D10 AD1.
+  have D1: DisjointLS mu_trash mu0.
+  { clear - AD1 mu0_in.
+    elim: mus AD1 mu0_in=> // a mus' /= IH []D1 AD1; case.
+    by move=> <-; apply: D1.
+    by move=> IN; apply: IH. }
+  have D2: DisjointLS mu_top mu0.
+  { move: (head_AllDisjointLS hdinv)=> AD2; clear - mu0_in AD2.
+    elim: mus AD2 mu0_in=> // a mus' /= IH []D1 AD1; case.
+    by move=> <-.
+    by move=> IN; apply: IH. }
+  split.
+  rewrite /nu replace_locals_locBlocksSrc DisjointP=> a.
+  move: D1 D2; rewrite /DisjointLS /= !DisjointP /in_mem /=. 
+  move/(_ a)=> D1; move/(_ a)=> D2; move: D1 D2.
+  by case: (locBlocksSrc mu_top a).
+  move: (head_AllDisjointLS hdinv).
+  move: AD1; rewrite mus_eq /= => [][]D3 AD1 []D4 AD2.
+  clear - AD1 AD2; elim: mus' AD1 AD2=> // a mus' /= IH.
+  move=> []D1 AD1 []D2 AD2; split.
+  move: D1 D2; rewrite !DisjointP=> D1 D2 a0 /=; move: (D1 a0) (D2 a0).
+  by rewrite /in_mem /=; case: (locBlocksSrc mu_top a0).
+  by apply: IH. }
 { move: (trash_disj_T trinv). 
   rewrite /mu_trash'' /mu' /nu' /=. 
   rewrite replace_externs_locBlocksTgt reestablish_locBlocksTgt.
-  move=> []H1 H2; split.
-  rewrite /nu replace_locals_locBlocksTgt.
-  admit. (*disjointness*)
-  admit. (*disjointness*) }
-{ admit. (*consistent*) }
+  move=> []D10 AD1.
+  have D1: DisjointLT mu_trash mu0.
+  { clear - AD1 mu0_in.
+    elim: mus AD1 mu0_in=> // a mus' /= IH []D1 AD1; case.
+    by move=> <-; apply: D1.
+    by move=> IN; apply: IH. }
+  have D2: DisjointLT mu_top mu0.
+  { move: (head_AllDisjointLT hdinv)=> AD2; clear - mu0_in AD2.
+    elim: mus AD2 mu0_in=> // a mus' /= IH []D1 AD1; case.
+    by move=> <-.
+    by move=> IN; apply: IH. }
+  split.
+  rewrite /nu replace_locals_locBlocksTgt DisjointP=> a.
+  move: D1 D2; rewrite /DisjointLT /= !DisjointP /in_mem /=. 
+  move/(_ a)=> D1; move/(_ a)=> D2; move: D1 D2.
+  by case: (locBlocksTgt mu_top a).
+  move: (head_AllDisjointLT hdinv).
+  move: AD1; rewrite mus_eq /= => [][]D3 AD1 []D4 AD2.
+  clear - AD1 AD2; elim: mus' AD1 AD2=> // a mus' /= IH.
+  move=> []D1 AD1 []D2 AD2; split.
+  move: D1 D2; rewrite !DisjointP=> D1 D2 a0 /=; move: (D1 a0) (D2 a0).
+  by rewrite /in_mem /=; case: (locBlocksTgt mu_top a0).
+  by apply: IH. }
+{ rewrite /= as_inj_mu'_mu_top /mu_trash''; split.
+  apply: consistentC.
+  apply: join_sm_consistent.
+  by move=> b1 b2 b2' d2 d2' ->; case=> -> ->.
+  by move: (trash_consist trinv)=> /= []; move/consistentC.
+  move: (trash_consist trinv) (head_AllConsistent hdinv)=> /=.
+  rewrite mus_eq /=; move=> []C1 []C2 AC1 []C3 AC2.
+  clear - AC1 AC2; elim: mus' AC1 AC2=> // a mus' /= IH.
+  move=> []C1 AC1 []C2 AC2; split.
+  apply: consistentC; apply: join_sm_consistent.
+  by apply: consistentC.
+  by apply: consistentC.
+  by apply: IH. }
 
 have trmin0: 
   trash_minimal mu_trash'' mu0 
