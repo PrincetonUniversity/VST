@@ -1299,6 +1299,12 @@ Lemma lower_andp:
 Proof. reflexivity. Qed.
 Hint Rewrite lower_sepcon lower_andp : norm.
 
+Lemma raise_sepcon:
+ forall A B : environ -> mpred , 
+    (fun rho: environ => A rho * B rho) = (A * B).
+Proof. reflexivity. Qed.
+Hint Rewrite raise_sepcon : norm.
+
 Lemma lift_prop_unfold: 
    forall P z,  @prop (environ->mpred) _ P z = @prop mpred Nveric P.
 Proof.  reflexivity. Qed.
@@ -2669,5 +2675,71 @@ Proof. intros. apply derives_trans with (!!Y); auto.
 apply prop_derives; auto.
 Qed.
 
+Lemma assert_PROP:
+ forall P1 Espec Delta P Q R c Post,
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- !! P1 ->
+   (P1 -> @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post) ->
+   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+intros.
+eapply semax_pre.
+apply andp_right.
+apply H.
+rewrite <- insert_local.
+apply andp_left2; apply derives_refl.
+apply semax_extract_prop.
+auto.
+Qed.
+
+Ltac assert_PROP A :=
+ apply (assert_PROP A); [ | intro].
+
+Lemma assert_LOCAL:
+ forall Q1 Espec Delta P Q R c Post,
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local Q1 ->
+   @semax Espec Delta (PROPx P (LOCALx (Q1::Q) (SEPx R))) c Post ->
+   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+intros.
+eapply semax_pre; try apply H0.
+rewrite <- (insert_local Q1); apply andp_right; auto.
+rewrite <- insert_local; apply andp_left2; auto.
+Qed.
+
+Ltac assert_LOCAL A :=
+ apply (assert_LOCAL A).
+
+Lemma drop_LOCAL':
+  forall (n: nat)  P Q R Post,
+   PROPx P (LOCALx (delete_nth n Q) (SEPx R)) |-- Post ->
+   PROPx P (LOCALx Q (SEPx R)) |-- Post.
+Proof.
+intros.
+eapply derives_trans; try apply H.
+apply andp_derives; auto.
+apply andp_derives; auto.
+intro rho; unfold local, lift1; unfold_lift. apply prop_derives; simpl.
+clear.
+revert Q; induction n; destruct Q; simpl; intros; intuition.
+Qed.
+
+Lemma drop_LOCAL:
+  forall (n: nat) Espec Delta P Q R c Post,
+   @semax Espec Delta (PROPx P (LOCALx (delete_nth n Q) (SEPx R))) c Post ->
+   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
+Proof.
+intros.
+eapply semax_pre; try apply H.
+rewrite <- insert_local. apply andp_left2.
+apply andp_derives; auto.
+apply andp_derives; auto.
+intro rho; unfold local, lift1; unfold_lift. apply prop_derives; simpl.
+clear.
+revert Q; induction n; destruct Q; simpl; intros; intuition.
+Qed.
+
+Ltac drop_LOCAL n :=
+   first [apply (drop_LOCAL n) | apply (drop_LOCAL' n)];
+    unfold delete_nth.
 
 

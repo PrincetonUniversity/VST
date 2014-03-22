@@ -1091,7 +1091,7 @@ Lemma semax_call_aux:
    tc_exprlist Delta (snd (split (fst fsig))) bl rho (m_phi jm) ->
     (*map typeof bl = map (@snd _ _) (fst fsig) ->*)
     guard_environ Delta (current_function k) rho ->
-    (snd fsig=Tvoid <-> ret=None) ->
+    (snd fsig=Tvoid -> ret=None) ->
     closed_wrt_modvars (Scall ret a bl) F0 ->
     R EK_normal None = (fun rho0 : environ => EX old:val, substopt ret old F rho0 * Q x (get_result ret rho0)) ->
     rho = construct_rho (filter_genv psi) vx tx ->
@@ -1210,7 +1210,7 @@ admit.
 assert (f.(fn_return)=Tvoid).  
 clear - H22; unfold bind_ret in H22; destruct (f.(fn_return)); normalize in H22; try contradiction; auto. 
 unfold fn_funsig in H18. rewrite H1 in H18. rewrite H18 in TC5. simpl in TC5.
-destruct TC5 as [TC5 _]. specialize (TC5 (eq_refl _)); congruence. 
+specialize (TC5 (eq_refl _)); congruence. 
 rewrite <- H0. auto.
 normalize. exists rval.
  destruct H22 as [H22a H22b].
@@ -1245,22 +1245,35 @@ simpl.
 rewrite (age_jm_dry H26) in FL2.
 destruct vl. 
 Focus 2.
-assert (f.(fn_return)=Tvoid). 
+(*assert (f.(fn_return)=Tvoid). 
 clear - H22; unfold bind_ret in H22; destruct (f.(fn_return)); normalize in H22; try contradiction; auto.
-unfold fn_funsig in H18. rewrite H28 in H18. rewrite H18 in TC5. simpl in TC5.
-destruct TC5 as [TC5 _]; specialize (TC5 (eq_refl _)). unfold te2 in *. rewrite TC5 in *.
-apply step_return with f None Vundef (tx); simpl; auto. 
+*)
+unfold fn_funsig in H18. (*rewrite H28 in H18.*)
+rewrite H18 in TC5. simpl in TC5.
+(*specialize (TC5 (eq_refl _)). unfold te2 in *. rewrite TC5 in *. *)
+assert (fn_return f = Tvoid). {
+ clear - H22; unfold bind_ret in H22; normalize in H22; try contradiction; auto.
+ destruct H22. repeat rewrite <- sepcon_assoc in H.
+ destruct H as [? [? [? [_ ?]]]]. destruct (fn_return f); try contradiction H1. auto.
+}
+specialize (TC5 H28).
+apply step_return with f ret Vundef (tx); simpl; auto.
+unfold te2.
+rewrite TC5. split; auto.
 assert (typecheck_val v (fn_return f) = true).
  clear - H22; unfold bind_ret in H22; normalize in H22; try contradiction; auto.
  destruct H22. destruct H. rewrite tc_val_eq in H; apply H.
-destruct ret.
 simpl.
 unfold rval.
-apply step_return with (zap_fn_return f) None v (PTree.set i v tx); simpl; auto.
+destruct ret.
+apply step_return with (zap_fn_return f) None Vundef (PTree.set i v tx); simpl; auto.
+apply step_return with f None Vundef tx; simpl; auto.
+(*
 elimtype False.
 clear - H28 H18 TC5. subst fsig. unfold fn_funsig in TC5. simpl in TC5.
 destruct TC5. rewrite H0 in H28 by auto.
 clear - H28. destruct v; simpl in *; congruence. 
+*)
 admit.  (* not too difficult *)
 (* END OF  "spec H19" *)
 
@@ -1365,7 +1378,7 @@ Lemma semax_call:
     forall Delta A (P Q: A -> assert) x F ret argsig retsig a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig -> 
-            (retsig = Tvoid <-> ret = None) ->
+            (retsig = Tvoid -> ret = None) ->
   semax Espec Delta
        (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
            (fun_assert  (argsig,retsig) A P Q (eval_expr a rho) && 
@@ -1491,7 +1504,7 @@ Lemma semax_call_alt:
     forall Delta A (P Q: A -> assert) x F ret argsig retsig a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig -> 
-            (retsig = Tvoid <-> ret = None) ->
+            (retsig = Tvoid -> ret = None) ->
   semax Espec Delta
        (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
            (func_ptr (mk_funspec (argsig,retsig) A P Q) (eval_expr a rho) && 
@@ -1649,9 +1662,7 @@ elimtype False; clear - H7.
 admit.  (* easy *)
 destruct l0.
 clear H0 H2 H8.
-inv H9.
-destruct optid.
-destruct H17; congruence.
+inv H9. fold denote_tc_assert in TC.
 inv H11.
 destruct H17.
 econstructor; try eassumption; simpl.
@@ -1680,27 +1691,38 @@ simpl in TC.
  repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 destruct TC; auto.
 
+fold denote_tc_assert in TC.
 inv H9.
-destruct optid.
-destruct H20; congruence.
 symmetry in H14; inv H14.
 destruct H20.
-elimtype False.
-destruct H3.
-simpl in H10. rewrite (call_cont_current_function H7) in H10.
-destruct H10 as [_ H10]. rewrite H6 in H10.
-rewrite H10 in TC.
+subst te''. clear H6.
+econstructor; try eassumption.
+exists (eval_expr e (construct_rho (filter_genv psi) ve te)).
+assert (TCe: denote_tc_assert (typecheck_expr Delta' e)  (construct_rho (filter_genv psi) ve te)).
+eapply tc_expr_sub; try apply TS. instantiate (1:=m_phi jm).
+hnf.
+simpl in *. 
+ repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+destruct TC; auto.
+split.
+apply eval_expr_relate with (Delta := Delta'); auto.
+destruct H3; auto.
+rewrite cop2_sem_cast.
+apply cast_exists with Delta'; auto.
+destruct H3; auto.
+destruct H3. simpl in H6.
+rewrite (call_cont_current_function H7) in H6.
+destruct H6 as [_ H6]; rewrite <- H6.
 clear - TC.
 simpl in TC.
- repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-destruct TC as [_ ?].
-apply H. 
-simpl.
-unfold_lift.
+rewrite denote_tc_assert_andp in TC; destruct TC; auto.
+simpl. auto.
+
 intro.
 inv H7.
-econstructor; try eassumption.
 rewrite call_cont_idem in H13; auto.
+econstructor; try eassumption.
+auto.
 Qed.
  
 End extensions.

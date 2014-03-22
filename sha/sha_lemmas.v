@@ -1477,68 +1477,6 @@ repeat rewrite <- Int.or_ror by reflexivity.
 unfold Rotr. f_equal.
 Qed.
 
-
-(* MOVE THESE TO FLOYD *)
-
-Lemma assert_PROP:
- forall P1 Espec Delta P Q R c Post,
-    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- !! P1 ->
-   (P1 -> @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post) ->
-   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
-Proof.
-intros.
-eapply semax_pre.
-apply andp_right.
-apply H.
-rewrite <- insert_local.
-apply andp_left2; apply derives_refl.
-apply semax_extract_prop.
-auto.
-Qed.
-
-Lemma drop_LOCAL':
-  forall (n: nat)  P Q R Post,
-   PROPx P (LOCALx (delete_nth n Q) (SEPx R)) |-- Post ->
-   PROPx P (LOCALx Q (SEPx R)) |-- Post.
-Proof.
-intros.
-eapply derives_trans; try apply H.
-apply andp_derives; auto.
-apply andp_derives; auto.
-intro rho; unfold local, lift1; unfold_lift. apply prop_derives; simpl.
-clear.
-revert Q; induction n; destruct Q; simpl; intros; intuition.
-Qed.
-
-Lemma assert_LOCAL:
- forall Q1 Espec Delta P Q R c Post,
-    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local Q1 ->
-   @semax Espec Delta (PROPx P (LOCALx (Q1::Q) (SEPx R))) c Post ->
-   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
-Proof.
-intros.
-eapply semax_pre; try apply H0.
-rewrite <- (insert_local Q1); apply andp_right; auto.
-rewrite <- insert_local; apply andp_left2; auto.
-Qed.
-
-Lemma drop_LOCAL:
-  forall (n: nat) Espec Delta P Q R c Post,
-   @semax Espec Delta (PROPx P (LOCALx (delete_nth n Q) (SEPx R))) c Post ->
-   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c Post.
-Proof.
-intros.
-eapply semax_pre; try apply H.
-rewrite <- insert_local. apply andp_left2.
-apply andp_derives; auto.
-apply andp_derives; auto.
-intro rho; unfold local, lift1; unfold_lift. apply prop_derives; simpl.
-clear.
-revert Q; induction n; destruct Q; simpl; intros; intuition.
-Qed.
-
-(* END move these to Floyd *)
-
 Lemma divide_hashed:
  forall (bb: list int), 
     NPeano.divide LBLOCK (length bb) <->

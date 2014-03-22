@@ -8,8 +8,7 @@ Local Open Scope logic.
 
 Definition update_inner_if_then :=
   (Ssequence
-     (Ssequence
-        (Scall (Some _ignore')
+      (Scall None
            (Evar _memcpy
               (Tfunction
                  (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil)))
@@ -17,7 +16,6 @@ Definition update_inner_if_then :=
            [Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _n tuint)
               (tptr tuchar), Etempvar _data (tptr tuchar),
            Etempvar _fragment tuint])
-        (Sset _ignore (Etempvar _ignore' (tptr tvoid))))
      (Ssequence
         (Scall None
            (Evar _sha256_block_data_order
@@ -34,21 +32,18 @@ Definition update_inner_if_then :=
               (Sset _len
                  (Ebinop Osub (Etempvar _len tuint)
                     (Etempvar _fragment tuint) tuint))
-              (Ssequence
-                 (Scall (Some _ignore'1)
+                 (Scall None
                     (Evar _memset
                        (Tfunction
                           (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
                           (tptr tvoid)))
                     [Etempvar _p (tptr tuchar), Econst_int (Int.repr 0) tint,
                     Ebinop Omul (Econst_int (Int.repr 16) tint)
-                      (Econst_int (Int.repr 4) tint) tint])
-                 (Sset _ignore (Etempvar _ignore'1 (tptr tvoid)))))))).
+                      (Econst_int (Int.repr 4) tint) tint]))))).
 
 Definition  update_inner_if_else :=
                 (Ssequence
-                  (Ssequence
-                    (Scall (Some _ignore'2)
+                    (Scall None
                       (Evar _memcpy (Tfunction
                                       (Tcons (tptr tvoid)
                                         (Tcons (tptr tvoid)
@@ -57,7 +52,6 @@ Definition  update_inner_if_else :=
                          (Etempvar _n tuint) (tptr tuchar)) ::
                        (Etempvar _data (tptr tuchar)) ::
                        (Etempvar _len tuint) :: nil))
-                    (Sset _ignore (Etempvar _ignore'2 (tptr tvoid))))
                   (Ssequence
                     (Sassign
                       (Efield
@@ -177,7 +171,7 @@ Proof.
   unfold K_vector.
   unfold update_inner_if_then.
   apply (remember_value (eval_id _fragment)); intro fragment.
-  forward. (* ignore = memcpy (p+n,data,fragment); *)
+  forward. (* memcpy (p+n,data,fragment); *)
   simpl split. simpl @snd.
   instantiate (1:=((sh,Tsh), 
                            offset_val (Int.repr (Zlength dd)) (offset_val (Int.repr 40) c),
@@ -239,9 +233,15 @@ rewrite <- offset_val_array_at_.
               0 (Int.unsigned (force_int fragment))
               (offset_val (Int.repr (Zlength dd))
                  (offset_val (Int.repr 40) c))))).
- rewrite local_and_retval.
  autorewrite with norm subst.
- move_local_from_SEP.
+ replace_SEP 0%Z (`(array_at tuchar sh
+           (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
+           0 (Int.unsigned (force_int fragment)) d) *
+       `(array_at tuchar Tsh
+           (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
+           0 (Int.unsigned (force_int fragment))
+           (offset_val (Int.repr (40 + Zlength dd)) c))).
+ entailer!.
  repeat flatten_sepcon_in_SEP.
  fold j k.
  gather_SEP 4%Z 1%Z.
@@ -274,7 +274,6 @@ rewrite <- offset_val_array_at_.
  f_equal. rewrite Zlength_correct; rewrite Nat2Z.id. rewrite map_length; auto.
  repeat rewrite map_length. apply Nat2Z.inj_ge.
   rewrite Z2Nat.id by omega. rewrite <- Zlength_correct; omega.
- forward. (* finish the call *)
  forward. (* sha256_block_data_order (c,p); *)
  instantiate (1:=(hashed, Zlist_to_intlist (dd++(firstn (Z.to_nat k) data)), c, (offset_val (Int.repr 40) c), Tsh)) in (Value of witness).
  unfold witness; simpl split; simpl @snd.
@@ -355,7 +354,7 @@ rewrite <- offset_val_array_at_.
  forward. (* data  += fragment; *)
 entailer!.
  forward. (* len -= fragment; *)
- forward. (* ignore=memset (p,0,SHA_CBLOCK); *)
+ forward. (* memset (p,0,SHA_CBLOCK); *)
  instantiate (1:=(Tsh, offset_val (Int.repr 40) c, 64%Z, Int.zero))
   in (Value of witness).
  unfold witness; simpl split; simpl @snd.
@@ -398,7 +397,12 @@ entailer!.
  unfold Int.ltu in H8; if_tac in H8; try inv H8.
  unfold k in H5; repeat rewrite Int.unsigned_repr in H5 by omega.
  omega.
- simpl. autorewrite with subst norm.
+ cbv beta iota.
+ autorewrite with subst norm.
+ unfold sha_update_inv.
+ entailer.
+
+(*
  change (fun x1 : environ =>
       local (`(eq (offset_val (Int.repr 40) c)) retval) x1 &&
       `(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
@@ -406,13 +410,14 @@ entailer!.
   with (local (`(eq (offset_val (Int.repr 40) c)) retval) &&
       `(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
           (offset_val (Int.repr 40) c))).
- rewrite local_and_retval.
- forward. (* ignore = ignore'1; *)
+
+  forward. (* ignore = ignore'1; *) 
  unfold sha_update_inv.
  entailer.
+*)
  rewrite negb_true_iff in H6.
  apply ltu_repr_false in H6; [ | omega..].
- clear TC1 TC0 TC4 TC TC3 TC2.
+ clear TC1 TC0  TC.
  apply exp_right with (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)).
  assert (LL: length (dd ++ firstn (Z.to_nat k) data) = CBLOCK). {
  rewrite app_length. rewrite firstn_length. rewrite min_l.

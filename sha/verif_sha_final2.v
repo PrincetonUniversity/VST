@@ -14,20 +14,17 @@ Definition Delta_final_if1 : tycontext :=
 
 Definition Body_final_if1 := 
   (Ssequence
-              (Ssequence
-                (Scall (Some _ignore'4)
-                  (Evar _memset (Tfunction
-                                  (Tcons (tptr tvoid)
-                                    (Tcons tint (Tcons tuint Tnil)))
-                                  (tptr tvoid)))
-                  ((Ebinop Oadd (Etempvar _p (tptr tuchar))
-                     (Etempvar _n tuint) (tptr tuchar)) ::
-                   (Econst_int (Int.repr 0) tint) ::
-                   (Ebinop Osub
-                     (Ebinop Omul (Econst_int (Int.repr 16) tint)
-                       (Econst_int (Int.repr 4) tint) tint)
-                     (Etempvar _n tuint) tuint) :: nil))
-                (Sset _ignore (Etempvar _ignore'4 (tptr tvoid))))
+              (Scall None
+                (Evar _memset (Tfunction
+                                (Tcons (tptr tvoid)
+                                  (Tcons tint (Tcons tuint Tnil)))
+                                (tptr tvoid)))
+                ((Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _n tuint)
+                   (tptr tuchar)) :: (Econst_int (Int.repr 0) tint) ::
+                 (Ebinop Osub
+                   (Ebinop Omul (Econst_int (Int.repr 16) tint)
+                     (Econst_int (Int.repr 4) tint) tint) (Etempvar _n tuint)
+                   tuint) :: nil))
               (Ssequence
                 (Sset _n (Econst_int (Int.repr 0) tint))
                 (Scall None
@@ -102,7 +99,6 @@ name p _p.
 name n _n.
 name cNl _cNl.
 name cNh _cNh.
-name ignore _ignore.
 intros.
 assert (Hddlen: (0 <= Zlength dd < CBLOCKz)%Z) by Omega1.
 set (ddlen := Zlength dd) in *.
@@ -138,9 +134,8 @@ Focus 2. {
    rewrite <- offset_val_array_at_.
   rewrite Z.add_0_r.
  replace (ddlen + 1 + (64 - (ddlen+1)))%Z with 64%Z by (clear; omega).
- apply array_at__array_at.
+ apply array_at_array_at_.
  }
-  forward. (* finish the call *)
   forward.  (* n=0; *)
 replace_SEP 0%Z (
       `(array_at tuchar Tsh (fun _ => Vint Int.zero) 0
@@ -293,7 +288,7 @@ entailer!.
   unfold data_block.
  simpl. apply andp_left2.
   replace (Zlength (intlist_to_Zlist ddzw)) with 64%Z.
- apply array_at__array_at.
+ apply array_at_array_at_.
  rewrite Zlength_correct; rewrite length_intlist_to_Zlist.
  rewrite H1;  reflexivity.
 Qed.
@@ -392,10 +387,7 @@ Lemma final_part4:
  length hashedmsg = 8%nat ->
  writable_share shmd ->
 semax
-  (initialized _ignore'6
-     (initialized _cNl
-        (initialized _cNh
-           (initialized _ignore (initialized _ignore'5 Delta_final_if1)))))
+  (initialized _cNl (initialized _cNh Delta_final_if1))
   (PROP  ()
    LOCAL  (`(eq md) (eval_id _md); `(eq c) (eval_id _c))
    SEP 
@@ -524,7 +516,7 @@ forward_for
  rewrite <- offset_val_array_at_.
  rewrite Z.add_0_r.
  replace  (Z.of_nat (S i) * 4)%Z  with (Z.of_nat i * 4 + 4)%Z; 
-   [ apply array_at__array_at |].
+   [ apply array_at_array_at_ |].
  rewrite inj_S. unfold Z.succ.
  rewrite Z.mul_add_distr_r. reflexivity.
 }

@@ -17,7 +17,6 @@ name p _p.
 name n _n.
 name cNl _cNl.
 name cNh _cNh.
-name ignore _ignore.
 unfold sha256state_; normalize.
 intros [r_h [r_Nl [r_Nh [r_data r_num]]]].
 simpl_data_at.
@@ -27,10 +26,7 @@ unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
 destruct a as [hashed data].
 destruct H0 as [H0 [H1 [H2 [[H3 DDbytes] [H4 H5]]]]].
 destruct H1 as [hi [lo [? [? ?]]]].
-(*
-destruct H2 as [dd [? ?]]. *)
 subst r_Nh r_Nl r_num r_data. rename data into dd.
-(*revert POSTCONDITION; subst data; intro.*)
 assert (H3': (Zlength dd < 64)%Z) by assumption.
 unfold at_offset.
 forward. (* p = c->data;  *)
@@ -98,7 +94,7 @@ unfold sha_finish.
 unfold SHA_256.
 clear ddlen Hddlen.
 
-forward. (* ignore=memset (p+n,0,SHA_CBLOCK-8-n); *)
+forward. (* memset (p+n,0,SHA_CBLOCK-8-n); *)
  match goal with H : True |- _ => clear H 
             (* WARNING__ is a bit over-eager;
                 need to tell it that K_vector is closed *)
@@ -164,34 +160,16 @@ rewrite nth_overflow
   rewrite Zlength_correct; change (Z.of_nat CBLOCK) with 64 in *;
   change (Z.of_nat 8) with 8 in H0; omega.
   cbv beta iota. autorewrite with subst.
-  forward. (* finish the call *)
-  apply semax_pre with
-  (PROP  ()
-   LOCAL 
-   (`(eq (Vint (Int.repr (Zlength dd')))) (eval_id _n);
-   `eq (eval_id _p) (`(offset_val (Int.repr 40)) (`force_ptr (eval_id _c)));
-   `(eq md) (eval_id _md); `(eq c) (eval_id _c))
-   SEP 
-   (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
+replace_SEP 0%Z (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
           (Z.of_nat CBLOCK - 8 - Zlength dd')
-          (offset_val (Int.repr (Zlength dd')) (offset_val (Int.repr 40) c)));
-   `(array_at tuint Tsh
-       (ZnthV tuint (map Vint (hash_blocks init_registers hashed'))) 0 8 c);
-   `(field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c);
-   `(field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c);
-   `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 (Zlength dd')
-       (offset_val (Int.repr 40) c));
-   `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) (Z.of_nat CBLOCK - 8)
-       64 (offset_val (Int.repr 40) c));
-   `(field_at_ Tsh t_struct_SHA256state_st _num c); K_vector;
-   `(memory_block shmd (Int.repr 32) md))).
- entailer!.
+          (offset_val (Int.repr (Zlength dd')) (offset_val (Int.repr 40) c)))).
+entailer!.
  forward.  (* p += SHA_CBLOCK-8; *)
  entailer!.
  simpl eval_binop. normalize.
  unfold force_val2. simpl force_val. rewrite mul_repr, sub_repr.
 
- replace Delta with (initialized _ignore (initialized _ignore'5 (Delta_final_if1)))
+ replace Delta with Delta_final_if1
   by (simplify_Delta; reflexivity).
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 simple apply final_part2 with pad; assumption.

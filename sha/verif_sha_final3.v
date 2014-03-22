@@ -9,31 +9,36 @@ Local Open Scope logic.
 
 
 Definition sha_final_epilog :=
-  (Ssequence
-     (Scall None
-        (Evar _sha256_block_data_order
-           (Tfunction
-              (Tcons (tptr t_struct_SHA256state_st) (Tcons (tptr tvoid) Tnil))
-              tvoid))
-        [Etempvar _c (tptr t_struct_SHA256state_st),
-        Etempvar _p (tptr tuchar)])
-     (Ssequence
-        (Sassign
-           (Efield
-              (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                 t_struct_SHA256state_st) _num tuint)
-           (Econst_int (Int.repr 0) tint))
-        (Ssequence
-           (Ssequence
-              (Scall (Some _ignore'6)
-                 (Evar _memset
-                    (Tfunction
-                       (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
-                       (tptr tvoid)))
-                 [Etempvar _p (tptr tuchar), Econst_int (Int.repr 0) tint,
-                 Ebinop Omul (Econst_int (Int.repr 16) tint)
-                   (Econst_int (Int.repr 4) tint) tint])
-              (Sset _ignore (Etempvar _ignore'6 (tptr tvoid))))
+              (Ssequence
+                          (Scall None
+                            (Evar _sha256_block_data_order (Tfunction
+                                                             (Tcons
+                                                               (tptr t_struct_SHA256state_st)
+                                                               (Tcons
+                                                                 (tptr tvoid)
+                                                                 Tnil))
+                                                             tvoid))
+                            ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
+                             (Etempvar _p (tptr tuchar)) :: nil))
+                          (Ssequence
+                            (Sassign
+                              (Efield
+                                (Ederef
+                                  (Etempvar _c (tptr t_struct_SHA256state_st))
+                                  t_struct_SHA256state_st) _num tuint)
+                              (Econst_int (Int.repr 0) tint))
+                            (Ssequence
+                              (Scall None
+                                (Evar _memset (Tfunction
+                                                (Tcons (tptr tvoid)
+                                                  (Tcons tint
+                                                    (Tcons tuint Tnil)))
+                                                (tptr tvoid)))
+                                ((Etempvar _p (tptr tuchar)) ::
+                                 (Econst_int (Int.repr 0) tint) ::
+                                 (Ebinop Omul (Econst_int (Int.repr 16) tint)
+                                   (Econst_int (Int.repr 4) tint) tint) ::
+                                 nil))
            (Ssequence final_loop (Sreturn None))))).
 
 Lemma sha_final_part3:
@@ -44,9 +49,7 @@ forall (Espec : OracleKind) (md c : val) (shmd : share)
  Zlength lastblock = LBLOCKz ->
  generate_and_pad msg = hashed++lastblock ->
 semax
-  (initialized _cNl
-     (initialized _cNh
-        (initialized _ignore (initialized _ignore'5 Delta_final_if1))))
+  (initialized _cNl (initialized _cNh Delta_final_if1))
   (PROP  ()
    LOCAL  (`(eq (offset_val (Int.repr 40) c)) (eval_id _p);
    `(eq md) (eval_id _md); `(eq c) (eval_id _c))
@@ -73,47 +76,30 @@ instantiate (1:= (hashed, lastblock, c, (offset_val (Int.repr 40) c), Tsh))
   in (Value of witness).
 entailer!.
 normalize.
-replace_SEP 0%Z  (`(array_at tuint Tsh
-          (tuints
-             (hash_blocks init_registers (hashed ++ lastblock))) 0 8 c) *
-      `(at_offset 40 (array_at tuchar Tsh (ZnthV tuchar []) 0 64) c) *
-      K_vector).
+replace_SEP 2%Z  (K_vector).
 entailer!.
 unfold data_block.
 simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
-rewrite array_at_ZnthV_nil.
-rewrite Zlength_correct.
-rewrite length_intlist_to_Zlist.
-apply Zlength_length in H0; auto; rewrite H0.
-change (Z.of_nat (4 * LBLOCK))%Z with 64%Z.
-unfold at_offset.
-apply array_at__array_at.
-normalize.
 rewrite <- H1.
 forward. (* c->num=0; *)
-forward. (* ignore=memset (p,0,SHA_CBLOCK); *)
+forward. (* memset (p,0,SHA_CBLOCK); *) 
 instantiate (1:= (Tsh, (offset_val (Int.repr 40) c), 64%Z, Int.zero))
   in (Value of witness).
-entailer!.
+entailer!. 
+ fold t_struct_SHA256state_st.
  rewrite (memory_block_array_tuchar _ 64%Z) by Omega1.
-pull_left (at_offset 40 (array_at tuchar Tsh (ZnthV tuchar []) 0 64) c).
-repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
-unfold at_offset.
-cancel.
+ rewrite Zlength_intlist_to_Zlist, H0. change (4*LBLOCKz) with 64.
+ cancel.
 autorewrite with subst.
 replace_SEP 0%Z (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
           (offset_val (Int.repr 40) c))).
 entailer!.
-forward.  (* ignore = ignore'; *)
+(* forward.  (* ignore = ignore'; *) *)
 fold t_struct_SHA256state_st.
 pose proof (length_hash_blocks (generate_and_pad msg)).
 
 replace Delta with
- (initialized _ignore'6
-   (initialized _cNl (initialized _cNh 
-   (initialized _ignore 
-     (initialized _ignore'5
-     Delta_final_if1)))))
+   (initialized _cNl (initialized _cNh Delta_final_if1))
  by (simplify_Delta; reflexivity).
 eapply semax_pre; [ | apply final_part4; auto].
 entailer!.
@@ -256,7 +242,6 @@ name _p ->
 name _n ->
 name _cNl ->
 name _cNh ->
-name _ignore ->
 forall (hi lo : int) (dd : list Z),
 (LBLOCKz | Zlength hashed) ->
 ((Zlength hashed * 4 + Zlength dd)*8)%Z = hilo hi lo ->
@@ -271,7 +256,7 @@ forall (hashed': list int) (dd' : list Z) (pad : Z),
 intlist_to_Zlist hashed' ++ dd' =
 intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
 forall p0 : val,
-semax (initialized _ignore (initialized _ignore'5 Delta_final_if1))
+semax Delta_final_if1
   (PROP  ()
    LOCAL 
    (`(eq (force_val (sem_add_pi tuchar p0 (Vint (Int.repr (16 * 4 - 8))))))
@@ -344,8 +329,7 @@ semax (initialized _ignore (initialized _ignore'5 Delta_final_if1))
                                 t_struct_SHA256state_st) _num tuint)
                           (Econst_int (Int.repr 0) tint))
                        (Ssequence
-                          (Ssequence
-                             (Scall (Some _ignore'6)
+                             (Scall None
                                 (Evar _memset
                                    (Tfunction
                                       (Tcons (tptr tvoid)
@@ -355,7 +339,6 @@ semax (initialized _ignore (initialized _ignore'5 Delta_final_if1))
                                 Econst_int (Int.repr 0) tint,
                                 Ebinop Omul (Econst_int (Int.repr 16) tint)
                                   (Econst_int (Int.repr 4) tint) tint])
-                             (Sset _ignore (Etempvar _ignore'6 (tptr tvoid))))
                           (Ssequence
                              final_loop
                              (Sreturn None))))))))))
@@ -370,7 +353,7 @@ semax (initialized _ignore (initialized _ignore'5 Delta_final_if1))
                    (intlist_to_Zlist hashed ++ dd))))
           md)))).
 Proof.
- intros Espec hashed md c shmd H md_ c_ p n cNl cNh ignore
+ intros Espec hashed md c shmd H md_ c_ p n cNl cNh
  hi lo dd H4 H7 H3 DDbytes hashed' dd' pad 
  DDbytes' PAD H0 H1 H2 H5 p0.
  pose (hibytes := Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist [hi]))))).

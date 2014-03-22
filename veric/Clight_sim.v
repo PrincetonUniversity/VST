@@ -849,23 +849,24 @@ Focus 1. (* case x of y *)
  apply Smallstep.plus_one. eapply CC.step_loop; eauto.
  constructor; auto. apply match_cont_strip; constructor; auto.
 
- Focus 1. (* step_loop2 *)
+ Focus 1. (* step_loop2 *) {
   inv H0. inv H4.
  destruct s0; inv H3.
  generalize (strip_skip'_loop2 ge f ve te m _ _ _ _ H1); intro.
  exists (CC_core_State f s (CC.Kloop1 s a3 k'0) ve te); split.
- (*a*) eapply star_plus_trans; try apply H.
+ * eapply star_plus_trans; try apply H.
                econstructor.
                             eapply CC.step_skip_loop2; eauto.
                             apply Smallstep.star_one. eapply CC.step_loop; eauto.
                             auto.
-(*b*)   constructor; auto. apply match_cont_strip. constructor. auto.
+ * constructor; auto. apply match_cont_strip. constructor. auto.
+} Unfocus.
 
- Focus 1. (* step_return *)
+ Focus 1. (* step_return *) {
  inv H3.
   remember (strip_skip' (CC.Kseq s k'0)) as k3. simpl in CUR, H8.
  inv H8.
- (*first case*)
+ * (*first case*)
  generalize (exec_skips' ge f0 _ _ _ _ ve te m (@eq_sym _ _ _ H4)); intro H99.
  assert (f0=f).
    simpl in CUR; clear - CUR H.
@@ -875,13 +876,11 @@ Focus 1. (* case x of y *)
  spec H3; [congruence |]. spec H3; [auto |].
  generalize H3; rewrite H; intro.
  inv H5.
- (*1/2*)   elimtype False; clear - H10.
+  +  elimtype False; clear - H10.
          revert H10; induction k'1; simpl; intros; congruence.
- (*2/2*) destruct optexp;  [destruct H1 as [v [? ?]] | ]; (destruct optid; destruct H2 as [H2 H2']; 
+  + destruct optexp;  [destruct H1 as [v [? ?]] | ]; (destruct optid; destruct H2 as [H2 H2']; 
                try solve [contradiction H2; auto]; subst te'' ).
-         (*   try (econstructor; split; eapply step_star_trans; [eapply Smallstep.star_plus_trans; [ apply H99  | eapply Smallstep.plus_two ] | ]).*)
-           (*1/3*) 
-                eexists (CC_core_State f Sskip k'2 ve' (PTree.set i v' te')).
+    -   eexists (CC_core_State f Sskip k'2 ve' (PTree.set i v' te')).
                 split. 
                      apply (star_plus_trans _ _ _ _ H99). (*with (s2:=CC.State f0 (Sreturn (Some e)) k'1 ve te m).  apply H99. *)
                      eapply plus_trans with (s2:=CC.Returnstate v' (CC.call_cont k'1) m').
@@ -889,31 +888,55 @@ Focus 1. (* case x of y *)
                                          eapply Smallstep.plus_one. simpl. rewrite <- H13. 
                                          eapply CC.step_returnstate.
                     constructor; auto.
-           (*2/3*) 
-                eexists (CC_core_State f Sskip k'2 ve' te').
+    -   eexists (CC_core_State f Sskip k'2 ve' te').
                 split. 
                      eapply (star_plus_trans _ _ _ _ H99). (* with (s2:=CC.State f0 (Sreturn (Some e)) k'1 ve te m). apply H99. *)
                           eapply plus_trans with (s2:=CC.Returnstate v' (CC.call_cont k'1) m').
                                          eapply Smallstep.plus_one. simpl. econstructor; eauto.
                                          eapply Smallstep.plus_one. simpl. rewrite <- H13. eapply CC.step_returnstate.
                     constructor; auto.
-           (*3/3*) 
-                eexists (CC_core_State f Sskip k'2 ve' te').
+    -   eexists (CC_core_State f Sskip k'2 ve' (CC.set_opttemp (Some i) Vundef te')).
                 split.
                      eapply (star_plus_trans _ _ _ _ H99).  (*with (s2:=CC.State f0 (Sreturn None) k'1 ve te m).  apply H99. *)
                           eapply plus_trans with (s2:=CC.Returnstate Vundef (CC.call_cont k'1) m').
                                          eapply Smallstep.plus_one. simpl. econstructor; eauto.
-                                         eapply Smallstep.plus_one. simpl. rewrite <- H13. eapply CC.step_returnstate.
-                    constructor; auto.                
-
- (*second case*)
- destruct optid. destruct H2. congruence.
- destruct H2; subst te''.
- simpl in H. inv H. simpl in CUR. symmetry in CUR; inv CUR.
+                                         eapply Smallstep.plus_one. simpl. rewrite <- H13.
+                apply CC.step_returnstate. subst.
+                 simpl. constructor 1. auto. simpl.  auto.
+   - eexists (CC_core_State f Sskip k'2 ve' te').
+                split.
+                     eapply (star_plus_trans _ _ _ _ H99).  
+                          eapply plus_trans with (s2:=CC.Returnstate Vundef (CC.call_cont k'1) m').
+                                         eapply Smallstep.plus_one. simpl. econstructor; eauto.
+                                         eapply Smallstep.plus_one. simpl. rewrite <- H13.
+                apply CC.step_returnstate. subst.
+                 simpl. constructor 1. auto. simpl.  auto.
+ * (*second case*)
+ destruct optid; destruct H2 as [_ H2]; subst te''.
+  + simpl in H. inv H. simpl in CUR. symmetry in CUR; inv CUR.
+    destruct s; inv H4.
+    assert (Smallstep.star CCstep ge (CC.State f Sskip k'0 ve te m) nil
+                         (CC.State f Sskip (CC.Kcall (Some i) f1 ve' te' k'1) ve te m)).
+     clear - H1.
+     revert H1; induction k'0; intros; try solve [inv H1].
+           destruct (dec_skip s). subst s. simpl in H1. 
+               eapply star_trans; try apply IHk'0; auto. apply Smallstep.star_one. constructor; auto.
+          rewrite strip_skip'_not in H1 by auto. rewrite <- H1. constructor 1.
+          simpl in H1. inv H1. constructor 1.
+ (econstructor; split; [eapply star_plus_trans; [ apply H  | eapply Smallstep.plus_two ] | ]).
+     eapply CC.step_skip_call; simpl; eauto.
+     assert (X: CCstep ge (CC.Returnstate Vundef (CC.Kcall (Some i) f1 ve' te' k'1) m') 
+                                      Events.E0
+                                     (CC_core_to_CC_state (CC_core_State f1 Sskip k'1 ve'  (CC.set_opttemp (Some i) Vundef te')) m')).
+            econstructor; eauto.
+       apply X.
+    auto.
+    econstructor; eauto.
+ +
+   simpl in H. inv H. simpl in CUR. symmetry in CUR; inv CUR.
  destruct s; inv H4.
  assert (Smallstep.star CCstep ge (CC.State f Sskip k'0 ve te m) nil
                          (CC.State f Sskip (CC.Kcall None f1 ve' te' k'1) ve te m)).
-     clear H1; rename H3 into H1.
      clear - H1.
      revert H1; induction k'0; intros; try solve [inv H1].
            destruct (dec_skip s). subst s. simpl in H1. 
@@ -929,6 +952,7 @@ Focus 1. (* case x of y *)
        apply X.
     auto.
     econstructor; eauto.
+} Unfocus.
  
  Focus 1. (* step_switch *)
  inv H0. simpl strip_skip in H5.
@@ -1703,22 +1727,51 @@ Focus 1.
                                          eapply corestep_plus_one. simpl. rewrite <- H13. eapply CC.step_returnstate.
                     constructor; auto.
            (*3/3*) 
-                eexists (CC_core_State f Sskip k'2 ve' te').
+                eexists (CC_core_State f Sskip k'2 ve' (CC.set_opttemp (Some i) v' te')).
                 split. 
                      eapply (corestep_star_plus_trans _ _ _ _ _ _ _ _ H99). (* with (c2:=CC_core_State f0 (Sreturn None) k'1 ve te)(m2:=m). apply H99. *)
-                          eapply corestep_plus_trans with (c2:=CC_core_Returnstate Vundef (CC.call_cont k'1))(m2:=m').
-                                         eapply corestep_plus_one. simpl. econstructor; eauto.
-                                         eapply corestep_plus_one. simpl. rewrite <- H13. eapply CC.step_returnstate.
+                          eapply corestep_plus_trans with (c2:=CC_core_Returnstate v' (CC.call_cont k'1))(m2:=m').
+                                         eapply corestep_plus_one. simpl. subst; econstructor; eauto.
+                                         eapply corestep_plus_one. simpl. rewrite <- H13.
+                      eapply CC.step_returnstate.
+                      simpl.
+                    constructor; auto.
+            (* 4/3 *)
+              eexists (CC_core_State f Sskip k'2 ve' te').
+                split. 
+                     eapply (corestep_star_plus_trans _ _ _ _ _ _ _ _ H99). (* with (c2:=CC_core_State f0 (Sreturn None) k'1 ve te)(m2:=m). apply H99. *)
+                          eapply corestep_plus_trans with (c2:=CC_core_Returnstate v' (CC.call_cont k'1))(m2:=m').
+                                         eapply corestep_plus_one. simpl. subst; econstructor; eauto.
+                                         eapply corestep_plus_one. simpl. rewrite <- H13.
+                      eapply CC.step_returnstate.
+                      simpl.
                     constructor; auto.
 
  (*second case*)
- destruct optid. destruct H2. congruence.
+ destruct optid. destruct H2.
+   subst te''.
+  simpl in H. inv H. simpl in CUR. symmetry in CUR; inv CUR.
+ destruct s; inv H4.
+ assert (corestep_star CC_core_sem ge (CC_core_State f Sskip k'0 ve te) m
+                         (CC_core_State f Sskip (CC.Kcall (Some i) f1 ve' te' k'1) ve te) m).
+     revert H1; induction k'0; intros; try solve [inv H1].
+           destruct (dec_skip s).
+           (*s=skip*)  subst s. simpl in H1. 
+               eapply corestep_star_trans; try apply IHk'0; auto. apply corestep_star_one. constructor; auto.
+          (*s<>skip*)
+              rewrite strip_skip'_not in H1 by auto. rewrite <- H1. apply corestep_star_zero.
+          simpl in H1. inv H1.  apply corestep_star_zero.
+ eexists (CC_core_State f1 Sskip k'1 ve' (CC.set_opttemp (Some i) Vundef te')).
+     split. eapply corestep_star_plus_trans. apply H. clear H.
+              eapply corestep_plus_trans with (c2:=CC_core_Returnstate Vundef (CC.Kcall (Some i) f1 ve' te' k'1))(m2:=m').
+                  eapply corestep_plus_one. simpl. eapply CC.step_skip_call; simpl; eauto.
+                  eapply corestep_plus_one. simpl.  econstructor; eauto.
+     econstructor; eauto.
  destruct H2; subst te''.
  simpl in H. inv H. simpl in CUR. symmetry in CUR; inv CUR.
  destruct s; inv H4.
  assert (corestep_star CC_core_sem ge (CC_core_State f Sskip k'0 ve te) m
                          (CC_core_State f Sskip (CC.Kcall None f1 ve' te' k'1) ve te) m).
-     clear H1; rename H3 into H1.
      clear - H1.
      revert H1; induction k'0; intros; try solve [inv H1].
            destruct (dec_skip s).

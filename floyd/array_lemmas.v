@@ -555,7 +555,7 @@ destruct t; reflexivity.
 Qed.
 
 
-Lemma array_at__array_at:
+Lemma array_at_array_at_:
  forall t sh f lo hi v, 
   array_at t sh f lo hi v |-- array_at_ t sh lo hi v.
 Proof.
@@ -576,7 +576,10 @@ unfold data_at.
 auto.
 Qed.
 
-Hint Resolve array_at__array_at : cancel.
+(*Hint Resolve array_at_array_at_ : cancel.  doesn't work *)
+
+Hint Extern 2 (array_at _ _ _ _ _ _ |-- array_at_ _ _ _ _ _) =>
+  (apply array_at_array_at_; clear; simpl; congruence) : cancel.
 
 Lemma split_array_at:
   forall (i : Z) (ty : type) (sh : Share.t) (contents : Z -> reptype ty)

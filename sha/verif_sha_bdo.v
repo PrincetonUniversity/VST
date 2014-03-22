@@ -394,12 +394,6 @@ destruct regs as [ | a' [ | b' [ | c' [ | d' [ | e' [ | f' [ | g' [ | h' [ | ]]]
 reflexivity.
 Qed.
 
-Hint Extern 2 (array_at _ _ _ _ _ _ |-- array_at_ _ _ _ _ _) =>
-  (apply array_at__array_at; clear; simpl; congruence) : cancel.
-(* move the Hint to malloc_lemmas.v, 
-  and change the name of array_at__array_at to array_at_array_at_
-*)
-
 Lemma body_sha256_block_data_order: semax_body Vprog Gtot f_sha256_block_data_order sha256_block_data_order_spec.
 Proof.
 start_function.

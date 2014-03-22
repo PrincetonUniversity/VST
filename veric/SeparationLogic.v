@@ -597,7 +597,7 @@ Axiom semax_call :
     forall Delta A (P Q: A -> environ -> mpred) (x: A) (F: environ -> mpred) ret argsig retsig a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig ->
-           (retsig = Tvoid <-> ret = None) ->
+           (retsig = Tvoid -> ret = None) ->
   @semax Espec Delta
           (local (tc_expr Delta a) && local (tc_exprlist Delta (snd (split argsig)) bl)  && 
          (`(func_ptr (mk_funspec  (argsig,retsig) A P Q)) (eval_expr a) &&   

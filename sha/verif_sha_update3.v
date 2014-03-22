@@ -119,9 +119,14 @@ intros.
          array_at tuchar Tsh
            (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
            0 (Z.of_nat len) (offset_val (Int.repr (40 + Zlength dd)) c)))).
- rewrite local_and_retval.
- normalize. simpl typeof.
- forward. (* finish the call *)
+ replace_SEP 0%Z 
+ (`(array_at tuchar sh
+          (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
+          0 (Z.of_nat len) d *
+        array_at tuchar Tsh
+          (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
+          0 (Z.of_nat len) (offset_val (Int.repr (40 + Zlength dd)) c))).
+ entailer!.
  forward. (* c->num = n+(unsigned int)len; *)
  fold j; fold k.
  forward. (* return; *)
@@ -136,7 +141,7 @@ rewrite array_at_tuchar_isbyteZ.
  rewrite (prop_true_andp (Forall _ data)) by auto.
  rewrite negb_false_iff in H5.
  apply ltu_repr in H5; [ | repable_signed | omega].
- clear TC1 TC TC3 TC2 TC0.
+ clear TC1 TC TC2 TC0.
  fold t_struct_SHA256state_st.
  unfold k in H0,H5.
  rewrite (prop_true_andp (_ /\ _)).
@@ -156,7 +161,7 @@ Focus 2. {
  unfold sha256state_.
  normalize. clear H8.
  unfold sha256_length,  tuchars, tuints.
- normalize. rename x1 into hi'; rename x0 into lo'.
+ normalize. rename x0 into hi'; rename x into lo'.
  apply exp_right with
     (map Vint (hash_blocks init_registers hashed),
      (Vint lo',

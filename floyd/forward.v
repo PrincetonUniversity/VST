@@ -683,7 +683,7 @@ Ltac get_global_fun_def Delta f fsig A Pre Post :=
       assert (VT: (var_types Delta) ! f = None) by 
                (reflexivity || fail 1 "Variable " f " is not a function, it is an addressable local variable");
       assert (GT: (glob_types Delta) ! f = Some (Global_func (mk_funspec fsig A Pre Post)))
-                    by ((unfold fsig, A, Pre, Post; simpl; reflexivity) || 
+                    by ((unfold fsig, Pre, Post; try unfold A; simpl; reflexivity) || 
                           fail 1 "Function " f " has no specification in the type context");
      clear VT GT.
 
@@ -718,11 +718,44 @@ match goal with
             (SEPx (`(Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
           [ 
           | unfold F in *; apply (semax_call_id0 Espec Delta P Q F f 
-                  bl (fst fsig) A witness Pre Post (eq_refl _)  (eq_refl _))];
+                  bl (fst fsig) (snd fsig) A witness Pre Post (eq_refl _)  (eq_refl _))];
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post
 end.
 
+Ltac forward_call witness := 
+match goal with
+|- semax _ _ (Ssequence (Scall None _ _) _) _ =>
+  eapply semax_seq';
+  [let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
+   eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
+         [reflexivity | reflexivity | reflexivity | ]
+  | simpl update_tycon; abbreviate_semax ]
+| |- semax _ _ (Ssequence (Scall (Some ?i) _ _) _) _ =>
+   let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
+   eapply semax_seq';
+    [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
+            [reflexivity | reflexivity | apply I | reflexivity | ]
+    | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; intro_old_var' i ]
+end.
 
+Ltac forward_call_complain :=
+ match goal with 
+  |- semax ?Delta _ (Ssequence (Scall _ (Evar ?id _) _) _) _ =>
+     let H1 := fresh in
+     assert (H1: (var_types Delta) ! id = None) 
+        by (reflexivity || fail 4 "The function-identifier " id " is not a global variable");
+     clear H1;
+    assert (match (glob_types Delta) ! id with
+               | Some (Global_func (mk_funspec _ t _ _)) => Some t
+               | _ => None
+               end = None);
+     simpl; 
+     match goal with
+     | |- Some ?A = _ => fail 4 "Use forward_call W, where W is a witness of type " A "
+"
+     | |- None = _ => fail 4 "The function identifier " id " is not a function"
+     end
+  end.
 
 Ltac check_sequential s :=
  match s with

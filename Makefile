@@ -220,7 +220,7 @@ version.v: $(FILES) util/make_version
 	echo $(INCLUDE) >.loadpath
 
 floyd/floyd.coq: floyd/proofauto.vo
-	coqtop -load-vernac-source floyd/proofauto -outputstate floyd/floyd -batch
+	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 .depend:
 	$(COQDEP) $(DEPFLAGS) $(FILES) > .depend
