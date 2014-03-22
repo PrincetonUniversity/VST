@@ -155,7 +155,10 @@ Record SM_simulation_inject :=
     halted Sem1 c1 = Some v1 ->
     exists v2, 
     Mem.inject (as_inj mu) m1 m2 
-    /\ val_inject (restrict (as_inj mu) (vis mu)) v1 v2 
+    /\ REACH_closed m1 (exportedSrc mu (v1 :: nil)) 
+    /\ REACH_closed m2 (exportedTgt mu (v2 :: nil)) 
+    /\ val_inject (restrict (as_inj mu) (sharedSrc mu)) v1 v2 
+    /\ vals_def (v1 :: v2 :: nil)=true
     /\ halted Sem2 c2 = Some v2
 
 
