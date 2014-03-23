@@ -722,26 +722,29 @@ match goal with
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post
 end.
 
-Ltac forward_call witness := 
-match goal with
-|- semax _ _ (Ssequence (Scall None _ _) _) _ =>
-  eapply semax_seq';
-  [let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
-   eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-         [reflexivity | reflexivity | reflexivity | ]
-  | simpl update_tycon; abbreviate_semax ]
-| |- semax _ _ (Ssequence (Scall (Some ?i) _ _) _) _ =>
-   let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
-   eapply semax_seq';
-    [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-            [reflexivity | reflexivity | apply I | reflexivity | ]
-    | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; intro_old_var' i ]
-end.
+Lemma semax_post3: 
+  forall R' Espec Delta P c R,
+    local (tc_environ (update_tycon Delta c)) && R' |-- R ->
+    @semax Espec Delta P c (normal_ret_assert R') ->
+    @semax Espec Delta P c (normal_ret_assert R) .
+Proof.
+ intros. eapply semax_post; [ | apply H0].
+ intros. unfold local,lift1, normal_ret_assert.
+ intro rho; normalize. eapply derives_trans; [ | apply H].
+ simpl; apply andp_right; auto. apply prop_right; auto.
+Qed.
 
-Ltac forward_call_complain :=
- match goal with 
-  |- semax ?Delta _ (Ssequence (Scall _ (Evar ?id _) _) _) _ =>
-     let H1 := fresh in
+Lemma semax_post_flipped3: 
+  forall R' Espec Delta P c R,
+    @semax Espec Delta P c (normal_ret_assert R') ->
+    local (tc_environ (update_tycon Delta c)) && R' |-- R ->
+    @semax Espec Delta P c (normal_ret_assert R) .
+Proof.
+intros; eapply semax_post3; eauto.
+Qed.
+
+Ltac forward_call_complain' Delta id :=
+  let H1 := fresh in
      assert (H1: (var_types Delta) ! id = None) 
         by (reflexivity || fail 4 "The function-identifier " id " is not a global variable");
      clear H1;
@@ -754,8 +757,59 @@ Ltac forward_call_complain :=
      | |- Some ?A = _ => fail 4 "Use forward_call W, where W is a witness of type " A "
 "
      | |- None = _ => fail 4 "The function identifier " id " is not a function"
-     end
+     end.
+
+Ltac forward_call_complain :=
+ match goal with 
+ | |- semax ?Delta _ (Ssequence (Scall _ (Evar ?id _) _) _) _ =>
+       forward_call_complain' Delta id
+ | |- semax ?Delta _ (Scall _ (Evar ?id _) _) _ =>
+       forward_call_complain' Delta id
   end.
+
+Ltac normalize_postcondition :=
+ match goal with 
+ | P := _ |- semax _ _ _ ?P =>
+     unfold P, abbreviate; clear P; normalize_postcondition
+ | |- semax _ _ _ (normal_ret_assert _) => idtac
+ | |- _ => apply sequential
+  end.
+
+Ltac forward_call witness := 
+match goal with
+| |- semax _ _ (Ssequence (Ssequence _ _) _) _ => 
+     apply -> seq_assoc
+| |- semax _ _ (Ssequence (Scall None _ _) _) _ =>
+  eapply semax_seq';
+  [let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
+   eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
+         [reflexivity | reflexivity | reflexivity | ]
+  | simpl update_tycon; abbreviate_semax ]
+| |- semax _ _ (Scall None _ _) _ =>
+   normalize_postcondition;
+  eapply semax_post_flipped3;
+  [let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
+   eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
+         [reflexivity | reflexivity | reflexivity | ]
+  | try rewrite exp_andp2;
+    try rewrite insert_local ]
+| |- semax _ _ (Ssequence (Scall (Some ?i) _ _) _) _ =>
+   let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
+   eapply semax_seq';
+    [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
+            [reflexivity | reflexivity | apply I | reflexivity | ]
+    | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; intro_old_var' i ]
+| |- semax _ _ (Scall (Some ?i) _ _) _ =>
+   normalize_postcondition;
+   let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
+   eapply semax_post_flipped3;
+    [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
+            [reflexivity | reflexivity | apply I | reflexivity | ]
+    | try rewrite exp_andp2;
+               try (apply exp_left; intro_old_var' i);
+               try rewrite insert_local ]
+ | |- _ => forward_call_complain
+end.
 
 Ltac check_sequential s :=
  match s with
@@ -812,18 +866,6 @@ Ltac forward_setx_with_pcmp e :=
 tac_if (ptr_compare e) ltac:forward_ptr_cmp ltac:forward_setx.
 
 (* BEGIN new semax_load and semax_store tactics *************************)
-
-Lemma semax_post3: 
-  forall R' Espec Delta P c R,
-    local (tc_environ (update_tycon Delta c)) && R' |-- R ->
-    @semax Espec Delta P c (normal_ret_assert R') ->
-    @semax Espec Delta P c (normal_ret_assert R) .
-Proof.
- intros. eapply semax_post; [ | apply H0].
- intros. unfold local,lift1, normal_ret_assert.
- intro rho; normalize. eapply derives_trans; [ | apply H].
- simpl; apply andp_right; auto. apply prop_right; auto.
-Qed.
 
 
 
@@ -995,15 +1037,6 @@ Lemma numbd_lift2:
    numbd n ((@liftx (Tarrow A (Tarrow B (LiftEnviron mpred))) f) v1 v2) = 
    (@liftx (Tarrow A (Tarrow B (LiftEnviron mpred))) (numbd n f)) v1 v2.
 Proof. reflexivity. Qed.
-
-Lemma semax_post_flipped3: 
-  forall R' Espec Delta P c R,
-    @semax Espec Delta P c (normal_ret_assert R') ->
-    local (tc_environ (update_tycon Delta c)) && R' |-- R ->
-    @semax Espec Delta P c (normal_ret_assert R) .
-Proof.
-intros; eapply semax_post3; eauto.
-Qed.
 
 Lemma semax_store_aux31:
  forall P Q1 Q R R', 
@@ -1282,14 +1315,6 @@ Ltac derives_after_forward :=
                      | simple apply normal_ret_assert_derives'' 
                      | simple apply normal_ret_assert_derives'
                      | idtac].
-
-Ltac normalize_postcondition :=
- match goal with 
- | P := _ |- semax _ _ _ ?P =>
-     unfold P, abbreviate; clear P; normalize_postcondition
- | |- semax _ _ _ (normal_ret_assert _) => idtac
- | |- _ => apply sequential
-  end.
 
 Ltac forward_break :=
 eapply semax_pre; [ | apply semax_break ];

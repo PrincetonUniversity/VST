@@ -103,15 +103,15 @@ intros.
 assert (Hddlen: (0 <= Zlength dd < CBLOCKz)%Z) by Omega1.
 set (ddlen := Zlength dd) in *.
  unfold Delta_final_if1; simplify_Delta; unfold Body_final_if1; abbreviate_semax.
- forward.
-  {instantiate (1:= (Tsh,
+forward_call
+ (* memset (p+n,0,SHA_CBLOCK-n); *)
+   ((Tsh,
      offset_val (Int.repr (ddlen + 1)) (offset_val (Int.repr 40) c)%Z, 
-     (Z.of_nat CBLOCK - (ddlen + 1))%Z,
-     Int.zero)) in (Value of witness).
-  unfold tc_exprlist. simpl denote_tc_assert.  (* this line should not be necessary *)
-  entailer!.
-  + normalize in H1; rewrite H1; reflexivity.
-  + rewrite Int.unsigned_repr; auto. 
+     (Z.of_nat CBLOCK - (ddlen + 1)))%Z,
+     Int.zero).
+  {entailer!.
+  + (*normalize in H1; rewrite H1; reflexivity.
+  + *) rewrite Int.unsigned_repr; auto. 
       change CBLOCKz with 64 in Hddlen; repable_signed.
   + change CBLOCKz with 64 in Hddlen.
    rewrite (split_array_at (ddlen+1) tuchar) by omega.
@@ -215,21 +215,9 @@ apply isbyte_zeros.
 }
 clear H0'.
 clearbody ddzw.
-
- forward. (* sha256_block_data_order (c,p); *)
- match goal with H : True |- _ => clear H 
-            (* WARNING__ is a bit over-eager;
-                need to tell it that K_vector is closed *)
-  end.
-
-simpl typeof.
-instantiate (1:=(hashed, 
-                           ddzw,
-                           c, 
-                           offset_val (Int.repr 40) c,
-                           Tsh)) in (Value of witness).
-{entailer!.
-* subst;  simpl in *. normalize in H5.
+ forward_call (* sha256_block_data_order (c,p); *)
+  (hashed, ddzw, c, offset_val (Int.repr 40) c, Tsh).
+ {entailer!.
 * rewrite Zlength_correct, H1; reflexivity.
 * cancel.
  repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
@@ -468,9 +456,8 @@ forward_for
   omega.
  pose (w := nth i hashedmsg Int.zero).
  pose (bytes := Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist [w]))))).
-  forward. (* builtin_write32_reversed *)
-  instantiate (1:= (offset_val (Int.repr (Z.of_nat i * 4)) md,
-                             shmd, bytes)) in (Value of witness).
+  forward_call (* builtin_write32_reversed *)
+     (offset_val (Int.repr (Z.of_nat i * 4)) md, shmd, bytes).
  entailer!.
   rewrite Int.signed_repr in H3 by repable_signed.
   auto.
@@ -521,7 +508,7 @@ forward_for
  rewrite Z.mul_add_distr_r. reflexivity.
 }
  normalize.
- forward.
+ forward. (* md += 4; *)
  entailer!.
  unfold loop1_ret_assert;  simpl update_tycon.
  unfold part4_inv. apply exp_right with (S i). rewrite inj_S.
@@ -647,7 +634,7 @@ Focus 2. {
 * (* for-loop increment *)
  unfold part4_inv. apply extract_exists_pre; intro i.
  normalize.
- forward.
+ forward. (* xn++; *)
  unfold part4_inv. normalize.
  apply exp_right with i.
   rewrite Z.sub_0_r.

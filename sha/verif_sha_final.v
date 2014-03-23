@@ -94,15 +94,11 @@ unfold sha_finish.
 unfold SHA_256.
 clear ddlen Hddlen.
 
-forward. (* memset (p+n,0,SHA_CBLOCK-8-n); *)
- match goal with H : True |- _ => clear H 
-            (* WARNING__ is a bit over-eager;
-                need to tell it that K_vector is closed *)
-  end.
-instantiate (1:= (Tsh,
+forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
+  (Tsh,
      offset_val (Int.repr (Zlength dd')) (offset_val (Int.repr 40) c)%Z, 
      (Z.of_nat CBLOCK - 8 - Zlength dd')%Z,
-     Int.zero)) in (Value of witness).
+     Int.zero).
 unfold tc_exprlist. simpl typecheck_exprlist. simpl denote_tc_assert. (* this line should not be necessary *)
 entailer!.
 rewrite Int.unsigned_repr.

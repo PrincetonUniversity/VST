@@ -18,25 +18,14 @@ name md_ _md.
 name c_ _c.
 normalize.
 apply (remember_value (eval_var _c t_struct_SHA256state_st)); intro c.
-forward.
-instantiate (1:=c) in (Value of witness).
-unfold witness.
+forward_call (* SHA256_Init(&c); *)
+   (c).
 entailer!.
 normalize.
-forward. (* SHA256_Update(&c,d,n); *)
-instantiate (1:=(init_s256abs,data,c,d,dsh, length data)) in (Value of witness).
+forward_call (* SHA256_Update(&c,d,n); *)
+  (init_s256abs,data,c,d,dsh, length data).
 entailer!.
 cbv beta iota.
-change (make_args [] []) with globals_only.
-change (fun a : environ =>
-      EX  x : s256abs,
-      (PROP  (update_abs (firstn (length data) data) init_s256abs x)
-       LOCAL ()
-       SEP  (K_vector; `(sha256state_ x c); `(data_block dsh data d))) a)
- with (EX  x : s256abs,
-      (PROP  (update_abs (firstn (length data) data) init_s256abs x)
-       LOCAL ()
-       SEP  (K_vector; `(sha256state_ x c); `(data_block dsh data d)))).
 replace_SEP 0 (
  EX  x : s256abs,
       (PROP  (update_abs (firstn (length data) data) init_s256abs x)
@@ -48,12 +37,12 @@ entailer.
 normalize. intro a.
 simpl.
 
-forward. (* SHA256_Final(md,&c); *)
-instantiate (1:=(a,md,c,msh,dsh)) in (Value of witness).
+forward_call (* SHA256_Final(md,&c); *)
+    (a,md,c,msh,dsh).
 entailer!.
+apply semax_extract_PROP; intro.
 normalize.
 simpl.
-normalize.
 replace_SEP 0 (K_vector).
 entailer.
 
@@ -65,7 +54,6 @@ clear - H1.
 inv H1.
 simpl in *.
 rewrite <- H8.
-rewrite firstn_same.
+rewrite firstn_same by (clear; omega).
 auto.
-clear; omega.
 Qed.

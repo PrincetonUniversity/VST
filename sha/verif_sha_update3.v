@@ -67,19 +67,16 @@ intros.
  unfold update_inner_if_else;
  simplify_Delta; abbreviate_semax.
   unfold K_vector.
-   forward. (* ignore'2 := memcpy (p+n, data, len); *)
-  simpl split. simpl @snd.
-  instantiate (1:=((sh,Tsh), 
-                           offset_val (Int.repr (Zlength dd)) (offset_val (Int.repr 40) c),
-                           d, 
-                           Z.of_nat len,
-                           Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr data)))))
-        in (Value of witness).
-  unfold witness. 
+   forward_call (* memcpy (p+n, data, len); *)
+      ((sh,Tsh), 
+       offset_val (Int.repr (Zlength dd)) (offset_val (Int.repr 40) c),
+       d, 
+       Z.of_nat len,
+       Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr data)))).
+ simpl @snd.
  normalize.
  fold j; fold k.
  entailer!.
- rewrite H5; reflexivity.
  rewrite cVint_force_int_ZnthV
  by (rewrite initial_world.Zlength_map; omega).
  rewrite negb_false_iff in H5.
@@ -104,21 +101,6 @@ intros.
  cancel.
  cbv beta iota.
  autorewrite with norm subst.
- change (fun x0 : environ =>
-      local (`(eq (offset_val (Int.repr (40 + Zlength dd)) c)) retval) x0 &&
-      (`(array_at tuchar sh
-           (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
-           0 (Z.of_nat len) d) x0 *
-       `(array_at tuchar Tsh
-           (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
-           0 (Z.of_nat len) (offset_val (Int.repr (40 + Zlength dd)) c)) x0))
-  with (local (`(eq (offset_val (Int.repr (40 + Zlength dd)) c)) retval) &&
-      (`(array_at tuchar sh
-           (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
-           0 (Z.of_nat len) d *
-         array_at tuchar Tsh
-           (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
-           0 (Z.of_nat len) (offset_val (Int.repr (40 + Zlength dd)) c)))).
  replace_SEP 0%Z 
  (`(array_at tuchar sh
           (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))

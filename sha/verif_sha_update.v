@@ -103,19 +103,18 @@ forward_if'.
   rename H0 into Dbytes.
    fold t_struct_SHA256state_st.
  set (b4d := length blocks * 4 - length dd) in *.
-   forward. (* memcpy (p,data,len); *) {
+   forward_call (* memcpy (p,data,len); *)
 (*   WITH sh : share*share, p: val, q: val, n: Z, contents: Z -> int  *)
-instantiate (1:= ((sh,Tsh), offset_val (Int.repr 40) c, 
+  ((sh,Tsh), offset_val (Int.repr 40) c, 
                           offset_val (Int.repr (Z.of_nat b4d)) d,
                           Z.of_nat (len - b4d), 
                           force_int oo (fun i => ZnthV tuchar (map Vint (map Int.repr data))
-                                 (i + Z.of_nat b4d))))
-  in  (Value of witness).
- unfold witness; simpl split; simpl @snd.
+                                 (i + Z.of_nat b4d))). {
+ simpl @snd.
  autorewrite with norm subst.
  unfold app at 2 3 4.
  entailer.
- rewrite H1.
+(* rewrite H1. *)
  clear H1; pose (H5:=True).
 assert (H1: (Z.of_nat len >= Z.of_nat b4d)%Z) by
  (rewrite <- Nat2Z.inj_ge; auto).
@@ -126,7 +125,6 @@ assert (H12: 0 <= len - b4d < 64)
   by (change 64 with CBLOCK; omega).
  rewrite prop_true_andp.
 Focus 2. {
- split; [reflexivity | ].
  rewrite Int.unsigned_repr; [auto | split; [clear; omega | ]].
  apply Z.le_trans with (Z.of_nat 64). 
  apply -> Nat2Z.inj_le; clear - H12; omega.
@@ -434,8 +432,8 @@ entailer!.
 rewrite H1. apply Int.unsigned_range_2.
 }
 
-forward.  (* SHA256_addlength(c, len); *)
-instantiate (1:= (Z.of_nat len, c, hilo hi lo)) in (Value of witness). {
+forward_call  (* SHA256_addlength(c, len); *)
+  (Z.of_nat len, c, hilo hi lo). {
 entailer!.
 * rewrite <- H7. repeat rewrite <- (Z.mul_comm 8). rewrite <- (Z.mul_comm 4).
  rewrite Z.mul_add_distr_l. rewrite Z.mul_assoc.  change (8*4)%Z with 32%Z.

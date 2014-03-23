@@ -808,14 +808,15 @@ rewrite <- offset_val_array_at.
  apply Nat2Z.inj_le. omega.
 Qed.
 
- Lemma divide_length_app:
+Lemma divide_length_app:
  forall {A} n (al bl: list A), 
-      NPeano.divide n (length al) -> 
-      NPeano.divide n (length bl) ->
-      NPeano.divide n (length (al++bl)).
+      (n | Zlength al) -> 
+      (n | Zlength bl) ->
+      (n | Zlength (al++bl)).
 Proof.
- intros. destruct H,H0. exists (x+x0).
- rewrite app_length,H,H0;  rewrite  mult_plus_distr_r; omega.
+ intros. destruct H,H0. exists (x+x0)%Z.
+ rewrite initial_world.Zlength_app,H,H0;  
+ rewrite Z.mul_add_distr_r; omega.
 Qed.
 
 Lemma Zlength_zeros: 

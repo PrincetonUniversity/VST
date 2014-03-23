@@ -121,16 +121,14 @@ name p _p.
 name n _n.
 unfold sha_update_loop_body.
 subst Delta; simplify_Delta; abbreviate_semax.
-forward. (* sha256_block_data_order (c,data); *)
-instantiate (1:=(hashed++ blocks, 
-                           bl,
-                           c, 
-                           offset_val (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d,
-                           sh)) in (Value of witness).
-entailer!.
-rewrite mul_repr in H5; rewrite H5; reflexivity.
+forward_call (* sha256_block_data_order (c,data); *)
+ (hashed++ blocks,  bl, c, 
+  offset_val (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d,
+  sh).
 
- Lemma divide_length_app:
+entailer!.
+
+Lemma divide_length_app:
  forall {A} n (al bl: list A), 
       (n | Zlength al) -> 
       (n | Zlength bl) ->
@@ -139,9 +137,7 @@ Proof.
  intros. destruct H,H0. exists (x+x0)%Z.
  rewrite initial_world.Zlength_app,H,H0;  
  rewrite Z.mul_add_distr_r; omega.
-Qed.
-
-
+Qed.  (* delete me, duplicated from sha_lemmas.v *)
 apply divide_length_app; auto.
 unfold_lift.
 repeat rewrite eval_var_env_set.
@@ -161,9 +157,8 @@ replace_SEP 0%Z
       `(data_block sh (intlist_to_Zlist bl)
           (offset_val
              (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d)) *
-      K_vector). {
+      K_vector).
   entailer!.
-}
  normalize.
  forward. (* data += SHA_CBLOCK; *)
  entailer.

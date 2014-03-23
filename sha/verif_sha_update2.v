@@ -168,23 +168,21 @@ semax
          SEP  (K_vector; `(sha256state_ a' c); `(data_block sh data d))))).
 Proof.
  intros.
+  simplify_Delta; abbreviate_semax.
   unfold K_vector.
   unfold update_inner_if_then.
   apply (remember_value (eval_id _fragment)); intro fragment.
-  forward. (* memcpy (p+n,data,fragment); *)
-  simpl split. simpl @snd.
-  instantiate (1:=((sh,Tsh), 
-                           offset_val (Int.repr (Zlength dd)) (offset_val (Int.repr 40) c),
-                           d, 
-                           Int.unsigned (force_int fragment),
-                           Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr data)))))
-        in (Value of witness).
-  unfold witness. 
+  forward_call (* memcpy (p+n,data,fragment); *)
+   ((sh,Tsh), 
+    offset_val (Int.repr (Zlength dd)) (offset_val (Int.repr 40) c),
+    d, 
+    Int.unsigned (force_int fragment),
+    Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr data)))).
+ simpl @snd.
  normalize.
  fold j; fold k.
  entailer!.
- rewrite H6; reflexivity.
- unfold witness in *; clear witness. clear fragment H5.
+ clear fragment H5.
  rewrite negb_true_iff in H6. 
  apply ltu_repr_false in H6; [ | repable_signed | omega].
  clear TC TC1 TC0.
@@ -274,13 +272,13 @@ rewrite <- offset_val_array_at_.
  f_equal. rewrite Zlength_correct; rewrite Nat2Z.id. rewrite map_length; auto.
  repeat rewrite map_length. apply Nat2Z.inj_ge.
   rewrite Z2Nat.id by omega. rewrite <- Zlength_correct; omega.
- forward. (* sha256_block_data_order (c,p); *)
- instantiate (1:=(hashed, Zlist_to_intlist (dd++(firstn (Z.to_nat k) data)), c, (offset_val (Int.repr 40) c), Tsh)) in (Value of witness).
- unfold witness; simpl split; simpl @snd.
+ forward_call (* sha256_block_data_order (c,p); *)
+   (hashed, Zlist_to_intlist (dd++(firstn (Z.to_nat k) data)), c, (offset_val (Int.repr 40) c), Tsh).
+ simpl @snd.
+ cbv beta iota.
  normalize.
  unfold app at 2 4 5.
  entailer.
- rewrite H6.
  unfold j,k in *|-.
  rewrite negb_true_iff in H6; apply ltu_repr_false in H6; [ | omega..].
  assert (length (dd ++ firstn (Z.to_nat k) data) = 64). {
@@ -299,8 +297,7 @@ rewrite <- offset_val_array_at_.
   apply length_Zlist_to_intlist. apply H9.
 }
  apply andp_right; [apply prop_right |].
- split3. rewrite Zlength_correct, H10. reflexivity.
- auto.
+ rewrite Zlength_correct, H10. reflexivity.
  replace (data_block Tsh
       (intlist_to_Zlist (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)))
       (offset_val (Int.repr 40) c))
@@ -354,22 +351,22 @@ rewrite <- offset_val_array_at_.
  forward. (* data  += fragment; *)
 entailer!.
  forward. (* len -= fragment; *)
- forward. (* memset (p,0,SHA_CBLOCK); *)
- instantiate (1:=(Tsh, offset_val (Int.repr 40) c, 64%Z, Int.zero))
-  in (Value of witness).
- unfold witness; simpl split; simpl @snd.
+      normalize_postcondition.
+
+ forward_call (* memset (p,0,SHA_CBLOCK); *)
+    (Tsh, offset_val (Int.repr 40) c, 64%Z, Int.zero).
+ simpl @snd.
  normalize.
   unfold app at 4 5 6.
  fold k. fold j.
  unfold data_block.
  entailer!.
- rewrite <- H10 in H5; simpl in H5|-*; apply H5.
+(* rewrite <- H10 in H5; simpl in H5|-*; apply H5. *)
  simpl.
- subst len'0.
+ rewrite <- H10 in H5, H8; clear len'0 H10.
  simpl in H5.
  inversion H5; clear H5; subst len'.
  simpl in H8.
- assumption.
  rewrite memory_block_array_tuchar by omega.
  replace  (Zlength
      (intlist_to_Zlist (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data))))
@@ -392,7 +389,6 @@ entailer!.
  unfold k in *.
  apply Nat2Z.inj_le; rewrite Z2Nat.id by omega.
  rewrite <- Zlength_correct.
- subst len'0; simpl in H5; inversion H5; clear H5; subst len'.
  fold k in H8;  simpl in H8.
  unfold Int.ltu in H8; if_tac in H8; try inv H8.
  unfold k in H5; repeat rewrite Int.unsigned_repr in H5 by omega.
@@ -401,20 +397,6 @@ entailer!.
  autorewrite with subst norm.
  unfold sha_update_inv.
  entailer.
-
-(*
- change (fun x1 : environ =>
-      local (`(eq (offset_val (Int.repr 40) c)) retval) x1 &&
-      `(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
-          (offset_val (Int.repr 40) c)) x1)
-  with (local (`(eq (offset_val (Int.repr 40) c)) retval) &&
-      `(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
-          (offset_val (Int.repr 40) c))).
-
-  forward. (* ignore = ignore'1; *) 
- unfold sha_update_inv.
- entailer.
-*)
  rewrite negb_true_iff in H6.
  apply ltu_repr_false in H6; [ | omega..].
  clear TC1 TC0  TC.

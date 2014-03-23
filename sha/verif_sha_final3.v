@@ -71,9 +71,9 @@ semax
 Proof.
 intros.
 unfold sha_final_epilog.
-forward. (* sha256_block_data_order (c,p); *)
-instantiate (1:= (hashed, lastblock, c, (offset_val (Int.repr 40) c), Tsh))
-  in (Value of witness).
+simplify_Delta; abbreviate_semax.
+forward_call (* sha256_block_data_order (c,p); *)
+  (hashed, lastblock, c, (offset_val (Int.repr 40) c), Tsh).
 entailer!.
 normalize.
 replace_SEP 2%Z  (K_vector).
@@ -82,9 +82,8 @@ unfold data_block.
 simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
 rewrite <- H1.
 forward. (* c->num=0; *)
-forward. (* memset (p,0,SHA_CBLOCK); *) 
-instantiate (1:= (Tsh, (offset_val (Int.repr 40) c), 64%Z, Int.zero))
-  in (Value of witness).
+forward_call (* memset (p,0,SHA_CBLOCK); *) 
+  (Tsh, (offset_val (Int.repr 40) c), 64%Z, Int.zero).
 entailer!. 
  fold t_struct_SHA256state_st.
  rewrite (memory_block_array_tuchar _ 64%Z) by Omega1.
@@ -94,7 +93,6 @@ autorewrite with subst.
 replace_SEP 0%Z (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
           (offset_val (Int.repr 40) c))).
 entailer!.
-(* forward.  (* ignore = ignore'; *) *)
 fold t_struct_SHA256state_st.
 pose proof (length_hash_blocks (generate_and_pad msg)).
 
@@ -361,9 +359,10 @@ Proof.
  rewrite (split_array_at 60%Z tuchar Tsh _ (Z.of_nat CBLOCK - 8)%Z 64%Z)
   by (change (Z.of_nat CBLOCK) with 64%Z; split; computable).
  forward. (* cNh=c->Nh; *)
- forward. (* (void)HOST_l2c(cNh,p); *)
- instantiate (1:=(offset_val (Int.repr 56) (offset_val (Int.repr 40) c),
-                         Tsh, hibytes)) in (Value of witness).
+ repeat apply -> seq_assoc.
+ forward_call (* (void)HOST_l2c(cNh,p); *)
+    (offset_val (Int.repr 56) (offset_val (Int.repr 40) c),
+                         Tsh, hibytes).
  rewrite (Z.add_comm 40).
  entailer!.
  destruct c; try (contradiction Pc); simpl. f_equal; rewrite Int.add_assoc; rewrite mul_repr; rewrite add_repr; reflexivity.
@@ -401,9 +400,9 @@ clear - H0 H9.
  forward. (* p += 4; *)
  entailer!.
  forward. (* cNl=c->Nl; *)
- forward. (* (void)HOST_l2c(cNl,p); *)
- instantiate (1:=(offset_val (Int.repr 60) (offset_val (Int.repr 40) c),
-                         Tsh, lobytes)) in (Value of witness).
+ repeat apply -> seq_assoc. (* delete me *)
+ forward_call (* (void)HOST_l2c(cNl,p); *)
+ (offset_val (Int.repr 60) (offset_val (Int.repr 40) c), Tsh, lobytes).
  entailer!.
  destruct c; try (contradiction Pc); simpl.
  f_equal; repeat rewrite Int.add_assoc; f_equal.
