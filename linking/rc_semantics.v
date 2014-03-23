@@ -2,6 +2,8 @@ Require Import Bool.
 Require Import ZArith.
 Require Import BinPos.
 
+Require Import msl.Axioms.
+
 Require Import compcert. Import CompcertCommon.
 
 Require Import linking.sepcomp. Import SepComp.
@@ -127,6 +129,47 @@ case_eq (after_at_external_excl sem ov (core c) (core c')); auto.
 revert H; unfold after_external.
 case (core_semantics.after_external sem ov (core c)).
 intros ?; case ov. intros v. inversion 1; auto. inversion 1; auto.
+inversion 1.
+Qed.
+
+Lemma getBlocks_app l1 l2 : 
+  getBlocks (l1 ++ l2) 
+  = fun b => getBlocks l1 b || getBlocks l2 b.
+Proof.
+induction l1; simpl; auto.
+extensionality b.
+do 2 rewrite getBlocksD.
+destruct a; try solve[rewrite IHl1; auto].
+rewrite IHl1; auto.
+rewrite orb_assoc; auto.
+Qed.
+
+Lemma after_external_rc_basis (ge : Genv.t F V) v (c c' : state) :
+  after_external (Some v) c = Some c' -> 
+  reach_basis ge c' = (fun b => getBlocks (v :: nil) b || reach_basis ge c b).
+Proof.
+unfold after_external; case (core_semantics.after_external _ _).
+intros ?; inversion 1; subst; unfold reach_basis; simpl.
+extensionality b.
+rewrite <-(orb_comm (getBlocks (v :: rets c) b)).
+symmetry.
+rewrite <-(orb_assoc (isGlobalBlock ge b)).
+rewrite (orb_comm (isGlobalBlock ge b)).
+rewrite (orb_comm (getBlocks (args c) b)).
+rewrite <-(orb_assoc (getBlocks (rets c) b)).
+rewrite <-(orb_assoc (getBlocks (rets c) b)).
+rewrite <-orb_assoc.
+rewrite orb_assoc.
+change
+   ((fun b => getBlocks (v :: nil) b || getBlocks (rets c) b) b
+   || (getBlocks (args c) b || (isGlobalBlock ge b || locs c b)) =
+   getBlocks (v :: rets c) b || (isGlobalBlock ge b || getBlocks (args c) b)
+   || locs c b).
+rewrite <-getBlocks_app; simpl.
+rewrite <-orb_assoc.
+symmetry.
+rewrite (orb_comm (isGlobalBlock ge b)).
+rewrite <-orb_assoc; auto.
 inversion 1.
 Qed.
   

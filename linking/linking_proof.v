@@ -1070,6 +1070,33 @@ Section trash_minimal_lems.
 Context (mu_trash : Inj.t) mu_top mus
   (trmin : trash_minimal mu_trash mu_top mus).
 
+Lemma trash_minimal_sub mus' : 
+  (forall mu, In mu mus' -> In mu mus) -> 
+  trash_minimal mu_trash mu_top mus'.
+Proof.
+move=> IN; elim: mus' IN.
+by case: trmin=> A B C D E F G H I J IN; apply: Build_trash_minimal.
+move=> a mus' /= IH IN.
+have IN': (forall mu, In mu mus' -> In mu mus).
+{ by move=> mu H; apply: (IN _ (or_intror H)). }
+case: trmin=> A B C D E F G H I J; apply: Build_trash_minimal=> //=.
+move=> mu; case.
+by move=> <-; apply: (C _ (IN _ (or_introl erefl))).
+by move=> AA; apply: (trash_ctnd_restS (IH IN') AA).
+move=> mu; case.
+by move=> <-; apply: (D _ (IN _ (or_introl erefl))).
+by move=> AA; apply: (trash_ctnd_restT (IH IN') AA).
+move=> mu; case.
+by move=> <-; apply: (G _ (IN _ (or_introl erefl))).
+by move=> AA; apply: (trash_fctnd_restS (IH IN') AA).
+move=> mu; case.
+by move=> <-; apply: (H _ (IN _ (or_introl erefl))).
+by move=> AA; apply: (trash_fctnd_restT (IH IN') AA).
+move=> mu; case.
+by move=> <-; apply: (J _ (IN _ (or_introl erefl))).
+by move=> AA; apply: (trash_eincr_rest (IH IN') AA).
+Qed.
+
 Lemma trash_minimal_join_sm mu_new :
   List.In mu_new mus -> 
   trash_minimal (join_sm mu_new mu_trash) mu_top mus.
@@ -1160,6 +1187,51 @@ by move/trash_minimal_tail; apply.
 Qed.
 
 End trash_minimal_ret_lems.
+
+Lemma All_listsub (T : Type) (P : T -> Prop) (l l' : seq.seq T) :
+  (forall a, In a l' -> In a l) -> 
+  All P l -> 
+  All P l'.
+Proof.
+move=> IN A; elim: l' IN=> // a l' /= IH IN; split.
+move: (IN _ (or_introl erefl))=> IN'.
+clear - A IN'; elim: l A IN'=> // a0 l' IH /= []H I; case; first by move=> <-.
+by apply: IH.
+by apply: IH=> a0 IN0; apply: IN; right.
+Qed.
+
+Lemma trash_inv_sub (mu_trash : Inj.t) mu_top
+      (mus mus' : seq.seq frame_pkg) m1 m2 : 
+  (forall mu, In mu mus' -> In mu mus) -> 
+  trash_inv mu_trash mu_top mus m1 m2 -> 
+  trash_inv mu_trash mu_top mus' m1 m2.
+Proof.
+move=> IN; case=> A B C D E F M.
+have IN0: forall mu, In mu [seq (Inj.mu \o frame_mu0) x | x <- mus']
+                  -> In mu [seq (Inj.mu \o frame_mu0) x | x <- mus].
+{ move=> mu IN0; clear - IN IN0; elim: mus' IN IN0=> // a mus' IH /=.
+  move=> IN; case.   
+  move=> eq; move: (IN _ (or_introl erefl)); rewrite -eq.
+  move=> IN0; clear - IN0.
+  elim: mus IN0=> // a0 mus' IH /=; case; first by move=> ->; left.
+  by move=> IN0; right; apply: IH.
+  move=> IN0; apply: IH=> //.
+  by move=> mu0 IN1; apply: (IN _ (or_intror IN1)). }
+apply: Build_trash_inv=> //.
+apply: (All_listsub 
+          (l:=(mu_top :: [seq (Inj.mu \o frame_mu0) x | x <- mus])))=>//.
+move=> a /=; case; first by move=> ->; left.
+by move=> IN'; right; apply: (IN0 _ IN').
+apply: (All_listsub 
+          (l:=(mu_top :: [seq (Inj.mu \o frame_mu0) x | x <- mus])))=>//.
+move=> a /=; case; first by move=> ->; left.
+by move=> IN'; right; apply: (IN0 _ IN').
+apply: (All_listsub 
+          (l:=(mu_top :: [seq (Inj.mu \o frame_mu0) x | x <- mus])))=>//.
+move=> a /=; case; first by move=> ->; left.
+by move=> IN'; right; apply: (IN0 _ IN').
+by apply: (trash_minimal_sub M).
+Qed.
 
 Definition frgnS_contained mu_trash mu mus :=
   forall b, 
@@ -3056,14 +3128,17 @@ have [mu0 [mus' mus_eq]]:
   by case.
   by move=> mu0 mus' ? ? ?; exists mu0,mus'. }
 
+case: (tlinv)=> allrelinv frameall.
 rewrite mus_eq /tail_inv in tlinv.
 case: tlinv=> allinv tlinv; move: tlinv=> /=.
 case: mu0 mus_eq allinv=> /= mu0 m10 m20 mu0_val mus_eq []all0 allinv.
 
+simpl in frameall.
 case: (popCoreE _ pop1)=> pf_wf1 []ctx1.
-rewrite /updStack st1''_eq; case=> fntbleq1 <-.
+rewrite /updStack st1''_eq; case=> fntbleq1 eq1; rewrite -eq1 in frameall|-*.
 case: (popCoreE _ pop2)=> pf_wf2 []ctx2.
-rewrite /updStack st2''_eq; case=> fntbleq2 <-.
+rewrite /updStack st2''_eq; case=> fntbleq2 eq2; rewrite -eq2 in frameall|-*.
+move {eq1 eq2}.
 case; case=> pf0 []cd0 []x0 []sig01 []vals01 []e0 []sig02 []vals02.
 case=> fr0 ctndS0 ctndT0 mapdS0 sub0S sub0T frametail.
 
@@ -3306,9 +3381,9 @@ by apply: proof_irr. }
 
 apply: Build_R=> /=.
 rewrite st1'_eq; exists pf_eq12'.
-case: mu_trash mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail.
+case: mu_trash mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail frameall.
 move=> mu_trash x1 x2 xval.
-move=> /= mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail.
+move=> /= mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail frameall.
 
 set mu_trash'' := join_sm mu_top mu_trash.
 
@@ -3609,7 +3684,21 @@ rewrite mu_eq mus_eq; f_equal=> /=.
     rewrite !replace_externs_local.
     rewrite !reestablish_local_of.
     by rewrite !replace_locals_local. 
-    admit. (*disjointness*) }
+    have mu_top_valid: sm_valid mu_top m1 m2
+      by apply: (match_validblocks _ (head_match hdinv)).
+    set mupkg' := Build_frame_pkg mu_top_valid.
+    have val': sm_valid mupkg' m1 m2 by apply: (head_valid hdinv).
+    set mupkg := Build_frame_pkg val'.
+    set mutrash := Build_frame_pkg (trash_valid trinv).
+    have trinv': trash_inv mutrash mupkg mus m1 m2.
+      by apply: trinv.
+    have hdinv': head_inv pf (Lex.get (Core.i (c inv)) cd)
+                 mutrash mupkg mus m1 m2.
+      by apply: hdinv.
+    have tlinv': tail_inv mutrash mus (hd1::tl1) (hd2::tl2) m1 m2.
+    { by split. }
+    move: (R_AllDisjointS trinv' hdinv' tlinv').
+    by rewrite /comp !map_comp mus_eq /= !map_id. }
   by rewrite inj_eq vis_eq. }
 
 { extensionality b.
@@ -4091,7 +4180,78 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
   by rewrite /in_mem /= => ->; apply/orP; right.
   by apply: REACH_nil; apply/orP; right; apply/orP; left.
   by apply: nu'_wd. }
-{ admit. (*by vis_sup mu0, subFS, and defn. of RC.reach_basis*) } }(*END vis_inv*)
+{(*{subset RC.reach_basis ...}*)
+  move: aft1'=> /= aft1'.
+  move: (RC.after_external_rc_basis (ge (cores_S (Core.i hd1))) aft1').
+  move=> eq_hd1' b; rewrite /in_mem /= => H.
+  have eq_hd1'': 
+    RC.reach_basis (ge (cores_S (Core.i hd1'))) (Core.c hd1')
+    = (fun b => 
+         getBlocks [:: rv1] b
+      || RC.reach_basis (ge (cores_S (Core.i hd1))) (Core.c hd1) b).
+  { move: eq_hd1'. 
+    set T := RC.state \o C \o cores_S.
+    set P := fun ix (x : T ix) => 
+               RC.reach_basis (ge (cores_S ix)) x 
+           = (fun b0 => 
+              getBlocks [:: rv1] b0
+              || RC.reach_basis (ge (cores_S (Core.i hd1))) (Core.c hd1) b0).
+    change (P (Core.i hd1) (cast T (sym_eq e1) (Core.c hd1'))
+         -> P (Core.i hd1') (Core.c hd1')).
+    by apply: cast_indnatdep'. }
+  have eq_hd1''': 
+    RC.reach_basis my_ge (Core.c hd1') 
+    = (fun b =>
+         getBlocks [:: rv1] b
+         || RC.reach_basis (ge (cores_S (Core.i hd1))) (Core.c hd1) b).
+  { rewrite -eq_hd1'' /RC.reach_basis; extensionality b0.
+    have glob_eq: isGlobalBlock my_ge b0
+                = isGlobalBlock (ge (cores_S (Core.i hd1'))) b0. 
+    { suff: isGlobalBlock my_ge b0 
+        <-> isGlobalBlock (ge (cores_S (Core.i hd1'))) b0.
+      case: (isGlobalBlock _ _)=> //.
+      case: (isGlobalBlock _ _)=> //.
+      case=> //.
+      by move/(_ erefl).         
+      case: (isGlobalBlock _ _)=> //.
+      case=> //.
+      by move=> _; move/(_ erefl).               
+      by rewrite -isGlob_iffS. }
+    by rewrite -glob_eq. }
+  rewrite eq_hd1''' in H.
+  case: (orP H).
+  { move=> get1; case: (getBlocks_inject _ _ _ vinj'' _ get1)=> x []y [].
+    case/restrictD_Some=> I J K.
+    case l: (locBlocksSrc mu0 b); first by apply/orP; left.
+    rewrite /frgnSrc' /exportedSrc; apply/orP; right; apply/andP; split.
+    rewrite /nu' reestablish_DomSrc /DomSrc.
+    by apply: (sharedsrc_sub_domsrc J).
+    rewrite /nu replace_locals_locBlocksSrc=> b0 M.
+    case: incr1=> _ []; move/(_ b0)=> O _; apply: O.
+    by apply/orP; left.
+    apply/andP; split; first by rewrite eqL l.
+    by apply: REACH_nil; apply/orP; left. }
+  { move=> RB; case: (frame_vis fr0)=> vis_sub. 
+    have vis0_b: vis mu0 b.
+    { apply: vis_sub.
+      rewrite /in_mem /=; move: RB; rewrite /RC.reach_basis.
+      have glob_eq: isGlobalBlock my_ge b
+                  = isGlobalBlock (ge (cores_S (Core.i hd1))) b. 
+      { suff: isGlobalBlock my_ge b 
+          <-> isGlobalBlock (ge (cores_S (Core.i hd1))) b.
+        case: (isGlobalBlock _ _)=> //.
+        case: (isGlobalBlock _ _)=> //.
+        case=> //.
+        by move/(_ erefl).         
+        case: (isGlobalBlock _ _)=> //.
+        case=> //.
+        by move=> _; move/(_ erefl).               
+        by rewrite -isGlob_iffS. }
+      by rewrite -glob_eq. }
+    { case: (orP vis0_b); first by move=> ->.
+      by move=> L; apply/orP; right; apply: subF. } } 
+}(*END {subset RC.reach_basis ...}*)
+}(*END vis_inv*)
 
 { move=> b; rewrite frgnBlocksSrc_mu'_eq=> H1; apply/orP.
   move: (frgnSrc'_pub_frgn _ H1); rewrite /in_mem /= /in_mem /=; case/orP=> PT.
@@ -4174,7 +4334,7 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
 
 { move: sub0T=> /=; clear - shrdT_mu0_mu'; elim: mus'=> // a mus' IH shrd.
   by move=> b H; move: (shrd _ H); apply: shrdT_mu0_mu'. }
-} (*END head_inv*)
+}(*END head_inv*)
 
 split; first by move: allinv; rewrite mus_eq.
 
@@ -4238,11 +4398,18 @@ split; first by move: allinv; rewrite mus_eq.
     by move=> ? C; apply: A; apply: B.    
     clear - sub0T FF; elim: mus' sub0T FF=> //= a mus' IH A B.
     by move=> ? C; apply: A; apply: B. 
-    admit. (*new lemma: trash_inv mu_trash mu_top (a :: b :: rest) 
-                     -> trash_inv mu_trash mu_top (a :: rest)*)} 
-  }(*END frame_all mu_trash' ...*)
+    move: trinv; rewrite mus_eq.
+    apply: trash_inv_sub.
+    move=> mu1 /= [].
+    by move=> <-; left.
+    by move=> IN; right; right.
+    apply: (All_listsub (l:=[seq (Inj.mu \o frame_mu0) x | x <- mus]))=> //.
+    move=> a /= => []; case.
+    by move=> <-; rewrite mus_eq /=; left.                     
+    by rewrite mus_eq /=; right; right. } 
+}(*END frame_all mu_trash' ...*)
 
-by [].
+by rewrite st1'_eq.
 Qed.
 
 End return_lems.
@@ -4647,7 +4814,8 @@ split=> //.
 rewrite /effstep; split=> //.
 rewrite /LinkerSem.corestep; right; split=> //.
 have nStep: ~LinkerSem.corestep0 st2 m2 st2' m2.
-{ admit. (*easy*) }
+{ case=> x []step st2'_eq; apply corestep_not_halted in step.
+  by move: step HLT2; rewrite /LinkerSem.halted0 /= /RC.halted=> ->. }
 split=> //. 
 rewrite CTX2.
 have atExt2: (LinkerSem.at_external0 st2 = None).
