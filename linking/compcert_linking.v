@@ -315,6 +315,20 @@ Arguments peekCore {N} {my_cores} !l /.
 
 Arguments emptyStack {N} {my_cores} !l /.
 
+Lemma popCoreI N my_cores l l' pf : 
+  inContext l -> 
+  l' = updStack l (CallStack.mk (STACK.pop (CallStack.callStack l)) pf) ->
+  @popCore N my_cores l = Some l'.
+Proof.
+rewrite /popCore.
+move: (popCore_obligation_1 l); move: (popCore_obligation_2 l).
+case: (inContext l)=> pf1 pf2 // _ ->.
+f_equal=> //.
+f_equal=> //.
+f_equal=> //.
+by apply: proof_irr.
+Qed.
+
 Lemma popCoreE N my_cores l l' : 
   @popCore N my_cores l = Some l' ->
   exists pf,

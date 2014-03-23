@@ -109,7 +109,7 @@ Record SM_simulation_inject :=
       /\ match_state cd (initial_SM DomS DomT FrgnS FrgnT j) c1 m1 c2 m2
 
 
-; core_diagram : 
+(* ; core_diagram : 
     forall st1 m1 st1' m1', 
     corestep Sem1 ge1 st1 m1 st1' m1' ->
     forall cd st2 mu m2,
@@ -121,7 +121,7 @@ Record SM_simulation_inject :=
       /\ match_state cd' mu' st1' m1' st2' m2'
       /\ ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
            corestep_star Sem2 ge2 st2 m2 st2' m2' /\
-           core_ord cd' cd)
+           core_ord cd' cd) *)
 
 
 ; effcore_diagram : 

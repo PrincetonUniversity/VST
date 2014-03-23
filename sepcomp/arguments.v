@@ -5,7 +5,6 @@ Require Import sepcomp.mem_lemmas.
 
 Import SM_simulation.
 
-Arguments core_diagram : default implicits.
 Arguments match_sm_wd : default implicits.
 Arguments core_at_external : default implicits.
 Arguments core_halted : default implicits.

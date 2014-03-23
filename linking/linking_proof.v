@@ -3084,7 +3084,15 @@ Qed.
 Lemma pop2 : exists st2'', popCore st2 = Some st2''.
 Proof.
 move: pop1; case/popCoreE=> pf []inCtx1 st1''_eq.
-Admitted. (*need popCoreI lem*)
+have inCtx2: inContext st2.
+  by apply: (R_inContext inv inCtx1).
+have pf': wf_callStack (STACK.pop (CallStack.callStack st2)).
+  apply: inContext_wf=> //.
+  by apply: CallStack.callStack_wf.
+exists (updStack st2 
+  (CallStack.mk (STACK.pop (CallStack.callStack st2)) pf')).
+by apply: popCoreI.
+Qed.
 
 Lemma aft2 : 
   exists rv2 st2'' (st2' : linker N cores_T) cd', 
@@ -4445,8 +4453,6 @@ eapply Build_SM_simulation_inject
 
 (* core_initial *)
 { by admit. (* TODO *) }
-
-{ by admit. (* NOT NEEDED diagram1 *) }
 
 {(*[Case: diagram]*)
 move=> st1 m1 st1' m1' U1 STEP data st2 mu m2 U1_DEF INV.
