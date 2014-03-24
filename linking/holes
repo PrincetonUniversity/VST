@@ -1,0 +1,8 @@
+#!/bin/sh
+cd ..
+awk '$1=="Lemma"||$1=="Definition"||$1=="Theorem"{A=$2} \
+    /(\*.*admit\..*\*)/    {comment_admits+=1; next} \
+    /(\*.*Admitted\..*\*)/ {comment_admits+=1; next} \
+    /admit\./ || /Admitted\./ {printf "%s [%s]: ", FILENAME,A; print;} \
+    END {printf "%d commented admits", comment_admits}' \
+    `(make -Bn linking |&  awk '$1=="coqc"{printf "%s ", $NF}')`

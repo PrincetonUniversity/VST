@@ -74,10 +74,10 @@ Section linkingSimulation.
 
 Import SM_simulation.
 Import Linker.
-Import Static.
+Import Modsem.
 
 Variable N : pos.
-Variable (cores_S cores_T : 'I_N -> Static.t). 
+Variable (cores_S cores_T : 'I_N -> Modsem.t). 
 Variable fun_tbl : ident -> option 'I_N.
 Variable entry_points : seq (val*val*signature).
 Variable sims : forall i : 'I_N, 
@@ -4452,7 +4452,7 @@ eapply Build_SM_simulation_inject
 { by apply: R_match_validblocks. }
 
 (* core_initial *)
-{ by admit. (* TODO *) }
+{ by admit. (* core_initial: TODO *) }
 
 {(*[Case: diagram]*)
 move=> st1 m1 st1' m1' U1 STEP data st2 mu m2 U1_DEF INV.

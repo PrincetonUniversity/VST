@@ -17,10 +17,10 @@ Require Import compcert.common.Globalenvs.
 Section linkingLemmas.
 
 Import Linker.
-Import Static.
+Import Modsem.
 
 Variable N : pos.
-Variable (cores : 'I_N -> Static.t). 
+Variable (cores : 'I_N -> Modsem.t). 
 Variable fun_tbl : ident -> option 'I_N.
 Variable entry_points : seq (val*val*signature).
 Variable my_ge : ge_ty.

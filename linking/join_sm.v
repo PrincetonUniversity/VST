@@ -109,8 +109,18 @@ case: (andP f).
 move/Peqb_true_eq=> ->.
 move/Zeq_bool_eq=> ->.
 by rewrite Pos.eqb_refl Zeq_bool_refl.
-admit. (*TODO*)
-admit. (*TODO*)
+case f: (_ && _)=> //.
+case: (andP f).
+move/Peqb_true_eq=> ->.
+move/Zeq_bool_eq=> ->.
+case g: (_ && _)=> //.
+case: (andP g).
+move/Peqb_true_eq=> A.
+move/Zeq_bool_eq=> B.
+move: e; rewrite andb_false_iff; case.
+by rewrite A Pos.eqb_refl.
+by rewrite B Zeq_bool_refl.
+by case e: (_ && _).
 Qed.
 
 (* [join_sm mu1 mu2] is a union operator on structured injections. If     *)

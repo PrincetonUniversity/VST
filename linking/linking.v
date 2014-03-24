@@ -16,38 +16,8 @@ Require Import compcert.lib.Integers.
 
 Require Import ZArith.
 
-(* This file gives the operational semantics of multi-language linking    *)
-(* via a functor [CoreLinker (Csem : CORESEM)].  [CoreLinker] defines the *)
-(* following types/modules:                                               *)
-(*                                                                        *)
-(*   -[Static.t]: the type of compile-time semantics corresponding to a   *)
-(*   particular translation unit, written in a particular programming     *)
-(*   language and w/ a particular statically allocated initial global     *)
-(*   environment                                                          *)
-(*                                                                        *)
-(*   -[Core.t]: Runtime states corresponding to dynamic invocations of    *)
-(*   [Static.t]s, initialized from a [Static] module to handle a          *)
-(*   particular external function call made by another [Core]             *)
-(*                                                                        *)
-(*   -[CallStack.t]: just lists of [Core.t]s satisfying a few             *)
-(*   well-formedness properties                                           *)
-(*                                                                        *)
-(*   -[Linker.t]: The type of linker corestates.  Linker states contain:  *)
-(*                                                                        *)
-(*      =[cores], a function from module id's ('I_N, or integers in the   *)
-(*       range [0..N-1]) to genvs and core semantics                      *)
-(*                                                                        *)
-(*      =[fn_tbl], a table mapping external function id's to module id's, *)
-(*      and                                                               *)
-(*                                                                        *)
-(*      =[stack], a callstack used to maintain a stack of cores at        *)
-(*     runtime.  Above, parameter [N] is the number of static modules in  *)
-(*     the program.                                                       *)
-(*                                                                        *)
-(*   -[LinkerSem]: defines the actual linking semantics. In later parts   *)
-(*   of the file, the [LinkerSem] semantics is shown to be both a         *)
-(*   [CoopCoreSem] and an [EffectSem] (cf. core_semantics.v,              *)
-(*   effect_semantics.v).                                                 *)
+(* This file is a parametric version of [compcert_linking.v].  See that   *)
+(* file for more information.                                             *)
 
 Module CoreLinker (Csem : CORESEM).
 
@@ -57,9 +27,9 @@ Module CoreLinker (Csem : CORESEM).
 (* semantics of each translation unit.  Note that each module may still   *)
 (* have its own core type C, function definition type F, etc.             *)
 
-(* Static semantics of translation units *)
+(* Semantics of translation units *)
 
-Module Static. 
+Module Modsem. 
 
 Record t := mk
   { F   : Type
@@ -69,16 +39,16 @@ Record t := mk
   ; coreSem : Csem.t (Genv.t F V) C
   ; init : C }.
 
-End Static.
+End Modsem.
 
 (* [Cores] are runtime execution units. *)
 
 Module Core. Section core.
 
 Variable N : pos.
-Variable cores : 'I_N -> Static.t.
+Variable cores : 'I_N -> Modsem.t.
 
-Import Static.
+Import Modsem.
 
 Record t := mk
   { i  : 'I_N
@@ -106,10 +76,10 @@ Import Coresem.
 
 Section coreDefs.
 
-Import Static.
+Import Modsem.
 
 Variable N : pos.
-Variable cores : 'I_N -> Static.t.
+Variable cores : 'I_N -> Modsem.t.
 
 Definition atExternal (c: Core.t cores) :=
   let: (Core.mk i c) := c in
@@ -132,7 +102,7 @@ Arguments atExternal {N} cores c.
 
 Module CallStack. Section callStack.
 
-Context {N : pos} (cores : 'I_N -> Static.t).
+Context {N : pos} (cores : 'I_N -> Modsem.t).
 
 Record t : Type := mk
   { callStack :> Stack.t (Core.t cores)
@@ -178,7 +148,7 @@ End callStack. End CallStack.
 Module Linker. Section linker.
 
 Variable N : pos.
-Variable cores : 'I_N  -> Static.t.
+Variable cores : 'I_N  -> Modsem.t.
 
 Record t := mkLinker 
   { fn_tbl : ident -> option 'I_N
@@ -192,7 +162,7 @@ Notation linker := Linker.t.
 
 Section linkerDefs.
 
-Context {N : pos} (my_cores : 'I_N -> Static.t) (l : linker N my_cores).
+Context {N : pos} (my_cores : 'I_N -> Modsem.t) (l : linker N my_cores).
 
 Import CallStack. (*for coercion [callStack]*)
 
@@ -255,13 +225,13 @@ Definition peekCore := STACK.head l.(stack) (callStack_nonempty l.(stack)).
 
 Definition emptyStack := if l.(stack).(callStack) is [::] then true else false.
 
-Import Static.
+Import Modsem.
 
 Definition initCore (ix: 'I_N) (v: val) (args: list val) 
   : option (Core.t my_cores):=
   if @initial_core _ _ _ 
        (Csem.instance (T:=(my_cores ix).(coreSem))) 
-       (my_cores ix).(Static.ge) 
+       (my_cores ix).(Modsem.ge) 
        v args 
   is Some c then Some (Core.mk _ my_cores ix c)
   else None.
@@ -285,7 +255,7 @@ Arguments emptyStack {N} {my_cores} !l /.
 Module LinkerSem. Section linkerSem.
 
 Variable N : pos.  (* Number of (compile-time) modules *)
-Variable my_cores : 'I_N  -> Static.t.
+Variable my_cores : 'I_N  -> Modsem.t.
 Variable my_fn_tbl: ident -> option 'I_N.
 
 (* [handle id l args] looks up function id [id] in function table         *)
@@ -327,9 +297,9 @@ Definition initial_core (tt: ge_ty) (v: val) (args: list val)
 Definition at_external0 (l: linker N my_cores) :=
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Static.coreSem) in
-  let: F   := (my_cores ix).(Static.F) in
-  let: V   := (my_cores ix).(Static.V) in
+  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: F   := (my_cores ix).(Modsem.F) in
+  let: V   := (my_cores ix).(Modsem.V) in
     @at_external (Genv.t F V) _ _ (Csem.instance (T:=sem)) (Core.c c).
 
 Arguments at_external0 !l.
@@ -337,9 +307,9 @@ Arguments at_external0 !l.
 Definition halted0 (l: linker N my_cores) :=
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Static.coreSem) in
-  let: F   := (my_cores ix).(Static.F) in
-  let: V   := (my_cores ix).(Static.V) in
+  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: F   := (my_cores ix).(Modsem.F) in
+  let: V   := (my_cores ix).(Modsem.V) in
     @halted (Genv.t F V) _ _ (Csem.instance (T:=sem)) (Core.c c).
 
 Arguments halted0 !l.
@@ -351,10 +321,10 @@ Definition corestep0
   (l: linker N my_cores) (m: Csem.M) (l': linker N my_cores) (m': Csem.M) := 
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Static.coreSem) in
-  let: F   := (my_cores ix).(Static.F) in
-  let: V   := (my_cores ix).(Static.V) in
-  let: ge  := (my_cores ix).(Static.ge) in
+  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: F   := (my_cores ix).(Modsem.F) in
+  let: V   := (my_cores ix).(Modsem.V) in
+  let: ge  := (my_cores ix).(Modsem.ge) in
     exists c', 
       @corestep (Genv.t F V) _ _ (Csem.instance (T:=sem)) ge (Core.c c) m c' m'
    /\ l' = updCore l (Core.upd c c').
@@ -378,10 +348,10 @@ Definition at_external (l: linker N my_cores) :=
 Definition after_external (mv: option val) (l: linker N my_cores) :=
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Static.coreSem) in
-  let: F   := (my_cores ix).(Static.F) in
-  let: V   := (my_cores ix).(Static.V) in
-  let: ge  := (my_cores ix).(Static.ge) in
+  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: F   := (my_cores ix).(Modsem.F) in
+  let: V   := (my_cores ix).(Modsem.V) in
+  let: ge  := (my_cores ix).(Modsem.ge) in
     if @after_external (Genv.t F V) _ _ (Csem.instance (T:=sem)) mv (Core.c c) 
       is Some c' then Some (updCore l (Core.upd c c'))
     else None.
@@ -513,7 +483,7 @@ Module Sem    := Linker.LinkerSem.
 Section effingLinker.
 
 Variable N : pos. 
-Variable my_cores : 'I_N -> Static.t. 
+Variable my_cores : 'I_N -> Modsem.t. 
 Variable my_fun_tbl : ident -> option 'I_N.
 
 Import Linker.
@@ -521,10 +491,10 @@ Import Linker.
 Definition effstep0 U (l: linker N my_cores) m (l': linker N my_cores) m' := 
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Static.coreSem) in
-  let: F   := (my_cores ix).(Static.F) in
-  let: V   := (my_cores ix).(Static.V) in
-  let: ge  := (my_cores ix).(Static.ge) in
+  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: F   := (my_cores ix).(Modsem.F) in
+  let: V   := (my_cores ix).(Modsem.V) in
+  let: ge  := (my_cores ix).(Modsem.ge) in
     exists c', 
       @effstep (Genv.t F V) _ sem ge U (Core.c c) m c' m'
    /\ l' = updCore l (Core.upd c c').
