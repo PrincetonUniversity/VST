@@ -3,7 +3,6 @@ Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
-Require Import sha.sha_lemmas2.
 Require Import sha.verif_sha_bdo2.
 Require Import sha.verif_sha_bdo3.
 Require Import sha.verif_sha_bdo4.
@@ -468,9 +467,8 @@ eapply semax_frame1
    K_vector,
   `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16)),
   `(data_block sh (intlist_to_Zlist b) data)]).
-apply (add_them_back_proof _ regs (rnd_64 regs K (rev (generate_word (rev b) 48)))
-             ctx); try eassumption.
-apply length_rnd_64; auto.
+apply (add_them_back_proof _ regs (Round regs (nthi b) 63) ctx); try assumption.
+apply length_Round; auto.
 simplify_Delta; reflexivity.
 unfold app.
 rewrite <- Hregs.
@@ -481,9 +479,7 @@ unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 replace Delta with (initialized _t Delta_loop1) 
  by (unfold Delta, Delta_loop1; simplify_Delta; reflexivity).
 clear Delta.
-fold (process_block regs (rev b)).
-rewrite process_block_hash_block 
-  by (apply Zlength_length in H; auto).
+fold (hash_block regs b).
 simple apply sha256_block_data_order_return; auto.
 Qed.
 

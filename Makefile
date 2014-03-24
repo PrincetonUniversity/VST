@@ -155,7 +155,7 @@ PROGS_FILES= \
   logical_compare.v verif_logical_compare.v
 
 SHA_FILES= \
-  SHA256.v sha_lemmas.v sha_lemmas2.v \
+  SHA256.v common_lemmas.v sha_lemmas.v functional_prog.v \
   sha.v spec_sha.v verif_sha_init.v \
   verif_sha_update.v verif_sha_update2.v verif_sha_update3.v verif_sha_update4.v \
   bdo_lemmas.v verif_sha_bdo.v verif_sha_bdo2.v verif_sha_bdo3.v \

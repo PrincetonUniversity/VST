@@ -3,7 +3,6 @@ Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
-Require Import sha.sha_lemmas2.
 Require Import sha.verif_sha_final2.
 Local Open Scope logic.
 
@@ -94,15 +93,24 @@ replace_SEP 0%Z (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
           (offset_val (Int.repr 40) c))).
 entailer!.
 fold t_struct_SHA256state_st.
-pose proof (length_hash_blocks (generate_and_pad msg)).
-
 replace Delta with
    (initialized _cNl (initialized _cNh Delta_final_if1))
  by (simplify_Delta; reflexivity).
 eapply semax_pre; [ | apply final_part4; auto].
 entailer!.
 apply length_hash_blocks; auto.
-rewrite length_generate_and_pad; apply roundup_divide; computable.
+rewrite H1.
+rewrite initial_world.Zlength_app.
+apply Z.divide_add_r; auto.
+exists 1; apply H0.
+Qed.
+
+Lemma nth_list_repeat':
+  forall A i n (a d: A),
+   (i < n)%nat -> nth i (list_repeat n a) d = a.
+Proof.
+ induction i; destruct n; simpl; intros; auto; try omega.
+ apply IHi; omega.
 Qed.
 
 Lemma final_part5:
@@ -114,7 +122,7 @@ forall (hashed: list int) (dd:list Z) (hashed': list int) (dd' : list Z) (pad : 
 (0 <= pad < 8)%Z ->
 (LBLOCKz | Zlength hashed') ->
 intlist_to_Zlist hashed' ++ dd' =
-intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
+intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ list_repeat (Z.to_nat pad) 0 ->
 length hi' = 4%nat ->
 length lo' = 4%nat ->
 isptr c_ ->
@@ -132,7 +140,7 @@ array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 (Zlength dd')
       (ZnthV tuchar
          (map Vint
             (map Int.repr dd' ++
-             zeros (Z.of_nat CBLOCK - 8 - Zlength dd') ++
+             list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd')) Int.zero ++
              map Int.repr (hi' ++ lo')))) 0 64 (offset_val (Int.repr 40) c_).
 Proof.
 intros until c_.
@@ -181,44 +189,55 @@ intros H4 H3 H0 H1 H2 H5 Lhi Llo Pc_ Hhilo.
    rewrite app_nth1; [reflexivity | ].
  apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega; omega.
 + repeat rewrite map_app.
+   rewrite map_list_repeat.
+ change (Z.of_nat CBLOCK - 8) with 56.
    rewrite app_nth2. rewrite app_nth1.
-  rewrite nth_map_zeros. auto.
-  rewrite Nat2Z.inj_sub by Omega1. Omega1.
-  rewrite (map_length _ (zeros _)).
-  rewrite length_zeros.
-  apply Nat2Z.inj_lt; rewrite Nat2Z.inj_sub; Omega1.
-  Omega1.
+ rewrite nth_list_repeat'; auto.
+ repeat rewrite map_length.
+ rewrite <- (Nat2Z.id (length dd')).
+ rewrite <- Zlength_correct.
+ rewrite <- Z2Nat.inj_sub by omega.
+ apply Z2Nat.inj_lt; omega.
+ repeat rewrite map_length.
+ rewrite <- (Nat2Z.id (length dd')).
+ rewrite <- Zlength_correct.
+ rewrite <- Z2Nat.inj_sub by omega.
+  rewrite length_list_repeat.
+ apply Z2Nat.inj_lt; omega.
+  repeat rewrite map_length.
+ rewrite <- (Nat2Z.id (length dd')).
+ rewrite <- Zlength_correct.
+ apply Z2Nat.inj_le; omega.
 + repeat rewrite map_app.
    rewrite <- app_ass.
    rewrite app_nth2. rewrite app_nth1.
    f_equal.    rewrite app_length.  
    repeat rewrite map_length; rewrite map_length in H6.
-   rewrite length_zeros.
+   rewrite length_list_repeat.
    rewrite H6. Omega1.
-  rewrite app_length; rewrite (map_length _ (zeros _)); rewrite length_zeros.
+  rewrite app_length; rewrite (map_list_repeat); rewrite length_list_repeat.
   rewrite H6. repeat rewrite map_length.
   rewrite Lhi.
     change (Z.of_nat CBLOCK - 8)%Z with 56%Z. 
   apply Nat2Z.inj_lt; try omega.
   rewrite Nat2Z.inj_sub; try Omega1.
   rewrite H6; repeat rewrite app_length; repeat rewrite map_length;
-   rewrite length_zeros.
+   rewrite length_list_repeat.
   Omega1.
 +
 assert (length
   (map Vint
-     ((map Int.repr dd' ++ zeros (Z.of_nat CBLOCK - 8 - Zlength dd')) ++
+     ((map Int.repr dd' ++ list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd')) Int.zero) ++
       map Int.repr hi')) = 60%nat).
   rewrite map_length.
  repeat rewrite app_length.
  repeat rewrite map_length.
- rewrite length_zeros.
+ rewrite length_list_repeat.
+ change (Z.of_nat CBLOCK - 8) with 56.
  rewrite Lhi, Zlength_correct.
  rewrite Z2Nat.inj_sub by omega.
  rewrite Nat2Z.id.
- rewrite Z2Nat.inj_sub by omega.
- rewrite Nat2Z.id. change CBLOCK with 64%nat.
- change (Z.to_nat 8) with 8%nat.
+ change (Z.to_nat 56) with 56%nat.
  clear- H0; change CBLOCK with 64%nat in H0; omega.
   rewrite (map_app Int.repr).
   repeat rewrite <- app_ass.
@@ -229,6 +248,12 @@ assert (length
  rewrite H9.
  clear - H8. change 60%nat with (Z.to_nat 60).
  apply Z2Nat.inj_le; omega.
+Qed.
+
+Lemma NPeano_divide_add:
+  forall a b c, NPeano.divide a b -> NPeano.divide a c -> NPeano.divide a (b+c).
+Proof. intros.
+ destruct H,H0. exists (x+x0)%nat. rewrite mult_plus_distr_r. subst; auto.
 Qed.
 
 Lemma final_part2:
@@ -252,7 +277,7 @@ forall (hashed': list int) (dd' : list Z) (pad : Z),
 (0 <= pad < 8)%Z ->
 (LBLOCKz | Zlength hashed') ->
 intlist_to_Zlist hashed' ++ dd' =
-intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ map Int.unsigned (zeros pad) ->
+intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ list_repeat (Z.to_nat pad) 0 ->
 forall p0 : val,
 semax Delta_final_if1
   (PROP  ()
@@ -400,7 +425,7 @@ clear - H0 H9.
  forward. (* p += 4; *)
  entailer!.
  forward. (* cNl=c->Nl; *)
- repeat apply -> seq_assoc. (* delete me *)
+ apply -> seq_assoc.   (* delete me *)
  forward_call (* (void)HOST_l2c(cNl,p); *)
  (offset_val (Int.repr 60) (offset_val (Int.repr 40) c), Tsh, lobytes).
  entailer!.
@@ -466,11 +491,11 @@ rewrite (nth_map' Vint Vundef Int.zero)
 clear lobytes hibytes.
 normalize.
 pose (lastblock := (
-         (map Int.repr dd' ++ zeros (Z.of_nat CBLOCK - 8 - Zlength dd')
+         (map Int.repr dd' ++ list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd')) Int.zero
           ++  map Int.repr (intlist_to_Zlist [hi,lo])))).
 assert (H10: length lastblock = CBLOCK).
 unfold lastblock; repeat rewrite app_length.
-rewrite length_zeros; simpl.
+rewrite length_list_repeat; simpl.
 clear - H0.
 rewrite Zlength_correct. repeat rewrite Z2Nat.inj_sub by omega.
 repeat rewrite Nat2Z.id. simpl Z.to_nat. rewrite map_length; omega.
@@ -480,7 +505,8 @@ assert (BYTESlastblock: Forall isbyteZ (map Int.unsigned lastblock)). {
  repeat rewrite Forall_app.
  repeat split; auto.
  apply Forall_isbyteZ_unsigned_repr; auto.
- apply isbyte_zeros.
+ rewrite map_list_repeat.
+ apply Forall_list_repeat. rewrite Int.unsigned_zero; clear; split; omega.
  apply isbyte_intlist_to_Zlist'.
 }
 unfold POSTCONDITION, abbreviate.
@@ -508,136 +534,131 @@ apply Zlength_length; auto; apply length_Zlist_to_intlist.
 rewrite map_length; assumption.
 *
 apply intlist_to_Zlist_inj.
-rewrite (lastblock_lemma _ hashed' dd' pad hi lo); auto.
-2: repeat rewrite app_ass; apply H5.
-2: rewrite <- H7; f_equal; rewrite initial_world.Zlength_app,
-        Zlength_intlist_to_Zlist, Z.mul_comm; reflexivity.
-2: apply Forall_app; split; auto;apply isbyte_intlist_to_Zlist.
-rewrite (app_ass _ dd); rewrite <- H5.
-rewrite app_ass; rewrite intlist_to_Zlist_app.
-f_equal.
+rewrite intlist_to_Zlist_app.
 unfold lastblock'.
-rewrite Zlist_to_intlist_to_Zlist;
- [  | rewrite map_length, H10; exists LBLOCK;reflexivity | auto].
-unfold lastblock; repeat rewrite map_app.
+rewrite Zlist_to_intlist_to_Zlist; auto.
+2: rewrite map_length,H10; exists LBLOCK; reflexivity.
+unfold lastblock.
+rewrite map_app.
+rewrite map_unsigned_repr_isbyte by auto.
+rewrite <- app_ass. rewrite H5.
+rewrite map_app.
+rewrite map_list_repeat.
+rewrite Int.unsigned_zero.
+rewrite map_unsigned_repr_isbyte by apply isbyte_intlist_to_Zlist.
+unfold generate_and_pad.
+rewrite intlist_to_Zlist_app.
+rewrite Zlist_to_intlist_to_Zlist; auto.
+repeat rewrite app_ass.
+f_equal. f_equal. f_equal.
+rewrite <- app_ass.
 f_equal.
-symmetry; apply map_unsigned_repr_isbyte; auto.
+rewrite list_repeat_app.
 f_equal.
-f_equal.
-f_equal.
-clear dependent p1. clear dependent p2. clear p0 p3.
-clear Delta POSTCONDITION MORE_COMMANDS.
-clear DDbytes DDbytes'.
-clear lastblock'.
-clear dependent lastblock.
-clear dependent hi; clear lo.
-clear dependent shmd.
-destruct PAD; subst; simpl in *.
-rewrite Z.sub_0_r.
-replace (Zlength (intlist_to_Zlist hashed ++ dd) + 9)
-  with (Zlength (intlist_to_Zlist hashed') + Zlength dd' + 8). 
-{
- clear - H0 H2.
- apply Nat2Z.inj_le in H0. rewrite Nat2Z.inj_add in H0.
- change (Z.of_nat 8) with 8 in H0. rewrite <- Zlength_correct in H0.
- destruct H2 as [n ?].
- rewrite Zlength_intlist_to_Zlist. rewrite H.
- rewrite Z.mul_comm. rewrite <- Z.mul_assoc.
-  change (Z.of_nat CBLOCK) with CBLOCKz in *.
-  change (LBLOCKz * 4)%Z with CBLOCKz.
- rewrite <- Z.add_assoc.
- rewrite <- Z.sub_0_l.
- rewrite Zminus_mod.
- replace (0 mod CBLOCKz) with ((CBLOCKz + n * CBLOCKz) mod CBLOCKz).
- rewrite <- Zminus_mod.
- match goal with |- ?A mod _ = _ =>
-    replace A with (CBLOCKz - 8 - Zlength dd') by omega
- end.
- rewrite Zmod_small by (rewrite Zlength_correct in *; omega).
- auto.
- rewrite Zplus_mod. 
- rewrite Zmult_mod. rewrite Z.mod_same by (intro Hx; inv Hx).
- rewrite Z.mul_0_r.
- rewrite Z.mod_0_l by (intro Hx; inv Hx).
-  rewrite Z.mod_0_l by (intro Hx; inv Hx). auto.
-}
-{
- transitivity (Zlength (intlist_to_Zlist hashed ++ dd ++ [128]) + 8).
- rewrite <- H5.
- rewrite initial_world.Zlength_app; omega.
- rewrite <- app_ass.
- rewrite initial_world.Zlength_app.
- rewrite <- Z.add_assoc.
- reflexivity.
-}
-rewrite <- app_nil_end in H5.
-rewrite Zlength_nil.
-assert (Zlength dd + 1 + pad = CBLOCKz). {
- clear - H4  H3 H1 H2 H5.
- destruct H4 as [a H4]; destruct H2 as [b H2].
- apply (f_equal (@Zlength _)) in H5.
- rewrite Zlength_intlist_to_Zlist in H5. 
- rewrite H2 in H5. clear H2 hashed'.
- repeat rewrite initial_world.Zlength_app in H5.
- rewrite Zlength_intlist_to_Zlist in H5. 
- rewrite Zlength_cons, initial_world.Zlength_map,
- Zlength_zeros  in H5; try omega.
- unfold Z.succ in H5.
- rewrite H4 in H5.
- repeat rewrite (Z.mul_comm 4) in H5.
- repeat rewrite <- Z.mul_assoc in H5.
- change (LBLOCKz * 4)%Z with CBLOCKz in H5.
- replace (Zlength dd + (pad + 1)) with (Zlength dd + 1 + pad) in H5 by (clear; omega).
- assert (0 <= Zlength dd) by (rewrite Zlength_correct; clear; omega).
- forget (Zlength dd) as d; clear dd. clear hashed H4.
- assert ((b-a) * CBLOCKz = d + 1 + pad)%Z
- by (rewrite Z.mul_sub_distr_r; omega).
- clear H5.
- assert (0 < d + 1 + pad < 2 * CBLOCKz)
-  by (change CBLOCKz with 64 in *; omega).
- forget (d+1+pad) as c. forget (b-a) as e.
- clear - H0 H2.
- subst c.
- change CBLOCKz with 64 in *.
- assert (0<e). 
- apply Zmult_lt_0_reg_r with 64; try omega.
- assert (e<2).
- apply Zmult_gt_0_lt_reg_r with 64; omega.
- assert (e=1) by omega; subst e; reflexivity.
-}
-transitivity (- (Zlength dd + 9) mod CBLOCKz - pad). {
- f_equal.
- rewrite initial_world.Zlength_app.
- rewrite <- Z.add_assoc.
+clear - H5 H2 H1 H0 PAD.
+assert (Zlength dd' <= 56). rewrite Zlength_correct; change 56 with (Z.of_nat (CBLOCK-8)); apply Nat2Z.inj_le; omega.
+clear H0.
+replace (Zlength (intlist_to_Zlist hashed ++ dd))
+  with (4*Zlength hashed' + Zlength dd' - (1+pad)).
+Focus 2. {
+rewrite <-  Zlength_intlist_to_Zlist.
+rewrite <- initial_world.Zlength_app.
+rewrite H5.
+rewrite <- app_ass.
+rewrite initial_world.Zlength_app.
+forget (Zlength (intlist_to_Zlist hashed ++ dd)) as B.
+rewrite initial_world.Zlength_app.
+rewrite Zlength_cons, Zlength_nil, Zlength_correct.
+rewrite length_list_repeat. rewrite Z2Nat.id by omega. omega.
+} Unfocus.
+change (Z.of_nat CBLOCK - 8) with 56.
+clear H5.
+rewrite <- Z2Nat.inj_add by omega.
+f_equal. {
+ transitivity (- (4 * Zlength hashed' + (Zlength dd' - (1 + pad) + 9)) mod 64).
+ f_equal. f_equal. omega.
  rewrite <- Z.sub_0_l.
  rewrite Zminus_mod.
  rewrite Zplus_mod.
- rewrite Zlength_intlist_to_Zlist. destruct H4 as [a H4].
- rewrite H4. rewrite Z.mul_comm. rewrite <- Z.mul_assoc.
- change (LBLOCKz * 4)%Z with CBLOCKz.
- rewrite Z_mod_mult. rewrite Z.add_0_l.
- rewrite Zmod_mod.
+ rewrite Z.mul_comm.
+ destruct H2 as [a H2]; rewrite H2.
+ rewrite <- Z.mul_assoc.
+ change (LBLOCKz * 4)%Z with 64%Z.
+ rewrite Zmult_mod.
+ assert (64<>0) by (clear; omega).
+ rewrite Z.mod_same by auto. rewrite Z.mul_0_r.
+ rewrite Z.mod_0_l at 2 by auto.
+ rewrite Z.add_0_l. rewrite Z.mod_mod by auto.
+ replace (0 mod 64) with (64 mod 64) by reflexivity.
+ destruct PAD; subst.
  rewrite <- Zminus_mod.
- rewrite Z.sub_0_l.
- auto.
+ rewrite Z.mod_small; try omega.
+ rewrite Zlength_correct in H|-*; omega.
+ rewrite Zlength_nil in *.
+ rewrite <- Zminus_mod.
+ rewrite Z.mod_small; try omega.
 }
-replace (Zlength dd) with (CBLOCKz - (1+pad)) by omega.
-replace (CBLOCKz - (1+pad) + 9) with (CBLOCKz + (8-pad)) by omega.
-rewrite Z.mod_opp_l_nz.
-2:intro Hx; inv Hx.
-Focus 2. {
- rewrite Z.add_mod by (intro Hx; inv Hx).
- rewrite Z.mod_same by (intro Hx; inv Hx).
- rewrite Z.add_0_l. rewrite Z.mod_mod by (intro Hx; inv Hx).
- rewrite (Z.mod_small  (8 - pad)) by (change CBLOCKz with 64; omega).
+ rewrite initial_world.Zlength_app, Zlength_intlist_to_Zlist.
+ rewrite <- (Z.mul_comm 4) in H7; rewrite H7.
+ f_equal; apply hilo_lemma.
+
+ repeat rewrite app_length. rewrite length_list_repeat.
+ rewrite length_intlist_to_Zlist.
+ repeat rewrite <- plus_assoc.
+ rewrite initial_world.Zlength_app, Zlength_intlist_to_Zlist.
+ clear.
+ apply NPeano_divide_add.
+ exists (length hashed). apply mult_comm.
+ assert (4 | (Zlength dd + (1 + (- (4 * Zlength hashed + Zlength dd + 9) mod 64)))).
+ forget (Zlength dd) as d. forget (Zlength hashed) as h.
+ apply Zmod_divide; try omega.
+ rewrite <- Z.add_assoc. 
+ rewrite Z.add_assoc.
+ replace (d + 9) with (d + 1 + 8) by omega.
+ forget (d+1) as e.
+ rewrite Zplus_mod.
+ change 64 with (16*4)%Z.
+ rewrite Fcore_Zaux.Zmod_mod_mult by omega.
+ rewrite <- Z.sub_0_l.
+ rewrite Zminus_mod.
+ rewrite (Zplus_mod (4*h)%Z).
+ rewrite Zmult_mod.
+ rewrite Z.mod_same by omega.
+ rewrite Z.mul_0_l.
+ rewrite (Zplus_mod e).
+ change (8 mod 4) with 0.
+ rewrite Z.add_0_r.
+ rewrite Z.mod_mod by omega.
+ change (0 mod 4) with (4 mod 4) at 1.
+ change (0  mod 4) with 0.
+  rewrite Z.add_0_l.
+ rewrite <- Zminus_mod.
+ destruct (zeq (e mod 4) 0). rewrite e0; reflexivity.
+ rewrite (Z.mod_small (4 - e mod 4)).
+ transitivity (4 mod 4). f_equal; omega.
+ reflexivity.
+ pose proof (Z.mod_pos_bound e 4). spec H; [omega |].
  omega.
-} Unfocus.
-rewrite Z.add_mod by (intro Hx; inv Hx).
-rewrite Z_mod_same by (change CBLOCKz with 64; omega).
-rewrite Z.add_0_l.
-rewrite Z.mod_mod by (change CBLOCKz with 64; omega).
-rewrite Z.mod_small by (change CBLOCKz with 64; omega).
-change (Z.of_nat CBLOCK) with CBLOCKz.
-omega.
+ forget (- (4 * Zlength hashed + Zlength dd + 9)) as n.
+ assert (0 <= n mod 64) by (apply Z.mod_pos_bound; omega).
+ destruct H. exists (Z.to_nat x).
+ assert (0 <= x).
+ apply Zmult_le_0_reg_r with 4; try omega.
+ rewrite <- H.
+ clear H. 
+ rewrite Zlength_correct at 1. omega.
+ transitivity (Z.to_nat (x * 4)); [ | rewrite Z2Nat.inj_mul by omega; reflexivity].
+ rewrite <- H. clear H.
+ rewrite Zlength_correct.
+ rewrite Z2Nat.inj_add; try  omega.
+ rewrite Nat2Z.id. f_equal.
+ simpl length.
+ rewrite Z2Nat.inj_add; try  omega.
+ reflexivity.
+
+ repeat (apply Forall_app; split; auto).
+ apply isbyte_intlist_to_Zlist.
+ constructor; auto. split; clear; omega.
+ apply Forall_list_repeat. split; clear; omega. 
 Qed.
 

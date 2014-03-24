@@ -45,7 +45,7 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo:=
               (LBLOCKz | Zlength hashed')%Z;
               intlist_to_Zlist hashed' ++ dd' =
               intlist_to_Zlist hashed ++  dd 
-                  ++ [128%Z] ++ map Int.unsigned (zeros pad)   )          
+                  ++ [128%Z] ++ list_repeat (Z.to_nat pad) 0)
    LOCAL 
    (`(eq (Vint (Int.repr (Zlength dd')))) (eval_id _n);
    `eq (eval_id _p)
@@ -143,7 +143,7 @@ replace_SEP 0%Z (
           (offset_val (Int.repr (ddlen + 1)) (offset_val (Int.repr 40) c)))).
 entailer!.
 gather_SEP 4%Z 0%Z.
-pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ zeros (Z.of_nat CBLOCK-(ddlen+1)))%Z).
+pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ list_repeat (Z.to_nat (Z.of_nat CBLOCK-(ddlen+1))) Int.zero)).
 replace_SEP 0%Z (  `(array_at tuchar Tsh
         (ZnthV tuchar (map Vint ddz)) 0 64
         (offset_val (Int.repr 40) c))).
@@ -180,15 +180,28 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
  unfold ZnthV. rewrite if_false by omega.
  unfold ddz. clear ddz. rewrite map_app.
  rewrite app_nth2;  rewrite map_length; rewrite app_length.
- rewrite nth_map_zeros; [reflexivity |].
- simpl. rewrite map_length; Omega1.
- simpl. rewrite map_length;  Omega1.
+  rewrite (nth_map' Vint _ Int.zero).
+ f_equal.
+ Lemma nth_list_repeat: forall A i n (x :A),
+    nth i (list_repeat n x) x = x.
+Proof.
+ induction i; destruct n; simpl; auto.
+Qed.
+ apply nth_list_repeat.
+  simpl. rewrite map_length, length_list_repeat.
+ change (Z.of_nat CBLOCK) with 64.
+ replace (length dd + 1)%nat with (Z.to_nat (ddlen + 1)).
+ rewrite <- Z2Nat.inj_sub by omega.
+ apply Z2Nat.inj_lt; try omega. rewrite H.
+ rewrite Z2Nat.inj_add; try omega.
+ rewrite Zlength_correct, Nat2Z.id. auto.
+ rewrite map_length; simpl. Omega1.
  + Omega1.
  }
 pose (ddzw := Zlist_to_intlist (map Int.unsigned ddz)).
 assert (H0': length ddz = CBLOCK). {
 unfold ddz; repeat rewrite app_length.
-rewrite length_zeros by omega.
+rewrite length_list_repeat by omega.
 rewrite Z2Nat.inj_sub by omega.
 rewrite Z2Nat.inj_add by omega.
 rewrite (Nat2Z.id). unfold ddlen; rewrite Zlength_correct. 
@@ -211,7 +224,20 @@ unfold ddz; repeat rewrite map_app; repeat rewrite Forall_app; repeat split; aut
 apply Forall_isbyteZ_unsigned_repr; auto.
 constructor. compute. clear; split; congruence.
 constructor.
-apply isbyte_zeros.
+Lemma map_list_repeat:
+  forall A B (f: A -> B) n x,
+     map f (list_repeat n x) = list_repeat n (f x).
+Proof. induction n; simpl; intros; f_equal; auto.
+Qed.
+rewrite map_list_repeat.
+Lemma Forall_list_repeat:
+  forall A (f: A -> Prop) n (x: A),
+     f x -> Forall f (list_repeat n x).
+Proof.
+ intros; induction n; simpl; auto.
+Qed.
+apply Forall_list_repeat.
+rewrite Int.unsigned_zero. split; clear; omega.
 }
 clear H0'.
 clearbody ddzw.
@@ -249,8 +275,8 @@ assert (0 <= pad < 8)%Z.
 unfold pad.
 change (16*4)%Z with (Z.of_nat CBLOCK) in H5. 
 change (Z.of_nat CBLOCK) with CBLOCKz in H5|-*; omega.
-assert (length (zeros pad) < 8)%nat. 
-rewrite length_zeros.
+assert (length (list_repeat (Z.to_nat pad) 0) < 8)%nat.
+rewrite length_list_repeat.
 apply Nat2Z.inj_lt.
 rewrite Z2Nat.id by omega.
 Omega1. 
@@ -272,6 +298,8 @@ entailer!.
   auto.
  inv DDbytes; f_equal; auto.
  apply Int.unsigned_repr; unfold isbyteZ in H1; repable_signed.
+ rewrite map_list_repeat.
+ simpl.  f_equal.
 * cancel.
   unfold data_block.
  simpl. apply andp_left2.

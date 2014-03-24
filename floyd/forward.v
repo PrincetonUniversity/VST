@@ -778,7 +778,7 @@ Ltac normalize_postcondition :=
 Ltac forward_call witness := 
 match goal with
 | |- semax _ _ (Ssequence (Ssequence _ _) _) _ => 
-     apply -> seq_assoc
+     apply -> seq_assoc; forward_call witness
 | |- semax _ _ (Ssequence (Scall None _ _) _) _ =>
   eapply semax_seq';
   [let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));

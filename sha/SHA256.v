@@ -126,16 +126,19 @@ Definition init_registers : registers :=
 
 Definition nthi (il: list int) (t: Z) := nth (Z.to_nat t) il Int.zero.
 
+Definition rnd_function (x : registers) (k : int) (w : int) : registers:=
+  match x with 
+  |  [a, b, c, d, e, f, g, h] => 
+     let T1 := Int.add (Int.add (Int.add (Int.add h (Sigma_1 e)) (Ch e f g)) k) w in
+     let T2 := Int.add (Sigma_0 a) (Maj a b c) in
+       [Int.add T1 T2, a, b, c, Int.add d T1, e, f, g]
+  | _ => nil  (* impossible *)
+  end.
+
 Function Round  (regs: registers) (M: Z ->int) (t: Z) 
         {measure (fun t => Z.to_nat(t+1)) t} : registers :=
  if zlt t 0 then regs 
- else match Round regs M (t-1) with
-  | [a,b,c,d,e,f,g,h] => 
-     let T1 := Int.add (Int.add (Int.add (Int.add h (Sigma_1 e)) (Ch e f g)) (nthi K t)) (W M t) in
-     let T2 := Int.add (Sigma_0 a) (Maj a b c) in
-       [Int.add T1 T2, a, b, c, Int.add d T1, e, f, g]
-  | _ => nil
-  end.
+ else rnd_function (Round regs M (t-1)) (nthi K t) (W M t).
 Proof. intros; apply Z2Nat.inj_lt; omega.
 Qed.
 
@@ -166,138 +169,3 @@ Fixpoint intlist_to_Zlist (l: list int) : list Z :=
 
 Definition SHA_256 (str : list Z) : list Z :=
     intlist_to_Zlist (hash_blocks init_registers (generate_and_pad str)).
-
-(* FAST FUNCTIONAL VERSION OF SHA256 *)
-Function zeros (n : Z) {measure Z.to_nat n} : list Int.int :=
- if Z.gtb n 0 then Int.zero :: zeros (n-1) else nil.
-Proof.
-   intros. rewrite Z2Nat.inj_sub by omega.
-   apply Zgt_is_gt_bool in teq.
-   assert (0 < n) by omega. apply Z2Nat.inj_lt in H; try omega.
-   simpl in H. change (Z.to_nat 1) with 1%nat. omega.
-Defined.
-
-Definition padlen (n: Z) : list Int.int :=
-    let p := n/4+3 (* number of words with trailing 128-byte, 
-                                                      up to 3 zero bytes, and 2 length words *)
-    in let q := (p+15)/16*16 - p   (* number of zero-pad words *)
-      in zeros q ++ [Int.repr (n * 8 / Int.modulus), Int.repr (n * 8)].
-
-Fixpoint generate_and_pad' (n: list Z) len : list Int.int :=
-  match n with
-  | nil => Z_to_Int 128 0 0 0 :: padlen len
-  | [h1]=> Z_to_Int h1 128 0 0 :: padlen (len+1)
-  | [h1, h2] => Z_to_Int h1 h2 128 0 :: padlen (len+2)
-  | [h1, h2, h3] => Z_to_Int h1 h2 h3 128 :: padlen (len+3)
-  | h1::h2::h3::h4::t => Z_to_Int h1 h2 h3 h4 :: generate_and_pad' t (len+4)
-  end.
-
-Definition generate_and_pad_alt (n: list Z) : list Int.int :=
-   generate_and_pad' n 0.
-
-Definition Wnext (msg : list int) : int :=
- match msg with
- | x1::x2::x3::x4::x5::x6::x7::x8::x9::x10::x11::x12::x13::x14::x15::x16::_ =>
-   (Int.add (Int.add (sigma_1 x2) x7) (Int.add (sigma_0 x15) x16))
- | _ => Int.zero  (* impossible *)
- end.
-
-(*generating 64 words for the given message block imput*)
-Fixpoint generate_word (msg : list int) (n : nat) {struct n}: list int :=
-  match n with
-  |O   => msg 
-  |S n' => generate_word (Wnext msg :: msg) n'
-  end.
-Arguments generate_word msg n : simpl never.
-Global Opaque generate_word. (* for some reason the Arguments...simpl-never
-   command does not do the job *)
-
-(*round function*)
-Definition rnd_function (x : registers) (k : int) (w : int) : registers:=
-  match x with 
-  |  [a, b, c, d, e, f, g, h] => 
-     let T1 := Int.add (Int.add (Int.add (Int.add h (Sigma_1 e)) (Ch e f g)) k) w in
-     let T2 := Int.add (Sigma_0 a) (Maj a b c) in
-       [Int.add T1 T2, a, b, c, Int.add d T1, e, f, g]
-  | _ => nil  (* impossible *)
-  end.
-
-(*execute round function for 64 rounds*)
-Fixpoint rnd_64 (x: registers) (k w : list int) : registers :=
-  match k, w with
-  | k1::k', w1::w' => rnd_64 (rnd_function x k1 w1) k' w'
-  | _ , _ => x
-  end.
-Arguments rnd_64  x k w : simpl never.  (* blows up otherwise *)
-
-Definition process_block (r: registers) (block: list int) : registers :=
-       (map2 Int.add r (rnd_64 r K (rev(generate_word block 48)))).
-
-Fixpoint grab_and_process_block (n: nat) (r: registers) (firstrev msg: list int) : registers * list int :=
- match n, msg with
-  | O, _ => (process_block r firstrev, msg)
-  | S n', m1::msg' => grab_and_process_block n' r (m1::firstrev) msg'
-  | _, nil => (r,nil) (* impossible *)
- end.
-
-(*iterate through all the message blocks; this could have been done with just a Fixpoint
-  if we incorporated grab_and_process_block into process_msg, but I wanted to 
-  modularize a bit more. *)
-Function process_msg  (r: registers) (msg : list int) {measure length msg}  : registers :=
- match msg with
- | nil => r
- | _ => let (r', msg') := grab_and_process_block 16 r nil msg
-             in process_msg r' msg'
- end.
-Proof.
-  intros; subst.
-  simpl.
-  assert (Datatypes.length msg' <= Datatypes.length l)%nat; [ | omega].
-  simpl in teq0.
-  do 16 (destruct l; [inv teq0; solve [simpl; auto 50] | ]).
-  unfold process_block in teq0.
-  assert (i15::l = msg') by congruence.
-  subst msg'.
-  simpl.
-  omega.
-Defined.
-
-Definition SHA_256' (str : list Z) : list Z :=
-    intlist_to_Zlist (process_msg init_registers (generate_and_pad_alt str)).
-
-(*EXAMPLES*)
-
-Fixpoint listZ_eq (al bl: list Z) : bool :=
- match al, bl with
- | nil, nil => true
- | a::al', b::bl' => Z.eqb a b && listZ_eq al' bl'
- | _, _ => false
-  end.
-
-Definition hexdigit(a: Z) : Z :=
- if Z.leb 48 a && Z.ltb a 58 then Z.sub a 48
- else if Z.leb 65 a && Z.ltb a 71 then Z.sub a 55
- else if Z.leb 97 a && Z.ltb a 103 then Z.sub a 87
- else 0%Z.
-
-Fixpoint hexstring_to_Zlist (s: string): list Z  :=
- match s with
- | String a (String b r) =>  (hexdigit (Z.of_N (N_of_ascii a)) * 16 
-                                         + hexdigit (Z.of_N (N_of_ascii b)))
-                                          :: hexstring_to_Zlist r
- | _ => nil
- end.
-
-Definition check m h := 
-  listZ_eq (SHA_256' (str_to_Z m)) (hexstring_to_Zlist h) = true.
-
-(*This input message is 344 bits long, which would have one message block after padding*)
-Goal  check   "The quick brown fox jumps over the lazy dog"
-  "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592".
-Proof. vm_compute; auto. Qed.
-
-(*This input message would have four message blocks after padding*)
-Goal check "The Secure Hash Algorithm is a family of cryptographic hash functions published by the National Institute of Standards and Technology (NIST) as a U.S. Federal Information Processing Standard (FIPS)"
- "27c3971526f07a22decc4dc01340c6c4b972ba6d31b74fb1fbb2edf2bce5fea6".
-Proof. vm_compute; auto. Qed.
-

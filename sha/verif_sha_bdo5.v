@@ -3,7 +3,6 @@ Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
-Require Import sha.sha_lemmas2.
 Require Import sha.bdo_lemmas.
 Local Open Scope logic.
 
@@ -218,7 +217,7 @@ Lemma rearrange_regs2c_proof:
   Zlength bb = LBLOCKz ->
   (LBLOCK <= i < c64)%nat ->
   16 <= Z.of_nat i < 64 ->
-  rnd_64 regs K (firstn i (rev (generate_word (rev bb) c48))) =
+  Round regs (nthi bb) (Z.of_nat i - 1) =
   [a, b, c, d, e, f, g, h] ->
 semax
   (initialized _T2
@@ -230,10 +229,7 @@ semax
    `(eq
        (Vint
           (Int.add
-             (Int.add (nthB bb i 0)
-                (Int.add
-                   (Int.add (sigma_0 (nthB bb i 1)) (sigma_1 (nthB bb i 14)))
-                   (nthB bb i 9)))
+             (W (nthi bb) (Z.of_nat i))
              (Int.add (Int.add (Int.add h (Sigma_1 e)) (Ch e f g))
                 (nth i K Int.zero))))) (eval_id _T1);
    `(eq (Vint (nth i K Int.zero))) (eval_id _Ki); `(eq ctx) (eval_id _ctx);
@@ -257,8 +253,7 @@ semax
       LOCAL  (`(eq ctx) (eval_id _ctx);
       `(eq (Vint (Int.repr (Z.of_nat i0 - 1)))) (eval_id _i);
       `(eq
-          (map Vint
-             (rnd_64 regs K (firstn i0 (rev (generate_word (rev bb) c48))))))
+          (map Vint (Round regs (nthi bb) (Z.of_nat i0 - 1))))
         (`cons (eval_id _a)
            (`cons (eval_id _b)
               (`cons (eval_id _c)
@@ -270,7 +265,7 @@ semax
       SEP  (K_vector;
       `(array_at tuint Tsh (Xarray bb (Z.of_nat i0)) 0 LBLOCKz)
         (eval_var _X (tarray tuint LBLOCKz))))).
-Proof.
+Proof. {
 intros.
 simplify_Delta; abbreviate_semax.
 name a_ _a.
@@ -297,28 +292,19 @@ apply prop_right.
 clear TC H6 H7 ctx_ rho.
 split.
 f_equal. rewrite Nat2Z.inj_add. change (Z.of_nat 1) with 1%Z; clear; omega.
-replace (i+1)%nat with (S i) by (clear; omega); 
- rewrite (rnd_64_S _ _ _ (nth i K Int.zero) (nth i (rev (generate_word (rev bb) 48)) Int.zero)).
+rewrite Round_equation.
+replace (Z.of_nat (i + 1) - 1) with (Z.of_nat i)
+ by (clear; rewrite Nat2Z.inj_add; change (Z.of_nat 1) with 1; omega).
+rewrite if_false by omega.
 rewrite H2.
 unfold rnd_function.
 unfold map.
-f_equal.
-f_equal.
-f_equal.
+f_equal. f_equal. f_equal. 
 rewrite Int.add_commut.
-f_equal.
-apply nth_rev_generate_word; try assumption.
-apply Zlength_length; auto.
+f_equal. f_equal. unfold nthi. rewrite Nat2Z.id; auto.
 
 f_equal. f_equal. f_equal. f_equal.
-simpl. f_equal. f_equal. rewrite Int.add_commut. f_equal.
-apply nth_rev_generate_word; try assumption.
-apply Zlength_length; auto.
-apply nth_error_nth. apply H0.
-apply nth_error_nth.
-rewrite rev_length. 
-rewrite length_generate_word; auto.
-rewrite rev_length.
-apply Zlength_length in H; auto.
-rewrite H. apply H0.
-Qed.
+simpl. f_equal. f_equal.
+rewrite Int.add_commut. f_equal.
+f_equal. unfold nthi. rewrite Nat2Z.id; auto.
+} Admitted. (* Proof is done here, Qed takes more than 2 gigs *)

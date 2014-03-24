@@ -2,7 +2,6 @@ Require Import floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.sha_lemmas.
-Require Import sha.sha_lemmas2.
 Require Import sha.spec_sha.
 Local Open Scope logic.
 
@@ -56,6 +55,7 @@ semax (initialized _Ki (initialized _l (initialized _l' Delta_loop1)))
                           (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
         SEP())).
 Proof.
+{
 intros.
 name a_ _a.
 name b_ _b.
@@ -109,27 +109,22 @@ simplify_Delta.
   repeat rewrite (rearrange_aux h);
   reflexivity.
 (* 1,685,788    1,743,816  ;   without the computational closedness: 1,913,256 *)
-Admitted. (* this proof works, but takes over 2 gigabytes  *)
+} Admitted. (* this proof works, but takes over 2 gigabytes  *)
 
 Lemma rearrange_regs_proof:
- forall (Espec: OracleKind) i (data: val) bl regs ctx
+ forall (Espec: OracleKind) i (data: val) M regs ctx
  (Hdata: isptr data)
- (H: length bl = LBLOCK)
+ (H: length regs = 8)
  (H0: i < 16), 
  semax (initialized _Ki (initialized _l (initialized _l' Delta_loop1)))
   (PROP  ()
    LOCAL 
    (`(eq ctx) (eval_id _ctx);
    `(eq (offset_val (Int.repr (Zsucc (Z.of_nat i) * 4)) data)) (eval_id _data);
-   `(eq (Vint (big_endian_integer
-             (fun z : Z =>
-              force_int
-                (tuchars (map Int.repr (intlist_to_Zlist bl))
-                   (z + Z.of_nat i * 4))))))
-       (eval_id _l);
-   `(eq (nth_error K i)) (`Some  (`force_int (eval_id _Ki)));
+   `(eq (Vint (W M (Z.of_nat i))))  (eval_id _l);
+   `(eq (Vint (nthi K (Z.of_nat i)))) (eval_id _Ki);
    `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
-   `(eq (map Vint (rnd_64 regs K (firstn i bl))))
+   `(eq (map Vint (Round regs M (Z.of_nat i - 1))))
      (`cons (eval_id _a)
         (`cons (eval_id _b)
            (`cons (eval_id _c)
@@ -143,7 +138,7 @@ Lemma rearrange_regs_proof:
       LOCAL  (`(eq ctx) (eval_id _ctx);
       `(eq (Vint (Int.repr (Z.succ (Z.of_nat i) - 1)))) (eval_id _i);
       `(eq (offset_val (Int.repr (Z.succ (Z.of_nat i) * 4)) data)) (eval_id _data);
-      `(eq (map Vint (rnd_64 regs K (firstn (S i) bl))))
+      `(eq (map Vint (Round regs M (Z.succ (Z.of_nat i) - 1))))
         (`cons (eval_id _a)
            (`cons (eval_id _b)
               (`cons (eval_id _c)
@@ -154,79 +149,16 @@ Lemma rearrange_regs_proof:
         SEP())).
 Proof.
 intros.
-name a_ _a.
-name b_ _b.
-name c_ _c.
-name d_ _d.
-name e_ _e.
-name f_ _f.
-name g_ _g.
-name h_ _h.
-name l_ _l.
-name Ki _Ki.
-name i_ _i.
-name T1 _T1.
-name T2 _T2.
-name data_ _data.
-name ctx_ _ctx.
-assert (exists w, nth_error bl i = Some w).
- apply assert_lemmas.nth_error_in_bounds.
-change LBLOCK with 16 in H; omega.
-destruct H1 as [w H1].
-assert (exists k, nth_error K i = Some k).
- apply assert_lemmas.nth_error_in_bounds.
-compute; split; omega.
-destruct H2 as [k H2].
-set (Delta := initialized _Ki (initialized _l (initialized _l' Delta_loop1))).
-set (Delta' := initialized _Ki (initialized _l (initialized _l' Delta_loop1))).
-assert (Delta' = Delta) by reflexivity.
-revert H3.
-revert Delta.
-cbv delta [Delta_loop1].
-simplify_Delta.
-intro HDelta'.
-match goal with
-         | |- semax ?D _ _ _  =>
-               abbreviate D : tycontext as Delta
-end.
-assert (HDelta'': Delta' = Delta) by reflexivity.
-rewrite (rnd_64_S _ _ _ _ _ H2 H1).
-forget (rnd_64 regs K (firstn i bl)) as regs'.
-apply semax_pre with
-  (PROP  (exists a, exists b, exists c, exists d, 
-              exists e, exists f, exists g, exists h,
-                regs' = [a,b,c,d,e,f,g,h])
-   LOCAL 
-   (`(eq ctx) (eval_id _ctx);
-   `(eq (offset_val (Int.repr (Z.succ (Z.of_nat i) * 4)) data))
-      (eval_id _data);
-   `(eq (Vint w)) (eval_id _l);
-   `(eq (Vint k)) (eval_id _Ki);
-   `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
-   `(eq (map Vint regs'))
-     (`cons (eval_id _a)
-        (`cons (eval_id _b)
-           (`cons (eval_id _c)
-              (`cons (eval_id _d)
-                 (`cons (eval_id _e)
-                    (`cons (eval_id _f)
-                       (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
-   SEP()).
-abstract (entailer; split3;
-  [(exists a_, b_, c_, d_, e_, f_, g_, h_;
-    clear - H4; rename H4 into H0;
-    do 8 (destruct regs' as [ | ? regs']; [inv H0 | ]);
-    destruct regs'; inv H0; reflexivity)
-  | apply nth_big_endian_integer; auto 
-  | congruence]).
-apply semax_extract_PROP; 
-   intros [a [b [c [d [e [f [g [h Hregs]]]]]]]].
-forget (eq (offset_val (Int.repr (Z.succ (Z.of_nat i) * 4)) data)) as eqofs.
-clear Hdata data.
-replace (Z.succ (Z.of_nat i) - 1)%Z with (Z.of_nat i) by (clear; omega).
-rewrite <- HDelta''; unfold Delta'.
-clear HDelta' Delta' HDelta'' Delta.
-subst regs'.
+replace (Z.succ (Z.of_nat i) - 1)%Z with (Z.of_nat i) by omega.
+rewrite (Round_equation _ _ (Z.of_nat i)).
+rewrite if_false by omega.
+forget (nthi K (Z.of_nat i)) as k.
+forget (W M (Z.of_nat i)) as w.
+assert (length (Round regs M (Z.of_nat i - 1)) = 8).
+apply length_Round; auto.
+forget (Round regs M (Z.of_nat i - 1)) as regs'.
+change 16 with LBLOCK.
+destruct regs' as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; inv H1.
 simple apply rearrange_aux2; assumption. 
 Qed.
 
