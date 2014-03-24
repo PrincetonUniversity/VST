@@ -119,7 +119,13 @@ COMPCOMP_FILES= \
   Subtyping.v RTLtyping.v LTL_coop.v LTL_eff.v \
   Lattice.v Wfsimpl.v Iteration.v Heaps.v Kildall.v \
   FSetAVLplus.v Allocation.v AllocproofEFF.v \
-  Inlining.v Inliningspec.v Inliningproof.v
+  Inlining.v Inliningspec.v Inliningproof.v \
+  Linear.v Linear_coop.v Linear_eff.v Lineartyping.v \
+  OpEFF.v Linearize.v LinearizeproofEFF.v \
+  Mach_coop.v Mach_eff.v \
+  Bounds.v Stacklayout.v Stacking.v StackingproofEFF.v \
+  OpEFF.v Asm_coop.v Asm_eff.v Asmgen.v \
+  Asmgenproof0EFF.v Asmgenproof1EFF.v AsmgenproofEFF.v
 #Selectionproof.v
 
 VERIC_FILES= \

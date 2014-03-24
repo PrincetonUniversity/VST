@@ -19,20 +19,20 @@ Require Import core_semantics.
 
 Inductive Linear_core: Type :=
   | Linear_State:
-      forall (stack: list stackframe) (**r call stack *)
-             (f: function)            (**r function currently executing *)
+      forall (stack: list Linear.stackframe) (**r call stack *)
+             (f: Linear.function)            (**r function currently executing *)
              (sp: val)                (**r stack pointer *)
-             (c: code)                (**r current program point *)
-             (rs: locset),             (**r location state *)
+             (c: Linear.code)                (**r current program point *)
+             (rs: Linear.locset),             (**r location state *)
       Linear_core
   | Linear_Callstate:
-      forall (stack: list stackframe) (**r call stack *)
-             (f: fundef)              (**r function to call *)
-             (rs: locset),             (**r location state at point of call *)
+      forall (stack: list Linear.stackframe) (**r call stack *)
+             (f: Linear.fundef)              (**r function to call *)
+             (rs: Linear.locset),             (**r location state at point of call *)
       Linear_core
   | Linear_Returnstate:
-      forall (stack: list stackframe) (**r call stack *)
-             (rs: locset),             (**r location state at point of return *)
+      forall (stack: list Linear.stackframe) (**r call stack *)
+             (rs: Linear.locset),             (**r location state at point of return *)
       Linear_core.
 
 Section RELSEM.

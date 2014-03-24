@@ -50,6 +50,7 @@ Inliningproof.v
 
 Linear.v
 Lineartyping.v
+Linearize.v
 Bounds.v Stacklayout.v Stacking.v
 Asmgen.v 
 
