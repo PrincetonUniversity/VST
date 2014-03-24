@@ -89,6 +89,8 @@ Defined.
 
 Definition c_expr_type := no_eqb_type expr.
 
+Definition tc_assert_type := no_eqb_type tc_assert.
+
 Definition our_types :=(cons tycontext_type
                        (cons c_expr_type 
                        (cons c_type_type 
@@ -103,8 +105,9 @@ Definition our_types :=(cons tycontext_type
                        (cons nat_type
                        (cons positive_type
                        (cons bool_type
-                       (cons comparison_type nil
-                       ))))))))))))))).
+                       (cons comparison_type
+                       (cons tc_assert_type nil
+                       )))))))))))))))).
 
 Definition tycontext_tv := Expr.tvType 0.
 Definition c_expr_tv := Expr.tvType 1.
@@ -121,6 +124,7 @@ Definition nat_tv := Expr.tvType 11.
 Definition positive_tv := Expr.tvType 12.
 Definition bool_tv := Expr.tvType 13.
 Definition comparison_tv := Expr.tvType 14.
+Definition tc_assert_tv := Expr.tvType 15.
 
 (*Some common consts *)
 Definition our_const tv val :=

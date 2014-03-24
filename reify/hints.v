@@ -5,10 +5,35 @@ Require Import MirrorShard.ReifyHints.
 Require Import sep.
 Require Import reify_derives.
 Require Import functions.
+Require Import progs.list_dt.
 Import Expr.
 
 Module SL := SepLemma VericSepLogic Sep.
 Module HintModule := ReifyHints.Make VericSepLogic Sep SL. 
+
+
+(* Begin hints *)
+
+(* left-hints *)
+
+(* right-hints *)
+
+(* from verif_reverse *)
+Lemma eq_ptr_emp_lseg : forall T ll a b sh LS,
+        (ptr_eq a b -> (emp |-- @lseg T ll LS sh nil a b)).
+intros.
+entailer!.
+Qed.
+(*assert (dreq := (derives_refl'' _ _ (lseg_nil_eq LS0 sh a b))).
+eapply derives_trans.
+Focus 2.
+apply dreq.
+eapply andp_right.
+apply prop_right. assumption.
+auto.
+Qed. *)
+(* End hints *)
+
 
 Axiom PQ : forall n, VericSepLogic_Kernel.himp (P n) (Q n).
 
@@ -33,6 +58,8 @@ to the appropriate list in functions.v
 NOTE2: you might need to change to a form of record notation where you can give the
 implicit argument. Do this if you are having type errors
 *)
+
+
 Definition left_lemmas: list (Lemma.lemma types.our_types (SL.sepConcl types.our_types)).
 pose_env. 
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const left_hints types functions preds 
@@ -41,7 +68,7 @@ Defined.
  
 Axiom QP : forall n,  VericSepLogic_Kernel.himp (Q n) (P n).
 
-Definition right_hints := QP.
+Definition right_hints := (QP, eq_ptr_emp_lseg).
 
 (*Make sure you have already updated any funcs and preds that might have been added by doing
 the left rules *)

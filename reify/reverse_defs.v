@@ -1,8 +1,8 @@
 Require Import floyd.proofauto.
 Require Import types.
 Require Import functions.
-Require Import progs.reverse.
-Require Import progs.list_dt.
+Require Export progs.reverse.
+Require Export progs.list_dt.
 Require Import sep.
 Require Import wrapExpr.
 Local Open Scope logic.

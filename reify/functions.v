@@ -2,6 +2,7 @@ Require Import types.
 Require Import sep.
 Require Import progs.list_dt.
 Require Import MirrorShard.Expr MirrorShard.Env.
+Require Import denote_tc_assert_b.
 Definition all_types_r := repr (listToRepr types.our_types EmptySet_type).
 
 Section typed.
@@ -193,19 +194,8 @@ Expr.Sig all_types nil Z_tv Int.max_unsigned.
 Definition True_signature :=
 Expr.Sig all_types nil tvProp True.
 
-(* Our types. Let's see which of these we want to have equalities for *)
-(*
-                       (cons val_type done
-                       (cons list_val_type done
-                       (cons list_int_type  
-                       (cons int_type
-                       (cons Z_type
-                       (cons nat_type
-                       (cons positive_type
-                       (cons bool_type
-                       (cons comparison_type nil
-                       ))))))))))))))).
-*)
+Definition denote_tc_assert_b_signature :=
+Expr.Sig all_types (tc_assert_tv :: environ_tv :: nil) bool_tv denote_tc_assert_b.
 
 (* This way we don't have to deal with tons of close-parens at the end 
  * Important, since functions is a long list. *)
@@ -272,52 +262,56 @@ computable_functions ++ non_computable_functions.
 
 Definition computable_prefix_length := length computable_functions.
 
+(* By convention denote_tc_assert_b MUST be at index zero,
+   because do_computation will always look there for it. *)
+
+(* Definition denote_tc_assert_b_f := 0%nat. *)
 Definition two_power_nat_f := 0%nat.
-Definition O_f := 1%nat.
-Definition force_ptr_f := 2%nat.
-Definition app_val_f := 3%nat.
-Definition int_max_unsigned_f := 4%nat.
-Definition and_f := 5%nat.
-Definition align_f := 6%nat.
-Definition cons_val_f := 7%nat.
-Definition int_sub_f := 8%nat.
-Definition vint_f := 9%nat.
-Definition map_Vint_f := 10%nat.
-Definition typed_true_f := 11%nat.
-Definition int_add_f := 12%nat.
-Definition S_f := 13%nat.
-Definition Z_lt_f := 14%nat.
-Definition Z_le_f := 15%nat.
-Definition Z_gt_f := 16%nat.
-Definition Z_ge_f := 17%nat.
-Definition Zpos_f := 18%nat.
-Definition Zneg_f := 19%nat.
-Definition Z0_f := 20%nat.
-Definition xI_f := 21%nat.
-Definition xO_f := 22%nat.
-Definition xH_f := 23%nat.
-Definition int_lt_f := 24%nat.
-Definition int_ltu_f := 25%nat.
-Definition int_mul_f := 26%nat.
-Definition int_neg_f := 27%nat.
-Definition Z_add_f := 28%nat.
-Definition Z_sub_f := 29%nat.
-Definition Z_mul_f := 30%nat.
-Definition Z_div_f := 31%nat.
-Definition Z_mod_f := 32%nat.
-Definition Z_max_f := 33%nat.
-Definition Z_opp_f := 34%nat.
-Definition Ceq_f := 35%nat.
-Definition Cne_f := 36%nat.
-Definition Clt_f := 37%nat.
-Definition Cle_f := 38%nat.
-Definition Cgt_f := 39%nat.
-Definition Cge_f := 40%nat.
-Definition int_cmp_f := 41%nat.
-Definition int_cmpu_f := 42%nat.
-Definition int_repr_f := 43%nat.
-Definition int_signed_f := 44%nat.
-Definition int_unsigned_f := 45%nat.
+Definition O_f := S (two_power_nat_f).
+Definition force_ptr_f := S (O_f).
+Definition app_val_f := S (force_ptr_f).
+Definition int_max_unsigned_f := S (app_val_f).
+Definition and_f := S (int_max_unsigned_f).
+Definition align_f := S (and_f).
+Definition cons_val_f := S (align_f).
+Definition int_sub_f := S (cons_val_f).
+Definition vint_f := S (int_sub_f).
+Definition map_Vint_f := S (vint_f).
+Definition typed_true_f := S (map_Vint_f).
+Definition int_add_f := S (typed_true_f).
+Definition S_f := S (int_add_f).
+Definition Z_lt_f := S (S_f).
+Definition Z_le_f := S (Z_lt_f).
+Definition Z_gt_f := S (Z_le_f).
+Definition Z_ge_f := S (Z_gt_f).
+Definition Zpos_f := S (Z_ge_f).
+Definition Zneg_f := S (Zpos_f).
+Definition Z0_f := S (Zneg_f).
+Definition xI_f := S (Z0_f).
+Definition xO_f := S (xI_f).
+Definition xH_f := S (xO_f).
+Definition int_lt_f := S (xH_f).
+Definition int_ltu_f := S (int_lt_f).
+Definition int_mul_f := S (int_ltu_f).
+Definition int_neg_f := S (int_mul_f).
+Definition Z_add_f := S (int_neg_f).
+Definition Z_sub_f := S (Z_add_f).
+Definition Z_mul_f := S (Z_sub_f).
+Definition Z_div_f := S (Z_mul_f).
+Definition Z_mod_f := S (Z_div_f).
+Definition Z_max_f := S (Z_mod_f).
+Definition Z_opp_f := S (Z_max_f).
+Definition Ceq_f := S (Z_opp_f).
+Definition Cne_f := S (Ceq_f).
+Definition Clt_f := S (Cne_f).
+Definition Cle_f := S (Clt_f).
+Definition Cgt_f := S (Cle_f).
+Definition Cge_f := S (Cgt_f).
+Definition int_cmp_f := S (Cge_f).
+Definition int_cmpu_f := S (int_cmp_f).
+Definition int_repr_f := S (int_cmpu_f).
+Definition int_signed_f := S (int_repr_f).
+Definition int_unsigned_f := S (int_signed_f).
 
 (* Past this point are functions that should not compute into Consts *)
 Definition tc_environ_f := length computable_functions.
