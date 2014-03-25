@@ -1,8 +1,9 @@
 Require Import floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
-Require Import sha.sha_lemmas.
 Require Import sha.spec_sha.
+Require Import sha.sha_lemmas.
+Require Import sha.bdo_lemmas.
 Require Import sha.verif_sha_bdo3.
 Local Open Scope logic.
 
@@ -288,6 +289,7 @@ rewrite Nat2Z.id in *.
 rewrite (nth_map' _ _ Int.zero) in H4.
 congruence.
 clear H4.
+change (length K) with 64%nat.
 simpl; omega.
 } Admitted.  (* this is correct but goes over 2 gigabytes. *)
 

@@ -10,6 +10,28 @@ Require Import floyd.entailer.
 Require Import floyd.globals_lemmas.
 Import Cop.
 
+Lemma eval_var_env_set:
+  forall i t j v (rho: environ), eval_var i t (env_set rho j v) = eval_var i t rho.
+Proof. reflexivity. Qed.
+
+Lemma elim_globals_only:
+  forall Delta g i t rho,
+  tc_environ Delta rho /\ (var_types Delta) ! i = None /\ (glob_types Delta) ! i = Some g ->
+  eval_var i t (globals_only rho) = eval_var i t rho.
+Proof.
+intros. 
+destruct H as [H [H8 H0]].
+unfold eval_var, globals_only.
+simpl. 
+destruct H as [_ [? [? ?]]].
+destruct (H2 i g H0).
+unfold Map.get; rewrite H3; auto.
+destruct H3.
+congruence.
+Qed.
+
+Hint Rewrite eval_var_env_set : norm. (* MOVE elsewhere? *)
+
 Arguments Int.unsigned n : simpl never.
 
 Local Open Scope logic.
@@ -534,9 +556,8 @@ Ltac forward_if' :=
 match goal with 
 | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                                  (Sifthenelse ?e _ _) _ => 
-(apply semax_pre with (PROPx P (LOCALx (tc_expr Delta e :: Q) (SEPx R))));
-[ | apply semax_ifthenelse_PQR; 
-    [ reflexivity | | ]] || fail 2 "semax_ifthenelse_PQR did not match"
+ (apply semax_ifthenelse_PQR; [ reflexivity | | | ])
+  || fail 2 "semax_ifthenelse_PQR did not match"
 end.
 
 Ltac forward_if post :=
@@ -775,6 +796,23 @@ Ltac normalize_postcondition :=
  | |- _ => apply sequential
   end.
 
+Lemma elim_useless_retval:
+ forall Espec Delta P Q (F: val -> Prop) (G: mpred) R c Post,
+  @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`G :: R)))) c Post ->
+  @semax Espec Delta (PROPx P (LOCALx Q 
+    (SEPx 
+    (`(fun x : environ => local (`F retval) x && `G x) (make_args nil nil)
+      :: R)))) c Post.
+Proof.
+intros.
+eapply semax_pre0; [ | apply H].
+apply andp_derives; auto.
+apply andp_derives; auto.
+apply sepcon_derives; auto.
+unfold_lift. unfold local, lift1.
+intro rho. apply andp_left2; auto.
+Qed.
+
 Ltac forward_call witness := 
 match goal with
 | |- semax _ _ (Ssequence (Ssequence _ _) _) _ => 
@@ -783,28 +821,30 @@ match goal with
   eapply semax_seq';
   [let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
    eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-         [reflexivity | reflexivity | reflexivity | ]
-  | simpl update_tycon; abbreviate_semax ]
+         [reflexivity | reflexivity | reflexivity | cbv beta iota ]
+  | cbv beta iota; try simple apply elim_useless_retval;
+    simpl update_tycon; abbreviate_semax ]
 | |- semax _ _ (Scall None _ _) _ =>
    normalize_postcondition;
   eapply semax_post_flipped3;
   [let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
    eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-         [reflexivity | reflexivity | reflexivity | ]
-  | try rewrite exp_andp2;
+         [reflexivity | reflexivity | reflexivity | cbv beta iota ]
+  | cbv beta iota; try simple apply elim_useless_retval;
+    try rewrite exp_andp2;
     try rewrite insert_local ]
 | |- semax _ _ (Ssequence (Scall (Some ?i) _ _) _) _ =>
    let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
    eapply semax_seq';
     [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-            [reflexivity | reflexivity | apply I | reflexivity | ]
+            [reflexivity | reflexivity | apply I | reflexivity | cbv beta iota ]
     | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; intro_old_var' i ]
 | |- semax _ _ (Scall (Some ?i) _ _) _ =>
    normalize_postcondition;
    let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
    eapply semax_post_flipped3;
     [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-            [reflexivity | reflexivity | apply I | reflexivity | ]
+            [reflexivity | reflexivity | apply I | reflexivity | cbv beta iota ]
     | try rewrite exp_andp2;
                try (apply exp_left; intro_old_var' i);
                try rewrite insert_local ]

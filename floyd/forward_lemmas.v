@@ -29,23 +29,22 @@ Qed.
 Lemma semax_ifthenelse_PQR : 
    forall Espec Delta P Q R (b: expr) c d Post,
       bool_type (typeof b) = true ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta b) ->
      @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof b)) (eval_expr b) :: Q) (SEPx R)))
                         c Post -> 
      @semax Espec Delta (PROPx P (LOCALx (`(typed_false (typeof b)) (eval_expr b) :: Q) (SEPx R)))
                         d Post -> 
-     @semax Espec Delta (PROPx P (LOCALx (tc_expr Delta b :: Q) (SEPx R)))
+     @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
                          (Sifthenelse b c d) Post.
 Proof.
  intros.
- eapply semax_pre0; [ | apply semax_ifthenelse]; auto.
+ eapply semax_pre;  [ | apply semax_ifthenelse]; auto.
  instantiate (1:=(PROPx P (LOCALx Q (SEPx R)))).
- clear. 
- go_lowerx.
- eapply semax_pre0; [ | eassumption].
- go_lowerx. apply andp_right; auto. apply prop_right; auto.
- eapply semax_pre0; [ | eassumption].
- go_lowerx. apply andp_right; auto. apply prop_right; auto.
+ apply andp_right; auto. rewrite <- insert_local; apply andp_left2; auto.
+ rewrite andp_comm. rewrite insert_local. auto.
+ rewrite andp_comm. rewrite insert_local. auto.
 Qed.
+
 
 Definition logical_and_result v1 t1 v2 t2 :=
 match (strict_bool_val t1 v1) with
@@ -725,7 +724,9 @@ Lemma semax_logical_or:
 Proof.
 intros.
 apply semax_ifthenelse_PQR. 
-  - auto. 
+  - auto.
+  - rewrite <- insert_local; apply andp_left2. 
+    rewrite <- insert_local; apply andp_left1. auto.
   -  eapply semax_pre. apply derives_refl.
      eapply semax_post_flipped.
      apply forward_setx. 
@@ -747,7 +748,7 @@ apply semax_ifthenelse_PQR.
   - eapply semax_seq'. 
       + eapply forward_setx_weak.
          go_lowerx. 
-         destruct H4. congruence.
+         destruct H5. congruence.
          apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
         simpl. super_unfold_lift. split. auto. 
@@ -783,7 +784,7 @@ apply semax_ifthenelse_PQR.
        rewrite H6. rewrite H7. 
         unfold logical_or_result. rewrite H8.
         subst ek vl. simpl in  H2.
-       apply bool_cast. destruct H9. congruence.
+       apply bool_cast. destruct H10. congruence.
       eapply expr_lemmas.typecheck_expr_sound. apply H2.
       apply tc_expr_init. apply tc_expr_init. auto.
 Qed.
@@ -810,12 +811,14 @@ Proof.
 intros.
 apply semax_ifthenelse_PQR. 
   - auto. 
+  - rewrite <- insert_local; apply andp_left2. 
+    rewrite <- insert_local; apply andp_left1. auto.
   - eapply semax_seq'. 
       + eapply forward_setx_weak.
          go_lowerx. apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
         simpl. super_unfold_lift. split.
-        destruct H4; auto; congruence.         
+        destruct H5; auto; congruence.         
         unfold isCastResultType. destruct (typeof e2); 
                                         inv H0; simpl; apply I.
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
@@ -849,7 +852,7 @@ apply semax_ifthenelse_PQR.
         unfold logical_and_result.
         subst ek vl. simpl in  H2.
         rewrite H8.
-       apply bool_cast.  destruct H9. congruence.
+       apply bool_cast.  destruct H10. congruence.
       eapply expr_lemmas.typecheck_expr_sound. apply H2.
       apply tc_expr_init. apply tc_expr_init. auto.
 - eapply semax_pre. apply derives_refl.

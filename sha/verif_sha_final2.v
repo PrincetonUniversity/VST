@@ -1,15 +1,12 @@
 Require Import floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
-Require Import sha.sha_lemmas.
 Require Import sha.spec_sha.
+Require Import sha.sha_lemmas.
 Local Open Scope logic.
 
-Hint Rewrite eval_var_env_set : norm. (* needed? *)
-
 Definition Delta_final_if1 : tycontext :=
- initialized _n
-          (initialized _p
+ initialized _n  (initialized _p
      (func_tycontext f_SHA256_Final Vprog Gtot)).
 
 Definition Body_final_if1 := 
@@ -89,7 +86,8 @@ Lemma ifbody_final_if1:
        (ZnthV tuchar (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)])) 0 64
        (offset_val (Int.repr 40) c));
    `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd))) c);
-   K_vector; `(memory_block shmd (Int.repr 32) md))) Body_final_if1
+   K_vector; `(memory_block shmd (Int.repr 32) md)))
+  Body_final_if1
   (normal_ret_assert (invariant_after_if1 hashed dd c md shmd hi lo)).
 Proof.
 assert (H:=True).
@@ -103,15 +101,13 @@ intros.
 assert (Hddlen: (0 <= Zlength dd < CBLOCKz)%Z) by Omega1.
 set (ddlen := Zlength dd) in *.
  unfold Delta_final_if1; simplify_Delta; unfold Body_final_if1; abbreviate_semax.
-forward_call
- (* memset (p+n,0,SHA_CBLOCK-n); *)
+forward_call (* memset (p+n,0,SHA_CBLOCK-n); *)
    ((Tsh,
      offset_val (Int.repr (ddlen + 1)) (offset_val (Int.repr 40) c)%Z, 
-     (Z.of_nat CBLOCK - (ddlen + 1)))%Z,
+     (CBLOCKz - (ddlen + 1)))%Z,
      Int.zero).
   {entailer!.
-  + (*normalize in H1; rewrite H1; reflexivity.
-  + *) rewrite Int.unsigned_repr; auto. 
+  + rewrite Int.unsigned_repr; auto. 
       change CBLOCKz with 64 in Hddlen; repable_signed.
   + change CBLOCKz with 64 in Hddlen.
    rewrite (split_array_at (ddlen+1) tuchar) by omega.
@@ -119,7 +115,7 @@ forward_call
     pull_left (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)]))
    (ddlen + 1) 64 (offset_val (Int.repr 40) c)).
    repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
-  change (Z.of_nat CBLOCK) with 64%Z.
+  change CBLOCKz with 64%Z.
   destruct (zlt (ddlen+1) 64).
 Focus 2. {
  replace (ddlen+1)%Z with 64%Z by omega. rewrite array_at_emp.
@@ -134,25 +130,20 @@ Focus 2. {
    rewrite <- offset_val_array_at_.
   rewrite Z.add_0_r.
  replace (ddlen + 1 + (64 - (ddlen+1)))%Z with 64%Z by (clear; omega).
- apply array_at_array_at_.
- }
+ cancel.
+}
   forward.  (* n=0; *)
-replace_SEP 0%Z (
-      `(array_at tuchar Tsh (fun _ => Vint Int.zero) 0
-          (Z.of_nat CBLOCK - (ddlen + 1))
-          (offset_val (Int.repr (ddlen + 1)) (offset_val (Int.repr 40) c)))).
-entailer!.
 gather_SEP 4%Z 0%Z.
-pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ list_repeat (Z.to_nat (Z.of_nat CBLOCK-(ddlen+1))) Int.zero)).
+pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ list_repeat (Z.to_nat (CBLOCKz-(ddlen+1))) Int.zero)).
 replace_SEP 0%Z (  `(array_at tuchar Tsh
         (ZnthV tuchar (map Vint ddz)) 0 64
         (offset_val (Int.repr 40) c))).
 {entailer!.
- normalize in H0. (* rewrite mul_repr, sub_repr in H0. *)
+ normalize in H0.
  change CBLOCKz with 64 in Hddlen.
  apply ltu_repr in H0; [ | Omega1 | Omega1].
- change (16*4)%Z with (Z.of_nat CBLOCK) in H0.
- rewrite (split_array_at (ddlen+1) tuchar _ _ 0 64).
+ change (16*4)%Z with (CBLOCKz) in H0.
+ rewrite (split_array_at (ddlen+1) tuchar _ _ 0 64) by Omega1.
  apply sepcon_derives.
  + apply derives_refl'; apply equal_f; apply array_at_ext; intros.
     unfold ZnthV. if_tac; try omega.
@@ -173,7 +164,7 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
  rewrite <- offset_offset_val.
  rewrite <- offset_val_array_at.
  rewrite Z.add_0_r.
- change (Z.of_nat CBLOCK) with 64%Z.
+ change CBLOCKz with 64%Z.
  replace (ddlen + 1 + (64 - (ddlen + 1)))%Z with 64%Z by omega.
  apply derives_refl'; apply equal_f; apply array_at_ext; intros.
  symmetry.
@@ -182,35 +173,30 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
  rewrite app_nth2;  rewrite map_length; rewrite app_length.
   rewrite (nth_map' Vint _ Int.zero).
  f_equal.
- Lemma nth_list_repeat: forall A i n (x :A),
-    nth i (list_repeat n x) x = x.
-Proof.
- induction i; destruct n; simpl; auto.
-Qed.
  apply nth_list_repeat.
   simpl. rewrite map_length, length_list_repeat.
- change (Z.of_nat CBLOCK) with 64.
+ change CBLOCKz with 64.
  replace (length dd + 1)%nat with (Z.to_nat (ddlen + 1)).
  rewrite <- Z2Nat.inj_sub by omega.
  apply Z2Nat.inj_lt; try omega. rewrite H.
  rewrite Z2Nat.inj_add; try omega.
  rewrite Zlength_correct, Nat2Z.id. auto.
  rewrite map_length; simpl. Omega1.
- + Omega1.
- }
+}
 pose (ddzw := Zlist_to_intlist (map Int.unsigned ddz)).
 assert (H0': length ddz = CBLOCK). {
 unfold ddz; repeat rewrite app_length.
 rewrite length_list_repeat by omega.
 rewrite Z2Nat.inj_sub by omega.
 rewrite Z2Nat.inj_add by omega.
-rewrite (Nat2Z.id). unfold ddlen; rewrite Zlength_correct. 
+change (Z.to_nat CBLOCKz) with CBLOCK.
+unfold ddlen; rewrite Zlength_correct. 
 rewrite (Nat2Z.id).
 rewrite map_length; simpl length; change (Z.to_nat 1) with 1%nat.
 clear - Hddlen. unfold ddlen in Hddlen.
 destruct Hddlen. 
-change CBLOCKz with (Z.of_nat CBLOCK) in H0.
 rewrite Zlength_correct in H0.
+change CBLOCKz with (Z.of_nat CBLOCK) in H0.
 apply Nat2Z.inj_lt in H0. omega.
 }
 assert (H1: length ddzw = LBLOCK). {
@@ -224,18 +210,7 @@ unfold ddz; repeat rewrite map_app; repeat rewrite Forall_app; repeat split; aut
 apply Forall_isbyteZ_unsigned_repr; auto.
 constructor. compute. clear; split; congruence.
 constructor.
-Lemma map_list_repeat:
-  forall A B (f: A -> B) n x,
-     map f (list_repeat n x) = list_repeat n (f x).
-Proof. induction n; simpl; intros; f_equal; auto.
-Qed.
 rewrite map_list_repeat.
-Lemma Forall_list_repeat:
-  forall A (f: A -> Prop) n (x: A),
-     f x -> Forall f (list_repeat n x).
-Proof.
- intros; induction n; simpl; auto.
-Qed.
 apply Forall_list_repeat.
 rewrite Int.unsigned_zero. split; clear; omega.
 }
@@ -263,7 +238,7 @@ clearbody ddzw.
 }
 unfold invariant_after_if1.
  apply exp_right with (hashed ++ ddzw).
-set (pad := (Z.of_nat CBLOCK - (ddlen+1))%Z) in *.
+set (pad := (CBLOCKz - (ddlen+1))%Z) in *.
  apply exp_right with (@nil Z).
  apply exp_right with pad.
 entailer.
@@ -273,8 +248,8 @@ apply ltu_repr in H5; [ | split; computable
 simpl in H2.
 assert (0 <= pad < 8)%Z.
 unfold pad.
-change (16*4)%Z with (Z.of_nat CBLOCK) in H5. 
-change (Z.of_nat CBLOCK) with CBLOCKz in H5|-*; omega.
+change (16*4)%Z with (CBLOCKz) in H5. 
+change (CBLOCKz) with CBLOCKz in H5|-*; omega.
 assert (length (list_repeat (Z.to_nat pad) 0) < 8)%nat.
 rewrite length_list_repeat.
 apply Nat2Z.inj_lt.

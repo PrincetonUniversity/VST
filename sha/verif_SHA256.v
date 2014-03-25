@@ -24,7 +24,6 @@ normalize.
 forward_call (* SHA256_Update(&c,d,n); *)
   (init_s256abs,data,c,d,dsh, length data).
 entailer!.
-cbv beta iota.
 replace_SEP 0 (
  EX  x : s256abs,
       (PROP  (update_abs (firstn (length data) data) init_s256abs x)

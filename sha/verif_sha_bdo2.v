@@ -2,6 +2,7 @@ Require Import floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.sha_lemmas.
+Require Import sha.bdo_lemmas.
 Require Import sha.spec_sha.
 Local Open Scope logic.
 
@@ -15,11 +16,11 @@ Lemma sha256_block_data_order_return:
   (PROP  ()
    LOCAL  (`(eq ctx) (eval_id _ctx))
    SEP 
-   (`(array_at tuint Tsh
-        (tuints (hash_block regs b)) 0 8 ctx);
-   K_vector;
+   (`(array_at tuint Tsh (tuints (hash_block regs b)) 0 8 ctx);
+    K_vector;
    `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16));
-   `(data_block sh (intlist_to_Zlist b) data))) (Sreturn None)
+   `(data_block sh (intlist_to_Zlist b) data)))
+  (Sreturn None)
   (frame_ret_assert
      (function_body_ret_assert tvoid
         (`(array_at tuint Tsh

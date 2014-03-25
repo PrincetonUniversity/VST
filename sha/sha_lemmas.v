@@ -1,7 +1,42 @@
 Require Import proofauto.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
+Require Import sha.sha.
 Require Export sha.common_lemmas.
+
+Global Opaque K CBLOCKz LBLOCKz.
+
+Lemma K_vector_globals:
+  forall rho,  
+   (exists Delta, tc_environ Delta rho /\
+       (var_types Delta) ! _K256 = None /\ isSome ((glob_types Delta) ! _K256)) ->
+       K_vector (globals_only rho) = K_vector rho.
+Proof. 
+  intros; unfold K_vector.
+  unfold_lift.
+ destruct H as [Delta [?[? ?]]].
+  destruct ((glob_types Delta) ! _K256) eqn:?; try contradiction.
+  erewrite elim_globals_only; eauto.
+Qed.
+
+Hint Rewrite K_vector_globals using (eexists; split3; [eassumption | reflexivity | apply I]) : norm.
+
+Lemma K_vector_closed:
+  forall S, closed_wrt_vars S K_vector.
+Proof. unfold K_vector; auto with closed. Qed.
+Hint Resolve K_vector_closed : closed.
+
+Fixpoint loops (s: statement) : list statement :=
+ match s with 
+  | Ssequence a b => loops a ++ loops b
+  | Sloop _ _ => [s]
+  | Sifthenelse _ a b => loops a ++ loops b
+  | _ => nil
+  end.
+
+Ltac simpl_stackframe_of := 
+  unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
+  repeat rewrite var_block_data_at_ by reflexivity. 
 
 Lemma Zlength_length:
   forall A (al: list A) (n: Z),
@@ -313,26 +348,6 @@ Fixpoint sequenceN (n: nat) (s: statement) : list statement :=
  | S n', Ssequence a s' => a::sequenceN n' s'
  | _, _ => nil
  end.
-
-Lemma eval_var_env_set:
-  forall i t j v (rho: environ), eval_var i t (env_set rho j v) = eval_var i t rho.
-Proof. reflexivity. Qed.
-
-Lemma elim_globals_only:
-  forall Delta g i t rho,
-  tc_environ Delta rho /\ (var_types Delta) ! i = None /\ (glob_types Delta) ! i = Some g ->
-  eval_var i t (globals_only rho) = eval_var i t rho.
-Proof.
-intros. 
-destruct H as [H [H8 H0]].
-unfold eval_var, globals_only.
-simpl. 
-destruct H as [_ [? [? ?]]].
-destruct (H2 i g H0).
-unfold Map.get; rewrite H3; auto.
-destruct H3.
-congruence.
-Qed.
 
 Lemma intlist_to_Zlist_app:
  forall al bl, intlist_to_Zlist (al++bl) = intlist_to_Zlist al ++ intlist_to_Zlist bl.
@@ -1119,4 +1134,23 @@ apply Z.mod_bound_pos.
 apply Int.unsigned_range. clear; omega. clear; omega.
 rewrite Int.signed_repr; auto.
 repable_signed.
+Qed.
+
+Lemma nth_list_repeat: forall A i n (x :A),
+    nth i (list_repeat n x) x = x.
+Proof.
+ induction i; destruct n; simpl; auto.
+Qed.
+
+Lemma map_list_repeat:
+  forall A B (f: A -> B) n x,
+     map f (list_repeat n x) = list_repeat n (f x).
+Proof. induction n; simpl; intros; f_equal; auto.
+Qed.
+
+Lemma Forall_list_repeat:
+  forall A (f: A -> Prop) n (x: A),
+     f x -> Forall f (list_repeat n x).
+Proof.
+ intros; induction n; simpl; auto.
 Qed.

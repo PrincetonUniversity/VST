@@ -11,7 +11,6 @@ Definition big_endian_integer (contents: Z -> int) : int :=
 
 Definition LBLOCKz : Z := 16. (* length of a block, in 32-bit integers *)
 Definition CBLOCKz : Z := 64. (* length of a block, in characters *)
-Global Opaque CBLOCKz LBLOCKz.
 
 Definition s256state := (list val * (val * (val * (list val * val))))%type.
 Definition s256_h (s: s256state) := fst s.
@@ -19,13 +18,6 @@ Definition s256_Nl (s: s256state) := fst (snd s).
 Definition s256_Nh (s: s256state) := fst (snd (snd s)).
 Definition s256_data (s: s256state) := fst (snd (snd (snd s))).
 Definition s256_num (s: s256state) := snd (snd (snd (snd s))).
-Arguments s256_h  !s.
-Arguments s256_Nl  !s.
-Arguments s256_Nh  !s.
-Arguments s256_data  !s.
-Arguments s256_num  !s.
-Arguments fst _ _ !p.
-Arguments snd _ _ !p.
 
 Inductive s256abs :=  (* SHA-256 abstract state *)
  S256abs: forall (hashed: list int)   (* words hashed, so far *)
@@ -65,14 +57,6 @@ Definition sha_finish (a: s256abs) : list Z :=
  end.
 
 Definition cVint (f: Z -> int) (i: Z) := Vint (f i).
-
-Goal forall c r,  data_at Tsh t_struct_SHA256state_st r c = TT.
- intros.
- simpl in r.
- simpl_data_at.
- destruct r as [r_h [r_Nl [r_Nh [r_data r_num]]]].
- simpl.
-Abort.
 
 Definition sha256_length (len: Z)  (c: val) : mpred :=
    EX lo:int, EX hi:int, 
@@ -140,26 +124,6 @@ Definition memset_spec :=
 
 Definition K_vector : environ -> mpred :=
   `(array_at tuint Tsh (tuints K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64)).
-
-Lemma K_vector_globals:
-  forall rho,  
-   (exists Delta, tc_environ Delta rho /\
-       (var_types Delta) ! _K256 = None /\ isSome ((glob_types Delta) ! _K256)) ->
-       K_vector (globals_only rho) = K_vector rho.
-Proof. 
-  intros; unfold K_vector.
-  unfold_lift.
- destruct H as [Delta [?[? ?]]].
-  destruct ((glob_types Delta) ! _K256) eqn:?; try contradiction.
-  erewrite elim_globals_only; eauto.
-Qed.
-
-Hint Rewrite K_vector_globals using (eexists; split3; [eassumption | reflexivity | apply I]) : norm.
-
-Lemma K_vector_closed:
-  forall S, closed_wrt_vars S K_vector.
-Proof. unfold K_vector; auto with closed. Qed.
-Hint Resolve K_vector_closed : closed.
 
 Definition sha256_block_data_order_spec :=
   DECLARE _sha256_block_data_order
@@ -265,127 +229,6 @@ Fixpoint do_builtins (n: nat) (defs : list (ident * globdef fundef type)) : funs
  end.
 
 Definition Gtot := do_builtins 3 (prog_defs prog) ++ Gprog.
-
-Ltac simpl_stackframe_of := 
-  unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
-  repeat rewrite var_block_data_at_ by reflexivity. 
-
-Fixpoint loops (s: statement) : list statement :=
- match s with 
-  | Ssequence a b => loops a ++ loops b
-  | Sloop _ _ => [s]
-  | Sifthenelse _ a b => loops a ++ loops b
-  | _ => nil
-  end.
-
-Definition rearrange_regs :=
-(Ssequence
-     (Sset _T1
-        (Ebinop Oadd
-           (Ebinop Oadd
-              (Ebinop Oadd
-                 (Ebinop Oadd (Etempvar _l tuint) (Etempvar _h tuint) tuint)
-                 (Ebinop Oxor
-                    (Ebinop Oxor
-                       (Ebinop Oor
-                          (Ebinop Oshl (Etempvar _e tuint)
-                             (Econst_int (Int.repr 26) tint) tuint)
-                          (Ebinop Oshr
-                             (Ebinop Oand (Etempvar _e tuint)
-                                (Econst_int (Int.repr (-1)) tuint) tuint)
-                             (Ebinop Osub (Econst_int (Int.repr 32) tint)
-                                (Econst_int (Int.repr 26) tint) tint) tuint)
-                          tuint)
-                       (Ebinop Oor
-                          (Ebinop Oshl (Etempvar _e tuint)
-                             (Econst_int (Int.repr 21) tint) tuint)
-                          (Ebinop Oshr
-                             (Ebinop Oand (Etempvar _e tuint)
-                                (Econst_int (Int.repr (-1)) tuint) tuint)
-                             (Ebinop Osub (Econst_int (Int.repr 32) tint)
-                                (Econst_int (Int.repr 21) tint) tint) tuint)
-                          tuint) tuint)
-                    (Ebinop Oor
-                       (Ebinop Oshl (Etempvar _e tuint)
-                          (Econst_int (Int.repr 7) tint) tuint)
-                       (Ebinop Oshr
-                          (Ebinop Oand (Etempvar _e tuint)
-                             (Econst_int (Int.repr (-1)) tuint) tuint)
-                          (Ebinop Osub (Econst_int (Int.repr 32) tint)
-                             (Econst_int (Int.repr 7) tint) tint) tuint)
-                       tuint) tuint) tuint)
-              (Ebinop Oxor
-                 (Ebinop Oand (Etempvar _e tuint) (Etempvar _f tuint) tuint)
-                 (Ebinop Oand (Eunop Onotint (Etempvar _e tuint) tuint)
-                    (Etempvar _g tuint) tuint) tuint) tuint)
-           (Etempvar _Ki tuint) tuint))
-     (Ssequence
-        (Sset _T2
-           (Ebinop Oadd
-              (Ebinop Oxor
-                 (Ebinop Oxor
-                    (Ebinop Oor
-                       (Ebinop Oshl (Etempvar _a tuint)
-                          (Econst_int (Int.repr 30) tint) tuint)
-                       (Ebinop Oshr
-                          (Ebinop Oand (Etempvar _a tuint)
-                             (Econst_int (Int.repr (-1)) tuint) tuint)
-                          (Ebinop Osub (Econst_int (Int.repr 32) tint)
-                             (Econst_int (Int.repr 30) tint) tint) tuint)
-                       tuint)
-                    (Ebinop Oor
-                       (Ebinop Oshl (Etempvar _a tuint)
-                          (Econst_int (Int.repr 19) tint) tuint)
-                       (Ebinop Oshr
-                          (Ebinop Oand (Etempvar _a tuint)
-                             (Econst_int (Int.repr (-1)) tuint) tuint)
-                          (Ebinop Osub (Econst_int (Int.repr 32) tint)
-                             (Econst_int (Int.repr 19) tint) tint) tuint)
-                       tuint) tuint)
-                 (Ebinop Oor
-                    (Ebinop Oshl (Etempvar _a tuint)
-                       (Econst_int (Int.repr 10) tint) tuint)
-                    (Ebinop Oshr
-                       (Ebinop Oand (Etempvar _a tuint)
-                          (Econst_int (Int.repr (-1)) tuint) tuint)
-                       (Ebinop Osub (Econst_int (Int.repr 32) tint)
-                          (Econst_int (Int.repr 10) tint) tint) tuint) tuint)
-                 tuint)
-              (Ebinop Oxor
-                 (Ebinop Oxor
-                    (Ebinop Oand (Etempvar _a tuint) (Etempvar _b tuint)
-                       tuint)
-                    (Ebinop Oand (Etempvar _a tuint) (Etempvar _c tuint)
-                       tuint) tuint)
-                 (Ebinop Oand (Etempvar _b tuint) (Etempvar _c tuint) tuint)
-                 tuint) tuint))
-        (Ssequence (Sset _h (Etempvar _g tuint))
-           (Ssequence (Sset _g (Etempvar _f tuint))
-              (Ssequence (Sset _f (Etempvar _e tuint))
-                 (Ssequence
-                    (Sset _e
-                       (Ebinop Oadd (Etempvar _d tuint) (Etempvar _T1 tuint)
-                          tuint))
-                    (Ssequence (Sset _d (Etempvar _c tuint))
-                       (Ssequence (Sset _c (Etempvar _b tuint))
-                          (Ssequence (Sset _b (Etempvar _a tuint))
-                             (Sset _a
-                                (Ebinop Oadd (Etempvar _T1 tuint)
-                                   (Etempvar _T2 tuint) tuint))))))))))).
-
-
-Definition Delta_loop1 : tycontext :=
- initialized _i
-          (initialized _h
-           (initialized _g
-              (initialized _f
-                 (initialized _e
-                    (initialized _d
-                       (initialized _c
-                          (initialized _b
-                             (initialized _a
-                                (initialized _data
-     (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))).
 
 
 

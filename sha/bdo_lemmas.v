@@ -1,7 +1,117 @@
 Require Import proofauto.
 Require Import sha.SHA256.
+Require Import sha.sha.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
+
+Definition rearrange_regs :=
+(Ssequence
+     (Sset _T1
+        (Ebinop Oadd
+           (Ebinop Oadd
+              (Ebinop Oadd
+                 (Ebinop Oadd (Etempvar _l tuint) (Etempvar _h tuint) tuint)
+                 (Ebinop Oxor
+                    (Ebinop Oxor
+                       (Ebinop Oor
+                          (Ebinop Oshl (Etempvar _e tuint)
+                             (Econst_int (Int.repr 26) tint) tuint)
+                          (Ebinop Oshr
+                             (Ebinop Oand (Etempvar _e tuint)
+                                (Econst_int (Int.repr (-1)) tuint) tuint)
+                             (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                                (Econst_int (Int.repr 26) tint) tint) tuint)
+                          tuint)
+                       (Ebinop Oor
+                          (Ebinop Oshl (Etempvar _e tuint)
+                             (Econst_int (Int.repr 21) tint) tuint)
+                          (Ebinop Oshr
+                             (Ebinop Oand (Etempvar _e tuint)
+                                (Econst_int (Int.repr (-1)) tuint) tuint)
+                             (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                                (Econst_int (Int.repr 21) tint) tint) tuint)
+                          tuint) tuint)
+                    (Ebinop Oor
+                       (Ebinop Oshl (Etempvar _e tuint)
+                          (Econst_int (Int.repr 7) tint) tuint)
+                       (Ebinop Oshr
+                          (Ebinop Oand (Etempvar _e tuint)
+                             (Econst_int (Int.repr (-1)) tuint) tuint)
+                          (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                             (Econst_int (Int.repr 7) tint) tint) tuint)
+                       tuint) tuint) tuint)
+              (Ebinop Oxor
+                 (Ebinop Oand (Etempvar _e tuint) (Etempvar _f tuint) tuint)
+                 (Ebinop Oand (Eunop Onotint (Etempvar _e tuint) tuint)
+                    (Etempvar _g tuint) tuint) tuint) tuint)
+           (Etempvar _Ki tuint) tuint))
+     (Ssequence
+        (Sset _T2
+           (Ebinop Oadd
+              (Ebinop Oxor
+                 (Ebinop Oxor
+                    (Ebinop Oor
+                       (Ebinop Oshl (Etempvar _a tuint)
+                          (Econst_int (Int.repr 30) tint) tuint)
+                       (Ebinop Oshr
+                          (Ebinop Oand (Etempvar _a tuint)
+                             (Econst_int (Int.repr (-1)) tuint) tuint)
+                          (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                             (Econst_int (Int.repr 30) tint) tint) tuint)
+                       tuint)
+                    (Ebinop Oor
+                       (Ebinop Oshl (Etempvar _a tuint)
+                          (Econst_int (Int.repr 19) tint) tuint)
+                       (Ebinop Oshr
+                          (Ebinop Oand (Etempvar _a tuint)
+                             (Econst_int (Int.repr (-1)) tuint) tuint)
+                          (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                             (Econst_int (Int.repr 19) tint) tint) tuint)
+                       tuint) tuint)
+                 (Ebinop Oor
+                    (Ebinop Oshl (Etempvar _a tuint)
+                       (Econst_int (Int.repr 10) tint) tuint)
+                    (Ebinop Oshr
+                       (Ebinop Oand (Etempvar _a tuint)
+                          (Econst_int (Int.repr (-1)) tuint) tuint)
+                       (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                          (Econst_int (Int.repr 10) tint) tint) tuint) tuint)
+                 tuint)
+              (Ebinop Oxor
+                 (Ebinop Oxor
+                    (Ebinop Oand (Etempvar _a tuint) (Etempvar _b tuint)
+                       tuint)
+                    (Ebinop Oand (Etempvar _a tuint) (Etempvar _c tuint)
+                       tuint) tuint)
+                 (Ebinop Oand (Etempvar _b tuint) (Etempvar _c tuint) tuint)
+                 tuint) tuint))
+        (Ssequence (Sset _h (Etempvar _g tuint))
+           (Ssequence (Sset _g (Etempvar _f tuint))
+              (Ssequence (Sset _f (Etempvar _e tuint))
+                 (Ssequence
+                    (Sset _e
+                       (Ebinop Oadd (Etempvar _d tuint) (Etempvar _T1 tuint)
+                          tuint))
+                    (Ssequence (Sset _d (Etempvar _c tuint))
+                       (Ssequence (Sset _c (Etempvar _b tuint))
+                          (Ssequence (Sset _b (Etempvar _a tuint))
+                             (Sset _a
+                                (Ebinop Oadd (Etempvar _T1 tuint)
+                                   (Etempvar _T2 tuint) tuint))))))))))).
+
+
+Definition Delta_loop1 : tycontext :=
+ initialized _i
+          (initialized _h
+           (initialized _g
+              (initialized _f
+                 (initialized _e
+                    (initialized _d
+                       (initialized _c
+                          (initialized _b
+                             (initialized _a
+                                (initialized _data
+     (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))).
 
 Definition Xarray (b: list int) (i j: Z) :=
     Vint (W (nthi b) (i-16+(j-i) mod 16)).
@@ -67,23 +177,6 @@ rewrite Z.mod_mod by auto.
 rewrite Z.mod_small; auto.
 Qed.
 
-Lemma X_subscript_aux2:
-  forall n, 0 <= n < Int.max_unsigned -> 
-        Int.signed (Int.and (Int.repr n) (Int.repr 15)) = n mod 16.
-Proof.
-intros. unfold Int.and. rewrite (Int.unsigned_repr 15) by repable_signed.
- change 15 with (Z.ones 4). rewrite Z.land_ones by repable_signed.
- rewrite Int.unsigned_repr by repable_signed.
- rewrite Int.signed_repr. f_equal.
- destruct H.
- pose proof (Z.mod_bound_pos n 16 H).
- change (2^4) with 16. repable_signed. 
-Qed.
-
-
-Definition c64 := 64%nat.  Global Opaque c64.
-Definition c48 := 48%nat.  Global Opaque c48.
-
 Lemma Xarray_update:
  forall i bb,
   length bb = LBLOCK ->
@@ -140,4 +233,22 @@ change (1 mod 16) with 1.
 assert (0 <= n mod 16 < 16)  by (apply Z.mod_pos_bound; omega).
 omega.
 Qed.
+
+Global Opaque Xarray.
+
+Lemma X_subscript_aux2:
+  forall n, 0 <= n < Int.max_unsigned -> 
+        Int.signed (Int.and (Int.repr n) (Int.repr 15)) = n mod 16.
+Proof.
+intros. unfold Int.and. rewrite (Int.unsigned_repr 15) by repable_signed.
+ change 15 with (Z.ones 4). rewrite Z.land_ones by repable_signed.
+ rewrite Int.unsigned_repr by repable_signed.
+ rewrite Int.signed_repr. f_equal.
+ destruct H.
+ pose proof (Z.mod_bound_pos n 16 H).
+ change (2^4) with 16. repable_signed. 
+Qed.
+
+Definition c64 := 64%nat.  Global Opaque c64.
+Definition c48 := 48%nat.  Global Opaque c48.
 

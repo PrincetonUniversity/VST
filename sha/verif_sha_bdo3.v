@@ -1,8 +1,9 @@
 Require Import floyd.proofauto.
 Require Import sha.sha.
 Require Import sha.SHA256.
-Require Import sha.sha_lemmas.
 Require Import sha.spec_sha.
+Require Import sha.sha_lemmas.
+Require Import sha.bdo_lemmas.
 Local Open Scope logic.
 
 Lemma rearrange_aux:
