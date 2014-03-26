@@ -102,12 +102,12 @@ entailer.
 rewrite Int.sub_signed in H3.
 normalize in H3.
 simpl_compare.
-split; [ | omega].
+apply prop_right; split; [ | omega].
 apply POP.
 rewrite if_false by omega.
 rewrite if_true by omega. omega.
 forward.  (* s = a[hi]; *)
-entailer.
+entailer. apply prop_right.
 rewrite Int.sub_signed in H4.
 normalize in H4.
 simpl_compare.
@@ -117,7 +117,7 @@ rewrite if_false by omega. rewrite if_true by omega.
 omega. omega.
 normalize. simpl typeof.
 forward. (*  a[hi-1] = t ; *)
-entailer.
+entailer; apply prop_right.
 rewrite Int.sub_signed in H4, H6.
 normalize in H4. normalize in H6.
 simpl_compare.
@@ -125,7 +125,7 @@ split3.
 symmetry; apply H5. reflexivity. omega.
 normalize.
 forward. (*  a[lo] = s; *) 
-entailer.
+entailer. apply prop_right.
 rewrite Int.sub_signed in H4, H6.
 normalize in H4. normalize in H6.
 simpl_compare.

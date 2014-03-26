@@ -87,7 +87,7 @@ rewrite Zlength_correct; rewrite H5; reflexivity.
 do 8 (forward;
          [ entailer!; apply ZnthV_map_Vint_is_int; omega | ]).
 forward.  (* skip; *)
-entailer.
+entailer!.
 rewrite H,H0,H1,H2,H3,H4,H6,H7; clear H H0 H1 H2 H3 H4 H6 H7.
 do 9 (destruct r_h as [ | ?h r_h ] ; [inv H5 | ]).
 reflexivity.

@@ -210,6 +210,10 @@ Proof. intros.
 Qed.
 
 Ltac ent_iter :=
+    repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
+                || simple apply derives_extract_prop 
+                || simple apply derives_extract_prop');
+                fancy_intro);
     autorewrite with gather_prop;
     repeat (((repeat simple apply go_lower_lem1'; simple apply go_lower_lem1)
                 || simple apply derives_extract_prop 
@@ -220,10 +224,7 @@ Ltac ent_iter :=
    simpl_compare;
    normalize.
 
-Ltac entailer' :=  
- repeat (progress ent_iter);
-(* ((progress ent_iter; fail 5 "bingo") || idtac); *)
- try simple apply prop_and_same_derives;
+Ltac prune_conjuncts :=
  repeat rewrite and_assoc';
  first [simple eapply try_conjuncts_prop; 
               [intro; try_conjuncts 
@@ -231,8 +232,14 @@ Ltac entailer' :=
          | simple eapply try_conjuncts_prop_and;
               [intro; try_conjuncts 
               | cbv beta; repeat rewrite and_True; try simple apply go_lower_lem1]
-         | idtac];
-  auto.
+         | idtac].
+
+Ltac entailer' :=  
+ repeat (progress ent_iter);
+ try simple apply prop_and_same_derives;
+ prune_conjuncts;
+ try rewrite (prop_true_andp True) by apply I;
+ auto.
 
 Ltac entailer :=
  match goal with
@@ -249,13 +256,47 @@ Ltac prop_solve :=
   match goal with |- ?A => (has_evar A; repeat simple apply conj) || (repeat split) end;
   (computable || auto). 
  
-Tactic Notation "entailer" "!" := 
+Ltac mysplit := 
+ match goal with 
+ | |- _ <= _ < _ => idtac
+ | |- _ < _ <= _ => idtac
+ | |- _ <= _ <= _ => idtac
+ | |- _ < _ < _ => idtac
+ | |- _ => try simple apply conj
+ end.
+
+Ltac my_auto :=
+ repeat mysplit; try computable; auto; try apply I; try omega.
+
+Ltac entbang := 
+ match goal with
+ | |- ?P |-- _ => 
+    match type of P with
+    | ?T => unify T (environ->mpred); go_lower
+    | _ => idtac
+    end
+ | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
+ end;
+ repeat (progress ent_iter);
+ try simple apply prop_and_same_derives;
+ match goal with 
+   | |- _ |-- !! _ => apply prop_right; my_auto
+   | |- _ |-- !! _ && _ => apply andp_right; 
+               [ apply prop_right; my_auto                       
+               | cancel]
+   | |- _ |-- _ => cancel
+   | |- _ => my_auto
+ end.
+ 
+Tactic Notation "entailer" "!" := entbang.
+(*
   entailer; 
   first [simple apply andp_right; [apply prop_right; prop_solve | cancel ]
          | simple apply prop_right; prop_solve
          | match goal with |- _ |-- _ => try cancel end
          | prop_solve
          ].
+*)
 
 Ltac elim_hyps :=
  repeat match goal with

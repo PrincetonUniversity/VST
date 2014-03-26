@@ -331,12 +331,11 @@ entailer.
 apply prop_and_right.
 destruct (eval_id _h rho); inv H1; reflexivity.
 if_tac.
-entailer; elim_hyps; simpl; auto.
-rewrite H6; reflexivity.
+entailer!; rewrite H6; reflexivity.
 normalize.
-destruct prefix; entailer.
+destruct prefix; entailer!.
 destruct (eval_id _h rho); try contradiction; reflexivity.
-apply prop_right; destruct (eval_id _h rho); try contradiction; reflexivity.
+destruct (eval_id _h rho); try contradiction; reflexivity.
 Qed.
 
 Lemma goal_2 :
@@ -1770,8 +1769,7 @@ Proof. intros Q Q'; ungather_entail.
   entailer.
   apply exp_right with (nullval,nullval).
   if_tac; [ | congruence].
- entailer.
-split; reflexivity.
+ entailer!. reflexivity. reflexivity.
 Qed.
 
 Lemma goal_6 :
@@ -2990,17 +2988,16 @@ entailer.
       apply exp_right with nil.
       simpl. rewrite links_nil_eq.
       entailer!.
-      apply ptr_eq_refl; auto.
   +  normalize.
       destruct prefix.
-      - rewrite links_nil_eq.
+      - rewrite links_nil_eq. fold t_struct_elem.
          entailer.
-         elim_hyps. destruct (eval_id _h rho); try contradiction H5; inv  H2.
+         elim_hyps. destruct (eval_id _h rho); try contradiction; inv  H2.
       - rewrite links_cons_eq.
          normalize.   (* should this really be necessary here? *)
          entailer.
          elim_hyps.
-         destruct (eval_id _h rho); try contradiction H5; inv  H2.
+         destruct (eval_id _h rho); try contradiction; inv  H2.
 Qed.
 
 Lemma goal_11 :

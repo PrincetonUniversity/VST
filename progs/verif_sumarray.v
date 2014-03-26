@@ -137,6 +137,7 @@ forward. (* i++; *)
 unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
 entailer.
+ apply prop_right.
  simpl in H5. rewrite Int.signed_repr in H5 by repable_signed.
  rewrite fold_range_fact1 by omega.
  destruct (contents i0); inv H5. simpl. auto. 

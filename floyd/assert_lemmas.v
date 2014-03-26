@@ -1380,6 +1380,14 @@ f_equal.
 pose proof (Int.eq_spec i i0). rewrite H0 in H; auto.
 Qed.
 
+Lemma ptr_eq_True':
+   forall p, isptr p -> ptr_eq p p = True.
+Proof. intros.
+ apply prop_ext; intuition. destruct p; inv H; simpl; auto.
+ rewrite Int.eq_true. auto.
+Qed.
+Hint Rewrite ptr_eq_True' using assumption : norm.
+
 Lemma ptr_eq_True:
    forall p, is_pointer_or_null p -> ptr_eq p p = True.
 Proof. intros.

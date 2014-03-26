@@ -274,8 +274,7 @@ forget (`(eq (map Vint (Round regs (nthi b) (Z.of_nat i - 1))))
                  (`cons (eval_id _f)
                     (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
   as A1.
-entailer.
-split3.
+entailer!.
 f_equal. f_equal. unfold Z.succ; rewrite Z.mul_add_distr_r; reflexivity.
 rewrite W_equation.
 rewrite if_true; auto.

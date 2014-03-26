@@ -401,10 +401,12 @@ simpl @fst; simpl @ snd.
 match goal with |- semax _ (PROPx nil ?QR) _ _ =>
  apply semax_pre with (PROP (isptr f) QR)
 end.
-go_lowerx. entailer. 
-eapply derives_trans. repeat apply sepcon_derives.
+go_lowerx. entailer.
+repeat rewrite sepcon_assoc.
+eapply derives_trans. apply sepcon_derives.
 apply andp_left1. apply func_ptr_isptr.
-apply derives_refl. apply derives_refl. entailer.
+apply prop_True_right.
+rewrite sepcon_prop_prop. apply prop_derives; intuition.
 normalize.
 eapply semax_pre with
   (EX p:val, EX buf:val, |>(PROP()
@@ -636,9 +638,11 @@ frame_SEP 3.
 simpl_data_at.
 forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
+unfold replace_nth.
+simpl update_tycon.
 apply derives_refl.  (* SHOULD NOT NEED THIS LINE *)
-unfold app.  (* SHOULD NOT NEED THIS LINE *)
-autorewrite with subst.  (* SHOULD NOT NEED THIS LINE *)
+(*unfold app.  (* SHOULD NOT NEED THIS LINE *) 
+  autorewrite with subst.  (* SHOULD NOT NEED THIS LINE *) *)
 
 Ltac gather_SEP' L :=
    grab_indexes_SEP L; (*handles lifting better than the one in client_lemmas *)
@@ -647,12 +651,12 @@ Ltac gather_SEP' L :=
    unfold firstn, skipn; simpl length; cbv beta iota; rewrite gather_SEP;
    unfold app, fold_right; try  rewrite sepcon_emp
  end.
+
 gather_SEP' (0::1::nil).
 replace_SEP 0 (`(data_at Tsh t_struct_intpair (Vint (Int.repr 1), Vint (Int.repr 2)))
                       (eval_var _p t_struct_intpair) ).
 simpl_data_at.
 entailer.
-simpl update_tycon.
 rewrite -> seq_assoc. simpl.
 eapply semax_seq'.
 frame_SEP 1 0 2.

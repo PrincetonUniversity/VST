@@ -174,7 +174,7 @@ apply exp_right
               (firstn (len - (length blocks * 4 - length dd))
                 (skipn (length blocks * 4 - length dd) data))).
 entailer.
-clear TC1 TC TC0.
+clear TC TC0.
  rewrite prop_true_andp. 
 Focus 2. {
  apply Update_abs; auto.

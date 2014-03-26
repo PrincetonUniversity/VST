@@ -185,7 +185,7 @@ Proof.
  clear fragment H5.
  rewrite negb_true_iff in H6. 
  apply ltu_repr_false in H6; [ | repable_signed | omega].
- clear TC TC1 TC0.
+ clear TC.
  unfold j,k in *; clear j k.
 rewrite cVint_force_int_ZnthV
  by (rewrite initial_world.Zlength_map; omega).
@@ -399,7 +399,7 @@ entailer!.
  entailer.
  rewrite negb_true_iff in H6.
  apply ltu_repr_false in H6; [ | omega..].
- clear TC1 TC0  TC.
+ clear TC0  TC.
  apply exp_right with (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)).
  assert (LL: length (dd ++ firstn (Z.to_nat k) data) = CBLOCK). {
  rewrite app_length. rewrite firstn_length. rewrite min_l.

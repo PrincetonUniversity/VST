@@ -501,9 +501,11 @@ eapply semax_pre_post;
   rewrite <- (andp_dup (PROPx _ _)).
   eapply derives_trans; [apply andp_derives; [apply derives_refl | apply H5] |  clear H5].
   go_lowerx.
-  gather_prop. apply derives_extract_prop.
+  autorewrite with gather_prop.
+  apply derives_extract_prop.
   intros [? [? [? [? ?]]]].
   saturate_local.
+  apply andp_right; auto.
   apply prop_right.
   repeat split; auto.
   hnf. simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
@@ -511,9 +513,6 @@ eapply semax_pre_post;
   destruct (v1 rho); inv H12; apply I.
   rewrite (no_attr_type_nonvol _ H1); reflexivity.
   omega. omega.
-  apply derives_extract_prop; intros [? [? [? [? ?]]]].
-  saturate_local.
-  apply sepcon_derives; auto.
   rewrite  (split3_array_at v2).
   cancel.
   unfold_lift. rewrite <- H7; simpl.
@@ -540,7 +539,7 @@ eapply semax_pre_post;
   rewrite upd_eq. 
   simpl.
   rewrite (data_at_mapsto _ _ H3).
-  destruct (eval_expr e1 rho); inv H13.
+  destruct (eval_expr e1 rho); inv H12.
   destruct (v1 rho); inv H6.
   unfold add_ptr_int. simpl.
   rewrite H10. unfold_lift; simpl. auto.

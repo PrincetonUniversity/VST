@@ -91,7 +91,7 @@ Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
 (** Two little equations about the list_cell predicate *)
 Lemma list_cell_eq: forall sh i,
    list_cell LS sh (Vint i) = field_at sh t_struct_list _head (Vint i).
-Proof.  intros. reflexivity. Qed.
+Proof.  reflexivity. Qed.
 
 (** Here's a loop invariant for use in the body_sumlist proof *)
 Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
@@ -288,7 +288,7 @@ f_equal. f_equal. unfold Int.zero. repeat rewrite add_repr.
  simpl. change (align (align 4 4) 4) with (4+0). rewrite Z.add_assoc.
 reflexivity.
  rewrite @lseg_nil_eq; auto.
- entailer. compute; auto.
+ entailer!. compute; auto.
  spec IHdata. simpl length in H0|-*. repeat rewrite inj_S in H0|-*. omega.
  specialize (IHdata (ofs+8)).
  forget (list_init_rep i (ofs+8)(i0::data)) as rep'.

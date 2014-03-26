@@ -75,7 +75,7 @@ rename b into bb.
 remember (Round regs (nthi bb) (Z.of_nat i - 1)) as regs' eqn:?.
 apply (assert_LOCAL (`(exists a b c d e f g h, regs' = [a,b,c,d,e,f,g,h]))).
 clear Heqregs'.
-entailer.
+entailer!.
 clear - H3. rename H3 into H0.
 exists a_,b_,c_,d_,e_,f_,g_,h_.
 do 8 (destruct regs' as [ | ? regs']; [inv H0 | ]).
@@ -91,9 +91,7 @@ apply (assert_LOCAL (`(eq (Vint
        (Int.add (W (nthi bb) (Z.of_nat i))
         (Int.add (Int.add (Int.add h (Sigma_1 e)) (Ch e f g)) (nth i K Int.zero)))))
           (eval_id _T1))).
-Opaque Xarray.
-Opaque K.
-entailer.
+entailer!.
 symmetry in H5; inv H5.
 f_equal. f_equal. f_equal. f_equal.
 apply Sigma_1_eq.
@@ -103,12 +101,12 @@ clear T1_0.
 forward. 	(* T2 = Sigma0(a) + Maj(a,b,c); *)
 apply (assert_LOCAL (`(eq (Vint (Int.add (Sigma_0 a) (Maj a b c))))
           (eval_id _T2))).
-entailer.
+entailer!.
 symmetry in H4; inv H4.
 f_equal.
 apply Sigma_0_eq.
 apply Maj_eq.
-apply (drop_LOCAL 1%nat); unfold delete_nth.
+drop_LOCAL 1%nat.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 replace Delta with (initialized _T2 (initialized _Ki (initialized _T1 (initialized _t
                                 (initialized _s1 (initialized _s0 Delta_loop1))))))
@@ -286,16 +284,16 @@ rewrite Xarray_update by (apply Zlength_length in H; auto).
 unfold K_vector.
 forward.  (* Ki=K256[i]; *)
 abstract (
- entailer; split;
+ entailer!;
  [unfold tuints, ZnthV; rewrite if_false by (clear; omega);
  rewrite (@nth_map' int val _ _ Int.zero); [apply I | ];
  change (length K) with 64%nat; rewrite Nat2Z.id; destruct H0 as [_ H0]; apply H0
- | change (Zlength K) with 64; destruct H1; assumption]).
+ | change (Zlength K) with 64; clear - H1; omega]).
 
 apply (assert_LOCAL (`(eq (Vint (nth i K Int.zero))) (eval_id _Ki))).
 drop_LOCAL 5%nat. drop_LOCAL 3%nat. drop_LOCAL 2%nat.
 abstract (
-   entailer; 
+   entailer; apply prop_right;
    rewrite Int.signed_repr in H3 by repable_signed;
    unfold tuints, ZnthV in H3; 
    rewrite if_false in H3 by omega; 
@@ -303,7 +301,7 @@ abstract (
    rewrite (@nth_map' int val _ _ Int.zero) in H3 by apply H0; 
    injection H3; clear; auto;
    clear - H0; apply H0).
-apply (drop_LOCAL 1%nat); unfold delete_nth.
+drop_LOCAL 1%nat.
 
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 replace Delta with (initialized _Ki (initialized _T1 (initialized _t

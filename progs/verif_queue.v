@@ -109,8 +109,8 @@ Lemma list_cell_eq: forall sh elem,
   list_cell QS sh elem = 
    field_at sh t_struct_elem _a (fst elem) * 
    field_at sh t_struct_elem _b (snd elem). 
-Proof. intros. simpl_list_cell. auto. Qed.
-
+Proof. reflexivity. Qed.
+ 
 Lemma body_fifo_empty: semax_body Vprog Gtot f_fifo_empty fifo_empty_spec.
 Proof.
 start_function.
@@ -156,7 +156,7 @@ forward. (* return Q; *)
   unfold fifo.
   apply exp_right with (nullval,nullval).
   rewrite if_true by auto.
-  entailer;
+  entailer!;
     simpl; auto.  (* this line should not be necessary *)
 Qed.
 
@@ -189,7 +189,7 @@ forward_if
       normalize.
       apply exp_right with nil.
       rewrite links_nil_eq.
-      entailer!.
+      entailer!. 
   +  normalize.
       destruct prefix; normalize; entailer!; elim_hyps; inv H1.
 * (* else clause *)

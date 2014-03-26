@@ -62,7 +62,6 @@ Proof.  reflexivity.  Qed.
 Definition isptrb v := 
    match v with | Vptr _ _ => true | _ => false end.
 
-
 Definition Igt a b:=
 Int.cmp Cgt a b = true.
 
@@ -216,8 +215,6 @@ apply IHl1. intuition.
 inv H0; auto.
 Qed.
 
-Locate ptr_eq.
-
 Lemma lseg_is_ptr_or_null : 
 forall  sh c v1 v2 R, 
 @lseg t_struct_list _tail LS sh (c) v1 v2 * R |-- !!is_pointer_or_null v1 && (@lseg t_struct_list _tail LS sh c v1 v2)  * R.
@@ -327,7 +324,7 @@ entailer.
 (*invariant implies post *)
 apply (exp_right sorted_list).
 apply (exp_right unsorted_list).
-entailer!.
+entailer!. reflexivity.
 
 (*invariant across body *)
 focus_SEP 1. apply semax_lseg_nonnull.

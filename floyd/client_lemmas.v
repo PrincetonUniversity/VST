@@ -2486,104 +2486,118 @@ Proof.
  apply extract_exists_pre.  apply H.
 Qed.
 
-Lemma saturate_local_aux1:
-  forall R0 R1 R'  S,
-          R0 * (R1 * R') |-- S ->
-          R0 * R1 * R' |-- S.
-Proof.
-intros. rewrite sepcon_assoc; auto.
-Qed.
-
-Lemma saturate_local_aux3:
-  forall R0 R1 R' S P,
-      R1 |-- !! P ->
-      (P -> (R0 * R1 * R' |-- S)) ->
-      R0 * R1 * R' |-- S.
+Lemma isptr_force_ptr'' : forall p Q,
+    (isptr p -> Q) ->
+    (isptr (force_ptr p) -> Q).
 Proof.
 intros.
-replace R1 with (!!P && R1); normalize.
-apply pred_ext; normalize.
-apply andp_right; auto.
+apply X.
+destruct p; inv H; apply I.
 Qed.
 
-Lemma saturate_local_aux4:
- forall P Q R S,  P * (Q * R) |-- S -> P * Q * R |-- S .
-Proof. intros. rewrite sepcon_assoc; auto.
+Lemma isptr_offset_val'': forall i p Q,
+    (isptr p -> Q) ->
+    (isptr (offset_val i p) -> Q).
+Proof.
+intros.
+apply X.
+destruct p; inv H; apply I.
 Qed.
-
-Lemma saturate_local_aux5:
- forall P S,  emp * P |-- S -> P |-- S .
-Proof. intros. rewrite emp_sepcon in H. auto.
-Qed.
-
-Lemma saturate_local_aux6:
- forall P Q R S,  P * Q * R |-- S -> P * (Q * R) |-- S .
-Proof. intros. rewrite <- sepcon_assoc; auto.
-Qed.
-
-Lemma saturate_local_aux7:
- forall P S,  P * emp |-- S -> P |-- S .
-Proof. intros. rewrite sepcon_emp in H. auto.
-Qed.
-
-Lemma saturate_local_aux8:
- forall P S,  P |-- S -> emp * P |-- S .
-Proof. intros. rewrite emp_sepcon. auto.
-Qed.
-
-Lemma saturate_local_aux9:
- forall P S,  P |-- S -> P * emp |-- S .
-Proof. intros. rewrite sepcon_emp. auto.
-Qed.
-
-Ltac saturate_nonredundant := 
-match goal with |- ?A -> _ =>
- let H := fresh in 
- assert (H: A); [solve [repeat simple apply conj; simpl; auto ] | ];
- fail 2
-end
-|| idtac.
-
-Lemma intro_if_new_aux1:
- forall A B C: Prop,  (B -> C) -> (A /\ B) -> C.
-Proof. intuition. Qed.
-
-Lemma intro_if_new_aux2:
- forall A B C: Prop,  (A -> B -> C) -> (A /\ B) -> C.
-Proof. intuition. Qed.
 
 Ltac intro_if_new :=
  repeat match goal with
-  | |- (?A /\ ?B) -> _ => 
-    first [let H := fresh in assert (H: A) by auto; 
-               clear H; apply intro_if_new_aux1
-            | apply intro_if_new_aux2; fancy_intro
-            ]
-  | |- ?A -> _ =>
-    first [let H := fresh in assert (H: A) by auto;
-             clear H; intros _
-            | fancy_intro
-            ]
+  | |- (?A /\ ?B) -> ?C => 
+         apply (@and_ind A B C)
+  | |- isptr (force_ptr ?P) -> ?Q =>
+         apply (isptr_force_ptr'' P Q)
+  | |- isptr (offset_val ?i ?P) -> ?Q =>
+         apply (isptr_offset_val'' i P Q)
+  | H: is_pointer_or_null ?P |- isptr ?P -> _ =>
+         clear H; fancy_intro
+  | H: ?A |- ?A -> _ => 
+          intros _
+(* this probably works, but may be unnecessary 
+   | |- ?A -> _ =>
+       let H := fresh in assert (H: A) by auto;
+       clear H; intros _
+*)
+  | |- _ -> _ =>
+            fancy_intro
   end.
 
-Ltac norm_on_left :=
- cbv beta;
- let H := fresh in intro H; 
-     simpl in H; autorewrite with norm in H; revert H.
+Lemma TT_sepcon_TT:   (* put this in MSL as an axiom of seplog *)
+     (@TT mpred _) * TT = TT.
+Proof.
+Transparent Nveric.
+Transparent Sveric.
+Transparent mpred.
+unfold Nveric, Sveric, mpred.
+simpl.
+apply msl.predicates_sl.TT_sepcon_TT.
+Opaque Nveric.
+Opaque Sveric.
+Opaque mpred.
+Qed.
+
+Lemma sepcon_prop_prop:
+  forall P Q,  @prop mpred _ P * !! Q = !! (P /\ Q).
+Proof.
+intros.
+rewrite <- (andp_TT (!!P)), <- (andp_TT (!!Q)).
+normalize.
+rewrite TT_sepcon_TT.
+normalize.
+Qed.
+
+Lemma saturate_aux20:
+ forall (P Q: mpred) P' Q' ,
+    P |-- !! P' ->
+    Q |-- !! Q' ->
+    P * Q |-- !! (P' /\ Q').
+Proof.
+intros.
+eapply derives_trans; [apply sepcon_derives; eassumption | ].
+rewrite sepcon_prop_prop.
+auto.
+Qed.
+
+Lemma saturate_aux21:
+  forall (P Q: mpred) S (S': Prop), 
+   P |-- S -> 
+   S = !!S' ->
+   !! S' && P |-- Q -> P |-- Q.
+Proof.
+intros. subst.
+eapply derives_trans; [ | eassumption].
+apply andp_right; auto.
+Qed.
+
+Lemma prop_True_right {A}{NA: NatDed A}: forall P:A, P |-- !! True.
+Proof. intros; apply prop_right; auto.
+Qed.
+
+Ltac already_saturated :=
+(match goal with |- ?P |-- ?Q =>
+    let H := fresh in 
+     assert (H: P |-- Q) by auto with nocore saturate_local;
+     cbv beta in H;
+     match type of H with _ |-- !! ?Q' =>
+     assert (Q') by (repeat simple apply conj; auto);
+     fail 3
+     end
+end || auto with nocore saturate_local)
+ || simple apply prop_True_right.   
 
 Ltac saturate_local := 
-  repeat simple apply saturate_local_aux4;
-  simple apply saturate_local_aux5;
-  repeat simple apply saturate_local_aux6;
-  simple apply saturate_local_aux7;
-  repeat (
-     try (simple eapply saturate_local_aux3; 
-       [solve [eauto with saturate_local] 
-       | saturate_nonredundant; norm_on_left; intro_if_new]);
-     simple apply saturate_local_aux1);
-  simple apply saturate_local_aux8;
-  repeat simple apply saturate_local_aux6;
-  simple apply saturate_local_aux9.
+simple eapply saturate_aux21;
+ [repeat simple apply saturate_aux20;
+   (* use already_saturated if want to be fancy,
+         otherwise the next two lines *)
+   auto with nocore saturate_local;
+    simple apply prop_True_right
+ | cbv beta; reflexivity
+ | simple apply derives_extract_prop; intro_if_new
+ ].
 
 Lemma mapsto_local_facts:
   forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! (isptr v1).
@@ -2604,53 +2618,15 @@ Qed.
 Hint Resolve mapsto_local_facts mapsto__local_facts : saturate_local.
 (*********************************************************)
 
-Lemma drop_saturated1:
-  forall R0 R2 R' P,
-    R0 * R' |-- !! P ->
-    R0 * R2 * R' |-- !! P.
-Proof.
-intros.
-pull_right R2.
-eapply derives_trans. apply sepcon_derives. apply H.
-apply TT_right. clear.
-apply derives_trans with (!!P && TT * TT); [ | normalize].
-apply sepcon_derives; auto.
-normalize.
-Qed.
-
-Ltac drop_saturated :=
-  repeat simple apply saturate_local_aux4;
-  simple apply saturate_local_aux5;
-  repeat simple apply saturate_local_aux6;
-  simple apply saturate_local_aux7;
- repeat 
-   first [simple eapply saturate_local_aux3; 
-             [solve [eauto with saturate_local] | intros _; apply drop_saturated1 ]
-          | simple apply saturate_local_aux1
-          ];
-  simple apply saturate_local_aux8;
-  repeat simple apply saturate_local_aux6;
-  try simple apply saturate_local_aux9.
-
 Lemma prop_right_emp {A} {NA: NatDed A}:
  forall P: Prop, P -> emp |-- !! P.
 Proof. intros. normalize.
 Qed.
 
 Ltac prop_right_cautious :=
- drop_saturated; 
- try (simple apply prop_right_emp; auto);
  try solve [simple apply prop_right; auto].
 
 (**********************************************************)
-
-Ltac gather_prop := autorewrite with gather_prop;
-  match goal with 
-  | |- _ |-- !! _ && _ => apply andp_right; [ prop_right_cautious | ]
-  | |- _ |-- !! _ => prop_right_cautious
-  | |- _ => idtac
- end; auto.
-
 (* testing
 Parameter f: nat -> Prop.
 Parameter g h : mpred.
