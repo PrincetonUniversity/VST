@@ -80,6 +80,7 @@ SEPCOMP_FILES= \
   effect_properties.v effect_interpolants.v effect_simulations_trans.v \
   effect_interpolation_II.v effect_interpolation_proofs.v \
   arguments.v closed_safety.v compcert.v open_semantics_preservation.v \
+  reach.v \
   trace_semantics.v \
   arguments.v \
   effect_simulationsEXP.v
