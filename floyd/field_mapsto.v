@@ -109,8 +109,8 @@ unfold mapsto_. apply mapsto_isptr.
 Qed.
 
 Lemma field_offset_rec_unroll:
-  forall fields0 fld sid fields n,
-    field_offset_rec fld (unroll_composite_fields sid (Tstruct sid fields0 noattr) fields) n =
+  forall t_subst fld sid fields n,
+    field_offset_rec fld (unroll_composite_fields sid t_subst fields) n =
     field_offset_rec fld fields n.
 Proof.
 intros. revert n; induction fields; intros; auto.
@@ -118,21 +118,21 @@ unfold unroll_composite_fields, field_offset.
 simpl. if_tac.
 f_equal.
 f_equal.
-change (alignof (unroll_composite  sid (Tstruct sid fields0 noattr) t) = alignof t).
+change (alignof (unroll_composite  sid t_subst t) = alignof t).
 apply alignof_unroll_composite.
-change (field_offset_rec fld  (unroll_composite_fields sid (Tstruct sid fields0 noattr) fields)
-             (align n (alignof (unroll_composite sid (Tstruct sid fields0 noattr) t)) 
-                          + sizeof (unroll_composite sid (Tstruct sid fields0 noattr) t)) = 
+change (field_offset_rec fld (unroll_composite_fields sid t_subst fields)
+             (align n (alignof (unroll_composite sid t_subst t)) 
+                          + sizeof (unroll_composite sid t_subst t)) = 
     field_offset_rec fld fields (align n (alignof t) + sizeof t)).
 rewrite IHfields.
 rewrite alignof_unroll_composite.
 rewrite sizeof_unroll_composite.
-auto.
+reflexivity.
 Qed.
 
 Lemma field_offset_unroll:
-  forall fields0 fld sid fields,
-    field_offset fld (unroll_composite_fields sid (Tstruct sid fields0 noattr) fields) =
+  forall t_subst fld sid fields,
+    field_offset fld (unroll_composite_fields sid t_subst fields) =
     field_offset fld fields.
 Proof.
 intros.
