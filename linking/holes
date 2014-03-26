@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 cd ..
 awk '$1=="Lemma"||$1=="Definition"||$1=="Theorem"{A=$2} \
     /(\*.*admit\..*\*)/    {comment_admits+=1; next} \
