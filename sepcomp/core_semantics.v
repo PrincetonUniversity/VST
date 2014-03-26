@@ -13,90 +13,54 @@ Require Import sepcomp.mem_lemmas.
 
 (** * Core semantics *)
 
-Lemma external_call_mem_forward:
-  forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
-    (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
-    external_call ef ge vargs m1 t vres m2 -> mem_forward m1 m2.
-Proof.
-intros.
-intros b Hb.
-split; intros. eapply external_call_valid_block; eauto.
-eapply external_call_max_perm; eauto.
-Qed.
-
-Definition val_has_type_opt' (v: option val) (ty: typ) :=
- match v with
- | None => True
- | Some v' => Val.has_type v' ty
- end.
-
-Definition val_has_type_opt (v: option val) (sig: signature) :=
-  val_has_type_opt' v (proj_sig_res sig).
-
-(** A "core semantics represents" a fairly traditional, sequential,
-   small step semantics of computation.  They are designed to
-   cooperate with "extensions" which give semantics to primtive
-   constructs not defined by the extensible semantics (e.g., external
-   function calls).
+(** A "core semantics" represents a fairly traditional small step
+   semantics of computation.  Core semantics are designed to cooperate
+   with "extensions" which give semantics to primtive constructs not
+   defined by the extensible semantics (e.g., external function
+   calls).
 
    The [G] type parameter is the type of global environments, the type
    [C] is the type of core states, and the type [E] is the type of
-   extension requests.  The [at_external] function gives a way to
-   determine when the sequential execution is blocked on an extension
-   call, and to extract the data necessary to execute the call.
-   [after_external] give a way to inject the extension call results
-   back into the sequential state so execution can continue.  
+   extension requests.
 
-(* Previsouly, we had additionally
+   [at_external] gives a way to determine when the sequential
+      execution is blocked on an extension call, and to extract the
+      data necessary to execute the call.
    
-   a) a type parameter [D] that stood for the type of initialization 
-       data, eg list (ident * globvar V).
+   [after_external] give a way to inject the extension call results
+      back into the sequential state so execution can continue.
 
-   b) a clause [initial_mem] that characterized memories
-      suitable at module entry. 
-
-But we eliminated these, since these constructs refer to PROGRAMS, 
-not CORES.
-
-*)
-
-   [initial_core] that produces the core state 
-      corresponding to an entry point of a module.  
-      The arguments are the genv, a pointer to the
+   [initial_core] produces the core state corresponding to an entry
+      point of a module.  The arguments are the genv, a pointer to the
       function to run, and the arguments for that function.
 
-   The [halted] predicate indicates when a program state
-   has reached a halted state, and what it's exit code/return value is
-   when it has reached such a state.
+   [halted] indicates when a program state has reached a halted state,
+      and what it's exit code/return value is when it has reached such
+      a state.
 
-   [corestep] is the fundamental small-step relation for
-   the sequential semantics.
+   [corestep] is the fundamental small-step relation for the
+      sequential semantics.
 
    The remaining properties give basic sanity properties which constrain
    the behavior of programs.
     1) a state cannot be both blocked on an extension call
         and also step,
-    2) a state cannot both step and be halted
-    3) a state cannot both be halted and blocked on an external call
-    4) after external calls, cores are back in a "runnable" state
-       (NOTE: this axiom may be removed at some point) *)
+    2) a state cannot both step and be halted, and
+    3) a state cannot both be halted and blocked on an external call. *)
 
 Record CoreSemantics {G C M : Type} : Type :=
-  { initial_core : G -> val -> list val -> option C;
-    at_external : C -> option (external_function * signature * list val);
-    after_external : option val -> C -> option C;
-    halted : C -> option val; 
-    corestep : G -> C -> M -> C -> M -> Prop;
+  { initial_core : G -> val -> list val -> option C
+  ; at_external : C -> option (external_function * signature * list val)
+  ; after_external : option val -> C -> option C
+  ; halted : C -> option val
+  ; corestep : G -> C -> M -> C -> M -> Prop
 
-    corestep_not_at_external: forall ge m q m' q', 
-      corestep ge q m q' m' -> at_external q = None;
-    corestep_not_halted: forall ge m q m' q', 
-      corestep ge q m q' m' -> halted q = None;
-    at_external_halted_excl: forall q, 
-      at_external q = None \/ halted q = None;
-    after_at_external_excl : forall retv q q',
-      after_external retv q = Some q' -> at_external q' = None
-  }.
+  ; corestep_not_at_external: 
+      forall ge m q m' q', corestep ge q m q' m' -> at_external q = None
+  ; corestep_not_halted: 
+      forall ge m q m' q', corestep ge q m q' m' -> halted q = None
+  ; at_external_halted_excl: 
+      forall q, at_external q = None \/ halted q = None }.
 
 Implicit Arguments CoreSemantics [].
 
@@ -122,10 +86,7 @@ Class t {G C M : Type} : Type :=
   ; corestep_not_halted: 
       forall ge m q m' q', corestep ge q m q' m' -> halted q = None
   ; at_external_halted_excl: 
-      forall q, at_external q = None \/ halted q = None
-  ; after_at_external_excl : 
-      forall retv q q', after_external retv q = Some q' -> at_external q' = None
-  }.
+      forall q, at_external q = None \/ halted q = None }.
 End Coresem.
 
 Instance core_instance (G C M: Type) (csem: @CoreSemantics G C M) : @Coresem.t G C M :=
@@ -137,8 +98,7 @@ Instance core_instance (G C M: Type) (csem: @CoreSemantics G C M) : @Coresem.t G
     (corestep csem)
     (corestep_not_at_external csem)
     (corestep_not_halted csem)
-    (at_external_halted_excl csem)
-    (after_at_external_excl csem).
+    (at_external_halted_excl csem).
 
 (**  Multistepping *)
 
@@ -251,9 +211,11 @@ Section corestepN.
 
 End corestepN.
 
-(** "Cooperating" semantics impose additional constraints; in particular, 
-   they require that the memories produced by coresteps contain no dangling 
-   pointers. *)
+(** "Cooperating" semantics impose additional constraints; in
+   particular, they specialize core semantics to CompCert memories and
+   require that the memories produced by coresteps are "forward" w/r/t
+   the initial memory. See [mem_lemmas.v] for the defn. of
+   [mem_forward]. *)
 
 Record CoopCoreSem {G C} :=
   { coopsem :> CoreSemantics G C mem

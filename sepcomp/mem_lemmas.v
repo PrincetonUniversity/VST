@@ -1,4 +1,5 @@
 (*CompCert imports*)
+Require Import compcert.common.AST.
 Require Import compcert.common.Events.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Coqlib.
@@ -67,8 +68,6 @@ Proof. intros.
   apply (align12 _ _ _ _  _ _ H) in H0. 
   assert (inject_id b2 = Some (b2, delta)).
   unfold inject_id in *. inv H. trivial. assumption.
-(*  apply (align23 _ _ _ _  _ _ H1) in H0.  inv H. inv H1. rewrite Zplus_0_r in H0. 
-  assumption.*)
   (*mi_memval*)
   assert (MV1:= memval12 _ _ _ _  H H0). 
   assert (inject_id b2 = Some (b2, delta)).
@@ -158,7 +157,8 @@ Proof. intros.
   apply flatinj_I. xomega.
 Qed.
 
-(* A minimal preservation property we sometimes require.*)
+(* A minimal preservation property we sometimes require. *)
+
 Definition mem_forward (m1 m2:mem) :=
   (forall b, Mem.valid_block m1 b ->
     Mem.valid_block m2 b /\ 
@@ -263,7 +263,8 @@ Proof. intros.
     remember (j23' b0) as j23'b0.
     destruct j23'b0; inv H1; apply eq_sym in Heqj23'b0. destruct p. inv H3.
     remember (j23 b0) as j23b0.
-    destruct j23b0; apply eq_sym in Heqj23b0. destruct p. rewrite (InjIncr23 _ _ _ Heqj23b0) in Heqj23'b0. inv Heqj23'b0.      
+    destruct j23b0; apply eq_sym in Heqj23b0. destruct p. 
+      rewrite (InjIncr23 _ _ _ Heqj23b0) in Heqj23'b0. inv Heqj23'b0.      
       exfalso. apply H0. eapply BV23. apply Heqj23b0.
     destruct (InjSep23 _ _ _ Heqj23b0 Heqj23'b0). assumption.    
 Qed.
@@ -277,8 +278,10 @@ Lemma compose_meminj_inject_separated': forall j12 j12' j23 j23' m1 m2 m3
    inject_separated (compose_meminj j12 j23) (compose_meminj j12' j23') m1 m3.
 Proof. intros.
   eapply compose_meminj_inject_separated; try eassumption.
-  intros; split. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ H MInj12). apply (Mem.valid_block_inject_2 _ _ _ _ _ _ H MInj12).
-  intros; split. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ H MInj23). apply (Mem.valid_block_inject_2 _ _ _ _ _ _ H MInj23).
+  intros; split. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ H MInj12). 
+    apply (Mem.valid_block_inject_2 _ _ _ _ _ _ H MInj12).
+  intros; split. apply (Mem.valid_block_inject_1 _ _ _ _ _ _ H MInj23). 
+    apply (Mem.valid_block_inject_2 _ _ _ _ _ _ H MInj23).
 Qed.
 
 Lemma forall_lessdef_refl: forall vals,  Forall2 Val.lessdef vals vals.
@@ -321,8 +324,9 @@ Definition val_inject_opt (j: meminj) (v1 v2: option val) :=
   | _, _ => False
   end.
 
-Lemma val_inject_split: forall v1 v3 j12 j23 (V: val_inject (compose_meminj j12 j23) v1 v3),
-             exists v2, val_inject j12 v1 v2 /\ val_inject j23 v2 v3. 
+Lemma val_inject_split: 
+  forall v1 v3 j12 j23 (V: val_inject (compose_meminj j12 j23) v1 v3),
+    exists v2, val_inject j12 v1 v2 /\ val_inject j23 v2 v3. 
 Proof. intros. 
    inv V. 
      exists (Vint i). split; constructor.
@@ -339,61 +343,75 @@ Proof. intros.
      exists Vundef. split; constructor.
 Qed.     
 
-Lemma forall_lessdef_trans: forall vals1 vals2 (V12: Forall2 Val.lessdef vals1 vals2) 
-                                                               vals3  (V23: Forall2 Val.lessdef vals2 vals3) ,  Forall2 Val.lessdef vals1 vals3.
+Lemma forall_lessdef_trans: 
+  forall vals1 vals2 (V12: Forall2 Val.lessdef vals1 vals2) 
+    vals3  (V23: Forall2 Val.lessdef vals2 vals3),  
+    Forall2 Val.lessdef vals1 vals3.
 Proof. intros vals1 vals2 V12. 
    induction V12; intros; inv V23; econstructor.
    eapply Val.lessdef_trans; eauto.
           eapply IHV12; trivial.
 Qed.
 
-Lemma extends_loc_out_of_bounds: forall m1 m2 (Ext: Mem.extends m1 m2) b ofs,
-                loc_out_of_bounds m2 b ofs -> loc_out_of_bounds m1 b ofs.
+Lemma extends_loc_out_of_bounds: 
+  forall m1 m2 (Ext: Mem.extends m1 m2) b ofs,
+    loc_out_of_bounds m2 b ofs -> loc_out_of_bounds m1 b ofs.
 Proof. intros.
   inv Ext. inv mext_inj.
-  intros N.  eapply H. apply (mi_perm _ b 0) in N. rewrite Zplus_0_r in N. assumption. reflexivity.
+  intros N.  eapply H. apply (mi_perm _ b 0) in N. 
+    rewrite Zplus_0_r in N. assumption. reflexivity.
 Qed.
 
-Lemma extends_loc_out_of_reach: forall m1 m2 (Ext: Mem.extends m1 m2) b ofs j
-               (Hj: loc_out_of_reach j m2 b ofs), loc_out_of_reach j m1 b ofs.
-Proof. intros. unfold loc_out_of_reach in *. intros.
-           intros N. eapply (Hj _ _ H). clear Hj H. inv Ext. inv mext_inj.
-           specialize (mi_perm b0 _ 0 (ofs - delta) Max Nonempty (eq_refl _)). rewrite Zplus_0_r in mi_perm. apply (mi_perm N).
+Lemma extends_loc_out_of_reach: 
+  forall m1 m2 (Ext: Mem.extends m1 m2) b ofs j
+    (Hj: loc_out_of_reach j m2 b ofs), loc_out_of_reach j m1 b ofs.
+Proof. 
+  intros. unfold loc_out_of_reach in *. intros.
+  intros N. eapply (Hj _ _ H). clear Hj H. inv Ext. inv mext_inj.
+  specialize (mi_perm b0 _ 0 (ofs - delta) Max Nonempty (eq_refl _)). 
+    rewrite Zplus_0_r in mi_perm. apply (mi_perm N).
 Qed.
 
-Lemma valinject_lessdef: forall v1 v2 v3 j (V12:val_inject j v1 v2) (V23 : Val.lessdef v2 v3),val_inject j v1 v3.
-Proof. intros. 
-   inv V12; inv V23; try constructor.
+Lemma valinject_lessdef: 
+  forall v1 v2 v3 j (V12:val_inject j v1 v2) (V23 : Val.lessdef v2 v3),
+    val_inject j v1 v3.
+Proof. 
+  intros. 
+  inv V12; inv V23; try constructor.
     econstructor. eassumption. trivial.
 Qed.
 
-Lemma forall_valinject_lessdef: forall vals1 vals2 j (VInj12 : Forall2 (val_inject j) vals1 vals2) vals3 
-                  (LD23 : Forall2 Val.lessdef vals2 vals3), Forall2 (val_inject j) vals1 vals3.
+Lemma forall_valinject_lessdef: 
+  forall vals1 vals2 j (VInj12 : Forall2 (val_inject j) vals1 vals2) vals3 
+    (LD23 : Forall2 Val.lessdef vals2 vals3), Forall2 (val_inject j) vals1 vals3.
 Proof. intros vals1 vals2 j VInj12.
    induction VInj12; intros; inv LD23. constructor.
      econstructor. eapply valinject_lessdef; eassumption.
           eapply (IHVInj12 _ H4).
 Qed.
 
-Lemma val_lessdef_inject_compose: forall v1 v2 (LD12 : Val.lessdef v1 v2) j v3
-              (InjV23 : val_inject j v2 v3), val_inject j v1 v3.
+Lemma val_lessdef_inject_compose: 
+  forall v1 v2 (LD12 : Val.lessdef v1 v2) j v3
+    (InjV23 : val_inject j v2 v3), val_inject j v1 v3.
 Proof. intros. 
   apply val_inject_id in LD12.
   apply (val_inject_compose _ _ _ _ _ LD12) in InjV23.
   rewrite <- compose_meminj_idL in InjV23. assumption.
 Qed. 
 
-Lemma forall_val_lessdef_inject_compose: forall v1 v2 (LD12 : Forall2 Val.lessdef v1 v2) j v3
-              (InjV23 : Forall2 (val_inject j) v2 v3), Forall2 (val_inject j) v1 v3.
+Lemma forall_val_lessdef_inject_compose: 
+  forall v1 v2 (LD12 : Forall2 Val.lessdef v1 v2) j v3
+    (InjV23 : Forall2 (val_inject j) v2 v3), Forall2 (val_inject j) v1 v3.
 Proof. intros v1 v2 H.
   induction H; intros; inv InjV23; econstructor.
        eapply val_lessdef_inject_compose; eassumption.
        apply (IHForall2 _ _ H5). 
 Qed. 
 
-Lemma forall_val_inject_compose: forall vals1 vals2 j1 (ValsInj12 : Forall2 (val_inject j1) vals1 vals2)
-                vals3 j2 (ValsInj23 : Forall2 (val_inject j2) vals2 vals3),
-              Forall2 (val_inject (compose_meminj j1 j2)) vals1 vals3.
+Lemma forall_val_inject_compose: 
+  forall vals1 vals2 j1 (ValsInj12 : Forall2 (val_inject j1) vals1 vals2)
+     vals3 j2 (ValsInj23 : Forall2 (val_inject j2) vals2 vals3),
+     Forall2 (val_inject (compose_meminj j1 j2)) vals1 vals3.
 Proof.
   intros vals1 vals2 j1 ValsInj12.
   induction ValsInj12; intros; inv ValsInj23; econstructor.
@@ -401,8 +419,9 @@ Proof.
   apply (IHValsInj12 _ _ H4).
 Qed.
 
-Lemma val_inject_flat: forall m1 m2 j (Inj: Mem.inject j m1 m2) v1 v2 (V: val_inject j v1 v2),
-                val_inject  (Mem.flat_inj (Mem.nextblock m1)) v1 v1.
+Lemma val_inject_flat: 
+  forall m1 m2 j (Inj: Mem.inject j m1 m2) v1 v2 (V: val_inject j v1 v2),
+    val_inject  (Mem.flat_inj (Mem.nextblock m1)) v1 v1.
 Proof. intros.
   inv V; try constructor.
     apply val_inject_ptr with (delta:=0).
@@ -474,8 +493,6 @@ Proof.
   rewrite Heqz in H0. rewrite Heqzz in H0. apply H0. apply perm_refl.
   specialize (H0 ofs p).  unfold Mem.perm in H0. unfold Mem.perm_order' in H0. 
   rewrite Heqz in H0. rewrite Heqzz in H0. apply H0. apply perm_refl.
-
-
   remember ((PMap.get b (Mem.mem_access m1) ofs Max)) as zz.
   destruct zz; apply eq_sym in Heqzz; simpl in *; trivial.
 Qed.
@@ -483,10 +500,11 @@ Qed.
 Lemma po_oo: forall p q, Mem.perm_order' p q = Mem.perm_order'' p (Some q).
 Proof. intros. destruct p; trivial. Qed. 
 
-Lemma inject_permorder: forall j m1 m2 (Inj : Mem.inject j m1 m2) (b b':block) ofs'
+Lemma inject_permorder: 
+  forall j m1 m2 (Inj : Mem.inject j m1 m2) (b b':block) ofs'
       (J: j b = Some (b', ofs')) ofs k,
-     Mem.perm_order'' (PMap.get b' (Mem.mem_access m2) (ofs + ofs') k)
-     (PMap.get b (Mem.mem_access m1) ofs k).
+    Mem.perm_order'' (PMap.get b' (Mem.mem_access m2) (ofs + ofs') k)
+   (PMap.get b (Mem.mem_access m1) ofs k).
 Proof.
   intros. destruct Inj. destruct mi_inj as [prm _ _ ].
   specialize (prm b b' ofs' ofs k). unfold Mem.perm in prm. 
@@ -500,43 +518,58 @@ Proof.
        eapply prm. apply J. apply perm_refl. 
 Qed.
 
-Lemma PermExtNotnonempty: forall m1 m2 (Inj: Mem.extends m1 m2) b ofs p
-     (H: ~ Mem.perm m2 b ofs p Nonempty),  ~ Mem.perm m1 b ofs p Nonempty.
+Lemma PermExtNotnonempty: 
+  forall m1 m2 
+    (Inj: Mem.extends m1 m2) b ofs p
+    (H: ~ Mem.perm m2 b ofs p Nonempty),  
+    ~Mem.perm m1 b ofs p Nonempty.
 Proof. intros. destruct Inj. destruct mext_inj.
-intros N. apply H. apply (mi_perm _ _ _ _ _ _ (eq_refl _)) in N. rewrite Zplus_0_r in N. apply N.
+intros N. apply H. apply (mi_perm _ _ _ _ _ _ (eq_refl _)) in N. 
+  rewrite Zplus_0_r in N. apply N.
 Qed.
 
-Lemma  PermInjNotnonempty: forall j m1 m2 (Inj: Mem.inject j m1 m2) b b2 delta (J:j b = Some(b2,delta)) ofs p
-     (H:  ~ Mem.perm m2 b2 (ofs+delta) p Nonempty), ~ Mem.perm m1 b ofs p Nonempty.
+Lemma PermInjNotnonempty: 
+  forall j m1 m2 
+    (Inj: Mem.inject j m1 m2) b b2 delta (J:j b = Some(b2,delta)) ofs p
+    (H: ~Mem.perm m2 b2 (ofs+delta) p Nonempty), 
+    ~Mem.perm m1 b ofs p Nonempty.
 Proof. intros. destruct Inj. destruct mi_inj.
 intros N. apply H. apply (mi_perm _ _ _ _ _ _ J) in N. apply N.
 Qed.
 
-Lemma inject_LOOR_LOOB: forall m1 m2 j (Minj12 : Mem.inject j m1 m2) m3 m3', 
+Lemma inject_LOOR_LOOB: 
+  forall m1 m2 j (Minj12 : Mem.inject j m1 m2) m3 m3', 
   Mem.unchanged_on (loc_out_of_reach j m1) m3 m3' -> 
   Mem.unchanged_on (loc_out_of_bounds m2) m3 m3'.
 Proof. intros.
-     split; intros; eapply H; trivial.
-         intros b2; intros. unfold loc_out_of_bounds in H0. intros N. apply H0.
-                          inv Minj12. inv mi_inj. apply (mi_perm _ _ _ _ _ _ H2) in N.
-                         rewrite <- Zplus_comm in N. rewrite Zplus_minus in N.  apply N.
+    split; intros; eapply H; trivial.
+         intros b2; intros. 
+           unfold loc_out_of_bounds in H0. intros N. apply H0.
+           inv Minj12. inv mi_inj. apply (mi_perm _ _ _ _ _ _ H2) in N.
+           rewrite <- Zplus_comm in N. rewrite Zplus_minus in N.  apply N.
     intros b2; intros. unfold loc_out_of_bounds in H0. intros N. apply H0.
-                          inv Minj12. inv mi_inj. apply (mi_perm _ _ _ _ _ _ H2) in N.
-                         rewrite <- Zplus_comm in N. rewrite Zplus_minus in N.  apply N.
+           inv Minj12. inv mi_inj. apply (mi_perm _ _ _ _ _ _ H2) in N.
+           rewrite <- Zplus_comm in N. rewrite Zplus_minus in N.  apply N.
 Qed.
 
-Lemma free_neutral: forall (thr : block) (m : mem) (lo hi : Z) (b : block) (m' : Mem.mem')
+Lemma free_neutral: 
+  forall (thr : block) (m : mem) (lo hi : Z) (b : block) (m' : Mem.mem')
   (FREE: Mem.free m b lo hi = Some m'),
   Mem.inject_neutral thr m -> Mem.inject_neutral thr m'.
 Proof. intros. inv H. 
   split; intros.
-     apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r. assumption.
-     apply flatinj_E in H. destruct H as [? [? ?]]; subst. apply Z.divide_0_r. (*rewrite Zplus_0_r. assumption.*)
-     apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r.
-        assert (X: Mem.flat_inj thr b1 = Some (b1,0)). apply flatinj_I. assumption.
-        assert (Y:= Mem.perm_free_3 _ _ _ _ _ FREE _ _ _ _ H0).
-         specialize (mi_memval _ _ _ _ X Y). rewrite Zplus_0_r in *.    
-         rewrite (Mem.free_result _ _ _ _ _ FREE) in *. simpl in *. apply mi_memval.
+     apply flatinj_E in H. destruct H as [? [? ?]]; subst. 
+       rewrite Zplus_0_r. assumption.
+     apply flatinj_E in H. destruct H as [? [? ?]]; subst. 
+       apply Z.divide_0_r.
+     apply flatinj_E in H. destruct H as [? [? ?]]; subst. 
+       rewrite Zplus_0_r.
+       assert (X: Mem.flat_inj thr b1 = Some (b1,0)). 
+         { apply flatinj_I. assumption. }
+       assert (Y:= Mem.perm_free_3 _ _ _ _ _ FREE _ _ _ _ H0).
+        specialize (mi_memval _ _ _ _ X Y). rewrite Zplus_0_r in *.    
+        rewrite (Mem.free_result _ _ _ _ _ FREE) in *. simpl in *. 
+          apply mi_memval.
 Qed.
 
 Lemma getN_aux: forall n p c B1 v B2, Mem.getN n p c = B1 ++ v::B2 ->
@@ -575,7 +608,7 @@ Proof. intros.
   destruct d; inv LD. auto.
 Qed.
 
-(******** Compatibility of memory operation with mem_forward********)
+(******** Compatibility of memory operation with [mem_forward] ********)
 
 Lemma store_forward: forall m b ofs v ch m'
       (M:Mem.store ch m b ofs v = Some m'),
@@ -640,7 +673,8 @@ unfold Mem.valid_block in H1.
 apply Pos.leb_le.
 remember (Pos.leb (Mem.nextblock m) (Mem.nextblock m')).
 destruct b; trivial.
-assert (H2: (Mem.nextblock m' < Mem.nextblock m)%positive). apply Pos.leb_gt. rewrite Heqb. trivial. 
+assert (H2: (Mem.nextblock m' < Mem.nextblock m)%positive). 
+  apply Pos.leb_gt. rewrite Heqb. trivial. 
 destruct (H1 (Mem.nextblock m')); auto.
 xomega.
 Qed.
@@ -792,9 +826,10 @@ destruct H4.
 eapply H3 in H; eauto.
 Qed.
 
-Definition genvs_domain_eq {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) :=
-  (forall b, fst (genv2blocks ge1) b <-> fst (genv2blocks ge2) b) /\
-  (forall b, snd (genv2blocks ge1) b <-> snd (genv2blocks ge2) b).
+Definition genvs_domain_eq {F1 F2 V1 V2: Type} 
+  (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) :=
+    (forall b, fst (genv2blocks ge1) b <-> fst (genv2blocks ge2) b) /\
+    (forall b, snd (genv2blocks ge1) b <-> snd (genv2blocks ge2) b).
 
 Lemma genvs_domain_eq_preserves:
   forall {F1 F2 V1 V2: Type} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) j,
@@ -842,8 +877,11 @@ split; intro b; split; intro H3;
  solve[destruct (H1 b); auto|destruct (H2 b); auto].
 Qed.
 
-Lemma genvs_domain_eq_refl: forall F V (ge: Genv.t F V), genvs_domain_eq ge ge.
-Proof. solve[intros F V ge; unfold genvs_domain_eq; split; intro b; split; auto]. Qed.
+Lemma genvs_domain_eq_refl: 
+  forall F V (ge: Genv.t F V), genvs_domain_eq ge ge.
+Proof. 
+solve[intros F V ge; unfold genvs_domain_eq; split; intro b; split; auto]. 
+Qed.
 
 Lemma genvs_domain_eq_trans: forall {F1 F2 F3 V1 V2 V3: Type} 
   (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) (ge3: Genv.t F3 V3),
@@ -861,8 +899,11 @@ Proof. intros F1 V1 F2 V2 ge1 ge2.
   unfold genvs_domain_eq, genv2blocks. simpl; intros. 
   destruct H. 
   f_equal; extensionality b. 
-    apply prop_ext. apply H. (*We use Axiom prop_ext here, but Lemma genvs_domain_eq_match_genvsB in effect_simulations.v shows the same result of this lemma for Bool rather than Prop*)
-    apply prop_ext. apply H0. (*We use Axiom prop_ext here, but Lemma genvs_domain_eq_match_genvsB in effect_simulations.v shows the same result of this lemma for Bool rather than Prop*)
+(*We use Axiom prop_ext here, but Lemma genvs_domain_eq_match_genvsB
+in effect_simulations.v shows the same result of this lemma for Bool
+rather than Prop*)
+    apply prop_ext. apply H. 
+    apply prop_ext. apply H0. 
 Qed.
 
 Lemma meminj_preserves_globals_ind_compose:
@@ -939,10 +980,15 @@ Lemma forward_unchanged_on: forall m m' (FWD: mem_forward m m')
 Proof. intros.
 split; intros. 
   destruct H; subst. 
-  split; intros; elim P. eapply Mem.perm_max. eapply Mem.perm_implies; try eassumption. apply perm_any_N. 
-      eapply FWD. assumption. eapply Mem.perm_max. eapply Mem.perm_implies; try eassumption. apply perm_any_N.
+  split; intros; elim P. 
+    eapply Mem.perm_max. 
+    eapply Mem.perm_implies; try eassumption. apply perm_any_N. 
+    eapply FWD. assumption. 
+    eapply Mem.perm_max. 
+    eapply Mem.perm_implies; try eassumption. apply perm_any_N.
 destruct H; subst. 
-  elim P. eapply Mem.perm_max. eapply Mem.perm_implies; try eassumption. apply perm_any_N.
+  elim P. eapply Mem.perm_max. 
+  eapply Mem.perm_implies; try eassumption. apply perm_any_N.
 Qed.
 
 Lemma unchanged_on_union:
@@ -1004,7 +1050,6 @@ Lemma unchanged_on_perm_intersection: forall m m' U (Fwd: mem_forward m m'),
                apply perm_any_N.
 Qed.
 
-
 Lemma unchanged_on_trans: forall m1 m2 m3 U
       (U1: Mem.unchanged_on U m1 m2) 
       (U2: Mem.unchanged_on U m2 m3)
@@ -1021,3 +1066,32 @@ destruct U1 as [P1 V1]; destruct U2 as [P2 V2].
     apply V1; trivial.
   apply P1; trivial. eapply Mem.perm_valid_block; eassumption.
 Qed.
+
+Lemma external_call_mem_forward:
+  forall (ef : external_function) (F V : Type) (ge : Genv.t F V)
+    (vargs : list val) (m1 : mem) (t : trace) (vres : val) (m2 : mem),
+    external_call ef ge vargs m1 t vres m2 -> mem_forward m1 m2.
+Proof.
+intros.
+intros b Hb.
+split; intros. eapply external_call_valid_block; eauto.
+eapply external_call_max_perm; eauto.
+Qed.
+
+Definition val_has_type_opt' (v: option val) (ty: typ) :=
+ match v with
+ | None => True
+ | Some v' => Val.has_type v' ty
+ end.
+
+Definition val_has_type_opt (v: option val) (sig: signature) :=
+  val_has_type_opt' v (proj_sig_res sig).
+
+Definition is_vundef (v : val) : bool :=
+  match v with 
+    | Vundef => true
+    | _ => false
+  end.
+
+Definition vals_def (vs : list val) := 
+  List.forallb (fun v => negb (is_vundef v)) vs.

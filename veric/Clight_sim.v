@@ -1104,7 +1104,6 @@ Definition CC_core_sem : CoreSemantics (Genv.t fundef type) CC_core mem.
        apply CC_corestep_not_at_external.
        apply CC_corestep_not_halted.
        apply CC_at_external_halted_excl.
-       apply CC_after_at_external_excl.
   Defined.
 
 Lemma CC_step_to_CCstep: forall ge q m q' m',

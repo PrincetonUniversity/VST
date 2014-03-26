@@ -82,7 +82,7 @@ Program Definition coresem : CoreSemantics G (Z*list Event.t*C) mem :=
   (fun _ _ => None)
   halted 
   step
-  _ _ _ _.
+  _ _ _.
 Next Obligation.
 inv H; unfold halted; simpl.
 solve[apply corestep_not_halted in H9; auto].

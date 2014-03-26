@@ -294,8 +294,7 @@ Program Definition cl_core_sem :
     cl_halted
     cl_step
     cl_corestep_not_at_external 
-    cl_corestep_not_halted _
-    cl_after_at_external_excl.
+    cl_corestep_not_halted _.
 
 Lemma cl_corestep_fun: forall ge m q m1 q1 m2 q2, 
     cl_step ge q m q1 m1 -> 

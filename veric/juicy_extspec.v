@@ -57,13 +57,6 @@ Proof.
  destruct (at_external_halted_excl csem q); [left | right]; auto.
 Qed.
 
-Lemma j_after_at_external_excl {G C} (csem: CoreSemantics G C mem): 
-  forall retv q q',
-  after_external csem retv q = Some q' -> at_external csem q' = None.
-Proof.
-intros; apply (after_at_external_excl csem retv q); auto.
-Qed.
-
 Record jm_init_package: Type := {
   jminit_m: Memory.mem;
   jminit_prog: program;
@@ -90,8 +83,7 @@ Definition juicy_core_sem
     (jstep csem)
     (jstep_not_at_external csem)
     (jstep_not_halted csem)
-    (j_at_external_halted_excl csem)
-    (j_after_at_external_excl csem).
+    (j_at_external_halted_excl csem).
 
 Obligation Tactic := Tactics.program_simpl.
 
