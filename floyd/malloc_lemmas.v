@@ -324,16 +324,16 @@ match flds as f return (reptype_structlist f -> val -> mpred) with
             else (reptype t * reptype_structlist flds0)%type) -> val -> mpred)
        then
         fun (_ : is_Fnil flds0 = true) (X1 : reptype t) =>
-        withspacer sh pos' (alignof t)
+        withspacer sh (align pos' (alignof t) + sizeof t) (alignof t_str)
+        (withspacer sh pos' (alignof t)
           (maybe_field_at sh t t_str i (align pos (alignof t))
-             (data_at' sh t pos') X1) *
-        spacer sh (align pos' (alignof t) + sizeof t) (alignof t_str)
+             (data_at' sh t (align pos' (alignof t))) X1))
        else
         fun (_ : is_Fnil flds0 = false)
           (X1 : reptype t * reptype_structlist flds0) =>
         (withspacer sh pos' (alignof t)
           (maybe_field_at sh t t_str i (align pos (alignof t))
-             (data_at' sh t pos') (fst X1)) *
+             (data_at' sh t (align pos' (alignof t))) (fst X1)) *
         (structfieldsof sh t_str flds0 pos (align pos' (alignof t) + sizeof t) (snd X1))))
    eq_refl X0
 end
@@ -605,11 +605,9 @@ induction n; [split; intros; omega | ].
    destruct (is_Fnil f) eqn:Hf.
    repeat rewrite withspacer_spacer; simpl.
    f_equal.
-   - rewrite spacer_offset_zero. 
-     rewrite MFM; [|simpl in H]. reflexivity. 
-     pose proof typecount_fields_pos f.
-     omega. 
-   - normalize. rewrite spacer_offset_zero. reflexivity. 
+   - rewrite spacer_offset_zero. reflexivity.
+   - normalize. rewrite spacer_offset_zero.
+     rewrite MFM; [ |simpl in H; pose (typecount_fields_pos f); omega]. reflexivity. 
    - rewrite IHf; [ |simpl in H; pose (typecount_fields_pos f); omega].
      repeat rewrite withspacer_spacer; simpl.
      rewrite MFM; [ |simpl in H; pose (typecount_fields_pos f); omega].

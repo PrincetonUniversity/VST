@@ -153,7 +153,7 @@ PROGS_FILES= \
    entail_examples.v \
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
   verif_float.v \
-  verif_nest3.v \
+  verif_nest3.v nest2.v verif_nest2.v\
   logical_compare.v verif_logical_compare.v
 
 SHA_FILES= \
@@ -165,7 +165,7 @@ SHA_FILES= \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
   verif_addlength.v verif_SHA256.v entail_examples2.v 
 
-C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c
+C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
