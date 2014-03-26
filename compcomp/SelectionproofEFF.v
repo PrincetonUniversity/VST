@@ -32,10 +32,10 @@ Require Import effect_simulations.
 Require Import sepcomp.effect_properties.
 Require Import effect_simulations_lemmas.
 
-Require Import sepcomp.Cminor_coop.
-Require Import sepcomp.Cminor_eff.
-Require Import sepcomp.CminorSel_coop.
-Require Import sepcomp.CminorSel_eff.
+Require Import Cminor_coop.
+Require Import Cminor_eff.
+Require Import CminorSel_coop.
+Require Import CminorSel_eff.
 Require Import Floats.
 
 (*Require Import sepcomp.Selectionproof.*)

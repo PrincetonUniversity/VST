@@ -13,8 +13,9 @@ Require Import Locations.
 Require Import Conventions.
 Require Stacklayout.
 
-Require Import sepcomp.Mach. 
-Require Import sepcomp.Mach_coop. 
+Require Import Mach. 
+Require Import Mach_coop. 
+
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.

@@ -12,11 +12,13 @@ Require Export Maps.
 Require Import Csharpminor.
 Require Import Cminor.
 Require Import Cminorgen.
+
+Require Import Cminor_coop.
+Require Import Csharpminor_coop.
+Require Import CminorgenproofRestructured.
+
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
-Require Import sepcomp.Cminor_coop.
-Require Import sepcomp.Csharpminor_coop.
-Require Import sepcomp.CminorgenproofRestructured.
 
 Require Import Coq.Program.Equality.
 

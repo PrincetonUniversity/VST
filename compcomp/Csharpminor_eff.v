@@ -11,8 +11,8 @@ Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.
 
-Require Import sepcomp.Csharpminor.
-Require Import sepcomp.Csharpminor_coop.
+Require Import Csharpminor.
+Require Import Csharpminor_coop.
 
 Lemma EmptyEffect_allocvariables: forall L e m e' m'
       (ALLOC: alloc_variables e m L e' m'),

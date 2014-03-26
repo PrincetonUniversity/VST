@@ -9,7 +9,8 @@ Require Import Op.
 Require Import Maps.
 Require Import Switch.
 
-Require Import sepcomp.CminorSel. 
+Require Import CminorSel. 
+
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 
@@ -225,15 +226,15 @@ Definition CMinSel_initial_core (ge:genv) (v: val) (args:list val): option CMinS
     end.
 
 Definition CMinSel_core_sem : CoreSemantics genv CMinSel_core mem.
-  eapply @Build_CoreSemantics with (at_external:=CMinSel_at_external)
-                  (after_external:=CMinSel_after_external)
-                  (corestep:=CMinSel_corestep)
-                  (halted:=CMinSel_halted). 
-    apply CMinSel_initial_core.
+  eapply (@Build_CoreSemantics _ _ _ 
+    CMinSel_initial_core
+    CMinSel_at_external
+    CMinSel_after_external
+    CMinSel_halted
+    CMinSel_corestep).
     apply CMinSel_corestep_not_at_external.
     apply CMinSel_corestep_not_halted.
     apply CMinSel_at_external_halted_excl.
-    apply CMinSel_after_at_external_excl.
 Defined.
 
 (************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)

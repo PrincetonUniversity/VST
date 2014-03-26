@@ -18,7 +18,7 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric floyd progs sha linking
+DIRS= msl sepcomp veric floyd progs sha linking compcomp
 INCLUDE= $(foreach a,$(DIRS), -I $(a) -as $(a)) -R $(COMPCERT) -as compcert
 # $(foreach a,$(CC_DIRS), -R $(COMPCERT)/$(a) -as compcert.$(a)) -I $(COMPCERT)/flocq -as compcert.flocq
 
@@ -122,11 +122,12 @@ COMPCOMP_FILES= \
   FSetAVLplus.v Allocation.v AllocproofEFF.v \
   Inlining.v Inliningspec.v Inliningproof.v \
   Linear.v Linear_coop.v Linear_eff.v Lineartyping.v \
+  Bounds.v Stacklayout.v \
+  Mach.v Mach_coop.v Mach_eff.v \
+  Stacking.v StackingproofEFF.v \
   OpEFF.v Linearize.v LinearizeproofEFF.v \
-  Mach_coop.v Mach_eff.v \
-  Bounds.v Stacklayout.v Stacking.v StackingproofEFF.v \
-  OpEFF.v Asm_coop.v Asm_eff.v Asmgen.v \
-  Asmgenproof0EFF.v Asmgenproof1EFF.v AsmgenproofEFF.v
+  Asm.v Asm_coop.v Asm_eff.v Asmgen.v \
+  Asmgenproof0EFF.v Asmgenproof1EFF.v AsmgenproofEFF.v \
 #Selectionproof.v
 
 VERIC_FILES= \
@@ -197,7 +198,7 @@ veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo) floyd/floyd.coq
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
 sha:     .loadpath $(SHA_FILES:%.v=sha/%.vo)
-compcomp: .loadpath $(COMPCOMP_FILES:%.v=sepcomp/%.vo) 
+compcomp:  .loadpath $(COMPCOMP_FILES:%.v=compcomp/%.vo) 
 
 
 ifdef CLIGHTGEN

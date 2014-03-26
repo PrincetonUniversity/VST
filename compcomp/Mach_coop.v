@@ -12,7 +12,8 @@ Require Import Locations.
 Require Import Conventions.
 Require Stacklayout.
 
-Require Import sepcomp.Mach. 
+Require Import Mach. 
+
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 
@@ -301,15 +302,15 @@ Lemma Mach_corestep_not_halted : forall ge m q m' q',
   Proof. intros. inv H; reflexivity. Qed.
 
 Definition Mach_core_sem : CoreSemantics genv Mach_core mem.
-  eapply @Build_CoreSemantics with (at_external:=Mach_at_external)
-                  (after_external:=Mach_after_external)
-                  (corestep:=mach_step return_address_offset)
-                  (halted:=Mach_halted). 
-    apply Mach_initial_core.
+  eapply (@Build_CoreSemantics _ _ _ 
+            Mach_initial_core
+            Mach_at_external
+            Mach_after_external
+            Mach_halted
+            (mach_step return_address_offset)).
     apply Mach_corestep_not_at_external.
     apply Mach_corestep_not_halted.
     apply Mach_at_external_halted_excl.
-    apply Mach_after_at_external_excl.
 Defined.
 End MACH_CORESEM.
 

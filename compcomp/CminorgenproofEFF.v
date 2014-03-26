@@ -9,9 +9,10 @@ Require Import AST.
 Require Import Integers.
 Require Import Globalenvs.
 Require Export Maps.
-Require Import sepcomp.Csharpminor.
-Require Import sepcomp.Cminor.
-Require Import sepcomp.Cminorgen.
+
+Require Import Csharpminor.
+Require Import Cminor.
+Require Import Cminorgen.
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
@@ -22,15 +23,15 @@ Require Import effect_simulations.
 Require Import sepcomp.effect_properties.
 Require Import effect_simulations_lemmas.
 
-Require Import sepcomp.Cminor_coop.
-Require Import sepcomp.Cminor_eff.
-Require Import sepcomp.Csharpminor_coop.
-Require Import sepcomp.Csharpminor_eff.
+Require Import Cminor_coop.
+Require Import Cminor_eff.
+Require Import Csharpminor_coop.
+Require Import Csharpminor_eff.
 
-Require Import sepcomp.CminorgenproofRestructured.
+Require Import CminorgenproofRestructured.
 
 Require Import Coq.Program.Equality.
-Require Import sepcomp.CminorgenproofSIM.
+Require Import CminorgenproofSIM.
 
 Section TRANSLATION.
 Variable prog: Csharpminor.program.

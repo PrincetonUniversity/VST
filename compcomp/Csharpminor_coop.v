@@ -7,10 +7,11 @@ Require Import Events.
 Require Import Globalenvs.
 Require Import Maps.
 
-Require Import sepcomp.Cminor_coop. 
+Require Import Cminor_coop. 
   (*to enable reuse of the lemmas eval_unop_valid and eval_binop_valid*)
 
-Require Import sepcomp.Csharpminor.
+Require Import Csharpminor.
+
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 
@@ -244,15 +245,15 @@ Definition CSharpMin_make_initial_core (ge:genv) (v: val) (args:list val): optio
  ie esseantially the same as Cminor*)
 
 Definition CSharpMin_core_sem : CoreSemantics genv CSharpMin_core mem.
-  eapply @Build_CoreSemantics with (at_external:=CSharpMin_at_external)
-                  (after_external:=CSharpMin_after_external)
-                  (corestep:=CSharpMin_corestep)
-                  (halted:=CSharpMin_halted). 
-    apply CSharpMin_initial_core.
-    apply CSharpMin_corestep_not_at_external.
-    apply CSharpMin_corestep_not_halted.
-    apply CSharpMin_at_external_halted_excl.
-    apply CSharpMin_after_at_external_excl.
+  eapply (@Build_CoreSemantics _ _ _ 
+    CSharpMin_initial_core
+    CSharpMin_at_external
+    CSharpMin_after_external
+    CSharpMin_halted
+    CSharpMin_corestep).
+  apply CSharpMin_corestep_not_at_external.
+  apply CSharpMin_corestep_not_halted.
+  apply CSharpMin_at_external_halted_excl.
 Defined.
 
 (************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)

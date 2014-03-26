@@ -11,8 +11,8 @@ Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.
 
-Require Import sepcomp.CminorSel.
-Require Import sepcomp.CminorSel_coop.
+Require Import CminorSel.
+Require Import CminorSel_coop.
 
 Inductive cminsel_effstep (g:genv):  (block -> Z -> bool) ->
             CMinSel_core -> mem -> CMinSel_core -> mem -> Prop :=

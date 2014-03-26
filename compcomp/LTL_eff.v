@@ -13,8 +13,9 @@ Require Import sepcomp.effect_semantics.
 
 Require Import Op. (*for eval_operation etc*)
 Require Import Locations. (*for locmap.set etc*)
-Require Import sepcomp.LTL.
-Require Import sepcomp.LTL_coop.
+
+Require Import LTL.
+Require Import LTL_coop.
 
 (*We're using the BuiltEffect also for Lannot - 
   maybe we should define a separate effect?*)

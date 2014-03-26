@@ -11,7 +11,8 @@ Require Import Locations.
 Require Import LTL.
 Require Import Conventions.
 
-Require Import sepcomp.Linear.
+Require Import Linear.
+
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import core_semantics.
 
@@ -256,15 +257,15 @@ Lemma Linear_after_at_external_excl : forall retv q q',
   Qed.
 
 Definition Linear_core_sem : CoreSemantics genv Linear_core mem.
-  eapply @Build_CoreSemantics with (at_external:=Linear_at_external)
-                  (after_external:=Linear_after_external)
-                  (corestep:=Linear_step)
-                  (halted:=Linear_halted). 
-    apply Linear_initial_core.
+  eapply (@Build_CoreSemantics _ _ _ 
+           Linear_initial_core
+           Linear_at_external
+           Linear_after_external
+           Linear_halted
+           Linear_step).
     apply Linear_corestep_not_at_external.
     apply Linear_corestep_not_halted.
     apply Linear_at_external_halted_excl.
-    apply Linear_after_at_external_excl.
 Defined.
 
 (************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)

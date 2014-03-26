@@ -8,7 +8,8 @@ Require Import Maps.
 Require Import Switch.
 Require Import Globalenvs.
 
-Require Import sepcomp.Cminor.
+Require Import Cminor.
+
 Require Import sepcomp.mem_lemmas. (*for mem_forward and wd_mem*)
 Require Import sepcomp.core_semantics.
 
@@ -254,14 +255,15 @@ Lemma CMin_after_at_external_excl : forall retv q q',
 Qed.
 
 Definition CMin_core_sem : CoreSemantics genv CMin_core mem.
-  eapply @Build_CoreSemantics with (at_external:=CMin_at_external)
-                  (after_external:=CMin_after_external) (corestep:=CMin_corestep)
-                  (halted:=CMin_halted).
-    apply CMin_initial_core.
+  eapply (@Build_CoreSemantics _ _ _ 
+    CMin_initial_core
+    CMin_at_external
+    CMin_after_external
+    CMin_halted
+    CMin_corestep).
     apply CMin_corestep_not_at_external.
     apply CMin_corestep_not_halted.
     apply CMin_at_external_halted_excl.
-    apply CMin_after_at_external_excl.
 Defined.
 
 (************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)

@@ -11,7 +11,8 @@ Require Import Op.
 Require Import Locations.
 Require Import Conventions.
 
-Require Import sepcomp.LTL. 
+Require Import LTL. 
+
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 
@@ -242,15 +243,15 @@ Inductive initial_state (p: program): state -> Prop :=
 *)
 
 Definition LTL_core_sem : CoreSemantics genv LTL_core mem.
-  eapply @Build_CoreSemantics with (at_external:=LTL_at_external)
-                  (after_external:=LTL_after_external)
-                  (corestep:=ltl_corestep)
-                  (halted:=LTL_halted). 
-    apply LTL_initial_core.
+  eapply (@Build_CoreSemantics _ _ _ 
+       LTL_initial_core
+       LTL_at_external
+       LTL_after_external
+       LTL_halted
+       ltl_corestep).
     apply LTL_corestep_not_at_external.
     apply LTL_corestep_not_halted.
     apply LTL_at_external_halted_excl.
-    apply LTL_after_at_external_excl.
 Defined.
 
 (************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)

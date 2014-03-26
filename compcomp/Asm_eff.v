@@ -11,8 +11,9 @@ Require Import Locations.
 Require Import Stacklayout.
 Require Import Conventions.
 
-Require Import sepcomp.Asm. 
-Require Import sepcomp.Asm_coop. 
+Require Import Asm. 
+Require Import Asm_coop. 
+
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.

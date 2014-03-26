@@ -13,8 +13,8 @@ Require Import sepcomp.effect_semantics.
 Require Import Op.
 Require Import Registers.
 
-Require Import sepcomp.RTL.
-Require Import sepcomp.RTL_coop.
+Require Import RTL.
+Require Import RTL_coop.
 
 Inductive RTL_effstep (ge:genv):  (block -> Z -> bool) ->
             RTL_core -> mem -> RTL_core -> mem -> Prop :=

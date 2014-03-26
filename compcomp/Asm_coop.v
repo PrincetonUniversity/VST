@@ -12,7 +12,8 @@ Require Import Locations.
 Require Import Stacklayout.
 Require Import Conventions.
 
-Require Import sepcomp.Asm. 
+Require Import Asm. 
+
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 
@@ -160,15 +161,15 @@ Lemma Asm_corestep_not_halted : forall ge m q m' q',
   Qed.
  
 Definition Asm_core_sem : CoreSemantics genv state mem.
-  eapply @Build_CoreSemantics with (at_external:=Asm_at_external)
-                  (after_external:=Asm_after_external)
-                  (corestep:=asm_step)
-                  (halted:=Asm_halted). 
-    apply Asm_initial_core.
+  eapply (@Build_CoreSemantics _ _ _ 
+            Asm_initial_core
+            Asm_at_external
+            Asm_after_external
+            Asm_halted
+            asm_step).
     apply Asm_corestep_not_at_external.
     apply Asm_corestep_not_halted.
     apply Asm_at_external_halted_excl.
-    apply Asm_after_at_external_excl.
 Defined.
 End ASM_CORESEM.
 

@@ -210,12 +210,15 @@ Lemma after_xor_at_external: forall (retv : option val) (q q' : RTL_core),
 Qed.
 
 Definition RTL_core_sem : CoreSemantics genv RTL_core mem.
-  eapply @Build_CoreSemantics with (at_external:= RTL_at_external) (after_external:= RTL_after_external)(corestep:=RTL_corestep)(halted:= RTL_halted).
-  apply RTL_initial_core.
+  eapply (@Build_CoreSemantics _ _ _ 
+            RTL_initial_core
+            RTL_at_external
+            RTL_after_external
+            RTL_halted
+            RTL_corestep).
   eapply corestep_not_external.
   eapply corestep_not_halted.
   eapply external_xor_halted.
-  eapply after_xor_at_external.
 Defined.
 
 (************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)
