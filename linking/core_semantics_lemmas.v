@@ -4,10 +4,44 @@ Require Import compcert.common.AST. (*for mksignature*)
 Require Import compcert.common.Globalenvs.
 
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.effect_semantics.
 
 Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+
+Require Import compcert.common.Values.
+
+(** This module defines a core semantics typeclass, for building 
+    functors over coresem-like objects.  *)
+
+Module Coresem.
+Class t {G C M : Type} : Type :=
+  { initial_core : G -> val -> list val -> option C
+  ; at_external : C -> option (external_function * signature * list val)
+  ; after_external : option val -> C -> option C
+  ; halted : C -> option val 
+  ; corestep : G -> C -> M -> C -> M -> Prop
+
+  ; corestep_not_at_external : 
+      forall ge m q m' q', corestep ge q m q' m' -> at_external q = None
+  ; corestep_not_halted: 
+      forall ge m q m' q', corestep ge q m q' m' -> halted q = None
+  ; at_external_halted_excl: 
+      forall q, at_external q = None \/ halted q = None }.
+End Coresem.
+
 Set Implicit Arguments.
+
+Instance core_instance (G C M: Type) (csem: @CoreSemantics G C M) : @Coresem.t G C M :=
+  Coresem.Build_t G C M 
+    (initial_core csem) 
+    (at_external csem)
+    (after_external csem)
+    (halted csem)
+    (corestep csem)
+    (corestep_not_at_external csem)
+    (corestep_not_halted csem)
+    (at_external_halted_excl csem).
 
 Definition Coresem2CoreSemantics {G C M} (csem: @Coresem.t G C M) := 
   Build_CoreSemantics G C M
@@ -18,8 +52,7 @@ Definition Coresem2CoreSemantics {G C M} (csem: @Coresem.t G C M) :=
    (@Coresem.corestep _ _ _ csem)
    (@Coresem.corestep_not_at_external _ _ _ csem)
    (@Coresem.corestep_not_halted _ _ _ csem)
-   (@Coresem.at_external_halted_excl _ _ _ csem)
-   (@Coresem.after_at_external_excl _ _ _ csem).
+   (@Coresem.at_external_halted_excl _ _ _ csem).
 
 Coercion Coresem2CoreSemantics : Coresem.t >-> CoreSemantics.
 

@@ -11,6 +11,7 @@ Require Import Globalenvs.
 Require Import msl.Axioms.
 Require Import sepcomp.mem_lemmas. (*TODO: Is this import needed?*)
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.forward_simulations.
 
 (* This file provides a series of interfaces to [forward_simulations.v] *)

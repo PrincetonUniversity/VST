@@ -1,5 +1,6 @@
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.forward_simulations.
 Require Import sepcomp.compiler_correctness.
 Require Import sepcomp.forward_simulations_lemmas.

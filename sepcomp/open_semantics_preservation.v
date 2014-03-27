@@ -5,6 +5,7 @@ Require Import msl.Axioms.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.effect_semantics.
 Require Import sepcomp.trace_semantics.
 Require Import sepcomp.StructuredInjections.

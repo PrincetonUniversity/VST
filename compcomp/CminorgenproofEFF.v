@@ -16,6 +16,7 @@ Require Import Cminorgen.
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.reach.
 Require Import sepcomp.effect_semantics.
 Require Import StructuredInjections.

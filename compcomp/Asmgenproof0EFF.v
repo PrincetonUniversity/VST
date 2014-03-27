@@ -33,6 +33,7 @@ Require Import Conventions.
 Require Import msl.Axioms.
 Require Import sepcomp.mem_lemmas. (*for valid_block_dec, mem_forward etc*)
 Require Import sepcomp.core_semantics.
+Require Import sepcomp.core_semantics_lemmas.
 Require Import sepcomp.effect_semantics.
 Require Import Asm_coop.
 Require Import Asm_eff.

@@ -120,18 +120,6 @@ Definition corestep ge c m c' m' :=
 
 Arguments corestep /.
 
-Lemma after_at_external_excl ov (c c' : state) :
-  after_external ov c = Some c' -> 
-  at_external c' = None.
-Proof.
-intros H.
-case_eq (after_at_external_excl sem ov (core c) (core c')); auto.
-revert H; unfold after_external.
-case (core_semantics.after_external sem ov (core c)).
-intros ?; case ov. intros v. inversion 1; auto. inversion 1; auto.
-inversion 1.
-Qed.
-
 Lemma getBlocks_app l1 l2 : 
   getBlocks (l1 ++ l2) 
   = fun b => getBlocks l1 b || getBlocks l2 b.
@@ -179,7 +167,7 @@ Program Definition coresem : CoreSemantics (Genv.t F V) state mem :=
     at_external
     after_external
     halted
-    corestep _ _ _ after_at_external_excl.
+    corestep _ _ _.
 Next Obligation. 
 destruct (effax1 H0) as [X Y].
 revert X; apply corestep_not_at_external; auto. 

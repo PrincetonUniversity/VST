@@ -448,17 +448,6 @@ first by right; apply: (at_external0_not_halted _ Hat).
 by left.
 Qed.
 
-Lemma after_at_external_excl rv c c' :
-  after_external rv c = Some c' -> at_external c' = None.
-Proof.
-rewrite/after_external/at_external.
-case Heq: (Coresem.after_external _ _)=>//.
-inversion 1; subst.
-case Hat: (at_external0 _)=>//[[[ef sig] args]].
-move: Hat; rewrite/at_external0=>/= H2.
-by apply after_at_external_excl in Heq; rewrite Heq in H2. 
-Qed.
-
 Definition coresem : CoreSemantics ge_ty (linker N my_cores) Csem.M :=
   Build_CoreSemantics ge_ty (linker N my_cores) Csem.M 
     initial_core
@@ -468,8 +457,7 @@ Definition coresem : CoreSemantics ge_ty (linker N my_cores) Csem.M :=
     corestep
     corestep_not_at_external    
     corestep_not_halted 
-    at_external_halted_excl
-    after_at_external_excl.
+    at_external_halted_excl.
 
 End linkerSem. End LinkerSem.
 
@@ -544,7 +532,7 @@ Program Definition csem
     (at_external mycsem)
     (after_external mycsem)
     (halted mycsem) 
-    inner_effstep _ _ _ _.
+    inner_effstep _ _ _.
 
 Next Obligation. 
 move: H; rewrite/inner_effstep=> [[H1] H2]. 
@@ -557,7 +545,6 @@ by apply: (Sem.corestep_not_halted H1).
 Qed.
 
 Next Obligation. by apply: (Sem.at_external_halted_excl). Qed.
-Next Obligation. by apply (Sem.after_at_external_excl _ _ H). Qed.
 
 End csem.
 
