@@ -26,9 +26,9 @@ Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
    (field_at_ Tsh t_struct_elem _next p)).
 
 Lemma goal_1 :
-name _Q ->
-name _h ->
-forall (q : val) (contents : list val) (hd tl : val),
+forall (Q: name _Q)
+  (h: name _h)
+   (q : val) (contents : list val) (hd tl : val),
 is_pointer_or_null hd ->
 is_pointer_or_null tl ->
 forall rho : environ,
@@ -325,17 +325,16 @@ tc_environ Delta rho ->
            field_at Tsh t_struct_elem _next nullval tl0)))))).
 Proof.
 ungather_entail.
-entailer!.
-apply exp_right with (eval_id _h rho, tl).
+findvars.
 entailer.
-apply prop_and_right.
-destruct (eval_id _h rho); inv H1; reflexivity.
-if_tac.
-entailer!; rewrite H6; reflexivity.
-normalize.
-destruct prefix; entailer!.
-destruct (eval_id _h rho); try contradiction; reflexivity.
-destruct (eval_id _h rho); try contradiction; reflexivity.
+apply exp_right with (h, tl).
+entailer.
+if_tac. entailer.
+entailer.
+destruct prefix; entailer.
+destruct tl; try contradiction; simpl.
+entailer.
+destruct v; try contradiction; simpl; entailer.
 Qed.
 
 Lemma goal_2 :
@@ -1769,7 +1768,7 @@ Proof. intros Q Q'; ungather_entail.
   entailer.
   apply exp_right with (nullval,nullval).
   if_tac; [ | congruence].
- entailer!. reflexivity. reflexivity.
+ entailer!.
 Qed.
 
 Lemma goal_6 :

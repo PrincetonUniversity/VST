@@ -129,7 +129,8 @@ entailer!.
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
 entailer!.
-destruct cts; inv H; normalize.
+destruct H0 as [H0 _]; specialize (H0 (eq_refl _)).
+destruct cts; inv H0; normalize.
 (* Prove that loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
@@ -176,7 +177,8 @@ entailer!.
 (* loop invariant implies typechecking of loop condition *)
 entailer!.
 (* loop invariant (and not loop condition) implies loop postcondition *)
-entailer!. rewrite <- app_nil_end, rev_involutive. auto.
+entailer!. 
+rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 normalize.
 focus_SEP 1; apply semax_lseg_nonnull;
@@ -253,7 +255,7 @@ Proof.
  destruct data; simpl list_init_rep; unfold id2pred_star; fold id2pred_star;
  apply andp_right; auto;
  match goal with |- (_ * ?A) rho |-- _ => forget A as JJ end;
- simpl;  entailer!.
+ simpl; unfold_lift; entailer!.
  eapply derives_trans; [apply H | clear H; apply derives_extract_prop; intro ].
  replace (eval_var i (tarray t_struct_list n) rho)
    with (offset_val (Int.repr 0) (eval_var i (tarray t_struct_list n) rho))

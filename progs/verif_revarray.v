@@ -121,16 +121,16 @@ entailer; apply prop_right.
 rewrite Int.sub_signed in H4, H6.
 normalize in H4. normalize in H6.
 simpl_compare.
-split3.
-symmetry; apply H5. reflexivity. omega.
+split.
+symmetry; apply H5.  omega.
 normalize.
 forward. (*  a[lo] = s; *) 
 entailer. apply prop_right.
 rewrite Int.sub_signed in H4, H6.
 normalize in H4. normalize in H6.
 simpl_compare.
-split3.
-symmetry; apply H4. reflexivity. omega.
+split.
+symmetry; apply H4. omega.
 normalize.
 forward. (* lo++; *)
 forward. (* hi--; *)

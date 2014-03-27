@@ -220,9 +220,9 @@ Ltac ent_iter :=
                 || simple apply derives_extract_prop');
                 fancy_intro);
    saturate_local;
-   subst_any;
+(* subst_any; *)
    simpl_compare;
-   normalize.
+   subst_any.
 
 Ltac prune_conjuncts :=
  repeat rewrite and_assoc';
@@ -235,7 +235,7 @@ Ltac prune_conjuncts :=
          | idtac].
 
 Ltac entailer' :=  
- repeat (progress ent_iter);
+ repeat (progress (ent_iter; normalize));
  try simple apply prop_and_same_derives;
  prune_conjuncts;
  try rewrite (prop_true_andp True) by apply I;
@@ -266,7 +266,13 @@ Ltac mysplit :=
  end.
 
 Ltac my_auto :=
- repeat mysplit; try computable; auto; try apply I; try omega.
+ repeat mysplit; try computable; normalize; auto; try apply I; try reflexivity; try omega.
+
+Lemma prop_and_same_derives' {A}{NA: NatDed A}:
+  forall (P: Prop) Q,   P   ->   Q |-- !!P && Q.
+Proof.
+intros. apply andp_right; auto. apply prop_right; auto.
+Qed.
 
 Ltac entbang := 
  match goal with
@@ -277,26 +283,15 @@ Ltac entbang :=
     end
  | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
  end;
- repeat (progress ent_iter);
- try simple apply prop_and_same_derives;
- match goal with 
-   | |- _ |-- !! _ => apply prop_right; my_auto
-   | |- _ |-- !! _ && _ => apply andp_right; 
-               [ apply prop_right; my_auto                       
-               | cancel]
-   | |- _ |-- _ => cancel
-   | |- _ => my_auto
- end.
- 
+ ent_iter;
+ first [ simple apply prop_right; my_auto
+        | simple apply prop_and_same_derives'; my_auto
+        | simple apply andp_right; [apply prop_right; my_auto | normalize; cancel ]
+        | normalize; cancel
+        | my_auto
+        ].
+
 Tactic Notation "entailer" "!" := entbang.
-(*
-  entailer; 
-  first [simple apply andp_right; [apply prop_right; prop_solve | cancel ]
-         | simple apply prop_right; prop_solve
-         | match goal with |- _ |-- _ => try cancel end
-         | prop_solve
-         ].
-*)
 
 Ltac elim_hyps :=
  repeat match goal with
@@ -457,3 +452,43 @@ Ltac helper1 :=
   end. 
 
 (*** End of Omega stuff *)
+
+Lemma offset_val_sizeof_hack:
+ forall t i p,
+   isptr p ->
+   i=0 ->
+   (offset_val (Int.repr (sizeof t * i)) p = p) = True.
+Proof.
+intros.
+subst.
+destruct p; try contradiction.
+simpl. rewrite Z.mul_0_r.
+rewrite Int.add_zero.
+apply prop_ext; intuition.
+Qed.
+Hint Rewrite offset_val_sizeof_hack : norm.
+
+Lemma offset_val_sizeof_hack2:
+ forall t i j p,
+   isptr p ->
+   i=j ->
+   (offset_val (Int.repr (sizeof t * i)) p = offset_val (Int.repr (sizeof t * j)) p) = True.
+Proof.
+intros.
+subst.
+apply prop_ext; intuition.
+Qed.
+Hint Rewrite offset_val_sizeof_hack2 : norm.
+
+Lemma offset_val_sizeof_hack3:
+ forall t i p,
+   isptr p ->
+   i=1 ->
+   (offset_val (Int.repr (sizeof t * i)) p = offset_val (Int.repr (sizeof t)) p) = True.
+Proof.
+intros.
+subst.
+rewrite Z.mul_1_r.
+apply prop_ext; intuition.
+Qed.
+Hint Rewrite offset_val_sizeof_hack3 : norm.

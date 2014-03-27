@@ -130,7 +130,9 @@ apply andp_right; [ | solve [auto]].
 destruct (isnil contents).
 * entailer!.
 * normalize.
- destruct prefix; entailer!; elim_hyps; simpl; auto.
+ destruct prefix; entailer; elim_hyps; simpl; auto.
+ apply prop_right; auto.
+ apply prop_right; auto.
 Qed.
 
 Lemma body_fifo_new: semax_body Vprog Gtot f_fifo_new fifo_new_spec.

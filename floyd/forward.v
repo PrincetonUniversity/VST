@@ -143,10 +143,6 @@ Qed.
 
 (* end of "stuff to move elsewhere" *)
 
-Definition abbreviate {A:Type} (x:A) := x.
-Implicit Arguments abbreviate [[A][x]].
-(* Notation "'...'" := (abbreviate _). *)
-
 Tactic Notation "abbreviate" constr(y) "as"  ident(x)  :=
    (first [ is_var y 
            |  let x' := fresh x in pose (x':= @abbreviate _ y); 

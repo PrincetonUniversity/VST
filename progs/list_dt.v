@@ -1158,7 +1158,7 @@ Hint Rewrite @links_nil_eq @links_cons_eq : norm.
 Lemma links_local_facts: 
   forall t fld LS sh contents p q, 
      @links t fld LS sh contents p q |--
-     !! (is_pointer_or_null p).
+     !! (is_pointer_or_null p /\ (p=q <-> contents=nil)).
 Proof.
 intros.
 rewrite links_unfold.
@@ -1169,20 +1169,28 @@ apply prop_right.
 destruct p; try contradiction; simpl; auto.
 destruct q; try contradiction; auto.
 destruct H.
-simpl in H0.
-apply int_eq_e in H0. auto.
+apply int_eq_e in H0. subst.
+apply int_eq_e in H. subst.
+split; auto. split; auto.
+destruct q; try contradiction.
+destruct H; subst.
+apply int_eq_e in H0. subst.
+split; auto. split; auto.
 normalize.
 rewrite field_at_isptr.
 normalize.
 apply prop_right.
-destruct p; try contradiction; apply I.
+split; intro.
+ subst q. contradiction H.
+normalize.
+inv H1.
 Qed.
 Hint Resolve links_local_facts : saturate_local.
 
 Lemma lseg_local_facts: 
   forall t fld LS sh contents p q, 
      @lseg t fld LS sh contents p q |--
-     !! (is_pointer_or_null p).
+     !! (is_pointer_or_null p /\ (p=q <-> contents=nil)).
 Proof.
 intros.
 rewrite lseg_unfold.
@@ -1193,13 +1201,20 @@ apply prop_right.
 destruct p; try contradiction; simpl; auto.
 destruct q; try contradiction; auto.
 destruct H.
-simpl in H0.
-apply int_eq_e in H0. auto.
+apply int_eq_e in H0.
+apply int_eq_e in H. subst. subst.
+split; auto; split; auto.
+destruct q; try contradiction; auto.
+destruct H.
+apply int_eq_e in H0. subst.
+split; auto; split; auto.
 normalize.
 rewrite field_at_isptr.
 normalize.
 apply prop_right.
-destruct p; try contradiction; apply I.
+split. intro; subst q.
+contradiction H. normalize.
+intros. inv H1.
 Qed.
 Hint Resolve lseg_local_facts : saturate_local.
 

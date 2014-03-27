@@ -220,7 +220,7 @@ Ltac fancy_intro :=
                     simple apply typed_false_of_bool in H
  | typed_true _ (Val.of_bool _) =>  
                     simple apply typed_true_of_bool in H
- | _ => try (discriminate H)
+ | _ => try solve [discriminate H]
  end.
 
 Ltac normalize1 := 
@@ -903,6 +903,72 @@ Definition name (id: ident) := True.
 Tactic Notation "name" ident(s) constr(id) := 
     assert (s: name id) by apply I.
 
+Definition reflect_temps_f (rho: environ) (b: Prop) (i: ident) (t: type*bool) : Prop :=
+    match t with
+    | (t',true) => tc_val t' (eval_id i rho) /\ b
+    |  _  => b
+   end.
+
+Definition reflect_temps (Delta: tycontext) (rho: environ) : Prop :=
+    PTree.fold (reflect_temps_f rho) (temp_types Delta) True.
+
+Lemma reflect_temps_valid:
+  forall Delta rho,
+    tc_environ Delta rho -> reflect_temps Delta rho.
+Proof.
+intros.
+unfold reflect_temps.
+rewrite PTree.fold_spec.
+remember  (PTree.elements (temp_types Delta)) as el.
+assert (forall i v, In (i,v) el -> (temp_types Delta) ! i = Some v).
+ intros. subst el. apply PTree.elements_complete; auto.
+clear Heqel.
+assert (forall b: Prop, b -> fold_left
+  (fun (a : Prop) (p : positive * (type * bool)) =>
+   reflect_temps_f rho a (fst p) (snd p)) el b);
+  [ | auto].
+revert H0; induction el; simpl; intros; auto.
+unfold reflect_temps_f at 2.
+destruct a as [i [t [|]]]; simpl; auto.
+apply IHel; auto.
+split; auto.
+eapply tc_eval_id_i.
+eassumption.
+apply H0; auto.
+Qed.
+
+Definition abbreviate {A:Type} (x:A) := x.
+Implicit Arguments abbreviate [[A][x]].
+
+Ltac findvars :=
+ match goal with DD: tc_environ ?Delta ?rho |- _ =>
+  let H := fresh in
+    assert (H := reflect_temps_valid _ _ DD);
+    try (unfold Delta in H);
+   cbv beta iota zeta delta [abbreviate PTree.fold PTree.append PTree.xfold temp_types fst snd
+             reflect_temps reflect_temps_f] in H;
+   simpl in H;
+   repeat match goal with
+    | Name: name ?J |- context [eval_id ?J rho] =>
+            fold J in H;
+            clear Name;
+           forget (eval_id J rho) as Name
+    | |- context [eval_id ?J rho] =>
+           try fold J in H;
+           let Name := fresh "_id" in forget (eval_id J rho) as Name
+    | Name: name _ |- _ => 
+          clear Name
+     end;
+    repeat match type of H with
+                | _ (eval_id _ _) /\ _ =>  destruct H as [_ H]
+                | is_int ?i /\ _ => let TC := fresh "TC" in destruct H as [TC H]; 
+                                let i' := fresh "id" in rename i into i';
+                               apply is_int_e in TC; destruct TC as [i TC]; subst i'
+                | _ /\ _ => destruct H as [?TC H]
+                end;
+    clear H
+ end.
+
 Ltac findvar := 
 match goal with
     | H: tc_environ ?Delta ?RHO, Name: name ?J |- _ =>
@@ -1258,7 +1324,7 @@ intros ?rho;
 Ltac go_lower :=
  go_lower0;
  autorewrite with go_lower;
- repeat findvar;
+ try findvars;
  simpl;
  autorewrite with go_lower;
  try match goal with H: tc_environ _ ?rho |- _ => clear H rho end.
@@ -1266,8 +1332,6 @@ Ltac go_lower :=
 Hint Rewrite eval_id_same : go_lower.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : go_lower.
 Hint Rewrite Vint_inj' : go_lower.
-
-
 
 Lemma closed_wrt_PROPx:
  forall S P Q, closed_wrt_vars S Q -> closed_wrt_vars S (PROPx P Q).
@@ -2504,8 +2568,36 @@ apply X.
 destruct p; inv H; apply I.
 Qed.
 
+Lemma ptr_eq_e': forall v1 v2 B,
+   (v1=v2 -> B) ->
+   (ptr_eq v1 v2 -> B).
+Proof.
+intuition. apply X. apply ptr_eq_e; auto.
+Qed.
+
+Lemma typed_false_of_bool':
+ forall x (P: Prop), 
+    ((x=false) -> P) ->
+    (typed_false tint (Val.of_bool x) -> P).
+Proof.
+intuition.
+apply H, typed_false_of_bool; auto.
+Qed.
+
+Lemma typed_true_of_bool':
+ forall x (P: Prop), 
+    ((x=true) -> P) ->
+    (typed_true tint (Val.of_bool x) -> P).
+Proof.
+intuition.
+apply H, typed_true_of_bool; auto.
+Qed.
+
 Ltac intro_if_new :=
  repeat match goal with
+  | |- ?A -> _ => ((assert A by auto; fail 1) || fail 1) || intros _
+  | |- (_ <-> _) -> _ => 
+         intro
   | |- (?A /\ ?B) -> ?C => 
          apply (@and_ind A B C)
   | |- isptr (force_ptr ?P) -> ?Q =>
@@ -2513,16 +2605,26 @@ Ltac intro_if_new :=
   | |- isptr (offset_val ?i ?P) -> ?Q =>
          apply (isptr_offset_val'' i P Q)
   | H: is_pointer_or_null ?P |- isptr ?P -> _ =>
-         clear H; fancy_intro
-  | H: ?A |- ?A -> _ => 
-          intros _
-(* this probably works, but may be unnecessary 
-   | |- ?A -> _ =>
-       let H := fresh in assert (H: A) by auto;
-       clear H; intros _
-*)
+         clear H
+  | |- ?x = ?y -> _ => 
+          let H := fresh in intro H;
+                     first [subst x | subst y 
+                             | is_var x; rewrite H 
+                             | is_var y; rewrite <- H
+                             | solve [discriminate H]
+                             | idtac]
+  | |- isptr ?x -> _ => 
+          let H := fresh "P" x in intro H
+  | |- is_pointer_or_null ?x => 
+          let H := fresh "PN" x in intro H
+  | |- typed_false _ (Val.of_bool _) -> _ =>
+          simple apply typed_false_of_bool'
+  | |- typed_true _ (Val.of_bool _) -> _ =>
+          simple apply typed_true_of_bool'
+  | |- ptr_eq _ _ -> _ =>
+          apply ptr_eq_e'
   | |- _ -> _ =>
-            fancy_intro
+          intro
   end.
 
 Lemma TT_sepcon_TT:   (* put this in MSL as an axiom of seplog *)

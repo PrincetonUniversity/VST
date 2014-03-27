@@ -324,7 +324,7 @@ entailer.
 (*invariant implies post *)
 apply (exp_right sorted_list).
 apply (exp_right unsorted_list).
-entailer!. reflexivity.
+entailer!.
 
 (*invariant across body *)
 focus_SEP 1. apply semax_lseg_nonnull.
@@ -404,7 +404,8 @@ unfold body_invariant.
 
 apply extract_exists_pre. intro sorted_list.
 apply extract_exists_pre. intro unsorted_list.
-forward. destruct unsorted_list; inv H0; rewrite app_nil_r. cancel.
+forward.
+destruct unsorted_list; inv H0; rewrite app_nil_r. cancel.
 Qed.
 
 Lemma body_insert: semax_body Vprog Gtot f_insert insert_spec.
