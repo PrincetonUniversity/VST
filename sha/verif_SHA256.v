@@ -21,6 +21,7 @@ forward_call (* SHA256_Init(&c); *)
    (c).
 entailer!.
 normalize.
+after_call.
 forward_call (* SHA256_Update(&c,d,n); *)
   (init_s256abs,data,c,d,dsh, length data).
 entailer!.

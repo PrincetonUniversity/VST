@@ -74,6 +74,7 @@ simplify_Delta; abbreviate_semax.
 forward_call (* sha256_block_data_order (c,p); *)
   (hashed, lastblock, c, (offset_val (Int.repr 40) c), Tsh).
 entailer!.
+after_call.
 normalize.
 replace_SEP 2%Z  (K_vector).
 entailer!.
@@ -422,6 +423,7 @@ clear - H0 H9.
  assert (56 <= i-40)%Z by omega.
  apply Z2Nat.inj_le in H; try omega.
  change (Z.to_nat 56) with 56%nat in H; rewrite map_length; omega.
+ after_call.
  forward. (* p += 4; *)
  entailer!.
  forward. (* cNl=c->Nl; *)
@@ -462,6 +464,7 @@ clear - H0 H10.
  assert (60 <= i-40)%Z by omega.
  apply Z2Nat.inj_le in H; try omega.
  change (Z.to_nat 60) with 60%nat in H; rewrite map_length; omega.
+ after_call.
  autorewrite with subst.
  normalize.
  forward. (* p += 4; *)

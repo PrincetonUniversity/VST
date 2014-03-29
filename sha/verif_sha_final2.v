@@ -132,13 +132,17 @@ Focus 2. {
  replace (ddlen + 1 + (64 - (ddlen+1)))%Z with 64%Z by (clear; omega).
  cancel.
 }
+  after_call.
   forward.  (* n=0; *)
 gather_SEP 4%Z 0%Z.
 pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ list_repeat (Z.to_nat (CBLOCKz-(ddlen+1))) Int.zero)).
 replace_SEP 0%Z (  `(array_at tuchar Tsh
         (ZnthV tuchar (map Vint ddz)) 0 64
         (offset_val (Int.repr 40) c))).
-{entailer!.
+{
+ replace (Int.repr (40 + (ddlen+1))) with (Int.add (Int.repr 40) (Int.repr (ddlen+1)))
+  by apply add_repr.
+ entailer!.
  normalize in H0.
  change CBLOCKz with 64 in Hddlen.
  apply ltu_repr in H0; [ | Omega1 | Omega1].
@@ -510,6 +514,7 @@ forward_for
  rewrite inj_S. unfold Z.succ.
  rewrite Z.mul_add_distr_r. reflexivity.
 }
+ after_call.
  normalize.
  forward. (* md += 4; *)
  entailer!.

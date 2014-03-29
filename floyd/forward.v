@@ -704,6 +704,14 @@ Ltac get_global_fun_def Delta f fsig A Pre Post :=
                           fail 1 "Function " f " has no specification in the type context");
      clear VT GT.
 
+Definition This_is_a_warning := tt.
+
+Inductive Warning: unit -> unit -> Prop :=
+    ack : forall s s', Warning s s'.
+Definition IGNORE_THIS_WARNING_USING_THE_ack_TACTIC_IF_YOU_WISH := tt.
+
+Ltac ack := apply ack.
+
 Ltac all_closed R :=
  match R with 
   | @liftx (LiftEnviron mpred) _ :: ?R' => all_closed R'  
@@ -711,24 +719,32 @@ Ltac all_closed R :=
   | nil => idtac
   end.
 
+Definition WARNING__in_your_SEP_clauses_there_is_at_least_one_that_is_not_closed_Use_the_lemma__remember_value__before_moving_forward_through_a_function_call := tt.
+
+Ltac assert_ P :=
+  let H := fresh in assert (H: P); [ | clear H].
+
+Ltac warn s := 
+   assert_ (Warning s
+               IGNORE_THIS_WARNING_USING_THE_ack_TACTIC_IF_YOU_WISH).
+
 Ltac complain_open_sep_terms :=
  match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
-    first [all_closed R 
-            | let H := fresh "WARNING__in_your_SEP_clauses_there_is_at_least_one_that_is_not_closed_Use_the_lemma__remember_value__before_moving_forward_through_a_function_call"
-                      in assert (H: True) by apply I
+    first [all_closed R;  assert_ True
+            | warn WARNING__in_your_SEP_clauses_there_is_at_least_one_that_is_not_closed_Use_the_lemma__remember_value__before_moving_forward_through_a_function_call
             ]
  end.
 
 Ltac forward_call0_id :=
- complain_open_sep_terms;
- ensure_open_normal_ret_assert;
-match goal with 
+ complain_open_sep_terms; [auto |
+  ensure_open_normal_ret_assert;
+  match goal with 
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall None (Evar ?f _) ?bl) _ =>
      ensure_open_normal_ret_assert;
       let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
       evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
        get_global_fun_def Delta f fsig A Pre Post;
- let witness := fresh "witness" in let F := fresh "Frame" in
+  let witness := fresh "witness" in let F := fresh "Frame" in
       evar (witness:A); evar (F: list (environ->mpred)); 
       apply semax_pre 
          with (PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
@@ -737,7 +753,7 @@ match goal with
           | unfold F in *; apply (semax_call_id0 Espec Delta P Q F f 
                   bl (fst fsig) (snd fsig) A witness Pre Post (eq_refl _)  (eq_refl _))];
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post
-end.
+  end].
 
 Lemma semax_post3: 
   forall R' Espec Delta P c R,
@@ -809,32 +825,48 @@ unfold_lift. unfold local, lift1.
 intro rho. apply andp_left2; auto.
 Qed.
 
+Definition  DO_THE_after_call_TACTIC_NOW (x: Prop) := x.
+Arguments DO_THE_after_call_TACTIC_NOW {x}.
+
+Ltac after_call :=  
+   unfold DO_THE_after_call_TACTIC_NOW;
+   autorewrite with subst; normalize.
+
+Ltac say_after_call :=
+ match goal with |- ?x => 
+ change (@DO_THE_after_call_TACTIC_NOW x)
+ end.
+
 Ltac forward_call witness := 
 match goal with
 | |- semax _ _ (Ssequence (Ssequence _ _) _) _ => 
      apply -> seq_assoc; forward_call witness
 | |- semax _ _ (Ssequence (Scall None _ _) _) _ =>
+  let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
   eapply semax_seq';
-  [let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
-   eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
+  [eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
          [reflexivity | reflexivity | reflexivity | cbv beta iota ]
   | cbv beta iota; try simple apply elim_useless_retval;
-    simpl update_tycon; abbreviate_semax ]
+    simpl update_tycon; abbreviate_semax; unfold Frame; clear Frame;
+    say_after_call ]
 | |- semax _ _ (Scall None _ _) _ =>
    normalize_postcondition;
-  eapply semax_post_flipped3;
-  [let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
-   eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
+  let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
+   eapply semax_post_flipped3;
+  [eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
          [reflexivity | reflexivity | reflexivity | cbv beta iota ]
   | cbv beta iota; try simple apply elim_useless_retval;
     try rewrite exp_andp2;
-    try rewrite insert_local ]
+    try rewrite insert_local; unfold Frame; clear Frame;
+    say_after_call ]
 | |- semax _ _ (Ssequence (Scall (Some ?i) _ _) _) _ =>
    let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
    eapply semax_seq';
     [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
             [reflexivity | reflexivity | apply I | reflexivity | cbv beta iota ]
-    | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; intro_old_var' i ]
+    | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; 
+      intro_old_var' i; autorewrite with subst; unfold Frame; clear Frame;
+     say_after_call ]
 | |- semax _ _ (Scall (Some ?i) _ _) _ =>
    normalize_postcondition;
    let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
@@ -843,7 +875,9 @@ match goal with
             [reflexivity | reflexivity | apply I | reflexivity | cbv beta iota ]
     | try rewrite exp_andp2;
                try (apply exp_left; intro_old_var' i);
-               try rewrite insert_local ]
+               try rewrite insert_local;
+               autorewrite with subst; unfold Frame; clear Frame;
+               say_after_call ]
  | |- _ => forward_call_complain
 end.
 
@@ -1207,7 +1241,8 @@ Qed.
 
 Ltac forward_return :=
      repeat match goal with |- semax _ _ _ ?D => unfold D, abbreviate; clear D end;
-     (eapply semax_pre; [  | apply semax_return ]; entailer).
+     (eapply semax_pre; [  | apply semax_return ]; 
+      entailer_for_return).
 
 Ltac forward_ifthenelse :=
            semax_logic_and_or 
@@ -1233,7 +1268,7 @@ about id'.  So we handle it all in one gulp.
  See also BEGIN HORRIBLE1 in forward_lemmas.v
 *)
 Ltac forward_compound_call :=
-  complain_open_sep_terms;
+  complain_open_sep_terms; [auto |
   ensure_open_normal_ret_assert;
    match goal with |-  @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                (Ssequence (Scall (Some ?id') (Evar ?f _) ?bl)
@@ -1257,10 +1292,10 @@ Ltac forward_compound_call :=
                | reflexivity | reflexivity | reflexivity | reflexivity ]]
                ;
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post
-end.
+end ].
 
 Ltac forward_call1_id :=
- complain_open_sep_terms;
+ complain_open_sep_terms; [ auto |
  ensure_open_normal_ret_assert;
  match goal with 
   | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
@@ -1279,7 +1314,7 @@ Ltac forward_call1_id :=
                  (snd fsig) bl (fst fsig) A witness Pre Post 
                       (eq_refl _) (eq_refl _) I) ];
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post
- end.
+ end].
 
 Ltac forward_skip := apply semax_skip.
 

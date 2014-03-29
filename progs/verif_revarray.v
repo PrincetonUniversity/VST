@@ -187,6 +187,7 @@ entailer!.
 intros. apply ZnthV_map_Vint_is_int.
 rewrite Zlength_correct; simpl; auto.
 forward.  (*  revarray(four,4); *)
+ack.
 instantiate (1:= (a,Ews, flip 4 four_contents,4)) in (Value of witness).
 entailer!.
 intros. unfold flip, four_contents.

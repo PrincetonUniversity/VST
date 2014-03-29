@@ -41,7 +41,6 @@ simpl_data_at.
  fold t_struct_a.
 forward.
 forward.
-erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
 simpl_data_at.
 cancel.
 Qed.
@@ -55,7 +54,6 @@ simpl_data_at.
 forward.
 forward.
 unfold at_offset, id; fold t_struct_a; simpl.
-erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]).
 forget (eval_var _p t_struct_c rho) as p.
 simpl_data_at.
 fold t_struct_a.

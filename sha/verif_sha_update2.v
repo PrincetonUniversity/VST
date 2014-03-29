@@ -347,7 +347,7 @@ rewrite <- offset_val_array_at_.
  rewrite Forall_app; split; auto.
  apply Forall_firstn; auto.
  apply isbyte_intlist_to_Zlist.
-
+ after_call.
  forward. (* data  += fragment; *)
 entailer!.
  forward. (* len -= fragment; *)
@@ -393,6 +393,7 @@ entailer!.
  unfold Int.ltu in H8; if_tac in H8; try inv H8.
  unfold k in H5; repeat rewrite Int.unsigned_repr in H5 by omega.
  omega.
+ after_call.
  cbv beta iota.
  autorewrite with subst norm.
  unfold sha_update_inv.

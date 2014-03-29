@@ -92,14 +92,14 @@ with reptype'_unionlist (fld: fieldlist) : Type :=
 Fixpoint repinj (t: type): reptype' t -> reptype t :=
 match t as t0 return (reptype' t0 -> reptype t0) with
 | Tvoid => id
-| Tint _ _ _ => id Vint
-| Tlong _ _ => id Vlong
-| Tfloat _ _ => id Vfloat
+| Tint _ _ _ => Vint
+| Tlong _ _ => Vlong
+| Tfloat _ _ => Vfloat
 | Tpointer _ _ => id
-| Tarray t0 _ _ => id (map (repinj t0))
+| Tarray t0 _ _ => (map (repinj t0))
 | Tfunction _ _ => id
-| Tstruct _ f _ => id (repinj_structlist f)
-| Tunion _ f _ => id (repinj_unionlist f)
+| Tstruct _ f _ => (repinj_structlist f)
+| Tunion _ f _ => (repinj_unionlist f)
 | Tcomp_ptr _ _ => id
 end
 with repinj_structlist (fld: fieldlist) : reptype'_structlist fld -> reptype_structlist fld :=

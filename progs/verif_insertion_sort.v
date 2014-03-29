@@ -359,6 +359,7 @@ apply semax_pre with
 entailer. apply (exp_right sorted); entailer!. 
 apply extract_exists_pre. intros sorted_val.
 forward.  (* sorted = insert(index, sorted); *)
+ack.
 instantiate (1:= (sh, (insertion_sort sorted_list), insert_val, sorted_val)) in (Value of witness).
 unfold witness.  simpl @snd.
 entailer!.

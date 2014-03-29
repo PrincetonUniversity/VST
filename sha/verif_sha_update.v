@@ -444,7 +444,7 @@ entailer!.
  normalize; apply exp_right with hi.
  entailer!.
 }
-
+after_call.
 cbv beta iota. normalize.
 forward. (* n = c->num; *)
 forward. (* p=c->data; *)

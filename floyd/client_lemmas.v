@@ -2025,8 +2025,15 @@ Qed.
 Ltac gather_SEP' L :=
    grab_indexes_SEP L;
  match goal with |- context [SEPx ?R] => 
-   rewrite <- (firstn_skipn (length L) R); simpl firstn; simpl skipn; rewrite gather_SEP;
-   unfold fold_right; try  rewrite sepcon_emp
+    let r := fresh "R" in 
+    set (r := (SEPx R));
+    revert r;
+     rewrite <- (firstn_skipn (length L) R);
+      unfold length at 1 2;
+      unfold firstn at 1; unfold skipn at 1;
+      rewrite gather_SEP;
+   unfold fold_right at 1; try  rewrite sepcon_emp;
+   intro r; unfold r; clear r
  end.
 
 Tactic Notation "gather_SEP" constr(a) := gather_SEP' (a::nil).

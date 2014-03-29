@@ -119,7 +119,7 @@ name h _h.
 unfold fifo.
 normalize. intros [hd tl]. normalize.
 forward. (* h = Q->head;*)
-forward. (* return (h == NULL); *)
+forward.  (* return (h == NULL); *)
 (* goal_1 *)
 unfold fifo.
 entailer.
@@ -130,9 +130,7 @@ apply andp_right; [ | solve [auto]].
 destruct (isnil contents).
 * entailer!.
 * normalize.
- destruct prefix; entailer; elim_hyps; simpl; auto.
- apply prop_right; auto.
- apply prop_right; auto.
+ destruct prefix; entailer; elim_hyps; simpl; apply prop_right; auto.
 Qed.
 
 Lemma body_fifo_new: semax_body Vprog Gtot f_fifo_new fifo_new_spec.
@@ -140,9 +138,11 @@ Proof.
 start_function.
 name Q _Q.
 name Q' _Q'.
-forward. (* Q' = mallocN(sizeof ( *Q)); *) 
-  instantiate (1:= Int.repr 8) in (Value of witness).
+apply -> seq_assoc.
+forward_call (* Q' = mallocN(sizeof ( *Q)); *) 
+      (Int.repr 8).
   (* goal_2 *) entailer!.
+after_call.
 forward. (* Q = (struct fifo * )Q'; *)
 apply semax_pre 
   with (PROP  () LOCAL ()
@@ -158,8 +158,7 @@ forward. (* return Q; *)
   unfold fifo.
   apply exp_right with (nullval,nullval).
   rewrite if_true by auto.
-  entailer!;
-    simpl; auto.  (* this line should not be necessary *)
+  entailer!.
 Qed.
 
 Lemma body_fifo_put: semax_body Vprog Gtot f_fifo_put fifo_put_spec.
@@ -324,12 +323,14 @@ auto with closed.
 normalize. autorewrite with subst.
 apply (remember_value (eval_id _Q)); intro q.
 forward. (*  p = make_elem(1,10); *)
+ack.
 instantiate (1:= (Int.repr 1, Int.repr 10)) in (Value of witness).
 entailer!.
 auto with closed.
 normalize. autorewrite with subst.
 apply (remember_value (eval_id _p)); intro p'.
 forward. (* fifo_put(Q,p);*)
+ack.
  instantiate (1:= ((q,nil),p')) in (Value of witness).
  unfold elemrep. entailer!.
 normalize.
@@ -340,6 +341,7 @@ auto with closed.
 normalize. autorewrite with subst.
  apply (remember_value (eval_id _p)); intro p2.
  forward.  (* fifo_put(Q,p); *)
+ ack.
  instantiate (1:= ((q,(p':: nil)),p2)) in (Value of witness).
  unfold elemrep. entailer!.
 normalize.
@@ -355,6 +357,7 @@ forward. (*   p' = fifo_get(Q); p = p'; *)
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
 forward. (*  freeN(p, sizeof( *p)); *)
+ack.
 instantiate (1:=tt) in (Value of witness).
 simpl @fst; simpl @snd.
 entailer.

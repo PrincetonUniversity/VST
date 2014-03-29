@@ -274,6 +274,13 @@ Proof.
 intros. apply andp_right; auto. apply prop_right; auto.
 Qed.
 
+Ltac entailer_for_return :=
+ go_lower; ent_iter;
+ normalize;
+ repeat erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
+ prune_conjuncts;
+ try rewrite (prop_true_andp True) by apply I.
+
 Ltac entbang := 
  match goal with
  | |- ?P |-- _ => 
