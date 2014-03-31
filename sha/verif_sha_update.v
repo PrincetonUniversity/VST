@@ -74,13 +74,7 @@ semax
        (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
    `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
-   `(field_at Tsh
-       (Tstruct _struct_SHA256state_st
-          (Fcons _h (tarray tuint 8)
-             (Fcons _Nl tuint
-                (Fcons _Nh tuint
-                   (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
-          noattr) _num)
+   `(field_at Tsh t_struct_SHA256state_st _num)
      (`force_val
         (`(sem_cast (typeof (Etempvar _len tuint)) tuint)
            (eval_expr (Etempvar _len tuint))))
@@ -101,7 +95,6 @@ forward_if'.
  - (* then-clause *)
    unfold data_block; simpl; normalize.
   rename H0 into Dbytes.
-   fold t_struct_SHA256state_st.
  set (b4d := length blocks * 4 - length dd) in *.
    forward_call (* memcpy (p,data,len); *)
 (*   WITH sh : share*share, p: val, q: val, n: Z, contents: Z -> int  *)

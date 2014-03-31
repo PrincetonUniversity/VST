@@ -134,7 +134,6 @@ forward_if (
  forward. (* c->Nh=cNh; *)
  forward. (* return; *)
  unfold sha256_length.
- fold t_struct_SHA256state_st.
  apply exp_right with (Int.repr (Int.unsigned lo + len * 8)).
  apply exp_right with (Int.add (Int.repr (Int.unsigned hi + carry))
         (Int.shru (Int.repr len) (Int.repr 29))).

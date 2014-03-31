@@ -5,6 +5,9 @@ Require Import floyd.client_lemmas.
 
 Local Open Scope logic.
 
+Arguments align !n !amount / .
+Arguments Z.max !n !m / .
+
 Lemma memory_block_zero: forall sh b z, memory_block sh (Int.repr 0) (Vptr b z) = emp.
 Proof.
  intros. unfold memory_block.
@@ -169,6 +172,8 @@ Definition spacer (sh: share) (pos: Z) (alignment: Z) : val -> mpred :=
   then fun _ => emp
   else
    at_offset' (memory_block sh (Int.repr (align pos alignment - pos))) pos.
+
+Arguments spacer sh pos alignment / _ .
 
 Definition withspacer sh (pos: Z) (alignment: Z) : (val -> mpred) -> val -> mpred :=
    match align pos alignment - pos with
@@ -439,7 +444,7 @@ Ltac simpl_data_at' T H MA :=
    repeat rewrite distribute_lifted_sepcon;
    repeat rewrite distribute_envtrans;
    repeat flatten_sepcon_in_SEP;
-   simpl @fst; simpl @snd.
+   simpl @fst; simpl @snd; simpl align; simpl Z.max.
 
 Ltac simpl_data_at1 :=
     let H := fresh "H" in let MA := fresh "MA" in
@@ -576,6 +581,7 @@ Proof.
 Qed.
 
 Opaque alignof.
+Opaque spacer.
 
 Lemma mafoz_aux:
   forall n,
@@ -603,6 +609,7 @@ induction n; [split; intros; omega | ].
  induction f; intros; simpl; auto.
  + simpl in v'.
    destruct (is_Fnil f) eqn:Hf.
+
    repeat rewrite withspacer_spacer; simpl.
    f_equal.
    - rewrite spacer_offset_zero. reflexivity.
@@ -633,6 +640,7 @@ induction n; [split; intros; omega | ].
 Qed.
 
 Transparent alignof.
+Transparent spacer.
 
 Lemma fields_mapto__offset_zero:
   forall sh pos t f v, fields_mapto_ sh pos t f (offset_val (Int.repr 0) v) =

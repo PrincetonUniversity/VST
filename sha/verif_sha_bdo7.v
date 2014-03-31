@@ -72,44 +72,50 @@ assert (16 <= Z.of_nat i < 64)%Z. {
 }
 
 forward.	(*s0 = X[(i+1)&0x0f]; *)
-entailer; apply prop_right; apply and_mod_15_lem.
+drop_LOCAL 3. drop_LOCAL 2.
+clear; abstract (entailer; apply prop_right; apply and_mod_15_lem).
 
 forward. (* s0 = sigma0(s0); *)
 rename x into s0'.
 
 apply (assert_LOCAL (`(eq (Vint (sigma_0 (W (nthi b) (Z.of_nat i - 16 + 1))
-   ))) (eval_id _s0))).
-Opaque Xarray.
-entailer; apply prop_right.
-repeat rewrite add_repr in H3.
-repeat rewrite X_subscript_aux2 in H3 by repable_signed.
-rewrite extract_from_b in H3;
- try apply Zlength_length in H; auto; try omega.
-simpl in H3.
-rewrite Int.and_mone in H3.
-inv H3.
-apply sigma_0_eq.
-apply (drop_LOCAL 1%nat); unfold delete_nth.
-apply (drop_LOCAL 1%nat); unfold delete_nth.
+   ))) (eval_id _s0))). {
+clear POSTCONDITION MORE_COMMANDS.
+drop_LOCAL 5.
+abstract (
+ entailer; apply prop_right;
+ repeat rewrite add_repr in H3;
+ repeat rewrite X_subscript_aux2 in H3 by repable_signed;
+ rewrite extract_from_b in H3;
+ try apply Zlength_length in H; auto; try omega;
+ simpl in H3;
+ rewrite Int.and_mone in H3;
+ inv H3;
+ apply sigma_0_eq).
+}
+drop_LOCAL 1.
+drop_LOCAL 1.
 clear s0'.
 
 forward. (* s1 = X[(i+14)&0x0f]; *)
-entailer; apply prop_right; apply and_mod_15_lem.
+clear; abstract (entailer; apply prop_right; apply and_mod_15_lem).
 forward. (* s1 = sigma1(s1); *)
 rename x into s1'.
 
 apply (assert_LOCAL (`(eq (Vint (sigma_1 (W (nthi b) (Z.of_nat i - 16 + 14))))) (eval_id _s1))).
-entailer; apply prop_right. 
-rewrite add_repr in H3.
-rewrite X_subscript_aux2 in H3 by repable_signed.
-rewrite extract_from_b in H3;
- try apply Zlength_length in H; auto; try omega.
-simpl in H3.
-rewrite Int.and_mone in H3.
-inv H3.
-apply sigma_1_eq.
-apply (drop_LOCAL 1%nat); unfold delete_nth.
-apply (drop_LOCAL 1%nat); unfold delete_nth.
+clear POSTCONDITION MORE_COMMANDS.
+drop_LOCAL 6.
+abstract (
+ entailer; apply prop_right;
+ rewrite add_repr in H3;
+ rewrite X_subscript_aux2 in H3 by repable_signed;
+ rewrite extract_from_b in H3;
+ try apply Zlength_length in H; auto; try omega;
+ simpl in H3; rewrite Int.and_mone in H3;
+ inv H3; 
+ apply sigma_1_eq).
+drop_LOCAL 1.
+drop_LOCAL 1.
 clear s1'.
 
 unfold MORE_COMMANDS, POSTCONDITION, abbreviate; clear MORE_COMMANDS POSTCONDITION.
@@ -182,7 +188,7 @@ Definition loop2_inv (rg0: list int) (b: list int) ctx  (delta: Z) (i: nat) :=
            (eval_var _X (tarray tuint LBLOCKz))).
 
 apply semax_pre with (EX i:nat, loop2_inv regs b ctx 0 i).
-clear POSTCONDITION.
+clear -H.
 abstract (
  unfold loop2_inv;  apply exp_right with LBLOCK;
  change LBLOCKz with 16%Z;
@@ -243,7 +249,6 @@ make_sequential. rewrite loop1_ret_assert_normal.
 normalize.
 replace Delta with
   (Delta_loop1) by (simplify_Delta; reflexivity).
-
 simple apply bdo_loop2_body_proof; auto.
 Qed.
 

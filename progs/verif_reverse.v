@@ -186,8 +186,6 @@ focus_SEP 1; apply semax_lseg_nonnull;
 subst cts2.
 forward.  (* t = v->tail; *)  
 forward. (*  v->tail = w; *)
-unfold replace_nth.
-fold t_struct_list.
 simpl eval_lvalue.
 forward.  (*  w = v; *)
 simpl. autorewrite with subst.
@@ -287,7 +285,7 @@ apply sepcon_derives;
    unfold offset_val; repeat rewrite Int.add_assoc
  | ].
 f_equal. f_equal. unfold Int.zero. repeat rewrite add_repr.
- simpl. change (align (align 4 4) 4) with (4+0). rewrite Z.add_assoc.
+ simpl. rewrite <- Z.add_assoc.
 reflexivity.
  rewrite @lseg_nil_eq; auto.
  entailer!. compute; auto.

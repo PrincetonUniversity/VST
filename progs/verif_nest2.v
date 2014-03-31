@@ -39,8 +39,8 @@ name i _i.
 apply (remember_value (eval_var _p t_struct_b)); intro p.
 simpl_data_at.
  fold t_struct_a.
-forward.
-forward.
+forward. (* i = p.y2.x2; *)
+forward. (* return i; *)
 simpl_data_at.
 cancel.
 Qed.
@@ -50,10 +50,10 @@ Proof.
  start_function.
 name i_ _i.
 apply (remember_value (eval_var _p t_struct_b)); intro p.
-simpl_data_at.
-forward.
-forward.
-unfold at_offset, id; fold t_struct_a; simpl.
+simpl_data_at.  fold t_struct_a.
+forward. (*   p.y2.x2 = i; *)
+forward. (* return; *)
+unfold at_offset, id; simpl.
 forget (eval_var _p t_struct_b rho) as p.
 simpl_data_at.
 fold t_struct_a.

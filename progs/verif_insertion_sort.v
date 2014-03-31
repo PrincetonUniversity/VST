@@ -339,7 +339,7 @@ subst. clear H0.
 rename unsorted_list2 into unsorted_list.
 forward. (* next = index -> tail; *)
 forward. (* index -> tail = NULL; *)
-fold t_struct_list.
+(* fold t_struct_list. *)
 rewrite list_cell_eq.
 (*put fact about sorted into pre so I can instantiate it with a value later *)
 simpl.

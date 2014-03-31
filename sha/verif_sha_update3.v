@@ -124,7 +124,6 @@ rewrite array_at_tuchar_isbyteZ.
  rewrite negb_false_iff in H5.
  apply ltu_repr in H5; [ | repable_signed | omega].
  clear TC.
- fold t_struct_SHA256state_st.
  unfold k in H0,H5.
  rewrite (prop_true_andp (_ /\ _)).
 Focus 2. {

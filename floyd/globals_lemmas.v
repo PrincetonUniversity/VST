@@ -187,7 +187,7 @@ Lemma init_data_size_space:
  forall t, init_data_size (Init_space (sizeof t)) = sizeof t.
 Proof. intros.
  pose proof (sizeof_pos t).
- simpl. rewrite Z.max_l; auto. omega.
+ unfold init_data_size. rewrite Z.max_l; auto. omega.
 Qed.
 
 Lemma init_data2pred_rejigger:
@@ -217,7 +217,7 @@ intros H1 H6' H6 H7 H8.
     | simpl; apply TT_right
     |   
      ].
- simpl in H6. rewrite Z.max_l in H6 by omega.
+ unfold init_data_size in H6. rewrite Z.max_l in H6 by omega.
      apply mapsto_zeros_memory_block; auto.
    omega.
 * 

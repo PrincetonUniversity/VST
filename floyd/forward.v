@@ -10,6 +10,14 @@ Require Import floyd.entailer.
 Require Import floyd.globals_lemmas.
 Import Cop.
 
+Local Open Scope logic.
+
+Lemma refold_andp:  (* MOVE elsewhere? *)
+  forall (P Q: environ -> mpred),
+     (fun rho: environ => P rho && Q rho) = (P && Q).
+Proof. reflexivity. Qed.
+Hint Rewrite refold_andp : norm.
+
 Lemma eval_var_env_set:
   forall i t j v (rho: environ), eval_var i t (env_set rho j v) = eval_var i t rho.
 Proof. reflexivity. Qed.
@@ -33,8 +41,6 @@ Qed.
 Hint Rewrite eval_var_env_set : norm. (* MOVE elsewhere? *)
 
 Arguments Int.unsigned n : simpl never.
-
-Local Open Scope logic.
 
 (* Move these elsewhere *)
 Arguments Pos.to_nat !x / .

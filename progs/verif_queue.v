@@ -124,9 +124,7 @@ forward.  (* return (h == NULL); *)
 unfold fifo.
 entailer.
 apply exp_right with (h,tl).
-rewrite (prop_true_andp _ _ H).
-rewrite (prop_true_andp _ _ H0).
-apply andp_right; [ | solve [auto]].
+entailer.
 destruct (isnil contents).
 * entailer!.
 * normalize.
@@ -171,7 +169,7 @@ unfold fifo at 1.
 normalize. intros [hd tl]. normalize.
 (* goal_7 *)
 forward. (* p->next = NULL; *)
-normalize. fold t_struct_elem. simpl typeof; simpl eval_expr. 
+normalize.
 forward. (*   h = Q->head; *)
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
@@ -181,7 +179,7 @@ forward_if
   forward. (*  Q->head=p; *)
   forward. (* Q->tail=p; *)
   (* goal 10 *)
-  entailer.      fold t_struct_elem.
+  entailer.
   destruct (isnil contents).
   + subst. apply exp_right with (p',p').  
       simpl.
@@ -208,7 +206,7 @@ forward_if
      rewrite if_false by (clear; destruct prefix; simpl; congruence).
      normalize.
      apply exp_right with (prefix ++ t :: nil).
-     entailer. fold t_struct_fifo. fold t_struct_elem.
+     entailer.
      remember (field_at Tsh t_struct_elem _next nullval p') as A. (* prevent it from canceling! *)
      cancel. subst A. 
      eapply derives_trans; [ | apply links_cons_right ].
@@ -224,7 +222,7 @@ name Q _Q.
 name h _h.
 name n _n.
 unfold fifo at 1.
-normalize. intros [hd tl]. normalize.
+normalize. intros [hd tl].
 rewrite if_false by congruence.
 normalize. intro prefix. normalize.
 forward. (*   p = Q->head; *)
@@ -236,12 +234,12 @@ destruct prefix; inversion H1; clear H1.
    forward. (* Q->head=n; *)
    forward. (* return p; *)
    entailer!.
-   unfold fifo. normalize. apply exp_right with (nullval, h).
+   unfold fifo. apply exp_right with (nullval, h).
    rewrite if_true by congruence.
    entailer!.
 + rewrite links_cons_eq.
     normalize. intro.
-    normalize. destruct H1. subst_any.
+    normalize. subst_any.
     forward. (*  n=h->next; *)
     forward. (* Q->head=n; *)
     forward. (* return p; *)
@@ -267,13 +265,6 @@ after_call.
 change 12 with (sizeof (t_struct_elem)).
 rewrite memory_block_typed by reflexivity.
 simpl_data_at.
-apply semax_pre with  (* with better store tactic, shouldn't need this *)
-  (PROP  ()
-   LOCAL (`(eq (Vint b0)) (eval_id _b); `(eq (Vint a0)) (eval_id _a))
-   SEP  (`(field_at_ Tsh t_struct_elem _a) (eval_id _p);
-           `(field_at_ Tsh t_struct_elem _b) (eval_id _p);
-           `(field_at_ Tsh t_struct_elem _next) (eval_id _p))).
-entailer!.
 forward.  (*  p->a=a; *)
 forward.  (*  p->b=b; *)
 forward.  (* return p; *)
@@ -281,6 +272,7 @@ unfold elemrep.
 entailer!.
 Qed.
 
+(*
 Lemma andp_get_result1:
   forall (P Q: environ->mpred) i, `(P && Q) (get_result1 i) = `P (get_result1 i) && `Q (get_result1 i).
 Proof. reflexivity. Qed.
@@ -307,6 +299,7 @@ Lemma lift_retval_get_result1:
     `P (eval_id i).
 Proof. reflexivity. Qed.
 Hint Rewrite lift_retval_get_result1 : norm.
+*)
 
 Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
@@ -345,20 +338,18 @@ forward_call (*   p' = fifo_get(Q); p = p'; *)
  entailer!.
  auto 50 with closed.
 after_call.
- change (fun rho => local (`(eq p') retval) rho && `(fifo (p2 :: nil) q) rho)
-   with (local (`(eq p') retval) && `(fifo (p2::nil) q)).
- normalize.
+normalize.
  subst p1 p3.
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
 forward_call (*  freeN(p, sizeof( *p)); *)
-   tt.
-entailer.
-change 12 with (sizeof t_struct_elem).
-rewrite memory_block_typed by reflexivity.
-simpl_data_at.
-entailer!.
-after_call.
+   tt. {
+  entailer.
+  change 12 with (sizeof t_struct_elem).
+  rewrite memory_block_typed by reflexivity.
+  simpl_data_at.
+  entailer!.
+} after_call.
 forward. (* return i+j; *)
 unfold main_post.
 entailer!.

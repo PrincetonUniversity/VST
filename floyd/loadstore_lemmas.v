@@ -336,7 +336,7 @@ forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 e2 t2 R1 sid fields,
        (normal_ret_assert
           (PROPx P (LOCALx Q
               (SEPx (replace_nth n R
-                    (`(field_at sh t1 fld)
+                    (`(field_at sh (typeof e1) fld)
                        (`force_val (`(sem_cast (typeof e2) t2) (eval_expr e2)))
                          (eval_lvalue e1) )))))).
 Proof.
@@ -364,7 +364,7 @@ normalize. rewrite insert_SEP.
 apply andp_left2.
 rewrite (SEP_replace_nth_isolate _ _ _ _ H).
 unfold exit_tycon.
-rewrite <- H2. auto.
+auto.
 Qed.
 
 
