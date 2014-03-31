@@ -138,7 +138,6 @@ Proof.
 start_function.
 name Q _Q.
 name Q' _Q'.
-apply -> seq_assoc.
 forward_call (* Q' = mallocN(sizeof ( *Q)); *) 
       (Int.repr 8).
   (* goal_2 *) entailer!.
@@ -260,11 +259,11 @@ name a _a.
 name b _b.
 name p _p.
 name p' _p'.
-forward. (*  p = mallocN(sizeof ( *p));  *) 
-instantiate (1:=Int.repr 12) in (Value of witness).
+forward_call (*  p = mallocN(sizeof ( *p));  *) 
+  (Int.repr 12).
 entailer!.
-normalize.
-forward. (* finish the function call *)
+auto 50 with closed.
+after_call.
 change 12 with (sizeof (t_struct_elem)).
 rewrite memory_block_typed by reflexivity.
 simpl_data_at.
@@ -316,55 +315,50 @@ name i _i.
 name j _j.
 name Q _Q.
 name p _p.
-forward. (* Q = fifo_new(); *)
-instantiate (1:= tt) in (Value of witness).
+forward_call (* Q = fifo_new(); *) tt.
 entailer!.
 auto with closed.
-normalize. autorewrite with subst.
+after_call.
 apply (remember_value (eval_id _Q)); intro q.
-forward. (*  p = make_elem(1,10); *)
-ack.
-instantiate (1:= (Int.repr 1, Int.repr 10)) in (Value of witness).
+forward_call (*  p = make_elem(1,10); *)
+   (Int.repr 1, Int.repr 10).
 entailer!.
 auto with closed.
-normalize. autorewrite with subst.
+after_call.
 apply (remember_value (eval_id _p)); intro p'.
-forward. (* fifo_put(Q,p);*)
-ack.
- instantiate (1:= ((q,nil),p')) in (Value of witness).
- unfold elemrep. entailer!.
-normalize.
-forward. (*  p = make_elem(2,20); *)
-instantiate (1:= (Int.repr 2, Int.repr 20)) in (Value of witness).
-unfold elemrep. entailer!.
+forward_call (* fifo_put(Q,p);*)
+    ((q, @nil val),p').
+unfold elemrep; entailer!.
+after_call.
+forward_call (*  p = make_elem(2,20); *)
+    (Int.repr 2, Int.repr 20).
+unfold elemrep; entailer!.
 auto with closed.
-normalize. autorewrite with subst.
+after_call.
  apply (remember_value (eval_id _p)); intro p2.
- forward.  (* fifo_put(Q,p); *)
- ack.
- instantiate (1:= ((q,(p':: nil)),p2)) in (Value of witness).
- unfold elemrep. entailer!.
-normalize.
-forward. (*   p' = fifo_get(Q); p = p'; *)
- instantiate (1:= ((q,(p2 :: nil)),p')) in (Value of witness).
+ forward_call  (* fifo_put(Q,p); *)
+    ((q,(p':: nil)),p2).
+ unfold elemrep; entailer!.
+after_call.
+forward_call (*   p' = fifo_get(Q); p = p'; *)
+  ((q,(p2 :: nil)),p').
  entailer!.
  auto 50 with closed.
- normalize. autorewrite with subst. (* should have been done by forward *)
- change (fun rho => local (`(eq p') retval) rho && `(fifo (p2 :: nil) q) rho * `(field_at_ Tsh t_struct_elem _next) retval rho)
-   with (local (`(eq p') retval) && `(fifo (p2::nil) q) * `(field_at_ Tsh t_struct_elem _next) retval).
+after_call.
+ change (fun rho => local (`(eq p') retval) rho && `(fifo (p2 :: nil) q) rho)
+   with (local (`(eq p') retval) && `(fifo (p2::nil) q)).
  normalize.
  subst p1 p3.
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
-forward. (*  freeN(p, sizeof( *p)); *)
-ack.
-instantiate (1:=tt) in (Value of witness).
-simpl @fst; simpl @snd.
+forward_call (*  freeN(p, sizeof( *p)); *)
+   tt.
 entailer.
 change 12 with (sizeof t_struct_elem).
 rewrite memory_block_typed by reflexivity.
 simpl_data_at.
 entailer!.
+after_call.
 forward. (* return i+j; *)
 unfold main_post.
 entailer!.

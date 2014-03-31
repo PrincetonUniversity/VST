@@ -652,6 +652,18 @@ Proof. intros.  unfold retval, eval_id; simpl. try rewrite Map.gss. reflexivity.
 Qed.
 Hint Rewrite retval_make_args: norm.
 
+Lemma simpl_and_get_result1:
+  forall (Q R: environ->mpred) i,
+    `(Q && R) (get_result1 i) = `Q (get_result1 i) && `R (get_result1 i).
+Proof. intros. reflexivity. Qed.
+Hint Rewrite simpl_and_get_result1 : norm.
+
+Lemma liftx_local_retval:
+  forall (P: val -> Prop) i,
+   `(local (`P retval)) (get_result1 i) = local (`P (eval_id i)).
+Proof. intros. reflexivity. Qed.
+Hint Rewrite liftx_local_retval : norm.
+
 Lemma ret_type_initialized:
   forall i Delta, ret_type (initialized i Delta) = ret_type Delta.
 Proof.

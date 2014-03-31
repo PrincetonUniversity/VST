@@ -57,6 +57,9 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo:=
      K_vector;
    `(memory_block shmd (Int.repr 32) md))).
 
+Definition data_offset := 40%Z.
+Global Opaque data_offset.
+
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
   (hi lo : int) (dd : list Z)
@@ -98,12 +101,13 @@ name n _n.
 name cNl _cNl.
 name cNh _cNh.
 intros.
+change 40 with data_offset.
 assert (Hddlen: (0 <= Zlength dd < CBLOCKz)%Z) by Omega1.
 set (ddlen := Zlength dd) in *.
  unfold Delta_final_if1; simplify_Delta; unfold Body_final_if1; abbreviate_semax.
 forward_call (* memset (p+n,0,SHA_CBLOCK-n); *)
    ((Tsh,
-     offset_val (Int.repr (ddlen + 1)) (offset_val (Int.repr 40) c)%Z, 
+     offset_val (Int.repr (ddlen + 1)) (offset_val (Int.repr data_offset) c)%Z, 
      (CBLOCKz - (ddlen + 1)))%Z,
      Int.zero).
   {entailer!.
@@ -113,7 +117,7 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-n); *)
    rewrite (split_array_at (ddlen+1) tuchar) by omega.
    repeat rewrite <- sepcon_assoc;
     pull_left (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)]))
-   (ddlen + 1) 64 (offset_val (Int.repr 40) c)).
+   (ddlen + 1) 64 (offset_val (Int.repr data_offset) c)).
    repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
   change CBLOCKz with 64%Z.
   destruct (zlt (ddlen+1) 64).
@@ -124,7 +128,7 @@ Focus 2. {
  rewrite memory_block_zero. normalize.
  } Unfocus.
  rewrite memory_block_array_tuchar by Omega1.
- replace (offset_val (Int.repr (40 + (ddlen+1))) c)%Z
+ replace (offset_val (Int.repr (data_offset + (ddlen+1))) c)%Z
   with (offset_val (Int.repr (sizeof tuchar * (ddlen+1))) (offset_val (Int.repr 40) c))%Z
   by (normalize; Omega1).
    rewrite <- offset_val_array_at_.
@@ -138,9 +142,9 @@ gather_SEP 4%Z 0%Z.
 pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ list_repeat (Z.to_nat (CBLOCKz-(ddlen+1))) Int.zero)).
 replace_SEP 0%Z (  `(array_at tuchar Tsh
         (ZnthV tuchar (map Vint ddz)) 0 64
-        (offset_val (Int.repr 40) c))).
+        (offset_val (Int.repr data_offset) c))).
 {
- replace (Int.repr (40 + (ddlen+1))) with (Int.add (Int.repr 40) (Int.repr (ddlen+1)))
+ replace (Int.repr (data_offset + (ddlen+1))) with (Int.add (Int.repr data_offset) (Int.repr (ddlen+1)))
   by apply add_repr.
  entailer!.
  normalize in H0.
@@ -162,8 +166,8 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
   rewrite map_length; rewrite Nat2Z.inj_add; Omega1.
  +  clear - Pc_ Hddlen.
  assert (ddlen = Zlength dd) by reflexivity.
-  replace (Int.repr (40+(ddlen+1))%Z)
-   with (Int.add  (Int.repr 40) (Int.repr (sizeof tuchar * (ddlen+1))))%Z
+  replace (Int.repr (data_offset+(ddlen+1))%Z)
+   with (Int.add  (Int.repr data_offset) (Int.repr (sizeof tuchar * (ddlen+1))))%Z
   by normalize.
  rewrite <- offset_offset_val.
  rewrite <- offset_val_array_at.
@@ -221,7 +225,7 @@ rewrite Int.unsigned_zero. split; clear; omega.
 clear H0'.
 clearbody ddzw.
  forward_call (* sha256_block_data_order (c,p); *)
-  (hashed, ddzw, c, offset_val (Int.repr 40) c, Tsh).
+  (hashed, ddzw, c, offset_val (Int.repr data_offset) c, Tsh).
  {entailer!.
 * rewrite Zlength_correct, H1; reflexivity.
 * cancel.
@@ -240,7 +244,9 @@ clearbody ddzw.
  rewrite Zlength_correct;rewrite length_intlist_to_Zlist;
   rewrite H1; reflexivity.
 }
+after_call.
 unfold invariant_after_if1.
+change 40%Z with data_offset.
  apply exp_right with (hashed ++ ddzw).
 set (pad := (CBLOCKz - (ddlen+1))%Z) in *.
  apply exp_right with (@nil Z).
@@ -387,7 +393,7 @@ semax
    LOCAL  (`(eq md) (eval_id _md); `(eq c) (eval_id _c))
    SEP 
    (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
-        (offset_val (Int.repr 40) c));
+        (offset_val (Int.repr data_offset) c));
    `(array_at tuint Tsh (tuints hashedmsg) 0 8 c); K_vector;
    `(field_at_ Tsh t_struct_SHA256state_st _Nl c);
    `(field_at_ Tsh t_struct_SHA256state_st _Nh c);
@@ -413,7 +419,7 @@ Definition part4_inv  c shmd hashedmsg md delta (i: nat) :=
    `(eq c) (eval_id _c))
    SEP 
    (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
-        (offset_val (Int.repr 40) c));
+        (offset_val (Int.repr data_offset) c));
    `(array_at tuint Tsh (tuints hashedmsg) 0 8 c); K_vector;
    `(field_at_ Tsh t_struct_SHA256state_st _Nl c);
    `(field_at_ Tsh t_struct_SHA256state_st _Nh c);

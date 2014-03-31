@@ -887,14 +887,13 @@ Lemma unfold_make_args_nil: make_args nil nil = globals_only.
 Proof. reflexivity. Qed.
 Hint Rewrite unfold_make_args_cons unfold_make_args_nil : norm.
 
-Lemma clear_make_args':
- forall (P: mpred) fsig args,
+Lemma clear_rhox:  (* replaces clear_make_args' *)
+ forall (P: mpred) (f: environ -> environ),
     @liftx (Tarrow environ (LiftEnviron mpred))
-                    (@liftx (LiftEnviron mpred) P)
-      (make_args' fsig args) = `P.
+                    (@liftx (LiftEnviron mpred) P) f
+       = `P.
 Proof. intros. reflexivity. Qed.
-Hint Rewrite clear_make_args': norm.
-
+Hint Rewrite clear_rhox: norm.
 
 Lemma eval_make_args':
   forall (Q: val -> Prop) i fsig args,

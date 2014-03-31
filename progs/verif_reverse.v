@@ -344,16 +344,16 @@ start_function.
 name r _r.
 name s _s.
 eapply semax_pre0; [apply setup_globals | ].
-forward.  (*  r = reverse(three); *)
-ack.
-instantiate (1:= (Ews, map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil))) in (Value of witness).
+forward_call (*  r = reverse(three); *)
+  (Ews, map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)).
  entailer!.
 auto with closed.
-forward.  (* s = sumlist(r); *)
-ack.
-instantiate (1:= (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil)) in (Value of witness).
+after_call.
+forward_call  (* s = sumlist(r); *)
+   (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil).
 entailer!.
 auto with closed.
+after_call.
 forward.  (* return s; *)
 Qed.
 

@@ -406,7 +406,8 @@ Proof.
  change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).
  rewrite memory_block_typed by reflexivity.
  simpl_data_at.
- change (40+56)%Z with (sizeof tuchar * (40+56))%Z.
+ change (96)%Z 
+      with (sizeof tuchar * 96)%Z.
  rewrite <- offset_val_array_at.
  change (40+56+4)%Z with (40+60)%Z.
  change (40 + (Z.of_nat CBLOCK - 8))%Z with (40 + 56 + 0)%Z.
@@ -447,10 +448,10 @@ clear - H0 H9.
  change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).
  rewrite memory_block_typed by reflexivity.
  simpl_data_at.
- change (40+60)%Z with (sizeof tuchar * (40+60))%Z.
+ change (100)%Z with (sizeof tuchar * 100)%Z.
  rewrite <- offset_val_array_at.
- change (40+60+0)%Z with (40+60)%Z.
- change (40 + 60+4)%Z with (40 + 64)%Z.
+ change (100+0)%Z with (100)%Z.
+ change (100+4)%Z with (40 + 64)%Z.
  apply derives_refl'; apply equal_f; apply array_at_ext.
  intros. unfold ZnthV. rewrite if_false by omega.
  rewrite if_false by omega.

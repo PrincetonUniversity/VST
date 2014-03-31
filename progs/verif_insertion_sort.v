@@ -358,15 +358,11 @@ apply semax_pre with
    `(lseg LS sh (map Vint (insertion_sort sorted_list))) (eval_id _sorted) `nullval)).
 entailer. apply (exp_right sorted); entailer!. 
 apply extract_exists_pre. intros sorted_val.
-forward.  (* sorted = insert(index, sorted); *)
-ack.
-instantiate (1:= (sh, (insertion_sort sorted_list), insert_val, sorted_val)) in (Value of witness).
-unfold witness.  simpl @snd.
+forward_call  (* sorted = insert(index, sorted); *)
+  (sh, (insertion_sort sorted_list), insert_val, sorted_val).
 entailer!.
 auto with closed.
-autorewrite with subst.
-(* forward. (* sorted := sorted'; *) 
-entailer!.*)
+after_call.
 forward. (* index = next;*)
 unfold body_invariant.
 entailer.

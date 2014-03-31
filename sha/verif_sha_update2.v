@@ -178,8 +178,6 @@ Proof.
     d, 
     Int.unsigned (force_int fragment),
     Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr data)))).
- simpl @snd.
- normalize.
  fold j; fold k.
  entailer!.
  clear fragment H5.
@@ -201,37 +199,7 @@ rewrite <- offset_val_array_at_.
   rewrite Z.add_0_r.
   replace (Zlength dd + (64-Zlength dd))%Z with 64%Z by omega.
  cancel.
- cbv beta iota.
- change (fun x0 : environ =>
-         local
-           (`(eq
-                (offset_val (Int.repr (Zlength dd))
-                   (offset_val (Int.repr 40) c))) retval) x0 &&
-         (`(array_at tuchar (fst (sh, Tsh))
-              (cVint
-                 (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
-              0 (Int.unsigned (force_int fragment)) d) x0 *
-          `(array_at tuchar (snd (sh, Tsh))
-              (cVint
-                 (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
-              0 (Int.unsigned (force_int fragment))
-              (offset_val (Int.repr (Zlength dd))
-                 (offset_val (Int.repr 40) c))) x0))
-  with (local
-           (`(eq
-                (offset_val (Int.repr (Zlength dd))
-                   (offset_val (Int.repr 40) c))) retval) &&
-         (`(array_at tuchar (fst (sh, Tsh))
-              (cVint
-                 (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
-              0 (Int.unsigned (force_int fragment)) d *
-            array_at tuchar (snd (sh, Tsh))
-              (cVint
-                 (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
-              0 (Int.unsigned (force_int fragment))
-              (offset_val (Int.repr (Zlength dd))
-                 (offset_val (Int.repr 40) c))))).
- autorewrite with norm subst.
+ after_call.
  replace_SEP 0%Z (`(array_at tuchar sh
            (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
            0 (Int.unsigned (force_int fragment)) d) *
@@ -274,10 +242,6 @@ rewrite <- offset_val_array_at_.
   rewrite Z2Nat.id by omega. rewrite <- Zlength_correct; omega.
  forward_call (* sha256_block_data_order (c,p); *)
    (hashed, Zlist_to_intlist (dd++(firstn (Z.to_nat k) data)), c, (offset_val (Int.repr 40) c), Tsh).
- simpl @snd.
- cbv beta iota.
- normalize.
- unfold app at 2 4 5.
  entailer.
  unfold j,k in *|-.
  rewrite negb_true_iff in H6; apply ltu_repr_false in H6; [ | omega..].
@@ -355,13 +319,9 @@ entailer!.
 
  forward_call (* memset (p,0,SHA_CBLOCK); *)
     (Tsh, offset_val (Int.repr 40) c, 64%Z, Int.zero).
- simpl @snd.
- normalize.
-  unfold app at 4 5 6.
  fold k. fold j.
  unfold data_block.
  entailer!.
-(* rewrite <- H10 in H5; simpl in H5|-*; apply H5. *)
  simpl.
  rewrite <- H10 in H5, H8; clear len'0 H10.
  simpl in H5.

@@ -153,12 +153,13 @@ Proof.
 start_function.
 name s _s.
 apply (remember_value (eval_var _four (tarray tint 4))); intro a0.
-forward.  (*  r = sumarray(four,4); *)
-instantiate (1:= (a0,Ews,four_contents,4)) in (Value of witness).
- entailer!. 
+forward_call (*  r = sumarray(four,4); *)
+  (a0,Ews,four_contents,4).
+ entailer!.
    intros. unfold four_contents. apply ZnthV_map_Vint_is_int.
  split; auto.
  auto with closed.
+ after_call.
  forward. (* return s; *)
  unfold main_post. entailer!.
 Qed.

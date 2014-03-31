@@ -98,18 +98,16 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
      offset_val (Int.repr (Zlength dd')) (offset_val (Int.repr 40) c)%Z, 
      (Z.of_nat CBLOCK - 8 - Zlength dd')%Z,
      Int.zero).
-unfold tc_exprlist. simpl typecheck_exprlist. simpl denote_tc_assert. (* this line should not be necessary *)
+change 40%Z with data_offset.
 entailer!.
-rewrite Int.unsigned_repr.
-Omega1.
-clear - H0. Omega1.
+rewrite Int.unsigned_repr. Omega1. Omega1. 
 rewrite (split_array_at (Zlength dd') tuchar).
 rewrite (split_array_at (Z.of_nat CBLOCK - 8)%Z tuchar _ _ _ 64%Z).
 repeat rewrite <- sepcon_assoc.
 pull_left (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) (Zlength dd') (Z.of_nat CBLOCK - 8)%Z
-   (offset_val (Int.repr 40) c)).
+   (offset_val (Int.repr data_offset) c)).
 repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
-replace (offset_val (Int.repr (40 + Zlength dd')) c)%Z
+replace (offset_val (Int.repr (data_offset + Zlength dd')) c)%Z
     with (offset_val (Int.repr (sizeof tuchar * Zlength dd')) (offset_val (Int.repr 40) c))%Z.
 destruct (zlt 0 (Z.of_nat CBLOCK - 8 - Zlength dd')).
 Focus 2. {
