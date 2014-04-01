@@ -2415,6 +2415,11 @@ Proof.
 by rewrite /inContext /callStackSize R_len_callStack.
 Qed.
 
+Lemma R_inContext' : inContext x2 -> inContext x1.
+Proof.
+by rewrite /inContext /callStackSize R_len_callStack.
+Qed.
+
 End R_lems.
 
 Section initCore_lems.
@@ -4421,6 +4426,30 @@ by rewrite st1'_eq.
 Qed.
 
 End return_lems.
+
+Section halted_lems.
+
+Context
+(mu : Inj.t) m1 m2 rv1 
+(st1 : linker N cores_S) cd st2  
+(hlt1 : LinkerSem.halted st1 = Some rv1)
+(inv : R cd mu st1 m1 st2 m2).
+
+Lemma toplevel_hlt2 : exists rv2, LinkerSem.halted st2 = Some rv2.
+Proof.
+case: (R_inv inv)=> pf []mu_trash []mu_top []mus []mu_eq.
+move=> rc trinv hdinv tlinv.
+move: hlt1; rewrite /LinkerSem.halted. 
+case inCtx1: (inContext st1)=> //=.
+have inCtx2: ~~inContext st2.
+{ case inCtx2: (inContext st2)=> //=.
+  by move: (R_inContext' inv inCtx2); rewrite inCtx1. }
+rewrite inCtx2.
+case hlt0: (LinkerSem.halted0 st1)=> [rv1'|//]; case=> eq1.
+by case: (hlt2 hlt0 inv)=> rv2 hlt2; exists rv2; rewrite hlt2.
+Qed.
+
+End halted_lems.
   
 Lemma link : SM_simulation_inject linker_S linker_T my_ge my_ge entry_points.
 Proof.
@@ -4838,7 +4867,81 @@ by [].
 
 } (*end [Case: diagram]*)
 
-Admitted. (*WORK-IN-PROGRESS*)
+{(*Case: halted*)
+move=> cd mu c1 m1 c2 m2 v1 inv hlt1.
+have mu_wd: SM_wd mu by apply: R_wd inv.
+have inv': R cd (Inj.mk mu_wd) c1 m1 c2 m2 by [].
+case: (toplevel_hlt2 hlt1 inv')=> v2 hlt2.
+case: (R_inv inv')=> pf []mu_trash []mupkg []mus []mu_eq.
+move=> rclosed trinv hdinv tlinv; move: (head_match hdinv)=> mtch0.
+have hlt10: 
+  halted (coreSem (cores_S (Core.i (c inv')))) (RC.core (Core.c (c inv))) 
+= Some v1.
+{ move: hlt1; rewrite /= /LinkerSem.halted.
+  case inCtx1: (inContext c1)=> //=.
+  case hlt10: (LinkerSem.halted0 c1)=> [v1'|//]; case=> <-.
+  by move: hlt10; rewrite /LinkerSem.halted0 /c=> ->. }
+case: (core_halted (sims (Core.i (c inv'))) _ _ _ _ _ _ mtch0 hlt10).
+move=> v2' []inj []rc1 []rc2 []vinj []vdef hlt2'.
+have mus_eq: mus = [::]. by admit.
+
+have eq: 
+  as_inj (Inj.mk mu_wd)
+= as_inj mupkg.
+{ rewrite mu_eq mus_eq; extensionality b. 
+  rewrite /as_inj /join /= /join2 /restrict.
+  case e: (vis (join_sm mupkg mu_trash) b).
+  case f: (extern_of mupkg b)=> [[x y]|].
+  rewrite vis_join_sm /= /in_mem /= /in_mem /= in e.
+  admit. 
+  admit.
+  admit. }
+
+have shrdEq: sharedSrc mu = sharedSrc mupkg.
+{ admit. }
+
+exists v2'; split.
+
+by rewrite eq.
+
+have eqS: 
+  exportedSrc mu [:: v1]
+= exportedSrc mupkg [:: v1].
+{ rewrite /exportedSrc !sharedSrc_iff_frgnpub=> //. 
+  extensionality b.
+  case e: (getBlocks [::v1] b)=> //=.
+  admit. (*works if I set pub=|_|(pubs ...)*) 
+  apply: Inj_wd. }
+
+have eqT: 
+  exportedTgt mu [:: v2]
+= exportedTgt mupkg [:: v2].
+{ rewrite /exportedTgt /sharedTgt; extensionality b.
+  case e: (getBlocks [::v2] b)=> //=.
+  admit. (*works if I set pub=|_|(pubs ...)*) }
+
+have eqv: v2'=v2.
+{ move: hlt2 hlt2'; rewrite /LinkerSem.halted.
+  case e: (inContext c2)=> //=.
+  case f: (LinkerSem.halted0 c2)=> [v2''|//].
+  case=> <-; move: f; rewrite /LinkerSem.halted0 /RC.halted.
+  admit. }
+
+rewrite eqS eqv eqT.
+
+split=> //.
+rewrite -eqv; split=> //.
+
+rewrite eq shrdEq.
+split=> //.
+split=> //.
+
+by rewrite eqv. }(*END Case: halted*)
+
+admit. (*at_external: doesn't apply to whole programs*)
+admit. (*after_external: doesn't apply to whole programs*)
+
+Qed.
 
 End linkingSimulation.
 
