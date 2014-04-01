@@ -34,6 +34,7 @@ Local Open Scope logic.
 
 (* verif_reverse *)
 (* from body_reverse *)
+(* we need to have a way of autogenerating the lemmas... *)
 Lemma body_reverse_fact :
    name _p ->
    name _v ->
