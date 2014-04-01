@@ -411,8 +411,21 @@ Proof.
 rewrite/handle.
 set (x := all (atExternal my_cores) (callStack (stack l))).
 move: (erefl x).
-(*pattern x at 3 4 5 6.
-case pf: (all (atExternal my_cores) (callStack (stack l))).*)
+dependent generalize_eqs_vars x; case: x=> ? ? cs ? l ? x0 ? ? ? ? ?; subst.
+case e: (fn_tbl l id)=> [x|].
+case f: (initCore cs x (Vptr id Int.zero)).
+set u := (all (atExternal cs) (CallStack.callStack (stack l))).
+dependent generalize_eqs_vars u; case: u.
+move=> ? cs ? l ? ? ? ? ? H H1 x ? a ? ? ? ? H3 ? ? ? H5; subst.
+have pf: all (atExternal cs) (CallStack.callStack (stack l)).
+{ by clear - H5; rewrite -H5. }
+set u := (all (atExternal cs) (CallStack.callStack (stack l))).
+split=> H.
+exists pf,x,a; split=> //.
+clear - H; move: H.
+dependent generalize_eqs_vars u; case: u.
+move=> ? cs ? ? ? a pf ? ? ? ? ?.
+subst.
 Admitted. (*dependent pattern matching idiocy*)
 
 End handle_lems.

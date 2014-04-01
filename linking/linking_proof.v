@@ -80,17 +80,16 @@ Import Modsem.
 Variable N : pos.
 Variable (cores_S cores_T : 'I_N -> Modsem.t). 
 Variable fun_tbl : ident -> option 'I_N.
-Variable entry_points : seq (val*val*signature).
 Variable sims : forall i : 'I_N, 
   let s := cores_S i in
   let t := cores_T i in
   SM_simulation_inject 
-  (RC.effsem s.(coreSem)) (RC.effsem t.(coreSem)) s.(ge) t.(ge) entry_points.
+  (RC.effsem s.(coreSem)) (RC.effsem t.(coreSem)) s.(ge) t.(ge).
 Variable my_ge : ge_ty.
 Variable my_ge_S : forall (i : 'I_N), genvs_domain_eq my_ge (cores_S i).(ge).
 Variable my_ge_T : forall (i : 'I_N), genvs_domain_eq my_ge (cores_T i).(ge).
 
-Let types := fun i : 'I_N => (sims i).(core_data entry_points).
+Let types := fun i : 'I_N => (sims i).(core_data).
 Let ords : forall i : 'I_N, types i -> types i -> Prop 
   := fun i : 'I_N => (sims i).(core_ord).
 
@@ -2235,7 +2234,7 @@ End step_lems.
 
 (*TODO: move into wf_lemmas.v*)
 
-Definition sig_data := {ix : 'I_N & (sims ix).(core_data entry_points)}.
+Definition sig_data := {ix : 'I_N & (sims ix).(core_data)}.
 
 Definition sig_ord (x y : sig_data) :=
   exists pf : projT1 x = projT1 y,
@@ -2759,14 +2758,8 @@ have domT_valid:
 { move: (match_validblocks _ (head_match hdinv)); case=> H I.
   by apply: I. }
 
-have ep: 
-  In (Vptr id Int.zero,Vptr id Int.zero,sig) entry_points. 
-{ admit. (*this is a ridiculous side condition that needs to be 
-           communicated to the semantics somehow; e.g., whenever
-           we're at external w/ fid id, then (id,id) in entry_points*) }
-
 have [cd_new [c2 [pf_new [init2 mtch12]]]]:
-  exists (cd_new : core_data entry_points (sims (Core.i c1))) 
+  exists (cd_new : core_data (sims (Core.i c1))) 
          (c2 : Core.t cores_T)
          (pf : Core.i c1 = Core.i c2),
     [/\ initCore cores_T ix (Vptr id Integers.Int.zero) args2 = Some c2
@@ -2778,7 +2771,7 @@ have [cd_new [c2 [pf_new [init2 mtch12]]]]:
   case init1: (RC.initial_core _ _ _ _)=> //[c1']; case=> X.
   generalize dependent c1; case=> c1_i c1; intros.
   move: (X) init1; case=> eq _ init1; subst ix=> /=.
-  case: (core_initial _ _ _ _ _ (sims c1_i) _ _ _ ep args1
+  case: (core_initial _ _ _ _ (sims c1_i) _ args1
         _ m1 j args2 m2 frgnS frgnT domS domT init1 inj vinj')=> //.
   move=> cd' []c2' []init2 mtch_init12.
   exists cd',(Core.mk N cores_T c1_i c2'),erefl.
@@ -3383,7 +3376,7 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [aft2' mtch12']]]]]:
   rewrite /updStack in st2''_eq; case: st2''_eq=> fntbl_eq pop2_eq'.
   move: (@eff_after_external 
   _ _ _ _ _ _ _ _ 
-  _ _ _ 
+  _ _  
   (sims (Core.i hd1))
   _ _ _ _ _ _ _ _ _ _ _ _
   inj0 mtch0 at01 at02' vinj0
@@ -3401,7 +3394,7 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [aft2' mtch12']]]]]:
   unch1 unch2).
   case=> cd' []c0' []d0' []aft1'' []aft2'' mtch12'.
   exists (Core.mk _ cores_T (Core.i hd1) d0'),(sym_eq pf0),(sym_eq e1)=> /=.
-  exists (cast (fun ix => core_data entry_points (sims ix)) e1 cd'); split=> //.
+  exists (cast (fun ix => core_data (sims ix)) e1 cd'); split=> //.
   
   move: aft2''.
   set T := RC.state \o C \o cores_T.  
@@ -3415,7 +3408,7 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [aft2' mtch12']]]]]:
   move: mtch12'.
   have ->: sym_eq (sym_eq e1) = e1 by apply: proof_irr.
   rewrite aft1' in aft1''; case: aft1''=> <-.
-  set T := (fun ix => core_data entry_points (sims ix)).
+  set T := (fun ix => core_data (sims ix)).
   set U := RC.state \o C \o cores_S.
   set V := RC.state \o C \o cores_T.
   set P := fun ix (x : T ix) (y : U ix) (z : V ix) => 
@@ -3766,7 +3759,7 @@ rewrite mu_eq mus_eq; f_equal=> /=.
       by apply: trinv.
     have hdinv': 
       head_inv pf 
-        (cast (fun ix : 'I_N => core_data entry_points (sims ix)) pf_hd (projT2 cd))
+        (cast (fun ix : 'I_N => core_data (sims ix)) pf_hd (projT2 cd))
         mutrash mupkg mus m1 m2.
       by apply: hdinv.
     have tlinv': tail_inv mutrash mus (hd1::tl1) (hd2::tl2) m1 m2.
@@ -4512,10 +4505,7 @@ Qed.
 
 End halted_lems.
 
-Lemma link 
-  (main : val) 
-  (main_sig : signature)
-  (main_entrypt: In (main,main,main_sig) entry_points) :
+Lemma link (main : val) :
   Wholeprog_simulation_inject linker_S linker_T my_ge my_ge main.
 Proof.
 
@@ -4584,7 +4574,7 @@ eapply Build_Wholeprog_simulation_inject
     by rewrite e; move: h g=> /= -> h ->. }
     
   move: (core_initial (sims ix))=> H1.
-  move: (H1 _ _ _ main_entrypt vals1 c m1 j vals2  m2 fS fT dS dT).
+  move: (H1 main vals1 c m1 j vals2  m2 fS fT dS dT).
   case=> //.
 
   by rewrite main_eq.
@@ -4776,7 +4766,7 @@ have EFFSTEP:
     by rewrite ST1'' in ST1'; rewrite -(updCore_inj_upd ST1'). }
 
 (* specialize core diagram at module (Core.i c1) *)
-move: (effcore_diagram _ _ _ _ _ (sims (Core.i c1))).  
+move: (effcore_diagram _ _ _ _ (sims (Core.i c1))).  
 move/(_ _ _ _ _ _ EFFSTEP).
 case: (R_inv INV)=> pf []mu_trash []mupkg []mus []mu_eq.
 move=> rclosed trinv []pf2 hdinv tlinv.
@@ -4803,7 +4793,7 @@ set mupkg' := Build_frame_pkg mu_top'_valid.
 (* instantiate existentials *)
 set c2''   := rc_cast' (peek_ieq INV) c2'.
 set st2'   := updCore st2 (Core.upd c2 c2'').
-set data'  := (existT (fun ix => core_data entry_points (sims ix)) (Core.i c1) cd'). 
+set data'  := (existT (fun ix => core_data (sims ix)) (Core.i c1) cd'). 
 set mu'    := restrict_sm 
               (join_all mu_trash $ mu_top' :: map frame_mu0 mus)
               (vis (join_all mu_trash $ mu_top' :: map frame_mu0 mus)).
@@ -5177,3 +5167,4 @@ Qed.
 
 End linkingSimulation.
 
+Print Assumptions link.
