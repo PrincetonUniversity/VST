@@ -159,6 +159,8 @@ repeat rewrite tc_andp_TT2.
 repeat split; auto.
 case_eq (access_mode t2); intros;
  try (rewrite FF_sepcon; apply FF_left).
+case_eq (type_is_volatile t2); intros;
+ try (rewrite FF_sepcon; apply FF_left).
 simpl. rewrite H6.
 destruct (offset_val (Int.repr z) (eval_lvalue e1 rho)); 
  try (rewrite FF_sepcon; apply FF_left).
@@ -178,6 +180,7 @@ apply sepcon_derives; auto.
 rewrite <- H2.
 unfold mapsto.
 destruct (access_mode t2); try apply FF_left.
+case_eq (type_is_volatile t2); intros; try apply FF_left.
 destruct (field_offset fld fields);  try apply FF_left.
 rewrite prop_true_andp by auto.
 apply derives_refl.
@@ -252,6 +255,7 @@ destruct (field_offset fld fields);
 normalize.
 unfold mapsto.
 destruct (access_mode t2);    try (rewrite FF_sepcon; apply FF_left).
+destruct (type_is_volatile t2); try (rewrite FF_sepcon; apply FF_left).
 case_eq (eval_lvalue e1 rho); simpl; intros; try rewrite FF_sepcon; try apply FF_left.
 rewrite distrib_orp_sepcon.
 apply orp_left.
@@ -285,6 +289,7 @@ unfold lift1. unfold_lift.
 rewrite TE1. rewrite H4; simpl eval_field.
 rewrite field_offset_unroll in H5. rewrite H5.
 normalize.
+rewrite H7.
 repeat apply andp_right; try apply prop_right; 
   repeat simple apply conj; auto.
 hnf; simpl. rewrite TE1.
@@ -310,9 +315,11 @@ simpl.
 case_eq (field_offset fld fields); simpl; intros; try apply FF_left.
 rewrite <- H1.
 destruct (access_mode t2); try apply FF_left.
+destruct (type_is_volatile t2); try apply FF_left.
 rewrite prop_true_andp by auto.
 auto.
 destruct (access_mode t2); try apply FF_left.
+destruct (type_is_volatile t2); try apply FF_left.
 Qed.
 
 Lemma SEP_TT_right:

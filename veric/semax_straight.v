@@ -128,6 +128,7 @@ intros.
 destruct H. destruct H. destruct H. destruct H0.
 unfold mapsto_,mapsto in H0.  unfold mapsto in *. 
 destruct (access_mode t); try solve [ inv H0].
+destruct (type_is_volatile t) eqn:VOL; try contradiction.
 assert (exists v,  address_mapsto m v (Share.unrel Share.Lsh sh)
         (Share.unrel Share.Rsh sh) (b, Int.unsigned o) x).
 destruct H0.
@@ -169,6 +170,7 @@ exists b, exists o, v = Vptr b o.
 Proof.
 intros. unfold mapsto_, mapsto in H.
 destruct (access_mode t); try contradiction.
+destruct (type_is_volatile t); try contradiction.
 destruct v; try contradiction.
 destruct H as [? | [? [v ?]]]; eauto.
 Qed. 
@@ -752,6 +754,7 @@ split; [split3 | ].
    revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
    rename m into ch.
    rewrite H2 in H5.
+   destruct (type_is_volatile (typeof e1)); try contradiction.
    destruct H5 as [[H5' H5] | [H5 _]]; [ | rewrite H5 in TC3; inv TC3].
    assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
    apply mapsto_core_load with (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
@@ -880,7 +883,7 @@ split; [split3 | ].
    unfold mapsto in H4. 
    revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
    rename m into ch.
-   rewrite H2 in H5.
+   rewrite H2, NONVOL in H5.
    destruct H5 as [[H5' H5] | [H5 _]];
     [ | hnf in TC3; rewrite H5, eval_cast_Vundef in TC3; inv TC3 ].
    assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
@@ -1128,6 +1131,7 @@ destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge (guard_environ_e1 _ _ _
 rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 rewrite writable_share_right in H4 by auto.
+destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
 assert (exists v, address_mapsto ch v (Share.unrel Share.Lsh sh) Share.top
         (b0, Int.unsigned i) w1) by (destruct H4 as [[H4' H4] |[? [? ?]]]; eauto).
 clear v3 H4; destruct H2 as [v3 H4].
@@ -1168,8 +1172,8 @@ generalize (eval_expr_relate _ _ _ _ _ e2 (m_dry jm) Hge (guard_environ_e1 _ _ _
 econstructor; try eassumption. 
 unfold tc_lvalue in TC1. simpl in TC1. 
 apply tc_lvalue_nonvol in TC1. auto.  (* typechecking proof *)
-instantiate (1:= eval_expr e2 rho).
-auto.
+(*instantiate (1:= eval_expr e2 rho).
+auto.*)
 instantiate (1:=(force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))).
 rewrite cop2_sem_cast.
 eapply cast_exists; eauto. destruct TC4; auto.
@@ -1213,6 +1217,7 @@ destruct TC4 as [TC4 _].
 rewrite Hmode.
 rewrite He1'. 
 rewrite writable_share_right; try rewrite cop2_sem_cast; auto.
+rewrite NONVOL.
 apply orp_right1.
 apply andp_right.
 intros ? ?. rewrite tc_val_eq. eapply typecheck_val_sem_cast; eauto.

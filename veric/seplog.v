@@ -72,11 +72,15 @@ Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
 Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   match access_mode t with
   | By_value ch => 
+   match type_is_volatile t with
+   | false =>
     match v1 with
      | Vptr b ofs => 
           (!!tc_val t v2 && address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
         || !! (v2 = Vundef) && EX v2':val, address_mapsto ch v2' (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
      | _ => FF
+    end
+    | _ => FF
     end
   | _ => FF
   end. 
@@ -107,6 +111,8 @@ assert (MAX: Int.max_signed = 2147483648 - 1) by reflexivity.
 assert (MIN: Int.min_signed = -2147483648) by reflexivity.
 apply andp_right; auto.
 unfold mapsto; intros.
+replace (type_is_volatile (Tint sz sgn noattr)) with false
+  by (destruct sz,sgn; reflexivity).
 simpl. 
 destruct sz, sgn, v; (try rewrite FF_and; auto);
 change (!!True) with TT; rewrite TT_and; repeat rewrite GG;

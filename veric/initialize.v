@@ -193,7 +193,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
        match ge_of rho symb with
-       | Some (v, Tarray t _ att) => mapsto sh (Tpointer t att) a (offset_val ofs v)
+       | Some (v, Tarray t _ _) => mapsto sh (Tpointer t noattr) a (offset_val ofs v)
        | Some (v, Tvoid) => TT
        | Some (v, t) => mapsto sh (Tpointer t noattr) a (offset_val ofs v)
        | _ => TT

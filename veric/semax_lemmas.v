@@ -1490,6 +1490,7 @@ Proof.
  specialize (H0 _ (age_laterR H1)).
  unfold mapsto in *.
  revert H0; case_eq (access_mode t); intros; auto.
+ destruct (type_is_volatile t); try contradiction.
  destruct v1; try contradiction.
  rename H into Hmode.
 destruct H0 as [H0|H0]; [left | right].

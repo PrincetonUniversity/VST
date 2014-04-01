@@ -2727,6 +2727,7 @@ Lemma mapsto_local_facts:
 Proof.
 intros; unfold mapsto.
 destruct (access_mode t); try apply FF_left.
+destruct (type_is_volatile t); try apply FF_left.
 destruct v1; try apply FF_left.
 apply prop_right; split; auto; apply I.
 Qed.

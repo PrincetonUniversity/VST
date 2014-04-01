@@ -9,6 +9,7 @@ Proof. unfold mapsto_; intros.
 normalize.
 unfold mapsto.
 destruct (access_mode t); auto.
+destruct (type_is_volatile t); try apply FF_left.
 destruct v; auto.
 apply orp_left.
 apply orp_right2.
@@ -82,6 +83,7 @@ hnf; intros.
 unfold mapsto in *;
 simpl in H,H0.
 destruct (access_mode t); try contradiction.
+destruct (type_is_volatile t); try contradiction.
 destruct v1; try contradiction.
 destruct H as [[_ H]|[Hz [u1 H]]]; try congruence.
 destruct H0 as [[_ H0]|[Hz [u2 H0]]]; try congruence.
@@ -96,6 +98,7 @@ intros; apply pred_ext; normalize.
 apply andp_right; auto.
 unfold mapsto.
 destruct (access_mode t); normalize.
+destruct (type_is_volatile t); normalize.
 destruct v1; normalize.
 apply prop_right; apply I.
 Qed.
@@ -178,6 +181,7 @@ normalize.
 unfold mapsto.
 destruct (access_mode
     (type_of_field (unroll_composite_fields i (Tstruct i f a) f) fld)); auto.
+destruct (type_is_volatile (type_of_field (unroll_composite_fields i (Tstruct i f a) f) fld)); try apply FF_left.
 destruct (offset_val (Int.repr z) v1); auto.
 apply orp_left; normalize.
 apply orp_right2.
@@ -397,6 +401,8 @@ rewrite H3.
 unfold mapsto.
 rewrite <- H.
 case_eq (access_mode t); intros; try apply FF_left.
+case_eq (type_is_volatile t); intros; try apply FF_left.
+rewrite H3.
 destruct v1'; normalize.
 rewrite <- H1; simpl.
 apply orp_left; normalize.
@@ -483,6 +489,7 @@ Proof.
 intros.
 unfold mapsto.
 destruct (access_mode t); normalize.
+destruct (type_is_volatile t); normalize.
 pose proof (size_chunk_pos m).
 destruct v; normalize.
 rewrite distrib_orp_sepcon.

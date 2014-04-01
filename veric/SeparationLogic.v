@@ -86,11 +86,15 @@ end.
 Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   match access_mode t with
   | By_value ch => 
+   match type_is_volatile t with
+   | false =>
     match v1 with
      | Vptr b ofs => 
           (!!tc_val t v2 && address_mapsto ch v2 (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
         || !! (v2 = Vundef) && EX v2':val, address_mapsto ch v2' (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)
      | _ => FF
+    end
+    | _ => FF
     end
   | _ => FF
   end. 
@@ -127,7 +131,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
        match ge_of rho symb with
-       | Some (v, Tarray t _ att) => mapsto sh (Tpointer t att) a (offset_val ofs v)
+       | Some (v, Tarray t _ _) => mapsto sh (Tpointer t noattr) a (offset_val ofs v)
        | Some (v, Tvoid) => TT
        | Some (v, t) => mapsto sh (Tpointer t noattr) a (offset_val ofs v)
        | _ => TT
