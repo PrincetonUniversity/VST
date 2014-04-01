@@ -72,6 +72,7 @@ Require Import compcert.common.Values.
 
 Section linkingSimulation.
 
+Import Wholeprog_simulation.
 Import SM_simulation.
 Import Linker.
 Import Modsem.
@@ -2232,13 +2233,29 @@ Qed.
 
 End step_lems.
 
+(*TODO: move into wf_lemmas.v*)
+
+Definition sig_data := {ix : 'I_N & (sims ix).(core_data entry_points)}.
+
+Definition sig_ord (x y : sig_data) :=
+  exists pf : projT1 x = projT1 y,
+    (sims (projT1 x)).(core_ord) 
+      (projT2 x) 
+      (cast_ty (lift_eq _ (sym_eq pf)) (projT2 y)).
+
+Lemma wf_sig_ord : well_founded sig_ord.
+Proof.
+move=> []i cd_i; case: (@wf_ords i cd_i)=> H.
+apply: Acc_intro=> []j []/=pf H2.
+Admitted.
+
 Section R.
 
 Import CallStack.
 Import Linker.
 Import STACK.
 
-Record R (data : Lex.t types) (mu : SM_Injection)
+Record R (data : sig_data) (mu : SM_Injection)
          (x1 : linker N cores_S) m1 (x2 : linker N cores_T) m2 := 
   { (* local defns. *)
     s1  := x1.(stack) 
@@ -2255,7 +2272,9 @@ Record R (data : Lex.t types) (mu : SM_Injection)
     [/\ mu = restrict_sm mu_tot (vis mu_tot) 
       , REACH_closed m1 (vis mu)
       , trash_inv mu_trash mu_top mus m1 m2
-      , @head_inv c d pf (Lex.get c.(Core.i) data) mu_trash mu_top mus m1 m2 
+      , exists pf2 : projT1 data = c.(Core.i),
+          @head_inv c d pf (cast_ty (lift_eq _ pf2) (projT2 data)) 
+          mu_trash mu_top mus m1 m2 
       & tail_inv mu_trash mus (pop s1) (pop s2) m1 m2] 
 
     (* side conditions *)
@@ -2279,12 +2298,13 @@ Lemma peek_match :
   (Core.c (peekCore x1)) m1 
   (rc_cast'' peek_ieq (Core.c (peekCore x2))) m2.
 Proof.
-move: (R_inv pf)=> []A []? []mu_top []? []? _ _. 
+move: (R_inv pf)=> []A []? []mu_top []? []? _ _ []pf2. 
 move/head_match=> MATCH ?.
 have ->: (rc_cast'' peek_ieq (Core.c (peekCore x2)) 
          = rc_cast'' A (Core.c (peekCore x2)))
   by f_equal; f_equal; apply proof_irr.
-by exists (Lex.get (Core.i (peekCore x1)) data), mu_top.
+exists (cast_ty (lift_eq _ pf2) (projT2 data)). 
+by exists mu_top.
 Qed.
 
 Lemma R_AllDisjointS 
@@ -2331,7 +2351,7 @@ Qed.
 
 Lemma R_wd : SM_wd mu.
 Proof.
-move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B C D E F.
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B C D []pf2 E F.
 have valid: sm_valid mu_top m1 m2 by apply: (match_validblocks _ (head_match E)).
 have D': trash_inv mu_trash (Build_frame_pkg valid) mus m1 m2 by [].
 rewrite B; apply: restrict_sm_WD=> //; apply: join_all_wd.
@@ -2342,7 +2362,7 @@ Qed.
 
 Lemma R_isGlob b : isGlobalBlock my_ge b -> frgnBlocksSrc mu b.
 Proof.
-move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B ? X Y Z.
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B ? X []pf2 Y Z.
 rewrite B restrict_sm_frgnBlocksSrc; apply: join_all_isGlob.
 by apply: (trash_isglob X).
 split; first by apply: (head_globs Y). 
@@ -2351,7 +2371,7 @@ Qed.
 
 Lemma R_presglobs : Events.meminj_preserves_globals my_ge (extern_of mu).
 Proof. 
-move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B ? X Y Z.
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B ? X []pf2 Y Z.
 have valid: sm_valid mu_top m1 m2 by apply: (match_validblocks _ (head_match Y)).
 have X': trash_inv mu_trash (Build_frame_pkg valid) mus m1 m2 by [].
 rewrite B. 
@@ -2392,7 +2412,7 @@ Qed.
 
 Lemma R_match_validblocks : sm_valid mu m1 m2.
 Proof. 
-move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B ? X Y Z.
+move: (R_inv pf)=> []A []mu_trash []mu_top []mus []B ? X []pf2 Y Z.
 rewrite B /sm_valid /DOM restrict_sm_DomSrc /RNG restrict_sm_DomTgt.
 apply: join_all_valid=> //=; first by apply: (trash_valid X).
 split; first by apply: (head_valid Y).
@@ -2472,7 +2492,7 @@ Lemma atext2 :
   LinkerSem.at_external0 st2 = Some (ef,sig,args2).
 Proof.
 case: (R_inv inv)=> pf []mu_trash []mu_top []mus []_.
-move=> rc _; move/head_match.
+move=> rc _ []pf2; move/head_match.
 unfold LinkerSem.at_external0 in atext1.
 have atext1':
   at_external 
@@ -2527,7 +2547,7 @@ Lemma hdl2 args2 :
 Proof.
 move=> A.
 case: (R_inv inv)=> pf []mu_trash []mu_top []mus []mu_eq.
-move=> rc trinv hdinv tlinv; move: hdl1; rewrite LinkerSem.handleP.
+move=> rc trinv []pf2 hdinv tlinv; move: hdl1; rewrite LinkerSem.handleP.
 move=> []all_at1 []ix []c1 []fntbl1 init1 st1'_eq.
 
 have atext1': 
@@ -2991,7 +3011,7 @@ have hdinv_new:
   head_inv pf_new cd_new mu_trash mu_new' (pkg :: mus) m1 m2.
 { by apply: Build_head_inv. }
 
-exists (Lex.set (Core.i c1) cd_new cd),st2'; split.
+exists (existT _ (Core.i c1) cd_new),st2'; split.
 rewrite LinkerSem.handleP; exists all_at2,ix,c2; split=> //.
 by move: fntbl1; rewrite (R_fntbl inv).
 
@@ -3023,9 +3043,15 @@ have pf_new':
 apply: Build_R.
 exists pf_new',mu_trash,mu_new',[:: pkg & mus]; split=> //.
 by move: mu_tot_new_eq; rewrite /mu_tot_new /mu_tot=> ->.
-rewrite ->st1'_eq in *.
-move: hdinv_new.
-admit. (*by Lex.gss & hdinv_new*)
+rewrite ->st1'_eq in *; rewrite /=.
+
+have eq: Core.i c1 
+       = Core.i (SeqStack.head (callStack (stack st1')) 
+                (callStack_nonempty (stack st1'))).
+{ by clear - st1'_eq; rewrite st1'_eq. }
+
+exists eq; move: hdinv_new.
+admit. (*dependent type casting*)
 have valid'': sm_valid pkg m1 m2 by apply: valid'.
 have vinj'': 
   Forall2 (val_inject (restrict (as_inj mu_top) (vis mu_top))) args1 args2.
@@ -3067,7 +3093,7 @@ Context
 Lemma hlt2 : exists rv2, LinkerSem.halted0 st2 = Some rv2.
 Proof.
 case: (R_inv inv)=> pf []mu_trash []mu_top []mus []mu_eq.
-move=> rc trinv hdinv tlinv.
+move=> rc trinv []pf2 hdinv tlinv.
 move: hlt1; rewrite /LinkerSem.halted0=> hlt10.
 case: (core_halted (sims (Core.i (peekCore st1)))
        _ _ _ _ _ _ (head_match hdinv) hlt10)
@@ -3108,7 +3134,7 @@ Lemma aft2 :
     & R cd' mu st1' m1 st2' m2].
 Proof.
 case: (R_inv inv)=> pf []mu_trash []mu_top []mus []mu_eq.
-move=> rc trinv hdinv tlinv.
+move=> rc trinv []pf_hd hdinv tlinv.
 move: hlt1; rewrite /LinkerSem.halted0=> hlt10.
 case: (core_halted (sims (Core.i (peekCore st1)))
        _ _ _ _ _ _ (head_match hdinv) hlt10)
@@ -3368,7 +3394,8 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [aft2' mtch12']]]]]:
 
 set st2' := {| fn_tbl := fntbl; stack := CallStack.mk (hd2'::tl2) pf20 |}.
 
-exists st2',(Lex.set (Core.i hd1') cd' cd).
+exists st2'. 
+exists (existT _ (Core.i hd1') cd'). 
 
 split=> //.
 
@@ -3705,8 +3732,10 @@ rewrite mu_eq mus_eq; f_equal=> /=.
     set mutrash := Build_frame_pkg (trash_valid trinv).
     have trinv': trash_inv mutrash mupkg mus m1 m2.
       by apply: trinv.
-    have hdinv': head_inv pf (Lex.get (Core.i (c inv)) cd)
-                 mutrash mupkg mus m1 m2.
+    have hdinv': 
+      head_inv pf 
+        (cast (fun ix : 'I_N => core_data entry_points (sims ix)) pf_hd (projT2 cd))
+        mutrash mupkg mus m1 m2.
       by apply: hdinv.
     have tlinv': tail_inv mutrash mus (hd1::tl1) (hd2::tl2) m1 m2.
     { by split. }
@@ -3949,7 +3978,7 @@ apply: Build_trash_minimal=> //=.
 { by rewrite join2C join2_inject_incr. }
 
 {(* head_inv *)
-rewrite Lex.gss.
+exists erefl.
 
 move: (head_rel hdinv) (head_ctnsS hdinv) (head_ctnsT hdinv). 
 rewrite mus_eq /= => rel ctnsS ctnsT. 
@@ -4450,17 +4479,21 @@ by case: (hlt2 hlt0 inv)=> rv2 hlt2; exists rv2; rewrite hlt2.
 Qed.
 
 End halted_lems.
-  
-Lemma link : SM_simulation_inject linker_S linker_T my_ge my_ge entry_points.
+
+Lemma link 
+  (main : val) 
+  (main_sig : signature)
+  (main_entrypt: In (main,main,main_sig) entry_points) :
+  Wholeprog_simulation_inject linker_S linker_T my_ge my_ge main.
 Proof.
 
-eapply Build_SM_simulation_inject
-  with (core_data   := Lex.t types)
-       (core_ord    := ord)
+eapply Build_Wholeprog_simulation_inject
+  with (core_data   := sig_data)
+       (core_ord    := sig_ord)
        (match_state := R).
 
 (* well_founded ord *)
-{ by apply: Lex.wf_ord. }
+{ by apply: wf_sig_ord. }
 
 (* match -> SM_wd mu *)
 { by apply: R_wd. }
@@ -4480,9 +4513,131 @@ eapply Build_SM_simulation_inject
 (* match_validblocks *)
 { by apply: R_match_validblocks. }
 
-(* core_initial *)
-{ by admit. (* core_initial: TODO *) }
+{(* Case: [core_initial] *)
+  move=> j c1 vals1 m1 vals2 m2 init1 inj vinj pres.
+  move: init1. 
+  rewrite /= /LinkerSem.initial_core.
+  case e: main=> [//|//|//|//|b].
+  case f: (fun_tbl b)=> [ix|//].
+  case g: (initCore _ _ _ _)=> [x|//].
+  case.
+  move=> <-.
+  case: x g=> ix1 c0 init1.
 
+  set fS := mapped j.
+
+  have [fT' fT_charact]: 
+    exists fT : block -> bool,
+      forall b2, fT b2 <-> (exists b1 d, j b1 = Some (b2,d)).
+  { admit. }
+
+  set fT := REACH m2 fT'.
+
+  set dS := (fun b : block => valid_block_dec m1 b).
+  set dT := (fun b : block => valid_block_dec m2 b).
+
+  exists (initial_SM dS dT fS fT j).
+
+  Arguments core_initial : default implicits.
+
+  move: init1; rewrite /initCore.
+  case g: (RC.initial_core _ _ _ _)=> [c|//].
+  case=> eq1 H2. subst ix1.
+  apply Eqdep_dec.inj_pair2_eq_dec in H2. subst c0.
+
+  move: (core_initial (sims ix))=> H1.
+  move: (H1 _ _ _ main_entrypt vals1 c m1 j vals2  m2 fS fT dS dT).
+  case=> //.
+
+  admit.
+  admit.
+
+  { rewrite /dS /dT /mapped=> ? ? ? eq.
+    split.
+    apply Mem.valid_block_inject_1 with (m1:=m1) (m2:=m2) in eq=> //. admit.
+    apply Mem.valid_block_inject_2 with (m1:=m1) (m2:=m2) in eq=> //. admit. }
+
+  { admit. }
+
+  { admit. }
+
+  { by apply: (inject_REACH_closed _ _ _ inj). }
+
+  { rewrite /fS /dS.
+    admit. }
+
+  { rewrite /fT /dT.
+    admit. }
+
+  { rewrite /fS /mapped => b1; case k: (j b1)=> [[x y]|//] _.
+    exists x,y; split=> //.
+    apply Mem.valid_block_inject_2 with (m1:=m1) (m2:=m2) in k=> //.
+    rewrite /dT. admit. }
+
+  { admit. }
+  { admit. }
+
+  move=> cd []c2 []init2 mtch12.
+
+  exists (existT _ ix cd).
+  exists (mkLinker fun_tbl (CallStack.singl (Core.mk _ _ ix c2))).
+  
+  split.
+
+  rewrite /as_inj /join /=; extensionality b0.
+  by case: (j b0)=> [[? ?]//|//].
+
+  simpl in init2.
+
+  have main_eq: main = Vptr b Integers.Int.zero.
+  { admit. }
+
+  rewrite -main_eq init2; split=> //.
+
+  set mu_top0 := initial_SM dS dT fS fT j.
+
+  have mu_top_wd : SM_wd mu_top0.
+  { admit. }
+
+  set mu_top := Inj.mk mu_top_wd.
+  
+  have mu_top_val: sm_valid mu_top m1 m2.
+  { admit. }
+
+  set mu_trash := Build_frame_pkg mu_top_val.
+
+  apply: Build_R=> /=.
+  exists erefl,mu_trash,mu_top,[::]=> /=.
+  split=> //.
+  rewrite /mu_top0 /initial_SM; f_equal.
+  by rewrite /restrict; extensionality b0; case: (vis _ _).
+  by rewrite predI_refl.
+  by rewrite predI_refl.
+  by rewrite predI_refl.
+  by rewrite predI_refl.
+  rewrite /restrict; extensionality b0.
+  rewrite /vis /= /fS /mapped /in_mem /=.  
+  case k: (j b0)=> [[? ?]/=|//].
+  by rewrite /join2 k Pos.eqb_refl Zeq_bool_refl /=.
+  by apply: (inject_REACH_closed _ _ _ inj).
+
+  apply: Build_trash_inv=> //.
+  admit.
+  split=> //; first by move=> b1 b2 b2' d2 d2'=> ->; case=> -> ->.  
+  by apply: Build_trash_minimal.
+
+  exists erefl; apply: Build_head_inv=> //.
+  apply: Build_vis_inv; rewrite /= /RC.reach_basis /vis /mu_top0 /= /fS.
+  admit.
+
+  rewrite /frgnS_mapped /= => b0 b' d'.
+  case k: (fS b0)=> //.
+  by rewrite /as_inj /join /mu_top0 /= => ->.
+
+  by []. 
+
+  by apply: ord_dec. }(*END [Case: core_initial]*)
+    
 {(*[Case: diagram]*)
 move=> st1 m1 st1' m1' U1 STEP data st2 mu m2 U1_DEF INV.
 case: STEP=> STEP STEP_EFFSTEP; case: STEP.
@@ -4524,7 +4679,7 @@ have EFFSTEP:
 move: (effcore_diagram _ _ _ _ _ (sims (Core.i c1))).  
 move/(_ _ _ _ _ _ EFFSTEP).
 case: (R_inv INV)=> pf []mu_trash []mupkg []mus []mu_eq.
-move=> rclosed trinv hdinv tlinv.
+move=> rclosed trinv []pf2 hdinv tlinv.
 
 have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b. 
 
@@ -4548,7 +4703,7 @@ set mupkg' := Build_frame_pkg mu_top'_valid.
 (* instantiate existentials *)
 set c2''   := rc_cast' (peek_ieq INV) c2'.
 set st2'   := updCore st2 (Core.upd c2 c2'').
-set data'  := Lex.set (Core.i c1) cd' data.
+set data'  := (existT (fun ix => core_data entry_points (sims ix)) (Core.i c1) cd'). 
 set mu'    := restrict_sm 
               (join_all mu_trash $ mu_top' :: map frame_mu0 mus)
               (vis (join_all mu_trash $ mu_top' :: map frame_mu0 mus)).
@@ -4640,14 +4795,15 @@ split.
 
  (* head_inv *)
  { case: tlinv=> allrel frameall.
+   exists erefl=> /=.
    apply: (@head_inv_step 
      mupkg m1 m2 mu_top' m1' m2' (head_valid hdinv) INCR SEP
-     (c INV) (d INV) pf c1' c2'' (Lex.get (Core.i (c INV)) data) _ _ mus
+     (c INV) (d INV) pf c1' c2'' _ _ _ mus
      (STACK.pop (CallStack.callStack (s1 INV))) 
      (STACK.pop (CallStack.callStack (s2 INV))) U1 hdinv frameall)=> //=.
    by case: EFFSTEP.
    have ->: rc_cast'' pf c2'' = c2' by apply: cast_cast_eq'.
-   by rewrite Lex.gss.
+   by [].
    rewrite c1_locs=> b -> /=; move: (LOCALLOC). 
    rewrite sm_locally_allocatedChar; case=> _ []_ []-> _ A.
    by apply/orP; right. }
@@ -4734,8 +4890,6 @@ split.
 
      have INJ': as_inj (Inj.mk WD) b' = Some (b,d') by apply: INJ.
 
-     (*have VIS': vis (Inj.mk WD) b' by apply: VIS.*)
-
      have FRGNSS: 
          frgnBlocksSrc (join_all mu_trash [seq frame_mu0 i | i <- mus]) b'.
        by move: (mapped_frgnS_frgnT INJ' VIS)=> ->; apply: FRGNTT.
@@ -4783,8 +4937,15 @@ have STEP'':
    by case: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr; by []. }
 
 right; split; first by move: STEP''; apply: stepSTAR_STEPSTAR.
-apply: Lex.ord_upd; admit. (*FIXME: tail_inv cannot existentially quant. cd's*) 
-} (*end [Label: matching execution]*)
+
+rewrite /sig_ord /data' /=.
+
+have eq: Core.i c1 = projT1 data.
+{ by clear - pf2; move: pf2; rewrite /c /s1 /c1 /peekCore /= => ->. }
+
+exists eq; case: STEP'=> STEP' ORD.
+have <-: pf2 = sym_eq eq by apply: proof_irr.
+by apply: ORD. } (*end [Label: matching execution]*)
 
 } (*end [Subcase: corestep0]*)
 
@@ -4873,7 +5034,8 @@ have mu_wd: SM_wd mu by apply: R_wd inv.
 have inv': R cd (Inj.mk mu_wd) c1 m1 c2 m2 by [].
 case: (toplevel_hlt2 hlt1 inv')=> v2 hlt2.
 case: (R_inv inv')=> pf []mu_trash []mupkg []mus []mu_eq.
-move=> rclosed trinv hdinv tlinv; move: (head_match hdinv)=> mtch0.
+move=> rclosed trinv []pf2 hdinv tlinv; move: (head_match hdinv)=> mtch0.
+
 have hlt10: 
   halted (coreSem (cores_S (Core.i (c inv')))) (RC.core (Core.c (c inv))) 
 = Some v1.
@@ -4881,65 +5043,19 @@ have hlt10:
   case inCtx1: (inContext c1)=> //=.
   case hlt10: (LinkerSem.halted0 c1)=> [v1'|//]; case=> <-.
   by move: hlt10; rewrite /LinkerSem.halted0 /c=> ->. }
+
 case: (core_halted (sims (Core.i (c inv'))) _ _ _ _ _ _ mtch0 hlt10).
 move=> v2' []inj []rc1 []rc2 []vinj []vdef hlt2'.
-have mus_eq: mus = [::]. by admit.
 
-have eq: 
-  as_inj (Inj.mk mu_wd)
-= as_inj mupkg.
-{ rewrite mu_eq mus_eq; extensionality b. 
-  rewrite /as_inj /join /= /join2 /restrict.
-  case e: (vis (join_sm mupkg mu_trash) b).
-  case f: (extern_of mupkg b)=> [[x y]|].
-  rewrite vis_join_sm /= /in_mem /= /in_mem /= in e.
-  admit. 
-  admit.
-  admit. }
-
-have shrdEq: sharedSrc mu = sharedSrc mupkg.
-{ admit. }
-
-exists v2'; split.
-
-by rewrite eq.
-
-have eqS: 
-  exportedSrc mu [:: v1]
-= exportedSrc mupkg [:: v1].
-{ rewrite /exportedSrc !sharedSrc_iff_frgnpub=> //. 
-  extensionality b.
-  case e: (getBlocks [::v1] b)=> //=.
-  admit. (*works if I set pub=|_|(pubs ...)*) 
-  apply: Inj_wd. }
-
-have eqT: 
-  exportedTgt mu [:: v2]
-= exportedTgt mupkg [:: v2].
-{ rewrite /exportedTgt /sharedTgt; extensionality b.
-  case e: (getBlocks [::v2] b)=> //=.
-  admit. (*works if I set pub=|_|(pubs ...)*) }
-
-have eqv: v2'=v2.
-{ move: hlt2 hlt2'; rewrite /LinkerSem.halted.
-  case e: (inContext c2)=> //=.
-  case f: (LinkerSem.halted0 c2)=> [v2''|//].
-  case=> <-; move: f; rewrite /LinkerSem.halted0 /RC.halted.
-  admit. }
-
-rewrite eqS eqv eqT.
-
-split=> //.
-rewrite -eqv; split=> //.
-
-rewrite eq shrdEq.
-split=> //.
+exists (as_inj mupkg),v2'; split.
+admit.
+split.
+admit.
 split=> //.
 
-by rewrite eqv. }(*END Case: halted*)
+rewrite /= hlt2.
 
-admit. (*at_external: doesn't apply to whole programs*)
-admit. (*after_external: doesn't apply to whole programs*)
+admit. }(*END Case: halted*)
 
 Qed.
 
