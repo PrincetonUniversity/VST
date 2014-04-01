@@ -67,6 +67,36 @@ Definition initial_core ge v vs :=
     | None => None
   end.
 
+Lemma initial_core_args ge v vs c : 
+  initial_core ge v vs = Some c -> 
+  args c = vs.
+Proof.
+unfold initial_core.
+case_eq (core_semantics.initial_core sem ge v vs).
+solve[intros c0 H; inversion 1; subst; simpl; auto].
+solve[intros _; inversion 1].
+Qed.
+
+Lemma initial_core_rets ge v vs c : 
+  initial_core ge v vs = Some c -> 
+  rets c = nil.
+Proof.
+unfold initial_core.
+case_eq (core_semantics.initial_core sem ge v vs).
+solve[intros c0 H; inversion 1; subst; simpl; auto].
+solve[intros _; inversion 1].
+Qed.
+
+Lemma initial_core_locs ge v vs c : 
+  initial_core ge v vs = Some c -> 
+  locs c = (fun _ : block => false).
+Proof.
+unfold initial_core.
+case_eq (core_semantics.initial_core sem ge v vs).
+solve[intros c0 H; inversion 1; subst; simpl; auto].
+solve[intros _; inversion 1].
+Qed.
+
 Definition at_external c := at_external sem (core c).
 
 Arguments at_external /.

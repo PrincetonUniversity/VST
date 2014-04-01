@@ -2245,9 +2245,30 @@ Definition sig_ord (x y : sig_data) :=
 
 Lemma wf_sig_ord : well_founded sig_ord.
 Proof.
-move=> []i cd_i; case: (@wf_ords i cd_i)=> H.
+move=> []i.
+apply (well_founded_induction (@wf_ords i)).
+move=> x IH.
 apply: Acc_intro=> []j []/=pf H2.
-Admitted.
+
+have H3: core_ord (sims i) (cast _ pf (projT2 j)) x.
+{ move: pf H2; case: j=> /= ix j pf; subst ix.
+  by rewrite !cast_ty_erefl. }
+
+case: (IH _ H3)=> H4.
+
+apply: Acc_intro=> y H5; apply: H4.
+
+have pf2: projT1 y = i.
+{ by case: H5=> pf0 _; rewrite pf0. }
+
+exists pf2=> /=.
+
+move: pf2; set r := projT1 y; subst i.
+rewrite cast_ty_erefl.
+
+move=> pf2; move: H5; subst r; case=> pf3. 
+by have ->: sym_eq pf3 = sym_eq pf2 by apply: proof_irr.
+Qed.
 
 Section R.
 
@@ -3051,7 +3072,18 @@ have eq: Core.i c1
 { by clear - st1'_eq; rewrite st1'_eq. }
 
 exists eq; move: hdinv_new.
-admit. (*dependent type casting*)
+have hd_eq: 
+  SeqStack.head (CallStack.callStack (stack st1')) (callStack_nonempty st1')
+= c1.
+{ by clear - st1'_eq; rewrite st1'_eq. }
+
+clear - hd_eq; move: hd_eq eq pf_new'=> /=. 
+set pf := (callStack_nonempty st1').
+set q  := (SeqStack.head (CallStack.callStack (stack st1')) pf).
+subst q=> -> eq; have ->: eq = erefl (Core.i c1) by apply: proof_irr.
+rewrite cast_ty_erefl=> pf_new'.
+by have ->: pf_new' = pf_new by apply: proof_irr.
+
 have valid'': sm_valid pkg m1 m2 by apply: valid'.
 have vinj'': 
   Forall2 (val_inject (restrict (as_inj mu_top) (vis mu_top))) args1 args2.
@@ -4514,7 +4546,7 @@ eapply Build_Wholeprog_simulation_inject
 { by apply: R_match_validblocks. }
 
 {(* Case: [core_initial] *)
-  move=> j c1 vals1 m1 vals2 m2 init1 inj vinj pres.
+  move=> j c1 vals1 m1 vals2 m2 init1 inj vinj pres reach.
   move: init1. 
   rewrite /= /LinkerSem.initial_core.
   case e: main=> [//|//|//|//|b ofs].
@@ -4576,7 +4608,23 @@ eapply Build_Wholeprog_simulation_inject
     move=> get1; case: (getBlocks_inject _ _ _ vinj _ get1)=> x []y []map get2.
     by rewrite /mapped map. }
 
-  { rewrite /fT=> b0 H. admit. }
+  { rewrite /fT=> b0 H. 
+    have r2: REACH m2 (fun b' =>
+         isGlobalBlock my_ge b' || getBlocks vals2 b') b0.
+    { suff ->: 
+      (fun b' => isGlobalBlock my_ge b' || getBlocks vals2 b')
+    = (fun b' => isGlobalBlock (ge (cores_T ix)) b' || getBlocks vals2 b'). 
+      by apply: H. 
+      extensionality b1; rewrite orbC (orbC (isGlobalBlock (ge (cores_T ix)) _)).
+      case l: (getBlocks _ _)=> //=.
+      suff: is_true (isGlobalBlock my_ge b1) <-> 
+            is_true (isGlobalBlock (ge (cores_T ix)) b1).
+      case m: (isGlobalBlock my_ge _).
+      by case; move/(_ erefl)=> ->.
+      case n: (isGlobalBlock _ _)=> //.
+      by case=> _; move/(_ erefl). 
+      by rewrite -isGlob_iffT. }
+    by apply: valid_dec; apply: reach. }
 
   { by apply: (inject_REACH_closed _ _ _ inj). }
 
@@ -4659,13 +4707,13 @@ eapply Build_Wholeprog_simulation_inject
   apply: Build_vis_inv; rewrite /= /RC.reach_basis /vis /mu_top0 /= /fS.
 
   have ->: RC.args c = vals1.
-  admit.
+  { by apply: (RC.initial_core_args g). }
 
   have ->: RC.rets c = [::].
-  admit.
+  { by apply: (RC.initial_core_rets g). }
 
   have ->: RC.locs c = (fun _ => false).
-  admit.
+  { by apply: (RC.initial_core_locs g). }
 
   move=> /=; rewrite /in_mem {2}/getBlocks /= => b1.
   suff: isGlobalBlock my_ge b1 || getBlocks vals1 b1 -> mapped j b1.
@@ -5110,7 +5158,20 @@ by apply: Inj_wd.
 split; first by apply: (val_inject_restrictD _ _ _ _ vinj).
 split; first by [].
 rewrite /= hlt2.
-admit. }(*END Case: halted*)
+move: hlt2; rewrite /LinkerSem.halted.
+case e: (~~ inContext c2)=> //.
+case f: (LinkerSem.halted0 c2)=> [rv|//]; case=> <-.
+rewrite /LinkerSem.halted0 /= /RC.halted in f hlt2'.
+have g: halted (coreSem (cores_T (Core.i (c inv'))))
+               (RC.core (rc_cast'' pf (Core.c (d inv'))))  
+      = Some rv.
+{ set T := RC.state \o C \o cores_T.
+  set P := fun ix (x : T ix) => 
+             halted (coreSem (cores_T ix)) (RC.core x)  
+           = Some rv.
+  change (P (Core.i (c inv')) (cast T (sym_eq pf) (Core.c (d inv')))).
+  by apply: cast_indnatdep; rewrite /P; rewrite -f. }
+by rewrite -g. }(*END Case: halted*)
 
 Qed.
 

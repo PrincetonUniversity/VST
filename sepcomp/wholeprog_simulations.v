@@ -79,6 +79,9 @@ Record Wholeprog_simulation_inject :=
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 ->
     meminj_preserves_globals ge1 j ->
+    (forall b, 
+     REACH m2 (fun b0 => isGlobalBlock ge1 b0 || getBlocks vals2 b0) b=true ->
+     Mem.valid_block m2 b) -> 
     exists mu cd c2,
       as_inj mu = j 
       /\ initial_core Sem2 ge2 main vals2 = Some c2 
