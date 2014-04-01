@@ -68,7 +68,7 @@ Defined.
  
 Axiom QP : forall n,  VericSepLogic_Kernel.himp (Q n) (P n).
 
-Definition right_hints := (QP, eq_ptr_emp_lseg).
+Definition right_hints := QP. (*(QP, eq_ptr_emp_lseg).*)
 
 (*Make sure you have already updated any funcs and preds that might have been added by doing
 the left rules *)

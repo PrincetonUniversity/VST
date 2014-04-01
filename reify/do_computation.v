@@ -40,9 +40,10 @@ Section typed.
   Variable all_functions : list (signature all_types).
   (* shadow definitions from functions.v with more useful ones *)
   (* Let all_types := (all_types_r user_types). *)
+  Variable user_computable : func -> bool.
 
-  Definition is_const_base (f : func) :=
-    NPeano.ltb f (computable_prefix_length all_types).
+  Definition is_const_base (f : func)   :=
+    orb (NPeano.ltb f (computable_prefix_length all_types)) (user_computable f).
 
   (* Decide if an expression can compute directly into a Const
    * (by converting the pre-defined functions we have defined
@@ -121,8 +122,8 @@ Section typed.
     end.
 
   (* some tests for do_computation_equal *)
-  Eval vm_compute in (do_computation (Func 1 []) (tvType 11)).
-  Eval vm_compute in (do_computation_equal (Equal (tvType 11) (Func 13 [(Func 1 [])]) (Func 13 [(Func 1 [])]))).
+  (*Eval vm_compute in (do_computation (Func 1 []) (tvType 11)).
+  Eval vm_compute in (do_computation_equal (Equal (tvType 11) (Func 13 [(Func 1 [])]) (Func 13 [(Func 1 [])]))).*)
 
   (* consider tactic needed for this correctness proof *)
   Require Import ExtLib.Tactics.Consider.

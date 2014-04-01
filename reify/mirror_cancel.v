@@ -3,25 +3,22 @@ Require Export MirrorShard.Expr MirrorShard.SepExpr.
 Require Import MirrorShard.SepHeap MirrorShard.SepCancel.
 Require Import MirrorShard.SepLemma.
 Require Import MirrorShard.ReifyHints.
-Require Import MirrorShard.Env.
 Require Export sep.
 Require Import FMapInterface.
+Require Import SimpleInstantiation RawInstantiation.
 Require Import MirrorShard.ExprUnifySynGenRec.
 Require Export wrapExpr.
 Require Import Prover.
 Require Import MirrorShard.provers.ReflexivityProver.
-Require Import SimpleInstantiation.
 Require Export reify_derives.
 Require Import symmetry_prover.
-Require Import computation_prover.
 Require Import seplog.
 Require Import hints.
-Require Import types.
-Require Import functions.
 
 Module SH := SepHeap.Make VericSepLogic Sep.
 Module FM := FMapList.Make NatMap.Ordered_nat.
 Module SUBST := SimpleInstantiation.Make FM.
+Module SUBST_RAW := RawInstantiation.Make SUBST.
 Module UNIFY := ExprUnifySynGenRec.Make SUBST.
 Module UNF := Unfolder.Make VericSepLogic Sep SH SUBST UNIFY SL.
 
@@ -115,54 +112,32 @@ Qed.
 Ltac mirror_cancel boundf boundb prover prover_proof leftr rightr:=
 eapply (ApplyCancelSep_with_eq_goal boundf boundb _ _ _ _ _ prover leftr rightr); auto; try solve[ constructor]; try apply prover_proof.
 
-(* like all_types_r, but without applying repr (confusingly)
-     maybe this should be defined elsewhere? maybe all_types_r
-     should be defined in terms of this? *)
-Definition all_types_repr := listToRepr our_types EmptySet_type.
-
-Import ListNotations.
 Section typed.
   Variable ts : list Expr.type.
-  Let ours_ts := all_types_r ts.
-
-
-  (* we can instantiate types, but not yet functions *)
-  Variable repr_fs :
-    forall ts' : list Expr.type,
-      list (Expr.signature (all_types_r ts')).
-
-  Let fs_inst := 
-    (repr (listToRepr (repr_fs ts)
-                      (Default_signature ours_ts)) nil).
-
-  Definition vst_prover : ProverT ours_ts :=
-    fold_right (@composite_ProverT ours_ts)
-               (@reflexivityProver ours_ts)
-               [(@symmetryProver ours_ts);
-                (@computationProver all_types_repr repr_fs ts)].
-
-  Variable fs : functions ours_ts.
-
-  Definition vstProver_correct : ProverT_correct vst_prover fs_inst.
+  Variable fs : functions ts.
+  Variable user_comp : func -> bool.
+Require Import computation_prover.
+  Definition vst_prover : ProverT ts :=
+    composite_ProverT (composite_ProverT (@reflexivityProver ts) (symmetryProver ts))
+                      (computationProver fs user_comp)
+    .
+  
+  Definition vstProver_correct : ProverT_correct vst_prover fs.
   Proof.
-    repeat (eapply composite_ProverT_correct;
-            eauto using reflexivityProver_correct,
-                       symmetryProver_correct,
-                       (computationProver_correct all_types_repr repr_fs ts)).
+   repeat eapply composite_ProverT_correct; 
+      auto using reflexivityProver_correct, symmetryProver_correct, computationProver_correct.
   Qed.
 End typed.
 
-(* Check (forall types funcs, vstProver_correct types *)
-
-Check vstProver_correct.
+Definition user_comp : func -> bool := fun _ => false.
 
 Ltac mirror_cancel_default :=
 let types := get_types in 
-let funcs := get_funcs in
-eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types) left_lemmas right_lemmas); 
+let funcs := get_funcs types in
+eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types funcs user_comp) left_lemmas right_lemmas); 
 [ reflexivity
 | HintModule.prove left_hints
 | HintModule.prove right_hints
-| apply vstProver_correct (*types (constr: (fun ts' => repr ( ))))*)
+| apply vstProver_correct
 | reflexivity
-| try (split; [try apply I | try apply derives_emp])].
+| repeat (split; try assumption; try apply I; try apply derives_emp)].

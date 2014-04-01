@@ -3,14 +3,61 @@ Require Import progs.reverse.
 Require Import progs.list_dt.
 Require Import reverse_defs.
 Require Import mirror_cancel.
+Require Import ExtLib.Tactics.
 Require Import hints.
+Require Import preproc.
 
 Local Open Scope logic.
+
+Ltac pose_compute x :=
+let comp := fresh "comp" in 
+pose (comp := x); fold comp; vm_compute in comp; unfold comp; clear comp.
+
+Ltac ecompute_left :=
+match goal with
+| |- ?X = _ => pose_compute X; exact eq_refl
+end.
+
+Lemma goal_lift_and' :
+forall t f preds uenv a l r newl newr n,
+nth_error f 5 = Some (functions.and_signature t) ->
+nth_error f (functions.True_f nil) = Some (functions.True_signature t) ->
+lift_ands l = newl -> lift_ands r = newr ->
+n = nil ->
+(goalD (functions.all_types_r t) f preds uenv n (a, (l,r)) <-> 
+goalD (functions.all_types_r t) f preds uenv nil (a, (newl, newr))).
+intros. rewrite <- H1. rewrite <- H2. rewrite H3. apply goal_lift_and; auto.
+Qed.
+
+Ltac lift_and_goal :=
+erewrite goal_lift_and';
+[ | auto | auto | ecompute_left | ecompute_left | auto ]. 
+
+Goal forall (A B : Prop),(!!(A /\ B) && emp |-- !!( B) && emp).
+Proof.
+intros.
+pose_env.
+reify_derives.
+lift_and_goal. 
+mirror_cancel_default. 
+Qed.
 
 Goal forall n, functions.P n |-- functions.Q n.
 intros.
 pose_env.
 reify_derives.
+mirror_cancel_default.
+Qed.
+
+Import functions.
+
+Parameter X : Z -> mpred.
+
+
+Goal  X (1 + 3) |-- X (2 + 2).
+intros.
+pose_env.
+reify_derives. 
 mirror_cancel_default.
 Qed.
 
@@ -38,9 +85,7 @@ mirror_cancel_default.
 Qed.
 
 
-Check ApplyCancelSep_with_eq_goal.
-Print SL.sepLemma.
-Goal forall (a b c d: nat), a = b -> b = c -> c = d -> P a |-- P d.
+Goal forall (a b c d: nat), a = b -> b = c -> c = d -> functions.P a |-- functions.P d.
 Proof.
 intros.
 pose_env.
@@ -110,11 +155,7 @@ Print SL.sepLemma.
 Locate Ltac prepare.
 Fixpoint remove
 
-Fixpoint flatten_conjuncts {types} p : Expr.exprs types :=
-match p with
-| Func 5%nat (a :: b :: nil) => flatten_conjuncts a ++ flatten_conjuncts b
-| _ => p::nil
-end.
+
 
 Fixpoint unflatten_conjuncts {types} l : Expr.expr types :=
 match l with

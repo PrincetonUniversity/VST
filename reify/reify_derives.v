@@ -12,11 +12,11 @@ Local Open Scope logic.
 
 Module ReifySepM := ReifySepExpr VericSepLogic Sep.
 
-Definition all_funcs :  list (Expr.signature our_types):= functions.our_functions nil.
-Definition all_preds : list (Sep.predicate our_types) := functions.sep_predicates nil.
+Definition all_funcs (*:  list (Expr.signature our_types) *):= functions.our_functions nil.
+Definition all_preds (*: list (Sep.predicate our_types) *) := functions.sep_predicates nil.
 
 Ltac pose_env :=
-pose (types := our_types);
+pose (types := all_types_r nil);
 pose (functions := all_funcs);
 pose (preds := all_preds).
 
@@ -99,6 +99,8 @@ replace (force_Opt (Expr.exprD f e v P ty) False ->
 goalD t f p e v (l, d)) with
 (goalD t f p e v (P::l, d)) by reflexivity
 end.
+
+Ltac id_this n:= assert (exists x, n=x); [ eexists | ].
 
 Ltac get_types :=
 match goal with 
@@ -217,7 +219,7 @@ end.
 
 Ltac unfold_VericSepLogic := unfold VericSepLogic.star, 
 VericSepLogic.inj, VericSepLogic.emp, VericSepLogic_Kernel.star,
-VericSepLogic_Kernel.inj, VericSepLogic_Kernel.emp.
+VericSepLogic_Kernel.inj, VericSepLogic_Kernel.emp in *.
 
 Lemma distribute_lift : forall {A B} (a:B->A) (b:B),
 `(a b) = `a `b.

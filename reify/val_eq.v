@@ -57,7 +57,6 @@ Qed.
 Definition uncurry_2 {A B C} (f : A -> B -> C) (a : (A * B)) :=
 let (a, b) := a
 in f a b.
-Check fold_right.
 
 Definition beq_list {A} (f: A -> A -> bool) (l1 : list A) (l2 : list A) :=
 let zipped := combine l1 l2 in

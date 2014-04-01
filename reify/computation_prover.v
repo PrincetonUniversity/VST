@@ -11,26 +11,18 @@ Set Implicit Arguments.
 Set Strict Implicit.
 
 Section ComputationProver.
-  Variable repr_types : Repr type.
-  Variable list_functions : forall ts : list type, list (signature (repr repr_types ts)).
-  Check listToRepr.
-  Let repr_functions := fun ts => listToRepr (list_functions ts) (Default_signature _).
-
-  Variable all_types' : list type.
-  Let all_types := repr repr_types all_types'.
-
-  Variable all_functions' : functions all_types.
-  Let all_functions := repr (repr_functions all_types') all_functions'.
+  Variable all_types : list type.
+  Variable all_functions : functions all_types.
+  Variable user_computable : func -> bool.
 
   (* trivial summarization *)
   Definition computation_summary : Type := list (expr all_types).
   Definition computationSummarize (hyps : list (expr all_types)) : computation_summary := hyps.
 
   (* Completely ignore hyps; just see if we can "compute away" the goal *)
-  Check our_functions.
   Definition computationProve (hyps : computation_summary)
              (goal : expr all_types) : bool :=
-    do_computation_equal all_types (repr (repr_functions all_types') nil) goal.
+    do_computation_equal all_types all_functions user_computable goal.
 
   Definition computationLearn (sum : computation_summary) (hyps : list (expr all_types)) : computation_summary :=
     sum ++ hyps.
@@ -132,19 +124,22 @@ Section ComputationProver.
     erewrite H4 in H6.
     inversion H6.
     reflexivity.
-
+(*
     (* take care of the requirement that funcs can be extended appropriately *)
     intros.
     apply repr_listToRepr_extend.
     unfold repr_functions in H5.
     rewrite repr_listToRepr_nil in H5.
     apply H5.
-
+*)
+    intros. auto.
     intros.
+    auto.
+(*
     apply repr_listToRepr_extend.
     unfold repr_functions in H5.
     rewrite repr_listToRepr_nil in H5.
-    apply H5.
+    apply H5.*)
   Qed.
 
   Definition computationProver : ProverT all_types :=
@@ -162,7 +157,7 @@ End ComputationProver.
 
   (*Variable repr_types : Repr type.
   Variable list_functions : forall ts : list type, list (signature (repr repr_types ts)).*)
-
+(*
   Definition ComputationProver (rts : Repr type) (lfs : forall ts : list type, list (signature (repr rts ts))) : ProverPackage.
     refine ({| ProverTypes := rts
                ; ProverFuncs := fun ts => listToRepr (lfs ts) (Default_signature _)
@@ -172,3 +167,4 @@ End ComputationProver.
     intros.
     eapply computationProver_correct.
   Defined.
+*)

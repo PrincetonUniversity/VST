@@ -11,7 +11,6 @@ Variable user_types : list type.
 
 Let all_types := all_types_r user_types.
 
-Locate tc_environ.
 
 Import SeparationLogic.
 Import Coqlib.
@@ -320,7 +319,6 @@ Definition True_f := S (eval_id_f).
 
 
 (*Separation Logic predicates *)
-Locate field_at.
 Definition field_at_f :=
 Sep.PSig all_types (share_tv :: c_type_tv :: ident_tv :: val_tv :: val_tv :: nil)
 field_at.
