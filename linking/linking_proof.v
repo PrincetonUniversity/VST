@@ -4517,21 +4517,17 @@ eapply Build_Wholeprog_simulation_inject
   move=> j c1 vals1 m1 vals2 m2 init1 inj vinj pres.
   move: init1. 
   rewrite /= /LinkerSem.initial_core.
-  case e: main=> [//|//|//|//|b].
+  case e: main=> [//|//|//|//|b ofs].
   case f: (fun_tbl b)=> [ix|//].
   case g: (initCore _ _ _ _)=> [x|//].
+  case h: (Integers.Int.eq _ _)=> //.
   case.
   move=> <-.
   case: x g=> ix1 c0 init1.
 
   set fS := mapped j.
-
-  have [fT' fT_charact]: 
-    exists fT : block -> bool,
-      forall b2, fT b2 <-> (exists b1 d, j b1 = Some (b2,d)).
-  { admit. }
-
-  set fT := REACH m2 fT'.
+  
+  set fT := (fun b : block => valid_block_dec m2 b).
 
   set dS := (fun b : block => valid_block_dec m1 b).
   set dT := (fun b : block => valid_block_dec m2 b).
@@ -4545,37 +4541,57 @@ eapply Build_Wholeprog_simulation_inject
   case=> eq1 H2. subst ix1.
   apply Eqdep_dec.inj_pair2_eq_dec in H2. subst c0.
 
+  have valid_dec: forall m b, Mem.valid_block m b -> valid_block_dec m b.
+  { by move=> m b0; rewrite /is_left; case l: (valid_block_dec m b0). }
+
+  have valid_dec': forall m b, valid_block_dec m b -> Mem.valid_block m b.
+  { by move=> m b0; rewrite /is_left; case l: (valid_block_dec m b0). }
+
+  have main_eq: main = Vptr b Integers.Int.zero.
+  { move: (Integers.Int.eq_spec ofs Integers.Int.zero).
+    by rewrite e; move: h g=> /= -> h ->. }
+    
   move: (core_initial (sims ix))=> H1.
   move: (H1 _ _ _ main_entrypt vals1 c m1 j vals2  m2 fS fT dS dT).
   case=> //.
 
-  admit.
-  admit.
+  by rewrite main_eq.
 
-  { rewrite /dS /dT /mapped=> ? ? ? eq.
-    split.
-    apply Mem.valid_block_inject_1 with (m1:=m1) (m2:=m2) in eq=> //. admit.
-    apply Mem.valid_block_inject_2 with (m1:=m1) (m2:=m2) in eq=> //. admit. }
+  rewrite -meminj_preserves_genv2blocks.
+  rewrite -(genvs_domain_eq_match_genvs (my_ge_S ix)).
+  rewrite meminj_preserves_genv2blocks.
+  by [].
 
-  { admit. }
+  { rewrite /dS /dT /mapped=> ? ? ? eq; split.
+    apply Mem.valid_block_inject_1 with (m1:=m1) (m2:=m2) in eq=> //.
+    by apply: valid_dec.
+    apply Mem.valid_block_inject_2 with (m1:=m1) (m2:=m2) in eq=> //. 
+    by apply: valid_dec. }
 
-  { admit. }
+  { rewrite /fS=> b0 H; move: (inject_REACH_closed _ _ _ inj); apply.
+    move: H; apply: REACH_mono=> b1.
+    rewrite -(genvs_domain_eq_isGlobal _ _ (my_ge_S ix)); case/orP.
+    move=> isGlob; move: (meminj_preserves_globals_isGlobalBlock _ _ pres _ isGlob).
+    by rewrite /mapped=> ->.
+    move=> get1; case: (getBlocks_inject _ _ _ vinj _ get1)=> x []y []map get2.
+    by rewrite /mapped map. }
+
+  { rewrite /fT=> b0 H. admit. }
 
   { by apply: (inject_REACH_closed _ _ _ inj). }
 
-  { rewrite /fS /dS.
-    admit. }
+  { rewrite /fS /dS /mapped=> b0; case l: (j b0)=> [[x y]|//].
+    apply Mem.valid_block_inject_1 with (m1:=m1) (m2:=m2) in l=> //. 
+    by move=> _; apply: valid_dec. }
 
-  { rewrite /fT /dT.
-    admit. }
-
-  { rewrite /fS /mapped => b1; case k: (j b1)=> [[x y]|//] _.
+  { rewrite /fS /dS /mapped=> b1; case l: (j b1)=> [[x y]|//]=> _.
     exists x,y; split=> //.
-    apply Mem.valid_block_inject_2 with (m1:=m1) (m2:=m2) in k=> //.
-    rewrite /dT. admit. }
+    apply Mem.valid_block_inject_2 with (m1:=m1) (m2:=m2) in l=> //. 
+    by apply: valid_dec. }
 
-  { admit. }
-  { admit. }
+  { by apply: valid_dec'. }
+
+  { by apply: valid_dec'. }
 
   move=> cd []c2 []init2 mtch12.
 
@@ -4589,20 +4605,31 @@ eapply Build_Wholeprog_simulation_inject
 
   simpl in init2.
 
-  have main_eq: main = Vptr b Integers.Int.zero.
-  { admit. }
-
   rewrite -main_eq init2; split=> //.
 
   set mu_top0 := initial_SM dS dT fS fT j.
 
   have mu_top_wd : SM_wd mu_top0.
-  { admit. }
+  { apply: initial_SM_wd=> //. 
+    move=> b1 b2 d0 l; split.
+    apply Mem.valid_block_inject_1 with (m1:=m1) (m2:=m2) in l=> //.
+    by apply: valid_dec.
+    apply Mem.valid_block_inject_2 with (m1:=m1) (m2:=m2) in l=> //.
+    by apply: valid_dec.
+    move=> b1; rewrite /fS /mapped; case l: (j b1)=> [[x y]|//].
+    exists x,y; split=> //.
+    apply Mem.valid_block_inject_2 with (m1:=m1) (m2:=m2) in l=> //.
+    by apply: valid_dec.
+    rewrite /fS /dS /mapped=> b0; case l: (j b0)=> [[x y]|//].
+    apply Mem.valid_block_inject_1 with (m1:=m1) (m2:=m2) in l=> //.    
+    by move=> _; apply: valid_dec. }
 
   set mu_top := Inj.mk mu_top_wd.
   
   have mu_top_val: sm_valid mu_top m1 m2.
-  { admit. }
+  { split.
+    by move=> b1; rewrite /DOM /DomSrc; case/orP=> //=; apply: valid_dec'.
+    by move=> b2; rewrite /RNG /DomTgt; case/orP=> //=; apply: valid_dec'. }
 
   set mu_trash := Build_frame_pkg mu_top_val.
 
@@ -4622,13 +4649,35 @@ eapply Build_Wholeprog_simulation_inject
   by apply: (inject_REACH_closed _ _ _ inj).
 
   apply: Build_trash_inv=> //.
-  admit.
+  rewrite /= /fS /mapped=> b0 isGlob.
+  move: (meminj_preserves_globals_isGlobalBlock _ _ pres _ isGlob).
+  by rewrite /mapped=> ->.
   split=> //; first by move=> b1 b2 b2' d2 d2'=> ->; case=> -> ->.  
   by apply: Build_trash_minimal.
 
   exists erefl; apply: Build_head_inv=> //.
   apply: Build_vis_inv; rewrite /= /RC.reach_basis /vis /mu_top0 /= /fS.
+
+  have ->: RC.args c = vals1.
   admit.
+
+  have ->: RC.rets c = [::].
+  admit.
+
+  have ->: RC.locs c = (fun _ => false).
+  admit.
+
+  move=> /=; rewrite /in_mem {2}/getBlocks /= => b1.
+  suff: isGlobalBlock my_ge b1 || getBlocks vals1 b1 -> mapped j b1.
+  move=> H2; case/orP=> H3; apply: H2.
+  case: (orP H3)=> //. discriminate.  
+
+  case/orP.
+  move=> isGlob. 
+  move: (meminj_preserves_globals_isGlobalBlock _ _ pres _ isGlob).
+  by rewrite /mapped=> ->.
+  move=> get1; case: (getBlocks_inject _ _ _ vinj _ get1)=> x []y []map get2.
+  by rewrite /mapped map. 
 
   rewrite /frgnS_mapped /= => b0 b' d'.
   case k: (fS b0)=> //.
@@ -4636,7 +4685,10 @@ eapply Build_Wholeprog_simulation_inject
 
   by []. 
 
-  by apply: ord_dec. }(*END [Case: core_initial]*)
+  by apply: ord_dec. 
+
+  by case: (Integers.Int.eq _ _).
+  by case: (Integers.Int.eq _ _). }(*END [Case: core_initial]*)
     
 {(*[Case: diagram]*)
 move=> st1 m1 st1' m1' U1 STEP data st2 mu m2 U1_DEF INV.
@@ -5048,13 +5100,16 @@ case: (core_halted (sims (Core.i (c inv'))) _ _ _ _ _ _ mtch0 hlt10).
 move=> v2' []inj []rc1 []rc2 []vinj []vdef hlt2'.
 
 exists (as_inj mupkg),v2'; split.
-admit.
-split.
-admit.
-split=> //.
 
+rewrite -meminj_preserves_genv2blocks.
+rewrite (genvs_domain_eq_match_genvs (my_ge_S (Core.i (c inv')))).
+rewrite meminj_preserves_genv2blocks.
+case: (match_genv mtch0)=> ext isGlob_frgn.
+rewrite match_genv_meminj_preserves_extern_iff_all=> //.
+by apply: Inj_wd.
+split; first by apply: (val_inject_restrictD _ _ _ _ vinj).
+split; first by [].
 rewrite /= hlt2.
-
 admit. }(*END Case: halted*)
 
 Qed.
