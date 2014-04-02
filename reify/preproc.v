@@ -296,10 +296,7 @@ induction l1; auto.
             cancel.
             autorewrite with norm in *. auto.
             apply Cveric.
-            unfold VericSepLogic.inj in *. 
-            unfold VericSepLogic.star in *.
-            unfold VericSepLogic_Kernel.emp in *.
-            entailer.
+            apply Cveric.
           * simpl in *.
             unfold VericSepLogic.inj in *. 
             unfold VericSepLogic.star in *.

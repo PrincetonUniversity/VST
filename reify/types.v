@@ -125,34 +125,3 @@ Definition positive_tv := Expr.tvType 12.
 Definition bool_tv := Expr.tvType 13.
 Definition comparison_tv := Expr.tvType 14.
 Definition tc_assert_tv := Expr.tvType 15.
-
-(*Some common consts *)
-Definition our_const tv val :=
-@Expr.Const our_types tv val.
-
-Definition share_const sh :=
-  our_const share_tv sh.
-
-Definition c_type_const ty :=
-our_const c_type_tv ty.
-
-Definition id_const id :=
-our_const ident_tv id.
-
-Definition val_const val :=
-our_const val_tv val.
-
-Definition environ_const rho :=
-our_const environ_tv rho.
-
-Definition list_int_const li :=
-our_const list_int_tv li.
-
-Definition prop_const p :=
-our_const Expr.tvProp p.
-
-Definition tycontext_const Delta :=
-our_const tycontext_tv Delta.
-
-
-

@@ -5,7 +5,7 @@ Require Import MirrorShard.SepLemma.
 Require Import MirrorShard.ReifyHints.
 Require Export sep.
 Require Import FMapInterface.
-Require Import SimpleInstantiation RawInstantiation.
+Require Import SimpleInstantiation.
 Require Import MirrorShard.ExprUnifySynGenRec.
 Require Export wrapExpr.
 Require Import Prover.
@@ -18,7 +18,6 @@ Require Import hints.
 Module SH := SepHeap.Make VericSepLogic Sep.
 Module FM := FMapList.Make NatMap.Ordered_nat.
 Module SUBST := SimpleInstantiation.Make FM.
-Module SUBST_RAW := RawInstantiation.Make SUBST.
 Module UNIFY := ExprUnifySynGenRec.Make SUBST.
 Module UNF := Unfolder.Make VericSepLogic Sep SH SUBST UNIFY SL.
 

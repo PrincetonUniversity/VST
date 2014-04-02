@@ -13,13 +13,13 @@ Section SymmetryProver.
   Variable types : list type.
   Variable fs : functions types.
 
-  Definition symmetry_summary : Type := list (expr types).
+  Definition symmetry_summary : Type := list expr.
 
-  Definition symmetrySummarize (hyps : list (expr types)) : symmetry_summary := hyps.
+  Definition symmetrySummarize (hyps : list expr) : symmetry_summary := hyps.
 
 
   Fixpoint symmetryProve (hyps : symmetry_summary)
-    (goal : expr types) : bool :=
+    (goal : expr) : bool :=
     match hyps with
       | nil => false
       | exp :: b => 
@@ -35,7 +35,7 @@ Section SymmetryProver.
         end
     end.
 
-  Definition symmetryLearn (sum : symmetry_summary) (hyps : list (expr types)) : symmetry_summary :=
+  Definition symmetryLearn (sum : symmetry_summary) (hyps : list expr) : symmetry_summary :=
     sum ++ hyps.
 
   Definition symmetryValid (uvars vars : env types) (sum : symmetry_summary) : Prop :=

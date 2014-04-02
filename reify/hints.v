@@ -82,7 +82,7 @@ Proof.
   inversion H.
   entailer.
   rewrite lseg_neq. rewrite lseg_neq.
-  unfold lseg_cons. entailer.
+  unfold lseg_cons. normalize.
   (* TODO add this to msl *)
   assert (forall a b, a |-- FF -> a * b |-- FF)%logic.
   intros.
@@ -111,6 +111,17 @@ Qed.
 *)
 
 (* U1 *)
+Check field_at.
+Lemma first_field_at_lseg : forall T id sh ls x z,
+      x <> z -> exists contents,
+      (field_at sh T id x z |-- @lseg T id ls sh contents x z).
+Proof.      
+intros.
+eexists.
+erewrite lseg_unroll.
+eapply orp_right2.
+unfold lseg_cons. entailer.
+Admitted.
 (*
 Check @lseg.
 Lemma first_mapsto_lseg : forall T ll sh ls x z,
@@ -157,7 +168,7 @@ Axiom PQ : forall n, VericSepLogic_Kernel.himp (P n) (Q n).
 Check PQ. Check VericSepLogic_Kernel.himp.
 
 (*Make a tuple here *)
-Definition left_hints := PQ.
+Definition left_hints := (PQ).
 
 Ltac id_this x := assert (exists n, x=n).
 

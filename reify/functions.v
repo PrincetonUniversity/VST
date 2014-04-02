@@ -337,40 +337,4 @@ field_at_f
 
 Definition field_at_p := 0%nat.
 
-(*functions to build Exprs *)
-Definition eval_id_func id rho :=
-@Expr.Func all_types eval_id_f 
-(cons id (cons rho nil)).
-
-(* Definition val_eq v1 v2 :=
-@Expr.Func all_types eq_val_f (cons v1 (cons v2 nil)). *)
-
-Definition and_func p1 p2 :=
-@Expr.Func all_types and_f (cons p1 (cons p2 nil)).
-
-Definition nullary_func f :=
-@Expr.Func all_types f nil.
-
-Definition vint_func i :=
-@Expr.Func all_types vint_f (i :: nil).
-
-Definition int_sub_func i1 i2 :=
-@Expr.Func all_types int_sub_f (i1 :: i2 :: nil).
-
-Definition int_add_func i1 i2 :=
-@Expr.Func all_types int_add_f (i1 :: i2 :: nil).
-
-
-Definition tc_environ_func delta rho :=
-@Expr.Func all_types tc_environ_f (delta :: rho :: nil).
-
-Definition map_vint_func i :=
-@Expr.Func all_types map_Vint_f (i :: nil).
-
-Definition typed_true_func t v :=
-@Expr.Func all_types typed_true_f (t :: v :: nil).
-
-Definition field_at_func sh ty id v1 v2:= @Sep.Func all_types field_at_p
-(sh :: ty :: id :: v1 :: v2 :: nil).
-
 End typed.
