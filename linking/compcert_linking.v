@@ -409,24 +409,23 @@ Lemma handleP id l args l' :
        & l' = pushCore l c pf]).
 Proof.
 rewrite/handle.
-set (x := all (atExternal my_cores) (callStack (stack l))).
-move: (erefl x).
-dependent generalize_eqs_vars x; case: x=> ? ? cs ? l ? x0 ? ? ? ? ?; subst.
-case e: (fn_tbl l id)=> [x|].
-case f: (initCore cs x (Vptr id Int.zero)).
-set u := (all (atExternal cs) (CallStack.callStack (stack l))).
-dependent generalize_eqs_vars u; case: u.
-move=> ? cs ? l ? ? ? ? ? H H1 x ? a ? ? ? ? H3 ? ? ? H5; subst.
-have pf: all (atExternal cs) (CallStack.callStack (stack l)).
-{ by clear - H5; rewrite -H5. }
-set u := (all (atExternal cs) (CallStack.callStack (stack l))).
+rewrite /pushCore.
+generalize (stack_push_wf l).
+pattern (all (atExternal my_cores) (CallStack.callStack (stack l))) 
+ at 1 2 3 4 5 6 7 8.
+case f: (all _ _); move=> pf.
+case g: (fn_tbl l id)=> [ix|].
+case h: (initCore _ _ _)=> [c|].
 split=> H.
-exists pf,x,a; split=> //.
-clear - H; move: H.
-dependent generalize_eqs_vars u; case: u.
-move=> ? cs ? ? ? a pf ? ? ? ? ?.
-subst.
-Admitted. (*dependent pattern matching idiocy*)
+exists (erefl true),ix,c; split=> //; first by case: H=> <-.
+case: H=> pf0 []ix0 []c0 []; case=> <- H -> /=.
+by rewrite h in H; case: H=> ->; repeat f_equal; apply: proof_irr.
+split=> //.
+by case=> pf0 []ix0 []c0 []; case=> <-; rewrite h; discriminate.
+by split=> //; case=> pf0 []ix0 []c0 []; discriminate.
+split=> //.
+by case=> pf0 []ix0 []c0 []; discriminate.
+Qed.
 
 End handle_lems.
 
