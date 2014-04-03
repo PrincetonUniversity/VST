@@ -5,7 +5,7 @@ Require Import reverse_defs.
 Require Import mirror_cancel.
 Require Import ExtLib.Tactics.
 Require Import hints.
-Require Import preproc.
+(* Require Import preproc. *)
 
 Local Open Scope logic.
 
@@ -88,7 +88,7 @@ Qed.
    Some of it is mirror_cancel failing for reasons I don't understand.
    Some of it is that the code below hasn't been updated to pass in
      functions that describe which funcs are computable.
-   --Mario *)
+   *)
 
 Goal forall (a b c d: nat), a = b -> b = c -> c = d -> functions.P a |-- functions.P d.
 Proof.

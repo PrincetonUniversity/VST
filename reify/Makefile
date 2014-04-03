@@ -111,7 +111,8 @@ VFILES:=do_computation.v\
   computation_prover.v\
   mirror_cancel.v\
   denote_tc_assert_b.v\
-  preproc.v
+  lseg_lemmas.v
+#preproc.v\
 
 -include $(addsuffix .d,$(VFILES))
 .SECONDARY: $(addsuffix .d,$(VFILES))

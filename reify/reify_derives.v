@@ -70,8 +70,11 @@ match goal with
 end.
 
 Ltac prepare_reify :=
+idtac "prepare_reify";
+unfold TT; unfold FF;
 autorewrite with gather_prop;
 match goal with 
+| [ |- !!?X && _ |-- !!?Y && _] => rewrite (convert_inj X); rewrite (convert_inj Y)
 | [ |- !!?X && _ |-- !!?Y && _] => rewrite (convert_inj X); rewrite (convert_inj Y)
 | [ |- !!?X && _ |-- _] => rewrite (convert_inj X)
 | [ |- _ |-- !!?X && _] => rewrite (convert_inj X)
@@ -196,8 +199,6 @@ replace e with
 
 Ltac ready_reify :=
 match goal with
-| [ |- context[!!True]] => idtac
-| [ |- context[!!False]] => idtac
 | [ |- context[!! _]] => fail 100 "goal still has !!"
 | _ => idtac
 end.
