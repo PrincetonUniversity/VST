@@ -118,6 +118,14 @@ induction il; destruct vl; simpl.
 unfold globals_only. simpl.
 Abort.  (* need to be closed for addressable locals, too *)
 
+Definition Delta_update_inner_if : tycontext.
+simplify_Delta_from
+  (initialized _fragment
+     (initialized _p
+        (initialized _n
+           (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))).
+Defined.
+
 Lemma update_inner_if_then_proof:
  forall (Espec : OracleKind) (hashed : list int)
           (dd data : list Z) (c d: val) (sh: share) (len: nat)
@@ -136,11 +144,7 @@ Lemma update_inner_if_then_proof:
   forall (H0: (0 < k <= 64)%Z)
        (H1: (64 < Int.max_unsigned)%Z)
        (DBYTES: Forall isbyteZ data),
-semax
-  (initialized _fragment
-     (initialized _p
-        (initialized _n
-           (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot)))))
+semax Delta_update_inner_if
   (PROP  ()
    LOCAL 
    (`(typed_true tint)
@@ -168,7 +172,7 @@ semax
          SEP  (K_vector; `(sha256state_ a' c); `(data_block sh data d))))).
 Proof.
  intros.
-  simplify_Delta; abbreviate_semax.
+ simplify_Delta; abbreviate_semax.
   unfold K_vector.
   unfold update_inner_if_then.
   apply (remember_value (eval_id _fragment)); intro fragment.

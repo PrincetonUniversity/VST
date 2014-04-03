@@ -100,8 +100,9 @@ Definition rearrange_regs :=
                                    (Etempvar _T2 tuint) tuint))))))))))).
 
 
-Definition Delta_loop1 : tycontext :=
- initialized _i
+Definition Delta_loop1 : tycontext.
+simplify_Delta_from
+ (initialized _i
           (initialized _h
            (initialized _g
               (initialized _f
@@ -111,7 +112,8 @@ Definition Delta_loop1 : tycontext :=
                           (initialized _b
                              (initialized _a
                                 (initialized _data
-     (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))).
+     (func_tycontext f_sha256_block_data_order Vprog Gtot))))))))))).
+Defined.
 
 Definition Xarray (b: list int) (i j: Z) :=
     Vint (W (nthi b) (i-16+(j-i) mod 16)).

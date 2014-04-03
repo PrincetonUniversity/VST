@@ -21,11 +21,16 @@ Qed.
 
 Local Open Scope nat.
 
+Definition Delta_rearrange_aux2 : tycontext.
+simplify_Delta_from
+ (initialized _Ki (initialized _l (initialized _l' Delta_loop1))).
+Defined.
+
 Lemma rearrange_aux2: 
 forall (Espec : OracleKind) (i : nat)(w k : int) ctx
       (a b c d e f g h : int) (eqofs : val -> Prop),
 i < 16 ->
-semax (initialized _Ki (initialized _l (initialized _l' Delta_loop1)))
+semax Delta_rearrange_aux2
   (PROP  ()
    LOCAL  (`(eq ctx) (eval_id _ctx);
    `eqofs (eval_id _data); `(eq (Vint w)) (eval_id _l);
@@ -73,7 +78,7 @@ name T1 _T1.
 name T2 _T2.
 name data_ _data.
 name ctx_ _ctx.
-unfold Delta_loop1; simplify_Delta; abbreviate_semax.
+simplify_Delta; abbreviate_semax.
 unfold rearrange_regs.
 forward.
 forward.
@@ -117,7 +122,7 @@ Lemma rearrange_regs_proof:
  (Hdata: isptr data)
  (H: length regs = 8)
  (H0: i < 16), 
- semax (initialized _Ki (initialized _l (initialized _l' Delta_loop1)))
+ semax Delta_rearrange_aux2
   (PROP  ()
    LOCAL 
    (`(eq ctx) (eval_id _ctx);

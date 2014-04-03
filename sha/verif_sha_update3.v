@@ -32,11 +32,7 @@ Lemma update_inner_if_else_proof:
   forall (H0: (0 < k <= 64)%Z)
        (H1: (64 < Int.max_unsigned)%Z)
        (DBYTES: Forall isbyteZ data),
-semax
-  (initialized _fragment
-     (initialized _p
-        (initialized _n
-           (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot)))))
+ semax Delta_update_inner_if
   (PROP  ()
    LOCAL 
    (`(typed_false tint)
@@ -277,10 +273,7 @@ Lemma update_inner_if_proof:
  (H3' : Forall isbyteZ dd)
  (H4 : (LBLOCKz | Zlength hashed))
  (Hlen : (Z.of_nat len <= Int.max_unsigned)%Z),
-semax
-  (initialized _fragment  (initialized _p
-     (initialized _n
-        (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot)))))
+semax Delta_update_inner_if
   (inv_at_inner_if sh hashed len c d dd data hi lo)
   update_inner_if
   (overridePost (sha_update_inv sh hashed len c d dd data hi lo false)

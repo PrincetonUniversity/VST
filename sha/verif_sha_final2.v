@@ -5,9 +5,11 @@ Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Local Open Scope logic.
 
-Definition Delta_final_if1 : tycontext :=
- initialized _n  (initialized _p
-     (func_tycontext f_SHA256_Final Vprog Gtot)).
+Definition Delta_final_if1 : tycontext.
+simplify_Delta_from
+ (initialized _n  (initialized _p
+     (func_tycontext f_SHA256_Final Vprog Gtot))).
+Defined.
 
 Definition Body_final_if1 := 
   (Ssequence

@@ -176,6 +176,55 @@ Ltac unfold_abbrev_commands :=
 
 Ltac clear_abbrevs :=  repeat match goal with H := @abbreviate _ _ |- _ => clear H end.
 
+Ltac simplify_Delta_core H := 
+ repeat match type of H with _ =  ?A => unfold A in H end;
+ cbv delta [abbreviate update_tycon func_tycontext] in H; simpl in H;
+ repeat
+  (first [
+          unfold initialized at 15 in H
+        | unfold initialized at 14 in H
+        | unfold initialized at 13 in H
+        | unfold initialized at 12 in H
+        | unfold initialized at 11 in H
+        | unfold initialized at 10 in H
+        | unfold initialized at 9 in H
+        | unfold initialized at 8 in H
+        |unfold initialized at 7 in H
+        |unfold initialized at 6 in H
+        |unfold initialized at 5 in H
+        |unfold initialized at 4 in H
+        |unfold initialized at 3 in H
+        |unfold initialized at 2 in H
+        |unfold initialized at 1 in H];
+   simpl in H);
+ unfold initialized in H;
+ simpl in H.
+
+Ltac simplify_Delta_from A :=
+ let d := fresh "d" in let H := fresh in 
+ remember A as d eqn:H;
+ simplify_Delta_core H;
+ match type of H with (d = ?A) => apply A end.
+
+Ltac simplify_Delta_at A :=
+ let d := fresh "d" in let H := fresh in 
+ remember A as d eqn:H;
+ simplify_Delta_core H;
+ subst d.
+
+Ltac simplify_Delta := 
+ match goal with 
+| |- semax ?D _ _ _ =>
+            simplify_Delta_at D
+| |- PROPx _ (LOCALx (tc_environ ?D :: _) _) |-- _ =>
+            simplify_Delta_at D
+| |- ?A = _ => unfold A, abbreviate
+| |- _ = ?B => unfold B, abbreviate
+| |- ?A = ?B =>
+     simplify_Delta_at A; simplify_Delta_at B; reflexivity
+end.
+
+(*
 Ltac simplify_Delta := 
 let x := fresh "x" in
 repeat 
@@ -226,6 +275,7 @@ match goal with
 | |- let y := (_, _) in _ =>
        intro x; cbv delta [x]; clear x
 end.
+*)
 
 Ltac abbreviate_semax :=
  match goal with

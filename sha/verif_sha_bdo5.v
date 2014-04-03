@@ -210,6 +210,14 @@ Definition block_data_order_loop2 :=
 
 Opaque K.
 
+Definition Delta_rearrange_regs2c : tycontext.
+simplify_Delta_from
+  (initialized _T2
+     (initialized _Ki
+        (initialized _T1
+           (initialized _t (initialized _s1 (initialized _s0 Delta_loop1)))))).
+Defined.
+
 Lemma rearrange_regs2c_proof:
  forall (Espec : OracleKind)
    (bb : list int) (ctx : val) ( regs : list int) (i : nat)
@@ -219,11 +227,7 @@ Lemma rearrange_regs2c_proof:
   16 <= Z.of_nat i < 64 ->
   Round regs (nthi bb) (Z.of_nat i - 1) =
   [a, b, c, d, e, f, g, h] ->
-semax
-  (initialized _T2
-     (initialized _Ki
-        (initialized _T1
-           (initialized _t (initialized _s1 (initialized _s0 Delta_loop1))))))
+semax Delta_rearrange_regs2c
   (PROP  ()
    LOCAL  (`(eq (Vint (Int.add (Sigma_0 a) (Maj a b c)))) (eval_id _T2);
    `(eq

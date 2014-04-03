@@ -71,7 +71,10 @@ SEP()
                         (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
     SEP().
 Proof.
-intros; ungather_entail; revert Delta'; simplify_Delta.
+intros; ungather_entail.
+unfold Delta'; clear Delta'.
+unfold Delta_loop1.
+ simplify_Delta.
 entailer!.
 * do 8 (destruct regs' as [ | ? regs']; [inv H9 | ]);
      destruct regs'; inv H9;  repeat eexists; reflexivity.

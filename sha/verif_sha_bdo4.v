@@ -259,8 +259,8 @@ unfold Z.succ; rewrite inj_S;
 go_lower0; cancel).
 auto 50 with closed.
 (* 1,811,028 1,429,048 *)
-assert (Delta = (initialized _Ki (initialized _l (initialized _l' Delta_loop1))))
- by (unfold Delta, Delta_loop1; simplify_Delta; reflexivity).
+assert (Delta = Delta_rearrange_aux2)
+ by (unfold Delta, Delta_rearrange_aux2; simplify_Delta; reflexivity).
 eapply semax_pre; [ 
   | rewrite H3; simple apply rearrange_regs_proof 
      with (M:=nthi b)(regs:=regs)(ctx:=ctx)(i:=i)(data:=data); auto ].

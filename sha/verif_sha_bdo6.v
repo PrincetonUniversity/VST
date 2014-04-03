@@ -7,16 +7,20 @@ Require Import sha.bdo_lemmas.
 Require Import sha.verif_sha_bdo5.
 Local Open Scope logic.
 
+Definition Delta_rearrange_regs2 : tycontext.
+simplify_Delta_from 
+  (initialized _Ki
+     (initialized _T1
+        (initialized _t (initialized _s1 (initialized _s0 Delta_loop1))))).
+Defined.
+
 Lemma rearrange_regs2_proof:
  forall (Espec : OracleKind)
    (b : list int) (ctx : val) ( regs : list int) (i : nat),
    (Zlength b = LBLOCKz) ->
    (LBLOCK <= i < c64)%nat ->
    (16 <= Z.of_nat i < 64) ->
-semax
-  (initialized _Ki
-     (initialized _T1
-        (initialized _t (initialized _s1 (initialized _s0 Delta_loop1)))))
+semax Delta_rearrange_regs2
   (PROP  ()
    LOCAL  (`(eq (Vint (nth i K Int.zero))) (eval_id _Ki);
    `(eq (Vint (W (nthi b) (Z.of_nat i)))) (eval_id _T1);
@@ -108,8 +112,7 @@ apply Sigma_0_eq.
 apply Maj_eq.
 drop_LOCAL 1%nat.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-replace Delta with (initialized _T2 (initialized _Ki (initialized _T1 (initialized _t
-                                (initialized _s1 (initialized _s0 Delta_loop1))))))
+replace Delta with Delta_rearrange_regs2c
   by (simplify_Delta; reflexivity).
 clear Delta.
 simple apply rearrange_regs2c_proof; try assumption.
@@ -304,8 +307,7 @@ abstract (
 drop_LOCAL 1%nat.
 
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-replace Delta with (initialized _Ki (initialized _T1 (initialized _t
-                                (initialized _s1 (initialized _s0 Delta_loop1)))))
+replace Delta with Delta_rearrange_regs2
   by (simplify_Delta; reflexivity).
 clear Delta.
 simple apply rearrange_regs2_proof; assumption.
