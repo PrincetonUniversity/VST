@@ -189,8 +189,8 @@ NOTE2: you might need to change to a form of record notation where you can give 
 implicit argument. Do this if you are having type errors
 *)
 
-
-Definition left_lemmas: list (Lemma.lemma types.our_types (SL.sepConcl types.our_types)).
+(*Definition left_lemmas: list (Lemma.lemma types.our_types (SL.sepConcl types.our_types)).*)
+Definition left_lemmas: list (Lemma.lemma SL.sepConcl).
 pose_env. 
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const left_hints types functions preds 
 ltac:(fun funcs preds hints => apply hints). 
@@ -211,7 +211,8 @@ ltac:(fun funcs preds hints => id_this (funcs, preds, hints)). *)
 (* Admitted. *)
 
 (*Copied from above goal*)
-Definition right_lemmas : list (Lemma.lemma types.our_types (SL.sepConcl types.our_types)).
+(*Definition right_lemmas : list (Lemma.lemma types.our_types (SL.sepConcl types.our_types)).*)
+Definition right_lemmas : list (Lemma.lemma SL.sepConcl).
 pose_env.
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const right_hints types functions preds 
 ltac:(fun funcs preds hints =>  apply hints). 
