@@ -91,7 +91,6 @@ end.
 
 (*Pulls down any reified assumptions and puts them into 
 a goal *)
-
 Ltac rev_reify :=
 repeat match goal with
 | [ H : force_Opt (Expr.exprD ?f ?e ?v ?P ?ty) False |- goalD ?t ?f ?p ?e ?v (?l, ?d) ] => revert H; 
@@ -260,7 +259,7 @@ let rec reify_t uvars funcs k' :=
                                                       let r''' := constr:(r':: r'') in
                                                       k' uvars'' funcs'' r'''
   ))  
-      | _ => k' uvars funcs (@nil (Expr.expr our_types))
+      | _ => k' uvars funcs (@nil Expr.expr)
     end
 in
 reify_t uenv funcs k.
@@ -285,7 +284,7 @@ match P with
 | force_Opt (Expr.exprD _ _ _ ?e _) _ -> ?B => 
 let Bb := ci B in
 constr:(e :: Bb)
-| _ => constr:(@nil (Expr.expr our_types))
+| _ => constr:(@nil Expr.expr)
 end
 in
 match goal with 

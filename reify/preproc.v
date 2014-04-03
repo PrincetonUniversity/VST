@@ -4,51 +4,51 @@ Require Import mirror_cancel.
 Local Open Scope logic.
 
 
-Fixpoint flatten_top_conjuncts {types} p : Expr.exprs types :=
+Fixpoint flatten_top_conjuncts p : Expr.exprs :=
 match p with
 | Func 5%nat (a :: b :: nil) => flatten_top_conjuncts a ++ flatten_top_conjuncts b
 | _ => p::nil
 end.
 
-Definition reflect_and {T} a b := @Func T 5%nat (a :: b :: nil).
+Definition reflect_and a b := @Func 5%nat (a :: b :: nil).
 
-Fixpoint unflatten_conjuncts {types} l : Expr.expr types :=
+Fixpoint unflatten_conjuncts l : Expr.expr :=
 match l with
 | nil => Func (functions.True_f nil) nil
 | h::nil => h
 | h::t => Func 5%nat (h::(unflatten_conjuncts t)::nil)
 end .
 
-Fixpoint unflatten_conjuncts_sep {types} l : Sep.sexpr types :=
+Fixpoint unflatten_conjuncts_sep l : Sep.sexpr :=
 match l with
 | nil => Sep.Inj (Func (functions.True_f nil) nil)
 | h::nil => Sep.Inj h
 | h::t => Sep.Star (Sep.Inj h) (unflatten_conjuncts_sep t)
 end .
 
-Definition lift_and {types} e : Sep.sexpr types :=
+Definition lift_and e : Sep.sexpr :=
 unflatten_conjuncts_sep (flatten_top_conjuncts e).
 
-Fixpoint lift_ands {types} s : Sep.sexpr types :=
+Fixpoint lift_ands s : Sep.sexpr :=
 match s with
 | Sep.Star a b => Sep.Star (lift_ands a) (lift_ands b)
 | Sep.Inj e => lift_and e
 | _ => s
 end.
 
-Definition is_true_e {t} (p: Expr.expr t) :=
+Definition is_true_e (p: Expr.expr) :=
 match p with
 | Func f nil  => beq_nat (functions.True_f nil) f
 | _ => false
 end.
 
 
-Definition not_true {t} (p: Expr.expr t) := negb (is_true_e p).
+Definition not_true (p: Expr.expr) := negb (is_true_e p).
 
-Definition remove_true {t} l :=
-filter (@not_true t) l.
+Definition remove_true l :=
+filter not_true l.
 
-Definition remove_trues {t} (e : Expr.expr t) :=
+Definition remove_trues (e : Expr.expr) :=
 unflatten_conjuncts (remove_true (flatten_top_conjuncts e)).
 
 Lemma provable_l : forall t l f uenv ,
@@ -86,8 +86,8 @@ Hint Rewrite Provable_reflect_and Provable_f5_and using auto: Provable_and.
 
 Ltac rp := autorewrite with Provable_and in *.
 
-Lemma remove_true_app : forall {t} x x0,
-@remove_true t (x ++ x0) =
+Lemma remove_true_app : forall x x0,
+remove_true (x ++ x0) =
 remove_true x ++ remove_true x0.
 Proof.
 intros. unfold remove_true. revert x0.

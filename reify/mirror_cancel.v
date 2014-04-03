@@ -1,4 +1,4 @@
-(*Require Import MirrorShard.CancelTacBedrock.*)
+Require Import MirrorShard.CancelTacBedrock.
 Require Export MirrorShard.Expr MirrorShard.SepExpr.
 Require Import MirrorShard.SepHeap MirrorShard.SepCancel.
 Require Import MirrorShard.SepLemma.
@@ -55,8 +55,8 @@ Qed.
 
 Lemma ApplyCancelSep_with_eq_goal 
 (boundf boundb : nat) (types : list Expr.type) :
-      forall (meta_env : Expr.env types) (hyps : Expr.exprs types) preds funcs prover hintsFwd hintsBwd,
-      forall (l r : Sep.sexpr types) res,
+      forall (meta_env : Expr.env types) (hyps : Expr.exprs) preds funcs prover hintsFwd hintsBwd,
+      forall (l r : Sep.sexpr) res,
       forall (WTR : Sep.WellTyped_sexpr (Expr.typeof_funcs funcs) (Sep.typeof_preds preds) (Expr.typeof_env meta_env) nil r = true),
        UNF.hintSideD funcs preds hintsFwd ->
        UNF.hintSideD funcs preds hintsBwd ->
@@ -116,8 +116,8 @@ Section typed.
   Variable fs : functions ts.
   Variable user_comp : func -> bool.
 Require Import computation_prover.
-  Definition vst_prover : ProverT ts :=
-    composite_ProverT (composite_ProverT (@reflexivityProver ts) (symmetryProver ts))
+  Definition vst_prover : ProverT :=
+    composite_ProverT (composite_ProverT reflexivityProver symmetryProver)
                       (computationProver fs user_comp)
     .
   

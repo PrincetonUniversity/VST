@@ -84,6 +84,11 @@ reify_derives.
 mirror_cancel_default.
 Qed.
 
+(* Below this point, stuff breaks.
+   Some of it is mirror_cancel failing for reasons I don't understand.
+   Some of it is that the code below hasn't been updated to pass in
+     functions that describe which funcs are computable.
+   --Mario *)
 
 Goal forall (a b c d: nat), a = b -> b = c -> c = d -> functions.P a |-- functions.P d.
 Proof.
@@ -133,6 +138,7 @@ apply derives_extract_prop. intros.
 destruct H5. destruct H6.
 pose_env.
 reify_derives.
+Check vst_prover.
 let types := get_types in 
 eapply (ApplyCancelSep_with_eq_goal 10 10 _ _ _ _ _ (vst_prover types) nil nil _ _ _ ). 
 apply eq_refl.
