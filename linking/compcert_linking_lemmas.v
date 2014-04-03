@@ -4,7 +4,6 @@ Require Import sepcomp.effect_semantics.
 
 Require Import linking.pos.
 Require Import linking.compcert_linking.
-Require Import linking.rc_semantics.
 Require Import linking.core_semantics_lemmas.
 
 Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
@@ -44,7 +43,7 @@ Proof. by case: st=> ? ? /=; do 2 f_equal; apply: proof_irr. Qed.
 Lemma step_STEP {U st1 m1 c1' m1'} : 
   let: c1 := peekCore st1 in
   effect_semantics.effstep 
-    (RC.effsem (coreSem (cores (Core.i c1)))) 
+    (coreSem (cores (Core.i c1))) 
     (ge (cores (Core.i c1))) U (Core.c c1) m1 c1' m1' -> 
   effect_semantics.effstep linker my_ge 
   U st1 m1 (updCore st1 (Core.upd c1 c1')) m1'.
@@ -58,7 +57,7 @@ Qed.
 Lemma stepN_STEPN {U st1 m1 c1' m1' n} :
   let: c1 := peekCore st1 in
   effect_semantics.effstepN 
-    (RC.effsem (coreSem (cores (Core.i c1)))) 
+    (coreSem (cores (Core.i c1))) 
     (ge (cores (Core.i c1))) n U (Core.c c1) m1 c1' m1' -> 
   effect_semantics.effstepN linker my_ge 
   n U st1 m1 (updCore st1 (Core.upd c1 c1')) m1'.
@@ -78,7 +77,7 @@ Qed.
 Lemma stepPLUS_STEPPLUS {U st1 m1 c1' m1'} :
   let: c1 := peekCore st1 in
   effect_semantics.effstep_plus 
-    (RC.effsem (coreSem (cores (Core.i c1)))) 
+    (coreSem (cores (Core.i c1))) 
     (ge (cores (Core.i c1))) U (Core.c c1) m1 c1' m1' -> 
   effect_semantics.effstep_plus linker my_ge 
   U st1 m1 (updCore st1 (Core.upd c1 c1')) m1'.
@@ -87,7 +86,7 @@ Proof. by rewrite/effstep_plus=> [][]n; move/stepN_STEPN=> B; exists n. Qed.
 Lemma stepSTAR_STEPSTAR {U st1 m1 c1' m1'} :
   let: c1 := peekCore st1 in
   effect_semantics.effstep_star
-    (RC.effsem (coreSem (cores (Core.i c1)))) 
+    (coreSem (cores (Core.i c1))) 
     (ge (cores (Core.i c1))) U (Core.c c1) m1 c1' m1' -> 
   effect_semantics.effstep_star linker my_ge 
   U st1 m1 (updCore st1 (Core.upd c1 c1')) m1'.

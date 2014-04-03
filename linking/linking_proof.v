@@ -78,13 +78,16 @@ Import Linker.
 Import Modsem.
 
 Variable N : pos.
-Variable (cores_S cores_T : 'I_N -> Modsem.t). 
+Variable (cores_S' cores_T : 'I_N -> Modsem.t). 
+
+Let cores_S (ix : 'I_N) := 
+  Modsem.mk (cores_S' ix).(ge) (RC.effsem (cores_S' ix).(coreSem)).
+
 Variable fun_tbl : ident -> option 'I_N.
 Variable sims : forall i : 'I_N, 
   let s := cores_S i in
   let t := cores_T i in
-  SM_simulation_inject 
-  (RC.effsem s.(coreSem)) (RC.effsem t.(coreSem)) s.(ge) t.(ge).
+  SM_simulation_inject s.(coreSem) t.(coreSem) s.(ge) t.(ge).
 Variable my_ge : ge_ty.
 Variable my_ge_S : forall (i : 'I_N), genvs_domain_eq my_ge (cores_S i).(ge).
 Variable my_ge_T : forall (i : 'I_N), genvs_domain_eq my_ge (cores_T i).(ge).
@@ -317,8 +320,9 @@ Section vis_inv.
 
 Import Core.
 
+(*TODO: remove arg c*)
 Record vis_inv (c : t cores_S) mu : Type :=
-  { vis_sup : {subset (RC.reach_basis my_ge c) <= vis mu} }.
+  { vis_sup : {subset (RC.reach_basis my_ge c.(Core.c)) <= vis mu} }.
 
 End vis_inv.
 
@@ -333,10 +337,10 @@ Record frame_inv
   ; frame_inj0  : Mem.inject (as_inj mu0) m10 m20
   ; frame_valid : sm_valid mu0 m10 m20 
   ; frame_match : (sims c.(i)).(match_state) cd0 mu0 
-                   c.(Core.c) m10 (rc_cast'' pf d.(Core.c)) m20 
-  ; frame_at1   : at_external (cores_S c.(i)).(coreSem) (RC.core c.(Core.c))
+                   c.(Core.c) m10 (cast'' pf d.(Core.c)) m20 
+  ; frame_at1   : at_external (cores_S c.(i)).(coreSem) c.(Core.c)
                     = Some (e1, ef_sig1, vals1) 
-  ; frame_at2   : at_external (cores_T c.(i)).(coreSem) (cast'' pf (RC.core d.(Core.c))) 
+  ; frame_at2   : at_external (cores_T c.(i)).(coreSem) (cast'' pf d.(Core.c)) 
                     = Some (e2, ef_sig2, vals2) 
   ; frame_vinj  : Forall2 (val_inject (restrict (as_inj mu0) (vis mu0))) vals1 vals2  
 
@@ -1260,7 +1264,7 @@ Variable  (pf : c.(i)=d.(i)).
 
 Record head_inv cd mu_trash (mu : Inj.t) mus m1 m2 : Type :=
   { head_match : (sims c.(i)).(match_state) cd mu 
-                 c.(Core.c) m1 (rc_cast'' pf d.(Core.c)) m2 
+                 c.(Core.c) m1 (cast'' pf d.(Core.c)) m2 
   ; head_rel   : All (rel_inv_pred mu) mus 
   ; head_vis   : vis_inv c mu 
   ; head_ctndS : frgnS_contained mu_trash mu mus 
@@ -1643,7 +1647,7 @@ by case: inv=> // A _ _ _ _ _ _ _; apply: (match_validblocks _ A).
 Qed.
 
 Lemma head_atext_inj ef sig args : 
-  at_external (coreSem (cores_S (Core.i c))) (RC.core (Core.c c)) 
+  at_external (coreSem (cores_S (Core.i c))) (Core.c c) 
     = Some (ef,sig,args) -> 
   Mem.inject (as_inj mu) m1 m2.
 Proof.
@@ -1718,7 +1722,7 @@ Lemma frame_all_match mu_trash mu0 m10 m20 x mus m1 m2 s1 s2 :
       , s2 = d :: s2' 
       & exists (pf : c.(Core.i)=d.(Core.i)) cd0,
         (sims c.(Core.i)).(match_state) cd0 mu0 
-        c.(Core.c) m10 (rc_cast'' pf d.(Core.c)) m20].
+        c.(Core.c) m10 (cast'' pf d.(Core.c)) m20].
 Proof.
 case: s1=> // c s1'; case: s2=> // d s2' /=.
 move=> [][]pf => [][]cd []ef1 []sig1 []vals1 []ef2 []sig2 []vals2 []A B C.
@@ -1835,7 +1839,7 @@ Lemma tail_inv_match mu_trash mu0 m10 m20 x mus s1 s2 m1 m2 :
       , s2 = d :: s2' 
       & exists (pf : c.(Core.i)=d.(Core.i)) cd0,
         (sims c.(Core.i)).(match_state) cd0 mu0 
-        c.(Core.c) m10 (rc_cast'' pf d.(Core.c)) m20].
+        c.(Core.c) m10 (cast'' pf d.(Core.c)) m20].
 Proof. by move=> []_; move/frame_all_match. Qed.
 
 Section tail_inv_lems.
@@ -1888,10 +1892,10 @@ Qed.
 
 Lemma head_tail_inv c d pf cd (mu : frame_pkg) e sig args1 args2
   (val : sm_valid mu m1 m2)
-  (atext1 : at_external (coreSem (cores_S (Core.i c))) 
-            (RC.core (Core.c c)) = Some (e,sig,args1))
+  (atext1 : at_external (coreSem (cores_S (Core.i c))) (Core.c c) 
+            = Some (e,sig,args1))
   (atext2 : at_external (coreSem (cores_T (Core.i c))) 
-            (cast'' pf (RC.core (Core.c d))) = Some (e,sig,args2))
+            (cast'' pf (Core.c d)) = Some (e,sig,args2))
   (inj : Mem.inject (as_inj mu) m1 m2)
   (vals_inj : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) args1 args2) 
   (inv : @head_inv c d pf cd mu_trash mu mus m1 m2) :
@@ -2122,7 +2126,7 @@ Proof.
 by move=> A []B C; split=> //; last by apply: frame_all_step. 
 Qed.
 
-Lemma vis_inv_step c c' :
+Lemma vis_inv_step (c c' : Core.t cores_S) :
   vis_inv c mu -> 
   RC.args (Core.c c)=RC.args (Core.c c') -> 
   RC.rets (Core.c c)=RC.rets (Core.c c') -> 
@@ -2143,20 +2147,21 @@ by apply: (intern_incr_vis _ _ incr); apply: E; apply/orP; right.
 by move: (C _ G F)=> H; rewrite/vis H.
 Qed.
 
-Lemma core_upd_args (c : Core.t cores_S) c' : 
-  RC.args (Core.c c) = RC.args (Core.c (Core.updC c c')).
+(*Lemma core_upd_args (c : Core.t cores_S) c' : 
+  RC.args (Core.c c) = RC.args (Core.c (Core.upd c c')).
 Proof.
-by rewrite/Core.updC/RC.updC; case: (Core.c c)=> ? ? ? ?.
+rewrite/Core.upd/RC.updC; case: (Core.c c)=> ? ? ? ? /=.
+simpl.
 Qed.
 
 Lemma core_upd_rets (c : Core.t cores_S) c' : 
   RC.rets (Core.c c) = RC.rets (Core.c (Core.updC c c')).
 Proof.
 by rewrite/Core.updC/RC.updC; case: (Core.c c)=> ? ? ? ?.
-Qed.
+Qed.*)
 
 Lemma head_inv_step 
-    c d (pf : Core.i c=Core.i d) c' (d' : RC.state (C (cores_T (Core.i d))))
+    c d (pf : Core.i c=Core.i d) c' (d' : C (cores_T (Core.i d)))
     cd cd' mu_trash mus s1 s2 U :
   head_inv pf cd mu_trash mu mus m1 m2 -> 
   frame_all mu_trash mus m1 m2 s1 s2 -> 
@@ -2165,10 +2170,10 @@ Lemma head_inv_step
   RC.locs c' = (fun b => RC.locs (Core.c c) b || freshloc m1 m1' b) ->
   effect_semantics.effstep 
     (coreSem (cores_S (Core.i c))) (ge (cores_S (Core.i c))) U 
-    (RC.core (Core.c c)) m1 (RC.core c') m1' -> 
+    (Core.c c) m1 c' m1' -> 
   match_state (sims (Core.i (Core.upd c c'))) cd' mu'
     (Core.c (Core.upd c c')) m1'
-    (rc_cast'' pf (Core.c (Core.upd d d'))) m2' -> 
+    (cast'' pf (Core.c (Core.upd d d'))) m2' -> 
   (forall b : block,
    RC.locs (Core.c c) b = false ->
    RC.locs c' b -> locBlocksSrc mu' b) -> 
@@ -2316,12 +2321,12 @@ Lemma peek_match :
   exists cd mu_top, 
   match_state (sims (Core.i (peekCore x1))) cd mu_top 
   (Core.c (peekCore x1)) m1 
-  (rc_cast'' peek_ieq (Core.c (peekCore x2))) m2.
+  (cast'' peek_ieq (Core.c (peekCore x2))) m2.
 Proof.
 move: (R_inv pf)=> []A []? []mu_top []? []? _ _ []pf2. 
 move/head_match=> MATCH ?.
-have ->: (rc_cast'' peek_ieq (Core.c (peekCore x2)) 
-         = rc_cast'' A (Core.c (peekCore x2)))
+have ->: (cast'' peek_ieq (Core.c (peekCore x2)) 
+         = cast'' A (Core.c (peekCore x2)))
   by f_equal; f_equal; apply proof_irr.
 exists (cast_ty (lift_eq _ pf2) (projT2 data)). 
 by exists mu_top.
@@ -2470,31 +2475,38 @@ Context (my_cores : 'I_N -> t) c1 ix v vs
 Lemma initCore_ix : ix = Core.i c1.
 Proof.
 move: init1; rewrite /init1 /initCore.
-by case: (RC.initial_core _ _ _ _)=> // c; case; case: c1=> ? ?; case.
+by case: (core_semantics.initial_core _ _ _ _)=> // c; 
+  case; case: c1=> ? ?; case.
 Qed.
+
+End initCore_lems.
+
+Section initCore_lems2.
+
+Context c1 ix v vs (init1 : initCore cores_S ix v vs = Some c1).
 
 Lemma initCore_args : RC.args (Core.c c1) = vs.
 Proof.
-move: init1; rewrite /init1 /initCore /RC.initial_core.
+move: init1; rewrite /initCore /= /RC.initial_core.
 case: (initial_core _ _ _ _)=> // c. 
 by case; case: c1=> ?; case=> ? ? ? ? /=; case=> _ _ ->.
 Qed.
 
 Lemma initCore_rets : RC.rets (Core.c c1) = [::].
 Proof.
-move: init1; rewrite /init1 /initCore /RC.initial_core.
+move: init1; rewrite /initCore /= /RC.initial_core.
 case: (initial_core _ _ _ _)=> // c. 
 by case; case: c1=> ?; case=> ? ? ? ? /=; case=> _ _ _ ->.
 Qed.
 
 Lemma initCore_locs : RC.locs (Core.c c1) = (fun _ => false).
 Proof.
-move: init1; rewrite /init1 /initCore /RC.initial_core.
+move: init1; rewrite /initCore /= /RC.initial_core.
 case: (initial_core _ _ _ _)=> // c. 
 by case; case: c1=> ?; case=> ? ? ? ? /=; case=> _ _ _ _ ->.
 Qed.
 
-End initCore_lems.
+End initCore_lems2.
 
 Section call_lems.
 
@@ -2516,7 +2528,7 @@ move=> rc _ []pf2; move/head_match.
 unfold LinkerSem.at_external0 in atext1.
 have atext1':
   at_external 
-    (RC.effsem (coreSem (cores_S (Core.i (peekCore st1))))) 
+    (coreSem (cores_S (Core.i (peekCore st1)))) 
     (Core.c (peekCore st1)) =
   Some (ef,sig,args1) by rewrite /RC.at_external.
 move=> hd_match _.
@@ -2528,30 +2540,22 @@ rewrite /LinkerSem.at_external0.
 set P := fun ix (x : T ix) => 
             at_external (coreSem (cores_T ix)) x
             = Some (ef, sig, args2).
-change (P (Core.i (peekCore st2)) (RC.core (Core.c (peekCore st2)))).
-have X: (P (Core.i (c inv)) (cast'' pf (RC.core (Core.c (d inv))))).
+change (P (Core.i (peekCore st2)) (Core.c (peekCore st2))).
+have X: (P (Core.i (c inv)) (cast'' pf (Core.c (d inv)))).
 { move: atext2=> /=; rewrite /RC.at_external /P /=.
   have eq: at_external (coreSem (cores_T (Core.i (c inv))))
-            (cast'' pf (RC.core (Core.c (d inv)))) =
+            (cast'' pf (Core.c (d inv))) =
            at_external (coreSem (cores_T (Core.i (d inv))))
-            (RC.core (Core.c (d inv))). 
+            (Core.c (d inv)). 
   { set T' := C \o cores_T.
     set P' := fun ix (x : T' ix) => 
                  at_external (coreSem (cores_T ix)) x
                  = at_external (coreSem (cores_T (Core.i (d inv))))
-                     (RC.core (Core.c (d inv))).
+                     (Core.c (d inv)).
     change (P' (Core.i (c inv)) 
-               (cast T' (sym_eq pf) (RC.core (Core.c (d inv))))).
+               (cast T' (sym_eq pf) (Core.c (d inv)))).
     by apply: cast_indnatdep. }
-  rewrite eq=> X.
-  set T' := RC.state \o C \o cores_T.
-  set P' := fun ix (x : T' ix) => 
-               at_external (coreSem (cores_T ix)) (RC.core x)
-               = Some (ef, sig, args2).
-  change (P' (Core.i (d inv))  (Core.c (d inv))).
-  have X': (P' (Core.i (c inv)) (rc_cast'' pf (Core.c (d inv))))
-    by apply: X.
-  by apply: (cast_indnatdep' X'). }
+  by []. }
 by apply: (cast_indnatdep' X).
 Qed.
 
@@ -2571,28 +2575,28 @@ move=> rc trinv []pf2 hdinv tlinv; move: hdl1; rewrite LinkerSem.handleP.
 move=> []all_at1 []ix []c1 []fntbl1 init1 st1'_eq.
 
 have atext1': 
-  at_external (coreSem (cores_S (Core.i (c inv)))) (RC.core (Core.c (c inv))) 
+  at_external (coreSem (cores_S (Core.i (c inv)))) (Core.c (c inv)) 
   = Some (ef,sig,args1) by [].
 
 have atext2': 
   at_external (coreSem (cores_T (Core.i (c inv)))) 
-              (cast'' pf (RC.core (Core.c (d inv))))
+              (cast'' pf (Core.c (d inv)))
   = Some (ef,sig,args2).
  { set T := C \o cores_T.
    set P := fun ix (x : T ix) => 
               at_external (coreSem (cores_T ix)) x
               = Some (ef, sig, args2).
-   have: (P (Core.i (d inv)) (RC.core (Core.c (d inv))))
+   have: (P (Core.i (d inv)) (Core.c (d inv)))
      by rewrite /LinkerSem.at_external0.
    by apply: cast_indnatdep. }
 
 have atext2'': 
-  at_external (RC.effsem (coreSem (cores_T (Core.i (c inv)))))
-              (rc_cast'' pf (Core.c (d inv)))
+  at_external (coreSem (cores_T (Core.i (c inv))))
+              (cast'' pf (Core.c (d inv)))
   = Some (ef,sig,args2).
- { set T := RC.state \o C \o cores_T.
+ { set T := C \o cores_T.
    set P := fun ix (x : T ix) => 
-              at_external (RC.effsem (coreSem (cores_T ix))) x
+              at_external (coreSem (cores_T ix)) x
               = Some (ef, sig, args2).
    have: (P (Core.i (d inv)) (Core.c (d inv)))
      by rewrite /LinkerSem.at_external0.
@@ -2765,10 +2769,10 @@ have [cd_new [c2 [pf_new [init2 mtch12]]]]:
     [/\ initCore cores_T ix (Vptr id Integers.Int.zero) args2 = Some c2
       & match_state (sims (Core.i c1)) cd_new
         (initial_SM domS domT frgnS frgnT j) 
-        (Core.c c1) m1 (rc_cast'' pf (Core.c c2)) m2].
+        (Core.c c1) m1 (cast'' pf (Core.c c2)) m2].
 
 { move: init1; rewrite /initCore.
-  case init1: (RC.initial_core _ _ _ _)=> //[c1']; case=> X.
+  case init1: (core_semantics.initial_core _ _ _ _)=> //[c1']; case=> X.
   generalize dependent c1; case=> c1_i c1; intros.
   move: (X) init1; case=> eq _ init1; subst ix=> /=.
   case: (core_initial _ _ _ _ (sims c1_i) _ args1
@@ -3092,6 +3096,7 @@ Qed.
 
 End call_lems.
 
+(*TODO: move me into inj_lemmas.v*)
 Lemma sm_inject_separated_replace_locals mu X Y mu' m1 m2 : 
   sm_inject_separated mu mu' m1 m2 -> 
   sm_inject_separated (replace_locals mu X Y) mu' m1 m2.
@@ -3124,9 +3129,9 @@ case: (core_halted (sims (Core.i (peekCore st1)))
        _ _ _ _ _ _ (head_match hdinv) hlt10)
        => rv2 []inj12 []rcS []rcT []vinj []vdefs hlt2.
 exists rv2.
-set T := RC.state \o C \o cores_T.
+set T := C \o cores_T.
 set P := fun ix (x : T ix) => 
-  halted (coreSem (cores_T ix)) (RC.core x) = Some rv2.
+  halted (coreSem (cores_T ix)) x = Some rv2.
 change (P (Core.i (peekCore st2)) (Core.c (peekCore st2))).
 apply: (cast_indnatdep' (j := Core.i (peekCore st1)))=> // H.
 rewrite /P; move: hlt2; rewrite /= /RC.halted /= => <-. 
@@ -3217,15 +3222,9 @@ move: (frame_unch1 fr0)=> unch1.
 move: (frame_unch2 fr0)=> unch2.
 
 have at02':
-  at_external (RC.effsem (coreSem (cores_T (Core.i hd1))))
-    (rc_cast'' pf0 (Core.c hd2)) = Some (e0,sig02,vals02).
-{ rewrite /= /RC.at_external -at02; f_equal.
-  set T := RC.state \o C \o cores_T.
-  set U := C \o cores_T.
-  set f := fun ix (x : T ix) => RC.core x.
-  change (f _ (cast T (sym_eq pf0) (Core.c hd2)) 
-        = cast U (sym_eq pf0) (f _ (Core.c hd2))).
-  by apply: cast_f. }
+  at_external (coreSem (cores_T (Core.i hd1)))
+    (cast'' pf0 (Core.c hd2)) = Some (e0,sig02,vals02).
+{ by rewrite /= -at02; f_equal. }
 
 set pubSrc' := fun b => 
   locBlocksSrc mu0 b && REACH m10 (exportedSrc mu0 vals01) b.
@@ -3366,11 +3365,11 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [aft2' mtch12']]]]]:
   exists hd2' (pf_eq22' : Core.i hd2 = Core.i hd2') 
               (pf_eq12' : Core.i hd1' = Core.i hd2')
          cd',
-  [/\ after_external (RC.effsem (coreSem (cores_T (Core.i hd2))))
+  [/\ after_external (coreSem (cores_T (Core.i hd2)))
         (Some rv2) (Core.c hd2) 
-      = Some (rc_cast'' pf_eq22' (Core.c hd2'))
+      = Some (cast'' pf_eq22' (Core.c hd2'))
     & match_state (sims (Core.i hd1')) cd' mu' 
-      (Core.c hd1') m1 (rc_cast'' pf_eq12' (Core.c hd2')) m2].
+      (Core.c hd1') m1 (cast'' pf_eq12' (Core.c hd2')) m2].
 { case: (popCoreE _ pop2)=> wf_pf []inCtx2 st2''_eq'.
   rewrite st2''_eq' in st2''_eq.
   rewrite /updStack in st2''_eq; case: st2''_eq=> fntbl_eq pop2_eq'.
@@ -3397,9 +3396,9 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [aft2' mtch12']]]]]:
   exists (cast (fun ix => core_data (sims ix)) e1 cd'); split=> //.
   
   move: aft2''.
-  set T := RC.state \o C \o cores_T.  
+  set T := C \o cores_T.  
   set P := fun ix (x : T ix) (y : T ix) => 
-    RC.after_external (coreSem (cores_T ix)) (Some rv2) x = Some y.
+    after_external (coreSem (cores_T ix)) (Some rv2) x = Some y.
   change (P (Core.i hd1) (cast T (sym_eq pf0) (Core.c hd2)) d0'
        -> P (Core.i hd2) (Core.c hd2) (cast T (sym_eq (sym_eq pf0)) d0')).
   have ->: sym_eq (sym_eq pf0) = pf0 by apply: proof_irr.
@@ -3409,8 +3408,8 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [aft2' mtch12']]]]]:
   have ->: sym_eq (sym_eq e1) = e1 by apply: proof_irr.
   rewrite aft1' in aft1''; case: aft1''=> <-.
   set T := (fun ix => core_data (sims ix)).
-  set U := RC.state \o C \o cores_S.
-  set V := RC.state \o C \o cores_T.
+  set U := C \o cores_S.
+  set V := C \o cores_T.
   set P := fun ix (x : T ix) (y : U ix) (z : V ix) => 
     match_state (sims ix) x mu' y m1 z m2.
   change (P (Core.i hd1) cd' (cast U (sym_eq e1) (Core.c hd1')) d0'
@@ -3426,10 +3425,9 @@ split=> //.
 
 move: hlt2.
 
-rewrite /RC.halted.
-set T := RC.state \o C \o cores_T.
+set T := C \o cores_T.
 set P := fun ix (x : T ix) => 
- halted (coreSem (cores_T ix)) (RC.core x) = Some rv2.
+ halted (coreSem (cores_T ix)) x = Some rv2.
 change (P (Core.i (peekCore st1)) (cast T (sym_eq pf) (Core.c (d inv)))
      -> P (Core.i (peekCore st2)) (Core.c (peekCore st2))).
 by apply: cast_indnatdep'.
@@ -4257,7 +4255,7 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
          getBlocks [:: rv1] b
       || RC.reach_basis (ge (cores_S (Core.i hd1))) (Core.c hd1) b).
   { move: eq_hd1'. 
-    set T := RC.state \o C \o cores_S.
+    set T := C \o cores_S.
     set P := fun ix (x : T ix) => 
                RC.reach_basis (ge (cores_S ix)) x 
            = (fun b0 => 
@@ -4559,7 +4557,7 @@ eapply Build_Wholeprog_simulation_inject
   Arguments core_initial : default implicits.
 
   move: init1; rewrite /initCore.
-  case g: (RC.initial_core _ _ _ _)=> [c|//].
+  case g: (core_semantics.initial_core _ _ _ _)=> [c|//].
   case=> eq1 H2. subst ix1.
   apply Eqdep_dec.inj_pair2_eq_dec in H2. subst c0.
 
@@ -4740,7 +4738,7 @@ set c2 := peekCore st2.
 have [c1' [STEP0 [U1'_EQ [c1_args [c1_rets [c1_locs ST1']]]]]]:
    exists c1',
        Coresem.corestep 
-         (t := RC.effsem (coreSem (cores_S (Core.i c1)))) 
+         (t := effect_instance (coreSem (cores_S (Core.i c1)))) 
          (ge (cores_S (Core.i c1))) (Core.c c1) m1 c1' m1' 
    /\ (forall b ofs, U1 b ofs -> 
        RC.reach_set (ge (cores_S (Core.i c1))) (Core.c c1) m1 b)
@@ -4759,7 +4757,7 @@ have [c1' [STEP0 [U1'_EQ [c1_args [c1_rets [c1_locs ST1']]]]]]:
 
 have EFFSTEP: 
     effect_semantics.effstep 
-    (RC.effsem (coreSem (cores_S (Core.i c1))))
+    (coreSem (cores_S (Core.i c1)))
     (ge (cores_S (Core.i c1))) U1 (Core.c c1) m1 c1' m1'.
 
   { move: (STEP_EFFSTEP STEP); rewrite/effstep0=> [][] c1'' [] STEP0' ST1''. 
@@ -4791,7 +4789,7 @@ have mu_top'_valid: sm_valid mu_top' m1' m2'
 set mupkg' := Build_frame_pkg mu_top'_valid.
 
 (* instantiate existentials *)
-set c2''   := rc_cast' (peek_ieq INV) c2'.
+set c2''   := cast' (peek_ieq INV) c2'.
 set st2'   := updCore st2 (Core.upd c2 c2'').
 set data'  := (existT (fun ix => core_data (sims ix)) (Core.i c1) cd'). 
 set mu'    := restrict_sm 
@@ -4891,8 +4889,7 @@ split.
      (c INV) (d INV) pf c1' c2'' _ _ _ mus
      (STACK.pop (CallStack.callStack (s1 INV))) 
      (STACK.pop (CallStack.callStack (s2 INV))) U1 hdinv frameall)=> //=.
-   by case: EFFSTEP.
-   have ->: rc_cast'' pf c2'' = c2' by apply: cast_cast_eq'.
+   have ->: cast'' pf c2'' = c2' by apply: cast_cast_eq'.
    by [].
    rewrite c1_locs=> b -> /=; move: (LOCALLOC). 
    rewrite sm_locally_allocatedChar; case=> _ []_ []-> _ A.
@@ -4912,9 +4909,9 @@ split.
      by apply: (effect_semantics.effstepN_fwd EFFSTEPN).   
    move=> ? ? X; move: (PERM _ _ X)=> []Y Z; split=> //.
    have [n STEPN]: 
-     exists n, effstepN (RC.effsem (coreSem (cores_T (Core.i c1))))
+     exists n, effstepN (coreSem (cores_T (Core.i c1)))
                (ge (cores_T (Core.i c1))) n U2 
-               (rc_cast'' pf (Core.c (d INV))) m2 c2' m2'.
+               (cast'' pf (Core.c (d INV))) m2 c2' m2'.
      case: STEP'; first by move=> []n ?; exists (S n). 
      by move=> [][]n ? _; exists n.
    by eapply effstepN_valid in STEPN; eauto.
@@ -5003,12 +5000,12 @@ split.
 exists U2; split=> //; case: STEP'=> STEP'.
 
 have STEP'': 
-  effstep_plus (RC.effsem (coreSem (cores_T (Core.i c2))))
+  effstep_plus (coreSem (cores_T (Core.i c2)))
   (ge (cores_T (Core.i c2))) U2 (Core.c (d INV)) m2 c2'' m2'. 
 
- { set T := RC.state \o C \o cores_T.
+ { set T := C \o cores_T.
    set P := fun ix (x : T ix) (y : T ix) => 
-             effstep_plus (RC.effsem (coreSem (cores_T ix)))
+             effstep_plus (coreSem (cores_T ix))
              (ge (cores_T ix)) U2 x m2 y m2'.
    change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
    by move: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr. }
@@ -5016,12 +5013,12 @@ have STEP'':
 by left; move: STEP''; apply: stepPLUS_STEPPLUS.
 
 have STEP'': 
-  effstep_star (RC.effsem (coreSem (cores_T (Core.i c2))))
+  effstep_star (coreSem (cores_T (Core.i c2)))
   (ge (cores_T (Core.i c2))) U2 (Core.c c2) m2 c2'' m2'. 
 
- { set T := RC.state \o C \o cores_T.
+ { set T := C \o cores_T.
    set P := fun ix (x : T ix) (y : T ix) => 
-             effstep_star (RC.effsem (coreSem (cores_T ix)))
+             effstep_star (coreSem (cores_T ix))
              (ge (cores_T ix)) U2 x m2 y m2'.
    change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
    by case: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr; by []. }
@@ -5127,12 +5124,12 @@ case: (R_inv inv')=> pf []mu_trash []mupkg []mus []mu_eq.
 move=> rclosed trinv []pf2 hdinv tlinv; move: (head_match hdinv)=> mtch0.
 
 have hlt10: 
-  halted (coreSem (cores_S (Core.i (c inv')))) (RC.core (Core.c (c inv))) 
+  halted (coreSem (cores_S (Core.i (c inv')))) (Core.c (c inv)) 
 = Some v1.
 { move: hlt1; rewrite /= /LinkerSem.halted.
   case inCtx1: (inContext c1)=> //=.
   case hlt10: (LinkerSem.halted0 c1)=> [v1'|//]; case=> <-.
-  by move: hlt10; rewrite /LinkerSem.halted0 /c=> ->. }
+  by move: hlt10; rewrite /LinkerSem.halted0 /c /= /RC.halted=> ->. }
 
 case: (core_halted (sims (Core.i (c inv'))) _ _ _ _ _ _ mtch0 hlt10).
 move=> v2' []inj []rc1 []rc2 []vinj []vdef hlt2'.
@@ -5153,11 +5150,11 @@ case e: (~~ inContext c2)=> //.
 case f: (LinkerSem.halted0 c2)=> [rv|//]; case=> <-.
 rewrite /LinkerSem.halted0 /= /RC.halted in f hlt2'.
 have g: halted (coreSem (cores_T (Core.i (c inv'))))
-               (RC.core (rc_cast'' pf (Core.c (d inv'))))  
+               (cast'' pf (Core.c (d inv')))  
       = Some rv.
-{ set T := RC.state \o C \o cores_T.
+{ set T := C \o cores_T.
   set P := fun ix (x : T ix) => 
-             halted (coreSem (cores_T ix)) (RC.core x)  
+             halted (coreSem (cores_T ix)) x  
            = Some rv.
   change (P (Core.i (c inv')) (cast T (sym_eq pf) (Core.c (d inv')))).
   by apply: cast_indnatdep; rewrite /P; rewrite -f. }

@@ -6,7 +6,6 @@ Require Import linking.pos.
 Require Import linking.stack. 
 Require Import linking.cast.
 Require Import linking.core_semantics_lemmas.
-Require Import linking.rc_semantics.
 
 Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -110,13 +109,9 @@ Import Modsem.
 
 Record t := mk
   { i  : 'I_N
-  ; c  :> RC.state (cores i).(C) }.
+  ; c  :> (cores i).(C) }.
 
-Definition updC (core : t) (newC : (cores core.(i)).(C)) :=
-  {| i := core.(i)
-   ; c := RC.updC newC (core).(c) |}.
-
-Definition upd (core : t) (new : RC.state (cores core.(i)).(C)) :=
+Definition upd (core : t) (new : (cores core.(i)).(C)) :=
   {| i := core.(i)
    ; c := new |}.
 
@@ -128,8 +123,6 @@ Arguments Core.i {N cores} !t /.
 
 Arguments Core.c {N cores} !t /.
 
-Arguments Core.updC {N cores} !core _ /.
-
 Arguments Core.upd {N cores} !core _ /.
 
 (* Linking semantics invariants:                                          *)
@@ -140,7 +133,6 @@ Arguments Core.upd {N cores} !core _ /.
 Section coreDefs.
 
 Import Modsem.
-Import RC.
 
 Variable N : pos.
 Variable cores : 'I_N -> Modsem.t.
@@ -257,13 +249,6 @@ case=> H1; move: (EqdepFacts.eq_sigT_snd H1); move=> <-.
 by rewrite -Eqdep.Eq_rect_eq.eq_rect_eq.
 Qed.
 
-Lemma updCore_inj_updC c c1 c2 : 
-  updCore (Core.updC c c1) = updCore (Core.updC c c2) -> c1=c2.
-Proof. 
-case=> H1; move: (EqdepFacts.eq_sigT_snd H1). 
-by rewrite -Eqdep.Eq_rect_eq.eq_rect_eq; case: (Core.c c)=> ? ? ? ?; case.
-Qed.
-
 (* [pushCore]: Push a new core onto the call stack.                       *)
 (* Succeeds only if all cores are currently at_external.                  *)
 
@@ -311,7 +296,7 @@ Import Modsem.
 
 Definition initCore (ix: 'I_N) (v: val) (args: list val) 
   : option (Core.t my_cores):=
-  if @RC.initial_core _ _ _ 
+  if @initial_core _ _ _ 
        (my_cores ix).(coreSem)
        (my_cores ix).(Modsem.ge) 
        v args 
@@ -447,7 +432,7 @@ Definition at_external0 (l: linker N my_cores) :=
   let: sem := (my_cores ix).(Modsem.coreSem) in                        
   let: F   := (my_cores ix).(Modsem.F) in                              
   let: V   := (my_cores ix).(Modsem.V) in                              
-    @at_external (Genv.t F V) _ _ sem (RC.core (Core.c c)).
+    @at_external (Genv.t F V) _ _ sem (Core.c c).
 
 Arguments at_external0 !l.
 
@@ -457,7 +442,7 @@ Definition halted0 (l: linker N my_cores) :=
   let: sem := (my_cores ix).(Modsem.coreSem) in
   let: F   := (my_cores ix).(Modsem.F) in
   let: V   := (my_cores ix).(Modsem.V) in
-    @halted (Genv.t F V) _ _ sem (RC.core (Core.c c)).
+    @halted (Genv.t F V) _ _ sem (Core.c c).
 
 Arguments halted0 !l.
 
@@ -474,7 +459,7 @@ Definition corestep0
   let: V   := (my_cores ix).(Modsem.V) in
   let: ge  := (my_cores ix).(Modsem.ge) in
     exists c', 
-      @corestep (Genv.t F V) _ _ (RC.effsem sem) ge (Core.c c) m c' m'
+      @corestep (Genv.t F V) _ _ sem ge (Core.c c) m c' m'
    /\ l' = updCore l (Core.upd c c').
 
 Arguments corestep0 !l m l' m'.
@@ -504,7 +489,7 @@ Definition after_external (mv: option val) (l: linker N my_cores) :=
   let: F   := (my_cores ix).(Modsem.F) in
   let: V   := (my_cores ix).(Modsem.V) in
   let: ge  := (my_cores ix).(Modsem.ge) in
-    if @after_external (Genv.t F V) _ _ (RC.effsem sem) mv (Core.c c) 
+    if @after_external (Genv.t F V) _ _ sem mv (Core.c c) 
       is Some c' then Some (updCore l (Core.upd c c'))
     else None.
 
@@ -562,7 +547,7 @@ Proof.
 move=> []newCore []H1 H2; rewrite/halted.
 case Hcx: (~~ inContext _)=>//; case Hht: (halted0 _)=>//.
 move: Hht; rewrite/halted0; apply corestep_not_halted in H1. 
-by move: H1=> /=; rewrite/RC.halted=> ->.
+by move: H1=> /= ->. 
 Qed.
 
 Lemma corestep_not_at_external ge m c m' c' : 
@@ -601,7 +586,7 @@ first by right; apply: (at_external0_not_halted _ Hat).
 by left.
 Qed.
 
-Notation cast'' pf x := (cast (RC.state \o Modsem.C \o my_cores) (sym_eq pf) x).
+Notation cast'' pf x := (cast (Modsem.C \o my_cores) (sym_eq pf) x).
 
 Lemma after_externalE rv c c' : 
   after_external rv c = Some c' -> 
@@ -609,12 +594,12 @@ Lemma after_externalE rv c c' :
   [/\ c  = mkLinker fn_tbl (CallStack.mk [:: hd & tl] pf)
     , c' = mkLinker fn_tbl (CallStack.mk [:: hd' & tl]  pf')
     & core_semantics.after_external
-       (RC.effsem (Modsem.coreSem (my_cores (Core.i hd)))) rv (Core.c hd)
+       (Modsem.coreSem (my_cores (Core.i hd))) rv (Core.c hd)
       = Some (cast'' eq_pf (Core.c hd'))].
 Proof.
 case: c=> fntbl; case; case=> // hd stk pf aft; exists fntbl,hd.
 move: aft; rewrite /after_external /=.
-case e: (RC.after_external _ _ _)=> // [hd']; case=> <-.
+case e: (core_semantics.after_external _ _ _)=> // [hd']; case=> <-.
 exists (Core.mk N my_cores (Core.i hd) hd'),stk,pf,pf.
 rewrite /=; exists refl_equal; split=> //; f_equal; f_equal.
 by apply: proof_irr.
@@ -651,7 +636,7 @@ Definition effstep0 U (l: linker N my_cores) m (l': linker N my_cores) m' :=
   let: V   := (my_cores ix).(Modsem.V) in
   let: ge  := (my_cores ix).(Modsem.ge) in
     exists c', 
-      @effstep (Genv.t F V) _ (RC.effsem sem) ge U (Core.c c) m c' m'
+      @effstep (Genv.t F V) _ sem ge U (Core.c c) m c' m'
    /\ l' = updCore l (Core.upd c c').
 
 Lemma effstep0_unchanged U l m l' m' : 
