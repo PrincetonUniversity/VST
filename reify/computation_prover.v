@@ -16,15 +16,15 @@ Section ComputationProver.
   Variable user_computable : func -> bool.
 
   (* trivial summarization *)
-  Definition computation_summary : Type := list (expr all_types).
-  Definition computationSummarize (hyps : list (expr all_types)) : computation_summary := hyps.
+  Definition computation_summary : Type := list expr.
+  Definition computationSummarize (hyps : list expr) : computation_summary := hyps.
 
   (* Completely ignore hyps; just see if we can "compute away" the goal *)
   Definition computationProve (hyps : computation_summary)
-             (goal : expr all_types) : bool :=
+             (goal : expr) : bool :=
     do_computation_equal all_types all_functions user_computable goal.
 
-  Definition computationLearn (sum : computation_summary) (hyps : list (expr all_types)) : computation_summary :=
+  Definition computationLearn (sum : computation_summary) (hyps : list expr) : computation_summary :=
     sum ++ hyps.
 
   Definition computationValid (uvars vars : env all_types) (sum : computation_summary) : Prop :=
@@ -142,7 +142,7 @@ Section ComputationProver.
     apply H5.*)
   Qed.
 
-  Definition computationProver : ProverT all_types :=
+  Definition computationProver : ProverT :=
     {| Facts := computation_summary
        ; Summarize := computationSummarize
        ; Learn := computationLearn

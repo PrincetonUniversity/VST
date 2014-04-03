@@ -39,7 +39,7 @@ Section typed.
   Variable all_types : list type.
   Variable all_functions : list (signature all_types).
   (* shadow definitions from functions.v with more useful ones *)
-  (* Let all_types := (all_types_r user_types). *)
+  (* Let all_types := (all_.types_r user_types). *)
   Variable user_computable : func -> bool.
 
   Definition is_const_base (f : func)   :=
@@ -48,14 +48,13 @@ Section typed.
   (* Decide if an expression can compute directly into a Const
    * (by converting the pre-defined functions we have defined
    * as convertible into consts) *)
-  Fixpoint is_const (e : expr all_types) :=
-    let is_const_l (es : list (expr all_types)) : bool :=
+  Fixpoint is_const (e : expr) :=
+    let is_const_l (es : list expr) : bool :=
         fold_right andb true (map is_const es)
     in
     match e with
       (* it and its arguments must be const *)
       | Func f es => andb (is_const_base f) (is_const_l es)
-      | Const _ _ => true
       (*    | Equal _ l r => andb (is_const l) (is_const r) *)
       | _ => false
 
@@ -65,7 +64,7 @@ Section typed.
    * Expects that a user-supplied Ltac will have already converted
    * user-defined functions into Consts, as appropriate *)
 
-  Definition do_computation (e : expr all_types) (t : tvar) :
+  Definition do_computation (e : expr) (t : tvar) :
     option (tvarD all_types t) :=
     if is_const e then
       match (@exprD all_types (*(functions ++*) all_functions nil nil e t) with
@@ -79,7 +78,7 @@ Section typed.
                                    do_computation user_functions e t = Some v ->
                                    forall (vars uvars : env all_types),
                                      exprD (functions ++ user_functions) uvars vars e t = Some v.*)
-  Lemma do_computation_correct : forall (e : expr all_types) (t : tvar) (v : tvarD all_types t),
+  Lemma do_computation_correct : forall (e : expr) (t : tvar) (v : tvarD all_types t),
                                    do_computation e t = Some v ->
                                    forall (vars uvars : env all_types),
                                      exprD (all_functions) uvars vars e t = Some v.
@@ -107,7 +106,7 @@ Section typed.
   Eval vm_compute in (do_computation nil (Equal nat_tv (Func 13 [(Func 1 [])]) (Func 1 [])) tvProp).
   Eval vm_compute in (do_computation nil (Equal nat_tv (Func 13 [(Func 1 [])]) (Func 13 [(Func 1 [])])) tvProp). *)
 
-  Definition do_computation_equal (e : expr all_types) : bool :=
+  Definition do_computation_equal (e : expr) : bool :=
     match e with
       | Equal t l r =>
         match do_computation l t with
@@ -128,7 +127,7 @@ Section typed.
   (* consider tactic needed for this correctness proof *)
   Require Import ExtLib.Tactics.Consider.
   Lemma do_computation_equal_correct :
-    forall (t : tvar) (l r : expr all_types),
+    forall (t : tvar) (l r : expr),
       do_computation_equal (Equal t l r) = true ->
       exists (res : tvarD all_types t),
         do_computation l t = Some res /\

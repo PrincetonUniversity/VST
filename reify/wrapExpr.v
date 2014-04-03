@@ -2,9 +2,9 @@ Require Import sep.
 Require Import MirrorShard.Expr.
 Require Import floyd.proofauto.
 
-Definition assumptions types := list (Expr.expr types).
-Definition derives_r types := prod (Sep.sexpr types) (Sep.sexpr types).
-Definition goal types := prod (assumptions types) (derives_r types).
+Definition assumptions := list Expr.expr.
+Definition derives_r := prod Sep.sexpr Sep.sexpr .
+Definition goal := prod assumptions derives_r.
 
 Definition force_Opt {T} p (d:T) :=
 match p with
@@ -18,14 +18,14 @@ match assumptions with
 | nil => g
 end.
 
-Definition derivesD types functions preds meta_env var_env (der : derives_r types) :=
+Definition derivesD types functions preds meta_env var_env (der : derives_r) :=
 let (l,r) := der in
 @Sep.sexprD types functions preds meta_env var_env l
 |--
 @Sep.sexprD types functions preds meta_env var_env r. 
 
 
-Definition goalD types functions preds meta_env var_env (goal : goal types) :=
+Definition goalD types functions preds meta_env var_env (goal : goal) :=
 let (assumptions, derives) := goal in
 match assumptions with 
 | nil => derivesD types functions preds meta_env var_env derives

@@ -87,7 +87,7 @@ Section SymmetryProver.
 Qed.
    
 
-  Definition symmetryProver : ProverT types :=
+  Definition symmetryProver : ProverT :=
   {| Facts := symmetry_summary
    ; Summarize := symmetrySummarize
    ; Learn := symmetryLearn
