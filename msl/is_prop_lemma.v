@@ -140,27 +140,24 @@ Proof.
   apply (H a' a''); [assumption | assumption].
 Qed.
 
-Lemma is_prop_sepcon: forall {A:Type} {agA:ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} (P Q: pred A), is_prop P -> is_prop Q -> is_prop (sepcon P Q).
+Lemma is_prop_sepcon: forall {A:Type} {agA:ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} (P Q: pred A), is_prop P -> is_prop Q -> is_prop (P * Q).
 Proof.
   intros.
-  assert (@sepcon (@pred A agA) (@algNatDed A agA) (@algSepLog A agA JA PA SaA XA) = predicates_sl.sepcon).
-  auto.
-  rewrite -> H1.
   unfold is_prop in *.
   unfold sepcon in *.
   simpl in *.
   intros.
-  destruct H3 as [x1 [x2 [? [? ?]]]].
+  destruct H2 as [x1 [x2 [? [? ?]]]].
   exists (core y), y.
   assert (join (core y) y y); [apply core_unit|].
-  split; [exact H6|].
-  apply join_level in H6.
-  apply join_level in H3.
-  destruct H6.
-  destruct H3.
+  split; [exact H5|].
+  apply join_level in H5.
+  apply join_level in H2.
+  destruct H5.
+  destruct H2.
   split.
-    apply H with x1; [omega | exact H4].
-    apply H0 with x2; [omega | exact H5].
+    apply H with x1; [omega | exact H3].
+    apply H0 with x2; [omega | exact H4].
 Qed.
 
 Lemma is_prop_wand: forall {A:Type} {agA:ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} (P Q: pred A), is_prop P -> is_prop Q -> is_prop (wand P Q).
@@ -269,18 +266,7 @@ Proof.
     apply H with a; [apply eq_sym|]; auto.
 Qed.
 
-Lemma later_prop_andp_sepcon: forall {A: Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A}(P: Prop) (Q R: pred A), 
-((|> !! P) && Q) * R = (|> !! P) && (Q * R).
-Proof.
-  intros.
-  assert (@is_prop A agA (|> !! P)).
-  apply is_prop_later.
-  apply prop_is_prop.
-  apply (is_prop_andp_sepcon (|>!!P) Q R).
-  exact H.
-Qed.
-
-Lemma is_prop_sepcon_left: forall {A:Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} (P Q R: pred A), is_prop P -> P * Q = (P && Q) * TT.
+Lemma is_prop_sepcon_is_prop: forall {A:Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} (P Q R: pred A), is_prop P -> P * Q = (P && Q) * TT.
 Proof.
   intros.
   unfold is_prop in H.
@@ -301,7 +287,8 @@ Proof.
     apply H with y; [exact H3 | exact H1].
 Qed.
 
-Lemma is_prop_andp_left: forall {A:Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} {CaA: Canc_alg A} (P Q R: pred A), is_prop P -> P && Q = (P && emp) * Q.
+Lemma is_prop_andp_eq: forall {A:Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} {CaA: Canc_alg A} (P Q R: pred A), is_prop P -> P && Q = (P && emp) * Q.
+(* In fact, this can be proved by is_prop_andp_sepcon *)
 Proof.
   intros.
   unfold is_prop in H.
@@ -323,5 +310,28 @@ Proof.
     split; [| exact H3].
     apply join_level in H0; destruct H0.
     apply H with y; assumption.
+Qed.
+
+Lemma right_is_prop: forall {A:Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} {CaA: Canc_alg A} (P Q R: pred A), (is_prop P) -> (Q |-- P) -> (sepcon Q R |-- P)%pred.
+Proof.
+  intros.
+  unfold is_prop in H.
+  unfold derives in *; unfold sepcon in *; intros.
+  simpl in *.
+  destruct H1 as [b [c [? [? _]]]].
+  apply join_level in H1.
+  destruct H1 as [? _].
+  exact (H b a H1 (H0 b H2)).
+Qed.
+
+Lemma later_prop_andp_sepcon: forall {A: Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A}(P: Prop) (Q R: pred A), 
+((|> !! P) && Q) * R = (|> !! P) && (Q * R).
+Proof.
+  intros.
+  assert (@is_prop A agA (|> !! P)).
+  apply is_prop_later.
+  apply prop_is_prop.
+  apply (is_prop_andp_sepcon (|>!!P) Q R).
+  exact H.
 Qed.
 

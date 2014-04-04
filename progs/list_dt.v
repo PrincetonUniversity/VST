@@ -1,4 +1,5 @@
 Require Import floyd.proofauto.
+Require Import msl.is_prop_lemma.
 
 Local Open Scope logic.
 
@@ -1389,3 +1390,224 @@ apply sepcon_derives; eapply mapsto_field_at'; try reflexivity.
  apply IHdata. simpl; omega.
 Qed.
 *)
+
+Lemma field_at_ptr_neq: forall sh t fld p1 p2 v1 v2,
+   field_at sh t fld v1 p1 *
+   field_at sh t fld v2 p2
+   |--
+   !! (~ ptr_eq p1 p2).
+Proof.
+   intros.
+   apply not_prop_right; intros.
+   apply ptr_eq_e in H; rewrite -> H.
+   apply field_at_conflict.
+Qed.
+
+Lemma field_at_ptr_neq_andp_emp: forall sh t fld p1 p2 v1 v2,
+   field_at sh t fld v1 p1 *
+   field_at sh t fld v2 p2
+   |--
+   field_at sh t fld v1 p1 *
+   field_at sh t fld v2 p2 *
+   (!! (~ ptr_eq p1 p2) && emp).
+Proof.
+   intros.
+   normalize.
+   apply andp_right.
+   apply field_at_ptr_neq.
+   cancel.
+Qed.
+
+Lemma field_at_ptr_neq_null: forall sh t fld v p,  
+   field_at sh t fld v p |-- !! (~ ptr_eq p nullval).
+Proof.
+   intros.
+   rewrite -> field_at_nonnull.
+   entailer!.
+   unfold Cop.bool_val in H.
+   destruct p; try (inversion H).
+   (* part 1 *)
+     unfold negb in H1; destruct (Int.eq i Int.zero) eqn:H2; [inversion H1|].
+     unfold ptr_eq.
+     unfold nullval.
+     unfold Int.cmpu.
+     rewrite -> H2.
+     unfold not; intros.
+     inversion H0.
+     inversion H3.
+   (* part 2 *)
+     unfold ptr_eq.
+     unfold nullval.
+     auto.
+Qed.
+
+(* About Power later *************************)
+
+Fixpoint power_later (n:nat) P := 
+    match n with
+    | 0%nat => P
+    | S n' => later (power_later n' P)
+    end
+.
+
+Lemma power_now_later: forall n P, P |-- power_later n P.
+Proof.
+   induction n.
+   (* Base step *)
+   intros. unfold power_later.
+   apply derives_refl.
+   (* Induction step *)
+   intros. simpl.
+   apply derives_trans with (power_later n P).
+   apply IHn. apply now_later.
+Qed.
+
+Lemma power_later_andp: forall (n:nat) (P Q : mpred), power_later n (P && Q) = (power_later n P) && (power_later n Q).
+Proof.
+   induction n; intros; simpl.
+   reflexivity.
+   rewrite -> IHn. apply later_andp.
+Qed.
+
+Lemma power_later_exp': forall (n:nat) T (any:T) F, 
+     power_later n (EX x:T, F x) = EX x:T, (power_later n (F x)).
+Proof.
+   induction n; intros; simpl.
+   reflexivity.
+   rewrite -> (IHn T any). apply (later_exp' T any).
+Qed.
+
+Lemma power_later_sepcon: forall n P Q, power_later n (P * Q) = (power_later n P) * (power_later n Q).
+Proof.
+   induction n; intros; simpl.
+   reflexivity.
+   rewrite -> IHn. apply later_sepcon.
+Qed.
+
+Lemma power_later_connect: forall n P, power_later n (|> P) = power_later (n + 1) P.
+Proof.
+   induction n; intros; simpl.
+   reflexivity.
+   rewrite -> IHn. reflexivity.
+Qed.
+
+Lemma power_later_connect': forall n P, |> (power_later n P) = power_later (n + 1) P.
+Proof.
+   induction n; intros; simpl.
+   reflexivity.
+   rewrite -> IHn. reflexivity.
+Qed.
+
+Lemma power_later_derives: forall n:nat, forall P Q:mpred,
+   P |-- Q -> (power_later n P) |-- (power_later n Q).
+Proof.
+   induction n; intros; simpl.
+   assumption.
+   apply later_derives. apply IHn. assumption.
+Qed.
+
+Lemma power_later_TT: forall n, TT = power_later n TT.
+Proof.
+   intros.
+   apply pred_ext.
+   apply power_now_later.
+   normalize.
+Qed.
+
+Lemma is_prop_power_later: forall n P, is_prop P -> is_prop (power_later n P).
+Proof.
+  intros.
+  induction n; simpl.
+  + exact H.
+  + exact (is_prop_later _ IHn).
+Qed.
+
+Ltac power_normalize :=
+    repeat (
+      try rewrite -> power_later_andp;
+      try rewrite -> power_later_sepcon;
+      try rewrite <- power_later_TT)
+.
+
+Lemma power_later_erase: forall n P Q R, P * Q |-- R -> power_later n P * Q |-- power_later n R.
+Proof.
+  intros.
+  apply derives_trans with (power_later n (P * Q)).
+  power_normalize.
+  cancel.
+  apply power_now_later.
+  apply power_later_derives.
+  assumption.
+Qed.
+
+Lemma power_prop_andp_sepcon: 
+  forall (n:nat) P Q R, ((power_later n (!! P)) && Q) * R = (power_later n (!! P)) && (Q * R).
+Proof.
+  intros.
+  apply (is_prop_andp_sepcon (power_later n (!! P))).
+  apply is_prop_power_later.
+  exact (prop_is_prop P).
+Qed.
+
+Definition lseg_cell {list_struct : type} {list_link : ident} (ls : listspec list_struct list_link) (sh : share) (v: elemtype ls) (x y: val) := !!is_pointer_or_null y && list_cell ls sh v x * field_at sh list_struct list_link y x.
+
+Lemma lseg_cons_eq2: forall {list_struct : type} {list_link : ident}
+  (ls : listspec list_struct list_link) (sh : share) (h : elemtype ls) (r : list (elemtype ls)) 
+  (x z : val), lseg ls sh (h :: r) x z =
+  !!(~ ptr_eq x z) && (EX  y : val, lseg_cell ls sh h x y * |>lseg ls sh r y z).
+Proof.
+  intros.
+  rewrite -> lseg_cons_eq.
+  unfold lseg_cell.
+  reflexivity.
+Qed.
+
+Lemma power_list_append: forall {sh: share} {list_struct : type} {list_link : ident}
+  {ls : listspec list_struct list_link} (n:nat) (hd mid tl:val) ct1 ct2 P,
+  (forall x tl', lseg_cell ls sh x tl tl' * P tl |-- FF) ->
+  power_later n (lseg ls sh ct1 hd mid) * lseg ls sh ct2 mid tl * P tl|--
+  power_later n (lseg ls sh (ct1 ++ ct2) hd tl) * P tl.
+Proof.
+  intros.
+  revert hd n.
+  induction ct1; intros.
+  + simpl.
+    rewrite -> lseg_nil_eq. cancel.
+    apply power_later_erase.
+    normalize.
+  + simpl.
+    repeat rewrite -> lseg_cons_eq2.
+    power_normalize.      
+    repeat (try rewrite -> (power_later_exp' n val hd)).
+    normalize.
+    apply exp_right with x.
+    repeat rewrite power_prop_andp_sepcon.
+    apply andp_right; apply andp_left2.
+    - (* Prop part *)
+      rewrite sepcon_assoc.
+      apply power_later_erase.
+      apply not_prop_right; intros.
+      apply ptr_eq_e in H0; rewrite H0.
+      apply derives_trans with (lseg_cell ls sh a tl x * P tl * TT); [cancel|].
+      apply (right_is_prop FF (lseg_cell ls sh a tl x * P tl)); [apply prop_is_prop | apply H].
+    - power_normalize.
+      repeat rewrite sepcon_assoc.
+      apply sepcon_derives; [cancel|].
+      repeat rewrite power_later_connect.
+      normalize.
+      (* normalize is over powerful here. Originally, I am supposed to use IH afterwards*)
+Qed.
+
+Lemma list_append: forall {sh: share} {list_struct : type} {list_link : ident}
+  {ls : listspec list_struct list_link} (hd mid tl:val) ct1 ct2 P,
+  (forall x tl', lseg_cell ls sh x tl tl' * P tl |-- FF) ->
+  (lseg ls sh ct1 hd mid) * lseg ls sh ct2 mid tl * P tl|--
+  (lseg ls sh (ct1 ++ ct2) hd tl) * P tl.
+Proof.
+  intros.
+  pose proof power_list_append 0 hd mid tl ct1 ct2 P H.
+  simpl in H0.
+  exact H0.
+Qed.
+
+

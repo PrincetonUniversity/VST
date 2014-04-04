@@ -1395,6 +1395,35 @@ Proof. intros.
 Qed.
 Hint Rewrite ptr_eq_True using assumption : norm.
 
+Lemma ptr_eq_is_pointer_or_null: forall x y, ptr_eq x y -> is_pointer_or_null x.
+Proof.
+  intros.
+  unfold ptr_eq, is_pointer_or_null in *.
+  destruct x; destruct y; try tauto.
+  destruct H as [_ ?].
+  unfold Int.cmpu in H.
+  exact (binop_lemmas.int_eq_true _ _ (eq_sym H)).
+Qed.
+
+Lemma ptr_eq_sym: forall x y, ptr_eq x y -> ptr_eq y x.
+Proof.
+   intros.
+   pose proof ptr_eq_is_pointer_or_null _ _ H.
+   apply ptr_eq_e in H.
+   rewrite H in *.
+   rewrite ptr_eq_True; tauto.
+Qed.
+
+Lemma ptr_eq_trans: forall x y z, ptr_eq x y -> ptr_eq y z -> ptr_eq x z.
+Proof.
+   intros.
+   pose proof ptr_eq_is_pointer_or_null _ _ H.
+   apply ptr_eq_e in H.
+   apply ptr_eq_e in H0.
+   subst.
+   rewrite ptr_eq_True; tauto.
+Qed.
+
 Lemma flip_lifted_eq:
   forall (v1: environ -> val) (v2: val),
     `eq v1 `v2 = `(eq v2) v1.
