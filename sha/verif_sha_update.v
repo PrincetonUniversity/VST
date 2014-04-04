@@ -161,7 +161,7 @@ end.
  change 64%Z with (Z.of_nat 64). apply Nat2Z.inj_le; clear - H12; omega.
  apply Nat2Z.inj_le; clear - H1; omega.
 } 
-cbv beta iota.
+after_call.
 apply exp_right 
   with (S256abs (hashed++blocks)
               (firstn (len - (length blocks * 4 - length dd))
@@ -189,6 +189,7 @@ Focus 2. {
 rewrite <- offset_val_array_at_tuchar.
 pull_right (K_vector rho).
 apply sepcon_derives; auto.
+clear H0 rho. pose (H0:=True).
 unfold data_block, tuchars.
 rewrite prop_true_andp by auto.
 replace (array_at tuchar sh
@@ -200,7 +201,7 @@ replace (array_at tuchar sh
      (i - Z.of_nat b4d)) (Z.of_nat b4d + 0)
   (Z.of_nat b4d + Z.of_nat (len - b4d)))
   with (array_at tuchar sh (ZnthV tuchar (map Vint (map Int.repr data))) (Z.of_nat b4d) (Z.of_nat len)).
-Focus 2.
+Focus 2. {
 rewrite Nat2Z.inj_sub by omega.
 replace (Z.of_nat b4d + (Z.of_nat len - Z.of_nat b4d))%Z with (Z.of_nat len) by (clear; omega).
 rewrite Z.add_0_r.
@@ -210,8 +211,9 @@ rewrite Z.sub_add.
 rewrite if_false by omega.
 rewrite map_map.
 rewrite (nth_map' _ _ 0%Z); auto.
-destruct H5. apply Z2Nat.inj_lt in H6; try omega.
-rewrite Nat2Z.id in H6; omega.
+destruct H2. apply Z2Nat.inj_lt in H5; try omega.
+rewrite Nat2Z.id in H5; omega.
+} Unfocus.
 pull_left (array_at tuchar sh (ZnthV tuchar (map Vint (map Int.repr data))) 0
   (Z.of_nat b4d) d).
 rewrite <- split_array_at by omega.
@@ -270,21 +272,21 @@ f_equal.
 fold b4d.
 rewrite Z2Nat.inj_add.
 rewrite Nat2Z.id. auto.
-apply H8.
+apply H6.
 omega.
 fold b4d.
 rewrite skipn_length. 
 split; try omega.
-destruct H8.
-apply Z2Nat.inj_lt in H9; try omega.
-rewrite Nat2Z.id in H9; auto.
+destruct H6.
+apply Z2Nat.inj_lt in H8; try omega.
+rewrite Nat2Z.id in H8; auto.
 omega.
 rewrite <- (Nat2Z.id (length data)).
 rewrite <- Zlength_correct.
 apply Z2Nat.inj_lt.
 omega.
 clear; rewrite Zlength_correct; omega.
-destruct H8 as [_ H8].
+destruct H6 as [_ H8].
 rewrite Nat2Z.inj_sub in H8 by omega.
 apply Nat2Z.inj_ge in Hblocks_len.
 clear - Hblocks_len H8 H.
@@ -296,7 +298,7 @@ rewrite <- Zlength_correct.
 apply Z2Nat.inj_lt; try omega.
 } Unfocus.
 rewrite <- Nat2Z.inj_sub by omega.
-rewrite H6.
+rewrite H5.
 cancel.
 apply derives_refl'; apply equal_f; apply array_at_ext; intros.
 unfold ZnthV. rewrite if_false by omega.
@@ -304,21 +306,21 @@ rewrite nth_overflow; auto.
 repeat rewrite map_length.
 rewrite <- (Nat2Z.id (length dd')).
 apply Z2Nat.inj_le; try  omega.
-rewrite <- Zlength_correct; destruct H8; auto.
+rewrite <- Zlength_correct; destruct H6; auto.
 split; [clear; omega|].
 change 64%Z with (Z.of_nat CBLOCK).
 apply Nat2Z.inj_le; auto.
 clear - DONE; omega.
 unfold s256_relate; repeat split; auto.
 exists hi',lo'; repeat split; auto.
-rewrite H5.  rewrite <- H7.
+rewrite H2.  rewrite <- H7.
 rewrite <- Z.mul_add_distr_r.
 f_equal.
 rewrite initial_world.Zlength_app.
 rewrite Z.mul_add_distr_r.
 repeat rewrite <- Z.add_assoc.
 f_equal.
-rewrite <- H6.
+rewrite <- H5.
 rewrite Nat2Z.inj_sub by omega.
 unfold b4d.
 rewrite Nat2Z.inj_sub by omega.
@@ -326,8 +328,8 @@ rewrite Nat2Z.inj_mul.
 repeat rewrite <- Zlength_correct.
 change (Z.of_nat 4) with 4%Z;
 omega.
-rewrite Zlength_correct in H6.
-apply Nat2Z.inj in H6.
+rewrite Zlength_correct in H5.
+apply Nat2Z.inj in H5.
 rewrite Zlength_correct; change CBLOCKz with (Z.of_nat CBLOCK);
  apply Nat2Z.inj_lt.
 omega.

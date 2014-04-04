@@ -25,6 +25,7 @@ after_call.
 forward_call (* SHA256_Update(&c,d,n); *)
   (init_s256abs,data,c,d,dsh, length data).
 entailer!.
+after_call.
 replace_SEP 0 (
  EX  x : s256abs,
       (PROP  (update_abs (firstn (length data) data) init_s256abs x)
@@ -39,8 +40,7 @@ simpl.
 forward_call (* SHA256_Final(md,&c); *)
     (a,md,c,msh,dsh).
 entailer!.
-apply semax_extract_PROP; intro.
-normalize.
+after_call.
 simpl.
 replace_SEP 0 (K_vector).
 entailer.

@@ -511,6 +511,10 @@ assert (C1:=closed_wrt_subset _ _ CLid).
 assert (C2:=closed_wrt_Forall_subset _ _ CLid).
 autorewrite with subst.
 normalize.
+unfold SeparationLogic.maybe_retval.
+change (fun rho : environ =>
+    serialize_post msg (v, p, buf, sh_p, sh_buf) (get_result1 x rho))
+ with (`(serialize_post msg (v, p, buf, sh_p, sh_buf)) (get_result1 x)).
 autorewrite with subst.
 go_lowerx. normalize.
 unfold serialize_post, serialize_spec.

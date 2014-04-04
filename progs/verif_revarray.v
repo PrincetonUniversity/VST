@@ -181,19 +181,19 @@ Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
 Proof.
 start_function.
 eapply (remember_value (eval_var _four (tarray tint 4))); intro a.
-forward.  (*  revarray(four,4); *)
-instantiate (1:= (a,Ews,four_contents,4)) in (Value of witness).
+forward_call  (*  revarray(four,4); *)
+  (a,Ews,four_contents,4).
 entailer!.
 intros. apply ZnthV_map_Vint_is_int.
 rewrite Zlength_correct; simpl; auto.
-forward.  (*  revarray(four,4); *)
-ack.
-instantiate (1:= (a,Ews, flip 4 four_contents,4)) in (Value of witness).
+after_call.
+forward_call  (*  revarray(four,4); *)
+    (a,Ews, flip 4 four_contents,4).
 entailer!.
 intros. unfold flip, four_contents.
 apply ZnthV_map_Vint_is_int.
  rewrite Zlength_correct; simpl length. change (Z.of_nat 4) with 4. omega.
-normalize.
+after_call.
 rewrite flip_flip.
  forward. (* return s; *)
  unfold main_post. entailer.

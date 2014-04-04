@@ -1077,6 +1077,11 @@ rewrite contains_Lsh_e by apply top_correct'.
 Qed.
 
 
+Definition maybe_retval (Q: environ -> mpred) ret :=
+ match ret with
+ | Some id => fun rho => Q (get_result1 id rho)
+ | None => fun rho => EX v:val, Q (make_args (ret_temp::nil) (v::nil) rho)
+ end.
  
 
 Lemma semax_call_aux:
@@ -1093,7 +1098,7 @@ Lemma semax_call_aux:
     guard_environ Delta (current_function k) rho ->
     (snd fsig=Tvoid -> ret=None) ->
     closed_wrt_modvars (Scall ret a bl) F0 ->
-    R EK_normal None = (fun rho0 : environ => EX old:val, substopt ret old F rho0 * Q x (get_result ret rho0)) ->
+    R EK_normal None = (fun rho0 : environ => EX old:val, substopt ret old F rho0 * maybe_retval (Q x) ret rho0) ->
     rho = construct_rho (filter_genv psi) vx tx ->
     (*filter_genv psi = ge_of rho ->*)
     eval_expr a rho = Vptr b Int.zero ->
@@ -1220,10 +1225,10 @@ normalize. exists rval.
  rewrite sepcon_comm in H22a|-*.
   rewrite sepcon_assoc in H22a.
  assert (bind_ret vl (fn_return f) (Q x) rho' * (F0 rho * F rho) 
-            |-- (Q x (get_result ret (construct_rho (filter_genv psi) vx te2)) *
+            |-- (maybe_retval (Q x) ret (construct_rho (filter_genv psi) vx te2) *
  (F0 (construct_rho (filter_genv psi) vx te2) *
   substopt ret rval F (construct_rho (filter_genv psi) vx te2)))).
-  admit. (* might be ok *)
+  admit. (* might be true *)
  apply H1; clear H1.
  apply (free_list_juicy_mem_lem jm' (blocks_of_env ve) m2 FL).
  eapply sepcon_derives; try apply H22a; auto.
@@ -1245,12 +1250,8 @@ simpl.
 rewrite (age_jm_dry H26) in FL2.
 destruct vl. 
 Focus 2.
-(*assert (f.(fn_return)=Tvoid). 
-clear - H22; unfold bind_ret in H22; destruct (f.(fn_return)); normalize in H22; try contradiction; auto.
-*)
 unfold fn_funsig in H18. (*rewrite H28 in H18.*)
 rewrite H18 in TC5. simpl in TC5.
-(*specialize (TC5 (eq_refl _)). unfold te2 in *. rewrite TC5 in *. *)
 assert (fn_return f = Tvoid). {
  clear - H22; unfold bind_ret in H22; normalize in H22; try contradiction; auto.
  destruct H22. repeat rewrite <- sepcon_assoc in H.
@@ -1268,12 +1269,6 @@ unfold rval.
 destruct ret.
 apply step_return with (zap_fn_return f) None Vundef (PTree.set i v tx); simpl; auto.
 apply step_return with f None Vundef tx; simpl; auto.
-(*
-elimtype False.
-clear - H28 H18 TC5. subst fsig. unfold fn_funsig in TC5. simpl in TC5.
-destruct TC5. rewrite H0 in H28 by auto.
-clear - H28. destruct v; simpl in *; congruence. 
-*)
 admit.  (* not too difficult *)
 (* END OF  "spec H19" *)
 
@@ -1373,7 +1368,6 @@ unfold func_at, func_at'; destruct fs; intros. hnf; intros.
 eexists; eauto.
 Qed.
 
-
 Lemma semax_call: 
     forall Delta A (P Q: A -> assert) x F ret argsig retsig a bl,
            Cop.classify_fun (typeof a) =
@@ -1386,7 +1380,7 @@ Lemma semax_call:
                 (eval_exprlist (snd (split argsig)) bl rho) rho ))))
          (Scall ret a bl)
          (normal_ret_assert 
-          (fun rho => (EX old:val, substopt ret old F rho * Q x (get_result ret rho)))).
+          (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q x) ret rho))).
 Proof.
 rewrite semax_unfold.  intros ? ? ? ? ? ? ? ? ? ? ? TCF TC5.
 intros.
@@ -1512,7 +1506,7 @@ Lemma semax_call_alt:
                 (eval_exprlist (snd (split argsig)) bl rho) rho ))))
          (Scall ret a bl)
          (normal_ret_assert 
-          (fun rho => (EX old:val, substopt ret old F rho * Q x (get_result ret rho)))).
+          (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q x) ret rho))).
 Proof. exact semax_call. Qed.
 
 Lemma semax_call_ext:

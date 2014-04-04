@@ -320,9 +320,8 @@ rewrite <- offset_val_array_at_.
 entailer!.
  forward. (* len -= fragment; *)
       normalize_postcondition.
-
  forward_call (* memset (p,0,SHA_CBLOCK); *)
-    (Tsh, offset_val (Int.repr 40) c, 64%Z, Int.zero).
+    (Tsh, offset_val (Int.repr 40) c, 64%Z, Int.zero). {
  fold k. fold j.
  unfold data_block.
  entailer!.
@@ -357,9 +356,9 @@ entailer!.
  unfold Int.ltu in H8; if_tac in H8; try inv H8.
  unfold k in H5; repeat rewrite Int.unsigned_repr in H5 by omega.
  omega.
+}
+
  after_call.
- cbv beta iota.
- autorewrite with subst norm.
  unfold sha_update_inv.
  entailer.
  rewrite negb_true_iff in H6.
@@ -389,35 +388,40 @@ assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK). {
  omega.
 }
  entailer!.
- rewrite H5. 
- apply Nat2Z.inj_ge.
+ *
+  rewrite H5. 
+  apply Nat2Z.inj_ge.
   rewrite Nat2Z.inj_sub.
- change (Z.of_nat (LBLOCK*4)) with 64%Z.
- rewrite <- Zlength_correct; omega.
- clear - H3. apply Nat2Z.inj_le. rewrite <- Zlength_correct.
- change (Z.of_nat (LBLOCK*4)%nat) with CBLOCKz; clear - H3; omega.
- 
- apply Zlength_length in H5; auto.
- rewrite H5. exists 1%Z; reflexivity.
- rewrite H5. rewrite Zlist_to_intlist_to_Zlist.
- f_equal. f_equal. clear - H0.
- rewrite Z2Nat.inj_sub by omega.
- rewrite Zlength_correct, Nat2Z.id.
- reflexivity.
- rewrite LL. exists 16; reflexivity.
- rewrite Forall_app; split; auto.
- apply Forall_firstn; auto.
- rewrite H5. f_equal.
- f_equal.
- auto.
- rewrite H5. do 2 f_equal.
- rewrite Nat2Z.inj_sub. f_equal; auto.
+  change (Z.of_nat (LBLOCK*4)) with 64%Z.
+  rewrite <- Zlength_correct; omega.
+  clear - H3. apply Nat2Z.inj_le. rewrite <- Zlength_correct.
+  change (Z.of_nat (LBLOCK*4)%nat) with CBLOCKz; clear - H3; omega.
+ * 
+  apply Zlength_length in H5; auto.
+  rewrite H5. exists 1%Z; reflexivity.
+ *
+  rewrite H5. rewrite Zlist_to_intlist_to_Zlist.
+  f_equal. f_equal. clear - H0.
+  rewrite Z2Nat.inj_sub by omega.
+  rewrite Zlength_correct, Nat2Z.id.
+  reflexivity.
+  rewrite LL. exists 16; reflexivity.
+  rewrite Forall_app; split; auto.
+  apply Forall_firstn; auto.
+ *
+  rewrite H5. f_equal.
+  f_equal.
+  auto.
+ *
+  rewrite H5. do 2 f_equal.
+  rewrite Nat2Z.inj_sub. f_equal; auto.
   apply Nat2Z.inj_le.
- rewrite <- KK. omega.
- unfold data_block.
- rewrite prop_true_andp by auto.
- rewrite cVint_force_int_ZnthV.
- rewrite <- split_array_at.
+  rewrite <- KK. omega.
+ *
+  unfold data_block.
+  rewrite prop_true_andp by auto. 
+  rewrite cVint_force_int_ZnthV.
+  rewrite <- split_array_at.
  auto.
  omega. rewrite initial_world.Zlength_map. omega.
 Qed.

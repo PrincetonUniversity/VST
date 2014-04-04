@@ -6,6 +6,9 @@ Require Export sha.common_lemmas.
 
 Global Opaque K CBLOCKz LBLOCKz.
 
+Definition data_offset := 40%Z. (* offset  of _data field in the struct *)
+Global Opaque data_offset.
+
 Lemma K_vector_globals:
   forall rho,  
    (exists Delta, tc_environ Delta rho /\

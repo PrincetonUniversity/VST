@@ -855,7 +855,7 @@ unfold normal_ret_assert; simpl.
 extensionality rho'.
 unfold main_post.
 normalize. rewrite TT_sepcon_TT.
-apply pred_ext. apply exp_right with Vundef; auto. apply exp_left; auto.
+apply pred_ext. do 2 apply exp_right with Vundef; auto. auto.
 rewrite (corable_funassert _ _).
 simpl m_phi.
 rewrite core_inflate_initial_mem; auto.

@@ -28,7 +28,7 @@ Lemma semax_call': forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) r
           (normal_ret_assert 
             (EX old:val, 
               PROPx P (LOCALx (map (substopt ret (`old)) Q) 
-                (SEPx (`(Post x) (get_result ret) :: map (substopt ret (`old)) R))))).
+                (SEPx (maybe_retval (Post x) ret :: map (substopt ret (`old)) R))))).
 Proof.
  intros.
  rewrite argtypes_eq.
@@ -79,6 +79,14 @@ intros.
 apply semax_call'; auto.
 Qed.
 
+
+Definition maybe_retval (Q: environ -> mpred) ret :=
+ match ret with
+ | Some id => fun rho => Q (get_result1 id rho)
+ | None => fun rho => EX v:val, Q (make_args (ret_temp::nil) (v::nil) rho)
+ end.
+ 
+
 Lemma semax_call0: forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) 
       argsig retty a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty ->
@@ -88,7 +96,7 @@ Lemma semax_call0: forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A)
                       `(func_ptr' (mk_funspec (argsig,retty) A Pre Post)) (eval_expr a) :: R))))
           (Scall None a bl)
           (normal_ret_assert 
-            (PROPx P (LOCALx Q (SEPx (`(Post x) (make_args nil nil) :: R))))).
+            (PROPx P (LOCALx Q (SEPx ((EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil))) :: R))))).
 Proof.
 intros.
 rewrite argtypes_eq.
@@ -149,7 +157,7 @@ Lemma semax_call_id0:
                  (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) :: R))))
     (Scall None (Evar id (Tfunction (type_of_params argsig) retty)) bl)
     (normal_ret_assert 
-       (PROPx P (LOCALx Q (SEPx (`(Post x) (make_args nil nil) :: R))))).
+       (PROPx P (LOCALx Q (SEPx ((EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil))) :: R))))).
 Proof.
 intros.
 assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty)))=
@@ -248,7 +256,7 @@ Lemma semax_call_id0_alt:
   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) 
     (Scall None (Evar id (Tfunction paramty retty)) bl)
     (normal_ret_assert 
-       (PROPx P (LOCALx Q (SEPx (`(Post witness) (make_args nil nil) :: Frame))))).
+       (PROPx P (LOCALx Q (SEPx ((EX v:val, `(Post witness) (make_args (ret_temp::nil) (v::nil))) :: Frame))))).
 Proof.
 intros. subst paramty.
 eapply semax_pre;  [ | apply semax_call_id0; eauto].

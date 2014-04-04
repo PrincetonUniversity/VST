@@ -59,9 +59,6 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo:=
      K_vector;
    `(memory_block shmd (Int.repr 32) md))).
 
-Definition data_offset := 40%Z.
-Global Opaque data_offset.
-
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
   (hi lo : int) (dd : list Z)

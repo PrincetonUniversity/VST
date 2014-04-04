@@ -955,7 +955,11 @@ Arguments DO_THE_after_call_TACTIC_NOW {x}.
 Ltac after_call :=  
   match goal with |- @DO_THE_after_call_TACTIC_NOW _ =>
    unfold DO_THE_after_call_TACTIC_NOW;
-   autorewrite with subst; normalize
+   autorewrite with subst; normalize;
+   match goal with 
+   | |- forall x:val, _ => intros ?retval0; normalize
+   | _ => idtac
+   end
   end.
 
 Ltac say_after_call :=
@@ -972,8 +976,16 @@ Proof.
 intros; subst; auto.
 Qed.
 
+Lemma subst_make_args1:
+  forall i e j v,
+    subst i e (make_args (j::nil) (v::nil)) = make_args (j::nil) (v::nil).
+Proof. reflexivity. Qed.
+Hint Rewrite subst_make_args1 : norm.
+Hint Rewrite subst_make_args1 : subst.
+
 Ltac normalize_make_args :=
  cbv beta iota;
+ repeat rewrite subst_make_args1;
  let R' := fresh "R" in evar (R': environ->mpred);
    apply focus_make_args with R';
   [autorewrite with norm; unfold R'; reflexivity
