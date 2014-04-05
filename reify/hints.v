@@ -49,15 +49,16 @@ Check (null_field_at_false Tvoid).
 Local Open Scope logic.
 Check null_field_at_false.
 
-Lemma field_at_trivial' : forall sh T id y, field_at sh T id y nullval |-- FF && emp.
+Lemma null_field_at_false' : forall T sh id y,
+  field_at sh T id y nullval |-- FF && emp.
 Proof.
-intros.
-pose_env.
-reify_derives.
-Admitted.
+Unset Ltac Debug.
+intros; entailer.
+Qed.
 
+(* did you know? largest number ltac will support! fail 2097152.*)
 
-Definition left_hints := PQ.
+Definition left_hints := null_field_at_false' (*PQ*).
 
 (* need to make the following types
    - listspec _ _ for each _ _
@@ -85,8 +86,9 @@ implicit argument. Do this if you are having type errors
 
 Definition left_lemmas: list (Lemma.lemma SL.sepConcl).
 pose_env.
+Set Ltac Debug.
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const left_hints types functions preds 
-ltac:(fun funcs preds hints => apply hints). 
+ltac:(fun funcs preds hints => (*apply hints*) id_this (funcs, preds, hints)). 
 Defined.
  
 (* Axiom QP : forall n,  VericSepLogic_Kernel.himp (Q n) (P n). *)
