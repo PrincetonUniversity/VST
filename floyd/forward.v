@@ -727,12 +727,30 @@ Qed.
 Hint Rewrite eqb_ident_true : subst.
 Hint Rewrite eqb_ident_false using solve [auto] : subst.
 
-Ltac do_subst_eval_expr :=
-  autorewrite with subst; unfold subst_eval_expr, subst_eval_lvalue, sem_cast;
-     simpl eqb_ident; cbv iota;
-     fold sem_cast; fold eval_expr; fold eval_lvalue.
+Lemma subst_temp_special:
+  forall i e (f: val -> Prop) j,
+   i <> j -> subst i e (`f (eval_id j)) = `f (eval_id j).
+Proof.
+ intros.
+ autorewrite with subst; auto.
+Qed.
+Hint Rewrite subst_temp_special using safe_auto_with_closed: subst.
 
-(* old verion:
+Ltac do_subst_eval_expr :=
+ change (@map (environ->Prop) (environ->Prop))
+   with (fun f: (environ->Prop)->(environ->Prop) =>
+              fix map l := match l with nil => nil | a::t => f a :: map t end);
+ change (@map (environ->mpred) (environ->mpred))
+   with (fun f: (environ->mpred)->(environ->mpred) =>
+              fix map l := match l with nil => nil | a::t => f a :: map t end);
+  cbv beta iota;
+  autorewrite with subst; 
+  unfold subst_eval_expr, subst_eval_lvalue, sem_cast;
+  simpl eqb_ident; cbv iota;
+  fold sem_cast; fold eval_expr; fold eval_lvalue;
+  simpl typeof.
+
+(* old version:
 Ltac do_subst_eval_expr :=
   unfold eval_expr,eval_lvalue, sem_cast; fold sem_cast; fold eval_expr; fold eval_lvalue;
   autorewrite with subst.
@@ -746,9 +764,34 @@ Proof.
 intros; intro rho; rewrite andp_unfold; apply andp_right; apply prop_right; auto.
 Qed.
 
+Lemma quick_typecheck1: 
+ forall (P B: environ -> mpred), 
+    P |-- B ->
+   P |-- local (`True) && B.
+Proof.
+intros; apply andp_right; auto.
+ intro rho; apply TT_right.
+Qed.
+
+Lemma quick_typecheck2: 
+ forall (P A: environ -> mpred), 
+    P |-- A ->
+   P |-- A && local (`True).
+Proof.
+intros; apply andp_right; auto.
+ intro rho; apply TT_right.
+Qed.
+
+Lemma local_True_right:
+ forall (P: environ -> mpred),
+   P |-- local (`True).
+Proof. intros. intro rho; apply TT_right.
+Qed.
+
 Ltac forward_setx_aux1 :=
       apply forward_setx; 
-      try solve [apply forward_setx_aux1; intros; repeat split ].
+     first [ apply quick_typecheck1; try apply local_True_right
+            | apply quick_typecheck2].
 
 Ltac forward_setx_aux2 id :=
            match goal with 
@@ -760,8 +803,9 @@ Ltac forward_setx_aux2 id :=
 Ltac forward_setx :=
 first [apply forward_setx_closed_now;
             [solve [auto 50 with closed] | solve [auto 50 with closed] | solve [auto 50 with closed]
-            | try solve [intro rho; apply prop_right; repeat split]
-            | try solve [intro rho; apply prop_right; repeat split]
+            | try apply local_True_right
+            | (* try solve [intro rho; apply prop_right; repeat split] *)
+              try apply local_True_right
             |  ]
         | forward_setx_aux1
         ].

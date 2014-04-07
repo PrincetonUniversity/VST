@@ -961,13 +961,106 @@ Proof.
  inversion2 H0 H9. auto.
 Qed.
  
+
+Lemma xelements_app:
+ forall A (rho: PTree.t A) i al bl,
+    PTree.xelements rho i al ++ bl = PTree.xelements rho i (al++bl).
+Proof.
+ induction rho; simpl; intros; auto.
+ destruct o; simpl.
+ rewrite IHrho1. simpl. rewrite IHrho2; auto.
+ rewrite IHrho1. simpl. rewrite IHrho2; auto.
+Qed.
+
 Lemma elements_remove:
   forall {A} (id: positive) (v: A) (rho: PTree.t A),
        PTree.get id rho = Some v ->
        exists l1, exists l2, PTree.elements rho = l1 ++ (id,v) :: l2 /\ 
                              PTree.elements (PTree.remove id rho) = l1++l2.
 Proof.
-Admitted.
+intros.
+unfold PTree.elements.
+unfold PTree.t in *.
+forget (@nil (positive * A)) as rest.
+pattern id at 1;
+rewrite <- (PTree.append_neutral_l id).
+forget 1%positive as k.
+revert id H k rest; induction rho; simpl; intros.
+rewrite PTree.gleaf in H. inv H.
+destruct o, id; simpl in H; try discriminate H.
+*
+ clear IHrho1.
+ replace (PTree.remove id~1 (PTree.Node rho1 (Some a) rho2))
+   with (PTree.Node rho1 (Some a) (PTree.remove id rho2))
+  by (destruct rho1; auto).
+ simpl.
+ rewrite (PTree.append_assoc_1 k id).
+ destruct (IHrho2 _ H (PTree.append k 3) rest) as [al [bl [? ?]]]; clear IHrho2.
+ rewrite H0.
+do 2 eexists; split.
+rewrite app_comm_cons.
+rewrite <- xelements_app. reflexivity.
+ change ((k,a)::al) with (((k,a)::nil)++al). 
+ rewrite xelements_app.
+ rewrite app_ass.
+ rewrite <- H1.
+ rewrite <- xelements_app. 
+ simpl.
+ rewrite xelements_app.
+ reflexivity.
+* 
+ clear IHrho2.
+ simpl.
+ rewrite (PTree.append_assoc_0 k id).
+ apply IHrho1; auto.
+*
+ inv H. clear.
+ evar (al: list (positive * A)).
+ evar (bl: list (positive * A)).
+ exists al,bl.
+ rewrite PTree.append_neutral_r.
+ change ( ((k, v) :: PTree.xelements rho2 (PTree.append k 3) rest))
+   with  ((nil ++ (k, v) :: nil) ++  (PTree.xelements rho2 (PTree.append k 3) rest)).
+ repeat rewrite <- xelements_app.
+ split.
+ rewrite app_ass.
+ unfold al, bl; reflexivity.
+ unfold al, bl; clear al bl.
+ rewrite xelements_app. simpl app.
+ destruct rho1.
+ destruct rho2; reflexivity.
+ destruct o; try reflexivity.
+* 
+ clear IHrho1.
+ rewrite (PTree.append_assoc_1 k id).
+ destruct (IHrho2 _ H (PTree.append k 3) rest) as [al [bl [? ?]]]; clear IHrho2.
+ rewrite H0.
+ evar (al': list (positive * A)).
+ evar (bl': list (positive * A)).
+ exists al',bl'; split.
+ rewrite <- xelements_app.
+ unfold al', bl'; reflexivity.
+ unfold al', bl'; clear al' bl'.
+ change (al) with (nil++al).
+ rewrite <- xelements_app.
+ rewrite app_ass.
+ rewrite <- H1.
+ rewrite xelements_app.
+ simpl.
+ destruct rho1; try reflexivity.
+ destruct (PTree.remove id rho2); try reflexivity.
+*
+ clear IHrho2.
+ rewrite (PTree.append_assoc_0 k id).
+ destruct (IHrho1 _ H (PTree.append k 2) (PTree.xelements rho2 (PTree.append k 3) rest))
+   as [al [bl [? ?]]]; clear IHrho1.
+ exists al, bl; split; auto.
+ rewrite <- H1.
+ clear.
+ simpl.
+ destruct rho2; try reflexivity.
+ destruct (PTree.remove id rho1); try reflexivity.
+Qed.
 
 Lemma contains_Lsh_e:
    forall sh : Share.t,

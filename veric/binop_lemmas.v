@@ -8,6 +8,141 @@ Require Import veric.expr.
 Require Import veric.Cop2.
 Import Cop.
  
+Lemma eval_expr_any:
+  forall rho e v,
+    eval_expr e any_environ = v ->
+    v <> Vundef ->
+    eval_expr e rho = v
+with eval_lvalue_any:
+  forall rho e v,
+    eval_lvalue e any_environ = v ->
+    v <> Vundef ->
+    eval_lvalue e rho = v.   
+Proof.
+{ clear eval_expr_any.
+ intro.
+ induction e; simpl; intros; subst; unfold_lift; try reflexivity;
+ unfold_lift in H0;
+ cbv delta [eval_unop eval_binop force_val2 force_val1 deref_noload always 
+                 Datatypes.id deref_noload force_ptr force_val
+                  eval_var eval_id
+                 ] 
+       in H0|-*; simpl in *;
+ repeat match goal with
+ | _ => reflexivity
+ | |- match access_mode ?t with
+                              | _ => _ end _ = _ => 
+   destruct (access_mode t); simpl in *
+ | |- context [match eval_expr ?e any_environ with _ => _ end] =>
+          destruct (eval_expr e any_environ) eqn:?; try congruence;
+          rewrite (IHe _ (eq_refl _)); auto
+ | _ => try congruence
+ end.
+*  
+ apply eval_lvalue_any; auto.
+* destruct (eval_expr e any_environ) eqn:?; simpl in *;
+  [elimtype False; apply H0; clear;
+   try destruct u;
+   destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   try reflexivity
+  | rewrite (IHe _ (eq_refl _)) by congruence; auto ..
+  ].
+*
+  destruct (eval_expr e1 any_environ) eqn:?; simpl in *;
+  [ elimtype False; apply H0; clear 
+  | rewrite (IHe1 _ (eq_refl _)) by congruence; auto .. ].
+ +destruct b;
+   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   try reflexivity; destruct (eval_expr e2 any_environ); reflexivity.
+ +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
+  [ elimtype False; apply H0; clear 
+  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
+   destruct b;
+   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   reflexivity.
+ +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
+  [ elimtype False; apply H0; clear 
+  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
+   destruct b;
+   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   reflexivity.
++destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
+  [ elimtype False; apply H0; clear 
+  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
+   destruct b;
+   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   reflexivity.
+ +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
+  [ elimtype False; apply H0; clear 
+  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
+   destruct b;
+   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   reflexivity.
+* 
+   destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+  (destruct (eval_expr e any_environ) eqn:?; simpl in *;
+  [elimtype False; apply H0; clear
+  | try rewrite (IHe _ (eq_refl _)) by congruence; 
+     auto .. ]); auto.
+* destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   simpl in *; unfold always; auto.
+   destruct (field_offset i f); auto.
+   f_equal.
+   apply eval_lvalue_any; auto.
+   intro. rewrite H in H0. apply H0; reflexivity.
+   unfold force_ptr in *.
+   destruct (eval_lvalue e any_environ) eqn:?; simpl in *;
+   try congruence.
+   rewrite (eval_lvalue_any _ _ _ Heqv); auto.
+}
+{ clear eval_lvalue_any.
+ intro.
+ induction e; simpl; intros; subst; unfold_lift; try reflexivity;
+ unfold_lift in H0.
+*
+ unfold eval_var in *;  simpl in *; congruence.
+*
+ destruct (eval_expr e any_environ) eqn:?; simpl in *;
+  try congruence.
+ rewrite (eval_expr_any _ _ _ Heqv); auto.
+*
+  destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   simpl in *; unfold always; auto.
+   destruct (field_offset i f); auto.
+   f_equal.
+   apply IHe; auto.
+   intro. rewrite H in H0. apply H0; reflexivity.
+   unfold force_ptr in *.
+   destruct (eval_lvalue e any_environ) eqn:?; simpl in *;
+   try congruence.
+   rewrite (IHe _ (eq_refl _)); auto.
+}
+Qed.
+
+Lemma denote_tc_assert_ilt':
+  forall e j, denote_tc_assert (tc_ilt e j) = denote_tc_assert (tc_ilt' e j).
+Proof.
+intros.
+extensionality rho.
+ unfold tc_ilt; simpl.
+ unfold_lift.
+ destruct (eval_expr e any_environ) eqn:?; simpl; auto.
+ apply (eval_expr_any rho) in Heqv; try congruence.
+ rewrite Heqv; simpl.
+ destruct (Int.ltu i j) eqn:?; simpl;
+ unfold_lift; simpl.
+ apply prop_ext; intuition.
+ unfold is_true. rewrite Heqv.
+ simpl. rewrite Heqb.
+ apply prop_ext; intuition.
+Qed.
+
 Lemma typecheck_val_void:
   forall v, typecheck_val v Tvoid = true -> False.
 Proof.
@@ -154,7 +289,7 @@ Proof. intros. extensionality rho. apply denote_tc_assert_orp. Qed.
 
 Hint Rewrite denote_tc_assert_andp' denote_tc_assert_andp''
     denote_tc_assert_orp' denote_tc_assert_orp''
-    denote_tc_assert_iszero' : dtca.
+    denote_tc_assert_iszero' denote_tc_assert_ilt': dtca.
 
 Ltac dtca := autorewrite with dtca; auto.
 
@@ -302,7 +437,7 @@ match op with
                     | Cop.bin_default => tc_FF deferr
             end
   | Cop.Oshl | Cop.Oshr => match classify_shift' (typeof a1) (typeof a2) with
-                    | Cop.shift_case_ii _ =>  tc_andp' (tc_ilt a2 Int.iwordsize) (tc_bool (is_int_type ty) 
+                    | Cop.shift_case_ii _ =>  tc_andp' (tc_ilt' a2 Int.iwordsize) (tc_bool (is_int_type ty) 
                                                                                          reterr)
                     | _ => tc_FF deferr
                    end
@@ -527,98 +662,6 @@ Proof.
   both_int, both_long, both_float.
  destruct i1,s1,i2,s2; simpl; try rewrite H; try rewrite H0; reflexivity.
 Qed.
-(*
-
-Ltac crunch := 
-repeat (
- unfold is_true in *; simpl;
- match goal with 
-  | H: ?f _ = ?f _ |- _ => inv H
-  | |- _ => first [contradiction | discriminate | reflexivity
-                         | rewrite or_False in * | rewrite False_or in * | rewrite zeq_true ]
-  | H: denote_tc_assert' (tc_bool ?A _) _ |- _ => 
-     destruct A eqn:?; try contradiction H; clear H
-  | H: denote_tc_assert' (tc_andp' _ _) _ |- _ => 
-     apply denote_tc_assert'_andp'_e in H; destruct H
-  | H: denote_tc_assert' (tc_orp' _ _) _ |- _ => hnf in H
- | H: denote_tc_assert' (tc_isptr _) _ |- _ => hnf in H
- | H: denote_tc_assert' (tc_ilt _ _) _ |- _ => hnf in H
- | H: denote_tc_assert' (tc_iszero' _) _ |- _ => hnf in H
- | H: denote_tc_assert' (tc_nonzero _) _ |- _ => hnf in H
- | H: denote_tc_assert' (tc_nodivover _ _) _ |- _ => hnf in H
- | H: denote_tc_assert' (tc_samebase _ _) _ |- _ => hnf in H
- | H: denote_tc_iszero _ |- _ => hnf in H
-  | H: ?A=true |- _ => rewrite H; simpl
-  | H: ?A=false |- _ => rewrite H; simpl
-  | H: negb ?A = true |- _ => destruct A eqn:?; inv H; simpl; auto
-  | H: if negb ?A then True else False |- _ => 
-           destruct A eqn:?; try contradiction H; clear H; simpl; auto 
- | H: denote_tc_assert' (match ?A with _ => _ end) _ |- _ => 
-          first [is_var A; destruct A 
-                 | let J := fresh in destruct A eqn:J; move J before H]
-  | H: match ?A with _ => _ end = _ |- _ => 
-          first [is_var A; destruct A 
-                 | let J := fresh in destruct A eqn:?; move J before H]
-  | H: is_int_type ?t = true |- _ => destruct t; inv H 
-  | H: is_long_type ?t = true |- _ => destruct t; inv H 
-  | H: is_float_type ?t = true |- _ => destruct t; inv H
-  | H: is_pointer_type ?t = true |- _ => destruct t; inv H  
-  | H: andb _ _ = true |- _ => apply -> andb_true_iff in H; destruct H
-  | H: proj_sumbool (zeq ?b ?b') = true |- _ =>  destruct (zeq b b'); inv H
-  | |- typecheck_val (Val.of_bool ?A) _ = _ => destruct A
-  end).
-
-Lemma typecheck_binop_sound:
-forall op (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type)
-   (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho)
-   (TV2: typecheck_val (eval_expr e2 rho) (typeof e2) = true)
-   (TV1: typecheck_val (eval_expr e1 rho) (typeof e1) = true),
-   typecheck_val
-     (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho)
-        (eval_expr e2 rho)) t = true.
-Proof.
-intros; destruct op;
-abstract (
-rewrite den_isBinOpR in IBR; simpl in IBR;
- let E1 := fresh "E1" in let E2 := fresh "E2" in 
- destruct (typeof e1) as [ | i1 s1 ? | s1 ? | i1 ? | | | | | | ];
- destruct (eval_expr e1 rho) eqn:E1; inv TV1;
- destruct (typeof e2) as [ | i2 s2 ? | s2 ? | i2 ? | | | | | | ];
- try solve [inv IBR];
- destruct (eval_expr e2 rho) eqn:E2; inv TV2;
-unfold eval_binop, sem_binary_operation;
-unfold classify_cmp',classify_add',classify_sub',classify_shift',stupid_typeconv,
-  binarithType, classify_binarith in IBR;
- rewrite <- denote_tc_assert'_eq in IBR;
-crunch;
-try rewrite E1 in *; 
-try rewrite E2 in *; 
-simpl in *; crunch;
-try match goal with
-| |- _ => first [simple apply typecheck_val_sem_cmp; apply I
-                         |  simple apply typecheck_sem_div_sound; assumption 
-                         |  simple apply typecheck_sem_mod_sound; assumption]
-| |- context [sem_add] =>
-  unfold sem_add; rewrite classify_add_eq; unfold classify_add', stupid_typeconv; 
-  reflexivity
- | |- typecheck_val (force_val ((sem_cmp _ _ ?t1 _ ?t2) _)) _ = true =>
-        sem_cmp_solver t1 t2
-| |- context [sem_sub] =>
-     unfold sem_sub; rewrite classify_sub_eq; unfold classify_sub', stupid_typeconv; 
-     try rewrite zeq_true;
-     try match goal with H: Int.eq _ Int.zero = false |- _ => rewrite H end;
-    reflexivity
- | H: Int.eq ?i0 Int.zero = false |- typecheck_val  (force_val  (_ _ _ (Vint ?i0) _)) _ = true =>
-       unfold sem_div, sem_mod, sem_binarith, sem_cast;
-       simpl; (rewrite H || rewrite cast_int_long_nonzero by assumption); 
-       reflexivity
- | H: Int.ltu _ Int.iwordsize = true |- typecheck_val  (force_val  (_ _ _ (Vint ?i0) _)) _ = true =>
-       unfold sem_shl, sem_shr, sem_shift;
-     rewrite classify_shift_eq; unfold classify_shift', stupid_typeconv;
-  simpl; rewrite H; reflexivity
-end).
-Qed.
-*)
 
 Ltac crunchp := 
 repeat (
@@ -633,7 +676,7 @@ repeat (
      apply denote_tc_assert'_andp'_e in H; destruct H
   | H: denote_tc_assert' (tc_orp' _ _) _ |- _ => hnf in H
  | H: denote_tc_assert' (tc_isptr _) _ |- _ => hnf in H
- | H: denote_tc_assert' (tc_ilt _ _) _ |- _ => hnf in H
+ | H: denote_tc_assert' (tc_ilt' _ _) _ |- _ => hnf in H
  | H: denote_tc_assert' (tc_iszero' _) _ |- _ => hnf in H
  | H: denote_tc_assert' (tc_nonzero _) _ |- _ => hnf in H
  | H: denote_tc_assert' (tc_nodivover _ _) _ |- _ => hnf in H

@@ -547,7 +547,7 @@ Inductive tc_assert :=
 | tc_nonzero: expr -> tc_assert
 | tc_iszero': expr -> tc_assert
 | tc_isptr: expr -> tc_assert
-| tc_ilt: expr -> int -> tc_assert
+| tc_ilt': expr -> int -> tc_assert
 | tc_Zle: expr -> Z -> tc_assert
 | tc_Zge: expr -> Z -> tc_assert
 | tc_samebase: expr -> expr -> tc_assert
@@ -586,33 +586,6 @@ end.
 Definition tc_bool (b : bool) (e: tc_error) :=
 if b then tc_TT else tc_FF e.
 
-(*
-Unused
-Fixpoint tc_assert_simpl asn :=
-match asn with
-| tc_andp' a1 a2 =>
-      match (tc_assert_simpl a1), (tc_assert_simpl a2) with
-            | tc_FF, _ => tc_FF
-            | _ , tc_FF => tc_TT
-            | tc_TT, s => s
-            | s, tc_TT => s
-            | tc_noproof, _ => tc_noproof
-            | _, tc_noproof => tc_noproof
-            | _, _ => asn
-            end
-| tc_nonzero (Econst_int i _)=>if (Int.eq i Int.zero) then tc_FF else tc_TT
-| tc_ilt (Econst_int i1 _) i => if (Int.ltu i1 i) then tc_TT else tc_FF
-| tc_Zle (Econst_float f _) z => match (Float.Zoffloat f) with
-                                   | Some n => if (Zle_bool n z) then tc_TT else tc_FF
-                                   | None => tc_FF
-                                 end
-| tc_Zge (Econst_float f _) z => match (Float.Zoffloat f) with
-                                   | Some n => if (Zle_bool z n) then tc_TT else tc_FF
-                                   | None => tc_FF
-                                 end
-| _ => asn
-end.*)
-
 Definition check_pp_int e1 e2 op t e :=
 match op with 
 | Cop.Oeq | Cop.One => tc_andp 
@@ -641,6 +614,12 @@ Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
 
 Definition is_numeric_type t :=
 match t with Tint _ _ _ | Tlong _ _ | Tfloat _ _ => true | _ => false end.
+
+Definition tc_ilt (e: expr) (j: int) :=
+    match eval_expr e any_environ with
+    | Vint i => if Int.ltu i j then tc_TT else tc_ilt' e j
+    | _ => tc_ilt' e j
+    end.
 
 Definition isBinOpResultType op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
@@ -1080,7 +1059,7 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_orp' b c => `or (denote_tc_assert b) (denote_tc_assert c)
   | tc_nonzero e => `denote_tc_nonzero (eval_expr e)
   | tc_isptr e => `isptr (eval_expr e)
-  | tc_ilt e i => `(denote_tc_igt i) (eval_expr e)
+  | tc_ilt' e i => `(denote_tc_igt i) (eval_expr e)
   | tc_Zle e z => `(denote_tc_Zge z) (eval_expr e)
   | tc_Zge e z => `(denote_tc_Zle z) (eval_expr e)
   | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr e1) (eval_expr e2)
@@ -1533,7 +1512,7 @@ Fixpoint denote_tc_assert_b (a: tc_assert) : environ -> bool :=
   | tc_orp' b c => `orb (denote_tc_assert_b b) (denote_tc_assert_b c)
   | tc_nonzero e => `denote_tc_nonzero_b (eval_expr e)
   | tc_isptr e => `isptr_b (eval_expr e)
-  | tc_ilt e i => `(denote_tc_igt_b i) (eval_expr e)
+  | tc_ilt' e i => `(denote_tc_igt_b i) (eval_expr e)
   | tc_Zle e z => `(denote_tc_Zge_b z) (eval_expr e)
   | tc_Zge e z => `(denote_tc_Zle_b z) (eval_expr e)
   | tc_samebase e1 e2 => `denote_tc_samebase_b (eval_expr e1) (eval_expr e2)

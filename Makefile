@@ -136,7 +136,7 @@ COMPCOMP_FILES= \
 
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
-  lift.v expr.v environ_lemmas.v binop_lemmas.v expr_lemmas.v \
+  lift.v expr.v environ_lemmas.v binop_lemmas.v expr_lemmas.v expr_lemmas2.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_sim.v \
   slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_extspec.v \

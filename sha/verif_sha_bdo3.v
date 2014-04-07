@@ -25,44 +25,45 @@ Definition Delta_rearrange_aux2 : tycontext.
 simplify_Delta_from
  (initialized _Ki (initialized _l (initialized _l' Delta_loop1))).
 Defined.
-
 Lemma rearrange_aux2: 
 forall (Espec : OracleKind) (i : nat)(w k : int) ctx
-      (a b c d e f g h : int) (eqofs : val -> Prop),
-i < 16 ->
+      (a b c d e f g h : int) (eqofs : val -> Prop)
+      atoh,
+   i < 16 ->
+  atoh = nthi (rnd_function [a, b, c, d, e, f, g, h] k w) ->
 semax Delta_rearrange_aux2
   (PROP  ()
    LOCAL  (`(eq ctx) (eval_id _ctx);
    `eqofs (eval_id _data); `(eq (Vint w)) (eval_id _l);
    `(eq (Vint k)) (eval_id _Ki);
    `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
-   `(eq (map Vint [a, b, c, d, e, f, g, h]))
-     (`cons (eval_id _a)
-        (`cons (eval_id _b)
-           (`cons (eval_id _c)
-              (`cons (eval_id _d)
-                 (`cons (eval_id _e)
-                    (`cons (eval_id _f)
-                       (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+   `(eq (Vint a)) (eval_id _a);
+   `(eq (Vint b)) (eval_id _b);
+   `(eq (Vint c)) (eval_id _c);
+   `(eq (Vint d)) (eval_id _d);
+   `(eq (Vint e)) (eval_id _e);
+   `(eq (Vint f)) (eval_id _f);
+   `(eq (Vint g)) (eval_id _g);
+   `(eq (Vint h)) (eval_id _h))
    SEP())
  rearrange_regs
   (normal_ret_assert
      (PROP  (S i <= 16)
       LOCAL  (`(eq ctx) (eval_id _ctx);
-   `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
+      `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
       `eqofs (eval_id _data);
-      `(eq (map Vint (rnd_function [a, b, c, d, e, f, g, h]  k w)))
-        (`cons (eval_id _a)
-           (`cons (eval_id _b)
-              (`cons (eval_id _c)
-                 (`cons (eval_id _d)
-                    (`cons (eval_id _e)
-                       (`cons (eval_id _f)
-                          (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
-        SEP())).
+      `(eq (Vint (atoh 0%Z))) (eval_id _a);
+      `(eq (Vint (atoh 1%Z))) (eval_id _b);
+      `(eq (Vint (atoh 2%Z))) (eval_id _c);
+      `(eq (Vint (atoh 3%Z))) (eval_id _d);
+      `(eq (Vint (atoh 4%Z))) (eval_id _e);
+      `(eq (Vint (atoh 5%Z))) (eval_id _f);
+      `(eq (Vint (atoh 6%Z))) (eval_id _g);
+      `(eq (Vint (atoh 7%Z))) (eval_id _h))
+       SEP())).
 Proof.
 {
-intros.
+intros. rename H0 into Hah.
 name a_ _a.
 name b_ _b.
 name c_ _c.
@@ -80,8 +81,21 @@ name data_ _data.
 name ctx_ _ctx.
 simplify_Delta; abbreviate_semax.
 unfold rearrange_regs.
-forward.
-forward.
+forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
+assert_LOCAL 
+  (`(eq (Vint (Int.add (Int.add (Int.add (Int.add h (Sigma_1 e)) (Ch e f g)) k) w)))
+                         (eval_id _T1)). {
+ entailer!.  
+ rewrite <- Sigma_1_eq, <- Ch_eq, rearrange_aux.  auto.
+}
+drop_LOCAL 1.
+forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
+assert_LOCAL 
+  (`(eq (Vint (Int.add (Sigma_0 a) (Maj a b c))))  (eval_id _T2)). {
+ entailer!.  
+ rewrite <- Sigma_0_eq, <- Maj_eq. auto.
+}
+drop_LOCAL 1.
 forward.
 forward.
 forward.
@@ -92,30 +106,9 @@ forward.
 forward.
 (* 1,577,248    1,732,160 *)
 simplify_Delta.
-  go_lower0;
-  repeat (apply derives_extract_prop; intro);
-  repeat apply andp_right; try apply prop_right; auto;
-  decompose [and] H2; clear H2; subst;
-  inv H18;
-  repeat match goal with 
-   | H: eval_id _ _ = _ |- _ => rewrite H in *; clear H
-   | H: _ = eval_id _ _ |- _ => rewrite <- H in *; clear H
-  end;
-  repeat split; auto.
-(* 1,666,568   1,732,164 *)
-  clear;
-  cbv beta iota delta [sem_and sem_notint sem_or 
-    sem_shl sem_shr sem_or sem_add sem_xor
-    force_val sem_shift_ii sem_notint_i
-    both_int ]; simpl;
-  repeat rewrite <- Sigma_1_eq;
-  repeat rewrite <- Sigma_0_eq;
-  repeat rewrite <- Ch_eq;
-  repeat rewrite <- Maj_eq;
-  repeat rewrite (rearrange_aux h);
-  reflexivity.
-(* 1,685,788    1,743,816  ;   without the computational closedness: 1,913,256 *)
-} Admitted. (* this proof works, but takes over 2 gigabytes  *)
+ entailer!.
+(* 871,496    1,685,788    1,743,816  ;   without the computational closedness: 1,913,256 *)
+} Admitted. (* this proof works, but once took over 2 gigabytes  *)
 
 Lemma rearrange_regs_proof:
  forall (Espec: OracleKind) i (data: val) M regs ctx
@@ -165,7 +158,14 @@ apply length_Round; auto.
 forget (Round regs M (Z.of_nat i - 1)) as regs'.
 change 16 with LBLOCK.
 destruct regs' as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; inv H1.
-simple apply rearrange_aux2; assumption. 
+eapply semax_pre_post; [ | | 
+  apply (rearrange_aux2 _ i w k ctx a b c d e f g h); try assumption; reflexivity ].
+entailer. inv H6; apply prop_right; repeat split; try eassumption; try reflexivity.
+intros.
+ go_lower0.
+ entailer. simpl. apply normal_ret_assert_derives.
+ entailer. apply prop_right.
+ unfold nthi in *; simpl in *; congruence.
 Qed.
 
 Lemma loop1_aux_lemma1:
