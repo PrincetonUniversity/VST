@@ -270,7 +270,7 @@ semax Delta_rearrange_regs2c
         (eval_var _X (tarray tuint LBLOCKz))))).
 Proof. {
 intros.
-simplify_Delta; abbreviate_semax.
+abbreviate_semax.
 name a_ _a.
 name b_ _b.
 name c_ _c.
@@ -304,4 +304,4 @@ f_equal. f_equal. unfold nthi. rewrite Nat2Z.id; auto.
 unfold nthi at 1; simpl.
 f_equal. rewrite Int.add_commut. f_equal.
 f_equal. unfold nthi. rewrite Nat2Z.id; auto.
-} Admitted. (* Proof is done here, Qed takes more than 2 gigs *)
+} Qed.

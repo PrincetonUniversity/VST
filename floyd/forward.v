@@ -176,6 +176,8 @@ Ltac unfold_abbrev_commands :=
 
 Ltac clear_abbrevs :=  repeat match goal with H := @abbreviate _ _ |- _ => clear H end.
 
+Arguments var_types !Delta / .
+
 Ltac simplify_Delta_core H := 
  repeat match type of H with _ =  ?A => unfold A in H end;
  cbv delta [abbreviate update_tycon func_tycontext] in H; simpl in H;
@@ -207,10 +209,13 @@ Ltac simplify_Delta_from A :=
  match type of H with (d = ?A) => apply A end.
 
 Ltac simplify_Delta_at A :=
- let d := fresh "d" in let H := fresh in 
- remember A as d eqn:H;
- simplify_Delta_core H;
- subst d.
+ match A with
+ | (_,_,_,_) => idtac
+ | _ => let d := fresh "d" in let H := fresh in 
+       remember A as d eqn:H;
+       simplify_Delta_core H;
+       subst d
+ end.
 
 Ltac simplify_Delta := 
  match goal with 

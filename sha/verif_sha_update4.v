@@ -120,7 +120,7 @@ name data' _data.
 name p _p.
 name n _n.
 unfold sha_update_loop_body.
-subst Delta; simplify_Delta; abbreviate_semax.
+subst Delta; abbreviate_semax.
 forward_call (* sha256_block_data_order (c,data); *)
  (hashed++ blocks,  bl, c, 
   offset_val (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d,
@@ -128,20 +128,9 @@ forward_call (* sha256_block_data_order (c,data); *)
 
 entailer!.
 
-Lemma divide_length_app:
- forall {A} n (al bl: list A), 
-      (n | Zlength al) -> 
-      (n | Zlength bl) ->
-      (n | Zlength (al++bl)).
-Proof.
- intros. destruct H,H0. exists (x+x0)%Z.
- rewrite initial_world.Zlength_app,H,H0;  
- rewrite Z.mul_add_distr_r; omega.
-Qed.  (* delete me, duplicated from sha_lemmas.v *)
 apply divide_length_app; auto.
 unfold_lift.
 repeat rewrite eval_var_env_set.
-(*erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]). *)
 change (array_at tuint Tsh (tuints K) 0 (Zlength K)
       (eval_var _K256 (tarray tuint 64) rho)) with (K_vector rho).
  rewrite <- H6.

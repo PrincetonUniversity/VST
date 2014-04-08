@@ -136,7 +136,6 @@ Focus 2. {
  cancel.
 }
   after_call.
-  forward.  (* n=0; *)
 gather_SEP 4%Z 0%Z.
 pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ list_repeat (Z.to_nat (CBLOCKz-(ddlen+1))) Int.zero)).
 replace_SEP 0%Z (  `(array_at tuchar Tsh
@@ -223,6 +222,7 @@ rewrite Int.unsigned_zero. split; clear; omega.
 }
 clear H0'.
 clearbody ddzw.
+ forward.  (* n=0; *)
  forward_call (* sha256_block_data_order (c,p); *)
   (hashed, ddzw, c, offset_val (Int.repr data_offset) c, Tsh).
  {entailer!.
@@ -406,7 +406,7 @@ semax
       `(data_block shmd (intlist_to_Zlist hashedmsg) md)))).
 Proof.
 intros.
-unfold final_loop; simplify_Delta; abbreviate_semax.
+unfold final_loop; abbreviate_semax.
 rewrite memory_block_isptr by computable.
 normalize. rename H1 into Hmd.
 forward.  (* xn=0; *)
@@ -648,12 +648,11 @@ Focus 2. {
  unfold part4_inv. apply extract_exists_pre; intro i.
  normalize.
  forward. (* xn++; *)
- unfold part4_inv. normalize.
  apply exp_right with i.
-  rewrite Z.sub_0_r.
+ unfold part4_inv.
+ rewrite Z.sub_0_r.
  entailer.
- apply prop_right. inv H3. 
- normalize. f_equal. omega.
+ apply prop_right. f_equal. omega.
 * (* after the loop *)
  unfold part4_inv. 
   rewrite (firstn_same _ 8) by omega.

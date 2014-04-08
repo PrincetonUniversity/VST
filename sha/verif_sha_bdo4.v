@@ -49,7 +49,7 @@ Lemma sha256_block_data_order_loop1_proof:
            `(array_at tuint Tsh (tuints b) 0 16) (eval_var _X (tarray tuint 16));
            `(data_block sh (intlist_to_Zlist b) data))) ).
 Proof. {
-unfold block_data_order_loop1, Delta_loop1.
+unfold block_data_order_loop1.
 intros.
 simpl nth; fold rearrange_regs.
 abbreviate_semax.
@@ -133,7 +133,6 @@ forward_if (
 (* 587,640  592,608 *)
  rewrite <- insert_local; apply andp_left1. entailer.
 (* 613,416  655,716 *)
-1:
 abstract (forward; (* skip; *)
 (* 619,968  655,716 *)
    entailer; apply prop_right; rewrite Z.sub_0_r; auto).
@@ -187,7 +186,7 @@ eapply semax_frame_seq
 (* 945,760 834,556 *)
 abstract solve [entailer!; repeat split; auto; try omega; 
  rewrite Zlength_correct; rewrite length_intlist_to_Zlist; 
-            (*rewrite map_length;*) rewrite H;
+ rewrite H;
  replace (Z.of_nat (4 * LBLOCK) - 4)%Z
   with ((Z.of_nat LBLOCK - 1) * 4)%Z; 
     [apply Zmult_le_compat_r; omega | ];
@@ -195,12 +194,13 @@ abstract solve [entailer!; repeat split; auto; try omega;
  rewrite Z.mul_sub_distr_l;
  reflexivity].
 (* 990,216 849,172 *)
+simpl app.
 unfold data_block.
 rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
 abstract solve [entailer!].
 (* 1,078,128 849,172 *)
 auto 50 with closed.
-simpl.
+simpl app.
 replace (array_at tuchar sh (tuchars (map Int.repr (intlist_to_Zlist b))) 0
         (Zlength (intlist_to_Zlist b)) data)
   with (data_block sh (intlist_to_Zlist b) data) 
@@ -214,7 +214,6 @@ abstract solve [entailer!].
 (* 1,254,920 849,172 *)
 normalize.
 (* 1,291,784 894,136 *)
-simpl typeof.
 forward. (* X[i]=l; *)
 clear POSTCONDITION MORE_COMMANDS.
 instantiate (2:= Z.of_nat i).
@@ -282,6 +281,4 @@ congruence.
 clear H3.
 change (length K) with 64%nat.
 simpl; omega.
-} Admitted.  (* this is correct but goes over 2 gigabytes. *)
-
-
+} Qed.

@@ -59,7 +59,7 @@ semax Delta_rearrange_regs2
         (eval_var _X (tarray tuint LBLOCKz))))).
 Proof. {
 intros.
-simplify_Delta; abbreviate_semax.
+abbreviate_semax.
 name a_ _a.
 name b_ _b.
 name c_ _c.
@@ -110,7 +110,7 @@ replace Delta with Delta_rearrange_regs2c
   by (simplify_Delta; reflexivity).
 clear Delta.
 simple apply (rearrange_regs2c_proof); assumption.
-} Admitted.  (* proof done here, Qed takes too long *)
+} Qed.
 
 Local Open Scope Z.
 
@@ -189,7 +189,7 @@ semax (initialized _s1 (initialized _s0 Delta_loop1))
         (eval_var _X (tarray tuint LBLOCKz))))).
 Proof. {
 intros.
-simplify_Delta; abbreviate_semax.
+abbreviate_semax.
 name a_ _a.
 name b_ _b.
 name c_ _c.
@@ -298,4 +298,4 @@ replace Delta with Delta_rearrange_regs2
   by (simplify_Delta; reflexivity).
 clear Delta.
 simple apply rearrange_regs2_proof; assumption.
-} Admitted. (* Proof is done here, Qed takes more than 2 gigs *)
+} Qed.

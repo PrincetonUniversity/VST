@@ -6,17 +6,13 @@ Require Import sha.sha_lemmas.
 Require Import sha.verif_sha_final2.
 Local Open Scope logic.
 
-
 Definition sha_final_epilog :=
               (Ssequence
                           (Scall None
                             (Evar _sha256_block_data_order (Tfunction
-                                                             (Tcons
-                                                               (tptr t_struct_SHA256state_st)
-                                                               (Tcons
-                                                                 (tptr tvoid)
-                                                                 Tnil))
-                                                             tvoid))
+                                 (Tcons(tptr t_struct_SHA256state_st)
+                                   (Tcons (tptr tvoid) Tnil))
+                                 tvoid))
                             ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
                              (Etempvar _p (tptr tuchar)) :: nil))
                           (Ssequence
@@ -70,7 +66,7 @@ semax
 Proof.
 intros.
 unfold sha_final_epilog.
-simplify_Delta; abbreviate_semax.
+abbreviate_semax.
 forward_call (* sha256_block_data_order (c,p); *)
   (hashed, lastblock, c, (offset_val (Int.repr 40) c), Tsh).
 entailer!.
@@ -378,7 +374,6 @@ Proof.
  rewrite (split_array_at 60%Z tuchar Tsh _ (Z.of_nat CBLOCK - 8)%Z 64%Z)
   by (change (Z.of_nat CBLOCK) with 64%Z; split; computable).
  forward. (* cNh=c->Nh; *)
- repeat apply -> seq_assoc.
  forward_call (* (void)HOST_l2c(cNh,p); *)
     (offset_val (Int.repr 56) (offset_val (Int.repr 40) c),
                          Tsh, hibytes). {

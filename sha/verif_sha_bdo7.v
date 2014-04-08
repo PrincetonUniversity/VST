@@ -49,7 +49,7 @@ semax Delta_loop1
         (eval_var _X (tarray tuint LBLOCKz))))).
 Proof.
 intros.
-simplify_Delta; unfold bdo_loop2_body; abbreviate_semax.
+unfold bdo_loop2_body; abbreviate_semax.
 name a_ _a.
 name b_ _b.
 name c_ _c.
@@ -73,7 +73,7 @@ assert (16 <= Z.of_nat i < 64)%Z. {
 
 forward.	(*s0 = X[(i+1)&0x0f]; *)
 drop_LOCAL 3. drop_LOCAL 2.
-clear; abstract (entailer; apply prop_right; apply and_mod_15_lem).
+clear; entailer; apply prop_right; apply and_mod_15_lem.
 
 forward. (* s0 = sigma0(s0); *)
 rename x into s0'.
@@ -98,7 +98,7 @@ drop_LOCAL 1.
 clear s0'.
 
 forward. (* s1 = X[(i+14)&0x0f]; *)
-clear; abstract (entailer; apply prop_right; apply and_mod_15_lem).
+clear;  (entailer; apply prop_right; apply and_mod_15_lem).
 forward. (* s1 = sigma1(s1); *)
 rename x into s1'.
 
@@ -121,7 +121,6 @@ clear s1'.
 unfold MORE_COMMANDS, POSTCONDITION, abbreviate; clear MORE_COMMANDS POSTCONDITION.
 replace Delta with (initialized _s1 (initialized _s0 Delta_loop1))
   by (simplify_Delta; reflexivity).
-clear Delta.
 simple apply sha_bdo_loop2b; assumption.
 Qed.
 
@@ -238,10 +237,9 @@ forward_if (
    SEP  (K_vector;
    `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
      (eval_var _X (tarray tuint LBLOCKz)))).
- abstract entailer.
+ entailer.
  forward; (* skip *)
    assert (LBE : LBLOCKz=16%Z) by reflexivity; change c64 with 64%nat in *; entailer. 
- (* change (Z.of_nat c64) with 64. *)
    apply semax_extract_PROP; intro;
    assert (LBE : LBLOCKz=16%Z) by reflexivity; change c64 with 64%nat in *;
    forward; (* break; *)
@@ -255,8 +253,7 @@ forward_if (
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 make_sequential. rewrite loop1_ret_assert_normal.
 normalize.
-replace Delta with
-  (Delta_loop1) by (simplify_Delta; reflexivity).
+replace Delta with Delta_loop1 by (simplify_Delta; reflexivity).
 simple apply bdo_loop2_body_proof; auto.
 Qed.
 

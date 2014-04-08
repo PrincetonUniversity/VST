@@ -79,8 +79,8 @@ name T1 _T1.
 name T2 _T2.
 name data_ _data.
 name ctx_ _ctx.
-simplify_Delta; abbreviate_semax.
 unfold rearrange_regs.
+abbreviate_semax.
 forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
 assert_LOCAL 
   (`(eq (Vint (Int.add (Int.add (Int.add (Int.add h (Sigma_1 e)) (Ch e f g)) k) w)))
@@ -104,11 +104,11 @@ forward.
 forward.
 forward.
 forward.
-(* 1,577,248    1,732,160 *)
+(* 399,008   1,577,248    1,732,160 *)
 simplify_Delta.
  entailer!.
-(* 871,496    1,685,788    1,743,816  ;   without the computational closedness: 1,913,256 *)
-} Admitted. (* this proof works, but once took over 2 gigabytes  *)
+(* 410,564  871,496    1,685,788    1,743,816  ;   without the computational closedness: 1,913,256 *)
+} Qed.
 
 Lemma rearrange_regs_proof:
  forall (Espec: OracleKind) i (data: val) M regs ctx

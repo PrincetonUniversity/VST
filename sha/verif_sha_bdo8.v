@@ -59,7 +59,6 @@ Lemma sha256_block_load8:
    SEP  (`(array_at tuint Tsh (tuints r_h) 0 (Zlength r_h) ctx)))).
 Proof.
 intros.
-simplify_Delta.
 unfold load8.
 abbreviate_semax.
 normalize.
