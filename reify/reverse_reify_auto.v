@@ -9,6 +9,19 @@ Require Import hints.
 
 Local Open Scope logic.
 
+Goal forall T sh id y, field_at sh T id y nullval |-- !!False && emp.
+Proof.
+Unset Ltac Debug.
+intros.
+pose_env.
+reify_derives.
+Print left_lemmas.
+Print left_hints.
+Set Ltac Debug.
+(* need to deal with singleton? *)
+(* we may need also to add hnf somewhere in mirror_cancel_default. *)
+mirror_cancel_default.
+
 Ltac pose_compute x :=
 let comp := fresh "comp" in 
 pose (comp := x); fold comp; vm_compute in comp; unfold comp; clear comp.

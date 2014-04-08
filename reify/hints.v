@@ -38,27 +38,15 @@ Axiom PQ : forall n, VericSepLogic_Kernel.himp (P n) (Q n).
 Axiom QP : forall n,  VericSepLogic_Kernel.himp (Q n) (P n).
 Check PQ. Check VericSepLogic_Kernel.himp.
 
-(*Make a tuple here *)
-Check null_field_at_false.
-
-Check (null_field_at_false Tvoid).
-
-
-(* We think the issue is in prepare_reify; it's not dealing with TT
-   correctly, somehow. *)
 Local Open Scope logic.
-Check null_field_at_false.
 
 Lemma null_field_at_false' : forall T sh id y,
   field_at sh T id y nullval |-- FF && emp.
 Proof.
-Unset Ltac Debug.
 intros; entailer.
 Qed.
 
-(* did you know? largest number ltac will support! fail 2097152.*)
-
-Definition left_hints := null_field_at_false' (*PQ*).
+Definition left_hints := (QP, PQ, null_field_at_false).
 
 (* need to make the following types
    - listspec _ _ for each _ _
@@ -84,11 +72,34 @@ implicit argument. Do this if you are having type errors
 (*Definition left_lemmas: list (Lemma.lemma types.our_types (SL.sepConcl types.our_types)).*)
 
 
+(* For testing changes to reify_hints *)
+(*
+  Ltac reify_hints2 unfoldTac pcType stateType isConst Ps types funcs preds k :=
+    match (vm_compute in Ps) with
+      | tt => k funcs preds (@nil (Lemma.lemma types (@SL.sepConcl types))) || fail 2
+      | (?P1, ?P2) =>
+        reify_hints2 unfoldTac pcType stateType isConst P1 types funcs preds ltac:(fun funcs preds P1 =>
+          reify_hints2 unfoldTac pcType stateType isConst P2 types funcs preds ltac:(fun funcs preds P2 =>
+            k funcs preds (P1 ++ P2)))
+        || fail 2
+      | _ =>
+        let T := type of Ps in
+        let T := eval simpl in T in
+        let T := unfoldTac T in
+        HintModule.reify_hint pcType stateType isConst (fun _ : ReifyExpr.VarType unit => T) types funcs preds (@nil tvar) ltac:(fun funcs preds P =>
+          k funcs preds (P :: nil))
+    end. *)
+
+(* TODO - need to find a way to force it to evaluate left_hints
+   down to an actual tuple. Right now it's matching against the
+   syntax "left_hints" - and, of course, failing *)
 Definition left_lemmas: list (Lemma.lemma SL.sepConcl).
+Unset Ltac Debug.
 pose_env.
-Set Ltac Debug.
+(* ensure hints are processed as tuple *)
+let left_hints := eval hnf in left_hints in
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const left_hints types functions preds 
-ltac:(fun funcs preds hints => (*apply hints*) id_this (funcs, preds, hints)). 
+ltac:(fun funcs preds hints => apply hints). 
 Defined.
  
 (* Axiom QP : forall n,  VericSepLogic_Kernel.himp (Q n) (P n). *)
@@ -112,3 +123,4 @@ pose_env.
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const right_hints types functions preds 
 ltac:(fun funcs preds hints =>  apply hints). 
 Defined.
+
