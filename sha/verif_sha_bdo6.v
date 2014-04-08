@@ -16,7 +16,8 @@ Defined.
 
 Lemma rearrange_regs2_proof:
  forall (Espec : OracleKind)
-   (b : list int) (ctx : val) ( regs : list int) (i : nat),
+   (b : list int) (ctx : val) ( regs : list int) (i : nat)
+   (Hregs: length regs = 8%nat),
    (Zlength b = LBLOCKz) ->
    (LBLOCK <= i < c64)%nat ->
    (16 <= Z.of_nat i < 64) ->
@@ -26,15 +27,14 @@ semax Delta_rearrange_regs2
    `(eq (Vint (W (nthi b) (Z.of_nat i)))) (eval_id _T1);
     `(eq ctx) (eval_id _ctx);
    `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
-   `(eq
-       (map Vint (Round regs (nthi b) (Z.of_nat i - 1))))
-     (`cons (eval_id _a)
-        (`cons (eval_id _b)
-           (`cons (eval_id _c)
-              (`cons (eval_id _d)
-                 (`cons (eval_id _e)
-                    (`cons (eval_id _f)
-                       (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h))
    SEP 
    (`(array_at tuint Tsh (tuints K) 0 (Zlength K))
       (eval_var _K256 (tarray tuint 64));
@@ -45,15 +45,14 @@ semax Delta_rearrange_regs2
       PROP  ((LBLOCK <= i0 <= c64)%nat)
       LOCAL  (`(eq ctx) (eval_id _ctx);
       `(eq (Vint (Int.repr (Z.of_nat i0 - 1)))) (eval_id _i);
-      `(eq
-          (map Vint (Round regs (nthi b) (Z.of_nat i0 - 1))))
-        (`cons (eval_id _a)
-           (`cons (eval_id _b)
-              (`cons (eval_id _c)
-                 (`cons (eval_id _d)
-                    (`cons (eval_id _e)
-                       (`cons (eval_id _f)
-                          (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 0))) (eval_id _a);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 1))) (eval_id _b);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 2))) (eval_id _c);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 3))) (eval_id _d);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 4))) (eval_id _e);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 5))) (eval_id _f);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 6))) (eval_id _g);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 7))) (eval_id _h))
       
       SEP  (K_vector;
       `(array_at tuint Tsh (Xarray b (Z.of_nat i0)) 0 LBLOCKz)
@@ -77,18 +76,15 @@ name i_ _i.
 assert (LBE := LBLOCK_zeq).
 rename b into bb.
 remember (Round regs (nthi bb) (Z.of_nat i - 1)) as regs' eqn:?.
-apply (assert_LOCAL (`(exists a b c d e f g h, regs' = [a,b,c,d,e,f,g,h]))).
-clear Heqregs'.
-entailer!.
-clear - H3. rename H3 into H0.
-exists a_,b_,c_,d_,e_,f_,g_,h_.
-do 8 (destruct regs' as [ | ? regs']; [inv H0 | ]).
-destruct regs'; inv H0. reflexivity.
-normalize.
+assert (exists a b c d e f g h, regs' = [a,b,c,d,e,f,g,h]).
+assert (length regs' = 8%nat) by (subst; apply length_Round; auto).
+do 8 (destruct regs' as [ | ? regs']; [inv H2 | ]).
+destruct regs'; [ | inv H2].
+do 8 eexists; reflexivity.
 destruct H2 as [a [b [c [d [e [f [g [h H2]]]]]]]].
 rewrite Heqregs' in *. clear Heqregs'.
 rewrite H2.
-fold (@nth int).
+unfold nthi at 2 3 4 5 6 7 8 9. simpl.
 unfold rearrange_regs2b.
 forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
 apply (assert_LOCAL (`(eq (Vint
@@ -96,7 +92,6 @@ apply (assert_LOCAL (`(eq (Vint
         (Int.add (Int.add (Int.add h (Sigma_1 e)) (Ch e f g)) (nth i K Int.zero)))))
           (eval_id _T1))).
 entailer!.
-symmetry in H5; inv H5.
 f_equal. f_equal. f_equal. f_equal.
 apply Sigma_1_eq.
 apply (drop_LOCAL 1%nat); unfold delete_nth.
@@ -106,7 +101,6 @@ forward. 	(* T2 = Sigma0(a) + Maj(a,b,c); *)
 apply (assert_LOCAL (`(eq (Vint (Int.add (Sigma_0 a) (Maj a b c))))
           (eval_id _T2))).
 entailer!.
-symmetry in H4; inv H4.
 f_equal.
 apply Sigma_0_eq.
 apply Maj_eq.
@@ -115,14 +109,15 @@ unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 replace Delta with Delta_rearrange_regs2c
   by (simplify_Delta; reflexivity).
 clear Delta.
-simple apply rearrange_regs2c_proof; try assumption.
+simple apply (rearrange_regs2c_proof); assumption.
 } Admitted.  (* proof done here, Qed takes too long *)
 
 Local Open Scope Z.
 
 Lemma sha_bdo_loop2b:
  forall (Espec : OracleKind) (b : list int)
-    (ctx : val) (regs : list int) (i : nat) (s0 s1 : val), 
+    (ctx : val) (regs : list int) (i : nat) (s0 s1 : val)
+ (Hregs: length regs = 8%nat),
  Zlength b = LBLOCKz ->
 (LBLOCK <= i < c64)%nat ->
 16 <= Z.of_nat i < 64 ->
@@ -132,15 +127,14 @@ semax (initialized _s1 (initialized _s0 Delta_loop1))
    `(eq (Vint (sigma_0 (W (nthi b) (Z.of_nat i - 16 + 1))))) (eval_id _s0);
    `(eq ctx) (eval_id _ctx);
    `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
-   `(eq
-       (map Vint (Round regs (nthi b) (Z.of_nat i - 1))))
-     (`cons (eval_id _a)
-        (`cons (eval_id _b)
-           (`cons (eval_id _c)
-              (`cons (eval_id _d)
-                 (`cons (eval_id _e)
-                    (`cons (eval_id _f)
-                       (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h))
    SEP  (K_vector;
    `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
      (eval_var _X (tarray tuint LBLOCKz))))
@@ -182,15 +176,14 @@ semax (initialized _s1 (initialized _s0 Delta_loop1))
       PROP  ((LBLOCK <= i0 <= c64)%nat)
       LOCAL  (`(eq ctx) (eval_id _ctx);
       `(eq (Vint (Int.repr (Z.of_nat i0 - 1)))) (eval_id _i);
-      `(eq (map Vint (Round regs (nthi b) (Z.of_nat i0 - 1))))
-        (`cons (eval_id _a)
-           (`cons (eval_id _b)
-              (`cons (eval_id _c)
-                 (`cons (eval_id _d)
-                    (`cons (eval_id _e)
-                       (`cons (eval_id _f)
-                          (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
-      
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 0))) (eval_id _a);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 1))) (eval_id _b);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 2))) (eval_id _c);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 3))) (eval_id _d);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 4))) (eval_id _e);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 5))) (eval_id _f);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 6))) (eval_id _g);
+      `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 7))) (eval_id _h))
       SEP  (K_vector;
       `(array_at tuint Tsh (Xarray b (Z.of_nat i0)) 0 LBLOCKz)
         (eval_var _X (tarray tuint LBLOCKz))))).
@@ -232,8 +225,7 @@ abstract (
  rewrite Z.add_0_r in H3; 
   clear - H3; congruence
 ).
-apply (drop_LOCAL 1%nat); unfold delete_nth.
-
+drop_LOCAL 1%nat.
 forward. (* t = X[(i+9)&0xf]; *)
 clear - H H1 LBE.
 abstract (entailer; apply prop_right; apply and_mod_15_lem).
@@ -248,8 +240,7 @@ abstract (
  rewrite extract_from_b in H3 by (try assumption; omega);
  clear - H3; congruence
 ).
-
-apply (drop_LOCAL 1%nat); unfold delete_nth.
+drop_LOCAL 1%nat.
 forward.  (* T1 += s0 + s1 + t; *)
 
 apply (assert_LOCAL (`(eq (Vint (W (nthi b) (Z.of_nat i)))) (eval_id _T1))).
@@ -262,12 +253,8 @@ abstract (
  [do 2 f_equal; omega | ];
  f_equal; [do 2 f_equal; omega | f_equal; omega]
 ).
-apply (drop_LOCAL 1%nat); unfold delete_nth.
-apply (drop_LOCAL 1%nat); unfold delete_nth.
-apply (drop_LOCAL 1%nat); unfold delete_nth.
-apply (drop_LOCAL 1%nat); unfold delete_nth.
-apply (drop_LOCAL 1%nat); unfold delete_nth.
- clear s0 s1 T1_0.
+do 5 drop_LOCAL 1%nat.
+clear s0 s1 T1_0.
 
 forward. (* X[i&0xf] = T1; *)
 instantiate (2:= (Z.of_nat i  mod 16)).

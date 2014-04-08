@@ -12,20 +12,21 @@ Local Open Scope nat.
 Lemma bdo_loop2_body_proof:
  forall (Espec : OracleKind)
    (b : list int) (ctx : val) ( regs : list int) (i : nat)
+   (Hregs: length regs = 8%nat)
    (H : Zlength b = LBLOCKz)
    (H0 : (LBLOCK <= i < c64)%nat),
 semax Delta_loop1
   (PROP  ()
    LOCAL  (`(eq ctx) (eval_id _ctx);
    `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
-   `(eq (map Vint (Round regs (nthi b) (Z.of_nat i - 1))))
-     (`cons (eval_id _a)
-        (`cons (eval_id _b)
-           (`cons (eval_id _c)
-              (`cons (eval_id _d)
-                 (`cons (eval_id _e)
-                    (`cons (eval_id _f)
-                       (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h))
    SEP  (K_vector;
    `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
      (eval_var _X (tarray tuint LBLOCKz))))
@@ -35,15 +36,14 @@ semax Delta_loop1
       PROP  (LBLOCK <= i0 <= c64)
       LOCAL  (`(eq ctx) (eval_id _ctx);
       `(eq (Vint (Int.repr (Z.of_nat i0 - 1)))) (eval_id _i);
-      `(eq (map Vint (Round regs (nthi b) (Z.of_nat i0 - 1))))
-        (`cons (eval_id _a)
-           (`cons (eval_id _b)
-              (`cons (eval_id _c)
-                 (`cons (eval_id _d)
-                    (`cons (eval_id _e)
-                       (`cons (eval_id _f)
-                          (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
-      
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 0))) (eval_id _a);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 1))) (eval_id _b);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 2))) (eval_id _c);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 3))) (eval_id _d);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 4))) (eval_id _e);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 5))) (eval_id _f);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 6))) (eval_id _g);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 7))) (eval_id _h))
       SEP  (K_vector;
       `(array_at tuint Tsh (Xarray b (Z.of_nat i0)) 0 LBLOCKz)
         (eval_var _X (tarray tuint LBLOCKz))))).
@@ -128,26 +128,35 @@ Qed.
 
 Lemma sha256_block_data_order_loop2_proof:
   forall (Espec : OracleKind)
-     (b: list int) ctx (regs: list int),
+     (b: list int) ctx (regs: list int)
+     (Hregs: length regs = 8%nat),
      Zlength b = LBLOCKz ->
      semax  Delta_loop1
  (PROP ()
    LOCAL (`(eq ctx) (eval_id _ctx);
                `(eq (Vint (Int.repr 16))) (eval_id _i);
-                `(eq (map Vint (Round regs (nthi b) (LBLOCKz-1))))
-                   (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
-                     (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
-))))
+        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 0))) (eval_id _a);
+        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 1))) (eval_id _b);
+        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 2))) (eval_id _c);
+        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 3))) (eval_id _d);
+        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 4))) (eval_id _e);
+        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 5))) (eval_id _f);
+        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 6))) (eval_id _g);
+        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 7))) (eval_id _h))
    SEP ( K_vector;
            `(array_at tuint Tsh (tuints b) 0 16) (eval_var _X (tarray tuint 16))))
   block_data_order_loop2
   (normal_ret_assert
     (PROP () 
      LOCAL(`(eq ctx) (eval_id _ctx);
-                `(eq (map Vint (Round regs (nthi b) 63)))
-                   (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
-                     (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
-))))
+                `(eq (Vint (nthi (Round regs (nthi b) 63) 0))) (eval_id _a);
+                `(eq (Vint (nthi (Round regs (nthi b) 63) 1))) (eval_id _b);
+                `(eq (Vint (nthi (Round regs (nthi b) 63) 2))) (eval_id _c);
+                `(eq (Vint (nthi (Round regs (nthi b) 63) 3))) (eval_id _d);
+                `(eq (Vint (nthi (Round regs (nthi b) 63) 4))) (eval_id _e);
+                `(eq (Vint (nthi (Round regs (nthi b) 63) 5))) (eval_id _f);
+                `(eq (Vint (nthi (Round regs (nthi b) 63) 6))) (eval_id _g);
+                `(eq (Vint (nthi (Round regs (nthi b) 63) 7))) (eval_id _h))
      SEP (K_vector;
            `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16))))).
 Proof.
@@ -175,14 +184,14 @@ Definition loop2_inv (rg0: list int) (b: list int) ctx  (delta: Z) (i: nat) :=
     PROP ( (LBLOCK <= i <= c64)%nat )
     LOCAL  (`(eq ctx) (eval_id _ctx); 
                  `(eq (Vint (Int.repr (Z.of_nat i - delta)))) (eval_id _i);
-     `(eq (map Vint (Round rg0 (nthi b) (Z.of_nat i - 1))))
-      (`cons (eval_id _a)
-         (`cons (eval_id _b)
-            (`cons (eval_id _c)
-               (`cons (eval_id _d)
-                  (`cons (eval_id _e)
-                     (`cons (eval_id _f)
-                        (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h))
      SEP (K_vector;
     `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
            (eval_var _X (tarray tuint LBLOCKz))).
@@ -218,15 +227,14 @@ forward_if (
    PROP  ((LBLOCK <= i < c64)%nat)
    LOCAL  (`(eq ctx) (eval_id _ctx);
    `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
-   `(eq
-       (map Vint (Round regs (nthi b) (Z.of_nat i - 1))))
-     (`cons (eval_id _a)
-        (`cons (eval_id _b)
-           (`cons (eval_id _c)
-              (`cons (eval_id _d)
-                 (`cons (eval_id _e)
-                    (`cons (eval_id _f)
-                       (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h))
    SEP  (K_vector;
    `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
      (eval_var _X (tarray tuint LBLOCKz)))).
@@ -243,8 +251,8 @@ forward_if (
    assert (i=64)%nat by omega; subst i;
    apply andp_right; [ apply prop_right | cancel].
  split; auto. change (16<=64)%nat; clear; omega.
+ repeat split; reflexivity.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-
 make_sequential. rewrite loop1_ret_assert_normal.
 normalize.
 replace Delta with

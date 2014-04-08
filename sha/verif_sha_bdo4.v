@@ -21,10 +21,14 @@ Lemma sha256_block_data_order_loop1_proof:
    LOCAL (`(eq ctx) (eval_id _ctx);
                `(eq (Vint (Int.repr 0))) (eval_id _i);
                `(eq data) (eval_id _data);
-               `(eq (map Vint regs)) 
-                  (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
-                   (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
-))))
+               `(eq (Vint (nthi regs 0))) (eval_id _a);
+               `(eq (Vint (nthi regs 1))) (eval_id _b);
+               `(eq (Vint (nthi regs 2))) (eval_id _c);
+               `(eq (Vint (nthi regs 3))) (eval_id _d);
+               `(eq (Vint (nthi regs 4))) (eval_id _e);
+               `(eq (Vint (nthi regs 5))) (eval_id _f);
+               `(eq (Vint (nthi regs 6))) (eval_id _g);
+               `(eq (Vint (nthi regs 7))) (eval_id _h))
    SEP ( K_vector;
            `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16));
            `(data_block sh (intlist_to_Zlist b) data)))
@@ -33,10 +37,14 @@ Lemma sha256_block_data_order_loop1_proof:
     (PROP () 
      LOCAL(`(eq ctx) (eval_id _ctx);
                 `(eq (Vint (Int.repr 16))) (eval_id _i);
-                `(eq (map Vint (Round regs (nthi b) (LBLOCKz - 1))))
-                   (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
-                     (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
-))))
+               `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 0))) (eval_id _a);
+               `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 1))) (eval_id _b);
+               `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 2))) (eval_id _c);
+               `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 3))) (eval_id _d);
+               `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 4))) (eval_id _e);
+               `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 5))) (eval_id _f);
+               `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 6))) (eval_id _g);
+               `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 7))) (eval_id _h))
      SEP (K_vector;
            `(array_at tuint Tsh (tuints b) 0 16) (eval_var _X (tarray tuint 16));
            `(data_block sh (intlist_to_Zlist b) data))) ).
@@ -67,14 +75,14 @@ Definition loop1_inv (rg0: list int) (sh: share) (b: list int) ctx (data: val) (
     LOCAL  (`(eq ctx) (eval_id _ctx);
                 `(eq (Vint (Int.repr (Z.of_nat i - delta)))) (eval_id _i);
                 `(eq (offset_val (Int.repr ((Z.of_nat i)*4)) data)) (eval_id _data);
-     `(eq (map Vint (Round rg0 (nthi b) (Z.of_nat i - 1))))
-      (`cons (eval_id _a)
-         (`cons (eval_id _b)
-            (`cons (eval_id _c)
-               (`cons (eval_id _d)
-                  (`cons (eval_id _e)
-                     (`cons (eval_id _f)
-                        (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h))
      SEP (K_vector;
     `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i) ) 0 LBLOCKz) (eval_var _X (tarray tuint 16));
    `(data_block sh (intlist_to_Zlist b) data)).
@@ -84,17 +92,14 @@ apply semax_pre with (EX i:nat, loop1_inv regs sh b ctx data 0 i).
  apply exp_right with 0%nat.
  unfold loop1_inv.
  rewrite array_at_f_upto_lo.
-  entailer!.
- rewrite <- H1; f_equal.
- rewrite Round_equation; rewrite if_true; auto; compute; auto.
+ replace (Round regs (nthi b) (Z.of_nat 0 - 1)) with regs.
+ entailer!.
+ rewrite Round_equation. rewrite if_true by (compute; auto). auto.
 }
 (* 419,452   431,980 *)
 apply semax_post' with (loop1_inv regs sh b ctx data 0 LBLOCK).
 (* 419,452  431,980 *)
-abstract (unfold loop1_inv;
-               entailer! ;
-           rewrite <- H2; repeat f_equal; 
-           symmetry; apply firstn_same; omega).
+  unfold loop1_inv. entailer!.
 (* 445,728  479,964 *)
 clear POSTCONDITION.
 apply (semax_loop _ _ (EX i:nat, loop1_inv regs sh b ctx data 1 i)).
@@ -109,24 +114,24 @@ apply exp_right with i;
 apply extract_exists_pre; intro i.
 unfold loop1_inv.
 forward_if (
-PROP  ((i < 16)%nat)
+   PROP  ((i < 16)%nat)
    LOCAL  (`(eq ctx) (eval_id _ctx); 
                 `(eq (Vint (Int.repr (Z.of_nat (0 + i))))) (eval_id _i);
                `(eq (offset_val (Int.repr ((Z.of_nat i)*4)) data)) (eval_id _data);
-   `(eq (map Vint (Round regs (nthi b) (Z.of_nat i - 1))))
-     (`cons (eval_id _a)
-        (`cons (eval_id _b)
-           (`cons (eval_id _c)
-              (`cons (eval_id _d)
-                 (`cons (eval_id _e)
-                    (`cons (eval_id _f)
-                       (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h))
    SEP 
    (K_vector;
    `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i)) 0 LBLOCKz) (eval_var _X (tarray tuint 16));
    `(data_block sh (intlist_to_Zlist b) data))).
 (* 587,640  592,608 *)
-abstract entailer.
+ rewrite <- insert_local; apply andp_left1. entailer.
 (* 613,416  655,716 *)
 1:
 abstract (forward; (* skip; *)
@@ -162,14 +167,14 @@ eapply semax_frame_seq
          (Q1 :=  [ `(eq ctx) (eval_id _ctx),
 `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i),
 `(eq (offset_val (Int.repr (Z.of_nat i * 4)) data)) (eval_id _data),
-`(eq (map Vint (Round regs (nthi b) (Z.of_nat i - 1))))
-  (`cons (eval_id _a)
-     (`cons (eval_id _b)
-        (`cons (eval_id _c)
-           (`cons (eval_id _d)
-              (`cons (eval_id _e)
-                 (`cons (eval_id _f)
-                    (`cons (eval_id _g) (`cons (eval_id _h) `[]))))))))])
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a),
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b),
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c),
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d),
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e),
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f),
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g),
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h)])
          (Frame := [K_vector,
    `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i)) 0 LBLOCKz) (eval_var _X (tarray tuint 16))]); 
    [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) 0 (Zlength (intlist_to_Zlist b)) data _ sh 
@@ -259,35 +264,22 @@ unfold Z.succ; rewrite inj_S;
 go_lower0; cancel).
 auto 50 with closed.
 (* 1,811,028 1,429,048 *)
-assert (Delta = Delta_rearrange_aux2)
- by (unfold Delta, Delta_rearrange_aux2; simplify_Delta; reflexivity).
-eapply semax_pre; [ 
-  | rewrite H3; simple apply rearrange_regs_proof 
-     with (M:=nthi b)(regs:=regs)(ctx:=ctx)(i:=i)(data:=data); auto ].
-clear H3.
-forget (`(eq (map Vint (Round regs (nthi b) (Z.of_nat i - 1))))
-  (`cons (eval_id _a)
-     (`cons (eval_id _b)
-        (`cons (eval_id _c)
-           (`cons (eval_id _d)
-              (`cons (eval_id _e)
-                 (`cons (eval_id _f)
-                    (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
-  as A1.
+replace Delta with Delta_rearrange_aux2 by (simplify_Delta; reflexivity).
+eapply semax_pre;  [ | simple apply rearrange_regs_proof ; eassumption ]. 
 entailer!.
 f_equal. f_equal. unfold Z.succ; rewrite Z.mul_add_distr_r; reflexivity.
 rewrite W_equation.
 rewrite if_true; auto.
 clear - H0; change 16 with (Z.of_nat 16); apply Nat2Z.inj_lt; auto.
-clear - H0 H4.
-unfold tuints, ZnthV in H4.
-rewrite Int.signed_repr in H4 by repable_signed.
-rewrite if_false in H4 by omega.
+clear - H0 H3.
+unfold tuints, ZnthV in H3.
+rewrite Int.signed_repr in H3 by repable_signed.
+rewrite if_false in H3 by omega.
 unfold nthi.
 rewrite Nat2Z.id in *.
-rewrite (nth_map' _ _ Int.zero) in H4.
+rewrite (nth_map' _ _ Int.zero) in H3.
 congruence.
-clear H4.
+clear H3.
 change (length K) with 64%nat.
 simpl; omega.
 } Admitted.  (* this is correct but goes over 2 gigabytes. *)

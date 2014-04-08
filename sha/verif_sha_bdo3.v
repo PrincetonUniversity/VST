@@ -123,28 +123,28 @@ Lemma rearrange_regs_proof:
    `(eq (Vint (W M (Z.of_nat i))))  (eval_id _l);
    `(eq (Vint (nthi K (Z.of_nat i)))) (eval_id _Ki);
    `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
-   `(eq (map Vint (Round regs M (Z.of_nat i - 1))))
-     (`cons (eval_id _a)
-        (`cons (eval_id _b)
-           (`cons (eval_id _c)
-              (`cons (eval_id _d)
-                 (`cons (eval_id _e)
-                    (`cons (eval_id _f)
-                       (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 0))) (eval_id _a);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 1))) (eval_id _b);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 2))) (eval_id _c);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 3))) (eval_id _d);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 4))) (eval_id _e);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 5))) (eval_id _f);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 6))) (eval_id _g);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 7))) (eval_id _h))
    SEP()) rearrange_regs
   (normal_ret_assert
      (PROP  (S i <= 16)
       LOCAL  (`(eq ctx) (eval_id _ctx);
       `(eq (Vint (Int.repr (Z.succ (Z.of_nat i) - 1)))) (eval_id _i);
       `(eq (offset_val (Int.repr (Z.succ (Z.of_nat i) * 4)) data)) (eval_id _data);
-      `(eq (map Vint (Round regs M (Z.succ (Z.of_nat i) - 1))))
-        (`cons (eval_id _a)
-           (`cons (eval_id _b)
-              (`cons (eval_id _c)
-                 (`cons (eval_id _d)
-                    (`cons (eval_id _e)
-                       (`cons (eval_id _f)
-                          (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+      `(eq (Vint (nthi (Round regs M (Z.succ (Z.of_nat i) - 1)) 0))) (eval_id _a);
+      `(eq (Vint (nthi (Round regs M (Z.succ (Z.of_nat i) - 1)) 1))) (eval_id _b);
+      `(eq (Vint (nthi (Round regs M (Z.succ (Z.of_nat i) - 1)) 2))) (eval_id _c);
+      `(eq (Vint (nthi (Round regs M (Z.succ (Z.of_nat i) - 1)) 3))) (eval_id _d);
+      `(eq (Vint (nthi (Round regs M (Z.succ (Z.of_nat i) - 1)) 4))) (eval_id _e);
+      `(eq (Vint (nthi (Round regs M (Z.succ (Z.of_nat i) - 1)) 5))) (eval_id _f);
+      `(eq (Vint (nthi (Round regs M (Z.succ (Z.of_nat i) - 1)) 6))) (eval_id _g);
+      `(eq (Vint (nthi (Round regs M (Z.succ (Z.of_nat i) - 1)) 7))) (eval_id _h))
         SEP())).
 Proof.
 intros.
@@ -158,14 +158,7 @@ apply length_Round; auto.
 forget (Round regs M (Z.of_nat i - 1)) as regs'.
 change 16 with LBLOCK.
 destruct regs' as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; inv H1.
-eapply semax_pre_post; [ | | 
-  apply (rearrange_aux2 _ i w k ctx a b c d e f g h); try assumption; reflexivity ].
-entailer. inv H6; apply prop_right; repeat split; try eassumption; try reflexivity.
-intros.
- go_lower0.
- entailer. simpl. apply normal_ret_assert_derives.
- entailer. apply prop_right.
- unfold nthi in *; simpl in *; congruence.
+apply (rearrange_aux2 _ i w k ctx a b c d e f g h); auto.
 Qed.
 
 Lemma loop1_aux_lemma1:

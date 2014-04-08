@@ -221,7 +221,7 @@ Defined.
 Lemma rearrange_regs2c_proof:
  forall (Espec : OracleKind)
    (bb : list int) (ctx : val) ( regs : list int) (i : nat)
-   (regs': registers) (a b c d e f g h: int),
+   (a b c d e f g h: int),
   Zlength bb = LBLOCKz ->
   (LBLOCK <= i < c64)%nat ->
   16 <= Z.of_nat i < 64 ->
@@ -238,34 +238,33 @@ semax Delta_rearrange_regs2c
                 (nth i K Int.zero))))) (eval_id _T1);
    `(eq (Vint (nth i K Int.zero))) (eval_id _Ki); `(eq ctx) (eval_id _ctx);
    `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
-   `(eq [Vint a, Vint b, Vint c, Vint d, Vint e, Vint f, Vint g, Vint h])
-     (`cons (eval_id _a)
-        (`cons (eval_id _b)
-           (`cons (eval_id _c)
-              (`cons (eval_id _d)
-                 (`cons (eval_id _e)
-                    (`cons (eval_id _f)
-                       (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+   `(eq (Vint a)) (eval_id _a);
+   `(eq (Vint b)) (eval_id _b);
+   `(eq (Vint c)) (eval_id _c);
+   `(eq (Vint d)) (eval_id _d);
+   `(eq (Vint e)) (eval_id _e);
+   `(eq (Vint f)) (eval_id _f);
+   `(eq (Vint g)) (eval_id _g);
+   `(eq (Vint h)) (eval_id _h))
    SEP 
    (`(array_at tuint Tsh (tuints K) 0 (Zlength K))
       (eval_var _K256 (tarray tuint 64));
    `(array_at tuint Tsh (Xarray bb (Z.of_nat (i + 1))) 0 LBLOCKz)
-     (eval_var _X (tarray tuint LBLOCKz)))) rearrange_regs2c
+     (eval_var _X (tarray tuint LBLOCKz))))
+  rearrange_regs2c
   (normal_ret_assert
      (EX  i0 : nat,
       PROP  ((LBLOCK <= i0 <= c64)%nat)
       LOCAL  (`(eq ctx) (eval_id _ctx);
       `(eq (Vint (Int.repr (Z.of_nat i0 - 1)))) (eval_id _i);
-      `(eq
-          (map Vint (Round regs (nthi bb) (Z.of_nat i0 - 1))))
-        (`cons (eval_id _a)
-           (`cons (eval_id _b)
-              (`cons (eval_id _c)
-                 (`cons (eval_id _d)
-                    (`cons (eval_id _e)
-                       (`cons (eval_id _f)
-                          (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
-      
+      `(eq (Vint (nthi (Round regs (nthi bb) (Z.of_nat i0 - 1)) 0))) (eval_id _a);
+      `(eq (Vint (nthi (Round regs (nthi bb) (Z.of_nat i0 - 1)) 1))) (eval_id _b);
+      `(eq (Vint (nthi (Round regs (nthi bb) (Z.of_nat i0 - 1)) 2))) (eval_id _c);
+      `(eq (Vint (nthi (Round regs (nthi bb) (Z.of_nat i0 - 1)) 3))) (eval_id _d);
+      `(eq (Vint (nthi (Round regs (nthi bb) (Z.of_nat i0 - 1)) 4))) (eval_id _e);
+      `(eq (Vint (nthi (Round regs (nthi bb) (Z.of_nat i0 - 1)) 5))) (eval_id _f);
+      `(eq (Vint (nthi (Round regs (nthi bb) (Z.of_nat i0 - 1)) 6))) (eval_id _g);
+      `(eq (Vint (nthi (Round regs (nthi bb) (Z.of_nat i0 - 1)) 7))) (eval_id _h))
       SEP  (K_vector;
       `(array_at tuint Tsh (Xarray bb (Z.of_nat i0)) 0 LBLOCKz)
         (eval_var _X (tarray tuint LBLOCKz))))).
@@ -290,25 +289,19 @@ repeat forward.
 apply exp_right with (i+1)%nat.
 entailer.
 clear Delta H3.
-symmetry in H5; inv H5.
-rewrite H4; clear H4 e_.
-apply prop_right.
-clear TC H6 H7 ctx_ rho.
-split.
-f_equal. rewrite Nat2Z.inj_add. change (Z.of_nat 1) with 1%Z; clear; omega.
-rewrite Round_equation.
 replace (Z.of_nat (i + 1) - 1) with (Z.of_nat i)
  by (clear; rewrite Nat2Z.inj_add; change (Z.of_nat 1) with 1; omega).
+apply prop_right.
+clear - H H0 H1 H2.
+rewrite Round_equation.
 rewrite if_false by omega.
 rewrite H2.
 unfold rnd_function.
-unfold map.
-f_equal. f_equal. f_equal. 
-rewrite Int.add_commut.
+repeat split; try reflexivity.
+unfold nthi at 1; simpl.
+f_equal. rewrite Int.add_commut.
 f_equal. f_equal. unfold nthi. rewrite Nat2Z.id; auto.
-
-f_equal. f_equal. f_equal. f_equal.
-simpl. f_equal. f_equal.
-rewrite Int.add_commut. f_equal.
+unfold nthi at 1; simpl.
+f_equal. rewrite Int.add_commut. f_equal.
 f_equal. unfold nthi. rewrite Nat2Z.id; auto.
 } Admitted. (* Proof is done here, Qed takes more than 2 gigs *)

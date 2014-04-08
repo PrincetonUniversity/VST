@@ -94,7 +94,7 @@ auto 50 with closed.
 simpl; abbreviate_semax.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 replace Delta with (initialized _t Delta_loop1) 
- by (unfold Delta, Delta_loop1; simplify_Delta; reflexivity).
+ by (simplify_Delta; reflexivity).
 clear Delta.
 fold (hash_block regs b).
 simple apply sha256_block_data_order_return; auto.

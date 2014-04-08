@@ -4,14 +4,6 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.bdo_lemmas.
-(*
-Require Import sha.verif_sha_bdo2.
-Require Import sha.verif_sha_bdo3.
-Require Import sha.verif_sha_bdo4.
-Require Import sha.verif_sha_bdo5.
-Require Import sha.verif_sha_bdo6.
-Require Import sha.verif_sha_bdo7.
-*)
 Local Open Scope logic.
 
 Lemma semax_seq_congr:  (* not provable *)
@@ -54,10 +46,14 @@ Lemma sha256_block_load8:
          Sskip))))))))
   (normal_ret_assert 
   (PROP  ()
-   LOCAL  (`(eq (map Vint r_h))
-                    (`cons (eval_id _a) (`cons (eval_id _b) (`cons (eval_id _c) (`cons (eval_id _d)
-                     (`cons (eval_id _e) (`cons (eval_id _f) (`cons (eval_id _g) (`cons (eval_id _h) `nil)))))
-)));
+   LOCAL  (`(eq (Vint (nthi r_h 0))) (eval_id _a);
+                `(eq (Vint (nthi r_h 1))) (eval_id _b);
+                `(eq (Vint (nthi r_h 2))) (eval_id _c);
+                `(eq (Vint (nthi r_h 3))) (eval_id _d);
+                `(eq (Vint (nthi r_h 4))) (eval_id _e);
+                `(eq (Vint (nthi r_h 5))) (eval_id _f);
+                `(eq (Vint (nthi r_h 6))) (eval_id _g);
+                `(eq (Vint (nthi r_h 7))) (eval_id _h);
    `eq (eval_id _data) (eval_expr (Etempvar _in (tptr tvoid)));
    `(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
    SEP  (`(array_at tuint Tsh (tuints r_h) 0 (Zlength r_h) ctx)))).
@@ -89,11 +85,15 @@ rewrite Zlength_correct; rewrite H5; reflexivity.
 do 8 (forward;
          [ entailer!; apply ZnthV_map_Vint_is_int; omega | ]).
 forward.  (* skip; *)
-entailer!.
-rewrite H,H0,H1,H2,H3,H4,H6,H7; clear H H0 H1 H2 H3 H4 H6 H7.
-do 9 (destruct r_h as [ | ?h r_h ] ; [inv H5 | ]).
-reflexivity.
-inv H5.
+entailer. apply prop_right.
+revert H H0 H1 H2 H3 H4 H6 H7.
+clear - H5.
+unfold nthi, tuints, ZnthV.
+repeat rewrite if_false by (apply Zle_not_lt; computable).
+simpl.
+repeat (rewrite nth_map' with (d':=Int.zero); [ | omega]).
+intros. inv H; inv H0; inv H1; inv H2; inv H3; inv H4; inv H6; inv H7.
+repeat split; auto.
 Qed.
 
 Definition get_h (n: Z) :=
@@ -146,28 +146,28 @@ Lemma add_one_back:
   @semax Espec (initialized _t Delta)
    (PROP ()
    LOCAL  (`(eq ctx) (eval_id _ctx);
-   `(eq (map Vint atoh))
-     (`cons (eval_id _a)
-        (`cons (eval_id _b)
-           (`cons (eval_id _c)
-              (`cons (eval_id _d)
-                 (`cons (eval_id _e)
-                    (`cons (eval_id _f)
-                       (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+    `(eq (Vint (nthi atoh 0))) (eval_id _a);
+    `(eq (Vint (nthi atoh 1))) (eval_id _b);
+    `(eq (Vint (nthi atoh 2))) (eval_id _c);
+    `(eq (Vint (nthi atoh 3))) (eval_id _d);
+    `(eq (Vint (nthi atoh 4))) (eval_id _e);
+    `(eq (Vint (nthi atoh 5))) (eval_id _f);
+    `(eq (Vint (nthi atoh 6))) (eval_id _g);
+    `(eq (Vint (nthi atoh 7))) (eval_id _h))
    SEP  (`(array_at tuint Tsh (tuints (add_upto (S i) regs atoh)) 0 8 ctx)))
     more
    Post ->
   @semax Espec Delta
    (PROP ()
    LOCAL  (`(eq ctx) (eval_id _ctx);
-   `(eq (map Vint atoh))
-     (`cons (eval_id _a)
-        (`cons (eval_id _b)
-           (`cons (eval_id _c)
-              (`cons (eval_id _d)
-                 (`cons (eval_id _e)
-                    (`cons (eval_id _f)
-                       (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+    `(eq (Vint (nthi atoh 0))) (eval_id _a);
+    `(eq (Vint (nthi atoh 1))) (eval_id _b);
+    `(eq (Vint (nthi atoh 2))) (eval_id _c);
+    `(eq (Vint (nthi atoh 3))) (eval_id _d);
+    `(eq (Vint (nthi atoh 4))) (eval_id _e);
+    `(eq (Vint (nthi atoh 5))) (eval_id _f);
+    `(eq (Vint (nthi atoh 6))) (eval_id _g);
+    `(eq (Vint (nthi atoh 7))) (eval_id _h))
    SEP  (`(array_at tuint Tsh (tuints (add_upto i regs atoh)) 0 8 ctx)))
    (Ssequence (get_h (Z.of_nat i)) (Ssequence (add_h (Z.of_nat i) i') more))
    Post.
@@ -243,7 +243,7 @@ ensure_normal_ret_assert;
  apply prop_right; simpl.
   rewrite H7.
  replace (eval_id i' rho) with (Vint (nth i atoh Int.zero)).
- destruct (eval_id _ctx rho) eqn:?; try (contradiction H9).
+ destruct (eval_id _ctx rho) eqn:?; try (contradiction H16).
  simpl.
  rewrite Int.signed_repr by repable_signed.
  repeat split; auto.
@@ -270,12 +270,11 @@ ensure_normal_ret_assert;
  rewrite <- (expr_lemmas.initialized_ne Delta i' _t).
  specialize (H1 _ H4).
  unfold i'.
- rewrite H1. unfold fst, snd. apply I.
+ rewrite H1. simpl. apply I.
  unfold i'.
- clear - H4.
+ clear.
  intro.
- destruct i as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try inv H.
- omega.
+ destruct i as [ | [ | [ | [ | [ | [ | [ | [ | [ | ] ]]]]]]]]; inv H.
  apply tc_expr_init.
  hnf.
  unfold typecheck_expr; fold typecheck_expr.
@@ -287,12 +286,8 @@ ensure_normal_ret_assert;
   apply Z2Nat.inj_lt; try omega.
   rewrite Nat2Z.id. apply H4.
  unfold i'.
- clear - H H4 H8.
- rewrite <- (@nth_map' int val Vint (Vint Int.zero) Int.zero).
- rewrite H8.
-  destruct i as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try reflexivity.
- omega.
- rewrite H; auto.
+  destruct i as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try assumption.
+  clear - H4; omega.
  simpl update_tycon.
  unfold replace_nth. 
  eapply semax_pre; try apply H5.
@@ -341,14 +336,14 @@ Lemma add_them_back_proof:
    (PROP  ()
    LOCAL 
    (`(eq ctx) (eval_id _ctx);
-    `(eq (map Vint regs'))
-      (`cons (eval_id _a)
-         (`cons (eval_id _b)
-            (`cons (eval_id _c)
-               (`cons (eval_id _d)
-                  (`cons (eval_id _e)
-                     (`cons (eval_id _f)
-                        (`cons (eval_id _g) (`cons (eval_id _h) `[])))))))))
+    `(eq (Vint (nthi regs' 0))) (eval_id _a);
+    `(eq (Vint (nthi regs' 1))) (eval_id _b);
+    `(eq (Vint (nthi regs' 2))) (eval_id _c);
+    `(eq (Vint (nthi regs' 3))) (eval_id _d);
+    `(eq (Vint (nthi regs' 4))) (eval_id _e);
+    `(eq (Vint (nthi regs' 5))) (eval_id _f);
+    `(eq (Vint (nthi regs' 6))) (eval_id _g);
+    `(eq (Vint (nthi regs' 7))) (eval_id _h))
    SEP 
    (`(array_at tuint Tsh (tuints regs) 0 8 ctx)))
    (sequence add_them_back Sskip)
@@ -387,7 +382,7 @@ do 8 (simple apply add_one_back; auto; try (clear; omega)).
 
 forward.
 apply (drop_LOCAL' 0); unfold delete_nth.
-apply (drop_LOCAL' 1); unfold delete_nth.
+do 8 (apply (drop_LOCAL' 1); unfold delete_nth).
 replace (add_upto 8 regs atoh) with  (map2 Int.add regs atoh).
 auto.
 unfold registers in *.
