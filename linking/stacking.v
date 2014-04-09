@@ -13,6 +13,7 @@ Require Import compcert.lib.Integers.
 
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.core_semantics_lemmas.
+Require Import sepcomp.barebones_simulations.
 
 Require Import linking.compcert_linking.
 
@@ -104,6 +105,8 @@ Parameter tge_closed :
 
 Parameter mon_ok : Stacking_monoid_ok.t mon tge.
 
+Parameter main : val.
+
 Lemma one_pos : (0 < 1)%coq_nat. 
 Proof. by []. Qed.
 
@@ -166,9 +169,38 @@ Definition match_states (l : linker one semantics) (c : C) :=
   let s := CallStack.callStack l.(Linker.stack) in
     fold_stack s = Some c.
 
-Notation linker_sem := (LinkerSem.coresem one semantics (fun _ : ident => Some zero)).
+Notation linker_sem := 
+  (LinkerSem.coresem one semantics (fun _ : ident => Some zero)).
 
-Lemma stacking_step m l c l' m' : 
+Lemma stacking_init l vs : 
+  initial_core linker_sem ge main vs = Some l -> 
+  exists c,
+  [/\ initial_core mon.(sem) tge main vs = Some c 
+    & match_states l c].
+Proof.
+rewrite /= /LinkerSem.initial_core; case: main=> // b ofs.
+case e: (Int.eq ofs Int.zero)=> //.
+rewrite /initCore /=; case f: (initial_core _ _ _ _)=> [c|//].
+case=> <-; exists c; split=> //.
+by move: (Int.eq_spec ofs Int.zero); rewrite e=> ->.
+Qed.
+
+Lemma stacking_halt l c rv :
+  match_states l c -> 
+  halted linker_sem l = Some rv -> 
+  halted mon.(sem) c = Some rv.
+Proof.
+move=> mtch; rewrite /= /LinkerSem.halted.
+case inCtx: (~~inContext l)=> //.
+rewrite /LinkerSem.halted0.
+case h: (halted _ _)=> [rv'|//]; case=> <-.
+move: h inCtx mtch; case: l=> fntbl; case; case=> // a l pf /=.
+Opaque fold_stack. rewrite /match_states /= => hlt inCtx fld.
+Transparent fold_stack. case: l fld pf inCtx=> //=; case=> <-.
+by rewrite hlt.
+Qed.
+
+Lemma stacking_step l c m l' m' : 
   match_states l c -> 
   corestep linker_sem ge l m l' m' -> 
   exists c', [/\ corestep_plus mon.(sem) tge c m c' m' & match_states l' c'].
@@ -242,6 +274,17 @@ move=> fn_tbl; case=> /=; case=> // a; case=> // b; case=> /=.
   Opaque fold_stack.
   clear - fld_ql; case: (fold_stack_nonempty x)=> /=.
   by rewrite fld_ql=> ?; case=> <-. }
+Qed.
+
+Import Barebones_simulation.
+
+Lemma stacking_sim : Barebones_simulation linker_sem mon.(sem) ge tge main.
+Proof.
+apply: Build_Barebones_simulation.
+by apply: ge_tge_agree.
+by eapply stacking_init; eauto.
+by eapply stacking_step; eauto.
+by eapply stacking_halt; eauto.
 Qed.
 
 End Stacking_simulation.

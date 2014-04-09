@@ -7,6 +7,7 @@ Require Export sepcomp.effect_semantics.
 Require Export sepcomp.reach. 
 Require Export sepcomp.effect_simulationsEXP.
 Require Export sepcomp.wholeprog_simulations.
+Require Export sepcomp.barebones_simulations.
 Require Export sepcomp.effect_properties.
 Require Export sepcomp.step_lemmas.
 Require Export sepcomp.extspec.

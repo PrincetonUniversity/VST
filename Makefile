@@ -86,7 +86,8 @@ SEPCOMP_FILES= \
   trace_semantics.v \
   arguments.v \
   effect_simulationsEXP.v \
-  wholeprog_simulations.v 
+  wholeprog_simulations.v \
+  barebones_simulations.v
 
 LINKING_FILES= \
   sepcomp.v \
