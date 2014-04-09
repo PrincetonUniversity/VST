@@ -262,11 +262,11 @@ semax
         (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))
   (PROP  ()
    LOCAL 
-   (`eq (eval_id _p)
-      (`(deref_noload (tarray tuchar 64))
-         (`(offset_val (Int.repr (align 40 1))) (`force_ptr (eval_id _c))));
+   (`(eq
+        (deref_noload (tarray tuchar 64)
+           (offset_val (Int.repr 40) (force_ptr c)))) (eval_id _p);
    `(eq (Vint (Int.repr (Zlength dd)))) (eval_id _n);
-   `eq (eval_id _data) (eval_id _data_); `(eq c) (eval_id _c);
+   `(eq d) (eval_id _data); `(eq c) (eval_id _c);
    `(eq d) (eval_id _data_);
    `((eq (Z.of_nat len) oo Int.unsigned) oo force_int) (eval_id _len))
    SEP  (`(sha256_length (hilo hi lo + Z.of_nat len * 8) c);

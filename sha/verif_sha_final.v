@@ -39,7 +39,7 @@ forward. (* n++; *)
 rewrite upd_Znth_next
   by (repeat rewrite initial_world.Zlength_map; auto).
 simpl. normalize. 
-subst r_h n0. simpl. rewrite add_repr.
+subst r_h. simpl.
 change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
 change (align 40 1)%Z with 40%Z.
 set (ddlen :=  Zlength dd).

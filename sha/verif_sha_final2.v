@@ -77,7 +77,8 @@ Lemma ifbody_final_if1:
                   (Econst_int (Int.repr 4) tint) tint)
                (Econst_int (Int.repr 8) tint) tint) tint));
    `(eq (Vint (Int.repr (Zlength dd + 1)))) (eval_id _n);
-   `eq (eval_id _p) (`(offset_val (Int.repr 40)) (`force_ptr (eval_id _c)));
+   `(eq (offset_val (Int.repr 40) (force_ptr c))) (eval_id _p);
+(*   `eq (eval_id _p) (`(offset_val (Int.repr 40)) (`force_ptr (eval_id _c))); *)
    `(eq md) (eval_id _md); `(eq c) (eval_id _c))
    SEP 
    (`(array_at tuint Tsh

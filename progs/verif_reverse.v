@@ -200,7 +200,7 @@ forward.  (* v = t; *)
    unfold lseg_cons.
    apply andp_right.
    + apply prop_right.
-      destruct v0; inv Pv0; simpl; auto.
+      destruct w; try contradiction; intro Hx; inv Hx.
    + apply exp_right with h.
       apply exp_right with cts1.
       apply exp_right with w0.

@@ -87,24 +87,10 @@ rewrite H2.
 unfold nthi at 2 3 4 5 6 7 8 9. simpl.
 unfold rearrange_regs2b.
 forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
-apply (assert_LOCAL (`(eq (Vint
-       (Int.add (W (nthi bb) (Z.of_nat i))
-        (Int.add (Int.add (Int.add h (Sigma_1 e)) (Ch e f g)) (nth i K Int.zero)))))
-          (eval_id _T1))).
-entailer!.
-f_equal. f_equal. f_equal. f_equal.
-apply Sigma_1_eq.
-apply (drop_LOCAL 1%nat); unfold delete_nth.
-apply (drop_LOCAL 2%nat); unfold delete_nth.
-clear T1_0.
+rewrite <- Sigma_1_eq, <- Ch_eq.
+(*apply (drop_LOCAL 1%nat); unfold delete_nth. *)
 forward. 	(* T2 = Sigma0(a) + Maj(a,b,c); *)
-apply (assert_LOCAL (`(eq (Vint (Int.add (Sigma_0 a) (Maj a b c))))
-          (eval_id _T2))).
-entailer!.
-f_equal.
-apply Sigma_0_eq.
-apply Maj_eq.
-drop_LOCAL 1%nat.
+rewrite <- Sigma_0_eq, <- Maj_eq.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 replace Delta with Delta_rearrange_regs2c
   by (simplify_Delta; reflexivity).
@@ -242,19 +228,22 @@ abstract (
 ).
 drop_LOCAL 1%nat.
 forward.  (* T1 += s0 + s1 + t; *)
+replace (Int.add (W (nthi b) (Z.of_nat i - 16 + 0))
+             (Int.add
+                (Int.add (sigma_0 (W (nthi b) (Z.of_nat i - 16 + 1)))
+                   (sigma_1 (W (nthi b) (Z.of_nat i - 16 + 14))))
+                (W (nthi b) (Z.of_nat i - 16 + 9))))
+    with (W (nthi b) (Z.of_nat i))
+ by (rewrite W_equation; rewrite if_false by omega;
+      rewrite Z.add_0_r;
+      rewrite (Int.add_commut (W (nthi b) (Z.of_nat i - 16)));
+      repeat rewrite <- Int.add_assoc; f_equal;
+      rewrite Int.add_commut; repeat rewrite Int.add_assoc; f_equal;
+        [do 2 f_equal; omega | ];
+      f_equal; [do 2 f_equal; omega | f_equal; omega]).
 
-apply (assert_LOCAL (`(eq (Vint (W (nthi b) (Z.of_nat i)))) (eval_id _T1))).
-abstract (
- entailer;
- apply prop_right; rewrite W_equation; rewrite if_false by omega;
- rewrite (Int.add_commut (W (nthi b) (Z.of_nat i - 16)));
- repeat rewrite <- Int.add_assoc; f_equal;
- rewrite Int.add_commut; repeat rewrite Int.add_assoc; f_equal;
- [do 2 f_equal; omega | ];
- f_equal; [do 2 f_equal; omega | f_equal; omega]
-).
-do 5 drop_LOCAL 1%nat.
-clear s0 s1 T1_0.
+do 3 drop_LOCAL 1%nat.
+clear s0 s1.
 
 forward. (* X[i&0xf] = T1; *)
 instantiate (2:= (Z.of_nat i  mod 16)).
@@ -297,5 +286,5 @@ unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 replace Delta with Delta_rearrange_regs2
   by (simplify_Delta; reflexivity).
 clear Delta.
-simple apply rearrange_regs2_proof; assumption.
+simple apply (rearrange_regs2_proof _ b ctx regs i); assumption.
 } Qed.

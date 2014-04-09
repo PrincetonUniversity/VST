@@ -81,21 +81,10 @@ name data_ _data.
 name ctx_ _ctx.
 unfold rearrange_regs.
 abbreviate_semax.
-forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
-assert_LOCAL 
-  (`(eq (Vint (Int.add (Int.add (Int.add (Int.add h (Sigma_1 e)) (Ch e f g)) k) w)))
-                         (eval_id _T1)). {
- entailer!.  
- rewrite <- Sigma_1_eq, <- Ch_eq, rearrange_aux.  auto.
-}
-drop_LOCAL 1.
-forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
-assert_LOCAL 
-  (`(eq (Vint (Int.add (Sigma_0 a) (Maj a b c))))  (eval_id _T2)). {
- entailer!.  
- rewrite <- Sigma_0_eq, <- Maj_eq. auto.
-}
-drop_LOCAL 1.
+forward. (* T1 = l + h + Sigma1(e) + Ch(e,f,g) + Ki; *)
+rewrite <- Sigma_1_eq, <- Ch_eq, rearrange_aux.
+forward. (* T2 = Sigma0(a) + Maj(a,b,c); *)
+ rewrite <- Sigma_0_eq, <- Maj_eq.
 forward.
 forward.
 forward.
@@ -106,7 +95,17 @@ forward.
 forward.
 (* 399,008   1,577,248    1,732,160 *)
 simplify_Delta.
- entailer!.
+ entailer!. 
+unfold rnd_function, nthi; simpl.
+f_equal.
+ rewrite <- rearrange_aux. symmetry. rewrite (rearrange_aux Ki).
+rewrite Int.add_commut.
+repeat rewrite Int.add_assoc. reflexivity.
+unfold rnd_function, nthi; simpl.
+f_equal.
+symmetry. do 2 rewrite Int.add_assoc.
+rewrite Int.add_commut. rewrite <- Int.add_assoc. f_equal.
+f_equal. rewrite Int.add_assoc. reflexivity.
 (* 410,564  871,496    1,685,788    1,743,816  ;   without the computational closedness: 1,913,256 *)
 } Qed.
 

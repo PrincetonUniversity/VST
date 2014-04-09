@@ -270,15 +270,15 @@ f_equal. f_equal. unfold Z.succ; rewrite Z.mul_add_distr_r; reflexivity.
 rewrite W_equation.
 rewrite if_true; auto.
 clear - H0; change 16 with (Z.of_nat 16); apply Nat2Z.inj_lt; auto.
-clear - H0 H3.
-unfold tuints, ZnthV in H3.
-rewrite Int.signed_repr in H3 by repable_signed.
-rewrite if_false in H3 by omega.
+clear - H0 H2.
+unfold tuints, ZnthV in H2.
+rewrite Int.signed_repr in H2 by repable_signed.
+rewrite if_false in H2 by omega.
 unfold nthi.
 rewrite Nat2Z.id in *.
-rewrite (nth_map' _ _ Int.zero) in H3.
+rewrite (nth_map' _ _ Int.zero) in H2.
 congruence.
-clear H3.
+clear H2.
 change (length K) with 64%nat.
 simpl; omega.
 } Qed.

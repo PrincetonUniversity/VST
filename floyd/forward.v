@@ -12,6 +12,328 @@ Import Cop.
 
 Local Open Scope logic.
 
+Definition denote_local_ptree (P: PTree.t val) rho :=
+  forall i v, PTree.get i P = Some v -> eval_id i rho = v.
+
+Inductive local2ptree: list (environ -> Prop) -> PTree.t val -> Prop :=
+| local2ptree_nil: 
+       local2ptree nil (PTree.empty _)
+| local2ptree_set: forall i v Q P,
+       local2ptree Q P ->
+       local2ptree (`(eq v) (eval_id i) :: Q) (PTree.set i v P)
+| local2ptree_skip: forall Q1 Q P,
+       local2ptree Q P ->
+       local2ptree (Q1::Q) P.
+
+Lemma local2ptree_correct:
+  forall Q P,
+   local2ptree Q P ->
+  forall rho,
+   fold_right `and `True Q rho -> denote_local_ptree P rho.
+Proof.
+ induction Q; intros.
+ hnf; intros.
+ inv H. rewrite PTree.gempty in H1. inv H1.
+ inv H.
+ hnf; intros.
+ destruct H0.
+ destruct (ident_eq i0 i).
+ subst i0. rewrite PTree.gss in H. inv H.
+ symmetry; apply H0.
+ rewrite PTree.gso in H by auto.
+ specialize (IHQ _ H4 rho H1).
+ apply (IHQ _ _ H).
+ destruct H0.
+ apply (IHQ _ H4 rho); auto.
+Qed.
+
+
+Fixpoint msubst_eval_expr (P: PTree.t val) (e: expr) : environ -> val :=
+ match e with
+ | Econst_int i ty => `(Vint i)
+ | Econst_long i ty => `(Vlong i)
+ | Econst_float f ty => `(Vfloat f)
+ | Etempvar id ty => match PTree.get id P with
+                                 | Some v => `v
+                                 | None => eval_id id 
+                                 end
+ | Eaddrof a ty => msubst_eval_lvalue P a 
+ | Eunop op a ty =>  `(eval_unop op (typeof a)) (msubst_eval_expr P a) 
+ | Ebinop op a1 a2 ty =>  
+                  `(eval_binop op (typeof a1) (typeof a2)) (msubst_eval_expr P a1) (msubst_eval_expr P a2)
+ | Ecast a ty => `(eval_cast (typeof a) ty) (msubst_eval_expr P a)
+ | Evar id ty => `(deref_noload ty) (eval_var id ty)
+ | Ederef a ty => `(deref_noload ty) (`force_ptr (msubst_eval_expr P a))
+ | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (msubst_eval_lvalue P a))
+ end
+
+ with msubst_eval_lvalue (P: PTree.t val) (e: expr) : environ -> val := 
+ match e with 
+ | Evar id ty => eval_var id ty
+ | Ederef a ty => `force_ptr (msubst_eval_expr P a)
+ | Efield a i ty => `(eval_field (typeof a) i) (msubst_eval_lvalue P a)
+ | _  => `Vundef
+ end.
+
+Lemma msubst_eval_expr_eq:
+    forall P e rho, 
+   denote_local_ptree P rho ->
+   msubst_eval_expr P e rho = eval_expr e rho
+with msubst_eval_lvalue_eq: 
+    forall P e rho, 
+      denote_local_ptree P rho ->
+      msubst_eval_lvalue P e rho = eval_lvalue e rho.
+Proof.
+clear msubst_eval_expr_eq.
+induction e; intros; simpl; try auto.
+destruct (P ! i) eqn:?; auto.
+apply H in Heqo.
+unfold_lift; simpl.  auto.
+unfold_lift. rewrite <- IHe; auto.
+unfold_lift. rewrite <- IHe; auto.
+unfold_lift. rewrite <- IHe1, <- IHe2; auto.
+unfold_lift. rewrite <- IHe; auto.
+unfold_lift. rewrite <- (msubst_eval_lvalue_eq P); auto.
+
+clear msubst_eval_lvalue_eq.
+induction e; intros; simpl; try auto.
+unfold_lift. rewrite <- (msubst_eval_expr_eq P); auto.
+unfold_lift. rewrite <- IHe; auto.
+Qed.
+
+Lemma msubst_LOCAL1:
+ forall (S: PTree.t val) (e': environ -> val) Espec Delta P i e Q R c Post,
+   local2ptree Q S ->
+   msubst_eval_expr S e = e' ->
+   @semax Espec Delta 
+    (PROPx P (LOCALx (`eq e' (eval_id i) ::Q)
+       (SEPx R))) c Post ->
+   @semax Espec Delta 
+      (PROPx P (LOCALx (`eq (eval_id i) (eval_expr e)::Q) 
+                (SEPx R))) c Post.
+Proof.
+intros.
+subst e'.
+eapply semax_pre; [ | eassumption].
+apply andp_derives; auto.
+apply andp_derives; auto.
+intro rho.
+unfold local,lift1.
+apply prop_derives.
+intros [? [? ?]].
+split; auto.
+unfold_lift.
+unfold_lift in H2. rewrite H2.
+apply msubst_eval_expr_eq.
+apply local2ptree_correct with Q; auto.
+Qed.
+
+
+Inductive local2ptree0 (j: ident) :
+     list (environ -> Prop) -> PTree.t val -> list (environ -> Prop) -> Prop :=
+| local2ptree0_nil:
+       local2ptree0 j nil (PTree.empty _) nil
+| local2ptree0_cons: forall i v Q P Q',
+       i <> j ->
+       local2ptree0 j Q P Q' ->
+       local2ptree0 j (`(eq v) (eval_id i) :: Q) (PTree.set i v P) (`(eq v) (eval_id i):: Q').
+
+Inductive local2ptree' (j: ident):
+     list (environ -> Prop) -> PTree.t val -> list (environ -> Prop) -> Prop :=
+| local2ptree'_same: forall v Q P Q',
+       local2ptree0 j Q P Q'->
+       local2ptree' j (`(eq v) (eval_id j) :: Q) (PTree.set j v P) Q'
+| local2ptree'_other: forall i v Q P Q',
+       i <> j ->
+       local2ptree' j Q P Q' ->
+       local2ptree' j (`(eq v) (eval_id i) :: Q) (PTree.set i v P) (`(eq v) (eval_id i):: Q').
+
+Lemma local2ptree'_e:
+ forall i v Q S Q',
+   local2ptree' i Q S Q' ->
+    S ! i = Some v ->
+     (fold_right `and `True Q = fold_right `and `True (`(eq v) (eval_id i) :: Q')) /\
+     (forall j v' rho, fold_right `and `True Q rho ->
+                            PTree.get j S = Some v' -> eval_id j rho = v') /\
+       Forall (closed_wrt_vars (eq i)) Q'.
+Proof.
+intros.
+split3.
+*
+extensionality rho.
+assert (fold_right `and `True Q rho -> v = eval_id i rho).
+revert H0; induction H; simpl; intros. rewrite PTree.gss in H0; inv H0. destruct H1.
+apply H0.
+rewrite PTree.gso in H1 by auto. destruct H2.
+auto.
+revert H0 H1; induction H; simpl; intros.
+rewrite PTree.gss in H0; inv H0.
+f_equal.
+clear - H; induction H; auto.
+simpl; f_equal; auto.
+rewrite PTree.gso in H1 by auto.
+unfold_lift. apply prop_ext; intuition.
+apply H2; auto.
+unfold_lift. split; auto.
+spec H3. intro; apply H2. unfold_lift. split; auto.
+unfold_lift in H3. simpl in H3.
+rewrite H3 in H6. destruct H6; auto.
+unfold_lift in H6; simpl in H6; rewrite H6.
+split; auto.
+*
+intros.
+clear H0.
+revert H1 H2; induction H; simpl; intros.
+destruct (ident_eq i j).
+subst. rewrite PTree.gss in H2. inv H2.
+destruct H1.
+unfold_lift in H0. auto.
+rewrite PTree.gso in H2 by auto.
+destruct H1.
+ unfold_lift in H1.
+clear - n H1 H2 H.
+revert n H1 H2; induction H; simpl; intros.
+rewrite PTree.gempty in H2; inv H2.
+destruct H1.
+destruct (ident_eq i0 j). subst.
+rewrite PTree.gss in H2. inv H2.
+unfold_lift in H1; auto.
+rewrite PTree.gso in H2 by auto.
+apply IHlocal2ptree0; auto.
+destruct H1.
+destruct (ident_eq i0 j). subst.
+rewrite PTree.gss in H2. inv H2. unfold_lift in H1; auto.
+rewrite PTree.gso in H2 by auto.
+apply IHlocal2ptree'; auto.
+*
+clear H0.
+induction H.
+induction H. auto with closed.
+constructor. auto with closed. auto with closed.
+constructor.
+auto with closed.
+auto.
+Qed.
+ 
+Lemma msubst_expr:
+    forall S i v e rho, 
+    S ! i = Some v ->
+   msubst_eval_expr S e rho = msubst_eval_expr S e (env_set rho i v)
+with msubst_lvalue: 
+    forall S i v e rho, 
+    S ! i = Some v ->
+    msubst_eval_lvalue S e rho = msubst_eval_lvalue S e (env_set rho i v).
+Proof.
+clear msubst_expr.
+induction e; intros; simpl; try auto.
+destruct (ident_eq i0 i). subst. rewrite H. reflexivity.
+destruct (S ! i0) eqn:?; auto.
+unfold eval_id; simpl. rewrite Map.gso; auto.
+unfold_lift. rewrite <- IHe; auto.
+unfold_lift. rewrite <- IHe; auto.
+unfold_lift. rewrite <- IHe1, <- IHe2; auto.
+unfold_lift. rewrite <- IHe; auto.
+unfold_lift. rewrite <- (msubst_lvalue S); auto.
+
+clear msubst_lvalue.
+induction e; intros; simpl; try auto.
+unfold_lift. rewrite <- (msubst_expr S); auto.
+unfold_lift. rewrite <- IHe; auto.
+Qed.
+
+Lemma forward_setx_wow:
+  forall S e' Q' Espec Delta P Q R i e,
+  Forall (closed_wrt_vars (eq i)) R ->
+  local2ptree' i Q S Q' ->
+  isSome (S ! i) ->
+  msubst_eval_expr S e = e' ->
+  (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+          local (tc_expr Delta e) && local (tc_temp_id i (typeof e) Delta e) ) ->
+  @semax Espec Delta
+             (PROPx P (LOCALx Q (SEPx R)))
+             (Sset i e)
+             (normal_ret_assert
+              (PROPx P (LOCALx (`eq e' (eval_id i) :: Q') (SEPx R)))).
+Proof.
+intros.
+eapply semax_post; [ | apply forward_setx; auto].
+intros.
+apply andp_left2.
+apply normal_ret_assert_derives'.
+apply exp_left; intro old.
+clear H3.
+apply andp_derives; auto.
+apply andp_derives;
+ [ | unfold SEPx; rewrite closed_wrt_map_subst; auto].
+unfold local,lift1. intro rho; apply prop_derives.
+subst e'.
+intros [? ?].
+destruct (S!i) eqn:?H; try contradiction H1. clear H1.
+apply (local2ptree'_e i v) in H0; auto.
+destruct H0 as [? [? ?]].
+assert (fold_right `and `True Q (env_set rho i old)). {
+ clear - H3.
+ induction Q; destruct H3; simpl; split; auto.
+}
+split.
+Focus 2. {
+rewrite H0 in H6.
+destruct H6.
+clear - H5 H7.
+induction Q'; auto.
+inv H5.
+destruct H7; split; auto.
+clear - H1 H.
+unfold env_set in H.
+hnf in H1.
+rewrite (H1 rho (Map.set i old (te_of rho))); auto.
+intros.
+destruct (ident_eq i i0); auto. right.
+rewrite Map.gso; auto.
+} Unfocus.
+unfold_lift.
+unfold_lift in H2.
+rewrite H2. unfold subst.
+assert (old = v).
+specialize (H1 i v _ H6 H4).
+unfold eval_id, env_set in H1; simpl in H1. rewrite Map.gss in H1.
+inv H1. reflexivity.
+subst old.
+rewrite <- (msubst_eval_expr_eq S e).
+Focus 2. {
+hnf; intros. destruct (ident_eq i i0). subst. unfold eval_id. simpl. rewrite Map.gss.
+simpl; congruence.
+unfold eval_id; simpl. rewrite Map.gso by auto.
+specialize (H1 _ _ _ H6 H7).
+unfold eval_id in H1; simpl in H1; rewrite Map.gso in H1 by auto.
+auto.
+} Unfocus.
+apply msubst_expr; auto.
+Qed.
+
+Ltac simpl_lift := 
+ repeat 
+ match goal with
+ | |- context [@liftx (Tarrow val (LiftEnviron val)) ?f
+                                                         (@liftx (LiftEnviron val) ?v1)] =>
+   change (@liftx (Tarrow val (LiftEnviron val)) f
+                                                         (@liftx (LiftEnviron val) v1))
+   with (`(f v1)); simpl force_val1; simpl eval_unop
+ | |- context [@liftx (Tarrow val (Tarrow val (LiftEnviron val))) ?f
+                                                         (@liftx (LiftEnviron val) ?v1)
+                                                         (@liftx (LiftEnviron val) ?v2)] =>
+   change (@liftx (Tarrow val (Tarrow val (LiftEnviron val))) f
+                                                         (@liftx (LiftEnviron val) v1)
+                                                         (@liftx (LiftEnviron val) v2))
+   with (`(f v1 v2)); simpl force_val2; simpl eval_binop
+ end.
+
+Ltac resubst_LOCAL1 := 
+ simple eapply msubst_LOCAL1;
+  [ solve [repeat constructor] 
+  | simpl msubst_eval_expr; simpl_lift; reflexivity
+  | repeat rewrite liftx2_liftx1].
+
 Lemma refold_andp:  (* MOVE elsewhere? *)
   forall (P Q: environ -> mpred),
      (fun rho: environ => P rho && Q rho) = (P && Q).
@@ -796,7 +1118,8 @@ Qed.
 Ltac forward_setx_aux1 :=
       apply forward_setx; 
      first [ apply quick_typecheck1; try apply local_True_right
-            | apply quick_typecheck2].
+            | apply quick_typecheck2
+            | idtac ].
 
 Ltac forward_setx_aux2 id :=
            match goal with 
@@ -805,13 +1128,24 @@ Ltac forward_setx_aux2 id :=
            | |- _ => let x:= fresh in intro x; do_subst_eval_expr; try clear x
            end.
 
+Ltac forward_setx_wow :=
+ eapply forward_setx_wow;
+ [ solve [auto 50 with closed]
+ | solve [repeat constructor; auto with closed]
+ | apply I
+ | simpl; simpl_lift; reflexivity
+ | first [ apply quick_typecheck1; try apply local_True_right
+            | apply quick_typecheck2
+            | idtac ]
+ ].
+
 Ltac forward_setx :=
 first [apply forward_setx_closed_now;
             [solve [auto 50 with closed] | solve [auto 50 with closed] | solve [auto 50 with closed]
             | try apply local_True_right
-            | (* try solve [intro rho; apply prop_right; repeat split] *)
-              try apply local_True_right
+            | try apply local_True_right
             |  ]
+        | forward_setx_wow
         | forward_setx_aux1
         ].
 
@@ -1633,7 +1967,8 @@ Ltac forward_with F1 :=
              [ftac; derives_after_forward
              | unfold replace_nth; cbv beta;
                try (apply extract_exists_pre; intro_old_var c);
-               abbreviate_semax; simpl typeof (* TODO: move simpl typeof into abbreviate semax?*)
+               abbreviate_semax; simpl typeof; (* TODO: move simpl typeof into abbreviate semax?*)
+               try resubst_LOCAL1
              ]) 
         ||  fail 0)  (* see comment FORWARD_FAILOVER below *)
   | |- semax _ _ (Ssequence (Ssequence _ _) _) _ =>
