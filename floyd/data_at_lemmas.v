@@ -1,5 +1,4 @@
 Require Import floyd.base.
-Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Opaque alignof.
@@ -11,18 +10,21 @@ Arguments Z.max !n !m / .
 
 Lemma memory_block_zero: forall sh b z, memory_block sh (Int.repr 0) (Vptr b z) = emp.
 Proof.
- intros. unfold memory_block.
- change (Int.repr 0) with Int.zero.
- rewrite Int.unsigned_zero.
-Admitted.  (* pretty straightforward *)
+  intros. unfold memory_block.
+  change (Int.repr 0) with Int.zero.
+  rewrite Int.unsigned_zero.
+  change (nat_of_Z 0) with (0%nat).
+  unfold memory_block'.
+  reflexivity.
+Qed.
 
 Lemma memory_block_offset_zero:
   forall sh n v, memory_block sh n (offset_val Int.zero v) = memory_block sh n v.
 Proof.
-unfold memory_block; intros.
-destruct v; auto.
-simpl offset_val. cbv beta iota.
-rewrite Int.add_zero. auto.
+  unfold memory_block; intros.
+  destruct v; auto.
+  simpl offset_val. cbv beta iota.
+  rewrite Int.add_zero. auto.
 Qed.
 
 Hint Rewrite memory_block_zero: norm.
@@ -141,6 +143,7 @@ Lemma int_add_repr_0_r: forall i, Int.add i (Int.repr 0) = i.
 Proof. intros. apply Int.add_zero. Qed.
 Hint Rewrite int_add_repr_0_l int_add_repr_0_r : norm.
 
+(*
 Lemma field_at__offset_zero:
   forall sh ty id v, 
    field_at_ sh ty id (offset_val (Int.repr 0) v) =
@@ -151,6 +154,7 @@ Proof.
  simpl offset_val. rewrite int_add_repr_0_r. reflexivity.
 Qed.
 Hint Rewrite field_at__offset_zero: norm.
+*)
 
 Definition at_offset (z: Z) (P: val -> mpred) : val -> mpred :=
  fun v => P (offset_val (Int.repr z) v).
