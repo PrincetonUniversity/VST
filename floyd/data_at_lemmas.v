@@ -1,3 +1,4 @@
+Require Import msl.is_prop_lemma.
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
@@ -25,6 +26,12 @@ Proof.
   destruct v; auto.
   simpl offset_val. cbv beta iota.
   rewrite Int.add_zero. auto.
+Qed.
+
+Lemma memory_block_local_facts: forall sh n p, memory_block sh n p |-- !! (isptr p).
+Proof.
+  intros.
+  destruct p; simpl; normalize.
 Qed.
 
 Hint Rewrite memory_block_zero: norm.
@@ -282,7 +289,7 @@ Fixpoint data_at' (sh: Share.t) (e: str_id_env) (t1: type): Z -> reptype t1 -> v
   end
 with sfieldlist_at' (sh: Share.t) (e: str_id_env) (alignment: Z) (flds: fieldlist) (pos: Z) : reptype_structlist flds -> val -> mpred :=
 match flds as f return reptype_structlist f -> val -> mpred with
-| Fnil => fun _ _ => emp (* impossible happen *)
+| Fnil => fun _ p => !!(isptr p) && emp (* empty struct case *)
 | Fcons i t flds0 =>
     fun (v : reptype_structlist (Fcons i t flds0)) =>
       (if is_Fnil flds0 as b
@@ -302,7 +309,10 @@ match flds as f return reptype_structlist f -> val -> mpred with
 end
 with ufieldlist_at' (sh: Share.t) (e: str_id_env) (alignment: Z) (flds: fieldlist) (pos: Z) {struct flds}: reptype_unionlist flds -> val -> mpred :=
 match flds as f return (reptype_unionlist f -> val -> mpred) with
-| Fnil => FF (* this means v in input data is ilegal *)
+| Fnil => 
+  if (Zeq_bool alignment 0)
+  then fun _ p => !!(isptr p) && emp (* empty union case *)
+  else fun _ => FF (* this means v in input data is ilegal *)
 | Fcons i t flds0 => fun v : (reptype t) + (reptype_unionlist flds0) =>
   match v with
   | inl v_hd => 
@@ -327,6 +337,124 @@ Proof.
   + destruct (H0 alignment). simpl. split. (* Fcons case of fieldlist induction *)
     rewrite H, H1. reflexivity.
     rewrite H, H2. reflexivity.
+Qed.
+
+(*
+Lemma field_at_offset_zero:
+  forall sh ty id v v', 
+   field_at sh ty id v' (offset_val (Int.repr 0) v) =
+   field_at sh ty id v' v.
+Proof.
+ intros.
+ destruct v; try solve [simpl; auto].
+ simpl offset_val. rewrite int_add_repr_0_r. reflexivity.
+Qed.
+Hint Rewrite field_at_offset_zero: norm.
+*)
+
+Lemma lower_sepcon_val:
+  forall (P Q: val->environ->mpred) v, 
+  ((P*Q) v) = (P v * Q v).
+Proof. reflexivity. Qed.
+
+Definition opaque_sepcon := @sepcon (val->mpred) _ _.
+Global Opaque opaque_sepcon.
+Definition opaque_emp := @emp (val->mpred) _ _.
+Global Opaque opaque_emp.
+
+Lemma distribute_envtrans:
+  forall A (P Q: A -> mpred) (J: environ -> A),
+   @liftx (Tarrow A (LiftEnviron mpred)) 
+   (@sepcon (A -> mpred) _ _ P Q) J = 
+   (@liftx (Tarrow A (LiftEnviron mpred)) P J 
+    * @liftx (Tarrow A (LiftEnviron mpred)) Q J ).
+Proof. reflexivity. Qed.
+Hint Rewrite distribute_envtrans: norm.
+
+Lemma distribute_lifted_sepcon:
+ forall A F G v,
+  (@sepcon (A -> mpred) _ _ F G v) = @sepcon mpred _ _ (F v) (G v).
+Proof. reflexivity. Qed.
+
+(**********************************************
+
+Here, we need to think about how to use array in examples.
+
+**********************************************)
+
+(*
+Definition array_at (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
+                                   (v: val) : mpred :=
+           !! isptr v && rangespec lo hi (fun i => data_at sh t  (f i) (add_ptr_int t v i)).
+
+Definition array_at_ t sh lo hi := array_at t sh (fun _ => default_val t) lo hi.
+*)
+
+Lemma offset_val_preserve_isptr: forall p pos, !! (isptr (offset_val pos p)) |-- !! (isptr p).
+Proof.
+  intros.
+  destruct p; simpl; apply derives_refl.
+Qed.
+
+Lemma at_offset2_preserve_isptr: forall {A: Type} P pos (v: A), (forall p, P p v |-- !!(isptr p)) -> (forall p, at_offset2 P pos v p |-- !!(isptr p)).
+Proof.
+  intros.
+  unfold at_offset2, at_offset', at_offset.
+  destruct pos.
+  + exact (H p).
+  + eapply derives_trans. exact (H _). apply offset_val_preserve_isptr.
+  + eapply derives_trans. exact (H _). apply offset_val_preserve_isptr.
+Qed.
+
+Lemma withspacer_preserve_isptr: forall sh pos alignment P, (forall p, P p |-- !! (isptr p)) -> (forall p, withspacer sh pos alignment P p |-- !! (isptr p)).
+Proof.
+  intros.
+  rewrite withspacer_spacer.
+  simpl; rewrite sepcon_comm. 
+  apply (right_is_prop (!!isptr p) (P p) _); [apply prop_is_prop|].
+  apply H.
+Qed.
+
+Lemma data_at'_isptr:
+  forall sh e t pos v p, data_at' sh e t pos v p = !!(isptr p) && data_at' sh e t pos v p.
+Proof.
+  intros.
+  apply pred_ext; normalize.
+  apply andp_right; auto.
+  revert p.
+  apply (type_mut (fun (t: type) => forall pos v p, (data_at' sh e t pos v p |-- !!(isptr p))) (fun _ => True) (fun flds => (forall alignment pos v p, sfieldlist_at' sh e alignment flds pos v p |-- !!(isptr p)) /\ (forall alignment pos v p, ufieldlist_at' sh e alignment flds pos v p |-- !!(isptr p)))); intros; auto; simpl; 
+  try (apply at_offset2_preserve_isptr; intros; apply mapsto_local_facts);
+  try (apply at_offset2_preserve_isptr; intros; apply memory_block_local_facts).
+  + admit. (* Array case *)
+  + destruct H. apply H. (* struct case *)
+  + destruct H. apply H0. (* union case *)
+  + split; intros. (* Fnil case of fieldlist induction *)
+    - normalize.
+    - destruct (Zeq_bool alignment 0); normalize.
+  + destruct H0. split; intros.
+    - destruct (is_Fnil).
+      * apply withspacer_preserve_isptr; intros. apply H.
+      * apply (right_is_prop (!!isptr p) ( withspacer sh (pos0 + sizeof t0) (alignof_hd f)
+     (data_at' sh e t0 pos0 (fst v0)) p)); [apply prop_is_prop|].
+        apply withspacer_preserve_isptr; intros. apply H.
+    - destruct v0.
+      * apply withspacer_preserve_isptr; intros. apply H.
+      * apply H1.
+Qed.
+
+Lemma data_at_isptr: forall sh t v p, data_at sh t v p = !!(isptr p) && data_at sh t v p.
+Proof.
+  intros.
+  unfold data_at.
+  apply data_at'_isptr.
+Qed.
+
+Lemma data_at__isptr:
+  forall sh t p, data_at_ sh t p = !!(isptr p) && data_at_ sh t p.
+Proof.
+  intros.
+  unfold data_at_.
+  apply data_at_isptr.
 Qed.
 
 (************************************************
