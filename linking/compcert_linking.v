@@ -535,6 +535,127 @@ Definition corestep
 
      else False).
 
+Inductive Corestep (ge : ge_ty) : linker N my_cores -> mem 
+                               -> linker N my_cores -> mem -> Prop :=
+| Corestep_step : 
+  forall l m c' m',
+  let: c     := peekCore l in
+  let: c_ix  := Core.i c in
+  let: c_ge  := Modsem.ge (my_cores c_ix) in
+  let: c_sem := Modsem.coreSem (my_cores c_ix) in
+    core_semantics.corestep c_sem c_ge (Core.c c) m c' m' -> 
+    Corestep ge l m (updCore l (Core.upd (peekCore l) c')) m'
+
+| Corestep_call :
+  forall (l : linker N my_cores) m ef dep_sig args id d_ix d
+         (pf : all (atExternal my_cores) (CallStack.callStack l)),
+
+  1 < CallStack.callStackSize (stack l) -> 
+
+  let: c := peekCore l in
+  let: c_ix  := Core.i c in
+  let: c_ge  := Modsem.ge (my_cores c_ix) in
+  let: c_sem := Modsem.coreSem (my_cores c_ix) in
+
+  core_semantics.at_external c_sem (Core.c c) = Some (ef,dep_sig,args) -> 
+  fun_id ef = Some id -> 
+  fn_tbl l id = Some d_ix -> 
+
+  let: d_ge  := Modsem.ge (my_cores d_ix) in
+  let: d_sem := Modsem.coreSem (my_cores d_ix) in
+
+  core_semantics.initial_core d_sem d_ge (Vptr id Int.zero) args = Some d -> 
+  Corestep ge l m (pushCore l (Core.mk _ _ _ d) pf) m
+
+| Corestep_return : 
+  forall (l : linker N my_cores) l'' m rv d',
+
+  1 < CallStack.callStackSize (stack l) -> 
+
+  let: c  := peekCore l in
+  let: c_ix  := Core.i c in
+  let: c_ge  := Modsem.ge (my_cores c_ix) in
+  let: c_sem := Modsem.coreSem (my_cores c_ix) in
+
+  popCore l = Some l'' -> 
+
+  let: d  := peekCore l'' in     
+  let: d_ix  := Core.i d in
+  let: d_ge  := Modsem.ge (my_cores d_ix) in
+  let: d_sem := Modsem.coreSem (my_cores d_ix) in
+
+  core_semantics.halted c_sem (Core.c c) = Some rv -> 
+  core_semantics.after_external d_sem (Some rv) (Core.c d) = Some d' -> 
+  Corestep ge l m (updCore l'' (Core.upd d d')) m.
+
+Lemma CorestepE ge l m l' m' : 
+  Corestep ge l m l' m' -> 
+  corestep ge l m l' m'.
+Proof.
+inversion 1; subst; rename H0 into A; rename H into B.
+by left; exists c'; split.
+right; split=> //.
+split=> //.
+rewrite /corestep0=> [][]c' []step.
+by rewrite (corestep_not_at_external _ _ _ _ _ _ step) in H1.
+rewrite /inContext A /at_external0 H1 H2.
+case e: (handle _ _ _)=> //[l'|].
+move: e; case/handleP=> pf' []ix' []c []C D ->.
+move: D; rewrite /initCore.
+rewrite H3 in C; case: C=> eq; subst ix'.
+by rewrite H4; case=> <-; f_equal; apply: proof_irr.
+move: e; rewrite/handle /pushCore.
+generalize (stack_push_wf l).
+pattern (all (atExternal my_cores) (CallStack.callStack (stack l))) 
+ at 1 2 3 4 5 6.
+case f: (all _ _)=> pf'.
+rewrite H3 /initCore H4; discriminate.
+by rewrite pf in f.
+right; split=> //.
+split=> //.
+rewrite /corestep0=> [][]c' []step.
+by rewrite (corestep_not_halted _ _ _ _ _ _ step) in H2.
+have at_ext: 
+  core_semantics.at_external
+    (Modsem.coreSem (my_cores (Core.i (peekCore l))))
+    (Core.c (peekCore l)) = None.
+{ case: (at_external_halted_excl 
+         (Modsem.coreSem (my_cores (Core.i (peekCore l))))
+         (Core.c (peekCore l)))=> //.
+  by rewrite H2. }
+rewrite /inContext A /at_external0 H1 at_ext.
+by rewrite /halted0 H2 /after_external H3.
+Qed.
+
+Lemma CorestepI ge l m l' m' : 
+  corestep ge l m l' m' -> 
+  Corestep ge l m l' m'.
+Proof.
+case.
+case=> c []step ->.
+by apply: Corestep_step.
+case=> <-.
+case=> nstep.
+case inCtx: (inContext _)=> //.
+case atext: (at_external0 _)=> [[[ef dep_sig] args]|//].
+case funid: (fun_id ef)=> [id|//].
+case hdl:   (handle id l args)=> [l''|//] ->.
+move: hdl; case/handleP=> pf []ix []c []fntbl init ->.
+move: init; rewrite /initCore.
+case init: (core_semantics.initial_core _ _ _ _)=> [c'|//]; case=> <-. 
+by apply: (@Corestep_call _ _ _ ef dep_sig args id).
+case hlt: (halted0 _)=> [rv|//].
+case pop: (popCore _)=> [c|//].
+case aft: (after_external _ _)=> [l''|//] ->.
+move: aft; rewrite /after_external.
+case aft: (core_semantics.after_external _ _ _)=> [c''|//]; case=> <-.
+by apply: (@Corestep_return _ _ _ _ rv c'').
+Qed.
+
+Lemma CorestepP ge l m l' m' : 
+  corestep ge l m l' m' <-> Corestep ge l m l' m'.
+Proof. by split; [apply: CorestepI | apply: CorestepE]. Qed.
+
 Lemma corestep_not_at_external0 m c m' c' :
   corestep0 c m c' m' -> at_external0 c = None.
 Proof. by move=>[]newCore []H1 H2; apply corestep_not_at_external in H1. Qed.

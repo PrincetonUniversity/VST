@@ -19,9 +19,8 @@ Import Linker.
 Import Modsem.
 
 Variable N : pos.
-Variable (cores : 'I_N -> Modsem.t). 
+Variable cores : 'I_N -> Modsem.t. 
 Variable fun_tbl : ident -> option 'I_N.
-Variable entry_points : seq (val*val*signature).
 Variable my_ge : ge_ty.
 
 Let linker := effsem N cores fun_tbl.
