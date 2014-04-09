@@ -3,11 +3,12 @@ Require Import sep.
 Require Import progs.list_dt.
 Require Import MirrorShard.Expr MirrorShard.Env.
 Require Import denote_tc_assert_b.
+Require Import assert_lemmas. (* for nullval *)
 Definition all_types_r := repr (listToRepr types.our_types EmptySet_type).
 
 Section typed.
 
-Variable user_types : list type.
+Variable user_types : list Expr.type.
 
 Let all_types := all_types_r user_types.
 
@@ -193,8 +194,14 @@ Expr.Sig all_types nil Z_tv Int.max_unsigned.
 Definition True_signature :=
 Expr.Sig all_types nil tvProp True.
 
+Definition False_signature :=
+Expr.Sig all_types nil tvProp False.
+
 Definition denote_tc_assert_b_signature :=
 Expr.Sig all_types (tc_assert_tv :: environ_tv :: nil) bool_tv denote_tc_assert_b.
+
+Definition nullval_signature :=
+Expr.Sig all_types nil val_tv assert_lemmas.nullval.
 
 (* This way we don't have to deal with tons of close-parens at the end 
  * Important, since functions is a long list. *)
@@ -247,12 +254,14 @@ Definition computable_functions :=
 ; int_repr_signature
 ; int_signed_signature
 ; int_unsigned_signature
+; nullval_signature
 ].
 
 Definition non_computable_functions :=
 [ tc_environ_signature
 ; eval_id_signature
 ; True_signature
+; False_signature
 ].
 
 Definition our_functions := 
@@ -263,6 +272,7 @@ Definition computable_prefix_length := length computable_functions.
 
 (* By convention denote_tc_assert_b MUST be at index zero,
    because do_computation will always look there for it. *)
+(* Or not? I forget why we're not doing that anymore *)
 
 (* Definition denote_tc_assert_b_f := 0%nat. *)
 Definition two_power_nat_f := 0%nat.
@@ -311,17 +321,20 @@ Definition int_cmpu_f := S (int_cmp_f).
 Definition int_repr_f := S (int_cmpu_f).
 Definition int_signed_f := S (int_repr_f).
 Definition int_unsigned_f := S (int_signed_f).
+Definition nullval_f := S (int_unsigned_f).
 
 (* Past this point are functions that should not compute into Consts *)
 Definition tc_environ_f := length computable_functions.
 Definition eval_id_f := S (tc_environ_f).
 Definition True_f := S (eval_id_f).
+Definition False_f := S (True_f).
 
 
 (*Separation Logic predicates *)
 Definition field_at_f :=
 Sep.PSig all_types (share_tv :: c_type_tv :: ident_tv :: val_tv :: val_tv :: nil)
 field_at.
+
 
 (*Junk for testing*)
 Parameter P : nat -> mpred.

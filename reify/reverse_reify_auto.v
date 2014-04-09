@@ -5,22 +5,11 @@ Require Import reverse_defs.
 Require Import mirror_cancel.
 Require Import ExtLib.Tactics.
 Require Import hints.
-(* Require Import preproc. *)
+Require Import preproc.
 
 Local Open Scope logic.
 
-Goal forall T sh id y, field_at sh T id y nullval |-- !!False && emp.
-Proof.
 Unset Ltac Debug.
-intros.
-pose_env.
-reify_derives.
-Print left_lemmas.
-Print left_hints.
-Set Ltac Debug.
-(* need to deal with singleton? *)
-(* we may need also to add hnf somewhere in mirror_cancel_default. *)
-mirror_cancel_default.
 
 Ltac pose_compute x :=
 let comp := fresh "comp" in 
@@ -45,6 +34,24 @@ Qed.
 Ltac lift_and_goal :=
 erewrite goal_lift_and';
 [ | auto | auto | ecompute_left | ecompute_left | auto ]. 
+
+
+(* trying to test if my reified hints are usable by Mirror *)
+Goal forall T sh id y, field_at sh T id y nullval |-- !!False && emp.
+Proof.
+intros.
+pose_env.
+reify_derives.
+Check lseg_lemmas.null_field_at_false.
+mirror_cancel_default.
+simpl.
+Eval compute in functions.False_f.
+Unset Ltac Debug.
+Admitted.
+(* need to deal with singleton? *)
+(* we may need also to add hnf somewhere in mirror_cancel_default. *)
+(* mirror_cancel_default. *)
+
 
 Goal forall (A B : Prop),(!!(A /\ B) && emp |-- !!( B) && emp).
 Proof.

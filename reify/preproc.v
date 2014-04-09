@@ -188,7 +188,8 @@ intros; split; induction e; intros; auto.
    rewrite Forall_forall in H1. unfold remove_trues in H1.
    intuition.
    auto. auto.
-   do 43 (destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
+   (* TODO make this not depend on the length of functions *)
+   do 44 (destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
    unfold Provable; simpl. auto.
    destruct l; auto.
  + do 5 (destruct f0; [ unfold remove_trues; try destruct l; auto | ]). 
@@ -201,7 +202,7 @@ intros; split; induction e; intros; auto.
    intuition.
    auto. auto.
    
-   do 43 (destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
+   do 44 (destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
    unfold remove_trues in *. simpl in H2. destruct l; auto.
 Qed.
 
@@ -296,7 +297,9 @@ induction l1; auto.
             cancel.
             autorewrite with norm in *. auto.
             apply Cveric.
-            apply Cveric.
+            unfold VericSepLogic.star in *.
+            entailer.
+            (* apply Cveric. *)
           * simpl in *.
             unfold VericSepLogic.inj in *. 
             unfold VericSepLogic.star in *.

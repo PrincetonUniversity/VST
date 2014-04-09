@@ -133,7 +133,8 @@ Definition user_comp : func -> bool := fun _ => false.
 Ltac mirror_cancel_default :=
 let types := get_types in 
 let funcs := get_funcs types in
-(* ensure hints are processed as tuples *)
+(* ensure hints/lemmas are processed as tuples correctly *)
+(* TODO figure out if there are issue with processing singletons *)
 let left_hints := eval hnf in left_hints in
 let right_hints := eval hnf in right_hints in
 eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types funcs user_comp) left_lemmas right_lemmas); 
