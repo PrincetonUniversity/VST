@@ -53,12 +53,12 @@ Record state : Type :=
 
 Definition updC (c : C) (st : state) :=
   match st with
-    | mk _ args rets locs => mk c args rets locs
+    | mk _ args rets locs => mk c args rets locs 
   end.
 
 Definition upd_locs locs (st : state) :=
   match st with
-    | mk c args rets _ => mk c args rets locs
+    | mk c args rets _ => mk c args rets locs 
   end.
 
 Definition initial_core ge v vs := 
@@ -141,7 +141,9 @@ Definition effstep ge U c m c' m' :=
   /\ (forall b ofs, U b ofs=true -> reach_set ge c m b=true)
   /\ args c'=args c
   /\ rets c'=rets c
-  /\ locs c' = fun b => locs c b || StructuredInjections.freshloc m m' b.
+  /\ locs c' = fun b => locs c b 
+                     || StructuredInjections.freshloc m m' b
+                     || reach_set ge c m b.
 
 Arguments effstep /.
 
