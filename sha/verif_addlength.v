@@ -75,8 +75,6 @@ forward_if (
    `(eq (Vint (Int.repr len))) (eval_id _len); `(eq c) (eval_id _c))
    SEP  (`(field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c))).
-* (* prove that if-condition evaluates successfully *)
-  entailer!.
 * (* then-clause *)
  forward.
  entailer!.

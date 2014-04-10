@@ -926,6 +926,35 @@ unfold_pre_local_andp;
 repeat intro_ex_local_semax;
 try rewrite canonicalize.canon9.
 
+Lemma quick_typecheck1: 
+ forall (P B: environ -> mpred), 
+    P |-- B ->
+   P |-- local (`True) && B.
+Proof.
+intros; apply andp_right; auto.
+ intro rho; apply TT_right.
+Qed.
+
+Lemma quick_typecheck2: 
+ forall (P A: environ -> mpred), 
+    P |-- A ->
+   P |-- A && local (`True).
+Proof.
+intros; apply andp_right; auto.
+ intro rho; apply TT_right.
+Qed.
+
+Lemma local_True_right:
+ forall (P: environ -> mpred),
+   P |-- local (`True).
+Proof. intros. intro rho; apply TT_right.
+Qed.
+
+Ltac quick_typecheck :=
+     first [ apply quick_typecheck1; try apply local_True_right
+            | apply quick_typecheck2
+            | apply local_True_right
+            | idtac ].
 
 Ltac forward_while Inv Postcond :=
   first [ignore (Inv: environ->mpred) 
@@ -970,12 +999,11 @@ Ltac forward_for Inv PreIncr Postcond :=
        ])
     ]; abbreviate_semax; autorewrite with ret_assert.
 
-
 Ltac forward_if' := 
 match goal with 
 | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                                  (Sifthenelse ?e _ _) _ => 
- (apply semax_ifthenelse_PQR; [ reflexivity | | | ])
+ (apply semax_ifthenelse_PQR; [ reflexivity | quick_typecheck | | ])
   || fail 2 "semax_ifthenelse_PQR did not match"
 end.
 
@@ -1049,11 +1077,6 @@ Ltac do_subst_eval_expr :=
   fold sem_cast; fold eval_expr; fold eval_lvalue;
   simpl typeof.
 
-(* old version:
-Ltac do_subst_eval_expr :=
-  unfold eval_expr,eval_lvalue, sem_cast; fold sem_cast; fold eval_expr; fold eval_lvalue;
-  autorewrite with subst.
-*)
 Lemma forward_setx_aux1:
   forall P (X Y: environ -> Prop),
   (forall rho, X rho) ->
@@ -1063,52 +1086,13 @@ Proof.
 intros; intro rho; rewrite andp_unfold; apply andp_right; apply prop_right; auto.
 Qed.
 
-Lemma quick_typecheck1: 
- forall (P B: environ -> mpred), 
-    P |-- B ->
-   P |-- local (`True) && B.
-Proof.
-intros; apply andp_right; auto.
- intro rho; apply TT_right.
-Qed.
-
-Lemma quick_typecheck2: 
- forall (P A: environ -> mpred), 
-    P |-- A ->
-   P |-- A && local (`True).
-Proof.
-intros; apply andp_right; auto.
- intro rho; apply TT_right.
-Qed.
-
-Lemma local_True_right:
- forall (P: environ -> mpred),
-   P |-- local (`True).
-Proof. intros. intro rho; apply TT_right.
-Qed.
-
-Ltac forward_setx_aux1 :=
-      apply forward_setx; 
-     first [ apply quick_typecheck1; try apply local_True_right
-            | apply quick_typecheck2
-            | idtac ].
-
-Ltac forward_setx_aux2 id :=
-           match goal with 
-           | Name: name id |- _ => 
-                let x:= fresh Name in intro x; do_subst_eval_expr; try clear x
-           | |- _ => let x:= fresh in intro x; do_subst_eval_expr; try clear x
-           end.
-
 Ltac forward_setx_wow :=
  eapply forward_setx_wow;
  [ solve [auto 50 with closed]
  | solve [repeat constructor; auto with closed]
  | apply I
  | simpl; simpl_lift; reflexivity
- | first [ apply quick_typecheck1; try apply local_True_right
-            | apply quick_typecheck2
-            | idtac ]
+ | quick_typecheck
  ].
 
 Ltac forward_setx_wow_seq :=
@@ -1118,17 +1102,8 @@ eapply forward_setx_wow_seq;
  | apply I
  | simpl; simpl_lift; reflexivity
  | unfold initialized; simpl; reflexivity
- | first [ apply quick_typecheck1; try apply local_True_right
-            | apply quick_typecheck2
-            | idtac ]
+ | quick_typecheck
  | abbreviate_semax
- (*match goal with Delta := @abbreviate tycontext _ |- _ => 
-          clear Delta 
-   end;
-   match goal with |- semax ?D _ _ _ =>
-                  abbreviate D : tycontext as Delta
-   end
-*)
  ].
 
 Lemma forward_setx_closed_now_seq:
@@ -1162,9 +1137,7 @@ Ltac forward_setx_closed_now_seq :=
       | solve [repeat constructor; auto with closed]
       | simpl; simpl_lift; reflexivity
       | unfold initialized; simpl; reflexivity
-      | first [ apply quick_typecheck1; try apply local_True_right
-                | apply quick_typecheck2
-                | idtac ]
+      | quick_typecheck
       | abbreviate_semax
        ].
 
@@ -1175,7 +1148,7 @@ first [apply forward_setx_closed_now;
             | try apply local_True_right
             |  ]
         | forward_setx_wow
-        | forward_setx_aux1
+        | apply forward_setx; quick_typecheck
         ].
 
 Ltac hoist_later_in_pre :=

@@ -91,7 +91,10 @@ Proof.
 intros.
 unfold update_last_if; simplify_Delta; abbreviate_semax.
 forward_if'.
- - entailer. (* if-condition evaluates *)
+(*  - quick_typecheck.
+
+ entailer. (* if-condition evaluates *)
+*)
  - (* then-clause *)
    unfold data_block; simpl; normalize.
   rename H0 into Dbytes.

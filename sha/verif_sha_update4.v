@@ -290,7 +290,7 @@ simplify_Delta; abbreviate_semax.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 
 forward_if (sha_update_inv sh hashed len c d dd data hi lo false).
-* entailer!.   (* cond-expression typechecks *)
+(* * entailer!.   (* cond-expression typechecks *) *)
 * (* then clause *)
 forward.  (* fragment = SHA_CBLOCK-n; *)
 rewrite semax_seq_skip.

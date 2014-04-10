@@ -131,7 +131,7 @@ forward_if (
    `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i)) 0 LBLOCKz) (eval_var _X (tarray tuint 16));
    `(data_block sh (intlist_to_Zlist b) data))).
 (* 587,640  592,608 *)
- rewrite <- insert_local; apply andp_left1. entailer.
+(* rewrite <- insert_local; apply andp_left1. entailer. *)
 (* 613,416  655,716 *)
 abstract (forward; (* skip; *)
 (* 619,968  655,716 *)

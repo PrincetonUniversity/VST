@@ -307,8 +307,7 @@ apply Nat2Z.inj_le in H; rewrite <- Zlength_correct in H.
 unfold data_block; simpl. normalize.
 rename H2 into DBYTES.
 forward_if (sha_update_inv sh hashed len c d dd data hi lo false).
- + entailer!.  (* cond-expression typechecks *)
- +  replace Delta with (initialized _fragment (initialized _p (initialized _n (initialized _data
+ + replace Delta with (initialized _fragment (initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot)))))
  by (simplify_Delta; reflexivity).
  simpl typeof.

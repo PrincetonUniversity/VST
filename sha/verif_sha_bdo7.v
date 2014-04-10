@@ -237,7 +237,6 @@ forward_if (
    SEP  (K_vector;
    `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
      (eval_var _X (tarray tuint LBLOCKz)))).
- entailer.
  forward; (* skip *)
    assert (LBE : LBLOCKz=16%Z) by reflexivity; change c64 with 64%nat in *; entailer. 
    apply semax_extract_PROP; intro;
