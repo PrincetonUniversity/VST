@@ -14,6 +14,7 @@ Require Export reify_derives.
 Require Import symmetry_prover.
 Require Import seplog.
 Require Import hints.
+Require Import congruence_prover.
 
 Module SH := SepHeap.Make VericSepLogic Sep.
 Module FM := FMapList.Make NatMap.Ordered_nat.
@@ -115,20 +116,35 @@ Section typed.
   Variable ts : list Expr.type.
   Variable fs : functions ts.
   Variable user_comp : func -> bool.
+
 Require Import computation_prover.
+ (* Definition vst_prover : ProverT :=
+    composite_ProverT ( composite_ProverT (composite_ProverT reflexivityProver symmetryProver)
+                                          (computationProver fs user_comp))
+                      (VST_CONGRUENCE_PROVER.congruenceProver).*)
+
   Definition vst_prover : ProverT :=
-    composite_ProverT (composite_ProverT reflexivityProver symmetryProver)
-                      (computationProver fs user_comp)
-    .
-  
+     ( composite_ProverT (composite_ProverT reflexivityProver symmetryProver)
+                                          (computationProver fs user_comp)).
+
   Definition vstProver_correct : ProverT_correct vst_prover fs.
   Proof.
    repeat eapply composite_ProverT_correct; 
-      auto using reflexivityProver_correct, symmetryProver_correct, computationProver_correct.
+      auto using reflexivityProver_correct, symmetryProver_correct, computationProver_correct,
+      VST_CONGRUENCE_PROVER.congruenceProver_correct.
   Qed.
 End typed.
 
 Definition user_comp : func -> bool := fun _ => false.
+
+Ltac e_vm_compute_left :=
+match goal with 
+| |- ?X = Some _ => match eval vm_compute in X with 
+                   | Some ?Y => exact (@eq_refl _ (Some Y) (*<: (Some Y) = (Some Y)*))
+                   end
+| |- ?X = _ => let comp := eval vm_compute in X in exact (@eq_refl _ X)
+end.
+
 
 Ltac mirror_cancel_default :=
 let types := get_types in 
@@ -142,5 +158,5 @@ eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types funcs us
 | HintModule.prove left_hints
 | HintModule.prove right_hints
 | apply vstProver_correct
-| reflexivity
+| first [e_vm_compute_left | fail "Canceler failed"]
 | repeat (split; try assumption; try apply I; try apply derives_emp)].

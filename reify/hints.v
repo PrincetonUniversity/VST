@@ -42,7 +42,7 @@ Check PQ. Check VericSepLogic_Kernel.himp.
 (* Definition left_hints := (QP, PQ, null_field_at_false). *)
 (*Definition left_hints := null_field_at_false.*)
 (* Definition left_hints := (QP, PQ). *)
-Definition left_hints := (QP, null_field_at_false, PQ).
+Definition left_hints := (null_field_at_false, PQ).
 
 (* need to make the following types
    - listspec _ _ for each _ _

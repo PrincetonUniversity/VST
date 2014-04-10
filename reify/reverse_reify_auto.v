@@ -11,15 +11,53 @@ Local Open Scope logic.
 
 Unset Ltac Debug.
 
-Ltac pose_compute x :=
-let comp := fresh "comp" in 
-pose (comp := x); fold comp; vm_compute in comp; unfold comp; clear comp.
 
-Ltac ecompute_left :=
-match goal with
-| |- ?X = _ => pose_compute X; exact eq_refl
-end.
+(* trying to test if my reified hints are usable by Mirror *)
+Goal forall T sh id y, field_at sh T id y nullval |-- !!False && emp.
+Proof.
+intros.
+pose_env.
+reify_derives.
+mirror_cancel_default.
+Qed.
 
+(*
+Goal forall (a b c d: nat), a = b -> b = c -> c = d -> functions.P a |-- functions.P d.
+Proof.
+intros.
+pose_env.
+reify_derives.
+Require Import congruence_prover.
+pose (lrn := (VST_CONGRUENCE_PROVER.congruenceSummarize 
+(Equal (tvType 11) (Func 51%nat nil) (Func 54%nat nil)
+      :: Equal (tvType 11) (Func 54%nat nil) (Func 53%nat nil)
+         :: Equal (tvType 11) (Func 53%nat nil) (Func 52%nat nil) :: nil))).
+Import VST_CONGRUENCE_PROVER. 
+Import expr_equality.
+Import TVAR_EQUALITY.
+Import EXPR_UF.
+pose (goal := (Equal (tvType 11) (Func 51%nat nil) (Func 52%nat nil))).
+pose (slv := VST_CONGRUENCE_PROVER.congruenceProve lrn goal).
+simpl in slv.
+unfold find in slv. 
+vm_compute in slv. unfold expr_equality.EXPR_UF.find in slv.
+
+vm_compute in lrn.
+
+let left_hints := eval hnf in left_hints in
+let right_hints := eval hnf in right_hints in
+eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types funcs user_comp) left_lemmas right_lemmas); 
+[ reflexivity
+| HintModule.prove left_hints
+| HintModule.prove right_hints
+| apply vstProver_correct
+| 
+| repeat (split; try assumption; try apply I; try apply derives_emp)].
+ecompute_left.
+mirror_cancel_default.
+simpl.
+
+*)
 Lemma goal_lift_and' :
 forall t f preds uenv a l r newl newr n,
 nth_error f 5 = Some (functions.and_signature t) ->
@@ -31,26 +69,17 @@ goalD (functions.all_types_r t) f preds uenv nil (a, (newl, newr))).
 intros. rewrite <- H1. rewrite <- H2. rewrite H3. apply goal_lift_and; auto.
 Qed.
 
+
 Ltac lift_and_goal :=
 erewrite goal_lift_and';
-[ | auto | auto | ecompute_left | ecompute_left | auto ]. 
+[ | auto | auto | e_vm_compute_left |  e_vm_compute_left | auto ]. 
 
 
-(* trying to test if my reified hints are usable by Mirror *)
-Goal forall T sh id y, field_at sh T id y nullval |-- !!False && emp.
-Proof.
-intros.
-pose_env.
-reify_derives.
-Check lseg_lemmas.null_field_at_false.
-mirror_cancel_default.
-simpl.
-Eval compute in functions.False_f.
-Unset Ltac Debug.
-Admitted.
+
 (* need to deal with singleton? *)
 (* we may need also to add hnf somewhere in mirror_cancel_default. *)
 (* mirror_cancel_default. *)
+
 
 
 Goal forall (A B : Prop),(!!(A /\ B) && emp |-- !!( B) && emp).
@@ -58,7 +87,7 @@ Proof.
 intros.
 pose_env.
 reify_derives.
-lift_and_goal. 
+lift_and_goal.
 mirror_cancel_default. 
 Qed.
 
@@ -115,9 +144,9 @@ Proof.
 intros.
 pose_env.
 reify_derives.
-mirror_cancel_default.
+try mirror_cancel_default.
 simpl.
-Admitted.
+Abort.
 
 Definition P2 (v :val) := emp.
 
@@ -153,10 +182,9 @@ Lemma while_entail1 :
 Proof.
 intros.
 go_lower0.
-apply derives_extract_prop. intros.
-apply derives_extract_prop. intros.
-destruct H5. destruct H6.
 pose_env.
+(
+autorewrite with gather_prop.
 reify_derives.
 Check vst_prover.
 let types := get_types in 
@@ -178,75 +206,6 @@ simpl; unfold Provable; simpl.
 Check UNF.hintSideD.
 Print SL.sepLemma.
 
-Locate Ltac prepare.
-Fixpoint remove
-
-
-
-Fixpoint unflatten_conjuncts {types} l : Expr.expr types :=
-match l with
-| nil => @Const types tvProp True
-| h::nil => h
-| h::t => Func 5%nat (h::(unflatten_conjuncts t)::nil)
-end . 
-
-
-Lemma provable_flatten_unflatten :  forall uenv nil e f,
-@Provable funcs.all_types.all_types (funcs.functions++f) uenv nil e <->
-Provable (funcs.functions ++f) uenv nil (unflatten_conjuncts (flatten_conjuncts e)).
-intros.
-split. induction e; intros;
-auto.
-unfold flatten_conjuncts.
-do 6 (destruct f0; auto).
-simpl. 
-destruct l; auto.
-simpl. induction l; auto.
-simpl.
-Admitted.
-
-Fixpoint clean_up_pure' {types} (pl : Expr.exprs types) :=
-match pl with 
-| Func 48%nat nil :: t => clean_up_pure' t
-| h :: t => h :: clean_up_pure' t
-| _ => nil
-end.
-
-Definition clean_up_pure {types} (p : Expr.expr types) :=
-unflatten_conjuncts (clean_up_pure' (flatten_conjuncts p)). 
-match goal with
-[ |- context [Provable ?funcs ?uenv nil ?r] ] => 
-assert (Provable funcs uenv nil (clean_up_pure r))
-end.
-unfold Provable, clean_up_pure. simpl.
-assert (
- Provable funcs uenv nil
-     (clean_up_pure (Func 5%nat
-        (Func 48%nat nil
-         :: Func 5%nat
-              (Equal (tvType 4)
-                 (Func 9%nat
-                    (Func 8%nat
-                       (Func 53%nat (Func 50%nat nil :: nil)
-                        :: Func 53%nat (Func 50%nat nil :: nil) :: nil)
-                     :: nil))
-                 (Func 47%nat (Const _s :: Func 51%nat nil :: nil))
-               :: Func 48%nat nil :: nil) :: nil)))).
-
-Func 5%nat (a :: b :: nil) => Func 5%nat ((clean_up_pure a)::(clean_up_pure b)::nil)
-| Const 
-
-unfold Provable in *.
-unfold VericSepLogic.himp.
-Admitted.
-
-Lemma try_ex :
-  emp |-- EX x : nat, P x.
-Proof.
-pose_env.
-prepare_reify.
-reify_derives.
-Admitted.
 
 Lemma while_entail2 :
   name _t ->

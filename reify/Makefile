@@ -112,7 +112,9 @@ VFILES:=do_computation.v\
   mirror_cancel.v\
   denote_tc_assert_b.v\
   lseg_lemmas.v\
-  preproc.v
+  preproc.v\
+  expr_equality.v\
+  congruence_prover.v
 
 -include $(addsuffix .d,$(VFILES))
 .SECONDARY: $(addsuffix .d,$(VFILES))
