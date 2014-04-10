@@ -25,16 +25,17 @@ Definition Delta_rearrange_aux2 : tycontext.
 simplify_Delta_from
  (initialized _Ki (initialized _l (initialized _l' Delta_loop1))).
 Defined.
+
 Lemma rearrange_aux2: 
 forall (Espec : OracleKind) (i : nat)(w k : int) ctx
-      (a b c d e f g h : int) (eqofs : val -> Prop)
+      (a b c d e f g h : int) (ofs : val)
       atoh,
    i < 16 ->
   atoh = nthi (rnd_function [a, b, c, d, e, f, g, h] k w) ->
 semax Delta_rearrange_aux2
   (PROP  ()
    LOCAL  (`(eq ctx) (eval_id _ctx);
-   `eqofs (eval_id _data); `(eq (Vint w)) (eval_id _l);
+   `(eq ofs) (eval_id _data); `(eq (Vint w)) (eval_id _l);
    `(eq (Vint k)) (eval_id _Ki);
    `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
    `(eq (Vint a)) (eval_id _a);
@@ -51,7 +52,7 @@ semax Delta_rearrange_aux2
      (PROP  (S i <= 16)
       LOCAL  (`(eq ctx) (eval_id _ctx);
       `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
-      `eqofs (eval_id _data);
+      `(eq ofs) (eval_id _data);
       `(eq (Vint (atoh 0%Z))) (eval_id _a);
       `(eq (Vint (atoh 1%Z))) (eval_id _b);
       `(eq (Vint (atoh 2%Z))) (eval_id _c);

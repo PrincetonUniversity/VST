@@ -242,18 +242,18 @@ unfold_lift. rewrite <- IHe; auto.
 Qed.
 
 Lemma forward_setx_wow:
-  forall S e' Q' Espec Delta P Q R i e,
+  forall S (v: val) Q' Espec Delta P Q R i e,
   Forall (closed_wrt_vars (eq i)) R ->
   local2ptree' i Q S Q' ->
   isSome (S ! i) ->
-  msubst_eval_expr S e = e' ->
+  msubst_eval_expr S e = `v ->
   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
           local (tc_expr Delta e) && local (tc_temp_id i (typeof e) Delta e) ) ->
   @semax Espec Delta
              (PROPx P (LOCALx Q (SEPx R)))
              (Sset i e)
              (normal_ret_assert
-              (PROPx P (LOCALx (`eq e' (eval_id i) :: Q') (SEPx R)))).
+              (PROPx P (LOCALx (`(eq v) (eval_id i) :: Q') (SEPx R)))).
 Proof.
 intros.
 eapply semax_post; [ | apply forward_setx; auto].
@@ -266,6 +266,8 @@ apply andp_derives; auto.
 apply andp_derives;
  [ | unfold SEPx; rewrite closed_wrt_map_subst; auto].
 unfold local,lift1. intro rho; apply prop_derives.
+change (`(eq v)) with (`eq `v).
+forget (`v) as e'. clear v.
 subst e'.
 intros [? ?].
 destruct (S!i) eqn:?H; try contradiction H1. clear H1.
@@ -309,6 +311,28 @@ unfold eval_id in H1; simpl in H1; rewrite Map.gso in H1 by auto.
 auto.
 } Unfocus.
 apply msubst_expr; auto.
+Qed.
+
+Lemma forward_setx_wow_seq:
+  forall S (v: val) Q' Delta' Espec Delta P Q R i e c Post,
+  Forall (closed_wrt_vars (eq i)) R ->
+  local2ptree' i Q S Q' ->
+  isSome (S ! i) ->
+  msubst_eval_expr S e = `v ->
+  initialized i Delta = Delta' ->
+  (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+          local (tc_expr Delta e) && local (tc_temp_id i (typeof e) Delta e) ) ->
+  @semax Espec Delta'  (PROPx P (LOCALx (`(eq v) (eval_id i) :: Q') (SEPx R)))
+                          c Post ->
+  @semax Espec Delta
+             (PROPx P (LOCALx Q (SEPx R)))
+             (Ssequence (Sset i e) c)
+             Post.
+Proof.
+intros.
+eapply semax_seq'.
+eapply forward_setx_wow; eassumption.
+subst Delta'; simpl; apply H5.
 Qed.
 
 Ltac simpl_lift := 
@@ -551,59 +575,6 @@ Ltac simplify_Delta :=
      simplify_Delta_at A; simplify_Delta_at B; reflexivity
 end.
 
-(*
-Ltac simplify_Delta := 
-let x := fresh "x" in
-repeat 
- match goal with 
-| |- let y := initialized ?i ?D in ?B =>
-      change (let x := D in let y := initialized i x in B)
-| D := _ |- let y := ?D in ?B =>  cbv delta [D]; clear D
-| |- let y := @abbreviate _ ?D in ?B =>
-       intro x; cbv delta [abbreviate] in x; revert x
-| |- let y := update_tycon _ _ in _ => 
-       intro x; simpl update_tycon in x; revert x
-| |- let y := PTree.Node _ _ _ in _ =>
-      intro x; cbv delta [x]; clear x
-| |- let y := PTree.Leaf in _ =>
-      intro x; cbv delta [x]; clear x
-| |- let x := func_tycontext _ _ _ in _ =>
-   intro x;
-   cbv beta iota zeta delta [
-     initialized temp_types
-     func_tycontext make_tycontext
-     make_tycontext_t make_tycontext_v make_tycontext_g
-     fold_right
-     fn_temps
-     PTree.set PTree.get PTree.empty] in x;
-  simpl in x; revert x
-| |- let y := ?A in _ => cbv delta [A]
-| |- semax ?D ?P ?c ?R =>
-      change (let x := D in semax x P c R)
-| |- PROPx ?P (LOCALx (tc_environ ?D :: ?Q) ?R) |-- ?S =>
-     change (let x := D in PROPx P (LOCALx (tc_environ x :: Q) R) |-- S)
-| |- ?A = _ => unfold A, abbreviate
-| |- _ = ?B => unfold B, abbreviate
-| |- initialized ?i _ = ?initialized ?i _ => f_equal
-| |- ?A = initialized ?i ?D =>
-     change (let x := D in A = initialized i x)
-| |- ?A = func_tycontext ?a ?b ?c ?D =>
-     change (let x := D in A = func_tycontext a b c)
-| |- initialized ?i ?D = ?B =>
-     change (let x := D in initialized i x = B)
-| |- func_tycontext ?a ?b ?c ?D = ?B =>
-     change (let x := D in func_tycontext a b c = B)
-end;
-repeat 
-match goal with
-| |- let y := initialized _ _ in _ =>
-      intro x; unfold initialized in x; simpl in x;
-      cbv delta [x]; clear x
-| |- let y := (_, _) in _ =>
-       intro x; cbv delta [x]; clear x
-end.
-*)
-
 Ltac abbreviate_semax :=
  match goal with
  | |- semax _ _ _ _ => 
@@ -626,7 +597,8 @@ Ltac abbreviate_semax :=
  | |- _ |-- _ => unfold_abbrev_ret
  | |- _ => idtac
  end;
- clear_abbrevs.
+ clear_abbrevs;
+ simpl typeof.
 
 Definition query_context Delta id :=
      match ((temp_types Delta) ! id) with 
@@ -1138,6 +1110,63 @@ Ltac forward_setx_wow :=
             | apply quick_typecheck2
             | idtac ]
  ].
+
+Ltac forward_setx_wow_seq :=
+eapply forward_setx_wow_seq;
+ [ solve [auto 50 with closed]
+ | solve [repeat constructor; auto with closed]
+ | apply I
+ | simpl; simpl_lift; reflexivity
+ | unfold initialized; simpl; reflexivity
+ | first [ apply quick_typecheck1; try apply local_True_right
+            | apply quick_typecheck2
+            | idtac ]
+ | abbreviate_semax
+ (*match goal with Delta := @abbreviate tycontext _ |- _ => 
+          clear Delta 
+   end;
+   match goal with |- semax ?D _ _ _ =>
+                  abbreviate D : tycontext as Delta
+   end
+*)
+ ].
+
+Lemma forward_setx_closed_now_seq:
+  forall Espec S (v: val) Delta' Delta (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e c PQR,
+  Forall (closed_wrt_vars (eq id)) Q ->
+  Forall (closed_wrt_vars (eq id)) R ->
+  closed_wrt_vars (eq id) (eval_expr e) ->
+  local2ptree Q S  ->
+   msubst_eval_expr S e = `v ->
+  initialized id Delta = Delta' ->
+  PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+       local (tc_expr Delta e) && local (tc_temp_id id (typeof e) Delta e) ->
+  @semax Espec Delta' (PROPx nil (LOCALx (`(eq v) (eval_id id) ::Q) (SEPx R))) c PQR ->
+  @semax Espec Delta (PROPx nil (LOCALx Q (SEPx R))) (Ssequence (Sset id e) c) PQR.
+Proof.
+intros.
+eapply semax_seq'.
+eapply forward_setx_closed_now; try eassumption.
+eapply derives_trans; [apply H5 | apply andp_left1; apply derives_refl].
+eapply derives_trans; [apply H5 | apply andp_left2; apply derives_refl].
+apply derives_refl.
+eapply msubst_LOCAL1; eauto.
+subst Delta'; apply H6.
+Qed.
+
+Ltac forward_setx_closed_now_seq :=
+ eapply forward_setx_closed_now_seq;
+      [solve [auto 50 with closed] 
+      | solve [auto 50 with closed] 
+      | solve [auto 50 with closed]
+      | solve [repeat constructor; auto with closed]
+      | simpl; simpl_lift; reflexivity
+      | unfold initialized; simpl; reflexivity
+      | first [ apply quick_typecheck1; try apply local_True_right
+                | apply quick_typecheck2
+                | idtac ]
+      | abbreviate_semax
+       ].
 
 Ltac forward_setx :=
 first [apply forward_setx_closed_now;
@@ -1877,28 +1906,29 @@ Ltac forward_call1_id :=
 
 Ltac forward_skip := apply semax_skip.
 
-Ltac no_loads_expr e as_lvalue :=
+Ltac no_loads_expr e as_lvalue enforce :=
  match e with
  | Econst_int _ _ => idtac
  | Econst_float _ _ => idtac
  | Econst_long _ _ => idtac
  | Evar _ _ => match as_lvalue with true => idtac end
  | Etempvar _ _ => idtac
- | Eaddrof ?e1 _ => no_loads_expr e1 true
- | Eunop _ ?e1 _ => no_loads_expr e1 as_lvalue
- | Ebinop _ ?e1 ?e2 _ => no_loads_expr e1 as_lvalue; no_loads_expr e2 as_lvalue
- | Ecast ?e1 _ => no_loads_expr e1 as_lvalue
+ | Eaddrof ?e1 _ => no_loads_expr e1 true enforce
+ | Eunop _ ?e1 _ => no_loads_expr e1 as_lvalue enforce
+ | Ebinop _ ?e1 ?e2 _ => no_loads_expr e1 as_lvalue enforce; no_loads_expr e2 as_lvalue enforce
+ | Ecast ?e1 _ => no_loads_expr e1 as_lvalue enforce
  | Efield ?e1 _ _ => match as_lvalue with true =>
-                              no_loads_expr e1 true
+                              no_loads_expr e1 true enforce
                               end
- | _ =>
+ | _ => match enforce with false =>
             let r := fresh "The_expression_or_parameter_list_must_not_contain_any_loads_but_the_following_subexpression_is_an_implicit_or_explicit_load_Please_refactor_this_stament_of_your_program" 
            in pose (r:=e) 
+            end
 end.
 
-Ltac no_loads_exprlist e :=
+Ltac no_loads_exprlist e enforce :=
  match e with
- | ?e1::?er => no_loads_expr e1 false; no_loads_exprlist er
+ | ?e1::?er => no_loads_expr e1 false enforce; no_loads_exprlist er enforce
  | nil => idtac
  end.
 
@@ -1907,19 +1937,19 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
   lazymatch s with 
   | Sassign _ _ => new_store_tac
   | Sset _ (Efield ?e _ ?t)  => 
-      no_loads_expr e true;
+      no_loads_expr e true false;
       first [unify true (match t with Tarray _ _ _ => true | _ => false end);
                forward_setx
               |new_load_tac]
   | Sset _ (Ecast (Efield ?e _ ?t) _) => 
-      no_loads_expr e true;
+      no_loads_expr e true false;
       first [unify true (match t with Tarray _ _ _ => true | _ => false end);
                forward_setx
               |new_load_tac]
   | Sset _ (Ederef ?e _) => 
-         no_loads_expr e true; new_load_tac
+         no_loads_expr e true false; new_load_tac
   | Sset (Ecast (Ederef ?e _) ?t) => 
-         no_loads_expr e true; 
+         no_loads_expr e true false; 
       first [unify true (match t with Tarray _ _ _ => true | _ => false end);
                forward_setx
               |new_load_tac]
@@ -1928,14 +1958,14 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
                forward_setx
               |new_load_tac]
   | Sset _ (Ecast (Evar _ _) _) => new_load_tac
-  | Sset _ ?e => no_loads_expr e false; (bool_compute e; forward_ptr_cmp) || forward_setx
-  | Sifthenelse ?e _ _ => no_loads_expr e false; forward_ifthenelse
+  | Sset _ ?e => no_loads_expr e false false; (bool_compute e; forward_ptr_cmp) || forward_setx
+  | Sifthenelse ?e _ _ => no_loads_expr e false false; forward_ifthenelse
   | Swhile _ _ => forward_while_complain
   | Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _ => forward_for_complain
   | Ssequence (Scall (Some ?id') (Evar _ _) ?el) (Sset _ (Etempvar ?id' _)) => 
-          no_loads_exprlist el; forward_compound_call
-  | Scall (Some _) (Evar _ _) ?el =>  no_loads_exprlist el; forward_call1_id
-  | Scall None (Evar _ _) ?el =>  no_loads_exprlist el; forward_call0_id
+          no_loads_exprlist el false; forward_compound_call
+  | Scall (Some _) (Evar _ _) ?el =>  no_loads_exprlist el false; forward_call1_id
+  | Scall None (Evar _ _) ?el =>  no_loads_exprlist el false; forward_call0_id
   | Sskip => forward_skip
   end.
 
@@ -1953,6 +1983,9 @@ eapply semax_pre; [ | apply semax_break ];
 
 Ltac forward_with F1 :=
  match goal with 
+  | |- semax _ _ (Ssequence (Sset _ ?e) _) _ =>
+         no_loads_expr e false true;
+         first [forward_setx_closed_now_seq | forward_setx_wow_seq ]
   | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
             apply semax_seq with FF; [ | apply semax_ff];
             forward_return
@@ -1967,7 +2000,7 @@ Ltac forward_with F1 :=
              [ftac; derives_after_forward
              | unfold replace_nth; cbv beta;
                try (apply extract_exists_pre; intro_old_var c);
-               abbreviate_semax; simpl typeof; (* TODO: move simpl typeof into abbreviate semax?*)
+               abbreviate_semax;
                try resubst_LOCAL1
              ]) 
         ||  fail 0)  (* see comment FORWARD_FAILOVER below *)
