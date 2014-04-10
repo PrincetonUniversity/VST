@@ -4,10 +4,210 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.bdo_lemmas.
-Require Import sha.verif_sha_bdo5.
-Require Import sha.verif_sha_bdo6.
 Local Open Scope logic.
 Local Open Scope nat.
+
+Definition rearrange_regs2c := 
+     Ssequence (Sset _h (Etempvar _g tuint))
+        (Ssequence (Sset _g (Etempvar _f tuint))
+           (Ssequence (Sset _f (Etempvar _e tuint))
+              (Ssequence
+                 (Sset _e
+                    (Ebinop Oadd (Etempvar _d tuint) (Etempvar _T1 tuint)
+                       tuint))
+                 (Ssequence (Sset _d (Etempvar _c tuint))
+                    (Ssequence (Sset _c (Etempvar _b tuint))
+                       (Ssequence (Sset _b (Etempvar _a tuint))
+                          (Sset _a
+                             (Ebinop Oadd (Etempvar _T1 tuint)
+                                (Etempvar _T2 tuint) tuint)))))))).
+
+Definition rearrange_regs2b :=
+Ssequence
+  (Sset _T1
+     (Ebinop Oadd (Etempvar _T1 tuint)
+        (Ebinop Oadd
+           (Ebinop Oadd
+              (Ebinop Oadd (Etempvar _h tuint)
+                 (Ebinop Oxor
+                    (Ebinop Oxor
+                       (Ebinop Oor
+                          (Ebinop Oshl (Etempvar _e tuint)
+                             (Econst_int (Int.repr 26) tint) tuint)
+                          (Ebinop Oshr
+                             (Ebinop Oand (Etempvar _e tuint)
+                                (Econst_int (Int.repr (-1)) tuint) tuint)
+                             (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                                (Econst_int (Int.repr 26) tint) tint) tuint)
+                          tuint)
+                       (Ebinop Oor
+                          (Ebinop Oshl (Etempvar _e tuint)
+                             (Econst_int (Int.repr 21) tint) tuint)
+                          (Ebinop Oshr
+                             (Ebinop Oand (Etempvar _e tuint)
+                                (Econst_int (Int.repr (-1)) tuint) tuint)
+                             (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                                (Econst_int (Int.repr 21) tint) tint) tuint)
+                          tuint) tuint)
+                    (Ebinop Oor
+                       (Ebinop Oshl (Etempvar _e tuint)
+                          (Econst_int (Int.repr 7) tint) tuint)
+                       (Ebinop Oshr
+                          (Ebinop Oand (Etempvar _e tuint)
+                             (Econst_int (Int.repr (-1)) tuint) tuint)
+                          (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                             (Econst_int (Int.repr 7) tint) tint) tuint)
+                       tuint) tuint) tuint)
+              (Ebinop Oxor
+                 (Ebinop Oand (Etempvar _e tuint) (Etempvar _f tuint) tuint)
+                 (Ebinop Oand (Eunop Onotint (Etempvar _e tuint) tuint)
+                    (Etempvar _g tuint) tuint) tuint) tuint)
+           (Etempvar _Ki tuint) tuint) tuint))
+  (Ssequence
+     (Sset _T2
+        (Ebinop Oadd
+           (Ebinop Oxor
+              (Ebinop Oxor
+                 (Ebinop Oor
+                    (Ebinop Oshl (Etempvar _a tuint)
+                       (Econst_int (Int.repr 30) tint) tuint)
+                    (Ebinop Oshr
+                       (Ebinop Oand (Etempvar _a tuint)
+                          (Econst_int (Int.repr (-1)) tuint) tuint)
+                       (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                          (Econst_int (Int.repr 30) tint) tint) tuint) tuint)
+                 (Ebinop Oor
+                    (Ebinop Oshl (Etempvar _a tuint)
+                       (Econst_int (Int.repr 19) tint) tuint)
+                    (Ebinop Oshr
+                       (Ebinop Oand (Etempvar _a tuint)
+                          (Econst_int (Int.repr (-1)) tuint) tuint)
+                       (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                          (Econst_int (Int.repr 19) tint) tint) tuint) tuint)
+                 tuint)
+              (Ebinop Oor
+                 (Ebinop Oshl (Etempvar _a tuint)
+                    (Econst_int (Int.repr 10) tint) tuint)
+                 (Ebinop Oshr
+                    (Ebinop Oand (Etempvar _a tuint)
+                       (Econst_int (Int.repr (-1)) tuint) tuint)
+                    (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                       (Econst_int (Int.repr 10) tint) tint) tuint) tuint)
+              tuint)
+           (Ebinop Oxor
+              (Ebinop Oxor
+                 (Ebinop Oand (Etempvar _a tuint) (Etempvar _b tuint) tuint)
+                 (Ebinop Oand (Etempvar _a tuint) (Etempvar _c tuint) tuint)
+                 tuint)
+              (Ebinop Oand (Etempvar _b tuint) (Etempvar _c tuint) tuint)
+              tuint) tuint))
+       rearrange_regs2c).
+
+Definition bdo_loop2_body :=
+  (Ssequence
+     (Sset _s0
+        (Ederef
+           (Ebinop Oadd (Evar _X (tarray tuint 16))
+              (Ebinop Oand
+                 (Ebinop Oadd (Etempvar _i tint)
+                    (Econst_int (Int.repr 1) tint) tint)
+                 (Econst_int (Int.repr 15) tint) tint) (tptr tuint)) tuint))
+     (Ssequence
+        (Sset _s0
+           (Ebinop Oxor
+              (Ebinop Oxor
+                 (Ebinop Oor
+                    (Ebinop Oshl (Etempvar _s0 tuint)
+                       (Econst_int (Int.repr 25) tint) tuint)
+                    (Ebinop Oshr
+                       (Ebinop Oand (Etempvar _s0 tuint)
+                          (Econst_int (Int.repr (-1)) tuint) tuint)
+                       (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                          (Econst_int (Int.repr 25) tint) tint) tuint) tuint)
+                 (Ebinop Oor
+                    (Ebinop Oshl (Etempvar _s0 tuint)
+                       (Econst_int (Int.repr 14) tint) tuint)
+                    (Ebinop Oshr
+                       (Ebinop Oand (Etempvar _s0 tuint)
+                          (Econst_int (Int.repr (-1)) tuint) tuint)
+                       (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                          (Econst_int (Int.repr 14) tint) tint) tuint) tuint)
+                 tuint)
+              (Ebinop Oshr (Etempvar _s0 tuint)
+                 (Econst_int (Int.repr 3) tint) tuint) tuint))
+        (Ssequence
+           (Sset _s1
+              (Ederef
+                 (Ebinop Oadd (Evar _X (tarray tuint 16))
+                    (Ebinop Oand
+                       (Ebinop Oadd (Etempvar _i tint)
+                          (Econst_int (Int.repr 14) tint) tint)
+                       (Econst_int (Int.repr 15) tint) tint) (tptr tuint))
+                 tuint))
+           (Ssequence
+              (Sset _s1
+                 (Ebinop Oxor
+                    (Ebinop Oxor
+                       (Ebinop Oor
+                          (Ebinop Oshl (Etempvar _s1 tuint)
+                             (Econst_int (Int.repr 15) tint) tuint)
+                          (Ebinop Oshr
+                             (Ebinop Oand (Etempvar _s1 tuint)
+                                (Econst_int (Int.repr (-1)) tuint) tuint)
+                             (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                                (Econst_int (Int.repr 15) tint) tint) tuint)
+                          tuint)
+                       (Ebinop Oor
+                          (Ebinop Oshl (Etempvar _s1 tuint)
+                             (Econst_int (Int.repr 13) tint) tuint)
+                          (Ebinop Oshr
+                             (Ebinop Oand (Etempvar _s1 tuint)
+                                (Econst_int (Int.repr (-1)) tuint) tuint)
+                             (Ebinop Osub (Econst_int (Int.repr 32) tint)
+                                (Econst_int (Int.repr 13) tint) tint) tuint)
+                          tuint) tuint)
+                    (Ebinop Oshr (Etempvar _s1 tuint)
+                       (Econst_int (Int.repr 10) tint) tuint) tuint))
+              (Ssequence
+                 (Sset _T1
+                    (Ederef
+                       (Ebinop Oadd (Evar _X (tarray tuint 16))
+                          (Ebinop Oand (Etempvar _i tint)
+                             (Econst_int (Int.repr 15) tint) tint)
+                          (tptr tuint)) tuint))
+                 (Ssequence
+                    (Sset _t
+                       (Ederef
+                          (Ebinop Oadd (Evar _X (tarray tuint 16))
+                             (Ebinop Oand
+                                (Ebinop Oadd (Etempvar _i tint)
+                                   (Econst_int (Int.repr 9) tint) tint)
+                                (Econst_int (Int.repr 15) tint) tint)
+                             (tptr tuint)) tuint))
+                    (Ssequence
+                       (Sset _T1
+                          (Ebinop Oadd (Etempvar _T1 tuint)
+                             (Ebinop Oadd
+                                (Ebinop Oadd (Etempvar _s0 tuint)
+                                   (Etempvar _s1 tuint) tuint)
+                                (Etempvar _t tuint) tuint) tuint))
+                       (Ssequence
+                          (Sassign
+                             (Ederef
+                                (Ebinop Oadd (Evar _X (tarray tuint 16))
+                                   (Ebinop Oand (Etempvar _i tint)
+                                      (Econst_int (Int.repr 15) tint) tint)
+                                   (tptr tuint)) tuint) (Etempvar _T1 tuint))
+                          (Ssequence
+                             (Sset _Ki
+                                (Ederef
+                                   (Ebinop Oadd
+                                      (Evar _K256 (tarray tuint 64))
+                                      (Etempvar _i tint) (tptr tuint)) tuint))
+                             rearrange_regs2b))))))))).
+
+Definition block_data_order_loop2 := 
+   nth 1 (loops (fn_body f_sha256_block_data_order)) Sskip.
 
 Lemma bdo_loop2_body_proof:
  forall (Espec : OracleKind)
@@ -118,12 +318,135 @@ drop_LOCAL 1.
 drop_LOCAL 1.
 clear s1'.
 
-unfold MORE_COMMANDS, POSTCONDITION, abbreviate; clear MORE_COMMANDS POSTCONDITION.
-replace Delta with (initialized _s1 (initialized _s0 Delta_loop1))
-  by (simplify_Delta; reflexivity).
-simple apply sha_bdo_loop2b; assumption.
-Qed.
 
+
+forward. (* T1 = X[i&0xf]; *) 
+clear - H H1 LBE.
+drop_LOCAL 5%nat.
+abstract (entailer; apply prop_right; apply and_mod_15_lem).
+
+apply (assert_LOCAL (`(eq (Vint (W (nthi b) (Z.of_nat i - 16 + 0)))) (eval_id _T1))). 
+drop_LOCAL 6%nat.
+clear - H H0 H1 LBE.
+abstract (
+ entailer; apply prop_right;
+ replace (Int.repr (Z.of_nat i)) with (Int.repr (Z.of_nat i + 0)) in H3  by (rewrite Z.add_0_r; auto);
+ rewrite X_subscript_aux2 in H3 by repable_signed;
+ replace (Z.of_nat i mod 16) with ((Z.of_nat i + 0) mod 16) in H3
+    by (rewrite Z.add_0_r; auto);
+ apply Zlength_length in H; auto;
+ rewrite extract_from_b in H3 by (try assumption; omega);
+ rewrite Z.add_0_r in H3; 
+  clear - H3; congruence
+).
+drop_LOCAL 1%nat.
+forward. (* t = X[(i+9)&0xf]; *)
+clear - H H1 LBE.
+abstract (entailer; apply prop_right; apply and_mod_15_lem).
+
+apply (assert_LOCAL (`(eq (Vint (W (nthi b) (Z.of_nat i - 16 + 9)))) (eval_id _t))).
+clear - H H0 H1 LBE.
+abstract (
+ entailer; apply prop_right;
+ rewrite add_repr in H3;
+ rewrite X_subscript_aux2 in H3 by repable_signed;
+ apply Zlength_length in H; auto;
+ rewrite extract_from_b in H3 by (try assumption; omega);
+ clear - H3; congruence
+).
+drop_LOCAL 1%nat.
+forward.  (* T1 += s0 + s1 + t; *)
+replace (Int.add (W (nthi b) (Z.of_nat i - 16 + 0))
+             (Int.add
+                (Int.add (sigma_0 (W (nthi b) (Z.of_nat i - 16 + 1)))
+                   (sigma_1 (W (nthi b) (Z.of_nat i - 16 + 14))))
+                (W (nthi b) (Z.of_nat i - 16 + 9))))
+    with (W (nthi b) (Z.of_nat i))
+ by (rewrite W_equation; rewrite if_false by omega;
+      rewrite Z.add_0_r;
+      rewrite (Int.add_commut (W (nthi b) (Z.of_nat i - 16)));
+      repeat rewrite <- Int.add_assoc; f_equal;
+      rewrite Int.add_commut; repeat rewrite Int.add_assoc; f_equal;
+        [do 2 f_equal; omega | ];
+      f_equal; [do 2 f_equal; omega | f_equal; omega]).
+
+do 3 drop_LOCAL 1%nat.
+(* clear s0 s1. *)
+
+forward. (* X[i&0xf] = T1; *)
+instantiate (2:= (Z.of_nat i  mod 16)).
+instantiate (1:=  (Vint  (W (nthi b) (Z.of_nat i)))).
+abstract (
+ entailer;
+ apply prop_right; split;
+ [ unfold Int.and; rewrite mul_repr;
+  f_equal; f_equal; f_equal; 
+  change (Int.unsigned (Int.repr 15)) with (Z.ones 4);
+  rewrite Z.land_ones by (clear; omega);
+  f_equal; rewrite Int.unsigned_repr by repable_signed; auto
+ | change LBLOCKz with 16%Z; apply Z.mod_bound_pos; omega
+ ]).
+rewrite Xarray_update by (apply Zlength_length in H; auto).
+
+unfold K_vector.
+forward.  (* Ki=K256[i]; *)
+abstract (
+ entailer!;
+ [unfold tuints, ZnthV; rewrite if_false by (clear; omega);
+ rewrite (@nth_map' int val _ _ Int.zero); [apply I | ];
+ change (length K) with 64%nat; rewrite Nat2Z.id; destruct H0 as [_ H0]; apply H0
+ | change (Zlength K) with 64%Z; clear - H1; omega]).
+
+apply (assert_LOCAL (`(eq (Vint (nth i K Int.zero))) (eval_id _Ki))).
+drop_LOCAL 5%nat. drop_LOCAL 3%nat. drop_LOCAL 2%nat.
+abstract (
+   entailer; apply prop_right;
+   rewrite Int.signed_repr in H3 by repable_signed;
+   unfold tuints, ZnthV in H3; 
+   rewrite if_false in H3 by omega; 
+   rewrite Nat2Z.id in H3; 
+   rewrite (@nth_map' int val _ _ Int.zero) in H3 by apply H0; 
+   injection H3; clear; auto;
+   clear - H0; apply H0).
+drop_LOCAL 1%nat.
+
+rename b into bb.
+remember (Round regs (nthi bb) (Z.of_nat i - 1)) as regs' eqn:?.
+assert (exists a b c d e f g h, regs' = [a,b,c,d,e,f,g,h]).
+assert (length regs' = 8%nat) by (subst; apply length_Round; auto).
+do 8 (destruct regs' as [ | ? regs']; [inv H2 | ]).
+destruct regs'; [ | inv H2].
+do 8 eexists; reflexivity.
+destruct H2 as [a [b [c [d [e [f [g [h H2]]]]]]]].
+rewrite Heqregs' in *. clear Heqregs'.
+rewrite H2.
+unfold nthi at 2 3 4 5 6 7 8 9. simpl.
+unfold rearrange_regs2b.
+forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
+rewrite <- Sigma_1_eq, <- Ch_eq.
+forward. 	(* T2 = Sigma0(a) + Maj(a,b,c); *)
+rewrite <- Sigma_0_eq, <- Maj_eq.
+unfold rearrange_regs2c.
+repeat forward.
+apply exp_right with (i+1)%nat.
+entailer.
+clear Delta H3.
+replace (Z.of_nat (i + 1) - 1)%Z with (Z.of_nat i)
+ by (clear; rewrite Nat2Z.inj_add; change (Z.of_nat 1) with 1%Z; omega).
+apply prop_right.
+clear - H H0 H1 H2.
+rewrite Round_equation.
+rewrite if_false by omega.
+rewrite H2.
+unfold rnd_function.
+repeat split; try reflexivity.
+unfold nthi at 1; simpl.
+f_equal. rewrite Int.add_commut.
+f_equal. f_equal. unfold nthi. rewrite Nat2Z.id; auto.
+unfold nthi at 1; simpl.
+f_equal. rewrite Int.add_commut. f_equal.
+f_equal. unfold nthi. rewrite Nat2Z.id; auto.
+Qed.
 
 Lemma sha256_block_data_order_loop2_proof:
   forall (Espec : OracleKind)

@@ -4,8 +4,173 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.bdo_lemmas.
-Require Import sha.verif_sha_bdo3.
 Local Open Scope logic.
+
+Lemma rearrange_aux:
+ forall h f c k l,
+ Int.add (Int.add (Int.add (Int.add h f) c) k) l =
+Int.add (Int.add (Int.add (Int.add l h) f) c) k.
+Proof.
+intros.
+rewrite <- (Int.add_commut l).
+repeat rewrite (Int.add_assoc h).
+rewrite <- (Int.add_assoc l).
+repeat rewrite (Int.add_assoc (Int.add l h)).
+reflexivity.
+Qed.
+
+Lemma loop1_aux_lemma1:
+forall sh b i N,
+  length b = N ->
+  (i < N)%nat ->
+ array_at tuint sh
+       (upd (f_upto (tuints b) (Z.of_nat i)) (Z.of_nat i)
+          (Vint
+             (big_endian_integer
+                (fun z : Z =>
+                 force_int
+                   (tuchars (map Int.repr (intlist_to_Zlist b))
+                      (z + Z.of_nat i * 4))))))
+        0 (Z.of_nat N) =
+  array_at tuint sh
+               (f_upto (tuints b) (Z.of_nat (S i))) 
+              0 (Z.of_nat N).
+Proof.
+intros.
+apply array_at_ext; intros.
+unfold upd.
+if_tac.
+assert (exists w, nth_error b i = Some w).
+subst N.
+clear - H0.
+revert b H0; induction i; destruct b; simpl; intros; auto.
+omega.
+exists i; reflexivity. 
+inv H0.
+apply IHi; auto. clear - H0.
+apply lt_S_n; auto.
+destruct H3 as [w H3].
+unfold tuchars;
+rewrite <- nth_big_endian_integer with (w:=w); auto.
+unfold f_upto.
+subst.
+rewrite if_true by (rewrite inj_S; omega).
+unfold tuints, ZnthV. rewrite if_false by omega. rewrite Nat2Z.id.
+clear - H3; revert b H3; induction i; destruct b; intros; inv H3; simpl; auto.
+unfold f_upto.
+if_tac. rewrite if_true by (rewrite inj_S; omega); auto.
+rewrite if_false; auto.
+rewrite inj_S; 
+omega.
+Qed.
+
+Lemma read32_reversed_in_bytearray:
+ forall {Espec: OracleKind} Delta (ofs: int) (lo hi: Z) base e sh (contents: Z -> val) i P Q
+ (VS:  (var_types Delta) ! ___builtin_read32_reversed = None) 
+ (GS: (glob_types Delta) ! ___builtin_read32_reversed =
+    Some (Global_func (snd __builtin_read32_reversed_spec)))
+ (TE: typeof e = tptr tuint)
+ (CLOQ: Forall (closed_wrt_vars (eq i)) Q)
+ (Hcontents: forall i, (lo <= i < hi)%Z -> is_int (contents i)),
+ PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT))) |-- PROP ((lo <= Int.unsigned ofs <= hi-4 )%Z)
+         LOCAL (tc_expr Delta e; `(eq (offset_val ofs base)) (eval_expr e))
+         SEP  (TT) ->
+ semax Delta  (PROPx P (LOCALx Q (SEP (`(array_at tuchar sh contents lo hi base)))))
+        (Scall (Some i)
+           (Evar ___builtin_read32_reversed
+              (Tfunction (Tcons (tptr tuint) Tnil) tuint))
+           [e])
+        (normal_ret_assert
+         (PROP () 
+         (LOCALx (`(eq (Vint (big_endian_integer (fun z => force_int (contents (z+Int.unsigned ofs)%Z))))) (eval_id i)
+                        :: Q)                 
+         SEP (`(array_at tuchar sh contents lo hi base))))).
+Proof.
+intros.
+apply semax_pre with
+ (PROP  ((lo <= Int.unsigned ofs <= hi - 4)%Z)
+        (LOCALx (tc_expr Delta e :: `(eq (offset_val ofs base)) (eval_expr e) :: Q)
+         (SEP(`(array_at tuchar sh contents lo hi base))))).
+rewrite <- (andp_dup (PROPx P _)).
+eapply derives_trans; [ apply andp_derives | ].
+eapply derives_trans; [ | apply H].
+apply andp_derives; auto.
+apply andp_derives; auto.
+go_lowerx.
+apply sepcon_derives; auto.
+apply TT_right.
+instantiate (1:= PROPx nil (LOCALx Q (SEP  (`(array_at tuchar sh contents lo hi base))))).
+go_lowerx. entailer.
+go_lowerx; entailer.
+normalize.
+clear H.
+normalize.
+rewrite (split_array_at (Int.unsigned ofs)) by omega.
+rewrite (split_array_at (Int.unsigned ofs + 4)%Z) with (hi:=hi) by omega.
+normalize.
+match goal with |- semax _ (PROPx _ (LOCALx _ ?A)) _ _ =>
+ replace A  with (SEPx( [
+         `(array_at tuchar sh contents (Int.unsigned ofs)
+             (Int.unsigned ofs + 4) base)] ++
+               [`(array_at tuchar sh contents lo (Int.unsigned ofs) base),
+         `(array_at tuchar sh contents (Int.unsigned ofs + 4) hi base)]))
+ by (simpl app; apply pred_ext; go_lowerx; cancel)
+end.
+eapply semax_frame1; try reflexivity;
+ [ |  apply derives_refl | auto 50 with closed].
+eapply semax_pre_post.
+Focus 3.
+evar (tl: typelist).
+replace (Tcons (tptr tuint) Tnil) with tl.
+unfold tl.
+eapply semax_call_id1'; try eassumption.
+2: reflexivity.
+apply GS.
+2: reflexivity.
+Unfocus.
+instantiate (3:=nil).
+apply andp_left2.
+instantiate (2:=(offset_val ofs base, sh, fun z => force_int (contents (z + Int.unsigned ofs)%Z))).
+cbv beta iota.
+instantiate (1:=nil).
+unfold split; simpl @snd.
+go_lowerx.
+entailer.
+apply andp_right; [apply prop_right; repeat split; auto | ].
+hnf. simpl.
+rewrite TE.
+repeat rewrite denote_tc_assert_andp; repeat split; auto.
+rewrite <- H3.
+rewrite TE.
+destruct base; inv Pbase; reflexivity.
+pattern ofs at 4;
+ replace ofs with (Int.repr (sizeof tuchar * Int.unsigned ofs))%Z
+ by (simpl sizeof; rewrite Z.mul_1_l; apply Int.repr_unsigned).
+rewrite <- offset_val_array_at.
+apply derives_refl'.
+apply equal_f. rewrite Z.add_0_r. apply array_at_ext.
+intros. unfold cVint. rewrite Z.sub_add.
+clear - H5 H0 Hcontents.
+specialize (Hcontents i0);
+ destruct (contents i0); 
+  try solve [elimtype False; apply Hcontents; omega]. reflexivity.
+2: auto with closed.
+intros; apply andp_left2.
+apply normal_ret_assert_derives'.
+go_lowerx.
+entailer.
+apply derives_refl'.
+pattern ofs at 2;
+ replace ofs with (Int.repr (sizeof tuchar * Int.unsigned ofs))%Z
+ by (simpl sizeof; rewrite Z.mul_1_l; apply Int.repr_unsigned).
+rewrite <- offset_val_array_at.
+apply equal_f. rewrite Z.add_0_r. 
+apply array_at_ext; intros.
+unfold cVint. rewrite Z.sub_add.
+clear - H3 H0 Hcontents.
+specialize (Hcontents i0); destruct (contents i0);
+  try reflexivity;  contradiction Hcontents; omega.
+Qed.
 
 Definition block_data_order_loop1 := 
    nth 0 (loops (fn_body f_sha256_block_data_order)) Sskip.
@@ -263,8 +428,25 @@ unfold Z.succ; rewrite inj_S;
 go_lower0; cancel).
 auto 50 with closed.
 (* 1,811,028 1,429,048 *)
-replace Delta with Delta_rearrange_aux2 by (simplify_Delta; reflexivity).
-eapply semax_pre;  [ | simple apply rearrange_regs_proof ; eassumption ]. 
+forget (nthi b) as M.
+apply semax_pre with
+ (PROP  ()
+   LOCAL 
+   (`(eq ctx) (eval_id _ctx);
+   `(eq (offset_val (Int.repr (Zsucc (Z.of_nat i) * 4)) data)) (eval_id _data);
+   `(eq (Vint (W M (Z.of_nat i))))  (eval_id _l);
+   `(eq (Vint (nthi K (Z.of_nat i)))) (eval_id _Ki);
+   `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 0))) (eval_id _a);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 1))) (eval_id _b);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 2))) (eval_id _c);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 3))) (eval_id _d);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 4))) (eval_id _e);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 5))) (eval_id _f);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 6))) (eval_id _g);
+   `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 7))) (eval_id _h))
+   SEP()).
+{ 
 entailer!.
 f_equal. f_equal. unfold Z.succ; rewrite Z.mul_add_distr_r; reflexivity.
 rewrite W_equation.
@@ -281,4 +463,44 @@ congruence.
 clear H2.
 change (length K) with 64%nat.
 simpl; omega.
-} Qed.
+}
+{clear b H.
+replace (Z.succ (Z.of_nat i) - 1)%Z with (Z.of_nat i) by omega.
+rewrite (Round_equation _ _ (Z.of_nat i)).
+rewrite if_false by omega.
+forget (nthi K (Z.of_nat i)) as k.
+forget (W M (Z.of_nat i)) as w.
+assert (length (Round regs M (Z.of_nat i - 1)) = 8)%nat.
+apply length_Round; auto.
+forget (Round regs M (Z.of_nat i - 1)) as regs'.
+change 16 with LBLOCK.
+destruct regs' as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; inv H.
+unfold rearrange_regs.
+abbreviate_semax.
+forward. (* T1 = l + h + Sigma1(e) + Ch(e,f,g) + Ki; *)
+rewrite <- Sigma_1_eq, <- Ch_eq, rearrange_aux.
+forward. (* T2 = Sigma0(a) + Maj(a,b,c); *)
+ rewrite <- Sigma_0_eq, <- Maj_eq.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+forward.
+simplify_Delta.
+ entailer!. 
+unfold rnd_function, nthi; simpl.
+f_equal.
+ rewrite <- rearrange_aux. symmetry. rewrite (rearrange_aux Ki).
+rewrite Int.add_commut.
+repeat rewrite Int.add_assoc. reflexivity.
+unfold rnd_function, nthi; simpl.
+f_equal.
+symmetry. do 2 rewrite Int.add_assoc.
+rewrite Int.add_commut. rewrite <- Int.add_assoc. f_equal.
+f_equal. rewrite Int.add_assoc. reflexivity.
+}
+}
+Qed.
