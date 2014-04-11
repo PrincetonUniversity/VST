@@ -326,6 +326,7 @@ intuition;
 erewrite same_base_tc_val; eauto.
 simpl in H0. rewrite H in H0. inv H0.
 erewrite <- same_base_tc_val; eauto.
+destruct (typecheck_val x t); try contradiction; auto.
 Qed.
 
 Lemma typecheck_deref_sound:

@@ -7,6 +7,9 @@ Require Import veric.Clight_lemmas.
 Require Export veric.lift.
 Require Export veric.Cop2.
 
+Definition is_true (b: bool) :=
+  match b with true => True | false => False end.
+
 Definition force_val (v: option val) : val :=
  match v with Some v' => v' | None => Vundef end.
 
@@ -544,22 +547,37 @@ Inductive tc_assert :=
 | tc_TT : tc_assert
 | tc_andp': tc_assert -> tc_assert -> tc_assert
 | tc_orp' : tc_assert -> tc_assert -> tc_assert
-| tc_nonzero: expr -> tc_assert
+| tc_nonzero': expr -> tc_assert
 | tc_iszero': expr -> tc_assert
 | tc_isptr: expr -> tc_assert
 | tc_ilt': expr -> int -> tc_assert
 | tc_Zle: expr -> Z -> tc_assert
 | tc_Zge: expr -> Z -> tc_assert
 | tc_samebase: expr -> expr -> tc_assert
-| tc_nodivover: expr -> expr -> tc_assert
+| tc_nodivover': expr -> expr -> tc_assert
 | tc_initialized: PTree.elt -> type -> tc_assert.
 
 Definition tc_iszero (e: expr) : tc_assert :=
-  match e with
-  | Econst_int i _ => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
-  | Econst_long i _ => if Int.eq (Int.repr (Int64.unsigned i)) Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
+  match eval_expr e any_environ with
+  | Vint i => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
+  | Vlong i => if Int.eq (Int.repr (Int64.unsigned i)) Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | _ => tc_iszero' e
   end.
+
+Definition tc_nonzero (e: expr) : tc_assert :=
+  match eval_expr e any_environ with
+   | Vint i => if negb (Int.eq i Int.zero) then tc_TT else tc_nonzero' e
+   | _ => tc_nonzero' e
+   end.
+
+Definition tc_nodivover (e1 e2: expr) : tc_assert :=
+ match eval_expr e1 any_environ, eval_expr e2 any_environ with
+                           | Vint n1, Vint n2 => if (negb 
+                                   (Int.eq n1 (Int.repr Int.min_signed) 
+                                    && Int.eq n2 Int.mone))
+                                     then tc_TT else tc_nodivover' e1 e2
+                           | _ , _ => tc_nodivover' e1 e2
+                          end.
 
 Definition tc_andp (a1: tc_assert) (a2 : tc_assert) : tc_assert :=
 match a1 with
@@ -1057,17 +1075,16 @@ Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
   | tc_TT => `True
   | tc_andp' b c => `and (denote_tc_assert b) (denote_tc_assert c)
   | tc_orp' b c => `or (denote_tc_assert b) (denote_tc_assert c)
-  | tc_nonzero e => `denote_tc_nonzero (eval_expr e)
+  | tc_nonzero' e => `denote_tc_nonzero (eval_expr e)
   | tc_isptr e => `isptr (eval_expr e)
   | tc_ilt' e i => `(denote_tc_igt i) (eval_expr e)
   | tc_Zle e z => `(denote_tc_Zge z) (eval_expr e)
   | tc_Zge e z => `(denote_tc_Zle z) (eval_expr e)
   | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr e1) (eval_expr e2)
-  | tc_nodivover v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
+  | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
   | tc_initialized id ty => denote_tc_initialized id ty
   | tc_iszero' e => `denote_tc_iszero (eval_expr e)
  end.
-
 
 Lemma and_False: forall x, (x /\ False) = False.
 Proof.
@@ -1510,13 +1527,13 @@ Fixpoint denote_tc_assert_b (a: tc_assert) : environ -> bool :=
   | tc_TT => `true
   | tc_andp' b c => `andb (denote_tc_assert_b b) (denote_tc_assert_b c)
   | tc_orp' b c => `orb (denote_tc_assert_b b) (denote_tc_assert_b c)
-  | tc_nonzero e => `denote_tc_nonzero_b (eval_expr e)
+  | tc_nonzero' e => `denote_tc_nonzero_b (eval_expr e)
   | tc_isptr e => `isptr_b (eval_expr e)
   | tc_ilt' e i => `(denote_tc_igt_b i) (eval_expr e)
   | tc_Zle e z => `(denote_tc_Zge_b z) (eval_expr e)
   | tc_Zge e z => `(denote_tc_Zle_b z) (eval_expr e)
   | tc_samebase e1 e2 => `denote_tc_samebase_b (eval_expr e1) (eval_expr e2)
-  | tc_nodivover v1 v2 => `denote_tc_nodivover_b (eval_expr v1) (eval_expr v2)
+  | tc_nodivover' v1 v2 => `denote_tc_nodivover_b (eval_expr v1) (eval_expr v2)
   | tc_initialized id ty => denote_tc_initialized_b id ty
   | tc_iszero' e => `denote_tc_iszero_b (eval_expr e)
  end.
@@ -1576,8 +1593,18 @@ try match goal with
 | [ H : if ?e then True else False |- _ ] => destruct e; simpl; inv H
 | [ H : match ?e with | _ => _  end |- _ ] => destruct e; simpl in *; inv H
 end; auto; try congruence;
-unfold denote_tc_initialized, denote_tc_initialized_b in *;
-destruct H. destruct H. rewrite H. auto.
+unfold denote_tc_initialized, denote_tc_initialized_b in *.
+destruct (denote_tc_assert_b a1 rho); try contradiction; apply I.
+destruct (denote_tc_assert_b a1 rho); try contradiction; apply I.
+destruct (Float.Zoffloat f); try contradiction.
+destruct (z >=? z0); try contradiction; auto.
+destruct (Float.Zoffloat f); try contradiction.
+destruct (z <=? z0); try contradiction; auto.
+destruct (eval_expr e0 rho); try contradiction.
+destruct (peq b b0); try contradiction; auto.
+destruct (eval_expr e0 rho); try contradiction.
+destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)); try contradiction; auto.
+destruct H. destruct H; rewrite H. auto.
 
 induction a; simpl in *; super_unfold_lift; bool_r in *; intuition; try congruence;
 simpl in *;
@@ -1587,6 +1614,19 @@ try match goal with
 | [ H : (match ?e with | _ => _ end) = true |- _ ] => destruct e; simpl in *; inv H
 end; auto; try congruence.
 unfold denote_tc_initialized, denote_tc_initialized_b in *.
-destruct (Map.get (te_of rho) e). exists v. auto.
-congruence.
+destruct (denote_tc_assert_b a1 rho); try contradiction; auto.
+destruct (denote_tc_assert_b a1 rho); try contradiction; auto.
+destruct (denote_tc_assert_b a1 rho); try contradiction; auto.
+destruct (negb (Int.eq i Int.zero)); try contradiction; auto.
+destruct (Float.Zoffloat f); try contradiction.
+destruct (z >=? z0); try contradiction; auto.
+destruct (Float.Zoffloat f); try contradiction.
+destruct (z <=? z0); try contradiction; auto.
+destruct (eval_expr e0 rho); try contradiction.
+destruct (peq b b0); try contradiction; auto.
+destruct (eval_expr e0 rho); try contradiction.
+destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)); try contradiction; auto.
+unfold denote_tc_initialized_b in H.
+destruct (Map.get (te_of rho) e) eqn:?; try contradiction.
+exists v; split; auto.
 Qed.

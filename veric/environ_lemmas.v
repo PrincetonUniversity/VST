@@ -168,7 +168,7 @@ intros [ge ve te] [[[A B] C] D] [[[A1 B1] C1] D1] [[[A2 B2] C2] D2]
  exists v; split; auto.
  destruct H3; auto; left.
  unfold is_true.
- destruct b; auto. destruct b2; inv H0. rewrite H3; auto.
+ destruct b; auto. destruct b2; inv H0. contradiction. apply I.
 * unfold typecheck_var_environ in *; intros.
   rewrite <- S2 in H. rewrite T2 in H. apply U2 in H. auto.
 * unfold typecheck_glob_environ in *; intros.
@@ -198,12 +198,13 @@ destruct H as [? _]. unfold typecheck_temp_environ in *.
 edestruct H; eauto. destruct H2.  simpl.  simpl in H2. rewrite H2.
 simpl.
 destruct H3.
-destruct b; simpl in *; try congruence.
+destruct b; simpl in *; try contradiction.
 remember (is_pointer_type t0). repeat (if_tac in H0; intuition). 
 simpl in H0. unfold denote_tc_initialized in *. destruct H0. 
 destruct H0. simpl in H0.  rewrite H0 in H2. inv H2. 
-destruct x; simpl in *; try congruence. 
-destruct x; simpl in *; try congruence. 
+destruct x; simpl in *; try contradiction; auto.
+destruct (Int.eq i Int.zero); try contradiction; auto.
+destruct x; simpl in *; try congruence.
 destruct t0; simpl in *; try congruence; intuition.
 destruct t0; simpl in *; try congruence; intuition.
 destruct t0; simpl in *; try congruence; intuition.

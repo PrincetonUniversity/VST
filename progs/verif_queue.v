@@ -173,7 +173,6 @@ normalize.
 forward. (*   h = Q->head; *)
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
-* (* goal 8 *) entailer!.
 * (* then clause *)
   (* goal 9 *)
   forward. (*  Q->head=p; *)

@@ -78,7 +78,6 @@ Lemma ifbody_final_if1:
                (Econst_int (Int.repr 8) tint) tint) tint));
    `(eq (Vint (Int.repr (Zlength dd + 1)))) (eval_id _n);
    `(eq (offset_val (Int.repr 40) (force_ptr c))) (eval_id _p);
-(*   `eq (eval_id _p) (`(offset_val (Int.repr 40)) (`force_ptr (eval_id _c))); *)
    `(eq md) (eval_id _md); `(eq c) (eval_id _c))
    SEP 
    (`(array_at tuint Tsh
@@ -121,27 +120,25 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-n); *)
    repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
   change CBLOCKz with 64%Z.
   destruct (zlt (ddlen+1) 64).
-Focus 2. {
- replace (ddlen+1)%Z with 64%Z by omega. rewrite array_at_emp.
- rewrite Z.sub_diag.
- destruct c; try (contradiction Pc). simpl. 
- rewrite memory_block_zero. normalize.
- } Unfocus.
- rewrite memory_block_array_tuchar by Omega1.
- replace (offset_val (Int.repr (data_offset + (ddlen+1))) c)%Z
-  with (offset_val (Int.repr (sizeof tuchar * (ddlen+1))) (offset_val (Int.repr 40) c))%Z
-  by (normalize; Omega1).
-   rewrite <- offset_val_array_at_.
-  rewrite Z.add_0_r.
- replace (ddlen + 1 + (64 - (ddlen+1)))%Z with 64%Z by (clear; omega).
- cancel.
+  - rewrite memory_block_array_tuchar by Omega1.
+    replace (offset_val (Int.repr (data_offset + (ddlen+1))) c)%Z
+     with (offset_val (Int.repr (sizeof tuchar * (ddlen+1))) (offset_val (Int.repr 40) c))%Z
+     by (normalize; Omega1).
+    rewrite <- offset_val_array_at_.
+    rewrite Z.add_0_r.
+    replace (ddlen + 1 + (64 - (ddlen+1)))%Z with 64%Z by (clear; omega).
+    cancel.
+ - replace (ddlen+1)%Z with 64%Z by omega. rewrite array_at_emp.
+    rewrite Z.sub_diag.
+   destruct c; try (contradiction Pc). simpl.   
+   rewrite memory_block_zero. normalize.
 }
-  after_call.
+after_call.
 gather_SEP 4%Z 0%Z.
 pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ list_repeat (Z.to_nat (CBLOCKz-(ddlen+1))) Int.zero)).
 replace_SEP 0%Z (  `(array_at tuchar Tsh
         (ZnthV tuchar (map Vint ddz)) 0 64
-        (offset_val (Int.repr data_offset) c))).
+          (offset_val (Int.repr data_offset) c))).
 {
  replace (Int.repr (data_offset + (ddlen+1))) with (Int.add (Int.repr data_offset) (Int.repr (ddlen+1)))
   by apply add_repr.
@@ -226,9 +223,8 @@ clearbody ddzw.
  forward.  (* n=0; *)
  forward_call (* sha256_block_data_order (c,p); *)
   (hashed, ddzw, c, offset_val (Int.repr data_offset) c, Tsh).
- {entailer!.
-* rewrite Zlength_correct, H1; reflexivity.
-* cancel.
+ {rewrite Zlength_correct, H1.
+  entailer!.
  repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
  unfold data_block.
  simpl. apply andp_right.
@@ -285,10 +281,10 @@ entailer!.
  apply Int.unsigned_repr; unfold isbyteZ in H1; repable_signed.
  rewrite map_list_repeat.
  simpl.  f_equal.
-* cancel.
-  unfold data_block.
+*
+ unfold data_block.
  simpl. apply andp_left2.
-  replace (Zlength (intlist_to_Zlist ddzw)) with 64%Z.
+ replace (Zlength (intlist_to_Zlist ddzw)) with 64%Z.
  apply array_at_array_at_.
  rewrite Zlength_correct; rewrite length_intlist_to_Zlist.
  rewrite H1;  reflexivity.
@@ -356,22 +352,14 @@ intros.
  simpl firstn.
  rewrite (nth_overflow nil) by (simpl; auto).
  simpl intlist_to_Zlist.
- destruct n; try reflexivity.
- destruct n; try reflexivity.
- destruct n; try reflexivity.
- destruct n; try reflexivity.
- destruct n; try reflexivity.
+ repeat (destruct n; try reflexivity).
  replace (n + S i * 4)%nat with (n+4 + i*4)%nat
   by (simpl; omega).
  destruct al as [ | a al].
  rewrite (nth_overflow nil) by (simpl; clear; omega).
  simpl firstn. simpl intlist_to_Zlist.
  rewrite (nth_overflow nil) by (simpl; clear; omega).
- destruct n; try reflexivity.
- destruct n; try reflexivity.
- destruct n; try reflexivity.
- destruct n; try reflexivity.
- destruct n; try reflexivity.
+ repeat (destruct n; try reflexivity).
  simpl nth at 2.
  replace (firstn (S (S i)) (a :: al)) with (a :: firstn (S i) al).
  unfold intlist_to_Zlist at 2; fold intlist_to_Zlist.
@@ -436,7 +424,7 @@ forward_for
   change 32%Z with (sizeof (tarray tuchar 32)).
   rewrite memory_block_typed by reflexivity.
   simpl_data_at. cancel.
-* unfold part4_inv; entailer!.
+* quick_typecheck.
 * unfold part4_inv.  repeat rewrite Z.sub_0_r.
   rewrite (firstn_same _ 8) by omega.
   entailer.

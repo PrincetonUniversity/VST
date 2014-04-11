@@ -95,7 +95,7 @@ try solve [destruct t; try contradiction;
 remember (eval_expr e rho) as v.
 destruct (typeof e), v, t; inv H1; inv H2; auto;
 simpl in H3; unfold_lift in H3; try reflexivity;
-try solve [hnf in H3; rewrite <- Heqv in H3;  apply H3];
+try solve [hnf in H3; rewrite <- Heqv in H3;  apply (is_true_e _ H3)];
 try solve [destruct i,s; inv H4];
 try solve [destruct i0; inv H4];
 try solve [rewrite <- Heqv in H3; inv H3].
@@ -104,16 +104,16 @@ rewrite denote_tc_assert_andp in H3. destruct H3.
 hnf in H3,H4. unfold_lift in H3; unfold_lift in H4; hnf in H3,H4.
 destruct (eval_expr e rho); try contradiction.
 simpl. unfold Float.intoffloat. destruct (Float.Zoffloat f); try contradiction.
-hnf in H3,H4. rewrite H3.
-simpl. rewrite Zle_bool_rev. rewrite H4. simpl.
+rewrite (is_true_e _ H3).
+simpl. rewrite Zle_bool_rev. rewrite (is_true_e _ H4). simpl.
 destruct (typeof e); inv H1.
  destruct t; inv H2; auto.
 rewrite denote_tc_assert_andp in H3. destruct H3.
 hnf in H3,H4. unfold_lift in H3; unfold_lift in H4; hnf in H3,H4.
 destruct (eval_expr e rho); try contradiction.
 simpl. unfold Float.intuoffloat. destruct (Float.Zoffloat f); try contradiction.
-hnf in H3,H4. rewrite H3.
-simpl. rewrite Zle_bool_rev. rewrite H4. simpl.
+rewrite (is_true_e _ H3).
+simpl. rewrite Zle_bool_rev. rewrite (is_true_e _ H4). simpl.
 destruct (typeof e); inv H1.
  destruct t; inv H2; auto.
 Qed.
@@ -961,7 +961,7 @@ Proof.
 intros. 
 unfold typecheck_temp_environ in H. unfold typecheck_temp_environ.  
 destruct c; intros; simpl in *; try solve[eapply H; apply H0].
-
+*
 destruct (eq_dec id i). subst.
 destruct (H i true ty). unfold initialized. rewrite H0. 
 unfold temp_types. simpl. rewrite PTree.gsspec. rewrite peq_true. 
@@ -971,7 +971,7 @@ unfold initialized.
 remember ((temp_types Delta) ! i). destruct o. destruct p.
 unfold temp_types. simpl. rewrite PTree.gsspec.
 rewrite peq_false by auto. apply H0. auto.
-
+*
 destruct o.
 destruct (eq_dec id i). subst. destruct (H i true ty).
 unfold initialized.
@@ -983,14 +983,12 @@ eapply H. unfold initialized.
 remember ((temp_types Delta) ! i). destruct o. destruct p.
 unfold temp_types. simpl. rewrite PTree.gsspec.
 rewrite peq_false by auto. apply H0. auto. eauto.
-
-
+*
 destruct (update_tycon_te_same c1 _ _ _ _ H0).
 destruct (update_tycon_te_same c2 _ _ _ _ H1).
-edestruct H. apply H2. destruct H3. exists x1. 
-split. apply H3. destruct b. auto. auto. 
-
-
+destruct (H _ _ _ H2) as [v [? ?]]. exists v.
+split; auto. destruct H4; auto. left. destruct b; simpl; auto.
+*
 destruct (update_tycon_te_same c1 _ _ _ _ H0).
 destruct (update_tycon_te_same c2 _ _ _ _ H0).
 specialize (H id ((b || x) && (b || x0)) ty ).  
@@ -999,18 +997,16 @@ spec H.
 destruct t. destruct p. destruct p. remember (update_tycon Delta c2).
 destruct t3. destruct p. destruct p. unfold temp_types in *.
 unfold update_tycon. simpl in *. 
-
 apply join_te_eqv; eauto.    destruct b; auto. simpl in *.
 destruct H. exists x1. split. destruct H. auto. left. auto. 
-
+*
  edestruct (update_labeled_te_same l Delta id).  apply H0. 
  edestruct H. apply H1.  
-destruct H2. exists x0. destruct b; auto. 
-
+destruct H2. exists x0. split; auto. destruct b; simpl; auto.
+* 
 intros. destruct l; simpl in *.
 destruct (update_tycon_te_same s _ _ _ _ H).
 eauto.
-
  destruct (update_tycon_te_same s _ _ _ _ H).
 edestruct typecheck_ls_update_te. apply H.
 rewrite temp_types_update_dist. erewrite join_te_eqv; eauto.
@@ -1225,8 +1221,8 @@ sem_cast (typeof e2) t (eval_expr e2 rho)  =
 Some (force_val (sem_cast (typeof e2) t (eval_expr e2 rho))).
 Proof.
 intros. 
-assert (exists v, sem_cast (typeof e2) t (eval_expr e2 rho) = Some v).
-
+assert (exists v, sem_cast (typeof e2) t (eval_expr e2 rho) = Some v). 
+{
 apply typecheck_expr_sound in H.
 rename t into t0.
 remember (typeof e2); remember (eval_expr e2 rho). 
@@ -1234,38 +1230,20 @@ unfold sem_cast. unfold classify_cast.
 Transparent Float.intoffloat.
 Transparent Float.intuoffloat.
 Transparent liftx.
-destruct t; destruct v; destruct t0; simpl in *;
+destruct t as [ | [ | | | ] [ | ] a | i a | i a | | | | | | ]; destruct v;
+destruct t0 as [ | [ | | | ] [ | ] ? | i1 ? | i1 ? | | | | | | ]; simpl in *;
 try congruence; try contradiction; eauto;
-try solve [
-unfold Float.intoffloat, Float.intuoffloat; repeat invSome;
-inversion2 H1 H0; hnf in H2,H3; rewrite H3; rewrite Zle_bool_rev; rewrite H2;
-simpl; eauto];
-try solve [
-try destruct i; try destruct s; try destruct i0; try destruct i1; try destruct s0; eauto |
-
-destruct i; destruct s; super_unfold_lift; try solve[simpl in *; 
-  super_unfold_lift;  unfold_tc_denote; destruct H0; 
-try rewrite <- Heqv in *; 
-unfold Float.intoffloat; 
-destruct (Float.Zoffloat f0); try contradiction;
-try rewrite H0; try rewrite H1; simpl; eauto | 
-simpl in *;  unfold Float.intuoffloat; destruct H0;
-unfold_tc_denote; try rewrite <- Heqv in *; destruct (Float.Zoffloat f0);
-try rewrite H0; try rewrite H1; simpl; eauto; try contradiction] |
-
-try destruct i0; try destruct i1; destruct s; simpl in *; try contradiction; try rewrite H; eauto ].
-
-destruct i; destruct s; super_unfold_lift;
-simpl in *; super_unfold_lift;
-unfold Float.intoffloat, Float.intuoffloat;
-try (
-destruct H0 as [H0 H1]; hnf in H0,H1; rewrite <- Heqv in *;
-destruct (Float.Zoffloat f0); try contradiction;
-hnf in H0,H1; rewrite H0; rewrite Zle_bool_rev; rewrite H1;
-simpl; eauto);
-simpl; eauto.
-
+unfold Float.intoffloat, Float.intuoffloat, isCastResultType in *;
+simpl in *;
+solve [
+ rewrite denote_tc_assert_andp in H0; simpl in H0;
+ unfold_lift in H0; rewrite <- Heqv in H0; simpl in H0;
+ destruct (Float.Zoffloat f); destruct H0; try contradiction;
+ rewrite <- Zle_bool_rev in H1;
+ rewrite (is_true_e _ H0), (is_true_e _ H1);
+ econstructor; simpl; reflexivity].
 auto.
+}
 Opaque Float.intoffloat.
 Opaque Float.intuoffloat.
 Opaque liftx.
@@ -1445,7 +1423,8 @@ is_true (typecheck_val v from)  ->
 is_true (cast_no_val_change from to) ->
 Cop.sem_cast v from to = Some v. 
 Proof. 
-intros. destruct v; destruct from; simpl in *; try congruence; destruct to; simpl in *; try congruence; auto; 
+intros. apply is_true_e in H. apply is_true_e in H0.
+destruct v; destruct from; simpl in *; try congruence; destruct to; simpl in *; try congruence; auto; 
 try destruct i1; try destruct f1; simpl in *; try congruence; auto.
 Qed. 
 
@@ -1720,9 +1699,9 @@ destruct (typeof e2); inv H2; inv H1; auto;
 try (unfold sem_cast in H0; simpl in H0;
       destruct i0; simpl in*; destruct s; inv H0; simpl; auto);
  try solve [super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction].
-simpl in *. super_unfold_lift. rewrite H99 in *. inv H6. auto.
-simpl in *. super_unfold_lift. rewrite H99 in *. inv H6. auto.
-simpl in *. unfold isCastResultType in H6. simpl in H6.
+simpl in *. super_unfold_lift. rewrite H99 in *. apply is_true_e in H6. auto.
+simpl in *. super_unfold_lift. rewrite H99 in *. apply is_true_e in H6. auto.
+simpl in *. 
 unfold sem_cast in H0. simpl in H0.
 destruct i; simpl in*; destruct s; try destruct f; inv H0; simpl; auto;
 invSome; simpl; auto.

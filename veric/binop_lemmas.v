@@ -238,13 +238,13 @@ Lemma denote_tc_assert_iszero: forall e rho,
   | Vlong i => is_true (Int.eq (Int.repr (Int64.unsigned i)) Int.zero)
    | _ => False end.
 Proof.
+ intros.
  unfold tc_iszero.
- destruct e; simpl; intros; auto;
- unfold_lift; simpl; 
-  try (destruct (Int.eq i Int.zero); simpl;  symmetry; try apply is_true_true; try apply is_true_false).
- destruct ( Int.eq (Int.repr (Int64.unsigned i)) Int.zero);
-symmetry; try apply is_true_true; try apply is_true_false.
-Qed.
+ destruct (eval_expr e any_environ) eqn:?; simpl; auto;
+ rewrite (eval_expr_any rho e _ Heqv) by congruence.
+ destruct (Int.eq i Int.zero); reflexivity.
+ destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero); reflexivity.
+Qed. 
 
 Lemma denote_tc_assert_iszero': forall e,
   denote_tc_assert (tc_iszero e) = denote_tc_assert (tc_iszero' e).
@@ -255,6 +255,61 @@ rewrite denote_tc_assert_iszero.
 reflexivity.
 Qed.
 
+Lemma denote_tc_assert_nonzero: forall e rho,
+  denote_tc_assert (tc_nonzero e) rho = 
+  match (eval_expr e rho) with 
+  | Vint i => is_true (negb (Int.eq i Int.zero)) 
+   | _ => False end.
+Proof.
+ intros.
+ unfold tc_nonzero.
+ destruct (eval_expr e any_environ) eqn:?; simpl; auto;
+ rewrite (eval_expr_any rho e _ Heqv) by congruence.
+ destruct (Int.eq i Int.zero) eqn:?; simpl; try reflexivity.
+ unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence.
+ simpl. rewrite Heqb; reflexivity.
+Qed. 
+
+Lemma denote_tc_assert_nonzero': forall e,
+  denote_tc_assert (tc_nonzero e) = denote_tc_assert (tc_nonzero' e).
+Proof.
+intros.
+extensionality rho.
+rewrite denote_tc_assert_nonzero.
+reflexivity.
+Qed.
+
+Lemma denote_tc_assert_nodivover: forall e1 e2 rho,
+  denote_tc_assert (tc_nodivover e1 e2) rho = 
+         match eval_expr e1 rho, eval_expr e2 rho with
+                           | Vint n1, Vint n2 => is_true (negb 
+                                   (Int.eq n1 (Int.repr Int.min_signed) 
+                                    && Int.eq n2 Int.mone))
+                           | _ , _ => False
+                          end.
+Proof.
+ intros.
+ unfold tc_nodivover.
+ destruct (eval_expr e1 any_environ) eqn:?;
+ destruct (eval_expr e2 any_environ) eqn:?;
+ simpl; auto.
+ rewrite (eval_expr_any rho e1 _ Heqv) by congruence.
+ rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+ destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)) eqn:?.
+ simpl; try   reflexivity.
+ simpl.  unfold_lift.
+ rewrite (eval_expr_any rho e1 _ Heqv) by congruence;
+ rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+ simpl. rewrite Heqb. reflexivity.
+Qed.
+
+Lemma denote_tc_assert_nodivover': forall e1 e2,
+  denote_tc_assert (tc_nodivover e1 e2) = denote_tc_assert (tc_nodivover' e1 e2).
+Proof.
+intros.
+extensionality rho.
+rewrite denote_tc_assert_nodivover; reflexivity.
+Qed.
 
 Lemma denote_tc_assert_andp'': 
   forall a b rho, denote_tc_assert (tc_andp' a b) rho =
@@ -289,7 +344,8 @@ Proof. intros. extensionality rho. apply denote_tc_assert_orp. Qed.
 
 Hint Rewrite denote_tc_assert_andp' denote_tc_assert_andp''
     denote_tc_assert_orp' denote_tc_assert_orp''
-    denote_tc_assert_iszero' denote_tc_assert_ilt': dtca.
+    denote_tc_assert_iszero' denote_tc_assert_nonzero'
+    denote_tc_assert_nodivover' denote_tc_assert_ilt': dtca.
 
 Ltac dtca := autorewrite with dtca; auto.
 
@@ -413,25 +469,25 @@ match op with
   | Cop.Omul => binarithType (typeof a1) (typeof a2) ty deferr reterr
   | Cop.Omod => match Cop.classify_binarith (typeof a1) (typeof a2) with
                     | Cop.bin_case_i Unsigned => 
-                           tc_andp' (tc_nonzero a2) 
+                           tc_andp' (tc_nonzero' a2) 
                            (tc_bool (is_int_type ty) reterr)
                     | Cop.bin_case_l Unsigned => 
-                           tc_andp' (tc_nonzero a2) 
+                           tc_andp' (tc_nonzero' a2) 
                            (tc_bool (is_long_type ty) reterr)
-                    | Cop.bin_case_i Signed => tc_andp' (tc_andp' (tc_nonzero a2) 
-                                                      (tc_nodivover a1 a2))
+                    | Cop.bin_case_i Signed => tc_andp' (tc_andp' (tc_nonzero' a2) 
+                                                      (tc_nodivover' a1 a2))
                                                      (tc_bool (is_int_type ty) reterr)
-                    | Cop.bin_case_l Signed => tc_andp' (tc_andp' (tc_nonzero a2) 
-                                                      (tc_nodivover a1 a2))
+                    | Cop.bin_case_l Signed => tc_andp' (tc_andp' (tc_nonzero' a2) 
+                                                      (tc_nodivover' a1 a2))
                                                      (tc_bool (is_long_type ty) reterr)
                     | _ => tc_FF deferr
             end
   | Cop.Odiv => match Cop.classify_binarith (typeof a1) (typeof a2) with
-                    | Cop.bin_case_i Unsigned => tc_andp' (tc_nonzero a2) (tc_bool (is_int_type ty) reterr)
-                    | Cop.bin_case_l Unsigned => tc_andp' (tc_nonzero a2) (tc_bool (is_long_type ty) reterr)
-                    | Cop.bin_case_i Signed => tc_andp' (tc_andp' (tc_nonzero a2) (tc_nodivover a1 a2)) 
+                    | Cop.bin_case_i Unsigned => tc_andp' (tc_nonzero' a2) (tc_bool (is_int_type ty) reterr)
+                    | Cop.bin_case_l Unsigned => tc_andp' (tc_nonzero' a2) (tc_bool (is_long_type ty) reterr)
+                    | Cop.bin_case_i Signed => tc_andp' (tc_andp' (tc_nonzero' a2) (tc_nodivover' a1 a2)) 
                                                         (tc_bool (is_int_type ty) reterr)
-                    | Cop.bin_case_l Signed => tc_andp' (tc_andp' (tc_nonzero a2) (tc_nodivover a1 a2)) 
+                    | Cop.bin_case_l Signed => tc_andp' (tc_andp' (tc_nonzero' a2) (tc_nodivover' a1 a2)) 
                                                         (tc_bool (is_long_type ty) reterr)
                     | Cop.bin_case_f  =>  tc_bool (is_float_type ty) reterr 
                     | Cop.bin_default => tc_FF deferr
@@ -627,8 +683,11 @@ match t1 with
   | _ => idtac
   end;
   unfold Cop2.sem_cmp, sem_cmp_pp, sem_cmp_pl, sem_cmp_lp; simpl;
- repeat match goal with H: _ = true |- _ =>
+ repeat match goal with
+            | H: _ = true |- _ =>
                 try rewrite H; clear H
+            | H: if ?A then True else False |- _ =>
+                  destruct A eqn:?; try contradiction; clear H 
             end;
   try reflexivity;
   match goal with 
@@ -663,6 +722,10 @@ Proof.
  destruct i1,s1,i2,s2; simpl; try rewrite H; try rewrite H0; reflexivity.
 Qed.
 
+Lemma is_true_e: forall b, is_true b -> b=true.
+Proof. intros. destruct b; try contradiction; auto.
+Qed.
+
 Ltac crunchp := 
 repeat (
  unfold is_true in *; simpl;
@@ -678,8 +741,8 @@ repeat (
  | H: denote_tc_assert' (tc_isptr _) _ |- _ => hnf in H
  | H: denote_tc_assert' (tc_ilt' _ _) _ |- _ => hnf in H
  | H: denote_tc_assert' (tc_iszero' _) _ |- _ => hnf in H
- | H: denote_tc_assert' (tc_nonzero _) _ |- _ => hnf in H
- | H: denote_tc_assert' (tc_nodivover _ _) _ |- _ => hnf in H
+ | H: denote_tc_assert' (tc_nonzero' _) _ |- _ => hnf in H
+ | H: denote_tc_assert' (tc_nodivover' _ _) _ |- _ => hnf in H
  | H: denote_tc_assert' (tc_samebase _ _) _ |- _ => hnf in H
  | H: denote_tc_iszero _ |- _ => hnf in H
   | H: ?A=true |- _ => rewrite H; simpl
@@ -697,6 +760,7 @@ repeat (
   | H: is_long_type ?t = true |- _ => destruct t; inv H 
   | H: is_float_type ?t = true |- _ => destruct t; inv H
   | H: is_pointer_type ?t = true |- _ => destruct t; inv H  
+(*  | H: is_true ?A |- _ => rewrite (is_true_e _ H) *)
   | H: andb _ _ = true |- _ => apply -> andb_true_iff in H; destruct H
   | H: proj_sumbool (peq ?b ?b') = true |- _ =>  destruct (peq b b'); inv H
   | |- typecheck_val (Val.of_bool ?A) _ = _ => destruct A
@@ -746,28 +810,23 @@ try match goal with
  | |- typecheck_val (force_val ((Cop2.sem_cmp _ ?t1 ?t2 _ _ _ ))) _ = true =>
         sem_cmp_solver t1 t2
 | |- typecheck_val (force_val (sem_cmp_default _ ?t1 ?t2 _ _)) _ = true =>
-         sem_cmp_solver t1 t2
-| |- context [Cop2.sem_sub] =>
-     unfold Cop2.sem_sub, sem_sub_pp; rewrite classify_sub_eq; unfold classify_sub', stupid_typeconv; 
-     try rewrite peq_true;
+         sem_cmp_solver t1 t2| H: if proj_sumbool(?A) then True else False |- context [Cop2.sem_sub] =>
+     unfold Cop2.sem_sub, sem_sub_pp; rewrite classify_sub_eq; unfold classify_sub', stupid_typeconv, eq_block; 
+    destruct A; [clear H | contradiction]; subst;
      try match goal with H: Int.eq _ Int.zero = false |- _ => rewrite H end;
     reflexivity
  | H: Int.eq ?i0 Int.zero = false |- typecheck_val  (force_val  (_ _ _ _ (Vint ?i0))) _ = true =>
        unfold Cop2.sem_div, Cop2.sem_mod, Cop2.sem_binarith, Cop2.sem_cast;
        simpl;  unfold both_int,both_long; simpl; ((rewrite H; try rewrite Heqb) || rewrite cast_int_long_nonzero by assumption); 
        reflexivity
- | H: Int.ltu _ Int.iwordsize = true |- typecheck_val  (force_val  (_ _ _ _ _ _ (Vint ?i0))) _ = true =>
-       unfold Cop2.sem_shl, Cop2.sem_shr, Cop2.sem_shift;
-     rewrite classify_shift_eq; unfold classify_shift', stupid_typeconv;
-  simpl; rewrite H; reflexivity
  | H: Int.eq ?i0 Int.zero = false |- typecheck_val  (force_val  (_ _ _ _ (Vint ?i0))) _ = true =>
        unfold Cop2.sem_div, Cop2.sem_mod, Cop2.sem_binarith, Cop2.sem_cast;
        simpl; unfold both_int,both_long; simpl; (rewrite H || rewrite cast_int_long_nonzero by assumption); 
        reflexivity
- | H: Int.ltu _ Int.iwordsize = true |- typecheck_val  (force_val  (_ _ _ _ (Vint ?i0))) _ = true =>
+ | H: if Int.ltu ?i Int.iwordsize then True else False |- typecheck_val  (force_val  (_ _ _ _ (Vint ?i0))) _ = true =>
        unfold Cop2.sem_shl, Cop2.sem_shr, Cop2.sem_shift;
      rewrite classify_shift_eq; unfold classify_shift', stupid_typeconv;
-  simpl; rewrite H; reflexivity
+      simpl; destruct (Int.ltu i Int.iwordsize); try contradiction; reflexivity
 | |- typecheck_val (force_val ( _ ?t1 ?t2 _ _)) _ = true => sem_cmp_solver t1 t2 
 end).
 Qed.
