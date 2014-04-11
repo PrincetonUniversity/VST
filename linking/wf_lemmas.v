@@ -9,6 +9,7 @@ Require Import ssreflect ssrbool ssrnat ssrfun fintype.
 Set Implicit Arguments.
 
 Require Import linking.pos.
+Require Import linking.cast.
 
 (* This file defines a generalized lexicographic order on dependently     *)
 (* typed products.  It exposes the following interface:                   *)
@@ -219,3 +220,53 @@ Qed.
 End lex. 
 
 End Lex.
+
+(* The following defines a wf-order on the type                           *)
+(*   \Sigma ix : 'I_N. T ix                                               *)
+
+Section sig_ord.
+
+Variable N : pos.
+
+Variable T : 'I_N -> Type.
+
+Variable ords : forall ix : 'I_N, T ix -> T ix -> Prop.
+
+Variable ords_wf : forall ix, well_founded (@ords ix).
+
+Definition sig_data := {ix : 'I_N & T ix}.
+
+Definition sig_ord (x y : sig_data) :=
+  exists pf : projT1 x = projT1 y,
+    (@ords (projT1 x))
+      (projT2 x) 
+      (cast_ty (lift_eq _ (sym_eq pf)) (projT2 y)).
+
+Lemma wf_sig_ord : well_founded sig_ord.
+Proof.
+move=> []i.
+apply (well_founded_induction (@ords_wf i)).
+move=> x IH.
+apply: Acc_intro=> []j []/=pf H2.
+
+have H3: @ords i (cast _ pf (projT2 j)) x.
+{ move: pf H2; case: j=> /= ix j pf; subst ix.
+  by rewrite !cast_ty_erefl. }
+
+case: (IH _ H3)=> H4.
+
+apply: Acc_intro=> y H5; apply: H4.
+
+have pf2: projT1 y = i.
+{ by case: H5=> pf0 _; rewrite pf0. }
+
+exists pf2=> /=.
+
+move: pf2; set r := projT1 y; subst i.
+rewrite cast_ty_erefl.
+
+move=> pf2; move: H5; subst r; case=> pf3. 
+by have ->: sym_eq pf3 = sym_eq pf2 by apply: proof_irr.
+Qed.
+
+End sig_ord.

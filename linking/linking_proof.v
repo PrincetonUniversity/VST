@@ -61,11 +61,11 @@ Require Import compcert.common.Values.
 (* Then we can construct a simulation relation Sim between the source     *)
 (* semantics                                                              *)
 (*                                                                        *)
-(*   S_0 >< S_1 >< ... >< S_{N-1}                                         *)
+(*   Source_0 >< Source_1 >< ... >< Source_{N-1}                          *)
 (*                                                                        *)
 (* and target semantics                                                   *)
 (*                                                                        *)
-(*   T_0 >< T_1 >< ... >< T_{N-1}                                         *)
+(*   Target_0 >< Target_1 >< ... >< Target_{N-1}                          *)
 (*                                                                        *)
 (* where >< denotes the semantic linking operation defined in             *)
 (* compcert_linking.v.                                                    *)
@@ -320,7 +320,6 @@ Section vis_inv.
 
 Import Core.
 
-(*TODO: remove arg c*)
 Record vis_inv (c : t cores_S) mu : Type :=
   { vis_sup : {subset (RC.reach_basis my_ge c.(Core.c)) <= vis mu} }.
 
@@ -2239,50 +2238,14 @@ Qed.
 
 End step_lems.
 
-(*TODO: move into wf_lemmas.v*)
-
-Definition sig_data := {ix : 'I_N & (sims ix).(core_data)}.
-
-Definition sig_ord (x y : sig_data) :=
-  exists pf : projT1 x = projT1 y,
-    (sims (projT1 x)).(core_ord) 
-      (projT2 x) 
-      (cast_ty (lift_eq _ (sym_eq pf)) (projT2 y)).
-
-Lemma wf_sig_ord : well_founded sig_ord.
-Proof.
-move=> []i.
-apply (well_founded_induction (@wf_ords i)).
-move=> x IH.
-apply: Acc_intro=> []j []/=pf H2.
-
-have H3: core_ord (sims i) (cast _ pf (projT2 j)) x.
-{ move: pf H2; case: j=> /= ix j pf; subst ix.
-  by rewrite !cast_ty_erefl. }
-
-case: (IH _ H3)=> H4.
-
-apply: Acc_intro=> y H5; apply: H4.
-
-have pf2: projT1 y = i.
-{ by case: H5=> pf0 _; rewrite pf0. }
-
-exists pf2=> /=.
-
-move: pf2; set r := projT1 y; subst i.
-rewrite cast_ty_erefl.
-
-move=> pf2; move: H5; subst r; case=> pf3. 
-by have ->: sym_eq pf3 = sym_eq pf2 by apply: proof_irr.
-Qed.
-
 Section R.
 
 Import CallStack.
 Import Linker.
 Import STACK.
 
-Record R (data : sig_data) (mu : SM_Injection)
+Record R (data : sig_data N (fun ix : 'I_N => (sims ix).(core_data))) 
+         (mu : SM_Injection)
          (x1 : linker N cores_S) m1 (x2 : linker N cores_T) m2 := 
   { (* local defns. *)
     s1  := x1.(stack) 
@@ -4510,8 +4473,8 @@ Lemma link (main : val) :
 Proof.
 
 eapply Build_Wholeprog_simulation_inject
-  with (core_data   := sig_data)
-       (core_ord    := sig_ord)
+  with (core_data   := sig_data N (fun ix : 'I_N => (sims ix).(core_data)))
+       (core_ord    := sig_ord (fun ix : 'I_N => (sims ix).(core_ord)))
        (match_state := R).
 
 (* well_founded ord *)
