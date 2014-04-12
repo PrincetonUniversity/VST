@@ -454,7 +454,8 @@ replace Delta with (initialized _p (initialized _n (initialized _data
 fold update_outer_if.
 apply semax_seq with (sha_update_inv sh hashed len c d dd data hi lo false).
 unfold POSTCONDITION, abbreviate.
-simple apply update_outer_if_proof; assumption.
+eapply semax_pre; [ | simple apply update_outer_if_proof; assumption].
+entailer!.
 (* after if (n!=0) *)
 eapply semax_seq' with
      (sha_update_inv sh hashed len c d dd data hi lo true).

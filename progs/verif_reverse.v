@@ -42,9 +42,10 @@ Definition sum_int := fold_right Int.add Int.zero.
  **)
 Definition sumlist_spec :=
  DECLARE _sumlist
-  WITH sh : share, contents : list int
+  WITH sh : share, contents : list int, p: val
   PRE [ _p OF (tptr t_struct_list)] 
-                       `(lseg LS sh (map Vint contents)) (eval_id _p) `nullval
+     PROP() LOCAL (`(eq p) (eval_id _p))
+     SEP (`(lseg LS sh (map Vint contents) p nullval))
   POST [ tint ]  local (`(eq (Vint (sum_int contents))) retval).
 (** This specification has an imprecise and leaky postcondition:
  ** it neglects to say that the original list [p] is still there.
@@ -57,9 +58,11 @@ Definition sumlist_spec :=
 
 Definition reverse_spec :=
  DECLARE _reverse
-  WITH sh : share, contents : list val
-  PRE  [ _p OF (tptr t_struct_list) ] !! writable_share sh &&
-              `(lseg LS sh contents) (eval_id _p) `nullval
+  WITH sh : share, contents : list val, p: val
+  PRE  [ _p OF (tptr t_struct_list) ]
+     PROP (writable_share sh)
+     LOCAL (`(eq p) (eval_id _p))
+     SEP (`(lseg LS sh contents p nullval))
   POST [ (tptr t_struct_list) ]
             `(lseg LS sh (rev contents)) retval `nullval.
 
@@ -95,9 +98,11 @@ Proof.  reflexivity. Qed.
 
 (** Here's a loop invariant for use in the body_sumlist proof *)
 Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
-          (EX cts: list int, 
-            PROP () LOCAL (`(eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id _s)) 
-            SEP ( TT ; `(lseg LS sh (map Vint cts)) (eval_id _t) `nullval)).
+          (EX cts: list int, EX t: val, 
+            PROP () 
+            LOCAL (`(eq t) (eval_id _t); 
+                       `(eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id _s)) 
+            SEP ( TT ; `(lseg LS sh (map Vint cts) t nullval))).
 
 (** For every function definition in the C program, prove that the
  ** function-body (in this case, f_sumlist) satisfies its specification
@@ -114,7 +119,7 @@ Proof.
  **)
 start_function.
 name t _t.
-name p _p.
+name p_ _p.
 name s _s.
 name h _h.
 forward.  (* s = 0; *) 
@@ -122,27 +127,31 @@ forward.  (* t = p; *)
 forward_while (sumlist_Inv sh contents)
     (PROP() LOCAL (`((fun v => sum_int contents = force_int v) : val->Prop) (eval_id _s)) SEP(TT)).
 (* Prove that current precondition implies loop invariant *)
-unfold sumlist_Inv.
 apply exp_right with contents.
+apply exp_right with p.
 entailer!.
 (* Prove that loop invariant implies typechecking condition *)
-entailer!.
+quick_typecheck.
 (* Prove that invariant && not loop-cond implies postcondition *)
 entailer!.
 destruct H0 as [H0 _]; specialize (H0 (eq_refl _)).
 destruct cts; inv H0; normalize.
 (* Prove that loop body preserves invariant *)
+assert_PROP (isptr t0); [entailer | ].
+drop_LOCAL 0%nat.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
 unfold POSTCONDITION, abbreviate.
-destruct cts; inv H.
+destruct cts; inv H0.
 rewrite list_cell_eq.
 forward.  (* h = t->head; *)
 forward.  (*  t = t->tail; *)
+normalize. subst t0.
 forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
 unfold sumlist_Inv.
 apply exp_right with cts.
+apply exp_right with y.
 entailer!.
    rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
              Int.add_neg_zero, Int.add_zero; auto.
@@ -151,35 +160,40 @@ forward.  (* return s; *)
 Qed.
 
 Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
-          (EX cts1: list val, EX cts2 : list val,
+          (EX cts1: list val, EX cts2 : list val, EX w: val, EX v: val,
             PROP (contents = rev cts1 ++ cts2) 
-            LOCAL ()
-            SEP (`(lseg LS sh cts1) (eval_id _w) `nullval;
-                   `(lseg LS sh cts2) (eval_id _v) `nullval)).
+            LOCAL (`(eq w) (eval_id _w); `(eq v) (eval_id _v))
+            SEP (`(lseg LS sh cts1 w nullval);
+                   `(lseg LS sh cts2 v nullval))).
 
 Lemma body_reverse: semax_body Vprog Gtot f_reverse reverse_spec.
 Proof.
 start_function.
-name p _p.
-name v _v.
-name w _w.
-name t _t.
+name p_ _p.
+name v_ _v.
+name w_ _w.
+name t_ _t.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents)
-     (PROP() LOCAL () 
-      SEP( `(lseg LS sh (rev contents)) (eval_id _w) `nullval)).
+     (EX w: val, 
+      PROP() LOCAL (`(eq w) (eval_id _w))
+      SEP( `(lseg LS sh (rev contents) w nullval))).
 (* precondition implies loop invariant *)
 unfold reverse_Inv.
 apply exp_right with nil.
 apply exp_right with contents.
+apply exp_right with (Vint (Int.repr 0)).
+apply exp_right with p.
 entailer!.
 (* loop invariant implies typechecking of loop condition *)
-entailer!.
+quick_typecheck.
 (* loop invariant (and not loop condition) implies loop postcondition *)
+apply exp_right with w.
 entailer!. 
 rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
+assert_PROP (isptr v). entailer. drop_LOCAL 0%nat.
 normalize.
 focus_SEP 1; apply semax_lseg_nonnull;
         [entailer | intros h r y ? ?].
@@ -187,26 +201,28 @@ subst cts2.
 forward.  (* t = v->tail; *)  
 forward. (*  v->tail = w; *)
 simpl eval_lvalue.
+replace_SEP 1 (`(field_at sh t_struct_list _tail w v)).
+entailer.
 forward.  (*  w = v; *)
-simpl. autorewrite with subst.
 forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)
-{apply exp_right with (h::cts1).
- apply exp_right with r.
- entailer!.
+apply exp_right with (h::cts1).
+apply exp_right with r.
+apply exp_right with v.
+apply exp_right with y.
+entailer!.
  * rewrite app_ass. auto.
  * rewrite (lseg_unroll _ sh (h::cts1)).
    apply orp_right2.
    unfold lseg_cons.
    apply andp_right.
    + apply prop_right.
-      destruct w; try contradiction; intro Hx; inv Hx.
+      destruct w_; try contradiction; intro Hx; inv Hx.
    + apply exp_right with h.
       apply exp_right with cts1.
-      apply exp_right with w0.
-      entailer!. 
-}
-(* after the loop *)
+      apply exp_right with w.
+      entailer!.
+* (* after the loop *)
 forward.  (* return w; *)
 Qed.
 
