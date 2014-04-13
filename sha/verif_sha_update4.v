@@ -99,7 +99,7 @@ semax Delta
           (Int.repr (Z.of_nat (len - (length blocks * 4 - length r_data))))))
      (eval_id _len))
    SEP 
-   (K_vector;
+   (`K_vector (eval_var _K256 (tarray tuint 64));
     `(array_at tuint Tsh
         (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
    `(sha256_length (hilo r_Nh r_Nl + (Z.of_nat len)*8) c);
@@ -131,24 +131,16 @@ entailer!.
 apply divide_length_app; auto.
 unfold_lift.
 repeat rewrite eval_var_env_set.
-change (array_at tuint Tsh (tuints K) 0 (Zlength K)
-      (eval_var _K256 (tarray tuint 64) rho)) with (K_vector rho).
+simpl.
  rewrite <- H6.
  rewrite Zlength_correct in H3; change CBLOCKz with (Z.of_nat CBLOCK) in H3;
-  apply Nat2Z.inj_lt in H3;
+  apply Nat2Z.inj_lt in H3.
  rewrite (split3_data_block (length blocks * 4 - length r_data) CBLOCK sh data) by omega.
  cancel.
+after_call.
 
-replace_SEP 0%Z
-  (`(array_at tuint Tsh
-          (tuints
-             (hash_blocks init_registers ((hashed ++ blocks) ++ bl))) 0 8 c) *
-      `(data_block sh (intlist_to_Zlist bl)
-          (offset_val
-             (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d)) *
-      K_vector).
-  entailer!.
- normalize.
+replace_SEP 2%Z (`K_vector (eval_var _K256 (tarray tuint 64))); 
+  [entailer | ].
  forward. (* data += SHA_CBLOCK; *)
  entailer.
  forward. (* len  -= SHA_CBLOCK; *)
@@ -276,13 +268,16 @@ semax
        (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64)
        c);
    `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd)))
-       c); K_vector; `(data_block sh data d))) update_outer_if
+       c);
+   `K_vector (eval_var _K256 (tarray tuint 64));
+   `(data_block sh data d))) update_outer_if
   (overridePost (sha_update_inv sh hashed len c d dd data hi lo false)
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
          LOCAL ()
-         SEP  (K_vector; `(sha256state_ a' c); `(data_block sh data d))))).
+         SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+                `(sha256state_ a' c); `(data_block sh data d))))).
 Proof.
 intros.
 unfold update_outer_if.

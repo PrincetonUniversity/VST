@@ -247,11 +247,6 @@ Fixpoint typed_params (i: positive) (n: nat) : list (ident * type) :=
  | S n' => (i, Tint32s) :: typed_params (i+1)%positive n'
  end.
 
-(*Cores don't have init-mem-conditions any more
-Definition cl_init_mem (ge:genv) (m:mem) (d: list (ident * globdef fundef type) ):  Prop.
- Admitted. not needed
-  (*     Genv.alloc_variables ge Mem.empty d = Some m. *)
-*)
 Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option corestate := 
   let tl := typed_params 2%positive (length args)
    in Some (State empty_env (temp_bindings 1%positive (v::args))
@@ -363,7 +358,7 @@ Qed.
 (* (*>*)  destruct (zlt 0 (Z_of_nat (length l))); simpl in *. *)
 (* right. exists z. split. omega. *)
 (* eapply (Mem.storebytes_range_perm _ _ _ _ _ H). split. apply Zle_refl. omega. *)
-(* destruct l; simpl in *. admit. (*case l= nil still unproven*) *)
+(* destruct l; simpl in *. ad mit. (*case l= nil still unproven*) *)
 (* rewrite Zpos_P_of_succ_nat in z4. exfalso. clear - z4.  *)
 (*   remember (length l) as xx. clear Heqxx l.  destruct (intro_Z xx).  *)
 (*   destruct H. rewrite H in z4.  clear H. omega.  *)

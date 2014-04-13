@@ -642,23 +642,6 @@ eapply IHe; auto.
 rewrite <- cop2_sem_cast in *.
 destruct (Cop.sem_cast (eval_expr e rho) (typeof e) t). auto.
 inv TC. } 
-(*
-remember (classify_cast (typeof e) t) as o; destruct o;
- destruct (eval_expr e rho); inv TC; try reflexivity;
- try solve [destruct (ident_eq id1 id2); inv H4; destruct (fieldlist_eq fld1 fld2); inv H1; 
-   (reflexivity || destruct t; inv H4; destruct (typeof e); try destruct i0; inv Heqo)].
-simpl. destruct sz2; simpl; auto. unfold cast_int_float.
-destruct si1; simpl; auto. rewrite Float.singleofint_floatofint. auto.
-rewrite Float.singleofintu_floatofintu. auto.
-simpl; destruct sz2; simpl; auto;
-simpl; destruct (cast_float_int si2 f); inv H4; reflexivity.
-simpl. destruct sz2; simpl; auto. unfold cast_long_float.
-simpl. destruct si1; admit. (*possible...*)
-simpl; destruct (cast_float_long si2 f); inv H4; reflexivity.
-simpl; destruct (ident_eq id1 id2 && fieldlist_eq fld1 fld2); inv H4; reflexivity.
-simpl; destruct (ident_eq id1 id2 && fieldlist_eq fld1 fld2); inv H4; reflexivity.
-}
-*)
 
 (*Field*)
 specialize (IHe ge H). assert (TC := typecheck_expr_sound _ _ _ H0 H1). 
@@ -1567,20 +1550,59 @@ Lemma join_te_denote2:
 forall d1 d2 id,
   ((join_te d1 d2) ! id) = te_one_denote (d1 ! id) (d2 ! id).
 Proof.
-intros. remember (d1 ! id). remember (d2 ! id).
-destruct o; destruct o0.
-   -  unfold te_one_denote. destruct p; destruct p0.
-      remember (eqb_type t t0). destruct b1.
-        + symmetry in Heqb1. apply eqb_type_true in Heqb1.
-          subst. apply join_te_eqv; auto.
-        + unfold join_te.
-(* Print join_te'.
- rewrite PTree.fold_spec.
-SearchAbout PTree.elements.
-SearchAbout PTree.fold.
-*)
-Admitted.
+intros.
+unfold join_te. rewrite PTree.fold_spec.
+remember (PTree.elements d1) as el eqn:?H.
+unfold te_one_denote.
+ rewrite <- fold_left_rev_right.
+ pose proof (PTree.elements_keys_norepet d1).
+ rewrite <- list_norepet_rev in H0.
+  rewrite <- map_rev in H0.
 
+destruct (d1 ! id) as [[t b] | ] eqn:?; auto.
+*
+ apply PTree.elements_correct in Heqo.
+ rewrite <- H in *.
+  apply in_rev in Heqo. unfold PTree.elt in *.
+   forget (rev el) as al.  clear H el d1.
+ set (f := (fun (y : positive * (type * bool)) (x : PTree.t (type * bool)) =>
+    join_te' d2 x (fst y) (snd y))).
+ induction al; destruct Heqo.
+ + subst a. simpl in H0.
+   unfold f; simpl. destruct (d2 ! id) as [[t2 b2] | ] eqn:?H.
+   fold f. rewrite PTree.gss. auto.
+   fold f. inv H0.
+   clear - H H3; induction al; simpl. apply PTree.gempty.
+  unfold f at 1. unfold join_te'.
+  destruct a as [? [? ?]]. simpl.
+  destruct (d2 ! p) as [[? ?] |]. rewrite PTree.gso. apply IHal.
+ contradict H3. right; auto.
+ contradict H3. left; auto.
+ apply IHal.
+ contradict H3; right; auto.
+ + inv H0. specialize (IHal H4 H).
+ simpl. unfold f at 1. unfold join_te'.
+ destruct a as [? [? ?]]; simpl. destruct (d2 ! p) as [[? ?] | ].
+  rewrite PTree.gso. apply IHal.
+ contradict H3. subst p; clear - H. simpl.
+ change id with (fst (id,(t,b))).
+ apply in_map; auto.
+ auto.
+*
+ assert (~ In id (map fst (rev el))).
+ intro. rewrite map_rev in H1. rewrite <- In_rev in H1. subst el.
+ apply list_in_map_inv in H1. destruct H1 as [[? ?] [? ?]].
+ simpl in H. subst p. destruct p0 as [? ?].
+ pose proof (PTree.elements_complete d1 id (t,b) H1). congruence.
+ clear - H1.
+ induction (rev el); simpl. apply PTree.gempty.
+ unfold join_te' at 1. destruct a. simpl. destruct p0. 
+ destruct (d2 ! p). destruct p0. rewrite PTree.gso. apply IHl.
+ contradict H1. right; auto.
+ contradict H1. left; auto.
+ apply IHl. contradict H1. right; auto.
+Qed.
+  
 Lemma tycontext_sub_join:
  forall Delta1 Delta2 Delta1' Delta2',
   tycontext_sub Delta1 Delta1' -> tycontext_sub Delta2 Delta2' ->

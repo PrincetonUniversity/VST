@@ -69,7 +69,7 @@ semax
      (eval_id _data);
    `(eq (Vint (Int.repr (Z.of_nat (len - (length blocks * 4 - length dd))))))
      (eval_id _len))
-   SEP  (K_vector;
+   SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
    `(array_at tuint Tsh
        (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
    `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
@@ -86,7 +86,8 @@ semax
      (EX  a' : s256abs,
       PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
       LOCAL ()
-      SEP  (K_vector; `(sha256state_ a' c); `(data_block sh data d)))).
+      SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+             `(sha256state_ a' c); `(data_block sh data d)))).
 Proof.
 intros.
 unfold update_last_if; simplify_Delta; abbreviate_semax.
@@ -190,7 +191,7 @@ Focus 2. {
  fold b4d; omega.
 } Unfocus.
 rewrite <- offset_val_array_at_tuchar.
-pull_right (K_vector rho).
+pull_right (K_vector (eval_var _K256 (tarray tuint 64) rho)).
 apply sepcon_derives; auto.
 clear H0 rho. pose (H0:=True).
 unfold data_block, tuchars.
@@ -470,7 +471,8 @@ apply semax_seq with (EX  a' : s256abs,
                     PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
                     LOCAL ()
                     SEP 
-                    (K_vector; `(sha256state_ a' c); `(data_block sh data d))).
+                    (`K_vector (eval_var _K256 (tarray tuint 64));
+                     `(sha256state_ a' c); `(data_block sh data d))).
 
 replace Delta with (initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot))))

@@ -12,41 +12,20 @@ Import Cop.
 
 Local Open Scope logic.
 
-Definition denote_local_ptree (P: PTree.t val) rho :=
-  forall i v, PTree.get i P = Some v -> eval_id i rho = v.
-
-Inductive local2ptree: list (environ -> Prop) -> PTree.t val -> Prop :=
-| local2ptree_nil: 
-       local2ptree nil (PTree.empty _)
-| local2ptree_set: forall i v Q P,
-       local2ptree Q P ->
-       local2ptree (`(eq v) (eval_id i) :: Q) (PTree.set i v P)
-| local2ptree_skip: forall Q1 Q P,
-       local2ptree Q P ->
-       local2ptree (Q1::Q) P.
-
-Lemma local2ptree_correct:
-  forall Q P,
-   local2ptree Q P ->
-  forall rho,
-   fold_right `and `True Q rho -> denote_local_ptree P rho.
+Lemma neutral_isCastResultType':  (* move this to veric.expr, to replace neutral_isCastResultType *)
+  forall t t' v rho,
+   is_neutral_cast t' t = true ->
+   denote_tc_assert (isCastResultType t' t t v) rho.
 Proof.
- induction Q; intros.
- hnf; intros.
- inv H. rewrite PTree.gempty in H1. inv H1.
- inv H.
- hnf; intros.
- destruct H0.
- destruct (ident_eq i0 i).
- subst i0. rewrite PTree.gss in H. inv H.
- symmetry; apply H0.
- rewrite PTree.gso in H by auto.
- specialize (IHQ _ H4 rho H1).
- apply (IHQ _ _ H).
- destruct H0.
- apply (IHQ _ H4 rho); auto.
+intros.
+  unfold isCastResultType;
+  destruct t',t; inv H; try apply I.
+* destruct i,i0; inv H1; simpl; try apply I; if_tac; apply I.
+* simpl. if_tac; apply I.
 Qed.
 
+Definition denote_local_ptree (P: PTree.t val) rho :=
+  forall i v, PTree.get i P = Some v -> eval_id i rho = v.
 
 Fixpoint msubst_eval_expr (P: PTree.t val) (e: expr) : environ -> val :=
  match e with
@@ -101,33 +80,6 @@ unfold_lift. rewrite <- (msubst_eval_expr_eq P); auto.
 unfold_lift. rewrite <- IHe; auto.
 Qed.
 
-Lemma msubst_LOCAL1:   (* obsolete, delete me *)
- forall (S: PTree.t val) (e': environ -> val) Espec Delta P i e Q R c Post,
-   local2ptree Q S ->
-   msubst_eval_expr S e = e' ->
-   @semax Espec Delta 
-    (PROPx P (LOCALx (`eq e' (eval_id i) ::Q)
-       (SEPx R))) c Post ->
-   @semax Espec Delta 
-      (PROPx P (LOCALx (`eq (eval_id i) (eval_expr e)::Q) 
-                (SEPx R))) c Post.
-Proof.
-intros.
-subst e'.
-eapply semax_pre; [ | eassumption].
-apply andp_derives; auto.
-apply andp_derives; auto.
-intro rho.
-unfold local,lift1.
-apply prop_derives.
-intros [? [? ?]].
-split; auto.
-unfold_lift.
-unfold_lift in H2. rewrite H2.
-apply msubst_eval_expr_eq.
-apply local2ptree_correct with Q; auto.
-Qed.
-
 
 Inductive local2ptree0 (j: ident) :
      list (environ -> Prop) -> PTree.t val -> list (environ -> Prop) -> Prop :=
@@ -138,17 +90,17 @@ Inductive local2ptree0 (j: ident) :
        local2ptree0 j Q P Q' ->
        local2ptree0 j (`(eq v) (eval_id i) :: Q) (PTree.set i v P) (`(eq v) (eval_id i):: Q').
 
-Inductive local2ptree' (j: ident):
+Inductive local2ptree (j: ident):
      list (environ -> Prop) -> PTree.t val -> list (environ -> Prop) -> Prop :=
-| local2ptree'_nil: 
-       local2ptree' j nil (PTree.empty _) nil
-| local2ptree'_same: forall v Q P Q',
+| local2ptree_nil: 
+       local2ptree j nil (PTree.empty _) nil
+| local2ptree_same: forall v Q P Q',
        local2ptree0 j Q P Q'->
-       local2ptree' j (`(eq v) (eval_id j) :: Q) (PTree.set j v P) Q'
-| local2ptree'_other: forall i v Q P Q',
+       local2ptree j (`(eq v) (eval_id j) :: Q) (PTree.set j v P) Q'
+| local2ptree_other: forall i v Q P Q',
        i <> j ->
-       local2ptree' j Q P Q' ->
-       local2ptree' j (`(eq v) (eval_id i) :: Q) (PTree.set i v P) (`(eq v) (eval_id i):: Q').
+       local2ptree j Q P Q' ->
+       local2ptree j (`(eq v) (eval_id i) :: Q) (PTree.set i v P) (`(eq v) (eval_id i):: Q').
 
 Lemma ptree_empty_some:
   forall {A i x}, 
@@ -157,9 +109,9 @@ Proof.
 intros. rewrite PTree.gempty in H; inv H.
 Qed.
 
-Lemma local2ptree'_e:
+Lemma local2ptree_e:
  forall i v Q S Q',
-   local2ptree' i Q S Q' ->
+   local2ptree i Q S Q' ->
     S ! i = Some v ->
      (fold_right `and `True Q = fold_right `and `True (`(eq v) (eval_id i) :: Q')) /\
      (forall j v' rho, fold_right `and `True Q rho ->
@@ -218,16 +170,16 @@ destruct H1.
 destruct (ident_eq i0 j). subst.
 rewrite PTree.gss in H2. inv H2. unfold_lift in H1; auto.
 rewrite PTree.gso in H2 by auto.
-apply IHlocal2ptree'; auto.
+apply IHlocal2ptree; auto.
 *
 clear H0.
 induction H; auto with closed.
 induction H; auto with closed.
 Qed.
  
-Lemma local2ptree'_e0:
+Lemma local2ptree_e0:
  forall i Q S Q',
-   local2ptree' i Q S Q' ->
+   local2ptree i Q S Q' ->
     S ! i = None ->
      (Q = Q') /\
      (forall j v' rho, fold_right `and `True Q rho ->
@@ -265,13 +217,12 @@ destruct H1.
 destruct (ident_eq i0 j). subst.
 rewrite PTree.gss in H2. inv H2. unfold_lift in H1; auto.
 rewrite PTree.gso in H2 by auto.
-apply IHlocal2ptree'; auto.
+apply IHlocal2ptree; auto.
 *
 clear H0.
 induction H; auto with closed.
 induction H; auto with closed.
 Qed.
- 
 
 Lemma msubst_expr:
     forall S i v e rho, 
@@ -302,7 +253,7 @@ Qed.
 Lemma forward_setx_wow:
   forall S (v: val) Q' Espec Delta P Q R i e,
   Forall (closed_wrt_vars (eq i)) R ->
-  local2ptree' i Q S Q' ->
+  local2ptree i Q S Q' ->
   match S ! i with Some _ => True | None => closed_eval_expr i e = true end ->
   msubst_eval_expr S e = `v ->
   (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -330,7 +281,7 @@ subst e'.
 intros [? ?].
 destruct (S!i) eqn:H4; [clear H1 | rename H1 into H9].
 *
-apply (local2ptree'_e i v) in H0; auto.
+apply (local2ptree_e i v) in H0; auto.
 destruct H0 as [? [? ?]].
 assert (fold_right `and `True Q (env_set rho i old)). {
  clear - H3.
@@ -371,7 +322,7 @@ auto.
 } Unfocus.
 apply msubst_expr; auto.
 *
-apply (local2ptree'_e0 i) in H0; auto.
+apply (local2ptree_e0 i) in H0; auto.
 destruct H0 as [? [? ?]].
 subst Q'.
 split.
@@ -405,7 +356,7 @@ Qed.
 Lemma forward_setx_wow_seq:
   forall S (v: val) Q' Delta' Espec Delta P Q R i e c Post,
   Forall (closed_wrt_vars (eq i)) R ->
-  local2ptree' i Q S Q' ->
+  local2ptree i Q S Q' ->
   match S ! i with Some _ => True | None => closed_eval_expr i e = true end ->
   msubst_eval_expr S e = `v ->
   initialized i Delta = Delta' ->
@@ -800,12 +751,9 @@ PROP  ()
  intro rho; unfold tc_expr; simpl.
  rewrite NONVOL. simpl.
  replace ( (temp_types (initialized ret' Delta)) ! ret' ) 
-     with (Some (retty', true)).
-Focus 2.
- unfold initialized;  simpl. rewrite H4.
- unfold temp_types; simpl.
- rewrite PTree.gss. auto.
- (* End Focus 2 *)
+     with (Some (retty', true))
+   by (unfold initialized;  simpl; rewrite H4;
+        unfold temp_types; simpl; rewrite PTree.gss; auto).
  simpl @snd; simpl @fst; cbv iota zeta beta.
  unfold local; apply prop_right.
  simpl.
@@ -830,18 +778,6 @@ Focus 2.
  rewrite Heqo.
  rewrite denote_tc_assert_andp; split.
  rewrite H5; reflexivity.
-
-Lemma neutral_isCastResultType':  (* move this to veric.expr, to replace neutral_isCastResultType *)
-  forall t t' v rho,
-   is_neutral_cast t' t = true ->
-   denote_tc_assert (isCastResultType t' t t v) rho.
-Proof.
-intros.
-  unfold isCastResultType;
-  destruct t',t; inv H; try apply I.
-* destruct i,i0; inv H1; simpl; try apply I; if_tac; apply I.
-* simpl. if_tac; apply I.
-Qed.
  apply neutral_isCastResultType'; auto.
  apply derives_refl.
  intros.
@@ -1425,7 +1361,9 @@ Ltac normalize_make_args :=
   [autorewrite with norm; unfold R'; reflexivity
   | unfold R'; clear R'].
 
-Ltac forward_call witness := 
+Ltac forward_call W := 
+ let witness := fresh "witness" in
+ pose (witness := W);   (* faster this way, for some reason *)
 match goal with
 | |- semax _ _ (Ssequence (Ssequence (Scall (Some ?i') _ _) 
                                           (Sset ?i (Etempvar ?i' _))) _) _ =>
@@ -1489,7 +1427,7 @@ match goal with
                say_after_call ]
  | |- _ => forward_call_complain
 end; 
- simpl argtypes.
+ unfold witness; try clear witness; simpl argtypes.
 
 Ltac check_sequential s :=
  match s with

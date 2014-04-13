@@ -59,7 +59,7 @@ Definition generate_and_pad msg :=
 (*ROUND FUNCTION*)
 
 (*hardcoding the constants, first 32 bits of the fractional parts of the cube roots of the first 64 prime numbers*)
-Definition K := map Int.repr
+Definition K256 := map Int.repr
   [1116352408 , 1899447441, 3049323471, 3921009573,
    961987163   , 1508970993, 2453635748, 2870763221,
    3624381080, 310598401  , 607225278  , 1426881987,
@@ -138,7 +138,7 @@ Definition rnd_function (x : registers) (k : int) (w : int) : registers:=
 Function Round  (regs: registers) (M: Z ->int) (t: Z) 
         {measure (fun t => Z.to_nat(t+1)) t} : registers :=
  if zlt t 0 then regs 
- else rnd_function (Round regs M (t-1)) (nthi K t) (W M t).
+ else rnd_function (Round regs M (t-1)) (nthi K256 t) (W M t).
 Proof. intros; apply Z2Nat.inj_lt; omega.
 Qed.
 

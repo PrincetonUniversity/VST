@@ -223,6 +223,7 @@ entailer!.
       apply exp_right with w.
       entailer!.
 * (* after the loop *)
+apply extract_exists_pre; intro w.
 forward.  (* return w; *)
 Qed.
 
@@ -358,13 +359,16 @@ start_function.
 name r _r.
 name s _s.
 eapply semax_pre0; [apply setup_globals | ].
+apply (remember_value (eval_var _three (tarray t_struct_list 3)));
+  intro p.
 forward_call (*  r = reverse(three); *)
-  (Ews, map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil)).
+  (Ews, map Vint (Int.repr 1 :: Int.repr 2 :: Int.repr 3 :: nil), p).
  entailer!.
 auto with closed.
 after_call.
+apply (remember_value (eval_id _r)); intro r'.
 forward_call  (* s = sumlist(r); *)
-   (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil).
+   (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r').
 entailer!.
 auto with closed.
 after_call.

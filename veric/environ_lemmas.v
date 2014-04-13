@@ -29,9 +29,6 @@ clear IHl. destruct (split l). simpl. auto. destruct (split l). destruct a. simp
 right. apply IHl. eauto. 
 Qed.
 
-Lemma eqb_type_false: forall a b, eqb_type a b = false <-> a<>b.
-Admitted. 
-
 Lemma join_te_denote : forall te1 te2 id b t1,
 (join_te te1 te2) ! id = Some (t1, b) ->
   (exists b1, te1 ! id = Some (t1, b || b1)) /\ 

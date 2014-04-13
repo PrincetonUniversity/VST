@@ -30,7 +30,7 @@ i < 16 ->
 forall w : int,
 nth_error bl i = Some w ->
 forall k : int,
-nth_error K i = Some k ->
+nth_error K256 i = Some k ->
 forall regs' : registers,
 let Delta' :=
   initialized _Ki (initialized _l (initialized _l' Delta_loop1)) in
@@ -44,7 +44,7 @@ LOCAL  (tc_environ Delta'; `(eq ctx) (eval_id _ctx);
            force_int
              (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist bl)))
                 (z + Z.of_nat i * 4)))))) (eval_id _l);
-`(eq (nth_error K i)) (`Some (`force_int (eval_id _Ki)));
+`(eq (nth_error K256 i)) (`Some (`force_int (eval_id _Ki)));
 `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
 `(eq (map Vint regs'))
   (`cons (eval_id _a)

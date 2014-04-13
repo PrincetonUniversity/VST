@@ -413,29 +413,53 @@ omega.
 congruence.
 Qed.
 
-(*  The next two lemmas, single_of_bits_inj and double_of_bits_inj,
- should be true according to this e-mail from Xavier Leroy, 8 August 2013:
-
-Actually, it's not true in CompCert 2.00, but I think it is true in
-the current SVN trunk.
-
-The issue is related to "not-a-number" (NaNs) in floats.  There are
-several bit patterns that represent NaNs when stored in memory,
-depending on the sign and payload parts of the NaN.  Until recently,
-all these bit patterns were mapped to a unique "B754_nan" symbolic
-float value.  But this caused other problems, so recently
-Jacques-Henri Jourdan and Guillaume Melquiond changed the type "float"
-so that the symbolic NaN values carry their sign and payload, and are
-therefore isomorphic to their in-memory bit patterns.
-*)
-
-Lemma single_of_bits_inj:
-  forall i j, Float.single_of_bits i = Float.single_of_bits j -> i=j.
-Admitted. (* should be true, see comment above *)
+Transparent Float.single_of_bits.
+Transparent Float.double_of_bits.
 
 Lemma double_of_bits_inj:
   forall i j, Float.double_of_bits i = Float.double_of_bits j -> i=j.
-Admitted. (* should be true, see comment above *)
+Proof.
+intros.
+unfold Float.double_of_bits in H.
+rewrite <- (Int64.repr_unsigned i).
+rewrite <- (Int64.repr_unsigned j).
+f_equal.
+unfold Fappli_IEEE_bits.b64_of_bits in H.
+rewrite <- (Fappli_IEEE_bits.bits_of_binary_float_of_bits 52 11 (refl_equal _) (refl_equal _) (refl_equal _) (Int64.unsigned i))
+  by (apply Int64.unsigned_range).
+rewrite <- (Fappli_IEEE_bits.bits_of_binary_float_of_bits 52 11 (refl_equal _) (refl_equal _) (refl_equal _) (Int64.unsigned j))
+  by (apply Int64.unsigned_range).
+f_equal; apply H.
+Qed.
+
+Lemma single_of_bits_inj:
+  forall i j, Float.single_of_bits i = Float.single_of_bits j -> i=j.
+Proof.
+intros.
+unfold Float.single_of_bits in H.
+rewrite <- (Int.repr_unsigned i).
+rewrite <- (Int.repr_unsigned j).
+f_equal.
+rewrite <- (Fappli_IEEE_bits.bits_of_binary_float_of_bits 23 8 (refl_equal _) (refl_equal _) (refl_equal _) (Int.unsigned i))
+  by (apply Int.unsigned_range).
+rewrite <- (Fappli_IEEE_bits.bits_of_binary_float_of_bits 23 8 (refl_equal _) (refl_equal _) (refl_equal _) (Int.unsigned j))
+  by (apply Int.unsigned_range).
+f_equal.
+unfold Float.floatofbinary32 in H.
+unfold Fappli_IEEE_bits.b32_of_bits in H.
+match goal with |- ?A = ?B => forget A as u; forget B as v end.
+clear i j.
+destruct u,v; auto; try congruence;
+ try destruct (Float.floatofbinary32_pl b0 n);
+ try destruct (Float.floatofbinary32_pl b n);
+ try destruct (Float.floatofbinary32_pl b0 n0);
+ try congruence.
+Admitted.  (* nontrivial, but perhaps true; see e-mail exchange
+  between Andrew Appel and Guillaume Melquiond, April 2014 *)
+
+Opaque Float.single_of_bits.
+Opaque Float.double_of_bits.
+
 
 Lemma decode_val_uniq: 
   forall ch b1 b2 v, 

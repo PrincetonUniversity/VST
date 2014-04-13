@@ -194,7 +194,7 @@ Lemma sha256_block_data_order_loop1_proof:
                `(eq (Vint (nthi regs 5))) (eval_id _f);
                `(eq (Vint (nthi regs 6))) (eval_id _g);
                `(eq (Vint (nthi regs 7))) (eval_id _h))
-   SEP ( K_vector;
+   SEP ( `K_vector (eval_var _K256 (tarray tuint 64));
            `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16));
            `(data_block sh (intlist_to_Zlist b) data)))
   block_data_order_loop1
@@ -210,7 +210,7 @@ Lemma sha256_block_data_order_loop1_proof:
                `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 5))) (eval_id _f);
                `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 6))) (eval_id _g);
                `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 7))) (eval_id _h))
-     SEP (K_vector;
+     SEP (`K_vector (eval_var _K256 (tarray tuint 64));
            `(array_at tuint Tsh (tuints b) 0 16) (eval_var _X (tarray tuint 16));
            `(data_block sh (intlist_to_Zlist b) data))) ).
 Proof. {
@@ -248,7 +248,7 @@ Definition loop1_inv (rg0: list int) (sh: share) (b: list int) ctx (data: val) (
      `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
      `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
      `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h))
-     SEP (K_vector;
+     SEP (`K_vector (eval_var _K256 (tarray tuint 64));
     `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i) ) 0 LBLOCKz) (eval_var _X (tarray tuint 16));
    `(data_block sh (intlist_to_Zlist b) data)).
 
@@ -292,7 +292,7 @@ forward_if (
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h))
    SEP 
-   (K_vector;
+   (`K_vector (eval_var _K256 (tarray tuint 64));
    `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i)) 0 LBLOCKz) (eval_var _X (tarray tuint 16));
    `(data_block sh (intlist_to_Zlist b) data))).
 (* 587,640  592,608 *)
@@ -339,7 +339,7 @@ eapply semax_frame_seq
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f),
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g),
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h)])
-         (Frame := [K_vector,
+         (Frame := [`K_vector (eval_var _K256 (tarray tuint 64)),
    `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i)) 0 LBLOCKz) (eval_var _X (tarray tuint 16))]); 
    [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) 0 (Zlength (intlist_to_Zlist b)) data _ sh 
                      (tuchars (map Int.repr (intlist_to_Zlist b))));
@@ -402,7 +402,7 @@ drop_LOCAL 2%nat; drop_LOCAL 2%nat.
 change LBLOCKz with (Z.of_nat LBLOCK); rewrite loop1_aux_lemma1; auto.
 (* 1,506,948 1,110,852 *)
 (* 1,506,948 1,134,576 *)
-assert (is_int (tuints K (Z.of_nat i))) 
+assert (is_int (tuints K256 (Z.of_nat i))) 
  by abstract (clear - H0; apply ZnthV_map_Vint_is_int;
         split; try omega; apply Z.lt_trans with 16%Z; [omega | compute; auto]).
 unfold K_vector.
@@ -410,7 +410,7 @@ forward.  (* Ki=K256[i]; *)
 (* 1,689,280 1,212,872 *)
 
 abstract (
-  assert (Zlength K = 64%Z) by reflexivity;
+  assert (Zlength K256 = 64%Z) by reflexivity;
   entailer!; omega).
 (* 1,811,028 1,406,332 *)
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
@@ -435,7 +435,7 @@ apply semax_pre with
    (`(eq ctx) (eval_id _ctx);
    `(eq (offset_val (Int.repr (Zsucc (Z.of_nat i) * 4)) data)) (eval_id _data);
    `(eq (Vint (W M (Z.of_nat i))))  (eval_id _l);
-   `(eq (Vint (nthi K (Z.of_nat i)))) (eval_id _Ki);
+   `(eq (Vint (nthi K256 (Z.of_nat i)))) (eval_id _Ki);
    `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
    `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 0))) (eval_id _a);
    `(eq (Vint (nthi (Round regs M (Z.of_nat i - 1)) 1))) (eval_id _b);
@@ -461,14 +461,14 @@ rewrite Nat2Z.id in *.
 rewrite (nth_map' _ _ Int.zero) in H2.
 congruence.
 clear H2.
-change (length K) with 64%nat.
+change (length K256) with 64%nat.
 simpl; omega.
 }
 {clear b H.
 replace (Z.succ (Z.of_nat i) - 1)%Z with (Z.of_nat i) by omega.
 rewrite (Round_equation _ _ (Z.of_nat i)).
 rewrite if_false by omega.
-forget (nthi K (Z.of_nat i)) as k.
+forget (nthi K256 (Z.of_nat i)) as k.
 forget (W M (Z.of_nat i)) as w.
 assert (length (Round regs M (Z.of_nat i - 1)) = 8)%nat.
 apply length_Round; auto.

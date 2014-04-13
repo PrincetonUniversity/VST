@@ -271,6 +271,7 @@ Fixpoint eqb_type (a b: type) {struct a} : bool :=
  | Tvoid, Tvoid => true
  | Tint ia sa aa, Tint ib sb ab => andb (eqb_intsize ia ib) 
                                                     (andb (eqb_signedness sa sb) (eqb_attr aa ab))
+ | Tlong sa aa, Tlong sb ab => andb (eqb_signedness sa sb) (eqb_attr aa ab)
  | Tfloat sa aa, Tfloat sb ab => andb (eqb_floatsize sa sb) (eqb_attr aa ab)
  | Tpointer ta aa, Tpointer tb ab => andb (eqb_type ta tb) (eqb_attr aa ab)
  | Tarray ta sa aa, Tarray tb sb ab => andb (eqb_type ta tb) 
@@ -297,12 +298,90 @@ with eqb_fieldlist (a b: fieldlist)  {struct a}: bool :=
   | _ , _ => false
   end.
 
+Lemma eqb_intsize_spec: forall i j, eqb_intsize i j = true <-> i=j.
+Proof. destruct i,j; simpl; split; intro; congruence. Qed.
+Lemma eqb_floatsize_spec: forall i j, eqb_floatsize i j = true <-> i=j.
+Proof. destruct i,j; simpl; split; intro; congruence. Qed.
+Lemma eqb_signedness_spec: forall i j, eqb_signedness i j = true <-> i=j.
+Proof. destruct i,j; simpl; split; intro; congruence. Qed.
+Lemma eqb_attr_spec: forall i j, eqb_attr i j = true <-> i=j.
+Proof.
+  destruct i as [[ | ] [ | ]]; destruct j as [[ | ] [ | ]];
+   simpl; split; intro; try rewrite N.eqb_eq in *; try congruence.
+Qed.
+Lemma eqb_ident_spec: forall i j, eqb_ident i j = true <-> i=j.
+Proof.
+ intros. unfold eqb_ident. 
+ apply Pos.eqb_eq.
+Qed.
+
+
+Scheme eqb_type_sch := Induction for type Sort Prop
+  with eqb_typelist_sch := Induction for  typelist Sort Prop
+  with eqb_fieldlist_sch := Induction for  fieldlist Sort Prop.
+
+Lemma eqb_type_spec: forall a b, eqb_type a b = true <-> a=b.
+Proof.
+apply (eqb_type_sch 
+           (fun a => forall b, eqb_type a b = true <-> a=b)
+          (fun a => forall b, eqb_typelist a b = true <-> a=b)
+           (fun a => forall b, eqb_fieldlist a b = true <-> a=b));
+  destruct b; simpl;
+   split; intro; 
+   repeat rewrite andb_true_iff in *;
+   try rewrite eqb_intsize_spec in *;
+   try rewrite eqb_floatsize_spec in *;
+   try rewrite eqb_signedness_spec in *; 
+   try rewrite eqb_attr_spec in *; 
+   try rewrite eqb_ident_spec in *; 
+   try rewrite <- Zeq_is_eq_bool in *;
+   repeat match goal with H: _ /\ _ |- _  => destruct H end;
+   repeat split; subst; f_equal; try  congruence.
+   apply H; auto.
+   inv H0; apply H; auto.
+   apply H; auto.
+   inv H0; apply H; auto.
+   apply H; auto.
+   inv H2; apply H0; auto.
+   inv H1; apply H; auto.
+   inv H1; apply H0; auto.
+   apply H; auto.
+   inv H0; apply H; auto.
+   inv H1; apply H; auto.
+   apply H; auto.
+   inv H0; apply H; auto.
+   apply H; auto.
+   inv H1; apply H; auto.
+   inv H2; apply H0; auto.
+   inv H1; apply H; auto.
+   inv H1; apply H0; auto.
+   inv H2; apply H; auto.
+   inv H3; apply H0; auto.
+   inv H1; apply H; auto.
+   inv H1; apply H0; auto.
+Qed.
+
 Lemma eqb_type_true: forall a b, eqb_type a b = true -> a=b.
-Admitted.
+Proof.
+intros. apply eqb_type_spec; auto.
+Qed.
+
+Lemma eqb_type_false: forall a b, eqb_type a b = false <-> a<>b.
+Proof.
+intros.
+pose proof (eqb_type_spec a b).
+destruct (eqb_type a b);
+split; intro; try congruence.
+destruct H. rewrite H in H0 by auto. congruence.
+intro; subst.
+destruct H; try congruence.
+spec H1; auto. congruence.
+Qed.
 
 Lemma eqb_type_refl: forall a, eqb_type a a = true. 
 Proof.
-Admitted.
+intros. apply eqb_type_spec; auto.
+Qed.
 
 (** Functions for evaluating expressions in environments, 
 these return vundef if something goes wrong, meaning they always return some value **)

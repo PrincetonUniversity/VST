@@ -79,7 +79,7 @@ Definition inv_at_inner_if sh hashed len c d dd data hi lo:=
     `(sha256_length (hilo hi lo + (Z.of_nat len)*8) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64 (offset_val (Int.repr 40) c));
    `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd))) c);
-   K_vector;
+   `K_vector (eval_var _K256 (tarray tuint 64));
    `(data_block sh data d)))).
 
 Definition sha_update_inv sh hashed len c d (frag: list Z) (data: list Z) r_Nh r_Nl (done: bool) :=
@@ -91,7 +91,7 @@ Definition sha_update_inv sh hashed len c d (frag: list Z) (data: list Z) r_Nh r
    LOCAL  (`(eq (offset_val (Int.repr 40) c)) (eval_id _p);
    `(eq c) (eval_id _c); `(eq (offset_val (Int.repr (Z.of_nat (length blocks*4-length frag))) d)) (eval_id _data);
    `(eq (Vint (Int.repr (Z.of_nat (len- (length blocks*4 - length frag)))))) (eval_id _len))
-   SEP  (K_vector;
+   SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
     `(array_at tuint Tsh (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
     `(sha256_length (hilo r_Nh r_Nl + (Z.of_nat len)*8) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
@@ -161,7 +161,7 @@ semax Delta_update_inner_if
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64
        (offset_val (Int.repr 40) c));
    `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd)))
-       c); K_vector;
+       c); `K_vector (eval_var _K256 (tarray tuint 64));
    `(array_at tuchar sh (tuchars (map Int.repr data)) 0 (Zlength data) d)))
   update_inner_if_then
   (overridePost (sha_update_inv sh hashed len c d dd data hi lo false)
@@ -169,11 +169,10 @@ semax Delta_update_inner_if
         (EX  a' : s256abs,
          PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
          LOCAL ()
-         SEP  (K_vector; `(sha256state_ a' c); `(data_block sh data d))))).
+         SEP  (`K_vector (eval_var _K256 (tarray tuint 64)); `(sha256state_ a' c); `(data_block sh data d))))).
 Proof.
  intros.
  simplify_Delta; abbreviate_semax.
-  unfold K_vector.
   unfold update_inner_if_then.
   apply (remember_value (eval_id _fragment)); intro fragment.
   forward_call (* memcpy (p+n,data,fragment); *)
@@ -262,16 +261,16 @@ rewrite <- offset_val_array_at_.
   omega.
 }
  assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK). {
-  apply length_Zlist_to_intlist. apply H9.
+  apply length_Zlist_to_intlist. apply H8.
 }
  apply andp_right; [apply prop_right |].
- rewrite Zlength_correct, H10. reflexivity.
+ rewrite Zlength_correct, H9. reflexivity.
  replace (data_block Tsh
       (intlist_to_Zlist (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)))
       (offset_val (Int.repr 40) c))
     with (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr (dd ++ data)))) 0
   64 (offset_val (Int.repr 40) c)).
- unfold K_vector; cancel.
+ cancel.
  unfold data_block.
  rewrite prop_true_andp.
  replace (Zlength
@@ -279,7 +278,7 @@ rewrite <- offset_val_array_at_.
   with 64%Z
  by (rewrite Zlength_correct;
       change 64%Z with (Z.of_nat 64); symmetry; f_equal;
-       rewrite length_intlist_to_Zlist, H10; reflexivity).
+       rewrite length_intlist_to_Zlist, H9; reflexivity).
   apply equal_f; apply array_at_ext; intros.
  unfold tuchars, ZnthV. repeat rewrite if_false by omega.
  rewrite Zlist_to_intlist_to_Zlist.
@@ -311,7 +310,7 @@ rewrite <- offset_val_array_at_.
   rewrite app_length, Nat2Z.inj_add.
  repeat rewrite <- Zlength_correct.
   omega.
- rewrite H9; exists LBLOCK; reflexivity.
+ rewrite H8; exists LBLOCK; reflexivity.
  rewrite Forall_app; split; auto.
  apply Forall_firstn; auto.
  apply isbyte_intlist_to_Zlist.

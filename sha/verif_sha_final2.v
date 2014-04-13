@@ -56,7 +56,7 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo:=
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 64 
                           (offset_val (Int.repr 40) c));
    `(field_at_ Tsh t_struct_SHA256state_st _num c);
-     K_vector;
+     `K_vector (eval_var _K256 (tarray tuint 64));
    `(memory_block shmd (Int.repr 32) md))).
 
 Lemma ifbody_final_if1:
@@ -88,7 +88,8 @@ Lemma ifbody_final_if1:
        (ZnthV tuchar (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)])) 0 64
        (offset_val (Int.repr 40) c));
    `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd))) c);
-   K_vector; `(memory_block shmd (Int.repr 32) md)))
+   `K_vector (eval_var _K256 (tarray tuint 64));
+   `(memory_block shmd (Int.repr 32) md)))
   Body_final_if1
   (normal_ret_assert (invariant_after_if1 hashed dd c md shmd hi lo)).
 Proof.
@@ -382,7 +383,8 @@ semax
    SEP 
    (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
         (offset_val (Int.repr data_offset) c));
-   `(array_at tuint Tsh (tuints hashedmsg) 0 8 c); K_vector;
+   `(array_at tuint Tsh (tuints hashedmsg) 0 8 c);
+   `K_vector (eval_var _K256 (tarray tuint 64));
    `(field_at_ Tsh t_struct_SHA256state_st _Nl c);
    `(field_at_ Tsh t_struct_SHA256state_st _Nh c);
    `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr 0)) c);
@@ -391,7 +393,8 @@ semax
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (K_vector; `(data_at_ Tsh t_struct_SHA256state_st c);
+      SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+      `(data_at_ Tsh t_struct_SHA256state_st c);
       `(data_block shmd (intlist_to_Zlist hashedmsg) md)))).
 Proof.
 intros.
@@ -408,7 +411,8 @@ Definition part4_inv  c shmd hashedmsg md delta (i: nat) :=
    SEP 
    (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
         (offset_val (Int.repr data_offset) c));
-   `(array_at tuint Tsh (tuints hashedmsg) 0 8 c); K_vector;
+   `(array_at tuint Tsh (tuints hashedmsg) 0 8 c);
+   `K_vector (eval_var _K256 (tarray tuint 64));
    `(field_at_ Tsh t_struct_SHA256state_st _Nl c);
    `(field_at_ Tsh t_struct_SHA256state_st _Nh c);
    `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr 0)) c);

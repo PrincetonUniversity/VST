@@ -122,8 +122,8 @@ Definition memset_spec :=
          local (`(eq p) retval) &&
        (`(array_at tuchar sh (fun _ => Vint c) 0 n p)).
 
-Definition K_vector : environ -> mpred :=
-  `(array_at tuint Tsh (tuints K) 0 (Zlength K)) (eval_var _K256 (tarray tuint 64)).
+Definition K_vector : val -> mpred :=
+  array_at tuint Tsh (tuints K256) 0 (Zlength K256).
 
 Definition sha256_block_data_order_spec :=
   DECLARE _sha256_block_data_order
@@ -133,11 +133,11 @@ Definition sha256_block_data_order_spec :=
          LOCAL (`(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
          SEP (`(array_at tuint Tsh  (tuints (hash_blocks init_registers hashed)) 0 8 ctx);
                 `(data_block sh (intlist_to_Zlist b) data);
-                 K_vector)
+                 `K_vector (eval_var _K256 (tarray tuint 64)))
    POST [ tvoid ]
           (`(array_at tuint Tsh  (tuints (hash_blocks init_registers (hashed++b))) 0 8 ctx) *
           `(data_block sh (intlist_to_Zlist b) data) *
-          K_vector).
+          `K_vector (eval_var _K256 (tarray tuint 64))).
  
 Definition SHA256_addlength_spec :=
  DECLARE _SHA256_addlength
@@ -178,11 +178,13 @@ Definition SHA256_Update_spec :=
                    (s256a_len a + Z.of_nat len * 8 < two_p 64)%Z)
          LOCAL (`(eq c) (eval_id _c); `(eq d) (eval_id _data_); 
                                   `(eq (Z.of_nat len)) (`Int.unsigned (`force_int (eval_id _len))))
-         SEP(K_vector; `(sha256state_ a c); `(data_block sh data d))
+         SEP(`K_vector (eval_var _K256 (tarray tuint 64));
+               `(sha256state_ a c); `(data_block sh data d))
   POST [ tvoid ] 
          EX a':_, 
           PROP (update_abs (firstn len data) a a') LOCAL ()
-          SEP(K_vector; `(sha256state_ a' c); `(data_block sh data d)).
+          SEP(`K_vector (eval_var _K256 (tarray tuint 64));
+                `(sha256state_ a' c); `(data_block sh data d)).
 
 Definition SHA256_Final_spec :=
   DECLARE _SHA256_Final
@@ -190,11 +192,13 @@ Definition SHA256_Final_spec :=
    PRE [ _md OF tptr tuchar, _c OF tptr t_struct_SHA256state_st ]
          PROP (writable_share shmd) 
          LOCAL (`(eq md) (eval_id _md); `(eq c) (eval_id _c))
-         SEP(K_vector; `(sha256state_ a c);
+         SEP(`K_vector (eval_var _K256 (tarray tuint 64));
+               `(sha256state_ a c);
                `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
          PROP () LOCAL ()
-         SEP(K_vector; `(data_at_ Tsh t_struct_SHA256state_st c);
+         SEP(`K_vector (eval_var _K256 (tarray tuint 64));
+               `(data_at_ Tsh t_struct_SHA256state_st c);
                `(data_block shmd (sha_finish a) md)).
 
 Definition SHA256_spec :=
@@ -205,9 +209,11 @@ Definition SHA256_spec :=
          LOCAL (`(eq d) (eval_id _d);
                      `(eq (Z.of_nat (length data))) (`Int.unsigned (`force_int (eval_id _n)));
                      `(eq md) (eval_id _md))
-         SEP(K_vector; `(data_block dsh data d); `(memory_block msh (Int.repr 32) md))
+         SEP(`K_vector (eval_var _K256 (tarray tuint 64));
+               `(data_block dsh data d); `(memory_block msh (Int.repr 32) md))
   POST [ tvoid ] 
-         SEP(K_vector; `(data_block dsh data d); `(data_block msh (SHA_256 data) md)).
+         SEP(`K_vector (eval_var _K256 (tarray tuint 64));
+               `(data_block dsh data d); `(data_block msh (SHA_256 data) md)).
 
 Definition Vprog : varspecs := (_K256, tarray tuint 64)::nil.
 

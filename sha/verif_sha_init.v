@@ -20,9 +20,7 @@ Proof.
 start_function.
 name c_ _c.
 simpl_data_at.
-normalize.
-replace (array_at_ tuint Tsh) with (array_at tuint Tsh (ZnthV tuint nil))
- by (rewrite ZnthV_nil_None; reflexivity).
+normalize. 
 do 8 (forward; [entailer! | rewrite upd_Znth_next by (compute; reflexivity); simpl app]).
 change (fun _ => c) with (`c). normalize.
 forward. (* c->Nl=0; *)

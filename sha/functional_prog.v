@@ -60,7 +60,7 @@ Fixpoint rnd_64 (x: registers) (k w : list int) : registers :=
 Arguments rnd_64  x k w : simpl never.  (* blows up otherwise *)
 
 Definition process_block (r: registers) (block: list int) : registers :=
-       (map2 Int.add r (rnd_64 r K (rev(generate_word block 48)))).
+       (map2 Int.add r (rnd_64 r K256 (rev(generate_word block 48)))).
 
 Fixpoint grab_and_process_block (n: nat) (r: registers) (firstrev msg: list int) : registers * list int :=
  match n, msg with
@@ -188,7 +188,7 @@ Qed.
 Lemma length_map2_add_rnd_64:
  forall regs w,
   length regs = 8 ->
-  length (map2 Int.add regs (rnd_64 regs K w)) = 8.
+  length (map2 Int.add regs (rnd_64 regs K256 w)) = 8.
 Proof.
  intros.
  apply length_map2; auto.
@@ -251,13 +251,13 @@ Qed.
 
 Lemma rnd_64_S:
   forall regs i b k w, 
-    nth_error K i = Some k ->
+    nth_error K256 i = Some k ->
     nth_error b i = Some w ->
-    rnd_64 regs K (firstn (S i) b) =
-    rnd_function (rnd_64 regs K (firstn i b)) k w.
+    rnd_64 regs K256 (firstn (S i) b) =
+    rnd_function (rnd_64 regs K256 (firstn i b)) k w.
 Proof.
 intros.
-forget K as K'.
+forget K256 as K'.
 assert (firstn (S i) b = firstn i b++[w]).
 clear - H0.
 revert b w H0; induction i; destruct b; simpl; intros; inv H0; auto.
@@ -546,7 +546,6 @@ match goal with |- context [Zlist_to_intlist ?A] =>
 end.
 assert (NPeano.divide 4 (length PADDED)). {
 subst PADDED.
-(* assert (CBLOCKz > 0) by (change CBLOCKz with 64; omega). *)
 pose proof (roundup_ge (Zlength msg + 9) 64).
  spec H; [ omega | ].
 assert (Zlength msg >= 0) by (rewrite Zlength_correct; omega).
@@ -1105,7 +1104,7 @@ rewrite if_false by omega.
 replace (Z.succ (Z.of_nat n) - 1) with (Z.of_nat n) by omega.
 rewrite <- IHn by omega. clear IHn.
 rewrite (rnd_64_S _ _ _
-    (nthi K (Z.of_nat n))
+    (nthi K256 (Z.of_nat n))
     (nthi block (Z.of_nat n))).
 2: (unfold nthi; rewrite Nat2Z.id; apply nth_error_nth; simpl; omega).
 Focus 2.
@@ -1117,7 +1116,7 @@ f_equal.
 rewrite generate_word_small by omega.
 auto.
 unfold rnd_function.
-destruct (rnd_64 regs K (firstn n (rev (generate_word (rev block) c48))))
+destruct (rnd_64 regs K256 (firstn n (rev (generate_word (rev block) c48))))
   as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; auto.
 rewrite W_equation.
 rewrite if_true; auto.
@@ -1128,7 +1127,7 @@ rewrite inj_S.
 unfold Z.succ.
 rewrite Z.add_simpl_r.
 rewrite (rnd_64_S _ _ _
-    (nthi K (Z.of_nat (n+16)))
+    (nthi K256 (Z.of_nat (n+16)))
     (nthi (rev (generate_word (rev block) c48)) (Z.of_nat (n+16)))).
 2: (unfold nthi; rewrite Nat2Z.id; apply nth_error_nth; simpl; omega).
 Focus 2.
@@ -1139,7 +1138,7 @@ rewrite rev_length, length_generate_word, rev_length, H0;
 rewrite Round_equation.
 rewrite <- IHn by omega.
 rewrite if_false by omega.
-forget (rnd_64 regs K (firstn (n + 16) (rev (generate_word (rev block) 48))))
+forget (rnd_64 regs K256 (firstn (n + 16) (rev (generate_word (rev block) 48))))
    as regs'.
 unfold rnd_function.
 destruct regs'

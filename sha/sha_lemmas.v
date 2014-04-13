@@ -4,30 +4,48 @@ Require Import sha.spec_sha.
 Require Import sha.sha.
 Require Export sha.common_lemmas.
 
-Global Opaque K CBLOCKz LBLOCKz.
+Global Opaque K256 CBLOCKz LBLOCKz.
 
 Definition data_offset := 40%Z. (* offset  of _data field in the struct *)
 Global Opaque data_offset.
 
-Lemma K_vector_globals:
-  forall rho,  
+Lemma elim_globals_only'':
+  forall i t rho,  
    (exists Delta, tc_environ Delta rho /\
-       (var_types Delta) ! _K256 = None /\ isSome ((glob_types Delta) ! _K256)) ->
-       K_vector (globals_only rho) = K_vector rho.
+       (var_types Delta) ! i = None /\ isSome ((glob_types Delta) ! i)) ->
+       (eval_var i t (globals_only rho)) = eval_var i t rho.
 Proof. 
-  intros; unfold K_vector.
+  intros.
   unfold_lift.
  destruct H as [Delta [?[? ?]]].
-  destruct ((glob_types Delta) ! _K256) eqn:?; try contradiction.
+  destruct ((glob_types Delta) ! i) eqn:?; try contradiction.
   erewrite elim_globals_only; eauto.
 Qed.
 
-Hint Rewrite K_vector_globals using (eexists; split3; [eassumption | reflexivity | apply I]) : norm.
+Hint Rewrite elim_globals_only'' using (eexists; split3; [eassumption | reflexivity | apply I]) : norm.
 
+Lemma elim_make_args:
+  forall i t il vl rho,  
+   (exists Delta, tc_environ Delta rho /\
+       (var_types Delta) ! i = None /\ isSome ((glob_types Delta) ! i)) ->
+       (eval_var i t (make_args il vl rho)) = eval_var i t rho.
+Proof. 
+  intros.
+ revert vl; induction il; destruct vl; simpl; auto.
+ apply elim_globals_only''; auto. 
+ rewrite <- (IHil vl).
+ clear.
+ reflexivity.
+Qed.
+
+Hint Rewrite elim_make_args using (eexists; split3; [eassumption | reflexivity | apply I]) : norm.
+
+(*
 Lemma K_vector_closed:
   forall S, closed_wrt_vars S K_vector.
 Proof. unfold K_vector; auto with closed. Qed.
 Hint Resolve K_vector_closed : closed.
+*)
 
 Fixpoint loops (s: statement) : list statement :=
  match s with 
@@ -36,11 +54,7 @@ Fixpoint loops (s: statement) : list statement :=
   | Sifthenelse _ a b => loops a ++ loops b
   | _ => nil
   end.
-(*
-Ltac simpl_stackframe_of := 
-  unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
-  repeat rewrite var_block_data_at_ by reflexivity. 
-*)
+
 Lemma Zlength_length:
   forall A (al: list A) (n: Z),
     0 <= n ->

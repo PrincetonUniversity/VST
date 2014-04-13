@@ -46,7 +46,7 @@ eapply sha256_block_load8 with (ctx:=ctx); eassumption.
 simplify_Delta; reflexivity.
 rewrite Zregs.
 entailer!.
-instantiate (1:=[K_vector]); simpl; (* this line shouldn't be needed? *)
+instantiate (1:=[`K_vector (eval_var _K256 (tarray tuint 64))]); simpl; (* this line shouldn't be needed? *)
  cancel.
 auto 50 with closed.
 abbreviate_semax.
@@ -79,7 +79,7 @@ abbreviate_semax.
 eapply seq_assocN with (cs := add_them_back).
 eapply semax_frame1
  with (Frame := [
-   K_vector,
+   `K_vector (eval_var _K256 (tarray tuint 64)),
   `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16)),
   `(data_block sh (intlist_to_Zlist b) data)]).
 apply (add_them_back_proof _ regs (Round regs (nthi b) 63) ctx); try assumption.

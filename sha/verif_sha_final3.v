@@ -55,13 +55,15 @@ semax
        (ZnthV tuint (map Vint (hash_blocks init_registers hashed))) 0 8 c);
    `(field_at_ Tsh t_struct_SHA256state_st _Nl c);
    `(field_at_ Tsh t_struct_SHA256state_st _Nh c);
-   `(field_at_ Tsh t_struct_SHA256state_st _num c); K_vector;
+   `(field_at_ Tsh t_struct_SHA256state_st _num c);
+   `K_vector (eval_var _K256 (tarray tuint 64));
    `(memory_block shmd (Int.repr 32) md)))
   sha_final_epilog
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (K_vector; `(data_at_ Tsh t_struct_SHA256state_st c);
+      SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+      `(data_at_ Tsh t_struct_SHA256state_st c);
       `(data_block shmd (SHA_256 msg) md)))).
 Proof.
 intros.
@@ -71,7 +73,7 @@ forward_call (* sha256_block_data_order (c,p); *)
   (hashed, lastblock, c, (offset_val (Int.repr 40) c), Tsh).
 entailer!.
 after_call.
-replace_SEP 2%Z  (K_vector).
+replace_SEP 2%Z  (`K_vector (eval_var _K256 (tarray tuint 64))).
 entailer!.
 unfold data_block.
 simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
@@ -288,7 +290,8 @@ semax Delta_final_if1
        (offset_val (Int.repr 40) c));
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) (Z.of_nat CBLOCK - 8)
        64 (offset_val (Int.repr 40) c));
-   `(field_at_ Tsh t_struct_SHA256state_st _num c); K_vector;
+   `(field_at_ Tsh t_struct_SHA256state_st _num c);
+   `K_vector (eval_var _K256 (tarray tuint 64));
    `(memory_block shmd (Int.repr 32) md)))
   (Ssequence
      (Sset _cNh
@@ -358,7 +361,8 @@ semax Delta_final_if1
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (K_vector; `(data_at_ Tsh t_struct_SHA256state_st c);
+      SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+      `(data_at_ Tsh t_struct_SHA256state_st c);
       `(data_block shmd
           (intlist_to_Zlist
              (hash_blocks init_registers
@@ -394,8 +398,8 @@ Proof.
    change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).
    rewrite memory_block_typed by reflexivity.
    simpl_data_at.
-   change (96)%Z 
-      with (sizeof tuchar * 96)%Z.
+   change (40+56)%Z 
+      with (sizeof tuchar * (40+56))%Z.
    rewrite <- offset_val_array_at.
    change (40+56+4)%Z with (40+60)%Z.
    change (40 + (Z.of_nat CBLOCK - 8))%Z with (40 + 56 + 0)%Z.
@@ -435,10 +439,10 @@ Proof.
   change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).
   rewrite memory_block_typed by reflexivity.
   simpl_data_at.
-  change (100)%Z with (sizeof tuchar * 100)%Z.
+  change (40+60)%Z with (sizeof tuchar * (40+60))%Z.
   rewrite <- offset_val_array_at.
-  change (100+0)%Z with (100)%Z.
-  change (100+4)%Z with (40 + 64)%Z.
+  change (40+60+0)%Z with (40+60)%Z.
+  change (40+60+4)%Z with (40 + 64)%Z.
   apply derives_refl'; apply equal_f; apply array_at_ext.
   intros. unfold ZnthV. rewrite if_false by omega.
   rewrite if_false by omega.

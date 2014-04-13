@@ -49,7 +49,7 @@ Lemma update_inner_if_else_proof:
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64
        (offset_val (Int.repr 40) c));
    `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd)))
-       c); K_vector;
+       c); `K_vector (eval_var _K256 (tarray tuint 64));
    `(array_at tuchar sh (tuchars (map Int.repr data)) 0 (Zlength data) d)))
   update_inner_if_else
   (overridePost Post
@@ -57,12 +57,12 @@ Lemma update_inner_if_else_proof:
         (EX  a' : s256abs,
          PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
          LOCAL ()
-         SEP  (K_vector; `(sha256state_ a' c); `(data_block sh data d))))).
+         SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+                 `(sha256state_ a' c); `(data_block sh data d))))).
 Proof.
 intros.
  unfold update_inner_if_else;
  simplify_Delta; abbreviate_semax.
-  unfold K_vector.
    forward_call (* memcpy (p+n, data, len); *)
       ((sh,Tsh), 
        offset_val (Int.repr (Zlength dd)) (offset_val (Int.repr 40) c),
@@ -111,7 +111,7 @@ intros.
  apply exp_right with (S256abs hashed (dd ++ firstn len data)).
  unfold id.
  unfold data_block.
- unfold K_vector.
+(* unfold K_vector. *)
  repeat rewrite TT_andp.
  rewrite cVint_force_int_ZnthV
  by (rewrite initial_world.Zlength_map; omega).
@@ -136,7 +136,7 @@ Focus 2. {
  exists 0%Z. reflexivity.
 } Unfocus.
  unfold sha256state_.
- normalize. clear H8.
+ normalize. (* clear H8. *)
  unfold sha256_length,  tuchars, tuints.
  normalize. rename x0 into hi'; rename x into lo'.
  apply exp_right with
@@ -281,7 +281,8 @@ semax Delta_update_inner_if
         (EX  a' : s256abs,
          PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
          LOCAL ()
-         SEP  (K_vector; `(sha256state_ a' c); `(data_block sh data d))))).
+         SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+                 `(sha256state_ a' c); `(data_block sh data d))))).
 Proof.
 intros.
 name c' _c.

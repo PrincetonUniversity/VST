@@ -30,7 +30,8 @@ replace_SEP 0 (
  EX  x : s256abs,
       (PROP  (update_abs (firstn (length data) data) init_s256abs x)
        LOCAL ()
-       SEP  (K_vector; `(sha256state_ x c); `(data_block dsh data d)))).
+       SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+               `(sha256state_ x c); `(data_block dsh data d)))).
 entailer.
 apply exp_right with x.
 entailer.
@@ -42,7 +43,7 @@ forward_call (* SHA256_Final(md,&c); *)
 entailer!.
 after_call.
 simpl.
-replace_SEP 0 (K_vector).
+replace_SEP 0 (`K_vector (eval_var _K256 (tarray tuint 64))).
 entailer.
 
 forward. (* return; *)
