@@ -21,43 +21,14 @@ reify_derives.
 mirror_cancel_default.
 Qed.
 
-(*
 Goal forall (a b c d: nat), a = b -> b = c -> c = d -> functions.P a |-- functions.P d.
 Proof.
 intros.
 pose_env.
 reify_derives.
-Require Import congruence_prover.
-pose (lrn := (VST_CONGRUENCE_PROVER.congruenceSummarize 
-(Equal (tvType 11) (Func 51%nat nil) (Func 54%nat nil)
-      :: Equal (tvType 11) (Func 54%nat nil) (Func 53%nat nil)
-         :: Equal (tvType 11) (Func 53%nat nil) (Func 52%nat nil) :: nil))).
-Import VST_CONGRUENCE_PROVER. 
-Import expr_equality.
-Import TVAR_EQUALITY.
-Import EXPR_UF.
-pose (goal := (Equal (tvType 11) (Func 51%nat nil) (Func 52%nat nil))).
-pose (slv := VST_CONGRUENCE_PROVER.congruenceProve lrn goal).
-simpl in slv.
-unfold find in slv. 
-vm_compute in slv. unfold expr_equality.EXPR_UF.find in slv.
-
-vm_compute in lrn.
-
-let left_hints := eval hnf in left_hints in
-let right_hints := eval hnf in right_hints in
-eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types funcs user_comp) left_lemmas right_lemmas); 
-[ reflexivity
-| HintModule.prove left_hints
-| HintModule.prove right_hints
-| apply vstProver_correct
-| 
-| repeat (split; try assumption; try apply I; try apply derives_emp)].
-ecompute_left.
 mirror_cancel_default.
-simpl.
+Qed.
 
-*)
 Lemma goal_lift_and' :
 forall t f preds uenv a l r newl newr n,
 nth_error f 5 = Some (functions.and_signature t) ->
@@ -145,8 +116,7 @@ intros.
 pose_env.
 reify_derives.
 try mirror_cancel_default.
-simpl.
-Abort.
+Qed. 
 
 Definition P2 (v :val) := emp.
 

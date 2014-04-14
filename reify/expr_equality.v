@@ -199,6 +199,7 @@ Module EXPR_EQUALITY <: BOOL_EQUALITY_TYPE.
   Definition beq_true :=expr_eqb_eq.
 End EXPR_EQUALITY.
 
+
 Module EMAP_BOOL (X : BOOL_EQUALITY_TYPE) <: UnionFind.MAP.
   Definition elt := X.t.
   Definition elt_eq : forall (x y : elt), {x = y} + {x <> y}.

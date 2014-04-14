@@ -118,14 +118,11 @@ Section typed.
   Variable user_comp : func -> bool.
 
 Require Import computation_prover.
- (* Definition vst_prover : ProverT :=
+
+Definition vst_prover : ProverT :=
     composite_ProverT ( composite_ProverT (composite_ProverT reflexivityProver symmetryProver)
                                           (computationProver fs user_comp))
-                      (VST_CONGRUENCE_PROVER.congruenceProver).*)
-
-  Definition vst_prover : ProverT :=
-     ( composite_ProverT (composite_ProverT reflexivityProver symmetryProver)
-                                          (computationProver fs user_comp)).
+                      (VST_CONGRUENCE_PROVER.congruenceProver).
 
   Definition vstProver_correct : ProverT_correct vst_prover fs.
   Proof.
