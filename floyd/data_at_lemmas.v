@@ -9,6 +9,53 @@ Local Open Scope logic.
 Arguments align !n !amount / .
 Arguments Z.max !n !m / .
 
+(******************************************
+
+Lemmas about mapsto and mapsto_
+
+******************************************)
+
+Lemma mapsto_mapsto_: forall sh t v v', mapsto sh t v v' |-- mapsto_ sh t v.
+Proof. unfold mapsto_; intros.
+  normalize.
+  unfold mapsto.
+  destruct (access_mode t); auto.
+  destruct (type_is_volatile t); try apply FF_left.
+  destruct v; auto.
+  apply orp_left.
+  apply orp_right2.
+  apply andp_left2.
+  apply andp_right. apply prop_right; auto.
+  apply exp_right with v'; auto.
+  normalize.
+  apply orp_right2. apply exp_right with v2'.
+  normalize.
+Qed.
+Hint Resolve mapsto_mapsto_ : cancel.
+
+Lemma mapsto_isptr: forall sh t v1 v2, mapsto sh t v1 v2 = !! (isptr v1) && mapsto sh t v1 v2.
+Proof.
+  intros; apply pred_ext; normalize.
+  apply andp_right; auto.
+  unfold mapsto.
+  destruct (access_mode t); normalize.
+  destruct (type_is_volatile t); normalize.
+  destruct v1; normalize.
+  apply prop_right; apply I.
+Qed.
+
+Lemma mapsto__isptr: forall sh t v1, mapsto_ sh t v1 = !! (isptr v1) && mapsto_ sh t v1.
+Proof.
+  intros.
+  unfold mapsto_. apply mapsto_isptr.
+Qed.
+
+(******************************************
+
+Lemmas about memory_block
+
+******************************************)
+
 Lemma memory_block_zero: forall sh b z, memory_block sh (Int.repr 0) (Vptr b z) = emp.
 Proof.
   intros. unfold memory_block.
@@ -18,6 +65,7 @@ Proof.
   unfold memory_block'.
   reflexivity.
 Qed.
+Hint Rewrite memory_block_zero: norm.
 
 Lemma memory_block_offset_zero:
   forall sh n v, memory_block sh n (offset_val Int.zero v) = memory_block sh n v.
@@ -34,19 +82,27 @@ Proof.
   destruct p; simpl; normalize.
 Qed.
 
-Hint Rewrite memory_block_zero: norm.
+Lemma memory_block_isptr: forall sh n p, memory_block sh n p = !!(isptr p) && memory_block sh n p.
+Proof.
+  intros.
+  unfold memory_block.
+  destruct p; normalize.
+Qed.
 
 Global Opaque memory_block.
+
+(******************************************
+******************************************)
 
 Scheme type_mut := Induction for type Sort Prop
 with typelist_mut := Induction for typelist Sort Prop
 with fieldlist_mut := Induction for fieldlist Sort Prop.
 
 Fixpoint is_Fnil (fld: fieldlist) : bool :=
-match fld with
-| Fnil => true
-| Fcons id ty fld' => false
-end.
+  match fld with
+  | Fnil => true
+  | Fcons id ty fld' => false
+  end.
 
 Fixpoint reptype (ty: type) : Type :=
   match ty with
@@ -88,7 +144,6 @@ Fixpoint reptype' (ty: type) : Type :=
   | Tunion id fld a => reptype'_unionlist fld
   | Tcomp_ptr id a => val
   end
-
 with reptype'_structlist (fld: fieldlist) : Type :=
   match fld with
   | Fnil => unit
@@ -226,21 +281,13 @@ Fixpoint default_val (t: type) : reptype t :=
   | Tcomp_ptr _ _ => Vundef
   end
 with struct_default_val flds : reptype_structlist flds :=
- match flds as f return (reptype_structlist f) with
- | Fnil => tt
- | Fcons _ t flds0 =>
-    if is_Fnil flds0 as b
-     return  (if b then reptype t else (reptype t * reptype_structlist flds0)%type)
-    then default_val t
-    else (default_val t, struct_default_val flds0)
- end.
-
-Definition str_id_env: Type := PTree.t type.
-
-Definition look_up_ident_default (i: ident) (e: str_id_env) : type :=
-  match PTree.get i e with
-  | Some res => res
-  | None => Tvoid
+  match flds as f return (reptype_structlist f) with
+  | Fnil => tt
+  | Fcons _ t flds0 =>
+     if is_Fnil flds0 as b
+      return  (if b then reptype t else (reptype t * reptype_structlist flds0)%type)
+     then default_val t
+     else (default_val t, struct_default_val flds0)
   end.
 
 (************************************************
@@ -251,6 +298,11 @@ releases a new version in the future, maybe we can rewrite it in a better way.
 
 ************************************************)
 
+(************************************************
+
+Definition of data_at 
+
+************************************************)
 
 (************************************************
 
@@ -265,6 +317,22 @@ from previous version.
 
 ************************************************)
 
+Definition type_id_env: Type := PTree.t type.
+Definition empty_ti: type_id_env := @PTree.empty type.
+
+Definition singleton_si t: type_id_env :=
+  match t with
+  | Tstruct i _ _ => PTree.set i t empty_ti
+  | Tunion i _ _ => PTree.set i t empty_ti
+  | _ => empty_ti
+  end.
+
+Definition look_up_ident_default (i: ident) (e: type_id_env) : type :=
+  match PTree.get i e with
+  | Some res => res
+  | None => Tvoid
+  end.
+
 Fixpoint array_at' (sh: Share.t) (t: type) (length: Z) (P: Z -> reptype t -> val -> mpred) (pos: Z) (v: list (reptype t)) : val -> mpred :=
 match v with
 | nil => if (Zeq_bool length 0) then fun _ => emp else FF
@@ -277,7 +345,7 @@ Definition alignof_hd (fld: fieldlist) : Z :=
   | Fcons _ t _ => alignof t
   end.
 
-Fixpoint data_at' (sh: Share.t) (e: str_id_env) (t1: type): Z -> reptype t1 -> val -> mpred :=
+Fixpoint data_at' (sh: Share.t) (e: type_id_env) (t1: type): Z -> reptype t1 -> val -> mpred :=
   match t1 as t return (Z -> reptype t -> val -> mpred) with
   | Tvoid => at_offset2 (fun v _ => memory_block sh (Int.repr (sizeof t1)) v)
   | Tarray t z a => array_at' sh t z (data_at' sh e t)
@@ -287,6 +355,204 @@ Fixpoint data_at' (sh: Share.t) (e: str_id_env) (t1: type): Z -> reptype t1 -> v
   | Tcomp_ptr i a => at_offset2 (mapsto sh (Tpointer (look_up_ident_default i e) a))
   | _ => at_offset2 (mapsto sh t1) (* All these C types are by value types *)
   end
+with sfieldlist_at' (sh: Share.t) (e: type_id_env) (alignment: Z) (flds: fieldlist) (pos: Z) : reptype_structlist flds -> val -> mpred :=
+match flds as f return reptype_structlist f -> val -> mpred with
+| Fnil => fun _ p => !!(isptr p) && emp (* empty struct case *)
+| Fcons i t flds0 =>
+    fun (v : reptype_structlist (Fcons i t flds0)) =>
+      (if is_Fnil flds0 as b
+        return
+          (is_Fnil flds0 = b ->
+           (if b
+            then reptype t
+            else (reptype t * reptype_structlist flds0)%type) -> val -> mpred)
+       then
+        fun (_ : is_Fnil flds0 = true) (v0 : reptype t) =>
+          withspacer sh (pos + sizeof t) alignment (data_at' sh e t pos v0)
+       else
+        fun (_ : is_Fnil flds0 = false) (v0 : reptype t * reptype_structlist flds0) =>
+          withspacer sh (pos + sizeof t) (alignof_hd flds0) (data_at' sh e t pos (fst v0)) *
+          (sfieldlist_at' sh e alignment flds0 (align (pos + sizeof t) (alignof_hd flds0)) (snd v0)))
+   eq_refl v
+end
+with ufieldlist_at' (sh: Share.t) (e: type_id_env) (alignment: Z) (flds: fieldlist) (pos: Z) {struct flds}: reptype_unionlist flds -> val -> mpred :=
+match flds as f return (reptype_unionlist f -> val -> mpred) with
+| Fnil => 
+  if (Zeq_bool alignment 0)
+  then fun _ p => !!(isptr p) && emp (* empty union case *)
+  else fun _ => FF (* this means v in input data is ilegal *)
+| Fcons i t flds0 => fun v : (reptype t) + (reptype_unionlist flds0) =>
+  match v with
+  | inl v_hd => 
+    withspacer sh (pos + sizeof t) alignment (data_at' sh e t pos v_hd)
+  | inr v_tl =>
+    ufieldlist_at' sh e alignment flds0 pos v_tl
+  end
+end.
+
+Definition data_at (sh: Share.t) (t: type) := data_at' sh empty_ti t 0.
+
+Definition data_at_ (sh: Share.t) (t: type) := data_at sh t (default_val _).
+
+Lemma data_at'_lemma: forall (sh: Share.t) (e1 e2: type_id_env) (t: type), data_at' sh e1 t = data_at' sh e2 t.
+Proof.
+  intros.
+  apply (type_mut (fun t => data_at' sh e1 t = data_at' sh e2 t) (fun _ => True) (fun flds => forall alignment: Z, sfieldlist_at' sh e1 alignment flds = sfieldlist_at' sh e2 alignment flds /\ ufieldlist_at' sh e1 alignment flds = ufieldlist_at' sh e2 alignment flds)); intros; try reflexivity. (* Happily, Tcomp_ptr case is solved by reflexivity automatically. *)
+  + simpl. rewrite H. reflexivity. (* About array *)
+  + simpl. destruct (H (alignof (Tstruct i f a))). exact H0. (* About struct *)
+  + simpl. destruct (H (alignof (Tstruct i f a))). exact H1. (* About union *)
+  + simpl. split; reflexivity.  (* Fnil case of fieldlist induction *)
+  + destruct (H0 alignment). simpl. split. (* Fcons case of fieldlist induction *)
+    rewrite H, H1. reflexivity.
+    rewrite H, H2. reflexivity.
+Qed.
+
+(************************************************
+
+Definition of nested_field_type, nested_field_offset, nested_data_at
+
+************************************************)
+
+Fixpoint nested_field_rec (ids: list ident) (t: type) : option (prod Z type) :=
+  match ids with
+  | nil => Some (0, t)
+  | hd :: tl =>
+    match nested_field_rec tl t with
+    | Some (pos, t') => 
+      match t with
+      | Tarray _ _ _ => None (* Array case, maybe rewrite later *)
+      | Tstruct _ f _ => 
+        match field_offset hd f, field_type hd f with
+        | Errors.OK ofs, Errors.OK t'' => Some (pos + ofs, t'')
+        | _, _ => None
+        end
+      | Tunion _ f _ => 
+        match field_type hd f with
+        | Errors.OK t'' => Some (pos, t'')
+        | _ => None
+        end
+      | _ => None
+      end
+    | None => None
+    end
+  end.
+
+Definition nested_field_offset (ids: list ident) (t: type) : option Z :=
+  match nested_field_rec ids t with
+  | Some (pos, _) => Some pos
+  | _ => None
+  end.
+
+Definition nested_field_type (ids: list ident) (t: type) : option type :=
+  match nested_field_rec ids t with
+  | Some (_, t0) => Some t0
+  | _ => None
+  end.
+
+Definition nested_field_offset2 (ids: list ident) (t: type) : Z :=
+  match nested_field_rec ids t with
+  | Some (pos, _) => pos
+  | _ => 0
+  end.
+
+Definition nested_field_type2 (ids: list ident) (t: type) : type :=
+  match nested_field_rec ids t with
+  | Some (_, t0) => t0
+  | _ => Tvoid
+  end.
+
+Lemma field_offset_field_type_match: forall i f,
+  match field_offset i f, field_type i f with
+  | Errors.OK _, Errors.OK _ => True
+  | Errors.Error _, Errors.Error _ => True
+  | _, _ => False
+  end.
+Proof.
+  intros.
+  unfold field_offset.
+  remember 0 as pos; clear Heqpos.
+  revert pos; induction f; intros.
+  + simpl. auto.
+  + simpl. destruct (ident_eq i i0) eqn:HH.
+    - auto.
+    - apply IHf.
+Qed.
+
+Lemma field_offset_nested_field_offset: forall i f a id ofs, nested_field_offset (id :: nil) (Tstruct i f a) = Some ofs <-> field_offset id f = Errors.OK ofs.
+Proof.
+  intros.
+  unfold nested_field_offset.
+  simpl.
+  pose proof field_offset_field_type_match id f.
+  destruct (field_offset id f), (field_type id f); simpl in *; split; intros.
+  - inversion H0; reflexivity.
+  - inversion H0; reflexivity.
+  - inversion H0.
+  - inversion H.
+  - inversion H0.
+  - inversion H.
+  - inversion H0.
+  - inversion H0.
+Qed.
+
+Lemma field_offset_nested_field_offset2: forall i f a id ofs, field_offset id f = Errors.OK ofs -> nested_field_offset2 (id :: nil) (Tstruct i f a) = ofs.
+Proof.
+  intros.
+  unfold nested_field_offset2.
+  simpl.
+  pose proof field_offset_field_type_match id f.
+  destruct (field_offset id f), (field_type id f); simpl in *.
+  - inversion H; reflexivity.
+  - inversion H0.
+  - inversion H0.
+  - inversion H.
+Qed.
+
+Lemma nested_field_offset2_field_offset: forall i f a id ofs, nested_field_offset2 (id :: nil) (Tstruct i f a) = ofs /\ ofs <> 0 -> field_offset id f = Errors.OK ofs.
+Proof.
+  unfold nested_field_offset2.
+  intros.
+  simpl.
+  pose proof field_offset_field_type_match id f. 
+  simpl in H. destruct (field_offset id f), (field_type id f); simpl in *; destruct H.
+  - subst; reflexivity.
+  - inversion H0.
+  - inversion H0.
+  - congruence.
+Qed.
+
+Lemma field_type_nested_field_type2: forall i f a id t, field_type id f = Errors.OK t -> nested_field_type2 (id :: nil) (Tstruct i f a) = t.
+Proof.
+  intros.
+  unfold nested_field_type2.
+  simpl.
+  pose proof field_offset_field_type_match id f.
+  destruct (field_offset id f), (field_type id f); simpl in *.
+  - inversion H; reflexivity.
+  - inversion H0.
+  - inversion H0.
+  - inversion H.
+Qed.
+
+Lemma nested_field_type2_field_type: forall i f a id t, nested_field_type2 (id :: nil) (Tstruct i f a) = t /\ t <> Tvoid -> field_type id f = Errors.OK t.
+Proof.
+  unfold nested_field_type2.
+  intros.
+  simpl.
+  pose proof field_offset_field_type_match id f. 
+  simpl in H. destruct (field_offset id f), (field_type id f); simpl in *; destruct H.
+  - subst; reflexivity.
+  - inversion H0.
+  - inversion H0.
+  - congruence.
+Qed.
+
+Fixpoint nested_data_at (sh: Share.t) (ids: list ident) (t1: type) (v: reptype (nested_field_type2 ids t1)) : val -> mpred := data_at' sh empty_ti (nested_field_type2 ids t1) (nested_field_offset2 ids t1) v.
+
+(*
+Fixpoint nested_sfieldlist_at (sh: Share.t) (ids: list ident) (t1: type) (v: reptype (nested_field_type2 ids t1))
+
+
 with sfieldlist_at' (sh: Share.t) (e: str_id_env) (alignment: Z) (flds: fieldlist) (pos: Z) : reptype_structlist flds -> val -> mpred :=
 match flds as f return reptype_structlist f -> val -> mpred with
 | Fnil => fun _ p => !!(isptr p) && emp (* empty struct case *)
@@ -321,24 +587,7 @@ match flds as f return (reptype_unionlist f -> val -> mpred) with
     ufieldlist_at' sh e alignment flds0 pos v_tl
   end
 end.
-
-Definition data_at (sh: Share.t) (t: type) := data_at' sh (PTree.empty type) t 0.
-
-Definition data_at_ (sh: Share.t) (t: type) := data_at sh t (default_val _).
-
-Lemma data_at'_lemma: forall (sh: Share.t) (e1 e2: str_id_env) (t: type), data_at' sh e1 t = data_at' sh e2 t.
-Proof.
-  intros.
-  apply (type_mut (fun t => data_at' sh e1 t = data_at' sh e2 t) (fun _ => True) (fun flds => forall alignment: Z, sfieldlist_at' sh e1 alignment flds = sfieldlist_at' sh e2 alignment flds /\ ufieldlist_at' sh e1 alignment flds = ufieldlist_at' sh e2 alignment flds)); intros; try reflexivity. (* Happily, Tcomp_ptr case is solved by reflexivity automatically. *)
-  + simpl. rewrite H. reflexivity. (* About array *)
-  + simpl. destruct (H (alignof (Tstruct i f a))). exact H0. (* About struct *)
-  + simpl. destruct (H (alignof (Tstruct i f a))). exact H1. (* About union *)
-  + simpl. split; reflexivity.  (* Fnil case of fieldlist induction *)
-  + destruct (H0 alignment). simpl. split. (* Fcons case of fieldlist induction *)
-    rewrite H, H1. reflexivity.
-    rewrite H, H2. reflexivity.
-Qed.
-
+*)
 (*
 Lemma field_at_offset_zero:
   forall sh ty id v v', 
@@ -456,6 +705,262 @@ Proof.
   unfold data_at_.
   apply data_at_isptr.
 Qed.
+
+Lemma mapsto_offset_zero:
+  forall sh t v1 v2, 
+    mapsto sh t (offset_val (Int.repr 0) v1) v2 =
+    mapsto sh t v1 v2.
+Proof.
+  unfold mapsto.
+  intros.
+  destruct v1; try solve [simpl; auto].
+  unfold offset_val.
+  rewrite Int.add_zero. auto.
+Qed.
+
+Lemma data_at_tint: forall sh v2 v1,
+  data_at sh tint v2 v1 = mapsto sh tint v1 v2.
+Proof.
+  intros. reflexivity. 
+Qed.
+
+Lemma spacer_offset_zero:
+  forall sh pos n v, spacer sh pos n (offset_val (Int.repr 0) v) = spacer sh pos n v.
+Proof.
+  intros;
+  unfold spacer.
+  destruct (Z.eq_dec (align pos n - pos) 0);  auto.
+  repeat rewrite at_offset'_eq; 
+  try rewrite offset_offset_val; try  rewrite Int.add_zero_l; auto.
+  apply memory_block_offset_zero.
+Qed.
+
+Fixpoint typecount (t: type) : nat :=
+  match t with
+  | Tstruct _ f _ => S (typecount_fields f)
+  | Tarray t' _ _ => S (typecount t')
+  | _ => 1%nat
+  end
+with typecount_fields (f: fieldlist) : nat :=
+  match f with
+  | Fnil => 1%nat
+  | Fcons _ t f' => (typecount t + typecount_fields f')%nat
+  end.
+
+Lemma  typecount_fields_pos: forall f, (typecount_fields f > 0)%nat.
+Proof.
+  induction f; simpl; intros. auto.
+  omega.
+Qed.
+
+Lemma typecount_pos: forall t, (typecount t > 0)%nat.
+Proof.
+  destruct t; simpl; auto; omega.
+Qed.
+
+(*
+(****** It is not used anywhere else. *********)
+
+Definition fields_mapto_ sh pos t f v :=
+  structfieldsof sh t f pos pos (struct_default_val f) v.
+
+Lemma fields_mapto__offset_zero:
+  forall sh pos t f v, fields_mapto_ sh pos t f (offset_val (Int.repr 0) v) =
+                           fields_mapto_ sh pos t f v.
+Proof.
+  Admitted.
+Qed.
+*)
+
+Lemma at_offset'_zero:
+  forall P, 
+    (forall v, P (offset_val (Int.repr 0) v) = P v) ->
+  forall ofs v,
+    at_offset' P ofs (offset_val (Int.repr 0) v) = at_offset' P ofs v.
+Proof.
+  intros.
+  repeat rewrite at_offset'_eq. 
+  rewrite offset_offset_val. rewrite Int.add_zero_l. auto. auto.
+  f_equal.  rewrite offset_offset_val. reflexivity.
+Qed.
+
+Lemma FF_orp: forall {A: Type} `{NatDed A} (P: A), FF || P = P.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply orp_left.
+    apply FF_left.
+    apply derives_refl.
+  + apply orp_right2.
+    apply derives_refl.
+Qed.
+
+Definition by_value_no_alignof t :=
+  match t with
+  | Tint _ _ (mk_attr false None) => True
+  | Tlong _ (mk_attr false None) => True
+  | Tfloat _ (mk_attr false None) => True
+  | Tpointer _ (mk_attr false None) => True
+  | _ => False
+  end.
+
+Lemma memory_block_mapsto_:
+  forall n sh t v, 
+  by_value_no_alignof t ->
+  n = sizeof t ->
+  memory_block sh (Int.repr n) v = mapsto_ sh t v.
+Proof.
+  Admitted.
+
+(************************************************
+
+Originally, this is proved as follows. It depends on some admitted lemma.
+However, I think it is not the correct approach. Memory block is defined upon
+mapsto. So, we should resolve the lemma to the level of mapsto but not unfold
+mapsto to make things more complicated. Now, I admitted it directly, which is
+not worse than before. 
+
+Lemma memory_block_address_mapsto:
+  forall n sh ch b i,
+  n = Memdata.size_chunk ch ->
+  memory_block sh (Int.repr n) (Vptr b i) =
+ !!False && address_mapsto ch Vundef (Share.unrel Share.Lsh sh)
+  (Share.unrel Share.Rsh sh) (b, Int.unsigned i)
+|| !!(Vundef = Vundef) &&
+   (EX  v2' : val,
+    address_mapsto ch v2' (Share.unrel Share.Lsh sh)
+      (Share.unrel Share.Rsh sh) (b, Int.unsigned i)).
+Proof.
+  intros.
+  change (!!False) with FF.
+  rewrite FF_andp.
+  rewrite FF_orp.
+  assert (!!(Vundef = Vundef) = TT); [apply pred_ext; normalize|].
+  rewrite H0; clear H0.
+  rewrite TT_andp.
+Admitted.
+
+Lemma memory_block_mapsto_:
+  forall n sh t v, 
+   by_value_no_alignof t ->
+   n = sizeof t ->
+   memory_block sh (Int.repr n) v = mapsto_ sh t v.
+Proof.
+  intros. subst n.
+  pose proof (sizeof_pos t).
+  destruct t; try contradiction; (* only by_value type left *)
+  destruct a as [[|] [|]]; try contradiction; (* only no_alignof type left *)
+  simpl;
+ unfold mapsto_, mapsto; simpl;
+ try (destruct i,s); try destruct f; 
+ rewrite memory_block_isptr by apply H0;
+ destruct v; simpl; try  apply FF_andp; 
+ rewrite prop_true_andp by auto;
+ (apply memory_block_address_mapsto;  try reflexivity).
+Qed.
+
+************************************************)
+
+Lemma spacer_memory_block:
+  forall sh pos a v, isptr v -> 
+ spacer sh pos a v = memory_block sh (Int.repr (align pos a - pos)) (offset_val (Int.repr pos) v).
+Proof.
+  intros.
+  destruct v; inv H.
+  unfold spacer.
+  destruct (Z.eq_dec (align pos a - pos) 0);
+  try solve [rewrite e; simpl offset_val; rewrite memory_block_zero; auto].
+  unfold at_offset'.
+  destruct pos; auto.
+  unfold offset_val; rewrite Int.add_zero; auto.
+Qed.
+
+Definition no_attr (a: attr) :=
+  andb (negb (attr_volatile a))
+  match attr_alignas a with  None => true | _ => false end.
+
+Definition no_attr_e: forall a, no_attr a = true -> a=noattr.
+Proof.
+  intros. destruct a. destruct attr_volatile; inv H.
+  destruct attr_alignas; inv H1.
+  reflexivity.
+Qed.
+
+Fixpoint no_attr_type (t: type) : bool :=
+  match t with 
+  | Tint _ _ a => no_attr a
+  | Tlong _ a => no_attr a
+  | Tfloat _ a => no_attr a
+  | Tpointer _ a => no_attr a
+  | Tarray t _ a => andb (no_attr_type t) (no_attr a)
+  | Tstruct _ flds a => andb (no_attr_fields flds)  (no_attr a)
+  | Tunion _ flds a => andb (no_attr_fields flds)  (no_attr a)
+  | Tcomp_ptr _ a =>  no_attr a
+  | _ => true
+  end
+with no_attr_fields (f: fieldlist) : bool :=
+  match f with 
+  | Fnil => true 
+  | Fcons _ t f' => andb (no_attr_type t) (no_attr_fields f')
+  end.
+
+Lemma no_attr_type_nonvol: forall t, no_attr_type t = true -> type_is_volatile t = false.
+Proof.
+  intros. destruct t; simpl in *; try apply no_attr_e in H; subst; simpl; try reflexivity.
+  destruct i,s; reflexivity. destruct f; reflexivity.
+Qed.
+
+Lemma align_1: forall n, align n 1 = n.
+Proof.  intros; unfold align. rewrite Z.div_1_r. rewrite Z.mul_1_r. omega.
+Qed.
+
+Lemma memory_block_typed': forall sh e pos ty b ofs, 
+  no_attr_type ty = true ->
+  spacer sh pos (alignof ty) (Vptr b ofs) *
+  memory_block sh (Int.repr (sizeof ty)) (offset_val (Int.repr (align pos (alignof ty))) (Vptr b ofs) )
+  = data_at' sh e ty pos (default_val ty) (Vptr b ofs).
+(*with memory_block_fields: forall sh pos t fld b ofs,
+ no_attr_fields fld = true ->
+  spacer sh (sizeof_struct fld pos) (alignof_fields fld) (Vptr b ofs) 
+  * memory_block sh (Int.repr (sizeof_struct fld pos)) (Vptr b ofs)
+  =   memory_block sh (Int.repr pos) (Vptr b ofs) * fields_mapto_ sh pos t fld (Vptr b ofs).
+*)
+Proof.
+admit.
+
+Require Import progs.nest2.
+
+Goal forall a b c, data_at Ews t_struct_b (a, (b,c))= TT.
+intros.
+extensionality p.
+unfold data_at.
+simpl data_at'.
+Opaque at_offset2.
+simpl.
+Transparent alignof.
+simpl alignof.
+simpl align.
+simpl.
+unfold withspacer.
+simpl align.
+Opaque spacer.
+simpl.
+repeat rewrite <- sepcon_assoc.
+SearchAbout mapsto FF.
+Locate field_at_conflict.
+Print res_predicates.address_mapsto.
+Locate jam.
+Print mapsto.
+Print access_mode.
+Print compcert.common.Memdata.encode_val.
+Locate single_of_bits.
+Print compcert.lib.Floats.Float.
+Print compcert.common.Memdata.memval.
+Print Memdata.proj_bytes.
+Print val.
+Print res_predicates.spec.
+simpl withspacer.
+
 
 (************************************************
 
