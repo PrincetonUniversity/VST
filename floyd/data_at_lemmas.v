@@ -377,16 +377,15 @@ match flds as f return reptype_structlist f -> val -> mpred with
 end
 with ufieldlist_at' (sh: Share.t) (e: type_id_env) (alignment: Z) (flds: fieldlist) (pos: Z) {struct flds}: reptype_unionlist flds -> val -> mpred :=
 match flds as f return (reptype_unionlist f -> val -> mpred) with
-| Fnil => 
-  if (Zeq_bool alignment 0)
-  then fun _ p => !!(isptr p) && emp (* empty union case *)
-  else fun _ => FF (* this means v in input data is ilegal *)
+| Fnil => fun _ p => !!(isptr p) && emp (* empty union case *)
 | Fcons i t flds0 => fun v : (reptype t) + (reptype_unionlist flds0) =>
   match v with
   | inl v_hd => 
     withspacer sh (pos + sizeof t) alignment (data_at' sh e t pos v_hd)
   | inr v_tl =>
-    ufieldlist_at' sh e alignment flds0 pos v_tl
+    if is_Fnil flds0
+    then fun _ => FF
+    else ufieldlist_at' sh e alignment flds0 pos v_tl
   end
 end.
 
@@ -409,7 +408,7 @@ Qed.
 
 (************************************************
 
-Definition of nested_field_type, nested_field_offset, nested_data_at
+Definition of nested_field_type, nested_field_offset
 
 ************************************************)
 
@@ -419,7 +418,7 @@ Fixpoint nested_field_rec (ids: list ident) (t: type) : option (prod Z type) :=
   | hd :: tl =>
     match nested_field_rec tl t with
     | Some (pos, t') => 
-      match t with
+      match t' with
       | Tarray _ _ _ => None (* Array case, maybe rewrite later *)
       | Tstruct _ f _ => 
         match field_offset hd f, field_type hd f with
@@ -545,6 +544,181 @@ Proof.
   - inversion H0.
   - inversion H0.
   - congruence.
+Qed.
+
+(************************************************
+
+Definition of fieldlist_no_replicate
+
+************************************************)
+
+Fixpoint fieldlist_in (id: ident) (f: fieldlist) : bool :=
+  match f with
+  | Fnil => false
+  | Fcons i _ f' => 
+    if (Pos.eqb id i) then true else fieldlist_in id f'
+  end.
+
+Fixpoint fieldlist_no_replicate (f: fieldlist) : bool :=
+  match f with
+  | Fnil => true
+  | Fcons i _ f' => 
+    andb (negb (fieldlist_in i f')) (fieldlist_no_replicate f')
+  end.
+
+Lemma fieldlist_app_in: forall f1 f2 x, fieldlist_in x f2 = true -> fieldlist_in x (fieldlist_app f1 f2) = true.
+Proof.
+  intros.
+  induction f1; simpl.
+  + exact H.
+  + if_tac.
+    reflexivity.
+    exact IHf1.
+Qed.
+
+Lemma fieldlist_no_replicate_fact: forall (f1 f2: fieldlist), fieldlist_no_replicate (fieldlist_app f1 f2) = true -> forall x: ident, fieldlist_in x f2 = true -> fieldlist_in x f1 = false.
+Proof.
+  intros.
+  induction f1; simpl in *.
+  + reflexivity.
+  + destruct (Pos.eqb x i) eqn:Heq.
+    - apply Peqb_true_eq in Heq.
+      subst x.
+      apply (fieldlist_app_in f1) in H0.
+      rewrite H0 in H.
+      inversion H.
+    - apply eq_sym, andb_true_eq in H; destruct H as [_ ?]. apply eq_sym in H.
+      exact (IHf1 H).
+Qed.
+
+Lemma field_type_with_witness: forall i t f' f, fieldlist_no_replicate (fieldlist_app f' (Fcons i t f)) = true -> field_type i (fieldlist_app f' (Fcons i t f)) = Errors.OK t.
+Proof.
+  intros.
+  assert (field_type i (Fcons i t f) = Errors.OK t).
+    simpl. if_tac; [reflexivity | congruence].
+  assert (fieldlist_in i (Fcons i t f) = true). 
+    simpl. rewrite (Pos.eqb_refl i). reflexivity.
+  remember (Fcons i t f) as f''; clear Heqf'' f.
+  pose proof fieldlist_no_replicate_fact f' f'' H i H1.
+  induction f'.
+  + exact H0.
+  + simpl in *.
+    destruct (Pos.eqb i i0) eqn:Heq; [inversion H2|].
+    apply Pos.eqb_neq in Heq.
+    destruct (ident_eq i i0); [congruence| clear n].
+    apply eq_sym, andb_true_eq in H; destruct H as [_ ?]. apply eq_sym in H.
+    exact (IHf' H H2).
+Qed.
+
+Lemma fieldlist_app_Fcons: forall f1 i t f2, fieldlist_app f1 (Fcons i t f2) = fieldlist_app (fieldlist_app f1 (Fcons i t Fnil)) f2.
+Proof.
+  intros.
+  induction f1.
+  + reflexivity.
+  + simpl.
+    rewrite IHf1.
+    reflexivity.
+Qed.
+
+(************************************************
+
+Definition of nested_reptype_structlist, nested_data_at, nested_sfieldlist_at
+
+************************************************)
+
+Fixpoint nested_reptype_structlist (ids: list ident) (t: type) (fld: fieldlist) : Type :=
+  match fld with
+  | Fnil => unit
+  | Fcons i _ fld' =>
+    if (is_Fnil fld')
+    then reptype (nested_field_type2 (i :: ids) t)
+    else prod (reptype (nested_field_type2 (i :: ids) t)) (nested_reptype_structlist ids t fld')
+  end.
+
+Fixpoint nested_reptype_unionlist (ids: list ident) (t: type) (fld: fieldlist) : Type :=
+  match fld with
+  | Fnil => unit
+  | Fcons i _ fld' => sum (reptype (nested_field_type2 (i :: ids) t)) (nested_reptype_unionlist ids t fld')
+  end.
+
+Lemma nested_reptype_lemma: forall ids t t0, nested_field_type ids t = Some t0 -> reptype t0 = reptype (nested_field_type2 ids t).
+Proof.
+  unfold nested_field_type, nested_field_type2.
+  intros.
+  destruct (nested_field_rec ids t) as [(ofs', t')|] eqn:HH.
+  + inversion H.
+    reflexivity.
+  + inversion H.
+Qed.
+
+Lemma nested_reptype_structlist_lemma: forall ids t i f a, nested_field_type ids t = Some (Tstruct i f a) -> fieldlist_no_replicate f = true -> reptype_structlist f = nested_reptype_structlist ids t f.
+Proof.
+  unfold nested_field_type.
+  intros.
+  destruct (nested_field_rec ids t) as [(ofs', t')|] eqn:HH; inversion H; clear H.
+  subst t'.
+  remember f as f'; rewrite Heqf' in HH, H0.
+  assert (Hprefix: exists f'', fieldlist_app f'' f' = f). exists Fnil. subst f'. reflexivity.
+  clear Heqf'.
+  induction f'.
+  + reflexivity.
+  + destruct Hprefix as [f'' ?]. rewrite <- H in H0.
+    pose proof field_type_with_witness _ _ _ _ H0.
+    simpl. destruct f'.
+    - simpl. 
+      apply nested_reptype_lemma.
+      unfold nested_field_type.
+      simpl.
+      rewrite HH.
+      pose proof field_offset_field_type_match i0 f as Hmatch.
+      destruct (field_offset i0 f), (field_type i0 f) eqn:Heq; try inversion Hmatch; clear Hmatch; subst f; rewrite H1 in Heq; inversion Heq; reflexivity.
+    - destruct (is_Fnil (Fcons i1 t1 f')) eqn:Heq; [simpl in Heq; congruence| clear Heq].
+      rewrite (nested_reptype_lemma (i0 :: ids) t t0).
+      rewrite IHf'.
+      reflexivity.
+      * exists (fieldlist_app f'' (Fcons i0 t0 Fnil)).
+        rewrite <- fieldlist_app_Fcons.
+        exact H.
+      * unfold nested_field_type.
+        simpl.
+        rewrite HH.
+      pose proof field_offset_field_type_match i0 f as Hmatch.
+      destruct (field_offset i0 f), (field_type i0 f) eqn:Heq; try inversion Hmatch; clear Hmatch; subst f; rewrite H1 in Heq; inversion Heq; reflexivity.
+Qed.
+
+Lemma nested_reptype_unionlist_lemma: forall ids t i f a, nested_field_type ids t = Some (Tstruct i f a) -> fieldlist_no_replicate f = true -> reptype_unionlist f = nested_reptype_unionlist ids t f.
+Proof.
+  unfold nested_field_type.
+  intros.
+  destruct (nested_field_rec ids t) as [(ofs', t')|] eqn:HH; inversion H; clear H.
+  subst t'.
+  remember f as f'; rewrite Heqf' in HH, H0.
+  assert (Hprefix: exists f'', fieldlist_app f'' f' = f). exists Fnil. subst f'. reflexivity.
+  clear Heqf'.
+  induction f'.
+  + reflexivity.
+  + destruct Hprefix as [f'' ?]. rewrite <- H in H0.
+    pose proof field_type_with_witness _ _ _ _ H0.
+    simpl. destruct f'.
+    - simpl. 
+      rewrite (nested_reptype_lemma (i0 :: ids) t t0); [reflexivity|].
+      unfold nested_field_type.
+      simpl.
+      rewrite HH.
+      pose proof field_offset_field_type_match i0 f as Hmatch.
+      destruct (field_offset i0 f), (field_type i0 f) eqn:Heq; try inversion Hmatch; clear Hmatch; subst f; rewrite H1 in Heq; inversion Heq; reflexivity.
+    - destruct (is_Fnil (Fcons i1 t1 f')) eqn:Heq; [simpl in Heq; congruence| clear Heq].
+      rewrite (nested_reptype_lemma (i0 :: ids) t t0).
+      rewrite IHf'.
+      reflexivity.
+      * exists (fieldlist_app f'' (Fcons i0 t0 Fnil)).
+        rewrite <- fieldlist_app_Fcons.
+        exact H.
+      * unfold nested_field_type.
+        simpl.
+        rewrite HH.
+      pose proof field_offset_field_type_match i0 f as Hmatch.
+      destruct (field_offset i0 f), (field_type i0 f) eqn:Heq; try inversion Hmatch; clear Hmatch; subst f; rewrite H1 in Heq; inversion Heq; reflexivity.
 Qed.
 
 Fixpoint nested_data_at (sh: Share.t) (ids: list ident) (t1: type) (v: reptype (nested_field_type2 ids t1)) : val -> mpred := data_at' sh empty_ti (nested_field_type2 ids t1) (nested_field_offset2 ids t1) v.
