@@ -477,6 +477,14 @@ Record head_inv cd (mu : Inj.t) mus m1 m2 : Type :=
 
 End head_inv.
 
+Lemma getBlocks_restrict j X args1 args2 b : 
+  Forall2 (val_inject (restrict j X)) args1 args2 -> 
+  getBlocks args1 b -> X b.
+Proof.
+move=> vinj H1; case: (getBlocks_inject _ _ _ vinj b H1)=> b' []d' []res get2.
+by case: (restrictD_Some _ _ _ _ _ res)=> asInj.
+Qed.
+
 Section contain_lems.
 
 Variable mu : Inj.t.
@@ -709,6 +717,265 @@ by case: (core_at_external (sims (Core.i c)) _ _ _ _ _ _ mtch atext).
 Qed.
 
 End head_inv_lems.
+
+Lemma initial_SM_DomSrc dS dT fS fT j : DomSrc (initial_SM dS dT fS fT j) = dS.
+Proof. by []. Qed.
+
+Lemma initial_SM_DomTgt dS dT fS fT j : DomTgt (initial_SM dS dT fS fT j) = dT.
+Proof. by []. Qed.
+
+Lemma foreign_ofI b1 b2 d (mu : Inj.t) :
+  as_inj mu b1 = Some (b2,d) -> 
+  frgnBlocksSrc mu b1 -> 
+  foreign_of mu b1 = Some (b2,d).
+Proof.
+case: mu; case=> /= lS lT pS pT lOf eS eT fS fT eOf wd. 
+rewrite /as_inj /join /=.
+move=> H f; move: H.
+case e: (eOf _)=> [[x y]|//]; first by case=> -> ->; rewrite f.
+move=> l; rewrite f.
+by case: wd=> /= _ _ _ _ _; case/(_ _ f)=> ? []? []; rewrite e.
+Qed.
+
+Lemma consistent_refl j : consistent j j.
+Proof. by move=> b1 b2 b2' d2 d2' ->; case=> -> ->. Qed.
+
+Section head_inv_leakout.
+
+Context c d pf cd mu mus m1 m2 
+        (inv : @head_inv c d pf cd mu mus m1 m2).
+
+Let j := as_inj mu.
+Let domS := DomSrc mu.
+Let domT := DomTgt mu.
+
+Context pubS' pubT' vals1 vals2
+        (inj : Mem.inject (as_inj mu) m1 m2)
+        (vinj : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
+        (eq1 : pubS' = fun b => locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b)
+        (eq2 : pubT' = fun b => locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b).
+
+Lemma vinj' : Forall2 (val_inject (as_inj mu)) vals1 vals2.
+Proof. by move: vinj; apply: forall_vals_inject_restrictD. Qed.
+
+Variable new_ix : 'I_N.
+
+Let frgnS := REACH m1 (fun b => 
+  isGlobalBlock (ge (cores_S new_ix)) b || getBlocks vals1 b).
+Let frgnT := REACH m2 (fun b => 
+  isGlobalBlock (ge (cores_T new_ix)) b || getBlocks vals2 b).
+
+Let init_mu := initial_SM domS domT frgnS frgnT j.
+
+Variable vis_rc : REACH_closed m1 (vis mu).
+
+Lemma globs_in_frgn :
+  {subset isGlobalBlock (ge (cores_S new_ix)) <= frgnBlocksSrc mu}.
+Proof.
+move: (head_match inv)=> mtch; apply match_genv in mtch.
+move=> b H; case: mtch=> _; move/(_ b); apply.
+by move: H; rewrite -(@isGlob_iffS' (Core.i c)).
+Qed.
+
+Lemma globs_in_vis :
+  {subset isGlobalBlock (ge (cores_S new_ix)) <= vis mu}.
+Proof. by move=> b; move/globs_in_frgn; apply: frgnBlocksSrc_vis. Qed.
+
+Lemma blocks_in_vis : {subset getBlocks vals1 <= vis mu}.
+Proof. by move=> b H2; apply: (getBlocks_restrict vinj H2). Qed.
+
+Lemma globs_blocks_in_vis :
+  {subset [predU isGlobalBlock (ge (cores_S new_ix)) & getBlocks vals1]
+  <= vis mu}.
+Proof. move=> b; case/orP; [by apply: globs_in_vis|by apply: blocks_in_vis]. Qed.
+
+Lemma frgnS_sub_vis : {subset frgnS <= vis mu}.
+Proof.
+move=> b H; apply: vis_rc.
+apply: (REACH_mono
+  (fun b : block =>
+    isGlobalBlock (ge (cores_S new_ix)) b || getBlocks vals1 b))=> //.
+by apply: globs_blocks_in_vis.
+Qed.
+
+Lemma init_rel_inv_rest : All (rel_inv_pred init_mu) mus.
+Proof.
+move: (head_rel inv) (head_match inv). 
+elim: mus=> // a mus' IH /= []rel rall mtch; split=> //.
+apply: Build_rel_inv.
+case: rel; case=> H []H2 H3; split.
+by rewrite initial_SM_as_inj.
+split=> b H4; first by apply: (H2 _).
+by apply: H3.
+case: rel=> _; case=> H []H2 H3.
+split; first by rewrite initial_SM_as_inj.
+split; first by rewrite initial_SM_DomSrc.
+by [].
+apply: Build_disjinv.
+by rewrite predI01.
+by rewrite predI01.
+move=> b; move/andP=> /= []fS lS.
+case: rel=> _ _; case=> d1 d2; move/(_ b)=> H _ _; apply: H.
+apply/andP; split=> //=.
+move: (frgnS_sub_vis fS); case/orP=> H.
+move: d1; move/DisjointP; move/(_ b); rewrite H.
+by move: lS; rewrite /in_mem /= => ->; case.
+by [].
+move=> b1 b2 d0; rewrite /foreign_of /=.
+case: rel=> _ _; case=> d1 d2 _ H _.
+case fS: (frgnS _)=> // J or; apply: H=> //. 
+move: (frgnS_sub_vis fS); case/orP=> H.
+have H2: locBlocksTgt mu b2.
++ by rewrite -(@as_inj_locBlocks mu _ _ _ (Inj_wd _) J).
+case: (orP or)=> H3.
+move: d1; move/DisjointP; move/(_ b1); rewrite H.
+by move: H3; rewrite /in_mem /= => ->; case.
+move: d2; move/DisjointP; move/(_ b2); rewrite H2.
+by move: H3; rewrite /in_mem /= => ->; case.
+by apply: foreign_ofI.
+case: rel=> _ _; case=> _ _ _ _.
+by rewrite /Consistent /= initial_SM_as_inj.
+by apply: IH.
+Qed.
+
+Let lo' := replace_locals mu pubS' pubT'.
+
+Lemma lo_wd : SM_wd lo'.
+move: vinj'=> H.
+exploit eff_after_check1; eauto.
+by move: (head_match inv); apply/match_sm_wd.
+by move: (head_match inv); apply/match_validblocks.
+by case=> wd.
+Qed.
+
+Let lo := Inj.mk lo_wd.
+
+Lemma lo_valid : sm_valid lo m1 m2.
+Proof.
+move: vinj'=> H.
+exploit eff_after_check1; eauto.
+by move: (head_match inv); apply/match_sm_wd.
+by move: (head_match inv); apply/match_validblocks.
+by case=> _; case.
+Qed.
+
+Lemma init_rel_inv_mu : rel_inv_pred init_mu $ Build_frame_pkg lo_valid.
+Proof.
+apply: Build_rel_inv.
+split=> /=.
+by rewrite replace_locals_as_inj initial_SM_as_inj; apply: inject_incr_refl.
+split=> b.
+by rewrite replace_locals_DomSrc initial_SM_DomSrc.
+by rewrite replace_locals_DomTgt initial_SM_DomTgt.
+split=> /=.
+by rewrite replace_locals_as_inj initial_SM_as_inj /j => ? ? ? ->.
+split=> b.
+by rewrite replace_locals_DomSrc initial_SM_DomSrc /domS=> ->.
+by rewrite replace_locals_DomTgt initial_SM_DomTgt /domT=> ->.
+apply: Build_disjinv=> /=.
+by rewrite predI01.
+by rewrite predI01.
+move=> b; move/andP=> /= []fS lS.
+rewrite replace_locals_pubBlocksSrc eq1.
+rewrite replace_locals_locBlocksSrc in lS.
+apply/andP; split=> //.
+apply: (REACH_mono 
+  (fun b0 : block =>
+    isGlobalBlock (ge (cores_S' new_ix)) b0 || getBlocks vals1 b0))=> //.
+move=> b0; case/orP.
+by move/globs_in_frgn; apply: frgnsrc_sub_exportedsrc.
+by move=> get; apply/orP; left.
+move=> b1 b2 d0.
+case fS: (frgnS b1)=> // J or.
+rewrite replace_locals_pub.
+have lS: locBlocksSrc lo' b1.
+{ case: (orP or)=> //.
+  have J': as_inj lo' b1 = Some (b2,d0).
+  + by rewrite replace_locals_as_inj.
+  by rewrite /in_mem /= -(@as_inj_locBlocks lo' _ _ _ lo_wd J'). }
+have ->: pubS' b1.
+{ rewrite eq1; apply/andP; split. 
+  by rewrite replace_locals_locBlocksSrc in lS.
+  apply: (REACH_mono 
+  (fun b0 : block =>
+    isGlobalBlock (ge (cores_S' new_ix)) b0 || getBlocks vals1 b0))=> //.
+  move=> b0; case/orP.
+  by move/globs_in_frgn; apply: frgnsrc_sub_exportedsrc.
+  by move=> get; apply/orP; left. }
+rewrite -locBlocksSrc_as_inj_local=> //.
+by apply: Inj_wd.
+by rewrite replace_locals_locBlocksSrc in lS.
+rewrite replace_locals_as_inj initial_SM_as_inj /j.
+by apply: consistent_refl.
+Qed.  
+
+Context (lo_mtch : 
+           match_state (sims (Core.i c)) cd lo' (Core.c c) m1 
+           (cast'' pf (Core.c d)) m2).
+
+Lemma lo_inj : Mem.inject (as_inj (replace_locals mu pubS' pubT')) m1 m2.
+Proof.
+move: vinj'=> H.
+exploit eff_after_check1; eauto.
+by move: (head_match inv); apply/match_sm_wd.
+by move: (head_match inv); apply/match_validblocks.
+by case=> _; case=> _; case.
+Qed.
+
+Lemma lo_vinj : 
+  Forall2 (val_inject (as_inj (replace_locals mu pubS' pubT'))) vals1 vals2.
+Proof.
+move: vinj'=> H.
+exploit eff_after_check1; eauto.
+by move: (head_match inv); apply/match_sm_wd.
+by move: (head_match inv); apply/match_validblocks.
+by case=> _; case=> _; case.
+Qed.
+
+Lemma lo_DomSrc : DomSrc lo' = DomSrc mu.
+Proof.
+by rewrite /DomSrc replace_locals_locBlocksSrc replace_locals_extBlocksSrc.
+Qed.
+
+Lemma lo_DomTgt : DomTgt lo' = DomTgt mu.
+Proof.
+by rewrite /DomTgt replace_locals_locBlocksTgt replace_locals_extBlocksTgt.
+Qed.
+
+Lemma lo_vis : vis lo' = vis mu.
+Proof.
+by rewrite /vis replace_locals_locBlocksSrc replace_locals_frgnBlocksSrc.
+Qed.
+
+Lemma lo_head_inv : @head_inv c d pf cd lo mus m1 m2.
+Proof.
+case: inv=> mtch all vis.
+apply: Build_head_inv=> //.
+clear - all; elim: mus all=> // mu0 mus' IH /= []rel rall.
+split; last by apply: IH.
+apply: Build_rel_inv.
+split; first by rewrite replace_locals_as_inj; case: rel; case.
+split=> b H; move: H.
+rewrite lo_DomSrc; case: rel; case=> _; case; move/(_ b)=> H _ _ _ H2.
+by apply: H.
+rewrite lo_DomTgt; case: rel; case=> _; case=> _; move/(_ b)=> H _ _ H2.
+by apply: H.
+case: rel=> _; case=> H []H2 H3 _.
+split; first by rewrite replace_locals_as_inj.
+split; first by rewrite lo_DomSrc.
+by rewrite lo_DomTgt.
+case: rel=> _ _; case=> d1 d2 p1 p2 cons.
+apply: Build_disjinv.
+by rewrite replace_locals_locBlocksSrc.
+by rewrite replace_locals_locBlocksTgt.
+by rewrite replace_locals_frgnBlocksSrc.
+by rewrite replace_locals_foreign.
+by rewrite /Consistent /= replace_locals_as_inj.
+case: vis=> rvis; apply: Build_vis_inv.
+by rewrite lo_vis.
+Qed.
+
+End head_inv_leakout.
 
 Import seq.
 
@@ -1306,6 +1573,23 @@ by move: (head_AllConsistent B)=> D.
 by apply: (tail_AllConsistent C).
 Qed.
 
+Lemma R_len_callStack : size (callStack x1) = size (callStack x2).
+Proof.
+case: (R_inv pf)=> []A []mu_top []mus []eq []pf2 D.
+move/tail_size_eq; rewrite /s1 /s2.
+have l1: ssrnat.leq 1 (size (callStack x1)). 
+  by move: (callStack_wf x1); move/andP=> [].
+have l2: ssrnat.leq 1 (size (callStack x2)). 
+  by move: (callStack_wf x2); move/andP=> [].
+by apply: pop_size.
+Qed.
+
+Lemma R_inContext : inContext x1 -> inContext x2.
+Proof. by rewrite /inContext /callStackSize R_len_callStack. Qed.
+
+Lemma R_inContext' : inContext x2 -> inContext x1.
+Proof. by rewrite /inContext /callStackSize R_len_callStack. Qed.
+
 End R_lems.
 
 Section initCore_lems.
@@ -1399,6 +1683,13 @@ have X: (P (Core.i (c inv)) (cast'' pf (Core.c (d inv)))).
 by apply: (cast_indnatdep' X).
 Qed.
 
+Lemma vis_sub_DomSrc (mu0 : Inj.t) : {subset vis mu0 <= DomSrc mu0}.
+Proof.
+move=> b; case/orP; rewrite /DomSrc.
+by rewrite /in_mem /= => ->.
+by move/frgnsrc_sub_extsrc=> H; apply/orP; right.
+Qed.
+
 Import CallStack.
 
 Require Import sepcomp.compcert. Import CompcertLibraries.
@@ -1471,7 +1762,7 @@ have exportedTgt_DomTgt:
     by case: (restrictD_Some _ _ _ _ _ res). }
   by case: (as_inj_DomRng _ _ _ _ asinj1 (Inj_wd _))=> _ ->. 
   by apply: sharedtgt_sub_domtgt. }
- 
+
 set (j := as_inj mu_top).
 set (domS := DomSrc mu_top).
 set (domT := DomTgt mu_top).
@@ -1479,6 +1770,12 @@ set (frgnS := REACH m1 (fun b =>
   isGlobalBlock (ge (cores_S (Core.i c1))) b || getBlocks args1 b)).
 set (frgnT := REACH m2 (fun b => 
   isGlobalBlock (ge (cores_T (Core.i c1))) b || getBlocks args2 b)).
+
+have j_domS_domT:
+  forall b1 b2 d0,
+  j b1 = Some (b2, d0) -> domS b1 = true /\ domT b2 = true.
+{ move=> b1 b2 d0; rewrite /j /domS /domT; move/as_inj_DomRng.
+  by move/(_ (Inj_wd _)). }
 
 have st1_len: (ssrnat.leq 1 (size (callStack (stack st1)))).
 { by move: (callStack_wf st1); move/andP=> []_ ?. }
@@ -1517,12 +1814,6 @@ have presglobs: meminj_preserves_globals (ge (cores_S (Core.i c1))) j.
   rewrite meminj_preserves_genv2blocks.
   rewrite match_genv_meminj_preserves_extern_iff_all=> //.
   by apply: Inj_wd. }
-
-have j_domS_domT:
-  forall b1 b2 d0,
-  j b1 = Some (b2, d0) -> domS b1 = true /\ domT b2 = true.
-{ move=> b1 b2 d0; rewrite /j /domS /domT=> asinj.
-  by apply: (as_inj_DomRng _ _ _ _ asinj (Inj_wd _)). }
 
 have globs_frgnT:
   forall b,
@@ -1569,17 +1860,14 @@ have [cd_new [c2 [pf_new [init2 mtch12]]]]:
       & match_state (sims (Core.i c1)) cd_new
         (initial_SM domS domT frgnS frgnT j) 
         (Core.c c1) m1 (cast'' pf (Core.c c2)) m2].
-
 { move: init1; rewrite /initCore.
   case init1: (core_semantics.initial_core _ _ _ _)=> //[c1']; case=> X.
   generalize dependent c1; case=> c1_i c1; intros.
   move: (X) init1; case=> eq _ init1; subst ix=> /=.
-  case: (core_initial _ _ _ _ (sims c1_i) _ args1
-        _ m1 j args2 m2 frgnS frgnT domS domT init1 inj vinj')=> //.
-  by rewrite /frgnS; apply REACH_is_closed.
-  admit.
-  admit.
-  admit.
+  case: (core_initial _ _ _ _ (sims c1_i) _ 
+         args1 _ m1 j args2 m2 domS domT init1 inj vinj')=> //.
+  { move=> b reach; rewrite /domT. 
+    admit. }
   move=> cd' []c2' []init2 mtch_init12.
   exists cd',(Core.mk N cores_T c1_i c2'),erefl.
   move: init2=> /= ->; split=> //=.
@@ -1602,259 +1890,94 @@ have eq2:
   = Core.i c2.
 { by []. }
 
-have valid': sm_valid mu_top m1 m2. 
-{ by apply: (head_valid hdinv)=> H1 H2. }
-
-set pkg := Build_frame_pkg valid'.
-
 set mu_new := initial_SM domS domT frgnS frgnT j.
 
 have mu_new_wd: SM_wd mu_new.
-{ rewrite /mu_new; apply: Build_SM_wd=> //=.
-  by move=> ?; left.
-  by move=> ?; left.
-  rewrite /frgnS /frgnT /exportedSrc /exportedTgt=> b1. case/orP=> get1.
-  case: (getBlocks_inject _ _ _ vinj _ get1)=> x' []y' [].
-  case/restrictD_Some=> X Y get2.
-  exists x',y'; split=> //; first by rewrite -mu_top'_as_inj in X.
-  by apply/orP; left. 
-  rewrite sharedSrc_iff_frgnpub in get1. 
-  case: (orP get1)=> H1.
-  case: (Inj_wd mu_top)=> _ _ _ _ _. 
-  rewrite mu_top'_frgnBlocksSrc in H1.
-  case/(_ b1 H1)=> x' []y' []H2 H3 _ _.
-  rewrite -mu_top'_extern_of in H2.
-  exists x',y'; rewrite /j /as_inj /join H2; split=> //.
-  rewrite -mu_top'_frgnBlocksTgt in H3.
-  by apply/orP; rewrite /sharedTgt H3; right; apply/orP; left.
-  case: (Inj_wd mu_top')=> _ _ _ _; case/(_ b1 H1)=> x' []y' []H2 H3 _ _ _.
-  exists x',y'; rewrite /j /as_inj /join H2; split=> //.
-  have ->: extern_of mu_top' b1 = None.
-  { by rewrite (local_some_extern_none H2). }
-  by [].
-  by apply/orP; rewrite /sharedTgt H3; right; apply/orP; right.
-  by apply: Inj_wd. }
+{ apply: initial_SM_wd=> //.
+  move=> b1; apply: REACH_inject=> // b; case/orP=> H.  
+  admit.
+  admit.
+  move=> b H; move: (head_match hdinv)=> mtch; apply match_visible in mtch.
+  suff: vis mu_top b by apply: vis_sub_DomSrc.
+  apply: mtch; apply: (REACH_mono 
+    (fun b : block =>
+      isGlobalBlock (ge (cores_S (Core.i c1))) b || getBlocks args1 b))=> //.
+  by move=> b0; eapply globs_blocks_in_vis; eauto.
+  admit. }
 
 set mu_new' := Inj.mk mu_new_wd.
 
-have cons_trash_j: consistent (as_inj mu_trash) j.
-{ rewrite /j /consistent=> b1 b2 b2' d2 d2' eOf asInj.
-  case: trinv=> X Y Z W U V; case=> ? ? ? ? ? ? ? ? ? ?.
-  move: V=> /=; case=> AA BB.
-  rewrite -mu_top'_as_inj in AA.
-  by apply: (AA b1 b2 b2' d2 d2' eOf asInj). }
+case: (extends _ _ erefl erefl _ erefl). 
 
-have cons_mutop_j: consistent (as_inj mu_top) j.
-{ rewrite /j /consistent=> b1 b2 b2' d2 d2' eOf asInj.
-  rewrite -mu_top'_as_inj in eOf.  
-  by rewrite eOf in asInj; case: asInj=> -> ->. }
+(* mu_pkg is leak-out(mu_top) *)
 
-have getBlocks1_frgnpub b:
-  getBlocks args1 b -> 
-  [\/ pubBlocksSrc mu_top' b | frgnBlocksSrc mu_top' b].
-{ move=> H1; apply (getBlocks_frgnpubS vinj''' H1). }
+set mu_pkg' := 
+  (replace_locals mu_top
+  (fun b : block =>
+    locBlocksSrc mu_top b && REACH m1 (exportedSrc mu_top args1) b)
+  (fun b : block =>
+    locBlocksTgt mu_top b && REACH m2 (exportedTgt mu_top args2) b)).
 
-have getBlocks1_locpub b: 
-  locBlocksSrc mu_top' b -> 
-  getBlocks args1 b -> 
-  pubBlocksSrc mu_top' b.
-{ move=> H1 H2; apply: (getBlocks_locpubS vinj''' H1 H2). }
+move=> mtch_pkg inj_pkg.
 
-have mu_top'_locBlocksSrc: locBlocksSrc mu_top' = locBlocksSrc mu_top.
-{ by rewrite /mu_top' /= /mu_top'' replace_locals_locBlocksSrc. }
+have mu_pkg_wd: SM_wd mu_pkg'.
+{ by exploit lo_wd; eauto. }
 
-have mu_top'_locBlocksTgt: locBlocksTgt mu_top' = locBlocksTgt mu_top.
-{ by rewrite /mu_top' /= /mu_top'' replace_locals_locBlocksTgt. }
+set mu_pkg := Inj.mk mu_pkg_wd.
 
-have mu_top'_extBlocksSrc: extBlocksSrc mu_top' = extBlocksSrc mu_top.
-{ by rewrite /mu_top' /= /mu_top'' replace_locals_extBlocksSrc. }
+have valid': sm_valid mu_pkg m1 m2. 
+{ by apply match_validblocks in mtch_pkg. }
 
-have mu_top'_extBlocksTgt: extBlocksTgt mu_top' = extBlocksTgt mu_top.
-{ by rewrite /mu_top' /= /mu_top'' replace_locals_extBlocksTgt. }
+set pkg := Build_frame_pkg valid'.
+
+have mu_pkg_as_inj: as_inj mu_pkg = as_inj mu_top.
+{ by rewrite /mu_pkg /= replace_locals_as_inj. }
+
+have pkg_hdinv: 
+  head_inv pf
+  (cast (fun ix : 'I_N => core_data (sims ix)) pf2 (projT2 cd))
+  pkg mus m1 m2.
+{ move: (@lo_head_inv (c inv) (d inv) pf 
+    (cast (fun ix0 : 'I_N => core_data (sims ix0)) pf2 (projT2 cd))
+    mu_top mus m1 m2 hdinv _ _ args1 args2 inj vinj erefl erefl mtch_pkg).
+  rewrite /pkg /= /mu_pkg.
+  have ->: lo_wd _ _ _ _ _ = mu_pkg_wd by move=> *; apply: proof_irr.
+  apply. }
 
 have mu_new_rel_inv_pkg: rel_inv_pred mu_new pkg.
-{ rewrite /mu_new; apply: Build_rel_inv.
-  split=> //; first by rewrite initial_SM_as_inj /j mu_top'_as_inj; 
-    apply: inject_incr_refl.
-  split. 
-  + rewrite /pkg /initial_SM /domS /DomSrc /=. 
-    by rewrite mu_top'_locBlocksSrc mu_top'_extBlocksSrc.
-  + rewrite /pkg /initial_SM /domT /DomTgt /=.
-    by rewrite mu_top'_locBlocksTgt mu_top'_extBlocksTgt.
-
-  rewrite /pkg /= /initial_SM /=; split=> //.
-  rewrite /j mu_top'_as_inj. admit. admit. 
-
-  apply: Build_disjinv.
-  by rewrite /initial_SM /= predI01.
-  by rewrite /initial_SM /= predI01.
-  move=> b; rewrite /in_mem /= /in_mem /= /frgnS; move/andP=> []X Y.
-  move: rc_exportedSrc; rewrite /exportedSrc=> Z.
-  rewrite (sharedSrc_iff_frgnpub mu_top' (Inj_wd _)) in Z.
-  cut [|| getBlocks args1 b, frgnBlocksSrc mu_top' b | pubBlocksSrc mu_top' b].
-  case/orP. 
-  move/getBlocks1_locpub; rewrite mu_top'_locBlocksSrc Y.
-  case/orP=> //. 
-  by move/(frgnBlocksSrc_locBlocksSrc _ (Inj_wd _)); rewrite Y.
-  apply: Z; apply: REACH_nil.  
-  move: X; rewrite /exportedSrc sharedSrc_iff_frgnpub.
-  by move=> ->.
-  by apply: Inj_wd.
-  rewrite /initial_SM /frgnS /= => b1 b2 d'.
-  case e: (exportedSrc _ _ _)=> // J.
-  rewrite /in_mem /=; case/orP.
-  move: e; rewrite /exportedSrc sharedSrc_iff_frgnpub.
-  case/orP. 
-  move=> H1 H2; move: (getBlocks1_locpub _ H2 H1)=> H3.
-  case: (StructuredInjections.pubSrc _ (Inj_wd _) _ H3)=> ? []? []X Y.
-  rewrite /j in J; move: (pub_in_all _ (Inj_wd _) _ _ _ X); rewrite J.
-  by case=> -> ->.
-  case/orP; first by move/(frgnBlocksSrc_locBlocksSrc _ (Inj_wd _))=> ->.
-  move=> H3.
-  case: (StructuredInjections.pubSrc _ (Inj_wd _) _ H3)=> ? []? []X Y.
-  rewrite /j in J; move: (pub_in_all _ (Inj_wd _) _ _ _ X); rewrite J.
-  by case=> -> ->.
-  by apply: Inj_wd. 
-  move=> H3.
-  case: (orP e)=> H1.
-  case fS: (frgnBlocksSrc mu_top b1).
-  have fT: (frgnBlocksTgt mu_top b2).
-  { case: (frgnSrc _ (Inj_wd _) _ fS)=> []? []? []fOf fT'.
-    move: (foreign_in_all _ _ _ _ fOf); rewrite /j in J; rewrite J.
-    by case=> e1 _; rewrite -e1 in fT'. }
-  by rewrite (frgnBlocksTgt_locBlocksTgt _ (Inj_wd _) _ fT) in H3.
-  have lS: (locBlocksSrc mu_top b1).
-  { move: e; rewrite /exportedSrc sharedSrc_iff_frgnpub.
-    rewrite fS /=; case/orP.
-    case/getBlocks1_frgnpub; first by apply: pubsrc_sub_locsrc.
-    by rewrite fS.
-    by apply: pubsrc_sub_locsrc.
-    by apply: Inj_wd. }
-  move: (getBlocks1_locpub _ lS H1)=> H4.
-  case: (StructuredInjections.pubSrc _ (Inj_wd _) _ H4)=> ? []? []X Y.
-  rewrite /j in J; move: (pub_in_all _ (Inj_wd _) _ _ _ X); rewrite J.
-  by case=> -> ->.
-  rewrite sharedSrc_iff_frgnpub in H1.
-  case: (orP H1).
-  case/(frgnSrc _ (Inj_wd _) _)=> ? []? []fOf fT'.
-  move: (foreign_in_all _ _ _ _ fOf); rewrite /j in J; rewrite J.
-  case=> e1 _; rewrite -e1 in fT'. 
-  by rewrite (frgnBlocksTgt_locBlocksTgt _ (Inj_wd _) _ fT') in H3.
-  move=> H4.
-  case: (StructuredInjections.pubSrc _ (Inj_wd _) _ H4)=> ? []? []X Y.
-  rewrite /j in J; move: (pub_in_all _ (Inj_wd _) _ _ _ X); rewrite J.
-  by case=> -> ->.
-  by apply: Inj_wd.
-  by move=> /=; rewrite initial_SM_as_inj; apply: cons_mutop_j. } 
+{ apply init_rel_inv_mu
+    with (c := c inv) (d := d inv) (pf := pf) 
+         (cd := (cast (fun ix : 'I_N => core_data (sims ix)) pf2 (projT2 cd))) 
+         (mus := mus)
+         (inv := hdinv) (inj := inj) (vinj := vinj)
+         (eq1 := erefl) (eq2 := erefl). }
 
 have mu_new_rel_inv_all: 
   All (rel_inv_pred (initial_SM domS domT frgnS frgnT j)) mus.
-{ move: (head_rel hdinv)=> rel.
-  clear - vinj rel; elim: mus rel=> //= mu0 mus' IH []rel1 rel2; split.
-  apply: relinv_init=> //.
-  admit.  
-  apply forall_inject_val_list_inject. admit.
-  by apply: IH. }
+{ apply init_rel_inv_rest
+    with (c := c inv) (d := d inv) (pf := pf) 
+         (cd := (cast (fun ix : 'I_N => core_data (sims ix)) pf2 (projT2 cd))) 
+         (mus := mus)=> //.
+  by move: (head_match hdinv)=> mtch; apply match_visible in mtch. }
 
 have mu_new_vis_inv: vis_inv c1 mu_new'.
 { apply: Build_vis_inv=> // b; rewrite /in_mem /= => Y.
   rewrite /vis /mu_new /frgnS /exportedSrc /=.
   move: Y; rewrite /RC.reach_basis; case/orP.
   case/orP. case/orP. move=> H1.
-  have H1': isGlobalBlock (ge (cores_S (Core.i (c inv)))) b.
+  have H1': isGlobalBlock (ge (cores_S' (Core.i c1))) b.
   { by rewrite -isGlob_iffS. }
-  apply/orP; right; rewrite sharedSrc_iff_frgnpub. 
-  apply/orP; left.
-  by case: (match_genv mtch')=> _; move/(_ b H1').
-  by [].
+  by apply: REACH_nil; apply/orP; left.
+  move=> getB; apply: REACH_nil; apply/orP; right.
   have eq: RC.args (Core.c c1) = args1. 
   { erewrite initCore_args; eauto. }
-  by rewrite eq=> ->.
+  by rewrite eq in getB.
   have eq: RC.rets (Core.c c1) = [::]. 
   { erewrite initCore_rets; eauto. }
   by rewrite eq getBlocksD_nil.
   have eq: RC.locs (Core.c c1) = (fun _ => false).
   { erewrite initCore_locs; eauto. }
   by rewrite eq. }
-
-have trinv_new:
-  trash_inv mu_new' (pkg :: mus) m1 m2.
-{ case: trinv=> X Y Z W U V; case=> CtS CtT CrS CrT FS FT FrS FrT EiT EiR.
-  apply: Build_trash_inv=> //.
-  split=> //=; first by rewrite predI01.
-  split=> //=; first by rewrite predI01. 
-  by split=> //=; rewrite /mu_new initial_SM_as_inj. 
-  apply: Build_trash_minimal=> //.
-  move=> b AA; move: (CtS _ AA); rewrite /in_mem /= /domS /DomSrc.
-  by move=> ->; apply/orP; right.
-  move=> b AA; move: (CtT _ AA); rewrite /in_mem /= /domT /DomTgt.
-  by move=> ->; apply/orP; right.
-  move=> mu0 /=; case; first by move=> <-. by apply: (CrS mu0).
-  move=> mu0 /=; case; first by move=> <-. by apply: (CrT mu0).
-  move=> b AA; move: (FS _ AA); rewrite /in_mem /= /frgnS /DomSrc.
-  rewrite /exportedSrc sharedSrc_iff_frgnpub. 
-  by move=> ->; apply/orP; right.
-  by apply: Inj_wd.
-  move=> b AA; move: (FT _ AA); rewrite /in_mem /= /frgnT /DomTgt.
-  by rewrite /exportedTgt /sharedTgt; move=> ->; apply/orP; right.
-  move=> mu0 /=; case; first by move=> <-. by apply: (FrS mu0).
-  move=> mu0 /=; case; first by move=> <-. by apply: (FrT mu0). 
-  rewrite /mu_new' /= /j.
-  apply: (inject_incr_trans 
-    (extern_of mu_trash) (extern_of mu_top) (as_inj mu_top))=> //.
-  by apply: extern_in_all.
-  move=> /= mu0; case; first by move=> <-.
-  by apply: EiR. }
-
-have mu_new'_ctndS: 
-  frgnS_contained mu_new' (pkg :: mus).
-{ rewrite /mu_new' /= /mu_new /domS /domT /frgnS /frgnT. 
-  cut (
-    frgnS_contained mu_trash
-     (initial_SM (DomSrc pkg) (DomTgt pkg) (exportedSrc pkg args1)
-        (exportedTgt pkg args2) j) (pkg :: mus))=> //.
-  apply: init_ctndS.
-  by apply: (head_ctndS hdinv).
-  by apply: vinj. }
-
-have mu_new'_ctndT: 
-  frgnT_contained mu_new' (pkg :: mus).
-{ rewrite /mu_new' /= /mu_new /domS /domT /frgnS /frgnT. 
-  cut (
-    frgnT_contained mu_trash
-     (initial_SM (DomSrc pkg) (DomTgt pkg) (exportedSrc pkg args1)
-        (exportedTgt pkg args2) j) (pkg :: mus))=> //.
-  apply: init_ctndT=> //.
-  by apply: (head_ctndT hdinv). }
-
-have mu_new'_mapd: 
-  linkingSimulation.frgnS_mapped mu_new' (pkg :: mus).
-{ rewrite /mu_new' /= /mu_new /domS /domT /frgnS /frgnT /j.
-  cut (
-   linkingSimulation.frgnS_mapped mu_trash
-     (initial_SM (DomSrc pkg) (DomTgt pkg) (exportedSrc pkg args1)
-        (exportedTgt pkg args2) (as_inj pkg)) (pkg :: mus))=> //.
-  apply: init_frgnS_mapped=> //.
-  by apply: (head_mapdS hdinv). }
-
-have shrdS_pkg_sub_mu_new':
- {subset sharedSrc pkg <= sharedSrc mu_new'}.
-{ rewrite /mu_new' /= /mu_new=> b; rewrite /in_mem /= /is_true. 
-  rewrite sharedSrc_iff_frgnpub. 
-  rewrite sharedSrc_iff_frgnpub /= /frgnS /exportedSrc sharedSrc_iff_frgnpub.
-  by case/orP=> ->; rewrite -!(orb_comm true).
-  by apply: Inj_wd.
-  move: mu_new_wd mu_new' mu_new_vis_inv trinv_new 
-    mu_new'_ctndS mu_new'_ctndT mu_new'_mapd.
-  rewrite /mu_new /frgnS /exportedSrc sharedSrc_iff_frgnpub.
-  by move=> H ? ? ? ? ? ?; apply: H.
-  by apply: Inj_wd. by apply: Inj_wd. by apply: Inj_wd. }
-
-have shrdT_pkg_sub_mu_new':
-  {subset sharedTgt pkg <= sharedTgt mu_new'}.
-{ rewrite /mu_new' /= /mu_new=> b; rewrite /in_mem /= /is_true. 
-  rewrite /sharedTgt /frgnT /exportedTgt /sharedTgt /=.
-  by case/orP=> ->; rewrite -!(orb_comm true). }
 
 have hdinv_new:
   head_inv pf_new cd_new mu_new' (pkg :: mus) m1 m2.
@@ -1865,24 +1988,10 @@ rewrite LinkerSem.handleP; exists all_at2,ix,c2; split=> //.
 by move: fntbl1; rewrite (R_fntbl inv).
 
 have valid_new: sm_valid mu_new' m1 m2. 
-{ rewrite /initial_SM /sm_valid /DOM /RNG /DomSrc /DomTgt /=.
-  rewrite /domS /domT; split=> b; generalize dependent valid'; case.
-  by move=> X ? ? ? ? ? ? ? ? ? H; apply: (X b).
-  by move=> ? X ? ? ? ? ? ? ? ? H; apply: (X b). }
+{ move: (head_match hdinv)=> mtch; apply match_validblocks in mtch.
+  by apply: mtch. }
 
 set (pkg_new := Build_frame_pkg valid_new).
-set (mu_tot := join_all [seq frame_mu0 i | i <- pkg :: mus]).
-set (mu_tot_new := 
-  join_all [seq frame_mu0 i | i <- pkg_new :: pkg :: mus]).
-
-have mu_tot_new_eq: mu_tot_new = mu_tot. 
-{ rewrite /mu_tot_new /mu_tot /pkg_new /= join_sm_absorb'=> //. 
-  by apply: extern_in_all.
-  rewrite /mu_new /= /domS.
-  by apply: extsrc_sub_domsrc.
-  by apply: exttgt_sub_domtgt. 
-  by apply: frgnsrc_sub_exportedsrc.
-  by apply: frgntgt_sub_exportedtgt. }
 
 have pf_new':
     Core.i (STACK.head st1' (callStack_nonempty st1'))
@@ -1890,8 +1999,8 @@ have pf_new':
 { by rewrite eq1 eq2; apply: pf_new. }
 
 apply: Build_R.
-exists pf_new',mu_trash,mu_new',[:: pkg & mus]; split=> //.
-by move: mu_tot_new_eq; rewrite /mu_tot_new /mu_tot=> ->.
+exists pf_new',mu_new',[:: pkg & mus]; split=> //.
+admit.
 rewrite ->st1'_eq in *; rewrite /=.
 
 have eq: Core.i c1 
@@ -1914,12 +2023,15 @@ by have ->: pf_new' = pf_new by apply: proof_irr.
 
 have valid'': sm_valid pkg m1 m2 by apply: valid'.
 have vinj'': 
-  Forall2 (val_inject (restrict (as_inj mu_top) (vis mu_top))) args1 args2.
-{ apply: restrict_forall_vals_inject=> //.
-  rewrite /vis=> b get; case: (getBlocks1_frgnpub _ get).
-  by move/pubsrc_sub_locsrc; rewrite /in_mem /= => ->.
-  by move=> ->; apply/orP; right. }
-move: (head_tail_inv tlinv valid'' atext1' atext2' inj vinj'' hdinv).
+  Forall2 (val_inject (restrict (as_inj pkg) (vis pkg))) args1 args2.
+{ rewrite mu_pkg_as_inj; apply: restrict_forall_vals_inject=> //.
+  move=> b H; move: (blocks_in_vis vinj); move/(_ b H).
+  case/orP=> H2; apply/orP.
+  by rewrite replace_locals_locBlocksSrc; left.
+  by rewrite replace_locals_frgnBlocksSrc; right. }
+have inj': Mem.inject (as_inj pkg) m1 m2.
+{ by rewrite mu_pkg_as_inj. }
+move: (head_tail_inv tlinv valid'' atext1' atext2' inj' vinj'' pkg_hdinv).
 rewrite /s1 /s2 st1'_eq /st2' /pkg /= => tlinv'. 
 by rewrite st1_eq st2_eq; apply: tlinv'.
 by rewrite st1'_eq /st2'; apply: (R_fntbl inv).
@@ -1953,12 +2065,12 @@ Context
 
 Lemma hlt2 : exists rv2, LinkerSem.halted0 st2 = Some rv2.
 Proof.
-case: (R_inv inv)=> pf [][]mu_top []mus []mu_eq.
-move=> rc trinv []pf2 hdinv tlinv.
+case: (R_inv inv)=> pf []mu_top []mus []mu_eq.
+move=> []pf2 hdinv tlinv.
 move: hlt1; rewrite /LinkerSem.halted0=> hlt10.
 case: (core_halted (sims (Core.i (peekCore st1)))
        _ _ _ _ _ _ (head_match hdinv) hlt10)
-       => rv2 []inj12 []rcS []rcT []vinj []vdefs hlt2.
+       => rv2 []inj12 []vinj []vdefs []hlt2 extends.
 exists rv2.
 set T := C \o cores_T.
 set P := fun ix (x : T ix) => 
@@ -1994,12 +2106,12 @@ Lemma aft2 :
     , LinkerSem.after_external (Some rv2) st2'' = Some st2'
     & R cd' mu st1' m1 st2' m2].
 Proof.
-case: (R_inv inv)=> pf [][]mu_top []mus []mu_eq.
-move=> rc trinv []pf_hd hdinv tlinv.
+case: (R_inv inv)=> pf []mu_top []mus []mu_eq.
+move=> []pf_hd hdinv tlinv.
 move: hlt1; rewrite /LinkerSem.halted0=> hlt10.
 case: (core_halted (sims (Core.i (peekCore st1)))
        _ _ _ _ _ _ (head_match hdinv) hlt10)
-       => rv2 []inj12 []rcS []rcT []vinj []rv_defs hlt2.
+       => rv2 []inj12 []vinj []rv_defs []hlt2 extends. 
 exists rv2.
 case: pop2=> st2'' pop2.
 
@@ -2040,7 +2152,7 @@ case: (popCoreE _ pop2)=> pf_wf2 []ctx2.
 rewrite /updStack st2''_eq; case=> fntbleq2 eq2; rewrite -eq2 in frameall|-*.
 move {eq1 eq2}.
 case; case=> pf0 []cd0 []x0 []sig01 []vals01 []e0 []sig02 []vals02.
-case=> fr0 ctndS0 ctndT0 mapdS0 sub0S sub0T frametail.
+move=> fr0 frametail.
 
 move: (frame_inj0 fr0)=> inj0.
 move: (frame_match fr0)=> mtch0.
@@ -2056,6 +2168,8 @@ have at02':
   at_external (coreSem (cores_T (Core.i hd1)))
     (cast'' pf0 (Core.c hd2)) = Some (e0,sig02,vals02).
 { by rewrite /= -at02; f_equal. }
+
+(* nu = leak-out(mu0) -- where mu0 is callee *)
 
 set pubSrc' := fun b => 
   locBlocksSrc mu0 b && REACH m10 (exportedSrc mu0 vals01) b.
@@ -2082,6 +2196,8 @@ have [nu_wd [nu_valid0 [nu_inj0 nu_vinj]]]:
   pubSrc' erefl
   pubTgt' erefl 
   nu erefl). }
+
+(* nu' = reestablish nu w/r/t mu_top *)
 
 set nu' := reestablish nu mu_top.
 
@@ -2275,23 +2391,9 @@ by apply: proof_irr. }
 
 apply: Build_R=> /=.
 rewrite st1'_eq; exists pf_eq12'.
-case: mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail frameall.
+(*case: mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail frameall.
 move=> x1 x2 xval.
-move=> /= mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail frameall.
-
-set mu_trash'' := join_sm mu_top mu_trash.
-
-have mu_trash''_wd : SM_wd mu_trash''.
-{ case: trinv=> /= ? ? ? []H1 H2 []H3 H4 []H5 H6; case=> ? ? ? ? ? ? ? ? ? ?.
-  apply: join_sm_wd=> //; first by move: H1; rewrite DisjointC; apply.
-  by move: H3; rewrite DisjointC; apply.
-  by move: H5; move/consistentC; apply. }
-
-set mu_trash' := Inj.mk mu_trash''_wd.
-
-have mu_trash'_val : sm_valid mu_trash' m1 m2.
-{ apply: join_sm_valid; first by apply: (head_valid hdinv).
-  by apply: (trash_valid trinv). }
+move=> /= mu_eq trinv hdinv ctndS0 ctndT0 mapdS0 frametail frameall.*)
 
 have mu'_wd : SM_wd mu'.
 { case: (eff_after_check2 nu' rv1 m1 m2 rv2 nu'_inj nu'_vinj
@@ -2448,514 +2550,38 @@ have mu0_mu'_sep : sm_inject_separated mu0 mu' m10 m20.
 { by apply: (eff_after_check5 mu0 pubSrc' pubTgt' nu erefl nu'
             mu' frgnSrc' frgnTgt' erefl m10 m20 nu_nu'_sep). }
 
-exists (Build_frame_pkg mu_trash'_val),(Inj.mk mu'_wd),(tl mus).
-
-have frgn_trash_sub_frgnSrc': 
-  {subset (frgnBlocksSrc mu_trash) <= frgnSrc'}.
-{ move=> b0 F. 
-  rewrite /frgnSrc' /in_mem /= /DomSrc /nu'.
-  rewrite reestablish_locBlocksSrc /nu replace_locals_locBlocksSrc.
-  rewrite reestablish_extBlocksSrc.
-  rewrite replace_locals_locBlocksSrc.
-  have IN: In (Inj.mu mu0) [seq (Inj.mu \o frame_mu0) x | x <- mus]. 
-  { by rewrite mus_eq /=; left. }
-  have ll: locBlocksSrc mu0 b0 = false.
-  { move: (trash_ctnd_restS (trash_min trinv) IN (frgnsrc_sub_extsrc F)).
-    rewrite /in_mem /=.
-    by move/(extBlocksSrc_locBlocksSrc _ (Inj_wd _) _)=> ->. }
-  clear - F trinv mus_eq nu'_wd ll; apply/andP; split.
-  apply/orP; right; rewrite ll; apply/orP; right.
-  by apply: (trash_ctnd_topS (trash_min trinv) (frgnsrc_sub_extsrc F)).
-  rewrite ll; apply/andP; split=> //.
-  apply: REACH_nil.
-  rewrite /exportedSrc sharedSrc_iff_frgnpub.
-  apply/orP; right; apply/orP; left.
-  suff: frgnBlocksSrc (replace_locals mu0 pubSrc' pubTgt') b0.
-  by rewrite reestablish_frgnBlocksSrc.
-  rewrite replace_locals_frgnBlocksSrc.
-  apply: (trash_fctnd_restS (trash_min trinv))=> //.
-  by rewrite mus_eq /=; left.
-  by apply: nu'_wd. }
-
-have frgn_trash_sub_frgnTgt': 
-  {subset (frgnBlocksTgt mu_trash) <= frgnTgt'}.
-{ move=> b0 F. 
-  rewrite /frgnTgt' /in_mem /= /DomTgt /nu'.
-  rewrite reestablish_locBlocksTgt /nu replace_locals_locBlocksTgt.
-  rewrite reestablish_extBlocksTgt.
-  rewrite replace_locals_locBlocksTgt.
-  have IN: In (Inj.mu mu0) [seq (Inj.mu \o frame_mu0) x | x <- mus]. 
-  { by rewrite mus_eq /=; left. }
-  have ll: locBlocksTgt mu0 b0 = false.
-  { move: (trash_ctnd_restT (trash_min trinv) IN (frgntgt_sub_exttgt F)).
-    rewrite /in_mem /=.
-    by move/(extBlocksTgt_locBlocksTgt _ (Inj_wd _) _)=> ->. }
-  clear - F trinv mus_eq nu'_wd ll; apply/andP; split.
-  apply/orP; right; rewrite ll; apply/orP; right.
-  by apply: (trash_ctnd_topT (trash_min trinv) (frgntgt_sub_exttgt F)).
-  rewrite ll; apply/andP; split=> //.
-  apply: REACH_nil.
-  rewrite /exportedTgt /sharedTgt.
-  apply/orP; right; apply/orP; left.
-  suff: frgnBlocksTgt (replace_locals mu0 pubSrc' pubTgt') b0.
-  by rewrite reestablish_frgnBlocksTgt.
-  rewrite replace_locals_frgnBlocksTgt.
-  apply: (trash_fctnd_restT (trash_min trinv))=> //.
-  by rewrite mus_eq /=; left. }
-
-have eincr_trash_mu': 
-  inject_incr (extern_of mu_trash) (extern_of mu').
-{ rewrite /mu' replace_externs_extern /nu'.
-  rewrite reestablish_extern_of /nu replace_locals_locBlocksSrc.
-  move=> b b' d' H /=.
-  have l0: locBlocksSrc mu0 b = false.
-  { case: (extern_DomRng' _ (Inj_wd _) _ _ _ H)=> _ []_ []_ []_ []eS _.
-    move: (trash_ctnd_restS (trash_min trinv) mu0_in eS); rewrite /in_mem /=.
-    by move/(extBlocksSrc_locBlocksSrc _ (Inj_wd _) _). }
-  rewrite l0.
-  have eTop: extern_of mu_top b = Some (b',d').
-  { by apply: (trash_eincr_top (trash_min trinv) H). }
-  by rewrite /as_inj /join eTop. }
+exists (Inj.mk mu'_wd),(tl mus).
 
 move=> /=; split=> //.
+
+admit.
 
 set mu0_pkg := {| frame_mu0 := mu0; frame_m10 := m10; frame_m20 := m20;
                   frame_val := mu0_val |}.
 
-have vis_eq: 
-  (vis (join_sm mu_top 
-    (join_sm mu0 (join_all [seq frame_mu0 i | i <- mus'])))
-  = vis (join_sm mu' (join_all mu_trash' [seq frame_mu0 i | i <- mus']))).
-{ rewrite /vis /mu_trash' /mu' /join_sm /in_mem /= /in_mem /=; f_equal=> //=.
-  extensionality b; rewrite /in_mem /=.
-  rewrite replace_externs_locBlocksSrc /nu'.
-  rewrite reestablish_locBlocksSrc /nu replace_locals_locBlocksSrc.
-  rewrite replace_externs_frgnBlocksSrc.
-  rewrite (frgnS_join_all'_sub trinv)=> //.
-  have eq: (frgnSrc' b && frgnBlocksSrc b) = frgnBlocksSrc b.
-  { by rewrite andb_comm predI_sub5=> //; apply: frgn_trash_sub_frgnSrc'. }
-  rewrite eq.
-  rewrite (frgnS_join_all_sub trinv).
-  rewrite (andb_comm (frgnBlocksSrc mu0 b)).
-  rewrite andb_assoc.
-  rewrite (andb_comm (frgnBlocksSrc mu_top b)).
-  rewrite predI_sub5.
-  rewrite predI_sub5.
-  rewrite join_all_shift_locBlocksSrcE /= /in_mem /=.
-  rewrite orb_assoc.
-  rewrite (orb_comm (locBlocksSrc mu_top b)).
-  by rewrite (orb_assoc (locBlocksSrc mu0 b)).
-  by apply: (trash_fctnd_topS (trash_min trinv)).
-  case/andP=> H1 H2; move: (trash_fctnd_restS (trash_min trinv)).
-  by move/(_ mu0 mu0_in); apply.
-  by rewrite mus_eq /= => mu1 IN; right. 
-  by rewrite mus_eq /= => mu1 IN; right. }
-
-rewrite mu_eq mus_eq; f_equal=> /=.
-
-{ extensionality b. 
-  rewrite join_all_shift_locBlocksSrc.
-  rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
-  rewrite replace_externs_locBlocksSrc.
-  rewrite reestablish_locBlocksSrc.
-  by rewrite replace_locals_locBlocksSrc. }
-
-{ extensionality b. 
-  rewrite join_all_shift_locBlocksTgt.
-  rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
-  rewrite replace_externs_locBlocksTgt.
-  rewrite reestablish_locBlocksTgt.
-  by rewrite replace_locals_locBlocksTgt. }
-
-{ have inj_eq: 
-  (join (local_of mu_top)
-    (join (local_of mu0) 
-          (local_of (join_all [seq frame_mu0 i | i <- mus'])))
-  = (join (local_of mu') 
-          (local_of (join_all mu_trash' [seq frame_mu0 i | i <- mus'])))).
-  { rewrite join_all_shift_local_of.
-    rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
-    rewrite !replace_externs_local.
-    rewrite !reestablish_local_of.
-    by rewrite !replace_locals_local. 
-    have mu_top_valid: sm_valid mu_top m1 m2
-      by apply: (match_validblocks _ (head_match hdinv)).
-    set mupkg' := Build_frame_pkg mu_top_valid.
-    have val': sm_valid mupkg' m1 m2 by apply: (head_valid hdinv).
-    set mupkg := Build_frame_pkg val'.
-    set mutrash := Build_frame_pkg (trash_valid trinv).
-    have trinv': trash_inv mutrash mupkg mus m1 m2.
-      by apply: trinv.
-    have hdinv': 
-      head_inv pf 
-        (cast (fun ix : 'I_N => core_data (sims ix)) pf_hd (projT2 cd))
-        mutrash mupkg mus m1 m2.
-      by apply: hdinv.
-    have tlinv': tail_inv mutrash mus (hd1::tl1) (hd2::tl2) m1 m2.
-    { by split. }
-    move: (R_AllDisjointS trinv' hdinv' tlinv').
-    by rewrite /comp !map_comp mus_eq /= !map_id. }
-  by rewrite inj_eq vis_eq. }
-
-{ extensionality b.
-  rewrite join_all_shift_extBlocksSrc.
-  rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
-  rewrite replace_externs_extBlocksSrc.
-  rewrite reestablish_extBlocksSrc.
-  rewrite replace_locals_locBlocksSrc. 
-  cut ((extBlocksSrc mu0 b /\
-        extBlocksSrc (join_all (Inj.mk mu_trash''_wd) 
-          [seq frame_mu0 i | i <- mus']) b) 
-       <-> ((if locBlocksSrc mu0 b then false else DomSrc mu_top b) /\
-           (extBlocksSrc (join_all (Inj.mk mu_trash''_wd) 
-             [seq frame_mu0 i | i <- mus']) b))).
-
-  case.
-  case: (extBlocksSrc _ _)=> //.
-  case: (extBlocksSrc _ _)=> //.
-  case/(_ (conj erefl erefl)).
-  case: (locBlocksSrc _ _)=> //.
-  by move=> ->.
-  move=> /=.
-  case: (locBlocksSrc _ _)=> //.
-  by rewrite andb_false_r.
-  case: (extBlocksSrc _ _)=> //.
-  case: (locBlocksSrc _ _)=> //. 
-  case: (DomSrc _ _)=> //=.
-  by move=> _; move/(_ (conj erefl erefl)); case.
-  by symmetry; rewrite andb_false_r.
-
-  rewrite join_all_extBlocksSrc /= /in_mem /=.
-  case lSrc0: (locBlocksSrc mu0 b).
-  have eSrc0_f: extBlocksSrc mu0 b = false. 
-  { case eOf: (extBlocksSrc mu0 b)=> //.
-    by rewrite (extBlocksSrc_locBlocksSrc _ (Inj_wd _) _ eOf) in lSrc0. }
-  by rewrite eSrc0_f; split.
-  split; case=> H1 []H2 H3; split=> //.
-  by case: (andP H2)=> AA BB; rewrite /DomSrc AA; apply/orP; right.
-  case: (andP H2)=> AA BB. 
-  move: (trash_min trinv); rewrite mus_eq; move/trash_ctnd_restS.
-  by move/(_ mu0_pkg); apply=> //=; left. }
-
-{ extensionality b.
-  rewrite join_all_shift_extBlocksTgt.
-  rewrite /= /in_mem /= /mu' /nu' /nu /mu_trash' /in_mem /=.
-  rewrite replace_externs_extBlocksTgt.
-  rewrite reestablish_extBlocksTgt.
-  rewrite replace_locals_locBlocksTgt. 
-  cut ((extBlocksTgt mu0 b /\
-        extBlocksTgt (join_all (Inj.mk mu_trash''_wd) 
-          [seq frame_mu0 i | i <- mus']) b) 
-       <-> ((if locBlocksTgt mu0 b then false else DomTgt mu_top b) /\
-           (extBlocksTgt (join_all (Inj.mk mu_trash''_wd) 
-             [seq frame_mu0 i | i <- mus']) b))).
-
-  case.
-  case: (extBlocksTgt _ _)=> //.
-  case: (extBlocksTgt _ _)=> //.
-  case/(_ (conj erefl erefl)).
-  case: (locBlocksTgt _ _)=> //.
-  by move=> ->.
-  move=> /=.
-  case: (locBlocksTgt _ _)=> //.
-  by rewrite andb_false_r.
-  case: (extBlocksTgt _ _)=> //.
-  case: (locBlocksTgt _ _)=> //. 
-  case: (DomTgt _ _)=> //=.
-  by move=> _; move/(_ (conj erefl erefl)); case.
-  by symmetry; rewrite andb_false_r.
-
-  rewrite join_all_extBlocksTgt /= /in_mem /=.
-  case lTgt0: (locBlocksTgt mu0 b).
-  have eTgt0_f: extBlocksTgt mu0 b = false. 
-  { case eOf: (extBlocksTgt mu0 b)=> //.
-    by rewrite (extBlocksTgt_locBlocksTgt _ (Inj_wd _) _ eOf) in lTgt0. }
-  by rewrite eTgt0_f; split.
-  split; case=> H1 []H2 H3; split=> //.
-  by case: (andP H2)=> AA BB; rewrite /DomTgt AA; apply/orP; right.
-  case: (andP H2)=> AA BB. 
-  move: (trash_min trinv); rewrite mus_eq; move/trash_ctnd_restT.
-  by move/(_ mu0_pkg); apply=> //=; left. }
-
-{ rewrite (frgnS_join_all_sub trinv).
-  rewrite (frgnS_join_all'_sub trinv).
-  rewrite (predIC (frgnBlocksSrc mu0)) predIA. 
-  rewrite (predIC (frgnBlocksSrc mu_top)) -predIA.
-  set rest := [predI frgnBlocksSrc mu_top & _].
-  rewrite predI_sub4.
-  rewrite (predIC (frgnBlocksSrc mu')) predI_sub4; first by [].
-  by rewrite /mu'; rewrite replace_externs_frgnBlocksSrc.
-  rewrite /rest=> b; rewrite /in_mem /= /in_mem /= => H; apply/andP; split.
-  by apply: (trash_fctnd_topS (trash_min trinv)).
-  by apply: (trash_fctnd_restS (trash_min trinv) mu0_in H).  
-  by rewrite mus_eq=> mu1 /= H; right.
-  by rewrite mus_eq=> mu1 /= H; right. }
-
-{ rewrite (frgnT_join_all_sub trinv).
-  rewrite (frgnT_join_all'_sub trinv).
-  rewrite (predIC (frgnBlocksTgt mu0)) predIA. 
-  rewrite (predIC (frgnBlocksTgt mu_top)) -predIA.
-  set rest := [predI frgnBlocksTgt mu_top & _].
-  rewrite predI_sub4.
-  rewrite (predIC (frgnBlocksTgt mu')) predI_sub4; first by [].
-  by rewrite /mu'; rewrite replace_externs_frgnBlocksTgt.
-  rewrite /rest=> b; rewrite /in_mem /= /in_mem /= => H; apply/andP; split.
-  by apply: (trash_fctnd_topT (trash_min trinv)).
-  by apply: (trash_fctnd_restT (trash_min trinv) mu0_in H).  
-  by rewrite mus_eq=> mu1 /= H; right.
-  by rewrite mus_eq=> mu1 /= H; right. }
-
-{ have inj_eq: 
-  (join2 (extern_of mu_top)
-    (join2 (extern_of mu0) 
-          (extern_of (join_all [seq frame_mu0 i | i <- mus'])))
-  = (join2 (extern_of mu') 
-          (extern_of (join_all mu_trash' [seq frame_mu0 i | i <- mus'])))).
-  { rewrite (extern_of_trash_join_all_sub trinv).
-    rewrite (extern_of_trash_join_all'_sub trinv).
-    rewrite (@join2C (extern_of mu0)).
-    rewrite (@join2_inject_incr (extern_of mu_trash)).
-    rewrite join2C join2_inject_incr.
-    rewrite join2C join2_inject_incr=> //.
-    by apply: (trash_eincr_top (trash_min trinv)). 
-    by apply: (trash_eincr_rest (trash_min trinv) mu0_in). 
-    by rewrite mus_eq=> /= mu1; right.
-    by rewrite mus_eq=> /= mu1; right. }
-  by rewrite inj_eq vis_eq. }
-
-apply: Build_trash_inv.
-{ rewrite /mu_trash'' /join_sm /= join2C join2_inject_incr.
-  apply: (trash_presglob trinv).
-  by apply: (trash_eincr_top (trash_min trinv)). }
-{ rewrite /mu_trash'' join_sm_frgnSrc predIC predI_sub4.
-  by move=> b isGlob; move: (trash_isglob trinv isGlob).
-  by apply: (trash_fctnd_topS (trash_min trinv)). }
-{ rewrite /mu_trash''; apply: join_sm_valid.
-  apply: (head_valid hdinv).
-  by apply: (trash_valid trinv). }
-{ move: (trash_disj_S trinv). 
-  rewrite /mu_trash'' /mu' /nu' /=. 
-  rewrite replace_externs_locBlocksSrc reestablish_locBlocksSrc.
-  move=> []D10 AD1.
-  have D1: DisjointLS mu0.
-  { clear - AD1 mu0_in.
-    elim: mus AD1 mu0_in=> // a mus' /= IH []D1 AD1; case.
-    by move=> <-; apply: D1.
-    by move=> IN; apply: IH. }
-  have D2: DisjointLS mu_top mu0.
-  { move: (head_AllDisjointLS hdinv)=> AD2; clear - mu0_in AD2.
-    elim: mus AD2 mu0_in=> // a mus' /= IH []D1 AD1; case.
-    by move=> <-.
-    by move=> IN; apply: IH. }
-  split.
-  rewrite /nu replace_locals_locBlocksSrc DisjointP=> a.
-  move: D1 D2; rewrite /DisjointLS /= !DisjointP /in_mem /=. 
-  move/(_ a)=> D1; move/(_ a)=> D2; move: D1 D2.
-  by case: (locBlocksSrc mu_top a).
-  move: (head_AllDisjointLS hdinv).
-  move: AD1; rewrite mus_eq /= => [][]D3 AD1 []D4 AD2.
-  clear - AD1 AD2; elim: mus' AD1 AD2=> // a mus' /= IH.
-  move=> []D1 AD1 []D2 AD2; split.
-  move: D1 D2; rewrite !DisjointP=> D1 D2 a0 /=; move: (D1 a0) (D2 a0).
-  by rewrite /in_mem /=; case: (locBlocksSrc mu_top a0).
-  by apply: IH. }
-{ move: (trash_disj_T trinv). 
-  rewrite /mu_trash'' /mu' /nu' /=. 
-  rewrite replace_externs_locBlocksTgt reestablish_locBlocksTgt.
-  move=> []D10 AD1.
-  have D1: DisjointLT mu0.
-  { clear - AD1 mu0_in.
-    elim: mus AD1 mu0_in=> // a mus' /= IH []D1 AD1; case.
-    by move=> <-; apply: D1.
-    by move=> IN; apply: IH. }
-  have D2: DisjointLT mu_top mu0.
-  { move: (head_AllDisjointLT hdinv)=> AD2; clear - mu0_in AD2.
-    elim: mus AD2 mu0_in=> // a mus' /= IH []D1 AD1; case.
-    by move=> <-.
-    by move=> IN; apply: IH. }
-  split.
-  rewrite /nu replace_locals_locBlocksTgt DisjointP=> a.
-  move: D1 D2; rewrite /DisjointLT /= !DisjointP /in_mem /=. 
-  move/(_ a)=> D1; move/(_ a)=> D2; move: D1 D2.
-  by case: (locBlocksTgt mu_top a).
-  move: (head_AllDisjointLT hdinv).
-  move: AD1; rewrite mus_eq /= => [][]D3 AD1 []D4 AD2.
-  clear - AD1 AD2; elim: mus' AD1 AD2=> // a mus' /= IH.
-  move=> []D1 AD1 []D2 AD2; split.
-  move: D1 D2; rewrite !DisjointP=> D1 D2 a0 /=; move: (D1 a0) (D2 a0).
-  by rewrite /in_mem /=; case: (locBlocksTgt mu_top a0).
-  by apply: IH. }
-{ rewrite /= as_inj_mu'_mu_top /mu_trash''; split.
-  apply: consistentC.
-  apply: join_sm_consistent.
-  by move=> b1 b2 b2' d2 d2' ->; case=> -> ->.
-  by move: (trash_consist trinv)=> /= []; move/consistentC.
-  move: (trash_consist trinv) (head_AllConsistent hdinv)=> /=.
-  rewrite mus_eq /=; move=> []C1 []C2 AC1 []C3 AC2.
-  clear - AC1 AC2; elim: mus' AC1 AC2=> // a mus' /= IH.
-  move=> []C1 AC1 []C2 AC2; split.
-  apply: consistentC; apply: join_sm_consistent.
-  by apply: consistentC.
-  by apply: consistentC.
-  by apply: IH. }
-
-have trmin0: 
-  trash_minimal mu_trash'' mu0 
-  [seq (Inj.mu \o frame_mu0) x | x <- tl mus].
-{ move: (@trash_minimal_return mu_top mu0 
-         [seq frame_mu0 x | x <- tl mus]).
-  rewrite -map_comp /comp; apply=> //.
-  by move: (trash_min trinv); rewrite mus_eq !map_comp /= -!map_comp /funcomp. }
-case: trmin0=> ES ET ErS ErT FS FT FrS FrT eincrT eincrR.
-case: (trash_min trinv)=> ES' ET' ErS' ErT' FS' FT' FrS' FrT' eincrT' eincrR'.
-apply: Build_trash_minimal=> //=.
-{ rewrite predIC predI_sub4=> //.
-  rewrite /mu' replace_externs_extBlocksSrc /nu' reestablish_extBlocksSrc /nu.
-  rewrite replace_locals_locBlocksSrc=> b; rewrite /in_mem /= /in_mem /= => H.
-  have lN: locBlocksSrc mu0 b = false.
-  { move: (trash_ctnd_restS (trash_min trinv) mu0_in H); rewrite /in_mem /=.
-    by move/(extBlocksSrc_locBlocksSrc _ (Inj_wd _) _). }
-  by rewrite lN; apply/orP; right; apply: ES'. }
-{ rewrite predIC predI_sub4=> //.
-  rewrite /mu' replace_externs_extBlocksTgt /nu' reestablish_extBlocksTgt /nu.
-  rewrite replace_locals_locBlocksTgt=> b; rewrite /in_mem /= /in_mem /= => H.
-  have lN: locBlocksTgt mu0 b = false.
-  { move: (trash_ctnd_restT (trash_min trinv) mu0_in H); rewrite /in_mem /=.
-    by move/(extBlocksTgt_locBlocksTgt _ (Inj_wd _) _). }
-  by rewrite lN; apply/orP; right; apply: ET'. }
-{ rewrite predIC predI_sub4=> //.
-  rewrite /mu' replace_externs_frgnBlocksSrc /nu'.
-  by apply: frgn_trash_sub_frgnSrc'. } 
-{ rewrite predIC predI_sub4=> //.
-  rewrite /mu' replace_externs_frgnBlocksTgt /nu'.
-  by apply: frgn_trash_sub_frgnTgt'. } 
-{ by rewrite join2C join2_inject_incr. }
-
 {(* head_inv *)
 exists erefl.
 
-move: (head_rel hdinv) (head_ctnsS hdinv) (head_ctnsT hdinv). 
-rewrite mus_eq /= => rel ctnsS ctnsT. 
+move: (head_rel hdinv); rewrite mus_eq /= => rel.
 case: rel; case=> /= incr1 sep1 disj1 rel. 
 
 have vinj'': 
- Forall2 (val_inject (restrict (as_inj mu_top) (sharedSrc mu_top))) 
+ Forall2 (val_inject (restrict (as_inj mu_top) (vis mu_top))) 
  [:: rv1] [:: rv2].
 { by apply: Forall2_cons. }
 
 have vinj''': 
- val_list_inject (restrict (as_inj mu_top) (sharedSrc mu_top)) 
+ val_list_inject (restrict (as_inj mu_top) (vis mu_top)) 
  [:: rv1] [:: rv2].
 { by apply: val_cons_inject. }
-
-have REACH_subS: 
-  {subset REACH m1 (fun b => getBlocks [:: rv1] b || sharedSrc mu_top b)
-  <= sharedSrc mu_top}. 
-{ move=> b RC; move: (rcS b RC); case/orP=> //.
-  by move/getBlocks_inject; case/(_ _ _ vinj'')=> x []y []; case/restrictD_Some. }  
-
-have REACH_subT: 
-  {subset REACH m2 (fun b => getBlocks [:: rv2] b || sharedTgt mu_top b)
-  <= sharedTgt mu_top}. 
-{ move=> b RC; move: (rcT b RC); case/orP=> //.
-  have defs1: vals_def [:: rv1].
-  { by move: rv_defs=> /=; case/andP=> ->. }
-  move=> get2; case: (vals_def_getBlocksTS vinj''' defs1 get2)=> x []y []get1.
-  case/restrictD_Some=> asInj shrd1.
-  case: (shared_SrcTgt _ (Inj_wd _) _ shrd1)=> ? []? []shrdOf shrd2.
-  move: (shared_in_all _ (Inj_wd _) _ _ _ shrdOf); rewrite asInj; case.
-  by move=> ->. }
-
-have RRSrc b0:
-  REACH m10 (exportedSrc mu0 vals01) b0 -> b0 \in sharedSrc mu0.
-{ case: (core_at_external (sims (Core.i hd1)) 
-        _ _ _ _ _ _ mtch0 at01)=> inj []rc_expSrc []? []vals02' []vinj' _.
-  move/rc_expSrc; case/orP=> //.
-  by move/getBlocks_inject; case/(_ _ _ vinj')=> x []y []; case/restrictD_Some. }
-
-have RRTgt b0:
-  REACH m20 (exportedTgt mu0 vals02) b0 -> b0 \in sharedTgt mu0.
-{ case: (core_at_external (sims (Core.i hd1)) 
-        _ _ _ _ _ _ mtch0 at01)=> 
-    inj []rc_expSrc []defs1 []vals02' []vinj' []at02'' []rc_expTgt defs2.
-  have vals_eq: vals02 = vals02'.
-  { by rewrite at02' in at02''; case: at02''=> ? ? ->. }
-  rewrite vals_eq; move/rc_expTgt; case/orP=> //.
-  move: (forall_inject_val_list_inject _ _ _ vinj')=> vinj'''' get2.
-  case: (vals_def_getBlocksTS vinj'''' defs1 get2)=> x []y []get1.
-  case/restrictD_Some=> asInj shrd1.
-  case: (shared_SrcTgt _ (Inj_wd _) _ shrd1)=> ? []? []shrdOf shrd2.
-  move: (shared_in_all _ (Inj_wd _) _ _ _ shrdOf); rewrite asInj; case.
-  by move=> ->. }
 
 have eq: sharedSrc (reestablish nu mu_top) = sharedSrc nu.
 { rewrite !sharedSrc_iff_frgnpub=> //; extensionality b.
   by rewrite reestablish_frgnBlocksSrc reestablish_pubBlocksSrc. }
 
-have sub_nu_topS b0: 
-   sharedSrc nu b0 
--> sharedSrc mu_top b0.
-{ move: (ctnsS)=> ctnsS'; rewrite sharedSrc_iff_frgnpub=> //.
-  rewrite replace_locals_frgnBlocksSrc /nu replace_locals_pubBlocksSrc.
-  case/orP=> H8; apply: ctnsS'; rewrite /in_mem /= sharedSrc_iff_frgnpub.
-  by rewrite H8.
-  by apply: Inj_wd.
-  move: H8; rewrite /pubSrc'; case/andP=> H8; move/RRSrc. 
-  by rewrite sharedSrc_iff_frgnpub. 
-  by apply: Inj_wd. }
-
-have sub_nu_topT b0: 
-   sharedTgt nu b0 
--> sharedTgt mu_top b0.
-{ rewrite /sharedTgt; case/orP.
-  rewrite replace_locals_frgnBlocksTgt=> F. 
-  by apply: ctnsT; rewrite /in_mem /= /sharedTgt F.
-  rewrite replace_locals_pubBlocksTgt.
-  by case/andP=> H I; move: (RRTgt _ I); move/ctnsT; apply. }
-
-have subS b0: 
-   (getBlocks [:: rv1] b0 || sharedSrc nu b0)
--> (getBlocks [:: rv1] b0 || sharedSrc mu_top b0).
-{ case/orP; first by move=> ->; apply/orP; left.
-  by move/sub_nu_topS=> ->; apply/orP; right. }
-
-have subT b0: 
-   (getBlocks [:: rv2] b0 || sharedTgt nu b0)
--> (getBlocks [:: rv2] b0 || sharedTgt mu_top b0).
-{ case/orP; first by move=> ->; apply/orP; left.
-  by move/sub_nu_topT=> ->; apply/orP; right. }
-
-have frgnSrc'_pub_frgn: 
-  {subset frgnSrc' <= [predU pubBlocksSrc mu_top & frgnBlocksSrc mu_top]}.
-{ rewrite /frgnSrc' /nu' /exportedSrc eq.
-  move=> b; rewrite /in_mem /= /in_mem /=; case/andP=> XX YY.
-  case: {YY}(andP YY)=> H5 H6.
-  have RR: REACH m1 (fun b => getBlocks [:: rv1] b || sharedSrc mu_top b) b.
-  { by apply: (REACH_mono (fun b => getBlocks [:: rv1] b || sharedSrc nu b)). }
-  move: (REACH_subS _ RR); rewrite sharedSrc_iff_frgnpub /in_mem /=.
-  case/orP; first by move=> ->; apply/orP; right.
-  by move=> ->; apply/orP; left.
-  by apply: Inj_wd. }
-
-have frgnTgt'_pub_frgn: 
-  {subset frgnTgt' <= [predU pubBlocksTgt mu_top & frgnBlocksTgt mu_top]}.
-{ rewrite /frgnTgt' /nu' /exportedTgt.
-  move=> b; rewrite /in_mem /= /in_mem /=; case/andP=> XX YY.
-  case: {YY}(andP YY)=> H5 H6.
-  rewrite reestablish_DomTgt in XX.
-  have RR: REACH m2 (fun b => getBlocks [:: rv2] b || sharedTgt mu_top b) b.
-  { apply: (REACH_mono (fun b => getBlocks [:: rv2] b || sharedTgt nu b))=> //. 
-    move: H6; rewrite /sharedTgt. 
-    by rewrite reestablish_frgnBlocksTgt reestablish_pubBlocksTgt. }
-  move: (REACH_subT _ RR); rewrite /sharedTgt /in_mem /=.
-  case/orP; first by move=> ->; apply/orP; right.
-  by move=> ->; apply/orP; left.
-  rewrite replace_locals_locBlocksTgt=> b0 H7.
-  by case: incr1=> _ []_; move/(_ b0); apply; rewrite /DomTgt H7. }
-
 apply: Build_head_inv=> //.
 {(*All (rel_inv_pred ...) mus'*)
-  move {mus_eq allinv sub0S sub0T ctndS0 ctndT0 mapdS0 frametail}.
+  move {mus_eq allinv frametail}.
   elim: mus' all0 rel=> // a mus' IH.
   move=> /= []H1 H2 []H3 H4; split; last by apply: IH.
   case: H3=> incr3 sep3 disj3.
