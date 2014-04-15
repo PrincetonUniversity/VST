@@ -745,10 +745,6 @@ Section head_inv_leakout.
 Context c d pf cd mu mus m1 m2 
         (inv : @head_inv c d pf cd mu mus m1 m2).
 
-Let j := as_inj mu.
-Let domS := DomSrc mu.
-Let domT := DomTgt mu.
-
 Context pubS' pubT' vals1 vals2
         (inj : Mem.inject (as_inj mu) m1 m2)
         (vinj : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
@@ -764,6 +760,10 @@ Let frgnS := REACH m1 (fun b =>
   isGlobalBlock (ge (cores_S new_ix)) b || getBlocks vals1 b).
 Let frgnT := REACH m2 (fun b => 
   isGlobalBlock (ge (cores_T new_ix)) b || getBlocks vals2 b).
+
+Let j := as_inj mu.
+Let domS := DomSrc mu.
+Let domT := DomTgt mu.
 
 Let init_mu := initial_SM domS domT frgnS frgnT j.
 
@@ -806,6 +806,7 @@ apply: Build_rel_inv.
 case: rel; case=> H []H2 H3; split.
 by rewrite initial_SM_as_inj.
 split=> b H4; first by apply: (H2 _).
+rewrite /DomTgt /= /domT.
 by apply: H3.
 case: rel=> _; case=> H []H2 H3.
 split; first by rewrite initial_SM_as_inj.
@@ -1777,11 +1778,11 @@ have j_domS_domT:
 { move=> b1 b2 d0; rewrite /j /domS /domT; move/as_inj_DomRng.
   by move/(_ (Inj_wd _)). }
 
-have st1_len: (ssrnat.leq 1 (size (callStack (stack st1)))).
-{ by move: (callStack_wf st1); move/andP=> []_ ?. }
-
-have st2_len: (ssrnat.leq 1 (size (callStack (stack st2)))).
-{ by move: (callStack_wf st2); move/andP=> []_ ?. }
+have frgnT_sub_domT: {subset frgnT <= domT}.
+{ move=> b H.
+  have [b0 [d0 [H2 H3]]]: exists b0 d0, [/\ b0 \in frgnS & j b0 = Some(b,d0)].
+  { admit. (*interesting...*) }
+  by move: H3; case/j_domS_domT. }
 
 have st1_eq: callStack (stack st1) = [:: c inv & STACK.pop st1].
 { by rewrite /c /s1; case: st1 inv=> //= ?; case=> //=; case. }
@@ -1866,8 +1867,6 @@ have [cd_new [c2 [pf_new [init2 mtch12]]]]:
   move: (X) init1; case=> eq _ init1; subst ix=> /=.
   case: (core_initial _ _ _ _ (sims c1_i) _ 
          args1 _ m1 j args2 m2 domS domT init1 inj vinj')=> //.
-  { move=> b reach; rewrite /domT. 
-    admit. }
   move=> cd' []c2' []init2 mtch_init12.
   exists cd',(Core.mk N cores_T c1_i c2'),erefl.
   move: init2=> /= ->; split=> //=.
@@ -1895,15 +1894,17 @@ set mu_new := initial_SM domS domT frgnS frgnT j.
 have mu_new_wd: SM_wd mu_new.
 { apply: initial_SM_wd=> //.
   move=> b1; apply: REACH_inject=> // b; case/orP=> H.  
-  admit.
-  admit.
+  move: (meminj_preserves_globals_isGlobalBlock _ _ presglobs _ H)=> H2.
+  exists b,0; split=> //; apply/orP; left.
+  by move: H; rewrite -(@isGlob_iffS (Core.i c1)) (@isGlob_iffT (Core.i c1)).
+  case: (getBlocks_inject _ _ _ vinj' _ H)=> x []y []H2 H3.
+  by exists x,y; split=> //; apply/orP; right.
   move=> b H; move: (head_match hdinv)=> mtch; apply match_visible in mtch.
   suff: vis mu_top b by apply: vis_sub_DomSrc.
   apply: mtch; apply: (REACH_mono 
     (fun b : block =>
       isGlobalBlock (ge (cores_S (Core.i c1))) b || getBlocks args1 b))=> //.
-  by move=> b0; eapply globs_blocks_in_vis; eauto.
-  admit. }
+  by move=> b0; eapply globs_blocks_in_vis; eauto. }
 
 set mu_new' := Inj.mk mu_new_wd.
 
