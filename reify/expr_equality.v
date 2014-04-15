@@ -5,7 +5,7 @@ Require Import compcert.lib.Coqlib.
 Require Import ExtLib.Tactics.
 Require Import Equalities.
 Require Import compcert.lib.Maps.
-Require Import UnionFind.
+Require Import compcert.lib.UnionFind.
 
 
 

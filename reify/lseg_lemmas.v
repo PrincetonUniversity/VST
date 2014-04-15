@@ -1,9 +1,7 @@
 Require Import floyd.proofauto.
 Require Import MirrorShard.ReifyHints.
 Require Import MirrorShard.SepLemma.
-Require Import MirrorShard.ReifyHints.
 Require Import sep.
-Require Import functions.
 Require Import progs.list_dt.
 Import Expr.
 
@@ -24,7 +22,7 @@ Qed.
 Definition NP_W1 := null_field_at_false.
 
 (* W2 *)
-Lemma lseg_null_null : forall T ll ls sh y contents,
+Lemma lseg_null_null : forall {T} {ll} ls sh y contents,
                          @lseg T ll ls sh contents nullval y ===> inj (y = nullval).
 Proof.
   intros. sep_solve.
@@ -33,7 +31,7 @@ Proof.
   unfold lseg_cons; entailer.
 Qed.
 
-Definition NP_W2 := lseg_null_null.
+Definition NP_W2 := @lseg_null_null.
 
 (* W3 *)
 (* essentially just a restatement of field_at_conflict *)
@@ -48,7 +46,7 @@ Qed.
 Definition NP_W3 := field_at_conflict'.
 
 (* W4 *)
-Lemma next_lseg_equal : forall T id ls sh x y z contents,
+Lemma next_lseg_equal : forall {T} {id} ls sh x y z contents,
                           star (field_at sh T id y x) (@lseg T id ls sh contents x z) ===>
                                star (inj (x = z)) (field_at sh T id y x).
 Proof.
@@ -73,14 +71,14 @@ Proof.
       apply FF_left.
 Qed.
 
-Definition NP_W4 := next_lseg_equal.
+Definition NP_W4 := @next_lseg_equal.
 
+(* Useful in some of the lemmas that follow *)
 Lemma neq_ptr_neq : forall x y, x <> y -> ptr_neq x y.
 Proof.
   intros; unfold ptr_neq; unfold not; intro peq; apply ptr_eq_e in peq; tauto.
 Qed.
 
-(* Useful in some of the lemmas that follow *)
 Lemma FF_elim : forall a b, a |-- FF -> a * b |-- FF.
 Proof.
   intros.
@@ -90,7 +88,7 @@ Proof.
 Qed.
 
 (* W5 *)
-Lemma lseg_conflict : forall T id ls sh contents x y z,
+Lemma lseg_conflict : forall {T} {id} ls sh contents x y z,
                         star (@lseg T id ls sh contents x y) (@lseg T id ls sh contents x z) ===>
                              star (inj (x = y \/ x = z))
                              (star (@lseg T id ls sh contents x y) (@lseg T id ls sh contents x z)).
@@ -115,7 +113,7 @@ Proof.
       * apply FF_left.
 Qed.
 
-Definition NP_W5 := lseg_conflict.
+Definition NP_W5 := @lseg_conflict.
 
 (* Used to simulate Navarro Perez's "Next" for unfolding lemmas
    TODO - use these in well-formedness lemmas also? *)
@@ -125,10 +123,10 @@ Definition NP_W5 := lseg_conflict.
 
 (* U1 *)
 Lemma first_field_at_lseg :
-  forall T id sh ls h x z,
+  forall {T} {id} ls sh h x z,
     star (field_at sh (tptr T) id z x) (list_cell ls sh h x) ===> 
        star (star (inj (x = z)) (field_at sh (tptr T) id z x)) (list_cell ls sh h x) ||
-       (@lseg (tptr T) id ls sh (cons h nil) x z).
+       (@lseg (*(tptr T)*) T id ls sh (cons h nil) x z).
 Proof.
   intros.
   sep_solve.
@@ -146,7 +144,7 @@ Proof.
     entailer.
 Qed.
 
-Definition NP_U1 := first_field_at_lseg.
+Definition NP_U1 := @first_field_at_lseg.
 
 (* U3-5 = list appending
    "Later"
@@ -157,13 +155,13 @@ Definition NP_U1 := first_field_at_lseg.
 
 (* U2 *)
 Lemma next_field_at_lseg :
-  forall T id sh ls h contents x y z,
+  forall {T} {id} ls sh h contents x y z,
     star (field_at sh (tptr T) id y x) (star (list_cell ls sh h x)
-     (@lseg (tptr T) id ls sh contents y z)) ===>
+     (@lseg T id ls sh contents y z)) ===>
     star (inj (x = z)) (star (field_at sh (tptr T) id y x)
                        (star (list_cell ls sh h x)
-                               (@lseg (tptr T) id ls sh contents y z))) ||
-    (@lseg (tptr T) id ls sh (cons h contents) x z).
+                               (@lseg T id ls sh contents y z))) ||
+    (@lseg T id ls sh (cons h contents) x z).
 Proof.
 intros.
 sep_solve.
@@ -176,10 +174,10 @@ destruct (EqDec_val x z).
   entailer.
 Qed.
 
-Definition NP_U2 := next_field_at_lseg.
+Definition NP_U2 := @next_field_at_lseg.
 
 (* U3 *)
-Lemma lseg_nil_append : forall T id sh ls c1 c2 x y,
+Lemma lseg_nil_append : forall {T} {id} ls sh c1 c2 x y,
       star (@lseg T id ls sh c1 x y) (@lseg T id ls sh c2 y nullval) ===>
       (@lseg T id ls sh (c1 ++ c2) x nullval).
 Proof.
@@ -195,10 +193,10 @@ assert ( lseg ls sh c1 x y * lseg ls sh c2 y nullval * (empred nullval)
   autorewrite with norm in *; try (assumption); try (apply Cveric).
 Qed.
 
-Definition NP_U3 := lseg_nil_append.
+Definition NP_U3 := @lseg_nil_append.
 
 (* U4 *)
-Lemma lseg_next_append : forall T id sh ls c1 c2 h x y z w,
+Lemma lseg_next_append : forall {T} {id} ls sh c1 c2 h x y z w,
       star (@lseg T id ls sh c1 x y)
            (star (@lseg T id ls sh c2 y z)
                  (star (field_at sh (tptr T) id w z)
@@ -212,10 +210,10 @@ unfold himp, star, inj.
 entailer.
 Qed.
 
-Definition NP_U4 := lseg_nil_append.
+Definition NP_U4 := @lseg_next_append.
 
 (* U5 *)
-Lemma three_lseg_append : forall T id sh ls c1 c2 c3 x y z w,
+Lemma three_lseg_append : forall {T} {id} ls sh c1 c2 c3 x y z w,
       star (@lseg T id ls sh c1 x y)
            (star (@lseg T id ls sh c2 y z)
                  (@lseg T id ls sh c3 z w)) ===>
@@ -251,5 +249,5 @@ destruct (EqDec_val z w).
   + assumption.
 Qed.
 
-Definition NP_U5 := three_lseg_append.
+Definition NP_U5 := @three_lseg_append.
 

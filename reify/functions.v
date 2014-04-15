@@ -330,17 +330,32 @@ Definition False_f := S (True_f).
 
 
 (*Separation Logic predicates *)
-Definition field_at_f :=
+Definition field_at_psig :=
 Sep.PSig all_types (share_tv :: c_type_tv :: ident_tv :: val_tv :: val_tv :: nil)
 field_at.
 
+Require Import progs.reverse.
+Instance sample_ls: listspec t_struct_list _tail.
+Proof. eapply mk_listspec; reflexivity. Defined.
+
+(* we're going on the assumption that peq will compute down to val *)
+(*
+Eval compute in (malloc_lemmas.reptype_structlist
+                (all_but_link sample_ls list_fields)).
+
+Definition sample_lseg_psig :=
+Sep.PSig all_types (share_tv :: list_val_tv :: val_tv :: val_tv :: nil)
+(lseg sample_ls).
+*)
+(* need to add instantiations of listspec _ _ and list (elemtype _)
+   give listspec as argument   *)
 
 (*Junk for testing*)
 Parameter P : nat -> mpred.
 Parameter Q : nat -> mpred.
 
 Definition sep_predicates : list (Sep.predicate all_types) :=
-field_at_f 
+field_at_psig 
      :: Sep.PSig all_types (tvType 11 :: nil)  P  
         :: Sep.PSig all_types (tvType 11 :: nil) Q :: nil.
  

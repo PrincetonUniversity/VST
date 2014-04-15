@@ -22,7 +22,7 @@ Lemma eq_ptr_emp_lseg : forall T ll a b sh LS,
         (*(ptr_eq a b -> *)(VericSepLogic_Kernel.himp VericSepLogic_Kernel.emp (@lseg T ll LS sh nil a b)).
 Admitted.
 (*intros.
-entailer!.
+entailer!.p
 Qed. *)
 (*assert (dreq := (derives_refl'' _ _ (lseg_nil_eq LS0 sh a b))).
 eapply derives_trans.
