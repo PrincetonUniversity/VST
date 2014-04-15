@@ -668,28 +668,6 @@ Qed.
 Definition Delta1 V G: tycontext := 
   make_tycontext ((1%positive,(Tfunction Tnil Tvoid))::nil) nil nil Tvoid V G.
 
-(* Admitted:  this lemma is duplicated from initialize.v *)
-Lemma rev_prog_vars': forall {F V} vl, rev (@prog_vars' F V vl) = prog_vars' (rev vl).
-Proof.
-   intros.
-   induction vl. simpl; auto.
-   destruct a. destruct g.
-   simpl. rewrite IHvl.
-   clear. induction (rev vl); simpl; intros; auto. destruct a; destruct g; simpl; auto.
-    rewrite IHl. auto.
-   simpl.
-   transitivity (prog_vars' (rev vl) ++ (@prog_vars' F V ((i,Gvar v)::nil))).
-    rewrite IHvl. f_equal.
-    simpl.
-    clear.
-    induction (rev vl); simpl; intros; auto.
-    destruct a. destruct g.
-    auto.
-    rewrite <- IHl.
-    simpl. auto.
-Qed.
-
-
 Lemma make_tycontext_g_denote:
   forall id t l vs G,
     list_norepet (map fst l) ->

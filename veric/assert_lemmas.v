@@ -227,13 +227,23 @@ apply H3.
 split; auto||omega.
 Qed.
 
-(* Admitted: move this to msl? *)
 Lemma prop_imp_i {A}{agA: ageable A}:
   forall (P: Prop) Q w, (P -> app_pred Q w) -> (!!P --> Q) w.
 Proof.
  intros. intros w' ? ?. apply H in H1. eapply pred_nec_hereditary; eauto.
 Qed.
 
+Lemma or_pred_ext {A} `{agA : ageable A}: forall P Q P' Q',
+       (P <--> P') && (Q <--> Q') |--  (P || Q) <--> (P' || Q').
+Proof.
+intros.
+intros w [? ?].
+split; intros w' ? [?|?].
+left. destruct H; eauto.
+right. destruct H0; eauto.
+left. destruct H; eauto.
+right. destruct H0; eauto.
+Qed.
 
 Lemma corable_pureat: forall pp k loc, corable (pureat pp k loc).
 Proof.

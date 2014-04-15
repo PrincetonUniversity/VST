@@ -150,7 +150,6 @@ f_equal.
 intuition.
 Qed.
 
-(* Admitted:  rename this to supplant unage_juicy_mem *)
 Lemma oracle_unage:
   forall (jm': juicy_mem) (w: rmap), age w (m_phi jm') -> 
        exists jm, age jm jm' /\ m_phi jm = w.

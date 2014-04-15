@@ -1647,57 +1647,24 @@ Qed.
 
 Lemma update_tycon_sub:
   forall Delta Delta', tycontext_sub Delta Delta' ->
-   forall h, tycontext_sub (update_tycon Delta h) (update_tycon Delta' h).
+   forall h, tycontext_sub (update_tycon Delta h) (update_tycon Delta' h)
+with join_tycon_labeled_sub: 
+ forall Delta Delta', tycontext_sub Delta Delta' ->
+    forall ls, tycontext_sub (join_tycon_labeled ls Delta)
+                         (join_tycon_labeled ls Delta').
 Proof.
-intros.
-destruct H as [? [? [? ?]]]. 
-repeat split; intros; auto.  
- +  clear - H.
-    generalize dependent Delta.
-    revert h id Delta'.
-    induction h; intros; try apply H; simpl; try destruct o;
-     auto.
-    - destruct (eq_dec id i). subst.
-        rewrite temp_types_same_type'.
-        specialize (H i).
-        destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?.
-        rewrite temp_types_same_type'.
-        destruct ((temp_types Delta') ! i) as [[? ?]|] eqn:?; [ | contradiction].
-        destruct H; subst t0. split; auto. auto.
-         specialize (H id).
-          rewrite <- initialized_ne by auto. 
-        destruct ((temp_types Delta) ! id) as [[? ?]|] eqn:?; auto.
-          rewrite <- initialized_ne by auto. 
-        destruct ((temp_types Delta') ! id) as [[? ?]|] eqn:?; auto.
-  -   specialize (H id).
-        destruct (eq_dec id i). subst.
-        rewrite temp_types_same_type'.
-        destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?; auto.
-        rewrite temp_types_same_type'.
-        destruct ((temp_types Delta') ! i) as [[? ?]|] eqn:?; [ | contradiction].
-        destruct H; subst t0. split; auto. auto.
-          rewrite <- initialized_ne by auto. 
-        destruct ((temp_types Delta) ! id) as [[? ?]|] eqn:?; auto.
-          rewrite <- initialized_ne by auto. 
-        destruct ((temp_types Delta') ! id) as [[? ?]|] eqn:?; auto.
-  - apply H.
-  - apply IHh2. intro.  apply IHh1. apply H.
-  - repeat rewrite temp_types_update_dist.
-     repeat rewrite join_te_denote2.
-     unfold te_one_denote.
-     destruct ((temp_types (update_tycon Delta h1)) ! id) as [[? ?]|] eqn:?; auto.
-     destruct ((temp_types (update_tycon Delta h2)) ! id) as [[? ?]|] eqn:?; auto.
-      specialize (IHh1 id Delta' Delta H). rewrite Heqo in IHh1.
-     destruct ((temp_types (update_tycon Delta' h1)) ! id) as [[? ?]|] eqn:?; auto.
-      specialize (IHh2 id Delta' Delta H). rewrite Heqo0 in IHh2.
-     destruct ((temp_types (update_tycon Delta' h2)) ! id) as [[? ?]|] eqn:?; auto.
-     destruct IHh1, IHh2; subst.
-     clear - H1 H3; split; auto.
-     destruct b,b1; inv H1; simpl; auto.
- -  admit. (* need a mutual induction to handle join_tycon_labeled *)
-+ repeat rewrite update_tycon_eqv_ve. auto.
-+ repeat rewrite update_tycon_eqv_ret. auto.
-+ repeat rewrite update_tycon_eqv_ge. auto.
+* clear update_tycon_sub.
+  rename join_tycon_labeled_sub into J.
+  intros.
+ revert Delta Delta' H; induction h; intros;
+   try (apply H); simpl update_tycon; auto.
+ + apply initialized_sub; auto.
+ + destruct o; auto. apply initialized_sub; auto.
+ + apply tycontext_sub_join; auto.
+* clear join_tycon_labeled_sub.
+ intros.
+ revert Delta Delta' H; induction ls; simpl; intros; auto.
+ apply tycontext_sub_join; auto.
 Qed.
 
 Lemma typecheck_val_sem_cast: 

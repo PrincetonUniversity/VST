@@ -862,7 +862,7 @@ Proof.
         apply withspacer_preserve_isptr; intros. apply H.
     - destruct v0.
       * apply withspacer_preserve_isptr; intros. apply H.
-      * apply H1.
+      * destruct (is_Fnil f); try apply FF_left; apply H1.
 Qed.
 
 Lemma data_at_isptr: forall sh t v p, data_at sh t v p = !!(isptr p) && data_at sh t v p.
@@ -1100,7 +1100,7 @@ Lemma memory_block_typed': forall sh e pos ty b ofs,
   =   memory_block sh (Int.repr pos) (Vptr b ofs) * fields_mapto_ sh pos t fld (Vptr b ofs).
 *)
 Proof.
-admit.
+Admitted.
 
 Require Import progs.nest2.
 
@@ -1120,6 +1120,7 @@ simpl align.
 Opaque spacer.
 simpl.
 repeat rewrite <- sepcon_assoc.
+(*
 SearchAbout mapsto FF.
 Locate field_at_conflict.
 Print res_predicates.address_mapsto.
@@ -1133,8 +1134,9 @@ Print compcert.common.Memdata.memval.
 Print Memdata.proj_bytes.
 Print val.
 Print res_predicates.spec.
+*)
 simpl withspacer.
-
+Admitted. 
 
 (************************************************
 

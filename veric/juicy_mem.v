@@ -82,6 +82,17 @@ Lemma juicy_mem_alloc_cohere: alloc_cohere m_dry m_phi.
 Proof. unfold m_dry, m_phi; destruct j; auto. Qed.
 End selectors.
 
+Lemma perm_of_empty_inv {s t} : perm_of_sh s t = None -> s = Share.bot /\ t = Share.bot.
+Proof.
+intros.
+unfold perm_of_sh in*.
+if_tac in H; subst; auto.
+if_tac in H; subst; auto.
+inv H. inv H.
+if_tac in H; subst; auto.
+if_tac in H; subst; auto. inv H. inv H.
+Qed.
+
 Lemma writable_join_sub: forall loc phi1 phi2, 
   join_sub phi1 phi2 -> writable loc phi1 -> writable loc phi2.
 Proof.

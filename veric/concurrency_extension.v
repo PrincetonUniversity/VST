@@ -522,19 +522,6 @@ cases_if; auto.
 false; auto.
 Qed.
 
-Lemma perm_of_empty_inv {s t} : perm_of_sh s t = None -> s = Share.bot /\ t = Share.bot.
-Proof.
-unfold perm_of_sh.
-cases_if; auto.
-cases_if; auto.
-inversion 1.
-inversion 1.
-cases_if; auto.
-cases_if; auto.
-inversion 1.
-inversion 1.
-Qed.
-
 (* sequential steps even in the juicy semantics must first adjust the permission 
    levels in the CompCert memory "w_dry w" *)
 

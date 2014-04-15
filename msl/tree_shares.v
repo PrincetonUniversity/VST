@@ -3097,8 +3097,97 @@ Proof.
  trivial.
 Qed.
 
+Lemma contains_Lsh_e:
+   forall sh,
+       join_sub Lsh sh -> unrel Lsh sh = top.
+Proof.
+ intros.
+ destruct H.
+ destruct H.
+ subst.
+ unfold Lsh,fst in *.
+ simpl in *.
+ assert (rel top leftTree = leftTree) by apply rel_top2.
+ rewrite H0 in *;clear H0.
+ unfold leftTree in *.
+ rewrite unrel_equation.
+ assert (CT: canonicalTree (Node (Leaf true) (Leaf false))).
+  repeat split. right; reflexivity. left; reflexivity.
+ assert (decompose
+        (exist (fun t0 : ShareTree => canonicalTree t0)
+        (Node (Leaf true) (Leaf false))
+          (conj (or_intror eq_refl) (conj (or_introl eq_refl) (conj I I))))
+         = (top,bot)).
+   compute;apply injective_projections;apply exist_ext;trivial.
+ rewrite H0;clear H0.
+ destruct x.
+ icase x.
+ icase b.
+ simpl.
+ destruct (mkCanon_correct (Node (Leaf true) (Leaf false))) as [? [? [? ?]]].
+ unfold top.  apply exist_ext;trivial.
+ destruct c as [? [? [? ?]]].
+ assert (decompose
+       (BAF.lub
+          (exist (fun t0 : ShareTree => canonicalTree t0)
+             (Node (Leaf true) (Leaf false))
+             (conj (or_intror eq_refl) (conj (or_introl eq_refl) (conj I I))))
+          (exist (fun t0 : ShareTree => canonicalTree t0) (Node x1 x2)
+             (conj n (conj n0 (conj c c0))))) = 
+        (top, exist (fun t0 : ShareTree => canonicalTree t0) x2 c0)).
+   unfold BAF.lub.
+   unfold proj1_sig.
+   assert (union_tree (Node (Leaf true) (Leaf false)) (Node x1 x2) = Node (Leaf true) x2).
+     unfold union_tree;trivial.
+   rewrite H0;clear H0.
+   icase x2.
+   icase b;
+   simpl.
+   apply injective_projections;apply exist_ext;trivial.
+   destruct (mkCanon_correct (Node (Leaf true) (Leaf false))) as [? [? [? ?]]].
+   apply injective_projections;apply exist_ext;trivial.
+   assert (canonicalTree (Node (Leaf true) (Node x2_1 x2_2) )).
+    destruct c0 as [? [? [? ?]]];
+    firstorder.
+   assert (exist (fun t0 : ShareTree => canonicalTree t0)
+     (mkCanon (Node (Leaf true) (Node x2_1 x2_2)))
+     (mkCanon_correct (Node (Leaf true) (Node x2_1 x2_2)))=
+          (exist (fun t0 : ShareTree => canonicalTree t0) (Node (Leaf true) (Node x2_1 x2_2)) H0)).
+    apply exist_ext.
+    simpl.
+    destruct c0 as [? [? [? ?]]].
+    generalize (mkCanon_identity x2_1 c0);intro.
+    generalize (mkCanon_identity x2_2 c1);intro.
+    rewrite H1;rewrite H2.
+    icase x2_1;icase x2_2.
+    icase b;icase b0;
+    simpl;
+    elimtype False;firstorder.
+  rewrite H1.
+  simpl.
+  destruct H0 as [? [? [? ?]]].
+  apply injective_projections;apply exist_ext;trivial.
+ rewrite H0.
+ unfold bot.
+ rewrite unrel_equation.
+ unfold top.
+ trivial.
+Qed.
+
 (*  END of the Le Xuan Bach contribution: definition and proofs about unrel *)
 
 End Share.
+
+
+
+
+
+
+
+
+
+
+
+
 
 

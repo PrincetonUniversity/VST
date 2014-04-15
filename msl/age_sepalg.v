@@ -458,3 +458,25 @@ inversion H2.
 rewrite <- H8.
 auto.
 Qed.
+
+Lemma age_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+  forall x y : A, age x y -> age (core x) (core y).
+Proof.
+ intros. unfold age in *.
+ pose proof (core_unit x).
+ unfold unit_for in H0.
+ destruct (age1_join2 _ H0 H) as [a [b [? [? ?]]]].
+ unfold age in H3. rewrite H3 in H; inv H. 
+ pose proof (core_unit y).
+ pose proof (join_canc H1 H). subst. apply H2.
+Qed.
+
+Lemma necR_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
+  forall x y : A, necR x y -> necR (core x) (core y).
+Proof.
+ induction 1.
+ constructor 1; apply age_core; auto.
+ constructor 2.
+ constructor 3 with (core y); auto.
+Qed.
+

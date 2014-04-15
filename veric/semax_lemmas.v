@@ -142,7 +142,34 @@ Lemma typecheck_environ_sub:
   forall Delta Delta', tycontext_sub Delta Delta' ->
    forall rho,
    typecheck_environ Delta' rho -> typecheck_environ Delta rho.
-Admitted.
+Proof.
+intros ? ? [? [? [? ?]]] ?  [? [? [? ?]]].
+split; [ | split; [ | split]].
+* clear - H H3.
+ hnf; intros.
+ specialize (H id); rewrite H0 in H.
+ destruct ((temp_types Delta') ! id) eqn:?H; try contradiction.
+ destruct p. destruct H; subst.
+ specialize (H3 id b0 t H1).
+ destruct H3 as [v [? ?]].
+ exists v; split; auto. destruct H3; [left | right]; auto.
+ destruct b0; try contradiction.
+ destruct (negb b); inv H2. apply I.
+* clear - H0 H4.
+ intros id ty ?. specialize (H4 id ty).
+ specialize (H0 id); rewrite H in H0.
+ apply H4; auto.
+* clear - H2 H5.
+ hnf; intros. apply H5.
+ specialize (H2 id). hnf in H2. rewrite H in H2. auto.
+* clear - H6 H1 H2 H0.
+ hnf; intros. specialize (H6 id t).
+ specialize (H2 id); hnf in H2. rewrite H in H2.
+ specialize (H6 H2).
+ destruct H6; auto; right.
+ destruct H3 as [t' ?]. exists t'.
+ rewrite (H0 id); auto.
+Qed.
 
 Lemma semax'_post:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
@@ -468,15 +495,6 @@ intros.
 intros n ?. eapply H; eauto.
 Qed.
 
-(* Admitted: move this into msl to replace the one there *)
-Lemma loeb {A} `{ageable A} : forall (P:pred A),
-     |>P |-- P    ->     TT |-- P.
-Proof.
-  intros. apply goedel_loeb.
-  apply andp_left2. auto.
-Qed.
-
-
 Lemma func_tycontext'_eqv:
   forall f Delta Delta', tycontext_eqv Delta Delta' ->
         tycontext_eqv (func_tycontext' f Delta) (func_tycontext' f Delta').
@@ -611,7 +629,25 @@ Lemma tycontext_sub_trans:
  forall Delta1 Delta2 Delta3,
   tycontext_sub Delta1 Delta2 -> tycontext_sub Delta2 Delta3 ->
   tycontext_sub Delta1 Delta3.
-Admitted.
+Proof.
+intros ? ? ? [G1 [G2 [G3 G4]]] [H1 [H2 [H3 H4]]].
+split; [ | split3].
+* intros. specialize (G1 id); specialize (H1 id).
+ destruct ((temp_types Delta1) ! id); auto.
+ destruct p. destruct ((temp_types Delta2) ! id); 
+   try contradiction. destruct p.
+  destruct ((temp_types Delta3) ! id); try contradiction. 
+ destruct p. destruct G1, H1; split; subst; auto.
+  destruct (negb  b); inv H0; simpl; auto.
+ destruct b0; inv H; simpl in H5. auto.
+* intros. specialize (G2 id); specialize (H2 id); congruence.
+* congruence.
+* intros. specialize (G4 id); specialize (H4 id).
+  clear - G4 H4. hnf in G4, H4 |- *.
+  destruct ( (glob_types Delta1) ! id); auto.
+  rewrite G4 in H4. auto.
+Qed.
+
 Lemma semax_extensionality0:
        TT |-- 
       ALL Delta:tycontext, ALL Delta':tycontext, 

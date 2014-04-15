@@ -670,7 +670,7 @@ Proof.
   apply pred_hereditary with x; auto.
 Qed.
 
-Lemma loeb {A} `{ageable A} : forall (P Q:pred A),
+Lemma loeb {A} `{ageable A} : forall (P:pred A),
      |>P |-- P    ->     TT |-- P.
 Proof.
   intros. apply goedel_loeb.

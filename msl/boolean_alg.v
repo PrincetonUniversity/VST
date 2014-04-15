@@ -188,7 +188,7 @@ Module Type SHARE_MODEL.
   Axiom unrel_splice_R: forall a b, unrel Rsh (splice a b) = b.
 
  Axiom contains_Rsh_e: forall sh, join_sub Rsh sh -> unrel Rsh sh = top.
-
+ Axiom contains_Lsh_e: forall sh, join_sub Lsh sh -> unrel Lsh sh = top.
 End SHARE_MODEL.
 
 

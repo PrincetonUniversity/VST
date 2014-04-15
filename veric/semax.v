@@ -18,19 +18,6 @@ Require Import veric.expr veric.expr_lemmas.
 Local Open Scope nat_scope.
 Local Open Scope pred.
 
-(* Admitted: move this elsewhere *)
-Lemma or_pred_ext {A} `{agA : ageable A}: forall P Q P' Q',
-       (P <--> P') && (Q <--> Q') |--  (P || Q) <--> (P' || Q').
-Proof.
-intros.
-intros w [? ?].
-split; intros w' ? [?|?].
-left. destruct H; eauto.
-right. destruct H0; eauto.
-left. destruct H; eauto.
-right. destruct H0; eauto.
-Qed.
-
 Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
