@@ -4,8 +4,10 @@ Require Import List.
 Require Import compcert.lib.Coqlib.
 Require Import ExtLib.Tactics.
 Require Import Equalities.
-Require Import UnionFind.
 Require Import compcert.lib.Maps.
+Require Import UnionFind.
+
+
 
 
 Fixpoint tvar_comp t1 t2 : Datatypes.comparison :=

@@ -110,7 +110,6 @@ VFILES:=do_computation.v\
   hints.v\
   computation_prover.v\
   mirror_cancel.v\
-  denote_tc_assert_b.v\
   lseg_lemmas.v\
   preproc.v\
   expr_equality.v\

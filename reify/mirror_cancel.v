@@ -14,6 +14,7 @@ Require Export reify_derives.
 Require Import symmetry_prover.
 Require Import seplog.
 Require Import hints.
+Require Import preproc.
 Require Import congruence_prover.
 
 Module SH := SepHeap.Make VericSepLogic Sep.
@@ -134,14 +135,6 @@ End typed.
 
 Definition user_comp : func -> bool := fun _ => false.
 
-Ltac e_vm_compute_left :=
-match goal with 
-| |- ?X = Some _ => match eval vm_compute in X with 
-                   | Some ?Y => exact (@eq_refl _ (Some Y) (*<: (Some Y) = (Some Y)*))
-                   end
-| |- ?X = _ => let comp := eval vm_compute in X in exact (@eq_refl _ X)
-end.
-
 
 Ltac mirror_cancel_default :=
 let types := get_types in 
@@ -157,3 +150,5 @@ eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types funcs us
 | apply vstProver_correct
 | first [e_vm_compute_left | fail "Canceler failed"]
 | repeat (split; try assumption; try apply I; try apply derives_emp)].
+
+Ltac rcancel := try (pose_env; reify_derives; mirror_cancel_default; try (simpl; clear_all)). 

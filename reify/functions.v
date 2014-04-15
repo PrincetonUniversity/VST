@@ -2,7 +2,6 @@ Require Import types.
 Require Import sep.
 Require Import progs.list_dt.
 Require Import MirrorShard.Expr MirrorShard.Env.
-Require Import denote_tc_assert_b.
 Require Import assert_lemmas. (* for nullval *)
 Definition all_types_r := repr (listToRepr types.our_types EmptySet_type).
 

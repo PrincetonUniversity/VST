@@ -3,7 +3,6 @@ Require Import MirrorShard.ReifyHints.
 Require Import MirrorShard.SepLemma.
 Require Import MirrorShard.ReifyHints.
 Require Import sep.
-Require Import reify_derives.
 Require Import functions.
 Require Import progs.list_dt.
 Import Expr.

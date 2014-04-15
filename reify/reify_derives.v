@@ -7,6 +7,7 @@ Require Import sep.
 Require Import wrapExpr.
 Require Import MirrorShard.ReifySepExpr.
 Require Import MirrorShard.ReifyExpr.
+Require Import preproc.
 Local Open Scope logic.
 
 
@@ -69,9 +70,14 @@ match goal with
 [ H : folded ?X |- _] => unfold X in *; clear X; clear H
 end.
 
+Definition TT' := !!True.
+
+Lemma changeTT' : forall (a b c : mpred) ,
+(a |-- b * (c * TT')) -> (a |-- b * (c * !!True)). 
+auto.
+Qed.
+
 Ltac prepare_reify :=
-idtac "prepare_reify";
-unfold TT; unfold FF;
 autorewrite with gather_prop;
 match goal with 
 | [ |- !!?X && _ |-- !!?Y && _] => rewrite (convert_inj X); rewrite (convert_inj Y)
@@ -80,8 +86,10 @@ match goal with
 | [ |- _ |-- !!?X && _] => rewrite (convert_inj X)
 | [ |- _ |-- _] => idtac
 end;
+try apply changeTT';
 fold_seplog;
-fold_dependent.
+fold_dependent;
+fold TT.
 
 
 (*Turns a reified derives into a reified goal with no assumptions, 
@@ -332,7 +340,6 @@ let uenv := get_uenv types in
 match goal with
 [ |- ?ls |-- ?rs ] =>
 tag_reify;
-idtac "reify_start";
 ReifySepM.reify_sexpr is_const ls types funcs tt tt preds uenv nil 
 ltac:(fun uenv' funcs' preds' ls_r => 
       idtac "reify_right"; ReifySepM.reify_sexpr is_const rs types funcs' tt tt  preds' uenv' nil 
@@ -340,4 +347,5 @@ ltac:(fun uenv' funcs' preds' ls_r =>
             idtac "reify_tagged"; reify_tagged uenv'' funcs'' ltac:(revert_reify ltac:(revert_cont preds'' ls rs ls_r rs_r))))
 end;
 abbreviate_goal;
-unfold_dependent.
+unfold_dependent;
+lift_and_goal.

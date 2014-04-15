@@ -9,24 +9,18 @@ Require Import preproc.
 
 Local Open Scope logic.
 
-Unset Ltac Debug.
-
 
 (* trying to test if my reified hints are usable by Mirror *)
 Goal forall T sh id y, field_at sh T id y nullval |-- !!False && emp.
 Proof.
 intros.
-pose_env.
-reify_derives.
-mirror_cancel_default.
+rcancel.
 Qed.
 
 Goal forall (a b c d: nat), a = b -> b = c -> c = d -> functions.P a |-- functions.P d.
 Proof.
 intros.
-pose_env.
-reify_derives.
-mirror_cancel_default.
+rcancel.
 Qed.
 
 Lemma goal_lift_and' :
@@ -64,9 +58,7 @@ Qed.
 
 Goal forall n, functions.P n |-- functions.Q n.
 intros.
-pose_env.
-reify_derives.
-mirror_cancel_default.
+rcancel.
 Qed.
 
 Import functions.
@@ -76,47 +68,24 @@ Parameter X : Z -> mpred.
 
 Goal  X (1 + 3) |-- X (2 + 2).
 intros.
-pose_env.
-reify_derives. 
-mirror_cancel_default.
+rcancel.
 Qed.
 
 Goal  emp |-- emp.
 Proof.
-pose_env.
-reify_derives.
-mirror_cancel_default.
+rcancel.
 Qed.
 
 Goal forall a,  a |-- a.
 Proof.
 intros.
-pose_env.
-reify_derives.
-mirror_cancel_default.
+rcancel.
 Qed.
 
 Goal forall a b, a * b |-- b * a.
 intros.
-pose_env.
-prepare_reify.
-reify_derives.
-mirror_cancel_default.
+rcancel.
 Qed.
-
-(* Below this point, stuff breaks.
-   Some of it is mirror_cancel failing for reasons I don't understand.
-   Some of it is that the code below hasn't been updated to pass in
-     functions that describe which funcs are computable.
-   *)
-
-Goal forall (a b c d: nat), a = b -> b = c -> c = d -> functions.P a |-- functions.P d.
-Proof.
-intros.
-pose_env.
-reify_derives.
-try mirror_cancel_default.
-Qed. 
 
 Definition P2 (v :val) := emp.
 
@@ -125,9 +94,7 @@ Goal forall contents sh rho,
 lseg LS sh (map Vint contents) (eval_id _t rho) nullval * emp |--
 lseg LS sh (map Vint contents) (eval_id _p rho) nullval * emp.
 intros.
-pose_env.
-reify_derives.
-mirror_cancel_default.
+rcancel.
 Qed.
 
 Lemma while_entail1 :
@@ -153,28 +120,14 @@ Proof.
 intros.
 go_lower0.
 pose_env.
-(
-autorewrite with gather_prop.
+prepare_reify.
+pose (TT := !!True). fold TT.
 reify_derives.
-Check vst_prover.
-let types := get_types in 
-eapply (ApplyCancelSep_with_eq_goal 10 10 _ _ _ _ _ (vst_prover types) nil nil _ _ _ ). 
-apply eq_refl.
- constructor.
- constructor.
- apply vstProver_correct.
-match goal with 
-| [ |- ?X = _ ] => assert (exists e, package_cancel X = Some e)
-end.
-eexists.
-match goal with
-[ |- ?X = Some ?n] =>  
-let p := fresh p in pose (p:=X); fold p; vm_compute in p; unfold p; reflexivity
-end.
-mirror_cancel_default. 
-simpl; unfold Provable; simpl.
-Check UNF.hintSideD.
-Print SL.sepLemma.
+lift_and_goal.
+mirror_cancel_default.
+unfold Provable in *. simpl in *. admit. (*Provable pure fact we can't deal with yet *)
+simpl in *. (*ugly thing that shouldn't be left*) apply prop_right; auto.
+Qed.
 
 
 Lemma while_entail2 :

@@ -1,6 +1,9 @@
 Require Import floyd.proofauto.
-Require Import mirror_cancel.
-
+Require Import MirrorShard.Expr.
+Require Import functions.
+Require Import sep.
+Require Import types.
+Require Import wrapExpr.
 Local Open Scope logic.
 
 
@@ -218,11 +221,13 @@ intros. apply pred_ext.
 induction l1. simpl (unflatten_conjuncts_sep nil).
 Opaque functions.True_f.
 simpl. rewrite H. simpl. 
-unfold_VericSepLogic. entailer. 
+unfold VericSepLogic.star. unfold VericSepLogic.inj.
+ entailer. 
 simpl in *. remember (l1 ++ l2).
 destruct l. simpl. destruct l1; inv Heql.
 simpl. destruct (exprD f uenv nil a tvProp).
-unfold_VericSepLogic. entailer. destruct l2; inv H0; simpl; entailer.
+unfold VericSepLogic.star. unfold VericSepLogic.inj.
+entailer. destruct l2; inv H0; simpl; entailer.
 simpl in *. rewrite H in *. simpl in *.
 unfold VericSepLogic.inj in *. 
 unfold VericSepLogic.star in *.
@@ -230,7 +235,7 @@ unfold VericSepLogic_Kernel.emp in *.
 entailer!.
 unfold VericSepLogic.inj in *. 
 unfold VericSepLogic.star in *.
-unfold VericSepLogic_Kernel.emp in *. unfold BadInj.
+unfold VericSepLogic_Kernel.emp in *. unfold SepExpr.BadInj.
 entailer!. simpl.
 destruct l1. simpl. destruct (exprD f uenv nil a tvProp).
 simpl in IHl1. rewrite H in *. simpl in *.
@@ -248,7 +253,7 @@ simpl in IHl1. entailer!.
 unfold VericSepLogic.star in *.
 cancel.
 apply IHl1.
-simpl in *. entailer. unfold BadInj. entailer!.
+simpl in *. entailer. unfold SepExpr.BadInj. entailer!.
 unfold VericSepLogic.star in *.
 cancel.
 apply IHl1.
@@ -261,7 +266,7 @@ induction l1; auto.
       - simpl in *.
         rewrite H in *. simpl in *.
         destruct l1; inv Heql. simpl.
-        destruct (exprD f uenv nil a tvProp); [ | unfold BadInj, VericSepLogic.inj; entailer].
+        destruct (exprD f uenv nil a tvProp); [ | unfold SepExpr.BadInj, VericSepLogic.inj; entailer].
         unfold VericSepLogic.inj in *. 
         unfold VericSepLogic.star in *.
         unfold VericSepLogic_Kernel.emp in *.
@@ -275,10 +280,10 @@ induction l1; auto.
       - simpl in *.
         destruct l1; inv Heql.
           * simpl. destruct (exprD f uenv nil a tvProp); 
-                   [ | unfold BadInj, VericSepLogic.inj; entailer].
+                   [ | unfold SepExpr.BadInj, VericSepLogic.inj; entailer].
             simpl in *. rewrite H in *. simpl in *. destruct l. simpl in *.
             destruct (exprD f uenv nil e tvProp);
-                     [ | unfold BadInj, VericSepLogic.inj; entailer].
+                     [ | unfold SepExpr.BadInj, VericSepLogic.inj; entailer].
             unfold VericSepLogic.inj in *. 
             unfold VericSepLogic.star in *.
             unfold VericSepLogic_Kernel.emp in *.
@@ -286,7 +291,7 @@ induction l1; auto.
             auto.
             simpl in *.
             destruct (exprD f uenv nil e tvProp); 
-                   [ | unfold BadInj, VericSepLogic.inj; entailer].
+                   [ | unfold SepExpr.BadInj, VericSepLogic.inj; entailer].
             unfold VericSepLogic.inj in *. 
             unfold VericSepLogic.star in *.
             unfold VericSepLogic_Kernel.emp in *.
@@ -318,7 +323,7 @@ intros. apply pred_ext.
     do 6 (destruct f0; auto).
     simpl. simpl in H. rewrite H. simpl.
     destruct l; simpl. 
-      - unfold BadInj.
+      - unfold SepExpr.BadInj.
         unfold VericSepLogic.inj. apply derives_extract_prop.
         contradiction.
       - destruct l. simpl. rewrite H. simpl.
@@ -340,15 +345,15 @@ intros. apply pred_ext.
             unfold VericSepLogic.star. 
             apply sepcon_derives; auto. auto.
 
-            unfold BadInj. simpl. unfold VericSepLogic.inj.  entailer!.
-            unfold BadInj. simpl. unfold VericSepLogic.inj. entailer!.
+            unfold SepExpr.BadInj. simpl. unfold VericSepLogic.inj.  entailer!.
+            unfold SepExpr.BadInj. simpl. unfold VericSepLogic.inj. entailer!.
           * simpl in *. rewrite H in *. simpl in *. cancel.
   + induction e; auto.
 
 do 6 (destruct f0; auto).
 simpl. simpl in H. rewrite H. simpl.
 destruct l; simpl. rewrite H. simpl.
-unfold BadInj. entailer.
+unfold SepExpr.BadInj. entailer.
 destruct l. simpl. rewrite H. simpl.
 destruct (exprD f uenv nil e tvProp). auto.
 auto.
@@ -370,15 +375,15 @@ Focus 2.
 instantiate (1:= ((!!t0 && emp) * (!!t1 && emp))). entailer!. 
 apply sepcon_derives; auto. 
 
-unfold BadInj in *. unfold VericSepLogic.inj in *.
+unfold SepExpr.BadInj in *. unfold VericSepLogic.inj in *.
 eapply derives_trans. 
 apply sepcon_derives. apply H4. apply H3.
 entailer!.
 
-unfold BadInj.
+unfold SepExpr.BadInj.
 eapply derives_trans.
 apply sepcon_derives; eassumption.
-unfold VericSepLogic.inj, BadInj.
+unfold VericSepLogic.inj, SepExpr.BadInj.
 destruct (exprD f uenv nil e0 tvProp); entailer!. 
 auto.
 
@@ -418,3 +423,26 @@ intuition.
      - simpl in *. do 2 rewrite <- lift_ands_eq in *; auto.
      - simpl in *. destruct a0; intuition.
 Qed.
+
+Lemma goal_lift_and' :
+forall t f preds uenv a l r newl newr n,
+nth_error f 5 = Some (functions.and_signature t) ->
+nth_error f (functions.True_f nil) = Some (functions.True_signature t) ->
+lift_ands l = newl -> lift_ands r = newr ->
+n = nil ->
+(goalD (functions.all_types_r t) f preds uenv n (a, (l,r)) <-> 
+goalD (functions.all_types_r t) f preds uenv nil (a, (newl, newr))).
+intros. rewrite <- H1. rewrite <- H2. rewrite H3. apply goal_lift_and; auto.
+Qed.
+
+Ltac e_vm_compute_left :=
+match goal with 
+| |- ?X = Some _ => match eval vm_compute in X with 
+                   | Some ?Y => exact (@eq_refl _ (Some Y) (*<: (Some Y) = (Some Y)*))
+                   end
+| |- ?X = _ => let comp := eval vm_compute in X in exact (@eq_refl _ X)
+end.
+
+Ltac lift_and_goal :=
+erewrite goal_lift_and';
+[ | auto | auto | e_vm_compute_left |  e_vm_compute_left | auto ]. 
