@@ -686,7 +686,19 @@ Proof.
       destruct (field_offset i0 f), (field_type i0 f) eqn:Heq; try inversion Hmatch; clear Hmatch; subst f; rewrite H1 in Heq; inversion Heq; reflexivity.
 Qed.
 
-Lemma nested_reptype_unionlist_lemma: forall ids t i f a, nested_field_type ids t = Some (Tstruct i f a) -> fieldlist_no_replicate f = true -> reptype_unionlist f = nested_reptype_unionlist ids t f.
+Lemma nested_reptype_structlist_lemma2: forall ids t i f a, nested_field_type2 ids t = Tstruct i f a -> fieldlist_no_replicate f = true -> reptype (nested_field_type2 ids t) = nested_reptype_structlist ids t f.
+Proof.
+  intros.
+  rewrite H.
+  assert (nested_field_type ids t = Some (Tstruct i f a)).
+  unfold nested_field_type, nested_field_type2 in *.
+  destruct (nested_field_rec ids t) as [(?, ?)|].
+  rewrite H. reflexivity.
+  inversion H.
+  apply (nested_reptype_structlist_lemma _ _ i f a); assumption.
+Qed.
+
+Lemma nested_reptype_unionlist_lemma: forall ids t i f a, nested_field_type ids t = Some (Tunion i f a) -> fieldlist_no_replicate f = true -> reptype_unionlist f = nested_reptype_unionlist ids t f.
 Proof.
   unfold nested_field_type.
   intros.
@@ -721,47 +733,25 @@ Proof.
       destruct (field_offset i0 f), (field_type i0 f) eqn:Heq; try inversion Hmatch; clear Hmatch; subst f; rewrite H1 in Heq; inversion Heq; reflexivity.
 Qed.
 
+Lemma nested_reptype_unionlist_lemma2: forall ids t i f a, nested_field_type2 ids t = Tunion i f a -> fieldlist_no_replicate f = true -> reptype (nested_field_type2 ids t) = nested_reptype_unionlist ids t f.
+Proof.
+  intros.
+  rewrite H.
+  assert (nested_field_type ids t = Some (Tunion i f a)).
+  unfold nested_field_type, nested_field_type2 in *.
+  destruct (nested_field_rec ids t) as [(?, ?)|].
+  rewrite H. reflexivity.
+  inversion H.
+  simpl.
+  apply (nested_reptype_unionlist_lemma _ _ i f a); assumption.
+Qed.
+
 Fixpoint nested_data_at (sh: Share.t) (ids: list ident) (t1: type) (v: reptype (nested_field_type2 ids t1)) : val -> mpred := data_at' sh empty_ti (nested_field_type2 ids t1) (nested_field_offset2 ids t1) v.
 
 (*
-Fixpoint nested_sfieldlist_at (sh: Share.t) (ids: list ident) (t1: type) (v: reptype (nested_field_type2 ids t1))
-
-
-with sfieldlist_at' (sh: Share.t) (e: str_id_env) (alignment: Z) (flds: fieldlist) (pos: Z) : reptype_structlist flds -> val -> mpred :=
-match flds as f return reptype_structlist f -> val -> mpred with
-| Fnil => fun _ p => !!(isptr p) && emp (* empty struct case *)
-| Fcons i t flds0 =>
-    fun (v : reptype_structlist (Fcons i t flds0)) =>
-      (if is_Fnil flds0 as b
-        return
-          (is_Fnil flds0 = b ->
-           (if b
-            then reptype t
-            else (reptype t * reptype_structlist flds0)%type) -> val -> mpred)
-       then
-        fun (_ : is_Fnil flds0 = true) (v0 : reptype t) =>
-          withspacer sh (pos + sizeof t) alignment (data_at' sh e t pos v0)
-       else
-        fun (_ : is_Fnil flds0 = false) (v0 : reptype t * reptype_structlist flds0) =>
-          withspacer sh (pos + sizeof t) (alignof_hd flds0) (data_at' sh e t pos (fst v0)) *
-          (sfieldlist_at' sh e alignment flds0 (align (pos + sizeof t) (alignof_hd flds0)) (snd v0)))
-   eq_refl v
-end
-with ufieldlist_at' (sh: Share.t) (e: str_id_env) (alignment: Z) (flds: fieldlist) (pos: Z) {struct flds}: reptype_unionlist flds -> val -> mpred :=
-match flds as f return (reptype_unionlist f -> val -> mpred) with
-| Fnil => 
-  if (Zeq_bool alignment 0)
-  then fun _ p => !!(isptr p) && emp (* empty union case *)
-  else fun _ => FF (* this means v in input data is ilegal *)
-| Fcons i t flds0 => fun v : (reptype t) + (reptype_unionlist flds0) =>
-  match v with
-  | inl v_hd => 
-    withspacer sh (pos + sizeof t) alignment (data_at' sh e t pos v_hd)
-  | inr v_tl =>
-    ufieldlist_at' sh e alignment flds0 pos v_tl
-  end
-end.
+Fixpoint nested_sfieldlist_at' (sh: Share.t) (ids: list ident) (t1: type) (flds: fieldlist) (v: nested_reptype_structlist ids t1) : val -> mpred :=
 *)
+
 (*
 Lemma field_at_offset_zero:
   forall sh ty id v v', 
@@ -862,7 +852,7 @@ Proof.
         apply withspacer_preserve_isptr; intros. apply H.
     - destruct v0.
       * apply withspacer_preserve_isptr; intros. apply H.
-      * destruct (is_Fnil f); try apply FF_left; apply H1.
+      * if_tac. normalize. apply H1.
 Qed.
 
 Lemma data_at_isptr: forall sh t v p, data_at sh t v p = !!(isptr p) && data_at sh t v p.
@@ -1100,8 +1090,9 @@ Lemma memory_block_typed': forall sh e pos ty b ofs,
   =   memory_block sh (Int.repr pos) (Vptr b ofs) * fields_mapto_ sh pos t fld (Vptr b ofs).
 *)
 Proof.
-Admitted.
+  Admitted.
 
+(*
 Require Import progs.nest2.
 
 Goal forall a b c, data_at Ews t_struct_b (a, (b,c))= TT.
@@ -1120,7 +1111,6 @@ simpl align.
 Opaque spacer.
 simpl.
 repeat rewrite <- sepcon_assoc.
-(*
 SearchAbout mapsto FF.
 Locate field_at_conflict.
 Print res_predicates.address_mapsto.
@@ -1134,9 +1124,8 @@ Print compcert.common.Memdata.memval.
 Print Memdata.proj_bytes.
 Print val.
 Print res_predicates.spec.
-*)
 simpl withspacer.
-Admitted. 
+*)
 
 (************************************************
 
