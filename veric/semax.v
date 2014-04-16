@@ -47,18 +47,14 @@ Qed.
 Definition list2opt {T: Type} (vl: list T) : option T :=
  match vl with nil => None | x::_ => Some x end.
 
-Fixpoint assoc_list_get {A}{B}{EA: EqDec A}(l: list (A*B))(a: A) : option B :=
- match l with
- | nil => None
- | (x,y)::rest => if eq_dec a x then Some y else assoc_list_get rest a
- end.   
+Definition match_venv (ve: venviron) (vars: list (ident * type)) :=
+ forall id, match ve id with Some (b,t) => In (id,t) vars | _ => True end.
 
 Definition guard_environ (Delta: tycontext) (f: option function) (rho: environ) : Prop :=
    typecheck_environ Delta rho /\
   match f with 
-  | Some f' => 
-      (forall id, ve_of rho id <> None -> In id (map fst (fn_vars f'))) 
-     /\ ret_type Delta = fn_return f'
+  | Some f' => match_venv (ve_of rho) (fn_vars f')
+                /\ ret_type Delta = fn_return f'
   | None => True
   end.
 

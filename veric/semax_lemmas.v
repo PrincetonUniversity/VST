@@ -95,7 +95,7 @@ Proof.
  apply typecheck_environ_put_te'; auto.
  destruct k; auto.
  destruct H1; split.
- intros. apply H1. apply H3.
+ apply H1.
  unfold initialized. destruct ((temp_types Delta) ! id); try destruct p; auto.
 Qed.
 

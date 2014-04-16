@@ -1012,7 +1012,8 @@ Proof.
  case_eq (PTree.elements ve); simpl; intros; auto.
  destruct p as [id ?].
  pose proof (PTree.elements_complete ve id p). rewrite H0 in H2. simpl in H2.
- specialize (H7 id). unfold make_venv in H7. rewrite H2 in H7; auto. contradiction H7; congruence.
+ specialize (H7 id). unfold make_venv in H7. rewrite H2 in H7; auto.
+ destruct p; inv H7.
  inv H.
  destruct a as [id ty]. simpl in *.
  specialize (IHl H4 (PTree.remove id ve)).
@@ -1074,11 +1075,15 @@ Proof.
  destruct H1 as [v ?].
  rewrite PTree.gso; auto.
  exists v. unfold Map.get. rewrite PTree.gro; auto.
- intros.
+ hnf; intros.
+ destruct (make_venv (PTree.remove id ve) id0) eqn:H5; auto.
+ destruct p.
+ unfold make_venv in H5.
  destruct (eq_dec id id0).
- subst. unfold make_venv in H5. rewrite PTree.grs in H5. congruence.
- unfold make_venv in H5; rewrite PTree.gro in H5 by auto.
- destruct (H7 id0); auto. contradiction.
+ subst.  rewrite PTree.grs in H5. inv H5. 
+ rewrite PTree.gro in H5 by auto.
+ specialize (H7 id0). unfold make_venv in H7. rewrite H5 in H7.
+ destruct H7; auto. inv H6; congruence.
 Qed.
 
 
@@ -1088,8 +1093,40 @@ Definition maybe_retval (Q: environ -> mpred) ret :=
  | None => fun rho => EX v:val, Q (make_args (ret_temp::nil) (v::nil) rho)
  end.
  
+Lemma VALspec_range_free:
+  forall n b phi1 jm,
+  app_pred (VALspec_range n Share.top Share.top (b, 0)) phi1 ->
+  join_sub phi1 (m_phi jm) ->
+  {m' | free (m_dry jm) b 0 n = Some m' }.
+Proof.
+intros.
+apply range_perm_free.
+destruct H0 as [phi2 H0].
+hnf; intros.
+pose proof (juicy_mem_access jm (b,ofs)).
+hnf. unfold access_at in H2. simpl in H2. rewrite H2. clear H2.
+specialize (H (b,ofs)).
+hnf in H.
+rewrite if_true in H by (split; auto; omega).
+destruct H as [v ?].
+apply (resource_at_join _ _ _ (b,ofs)) in  H0.
+destruct H.
+replace (mk_lifted Share.top x) with pfullshare in H.
+hnf in H.
+rewrite H in H0.
+inv H0; try pfullshare_join.
+inv RJ.
+rewrite Share.glb_commute, Share.glb_top in H0.
+subst rsh2.
+rewrite Share.lub_bot.
+unfold perm_of_res; simpl.
+rewrite perm_of_sh_fullshare. constructor.
+symmetry; apply top_pfullshare; reflexivity.
+Qed.
+
 Lemma can_free_list:
-  forall Delta F f jm psi ve te,
+  forall Delta F f jm psi ve te
+  (NOREP: list_norepet (map (@fst _ _) (fn_vars f))),
    guard_environ (func_tycontext' f Delta) (Some f)
         (construct_rho psi ve te) ->
     (F * stackframe_of f (construct_rho psi ve te))%pred (m_phi jm) ->
@@ -1098,15 +1135,188 @@ Proof.
 intros.
 destruct H0 as [? [? [? [_ ?]]]].
 unfold stackframe_of in H1.
-unfold blocks_of_env.
-destruct H as [_ [H _]]; clear - H H0 H1. simpl in H.
+unfold blocks_of_env in *.
+destruct H as [_ [H _]]; clear - NOREP H H0 H1. simpl in H.
+pose (F vl := (fold_right
+        (fun (P Q : environ -> pred rmap) (rho : environ) => P rho * Q rho)
+        (fun _ : environ => emp)
+        (map (fun idt : ident * type => var_block Share.top idt) vl))).
+change ((F (fn_vars f)  (construct_rho psi ve te)) x0) in H1.
+assert (forall id b t, In (id,(b,t)) (PTree.elements ve) -> 
+              In (id,t) (fn_vars f)). { 
+ intros.
+  apply PTree.elements_complete in  H2.
+  specialize (H id); unfold make_venv in H; rewrite H2 in H.
+   apply H.
+}
+clear H.
+assert (Hve: forall i bt, In (i,bt) (PTree.elements ve) -> ve ! i = Some bt).
+apply PTree.elements_complete.
+assert (NOREPe: list_norepet (map (@fst _ _) (PTree.elements ve)))
+  by apply PTree.elements_keys_norepet.
+forget (PTree.elements ve) as el. 
+rename x0 into phi.
+assert (join_sub phi (m_phi jm)).
+econstructor; eauto.
+clear H0.
+forget (fn_vars f) as vl.
+revert vl phi jm H H1 H2 Hve NOREP NOREPe; induction el; intros;
+  [ solve [simpl; eauto] | ].
+simpl in H2.
+destruct a as [id [b t]]. simpl in NOREPe,H2|-*.
+assert (H2': In (id,t) vl).
+apply H2 with b. auto.
 (*
-induction (fn_vars f); simpl in H1.
-
-hnf in H.
-Focus 2.
+destruct vl as [ | [i' t']]; inv H2'.
+inv H0.
+simpl in NOREP.
+inv NOREP. rename H5 into NOREP.
+rename H4 into NOTIN.
 *)
-Admitted.
+specialize (IHel (filter (fun idt => negb (eqb_ident (fst idt) id)) vl)).
+replace (F vl (construct_rho psi ve te))
+ with  (var_block Share.top (id,t)  (construct_rho psi ve te) 
+               * F (filter (fun idt => negb (eqb_ident (fst idt) id)) vl) (construct_rho psi ve te)) in H1.
+Focus 2. {
+clear - H2' NOREP.
+induction vl; inv H2'.
+simpl in NOREP.
+inv NOREP.
+unfold F; simpl fold_right.
+f_equal.
+f_equal.
+f_equal.
+replace (eqb_ident id id) with true
+  by (symmetry; apply (eqb_ident_spec id id); auto).
+simpl.
+clear - H1.
+induction vl; simpl; auto.
+replace (negb (eqb_ident (fst a) id)) with true.
+f_equal.
+apply IHvl.
+contradict H1. right; auto.
+pose proof (eqb_ident_spec (fst a) id).
+destruct (eqb_ident (fst a) id) eqn:?; auto.
+elimtype False; apply H1. left. rewrite <- H; auto.
+transitivity 
+ (var_block Share.top a (construct_rho psi ve te) * 
+     F vl (construct_rho psi ve te)); [ | reflexivity].
+inv NOREP.
+rewrite <- IHvl; auto.
+repeat rewrite <- sepcon_assoc.
+simpl filter.
+replace (eqb_ident (fst a) id) with false.
+simpl.
+unfold F at 1.
+simpl.
+symmetry; 
+rewrite (sepcon_comm (var_block _ _ _ )).
+repeat rewrite sepcon_assoc.
+reflexivity.
+pose proof (eqb_ident_spec (fst a) id).
+destruct (eqb_ident (fst a) id); auto.
+assert (fst a = id) by (apply H0; auto).
+subst id.
+contradiction H2.
+replace (fst a) with (fst (fst a, t)) by reflexivity.
+apply in_map; auto.
+} Unfocus.
+(*
+assert (filter (fun idt : ident * type => negb (eqb_ident (fst idt) id)) vl =  vl). {
+clear - NOTIN; induction vl; simpl; auto.
+replace (negb (eqb_ident (fst a) id)) with true.
+f_equal.
+apply IHvl.
+contradict NOTIN. right; auto.
+pose proof (eqb_ident_spec (fst a) id).
+destruct (eqb_ident (fst a) id) eqn:?; auto.
+elimtype False; apply NOTIN. left. rewrite <- H; auto.
+}
+rewrite H0 in IHel.
+*)
+pose (H0:=True).
+destruct H1 as [phi1 [phi2 [? [? ?]]]].
+
+unfold var_block, lvalue_block in H3.
+normalize in H3.
+simpl in H3.
+assert (0 <= sizeof t) by (pose proof (sizeof_pos t); omega).
+simpl in H5.
+unfold eval_var, Map.get in H3. simpl in H3.
+unfold make_venv in H3.
+rewrite (Hve id (b,t)) in H3 by (left; auto).
+rewrite eqb_type_refl in H3.
+destruct (type_is_volatile t) eqn:?; try (contradiction H3).
+simpl in H3.
+rewrite Int.unsigned_repr in H3 by omega.
+change nat_of_Z with Z.to_nat in H3.
+rewrite memory_block'_eq in H3; 
+ try rewrite Int.unsigned_zero; try omega.
+2: rewrite Z.add_0_r; rewrite Z2Nat.id by omega; auto.
+unfold memory_block'_alt in H3.
+rewrite Int.unsigned_zero in H3.
+rewrite Share.contains_Lsh_e in H3 by apply top_correct'.
+rewrite Share.contains_Rsh_e in H3 by apply top_correct'.
+rewrite Z2Nat.id in H3 by omega.
+assert (join_sub phi1 (m_phi jm))
+ by ( apply join_sub_trans with phi; auto; eexists; eauto).
+destruct (VALspec_range_free _ _ _ _ H3 H7)
+ as [m3 ?H].
+pose (jm3 := free_juicy_mem _ _ _ _ _ H8).
+destruct H7 as [phi3 H7].
+assert (phi3 = m_phi jm3).
+apply join_comm in H7.
+eapply join_canc. apply H7.
+apply join_comm.
+apply (@juicy_free_lemma _ _ _ _ _ phi1 H8).
+rewrite Z.sub_0_r; auto.
+apply join_comm in H7. apply join_core in H7; auto.
+intros.
+apply (resource_at_join _ _ _ l) in H7.
+rewrite H9 in H7.
+clear - H7.
+inv H7. do 3 eexists; split3; eauto. eexists; eauto. apply join_sub_refl.
+do 3 eexists; split3; eauto. eexists; eauto. eexists; eauto.
+subst phi3.
+assert (join_sub phi2 (m_phi jm3)).
+destruct H as [phix H].
+destruct (join_assoc (join_comm H1) H) as [phi7 [? ?]].
+eapply crosssplit_wkSplit.
+apply H7. apply H10.
+exists phi; auto.
+destruct (IHel phi2 jm3 H9) as [m4 ?]; auto; clear IHel.
+intros. 
+specialize (H2 id0 b0 t0).
+spec H2; [ auto |].
+assert (id0 <> id).
+clear - NOREPe H10.
+inv NOREPe. intro; subst.
+apply H1. change id with (fst (id,(b0,t0))); apply in_map; auto.
+clear - H2 H11.
+induction vl; simpl in *; auto.
+destruct H2. subst a. simpl.
+replace (eqb_ident id0 id) with false; simpl; auto.
+pose proof (eqb_ident_spec id0 id); destruct (eqb_ident id0 id); simpl in *; auto.
+contradiction H11; apply H; auto.
+pose proof (eqb_ident_spec (fst a) id); destruct (eqb_ident (fst a) id); simpl in *; auto.
+intros; eapply Hve; eauto.
+right; auto.
+clear - NOREP.
+induction vl; simpl; auto.
+pose proof (eqb_ident_spec (fst a) id); destruct (eqb_ident (fst a) id); simpl in *; auto.
+assert (fst a = id) by ( apply H; auto); subst.
+apply IHvl; inv NOREP; auto.
+inv NOREP.
+constructor; auto.
+clear - H2.
+contradict H2.
+induction vl; simpl in *; auto.
+destruct (eqb_ident (fst a0) id); simpl in *; auto.
+destruct H2; auto.
+inv NOREPe; auto.
+rewrite H8.
+exists m4; auto.
+Qed.
 
 Lemma necR_m_dry':
   forall jm jm', m_dry jm = m_dry jm' ->
@@ -1238,7 +1448,7 @@ spec H19 ; [clear H19 |]. {
  clear Q' H11.
  pose proof I.
  pose proof I.
-  
+ 
  intros wx ? w' ? ?.
  assert (n >= level w')%nat.
  apply necR_level in H21.
@@ -1252,7 +1462,8 @@ spec H19 ; [clear H19 |]. {
  destruct H22 as [H22 _].
  rewrite (sepcon_comm (stackframe_of f _)) in H22.
  repeat rewrite <- sepcon_assoc in H22.
- eapply can_free_list; eassumption.
+ clear - H17' H22 H15.
+ eapply can_free_list; try eassumption.
 }
 destruct FL as [m2 FL].
 pose (jm2 := free_list_juicy_mem _ _ _ FL).
