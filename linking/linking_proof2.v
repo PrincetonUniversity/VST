@@ -1766,11 +1766,25 @@ have j_domS_domT:
 { move=> b1 b2 d0; rewrite /j /domS /domT; move/as_inj_DomRng.
   by move/(_ (Inj_wd _)). }
 
+have DomTgt_rc: REACH_closed m2 (DomTgt mu_top).
+  admit.
+
 have frgnT_sub_domT: {subset frgnT <= domT}.
-{ move=> b H.
-  have [b0 [d0 [H2 H3]]]: exists b0 d0, [/\ b0 \in frgnS & j b0 = Some(b,d0)].
-  { admit. (*interesting...*) }
-  by move: H3; case/j_domS_domT. }
+{ move=> b H; apply: DomTgt_rc. 
+  apply: (REACH_mono (fun b : block =>
+    isGlobalBlock (ge (cores_T (Core.i c1))) b || getBlocks args2 b))=> //.
+  move=> b0 H2; apply: exportedTgt_DomTgt; apply/orP; case: (orP H2)=> H3.
+  right; apply/orP; left. 
+  move: (H3); rewrite -isGlob_iffT=> H3'.
+  move: (head_globs hdinv); move/(_ b0 H3')=> H4.
+  have J: extern_of mu_top b0 = Some (b0,0).
+  { move: (head_match hdinv)=> mtch; apply match_genv in mtch.
+    case: mtch=> pres _.
+    move: (meminj_preserves_globals_isGlobalBlock _ _ pres b0)=> H5. 
+    by move: H3'; rewrite isGlob_iffS; eauto. }
+  case: (Inj_wd mu_top)=> _ _ _ _ _; case/(_ b0 H4)=> x []y []H5 H6 _ _.
+  by move: H6; rewrite H5 in J; case: J=> ->.
+  by left. }
 
 have st1_eq: callStack (stack st1) = [:: c inv & STACK.pop st1].
 { by rewrite /c /s1; case: st1 inv=> //= ?; case=> //=; case. }
@@ -1839,7 +1853,10 @@ have domS_valid:
 
 have domT_valid:
   forall b, domT b -> Mem.valid_block m2 b.
-{ by move: (match_validblocks _ (head_match hdinv)); case=> H I; apply: I. }
+{ 
+(*by move: (match_validblocks _ (head_match hdinv)); case=> H I; apply: I.*)
+admit.
+}
 
 have [cd_new [c2 [pf_new [init2 mtch12]]]]:
   exists (cd_new : core_data (sims (Core.i c1))) 
