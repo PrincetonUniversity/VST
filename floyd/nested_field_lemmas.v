@@ -51,102 +51,6 @@ Proof.
     omega.
 Qed.
 
-Definition no_alignas a : bool := match attr_alignas a with  None => true | _ => false end.
-
-Definition no_alignas_type (t: type): bool :=
-  match t with
-  | Tvoid => true
-  | Tint _ _ a => no_alignas a
-  | Tlong _ a => no_alignas a
-  | Tfloat _ a => no_alignas a
-  | Tpointer _ a => no_alignas a
-  | Tfunction _ _ => true
-  | Tarray t _ a => no_alignas a
-  | Tstruct _ flds a => no_alignas a
-  | Tunion _ flds a => no_alignas a
-  | Tcomp_ptr _ a => no_alignas a
- end.
-
-Fixpoint no_nested_alignas_type (t: type): bool :=
-  match t with
-  | Tvoid => true
-  | Tint _ _ a => no_alignas a
-  | Tlong _ a => no_alignas a
-  | Tfloat _ a => no_alignas a
-  | Tpointer _ a => no_alignas a
-  | Tfunction _ _ => true
-  | Tarray t0 _ a => (no_alignas a && no_nested_alignas_type t0)%bool
-  | Tstruct _ flds a => (no_alignas a && no_nested_alignas_fields flds)%bool
-  | Tunion _ flds a => (no_alignas a && no_nested_alignas_fields flds)%bool
-  | Tcomp_ptr _ a => no_alignas a
-  end
-with no_nested_alignas_fields (f: fieldlist) : bool :=
-  match f with 
-  | Fnil => true 
-  | Fcons _ t f' => andb (no_nested_alignas_type t) (no_nested_alignas_fields f')
-  end.
-
-Lemma no_nested_alignas_no_alignas: forall t, no_nested_alignas_type t = true -> no_alignas_type t = true.
-Proof.
-  intros.
-  destruct t; simpl in *; auto.
-  apply andb_true_iff in H. tauto.
-  apply andb_true_iff in H. tauto.
-  apply andb_true_iff in H. tauto.
-Qed.
-
-Lemma no_alignas_type_Tstruct: forall i f a, no_alignas_type (Tstruct i f a) = true -> alignof (Tstruct i f a) = alignof_fields f.
-Proof.
-  intros.
-  simpl.
-  unfold no_alignas_type, no_alignas in H.
-  destruct (attr_alignas a).
-  + inversion H.
-  + reflexivity.
-Qed.
-
-Lemma no_alignas_type_Tunion: forall i f a, no_alignas_type (Tunion i f a) = true -> alignof (Tunion i f a) = alignof_fields f.
-Proof.
-  intros.
-  simpl.
-  unfold no_alignas_type, no_alignas in H.
-  destruct (attr_alignas a).
-  + inversion H.
-  + reflexivity.
-Qed.
-
-Lemma no_nested_alignas_type_Tstruct: forall i f a, no_nested_alignas_type (Tstruct i f a) = true -> alignof (Tstruct i f a) = alignof_fields f.
-Proof.
-  intros.
-  apply no_nested_alignas_no_alignas in H.
-  apply no_alignas_type_Tstruct.
-  exact H.
-Qed.
-
-Lemma no_nested_alignas_type_Tunion: forall i f a, no_nested_alignas_type (Tunion i f a) = true -> alignof (Tunion i f a) = alignof_fields f.
-Proof.
-  intros.
-  apply no_nested_alignas_no_alignas in H.
-  apply no_alignas_type_Tunion.
-  exact H.
-Qed.
-
-Lemma no_nested_alignas_type_fields: forall i t f, field_type i f = Errors.OK t -> no_nested_alignas_fields f = true -> no_nested_alignas_type t = true.
-Proof.
-  intros.
-  induction f.
-  + inversion H.
-  + simpl in H.
-    if_tac in H; simpl in H0.
-    - apply andb_true_iff in H0.
-      inversion H.
-      subst.
-      tauto.
-    - apply andb_true_iff in H0.
-      destruct H0.
-      apply IHf; assumption.
-Qed.
-
 Lemma alignof_fields_hd_divide: forall i t f, Zdivide (alignof t) (alignof_fields (Fcons i t f)).
 Proof.
   intros.
@@ -177,6 +81,220 @@ Proof.
   + if_tac in H.
     - inversion H. apply alignof_fields_hd_divide.
     - eapply Z.divide_trans; [exact (IHf H) | apply alignof_fields_tl_divide].
+Qed.
+
+(************************************************
+
+Definition, lemmas and usefulsamples of nested_pred
+
+nested_pred only ensure the specific property to be true on nested types with
+memory assigned, i.e. inside structure of pointer, function are not included.
+
+************************************************)
+
+Fixpoint nested_pred (atom_pred: type -> bool) (t: type) : bool :=
+  match t with
+  | Tarray t0 _ _ => (atom_pred t && nested_pred atom_pred t0)%bool
+  | Tstruct _ flds _ => (atom_pred t && nested_fields_pred atom_pred flds)%bool
+  | Tunion _ flds _ => (atom_pred t && nested_fields_pred atom_pred flds)%bool
+  | _ => atom_pred t
+  end
+with nested_fields_pred (atom_pred: type -> bool) (f: fieldlist) : bool :=
+  match f with 
+  | Fnil => true 
+  | Fcons _ t f' => (nested_pred atom_pred t && nested_fields_pred atom_pred f')%bool
+  end.
+
+Lemma nested_pred_atom_pred: forall {atom_pred: type -> bool} (t: type), nested_pred atom_pred t = true -> atom_pred t = true.
+Proof.
+  intros.
+  destruct t; simpl in *; try apply andb_true_iff in H; tauto.
+Qed.
+
+Lemma nested_pred_Tarray: forall {atom_pred: type -> bool} t n a, nested_pred atom_pred (Tarray t n a) = true -> nested_pred atom_pred t = true.
+Proof.
+  intros.
+  simpl in H.
+  apply andb_true_iff in H; tauto.
+Qed.
+
+Lemma nested_pred_Tstruct: forall {atom_pred: type -> bool} i f a, nested_pred atom_pred (Tstruct i f a) = true -> nested_fields_pred atom_pred f = true.
+Proof.
+  intros.
+  simpl in H.
+  apply andb_true_iff in H; tauto.
+Qed.
+
+Lemma nested_pred_Tunion: forall {atom_pred: type -> bool} i f a, nested_pred atom_pred (Tunion i f a) = true -> nested_fields_pred atom_pred f = true.
+Proof.
+  intros.
+  simpl in H.
+  apply andb_true_iff in H; tauto.
+Qed.
+
+Lemma nested_fields_pred_nested_pred: forall {atom_pred: type -> bool} i t f, field_type i f = Errors.OK t -> nested_fields_pred atom_pred f = true -> nested_pred atom_pred t = true.
+Proof.
+  intros.
+  induction f.
+  + inversion H.
+  + simpl in H.
+    if_tac in H; simpl in H0.
+    - apply andb_true_iff in H0.
+      inversion H.
+      subst.
+      tauto.
+    - apply andb_true_iff in H0.
+      destruct H0.
+      apply IHf; assumption.
+Qed.
+
+(******* Samples : no_alignas_type *************)
+
+Definition no_alignas a : bool := match attr_alignas a with  None => true | _ => false end.
+
+Definition no_alignas_type (t: type): bool :=
+  match t with
+  | Tvoid => true
+  | Tint _ _ a => no_alignas a
+  | Tlong _ a => no_alignas a
+  | Tfloat _ a => no_alignas a
+  | Tpointer _ a => no_alignas a
+  | Tfunction _ _ => true
+  | Tarray t _ a => no_alignas a
+  | Tstruct _ flds a => no_alignas a
+  | Tunion _ flds a => no_alignas a
+  | Tcomp_ptr _ a => no_alignas a
+ end.
+
+Definition no_nested_alignas_type := nested_pred no_alignas_type.
+
+Lemma no_alignas_type_Tstruct: forall i f a, no_alignas_type (Tstruct i f a) = true -> alignof (Tstruct i f a) = alignof_fields f.
+Proof.
+  intros.
+  simpl.
+  unfold no_alignas_type, no_alignas in H.
+  destruct (attr_alignas a).
+  + inversion H.
+  + reflexivity.
+Qed.
+
+Lemma no_alignas_type_Tunion: forall i f a, no_alignas_type (Tunion i f a) = true -> alignof (Tunion i f a) = alignof_fields f.
+Proof.
+  intros.
+  simpl.
+  unfold no_alignas_type, no_alignas in H.
+  destruct (attr_alignas a).
+  + inversion H.
+  + reflexivity.
+Qed.
+
+Lemma no_nested_alignas_type_Tstruct: forall i f a, no_nested_alignas_type (Tstruct i f a) = true -> alignof (Tstruct i f a) = alignof_fields f.
+Proof.
+  intros.
+  apply nested_pred_atom_pred in H.
+  apply no_alignas_type_Tstruct.
+  exact H.
+Qed.
+
+Lemma no_nested_alignas_type_Tunion: forall i f a, no_nested_alignas_type (Tunion i f a) = true -> alignof (Tunion i f a) = alignof_fields f.
+Proof.
+  intros.
+  apply nested_pred_atom_pred in H.
+  apply no_alignas_type_Tunion.
+  exact H.
+Qed.
+
+(******* Samples : no_replicate *************)
+
+Fixpoint fieldlist_in (id: ident) (f: fieldlist) : bool :=
+  match f with
+  | Fnil => false
+  | Fcons i _ f' => 
+    if (Pos.eqb id i) then true else fieldlist_in id f'
+  end.
+
+Fixpoint fieldlist_no_replicate (f: fieldlist) : bool :=
+  match f with
+  | Fnil => true
+  | Fcons i _ f' => 
+    andb (negb (fieldlist_in i f')) (fieldlist_no_replicate f')
+  end.
+
+Definition nested_legal_fieldlist := nested_pred (fun t => 
+  match t with
+  | Tstruct i f a => fieldlist_no_replicate f
+  | Tunion i f a => fieldlist_no_replicate f
+  | _ => true
+  end).
+
+Lemma fieldlist_app_in: forall f1 f2 x, fieldlist_in x f2 = true -> fieldlist_in x (fieldlist_app f1 f2) = true.
+Proof.
+  intros.
+  induction f1; simpl.
+  + exact H.
+  + if_tac.
+    reflexivity.
+    exact IHf1.
+Qed.
+
+Lemma fieldlist_no_replicate_fact: forall (f1 f2: fieldlist), fieldlist_no_replicate (fieldlist_app f1 f2) = true -> forall x: ident, fieldlist_in x f2 = true -> fieldlist_in x f1 = false.
+Proof.
+  intros.
+  induction f1; simpl in *.
+  + reflexivity.
+  + destruct (Pos.eqb x i) eqn:Heq.
+    - apply Peqb_true_eq in Heq.
+      subst x.
+      apply (fieldlist_app_in f1) in H0.
+      rewrite H0 in H.
+      inversion H.
+    - apply eq_sym, andb_true_eq in H; destruct H as [_ ?]. apply eq_sym in H.
+      exact (IHf1 H).
+Qed.
+
+Lemma field_type_with_witness: forall i t f' f, fieldlist_no_replicate (fieldlist_app f' (Fcons i t f)) = true -> field_type i (fieldlist_app f' (Fcons i t f)) = Errors.OK t.
+Proof.
+  intros.
+  assert (field_type i (Fcons i t f) = Errors.OK t).
+    simpl. if_tac; [reflexivity | congruence].
+  assert (fieldlist_in i (Fcons i t f) = true). 
+    simpl. rewrite (Pos.eqb_refl i). reflexivity.
+  remember (Fcons i t f) as f''; clear Heqf'' f.
+  pose proof fieldlist_no_replicate_fact f' f'' H i H1.
+  induction f'.
+  + exact H0.
+  + simpl in *.
+    destruct (Pos.eqb i i0) eqn:Heq; [inversion H2|].
+    apply Pos.eqb_neq in Heq.
+    destruct (ident_eq i i0); [congruence| clear n].
+    apply eq_sym, andb_true_eq in H; destruct H as [_ ?]. apply eq_sym in H.
+    exact (IHf' H H2).
+Qed.
+
+Lemma field_offset_mid: forall i0 t0 i1 t1 f' f ofs, fieldlist_no_replicate (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = true -> field_offset i1 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = Errors.OK ofs -> field_offset i0 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = Errors.OK (align (ofs + sizeof t1) (alignof t0)).
+Proof.
+  intros.
+  unfold field_offset in *.
+  remember 0 as pos; clear Heqpos.
+  revert pos H0; induction f'; intros.
+  + simpl in *.
+    destruct (Pos.eqb i1 i0) eqn:Hneq; inversion H.
+    apply Pos.eqb_neq in Hneq.
+    if_tac; try congruence; clear H1.
+    if_tac; try congruence; clear H1.
+    if_tac in H0; try congruence.
+  + simpl in *.
+    apply andb_true_iff in H.
+    destruct H.
+    destruct (fieldlist_in i (Fcons i1 t1 (Fcons i0 t0 f))) eqn:H';
+      [apply (fieldlist_app_in f') in H'; rewrite H' in H; inversion H|].
+    simpl in H'.
+    destruct (Pos.eqb i i1) eqn:Hneq1; [inversion H' | apply Pos.eqb_neq in Hneq1].
+    destruct (Pos.eqb i i0) eqn:Hneq0; [inversion H'| apply Pos.eqb_neq in Hneq0].
+    if_tac; try congruence; clear H2.
+    if_tac in H0; try congruence; clear H2.
+    apply (IHf' H1).
+    exact H0.
 Qed.
 
 Opaque alignof.
@@ -250,6 +368,38 @@ Proof.
   + simpl. destruct (ident_eq i i0) eqn:HH.
     - auto.
     - apply IHf.
+Qed.
+
+Lemma nested_field_rec_nest_pred: forall {atom_pred: type -> bool} (ids: list ident) (t: type) pos t', nested_pred atom_pred t = true -> nested_field_rec ids t = Some (pos, t') -> nested_pred atom_pred t' = true.
+Proof.
+  intros.
+  revert pos t' H0; induction ids; intros.
+  + inversion H0.
+    subst.
+    exact H.
+  + simpl in H0.
+    destruct (nested_field_rec ids t) as [(pos0, t0')|]; [|inversion H0].
+    destruct t0'; inversion H0; clear H2;
+    pose proof field_offset_field_type_match a f;
+    destruct (field_offset a f), (field_type a f) eqn:Ht; try inversion H1;
+    inversion H0.
+    - subst; clear H0.
+      pose proof IHids pos0 (Tstruct i f a0) eq_refl; clear pos0 IHids.
+      eapply nested_fields_pred_nested_pred; [exact Ht|].
+      eapply nested_pred_Tstruct; exact H0.
+    - subst; clear H0.
+      pose proof IHids pos (Tunion i f a0) eq_refl; clear pos IHids.
+      eapply nested_fields_pred_nested_pred; [exact Ht|].
+      eapply nested_pred_Tunion; exact H0.
+Qed.
+
+Lemma nested_field_type2_nest_pred: forall {atom_pred: type -> bool}, atom_pred Tvoid = true -> forall (ids: list ident) (t: type), nested_pred atom_pred t = true -> nested_pred atom_pred (nested_field_type2 ids t) = true.
+Proof.
+  intros.
+  unfold nested_field_type2.
+  destruct (nested_field_rec ids t) as [(?, ?)|] eqn:?.
+  eapply nested_field_rec_nest_pred. exact H0. exact Heqo.
+  simpl. exact H.
 Qed.
 
 Lemma field_offset_nested_field_offset: forall i f a id ofs, nested_field_offset (id :: nil) (Tstruct i f a) = Some ofs <-> field_offset id f = Errors.OK ofs.
@@ -334,33 +484,23 @@ Proof.
       subst.
       pose proof IHids z (Tstruct i f a0) eq_refl as H1; destruct H1.
       assert ((alignof t'|z0)); [apply (field_offset_aligned a f z0 t'); assumption|].
-      Transparent alignof.
-      simpl in H1, H2.
-      destruct (no_alignas a0) eqn:H4; simpl in H2; [|inversion H2].
-      unfold no_alignas in H4.
-      destruct (attr_alignas a0); [inversion H4|clear H4].
+      rewrite no_nested_alignas_type_Tstruct in H1; [|exact H2].
       split.
       * apply Z.divide_add_r; try assumption; clear H3.
         eapply Z.divide_trans. eapply alignof_type_divide_whole_fl. exact HH2. exact H1.
-      * eapply no_nested_alignas_type_fields. exact HH2. exact H2.
-      Opaque alignof.
-    - pose proof field_offset_field_type_match a f.  (* Tstruct Case *)
+      * eapply nested_fields_pred_nested_pred. exact HH2. apply nested_pred_Tstruct in H2. exact H2.
+    - pose proof field_offset_field_type_match a f.  (* Tunion Case *)
       destruct (field_offset a f) eqn:HH1, (field_type a f) eqn:HH2; inversion H; inversion H1; clear H1.
       subst.
       pose proof IHids pos (Tunion i f a0) eq_refl as H1; destruct H1.
       assert ((alignof t'|z0)); [apply (field_offset_aligned a f z0 t'); assumption|].
-      Transparent alignof.
-      simpl in H1, H2.
-      destruct (no_alignas a0) eqn:H4; simpl in H2; [|inversion H2].
-      unfold no_alignas in H4.
-      destruct (attr_alignas a0); [inversion H4|clear H4].
+      rewrite no_nested_alignas_type_Tunion in H1; [|exact H2].
       split.
       * eapply Z.divide_trans. eapply alignof_type_divide_whole_fl. exact HH2. exact H1.
-      * eapply no_nested_alignas_type_fields. exact HH2. exact H2.
-      Opaque alignof.
+      * eapply nested_fields_pred_nested_pred. exact HH2. apply nested_pred_Tunion in H2. exact H2.
 Qed.
 
-Lemma nested_field_offset_type_divide: forall ids t, no_nested_alignas_type t = true -> Z.divide (alignof (nested_field_type2 ids t)) (nested_field_offset2 ids t).
+Lemma nested_field_offset_type2_divide: forall ids t, no_nested_alignas_type t = true -> Z.divide (alignof (nested_field_type2 ids t)) (nested_field_offset2 ids t).
 Proof.
   intros.
   destruct (nested_field_rec ids t) as [(?, ?)|] eqn:HH.
@@ -376,84 +516,15 @@ Qed.
 
 Lemma no_nested_alignas_nested_field_type2: forall ids t, no_nested_alignas_type t = true -> no_nested_alignas_type (nested_field_type2 ids t) = true.
 Proof.
-  intros. unfold nested_field_type2.
-  induction ids.
-  + simpl. exact H.
-  + simpl. destruct (nested_field_rec ids t) as [(?, ?)|]; [|reflexivity].
-    destruct t0; try reflexivity; 
-      pose proof field_offset_field_type_match a f;
-      destruct (field_offset a f), (field_type a f) eqn:Ht; inversion H0; clear H0.
-    - eapply no_nested_alignas_type_fields. exact Ht.
-      simpl in IHids. apply andb_true_iff in IHids. tauto.
-    - reflexivity.
-    - eapply no_nested_alignas_type_fields. exact Ht.
-      simpl in IHids. apply andb_true_iff in IHids. tauto.
-    - reflexivity.
+  intros.
+  apply nested_field_type2_nest_pred.
+  reflexivity.
+  exact H.
 Qed.
 
 (************************************************
 
-Definition of fieldlist_no_replicate
-
 ************************************************)
-
-Fixpoint fieldlist_in (id: ident) (f: fieldlist) : bool :=
-  match f with
-  | Fnil => false
-  | Fcons i _ f' => 
-    if (Pos.eqb id i) then true else fieldlist_in id f'
-  end.
-
-Fixpoint fieldlist_no_replicate (f: fieldlist) : bool :=
-  match f with
-  | Fnil => true
-  | Fcons i _ f' => 
-    andb (negb (fieldlist_in i f')) (fieldlist_no_replicate f')
-  end.
-
-Lemma fieldlist_app_in: forall f1 f2 x, fieldlist_in x f2 = true -> fieldlist_in x (fieldlist_app f1 f2) = true.
-Proof.
-  intros.
-  induction f1; simpl.
-  + exact H.
-  + if_tac.
-    reflexivity.
-    exact IHf1.
-Qed.
-
-Lemma fieldlist_no_replicate_fact: forall (f1 f2: fieldlist), fieldlist_no_replicate (fieldlist_app f1 f2) = true -> forall x: ident, fieldlist_in x f2 = true -> fieldlist_in x f1 = false.
-Proof.
-  intros.
-  induction f1; simpl in *.
-  + reflexivity.
-  + destruct (Pos.eqb x i) eqn:Heq.
-    - apply Peqb_true_eq in Heq.
-      subst x.
-      apply (fieldlist_app_in f1) in H0.
-      rewrite H0 in H.
-      inversion H.
-    - apply eq_sym, andb_true_eq in H; destruct H as [_ ?]. apply eq_sym in H.
-      exact (IHf1 H).
-Qed.
-
-Lemma field_type_with_witness: forall i t f' f, fieldlist_no_replicate (fieldlist_app f' (Fcons i t f)) = true -> field_type i (fieldlist_app f' (Fcons i t f)) = Errors.OK t.
-Proof.
-  intros.
-  assert (field_type i (Fcons i t f) = Errors.OK t).
-    simpl. if_tac; [reflexivity | congruence].
-  assert (fieldlist_in i (Fcons i t f) = true). 
-    simpl. rewrite (Pos.eqb_refl i). reflexivity.
-  remember (Fcons i t f) as f''; clear Heqf'' f.
-  pose proof fieldlist_no_replicate_fact f' f'' H i H1.
-  induction f'.
-  + exact H0.
-  + simpl in *.
-    destruct (Pos.eqb i i0) eqn:Heq; [inversion H2|].
-    apply Pos.eqb_neq in Heq.
-    destruct (ident_eq i i0); [congruence| clear n].
-    apply eq_sym, andb_true_eq in H; destruct H as [_ ?]. apply eq_sym in H.
-    exact (IHf' H H2).
-Qed.
 
 Lemma fieldlist_app_Fcons: forall f1 i t f2, fieldlist_app f1 (Fcons i t f2) = fieldlist_app (fieldlist_app f1 (Fcons i t Fnil)) f2.
 Proof.
