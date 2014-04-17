@@ -18,15 +18,6 @@ Require Import sepcomp.effect_semantics.
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.reach.
 
-Definition is_vundef (v : val) : bool :=
-  match v with 
-    | Vundef => true
-    | _ => false
-  end.
-
-Definition vals_def (vs : list val) := 
-  List.forallb (fun v => negb (is_vundef v)) vs.
-
 Module SM_simulation. Section SharedMemory_simulation_inject. 
 
 Context 
@@ -57,6 +48,12 @@ Record SM_simulation_inject :=
     forall d mu c1 m1 c2 m2, 
     match_state d mu c1 m1 c2 m2 -> 
     REACH_closed m1 (vis mu)
+
+(* This condition is new *)
+; match_target : 
+    forall d mu c1 m1 c2 m2, 
+    match_state d mu c1 m1 c2 m2 -> 
+    REACH_closed m2 (DomTgt mu)
 
 ; match_restrict : 
     forall d mu c1 m1 c2 m2 X, 
@@ -150,23 +147,8 @@ Record SM_simulation_inject :=
     halted Sem1 c1 = Some v1 ->
     exists v2, 
     Mem.inject (as_inj mu) m1 m2 
-    (*/\ REACH_closed m1 (exportedSrc mu (v1 :: nil)) *)
-    (*/\ REACH_closed m2 (exportedTgt mu (v2 :: nil)) *)
     /\ val_inject (restrict (as_inj mu) (vis mu)) v1 v2 
-    /\ vals_def (v1 :: v2 :: nil)=true
     /\ halted Sem2 c2 = Some v2 
-
-    /\ forall
-       (pubSrc' pubTgt' : block -> bool)
-       (pubSrcHyp : pubSrc' =
-                  (fun b : block =>
-                  locBlocksSrc mu b && REACH m1 (exportedSrc mu (v1::nil)) b))
-       (pubTgtHyp: pubTgt' =
-                  (fun b : block =>
-                  locBlocksTgt mu b && REACH m2 (exportedTgt mu (v2::nil)) b))
-       nu (Hnu: nu = (replace_locals mu pubSrc' pubTgt')),
-       match_state cd nu c1 m1 c2 m2 
-       /\ Mem.inject (shared_of nu) m1 m2
 
 
 ; core_at_external : 
@@ -174,13 +156,10 @@ Record SM_simulation_inject :=
     match_state cd mu c1 m1 c2 m2 ->
     at_external Sem1 c1 = Some (e,ef_sig,vals1) ->
     Mem.inject (as_inj mu) m1 m2 
-(*    /\ REACH_closed m1 (exportedSrc mu vals1) *)
     /\ vals_def vals1=true
     /\ exists vals2, 
        Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 
        /\ at_external Sem2 c2 = Some (e,ef_sig,vals2)
-(*       /\ REACH_closed m2 (exportedTgt mu vals2) *)
-       /\ vals_def vals2=true
 
     /\ forall
        (pubSrc' pubTgt' : block -> bool)

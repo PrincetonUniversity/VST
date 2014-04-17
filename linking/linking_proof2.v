@@ -1647,7 +1647,7 @@ have atext1':
 move=> hd_match _.
 case: (core_at_external (sims (Core.i (c inv))) 
       _ _ _ _ _ _ hd_match atext1').
-move=> inj []defs []args2 []valinj []atext2 []defs2 extends; exists args2.
+move=> inj []defs1 []args2 []valinj []atext2 extends; exists args2.
 set T := C \o cores_T.
 rewrite /LinkerSem.at_external0.
 set P := fun ix (x : T ix) => 
@@ -1724,33 +1724,10 @@ have atext2'':
 
 case: (core_at_external (sims (Core.i (c inv))) 
       _ _ _ _ _ _ (head_match hdinv) atext1').
-move=> inj []defs1 []args2' []vinj []atext2''' []defs2 extends.
+move=> inj []defs1 []args2' []vinj []atext2''' extends.
 
 have eq: args2 = args2' by move: atext2'''; rewrite atext2''; case.
 subst args2'.
-
-have exportedSrc_DomSrc:
-  forall b, exportedSrc mu_top args1 b -> DomSrc mu_top b.
-{ rewrite /exportedSrc=> b; move/orP; case.
-  case/(getBlocks_inject _ _ _ vinj _)=> b' []ofs' [].
-  move/restrictD_Some=> []H _ _.  
-  by case: (as_inj_DomRng _ _ _ _ H (Inj_wd _)). 
-  by apply: sharedsrc_sub_domsrc. }
-
-have exportedTgt_DomTgt:
-  forall b, exportedTgt mu_top args2 b -> DomTgt mu_top b.
-{ rewrite /exportedTgt=> b; move/orP; case.
-  move=> get2.
-  have [b0 [ofs [getbs1 asinj1]]]: 
-    exists b0 ofs, 
-    [/\ getBlocks args1 b0
-      & as_inj mu_top b0 = Some (b,ofs)]. 
-  { move: (forall_inject_val_list_inject _ _ _ vinj)=> vinj'.
-    case: (vals_def_getBlocksTS vinj' defs1 get2)=> x' []y' []? res.
-    exists x',y'; split=> //.
-    by case: (restrictD_Some _ _ _ _ _ res). }
-  by case: (as_inj_DomRng _ _ _ _ asinj1 (Inj_wd _))=> _ ->. 
-  by apply: sharedtgt_sub_domtgt. }
 
 set (j := as_inj mu_top).
 set (domS := DomSrc mu_top).
@@ -1767,14 +1744,13 @@ have j_domS_domT:
   by move/(_ (Inj_wd _)). }
 
 have DomTgt_rc: REACH_closed m2 (DomTgt mu_top).
-  admit.
+{ by move: (head_match hdinv)=> mtch; apply match_target in mtch. }
 
 have frgnT_sub_domT: {subset frgnT <= domT}.
 { move=> b H; apply: DomTgt_rc. 
   apply: (REACH_mono (fun b : block =>
     isGlobalBlock (ge (cores_T (Core.i c1))) b || getBlocks args2 b))=> //.
-  move=> b0 H2; apply: exportedTgt_DomTgt; apply/orP; case: (orP H2)=> H3.
-  right; apply/orP; left. 
+  move=> b0; case/orP=> H3.
   move: (H3); rewrite -isGlob_iffT=> H3'.
   move: (head_globs hdinv); move/(_ b0 H3')=> H4.
   have J: extern_of mu_top b0 = Some (b0,0).
@@ -1783,8 +1759,17 @@ have frgnT_sub_domT: {subset frgnT <= domT}.
     move: (meminj_preserves_globals_isGlobalBlock _ _ pres b0)=> H5. 
     by move: H3'; rewrite isGlob_iffS; eauto. }
   case: (Inj_wd mu_top)=> _ _ _ _ _; case/(_ b0 H4)=> x []y []H5 H6 _ _.
+  apply/orP; right; apply: frgntgt_sub_exttgt.
   by move: H6; rewrite H5 in J; case: J=> ->.
-  by left. }
+  have [b1 [ofs [getbs1 asinj1]]]: 
+    exists b1 ofs, 
+    [/\ getBlocks args1 b1
+      & as_inj mu_top b1 = Some (b0,ofs)]. 
+  { move: (forall_inject_val_list_inject _ _ _ vinj)=> vinj'.
+    case: (vals_def_getBlocksTS vinj' defs1 H3)=> x' []y' []? res.
+    exists x',y'; split=> //.
+    by case: (restrictD_Some _ _ _ _ _ res). }
+  by case: (as_inj_DomRng _ _ _ _ asinj1 (Inj_wd _))=> _ ->. }
 
 have st1_eq: callStack (stack st1) = [:: c inv & STACK.pop st1].
 { by rewrite /c /s1; case: st1 inv=> //= ?; case=> //=; case. }
@@ -1853,10 +1838,7 @@ have domS_valid:
 
 have domT_valid:
   forall b, domT b -> Mem.valid_block m2 b.
-{ 
-(*by move: (match_validblocks _ (head_match hdinv)); case=> H I; apply: I.*)
-admit.
-}
+{ by move: (match_validblocks _ (head_match hdinv)); case=> H I; apply: I. }
 
 have [cd_new [c2 [pf_new [init2 mtch12]]]]:
   exists (cd_new : core_data (sims (Core.i c1))) 
@@ -2075,7 +2057,7 @@ move=> []pf2 hdinv tlinv.
 move: hlt1; rewrite /LinkerSem.halted0=> hlt10.
 case: (core_halted (sims (Core.i (peekCore st1)))
        _ _ _ _ _ _ (head_match hdinv) hlt10)
-       => rv2 []inj12 []vinj []vdefs []hlt2 extends.
+       => rv2 []inj12 []vinj hlt2.
 exists rv2.
 set T := C \o cores_T.
 set P := fun ix (x : T ix) => 
@@ -2116,7 +2098,7 @@ move=> []pf_hd hdinv tlinv.
 move: hlt1; rewrite /LinkerSem.halted0=> hlt10.
 case: (core_halted (sims (Core.i (peekCore st1)))
        _ _ _ _ _ _ (head_match hdinv) hlt10)
-       => rv2 []inj12 []vinj []rv_defs []hlt2 extends. 
+       => rv2 []inj12 []vinj hlt2.
 exists rv2.
 case: pop2=> st2'' pop2.
 
@@ -3263,7 +3245,7 @@ have hlt10:
   by move: hlt10; rewrite /LinkerSem.halted0 /c /= /RC.halted=> ->. }
 
 case: (core_halted (sims (Core.i (c inv'))) _ _ _ _ _ _ mtch0 hlt10).
-move=> v2' []inj []vinj []vdef []hlt2' extends.
+move=> v2' []inj []vinj hlt2'.
 
 exists (as_inj mupkg),v2'; split.
 
