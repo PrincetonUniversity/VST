@@ -1299,7 +1299,10 @@ have S: {subset [predD REACH m1' (vis a) & REACH m1 (vis a)]
   case: incr=> _ []_ []lSub []_ []_ []_ []fS _; case/orP=> L. 
   by apply/orP; left; apply: (lSub _ L).
   by apply/orP; right; rewrite -fS L.
-  by apply: (val E). }
+  by apply: (val E). 
+  move: alloc; rewrite sm_locally_allocatedChar; case.
+  move=> A []B []C []D []E F b1 G.
+  by apply/orP; rewrite C; left; apply/orP; right. }
 have [T|T]: b \in REACH m1 (vis a)
      \/ b \in REACH m1' (vis mu').
 { case e: (b \in REACH m1 (vis a)); first by left.

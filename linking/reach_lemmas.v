@@ -6,6 +6,7 @@ Unset Printing Implicit Defensive.
 Require Import Bool.
 Require Import Zbool.
 Require Import BinPos. 
+Require Import eq_dec.
 
 Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
@@ -336,6 +337,32 @@ have val: smvalid_src (join_all mu_trash mus) m1.
 by apply: (join_sm_REACH_closed' disj C D E val H I).
 Qed.
 
+Lemma reach_trans m B L0 L1 b0 ofs0 b1 :
+  reach m B (L0 ++ [::(b0,ofs0)]) b1 -> 
+  reach m B L1 b0 -> 
+  reach m B (L0 ++ [::(b0,ofs0) & L1]) b1.
+Proof.
+elim: L0 b0 ofs0 b1 L1.
+move=> b0 ofs0 b1 L1 /=; inversion 1; subst=> A.
+by eapply reach_cons; eauto.
+case=> bb ofss L IH b0 ofs0 b1; inversion 1; subst=> /= A.
+by eapply reach_cons; eauto.
+Qed.
+
+Lemma notin_REACHP m B b : 
+  b \notin REACH m B ->
+  forall l, ~reach m B l b.
+Proof.
+move/negP=> H l H2; apply: H.
+by rewrite /is_true /in_mem; rewrite /= REACHAX; exists l.
+Qed.
+
+Lemma valid_dec m b : Mem.valid_block m b -> valid_block_dec m b.
+Proof. by rewrite /is_left; case l: (valid_block_dec m b). Qed.
+
+Lemma valid_dec' m b : valid_block_dec m b -> Mem.valid_block m b.
+Proof. by rewrite /is_left; case l: (valid_block_dec m b). Qed.
+
 Section reach_upd.
 
 Variable B : block -> bool.
@@ -344,18 +371,92 @@ Variable E : block -> Z -> bool.
 
 Variable m1 m1' : mem.
 
-Variable VIS : block -> bool.
-Variable VIS_closed : REACH_closed m1 VIS.
+Variable VIS' : block -> bool.
 
-Variable E_sub : forall b ofs, E b ofs -> VIS b.
+Variable E_sub : forall b ofs, E b ofs -> VIS' b.    
+
+Variable localloc_sub : {subset freshloc m1 m1' <= VIS'}.
 
 Lemma reach_upd_inE b : 
   b \notin REACH m1 B -> 
   b \in REACH m1' B -> 
   Mem.unchanged_on (fun b ofs => E b ofs=false) m1 m1' -> 
-  exists b0 ofs L, [/\ reach m1' B L b, List.In (b0,ofs) L & E b0 ofs].
+  exists b0 ofs L, [/\ reach m1' B L b, List.In (b0,ofs) L & VIS' b0].
 Proof.
-Admitted. (*TODO*)
+rewrite /is_true /in_mem /= => H; rewrite REACHAX=> [][]L rch unch. 
+elim: L b H rch.
+move=> b H; inversion 1; subst; move: {H}(negP H)=> H.
+have H3: forall l, ~ reach m1 B l b.
+{ by apply: notin_REACHP; apply/negP; apply: H. }
+by elimtype False; apply: (H3 [::]); apply: reach_nil.
+case=> b0 ofs0 L IH b H; inversion 1; subst.
+have H7: forall l, ~ reach m1 B l b by apply: notin_REACHP.
+case get: (ZMap.get ofs0 (Mem.mem_contents m1) !! b0)=> [||b' off' n'].
+exists b0,ofs0,[::(b0,ofs0) & L]; split=> //; first by left.
+case e: (E b0 ofs0); first by apply: (E_sub e).
+case f: (valid_block_dec m1 b0)=> [valid|nvalid].
+have H5': Mem.perm m1 b0 ofs0 Cur Readable.
+{ case: unch; move/(_ _ _ _ _ e valid); case/(_ Cur Readable)=> E1 E2.
+  by move=> _; apply: E2. }
+by case: unch=> _; move/(_ _ _ e H5'); rewrite H6 get.
+apply: localloc_sub; apply/andP; split=> //.
+have X: Mem.valid_block m1' b0.
+{ by move: H5; apply: Mem.perm_valid_block. }
+by move: X; move/valid_dec.
+by apply/negP; move/valid_dec'=> X; clear f; apply: nvalid.
+exists b0,ofs0,[::(b0,ofs0) & L]; split=> //; first by left.
+case e: (E b0 ofs0); first by apply: (E_sub e).
+case f: (valid_block_dec m1 b0)=> [valid|nvalid].
+have H5': Mem.perm m1 b0 ofs0 Cur Readable.
+{ case: unch; move/(_ _ _ _ _ e valid); case/(_ Cur Readable)=> E1 E2.
+  by move=> _; apply: E2. }
+by case: unch=> _; move/(_ _ _ e H5'); rewrite H6 get.
+apply: localloc_sub; apply/andP; split=> //.
+have X: Mem.valid_block m1' b0.
+{ by move: H5; apply: Mem.perm_valid_block. }
+by move: X; move/valid_dec.
+by apply/negP; move/valid_dec'=> X; clear f; apply: nvalid.
+case p: (Mem.perm_dec m1 b0 ofs0 Cur Readable)=> [prm|nprm].
+ 
+{ case e: (eq_dec (b,off) (b',off'))=> [pf|pf].
+  inversion pf; subst; clear e pf.
+  case f: (REACH m1 B b0).
+  move: f; rewrite REACHAX; case=> L0 rch0.
+  elimtype False; apply: (H7 [::(b0,ofs0) & L0]).
+  by apply: (reach_cons _ _ _ _ _ _ _ _ rch0 prm get).
+  have H8: ~~ REACH m1 B b0=true by apply/negP; rewrite f. 
+  case: (IH _ H8 H3)=> bM []offM []L0 []rch' inL0 inE.
+  exists bM,offM,[::(b0,ofs0) & L0]; split=> //.
+  by eapply reach_cons; eauto.
+  by right. 
+
+  exists b0,ofs0,[::(b0,ofs0) & L]; split=> //; first by left.
+  case f: (E b0 ofs0); first by apply: (E_sub f).
+  case g: (valid_block_dec m1 b0)=> [valid|nvalid].
+  have H5': Mem.perm m1 b0 ofs0 Cur Readable.
+  { case: unch; move/(_ _ _ _ _ f valid); case/(_ Cur Readable)=> E1 E2.
+    by move=> _; apply: E2. }
+  case: unch=> _; move/(_ _ _ f H5'); rewrite H6 get=> H8.
+  by move: pf e; case: H8=> -> -> _ pf; elimtype False; apply: pf.
+  apply: localloc_sub; apply/andP; split=> //.
+  have X: Mem.valid_block m1' b0.
+  { by move: H5; apply: Mem.perm_valid_block. }
+  by move: X; move/valid_dec.
+  by apply/negP; move/valid_dec'=> X; clear g; apply: nvalid. }
+
+{ exists b0,ofs0,[::(b0,ofs0) & L]; split=> //; first by left.
+  case f: (E b0 ofs0); first by apply: (E_sub f).
+  case g: (valid_block_dec m1 b0)=> [valid|nvalid].
+  have H5': Mem.perm m1 b0 ofs0 Cur Readable.
+  { case: unch; move/(_ _ _ _ _ f valid); case/(_ Cur Readable)=> E1 E2.
+    by move=> _; apply: E2. }
+  by clear p; elimtype False; apply: nprm.
+  apply: localloc_sub; apply/andP; split=> //.
+  have X: Mem.valid_block m1' b0.
+  { by move: H5; apply: Mem.perm_valid_block. }
+  by move: X; move/valid_dec.
+  by apply/negP; move/valid_dec'=> X; clear g; apply: nvalid. }
+Qed.  
 
 Lemma reach_split m X (Y : block -> bool) l1 l2 b0 ofs b : 
   Y b0 ->
@@ -373,7 +474,7 @@ Lemma reach_upd b :
   b \notin REACH m1 B -> 
   b \in REACH m1' B -> 
   Mem.unchanged_on (fun b ofs => E b ofs=false) m1 m1' -> 
-  b \in REACH m1' VIS.
+  b \in REACH m1' VIS'.
 Proof.
 move=> H H2 H3; case: (reach_upd_inE H H2 H3). 
 move=> b0 []ofs []L []rch inL inE.
@@ -383,7 +484,7 @@ have [L0 [L1 L_eq]]: exists l0 l1, L = (l0 ++ [::(b0,ofs)]) ++ l1.
   by move=> ->; exists [::],L.
   by case/IH=> l0 []l1 ->; exists [::a & l0],l1. }
 exists (L0++[::(b0,ofs)]); move: rch; rewrite L_eq.
-by apply: reach_split; apply: (E_sub inE).
+by apply: reach_split. 
 Qed.
 
 End reach_upd.
