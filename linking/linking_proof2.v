@@ -1238,11 +1238,11 @@ Context
 (mu : Inj.t) m1 m2
 (Esrc Etgt : Values.block -> BinNums.Z -> bool) 
 (mu' : Inj.t) m1' m2'
-(unch1 : Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs = false) m1 m1')
-(unch2 : Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs = false) m2 m2')
+(unch1 : Memory.Mem.unchanged_on (fun b ofs => Esrc b ofs=false) m1 m1')
+(unch2 : Memory.Mem.unchanged_on (fun b ofs => Etgt b ofs=false) m2 m2')
 (fwd1 : mem_forward m1 m1')
 (fwd2 : mem_forward m2 m2')
-(val : forall b ofs, Esrc b ofs -> Mem.valid_block m1 b -> vis mu b) 
+(val : forall b ofs, Esrc b ofs -> (*Mem.valid_block m1 b ->*) vis mu b) 
 (effs : 
    (forall (b0 : block) (ofs : Z),
    Etgt b0 ofs = true ->
@@ -1294,7 +1294,12 @@ case: relinv=> _ _ disj rc.
 have S: {subset [predD REACH m1' (vis a) & REACH m1 (vis a)]
         <= REACH m1' (vis mu')}.
 { move=> b0; case/andP=> /= H3 H4.
-  admit. (*come back to this!*) }
+  apply (reach_upd (B:=vis a) (E:=Esrc) (m1:=m1))=> //.
+  move=> b1 ofs E; suff: vis mu b1. 
+  case: incr=> _ []_ []lSub []_ []_ []_ []fS _; case/orP=> L. 
+  by apply/orP; left; apply: (lSub _ L).
+  by apply/orP; right; rewrite -fS L.
+  by apply: (val E). }
 have [T|T]: b \in REACH m1 (vis a)
      \/ b \in REACH m1' (vis mu').
 { case e: (b \in REACH m1 (vis a)); first by left.
@@ -1358,6 +1363,7 @@ apply: (@disjinv_unchanged_on_src (Inj.mk wd) mu Esrc)=> //.
 move: (sm_valid_smvalid_src _ _ _ val')=> ?.
 apply: smvalid_src_replace_locals=> //=.
 by apply: (smvalid_src_fwd fwd1').
+by move=> x y H _; apply (val H).
 
 apply: (mem_lemmas.unchanged_on_trans m20 m2 m2')=> //.
 set pubSrc' := [predI locBlocksSrc mu0 & REACH m10 (exportedSrc mu0 vals1)].

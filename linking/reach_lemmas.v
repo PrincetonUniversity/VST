@@ -336,4 +336,56 @@ have val: smvalid_src (join_all mu_trash mus) m1.
 by apply: (join_sm_REACH_closed' disj C D E val H I).
 Qed.
 
+Section reach_upd.
+
+Variable B : block -> bool.
+
+Variable E : block -> Z -> bool.
+
+Variable m1 m1' : mem.
+
+Variable VIS : block -> bool.
+Variable VIS_closed : REACH_closed m1 VIS.
+
+Variable E_sub : forall b ofs, E b ofs -> VIS b.
+
+Lemma reach_upd_inE b : 
+  b \notin REACH m1 B -> 
+  b \in REACH m1' B -> 
+  Mem.unchanged_on (fun b ofs => E b ofs=false) m1 m1' -> 
+  exists b0 ofs L, [/\ reach m1' B L b, List.In (b0,ofs) L & E b0 ofs].
+Proof.
+Admitted. (*TODO*)
+
+Lemma reach_split m X (Y : block -> bool) l1 l2 b0 ofs b : 
+  Y b0 ->
+  reach m X ((l1 ++ [::(b0,ofs)]) ++ l2) b -> 
+  reach m Y (l1 ++ [::(b0,ofs)]) b.
+Proof.
+elim: l1 b=> //=.
+move=> b H; inversion 1; subst; apply: reach_cons; eauto.
+by apply: reach_nil.
+case=> b1 ofs1 L IH b H; inversion 1; subst.
+by apply: reach_cons; eauto.
+Qed.
+
+Lemma reach_upd b : 
+  b \notin REACH m1 B -> 
+  b \in REACH m1' B -> 
+  Mem.unchanged_on (fun b ofs => E b ofs=false) m1 m1' -> 
+  b \in REACH m1' VIS.
+Proof.
+move=> H H2 H3; case: (reach_upd_inE H H2 H3). 
+move=> b0 []ofs []L []rch inL inE.
+rewrite /in_mem /= /is_true REACHAX.
+have [L0 [L1 L_eq]]: exists l0 l1, L = (l0 ++ [::(b0,ofs)]) ++ l1.
+{ clear - inL; elim: L inL=> // a L IH /=; case.
+  by move=> ->; exists [::],L.
+  by case/IH=> l0 []l1 ->; exists [::a & l0],l1. }
+exists (L0++[::(b0,ofs)]); move: rch; rewrite L_eq.
+by apply: reach_split; apply: (E_sub inE).
+Qed.
+
+End reach_upd.
+  
   
