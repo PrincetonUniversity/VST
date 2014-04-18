@@ -228,7 +228,7 @@ Lemma CL_corestep_not_halted : forall m q m' q',
 Lemma CL_at_external_halted_excl :
        forall q, CL_at_external q = None \/ CL_halted q = None.
    Proof. intros. destruct q; auto. Qed.
-
+(*
 Lemma CL_after_at_external_excl : forall retv q q',
       CL_after_external retv q = Some q' -> CL_at_external q' = None.
   Proof. intros.
@@ -237,6 +237,7 @@ Lemma CL_after_at_external_excl : forall retv q q',
        destruct retv; inv H0; simpl; trivial.
 (*       destruct o; inv H0; simpl; trivial.*)
 Qed.
+*)
 
 Definition CL_initial_core (v: val) (args:list val): option CL_core :=
    match v with
@@ -253,15 +254,12 @@ End SEMANTICS.
 
 Definition CL_core_sem (FE:function -> list val -> mem -> env -> temp_env -> mem -> Prop)
          : CoreSemantics genv CL_core mem.
-  eapply @Build_CoreSemantics with (at_external:=CL_at_external)
-                  (after_external:=CL_after_external)
-                  (corestep:=clight_corestep FE)
-                  (halted:=CL_halted). 
-    apply CL_initial_core.
+  eapply (@Build_CoreSemantics _ _ _ 
+      CL_initial_core CL_at_external CL_after_external 
+       CL_halted (clight_corestep FE)). 
     apply CL_corestep_not_at_external.
     apply CL_corestep_not_halted.
     apply CL_at_external_halted_excl.
-    apply CL_after_at_external_excl.
 Defined.
 
 Lemma CL_forward : 

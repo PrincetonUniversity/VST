@@ -2281,3 +2281,9 @@ Lemma replace_externs_vis mu PS PT:
 Proof. intros; unfold vis.
   rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc. trivial.
 Qed. 
+
+Lemma sm_locally_allocated_refl mu m1 m2: sm_locally_allocated mu mu m1 m2 m1 m2.
+Proof.
+  rewrite sm_locally_allocatedChar.
+  intuition; extensionality b; rewrite freshloc_irrefl; intuition.
+Qed.
