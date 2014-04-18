@@ -70,6 +70,7 @@ Lemma read32_reversed_in_bytearray:
  (GS: (glob_types Delta) ! ___builtin_read32_reversed =
     Some (Global_func (snd __builtin_read32_reversed_spec)))
  (TE: typeof e = tptr tuint)
+ (TCi:  tc_fn_return Delta (Some i) tuint)
  (CLOQ: Forall (closed_wrt_vars (eq i)) Q)
  (Hcontents: forall i, (lo <= i < hi)%Z -> is_int (contents i)),
  PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT))) |-- PROP ((lo <= Int.unsigned ofs <= hi-4 )%Z)
@@ -343,8 +344,9 @@ eapply semax_frame_seq
    `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i)) 0 LBLOCKz) (eval_var _X (tarray tuint 16))]); 
    [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) 0 (Zlength (intlist_to_Zlist b)) data _ sh 
                      (tuchars (map Int.repr (intlist_to_Zlist b))));
-    [ reflexivity | reflexivity | reflexivity | auto 50 with closed | 
-      intros; apply ZnthV_map_Vint_is_int; rewrite Zlength_correct, map_length;
+    [ reflexivity | reflexivity | reflexivity | reflexivity
+    | auto 50 with closed 
+    |  intros; apply ZnthV_map_Vint_is_int; rewrite Zlength_correct, map_length;
           rewrite Zlength_correct in H1; apply H1
       | ]
    | | | ].

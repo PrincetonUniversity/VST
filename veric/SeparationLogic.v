@@ -252,6 +252,12 @@ Qed.
 Definition type_of_funsig (fsig: funsig) := Tfunction (type_of_params (fst fsig)) (snd fsig).
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
+Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
+ match ret with 
+ | None => True
+ | Some i => match (temp_types Delta) ! i with Some (t',_) => t=t' | _ => False end
+ end.
+
 Definition bool_type (t: type) : bool :=
   match t with
   | Tint _ _ _ | Tlong _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tfloat _ _ => true
@@ -608,6 +614,7 @@ Axiom semax_call :
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig ->
            (retsig = Tvoid -> ret = None) ->
+          tc_fn_return Delta ret retsig ->
   @semax Espec Delta
           (local (tc_expr Delta a) && local (tc_exprlist Delta (snd (split argsig)) bl)  && 
          (`(func_ptr (mk_funspec  (argsig,retsig) A P Q)) (eval_expr a) &&   

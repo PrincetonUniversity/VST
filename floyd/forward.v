@@ -715,8 +715,9 @@ Proof.
  eapply semax_seq';
  [assert (H0':    match retty' with Tvoid => False | _ => True end)
   by (clear - H0; destruct retty'; try contradiction; auto);
-   apply (semax_call_id1' _ _ P Q R _ _ _ bl _ _ x _ _ GLBL H H0' CLOSQ CLOSR)
+   apply (semax_call_id1' _ _ P Q R _ _ _ bl _ _ x _ _ GLBL H H0'); auto
  | ].
+simpl. rewrite H4; auto.
 match goal with |- semax ?D (PROPx ?P ?QR) ?c ?Post =>
    assert ( (fold_right and True P) -> semax D (PROPx nil QR) c Post)
  end.
@@ -1410,7 +1411,9 @@ match goal with
    let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
    eapply semax_seq';
     [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-            [reflexivity | reflexivity | apply I | reflexivity | normalize_make_args ]
+            [reflexivity | reflexivity | apply I 
+            | simpl; first [apply I | reflexivity]
+            |reflexivity | normalize_make_args ]
     | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; 
       intro_old_var' i; autorewrite with subst; unfold Frame; clear Frame;
      say_after_call ]
@@ -1419,7 +1422,9 @@ match goal with
    let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
    eapply semax_post_flipped3;
     [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-            [reflexivity | reflexivity | apply I | reflexivity | normalize_make_args ]
+            [reflexivity | reflexivity | apply I 
+            | simpl; first [apply I | reflexivity]
+            | reflexivity | normalize_make_args ]
     | try rewrite exp_andp2;
                try (apply exp_left; intro_old_var' i);
                try rewrite insert_local;

@@ -1166,13 +1166,6 @@ simpl in H2.
 destruct a as [id [b t]]. simpl in NOREPe,H2|-*.
 assert (H2': In (id,t) vl).
 apply H2 with b. auto.
-(*
-destruct vl as [ | [i' t']]; inv H2'.
-inv H0.
-simpl in NOREP.
-inv NOREP. rename H5 into NOREP.
-rename H4 into NOTIN.
-*)
 specialize (IHel (filter (fun idt => negb (eqb_ident (fst idt) id)) vl)).
 replace (F vl (construct_rho psi ve te))
  with  (var_block Share.top (id,t)  (construct_rho psi ve te) 
@@ -1221,19 +1214,6 @@ contradiction H2.
 replace (fst a) with (fst (fst a, t)) by reflexivity.
 apply in_map; auto.
 } Unfocus.
-(*
-assert (filter (fun idt : ident * type => negb (eqb_ident (fst idt) id)) vl =  vl). {
-clear - NOTIN; induction vl; simpl; auto.
-replace (negb (eqb_ident (fst a) id)) with true.
-f_equal.
-apply IHvl.
-contradict NOTIN. right; auto.
-pose proof (eqb_ident_spec (fst a) id).
-destruct (eqb_ident (fst a) id) eqn:?; auto.
-elimtype False; apply NOTIN. left. rewrite <- H; auto.
-}
-rewrite H0 in IHel.
-*)
 pose (H0:=True).
 destruct H1 as [phi1 [phi2 [? [? ?]]]].
 
@@ -1352,12 +1332,187 @@ unfold age1; simpl.
 apply age1_juicy_mem_unpack'; auto.
 Qed. (* maybe don't need this? *)
 
+Lemma level_free_list_juicy_mem:
+  forall bl jm m P, level (free_list_juicy_mem jm bl m P) = level jm.
+Proof.
+induction bl; simpl; intros; auto.
+destruct a; destruct p.
+simpl in IHbl; rewrite IHbl.
+clear.
+unfold free_juicy_mem; simpl.
+unfold inflate_free; simpl.
+apply level_make_rmap.
+Qed.
+
+Lemma rmap_age_i:
+ forall w w' : rmap,
+    level w = S (level w') ->
+   (forall l, resource_fmap (approx (level w')) (w @ l) = w' @ l) -> 
+    age w w'.
+Proof.
+intros.
+hnf.
+destruct (levelS_age1 _ _ H).
+assert (x=w'); [ | subst; auto].
+assert (level x = level w')
+  by (apply age_level in H1; omega).
+apply rmap_ext; auto.
+intros.
+specialize (H0 l).
+rewrite (age1_resource_at w x H1 l (w@l)).
+rewrite H2.
+apply H0.
+symmetry; apply resource_at_approx.
+Qed.
+
+
+Lemma free_list_resource_decay':
+  forall bl jm jm' 
+   (FL: free_list (m_dry jm) bl = Some (m_dry jm')),
+  free_list_juicy_mem jm bl (m_dry jm') FL = jm' ->
+resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
+Proof.
+induction bl; intros.
+simpl in *. subst jm'.
+apply resource_decay_refl; intros.
+apply (juicy_mem_alloc_cohere jm l H).
+simpl in H.
+destruct a. destruct p.
+set (jm2 := (free_juicy_mem jm
+         (proj1_sig
+            (free_list_free (m_dry jm) b z0 z bl (m_dry jm')
+               (free_list_juicy_mem_obligation_1 jm ((b, z0, z) :: bl)
+                  (m_dry jm') FL b z0 z bl eq_refl))) b z0 z
+         (free_list_juicy_mem_obligation_2 jm ((b, z0, z) :: bl) (m_dry jm')
+            FL b z0 z bl eq_refl))) in *.
+apply (resource_decay_trans (nextblock (m_dry jm)) (nextblock (m_dry jm))
+    _  (m_phi jm2)).
+apply Pos.le_refl.
+assert (exists m2, free (m_dry jm) b z0 z = Some m2 /\ 
+                              free_list m2 bl = Some (m_dry jm')). {
+  clear - FL.
+  simpl in FL.
+  destruct (free (m_dry jm) b z0 z) eqn:?; try discriminate.
+  exists m; split; auto.
+}
+destruct H0 as [m2 [? ?]].
+Admitted. (* perhaps the right way to do this is to make free_list_juicy_mem
+  nonconstructive, as Inductive rather than Program Definition *)
+
 Lemma free_list_resource_decay:
  forall bl jm jm2
   (FL : free_list (m_dry jm) bl = Some (m_dry jm2)), 
   age (free_list_juicy_mem jm bl (m_dry jm2) FL) jm2 ->
   resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm2).
-Admitted.
+Proof.
+intros.
+pose proof (age_level _ _ H).
+rewrite level_free_list_juicy_mem in H0.
+assert (level (m_phi jm) > 0)%nat.
+simpl in H0; omega.
+assert (exists jm', age jm jm').
+apply can_age_jm.
+intro.
+apply age1_level0 in H2. omega.
+destruct H2 as [jm' ?].
+eapply resource_decay_trans.
+apply  Pos.le_refl.
+apply age1_resource_decay.
+apply H2.
+assert (m_dry jm = m_dry jm').
+apply age_jm_dry; auto.
+rewrite H3.
+assert (FL': free_list (m_dry jm') bl = Some (m_dry jm2)).
+rewrite <- H3; auto.
+assert (free_list_juicy_mem jm' bl (m_dry jm2) FL' = jm2).
+clear H0 H1.
+{
+revert jm jm' jm2 FL H H2 H3 FL'.
+induction bl; intros.
+simpl in *; hnf in H,H2. congruence.
+destruct a; destruct p.
+generalize FL'; intro.
+simpl in FL'.
+destruct (free (m_dry jm') b z0 z) eqn:?; try discriminate.
+assert (free (m_dry jm) b z0 z = Some m) by (rewrite H3; auto).
+pose (jm3 := free_juicy_mem _ _ _ _ _ H0).
+pose (jm3' := free_juicy_mem _ _ _ _ _ Heqo).
+specialize (IHbl jm3 jm3').
+assert (m_dry jm3 = m) by reflexivity.
+specialize (IHbl jm2 FL').
+spec IHbl. {
+unfold jm3; simpl.
+hnf in H|-*.
+rewrite <- H.
+f_equal.
+simpl.
+apply free_list_juicy_mem_ext.
+apply free_juicy_mem_ext; auto.
+match goal with |- _ = proj1_sig ?A => destruct A end.
+simpl.
+destruct a.
+congruence.
+auto.
+}
+spec IHbl. {
+unfold jm3, jm3'.
+apply age1_juicy_mem_unpack'; split; simpl; auto.
+clear - H2.
+assert (LEV: (level (m_phi jm) >= level (m_phi jm'))%nat).
+apply age_jm_phi in H2; apply age_level in H2; omega.
+apply rmap_age_i.
+unfold inflate_free; simpl.
+repeat rewrite level_make_rmap.
+apply age_level. apply age_jm_phi; auto.
+intros.
+unfold resource_fmap, inflate_free; simpl.
+rewrite level_make_rmap.
+rewrite resource_at_make_rmap.
+rewrite resource_at_make_rmap.
+pose proof (age1_resource_at (m_phi jm) (m_phi jm') (age_jm_phi H2) l (m_phi jm @ l)).
+rewrite resource_at_approx in H.
+specialize (H (eq_refl _)).
+rewrite H.
+destruct (m_phi jm @ l) eqn:?; auto.
+destruct k; simpl;
+unfold fmap_option; simpl;
+try match goal with |- context [access_at m l] =>
+  destruct (access_at m l)
+end; simpl; auto;
+f_equal;
+rewrite approx_map_idem;
+rewrite preds_fmap_fmap;
+f_equal; apply approx_oo_approx'; auto.
+}
+specialize (IHbl (eq_refl _)).
+change (m_dry jm3') with m in IHbl.
+specialize (IHbl FL').
+unfold free_list_juicy_mem.
+fold free_list_juicy_mem.
+forget  (free_list_juicy_mem_obligation_2 jm' ((b, z0, z) :: bl) (m_dry jm2)
+        FL'0 b z0 z bl eq_refl) as P1.
+forget (free_list_juicy_mem_obligation_3 jm' ((b, z0, z) :: bl) (m_dry jm2) FL'0 b
+     z0 z bl eq_refl) as P3.
+transitivity (free_list_juicy_mem jm3' bl (m_dry jm2) FL').
+apply free_list_juicy_mem_ext; auto.
+unfold jm3'.
+apply free_juicy_mem_ext; auto.
+match goal with |- ?A = ?B => assert (Some A = Some B) end;
+  [ | congruence].
+rewrite <- P1. auto.
+auto.
+}
+
+clear - H4.
+rename jm' into jm. rename jm2 into jm'.
+eapply free_list_resource_decay'; eauto.
+Qed.
+
+Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
+ match ret with 
+ | None => True
+ | Some i => match (temp_types Delta) ! i with Some (t',_) => t=t' | _ => False end
+ end.
 
 Lemma semax_call_aux:
  forall (Delta : tycontext) (A : Type)
@@ -1367,6 +1522,7 @@ Lemma semax_call_aux:
   (ora : OK_ty) (jm : juicy_mem) (b : block) (id : ident),
    Cop.classify_fun (typeof a) =
    Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) ->
+   tc_fn_return Delta ret (snd fsig) ->
    tc_expr Delta a rho (m_phi jm) ->
    tc_exprlist Delta (snd (split (fst fsig))) bl rho (m_phi jm) ->
     (*map typeof bl = map (@snd _ _) (fst fsig) ->*)
@@ -1391,7 +1547,7 @@ Lemma semax_call_aux:
      (State (vx) (tx) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
 intros Delta A P Q Q' x F F0 ret fsig a bl R psi vx tx k rho ora jm b id.
-intros TC0 TC1 TC2 TC3 TC5 H HR H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
+intros TC0 TCret TC1 TC2 TC3 TC5 H HR H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
 pose (H6:=True); pose (H9 := True); pose (H16:=True);
 pose (H12:=True); pose (H10 := True); pose (H5:=True).
 (*************************************************)
@@ -1480,7 +1636,9 @@ specialize (H1 EK_normal None te2 vx).
 unfold frame_ret_assert in H1.  
 rewrite HR in H1; clear R HR. simpl exit_cont in H1.
 specialize (H1 (m_phi jm2)).
-spec H1; [ admit | ]. (* easy *)
+spec H1.
+clear - FL3 H2 H23.
+repeat rewrite <- level_juice_level_phi in *. omega. 
 specialize (H1 _ (necR_refl _)). simpl in H15. 
 spec H1; [clear H1 | ].
 split.
@@ -1491,8 +1649,9 @@ assert (typecheck_val v (fn_return f) = true).
  destruct H22. destruct H. rewrite tc_val_eq in H; apply H. 
 unfold construct_rho. rewrite <- map_ptree_rel.
 apply guard_environ_put_te'. subst rho; auto.
-intros. cut (fst t = fn_return f). intros. rewrite H24; auto.
-admit.  
+intros.
+ cut (fst t = fn_return f). intros. rewrite H24; auto.
+hnf in TCret; rewrite H21 in TCret. destruct t; subst; auto.
 assert (f.(fn_return)=Tvoid).  
 clear - H22; unfold bind_ret in H22; destruct (f.(fn_return)); normalize in H22; try contradiction; auto. 
 unfold fn_funsig in H18. rewrite H1 in H18. rewrite H18 in TC5. simpl in TC5.
@@ -1663,6 +1822,7 @@ Lemma semax_call:
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig -> 
             (retsig = Tvoid -> ret = None) ->
+          tc_fn_return Delta ret retsig ->
   semax Espec Delta
        (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
            (fun_assert  (argsig,retsig) A P Q (eval_expr a rho) && 
@@ -1672,7 +1832,7 @@ Lemma semax_call:
          (normal_ret_assert 
           (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q x) ret rho))).
 Proof.
-rewrite semax_unfold.  intros ? ? ? ? ? ? ? ? ? ? ? TCF TC5.
+rewrite semax_unfold.  intros ? ? ? ? ? ? ? ? ? ? ? TCF TC5 TC7.
 intros.
 rename H0 into H1.
 intros tx vx.
@@ -1753,10 +1913,18 @@ eapply (sepcon_subp' (|>(F0 rho * F rho)) _ (|> P x (make_args (map (@fst  _ _) 
 rewrite <- later_sepcon. apply now_later; auto.  
 apply (tc_exprlist_sub _ _ TS) in TC2.
 apply (tc_expr_sub _ _ TS) in TC1.
-clear Delta TS. rename Delta' into Delta.
+assert (TC7': tc_fn_return Delta' ret retsig).
+clear - TC7 TS.
+hnf in TC7|-*. destruct ret; auto.
+destruct ((temp_types Delta) ! i) eqn:?; try contradiction.
+destruct TS.
+specialize (H i); rewrite Heqo in H. destruct p. subst t.
+destruct ((temp_types Delta') ! i ). destruct p.
+destruct H; auto.
+auto.
+clear Delta TS TC7. rename Delta' into Delta.
 eapply semax_call_aux; try eassumption; 
  try solve [simpl; assumption].
-
 unfold normal_ret_assert.
 extensionality rho'.
 rewrite prop_true_andp by auto.
@@ -1789,6 +1957,7 @@ Lemma semax_call_alt:
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig -> 
             (retsig = Tvoid -> ret = None) ->
+          tc_fn_return Delta ret retsig ->
   semax Espec Delta
        (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
            (func_ptr (mk_funspec (argsig,retsig) A P Q) (eval_expr a rho) && 

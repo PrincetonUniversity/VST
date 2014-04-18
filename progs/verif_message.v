@@ -488,6 +488,11 @@ apply (call_lemmas.semax_call' Espec (initialized ser Delta) (serialize_A msg) (
    (Etempvar ser (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint)))
    (e_p :: e_buf :: nil)).
 reflexivity. simpl. auto.
+hnf.
+rewrite <- (expr_lemmas.initialized_ne Delta x ser)
+ by auto.
+hnf in H3x. destruct ((temp_types Delta) ! x); try contradiction.
+destruct p0; subst. reflexivity.
 apply extract_exists_pre; intro old'.
 change (@substopt Prop (Some x)) with (@subst Prop x).
 change (@substopt mpred (Some x)) with (@subst mpred x).

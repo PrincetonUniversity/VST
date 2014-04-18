@@ -20,6 +20,7 @@ Lemma semax_call': forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) r
    | Tvoid, Some _ => False
    | _, _ => True
    end ->
+   tc_fn_return Delta ret retsig ->
   @semax Espec Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (argtypes argsig) bl :: Q)
             (SEPx (`(Pre x) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) ::
@@ -30,14 +31,15 @@ Lemma semax_call': forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) r
               PROPx P (LOCALx (map (substopt ret (`old)) Q) 
                 (SEPx (maybe_retval (Post x) ret :: map (substopt ret (`old)) R))))).
 Proof.
- intros.
+ intros. rename H1 into Hret.
  rewrite argtypes_eq.
 eapply semax_pre_post ; [ | | 
-   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret argsig retsig a bl H)].
+   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret argsig retsig a bl H); auto].
  Focus 3.
  clear - H0.
  destruct retsig; destruct ret; simpl in *; try contradiction; 
    intros; congruence.
+clear Hret.
 unfold_lift; unfold local, lift1. intro rho; simpl. normalize.
 unfold func_ptr'.
 repeat rewrite corable_andp_sepcon1 by apply corable_func_ptr.
@@ -65,6 +67,7 @@ Lemma semax_call1: forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) i
    | Tvoid => False
    | _ => True
    end ->
+   tc_fn_return Delta (Some id) retsig ->
   @semax Espec Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (argtypes argsig) bl :: Q)
             (SEPx (`(Pre x) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) ::
@@ -117,6 +120,7 @@ normalize.
 autorewrite with subst norm ret_assert.
 rewrite sepcon_comm.
 rewrite insert_SEP. auto.
+apply I.
 Qed.
 
 Lemma semax_fun_id':
@@ -202,6 +206,7 @@ Lemma semax_call_id1:
    | Tvoid => False
    | _ => True
    end ->
+   tc_fn_return Delta (Some ret) retty ->
   @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: Q) 
                  (SEPx (`(Pre x) (make_args' (argsig,Tvoid) (eval_exprlist (argtypes argsig) bl)) :: R))))
     (Scall (Some ret)
@@ -212,13 +217,13 @@ Lemma semax_call_id1:
           PROPx P (LOCALx (map (subst ret (`old)) Q) 
              (SEPx (`(Post x) (get_result1 ret) :: map (subst ret (`old)) R))))).
 Proof.
-intros.
+intros. rename H1 into Hret.
 assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty)))=
                Cop.fun_case_f (type_of_params argsig) retty).
 subst; reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,retty)  A Pre Post); auto.
 subst. 
-eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0)].
+eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0); auto].
 apply andp_left2.
 apply andp_derives; auto.
 apply andp_derives; auto.
@@ -283,6 +288,7 @@ Lemma semax_call_id1_alt:
    | Tvoid => False
    | _ => True
    end ->
+   tc_fn_return Delta (Some ret) retty ->
    paramty = type_of_params argsig ->
   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
   PROPx nil (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: nil) 
@@ -321,6 +327,7 @@ Lemma semax_call_id1':
    | Tvoid => False
    | _ => True
    end ->
+   tc_fn_return Delta (Some ret) retty ->
   forall 
    (CLOSQ: Forall (closed_wrt_vars (eq ret)) Q)
    (CLOSR: Forall (closed_wrt_vars (eq ret)) R),
@@ -332,10 +339,10 @@ Lemma semax_call_id1':
     (normal_ret_assert 
        (PROPx P (LOCALx Q   (SEPx (`(Post x) (get_result1 ret) ::  R))))).
 Proof.
-intros.
+intros. rename H1 into Hret.
 eapply semax_post;
   [ | apply (semax_call_id1 Espec Delta P Q R ret id retty bl argsig A x Pre Post 
-     GLBL H H0)].
+     GLBL H H0 Hret)].
 intros ek vl.
 apply andp_left2.
 unfold normal_ret_assert.
@@ -373,6 +380,7 @@ Lemma semax_call_id1_Eaddrof:
    | Tvoid => False
    | _ => True
    end ->
+   tc_fn_return Delta (Some ret) retty ->
   @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: Q) 
                (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) :: R))))
     (Scall (Some ret)
@@ -383,13 +391,13 @@ Lemma semax_call_id1_Eaddrof:
           PROPx P (LOCALx (map (subst ret (`old)) Q) 
              (SEPx (`(Post x) (get_result1 ret) :: map (subst ret (`old)) R))))).
 Proof.
-intros.
+intros. rename H1 into Hret.
 assert (Cop.classify_fun (typeof (Eaddrof (Evar id (Tfunction (type_of_params argsig) retty)) (Tpointer (Tfunction (type_of_params argsig) retty) noattr)))=
                Cop.fun_case_f (type_of_params argsig) retty).
 subst; reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,retty) A Pre Post); auto.
 subst. 
-eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0)].
+eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0 Hret)].
 apply andp_left2.
 apply andp_derives; auto.
 apply andp_derives; auto.
