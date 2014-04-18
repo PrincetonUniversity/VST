@@ -156,7 +156,6 @@ Record SM_simulation_inject :=
     match_state cd mu c1 m1 c2 m2 ->
     at_external Sem1 c1 = Some (e,ef_sig,vals1) ->
     Mem.inject (as_inj mu) m1 m2 
-    /\ vals_def vals1=true
     /\ exists vals2, 
        Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 
        /\ at_external Sem2 c2 = Some (e,ef_sig,vals2)

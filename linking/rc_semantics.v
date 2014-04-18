@@ -99,7 +99,12 @@ solve[intros c0 H; inversion 1; subst; simpl; auto].
 solve[intros _; inversion 1].
 Qed.
 
-Definition at_external c := at_external sem (core c).
+Definition at_external c := 
+  match at_external sem (core c) with
+    | None => None 
+    | Some (ef,dep_sig,args) => 
+      if vals_def args then Some (ef,dep_sig,args) else None
+  end.
 
 Arguments at_external /.
 
@@ -117,26 +122,26 @@ Definition halted c := halted sem (core c).
 
 Arguments halted /.
 
-Definition reach_basis F V (ge : Genv.t F V) (c : state) := 
+Definition roots F V (ge : Genv.t F V) (c : state) := 
   fun b => isGlobalBlock ge b
         || getBlocks (args c) b
         || getBlocks (rets c) b
         || locs c b.
 
-Lemma reach_basis_domains_eq 
+Lemma roots_domains_eq 
     F1 F2 V1 V2 (ge1 : Genv.t F1 V1) (ge2 : Genv.t F2 V2) c b : 
   genvs_domain_eq ge1 ge2 -> 
-  reach_basis ge1 c b=true -> 
-  reach_basis ge2 c b=true.
+  roots ge1 c b=true -> 
+  roots ge2 c b=true.
 Proof.
-unfold reach_basis; intros A.
+unfold roots; intros A.
 case_eq (isGlobalBlock ge2 b); simpl; auto.
 intros B. cut (isGlobalBlock ge1 b=false). intros ->; auto.
 erewrite genvs_domain_eq_isGlobal; eauto.
 Qed.
 
 Definition reach_set (ge : Genv.t F V) (c : state) (m : mem) := 
-  REACH m (reach_basis ge c).
+  REACH m (roots ge c).
 
 Definition effstep ge U c m c' m' :=
   effstep sem ge U (core c) m (core c') m' 
@@ -168,10 +173,10 @@ Qed.
 
 Lemma after_external_rc_basis (ge : Genv.t F V) v (c c' : state) :
   after_external (Some v) c = Some c' -> 
-  reach_basis ge c' = (fun b => getBlocks (v :: nil) b || reach_basis ge c b).
+  roots ge c' = (fun b => getBlocks (v :: nil) b || roots ge c b).
 Proof.
 unfold after_external; case (core_semantics.after_external _ _).
-intros ?; inversion 1; subst; unfold reach_basis; simpl.
+intros ?; inversion 1; subst; unfold roots; simpl.
 extensionality b.
 rewrite <-(orb_comm (getBlocks (v :: rets c) b)).
 symmetry.
@@ -204,13 +209,20 @@ Program Definition coresem : CoreSemantics (Genv.t F V) state mem :=
     corestep _ _ _.
 Next Obligation. 
 destruct (effax1 H0) as [X Y].
-revert X; apply corestep_not_at_external; auto. 
+case_eq (core_semantics.at_external sem q); auto; intros [[ef dep_sig] args] H5.
+destruct (vals_def args); auto.
+apply corestep_not_at_external in X; rewrite X in H5; congruence.
 Qed.
 Next Obligation. 
 destruct (effax1 H0) as [X Y].
 revert X; apply corestep_not_halted; auto.
 Qed.
-Next Obligation. case_eq (at_external_halted_excl sem (core q)); auto. Qed.
+Next Obligation. 
+case_eq (at_external_halted_excl sem (core q)); auto; intros e _. 
+case_eq (core_semantics.at_external sem q); auto; intros [[ef dep_sig] args] H5.
+destruct (vals_def args); auto.
+rewrite e in H5; congruence.
+Qed.
 
 Program Definition coopsem : CoopCoreSem (Genv.t F V) state :=
   Build_CoopCoreSem _ _ coresem _.
