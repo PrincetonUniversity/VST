@@ -38,22 +38,22 @@ Variable sim : SM_simulation_inject eff_S eff_T ge_S ge_T.
 Lemma rc_sim : 
   SM_simulation_inject (RC.effsem eff_S) eff_T ge_S ge_T.
 Proof.
-case: sim=> cd mtch ord d e f g h i j init step halt atext aftext.
+case: sim=> cd mtch ord d e f g h i j k init step halt atext aftext.
 eapply Build_SM_simulation_inject
   with (core_data   := cd)
        (core_ord    := ord)
        (match_state := 
          fun cd mu c m d tm => 
            mtch cd mu (RC.core c) m d tm); eauto.
-{ move=> v vals1 c1 m1 j0 vals2 m2 fS fT dS dT.
-move=> init1 inj vinj pres H I J K L M N P Q.
+{ move=> v vals1 c1 m1 j0 vals2 m2 dS dT.
+move=> init1 inj vinj pres H I J K.
 have [c1' init1']:
   exists c1', initial_core eff_S ge_S v vals1 = Some c1'.
 { move: init1; rewrite /= /RC.initial_core.
   case x: (initial_core _ _ _ _)=> //.
   by case; case: c1=> c ? ? ?; case=> -> _ _ _; exists c. }
-move: (init v vals1 c1' m1 j0 vals2 m2 fS fT dS dT init1').
-case/(_ inj vinj pres H I J K L M N P Q)=> x []c2' []init2' mtch12.
+move: (init v vals1 c1' m1 j0 vals2 m2 dS dT init1').
+case/(_ inj vinj pres H I J K)=> x []c2' []init2' mtch12.
 exists x,c2'; split=> //.
 move: init1; rewrite /= /RC.initial_core; rewrite init1'; case.
 by case: c1=> ? ? ? ?; case=> <- <- <- <- /=. }
@@ -68,11 +68,20 @@ split=> //.
 split=> //.
 split=> //.
 by exists U2. }
+{ move=> cd0 mu c1 m1 c2 m2 e0 vals1 ef_sig mtch' at1.
+have at1': at_external eff_S (RC.core c1) = Some (e0, ef_sig, vals1).
+{ move: at1; rewrite /= /RC.at_external.
+  by case q: (at_external _ _)=> [[[? ?] ?]|//]; case r: (vals_def _). }
+case: (atext cd0 mu (RC.core c1) m1 c2 m2 e0 vals1 ef_sig mtch' at1').
+by move=> H H2; split. }
 { move=> cd0 mu st1 st2 m1 e0 vals1 m2 sig vals2 e' ef_sig'.
 move=> inj mtch' at1 at2 vinj pSrc' H pTgt' I nu J nu' ret1 m1' ret2 m2'.
 move=> eincr sep wd val inj' vinj' fwd fwd' fS' K fT' L mu' M unch1 unch2.
+have at1': at_external eff_S (RC.core st1) = Some (e0, sig, vals1).
+{ move: at1; rewrite /= /RC.at_external.
+  by case q: (at_external _ _)=> [[[? ?] ?]|//]; case r: (vals_def _). }
 case: (aftext cd0 mu (RC.core st1) st2 m1 e0 vals1 m2 sig vals2 e' ef_sig'
-  inj mtch' at1 at2 vinj pSrc' H pTgt' I nu J nu' ret1 m1' ret2 m2'
+  inj mtch' at1' at2 vinj pSrc' H pTgt' I nu J nu' ret1 m1' ret2 m2'
   eincr sep wd val inj' vinj' fwd fwd' fS' K fT' L mu' M unch1 unch2).
 move=> cd' []st1' []st2' []aft1' []aft2' mtch12'.
 exists cd'.
