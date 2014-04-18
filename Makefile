@@ -87,7 +87,9 @@ SEPCOMP_FILES= \
   arguments.v \
   effect_simulationsEXP.v \
   wholeprog_simulations.v \
-  barebones_simulations.v
+  barebones_simulations.v \
+  dep_effect_simulationsEXP.v \
+  dep_wholeprog_simulations.v 
 
 LINKING_FILES= \
   sepcomp.v \
@@ -110,7 +112,8 @@ LINKING_FILES= \
   linking_lemmas.v \
   compcert_linking_lemmas.v \
   linking_proof.v \
-  stacking.v	
+  stacking.v \
+  dep_linking_proof.v 
 
 COMPCOMP_FILES= \
   Ordered.v Switch.v \

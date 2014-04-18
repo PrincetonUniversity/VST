@@ -18,6 +18,15 @@ Require Import sepcomp.effect_semantics.
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.reach.
 
+Definition is_vundef (v : val) : bool :=
+  match v with 
+    | Vundef => true
+    | _ => false
+  end.
+
+Definition vals_def (vs : list val) := 
+  List.forallb (fun v => negb (is_vundef v)) vs.
+
 Module SM_simulation. Section SharedMemory_simulation_inject. 
 
 Context 
@@ -49,12 +58,6 @@ Record SM_simulation_inject :=
     match_state d mu c1 m1 c2 m2 -> 
     REACH_closed m1 (vis mu)
 
-(* This condition is new *)
-; match_target : 
-    forall d mu c1 m1 c2 m2, 
-    match_state d mu c1 m1 c2 m2 -> 
-    REACH_closed m2 (DomTgt mu)
-
 ; match_restrict : 
     forall d mu c1 m1 c2 m2 X, 
     match_state d mu c1 m1 c2 m2 -> 
@@ -69,36 +72,38 @@ Record SM_simulation_inject :=
 
 
 ; core_initial : 
-    forall v vals1 c1 m1 j vals2 m2 DomS DomT,
+    forall v vals1 c1 m1 j vals2 m2 FrgnS FrgnT DomS DomT,
     initial_core Sem1 ge1 v vals1 = Some c1 ->
     Mem.inject j m1 m2 -> 
     Forall2 (val_inject j) vals1 vals2 ->
     meminj_preserves_globals ge1 j ->
 
-    (*the next two conditions are required to guarantee intialSM_wd*)
-    (forall b1 b2 d, j b1 = Some (b2, d) -> 
-      DomS b1 = true /\ DomT b2 = true) ->
-    (forall b, 
-      REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b=true -> 
-      DomT b = true) ->
+    (forall b1 b2 d, 
+      j b1 = Some (b2, d) -> DomS b1 = true /\ DomT b2 = true) ->
 
-    (*the next two conditions ensure the initialSM satisfies sm_valid*)
-    (forall b, DomS b = true -> Mem.valid_block m1 b) ->
-    (forall b, DomT b = true -> Mem.valid_block m2 b) ->
+    (forall b, REACH m1 (fun b' => 
+        isGlobalBlock ge1 b' || getBlocks vals1 b') b = true -> 
+      FrgnS b = true) ->
+
+    (forall b, REACH m2 (fun b' => 
+        isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> 
+       FrgnT b = true) ->
+
+    REACH_closed m1 FrgnS -> 
+
+    (forall b, FrgnS b=true -> DomS b=true) ->
+    (forall b, FrgnT b=true -> DomT b=true) ->
+
+    (forall b1, 
+      FrgnS b1=true -> 
+      exists b2 d, j b1 = Some(b2,d) /\ DomT b2=true) -> 
+
+    (forall b, DomS b=true -> Mem.valid_block m1 b) ->
+    (forall b, DomT b=true -> Mem.valid_block m2 b) ->
 
     exists cd, exists c2, 
-    initial_core Sem2 ge2 v vals2 = Some c2 
-    (*Lemma StructuredInjections.initial_SM_as_inj implies 
-      that Mem.inject (initial_SM DomS DomT 
-            (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b)) 
-            (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j)
-            m1 m2 
-     holds*)
-    /\ match_state cd 
-         (initial_SM DomS DomT 
-           (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b)) 
-           (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j)
-         c1 m1 c2 m2
+      initial_core Sem2 ge2 v vals2 = Some c2 
+      /\ match_state cd (initial_SM DomS DomT FrgnS FrgnT j) c1 m1 c2 m2
 
 
 (* ; core_diagram : 
@@ -147,8 +152,11 @@ Record SM_simulation_inject :=
     halted Sem1 c1 = Some v1 ->
     exists v2, 
     Mem.inject (as_inj mu) m1 m2 
-    /\ val_inject (restrict (as_inj mu) (vis mu)) v1 v2 
-    /\ halted Sem2 c2 = Some v2 
+    /\ REACH_closed m1 (exportedSrc mu (v1 :: nil)) 
+    /\ REACH_closed m2 (exportedTgt mu (v2 :: nil)) 
+    /\ val_inject (restrict (as_inj mu) (sharedSrc mu)) v1 v2 
+    /\ vals_def (v1 :: v2 :: nil)=true
+    /\ halted Sem2 c2 = Some v2
 
 
 ; core_at_external : 
@@ -156,22 +164,13 @@ Record SM_simulation_inject :=
     match_state cd mu c1 m1 c2 m2 ->
     at_external Sem1 c1 = Some (e,ef_sig,vals1) ->
     Mem.inject (as_inj mu) m1 m2 
+    /\ REACH_closed m1 (exportedSrc mu vals1) 
+    /\ vals_def vals1=true
     /\ exists vals2, 
-       Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 
+       Forall2 (val_inject (restrict (as_inj mu) (sharedSrc mu))) vals1 vals2 
        /\ at_external Sem2 c2 = Some (e,ef_sig,vals2)
-
-    /\ forall
-       (pubSrc' pubTgt' : block -> bool)
-       (pubSrcHyp : pubSrc' =
-                  (fun b : block =>
-                  locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b))
-       (pubTgtHyp: pubTgt' =
-                  (fun b : block =>
-                  locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b))
-       nu (Hnu: nu = (replace_locals mu pubSrc' pubTgt')),
-       match_state cd nu c1 m1 c2 m2 
-       /\ Mem.inject (shared_of nu) m1 m2
-
+       /\ REACH_closed m2 (exportedTgt mu vals2) 
+       /\ vals_def vals2=true
 
 
 ; eff_after_external : 

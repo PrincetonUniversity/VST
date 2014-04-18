@@ -43,7 +43,34 @@ Record Wholeprog_simulation_inject :=
 ; core_ord : core_data -> core_data -> Prop
 ; core_ord_wf : well_founded core_ord
 
+
+; match_sm_wd : 
+    forall d mu c1 m1 c2 m2, 
+    match_state d mu c1 m1 c2 m2 -> SM_wd mu
+
 ; genvs_dom_eq : genvs_domain_eq ge1 ge2
+
+; match_genv : 
+    forall d mu c1 m1 c2 m2 (MC : match_state d mu c1 m1 c2 m2),
+    meminj_preserves_globals ge1 (extern_of mu) /\
+    (forall b, isGlobalBlock ge1 b = true -> frgnBlocksSrc mu b = true)
+
+; match_visible : 
+    forall d mu c1 m1 c2 m2, 
+    match_state d mu c1 m1 c2 m2 -> 
+    REACH_closed m1 (vis mu)
+
+; match_restrict : 
+    forall d mu c1 m1 c2 m2 X, 
+    match_state d mu c1 m1 c2 m2 -> 
+    (forall b, vis mu b = true -> X b = true) ->
+    REACH_closed m1 X ->
+    match_state d (restrict_sm mu X) c1 m1 c2 m2
+
+; match_validblocks : 
+    forall d mu c1 m1 c2 m2, 
+    match_state d mu c1 m1 c2 m2 ->
+    sm_valid mu m1 m2
 
 
 ; core_initial : 
@@ -69,7 +96,10 @@ Record Wholeprog_simulation_inject :=
            (UHyp: forall b1 z, U1 b1 z = true -> vis mu b1 = true),
     match_state cd mu st1 m1 st2 m2 ->
     exists st2', exists m2', exists cd', exists mu',
-    match_state cd' mu' st1' m1' st2' m2' 
+    intern_incr mu mu' 
+    /\ sm_inject_separated mu mu' m1 m2 
+    /\ sm_locally_allocated mu mu' m1 m2 m1' m2' 
+    /\ match_state cd' mu' st1' m1' st2' m2' 
     /\ exists U2,              
        ((effstep_plus Sem2 ge2 U2 st2 m2 st2' m2' 
         \/ (effstep_star Sem2 ge2 U2 st2 m2 st2' m2' /\ core_ord cd' cd))
