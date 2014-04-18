@@ -1,3 +1,21 @@
+(* NOTE: To build this variant of the separate compilation proof,          *)
+(* do the following:                                                       *)
+(*   1) In sepcomp/arguments.v, change the line                            *)
+(*                                                                         *)
+(*        Require Import sepcomp.effect_simulations*                       *)
+(*                                                                         *)
+(*    to                                                                   *)
+(*                                                                         *)
+(*        Require Import sepcomp.effect_simulationsEXP.                    *)
+(*                                                                         *)
+(*   2) Do the same in linking/sepcomp.v, but additionally, change         *)
+(*                                                                         *)
+(*        Require Import sepcomp.wholeprog_simulations*                    *)
+(*                                                                         *)
+(*    to                                                                   *)
+(*                                                                         *)
+(*        Require Import sepcomp.wholeprog_simulations2.                   *)
+
 (* standard Coq libraries *)
 
 Require Import JMeq.
@@ -321,7 +339,7 @@ Section vis_inv.
 Import Core.
 
 Record vis_inv (c : t cores_S) mu : Type :=
-  { vis_sup : {subset (RC.reach_basis my_ge c.(Core.c)) <= vis mu} }.
+  { vis_sup : {subset (RC.roots my_ge c.(Core.c)) <= vis mu} }.
 
 End vis_inv.
 
@@ -2139,7 +2157,7 @@ Lemma vis_inv_step (c c' : Core.t cores_S) :
 Proof.
 move=> E A B C rc; move: E.
 case=> E; apply: Build_vis_inv=> b F.
-move: F; rewrite/RC.reach_basis/in_mem/=; move/orP=> [|F].
+move: F; rewrite/RC.roots/in_mem/=; move/orP=> [|F].
 rewrite -A -B=> F. 
 by apply: (intern_incr_vis _ _ incr); apply: E; apply/orP; left.
 case G: (RC.locs (Core.c c) b). 
@@ -2153,7 +2171,7 @@ by move/sub1=> ->.
 by move=> ->; rewrite orb_comm.
 apply: rc; apply: (REACH_mono _ _ _ _ _ H)=> //.
 move=> b0 H2; move: (E b0); rewrite /in_mem /=; apply.
-apply: (RC.reach_basis_domains_eq _ H2).
+apply: (RC.roots_domains_eq _ H2).
 by apply: genvs_domain_eq_sym; apply: (my_ge_S (Core.i c)).
 Qed.
 
@@ -2893,7 +2911,7 @@ have mu_new_rel_inv_all:
 have mu_new_vis_inv: vis_inv c1 mu_new'.
 { apply: Build_vis_inv=> // b; rewrite /in_mem /= => Y.
   rewrite /vis /mu_new /frgnS /exportedSrc /=.
-  move: Y; rewrite /RC.reach_basis; case/orP.
+  move: Y; rewrite /RC.roots; case/orP.
   case/orP. case/orP. move=> H1.
   have H1': isGlobalBlock (ge (cores_S (Core.i (c inv)))) b.
   { by rewrite -isGlob_iffS. }
@@ -4210,31 +4228,31 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
   by rewrite /in_mem /= => ->; apply/orP; right.
   by apply: REACH_nil; apply/orP; right; apply/orP; left.
   by apply: nu'_wd. }
-{(*{subset RC.reach_basis ...}*)
+{(*{subset RC.roots ...}*)
   move: aft1'=> /= aft1'.
   move: (RC.after_external_rc_basis (ge (cores_S (Core.i hd1))) aft1').
   move=> eq_hd1' b; rewrite /in_mem /= => H.
   have eq_hd1'': 
-    RC.reach_basis (ge (cores_S (Core.i hd1'))) (Core.c hd1')
+    RC.roots (ge (cores_S (Core.i hd1'))) (Core.c hd1')
     = (fun b => 
          getBlocks [:: rv1] b
-      || RC.reach_basis (ge (cores_S (Core.i hd1))) (Core.c hd1) b).
+      || RC.roots (ge (cores_S (Core.i hd1))) (Core.c hd1) b).
   { move: eq_hd1'. 
     set T := C \o cores_S.
     set P := fun ix (x : T ix) => 
-               RC.reach_basis (ge (cores_S ix)) x 
+               RC.roots (ge (cores_S ix)) x 
            = (fun b0 => 
               getBlocks [:: rv1] b0
-              || RC.reach_basis (ge (cores_S (Core.i hd1))) (Core.c hd1) b0).
+              || RC.roots (ge (cores_S (Core.i hd1))) (Core.c hd1) b0).
     change (P (Core.i hd1) (cast T (sym_eq e1) (Core.c hd1'))
          -> P (Core.i hd1') (Core.c hd1')).
     by apply: cast_indnatdep'. }
   have eq_hd1''': 
-    RC.reach_basis my_ge (Core.c hd1') 
+    RC.roots my_ge (Core.c hd1') 
     = (fun b =>
          getBlocks [:: rv1] b
-         || RC.reach_basis (ge (cores_S (Core.i hd1))) (Core.c hd1) b).
-  { rewrite -eq_hd1'' /RC.reach_basis; extensionality b0.
+         || RC.roots (ge (cores_S (Core.i hd1))) (Core.c hd1) b).
+  { rewrite -eq_hd1'' /RC.roots; extensionality b0.
     have glob_eq: isGlobalBlock my_ge b0
                 = isGlobalBlock (ge (cores_S (Core.i hd1'))) b0. 
     { suff: isGlobalBlock my_ge b0 
@@ -4264,7 +4282,7 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
   { move=> RB; case: (frame_vis fr0)=> vis_sub. 
     have vis0_b: vis mu0 b.
     { apply: vis_sub.
-      rewrite /in_mem /=; move: RB; rewrite /RC.reach_basis.
+      rewrite /in_mem /=; move: RB; rewrite /RC.roots.
       have glob_eq: isGlobalBlock my_ge b
                   = isGlobalBlock (ge (cores_S (Core.i hd1))) b. 
       { suff: isGlobalBlock my_ge b 
@@ -4280,7 +4298,7 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
       by rewrite -glob_eq. }
     { case: (orP vis0_b); first by move=> ->.
       by move=> L; apply/orP; right; apply: subF. } } 
-}(*END {subset RC.reach_basis ...}*)
+}(*END {subset RC.roots ...}*)
 }(*END vis_inv*)
 
 { move=> b; rewrite frgnBlocksSrc_mu'_eq=> H1; apply/orP.
@@ -4657,7 +4675,7 @@ eapply Build_Wholeprog_simulation_inject
   by apply: Build_trash_minimal.
 
   exists erefl; apply: Build_head_inv=> //.
-  apply: Build_vis_inv; rewrite /= /RC.reach_basis /vis /mu_top0 /= /fS.
+  apply: Build_vis_inv; rewrite /= /RC.roots /vis /mu_top0 /= /fS.
 
   have ->: RC.args c = vals1.
   { by apply: (RC.initial_core_args g). }
@@ -4739,8 +4757,8 @@ have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b.
 
   { case: hdinv=> mtch ?; case=> visinv _ _ _ _ _ b ofs A; move: (U1'_EQ _ _ A).
     rewrite/RC.reach_set=> B; apply match_visible in mtch; apply: mtch.
-    move: B; apply REACH_mono with (B1 := RC.reach_basis _ _)=> b'=> B.
-    apply: (visinv b'); move: B; apply: RC.reach_basis_domains_eq.
+    move: B; apply REACH_mono with (B1 := RC.roots _ _)=> b'=> B.
+    apply: (visinv b'); move: B; apply: RC.roots_domains_eq.
     by apply: genvs_domain_eq_sym; apply: (my_ge_S (Core.i c1)). }
 
 move: (head_match hdinv)=> MATCH.
