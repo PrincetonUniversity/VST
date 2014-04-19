@@ -13,6 +13,16 @@ Proof.
  destruct (split al). simpl in *. subst; auto.
 Qed.
 
+Definition maybe_retval (Q: environ -> mpred) retty ret :=
+ match ret with
+ | Some id => fun rho => Q (get_result1 id rho)
+ | None => 
+    match retty with
+    | Tvoid => (fun rho => Q (globals_only rho))
+    | _ => fun rho => EX v: val, Q (make_args (ret_temp::nil) (v::nil) rho)
+    end
+ end.
+
 Lemma semax_call': forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) ret argsig retsig a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig ->
    match retsig, ret with
@@ -29,7 +39,7 @@ Lemma semax_call': forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) r
           (normal_ret_assert 
             (EX old:val, 
               PROPx P (LOCALx (map (substopt ret (`old)) Q) 
-                (SEPx (maybe_retval (Post x) ret :: map (substopt ret (`old)) R))))).
+                (SEPx (maybe_retval (Post x) retsig ret :: map (substopt ret (`old)) R))))).
 Proof.
  intros. rename H1 into Hret.
  rewrite argtypes_eq.
@@ -82,13 +92,8 @@ intros.
 apply semax_call'; auto.
 Qed.
 
-
-Definition maybe_retval (Q: environ -> mpred) ret :=
- match ret with
- | Some id => fun rho => Q (get_result1 id rho)
- | None => fun rho => EX v:val, Q (make_args (ret_temp::nil) (v::nil) rho)
- end.
- 
+Definition ifvoid {T} t (A B: T) :=
+ match t with Tvoid => A | _ => B end.
 
 Lemma semax_call0: forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) 
       argsig retty a bl P Q R,
@@ -99,7 +104,9 @@ Lemma semax_call0: forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A)
                       `(func_ptr' (mk_funspec (argsig,retty) A Pre Post)) (eval_expr a) :: R))))
           (Scall None a bl)
           (normal_ret_assert 
-            (PROPx P (LOCALx Q (SEPx ((EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil))) :: R))))).
+            (PROPx P (LOCALx Q (SEPx (ifvoid retty (`(Post x) (make_args nil nil))
+                                                        (EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil)))
+                                                        :: R))))).
 Proof.
 intros.
 rewrite argtypes_eq.
@@ -117,9 +124,9 @@ intros.
 apply andp_left2.
 apply normal_ret_assert_derives'.
 normalize.
+unfold SeparationLogic.maybe_retval.
 autorewrite with subst norm ret_assert.
-rewrite sepcon_comm.
-rewrite insert_SEP. auto.
+destruct retty; auto; rewrite sepcon_comm; rewrite insert_SEP; apply derives_refl.
 apply I.
 Qed.
 
@@ -161,7 +168,9 @@ Lemma semax_call_id0:
                  (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) :: R))))
     (Scall None (Evar id (Tfunction (type_of_params argsig) retty)) bl)
     (normal_ret_assert 
-       (PROPx P (LOCALx Q (SEPx ((EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil))) :: R))))).
+       (PROPx P (LOCALx Q (SEPx (ifvoid retty (`(Post x) (make_args nil nil))
+                                                   (EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil)))
+                                                    :: R))))).
 Proof.
 intros.
 assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty)))=
@@ -261,7 +270,9 @@ Lemma semax_call_id0_alt:
   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) 
     (Scall None (Evar id (Tfunction paramty retty)) bl)
     (normal_ret_assert 
-       (PROPx P (LOCALx Q (SEPx ((EX v:val, `(Post witness) (make_args (ret_temp::nil) (v::nil))) :: Frame))))).
+       (PROPx P (LOCALx Q (SEPx (ifvoid retty (`(Post witness) (make_args nil nil))
+                                                   (EX v:val, `(Post witness) (make_args (ret_temp::nil) (v::nil)))
+                                                   :: Frame))))).
 Proof.
 intros. subst paramty.
 eapply semax_pre;  [ | apply semax_call_id0; eauto].

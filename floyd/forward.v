@@ -1326,6 +1326,10 @@ Arguments DO_THE_after_call_TACTIC_NOW {x}.
 Ltac after_call :=  
   match goal with |- @DO_THE_after_call_TACTIC_NOW _ =>
    unfold DO_THE_after_call_TACTIC_NOW;
+   match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx (ifvoid ?A ?B ?C :: _)))) _ _ =>
+      first [change (ifvoid A B C) with B | change (ifvoid A B C) with C]
+   | _ => idtac
+   end;
    autorewrite with subst; normalize;
    match goal with 
    | |- forall x:val, _ => intros ?retval0; normalize

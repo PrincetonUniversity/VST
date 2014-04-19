@@ -1312,13 +1312,15 @@ Qed.
 
 Arguments ret_type !Delta /.
 
+Arguments Datatypes.id {A} x / .
+
 Ltac unfold_for_go_lower :=
   cbv delta [PROPx LOCALx SEPx
                        eval_exprlist eval_expr eval_lvalue cast_expropt 
                        sem_cast eval_binop eval_unop force_val1 force_val2
                       tc_expropt tc_expr tc_exprlist tc_lvalue 
                       typecheck_expr typecheck_exprlist typecheck_lvalue
-                      function_body_ret_assert 
+                      function_body_ret_assert frame_ret_assert
                       make_args' bind_ret get_result1 retval
                        classify_cast 
                        (* force_val sem_cast_neutral ... NOT THESE TWO!  *) 

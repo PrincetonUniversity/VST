@@ -1086,13 +1086,16 @@ Proof.
  destruct H7; auto. inv H6; congruence.
 Qed.
 
-
-Definition maybe_retval (Q: environ -> mpred) ret :=
+Definition maybe_retval (Q: environ -> mpred) retty ret :=
  match ret with
  | Some id => fun rho => Q (get_result1 id rho)
- | None => fun rho => EX v:val, Q (make_args (ret_temp::nil) (v::nil) rho)
+ | None => 
+    match retty with
+    | Tvoid => (fun rho => Q (globals_only rho))
+    | _ => fun rho => EX v: val, Q (make_args (ret_temp::nil) (v::nil) rho)
+    end
  end.
- 
+
 Lemma VALspec_range_free:
   forall n b phi1 jm,
   app_pred (VALspec_range n Share.top Share.top (b, 0)) phi1 ->
@@ -1514,6 +1517,10 @@ Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
  | Some i => match (temp_types Delta) ! i with Some (t',_) => t=t' | _ => False end
  end.
 
+Lemma derives_refl' {A: Type}  `{ageable A}: 
+    forall P Q: pred A, P=Q -> P |-- Q.
+Proof.  intros; subst; apply derives_refl. Qed.
+
 Lemma semax_call_aux:
  forall (Delta : tycontext) (A : Type)
   (P Q Q' : A -> assert) (x : A) (F : environ -> pred rmap)
@@ -1529,7 +1536,7 @@ Lemma semax_call_aux:
     guard_environ Delta (current_function k) rho ->
     (snd fsig=Tvoid -> ret=None) ->
     closed_wrt_modvars (Scall ret a bl) F0 ->
-    R EK_normal None = (fun rho0 : environ => EX old:val, substopt ret old F rho0 * maybe_retval (Q x) ret rho0) ->
+    R EK_normal None = (fun rho0 : environ => EX old:val, substopt ret old F rho0 * maybe_retval (Q x) (snd fsig) ret rho0) ->
     rho = construct_rho (filter_genv psi) vx tx ->
     (*filter_genv psi = ge_of rho ->*)
     eval_expr a rho = Vptr b Int.zero ->
@@ -1657,18 +1664,71 @@ clear - H22; unfold bind_ret in H22; destruct (f.(fn_return)); normalize in H22;
 unfold fn_funsig in H18. rewrite H1 in H18. rewrite H18 in TC5. simpl in TC5.
 specialize (TC5 (eq_refl _)); congruence. 
 rewrite <- H0. auto.
-normalize. exists rval.
  destruct H22 as [H22a H22b].
  split.
  rewrite sepcon_comm.
+ rewrite <- exp_sepcon1.
   rewrite <- sepcon_assoc.
  rewrite sepcon_comm in H22a|-*.
   rewrite sepcon_assoc in H22a.
  assert (bind_ret vl (fn_return f) (Q x) rho' * (F0 rho * F rho) 
-            |-- (maybe_retval (Q x) ret (construct_rho (filter_genv psi) vx te2) *
+            |-- (maybe_retval (Q x) (snd fsig) ret (construct_rho (filter_genv psi) vx te2) *
  (F0 (construct_rho (filter_genv psi) vx te2) *
-  substopt ret rval F (construct_rho (filter_genv psi) vx te2)))).
-  admit. (* might be true *)
+  EX old: val, substopt ret old F (construct_rho (filter_genv psi) vx te2)))). {
+apply sepcon_derives.
+*
+ clear dependent a. clear H11 H19 H20 H10 H9 H12 H5 H6 H8.
+ clear Prog_OK ora ora'.  subst rho' fsig.
+ clear H22b VR. clear FL jm2 FL2 FL3.
+ clear b H16 H7. clear bl TC2 H14. 
+ unfold te2; clear te2. unfold rval; clear rval.
+ unfold bind_ret.
+ unfold get_result1. simpl.
+ unfold bind_ret.
+ destruct vl.
+ +apply derives_extract_prop; intro.
+    unfold maybe_retval.
+   destruct ret.
+   unfold get_result1. simpl.
+   apply derives_refl'. f_equal.
+   unfold env_set; simpl.
+   f_equal. unfold eval_id; simpl.
+   f_equal. unfold Map.get. unfold make_tenv. rewrite PTree.gss. reflexivity.
+   destruct (fn_return f); try contradiction H; 
+   apply exp_right with v;    apply derives_refl.
+ +
+   unfold fn_funsig in TC5. simpl in TC5.
+   destruct (fn_return f) eqn:?; try apply FF_derives.
+   specialize (TC5 (eq_refl _)). subst ret.
+   unfold maybe_retval. apply derives_refl.
+*
+  subst rho.
+  unfold te2.
+ destruct ret; apply sepcon_derives; auto.
+ +
+  clear - H.
+  apply derives_refl'.
+  apply H. intros. destruct (ident_eq i i0). 
+  subst; left; hnf; simpl. unfold insert_idset. rewrite PTree.gss; auto.
+  right; unfold Map.get; simpl; unfold make_tenv; simpl.
+  rewrite PTree.gso; auto.
++ 
+  simpl in TCret.
+  destruct ((temp_types Delta) ! i) eqn:?; try contradiction.
+  destruct p as [t' init]; subst t'.
+  destruct TC3 as [[TC3 _] _].
+  hnf in TC3; simpl in TC3.
+  specialize (TC3 _ _ _ Heqo).
+  destruct TC3 as [old [? _]].
+  apply exp_right with old. unfold substopt, subst.
+  apply derives_refl'. f_equal.
+  unfold env_set, construct_rho.
+   f_equal. unfold make_tenv. extensionality j.
+  simpl. unfold Map.set. if_tac. subst.
+  apply H0. rewrite PTree.gso; auto.
++
+  apply exp_right with Vundef; simpl; auto.
+}
  apply H1; clear H1.
  apply (free_list_juicy_mem_lem jm' (blocks_of_env ve) m2 FL).
  eapply sepcon_derives; try apply H22a; auto.
@@ -1830,7 +1890,7 @@ Lemma semax_call:
                 (eval_exprlist (snd (split argsig)) bl rho) rho ))))
          (Scall ret a bl)
          (normal_ret_assert 
-          (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q x) ret rho))).
+          (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q x) retsig ret rho))).
 Proof.
 rewrite semax_unfold.  intros ? ? ? ? ? ? ? ? ? ? ? TCF TC5 TC7.
 intros.
@@ -1965,7 +2025,7 @@ Lemma semax_call_alt:
                 (eval_exprlist (snd (split argsig)) bl rho) rho ))))
          (Scall ret a bl)
          (normal_ret_assert 
-          (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q x) ret rho))).
+          (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q x) retsig ret rho))).
 Proof. exact semax_call. Qed.
 
 Lemma semax_call_ext:

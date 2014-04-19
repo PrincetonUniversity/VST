@@ -45,13 +45,12 @@ after_call.
 simpl.
 replace_SEP 0 (`K_vector (eval_var _K256 (tarray tuint 64))).
 entailer.
-
 forward. (* return; *)
 unfold frame_ret_assert; simpl.
 entailer!.
 replace (SHA_256 data) with (sha_finish a); auto.
-clear - H1.
-inv H1.
+clear - H2.
+inv H2.
 simpl in *.
 rewrite <- H8.
 rewrite firstn_same by (clear; omega).

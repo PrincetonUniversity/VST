@@ -287,10 +287,14 @@ Definition get_result (ret: option ident) : environ -> environ :=
  | Some x => get_result1 x
  end.
 
-Definition maybe_retval (Q: environ -> mpred) ret :=
+Definition maybe_retval (Q: environ -> mpred) retty ret :=
  match ret with
  | Some id => fun rho => Q (get_result1 id rho)
- | None => fun rho => EX v:val, Q (make_args (ret_temp::nil) (v::nil) rho)
+ | None => 
+    match retty with
+    | Tvoid => (fun rho => Q (globals_only rho))
+    | _ => fun rho => EX v: val, Q (make_args (ret_temp::nil) (v::nil) rho)
+    end
  end.
  
 Definition bind_ret (vl: option val) (t: type) (Q: environ -> mpred) : environ -> mpred :=
@@ -621,7 +625,7 @@ Axiom semax_call :
           (F * `(P x) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
          (normal_ret_assert  
-          (EX old:val, substopt ret (`old) F * maybe_retval (Q x) ret)).
+          (EX old:val, substopt ret (`old) F * maybe_retval (Q x) retsig ret)).
 
 Axiom  semax_return :
   forall {Espec: OracleKind},
