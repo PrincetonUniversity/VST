@@ -202,6 +202,8 @@ endif
 #compcert/%.vo: compcert/%.v
 #	()
 
+default_target: msl veric floyd progs
+
 all:     .loadpath $(FILES:.v=.vo) version.vo
 
 msl:     .loadpath $(MSL_FILES:%.v=msl/%.vo)
