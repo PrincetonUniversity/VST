@@ -766,6 +766,13 @@ congruence.
 inv H17'. auto. rewrite PTree.gso; auto.
 Qed. 
 
+Lemma free_juicy_mem_level:
+  forall jm m b lo hi H, level (free_juicy_mem jm m b lo hi H) = level jm.
+Proof.
+ intros;  simpl;  unfold inflate_free; simpl.
+ rewrite level_make_rmap. auto.
+Qed.
+
 Lemma free_list_free:
   forall m b lo hi l' m', 
        free_list m ((b,lo,hi)::l') = Some m' ->
@@ -775,30 +782,36 @@ simpl; intros.
  destruct (free m b lo hi). eauto. inv H.
 Qed.
 
-Program Fixpoint free_list_juicy_mem 
-         (jm: juicy_mem) (bl: list (block * BinInt.Z * BinInt.Z))
-         m (H: free_list (m_dry jm) bl = Some m)  : juicy_mem :=
- match bl with
- | nil => jm
- | (b,lo,hi)::l' => free_list_juicy_mem
-                            (free_juicy_mem jm (proj1_sig (free_list_free (m_dry jm) b lo hi l' m _)) b lo hi _)
-                              l' m _
- end.
-Next Obligation.
-simpl in H.
-destruct (free_list_free (m_dry jm) b lo hi l' m
-        (free_list_juicy_mem_obligation_1 jm ((b, lo, hi) :: l') m H b lo hi
-           l' eq_refl)).
-destruct a.
-simpl.
-auto.
-Qed.
-Next Obligation.
-destruct (free_list_free (m_dry jm) b lo hi l' m
-        (free_list_juicy_mem_obligation_1 jm ((b, lo, hi) :: l') m H b lo hi
-           l' eq_refl)).
-simpl in *.
-destruct a; auto.
+Inductive free_list_juicy_mem: 
+      forall  (jm: juicy_mem) (bl: list (block * BinInt.Z * BinInt.Z))
+                                         (jm': juicy_mem), Prop :=
+| FLJM_nil: forall jm, free_list_juicy_mem jm nil jm
+| FLJM_cons: forall jm b lo hi bl jm2 jm' 
+                          (H: free (m_dry jm) b lo hi = Some (m_dry jm2)), 
+                          free_juicy_mem jm (m_dry jm2) b lo hi H = jm2 ->
+                          free_list_juicy_mem jm2 bl jm' ->
+                          free_list_juicy_mem jm ((b,lo,hi)::bl) jm'.
+
+Lemma free_list_juicy_mem_i:
+  forall jm bl m', free_list (m_dry jm) bl = Some m' ->
+   exists jm', free_list_juicy_mem jm bl jm'
+                  /\ m_dry jm' = m'
+                  /\ level jm = level jm'.
+Proof.
+intros jm bl; revert jm; induction bl; intros.
+*
+ inv H; exists jm; split3; auto. constructor.
+*
+ destruct a as [[b lo] hi].
+ destruct (free_list_free _ _ _ _ _ _ H) as [m2 [? ?]].
+ pose (jm2 := (free_juicy_mem jm m2 b lo hi H0)).
+ specialize (IHbl  jm2 m' H1).
+ destruct IHbl as [jm' [? [? ?]]].
+ exists jm'; split3; auto.
+ apply (FLJM_cons jm b lo hi bl jm2 jm' H0 (eq_refl _) H2).
+ rewrite <- H4.
+ unfold jm2.
+ symmetry; apply free_juicy_mem_level.
 Qed.
 
 Definition freeable_blocks: list (block * BinInt.Z * BinInt.Z) -> mpred :=
@@ -816,71 +829,38 @@ Proof.
 intros. subst. proof_irr. auto.
 Qed.
 
-Lemma free_list_juicy_mem_ext:
-  forall jm1 jm2 bl m1 m2 H1 H2,
-      jm1=jm2 -> m1=m2 -> free_list_juicy_mem jm1 bl m1 H1 = free_list_juicy_mem jm2 bl m2 H2.
-Proof.
-intros. subst. proof_irr. auto.
-Qed.
 
 Lemma free_list_juicy_mem_lem:
-  forall jm bl m' FL P,
-     app_pred (freeable_blocks bl * P) (m_phi jm) -> app_pred P (m_phi (free_list_juicy_mem jm bl m' FL)).
+  forall P jm bl jm',
+     free_list_juicy_mem jm bl jm' ->
+     app_pred (freeable_blocks bl * P) (m_phi jm) -> 
+     app_pred P (m_phi jm').
 Proof.
- intros jm bl; revert jm; induction bl; simpl freeable_blocks; intros.
- rewrite emp_sepcon in H. simpl free_list_juicy_mem.  auto.
- destruct a  as [[b lo] hi].
- assert (exists m1, free (m_dry jm) b lo hi = Some m1 /\ free_list m1 bl = Some m').
- clear - FL.
- revert FL; simpl; case_eq (free (m_dry jm) b lo hi); intros; [ | inv FL]. exists m; split; auto.
- destruct H0 as [m1 [? ?]].
- pose (jm1 := free_juicy_mem _ _ _ _ _ H0).
- assert (m1 = m_dry jm1). unfold jm1. reflexivity.
- assert (free_list (m_dry jm1) bl = Some m').
-    rewrite <- H2 ; auto.
- specialize (IHbl _ _ H3).
- rewrite sepcon_assoc in H.
- assert ((freeable_blocks bl * P)%pred (m_phi jm1)).
-   forget (freeable_blocks bl * P) as Q.
- clear - H. unfold jm1; clear jm1.
- destruct H as [phi1 [phi2 [? [? ?]]]].
- pose proof (@juicy_free_lemma jm b lo hi m1 phi1 H0 H1).
- spec H3. apply (join_core H).
- spec H3.
- intros. specialize (H1 l). hnf in H1.  if_tac in H1. destruct H1 as [v ?]. destruct H1. hnf in H1.
-    exists Share.top; exists pfullshare; exists NoneP.
-   split3; auto. apply top_correct'. apply top_correct'.
-  inversion2 H1 H4.
-   clear - H1 H.  
-  apply (resource_at_join _ _ _ l) in H. rewrite H1 in H.
-  replace (mk_lifted Share.top x) with pfullshare in H
+ intros.
+ revert H0; induction H; simpl freeable_blocks; intros.
+ rewrite emp_sepcon in H0; auto.
+ rewrite sepcon_assoc in H2.
+ destruct H2 as [phi1 [phi2 [? [? ?]]]].
+ pose proof  (@juicy_free_lemma jm b lo hi _ phi1 H H3).
+ spec H5. apply (join_core H2).
+ spec H5.
+ intros. specialize (H3 l). hnf in H3.  if_tac in H3. destruct H3 as [v ?]. destruct H3. hnf in H3.
+ exists Share.top; exists pfullshare; exists NoneP.
+ split3; auto. apply top_correct'. apply top_correct'.
+ rewrite H3 in H6; inversion H6; clear H6. subst k pp sh rsh.
+  clear - H2 H3.  
+  apply (resource_at_join _ _ _ l) in H2. rewrite H3 in H2.
+  replace (mk_lifted Share.top x) with pfullshare in H2
     by (unfold pfullshare; f_equal; apply proof_irr).
- rewrite preds_fmap_NoneP in H. inv H.
+ rewrite preds_fmap_NoneP in H2. inv H2.
  rewrite (join_sub_share_top rsh3) by (econstructor; apply RJ).
   reflexivity.
  pfullshare_join.
- do 3 red in H1. rewrite H4 in H1. apply YES_not_identity in H1; contradiction.
- pose proof (join_canc (join_comm H) (join_comm H3)).
- rewrite <- H4. auto.
-
- assert (free_list_juicy_mem jm ((b, lo, hi) :: bl) m' FL =
-            free_list_juicy_mem jm1 bl m' H3); 
-   [ | rewrite H5; apply IHbl; apply H4].
- clear IHbl H4 H.
- unfold jm1 in *; clear jm1.
- unfold free_list_juicy_mem; fold free_list_juicy_mem.
- forget (free_list_juicy_mem_obligation_3 jm ((b, lo, hi) :: bl) m' FL b lo hi bl
-     eq_refl) as H8. 
- forget (free_list_juicy_mem_obligation_2 jm ((b, lo, hi) :: bl) m' FL b lo hi
-        bl eq_refl) as H9.
- forget  (free_list_juicy_mem_obligation_1 jm ((b, lo, hi) :: bl) m' FL b
-              lo hi bl eq_refl) as H10. 
- apply free_list_juicy_mem_ext; auto.
- apply free_juicy_mem_ext; auto.
- destruct (free_list_free (m_dry jm) b lo hi bl m' H10). simpl in *.
- inversion2 H0 H9. auto.
+ do 3 red in H3. rewrite H6 in H3. apply YES_not_identity in H3; contradiction.
+ apply IHfree_list_juicy_mem.
+ pose proof (join_canc (join_comm H5) (join_comm H2)).
+ rewrite H0 in *. subst phi2; auto.
 Qed.
- 
 
 Lemma xelements_app:
  forall A (rho: PTree.t A) i al bl,
@@ -1335,18 +1315,6 @@ unfold age1; simpl.
 apply age1_juicy_mem_unpack'; auto.
 Qed. (* maybe don't need this? *)
 
-Lemma level_free_list_juicy_mem:
-  forall bl jm m P, level (free_list_juicy_mem jm bl m P) = level jm.
-Proof.
-induction bl; simpl; intros; auto.
-destruct a; destruct p.
-simpl in IHbl; rewrite IHbl.
-clear.
-unfold free_juicy_mem; simpl.
-unfold inflate_free; simpl.
-apply level_make_rmap.
-Qed.
-
 Lemma rmap_age_i:
  forall w w' : rmap,
     level w = S (level w') ->
@@ -1368,147 +1336,30 @@ apply H0.
 symmetry; apply resource_at_approx.
 Qed.
 
-
-Lemma free_list_resource_decay':
-  forall bl jm jm' 
-   (FL: free_list (m_dry jm) bl = Some (m_dry jm')),
-  free_list_juicy_mem jm bl (m_dry jm') FL = jm' ->
-resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
+Lemma free_juicy_mem_resource_decay:
+  forall jm b lo hi m' jm'
+     (H : free (m_dry jm) b lo hi = Some m'), 
+    free_juicy_mem jm m' b lo hi H = jm' ->
+    resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
 Proof.
-induction bl; intros.
-simpl in *. subst jm'.
-apply resource_decay_refl; intros.
-apply (juicy_mem_alloc_cohere jm l H).
-simpl in H.
-destruct a. destruct p.
-set (jm2 := (free_juicy_mem jm
-         (proj1_sig
-            (free_list_free (m_dry jm) b z0 z bl (m_dry jm')
-               (free_list_juicy_mem_obligation_1 jm ((b, z0, z) :: bl)
-                  (m_dry jm') FL b z0 z bl eq_refl))) b z0 z
-         (free_list_juicy_mem_obligation_2 jm ((b, z0, z) :: bl) (m_dry jm')
-            FL b z0 z bl eq_refl))) in *.
-apply (resource_decay_trans (nextblock (m_dry jm)) (nextblock (m_dry jm))
-    _  (m_phi jm2)).
-apply Pos.le_refl.
-assert (exists m2, free (m_dry jm) b z0 z = Some m2 /\ 
-                              free_list m2 bl = Some (m_dry jm')). {
-  clear - FL.
-  simpl in FL.
-  destruct (free (m_dry jm) b z0 z) eqn:?; try discriminate.
-  exists m; split; auto.
-}
-destruct H0 as [m2 [? ?]].
-Admitted. (* perhaps the right way to do this is to make free_list_juicy_mem
-  nonconstructive, as Inductive rather than Program Definition *)
+intros.
+ subst jm'. simpl.
+ apply (inflate_free_resource_decay _ _ _ _ _ H).
+Qed.  
 
 Lemma free_list_resource_decay:
- forall bl jm jm2
-  (FL : free_list (m_dry jm) bl = Some (m_dry jm2)), 
-  age (free_list_juicy_mem jm bl (m_dry jm2) FL) jm2 ->
-  resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm2).
+  forall bl jm jm',
+  free_list_juicy_mem jm bl jm' ->
+  resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm').
 Proof.
-intros.
-pose proof (age_level _ _ H).
-rewrite level_free_list_juicy_mem in H0.
-assert (level (m_phi jm) > 0)%nat.
-simpl in H0; omega.
-assert (exists jm', age jm jm').
-apply can_age_jm.
-intro.
-apply age1_level0 in H2. omega.
-destruct H2 as [jm' ?].
-eapply resource_decay_trans.
-apply  Pos.le_refl.
-apply age1_resource_decay.
-apply H2.
-assert (m_dry jm = m_dry jm').
-apply age_jm_dry; auto.
-rewrite H3.
-assert (FL': free_list (m_dry jm') bl = Some (m_dry jm2)).
-rewrite <- H3; auto.
-assert (free_list_juicy_mem jm' bl (m_dry jm2) FL' = jm2).
-clear H0 H1.
-{
-revert jm jm' jm2 FL H H2 H3 FL'.
-induction bl; intros.
-simpl in *; hnf in H,H2. congruence.
-destruct a; destruct p.
-generalize FL'; intro.
-simpl in FL'.
-destruct (free (m_dry jm') b z0 z) eqn:?; try discriminate.
-assert (free (m_dry jm) b z0 z = Some m) by (rewrite H3; auto).
-pose (jm3 := free_juicy_mem _ _ _ _ _ H0).
-pose (jm3' := free_juicy_mem _ _ _ _ _ Heqo).
-specialize (IHbl jm3 jm3').
-assert (m_dry jm3 = m) by reflexivity.
-specialize (IHbl jm2 FL').
-spec IHbl. {
-unfold jm3; simpl.
-hnf in H|-*.
-rewrite <- H.
-f_equal.
-simpl.
-apply free_list_juicy_mem_ext.
-apply free_juicy_mem_ext; auto.
-match goal with |- _ = proj1_sig ?A => destruct A end.
-simpl.
-destruct a.
-congruence.
-auto.
-}
-spec IHbl. {
-unfold jm3, jm3'.
-apply age1_juicy_mem_unpack'; split; simpl; auto.
-clear - H2.
-assert (LEV: (level (m_phi jm) >= level (m_phi jm'))%nat).
-apply age_jm_phi in H2; apply age_level in H2; omega.
-apply rmap_age_i.
-unfold inflate_free; simpl.
-repeat rewrite level_make_rmap.
-apply age_level. apply age_jm_phi; auto.
-intros.
-unfold resource_fmap, inflate_free; simpl.
-rewrite level_make_rmap.
-rewrite resource_at_make_rmap.
-rewrite resource_at_make_rmap.
-pose proof (age1_resource_at (m_phi jm) (m_phi jm') (age_jm_phi H2) l (m_phi jm @ l)).
-rewrite resource_at_approx in H.
-specialize (H (eq_refl _)).
-rewrite H.
-destruct (m_phi jm @ l) eqn:?; auto.
-destruct k; simpl;
-unfold fmap_option; simpl;
-try match goal with |- context [access_at m l] =>
-  destruct (access_at m l)
-end; simpl; auto;
-f_equal;
-rewrite approx_map_idem;
-rewrite preds_fmap_fmap;
-f_equal; apply approx_oo_approx'; auto.
-}
-specialize (IHbl (eq_refl _)).
-change (m_dry jm3') with m in IHbl.
-specialize (IHbl FL').
-unfold free_list_juicy_mem.
-fold free_list_juicy_mem.
-forget  (free_list_juicy_mem_obligation_2 jm' ((b, z0, z) :: bl) (m_dry jm2)
-        FL'0 b z0 z bl eq_refl) as P1.
-forget (free_list_juicy_mem_obligation_3 jm' ((b, z0, z) :: bl) (m_dry jm2) FL'0 b
-     z0 z bl eq_refl) as P3.
-transitivity (free_list_juicy_mem jm3' bl (m_dry jm2) FL').
-apply free_list_juicy_mem_ext; auto.
-unfold jm3'.
-apply free_juicy_mem_ext; auto.
-match goal with |- ?A = ?B => assert (Some A = Some B) end;
-  [ | congruence].
-rewrite <- P1. auto.
-auto.
-}
-
-clear - H4.
-rename jm' into jm. rename jm2 into jm'.
-eapply free_list_resource_decay'; eauto.
+induction 1; intros.
+apply resource_decay_refl; intros.
+apply (juicy_mem_alloc_cohere jm l H).
+apply resource_decay_trans with (nextblock (m_dry jm)) (m_phi jm2).
+apply Pos.le_refl.
+eapply free_juicy_mem_resource_decay; eauto.
+rewrite <- (nextblock_free _ _ _ _ _ H).
+apply IHfree_list_juicy_mem.
 Qed.
 
 Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
@@ -1628,12 +1479,9 @@ spec H19 ; [clear H19 |]. {
  clear - H17' H22 H15.
  eapply can_free_list; try eassumption.
 }
-destruct FL as [m2 FL].
-pose (jm2 := free_list_juicy_mem _ _ _ FL).
-assert (FL2: free_list (m_dry jm') (Clight.blocks_of_env (ve)) = Some (m_dry jm2)).
-   unfold jm2.
-  admit.
-assert (FL3: level jm' = level jm2) by admit.
+destruct FL as [m2 FL2].
+destruct (free_list_juicy_mem_i _ _ _ FL2)
+ as [jm2 [FL [? FL3]]]. subst m2.
 pose (rval := match vl with Some v => v | None => Vundef end). 
 pose (te2 := match ret with
             | None => tx
@@ -1730,7 +1578,7 @@ apply sepcon_derives.
   apply exp_right with Vundef; simpl; auto.
 }
  apply H1; clear H1.
- apply (free_list_juicy_mem_lem jm' (blocks_of_env ve) m2 FL).
+ eapply free_list_juicy_mem_lem; eauto.
  eapply sepcon_derives; try apply H22a; auto.
  apply (stackframe_of_freeable_blocks (func_tycontext' f Delta) _ _ _ H17'); auto.
  subst rho'; reflexivity.
@@ -1743,14 +1591,18 @@ destruct (levelS_age1 jm' _ H21) as [jm'' ?].
 destruct (age_twin' jm' jm2 jm'') as [jm2'' [? ?]]; auto.
 pose proof (age_safe _ _ _ _ H26 _ _ _ H1).
 exists  (State (vx)(te2) k); exists jm2''.
-replace n0 with (level jm2'') by admit.  (* easy *) 
+replace n0 with (level jm2'')
+ by (rewrite <- H25; 
+      apply age_level in H24; 
+      rewrite <- level_juice_level_phi in H21;
+      clear - H21 H24; omega).
 split; auto.
 split.
 simpl.
 rewrite (age_jm_dry H26) in FL2.
 destruct vl. 
 Focus 2.
-unfold fn_funsig in H18. (*rewrite H28 in H18.*)
+unfold fn_funsig in H18.
 rewrite H18 in TC5. simpl in TC5.
 assert (fn_return f = Tvoid). {
  clear - H22; unfold bind_ret in H22; normalize in H22; try contradiction; auto.
@@ -1770,13 +1622,23 @@ destruct ret.
 apply step_return with (zap_fn_return f) None Vundef (PTree.set i v tx); simpl; auto.
 apply step_return with f None Vundef tx; simpl; auto.
 split; [ | rewrite <- H25; apply age_level; auto]. {
- replace (m_dry jm2) with (m_dry jm2'') in FL2
-  by (apply age_jm_dry in H26; auto).
+ rewrite (age_jm_dry H26) in FL2.
  clear FL3 H1.
- unfold jm2 in *; clear jm2; simpl in *.
- assert (m2 = m_dry jm2''). clear H26; congruence.
- clear FL2. subst m2. 
+ apply resource_decay_trans with (nextblock (m_dry jm')) (m_phi jm2).
+ apply Pos.le_refl.
  eapply free_list_resource_decay; eauto.
+ replace (nextblock (m_dry jm')) with (nextblock (m_dry jm2)).
+ apply age1_resource_decay; auto.
+ symmetry.
+ rewrite (age_jm_dry H26).
+ clear - FL2.
+ forget (m_dry jm') as m.
+ revert m FL2; induction (blocks_of_env ve); intros.
+ simpl in FL2. inv FL2; auto.
+ simpl in FL2. destruct a as [[b lo] hi].
+ destruct (free m b lo hi) eqn:?; inv FL2.
+ rewrite <- (IHl _ H0).
+ apply nextblock_free in Heqo; auto.
 }
 }
 (* END OF  "spec H19" *)
@@ -2079,7 +1941,11 @@ auto.
 Qed.
 
 Lemma call_cont_idem: forall k, call_cont (call_cont k) = call_cont k.
-Admitted.
+Proof.
+induction k; intros.
+reflexivity.
+destruct a; simpl; auto.
+Qed.
 
 Definition cast_expropt (e: option expr) t : environ -> option val :=
  match e with Some e' => `Some (eval_expr (Ecast e' t))  | None => `None end.
@@ -2156,8 +2022,7 @@ intros.
 simpl in H7.
 destruct H7; split; auto.
 revert H7; simpl.
-destruct ret; (* next line has 8.3/8.4 compatibility hack *)
-  (specialize (TC ((*m_phi*) jm)) || specialize (TC (m_phi jm)));
+destruct ret; specialize (TC jm);
    unfold tc_expropt in TC; do 3 red in TC; unfold_lift in TC; red in TC.
 simpl.
 unfold_lift.
@@ -2166,13 +2031,13 @@ inv H9.
 inv H14.
 destruct c.
 elimtype False; clear - H7.
-admit.  (* easy *)
+ revert l H7; induction k; try destruct a; simpl; intros; try discriminate; eauto.
 elimtype False; clear - H7.
-admit.  (* easy *)
+ revert l H7; induction k; try destruct a; simpl; intros; try discriminate; eauto.
 elimtype False; clear - H7.
-admit.  (* easy *)
+ revert l H7; induction k; try destruct a; simpl; intros; try discriminate; eauto.
 elimtype False; clear - H7.
-admit.  (* easy *)
+ revert l H7; induction k; try destruct a; simpl; intros; try discriminate; eauto.
 destruct l0.
 clear H0 H2 H8.
 inv H9. fold denote_tc_assert in TC.
