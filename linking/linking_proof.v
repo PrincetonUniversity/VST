@@ -346,6 +346,9 @@ Record frame_inv
     (* source state invariants *)
   ; frame_vis   : vis_inv c mu0
 
+    (* target mu invariants *)
+  ; frame_domt  : DomTgt mu0 = valid_block_dec m20
+
     (* invariants relating m10,m20 to active memories m1,m2*)
   ; frame_fwd1  : mem_forward m10 m1
   ; frame_fwd2  : mem_forward m20 m2
@@ -476,7 +479,9 @@ Record head_inv cd (mu : Inj.t) mus m1 m2 : Type :=
   { head_match : (sims c.(i)).(match_state) cd mu 
                  c.(Core.c) m1 (cast'' pf d.(Core.c)) m2 
   ; head_rel   : All (rel_inv_pred m1 mu) mus 
-  ; head_vis   : vis_inv c mu }.
+  ; head_vis   : vis_inv c mu 
+  ; head_domt  : DomTgt mu = valid_block_dec m2 
+  }.
 
 End head_inv.
 
@@ -599,7 +604,7 @@ Qed.
 
 Lemma head_valid : sm_valid mu m1 m2.
 Proof.
-by case: inv=> // A _ _; apply: (match_validblocks _ A).
+by case: inv=> // A _ _ _; apply: (match_validblocks _ A).
 Qed.
 
 Lemma head_atext_inj ef sig args : 
@@ -874,7 +879,7 @@ Qed.
 
 Lemma lo_head_inv : @head_inv c d pf cd lo mus m1 m2.
 Proof.
-case: inv=> mtch all vis.
+case: inv=> mtch all vis domt.
 apply: Build_head_inv=> //.
 clear - all; elim: mus all=> // mu0 mus' IH /= []rel rall.
 split; last by apply: IH.
@@ -899,6 +904,7 @@ by rewrite /Consistent /= replace_locals_as_inj.
 case: rel=> _ _ _ H b; case/andP=> /= H2 H3; apply: H. 
 by apply/andP; split=> //=; move: H2; rewrite lo_vis.
 by case: vis=> rvis; apply: Build_vis_inv; rewrite lo_vis.
+by rewrite replace_locals_DomTgt.
 Qed.
 
 End head_inv_leakout.
@@ -1134,6 +1140,7 @@ split.
 exists pf,cd,e,sig,args1,e,sig,args2; split=> //.
 by apply: (head_match inv).
 by apply: (head_vis inv).
+by apply: (head_domt inv).
 by case: tlinv.
 Qed.
 
@@ -1348,7 +1355,7 @@ move=> []inv all.
 split.
 exists pf,cd,e1,sig1,vals1,e2,sig2,vals2.
 
-case: inv=> ? ? ? ? val'' frmatch ? ? frvinj visinv fwd1' fwd2' ? ?. 
+case: inv=> ? ? ? ? val'' frmatch ? ? frvinj visinv domt fwd1' fwd2' ? ?. 
 apply: Build_frame_inv=> //.
 
 by apply: (mem_forward_trans _ _ _ fwd1' fwd1). 
@@ -1454,8 +1461,19 @@ Proof.
 move=> hdinv frame args rets mylocs effstep mtch locs.
 apply: Build_head_inv=> //.
 by apply: (all_relinv_step frame); apply: (head_rel hdinv).
-+ case: hdinv=> hdmtch ? A; apply: (vis_inv_step A)=> //.
++ case: hdinv=> hdmtch ? A ?; apply: (vis_inv_step A)=> //.
   by apply match_visible in hdmtch.
+move: alloc; case/sm_locally_allocatedChar=> _ []-> []_ []H1 []_ H2.
+rewrite (head_domt hdinv); extensionality b.
+case e: (freshloc m2 m2' b). 
+rewrite orb_comm /=; move: e; rewrite freshloc_charT; case.
+by move/valid_dec=> ->.
+rewrite orb_comm /=; move: e; rewrite freshloc_charF; case.
+by move=> v; rewrite (valid_dec v); case: (fwd2 v); move/valid_dec=> ->.
+move=> H3; case e: (valid_block_dec m2' b)=> [x|x].
+by elimtype False; apply: H3; apply: x.
+case f: (valid_block_dec m2 b)=> [y|//].
+by case: (fwd2 y)=> H4; elimtype False; apply: H3; apply: H4.
 Qed.
 
 End step_lems.
@@ -1576,7 +1594,7 @@ Proof. by rewrite /inContext /callStackSize R_len_callStack. Qed.
 Lemma R_wd : SM_wd mu.
 Proof.
 case: (R_inv pf)=> pf2 []mu_top []mus []eq []pf3 [].
-by move/match_sm_wd=> wd _ _ _; rewrite eq.
+by move/match_sm_wd=> wd _ _ _ _; rewrite eq.
 Qed.
 
 End R_lems.
@@ -1974,7 +1992,8 @@ have mu_new_vis_inv: vis_inv c1 mu_new'.
 
 have hdinv_new:
   head_inv pf_new cd_new mu_new' (pkg :: mus) m1 m2.
-{ by apply: Build_head_inv. }
+{ apply: Build_head_inv=> //.
+  by rewrite /= /mu_new initial_SM_DomTgt /domT; apply: (head_domt hdinv). }
 
 exists (existT _ (Core.i c1) cd_new),st2',mu_new'; split.
 rewrite LinkerSem.handleP; exists all_at2,ix,c2; split=> //.
@@ -2789,6 +2808,11 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
       by move=> L; apply/orP; right; apply: subF. } } 
 }(*END {subset RC.roots ...}*)
 }(*END vis_inv*)
+{(*Label: domt*)
+  rewrite /= /mu' replace_externs_DomTgt /nu' reestablish_DomTgt.
+  apply: (head_domt hdinv)=> //. 
+  by apply: loctgt_nu_top.
+}(*END domt*)
 }(*END head_inv*)
 
 split; first by move: allinv; rewrite mus_eq.
@@ -3061,6 +3085,10 @@ move/(_ _ _ _ _ U1_DEF' MATCH).
 move=> []c2' []m2' []cd' []mu_top0.
 move=> []INCR []SEP []LOCALLOC []MATCH' []U2 []STEP' PERM.
 
+have fwd2: mem_forward m2 m2'.
+{ case: STEP'=> step; first by apply effstep_plus_fwd in step.
+  by case: step=> step0 step1; apply effstep_star_fwd in step0. }
+
 have mu_top'_wd: SM_wd mu_top0 by move: MATCH'; apply: match_sm_wd.
 set mu_top' := Inj.mk mu_top'_wd.
 have mu_top'_valid: sm_valid mu_top' m1' m2'
@@ -3086,7 +3114,7 @@ split.
    have rcvis: REACH_closed m1' (vis mu').
    { by apply match_visible in MATCH'; apply: MATCH'. }
    apply: (@head_inv_step 
-     mupkg m1 m2 mu_top' m1' m2' (head_valid hdinv) INCR SEP LOCALLOC rcvis
+     mupkg m1 m2 mu_top' m1' m2' fwd2 (head_valid hdinv) INCR SEP LOCALLOC rcvis
      (c INV) (d INV) pf c1' c2'' _ _ mus
      (STACK.pop (CallStack.callStack (s1 INV))) 
      (STACK.pop (CallStack.callStack (s2 INV))) U1 hdinv frameall)=> //=.
@@ -3101,10 +3129,6 @@ split.
    - case; case=> n=> EFFSTEPN _. 
      by apply: (effect_semantics.effstepN_unchanged EFFSTEPN).
    by move: (effax1 EFFSTEP)=> []; move/corestep_fwd.
-   case: STEP'.
-   - by case=> n; apply: effect_semantics.effstepN_fwd.
-   - case; case=> n=> EFFSTEPN _.
-     by apply: (effect_semantics.effstepN_fwd EFFSTEPN).   
    move=> ? ? X; move: (PERM _ _ X)=> []Y Z; split=> //.
    have [n STEPN]: 
      exists n, effstepN (coreSem (cores_T (Core.i c1)))
