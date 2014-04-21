@@ -1,5 +1,4 @@
 Module SepComp.
-
 Require Export sepcomp.core_semantics.
 Require Export sepcomp.mem_lemmas.
 Require Export sepcomp.StructuredInjections.
@@ -14,5 +13,9 @@ Require Export sepcomp.extspec.
 Require Export sepcomp.Address.
 Require Export sepcomp.rg_lemmas.
 Require Export sepcomp.arguments.
-
 End SepComp.
+
+Module SepCompExtras.
+Require Export sepcomp.mem_wd.
+Require Export sepcomp.nucular_semantics.
+End SepCompExtras.
