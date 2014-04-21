@@ -69,7 +69,7 @@ MSL_FILES = \
 
 SEPCOMP_FILES= \
   Address.v step_lemmas.v Coqlib2.v extspec.v FiniteMaps.v \
-  mem_lemmas.v mem_interpolants.v mem_interpolation_defs.v \
+  mem_lemmas.v mem_wd.v mem_interpolants.v mem_interpolation_defs.v \
   mem_interpolation_EE.v mem_interpolation_EI.v mem_interpolation_IE.v mem_interpolation_II.v \
   mem_interpolation_proofs.v compiler_correctness.v \
   core_semantics.v core_semantics_lemmas.v \
