@@ -327,6 +327,23 @@ destruct mu as [locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern
 reflexivity.
 Qed.
 
+Lemma replace_locals_sharedTgt:
+  forall (mu : SM_Injection) (pubSrc' pubTgt' : block -> bool),
+  sharedTgt (replace_locals mu pubSrc' pubTgt') =
+  (fun b : block => frgnBlocksTgt mu b || pubTgt' b).
+Proof. intros. unfold sharedTgt. extensionality b.
+  rewrite replace_locals_frgnBlocksTgt, replace_locals_pubBlocksTgt.
+  trivial.
+Qed.
+
+Lemma replace_locals_visTgt:
+  forall (mu : SM_Injection) (pubSrc' pubTgt' : block -> bool),
+  visTgt (replace_locals mu pubSrc' pubTgt') = visTgt mu.
+Proof. intros. unfold visTgt. extensionality b.
+  rewrite replace_locals_frgnBlocksTgt, replace_locals_locBlocksTgt.
+  trivial.
+Qed.
+
 Definition replace_externs (mu:SM_Injection) fSrc' fTgt': SM_Injection :=
   match mu with 
     Build_SM_Injection locBSrc locBTgt pSrc pTgt local extBSrc extBTgt fSrc fTgt extern =>
@@ -1500,6 +1517,20 @@ Lemma restrict_sm_RNG: forall mu X,
       RNG (restrict_sm mu X) = RNG mu.
 Proof. intros. destruct mu; reflexivity. Qed.
 
+Lemma restrict_sm_visTgt mu X: visTgt (restrict_sm mu X) = visTgt mu.
+Proof. intros. unfold visTgt.
+  rewrite restrict_sm_locBlocksTgt, restrict_sm_frgnBlocksTgt.
+  trivial.
+Qed.
+
+Lemma replace_locals_exportedTgt:
+  forall (mu : SM_Injection) (pubSrc' pubTgt' : block -> bool) vals,
+  exportedTgt (replace_locals mu pubSrc' pubTgt') vals =
+  (fun b : block => getBlocks vals b || (frgnBlocksTgt mu b || pubTgt' b)).
+Proof. intros. unfold exportedTgt. extensionality b.
+  rewrite replace_locals_sharedTgt. trivial.
+Qed.
+
 Lemma restrict_sm_WD:
       forall mu (WD: SM_wd mu) X
           (HX: forall b, vis mu b = true -> X b = true),
@@ -1629,3 +1660,35 @@ Proof. intros. rewrite mkinitial_SM_equals_initial_SM in NU.
     intros. eapply SMV. apply H.
     intros. eapply SMV. apply H.
 Qed. *)
+
+Lemma vals_def_inject_getBlock j b2: forall vals1 vals2
+    (INJ: val_list_inject j vals1 vals2)
+    (DEF : vals_def vals1 = true)
+    (GB: getBlocks vals2 b2 = true),
+    exists b1 d, j b1 = Some(b2,d) /\ getBlocks vals1 b1 = true.
+Proof. intros.
+  induction INJ; simpl; intros.
+     rewrite getBlocksD_nil in GB. inv GB.
+  rewrite getBlocksD in GB.
+  inv H; simpl in *. 
+    destruct IHINJ as [b1 [d [J GB1]]]; trivial.
+      exists b1, d; split; trivial.
+    destruct IHINJ as [b1 [d [J GB1]]]; trivial.
+      exists b1, d; split; trivial.
+    destruct IHINJ as [b1 [d [J GB1]]]; trivial.
+      exists b1, d; split; trivial.
+    destruct (eq_block b0 b2); subst; simpl in *.
+      exists b1, delta; split; trivial.
+        rewrite getBlocks_char. exists ofs1; left; trivial.
+      destruct IHINJ as [bb1 [d [J GB1]]]; trivial.
+      exists bb1, d; split; trivial. rewrite getBlocks_char in GB1. 
+        rewrite getBlocks_char. destruct GB1. eexists; right; eassumption.
+    inv DEF.
+Qed.
+
+Lemma visTgt_DomTgt mu b: visTgt mu b = true -> SM_wd mu -> DomTgt mu b = true.
+Proof. unfold visTgt, DomTgt; intros.
+  destruct (locBlocksTgt mu b); simpl in *; trivial.
+  eapply frgnBlocksExternTgt; assumption.
+Qed.
+

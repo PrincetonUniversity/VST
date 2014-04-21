@@ -1496,11 +1496,21 @@ Proof.
    injection ALLOC. simpl; intros. subst.
    simpl. rewrite PMap.gss. reflexivity.
 Qed.
+Lemma AllocContentsOther: forall b', b' <> b -> 
+     (Mem.mem_contents m2) !! b' = (Mem.mem_contents m1) !! b'.
+Proof.
+   injection ALLOC. simpl; intros. subst. simpl.
+   rewrite PMap.gso; trivial.
+Qed.
 Opaque Mem.alloc.
 
 Lemma AllocContentsUndef1: forall z,
      ZMap.get z (Mem.mem_contents m2) !! b = Undef.
 Proof. intros. rewrite AllocContentsUndef . apply ZMap.gi. Qed.
+
+Lemma AllocContentsOther1: forall b', b' <> b -> 
+      (Mem.mem_contents m2) !! b' = (Mem.mem_contents m1) !! b'. 
+Proof. intros. rewrite AllocContentsOther; trivial. Qed.
 
 End ALLOC.
 
