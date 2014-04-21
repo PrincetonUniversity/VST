@@ -645,16 +645,6 @@ Axiom semax_fun_id:
                   c Q ->
     @semax Espec Delta P c Q.
 
-Axiom semax_call_ext:
-  forall {Espec: OracleKind},
-     forall Delta P Q ret a tl bl a' bl',
-      typeof a = typeof a' ->
-       local (tc_environ Delta) && P |-- 
-                  local (`eq (eval_expr a) (eval_expr a')) &&
-                  local (`eq (eval_exprlist tl bl) (eval_exprlist tl bl')) ->
-  @semax Espec Delta P (Scall ret a bl) Q ->
-  @semax Espec Delta P (Scall ret a' bl') Q.
-
 (* THESE RULES FROM semax_straight *)
 
 Axiom semax_set : 

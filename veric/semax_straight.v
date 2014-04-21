@@ -281,6 +281,17 @@ match (eval_expr e rho) with
 | _ => FF
 end.
 
+Lemma extend_sepcon_TT {A} {JA: Join A} {PA: Perm_alg A}{SA: Sep_alg A} {AG: ageable A} {Aga: Age_alg A}:
+ forall P, boxy extendM (P * TT).
+Proof. intros. hnf.
+ apply pred_ext.
+ intros ? ?. hnf in H. apply H. apply extendM_refl.
+ intros ? ?. intros ? ?. destruct H0 as [b ?].
+ destruct H as [? [? [? [? ?]]]].
+ destruct (join_assoc H H0) as [c [? ?]].
+ exists x; exists c; split; auto.
+Qed.
+
 Lemma semax_ptr_compare : 
 forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     is_comparison cmp = true  ->
@@ -316,7 +327,8 @@ replace (fun rho : environ =>
       |> P rho)) 
   by (extensionality rho;  repeat rewrite later_andp; auto).
 intros CMP TC2. 
-apply semax_straight_simple; auto. admit. 
+apply semax_straight_simple; auto.
+intros; repeat apply boxy_andp; auto;  apply extend_later'; apply extend_sepcon_TT.
 intros jm jm' Delta' ge vx tx rho k F TS [[[[TC3 TC1]  TC4] MT1] MT2] TC' Hcl Hge ? ?.
 specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
 specialize (TC1 (m_phi jm') (age_laterR (age_jm_phi H))).
