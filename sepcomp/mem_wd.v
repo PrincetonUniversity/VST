@@ -221,30 +221,43 @@ Proof.
 Qed. 
 
 Definition valid_genv {F V:Type} (ge:Genv.t F V) (m:mem) :=
-  forall i b, Genv.find_symbol ge i = Some b -> val_valid (Vptr b Int.zero) m.
+   (forall i b, Genv.find_symbol ge i = Some b -> val_valid (Vptr b Int.zero) m) 
+/\ (forall gv b, Genv.find_var_info ge b = Some gv -> val_valid (Vptr b Int.zero) m).
 
 Lemma valid_genv_alloc: forall {F V:Type} (ge:Genv.t F V) (m m1:mem) lo hi b
     (ALLOC: Mem.alloc m lo hi = (m1,b)) (G: valid_genv ge m), valid_genv ge m1.
-Proof. intros. intros x; intros.
+Proof. intros. split. intros x; intros.
   apply (Mem.valid_block_alloc _ _ _ _ _ ALLOC).
+  destruct G as [G G0].
   apply (G _ _ H).
+  destruct G as [G G0].
+  intros gv b0 H. 
+  apply (Mem.valid_block_alloc _ _ _ _ _ ALLOC).
+  apply (G0 _ _ H).
 Qed.
 
 Lemma valid_genv_store: forall {F V:Type} (ge:Genv.t F V) m m1 b ofs v chunk
     (STORE: Mem.store chunk m b ofs v = Some m1) 
      (G: valid_genv ge m), valid_genv ge m1.
-Proof. intros. intros x; intros.
+Proof. intros. split. intros x; intros.
   apply (Mem.store_valid_block_1 _ _ _ _ _ _ STORE).
-  apply (G _ _ H).
+  destruct G as [G G0]. apply (G _ _ H).
+  intros.   apply (Mem.store_valid_block_1 _ _ _ _ _ _ STORE).
+  destruct G as [G G0]. apply (G0 _ _ H).
 Qed.
 
 Lemma valid_genv_store_zeros: forall {F V:Type} (ge:Genv.t F V) m m1 b y z 
     (STORE_ZERO: store_zeros m b y z = Some m1)
     (G: valid_genv ge m), valid_genv ge m1.
-Proof. intros. intros x; intros.
+Proof. intros. split. intros x; intros.
   apply Genv.store_zeros_nextblock in STORE_ZERO.
-  specialize (G _ _ H); simpl in *. unfold Mem.valid_block in *. 
+  destruct G as [G G0]. specialize (G _ _ H); simpl in *. 
+  unfold Mem.valid_block in *. 
   rewrite STORE_ZERO. apply G.
+  intros. destruct G as [G G0]. specialize (G0 _ _ H); simpl in *. 
+  unfold Mem.valid_block in *. 
+  apply Genv.store_zeros_nextblock in STORE_ZERO.
+  rewrite STORE_ZERO. apply G0.
 Qed.
 
 Lemma mem_wd_store_zeros: forall m b p n m1
@@ -259,9 +272,11 @@ Qed.
 Lemma valid_genv_drop: forall {F V:Type} (ge:Genv.t F V) (m m1:mem) b lo hi p
     (DROP: Mem.drop_perm m b lo hi p = Some m1) (G: valid_genv ge m), 
     valid_genv ge m1.
-Proof. intros. intros x; intros.
+Proof. intros. split. intros x; intros.
   apply (Mem.drop_perm_valid_block_1 _ _ _ _ _ _ DROP).
-  apply (G _ _ H).
+  destruct G as [G G0]; apply (G _ _ H).
+  intros. apply (Mem.drop_perm_valid_block_1 _ _ _ _ _ _ DROP).
+  destruct G as [G G0]; apply (G0 _ _ H).
 Qed.
 
 Lemma mem_wd_store_init_data: forall {F V} (ge: Genv.t F V) a (b:block) (z:Z) 
@@ -274,7 +289,8 @@ Proof. intros F V ge a.
    remember (Genv.find_symbol ge i) as d.
      destruct d; inv SID.
      eapply (mem_wd_store _ _ _ _ _ _ H0 H2).
-    apply eq_sym in Heqd. apply (H _ _ Heqd). 
+    apply eq_sym in Heqd. 
+    destruct H as [H _]; apply (H _ _ Heqd). 
 Qed.
 
 Lemma valid_genv_store_init_data: 
@@ -284,14 +300,18 @@ Lemma valid_genv_store_init_data:
 Proof. intros F V ge a.
   destruct a; simpl; intros;
   try solve [
-    intros x bb; intros; simpl;
-      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (H _ _ H0))].
+    split; intros x bb; intros; simpl;
+      destruct H as [A B]; 
+      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (A _ _ H0));
+      try apply (Mem.store_valid_block_1 _ _ _ _ _ _ SID _ (B _ _ H0))].
     inv SID; trivial.
-    remember ( Genv.find_symbol ge i) as d.
+    remember (Genv.find_symbol ge i) as d.
       destruct d; inv SID. 
       apply eq_sym in Heqd.
-      intros bb; intros; simpl. 
-      apply (Mem.store_valid_block_1 _ _ _ _ _ _ H1 _ (H _ _ H0)).
+      destruct H as [A B].
+      split. intros bb; intros; simpl. 
+      apply (Mem.store_valid_block_1 _ _ _ _ _ _ H1 _ (A _ _ H)).
+      intros; apply (Mem.store_valid_block_1 _ _ _ _ _ _ H1 _ (B _ _ H)).
 Qed.
 
 Lemma mem_wd_store_init_datalist: forall {F V} (ge: Genv.t F V) l (b:block) 
@@ -401,7 +421,6 @@ eapply (IHl  _ _  H2).
     apply (mem_wd_alloc_global ge _ _ _ Heqd H H0).
     apply (valid_genv_alloc_global _ _ _ _ Heqd H0).
 Qed.
-
 
 Lemma mem_wd_load: forall m ch b ofs v
   (LD: Mem.load ch m b ofs = Some v)

@@ -88,7 +88,6 @@ Let cores_S (ix : 'I_N) :=
 Variable nucular_T : 
   forall i : 'I_N,
   Nuke.nucular_semantics (cores_T i).(coreSem).
-
 Variable fun_tbl : ident -> option 'I_N.
 Variable sims : forall i : 'I_N, 
   let s := cores_S i in
@@ -1778,8 +1777,24 @@ have j_domS_domT:
 { move=> b1 b2 d0; rewrite /j /domS /domT; move/as_inj_DomRng.
   by move/(_ (Inj_wd _)). }
 
+have my_atext2: 
+    at_external (coreSem (cores_T (Core.i (d inv)))) (Core.c (d inv)) 
+  = Some (ef,sig,args2).
+{ move: atext2'. 
+  set T := C \o cores_T.
+  set P := fun (ix : 'I_N) (c : T ix) => 
+    at_external (coreSem (cores_T ix)) c = Some (ef,sig,args2).
+  change (P (Core.i (c inv)) (cast T (sym_eq pf) (Core.c (d inv)))
+       -> P (Core.i (d inv)) (Core.c (d inv))).
+  by apply: cast_indnatdep'. }
+
+have wmd: mem_wd m2.
+{ by case: (Nuke.wmd_at_external (ge (cores_T (Core.i (d inv)))) 
+             (head_nukeI hdinv) my_atext2). }
+
 have DomTgt_rc: REACH_closed m2 (DomTgt mu_top).
-{ by move: (head_match hdinv)=> mtch; apply match_target in mtch. }
+{ move=> b rch; rewrite (head_domt hdinv) in rch|-*. 
+  by apply: valid_dec; apply: mem_wd_reach. }
 
 have defs1: vals_def args1.
 { clear - atext1'; move: atext1'; rewrite /= /RC.at_external.
@@ -1822,7 +1837,7 @@ have all_at2: all (atExternal cores_T) (CallStack.callStack st2).
   move=> /=; apply/andP; split=> //.
   move: A; rewrite /LinkerSem.at_external0 /atExternal.
   rewrite /d /s2 /pf2 /peekCore.
-  by case: (STACK.head _ _)=> ? /= d atext2; rewrite /RC.at_external atext2. }
+  by case: (STACK.head _ _)=> ? /= d atext2_; rewrite /RC.at_external atext2_. }
 
 have globs_frgnS:
   forall b,
@@ -2015,25 +2030,15 @@ have hdinv_new:
   { by move: (R_ge inv)=> val_ges; apply: (val_ges (Core.i (c inv))). }
   have vgenv2: valid_genv (ge (cores_T (Core.i c2))) m2.
   { by move: (R_ge inv)=> val_ges; apply: (val_ges (Core.i c2)). }
-  have atext2: 
-      at_external (coreSem (cores_T (Core.i (d inv)))) (Core.c (d inv)) 
-    = Some (ef,sig,args2).
-  { move: atext2'. 
-    set T := C \o cores_T.
-    set P := fun (ix : 'I_N) (c : T ix) => 
-      at_external (coreSem (cores_T ix)) c = Some (ef,sig,args2).
-    change (P (Core.i (c inv)) (cast T (sym_eq pf) (Core.c (d inv)))
-         -> P (Core.i (d inv)) (Core.c (d inv))).
-    by apply: cast_indnatdep'. }
-  have wmd: mem_wd m2.
+  have vval: Forall (val_valid^~ m2) args2.
   { by case: (Nuke.wmd_at_external (ge (cores_T (Core.i (d inv)))) 
-               (head_nukeI hdinv) atext2). }
+               (head_nukeI hdinv) my_atext2). }
   have init: initial_core (cores_T (Core.i c2)).(coreSem) 
                (ge (cores_T (Core.i c2))) (Vptr id Int.zero) args2 
            = Some c2.(Core.c).
   { clear - init2; move: init2; rewrite /initCore.
     by case e: (initial_core _ _ _ _)=> [c|//]; case=> <- /=. }
-  by apply: (Nuke.wmd_initial (nucular_T (Core.i c2)) vgenv2 wmd init). }
+  by apply: (Nuke.wmd_initial (nucular_T (Core.i c2)) vval vgenv2 wmd init). }
 
 exists (existT _ (Core.i c1) cd_new),st2',mu_new'; split.
 rewrite LinkerSem.handleP; exists all_at2,ix,c2; split=> //.
@@ -2912,18 +2917,23 @@ Lemma valid_genvs_domain_eq F1 F2 V1 V2
   valid_genv ge1 m -> 
   valid_genv ge2 m.
 Proof.
-move=> H1 H2 id b fnd. 
+move=> H1 []H2 H3; split.
+move=> id b fnd. 
 have isGlob: isGlobalBlock ge2 b.
 { rewrite /isGlobalBlock /=; apply/orP; left.
   by move: fnd; move/Genv.find_invert_symbol=> ->. }
-move: (genvs_domain_eq_isGlobal _ _ H1)=> H3; rewrite -H3 in isGlob.
-have [id' fnd']: exists id, Genv.find_symbol ge1 id = Some b.
+move: (genvs_domain_eq_isGlobal _ _ H1)=> A; rewrite -A in isGlob.
+have [[id' fnd']|[id' fnd']]: 
+   (exists id, Genv.find_symbol ge1 id = Some b)
+\/ (exists gv, Genv.find_var_info ge1 b = Some gv).
 { case: (orP isGlob)=> /=.
   case e: (Genv.invert_symbol _ _)=> [id'|//]=> _.
-  by exists id'; apply: Genv.invert_find_symbol.  
-  case e: (Genv.find_var_info _ _)=> [gv|//]=> _.
-  admit. (*TODO: fix bug in defn. of genv2blocks*) }
+  by left; exists id'; apply: Genv.invert_find_symbol.
+  by case e: (Genv.find_var_info _ _)=> [gv|//]=> _; right; exists gv. }
 by apply: (H2 _ _ fnd').
+by apply: (H3 _ _ fnd').
+move=> gv b; case: H1=> _; move/(_ b)=> /= []A B C; case: B; first by exists gv.
+by move=> x fnd; apply: (H3 _ _ fnd).
 Qed.
 
 Lemma link (main : val) : Wholeprog_simulation linker_S linker_T my_ge my_ge main.
@@ -3108,7 +3118,8 @@ eapply Build_Wholeprog_simulation
 
   have vgenv_ix: valid_genv (ge (cores_T ix)) m2.
   { by apply: (valid_genvs_domain_eq (my_ge_T ix) vgenv). }
-  by apply: (Nuke.wmd_initial _ vgenv_ix _ init2).
+
+  by apply: (Nuke.wmd_initial _ vval vgenv_ix wd init2).
   by [].
 
   by move=> ix'; move: vgenv; apply: valid_genvs_domain_eq.
