@@ -334,9 +334,9 @@ Definition field_at_psig :=
 Sep.PSig all_types (share_tv :: c_type_tv :: ident_tv :: val_tv :: val_tv :: nil)
 field_at.
 
-Require Import progs.reverse.
-Instance sample_ls: listspec t_struct_list _tail.
-Proof. eapply mk_listspec; reflexivity. Defined.
+Definition lseg_sample_ls_psig :=
+Sep.PSig all_types (share_tv :: list_elemtype_sample_ls_tv :: val_tv :: val_tv :: nil)
+(lseg sample_ls).
 
 (* we're going on the assumption that peq will compute down to val *)
 (*
@@ -355,7 +355,8 @@ Parameter P : nat -> mpred.
 Parameter Q : nat -> mpred.
 
 Definition sep_predicates : list (Sep.predicate all_types) :=
-field_at_psig 
+field_at_psig  ::
+lseg_sample_ls_psig
      :: Sep.PSig all_types (tvType 11 :: nil)  P  
         :: Sep.PSig all_types (tvType 11 :: nil) Q :: nil.
  
@@ -363,5 +364,6 @@ field_at_psig
 (*Definition sep_predicates : list (Sep.predicate all_types) := field_at_f :: nil.*)
 
 Definition field_at_p := 0%nat.
+Definition lseg_sample_ls_p := 1%nat.
 
 End typed.

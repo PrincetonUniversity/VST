@@ -105,6 +105,8 @@ Section ComputationProver.
     simpl in *; rewrite IHl; auto.
   Qed.
 
+(* This proof can be greatly simplified, in a way that doesn't require
+   exprD_functions_extend_special *)
   Theorem computationProverCorrect : ProverCorrect all_functions computationValid computationProve.
   Proof.
     apply ProverCorrect_ProverCorrect'.
@@ -117,8 +119,8 @@ Section ComputationProver.
     inversion H2.
     eapply do_computation_correct in H3.
     eapply do_computation_correct in H4.
-    eapply exprD_functions_extend_special in H3.
-    eapply exprD_functions_extend_special in H4.
+    (*eapply exprD_functions_extend_special in H3.
+    eapply exprD_functions_extend_special in H4.*)
     inversion H1.
     erewrite H3 in H6.
     erewrite H4 in H6.
@@ -132,9 +134,9 @@ Section ComputationProver.
     rewrite repr_listToRepr_nil in H5.
     apply H5.
 *)
-    intros. auto.
+(*    intros. auto.
     intros.
-    auto.
+    auto. *)
 (*
     apply repr_listToRepr_extend.
     unfold repr_functions in H5.

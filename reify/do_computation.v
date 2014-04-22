@@ -62,7 +62,7 @@ Section typed.
 
   (* Simplify an expression, if we can.
    * Expects that a user-supplied Ltac will have already converted
-   * user-defined functions into Consts, as appropriate *)
+   * user-defined functions into Funcs, as appropriate *)
 
   Definition do_computation (e : expr) (t : tvar) :
     option (tvarD all_types t) :=

@@ -4,6 +4,7 @@ Require Import MirrorShard.SepLemma.
 Require Import sep.
 Require Import reify_derives.
 Require Import functions.
+Require Import types.
 Require Import progs.list_dt.
 Require Import lseg_lemmas.
 Import Expr.
@@ -27,13 +28,10 @@ Import ListNotations.
 (* OK maybe we should just give user a way to reify their own lemmas
    Writing a function like the one we have *)
 Require Import progs.reverse.
-Instance sample_ls: listspec t_struct_list _tail.
-Proof. eapply mk_listspec; reflexivity. Defined.
-
 
 (* By convention listspec is the third argument (after type and ll/id) *)
-Definition list_seg_lemmas := (@lseg_null_null, @next_lseg_equal).
-Definition list_specs := (sample_ls, sample_ls).
+Definition list_seg_lemmas := (@lseg_null_null, @next_lseg_equal, @lseg_null_null).
+Definition list_specs := sample_ls.
 
 (* Wrapper aound reify_hints that adds in the lemmas provided, partially applied to the   given arguments 
    k is the continuation for this function; k' is the continuation for the call to
@@ -56,19 +54,26 @@ partial_apply_lseg_lemma @lseg_null_null (sample_ls, sample_ls) ltac:(fun apps =
 Abort.
 
 (* what data needs to carry over? just ps? *)
-Ltac reify_hints_with_lseg_lemmas unfoldTac pcType stateType isConst
+(*Ltac combine_hints_with_lseg_lemmas unfoldTac pcType stateType isConst
      Ps partial_lemmas lemma_args types funcs preds k :=
   match partial_lemmas with
     | tt => k Ps
     | (?L1, ?L2) => reify_hints_with_lseg_lemmas unfoldTac pcType stateType isConst
                       Ps L1 lemma_args types funcs preds ltac:(fun newPs =>
-                         reify_hints_with_lseg_lemmas unfoldTac pcType stateType isConst
+                         combine_hints_with_lseg_lemmas unfoldTac pcType stateType isConst
                            (newPs, Ps) L2 lemma_args types funcs preds ltac:(fun newrPs =>
-                                              k (newrPs, newPs, Ps))) (*change k?*)
-    | _ => partial_apply_lseg_lemma partial_lemmas lemma_args k (* maybe fun with k applied to arg, tupling? *)
-(*(fun new_lemmas =>
-             reify_hints_with_lseg_lemmas unfoldTac pcType stateType isConst
-             (new_lemmas, Ps) types funcs preds k) *)
+                                              k (newrPs, newPs, Ps)))
+    | _ => partial_apply_lseg_lemma partial_lemmas lemma_args k*)
+
+Ltac combine_hints_with_lseg_lemmas Ps partial_lemmas lemma_args k :=
+  match partial_lemmas with
+    | tt => k Ps
+    | (?L1, ?L2) => combine_hints_with_lseg_lemmas
+                      Ps L1 lemma_args ltac:(fun newPs =>
+                         combine_hints_with_lseg_lemmas
+                           newPs L2 lemma_args ltac:(fun newerPs =>
+                             k newerPs))
+    | _ => partial_apply_lseg_lemma partial_lemmas lemma_args ltac:(fun newP => k (newP, Ps))
   end.
 
 (* Module containing PQ and QP, testing parameters *)
@@ -79,17 +84,24 @@ Axiom QP : forall n,  VericSepLogic_Kernel.himp (Q n) (P n).
 Definition left_hints := (PQ, QP).
 Definition right_hints := QP.
 
-Module TestModule.
-
 Goal False.
 Unset Ltac Debug.
 pose_env.
 let left_hints := eval hnf in left_hints in
 let list_seg_lemmas := eval hnf in list_seg_lemmas in
 let list_specs := eval hnf in list_specs in
-let left_hints' := reify_hints_with_lseg_lemmas ltac:(fun x => x) tt tt is_const left_hints list_seg_lemmas list_specs types functions preds ltac:(fun tup => tup) in
+combine_hints_with_lseg_lemmas left_hints list_seg_lemmas list_specs ltac:(fun tup => id_this tup).
+Abort.
+(*
+let left_hints' := combine_hints_with_lseg_lemmas left_hints list_seg_lemmas list_specs ltac:(fun tup => tup) in
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const left_hints' types functions preds ltac:(fun funcs preds hints => id_this hints)
 .
+Abort.*)
+
+(* todo (later): figure out how to automatically reify all the mpreds we need?
+   for now though it's pretty much just lseg so this is probably
+   unnecessary (after all, we are expecting the user to supply all the
+   data-types for e.g. lists) *)
 
   (*HintModule.reify_hints unfoldTac pcType stateType isConst Ps types funcs preds k'*)
 
