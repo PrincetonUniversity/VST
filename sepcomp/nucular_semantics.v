@@ -110,9 +110,20 @@ Variable F V C : Type.
 
 Variable csem : CoreSemantics (Genv.t F V) C mem.
 
-Record nucular_semantics : Type :=
-{ I : C -> mem -> Prop
+(* A "nucular" semantics is a core semantics that preserves the "WMD"
+   property as an execution invariant. "WMD m" (formally, [mem_wd m],
+   but the former is easier to say) asserts that the memory [m]
+   contains no invalid pointers. An invalid pointer [Vptr b ofs] is one
+   for which b is an invalid block in [m]. *)
 
+Record nucular_semantics : Type :=
+{ (* An invariant on core states and memories, instantiatable by the 
+     person proving that [csem] is a nucular semantics. *) 
+I : C -> mem -> Prop
+
+(* It should be possible to establish the invariant initially, assuming
+   valid arguments, a valid global environment, and a valid initial 
+   memory. *) 
 ; wmd_initial : 
     forall ge m v args c,
     Forall (fun v => val_valid v m) args -> 
@@ -121,6 +132,7 @@ Record nucular_semantics : Type :=
     initial_core csem ge v args = Some c -> 
     I c m
 
+(* Coresteps preserve the invariant. *) 
 ; wmd_corestep : 
     forall ge c m c' m',
     corestep csem ge c m c' m' -> 
@@ -128,25 +140,32 @@ Record nucular_semantics : Type :=
     I c m -> 
     I c' m'
 
+(* When at_external, the arguments and memory passed to the environment
+   must both be valid. *) 
 ; wmd_at_external :
     forall (ge : Genv.t F V) c m ef dep_sig args,
     I c m -> 
     at_external csem c = Some (ef,dep_sig,args) -> 
     Forall (fun v => val_valid v m) args /\ mem_wd m
 
+(* It's possible to reestablish the invariant when external calls return, 
+   assuming that we're passed a valid return memory in the fwd relation 
+   w/r/t m, and we're passed a valid return value. *) 
 ; wmd_after_external :
     forall c m ov c' m',
     I c m -> 
     after_external csem ov c = Some c' -> 
     oval_valid ov m' -> 
     mem_forward m m' -> 
+    mem_wd m' -> 
     I c' m' 
 
+(* We halt with a valid return value and valid memory. *)
 ; wmd_halted : 
     forall c m v,
     I c m -> 
     halted csem c = Some v -> 
-    val_valid v m }.
+    val_valid v m /\ mem_wd m }.
 
 End nucular_semantics.
 

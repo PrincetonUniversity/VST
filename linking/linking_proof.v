@@ -2860,7 +2860,7 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
   by apply: loctgt_nu_top.
 }(*END domt*)
 {(*Label: nucular*)
-  have rv2_val: oval_valid (Some rv2) m2. 
+  have [rv2_val wd2]: [/\ oval_valid (Some rv2) m2 & mem_wd m2]. 
   { have nuke: Nuke.I (nucular_T (Core.i (peekCore st1))) 
                (cast'' pf (Core.c (d inv))) m2. 
     { move: (head_nukeI hdinv).
@@ -2869,9 +2869,9 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
       change (P (Core.i (d inv)) (Core.c (d inv))
            -> P (Core.i (peekCore st1)) (cast T (sym_eq pf) (Core.c (d inv)))).
       by apply: cast_indnatdep. }
-    by apply: (Nuke.wmd_halted nuke hlt2). }
+    by case: (Nuke.wmd_halted nuke hlt2). }
   move: (frame_nukeI fr0)=> nukeI.
-  move: (Nuke.wmd_after_external nukeI aft2' rv2_val fwd2).
+  move: (Nuke.wmd_after_external nukeI aft2' rv2_val fwd2 wd2).
   set T := C \o cores_T.
   set P := fun (ix : 'I_N) (c : T ix) => Nuke.I (nucular_T ix) c m2.
   change (P (Core.i hd2) (cast T (sym_eq pf_eq22') (Core.c hd2')) 
