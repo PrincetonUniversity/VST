@@ -38,7 +38,7 @@ Variable sim : SM_simulation_inject eff_S eff_T ge_S ge_T.
 Lemma rc_sim : 
   SM_simulation_inject (RC.effsem eff_S) eff_T ge_S ge_T.
 Proof.
-case: sim=> cd mtch ord d e f g h i j k init step halt atext aftext.
+case: sim=> cd mtch ord d e f g h i j init step halt atext aftext.
 eapply Build_SM_simulation_inject
   with (core_data   := cd)
        (core_ord    := ord)

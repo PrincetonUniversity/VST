@@ -49,12 +49,6 @@ Record SM_simulation_inject :=
     match_state d mu c1 m1 c2 m2 -> 
     REACH_closed m1 (vis mu)
 
-(* This condition is new *)
-; match_target : 
-    forall d mu c1 m1 c2 m2, 
-    match_state d mu c1 m1 c2 m2 -> 
-    REACH_closed m2 (DomTgt mu)
-
 ; match_restrict : 
     forall d mu c1 m1 c2 m2 X, 
     match_state d mu c1 m1 c2 m2 -> 
