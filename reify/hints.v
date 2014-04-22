@@ -154,9 +154,9 @@ Print right_hints.
 
 Definition right_lemmas : list (Lemma.lemma SL.sepConcl).
 pose_env.
-Eval hnf in right_hints.
-let right_hints := eval hnf in right_hints.(hints) in
+Abort.
+(*let right_hints := eval hnf in right_hints.(hints) in
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const right_hints types functions preds 
 ltac:(fun funcs preds hints =>  apply hints). 
-Defined.
+Defined.*)
 
