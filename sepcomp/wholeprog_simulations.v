@@ -17,17 +17,9 @@ Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.
 Require Import sepcomp.StructuredInjections.
 Require Import sepcomp.reach.
+Require Import sepcomp.mem_wd.
 
-Definition is_vundef (v : val) : bool :=
-  match v with 
-    | Vundef => true
-    | _ => false
-  end.
-
-Definition vals_def (vs : list val) := 
-  List.forallb (fun v => negb (is_vundef v)) vs.
-
-Module Wholeprog_simulation. Section Wholeprog_simulation_inject. 
+Module Wholeprog_simulation. Section Wholeprog_simulation.
 
 Context 
   {F1 V1 C1 F2 V2 C2 : Type}
@@ -37,7 +29,7 @@ Context
   (ge2 : Genv.t F2 V2)
   (main : val).
 
-Record Wholeprog_simulation_inject := 
+Record Wholeprog_simulation :=
 { core_data : Type
 ; match_state : core_data -> SM_Injection -> C1 -> mem -> C2 -> mem -> Prop
 ; core_ord : core_data -> core_data -> Prop
@@ -55,6 +47,11 @@ Record Wholeprog_simulation_inject :=
     (forall b, 
      REACH m2 (fun b0 => isGlobalBlock ge1 b0 || getBlocks vals2 b0) b=true ->
      Mem.valid_block m2 b) -> 
+    mem_wd m2 -> 
+    valid_genv ge2 m2 -> 
+    (*technically redundant with REACH condition -- will be best to require
+      just val_valid and mem_wd*)
+    Forall (fun v2 => val_valid v2 m2) vals2 -> 
     exists mu cd c2,
       as_inj mu = j 
       /\ initial_core Sem2 ge2 main vals2 = Some c2 
@@ -93,6 +90,6 @@ Record Wholeprog_simulation_inject :=
     /\ Mem.inject j m1 m2
     /\ halted Sem2 c2 = Some v2 }.
 
-End Wholeprog_simulation_inject. 
+End Wholeprog_simulation.
 
 End Wholeprog_simulation. 
