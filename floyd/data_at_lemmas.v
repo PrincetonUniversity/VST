@@ -122,9 +122,9 @@ with reptype_structlist (fld: fieldlist) : Type :=
   match fld with
   | Fnil => unit
   | Fcons id ty fld' => 
-          if is_Fnil fld' 
-                      then reptype ty
-                      else prod (reptype ty) (reptype_structlist fld')
+    if is_Fnil fld' 
+      then reptype ty
+      else prod (reptype ty) (reptype_structlist fld')
   end
 with reptype_unionlist (fld: fieldlist) : Type :=
   match fld with
@@ -149,9 +149,9 @@ with reptype'_structlist (fld: fieldlist) : Type :=
   match fld with
   | Fnil => unit
   | Fcons id ty fld' => 
-          if is_Fnil fld' 
-                      then reptype' ty
-                      else prod (reptype' ty) (reptype'_structlist fld')
+    if is_Fnil fld' 
+      then reptype' ty
+      else prod (reptype' ty) (reptype'_structlist fld')
   end
 with reptype'_unionlist (fld: fieldlist) : Type :=
   match fld with
@@ -160,22 +160,22 @@ with reptype'_unionlist (fld: fieldlist) : Type :=
   end.
 
 Fixpoint repinj (t: type): reptype' t -> reptype t :=
-match t as t0 return (reptype' t0 -> reptype t0) with
-| Tvoid => id
-| Tint _ _ _ => Vint
-| Tlong _ _ => Vlong
-| Tfloat _ _ => Vfloat
-| Tpointer _ _ => id
-| Tarray t0 _ _ => (map (repinj t0))
-| Tfunction _ _ => id
-| Tstruct _ f _ => (repinj_structlist f)
-| Tunion _ f _ => (repinj_unionlist f)
-| Tcomp_ptr _ _ => id
-end
+  match t as t0 return (reptype' t0 -> reptype t0) with
+  | Tvoid => id
+  | Tint _ _ _ => Vint
+  | Tlong _ _ => Vlong
+  | Tfloat _ _ => Vfloat
+  | Tpointer _ _ => id
+  | Tarray t0 _ _ => (map (repinj t0))
+  | Tfunction _ _ => id
+  | Tstruct _ f _ => (repinj_structlist f)
+  | Tunion _ f _ => (repinj_unionlist f)
+  | Tcomp_ptr _ _ => id
+  end
 with repinj_structlist (fld: fieldlist) : reptype'_structlist fld -> reptype_structlist fld :=
-match fld as f return (reptype'_structlist f -> reptype_structlist f) with
-| Fnil => id
-| Fcons _ t fld0 =>
+  match fld as f return (reptype'_structlist f -> reptype_structlist f) with
+  | Fnil => id
+  | Fcons _ t fld0 =>
     (if is_Fnil fld0  as b0
       return
         (is_Fnil fld0 = b0 ->
@@ -190,9 +190,9 @@ match fld as f return (reptype'_structlist f -> reptype_structlist f) with
       (repinj t (fst v), repinj_structlist fld0 (snd v))) eq_refl
 end
 with repinj_unionlist (fld: fieldlist) : reptype'_unionlist fld -> reptype_unionlist fld :=
-match fld as f return (reptype'_unionlist f -> reptype_unionlist f) with
-| Fnil => id
-| Fcons _ t fld0 =>
+  match fld as f return (reptype'_unionlist f -> reptype_unionlist f) with
+  | Fnil => id
+  | Fcons _ t fld0 =>
     fun X : reptype' t + reptype'_unionlist fld0 =>
     match X with
     | inl v1 => inl (repinj t v1)
@@ -357,9 +357,9 @@ Fixpoint data_at' (sh: Share.t) (e: type_id_env) (t1: type): Z -> reptype t1 -> 
   | _ => at_offset2 (mapsto sh t1) (* All these C types are by value types *)
   end
 with sfieldlist_at' (sh: Share.t) (e: type_id_env) (alignment: Z) (flds: fieldlist) (pos: Z) : reptype_structlist flds -> val -> mpred :=
-match flds as f return reptype_structlist f -> val -> mpred with
-| Fnil => fun _ p => !!(isptr p) && emp (* empty struct case *)
-| Fcons i t flds0 =>
+  match flds as f return reptype_structlist f -> val -> mpred with
+  | Fnil => fun _ p => !!(isptr p) && emp (* empty struct case *)
+  | Fcons i t flds0 =>
     fun (v : reptype_structlist (Fcons i t flds0)) =>
       (if is_Fnil flds0 as b
         return
@@ -374,21 +374,21 @@ match flds as f return reptype_structlist f -> val -> mpred with
         fun (_ : is_Fnil flds0 = false) (v0 : reptype t * reptype_structlist flds0) =>
           withspacer sh (pos + sizeof t) (alignof_hd flds0) (data_at' sh e t pos (fst v0)) *
           (sfieldlist_at' sh e alignment flds0 (align (pos + sizeof t) (alignof_hd flds0)) (snd v0)))
-   eq_refl v
+    eq_refl v
 end
 with ufieldlist_at' (sh: Share.t) (e: type_id_env) (alignment: Z) (flds: fieldlist) (pos: Z) {struct flds}: reptype_unionlist flds -> val -> mpred :=
-match flds as f return (reptype_unionlist f -> val -> mpred) with
-| Fnil => fun _ p => !!(isptr p) && emp (* empty union case *)
-| Fcons i t flds0 => fun v : (reptype t) + (reptype_unionlist flds0) =>
-  match v with
-  | inl v_hd => 
-    withspacer sh (pos + sizeof t) alignment (data_at' sh e t pos v_hd)
-  | inr v_tl =>
-    if is_Fnil flds0
-    then fun _ => FF
-    else ufieldlist_at' sh e alignment flds0 pos v_tl
-  end
-end.
+  match flds as f return (reptype_unionlist f -> val -> mpred) with
+  | Fnil => fun _ p => !!(isptr p) && emp (* empty union case *)
+  | Fcons i t flds0 => fun v : (reptype t) + (reptype_unionlist flds0) =>
+    match v with
+    | inl v_hd => 
+      withspacer sh (pos + sizeof t) alignment (data_at' sh e t pos v_hd)
+    | inr v_tl =>
+      if is_Fnil flds0
+      then fun _ => FF
+      else ufieldlist_at' sh e alignment flds0 pos v_tl
+    end
+  end.
 
 Definition data_at (sh: Share.t) (t: type) := data_at' sh empty_ti t 0.
 
@@ -438,53 +438,91 @@ Proof.
   + inversion H.
 Qed.
 
-Lemma nested_reptype_structlist_lemma: forall ids t i f a, nested_field_type ids t = Some (Tstruct i f a) -> fieldlist_no_replicate f = true -> reptype_structlist f = nested_reptype_structlist ids t f.
+(*
+
+Lemma fieldlist_no_replicate_mid_criteria: forall f1 i t f2, fieldlist_no_replicate (fieldlist_app f1 (Fcons i t f2)) = (negb (fieldlist_in i f1) && negb (fieldlist_in i f2) && fieldlist_no_replicate (fieldlist_app f1 f2))%bool.
 Proof.
-  unfold nested_field_type.
   intros.
-  destruct (nested_field_rec ids t) as [(ofs', t')|] eqn:HH; inversion H; clear H.
-  subst t'.
-  remember f as f'; rewrite Heqf' in HH, H0.
-  assert (Hprefix: exists f'', fieldlist_app f'' f' = f). exists Fnil. subst f'. reflexivity.
-  clear Heqf'.
-  induction f'.
+  induction f1; simpl.
   + reflexivity.
-  + destruct Hprefix as [f'' ?]. rewrite <- H in H0.
-    pose proof field_type_with_witness _ _ _ _ H0.
-    simpl. destruct f'.
+  + rewrite IHf1.
+    destruct (Pos.eqb i i0) eqn:?; simpl.
+    - apply andb_false_intro1.
+      apply Pos.eqb_eq in Heqb.
+      subst i0.
+      destruct (fieldlist_in i (Fcons i t f2)) eqn:HH.
+      * rewrite fieldlist_app_in, HH.
+        destruct (fieldlist_in i f1); reflexivity.
+      * simpl in HH; rewrite (Pos.eqb_refl) in HH.
+        inversion HH.
+    - rewrite fieldlist_app_in. simpl.
+      rewrite Pos.eqb_sym in Heqb.
+      rewrite Heqb.
+      rewrite fieldlist_app_in.
+      destruct (fieldlist_in i0 f1), (fieldlist_in i0 f2), (fieldlist_in i f1), (fieldlist_in i f2);
+         reflexivity.
+Qed.
+
+Lemma fieldlist_no_replicate_app_comm: forall f1 f2, fieldlist_no_replicate (fieldlist_app f1 f2) = true -> fieldlist_no_replicate (fieldlist_app f2 f1) = true.
+Proof.
+  intros.
+  induction f1.
+  + simpl in *. rewrite fieldlist_app_Fnil. exact H.
+  + rewrite fieldlist_no_replicate_mid_criteria.
+    simpl in H.
+    rewrite fieldlist_app_in in H.
+    destruct (fieldlist_in i f1), (fieldlist_in i f2), (fieldlist_no_replicate (fieldlist_app f1 f2)), 
+      (fieldlist_no_replicate (fieldlist_app f2 f1));
+      firstorder.
+Qed.
+
+*)
+
+Lemma nested_reptype_structlist_lemma: forall ids t i f' f a ofs, nested_field_rec ids t = Some (ofs, Tstruct i (fieldlist_app f' f) a) -> nested_legal_fieldlist t = true -> reptype_structlist f = nested_reptype_structlist ids t f.
+Proof.
+  intros.
+  assert (nested_field_type2 ids t = Tstruct i (fieldlist_app f' f) a).
+    unfold nested_field_type2. rewrite H. reflexivity.
+  apply (nested_field_type2_nest_pred eq_refl ids), nested_pred_atom_pred in H0. 
+  rewrite H1 in H0; clear H1.
+  revert f' H H0; induction f; intros.
+  + reflexivity.
+  + simpl. pose proof field_type_mid _ _ _ _ H0.
+    destruct f.
     - simpl. 
       apply nested_reptype_lemma.
       unfold nested_field_type.
       simpl.
-      rewrite HH.
-      pose proof field_offset_field_type_match i0 f as Hmatch.
-      destruct (field_offset i0 f), (field_type i0 f) eqn:Heq; try inversion Hmatch; clear Hmatch; subst f; rewrite H1 in Heq; inversion Heq; reflexivity.
-    - destruct (is_Fnil (Fcons i1 t1 f')) eqn:Heq; [simpl in Heq; congruence| clear Heq].
-      rewrite (nested_reptype_lemma (i0 :: ids) t t0).
-      rewrite IHf'.
+      rewrite H.
+      solve_field_offset_type i0 (fieldlist_app f' (Fcons i0 t0 Fnil)); inversion H1.
       reflexivity.
-      * exists (fieldlist_app f'' (Fcons i0 t0 Fnil)).
-        rewrite <- fieldlist_app_Fcons.
-        exact H.
+    - destruct (is_Fnil (Fcons i1 t1 f)) eqn:Heq; [simpl in Heq; congruence| clear Heq].
+      rewrite (nested_reptype_lemma (i0 :: ids) t t0).
+      rewrite fieldlist_app_Fcons in H0, H.
+      rewrite (IHf _ H H0).
+      reflexivity.
       * unfold nested_field_type.
         simpl.
-        rewrite HH.
-      pose proof field_offset_field_type_match i0 f as Hmatch.
-      destruct (field_offset i0 f), (field_type i0 f) eqn:Heq; try inversion Hmatch; clear Hmatch; subst f; rewrite H1 in Heq; inversion Heq; reflexivity.
+        rewrite H.
+        solve_field_offset_type i0 (fieldlist_app f' (Fcons i0 t0 (Fcons i1 t1 f)));
+        inversion H1; reflexivity.
 Qed.
 
-Lemma nested_reptype_structlist_lemma2: forall ids t i f a, nested_field_type2 ids t = Tstruct i f a -> fieldlist_no_replicate f = true -> reptype (nested_field_type2 ids t) = nested_reptype_structlist ids t f.
+Lemma nested_reptype_structlist_lemma2: forall ids t i f a, nested_field_type2 ids t = Tstruct i f a -> nested_legal_fieldlist t = true -> reptype (nested_field_type2 ids t) = nested_reptype_structlist ids t f.
 Proof.
   intros.
-  rewrite H.
-  assert (nested_field_type ids t = Some (Tstruct i f a)).
-  unfold nested_field_type, nested_field_type2 in *.
-  destruct (nested_field_rec ids t) as [(?, ?)|].
-  rewrite H. reflexivity.
-  inversion H.
-  apply (nested_reptype_structlist_lemma _ _ i f a); assumption.
+  rewrite H. simpl.
+  unfold nested_field_type2 in H.
+  valid_nested_field_rec ids t H.
+  apply (nested_reptype_structlist_lemma _ _ i Fnil f a ofs); simpl; [|exact H0].
+  unfold nested_field_type2 in H.
+  unfold nested_field_type.
+  valid_nested_field_rec ids t H; inversion H1.
+  subst.
+  reflexivity.
 Qed.
 
+(*
 Lemma nested_reptype_unionlist_lemma: forall ids t i f a, nested_field_type ids t = Some (Tunion i f a) -> fieldlist_no_replicate f = true -> reptype_unionlist f = nested_reptype_unionlist ids t f.
 Proof.
   unfold nested_field_type.
@@ -532,6 +570,7 @@ Proof.
   simpl.
   apply (nested_reptype_unionlist_lemma _ _ i f a); assumption.
 Qed.
+*)
 
 Definition nested_data_at (sh: Share.t) (ids: list ident) (t1: type) (v: reptype (nested_field_type2 ids t1)) : val -> mpred := data_at' sh empty_ti (nested_field_type2 ids t1) (nested_field_offset2 ids t1) v.
 
@@ -558,59 +597,64 @@ Fixpoint nested_sfieldlist_at (sh: Share.t) (ids: list ident) (t1: type) (flds: 
    eq_refl v
   end v.
 
-Lemma nested_data_at_Tstruct: forall sh ids t i f a v1 v2 (H1: nested_field_type2 ids t = Tstruct i f a) (H2: fieldlist_no_replicate f = true), (eq_rect_r (fun x => x) v2 (nested_reptype_structlist_lemma2 _ _ _ _ _ H1 H2)  = v1) -> nested_data_at sh ids t v1 = nested_sfieldlist_at sh ids t f v2.
+Lemma nested_data_at_Tstruct: forall sh ids t i f a v1 v2 (H1: nested_field_type2 ids t = Tstruct i f a) (H2: nested_legal_fieldlist t = true), (eq_rect_r (fun x => x) v2 (nested_reptype_structlist_lemma2 _ _ _ _ _ H1 H2)  = v1) -> no_nested_alignas_type t = true -> nested_data_at sh ids t v1 = nested_sfieldlist_at sh ids t f v2.
 Proof.
   intros.
   remember (nested_reptype_structlist_lemma2 ids t i f a H1 H2) as Heq; clear HeqHeq.
   unfold nested_data_at.
-  revert Heq v1 H; rewrite H1; simpl (reptype (Tstruct i f a)); simpl data_at'; intros.
+  unfold nested_field_type2, nested_field_offset2 in *.
+  valid_nested_field_rec ids t H1. subst t0.
+  revert Heq v1 H; simpl (reptype (Tstruct i f a)); simpl data_at'; intros.
   destruct f; [reflexivity|].
-  remember f as f'.
-  rewrite Heqf' in H1, H2. pattern f' at 1. rewrite Heqf'.
-  assert (exists f'', fieldlist_app f'' (Fcons i0 t0 f') = (Fcons i0 t0 f)); [exists Fnil; subst; reflexivity|].
-  rewrite <- (nested_field_offset2_hd i0 t0 ids t i f a H1).
-  pose proof (nested_field_type2_hd i0 t0 ids t i f a H1).  
-  clear Heqf'.
-  remember (Fcons i0 t0 f) as f0; clear Heqf0 f; rename f0 into f.
-  revert i0 t0 H0 H3 v1 v2 Heq H.
-  induction f'; intros; destruct H0 as [f'' ?].
+  pose proof nested_field_rec_hd _ _ _ _ _ _ _ _ H3.
+  change (Tstruct i (Fcons i0 t0 f) a) with (Tstruct i (fieldlist_app Fnil (Fcons i0 t0 f)) a).
+  change (Fcons i0 t0 f) with (fieldlist_app Fnil (Fcons i0 t0 f)) in H2, H3.
+  remember ofs as ofs0; rewrite Heqofs0 in H3; clear Heqofs0.
+  remember Fnil as f'; clear Heqf'.
+  revert ofs0 f' i0 t0 v1 v2 Heq H H2 H3 H1; induction f; intros.
   + simpl.
-    rewrite H3, H1.
-    replace (nested_data_at sh (i0 :: ids) t v2) with (data_at' sh empty_ti t0 (nested_field_offset2 (i0 :: ids) t) v1); [reflexivity|].
     unfold nested_data_at.
-    revert Heq v2 H; simpl; rewrite H3; intros.
-    unfold eq_rect_r in H; rewrite <- eq_rect_eq in H.
-    rewrite H.
-    reflexivity.
-  + remember (Fcons i0 t0 f') as f'0.
-    assert (is_Fnil f'0 = false) by (subst; reflexivity).
-    simpl in v1, v2.
-    simpl sfieldlist_at';
-      remember (@eq_refl bool (is_Fnil f'0)) as pr_eq; clear Heqpr_eq;
-      revert Heq v1 H pr_eq;
-      simpl (reptype_structlist (Fcons i1 t1 f'0));
-      rewrite H4; intros; clear pr_eq.
-    simpl nested_sfieldlist_at.
-      remember (@eq_refl bool (is_Fnil f'0)) as pr_eq; clear Heqpr_eq;
-      revert Heq v2 H pr_eq.
-      simpl (nested_reptype_structlist ids t (Fcons i1 t1 f'0)).
-      rewrite H4; intros; clear pr_eq.
+    revert Heq v1 v2 H.
+    simpl reptype_structlist. simpl nested_reptype_structlist.
+    unfold nested_field_offset2, nested_field_type2.
+    rewrite H3. rewrite H1.
+    intros.
+    unfold eq_rect_r in H. rewrite <- eq_rect_eq in H. rewrite H. reflexivity.
+  + assert (is_Fnil (Fcons i0 t0 f) = false) by reflexivity.
+    remember (Fcons i0 t0 f) as f''.
+    revert v1 v2 Heq H.
+    simpl reptype_structlist. simpl nested_reptype_structlist.
+    simpl sfieldlist_at'. simpl nested_sfieldlist_at.
+    rewrite H4; intros.
     extensionality p.
-    pattern (nested_field_type2 (i1 :: ids) t) at 1; rewrite H3.
-
-    replace (nested_data_at sh (i1 :: ids) t (fst v2)) with (data_at' sh empty_ti t1 (nested_field_offset2 (i1 :: ids) t) (fst v1)).
-    replace (nested_sfieldlist_at sh ids t f'0 (snd v2) p) with (sfieldlist_at' sh empty_ti (alignof (Tstruct i f a)) f'0 (align (nested_field_offset2 (i1 :: ids) t + sizeof t1) (alignof_hd f'0)) (snd v1) p).
+    assert (Heq_fst: reptype t1 = reptype (nested_field_type2 (i1 :: ids) t)).
+      unfold nested_field_type2; rewrite H1; reflexivity.
+    assert (Heq_snd: reptype_structlist f'' = nested_reptype_structlist ids t f'').
+      rewrite fieldlist_app_Fcons in H3.
+      apply (nested_reptype_structlist_lemma ids t i _ _ a _ H3 H2).
+    assert (H_fst: eq_rect_r (fun x : Type => x) (fst v2) Heq_fst = fst v1).
+      revert v1 v2 Heq H. rewrite Heq_fst, Heq_snd. intros. 
+      unfold eq_rect_r in *. rewrite <- eq_rect_eq in *. rewrite H. reflexivity.
+    assert (H_snd: eq_rect_r (fun x : Type => x) (snd v2) Heq_snd = snd v1).
+      clear H_fst. revert v1 v2 Heq H. rewrite Heq_fst, Heq_snd. intros. 
+      unfold eq_rect_r in *. rewrite <- eq_rect_eq in *. rewrite H. reflexivity.
+    remember (fst v1) as fst_v1; clear Heqfst_v1.
+    remember (snd v1) as snd_v1; clear Heqsnd_v1.
+    remember (fst v2) as fst_v2; clear Heqfst_v2.
+    remember (snd v2) as snd_v2; clear Heqsnd_v2.
+    clear H Heq v1 v2.
+    revert fst_v2 snd_v2 Heq_fst Heq_snd H_fst H_snd.
+    simpl reptype_structlist. simpl nested_reptype_structlist.
+    unfold nested_data_at.
+    unfold nested_field_offset2, nested_field_type2.
+    rewrite H1. intros.
+    unfold eq_rect_r in H_fst. rewrite <- eq_rect_eq in H_fst. rewrite H_fst.
+    subst f''.
+    assert (nested_field_rec (i0 :: ids) t = Some (align (ofs0 + sizeof t1) (alignof_hd (Fcons i0 t0 f)), t0)); [simpl alignof_hd; apply (nested_field_rec_mid i1 t1 i0 t0 ids t i f' f a ofs ofs0 H0 H2 H3 H1)|].
+    rewrite fieldlist_app_Fcons in *.
+    rewrite (IHf _ _ _ _ _ _ Heq_snd H_snd H2 H3 H).
     reflexivity.
-    - subst f'0.
-      rewrite fieldlist_app_Fcons in H0.
-      replace (align (nested_field_offset2 (i1 :: ids) t + sizeof t1)
-        (alignof_hd (Fcons i0 t0 f'))) with (nested_field_offset2 (i0 :: ids) t).
-      erewrite (IHf' i0 t0).
-      reflexivity.
-      * exists (fieldlist_app f'' (Fcons i1 t1 Fnil)).
-        exact H0.
-      * Admitted.
-
+Qed.
       
 (*
 Lemma field_at_offset_zero:
