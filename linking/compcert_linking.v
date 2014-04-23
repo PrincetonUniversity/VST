@@ -67,7 +67,7 @@ Record t := mk
   ; V   : Type
   ; ge  : Genv.t F V
   ; C   : Type
-  ; coreSem : @EffectSem (Genv.t F V) C }.
+  ; sem : @EffectSem (Genv.t F V) C }.
 
 End Modsem.
 
@@ -142,7 +142,7 @@ Definition atExternal (c: Core.t cores) :=
   let: F := (cores i).(F) in
   let: V := (cores i).(V) in
   let: C := (cores i).(C) in
-  let: effSem := (cores i).(coreSem) in
+  let: effSem := (cores i).(sem) in
   if at_external effSem c is Some (ef, dep_sig, args) then true
   else false.
 
@@ -297,7 +297,7 @@ Import Modsem.
 Definition initCore (ix: 'I_N) (v: val) (args: list val) 
   : option (Core.t my_cores):=
   if @initial_core _ _ _ 
-       (my_cores ix).(coreSem)
+       (my_cores ix).(sem)
        (my_cores ix).(Modsem.ge) 
        v args 
   is Some c then Some (Core.mk _ my_cores ix c)
@@ -429,7 +429,7 @@ Definition initial_core (tt: ge_ty) (v: val) (args: list val)
 Definition at_external0 (l: linker N my_cores) :=
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in                                            
-  let: sem := (my_cores ix).(Modsem.coreSem) in                        
+  let: sem := (my_cores ix).(Modsem.sem) in                        
   let: F   := (my_cores ix).(Modsem.F) in                              
   let: V   := (my_cores ix).(Modsem.V) in                              
     @at_external (Genv.t F V) _ _ sem (Core.c c).
@@ -439,7 +439,7 @@ Arguments at_external0 !l.
 Definition halted0 (l: linker N my_cores) :=
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: sem := (my_cores ix).(Modsem.sem) in
   let: F   := (my_cores ix).(Modsem.F) in
   let: V   := (my_cores ix).(Modsem.V) in
     @halted (Genv.t F V) _ _ sem (Core.c c).
@@ -454,7 +454,7 @@ Definition corestep0
   (l: linker N my_cores) (m: Mem.mem) (l': linker N my_cores) (m': Mem.mem) := 
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: sem := (my_cores ix).(Modsem.sem) in
   let: F   := (my_cores ix).(Modsem.F) in
   let: V   := (my_cores ix).(Modsem.V) in
   let: ge  := (my_cores ix).(Modsem.ge) in
@@ -485,7 +485,7 @@ Definition at_external (l: linker N my_cores) :=
 Definition after_external (mv: option val) (l: linker N my_cores) :=
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: sem := (my_cores ix).(Modsem.sem) in
   let: F   := (my_cores ix).(Modsem.F) in
   let: V   := (my_cores ix).(Modsem.V) in
   let: ge  := (my_cores ix).(Modsem.ge) in
@@ -542,7 +542,7 @@ Inductive Corestep (ge : ge_ty) : linker N my_cores -> mem
   let: c     := peekCore l in
   let: c_ix  := Core.i c in
   let: c_ge  := Modsem.ge (my_cores c_ix) in
-  let: c_sem := Modsem.coreSem (my_cores c_ix) in
+  let: c_sem := Modsem.sem (my_cores c_ix) in
     core_semantics.corestep c_sem c_ge (Core.c c) m c' m' -> 
     Corestep ge l m (updCore l (Core.upd (peekCore l) c')) m'
 
@@ -555,14 +555,14 @@ Inductive Corestep (ge : ge_ty) : linker N my_cores -> mem
   let: c := peekCore l in
   let: c_ix  := Core.i c in
   let: c_ge  := Modsem.ge (my_cores c_ix) in
-  let: c_sem := Modsem.coreSem (my_cores c_ix) in
+  let: c_sem := Modsem.sem (my_cores c_ix) in
 
   core_semantics.at_external c_sem (Core.c c) = Some (ef,dep_sig,args) -> 
   fun_id ef = Some id -> 
   fn_tbl l id = Some d_ix -> 
 
   let: d_ge  := Modsem.ge (my_cores d_ix) in
-  let: d_sem := Modsem.coreSem (my_cores d_ix) in
+  let: d_sem := Modsem.sem (my_cores d_ix) in
 
   core_semantics.initial_core d_sem d_ge (Vptr id Int.zero) args = Some d -> 
   Corestep ge l m (pushCore l (Core.mk _ _ _ d) pf) m
@@ -575,14 +575,14 @@ Inductive Corestep (ge : ge_ty) : linker N my_cores -> mem
   let: c  := peekCore l in
   let: c_ix  := Core.i c in
   let: c_ge  := Modsem.ge (my_cores c_ix) in
-  let: c_sem := Modsem.coreSem (my_cores c_ix) in
+  let: c_sem := Modsem.sem (my_cores c_ix) in
 
   popCore l = Some l'' -> 
 
   let: d  := peekCore l'' in     
   let: d_ix  := Core.i d in
   let: d_ge  := Modsem.ge (my_cores d_ix) in
-  let: d_sem := Modsem.coreSem (my_cores d_ix) in
+  let: d_sem := Modsem.sem (my_cores d_ix) in
 
   core_semantics.halted c_sem (Core.c c) = Some rv -> 
   core_semantics.after_external d_sem (Some rv) (Core.c d) = Some d' -> 
@@ -617,10 +617,10 @@ rewrite /corestep0=> [][]c' []step.
 by rewrite (corestep_not_halted _ _ _ _ _ _ step) in H2.
 have at_ext: 
   core_semantics.at_external
-    (Modsem.coreSem (my_cores (Core.i (peekCore l))))
+    (Modsem.sem (my_cores (Core.i (peekCore l))))
     (Core.c (peekCore l)) = None.
 { case: (at_external_halted_excl 
-         (Modsem.coreSem (my_cores (Core.i (peekCore l))))
+         (Modsem.sem (my_cores (Core.i (peekCore l))))
          (Core.c (peekCore l)))=> //.
   by rewrite H2. }
 rewrite /inContext A /at_external0 H1 at_ext.
@@ -715,7 +715,7 @@ Lemma after_externalE rv c c' :
   [/\ c  = mkLinker fn_tbl (CallStack.mk [:: hd & tl] pf)
     , c' = mkLinker fn_tbl (CallStack.mk [:: hd' & tl]  pf')
     & core_semantics.after_external
-       (Modsem.coreSem (my_cores (Core.i hd))) rv (Core.c hd)
+       (Modsem.sem (my_cores (Core.i hd))) rv (Core.c hd)
       = Some (cast'' eq_pf (Core.c hd'))].
 Proof.
 case: c=> fntbl; case; case=> // hd stk pf aft; exists fntbl,hd.
@@ -752,7 +752,7 @@ Import Linker.
 Definition effstep0 U (l: linker N my_cores) m (l': linker N my_cores) m' := 
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: sem := (my_cores ix).(Modsem.sem) in
   let: F   := (my_cores ix).(Modsem.F) in
   let: V   := (my_cores ix).(Modsem.V) in
   let: ge  := (my_cores ix).(Modsem.ge) in

@@ -36,7 +36,7 @@ Record t := mk
   ; V   : Type
   ; ge  : Genv.t F V
   ; C   : Type
-  ; coreSem : Csem.t (Genv.t F V) C
+  ; sem : Csem.t (Genv.t F V) C
   ; init : C }.
 
 End Modsem.
@@ -86,8 +86,8 @@ Definition atExternal (c: Core.t cores) :=
   let: F := (cores i).(F) in
   let: V := (cores i).(V) in
   let: C := (cores i).(C) in
-  let: coreSem := (cores i).(coreSem) in
-  if @at_external (Genv.t F V) C Csem.M (Csem.instance (T:=coreSem)) c is 
+  let: sem := (cores i).(sem) in
+  if @at_external (Genv.t F V) C Csem.M (Csem.instance (T:=sem)) c is 
     Some (ef, dep_sig, args) then true
   else false.
 
@@ -230,7 +230,7 @@ Import Modsem.
 Definition initCore (ix: 'I_N) (v: val) (args: list val) 
   : option (Core.t my_cores):=
   if @initial_core _ _ _ 
-       (Csem.instance (T:=(my_cores ix).(coreSem))) 
+       (Csem.instance (T:=(my_cores ix).(sem))) 
        (my_cores ix).(Modsem.ge) 
        v args 
   is Some c then Some (Core.mk _ my_cores ix c)
@@ -297,7 +297,7 @@ Definition initial_core (tt: ge_ty) (v: val) (args: list val)
 Definition at_external0 (l: linker N my_cores) :=
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: sem := (my_cores ix).(Modsem.sem) in
   let: F   := (my_cores ix).(Modsem.F) in
   let: V   := (my_cores ix).(Modsem.V) in
     @at_external (Genv.t F V) _ _ (Csem.instance (T:=sem)) (Core.c c).
@@ -307,7 +307,7 @@ Arguments at_external0 !l.
 Definition halted0 (l: linker N my_cores) :=
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: sem := (my_cores ix).(Modsem.sem) in
   let: F   := (my_cores ix).(Modsem.F) in
   let: V   := (my_cores ix).(Modsem.V) in
     @halted (Genv.t F V) _ _ (Csem.instance (T:=sem)) (Core.c c).
@@ -321,7 +321,7 @@ Definition corestep0
   (l: linker N my_cores) (m: Csem.M) (l': linker N my_cores) (m': Csem.M) := 
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: sem := (my_cores ix).(Modsem.sem) in
   let: F   := (my_cores ix).(Modsem.F) in
   let: V   := (my_cores ix).(Modsem.V) in
   let: ge  := (my_cores ix).(Modsem.ge) in
@@ -348,7 +348,7 @@ Definition at_external (l: linker N my_cores) :=
 Definition after_external (mv: option val) (l: linker N my_cores) :=
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: sem := (my_cores ix).(Modsem.sem) in
   let: F   := (my_cores ix).(Modsem.F) in
   let: V   := (my_cores ix).(Modsem.V) in
   let: ge  := (my_cores ix).(Modsem.ge) in
@@ -479,7 +479,7 @@ Import Linker.
 Definition effstep0 U (l: linker N my_cores) m (l': linker N my_cores) m' := 
   let: c   := peekCore l in
   let: ix  := c.(Core.i) in
-  let: sem := (my_cores ix).(Modsem.coreSem) in
+  let: sem := (my_cores ix).(Modsem.sem) in
   let: F   := (my_cores ix).(Modsem.F) in
   let: V   := (my_cores ix).(Modsem.V) in
   let: ge  := (my_cores ix).(Modsem.ge) in

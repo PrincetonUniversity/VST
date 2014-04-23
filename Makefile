@@ -115,7 +115,7 @@ LINKING_FILES= \
   linking_spec.v \
   linking_proof.v \
   stacking.v \
-  dep_linking_proof.v 
+  #dep_linking_proof.v 
 
 COMPCOMP_FILES= \
   Ordered.v Switch.v \

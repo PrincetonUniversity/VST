@@ -104,7 +104,7 @@ case_eq (plt b (Mem.nextblock m)); auto.
 intros p _; inversion 1.
 Qed.
 
-Module Nuke. Section nucular_semantics.
+Module Nuke_sem. Section nucular_semantics.
 
 Variable F V C : Type.
 
@@ -116,7 +116,7 @@ Variable csem : CoreSemantics (Genv.t F V) C mem.
    contains no invalid pointers. An invalid pointer [Vptr b ofs] is one
    for which b is an invalid block in [m]. *)
 
-Record nucular_semantics : Type :=
+Record t : Type :=
 { (* An invariant on core states and memories, instantiatable by the 
      person proving that [csem] is a nucular semantics. *) 
 I : C -> mem -> Prop
@@ -215,7 +215,7 @@ Variable F V C : Type.
 
 Variable csem : CoopCoreSem (Genv.t F V) C.
 
-Variable nuke : nucular_semantics csem.
+Variable nuke : t csem.
 
 Variable ge : Genv.t F V.
 
@@ -234,4 +234,4 @@ Qed.
 
 End nucular_semantics_lemmas. 
 
-End Nuke.
+End Nuke_sem.

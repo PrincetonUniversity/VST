@@ -568,3 +568,14 @@ split; first by move=> ? ->; discriminate.
 by move=> ? ->; discriminate.
 Qed.
 
+Lemma sm_inject_separated_replace_locals mu X Y mu' m1 m2 : 
+  sm_inject_separated mu mu' m1 m2 -> 
+  sm_inject_separated (replace_locals mu X Y) mu' m1 m2.
+Proof.
+case.
+rewrite /sm_inject_separated.
+rewrite replace_locals_DomSrc.
+rewrite replace_locals_DomTgt.
+rewrite replace_locals_as_inj.
+by [].
+Qed.

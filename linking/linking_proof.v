@@ -44,33 +44,9 @@ Unset Printing Implicit Defensive.
 Require Import compcert.common.Values.   
 Require Import sepcomp.nucular_semantics.
 
-(* This file states the main linking simulation result.                   *)
-(* Informally,                                                            *)
-(*   - Assume a multi-module program with N translation units:            *)
-(*                                                                        *)
-(*       M_0, M_1, ..., M_{N-1}, and                                      *)
-(*                                                                        *)
-(*   - For each module M_i, we have an induced                            *)
-(*       o Source effect semantics Source_i operating on source states    *)
-(*         C_i of source language S_i                                     *)
-(*       o Target effect semantics Target_i operating on target states    *)
-(*         D_i of target language T_i                                     *)
-(*     (Note that it's not required that S_i = S_j for i<>j.)             *)
-(*                                                                        *)
-(*   - Assume we also have, for each 0 <= i < N, a simulation relation    *)
-(*     from S_i to T_i.                                                   *)
-(*                                                                        *)
-(* Then we can construct a simulation relation Sim between the source     *)
-(* semantics                                                              *)
-(*                                                                        *)
-(*   Source_0 >< Source_1 >< ... >< Source_{N-1}                          *)
-(*                                                                        *)
-(* and target semantics                                                   *)
-(*                                                                        *)
-(*   Target_0 >< Target_1 >< ... >< Target_{N-1}                          *)
-(*                                                                        *)
-(* where >< denotes the semantic linking operation defined in             *)
-(* compcert_linking.v.                                                    *)
+(* This file proves the main linking simulation result (see               *)
+(* linking/linking_spec.v for the specification of the theorem that's     *)
+(* proved).                                                               *)
 
 Import Wholeprog_simulation.
 Import SM_simulation.
@@ -83,16 +59,14 @@ Variable N : pos.
 
 Variable cores_S' cores_T : 'I_N -> Modsem.t. 
 
-Variable nucular_T : 
-  forall i : 'I_N,
-  Nuke.nucular_semantics (cores_T i).(coreSem).
+Variable nucular_T : forall i : 'I_N, Nuke_sem.t (cores_T i).(sem).
 
 Variable fun_tbl : ident -> option 'I_N.
 
 Variable sims' : forall i : 'I_N, 
   let s := cores_S' i in
   let t := cores_T i in
-  SM_simulation_inject s.(coreSem) t.(coreSem) s.(ge) t.(ge).
+  SM_simulation_inject s.(sem) t.(sem) s.(ge) t.(ge).
 
 Variable my_ge : ge_ty.
 Variable my_ge_S : forall (i : 'I_N), genvs_domain_eq my_ge (cores_S' i).(ge).
@@ -103,12 +77,12 @@ Let ords : forall i : 'I_N, types i -> types i -> Prop
   := fun i : 'I_N => (sims' i).(core_ord).
 
 Let cores_S (ix : 'I_N) := 
-  Modsem.mk (cores_S' ix).(ge) (RC.effsem (cores_S' ix).(coreSem)).
+  Modsem.mk (cores_S' ix).(ge) (RC.effsem (cores_S' ix).(sem)).
 
 Lemma sims : forall i : 'I_N,
   let s := cores_S i in
   let t := cores_T i in
-  SM_simulation_inject s.(coreSem) t.(coreSem) s.(ge) t.(ge).  
+  SM_simulation_inject s.(sem) t.(sem) s.(ge) t.(ge).  
 Proof. by move=> ix; apply: rc_sim; apply: (sims' ix). Qed.
 
 Let linker_S := effsem N cores_S fun_tbl.
@@ -347,9 +321,9 @@ Record frame_inv
   ; frame_valid : sm_valid mu0 m10 m20 
   ; frame_match : (sims c.(i)).(match_state) cd0 mu0 
                    c.(Core.c) m10 (cast'' pf d.(Core.c)) m20 
-  ; frame_at1   : at_external (cores_S c.(i)).(coreSem) c.(Core.c)
+  ; frame_at1   : at_external (cores_S c.(i)).(sem) c.(Core.c)
                     = Some (e1, ef_sig1, vals1) 
-  ; frame_at2   : at_external (cores_T c.(i)).(coreSem) (cast'' pf d.(Core.c)) 
+  ; frame_at2   : at_external (cores_T c.(i)).(sem) (cast'' pf d.(Core.c)) 
                     = Some (e2, ef_sig2, vals2) 
   ; frame_vinj  : Forall2 (val_inject (restrict (as_inj mu0) (vis mu0))) vals1 vals2  
 
@@ -358,7 +332,7 @@ Record frame_inv
 
     (* target mu invariants *)
   ; frame_domt  : DomTgt mu0 = valid_block_dec m20
-  ; frame_nukeI : Nuke.I (nucular_T d.(i)) d.(Core.c) m20
+  ; frame_nukeI : Nuke_sem.I (nucular_T d.(i)) d.(Core.c) m20
 
     (* invariants relating m10,m20 to active memories m1,m2*)
   ; frame_fwd1  : mem_forward m10 m1
@@ -492,7 +466,7 @@ Record head_inv cd (mu : Inj.t) mus m1 m2 : Type :=
   ; head_rel   : All (rel_inv_pred m1 mu) mus 
   ; head_vis   : vis_inv c mu 
   ; head_domt  : DomTgt mu = valid_block_dec m2 
-  ; head_nukeI : Nuke.I (nucular_T d.(i)) d.(Core.c) m2
+  ; head_nukeI : Nuke_sem.I (nucular_T d.(i)) d.(Core.c) m2
   }.
 
 End head_inv.
@@ -620,7 +594,7 @@ by case: inv=> // A _ _ _ _; apply: (match_validblocks _ A).
 Qed.
 
 Lemma head_atext_inj ef sig args : 
-  at_external (coreSem (cores_S (Core.i c))) (Core.c c) 
+  at_external (sem (cores_S (Core.i c))) (Core.c c) 
     = Some (ef,sig,args) -> 
   Mem.inject (as_inj mu) m1 m2.
 Proof.
@@ -1136,9 +1110,9 @@ Qed.
 
 Lemma head_tail_inv c d pf cd (mu : frame_pkg) e sig args1 args2
   (val : sm_valid mu m1 m2)
-  (atext1 : at_external (coreSem (cores_S (Core.i c))) (Core.c c) 
+  (atext1 : at_external (sem (cores_S (Core.i c))) (Core.c c) 
             = Some (e,sig,args1))
-  (atext2 : at_external (coreSem (cores_T (Core.i c))) 
+  (atext2 : at_external (sem (cores_T (Core.i c))) 
             (cast'' pf (Core.c d)) = Some (e,sig,args2))
   (inj : Mem.inject (as_inj mu) m1 m2)
   (vals_inj : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) args1 args2) 
@@ -1461,10 +1435,10 @@ Lemma head_inv_step
     || freshloc m1 m1' b
     || RC.reach_set (ge (cores_S (Core.i c))) (Core.c c) m1 b) ->
   effect_semantics.effstep 
-    (coreSem (cores_S (Core.i c))) (ge (cores_S (Core.i c))) U 
+    (sem (cores_S (Core.i c))) (ge (cores_S (Core.i c))) U 
     (Core.c c) m1 c' m1' -> 
   effect_semantics.effstepN 
-    (coreSem (cores_T (Core.i d))) (ge (cores_T (Core.i d))) n V 
+    (sem (cores_T (Core.i d))) (ge (cores_T (Core.i d))) n V 
     (Core.c d) m2 d' m2' -> 
   mem_wd.valid_genv (ge (cores_T (Core.i d))) m2 ->
   match_state (sims (Core.i (Core.upd c c'))) cd' mu'
@@ -1493,7 +1467,7 @@ by elimtype False; apply: H3; apply: x.
 case f: (valid_block_dec m2 b)=> [y|//].
 by case: (fwd2 y)=> H4; elimtype False; apply: H3; apply: H4.
 apply effstepN_corestepN in effstepN; simpl.
-by apply: (Nuke.nucular_stepN _ _ effstepN)=> //; apply: (head_nukeI hdinv).
+by apply: (Nuke_sem.nucular_stepN _ _ effstepN)=> //; apply: (head_nukeI hdinv).
 Qed.
 
 End step_lems.
@@ -1683,7 +1657,7 @@ case: (R_inv inv)=> pf []mu_top []mus []eq []pf2; move/head_match.
 unfold LinkerSem.at_external0 in atext1.
 have atext1':
   at_external 
-    (coreSem (cores_S (Core.i (peekCore st1)))) 
+    (sem (cores_S (Core.i (peekCore st1)))) 
     (Core.c (peekCore st1)) =
   Some (ef,sig,args1) by rewrite /RC.at_external.
 move=> hd_match _.
@@ -1693,19 +1667,19 @@ move=> inj []args2 []valinj []atext2 extends; exists args2.
 set T := C \o cores_T.
 rewrite /LinkerSem.at_external0.
 set P := fun ix (x : T ix) => 
-            at_external (coreSem (cores_T ix)) x
+            at_external (sem (cores_T ix)) x
             = Some (ef, sig, args2).
 change (P (Core.i (peekCore st2)) (Core.c (peekCore st2))).
 have X: (P (Core.i (c inv)) (cast'' pf (Core.c (d inv)))).
 { move: atext2=> /=; rewrite /RC.at_external /P /=.
-  have eq': at_external (coreSem (cores_T (Core.i (c inv))))
+  have eq': at_external (sem (cores_T (Core.i (c inv))))
             (cast'' pf (Core.c (d inv))) =
-           at_external (coreSem (cores_T (Core.i (d inv))))
+           at_external (sem (cores_T (Core.i (d inv))))
             (Core.c (d inv)). 
   { set T' := C \o cores_T.
     set P' := fun ix (x : T' ix) => 
-                 at_external (coreSem (cores_T ix)) x
-                 = at_external (coreSem (cores_T (Core.i (d inv))))
+                 at_external (sem (cores_T ix)) x
+                 = at_external (sem (cores_T (Core.i (d inv))))
                      (Core.c (d inv)).
     change (P' (Core.i (c inv)) 
                (cast T' (sym_eq pf) (Core.c (d inv)))).
@@ -1737,28 +1711,28 @@ move=> []pf2 hdinv tlinv; move: hdl1; rewrite LinkerSem.handleP.
 move=> []all_at1 []ix []c1 []fntbl1 init1 st1'_eq.
 
 have atext1': 
-  at_external (coreSem (cores_S (Core.i (c inv)))) (Core.c (c inv)) 
+  at_external (sem (cores_S (Core.i (c inv)))) (Core.c (c inv)) 
   = Some (ef,sig,args1) by [].
 
 have atext2': 
-  at_external (coreSem (cores_T (Core.i (c inv)))) 
+  at_external (sem (cores_T (Core.i (c inv)))) 
               (cast'' pf (Core.c (d inv)))
   = Some (ef,sig,args2).
  { set T := C \o cores_T.
    set P := fun ix (x : T ix) => 
-              at_external (coreSem (cores_T ix)) x
+              at_external (sem (cores_T ix)) x
               = Some (ef, sig, args2).
    have: (P (Core.i (d inv)) (Core.c (d inv)))
      by rewrite /LinkerSem.at_external0.
    by apply: cast_indnatdep. }
 
 have atext2'': 
-  at_external (coreSem (cores_T (Core.i (c inv))))
+  at_external (sem (cores_T (Core.i (c inv))))
               (cast'' pf (Core.c (d inv)))
   = Some (ef,sig,args2).
  { set T := C \o cores_T.
    set P := fun ix (x : T ix) => 
-              at_external (coreSem (cores_T ix)) x
+              at_external (sem (cores_T ix)) x
               = Some (ef, sig, args2).
    have: (P (Core.i (d inv)) (Core.c (d inv)))
      by rewrite /LinkerSem.at_external0.
@@ -1786,18 +1760,18 @@ have j_domS_domT:
   by move/(_ (Inj_wd _)). }
 
 have my_atext2: 
-    at_external (coreSem (cores_T (Core.i (d inv)))) (Core.c (d inv)) 
+    at_external (sem (cores_T (Core.i (d inv)))) (Core.c (d inv)) 
   = Some (ef,sig,args2).
 { move: atext2'. 
   set T := C \o cores_T.
   set P := fun (ix : 'I_N) (c : T ix) => 
-    at_external (coreSem (cores_T ix)) c = Some (ef,sig,args2).
+    at_external (sem (cores_T ix)) c = Some (ef,sig,args2).
   change (P (Core.i (c inv)) (cast T (sym_eq pf) (Core.c (d inv)))
        -> P (Core.i (d inv)) (Core.c (d inv))).
   by apply: cast_indnatdep'. }
 
 have wmd: mem_wd m2.
-{ by case: (Nuke.wmd_at_external (ge (cores_T (Core.i (d inv)))) 
+{ by case: (Nuke_sem.wmd_at_external (ge (cores_T (Core.i (d inv)))) 
              (head_nukeI hdinv) my_atext2). }
 
 have DomTgt_rc: REACH_closed m2 (DomTgt mu_top).
@@ -2041,14 +2015,14 @@ have hdinv_new:
   have vgenv2: valid_genv (ge (cores_T (Core.i c2))) m2.
   { by move: (R_ge inv)=> val_ges; apply: (val_ges (Core.i c2)). }
   have vval: Forall (val_valid^~ m2) args2.
-  { by case: (Nuke.wmd_at_external (ge (cores_T (Core.i (d inv)))) 
+  { by case: (Nuke_sem.wmd_at_external (ge (cores_T (Core.i (d inv)))) 
                (head_nukeI hdinv) my_atext2). }
-  have init: initial_core (cores_T (Core.i c2)).(coreSem) 
+  have init: initial_core (cores_T (Core.i c2)).(sem) 
                (ge (cores_T (Core.i c2))) (Vptr id Int.zero) args2 
            = Some c2.(Core.c).
   { clear - init2; move: init2; rewrite /initCore.
     by case e: (initial_core _ _ _ _)=> [c|//]; case=> <- /=. }
-  by apply: (Nuke.wmd_initial (nucular_T (Core.i c2)) vval vgenv2 wmd init). }
+  by apply: (Nuke_sem.wmd_initial (nucular_T (Core.i c2)) vval vgenv2 wmd init). }
 
 exists (existT _ (Core.i c1) cd_new),st2',mu_new'; split.
 rewrite LinkerSem.handleP; exists all_at2,ix,c2; split=> //.
@@ -2128,7 +2102,7 @@ case: (core_halted (sims (Core.i (peekCore st1)))
 exists rv2.
 set T := C \o cores_T.
 set P := fun ix (x : T ix) => 
-  halted (coreSem (cores_T ix)) x = Some rv2.
+  halted (sem (cores_T ix)) x = Some rv2.
 change (P (Core.i (peekCore st2)) (Core.c (peekCore st2))).
 apply: (cast_indnatdep' (j := Core.i (peekCore st1)))=> // H.
 rewrite /P; move: hlt2; rewrite /= /RC.halted /= => <-. 
@@ -2219,7 +2193,7 @@ move: (frame_unch1 fr0)=> unch1.
 move: (frame_unch2 fr0)=> unch2.
 
 have at02':
-  at_external (coreSem (cores_T (Core.i hd1)))
+  at_external (sem (cores_T (Core.i hd1)))
     (cast'' pf0 (Core.c hd2)) = Some (e0,sig02,vals02).
 { by rewrite /= -at02; f_equal. }
 
@@ -2369,7 +2343,7 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [aft2' mtch12']]]]]:
   exists hd2' (pf_eq22' : Core.i hd2 = Core.i hd2') 
               (pf_eq12' : Core.i hd1' = Core.i hd2')
          cd',
-  [/\ after_external (coreSem (cores_T (Core.i hd2)))
+  [/\ after_external (sem (cores_T (Core.i hd2)))
         (Some rv2) (Core.c hd2) 
       = Some (cast'' pf_eq22' (Core.c hd2'))
     & match_state (sims (Core.i hd1')) cd' mu' 
@@ -2402,7 +2376,7 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [aft2' mtch12']]]]]:
   move: aft2''.
   set T := C \o cores_T.  
   set P := fun ix (x : T ix) (y : T ix) => 
-    after_external (coreSem (cores_T ix)) (Some rv2) x = Some y.
+    after_external (sem (cores_T ix)) (Some rv2) x = Some y.
   change (P (Core.i hd1) (cast T (sym_eq pf0) (Core.c hd2)) d0'
        -> P (Core.i hd2) (Core.c hd2) (cast T (sym_eq (sym_eq pf0)) d0')).
   have ->: sym_eq (sym_eq pf0) = pf0 by apply: proof_irr.
@@ -2432,7 +2406,7 @@ move: hlt2.
 
 set T := C \o cores_T.
 set P := fun ix (x : T ix) => 
- halted (coreSem (cores_T ix)) x = Some rv2.
+ halted (sem (cores_T ix)) x = Some rv2.
 change (P (Core.i (peekCore st1)) (cast T (sym_eq pf) (Core.c (d inv)))
      -> P (Core.i (peekCore st2)) (Core.c (peekCore st2))).
 by apply: cast_indnatdep'.
@@ -2858,19 +2832,19 @@ have subF: {subset frgnBlocksSrc mu0 <= frgnSrc'}.
 }(*END domt*)
 {(*Label: nucular*)
   have [rv2_val wd2]: [/\ oval_valid (Some rv2) m2 & mem_wd m2]. 
-  { have nuke: Nuke.I (nucular_T (Core.i (peekCore st1))) 
+  { have nuke: Nuke_sem.I (nucular_T (Core.i (peekCore st1))) 
                (cast'' pf (Core.c (d inv))) m2. 
     { move: (head_nukeI hdinv).
       set T := C \o cores_T.
-      set P := fun (ix : 'I_N) (c : T ix) => Nuke.I (nucular_T ix) c m2.
+      set P := fun (ix : 'I_N) (c : T ix) => Nuke_sem.I (nucular_T ix) c m2.
       change (P (Core.i (d inv)) (Core.c (d inv))
            -> P (Core.i (peekCore st1)) (cast T (sym_eq pf) (Core.c (d inv)))).
       by apply: cast_indnatdep. }
-    by case: (Nuke.wmd_halted nuke hlt2). }
+    by case: (Nuke_sem.wmd_halted nuke hlt2). }
   move: (frame_nukeI fr0)=> nukeI.
-  move: (Nuke.wmd_after_external nukeI aft2' rv2_val fwd2 wd2).
+  move: (Nuke_sem.wmd_after_external nukeI aft2' rv2_val fwd2 wd2).
   set T := C \o cores_T.
-  set P := fun (ix : 'I_N) (c : T ix) => Nuke.I (nucular_T ix) c m2.
+  set P := fun (ix : 'I_N) (c : T ix) => Nuke_sem.I (nucular_T ix) c m2.
   change (P (Core.i hd2) (cast T (sym_eq pf_eq22') (Core.c hd2')) 
        -> P (Core.i hd2') (Core.c hd2')).
   by apply: cast_indnatdep'. }(*END nucular*)
@@ -3116,7 +3090,7 @@ eapply Build_Wholeprog_simulation
   have vgenv_ix: valid_genv (ge (cores_T ix)) m2.
   { by apply: (valid_genvs_domain_eq (my_ge_T ix) vgenv). }
 
-  by apply: (Nuke.wmd_initial _ vval vgenv_ix wd init2).
+  by apply: (Nuke_sem.wmd_initial _ vval vgenv_ix wd init2).
   by [].
 
   by move=> ix'; move: vgenv; apply: valid_genvs_domain_eq.
@@ -3138,7 +3112,7 @@ set c2 := peekCore st2.
 have [c1' [STEP0 [U1'_EQ [c1_args [c1_rets [c1_locs ST1']]]]]]:
    exists c1',
        Coresem.corestep 
-         (t := effect_instance (coreSem (cores_S (Core.i c1)))) 
+         (t := effect_instance (sem (cores_S (Core.i c1)))) 
          (ge (cores_S (Core.i c1))) (Core.c c1) m1 c1' m1' 
    /\ (forall b ofs, U1 b ofs -> 
        RC.reach_set (ge (cores_S (Core.i c1))) (Core.c c1) m1 b)
@@ -3157,7 +3131,7 @@ have [c1' [STEP0 [U1'_EQ [c1_args [c1_rets [c1_locs ST1']]]]]]:
 
 have EFFSTEP: 
     effect_semantics.effstep 
-    (coreSem (cores_S (Core.i c1)))
+    (sem (cores_S (Core.i c1)))
     (ge (cores_S (Core.i c1))) U1 (Core.c c1) m1 c1' m1'.
   { move: (STEP_EFFSTEP STEP); rewrite/effstep0=> [][] c1'' [] STEP0' ST1''. 
     by rewrite ST1'' in ST1'; rewrite -(updCore_inj_upd ST1'). }
@@ -3194,18 +3168,18 @@ set mu'    := mu_top'.
 exists st2', m2', data', mu'. 
 
 have [n STEPN]: 
- exists n, effstepN (coreSem (cores_T (Core.i c2)))
+ exists n, effstepN (sem (cores_T (Core.i c2)))
    (ge (cores_T (Core.i c2))) n U2 (Core.c (d INV)) m2 c2'' m2'. 
  { set T := C \o cores_T.
    case: STEP'. case=> n step; exists (S n).
    set P := fun ix (x : T ix) (y : T ix) => 
-             effstepN (coreSem (cores_T ix))
+             effstepN (sem (cores_T ix))
              (ge (cores_T ix)) (S n) U2 x m2 y m2'.
    change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
    by move: step; have ->: pf = peek_ieq INV by apply: proof_irr.
    case; case=> n step _; exists n.
    set P := fun ix (x : T ix) (y : T ix) => 
-             effstepN (coreSem (cores_T ix))
+             effstepN (sem (cores_T ix))
              (ge (cores_T ix)) n U2 x m2 y m2'.
    change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
    by move: step; have ->: pf = peek_ieq INV by apply: proof_irr. }
@@ -3246,7 +3220,7 @@ split.
 
  (* valid_genv *)
  { move=> ix; move: (R_ge INV); move/(_ ix)=> vgenv. 
-   by apply: (Nuke.valid_genv_fwd vgenv). }
+   by apply: (Nuke_sem.valid_genv_fwd vgenv). }
  } (*end [re-establish invariant]*)
  
  {(* Label: [matching execution] *) 
@@ -3265,22 +3239,22 @@ split.
 exists U2; split=> //; case: STEP'=> STEP'.
 
 have STEP'': 
-  effstep_plus (coreSem (cores_T (Core.i c2)))
+  effstep_plus (sem (cores_T (Core.i c2)))
   (ge (cores_T (Core.i c2))) U2 (Core.c (d INV)) m2 c2'' m2'. 
  { set T := C \o cores_T.
    set P := fun ix (x : T ix) (y : T ix) => 
-             effstep_plus (coreSem (cores_T ix))
+             effstep_plus (sem (cores_T ix))
              (ge (cores_T ix)) U2 x m2 y m2'.
    change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
    by move: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr. }
 by left; move: STEP''; apply: stepPLUS_STEPPLUS.
 
 have STEP'': 
-  effstep_star (coreSem (cores_T (Core.i c2)))
+  effstep_star (sem (cores_T (Core.i c2)))
   (ge (cores_T (Core.i c2))) U2 (Core.c c2) m2 c2'' m2'. 
  { set T := C \o cores_T.
    set P := fun ix (x : T ix) (y : T ix) => 
-             effstep_star (coreSem (cores_T ix))
+             effstep_star (sem (cores_T ix))
              (ge (cores_T ix)) U2 x m2 y m2'.
    change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
    by case: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr; by []. }
@@ -3366,7 +3340,7 @@ case: (R_inv inv')=> pf []mupkg []mus []mu_eq.
 move=> []pf2 hdinv tlinv; move: (head_match hdinv)=> mtch0.
 
 have hlt10: 
-  halted (coreSem (cores_S (Core.i (c inv')))) (Core.c (c inv)) 
+  halted (sem (cores_S (Core.i (c inv')))) (Core.c (c inv)) 
 = Some v1.
 { move: hlt1; rewrite /= /LinkerSem.halted.
   case inCtx1: (inContext c1)=> //=.
@@ -3391,12 +3365,12 @@ move: hlt2; rewrite /LinkerSem.halted.
 case e: (~~ inContext c2)=> //.
 case f: (LinkerSem.halted0 c2)=> [rv|//]; case=> <-.
 rewrite /LinkerSem.halted0 /= /RC.halted in f hlt2'.
-have g: halted (coreSem (cores_T (Core.i (c inv'))))
+have g: halted (sem (cores_T (Core.i (c inv'))))
                (cast'' pf (Core.c (d inv')))  
       = Some rv.
 { set T := C \o cores_T.
   set P := fun ix (x : T ix) => 
-             halted (coreSem (cores_T ix)) x  
+             halted (sem (cores_T ix)) x  
            = Some rv.
   change (P (Core.i (c inv')) (cast T (sym_eq pf) (Core.c (d inv')))).
   by apply: cast_indnatdep; rewrite /P; rewrite -f. }
@@ -3414,12 +3388,12 @@ Module LinkingSimulation : LINKING_SIMULATION.
 
 Lemma link : 
   forall (N : pos) (sems_S sems_T : 'I_N -> t),
-  (forall ix : 'I_N, Nuke.nucular_semantics (coreSem (sems_T ix))) ->
+  (forall ix : 'I_N, Nuke_sem.t (sem (sems_T ix))) ->
   forall (plt : ident -> option 'I_N)
     (sims : forall ix : 'I_N,
             let s := sems_S ix in
             let t := sems_T ix in
-            SM_simulation_inject (coreSem s) (coreSem t) (ge s) (ge t))
+            SM_simulation_inject (sem s) (sem t) (ge s) (ge t))
     (ge_top : ge_ty),
   (forall ix : 'I_N, genvs_domain_eq ge_top (ge (sems_S ix))) ->
   (forall ix : 'I_N, genvs_domain_eq ge_top (ge (sems_T ix))) ->
@@ -3432,7 +3406,7 @@ Lemma link :
     V := V (sems_S ix);
     ge := ge (sems_S ix);
     C := RC.state (C (sems_S ix));
-    coreSem := RC.effsem (coreSem (sems_S ix)) |} in
+    sem := RC.effsem (sem (sems_S ix)) |} in
   let linker_S := effsem N sems_S0 plt in
   let linker_T := effsem N sems_T plt in
   forall main : val, Wholeprog_simulation linker_S linker_T ge_top ge_top main.
