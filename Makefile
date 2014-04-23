@@ -255,7 +255,7 @@ depend-linking:
 	$(COQDEP) $(DEPFLAGS) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
 
 depend-compcomp:
-	$(COQDEP) $(DEPFLAGS) $(FILES) $(COMPCOMP_FILES:%.v=sepcomp/%.v) > .depend
+	$(COQDEP) $(DEPFLAGS) $(FILES) $(COMPCOMP_FILES:%.v=compcomp/%.v) > .depend
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
