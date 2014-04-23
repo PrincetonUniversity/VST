@@ -2424,40 +2424,43 @@ Proof. intros.
     intuition.
 Qed.
 
-Lemma MATCH_initial: forall v1 v2 sig entrypoints
-      (EP: In (v1, v2, sig) entrypoints)
-      (entry_points_ok : forall (v1 v2 : val) (sig : signature),
+Lemma MATCH_initial: forall (v1 v2 : val) (sig : signature) entrypoints
+  (EP: In (v1, v2, sig) entrypoints)
+  (entry_points_ok : forall (v1 v2 : val) (sig : signature),
                   In (v1, v2, sig) entrypoints ->
-                  exists b f1 f2,
+                  exists
+                    (b : Values.block) f1 f2,
                     v1 = Vptr b Int.zero /\
                     v2 = Vptr b Int.zero /\
                     Genv.find_funct_ptr ge b = Some f1 /\
                     Genv.find_funct_ptr tge b = Some f2)
-      vals1 c1 m1 j vals2 m2 (DomS DomT : block -> bool)
-      (Ini: initial_core LTL_eff_sem ge v1 vals1 = Some c1)
-      (Inj: Mem.inject j m1 m2)
-      (VInj: Forall2 (val_inject j) vals1 vals2)
-      (PG:meminj_preserves_globals ge j)
-      (R : list_norepet (map fst (prog_defs prog)))
-      (J: forall b1 b2 delta, j b1 = Some (b2, delta) -> 
-            (DomS b1 = true /\ DomT b2 = true))
-      (RCH1: forall b, REACH m1 
-        (fun b' : Values.block => isGlobalBlock ge b' || getBlocks vals1 b') b =
-         true -> DomS b = true)
-      (RCH2: forall b, REACH m2 
+  (vals1 : list val) c1 (m1 : mem) (j : meminj)
+  (vals2 : list val) (m2 : mem) (DomS DomT : Values.block -> bool)
+  (Ini : initial_core LTL_eff_sem ge v1 vals1 = Some c1)
+  (Inj: Mem.inject j m1 m2)
+  (VInj: Forall2 (val_inject j) vals1 vals2)
+  (PG: meminj_preserves_globals ge j)
+  (R : list_norepet (map fst (prog_defs prog)))
+  (J: forall b1 b2 d, j b1 = Some (b2, d) -> 
+                      DomS b1 = true /\ DomT b2 = true)
+  (RCH: forall b, REACH m2
         (fun b' : Values.block => isGlobalBlock tge b' || getBlocks vals2 b') b =
          true -> DomT b = true)
-      (RCL: REACH_closed m1 DomS) 
-      (MS: forall b1, DomS b1=true -> exists b2 d, j b1 = Some(b2,d) /\ DomT b2=true)
-      (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
-               /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
-               /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))   
-      (GDE: genvs_domain_eq ge tge)
-      (HDomS: forall b : block, DomS b = true -> Mem.valid_block m1 b)
-      (HDomT: forall b : block, DomT b = true -> Mem.valid_block m2 b),
+  (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
+      /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
+      /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))
+  (GDE: genvs_domain_eq ge tge)
+  (HDomS: forall b : Values.block, DomS b = true -> Mem.valid_block m1 b)
+  (HDomT: forall b : Values.block, DomT b = true -> Mem.valid_block m2 b),
 exists c2,
   initial_core Linear_eff_sem tge v2 vals2 = Some c2 /\
-  MATCH (initial_SM DomS DomT DomS DomT j) c1 m1 c2 m2.
+  MATCH 
+    (initial_SM DomS DomT
+       (REACH m1
+          (fun b : Values.block => isGlobalBlock ge b || getBlocks vals1 b))
+       (REACH m2
+          (fun b : Values.block => isGlobalBlock tge b || getBlocks vals2 b))
+       j) c1 m1 c2 m2. 
 Proof. intros.
   inversion Ini.
   unfold LTL_initial_core in H0. unfold ge in *. unfold tge in *.
@@ -2480,7 +2483,7 @@ Proof. intros.
     intros CONTRA.
     solve[elimtype False; auto].
   destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
-     VInj J RCH1 RCH2 PG GDE MS HDomS HDomT RCL _ (eq_refl _))
+     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
     as [AA [BB [CC [DD [EE [FF GG]]]]]].
   split.
     eapply match_states_call; try eassumption.
@@ -2572,7 +2575,7 @@ assert (GDE: genvs_domain_eq ge tge).
     apply A in H3.
     assert (Mem.valid_block m1 (Mem.nextblock m1)).
       eapply Mem.valid_block_inject_1; eauto.
-    clear - H11; unfold Mem.valid_block in H11.
+    clear - H8; unfold Mem.valid_block in H8.
     xomega.
 
     destruct (P (Mem.nextblock m0) (Mem.nextblock m2)); auto.
@@ -2581,7 +2584,7 @@ assert (GDE: genvs_domain_eq ge tge).
     apply A in H3.
     assert (Mem.valid_block m2 (Mem.nextblock m2)).
       eapply Mem.valid_block_inject_2; eauto.
-    clear - H11; unfold Mem.valid_block in H11.
+    clear - H8; unfold Mem.valid_block in H8.
     xomega.
     
     intros b LT.    

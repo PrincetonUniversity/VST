@@ -3985,40 +3985,43 @@ Proof.
     apply MC. apply MC.
 Qed.
 
-Lemma MATCH_initial: forall v1 v2 sig entrypoints
-      (EP: In (v1, v2, sig) entrypoints)
-      (entry_points_ok : forall (v1 v2 : val) (sig : signature),
+Lemma MATCH_initial: forall (v1 v2 : val) (sig : signature) entrypoints
+  (EP: In (v1, v2, sig) entrypoints)
+  (entry_points_ok : forall (v1 v2 : val) (sig : signature),
                   In (v1, v2, sig) entrypoints ->
-                  exists b f1 f2,
+                  exists
+                    (b : Values.block) f1 f2,
                     v1 = Vptr b Int.zero /\
                     v2 = Vptr b Int.zero /\
                     Genv.find_funct_ptr ge b = Some f1 /\
                     Genv.find_funct_ptr tge b = Some f2)
-      vals1 c1 m1 j vals2 m2 (DomS DomT : block -> bool)
-      (Ini: initial_core Linear_eff_sem ge v1 vals1 = Some c1)
-      (Inj: Mem.inject j m1 m2)
-      (VInj: Forall2 (val_inject j) vals1 vals2)
-      (PG:meminj_preserves_globals ge j)
-      (R : list_norepet (map fst (prog_defs prog)))
-      (J: forall b1 b2 delta, j b1 = Some (b2, delta) -> 
-            (DomS b1 = true /\ DomT b2 = true))
-      (RCH1: forall b, REACH m1 
-        (fun b' : Values.block => isGlobalBlock ge b' || getBlocks vals1 b') b =
-         true -> DomS b = true)
-      (RCH2: forall b, REACH m2 
+  (vals1 : list val) c1 (m1 : mem) (j : meminj)
+  (vals2 : list val) (m2 : mem) (DomS DomT : Values.block -> bool)
+  (Ini :initial_core Linear_eff_sem ge v1 vals1 = Some c1)
+  (Inj: Mem.inject j m1 m2)
+  (VInj: Forall2 (val_inject j) vals1 vals2)
+  (PG: meminj_preserves_globals ge j)
+  (R : list_norepet (map fst (prog_defs prog)))
+  (J: forall b1 b2 d, j b1 = Some (b2, d) -> 
+                      DomS b1 = true /\ DomT b2 = true)
+  (RCH: forall b, REACH m2
         (fun b' : Values.block => isGlobalBlock tge b' || getBlocks vals2 b') b =
          true -> DomT b = true)
-      (RCL: REACH_closed m1 DomS) 
-      (MS: forall b1, DomS b1=true -> exists b2 d, j b1 = Some(b2,d) /\ DomT b2=true)
-      (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
-               /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
-               /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))   
-      (GDE: genvs_domain_eq ge tge)
-      (HDomS: forall b : block, DomS b = true -> Mem.valid_block m1 b)
-      (HDomT: forall b : block, DomT b = true -> Mem.valid_block m2 b),
+  (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
+      /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
+      /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))
+  (GDE: genvs_domain_eq ge tge)
+  (HDomS: forall b : Values.block, DomS b = true -> Mem.valid_block m1 b)
+  (HDomT: forall b : Values.block, DomT b = true -> Mem.valid_block m2 b),
 exists c2,
   initial_core (Mach_eff_sem return_address_offset) tge v2 vals2 = Some c2 /\
-  MATCH c1 (initial_SM DomS DomT DomS DomT j) c1 m1 c2 m2.
+  MATCH c1
+    (initial_SM DomS DomT
+       (REACH m1
+          (fun b : Values.block => isGlobalBlock ge b || getBlocks vals1 b))
+       (REACH m2
+          (fun b : Values.block => isGlobalBlock tge b || getBlocks vals2 b))
+       j) c1 m1 c2 m2. 
 Proof. intros.
   inversion Ini.
   unfold Linear_initial_core in H0. unfold ge in *. unfold tge in *.
@@ -4038,7 +4041,7 @@ Proof. intros.
   eexists; split.
     solve[simpl; rewrite e, D; auto].
   destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
-     VInj J RCH1 RCH2 PG GDE MS HDomS HDomT RCL _ (eq_refl _))
+     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
     as [AA [BB [CC [DD [EE [FF GG]]]]]].
   simpl in *.  
   destruct InitMem as [m0 [INIT [? ?]]].
@@ -4073,8 +4076,8 @@ Proof. intros.
           eapply restrictI_Some.
             eapply meminj_preserves_globals_isGlobalBlock. eapply DD.
             eauto.
-            apply AA. apply REACH_nil. rewrite (InitBlocks _ H1). trivial.
-          symmetry. eapply DD3. eassumption. apply H1. 
+            apply REACH_nil. generalize (InitBlocks _ H1). unfold ge. intros ->; auto.
+          symmetry. eapply DD3. eassumption. eauto.
           eapply Genv.find_symbol_not_fresh. eassumption. eassumption. 
           eapply Genv.find_funct_ptr_not_fresh. eassumption. eassumption.
           eapply Genv.find_var_info_not_fresh. eassumption. eassumption.
@@ -4083,9 +4086,7 @@ Proof. intros.
   admit. admit. admit. (*finish MATCH_init once intern/extern/extrasteps has been solved*)
     (*External*)
       admit. (*TODO: finish MATCH_init once intern/extern/extrasteps has been solved*)
-
-rewrite initial_SM_as_inj; simpl.
-intuition.
+      admit. (*TODO: finish MATCH_init once intern/extern/extrasteps has been solved*)
 Qed.
 
 Lemma MATCH_diagram: forall st1 m1 st1' m1'

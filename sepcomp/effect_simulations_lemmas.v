@@ -11,9 +11,9 @@ Require Import msl.Axioms.
 Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.core_semantics_lemmas.
-Require Import sepcomp.reach.
 Require Import sepcomp.effect_semantics.
 Require Import sepcomp.StructuredInjections.
+Require Import sepcomp.reach.
 
 Require Import effect_simulations.
 
@@ -93,17 +93,7 @@ Section Eff_INJ_SIMU_DIAGRAMS.
         (*the next two conditions are required to guarantee intialSM_wd*)
          (forall b1 b2 d, j b1 = Some (b2, d) -> 
                           DomS b1 = true /\ DomT b2 = true) ->
-
-         (forall b, 
-            REACH m1 (fun b' => isGlobalBlock ge1 b' 
-                             || getBlocks vals1 b') b = true -> DomS b = true) ->
-
-         (forall b, 
-            REACH m2 (fun b' => isGlobalBlock ge2 b' 
-                             || getBlocks vals2 b') b = true -> DomT b = true) ->
-
-         REACH_closed m1 DomS -> 
-         (forall b1, DomS b1=true -> exists b2 d, j b1 = Some(b2,d) /\ DomT b2=true) -> 
+         (forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> DomT b = true) ->
 
         (*the next two conditions ensure the initialSM satisfies sm_valid*)
          (forall b, DomS b = true -> Mem.valid_block m1 b) ->
@@ -113,8 +103,8 @@ Section Eff_INJ_SIMU_DIAGRAMS.
             initial_core Sem2 ge2 v2 vals2 = Some c2 /\
             match_states c1 (initial_SM DomS
                                        DomT 
-                                       DomS
-                                       DomT j)
+                                       (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b)) 
+                                       (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j)
                            c1 m1 c2 m2.
 
   Hypothesis inj_halted : forall cd mu c1 m1 c2 m2 v1,
@@ -134,6 +124,7 @@ Section Eff_INJ_SIMU_DIAGRAMS.
           exists vals2, 
             Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\ 
             at_external Sem2 c2 = Some (e,ef_sig,vals2)).
+
 
   Hypothesis inj_after_external:
       forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
@@ -197,6 +188,9 @@ Hypothesis order_wf: well_founded order.
           sm_inject_separated mu mu' m1 m2 /\
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
           match_states st1' mu' st1' m1' st2' m2' /\
+
+(*          SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
+
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             corestep_star Sem2 ge2 st2 m2 st2' m2' /\
             order st1' st1).
@@ -241,9 +235,16 @@ clear - match_visible. intros. destruct H; subst. eauto.
 clear - match_restrict. intros. destruct H; subst. eauto.
 clear - match_validblocks. intros.
     destruct H; subst. eauto.
+(*clear - match_protected. intros.
+    destruct H; subst. eauto. *)
+(*version with structured injections
+clear - core_initial_sm. intros.
+    exploit (core_initial_sm _ _ _ H); try eassumption.
+    intros [c2 [INI MS]].
+  exists c1, c2. intuition. *)
   clear - inj_initial_cores. intros.
     destruct (inj_initial_cores _ _ _ H
-         _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10)
+         _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 H5 H6 H7)
     as [c2 [INI MS]].
   exists c1, c2. intuition. 
 clear - inj_core_diagram.
@@ -290,6 +291,9 @@ Section EFF_INJ_SIMULATION_STAR.
           sm_inject_separated mu mu' m1 m2 /\
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
           match_states st1' mu' st1' m1' st2' m2' /\
+
+(*          SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
+
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2')).
 
@@ -352,6 +356,9 @@ Section EFF_INJ_SIMULATION_PLUS.
           sm_inject_separated mu mu' m1 m2 /\
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\ 
           match_states st1' mu' st1' m1' st2' m2' /\
+
+(*          SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
+
           ((corestep_plus Sem2 ge2 st2 m2 st2' m2') \/
             ((measure st1' < measure st1)%nat /\ corestep_star Sem2 ge2 st2 m2 st2' m2')).
 

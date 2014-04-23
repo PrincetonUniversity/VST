@@ -9,7 +9,6 @@ Require Import AST.
 Require Import Integers.
 Require Import Globalenvs.
 Require Export Maps.
-
 Require Import Csharpminor.
 Require Import Cminor.
 Require Import Cminorgen.
@@ -17,9 +16,9 @@ Require Import Cminorgen.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.core_semantics_lemmas.
-Require Import sepcomp.reach.
 Require Import sepcomp.effect_semantics.
 Require Import StructuredInjections.
+Require Import sepcomp.reach.
 Require Import effect_simulations.
 Require Import sepcomp.effect_properties.
 Require Import effect_simulations_lemmas.
@@ -739,14 +738,9 @@ Lemma Match_init_core: forall (v1 v2 : val) (sig : signature) entrypoints
   (R : list_norepet (map fst (prog_defs prog)))
   (J: forall b1 b2 d, j b1 = Some (b2, d) -> 
                       DomS b1 = true /\ DomT b2 = true)
-  (RCH1: forall b, REACH m1 
-        (fun b' : Values.block => isGlobalBlock ge b' || getBlocks vals1 b') b =
-         true -> DomS b = true)
-  (RCH2: forall b, REACH m2 
+  (RCH: forall b, REACH m2
         (fun b' : Values.block => isGlobalBlock tge b' || getBlocks vals2 b') b =
          true -> DomT b = true)
-  (RCL: REACH_closed m1 DomS) 
-  (MS: forall b1, DomS b1=true -> exists b2 d, j b1 = Some(b2,d) /\ DomT b2=true)
   (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
       /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
       /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))
@@ -756,11 +750,11 @@ Lemma Match_init_core: forall (v1 v2 : val) (sig : signature) entrypoints
 exists c2 : CMin_core,
   initial_core cmin_eff_sem tge v2 vals2 = Some c2 /\
   Match_cores c1
-    (initial_SM DomS DomT DomS DomT
-(*       (REACH m1
+    (initial_SM DomS DomT
+       (REACH m1
           (fun b : Values.block => isGlobalBlock ge b || getBlocks vals1 b))
        (REACH m2
-          (fun b : Values.block => isGlobalBlock tge b || getBlocks vals2 b))*)
+          (fun b : Values.block => isGlobalBlock tge b || getBlocks vals2 b))
        j) c1 m1 c2 m2. 
 Proof. intros.
   inversion CSM_Ini.
@@ -786,24 +780,33 @@ Proof. intros.
     assert (Genv.init_mem tprog = Some m0).
       unfold transl_program in TRANSL.
       solve[eapply Genv.init_mem_transf_partial in TRANSL; eauto].
+    (*rewrite initial_SM_as_inj. unfold vis. unfold initial_SM; simpl.
+      eapply inject_mapped; try eassumption.
+       eapply restrict_mapped_closed.
+         eapply inject_REACH_closed; eassumption.
+         apply REACH_is_closed.
+       apply restrict_incr.*)
+    (*rewrite initial_SM_as_inj. *)
       apply st_mcs_nil with (Mem.nextblock m0).
     eapply (match_globalenvs_init' _ R _ _ INIT_MEM).
-      rewrite initial_SM_as_inj.
+      (*rewrite restrict_sm_all.*) rewrite initial_SM_as_inj.
       eapply restrict_preserves_globals; try eassumption.
       unfold vis, initial_SM; simpl; intros.
-      apply RCH1.
       apply REACH_nil. rewrite H0; trivial.
     apply A. apply B.
     econstructor. simpl. trivial.
-    rewrite initial_SM_as_inj.
+    (*rewrite restrict_sm_all.*) rewrite initial_SM_as_inj.
       unfold vis, initial_SM; simpl.
       apply forall_inject_val_list_inject.
       eapply restrict_forall_vals_inject; try eassumption.
-        intros. 
-        apply RCH1. 
-        apply REACH_nil. rewrite H; intuition.
+        intros. apply REACH_nil. rewrite H; intuition.
+(*
+    eapply restrict_preserves_globals; try eassumption.
+      rewrite initial_SM_as_inj. assumption.
+      intros. unfold vis, initial_SM; simpl. 
+      apply REACH_nil. rewrite H; trivial.*)
 destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
-    VInj J RCH1 RCH2 PG GDE MS HDomS HDomT RCL _ (eq_refl _))
+    VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
    as [AA [BB [CC [DD [EE [FF GG]]]]]].
 intuition. rewrite initial_SM_as_inj. assumption.
 rewrite initial_SM_as_inj. assumption.
@@ -4356,11 +4359,9 @@ assert (GDE: genvs_domain_eq ge tge).
             (nu:=nu) (nu':=nu') (mu':=mu');
      try assumption; try reflexivity. }
 (* core_diagram*)
-  { intros.
-    exploit Match_corestep; eauto.
-    intros [? [? [? [? [? [? [? [? [? ?]]]]]]]]].
-    exists x, x0, x1.
-    split; auto. }
+  { intros; exploit Match_corestep; eauto.
+    intros [st2' [m2' [mu' [? [? [? [? [? [? ?]]]]]]]]].
+    exists st2',m2',mu'; split; auto. }
 (* effcore_diagram*)
   { apply Match_effcore_diagram. }
 Qed.

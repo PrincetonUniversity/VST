@@ -99,42 +99,38 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
                  (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)))
                  c1 m1 c2 m2; *)
 
-    core_initial : forall v1 v2 sig,
-       In (v1,v2,sig) entry_points -> 
-       forall vals1 c1 m1 j vals2 m2 DomS DomT,
-          initial_core Sem1 ge1 v1 vals1 = Some c1 ->
-          Mem.inject j m1 m2 -> 
-          Forall2 (val_inject j) vals1 vals2 ->
-          meminj_preserves_globals ge1 j ->
+  core_initial : 
+    forall v1 v2 sig, In (v1,v2,sig) entry_points -> 
+    forall vals1 c1 m1 j vals2 m2 DomS DomT,
+    initial_core Sem1 ge1 v1 vals1 = Some c1 ->
+    Mem.inject j m1 m2 -> 
+    Forall2 (val_inject j) vals1 vals2 ->
+    meminj_preserves_globals ge1 j ->
 
-         (* The next two conditions are required to guarantee intialSM_wd. *)
-         (forall b1 b2 d, j b1 = Some (b2, d) -> 
-                          DomS b1 = true /\ DomT b2 = true) ->
+    (*the next two conditions are required to guarantee intialSM_wd*)
+    (forall b1 b2 d, j b1 = Some (b2, d) -> 
+      DomS b1 = true /\ DomT b2 = true) ->
+    (forall b, 
+      REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b=true -> 
+      DomT b = true) ->
 
-         (forall b, 
-            REACH m1 (fun b' => isGlobalBlock ge1 b' 
-                             || getBlocks vals1 b') b = true -> 
-            DomS b = true) ->
+    (*the next two conditions ensure the initialSM satisfies sm_valid*)
+    (forall b, DomS b = true -> Mem.valid_block m1 b) ->
+    (forall b, DomT b = true -> Mem.valid_block m2 b) ->
 
-         (forall b, 
-            REACH m2 (fun b' => isGlobalBlock ge2 b' 
-                             || getBlocks vals2 b') b = true -> 
-            DomT b = true) ->
-
-         REACH_closed m1 DomS -> 
-         (forall b1, 
-            DomS b1=true -> 
-            exists b2 d, j b1 = Some(b2,d) /\ DomT b2=true) -> 
-
-         (* The next two conditions ensure the initialSM satisfies sm_valid. *)
-         (forall b, DomS b = true -> Mem.valid_block m1 b) ->
-         (forall b, DomT b = true -> Mem.valid_block m2 b) ->
-
-       exists cd, exists c2, 
-            initial_core Sem2 ge2 v2 vals2 = Some c2 /\
-            (* Lemma StructuredInjections.initial_SM_as_inj implies 
-               that Mem.inject (initial_SM ...) m1 m2 holds. *)
-            match_state cd (initial_SM DomS DomT DomS DomT j) c1 m1 c2 m2;
+    exists cd, exists c2, 
+    initial_core Sem2 ge2 v2 vals2 = Some c2 
+    (*Lemma StructuredInjections.initial_SM_as_inj implies 
+      that Mem.inject (initial_SM DomS DomT 
+            (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b)) 
+            (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j)
+            m1 m2 
+     holds*)
+    /\ match_state cd 
+         (initial_SM DomS DomT 
+           (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b)) 
+           (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j)
+         c1 m1 c2 m2;
 
     core_diagram : 
       forall st1 m1 st1' m1', 

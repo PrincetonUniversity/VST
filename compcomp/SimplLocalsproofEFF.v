@@ -5605,14 +5605,9 @@ Lemma MATCH_init_core: forall (v1 v2 : val) (sig : signature) entrypoints
   (R : list_norepet (map fst (prog_defs prog)))
   (J: forall b1 b2 d, j b1 = Some (b2, d) -> 
                       DomS b1 = true /\ DomT b2 = true)
-  (RCH1: forall b, REACH m1 
-        (fun b' : Values.block => isGlobalBlock ge b' || getBlocks vals1 b') b =
-         true -> DomS b = true)
-  (RCH2: forall b, REACH m2 
+  (RCH: forall b, REACH m2
         (fun b' : Values.block => isGlobalBlock tge b' || getBlocks vals2 b') b =
          true -> DomT b = true)
-  (RCL: REACH_closed m1 DomS) 
-  (MS: forall b1, DomS b1=true -> exists b2 d, j b1 = Some(b2,d) /\ DomT b2=true)
   (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
       /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
       /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))
@@ -5622,11 +5617,11 @@ Lemma MATCH_init_core: forall (v1 v2 : val) (sig : signature) entrypoints
 exists c2,
   initial_core CL_eff_sem2 tge v2 vals2 = Some c2 /\
   MATCH c1
-    (initial_SM DomS DomT DomS DomT
-(*       (REACH m1
+    (initial_SM DomS DomT
+       (REACH m1
           (fun b : Values.block => isGlobalBlock ge b || getBlocks vals1 b))
        (REACH m2
-          (fun b : Values.block => isGlobalBlock tge b || getBlocks vals2 b))*)
+          (fun b : Values.block => isGlobalBlock tge b || getBlocks vals2 b))
        j) c1 m1 c2 m2. 
 Proof. intros.
   inversion CSM_Ini.
@@ -5651,23 +5646,21 @@ Proof. intros.
           intros. econstructor. 
             eapply match_globalenvs_init'. assumption. eassumption.
               eapply restrict_preserves_globals. rewrite initial_SM_as_inj. assumption. 
-          unfold vis, initial_SM; simpl; intros. eapply RCH1.
+          unfold vis, initial_SM; simpl; intros. 
              apply REACH_nil. unfold ge in H. rewrite H. intuition.
           assumption.
           assumption.
           unfold vis, initial_SM; simpl. 
             apply forall_inject_val_list_inject.
             eapply restrict_forall_vals_inject; try eassumption.
-            intros. apply RCH1. 
-            apply REACH_nil. rewrite H; intuition. 
+            intros. apply REACH_nil. rewrite H; intuition. 
           instantiate (2:=Tnil). 
           instantiate (1:=type_int32s). admit. (*Remove this clause from match_state?*) 
    admit. (*Remove this clause from match_state, and/or correct wrt typelist of vals1?*) 
 destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
-    VInj J RCH1 RCH2 PG GDE MS HDomS HDomT RCL _ (eq_refl _))
+    VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
    as [AA [BB [CC [DD [EE [FF GG]]]]]].
 intuition. rewrite initial_SM_as_inj. assumption.
-(*protected: red. simpl. intros. discriminate.*)
 Qed.
 
 (** The simulation proof *)

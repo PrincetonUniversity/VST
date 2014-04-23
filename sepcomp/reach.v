@@ -1212,6 +1212,7 @@ Proof. intros. unfold REACH_closed. intros.
     eexists. eapply reach_cons; eassumption.
 Qed.
 
+
 (*Generic proof that the inital structured injection satisfies 
   the match_genv, match_wd and match_valid conditions of the LSR*)
 Lemma core_initial_wd : forall {F1 V1 F2 V2} (ge1: Genv.t F1 V1) (ge2: Genv.t F2 V2) 
@@ -1219,19 +1220,15 @@ Lemma core_initial_wd : forall {F1 V1 F2 V2} (ge1: Genv.t F1 V1) (ge2: Genv.t F2
           (MInj: Mem.inject j m1 m2)
           (VInj: Forall2 (val_inject j) vals1 vals2)
           (HypJ: forall b1 b2 d, j b1 = Some (b2, d) -> DomS b1 = true /\ DomT b2 = true)
-          (R1: forall b, REACH m1 (fun b' => isGlobalBlock ge1 b' || getBlocks vals1 b') b = true -> 
-                         DomS b = true)
-          (R2: forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> 
-                         DomT b = true)
+          (R: forall b, REACH m2 (fun b' => isGlobalBlock ge2 b' || getBlocks vals2 b') b = true -> 
+                        DomT b = true)
           (PG: meminj_preserves_globals ge1 j)
           (GenvsDomEQ: genvs_domain_eq ge1 ge2)
-          (MS: forall b1 : block,
-                 DomS b1 = true ->
-                 exists (b2 : block) (z : Z), j b1 = Some (b2, z) /\ DomT b2 = true)
           (HS: forall b, DomS b = true -> Mem.valid_block m1 b)
           (HT: forall b, DomT b = true -> Mem.valid_block m2 b)
-          (RC: REACH_closed m1 DomS)
-          mu (Hmu: mu = initial_SM DomS DomT DomS DomT j),
+          mu (Hmu: mu = initial_SM DomS DomT
+                         (REACH m1 (fun b => isGlobalBlock ge1 b || getBlocks vals1 b)) 
+                         (REACH m2 (fun b => isGlobalBlock ge2 b || getBlocks vals2 b)) j),
        (forall b, REACH m1 (fun b' => isGlobalBlock ge1 b' || getBlocks vals1 b') b = true -> 
                   DomS b = true) /\
        SM_wd mu /\ sm_valid mu m1 m2 /\ 
@@ -1241,21 +1238,31 @@ Lemma core_initial_wd : forall {F1 V1 F2 V2} (ge1: Genv.t F1 V1) (ge2: Genv.t F2
        REACH_closed m1 (mapped (as_inj mu)).
 Proof. intros.
   specialize (getBlocks_inject _ _ _ VInj); intros.
-  rewrite Hmu.
-  split.
-  apply R1.
-  split.
-  split; simpl; try solve[left; auto|intros; congruence].
-  apply HypJ.
-  apply MS.
-  split.
-  split; unfold DOM, DomSrc; simpl. apply HS.
-  unfold RNG, DomTgt; simpl. apply HT.
+  assert (HR: forall b1, REACH m1 (fun b : block => isGlobalBlock ge1 b || getBlocks vals1 b) b1 = true ->
+            exists b2 z, j b1 = Some (b2, z) /\
+                         REACH m2 (fun b : block => isGlobalBlock ge2 b || getBlocks vals2 b) b2 = true).
+         eapply (REACH_inject _ _ _ MInj).
+              intros. clear R mu Hmu HS HT.
+              apply orb_true_iff in H0.
+              destruct H0. 
+                rewrite (meminj_preserves_globals_isGlobalBlock _ _ PG _ H0).
+                exists b, 0. rewrite <- (genvs_domain_eq_isGlobal _ _ GenvsDomEQ).
+                intuition.
+              destruct (H _ H0) as [b2 [d [J GB2]]]. exists b2, d; intuition.
+  split. intros. 
+         destruct (HR _ H0) as [b2 [d [J R2]]].
+         apply (HypJ _ _ _ J).
+  subst.
+  split. eapply initial_SM_wd; try eassumption.
+           intros. destruct (HR _ H0) as [b2 [d [J R2]]].
+             apply (HypJ _ _ _ J).
+  split. split; intros. apply (HS _ H0). apply (HT _ H0). 
   split. eapply meminj_preserves_globals_initSM; intuition.
-  split. simpl. 
-    { intros. apply R1. apply REACH_nil. rewrite H0; auto. }
-  split. unfold vis; simpl. apply RC.
-  rewrite initial_SM_as_inj. apply (inject_REACH_closed _ _ _ MInj).     
+  split. apply meminj_preserves_globals_init_REACH_frgn; try eassumption.
+    intuition.
+  split. simpl. apply REACH_is_closed.
+  rewrite initial_SM_as_inj. 
+    apply (inject_REACH_closed _ _ _ MInj).     
 Qed.
 
 (*Proof the match_genv is preserved by callsteps*)
