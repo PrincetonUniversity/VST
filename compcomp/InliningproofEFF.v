@@ -23,10 +23,13 @@ Require Import effect_simulations.
 Require Import sepcomp.effect_properties.
 Require Import effect_simulations_lemmas.
 
+
 Require Export Axioms.
 (*Require Import CminorSel_coop.*)
 Require Import RTL_eff.
 Require Import RTL_coop.
+
+Check sepcomp.effect_simulations_lemmas.inj_simulation_star.
 
 Load Santiago_tactics.
 
@@ -761,22 +764,98 @@ Hint Resolve Match_AfterExternal: trans_correct.
 eauto with trans_correct.
 
 Focus 1.
+
+
 intros.
-inv H0.
-inv H1.
 simpl in *.
-Print RTL_corestep.
-induction H; simpl in *.
-eexists. eexists. exists mu. 
-Focus 1.
+destruct H0.
+Print match_states.
+
+inv H.
+inv H0.
+
+eexists. 
+eexists. exists mu.
 intuition.
 apply intern_incr_refl.
 apply sm_inject_separated_same_sminj.
 apply sm_locally_allocatedChar.
-Check corestep_plus_one.
 repeat split; extensionality b;
 rewrite freshloc_irrefl;
 intuition.
+(*unfold MATCH.
+intuition.
+eapply match_regular_states; first [eassumption| split; eassumption].
+(*unfold RTL_measure; simpl.*)*)
+Focus 2.
+left.
+eapply rtl_corestep_exec_Inop in H2.
+
+unfold corestep_plus, corestepN. simpl.
+exists O. eexists. eexists.
+simpl.
+split.
+eapply H2.
+Print RTL_corestep.
+eapply H9.
+
+Lemma RTL_corestep_plus_one: forall (ge : genv) (c c' : RTL_core) (m m' : mem),
+    RTL_corestep ge c m c' m' -> corestep_plus RTL_core_sem ge c m c' m'.
+Admitted.
+apply RTL_corestep_plus_one. eapply H9.
+
+
+RTL_corestep
+     : genv -> RTL_core -> mem -> RTL_core -> mem -> Prop.
+
+eassumption.
+
+
+Print RTL_State.
+Focus 1.
+
+assert (spc ctx pc = (spc ctx pc')).
+unfold spc. unfold shiftpos.
+Print Pos.pred.
+
+f_equal.
+Locate "+".
+Print Pos.add.
+
+Print State.
+
+(* apply match_regular_states. *)
+Print match_states.
+
+Print spc.
+Check ctx.
+
+
+destruct H.
+ 
+(* match_regular_states *)
+eapply match_regular_states.
+(*match_call_states*)
+
+(* match_call_regular_states *)
+
+(* match_return_states *)
+
+(* match_return_regular_states *)
+unfold match_states.
+eapply exec_Inop in H.
+ inv H.
+simpl in *.
+Print RTL_corestep.
+induction H; simpl in *.
+Focus 1.
+intuition.
+
+
+
+
+
+
 
 split; intuition.
 destruct sp0. 
