@@ -40,3 +40,10 @@ Ltac open_Hyp:= match goal with
                      | [H: and _ _ |- _] => destruct H
                      | [H: exists _, _ |- _] => destruct H
                  end.
+
+(*Pattern for fresh variables:
+let x := fresh "x" in
+               evar (x : T);
+               let x' := eval unfold x in x in
+                 clear x; tactic.
+*)
