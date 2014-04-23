@@ -9,7 +9,6 @@ Require Import msl.Axioms. (*for proof_irr*)
 (* sepcomp imports *)
 
 Require Import linking.sepcomp. Import SepComp. 
-(*Require Import sepcomp.nucular_semantics.*)
 Require Import sepcomp.arguments.
 
 Require Import linking.pos.
@@ -27,6 +26,7 @@ Require Import linking.compcert_linking.
 Require Import linking.compcert_linking_lemmas.
 Require Import linking.disjointness.
 Require Import linking.rc_semantics.
+Require Import linking.rc_semantics_lemmas.
 
 (* compcert imports *)
 
@@ -44,7 +44,7 @@ Unset Printing Implicit Defensive.
 Require Import compcert.common.Values.   
 Require Import sepcomp.nucular_semantics.
 
-(* This file states and proves the main linking simulation result.        *)
+(* This file states the main linking simulation result.                   *)
 (* Informally,                                                            *)
 (*   - Assume a multi-module program with N translation units:            *)
 (*                                                                        *)
@@ -72,36 +72,44 @@ Require Import sepcomp.nucular_semantics.
 (* where >< denotes the semantic linking operation defined in             *)
 (* compcert_linking.v.                                                    *)
 
-Section linkingSimulation.
-
 Import Wholeprog_simulation.
 Import SM_simulation.
-Import Linker.
+Import Linker. 
 Import Modsem.
 
-Variable N : pos.
-Variable (cores_S' cores_T : 'I_N -> Modsem.t). 
+Section linkingSimulation.
 
-Let cores_S (ix : 'I_N) := 
-  Modsem.mk (cores_S' ix).(ge) (RC.effsem (cores_S' ix).(coreSem)).
+Variable N : pos.
+
+Variable cores_S' cores_T : 'I_N -> Modsem.t. 
 
 Variable nucular_T : 
   forall i : 'I_N,
   Nuke.nucular_semantics (cores_T i).(coreSem).
+
 Variable fun_tbl : ident -> option 'I_N.
-Variable sims : forall i : 'I_N, 
-  let s := cores_S i in
+
+Variable sims' : forall i : 'I_N, 
+  let s := cores_S' i in
   let t := cores_T i in
   SM_simulation_inject s.(coreSem) t.(coreSem) s.(ge) t.(ge).
+
 Variable my_ge : ge_ty.
-Variable my_ge_S : forall (i : 'I_N), genvs_domain_eq my_ge (cores_S i).(ge).
+Variable my_ge_S : forall (i : 'I_N), genvs_domain_eq my_ge (cores_S' i).(ge).
 Variable my_ge_T : forall (i : 'I_N), genvs_domain_eq my_ge (cores_T i).(ge).
 
-Let types := fun i : 'I_N => (sims i).(core_data).
+Let types := fun i : 'I_N => (sims' i).(core_data).
 Let ords : forall i : 'I_N, types i -> types i -> Prop 
-  := fun i : 'I_N => (sims i).(core_ord).
+  := fun i : 'I_N => (sims' i).(core_ord).
 
-Variable wf_ords : forall i : 'I_N, well_founded (@ords i).
+Let cores_S (ix : 'I_N) := 
+  Modsem.mk (cores_S' ix).(ge) (RC.effsem (cores_S' ix).(coreSem)).
+
+Lemma sims : forall i : 'I_N,
+  let s := cores_S i in
+  let t := cores_T i in
+  SM_simulation_inject s.(coreSem) t.(coreSem) s.(ge) t.(ge).  
+Proof. by move=> ix; apply: rc_sim; apply: (sims' ix). Qed.
 
 Let linker_S := effsem N cores_S fun_tbl.
 Let linker_T := effsem N cores_T fun_tbl.
@@ -1848,7 +1856,8 @@ have globs_frgnS:
   have eq: genvs_domain_eq (ge (cores_S ix)) (ge (cores_S (Core.i (c inv)))).
     apply genvs_domain_eq_trans with (ge2 := my_ge)=> //.
     by apply: (genvs_domain_eq_sym _ _ (my_ge_S ix)).
-  by rewrite (genvs_domain_eq_isGlobal _ _ eq). }
+    by apply: my_ge_S.
+  by rewrite /= (genvs_domain_eq_isGlobal _ _ eq). }
 
 have presglobs: meminj_preserves_globals (ge (cores_S (Core.i c1))) j.
 { move: (head_presglobs hdinv).
@@ -1868,6 +1877,7 @@ have globs_frgnT:
     have eq: genvs_domain_eq (ge (cores_T ix)) (ge (cores_S (Core.i (c inv)))).
       apply genvs_domain_eq_trans with (ge2 := my_ge)=> //.
       by apply: (genvs_domain_eq_sym _ _ (my_ge_T ix)).
+      by apply: my_ge_S.
     by rewrite (genvs_domain_eq_isGlobal _ _ eq). }
   case: (frgnSrc _ (Inj_wd _) _ fS)=> b' []d []fOf fT.
   have eq: b=b'. 
@@ -2095,19 +2105,6 @@ by apply: (R_ge inv).
 Qed.
 
 End call_lems.
-
-(*TODO: move me into inj_lemmas.v*)
-Lemma sm_inject_separated_replace_locals mu X Y mu' m1 m2 : 
-  sm_inject_separated mu mu' m1 m2 -> 
-  sm_inject_separated (replace_locals mu X Y) mu' m1 m2.
-Proof.
-case.
-rewrite /sm_inject_separated.
-rewrite replace_locals_DomSrc.
-rewrite replace_locals_DomTgt.
-rewrite replace_locals_as_inj.
-by [].
-Qed.
 
 Section return_lems.
 
@@ -2944,7 +2941,7 @@ eapply Build_Wholeprog_simulation
        (match_state := R).
 
 (* well_founded ord *)
-{ by apply: wf_sig_ord. }
+{ by apply: wf_sig_ord=> ix; case: (sims ix). }
 
 (* genvs_domain_eq *)
 { by apply: genvs_domain_eq_refl. }
@@ -3410,3 +3407,35 @@ Qed.
 End linkingSimulation.
 
 Print Assumptions link.
+
+Require Import linking.linking_spec.
+
+Module LinkingSimulation : LINKING_SIMULATION.
+
+Lemma link : 
+  forall (N : pos) (sems_S sems_T : 'I_N -> t),
+  (forall ix : 'I_N, Nuke.nucular_semantics (coreSem (sems_T ix))) ->
+  forall (plt : ident -> option 'I_N)
+    (sims : forall ix : 'I_N,
+            let s := sems_S ix in
+            let t := sems_T ix in
+            SM_simulation_inject (coreSem s) (coreSem t) (ge s) (ge t))
+    (ge_top : ge_ty),
+  (forall ix : 'I_N, genvs_domain_eq ge_top (ge (sems_S ix))) ->
+  (forall ix : 'I_N, genvs_domain_eq ge_top (ge (sems_T ix))) ->
+  let types := fun ix : 'I_N => core_data (sims ix) in
+  let ords := fun ix : 'I_N => core_ord (sims ix) in
+  let sems_S0 :=
+    fun ix : 'I_N =>
+    {|
+    F := F (sems_S ix);
+    V := V (sems_S ix);
+    ge := ge (sems_S ix);
+    C := RC.state (C (sems_S ix));
+    coreSem := RC.effsem (coreSem (sems_S ix)) |} in
+  let linker_S := effsem N sems_S0 plt in
+  let linker_T := effsem N sems_T plt in
+  forall main : val, Wholeprog_simulation linker_S linker_T ge_top ge_top main.
+Proof. by move=> *; apply: link. Qed.
+
+End LinkingSimulation.

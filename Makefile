@@ -85,6 +85,7 @@ SEPCOMP_FILES= \
   reach.v \
   trace_semantics.v \
   arguments.v \
+  nucular_semantics.v \
   effect_simulationsEXP.v \
   wholeprog_simulations.v \
   barebones_simulations.v \
@@ -111,6 +112,7 @@ LINKING_FILES= \
   compcert_linking.v \
   linking_lemmas.v \
   compcert_linking_lemmas.v \
+  linking_spec.v \
   linking_proof.v \
   stacking.v \
   dep_linking_proof.v 
