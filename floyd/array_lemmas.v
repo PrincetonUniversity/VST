@@ -274,7 +274,7 @@ forall Espec (Delta: tycontext) id sh t1 P Q R lo hi
 Proof.
  intros until 2. intros NONVOL CLASSIFY H3 H5 H2.
 eapply semax_pre_post;
-  [ | |  apply (loadstore_lemmas.semax_load_37 Delta sh id 
+  [ | |  apply (semax_load Delta sh id 
                 (PROPx P (LOCALx (tc_expr Delta e1
            :: `(tc_val tint) v2
               :: `(in_range lo hi) (`force_signed_int v2)
@@ -317,7 +317,7 @@ clear. intros ek vl. apply andp_left2. apply normal_ret_assert_derives'.
  autorewrite with subst.
  go_lowerx. normalize.
 
-* (* condition for semax_load_37 *)
+* (* condition for semax_load *)
 eapply derives_trans; [ | eapply derives_trans; [ | ]].
 Focus 2.
 apply andp_derives; [apply H2 | apply H5].

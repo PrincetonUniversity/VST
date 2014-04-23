@@ -73,23 +73,6 @@ f_equal. f_equal.
 apply prop_ext; split; intro; hnf in *|-*; auto.
 Qed.
 
-Lemma superprecise_mapsto:
-  forall sh t v1 v2, 
-    v2 <> Vundef -> 
-   predicates_sl.superprecise (mapsto sh t v1 v2).
-Proof.
-intros. rename H into Hv2.
-hnf; intros.
-unfold mapsto in *;
-simpl in H,H0.
-destruct (access_mode t); try contradiction.
-destruct (type_is_volatile t); try contradiction.
-destruct v1; try contradiction.
-destruct H as [[_ H]|[Hz [u1 H]]]; try congruence.
-destruct H0 as [[_ H0]|[Hz [u2 H0]]]; try congruence.
-eapply res_predicates.superprecise_address_mapsto; eauto.
-Qed.
-
 Lemma mapsto_isptr:
   forall sh t v1 v2,
    mapsto sh t v1 v2 = !! (isptr v1) && mapsto sh t v1 v2.

@@ -720,70 +720,16 @@ Definition FUNspec (fml: funsig) (A: Type) (P Q: A -> environ -> pred rmap)(l: a
 
 (***********)
 
-
-Lemma superprecise_ewand_lem1:
-  forall S P: mpred, superprecise P ->
+Lemma ewand_lem1x:
+  forall S P: mpred,
           S |-- P * TT ->
-          S = P * (ewand P S).
+          S |-- P * (ewand P S).
 Proof.
 intros.
-apply pred_ext.
-intros w ?. specialize (H0 w H1).
-destruct H0 as [w1 [w2 [? [? _]]]].
+intros w ?. specialize (H w H0).
+destruct H as [w1 [w2 [? [? _]]]].
 exists w1; exists w2; split3; auto.
 exists w1; exists w; split3; auto.
-intros w [w1 [w2 [? [? ?]]]].
-destruct H3 as [w3 [w4 [? [? ?]]]].
-assert (w1=w3). eapply H; eauto.
-apply join_core2 in H1; apply join_core2 in H3; unfold comparable; congruence.
-subst w3.
-pose proof (join_eq H1 H3); subst w4.
-auto.
-Qed.
-
-Lemma superprecise_address_mapsto:
-  forall ch v rsh sh loc, 
-   v<>Vundef -> superprecise (address_mapsto ch v rsh sh loc).
-Proof.
-intros.
-hnf; intros.
-unfold address_mapsto in *.
-destruct H0 as [b1 [[? [? ?]] ?]]; destruct H1 as [b2 [[? [? ?]] ?]].
-assert (b1=b2) by (eapply decode_val_uniq; eauto).
-subst b2.
-assert (level w1 = level w2).
-clear - H2; unfold comparable in H2.
-rewrite <- level_core. rewrite <- (level_core w2).
-congruence.
-apply rmap_ext.
-auto.
-intro.
-clear - H5 H8 H9 H2.
-specialize (H5 l); specialize (H8 l).
-hnf in H5,H8.
-if_tac in H5.
-destruct H5 as [p ?]. destruct H8 as [p' ?].
-hnf in H0,H1.
-rewrite H0,H1.
-f_equal.
-f_equal.
-apply proof_irr.
-congruence.
-do 3 red in H5, H8.
-unfold comparable in H2; clear - H5 H8 H2.
-assert (core (w1 @ l) = core (w2 @ l)).
-repeat rewrite core_resource_at.
-congruence.
-clear H2.
-transitivity (core (w1 @ l)).
-apply unit_core.
-apply  identity_unit_equiv.
-auto.
-rewrite H.
-symmetry.
-apply unit_core.
-apply  identity_unit_equiv.
-auto.
 Qed.
 
 Lemma address_mapsto_old_parametric: forall ch v, 

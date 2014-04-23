@@ -690,29 +690,31 @@ forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
 
 Axiom semax_load : 
   forall {Espec: OracleKind},
-forall (Delta: tycontext) sh id P e1 t2 v2,
+forall (Delta: tycontext) sh id P e1 t2 (v2: environ -> val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
+      local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
     @semax Espec Delta 
        (|> (local (tc_lvalue Delta e1) && 
-       local ( `(tc_val (typeof e1)) v2) &&
-       (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))
+       local (`(tc_val (typeof e1)) v2) &&
+          P))
        (Sset id e1)
-       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id `old v2)) &&
-                                          (subst id `old (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))).
+       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) v2)) &&
+                                          (subst id (`old) P))).
 
 Axiom semax_cast_load : 
   forall {Espec: OracleKind},
-forall (Delta: tycontext) sh id P e1 t1 t2 v2,
+forall (Delta: tycontext) sh id P e1 t1 t2 (v2: environ -> val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast t1 t2 = true ->
+      local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
     @semax Espec Delta 
        (|> (local (tc_lvalue Delta e1) && 
-       local ( `(tc_val t1) (`(eval_cast (typeof e1) t1) v2)) &&
-       (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))
+       local (`(tc_val t1) (`(eval_cast (typeof e1) t1) v2)) &&
+          P))
        (Sset id (Ecast e1 t1))
-       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id `old (`(eval_cast (typeof e1) t1) v2))) &&
-                                          (subst id `old (`(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * P)))).
+       (normal_ret_assert (EX old:val, local (`eq (eval_id id) (subst id (`old) (`(eval_cast (typeof e1) t1) v2))) &&
+                                          (subst id (`old) P))).
 
 Axiom semax_store:
   forall {Espec: OracleKind},
