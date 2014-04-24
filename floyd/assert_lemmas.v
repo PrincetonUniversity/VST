@@ -41,7 +41,9 @@ Hint Rewrite Z.mul_1_l Z.mul_1_r Z.add_0_l Z.add_0_r : norm.
 Definition nullval : val := Vint Int.zero.
 
 Lemma writable_share_top: writable_share Tsh.
-Admitted.
+Proof.
+apply Share.contains_Rsh_e. apply top_correct'.
+Qed.
 Hint Resolve writable_share_top.
 
 Ltac safe_auto_with_closed := 
@@ -418,54 +420,49 @@ Hint Resolve closed_wrt_get_result1 : closed.
 Lemma closed_wrt_andp: forall S (P Q: environ->mpred),
   closed_wrt_vars S P -> closed_wrt_vars S Q ->
   closed_wrt_vars S (P && Q).
-Admitted.
+Proof.
+intros; hnf in *; intros.
+simpl. f_equal; eauto.
+Qed.
 
 Lemma closed_wrt_sepcon: forall S (P Q: environ->mpred),
   closed_wrt_vars S P -> closed_wrt_vars S Q ->
   closed_wrt_vars S (P * Q).
-Admitted.
+Proof.
+intros; hnf in *; intros.
+simpl. f_equal; eauto.
+Qed.
 
 Lemma closed_wrt_emp {A} {ND: NatDed A} {SL: SepLog A}:
   forall S, closed_wrt_vars S emp.
 Proof. repeat intro. reflexivity. Qed.
 Hint Resolve (@closed_wrt_emp mpred Nveric Sveric) : closed.
 
+Lemma closed_wrt_globvars:
+  forall S v, closed_wrt_vars S (globvars2pred v).
+Proof.
+intros.
+unfold globvars2pred.
+induction v; simpl map; auto with closed.
+apply closed_wrt_sepcon.
+clear; hnf; intros.
+unfold globvar2pred; destruct a; simpl.
+destruct (ge_of rho i) eqn:?; auto.
+destruct p.
+destruct (gvar_volatile g) eqn:?; auto.
+forget (readonly2share (gvar_readonly g)) as sh.
+clear - Heqb.
+revert v; induction (gvar_init g); intro; simpl; f_equal; auto.
+apply IHv.
+Qed.
 
 Lemma closed_wrt_main_pre:
   forall prog u S, closed_wrt_vars S (main_pre prog u).
-Admitted.
-Lemma closed_wrt_globvars:
-  forall S v, closed_wrt_vars S (globvars2pred v).
-Admitted.
+Proof.
+intros. apply closed_wrt_globvars. Qed.
 Hint Resolve closed_wrt_main_pre closed_wrt_globvars: closed.
 
-
-Fixpoint temp_free_in (id: ident) (e: expr) := 
- match e with
- | Econst_int _ _ => false
- | Econst_long _ _ => false
- | Econst_float _ _ => false
- | Evar _ _ => false
- | Etempvar i _ => eqb_ident id i
- | Ederef e1 _ => temp_free_in id e1
- | Eaddrof e1 _ => temp_free_in id e1
- | Eunop _ e1 _ => temp_free_in id e1
- | Ebinop _ e1 e2 _ => orb (temp_free_in id e1) (temp_free_in id e2) 
- | Ecast e1 _ => temp_free_in id e1
- | Efield e1 _ _ => temp_free_in id e1
-end.
-
-Lemma closed_wrt_ideq: forall a b e,
-  a <> b ->
-  temp_free_in a e = false ->
-  closed_wrt_vars (eq a) (fun rho => !! (eval_id b rho = eval_expr e rho)).
-Proof.
-Admitted.
-
 Hint Resolve closed_wrt_andp closed_wrt_sepcon : closed.
-
-Hint Extern 2 (closed_wrt_vars (eq _) _) => 
-      (apply closed_wrt_ideq; [solve [let Hx := fresh in (intro Hx; inv Hx)] | reflexivity]) : closed.
 
 (* Hint Resolve @Forall_cons @Forall_nil : closed.   don't add these, already in core HintDb *)
 
@@ -480,27 +477,46 @@ intros; subst; congruence.
 Qed.
 Hint Resolve closed_wrt_not1 : closed.
 
-
-Lemma closed_wrt_tc_expr:
-  forall Delta S e, expr_closed_wrt_vars S e ->
-             closed_wrt_vars S (tc_expr Delta e).
-Proof.
-intros.
-Admitted.
-Hint Resolve closed_wrt_tc_expr : closed.
-
-
 Lemma closed_wrt_tc_temp_id :
   forall Delta S e id t, expr_closed_wrt_vars S e ->
                          expr_closed_wrt_vars S (Etempvar id t) ->
              closed_wrt_vars S (tc_temp_id id t Delta e).
-Admitted.
+Proof.
+intros.
+hnf in *; intros.
+specialize (H _ _ H1); specialize (H0 _ _ H1).
+unfold tc_temp_id.
+unfold typecheck_temp_id.
+simpl in H0.
+unfold eval_id in H0.
+simpl in H0.
+destruct ( (temp_types Delta) ! id) eqn:?; simpl; auto with closed.
+destruct p.
+repeat rewrite denote_tc_assert_andp.
+f_equal.
+destruct (is_neutral_cast (implicit_deref t) t0) eqn:?; simpl; auto with closed.
+rewrite expr_lemmas.isCastR.
+destruct (classify_cast (implicit_deref t) t0) eqn:?; simpl; auto with closed;
+ try solve [destruct t0; simpl; auto with closed].
+if_tac; simpl; auto with closed.
+if_tac; simpl; auto with closed.
+unfold_lift. f_equal; auto.
+destruct si2; simpl; auto with closed.
+unfold_lift. rewrite <- H; auto.
+unfold_lift. rewrite <- H; auto.
+destruct (is_long_type (implicit_deref t) && is_long_type t0)%bool; simpl; auto with closed.
+Qed.
 Hint Resolve closed_wrt_tc_temp_id : closed.
-
 
 Lemma expr_closed_tempvar:
  forall S i t, ~ S i -> expr_closed_wrt_vars S (Etempvar i t).
-Admitted.
+Proof.
+intros.
+hnf; intros.
+simpl. unfold eval_id. f_equal.
+destruct (H0 i); auto.
+contradiction.
+Qed.
 Hint Resolve expr_closed_tempvar : closed.
 
 Hint Extern 1 (not (@eq ident _ _)) => (let Hx := fresh in intro Hx; inversion Hx) : closed.
@@ -560,9 +576,16 @@ Hint Resolve expr_closed_unop : closed.
 
 Lemma closed_wrt_stackframe_of:
   forall S f, closed_wrt_vars S (stackframe_of f).
-Admitted.
+Proof.
+intros.
+unfold stackframe_of.
+induction (fn_vars f); auto.
+apply closed_wrt_emp.
+apply closed_wrt_sepcon; [ | apply IHl].
+clear. destruct a; unfold var_block.
+hnf; intros. reflexivity.
+Qed.
 Hint Resolve closed_wrt_stackframe_of : closed.
-
 
 Definition included {U} (S S': U -> Prop) := forall x, S x -> S' x.
 
@@ -629,9 +652,12 @@ Hint Rewrite @closed_wrt_subst using safe_auto_with_closed : subst.
 
 Lemma lvalue_closed_tempvar:
  forall S i t, ~ S i -> lvalue_closed_wrt_vars S (Etempvar i t).
-Admitted.
+Proof.
+simpl; intros.
+hnf; intros.
+simpl. reflexivity.
+Qed.
 Hint Resolve lvalue_closed_tempvar : closed.
-
 
 Lemma expr_closed_addrof: forall S e t, 
      lvalue_closed_wrt_vars S e -> 
@@ -765,9 +791,14 @@ Qed.
 Hint Rewrite local_lift2_and : norm.
 
 Lemma subst_TT {A}{NA: NatDed A}: forall i v, subst i v TT = TT.
-Admitted.
+Proof.
+intros. extensionality rho; reflexivity.
+Qed.
+
 Lemma subst_FF {A}{NA: NatDed A}: forall i v, subst i v FF = FF.
-Admitted.
+Proof. 
+intros. extensionality rho; reflexivity.
+Qed.
 Hint Rewrite @subst_TT @subst_FF: subst.
 Hint Rewrite (@subst_TT mpred Nveric) (@subst_FF mpred Nveric): subst.
 
@@ -1070,11 +1101,14 @@ Qed.
 Hint Rewrite globvars2pred_unfold : norm.
 
 Lemma writable_Ews: writable_share Ews.
-Admitted.
+Proof.
+hnf; intros.
+unfold Ews,  extern_retainer.
+apply Share.unrel_splice_R.
+Qed.
 Hint Resolve writable_Ews.
 
-
- Lemma offset_offset_val:
+Lemma offset_offset_val:
   forall v i j, offset_val j (offset_val i v) = offset_val (Int.add i j) v.
 Proof. intros; unfold offset_val.
  destruct v; auto. rewrite Int.add_assoc; auto.
@@ -1134,7 +1168,10 @@ Qed.
 
 Lemma int_add_assoc1:
   forall z i j, Int.add (Int.add z (Int.repr i)) (Int.repr j) = Int.add z (Int.repr (i+j)).
-Admitted.
+Proof.
+intros.
+rewrite Int.add_assoc. f_equal. apply add_repr.
+Qed.
 Hint Rewrite int_add_assoc1 : norm.
 
 Lemma align_0: forall z, 
@@ -1345,7 +1382,6 @@ Qed.
 
 Hint Rewrite @exp_trivial : norm.
 
-(* Admitted: move these next two to assert_lemmas *)
 Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e. 
 Proof. intros; unfold tc_andp.  destruct e; reflexivity. Qed.
  
@@ -1493,36 +1529,69 @@ Definition add_ptr_int (ty: type) (v: val) (i: Z) : val :=
            eval_binop Oadd (tptr ty) tint v (Vint (Int.repr i)).
 
 Lemma repable_signed_mult2:
-  forall i j, i<>0 -> repable_signed (i*j) -> repable_signed j.
-Admitted.
+  forall i j, i<>0 -> (j <= Int.max_signed \/ i <> -1) ->
+   repable_signed (i*j) -> repable_signed j.
+Proof.
+intros until 1. intro HACK. intros.
+assert (MAX: 0 < Int.max_signed) by (compute; auto).
+assert (MIN: Int.min_signed < 0) by (compute; auto).
+hnf in H0|-*.
+assert (0 < i \/ i < 0) by omega; clear H.
+destruct H1.
+replace i with ((i-1)+1) in H0 by omega.
+rewrite Z.mul_add_distr_r in H0.
+rewrite Z.mul_1_l in H0.
+assert (j < 0 \/ 0 <= j) by omega. destruct H1.
+assert ((i-1)*j <= 0) by (apply Z.mul_nonneg_nonpos; omega).
+omega.
+assert (0 <= (i-1)*j) by (apply Z.mul_nonneg_nonneg; omega).
+omega.
+replace i with ((i+1)-1) in H0 by omega.
+rewrite Z.mul_sub_distr_r in H0.
+rewrite Z.mul_1_l in H0.
+assert (MINMAX: Int.min_signed = -Int.max_signed - 1) by reflexivity.
+assert (j < 0 \/ 0 <= j) by omega. destruct H1.
+assert (0 <= (i+1)*j) by (apply Z.mul_nonpos_nonpos; omega).
+rewrite MINMAX in H0|-*.
+omega.
+assert ((i+1)*j <= 0) by (apply Z.mul_nonpos_nonneg; omega).
+rewrite MINMAX in H0|-*.
+split; try omega.
+clear MIN MINMAX.
+destruct H0 as [? _].
+assert (- Int.max_signed <= 1 + (i+1)*j - j) by omega; clear H0.
+assert (-1 - (i + 1) * j + j <= Int.max_signed) by omega; clear H3.
+destruct HACK; auto.
+assert (i < -1) by omega.
+destruct (zlt 0 j); try omega.
+assert ((i+1)*j < 0).
+rewrite Z.mul_add_distr_r.
+replace i with ((i+1)-1) by omega.
+rewrite Z.mul_sub_distr_r.
+assert ((i+1)*j<0); [ | omega].
+apply Z.mul_neg_pos; auto. omega.
+omega.
+Qed.
+
 Lemma repable_signed_mult1:
-  forall i j, j<>0 -> repable_signed (i*j) -> repable_signed i.
+  forall i j, j<>0 ->  (i <= Int.max_signed \/ j <> -1) ->
+              repable_signed (i*j) -> repable_signed i.
 Proof.
 intros.
- rewrite Zmult_comm in H0.
+ rewrite Zmult_comm in H1.
  apply repable_signed_mult2 in H0; auto.
 Qed.
 
 Lemma add_ptr_int_eq:
-  forall ty v i, repable_signed (sizeof ty * i) ->
+  forall ty v i, 
+       repable_signed (sizeof ty * i) ->
        add_ptr_int' ty v i = add_ptr_int ty v i.
 Proof.
  intros.
  unfold add_ptr_int, add_ptr_int'.
  rewrite if_true by auto.
  destruct v; simpl; auto.
- unfold force_val2; simpl; auto.
- f_equal. f_equal.
- destruct (Z.eq_dec i 0).
-    subst. rewrite Int.mul_zero. rewrite Zmult_0_r. auto.
- assert (repable_signed (sizeof ty)). eapply repable_signed_mult1; eauto.
- assert (repable_signed i). apply repable_signed_mult2 in H; auto.
-        pose proof (sizeof_pos ty); omega.
- rewrite Int.mul_signed. 
- rewrite <- (Int.signed_repr _ H).
- repeat rewrite Int.repr_signed.
- rewrite (Int.signed_repr _ H0).
- rewrite (Int.signed_repr _ H1). auto.
+ rewrite mul_repr; auto.
 Qed.
 
 Lemma add_ptr_int_offset:
@@ -1545,22 +1614,9 @@ Lemma add_ptr_int'_offset:
   add_ptr_int' t v n = offset_val (Int.repr (sizeof t * n)) v.
 Proof.
  intros.
- destruct (Z.eq_dec n 0).
- subst.
- unfold add_ptr_int'.
- rewrite if_true. destruct v; simpl; auto. auto.
- rewrite add_ptr_int_eq by auto.
- unfold add_ptr_int; intros.
- unfold eval_binop, force_val2; destruct v; simpl; auto.
- rewrite Int.mul_signed.
- rewrite Int.signed_repr.
-  rewrite Int.signed_repr.
- auto.
- apply repable_signed_mult2 in H; auto.
- pose proof (sizeof_pos t); omega.
-  apply repable_signed_mult1 in H; auto.
+ unfold add_ptr_int'. 
+ rewrite if_true by auto. destruct v; simpl; auto.
 Qed.
-
 
 Lemma typed_false_cmp:
   forall op i j , 
@@ -1855,6 +1911,325 @@ intros; specialize (H0 _ _ H1); clear H1; super_unfold_lift;
 unfold deref_noload in *; auto; rewrite H in H0; auto.
 Qed.
 (* Hint Resolve closed_wrt_lvalue : closed. *)
+
+Lemma closed_wrt_ideq: forall a b e,
+  a <> b ->
+  closed_eval_expr a e = true ->
+  closed_wrt_vars (eq a) (fun rho => !! (eval_id b rho = eval_expr e rho)).
+Proof.
+intros.
+hnf; intros.
+simpl. f_equal.
+f_equal.
+specialize (H1 b).
+destruct H1; [contradiction | ].
+unfold eval_id; simpl. rewrite H1. auto.
+clear b H.
+apply closed_eval_expr_e in H0.
+apply H0; auto.
+Qed.
+
+Hint Extern 2 (closed_wrt_vars (eq _) _) => 
+      (apply closed_wrt_ideq; [solve [let Hx := fresh in (intro Hx; inv Hx)] | reflexivity]) : closed.
+
+Lemma closed_wrt_tc_expr:
+  forall Delta j e, closed_eval_expr j e = true ->
+             closed_wrt_vars (eq j) (tc_expr Delta e)
+ with closed_wrt_tc_lvalue:
+  forall Delta j e, closed_eval_lvalue j e = true ->
+             closed_wrt_vars (eq j) (tc_lvalue Delta e).
+Proof.
+* clear closed_wrt_tc_expr.
+unfold tc_expr.
+induction e; simpl; intros;
+try solve [destruct t; simpl; auto with closed].
++
+  destruct (access_mode t) eqn:?; simpl; auto with closed.
+  destruct (get_var_type Delta i) eqn:?; simpl; auto with closed.
+  hnf; intros.
+  repeat rewrite denote_tc_assert_andp.
+  f_equal. destruct (eqb_type t t0); simpl; auto with closed.
+  destruct (negb (type_is_volatile t)); simpl; auto with closed.
++
+  destruct (negb (type_is_volatile t)) eqn:?; simpl; auto with closed.
+  destruct ((temp_types Delta) ! i) eqn:?; simpl; auto with closed.
+  destruct (same_base_type t (fst p)) eqn:?; simpl; auto with closed.
+  destruct (snd p) eqn:?;  simpl; auto with closed.
+  clear - Heqo Heqb1 H.
+  destruct p as [ty init]. simpl in Heqb1; subst.
+  hnf; intros.
+  specialize (H0 i).
+  pose proof (eqb_ident_spec j i).
+  destruct (eqb_ident j i); inv H.
+  destruct H0. apply H1 in H; inv H.
+  unfold denote_tc_initialized;  simpl.
+  apply exists_ext; intro v.
+  f_equal. rewrite H; auto.
++ 
+  hnf; intros.
+  repeat rewrite denote_tc_assert_andp.
+  f_equal.
+  specialize (closed_wrt_tc_lvalue Delta j e H).
+  hnf in closed_wrt_tc_lvalue. 
+ apply (closed_wrt_tc_lvalue rho te'); auto.
+ destruct (is_pointer_type t); simpl; auto with closed.
++ 
+ hnf; intros.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ destruct (isUnOpResultType u e t); simpl; auto with closed.
+ apply IHe; auto.
++ 
+ rewrite andb_true_iff in H. destruct H. 
+ specialize (IHe1 H). specialize (IHe2 H0).
+ apply closed_eval_expr_e in H; apply closed_eval_expr_e in H0.
+ hnf; intros.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal. f_equal.
+ unfold isBinOpResultType.
+ destruct b.
+ destruct (classify_add (typeof e1) (typeof e2)); simpl; auto with closed;
+ try solve [destruct (is_pointer_type t); simpl; auto with closed;
+                unfold_lift; f_equal; auto with closed].
+ unfold binarithType.
+ destruct (classify_binarith (typeof e1) (typeof e2)); simpl; auto with closed;
+ try solve [destruct (is_int_type t); simpl; auto with closed;
+                unfold_lift; f_equal; auto with closed].
+ try solve [destruct (is_long_type t); simpl; auto with closed;
+                unfold_lift; f_equal; auto with closed].
+ try solve [destruct (is_float_type t); simpl; auto with closed;
+                unfold_lift; f_equal; auto with closed].
+ destruct (classify_sub (typeof e1) (typeof e2)); simpl; auto with closed;
+ try solve [destruct (is_pointer_type t); simpl; auto with closed;
+                unfold_lift; f_equal; auto with closed].
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ destruct (is_int_type t); simpl; auto with closed.
+ unfold_lift. f_equal. f_equal.
+ f_equal. auto. auto. f_equal; auto. f_equal; auto.
+ destruct (negb (Int.eq (Int.repr (sizeof ty)) Int.zero)); simpl; auto with closed.
+ unfold binarithType.
+ destruct (classify_binarith (typeof e1) (typeof e2)); simpl; auto with closed;
+ try solve [destruct (is_int_type t); simpl; auto with closed;
+                unfold_lift; f_equal; auto with closed].
+ try solve [destruct (is_long_type t); simpl; auto with closed;
+                unfold_lift; f_equal; auto with closed].
+ try solve [destruct (is_float_type t); simpl; auto with closed;
+                unfold_lift; f_equal; auto with closed].
+ unfold binarithType.
+ destruct (classify_binarith (typeof e1) (typeof e2)); simpl; auto with closed;
+ try solve [destruct (is_int_type t); simpl; auto with closed;
+                unfold_lift; f_equal; auto with closed].
+ try solve [destruct (is_long_type t); simpl; auto with closed;
+                unfold_lift; f_equal; auto with closed].
+ try solve [destruct (is_float_type t); simpl; auto with closed;
+                unfold_lift; f_equal; auto with closed].
+ destruct (classify_binarith (typeof e1) (typeof e2)); simpl; auto with closed.
+ destruct s.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal. f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_nonzero.
+ hnf in H0. rewrite <- H0; auto.
+ repeat rewrite binop_lemmas.denote_tc_assert_nodivover.
+ hnf in H; rewrite <- H; auto.
+ destruct (eval_expr e1); auto.
+ rewrite <- H0; auto.
+ destruct (is_int_type t); simpl; auto with closed.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_nonzero.
+ rewrite <- H0; auto.
+ destruct (is_int_type t); simpl; auto with closed.
+ destruct s.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal. f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_nonzero.
+ hnf in H0. rewrite <- H0; auto.
+ repeat rewrite binop_lemmas.denote_tc_assert_nodivover.
+ hnf in H; rewrite <- H; auto.
+ destruct (eval_expr e1); auto.
+ rewrite <- H0; auto.
+ destruct (is_long_type t); simpl; auto with closed.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_nonzero.
+ rewrite <- H0; auto.
+ destruct (is_long_type t); simpl; auto with closed.
+ destruct (is_float_type t); simpl; auto with closed.
+ destruct (classify_binarith (typeof e1) (typeof e2)); simpl; auto with closed.
+ destruct s.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal. f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_nonzero.
+ hnf in H0. rewrite <- H0; auto.
+ repeat rewrite binop_lemmas.denote_tc_assert_nodivover.
+ hnf in H; rewrite <- H; auto.
+ destruct (eval_expr e1); auto.
+ rewrite <- H0; auto.
+ destruct (is_int_type t); simpl; auto with closed.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_nonzero.
+ rewrite <- H0; auto.
+ destruct (is_int_type t); simpl; auto with closed.
+ destruct s.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal. f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_nonzero.
+ hnf in H0. rewrite <- H0; auto.
+ repeat rewrite binop_lemmas.denote_tc_assert_nodivover.
+ hnf in H; rewrite <- H; auto.
+ destruct (eval_expr e1); auto.
+ rewrite <- H0; auto.
+ destruct (is_long_type t); simpl; auto with closed.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_nonzero.
+ rewrite <- H0; auto.
+ destruct (is_long_type t); simpl; auto with closed.
+ destruct (classify_binarith (typeof e1) (typeof e2)); simpl; auto with closed.
+ destruct (is_int_type t); simpl; auto with closed.
+ destruct (classify_binarith (typeof e1) (typeof e2)); simpl; auto with closed.
+ destruct (is_int_type t); simpl; auto with closed.
+ destruct (classify_binarith (typeof e1) (typeof e2)); simpl; auto with closed.
+ destruct (is_int_type t); simpl; auto with closed.
+ destruct (classify_shift (typeof e1) (typeof e2)); simpl; auto with closed.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_ilt'.
+ simpl. unfold_lift. f_equal. auto.
+ destruct (is_int_type t); simpl; auto with closed.
+ destruct (classify_shift (typeof e1) (typeof e2)); simpl; auto with closed.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_ilt'.
+ simpl. unfold_lift. f_equal. auto.
+ destruct (is_int_type t); simpl; auto with closed.
+ destruct (classify_cmp (typeof e1) (typeof e2)); simpl; auto with closed.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_orp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_iszero.
+ rewrite <- H; auto.
+ repeat rewrite binop_lemmas.denote_tc_assert_iszero.
+ rewrite <- H0; auto.
+ destruct (is_int_type t); simpl; auto with closed.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_iszero.
+ rewrite <- H0; auto.
+ destruct (is_int_type t); simpl; auto with closed.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_iszero.
+ rewrite <- H; auto.
+ destruct (is_int_type t); simpl; auto with closed.
+ destruct (is_numeric_type (typeof e1) && is_numeric_type (typeof e2) &&
+      is_int_type t)%bool; simpl; auto with closed.
+ destruct (classify_cmp (typeof e1) (typeof e2)); simpl; auto with closed.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_orp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_iszero.
+ rewrite <- H; auto.
+ repeat rewrite binop_lemmas.denote_tc_assert_iszero.
+ rewrite <- H0; auto.
+ destruct (is_int_type t); simpl; auto with closed.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_iszero.
+ rewrite <- H0; auto.
+ destruct (is_int_type t); simpl; auto with closed.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ repeat rewrite binop_lemmas.denote_tc_assert_iszero.
+ rewrite <- H; auto.
+ destruct (is_int_type t); simpl; auto with closed.
+ destruct (is_numeric_type (typeof e1) && is_numeric_type (typeof e2) &&
+      is_int_type t)%bool; simpl; auto with closed.
+ destruct (classify_cmp (typeof e1) (typeof e2)); simpl; auto with closed.
+ destruct (is_numeric_type (typeof e1) && is_numeric_type (typeof e2) &&
+      is_int_type t)%bool; simpl; auto with closed.
+ destruct (classify_cmp (typeof e1) (typeof e2)); simpl; auto with closed.
+ destruct (is_numeric_type (typeof e1) && is_numeric_type (typeof e2) &&
+      is_int_type t)%bool; simpl; auto with closed.
+ destruct (classify_cmp (typeof e1) (typeof e2)); simpl; auto with closed.
+ destruct (is_numeric_type (typeof e1) && is_numeric_type (typeof e2) &&
+      is_int_type t)%bool; simpl; auto with closed.
+ destruct (classify_cmp (typeof e1) (typeof e2)); simpl; auto with closed.
+ destruct (is_numeric_type (typeof e1) && is_numeric_type (typeof e2) &&
+      is_int_type t)%bool; simpl; auto with closed.
+ auto.
+ auto.
++
+ specialize (IHe H).
+ apply closed_eval_expr_e in H.
+ hnf; intros.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal.
+ auto.
+ rewrite expr_lemmas.isCastR.
+ destruct (classify_cast (typeof e) t); simpl; auto with closed;
+ try solve [destruct t; simpl; auto with closed].
+ destruct (eqb_type (typeof e) t); simpl; auto with closed.
+ destruct (is_pointer_type t && is_pointer_type (typeof e)
+       || is_int_type t && is_int_type (typeof e))%bool; simpl; auto with closed.
+ unfold_lift; 
+ repeat rewrite binop_lemmas.denote_tc_assert_iszero.
+ rewrite <- H; auto. 
+ destruct si2; simpl; auto with closed.
+ unfold_lift.
+ f_equal.
+ f_equal; apply H; auto.
+ f_equal; apply H; auto.
+ unfold_lift.
+ f_equal.
+ f_equal; apply H; auto.
+ f_equal; apply H; auto.
+ destruct (is_long_type (typeof e) && is_long_type t)%bool; simpl; auto with closed.
++ 
+ specialize (closed_wrt_tc_lvalue Delta _ _ H).
+ apply closed_eval_lvalue_e in H.
+  destruct (access_mode t); simpl; auto with closed.
+ hnf; intros.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal. f_equal.
+ apply closed_wrt_tc_lvalue; auto.
+ destruct (typeof e); simpl; auto with closed.
+ destruct (field_offset i f); simpl; auto with closed.
+ destruct (negb (type_is_volatile t)); simpl; auto with closed.
+*
+ clear closed_wrt_tc_lvalue.
+ unfold tc_lvalue.
+ induction e; simpl; intros; auto with closed.
+ +
+ destruct (get_var_type Delta i); simpl; auto with closed.
+ destruct (eqb_type t t0); simpl; auto with closed.
+ destruct (negb (type_is_volatile t)); simpl; auto with closed.
+ +
+ specialize (closed_wrt_tc_expr Delta _ _ H).
+ apply closed_eval_expr_e in H.
+ hnf; intros.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal. f_equal. f_equal. apply closed_wrt_tc_expr; auto.
+ destruct (is_pointer_type (typeof e)); simpl; auto with closed.
+ simpl. unfold_lift. f_equal.  apply H; auto.
+ destruct (negb (type_is_volatile t)); simpl; auto with closed.
+ +
+ specialize (IHe H).
+ apply closed_eval_lvalue_e in H.
+ hnf; intros.
+ repeat rewrite denote_tc_assert_andp.
+ f_equal. f_equal. apply IHe; auto.
+ destruct (typeof e); simpl; auto with closed.
+ destruct (field_offset i f); simpl; auto with closed.
+ destruct (negb (type_is_volatile t)); simpl; auto with closed.
+Admitted.  (* this proof works, but Qed blows up.  It should be easy enough to rewrite it to be more efficient. *)
+
+Hint Resolve closed_wrt_tc_expr : closed.
+Hint Resolve closed_wrt_tc_lvalue : closed.
 
 
 

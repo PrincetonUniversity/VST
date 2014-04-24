@@ -708,8 +708,8 @@ Lemma semax_logical_or:
  forall Espec Delta P Q R tid e1 e2 b
    (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
    (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
-   (CLOSE1 : closed_wrt_vars (eq tid) (eval_expr e1))
-   (CLOSE2 : closed_wrt_vars (eq tid) (eval_expr e2)),
+   (CLOSE1 : closed_eval_expr tid e1 = true)
+   (CLOSE2 : closed_eval_expr tid e2 = true),
  bool_type (typeof e1) = true ->
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
@@ -723,6 +723,8 @@ Lemma semax_logical_or:
           `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R))))). 
 Proof.
 intros.
+assert (CLOSE1' := closed_eval_expr_e _ _ CLOSE1).
+assert (CLOSE2' := closed_eval_expr_e _ _ CLOSE2).
 apply semax_ifthenelse_PQR. 
   - auto.
   - rewrite <- insert_local; apply andp_left2. 
@@ -737,9 +739,8 @@ apply semax_ifthenelse_PQR.
     unfold normal_ret_assert. repeat rewrite exp_andp2.
      apply exp_left;  intro.
      autorewrite with subst.
-   replace (`(typed_true (typeof e1)) (subst tid `x (eval_expr e1)))
-    with (`(typed_true (typeof e1)) (eval_expr e1))
-  by (extensionality rho; unfold_lift; autorewrite with subst; auto).
+  rewrite (closed_wrt_subst _ _ (tc_expr Delta e1)) by auto with closed.
+  rewrite (closed_wrt_subst _ _ (tc_expr Delta e2)) by auto with closed.
    go_lowerx. subst. apply andp_right; auto. apply prop_right; split; auto.
    rewrite H6.
    unfold logical_or_result.
@@ -793,8 +794,8 @@ Lemma semax_logical_and:
  forall Espec Delta P Q R tid e1 e2 b
    (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
    (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
-   (CLOSE1 : closed_wrt_vars (eq tid) (eval_expr e1))
-   (CLOSE2 : closed_wrt_vars (eq tid) (eval_expr e2)),
+   (CLOSE1 : closed_eval_expr tid e1 = true)
+   (CLOSE2 : closed_eval_expr tid e2 = true),
  bool_type (typeof e1) = true ->
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
@@ -809,6 +810,8 @@ Lemma semax_logical_and:
   . 
 Proof.
 intros.
+assert (CLOSE1' := closed_eval_expr_e _ _ CLOSE1).
+assert (CLOSE2' := closed_eval_expr_e _ _ CLOSE2).
 apply semax_ifthenelse_PQR. 
   - auto. 
   - rewrite <- insert_local; apply andp_left2. 
@@ -824,15 +827,10 @@ apply semax_ifthenelse_PQR.
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
           rewrite (@closed_wrt_subst _ tid _ (eval_expr (Ecast e2 tbool)))
     by (simpl; auto with closed).
-    rewrite (closed_wrt_map_subst _ _ R) by auto.
-   repeat rewrite map_cons. 
-   rewrite closed_wrt_subst by auto with closed.
-   rewrite closed_wrt_subst by auto with closed.
-    rewrite (closed_wrt_map_subst _ _ Q) by auto.
+  autorewrite with subst.
     unfold tc_temp_id.
    unfold typecheck_temp_id. rewrite H1.  simpl denote_tc_assert.
    autorewrite with subst.
-   repeat apply andp_right; auto.
         eapply semax_post_flipped.
         eapply forward_setx.
         go_lowerx. apply andp_right; apply prop_right; auto.
@@ -876,8 +874,8 @@ Lemma semax_logical_and_PQR:
   forall Espec Delta P Q R PQR tid e1 e2 b
    (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
    (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
-   (CLOSE1 : closed_wrt_vars (eq tid) (eval_expr e1))
-   (CLOSE2 : closed_wrt_vars (eq tid) (eval_expr e2)),
+   (CLOSE1 : closed_eval_expr tid e1 = true)
+   (CLOSE2 : closed_eval_expr tid e2 = true),
  bool_type (typeof e1) = true ->
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
@@ -905,8 +903,8 @@ Lemma semax_logical_or_PQR:
   forall Espec Delta P Q R PQR tid e1 e2 b
    (CLOSQ : Forall (closed_wrt_vars (eq tid)) Q)
    (CLOSR : Forall (closed_wrt_vars (eq tid)) R)
-   (CLOSE1 : closed_wrt_vars (eq tid) (eval_expr e1))
-   (CLOSE2 : closed_wrt_vars (eq tid) (eval_expr e2)),
+   (CLOSE1 : closed_eval_expr tid e1 = true)
+   (CLOSE2 : closed_eval_expr tid e2 = true),
  bool_type (typeof e1) = true ->
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
