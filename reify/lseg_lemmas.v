@@ -22,12 +22,13 @@ Qed.
 Definition NP_W1 := null_field_at_false.
 
 (* W2 *)
-Lemma lseg_null_null : forall {T} {ll} ls sh y contents,
-                         @lseg T ll ls sh contents nullval y ===> inj (y = nullval).
+Lemma lseg_null_null : forall {T} {ll} ls sh y contents, y <> nullval ->
+                         @lseg T ll ls sh contents nullval y ===> inj False.
 Proof.
   intros. sep_solve.
   rewrite lseg_unroll; entailer.
   apply orp_left; entailer.
+  intuition.
   unfold lseg_cons; entailer.
 Qed.
 
@@ -46,9 +47,9 @@ Qed.
 Definition NP_W3 := field_at_conflict'.
 
 (* W4 *)
-Lemma next_lseg_equal : forall {T} {id} ls sh x y z contents,
+Lemma next_lseg_equal : forall {T} {id} ls sh x y z contents, x <> z ->
                           star (field_at sh T id y x) (@lseg T id ls sh contents x z) ===>
-                               star (inj (x = z)) (field_at sh T id y x).
+                               (field_at sh T id y x).
 Proof.
   intros.
   unfold himp, star, inj.
@@ -88,10 +89,8 @@ Proof.
 Qed.
 
 (* W5 *)
-Lemma lseg_conflict : forall {T} {id} ls sh contents x y z,
-                        star (@lseg T id ls sh contents x y) (@lseg T id ls sh contents x z) ===>
-                             star (inj (x = y \/ x = z))
-                             (star (@lseg T id ls sh contents x y) (@lseg T id ls sh contents x z)).
+Lemma lseg_conflict : forall {T} {id} ls sh contents x y z, x <> y -> x <> z ->
+                        star (@lseg T id ls sh contents x y) (@lseg T id ls sh contents x z) ===> inj False.
 Proof.
   intros.
   unfold himp, star, inj.
@@ -99,11 +98,11 @@ Proof.
   rewrite lseg_unroll. rewrite lseg_unroll.
   rewrite distrib_orp_sepcon.
   apply orp_left.
-  - entailer.
+  - entailer. intuition.
   - rewrite sepcon_comm.
     rewrite distrib_orp_sepcon.
     apply orp_left.
-    + entailer.
+    + entailer. intuition.
     + unfold lseg_cons. entailer.
       eapply derives_trans.
       * apply FF_elim. rewrite sepcon_comm. rewrite <- sepcon_assoc.
@@ -123,19 +122,15 @@ Definition NP_W5 := @lseg_conflict.
 
 (* U1 *)
 Lemma first_field_at_lseg :
-  forall {T} {id} ls sh h x z,
+  forall {T} {id} ls sh h x z, x <> z ->
     star (field_at sh (tptr T) id z x) (list_cell ls sh h x) ===> 
-       star (star (inj (x = z)) (field_at sh (tptr T) id z x)) (list_cell ls sh h x) ||
        (@lseg (*(tptr T)*) T id ls sh (cons h nil) x z).
 Proof.
   intros.
   sep_solve.
   destruct (EqDec_val x z).
-  - subst.
-    apply orp_right1.
-    entailer.
-  - apply orp_right2.
-    rewrite lseg_unroll.
+  - intuition.
+  - rewrite lseg_unroll.
     apply orp_right2.
     unfold lseg_cons.
     rewrite exp_andp2. apply (exp_right h).
@@ -155,22 +150,16 @@ Definition NP_U1 := @first_field_at_lseg.
 
 (* U2 *)
 Lemma next_field_at_lseg :
-  forall {T} {id} ls sh h contents x y z,
+  forall {T} {id} ls sh h contents x y z, x <> z ->
     star (field_at sh (tptr T) id y x) (star (list_cell ls sh h x)
      (@lseg T id ls sh contents y z)) ===>
-    star (inj (x = z)) (star (field_at sh (tptr T) id y x)
-                       (star (list_cell ls sh h x)
-                               (@lseg T id ls sh contents y z))) ||
     (@lseg T id ls sh (cons h contents) x z).
 Proof.
 intros.
 sep_solve.
 destruct (EqDec_val x z).
-- subst.
-  apply orp_right1.
-  entailer.
-- apply orp_right2.
-  rewrite lseg_unroll.
+- intuition.
+- rewrite lseg_unroll.
   entailer.
 Qed.
 
@@ -196,6 +185,7 @@ Qed.
 Definition NP_U3 := @lseg_nil_append.
 
 (* U4 *)
+(* There is no way to make this lemma work with mirror-shard *)
 Lemma lseg_next_append : forall {T} {id} ls sh c1 c2 h x y z w,
       star (@lseg T id ls sh c1 x y)
            (star (@lseg T id ls sh c2 y z)
@@ -213,24 +203,18 @@ Qed.
 Definition NP_U4 := @lseg_next_append.
 
 (* U5 *)
-Lemma three_lseg_append : forall {T} {id} ls sh c1 c2 c3 x y z w,
+(* There is no way to make this lemma work with mirror-shard *)
+Lemma three_lseg_append : forall {T} {id} ls sh c1 c2 c3 x y z w, z <> w ->
       star (@lseg T id ls sh c1 x y)
            (star (@lseg T id ls sh c2 y z)
                  (@lseg T id ls sh c3 z w)) ===>
-      star (@lseg T id ls sh (c1 ++ c2) x z) (@lseg T id ls sh c3 z w) ||
-      star (inj (z = w)) 
-           (star (@lseg T id ls sh c1 x y)
-           (star (@lseg T id ls sh c2 y z)
-                 (@lseg T id ls sh c3 z w))).
+      star (@lseg T id ls sh (c1 ++ c2) x z) (@lseg T id ls sh c3 z w).
 Proof.
 intros.
-sep_solve.
+unfold himp, star, inj.
 destruct (EqDec_val z w).
-- subst. apply orp_right2.
-  entailer.
-- apply orp_right1.
-  entailer.
-  rewrite (sepcon_comm (lseg ls sh c3 z w)).
+- intuition. 
+- entailer.
   pose (lpred := fun (z : val) => lseg ls sh c3 z w).
   assert ( lseg ls sh c1 x y * lseg ls sh c2 y z * (lpred z)
            |-- lseg ls sh (c1 ++ c2) x z * (lpred z)) as lseg_fact'.
@@ -250,4 +234,3 @@ destruct (EqDec_val z w).
 Qed.
 
 Definition NP_U5 := @three_lseg_append.
-

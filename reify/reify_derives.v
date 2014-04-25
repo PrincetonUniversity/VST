@@ -88,7 +88,7 @@ match goal with
 end;
 try apply changeTT';
 fold_seplog;
-fold_dependent;
+(*fold_dependent;*)
 fold TT.
 
 
@@ -326,9 +326,12 @@ end.
 
 Ltac revert_cont preds ls rs ls_r rs_r :=
 fun uenv funcs es =>
+idtac "rc replace_reify 1";
 replace_reify_derives_l ls funcs preds uenv ls_r rs;
+idtac "rc replace_reify 2"; 
 replace_reify_s2 rs funcs preds uenv rs_r;
-finish_reify funcs preds uenv.
+idtac "rc finishing reify";
+try (finish_reify funcs preds uenv).
 
 Ltac reify_derives :=
 prepare_reify;

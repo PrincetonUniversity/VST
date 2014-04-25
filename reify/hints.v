@@ -40,7 +40,7 @@ Definition left_hints_base := (PQ, @null_field_at_false, @field_at_conflict').
 
 (* NP Well-Formedness lemmas that require a listspec *)
 Definition left_lseg_hints := (@lseg_null_null, @next_lseg_equal, @lseg_conflict).
-
+Locate sample_ls.
 Definition list_specs := sample_ls.
 
 Ltac id_this x := assert (exists n, x=n).
@@ -122,12 +122,22 @@ Defined.
 
 (* Axiom QP : forall n,  VericSepLogic_Kernel.himp (Q n) (P n). *)
 
-Definition right_hints_base := QP.
+Definition right_hints_base := (QP, PQ).
+
 
 (* Navarro Perez Unfolding Lemmas that require a listspec *)
-Definition right_lseg_hints :=
-  (@first_field_at_lseg, @next_field_at_lseg, @lseg_nil_append,
-   @lseg_next_append, @three_lseg_append).
+(*Definition right_lseg_hints := (@first_field_at_lseg, @next_field_at_lseg, @lseg_nil_append, @lseg_next_append, @three_lseg_append).*)
+
+Goal forall sh y x,
+(field_at sh (tptr reverse.t_struct_list) reverse._tail y x) |-- (VericSepLogic_Kernel.inj False).
+Unset Ltac Debug.
+intros.
+pose_env.
+reify_derives.
+Abort.
+
+(* U4 and U5 won't be usable by mirror-shard; they have conjunction on both sides *)
+Definition right_lseg_hints := (@first_field_at_lseg, @next_field_at_lseg, @lseg_nil_append).
 
 Definition right_hints : hint_rec.
 refine ({| T := _; hints := _ |}).
@@ -146,17 +156,10 @@ pose_env.
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const right_hints types functions preds 
 ltac:(fun funcs preds hints => id_this (funcs, preds, hints)). *)
 (* Admitted. *)
-
-(*Copied from above goal*)
-(*Definition right_lemmas : list (Lemma.lemma types.our_types (SL.sepConcl types.our_types)).*)
-
 Print right_hints.
-
 Definition right_lemmas : list (Lemma.lemma SL.sepConcl).
 pose_env.
-Abort.
-(*let right_hints := eval hnf in right_hints.(hints) in
+let right_hints := eval hnf in right_hints.(hints) in
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const right_hints types functions preds 
-ltac:(fun funcs preds hints =>  apply hints). 
-Defined.*)
-
+ltac:(fun funcs preds hints => apply hints). 
+Defined.

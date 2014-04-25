@@ -202,6 +202,16 @@ Expr.Sig all_types (tc_assert_tv :: environ_tv :: nil) bool_tv denote_tc_assert_
 Definition nullval_signature :=
 Expr.Sig all_types nil val_tv assert_lemmas.nullval.
 
+Require Import lseg_lemmas.
+
+Definition tptr_signature :=
+Expr.Sig all_types (c_type_tv :: nil) c_type_tv Clightdefs.tptr.
+
+Locate type.
+
+(* Umm is the issue with the tptr argument? *)
+
+
 (* This way we don't have to deal with tons of close-parens at the end 
  * Important, since functions is a long list. *)
 Import ListNotations.
@@ -254,6 +264,7 @@ Definition computable_functions :=
 ; int_signed_signature
 ; int_unsigned_signature
 ; nullval_signature
+; tptr_signature
 ].
 
 Definition non_computable_functions :=
@@ -321,6 +332,7 @@ Definition int_repr_f := S (int_cmpu_f).
 Definition int_signed_f := S (int_repr_f).
 Definition int_unsigned_f := S (int_signed_f).
 Definition nullval_f := S (int_unsigned_f).
+Definition tptr_f := S (nullval_f).
 
 (* Past this point are functions that should not compute into Consts *)
 Definition tc_environ_f := length computable_functions.
@@ -334,9 +346,33 @@ Definition field_at_psig :=
 Sep.PSig all_types (share_tv :: c_type_tv :: ident_tv :: val_tv :: val_tv :: nil)
 field_at.
 
-Definition lseg_sample_ls_psig :=
-Sep.PSig all_types (share_tv :: list_elemtype_sample_ls_tv :: val_tv :: val_tv :: nil)
+(* The following SL predicates are partially applied to avoid dependency
+   Someday there should maybe be an automated way of instantiating them. *)
+(* From verif_reverse.v; a sample list specification for testing *)
+Require Import progs.reverse.
+Instance sample_ls: listspec t_struct_list _tail.
+Proof. eapply mk_listspec; reflexivity. Defined.
+
+(* list (elemtype sample_ls) = list val *)
+(* We have to hnf on our partially-applied functions; otherwise, they will
+   get hnf'd during reificaiton and mirror-shard will fail to match them *)
+Definition lseg_sample_ls_psig : Sep.predicate all_types.
+refine
+(Sep.PSig all_types (share_tv :: list_val_tv :: val_tv :: val_tv :: nil) _).
+simpl.
+apply (lseg sample_ls).
+Defined.
+
+(*Definition lseg_sample_ls_psig :=
+Sep.PSig all_types (share_tv :: list_val_tv :: val_tv :: val_tv :: nil)
 (lseg sample_ls).
+
+Check lseg_sample_ls_psig.*)
+
+(* reptype_structlist (all_but_link sample_ls list_fields) = val *)
+Definition list_cell_sample_ls_psig :=
+Sep.PSig all_types (share_tv :: val_tv :: val_tv :: nil)
+(list_cell sample_ls).
 
 (* we're going on the assumption that peq will compute down to val *)
 (*
@@ -356,7 +392,8 @@ Parameter Q : nat -> mpred.
 
 Definition sep_predicates : list (Sep.predicate all_types) :=
 field_at_psig  ::
-lseg_sample_ls_psig
+lseg_sample_ls_psig ::
+list_cell_sample_ls_psig 
      :: Sep.PSig all_types (tvType 11 :: nil)  P  
         :: Sep.PSig all_types (tvType 11 :: nil) Q :: nil.
  
@@ -365,5 +402,6 @@ lseg_sample_ls_psig
 
 Definition field_at_p := 0%nat.
 Definition lseg_sample_ls_p := 1%nat.
+Definition list_cell_sample_ls_p := 2%nat.
 
 End typed.
