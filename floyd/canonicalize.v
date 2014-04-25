@@ -94,33 +94,51 @@ Hint Rewrite <- (@sepcon_assoc (environ->mpred) _) : canon.
 Lemma canon5: forall Q R S, 
        nonlocal Q ->
        Q && (local R && S) = local R && (Q && S).
-Admitted.
-
+Proof.
+intros.
+rewrite andp_comm. rewrite andp_assoc. f_equal. apply andp_comm.
+Qed.
 
 Lemma canon5b: forall Q R S, 
        nonlocal Q ->
        Q && (S && local R) = local R && (Q && S).
-Admitted.
+Proof.
+intros.
+symmetry.
+rewrite andp_comm. rewrite andp_assoc. auto.
+Qed.
 
 Lemma canon5c: forall Q R, 
        nonlocal Q ->
        (Q && local R) = local R && Q.
-Admitted.
+Proof.
+intros.
+apply andp_comm.
+Qed.
 
 Lemma canon6: forall Q R S, 
        nonlocal Q ->
        Q && (prop R && S) = prop R && (Q && S).
-Admitted.
+Proof.
+intros.
+rewrite andp_comm. rewrite andp_assoc; f_equal. apply andp_comm.
+Qed.
 
 Lemma canon6b: forall Q R S, 
        nonlocal Q ->
        Q && (S && prop R) = prop R && (Q && S).
-Admitted.
+Proof.
+intros.
+   symmetry; rewrite andp_comm. rewrite andp_assoc; f_equal.
+Qed. 
 
 Lemma canon6c: forall Q R, 
        nonlocal Q ->
        (Q && prop R) = prop R && Q.
-Admitted.
+Proof.
+intros.
+ apply andp_comm.
+Qed.
 
 Hint Rewrite canon5 using check_nonlocal : canon.
 Hint Rewrite canon5b using check_nonlocal : canon.

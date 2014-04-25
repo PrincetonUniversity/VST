@@ -701,6 +701,18 @@ Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..
 Notation " 'SEP' ( ) " := (SEPx nil) (at level 8) : logic.
 Notation " 'SEP' () " := (SEPx nil) (at level 8) : logic.
 
+Lemma insert_local: forall Q1 P Q R,
+  local Q1 && (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx (Q1 :: Q) (SEPx R))).
+Proof.
+intros. extensionality rho.
+unfold PROPx, LOCALx, SEPx, local; super_unfold_lift. simpl.
+apply pred_ext; normalize.
+repeat apply andp_right; auto.
+apply prop_right; repeat split; auto.
+apply andp_right; auto.
+apply prop_right; repeat split; auto.
+Qed.
+Hint Rewrite insert_local:  norm.
 
 Lemma go_lower_lem2:
   forall  (QR PQR: mpred),
@@ -721,9 +733,13 @@ Qed.
 
 Lemma go_lower_lem7:
   forall (R1: environ->mpred) (Q1: environ -> Prop) P Q R PQR,
-      R1 && (PROPx P (LOCALx (Q1::Q) R)) |-- PQR ->
-      (R1 && local Q1) && (PROPx P (LOCALx Q R)) |-- PQR.
-Admitted.
+      R1 && (PROPx P (LOCALx (Q1::Q) (SEPx R))) |-- PQR ->
+      (R1 && local Q1) && (PROPx P (LOCALx Q (SEPx R))) |-- PQR.
+Proof.
+intros.
+rewrite andp_assoc. rewrite insert_local.
+auto.
+Qed.
 
 Lemma go_lower_lem8:
   forall (R1 R2 R3: environ->mpred) PQR PQR',
@@ -735,9 +751,11 @@ Qed.
 
 Lemma go_lower_lem9:
   forall (Q1: environ -> Prop) P Q R PQR,
-      PROPx P (LOCALx (Q1::Q) R) |-- PQR ->
-      local Q1 && (PROPx P (LOCALx Q R)) |-- PQR.
-Admitted.
+      PROPx P (LOCALx (Q1::Q) (SEPx R)) |-- PQR ->
+      local Q1 && (PROPx P (LOCALx Q (SEPx R))) |-- PQR.
+Proof.
+intros. rewrite insert_local; auto.
+Qed.
 
 Lemma go_lower_lem10:
   forall (R1 R2 R3: environ->mpred) PQR',
@@ -1350,19 +1368,39 @@ Hint Rewrite Vint_inj' : go_lower.
 Lemma closed_wrt_PROPx:
  forall S P Q, closed_wrt_vars S Q -> closed_wrt_vars S (PROPx P Q).
 Proof.
-Admitted. 
+intros.
+apply closed_wrt_andp; auto.
+hnf; intros. reflexivity.
+Qed.
 Hint Resolve closed_wrt_PROPx: closed.
 
 Lemma closed_wrt_LOCALx:
  forall S Q R, Forall (fun q => closed_wrt_vars S (local q)) Q -> 
                     closed_wrt_vars S R -> 
                     closed_wrt_vars S (LOCALx Q R).
-Admitted. 
+Proof.
+intros.
+apply closed_wrt_andp; auto.
+clear - H.
+induction Q; simpl; intros.
+auto with closed.
+normalize.
+inv H.
+apply closed_wrt_andp; auto with closed.
+Qed.
 Hint Resolve closed_wrt_LOCALx: closed.
 
 Lemma closed_wrt_SEPx: forall S P, 
      Forall (closed_wrt_vars S) P -> closed_wrt_vars S (SEPx P).
-Admitted. 
+Proof.
+intros.
+induction P; auto.
+hnf; intros; reflexivity.
+inv H.
+unfold SEPx.
+rewrite fold_right_cons.
+apply closed_wrt_sepcon; auto.
+Qed.
 Hint Resolve closed_wrt_SEPx: closed.
 
 Lemma local_unfold: forall P rho, local P rho = !! (P rho).
@@ -1686,14 +1724,6 @@ Qed.
 Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : norm.
 Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : gather_prop.
 
-Lemma insert_local: forall Q1 P Q R,
-  local Q1 && (PROPx P (LOCALx Q (SEPx R))) = (PROPx P (LOCALx (Q1 :: Q) (SEPx R))).
-Proof.
-intros. extensionality rho.
-unfold PROPx, LOCALx, SEPx, local; super_unfold_lift. simpl.
-apply pred_ext; normalize.
-Qed.
-Hint Rewrite insert_local:  norm.
 
 Lemma semax_seq': 
  forall Espec Delta P c1 P' c2 Q, 
