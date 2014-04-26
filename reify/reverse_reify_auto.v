@@ -122,7 +122,6 @@ lseg LS sh (map Vint contents) (eval_id _t rho) nullval * emp |--
 lseg LS sh (map Vint contents) (eval_id _p rho) nullval * emp.
 intros.
 rcancel.
-admit.
 Qed.
 
 Lemma while_entail1 :
@@ -148,10 +147,13 @@ Proof.
 intros.
 go_lower0.
 unfold LS.
+pose (TT := !!True). fold TT.
 pose_env.
 prepare_reify.
-pose (TT := !!True). fold TT.
 reify_derives.
+
+SearchAbout andp.
+Locate Ltac reify_expression.
 lift_and_goal.
 mirror_cancel_default.
 unfold Provable in *. simpl in *. admit. (*Provable pure fact we can't deal with yet *)

@@ -88,7 +88,7 @@ match goal with
 end;
 try apply changeTT';
 fold_seplog;
-(*fold_dependent;*)
+fold_dependent;
 fold TT.
 
 
