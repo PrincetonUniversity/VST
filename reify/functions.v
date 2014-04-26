@@ -16,6 +16,8 @@ Import SeparationLogic.
 Import Coqlib.
 Import field_mapsto.
 
+(* NB when you add a new function you have to update some proofs in preproc.v,
+   Which have "do n" statements where n = length of functions list *)
 
 Definition tc_environ_signature :=
 Expr.Sig all_types (cons tycontext_tv (cons environ_tv nil)) tvProp tc_environ.
@@ -207,10 +209,16 @@ Require Import lseg_lemmas.
 Definition tptr_signature :=
 Expr.Sig all_types (c_type_tv :: nil) c_type_tv Clightdefs.tptr.
 
-Locate type.
+Definition nil_val_signature :=
+Expr.Sig all_types nil list_val_tv (@nil val).
 
-(* Umm is the issue with the tptr argument? *)
+(* these depend on sample_ls. hopefully we can eventually do away with these *)
+Require Import progs.reverse.
+Definition reverse_t_struct_list_signature :=
+Expr.Sig all_types nil c_type_tv reverse.t_struct_list.
 
+Definition reverse__tail_signature :=
+Expr.Sig all_types nil ident_tv reverse._tail.
 
 (* This way we don't have to deal with tons of close-parens at the end 
  * Important, since functions is a long list. *)
@@ -265,6 +273,9 @@ Definition computable_functions :=
 ; int_unsigned_signature
 ; nullval_signature
 ; tptr_signature
+; nil_val_signature
+; reverse_t_struct_list_signature
+; reverse__tail_signature
 ].
 
 Definition non_computable_functions :=
@@ -333,6 +344,11 @@ Definition int_signed_f := S (int_repr_f).
 Definition int_unsigned_f := S (int_signed_f).
 Definition nullval_f := S (int_unsigned_f).
 Definition tptr_f := S (nullval_f).
+Definition nil_val_f := S (tptr_f).
+(* for sample_ls *)
+Definition reverse_t_struct_list_f := S (nil_val_f).
+Definition reverse__tail_f := S (reverse_t_struct_list_f).
+
 
 (* Past this point are functions that should not compute into Consts *)
 Definition tc_environ_f := length computable_functions.
@@ -360,7 +376,8 @@ Definition lseg_sample_ls_psig : Sep.predicate all_types.
 refine
 (Sep.PSig all_types (share_tv :: list_val_tv :: val_tv :: val_tv :: nil) _).
 simpl.
-apply (lseg sample_ls).
+let sls := eval hnf in sample_ls in
+apply (lseg sls).
 Defined.
 
 (*Definition lseg_sample_ls_psig :=
@@ -370,9 +387,17 @@ Sep.PSig all_types (share_tv :: list_val_tv :: val_tv :: val_tv :: nil)
 Check lseg_sample_ls_psig.*)
 
 (* reptype_structlist (all_but_link sample_ls list_fields) = val *)
-Definition list_cell_sample_ls_psig :=
+(*Definition list_cell_sample_ls_psig :=
 Sep.PSig all_types (share_tv :: val_tv :: val_tv :: nil)
-(list_cell sample_ls).
+(list_cell sample_ls).*)
+
+Definition list_cell_sample_ls_psig : Sep.predicate all_types.
+refine
+(Sep.PSig all_types (share_tv :: val_tv :: val_tv :: nil) _).
+simpl.
+let sls := eval hnf in sample_ls in
+apply (list_cell sls).
+Defined.
 
 (* we're going on the assumption that peq will compute down to val *)
 (*

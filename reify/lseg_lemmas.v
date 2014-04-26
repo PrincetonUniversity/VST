@@ -49,7 +49,7 @@ Definition NP_W3 := field_at_conflict'.
 (* W4 *)
 Lemma next_lseg_equal : forall {T} {id} ls sh x y z contents, x <> z ->
                           star (field_at sh T id y x) (@lseg T id ls sh contents x z) ===>
-                               (field_at sh T id y x).
+                               inj False.
 Proof.
   intros.
   unfold himp, star, inj.
@@ -57,7 +57,7 @@ Proof.
   rewrite lseg_unroll. entailer.
   rewrite sepcon_comm.
   rewrite distrib_orp_sepcon. apply orp_left.
-  - entailer.
+  - entailer. intuition.
   - unfold lseg_cons.
     entailer.
     rewrite sepcon_comm.
@@ -141,14 +141,6 @@ Qed.
 
 Definition NP_U1 := @first_field_at_lseg.
 
-(* U3-5 = list appending
-   "Later"
-   |>P is a weaker version of P (P -> |>P). Distributes and stuff.
-   Find laws in veric book.
-
-   Proof strategy: weaken induction hypothesis; use "n times later", with universally quantified n*)
-
-(* U2 *)
 Lemma next_field_at_lseg :
   forall {T} {id} ls sh h contents x y z, x <> z ->
     star (field_at sh (tptr T) id y x) (star (list_cell ls sh h x)

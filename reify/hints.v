@@ -37,9 +37,11 @@ Axiom QP : forall n,  VericSepLogic_Kernel.himp (Q n) (P n).
 Check PQ. Check VericSepLogic_Kernel.himp.
 
 Definition left_hints_base := (PQ, @null_field_at_false, @field_at_conflict').
+(*Definition left_hints_base := PQ.*)
 
 (* NP Well-Formedness lemmas that require a listspec *)
 Definition left_lseg_hints := (@lseg_null_null, @next_lseg_equal, @lseg_conflict).
+(*Definition left_lseg_hints := @next_lseg_equal.*)
 Locate sample_ls.
 Definition list_specs := sample_ls.
 
@@ -95,13 +97,15 @@ Defined.*)
 
 Record hint_rec := mkHintRec { T : Type; hints : T}.
 
-Definition left_hints: hint_rec.
+Definition left_hint_rec: hint_rec.
 refine ({| T := _; hints := _ |}).
 let left_hints_base := eval hnf in left_hints_base in
 let left_lseg_hints := eval hnf in left_lseg_hints in
 let list_specs := eval hnf in list_specs in
 combine_hints_with_lseg_lemmas left_hints_base left_lseg_hints list_specs ltac:(fun tup => apply tup).
 Defined.
+
+Definition left_hints := left_hint_rec.(hints).
 
 (*
 Definition left_hints': Type.
@@ -116,30 +120,27 @@ apply rhints_T.
 
 Definition left_lemmas: list (Lemma.lemma SL.sepConcl).
 pose_env.
-let left_hints := eval hnf in left_hints.(hints) in
+Eval simpl in (length functions).
+let left_hints := eval hnf in left_hints in
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const left_hints types functions preds ltac:(fun funcs preds hints => apply hints).
 Defined.
 
+Print left_lemmas.
+
 (* Axiom QP : forall n,  VericSepLogic_Kernel.himp (Q n) (P n). *)
 
-Definition right_hints_base := (QP, PQ).
+Definition right_hints_base := QP.
 
 
 (* Navarro Perez Unfolding Lemmas that require a listspec *)
 (*Definition right_lseg_hints := (@first_field_at_lseg, @next_field_at_lseg, @lseg_nil_append, @lseg_next_append, @three_lseg_append).*)
 
-Goal forall sh y x,
-(field_at sh (tptr reverse.t_struct_list) reverse._tail y x) |-- (VericSepLogic_Kernel.inj False).
-Unset Ltac Debug.
-intros.
-pose_env.
-reify_derives.
-Abort.
-
 (* U4 and U5 won't be usable by mirror-shard; they have conjunction on both sides *)
-Definition right_lseg_hints := (@first_field_at_lseg, @next_field_at_lseg, @lseg_nil_append).
+(*Definition right_lseg_hints := (@first_field_at_lseg, @next_field_at_lseg, @lseg_nil_append).*)
 
-Definition right_hints : hint_rec.
+Definition right_lseg_hints := @first_field_at_lseg.
+
+Definition right_hints_rec : hint_rec.
 refine ({| T := _; hints := _ |}).
 let right_hints_base := eval hnf in right_hints_base in
 let right_lseg_hints := eval hnf in right_lseg_hints in
@@ -147,8 +148,19 @@ let list_specs := eval hnf in list_specs in
 combine_hints_with_lseg_lemmas right_hints_base right_lseg_hints list_specs ltac:(fun tup => apply tup).
 Defined.
 
+Definition right_hints := right_hints_rec.(hints).
+
 (*Make sure you have already updated any funcs and preds that might have been added by doing
 the left rules *)
+
+(* This works... But for some reason reifying hints with lseg doesn't! *)
+Goal forall a b c d,
+lseg sample_ls a b c d |-- emp.
+Proof.
+intros.
+pose_env.
+reify_derives.
+Abort.
 
 (*Uncomment this if you are adding new lemmas and need to see some reified things*)
 (*Goal False.
@@ -156,10 +168,13 @@ pose_env.
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const right_hints types functions preds 
 ltac:(fun funcs preds hints => id_this (funcs, preds, hints)). *)
 (* Admitted. *)
-Print right_hints.
+(* need to fold up sample_ls or some shit *)
 Definition right_lemmas : list (Lemma.lemma SL.sepConcl).
 pose_env.
-let right_hints := eval hnf in right_hints.(hints) in
+Unset Ltac Debug.
+let right_hints := eval hnf in right_hints in
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const right_hints types functions preds 
-ltac:(fun funcs preds hints => apply hints). 
+ltac:(fun funcs preds hints => apply hints).
 Defined.
+
+Print right_lemmas.

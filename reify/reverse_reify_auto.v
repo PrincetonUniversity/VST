@@ -13,6 +13,7 @@ Local Open Scope logic.
 (* trying to test if my reified hints are usable by Mirror *)
 Goal forall T sh id y, field_at sh T id y nullval |-- !!False && emp.
 Proof.
+Unset Ltac Debug.
 intros.
 rcancel.
 Qed.
@@ -45,16 +46,42 @@ erewrite goal_lift_and';
 (* we may need also to add hnf somewhere in mirror_cancel_default. *)
 (* mirror_cancel_default. *)
 
-
-
 Goal forall (A B : Prop),(!!(A /\ B) && emp |-- !!( B) && emp).
 Proof.
 intros.
+rcancel.
+Qed.
+(*Print Ltac rcancel.
 pose_env.
+reify_derives.
+Unset Ltac Debug.
+Print left_hints.
+Print Ltac mirror_cancel_default.
+  let types := get_types in
+  let funcs := get_funcs types in
+  let left_hints := eval hnf in left_hints in
+  let right_hints := eval hnf in right_hints in
+  eapply
+   (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _
+      (vst_prover types funcs user_comp) left_lemmas right_lemmas);
+   [ reflexivity
+   | HintModule.prove left_hints 
+   | HintModule.prove right_hints
+   | apply vstProver_correct
+   | first
+   [ e_vm_compute_left | fail "Canceler failed" ]
+   | repeat (split; try assumption; try apply I; try apply derives_emp) ].
+
+   (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _
+      (vst_prover types funcs user_comp) left_lemmas right_lemmas).
+reflexivity.
+mirror_cancel_default.
+rcancel.
+rcancel.
 reify_derives.
 lift_and_goal.
 mirror_cancel_default. 
-Qed.
+Qed.*)
 
 Goal forall n, functions.P n |-- functions.Q n.
 intros.
@@ -95,6 +122,7 @@ lseg LS sh (map Vint contents) (eval_id _t rho) nullval * emp |--
 lseg LS sh (map Vint contents) (eval_id _p rho) nullval * emp.
 intros.
 rcancel.
+admit.
 Qed.
 
 Lemma while_entail1 :
@@ -119,6 +147,7 @@ Lemma while_entail1 :
 Proof.
 intros.
 go_lower0.
+unfold LS.
 pose_env.
 prepare_reify.
 pose (TT := !!True). fold TT.

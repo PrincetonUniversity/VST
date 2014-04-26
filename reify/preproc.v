@@ -192,7 +192,7 @@ intros; split; induction e; intros; auto.
    intuition.
    auto. auto.
    (* TODO make this not depend on the length of functions *)
-   do 45 (destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
+   do 48 (destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
    unfold Provable; simpl. auto.
    destruct l; auto.
  + do 5 (destruct f0; [ unfold remove_trues; try destruct l; auto | ]). 
@@ -205,7 +205,7 @@ intros; split; induction e; intros; auto.
    intuition.
    auto. auto.
    
-   do 45 (destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
+   do 48 (destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
    unfold remove_trues in *. simpl in H2. destruct l; auto.
 Qed.
 
