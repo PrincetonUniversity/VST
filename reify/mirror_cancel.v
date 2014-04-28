@@ -16,6 +16,7 @@ Require Import seplog.
 Require Import hints.
 Require Import preproc.
 Require Import congruence_prover.
+Require Import floyd.proofauto.
 
 Module SH := SepHeap.Make VericSepLogic Sep.
 Module FM := FMapList.Make NatMap.Ordered_nat.
@@ -136,6 +137,10 @@ End typed.
 Definition user_comp : func -> bool := fun _ => false.
 
 
+Lemma solve_emp_tt : emp |-- TT.
+entailer!.
+Qed.
+
 Ltac mirror_cancel_default :=
 let types := get_types in 
 let funcs := get_funcs types in
@@ -148,7 +153,7 @@ eapply (ApplyCancelSep_with_eq_goal 100 100 _ _ _ _ _ (vst_prover types funcs us
 | HintModule.prove left_hints
 | HintModule.prove right_hints
 | apply vstProver_correct
-| first [e_vm_compute_left | fail "Canceler failed"]
-| repeat (split; try assumption; try apply I; try apply derives_emp)].
+| first [simpl (Sep.typeof_preds); simpl (typeof_env); e_vm_compute_left | fail "Canceler failed"]
+| repeat (split; try assumption; try apply I; try apply derives_emp; try apply solve_emp_tt)].
 
 Ltac rcancel := try (pose_env; reify_derives; mirror_cancel_default; try (simpl; clear_all)). 

@@ -77,8 +77,30 @@ Lemma changeTT' : forall (a b c : mpred) ,
 auto.
 Qed.
 
+
+Lemma convert_injl :
+forall a b c,
+(!!a && emp * b |-- c) -> (!!a && b |-- c).
+intros. 
+rewrite convert_inj. auto.
+Qed.
+
+Lemma convert_injr :
+forall a b c,
+ (a |-- !!b && emp * c) -> (a |-- !!b && c) .
+intros. 
+rewrite convert_inj. auto.
+Qed.
+
 Ltac prepare_reify :=
 autorewrite with gather_prop;
+try apply convert_injl; try apply convert_injr;
+try apply changeTT';
+fold_seplog;
+fold_dependent;
+fold TT.
+
+(*autorewrite with gather_prop;
 match goal with 
 | [ |- !!?X && _ |-- !!?Y && _] => rewrite (convert_inj X); rewrite (convert_inj Y)
 | [ |- !!?X && _ |-- !!?Y && _] => rewrite (convert_inj X); rewrite (convert_inj Y)
@@ -89,7 +111,7 @@ end;
 try apply changeTT';
 fold_seplog;
 fold_dependent;
-fold TT.
+fold TT.*)
 
 
 (*Turns a reified derives into a reified goal with no assumptions, 
