@@ -506,7 +506,8 @@ Lemma match_fdecs_exists_Gfun:
   forall prog G i f, 
     find_id i G = Some f -> 
     match_fdecs (prog_funct prog) G ->
-    exists fd,   In (i, Gfun fd) (prog_defs prog).
+    exists fd,   In (i, Gfun fd) (prog_defs prog) /\ 
+                     type_of_fundef fd = type_of_funspec f.
 Proof. unfold prog_funct. unfold prog_defs_names.
 intros ? ? ?.
 forget (prog_defs prog) as dl.
@@ -517,13 +518,15 @@ destruct g; simpl in *.
 destruct G; inv H0.
 destruct p. simpl in *.
 if_tac in H. subst i0; inv H.
-eexists; left; reflexivity.
+eexists; split; [left; reflexivity | auto].
 destruct (IHdl _ _ H H4).
-exists x; right; auto.
+exists x; split; [right; auto | ]. destruct H1; auto.
+destruct H1; auto.
 destruct (IHdl G f); auto.
-exists x; right; auto.
+exists x; split; [right; auto | ].
+destruct H1; auto.
+destruct H1; auto.
 Qed.
-
 
 Lemma find_symbol_add_globals_nil:
   forall {F V} i g id p,
@@ -1197,7 +1200,7 @@ pose proof (Genv.find_symbol_not_fresh _ _ Hm H2).
 unfold valid_block in H4.
 split; intros.
 contradiction.
-destruct (match_fdecs_exists_Gfun _ _ _ _ H3 H0) as [fd ?].
+destruct (match_fdecs_exists_Gfun _ _ _ _ H3 H0) as [fd [? _]].
 destruct f.
 split; auto.
 subst z.

@@ -450,9 +450,17 @@ Definition main_pre (prog: program) : unit -> environ->mpred :=
 Definition main_post (prog: program) : unit -> environ->mpred := 
   (fun tt => TT).
 
-Definition match_globvars (gvs: list (ident * globvar type)) (V: varspecs) :=
-  forall id t, In (id,t) V -> exists g: globvar type, gvar_info g = t /\ In (id,g) gvs.
-
+Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=
+ match V with
+ | nil => true 
+ | (id,t)::V' => match gvs with 
+                       | nil => false
+                       | (j,g)::gvs' => if eqb_ident id j 
+                                              then andb (is_pointer_type t) 
+                                                       (andb (eqb_type t (gvar_info g)) (match_globvars gvs' V'))
+                                              else match_globvars gvs' V
+                      end
+  end.
 
 Definition int_range (sz: intsize) (sgn: signedness) (i: int) :=
  match sz, sgn with
@@ -520,7 +528,7 @@ Definition semax_prog
   compute_list_norepet (prog_defs_names prog) = true /\
   all_initializers_aligned prog /\ 
   @semax_func Espec V G (prog_funct prog) G /\
-   match_globvars (prog_vars prog) V /\
+   match_globvars (prog_vars prog) V = true /\
     In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
 Axiom semax_func_nil:   forall {Espec: OracleKind}, 

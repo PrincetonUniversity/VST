@@ -24,8 +24,17 @@ Require Import veric.initialize.
 
 Open Local Scope pred.
 
-Definition match_globvars (gvs: list (ident * globvar type)) (V: varspecs) :=
-  forall id t, In (id,t) V -> exists g: globvar type, gvar_info g = t /\ In (id,g) gvs.
+Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=
+ match V with
+ | nil => true 
+ | (id,t)::V' => match gvs with 
+                       | nil => false
+                       | (j,g)::gvs' => if eqb_ident id j 
+                                              then andb (is_pointer_type t) 
+                                                       (andb (eqb_type t (gvar_info g)) (match_globvars gvs' V'))
+                                              else match_globvars gvs' V
+                      end
+  end.
 
 Section semax_prog.
 Context (Espec: OracleKind).
@@ -75,7 +84,7 @@ Definition semax_prog
   compute_list_norepet (prog_defs_names prog) = true  /\
   all_initializers_aligned prog /\ 
   semax_func V G (prog_funct prog) G /\
-   match_globvars (prog_vars prog) V /\
+   match_globvars (prog_vars prog) V = true /\
     In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
 Lemma semax_func_nil: 
@@ -668,73 +677,253 @@ Qed.
 Definition Delta1 V G: tycontext := 
   make_tycontext ((1%positive,(Tfunction Tnil Tvoid))::nil) nil nil Tvoid V G.
 
+
+Lemma match_globvars_in':
+  forall i t vl vs,
+  match_globvars vl vs = true ->
+  In (i,t) vs ->
+  exists g, In (i,g) vl /\ gvar_info g = globtype (Global_var t) /\ is_pointer_type t = true.
+Proof.
+ induction vl; destruct vs; intros. inv H0.
+ destruct p; inv H.
+ inv H0. destruct p, H0. inv H0.  simpl in *.
+ destruct a. 
+ pose proof (eqb_ident_spec i i0); destruct (eqb_ident i i0).
+ assert (i=i0) by (rewrite <- H0; auto). subst i0; clear H0.
+ apply andb_true_iff in H; destruct H as [PT ?].
+ apply andb_true_iff in H; destruct H.
+ apply eqb_type_true in H. subst t.
+ exists g; split3; auto.
+ destruct (IHvl _ H) as [g' [? [? ?]]]. left; auto. exists g'; split3; auto.
+ simpl in H. destruct a.
+ pose proof (eqb_ident_spec i0 i1); destruct (eqb_ident i0 i1).
+ apply andb_true_iff in H; destruct H as [PT ?].
+ apply andb_true_iff in H; destruct H.
+ destruct (IHvl _ H2) as [g' [? [? ?]]]; auto. exists g'; split3; auto.
+ right; auto.
+ apply IHvl in H. destruct H as [g' [? [? ?]]]. exists g'; split3; auto.
+ right; auto.
+ right; auto.
+Qed.
+
+Lemma match_globvars_in:
+  forall i vl vs, match_globvars vl vs = true -> In i  (map (@fst _ _) vs) -> In i (map (@fst _ _) vl).
+Proof.
+ intros.
+ apply list_in_map_inv in H0. destruct H0 as [t [? ?]]. subst i.
+ destruct t as [i t].
+ destruct  (match_globvars_in' _ _ _ _ H H1) as [g [? [? ?]]].
+ simpl. apply in_map_fst with g; auto.
+Qed.
+
+Lemma match_globvars_norepet:
+  forall vl vs, 
+   list_norepet (map (@fst _ _) vl) ->
+   match_globvars vl vs = true ->
+   list_norepet (map (@fst _ _) vs).
+Proof.
+induction vl; destruct vs; simpl; intros.
+constructor. destruct p. inv H0.
+constructor.
+destruct p; destruct a.
+simpl in *.
+inv H.
+ pose proof (eqb_ident_spec i i0); destruct (eqb_ident i i0). 
+ assert (i=i0) by (apply H; auto); subst i0; clear H.
+ apply andb_true_iff in H0; destruct H0 as [_ H0].
+ apply andb_true_iff in H0; destruct H0.
+ constructor; auto.
+ contradict H3.
+ eapply match_globvars_in; eauto.
+ assert (i<>i0). intro; subst; destruct H. specialize (H1 (eq_refl _)); inv H1.
+ clear H.
+ specialize (IHvl ((i,t)::vs) H4 H0).
+ inv IHvl.
+ constructor; auto.
+Qed.
+
 Lemma make_tycontext_g_denote:
   forall id t l vs G,
     list_norepet (map fst l) ->
-    match_globvars (prog_vars' l) vs ->
+    match_globvars (prog_vars' l) vs = true ->
     match_fdecs (prog_funct' l) G ->
    ((make_tycontext_g vs G) ! id = Some t <->
     ((exists f, In (id,f) G /\ t = Global_func f) \/ (exists v, In (id,v) vs /\ t = Global_var v))).
 Proof.
- unfold match_globvars, make_tycontext_g; induction l; intros.
+  intros.
+  assert (list_norepet (map (@fst _ _) (prog_funct' l) ++  (map (@fst _ _) (prog_vars' l)))). {
+   clear - H.
+  induction l; simpl. constructor.
+  destruct a; destruct g; simpl in *; inv H.
+  constructor; auto.
+  clear - H2; contradict H2.
+   induction l. inv H2. destruct a; destruct g; simpl in *. destruct H2; auto.
+   apply in_app in H2. destruct H2. right; apply IHl. apply in_app; auto.
+   destruct H; auto. right; apply IHl; apply in_app; auto.
+   specialize (IHl H3).
+   apply list_norepet_app in IHl. destruct IHl as [? [? ?]].
+   apply list_norepet_app; split3; auto.
+   constructor; auto.
+  clear - H2; contradict H2.
+   induction l. inv H2. destruct a; destruct g. simpl in H2. constructor 2; auto.
+   simpl in H2. destruct H2. subst; left; auto. right. auto.
+  apply list_disjoint_cons_r; auto.
+  clear - H2; contradict H2.
+   induction l. inv H2. destruct a; destruct g. simpl in H2.
+  destruct H2. subst; left; auto. right; auto.
+  simpl in *. right; auto.
+}
+ forget (prog_vars' l) as vl.
+ forget (prog_funct' l) as fl.
+ clear l H.
+ revert G H2 H1; induction fl; intros.
+* (* fl = nil *)
  destruct G; inv H1.
- destruct vs; simpl in *.
- rewrite PTree.gempty. split; intro. inv H1.
- destruct H1 as [[? [? ?]]|[? [? ?]]]; contradiction.
- destruct p. destruct (H0 i t0); auto. destruct H1; contradiction.
- inv H. destruct a; destruct g.
- simpl in H4. destruct G; inv H1.
- specialize (IHl _ _ H5 H0 H6).
- destruct p. simpl in *.
- destruct (eq_dec i id). subst id.
- rewrite PTree.gss.
- split; intro. inv H. left; exists f0; split; auto.
- destruct H as [[f' [? ?]]|[v [? ?]]]. subst t.
+ simpl in H2.
+ apply iff_trans with (exists v : type, In (id, v) vs /\ t = Global_var v);
+  [ | clear; intuition; destruct H0 as [? [? ?]]; contradiction].
+ revert vs H0; induction vl; destruct vs; simpl in *; intros.
++(* fl = nil /\ vl = nil /\ vs = nil*)
+ rewrite PTree.gempty.
+ split; intros. discriminate.
+ destruct H as [? [? ?]]; contradiction.
++ (* fl = nil /\ vl = nil /\ vs<>nil *)
+ clear H2.
+ destruct p. inv H0.
++ (* fl = nil /\ vl inductive case /\ vs = nil  *)
+ clear H0. rewrite PTree.gempty.
+   clear. split; intro; [discriminate | destruct H as [? [? ? ]]; contradiction].
+ + (* fl = nil /\ vl inductive case /\ vs <> nil *)
+   destruct p. destruct a. simpl in *. inv H2.
+  specialize (IHvl H4).
+  destruct (ident_eq id i).
+ - subst id.
+  rewrite PTree.gss. split; intro. inv H.
+  exists t0; auto.
+ destruct H as [v [? ? ]].
+ subst t. f_equal. f_equal.
  destruct H. inv H. auto.
- contradiction H4.
- clear - H H6. revert G H H6; induction l; simpl; intros. destruct G; inv H6; apply H.
- destruct a; destruct g; simpl in *. destruct G; inv H6. destruct p; destruct H.
- inv H. auto.
- right; eauto.
- right; eauto. 
- destruct (H0 _ _ H) as [g [? ?]].
- contradiction H4. clear - H7. induction l; simpl in *; try contradiction.
- destruct a; destruct g0; auto. destruct H7. inv H. auto.
+ pose proof (eqb_ident_spec i i0); destruct (eqb_ident i i0).
+ assert (i=i0) by (rewrite <- H1; auto). subst i0; clear H1.
+  apply andb_true_iff in H0; destruct H0 as [_ H0].
+  apply andb_true_iff in H0; destruct H0.
+ contradiction H3.
+ eapply match_globvars_in; eauto. apply in_map_fst with v. auto.
+ assert (i<>i0). intro; subst. clear - H1. destruct H1. specialize (H0 (eq_refl _)); inv H0.
+ clear H1.
+ pose proof (match_globvars_norepet _ _ H4 H0).
+ inv H1. contradiction H7. apply in_map_fst with v; auto.
+ - (* id <> i *)
+ rewrite PTree.gso by auto.
+ pose proof (eqb_ident_spec i i0). 
+ destruct (ident_eq i i0). 
+ subst. destruct H. rewrite H1 in H0 by auto. 
+  apply andb_true_iff in H0; destruct H0 as [_ H0].
+ rewrite andb_true_iff in H0; destruct H0.
+ apply eqb_type_true in H0. subst t0.
+ clear H H1.
+ rewrite IHvl; auto.
+ clear - n; intuition. destruct H as [v [? ?]]; exists v; auto.
+ destruct H as [v [? ?]]; exists v; auto. destruct H; auto. inv H; congruence.
+ destruct (eqb_ident i i0). contradict n0; apply H; auto.
+ eapply iff_trans; [ | apply (IHvl ((i,t0)::vs))]; clear IHvl.
+ simpl;  rewrite PTree.gso by auto. apply iff_refl.
  auto.
- rewrite PTree.gso by auto. rewrite IHl.
- clear - n.
- split; intros [[f [? ?]]|[v [? ?]]]; subst.
- left; exists f; auto. right; exists v; auto. destruct H. inv H; congruence.
- left; exists f; auto. right; exists v; auto.
- simpl in *.
- specialize (IHl (filter (fun iv' => negb (eqb_ident i (fst iv'))) vs) G H5).
- spec IHl.
- intros. destruct (H0 id0 t0) as [g [? ?]].
- rewrite filter_In in H. destruct H; auto.
- destruct H3. symmetry in H3; inv H3.
- rewrite filter_In in H. destruct H as [_ ?]. simpl in H.
- unfold eqb_ident in H. rewrite Peqb_refl in H. inv H.
- exists g; split; auto.
- specialize (IHl H1).
- destruct (eq_dec id i).
- subst id.
- split; intro.
-Admitted.  (* Certainly true, but a royal pain to prove. *)
+*
+ destruct G; inv H1.
+ change (match_fdecs fl G) in H5.
+ inv H2.
+ specialize (IHfl _ H7 H5).
+ destruct a as [i ?]. destruct p as [i' ?]; simpl in *; subst i'.
+ destruct (ident_eq id i).
+ subst id. rewrite PTree.gss. 
+ split; intro. inv H. left; eauto.
+ destruct H as [[f' [? ?]]|[v [? ?]]].
+ subst t. destruct H. inv H; auto.
+ elimtype False. clear - H H6 H5.
+ apply H6. apply in_app. left.
+ clear H6. revert G H H5; induction fl; destruct G; simpl; intros; inv H5; auto.
+ destruct H. subst p. simpl in H1. subst i. auto. right; apply (IHfl G); auto.
+ clear - H H6 H0.
+ contradiction H6.
+ apply in_app. right. 
+ clear - H H0.
+ revert vs H H0; induction vl; destruct vs; simpl; intros; try  contradiction.
+ destruct p. inv H0.
+ destruct H. subst.
+  destruct a. simpl.
+ pose proof (eqb_ident_spec i i0). destruct (eqb_ident i i0).
+ left; symmetry; rewrite <- H; auto.
+ right.
+ apply (IHvl ((i,v)::vs)); auto. left; auto.
+ destruct p; destruct a. simpl.
+ pose proof (eqb_ident_spec i0 i1). destruct (eqb_ident i0 i1).
+  apply andb_true_iff in H0; destruct H0 as [_ H0].
+ apply andb_true_iff in H0; destruct H0.
+ apply eqb_type_true in H0. subst t. right; apply (IHvl vs); auto.
+ right; apply (IHvl ((i0,t)::vs)); auto. right; auto.
+ rewrite PTree.gso; auto.
+ rewrite IHfl.
+ split; intros [?|?]; auto.
+ destruct H as [f' [? ?]]; left; exists f'; split; auto.
+ destruct H as [f' [? ?]]; left; exists f'; split; auto.
+ destruct H; auto. congruence.
+Qed.
 
 
 Lemma tc_ge_denote_initial:
   forall vs G (prog: program),
 list_norepet (prog_defs_names prog) ->
-match_globvars (prog_vars prog) vs ->
+match_globvars (prog_vars prog) vs = true->
 match_fdecs (prog_funct prog) G ->
 typecheck_glob_environ (filter_genv (Genv.globalenv prog)) (make_tycontext_g vs G).
 Proof.
-Admitted.  (* Very likely true, but a royal pain to prove. *)
+intros.
+hnf; intros.
+rewrite make_tycontext_g_denote in H2; eauto.
+destruct H2 as [[f [? ?]]|[v [? ?]]]; subst t.
+*
+unfold filter_genv.
+destruct (match_fdecs_exists_Gfun prog G id f) as [fd [? H20]]; auto.
+apply find_id_i; auto.
+apply fst_match_fdecs in H1. rewrite <- H1.
+unfold prog_defs_names in H.
+clear - H.
+unfold prog_funct. 
+induction (prog_defs prog). constructor.
+inv H. destruct a; simpl.  destruct g.
+simpl map. constructor; auto. simpl in H2.
+contradict H2.
+clear - H2. induction l; simpl; auto.
+destruct a. destruct g; simpl in *. destruct H2; auto. right; auto.
+apply IHl; auto.
+destruct (Genv.find_funct_ptr_exists prog id fd) as [b [? ?]]; auto.
+exists b.
+rewrite H4.
+unfold type_of_global.
+unfold Genv.find_var_info.
+destruct ((Genv.genv_vars (Genv.globalenv prog)) ! b) eqn:?.
+elimtype False.
+unfold Genv.find_funct_ptr in H5.
+apply (Genv.genv_funs_vars (Genv.globalenv prog) H5 Heqo); auto.
+rewrite H5.
+simpl.
+destruct f; simpl. split; auto.
+*
+ unfold filter_genv.
+ destruct (match_globvars_in' _ _ _ _ H0 H2) as [g [? [? TC]]].
+ apply in_prog_vars_in_prog_defs in H3.
+ destruct (Genv.find_var_exists _ _ _ H H3) as [b [? ?]].
+ exists b. rewrite H5.
+ unfold type_of_global. rewrite H6.
+ rewrite H4; split; auto.
+ simpl. destruct v; inv TC; auto.
+Qed.
 
 Lemma semax_prog_typecheck_aux:
   forall vs G prog b,
    list_norepet (prog_defs_names prog) ->
-   match_globvars (prog_vars prog) vs ->
+   match_globvars (prog_vars prog) vs = true ->
    match_fdecs (prog_funct prog) G ->
    typecheck_environ
       (Delta1 vs G) (construct_rho (filter_genv (Genv.globalenv prog)) empty_env

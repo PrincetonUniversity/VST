@@ -202,16 +202,6 @@ Lemma get_typed_int:
 intros; destruct v; inv H; eauto.
 Qed.
 
-Definition is_ptr_type (ty: type) : bool :=
-  match ty with
-  | Tpointer _ _ => true
-  | Tarray _ _ _ => true
-  | Tfunction _ _ => true
-  | Tstruct _ _ _ => true
-  | Tunion _ _ _ => true
-  | _ => false
-end.
-
 (*(*
 Lemma tc_binaryop_nomem : forall b e1 e2 m1 m2 t rho,
 denote_tc_assert (isBinOpResultType b e1 e2 t) rho ->

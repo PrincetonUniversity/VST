@@ -247,96 +247,6 @@ intros.
  rewrite PTree.gso in H by auto. eauto.
 Qed.
 
-(*
-
-Lemma can_alloc_variables':
-  forall jm vl,
-      exists ve', exists jm',
-          alloc_juicy_variables empty_env jm vl = (ve',jm') /\
-          alloc_variables empty_env (m_dry jm) vl ve' (m_dry jm') /\
-          (resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\ 
-          level jm = level jm' /\
-          core (m_phi jm) = core (m_phi jm') /\
-          match_venv (make_venv ve') vl).
-Proof.
- intros.
- remember (alloc_juicy_variables empty_env jm vl) as x.
- destruct x as [rho' jm'].
- symmetry in Heqx.
- destruct (alloc_juicy_variables_e _ _ _ _ _ Heqx).
- case_eq (age1 jm'); intros; [ | rewrite age1_level0 in H2;  omegaContradiction].
- clear H. rename H2 into H.
- exists rho'; exists j.
- split. apply age_jm_dry in H. rewrite <- H; auto.
- assert (resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
-             (nextblock (m_dry jm) <= nextblock (m_dry jm'))%positive /\
-             (level jm = level jm' /\
-              core (m_phi jm) = core (m_phi jm'))).
-Focus 2.
-  destruct H2 as [? [? [? CORE]]]; split3.
-   eapply resource_decay_trans; try eassumption.  
-  apply age1_resource_decay. apply H.
-  rewrite H4. apply age_level. auto.
- split.
-  rewrite CORE.
- clear - CORE H.
- apply age_core. apply age_jm_phi; auto.
- {
-  clear - Heqx.
-  intro i.
- unfold make_venv.
-  destruct (rho' ! i) as [[? ?] | ] eqn:?; auto.
-  assert ((exists b, empty_env ! i = Some (b,t)) \/ In (i,t) vl).
-2: destruct H; auto; destruct H; rewrite PTree.gempty in H; inv H.
- forget empty_env as e.
-  revert jm e Heqx; induction vl; simpl; intros.
-  inv Heqx.
-  left; eexists; eauto.
-  destruct a.
-  apply IHvl in Heqx; clear IHvl.
- destruct (ident_eq i0 i). subst i0.
- destruct Heqx; auto. destruct H as [b' ?].
- rewrite PTree.gss in H. inv H. right. auto.
- destruct Heqx; auto. left. destruct H as [b' ?].
- rewrite PTree.gso in H by auto. eauto.
-} Unfocus.
- clear j H.
- apply -> and_assoc.
- split; auto.
- forget empty_env as rho. clear H0.
- revert rho jm Heqx H1; induction vl; intros.
- inv Heqx. split. apply resource_decay_refl.
-   apply juicy_mem_alloc_cohere. apply Ple_refl.
- destruct a as [id ty].
- unfold alloc_juicy_variables in Heqx; fold alloc_juicy_variables in Heqx.
- revert Heqx; case_eq (juicy_mem_alloc jm 0 (sizeof ty)); intros jm1 b1 ? ?.
- pose proof (juicy_mem_alloc_succeeds _ _ _ _ _ H).
-  pose proof (juicy_mem_alloc_level _ _ _ _ _ H).
-  rewrite (juicy_mem_alloc_core _ _ _ _ _ H) in H1.
-  rewrite H2 in H1.
- specialize (IHvl _ _ Heqx H1).
- symmetry in H0; pose proof (nextblock_alloc _ _ _ _ _ H0).
- destruct IHvl.
- split; [ |  rewrite H3 in H5; xomega].
- eapply resource_decay_trans; try eassumption. 
- rewrite H3; xomega.
- clear - H H2 H0.
- change (level (m_phi jm) = level (m_phi jm1)) in H2.
- unfold resource_decay.
- split. rewrite H2; auto.
- intro loc.
- split.
- apply juicy_mem_alloc_cohere.
- rewrite (juicy_mem_alloc_at _ _ _ _ _ H).
- replace (sizeof ty - 0) with (sizeof ty) by omega.
- destruct loc as [b z]. simpl in *.
- if_tac. destruct H1; subst b1.
- right. right. left. split. apply alloc_result in H0; subst b; xomega.
- eauto.
- rewrite <- H2. left. apply resource_at_approx.
-Qed.
-*)
-
 Lemma build_call_temp_env:
   forall f vl, 
      length (fn_params f) = length vl ->
@@ -1756,7 +1666,6 @@ split; [ | rewrite <- H25; apply age_level; auto]. {
 
 remember (alloc_juicy_variables empty_env jm (fn_vars f)) eqn:AJV.
 destruct p as [ve' jm']; symmetry in AJV.
-Check alloc_juicy_variables_e.
 destruct (alloc_juicy_variables_e _ _ _ _ _ AJV) as [H15 [H20' CORE]].
 assert (MATCH := alloc_juicy_variables_match_venv _ _ _ _ AJV).
 
