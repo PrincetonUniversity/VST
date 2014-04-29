@@ -1699,3 +1699,82 @@ Proof. unfold visTgt, DomTgt; intros.
   eapply frgnBlocksExternTgt; assumption.
 Qed.
 
+Lemma replace_locals_wd_AtExternal: forall mu vals1 vals2 m1 m2
+         (WD : SM_wd mu)
+         (MINJ : Mem.inject (as_inj mu) m1 m2)
+         (AINJ : Forall2 (val_inject (as_inj mu)) vals1 vals2),
+  SM_wd
+  (replace_locals mu
+     (fun b => locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b)
+     (fun b => locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b)).
+Proof. intros.
+      apply replace_locals_wd. trivial.
+        intros. apply andb_true_iff in H. destruct H. 
+                (*apply val_list_inject_forall_inject in AINJ.
+                apply forall_vals_inject_restrictD in AINJ.*)
+                exploit (REACH_local_REACH mu); try eassumption.
+                intros [b2 [d [LOC RCH2]]].
+                exists b2, d. rewrite LOC, RCH2. 
+                destruct (local_DomRng _ WD _ _ _ LOC). rewrite H2; split; trivial.
+  intros. apply andb_true_iff in H; destruct H.
+                rewrite H; trivial.
+Qed.
+
+Lemma inject_shared_replace_locals m1 m2 mu vals1 vals2: 
+      forall (RC : REACH_closed m1 (vis mu))
+             (WD : SM_wd mu)
+             (MINJ : Mem.inject (as_inj mu) m1 m2)
+             pubSrc' pubTgt'
+             (HPS: pubSrc' = (fun b => locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b))
+             (HPT: pubTgt' = (fun b => locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b))
+             nu (Hnu : nu = replace_locals mu pubSrc' pubTgt')
+             (WDnu: SM_wd nu),
+      Mem.inject (shared_of nu) m1 m2.
+Proof. intros.
+   eapply inject_mapped; try eassumption.
+                intros. subst nu. rewrite replace_locals_shared. intros b Hb.
+                apply REACHAX in Hb. destruct Hb as [L HL].
+                generalize dependent b.
+                induction L; intros; inv HL; trivial.
+                specialize (IHL _ H1); clear H1.
+                apply mappedD_true in IHL. destruct IHL as [[b1 delta] IHL].
+
+               apply inject_REACH_closed in MINJ.
+                  exploit (MINJ b). 
+                    eapply REACH_cons; try eassumption.
+                    eapply REACH_nil.
+                      destruct (joinD_Some _ _ _ _ _ IHL); clear IHL.
+                        eapply mappedI_true. apply foreign_in_all; eassumption.
+                      destruct H as [_ H]. 
+                        remember (locBlocksSrc mu b' && REACH m1 (exportedSrc mu vals1) b') as q.
+                        destruct q; inv H.
+                        eapply mappedI_true. apply local_in_all; eassumption.
+                  intros. apply mappedD_true in H. destruct H as [[b2 dd] AIb].
+                  exploit (RC b). eapply REACH_cons; try eassumption.
+                     eapply REACH_nil. unfold vis.
+                     destruct (joinD_Some _ _ _ _ _ IHL); clear IHL.
+                       apply orb_true_iff; right. eapply foreign_DomRng; eassumption.
+                     destruct H as [_ H].
+                      remember (locBlocksSrc mu b' && REACH m1 (exportedSrc mu vals1) b') as q.
+                      destruct q; inv H.
+                      destruct (local_DomRng _ WD _ _ _ H1). rewrite H; trivial.
+                  unfold vis; intros. apply orb_true_iff in H.
+                  destruct H. Focus 2. unfold join. destruct (frgnSrc _ WD _ H) as [? [? [? ?]]]. 
+                       eapply mappedI_true. rewrite H0. reflexivity.
+                  specialize (locBlocksSrc_externNone _ WD _ H). intros EXT.
+                  destruct (joinD_Some _ _ _ _ _ AIb); clear AIb.
+                    rewrite H0 in EXT; discriminate.
+                  destruct H0. apply extern_ofD_None in H0; destruct H0. 
+                    assert (RR: REACH m1 (exportedSrc mu vals1) b = true).
+                       eapply REACH_cons; try eassumption.
+                       destruct (joinD_Some _ _ _ _ _ IHL); clear IHL.
+                         apply REACH_nil. unfold exportedSrc, sharedSrc, shared_of, join.
+                           rewrite H5.  intuition. 
+                         destruct H5. 
+                           remember (locBlocksSrc mu b' && REACH m1 (exportedSrc mu vals1) b') as q.
+                           destruct q; inv H6. apply eq_sym in Heqq. apply andb_true_iff in Heqq. apply Heqq.
+                    eapply mappedI_true. unfold join. rewrite H0, H, RR; simpl. eassumption.
+               assert (AI: as_inj mu = as_inj nu). 
+                  subst nu. rewrite replace_locals_as_inj; trivial.
+               subst. rewrite AI. apply shared_in_all; eassumption.
+Qed.

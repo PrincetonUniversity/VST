@@ -3348,13 +3348,22 @@ Inductive match_states mu: CL_core -> mem -> CL_core -> mem -> Prop :=
       match_states mu (CL_Returnstate v k) m
                       (CL_Returnstate tv tk) tm.
 
+Definition sm_dival mu m1 m2  := 
+  DomSrc mu = valid_block_dec m1 /\
+  DomTgt mu = valid_block_dec m2.
+
 Definition MATCH (d:CL_core) mu c1 m1 c2 m2:Prop :=
   match_states mu c1 m1 c2 m2 /\
   REACH_closed m1 (vis mu) /\
   meminj_preserves_globals ge (as_inj mu) /\
   (forall b, isGlobalBlock ge b = true -> frgnBlocksSrc mu b = true) /\
-  sm_valid mu m1 m2 /\ SM_wd mu.
+  sm_valid mu m1 m2 /\ SM_wd mu /\ sm_dival mu m1 m2.
 
+Lemma MATCH_dival: forall d mu c1 m1 c2 m2 
+  (MC: MATCH d mu c1 m1 c2 m2), 
+  DomSrc mu = valid_block_dec m1 /\
+  DomTgt mu = valid_block_dec m2.
+Proof. intros. eapply MC. Qed.
 
 Lemma MATCH_wd: forall d mu c1 m1 c2 m2 
   (MC: MATCH d mu c1 m1 c2 m2), SM_wd mu.
@@ -3458,7 +3467,7 @@ Lemma MATCH_restrict: forall d mu c1 m1 c2 m2 X
   (RX: REACH_closed m1 X), 
   MATCH d (restrict_sm mu X) c1 m1 c2 m2.
 Proof. intros.
-  destruct MC as [MS [RC [PG (*[GF*) [Glob [SMV WD]]]]].
+  destruct MC as [MS [RC [PG (*[GF*) [Glob [SMV [WD SMD]]]]]].
 assert (WDR: SM_wd (restrict_sm mu X)).
    apply restrict_sm_WD; assumption.
 split.
@@ -3478,7 +3487,9 @@ split.
     apply (H _ H1).
   rewrite restrict_sm_RNG in H1.
     apply (H0 _ H1).
-assumption.
+split. assumption.
+red. rewrite restrict_sm_DomSrc, restrict_sm_DomTgt. 
+  eapply SMD.
 Qed.
 
 Lemma MATCH_valid: forall d mu c1 m1 c2 m2 
@@ -3759,6 +3770,48 @@ Qed.
 
 End FIND_LABEL.  
 
+Lemma MATCH_atExternal: forall mu c1 m1 c2 m2 e vals1 ef_sig
+       (MTCH: MATCH c1 mu c1 m1 c2 m2)
+       (AtExtSrc: at_external CL_eff_sem1 c1 = Some (e, ef_sig, vals1)),
+     Mem.inject (as_inj mu) m1 m2 /\
+     exists vals2,
+       Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\
+       at_external CL_eff_sem2 c2 = Some (e, ef_sig, vals2) /\
+      (forall pubSrc' pubTgt',
+       pubSrc' = (fun b => locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b) ->
+       pubTgt' = (fun b : block => locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b) ->
+       forall nu : SM_Injection, nu = replace_locals mu pubSrc' pubTgt' ->
+       MATCH c1 nu c1 m1 c2 m2 /\ Mem.inject (shared_of nu) m1 m2).
+Proof. intros. 
+destruct MTCH as [MC [RC [PG [Glob [SMV [WD SMD]]]]]].
+    inv MC; simpl in AtExtSrc; inv AtExtSrc.
+    destruct fd; simpl in *; inv H0.
+    split; trivial. monadInv TRFD.
+    exists tvargs; split; trivial. 
+    eapply val_list_inject_forall_inject; try eassumption.
+    split; trivial.
+    intros.
+    exploit replace_locals_wd_AtExternal; try eassumption.
+                apply val_list_inject_forall_inject in AINJ.
+                apply forall_vals_inject_restrictD in AINJ. eassumption.
+    intros WDnu.
+    split. subst.
+           split. econstructor; eauto.
+             intros. eapply match_cont_replace_locals. eauto.
+             rewrite replace_locals_as_inj. trivial.
+             rewrite replace_locals_as_inj, replace_locals_vis. trivial.
+          rewrite replace_locals_as_inj, replace_locals_vis, replace_locals_frgnBlocksSrc.
+            intuition.
+            (*sm_valid*)
+            red. rewrite replace_locals_DOM, replace_locals_RNG. apply SMV.
+            (*sm_dival*)
+            red. rewrite replace_locals_DomSrc, replace_locals_DomTgt. apply SMD.
+
+   clear - WDnu MINJ H1 WD RC H H0.
+   eapply inject_shared_replace_locals; try eassumption.
+   subst; trivial.
+Qed.
+
 Lemma MATCH_afterExternal: forall
 mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig' 
 (MemInjMu : Mem.inject (as_inj mu) m1 m2)
@@ -3802,13 +3855,14 @@ mu'
                 (fun (b : block) (_ : Z) =>
                  locBlocksSrc nu b = true /\ pubBlocksSrc nu b = false) m1
                 m1')
-(UnchLOOR : Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
+(UnchLOOR : Mem.unchanged_on (local_out_of_reach nu m1) m2 m2')
+(SMD': sm_dival nu' m1' m2'),
 exists st1' st2' : CL_core,
   after_external CL_eff_sem1 (Some ret1) st1 = Some st1' /\
   after_external CL_eff_sem2 (Some ret2) st2 = Some st2' /\
   MATCH st1' mu' st1' m1' st2' m2'.
 Proof. intros. 
- destruct MatchMu as [MC [RC [PG [GF [VAL WDmu]]]]].
+ destruct MatchMu as [MC [RC [PG [GF [SMV [WDmu SMD]]]]]].
  (*assert (PGR: meminj_preserves_globals (Genv.globalenv prog)
                   (restrict (as_inj mu) (vis mu))).
       eapply restrict_preserves_globals; try eassumption.
@@ -3917,7 +3971,7 @@ assert (RR1: REACH_closed m1'
         clear INCvisNu'. 
         rewrite Heql in *. simpl in *. intuition.
         assert (VB: Mem.valid_block m1 b').
-          eapply VAL. unfold DOM, DomSrc. rewrite Heql. intuition.
+          eapply SMV. unfold DOM, DomSrc. rewrite Heql. intuition.
         apply (H VB) in H2.
         rewrite (H0 H2) in H4. clear H H0.
         remember (locBlocksSrc mu b) as q.
@@ -4036,6 +4090,8 @@ rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
 destruct (eff_after_check2 _ _ _ _ _ MemInjNu' RValInjNu' 
       _ (eq_refl _) _ (eq_refl _) _ (eq_refl _) WDnu' SMvalNu').
 intuition.
+red. rewrite replace_externs_DomSrc, replace_externs_DomTgt.
+  eapply SMD'.
 Qed.
 
 Lemma MATCH_corediagram: forall st1 m1 st1' m1' 
@@ -4050,8 +4106,7 @@ exists st2' m2',
    sm_inject_separated mu mu' m1 m2 /\
    sm_locally_allocated mu mu' m1 m2 m1' m2'.
 Proof. intros.
-destruct CS; intros; destruct MTCH as [MS [RC [PG [GLOB [SMV WD]]]]];
-inv MS; simpl in *; try (monadInv TRS).
+destruct CS; intros; destruct MTCH as [MS [RC [PG [GLOB [SMV [WD SMD]]]]]];inv MS; simpl in *; try (monadInv TRS).
 (* assign *)
   assert (INJR: Mem.inject (as_inj (restrict_sm mu (vis mu))) m m2).
     rewrite restrict_sm_all; trivial.
@@ -4102,6 +4157,13 @@ inv MS; simpl in *; try (monadInv TRS).
     split; intros.
       eapply assign_loc_forward. apply H2. apply SMV; trivial.
       apply SMV; trivial.
+    destruct SMD as [SMDa SMDb].
+      split; try eapply SMDb.
+      rewrite SMDa. extensionality b.
+      exploit assign_loc_nextblock; try eassumption. intros.
+      destruct (valid_block_dec m b); unfold Mem.valid_block in *; rewrite <- H in *.
+      destruct (valid_block_dec m' b); unfold Mem.valid_block in *. trivial. elim n. rewrite H. trivial.
+      destruct (valid_block_dec m' b); unfold Mem.valid_block in *. elim n. rewrite <- H. trivial. trivial.
   split. apply intern_incr_refl. 
   split. apply sm_inject_separated_same_sminj.
   apply sm_locally_allocatedChar.
@@ -4110,7 +4172,6 @@ inv MS; simpl in *; try (monadInv TRS).
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
       apply extensionality; intros; rewrite (assign_loc_freshloc _ _ _ _ _ _ H2). intuition.
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
-
 
   (* global variable *)
   inv MV; congruence.
@@ -4172,6 +4233,19 @@ inv MS; simpl in *; try (monadInv TRS).
     split; intros.
       eapply assign_loc_forward. apply H2. apply SMV; trivial.
       eapply assign_loc_forward. apply X. eapply SMV; trivial.
+    destruct SMD as [SMDa SMDb].
+      split. rewrite SMDa. extensionality b.
+        exploit assign_loc_nextblock; try eapply H2. intros.
+        destruct (valid_block_dec m b); unfold Mem.valid_block in *; rewrite <- H3 in *.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. trivial. elim n. rewrite H3. trivial.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. elim n. rewrite <- H3. trivial. trivial.
+      rewrite SMDb. extensionality b.
+        exploit assign_loc_nextblock; try eapply X. intros.
+        destruct (valid_block_dec m2 b); unfold Mem.valid_block in *; rewrite <- H3 in *.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. trivial. elim n. rewrite H3. trivial.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. elim n. rewrite <- H3. trivial. trivial.
+      
+    
   split. apply intern_incr_refl. 
   split. apply sm_inject_separated_same_sminj.
   apply sm_locally_allocatedChar.
@@ -4445,7 +4519,20 @@ inv MS; simpl in *; try (monadInv TRS).
   split; intros;  
       eapply freelist_forward; try eassumption.
       eapply SMV; assumption.
-      eapply SMV; assumption. 
+      eapply SMV; assumption.
+  destruct SMD as [SMDa SMDb]. 
+    red; rewrite SMDa, SMDb.
+    split; extensionality b.
+     apply nextblock_freelist in H.
+        destruct (valid_block_dec m b); unfold Mem.valid_block in *; rewrite <- H in *.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. trivial. elim n. rewrite H. trivial.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. elim n. rewrite <- H. trivial. trivial.
+
+     apply nextblock_freelist in P.
+        destruct (valid_block_dec m2 b); unfold Mem.valid_block in *; rewrite <- P in *.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. trivial. elim n. rewrite P. trivial.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. elim n. rewrite <- P. trivial. trivial.
+
   split. apply intern_incr_refl. 
   split. apply sm_inject_separated_same_sminj.
   apply sm_locally_allocatedChar.
@@ -4484,6 +4571,19 @@ inv MS; simpl in *; try (monadInv TRS).
       eapply freelist_forward; try eassumption.
       eapply SMV; assumption.
       eapply SMV; assumption. 
+  destruct SMD as [SMDa SMDb]. 
+    red; rewrite SMDa, SMDb.
+    split; extensionality b.
+     apply nextblock_freelist in H1.
+        destruct (valid_block_dec m b); unfold Mem.valid_block in *; rewrite <- H1 in *.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. trivial. elim n. rewrite H1. trivial.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. elim n. rewrite <- H1. trivial. trivial.
+
+     apply nextblock_freelist in P.
+        destruct (valid_block_dec m2 b); unfold Mem.valid_block in *; rewrite <- P in *.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. trivial. elim n. rewrite P. trivial.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. elim n. rewrite <- P. trivial. trivial.
+
   split. apply intern_incr_refl. 
   split. apply sm_inject_separated_same_sminj.
   apply sm_locally_allocatedChar.
@@ -4507,6 +4607,19 @@ inv MS; simpl in *; try (monadInv TRS).
       eapply freelist_forward; try eassumption.
       eapply SMV; assumption.
       eapply SMV; assumption. 
+
+  destruct SMD as [SMDa SMDb]. 
+    red; rewrite SMDa, SMDb.
+    split; extensionality b.
+     apply nextblock_freelist in H0.
+        destruct (valid_block_dec m b); unfold Mem.valid_block in *; rewrite <- H0 in *.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. trivial. elim n. rewrite H0. trivial.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. elim n. rewrite <- H0. trivial. trivial.
+
+     apply nextblock_freelist in P.
+        destruct (valid_block_dec m2 b); unfold Mem.valid_block in *; rewrite <- P in *.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. trivial. elim n. rewrite P. trivial.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. elim n. rewrite <- P. trivial. trivial.
   split. apply intern_incr_refl. 
   split. apply sm_inject_separated_same_sminj.
   apply sm_locally_allocatedChar.
@@ -4661,6 +4774,30 @@ inv MS; simpl in *; try (monadInv TRS).
              eassumption. split; eassumption. eassumption.
          intros [PG' GLOB'].           
          intuition.
+         
+  clear EQ B X Y Z. rewrite sm_locally_allocatedChar in LocAlloc. destruct LocAlloc as [LAS [LAT _]].
+  destruct SMD as [SMDa SMDb]. 
+    red. rewrite LAS, LAT, SMDa, SMDb. clear LAS LAT SMDa SMDb.
+    split; extensionality b. clear C SMV' EQ0 l RC' S R T P D E F A H Q GLOB' SMV'' PG' RC''.
+           apply  bind_parameters_nextblock in H2.
+           apply alloc_variables_forward in H1.
+           unfold freshloc.
+           destruct (valid_block_dec m b); simpl.
+             destruct (valid_block_dec m' b); simpl. trivial.
+             unfold Mem.valid_block in n. rewrite H2 in n. elim n. eapply H1. assumption.
+           destruct (valid_block_dec m1 b); simpl; unfold Mem.valid_block in *. rewrite <- H2 in v.
+           destruct (valid_block_dec m' b); simpl. trivial. elim n0. apply v.
+           rewrite <- H2 in n0. destruct (valid_block_dec m' b); simpl. elim n0. apply v. trivial.
+     clear C SMV' EQ0 l RC' S R H2 H1 P D E F H Q GLOB' SMV'' PG' RC''.
+           apply alloc_variables_forward in A.
+           unfold freshloc.
+           destruct (valid_block_dec m2 b); simpl.
+             destruct (valid_block_dec tm1 b); simpl. trivial.
+             unfold Mem.valid_block in n. rewrite T in n. elim n. eapply A. assumption.
+           destruct (valid_block_dec tm0 b); simpl; unfold Mem.valid_block in *. rewrite <- T in v.
+           destruct (valid_block_dec tm1 b); simpl. trivial. elim n0. apply v.
+           rewrite <- T in n0. destruct (valid_block_dec tm1 b); simpl. elim n0. apply v. trivial.
+
        intuition.
          (*sm_inject_separated goal*)
          clear - LocAlloc E F SMV. (*EQ P Q X Y Z. red.*)
@@ -4775,7 +4912,7 @@ Lemma MATCH_effcore_diagram: forall st1 m1 st1' m1'
          U1 b1 (ofs - delta1) = true /\
          Mem.perm m1 b1 (ofs - delta1) Max Nonempty)).
 Proof. intros.
-destruct CS; intros; destruct MTCH as [MS [RC [PG [GLOB [SMV WD]]]]];
+destruct CS; intros; destruct MTCH as [MS [RC [PG [GLOB [SMV [WD SMD]]]]]];
 inv MS; simpl in *; try (monadInv TRS).
 (* assign *)
   assert (INJR: Mem.inject (as_inj (restrict_sm mu (vis mu))) m m2).
@@ -4827,6 +4964,13 @@ inv MS; simpl in *; try (monadInv TRS).
     split; intros.
       eapply assign_loc_forward. apply H2. apply SMV; trivial.
       apply SMV; trivial.
+    destruct SMD as [SMDa SMDb].
+      split; try eapply SMDb.
+      rewrite SMDa. extensionality b.
+      exploit assign_loc_nextblock; try eassumption. intros.
+      destruct (valid_block_dec m b); unfold Mem.valid_block in *; rewrite <- H in *.
+      destruct (valid_block_dec m' b); unfold Mem.valid_block in *. trivial. elim n. rewrite H. trivial.
+      destruct (valid_block_dec m' b); unfold Mem.valid_block in *. elim n. rewrite <- H. trivial. trivial.
   split. apply intern_incr_refl. 
   split. apply sm_inject_separated_same_sminj.
   split. apply sm_locally_allocatedChar.
@@ -4897,6 +5041,18 @@ inv MS; simpl in *; try (monadInv TRS).
     split; intros.
       eapply assign_loc_forward. apply H2. apply SMV; trivial.
       eapply assign_loc_forward. apply X. eapply SMV; trivial.
+    destruct SMD as [SMDa SMDb].
+      split. rewrite SMDa. extensionality b.
+        exploit assign_loc_nextblock; try eapply H2. intros.
+        destruct (valid_block_dec m b); unfold Mem.valid_block in *; rewrite <- H3 in *.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. trivial. elim n. rewrite H3. trivial.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. elim n. rewrite <- H3. trivial. trivial.
+      rewrite SMDb. extensionality b.
+        exploit assign_loc_nextblock; try eapply X. intros.
+        destruct (valid_block_dec m2 b); unfold Mem.valid_block in *; rewrite <- H3 in *.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. trivial. elim n. rewrite H3. trivial.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. elim n. rewrite <- H3. trivial. trivial.
+      
   split. apply intern_incr_refl. 
   split. apply sm_inject_separated_same_sminj.
   split. apply sm_locally_allocatedChar.
@@ -5250,7 +5406,20 @@ inv MS; simpl in *; try (monadInv TRS).
   split; intros;  
       eapply freelist_forward; try eassumption.
       eapply SMV; assumption.
-      eapply SMV; assumption. 
+      eapply SMV; assumption.
+  destruct SMD as [SMDa SMDb]. 
+    red; rewrite SMDa, SMDb.
+    split; extensionality b.
+     apply nextblock_freelist in H.
+        destruct (valid_block_dec m b); unfold Mem.valid_block in *; rewrite <- H in *.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. trivial. elim n. rewrite H. trivial.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. elim n. rewrite <- H. trivial. trivial.
+
+     apply nextblock_freelist in P.
+        destruct (valid_block_dec m2 b); unfold Mem.valid_block in *; rewrite <- P in *.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. trivial. elim n. rewrite P. trivial.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. elim n. rewrite <- P. trivial. trivial.
+ 
   split. apply intern_incr_refl. 
   split. apply sm_inject_separated_same_sminj.
   split. apply sm_locally_allocatedChar.
@@ -5298,6 +5467,19 @@ inv MS; simpl in *; try (monadInv TRS).
       eapply freelist_forward; try eassumption.
       eapply SMV; assumption.
       eapply SMV; assumption. 
+
+  destruct SMD as [SMDa SMDb]. 
+    red; rewrite SMDa, SMDb.
+    split; extensionality b.
+     apply nextblock_freelist in H1.
+        destruct (valid_block_dec m b); unfold Mem.valid_block in *; rewrite <- H1 in *.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. trivial. elim n. rewrite H1. trivial.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. elim n. rewrite <- H1. trivial. trivial.
+
+     apply nextblock_freelist in P.
+        destruct (valid_block_dec m2 b); unfold Mem.valid_block in *; rewrite <- P in *.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. trivial. elim n. rewrite P. trivial.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. elim n. rewrite <- P. trivial. trivial.
   split. apply intern_incr_refl. 
   split. apply sm_inject_separated_same_sminj.
   split. apply sm_locally_allocatedChar.
@@ -5331,6 +5513,19 @@ inv MS; simpl in *; try (monadInv TRS).
       eapply freelist_forward; try eassumption.
       eapply SMV; assumption.
       eapply SMV; assumption. 
+
+  destruct SMD as [SMDa SMDb]. 
+    red; rewrite SMDa, SMDb.
+    split; extensionality b.
+     apply nextblock_freelist in H0.
+        destruct (valid_block_dec m b); unfold Mem.valid_block in *; rewrite <- H0 in *.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. trivial. elim n. rewrite H0. trivial.
+        destruct (valid_block_dec m' b); unfold Mem.valid_block in *. elim n. rewrite <- H0. trivial. trivial.
+
+     apply nextblock_freelist in P.
+        destruct (valid_block_dec m2 b); unfold Mem.valid_block in *; rewrite <- P in *.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. trivial. elim n. rewrite P. trivial.
+        destruct (valid_block_dec tm' b); unfold Mem.valid_block in *. elim n. rewrite <- P. trivial. trivial.
   split. apply intern_incr_refl. 
   split. apply sm_inject_separated_same_sminj.
   split. apply sm_locally_allocatedChar.
@@ -5502,6 +5697,29 @@ inv MS; simpl in *; try (monadInv TRS).
              eassumption. split; eassumption. eassumption.
          intros [PG' GLOB'].           
          intuition.
+  clear EQ B X Y Z. rewrite sm_locally_allocatedChar in LocAlloc. destruct LocAlloc as [LAS [LAT _]].
+  destruct SMD as [SMDa SMDb]. 
+    red. rewrite LAS, LAT, SMDa, SMDb. clear LAS LAT SMDa SMDb.
+    split; extensionality b. clear C SMV' EQ0 l RC' S R T P D E F A H Q GLOB' SMV'' PG' RC''.
+           apply  bind_parameters_nextblock in H2.
+           apply alloc_variables_forward in H1.
+           unfold freshloc.
+           destruct (valid_block_dec m b); simpl.
+             destruct (valid_block_dec m' b); simpl. trivial.
+             unfold Mem.valid_block in n. rewrite H2 in n. elim n. eapply H1. assumption.
+           destruct (valid_block_dec m1 b); simpl; unfold Mem.valid_block in *. rewrite <- H2 in v.
+           destruct (valid_block_dec m' b); simpl. trivial. elim n0. apply v.
+           rewrite <- H2 in n0. destruct (valid_block_dec m' b); simpl. elim n0. apply v. trivial.
+     clear C SMV' EQ0 l RC' S R H2 H1 P D E F H Q GLOB' SMV'' PG' RC''.
+           apply alloc_variables_forward in A.
+           unfold freshloc.
+           destruct (valid_block_dec m2 b); simpl.
+             destruct (valid_block_dec tm1 b); simpl. trivial.
+             unfold Mem.valid_block in n. rewrite T in n. elim n. eapply A. assumption.
+           destruct (valid_block_dec tm0 b); simpl; unfold Mem.valid_block in *. rewrite <- T in v.
+           destruct (valid_block_dec tm1 b); simpl. trivial. elim n0. apply v.
+           rewrite <- T in n0. destruct (valid_block_dec tm1 b); simpl. elim n0. apply v. trivial.
+
      split; trivial.
      split. (*sm_inject_separated goal*)
          clear - LocAlloc E F SMV. (*EQ P Q X Y Z. red.*)
@@ -5613,7 +5831,9 @@ Lemma MATCH_init_core: forall (v1 v2 : val) (sig : signature) entrypoints
       /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))
   (GDE: genvs_domain_eq ge tge)
   (HDomS: forall b : Values.block, DomS b = true -> Mem.valid_block m1 b)
-  (HDomT: forall b : Values.block, DomT b = true -> Mem.valid_block m2 b),
+  (HDomT: forall b : Values.block, DomT b = true -> Mem.valid_block m2 b)
+  (HDomSStrong: DomS = (fun b0 : block => valid_block_dec m1 b0))
+  (HDomTStrong: DomT = (fun b0 : block => valid_block_dec m2 b0)),
 exists c2,
   initial_core CL_eff_sem2 tge v2 vals2 = Some c2 /\
   MATCH c1
@@ -5661,6 +5881,9 @@ destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
    as [AA [BB [CC [DD [EE [FF GG]]]]]].
 intuition. rewrite initial_SM_as_inj. assumption.
+(*dival*)
+red. unfold initial_SM, DomSrc, DomTgt; simpl. split; trivial.
+(*protected: red. simpl. intros. discriminate.*)
 Qed.
 
 (** The simulation proof *)
@@ -5701,6 +5924,8 @@ assert (GDE: genvs_domain_eq ge tge).
   apply MATCH_restrict.
 (*MATCH_valid*)
   apply MATCH_valid.
+(*MATCH_dival
+  apply MATCH_dival.*)
 (*MATCH_preserves_globals*)
   apply MATCH_PG.
 (* init*) { 
@@ -5740,7 +5965,9 @@ assert (GDE: genvs_domain_eq ge tge).
         eapply Mem.valid_block_inject_2; eauto.
       clear - VB; unfold Mem.valid_block in VB.
       xomega.
-      apply (valid_init_is_global _ R _ INIT). }
+      apply (valid_init_is_global _ R _ INIT). 
+      admit. (*DomSStrong*)
+      admit. (*DomTStrong*)}
 { (* halted *)
     intros. destruct H as [MC [RC [PG [Glob [VAL WD]]]]].
     inv MC; simpl in H0. inv H0. inv H0.
@@ -5750,16 +5977,23 @@ assert (GDE: genvs_domain_eq ge tge).
     (*eapply val_inject_incr; try eassumption.
     apply incr_restrict_shared_vis; trivial.*) }
 { (*at_external *) 
-  intros. destruct H as [MC [RC [PG [Glob [VAL WD]]]]].
+  (*proof without the leak-out stuff 
+    intros. destruct H as [MC [RC [PG [Glob [VAL WD]]]]].
     inv MC; simpl in H0; inv H0.
     destruct fd; simpl in *; inv H1.
     split; trivial. monadInv TRFD.
     exists tvargs; split; trivial. 
     eapply val_list_inject_forall_inject; try eassumption. 
     (*eapply val_list_inject_incr; try eassumption.
-    apply incr_restrict_shared_vis; trivial. *)}
+    apply incr_restrict_shared_vis; trivial. *)*)
+    apply MATCH_atExternal. }
+        
 { (*after_external *)
-  apply MATCH_afterExternal. } 
+  intros. eapply MATCH_afterExternal. eapply MemInjMu. eassumption. eassumption.
+     eassumption. eassumption. eassumption. eassumption. eassumption. eassumption. 
+     eassumption. eassumption. eassumption. eassumption. eassumption. eassumption. 
+     eassumption. eassumption. eassumption. eassumption. eassumption. eassumption. 
+     admit. (*sm_dival nu' m1' m2'*) }
 { (*core_diagram*)
    intros. 
    exploit MATCH_corediagram; try eassumption.

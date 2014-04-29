@@ -4089,6 +4089,52 @@ Proof. intros.
       admit. (*TODO: finish MATCH_init once intern/extern/extrasteps has been solved*)
 Qed.
 
+Lemma MATCH_atExternal: forall mu c1 m1 c2 m2 e vals1 ef_sig
+       (MTCH: MATCH c1 mu c1 m1 c2 m2)
+       (AtExtSrc: at_external Linear_eff_sem c1 = Some (e, ef_sig, vals1)),
+     Mem.inject (as_inj mu) m1 m2 /\
+     exists vals2,
+       Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\
+       at_external (Mach_eff_sem return_address_offset)  c2 = Some (e, ef_sig, vals2) /\
+      (forall pubSrc' pubTgt',
+       pubSrc' = (fun b => locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b) ->
+       pubTgt' = (fun b => locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b) ->
+       forall nu : SM_Injection, nu = replace_locals mu pubSrc' pubTgt' ->
+       MATCH c1 nu c1 m1 c2 m2 /\ Mem.inject (shared_of nu) m1 m2).
+Proof. intros. 
+destruct MTCH as [MC [INJ [RC [PG [SMV [WD SMD]]]]]].
+    inv MC; simpl in AtExtSrc; inv AtExtSrc.
+    destruct f; simpl in *; inv H0.
+    split; trivial. monadInv TRANSL.
+    destruct f; simpl in *; inv H0.
+    monadInv TRANSL.
+    split; trivial. continue here.
+    exists tvargs; split; trivial. 
+    eapply val_list_inject_forall_inject; try eassumption.
+    split; trivial.
+    intros.
+    exploit replace_locals_wd_AtExternal; try eassumption.
+                apply val_list_inject_forall_inject in AINJ.
+                apply forall_vals_inject_restrictD in AINJ. eassumption.
+    intros WDnu.
+    split. subst.
+           split. econstructor; eauto.
+             intros. eapply match_cont_replace_locals. eauto.
+             rewrite replace_locals_as_inj. trivial.
+             rewrite replace_locals_as_inj, replace_locals_vis. trivial.
+          rewrite replace_locals_as_inj, replace_locals_vis, replace_locals_frgnBlocksSrc.
+            intuition.
+            (*sm_valid*)
+            red. rewrite replace_locals_DOM, replace_locals_RNG. apply SMV.
+            (*sm_dival*)
+            red. rewrite replace_locals_DomSrc, replace_locals_DomTgt. apply SMD.
+
+   clear - WDnu MINJ H1 WD RC H H0.
+   eapply inject_shared_replace_locals; try eassumption.
+   subst; trivial.
+Qed.
+
+
 Lemma MATCH_diagram: forall st1 m1 st1' m1'
       (CS: corestep Linear_eff_sem ge st1 m1 st1' m1')
       st2 mu m2 (MTCH: MATCH st1 mu st1 m1 st2 m2),

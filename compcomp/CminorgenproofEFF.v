@@ -594,7 +594,7 @@ red. rewrite restrict_sm_frgnBlocksSrc, restrict_sm_extBlocksSrc,
   eapply PROT; eassumption.
 Qed.
 *)
-Definition Match_cores d mu c1 m1 c2 m2:Prop :=
+Definition MATCH d mu c1 m1 c2 m2:Prop :=
   structured_match_cores d mu c1 m1 c2 m2 (*(restrict_sm mu (vis mu)) doesn't work here, since 
                               some of the conditions of match_env are "global"*) /\
   REACH_closed m1 (vis mu) /\
@@ -604,12 +604,12 @@ Definition Match_cores d mu c1 m1 c2 m2:Prop :=
   Mem.inject (as_inj mu) m1 m2(* /\ protected m1 mu*).
 
 Lemma Match_sm_wd: forall d mu c1 m1 c2 m2, 
-          Match_cores d mu c1 m1 c2 m2 -> 
+          MATCH d mu c1 m1 c2 m2 -> 
           SM_wd mu.
 Proof. intros. apply H. Qed.
 
 Lemma Match_genv: forall d mu c1 m1 c2 m2
-                  (MC:Match_cores d mu c1 m1 c2 m2),
+                  (MC:MATCH d mu c1 m1 c2 m2),
           meminj_preserves_globals ge (extern_of mu) /\
           (forall b, isGlobalBlock ge b = true -> frgnBlocksSrc mu b = true).
 Proof.
@@ -623,7 +623,7 @@ Proof.
 Qed.
 
 Lemma Match_visible: forall d mu c1 m1 c2 m2, 
-          Match_cores d mu c1 m1 c2 m2 -> 
+          MATCH d mu c1 m1 c2 m2 -> 
           REACH_closed m1 (vis mu).
 Proof. intros. apply H. Qed.
 
@@ -683,10 +683,10 @@ Proof. intros.
 Qed.
 
 Lemma Match_restrict: forall d mu c1 m1 c2 m2 X
-          (MC: Match_cores d mu c1 m1 c2 m2)
+          (MC: MATCH d mu c1 m1 c2 m2)
           (HX: forall b, vis mu b = true -> X b = true)
           (RC: REACH_closed m1 X),
-          Match_cores d (restrict_sm mu X) c1 m1 c2 m2.
+          MATCH d (restrict_sm mu X) c1 m1 c2 m2.
 Proof. intros.
   destruct MC as [MC [RCLocs [PG [Glob [SMV [WD INJ]]]]]].
 assert (WDR: SM_wd (restrict_sm mu X)).
@@ -715,7 +715,7 @@ rewrite restrict_sm_all.
 Qed.
 
 Lemma Match_validblocks: 
-forall d mu c1 m1 c2 m2, Match_cores d mu c1 m1 c2 m2 -> 
+forall d mu c1 m1 c2 m2, MATCH d mu c1 m1 c2 m2 -> 
         sm_valid mu m1 m2.
 Proof. intros. apply H. Qed.
 
@@ -749,7 +749,7 @@ Lemma Match_init_core: forall (v1 v2 : val) (sig : signature) entrypoints
   (HDomT: forall b : Values.block, DomT b = true -> Mem.valid_block m2 b),
 exists c2 : CMin_core,
   initial_core cmin_eff_sem tge v2 vals2 = Some c2 /\
-  Match_cores c1
+  MATCH c1
     (initial_SM DomS DomT
        (REACH m1
           (fun b : Values.block => isGlobalBlock ge b || getBlocks vals1 b))
@@ -816,7 +816,7 @@ Qed.
 Lemma Match_AfterExternal: 
 forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
   (MemInjMu : Mem.inject (as_inj mu) m1 m2)
-  (MatchMu : Match_cores st1 mu st1 m1 st2 m2)
+  (MatchMu : MATCH st1 mu st1 m1 st2 m2)
   (AtExtSrc : at_external csharpmin_eff_sem st1 = Some (e, ef_sig, vals1))
   (AtExtTgt : at_external cmin_eff_sem st2 = Some (e', ef_sig', vals2))
   (ValInjMu : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
@@ -861,7 +861,7 @@ forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
 exists (st1' : CSharpMin_core) (st2' : CMin_core),
   after_external csharpmin_eff_sem (Some ret1) st1 = Some st1' /\
   after_external cmin_eff_sem (Some ret2) st2 = Some st2' /\
-  Match_cores st1' mu' st1' m1' st2' m2'.
+  MATCH st1' mu' st1' m1' st2' m2'.
 Proof. intros. 
  destruct MatchMu as [MC [RC [PG [GF [VAL [WDmu INJ]]]]]].
  (*assert (PGR: meminj_preserves_globals (Genv.globalenv prog)
@@ -1103,6 +1103,54 @@ Proof.
            apply val_list_inject_forall_inject; eassumption.*)
   inv TR. trivial.
 Qed.
+
+Lemma structured_match_callstack_replace_locals mu m1 m2 pubSrc' pubTgt': forall cs bound tbound
+        (MCS : structured_match_callstack mu m1 m2 cs bound tbound),
+      structured_match_callstack (replace_locals mu pubSrc' pubTgt') m1 m2 cs bound tbound.
+Proof. intros cs; induction cs; intros.
+  inv MCS; econstructor; 
+      try rewrite replace_locals_as_inj;
+      try rewrite replace_locals_vis; eauto.
+  inv MCS; econstructor; 
+      try rewrite replace_locals_as_inj;
+      try rewrite replace_locals_vis; 
+      try rewrite replace_locals_locBlocksTgt; eauto. 
+Qed. 
+
+Lemma MATCH_atExternal: forall mu c1 m1 c2 m2 e vals1 ef_sig
+       (MTCH: MATCH c1 mu c1 m1 c2 m2)
+       (AtExtSrc: at_external csharpmin_eff_sem c1 = Some (e, ef_sig, vals1)),
+     Mem.inject (as_inj mu) m1 m2 /\
+     exists vals2,
+       Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\
+       at_external cmin_eff_sem c2 = Some (e, ef_sig, vals2) /\
+      (forall pubSrc' pubTgt',
+       pubSrc' = (fun b => locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b) ->
+       pubTgt' = (fun b => locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b) ->
+       forall nu : SM_Injection, nu = replace_locals mu pubSrc' pubTgt' ->
+       MATCH c1 nu c1 m1 c2 m2 /\ Mem.inject (shared_of nu) m1 m2).
+Proof. intros. destruct MTCH as [MC [RC [PG [GF [SMV [WD INJ]]]]]].
+destruct (Match_at_external _ _ _ _ _ _ _ _ MC AtExtSrc) as [vals2 [ValsInj AtExtTgt]]. 
+split; trivial.
+exists vals2. split; trivial. split; trivial.
+exploit replace_locals_wd_AtExternal; try eassumption.
+  apply forall_vals_inject_restrictD in ValsInj. eassumption.
+intros WDnu.
+intros.
+assert (SMVnu: sm_valid nu m1 m2).
+  red. subst nu. rewrite replace_locals_DOM, replace_locals_RNG. apply SMV.
+  split. (*MATCH*)
+    split. inv MC; inv AtExtSrc.
+      econstructor; try eassumption. 
+        eapply structured_match_callstack_replace_locals; eauto.
+        rewrite replace_locals_as_inj, replace_locals_vis. trivial.    
+    subst nu.
+      rewrite replace_locals_vis, replace_locals_as_inj, replace_locals_frgnBlocksSrc.
+      intuition. subst; assumption.
+    eapply inject_shared_replace_locals; try eassumption.
+      subst; trivial.
+Qed.
+
 Lemma match_callstack_freelist:
   forall mu cenv tf e le te sp lo hi cs m m' tm (WD: SM_wd mu),
   Mem.inject (as_inj mu) m tm ->
@@ -1179,7 +1227,7 @@ Lemma transl_expr_correct:
   forall mu m tm cenv tf e lenv te sp lo hi cs
     (MINJ: Mem.inject (as_inj mu) m tm)
     (RC: REACH_closed m (vis mu))
-    (MATCH: structured_match_callstack mu m tm
+    (MTCH: structured_match_callstack mu m tm
              (Frame cenv tf e lenv te sp lo hi :: cs)
              (Mem.nextblock m) (Mem.nextblock tm)),
   forall a v,
@@ -1193,7 +1241,7 @@ Lemma transl_expr_correct:
 Proof.
   induction 4; intros; simpl in TR; try (monadInv TR).
   (* Etempvar *)
-  inv MATCH. exploit MTMP; eauto. intros [tv [A B]]. 
+  inv MTCH. exploit MTMP; eauto. intros [tv [A B]]. 
   exists tv; split. constructor; auto. split.
     inv B; econstructor; try eassumption. trivial.
     exact I.
@@ -1837,7 +1885,7 @@ exists (c2' : CMin_core) m2' mu',
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m1 m2' /\ SM_wd mu' /\
   sm_valid mu' m1 m2' /\
-  Match_cores (CSharpMin_State f (Csharpminor.fn_body f) k e lenv) mu'
+  MATCH (CSharpMin_State f (Csharpminor.fn_body f) k e lenv) mu'
     (CSharpMin_State f (Csharpminor.fn_body f) k e lenv) m1 c2' m2'.
 Proof. intros. 
   generalize EQ; clear EQ; unfold transl_function.
@@ -1914,7 +1962,7 @@ exists st2' : CMin_core,
   /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-  Match_cores (CSharpMin_State f s k e lenv) mu'
+  MATCH (CSharpMin_State f s k e lenv) mu'
     (CSharpMin_State f s k e lenv) m st2' m2' /\
   SM_wd mu' /\ sm_valid mu' m m2'.
 Proof. intros.
@@ -1971,7 +2019,7 @@ exists st2' : CMin_core,
   /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-  Match_cores (CSharpMin_State f Csharpminor.Sskip k e lenv) mu' (CSharpMin_State f Csharpminor.Sskip k e lenv) m st2' m2' /\
+  MATCH (CSharpMin_State f Csharpminor.Sskip k e lenv) mu' (CSharpMin_State f Csharpminor.Sskip k e lenv) m st2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m m2'.
 Proof. intros.
@@ -2039,7 +2087,7 @@ exists st2' : CMin_core,
   /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m' m2' /\
-  Match_cores (CSharpMin_Returnstate Vundef k) mu' (CSharpMin_Returnstate Vundef k) m' st2' m2' /\
+  MATCH (CSharpMin_Returnstate Vundef k) mu' (CSharpMin_Returnstate Vundef k) m' st2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m' m2'.
 Proof. intros.
@@ -2090,7 +2138,7 @@ exists st2' : CMin_core,
   /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-  Match_cores (CSharpMin_State f Csharpminor.Sskip k e (PTree.set id v lenv))
+  MATCH (CSharpMin_State f Csharpminor.Sskip k e (PTree.set id v lenv))
               mu' (CSharpMin_State f Csharpminor.Sskip k e (PTree.set id v lenv)) m st2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m m2'.
@@ -2139,7 +2187,7 @@ exists st2' : CMin_core,
   /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m' m2' /\
-  Match_cores (CSharpMin_State f Csharpminor.Sskip k e lenv)
+  MATCH (CSharpMin_State f Csharpminor.Sskip k e lenv)
               mu' (CSharpMin_State f Csharpminor.Sskip k e lenv) m' st2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m' m2'.
@@ -2217,7 +2265,7 @@ exists c2' : CMin_core,
 /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-  Match_cores (CSharpMin_Callstate fd vargs (Csharpminor.Kcall optid f e lenv k)) mu'
+  MATCH (CSharpMin_Callstate fd vargs (Csharpminor.Kcall optid f e lenv k)) mu'
               (CSharpMin_Callstate fd vargs (Csharpminor.Kcall optid f e lenv k)) m c2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m m2'.
@@ -2280,7 +2328,7 @@ exists c2' : CMin_core,
   intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m' m2' /\
-  Match_cores
+  MATCH
     (CSharpMin_State f Csharpminor.Sskip k e (set_optvar optid vres lenv)) mu'
     (CSharpMin_State f Csharpminor.Sskip k e (set_optvar optid vres lenv)) m'
     c2' m2' /\
@@ -2349,7 +2397,7 @@ exists c2' : CMin_core,
      intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-  Match_cores  (CSharpMin_State f (if b then s1 else s2) k e lenv) mu'
+  MATCH  (CSharpMin_State f (if b then s1 else s2) k e lenv) mu'
              (CSharpMin_State f (if b then s1 else s2) k e lenv) m c2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m m2'.
@@ -2386,7 +2434,7 @@ exists c2' : CMin_core,
      intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-  Match_cores (CSharpMin_State f s (Csharpminor.Kseq (Csharpminor.Sloop s) k) e lenv) mu'
+  MATCH (CSharpMin_State f s (Csharpminor.Kseq (Csharpminor.Sloop s) k) e lenv) mu'
              (CSharpMin_State f s (Csharpminor.Kseq (Csharpminor.Sloop s) k) e lenv) m c2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m m2'.
@@ -2421,7 +2469,7 @@ exists c2' : CMin_core,
      intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-        Match_cores (CSharpMin_State f s (Csharpminor.Kblock k) e lenv) mu' 
+        MATCH (CSharpMin_State f s (Csharpminor.Kblock k) e lenv) mu' 
                     (CSharpMin_State f s (Csharpminor.Kblock k) e lenv) m c2' m2'
   /\ SM_wd mu' /\
   sm_valid mu' m m2'.
@@ -2451,7 +2499,7 @@ exists c2' : CMin_core,
   exists m2' mu',
         corestep_plus CMin_core_sem tge
                (CMin_State tfn (Sexit (shift_exit xenv n)) tk (Vptr sp Int.zero) te) tm c2' m2'  /\
-        Match_cores (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) mu'
+        MATCH (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) mu'
     (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) m c2' m2'
 /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
@@ -2497,7 +2545,7 @@ exists c2' : CMin_core,
   exists m2' mu',
    corestep_plus CMin_core_sem tge
      (CMin_State tfn (Sexit (shift_exit xenv 0)) tk (Vptr sp Int.zero) te) tm c2' m2'
-  /\ Match_cores (CSharpMin_State f Csharpminor.Sskip k e lenv) mu'
+  /\ MATCH (CSharpMin_State f Csharpminor.Sskip k e lenv) mu'
     (CSharpMin_State f Csharpminor.Sskip k e lenv) m c2' m2'
 /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
@@ -2536,7 +2584,7 @@ exists c2' : CMin_core,
   exists m2' mu',
         corestep_plus CMin_core_sem tge
      (CMin_State tfn (Sexit (shift_exit xenv (S n))) tk (Vptr sp Int.zero) te) tm c2' m2' /\ 
-       Match_cores (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) mu'
+       MATCH (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) mu'
     (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) m c2' m2'
 /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
@@ -2576,7 +2624,7 @@ Lemma MS_switch_MSI: forall
     (TK: transl_lblstmt_cont cenv xenv ls tk tk'),
   exists S, exists m2' mu',
   corestep_plus CMin_core_sem  tge (CMin_State tfn (Sexit O) tk' (Vptr sp Int.zero) te) tm S m2'
-  /\ Match_cores (CSharpMin_State f (seq_of_lbl_stmt ls) k e lenv) mu'
+  /\ MATCH (CSharpMin_State f (seq_of_lbl_stmt ls) k e lenv) mu'
                  (CSharpMin_State f (seq_of_lbl_stmt ls) k e lenv) m
                  S m2'
   /\ intern_incr mu mu' /\
@@ -2631,7 +2679,7 @@ exists c2' : CMin_core,
   exists m2' mu',
           corestep_plus CMin_core_sem tge
              (CMin_State tfn ts tk (Vptr sp Int.zero) te) tm c2' m2' /\
-         Match_cores (CSharpMin_State f (seq_of_lbl_stmt (select_switch n cases)) k e lenv) mu'
+         MATCH (CSharpMin_State f (seq_of_lbl_stmt (select_switch n cases)) k e lenv) mu'
     (CSharpMin_State f (seq_of_lbl_stmt (select_switch n cases)) k e lenv) m c2' m2'
 /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
@@ -2658,13 +2706,13 @@ Proof. intros.
 Qed.
 End CORESTEPS.
 
-Lemma Match_corestep: forall st1 m1 st1' m1'
+Lemma MATCHtep: forall st1 m1 st1' m1'
       (CS1:corestep csharpmin_eff_sem ge st1 m1 st1' m1')
-      st2 mu m2 (MC: Match_cores st1 mu st1 m1 st2 m2),
+      st2 mu m2 (MC: MATCH st1 mu st1 m1 st2 m2),
   exists st2' m2' mu',  intern_incr mu mu' /\
           sm_inject_separated mu mu' m1 m2 /\
           sm_locally_allocated mu mu' m1 m2 m1' m2' /\
-          Match_cores st1' mu' st1' m1' st2' m2' /\
+          MATCH st1' mu' st1' m1' st2' m2' /\
           SM_wd mu' /\ sm_valid mu' m1' m2' /\
           (corestep_plus cmin_eff_sem tge st2 m2 st2' m2' \/
            (MC_measure st1' < MC_measure st1)%nat /\
@@ -3076,7 +3124,7 @@ exists st2' : CMin_core,
   /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-  Match_cores (CSharpMin_State f s k e lenv) mu'
+  MATCH (CSharpMin_State f s k e lenv) mu'
     (CSharpMin_State f s k e lenv) m st2' m2' /\
   SM_wd mu' /\ sm_valid mu' m m2'.
 Proof. intros.
@@ -3136,7 +3184,7 @@ exists st2' : CMin_core,
   /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-  Match_cores (CSharpMin_State f Csharpminor.Sskip k e lenv) mu' (CSharpMin_State f Csharpminor.Sskip k e lenv) m st2' m2' /\
+  MATCH (CSharpMin_State f Csharpminor.Sskip k e lenv) mu' (CSharpMin_State f Csharpminor.Sskip k e lenv) m st2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m m2'.
 Proof. intros.
@@ -3213,7 +3261,7 @@ exists st2' : CMin_core,
   /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m' m2' /\
-  Match_cores (CSharpMin_Returnstate Vundef k) mu' (CSharpMin_Returnstate Vundef k) m' st2' m2' /\
+  MATCH (CSharpMin_Returnstate Vundef k) mu' (CSharpMin_Returnstate Vundef k) m' st2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m' m2'.
 Proof. intros.
@@ -3268,7 +3316,7 @@ exists st2' : CMin_core,
   /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-  Match_cores (CSharpMin_State f Csharpminor.Sskip k e (PTree.set id v lenv))
+  MATCH (CSharpMin_State f Csharpminor.Sskip k e (PTree.set id v lenv))
               mu' (CSharpMin_State f Csharpminor.Sskip k e (PTree.set id v lenv)) m st2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m m2'.
@@ -3329,7 +3377,7 @@ exists vv,
   intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m' m2' /\
-  Match_cores (CSharpMin_State f Csharpminor.Sskip k e lenv)
+  MATCH (CSharpMin_State f Csharpminor.Sskip k e lenv)
               mu' (CSharpMin_State f Csharpminor.Sskip k e lenv) m' st2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m' m2'.
@@ -3410,7 +3458,7 @@ exists c2' : CMin_core,
 /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-  Match_cores (CSharpMin_Callstate fd vargs (Csharpminor.Kcall optid f e lenv k)) mu'
+  MATCH (CSharpMin_Callstate fd vargs (Csharpminor.Kcall optid f e lenv k)) mu'
               (CSharpMin_Callstate fd vargs (Csharpminor.Kcall optid f e lenv k)) m c2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m m2'.
@@ -3462,7 +3510,7 @@ exists c2' : CMin_core,
      intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-  Match_cores  (CSharpMin_State f (if b then s1 else s2) k e lenv) mu'
+  MATCH  (CSharpMin_State f (if b then s1 else s2) k e lenv) mu'
              (CSharpMin_State f (if b then s1 else s2) k e lenv) m c2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m m2'.
@@ -3498,7 +3546,7 @@ exists c2' : CMin_core,
      intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-  Match_cores (CSharpMin_State f s (Csharpminor.Kseq (Csharpminor.Sloop s) k) e lenv) mu'
+  MATCH (CSharpMin_State f s (Csharpminor.Kseq (Csharpminor.Sloop s) k) e lenv) mu'
              (CSharpMin_State f s (Csharpminor.Kseq (Csharpminor.Sloop s) k) e lenv) m c2' m2' /\
   SM_wd mu' /\
   sm_valid mu' m m2'.
@@ -3533,7 +3581,7 @@ exists c2' : CMin_core,
   intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m m2' /\
-        Match_cores (CSharpMin_State f s (Csharpminor.Kblock k) e lenv) mu' 
+        MATCH (CSharpMin_State f s (Csharpminor.Kblock k) e lenv) mu' 
                     (CSharpMin_State f s (Csharpminor.Kblock k) e lenv) m c2' m2'
   /\ SM_wd mu' /\
   sm_valid mu' m m2'.
@@ -3563,7 +3611,7 @@ exists c2' : CMin_core,
   exists m2' mu',
        effstep_plus cmin_eff_sem tge EmptyEffect 
                (CMin_State tfn (Sexit (shift_exit xenv n)) tk (Vptr sp Int.zero) te) tm c2' m2'  /\
-        Match_cores (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) mu'
+        MATCH (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) mu'
     (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) m c2' m2'
 /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
@@ -3615,7 +3663,7 @@ exists c2' : CMin_core,
   exists m2' mu',
    effstep_plus cmin_eff_sem tge EmptyEffect 
      (CMin_State tfn (Sexit (shift_exit xenv 0)) tk (Vptr sp Int.zero) te) tm c2' m2'
-  /\ Match_cores (CSharpMin_State f Csharpminor.Sskip k e lenv) mu'
+  /\ MATCH (CSharpMin_State f Csharpminor.Sskip k e lenv) mu'
     (CSharpMin_State f Csharpminor.Sskip k e lenv) m c2' m2'
 /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
@@ -3658,7 +3706,7 @@ exists c2' : CMin_core,
   exists m2' mu',
        effstep_plus cmin_eff_sem tge EmptyEffect 
      (CMin_State tfn (Sexit (shift_exit xenv (S n))) tk (Vptr sp Int.zero) te) tm c2' m2' /\ 
-       Match_cores (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) mu'
+       MATCH (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) mu'
     (CSharpMin_State f (Csharpminor.Sexit n) k e lenv) m c2' m2'
 /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
@@ -3703,7 +3751,7 @@ Lemma EFF_switch_MSI: forall
   exists S, exists m2' mu',
   effstep_plus cmin_eff_sem tge EmptyEffect 
       (CMin_State tfn (Sexit O) tk' (Vptr sp Int.zero) te) tm S m2'
-  /\ Match_cores (CSharpMin_State f (seq_of_lbl_stmt ls) k e lenv) mu'
+  /\ MATCH (CSharpMin_State f (seq_of_lbl_stmt ls) k e lenv) mu'
                  (CSharpMin_State f (seq_of_lbl_stmt ls) k e lenv) m
                  S m2'
   /\ intern_incr mu mu' /\
@@ -3764,7 +3812,7 @@ exists c2' : CMin_core,
   exists m2' mu',
        effstep_plus cmin_eff_sem tge EmptyEffect 
              (CMin_State tfn ts tk (Vptr sp Int.zero) te) tm c2' m2' /\
-         Match_cores (CSharpMin_State f (seq_of_lbl_stmt (select_switch n cases)) k e lenv) mu'
+         MATCH (CSharpMin_State f (seq_of_lbl_stmt (select_switch n cases)) k e lenv) mu'
     (CSharpMin_State f (seq_of_lbl_stmt (select_switch n cases)) k e lenv) m c2' m2'
 /\ intern_incr mu mu' /\
   sm_inject_separated mu mu' m tm /\
@@ -3831,7 +3879,7 @@ exists (c2' : CMin_core) m2' mu',
   sm_inject_separated mu mu' m tm /\
   sm_locally_allocated mu mu' m tm m1 m2' /\ SM_wd mu' /\
   sm_valid mu' m1 m2' /\
-  Match_cores (CSharpMin_State f (Csharpminor.fn_body f) k e lenv) mu'
+  MATCH (CSharpMin_State f (Csharpminor.fn_body f) k e lenv) mu'
     (CSharpMin_State f (Csharpminor.fn_body f) k e lenv) m1 c2' m2'.
 Proof. intros. 
   generalize EQ; clear EQ; unfold transl_function.
@@ -3873,12 +3921,12 @@ forall st1 m1 st1' m1' (U1 : Values.block -> Z -> bool)
        (EFFSTEP: effstep csharpmin_eff_sem ge U1 st1 m1 st1' m1')
        st2 mu m2
        (UHyp: forall b ofs,  U1 b ofs = true -> vis mu b = true)
-       (MC: Match_cores st1 mu st1 m1 st2 m2),
+       (MC: MATCH st1 mu st1 m1 st2 m2),
 exists st2' m2' mu',
   intern_incr mu mu' /\
   sm_inject_separated mu mu' m1 m2 /\
   sm_locally_allocated mu mu' m1 m2 m1' m2' /\
-  Match_cores st1' mu' st1' m1' st2' m2' /\
+  MATCH st1' mu' st1' m1' st2' m2' /\
   (exists U2 : Values.block -> Z -> bool,
      (effstep_plus cmin_eff_sem tge U2 st2 m2 st2' m2' \/
       (MC_measure st1' < MC_measure st1)%nat /\
@@ -4268,7 +4316,7 @@ assert (GDE: genvs_domain_eq ge tge).
      rewrite (varinfo_preserved _ _ TRANSL) in Hid.
       exists id; assumption.
  eapply sepcomp.effect_simulations_lemmas.inj_simulation_star with
-  (match_states:=Match_cores) (measure:=MC_measure).
+  (match_states:=MATCH) (measure:=MC_measure).
 (*genvs_dom_eq*)
   apply GDE.
 (*match_wd*)
@@ -4347,9 +4395,12 @@ assert (GDE: genvs_domain_eq ge tge).
     destruct MC as [v2 [A B]].
     exists v2. intuition. }
 (* at_external*)
-  { intros. destruct H as [MC [RC [PG [GF [VAL [WD INJ]]]]]].
+  {
+  (*proof without the leak-out stuff :
+    intros. destruct H as [MC [RC [PG [GF [VAL [WD INJ]]]]]].
     split; trivial.
-    apply (Match_at_external _ _ _ _ _ _ _ _ MC H0). }
+    apply (Match_at_external _ _ _ _ _ _ _ _ MC H0). *)
+   apply MATCH_atExternal. }
 (* after_external*)
   { intros.
     eapply (Match_AfterExternal mu st1 st2 m1 e vals1 m2 
@@ -4359,7 +4410,7 @@ assert (GDE: genvs_domain_eq ge tge).
             (nu:=nu) (nu':=nu') (mu':=mu');
      try assumption; try reflexivity. }
 (* core_diagram*)
-  { intros; exploit Match_corestep; eauto.
+  { intros; exploit MATCHtep; eauto.
     intros [st2' [m2' [mu' [? [? [? [? [? [? ?]]]]]]]]].
     exists st2',m2',mu'; split; auto. }
 (* effcore_diagram*)

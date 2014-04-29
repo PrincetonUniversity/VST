@@ -871,7 +871,7 @@ Inductive match_states (j:meminj) : CMin_core -> mem -> CMinSel_core -> mem -> P
         (CMin_Returnstate v (Cminor.Kcall optid f sp e k)) m
         (CMinSel_State (sel_function hf ge f) Sskip k' sp' (set_optvar optid v' e')) m'.
 
-Definition Match_cores (d:CMin_core) mu c1 m1 c2 m2:Prop :=
+Definition MATCH (d:CMin_core) mu c1 m1 c2 m2:Prop :=
   match_states (restrict (as_inj mu) (vis mu)) c1 m1 c2 m2 /\
   REACH_closed m1 (vis mu) /\
   meminj_preserves_globals ge (as_inj mu) /\
@@ -949,10 +949,10 @@ Definition measure (s: CMin_core) : nat :=
   end.
 
 Lemma Match_restrict: forall d mu c1 m1 c2 m2 X
-          (MC: Match_cores d mu c1 m1 c2 m2)
+          (MC: MATCH d mu c1 m1 c2 m2)
           (HX: forall b, vis mu b = true -> X b = true)
           (RC: REACH_closed m1 X),
-          Match_cores d (restrict_sm mu X) c1 m1 c2 m2.
+          MATCH d (restrict_sm mu X) c1 m1 c2 m2.
 Proof. intros.
   destruct MC as [MS [RCLocs [PG [GFun [Glob [SMV [WD INJ]]]]]]].
 assert (WDR: SM_wd (restrict_sm mu X)).
@@ -986,7 +986,7 @@ Qed.
 
 
 Lemma Match_genv: forall d mu c1 m1 c2 m2
-                  (MC:Match_cores d mu c1 m1 c2 m2),
+                  (MC:MATCH d mu c1 m1 c2 m2),
           meminj_preserves_globals ge (extern_of mu) /\
           (forall b, isGlobalBlock ge b = true -> frgnBlocksSrc mu b = true).
 Proof.
@@ -996,6 +996,41 @@ Proof.
   split; trivial.
   rewrite <- match_genv_meminj_preserves_extern_iff_all; trivial.
     apply MC. apply MC.
+Qed.
+
+
+Lemma MATCH_atExternal: forall mu c1 m1 c2 m2 e vals1 ef_sig
+       (MTCH: MATCH c1 mu c1 m1 c2 m2)
+       (AtExtSrc: at_external cmin_eff_sem c1 = Some (e, ef_sig, vals1)),
+     Mem.inject (as_inj mu) m1 m2 /\
+     exists vals2,
+       Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\
+       at_external cminsel_eff_sem c2 = Some (e, ef_sig, vals2) /\
+      (forall pubSrc' pubTgt',
+       pubSrc' = (fun b => locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b) ->
+       pubTgt' = (fun b => locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b) ->
+       forall nu : SM_Injection, nu = replace_locals mu pubSrc' pubTgt' ->
+       MATCH c1 nu c1 m1 c2 m2 /\ Mem.inject (shared_of nu) m1 m2).
+Proof. intros.
+  destruct MTCH as [MC [RC [PG [GFP [Glob [SMV [WD INJ]]]]]]].
+  destruct c1; inv AtExtSrc. destruct f; inv H0.
+  split; trivial. 
+  inv MC; simpl.
+  exists args'.
+    specialize (val_list_inject_forall_inject _ _ _ H6); intros.
+    specialize (forall_vals_inject_restrictD _ _ _ _ H); intros.
+    exploit replace_locals_wd_AtExternal; try eassumption.
+    intros WDnu.
+    intuition.   
+    assert (SMVnu: sm_valid nu m1 m2).
+      red. subst nu. rewrite replace_locals_DOM, replace_locals_RNG. apply SMV.
+    subst nu; split; repeat rewrite replace_locals_as_inj, replace_locals_vis. 
+        constructor; trivial.
+        rewrite replace_locals_frgnBlocksSrc. intuition.
+        subst; trivial.
+    eapply inject_shared_replace_locals; try eassumption.
+      subst; trivial.
+admit. (*CompCert issue: external builtin is inlined *)
 Qed.
 
 (*FreshS/T: fresh blocks in src/tgt language*)
@@ -1136,9 +1171,9 @@ Proof. intros.
   intuition.
 Qed.
 
-Lemma Match_corestep: forall (GDE : genvs_domain_eq ge tge)
+Lemma MATCH_diagram: forall (GDE : genvs_domain_eq ge tge)
       st1 m1 st1' m1' (CS: corestep cmin_eff_sem ge st1 m1 st1' m1')
-      st2 mu m2 (MC: Match_cores st1 mu st1 m1 st2 m2)
+      st2 mu m2 (MC: MATCH st1 mu st1 m1 st2 m2)
       (R: list_norepet (map fst (prog_defs prog))),
   exists st2' m2',
     (corestep_plus cminsel_eff_sem tge st2 m2 st2' m2' \/
@@ -1148,7 +1183,7 @@ Lemma Match_corestep: forall (GDE : genvs_domain_eq ge tge)
      intern_incr mu mu' /\
      sm_inject_separated mu mu' m1 m2 /\
      sm_locally_allocated mu mu' m1 m2 m1' m2' /\
-     Match_cores st1' mu' st1' m1' st2' m2' /\
+     MATCH st1' mu' st1' m1' st2' m2' /\
      SM_wd mu' /\
      sm_valid mu' m1' m2'.
 Proof.
@@ -2013,7 +2048,7 @@ Lemma Match_init_cores: forall (v1 v2 : val) (sig : signature) entrypoints
   (HDomT: forall b : Values.block, DomT b = true -> Mem.valid_block m2 b),
 exists c2 : CMinSel_core,
   initial_core cminsel_eff_sem tge v2 vals2 = Some c2 /\
-  Match_cores c1
+  MATCH c1
     (initial_SM DomS DomT
        (REACH m1
           (fun b : Values.block => isGlobalBlock ge b || getBlocks vals1 b))
@@ -2071,13 +2106,13 @@ destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
     rewrite initial_SM_as_inj. assumption. 
 Qed.
 
-Lemma Match_effcore_diagram: 
+Lemma MATCH_effcore_diagram: 
   forall (GDE : genvs_domain_eq ge tge)
       st1 m1 st1' m1' (U1 : block -> Z -> bool)
       (CS: effstep cmin_eff_sem ge U1 st1 m1 st1' m1')
       st2 mu m2 
       (EffSrc: forall b ofs, U1 b ofs = true -> vis mu b = true)
-      (MC: Match_cores st1 mu st1 m1 st2 m2)
+      (MC: MATCH st1 mu st1 m1 st2 m2)
       (R: list_norepet (map fst (prog_defs prog))),
   exists st2' m2' (U2 : block -> Z -> bool),
     (effstep_plus cminsel_eff_sem tge U2 st2 m2 st2' m2' \/
@@ -2087,7 +2122,7 @@ Lemma Match_effcore_diagram:
      intern_incr mu mu' /\
      sm_inject_separated mu mu' m1 m2 /\
      sm_locally_allocated mu mu' m1 m2 m1' m2' /\
-     Match_cores st1' mu' st1' m1' st2' m2' /\
+     MATCH st1' mu' st1' m1' st2' m2' /\
      SM_wd mu' /\
      sm_valid mu' m1' m2' /\
     (forall b2 ofs,
@@ -2778,7 +2813,7 @@ Qed.
 Lemma Match_AfterExternal: 
 forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
   (MemInjMu : Mem.inject (as_inj mu) m1 m2)
-  (MatchMu : Match_cores st1 mu st1 m1 st2 m2)
+  (MatchMu : MATCH st1 mu st1 m1 st2 m2)
   (AtExtSrc : at_external cmin_eff_sem st1 = Some (e, ef_sig, vals1))
   (AtExtTgt : at_external cminsel_eff_sem st2 = Some (e', ef_sig', vals2))
   (ValInjMu : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
@@ -2823,7 +2858,7 @@ forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
 exists (st1' : CMin_core) (st2' : CMinSel_core),
   after_external cmin_eff_sem (Some ret1) st1 = Some st1' /\
   after_external cminsel_eff_sem (Some ret2) st2 = Some st2' /\
-  Match_cores st1' mu' st1' m1' st2' m2'.
+  MATCH st1' mu' st1' m1' st2' m2'.
 Proof. intros.
  destruct MatchMu as [MC [RC [PG [GFP [Glob [VAL [WDmu INJ]]]]]]].
  inv MC; simpl in *; inv AtExtSrc.
@@ -3082,7 +3117,7 @@ assert (GDE: genvs_domain_eq ge tge).
        exists id; trivial.
     rewrite varinfo_preserved. split; intros; trivial.
  eapply sepcomp.effect_simulations_lemmas.inj_simulation_star with
-  (match_states:=Match_cores) (measure:=measure).
+  (match_states:=MATCH) (measure:=measure).
 (*genvs_dom_eq*)
   assumption.
 (*match_wd*)
@@ -3149,22 +3184,23 @@ assert (GDE: genvs_domain_eq ge tge).
     split. assumption.
     simpl. inv H1. trivial. }
 (* at_external*)
-  { intros. destruct H as [MC [RC [PG [GFP [Glob [VAL [WD INJ]]]]]]].
+  { (* proof without the leak-out stuff :
+    intros. destruct H as [MC [RC [PG [GFP [Glob [VAL [WD INJ]]]]]]].
     split. inv MC; trivial.
     destruct c1; inv H0. destruct f; inv H1.
     inv MC. simpl. exists args'; intuition. 
       apply val_list_inject_forall_inject; eassumption.
     simpl.
-    admit. (*CompCert issue: external builtin is inlined *) 
-  }
+    admit. CompCert issue: external builtin is inlined *) 
+    apply MATCH_atExternal. }
 (* after_external*)
   { apply Match_AfterExternal. }
 (* core_diagram*)
-  { intros. exploit Match_corestep; eauto.
+  { intros. exploit MATCH_diagram; eauto.
     intros [st2' [m2' [CS2 [mu' MU']]]].
     exists st2', m2', mu'. intuition. }
 (* effcore_diagram*)
-  { intros. exploit Match_effcore_diagram; eauto. 
+  { intros. exploit MATCH_effcore_diagram; eauto. 
     intros [st2' [m2' [U2 [CS2 [mu' [? [? [? [? [? [? ?]]]]]]]]]]].
     exists st2', m2', mu'.
     repeat (split; try assumption).

@@ -49,7 +49,12 @@ Section Eff_INJ_SIMU_DIAGRAMS.
    Hypothesis match_validblocks: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 ->
           sm_valid mu m1 m2.
+
 (*experimental
+   Hypothesis match_divalblocks : forall d mu c1 m1 c2 m2, 
+          match_states d mu c1 m1 c2 m2 ->
+          DomSrc mu = valid_block_dec m1 /\
+          DomTgt mu = valid_block_dec m2.
    Hypothesis match_protected: forall d mu c1 m1 c2 m2, 
           match_states d mu c1 m1 c2 m2 ->
           forall b, REACH m1 (extBlocksSrc mu) b = true ->
@@ -120,10 +125,21 @@ Section Eff_INJ_SIMU_DIAGRAMS.
       forall mu c1 m1 c2 m2 e vals1 ef_sig,
         match_states c1 mu c1 m1 c2 m2 ->
         at_external Sem1 c1 = Some (e,ef_sig,vals1) ->
-        ( Mem.inject (as_inj mu) m1 m2 /\ 
+        Mem.inject (as_inj mu) m1 m2 /\ 
           exists vals2, 
             Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\ 
-            at_external Sem2 c2 = Some (e,ef_sig,vals2)).
+            at_external Sem2 c2 = Some (e,ef_sig,vals2)
+    /\ forall
+       (pubSrc' pubTgt' : block -> bool)
+       (pubSrcHyp : pubSrc' =
+                  (fun b : block =>
+                  locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b))
+       (pubTgtHyp: pubTgt' =
+                  (fun b : block =>
+                  locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b))
+       nu (Hnu: nu = (replace_locals mu pubSrc' pubTgt')),
+       match_states c1 nu c1 m1 c2 m2 
+       /\ Mem.inject (shared_of nu) m1 m2.
 
 
   Hypothesis inj_after_external:
@@ -235,6 +251,8 @@ clear - match_visible. intros. destruct H; subst. eauto.
 clear - match_restrict. intros. destruct H; subst. eauto.
 clear - match_validblocks. intros.
     destruct H; subst. eauto.
+(*clear - match_divalblocks. intros.
+    destruct H; subst. eauto.*)
 (*clear - match_protected. intros.
     destruct H; subst. eauto. *)
 (*version with structured injections
@@ -242,7 +260,7 @@ clear - core_initial_sm. intros.
     exploit (core_initial_sm _ _ _ H); try eassumption.
     intros [c2 [INI MS]].
   exists c1, c2. intuition. *)
-  clear - inj_initial_cores. intros.
+clear - inj_initial_cores. intros.
     destruct (inj_initial_cores _ _ _ H
          _ _ _ _ _ _ _ _ H0 H1 H2 H3 H4 H5 H6 H7)
     as [c2 [INI MS]].
@@ -262,8 +280,9 @@ clear - inj_halted. intros. destruct H; subst.
   exists v2; intuition.
 clear - inj_at_external. intros. destruct H; subst.
   destruct (inj_at_external _ _ _ _ _ _ _ _ H1 H0)
-    as [INJ [vals2 [VALS AtExt2]]].
-  split. trivial. exists vals2. intuition.
+    as [INJ [vals2 [VALS [AtExt2 SH]]]].
+  split. trivial. exists vals2. split; trivial. split; trivial. 
+    intros. split. split. trivial. eapply SH; eassumption. eapply SH; eassumption.
 clear - inj_after_external. intros. 
   destruct MatchMu as [ZZ matchMu]. subst cd.
   destruct (inj_after_external _ _ _ _ _ _ _ _ _ _ _

@@ -990,6 +990,46 @@ Proof.
     apply MC. apply MC.
 Qed.
 
+Lemma MATCH_atExternal: forall mu c1 m1 c2 m2 e vals1 ef_sig
+       (MTCH: MATCH mu c1 m1 c2 m2)
+       (AtExtSrc: at_external LTL_eff_sem c1 = Some (e, ef_sig, vals1)),
+     Mem.inject (as_inj mu) m1 m2 /\
+     exists vals2,
+       Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\
+       at_external Linear_eff_sem c2 = Some (e, ef_sig, vals2) /\
+      (forall pubSrc' pubTgt',
+       pubSrc' = (fun b => locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b) ->
+       pubTgt' = (fun b : block => locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b) ->
+       forall nu : SM_Injection, nu = replace_locals mu pubSrc' pubTgt' ->
+       MATCH nu c1 m1 c2 m2 /\ Mem.inject (shared_of nu) m1 m2).
+Proof. intros. 
+destruct MTCH as [MC [RC [PG [GFP [Glob [SMV [WD INJ]]]]]]].
+    inv MC; simpl in AtExtSrc; inv AtExtSrc.
+    destruct f; simpl in *; inv H2.
+    split; trivial. monadInv H0.
+    eexists. split. Focus 2. split. reflexivity.
+    intros.
+(*    exploit replace_locals_wd_AtExternal; try eassumption.
+                apply val_list_inject_forall_inject in AINJ.
+                apply forall_vals_inject_restrictD in AINJ. eassumption.
+    intros WDnu.*)
+    split. subst.
+           split. econstructor; eauto.
+             intros. eapply match_cont_replace_locals. eauto.
+             rewrite replace_locals_as_inj. trivial.
+             rewrite replace_locals_as_inj, replace_locals_vis. trivial.
+          rewrite replace_locals_as_inj, replace_locals_vis, replace_locals_frgnBlocksSrc.
+            intuition.
+            (*sm_valid*)
+            red. rewrite replace_locals_DOM, replace_locals_RNG. apply SMV.
+            (*sm_dival*)
+            red. rewrite replace_locals_DomSrc, replace_locals_DomTgt. apply SMD.
+
+   clear - WDnu MINJ H1 WD RC H H0.
+   eapply inject_shared_replace_locals; try eassumption.
+   subst; trivial.
+Qed.
+
 Lemma MATCH_afterExternal: forall
       (GDE : genvs_domain_eq ge tge)
       mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'

@@ -70,8 +70,13 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 
     match_validblocks : forall d mu c1 m1 c2 m2, 
           match_state d mu c1 m1 c2 m2 ->
-          sm_valid mu m1 m2;               
-
+          sm_valid mu m1 m2;  
+(*
+    match_divalblocks : forall d mu c1 m1 c2 m2, 
+          match_state d mu c1 m1 c2 m2 ->
+          DomSrc mu = valid_block_dec m1 /\
+          DomTgt mu = valid_block_dec m2;
+*)
 (* experimental condition
     match_protected: forall d mu c1 m1 c2 m2, 
           match_state d mu c1 m1 c2 m2 ->
@@ -209,23 +214,25 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
       forall cd mu c1 m1 c2 m2 e vals1 ef_sig,
         match_state cd mu c1 m1 c2 m2 ->
         at_external Sem1 c1 = Some (e,ef_sig,vals1) ->
-        ( Mem.inject (as_inj mu) m1 m2 /\ 
+        Mem.inject (as_inj mu) m1 m2 /\ 
 
          exists vals2, 
             Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\ 
-            at_external Sem2 c2 = Some (e,ef_sig,vals2)); 
-
-          (* Like in coreHalted, one might consider a variant that
-             asserts Mem.inject m1 m2 and val_inject vals1 vals2
-             w.r.t. shared_of mu instead of as_inj mu.
-             Again this might be possible, but probably only at the price of
-               pushing such an invariant through corediagram etc. *)
+            at_external Sem2 c2 = Some (e,ef_sig,vals2)
+    /\ forall
+       (pubSrc' pubTgt' : block -> bool)
+       (pubSrcHyp : pubSrc' =
+                  (fun b : block =>
+                  locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b))
+       (pubTgtHyp: pubTgt' =
+                  (fun b : block =>
+                  locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b))
+       nu (Hnu: nu = (replace_locals mu pubSrc' pubTgt')),
+       match_state cd nu c1 m1 c2 m2 
+       /\ Mem.inject (shared_of nu) m1 m2; 
 
     eff_after_external: 
       forall cd mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
-
-        (* Standard assumptions: *)
-
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_state cd mu st1 m1 st2 m2)
         (AtExtSrc: at_external Sem1 st1 = Some (e,ef_sig,vals1))
@@ -242,10 +249,6 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)  
 
-        (*Lemma eff_atexternal_check in effect_properties.v shows that 
-            global blocks from ge1 are in REACH m1 (exportedSrc mu vals1 and
-            global blocks from ge1 are in REACH m2 (exportedTgt mu vals2*)
-
         pubSrc' 
         (pubSrcHyp: 
            pubSrc' 
@@ -257,11 +260,6 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
            = fun b => locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b)
 
         nu (NuHyp: nu = replace_locals mu pubSrc' pubTgt'),
-
-        (*Lemma eff_after_check1 in in effect_properties.v shows that 
-                 SM_wd nu /\ sm_valid nu m1 m2 /\
-                 Mem.inject (as_inj nu) m1 m2 /\
-                 Forall2 (val_inject (as_inj nu)) vals1 vals2 holds*)
 
       forall nu' ret1 m1' ret2 m2'
         (INC: extern_incr nu nu')  
@@ -289,17 +287,6 @@ Module SM_simulation. Section SharedMemory_simulation_inject.
                        REACH m2' (exportedTgt nu' (ret2::nil)) b))
 
         mu' (Mu'Hyp: mu' = replace_externs nu' frgnSrc' frgnTgt')
-
-        (*follows, as proven by Lemma eff_after_check2:
-             SM_wd mu' /\ sm_valid mu' m1' m2' /\*)
-        (*follows, as proven by Lemma eff_after_check3:
-             Mem.inject (as_inj mu') m1' m2' 
-             /\ val_inject (as_inj mu') ret1 ret2*)
-
-        (*follows, as proven by Lemma eff_after_check4: 
-             inject_incr (as_inj mu) (as_inj mu')*)
-        (*follows, as proven by Lemma eff_after_check5:
-             sm_inject_separated mu mu' m1 m2 /\*)
  
          (UnchPrivSrc: 
             Mem.unchanged_on (fun b ofs => 
