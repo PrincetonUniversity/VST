@@ -70,7 +70,13 @@ match goal with
 [ H : folded ?X |- _] => unfold X in *; clear X; clear H
 end.
 
-Definition TT' := !!True.
+Definition TT' := !!True. 
+(*TT' is the special TT for the right hand side, we only put it there
+so that we will never cancel it *)
+
+Definition TT'' := TT.
+(*We replace all other TTs with TT'' so that reification won't be confused
+by the typeclass TT *)
 
 Lemma changeTT' : forall (a b c : mpred) ,
 (a |-- b * (c * TT')) -> (a |-- b * (c * !!True)). 
@@ -98,7 +104,9 @@ try apply convert_injl; try apply convert_injr;
 try apply changeTT';
 fold_seplog;
 fold_dependent;
-fold TT.
+change TT with TT'';
+change (!!True) with TT''.
+
 
 (*autorewrite with gather_prop;
 match goal with 
