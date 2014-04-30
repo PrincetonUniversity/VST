@@ -4089,6 +4089,24 @@ Proof. intros.
       admit. (*TODO: finish MATCH_init once intern/extern/extrasteps has been solved*)
 Qed.
 
+Lemma extcall_arg_fun rs m v l: forall 
+        v1 (V1: extcall_arg rs m v l v1) 
+        v2 (V2: extcall_arg rs m v l v2), v1=v2.
+Proof. intros.
+  inv V1; inv V2; trivial. rewrite H6 in H. inv H; trivial.
+Qed.
+
+Lemma extcall_args_fun rs m v args: forall 
+       targs1 (TARGS1 : list_forall2 (extcall_arg rs m v) args targs1)
+       targs2 (TARGS2 : list_forall2 (extcall_arg rs m v) args targs2),
+      targs1 = targs2.
+Proof.
+ intros targs1 TARGS1.
+ induction TARGS1; intros.  
+   inv TARGS2. trivial.
+   inv TARGS2. f_equal; eauto. eapply extcall_arg_fun; eauto.
+Qed.
+
 Lemma MATCH_atExternal: forall mu c1 m1 c2 m2 e vals1 ef_sig
        (MTCH: MATCH c1 mu c1 m1 c2 m2)
        (AtExtSrc: at_external Linear_eff_sem c1 = Some (e, ef_sig, vals1)),
@@ -4102,34 +4120,31 @@ Lemma MATCH_atExternal: forall mu c1 m1 c2 m2 e vals1 ef_sig
        forall nu : SM_Injection, nu = replace_locals mu pubSrc' pubTgt' ->
        MATCH c1 nu c1 m1 c2 m2 /\ Mem.inject (shared_of nu) m1 m2).
 Proof. intros. 
-destruct MTCH as [MC [INJ [RC [PG [SMV [WD SMD]]]]]].
+destruct MTCH as [MC [INJ [RC [PG [GF [SMV WD]]]]]].
     inv MC; simpl in AtExtSrc; inv AtExtSrc.
     destruct f; simpl in *; inv H0.
     split; trivial. monadInv TRANSL.
     destruct f; simpl in *; inv H0.
     monadInv TRANSL.
-    split; trivial. continue here.
-    exists tvargs; split; trivial. 
-    eapply val_list_inject_forall_inject; try eassumption.
     split; trivial.
-    intros.
-    exploit replace_locals_wd_AtExternal; try eassumption.
-                apply val_list_inject_forall_inject in AINJ.
-                apply forall_vals_inject_restrictD in AINJ. eassumption.
-    intros WDnu.
-    split. subst.
-           split. econstructor; eauto.
-             intros. eapply match_cont_replace_locals. eauto.
-             rewrite replace_locals_as_inj. trivial.
-             rewrite replace_locals_as_inj, replace_locals_vis. trivial.
-          rewrite replace_locals_as_inj, replace_locals_vis, replace_locals_frgnBlocksSrc.
-            intuition.
+exploit transl_external_arguments_rec.
+  eassumption. eassumption. eassumption. eapply incl_refl.
+intros [targs [Htargs AINJ]].
+exploit extcall_args_fun. eapply GETARGS. eapply Htargs. intros; subst.
+exists targs.
+split. eapply val_list_inject_forall_inject; trivial.
+exploit replace_locals_wd_AtExternal; try eassumption.
+        apply val_list_inject_forall_inject in AINJ.
+        apply forall_vals_inject_restrictD in AINJ. eassumption.
+intros WDnu.
+intuition.
+  subst.
+  split. econstructor; try rewrite replace_locals_as_inj, replace_locals_vis; eauto. 
+           eapply match_stacks_replace_locals; eassumption.
+           rewrite replace_locals_as_inj, replace_locals_vis, replace_locals_frgnBlocksSrc.
+           intuition.
             (*sm_valid*)
             red. rewrite replace_locals_DOM, replace_locals_RNG. apply SMV.
-            (*sm_dival*)
-            red. rewrite replace_locals_DomSrc, replace_locals_DomTgt. apply SMD.
-
-   clear - WDnu MINJ H1 WD RC H H0.
    eapply inject_shared_replace_locals; try eassumption.
    subst; trivial.
 Qed.
@@ -5950,24 +5965,6 @@ unfold vis in *.
 intuition.
 Qed.
 
-Lemma extcall_arg_fun rs m sp a b1 b2: forall
-        (E1: extcall_arg rs m sp a b1)
-        (E2: extcall_arg rs m sp a b2), b1=b2.
-Proof. intros. inv E1; inv E2. trivial.
-  rewrite H6 in H. clear -H. inv H. trivial.
-Qed.
-
-Lemma extcall_arguments_fun rs m sp sg: forall args1 args2
-        (A1: extcall_arguments rs m sp sg args1)
-        (A2: extcall_arguments rs m sp sg args2),
-      args1=args2.
-Proof. unfold extcall_arguments.
-  remember (loc_arguments sg) as l. clear Heql.
-  induction l; intros; inv A1; inv A2. trivial.
-    rewrite (extcall_arg_fun _ _ _ _ _ _ H1 H2).
-    rewrite (IHl _ _ H3 H5). trivial. 
-Qed.
-
 (** The simulation proof *)
 Theorem transl_program_correct:
   forall (R: list_norepet (map fst (prog_defs prog)))
@@ -6072,7 +6069,9 @@ assert (GDE: genvs_domain_eq ge tge).
         specialize (agree_reg _ _ _ AX AGREGS).
         rewrite <- Heqd. intros. inv H4. f_equal. }
 (* at_external*) 
-  { intros. destruct H as [MC [INJ [RC [PG [Glob [VAL WD]]]]]].
+  { eapply MATCH_atExternal; eassumption.
+    (*proof before the the addition of leak-out:
+     intros. destruct H as [MC [INJ [RC [PG [Glob [VAL WD]]]]]].
     split; trivial.
     inv MC; simpl in H0; try solve [inv H0].
     destruct f; inv H0. 
@@ -6083,7 +6082,7 @@ assert (GDE: genvs_domain_eq ge tge).
     intros [vl [A B]]. simpl in *.
     apply val_list_inject_forall_inject in B. 
     specialize (extcall_arguments_fun _ _ _ _ _ _ A GETARGS); intros; subst.
-    exists args; intuition.  }
+    exists args; intuition.  *) }
 (* after_external*)
   { eapply MATCH_afterExternal; eassumption. }
 (*Core_diagram*)
