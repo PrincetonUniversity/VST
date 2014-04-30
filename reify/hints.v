@@ -9,6 +9,7 @@ Require Import types.
 Require Import progs.list_dt.
 Require Import lseg_lemmas.
 Require Import instantiate_lemmas.
+Require Import reverse_defs.
 Import Expr.
 
 Module SL := SepLemma VericSepLogic Sep.
@@ -42,8 +43,6 @@ Definition left_hints_base := (PQ, @null_field_at_false, @field_at_conflict').
 (* NP Well-Formedness lemmas that require a listspec *)
 Definition left_lseg_hints := (@lseg_null_null, @next_lseg_equal, @lseg_conflict).
 (*Definition left_lseg_hints := @next_lseg_equal.*)
-Locate sample_ls.
-Definition list_specs := sample_ls.
 
 Ltac id_this x := assert (exists n, x=n).
 
@@ -101,7 +100,7 @@ Definition left_hint_rec: hint_rec.
 refine ({| T := _; hints := _ |}).
 let left_hints_base := eval hnf in left_hints_base in
 let left_lseg_hints := eval hnf in left_lseg_hints in
-let list_specs := eval hnf in list_specs in
+let list_specs := LS in
 combine_hints_with_lseg_lemmas left_hints_base left_lseg_hints list_specs ltac:(fun tup => apply tup).
 Defined.
 
@@ -144,7 +143,7 @@ Definition right_hints_rec : hint_rec.
 refine ({| T := _; hints := _ |}).
 let right_hints_base := eval hnf in right_hints_base in
 let right_lseg_hints := eval hnf in right_lseg_hints in
-let list_specs := eval hnf in list_specs in
+let list_specs := LS in
 combine_hints_with_lseg_lemmas right_hints_base right_lseg_hints list_specs ltac:(fun tup => apply tup).
 Defined.
 
@@ -155,7 +154,7 @@ the left rules *)
 
 (* This works... But for some reason reifying hints with lseg doesn't! *)
 Goal forall a b c d,
-lseg sample_ls a b c d |-- emp.
+lseg LS a b c d |-- emp.
 Proof.
 intros.
 pose_env.

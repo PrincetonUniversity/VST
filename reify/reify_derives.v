@@ -62,7 +62,7 @@ match goal with
 end.
 
 Ltac fold_dependent :=
-try fold_lseg; try fold_map.
+  (*try fold_lseg;*) try fold_map.
 
 Ltac unfold_dependent :=
 repeat
@@ -86,22 +86,30 @@ Qed.
 
 Lemma convert_injl :
 forall a b c,
-(!!a && emp * b |-- c) -> (!!a && b |-- c).
+(VericSepLogic_Kernel.inj a * b |-- c) -> (!!a && b |-- c).
 intros. 
 rewrite convert_inj. auto.
 Qed.
 
 Lemma convert_injr :
 forall a b c,
- (a |-- !!b && emp * c) -> (a |-- !!b && c) .
+ (a |-- VericSepLogic_Kernel.inj b * c) -> (a |-- !!b && c) .
 intros. 
 rewrite convert_inj. auto.
 Qed.
 
+Ltac eexp_right :=
+match goal with 
+ | [ |- _ |-- EX _ : ?T, _] => 
+let tmp := fresh "a" in
+evar (tmp : T); apply (exp_right tmp); unfold tmp; clear tmp
+end.
+
 Ltac prepare_reify :=
+repeat eexp_right;
 autorewrite with gather_prop;
-try apply convert_injl; try apply convert_injr;
-try apply changeTT';
+try simple apply convert_injl; try simple apply convert_injr;
+try simple apply changeTT';
 fold_seplog;
 fold_dependent;
 change TT with TT'';

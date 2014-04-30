@@ -7,6 +7,7 @@ Require Import functions.
 Require Import types.
 Require Import progs.list_dt.
 Require Import lseg_lemmas.
+Require Import reverse_defs.
 Import Expr.
 
 (* routines for partially applying lseg lemmas
@@ -31,7 +32,6 @@ Require Import progs.reverse.
 
 (* By convention listspec is the third argument (after type and ll/id) *)
 Definition list_seg_lemmas := (@lseg_null_null, @next_lseg_equal, @lseg_null_null).
-Definition list_specs := sample_ls.
 
 (* Wrapper aound reify_hints that adds in the lemmas provided, partially applied to the   given arguments 
    k is the continuation for this function; k' is the continuation for the call to
@@ -48,10 +48,6 @@ Ltac partial_apply_lseg_lemma lemma args k :=
     | _ => k (lemma _ _ args)
 end.
 
-Goal False.
-Unset Ltac Debug.
-partial_apply_lseg_lemma @lseg_null_null (sample_ls, sample_ls) ltac:(fun apps => id_this apps).
-Abort.
 
 (* what data needs to carry over? just ps? *)
 (*Ltac combine_hints_with_lseg_lemmas unfoldTac pcType stateType isConst
@@ -84,14 +80,6 @@ Axiom QP : forall n,  VericSepLogic_Kernel.himp (Q n) (P n).
 Definition left_hints := (PQ, QP).
 Definition right_hints := QP.
 
-Goal False.
-Unset Ltac Debug.
-pose_env.
-let left_hints := eval hnf in left_hints in
-let list_seg_lemmas := eval hnf in list_seg_lemmas in
-let list_specs := eval hnf in list_specs in
-combine_hints_with_lseg_lemmas left_hints list_seg_lemmas list_specs ltac:(fun tup => id_this tup).
-Abort.
 (*
 let left_hints' := combine_hints_with_lseg_lemmas left_hints list_seg_lemmas list_specs ltac:(fun tup => tup) in
 HintModule.reify_hints ltac:(fun x => x) tt tt is_const left_hints' types functions preds ltac:(fun funcs preds hints => id_this hints)

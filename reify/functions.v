@@ -2,7 +2,9 @@ Require Import types.
 Require Import sep.
 Require Import progs.list_dt.
 Require Import MirrorShard.Expr MirrorShard.Env.
+Require Import reverse_defs.
 Require Import assert_lemmas. (* for nullval *)
+
 Definition all_types_r := repr (listToRepr types.our_types EmptySet_type).
 
 Section typed.
@@ -366,8 +368,6 @@ field_at.
    Someday there should maybe be an automated way of instantiating them. *)
 (* From verif_reverse.v; a sample list specification for testing *)
 Require Import progs.reverse.
-Instance sample_ls: listspec t_struct_list _tail.
-Proof. eapply mk_listspec; reflexivity. Defined.
 
 (* list (elemtype sample_ls) = list val *)
 (* We have to hnf on our partially-applied functions; otherwise, they will
@@ -376,8 +376,7 @@ Definition lseg_sample_ls_psig : Sep.predicate all_types.
 refine
 (Sep.PSig all_types (share_tv :: list_val_tv :: val_tv :: val_tv :: nil) _).
 simpl.
-let sls := eval hnf in sample_ls in
-apply (lseg sls).
+apply (lseg LS).
 Defined.
 
 (*Definition lseg_sample_ls_psig :=
@@ -395,8 +394,7 @@ Definition list_cell_sample_ls_psig : Sep.predicate all_types.
 refine
 (Sep.PSig all_types (share_tv :: val_tv :: val_tv :: nil) _).
 simpl.
-let sls := eval hnf in sample_ls in
-apply (list_cell sls).
+apply (list_cell LS).
 Defined.
 
 (* we're going on the assumption that peq will compute down to val *)
