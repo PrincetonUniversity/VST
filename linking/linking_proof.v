@@ -3397,8 +3397,6 @@ Lemma link :
     (ge_top : ge_ty),
   (forall ix : 'I_N, genvs_domain_eq ge_top (ge (sems_S ix))) ->
   (forall ix : 'I_N, genvs_domain_eq ge_top (ge (sems_T ix))) ->
-  let types := fun ix : 'I_N => core_data (sims ix) in
-  let ords := fun ix : 'I_N => core_ord (sims ix) in
   let sems_S0 :=
     fun ix : 'I_N =>
     {|

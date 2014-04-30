@@ -65,9 +65,6 @@ Axiom link : forall
   (ge_top : ge_ty)
   (domeq_S : forall ix : 'I_N, genvs_domain_eq ge_top (sems_S ix).(ge))
   (domeq_T : forall ix : 'I_N, genvs_domain_eq ge_top (sems_T ix).(ge)),
-  let types := fun ix : 'I_N => (sims ix).(core_data) in
-  let ords : forall ix : 'I_N, types ix -> types ix -> Prop 
-        := fun ix : 'I_N => (sims ix).(core_ord) in 
   let sems_S (ix : 'I_N) := 
     Modsem.mk (sems_S ix).(ge) (RC.effsem (sems_S ix).(sem)) in 
   let linker_S := effsem N sems_S plt in
