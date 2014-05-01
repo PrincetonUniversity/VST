@@ -53,6 +53,22 @@ Definition closed_wrt_vars {B} (S: ident -> Prop) (F: environ -> B) : Prop :=
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
      F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').
 
+Definition closed_wrt_lvars {B} (S: ident -> Prop) (F: environ -> B) : Prop := 
+  forall rho ve',  
+     (forall i, S i \/ Map.get (ve_of rho) i = Map.get ve' i) ->
+     F rho = F (mkEnviron (ge_of rho) ve' (te_of rho)).
+
+Definition not_a_param (params: list (ident * type)) (i : ident) : Prop :=
+  ~ In i (map (@fst _ _) params).
+
+Definition is_a_local (vars: list (ident * type)) (i: ident) : Prop :=
+  In  i (map (@fst _ _) vars) .
+
+Definition precondition_closed (f: function) {A: Type} (P: A -> assert) : Prop :=
+ forall x: A,
+  closed_wrt_vars (not_a_param (fn_params f)) (P x) /\ 
+  closed_wrt_lvars (is_a_local (fn_vars f)) (P x).
+
 (*Definition expr_true (e: Clight.expr) (rho: environ): Prop := 
   bool_val (eval_expr e rho) (Clight.typeof e) = Some true.*)
 
@@ -568,8 +584,55 @@ Qed.
 Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
      fun rho => typecheck_vals (map (fun xt => (eval_id (fst xt) rho)) formals) (map (@snd _ _) formals) = true.
 
-Definition bind_args (formals: list (ident * type)) (P: environ -> pred rmap) : assert :=
-          fun rho => !! tc_formals formals rho && P rho.
+Program Definition close_precondition (params vars: list (ident * type)) (P: environ -> pred rmap) (rho: environ) : pred rmap :=
+ fun phi =>
+   exists ve', exists te',
+   (forall i, In i (map (@fst _ _) params) -> Map.get te' i = Map.get (te_of rho) i) /\
+   (forall i, In i (map (@fst _ _) vars) \/ Map.get ve' i = Map.get (ve_of rho) i) /\
+   app_pred (P (mkEnviron (ge_of rho) ve' te')) phi.
+Next Obligation.
+intros.
+intro; intros.
+destruct H0 as [ve' [te' [? [? ?]]]]; exists ve',te'; split3; auto.
+eapply pred_hereditary; eauto.
+Qed.
+
+Lemma close_precondition_i:
+  forall params vars P rho,
+  P rho |-- close_precondition params vars P rho.
+Proof.
+intros.
+intros ? ?.
+hnf. exists (ve_of rho), (te_of rho).
+split3; auto.
+destruct rho; apply H.
+Qed.
+
+Lemma close_precondition_e:
+   forall f A (P: A -> environ -> mpred),
+    precondition_closed f P ->
+  forall x rho,
+   close_precondition (fn_params f) (fn_vars f) (P x) rho |-- P x rho.
+Proof.
+intros.
+intros ? ?.
+destruct H0 as [ve' [te' [? [? ?]]]].
+destruct (H x).
+rewrite (H3 _ te').
+rewrite (H4 _ ve').
+simpl.
+apply H2.
+intros.
+simpl.
+destruct (H1 i); auto.
+intros.
+unfold not_a_param.
+destruct (In_dec ident_eq i (map (@fst _ _) (fn_params f))); auto.
+right; symmetry; apply H0; auto.
+Qed.
+
+Definition bind_args (formals vars: list (ident * type)) (P: environ -> pred rmap) : assert :=
+          fun rho => !! tc_formals formals rho && close_precondition formals vars P rho.
 
 Definition globals_only (rho: environ) : environ := (mkEnviron (ge_of rho) (Map.empty _) (Map.empty _)).
 

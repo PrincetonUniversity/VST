@@ -206,8 +206,8 @@ Lemma all_funcs_correct:
 Proof.
 unfold Gtot, Gprog, prog, prog_funct; simpl.
 repeat (apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ]).
-apply semax_func_cons; [ reflexivity | apply body_reverse | ].
-apply semax_func_cons; [ reflexivity | apply body_main | ].
+apply semax_func_cons; [ reflexivity | precondition_closed | apply body_reverse | ].
+apply semax_func_cons; [ reflexivity | precondition_closed | apply body_main | ].
 apply semax_func_nil.
 Qed.
 

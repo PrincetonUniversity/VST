@@ -2233,3 +2233,41 @@ Hint Resolve closed_wrt_tc_lvalue : closed.
 
 
 
+Lemma not_not_a_param_i:
+  forall (L: list (ident * type)) i,
+   In i (map (@fst _ _) L) ->
+   ~ not_a_param L i.
+Proof.
+intros.
+intro. apply H0; auto.
+Qed.
+Hint Resolve not_not_a_param_i : closed.
+
+Lemma in_map_fst1:
+ forall (i: ident) (t: type) L, 
+   In i (map (@fst _ _) ((i,t)::L)).
+Proof.
+intros. left. reflexivity.
+Qed.
+Hint Resolve in_map_fst1 : closed.
+
+Lemma in_map_fst2:
+ forall (i: ident) a (L: list (ident*type)), 
+   In i (map (@fst _ _) L) ->
+   In i (map (@fst _ _) (a::L)).
+Proof.
+intros; right; auto.
+Qed.
+Hint Resolve in_map_fst2 : closed.
+
+Ltac precondition_closed :=
+ match goal with |- precondition_closed _ _ => idtac end;
+ let x := fresh "x" in intro x;
+ split;
+  repeat match goal with 
+          | |- closed_wrt_vars _ (let (y,z) := ?x in _) => is_var x; destruct x
+          | |- closed_wrt_lvars _ (let (y,z) := ?x in _) => is_var x; destruct x
+          end;
+  [simpl not_a_param; auto 50 with closed
+  | simpl is_a_local; admit ].
+

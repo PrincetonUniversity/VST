@@ -57,6 +57,22 @@ Definition closed_wrt_vars {B} (S: ident -> Prop) (F: environ -> B) : Prop :=
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
      F rho = F (mkEnviron (ge_of rho) (ve_of rho) te').
 
+Definition closed_wrt_lvars {B} (S: ident -> Prop) (F: environ -> B) : Prop := 
+  forall rho ve',  
+     (forall i, S i \/ Map.get (ve_of rho) i = Map.get ve' i) ->
+     F rho = F (mkEnviron (ge_of rho) ve' (te_of rho)).
+
+Definition not_a_param (params: list (ident * type)) (i : ident) : Prop :=
+  ~ In i (map (@fst _ _) params).
+
+Definition is_a_local (vars: list (ident * type)) (i: ident) : Prop :=
+  In  i (map (@fst _ _) vars) .
+
+Definition precondition_closed (f: function) {A: Type} (P: A -> environ -> mpred) : Prop :=
+ forall x: A,
+  closed_wrt_vars (not_a_param (fn_params f)) (P x) /\ 
+  closed_wrt_lvars (is_a_local (fn_vars f)) (P x).
+
 Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t
 = Some true.
 
@@ -545,6 +561,7 @@ Axiom semax_func_cons:
       andb (id_in_list id (map (@fst _ _) G)) 
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
+       precondition_closed f P ->
       semax_body V G f (id, mk_funspec (fn_funsig f) A P Q ) ->
       @semax_func Espec V G fs G' ->
       @semax_func Espec V G ((id, Internal f)::fs) 

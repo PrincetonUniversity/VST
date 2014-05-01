@@ -252,13 +252,14 @@ Lemma semax_func_cons:
       andb (id_in_list id (map (@fst _ _) G)) 
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
+       precondition_closed f P ->
       semax_body V G f (id, mk_funspec (fn_funsig f) A P Q) ->
       semax_func V G fs G' ->
       semax_func V G ((id, Internal f)::fs) 
            ((id, mk_funspec (fn_funsig f) A P Q)  :: G').
 Proof.
 intros until G'.
-intros H' H3 [Hf' Hf].
+intros H' Hpclos H3 [Hf' Hf].
 apply andb_true_iff in H'.
 destruct H' as [Hin H'].
 apply andb_true_iff in H'.
@@ -322,7 +323,7 @@ rename H3 into H4.
 pose proof I.
 specialize (H4 n).
 apply now_later.
-clear - H4.
+clear - Hpclos H4.
 rewrite semax_fold_unfold in H4|-*.
 revert n H4.
 apply allp_derives; intro gx.
@@ -345,6 +346,8 @@ apply andp_left1; auto.
 apply sepcon_derives; auto.
 unfold bind_args.
 apply andp_left2; auto.
+destruct (Hpclos x).
+apply close_precondition_e; auto.
 (***   Vptr b Int.zero <> v'  ********)
 apply (Hf n v fsig A' P' Q'); auto.
 destruct H1 as [id' [? ?]].

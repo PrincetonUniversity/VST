@@ -186,7 +186,7 @@ Definition believe_internal_
                  /\ list_norepet (map (@fst _ _) f.(fn_vars))
                  /\ fsig = fn_funsig f)
   && ALL x : A, |> semax (SemaxArg  (func_tycontext' f Delta)
-                                (fun rho => (bind_args f.(fn_params) (P x) rho * stackframe_of f rho)
+                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of f rho)
                                              && funassert (func_tycontext' f Delta) rho)
                               f.(fn_body)  
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f)))).
@@ -228,7 +228,7 @@ Definition believe_internal (Espec:  OracleKind)
                  /\ list_norepet (map (@fst _ _) f.(fn_vars))
                  /\ fsig = fn_funsig f)
   && ALL x : A, |> semax' Espec (func_tycontext' f Delta)
-                                (fun rho => (bind_args f.(fn_params) (P x) rho * stackframe_of f rho)
+                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of f rho)
                                              && funassert (func_tycontext' f Delta) rho)
                               f.(fn_body)  
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))).

@@ -1369,6 +1369,86 @@ forall (Espec : OracleKind) (Delta : tycontext) (A : Type)
   jsafeN OK_spec psi n ora c' m'.
 Admitted.  (* Can't prove this until CompCert external calls are done right. *)
 
+Lemma alloc_juicy_variables_age:
+  forall {rho jm jm1 vl rho' jm' jm1'},
+   age jm jm1 -> age jm' jm1' ->
+   alloc_juicy_variables rho jm vl = (rho', jm') ->
+   alloc_juicy_variables rho jm1 vl = (rho', jm1').
+Proof.
+intros.
+ revert jm jm1 H rho H1.
+ induction vl; intros.
+  simpl in *; inv H1.  hnf in H0,H. congruence.
+ destruct a.
+ simpl in H1|-*.
+ eapply IHvl.
+ 2:  rewrite <- (age_jm_dry H); eassumption.
+ apply age_juicy_mem_i.
+ simpl. rewrite (age_jm_dry H); auto.
+ simpl.
+ apply rmap_age_i.
+ unfold after_alloc; simpl. repeat rewrite level_make_rmap.
+ apply age_level. apply age_jm_phi; auto.
+ intro. unfold resource_fmap; simpl.
+ unfold after_alloc; simpl.
+ do 2  rewrite resource_at_make_rmap.
+ unfold after_alloc'.
+ if_tac; [rewrite if_true | rewrite if_false].
+ f_equal. 
+ rewrite level_make_rmap. apply preds_fmap_NoneP.
+ rewrite <- (age_jm_dry H); assumption.
+ clear H1.
+ destruct (m_phi jm @ l) eqn:?.
+ symmetry;  eapply necR_NOx; try apply Heqr.
+ constructor 1. apply age_jm_phi; auto.
+ symmetry.
+ rewrite level_make_rmap.
+ eapply necR_YES. constructor 1. eapply age_jm_phi. eassumption.
+ auto.
+  rewrite level_make_rmap.
+ symmetry.
+ eapply necR_PURE. constructor 1. eapply age_jm_phi. eassumption.  auto.
+  rewrite <- (age_jm_dry H); assumption.
+Qed.
+
+Lemma alloc_juicy_variables_resource_decay:
+  forall rho jm vl rho' jm',
+    alloc_juicy_variables rho jm vl = (rho', jm') ->
+    resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
+    (nextblock (m_dry jm) <= nextblock (m_dry jm'))%positive.
+Proof.
+ intros.
+ revert rho jm H; induction vl; intros.
+ inv H. split. apply resource_decay_refl.
+   apply juicy_mem_alloc_cohere. apply Ple_refl.
+ destruct a as [id ty].
+ unfold alloc_juicy_variables in H; fold alloc_juicy_variables in H.
+ revert H; case_eq (juicy_mem_alloc jm 0 (sizeof ty)); intros jm1 b1 ? ?.
+ pose proof (juicy_mem_alloc_succeeds _ _ _ _ _ H).
+(*  rewrite (juicy_mem_alloc_core _ _ _ _ _ H) in H1. *)
+(*  rewrite H2 in H1. *)
+ specialize (IHvl _ _ H0).
+ symmetry in H1; pose proof (nextblock_alloc _ _ _ _ _ H1).
+ destruct IHvl.
+ split; [ |  rewrite H2 in H4; xomega].
+ eapply resource_decay_trans; try eassumption. 
+ rewrite H2; xomega.
+ clear - H H1.
+ pose proof (juicy_mem_alloc_level _ _ _ _ _ H).
+ unfold resource_decay.
+ split. repeat rewrite <- level_juice_level_phi; rewrite H0; auto.
+ intro loc.
+ split.
+ apply juicy_mem_alloc_cohere.
+ rewrite (juicy_mem_alloc_at _ _ _ _ _ H).
+ replace (sizeof ty - 0) with (sizeof ty) by omega.
+ destruct loc as [b z]. simpl in *.
+ if_tac. destruct H2; subst b1.
+ right. right. left. split. apply alloc_result in H1; subst b; xomega.
+ eauto.
+ rewrite <- H0. left. apply resource_at_approx.
+Qed.
+
 Lemma semax_call_aux:
  forall (Delta : tycontext) (A : Type)
   (P Q Q' : A -> assert) (x : A) (F : environ -> pred rmap)
@@ -1668,45 +1748,6 @@ remember (alloc_juicy_variables empty_env jm (fn_vars f)) eqn:AJV.
 destruct p as [ve' jm']; symmetry in AJV.
 destruct (alloc_juicy_variables_e _ _ _ _ _ AJV) as [H15 [H20' CORE]].
 assert (MATCH := alloc_juicy_variables_match_venv _ _ _ _ AJV).
-
-Lemma alloc_juicy_variables_resource_decay:
-  forall rho jm vl rho' jm',
-    alloc_juicy_variables rho jm vl = (rho', jm') ->
-    resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
-    (nextblock (m_dry jm) <= nextblock (m_dry jm'))%positive.
-Proof.
- intros.
- revert rho jm H; induction vl; intros.
- inv H. split. apply resource_decay_refl.
-   apply juicy_mem_alloc_cohere. apply Ple_refl.
- destruct a as [id ty].
- unfold alloc_juicy_variables in H; fold alloc_juicy_variables in H.
- revert H; case_eq (juicy_mem_alloc jm 0 (sizeof ty)); intros jm1 b1 ? ?.
- pose proof (juicy_mem_alloc_succeeds _ _ _ _ _ H).
-(*  rewrite (juicy_mem_alloc_core _ _ _ _ _ H) in H1. *)
-(*  rewrite H2 in H1. *)
- specialize (IHvl _ _ H0).
- symmetry in H1; pose proof (nextblock_alloc _ _ _ _ _ H1).
- destruct IHvl.
- split; [ |  rewrite H2 in H4; xomega].
- eapply resource_decay_trans; try eassumption. 
- rewrite H2; xomega.
- clear - H H1.
- pose proof (juicy_mem_alloc_level _ _ _ _ _ H).
- unfold resource_decay.
- split. repeat rewrite <- level_juice_level_phi; rewrite H0; auto.
- intro loc.
- split.
- apply juicy_mem_alloc_cohere.
- rewrite (juicy_mem_alloc_at _ _ _ _ _ H).
- replace (sizeof ty - 0) with (sizeof ty) by omega.
- destruct loc as [b z]. simpl in *.
- if_tac. destruct H2; subst b1.
- right. right. left. split. apply alloc_result in H1; subst b; xomega.
- eauto.
- rewrite <- H0. left. apply resource_at_approx.
-Qed.
-
 assert (H20 := alloc_juicy_variables_resource_decay _ _ _ _ _ AJV).
 rewrite <- Genv.find_funct_find_funct_ptr in H16.
 destruct (build_call_temp_env f (eval_exprlist (snd (split (fst fsig))) bl rho))
@@ -1833,47 +1874,6 @@ forget (F0 rho * F rho) as Frame.
 subst fsig.
 rewrite @snd_split in *.
 simpl @fst in *.
-Lemma alloc_juicy_variables_age:
-  forall {rho jm jm1 vl rho' jm' jm1'},
-   age jm jm1 -> age jm' jm1' ->
-   alloc_juicy_variables rho jm vl = (rho', jm') ->
-   alloc_juicy_variables rho jm1 vl = (rho', jm1').
-Proof.
-intros.
- revert jm jm1 H rho H1.
- induction vl; intros.
-  simpl in *; inv H1.  hnf in H0,H. congruence.
- destruct a.
- simpl in H1|-*.
- eapply IHvl.
- 2:  rewrite <- (age_jm_dry H); eassumption.
- apply age_juicy_mem_i.
- simpl. rewrite (age_jm_dry H); auto.
- simpl.
- apply rmap_age_i.
- unfold after_alloc; simpl. repeat rewrite level_make_rmap.
- apply age_level. apply age_jm_phi; auto.
- intro. unfold resource_fmap; simpl.
- unfold after_alloc; simpl.
- do 2  rewrite resource_at_make_rmap.
- unfold after_alloc'.
- if_tac; [rewrite if_true | rewrite if_false].
- f_equal. 
- rewrite level_make_rmap. apply preds_fmap_NoneP.
- rewrite <- (age_jm_dry H); assumption.
- clear H1.
- destruct (m_phi jm @ l) eqn:?.
- symmetry;  eapply necR_NOx; try apply Heqr.
- constructor 1. apply age_jm_phi; auto.
- symmetry.
- rewrite level_make_rmap.
- eapply necR_YES. constructor 1. eapply age_jm_phi. eassumption.
- auto.
-  rewrite level_make_rmap.
- symmetry.
- eapply necR_PURE. constructor 1. eapply age_jm_phi. eassumption.  auto.
-  rewrite <- (age_jm_dry H); assumption.
-Qed.
  destruct (can_age_jm jm) as [jmx ?]. rewrite H13; clear; congruence.
  assert (phi' = m_phi jmx). clear - H18 H13. apply age_jm_phi in H18. hnf in H18; congruence.
  subst phi'.
@@ -1882,12 +1882,8 @@ Qed.
 (* destruct TC3 as [TC3 _]. *)
   clear - (*TC3 TC2*) AJV H14 H21.
  forget (eval_exprlist (map snd params) bl rho) as args.
-
-clear - H21 H14 AJV.
-admit.  (* almost plausible,  but need to require that (P x) is closed w.r.t. 
-      all variables other than fn_params.  This should probably be done
-      as part of semax_func, i.e. in proof about function body,
-      not in semax_call.  *)
+ clear - H21 H14 AJV.
+ admit.  (* very plausible *)
 }
 (* end   "spec H19" *)
 
