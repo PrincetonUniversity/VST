@@ -2319,6 +2319,7 @@ Proof. intros.
      VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
     as [AA [BB [CC [DD [EE [FF GG]]]]]].
   split.
+    assert (HT: Val.has_type_list vals1 (sig_args (funsig tf))). admit. (*TODO*)
     eapply match_states_call.
 (*      eapply inject_incr_refl.*)
       constructor.
@@ -2328,16 +2329,24 @@ Proof. intros.
           unfold vis, initial_SM; simpl.
           apply forall_inject_val_list_inject.
           eapply restrict_forall_vals_inject; try eassumption.
-           admit. (*TODO: presumably need length vals1=length loc_arguments(funsig f/tf)*)(* clear - VInj. induction VInj; simpl. *)
+          admit. (*TODO: exploits that length vals1=length loc_arguments(funsig f/tf)*)(* clear - VInj. induction VInj; simpl. *)
         intros. apply REACH_nil. rewrite H; intuition.
-        simpl. admit. (*FALSE*) 
+        simpl. red; intros. red in H. 
+          destruct l.
+            rewrite Locmap.gsetlisto; trivial. 
+            apply Loc.notin_iff. intros. apply loc_arguments_rec_charact in H0.
+            destruct l'; try contradiction. constructor.
+          rewrite Locmap.gsetlisto; trivial. 
+            apply Loc.notin_iff. intros. apply loc_arguments_rec_charact in H0.
+            destruct l'; try contradiction. destruct sl0; try contradiction.
+            destruct sl; try constructor. congruence. congruence. trivial.
 (*    rewrite initial_SM_as_inj.
       unfold vis, initial_SM; simpl.
       eapply inject_mapped; try eassumption.
       eapply restrict_mapped_closed; try eassumption.
       eapply inject_REACH_closed; try eassumption.
       apply restrict_incr.*)
-    admit. (*TODO: establish Val.has_type_list vals1 (sig_args (funsig tf))*)
+    assumption.
   intuition.
     rewrite match_genv_meminj_preserves_extern_iff_all.
       assumption.
@@ -2573,6 +2582,7 @@ assert (GFnu': forall b, isGlobalBlock (Genv.globalenv prog) b = true ->
           apply REACH_nil. unfold exportedSrc.
           rewrite (frgnSrc_shared _ WDnu' _ Glob). intuition.
 split. 
+  assert (HTRES: Val.has_type ret1 (proj_sig_res (ef_sig e'))). admit. (*TODO: correct this - it syas that return values are integers*)
   unfold vis in *. 
   rewrite replace_externs_as_inj, replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc in *.
   econstructor; try eassumption.
@@ -2602,7 +2612,6 @@ split.
                apply REACH_nil. unfold exportedSrc. 
                  apply frgnSrc_shared in H11; trivial. rewrite H11; intuition.
       (*rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc. *)
-       unfold loc_result.
        remember (sig_res (ef_sig e')) as o.
          destruct o; simpl.
          (*Some t*)
@@ -2622,13 +2631,21 @@ split.
            admit. (*TFloat: Should hold*)
            admit. (*TLong: Should hold*)
            admit. (*Tsingle: Should hold*)
-           simpl. rewrite Locmap.gss. econstructor; try constructor.
-                eapply restrict_val_inject; try eassumption. 
-                 admit. (* Should hold*)
-        red; intros. rewrite AG. apply eq_sym. apply Locmap.gsetlisto. 
-                admit. (*Correct later*)
-                  assumption.
-          admit. (*type info*)
+           simpl. (*rewrite Locmap.gss. econstructor; try constructor.
+                eapply restrict_val_inject; try eassumption. *)
+                 admit.
+        red; intros. rewrite AG. apply eq_sym. red in H. 
+          destruct l.
+            rewrite Locmap.gsetlisto; trivial. 
+            apply Loc.notin_iff. intros. (*apply loc_arguments_rec_charact in H0.*)
+            apply list_in_map_inv in H0. destruct H0 as [rr [? ?]]. subst. 
+            apply loc_result_caller_save in H1. intros N; subst. apply (H H1).
+          rewrite Locmap.gsetlisto; trivial. 
+            apply Loc.notin_iff. intros.
+            apply list_in_map_inv in H0. destruct H0 as [rr [? ?]]. subst.
+            constructor. 
+          assumption.
+         (*type info*)
 unfold vis.
 rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
         replace_externs_as_inj.
@@ -3318,31 +3335,26 @@ Proof. intros.
          eapply REACH_Store; try eassumption.
            intros bb' Hbb'. rewrite getBlocks_char in Hbb'. destruct Hbb' as [off Hoff].
                   destruct Hoff; try contradiction. subst.
-admit. (*TODO MInt64 word-visibilityclear F2' F2'' STORE2' H2 H4 RC1 F2. 
-clear wt_instrs wt_params U EXT1 STORE1' MInjR F1' G1 G1 X H3.
-rewrite H6 in *. clear H6 EXT2 F1. clear - LD4.
-unfold kind_second_word, sel_val in LD4.
-remember (if big_endian then Low else High) as d.
-destruct d.
-   inv LD4. destruct (restrictD_Some _ _ _ _ _ H2); trivial.
-simpl in LD4.
-   inv LD4. destruct (restrictD_Some _ _ _ _ _ H2); trivial.
-   inv LD4. destruct (restrictD_Some _ _ _ _ _ H2); trivial.
+ (*TODO MInt64 word-visibility*)
+  admit. (*TODO: 64bit - ensure that rs#src is vis!*)
 
-*)
- admit. (*TODO
-         clear - F2 F2' F1 F1'.
+  clear - H1 G1 G2 MInj STORE1' STORE1 STORE2' STORE2 LD2 LD4. 
          destruct a; inv H1.
+         inv G2. inv G1. rewrite H3 in H2. inv H2.
          exploit (Mem.storev_mapped_inject (as_inj mu)).
-             eapply MInj. eassumption.
-             eapply val_inject_incr; try eapply G2. apply restrict_incr.
-             eapply val_inject_incr; try eassumption. apply restrict_incr.
-         intros [m2'' [ST2 INJ]].
-         rewrite ST2 in STORE1'.
-         exploit (Mem.storev_mapped_inject (as_inj mu)). eassumption. eassumption. 
+             eapply MInj. eapply STORE1.
+             econstructor. eapply (restrictD_Some _ _ _ _ _ H3). reflexivity.
+             eapply val_inject_incr; try eapply LD2. apply restrict_incr.
+         intros [m1'' [ST1 INJ1]]. clear MInj.
+         rewrite ST1 in STORE1'. inv STORE1'.
+         exploit (Mem.storev_mapped_inject (as_inj mu)).
+             eapply INJ1. eapply STORE2.
+           simpl. econstructor. eapply (restrictD_Some _ _ _ _ _ H3). reflexivity.
            eapply val_inject_incr; try eassumption. eapply restrict_incr.
-           eapply val_inject_incr; try eassumption. eapply restrict_incr.
-         intros [m2'' [ST2 INJ]]. rewrite ST2 in P. inv P. eassumption. *)
+         intros [m2'' [ST2 INJ2]]. clear - INJ2 ST2 STORE2'.
+            simpl in *. rewrite Int.add_assoc in *.
+            rewrite (Int.add_commut (Int.repr delta)) in STORE2'.
+            rewrite ST2 in STORE2'. inv STORE2'. assumption.
    split; trivial.
 
 (* call *)
@@ -4494,20 +4506,25 @@ simpl in LD4.
    inv LD4. destruct (restrictD_Some _ _ _ _ _ H2); trivial.
 
 *)
- admit. (*TODO
-         clear - F2 F2' F1 F1'.
+
+  clear - H1 G1 G2 MInj STORE1' STORE1 STORE2' STORE2 LD2 LD4. 
          destruct a; inv H1.
+         inv G2. inv G1. rewrite H3 in H2. inv H2.
          exploit (Mem.storev_mapped_inject (as_inj mu)).
-             eapply MInj. eassumption.
-             eapply val_inject_incr; try eapply G2. apply restrict_incr.
-             eapply val_inject_incr; try eassumption. apply restrict_incr.
-         intros [m2'' [ST2 INJ]].
-         rewrite ST2 in STORE1'.
-         exploit (Mem.storev_mapped_inject (as_inj mu)). eassumption. eassumption. 
+             eapply MInj. eapply STORE1.
+             econstructor. eapply (restrictD_Some _ _ _ _ _ H3). reflexivity.
+             eapply val_inject_incr; try eapply LD2. apply restrict_incr.
+         intros [m1'' [ST1 INJ1]]. clear MInj.
+         rewrite ST1 in STORE1'. inv STORE1'.
+         exploit (Mem.storev_mapped_inject (as_inj mu)).
+             eapply INJ1. eapply STORE2.
+           simpl. econstructor. eapply (restrictD_Some _ _ _ _ _ H3). reflexivity.
            eapply val_inject_incr; try eassumption. eapply restrict_incr.
-           eapply val_inject_incr; try eassumption. eapply restrict_incr.
-         intros [m2'' [ST2 INJ]]. rewrite ST2 in P. inv P. eassumption. *)
-   intuition.
+         intros [m2'' [ST2 INJ2]]. clear - INJ2 ST2 STORE2'.
+            simpl in *. rewrite Int.add_assoc in *.
+            rewrite (Int.add_commut (Int.repr delta)) in STORE2'.
+            rewrite ST2 in STORE2'. inv STORE2'. assumption.
+    intuition.
       apply orb_true_iff in H2. 
       destruct H2. 
       apply StoreEffectD in H2. destruct H2 as [i [VADDR' _]]. subst. 
@@ -4517,9 +4534,75 @@ simpl in LD4.
       apply StoreEffectD in H2. destruct H2 as [i [VADDR' _]]. subst. 
         destruct a; inv STORE1. inv G2. inv VADDR'. 
         eapply visPropagateR; try eassumption. 
-    admit. (*TODO: propagate left in two store-steps.
-          Alternative: prove that the union of the two effects is a Mint64 StoreEffect  destruct H2.
-       specialize StoreEffect_PropagateLeft. eassumption. *)
+
+  (*Effects*)
+   clear X U.
+   destruct a; inv H1.
+   inv G2. inv G1. rewrite H7 in H6. inv H6. simpl in *.
+   destruct (eq_block b3 b2); simpl in *; subst. Focus 2. inv H2.
+   exists b0, delta. destruct (eq_block b0 b0); simpl. Focus 2. elim n; trivial. clear e3.
+   split. 
+      rewrite (restrict_vis_foreign_local _ WD) in H7.
+      destruct (joinD_Some _ _ _ _ _ H7); trivial.
+      destruct H1 as [_ LOC].
+      destruct (local_DomRng _ WD _ _ _ LOC). rewrite H4 in H3; inv H3.
+   destruct (restrictD_Some _ _ _ _ _ H7); clear H7.
+     apply Mem.store_valid_access_3 in STORE1. 
+     clear - H1 STORE1 MInj H2.
+      repeat rewrite encode_val_length in H2. repeat rewrite <- size_chunk_conv in H2.
+      assert (DD: delta >= 0 /\ 0 <= Int.unsigned i + delta <= Int.max_unsigned).
+                 eapply MInj. apply H1. left.
+                 eapply Mem.perm_implies. eapply Mem.valid_access_perm. eassumption. constructor.
+      destruct DD as [DD1 DD2].
+     apply orb_true_iff in H2.
+     repeat rewrite andb_true_iff in H2. simpl in H2.
+     destruct H2 as [Range |  Range].
+       assert (Arith: Int.unsigned i <= ofs - delta < Int.unsigned i + size_chunk Mint32).
+         specialize (Int.unsigned_range i); intros I.
+         assert (URdelta: Int.unsigned (Int.repr delta) = delta).
+            apply Int.unsigned_repr. split. omega. omega.
+         rewrite Int.add_unsigned, URdelta, (Int.unsigned_repr _ DD2) in Range. simpl.
+         destruct Range as [AA BB];
+         destruct (zle (Int.unsigned i + delta) ofs); try inv AA. clear AA.
+         destruct (zlt ofs (Int.unsigned (Int.add i (Int.repr delta)) + 4)); try inv BB. clear BB.
+           rewrite Int.add_unsigned, URdelta, (Int.unsigned_repr _ DD2) in l0.
+           omega.
+         destruct (zlt ofs (Int.unsigned i + delta + 4)); try inv BB. clear BB.
+           rewrite Int.add_unsigned, URdelta, (Int.unsigned_repr _ DD2) in g.
+           omega.
+       split.
+         destruct (zle (Int.unsigned i) (ofs - delta)); simpl.
+           destruct (zlt (ofs - delta)
+                         (Int.unsigned i + Z.of_nat (length (encode_val Mint64 rs # src)))); trivial.
+           exfalso.
+           clear Range. rewrite encode_val_length in g. simpl in g. destruct Arith; simpl in *. clear -g H0. omega.
+           destruct Arith. clear - g H. omega.
+         eapply Mem.perm_implies. eapply Mem.perm_max.
+           eapply STORE1. assumption. constructor.
+       admit. (*probably similar
+       assert (Arith: Int.unsigned i + 4 <= ofs - delta < Int.unsigned i + 8 + size_chunk Mint32).
+         specialize (Int.unsigned_range i); intros I.
+         assert (URdelta: Int.unsigned (Int.repr delta) = delta).
+            apply Int.unsigned_repr. split. omega. omega.
+         rewrite Int.add_unsigned in Range. 
+         rewrite (Int.unsigned_repr _ DD2) in Range. simpl.
+         destruct Range as [AA BB];
+         destruct (zle (Int.unsigned i + delta) ofs); try inv AA. clear AA.
+         destruct (zlt ofs (Int.unsigned (Int.add i (Int.repr delta)) + 4)); try inv BB. clear BB.
+           rewrite Int.add_unsigned, URdelta, (Int.unsigned_repr _ DD2) in l0.
+           omega.
+         destruct (zlt ofs (Int.unsigned i + delta + 4)); try inv BB. clear BB.
+           rewrite Int.add_unsigned, URdelta, (Int.unsigned_repr _ DD2) in g.
+           omega.
+       split.
+         destruct (zle (Int.unsigned i) (ofs - delta)); simpl.
+           destruct (zlt (ofs - delta)
+                         (Int.unsigned i + Z.of_nat (length (encode_val Mint64 rs # src)))); trivial.
+           exfalso.
+           clear Range. rewrite encode_val_length in g. simpl in g. destruct Arith; simpl in *. clear -g H0. omega.
+           destruct Arith. clear - g H. omega.
+         eapply Mem.perm_implies. eapply Mem.perm_max.
+           eapply STORE1. assumption. constructor.*)
      
 (* call *)
 - set (sg := RTL.funsig fd) in *.
@@ -5085,11 +5168,12 @@ assert (GDE: genvs_domain_eq ge tge).
 (*halted*) 
   { intros. destruct H as [MC [RC [PG [GFP [GF [VAL [WD INJ]]]]]]]. 
     destruct c1; inv H0. destruct stack; inv H1.
-    inv MC. admit. (*need to adapt coresem to list_val exists v'.
-    split. assumption.
-    split. eapply val_inject_incr; try eassumption.
-           apply restrict_incr.
-    simpl. inv H1. trivial. *) }
+    inv MC. 
+    inv STACKS.  (*generalize to other return types!*)
+    unfold proj_sig_res in WTRES. unfold loc_result in RES.
+    rewrite H in *.
+    inv RES. inv H5. exists (ls (R AX)). intuition.
+    admit. (*need that v1 is not vundef? Also, generalize to toither return types*) }
 (* at_external*)
   { intros. destruct H as [MC [RC [PG [GFP [Glob [VAL [WD INJ]]]]]]].
     split. inv MC; trivial.
@@ -5098,6 +5182,7 @@ assert (GDE: genvs_domain_eq ge tge).
         apply val_list_inject_forall_inject. eassumption.
     inv FUN. simpl.
     rewrite <- call_regs_param_values.
+    
     admit. (*TODO: decode long*) }
 (* after_external*)
   { apply MATCH_afterExternal. eassumption. }
