@@ -12,10 +12,11 @@ Require Import Smallstep.
 Require Import Ctypes.
 Require Import Cop.
 
-
 Require Import Clight. 
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
+
+Require Import compcomp.val_casted.
 
 Inductive CL_core: Type :=
   | CL_State
@@ -245,11 +246,19 @@ Definition CL_initial_core (v: val) (args:list val): option CL_core :=
           if Int.eq_dec i Int.zero 
           then match Genv.find_funct_ptr ge b with
                  | None => None
-                 | Some f => Some (CL_Callstate f args Kstop)
+                 | Some f => 
+                   match type_of_fundef f with
+                     | Tfunction targs tres => 
+                         if val_casted_list_func args targs 
+                         then Some (CL_Callstate f args Kstop)
+                         else None
+                     | _ => None
+                   end
                end
           else None
      | _ => None
     end.
+
 End SEMANTICS.
 
 Definition CL_core_sem (FE:function -> list val -> mem -> env -> temp_env -> mem -> Prop)

@@ -44,6 +44,7 @@ Require Import effect_simulations_lemmas.
 Require Export Axioms.
 Require Import Clight_coop.
 Require Import Clight_eff.
+Require Import compcomp.val_casted.
 
 Lemma blocks_of_bindingD: forall l b lo hi 
       (I: In (b,lo,hi) (map block_of_binding l)),
@@ -470,181 +471,6 @@ Proof.
   intros. destruct (as_inj mu b) as [[b'' delta']|] eqn:?. eauto. 
   exploit H2; eauto. unfold Mem.valid_block. intros [A B].
   xomegaContradiction.
-Qed.
-
-(** Properties of values obtained by casting to a given type. *)
-
-Inductive val_casted: val -> type -> Prop :=
-  | val_casted_int: forall sz si attr n,
-      cast_int_int sz si n = n ->
-      val_casted (Vint n) (Tint sz si attr)
-  | val_casted_float: forall sz attr n,
-      cast_float_float sz n = n ->
-      val_casted (Vfloat n) (Tfloat sz attr)
-  | val_casted_long: forall si attr n,
-      val_casted (Vlong n) (Tlong si attr)
-  | val_casted_ptr_ptr: forall b ofs ty attr,
-      val_casted (Vptr b ofs) (Tpointer ty attr)
-  | val_casted_int_ptr: forall n ty attr,
-      val_casted (Vint n) (Tpointer ty attr)
-  | val_casted_ptr_int: forall b ofs si attr,
-      val_casted (Vptr b ofs) (Tint I32 si attr)
-  | val_casted_ptr_cptr: forall b ofs id attr,
-      val_casted (Vptr b ofs) (Tcomp_ptr id attr)
-  | val_casted_int_cptr: forall n id attr,
-      val_casted (Vint n) (Tcomp_ptr id attr)
-  | val_casted_struct: forall id fld attr b ofs,
-      val_casted (Vptr b ofs) (Tstruct id fld attr)
-  | val_casted_union: forall id fld attr b ofs,
-      val_casted (Vptr b ofs) (Tunion id fld attr)
-  | val_casted_void: forall v,
-      val_casted v Tvoid.
-
-Remark cast_int_int_idem:
-  forall sz sg i, cast_int_int sz sg (cast_int_int sz sg i) = cast_int_int sz sg i.
-Proof.
-  intros. destruct sz; simpl; auto. 
-  destruct sg; [apply Int.sign_ext_idem|apply Int.zero_ext_idem]; compute; intuition congruence.
-  destruct sg; [apply Int.sign_ext_idem|apply Int.zero_ext_idem]; compute; intuition congruence.
-  destruct (Int.eq i Int.zero); auto.
-Qed.
-
-Remark cast_float_float_idem:
-  forall sz f, cast_float_float sz (cast_float_float sz f) = cast_float_float sz f.
-Proof.
-  intros; destruct sz; simpl.
-  apply Float.singleoffloat_idem; auto.
-  auto.
-Qed.
-
-Lemma cast_val_is_casted:
-  forall v ty ty' v', sem_cast v ty ty' = Some v' -> val_casted v' ty'.
-Proof.
-  unfold sem_cast; intros. destruct ty'; simpl in *.
-(* void *)
-  constructor.
-(* int *)
-  destruct i; destruct ty; simpl in H; try discriminate; destruct v; inv H.
-  constructor. apply (cast_int_int_idem I8 s).
-  constructor. apply (cast_int_int_idem I8 s).
-  destruct (cast_float_int s f0); inv H1.   constructor. apply (cast_int_int_idem I8 s). 
-  constructor. apply (cast_int_int_idem I16 s).
-  constructor. apply (cast_int_int_idem I16 s).
-  destruct (cast_float_int s f0); inv H1.   constructor. apply (cast_int_int_idem I16 s). 
-  constructor. auto.
-  constructor.
-  constructor. auto. 
-  destruct (cast_float_int s f0); inv H1. constructor. auto.
-  constructor. auto.
-  constructor.
-  constructor; auto.
-  constructor.
-  constructor; auto.
-  constructor; auto.
-  constructor; auto.
-  constructor; auto.
-  constructor. simpl. destruct (Int.eq i0 Int.zero); auto.
-  constructor. simpl. destruct (Int64.eq i Int64.zero); auto.
-  constructor. simpl. destruct (Float.cmp Ceq f0 Float.zero); auto.
-  constructor. simpl. destruct (Int.eq i Int.zero); auto.
-  constructor; auto.
-  constructor. simpl. destruct (Int.eq i Int.zero); auto.
-  constructor; auto.
-  constructor. simpl. destruct (Int.eq i Int.zero); auto.
-  constructor; auto.
-  constructor. simpl. destruct (Int.eq i0 Int.zero); auto.
-  constructor; auto.
-(* long *)
-  destruct ty; try discriminate.
-  destruct v; inv H. constructor.
-  destruct v; inv H. constructor.
-  destruct v; try discriminate. destruct (cast_float_long s f0); inv H. constructor.
-  destruct v; inv H. constructor.
-  destruct v; inv H. constructor.
-  destruct v; inv H. constructor.
-  destruct v; inv H. constructor.
-(* float *)
-  destruct ty; simpl in H; try discriminate; destruct v; inv H.
-  constructor. unfold cast_float_float, cast_int_float.
-  destruct f; destruct s; auto.
-  rewrite Float.singleofint_floatofint. apply Float.singleoffloat_idem.
-  rewrite Float.singleofintu_floatofintu. apply Float.singleoffloat_idem.
-  constructor. unfold cast_float_float, cast_long_float.
-  destruct f; destruct s; auto. apply Float.singleoflong_idem. apply Float.singleoflongu_idem.
-  constructor. apply cast_float_float_idem.
-(* pointer *)
-  destruct ty; simpl in H; try discriminate; destruct v; inv H; try constructor.
-(* impossible cases *)
-  discriminate.
-  discriminate.
-(* structs *)
-  destruct ty; try discriminate; destruct v; try discriminate.
-  destruct (ident_eq i0 i && fieldlist_eq f0 f); inv H; constructor.
-(* unions *)
-  destruct ty; try discriminate; destruct v; try discriminate.
-  destruct (ident_eq i0 i && fieldlist_eq f0 f); inv H; constructor.
-(* comp_ptr *)
-  destruct ty; simpl in H; try discriminate; destruct v; inv H; constructor.
-Qed.
-
-Lemma val_casted_load_result:
-  forall v ty chunk,
-  val_casted v ty -> access_mode ty = By_value chunk ->
-  Val.load_result chunk v = v.
-Proof.
-  intros. inversion H; clear H; subst v ty; simpl in H0.
-  destruct sz.
-  destruct si; inversion H0; clear H0; subst chunk; simpl in *; congruence.
-  destruct si; inversion H0; clear H0; subst chunk; simpl in *; congruence.
-  clear H1. inv H0. auto.
-  inversion H0; clear H0; subst chunk. simpl in *. 
-  destruct (Int.eq n Int.zero); subst n; reflexivity.
-  destruct sz; inversion H0; clear H0; subst chunk; simpl in *; congruence.
-  inv H0; auto.
-  inv H0; auto.
-  inv H0; auto.
-  inv H0; auto.
-  discriminate.
-  discriminate.
-  discriminate.
-  discriminate.
-  discriminate.
-Qed.
-
-Lemma cast_val_casted:
-  forall v ty, val_casted v ty -> sem_cast v ty ty = Some v.
-Proof.
-  intros. inversion H; clear H; subst v ty; unfold sem_cast; simpl; auto.
-  destruct sz; congruence.
-  congruence.
-  unfold proj_sumbool; repeat rewrite dec_eq_true; auto.
-  unfold proj_sumbool; repeat rewrite dec_eq_true; auto.
-Qed.
-
-Lemma val_casted_inject:
-  forall f v v' ty,
-  val_inject f v v' -> val_casted v ty -> val_casted v' ty.
-Proof.
-  intros. inv H; auto.
-  inv H0; constructor.
-  inv H0; constructor.
-Qed.
-
-Inductive val_casted_list: list val -> typelist -> Prop :=
-  | vcl_nil:
-      val_casted_list nil Tnil
-  | vcl_cons: forall v1 vl ty1 tyl,
-      val_casted v1 ty1 -> val_casted_list vl tyl ->
-      val_casted_list (v1 :: vl) (Tcons  ty1 tyl).
-
-Lemma val_casted_list_params:
-  forall params vl,
-  val_casted_list vl (type_of_params params) ->
-  list_forall2 val_casted vl (map snd params).
-Proof.
-  induction params; simpl; intros. 
-  inv H. constructor.
-  destruct a as [id ty]. inv H. constructor; auto. 
 Qed.
 
 (** Correctness of [make_cast] *)
@@ -5625,6 +5451,28 @@ Proof.
   intros. eapply Genv.find_var_info_not_fresh; eauto. 
 Qed.
 
+Lemma type_of_transf_function f tf : 
+  transf_function f = OK tf -> 
+  type_of_function f = type_of_function tf.
+Proof.
+unfold transf_function. 
+destruct (list_disjoint_dec ident_eq 
+  (var_names (fn_params f)) (var_names (fn_temps f))); simpl.
+destruct (simpl_stmt (cenv_for f) (fn_body f)); simpl.
+inversion 1; auto. 
+inversion 1; auto.
+inversion 1; auto.
+Qed.
+
+Lemma type_of_transf_fundef f tf : 
+  transf_fundef f = OK tf -> 
+  type_of_fundef f = type_of_fundef tf.
+Proof.
+destruct f; inversion 1; subst.
+simpl. revert H1. case_eq (transf_function f); simpl. inversion 2; subst; simpl.
+apply type_of_transf_function; auto. intros; congruence. intros; congruence.
+Qed.
+
 Lemma MATCH_init_core: forall (v1 v2 : val) (sig : signature) entrypoints
   (EP: In (v1, v2, sig) entrypoints)
   (entry_points_ok : forall (v1 v2 : val) (sig : signature),
@@ -5669,15 +5517,25 @@ Proof. intros.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
   remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
     apply eq_sym in Heqzz.
+  revert H1; case_eq (type_of_fundef f); try solve[intros; congruence].
+  intros targs tres tyof.
+  case_eq (val_casted_list_func vals1 targs); try solve[intros; congruence].
+  intros VALCAST; inversion 1; subst.
   exploit function_ptr_translated; eauto. intros [tf [FIND TR]].
   exists (CL_Callstate tf vals2 Kstop).
-  split.
-  simpl. 
+  split. simpl.
   destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
-  subst. inv A. rewrite C in Heqzz. inv Heqzz. unfold tge in FIND. rewrite D in FIND. inv FIND.
-  simpl.
+  subst. inv A. rewrite C in Heqzz. inv Heqzz. unfold tge in FIND. 
+    rewrite D in FIND. inv FIND. simpl.
   case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
-    solve[rewrite D; auto].
+  rewrite D, <-(type_of_transf_fundef _ _ TR), tyof.
+  assert (H: val_casted_list vals2 targs). 
+  { cut (val_casted_list vals1 targs).
+    cut (val_list_inject j vals1 vals2).
+    apply val_casted_list_inj; auto.
+    apply forall_inject_val_list_inject; auto.
+    apply val_casted_list_funcP; auto. }
+  rewrite <-val_casted_list_funcP in H; rewrite H; auto.
   intros CONTRA.
   solve[elimtype False; auto].
   destruct InitMem as [m0 [INIT_MEM [A B]]].
@@ -5693,9 +5551,7 @@ Proof. intros.
             apply forall_inject_val_list_inject.
             eapply restrict_forall_vals_inject; try eassumption.
             intros. apply REACH_nil. rewrite H; intuition. 
-          instantiate (2:=Tnil). 
-          instantiate (1:=type_int32s). admit. (*Remove this clause from match_state?*) 
-   admit. (*Remove this clause from match_state, and/or correct wrt typelist of vals1?*) 
+          apply val_casted_list_funcP; auto.
 destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
    as [AA [BB [CC [DD [EE [FF GG]]]]]].

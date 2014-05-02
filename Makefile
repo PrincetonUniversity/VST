@@ -121,8 +121,8 @@ LINKING_FILES= \
   #dep_linking_proof.v 
 
 COMPCOMP_FILES= \
-  Ordered.v Switch.v \
-  Clight_eff.v SimplLocals.v SimplLocalsproofEFF.v \
+  Ordered.v Switch.v val_casted.v \
+  Clight_coop.v Clight_eff.v SimplLocals.v SimplLocalsproofEFF.v \
   Cminor.v Cminor_coop.v Cminor_eff.v \
   Csharpminor.v Csharpminor_coop.v Csharpminor_eff.v \
   Cshmgen.v \
