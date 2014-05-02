@@ -200,7 +200,7 @@ Proof.
 intros MATCH [[ef [sig [args X]]]|[rv X]].
 eapply core_at_external in MATCH; eauto.
 destruct MATCH as [? [? [? ?]]]; left.
-exists ef, sig, x; auto.
+exists ef, sig, x; auto. eapply H1.
 eapply core_halted in MATCH; eauto.
 destruct MATCH as [? [? [? ?]]].
 right; exists x; auto.
@@ -411,7 +411,7 @@ assert (exists targs,
   /\ val_list_inject (restrict (as_inj j) (vis j)) args targs) 
   as [targs [AT VALINJ]].
   { inv TRMATCH; eapply core_at_external in ATEXTSRC; eauto.
-    destruct ATEXTSRC as [_ [targs [? ?]]]; exists targs; split; auto.
+    destruct ATEXTSRC as [_ [targs [? ?]]]; exists targs; split; auto. eapply H0.
     solve[apply forall_inject_val_list_inject; auto]. }
 
 assert (INJ: Mem.inject (as_inj j) m tm). 
@@ -426,7 +426,7 @@ assert (J_VAL: sm_valid j m tm)
 
 assert (VALINJ': Forall2 (val_inject (as_inj j)) args targs). 
   { inv TRMATCH; eapply core_at_external in ATEXTSRC; eauto.
-    destruct ATEXTSRC as [_ [? [VALINJ' ATEXT]]].
+    destruct ATEXTSRC as [_ [? [VALINJ' [ATEXT LEAKOUT]]]].
     rewrite ATEXT in AT; inv AT.
     apply forall_vals_inject_restrictD in VALINJ'; auto. }
 
@@ -928,7 +928,7 @@ generalize TSTEP as TSTEP'; intro; inv TSTEP.
       destruct H as [ef' [sig' [args' ATEXT]]].
       generalize ATEXT as ATEXT'; intro.
       eapply (core_at_external) in ATEXT; eauto.
-      destruct ATEXT as [_ [? [? ATEXT'']]].
+      destruct ATEXT as [_ [? [? [ATEXT'' LEAKOUT'']]]].
       rewrite ATEXT'' in TATEXT; inv TATEXT; exists args'; auto.
       destruct H as [rv' HALT].
       Arguments core_halted : default implicits.

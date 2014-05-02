@@ -16,11 +16,11 @@ Require Import Ctypes. (*for access_mode*)
 Require Import Clight.
 Require Import Clight_coop.
 
-Definition assign_loc_Effect (ty:type) (b: block) (ofs: int) v : (block -> Z -> bool)  :=
+Definition assign_loc_Effect (ty:type) (b: block) (ofs: int) : (block -> Z -> bool)  :=
   match access_mode ty with
      By_value chunk => fun b' z' => eq_block b b' 
               && zle (Int.unsigned ofs) z' 
-              && zlt z' ((Int.unsigned ofs) + Z.of_nat (length (encode_val chunk v)))
+              && zlt z' ((Int.unsigned ofs) + Z.of_nat (size_chunk_nat chunk))
    | By_copy => fun b' z' => eq_block b' b 
               && zle (Int.unsigned ofs) z' 
               && zlt z' ((Int.unsigned ofs) + (sizeof ty))
@@ -30,7 +30,7 @@ Definition assign_loc_Effect (ty:type) (b: block) (ofs: int) v : (block -> Z -> 
 Lemma assign_loc_Effect_Sound: forall a m loc ofs v m'
       (AL: assign_loc (typeof a) m loc ofs v m'),
      Mem.unchanged_on (fun b z => assign_loc_Effect (typeof a) 
-                            loc ofs v b z = false) m m'.
+                            loc ofs b z = false) m m'.
 Proof. intros. inv AL.
 inv H0.
 (*access_mode (typeof a) = By_value chunk*)
@@ -48,7 +48,8 @@ inv H0.
       destruct H3.
       destruct (zle (Int.unsigned ofs) ofs0); simpl in *.
         destruct H0; try discriminate.
-        destruct (zlt ofs0 (Int.unsigned ofs + Z.of_nat (length (encode_val chunk v)))); simpl in *. discriminate.
+        rewrite encode_val_length in H4.
+        destruct (zlt ofs0 (Int.unsigned ofs + Z.of_nat (size_chunk_nat chunk))); simpl in *. discriminate.
         omega.
       omega.
     rewrite PMap.gso; trivial. intros N; subst; apply n; trivial.
@@ -122,7 +123,7 @@ Inductive clight_effstep (ge:genv): (block -> Z -> bool) ->
       eval_expr ge e le m a2 v2 ->
       sem_cast v2 (typeof a2) (typeof a1) = Some v ->
       assign_loc (typeof a1) m loc ofs v m' ->
-      clight_effstep ge (assign_loc_Effect (typeof a1) loc ofs v)
+      clight_effstep ge (assign_loc_Effect (typeof a1) loc ofs)
         (CL_State f (Sassign a1 a2) k e le) m
         (CL_State f Sskip k e le) m'
 
@@ -372,8 +373,8 @@ intros.
      apply Mem.store_valid_access_3 in H5.
      eapply Mem.perm_valid_block. eapply H5. 
        destruct (zle (Int.unsigned ofs) z); simpl in *; try discriminate.
-       destruct (zlt z (Int.unsigned ofs + Z.of_nat (length (encode_val chunk v)))); simpl in *; try discriminate.
-       split. eassumption. rewrite encode_val_length in l0. rewrite <- size_chunk_conv in l0. trivial.
+       destruct (zlt z (Int.unsigned ofs + Z.of_nat (size_chunk_nat chunk))); simpl in *; try discriminate.
+       split. eassumption. rewrite <- size_chunk_conv in l0. trivial.
 
      destruct (eq_block b loc); subst; simpl in *; try discriminate.
      apply Mem.loadbytes_length in H8.

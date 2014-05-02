@@ -105,13 +105,12 @@ Inductive CSharpMin_corestep (ge : genv) : CSharpMin_core -> mem -> CSharpMin_co
       CSharpMin_corestep ge (CSharpMin_State f (Scall optid sig a bl) k e le) m
         (CSharpMin_Callstate fd vargs (Kcall optid f e le k)) m
 
-(* WE DO NOT TREAT BUILTINS
+(* WE DO NOT TREAT BUILTINS*)
   | csharpmin_corestep_builtin: forall f optid ef bl k e le m vargs t vres m',
       eval_exprlist ge e le m bl vargs ->
       external_call ef ge vargs m t vres m' ->
       CSharpMin_corestep ge (CSharpMin_State f (Sbuiltin optid ef bl) k e le) m
          (CSharpMin_State f Sskip k e (Cminor.set_optvar optid vres le)) m'
-*)
 
   | csharpmin_corestep_seq: forall f s1 s2 k e le m,
       CSharpMin_corestep ge (CSharpMin_State f (Sseq s1 s2) k e le) m
@@ -276,7 +275,7 @@ Proof. intros.
           destruct vaddr; simpl in H1; inv H1. 
           eapply store_forward; eassumption. 
          (*builtin*) 
-          (*eapply external_call_mem_forward; eassumption.*)
+         eapply external_call_mem_forward; eassumption.
          eapply freelist_forward; eassumption.
          eapply freelist_forward; eassumption.
          eapply alloc_variables_forward; eassumption.

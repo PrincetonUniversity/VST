@@ -1633,7 +1633,7 @@ Proof.
       split. apply inject_incr_refl.
       split. apply inject_separated_same_meminj.
       auto.
-  (*builtin*)
+  (*builtin*) admit. (*TODO: case builtin*)
   (*  inv MSTATE; simpl in *. 
       monadInv TR.
       destruct c2; simpl in *; try inv H9.

@@ -2768,7 +2768,7 @@ Proof.
        PRE TRF MCS _ _ _ _ _ _ optid _ _ MK H H0 H1 EQ EQ1) as [c2' [m2' [mu' [cstepPlus MS]]]].
       exists c2'. exists m2'. exists mu'. 
       intuition. 
-   (*builtin*)
+   (*builtin*) admit. (*TODO: case builtin*)
    (* seq *)
      destruct MC as [SMC PRE].
      inv SMC. 
@@ -4025,7 +4025,7 @@ induction EFFSTEP; simpl in *.
       exists c2'. exists m2'. exists mu'. 
       intuition.
       exists EmptyEffect. intuition. 
-   (*builtin*) 
+   (*builtin*) admit. (*TODO: case builtin*)
       (*destruct (MS_step_case_Builtin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
        PRE TRF MCS _ _ _ _ _ _ optid args _ MK H1 H2 H3 EQ EQ1) 
        as [c2' [m2' [mu' [cstepPlus MS]]]].      intuition. *)

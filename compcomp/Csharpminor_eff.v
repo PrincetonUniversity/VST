@@ -14,6 +14,8 @@ Require Import sepcomp.effect_semantics.
 Require Import Csharpminor.
 Require Import Csharpminor_coop.
 
+Require Import BuiltinEffects.
+
 Lemma EmptyEffect_allocvariables: forall L e m e' m'
       (ALLOC: alloc_variables e m L e' m'),
   Mem.unchanged_on (fun b ofs => EmptyEffect b ofs = false) m m'.
@@ -64,12 +66,12 @@ Inductive csharpmin_effstep (g: Csharpminor.genv):  (block -> Z -> bool) ->
         (CSharpMin_Callstate fd vargs (Kcall optid f e le k)) m
 
 (* WE DO NOT TREAT BUILTINS *)
-(*  | csharpmin_effstep_builtin: forall f optid ef bl k e le m vargs t vres m',
+  | csharpmin_effstep_builtin: forall f optid ef bl k e le m vargs t vres m',
       eval_exprlist g e le m bl vargs ->
       external_call ef g vargs m t vres m' ->
-      csharpmin_effstep g (BuiltinEffect g (ef_sig ef) vargs m)
+      csharpmin_effstep g (BuiltinEffect g ef vargs m)
          (CSharpMin_State f (Sbuiltin optid ef bl) k e le) m
-         (CSharpMin_State f Sskip k e (Cminor.set_optvar optid vres le)) m'*)
+         (CSharpMin_State f Sskip k e (Cminor.set_optvar optid vres le)) m'
 
   | csharpmin_effstep_seq: forall f s1 s2 k e le m,
       csharpmin_effstep g EmptyEffect (CSharpMin_State f (Sseq s1 s2) k e le) m
@@ -167,6 +169,8 @@ intros.
          eapply StoreEffect_Storev; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; try eassumption.
          apply Mem.unchanged_on_refl.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
+         eapply BuiltinEffect_unchOn; eassumption.
 (*  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply ec_builtinEffectPolymorphic; eassumption.*)
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -218,7 +222,7 @@ intros. inv H.
     eexists. eapply csharpmin_effstep_set; eassumption.
     eexists. eapply csharpmin_effstep_store; eassumption.
     eexists. eapply csharpmin_effstep_call; try eassumption. reflexivity. 
-(*    eexists. eapply csharpmin_effstep_builtin; eassumption.*)
+    eexists. eapply csharpmin_effstep_builtin; eassumption.
     eexists. eapply csharpmin_effstep_seq.
     eexists. eapply csharpmin_effstep_ifthenelse; eassumption.
     eexists. eapply csharpmin_effstep_loop.
@@ -248,6 +252,8 @@ intros.
   inv H2. apply Mem.store_valid_access_3 in H3.
   eapply Mem.valid_access_valid_block.
   eapply Mem.valid_access_implies; try eassumption. constructor.
+
+  eapply BuiltinEffect_valid_block; eassumption.
 
   eapply FreelistEffect_validblock; eassumption.
 

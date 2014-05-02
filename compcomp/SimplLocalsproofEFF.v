@@ -1882,7 +1882,7 @@ Fixpoint bind_parameters_effect cenv e mu (params :list (ident * type)) (vals: l
                        match as_inj mu (fst x) with 
                          None => false 
                        | Some(bb,d) => negb (VSet.mem (fst idt) cenv) &&  
-                                       assign_loc_Effect (snd x) bb Int.zero v1 b z
+                                       assign_loc_Effect (snd x) bb Int.zero b z
                        end
         | _ => fun b z => false
      end
@@ -2037,7 +2037,7 @@ Proof.
   specialize (local_in_all _ WD _ _ _ MAPPED); intros AI.
   rewrite AI.
   assert (HH: forall bb z, bind_parameters_effect cenv e mu params vl' bb z
-        || assign_loc_Effect ty b' Int.zero v' bb z = true -> 
+        || assign_loc_Effect ty b' Int.zero bb z = true -> 
         exists b d, local_of mu b = Some (bb, d)).
      intros. apply orb_true_iff in H; destruct H.
              eapply (FF _ _ H). (*
@@ -2055,7 +2055,7 @@ Proof.
   rewrite (assign_loc_nextblock _ _ _ _ _ _ A) in Z. auto.
   apply extensionality; intros bb.
     apply extensionality; intros z. rewrite orb_false_r. subst EFF1.
-    remember (bind_parameters_effect cenv e mu params vl' bb z || assign_loc_Effect ty b' Int.zero v' bb z) as d.
+    remember (bind_parameters_effect cenv e mu params vl' bb z || assign_loc_Effect ty b' Int.zero bb z) as d.
     destruct d; simpl. apply eq_sym in Heqd. specialize (HH _ _ Heqd). destruct HH as [? [? ?]].
       remember (valid_block_dec tm bb). destruct s0; trivial; simpl.
         rewrite andb_true_r. rewrite andb_true_r.
@@ -4799,7 +4799,6 @@ inv MS; simpl in *; try (monadInv TRS).
                                destruct (zle (Int.unsigned ofs + delta) ofs0); simpl in H6; try discriminate.
                                destruct (zle (Int.unsigned ofs) (ofs0 - delta)); simpl.
                                Focus 2. exfalso. clear - l g. omega.
-                               rewrite encode_val_length.  rewrite encode_val_length in H3.
                                destruct (zlt ofs0 (Int.unsigned ofs + delta + Z.of_nat (size_chunk_nat chunk))); try discriminate.
                                destruct (zlt (ofs0 - delta) (Int.unsigned ofs + Z.of_nat (size_chunk_nat chunk))); simpl.
                                Focus 2. exfalso. clear - l1 g. omega.
@@ -5517,7 +5516,7 @@ Proof. intros.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
   remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
     apply eq_sym in Heqzz.
-  revert H1; case_eq (type_of_fundef f); try solve[intros; congruence].
+  revert H1. case_eq (type_of_fundef f); try solve[intros; congruence].
   intros targs tres tyof.
   case_eq (val_casted_list_func vals1 targs); try solve[intros; congruence].
   intros VALCAST; inversion 1; subst.
