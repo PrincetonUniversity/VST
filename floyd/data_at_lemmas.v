@@ -655,7 +655,46 @@ Proof.
     rewrite (IHf _ _ _ _ _ _ Heq_snd H_snd H2 H3 H).
     reflexivity.
 Qed.
-      
+
+(*  (* Tests *)
+Require Import progs.nest2.
+
+Eval compute in reptype t_struct_b.
+Goal forall sh, nested_data_at sh nil t_struct_b (Vundef, (Vundef, Vundef)) = emp.
+intros.
+rewrite (nested_data_at_Tstruct sh nil t_struct_b _ (Fcons _y1 tint
+       (Fcons _y2
+         (Tstruct _struct_a (Fcons _x1 tdouble (Fcons _x2 tint Fnil)) noattr)
+         Fnil)) _ (Vundef, (Vundef, Vundef)) (Vundef, (Vundef, Vundef)) eq_refl eq_refl);
+[|unfold eq_rect_r; rewrite <- eq_rect_eq; reflexivity| reflexivity].
+simpl.
+extensionality p.
+Transparent alignof.
+unfold withspacer.
+simpl.
+rewrite (nested_data_at_Tstruct sh (_y2 :: nil) t_struct_b _ (Fcons _x1 tdouble (Fcons _x2 tint Fnil))
+           _ (Vundef, Vundef) (Vundef, Vundef) eq_refl eq_refl);
+[|unfold eq_rect_r; rewrite <- eq_rect_eq; reflexivity| reflexivity].
+simpl.
+unfold withspacer.
+simpl.
+
+
+unfold nested_data_at. simpl.
+unfold nested_field_offset2. simpl.
+
+
+Goal forall sh, data_at sh t_struct_b (Vundef, (Vundef, Vundef)) = emp.
+intros.
+  unfold data_at.
+  simpl.
+extensionality p.
+Transparent alignof.
+unfold withspacer.
+simpl.
+
+*)
+
 (*
 Lemma field_at_offset_zero:
   forall sh ty id v v', 
@@ -863,6 +902,7 @@ Proof.
     apply derives_refl.
 Qed.
 
+(* Originally, by_value_no_alignof : type -> Prop. Now, it is changed to computation. *)
 Definition by_value_no_alignof t :=
   match t with
   | Tint _ _ (mk_attr false None) => True
@@ -871,6 +911,17 @@ Definition by_value_no_alignof t :=
   | Tpointer _ (mk_attr false None) => True
   | _ => False
   end.
+
+(*
+Definition by_value_no_alignof t :=
+  match t with
+  | Tint _ _ (mk_attr false None) => true
+  | Tlong _ (mk_attr false None) => true
+  | Tfloat _ (mk_attr false None) => true
+  | Tpointer _ (mk_attr false None) => true
+  | _ => false
+  end.
+*)
 
 Lemma memory_block_mapsto_:
   forall n sh t v, 
@@ -1186,3 +1237,225 @@ Qed.
 
 
 ************************************************)
+
+Require Import floyd.base.
+Require Import floyd.client_lemmas.
+Require Import floyd.assert_lemmas.
+Require Import floyd.loadstore_lemmas.
+
+Lemma is_neutral_reptype: forall t t', is_neutral_cast t t' = true -> reptype t = val.
+Proof.
+  intros.
+  destruct t, t'; try inversion H; try reflexivity.
+Qed.
+
+Lemma look_up_empty_ti: forall i, look_up_ident_default i empty_ti = Tvoid.
+Proof.
+  intros.
+  unfold look_up_ident_default.
+  rewrite PTree.gempty.
+  reflexivity.
+Qed.
+
+Lemma is_neutral_data_at: forall sh t t' v v' p (Htype: is_neutral_cast t t' = true), eq_rect_r (fun x => x) v' (is_neutral_reptype t t' Htype) = v -> data_at sh t v p = mapsto sh t p v'.
+Proof.
+  intros.
+  destruct t, t'; try inversion Htype; simpl in v;
+  try (unfold data_at; simpl; unfold eq_rect_r in H; rewrite <- eq_rect_eq in H; rewrite H; reflexivity).
+Qed.
+
+Lemma is_neutral_lifted_data_at: forall sh t t' v v' p (Htype: is_neutral_cast t t' = true), eq_rect_r (fun x => x) v' (is_neutral_reptype t t' Htype) = v -> `(data_at sh t v) p = `(mapsto sh t) p `(v').
+Proof.
+  intros.
+  unfold liftx, lift. simpl.
+  extensionality.
+  eapply is_neutral_data_at; try assumption.
+  exact H.
+Qed.
+
+Lemma is_neutral_data_at_: forall sh t t' p (Htype: is_neutral_cast t t' = true), data_at_ sh t p = mapsto_ sh t p.
+Proof.
+  intros.
+  unfold data_at_, mapsto_.
+  destruct t, t'; try inversion Htype; simpl default_val; unfold data_at; simpl; reflexivity.
+Qed.
+
+Lemma is_neutral_lifted_data_at_: forall sh t t' (Htype: is_neutral_cast t t' = true), `(data_at_ sh t) = `(mapsto_ sh t).
+Proof.
+  intros.
+  unfold liftx, lift. simpl.
+  repeat extensionality.
+  eapply is_neutral_data_at_; try assumption.
+  exact Htype.
+Qed.
+
+(* 
+Is it possible that (typeof e1)  is a composite point? According to the 
+definition of expr and typeof, it is possible. But maybe AST is not possible.
+*)
+
+Lemma semax_data_load: 
+  forall {Espec: OracleKind},
+    forall (Delta : tycontext) (sh : Share.t) (id : ident) 
+         (P : list Prop) (Q : list (environ -> Prop))
+         (R : list (environ -> mpred)) (e1 : expr) 
+         (t2 : type) (v2 : reptype (typeof e1)) (v2' : val)
+       (_: typeof_temp Delta id = Some t2)
+       (Htype: is_neutral_cast (typeof e1) t2 = true),
+       eq_rect_r (fun x => x) v2' (is_neutral_reptype (typeof e1) t2 Htype) = v2 ->
+       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
+       |-- local (tc_lvalue Delta e1) && local `(tc_val (typeof e1) v2') &&
+           (`(data_at sh (typeof e1) v2) (eval_lvalue e1) * TT) ->
+       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+         (Sset id e1)
+         (normal_ret_assert
+            (EX  old : val,
+             PROPx P
+               (LOCALx (`eq (eval_id id) `v2' :: map (subst id `old) Q)
+                  (SEPx (map (subst id `old) R))))).
+Proof.
+  intros.
+  eapply semax_load_37'.
+  + exact H.
+  + exact Htype.
+  + instantiate (1:=sh).
+    apply (derives_trans _ _ _ H1).
+    apply andp_derives; [normalize |].
+    remember (eval_lvalue e1) as p.
+    go_lower.
+    rewrite (is_neutral_data_at _ _ _ _ v2' _ Htype H0).
+    cancel.
+Qed.
+
+Lemma semax_store_nth':
+  forall {Espec: OracleKind},
+    forall (n : nat) (Delta : tycontext) (P : list Prop)
+         (Q : list (environ -> Prop)) (R : list (LiftEnviron mpred))
+         (e1 e2 : expr) (Rn : LiftEnviron mpred) (sh : Share.t) 
+         (t1 : type),
+       typeof e1 = t1 ->
+       nth_error R n = Some Rn ->
+       Rn |-- `(mapsto_ sh t1) (eval_lvalue e1) ->
+       writable_share sh ->
+       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
+       |-- local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t1)) ->
+       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+         (Sassign e1 e2)
+         (normal_ret_assert
+            (PROPx P
+               (LOCALx Q
+                  (SEPx
+                     (replace_nth n R
+                        (`(mapsto sh t1) (eval_lvalue e1)
+                           (eval_expr (Ecast e2 t1)) )))))).
+Proof.
+  intros.
+  simpl (eval_expr (Ecast e2 t1)).
+  unfold force_val1.
+  eapply semax_store_nth.
+  + exact H.
+  + exact H0.
+  + exact H1.
+  + exact H2.
+  + exact H3.
+Qed.
+
+Lemma replace_nth_SEP': forall P Q R n Rn Rn' x, Rn x |-- Rn' x -> (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn)))) x |-- (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn')))) x.
+Proof.
+  intros.
+  normalize.
+  revert R.
+  induction n.
+  + destruct R.
+    - simpl. cancel.
+    - simpl. cancel.
+  + destruct R.
+    - simpl. cancel.
+    - intros. simpl in *. cancel.
+Qed.
+
+Lemma replace_nth_SEP: forall P Q R n Rn Rn', Rn |-- Rn' -> PROPx P (LOCALx Q (SEPx (replace_nth n R Rn))) |-- PROPx P (LOCALx Q (SEPx (replace_nth n R Rn'))).
+Proof.
+  simpl; intros.
+  apply replace_nth_SEP'.
+  apply H.
+Qed.
+
+Lemma semax_data_store_nth:
+  forall {Espec: OracleKind},
+    forall (n : nat) (Delta : tycontext) (P : list Prop)
+         (Q : list (environ -> Prop)) (R : list (LiftEnviron mpred))
+         (e1 e2 : expr) (Rn : LiftEnviron mpred) (sh : Share.t) 
+         (t1 : type) (v: val) (v' : reptype t1)
+       (Htype: is_neutral_cast t1 t1 = true),
+       eq_rect_r (fun x => x) v (is_neutral_reptype t1 t1 Htype) = v' ->
+       typeof e1 = t1 ->
+       nth_error R n = Some Rn ->
+       Rn |-- `(data_at_ sh t1) (eval_lvalue e1) ->
+       writable_share sh ->
+       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
+       |-- local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t1)) ->
+       PROPx P (LOCALx Q (SEPx (replace_nth n R (`(data_at_ sh t1) (eval_lvalue e1)) ))) |-- local (`(eq) (eval_expr (Ecast e2 t1)) `v) ->
+       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+         (Sassign e1 e2)
+         (normal_ret_assert
+            (PROPx P
+               (LOCALx Q
+                  (SEPx
+                     (replace_nth n R
+                        (`(data_at sh t1 v') (eval_lvalue e1)
+                          )))))).
+Proof.
+  intros.
+  rewrite (is_neutral_lifted_data_at _ _ _ _ v _ Htype H).
+  rewrite (is_neutral_lifted_data_at_ _ _ _ Htype) in H2.
+  rewrite (is_neutral_lifted_data_at_ _ _ _ Htype) in H5.
+  eapply semax_post0; [| eapply semax_store_nth'].
+  Focus 2. exact H0.
+  Focus 2. exact H1.
+  Focus 2. exact H2.
+  Focus 2. exact H3.
+  Focus 2. eapply derives_trans. exact H4. cancel.
+  apply normal_ret_assert_derives'.
+
+  eapply derives_trans.
+  + instantiate (1:= PROPx P
+     (LOCALx (`eq (eval_expr (Ecast e2 t1)) `v :: Q) (SEPx (replace_nth n R (`(mapsto sh t1) (eval_lvalue e1) (eval_expr (Ecast e2 t1))))))).
+    assert (
+    PROPx P
+     (LOCALx Q
+        (SEPx
+           (replace_nth n R
+              (`(mapsto sh t1) (eval_lvalue e1) (eval_expr (Ecast e2 t1))))))
+    |--
+    PROPx P
+     (LOCALx Q
+        (SEPx
+           (replace_nth n R
+              (`(mapsto_ sh t1) (eval_lvalue e1)))))).
+      apply replace_nth_SEP. unfold liftx, lift. simpl. intros. apply mapsto_mapsto_.
+    unfold PROPx, LOCALx.
+    unfold PROPx, LOCALx in H5, H6.
+    simpl.
+    simpl in H5, H6.
+    intros.
+    rewrite local_lift2_and.
+    simpl.
+    repeat try apply andp_right.
+    - apply andp_left1; cancel.
+    - eapply derives_trans; [exact (H6 x) |exact (H5 x)].
+    - apply andp_left2; apply andp_left1; cancel.
+    - apply andp_left2; apply andp_left2; cancel.
+  + rewrite <- insert_local.
+    unfold local, lift1.
+Opaque eval_expr.
+    simpl; intros.
+    remember PROPx.
+    normalize.
+    subst m.
+    unfold liftx, lift in H6; simpl in H6.
+Transparent eval_expr.
+    subst v.
+    apply replace_nth_SEP'.
+    unfold liftx, lift. cancel.
+Qed.
