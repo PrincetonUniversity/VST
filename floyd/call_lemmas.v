@@ -185,7 +185,7 @@ apply andp_derives; auto.
 apply andp_derives; auto.
 intro rho; simpl.
 subst.
-autorewrite with norm. repeat rewrite prop_and.
+norm_rewrite. repeat rewrite prop_and.
 apply andp_right.
 apply prop_right. hnf.
 simpl.
@@ -201,7 +201,7 @@ intro rho.
 simpl.
 rewrite sepcon_comm.
 rewrite sepcon_assoc.
-autorewrite with norm.
+norm_rewrite.
 apply sepcon_derives; auto.
 rewrite sepcon_comm.
 apply sepcon_derives; auto.
@@ -238,7 +238,7 @@ apply andp_derives; auto.
 apply andp_derives; auto.
 intro rho; simpl.
 subst.
-autorewrite with norm. repeat rewrite prop_and.
+norm_rewrite. repeat rewrite prop_and.
 apply andp_right.
 apply prop_right. hnf.
 simpl.
@@ -253,7 +253,7 @@ simpl.
 intro rho.
 rewrite sepcon_comm.
 rewrite sepcon_assoc.
-autorewrite with norm.
+norm_rewrite.
 apply sepcon_derives; auto.
 rewrite sepcon_comm.
 apply sepcon_derives; auto.
@@ -414,7 +414,7 @@ apply andp_derives; auto.
 apply andp_derives; auto.
 intro rho; simpl.
 subst.
-autorewrite with norm. repeat rewrite prop_and.
+norm_rewrite. repeat rewrite prop_and.
 apply andp_right.
 apply prop_right. hnf.
 simpl.

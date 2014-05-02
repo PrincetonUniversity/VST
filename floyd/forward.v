@@ -1364,7 +1364,7 @@ Ltac normalize_make_args :=
  repeat rewrite subst_make_args1;
  let R' := fresh "R" in evar (R': environ->mpred);
    apply focus_make_args with R';
-  [autorewrite with norm; unfold R'; reflexivity
+  [norm_rewrite; unfold R'; reflexivity
   | unfold R'; clear R'].
 
 Ltac forward_call W := 
@@ -1722,7 +1722,7 @@ match goal with
   unfold number_list, n, sh, contents, lo, hi;
   clear n sh contents lo hi;
   [solve [auto] | reflexivity | reflexivity | reflexivity
-  | autorewrite with norm; try reflexivity;
+  | norm_rewrite; try reflexivity;
     fail 4 "Cannot prove 6th premise of semax_store_array"
   | ]
  | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
