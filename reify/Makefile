@@ -114,7 +114,8 @@ VFILES:=do_computation.v\
   preproc.v\
   expr_equality.v\
   congruence_prover.v\
-  instantiate_lemmas.v
+  instantiate_lemmas.v\
+  sumarray_defs.v
 
 -include $(addsuffix .d,$(VFILES))
 .SECONDARY: $(addsuffix .d,$(VFILES))

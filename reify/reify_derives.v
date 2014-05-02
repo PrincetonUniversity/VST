@@ -61,8 +61,14 @@ match goal with
 [ |- context[ map ?a _ ]] => let mp := fresh "map_" in pose (mp := map a); fold mp; assert (folded mp) by apply I
 end.
 
+Ltac fold_aa :=
+match goal with
+[ |- context[array_at ?t _ _ _ _ _]] => let aa := fresh "aa_" in pose (aa := array_at t);
+change (array_at t) with aa; assert (folded aa) by apply I
+end.
+
 Ltac fold_dependent :=
-  (*try fold_lseg;*) try fold_map.
+  (*try fold_lseg;*) try fold_map; try fold_aa.
 
 Ltac unfold_dependent :=
 repeat

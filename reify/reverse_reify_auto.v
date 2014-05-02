@@ -1,11 +1,6 @@
 Require Import floyd.proofauto.
-Require Import progs.reverse.
-Require Import progs.list_dt.
-Require Import reverse_defs.
 Require Import mirror_cancel.
-Require Import ExtLib.Tactics.
-Require Import hints.
-Require Import preproc.
+Require Import reverse_defs.
 
 Local Open Scope logic.
 

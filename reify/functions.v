@@ -206,8 +206,6 @@ Expr.Sig all_types (tc_assert_tv :: environ_tv :: nil) bool_tv denote_tc_assert_
 Definition nullval_signature :=
 Expr.Sig all_types nil val_tv assert_lemmas.nullval.
 
-Require Import lseg_lemmas.
-
 Definition tptr_signature :=
 Expr.Sig all_types (c_type_tv :: nil) c_type_tv Clightdefs.tptr.
 
@@ -221,6 +219,11 @@ Expr.Sig all_types nil c_type_tv reverse.t_struct_list.
 
 Definition reverse__tail_signature :=
 Expr.Sig all_types nil ident_tv reverse._tail.
+
+Definition lift_eq a b : environ -> Prop := `(eq a) (eval_id b).
+
+Definition lift_eq_signature :=
+Expr.Sig all_types (val_tv :: ident_tv :: nil) lift_prop_tv lift_eq.
 
 (* This way we don't have to deal with tons of close-parens at the end 
  * Important, since functions is a long list. *)
@@ -285,6 +288,7 @@ Definition non_computable_functions :=
 ; eval_id_signature
 ; True_signature
 ; False_signature
+; lift_eq_signature
 ].
 
 Definition our_functions := 
@@ -357,7 +361,7 @@ Definition tc_environ_f := length computable_functions.
 Definition eval_id_f := S (tc_environ_f).
 Definition True_f := S (eval_id_f).
 Definition False_f := S (True_f).
-
+Definition lift_eq_f := S(False_f).
 
 (*Separation Logic predicates *)
 Definition field_at_psig :=
