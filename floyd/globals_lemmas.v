@@ -4,6 +4,7 @@ Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
 Require Import floyd.malloc_lemmas.
 Require Import floyd.array_lemmas.
+Require Import floyd.closed_lemmas.
 Local Open Scope logic.
 
 Fixpoint fold_right_sepcon' (l: list(environ->mpred)) : environ -> mpred :=

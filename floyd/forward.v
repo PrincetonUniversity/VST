@@ -2,6 +2,7 @@ Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
+Require Import floyd.closed_lemmas.
 Require Import floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
 Require Import floyd.loadstore_lemmas.
 Require Import floyd.malloc_lemmas.

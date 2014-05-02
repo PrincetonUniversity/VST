@@ -1365,44 +1365,6 @@ Hint Rewrite eval_id_same : go_lower.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : go_lower.
 Hint Rewrite Vint_inj' : go_lower.
 
-Lemma closed_wrt_PROPx:
- forall S P Q, closed_wrt_vars S Q -> closed_wrt_vars S (PROPx P Q).
-Proof.
-intros.
-apply closed_wrt_andp; auto.
-hnf; intros. reflexivity.
-Qed.
-Hint Resolve closed_wrt_PROPx: closed.
-
-Lemma closed_wrt_LOCALx:
- forall S Q R, Forall (fun q => closed_wrt_vars S (local q)) Q -> 
-                    closed_wrt_vars S R -> 
-                    closed_wrt_vars S (LOCALx Q R).
-Proof.
-intros.
-apply closed_wrt_andp; auto.
-clear - H.
-induction Q; simpl; intros.
-auto with closed.
-normalize.
-inv H.
-apply closed_wrt_andp; auto with closed.
-Qed.
-Hint Resolve closed_wrt_LOCALx: closed.
-
-Lemma closed_wrt_SEPx: forall S P, 
-     Forall (closed_wrt_vars S) P -> closed_wrt_vars S (SEPx P).
-Proof.
-intros.
-induction P; auto.
-hnf; intros; reflexivity.
-inv H.
-unfold SEPx.
-rewrite fold_right_cons.
-apply closed_wrt_sepcon; auto.
-Qed.
-Hint Resolve closed_wrt_SEPx: closed.
-
 Lemma local_unfold: forall P rho, local P rho = !! (P rho).
 Proof. reflexivity. Qed.
 Hint Rewrite local_unfold : norm.
