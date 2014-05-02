@@ -118,6 +118,7 @@ LINKING_FILES= \
   linking_spec.v \
   linking_proof.v \
   stacking.v \
+  context_equiv.v 
   #dep_linking_proof.v 
 
 COMPCOMP_FILES= \
