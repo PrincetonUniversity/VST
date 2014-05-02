@@ -112,6 +112,9 @@ LINKING_FILES= \
   compcert_linking.v \
   linking_lemmas.v \
   compcert_linking_lemmas.v \
+  linking_inv.v \
+  call_lemmas.v \
+  ret_lemmas.v \
   linking_spec.v \
   linking_proof.v \
   stacking.v \

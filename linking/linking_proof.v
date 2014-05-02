@@ -27,6 +27,9 @@ Require Import linking.compcert_linking_lemmas.
 Require Import linking.disjointness.
 Require Import linking.rc_semantics.
 Require Import linking.rc_semantics_lemmas.
+Require Import linking.linking_inv.
+Require Import linking.call_lemmas.
+Require Import linking.ret_lemmas.
 
 (* compcert imports *)
 
@@ -1596,47 +1599,6 @@ by move/match_sm_wd=> wd _ _ _ _ _; rewrite eq.
 Qed.
 
 End R_lems.
-
-Section initCore_lems.
-
-Context (my_cores : 'I_N -> t) c1 ix v vs 
-        (init1 : initCore my_cores ix v vs = Some c1).
-
-Lemma initCore_ix : ix = Core.i c1.
-Proof.
-move: init1; rewrite /init1 /initCore.
-by case: (core_semantics.initial_core _ _ _ _)=> // c; 
-  case; case: c1=> ? ?; case.
-Qed.
-
-End initCore_lems.
-
-Section initCore_lems2.
-
-Context c1 ix v vs (init1 : initCore cores_S ix v vs = Some c1).
-
-Lemma initCore_args : RC.args (Core.c c1) = vs.
-Proof.
-move: init1; rewrite /initCore /= /RC.initial_core.
-case: (initial_core _ _ _ _)=> // c. 
-by case; case: c1=> ?; case=> ? ? ? ? /=; case=> _ _ ->.
-Qed.
-
-Lemma initCore_rets : RC.rets (Core.c c1) = [::].
-Proof.
-move: init1; rewrite /initCore /= /RC.initial_core.
-case: (initial_core _ _ _ _)=> // c. 
-by case; case: c1=> ?; case=> ? ? ? ? /=; case=> _ _ _ ->.
-Qed.
-
-Lemma initCore_locs : RC.locs (Core.c c1) = (fun _ => false).
-Proof.
-move: init1; rewrite /initCore /= /RC.initial_core.
-case: (initial_core _ _ _ _)=> // c. 
-by case; case: c1=> ?; case=> ? ? ? ? /=; case=> _ _ _ _ ->.
-Qed.
-
-End initCore_lems2.
 
 Section call_lems.
 

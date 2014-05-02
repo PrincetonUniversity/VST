@@ -579,3 +579,10 @@ rewrite replace_locals_DomTgt.
 rewrite replace_locals_as_inj.
 by [].
 Qed.
+
+Lemma vis_sub_DomSrc (mu0 : Inj.t) : {subset vis mu0 <= DomSrc mu0}.
+Proof.
+move=> b; case/orP; rewrite /DomSrc.
+by rewrite /in_mem /= => ->.
+by move/frgnsrc_sub_extsrc=> H; apply/orP; right.
+Qed.
