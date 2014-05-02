@@ -3270,7 +3270,6 @@ by apply: ORD. } (*end [Label: matching execution]*)
 } (*end [Subcase: corestep0]*)
 
 move=> []<- []NSTEP.
-case CTXT: (inContext st1)=> //.
 case AT1: (LinkerSem.at_external0 st1)=> [[[ef1 sig1] args1]|].
 
 {(*[Subcase: at_external0]*)
@@ -3286,11 +3285,11 @@ left; exists O=> /=; exists st2',m2,empty_U,empty_U; split=> //.
 constructor=> //. 
 right; split=> //; split=> //.
 by move/LinkerSem.corestep_not_at_external0; rewrite AT2.
-have in_ctx2: inContext st2 by apply: (R_inContext INV).
-by rewrite in_ctx2 AT2 FID HDL2.
+by rewrite AT2 FID HDL2.
 by move/LinkerSem.corestep_not_at_external0; rewrite AT2.
 }(*end [Subcase: at_external0]*)
 
+case CTXT: (inContext st1)=> //.
 case HLT1: (LinkerSem.halted0 st1)=> [rv|].
 
 {(*[Subcase: halted0]*)

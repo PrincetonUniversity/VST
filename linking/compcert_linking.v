@@ -513,7 +513,7 @@ Definition corestep
   (** 2- We're in a function call context. In this case, the running core is either *)
   (m=m' 
    /\ ~corestep0 l m l' m' 
-   /\ if inContext l then 
+   /\
 
       (** 3- at_external, in which case we push a core onto the stack to handle 
          the external function call (or this is not possible because no module 
@@ -528,6 +528,7 @@ Definition corestep
       (** 4- or halted, in which case we pop the halted core from the call stack
          and inject its return value into the caller's corestate. *)
 
+      if inContext l then 
       if halted0 l is Some rv then
       if popCore l is Some l0 then 
       if after_external (Some rv) l0 is Some l'' then l'=l'' 
@@ -549,8 +550,6 @@ Inductive Corestep (ge : ge_ty) : linker N my_cores -> mem
 | Corestep_call :
   forall (l : linker N my_cores) m ef dep_sig args id d_ix d
          (pf : all (atExternal my_cores) (CallStack.callStack l)),
-
-  1 < CallStack.callStackSize (stack l) -> 
 
   let: c := peekCore l in
   let: c_ix  := Core.i c in
@@ -597,19 +596,19 @@ by left; exists c'; split.
 right; split=> //.
 split=> //.
 rewrite /corestep0=> [][]c' []step.
-by rewrite (corestep_not_at_external _ _ _ _ _ _ step) in H1.
-rewrite /inContext A /at_external0 H1 H2.
+by rewrite (corestep_not_at_external _ _ _ _ _ _ step) in A.
+rewrite /inContext /at_external0 A H1.
 case e: (handle _ _ _)=> //[l'|].
 move: e; case/handleP=> pf' []ix' []c []C D ->.
 move: D; rewrite /initCore.
-rewrite H3 in C; case: C=> eq; subst ix'.
-by rewrite H4; case=> <-; f_equal; apply: proof_irr.
+rewrite H2 in C; case: C=> eq; subst ix'.
+by rewrite H3; case=> <-; f_equal; apply: proof_irr.
 move: e; rewrite/handle /pushCore.
 generalize (stack_push_wf l).
 pattern (all (atExternal my_cores) (CallStack.callStack (stack l))) 
  at 1 2 3 4 5 6.
 case f: (all _ _)=> pf'.
-rewrite H3 /initCore H4; discriminate.
+rewrite H2 /initCore H3; discriminate.
 by rewrite pf in f.
 right; split=> //.
 split=> //.
@@ -636,7 +635,6 @@ case=> c []step ->.
 by apply: Corestep_step.
 case=> <-.
 case=> nstep.
-case inCtx: (inContext _)=> //.
 case atext: (at_external0 _)=> [[[ef dep_sig] args]|//].
 case funid: (fun_id ef)=> [id|//].
 case hdl:   (handle id l args)=> [l''|//] ->.
@@ -644,6 +642,7 @@ move: hdl; case/handleP=> pf []ix []c []fntbl init ->.
 move: init; rewrite /initCore.
 case init: (core_semantics.initial_core _ _ _ _)=> [c'|//]; case=> <-. 
 by apply: (@Corestep_call _ _ _ ef dep_sig args id).
+case inCtx: (inContext _)=> //.
 case hlt: (halted0 _)=> [rv|//].
 case pop: (popCore _)=> [c|//].
 case aft: (after_external _ _)=> [l''|//] ->.
@@ -676,8 +675,7 @@ Lemma corestep_not_at_external ge m c m' c' :
 Proof.
 rewrite/corestep/at_external.
 move=> [H|[_ [_ H]]]; first by move: H; move/corestep_not_at_external0=> /= ->.
-move: H; case Hcx: (inContext _)=>//.
-case Heq: (at_external0 c)=>[[[ef sig] args]|//].
+move: H; case Heq: (at_external0 c)=>[[[ef sig] args]|//].
 move: Heq; case: (at_external_halted_excl0 c)=> [H|H]; first by rewrite H.
 by move=> H2; case: (fun_id ef)=>// id; case: (handle _ _ _).
 Qed.
@@ -694,9 +692,11 @@ Qed.
 Lemma corestep_not_halted ge m c m' c' :
   corestep ge c m c' m' -> halted c = None.
 Proof. 
-rewrite/corestep/halted.
+rewrite/corestep.
 move=> [H|[_ [_ H]]]; first by move: H; move/corestep_not_halted0.
-by move: H; case Hcx: (inContext _).
+move: H; case Hat: (at_external0 _)=> [x|//].
+by rewrite (at_external0_not_halted _ Hat).
+by rewrite /halted; case Hcx: (inContext _).
 Qed.
 
 Lemma at_external_halted_excl c :
