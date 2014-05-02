@@ -34,6 +34,10 @@ Require Import linking.cast.
 (* gss      : (i : 'I_N) (x : types i) (d : t), get i (set i x d) = x     *)
 (* gso      : (i j : 'I_N) (x : types i) (d : t),                         *)
 (*            i <> j -> get j (set i x d) = get j d                       *)
+(*                                                                        *)
+(* In addition, it defines a WF order on the \Sigma-type                  *)
+(*   \Sigma ix : 'I_N. T ix                                               *)
+
 
 Lemma ord_dec (N : nat) (i j : 'I_N) : {i=j} + {~i=j}.
 Proof. 

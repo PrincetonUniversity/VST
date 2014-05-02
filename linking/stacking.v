@@ -224,12 +224,20 @@ pattern pf at 0.
 by case: (fold_stack _)=> // d pf'; case=> <-. }
 
 { move=> l m ef dep_sig args id d_ix d pf.
-move=> sz atext fnid fntbl init fld; rewrite /pushCore.
+move=> atext fnid fntbl init fld; rewrite /pushCore.
 move: (stack_push_wf l) pf.
 pattern (all (atExternal semantics) (CallStack.callStack (Linker.stack l))) 
  at 0 1 2.
-move: sz atext fntbl fld; case: l=> /= fn_tbl; case=> /=; case=> // a.
-case=> // b l pf lt atext fntbl fld IH all_atext; rewrite fld.
+move: atext fntbl fld; case: l=> /= fn_tbl; case=> /=; case=> // a.
+case=> //.
+move=> pf atext fntbl fld IH all_atext; rewrite fld.
+exists (op mon d c); split=> //.
+move: fnid; rewrite /LinkerSem.fun_id; case: ef atext=> // id' sig atext.
+case=> eq; subst id'.
+apply: (@Stacking_monoid_ok.call _ _ _ mon _ mon_ok
+        _ (EF_external id sig) dep_sig sig args d _ id)=> //.
+by move: atext; move: fld; case=> <-.
+move=> b l pf atext fntbl fld IH all_atext; rewrite fld.
 exists (op mon d c); split=> //.
 move: fnid; rewrite /LinkerSem.fun_id; case: ef atext=> // id' sig atext.
 case=> eq; subst id'.
@@ -237,7 +245,7 @@ apply: (@Stacking_monoid_ok.call _ _ _ mon _ mon_ok
         _ (EF_external id sig) dep_sig sig args d _ id)=> //.
 move: atext=> /=.
 have x: is_true (0 < size [:: b & l]) by [].
-move: fld; rewrite (@fold_stack_consE a (b :: l) x); case=> <-.
+move: fld; rewrite (@fold_stack_consE a [:: b & l] x); case=> <-.
 by apply: (Stacking_monoid_ok.atext_congr mon_ok). }
 
 { Opaque fold_stack.

@@ -376,8 +376,7 @@ Definition corestep
   (** 2- We're in a function call context. In this case, the running core is either *)
   (m=m' 
    /\ ~corestep0 l m l' m' 
-   /\ if inContext l then 
-
+   /\ 
       (** 3- at_external, in which case we push a core onto the stack to handle 
          the external function call (or this is not possible because no module 
          handles the external function id, in which case the entire linker is 
@@ -391,6 +390,7 @@ Definition corestep
       (** 4- or halted, in which case we pop the halted core from the call stack
          and inject its return value into the caller's corestate. *)
 
+      if inContext l then 
       if halted0 l is Some rv then
       if popCore l is Some l0 then 
       if after_external (Some rv) l0 is Some l'' then l'=l'' 
@@ -417,8 +417,7 @@ Lemma corestep_not_at_external ge m c m' c' :
 Proof.
 rewrite/corestep/at_external.
 move=> [H|[_ [_ H]]]; first by move: H; move/corestep_not_at_external0=> /= ->.
-move: H; case Hcx: (inContext _)=>//.
-case Heq: (at_external0 c)=>[[[ef sig] args]|//].
+move: H; case Heq: (at_external0 c)=>[[[ef sig] args]|//].
 move: Heq; case: (at_external_halted_excl0 c)=> [H|H]; first by rewrite H.
 by move=> H2; case: (fun_id ef)=>// id; case: (handle _ _ _).
 Qed.
@@ -435,9 +434,11 @@ Qed.
 Lemma corestep_not_halted ge m c m' c' :
   corestep ge c m c' m' -> halted c = None.
 Proof. 
-rewrite/corestep/halted.
+rewrite/corestep.
 move=> [H|[_ [_ H]]]; first by move: H; move/corestep_not_halted0.
-by move: H; case Hcx: (inContext _).
+move: H; case Hat: (at_external0 _)=> [x|//].
+by rewrite (at_external0_not_halted _ Hat).
+by rewrite /halted; case Hcx: (inContext _).
 Qed.
 
 Lemma at_external_halted_excl c :

@@ -73,3 +73,39 @@ Axiom link : forall
   Wholeprog_simulation linker_S linker_T ge_top ge_top main.
 
 End LINKING_SIMULATION.
+                                                                      
+(* Module LINKING_COROLLARIES (LS : LINKING_SIMULATION).                  *)
+(*                                                                        *)
+(* Import LS.                                                             *)
+(*                                                                        *)
+(* Lemma pos_incr' (p : pos) : (0 < (p+1))%nat.                           *)
+(* Proof. omega. Qed.                                                     *)
+(*                                                                        *)
+(* Definition pos_incr (p : pos) := mkPos (pos_incr' p).                  *)
+(*                                                                        *)
+(* Lemma context_equiv : forall                                           *)
+(*   (N0 : pos)                                                           *)
+(*   (sems_S0 sems_T0 : 'I_N0 -> Modsem.t)                                *)
+(*   (nucular_T0 : forall ix : 'I_N0, Nuke_sem.t (sems_T0 ix).(sem))      *)
+(*   (plt : ident -> option 'I_N0)                                        *)
+(*   (sims0 : forall ix : 'I_N0,                                          *)
+(*     let s := sems_S ix in                                              *)
+(*     let t := sems_T ix in                                              *)
+(*     SM_simulation_inject s.(sem) t.(sem) s.(ge) t.(ge))                *)
+(*   (ge_top : ge_ty)                                                     *)
+(*   (domeq_S : forall ix : 'I_N0, genvs_domain_eq ge_top (sems_S ix).(ge)) *)
+(*   (domeq_T : forall ix : 'I_N0, genvs_domain_eq ge_top (sems_T ix).(ge)), *)
+(*   let sems_S (ix : 'I_N0) :=                                           *)
+(*     Modsem.mk (sems_S ix).(ge) (RC.effsem (sems_S ix).(sem)) in forall *)
+(*   (C : Modesem.t)                                                      *)
+(*   (sim_C : SM_simulation_inject C.(sem) C.(sem) C.(ge) C.(ge))         *)
+(*   (domeq_C : genvs_domain_eq ge_top C.(ge)),                           *)
+(*   let sims := fun                                                      *)
+(*                                                                        *)
+(*   let linker_S := effsem N sems_S plt in                               *)
+(*   let linker_T := effsem N sems_T plt in forall                        *)
+(*   (main : val),                                                        *)
+  
+  
+
+
