@@ -28,8 +28,8 @@ Require Import linking.disjointness.
 Require Import linking.rc_semantics.
 Require Import linking.rc_semantics_lemmas.
 Require Import linking.linking_inv.
-Require Import linking.call_lemmas.
-Require Import linking.ret_lemmas.
+(*Require Import linking.call_lemmas.
+Require Import linking.ret_lemmas.*)
 
 (* compcert imports *)
 
@@ -3063,7 +3063,7 @@ eapply Build_Wholeprog_simulation
   by case: (Integers.Int.eq _ _). }(*END [Case: core_initial]*)
     
 {(*[Case: diagram]*)
-move=> st1 m1 st1' m1' U1 STEP data st2 mu m2 U1_DEF INV.
+move=> st1 m1 st1' m1' U1 STEP data st2 mu m2 INV. 
 case: STEP=> STEP STEP_EFFSTEP; case: STEP.
 
 {(*[Subcase: corestep0]*)
@@ -3104,10 +3104,20 @@ move/(_ _ _ _ _ _ EFFSTEP).
 case: (R_inv INV)=> pf []mupkg []mus []mu_eq.
 move=> []pf2 hdinv tlinv.
 
-have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b. 
-{ by move=> b ofs U; rewrite -mu_eq; apply: (U1_DEF _ _ U). }
-
 move: (head_match hdinv)=> MATCH.
+
+have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b. 
+{ move=> b ofs U; move: (U1'_EQ b ofs U)=> H.
+  apply match_visible in MATCH; apply: MATCH.
+  apply (REACH_mono (fun b => 
+    b \in RC.roots (ge (cores_S (Core.i c1))) (Core.c c1)))=> //.
+  move=> b0 roots; case: (head_vis hdinv); apply.
+  have ->: Core.c (c INV) = Core.c c1.
+  { by rewrite /c /c1 /peekCore /s1. }
+  apply: (RC.roots_domains_eq 
+    (ge1 := ge (cores_S (Core.i c1))) (ge2 := my_ge))=> //.
+  by apply: genvs_domain_eq_sym; apply: my_ge_S. }
+
 move/(_ _ _ _ _ U1_DEF' MATCH).
 move=> []c2' []m2' []cd' []mu_top0.
 move=> []INCR []SEP []LOCALLOC []MATCH' []U2 []STEP' PERM.

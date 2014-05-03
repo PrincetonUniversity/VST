@@ -104,4 +104,24 @@ specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
 eapply safe_corestep_backward; eauto.
 Qed.
 
+Lemma corestep_star_fun : 
+  corestep_fun sem -> 
+  forall c m c' m' c'' m'' n,
+  corestepN sem ge n c m c' m' -> 
+  corestepN sem ge n c m c'' m'' -> 
+  c'=c'' /\ m'=m''.
+Proof.
+intro FUN. intros. revert c m H H0. induction n; auto.
+simpl. intros ? ?. inversion 1; subst. inversion 1; subst. 
+split; auto.
+simpl.
+intros c m H H2.
+destruct H as [c2 [m2 [STEP STEPN]]].
+destruct H2 as [c2' [m2' [STEP' STEPN']]].
+assert (c2 = c2' /\ m2 = m2').
+  unfold corestep_fun in FUN. eapply FUN; eauto.
+inv H.
+eapply IHn; eauto.
+Qed.
+
 End closed_safety.

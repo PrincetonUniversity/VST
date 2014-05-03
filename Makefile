@@ -88,6 +88,7 @@ SEPCOMP_FILES= \
   nucular_semantics.v \
   effect_simulationsEXP.v \
   wholeprog_simulations.v \
+  wholeprog_lemmas.v \
   barebones_simulations.v \
   dep_effect_simulationsEXP.v \
   dep_wholeprog_simulations.v 

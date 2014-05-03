@@ -62,8 +62,7 @@ Record Wholeprog_simulation :=
     forall st1 m1 st1' m1' U1, 
     effstep Sem1 ge1 U1 st1 m1 st1' m1' ->
 
-    forall cd st2 mu m2
-           (UHyp: forall b1 z, U1 b1 z = true -> vis mu b1 = true),
+    forall cd st2 mu m2,
     match_state cd mu st1 m1 st2 m2 ->
     exists st2', exists m2', exists cd', exists mu',
     match_state cd' mu' st1' m1' st2' m2' 
