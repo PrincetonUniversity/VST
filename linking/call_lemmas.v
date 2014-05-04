@@ -127,13 +127,6 @@ have X: (P (Core.i (c inv)) (cast'' pf (Core.c (d inv)))).
 by apply: (cast_indnatdep' X).
 Qed.
 
-Lemma vis_sub_DomSrc (mu0 : Inj.t) : {subset vis mu0 <= DomSrc mu0}.
-Proof.
-move=> b; case/orP; rewrite /DomSrc.
-by rewrite /in_mem /= => ->.
-by move/frgnsrc_sub_extsrc=> H; apply/orP; right.
-Qed.
-
 Import CallStack.
 
 Require Import sepcomp.compcert. Import CompcertLibraries.
