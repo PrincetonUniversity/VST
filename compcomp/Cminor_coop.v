@@ -154,11 +154,11 @@ Inductive CMin_corestep (ge : genv) : CMin_core -> mem -> CMin_core -> mem -> Pr
        (CMin_Callstate fd vargs (call_cont k)) m'
 
 (* WE DO NOT TREAT BUILTINS *)
-(*  | cmin_corestep_builtin: forall f optid ef bl k sp e m vargs t vres m',
+  | cmin_corestep_builtin: forall f optid ef bl k sp e m vargs t vres m',
       eval_exprlist ge sp e m bl vargs ->
       external_call ef ge vargs m t vres m' ->
       CMin_corestep ge (CMin_State f (Sbuiltin optid ef bl) k sp e) m
-         (CMin_State f Sskip k sp (set_optvar optid vres e)) m'*)
+         (CMin_State f Sskip k sp (set_optvar optid vres e)) m'
 
   | cmin_corestep_seq: forall f s1 s2 k sp e m,
       CMin_corestep ge (CMin_State f (Sseq s1 s2) k sp e) m
@@ -278,7 +278,7 @@ Lemma CMin_forward : forall g c m c' m' (CS: CMin_corestep g c m c' m'),
           eapply store_forward; eassumption. 
          eapply free_forward; eassumption.
          (*builtin*) 
-          (*eapply external_call_mem_forward; eassumption.*)
+          eapply external_call_mem_forward; eassumption.
          eapply free_forward; eassumption.
          eapply free_forward; eassumption.
          eapply alloc_forward; eassumption. 

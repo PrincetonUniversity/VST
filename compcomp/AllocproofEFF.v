@@ -2,7 +2,7 @@
 (*                                                                     *)
 (*              The Compcert verified compiler                         *)
 (*                                                                     *)
-(*          Xavier Leroy, INRIA Paris-Rocquencourt                     *)
+(*          Xavier Leroy, IRIA Paris-Rocquencourt                     *)
 (*                                                                     *)
 (*  Copyright Institut National de Recherche en Informatique et en     *)
 (*  Automatique.  All rights reserved.  This file is distributed       *)
@@ -4547,8 +4547,8 @@ simpl in LD4.
       destruct H1 as [_ LOC].
       destruct (local_DomRng _ WD _ _ _ LOC). rewrite H4 in H3; inv H3.
    destruct (restrictD_Some _ _ _ _ _ H7); clear H7.
-     apply Mem.store_valid_access_3 in STORE1. 
-     clear - H1 STORE1 MInj H2.
+   apply Mem.store_valid_access_3 in H5.
+     clear - H1 H5 MInj H2.
       repeat rewrite encode_val_length in H2. repeat rewrite <- size_chunk_conv in H2.
       assert (DD: delta >= 0 /\ 0 <= Int.unsigned i + delta <= Int.max_unsigned).
                  eapply MInj. apply H1. left.
@@ -4570,39 +4570,59 @@ simpl in LD4.
          destruct (zlt ofs (Int.unsigned i + delta + 4)); try inv BB. clear BB.
            rewrite Int.add_unsigned, URdelta, (Int.unsigned_repr _ DD2) in g.
            omega.
-       split.
-         destruct (zle (Int.unsigned i) (ofs - delta)); simpl.
-           destruct (zlt (ofs - delta)
-                         (Int.unsigned i + Z.of_nat (length (encode_val Mint64 rs # src)))); trivial.
-           exfalso.
-           clear Range. rewrite encode_val_length in g. simpl in g. destruct Arith; simpl in *. clear -g H0. omega.
-           destruct Arith. clear - g H. omega.
-         eapply Mem.perm_implies. eapply Mem.perm_max.
-           eapply STORE1. assumption. constructor.
-       admit. (*probably similar
-       assert (Arith: Int.unsigned i + 4 <= ofs - delta < Int.unsigned i + 8 + size_chunk Mint32).
+         split.
+           destruct (zle (Int.unsigned i) (ofs - delta)); simpl.
+             destruct (zlt (ofs - delta)
+                           (Int.unsigned i + Z.of_nat (length (encode_val Mint64 rs # src)))); trivial.
+             exfalso.
+               clear Range. rewrite encode_val_length in g. simpl in g. destruct Arith; simpl in *. clear -g H0. omega.
+             destruct Arith. clear - g H. omega.
+           eapply Mem.perm_implies. eapply Mem.perm_max.
+             eapply H5. simpl in *. omega. constructor.
+       rewrite Int.add_unsigned in Range.
+       rewrite (Int.add_unsigned i) in Range.
+       rewrite Int.unsigned_repr in Range.
+       specialize (Int.unsigned_repr _ DD2). intros.
          specialize (Int.unsigned_range i); intros I.
          assert (URdelta: Int.unsigned (Int.repr delta) = delta).
             apply Int.unsigned_repr. split. omega. omega.
-         rewrite Int.add_unsigned in Range. 
-         rewrite (Int.unsigned_repr _ DD2) in Range. simpl.
-         destruct Range as [AA BB];
-         destruct (zle (Int.unsigned i + delta) ofs); try inv AA. clear AA.
-         destruct (zlt ofs (Int.unsigned (Int.add i (Int.repr delta)) + 4)); try inv BB. clear BB.
-           rewrite Int.add_unsigned, URdelta, (Int.unsigned_repr _ DD2) in l0.
-           omega.
-         destruct (zlt ofs (Int.unsigned i + delta + 4)); try inv BB. clear BB.
-           rewrite Int.add_unsigned, URdelta, (Int.unsigned_repr _ DD2) in g.
-           omega.
-       split.
-         destruct (zle (Int.unsigned i) (ofs - delta)); simpl.
-           destruct (zlt (ofs - delta)
-                         (Int.unsigned i + Z.of_nat (length (encode_val Mint64 rs # src)))); trivial.
-           exfalso.
-           clear Range. rewrite encode_val_length in g. simpl in g. destruct Arith; simpl in *. clear -g H0. omega.
-           destruct Arith. clear - g H. omega.
-         eapply Mem.perm_implies. eapply Mem.perm_max.
-           eapply STORE1. assumption. constructor.*)
+       rewrite URdelta in Range.
+       assert (UR4: Int.unsigned (Int.repr 4) = 4).
+                    specialize (Int.unsigned_range_2 (Int.repr 4)). intros.
+         rewrite Int.unsigned_repr. trivial. simpl in *. split. omega.
+         specialize (Int.two_p_range 2). simpl. unfold two_power_pos, shift_pos.
+            simpl. intros. eapply H2. unfold  Int.zwordsize, Int.wordsize, Wordsize_32.wordsize. simpl. omega.
+       rewrite UR4 in *. rewrite Int.unsigned_repr in Range. 
+       destruct Range as [AA BB].
+       destruct (zle (Int.unsigned i + delta + 4) ofs); try inv AA. clear AA.
+       destruct (zlt ofs (Int.unsigned i + delta + 4 + 4)); try inv BB. clear BB.
+       split. rewrite encode_val_length; simpl.
+              destruct (zle (Int.unsigned i) (ofs - delta)); simpl; trivial.
+                 destruct (zlt (ofs - delta) (Int.unsigned i + 8)); simpl; trivial.
+                 clear - g l0. omega. omega.
+           eapply Mem.perm_implies. eapply Mem.perm_max.
+             eapply H5. simpl. split. omega. omega. constructor.
+        assumption.
+admit. (*TODO: correct this:
+       assert (UR4: Int.unsigned (Int.repr 4) = 4).
+                    specialize (Int.unsigned_range_2 (Int.repr 4)). intros.
+         rewrite Int.unsigned_repr. trivial. simpl in *. split. omega.
+         specialize (Int.two_p_range 2). simpl. unfold two_power_pos, shift_pos.
+            simpl. intros. eapply H0. unfold  Int.zwordsize, Int.wordsize, Wordsize_32.wordsize. simpl. omega. 
+        split. specialize (Int.unsigned_range (Int.repr (Int.unsigned i + Int.unsigned (Int.repr delta)))). intros.
+               specialize (Int.unsigned_range (Int.repr 4)); intros. omega.
+        destruct Range as [AA BB]. destruct H5. simpl in *.
+         assert (URdelta: Int.unsigned (Int.repr delta) = delta).
+            apply Int.unsigned_repr. split. omega. 
+            specialize (Int.unsigned_range i); intros I. omega.
+        rewrite URdelta in *; trivial.
+        exploit (H (Int.unsigned i + 4)). omega.
+        clear AA BB; intros. 
+        exploit Mem.address_inject; try eassumption.
+        Focus 2. intros. rewrite Int.add_unsigned in H3.
+                   rewrite URdelta in H3. rewrite H3.
+        rewrite <- Zplus_assoc. rewrite (Zplus_comm delta), Zplus_assoc.
+        rewrite UR4.*)
      
 (* call *)
 - set (sg := RTL.funsig fd) in *.

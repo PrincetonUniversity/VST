@@ -1465,7 +1465,7 @@ Proof.
            apply call_cont_commut; auto.
            eapply inject_restrict; eassumption.
          intuition.
-  (* Sbuiltin 
+  (* Sbuiltin *) admit. (*TODO: Sbuiltin
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.
       destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
@@ -2419,7 +2419,7 @@ induction CS; simpl in *.
          apply FreeEffectD in H5. destruct H5 as [? [VB Arith2]]; subst.
            eapply visPropagateR; eassumption.
       eapply FreeEffect_PropagateLeft; eassumption.         
-  (* Sbuiltin TODO, but see above , in diagram case without effects*)
+  (* Sbuiltin *) admit. (*TODO, but see above , in diagram case without effects*)
   (* Seq *)
       destruct MC as [SMC PRE].
       inv SMC; simpl in *.

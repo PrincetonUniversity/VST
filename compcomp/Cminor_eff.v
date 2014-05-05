@@ -14,6 +14,8 @@ Require Import sepcomp.effect_semantics.
 Require Import Cminor.
 Require Import Cminor_coop.
 
+Require Import BuiltinEffects.
+
 Inductive cmin_effstep (g: Cminor.genv):  (block -> Z -> bool) ->
             CMin_core -> mem -> CMin_core -> mem -> Prop :=
 
@@ -61,11 +63,13 @@ Inductive cmin_effstep (g: Cminor.genv):  (block -> Z -> bool) ->
          (CMin_Callstate fd vargs (call_cont k)) m'
 
 (* WE DO NOT TREAT BUILTINS *)
-(*| cmin_effstep_builtin: forall f optid ef bl k sp e m vargs t vres m',
+| cmin_effstep_builtin: forall f optid ef bl k sp e m vargs t vres m',
       eval_exprlist g sp e m bl vargs ->
       external_call ef g vargs m t vres m' ->
-      cmin_effstep g (BuiltinEffect g (ef_sig ef) vargs m) (CMin_State f (Sbuiltin optid ef bl) k sp e) m
-          (CMin_State f Sskip k sp (set_optvar optid vres e)) m'*)
+      cmin_effstep g (BuiltinEffect g ef vargs m)
+          (*(BuiltinEffect g (ef_sig ef) vargs m) *)
+          (CMin_State f (Sbuiltin optid ef bl) k sp e) m
+          (CMin_State f Sskip k sp (set_optvar optid vres e)) m'
 
   | cmin_effstep_seq: forall f s1 s2 k sp e m,
       cmin_effstep g EmptyEffect (CMin_State f (Sseq s1 s2) k sp e) m
@@ -163,6 +167,8 @@ intros.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; try eassumption. trivial.
          eapply FreeEffect_free; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
+         eapply BuiltinEffect_unchOn; eassumption.
 (*  split. unfold corestep, coopsem; simpl. econstructor; try eassumption.
          eapply ec_builtinEffectPolymorphic; eassumption.*)
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -215,7 +221,7 @@ intros. inv H.
     eexists. eapply cmin_effstep_store; eassumption.
     eexists. eapply cmin_effstep_call; try eassumption. reflexivity.
     eexists. eapply cmin_effstep_tailcall; try eassumption. reflexivity.
-(*    eexists. eapply cmin_effstep_builtin; eassumption.*)
+    eexists. eapply cmin_effstep_builtin; eassumption.
     eexists. eapply cmin_effstep_seq.
     eexists. eapply cmin_effstep_ifthenelse; eassumption.
     eexists. eapply cmin_effstep_loop.
@@ -247,6 +253,7 @@ intros.
   eapply Mem.valid_access_implies; try eassumption. constructor.
 
   eapply FreeEffect_validblock; eassumption.
+  eapply BuiltinEffect_valid_block; eassumption.
   eapply FreeEffect_validblock; eassumption.
   eapply FreeEffect_validblock; eassumption.
 Qed.
