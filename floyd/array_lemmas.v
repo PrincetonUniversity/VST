@@ -587,7 +587,37 @@ Lemma split_array_at:
   (lo <= i <= hi)%Z ->
   array_at ty sh contents lo hi v =
   array_at ty sh contents lo i v * array_at ty sh contents i hi v.
-Admitted.
+Proof.
+intros.
+replace lo with (i-(i-lo)) in * by omega.
+rewrite <- (Z2Nat.id (i-lo)) in * by omega.
+forget (Z.to_nat (i-lo)) as n.
+clear lo.
+unfold array_at.
+normalize.
+assert (~isptr v \/ isptr v) by (destruct v; simpl; auto).
+destruct H0.
+apply pred_ext; normalize; contradiction.
+repeat rewrite prop_true_andp by auto.
+unfold rangespec.
+set (f :=fun i0 : Z => data_at sh ty (contents i0) (add_ptr_int ty v i0)).
+replace (i - (i - Z.of_nat n)) with (Z.of_nat n) by omega.
+replace (hi - (i - Z.of_nat n)) with (Z.of_nat n + (hi-i)) by omega.
+rewrite Z2Nat.inj_add by omega.
+repeat rewrite Nat2Z.id.
+induction n.
+*
+ change (Z.of_nat 0) with 0 in *.
+ rewrite Z.sub_0_r in *. simpl. rewrite emp_sepcon; auto.
+*
+ unfold plus; fold plus.
+unfold rangespec'; fold rangespec'.
+ rewrite sepcon_assoc.
+ f_equal.
+ replace (Z.succ (i - Z.of_nat (S n))) with (i - Z.of_nat n) by (rewrite inj_S; omega).
+ apply IHn.
+ omega.
+Qed.
 
 Lemma split_array_at_:
   forall (i : Z) (ty : type) (sh : Share.t)

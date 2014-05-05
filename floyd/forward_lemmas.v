@@ -140,7 +140,16 @@ Qed.
 Lemma tycontext_eqv_sub:
   forall Delta Delta', tycontext_eqv Delta Delta' ->
          tycontext_sub Delta Delta'.
-Admitted.
+Proof.
+intros.
+destruct H as [? [? [? ?]]].
+repeat split; intros; auto.
+rewrite H; auto.
+destruct ((temp_types Delta') ! id); auto.
+destruct p. split; auto. destruct b; reflexivity.
+rewrite H2.
+destruct ((glob_types Delta') ! id); simpl; auto.
+Qed.
 
 Lemma semax_while : 
  forall Espec Delta Q test body R,

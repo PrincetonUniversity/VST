@@ -346,20 +346,30 @@ repeat match goal with
   | H : name _ |- _ => revert H
  end.
 
-Lemma admit_dammit : forall P, P.
-Admitted.
+Inductive UNGATHER_OK := .
+Lemma ungather_discharge : 
+   UNGATHER_OK -> forall P, P.
+Proof. intros. destruct H. Qed.
 
 Lemma EVAR_i: forall P: Prop, P -> EVAR P.
 Proof. intros. apply H. Qed.
 
-Ltac ungather_entail :=
+Ltac ungather_entail' :=
 match goal with
   | |- EVAR (forall x : ?t, _) => 
        let x' := fresh x in evar (x' : t);
        let x'' := fresh x in apply EVAR_i; intro x'';
-       replace x'' with x'; [ungather_entail; clear x'' | apply admit_dammit ]
+       replace x'' with x';
+       [ungather_entail'; clear x'' 
+       | apply ungather_discharge; solve [auto] ]
   | |- _ => intros
  end.
+
+Ltac ungather_entail :=
+  match goal with
+   | H: UNGATHER_OK |- _ => ungather_entail; clear H 
+     | _ => fail "First, assert UNGATHER_OK by ad mit"
+  end.  
 
 (*** Omega stuff ***)
 Ltac  add_nonredundant' F T G :=

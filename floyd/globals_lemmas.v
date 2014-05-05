@@ -142,47 +142,22 @@ Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: 
       end
  end.
 
-Lemma mapsto_zeros_Tint:
-  forall sh i s a b ofs,
-   ofs + sizeof (Tint i s a) <= Int.max_unsigned ->
-   mapsto_zeros (sizeof (Tint i s a)) sh (Vptr b (Int.repr ofs))
-|-- mapsto sh (Tint i s a) (Vptr b (Int.repr ofs)) (Vint Int.zero).
-Admitted.
-
-Lemma mapsto_zeros_Tlong:
-  forall sh s a b ofs,
-   ofs + sizeof (Tlong s a) <= Int.max_unsigned ->
-   mapsto_zeros (sizeof (Tlong s a)) sh (Vptr b (Int.repr ofs))
-|-- mapsto sh (Tlong s a) (Vptr b (Int.repr ofs)) (Vint Int.zero).
-Admitted.
-
-Lemma mapsto_zeros_Tfloat:
-  forall sh f a b ofs, 
-   ofs + sizeof (Tfloat f a) <= Int.max_unsigned ->
-  mapsto_zeros (sizeof (Tfloat f a)) sh (Vptr b (Int.repr ofs))
-|-- mapsto sh (Tfloat f a) (Vptr b (Int.repr ofs)) (Vfloat Float.zero).
-Admitted.
-
-Lemma mapsto_zeros_Tpointer:
-  forall sh t a b ofs, 
-   ofs + sizeof (Tpointer t a) <= Int.max_unsigned ->
-mapsto_zeros (sizeof (Tpointer t a)) sh (Vptr b (Int.repr ofs))
-|-- mapsto sh (Tpointer t a) (Vptr b (Int.repr ofs)) (Vint Int.zero).
-Admitted.
-
 Lemma unpack_globvar_aux1:
-  forall sh t a b v ofs, 
-   ofs + sizeof (Tpointer t a) <= Int.max_unsigned ->
-               mapsto sh (Tpointer t a) (Vptr b (Int.repr ofs)) v
+  forall sh t b v ofs, 
+   ofs + sizeof (Tpointer t noattr) <= Int.max_unsigned ->
+               mapsto sh (Tpointer t noattr) (Vptr b (Int.repr ofs)) v
                    |-- memory_block sh (Int.repr 4) (Vptr b (Int.repr ofs)).
-Admitted.
-
-Lemma sizeof_Tpointer: forall t a, sizeof (Tpointer t a) = 4.
 Proof.
-(* NOt quite true in CompCert 2.1, if the attributes a contain "align_as".
-But it will be true again in CompCert 2.2.
-*)
-Admitted.
+intros.
+ eapply derives_trans; [ apply mapsto_mapsto_ | ].
+ rewrite (memory_block_mapsto_ _ _ (Tpointer t noattr)); auto.
+ apply I.
+Qed.
+
+Lemma sizeof_Tpointer: forall t, sizeof (Tpointer t noattr) = 4.
+Proof.
+intros. reflexivity.
+Qed.
 
 Lemma init_data_size_space:
  forall t, init_data_size (Init_space (sizeof t)) = sizeof t.
@@ -239,12 +214,18 @@ intros H1 H6' H6 H7 H8.
  +  destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
      simpl. destruct fs; simpl.
      rewrite H8. 
-    assert (eval_var i (Tfunction (type_of_params (fst f)) (snd f)) rho = Vptr b' Int.zero)
-      by admit.  (* straightforward *) 
+    assert (eval_var i (Tfunction (type_of_params (fst f)) (snd f)) rho = Vptr b' Int.zero).
+    { destruct (globfun_eval_var _ _ _ _ H7 Hv Hg) as [bx [ix [? ?]]].
+      rewrite H15 in H0. symmetry in H0; inv H0.
+      rewrite <- H. reflexivity.
+    }
     rewrite H. apply derives_refl.
 +  destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
-    assert (eval_var i gv rho = Vptr b' Int.zero)
-      by admit.  (* straightforward *) 
+    assert (eval_var i gv rho = Vptr b' Int.zero).
+    {destruct (globvar_eval_var _ _ _ _ H7 Hv Hg) as [bx [? ?]].
+      rewrite H15 in H0. symmetry in H0; inv H0.
+      rewrite <- H. reflexivity.
+     }
     destruct gv; simpl; try apply TT_right; try rewrite H8; try rewrite H;
     apply derives_refl.
 Qed.
@@ -292,12 +273,19 @@ Fixpoint id2pred_star (Delta: tycontext) (sh: share) (t: type) (v: environ->val)
 
 Arguments id2pred_star Delta sh t v ofs dl rho  / .
 
+Lemma init_data_size_pos : forall a, init_data_size a >= 0.
+Proof. 
+ destruct a; simpl; try omega.
+ pose proof (Zmax_spec z 0).
+ destruct (zlt 0 z); omega.
+Qed.
+
 Lemma init_data_list_size_pos : forall a, init_data_list_size a >= 0.
-Admitted.
-
-Lemma init_data_size_pos : forall a, init_data_size a > 0.
-Admitted.
-
+Proof.
+ induction a; simpl.
+ omega.
+ pose proof (init_data_size_pos a); omega.
+Qed.
 
 Lemma unpack_globvar_star:
   forall Delta i gv, 
@@ -392,7 +380,106 @@ Lemma mapsto_unsigned_signed:
  forall sign1 sign2 sh sz v i,
   mapsto sh (Tint sz sign1 noattr) v (Vint (cast_int_int sz sign1 i)) =
   mapsto sh (Tint sz sign2 noattr) v (Vint (cast_int_int sz sign2 i)).
-Admitted. (* probably true, believe it or not *)
+Proof.
+ intros.
+ unfold mapsto.
+ unfold address_mapsto, res_predicates.address_mapsto.
+ destruct sz; simpl; auto;
+ destruct sign1, sign2; simpl; auto;
+ destruct v; auto;
+ repeat rewrite (prop_true_andp True) by auto;
+ repeat rewrite (prop_false_andp  (Vint _ = Vundef) ) by (intro; discriminate);
+ repeat rewrite @FF_orp, @orp_FF.
+*
+ f_equal. f_equal; extensionality bl.
+ f_equal. f_equal.
+ simpl;  apply prop_ext; intuition.
+ destruct bl; inv H0. destruct bl; inv H.
+ unfold Memdata.decode_val in *. simpl in *.
+ destruct m; try congruence.
+ unfold Memdata.decode_int in *.
+ rewrite initialize.rev_if_be_1 in *. simpl in *.
+ apply Vint_inj in H1. f_equal.
+ rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
+  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
+ f_equal; auto.
+ inv H3.
+ destruct bl; inv H0. destruct bl; inv H3.
+ unfold Memdata.decode_val in *. simpl in *.
+ destruct m; try congruence.
+ unfold Memdata.decode_int in *.
+ rewrite initialize.rev_if_be_1 in *. simpl in *.
+ apply Vint_inj in H. f_equal.
+ rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
+ rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
+ f_equal; auto.
+*
+ f_equal. f_equal; extensionality bl.
+ f_equal. f_equal.
+ simpl;  apply prop_ext; intuition.
+ destruct bl; inv H0. destruct bl; inv H3.
+ unfold Memdata.decode_val in *. simpl in *.
+ destruct m; try congruence.
+ unfold Memdata.decode_int in *.
+ rewrite initialize.rev_if_be_1 in *. simpl in *.
+ apply Vint_inj in H. f_equal.
+ rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
+ rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
+ f_equal; auto.
+ destruct bl; inv H0. destruct bl; inv H3.
+ unfold Memdata.decode_val in *. simpl in *.
+ destruct m; try congruence.
+ unfold Memdata.decode_int in *.
+ rewrite initialize.rev_if_be_1 in *. simpl in *.
+ apply Vint_inj in H. f_equal.
+ rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
+  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
+ f_equal; auto.
+*
+ f_equal. f_equal; extensionality bl.
+ f_equal. f_equal.
+ simpl;  apply prop_ext; intuition.
+ destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
+ unfold Memdata.decode_val in *. simpl in *.
+ destruct m; try congruence.
+ destruct m0; try congruence.
+ unfold Memdata.decode_int in *.
+ apply Vint_inj in H. f_equal.
+ rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
+  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
+ f_equal; auto.
+ destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
+ unfold Memdata.decode_val in *. simpl in *.
+ destruct m; try congruence.
+ destruct m0; try congruence.
+ unfold Memdata.decode_int in *.
+ apply Vint_inj in H. f_equal.
+ rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
+ rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
+ f_equal; auto.
+*
+ f_equal. f_equal; extensionality bl.
+ f_equal. f_equal.
+ simpl;  apply prop_ext; intuition.
+ destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
+ unfold Memdata.decode_val in *. simpl in *.
+ destruct m; try congruence.
+ destruct m0; try congruence.
+ unfold Memdata.decode_int in *.
+ apply Vint_inj in H. f_equal.
+ rewrite <- (Int.sign_ext_zero_ext _ (Int.repr _)) by omega.
+ rewrite <- (Int.sign_ext_zero_ext _ i) by omega.
+ f_equal; auto.
+ destruct bl; inv H0. destruct bl; inv H3. destruct bl; inv H1.
+ unfold Memdata.decode_val in *. simpl in *.
+ destruct m; try congruence.
+ destruct m0; try congruence.
+ unfold Memdata.decode_int in *.
+ apply Vint_inj in H. f_equal.
+ rewrite <- (Int.zero_ext_sign_ext _ (Int.repr _)) by omega.
+  rewrite <- (Int.zero_ext_sign_ext _ i) by omega.
+ f_equal; auto.
+Qed.
 
 Lemma id2pred_star_ZnthV_Tint:
  forall Delta sh n v (data: list int) sz sign mdata
@@ -528,41 +615,6 @@ Lemma map_instantiate:
   forall {A B} (f: A -> B) (x: A) (y: list B) z,
     y = map f z ->  f x :: y = map f (x :: z).
 Proof. intros. subst. reflexivity. Qed.
-
-(*
-Lemma unpack_globvar_array:
-  forall data n Delta i gv, 
-   (var_types Delta) ! i = None ->
-   (glob_types Delta) ! i = Some (Global_var (gvar_info gv)) ->
-   gvar_info gv = tarray tint n ->
-   gvar_volatile gv = false ->
-(*   gvar_readonly gv = false -> *)
-   n = Zlength (gvar_init gv) ->
-   gvar_init gv = map Init_int32 data ->
-   init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Int.max_unsigned ->
-   local (tc_environ Delta) && globvar2pred(i, gv) |-- 
-      `(array_at tint (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
-    (ZnthV tint (map Vint data)) 0 n) (eval_var i (tarray tint n)).
-Proof.
- assert (H3:=true).
- intros.
- match goal with |- ?A |-- _ =>
- eapply derives_trans with (local (`isptr (eval_var i (tarray tint n))) && A)
- end.
- apply andp_right; auto.
- go_lowerx. apply prop_right. eapply eval_var_isptr; eauto.
- right; split; auto. rewrite <- H1; auto.
- eapply derives_trans;[ apply andp_derives; 
-                                    [ apply derives_refl 
-                                    | eapply unpack_globvar_star; try eassumption; try reflexivity ] |].
-rewrite H1; reflexivity.
- rewrite H1. (* rewrite H3.*)  rewrite H5.
-(* change (Share.splice extern_retainer (readonly2share false)) with Ews. *)
- eapply derives_trans; [ |  apply id2pred_star_ZnthV_tint].
- apply derives_refl.
- rewrite <- H5. auto. auto.
-Qed.
-*)
 
 Lemma main_pre_eq:
  forall prog u, main_pre prog u = 
