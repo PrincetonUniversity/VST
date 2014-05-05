@@ -72,12 +72,24 @@ Qed.
 
 Ltac norm_rewrite := autorewrite with norm.
  (* New version: rewrite_strat (topdown hints norm).
-     But this will have to wait for the next version of Coq, probably 8.4pl3,
-    because in 8.4pl2, rewrite_strat does not discharge side conditions.
+     But this will have to wait for a future version of Coq
+    in which rewrite_strat discharges side conditions.
     According to Matthieu Sozeau, in the Coq trunk as of June 5, 2013,
     rewrite_strat is documented AND discharges side conditions.
     It might be about twice as fast, or 1.7 times as fast, as the old autorewrite.
     And then, maybe use "bottomup" instead of "topdown", see if that's better.
+
+   To test whether your version of Coq works, use this:
+Lemma L : forall n, n=n -> n + 1 = S n.
+Proof. intros. rewrite <- plus_n_Sm ,<- plus_n_O. reflexivity.
+Qed.
+Hint Rewrite L using reflexivity : test888.
+Goal forall n, S n = n + 1.
+intros.
+rewrite_strat (topdown hints test888).
+match goal with |- S n = S n => reflexivity end.
+(* should be no extra (n=n) goal here *)
+Qed.
  *)
 
 Lemma typed_false_cmp'':
