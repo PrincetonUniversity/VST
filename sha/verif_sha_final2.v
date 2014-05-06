@@ -399,7 +399,7 @@ semax
 Proof.
 intros.
 unfold final_loop; abbreviate_semax.
-rewrite memory_block_isptr by computable.
+rewrite memory_block_isptr.
 normalize. rename H1 into Hmd.
 forward.  (* xn=0; *)
 

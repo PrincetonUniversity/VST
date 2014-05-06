@@ -13,7 +13,9 @@ Proof.
  intros. unfold memory_block.
  change (Int.repr 0) with Int.zero.
  rewrite Int.unsigned_zero.
-Admitted.  (* pretty straightforward *)
+ reflexivity.
+Qed.
+Hint Rewrite memory_block_zero: norm.
 
 Lemma memory_block_offset_zero:
   forall sh n v, memory_block sh n (offset_val Int.zero v) = memory_block sh n v.
@@ -24,7 +26,13 @@ simpl offset_val. cbv beta iota.
 rewrite Int.add_zero. auto.
 Qed.
 
-Hint Rewrite memory_block_zero: norm.
+Lemma memory_block_isptr:
+  forall sh n v, memory_block sh n v = !! (isptr v) && memory_block sh n v.
+Proof.
+intros.
+unfold memory_block.
+destruct v; simpl; normalize.
+Qed.
 
 Global Opaque memory_block.
 
@@ -407,8 +415,25 @@ Proof.
 intros.
 apply pred_ext; normalize.
 apply andp_right; auto.
-unfold data_at_.
-Admitted. (* straightforward *)
+unfold data_at_, data_at, data_at'.
+destruct t;
+ try solve [rewrite align_0 by (apply alignof_pos);
+                 unfold eq_rect_r; simpl; rewrite withspacer_spacer;
+                 simpl; rewrite mapsto_isptr; normalize].
+* rewrite withspacer_spacer.
+  unfold at_offset'. simpl. rewrite memory_block_isptr; normalize.
+* rewrite align_0 by (apply alignof_pos); unfold eq_rect_r; simpl.
+   rewrite withspacer_spacer; simpl.
+   rewrite align_0 by (apply alignof_pos).
+   rewrite if_true by omega.
+   rewrite emp_sepcon.
+   unfold array_at'; normalize.
+*  rewrite withspacer_spacer.
+  unfold at_offset'. simpl. rewrite memory_block_isptr; normalize.
+* repeat rewrite align_0 by (apply alignof_pos).
+   unfold eq_rect_r; simpl; rewrite withspacer_spacer; simpl.
+   if_tac.
+Admitted.  (* not true *)
 
 Ltac simpl_data_at' T H MA :=
    try unfold T in H;  (* need "try" in case T is not just a simple identifier *)
@@ -651,17 +676,6 @@ apply (mafoz_aux (S (typecount_fields f))).
 omega.
 Qed.
 
-Lemma memory_block_isptr: forall sh i v, 
-  i > 0 -> 
-  memory_block sh (Int.repr i) v = !!(isptr v) && memory_block sh (Int.repr i) v.
-Proof.
-intros.
-Transparent memory_block.
-unfold memory_block.
-Opaque memory_block.
-destruct v; normalize.
-Qed.
-
 Lemma memory_block_address_mapsto:
   forall n sh ch b i,
   n = Memdata.size_chunk ch ->
@@ -695,7 +709,7 @@ destruct t; try contradiction;
   destruct a as [[|] [|]]; try contradiction; simpl;
  unfold mapsto_, mapsto; simpl;
  try (destruct i,s); try destruct f; 
- rewrite memory_block_isptr by apply H0;
+ rewrite memory_block_isptr;
  destruct v; simpl; try  apply FF_andp; 
  rewrite prop_true_andp by auto;
  (apply memory_block_address_mapsto;  try reflexivity).
@@ -831,7 +845,7 @@ Lemma memory_block_typed:
 Proof.
 intros.
 extensionality v.
-rewrite memory_block_isptr by (apply sizeof_pos).
+rewrite memory_block_isptr.
 rewrite data_at__isptr.
 destruct v; simpl; normalize.
 unfold data_at_, data_at; rewrite <- memory_block_typed'; auto.
@@ -853,7 +867,7 @@ unfold_lift.
 rewrite <- memory_block_typed by auto.
 unfold var_block.
 simpl. unfold_lift.
-rewrite memory_block_isptr by apply sizeof_pos.
+rewrite memory_block_isptr.
 destruct (eval_var id t rho); simpl; normalize.
 Qed.
 

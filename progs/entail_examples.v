@@ -893,7 +893,7 @@ tc_environ Delta rho ->
 |-- !!True &&
     (!!True && (memory_block Tsh (Int.repr 8) (eval_id _Q rho) * emp)).
 Proof. intros Q Q'; ungather_entail.
-rewrite memory_block_isptr by computable.
+rewrite memory_block_isptr.
 entailer.
 rewrite H0.
 destruct (eval_id _Q' rho); try (contradiction H1); auto.
