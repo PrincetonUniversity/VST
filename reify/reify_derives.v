@@ -205,6 +205,26 @@ clear_predicates t;
 clear_funcs t;
 clear_uenv t.
 
+Ltac get_types_name :=
+match goal with 
+| [ H := _ : (list Expr.type) |- _] => H
+end.
+
+Ltac get_funcs_name t := 
+match goal with
+| [ X := _ : list (Expr.signature t) |- _ ] => X
+ end.
+
+Ltac get_predicates_name t :=
+match goal with
+[ X := _ : list (Sep.predicate t) |- _] => X end.
+
+Ltac get_uenv_name t := 
+match goal with 
+| [ X := _ : Expr.env t |- _ ] => X
+| [ X := _ : list (sigT (Expr.tvarD t)) |- _ ] => X
+end.
+
 Ltac abbreviate_goal :=
 match goal with
 [ |- goalD _ ?f ?p ?u _ _] => 

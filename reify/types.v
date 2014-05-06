@@ -73,6 +73,9 @@ no_eqb_type  (Z -> val).
 Definition lift_prop_type :=
 no_eqb_type (environ -> Prop).
 
+Definition lift_mpred_type :=
+no_eqb_type (environ -> mpred).
+
 (* equality for comparisons; apparently doesn't exist? *)
 Definition eqb_comparison (c1 c2 : comparison) : bool :=
   match (c1, c2) with
@@ -114,8 +117,9 @@ Definition our_types :=(cons tycontext_type
                        (cons comparison_type
                        (cons tc_assert_type 
                        (cons val_map_type 
-                       (cons lift_prop_type nil
-                       )))))))))))))))))).
+                       (cons lift_prop_type 
+                       (cons lift_mpred_type nil
+                       ))))))))))))))))))).
 
 Definition tycontext_tv := Expr.tvType 0.
 Definition c_expr_tv := Expr.tvType 1.
@@ -135,3 +139,4 @@ Definition comparison_tv := Expr.tvType 14.
 Definition tc_assert_tv := Expr.tvType 15.
 Definition val_map_tv := Expr.tvType 16.
 Definition lift_prop_tv := Expr.tvType 17.
+Definition lift_mpred_tv := Expr.tvType 18.
