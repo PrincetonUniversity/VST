@@ -356,7 +356,8 @@ Fixpoint data_at' (sh: Share.t) (e: type_id_env) (t1: type): Z -> reptype t1 -> 
   | Tcomp_ptr i a => at_offset2 (mapsto sh (Tpointer (look_up_ident_default i e) a))
   | _ => at_offset2 (mapsto sh t1) (* All these C types are by value types *)
   end
-with sfieldlist_at' (sh: Share.t) (e: type_id_env) (alignment: Z) (flds: fieldlist) (pos: Z) : reptype_structlist flds -> val -> mpred :=
+with sfieldlist_at' (sh: Share.t) (e: type_id_env) (alignment: Z) (flds: fieldlist) : Z -> reptype_structlist flds -> val -> mpred :=
+  fun (pos: Z) =>
   match flds as f return reptype_structlist f -> val -> mpred with
   | Fnil => fun _ p => !!(isptr p) && emp (* empty struct case *)
   | Fcons i t flds0 =>
@@ -597,7 +598,7 @@ Fixpoint nested_sfieldlist_at (sh: Share.t) (ids: list ident) (t1: type) (flds: 
    eq_refl v
   end v.
 
-Lemma nested_data_at_Tstruct: forall sh ids t i f a v1 v2 (H1: nested_field_type2 ids t = Tstruct i f a) (H2: nested_legal_fieldlist t = true), (eq_rect_r (fun x => x) v2 (nested_reptype_structlist_lemma2 _ _ _ _ _ H1 H2)  = v1) -> no_nested_alignas_type t = true -> nested_data_at sh ids t v1 = nested_sfieldlist_at sh ids t f v2.
+Lemma nested_data_at_Tstruct: forall sh ids t i f a v1 v2 (H1: nested_field_type2 ids t = Tstruct i f a) (H2: nested_legal_fieldlist t = true), (eq_rect _ (fun x => x) v1 _ (nested_reptype_structlist_lemma2 _ _ _ _ _ H1 H2)  = v2) -> no_nested_alignas_type t = true -> nested_data_at sh ids t v1 = nested_sfieldlist_at sh ids t f v2.
 Proof.
   intros.
   remember (nested_reptype_structlist_lemma2 ids t i f a H1 H2) as Heq; clear HeqHeq.
@@ -635,7 +636,7 @@ Proof.
     assert (H_fst: eq_rect_r (fun x : Type => x) (fst v2) Heq_fst = fst v1).
       revert v1 v2 Heq H. rewrite Heq_fst, Heq_snd. intros. 
       unfold eq_rect_r in *. rewrite <- eq_rect_eq in *. rewrite H. reflexivity.
-    assert (H_snd: eq_rect_r (fun x : Type => x) (snd v2) Heq_snd = snd v1).
+    assert (H_snd: eq_rect _ (fun x : Type => x) (snd v1) _ Heq_snd = snd v2).
       clear H_fst. revert v1 v2 Heq H. rewrite Heq_fst, Heq_snd. intros. 
       unfold eq_rect_r in *. rewrite <- eq_rect_eq in *. rewrite H. reflexivity.
     remember (fst v1) as fst_v1; clear Heqfst_v1.
@@ -708,6 +709,12 @@ Qed.
 Hint Rewrite field_at_offset_zero: norm.
 *)
 
+(********************************************
+
+The following part is for simpl_data_at and unfold_field_at tactic.
+
+********************************************)
+
 Lemma lower_sepcon_val:
   forall (P Q: val->environ->mpred) v, 
   ((P*Q) v) = (P v * Q v).
@@ -727,10 +734,157 @@ Lemma distribute_envtrans:
 Proof. reflexivity. Qed.
 Hint Rewrite distribute_envtrans: norm.
 
+Lemma distribute_envtrans0:
+  forall (P Q: mpred),
+   @liftx (LiftEnviron mpred)
+   (@sepcon mpred _ _ P Q) = 
+   @liftx (LiftEnviron mpred) P *
+   @liftx (LiftEnviron mpred) Q.
+Proof. intros. reflexivity. Qed.
+Hint Rewrite distribute_envtrans0: norm.
+
 Lemma distribute_lifted_sepcon:
  forall A F G v,
   (@sepcon (A -> mpred) _ _ F G v) = @sepcon mpred _ _ (F v) (G v).
 Proof. reflexivity. Qed.
+
+Lemma lift_at_offset_mapsto: forall pos sh t v p, `(at_offset pos (fun p0 : val => mapsto sh t p0 v)) p = `(mapsto sh t) (`(offset_val (Int.repr pos)) p) `v.
+Proof. intros. reflexivity. Qed.
+
+Lemma at_offset_mapsto: forall pos sh t v p, (at_offset pos (fun p0 : val => mapsto sh t p0 v)) p = (mapsto sh t) (offset_val (Int.repr pos) p) v.
+Proof. intros. reflexivity. Qed.
+
+Lemma lift_mapsto: forall sh t v p, `(fun p0 : val => mapsto sh t p0 v) p = `(mapsto sh t) p `v.
+Proof. intros. reflexivity. Qed.
+
+Lemma lift_at_offset_memory_block: forall pos sh len p, `(at_offset pos (memory_block sh len)) p = `(memory_block sh len) (`(offset_val (Int.repr pos)) p).
+Proof. intros. reflexivity. Qed.
+
+Lemma at_offset_memory_block: forall pos sh len p, (at_offset pos (memory_block sh len)) p = (memory_block sh len) (offset_val (Int.repr pos) p).
+Proof. intros. reflexivity. Qed.
+
+Lemma lift_at_offset_data_at: forall pos sh t v p, `(at_offset pos (data_at sh t v)) p = `(data_at sh t v) (`(offset_val (Int.repr pos)) p).
+Proof. intros. reflexivity. Qed.
+
+Lemma at_offset_data_at: forall pos sh t v p, (at_offset pos (data_at sh t v)) p = (data_at sh t v) (offset_val (Int.repr pos) p).
+Proof. intros. reflexivity. Qed.
+
+Lemma data_at_nested_data_at: forall sh t, data_at sh t = nested_data_at sh nil t.
+Proof. intros. reflexivity. Qed.
+
+Ltac unfold_field_at' H := 
+   erewrite nested_data_at_Tstruct in H; 
+    [|instantiate (2:= eq_refl); instantiate (2:= eq_refl); rewrite <- eq_rect_eq; reflexivity
+    | reflexivity];
+   unfold nested_sfieldlist_at, withspacer in H.
+
+Ltac floyd_simpl T H MA TAC :=
+   try unfold T in H;  (* need "try" in case T is not just a simple identifier *)
+   TAC H;
+   change sepcon with opaque_sepcon in H; 
+   change (@emp (val->mpred) _ _) with opaque_emp in H; 
+   simpl in H;
+   (* can't use "@sepcon (val->mpred) _ _" with implicit arguments in next two lines,
+     otherwise trigger Coq bug 2997 if there are evars in context *)
+   change @opaque_sepcon with (@sepcon (val -> mpred) (@LiftNatDed val mpred Nveric)
+  (@LiftSepLog val mpred Nveric Sveric)) in H;
+   change @opaque_emp with (@emp (val->mpred) (@LiftNatDed val mpred Nveric)
+  (@LiftSepLog val mpred Nveric Sveric)) in H;
+(*
+   repeat
+    match type of H with
+    | appcontext [(nested_data_at ?sh ?ids ?t Vundef)] =>
+     change (nested_data_at sh ids t Vundef) with (?????) in H
+    end;
+    fold tuint in H; fold tint in H;
+*)
+   try fold T in H,MA; (* need "try" in case T is not just a simple identifier *)
+   repeat rewrite positive_nat_Z in H;
+   repeat rewrite sepcon_emp in H || rewrite emp_sepcon in H;
+   repeat rewrite distribute_lifted_sepcon in H;
+   repeat rewrite distribute_envtrans in H;
+   repeat rewrite distribute_envtrans0 in H;
+   repeat rewrite lift_at_offset_mapsto in H;
+   repeat rewrite lift_mapsto in H;
+   repeat rewrite lift_at_offset_memory_block in H;
+   repeat rewrite at_offset_mapsto in H;
+   repeat rewrite at_offset_memory_block in H;
+   subst MA;
+   repeat rewrite distribute_lifted_sepcon;
+   repeat rewrite distribute_envtrans;
+   repeat rewrite distribute_envtrans0;
+   repeat flatten_sepcon_in_SEP;
+   simpl @fst; simpl @snd; simpl align; simpl Z.max.
+
+Definition opaque_nested_data_at := nested_data_at.
+Global Opaque opaque_nested_data_at.
+
+Definition opaque_data_at := data_at.
+Global Opaque opaque_data_at.
+
+Lemma opaque_nda1: nested_data_at = opaque_nested_data_at.
+Proof. reflexivity. Qed.
+
+Lemma opaque_nda2: data_at = opaque_data_at.
+Proof. intros. reflexivity. Qed.
+
+Ltac unfold_field_at N :=
+  match N with
+  | S O =>
+    let H := fresh "H" in let MA := fresh "MA" in
+    pattern nested_data_at at 1;
+    rewrite opaque_nda1;
+    match goal with 
+    | |- appcontext [`(opaque_nested_data_at ?SH ?IDS ?T ?v) ?p] =>
+           remember (`(opaque_nested_data_at SH IDS T v) p) as MA eqn:H in |-*; 
+           rewrite <- opaque_nda1 in H;
+           floyd_simpl T H MA unfold_field_at';
+           try subst MA
+    | |- appcontext [(opaque_nested_data_at ?SH ?IDS ?T ?v) ?p] =>
+           remember ((opaque_nested_data_at SH IDS T v) p) as MA eqn:H in |-*; 
+           rewrite <- opaque_nda1 in H;
+           floyd_simpl T H MA unfold_field_at';
+           try subst MA
+    end
+  | S ?n' => 
+    let H := fresh "H" in let MA := fresh "MA" in
+    pattern nested_data_at at 1;
+    rewrite opaque_nda1;
+    remember opaque_nested_data_at as MA eqn:H in |- * ;
+    unfold_field_at n';
+    rewrite <- opaque_nda1 in H;
+    subst MA
+  end.
+
+Ltac unfold_data_at N :=
+  match N with
+  | S O =>
+    let H := fresh "H" in let MA := fresh "MA" in
+    pattern data_at at 1;
+    rewrite opaque_nda2;
+    match goal with 
+    | |- appcontext [`(opaque_data_at ?SH ?T ?v) ?p] =>
+           remember (`(opaque_data_at SH T v) p) as MA eqn:H in |-*; 
+           rewrite <- opaque_nda2 in H;
+           rewrite data_at_nested_data_at in H;
+           floyd_simpl T H MA unfold_field_at';
+           try subst MA
+    | |- appcontext [(opaque_data_at ?SH ?T ?v) ?p] =>
+           remember ((opaque_data_at SH T v) p) as MA eqn:H in |-*; 
+           rewrite <- opaque_nda2 in H;
+           rewrite data_at_nested_data_at in H;
+           floyd_simpl T H MA unfold_field_at';
+           try subst MA
+    end
+  | S ?n' => 
+    let H := fresh "H" in let MA := fresh "MA" in
+    pattern data_at at 1;
+    rewrite opaque_nda2;
+    remember opaque_data_at as MA eqn:H in |- * ;
+    unfold_data_at n';
+    rewrite <- opaque_nda2 in H;
+    subst MA
+  end.
 
 (**********************************************
 
