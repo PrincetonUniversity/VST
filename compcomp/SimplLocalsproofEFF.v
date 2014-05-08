@@ -40,6 +40,7 @@ Require Import StructuredInjections.
 Require Import effect_simulations.
 Require Import sepcomp.effect_properties.
 Require Import effect_simulations_lemmas.
+Require Import BuiltinEffects.
 
 Require Export Axioms.
 Require Import Clight_coop.
@@ -200,6 +201,18 @@ Proof.
   destruct (Genv.find_funct_ptr ge id) as [fd|] eqn:?; inv H.
   exploit function_ptr_translated; eauto. intros [tf [A B]]. rewrite A. 
   decEq. apply type_of_fundef_preserved; auto.
+Qed.
+
+Lemma GDE_lemma: genvs_domain_eq ge tge.
+Proof.
+    unfold genvs_domain_eq, genv2blocks.
+    simpl; split; intros. 
+     split; intros; destruct H as [id Hid].
+       rewrite <- symbols_preserved in Hid.
+       exists id; trivial.
+     rewrite symbols_preserved in Hid.
+       exists id; trivial.
+    rewrite varinfo_preserved. intuition.
 Qed.
 
 (** Matching between environments before and after *)
@@ -4118,21 +4131,58 @@ destruct CS; intros; destruct MTCH as [MS [RC [PG [GLOB [SMV WD]]]]];inv MS; sim
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
 
-(* builtin 
-  exploit eval_simpl_exprlist; eauto with compat. intros [CASTED [tvargs [C D]]].
-  exploit external_call_mem_inject; eauto. apply match_globalenvs_preserves_globals; eauto with compat.
-  intros [j' [tvres [tm' [P [Q [R [S [T [U V]]]]]]]]].
-  econstructor; split.
-  apply plus_one. econstructor; eauto. eapply external_call_symbols_preserved; eauto. 
-  exact symbols_preserved. exact varinfo_preserved.
-  econstructor; eauto with compat.
-  eapply match_envs_set_opttemp; eauto. 
-  eapply match_envs_extcall; eauto. 
-  eapply match_cont_extcall; eauto.
-  inv MENV; xomega. inv MENV; xomega. 
+(* builtin *)
+  exploit match_envs_restrict; try eassumption. instantiate (1:=vis mu); trivial.
+  intros MENVR.
+  assert (INJR: Mem.inject (as_inj (restrict_sm mu (vis mu))) m m2).
+    rewrite restrict_sm_all; trivial.
+    eapply inject_restrict; try eassumption. 
+  exploit eval_simpl_exprlist; try eapply MENVR; eauto with compat.
+    rewrite restrict_sm_all, restrict_nest, vis_restrict_sm. 
+      apply match_cont_match_globalenvs in MCONT. destruct MCONT as [bnd [X _]]; exists bnd; trivial.
+      rewrite vis_restrict_sm. trivial.
+     apply restrict_sm_WD; try assumption. trivial.
+  intros [CASTED [tvargs [C D]]].
+  rewrite restrict_sm_all in D.
+  (*exploit external_call_mem_inject; eauto.*)
+  exploit (inlineable_extern_inject _ _ GDE_lemma); try eapply D.
+    eassumption. eassumption. eassumption. eassumption. eassumption. assumption.
+(*  apply match_globalenvs_preserves_globals; eauto with compat.*)
+  intros [mu' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH 
+           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]]]].
+  eexists; exists tm'.
+  split. eapply corestep_plus_one. econstructor; eauto.
+  exists mu'. intuition.
+  exploit (intern_incr_meminj_preserves_globals_as_inj ge _ WD).
+    split; assumption.
+    eapply WD'.
+    assumption.
+  intros [PG' GLOB']. 
+  split. 
+    assert (LoHi: Ple lo hi). inv MENV; trivial.
+    assert (TLoHi: Ple tlo thi). inv MENV; trivial.
+    econstructor; eauto with compat.
+     (* eapply external_call_symbols_preserved; eauto. 
+        exact symbols_preserved. exact varinfo_preserved.
+        econstructor; eauto with compat.*)
+    eapply match_envs_set_opttemp; eauto. 
+    clear MENVR.
+    eapply match_envs_intern_invariant; try eassumption.
+      intros. eapply Mem.load_unchanged_on; try eassumption.
+        intros. red. apply restrictI_None. left; trivial.
+      intros. eapply intern_as_inj_preserved1; try eassumption. red; xomega.
+      intros. rewrite H2. apply eq_sym. 
+              eapply intern_as_inj_preserved2; try eassumption. red; xomega.
+      eapply match_cont_intern_invariant; try eassumption.
+        intros. eapply Mem.load_unchanged_on; try eassumption.
+                intros. apply restrictI_None. left; trivial. 
+        intros. eapply intern_as_inj_preserved1; try eassumption. red; xomega.
+        intros. rewrite H2. apply eq_sym. 
+                eapply intern_as_inj_preserved2; try eassumption. red; xomega.
+(*  inv MENV; xomega. inv MENV; xomega. *)
   eapply Ple_trans; eauto. eapply external_call_nextblock; eauto.
-  eapply Ple_trans; eauto. eapply external_call_nextblock; eauto.*)
-
+  eapply Ple_trans; eauto. eapply external_call_nextblock; eauto.
+  intuition.
 (* sequence *)
   eexists; eexists; split.
     apply corestep_plus_one. econstructor.
@@ -4913,21 +4963,64 @@ inv MS; simpl in *; try (monadInv TRS).
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
   intuition.
 
-(* builtin 
-  exploit eval_simpl_exprlist; eauto with compat. intros [CASTED [tvargs [C D]]].
-  exploit external_call_mem_inject; eauto. apply match_globalenvs_preserves_globals; eauto with compat.
-  intros [j' [tvres [tm' [P [Q [R [S [T [U V]]]]]]]]].
-  econstructor; split.
-  apply plus_one. econstructor; eauto. eapply external_call_symbols_preserved; eauto. 
-  exact symbols_preserved. exact varinfo_preserved.
-  econstructor; eauto with compat.
-  eapply match_envs_set_opttemp; eauto. 
-  eapply match_envs_extcall; eauto. 
-  eapply match_cont_extcall; eauto.
-  inv MENV; xomega. inv MENV; xomega. 
-  eapply Ple_trans; eauto. eapply external_call_nextblock; eauto.
-  eapply Ple_trans; eauto. eapply external_call_nextblock; eauto.*)
-
+(* builtin *)
+  exploit match_envs_restrict; try eassumption. instantiate (1:=vis mu); trivial.
+  intros MENVR.
+  assert (INJR: Mem.inject (as_inj (restrict_sm mu (vis mu))) m m2).
+    rewrite restrict_sm_all; trivial.
+    eapply inject_restrict; try eassumption. 
+  exploit eval_simpl_exprlist; try eapply MENVR; eauto with compat.
+    rewrite restrict_sm_all, restrict_nest, vis_restrict_sm. 
+      apply match_cont_match_globalenvs in MCONT. destruct MCONT as [bnd [X _]]; exists bnd; trivial.
+      rewrite vis_restrict_sm. trivial.
+     apply restrict_sm_WD; try assumption. trivial.
+  intros [CASTED [tvargs [C D]]].
+  rewrite restrict_sm_all in D.
+  (*exploit external_call_mem_inject; eauto.*)
+  exploit (inlineable_extern_inject _ _ GDE_lemma); try eapply D.
+    eassumption. eassumption. eassumption. eassumption. eassumption. assumption.
+(*  apply match_globalenvs_preserves_globals; eauto with compat.*)
+  intros [mu' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH 
+           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]]]].
+  eexists; exists tm'; eexists.
+  split. eapply effstep_plus_one. econstructor; eauto.
+  exists mu'.
+  split. (*MATCH*)
+    exploit (intern_incr_meminj_preserves_globals_as_inj ge _ WD).
+      split; assumption.
+      eapply WD'.
+      assumption.
+    intros [PG' GLOB'].   
+    split. 
+      assert (LoHi: Ple lo hi). inv MENV; trivial.
+      assert (TLoHi: Ple tlo thi). inv MENV; trivial.
+      econstructor; eauto with compat.
+     (* eapply external_call_symbols_preserved; eauto. 
+        exact symbols_preserved. exact varinfo_preserved.
+        econstructor; eauto with compat.*)
+      eapply match_envs_set_opttemp; eauto. 
+      clear MENVR.
+      eapply match_envs_intern_invariant; try eassumption.
+        intros. eapply Mem.load_unchanged_on; try eassumption.
+          intros. red. apply restrictI_None. left; trivial.
+        intros. eapply intern_as_inj_preserved1; try eassumption. red; xomega.
+        intros. rewrite H1. apply eq_sym. 
+                eapply intern_as_inj_preserved2; try eassumption. red; xomega.
+        eapply match_cont_intern_invariant; try eassumption.
+        intros. eapply Mem.load_unchanged_on; try eassumption.
+                intros. apply restrictI_None. left; trivial. 
+        intros. eapply intern_as_inj_preserved1; try eassumption. red; xomega.
+        intros. rewrite H1. apply eq_sym. 
+                eapply intern_as_inj_preserved2; try eassumption. red; xomega.
+      (*  inv MENV; xomega. inv MENV; xomega. *)
+      eapply Ple_trans; eauto. eapply external_call_nextblock; eauto.
+      eapply Ple_trans; eauto. eapply external_call_nextblock; eauto.
+    intuition.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  clear - H0 D WD MINJ. 
+  eapply BuiltinEffect_Propagate; eassumption.
 (* sequence *)
   eexists; eexists; eexists; split.
     apply effstep_plus_one. econstructor.
@@ -5576,14 +5669,7 @@ SM_simulation.SM_simulation_inject
 Proof.
 intros.
 assert (GDE: genvs_domain_eq ge tge).
-    unfold genvs_domain_eq, genv2blocks.
-    simpl; split; intros. 
-     split; intros; destruct H as [id Hid].
-       rewrite <- symbols_preserved in Hid.
-       exists id; trivial.
-     rewrite symbols_preserved in Hid.
-       exists id; trivial.
-    rewrite varinfo_preserved. intuition.
+  apply GDE_lemma.
  eapply sepcomp.effect_simulations_lemmas.inj_simulation_plus with
   (match_states:=MATCH)(measure:= fun _ => O).
 (*genvs_dom_eq*)

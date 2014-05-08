@@ -15,6 +15,7 @@ Require Import Cop. (*for sem_cast*)
 Require Import Ctypes. (*for access_mode*)
 Require Import Clight.
 Require Import Clight_coop.
+Require Import BuiltinEffects.
 
 Definition assign_loc_Effect (ty:type) (b: block) (ofs: int) : (block -> Z -> bool)  :=
   match access_mode ty with
@@ -141,14 +142,14 @@ Inductive clight_effstep (ge:genv): (block -> Z -> bool) ->
       clight_effstep ge EmptyEffect (CL_State f (Scall optid a al) k e le) m
         (CL_Callstate fd vargs (Kcall optid f e le k)) m
 
-(* WE DO NOT TREAT BUILTINS 
+(* WE DO NOT TREAT BUILTINS *)
   | clight_effstep_builtin:   forall f optid ef tyargs al k e le m vargs t vres m',
       eval_exprlist ge e le m al tyargs vargs ->
       external_call ef ge vargs m t vres m' ->
-      clight_effstep ge (BuiltinEffect ge (ef_sig ef) vargs m)
+      clight_effstep ge (BuiltinEffect ge ef vargs m)
          (CL_State f (Sbuiltin optid ef tyargs al) k e le) m
          (CL_State f Sskip k e (set_opttemp optid vres le)) m'
-*)
+
   | clight_effstep_seq:  forall f s1 s2 k e le m,
       clight_effstep ge EmptyEffect (CL_State f (Ssequence s1 s2) k e le) m
         (CL_State f s1 (Kseq s2 k) e le) m
@@ -279,6 +280,8 @@ intros.
          apply Mem.unchanged_on_refl.
   split. econstructor; try eassumption.
          apply Mem.unchanged_on_refl.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
+         eapply BuiltinEffect_unchOn; eassumption.
 (*  split. econstructor; try eassumption.
          eapply ec_builtinEffectPolymorphic; eassumption.*)
   split. econstructor; try eassumption.
@@ -338,7 +341,7 @@ intros. inv H.
   eexists. eapply clight_effstep_assign; eassumption.
   eexists. eapply clight_effstep_set; eassumption.
   eexists. eapply clight_effstep_call; eassumption.
-(*  eexists. eapply clight_effstep_builtin; eassumption.*)
+  eexists. eapply clight_effstep_builtin; eassumption.
   eexists. eapply clight_effstep_seq; eassumption.
   eexists. eapply clight_effstep_skip_seq; eassumption.
   eexists. eapply clight_effstep_continue_seq; eassumption.
@@ -384,6 +387,8 @@ intros.
        destruct (zlt z (Int.unsigned ofs + sizeof (typeof a1))); simpl in *; try discriminate.
        split. eassumption. rewrite H8. rewrite nat_of_Z_eq. trivial. 
               specialize (sizeof_pos (typeof a1)). omega.
+
+  eapply BuiltinEffect_valid_block; eassumption.
 
   eapply FreelistEffect_validblock; eassumption.
   eapply FreelistEffect_validblock; eassumption.

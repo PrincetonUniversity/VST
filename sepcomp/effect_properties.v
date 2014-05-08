@@ -2297,3 +2297,33 @@ Proof.
   rewrite sm_locally_allocatedChar.
   intuition; extensionality b; rewrite freshloc_irrefl; intuition.
 Qed.
+
+Lemma intern_as_inj_preserved1 mu1 m1 tm1 mu' : forall
+      (INCR : intern_incr mu1 mu')
+      (SEPARATED : sm_inject_separated mu1 mu' m1 tm1)
+      (WD' : SM_wd mu'),
+     forall b, Plt b (Mem.nextblock m1) -> as_inj mu' b = as_inj mu1 b.
+Proof. intros. remember (as_inj mu1 b) as AI.
+       destruct AI; apply eq_sym in HeqAI.
+         destruct p. eapply intern_incr_as_inj; eassumption.
+       remember (as_inj mu' b) as AI'.
+         destruct AI'; apply eq_sym in HeqAI'; trivial.
+         destruct p. destruct SEPARATED as [SEP1 [SEP2 SEP3]].
+           destruct (SEP1 _ _ _ HeqAI HeqAI').
+           elim (SEP2 _ H0). eapply as_inj_DomRng; eassumption. apply H.
+Qed.
+
+Lemma intern_as_inj_preserved2 mu1 m1 tm1 mu' : forall 
+      (INCR : intern_incr mu1 mu')
+      (SEPARATED : sm_inject_separated mu1 mu' m1 tm1)
+      (WD' : SM_wd mu'),
+      forall b b' delta, as_inj mu' b = Some (b', delta) ->
+           Plt b' (Mem.nextblock tm1) -> 
+           as_inj mu1 b = Some (b', delta).
+Proof. intros. remember (as_inj mu1 b) as AI.
+       destruct AI; apply eq_sym in HeqAI.
+         destruct p. apply intern_incr_as_inj in INCR. apply INCR in HeqAI. rewrite HeqAI in H; trivial. trivial.
+       destruct SEPARATED as [SEP1 [SEP2 SEP3]].
+           destruct (SEP1 _ _ _ HeqAI H).
+           elim (SEP3 _ H2). eapply as_inj_DomRng; eassumption. apply H0.
+Qed. 

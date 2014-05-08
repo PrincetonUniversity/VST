@@ -32,6 +32,7 @@ Require Import CminorgenproofRestructured.
 
 Require Import Coq.Program.Equality.
 Require Import CminorgenproofSIM.
+Require Import BuiltinEffects.
 
 Section TRANSLATION.
 Variable prog: Csharpminor.program.
@@ -39,6 +40,22 @@ Variable tprog: Cminor.program.
 Hypothesis TRANSL: transl_program prog = OK tprog.
 Let ge : Csharpminor.genv := Genv.globalenv prog.
 Let tge: genv := Genv.globalenv tprog.
+
+Lemma GDE_lemma: genvs_domain_eq ge tge.
+Proof.
+    unfold genvs_domain_eq, genv2blocks.
+    simpl; split; intros.
+     split; intros; destruct H as [id Hid].
+      rewrite <- (symbols_preserved _ _ TRANSL) in Hid.
+      exists id; assumption.
+     rewrite (symbols_preserved _ _ TRANSL) in Hid.
+      exists id; assumption.
+     split; intros; destruct H as [id Hid].
+      rewrite <- (varinfo_preserved _ _ TRANSL) in Hid.
+      exists id; assumption.
+     rewrite (varinfo_preserved _ _ TRANSL) in Hid.
+      exists id; assumption.
+Qed.
 
 Let core_data := CSharpMin_core.
 
@@ -282,6 +299,121 @@ Proof. intros f1 m1 tm1 f2 m2 tm2 cs bound tbound WD1 WD2 IntInc.
   eapply IHstructured_match_callstack; eauto. 
     intros. eapply H0; eauto. xomega. 
     intros. eapply H1; eauto. xomega. 
+    intros. eapply H2; eauto. xomega.
+    intros. eapply H3; eauto. xomega.
+Qed.
+(*
+Lemma structured_match_callstack_builtin_invariant:
+  forall f1 m1 tm1 f2 m2 tm2 cs bound tbound (WD1: SM_wd f1) (WD2: SM_wd f2),
+  intern_incr f1 f2 ->
+  structured_match_callstack f1 m1 tm1 cs bound tbound ->
+  (forall b ofs p, Plt b bound -> Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p) ->
+  (Mem.unchanged_on (local_out_of_reach f1 m1) tm1 tm2) ->
+  (forall b, Plt b bound -> (as_inj f2) b = (as_inj f1) b) ->
+  (forall b b' delta, (as_inj f2) b = Some(b', delta) -> Plt b' tbound -> (as_inj f1) b = Some(b', delta)) ->
+  structured_match_callstack f2 m2 tm2 cs bound tbound.
+Proof. intros f1 m1 tm1 f2 m2 tm2 cs bound tbound WD1 WD2 IntInc.
+  assert (INC:= intern_incr_restrict _ _ WD2 IntInc). 
+  induction 1; intros.
+  (* base case *)
+  econstructor; eauto.
+  inv H. constructor; intros; eauto.
+  eapply IMAGE; eauto. 
+    destruct (restrictD_Some _ _ _ _ _ H6); clear H6.
+    assert (AI:  as_inj f1 b1 = Some (b2, delta)).
+      eapply (H5 _ _ _ H8). xomega.
+    eapply restrictI_Some; try eassumption.
+    eapply intern_incr_vis_inv; eassumption.
+  (* inductive case *)
+  assert (Ple lo hi) by (eapply me_low_high; eauto).
+  econstructor; eauto.
+  eapply match_temps_invariant; eauto.
+  eapply match_env_restrict_invariant with (f1:=f1); try eassumption.
+    intros. apply H3. assumption. assumption.
+    intros. apply H2. xomega.
+  eapply match_bounds_invariant; eauto.
+    intros. eapply H0; eauto. 
+    exploit me_bounded; eauto. xomega.
+  (* padding-freeable *)
+  clear IHstructured_match_callstack.
+  { red; intros.
+    destruct (is_reachable_from_env_dec (restrict (as_inj f1) (vis f1)) e sp ofs).
+    inv H6. right. apply is_reachable_intro with id b sz delta; auto. 
+    exploit PERM; eauto. intros [A|A]; try contradiction.
+    left. eapply Mem.perm_unchanged_on; eauto.
+    red; intros. split. assumption. 
+      intros. remember (pubBlocksSrc f1 b0) as p.
+      destruct p; apply eq_sym in Heqp. Focus 2. right; trivial. left.
+      intros N. apply H6; clear H6.
+      assert (ResVis: restrict (as_inj f1) (vis f1) b0 = Some (sp, delta)).
+        eapply restrictI_Some. eapply local_in_all; eassumption.
+        unfold vis. rewrite(pubBlocksLocalSrc _ WD1 _ Heqp). trivial.
+      exploit me_inv; eauto. intros [id [lv B]].
+      exploit BOUND0; eauto. intros C.
+      apply is_reachable_intro with id b0 lv delta; auto; omega.
+    eauto with mem. }
+  eapply IntInc. assumption.
+  intros. rewrite H2  in H5.
+            apply (ME_INCR _ _ _ H5 H6).
+            xomega.
+  eapply IHstructured_match_callstack; eauto. 
+    intros. eapply H0; eauto. xomega. 
+    (*intros. eapply H1; eauto. xomega. *)
+    intros. eapply H2; eauto. xomega.
+    intros. eapply H3; eauto. xomega.
+Qed.
+*)
+Lemma structured_match_callstack_builtin_invariant:
+  forall f1 m1 tm1 f2 m2 tm2 cs bound tbound (WD1: SM_wd f1) (WD2: SM_wd f2),
+  intern_incr f1 f2 ->
+  structured_match_callstack f1 m1 tm1 cs bound tbound ->
+  (forall b ofs p, Plt b bound -> Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p) ->
+  (Mem.unchanged_on (loc_out_of_reach (restrict (as_inj f1) (vis f1)) m1) tm1 tm2) ->
+  (forall b, Plt b bound -> (as_inj f2) b = (as_inj f1) b) ->
+  (forall b b' delta, (as_inj f2) b = Some(b', delta) -> Plt b' tbound -> (as_inj f1) b = Some(b', delta)) ->
+  structured_match_callstack f2 m2 tm2 cs bound tbound.
+Proof. intros f1 m1 tm1 f2 m2 tm2 cs bound tbound WD1 WD2 IntInc.
+  assert (INC:= intern_incr_restrict _ _ WD2 IntInc). 
+  induction 1; intros.
+  (* base case *)
+  econstructor; eauto.
+  inv H. constructor; intros; eauto.
+  eapply IMAGE; eauto. 
+    destruct (restrictD_Some _ _ _ _ _ H6); clear H6.
+    assert (AI:  as_inj f1 b1 = Some (b2, delta)).
+      eapply (H5 _ _ _ H8). xomega.
+    eapply restrictI_Some; try eassumption.
+    eapply intern_incr_vis_inv; eassumption.
+  (* inductive case *)
+  assert (Ple lo hi) by (eapply me_low_high; eauto).
+  econstructor; eauto.
+  eapply match_temps_invariant; eauto.
+  eapply match_env_restrict_invariant with (f1:=f1); try eassumption.
+    intros. apply H3. assumption. assumption.
+    intros. apply H2. xomega.
+  eapply match_bounds_invariant; eauto.
+    intros. eapply H0; eauto. 
+    exploit me_bounded; eauto. xomega.
+  (* padding-freeable *)
+  clear IHstructured_match_callstack.
+  { red; intros.
+    destruct (is_reachable_from_env_dec (restrict (as_inj f1) (vis f1)) e sp ofs).
+    inv H6. right. apply is_reachable_intro with id b sz delta; auto. 
+    exploit PERM; eauto. intros [A|A]; try contradiction.
+    left. eapply Mem.perm_unchanged_on; eauto.
+    red; intros.
+      intros N. apply H6; clear H6.
+      exploit me_inv; eauto. intros [id [lv B]].
+      exploit BOUND0; eauto. intros C.
+      apply is_reachable_intro with id b0 lv delta; auto; omega.
+    eauto with mem. }
+  eapply IntInc. assumption.
+  intros. rewrite H2  in H5.
+            apply (ME_INCR _ _ _ H5 H6).
+            xomega.
+  eapply IHstructured_match_callstack; eauto. 
+    intros. eapply H0; eauto. xomega. 
+    (*intros. eapply H1; eauto. xomega. *)
     intros. eapply H2; eauto. xomega.
     intros. eapply H3; eauto. xomega.
 Qed.
@@ -2313,27 +2445,6 @@ Lemma Builtin_mem_inject:
     /\ sm_inject_separated mu mu' m1 m1'
     /\ sm_locally_allocated mu mu' m1 m1' m2 m2' .
 *)
-(*external_call_mem_inject for inlineable builtins*)
-Axiom inlineable_extern_inject : forall ef 
-          vargs m t vres m1 mu tm vargs',
-       meminj_preserves_globals ge (as_inj mu) ->
-       external_call ef ge vargs m t vres m1 ->
-       Mem.inject (as_inj mu) m tm ->
-       val_list_inject (restrict (as_inj mu) (vis mu)) vargs vargs' ->
-       exists mu' vres' tm1,
-         external_call ef tge vargs' tm t vres' tm1 /\
-         val_inject (restrict (as_inj mu') (vis mu')) vres vres' /\
-         Mem.inject (as_inj mu') m1 tm1 /\
-(*         Mem.unchanged_on (loc_unmapped f) m1 m2 /\
-         Mem.unchanged_on (loc_out_of_reach f m1) m1' m2' /\*)
-         intern_incr mu mu' /\
-         sm_inject_separated mu mu' m tm /\
-         sm_locally_allocated mu mu' m tm m1 tm1 /\
-         SM_wd mu' /\ sm_valid mu' m1 tm1 /\
-         (REACH_closed m (vis mu) -> REACH_closed m1 (vis mu')).
-Axiom inlinable_CurFreePerm: forall {F V:Type} (ge: Genv.t F V) ef vargs m t vres m1,
-       external_call ef ge vargs m t vres m1 ->
-(forall b ofs, Mem.valid_block m b -> Mem.perm m b ofs Cur Freeable -> Mem.perm m1 b ofs Cur Freeable).
 
 Lemma structured_match_callstack_set_temp:
   forall mu cenv e le te sp lo hi cs bound tbound m tm tf id v tv,
@@ -2371,32 +2482,21 @@ Proof. intros.
   intros [tvargs [EVAL2 VINJ2]].
   exploit structured_match_callstack_match_globalenvs; try eassumption.
   intros [hi' [Hi1 [Hi2 MG]]].
-  exploit inlineable_extern_inject; try eapply PRE. eassumption. eassumption.
-  intros [mu' [vres' [tm' [EC [VINJ [MINJ' (*[UNMAPPED [OUTOFREACH *) 
-           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]].
-  eexists; eexists; eexists; split.
+  exploit (inlineable_extern_inject ge tge); try eapply PRE. eapply GDE_lemma. 
+         eassumption. eassumption. 
+  intros [mu' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH 
+           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]]]].
+  eexists; eexists; exists mu'; split.
       apply corestep_plus_one.
-           econstructor. try eassumption.
-             eapply Events.external_call_symbols_preserved; eauto.
-      split. eassumption. intuition.
-  exploit structured_match_callstack_intern_invariant.
+           econstructor; try eassumption.
+            (* eapply Events.external_call_symbols_preserved; eauto.
+      split. eassumption.*) intuition.
+  exploit structured_match_callstack_builtin_invariant.
      Focus 3. eassumption. eassumption. eassumption. eassumption.
        instantiate (1:=m'). intros. eapply external_call_max_perm; eassumption.
-       instantiate (1:=tm'). intros. eapply inlinable_CurFreePerm; eassumption.
-     intros. remember (as_inj mu b) as AI.
-       destruct AI; apply eq_sym in HeqAI.
-         destruct p. eapply intern_incr_as_inj; eassumption.
-       remember (as_inj mu' b) as AI'.
-         destruct AI'; apply eq_sym in HeqAI'; trivial.
-         destruct p. destruct SEPARATED as [SEP1 [SEP2 SEP3]].
-           destruct (SEP1 _ _ _ HeqAI HeqAI').
-           elim (SEP2 _ H7). eapply as_inj_DomRng; eassumption. apply H6.
-     intros. remember (as_inj mu b) as AI.
-       destruct AI; apply eq_sym in HeqAI.
-         destruct p. apply intern_incr_as_inj in INCR. apply INCR in HeqAI. rewrite HeqAI in H6; trivial. trivial.
-       destruct SEPARATED as [SEP1 [SEP2 SEP3]].
-           destruct (SEP1 _ _ _ HeqAI H6).
-           elim (SEP3 _ H9). eapply as_inj_DomRng; eassumption. apply H7. 
+       eassumption.
+     eapply intern_as_inj_preserved1; eassumption.
+     eapply intern_as_inj_preserved2; eassumption.
   inv MCS. intros.
   split. 
   assert (MCS': structured_match_callstack mu' m' tm'
@@ -2878,10 +2978,10 @@ Proof.
 (*      destruct PRE as [RC [PG [GFP [SMV [WD INJ]]]]].*)
       exploit transl_exprlist_correct; try eassumption. eapply PRE. eapply PRE.
       intros [tvargs [EVAL2 VINJ2]].
-exploit MS_step_case_Builtin; try eassumption.
- intros [c2' [m2' [mu' [cstepPlus MS]]]].
+      exploit MS_step_case_Builtin; try eassumption.
+      intros [c2' [m2' [mu' [cstepPlus MS]]]].
       exists c2', m2', mu'. intuition. eassumption.
-       left.  eassumption. 
+      left. eassumption. 
    (* seq *)
      destruct MC as [SMC PRE].
      inv SMC. 
@@ -3005,10 +3105,10 @@ exploit MS_step_case_Builtin; try eassumption.
       destruct MC as [SMC PRE].
       inv SMC. 
       monadInv TR.
-  exploit transl_expr_correct; try eassumption; try eapply PRE.
-  intros [tv [EVAL [VINJ APP]]].
-  exploit match_callstack_freelist; try eassumption; try eapply PRE. 
-  intros [tm' [A [B C]]].
+      exploit transl_expr_correct; try eassumption; try eapply PRE.
+      intros [tv [EVAL [VINJ APP]]].
+      exploit match_callstack_freelist; try eassumption; try eapply PRE. 
+      intros [tm' [A [B C]]].
       assert (SMV': sm_valid mu m1' tm').
         destruct PRE as [? [? [? [SMV _]]]]. 
         split; intros.
@@ -3016,10 +3116,10 @@ exploit MS_step_case_Builtin; try eassumption.
             eapply SMV. apply H4.
           apply (Mem.valid_block_free_1 _ _ _ _ _ A).
             eapply SMV. apply H4.
-  eexists; eexists; exists mu.
-  intuition. 
-  Focus 6. left.
-     apply corestep_plus_one. eapply cmin_corestep_return_1. eauto. eauto. 
+      eexists; eexists; exists mu.
+      intuition. 
+      Focus 6. left.
+        apply corestep_plus_one. eapply cmin_corestep_return_1. eauto. eauto. 
         apply intern_incr_refl.
         apply sm_inject_separated_same_sminj.
         apply sm_locally_allocatedChar.
@@ -3201,7 +3301,7 @@ Proof.
   auto.
 Qed.
 
-Section EFFSTEP_PERM.
+Section EFFSTEP_DIAGRAM.
 Variable cenv : compilenv.
 Variable sz : Z.
 Variable f : Csharpminor.function.
@@ -3359,7 +3459,7 @@ Proof. intros MCS.
   econstructor; eauto.
 Qed.
 
-Lemma EFF_step_case_SkipCall:forall 
+Lemma EFF_step_case_SkipCall: forall 
 (MCS : structured_match_callstack mu m tm
                (Frame cenv tfn e lenv te sp lo hi :: cs)
                (Mem.nextblock m)
@@ -3953,7 +4053,81 @@ Proof. intros.
         apply orb_same.
   intuition.
 Qed.
-End EFFSTEP_PERM.
+
+Lemma MS_step_case_Builtin_eff:
+forall x t ef optid vres m' bl vargs tvargs
+(EvalArgs: Csharpminor.eval_exprlist ge e lenv m bl vargs)
+(ExtCall: Events.external_call ef ge vargs m t vres m')
+(MCS : structured_match_callstack mu m tm (Frame cenv tfn e lenv te sp lo hi :: cs)
+        (Mem.nextblock m) (Mem.nextblock tm))
+(EQ : transl_exprlist cenv bl = OK x)
+(MK : match_cont k tk cenv xenv cs)
+(Vinj: val_list_inject (restrict (as_inj mu) (vis mu)) vargs tvargs)
+(EVAL2: eval_exprlist tge (Vptr sp Int.zero) te tm x tvargs),
+exists c2' : CMin_core,
+  exists m2' mu', 
+      effstep_plus cmin_eff_sem tge (BuiltinEffects.BuiltinEffect tge ef tvargs tm)
+           (CMin_State tfn (Sbuiltin optid ef x) tk (Vptr sp Int.zero) te) tm c2' m2' /\
+  intern_incr mu mu' /\
+  sm_inject_separated mu mu' m tm /\
+  sm_locally_allocated mu mu' m tm m' m2' /\
+  MATCH
+    (CSharpMin_State f Csharpminor.Sskip k e (set_optvar optid vres lenv)) mu'
+    (CSharpMin_State f Csharpminor.Sskip k e (set_optvar optid vres lenv)) m'
+    c2' m2' /\
+  SM_wd mu' /\
+  sm_valid mu' m' m2'.
+Proof. intros. (*
+  exploit transl_exprlist_correct; try eassumption; try eapply PRE. 
+  intros [tvargs [EVAL2 VINJ2]].*)
+  exploit structured_match_callstack_match_globalenvs; try eassumption.
+  intros [hi' [Hi1 [Hi2 MG]]].
+  exploit (inlineable_extern_inject ge tge); try eapply PRE.
+      apply GDE_lemma. eassumption. eassumption.
+  intros [mu' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH 
+           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]]]].
+  eexists; eexists; eexists; split.
+      apply effstep_plus_one.
+           econstructor; try eassumption.
+(*             eapply Events.external_call_symbols_preserved; eauto.*)
+      split. eassumption. intuition.
+  exploit structured_match_callstack_builtin_invariant.
+     Focus 3. eassumption. eassumption. eassumption. eassumption.
+       instantiate (1:=m'). intros. eapply external_call_max_perm; eassumption.
+       eassumption.
+     intros. remember (as_inj mu b) as AI.
+       destruct AI; apply eq_sym in HeqAI.
+         destruct p. eapply intern_incr_as_inj; eassumption.
+       remember (as_inj mu' b) as AI'.
+         destruct AI'; apply eq_sym in HeqAI'; trivial.
+         destruct p. destruct SEPARATED as [SEP1 [SEP2 SEP3]].
+           destruct (SEP1 _ _ _ HeqAI HeqAI').
+           elim (SEP2 _ H7). eapply as_inj_DomRng; eassumption. apply H6.
+     intros. remember (as_inj mu b) as AI.
+       destruct AI; apply eq_sym in HeqAI.
+         destruct p. apply intern_incr_as_inj in INCR. apply INCR in HeqAI. rewrite HeqAI in H6; trivial. trivial.
+       destruct SEPARATED as [SEP1 [SEP2 SEP3]].
+           destruct (SEP1 _ _ _ HeqAI H6).
+           elim (SEP3 _ H9). eapply as_inj_DomRng; eassumption. apply H7. 
+  inv MCS. intros.
+  split. 
+  assert (MCS': structured_match_callstack mu' m' tm'
+                (Frame cenv tfn e lenv te sp lo hi :: cs)
+                (Mem.nextblock m') (Mem.nextblock tm')).
+    eapply structured_match_callstack_incr_bound. eassumption. 
+    eapply external_call_nextblock; eauto.
+    eapply external_call_nextblock; eauto.
+  econstructor; try eassumption. eauto.
+Opaque PTree.set.
+  unfold set_optvar. destruct optid; simpl. 
+  eapply structured_match_callstack_set_temp; eauto.
+    assumption.
+
+exploit (intern_incr_meminj_preserves_globals_as_inj ge).
+  eapply H3. intuition. eapply WD'. assumption.
+intuition.
+Qed.
+End EFFSTEP_DIAGRAM.
 
 Section EFF_InternalCall.
 Variable cenv : compilenv.
@@ -4138,10 +4312,20 @@ induction EFFSTEP; simpl in *.
       exists c2'. exists m2'. exists mu'. 
       intuition.
       exists EmptyEffect. intuition. 
-   (*builtin*) admit. (*TODO: case builtin*)
-      (*destruct (MS_step_case_Builtin _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
-       PRE TRF MCS _ _ _ _ _ _ optid args _ MK H1 H2 H3 EQ EQ1) 
-       as [c2' [m2' [mu' [cstepPlus MS]]]].      intuition. *)
+   (*builtin*)
+      destruct MC as [SMC PRE].
+      inv SMC; simpl in *. 
+      monadInv TR.
+(*      destruct PRE as [RC [PG [GFP [SMV [WD INJ]]]]].*)
+      exploit transl_exprlist_correct; try eassumption. eapply PRE. eapply PRE.
+      intros [tvargs [EVAL2 VINJ2]].
+      exploit MS_step_case_Builtin_eff; try eassumption.
+      intros [c2' [m2' [mu' [effstepPlus MS]]]]. 
+      instantiate (1:=optid) in effstepPlus.
+      exists c2', m2', mu'. intuition. 
+      exists (BuiltinEffects.BuiltinEffect tge ef tvargs m2).
+      split. left. assumption. 
+      eapply BuiltinEffect_Propagate; eassumption. 
   (* seq *)
      destruct MC as [SMC PRE].
      inv SMC. 
