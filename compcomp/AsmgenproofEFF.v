@@ -45,6 +45,7 @@ Require Import reach.
 Require Import effect_simulations.
 Require Import sepcomp.effect_properties.
 Require Import effect_simulations_lemmas.
+Require Import BuiltinEffects.
 
 Require Export Axioms.
 Require Import OpEFF.
@@ -90,6 +91,23 @@ Proof.
   apply Genv.find_var_info_transf_partial with transf_fundef.
   exact TRANSF. 
 Qed.
+
+Lemma GDE_lemma: genvs_domain_eq ge tge.
+Proof.
+    unfold genvs_domain_eq, genv2blocks.
+    simpl; split; intros.
+     split; intros; destruct H as [id Hid].
+      rewrite <- symbols_preserved in Hid.
+      exists id; assumption.
+     rewrite symbols_preserved in Hid.
+      exists id; assumption.
+     split; intros; destruct H as [id Hid].
+      rewrite <- varinfo_preserved in Hid.
+      exists id; assumption.
+     rewrite varinfo_preserved in Hid.
+      exists id; assumption.
+Qed.
+
 
 (** * Properties of control flow *)
 
@@ -936,15 +954,6 @@ Opaque loadind.
   specialize (agree_sp_local _ _ _ _ AG); intros LocSP.
   (*destruct (agree_sp_shape _ _ _ _ AG) as [spb [z [SP [LocSP RSP]]]].
   subst. simpl in *.*)
-  assert (GDEQ: genvs_domain_eq ge tge).
-    clear -ge tge. unfold genvs_domain_eq, genv2blocks.
-    simpl; split; intros. 
-     split; intros; destruct H as [id Hid].
-       rewrite <- symbols_preserved in Hid.
-       exists id; trivial.
-     rewrite symbols_preserved in Hid.
-       exists id; trivial.
-    rewrite varinfo_preserved. intuition.
   exploit (preg_vals (restrict_sm mu (vis mu))). eassumption.
   intros ArgsInj.
   exploit eval_operation_inject''; try eapply H0; try eapply ArgsInj.
@@ -953,13 +962,13 @@ Opaque loadind.
         red; intros. destruct (restrictD_Some _ _ _ _ _ H1). 
              apply local_in_all in H2; trivial.
              eapply restrictI_Some; eassumption.  
-    eapply restrict_sm_preserves_globals.
+    eapply restrict_sm_preserves_globals; try eassumption. 
       apply meminj_preserves_genv2blocks.
         apply meminj_preserves_genv2blocks in PG.
         eapply genvs_domain_eq_preserves; try eassumption.
-        apply genvs_domain_eq_sym; eassumption.
+        apply genvs_domain_eq_sym. apply GDE_lemma.
       unfold vis. intuition. rewrite Glob. intuition.
-      rewrite (genvs_domain_eq_isGlobal _ _ GDEQ); trivial.
+      rewrite (genvs_domain_eq_isGlobal _ _ GDE_lemma); trivial.
     rewrite restrict_sm_all. eapply inject_restrict; eassumption.
   intros [v' [A B]].
 (*  specialize (sp_val _ _ _ _ AG); intros RSP.*)
@@ -1340,7 +1349,7 @@ Opaque loadind.
       eapply Mem.valid_block_free_1; try eassumption.
         eapply SMV; assumption.
 
-(* - builtin: later*)
+(* - builtin*) - admit. (*TODO: builtin*)
 (* - annot: later*)
 
 - (* Mgoto *)
@@ -1869,15 +1878,6 @@ Opaque loadind.
   specialize (agree_sp_local _ _ _ _ AG); intros LocSP.
   (*destruct (agree_sp_shape _ _ _ _ AG) as [spb [z [SP [LocSP RSP]]]].
   subst. simpl in *.*)
-  assert (GDEQ: genvs_domain_eq ge tge).
-    clear -ge tge. unfold genvs_domain_eq, genv2blocks.
-    simpl; split; intros. 
-     split; intros; destruct H as [id Hid].
-       rewrite <- symbols_preserved in Hid.
-       exists id; trivial.
-     rewrite symbols_preserved in Hid.
-       exists id; trivial.
-    rewrite varinfo_preserved. intuition.
   exploit (preg_vals (restrict_sm mu (vis mu))). eassumption.
   intros ArgsInj.
   exploit eval_operation_inject''; try eapply H0; try eapply ArgsInj.
@@ -1890,9 +1890,9 @@ Opaque loadind.
       apply meminj_preserves_genv2blocks.
         apply meminj_preserves_genv2blocks in PG.
         eapply genvs_domain_eq_preserves; try eassumption.
-        apply genvs_domain_eq_sym; eassumption.
+        apply genvs_domain_eq_sym; eapply GDE_lemma.
       unfold vis. intuition. rewrite Glob. intuition.
-      rewrite (genvs_domain_eq_isGlobal _ _ GDEQ); trivial.
+      rewrite (genvs_domain_eq_isGlobal _ _ GDE_lemma); trivial.
     rewrite restrict_sm_all. eapply inject_restrict; eassumption.
   intros [v' [A B]].
 (*  specialize (sp_val _ _ _ _ AG); intros RSP.*)
@@ -2077,7 +2077,8 @@ Opaque loadind.
   admit. (*later*)
 
 - admit. (*TailCall -later*)
-(* - builtin: later*)
+
+(* - builtin*) - admit. (*TODO: builtin*)
 (* - annot: later*)
 
 - (* Mgoto *)
@@ -2396,15 +2397,7 @@ SM_simulation.SM_simulation_inject
    (Mach_eff_sem return_address_offset) Asm_eff_sem ge tge entrypoints.
 Proof.
 intros.
-assert (GDE: genvs_domain_eq ge tge).
-    unfold genvs_domain_eq, genv2blocks.
-    simpl; split; intros. 
-     split; intros; destruct H as [id Hid].
-       rewrite <- symbols_preserved in Hid.
-       exists id; trivial.
-     rewrite symbols_preserved in Hid.
-       exists id; trivial.
-    rewrite varinfo_preserved. intuition.
+assert (GDE:= GDE_lemma). 
  eapply sepcomp.effect_simulations_lemmas.inj_simulation_plus with
   (match_states:=MATCH) (measure:=measure).
 (*genvs_dom_eq*)

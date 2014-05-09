@@ -4599,19 +4599,7 @@ SM_simulation.SM_simulation_inject csharpmin_eff_sem
    cmin_eff_sem ge tge entrypoints.
 Proof.
 intros.
-assert (GDE: genvs_domain_eq ge tge).
-    unfold genvs_domain_eq, genv2blocks.
-    simpl; split; intros.
-     split; intros; destruct H as [id Hid].
-      rewrite <- (symbols_preserved _ _ TRANSL) in Hid.
-      exists id; assumption.
-     rewrite (symbols_preserved _ _ TRANSL) in Hid.
-      exists id; assumption.
-     split; intros; destruct H as [id Hid].
-      rewrite <- (varinfo_preserved _ _ TRANSL) in Hid.
-      exists id; assumption.
-     rewrite (varinfo_preserved _ _ TRANSL) in Hid.
-      exists id; assumption.
+assert (GDE:= GDE_lemma).
  eapply sepcomp.effect_simulations_lemmas.inj_simulation_star with
   (match_states:=MATCH) (measure:=MC_measure).
 (*genvs_dom_eq*)

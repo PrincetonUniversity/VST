@@ -16,6 +16,7 @@ Require Import Locations. (*for locmap.set etc*)
 
 Require Import LTL.
 Require Import LTL_coop.
+Require Import BuiltinEffects.
 
 (*We're using the BuiltEffect also for Lannot - 
   maybe we should define a separate effect?*)
@@ -65,16 +66,14 @@ Inductive ltl_effstep (g:genv):  (block -> Z -> bool) ->
       ltl_effstep g (FreeEffect m 0 (f.(fn_stacksize)) sp) 
         (LTL_Block s f (Vptr sp Int.zero) (Ltailcall sig ros :: bb) rs) m
         (LTL_Callstate s fd rs') m'
-(* WE DO NOT TREAT BUILTINS
   | ltl_effstep_Lbuiltin: forall s f sp ef args res bb rs m t vl rs' m',
       external_call' ef g (reglist rs args) m t vl m' ->
       rs' = Locmap.setlist (map R res) vl (undef_regs (destroyed_by_builtin ef) rs) ->
-      ltl_effstep g 
-         (BuiltinEffect g (ef_sig ef) (decode_longs (sig_args (ef_sig ef)) (reglist rs args)) m)
+      ltl_effstep g (BuiltinEffect g ef (decode_longs (sig_args (ef_sig ef)) (reglist rs args)) m)
          (LTL_Block s f sp (Lbuiltin ef args res :: bb) rs) m
          (LTL_Block s f sp bb rs') m'
-*)
-(* WE DO NOT TREAT BUILTINS
+
+(* WE DO NOT TREAT ANNOTS YET
   | ltl_effstep_Lannot: forall s f sp ef args bb rs m t vl m',
       external_call' ef g (map rs args) m t vl m' ->
       ltl_effstep g (BuiltinEffect g (ef_sig ef) (decode_longs (sig_args (ef_sig ef)) (map rs args)) m)
@@ -118,12 +117,6 @@ Inductive ltl_effstep (g:genv):  (block -> Z -> bool) ->
       ltl_effstep g EmptyEffect 
         (LTL_Returnstate (Stackframe f sp rs1 bb :: s) rs) m
         (LTL_Block s f sp bb rs) m.
-(*
-  | ltl_effstep_sub_val: forall E EE c m c' m',
-      (forall b ofs, Mem.valid_block m b ->
-                     E b ofs = true -> EE b ofs = true) ->
-      ltl_effstep g E c m c' m' ->
-      ltl_effstep g EE c m c' m'.*)
 
 Lemma ltlstep_effax1: forall (M : block -> Z -> bool) g c m c' m',
       ltl_effstep g M c m c' m' ->
@@ -148,6 +141,9 @@ intros.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply FreeEffect_free; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
+         inv H.
+         eapply BuiltinEffect_unchOn. eassumption.
 (*  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          inv H. eapply ec_builtinEffectPolymorphic; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -165,13 +161,6 @@ intros.
   (*no external call*) 
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  (*effstep_sub_val
-    destruct IHltl_effstep.
-    split; trivial.
-    eapply unchanged_on_validblock; try eassumption.
-    intros; simpl. remember (E b ofs) as d.
-    destruct d; trivial. apply eq_sym in Heqd.
-    rewrite (H _ _ H3 Heqd) in H4. discriminate.*)
 Qed.
 
 Lemma ltlstep_effax2: forall  g c m c' m',
@@ -188,8 +177,8 @@ intros. unfold corestep, coopsem in H; simpl in H.
     eexists. eapply ltl_effstep_Lstore; try eassumption; trivial.
     eexists. eapply ltl_effstep_Lcall; try eassumption; trivial.  
     eexists. eapply ltl_effstep_Ltailcall; try eassumption; trivial. 
-(*    eexists. eapply ltl_effstep_Lbuiltin; try eassumption; trivial. 
-    eexists. eapply ltl_effstep_Lannot; eassumption.*)
+    eexists. eapply ltl_effstep_Lbuiltin; try eassumption; trivial. 
+(*    eexists. eapply ltl_effstep_Lannot; eassumption.*)
     eexists. eapply ltl_effstep_Lbranch; eassumption.
     eexists. eapply ltl_effstep_Lcond; try eassumption; trivial.
     eexists. eapply ltl_effstep_Ljumptable; try eassumption; trivial.
@@ -211,8 +200,10 @@ intros.
   eapply Mem.valid_access_implies; try eassumption. constructor.
 
   eapply FreeEffect_validblock; eassumption.
+  eapply BuiltinEffect_valid_block; eassumption.
   eapply FreeEffect_validblock; eassumption.
 Qed.
+
 Program Definition LTL_eff_sem : 
   @EffectSem genv LTL_core.
 eapply Build_EffectSem with (sem := LTL_coop_sem)(effstep:=ltl_effstep).

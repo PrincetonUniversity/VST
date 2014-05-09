@@ -17,6 +17,7 @@ Require Import sepcomp.effect_semantics.
 
 Require Import Linear.
 Require Import Linear_coop.
+Require Import BuiltinEffects.
 
 Section EFFSEM.
 
@@ -74,14 +75,14 @@ Inductive linear_effstep: (block -> Z -> bool) -> Linear_core -> mem -> Linear_c
       linear_effstep (FreeEffect m 0 (f.(fn_stacksize)) stk)
         (Linear_State s f (Vptr stk Int.zero) (Ltailcall sig ros :: b) rs) m
         (Linear_Callstate s f' rs') m'
-(*NO BUILTINS YET
   | lin_effexec_Lbuiltin:
       forall s f sp rs m ef args res b t vl rs' m',
       external_call' ef ge (reglist rs args) m t vl m' ->
       rs' = Locmap.setlist (map R res) vl (undef_regs (destroyed_by_builtin ef) rs) ->
-      linear_effstep (Linear_State s f sp (Lbuiltin ef args res :: b) rs) m
-         (Linear_State s f sp b rs') m'*)
-(*NO BUILTINS YET
+      linear_effstep (BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef)) (reglist rs args)) m)
+         (Linear_State s f sp (Lbuiltin ef args res :: b) rs) m
+         (Linear_State s f sp b rs') m'
+(*NO ANNOTS YET
   | lin_effexec_Lannot:
       forall s f sp rs m ef args b t v m',
       external_call' ef ge (map rs args) m t v m' ->
@@ -172,6 +173,9 @@ intros.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          eapply FreeEffect_free; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
+         inv H.
+         eapply BuiltinEffect_unchOn. eassumption.
 (*  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          inv H. eapply ec_builtinEffectPolymorphic; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -195,13 +199,6 @@ intros.
   (*no external call*) 
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  (*effstep_sub_val
-    destruct IHlinear_effstep.
-    split; trivial.
-    eapply unchanged_on_validblock; try eassumption.
-    intros; simpl. remember (E b ofs) as d.
-    destruct d; trivial. apply eq_sym in Heqd.
-    rewrite (H _ _ H3 Heqd) in H4. discriminate.*)
 Qed.
 
 Lemma linearstep_effax2: forall  g c m c' m',
@@ -217,8 +214,8 @@ intros. unfold corestep, coopsem in H; simpl in H.
     eexists. eapply lin_effexec_Lstore; try eassumption; trivial.
     eexists. eapply lin_effexec_Lcall; try eassumption; trivial.    
     eexists. eapply lin_effexec_Ltailcall; try eassumption; trivial. 
-(*    eexists. eapply linear_effstep_Lbuiltin; try eassumption; trivial. 
-    eexists. eapply linear_effstep_Lannot; eassumption.*)
+    eexists. eapply lin_effexec_Lbuiltin; try eassumption; trivial. 
+(*    eexists. eapply linear_effstep_Lannot; eassumption.*)
     eexists. eapply lin_effexec_Llabel; try eassumption; trivial.
     eexists. eapply lin_effexec_Lgoto; try eassumption; trivial.
     eexists. eapply lin_effexec_Lcond_true; try eassumption; trivial.
@@ -242,6 +239,7 @@ intros.
   eapply Mem.valid_access_implies; try eassumption. constructor.
 
   eapply FreeEffect_validblock; eassumption.
+  eapply BuiltinEffect_valid_block; eassumption.
   eapply FreeEffect_validblock; eassumption.
 Qed.
 

@@ -44,6 +44,7 @@ Require Export Axioms.
 Require Import CminorSel_coop.
 Require Import CminorSel_eff.
 Require Import RTL_coop.
+Require Import BuiltinEffects.
 Require Import RTL_eff.
 
 (** * Correspondence between Cminor environments and RTL register sets *)
@@ -2644,6 +2645,18 @@ intuition.
   rewrite replace_locals_as_inj. assumption.
 Qed.
 
+Lemma GDE_lemma: genvs_domain_eq ge tge.
+Proof.
+    unfold genvs_domain_eq, genv2blocks.
+    simpl; split; intros. 
+     split; intros; destruct H as [id Hid].
+       rewrite <- symbols_preserved in Hid.
+       exists id; trivial.
+     rewrite symbols_preserved in Hid.
+       exists id; trivial.
+    rewrite varinfo_preserved. intuition.
+Qed.
+
 Lemma MATCH_corestep: forall 
        st1 m1 st1' m1' 
        (CS: corestep cminsel_eff_sem ge st1 m1 st1' m1')
@@ -2952,28 +2965,45 @@ Proof. intros.
             eapply free_free_inject; try eassumption.
 (*        eapply REACH_closed_free; eassumption.*)
 
-  (* builtin TODO
+  (* builtin*)
   inv TS. 
-  exploit transl_exprlist_correct; eauto.
-  intros [rs' [tm' [E [F [G [J K]]]]]].
-  edestruct external_call_mem_extends as [tv [tm'' [A [B [C D]]]]]; eauto.
-  econstructor; split.
-  left. eapply plus_right. eexact E.
-  eapply exec_Ibuiltin. eauto. 
-  eapply external_call_symbols_preserved. eauto.
-  exact symbols_preserved. exact varinfo_preserved.
-  traceEq. 
-  econstructor; eauto. constructor.
-  eapply match_env_update_dest; eauto.
-
-  intuition. 
-      apply intern_incr_refl. 
-      apply sm_inject_separated_same_sminj.
-      apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
-          try rewrite (freshloc_irrefl); intuition.
-      econstructor. econstructor; eauto. constructor.
-      intuition.*)
+  destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
+      assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
+        rewrite <- restrict_sm_all.
+        eapply restrict_sm_preserves_globals; try eassumption.
+          unfold vis. intuition.
+  exploit transl_exprlist_correct; try eapply MINJ; try eassumption.
+  intros [rs' [m2' [TCS [E [F [G [J K]]]]]]]. subst.
+  exploit (inlineable_extern_inject _ _ GDE_lemma); try eapply F.
+        eassumption. eassumption. eassumption. eassumption. eassumption. assumption.
+  intros [mu' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH 
+           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]]]].
+  eexists; eexists; eexists mu'. 
+  split. left.
+    eapply corestep_star_plus_trans. eapply TCS.
+      eapply corestep_plus_one.
+      eapply rtl_corestep_exec_Ibuiltin. eauto. eassumption.
+  intuition.
+  split. econstructor; eauto.
+    constructor.
+    eapply tr_cont_inject_incr; try eassumption.
+       eapply intern_incr_restrict; try eassumption. 
+    eapply match_env_update_dest; eauto.
+      eapply match_env_inject_incr; try eassumption.
+        eapply intern_incr_restrict; try eassumption.
+    eapply inject_restrict; try eassumption.
+    destruct SP as [bsp [bsp' [? [? BSP]]]].
+      exists bsp, bsp'. split; trivial. split; trivial. 
+       eapply intern_incr_restrict; eassumption.
+  intuition.
+  eapply meminj_preserves_incr_sep. eapply PG. eassumption. 
+             apply intern_incr_as_inj; trivial.
+             apply sm_inject_separated_mem; eassumption.
+  red in GFP. red. intros. destruct (GFP _ _ H2).
+          split; trivial.
+          eapply intern_incr_as_inj; eassumption.
+  assert (FRG: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply INCR.
+          rewrite <- FRG. eapply (Glob _ H2).  
 
   (* seq *)
   inv TS.
@@ -3664,28 +3694,50 @@ Proof. intros st1 m1 st1' m1' U1 CS.
            eapply visPropagateR; eassumption. 
          eapply FreeEffect_PropagateLeft; try eassumption.
 
-  (* builtin TODO
-  inv TS. 
-  exploit transl_exprlist_correct; eauto.
-  intros [rs' [tm' [E [F [G [J K]]]]]].
-  edestruct external_call_mem_extends as [tv [tm'' [A [B [C D]]]]]; eauto.
-  econstructor; split.
-  left. eapply plus_right. eexact E.
-  eapply exec_Ibuiltin. eauto. 
-  eapply external_call_symbols_preserved. eauto.
-  exact symbols_preserved. exact varinfo_preserved.
-  traceEq. 
-  econstructor; eauto. constructor.
-  eapply match_env_update_dest; eauto.
-
-  intuition. 
-      apply intern_incr_refl. 
-      apply sm_inject_separated_same_sminj.
-      apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
-          try rewrite (freshloc_irrefl); intuition.
-      econstructor. econstructor; eauto. constructor.
-      intuition.*)
+  (* builtin*)
+  destruct MTCH as [MSTATE PRE]. inv MSTATE.
+  inv TS.
+  destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
+      assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
+        rewrite <- restrict_sm_all.
+        eapply restrict_sm_preserves_globals; try eassumption.
+          unfold vis. intuition.
+  exploit Efftransl_exprlist_correct; try eapply MINJ; try eassumption.
+  intros [rs' [m2' [TCS [E [F [G [J K]]]]]]]. subst.
+  exploit (inlineable_extern_inject _ _ GDE_lemma); try eapply F.
+        eassumption. eassumption. eassumption. eassumption. eassumption. assumption.
+  intros [mu' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH 
+           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]]]].
+  eexists; eexists; eexists mu'; eexists. 
+  split. left.
+    eapply effstep_star_plus_trans. eapply TCS.
+      eapply effstep_plus_one.
+      eapply rtl_effstep_exec_Ibuiltin. eauto. eassumption.
+  split; trivial. split; trivial. split; trivial. 
+  split.
+    split. econstructor; eauto.
+        constructor.
+        eapply tr_cont_inject_incr; try eassumption.
+          eapply intern_incr_restrict; try eassumption. 
+        eapply match_env_update_dest; eauto.
+          eapply match_env_inject_incr; try eassumption.
+            eapply intern_incr_restrict; try eassumption.
+        eapply inject_restrict; try eassumption. 
+        intuition.
+        destruct SP as [bsp [bsp' [? [? BSP]]]].
+          exists bsp, bsp'. split; trivial. split; trivial. 
+          eapply intern_incr_restrict; eassumption.
+    intuition.
+    eapply meminj_preserves_incr_sep. eapply PG. eassumption. 
+             apply intern_incr_as_inj; trivial.
+             apply sm_inject_separated_mem; eassumption.
+    red in GFP. red. intros. destruct (GFP _ _ H2).
+          split; trivial.
+          eapply intern_incr_as_inj; eassumption.
+    assert (FRG: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply INCR.
+          rewrite <- FRG. eapply (Glob _ H2).
+  simpl. intros.  apply andb_true_iff in H1; destruct H1.
+    eapply BuiltinEffect_Propagate; eassumption. 
 
   (* seq *)
   destruct MTCH as [MSTATE PRE]. inv MSTATE.

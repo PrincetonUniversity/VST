@@ -142,7 +142,6 @@ Inductive clight_effstep (ge:genv): (block -> Z -> bool) ->
       clight_effstep ge EmptyEffect (CL_State f (Scall optid a al) k e le) m
         (CL_Callstate fd vargs (Kcall optid f e le k)) m
 
-(* WE DO NOT TREAT BUILTINS *)
   | clight_effstep_builtin:   forall f optid ef tyargs al k e le m vargs t vres m',
       eval_exprlist ge e le m al tyargs vargs ->
       external_call ef ge vargs m t vres m' ->

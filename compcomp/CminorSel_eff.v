@@ -13,6 +13,7 @@ Require Import sepcomp.effect_semantics.
 
 Require Import CminorSel.
 Require Import CminorSel_coop.
+Require Import BuiltinEffects.
 
 Inductive cminsel_effstep (g:genv):  (block -> Z -> bool) ->
             CMinSel_core -> mem -> CMinSel_core -> mem -> Prop :=
@@ -66,14 +67,14 @@ Inductive cminsel_effstep (g:genv):  (block -> Z -> bool) ->
         (CMinSel_State f (Stailcall sig a bl) k (Vptr sp Int.zero) e) m
         (CMinSel_Callstate fd vargs (call_cont k)) m'
 
-(* WE DO NOT TREAT BUILTINS 
+(* WE DO NOT TREAT BUILTINS *)
   | cminsel_effstep_builtin: forall f optid ef al k sp e m vl t v m',
       CminorSel.eval_exprlist g sp e m nil al vl ->
       external_call ef g vl m t v m' ->
-      cminsel_effstep g (BuiltinEffect g (ef_sig ef) vl m)
+      cminsel_effstep g (BuiltinEffect g ef vl m)
           (CMinSel_State f (Sbuiltin optid ef al) k sp e) m
           (CMinSel_State f Sskip k sp (Cminor.set_optvar optid v e)) m'
-*)
+
   | cminsel_effstep_seq: forall f s1 s2 k sp e m,
       cminsel_effstep g EmptyEffect (CMinSel_State f (Sseq s1 s2) k sp e) m
          (CMinSel_State f s1 (Kseq s2 k) sp e) m
@@ -150,12 +151,6 @@ Inductive cminsel_effstep (g:genv):  (block -> Z -> bool) ->
       cminsel_effstep g EmptyEffect
         (CMinSel_Returnstate v (Kcall optid f sp e k)) m
         (CMinSel_State f Sskip k sp (Cminor.set_optvar optid v e)) m.
-(*
-  | cminsel_effstep_sub_val: forall E EE c m c' m',
-      (forall b ofs, Mem.valid_block m b ->
-                     E b ofs = true -> EE b ofs = true) ->
-      cminsel_effstep g E c m c' m' ->
-      cminsel_effstep g EE c m c' m'.*)
 
 Lemma cminselstep_effax1: forall (M : block -> Z -> bool) g c m c' m',
       cminsel_effstep g M c m c' m' ->
@@ -178,8 +173,8 @@ intros.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; try eassumption. trivial.
          eapply FreeEffect_free; eassumption.
-(*  split. unfold corestep, coopsem; simpl. econstructor; try eassumption.
-         eapply ec_builtinEffectPolymorphic; eassumption.*)
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
+         eapply BuiltinEffect_unchOn; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -209,13 +204,6 @@ intros.
   (*no external call*) 
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
-  (*effstep_sub_val
-    destruct IHcminsel_effstep.
-    split; trivial.
-    eapply unchanged_on_validblock; try eassumption.
-    intros; simpl. remember (E b ofs) as d.
-    destruct d; trivial. apply eq_sym in Heqd.
-    rewrite (H _ _ H3 Heqd) in H4. discriminate.*)
 Qed.
 
 Lemma cminselstep_effax2: forall  g c m c' m',
@@ -230,7 +218,7 @@ intros. inv H.
     eexists. eapply cminsel_effstep_store; eassumption.
     eexists. eapply cminsel_effstep_call; try eassumption. reflexivity.
     eexists. eapply cminsel_effstep_tailcall; try eassumption. reflexivity.
-(*    eexists. eapply cminsel_effstep_builtin; eassumption.*)
+    eexists. eapply cminsel_effstep_builtin; eassumption.
     eexists. eapply cminsel_effstep_seq.
     eexists. eapply cminsel_effstep_ifthenelse; eassumption.
     eexists. eapply cminsel_effstep_loop.
@@ -262,6 +250,7 @@ intros.
   eapply Mem.valid_access_implies; try eassumption. constructor.
 
   eapply FreeEffect_validblock; eassumption.
+  eapply BuiltinEffect_valid_block; eassumption.
   eapply FreeEffect_validblock; eassumption.
   eapply FreeEffect_validblock; eassumption.
 Qed.

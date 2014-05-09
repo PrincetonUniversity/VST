@@ -48,8 +48,8 @@ Require Export Axioms.
 Require Import LTL_coop.
 Require Import LTL_eff.
 Require Import Linear_coop.
+Require Import BuiltinEffects.
 Require Import Linear_eff.
-
 
 (*further down we also Require Import Mach. (*for RegEq.eq*)*)
 Require Import OpEFF.
@@ -553,6 +553,22 @@ Proof. intros.
   destruct (PG _ _ H). split; trivial.
   apply restrictI_Some; try eassumption.
   apply (Glob _ H1).
+Qed.
+
+Lemma GDE_lemma: genvs_domain_eq ge tge.
+Proof.
+    unfold genvs_domain_eq, genv2blocks.
+    simpl; split; intros.
+     split; intros; destruct H as [id Hid].
+      rewrite <- symbols_preserved in Hid.
+      exists id; assumption.
+     rewrite symbols_preserved in Hid.
+      exists id; assumption.
+     split; intros; destruct H as [id Hid].
+      rewrite <- varinfo_preserved in Hid.
+      exists id; assumption.
+     rewrite varinfo_preserved in Hid.
+      exists id; assumption.
 Qed.
 
 Lemma restrict_GFP_vis: forall mu
@@ -1800,13 +1816,47 @@ Proof. intros.
   intuition.
       eapply REACH_closed_free; try eassumption.
 
-  (* Lbuiltin 
-  eexists; eexists; split. 
-  left; econstructor; split. simpl.
-  apply plus_one. eapply exec_Lbuiltin; eauto.
-  eapply external_call_symbols_preserved'; eauto.
-  exact symbols_preserved. exact varinfo_preserved.
-  econstructor; eauto.*)
+  (* Lbuiltin*) 
+  inv H. 
+  assert (ArgsInj: val_list_inject (restrict (as_inj mu) (vis mu))
+            (decode_longs (sig_args (ef_sig ef)) (reglist rs args))
+            (decode_longs (sig_args (ef_sig ef)) (reglist ls2 args))).
+    eapply agree_regs_list in AGREE.
+    rewrite restrict_sm_all, vis_restrict_sm, restrict_nest in AGREE; trivial.
+    eapply decode_longs_inject; eassumption.
+  exploit (inlineable_extern_inject ge tge); try eassumption.
+  intros [mu' [v' [m'' [TEC [ResInj [MINJ' [UNMAPPED [LOOR [INC [SEP [LOCALLOC [WD' [SMV' RC']]]]]]]]]]]]].  
+  eexists; eexists; split.
+  left. eapply corestep_plus_one. eapply lin_exec_Lbuiltin; eauto.
+           econstructor. eassumption. reflexivity.
+  fold linearize_block. exists mu'.
+  split; trivial. 
+  split; trivial.
+  split; trivial.
+  split. econstructor; eauto.
+    eapply list_match_stackframes_intern_incr; try eassumption.
+      eapply restrict_sm_intern_incr; eassumption.
+      apply restrict_sm_WD; trivial.
+    eapply agree_regs_set_regs; try eassumption. 
+     eapply agree_regs_undef.
+     rewrite restrict_sm_all, vis_restrict_sm, restrict_nest in AGREE; trivial.
+     rewrite restrict_sm_all, vis_restrict_sm, restrict_nest; trivial.
+     eapply agree_regs_incr; try eassumption.
+      eapply intern_incr_restrict; eassumption.
+   rewrite restrict_sm_all, vis_restrict_sm, restrict_nest; trivial.
+     eapply encode_long_inject; eassumption.
+   eapply sp_mapped_intern_incr; try eassumption.
+      eapply restrict_sm_intern_incr; eassumption.
+      apply restrict_sm_WD; trivial.
+   intuition.
+      apply intern_incr_as_inj in INC; trivial.
+        apply sm_inject_separated_mem in SEP; trivial.
+        eapply meminj_preserves_incr_sep; eassumption. 
+    red; intros. destruct (GFP _ _ H1).
+          split; trivial.
+          eapply intern_incr_as_inj; eassumption.
+    assert (FRG: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply INC.
+          rewrite <- FRG. eapply (Glob _ H1).
 
   (* Lannot 
   eexists; eexists; split. 
@@ -2376,7 +2426,51 @@ Proof. intros.
            eapply visPropagate; try eassumption.
     eapply FreeEffect_PropagateLeft; try eassumption.
     rewrite <- (stacksize_preserved _ _ TRF); eauto. 
-     
+
+  (* Lbuiltin*) 
+  inv H. 
+  assert (ArgsInj: val_list_inject (restrict (as_inj mu) (vis mu))
+            (decode_longs (sig_args (ef_sig ef)) (reglist rs args))
+            (decode_longs (sig_args (ef_sig ef)) (reglist ls2 args))).
+    eapply agree_regs_list in AGREE.
+    rewrite restrict_sm_all, vis_restrict_sm, restrict_nest in AGREE; trivial.
+    eapply decode_longs_inject; eassumption.
+  exploit (inlineable_extern_inject ge tge); try eassumption.
+  intros [mu' [v' [m'' [TEC [ResInj [MINJ' [UNMAPPED [LOOR [INC [SEP [LOCALLOC [WD' [SMV' RC']]]]]]]]]]]]].  
+  eexists; eexists; eexists; split.
+  left. eapply effstep_plus_one. eapply lin_effexec_Lbuiltin; eauto.
+           econstructor. eassumption. reflexivity.
+  fold linearize_block. exists mu'.
+  split; trivial. 
+  split; trivial.
+  split; trivial.
+  split.
+    split. econstructor; eauto.
+      eapply list_match_stackframes_intern_incr; try eassumption.
+        eapply restrict_sm_intern_incr; eassumption.
+        apply restrict_sm_WD; trivial.
+      eapply agree_regs_set_regs; try eassumption. 
+       eapply agree_regs_undef.
+       rewrite restrict_sm_all, vis_restrict_sm, restrict_nest in AGREE; trivial.
+       rewrite restrict_sm_all, vis_restrict_sm, restrict_nest; trivial.
+       eapply agree_regs_incr; try eassumption.
+        eapply intern_incr_restrict; eassumption.
+      rewrite restrict_sm_all, vis_restrict_sm, restrict_nest; trivial.
+        eapply encode_long_inject; eassumption.
+      eapply sp_mapped_intern_incr; try eassumption.
+         eapply restrict_sm_intern_incr; eassumption.
+         apply restrict_sm_WD; trivial.
+    intuition.
+      apply intern_incr_as_inj in INC; trivial.
+        apply sm_inject_separated_mem in SEP; trivial.
+        eapply meminj_preserves_incr_sep; eassumption. 
+      red; intros. destruct (GFP _ _ H1).
+          split; trivial.
+          eapply intern_incr_as_inj; eassumption.
+      assert (FRG: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply INC.
+          rewrite <- FRG. eapply (Glob _ H1).
+  intros.
+    eapply BuiltinEffect_Propagate; try eassumption.
   (* Lbuiltin 
   eexists; eexists; split. 
   left; econstructor; split. simpl.
@@ -2728,15 +2822,7 @@ SM_simulation.SM_simulation_inject LTL_eff_sem
   Linear_eff_sem ge tge entrypoints.
 Proof.
 intros.
-assert (GDE: genvs_domain_eq ge tge).
-    unfold genvs_domain_eq, genv2blocks.
-    simpl; split; intros. 
-     split; intros; destruct H as [id Hid].
-       rewrite <- symbols_preserved in Hid.
-       exists id; trivial.
-     rewrite symbols_preserved in Hid.
-       exists id; trivial.
-    rewrite varinfo_preserved. split; intros; trivial.
+assert (GDE:= GDE_lemma). 
  eapply sepcomp.effect_simulations_lemmas.inj_simulation_plus with
   (match_states:=fun x mu st m st' m' => MATCH mu st m st' m')
   (measure:=measure).

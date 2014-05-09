@@ -19,6 +19,7 @@ Require Import Mach_coop.
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.
+Require Import BuiltinEffects.
 
 Notation "a ## b" := (List.map a b) (at level 1).
 Notation "a # b <- c" := (Regmap.set b c a) (at level 1, b at next level).
@@ -101,13 +102,15 @@ Inductive mach_effstep: (block -> Z -> bool) ->
       mach_effstep (FreeEffect m 0 (f.(fn_stacksize)) stk)
         (Mach_State s fb (Vptr stk soff) (Mtailcall sig ros :: c) rs) m
         (Mach_Callstate s f' rs) m'
-(*WE DON'T SUPPORT BUILTINS OR ANNOTS YET
   | Mach_effexec_Mbuiltin:
       forall s f sp rs m ef args res b t vl rs' m',
       external_call' ef ge rs##args m t vl m' ->
       rs' = set_regs res vl (undef_regs (destroyed_by_builtin ef) rs) ->
-      mach_effstep (Mach_State s f sp (Mbuiltin ef args res :: b) rs) m
+      mach_effstep 
+         (BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef)) (rs##args)) m)
+         (Mach_State s f sp (Mbuiltin ef args res :: b) rs) m
          (Mach_State s f sp b rs') m'
+(*NO SUPPORT FOR ANNOT YET
   | Mach_effexec_Mannot:
       forall s f sp rs m ef args b vargs t v m',
       annot_arguments rs m sp args vargs ->
@@ -222,6 +225,9 @@ intros.
          apply Mem.unchanged_on_refl.
   split. econstructor; eassumption.
          eapply FreeEffect_free; eassumption.
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
+         inv H.
+         eapply BuiltinEffect_unchOn. eassumption.
   split. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. eapply Mach_exec_Mcond_true; eassumption.
@@ -277,8 +283,8 @@ Proof.
     eexists. eapply Mach_effexec_Mstore; try eassumption; trivial.
     eexists. eapply Mach_effexec_Mcall; try eassumption; trivial.
     eexists. eapply Mach_effexec_Mtailcall; try eassumption; trivial.
-(*    eexists. eapply Mach_effexec_Mbuiltin; try eassumption; trivial.
-    eexists. eapply Mach_effexec_Mannot; try eassumption; trivial.*)
+    eexists. eapply Mach_effexec_Mbuiltin; try eassumption; trivial.
+(*    eexists. eapply Mach_effexec_Mannot; try eassumption; trivial.*)
     eexists. eapply Mach_effexec_Mgoto; try eassumption; trivial.
     eexists. eapply Mach_effexec_Mcond_true; try eassumption; trivial.
     eexists. eapply Mach_effexec_Mcond_false; try eassumption; trivial.
@@ -309,6 +315,7 @@ intros.
   eapply Mem.valid_access_implies; try eassumption. constructor.
 
   eapply FreeEffect_validblock; eassumption.
+  eapply BuiltinEffect_valid_block; eassumption.
   eapply FreeEffect_validblock; eassumption.
 Qed.
 

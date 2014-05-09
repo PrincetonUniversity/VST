@@ -50,6 +50,7 @@ Require Export Axioms.
 Require Import RTL_coop.
 Require Import RTL_eff.
 Require Import LTL_coop.
+Require Import BuiltinEffects.
 Require Import LTL_eff.
 
 (** * Soundness of structural checks *)
@@ -1801,6 +1802,22 @@ Proof.
   auto.
 Qed.
 
+Lemma GDE_lemma: genvs_domain_eq ge tge.
+Proof.
+    unfold genvs_domain_eq, genv2blocks.
+    simpl; split; intros.
+     split; intros; destruct H as [id Hid].
+      rewrite <- symbols_preserved in Hid.
+      exists id; assumption.
+     rewrite symbols_preserved in Hid.
+      exists id; assumption.
+     split; intros; destruct H as [id Hid].
+      rewrite <- varinfo_preserved in Hid.
+      exists id; assumption.
+     rewrite varinfo_preserved in Hid.
+      exists id; assumption.
+Qed.
+
 (*LENB: GFP as in selectionproofEFF*)
 Definition globalfunction_ptr_inject (j:meminj):=
   forall b f, Genv.find_funct_ptr ge b = Some f -> 
@@ -3471,40 +3488,66 @@ Proof. intros.
          eapply REACH_closed_free; eassumption.
   split; trivial. 
 
-(* builtin 
--  assert (WTRS': wt_regset env (rs#res <- v)) by (eapply wt_exec_Ibuiltin; eauto).
-  exploit (exec_moves mv1); eauto. intros [ls1 [A1 B1]]. 
-  exploit external_call_mem_extends; eauto.
-  eapply add_equations_args_lessdef; eauto.
-  inv WTI. eapply Val.has_subtype_list; eauto. apply wt_regset_list; auto. 
-  intros [v' [m'' [F [G [J K]]]]].
+(* builtin *) 
+- assert (WTRS': wt_regset env (rs#res <- v)) by (eapply wt_exec_Ibuiltin; eauto).
+  exploit (exec_moves mv1); eauto. intros [ls1 [A1 B1]].
+  unfold satisf in B1.
+  assert (ArgsInj: val_list_inject (restrict (as_inj mu) (vis mu)) rs ## args
+         (decode_longs (sig_args (ef_sig ef)) (map ls1 (map R args')))).
+    eapply add_equations_args_inject; try eassumption.
+      inv WTI. eapply Val.has_subtype_list; eauto. apply wt_regset_list; auto.     
+  exploit (inlineable_extern_inject ge tge); try eapply PRE. eapply GDE_lemma. 
+         eassumption. eassumption.
+  intros [mu' [v' [m'' [TEC [ResInj [MINJ' [UNMAPPED [LOOR [INC [SEP [LOCALLOC [WD' [SMV' RC']]]]]]]]]]]]].
   assert (E: map ls1 (map R args') = reglist ls1 args').
   { unfold reglist. rewrite list_map_compose. auto. }
-  rewrite E in F. clear E.
+  rewrite E in TEC, ArgsInj; clear E.
   set (vl' := encode_long (sig_res (ef_sig ef)) v').
   set (ls2 := Locmap.setlist (map R res') vl' (undef_regs (destroyed_by_builtin ef) ls1)).
-  assert (satisf (rs#res <- v) ls2 e0).
+  assert (satisf (restrict (as_inj mu') (vis mu')) (rs#res <- v) ls2 e0).
   { eapply parallel_assignment_satisf_2; eauto. 
     eapply can_undef_satisf; eauto.
-    eapply add_equations_args_satisf; eauto. }
+    eapply add_equations_args_satisf; eauto.
+    eapply satisf_inject_incr; try eassumption.
+    eapply intern_incr_restrict; eassumption. }
   exploit (exec_moves mv2); eauto. intros [ls3 [A3 B3]].
-  econstructor; split.
-  eapply plus_left. econstructor; eauto. 
-  eapply star_trans. eexact A1. 
-  eapply star_left. econstructor. 
-  econstructor. unfold reglist. eapply external_call_symbols_preserved; eauto. 
-  exact symbols_preserved. exact varinfo_preserved.
-  instantiate (1 := vl'); auto. 
-  instantiate (1 := ls2); auto. 
-  eapply star_right. eexact A3.
-  econstructor. 
-  reflexivity. reflexivity. reflexivity. traceEq. 
-  exploit satisf_successors; eauto. simpl; eauto.
-  intros [enext [U V]]. 
-  econstructor; eauto.*)
- 
-(* annot 
--  annot is extenal call, like builtin?
+  eexists; eexists; exists mu'. 
+  split. eapply corestep_plus_star_trans.
+           eapply corestep_plus_one. econstructor; eauto. 
+         eapply corestep_star_trans. eexact A1. clear A1.
+         eapply corestep_star_trans.
+           eapply corestep_star_one. econstructor. 
+             econstructor. unfold reglist. eapply external_call_symbols_preserved; eauto. 
+             (*exact symbols_preserved. exact varinfo_preserved.*)
+              instantiate (1 := vl'); auto. 
+              instantiate (1 := ls2); auto. 
+         eapply corestep_star_trans. eexact A3. clear A3.
+         eapply corestep_star_one. 
+           econstructor.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split. 
+    split. exploit satisf_successors; eauto. simpl; eauto.
+      intros [enext [U V]].   
+      econstructor; eauto.
+        eapply match_stackframes_inject_incr; try eassumption.
+          eapply intern_incr_restrict; eassumption.
+        destruct SP as [bsp [bsp' [? [? BR]]]]. 
+          exists bsp, bsp'. split; trivial. split; trivial.
+            eapply intern_incr_restrict; try eassumption.
+    intuition.
+      apply intern_incr_as_inj in INC; trivial.
+        apply sm_inject_separated_mem in SEP; trivial.
+        eapply meminj_preserves_incr_sep; eassumption. 
+    red; intros. destruct (H3 _ _ H12).
+          split; trivial.
+          eapply intern_incr_as_inj; eassumption.
+    assert (FRG: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply INC.
+          rewrite <- FRG. eapply (H5 _ H12).
+  split; trivial. 
+(* annot *)
+- admit. (* annot is extenal call, like builtin?
    exploit (exec_moves mv); eauto. intros [ls1 [A1 B1]]. 
    exploit external_call_mem_extends; eauto. eapply add_equations_args_lessdef; eauto.
   inv WTI. eapply Val.has_subtype_list; eauto. apply wt_regset_list; auto. 
@@ -4750,40 +4793,78 @@ admit. (*TODO: correct this:
           eapply FreeEffect_PropagateLeft; eassumption.
           destruct (transf_function_inv _ _ FUN); auto.
 
-(* builtin 
--  assert (WTRS': wt_regset env (rs#res <- v)) by (eapply wt_exec_Ibuiltin; eauto).
-  exploit (Eff_exec_moves mv1); eauto. intros [ls1 [A1 B1]]. 
-  exploit external_call_mem_extends; eauto.
-  eapply add_equations_args_lessdef; eauto.
-  inv WTI. eapply Val.has_subtype_list; eauto. apply wt_regset_list; auto. 
-  intros [v' [m'' [F [G [J K]]]]].
+(* builtin *) 
+- assert (WTRS': wt_regset env (rs#res <- v)) by (eapply wt_exec_Ibuiltin; eauto).
+  exploit (Eff_exec_moves mv1); eauto. intros [ls1 [A1 B1]].
+  unfold satisf in B1.
+  assert (ArgsInj: val_list_inject (restrict (as_inj mu) (vis mu)) rs ## args
+         (decode_longs (sig_args (ef_sig ef)) (map ls1 (map R args')))).
+    eapply add_equations_args_inject; try eassumption.
+      inv WTI. eapply Val.has_subtype_list; eauto. apply wt_regset_list; auto.     
+  exploit (inlineable_extern_inject ge tge); try eapply PRE. eapply GDE_lemma. 
+         eassumption. eassumption.
+  intros [mu' [v' [m'' [TEC [ResInj [MINJ' [UNMAPPED [LOOR [INC [SEP [LOCALLOC [WD' [SMV' RC']]]]]]]]]]]]].
   assert (E: map ls1 (map R args') = reglist ls1 args').
   { unfold reglist. rewrite list_map_compose. auto. }
-  rewrite E in F. clear E.
+  rewrite E in TEC, ArgsInj; clear E.
   set (vl' := encode_long (sig_res (ef_sig ef)) v').
   set (ls2 := Locmap.setlist (map R res') vl' (undef_regs (destroyed_by_builtin ef) ls1)).
-  assert (satisf (rs#res <- v) ls2 e0).
+  assert (satisf (restrict (as_inj mu') (vis mu')) (rs#res <- v) ls2 e0).
   { eapply parallel_assignment_satisf_2; eauto. 
     eapply can_undef_satisf; eauto.
-    eapply add_equations_args_satisf; eauto. }
+    eapply add_equations_args_satisf; eauto.
+    eapply satisf_inject_incr; try eassumption.
+    eapply intern_incr_restrict; eassumption. }
   exploit (Eff_exec_moves mv2); eauto. intros [ls3 [A3 B3]].
-  econstructor; split.
-  eapply plus_left. econstructor; eauto. 
-  eapply star_trans. eexact A1. 
-  eapply star_left. econstructor. 
-  econstructor. unfold reglist. eapply external_call_symbols_preserved; eauto. 
-  exact symbols_preserved. exact varinfo_preserved.
-  instantiate (1 := vl'); auto. 
-  instantiate (1 := ls2); auto. 
-  eapply star_right. eexact A3.
-  econstructor. 
-  reflexivity. reflexivity. reflexivity. traceEq. 
-  exploit satisf_successors; eauto. simpl; eauto.
-  intros [enext [U V]]. 
-  econstructor; eauto.*)
- 
-(* annot 
--  annot is extenal call, like builtin?
+  eexists; eexists; eexists. 
+  split. eapply effstep_plus_star_trans'.
+           eapply effstep_plus_one. econstructor; eauto. 
+         eapply effstep_star_trans'. eexact A1. clear A1.
+         eapply effstep_star_trans'.
+           eapply effstep_star_one. econstructor. 
+             econstructor. unfold reglist. eapply external_call_symbols_preserved; eauto. 
+             (*exact symbols_preserved. exact varinfo_preserved.*)
+              instantiate (1 := vl'); auto. 
+              instantiate (1 := ls2); auto. 
+         eapply effstep_star_trans'. eexact A3. clear A3.
+         eapply effstep_star_one. 
+           econstructor.
+         reflexivity.
+         reflexivity.
+         reflexivity.
+         reflexivity.
+  simpl. 
+  exists mu'.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split. 
+    split. exploit satisf_successors; eauto. simpl; eauto.
+      intros [enext [U V]].   
+      econstructor; eauto.
+        eapply match_stackframes_inject_incr; try eassumption.
+          eapply intern_incr_restrict; eassumption.
+        destruct SP as [bsp [bsp' [? [? BR]]]]. 
+          exists bsp, bsp'. split; trivial. split; trivial.
+            eapply intern_incr_restrict; try eassumption.
+    intuition.
+      apply intern_incr_as_inj in INC; trivial.
+        apply sm_inject_separated_mem in SEP; trivial.
+        eapply meminj_preserves_incr_sep; eassumption. 
+    red; intros. destruct (H3 _ _ H12).
+          split; trivial.
+          eapply intern_incr_as_inj; eassumption.
+    assert (FRG: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply INC.
+          rewrite <- FRG. eapply (H5 _ H12).
+  split; trivial. 
+  split; trivial. 
+  destruct PRE as [RC [PG [GFP [Glob [SMV [WD INJ]]]]]].
+  intros. rewrite andb_true_iff in H2.
+    rewrite andb_true_iff, orb_false_r in H2. 
+    destruct H2 as [[EFF VB] _].
+    eapply BuiltinEffect_Propagate; eassumption.
+(* annot *)
+-  admit. (*TODO annot is external call, like builtin?
    exploit (Eff_exec_moves mv); eauto. intros [ls1 [A1 B1]]. 
    exploit external_call_mem_extends; eauto. eapply add_equations_args_lessdef; eauto.
   inv WTI. eapply Val.has_subtype_list; eauto. apply wt_regset_list; auto. 
@@ -5115,15 +5196,7 @@ SM_simulation.SM_simulation_inject rtl_eff_sem
   LTL_eff_sem ge tge entrypoints.
 Proof.
 intros.
-assert (GDE: genvs_domain_eq ge tge).
-    unfold genvs_domain_eq, genv2blocks.
-    simpl; split; intros. 
-     split; intros; destruct H as [id Hid].
-       rewrite <- symbols_preserved in Hid.
-       exists id; trivial.
-     rewrite symbols_preserved in Hid.
-       exists id; trivial.
-    rewrite varinfo_preserved. split; intros; trivial.
+assert (GDE:= GDE_lemma).
  eapply sepcomp.effect_simulations_lemmas.inj_simulation_plus with
   (match_states:=fun x mu st m st' m' => MATCH mu st m st' m')
   (measure:=fun x => O).

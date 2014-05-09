@@ -37,7 +37,6 @@ Inductive asm_step: state -> mem -> state -> mem -> Prop :=
       find_instr (Int.unsigned ofs) c = Some i ->
       exec_instr ge c i rs m = Next rs' m' ->
       asm_step (State rs) m (State rs') m'
-(*WE DON'T SUPPORT BUILIN OR ANNOTS YET
   | asm_exec_step_builtin:
       forall b ofs c ef args res rs m t vl rs' m',
       rs PC = Vptr b ofs ->
@@ -48,6 +47,7 @@ Inductive asm_step: state -> mem -> state -> mem -> Prop :=
              (set_regs res vl
                (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
       asm_step (State rs) m (State rs') m'
+(*WE DON'T SUPPORT  ANNOTS YET
   | asm_exec_step_annot:
       forall b ofs c ef args rs m vargs t v m',
       rs PC = Vptr b ofs ->
@@ -157,6 +157,7 @@ Lemma Asm_corestep_not_halted : forall ge m q m' q',
        Asm_halted q = None.
   Proof. intros. inv H; simpl in *.
     rewrite H0; simpl. trivial. 
+    rewrite H0; simpl. trivial.
     rewrite H0; simpl. trivial.
   Qed.
  
@@ -269,6 +270,7 @@ Lemma Asm_forward : forall g c m c' m'
   Proof. intros.
    inv CS; try apply mem_forward_refl. clear - H2.
    eapply exec_instr_forward; eassumption.
+   inv H2. eapply external_call_mem_forward; eassumption.
 Qed.
    
 Program Definition Asm_coop_sem : 

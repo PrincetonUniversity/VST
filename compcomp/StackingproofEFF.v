@@ -15,6 +15,7 @@
 (** This file proves semantic preservation for the [Stacking] pass. *)
 
 Require Import Coqlib.
+Require Export Axioms.
 Require Import Errors.
 Require Import AST.
 Require Import Integers.
@@ -34,10 +35,6 @@ Require Import Conventions.
 Require Import Stacklayout.
 Require Import Stacking.
 
-Require Import Linear_coop.
-Require Import Linear_eff.
-Require Import Mach_coop.
-Require Import Mach_eff.
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.
@@ -49,7 +46,12 @@ Require Import effect_simulations.
 Require Import sepcomp.effect_properties.
 Require Import effect_simulations_lemmas.
 
-Require Export Axioms.
+Require Import Linear_coop.
+Require Import Linear_eff.
+Require Import Mach_coop.
+Require Import BuiltinEffects.
+Require Import Mach_eff.
+
 (*
 Lemma init_mem_blocks_aux: forall {F V : Type} 
          (p : AST.program F V) (LNR: list_norepet (prog_defs_names p)) L
@@ -3693,6 +3695,22 @@ Proof.
   rewrite symbols_preserved. auto.
 Qed.
 
+Lemma GDE_lemma: genvs_domain_eq ge tge.
+Proof.
+    unfold genvs_domain_eq, genv2blocks.
+    simpl; split; intros.
+     split; intros; destruct H as [id Hid].
+      rewrite <- symbols_preserved in Hid.
+      exists id; assumption.
+     rewrite symbols_preserved in Hid.
+      exists id; assumption.
+     split; intros; destruct H as [id Hid].
+      rewrite <- varinfo_preserved in Hid.
+      exists id; assumption.
+     rewrite varinfo_preserved in Hid.
+      exists id; assumption.
+Qed.
+
 (** Preservation of the arguments to an external call. *)
 
 Section EXTERNAL_ARGUMENTS.
@@ -4609,6 +4627,65 @@ destruct H1. subst tf'.
         eapply SMV; assumption.
       eapply Mem.valid_block_free_1; try eassumption.
         eapply SMV; assumption.
+  (* Mbuiltin*)
+  destruct PRE as [RC [PG [Glob [SMV WD]]]].
+      assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
+        rewrite <- restrict_sm_all.
+        eapply restrict_sm_preserves_globals; try eassumption.
+          unfold vis. intuition.
+  inv H. admit. (*TODO: complete this case
+(*  exploit Efftransl_exprlist_correct; try eapply MINJ; try eassumption.
+  intros [rs' [m2' [TCS [E [F [G [J K]]]]]]]. subst.*)
+  exploit (inlineable_extern_inject _ _ GDE_lemma).
+        eassumption. eassumption. eassumption. eassumption. eassumption. assumption.
+     eapply decode_longs_inject. eapply agree_reglist; eassumption.
+  intros [mu' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH 
+           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]]]].
+  eexists; eexists. 
+  split. eapply corestep_plus_one.
+           econstructor. econstructor. eassumption.
+            reflexivity. reflexivity.
+  exists mu'.
+  intuition.
+  split.
+    revert TRANSL. unfold transf_fundef, transf_partial_fundef.
+    caseEq (transf_function f); simpl; try congruence.
+    intros tfn TRANSL EQ. inversion EQ; clear EQ; subst tf.
+    econstructor; eauto with coqlib.
+      eapply match_stacks_change_mach_mem. 
+        eapply match_stacks_change_linear_mem; try eassumption.
+    eapply match_stacks_change_meminj_intern; try eassumption.
+      eapply match_stacks_change_mach_mem. 
+        eapply match_stacks_change_linear_mem; try eassumption.
+          intros. eapply external_call_mem_forward; eassumption.
+          intros. eapply external_call_mem_forward; try eassumption.
+            exploit agree_valid_linear; try eassumption. unfold Mem.valid_block; intros. xomega.
+          intros. eapply external_call_mem_forward; try eassumption.
+            exploit agree_valid_mach; try eassumption. unfold Mem.valid_block; intros. xomega.
+  apply Plt_Ple. change (Mem.valid_block m sp0). eapply agree_valid_linear; eauto.
+            
+inc STACKS.
+            
+       match_stack_change_extcall; eauto.
+    apply Plt_Ple. change (Mem.valid_block m sp0). eapply agree_valid_linear; eauto.
+  apply Plt_Ple. change (Mem.valid_block m'0 sp'). eapply agree_valid_mach; eauto.
+  apply agree_regs_set_regs; auto. apply agree_regs_undef_regs; auto. eapply agree_regs_inject_incr; eauto.
+  apply agree_frame_set_regs; auto. apply agree_frame_undef_regs; auto.
+  eapply agree_frame_inject_incr; eauto. 
+  apply agree_frame_extcall_invariant with m m'0; auto.
+  eapply external_call_valid_block'; eauto.
+  intros. inv H; eapply external_call_max_perm; eauto. eapply agree_valid_linear; eauto.
+  eapply external_call_valid_block'; eauto.
+  eapply agree_valid_mach; eauto.
+  simpl. rewrite list_map_compose.
+  change (fun x => Loc.type (R x)) with mreg_type.
+  eapply Val.has_subtype_list; eauto. eapply external_call_well_typed'; eauto.
+ econstructor. eapply TCS.
+      eapply effstep_plus_one.
+      eapply rtl_effstep_exec_Ibuiltin. eauto. eassumption.
+  split; trivial. split; trivial. split; trivial. 
+  split.
+    split. econstructor; eauto.*)
   (* Llabel *)
   eexists; eexists; split.
     apply corestep_plus_one; apply Mach_exec_Mlabel.
@@ -5296,6 +5373,7 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
     apply FreeEffectD in H1. destruct H1 as [? [VB Arith2]]; subst.
     split. eapply visPropagateR; eassumption.
     rewrite SPlocalTgt. intuition.
+  (*MBuiltin*) admit. (*TODO MBuiltin*)
   (* Llabel *)
   eexists; eexists; eexists; split.
     apply effstep_plus_one; apply Mach_effexec_Mlabel.
@@ -5982,15 +6060,7 @@ SM_simulation.SM_simulation_inject Linear_eff_sem
    (Mach_eff_sem return_address_offset) ge tge entrypoints.
 Proof.
 intros.
-assert (GDE: genvs_domain_eq ge tge).
-    unfold genvs_domain_eq, genv2blocks.
-    simpl; split; intros. 
-     split; intros; destruct H as [id Hid].
-       rewrite <- symbols_preserved in Hid.
-       exists id; trivial.
-     rewrite symbols_preserved in Hid.
-       exists id; trivial.
-    rewrite varinfo_preserved. intuition.
+assert (GDE:= GDE_lemma). 
  eapply sepcomp.effect_simulations_lemmas.inj_simulation_plus with
   (match_states:=MATCH) (measure:=fun x => O).
 (*genvs_dom_eq*)

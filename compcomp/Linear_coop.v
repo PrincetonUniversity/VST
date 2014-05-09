@@ -81,7 +81,7 @@ Inductive Linear_step: Linear_core -> mem -> Linear_core -> mem -> Prop :=
       forall s f stk sig ros b rs m rs' f' m',
       rs' = return_regs (parent_locset s) rs ->
       find_function ge ros rs' = Some f' ->
-      (*Lenb: Mach's at/after external treament, and absence of m and ge in atExternal
+      (*Lenb: Mach's at/after external treatment, and absence of m and ge in atExternal
            may need this:
            only internal calls can be tailcalls 
             (exists f'', f' = Internal f'') ->*)
@@ -89,14 +89,13 @@ Inductive Linear_step: Linear_core -> mem -> Linear_core -> mem -> Prop :=
       Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
       Linear_step (Linear_State s f (Vptr stk Int.zero) (Ltailcall sig ros :: b) rs) m
         (Linear_Callstate s f' rs') m'
-(*NO BUILTINS YET
   | lin_exec_Lbuiltin:
       forall s f sp rs m ef args res b t vl rs' m',
       external_call' ef ge (reglist rs args) m t vl m' ->
       rs' = Locmap.setlist (map R res) vl (undef_regs (destroyed_by_builtin ef) rs) ->
       Linear_step (Linear_State s f sp (Lbuiltin ef args res :: b) rs) m
-         (Linear_State s f sp b rs') m'*)
-(*NO BUILTINS YET
+         (Linear_State s f sp b rs') m'
+(*NO ANNOTS YET
   | lin_exec_Lannot:
       forall s f sp rs m ef args b t v m',
       external_call' ef ge (map rs args) m t v m' ->
@@ -280,9 +279,9 @@ Lemma Linear_forward : forall g c m c' m' (CS: Linear_step g c m c' m'),
          (*Ltailcall*)
            eapply free_forward; eassumption.
          (*Lbuiltin*) 
-           (*inv H. 
+           inv H. 
            eapply external_call_mem_forward; eassumption.
-         (*Lannot*) 
+         (*Lannot
            inv H. 
            eapply external_call_mem_forward; eassumption.*)
          (*free*)

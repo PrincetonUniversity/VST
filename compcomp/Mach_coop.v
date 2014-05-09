@@ -117,13 +117,13 @@ Inductive mach_step: Mach_core -> mem -> Mach_core -> mem -> Prop :=
       Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
       mach_step (Mach_State s fb (Vptr stk soff) (Mtailcall sig ros :: c) rs) m
         (Mach_Callstate s f' rs) m'
-(*WE DON'T SUPPORT BUILTINS OR ANNOTS YET
   | Mach_exec_Mbuiltin:
       forall s f sp rs m ef args res b t vl rs' m',
       external_call' ef ge rs##args m t vl m' ->
       rs' = set_regs res vl (undef_regs (destroyed_by_builtin ef) rs) ->
       mach_step (Mach_State s f sp (Mbuiltin ef args res :: b) rs) m
          (Mach_State s f sp b rs') m'
+(*NO SUPPORT FOR ANNOT YET
   | Mach_exec_Mannot:
       forall s f sp rs m ef args b vargs t v m',
       annot_arguments rs m sp args vargs ->
@@ -333,9 +333,9 @@ Lemma Mach_forward : forall g c m c' m'
      eapply store_forward. eassumption. 
    (*Mtailcall*)
      eapply free_forward; eassumption.
-   (*Mbuiltin*
+   (*Mbuiltin**)
       inv H.
-      eapply external_call_mem_forward; eassumption.*)
+      eapply external_call_mem_forward; eassumption.
     (*Mannot
       inv H. 
       eapply external_call_mem_forward; eassumption.*)

@@ -17,6 +17,7 @@ Require Import Asm_coop.
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.effect_semantics.
+Require Import BuiltinEffects.
 
 Notation SP := ESP (only parsing).
 
@@ -133,7 +134,7 @@ Definition effect_instr (ge:genv) (c: code) (i: instruction) (rs: regset) (m: me
           end
       end
   | Pbuiltin ef args res =>
-      EmptyEffect (*FOR NOW*)
+     (BuiltinEffect ge ef (decode_longs (sig_args (ef_sig ef)) (map rs args)) m)
   | Pannot ef args =>
       EmptyEffect (*FOR NOW*)
   end.
@@ -149,7 +150,6 @@ Inductive asm_effstep: (block -> Z -> bool) ->
       find_instr (Int.unsigned ofs) c = Some i ->
       exec_instr ge c i rs m = Next rs' m' ->
       asm_effstep (effect_instr ge c i rs m) (State rs) m (State rs') m'
-(*WE DON'T SUPPORT BUILIN OR ANNOTS YET
   | asm_effexec_step_builtin:
       forall b ofs c ef args res rs m t vl rs' m',
       rs PC = Vptr b ofs ->
@@ -159,7 +159,8 @@ Inductive asm_effstep: (block -> Z -> bool) ->
       rs' = nextinstr_nf 
              (set_regs res vl
                (undef_regs (map preg_of (destroyed_by_builtin ef)) rs)) ->
-      asm_effstep (State rs) m (State rs') m'
+      asm_effstep (effect_instr ge c (Pbuiltin ef args res) rs m) (State rs) m (State rs') m'
+(*WE DON'T SUPPORT ANNOTS YET
   | asm_effexec_step_annot:
       forall b ofs c ef args rs m vargs t v m',
       rs PC = Vptr b ofs ->
@@ -302,6 +303,10 @@ destruct H.
   split. eapply asm_exec_step_internal; eassumption.
   clear -H2. eapply exec_instr_unchanged_on; eassumption.
 
+split. eapply asm_exec_step_builtin; eassumption.
+       simpl.
+         inv H2.
+         eapply BuiltinEffect_unchOn; eassumption. 
 split. econstructor; eauto.
        apply Mem.unchanged_on_refl. 
 Qed.
@@ -314,6 +319,7 @@ intros. (*unfold corestep, Asm_coop_sem in H; simpl in H.*)
   inv H.
   destruct i;
     try solve [eexists; econstructor; try eassumption].
+  eexists. eapply asm_effexec_step_builtin; try eassumption. trivial.
   eexists. econstructor; eassumption.
 Qed.
 
@@ -353,6 +359,7 @@ Proof. intros.
     remember (Mem.free m1 b0 0 sz) as d. apply eq_sym in Heqd.
     destruct d; inv H0.
     eapply FreeEffect_validblock; eassumption.
+  eapply BuiltinEffect_valid_block; eassumption.
 Qed.
 
 Lemma asm_effstep_valid: forall (M : block -> Z -> bool) g c m c' m',
@@ -362,6 +369,8 @@ Proof.
 intros.
   induction H; try (solve [inv H0]).
   eapply exec_instr_valid_block; eassumption.
+  inv H0.
+  eapply BuiltinEffect_valid_block; eassumption.
 Qed.
 
 Program Definition Asm_eff_sem : 

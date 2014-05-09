@@ -15,6 +15,7 @@ Require Import Registers.
 
 Require Import RTL.
 Require Import RTL_coop.
+Require Import BuiltinEffects.
 
 Inductive RTL_effstep (ge:genv):  (block -> Z -> bool) ->
             RTL_core -> mem -> RTL_core -> mem -> Prop :=
@@ -62,16 +63,14 @@ Inductive RTL_effstep (ge:genv):  (block -> Z -> bool) ->
         (RTL_State s f (Vptr stk Int.zero) pc rs) m
         (RTL_Callstate s fd rs##args) m'
 
-(* WE DO NOT TREAT BUILTINS 
   | rtl_effstep_exec_Ibuiltin:
       forall s f sp pc rs m ef args res pc' t v m',
       (fn_code f)!pc = Some(Ibuiltin ef args res pc') ->
       external_call ef ge rs##args m t v m' ->
-      RTL_effstep ge 
-         (BuiltinEffect ge (ef_sig ef) (rs##args) m)
+      RTL_effstep ge (BuiltinEffect ge ef (rs##args) m)
          (RTL_State s f sp pc rs) m
          (RTL_State s f sp pc' (rs#res <- v)) m'
-*)
+
   | rtl_effstep_exec_Icond:
       forall s f sp pc rs m cond args ifso ifnot b pc',
       (fn_code f)!pc = Some(Icond cond args ifso ifnot) ->
@@ -173,6 +172,8 @@ intros.
   split. unfold corestep, coopsem; simpl. 
          eapply rtl_corestep_exec_Itailcall; eassumption. 
          eapply FreeEffect_free; eassumption. 
+  split. unfold corestep, coopsem; simpl. econstructor; eassumption.
+         eapply BuiltinEffect_unchOn; eassumption.
 (*  split. unfold corestep, coopsem; simpl. 
          eapply rtl_corestep_exec_Ibuiltin; eassumption.
          eapply ec_builtinEffectPolymorphic; eassumption.*)
@@ -191,13 +192,6 @@ intros.
   split. unfold corestep, coopsem; simpl.
          eapply rtl_corestep_exec_return; eassumption.
          apply Mem.unchanged_on_refl.
-  (*effstep_sub_val
-    destruct IHRTL_effstep.
-    split; trivial.
-    eapply unchanged_on_validblock; try eassumption.
-    intros; simpl. remember (E b ofs) as d.
-    destruct d; trivial. apply eq_sym in Heqd.
-    rewrite (H _ _ H3 Heqd) in H4. discriminate.*)
 Qed.
 
 Lemma rtl_effax2: forall  g c m c' m',
@@ -211,7 +205,7 @@ intros. inv H.
     eexists. eapply rtl_effstep_exec_Istore; eassumption.
     eexists. eapply rtl_effstep_exec_Icall; try eassumption. trivial.
     eexists. eapply rtl_effstep_exec_Itailcall; try eassumption. trivial.
-   (* eexists. eapply rtl_effstep_exec_Ibuiltin; eassumption.*)
+    eexists. eapply rtl_effstep_exec_Ibuiltin; eassumption.
     eexists. eapply rtl_effstep_exec_Icond; try eassumption. trivial.
     eexists. eapply rtl_effstep_exec_Ijumptable; eassumption.
     eexists. eapply rtl_effstep_exec_Ireturn; eassumption.
@@ -244,6 +238,7 @@ intros.
   eapply Mem.valid_access_implies; try eassumption. constructor.
 
   eapply FreeEffect_validblock; eassumption.
+  eapply BuiltinEffect_valid_block; eassumption.
   eapply FreeEffect_validblock; eassumption.
 Qed.
 

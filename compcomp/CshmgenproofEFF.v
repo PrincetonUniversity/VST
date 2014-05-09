@@ -837,7 +837,7 @@ Proof.
   (* by copy *)
   rewrite H in MKSTORE; inv MKSTORE.
   rewrite H. 
-  (* We do not yet support external builtin [memcpy] *)
+  (* [memcpy] *)
    eapply make_memcpy_correct_BuiltinEffect; eauto.
 Qed.
 
@@ -1982,6 +1982,18 @@ Proof. intros.
     destruct (var_info_rev_translated _ _ H). exists x0; apply H0.
 Qed.
 
+Lemma GDE_lemma: genvs_domain_eq ge tge.
+Proof.
+    unfold genvs_domain_eq, genv2blocks.
+    simpl; split; intros. 
+     split; intros; destruct H as [id Hid].
+       rewrite <- symbols_preserved in Hid.
+       exists id; trivial.
+     rewrite symbols_preserved in Hid.
+       exists id; trivial.
+    rewrite varinfo_preserved. intuition.
+Qed.
+
 (*From SimplLocals*)
 Lemma assign_loc_inject:
   forall f ty m loc ofs v m' tm loc' ofs' v',
@@ -2262,6 +2274,10 @@ Proof. intros.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
   remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
     apply eq_sym in Heqzz.
+  remember (type_of_fundef f) as tof. destruct tof; try discriminate.
+  remember (val_casted.val_casted_list_func vals1 t) as cst.
+  destruct cst; try inv H1.
+  clear Ini. 
   exploit function_ptr_translated; eauto. intros [tf [FP TF]].
   exists (CSharpMin_Callstate tf vals2 Kstop).
   split. 
@@ -2281,7 +2297,6 @@ Proof. intros.
   destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
      VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
     as [AA [BB [CC [DD [EE [FF GG]]]]]].
-  intuition.
   split.
     eapply match_callstate; try eassumption.
       constructor.
@@ -2820,18 +2835,44 @@ Proof.
         econstructor; eauto.    
           econstructor.
       intuition. 
-(* builtin 
+(* builtin *)
       destruct MC as [SMC PRE].
       inv SMC; simpl in *. 
-      monadInv TR. inv MTR. 
-       econstructor; split.
-      apply plus_one. econstructor. 
-      eapply transl_arglist_correct; eauto. 
-      eapply external_call_symbols_preserved_2; eauto.
-      exact symbols_preserved.
-      eexact (Genv.find_var_info_transf_partial2 transl_fundef transl_globvar _ TRANSL).
-      eexact (Genv.find_var_info_rev_transf_partial2 transl_fundef transl_globvar _ TRANSL).
-      eapply match_states_skip; eauto.*)
+      monadInv TR. inv MTR.
+    destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
+    assert (InjR: Mem.inject (restrict (as_inj mu) (vis mu)) m1 m2).
+      eapply inject_restrict; eassumption.
+    assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
+      rewrite <- restrict_sm_all. 
+      eapply restrict_sm_preserves_globals; try eassumption.
+      unfold vis. intuition. 
+    exploit transl_arglist_correct; try eassumption.
+    intros [tvargs [EVAL2 VINJ2]].
+    exploit (inlineable_extern_inject _ _ GDE_lemma); try eapply H0.
+        eassumption. eassumption. eassumption. eassumption. eassumption. eassumption.
+    intros [mu' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH 
+           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]]]].
+    eexists; eexists; eexists mu'.
+      split. apply corestep_plus_one.
+             econstructor; eassumption. 
+    intuition.
+    split. assert (INC:= intern_incr_restrict _ _ WD' INCR).
+           econstructor; eauto.
+           Focus 5. eapply match_cont_inject_incr; eassumption.
+           reflexivity. constructor.
+           eapply match_env_inject_incr; eassumption.
+           assert (TENV':= match_tempenv_inject_incr _ _ _ TENV _ INC).
+           destruct optid; trivial; simpl.
+           eapply match_tempenv_set; eassumption.
+         intuition.
+         eapply meminj_preserves_incr_sep. eapply PG. eassumption. 
+             apply intern_incr_as_inj; trivial.
+             apply sm_inject_separated_mem; eassumption.
+         red. intros. destruct (GF _ _ H2).
+           split; trivial.
+           eapply intern_incr_as_inj; eassumption.
+         assert (FRG: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply INCR.
+           rewrite <- FRG. eapply (Glob _ H2).  
 (* seq *)
   destruct MC as [SMC PRE].
   inv SMC; simpl in *. 
@@ -3562,18 +3603,46 @@ Proof.
         econstructor; eauto.    
           econstructor.
       intuition. 
-(* builtin 
-      destruct MC as [SMC PRE].
-      inv SMC; simpl in *. 
-      monadInv TR. inv MTR. 
-       econstructor; split.
-      apply plus_one. econstructor. 
-      eapply transl_arglist_correct; eauto. 
-      eapply external_call_symbols_preserved_2; eauto.
-      exact symbols_preserved.
-      eexact (Genv.find_var_info_transf_partial2 transl_fundef transl_globvar _ TRANSL).
-      eexact (Genv.find_var_info_rev_transf_partial2 transl_fundef transl_globvar _ TRANSL).
-      eapply match_states_skip; eauto.*)
+  (* builtin *)
+    destruct MC as [SMC PRE].
+    inv SMC; simpl in *. 
+    monadInv TR. inv MTR.
+    destruct PRE as [PC [PG [GF [Glob [SMV [WD INJ]]]]]].
+    assert (InjR: Mem.inject (restrict (as_inj mu) (vis mu)) m m2).
+      eapply inject_restrict; eassumption.
+    assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
+      rewrite <- restrict_sm_all. 
+      eapply restrict_sm_preserves_globals; try eassumption.
+      unfold vis. intuition. 
+    exploit transl_arglist_correctMu; try eassumption.
+    intros [tvargs [EVAL2 VINJ2]].
+    exploit (inlineable_extern_inject _ _ GDE_lemma); try eapply H0.
+        eassumption. eassumption. eassumption. eassumption. eassumption. eassumption.
+    intros [mu' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH 
+           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]]]].
+    eexists; eexists; eexists mu'.
+    split. eexists.
+      split. apply effstep_plus_one.
+             econstructor; eassumption.
+      intros. eapply BuiltinEffect_Propagate; eassumption. 
+    intuition.
+    split. assert (INC:= intern_incr_restrict _ _ WD' INCR).
+           econstructor; eauto.
+           Focus 5. eapply match_cont_inject_incr; eassumption.
+           reflexivity. constructor.
+           eapply match_env_inject_incr; eassumption.
+           assert (TENV':= match_tempenv_inject_incr _ _ _ TENV _ INC).
+           destruct optid; trivial; simpl.
+           eapply match_tempenv_set; eassumption.
+         intuition.
+         eapply meminj_preserves_incr_sep. eapply PG. eassumption. 
+             apply intern_incr_as_inj; trivial.
+             apply sm_inject_separated_mem; eassumption.
+         red. intros. destruct (GF _ _ H2).
+           split; trivial.
+           eapply intern_incr_as_inj; eassumption.
+         assert (FRG: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply INCR.
+           rewrite <- FRG. eapply (Glob _ H2). 
 (* seq *)
   destruct MC as [SMC PRE].
   inv SMC; simpl in *. 
