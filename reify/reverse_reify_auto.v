@@ -146,7 +146,7 @@ Qed.
 Parameter X : Z -> mpred.
 
 
-Goal  X (1 + 3) |-- X (2 + 2).
+Goal X (1 + 3) |-- X (2 + 2).
 intros.
 rcancel.
 Qed.

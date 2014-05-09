@@ -1,9 +1,9 @@
-Require Import types.
 Require Import sep.
 Require Import progs.list_dt.
 Require Import MirrorShard.Expr MirrorShard.Env.
 Require Import reverse_defs.
 Require Import assert_lemmas. (* for nullval *)
+Require Import types.
 
 Definition all_types_r := repr (listToRepr types.our_types EmptySet_type).
 
@@ -17,6 +17,7 @@ Let all_types := all_types_r user_types.
 Import SeparationLogic.
 Import Coqlib.
 Import field_mapsto.
+Import ListNotations.
 
 (* NB when you add a new function you have to update some proofs in preproc.v,
    Which have "do n" statements where n = length of functions list *)
@@ -76,6 +77,12 @@ Expr.Sig all_types (int_tv :: int_tv :: nil) int_tv Int.sub.
 
 Definition Vint_signature :=
 Expr.Sig all_types (int_tv :: nil) val_tv Vint.
+
+Definition Vlong_signature :=
+Expr.Sig all_types (int64_tv :: nil) val_tv Vlong.
+
+Definition Vfloat_signature :=
+  Expr.Sig all_types (float_tv :: nil) val_tv Vfloat.
 
 Definition map_Vint_signature := 
 Expr.Sig all_types (list_int_tv :: nil) list_val_tv (map Vint).
@@ -212,6 +219,102 @@ Expr.Sig all_types (c_type_tv :: nil) c_type_tv Clightdefs.tptr.
 Definition nil_val_signature :=
 Expr.Sig all_types nil list_val_tv (@nil val).
 
+(* C types*)
+
+Definition Tvoid_signature :=
+Expr.Sig all_types nil c_type_tv Tvoid.
+
+Definition Tint_signature :=
+Expr.Sig all_types [intsize_tv; signedness_tv; attr_tv] c_type_tv Tint.
+
+Definition Tlong_signature :=
+Expr.Sig all_types [signedness_tv; attr_tv] c_type_tv Tlong.
+
+Definition Tfloat_signature :=
+Expr.Sig all_types [floatsize_tv; attr_tv] c_type_tv Tfloat.
+
+Definition Tpointer_signature :=
+Expr.Sig all_types [c_type_tv; attr_tv] c_type_tv Tpointer.
+
+Definition Tarray_signature :=
+Expr.Sig all_types [c_type_tv; Z_tv; attr_tv] c_type_tv Tarray.
+
+Definition Tfunction_signature :=
+Expr.Sig all_types [typelist_tv; c_type_tv] c_type_tv Tfunction.
+
+Definition Tstruct_signature :=
+Expr.Sig all_types [ident_tv; fieldlist_tv; attr_tv] c_type_tv Tstruct.
+
+Definition Tunion_signature :=
+Expr.Sig all_types [ident_tv; fieldlist_tv; attr_tv] c_type_tv Tunion.
+
+Definition Tcomp_ptr_signature :=
+Expr.Sig all_types [ident_tv; attr_tv] c_type_tv Tcomp_ptr.
+
+Definition eval_binop_signature :=
+Expr.Sig all_types [binary_operation_tv; c_type_tv; c_type_tv; val_tv; val_tv] val_tv eval_binop.
+
+Definition eval_unop_signature := 
+Expr.Sig all_types [unary_operation_tv; c_type_tv; val_tv] val_tv eval_unop.
+
+Definition Some_N_signature :=
+Expr.Sig all_types [N_tv] option_N_tv (@Some N).
+
+Definition None_N_signature :=
+Expr.Sig all_types [] option_N_tv (@None N).
+
+Definition N0_signature :=
+Expr.Sig all_types [] N_tv (N0).
+
+Definition Npos_signature :=
+Expr.Sig all_types [positive_tv] N_tv (Npos).
+
+Definition true_signature :=
+Expr.Sig all_types [] bool_tv true.
+
+Definition false_signature :=
+Expr.Sig all_types [] bool_tv true.
+
+Definition mk_attr_signature :=
+Expr.Sig all_types [bool_tv; option_N_tv] attr_tv mk_attr.
+
+Definition I8_signature :=
+Expr.Sig all_types [] intsize_tv I8.
+
+Definition I16_signature :=
+Expr.Sig all_types [] intsize_tv I16.
+
+Definition I32_signature :=
+Expr.Sig all_types [] intsize_tv I32.
+
+Definition IBool_signature :=
+Expr.Sig all_types [] intsize_tv IBool.
+
+Definition signed_signature :=
+Expr.Sig all_types [] signedness_tv Signed.
+
+Definition unsigned_signature :=
+Expr.Sig all_types [] signedness_tv Unsigned.
+
+Definition Tnil_signature :=
+Expr.Sig all_types [] typelist_tv Tnil.
+
+Definition Tcons_signature :=
+Expr.Sig all_types [c_type_tv; typelist_tv] typelist_tv Tcons.
+
+Definition Fnil_signature :=
+Expr.Sig all_types [] fieldlist_tv Fnil.
+
+Definition Fcons_signature :=
+Expr.Sig all_types [ident_tv; c_type_tv; fieldlist_tv] fieldlist_tv Fcons.
+
+Definition F32_signature :=
+Expr.Sig all_types [] floatsize_tv F32.
+
+Definition F64_signature :=
+Expr.Sig all_types [] floatsize_tv F64.
+
+
 (* these depend on sample_ls. hopefully we can eventually do away with these *)
 Require Import progs.reverse.
 Definition reverse_t_struct_list_signature :=
@@ -225,8 +328,6 @@ Definition lift_eq a b : environ -> Prop := `(eq a) (eval_id b).
 Definition lift_eq_signature :=
 Expr.Sig all_types (val_tv :: ident_tv :: nil) lift_prop_tv lift_eq.
 
-(* This way we don't have to deal with tons of close-parens at the end 
- * Important, since functions is a long list. *)
 Import ListNotations.
 
 Definition computable_functions :=
@@ -239,7 +340,7 @@ Definition computable_functions :=
 ; align_signature
 ; cons_val_signature 
 ; int_sub_signature 
-; Vint_signature 
+; Vint_signature
 ; map_Vint_signature 
 ; typed_true_signature 
 ; int_add_signature
@@ -281,6 +382,39 @@ Definition computable_functions :=
 ; nil_val_signature
 ; reverse_t_struct_list_signature
 ; reverse__tail_signature
+; Vfloat_signature
+; Vlong_signature
+; Tvoid_signature 
+; Tint_signature 
+; Tlong_signature 
+; Tfloat_signature 
+; Tpointer_signature 
+; Tarray_signature 
+; Tfunction_signature 
+; Tstruct_signature 
+; Tunion_signature 
+; Tcomp_ptr_signature
+; eval_binop_signature
+; eval_unop_signature
+; Some_N_signature 
+; None_N_signature
+; N0_signature
+; Npos_signature
+; true_signature
+; false_signature
+; mk_attr_signature
+; I8_signature
+; I16_signature
+; I32_signature
+; IBool_signature
+; signed_signature
+; unsigned_signature
+; Tnil_signature
+; Tcons_signature
+; Fnil_signature
+; Fcons_signature
+; F32_signature
+; F64_signature
 ].
 
 Definition non_computable_functions :=
@@ -296,10 +430,6 @@ computable_functions ++ non_computable_functions.
 
 
 Definition computable_prefix_length := length computable_functions.
-
-(* By convention denote_tc_assert_b MUST be at index zero,
-   because do_computation will always look there for it. *)
-(* Or not? I forget why we're not doing that anymore *)
 
 (* Definition denote_tc_assert_b_f := 0%nat. *)
 Definition two_power_nat_f := 0%nat.
@@ -354,7 +484,40 @@ Definition nil_val_f := S (tptr_f).
 (* for sample_ls *)
 Definition reverse_t_struct_list_f := S (nil_val_f).
 Definition reverse__tail_f := S (reverse_t_struct_list_f).
-
+Definition vfloat_f := S(reverse__tail_f).
+Definition vlong_f := (S vfloat_f).
+(*C types*)
+Definition Tvoid_f := S(vlong_f).
+Definition Tint_f := S(Tvoid_f).
+Definition Tlong_f := S(Tint_f).
+Definition Tfloat_f := S(Tlong_f).
+Definition Tpointer_f := S(Tfloat_f).
+Definition Tarray_f := S(Tpointer_f).
+Definition Tfunction_f := S(Tarray_f).
+Definition Tstruct_f := S(Tfunction_f).
+Definition Tunion_f := S(Tstruct_f).
+Definition Tcomp_ptr_f := S(Tunion_f).
+Definition eval_binop_f := S (Tcomp_ptr_f).
+Definition eval_unop_f := S (eval_binop_f).
+Definition Some_N_f := S(eval_unop_f). 
+Definition None_N_f := S(Some_N_f).
+Definition N0_f := S(None_N_f).
+Definition Npos_f := S(N0_f).
+Definition true_f := S(Npos_f).
+Definition false_f := S(true_f).
+Definition mk_attr_f := S(false_f).
+Definition I8_f := S(mk_attr_f).
+Definition I16_f := S(I8_f).
+Definition I32_f := S(I16_f).
+Definition IBool_f := S(I32_f).
+Definition signed_f := S(IBool_f).
+Definition unsigned_f := S(signed_f).
+Definition Tnil_f := S(unsigned_f).
+Definition Tcons_f := S(Tnil_f).
+Definition Fnil_f := S(Tcons_f).
+Definition Fcons_f := S(Fnil_f).
+Definition F32_f := S(Fcons_f).
+Definition F64_f := S(F32_f).
 
 (* Past this point are functions that should not compute into Consts *)
 Definition tc_environ_f := length computable_functions.

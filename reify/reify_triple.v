@@ -5,6 +5,7 @@ Require Import sep.
 Require Import wrapExpr.
 Require Import types.
 Require Import reify_derives.
+Require Import functions.
 Require Import MirrorShard.ReifyExpr MirrorShard.ReifySepExpr.
 
 Local Open Scope logic.
@@ -174,38 +175,6 @@ ltac:(fun uvars funcs preds res =>idtac "replace";
 (reflect_Tsep funcs preds uvars res))
 end.
 
-Ltac change_goal w := 
-match goal with 
-    [ |- ?P] => replace P with w by (exact (eq_refl _))
-end.
-
-Ltac abbreviate_triple :=
-match goal with
-[ |- TripleD ?f ?p ?u _ ] => 
-clear_all;
-abbreviate f as funcs;
-abbreviate p as preds;
-abbreviate u as uenv
-end.
-
-Ltac reify_triple :=
-let types := get_types in
-let funcs := get_funcs types in
-let preds := get_predicates types in 
-let uvars := get_uenv types in 
-let vars := nil in 
-match goal with
-[ |- semax ?Delta _ ?C ?P] =>
-reify_props types funcs uvars vars ltac:(
-  fun uvars' funcs' props_r =>
-    reify_locals types funcs' uvars' vars ltac:(
-      fun uvars'' funcs'' locals_r => 
-        reify_sep types funcs'' preds uvars'' vars ltac:(
-          fun uvars''' funcs''' preds' sep_r => 
-            change_goal (TripleD funcs''' preds' uvars''' (mkTriple Delta props_r locals_r sep_r C P)))))
-end;
-abbreviate_triple. 
-
 Ltac reflect_triple :=
 let types' := get_types in
 let types := get_types_name in
@@ -260,15 +229,181 @@ types.no_eqb_type
 
 Env.repr Env.listToRepr].
 
+Ltac change_goal w := 
+match goal with 
+    [ |- ?P] => replace P with w by (exact (eq_refl _))
+end.
+
+Ltac abbreviate_triple :=
+match goal with
+[ |- TripleD ?f ?p ?u _ ] => 
+clear_all;
+abbreviate f as funcs;
+abbreviate p as preds;
+abbreviate u as uenv
+end.
+
+Ltac reify_triple :=
+let types := get_types in
+let funcs := get_funcs types in
+let preds := get_predicates types in 
+let uvars := get_uenv types in 
+let vars := nil in 
+match goal with
+[ |- semax ?Delta _ ?C ?P] =>
+reify_props types funcs uvars vars ltac:(
+  fun uvars' funcs' props_r =>
+    reify_locals types funcs' uvars' vars ltac:(
+      fun uvars'' funcs'' locals_r => 
+        reify_sep types funcs'' preds uvars'' vars ltac:(
+          fun uvars''' funcs''' preds' sep_r => 
+            change_goal (TripleD funcs''' preds' uvars''' (mkTriple Delta props_r locals_r sep_r C P)))))
+end;
+abbreviate_triple. 
+
+Import ListNotations.
+
+Fixpoint pos_to_expr (p: positive) :=
+match p with
+  | xI p' => Func functions.xI_f [pos_to_expr p']
+  | xO p' => Func functions.xO_f [pos_to_expr p']
+  | xH => Func functions.xH_f []
+end.
+
+Definition Z_to_expr (z : Z) :=
+match z with
+| Zpos p => Func functions.Zpos_f [pos_to_expr p]
+| Zneg p => Func functions.Zneg_f [pos_to_expr p]
+| Z0 => Func functions.Z0_f []
+end.
+
+Definition optN_to_expr (on : option N) :=
+match on with
+    Some N0 => Func Some_N_f [Func N0_f []]
+  | Some (Npos p) => Func Some_N_f [Func Npos_f [pos_to_expr p]]
+  | None => Func None_N_f []
+end.
+
+Definition bool_to_expr (b: bool) :=
+match b with
+| true => Func true_f []
+| false => Func false_f []
+end.
+
+Definition attr_to_expr (a : attr) :=
+match a with
+{| attr_volatile := b; attr_alignas := a |} =>
+Func mk_attr_f [bool_to_expr b; optN_to_expr a]
+end.
+
+Definition intsize_to_expr (sz : intsize) :=
+match sz with
+I8 => Func I8_f []
+| I16 => Func I16_f []
+| I32 => Func I32_f [] 
+| IBool => Func IBool_f []
+end.
+Print floatsize.
+
+
+Definition floatsize_to_expr (sz: floatsize) :=
+match sz with
+F32 => Func F32_f []
+| F64 => Func F64_f []
+end.
+
+
+Definition signedness_to_expr (s: signedness) :=
+match s with
+  Signed => Func signed_f [] 
+| Unsigned => Func unsigned_f []
+end.
+
+Print Ctypes.type.
+Locate Tlist.
+Fixpoint type_to_expr (ty : Ctypes.type) :=
+match ty with
+  | Tvoid => Func functions.Tvoid_f []
+  | Tint sz sn attr => Func functions.Tint_f [intsize_to_expr sz; signedness_to_expr sn; attr_to_expr attr]
+  | Tlong sg attr => Func functions.Tlong_f [signedness_to_expr sg; attr_to_expr attr]
+  | Tfloat fs attr => Func functions.Tfloat_f [floatsize_to_expr fs; attr_to_expr attr] 
+  | Tpointer t attr => Func functions.Tpointer_f [type_to_expr t; attr_to_expr attr] 
+  | Tarray t z attr => Func functions.Tpointer_f [type_to_expr t; Z_to_expr z; attr_to_expr attr] 
+  | Tfunction tl t => Func functions.Tfunction_f [typelist_to_expr tl; type_to_expr t]
+  | Tstruct id fl attr => Func Tstruct_f [pos_to_expr id; fieldlist_to_expr fl; attr_to_expr attr]
+  | Tunion id fl attr => Func Tunion_f [pos_to_expr id; fieldlist_to_expr fl; attr_to_expr attr]
+  | Tcomp_ptr id attr => Func Tcomp_ptr_f [pos_to_expr id; attr_to_expr attr]
+end
+
+with typelist_to_expr tl :=
+match tl with
+  Ctypes.Tnil => Func Tnil_f []
+| Ctypes.Tcons h t => Func Tcons_f [type_to_expr h; typelist_to_expr t]
+end
+
+with fieldlist_to_expr fl :=
+match fl with 
+ Fnil => Func Fnil_f []
+| Fcons id ty t => Func Fcons_f [pos_to_expr id; type_to_expr ty; fieldlist_to_expr t]
+end.
+
+(*
+Fixpoint msubst_eval_expr (P: PTree.t val) (e: Clight.expr) 
+(i32m : Z -> nat) (i64m : Z -> nat) (fm : float -> nat) (env : ident -> option expr)
+ : expr :=
+ match e with
+ | Econst_int i ty => Func functions.vint_f [Func (i32m (Int.intval i)) []]
+ | Econst_long i ty => Func functions.vlong_f [Func (i64m (Int64.intval i)) []]
+ | Econst_float f ty => Func functions.vfloat_f [Func (fm f) []]
+ | Etempvar id ty => match env id with
+                                 | Some v => v
+                                 | None => Func (functions.eval_id_f nil) [pos_to_expr id] (*eval_id_lift?? maybe fail... this isn't right though, fail might be right, this may not be possible*) 
+                                 end
+(* | Eaddrof a ty => msubst_eval_lvalue_expr P a *)
+ | Eunop op a ty =>  Func functions.eval_unop [op_to_expr op; type_to_expr ty; msubst_eval_expr a]
+ | _ => Func functions.O_f []
+end.
+
+
+ | Ebinop op a1 a2 ty =>  
+                  `(eval_binop op (typeof a1) (typeof a2)) (msubst_eval_expr P a1) (msubst_eval_expr P a2)
+ | Ecast a ty => `(eval_cast (typeof a) ty) (msubst_eval_expr P a)
+ | Evar id ty => `(deref_noload ty) (eval_var id ty)
+ | Ederef a ty => `(deref_noload ty) (`force_ptr (msubst_eval_expr P a))
+ | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (msubst_eval_lvalue P a))
+ end
+
+ with msubst_eval_lvalue (P: PTree.t val) (e: Clight.expr) : environ -> val := 
+ match e with 
+ | Evar id ty => eval_var id ty
+ | Ederef a ty => `force_ptr (msubst_eval_expr P a)
+ | Efield a i ty => `(eval_field (typeof a) i) (msubst_eval_lvalue P a)
+ | _  => `Vundef
+ end.*)
+
+(*
+Definition symexe (t : Triple) : Triple :=
+match (Tcommand t) with
+| (Ssequence (Sset v e) c) => 
+ {| Tprop := tprop t;
+    Tlocal := (
+| _ => t
+end.*)
+
+
+
 
 Lemma triple : forall p contents sh q r,
 exists POSTCONDITION,
-semax Delta
+semax Delta2
      (PROP  (p = q)
       LOCAL  (`(eq p) (eval_id _p); `(eq q) (eval_id r))  SEP  (`(lseg LS sh contents p nullval)))
      (Ssequence (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
         Sskip) POSTCONDITION.
-intros. eexists. pose_env.
+intros. eexists.
+forward. 
+simpl ((temp_types Delta) ! _w).
+ pose_env.
 reify_triple.
 reflect_triple.
 Abort.

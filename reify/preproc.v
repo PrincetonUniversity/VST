@@ -6,7 +6,7 @@ Require Import types.
 Require Import wrapExpr.
 Local Open Scope logic.
 
-
+(*%5 is and here*)
 Fixpoint flatten_top_conjuncts p : Expr.exprs :=
 match p with
 | Func 5%nat (a :: b :: nil) => flatten_top_conjuncts a ++ flatten_top_conjuncts b
@@ -169,6 +169,12 @@ Qed.
 
 Hint Rewrite func_True: Provable_and.
 
+Ltac do_n n t :=
+let nn := eval vm_compute in n in
+match nn with
+S ?n' => t; do_n n' t
+| _ => idtac
+end.
 
 Lemma Provable_remove_trues : forall t e uenv f,
 nth_error f 5 = Some (functions.and_signature t) ->
@@ -191,8 +197,7 @@ intros; split; induction e; intros; auto.
    rewrite Forall_forall in H1. unfold remove_trues in H1.
    intuition.
    auto. auto.
-   (* TODO make this not depend on the length of functions *)
-   do 48 (destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
+   do_n (True_f nil) ltac:(destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
    unfold Provable; simpl. auto.
    destruct l; auto.
  + do 5 (destruct f0; [ unfold remove_trues; try destruct l; auto | ]). 
@@ -204,8 +209,7 @@ intros; split; induction e; intros; auto.
    rp. rewrite Forall_forall in H1. 
    intuition.
    auto. auto.
-   
-   do 48 (destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
+   do_n (True_f nil) ltac:(destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
    unfold remove_trues in *. simpl in H2. destruct l; auto.
 Qed.
 

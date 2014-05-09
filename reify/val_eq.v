@@ -5,6 +5,7 @@ Require Import MirrorShard.Expr.
 Definition beq_int (i1 i2 : int) : bool :=
 Zeq_bool (Int.intval i1) (Int.intval i2).
 
+
 Lemma beq_int_true : forall a b, beq_int a b = true -> a = b. 
 Proof.
 intros.
@@ -33,12 +34,19 @@ apply proof_irr.
 Qed.
 
 
+Definition beq_float_dec a b:= if Float.eq_dec a b then true else false.
+
+Lemma beq_float_dec_true a b : beq_float_dec a b = true -> a = b.
+intros.  unfold beq_float_dec in *. if_tac in H; congruence.
+Qed. (*If things are slow, this may be the culprit *)
+
+
 Definition beq_val a b : bool :=
 match a,b with
 | Vundef, Vundef => true
 | Vint i1, Vint i2 => beq_int i1 i2
 | Vlong i1, Vlong i2 => beq_long i1 i2
-| Vfloat f1, Vfloat f2 => false (* for now*)
+| Vfloat f1, Vfloat f2 => beq_float_dec f1 f2
 | Vptr b1 o1, Vptr b2 o2 => andb (Pos.eqb b1 b2) (beq_int o1 o2)
 | _, _ => false
 end.  
@@ -49,6 +57,7 @@ intros.
 destruct a, b; simpl in *; try solve [inv H]; try reflexivity.
 apply beq_int_true in H; subst; auto.
 apply beq_long_true in H; subst; auto.
+apply beq_float_dec_true in H; congruence.
 rewrite andb_true_iff in H. destruct H.
 apply Peqb_true_eq in H; subst; auto.
 apply beq_int_true in H0; subst; auto.
@@ -86,3 +95,19 @@ refine ({| Expr.Impl := list T
      ; Expr.Eqb := beq_list f
      ; Expr.Eqb_correct := beq_list_true p |}).
 Defined.
+
+Lemma eqb_typelist_true : forall a b, eqb_typelist a b = true -> a = b.
+induction a; intros; auto. simpl in *. destruct b; congruence.
+destruct b; simpl in *; try congruence. rewrite andb_true_iff in *.
+intuition. erewrite IHa; eauto.
+apply eqb_type_spec in H0. subst; auto.
+Qed.
+
+Lemma eqb_fieldlist_true : forall a b, eqb_fieldlist a b = true -> a = b.
+induction a; intros; auto. simpl in *. destruct b; congruence.
+destruct b; simpl in *; try congruence. repeat rewrite andb_true_iff in *.
+intuition. erewrite IHa; eauto.
+apply eqb_type_spec in H.
+apply eqb_ident_spec in H0.
+ subst; auto.
+Qed.
