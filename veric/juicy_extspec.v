@@ -14,11 +14,44 @@ Require Import veric.initial_world.
 Local Open Scope nat_scope.
 Local Open Scope pred.
 
+(*P,Q is an external function spec. jspec_level is the property:
+   If P(jm) and Q(jm'), then level jm' <= level jm.*)
+
+Definition jspec_level
+      {Z:Type} (jspec : external_specification juicy_mem external_function Z) :=
+  forall e t targs tret args rv z jm jm',
+  ext_spec_pre jspec e t targs args z jm -> 
+  ext_spec_post jspec e t tret rv z jm' -> 
+  level jm' <= level jm.
+
+(*jspec_add_level is the wrapper that maps arbitrary jspecs to jspecs
+satisfying jspec_level.*)
+
+Definition jspec_add_level 
+      {Z:Type} (jspec : external_specification juicy_mem external_function Z) :=
+  Build_external_specification _ _ _
+    (fun ef => (nat*ext_spec_type jspec ef)%type)
+    (fun ef lev_e tys args z jm => 
+      ext_spec_pre jspec ef (snd lev_e) tys args z jm
+      /\ level jm = fst lev_e)
+    (fun ef lev_e retty rval z jm' => 
+      ext_spec_post jspec ef (snd lev_e) retty rval z jm' 
+      /\ level jm' <= fst lev_e)
+    (ext_spec_exit jspec).
+
+Lemma jspec_level_add_level 
+      {Z:Type} (jspec : external_specification juicy_mem external_function Z) 
+  : jspec_level (jspec_add_level jspec).
+Proof. 
+intros e t targs tret args rv z jm jm' [pre lev_pre] [post lev_post]; omega. 
+Qed.
+
 Record juicy_ext_spec (Z: Type) := {
   JE_spec:> external_specification juicy_mem external_function Z;
   JE_pre_hered: forall e t typs args z, hereditary age (ext_spec_pre JE_spec e t typs args z);
   JE_post_hered: forall e t tret rv z, hereditary age (ext_spec_post JE_spec e t tret rv z);
-  JE_exit_hered: forall rv z, hereditary age (ext_spec_exit JE_spec rv z)
+  JE_exit_hered: forall rv z, hereditary age (ext_spec_exit JE_spec rv z);
+  JE_level: jspec_level JE_spec
 }.
  
 Class OracleKind := {
@@ -73,9 +106,8 @@ Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
 
 Definition juicy_core_sem  
   {G C} (csem: CoreSemantics G C mem) :
-   CoreSemantics G C juicy_mem (*jm_init_package*) :=
-  @Build_CoreSemantics _ _ _ (*_*)
-(*deprecated    init_jmem*)
+   CoreSemantics G C juicy_mem :=
+  @Build_CoreSemantics _ _ _ 
     (core_semantics.initial_core csem)
     (at_external csem)
     (after_external csem)
