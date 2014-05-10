@@ -2,6 +2,7 @@ Require Import msl.is_prop_lemma.
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
+Require Import floyd.loadstore_lemmas.
 Require Import floyd.nested_field_lemmas.
 Opaque alignof.
 
@@ -33,6 +34,18 @@ Proof. unfold mapsto_; intros.
   normalize.
 Qed.
 Hint Resolve mapsto_mapsto_ : cancel.
+
+Lemma mapsto_offset_zero:
+  forall sh t v1 v2, 
+    mapsto sh t (offset_val (Int.repr 0) v1) v2 =
+    mapsto sh t v1 v2.
+Proof.
+  unfold mapsto.
+  intros.
+  destruct v1; try solve [simpl; auto].
+  unfold offset_val.
+  rewrite Int.add_zero. auto.
+Qed.
 
 Lemma mapsto_isptr: forall sh t v1 v2, mapsto sh t v1 v2 = !! (isptr v1) && mapsto sh t v1 v2.
 Proof.
@@ -239,6 +252,19 @@ unfold at_offset'.
 destruct z; auto.
 Qed.
 
+Lemma at_offset'_eq2: forall pos pos' P, 
+  (forall p, P (offset_val (Int.repr 0) p) = P p) -> 
+  forall p, at_offset' P (pos + pos') p = at_offset' P pos' (offset_val (Int.repr pos) p).
+Proof.
+  intros.
+  rewrite at_offset'_eq; [| apply H].
+  rewrite at_offset'_eq; [| apply H].
+  unfold offset_val.
+  destruct p; auto.
+  rewrite int_add_assoc1.
+  reflexivity.
+Qed.
+
 Definition spacer (sh: share) (pos: Z) (alignment: Z) : val -> mpred :=
   if Z.eq_dec  (align pos alignment - pos) 0
   then fun _ => emp
@@ -291,6 +317,62 @@ with struct_default_val flds : reptype_structlist flds :=
      else (default_val t, struct_default_val flds0)
   end.
 
+Lemma spacer_offset_zero:
+  forall sh pos n v, spacer sh pos n (offset_val (Int.repr 0) v) = spacer sh pos n v.
+Proof.
+  intros;
+  unfold spacer.
+  destruct (Z.eq_dec (align pos n - pos) 0);  auto.
+  repeat rewrite at_offset'_eq; 
+  try rewrite offset_offset_val; try  rewrite Int.add_zero_l; auto.
+  apply memory_block_offset_zero.
+Qed.
+
+Lemma withspacer_add:
+  forall sh pos pos' alignment P p,
+  (alignment | pos) ->
+  withspacer sh (pos + pos') alignment (fun p0 => P (offset_val (Int.repr pos) p)) p = 
+  withspacer sh pos' alignment P (offset_val (Int.repr pos) p).
+Proof.
+  intros.
+  rewrite withspacer_spacer.
+  rewrite withspacer_spacer.
+  simpl.
+  replace (align (pos + pos') alignment) with (pos + align pos' alignment) by
+    (rewrite <- divide_add_align; [reflexivity | exact H]).
+  replace (pos + align pos' alignment - (pos + pos')) with (align pos' alignment - pos') by omega.
+  if_tac; [reflexivity|].
+  repeat (rewrite at_offset'_eq; [|apply memory_block_offset_zero]).
+  replace (offset_val (Int.repr (pos + pos')) p) with
+          (offset_val (Int.repr pos') (offset_val (Int.repr pos) p)).
+  reflexivity.
+  destruct p; simpl; try reflexivity.
+  rewrite int_add_assoc1.
+  reflexivity.
+Qed.
+
+Definition alignof_hd (fld: fieldlist) : Z :=
+  match fld with
+  | Fnil => 1
+  | Fcons _ t _ => alignof t
+  end.
+
+Lemma alignof_hd_divide: forall f, (alignof_hd f | alignof_fields f).
+Proof.
+  intros.
+  destruct f.
+  + simpl. apply Z.divide_refl.
+  + simpl alignof_hd. apply alignof_fields_hd_divide.
+Qed.
+
+Lemma alignof_hd_pos: forall f, alignof_hd f > 0.
+Proof.
+  intros.
+  destruct f; simpl.
+  omega.
+  apply alignof_pos.
+Qed.
+
 (************************************************
 
 reptype is not defined in a quite beautiful way now. However, there seems no
@@ -339,12 +421,6 @@ match v with
 | nil => if (Zeq_bool length 0) then fun _ => emp else FF
 | hd :: tl => (P pos hd) * (array_at' sh t (length - 1) P (pos + sizeof t) tl)
 end.
-
-Definition alignof_hd (fld: fieldlist) : Z :=
-  match fld with
-  | Fnil => 1
-  | Fcons _ t _ => alignof t
-  end.
 
 Fixpoint data_at' (sh: Share.t) (e: type_id_env) (t1: type): Z -> reptype t1 -> val -> mpred :=
   match t1 as t return (Z -> reptype t -> val -> mpred) with
@@ -406,6 +482,144 @@ Proof.
   + destruct (H0 alignment). simpl. split. (* Fcons case of fieldlist induction *)
     rewrite H, H1. reflexivity.
     rewrite H, H2. reflexivity.
+Qed.
+
+Lemma lower_sepcon_val':
+  forall (P Q: val->mpred) v, 
+  ((P*Q) v) = (P v * Q v).
+Proof. reflexivity. Qed.
+
+Lemma data_at'_data_at: forall sh t v pos, (no_nested_alignas_type t = true) -> (alignof t | pos) -> data_at' sh empty_ti t pos v = at_offset pos (data_at sh t v).
+Proof.
+  intros.
+  extensionality p.
+  unfold data_at, at_offset.
+  replace (data_at' sh empty_ti t pos) with (data_at' sh empty_ti t (pos + 0)) by
+    (replace (pos + 0) with pos by omega; reflexivity).
+  apply (type_mut 
+         (fun t => forall pos', 
+                   no_nested_alignas_type t = true ->
+                   (alignof t | pos) -> 
+                   (alignof t | pos') -> 
+                   forall v p, data_at' sh empty_ti t (pos + pos') v p =
+                   data_at' sh empty_ti t pos' v (offset_val (Int.repr pos) p))
+         (fun _ => True)
+         (fun f => forall pos' alignment,
+                   nested_fields_pred no_alignas_type f = true ->
+                   (alignof_fields f | alignment) -> 
+                   (alignment | pos) -> 
+                   (alignof_hd f | pos') -> 
+                   (forall v p, sfieldlist_at' sh empty_ti alignment f (pos + pos') v p = 
+                   sfieldlist_at' sh empty_ti alignment f pos' v (offset_val (Int.repr pos) p)) /\
+                   (forall v p, ufieldlist_at' sh empty_ti alignment f (pos + pos') v p = 
+                   ufieldlist_at' sh empty_ti alignment f pos' v (offset_val (Int.repr pos) p)))); intros;
+    try assumption;
+    try constructor;
+    try (simpl;
+         unfold at_offset2;
+         rewrite at_offset'_eq2; [reflexivity |];
+         try apply memory_block_offset_zero;
+         try (intros; apply mapsto_offset_zero)).
+  + admit. (* array case *)
+  + simpl.
+    assert (alignof_fields f | alignof (Tstruct i f a)).
+      rewrite no_nested_alignas_type_Tstruct; [apply Z.divide_refl | exact H2].
+    assert (alignof_hd f | pos').
+      eapply Z.divide_trans; [apply alignof_hd_divide |].
+      eapply Z.divide_trans; [exact H5 | exact H4].
+    unfold no_nested_alignas_type in H2.
+    simpl in H2.
+    rewrite andb_true_iff in H2.
+    destruct H2 as [_ ?].
+    destruct (H1 pos' (alignof (Tstruct i f a)) H2 H5 H3 H6) as [? _].
+    apply H7.
+  + simpl.
+    assert (alignof_fields f | alignof (Tunion i f a)).
+      rewrite no_nested_alignas_type_Tunion; [apply Z.divide_refl | exact H2].
+    assert (alignof_hd f | pos').
+      eapply Z.divide_trans; [apply alignof_hd_divide |].
+      eapply Z.divide_trans; [exact H5 | exact H4].
+    unfold no_nested_alignas_type in H2.
+    simpl in H2.
+    rewrite andb_true_iff in H2.
+    destruct H2 as [_ ?].
+    destruct (H1 pos' (alignof (Tstruct i f a)) H2 H5 H3 H6) as [_ ?].
+    apply H7.
+  + intros.
+    simpl. normalize.
+  + intros.
+    simpl. normalize.
+  + assert (alignof t0 | pos); [
+        eapply Z.divide_trans; [|exact H5];
+        eapply Z.divide_trans; [|exact H4];
+        apply alignof_fields_hd_divide |].
+    assert (alignof t0 | pos'); [
+        eapply Z.divide_trans; [|exact H6];
+        simpl alignof_hd; apply Z.divide_refl |].
+    simpl in H3.
+    apply andb_true_iff in H3; destruct H3 as [? ?].
+    destruct (is_Fnil f) eqn:Hf; intros; revert v0; simpl; rewrite Hf; intros.
+      * rewrite <- (withspacer_add _ _ _ _ _ _ H5).
+        repeat rewrite withspacer_spacer.
+        repeat rewrite lower_sepcon_val'.
+        rewrite <- (H1 pos' H3 H7 H8).
+        rewrite Zplus_assoc_reverse.
+        reflexivity.
+      * erewrite <- withspacer_add; [|
+          eapply Z.divide_trans; [|exact H5];
+          eapply Z.divide_trans; [|exact H4];
+          eapply Z.divide_trans; [apply alignof_hd_divide | apply alignof_fields_tl_divide]].
+        repeat rewrite withspacer_spacer.
+        repeat rewrite lower_sepcon_val'.
+        rewrite <- (H1 pos' H3 H7 H8).
+        assert (alignof_fields f | alignment); [
+          eapply Z.divide_trans; [|exact H4];
+          apply alignof_fields_tl_divide |].
+        assert (alignof_hd f | (align (pos' + sizeof t0) (alignof_hd f))); [
+          apply align_divides; apply alignof_hd_pos |].
+        destruct (H2 _ alignment H9 H10 H5 H11) as [? _].
+        rewrite Zplus_assoc_reverse.
+        replace (align (pos + (pos' + sizeof t0)) (alignof_hd f))  with (pos + align (pos' + sizeof t0) (alignof_hd f)); [ rewrite H12; reflexivity |].
+        apply divide_add_align.
+        eapply Z.divide_trans; [apply alignof_hd_divide|].
+        eapply Z.divide_trans; [exact H10 | exact H5].
+  + admit.
+ (* assert (alignof t0 | pos); [
+        eapply Z.divide_trans; [|exact H5];
+        eapply Z.divide_trans; [|exact H4];
+        apply alignof_fields_hd_divide |].
+    assert (alignof t0 | pos'); [
+        eapply Z.divide_trans; [|exact H6];
+        simpl alignof_hd; apply Z.divide_refl |].
+    simpl in H3.
+    apply andb_true_iff in H3; destruct H3 as [? ?].
+    destruct (is_Fnil f) eqn:Hf; intros; revert v0; simpl; rewrite Hf; intros.
+      * rewrite <- (withspacer_add _ _ _ _ _ _ H5).
+        repeat rewrite withspacer_spacer.
+        repeat rewrite lower_sepcon_val'.
+        rewrite <- (H1 pos' H3 H7 H8).
+        rewrite Zplus_assoc_reverse.
+        reflexivity.
+      * erewrite <- withspacer_add; [|
+          eapply Z.divide_trans; [|exact H5];
+          eapply Z.divide_trans; [|exact H4];
+          eapply Z.divide_trans; [apply alignof_hd_divide | apply alignof_fields_tl_divide]].
+        repeat rewrite withspacer_spacer.
+        repeat rewrite lower_sepcon_val'.
+        rewrite <- (H1 pos' H3 H7 H8).
+        assert (alignof_fields f | alignment); [
+          eapply Z.divide_trans; [|exact H4];
+          apply alignof_fields_tl_divide |].
+        assert (alignof_hd f | (align (pos' + sizeof t0) (alignof_hd f))); [
+          apply align_divides; apply alignof_hd_pos |].
+        destruct (H2 _ alignment H9 H10 H5 H11) as [? _].
+        rewrite Zplus_assoc_reverse.
+        replace (align (pos + (pos' + sizeof t0)) (alignof_hd f))  with (pos + align (pos' + sizeof t0) (alignof_hd f)); [ rewrite H12; reflexivity |].
+        apply divide_add_align.
+        eapply Z.divide_trans; [apply alignof_hd_divide|].
+        eapply Z.divide_trans; [exact H10 | exact H5].
+  *)
+  + apply Z.divide_0_r.
 Qed.
 
 (************************************************
@@ -838,12 +1052,12 @@ Ltac unfold_field_at N :=
     | |- appcontext [`(opaque_nested_data_at ?SH ?IDS ?T ?v) ?p] =>
            remember (`(opaque_nested_data_at SH IDS T v) p) as MA eqn:H in |-*; 
            rewrite <- opaque_nda1 in H;
-           floyd_simpl T H MA unfold_field_at';
+           try floyd_simpl T H MA unfold_field_at';
            try subst MA
     | |- appcontext [(opaque_nested_data_at ?SH ?IDS ?T ?v) ?p] =>
            remember ((opaque_nested_data_at SH IDS T v) p) as MA eqn:H in |-*; 
            rewrite <- opaque_nda1 in H;
-           floyd_simpl T H MA unfold_field_at';
+           try floyd_simpl T H MA unfold_field_at';
            try subst MA
     end
   | S ?n' => 
@@ -867,13 +1081,13 @@ Ltac unfold_data_at N :=
            remember (`(opaque_data_at SH T v) p) as MA eqn:H in |-*; 
            rewrite <- opaque_nda2 in H;
            rewrite data_at_nested_data_at in H;
-           floyd_simpl T H MA unfold_field_at';
+           try floyd_simpl T H MA unfold_field_at';
            try subst MA
     | |- appcontext [(opaque_data_at ?SH ?T ?v) ?p] =>
            remember ((opaque_data_at SH T v) p) as MA eqn:H in |-*; 
            rewrite <- opaque_nda2 in H;
            rewrite data_at_nested_data_at in H;
-           floyd_simpl T H MA unfold_field_at';
+           try floyd_simpl T H MA unfold_field_at';
            try subst MA
     end
   | S ?n' => 
@@ -967,33 +1181,10 @@ Proof.
   apply data_at_isptr.
 Qed.
 
-Lemma mapsto_offset_zero:
-  forall sh t v1 v2, 
-    mapsto sh t (offset_val (Int.repr 0) v1) v2 =
-    mapsto sh t v1 v2.
-Proof.
-  unfold mapsto.
-  intros.
-  destruct v1; try solve [simpl; auto].
-  unfold offset_val.
-  rewrite Int.add_zero. auto.
-Qed.
-
 Lemma data_at_tint: forall sh v2 v1,
   data_at sh tint v2 v1 = mapsto sh tint v1 v2.
 Proof.
   intros. reflexivity. 
-Qed.
-
-Lemma spacer_offset_zero:
-  forall sh pos n v, spacer sh pos n (offset_val (Int.repr 0) v) = spacer sh pos n v.
-Proof.
-  intros;
-  unfold spacer.
-  destruct (Z.eq_dec (align pos n - pos) 0);  auto.
-  repeat rewrite at_offset'_eq; 
-  try rewrite offset_offset_val; try  rewrite Int.add_zero_l; auto.
-  apply memory_block_offset_zero.
 Qed.
 
 Fixpoint typecount (t: type) : nat :=
@@ -1201,201 +1392,11 @@ Lemma memory_block_typed': forall sh e pos ty b ofs,
 Proof.
   Admitted.
 
-(*
-Require Import progs.nest2.
+(***************************************
 
-Goal forall a b c, data_at Ews t_struct_b (a, (b,c))= TT.
-intros.
-extensionality p.
-unfold data_at.
-simpl data_at'.
-Opaque at_offset2.
-simpl.
-Transparent alignof.
-simpl alignof.
-simpl align.
-simpl.
-unfold withspacer.
-simpl align.
-Opaque spacer.
-simpl.
-repeat rewrite <- sepcon_assoc.
-SearchAbout mapsto FF.
-Locate field_at_conflict.
-Print res_predicates.address_mapsto.
-Locate jam.
-Print mapsto.
-Print access_mode.
-Print compcert.common.Memdata.encode_val.
-Locate single_of_bits.
-Print compcert.lib.Floats.Float.
-Print compcert.common.Memdata.memval.
-Print Memdata.proj_bytes.
-Print val.
-Print res_predicates.spec.
-simpl withspacer.
-*)
+The following part is about load/store lemmas about data_at and nested_data_at.
 
-(************************************************
-
-reptype is not defined in a quite beautiful way because of the if operation 
-inside it. However, due to the following limitations, the current definition
-is the best available choice.
-
-1. We want a compact representation of reptype result and a compact form of
-expansion of data_at, i.e. no unit in reptype result of non-empty struct and
-no emp clause existing in the expansion of data_at. So, vst does not use the
-following simplest approach.
-
-  match fld with
-  | Fnil => unit
-  | Fcons id ty fld' => prod (reptype ty) (reptype_structlist fld')
-  end
-
-2. If using struct recursive definition in reptype like this, in which reptype
-recursively is called on 1st level match variable fld' but not any 2nd level 
-stuff.
-
-  match fld with
-  | Fnil => unit
-  | Fcons id ty fld' => 
-    match fld' as fld0 return Type with
-    | Fnil => reptype ty
-    | Fcons id0 ty0 fld0' => prod (reptype ty) (reptype_structlist fld')
-    end
-  end
-
-or like this
-
-  match fld with
-  | Fnil => unit
-  | Fcons id ty Fnil => reptype ty
-  | Fcons id ty fld' => prod (reptype ty) (reptype_structlist fld')
-  end
-
-Then, we would be forced to do type casting when defining data_at. In detail,
-match command will destruct a fieldlist into "Fnil", "Fcons _ Fnil _" and
-"Fcons _ (Fcons i t f) _", then an equivalence between (Fcons i t f) and fld'
-is needed.
-
-3. If reptype is recursively called on (Fcons i t f), we have to use well-found
-recursive but not structure recursive. However, Coq does not allow users to use 
-well-found recursive on manual recursive functions.
-
-4. If reptype is defined in a well-type recursive style (thus, it has to be non-
-manually recursive) (this definition code is long; thus I put it afterwards), 
-a match command does not do enough type calculation. As a result, explicit type
-casting is needed again, i.e. the following piece of code does not compile. 
-
-  Function test (t: type) (v: reptype t) {measure hry t}: nat :=
-    match t as t0 return reptype t0 -> nat with
-    | Tvoid => fun (v: unit) => 0%nat
-    | Tarray t1 sz a => fun (v: list (reptype t1)) => 2%nat
-    | _ => fun _ => 1%nat
-    end v.
-
-Though, computation by "Eval compute in" or "simpl" works quite well.
-
-5. Another choice is start induction from the 2nd element but not the 1st
-element. However, neither one of the following definition works. The former 
-choice requires explicit type casting when defining data_at. The latter choice
-does not compile itself.
-
-  Fixpoint reptype (ty: type) : Type :=
-    match ty with
-    | ...
-    | Tstruct id Fnil a => unit
-    | Tstruct id (Fcons i t fld) a => reptype_structlist_cons (reptype t) fld
-    end
-  with reptype_structlist_cons (T: Type) (fld: fieldlist): Type :=
-    match fld with
-    | Fnil => T
-    | Fcons i t fld' => prod T (reptype_structlist_cons (reptype t) fld')
-    end.
-
-  Fixpoint reptype (ty: type) : Type :=
-    match ty with
-    | ...
-    | Tstruct id Fnil a => unit
-    | Tstruct id (Fcons i t fld) a => reptype_structlist_cons t fld
-    end
-  with reptype_structlist_cons (t: type) (fld: fieldlist): Type :=
-    match fld with
-    | Fnil => T
-    | Fcons i ty fld' => prod (reptype t) (reptype_structlist_cons ty fld')
-    end.
-
-
-(* (**** Code of Choice 4 ****)
-Open Scope nat.
-
-Fixpoint hry (t: type) : nat :=
-  match t with
-  | Tvoid => 0
-  | Tint _ _ _ => 0
-  | Tlong _ _ => 0
-  | Tfloat _ _ => 0
-  | Tpointer t1 a => 0
-  | Tarray t1 sz a => (hry t1) + 1
-  | Tfunction t1 t2 => 0
-  | Tstruct id fld a => (hry_fields fld) + 1
-  | Tunion id fld a => (hry_fields fld) + 1
-  | Tcomp_ptr id a => 0
-  end
-with hry_fields (fld: fieldlist): nat :=
-  match fld with
-  | Fnil => 0
-  | Fcons i t fld' => (hry t) + (hry_fields fld') + 1
-  end.
-
-Close Scope nat.
-
-Function reptype (ty: type) {measure hry ty}: Type :=
-  match ty with
-  | Tvoid => unit
-  | Tint _ _ _ => val
-  | Tlong _ _ => val
-  | Tfloat _ _ => val
-  | Tpointer t1 a => val
-  | Tarray t1 sz a => list (reptype t1)
-  | Tfunction t1 t2 => unit
-  | Tstruct id Fnil a => unit
-  | Tstruct id (Fcons i t Fnil) a => reptype t
-  | Tstruct id (Fcons i t fld) a => prod (reptype t) (reptype (Tstruct id fld a))
-  | Tunion id fld a => unit
-  | Tcomp_ptr id a => val
-  end
-.
-Proof.
-  + intros. 
-    simpl.
-    omega.
-  + intros.
-    simpl.
-    omega.
-  + intros.
-    simpl.
-    omega.
-  + intros. 
-    simpl.
-    omega.
-Defined.
-
-Eval compute in (reptype (Tstruct 2%positive (Fcons 1%positive Tvoid (Fcons 1%positive Tvoid Fnil)) noattr)).
-
-Lemma foo: (reptype (Tstruct 2%positive (Fcons 1%positive Tvoid (Fcons 1%positive Tvoid Fnil)) noattr)) = (unit * unit)%type.
-Proof.
-  reflexivity.
-Qed.
-*)
-
-
-************************************************)
-
-Require Import floyd.base.
-Require Import floyd.client_lemmas.
-Require Import floyd.assert_lemmas.
-Require Import floyd.loadstore_lemmas.
+***************************************)
 
 Lemma is_neutral_reptype: forall t t', is_neutral_cast t t' = true -> reptype t = val.
 Proof.
@@ -1613,3 +1614,213 @@ Transparent eval_expr.
     apply replace_nth_SEP'.
     unfold liftx, lift. cancel.
 Qed.
+
+(*
+Require Import floyd.forward.
+
+Print numbd.
+Print number_list.
+Check Efield.
+Print eval_lvalue.
+Print typeof.
+
+Print tc_val.
+Locate typecheck_lvalue.
+Print typecheck_lvalue.
+Print eval_lvalue.
+Print eval_field.
+
+Print is_neutral_cast.
+
+
+Lemma semax_field_load: 
+  forall {Espec: OracleKind},
+    forall (Delta : tycontext) (sh : Share.t) (id : ident) 
+         (P : list Prop) (Q : list (environ -> Prop))
+         (R : list (environ -> mpred)) (e1 : expr) 
+         (t2 : type) (v2 : reptype (typeof e1)) (v2' : val)
+       (_: typeof_temp Delta id = Some t2)
+       (Htype: is_neutral_cast (typeof e1) t2 = true),
+       eq_rect_r (fun x => x) v2' (is_neutral_reptype (typeof e1) t2 Htype) = v2 ->
+       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
+       |-- local (tc_lvalue Delta e1) && local `(tc_val (typeof e1) v2') &&
+           (`(data_at sh (typeof e1) v2) (eval_lvalue e1) * TT) ->
+       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+         (Sset id e1)
+         (normal_ret_assert
+            (EX  old : val,
+             PROPx P
+               (LOCALx (`eq (eval_id id) `v2' :: map (subst id `old) Q)
+                  (SEPx (map (subst id `old) R))))).
+Proof.
+  intros.
+  eapply semax_load_37'.
+  + exact H.
+  + exact Htype.
+  + instantiate (1:=sh).
+    apply (derives_trans _ _ _ H1).
+    apply andp_derives; [normalize |].
+    remember (eval_lvalue e1) as p.
+    go_lower.
+    rewrite (is_neutral_data_at _ _ _ _ v2' _ Htype H0).
+    cancel.
+Qed.
+
+*)
+
+(************************************************
+
+reptype is not defined in a quite beautiful way because of the if operation 
+inside it. However, due to the following limitations, the current definition
+is the best available choice.
+
+1. We want a compact representation of reptype result and a compact form of
+expansion of data_at, i.e. no unit in reptype result of non-empty struct and
+no emp clause existing in the expansion of data_at. So, vst does not use the
+following simplest approach.
+
+  match fld with
+  | Fnil => unit
+  | Fcons id ty fld' => prod (reptype ty) (reptype_structlist fld')
+  end
+
+2. If using struct recursive definition in reptype like this, in which reptype
+recursively is called on 1st level match variable fld' but not any 2nd level 
+stuff.
+
+  match fld with
+  | Fnil => unit
+  | Fcons id ty fld' => 
+    match fld' as fld0 return Type with
+    | Fnil => reptype ty
+    | Fcons id0 ty0 fld0' => prod (reptype ty) (reptype_structlist fld')
+    end
+  end
+
+or like this
+
+  match fld with
+  | Fnil => unit
+  | Fcons id ty Fnil => reptype ty
+  | Fcons id ty fld' => prod (reptype ty) (reptype_structlist fld')
+  end
+
+Then, we would be forced to do type casting when defining data_at. In detail,
+match command will destruct a fieldlist into "Fnil", "Fcons _ Fnil _" and
+"Fcons _ (Fcons i t f) _", then an equivalence between (Fcons i t f) and fld'
+is needed.
+
+3. If reptype is recursively called on (Fcons i t f), we have to use well-found
+recursive but not structure recursive. However, Coq does not allow users to use 
+well-found recursive on manual recursive functions.
+
+4. If reptype is defined in a well-type recursive style (thus, it has to be non-
+manually recursive) (this definition code is long; thus I put it afterwards), 
+a match command does not do enough type calculation. As a result, explicit type
+casting is needed again, i.e. the following piece of code does not compile. 
+
+  Function test (t: type) (v: reptype t) {measure hry t}: nat :=
+    match t as t0 return reptype t0 -> nat with
+    | Tvoid => fun (v: unit) => 0%nat
+    | Tarray t1 sz a => fun (v: list (reptype t1)) => 2%nat
+    | _ => fun _ => 1%nat
+    end v.
+
+Though, computation by "Eval compute in" or "simpl" works quite well.
+
+5. Another choice is start induction from the 2nd element but not the 1st
+element. However, neither one of the following definition works. The former 
+choice requires explicit type casting when defining data_at. The latter choice
+does not compile itself.
+
+  Fixpoint reptype (ty: type) : Type :=
+    match ty with
+    | ...
+    | Tstruct id Fnil a => unit
+    | Tstruct id (Fcons i t fld) a => reptype_structlist_cons (reptype t) fld
+    end
+  with reptype_structlist_cons (T: Type) (fld: fieldlist): Type :=
+    match fld with
+    | Fnil => T
+    | Fcons i t fld' => prod T (reptype_structlist_cons (reptype t) fld')
+    end.
+
+  Fixpoint reptype (ty: type) : Type :=
+    match ty with
+    | ...
+    | Tstruct id Fnil a => unit
+    | Tstruct id (Fcons i t fld) a => reptype_structlist_cons t fld
+    end
+  with reptype_structlist_cons (t: type) (fld: fieldlist): Type :=
+    match fld with
+    | Fnil => T
+    | Fcons i ty fld' => prod (reptype t) (reptype_structlist_cons ty fld')
+    end.
+
+
+(* (**** Code of Choice 4 ****)
+Open Scope nat.
+
+Fixpoint hry (t: type) : nat :=
+  match t with
+  | Tvoid => 0
+  | Tint _ _ _ => 0
+  | Tlong _ _ => 0
+  | Tfloat _ _ => 0
+  | Tpointer t1 a => 0
+  | Tarray t1 sz a => (hry t1) + 1
+  | Tfunction t1 t2 => 0
+  | Tstruct id fld a => (hry_fields fld) + 1
+  | Tunion id fld a => (hry_fields fld) + 1
+  | Tcomp_ptr id a => 0
+  end
+with hry_fields (fld: fieldlist): nat :=
+  match fld with
+  | Fnil => 0
+  | Fcons i t fld' => (hry t) + (hry_fields fld') + 1
+  end.
+
+Close Scope nat.
+
+Function reptype (ty: type) {measure hry ty}: Type :=
+  match ty with
+  | Tvoid => unit
+  | Tint _ _ _ => val
+  | Tlong _ _ => val
+  | Tfloat _ _ => val
+  | Tpointer t1 a => val
+  | Tarray t1 sz a => list (reptype t1)
+  | Tfunction t1 t2 => unit
+  | Tstruct id Fnil a => unit
+  | Tstruct id (Fcons i t Fnil) a => reptype t
+  | Tstruct id (Fcons i t fld) a => prod (reptype t) (reptype (Tstruct id fld a))
+  | Tunion id fld a => unit
+  | Tcomp_ptr id a => val
+  end
+.
+Proof.
+  + intros. 
+    simpl.
+    omega.
+  + intros.
+    simpl.
+    omega.
+  + intros.
+    simpl.
+    omega.
+  + intros. 
+    simpl.
+    omega.
+Defined.
+
+Eval compute in (reptype (Tstruct 2%positive (Fcons 1%positive Tvoid (Fcons 1%positive Tvoid Fnil)) noattr)).
+
+Lemma foo: (reptype (Tstruct 2%positive (Fcons 1%positive Tvoid (Fcons 1%positive Tvoid Fnil)) noattr)) = (unit * unit)%type.
+Proof.
+  reflexivity.
+Qed.
+*)
+
+
+************************************************)
+
