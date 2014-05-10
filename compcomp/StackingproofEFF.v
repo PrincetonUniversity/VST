@@ -1049,6 +1049,34 @@ Proof.
   intros. eapply Mem.load_unchanged_on; eauto. intros. apply REACH. omega. 
   intros. eapply Mem.perm_unchanged_on; eauto with mem. auto. 
 Qed.
+Lemma agree_frame_extcall_invariant':
+  forall mu ls ls0 m sp m' sp' parent retaddr m1 m1',
+  agree_frame (as_inj mu) ls ls0 m sp m' sp' parent retaddr ->
+  (Mem.valid_block m sp -> Mem.valid_block m1 sp) ->
+  (forall ofs p, Mem.perm m1 sp ofs Max p -> Mem.perm m sp ofs Max p) ->
+  (Mem.valid_block m' sp' -> Mem.valid_block m1' sp') ->
+  Mem.unchanged_on (loc_out_of_reach (as_inj (restrict_sm mu (vis mu))) m) m' m1' ->
+  (*LENB: New conditions :*)
+  forall (WD: SM_wd mu) (SP: locBlocksTgt mu sp' = true),
+  agree_frame (as_inj mu) ls ls0 m1 sp m1' sp' parent retaddr.
+Proof.
+  intros.
+  assert (REACH: forall ofs,
+     ofs < fe.(fe_stack_data) \/ fe.(fe_stack_data) + f.(Linear.fn_stacksize) <= ofs ->
+    loc_out_of_reach (as_inj (restrict_sm mu (vis mu))) m sp' ofs).
+    intros; red; intros. 
+      rewrite restrict_sm_all, restrict_vis_foreign_local in H5; trivial.
+      destruct (joinD_Some _ _ _ _ _ H5) as [FRG | [FRG LOC]]; clear H5.
+        assert (locBlocksTgt mu sp' = false). eapply foreign_DomRng; eassumption.
+        rewrite H5 in SP; discriminate.
+        apply local_in_all in LOC; trivial. 
+        exploit agree_inj_unique; eauto.
+    intros [EQ1 EQ2]; subst.
+    red; intros. exploit agree_bounds; eauto. omega.
+  eapply agree_frame_invariant; eauto.
+  intros. eapply Mem.load_unchanged_on; eauto. intros. apply REACH. omega. 
+  intros. eapply Mem.perm_unchanged_on; eauto with mem. auto. 
+Qed.
 (*
 Lemma agree_frame_extcall_invariant:
   forall j ls ls0 m sp m' sp' parent retaddr m1 m1',
@@ -3168,6 +3196,33 @@ Proof.
     auto. assumption.
 Qed.
 
+Lemma match_stacks_change_mem_extcall':
+  forall mu m1 m2 m1' m2' cs cs' sg bound bound',
+  match_stacks mu m1 m1' cs cs' sg bound bound' ->
+  (forall b, Plt b bound -> Mem.valid_block m1 b -> Mem.valid_block m2 b) ->
+  (forall b ofs p, Plt b bound -> Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p) ->
+  (forall b, Plt b bound' -> Mem.valid_block m1' b -> Mem.valid_block m2' b) ->
+  Mem.unchanged_on (loc_out_of_reach (restrict (as_inj mu) (vis mu)) m1) m1' m2' ->
+  (*LENB: added:*) SM_wd mu ->
+  match_stacks mu m2 m2' cs cs' sg bound bound'.
+Proof.
+  induction 1; intros.
+  econstructor; eauto.
+  econstructor; try eassumption.
+    clear IHmatch_stacks.
+    rewrite <- restrict_sm_all. rewrite <- restrict_sm_all in FRM. 
+    eapply agree_frame_extcall_invariant'; eauto.
+       rewrite restrict_sm_all, vis_restrict_sm. 
+       rewrite restrict_sm_all, restrict_nest; trivial. 
+    eapply restrict_sm_WD; try eassumption. trivial.
+       rewrite restrict_sm_locBlocksTgt; trivial.
+  apply IHmatch_stacks. 
+    intros; apply H0; auto. apply Plt_trans with sp; auto. 
+    intros; apply H1. apply Plt_trans with sp; auto. auto.
+    intros; apply H2; auto. apply Plt_trans with sp'; auto. 
+    auto. assumption.
+Qed.
+
 (*
 Lemma match_stacks_change_mem_extcall:
   forall j m1 m2 m1' m2' cs cs' sg bound bound',
@@ -3367,6 +3422,30 @@ Proof.
     unfold Mem.valid_block. xomega.
   intros. eapply H0; eassumption.
 Qed.
+
+Lemma match_stack_change_extcall_intern:
+  forall m1 m2 m1' m2' mu mu',
+(*  external_call ec ge args m1 t res m2 
+    replaced by forward:*) mem_forward m1 m2 ->
+(*  external_call ec ge args' m1' t' res' m2'
+    replaced by forward:*) mem_forward m1' m2' ->
+  intern_incr mu mu' -> SM_wd mu -> SM_wd mu' ->
+  sm_inject_separated mu mu' m1 m1' ->
+  Mem.unchanged_on (loc_out_of_reach (restrict (as_inj mu) (vis mu)) m1) m1' m2' ->
+  forall cs cs' sg bound bound',
+  match_stacks mu m1 m1' cs cs' sg bound bound' ->
+  Ple bound (Mem.nextblock m1) -> Ple bound' (Mem.nextblock m1') ->
+  match_stacks mu' m2 m2' cs cs' sg bound bound'.
+Proof.
+  intros. 
+  eapply match_stacks_change_meminj_intern; eauto. 
+  eapply match_stacks_change_mem_extcall'; eauto.
+  intros. eapply H; eassumption.
+  intros. eapply H; try eassumption.
+    unfold Mem.valid_block. xomega.
+  intros. eapply H0; eassumption.
+Qed.
+
 
 (** Invariance by external calls. *)
 (* see whether this is needed
@@ -4167,6 +4246,11 @@ intuition.
    subst; trivial.
 Qed.
 
+Lemma list_Loc_type_mreg r: Loc.type ## (R ## r) = mreg_type ## r.
+Proof.
+  induction r; simpl. trivial.
+  rewrite IHr. trivial.
+Qed.
 
 Lemma MATCH_diagram: forall st1 m1 st1' m1'
       (CS: corestep Linear_eff_sem ge st1 m1 st1' m1')
@@ -4633,9 +4717,7 @@ destruct H1. subst tf'.
         rewrite <- restrict_sm_all.
         eapply restrict_sm_preserves_globals; try eassumption.
           unfold vis. intuition.
-  inv H. admit. (*TODO: complete this case
-(*  exploit Efftransl_exprlist_correct; try eapply MINJ; try eassumption.
-  intros [rs' [m2' [TCS [E [F [G [J K]]]]]]]. subst.*)
+  inv H. 
   exploit (inlineable_extern_inject _ _ GDE_lemma).
         eassumption. eassumption. eassumption. eassumption. eassumption. assumption.
      eapply decode_longs_inject. eapply agree_reglist; eassumption.
@@ -4648,44 +4730,52 @@ destruct H1. subst tf'.
   exists mu'.
   intuition.
   split.
-    revert TRANSL. unfold transf_fundef, transf_partial_fundef.
-    caseEq (transf_function f); simpl; try congruence.
-    intros tfn TRANSL EQ. inversion EQ; clear EQ; subst tf.
-    econstructor; eauto with coqlib.
-      eapply match_stacks_change_mach_mem. 
-        eapply match_stacks_change_linear_mem; try eassumption.
-    eapply match_stacks_change_meminj_intern; try eassumption.
-      eapply match_stacks_change_mach_mem. 
-        eapply match_stacks_change_linear_mem; try eassumption.
-          intros. eapply external_call_mem_forward; eassumption.
-          intros. eapply external_call_mem_forward; try eassumption.
-            exploit agree_valid_linear; try eassumption. unfold Mem.valid_block; intros. xomega.
-          intros. eapply external_call_mem_forward; try eassumption.
-            exploit agree_valid_mach; try eassumption. unfold Mem.valid_block; intros. xomega.
-  apply Plt_Ple. change (Mem.valid_block m sp0). eapply agree_valid_linear; eauto.
-            
-inc STACKS.
-            
-       match_stack_change_extcall; eauto.
-    apply Plt_Ple. change (Mem.valid_block m sp0). eapply agree_valid_linear; eauto.
-  apply Plt_Ple. change (Mem.valid_block m'0 sp'). eapply agree_valid_mach; eauto.
-  apply agree_regs_set_regs; auto. apply agree_regs_undef_regs; auto. eapply agree_regs_inject_incr; eauto.
-  apply agree_frame_set_regs; auto. apply agree_frame_undef_regs; auto.
-  eapply agree_frame_inject_incr; eauto. 
-  apply agree_frame_extcall_invariant with m m'0; auto.
-  eapply external_call_valid_block'; eauto.
-  intros. inv H; eapply external_call_max_perm; eauto. eapply agree_valid_linear; eauto.
-  eapply external_call_valid_block'; eauto.
-  eapply agree_valid_mach; eauto.
-  simpl. rewrite list_map_compose.
-  change (fun x => Loc.type (R x)) with mreg_type.
-  eapply Val.has_subtype_list; eauto. eapply external_call_well_typed'; eauto.
- econstructor. eapply TCS.
-      eapply effstep_plus_one.
-      eapply rtl_effstep_exec_Ibuiltin. eauto. eassumption.
-  split; trivial. split; trivial. split; trivial. 
-  split.
-    split. econstructor; eauto.*)
+    econstructor; eauto with coqlib. 
+    eapply (match_stack_change_extcall_intern m m' m2 tm' mu); try assumption.
+        eapply external_call_mem_forward; eassumption.
+        eapply external_call_mem_forward; eassumption.
+      apply Plt_Ple. change (Mem.valid_block m sp0). eapply agree_valid_linear; eauto.
+      apply Plt_Ple. change (Mem.valid_block m2 sp'). eapply agree_valid_mach; eauto.
+    apply agree_regs_set_regs; auto. apply agree_regs_undef_regs; auto.
+             eapply agree_regs_inject_incr; eauto.
+               eapply intern_incr_restrict; eassumption.
+             eapply encode_long_inject; eassumption.
+    apply agree_frame_set_regs; auto.
+        apply agree_frame_undef_regs; auto.
+             eapply agree_frame_inject_incr. 
+             eapply agree_frame_invariant; try eassumption.
+               intros. eapply external_call_mem_forward; eassumption.
+               intros. eapply external_call_mem_forward; try eassumption.
+                        eapply AGFRAME.
+               intros. eapply external_call_mem_forward; eassumption.
+               intros. eapply Mem.load_unchanged_on; try eassumption.
+                       red; intros.
+                       exploit agree_inj_unique. eapply  AGFRAME. apply H4. intros [SP DD]; subst.
+                       intros N. exploit agree_bounds. eapply AGFRAME. eapply N. intros.
+                       clear - H1 H3 H5. destruct H1; omega.
+               intros. eapply OUTOFREACH; trivial.
+                       red; intros.
+                         exploit agree_inj_unique. eapply  AGFRAME. apply H3. intros [SP DD]; subst.
+                         intros N. exploit agree_bounds. eapply AGFRAME. eapply N. intros.
+                         clear - H1 H4. destruct H1; omega.
+                       eapply Mem.perm_valid_block; eassumption.
+                  eapply intern_incr_restrict; eassumption.
+                  apply sm_inject_separated_mem in SEPARATED.
+                    red; intros. destruct (restrictD_Some _ _ _ _ _ H2); clear H2.
+                      destruct (restrictD_None' _ _ _ H1); clear H1.
+                        eapply SEPARATED; eassumption.
+                      destruct H2 as [bb2 [dd2 [AI1 Vis]]].
+                      rewrite (intern_incr_vis_inv _ _ WD WD' INCR _ _ _ AI1 H4) in Vis. discriminate.
+                    assumption.
+              eapply AGFRAME.
+        rewrite list_Loc_type_mreg. eapply Val.has_subtype_list. eassumption. eapply external_call_well_typed'. econstructor. eapply H0. trivial.
+    eapply INCR. assumption.
+  intuition.
+  eapply meminj_preserves_incr_sep. eapply PG. eassumption. 
+             apply intern_incr_as_inj; trivial.
+             apply sm_inject_separated_mem; eassumption.
+  assert (FRG: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply INCR.
+          rewrite <- FRG. eapply (Glob _ H1).  
   (* Llabel *)
   eexists; eexists; split.
     apply corestep_plus_one; apply Mach_exec_Mlabel.
@@ -5373,7 +5463,77 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
     apply FreeEffectD in H1. destruct H1 as [? [VB Arith2]]; subst.
     split. eapply visPropagateR; eassumption.
     rewrite SPlocalTgt. intuition.
-  (*MBuiltin*) admit. (*TODO MBuiltin*)
+  (*MBuiltin*)
+  destruct PRE as [RC [PG [Glob [SMV WD]]]].
+      assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
+        rewrite <- restrict_sm_all.
+        eapply restrict_sm_preserves_globals; try eassumption.
+          unfold vis. intuition.
+  inv H. 
+  assert (ArgsInj: val_list_inject (restrict (as_inj mu) (vis mu))
+            (decode_longs (sig_args (ef_sig ef)) (reglist rs args))
+            (decode_longs (sig_args (ef_sig ef)) rs0 ## args)).
+     eapply decode_longs_inject. eapply agree_reglist; eassumption.
+  exploit (inlineable_extern_inject _ _ GDE_lemma); eauto.
+  intros [mu' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH 
+           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]]]].
+  eexists; eexists; eexists. 
+  split. eapply effstep_plus_one.
+           econstructor. econstructor. eassumption.
+            reflexivity. reflexivity.
+  exists mu'.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split.
+    split.
+      econstructor; eauto with coqlib. 
+      eapply (match_stack_change_extcall_intern m m' m2 tm' mu); try assumption.
+        eapply external_call_mem_forward; eassumption.
+        eapply external_call_mem_forward; eassumption.
+        apply Plt_Ple. change (Mem.valid_block m sp0). eapply agree_valid_linear; eauto.
+        apply Plt_Ple. change (Mem.valid_block m2 sp'). eapply agree_valid_mach; eauto.
+      apply agree_regs_set_regs; auto. apply agree_regs_undef_regs; auto.
+             eapply agree_regs_inject_incr; eauto.
+               eapply intern_incr_restrict; eassumption.
+             eapply encode_long_inject; eassumption.
+      apply agree_frame_set_regs; auto.
+        apply agree_frame_undef_regs; auto.
+             eapply agree_frame_inject_incr. 
+             eapply agree_frame_invariant; try eassumption.
+               intros. eapply external_call_mem_forward; eassumption.
+               intros. eapply external_call_mem_forward; try eassumption.
+                        eapply AGFRAME.
+               intros. eapply external_call_mem_forward; eassumption.
+               intros. eapply Mem.load_unchanged_on; try eassumption.
+                       red; intros.
+                       exploit agree_inj_unique. eapply  AGFRAME. apply H3. intros [SP DD]; subst.
+                       intros N. exploit agree_bounds. eapply AGFRAME. eapply N. intros.
+                       clear - H H2 H4. destruct H; omega.
+               intros. eapply OUTOFREACH; trivial.
+                       red; intros.
+                         exploit agree_inj_unique. eapply  AGFRAME. apply H2. intros [SP DD]; subst.
+                         intros N. exploit agree_bounds. eapply AGFRAME. eapply N. intros.
+                         clear - H H3. destruct H; omega.
+                       eapply Mem.perm_valid_block; eassumption.
+                  eapply intern_incr_restrict; eassumption.
+                  apply sm_inject_separated_mem in SEPARATED.
+                    red; intros. destruct (restrictD_Some _ _ _ _ _ H1); clear H1.
+                      destruct (restrictD_None' _ _ _ H); clear H.
+                        eapply SEPARATED; eassumption.
+                      destruct H1 as [bb2 [dd2 [AI1 Vis]]].
+                      rewrite (intern_incr_vis_inv _ _ WD WD' INCR _ _ _ AI1 H3) in Vis. discriminate.
+                    assumption.
+              eapply AGFRAME.
+        rewrite list_Loc_type_mreg. eapply Val.has_subtype_list. eassumption. eapply external_call_well_typed'. econstructor. eapply H0. trivial.
+      eapply INCR. assumption.
+    intuition.
+    eapply meminj_preserves_incr_sep. eapply PG. eassumption. 
+             apply intern_incr_as_inj; trivial.
+             apply sm_inject_separated_mem; eassumption.
+    assert (FRG: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply INCR.
+          rewrite <- FRG. eapply (Glob _ H1).
+  eapply BuiltinEffect_Propagate; eassumption. 
   (* Llabel *)
   eexists; eexists; eexists; split.
     apply effstep_plus_one; apply Mach_effexec_Mlabel.
