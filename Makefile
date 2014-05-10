@@ -171,7 +171,7 @@ PROGS_FILES= \
    entail_examples.v \
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
   verif_float.v \
-  verif_nest3.v nest2.v verif_nest2.v\
+  verif_nest3.v nest2.v verif_nest2.v verif_nest2_1.v verif_nest2_2.v\
   logical_compare.v verif_logical_compare.v
 
 SHA_FILES= \
