@@ -731,6 +731,20 @@ Definition measure (s: Mach_core) : nat :=
   | _ => 0%nat
   end.
 
+Lemma match_stack_intern_incr mu mu': forall
+   (INC: intern_incr mu mu') s
+   (MS: match_stack ge (local_of mu) s),
+   match_stack ge (local_of mu') s.
+Proof. intros.
+induction MS; econstructor; eauto.
+destruct H1 as [b [ofs [SP LOC]]].
+  exists b, ofs; split; trivial.
+  eapply INC. trivial.
+destruct H2 as [b [ofs [SP LOC]]].
+  exists b, ofs; split; trivial.
+  eapply INC. trivial.
+Qed.
+
 Lemma MATCH_core_diagram: forall st1 m1 st1' m1' 
         (CS: corestep (Mach_eff_sem return_address_offset) ge st1 m1 st1' m1')
         st2 mu m2 (MTCH: MATCH st1 mu st1 m1 st2 m2),
@@ -1349,7 +1363,63 @@ Opaque loadind.
       eapply Mem.valid_block_free_1; try eassumption.
         eapply SMV; assumption.
 
-(* - builtin*) - admit. (*TODO: builtin*)
+- (* - builtin*) 
+  destruct PRE as [RC [PG [Glob [SMV WD]]]].
+      assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
+        rewrite <- restrict_sm_all.
+        eapply restrict_sm_preserves_globals; try eassumption.
+          unfold vis. intuition.
+  inv H. inv AT. monadInv H3. 
+  exploit functions_transl; eauto. intro FN.
+  generalize (transf_function_no_overflow _ _ H2); intro NOOV.
+  exploit (inlineable_extern_inject _ _ GDE_lemma).
+        eassumption. eassumption. eassumption. eassumption. eassumption. assumption.
+        rewrite <- restrict_sm_all. eapply decode_longs_inject.
+        eapply preg_vals; eauto.
+  intros [mu' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH 
+           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]]]].
+  eexists; eexists. 
+  split. left. eapply corestep_plus_one.
+           eapply asm_exec_step_builtin. eauto. eauto.
+            eapply find_instr_tail; eauto.
+           econstructor. eassumption.
+            reflexivity. reflexivity.
+  exists mu'.
+  intuition.
+  split.
+    econstructor; eauto.
+    (* why have local_of here, and in STACKS?*)
+      eapply match_stack_intern_incr; try eassumption.
+        eapply restrict_sm_intern_incr; eassumption. 
+    instantiate (2 := tf); instantiate (1 := x).
+    unfold nextinstr_nf, nextinstr. rewrite Pregmap.gss.
+    rewrite undef_regs_other. rewrite set_pregs_other_2. rewrite undef_regs_other_2.
+    rewrite <- H. simpl. econstructor; eauto.
+    eapply code_tail_next_int; eauto.
+    rewrite preg_notin_charact. intros. auto with asmgen.
+    rewrite preg_notin_charact. intros. auto with asmgen.
+    auto with asmgen.
+    simpl; intros. intuition congruence.
+    apply agree_nextinstr_nf. eapply agree_set_mregs; auto.
+    eapply agree_intern_incr.
+        Focus 3. eapply restrict_sm_intern_incr; eassumption.
+        apply restrict_sm_WD; trivial.
+      eapply agree_undef_regs; eauto.
+      intros; eapply undef_regs_other_2; eauto. 
+    eapply encode_long_inject. rewrite restrict_sm_all; eassumption. 
+    congruence.
+
+    destruct SPlocalSrc as [Zero | [spb [z [SPptr locBlk]]]].
+      left; trivial.
+      right. exists spb, z; split; trivial. 
+             eapply INCR. trivial. 
+
+    intuition. 
+    eapply meminj_preserves_incr_sep. eapply PG. eassumption. 
+             apply intern_incr_as_inj; trivial.
+             apply sm_inject_separated_mem; eassumption.
+    assert (FRG: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply INCR.
+          rewrite <- FRG. eapply (Glob _ H5).  
 (* - annot: later*)
 
 - (* Mgoto *)
@@ -2078,7 +2148,69 @@ Opaque loadind.
 
 - admit. (*TailCall -later*)
 
-(* - builtin*) - admit. (*TODO: builtin*)
+(* - builtin*) 
+- destruct PRE as [RC [PG [Glob [SMV WD]]]].
+      assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
+        rewrite <- restrict_sm_all.
+        eapply restrict_sm_preserves_globals; try eassumption.
+          unfold vis. intuition.
+  inv H. inv AT. monadInv H3. 
+  exploit functions_transl; eauto. intro FN.
+  generalize (transf_function_no_overflow _ _ H2); intro NOOV.
+  assert (AgrsInj: val_list_inject (restrict (as_inj mu) (vis mu))
+            (decode_longs (sig_args (ef_sig ef)) rs ## args)
+            (decode_longs (sig_args (ef_sig ef)) rs0 ## (preg_of ## args))).
+     rewrite <- restrict_sm_all. eapply decode_longs_inject.
+        eapply preg_vals; eauto.
+  exploit (inlineable_extern_inject _ _ GDE_lemma); try eassumption.
+  intros [mu' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH 
+           [INCR [SEPARATED [LOCALLOC [WD' [VAL' RC']]]]]]]]]]]]].
+  eexists; eexists; eexists. 
+  split. left. eapply effstep_plus_one.
+           eapply asm_effexec_step_builtin. eauto. eauto.
+            eapply find_instr_tail; eauto.
+           econstructor. eassumption.
+            reflexivity. reflexivity.
+  exists mu'.
+  split; trivial.
+  split; trivial.
+  split; trivial.
+  split.
+    split. 
+      econstructor; eauto.
+      (* why have local_of here, and in STACKS?*)
+        eapply match_stack_intern_incr; try eassumption.
+          eapply restrict_sm_intern_incr; eassumption. 
+      instantiate (2 := tf); instantiate (1 := x).
+      unfold nextinstr_nf, nextinstr. rewrite Pregmap.gss.
+      rewrite undef_regs_other. rewrite set_pregs_other_2. rewrite undef_regs_other_2.
+      rewrite <- H. simpl. econstructor; eauto.
+      eapply code_tail_next_int; eauto.
+      rewrite preg_notin_charact. intros. auto with asmgen.
+      rewrite preg_notin_charact. intros. auto with asmgen.
+      auto with asmgen.
+      simpl; intros. intuition congruence.
+      apply agree_nextinstr_nf. eapply agree_set_mregs; auto.
+      eapply agree_intern_incr.
+        Focus 3. eapply restrict_sm_intern_incr; eassumption.
+        apply restrict_sm_WD; trivial.
+        eapply agree_undef_regs; eauto.
+        intros; eapply undef_regs_other_2; eauto. 
+      eapply encode_long_inject. rewrite restrict_sm_all; eassumption. 
+      congruence.
+
+      destruct SPlocalSrc as [Zero | [spb [z [SPptr locBlk]]]].
+        left; trivial.
+        right. exists spb, z; split; trivial. 
+               eapply INCR. trivial. 
+
+      intuition.  
+      eapply meminj_preserves_incr_sep. eapply PG. eassumption. 
+             apply intern_incr_as_inj; trivial.
+             apply sm_inject_separated_mem; eassumption.
+      assert (FRG: frgnBlocksSrc mu = frgnBlocksSrc mu') by eapply INCR.
+          rewrite <- FRG. eapply (Glob _ H5). 
+    eapply BuiltinEffect_Propagate; eassumption. 
 (* - annot: later*)
 
 - (* Mgoto *)
