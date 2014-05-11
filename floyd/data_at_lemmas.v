@@ -1698,36 +1698,38 @@ Transparent eval_expr.
     unfold liftx, lift. cancel.
 Qed.
 
-(*
-Require Import floyd.forward.
+Definition uncompomize (t: type) : type :=
+  match t with
+  | Tcomp_ptr i a => Tpointer Tvoid a
+  | _ => t
+  end.
 
-Print numbd.
-Print number_list.
-Check Efield.
-Print eval_lvalue.
-Print typeof.
+Lemma is_neutral_reptype': forall t t' t'', uncompomize t = t' -> is_neutral_cast t' t'' = true -> reptype t = val.
+Proof.
+  intros.
+  destruct t, t', t''; try inversion H; try inversion H0; try reflexivity.
+Qed.
 
-Print tc_val.
-Locate typecheck_lvalue.
-Print typecheck_lvalue.
-Print eval_lvalue.
-Print eval_field.
+Lemma is_neutral_data_at': forall sh t t' t'' v v' p (HH1: uncompomize t = t') (HH2: is_neutral_cast t' t'' = true), eq_rect_r (fun x => x) v' (is_neutral_reptype' t t' t'' HH1 HH2) = v -> data_at sh t v p = mapsto sh t' p v'.
+Proof.
+  intros.
+  destruct t, t', t''; try inversion HH1; try inversion HH2; simpl in v;
+  try (unfold data_at; simpl; unfold eq_rect_r in H; rewrite <- eq_rect_eq in H; rewrite H; reflexivity).
+Qed.
 
-Print is_neutral_cast.
-
-
-Lemma semax_field_load: 
+Lemma semax_data_load':
   forall {Espec: OracleKind},
     forall (Delta : tycontext) (sh : Share.t) (id : ident) 
          (P : list Prop) (Q : list (environ -> Prop))
          (R : list (environ -> mpred)) (e1 : expr) 
-         (t2 : type) (v2 : reptype (typeof e1)) (v2' : val)
-       (_: typeof_temp Delta id = Some t2)
-       (Htype: is_neutral_cast (typeof e1) t2 = true),
-       eq_rect_r (fun x => x) v2' (is_neutral_reptype (typeof e1) t2 Htype) = v2 ->
+         (t1 t2 : type) (v2 : reptype t1) (v2' : val)
+       (HH1: uncompomize t1 = typeof e1)
+       (HH2: is_neutral_cast (typeof e1) t2 = true),
+       typeof_temp Delta id = Some t2 ->
+       eq_rect_r (fun x => x) v2' (is_neutral_reptype' t1 (typeof e1) t2 HH1 HH2) = v2 ->
        PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
        |-- local (tc_lvalue Delta e1) && local `(tc_val (typeof e1) v2') &&
-           (`(data_at sh (typeof e1) v2) (eval_lvalue e1) * TT) ->
+           (`(data_at sh t1 v2) (eval_lvalue e1) * TT) ->
        semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
          (Sset id e1)
          (normal_ret_assert
@@ -1739,17 +1741,185 @@ Proof.
   intros.
   eapply semax_load_37'.
   + exact H.
-  + exact Htype.
+  + exact HH2.
   + instantiate (1:=sh).
     apply (derives_trans _ _ _ H1).
     apply andp_derives; [normalize |].
-    remember (eval_lvalue e1) as p.
+    forget (eval_lvalue e1) as p.
     go_lower.
-    rewrite (is_neutral_data_at _ _ _ _ v2' _ Htype H0).
-    cancel.
+    erewrite is_neutral_data_at'.
+    apply derives_refl.
+    exact H0.
 Qed.
 
+Fixpoint legal_nested_efield (ids: list ident) (tts: list type) t : bool :=
+  match ids, tts with
+  | nil, nil => eqb_type (uncompomize t) t
+  | nil, _ => false
+  | _ , nil => false
+  | cons id ids', cons t_ tts' => 
+    match nested_field_rec ids t with
+    | Some (_, ttt) => (legal_nested_efield ids' tts' t && 
+                       eqb_type (uncompomize ttt) t_)%bool
+    | None => false
+    end
+  end.
+
+Lemma legal_nested_efield_cons: forall id ids t tts e, legal_nested_efield (id :: ids) (t :: tts) (typeof e) = true -> legal_nested_efield ids tts (typeof e) = true.
+Proof.
+  intros.
+  simpl in H.
+  valid_nested_field_rec ids (typeof e) H.
+  destruct t0; inversion H; clear H2;
+  (solve_field_offset_type id f; [|inversion H]);
+  apply andb_true_iff in H;
+  destruct H;
+  rewrite H, H1;
+  reflexivity.
+Qed.
+
+(*
+Definition legal_nested_efield (ids: list ident) (tts: list type) t : bool :=
+  match ids, tts with
+  | nil, nil => true
+  | nil, _ => false
+  | _ , nil => false
+  | cons id ids', cons t_ tts' => type_eq (uncompomize (nested_field_type2 ids t)) t_
+  end.
 *)
+
+Fixpoint nested_efield (e: expr) (ids: list ident) (tts: list type) : expr :=
+  match ids, tts with
+  | nil, _ => e
+  | _, nil => e
+  | cons id ids', cons t_ tts' => Efield (nested_efield e ids' tts') id t_
+  end.
+
+Fixpoint compute_nested_efield e : expr * list ident * list type :=
+  match e with
+  | Efield e' id t => 
+    match compute_nested_efield e' with
+    | (e'', ids, tts) => (e'', id :: ids, t :: tts)
+    end
+  | _ => (e, nil, nil)
+  end.
+
+Lemma compute_nested_efield_lemma: forall e,
+  match compute_nested_efield e with
+  | (e', ids, tts) => nested_efield e' ids tts = e
+  end.
+Proof.
+  intros.
+  induction e; try reflexivity.
+  simpl.
+  destruct (compute_nested_efield e) as ((?, ?), ?).
+  simpl.
+  rewrite IHe.
+  reflexivity.
+Qed.
+
+Lemma typeof_nested_efield: forall ids tts e,
+  legal_nested_efield ids tts (typeof e) = true ->
+  eqb_type (uncompomize (nested_field_type2 ids (typeof e)))
+  (typeof (nested_efield e ids tts)) = true .
+Proof.
+  intros.
+  revert tts H.
+  induction ids; intros; destruct tts; unfold nested_field_type2 in *; simpl in *.
+  + exact H.
+  + inversion H.
+  + inversion H.
+  + valid_nested_field_rec ids (typeof e) H.
+    destruct t0; inversion H; clear H2;
+    (solve_field_offset_type a f; [|inversion H]);
+    apply andb_true_iff in H;
+    destruct H as [H HH];
+    rewrite H, HH;
+    reflexivity.
+Qed.
+
+Lemma eval_lvalue_nested_efield: forall ids tts e rho,
+  legal_nested_efield ids tts (typeof e) = true ->
+  offset_val (Int.repr (nested_field_offset2 ids (typeof e))) (eval_lvalue e rho) = 
+  offset_val Int.zero (eval_lvalue (nested_efield e ids tts) rho).
+Proof.
+  intros.
+  assert (offset_val (Int.repr (nested_field_offset2 ids (typeof e) + 0)) (eval_lvalue e rho) = 
+          offset_val (Int.repr 0) (eval_lvalue (nested_efield e ids tts) rho)); [|
+    replace (nested_field_offset2 ids (typeof e) + 0) with 
+      (nested_field_offset2 ids (typeof e)) in H0 by omega;
+    exact H0].
+  forget 0 as pos;
+  revert pos tts H.
+  induction ids; intros; destruct tts; unfold nested_field_offset2 in *; simpl.
+  + reflexivity.
+  + reflexivity.
+  + inversion H.
+  + unfold eval_field.
+    pose proof legal_nested_efield_cons _ _ _ _ _ H.
+    pose proof typeof_nested_efield _ _ _ H0.
+    unfold nested_field_type2 in H1.
+    valid_nested_field_rec ids (typeof e) H. 
+    apply eqb_type_true in H1.
+    destruct t0; inversion H; clear H4; simpl uncompomize in H1; rewrite <- H1.
+    - solve_field_offset_type a f; [|inversion H].
+      unfold liftx, lift; simpl.
+      apply andb_true_iff in H.
+      destruct H.
+      rewrite offset_offset_val, add_repr, Zplus_assoc_reverse.
+      apply (IHids _ _ H).
+    - solve_field_offset_type a f; [|inversion H].
+      unfold liftx, lift; simpl.
+      apply andb_true_iff in H.
+      destruct H.
+      rewrite <- field_mapsto.offset_val_force_ptr.
+      rewrite offset_offset_val, int_add_repr_0_l.
+      apply (IHids _ _ H).
+Qed.
+
+Lemma semax_nested_data_load':
+  forall {Espec: OracleKind},
+    forall (Delta : tycontext) (sh : Share.t) (id : ident) 
+         (P : list Prop) (Q : list (environ -> Prop))
+         (R : list (environ -> mpred)) (e1 : expr) 
+         (t2 : type) (ids: list ident) (tts: list type)
+         (v2 : reptype (nested_field_type2 ids (typeof e1))) (v2' : val) 
+       (HH1: uncompomize (nested_field_type2 ids (typeof e1)) = typeof (nested_efield e1 ids tts))
+       (HH2: is_neutral_cast (typeof (nested_efield e1 ids tts)) t2 = true),
+       no_nested_alignas_type (typeof e1) = true ->
+       legal_nested_efield ids tts (typeof e1) = true ->
+       typeof_temp Delta id = Some t2 ->
+       eq_rect_r (fun x => x) v2' (is_neutral_reptype' _ _ _ HH1 HH2) = v2 ->
+       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
+       |-- local (tc_lvalue Delta (nested_efield e1 ids tts)) &&
+           local `(tc_val (typeof (nested_efield e1 ids tts)) v2') &&
+           (`(nested_data_at sh ids (typeof e1) v2) (eval_lvalue e1) * TT) ->
+       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+         (Sset id (nested_efield e1 ids tts))
+         (normal_ret_assert
+            (EX  old : val,
+             PROPx P
+               (LOCALx (`eq (eval_id id) `v2' :: map (subst id `old) Q)
+                  (SEPx (map (subst id `old) R))))).
+Proof.
+  intros until HH2. intros H98 H99 ? ? ?.
+  eapply semax_data_load'.
+  + exact H.
+  + exact H0.
+  + eapply derives_trans; [exact H1|].
+    instantiate (1:=sh).
+    apply andp_derives; [normalize |].
+    remember eval_lvalue as v.
+    go_lower.
+    subst v.
+    rewrite nested_data_at_data_at.
+    rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
+    rewrite (eval_lvalue_nested_efield _ tts). 
+    rewrite <- data_at_offset_zero.
+    apply derives_refl.
+    exact H99.
+    exact H98.
+Qed.
 
 (************************************************
 
