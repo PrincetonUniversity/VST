@@ -129,6 +129,15 @@ Expr.Sig all_types (positive_tv :: nil) positive_tv xO.
 Definition xH_signature :=
 Expr.Sig all_types nil positive_tv xH.
 
+Definition xIp_signature :=
+Expr.Sig all_types (ident_tv :: nil) ident_tv xI.
+
+Definition xOp_signature :=
+Expr.Sig all_types (ident_tv :: nil) ident_tv xO.
+
+Definition xHp_signature :=
+Expr.Sig all_types nil ident_tv xH.
+
 Definition int_lt_signature :=
 Expr.Sig all_types (int_tv :: int_tv :: nil) bool_tv Int.lt.
 
@@ -188,6 +197,9 @@ Expr.Sig all_types (comparison_tv :: int_tv :: int_tv :: nil) bool_tv Int.cmpu.
 
 Definition int_repr_signature :=
 Expr.Sig all_types (Z_tv :: nil) int_tv Int.repr.
+
+Definition int64_repr_signature :=
+Expr.Sig all_types (Z_tv :: nil) int64_tv Int64.repr.
 
 Definition int_signed_signature :=
 Expr.Sig all_types (int_tv :: nil) Z_tv Int.signed.
@@ -314,6 +326,62 @@ Expr.Sig all_types [] floatsize_tv F32.
 Definition F64_signature :=
 Expr.Sig all_types [] floatsize_tv F64.
 
+Definition Onotint_signature :=
+Expr.Sig all_types [] unary_operation_tv Cop.Onotint.
+
+Definition Onotbool_signature :=
+Expr.Sig all_types [] unary_operation_tv Cop.Onotbool.
+
+Definition Oneg_signature :=
+Expr.Sig all_types [] unary_operation_tv Cop.Oneg.
+
+Definition Oadd_signature :=
+Expr.Sig all_types [] binary_operation_tv Cop.Oadd.
+
+Definition Osub_signature :=
+Expr.Sig all_types [] binary_operation_tv Cop.Osub.
+
+Definition Omul_signature :=
+Expr.Sig all_types [] binary_operation_tv Cop.Omul.
+
+Definition Odiv_signature :=
+Expr.Sig all_types [] binary_operation_tv Cop.Odiv.
+
+Definition Omod_signature :=
+Expr.Sig all_types [] binary_operation_tv Cop.Omod.
+
+Definition Oand_signature :=
+Expr.Sig all_types [] binary_operation_tv Cop.Oand.
+
+Definition Oor_signature := 
+Expr.Sig all_types [] binary_operation_tv Cop.Oor.
+
+Definition Oxor_signature :=
+Expr.Sig all_types [] binary_operation_tv Cop.Oxor.
+
+Definition Oshl_signature :=
+Expr.Sig all_types [] binary_operation_tv Cop.Oshl.
+
+Definition Oshr_signature :=
+Expr.Sig all_types [] binary_operation_tv Cop.Oshr.
+
+Definition Oeq_signature := 
+Expr.Sig all_types [] binary_operation_tv Cop.Oeq.
+
+Definition One_signature := 
+Expr.Sig all_types [] binary_operation_tv Cop.One.
+
+Definition Olt_signature := 
+Expr.Sig all_types [] binary_operation_tv Cop.Olt.
+
+Definition Ogt_signature := 
+Expr.Sig all_types [] binary_operation_tv Cop.Ogt.
+
+Definition Ole_signature := 
+Expr.Sig all_types [] binary_operation_tv Cop.Ole.
+
+Definition Oge_signature := 
+Expr.Sig all_types [] binary_operation_tv Cop.Oge.
 
 (* these depend on sample_ls. hopefully we can eventually do away with these *)
 Require Import progs.reverse.
@@ -328,7 +396,18 @@ Definition lift_eq a b : environ -> Prop := `(eq a) (eval_id b).
 Definition lift_eq_signature :=
 Expr.Sig all_types (val_tv :: ident_tv :: nil) lift_prop_tv lift_eq.
 
+Definition eval_cast_signature :=
+Expr.Sig all_types [c_type_tv; c_type_tv; val_tv] val_tv eval_cast.
+
+Definition deref_noload_signature :=
+Expr.Sig all_types [c_type_tv; val_tv] val_tv deref_noload.
+
+Definition eval_field_signature :=
+Expr.Sig all_types [c_type_tv; ident_tv; val_tv] val_tv eval_field.
+
 Import ListNotations.
+
+Print Cop.unary_operation.
 
 Definition computable_functions :=
 [ two_power_nat_signature 
@@ -415,6 +494,32 @@ Definition computable_functions :=
 ; Fcons_signature
 ; F32_signature
 ; F64_signature
+; Onotbool_signature
+; Onotint_signature
+; Oneg_signature
+; Oadd_signature
+; Osub_signature
+; Omul_signature
+; Odiv_signature
+; Omod_signature
+; Oand_signature
+; Oor_signature
+; Oxor_signature
+; Oshl_signature
+; Oshr_signature
+; Oeq_signature
+; One_signature
+; Olt_signature
+; Ogt_signature
+; Ole_signature
+; Oge_signature
+; eval_cast_signature
+; deref_noload_signature
+; eval_field_signature
+; int64_repr_signature
+; xIp_signature
+; xOp_signature
+; xHp_signature
 ].
 
 Definition non_computable_functions :=
@@ -518,6 +623,33 @@ Definition Fnil_f := S(Tcons_f).
 Definition Fcons_f := S(Fnil_f).
 Definition F32_f := S(Fcons_f).
 Definition F64_f := S(F32_f).
+(*C operations *)
+Definition Onotbool_f := S(F64_f).
+Definition Onotint_f := S(Onotbool_f).
+Definition Oneg_f := S(Onotint_f).
+Definition Oadd_f := S(Oneg_f).
+Definition Osub_f := S(Oadd_f).
+Definition Omul_f := S(Osub_f).
+Definition Odiv_f := S(Omul_f).
+Definition Omod_f := S(Odiv_f).
+Definition Oand_f := S(Omod_f).
+Definition Oor_f := S(Oand_f).
+Definition Oxor_f := S(Oor_f).
+Definition Oshl_f := S(Oxor_f).
+Definition Oshr_f := S(Oshl_f).
+Definition Oeq_f := S(Oshr_f).
+Definition One_f := S(Oeq_f).
+Definition Olt_f := S(One_f).
+Definition Ogt_f := S(Olt_f).
+Definition Ole_f := S(Ogt_f).
+Definition Oge_f := S(Ole_f).
+Definition eval_cast_f := S (Oge_f).
+Definition deref_noload_f := S(eval_cast_f).
+Definition eval_field_f := S(deref_noload_f).
+Definition int_64_repr_f := S(eval_field_f).
+Definition xIp_f := S(int_64_repr_f).
+Definition xOp_f := S(xIp_f).
+Definition xHp_f := S(xOp_f).
 
 (* Past this point are functions that should not compute into Consts *)
 Definition tc_environ_f := length computable_functions.
