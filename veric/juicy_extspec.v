@@ -21,9 +21,9 @@ Definition jspec_rel
       {Z:Type} 
       (jspec : external_specification juicy_mem external_function Z) 
       (R : relation juicy_mem) :=
-  forall e t targs tret args rv z jm jm',
+  forall e t targs tret args rv z z' jm jm',
   ext_spec_pre jspec e t targs args z jm -> 
-  ext_spec_post jspec e t tret rv z jm' -> 
+  ext_spec_post jspec e t tret rv z' jm' -> 
   R jm jm'.
 
 (*jspec_add_rel is the wrapper that maps arbitrary jspecs to jspecs
@@ -47,7 +47,7 @@ Lemma jspec_rel_add_rel
       {Z:Type} (jspec : external_specification juicy_mem external_function Z) R
   : jspec_rel (jspec_add_rel jspec R) R.
 Proof. 
-intros e t targs tret args rv z jm jm' [pre lev_pre] [post lev_post]. 
+intros e t targs tret args rv z z' jm jm' [pre lev_pre] [post lev_post]. 
 solve[subst jm; auto].
 Qed.
 

@@ -1332,8 +1332,34 @@ Proof.
  rewrite core_NO; auto.
 Qed.
 
+Lemma type_of_params_arglist:
+  forall i tys, type_of_params (arglist i tys) = tys.
+Proof.
+  intros. revert i; induction tys; simpl; intros; f_equal; auto.
+Qed.
+
+Lemma same_glob_funassert':
+  forall Delta1 Delta2 rho rho',
+     (forall id, (glob_types Delta1) ! id = (glob_types Delta2) ! id) ->
+      ge_of rho = ge_of rho' ->
+              funassert Delta1 rho = funassert Delta2 rho'.
+Proof.
+assert (forall Delta Delta' rho rho',  
+             (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id) ->
+             ge_of rho = ge_of rho' ->
+             funassert Delta rho |-- funassert Delta' rho').
+intros.
+unfold funassert.
+intros w [? ?]; split.
+clear H2; intro id. rewrite <- (H id), <- H0; auto.
+intros loc fs w' Hw' H4; destruct (H2 loc fs w' Hw' H4)  as [id H3].
+exists id; rewrite <- (H id), <- H0; auto.
+intros.
+apply pred_ext; apply H; intros; auto.
+Qed.
+
 Lemma semax_call_external: 
-forall (Espec : OracleKind) (Delta : tycontext) (A : Type)
+forall (Delta : tycontext) (A : Type)
   (P Q Q' : A -> assert) (x : A) (F : environ -> pred rmap) (F0 : assert)
   (ret : option ident) (params : list (ident * type)) (retty : type)
   (a : expr) (bl : list expr) (R : ret_assert) (psi : genv) (vx : env)
@@ -1342,8 +1368,9 @@ forall (Espec : OracleKind) (Delta : tycontext) (A : Type)
  (TC0 : Cop.classify_fun (typeof a) =
       Cop.fun_case_f (type_of_params params) retty)
  (TCret : tc_fn_return Delta ret retty)
+ (TC1 : (tc_expr Delta a rho) (m_phi jm))
  (TC2 : (tc_exprlist Delta (map snd params) bl rho) (m_phi jm))
- (TC3 : typecheck_environ Delta rho)
+ (TC3 : guard_environ Delta (current_function k) rho)
  (TC5 : retty = Tvoid -> ret = None)
  (H : closed_wrt_modvars (Scall ret a bl) F0)
  (HR : R EK_normal None =
@@ -1367,7 +1394,158 @@ forall (Espec : OracleKind) (Delta : tycontext) (A : Type)
  exists (c' : corestate) (m' : juicy_mem),
   jstep cl_core_sem psi (State vx tx (Kseq (Scall ret a bl) :: k)) jm c' m' /\
   jsafeN OK_spec psi n ora c' m'.
-Admitted.  (* Can't prove this until CompCert external calls are done right. *)
+Proof.
+intros.
+destruct TC3 as [TC3 TC3'].
+rewrite <- snd_split in TC2.
+assert (H21 := exprlist_eval Delta (params,retty) bl psi vx tx _ 
+      (m_dry jm) TC2 TC3 H0
+      (mkfunction retty params nil nil Sskip)
+      (eq_refl _)). simpl in H21.
+rewrite snd_split in TC2.
+
+unfold believe_external in H15.
+destruct (Genv.find_funct psi (Vptr b Int.zero)) eqn:H22; try (contradiction H15).
+destruct f; try (contradiction H15).
+destruct H15 as [H5 H15]. hnf in H5.
+inv H5; rename t0 into retty; rename t into tys.
+specialize (H15 psi x n).
+spec H15; [constructor 1; rewrite H2; constructor | ].
+rewrite <- level_juice_level_phi in H2.
+destruct (levelS_age1 _ _ H2) as [jm' ?].
+specialize (H15 
+  (F0 (construct_rho (filter_genv psi) vx tx) *
+          F (construct_rho (filter_genv psi) vx tx))
+   (typlist_of_typelist tys)
+  (eval_exprlist (map snd (arglist 1 tys)) bl
+                  (construct_rho (filter_genv psi) vx tx))
+   jm').
+spec H15; [ apply age_level in H0; omega | ].
+specialize (H15 _ (necR_refl _)).
+spec H15. { clear H15.
+assert ((|> (P x
+      (make_ext_args psi 1
+         (eval_exprlist (map snd (arglist 1 tys)) bl
+            (construct_rho (filter_genv psi) vx tx))) *
+    (F0 (construct_rho (filter_genv psi) vx tx) *
+     F (construct_rho (filter_genv psi) vx tx)))) (m_phi jm)). {
+eapply later_derives; try apply H14.
+rewrite sepcon_comm.
+apply sepcon_derives; auto.
+apply derives_refl'. f_equal.
+clear - TC2.
+forget 1%positive as n.
+revert n bl TC2; induction tys; destruct bl; intros.
+simpl.
+reflexivity.
+contradiction TC2.
+contradiction TC2.
+simpl in TC2.
+repeat rewrite denote_tc_assert_andp in TC2.
+destruct TC2 as [[? ?] ?].
+simpl.
+specialize (IHtys (n+1)%positive _ H1).
+f_equal.
+auto.
+}
+apply H5.
+constructor 1. 
+apply age_jm_phi; auto.
+}
+clear H14 TC2.
+destruct H15 as [x' H15].
+specialize (H15 ora).
+destruct H15 as [H5 H15].
+specialize (H15 (opttyp_of_type retty)).
+do 3 red in H15.
+
+eexists; exists jm'.
+split.
+econstructor.
+rewrite <- (age_jm_dry H0).
+eapply step_call_external; try eassumption.
+eapply eval_expr_relate; try eassumption.
+reflexivity.
+rewrite H3.
+rewrite H22.
+rewrite type_of_params_arglist; reflexivity.
+split.
+apply age1_resource_decay; auto.
+apply age_level; auto.
+hnf.
+destruct n as [ | n ].
+apply I.
+simpl.
+exists x'; split; auto.
+rewrite type_of_params_arglist.
+rewrite snd_split.
+assumption.
+intros.
+specialize (H15 ret0 z').
+change ((ext_spec_post' Espec e x' (opttyp_of_type retty) ret0 z' >=>
+        juicy_mem_op
+          (Q' x (make_ext_rval 1 ret0) *
+              (F0 (construct_rho (filter_genv psi) vx tx) *
+               F (construct_rho (filter_genv psi) vx tx)))) (level jm')) in H15.
+assert (level jm' > level m')%nat. {
+ clear - H5 H6.
+ pose proof (JE_rel _ OK_spec _ _ _ _ _ _ _ _ _ _ H5 H6).
+ apply JE_Rprop in H. destruct H; omega.
+} 
+apply (pred_nec_hereditary _ _ (level m')) in H15;
+ [ | apply nec_nat; omega].
+specialize (H15 m' (le_refl _) _ (necR_refl _) H6).
+
+pose (tx' := match ret,ret0 with 
+                   | Some id, Some v => PTree.set id v tx 
+                   | _, _ => tx
+                   end).
+specialize (H1 EK_normal None tx' vx (m_phi m')).
+spec H1. clear - H0. admit.  (* easy *)
+unfold frame_ret_assert in H1.
+rewrite HR in H1; clear R HR.
+simpl exit_cont in H1.
+do 3 red in H5.
+specialize (H1 _ (necR_refl _)).
+(* spec H1; [ constructor 1; apply age_jm_phi; assumption | ]. *)
+spec H1. { clear H1.
+split.
+* split; auto.
+ split.
+ Focus 2. {
+ clear - TC3.
+ destruct TC3; simpl in *.
+ destruct ret; try apply H0.
+ unfold initialized.
+ destruct ((temp_types Delta)!i); simpl; auto.
+ destruct p; auto.
+ } Unfocus.
+ simpl. 
+ destruct TC3 as [TC3 _].
+ destruct ret; try apply TC3.
+ admit.  (* difficulties with mismatch of type and typ *)
+ destruct (current_function k); auto.
+ destruct TC3'; split; auto.
+ simpl. destruct ret; auto.
+ unfold initialized.
+ destruct ((temp_types Delta)!i); try destruct p; auto.
+*
+ split.
+Focus 2. {
+assert (H4': (funassert Delta (construct_rho (filter_genv psi) vx tx)) (m_phi m')).
+clear - H7 H4.
+admit.  (* need juicy_ext_spec to guarantee that the PURE part stays the same *)
+match type of H4' with ?A => match goal with |- ?B => replace B with A; auto end end.
+f_equal.
+apply same_glob_funassert'; auto.
+intros. simpl. destruct ret; auto. unfold initialized.
+destruct ((temp_types Delta)!i); try destruct p; auto.
+} Unfocus.
+do 3 red in H15.
+rewrite (sepcon_comm (F0 _)) in H15.
+rewrite <- sepcon_assoc in H15.
+eapply sepcon_derives; [ | | apply H15]; clear H15.
+Admitted. (* needs some work *)
 
 Lemma alloc_juicy_variables_age:
   forall {rho jm jm1 vl rho' jm' jm1'},
@@ -1508,7 +1686,6 @@ clear LATER.
 clear id H7.
 clear phi' H13.
 clear Prog_OK.
-destruct TC3 as [TC3 _].
 eapply semax_call_external; eassumption.
 }
 specialize (H14 _ (age_laterR H13)).

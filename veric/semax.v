@@ -131,10 +131,10 @@ Program Definition ext_spec_post' (Espec: OracleKind)
 Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
      # diamond fashionM (exactly (m_phi jm) && P).
 
-Fixpoint make_ext_args (n: positive) (vl: list val)  :=
+Fixpoint make_ext_args (gx: genv) (n: positive) (vl: list val)  :=
   match vl with 
-  | nil => any_environ (* correct but misleading, really must be empty! *)
-  | v::vl' => env_set (make_ext_args (n+1)%positive vl') n v
+  | nil => mkEnviron (filter_genv gx) (Map.empty _) (Map.empty _)
+  | v::vl' => env_set (make_ext_args gx (n+1)%positive vl') n v
  end.
 
 Definition make_ext_rval (n: positive) (v: option val) :=
@@ -143,17 +143,16 @@ Definition make_ext_rval (n: positive) (v: option val) :=
   | None => any_environ
   end.
 
-Definition semax_external  (Hspec: OracleKind) 
-                  ef (A: Type) (P Q: A -> environ -> pred rmap): 
+Definition semax_external (Hspec: OracleKind) ef (A: Type) (P Q: A -> environ -> pred rmap): 
         pred nat := 
- ALL x: A, 
+ ALL gx: genv, ALL x: A, 
  |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val,
-   juicy_mem_op (P x (make_ext_args 1%positive args) * F) >=> 
+   juicy_mem_op (P x (make_ext_args gx 1%positive args) * F) >=> 
    EX x': ext_spec_type OK_spec ef,
-    ALL z:_, ext_spec_pre' Hspec ef x' ts args z &&
+    ALL z:_, ext_spec_pre' Hspec (* gx *) ef x' ts args z &&
      ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, 
       ext_spec_post' Hspec ef x' tret ret z' >=>
-          juicy_mem_op (|>(Q x (make_ext_rval 1 ret) * F)).
+          juicy_mem_op (Q x (make_ext_rval 1 ret) * F).
 
 Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
  match tl with 
