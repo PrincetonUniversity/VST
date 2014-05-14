@@ -285,7 +285,7 @@ Definition true_signature :=
 Expr.Sig all_types [] bool_tv true.
 
 Definition false_signature :=
-Expr.Sig all_types [] bool_tv true.
+Expr.Sig all_types [] bool_tv false.
 
 Definition mk_attr_signature :=
 Expr.Sig all_types [bool_tv; option_N_tv] attr_tv mk_attr.

@@ -538,7 +538,7 @@ reflect_triple. simpl.
 assert (
 (PROP  ()
       LOCAL  (`(eq (Vint (Int.repr 0))) (eval_id _w); 
-      `(eq p) (eval_id _p))  SEP  (`(lseg LS sh contents p nullval)))
+      `(eq p) (eval_id _p))  SEP  (`(lseg LS sh contents p nullval))) (*the one from forward*)
 |--
 (PROP  ()
       LOCAL 
@@ -548,23 +548,6 @@ assert (
               Int.intval := 0;
               Int.intrange := Int.Z_mod_modulus_range' 0 |}))
          (eval_id 19%positive); `(eq p) (eval_id _p))
-      SEP  (`(lseg LS sh contents p nullval)))).
+      SEP  (`(lseg LS sh contents p nullval)))). (*the one from symexe*)
 entailer!.
-
-assert (
-derives (PROP  (p = q)
-      LOCAL 
-      (`eq (eval_id _w)
-         (eval_expr (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)));
-      `(eq p) (eval_id _p); `(eq q) (subst _w `x (eval_id r))))
-(PROP  (p = q)
-      LOCAL 
-      (`(eq
-           (Vint
-              {|
-              Int.intval := 0;
-              Int.intrange := Int.Z_mod_modulus_range' 0 |}))
-         (eval_id 19%positive); `(eq p) (eval_id _p); 
-      `(eq q) (eval_id r))  SEP  (`(lseg LS sh contents p nullval)))).
-
 Abort.
