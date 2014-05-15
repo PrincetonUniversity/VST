@@ -163,7 +163,7 @@ FLOYD_FILES= \
    client_lemmas.v canonicalize.v assert_lemmas.v closed_lemmas.v \
    field_mapsto.v compare_lemmas.v array_lemmas.v \
    call_lemmas.v loadstore_lemmas.v forward_lemmas.v forward.v \
-   entailer.v globals_lemmas.v nested_field_lemmas.v data_at_lemmas.v
+   entailer.v globals_lemmas.v nested_field_lemmas.v data_at_lemmas.v data_at_load_store.v
 
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
@@ -171,7 +171,7 @@ PROGS_FILES= \
    entail_examples.v \
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
   verif_float.v \
-  verif_nest3.v nest2.v verif_nest2.v verif_nest2_1.v verif_nest2_2.v\
+  verif_nest3.v nest2.v verif_nest2.v verif_nest2_1.v verif_nest2_2.v verif_nest2_3.v\
   logical_compare.v verif_logical_compare.v
 
 SHA_FILES= \

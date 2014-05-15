@@ -44,17 +44,18 @@ unfold_data_at 1%nat.
 unfold_field_at 2%nat.
 
 eapply semax_seq'.
-+ rewrite nested_data_at_data_at at 1; [| reflexivity].
-
-  unfold nested_field_lemmas.nested_field_type2, nested_field_lemmas.nested_field_offset2.
-  simpl.
-  
-  ensure_normal_ret_assert;
++ ensure_normal_ret_assert;
   hoist_later_in_pre.
 
-  eapply semax_data_load.
+  change (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tint) with
+         (nested_efield (Evar _p t_struct_b) (_x2 :: _y2 ::nil) (tint :: t_struct_a:: nil) ).
+
+  eapply semax_nested_data_load'.
+  - reflexivity.
+  - reflexivity.
   - reflexivity.
   - unfold eq_rect_r.
+    instantiate (2:= eq_refl).
     instantiate (2:= eq_refl).
     rewrite <- eq_rect_eq.
     reflexivity.
@@ -67,14 +68,16 @@ eapply semax_seq'.
       apply prop_right.
       tauto.
     * instantiate (1:= Ews).
-      simpl.
-      admit.
+      simpl typeof. simpl eval_lvalue.
+      simpl. intros.
+      normalize.
+      cancel.
 + apply extract_exists_pre. intro_old_var (Sset _i (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tint)).
   abbreviate_semax.
   forward.
 
-unfold_data_at 2%nat.
-unfold_field_at 4%nat.
+unfold_data_at 1%nat.
+unfold_field_at 5%nat.
 
 cancel.
 Qed.
@@ -89,23 +92,23 @@ unfold_data_at 1%nat.
 unfold_field_at 2%nat.
 
 eapply semax_seq'.
-+ rewrite nested_data_at_data_at at 1; [| reflexivity].
-
-  unfold nested_field_lemmas.nested_field_type2, nested_field_lemmas.nested_field_offset2.
-  simpl.
-  
-  
-  ensure_normal_ret_assert;
++ ensure_normal_ret_assert;
   hoist_later_in_pre.
   
-  eapply semax_data_store_nth; [| reflexivity | instantiate (2:= 1%nat); reflexivity | | | |].
-  - unfold eq_rect_r. 
+  change (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tint) with
+         (nested_efield (Evar _p t_struct_b) (_x2 :: _y2 ::nil) (tint :: t_struct_a:: nil) ).
+
+  eapply semax_nested_data_store'; [reflexivity | reflexivity | | reflexivity | 
+    instantiate (2:=1%nat); reflexivity | | auto | |].
+  - unfold eq_rect_r.
+    instantiate (2:= eq_refl).
     instantiate (2:= eq_refl).
     rewrite <- eq_rect_eq.
     reflexivity.
-  - simpl.
+  - unfold liftx, lift. simpl. intros.
     instantiate (1:= Ews).
-    admit.
+    apply nested_data_at_nested_data_at_.
+    reflexivity.
   - auto.
   - simpl. normalize.
   - instantiate (1:= (Vint i)). simpl. go_lower. normalize.
@@ -116,8 +119,8 @@ eapply semax_seq'.
 abbreviate_semax.
 forward. (* return; *)
 
-unfold_data_at 2%nat.
-unfold_field_at 4%nat.
+unfold_data_at 1%nat.
+unfold_field_at 5%nat.
 
 cancel.
 Qed.
