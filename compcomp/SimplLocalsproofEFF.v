@@ -5611,8 +5611,10 @@ Proof. intros.
     apply eq_sym in Heqzz.
   revert H1. case_eq (type_of_fundef f); try solve[intros; congruence].
   intros targs tres tyof.
-  case_eq (val_casted_list_func vals1 targs); try solve[intros; congruence].
-  intros VALCAST; inversion 1; subst.
+  case_eq (val_casted_list_func vals1 targs); try solve[simpl; intros; congruence].
+  case_eq (tys_nonvoid targs); try solve[simpl; intros; congruence].
+  case_eq (vals_defined vals1); try solve[simpl; intros; congruence].
+  intros DEF TNV VALCAST; inversion 1; subst.
   exploit function_ptr_translated; eauto. intros [tf [FIND TR]].
   exists (CL_Callstate tf vals2 Kstop).
   split. simpl.
@@ -5627,7 +5629,10 @@ Proof. intros.
     apply val_casted_list_inj; auto.
     apply forall_inject_val_list_inject; auto.
     apply val_casted_list_funcP; auto. }
-  rewrite <-val_casted_list_funcP in H; rewrite H; auto.
+  assert (vals_defined vals2=true) as ->.
+  { eapply vals_inject_defined; eauto. 
+    eapply forall_inject_val_list_inject; eauto. } 
+  solve[rewrite <-val_casted_list_funcP in H; rewrite H, TNV; auto].
   intros CONTRA.
   solve[elimtype False; auto].
   destruct InitMem as [m0 [INIT_MEM [A B]]].
@@ -5648,7 +5653,6 @@ destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
    as [AA [BB [CC [DD [EE [FF GG]]]]]].
 intuition. rewrite initial_SM_as_inj. assumption.
-(*protected: red. simpl. intros. discriminate.*)
 Qed.
 
 (** The simulation proof *)

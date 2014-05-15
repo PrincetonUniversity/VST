@@ -158,7 +158,7 @@ Inductive mach_effstep: (block -> Z -> bool) ->
       Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
       mach_effstep (FreeEffect m 0 (f.(fn_stacksize)) stk)
         (Mach_State s fb (Vptr stk soff) (Mreturn :: c) rs) m
-        (Mach_Returnstate s rs) m'
+        (Mach_Returnstate s (sig_res (fn_sig f)) rs) m'
   | Mach_effexec_function_internal:
       forall s fb rs m f m1 m2 m3 stk rs',
       Genv.find_funct_ptr ge fb = Some (Internal f) ->
@@ -189,9 +189,9 @@ Inductive mach_effstep: (block -> Z -> bool) ->
       mach_effstep (Callstate s fb rs) m
          t (Mach_Returnstate s rs') m'*)
   | Mach_effexec_return:
-      forall s f sp ra c rs m,
+      forall s f sp ra c retty rs m,
       mach_effstep EmptyEffect 
-        (Mach_Returnstate (Stackframe f sp ra c :: s) rs) m
+        (Mach_Returnstate (Stackframe f sp ra c :: s) retty rs) m
         (Mach_State s f sp c rs) m.
 
 End EFFSEM.

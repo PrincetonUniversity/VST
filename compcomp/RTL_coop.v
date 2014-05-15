@@ -139,15 +139,21 @@ Inductive RTL_corestep (ge:genv): RTL_core -> mem -> RTL_core -> mem -> Prop :=
 End RELSEM.
 
 Require Import sepcomp.core_semantics.
+Require Import compcomp.val_casted.
 
 (* New initial state *)
 Definition RTL_initial_core (ge: genv) (v:val)(args: list val): option RTL_core:=
   match v with
-      Vptr b i =>
+    | Vptr b i =>
       if Int.eq_dec i Int.zero
       then match Genv.find_funct_ptr ge b with
-               None => None
-             | Some f => Some (RTL_Callstate nil f args)
+             | None => None
+             | Some f => 
+                 let tyl := sig_args (funsig f) in
+                 if val_has_type_list_func args (sig_args (funsig f))
+                    && vals_defined args
+                 then Some (RTL_Callstate nil f args)
+                 else None
            end
       else None
     | _ => None

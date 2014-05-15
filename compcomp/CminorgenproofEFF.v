@@ -298,71 +298,9 @@ Proof. intros f1 m1 tm1 f2 m2 tm2 cs bound tbound WD1 WD2 IntInc.
             xomega.
   eapply IHstructured_match_callstack; eauto. 
     intros. eapply H0; eauto. xomega. 
-    intros. eapply H1; eauto. xomega. 
-    intros. eapply H2; eauto. xomega.
-    intros. eapply H3; eauto. xomega.
+    intros. eapply H2; eauto. xomega. 
 Qed.
-(*
-Lemma structured_match_callstack_builtin_invariant:
-  forall f1 m1 tm1 f2 m2 tm2 cs bound tbound (WD1: SM_wd f1) (WD2: SM_wd f2),
-  intern_incr f1 f2 ->
-  structured_match_callstack f1 m1 tm1 cs bound tbound ->
-  (forall b ofs p, Plt b bound -> Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p) ->
-  (Mem.unchanged_on (local_out_of_reach f1 m1) tm1 tm2) ->
-  (forall b, Plt b bound -> (as_inj f2) b = (as_inj f1) b) ->
-  (forall b b' delta, (as_inj f2) b = Some(b', delta) -> Plt b' tbound -> (as_inj f1) b = Some(b', delta)) ->
-  structured_match_callstack f2 m2 tm2 cs bound tbound.
-Proof. intros f1 m1 tm1 f2 m2 tm2 cs bound tbound WD1 WD2 IntInc.
-  assert (INC:= intern_incr_restrict _ _ WD2 IntInc). 
-  induction 1; intros.
-  (* base case *)
-  econstructor; eauto.
-  inv H. constructor; intros; eauto.
-  eapply IMAGE; eauto. 
-    destruct (restrictD_Some _ _ _ _ _ H6); clear H6.
-    assert (AI:  as_inj f1 b1 = Some (b2, delta)).
-      eapply (H5 _ _ _ H8). xomega.
-    eapply restrictI_Some; try eassumption.
-    eapply intern_incr_vis_inv; eassumption.
-  (* inductive case *)
-  assert (Ple lo hi) by (eapply me_low_high; eauto).
-  econstructor; eauto.
-  eapply match_temps_invariant; eauto.
-  eapply match_env_restrict_invariant with (f1:=f1); try eassumption.
-    intros. apply H3. assumption. assumption.
-    intros. apply H2. xomega.
-  eapply match_bounds_invariant; eauto.
-    intros. eapply H0; eauto. 
-    exploit me_bounded; eauto. xomega.
-  (* padding-freeable *)
-  clear IHstructured_match_callstack.
-  { red; intros.
-    destruct (is_reachable_from_env_dec (restrict (as_inj f1) (vis f1)) e sp ofs).
-    inv H6. right. apply is_reachable_intro with id b sz delta; auto. 
-    exploit PERM; eauto. intros [A|A]; try contradiction.
-    left. eapply Mem.perm_unchanged_on; eauto.
-    red; intros. split. assumption. 
-      intros. remember (pubBlocksSrc f1 b0) as p.
-      destruct p; apply eq_sym in Heqp. Focus 2. right; trivial. left.
-      intros N. apply H6; clear H6.
-      assert (ResVis: restrict (as_inj f1) (vis f1) b0 = Some (sp, delta)).
-        eapply restrictI_Some. eapply local_in_all; eassumption.
-        unfold vis. rewrite(pubBlocksLocalSrc _ WD1 _ Heqp). trivial.
-      exploit me_inv; eauto. intros [id [lv B]].
-      exploit BOUND0; eauto. intros C.
-      apply is_reachable_intro with id b0 lv delta; auto; omega.
-    eauto with mem. }
-  eapply IntInc. assumption.
-  intros. rewrite H2  in H5.
-            apply (ME_INCR _ _ _ H5 H6).
-            xomega.
-  eapply IHstructured_match_callstack; eauto. 
-    intros. eapply H0; eauto. xomega. 
-    (*intros. eapply H1; eauto. xomega. *)
-    intros. eapply H2; eauto. xomega.
-    intros. eapply H3; eauto. xomega.
-Qed.
-*)
+
 Lemma structured_match_callstack_builtin_invariant:
   forall f1 m1 tm1 f2 m2 tm2 cs bound tbound (WD1: SM_wd f1) (WD2: SM_wd f2),
   intern_incr f1 f2 ->
@@ -413,9 +351,7 @@ Proof. intros f1 m1 tm1 f2 m2 tm2 cs bound tbound WD1 WD2 IntInc.
             xomega.
   eapply IHstructured_match_callstack; eauto. 
     intros. eapply H0; eauto. xomega. 
-    (*intros. eapply H1; eauto. xomega. *)
     intros. eapply H2; eauto. xomega.
-    intros. eapply H3; eauto. xomega.
 Qed.
 
 Lemma structured_match_callstack_match_globalenvs: 
@@ -889,12 +825,16 @@ exists c2 : CMin_core,
           (fun b : Values.block => isGlobalBlock tge b || getBlocks vals2 b))
        j) c1 m1 c2 m2. 
 Proof. intros.
-  inversion CSM_Ini.
-  unfold  CSharpMin_initial_core in H0. unfold ge in *. unfold tge in *.
-  destruct v1; inv H0.
-  remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
-  remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
+  unfold  CSharpMin_initial_core in CSM_Ini. unfold ge in *. unfold tge in *.
+  destruct v1; inv CSM_Ini.
+  remember (Int.eq_dec i Int.zero) as z; destruct z; inv H0. clear Heqz.
+  remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz.
     apply eq_sym in Heqzz.
+  case_eq (val_casted.val_has_type_list_func vals1 (sig_args (Csharpminor.funsig f))).
+  2: solve[intros cast; rewrite cast in H1; inv H1].
+  intros cast. case_eq (val_casted.vals_defined vals1).
+  2: solve[intros def; rewrite cast, def in H1; inv H1].
+  intros def; rewrite cast,def in H1.
   exploit function_ptr_translated; eauto. intros [tf [FIND TR]].
   exists (CMin_Callstate tf vals2 Cminor.Kstop).
   split.
@@ -903,46 +843,51 @@ Proof. intros.
   subst. inv A. rewrite C in Heqzz. inv Heqzz. rewrite D in FIND. inv FIND.
   unfold CMin_initial_core. 
   case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
-  solve[rewrite D; auto].
+  rewrite D.
+
+  assert (val_casted.val_has_type_list_func vals2
+           (sig_args (funsig tf))=true) as ->.
+  { eapply val_casted.val_list_inject_hastype; eauto.
+    eapply forall_inject_val_list_inject; eauto.
+    assert (sig_args (funsig tf)
+          = sig_args (Csharpminor.funsig f)) as ->.
+    { erewrite sig_preserved; eauto. }
+    destruct (val_casted.val_has_type_list_func vals1
+      (sig_args (Csharpminor.funsig f))); auto. }
+  assert (val_casted.vals_defined vals2=true) as ->.
+  { eapply val_casted.val_list_inject_defined.
+    eapply forall_inject_val_list_inject; eauto.
+    destruct (val_casted.vals_defined vals1); auto. }
+  solve[simpl; auto].
+
   intros CONTRA.
   solve[elimtype False; auto].
   destruct InitMem as [m0 [INIT_MEM [A B]]].
   split.
+    inv H1.
     eapply SMC_callstate with (cenv:=PTree.empty _)(cs := @nil frame); try eassumption.
     assert (Genv.init_mem tprog = Some m0).
       unfold transl_program in TRANSL.
       solve[eapply Genv.init_mem_transf_partial in TRANSL; eauto].
-    (*rewrite initial_SM_as_inj. unfold vis. unfold initial_SM; simpl.
-      eapply inject_mapped; try eassumption.
-       eapply restrict_mapped_closed.
-         eapply inject_REACH_closed; eassumption.
-         apply REACH_is_closed.
-       apply restrict_incr.*)
-    (*rewrite initial_SM_as_inj. *)
       apply st_mcs_nil with (Mem.nextblock m0).
     eapply (match_globalenvs_init' _ R _ _ INIT_MEM).
-      (*rewrite restrict_sm_all.*) rewrite initial_SM_as_inj.
+      rewrite initial_SM_as_inj.
       eapply restrict_preserves_globals; try eassumption.
       unfold vis, initial_SM; simpl; intros.
-      apply REACH_nil. rewrite H0; trivial.
+      solve[apply REACH_nil; rewrite H0; auto].
     apply A. apply B.
     econstructor. simpl. trivial.
-    (*rewrite restrict_sm_all.*) rewrite initial_SM_as_inj.
+      rewrite initial_SM_as_inj.
       unfold vis, initial_SM; simpl.
       apply forall_inject_val_list_inject.
       eapply restrict_forall_vals_inject; try eassumption.
         intros. apply REACH_nil. rewrite H; intuition.
-(*
-    eapply restrict_preserves_globals; try eassumption.
-      rewrite initial_SM_as_inj. assumption.
-      intros. unfold vis, initial_SM; simpl. 
-      apply REACH_nil. rewrite H; trivial.*)
 destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
    as [AA [BB [CC [DD [EE [FF GG]]]]]].
 intuition. rewrite initial_SM_as_inj. assumption.
 rewrite initial_SM_as_inj. assumption.
-(*protected: red. simpl. intros. discriminate.*)
+inv H1.
 Qed.
 
 Lemma Match_AfterExternal: 
@@ -1141,14 +1086,6 @@ assert (RR1: REACH_closed m1'
            destruct (mappedD_true _ _ RC') as [[? ?] ?].
            eapply as_inj_DomRng; eassumption.
     eapply REACH_cons; try eassumption.
-(*assert (RRR: REACH_closed m1' (exportedSrc nu' (ret1 :: nil))).
-    intros b Hb. apply REACHAX in Hb.
-       destruct Hb as [L HL].
-       generalize dependent b.
-       induction L ; simpl; intros; inv HL; trivial.
-       specialize (IHL _ H1); clear H1.
-       unfold exportedSrc.
-       eapply REACH_cons; eassumption.*)
     
 assert (RRC: REACH_closed m1' (fun b : Values.block =>
                          mapped (as_inj nu') b &&
@@ -1199,11 +1136,6 @@ rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
 destruct (eff_after_check2 _ _ _ _ _ MemInjNu' RValInjNu' 
       _ (eq_refl _) _ (eq_refl _) _ (eq_refl _) WDnu' SMvalNu').
 intuition.
-(*protected:
-red; simpl. rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc, replace_externs_extBlocksSrc.
-  clear - PROT UnchPrivSrc.
-  rewrite replace_locals_pubBlocksSrc, replace_locals_locBlocksSrc in UnchPrivSrc.
-*)
 Qed.
 
 Lemma MATCH_safely_halted: forall cd mu c1 m1 c2 m2 v1
@@ -1216,8 +1148,6 @@ Proof.
   inv SMC; simpl in *; inv HALT.
   destruct k; inv H0. exists tv.
   inv MK. split; trivial.
-(*  eapply val_inject_incr; try eassumption.
-    apply restrict_incr.*)
 Qed.
 
 Lemma Match_at_external: forall mu st1 m1 st2 m2 e vals1 sig
@@ -1231,8 +1161,6 @@ Proof.
   destruct fd; inv H0.
   exists targs.
   split. apply val_list_inject_forall_inject; eassumption. 
-         (*eapply forall_vals_inject_restrictD.
-           apply val_list_inject_forall_inject; eassumption.*)
   inv TR. trivial.
 Qed.
 
@@ -1313,7 +1241,7 @@ Proof.
   apply structured_match_callstack_intern_invariant with mu m tm; auto.
      apply intern_incr_refl.
   intros. eapply perm_freelist; eauto.
-  intros. eapply Mem.perm_free_1; eauto. left; unfold Values.block; xomega. xomega. xomega.
+  intros. eapply Mem.perm_free_1; eauto. xomega. xomega.
   eapply Mem.free_inject; eauto.
   intros. exploit me_inv0; eauto.
     apply restrictI_Some; try eassumption.
@@ -1445,38 +1373,6 @@ Proof.
   exists (tv1 :: tv2); split. constructor; auto. constructor; auto.
 Qed.
 
-
-(*
-Theorem MS_match_callstack_function_entry:
-  forall fn cenv tf m'  tm' sp f cs args targs,
-  build_compilenv fn = (cenv, tf.(fn_stackspace)) ->
-  tf.(fn_stackspace) <= Int.max_unsigned ->
-  list_norepet (map fst (Csharpminor.fn_vars fn)) ->
-  list_norepet (Csharpminor.fn_params fn) ->
-  list_disjoint (Csharpminor.fn_params fn) (Csharpminor.fn_temps fn) ->
-  alloc_variables Csharpminor.empty_env m (Csharpminor.fn_vars fn) e m' ->
-  bind_parameters (Csharpminor.fn_params fn) args (create_undef_temps fn.(fn_temps)) = Some le ->
-  val_list_inject f args targs ->
-  Mem.alloc tm 0 tf.(fn_stackspace) = (tm', sp) ->
-  match_callstack prog f m tm cs (Mem.nextblock m) (Mem.nextblock tm) ->
-  Mem.inject f m tm ->
-  let te := set_locals (Csharpminor.fn_temps fn) (set_params targs (Csharpminor.fn_params fn)) in
-  exists f',
-     match_callstack prog f' m' tm'
-                     (Frame cenv tf e le te sp (Mem.nextblock m) (Mem.nextblock m') :: cs)
-                     (Mem.nextblock m') (Mem.nextblock tm')
-  /\ Mem.inject f' m' tm' 
-  /\ (*LENB: this clause is new in Restructured Proof*) inject_incr f f'
-  /\ (*LENB this clause in new in coop-sim proof*) inject_separated f f' m tm.
-Proof.
-  intros.
-  exploit build_compilenv_sound; eauto. intros [C1 C2].
-  eapply MS_match_callstack_alloc_variables; eauto.
-  intros. eapply build_compilenv_domain; eauto.
-  eapply bind_parameters_agree; eauto. 
-Qed.
-*)
-
 Lemma match_env_alloc:
   forall mu1 id cenv e sp lo m1 sz m2 b ofs mu2 (WD2: SM_wd mu2),
   match_env (as_inj mu1) (PTree.remove id cenv) e sp lo (Mem.nextblock m1) ->
@@ -1515,8 +1411,6 @@ Proof.
   rewrite OTHER in H; auto. exploit me_inv0; eauto. 
   intros [id1 [sz1 EQ]]. exists id1; exists sz1. rewrite PTree.gso; auto. 
     intros N. subst id1. rewrite EQ in ENV. discriminate.
-(* incr 
-  intros. rewrite OTHER in H. eauto. unfold block in *; xomega.*)
 Qed.
 
 Lemma structured_match_callstack_alloc_left:
@@ -1689,7 +1583,9 @@ Proof.
     split. apply sm_locally_allocatedChar. 
            apply sm_locally_allocatedChar in HF6.
            destruct HF6 as [AA [BB [CC [DD [EE FF]]]]].
-           rewrite AA, BB, CC, DD, EE, FF. clear AA BB CC DD EE FF. clear HF1 HF2 HF4 HF5 HF8 HF9 HF10 RC2.
+           rewrite AA, BB, CC, DD, EE, FF. 
+             clear AA BB CC DD EE FF. 
+             clear HF1 HF2 HF4 HF5 HF8 HF9 HF10 RC2.
            apply sm_locally_allocatedChar in LocAlloc2.
            destruct LocAlloc2 as [AA [BB [CC [DD [EE FF]]]]].
            rewrite AA, BB, CC, DD, EE, FF. clear AA BB CC DD EE FF.
@@ -1750,7 +1646,6 @@ Proof.
     rewrite PTree.gempty in H4; discriminate.
     destruct (restrictD_Some _ _ _ _ _ H4).
     eelim Mem.fresh_block_alloc; eauto. eapply Mem.valid_block_inject_2; eauto.
-    (*rewrite RES. change (Mem.valid_block tm tb). eapply Mem.valid_block_inject_2; eauto. *)
   red; intros. rewrite PTree.gempty in H4. discriminate.
   red; intros. left. eapply Mem.perm_alloc_2; eauto.
 

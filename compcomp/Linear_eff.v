@@ -128,7 +128,7 @@ Inductive linear_effstep: (block -> Z -> bool) -> Linear_core -> mem -> Linear_c
       Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
       linear_effstep (FreeEffect m 0 (f.(fn_stacksize)) stk)
         (Linear_State s f (Vptr stk Int.zero) (Lreturn :: b) rs) m
-        (Linear_Returnstate s (return_regs (parent_locset s) rs)) m'
+        (Linear_Returnstate s (sig_res (fn_sig f)) (return_regs (parent_locset s) rs)) m'
   | lin_effexec_function_internal:
       forall s f rs m rs' m' stk,
       Mem.alloc m 0 f.(fn_stacksize) = (m', stk) ->
@@ -145,9 +145,9 @@ Inductive linear_effstep: (block -> Z -> bool) -> Linear_core -> mem -> Linear_c
       linear_effstep (Linear_Callstate s (External ef) rs1) m
           (Linear_Returnstate s rs2) m'*)
   | lin_effexec_return:
-      forall s f sp rs0 c rs m,
+      forall s f sp rs0 c retty rs m,
       linear_effstep EmptyEffect 
-        (Linear_Returnstate (Stackframe f sp rs0 c :: s) rs) m
+        (Linear_Returnstate (Stackframe f sp rs0 c :: s) retty rs) m
         (Linear_State s f sp c rs) m.
 
 End EFFSEM.

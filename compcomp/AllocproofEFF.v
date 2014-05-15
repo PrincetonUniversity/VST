@@ -2042,7 +2042,6 @@ Qed.
         added hypothesis EFFSTEP*)
 Inductive match_stackframes (j:meminj): list RTL.stackframe -> list LTL.stackframe -> signature -> Prop :=
   | match_stackframes_nil: forall sg,
-      sg.(sig_res) = Some Tint ->
       match_stackframes j nil nil sg
   | match_stackframes_cons:
       forall res f sp pc rs s tf bb ls ts sg an e env sp'
@@ -2139,7 +2138,7 @@ Inductive match_states (j:meminj): RTL_core -> mem -> LTL_core -> mem -> Prop :=
         (*(MEM: Mem.extends m m')*) 
         (WTRES: Val.has_type res (proj_sig_res sg)),
       match_states j (RTL_Returnstate s res) m
-                     (LTL_Returnstate ts ls) m'.
+                     (LTL_Returnstate ts (sig_res sg) ls) m'.
 
 Lemma match_stackframes_change_sig:
   forall j s ts sg sg',
@@ -2148,7 +2147,7 @@ Lemma match_stackframes_change_sig:
   match_stackframes j s ts sg'.
 Proof.
   intros. inv H. 
-  constructor. congruence.
+  constructor. 
   econstructor; eauto.
   unfold proj_sig_res in *. rewrite H0; auto. 
   (*STEPS*)
@@ -2321,32 +2320,54 @@ Proof. intros.
   remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
     apply eq_sym in Heqzz.
   exploit function_ptr_translated; eauto. intros [tf [FP TF]].
-  simpl. exists (LTL_Callstate nil tf (Locmap.setlist (loc_arguments (funsig tf)) vals2 (Locmap.init Vundef))). 
+  simpl. exists (LTL_Callstate nil tf 
+                  (Locmap.setlist (loc_arguments (funsig tf)) 
+                    (encode_longs (sig_args (funsig tf)) vals2) 
+                    (Locmap.init Vundef))). 
  split. 
     destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
     subst. inv A. rewrite C in Heqzz. inv Heqzz.
     unfold tge in FP. rewrite D in FP. inv FP.
     unfold LTL_eff_sem, LTL_coop_sem. simpl.
     case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
-    solve [rewrite D; auto]. 
+    rewrite D.
 
-    intros CONTRA.
-    solve[elimtype False; auto].
+  assert (val_casted.val_has_type_list_func vals2
+           (sig_args (funsig tf))=true) as ->.
+  { eapply val_casted.val_list_inject_hastype; eauto.
+    eapply forall_inject_val_list_inject; eauto.
+    destruct (val_casted.vals_defined vals1); auto.
+    rewrite andb_comm in H1; simpl in H1. solve[inv H1].
+    assert (sig_args (funsig tf)
+          = sig_args (RTL.funsig f)) as ->.
+    { erewrite sig_function_translated; eauto. }
+    destruct (val_casted.val_has_type_list_func vals1
+      (sig_args (RTL.funsig f))); auto. inv H1. }
+  assert (val_casted.vals_defined vals2=true) as ->.
+  { eapply val_casted.val_list_inject_defined.
+    eapply forall_inject_val_list_inject; eauto.
+    destruct (val_casted.vals_defined vals1); auto.
+    rewrite andb_comm in H1; inv H1. }
+  solve[simpl; auto].
+
+  intros CONTRA. solve[elimtype False; auto].
+
   destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
      VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
     as [AA [BB [CC [DD [EE [FF GG]]]]]].
   split.
-    assert (HT: Val.has_type_list vals1 (sig_args (funsig tf))). admit. (*TODO*)
+    revert H1.
+    case_eq (val_casted.val_has_type_list_func vals1
+               (sig_args (RTL.funsig f)) && val_casted.vals_defined vals1).
+    intros H2. inversion 1; subst. clear H1.
     eapply match_states_call.
-(*      eapply inject_incr_refl.*)
       constructor.
-        admit. (*TODO: return type Tint?*)
       assumption.
       rewrite initial_SM_as_inj.
           unfold vis, initial_SM; simpl.
           apply forall_inject_val_list_inject.
           eapply restrict_forall_vals_inject; try eassumption.
-          admit. (*TODO: exploits that length vals1=length loc_arguments(funsig f/tf)*)(* clear - VInj. induction VInj; simpl. *)
+          admit. (*should follow be decode-encode*)
         intros. apply REACH_nil. rewrite H; intuition.
         simpl. red; intros. red in H. 
           destruct l.
@@ -2357,13 +2378,10 @@ Proof. intros.
             apply Loc.notin_iff. intros. apply loc_arguments_rec_charact in H0.
             destruct l'; try contradiction. destruct sl0; try contradiction.
             destruct sl; try constructor. congruence. congruence. trivial.
-(*    rewrite initial_SM_as_inj.
-      unfold vis, initial_SM; simpl.
-      eapply inject_mapped; try eassumption.
-      eapply restrict_mapped_closed; try eassumption.
-      eapply inject_REACH_closed; try eassumption.
-      apply restrict_incr.*)
-    assumption.
+    rewrite andb_true_iff in H2. destruct H2. 
+    erewrite sig_function_translated; eauto. 
+    solve[rewrite val_casted.val_has_type_list_func_charact; auto].
+    solve[inversion 2].
   intuition.
     rewrite match_genv_meminj_preserves_extern_iff_all.
       assumption.
@@ -2569,14 +2587,6 @@ assert (RR1: REACH_closed m1'
            destruct (mappedD_true _ _ RC') as [[? ?] ?].
            eapply as_inj_DomRng; eassumption.
     eapply REACH_cons; try eassumption.
-(*assert (RRR: REACH_closed m1' (exportedSrc nu' (ret1 :: nil))).
-    intros b Hb. apply REACHAX in Hb.
-       destruct Hb as [L HL].
-       generalize dependent b.
-       induction L ; simpl; intros; inv HL; trivial.
-       specialize (IHL _ H1); clear H1.
-       unfold exportedSrc.
-       eapply REACH_cons; eassumption.*)
     
 assert (RRC: REACH_closed m1' (fun b : Values.block =>
                          mapped (as_inj nu') b &&
@@ -2599,11 +2609,9 @@ assert (GFnu': forall b, isGlobalBlock (Genv.globalenv prog) b = true ->
           apply REACH_nil. unfold exportedSrc.
           rewrite (frgnSrc_shared _ WDnu' _ Glob). intuition.
 split. 
-  assert (HTRES: Val.has_type ret1 (proj_sig_res (ef_sig e'))). admit. (*TODO: correct this - it syas that return values are integers*)
   unfold vis in *. 
   rewrite replace_externs_as_inj, replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc in *.
   econstructor; try eassumption.
-    (*eapply inject_incr_trans; try eassumption.*)
       clear RRC RR1 RC' PHnu' INCvisNu' UnchLOOR UnchPrivSrc.
       destruct INC. rewrite replace_locals_extern in H.
         rewrite replace_locals_frgnBlocksTgt, replace_locals_frgnBlocksSrc,
@@ -2628,33 +2636,12 @@ split.
             split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H11). intuition.
                apply REACH_nil. unfold exportedSrc. 
                  apply frgnSrc_shared in H11; trivial. rewrite H11; intuition.
-      (*rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc. *)
-       remember (sig_res (ef_sig e')) as o.
-         destruct o; simpl.
-         (*Some t*)
-           destruct t. admit. (*Tint: Should hold
-               simpl. econstructor; try constructor.
-               simpl. rewrite Locmap.gss.
-                eapply restrict_val_inject; try eassumption.
-                intros. 
-               inv RValInjNu'; try econstructor. 
-               eapply restrictI_Some; try eassumption.
-               destruct (as_inj_DomRng _ _ _ _ H); trivial.
-               rewrite H0; simpl. unfold DomSrc in H0.
-               remember (locBlocksSrc nu' b1) as d.
-               destruct d; simpl in *. trivial.
-               eapply REACH_nil. unfold exportedSrc. apply orb_true_iff; left.
-                     unfold getBlocks.*)
-           admit. (*TFloat: Should hold*)
-           admit. (*TLong: Should hold*)
-           admit. (*Tsingle: Should hold*)
-           simpl. (*rewrite Locmap.gss. econstructor; try constructor.
-                eapply restrict_val_inject; try eassumption. *)
-                 admit.
+       remember (sig_res (ef_sig e')) as o. 
+              admit. (*encode_long stuff*)
         red; intros. rewrite AG. apply eq_sym. red in H. 
           destruct l.
             rewrite Locmap.gsetlisto; trivial. 
-            apply Loc.notin_iff. intros. (*apply loc_arguments_rec_charact in H0.*)
+            apply Loc.notin_iff. intros. 
             apply list_in_map_inv in H0. destruct H0 as [rr [? ?]]. subst. 
             apply loc_result_caller_save in H1. intros N; subst. apply (H H1).
           rewrite Locmap.gsetlisto; trivial. 
@@ -2663,6 +2650,7 @@ split.
             constructor. 
           assumption.
          (*type info*)
+    admit. (*Val.has_type ret1 (proj_sig_res (ef_sig e'))*)
 unfold vis.
 rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
         replace_externs_as_inj.
@@ -5262,21 +5250,49 @@ assert (GDE:= GDE_lemma).
   { intros. destruct H as [MC [RC [PG [GFP [GF [VAL [WD INJ]]]]]]]. 
     destruct c1; inv H0. destruct stack; inv H1.
     inv MC. 
-    inv STACKS.  (*generalize to other return types!*)
+    inv STACKS.  
     unfold proj_sig_res in WTRES. unfold loc_result in RES.
-    rewrite H in *.
-    inv RES. inv H5. exists (ls (R AX)). intuition.
-    admit. (*need that v1 is not vundef? Also, generalize to toither return types*) }
+    revert WTRES RES. destruct (sig_res sg). 
+    destruct t; intros H; inversion 1; subst; inv RES.
+    + exists (ls (R AX)); split; auto. 
+    + exists (ls (R FP0)); split; auto. 
+    + exists (Val.longofwords (ls (R DX)) (ls (R AX))).
+      split; auto. split; auto. 
+      assert (v1 = Val.longofwords (Val.hiword v1) (Val.loword v1)) as ->.
+      { rewrite val_longofwords_eq; auto. }
+      apply val_longofwords_inject; auto. 
+      assert (Val.hiword (Val.longofwords (Val.hiword v1) (Val.loword v1)) 
+            = Val.hiword v1) as Heq.
+      { rewrite <-H0. auto. }
+      rewrite Heq in H3. solve[auto].
+      assert (Val.loword (Val.longofwords (Val.hiword v1) (Val.loword v1)) 
+            = Val.loword v1) as Heq.
+      { rewrite <-H0. auto. }
+      inversion H5. subst vl vl' v' v. solve[rewrite Heq in H8; auto].
+   + exists (ls (R FP0)); split; auto.
+   + admit. (*ty mismatch - None w/ return value*) }
 (* at_external*)
-  { intros. destruct H as [MC [RC [PG [GFP [Glob [VAL [WD INJ]]]]]]].
-    split. inv MC; trivial.
+  { intros. destruct H as [MC [RC [PG [GFP [Glob [SMV [WD INJ]]]]]]].
+    split; trivial.
     destruct c1; inv H0. destruct f; inv H1.
-    inv MC. simpl. eexists. split.
-        apply val_list_inject_forall_inject. eassumption.
-    inv FUN. simpl.
-    rewrite <- call_regs_param_values.
-    
-    admit. (*TODO: decode long*) }
+    inv MC. simpl.
+    specialize (val_list_inject_forall_inject _ _ _ ARGS). intros ValsInj.
+    specialize (forall_vals_inject_restrictD _ _ _ _ ValsInj); intros.
+    exploit replace_locals_wd_AtExternal; try eassumption. 
+    intros H2. inv FUN. simpl. eexists; split; eauto. split; auto. simpl. intros. subst.
+    (*MATCH*)
+    split; auto. split; auto.
+    rewrite replace_locals_as_inj, replace_locals_vis. 
+    constructor; auto.
+    split; auto. solve[rewrite replace_locals_vis; auto].
+    split; auto. solve[rewrite replace_locals_as_inj; auto].
+    split; auto. solve[rewrite replace_locals_as_inj; auto].
+    split; auto. solve[rewrite replace_locals_frgnBlocksSrc; auto].
+    split. unfold sm_valid. rewrite replace_locals_DOM, replace_locals_RNG.  apply SMV.
+    split; auto. solve[rewrite replace_locals_as_inj; auto].
+    eapply inject_shared_replace_locals; eauto.
+    extensionality b; eauto.
+    extensionality b; eauto. }
 (* after_external*)
   { apply MATCH_afterExternal. eassumption. }
 (* core_diagram*)

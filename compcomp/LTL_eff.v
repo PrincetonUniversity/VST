@@ -99,7 +99,7 @@ Inductive ltl_effstep (g:genv):  (block -> Z -> bool) ->
       Mem.free m sp 0 f.(fn_stacksize) = Some m' ->
       ltl_effstep g (FreeEffect m 0 (f.(fn_stacksize)) sp)
         (LTL_Block s f (Vptr sp Int.zero) (Lreturn :: bb) rs) m
-        (LTL_Returnstate s (return_regs (parent_locset s) rs)) m'
+        (LTL_Returnstate s (sig_res (fn_sig f)) (return_regs (parent_locset s) rs)) m'
   | ltl_effstep_function_internal: forall s f rs m m' sp rs',
       Mem.alloc m 0 f.(fn_stacksize) = (m', sp) ->
       rs' = undef_regs destroyed_at_function_entry (call_regs rs) ->
@@ -113,9 +113,9 @@ Inductive ltl_effstep (g:genv):  (block -> Z -> bool) ->
       rs' = Locmap.setlist (map R (loc_result (ef_sig ef))) res rs ->
       ltl_effstep (LTL_Callstate s (External ef) rs m)
          t (LTL_Returnstate s rs' m')*)
-  | ltl_effstep_return: forall f sp rs1 bb s rs m,
+  | ltl_effstep_return: forall f sp rs1 bb s retty rs m,
       ltl_effstep g EmptyEffect 
-        (LTL_Returnstate (Stackframe f sp rs1 bb :: s) rs) m
+        (LTL_Returnstate (Stackframe f sp rs1 bb :: s) retty rs) m
         (LTL_Block s f sp bb rs) m.
 
 Lemma ltlstep_effax1: forall (M : block -> Z -> bool) g c m c' m',

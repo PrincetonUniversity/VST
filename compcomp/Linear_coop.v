@@ -16,6 +16,8 @@ Require Import Linear.
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import core_semantics.
 
+Require Import compcomp.val_casted.
+
 (** Linear execution states. *)
 
 Inductive Linear_core: Type :=
@@ -33,6 +35,7 @@ Inductive Linear_core: Type :=
       Linear_core
   | Linear_Returnstate:
       forall (stack: list Linear.stackframe) (**r call stack *)
+             (retty: option typ)      (**r optional return register int-floatness *)
              (rs: Linear.locset),             (**r location state at point of return *)
       Linear_core.
 
@@ -135,7 +138,7 @@ Inductive Linear_step: Linear_core -> mem -> Linear_core -> mem -> Prop :=
       forall s f stk b rs m m',
       Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
       Linear_step (Linear_State s f (Vptr stk Int.zero) (Lreturn :: b) rs) m
-        (Linear_Returnstate s (return_regs (parent_locset s) rs)) m'
+        (Linear_Returnstate s (sig_res (fn_sig f)) (return_regs (parent_locset s) rs)) m'
   | lin_exec_function_internal:
       forall s f rs m rs' m' stk,
       Mem.alloc m 0 f.(fn_stacksize) = (m', stk) ->
@@ -151,8 +154,8 @@ Inductive Linear_step: Linear_core -> mem -> Linear_core -> mem -> Prop :=
       Linear_step (Linear_Callstate s (External ef) rs1) m
           (Linear_Returnstate s rs2) m'*)
   | lin_exec_return:
-      forall s f sp rs0 c rs m,
-      Linear_step (Linear_Returnstate (Stackframe f sp rs0 c :: s) rs) m
+      forall s f sp rs0 c rs retty m,
+      Linear_step (Linear_Returnstate (Stackframe f sp rs0 c :: s) retty rs) m
          (Linear_State s f sp c rs) m.
 
 End RELSEM.
@@ -163,16 +166,18 @@ Definition Linear_initial_core (ge:genv) (v: val) (args:list val):
           if Int.eq_dec i Int.zero 
           then match Genv.find_funct_ptr ge b with
                  | None => None
-                 | Some f => (*if check_signature (funsig f) 
-                             then Some (Linear_Callstate nil f (Locmap.init Vundef))
-                             else None*)
-                             Some (Linear_Callstate
+                 | Some f => 
+                     let tyl := sig_args (funsig f) in
+                     if val_has_type_list_func args (sig_args (funsig f))
+                        && vals_defined args
+                     then Some (Linear_Callstate
                                       nil
                                       f 
                                       (Locmap.setlist
                                           (loc_arguments (funsig f)) 
-                                          args 
+                                          (encode_longs tyl args)
                                           (Locmap.init Vundef)))
+                     else None
                end
           else None
      | _ => None
@@ -191,19 +196,30 @@ Inductive initial_state (p: program): state -> Prop :=
 (*Maybe generalize to other types?*)
 Definition Linear_halted (q : Linear_core): option val :=
     match q with 
-       Linear_Returnstate nil rs => 
-           match loc_result (mksignature nil (Some Tint)) with
-              nil => None
+      (*Return Tlong, which must be decoded*)
+      | Linear_Returnstate nil (Some Tlong) rs => 
+           match loc_result (mksignature nil (Some Tlong)) with
+             | nil => None
+             | r1 :: r2 :: nil => 
+                 match decode_longs (Tlong::nil) (rs (R r1)::rs (R r2)::nil) with
+                   | v :: nil => Some v
+                   | _ => None
+                 end
+             | _ => None
+           end
+
+      (*Return a value of any other typ*)
+      | Linear_Returnstate nil (Some retty) rs => 
+           match loc_result (mksignature nil (Some retty)) with
+            | nil => None
             | r :: TL => match TL with 
-                            nil => match rs (R r) with
-                                     Vint retcode => Some (Vint retcode)
-                                   | _ => None
-                                   end
-                          | _ => None
+                           | nil => Some (rs (R r))
+                           | _ :: _ => None
                          end
            end
-     | _ => None
+      | _ => None
     end.
+
 (*Original had this:
 Inductive final_state: state -> int -> Prop :=
   | final_state_intro: forall rs m r retcode,
@@ -215,24 +231,32 @@ Inductive final_state: state -> int -> Prop :=
 Definition Linear_at_external (c: Linear_core) : option (external_function * signature * list val) :=
   match c with
   | Linear_State _ _ _ _ _ => None
-  | Linear_Callstate s f rs => match f with
-                                  Internal f => None
-                                | External ef => Some (ef, ef_sig ef, map rs (loc_arguments (ef_sig ef)))
-                              end
-  | Linear_Returnstate _ _ => None
+  | Linear_Callstate s f rs => 
+      match f with
+        | Internal f => None
+        | External ef => 
+          Some (ef, ef_sig ef, decode_longs (sig_args (ef_sig ef)) 
+                                 (map rs (loc_arguments (ef_sig ef))))
+      end
+  | Linear_Returnstate _ _ _ => None
  end.
 
 Definition Linear_after_external (vret: option val) (c: Linear_core) : option Linear_core :=
   match c with 
-    Linear_Callstate s f rs => 
-         match f with
-            Internal f => None
-          | External ef => match vret with
-                             None => Some (Linear_Returnstate s (Locmap.setlist (map R (loc_result (ef_sig ef))) (Vundef::nil) rs))
-                           | Some v => Some (Linear_Returnstate s (Locmap.setlist (map R (loc_result (ef_sig ef))) (v::nil) rs))
-                           end
-         end
-  | _ => None
+    | Linear_Callstate s f rs => 
+      match f with
+        | Internal f => None
+        | External ef => 
+          match vret with
+            | None => Some (Linear_Returnstate s (sig_res (ef_sig ef))
+                             (Locmap.setlist (map R (loc_result (ef_sig ef))) 
+                               (encode_longs (sig_args (ef_sig ef)) (Vundef::nil)) rs))
+            | Some v => Some (Linear_Returnstate s (sig_res (ef_sig ef))
+                               (Locmap.setlist (map R (loc_result (ef_sig ef))) 
+                                 (encode_longs (sig_args (ef_sig ef)) (v::nil)) rs))
+          end
+      end
+    | _ => None
   end.
 
 Lemma Linear_corestep_not_at_external:

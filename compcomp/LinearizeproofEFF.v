@@ -916,11 +916,11 @@ Inductive match_states mu: LTL_core -> mem -> Linear_core -> mem -> Prop :=
       match_states mu (LTL_Callstate s f ls1) m1
                       (Linear_Callstate ts tf ls2) m2
   | match_states_return:
-      forall s ls1 ls2 m1 m2 ts,
+      forall s ls1 ls2 m1 m2 ts retty,
       list_forall2 (match_stackframes mu) s ts ->
       (*NEW*) forall (AGREE:agree_regs (restrict (as_inj mu) (vis mu)) ls1 ls2),
-      match_states mu (LTL_Returnstate s ls1) m1
-                      (Linear_Returnstate ts ls2) m2.
+      match_states mu (LTL_Returnstate s retty ls1) m1
+                      (Linear_Returnstate ts retty ls2) m2.
 
 Definition measure (S: LTL_core) : nat :=
   match S with
@@ -1053,14 +1053,15 @@ inv MC; simpl in AtExtSrc; inv AtExtSrc.
 destruct f; simpl in *; inv H2.
 split; trivial. monadInv H0.
 assert (ValsInj: Forall2 (val_inject (restrict (as_inj mu) (vis mu)))
-                  ls1 ## (Conventions1.loc_arguments (ef_sig e))
-                  ls2 ## (Conventions1.loc_arguments (ef_sig e))).
-  rewrite vis_restrict_sm, restrict_sm_all, restrict_nest in AGREE; trivial.
+  (decode_longs (sig_args (ef_sig e)) (ls1 ## (Conventions1.loc_arguments (ef_sig e))))
+  (decode_longs (sig_args (ef_sig e)) (ls2 ## (Conventions1.loc_arguments (ef_sig e))))).
+{ rewrite vis_restrict_sm, restrict_sm_all, restrict_nest in AGREE; trivial.
   eapply val_list_inject_forall_inject.
+  apply decode_longs_inject.
   eapply agree_regs_map_outgoing; trivial.
     red; intros. apply Conventions1.loc_arguments_rec_charact in H0. 
            destruct l; try contradiction.
-           destruct sl; try contradiction. trivial.
+           destruct sl; try contradiction. trivial. }
 eexists. split. eassumption.
 specialize (forall_vals_inject_restrictD _ _ _ _ ValsInj); intros.
 exploit replace_locals_wd_AtExternal; try eassumption. 
@@ -1476,8 +1477,10 @@ split.
             destruct q; simpl in *; trivial.
             apply andb_true_iff; split.
               unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H2). intuition. 
-              apply REACH_nil. unfold exportedSrc. rewrite sharedSrc_iff_frgnpub, H2; trivial. intuition.
-      rewrite restrict_nest; trivial.
+              apply REACH_nil. unfold exportedSrc. rewrite sharedSrc_iff_frgnpub, H2; trivial. 
+              intuition.
+        admit. (*TODO (GS): encode_longs_inject*)
+(*      rewrite restrict_nest; trivial.
         constructor; eauto. inv RValInjNu'; econstructor; try reflexivity.
         apply restrictI_Some; trivial.
         remember (locBlocksSrc nu' b1) as q.
@@ -1486,7 +1489,7 @@ split.
           eapply as_inj_DomRng; eassumption.
           apply REACH_nil. unfold exportedSrc. 
             apply orb_true_iff; left.
-            rewrite getBlocks_char. eexists; left. reflexivity.
+            rewrite getBlocks_char. eexists; left. reflexivity.*)
       apply map_R_outgoing.  
 destruct (eff_after_check2 _ _ _ _ _ MemInjNu' RValInjNu' 
       _ (eq_refl _) _ (eq_refl _) _ (eq_refl _) WDnu' SMvalNu').
@@ -2000,10 +2003,13 @@ Proof. intros.
       repeat split; extensionality b; 
           try rewrite (freshloc_free _ _ _ _ _ H0);
           try rewrite (freshloc_free _ _ _ _ _ H); intuition.
-  split. econstructor; eauto.
+  split. 
+    assert (FNSIG: sig_res (LTL.fn_sig f) = sig_res (fn_sig tf)).
+    { admit. }
+    rewrite FNSIG. econstructor; eauto.
            eapply agree_regs_return. 
              rewrite vis_restrict_sm, restrict_sm_all, restrict_nest; trivial.
-             apply (match_parent_locset _ _ _ STACKS).
+             solve[apply (match_parent_locset _ _ _ STACKS)].
   intuition.
       eapply REACH_closed_free; try eassumption.
 
@@ -2063,7 +2069,7 @@ Proof. intros.
   (* no external function *)
 
   (* return *) 
-  inv H4. inv H1.
+  inv H5. inv H1.
   eexists; eexists; split.
   left. apply corestep_plus_one. econstructor.
   exists mu.
@@ -2628,10 +2634,13 @@ Proof. intros.
           try rewrite (freshloc_free _ _ _ _ _ H0);
           try rewrite (freshloc_free _ _ _ _ _ H); intuition.
   split.
-    split. econstructor; eauto.
+    split. 
+    assert (FNSIG: sig_res (LTL.fn_sig f) = sig_res (fn_sig tf)).
+    { admit. (*TODO (GS): encode_longs_inject*) }
+    rewrite FNSIG; econstructor; eauto.
            eapply agree_regs_return. 
              rewrite vis_restrict_sm, restrict_sm_all, restrict_nest; trivial.
-             apply (match_parent_locset _ _ _ STACKS).
+             solve[apply (match_parent_locset _ _ _ STACKS)].
     intuition.
       eapply REACH_closed_free; try eassumption.
   intros.
@@ -2701,7 +2710,7 @@ Proof. intros.
   (* no external function *)
 
   (* return *) 
-  inv H4. inv H1.
+  inv H5. inv H1.
   eexists; eexists; eexists; split.
   left. apply effstep_plus_one. econstructor.
   exists mu.
@@ -2759,9 +2768,14 @@ Proof. intros.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
   remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
     apply eq_sym in Heqzz.
+  case_eq (val_casted.val_has_type_list_func vals1 (sig_args (LTL.funsig f)) &&
+           val_casted.vals_defined vals1). 
+  2: solve[intros Heq; rewrite Heq in H1; inv H1].
+  intros Heq; rewrite Heq in H1; inv H1.
   exploit function_ptr_translated; eauto. intros [tf [FP TF]].
   exists (Linear_Callstate nil tf
-            (Locmap.setlist (Conventions1.loc_arguments (funsig tf)) vals2
+            (Locmap.setlist (Conventions1.loc_arguments (funsig tf)) 
+              (val_casted.encode_longs (sig_args (funsig tf)) vals2)
               (Locmap.init Vundef))).
   split.
     destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
@@ -2769,10 +2783,25 @@ Proof. intros.
     unfold tge in FP. rewrite D in FP. inv FP.
     unfold Linear_eff_sem, Linear_coop_sem. simpl.
     case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
-    solve[rewrite D; auto].
+    rewrite D.
+    assert (val_casted.val_has_type_list_func vals2 (sig_args (funsig tf))=true) as ->.
+    { eapply val_casted.val_list_inject_hastype; eauto.
+      eapply forall_inject_val_list_inject; eauto.
+      destruct (val_casted.vals_defined vals1); auto.
+      rewrite andb_comm in Heq; simpl in Heq. solve[inv Heq].
+      assert (sig_args (funsig tf)
+        = sig_args (LTL.funsig f)) as ->.
+      { erewrite sig_preserved; eauto. }
+      destruct (val_casted.val_has_type_list_func vals1
+        (sig_args (LTL.funsig f))); auto. }
+    assert (val_casted.vals_defined vals2=true) as ->.
+    { eapply val_casted.val_list_inject_defined.
+      eapply forall_inject_val_list_inject; eauto.
+      destruct (val_casted.vals_defined vals1); auto.
+      rewrite andb_comm in Heq; inv Heq. }
+    solve[auto].
 
-    intros CONTRA.
-    solve[elimtype False; auto].
+    intros CONTRA. solve[elimtype False; auto].
   destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
      VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
     as [AA [BB [CC [DD [EE [FF GG]]]]]].
@@ -2786,8 +2815,18 @@ Proof. intros.
       rewrite initial_SM_as_inj.
         unfold vis, initial_SM; simpl.
         apply forall_inject_val_list_inject.
-        eapply restrict_forall_vals_inject; try eassumption.
-          intros. apply REACH_nil. rewrite H; intuition.
+        eapply restrict_forall_vals_inject.
+        admit. (*TODO (GS): encode_longs_inject*)
+
+        Lemma getBlocks_encode_longs tys vals : 
+          getBlocks vals = getBlocks (encode_longs tys vals).
+        Proof.
+          extensionality b. admit. (*TODO (GS)*)
+        Qed.
+
+          intros. apply REACH_nil. 
+          rewrite (getBlocks_encode_longs (sig_args (LTL.funsig f))). 
+          rewrite H; intuition.
       red; intros. apply Conventions1.loc_arguments_rec_charact in H. 
            destruct l; try contradiction.
            destruct sl; try contradiction. trivial. 
@@ -2885,28 +2924,34 @@ assert (GDE:= GDE_lemma).
     apply LNR.
     apply LT. }
 (*halted*)
-  { intros.
-    destruct H as [MC [RC [PG [GFP [Glob [SMV [WDmu INJ]]]]]]]. 
-    destruct c1; inv H0. destruct stack; inv H1.
-    remember (ls (R AX)) as d. destruct d; inv H0.
-    eexists.
-    split. assumption.
-    split. econstructor. 
-    inv MC. simpl. inv H4.
-    rewrite vis_restrict_sm, restrict_sm_all, restrict_nest in AGREE; trivial.
-    destruct AGREE as [AGREE_R _]. 
-    specialize (AGREE_R AX). rewrite <- Heqd in AGREE_R. inv AGREE_R. trivial. }
+  { intros. destruct H as [MC [RC [PG [Glob [VAL [WD INJ]]]]]].
+    revert H0. simpl. destruct c1; try solve[inversion 1]. inversion 1.
+    revert H1. destruct stack; try solve[inversion 1].
+    destruct retty; try solve[inversion 1].
+    destruct INJ as [WD0 INJ].
+    inv MC.
+    destruct t; try solve[inversion 1]; simpl. inversion 1; subst. clear H1.
+    + exists (ls2 (R AX)). split; auto. split. 
+      rewrite vis_restrict_sm, restrict_sm_all, restrict_nest in AGREE; trivial.
+      destruct AGREE as [AGREE_R _]; specialize (AGREE_R AX); auto.
+      inv H6; auto. 
+    + inversion 1; subst. exists (ls2 (R FP0)). split; auto. split.
+      rewrite vis_restrict_sm, restrict_sm_all, restrict_nest in AGREE; trivial.
+      destruct AGREE as [AGREE_R _]; specialize (AGREE_R FP0); auto.
+      inv H6; auto. 
+    + inversion 1; subst. exists (Val.longofwords (ls2 (R DX)) (ls2 (R AX))).
+      split; auto. split; auto. 
+      rewrite vis_restrict_sm, restrict_sm_all, restrict_nest in AGREE; trivial.
+      apply val_longofwords_inject; auto.
+      solve[destruct AGREE as [AGREE_R _]; specialize (AGREE_R DX); auto].
+      solve[destruct AGREE as [AGREE_R _]; specialize (AGREE_R AX); auto].
+      inv H6; auto. 
+    + inversion 1; subst. exists (ls2 (R FP0)). split; auto. split; auto.
+      rewrite vis_restrict_sm, restrict_sm_all, restrict_nest in AGREE; trivial.
+      destruct AGREE as [AGREE_R _]; specialize (AGREE_R FP0); auto.
+      inv H6; auto. }
 (*atExternal*)
-  { eapply MATCH_atExternal; eassumption.
-   (*proof for the clause without the leak-out condition: intros.
-  destruct H as [MC [RC [PG [GFP [Glob [SMV [WDmu INJ]]]]]]]. 
-    destruct c1; inv H0. destruct f; inv H1.
-    split. assumption.
-    inv MC. rewrite vis_restrict_sm, restrict_sm_all, restrict_nest in AGREE; trivial.
-    eexists; split. 
-      eapply val_list_inject_forall_inject.
-      eapply agree_regs_map; try eassumption.
-    simpl. monadInv H6. trivial.*) }
+  { eapply MATCH_atExternal; eassumption. }
 (*afterExternal*)
   { eapply MATCH_afterExternal. assumption. }
 (*corediagram*)

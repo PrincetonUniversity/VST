@@ -2107,18 +2107,38 @@ Proof. intros.
     unfold tge in FP. rewrite D in FP. inv FP.
     unfold cminsel_eff_sem, cminsel_coop_sem. simpl.
     case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
-    solve[rewrite D; auto].
+    rewrite D. 
 
-    intros CONTRA.
-    solve[elimtype False; auto].
-(*  assert (exists targs tres, type_of_fundef f = Tfunction targs tres).
-         destruct f; simpl. eexists; eexists. reflexivity.
-         eexists; eexists. reflexivity.
-  destruct H as [targs [tres Tfun]].*)
+  assert (val_casted.val_has_type_list_func vals2
+           (sig_args (funsig tf))=true) as ->.
+  { eapply val_casted.val_list_inject_hastype; eauto.
+    eapply forall_inject_val_list_inject; eauto.
+    destruct (val_casted.vals_defined vals1); auto.
+    rewrite andb_comm in H1; simpl in H1. solve[inv H1].
+    assert (sig_args (funsig tf)
+          = sig_args (CminorSel.funsig f)) as ->.
+    { erewrite sig_transl_function; eauto. }
+    destruct (val_casted.val_has_type_list_func vals1
+      (sig_args (CminorSel.funsig f))); auto. inv H1. }
+  assert (val_casted.vals_defined vals2=true) as ->.
+  { eapply val_casted.val_list_inject_defined.
+    eapply forall_inject_val_list_inject; eauto.
+    destruct (val_casted.vals_defined vals1); auto.
+    rewrite andb_comm in H1; inv H1. }
+
+  solve[simpl; auto].
+
+  intros CONTRA.
+  solve[elimtype False; auto].
   destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
      VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
     as [AA [BB [CC [DD [EE [FF GG]]]]]].
   split.
+    revert H1.
+    destruct (val_casted.val_has_type_list_func vals1
+             (sig_args (CminorSel.funsig f)) && val_casted.vals_defined vals1); 
+      try solve[inversion 1]. 
+    inversion 1; subst. clear H1.
     eapply match_callstate; try eassumption.
       constructor.
       rewrite initial_SM_as_inj.

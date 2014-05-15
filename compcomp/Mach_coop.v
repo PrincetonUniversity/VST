@@ -17,6 +17,8 @@ Require Import Mach.
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 
+Require Import compcomp.val_casted.
+
 Definition genv := Genv.t fundef unit.
 
 Notation "a ## b" := (List.map a b) (at level 1).
@@ -53,6 +55,7 @@ Inductive Mach_core: Type :=
 
   | Mach_Returnstate:
       forall (stack: list stackframe)  (**r call stack *)
+             (retty: option typ)       (**r optional return register int-floatness *)
              (rs: regset),             (**r register state *)
       Mach_core.
 
@@ -166,7 +169,7 @@ Inductive mach_step: Mach_core -> mem -> Mach_core -> mem -> Prop :=
       load_stack m (Vptr stk soff) Tint f.(fn_retaddr_ofs) = Some (parent_ra s) ->
       Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
       mach_step (Mach_State s fb (Vptr stk soff) (Mreturn :: c) rs) m
-        (Mach_Returnstate s rs) m'
+        (Mach_Returnstate s (sig_res (fn_sig f)) rs) m'
   | Mach_exec_function_internal:
       forall s fb rs m f m1 m2 m3 stk rs',
       Genv.find_funct_ptr ge fb = Some (Internal f) ->
@@ -188,15 +191,15 @@ Inductive mach_step: Mach_core -> mem -> Mach_core -> mem -> Prop :=
 (*NO RULE FOR EXTERNAL CALLS
   | Mach_exec_function_external:
       forall s fb rs m t rs' ef args res m',
-      Genv.find_funct_ptr ge fb = Some (External ef) ->
+      Genv.fined_funct_ptr ge fb = Some (External ef) ->
       extcall_arguments rs m (parent_sp s) (ef_sig ef) args ->
       external_call' ef ge args m t res m' ->
       rs' = set_regs (loc_result (ef_sig ef)) res rs ->
       mach_step (Mach_Callstate s fb rs) m
          t (Mach_Returnstate s rs') m'*)
   | Mach_exec_return:
-      forall s f sp ra c rs m,
-      mach_step (Mach_Returnstate (Stackframe f sp ra c :: s) rs) m
+      forall s f sp ra c retty rs m,
+      mach_step (Mach_Returnstate (Stackframe f sp ra c :: s) retty rs) m
         (Mach_State s f sp c rs) m.
 
 End RELSEM.
@@ -207,14 +210,19 @@ Definition Mach_initial_core (ge:genv) (v: val) (args:list val):
           if Int.eq_dec i Int.zero 
           then match Genv.find_funct_ptr ge b with
                  | None => None
-                 | Some f => Some (Mach_Callstate
+                 | Some f => 
+                     let tyl := sig_args (funsig f) in
+                     if val_has_type_list_func args (sig_args (funsig f))
+                        && vals_defined args
+                     then Some (Mach_Callstate
                                       nil
                                       b (Regmap.init Vundef)
-                                      (*Should be something like this: 
+                                      (*TODO: Should be something like this: 
                                        (Regmap.setlist
                                           (reg??_arguments (funsig f)) 
                                           args 
                                           (Regmap.init Vundef)))*))
+                     else None
                end
           else None
      | _ => None
@@ -237,18 +245,28 @@ Inductive final_state: state -> int -> Prop :=
 (*Maybe generalize to other types?*)
 Definition Mach_halted (q : Mach_core): option val :=
     match q with 
-       Mach_Returnstate nil rs => 
-           match loc_result (mksignature nil (Some Tint)) with
-              nil => None
+      (*Return Tlong, which must be decoded*)
+      | Mach_Returnstate nil (Some Tlong) rs => 
+           match loc_result (mksignature nil (Some Tlong)) with
+             | nil => None
+             | r1 :: r2 :: nil => 
+                 match decode_longs (Tlong::nil) (rs r1::rs r2::nil) with
+                   | v :: nil => Some v
+                   | _ => None
+                 end
+             | _ => None
+           end
+
+      (*Return a value of any other typ*)
+      | Mach_Returnstate nil (Some retty) rs => 
+           match loc_result (mksignature nil (Some retty)) with
+            | nil => None
             | r :: TL => match TL with 
-                            nil => match rs r with
-                                     Vint retcode => Some (Vint retcode)
-                                   | _ => None
-                                   end
-                          | _ => None
+                           | nil => Some (rs r)
+                           | _ :: _ => None
                          end
            end
-     | _ => None
+      | _ => None
     end.
 
 Definition Mach_at_external (c: Mach_core):
@@ -256,8 +274,9 @@ Definition Mach_at_external (c: Mach_core):
   match c with
   | Mach_State _ _ _ _ _ => None
   | Mach_Callstate _ _ _ => None
-  | Mach_CallstateArgs s (*sp*) ef args rs => Some (ef, ef_sig ef, args)
-  | Mach_Returnstate _ _ => None
+  | Mach_CallstateArgs s (*sp*) ef args rs => 
+          Some (ef, ef_sig ef, decode_longs (sig_args (ef_sig ef)) args)
+  | Mach_Returnstate _ _ _ => None
  end.
 (*CompCert:
       Genv.find_funct_ptr ge fb = Some (External ef) ->
@@ -271,9 +290,13 @@ Definition Mach_after_external (vret: option val)(c: Mach_core) : option Mach_co
   match c with 
     Mach_CallstateArgs s (*sp*) ef args rs => 
       match vret with
-         None => Some (Mach_Returnstate s (set_regs (loc_result (ef_sig ef)) (Vundef::nil) rs))
-       | Some res => Some (Mach_Returnstate s (set_regs (loc_result (ef_sig ef)) (res::nil) rs))
-      end
+            | None => Some (Mach_Returnstate s (sig_res (ef_sig ef))
+                             (set_regs (loc_result (ef_sig ef))
+                               (encode_longs (sig_args (ef_sig ef)) (Vundef::nil)) rs))
+            | Some v => Some (Mach_Returnstate s (sig_res (ef_sig ef))
+                               (set_regs (loc_result (ef_sig ef))
+                                 (encode_longs (sig_args (ef_sig ef)) (v::nil)) rs))
+          end
   | _ => None
   end.
 

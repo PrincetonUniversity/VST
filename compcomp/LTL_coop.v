@@ -16,6 +16,8 @@ Require Import LTL.
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 
+Require Import compcomp.val_casted.
+
 Inductive LTL_core : Type :=
   | LTL_State:
       forall (stack: list stackframe) (**r call stack *)
@@ -38,31 +40,73 @@ Inductive LTL_core : Type :=
       LTL_core
   | LTL_Returnstate:
       forall (stack: list stackframe) (**r call stack *)
+             (retty: option typ)      (**r optional return register int-floatness *)
              (ls: locset),            (**r location state of callee *)
       LTL_core.
 
 Definition LTL_at_external (c: LTL_core) : option (external_function * signature * list val) :=
   match c with
-  | LTL_State _ _ _ _ _ => None
-  | LTL_Block _ _ _ _ _ => None
-  | LTL_Callstate s f rs => match f with
-                                  Internal f => None
-                                | External ef => Some (ef, ef_sig ef, map rs (loc_arguments (ef_sig ef)))
-                              end
-  | LTL_Returnstate _ _ => None
+    | LTL_State _ _ _ _ _ => None
+    | LTL_Block _ _ _ _ _ => None
+    | LTL_Callstate s f rs => 
+      match f with
+        | Internal f => None
+        | External ef => 
+          Some (ef, ef_sig ef, decode_longs (sig_args (ef_sig ef)) 
+                                 (map rs (loc_arguments (ef_sig ef))))
+      end
+    | LTL_Returnstate _ _ _ => None
  end.
+
+Fixpoint encode_longs (tyl : list typ) (vl : list val) :=
+  match tyl with
+    | nil => nil
+    | Tlong :: tyl' => 
+      match vl with 
+        | nil => nil
+        | Vlong n :: vl' => Vint (Int64.hiword n) :: Vint (Int64.loword n) 
+                            :: encode_longs tyl' vl'
+        | Vundef :: vl' => Vundef :: Vundef :: encode_longs tyl' vl'
+        | _ :: _ => nil
+      end
+    | t :: tyl' => 
+      match vl with
+        | nil => nil
+        | v :: vl' => v :: encode_longs tyl' vl'
+      end
+  end.
+
+Lemma decode_encode_longs tyl vl : 
+  Val.has_type_list vl tyl -> 
+  decode_longs tyl (encode_longs tyl vl) = vl.
+Proof.
+revert tyl; induction vl.
+destruct tyl. simpl; auto.
+destruct t; simpl; auto.
+destruct tyl. simpl. inversion 1. inversion 1; subst. clear H.
+simpl. destruct t; auto; try rewrite IHvl; auto.
+destruct a; simpl; try solve[inv H0].
+rewrite IHvl; auto.
+rewrite IHvl; auto. f_equal. 
+rewrite Int64.ofwords_recompose; auto.
+Qed.
 
 Definition LTL_after_external (vret: option val) (c: LTL_core) : option LTL_core :=
   match c with 
-    LTL_Callstate s f rs => 
-         match f with
-            Internal f => None
-          | External ef => match vret with
-                             None => Some (LTL_Returnstate s (Locmap.setlist (map R (loc_result (ef_sig ef))) (Vundef::nil) rs))
-                           | Some v => Some (LTL_Returnstate s (Locmap.setlist (map R (loc_result (ef_sig ef))) (v::nil) rs))
-                           end
-         end
-  | _ => None
+    | LTL_Callstate s f rs => 
+      match f with
+        | Internal f => None
+        | External ef => 
+          match vret with
+            | None => Some (LTL_Returnstate s (sig_res (ef_sig ef))
+                (Locmap.setlist (map R (loc_result (ef_sig ef))) 
+                  (encode_longs (sig_args (ef_sig ef)) (Vundef::nil)) rs))
+            | Some v => Some (LTL_Returnstate s (sig_res (ef_sig ef))
+                (Locmap.setlist (map R (loc_result (ef_sig ef))) 
+                  (encode_longs (sig_args (ef_sig ef)) (v::nil)) rs))
+          end
+      end
+    | _ => None
   end.
 
 Section RELSEM.
@@ -139,7 +183,7 @@ Inductive ltl_corestep: LTL_core -> mem -> LTL_core -> mem -> Prop :=
   | ltl_exec_Lreturn: forall s f sp bb rs m m',
       Mem.free m sp 0 f.(fn_stacksize) = Some m' ->
       ltl_corestep (LTL_Block s f (Vptr sp Int.zero) (Lreturn :: bb) rs) m
-        (LTL_Returnstate s (return_regs (parent_locset s) rs)) m'
+        (LTL_Returnstate s (sig_res (fn_sig f)) (return_regs (parent_locset s) rs)) m'
   | ltl_exec_function_internal: forall s f rs m m' sp rs',
       Mem.alloc m 0 f.(fn_stacksize) = (m', sp) ->
       rs' = undef_regs destroyed_at_function_entry (call_regs rs) ->
@@ -152,8 +196,8 @@ Inductive ltl_corestep: LTL_core -> mem -> LTL_core -> mem -> Prop :=
       rs' = Locmap.setlist (map R (loc_result (ef_sig ef))) res rs ->
       ltl_corestep (LTL_Callstate s (External ef) rs m)
          t (LTL_Returnstate s rs' m')*)
-  | ltl_exec_return: forall f sp rs1 bb s rs m,
-      ltl_corestep (LTL_Returnstate (Stackframe f sp rs1 bb :: s) rs) m
+  | ltl_exec_return: forall f sp rs1 bb s retty rs m,
+      ltl_corestep (LTL_Returnstate (Stackframe f sp rs1 bb :: s) retty rs) m
         (LTL_Block s f sp bb rs) m.
 
 End RELSEM.
@@ -164,19 +208,30 @@ Lemma LTL_corestep_not_at_external:
 
 Definition LTL_halted (q : LTL_core): option val :=
     match q with 
-       LTL_Returnstate nil rs => 
-           match loc_result (mksignature nil (Some Tint)) with
-              nil => None
+      (*Return Tlong, which must be decoded*)
+      | LTL_Returnstate nil (Some Tlong) rs => 
+           match loc_result (mksignature nil (Some Tlong)) with
+             | nil => None
+             | r1 :: r2 :: nil => 
+                 match decode_longs (Tlong::nil) (rs (R r1)::rs (R r2)::nil) with
+                   | v :: nil => Some v
+                   | _ => None
+                 end
+             | _ => None
+           end
+
+      (*Return a value of any other typ*)
+      | LTL_Returnstate nil (Some retty) rs => 
+           match loc_result (mksignature nil (Some retty)) with
+            | nil => None
             | r :: TL => match TL with 
-                            nil => match rs (R r) with
-                                     Vint retcode => Some (Vint retcode)
-                                   | _ => None
-                                   end
-                          | _ => None
+                           | nil => Some (rs (R r))
+                           | _ :: _ => None
                          end
            end
-     | _ => None
+      | _ => None
     end.
+
 (*Original CompCert has this:
 Inductive final_state: state -> int -> Prop :=
   | final_state_intro: forall rs m r retcode,
@@ -215,16 +270,18 @@ Definition LTL_initial_core (ge:genv) (v: val) (args:list val): option LTL_core 
           if Int.eq_dec i Int.zero 
           then match Genv.find_funct_ptr ge b with
                  | None => None
-                 | Some f => (*if check_signature (funsig f) 
-                             then Some (LTL_Callstate nil f (Locmap.init Vundef))
-                             else None*)
-                             Some (LTL_Callstate
+                 | Some f => 
+                     let tyl := sig_args (funsig f) in
+                     if val_has_type_list_func args (sig_args (funsig f))
+                        && vals_defined args
+                     then Some (LTL_Callstate
                                       nil
                                       f 
                                       (Locmap.setlist
                                           (loc_arguments (funsig f)) 
-                                          args 
+                                          (encode_longs tyl args)
                                           (Locmap.init Vundef)))
+                     else None
                end
           else None
      | _ => None

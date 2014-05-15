@@ -321,11 +321,35 @@ Proof. intros.
   simpl. 
   destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
   subst. inv A. rewrite C in Heqzz. inv Heqzz. rewrite D in FIND. inv FIND.
-  unfold CMin_initial_core. 
-  case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
-  solve[rewrite D; auto].
-  intros CONTRA.
-  solve[elimtype False; auto].
+  unfold CMin_initial_core. revert CSM_Ini; simpl.
+  case_eq (Int.eq_dec Int.zero Int.zero). intros ? e. rewrite C, D.
+  case_eq (val_casted.val_has_type_list_func vals1 (sig_args (Csharpminor.funsig f))).
+  case_eq (val_casted.vals_defined vals1).
+  intros H H2.
+
+  assert (val_casted.val_has_type_list_func vals2
+           (sig_args (funsig tf))=true) as ->.
+  { eapply val_casted.val_list_inject_hastype; eauto.
+    eapply forall_inject_val_list_inject; eauto.
+    assert (sig_args (funsig tf)
+          = sig_args (Csharpminor.funsig f)) as ->.
+    { erewrite sig_preserved; eauto. }
+    destruct (val_casted.val_has_type_list_func vals1
+      (sig_args (Csharpminor.funsig f))); auto. }
+  assert (val_casted.vals_defined vals2=true) as ->.
+  { eapply val_casted.val_list_inject_defined.
+    eapply forall_inject_val_list_inject; eauto.
+    destruct (val_casted.vals_defined vals1); auto. }
+  solve[simpl; auto].
+
+  auto. 
+  simpl; intros; congruence. 
+  simpl; intros; congruence.
+  intros. solve[elim n; auto].
+  revert H1.
+  case_eq (val_casted.val_has_type_list_func vals1 (sig_args (Csharpminor.funsig f))).
+  intros ?; inversion 1; subst. 
+  case_eq (val_casted.vals_defined vals1). intros H3. rewrite H3 in H2. inv H2.
   eapply MC_callstate with (cenv:=PTree.empty _)(cs := @nil frame); try eassumption.
   destruct INIT_MEM as [m0 [INIT_MEM [A B]]].
   assert (Genv.init_mem tprog = Some m0).
@@ -336,6 +360,8 @@ Proof. intros.
   apply A. apply B.
   econstructor. simpl. trivial.
   simpl. apply forall_inject_val_list_inject; auto.
+  intros H3; rewrite H3 in H2. inv H2.
+  solve[intros ?; inversion 1].
 Qed.
 
 Lemma MC_safely_halted: forall (cd : core_data) (j : meminj) (c1 : CSharpMin_core) (m1 : mem)

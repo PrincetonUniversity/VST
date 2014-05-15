@@ -46,6 +46,14 @@ Definition helper_implements (id: ident) (sg: signature) (vargs: list val) (vres
 Definition builtin_implements (id: ident) (sg: signature) (vargs: list val) (vres: val) : Prop :=
   forall m, external_call (EF_builtin id sg) ge vargs m E0 vres m.
 
+Lemma FALSE (m : mem) id sg vargs vres: builtin_implements id sg vargs vres -> False.
+Proof.
+intros H.
+unfold builtin_implements in H.
+specialize (H m).
+inv H.
+Qed.
+
 Definition i64_helpers_correct (hf: helper_functions) : Prop :=
     (forall x z, Val.longoffloat x = Some z -> helper_implements hf.(i64_dtos) sig_f_l (x::nil) z)
   /\(forall x z, Val.longuoffloat x = Some z -> helper_implements hf.(i64_dtou) sig_f_l (x::nil) z)

@@ -1936,15 +1936,36 @@ Proof. intros.
   subst. inv A. rewrite C in Heqzz. inv Heqzz. unfold tge in FIND. rewrite D in FIND. inv FIND.
   unfold CMinSel_initial_core. 
   case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
-  solve[rewrite D; auto].
-  intros CONTRA.
-  solve[elimtype False; auto].
+  rewrite D.  
+  assert (val_casted.val_has_type_list_func vals2
+           (sig_args (funsig (sel_fundef hf ge f)))=true) as ->.
+  { eapply val_casted.val_list_inject_hastype; eauto.
+    eapply forall_inject_val_list_inject; eauto.
+    destruct (val_casted.vals_defined vals1); auto.
+    rewrite andb_comm in H1; simpl in H1. solve[inv H1].
+    assert (sig_args (funsig (sel_fundef hf ge f))
+          = sig_args (Cminor.funsig f)) as ->.
+    { rewrite sig_function_translated; auto. }
+    destruct (val_casted.val_has_type_list_func vals1
+      (sig_args (Cminor.funsig f))); auto. inv H1. }
+  assert (val_casted.vals_defined vals2=true) as ->.
+  { eapply val_casted.val_list_inject_defined.
+    eapply forall_inject_val_list_inject; eauto.
+    destruct (val_casted.vals_defined vals1); auto.
+    rewrite andb_comm in H1; inv H1. }
+  solve[simpl; auto].
+  intros CONTRA. solve[elimtype False; auto].
   destruct InitMem as [m0 [INIT_MEM [A B]]].
 destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
    as [AA [BB [CC [DD [EE [FF GG]]]]]].
   intuition.
   split.
+    revert H1.
+    destruct (val_casted.val_has_type_list_func vals1
+             (sig_args (Cminor.funsig f)) && val_casted.vals_defined vals1); 
+      try solve[inversion 1]. 
+    inversion 1; subst. clear H1.
     eapply match_callstate.
       constructor. rewrite initial_SM_as_inj.
       unfold vis, initial_SM; simpl.

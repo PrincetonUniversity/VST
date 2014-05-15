@@ -295,3 +295,173 @@ revert H2 H1; inversion 1; subst. inversion 1; subst. constructor.
 eapply val_casted_inj; eauto.
 eapply IHts; eauto.
 Qed.
+
+Definition val_has_type_func (v : val) (t : typ) : bool :=
+  match v with
+    | Vundef => true
+    | Vint _ => match t with
+                  | AST.Tint => true
+                  | _ => false
+                end
+    | Vlong _ => match t with 
+                 | AST.Tlong => true
+                 | _ => false
+               end
+    | Vfloat f => match t with 
+                    | AST.Tfloat => true
+                    | Tsingle => if Float.is_single_dec f then true else false
+                    | _ => false
+                  end
+    | Vptr _ _ => match t with
+                    | AST.Tint => true
+                    | _ => false
+                  end
+  end.
+
+Lemma val_has_type_funcP v t : 
+  Val.has_type v t <-> (val_has_type_func v t=true).
+Proof.
+split.
+induction v; auto.
+simpl. destruct t; auto.
+simpl. destruct t; auto.
+simpl. destruct t; auto. destruct (Float.is_single_dec f); auto.
+simpl. destruct t; auto.
+induction v; simpl; auto.
+destruct t; auto; try inversion 1.
+destruct t; auto; try inversion 1.
+destruct t; auto; try solve[inversion 1].
+destruct (Float.is_single_dec f); try solve[inversion 1|auto].
+destruct t; auto. inversion 1. inversion 1. inversion 1.
+Qed.
+
+Fixpoint val_has_type_list_func (vl : list val) (tyl : list typ) : bool :=
+  match vl, tyl with
+    | nil, nil => true
+    | v :: vl', ty :: tyl' => val_has_type_func v ty 
+                              && val_has_type_list_func vl' tyl' 
+    | nil, _ :: _ => false
+    | _ :: _, nil => false
+  end.
+
+Lemma val_has_type_list_func_charact vl tyl : 
+  Val.has_type_list vl tyl <-> (val_has_type_list_func vl tyl=true).
+Proof.
+revert tyl; induction vl.
+destruct tyl. simpl. split; auto. simpl. split; auto. inversion 1.
+intros. destruct tyl. simpl. split; auto. inversion 1.
+simpl. split. intros [H H2]. 
++ rewrite andb_true_iff. split. 
+  rewrite <-val_has_type_funcP; auto.
+  rewrite <-IHvl; auto.
++ rewrite andb_true_iff. intros [H H2]. split.
+  rewrite val_has_type_funcP; auto.
+  rewrite IHvl; auto.
+Qed.
+
+Fixpoint tys_nonvoid (tyl : typelist) :=
+  match tyl with
+    | Tnil => true
+    | Tcons Tvoid tyl' => false
+    | Tcons _ tyl' => tys_nonvoid tyl'
+  end.
+
+Fixpoint vals_defined (vl : list val) :=
+  match vl with
+    | nil => true
+    | Vundef :: _ => false
+    | _ :: vl' => vals_defined vl'
+  end.
+
+Lemma vals_inject_defined (vl1 vl2 : list val) (j : meminj) :
+  val_list_inject j vl1 vl2 -> 
+  vals_defined vl1=true -> 
+  vals_defined vl2=true.
+Proof.
+revert vl2; induction vl1; simpl. destruct vl2; try solve[inversion 1|auto].
+intros vl2; inversion 1; subst. destruct a; try solve[inversion 1].
+inv H. inv H5. simpl. intros X. rewrite (IHvl1 vl'); auto.
+inv H. inv H5. simpl. intros X. rewrite (IHvl1 vl'); auto.
+inv H. inv H5. simpl. intros X. rewrite (IHvl1 vl'); auto.
+inv H. inv H5. simpl. intros X. rewrite (IHvl1 vl'); auto.
+Qed.
+
+Lemma valinject_hastype':
+  forall (j : meminj) (v v' : val),
+    val_inject j v v' -> 
+    v <> Vundef -> 
+    forall T : typ, Val.has_type v T -> Val.has_type v' T.
+Proof.
+  intros.
+  induction H; auto.
+  elim H0; auto.
+Qed.
+
+Lemma val_list_inject_hastype j vl1 vl2 tys :
+  val_list_inject j vl1 vl2 -> 
+  vals_defined vl1=true -> 
+  val_has_type_list_func vl1 tys=true ->
+  val_has_type_list_func vl2 tys=true.
+Proof.
+revert vl2 tys. induction vl1. inversion 1. solve[destruct tys; simpl; auto].
+intros H tys H1 H2 H3. inv H1. 
+assert (def: vals_defined vl1=true). 
+{ inv H2. revert H0. destruct a; auto. congruence. }
+simpl. destruct tys. simpl in H3; congruence. 
+rewrite andb_true_iff. split. 
+rewrite <-val_has_type_funcP. eapply valinject_hastype'; eauto.
+simpl in H2. intros contra. rewrite contra in H2. congruence.
+inv H3. rewrite andb_true_iff in H0. 
+  destruct H0 as [H0 _]. solve[rewrite val_has_type_funcP; auto].
+eapply (IHvl1 vl'); eauto.
+inv H3. rewrite H0. rewrite andb_true_iff in H0. 
+  solve[destruct H0 as [_ ->]; auto].
+Qed.
+
+Lemma val_list_inject_defined j vl1 vl2 : 
+  val_list_inject j vl1 vl2 -> 
+  vals_defined vl1=true -> 
+  vals_defined vl2=true.
+Proof.
+revert vl2. induction vl1; simpl. 
++ intros vl2; inversion 1; auto.
++ intros vl2; inversion 1; subst. inv H. 
+simpl. intros H8.
+assert (def1: vals_defined vl1=true).
+{ destruct a; try solve[congruence]. }
+revert H2 H8. inversion 1; auto. subst. congruence.
+Qed.
+
+(*TODO: put these in Events.v*)
+Fixpoint encode_longs (tyl : list typ) (vl : list val) :=
+  match tyl with
+    | nil => nil
+    | AST.Tlong :: tyl' => 
+      match vl with 
+        | nil => nil
+        | Vlong n :: vl' => Vint (Int64.hiword n) :: Vint (Int64.loword n) 
+                            :: encode_longs tyl' vl'
+        | Vundef :: vl' => Vundef :: Vundef :: encode_longs tyl' vl'
+        | _ :: _ => nil
+      end
+    | t :: tyl' => 
+      match vl with
+        | nil => nil
+        | v :: vl' => v :: encode_longs tyl' vl'
+      end
+  end.
+
+Lemma decode_encode_longs tyl vl : 
+  Val.has_type_list vl tyl -> 
+  decode_longs tyl (encode_longs tyl vl) = vl.
+Proof.
+revert tyl; induction vl.
+destruct tyl. simpl; auto.
+destruct t; simpl; auto.
+destruct tyl. simpl. inversion 1. inversion 1; subst. clear H.
+simpl. destruct t; auto; try rewrite IHvl; auto.
+destruct a; simpl; try solve[inv H0].
+rewrite IHvl; auto.
+rewrite IHvl; auto. f_equal. 
+rewrite Int64.ofwords_recompose; auto.
+Qed.

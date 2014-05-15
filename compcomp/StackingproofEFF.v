@@ -1907,7 +1907,6 @@ Lemma stores_in_frame_contents:
 Proof.
   induction 2. auto. 
   rewrite IHstores_in_frame. eapply Mem.load_store_other; eauto.
-  left. apply Plt_ne; auto.
 Qed.
 
 (** As a corollary of the previous lemmas, we obtain the following
@@ -3978,14 +3977,14 @@ Inductive match_states mu: Linear_core -> mem -> Mach_core -> mem -> Prop:=
                      (*(Mach_Callstate cs' fb rs) m'*)
                      (Mach_CallstateArgs cs' tf args rs) m'
   | match_states_return:
-      forall cs ls m cs' rs m' sg 
+      forall cs ls m cs' retty rs m' sg 
         (*(MINJ: Mem.inject j m m')*)
         (STACKS: match_stacks mu m m' cs cs' sg (Mem.nextblock m) (Mem.nextblock m'))
         (WTLS: wt_locset ls)
         (AGREGS: agree_regs (restrict (as_inj mu) (vis mu)) ls rs)
         (AGLOCS: agree_callee_save ls (parent_locset cs)),
-      match_states mu (Linear_Returnstate cs ls) m
-                     (Mach_Returnstate cs' rs) m'.
+      match_states mu (Linear_Returnstate cs retty ls) m
+                     (Mach_Returnstate cs' retty rs) m'.
 
 Lemma match_states_restrict mu c1 m1 c2 m2 X: forall 
           (MS : match_states mu c1 m1 c2 m2)
@@ -4126,17 +4125,36 @@ Proof. intros.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
   remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
     apply eq_sym in Heqzz.
+  case_eq (val_casted.val_has_type_list_func vals1 
+            (sig_args (Linear.funsig f)) 
+           && val_casted.vals_defined vals1).
+  2: solve[intros H2; rewrite H2 in H1; inv H1].
+  intros H2; rewrite H2 in H1. inv H1. 
   exploit function_ptr_translated; eauto. intros [tf [FP TF]].
   clear Ini.
   destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
   subst. apply eq_sym in A. inv A. rewrite C in Heqzz. inv Heqzz.
   unfold tge in FP. rewrite D in FP. inv FP.
   case_eq (Int.eq_dec Int.zero Int.zero).
-  Focus 2. intros CONTRA.
-           solve[elimtype False; auto].
+  2: solve[intros CONTRA; elimtype False; auto].
   intros ? e.
-  eexists; split.
-    solve[simpl; rewrite e, D; auto].
+  eexists; split. simpl. rewrite e, D. 
+  assert (val_casted.val_has_type_list_func vals2 (sig_args (funsig tf))=true) as ->.
+  { eapply val_casted.val_list_inject_hastype; eauto.
+    eapply forall_inject_val_list_inject; eauto.
+    destruct (val_casted.vals_defined vals1); auto.
+    rewrite andb_comm in H2; simpl in H2. solve[inv H2].
+    assert (sig_args (funsig tf)
+          = sig_args (Linear.funsig f)) as ->.
+    { erewrite sig_preserved; eauto. }
+    destruct (val_casted.val_has_type_list_func vals1
+      (sig_args (Linear.funsig f))); auto. }
+  assert (val_casted.vals_defined vals2=true) as ->.
+  { eapply val_casted.val_list_inject_defined.
+    eapply forall_inject_val_list_inject; eauto.
+    destruct (val_casted.vals_defined vals1); auto.
+    rewrite andb_comm in H2; inv H2. }
+  solve[simpl; auto].
   destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
      VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
     as [AA [BB [CC [DD [EE [FF GG]]]]]].
@@ -4155,15 +4173,6 @@ Proof. intros.
     (*Internal *) 
       apply bind_inversion in TF. destruct TF as [x [TF X]]. inv X.
       eapply match_states_call_intern; try eassumption.
-(*      specialize (Genv.find_funct_ptr_not_fresh prog). intros. 
-      assert (InitBlocks: forall b, Plt b (Mem.nextblock m0) -> 
-            exists id, Genv.find_symbol ge id = Some b).    
-        intros bb LT.    
-        unfold ge. 
-        apply valid_init_is_global with (b0 := bb) in INIT.
-        eapply INIT; auto.
-        assumption. 
-        apply LT.*)
       eapply match_stacks_empty. eassumption. eassumption.
         rewrite initial_SM_as_inj. unfold vis; simpl.
         unfold extern_of in DD; simpl in DD. simpl in EE.
@@ -4228,11 +4237,17 @@ exploit transl_external_arguments_rec.
   eassumption. eassumption. eassumption. eapply incl_refl.
 intros [targs [Htargs AINJ]].
 exploit extcall_args_fun. eapply GETARGS. eapply Htargs. intros; subst.
-exists targs.
-split. eapply val_list_inject_forall_inject; trivial.
+exists (decode_longs (sig_args (ef_sig tf)) targs).
+assert (H: 
+   val_list_inject (restrict (as_inj mu) (vis mu))
+     (decode_longs (sig_args (ef_sig tf)) ls ## (loc_arguments (ef_sig tf)))
+     (decode_longs (sig_args (ef_sig tf)) targs)).
+{ apply decode_longs_inject; auto. }
+split.
+solve[apply val_list_inject_forall_inject; auto].
 exploit replace_locals_wd_AtExternal; try eassumption.
-        apply val_list_inject_forall_inject in AINJ.
-        apply forall_vals_inject_restrictD in AINJ. eassumption.
+        apply val_list_inject_forall_inject in H.
+        apply forall_vals_inject_restrictD in H. eassumption.
 intros WDnu.
 intuition.
   subst.
@@ -4389,7 +4404,7 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
       exploit agree_bounds. eauto. apply Mem.perm_cur_max. eauto. 
       omega.*)
     apply match_stacks_change_mach_mem with m2; auto.
-    eauto with mem. eauto with mem. intros. rewrite <- H3; eapply Mem.load_store_other; eauto. left; apply Plt_ne; auto. 
+    eauto with mem. eauto with mem. intros. rewrite <- H3; eapply Mem.load_store_other; eauto. 
     eauto. eauto. auto. 
     apply agree_regs_set_slot. apply agree_regs_undef_regs; auto. 
     destruct sl.
@@ -4697,8 +4712,8 @@ destruct H1. subst tf'.
     apply match_stacks_change_linear_mem with m. 
     apply match_stacks_change_mach_mem with m2.
     auto. 
-    eauto with mem. intros. eapply Mem.perm_free_1; eauto. left; apply Plt_ne; auto. 
-    intros. rewrite <- H3. eapply Mem.load_free; eauto. left; apply Plt_ne; auto. 
+    eauto with mem. intros. eapply Mem.perm_free_1; eauto. 
+    intros. rewrite <- H3. eapply Mem.load_free; eauto. 
     eauto with mem. intros. eapply Mem.perm_free_3; eauto. 
     apply Plt_Ple. change (Mem.valid_block m' stk). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_linear; eauto. 
     apply Plt_Ple. change (Mem.valid_block m1' sp'). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_mach; eauto. 
@@ -4897,13 +4912,15 @@ destruct H1. subst tf'.
       apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ H). intuition.
       apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ R). intuition.
   split.  
-    econstructor; eauto.
+    assert (FNSIG: Linear.fn_sig f=fn_sig tf).
+    { admit. (*this must be true*) }
+    rewrite FNSIG. econstructor; eauto.
     apply match_stacks_change_bounds with stk sp'.
     apply match_stacks_change_linear_mem with m.  
     apply match_stacks_change_mach_mem with m2.
     eauto. 
-    eauto with mem. intros. eapply Mem.perm_free_1; eauto. left; apply Plt_ne; auto. 
-    intros. rewrite <- H1. eapply Mem.load_free; eauto. left; apply Plt_ne; auto. 
+    eauto with mem. intros. eapply Mem.perm_free_1; eauto. 
+    intros. rewrite <- H1. eapply Mem.load_free; eauto. 
     eauto with mem. intros. eapply Mem.perm_free_3; eauto. 
     apply Plt_Ple. change (Mem.valid_block m' stk). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_linear; eauto. 
     apply Plt_Ple. change (Mem.valid_block m1' sp'). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_mach; eauto. 
@@ -4941,7 +4958,7 @@ destruct H1. subst tf'.
       rewrite SP_EQ; rewrite SP'_EQ.
       eapply match_stacks_change_meminj_intern; eauto. apply Ple_refl. 
       eauto with mem. intros. exploit Mem.perm_alloc_inv. eexact H. eauto. 
-      rewrite dec_eq_false; auto. apply Plt_ne; auto. 
+      rewrite dec_eq_false; auto. 
       intros. eapply stores_in_frame_valid; eauto with mem. 
       intros. eapply stores_in_frame_perm; eauto with mem.
       intros. rewrite <- H1. transitivity (Mem.load chunk m2' b ofs). eapply stores_in_frame_contents; eauto.
@@ -5139,7 +5156,7 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
         exploit agree_bounds. eauto. apply Mem.perm_cur_max. eauto. 
         omega.*)
       apply match_stacks_change_mach_mem with m2; auto.
-      eauto with mem. eauto with mem. intros. rewrite <- H3; eapply Mem.load_store_other; eauto. left; apply Plt_ne; auto. 
+      eauto with mem. eauto with mem. intros. rewrite <- H3; eapply Mem.load_store_other; eauto. 
       eauto. eauto. auto. 
       apply agree_regs_set_slot. apply agree_regs_undef_regs; auto. 
       destruct sl.
@@ -5443,8 +5460,8 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
       apply match_stacks_change_linear_mem with m. 
       apply match_stacks_change_mach_mem with m2.
       auto. 
-      eauto with mem. intros. eapply Mem.perm_free_1; eauto. left; apply Plt_ne; auto. 
-      intros. rewrite <- H3. eapply Mem.load_free; eauto. left; apply Plt_ne; auto. 
+      eauto with mem. intros. eapply Mem.perm_free_1; eauto. 
+      intros. rewrite <- H3. eapply Mem.load_free; eauto. 
       eauto with mem. intros. eapply Mem.perm_free_3; eauto. 
       apply Plt_Ple. change (Mem.valid_block m' stk). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_linear; eauto. 
       apply Plt_Ple. change (Mem.valid_block m1' sp'). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_mach; eauto. 
@@ -5666,13 +5683,15 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
       apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ R). intuition.
   split.  
     split.
-      econstructor; eauto.
+      assert (FNSIG: Linear.fn_sig f=fn_sig tf).
+      { admit. }
+      rewrite FNSIG; econstructor; eauto.
       apply match_stacks_change_bounds with stk sp'.
       apply match_stacks_change_linear_mem with m.  
       apply match_stacks_change_mach_mem with m2.
       eauto. 
-      eauto with mem. intros. eapply Mem.perm_free_1; eauto. left; apply Plt_ne; auto. 
-      intros. rewrite <- H1. eapply Mem.load_free; eauto. left; apply Plt_ne; auto. 
+      eauto with mem. intros. eapply Mem.perm_free_1; eauto. 
+      intros. rewrite <- H1. eapply Mem.load_free; eauto. 
       eauto with mem. intros. eapply Mem.perm_free_3; eauto. 
       apply Plt_Ple. change (Mem.valid_block m' stk). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_linear; eauto. 
       apply Plt_Ple. change (Mem.valid_block m1' sp'). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_mach; eauto. 
@@ -5717,7 +5736,7 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
       rewrite SP_EQ; rewrite SP'_EQ.
       eapply match_stacks_change_meminj_intern; eauto. apply Ple_refl. 
       eauto with mem. intros. exploit Mem.perm_alloc_inv. eexact H. eauto. 
-      rewrite dec_eq_false; auto. apply Plt_ne; auto. 
+      rewrite dec_eq_false; auto. 
       intros. eapply stores_in_frame_valid; eauto with mem. 
       intros. eapply stores_in_frame_perm; eauto with mem.
       intros. rewrite <- H1. transitivity (Mem.load chunk m2' b ofs). eapply stores_in_frame_contents; eauto.
@@ -6132,8 +6151,9 @@ rewrite replace_externs_as_inj, replace_externs_vis.
        apply REACH_nil. unfold exportedSrc.
          apply frgnSrc_shared in H2; trivial.
          rewrite H2; intuition.
-     constructor.  
-     clear - RValInjNu' WDnu'. destruct RValInjNu'; econstructor; eauto. 
+         admit. (*TODO (GS): encode_longs_inject*)
+
+     (*clear - RValInjNu' WDnu'. destruct RValInjNu'; econstructor; eauto. 
        eapply restrictI_Some; try eassumption.
        apply orb_true_iff.
        remember (locBlocksSrc nu' b1) as q.
@@ -6142,58 +6162,10 @@ rewrite replace_externs_as_inj, replace_externs_vis.
        split. eapply as_inj_DomRng; eassumption.
        apply REACH_nil. unfold exportedSrc. apply orb_true_iff. left.
          rewrite getBlocks_char. exists ofs1; left; trivial.
-      constructor.
-eapply agree_callee_save_set_result. eassumption.
-         
-(*    Focus 5. rewrite replace_externs_as_inj. rewrite replace_externs_vis. eapply wt_setlist_result; try eassumption.
-    exfalso. clear sp STACKS. inv STACKS. 
-    eapply match_stacks_change_meminj_intern; try eassumption.
-      split. rewrite replace_locals_local. apply inject_incr_refl.
-         
-            eapply forall_vals_inject_restrictD. eassumption.
-      eapply FwdSrc. eapply FwdTgt. ssumption. eassumption.
-    Focus 2.
-    admit.
-    eapply match_stacks_inject_incr; try eassumption.
-    unfold vis in *.
-      rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc in *.
-      rewrite (*restrict_sm_all, *)replace_externs_as_inj.
-      clear RRC RR1 RC' PHnu' INCvisNu' UnchLOOR UnchPrivSrc.
-      destruct INC. rewrite replace_locals_extern in H.
-        rewrite replace_locals_frgnBlocksTgt, replace_locals_frgnBlocksSrc,
-                replace_locals_pubBlocksTgt, replace_locals_pubBlocksSrc,
-                replace_locals_locBlocksTgt, replace_locals_locBlocksSrc,
-                replace_locals_extBlocksTgt, replace_locals_extBlocksSrc,
-                replace_locals_local in H0.
-        destruct H0 as [? [? [? [? [? [? [? [? ?]]]]]]]].
-        red; intros. destruct (restrictD_Some _ _ _ _ _ H9); clear H9.
-          apply restrictI_Some.
-            apply joinI.
-            destruct (joinD_Some _ _ _ _ _ H10).
-              apply H in H9. left; trivial.
-            destruct H9. right. rewrite H0 in H12.
-              split; trivial.
-              destruct (disjoint_extern_local _ WDnu' b); trivial. congruence.
-          (*rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc. *)
-          rewrite H3, H7 in H11.
-            remember (locBlocksSrc nu' b) as d.
-            destruct d; trivial; simpl in *.
-            apply andb_true_iff.
-            split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H11). intuition.
-               apply REACH_nil. unfold exportedSrc. 
-                 apply frgnSrc_shared in H11; trivial. rewrite H11; intuition.
-      unfold vis. rewrite replace_externs_as_inj. 
-       rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc. 
-       eapply restrict_val_inject; try eassumption.
-       intros.
-        destruct (getBlocks_inject (as_inj nu') (ret1::nil) (ret2::nil))
-           with (b:=b) as [bb [dd [JJ' GBbb]]]; try eassumption.
-          constructor. assumption. constructor.
-        remember (locBlocksSrc nu' b) as d.
-        destruct d; simpl; trivial. apply andb_true_iff.
-        split. eapply as_inj_DomRng; eassumption.
-        apply REACH_nil. unfold exportedSrc.
-           rewrite H. trivial.*)
+      constructor.*)
+
+    eapply agree_callee_save_set_result. eassumption.
+
 unfold vis in *.
 rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
         replace_externs_as_inj in *.
@@ -6288,31 +6260,19 @@ assert (GDE:= GDE_lemma).
     simpl in H0; inv H0.
     simpl in H0; inv H0.
     simpl in H0.
-    specialize (match_states_return _ _ _ _ _ _ _ _ STACKS WTLS AGREGS AGLOCS). intros.
+    specialize (match_states_return _ _ _ _ _ retty _ _ _ STACKS WTLS AGREGS AGLOCS). intros.
     destruct cs; inv H0.    
     remember (ls (Locations.R AX)) as d.
-    destruct d; inv H2.
-    exists (Vint i).
-    split. assumption.
-    split. constructor. (*eassumption.*)
-    simpl. inv STACKS.
-        specialize (agree_reg _ _ _ AX AGREGS).
-        rewrite <- Heqd. intros. inv H4. f_equal. }
+    inv STACKS.
+    destruct retty; try solve[inv H2]. destruct t; inv H2.
+    + exists (rs AX); split; auto. 
+    + exists (rs FP0); split; auto. 
+    + exists (Val.longofwords (rs DX) (rs AX)).
+      split; auto. split; auto. 
+      apply val_longofwords_inject; auto. 
+   + exists (rs FP0); split; auto. }
 (* at_external*) 
-  { eapply MATCH_atExternal; eassumption.
-    (*proof before the the addition of leak-out:
-     intros. destruct H as [MC [INJ [RC [PG [Glob [VAL WD]]]]]].
-    split; trivial.
-    inv MC; simpl in H0; try solve [inv H0].
-    destruct f; inv H0. 
-    inv STACKS. inv TRANSL. inv TRANSL.
-    destruct f; inv H0. inv TRANSL.
-    exploit transl_external_arguments.
-       eassumption. eassumption. eassumption.
-    intros [vl [A B]]. simpl in *.
-    apply val_list_inject_forall_inject in B. 
-    specialize (extcall_arguments_fun _ _ _ _ _ _ A GETARGS); intros; subst.
-    exists args; intuition.  *) }
+  { eapply MATCH_atExternal; eassumption. }
 (* after_external*)
   { eapply MATCH_afterExternal; eassumption. }
 (*Core_diagram*)

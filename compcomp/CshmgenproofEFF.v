@@ -2276,7 +2276,8 @@ Proof. intros.
     apply eq_sym in Heqzz.
   remember (type_of_fundef f) as tof. destruct tof; try discriminate.
   remember (val_casted.val_casted_list_func vals1 t) as cst.
-  destruct cst; try inv H1.
+  remember (tys_nonvoid t) as tnv.
+  destruct cst; destruct tnv; try inv H1.
   clear Ini. 
   exploit function_ptr_translated; eauto. intros [tf [FP TF]].
   exists (CSharpMin_Callstate tf vals2 Kstop).

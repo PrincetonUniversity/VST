@@ -14,6 +14,8 @@ Require Import CminorSel.
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 
+Require Import compcomp.val_casted.
+
 Inductive CMinSel_core: Type :=
   | CMinSel_State:                      (**r execution within a function *)
       forall (f: function)              (**r currently executing function  *)
@@ -219,7 +221,11 @@ Definition CMinSel_initial_core (ge:genv) (v: val) (args:list val): option CMinS
           if Int.eq_dec i Int.zero 
           then match Genv.find_funct_ptr ge b with
                  | None => None
-                 | Some f => Some (CMinSel_Callstate f args Kstop)
+                 | Some f => 
+                   if val_has_type_list_func args (sig_args (funsig f))
+                      && vals_defined args
+                   then Some (CMinSel_Callstate f args Kstop)
+                   else None
                end
           else None
      | _ => None

@@ -15,6 +15,8 @@ Require Import Csharpminor.
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 
+Require Import compcomp.val_casted.
+
 (*Obtained from Cminor.state by deleting the memory components.*)
 Inductive CSharpMin_core: Type :=
   | CSharpMin_State:                      (**r Execution within a function *)
@@ -214,7 +216,11 @@ Definition CSharpMin_initial_core (ge:genv) (v: val) (args:list val): option CSh
           if Int.eq_dec i Int.zero 
           then match Genv.find_funct_ptr ge b with
                  | None => None
-                 | Some f => Some (CSharpMin_Callstate f args Kstop)
+                 | Some f => 
+                   if val_has_type_list_func args (sig_args (funsig f))
+                      && vals_defined args
+                   then Some (CSharpMin_Callstate f args Kstop)
+                   else None
                end
           else None
      | _ => None
