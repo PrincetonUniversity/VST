@@ -4081,6 +4081,61 @@ Proof.
     apply MC. apply MC.
 Qed.
 
+Lemma wt_locset_setlist_loc_arguments: forall l i vals LM,
+  wt_locset LM ->
+  wt_locset (Locmap.setlist (loc_arguments_rec l i) vals LM).
+Proof. intros l.
+induction l; simpl; intros. trivial.
+destruct a; simpl; intros.
+  destruct vals. trivial.
+  eapply IHl. eapply wt_setstack. trivial.
+  destruct vals. trivial.
+  eapply IHl. eapply wt_setstack. trivial.
+  destruct vals. trivial.
+  destruct vals. eapply wt_setstack. trivial.
+  eapply IHl. eapply wt_setstack. eapply wt_setstack. trivial.
+  destruct vals. trivial.
+  eapply IHl. eapply wt_setstack. trivial.
+Qed. 
+
+Lemma setlist_encode_long_regs: forall r sgargs LM vals i, Locmap.setlist (loc_arguments_rec sgargs i)
+  (val_casted.encode_longs sgargs vals) LM (Locations.R r) =
+  LM (Locations.R r).
+Proof. intros r sgargs.
+induction sgargs; simpl; intros. reflexivity.
+destruct a; simpl. 
+  destruct vals; try reflexivity.
+  rewrite IHsgargs. rewrite Locmap.gso; trivial. constructor.
+  destruct vals; try reflexivity.
+  rewrite IHsgargs. rewrite Locmap.gso; trivial. constructor.
+  destruct vals; try reflexivity.
+  destruct v; try reflexivity.
+  rewrite IHsgargs. rewrite Locmap.gso. rewrite Locmap.gso; trivial. constructor. constructor.
+  rewrite IHsgargs. rewrite Locmap.gso. rewrite Locmap.gso; trivial. constructor. constructor.
+  destruct vals; try reflexivity.
+  rewrite IHsgargs. rewrite Locmap.gso; trivial. constructor.
+Qed.
+(*
+Lemma setlist_encode_long_slots: forall sl pos ty sgargs i vals LM,
+  Locmap.setlist (loc_arguments_rec sgargs i)
+    (val_casted.encode_longs sgargs vals) LM (S sl pos ty) =
+  LM (S sl pos ty).
+Proof.
+intros sl pos ty sgargs.
+induction sgargs; simpl; intros. reflexivity.
+destruct a; simpl. 
+  destruct vals; try reflexivity.
+  rewrite IHsgargs. rewrite Locmap.gso; trivial. constructor.
+  destruct vals; try reflexivity.
+  rewrite IHsgargs. rewrite Locmap.gso; trivial. constructor.
+  destruct vals; try reflexivity.
+  destruct v; try reflexivity.
+  rewrite IHsgargs. rewrite Locmap.gso. rewrite Locmap.gso; trivial. constructor. constructor.
+  rewrite IHsgargs. rewrite Locmap.gso. rewrite Locmap.gso; trivial. constructor. constructor.
+  destruct vals; try reflexivity.
+  rewrite IHsgargs. rewrite Locmap.gso; trivial. constructor.
+Qed.
+*)
 Lemma MATCH_initial: forall (v1 v2 : val) (sig : signature) entrypoints
   (EP: In (v1, v2, sig) entrypoints)
   (entry_points_ok : forall (v1 v2 : val) (sig : signature),
@@ -4168,8 +4223,8 @@ Proof. intros.
         destruct INIT. eapply find_symbol_isGlobal; eassumption.
         assumption. 
         apply LT.
-  split.
-    destruct f.
+  split. 2: rewrite initial_SM_as_inj; intuition.
+  destruct f.
     (*Internal *) 
       apply bind_inversion in TF. destruct TF as [x [TF X]]. inv X.
       eapply match_states_call_intern; try eassumption.
@@ -4187,12 +4242,22 @@ Proof. intros.
           eapply Genv.find_symbol_not_fresh. eassumption. eassumption. 
           eapply Genv.find_funct_ptr_not_fresh. eassumption. eassumption.
           eapply Genv.find_var_info_not_fresh. eassumption. eassumption.
-  red; intros. admit. (*finish MATCH_init once intern/extern/extrasteps has been solved*)  
+  red; intros. unfold loc_arguments in H1. 
+     apply loc_arguments_rec_charact in H1.
+     destruct l; try contradiction.
+     destruct sl; try contradiction.
+     admit. (*TODO: finish MATCH_init*)  
   simpl. unfold bind. rewrite TF. trivial. 
-  admit. admit. admit. (*finish MATCH_init once intern/extern/extrasteps has been solved*)
-    (*External*)
-      admit. (*TODO: finish MATCH_init once intern/extern/extrasteps has been solved*)
-      admit. (*TODO: finish MATCH_init once intern/extern/extrasteps has been solved*)
+  eapply wt_locset_setlist_loc_arguments. apply wt_init.
+  red; intros. unfold loc_arguments. simpl.
+    rewrite setlist_encode_long_regs. constructor.  
+  red; intros. unfold loc_arguments. simpl.
+    destruct l.
+      rewrite setlist_encode_long_regs. constructor.
+    admit. (*TODO: finish MATCH_init - setlist_encode_long_slots not quite right*)
+      
+(*External *)
+   admit. (*TODO: finish MATCH_init: function should not be an external one!!*)
 Qed.
 
 Lemma extcall_arg_fun rs m v l: forall 
@@ -4566,16 +4631,32 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
        destruct Hoff; try contradiction. subst.   
        rewrite H4 in VINJR. inv VINJR.
        destruct (restrictD_Some _ _ _ _ _ H9); trivial.
+
   (* Lcall *)
   exploit find_function_translated; eauto. intros [bf [tf' [A [B C]]]].
   exploit is_tail_transf_function; eauto. intros IST.
   rewrite transl_code_eq in IST. simpl in IST.
   exploit return_address_offset_exists. eexact IST.
   intros [ra D].
-  (*New: distinguish whether invoked function is internal or external - in the latter case, 
-      perform an additional step*)
+  assert (mtch_stack_intermediate: 
+    match_stacks mu m m2 (Linear.Stackframe f (Vptr sp0 Int.zero) rs b :: s)
+                         (Stackframe fb (Vptr sp' Int.zero) (Vptr fb ra)
+                           (transl_code (make_env (function_bounds f)) b) :: cs')
+                         (Linear.funsig f') (Mem.nextblock m) (Mem.nextblock m2)).
+    econstructor; eauto with coqlib.
+    simpl; auto.
+    intros; red.
+      apply Zle_trans with (size_arguments (Linear.funsig f')); auto.
+      apply loc_arguments_bounded; auto.
+    eapply agree_valid_linear; eauto.
+    eapply agree_valid_mach; eauto.
+  assert (AGCS: agree_callee_save rs (parent_locset (Linear.Stackframe f (Vptr sp0 Int.zero) rs b :: s))). 
+    simpl; red; auto.
+
+  (*New: distinguish whether invoked function is internal or external - 
+    in the latter case, we now perform an additional step*)
   destruct tf'.
-  (*case internal function call*)
+  (*Lcall: case internal function call*)
   eexists; eexists; split.
     apply corestep_plus_one. econstructor; eauto.
   exists mu.
@@ -4589,81 +4670,22 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
   constructor.
     econstructor; eauto.
-    econstructor; eauto with coqlib.
-    simpl; auto.
-    intros; red.
-      apply Zle_trans with (size_arguments (Linear.funsig f')); auto.
-      apply loc_arguments_bounded; auto.
-    eapply agree_valid_linear; eauto.
-    eapply agree_valid_mach; eauto.
-    eapply agree_wt_ls; eauto. 
-  simpl; red; auto.
+      eapply agree_wt_ls; eauto.
   intuition.
-  (*case external function call*)
-  (*use Linear.fn_sig f instead of  ef_sig e here??*)
-  assert (exists vl, extcall_arguments rs0 m2 (Vptr sp' Int.zero) (ef_sig e) vl /\
-          val_list_inject (restrict (as_inj mu) (vis mu)) 
-           (rs ## (loc_arguments (ef_sig e))) vl).
-  admit. (*
-    assert (forall l, In l (loc_arguments (ef_sig e)) ->
-           exists v, extcall_arg rs0 m2 (Vptr sp' Int.zero) l v /\
-                     val_inject (restrict (as_inj mu) (vis mu)) (rs l) v).
-      (*TODO: prepare arguments of external call
-         from proof of transl_external_argument*)
-      intros.
-       assert (loc_argument_acceptable l).
-        apply loc_arguments_acceptable with (ef_sig e); assumption.
-      destruct l; red in H1.
-      exists (rs0 r); split. constructor. auto. 
-      destruct sl; try contradiction.
-  inv STACKS. admit. (*Linear.fn_sig f instead of  ef_sig e here??elim (H5 _ H0).*)
-  simpl in AGFRAME.
-(*  unfold parent_sp.*)
-  assert (slot_valid f0 Outgoing pos ty = true).
-    exploit loc_arguments_acceptable; eauto. intros [AA BB]. 
-    unfold slot_valid. unfold proj_sumbool. rewrite zle_true. 
-    destruct ty; reflexivity || congruence. omega.
-  assert (slot_within_bounds (function_bounds f0) Outgoing pos ty).
-    eauto. 
-  exploit (agree_outgoing f0). eassumption. eassumption. assumption. intros [vv [AA BB]].
-  exists vv; split.
-  constructor. 
-  eapply index_contains_load_stack with (idx := FI_arg pos ty); eauto.
-   admit. (*TODO: got the sp slightly wrong - maybe the mistake is in Mach_eff.v??*) 
-   (*red in AGCS. rewrite AGCS; auto.*)
-   admit. (*TODO: should we add the store_stack assumptions from 
-     Mach_effexec_function_internal alos in Mach_effexec_function_external?*)
-        (*eexists; split. econstructor.
-          unfold load_stack, Val.add. simpl. destruct AGFRAME.
-         
-      elim (H5 _ H0).
-      unfold parent_sp.
-      assert (slot_valid f Outgoing pos ty = true).
-        exploit loc_arguments_acceptable; eauto. intros [A B]. 
-        unfold slot_valid. unfold proj_sumbool. rewrite zle_true. 
-        destruct ty; reflexivity || congruence. omega.
-      assert (slot_within_bounds (function_bounds f) Outgoing pos ty).
-        eauto.
-      exploit agree_outgoing; eauto. intros [v [A B]].
-      exists v; split.
-      constructor. 
-      eapply index_contains_load_stack with (idx := FI_arg pos ty); eauto. 
-      red in AGCS. rewrite AGCS; auto.*)
 
-    unfold extcall_arguments. remember (loc_arguments (Linear.fn_sig f)(*(ef_sig e)*)) as locs.
-    clear - H0.
-    induction locs; simpl; intros.
-      exists nil; simpl. split. constructor. constructor.
-    destruct (H0 a) as [v [ECa VIa]]. 
-      left; trivial.
-      destruct IHlocs as [vals [ECvals BIvals]].
-        intros. eapply H0. right; trivial.
-      exists (v::vals). split; econstructor; eauto.*)
-  destruct H0 as [args [ec_args inject_args]].
-  eexists; eexists; split.
-    eapply corestep_plus_two. econstructor; eauto.
-    eapply Mach_exec_function_external. eassumption. 
-       simpl. apply ec_args.
+  (*Lcall: case external function call. *)
+  exploit transl_external_arguments; try eapply mtch_stack_intermediate; try eassumption.
+  intros [args' [ExtArgs' ArgsInj]].
+  assert (SG: ef_sig e = Linear.funsig f'). apply sig_preserved in C; apply C.
+  rewrite <- SG in ExtArgs'.
+  eexists; eexists.
+  split. eapply corestep_plus_two.
+         econstructor.
+           eapply A. eapply FIND. eapply D.
+
+         (*Here's the extra step: *)
+         eapply Mach_exec_function_external. 
+           eapply B. apply ExtArgs' .
   exists mu.
   split. apply intern_incr_refl. 
   split. apply sm_inject_separated_same_sminj.
@@ -4673,18 +4695,11 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
-  constructor.
-    simpl. econstructor; eauto.
-    econstructor; eauto with coqlib.
-    simpl; auto.
-    intros; red.
-      apply Zle_trans with (size_arguments (Linear.funsig f')); auto.
-      apply loc_arguments_bounded; auto. (*xomega.*)
-    eapply agree_valid_linear; eauto.
-    eapply agree_valid_mach; eauto.
-    eapply agree_wt_ls; eauto.  
-    simpl; red; auto.
+  split.
+    eapply match_states_call_extern; eauto.
+      eapply agree_wt_ls; eauto.
   intuition.
+
   (* Ltailcall *)
   destruct PRE as [RC [PG [ Glob [SMV WD]]]].
   exploit function_epilogue_correct; eauto.
@@ -4726,6 +4741,7 @@ destruct H1. subst tf'.
         eapply SMV; assumption.
       eapply Mem.valid_block_free_1; try eassumption.
         eapply SMV; assumption.
+
   (* Mbuiltin*)
   destruct PRE as [RC [PG [Glob [SMV WD]]]].
       assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
@@ -4913,7 +4929,7 @@ destruct H1. subst tf'.
       apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ R). intuition.
   split.  
     assert (FNSIG: Linear.fn_sig f=fn_sig tf).
-    { admit. (*this must be true*) }
+    { rewrite (unfold_transf_function _ _ TRANSL); trivial. }
     rewrite FNSIG. econstructor; eauto.
     apply match_stacks_change_bounds with stk sp'.
     apply match_stacks_change_linear_mem with m.  
@@ -5328,16 +5344,32 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
            inv HI. inv B.
            eapply visPropagateR; eassumption.
     intros. eapply StoreEffect_PropagateLeft; try eassumption.
+
   (* Lcall *)
   exploit find_function_translated; eauto. intros [bf [tf' [A [B C]]]].
   exploit is_tail_transf_function; eauto. intros IST.
   rewrite transl_code_eq in IST. simpl in IST.
   exploit return_address_offset_exists. eexact IST.
   intros [ra D].
-  (*New: distinguish whether invoked function is internal or external - in the latter case, 
-      perform an additional step*)
+  assert (mtch_stack_intermediate: 
+    match_stacks mu m m2 (Linear.Stackframe f (Vptr sp0 Int.zero) rs b :: s)
+                         (Stackframe fb (Vptr sp' Int.zero) (Vptr fb ra)
+                           (transl_code (make_env (function_bounds f)) b) :: cs')
+                         (Linear.funsig f') (Mem.nextblock m) (Mem.nextblock m2)).
+    econstructor; eauto with coqlib.
+    simpl; auto.
+    intros; red.
+      apply Zle_trans with (size_arguments (Linear.funsig f')); auto.
+      apply loc_arguments_bounded; auto.
+    eapply agree_valid_linear; eauto.
+    eapply agree_valid_mach; eauto.
+  assert (AGCS: agree_callee_save rs (parent_locset (Linear.Stackframe f (Vptr sp0 Int.zero) rs b :: s))). 
+    simpl; red; auto.
+
+  (*New: distinguish whether invoked function is internal or external - 
+    in the latter case, we now perform an additional step*)
   destruct tf'.
-  (*case internal function call*)
+  (*Lcall: case internal function call*)
   eexists; eexists; eexists; split.
     apply effstep_plus_one. econstructor; eauto.
   exists mu.
@@ -5349,65 +5381,26 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
-  split.
+  split. 
     constructor.
       econstructor; eauto.
-      econstructor; eauto with coqlib.
-      simpl; auto.
-      intros; red.
-        apply Zle_trans with (size_arguments (Linear.funsig f')); auto.
-        apply loc_arguments_bounded; auto.
-      eapply agree_valid_linear; eauto.
-      eapply agree_valid_mach; eauto.
-      eapply agree_wt_ls; eauto. 
-    simpl; red; auto.
+        eapply agree_wt_ls; eauto.
     intuition.
   intuition.
-  (*case external function call*)
-  assert (exists vl, extcall_arguments rs0 m2 (Vptr sp' Int.zero) (ef_sig e) vl /\
-          val_list_inject (restrict (as_inj mu) (vis mu)) (rs ## (loc_arguments (ef_sig e))) vl).
-    assert (forall l, In l (loc_arguments (ef_sig e)) ->
-           exists v, extcall_arg rs0 m2 (Vptr sp' Int.zero) l v /\
-                     val_inject (restrict (as_inj mu) (vis mu)) (rs l) v).
-      admit. (*TODO: prepare arguments of external call
-         from proof of transl_external_argument
-      intros.
-       assert (loc_argument_acceptable l).
-        apply loc_arguments_acceptable with (ef_sig e); assumption.
-      destruct l; red in H1.
-      exists (rs0 r); split. constructor. auto. 
-      destruct sl; try contradiction.
-        eexists; split. econstructor.
-          unfold load_stack, Val.add. simpl. destruct AGFRAME.
-         
-      elim (H5 _ H0).
-      unfold parent_sp.
-      assert (slot_valid f Outgoing pos ty = true).
-        exploit loc_arguments_acceptable; eauto. intros [A B]. 
-        unfold slot_valid. unfold proj_sumbool. rewrite zle_true. 
-        destruct ty; reflexivity || congruence. omega.
-      assert (slot_within_bounds (function_bounds f) Outgoing pos ty).
-        eauto.
-      exploit agree_outgoing; eauto. intros [v [A B]].
-      exists v; split.
-      constructor. 
-      eapply index_contains_load_stack with (idx := FI_arg pos ty); eauto. 
-      red in AGCS. rewrite AGCS; auto.*)
 
-    unfold extcall_arguments. remember (loc_arguments (ef_sig e)) as locs.
-    clear - H0.
-    induction locs; simpl; intros.
-      exists nil; simpl. split. constructor. constructor.
-    destruct (H0 a) as [v [ECa VIa]]. 
-      left; trivial.
-      destruct IHlocs as [vals [ECvals BIvals]].
-        intros. eapply H0. right; trivial.
-      exists (v::vals). split; econstructor; eauto.
-  destruct H0 as [args [ec_args inject_args]].
-  eexists; eexists; eexists; split.
-    eapply effstep_plus_two. econstructor; eauto.
-    eapply Mach_effexec_function_external. eassumption. 
-       simpl. apply ec_args.
+  (*Lcall: case external function call. *)
+  exploit transl_external_arguments; try eapply mtch_stack_intermediate; try eassumption.
+  intros [args' [ExtArgs' ArgsInj]].
+  assert (SG: ef_sig e = Linear.funsig f'). apply sig_preserved in C; apply C.
+  rewrite <- SG in ExtArgs'.
+  eexists; eexists; eexists.
+  split. eapply effstep_plus_two.
+         econstructor.
+           eapply A. eapply FIND. eapply D.
+
+         (*Here's the extra step: *)
+         eapply Mach_effexec_function_external. 
+           eapply B. apply ExtArgs' .
   exists mu.
   split. apply intern_incr_refl. 
   split. apply sm_inject_separated_same_sminj.
@@ -5418,19 +5411,12 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
   split.
-    constructor.
-      simpl. econstructor; eauto.
-      econstructor; eauto with coqlib.
-      simpl; auto.
-      intros; red.
-        apply Zle_trans with (size_arguments (Linear.funsig f')); auto.
-        apply loc_arguments_bounded; auto. (*xomega.*)
-      eapply agree_valid_linear; eauto.
-      eapply agree_valid_mach; eauto.
-      eapply agree_wt_ls; eauto.  
-      simpl; red; auto.
+    split.
+      eapply match_states_call_extern; eauto.
+      eapply agree_wt_ls; eauto.
     intuition.
   intuition.
+
   (* Ltailcall *)
   destruct PRE as [RC [PG [ Glob [SMV WD]]]].
   exploit function_epilogue_correct_eff; eauto.
@@ -5480,6 +5466,7 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
     apply FreeEffectD in H1. destruct H1 as [? [VB Arith2]]; subst.
     split. eapply visPropagateR; eassumption.
     rewrite SPlocalTgt. intuition.
+
   (*MBuiltin*)
   destruct PRE as [RC [PG [Glob [SMV WD]]]].
       assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
@@ -5684,7 +5671,7 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
   split.  
     split.
       assert (FNSIG: Linear.fn_sig f=fn_sig tf).
-      { admit. }
+      { rewrite (unfold_transf_function _ _ TRANSL); trivial. }
       rewrite FNSIG; econstructor; eauto.
       apply match_stacks_change_bounds with stk sp'.
       apply match_stacks_change_linear_mem with m.  
