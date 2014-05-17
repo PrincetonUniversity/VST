@@ -197,7 +197,10 @@ with reptype_structlist (fld: fieldlist) : Type :=
 with reptype_unionlist (fld: fieldlist) : Type :=
   match fld with
   | Fnil => unit
-  | Fcons id ty fld' => sum (reptype ty) (reptype_unionlist fld')
+  | Fcons id ty fld' => 
+    if is_Fnil fld' 
+      then reptype ty
+      else sum (reptype ty) (reptype_unionlist fld')
   end.
 
 Fixpoint reptype' (ty: type) : Type :=
@@ -224,7 +227,10 @@ with reptype'_structlist (fld: fieldlist) : Type :=
 with reptype'_unionlist (fld: fieldlist) : Type :=
   match fld with
   | Fnil => unit
-  | Fcons id ty fld' => sum (reptype' ty) (reptype'_unionlist fld')
+  | Fcons id ty fld' => 
+    if is_Fnil fld' 
+      then reptype' ty
+      else sum (reptype' ty) (reptype'_unionlist fld')
   end.
 
 Fixpoint repinj (t: type): reptype' t -> reptype t :=
@@ -256,17 +262,26 @@ with repinj_structlist (fld: fieldlist) : reptype'_structlist fld -> reptype_str
       fun (_ : is_Fnil fld0 = false)
         (v : reptype' t * reptype'_structlist fld0) =>
       (repinj t (fst v), repinj_structlist fld0 (snd v))) eq_refl
-end
+  end
 with repinj_unionlist (fld: fieldlist) : reptype'_unionlist fld -> reptype_unionlist fld :=
   match fld as f return (reptype'_unionlist f -> reptype_unionlist f) with
   | Fnil => id
   | Fcons _ t fld0 =>
-    fun X : reptype' t + reptype'_unionlist fld0 =>
-    match X with
-    | inl v1 => inl (repinj t v1)
-    | inr v2 => inr (repinj_unionlist fld0 v2)
-    end
-end.
+    (if is_Fnil fld0  as b0
+      return
+        (is_Fnil fld0 = b0 ->
+         (if b0
+          then reptype' t
+          else sum (reptype' t) (reptype'_unionlist fld0)) ->
+         if b0 then reptype t else sum (reptype t) (reptype_unionlist fld0))
+     then fun _ : is_Fnil fld0 = true => repinj t
+     else
+      fun (_ : is_Fnil fld0 = false) (v : sum (reptype' t) (reptype'_unionlist fld0)) =>
+      match v with
+      | inl v1 => inl (repinj t v1)
+      | inr v2 => inr (repinj_unionlist fld0 v2)
+      end) eq_refl
+  end.
 
 Fixpoint default_val (t: type) : reptype t :=
   match t as t0 return (reptype t0) with
@@ -278,11 +293,7 @@ Fixpoint default_val (t: type) : reptype t :=
   | Tarray t0 _ _ => nil
   | Tfunction _ _ => tt
   | Tstruct _ f _ => struct_default_val f
-  | Tunion _ f _ =>
-      match f as f0 return (reptype_unionlist f0) with
-      | Fnil => tt
-      | Fcons _ t1 _ => inl (default_val t1)
-      end
+  | Tunion _ f _ => union_default_val f
   | Tcomp_ptr _ _ => Vundef
   end
 with struct_default_val flds : reptype_structlist flds :=
@@ -293,6 +304,15 @@ with struct_default_val flds : reptype_structlist flds :=
       return  (if b then reptype t else (reptype t * reptype_structlist flds0)%type)
      then default_val t
      else (default_val t, struct_default_val flds0)
+  end
+with union_default_val flds : reptype_unionlist flds :=
+  match flds as f return (reptype_unionlist f) with
+  | Fnil => tt
+  | Fcons _ t flds0 =>
+     if is_Fnil flds0 as b
+      return  (if b then reptype t else (reptype t + reptype_unionlist flds0)%type)
+     then default_val t
+     else inl (default_val t)
   end.
 
 Lemma int_add_repr_0_l: forall i, Int.add (Int.repr 0) i = i.
@@ -369,6 +389,13 @@ Proof.
   destruct p; auto.
   rewrite int_add_assoc1.
   reflexivity.
+Qed.
+
+Lemma at_offset_derives: forall P Q, P |-- Q -> forall pos, at_offset' P pos |-- at_offset' Q pos.
+Proof.
+  intros.
+  go_lower.
+  unfold at_offset', at_offset. destruct pos; apply H.
 Qed.
 
 (******************************************
@@ -514,7 +541,7 @@ with sfieldlist_at' (sh: Share.t) (e: type_id_env) (alignment: Z) (flds: fieldli
   match flds as f return reptype_structlist f -> val -> mpred with
   | Fnil => fun _ p => !!(isptr p) && emp (* empty struct case *)
   | Fcons i t flds0 =>
-    fun (v : reptype_structlist (Fcons i t flds0)) =>
+    fun v : reptype_structlist (Fcons i t flds0) =>
       (if is_Fnil flds0 as b
         return
           (is_Fnil flds0 = b ->
@@ -525,23 +552,34 @@ with sfieldlist_at' (sh: Share.t) (e: type_id_env) (alignment: Z) (flds: fieldli
         fun (_ : is_Fnil flds0 = true) (v0 : reptype t) =>
           withspacer sh (pos + sizeof t) alignment (data_at' sh e t pos v0)
        else
-        fun (_ : is_Fnil flds0 = false) (v0 : reptype t * reptype_structlist flds0) =>
+        fun (_ : is_Fnil flds0 = false) (v0 : (reptype t * reptype_structlist flds0)%type) =>
           withspacer sh (pos + sizeof t) (alignof_hd flds0) (data_at' sh e t pos (fst v0)) *
           (sfieldlist_at' sh e alignment flds0 (align (pos + sizeof t) (alignof_hd flds0)) (snd v0)))
     eq_refl v
-end
+  end
 with ufieldlist_at' (sh: Share.t) (e: type_id_env) (alignment: Z) (flds: fieldlist) (pos: Z) {struct flds}: reptype_unionlist flds -> val -> mpred :=
   match flds as f return (reptype_unionlist f -> val -> mpred) with
   | Fnil => fun _ p => !!(isptr p) && emp (* empty union case *)
-  | Fcons i t flds0 => fun v : (reptype t) + (reptype_unionlist flds0) =>
-    match v with
-    | inl v_hd => 
-      withspacer sh (pos + sizeof t) alignment (data_at' sh e t pos v_hd)
-    | inr v_tl =>
-      if is_Fnil flds0
-      then fun _ => FF
-      else ufieldlist_at' sh e alignment flds0 pos v_tl
-    end
+  | Fcons i t flds0 => 
+    fun v : reptype_unionlist (Fcons i t flds0) =>
+      (if is_Fnil flds0 as b
+        return
+          (is_Fnil flds0 = b ->
+           (if b
+            then reptype t
+            else (reptype t + reptype_unionlist flds0)%type) -> val -> mpred)
+       then
+        fun (_ : is_Fnil flds0 = true) (v0 : reptype t) =>
+          withspacer sh (pos + sizeof t) alignment (data_at' sh e t pos v0)
+       else
+        fun (_ : is_Fnil flds0 = false) (v0 : (reptype t + reptype_unionlist flds0)%type) =>
+          match v0 with
+          | inl v_hd => 
+            withspacer sh (pos + sizeof t) alignment (data_at' sh e t pos v_hd)
+          | inr v_tl =>
+            ufieldlist_at' sh e alignment flds0 pos v_tl
+          end)
+    eq_refl v
   end.
 
 Definition data_at (sh: Share.t) (t: type) := data_at' sh empty_ti t 0.
@@ -593,9 +631,9 @@ Proof.
       * apply (right_is_prop (!!isptr p) ( withspacer sh (pos0 + sizeof t0) (alignof_hd f)
      (data_at' sh e t0 pos0 (fst v0)) p)); [apply prop_is_prop|].
         apply withspacer_preserve_local_facts; intros. apply H.
-    - destruct v0.
+    - destruct (is_Fnil).
       * apply withspacer_preserve_local_facts; intros. apply H.
-      * if_tac. normalize. apply H1.
+      * destruct v0; [apply withspacer_preserve_local_facts; intros; apply H | apply H1].
 Qed.
 
 Lemma data_at'_isptr:
@@ -705,70 +743,69 @@ Proof.
     simpl. normalize.
   + intros.
     assert (alignof t0 | pos); [
-        eapply Z.divide_trans; [|exact H5];
-        eapply Z.divide_trans; [|exact H4];
-        apply alignof_fields_hd_divide |].
+      eapply Z.divide_trans; [|exact H5];
+      eapply Z.divide_trans; [|exact H4];
+      apply alignof_fields_hd_divide |].
     assert (alignof t0 | pos'); [
-        eapply Z.divide_trans; [|exact H6];
-        simpl alignof_hd; apply Z.divide_refl |].
+      eapply Z.divide_trans; [|exact H6];
+      simpl alignof_hd; apply Z.divide_refl |].
     simpl in H3.
     apply andb_true_iff in H3; destruct H3 as [? ?].
     destruct (is_Fnil f) eqn:Hf; intros; revert v0; simpl; rewrite Hf; intros.
-      * rewrite <- (withspacer_add _ _ _ _ _ _ H5).
-        repeat rewrite withspacer_spacer.
-        repeat rewrite lower_sepcon_val'.
-        rewrite <- (H1 pos' H3 H7 H8).
-        rewrite Zplus_assoc_reverse.
-        reflexivity.
-      * erewrite <- withspacer_add; [|
-          eapply Z.divide_trans; [|exact H5];
-          eapply Z.divide_trans; [|exact H4];
-          eapply Z.divide_trans; [apply alignof_hd_divide | apply alignof_fields_tl_divide]].
-        repeat rewrite withspacer_spacer.
-        repeat rewrite lower_sepcon_val'.
-        rewrite <- (H1 pos' H3 H7 H8).
-        assert (alignof_fields f | alignment); [
-          eapply Z.divide_trans; [|exact H4];
-          apply alignof_fields_tl_divide |].
-        assert (alignof_hd f | (align (pos' + sizeof t0) (alignof_hd f))); [
-          apply align_divides; apply alignof_hd_pos |].
-        destruct (H2 (align (pos' + sizeof t0) (alignof_hd f))alignment H9 H10 H5) as [? _].
-        rewrite Zplus_assoc_reverse.
-        replace (align (pos + (pos' + sizeof t0)) (alignof_hd f))  with (pos + align (pos' + sizeof t0) (alignof_hd f)); [ rewrite (H12  H11); reflexivity |].
-        apply divide_add_align.
-        eapply Z.divide_trans; [apply alignof_hd_divide|].
-        eapply Z.divide_trans; [exact H10 | exact H5].
-  + intros.
-    assert (alignof t0 | pos); [
+    * rewrite <- (withspacer_add _ _ _ _ _ _ H5).
+      repeat rewrite withspacer_spacer.
+      repeat rewrite lower_sepcon_val'.
+      rewrite <- (H1 pos' H3 H7 H8).
+      rewrite Zplus_assoc_reverse.
+      reflexivity.
+    * erewrite <- withspacer_add; [|
         eapply Z.divide_trans; [|exact H5];
         eapply Z.divide_trans; [|exact H4];
-        apply alignof_fields_hd_divide |].
+        eapply Z.divide_trans; [apply alignof_hd_divide | apply alignof_fields_tl_divide]].
+      repeat rewrite withspacer_spacer.
+      repeat rewrite lower_sepcon_val'.
+      rewrite <- (H1 pos' H3 H7 H8).
+      assert (alignof_fields f | alignment); [
+        eapply Z.divide_trans; [|exact H4];
+        apply alignof_fields_tl_divide |].
+      assert (alignof_hd f | (align (pos' + sizeof t0) (alignof_hd f))); [
+        apply align_divides; apply alignof_hd_pos |].
+      destruct (H2 (align (pos' + sizeof t0) (alignof_hd f))alignment H9 H10 H5) as [? _].
+      rewrite Zplus_assoc_reverse.
+      replace (align (pos + (pos' + sizeof t0)) (alignof_hd f))  with (pos + align (pos' + sizeof t0) (alignof_hd f)); [ rewrite (H12  H11); reflexivity |].
+      apply divide_add_align.
+      eapply Z.divide_trans; [apply alignof_hd_divide|].
+      eapply Z.divide_trans; [exact H10 | exact H5].
+  + intros.
+    assert (alignof t0 | pos); [
+      eapply Z.divide_trans; [|exact H5];
+      eapply Z.divide_trans; [|exact H4];
+      apply alignof_fields_hd_divide |].
     assert (alignof t0 | pos'); [
-        eapply Z.divide_trans; [apply alignof_fields_hd_divide |exact H6]|].
+      eapply Z.divide_trans; [apply alignof_fields_hd_divide |exact H6]|].
     assert (alignof_fields f | pos').
-        eapply Z.divide_trans; [apply alignof_fields_tl_divide |exact H6].
+      eapply Z.divide_trans; [apply alignof_fields_tl_divide |exact H6].
     simpl in H3.
     apply andb_true_iff in H3; destruct H3 as [? ?].
-    destruct (is_Fnil f) eqn:Hf; intros; revert v0; simpl; rewrite Hf; intros; destruct v0.
-      * rewrite <- (withspacer_add _ _ _ _ _ _ H5).
-        repeat rewrite withspacer_spacer.
-        repeat rewrite lower_sepcon_val'.
-        rewrite <- (H1 pos' H3 H7 H8).
-        rewrite Zplus_assoc_reverse.
-        reflexivity.
-      * reflexivity.
-      * erewrite <- withspacer_add; [| exact H5].
-        repeat rewrite withspacer_spacer.
-        repeat rewrite lower_sepcon_val'.
-        rewrite Zplus_assoc_reverse.
-        rewrite <- (H1 pos' H3 H7 H8).
-        reflexivity.
-      * assert (alignof_fields f | alignment); [
-          eapply Z.divide_trans; [|exact H4];
-          apply alignof_fields_tl_divide |]. 
-        destruct (H2 pos' alignment H10 H11 H5) as [_ ?].
-        rewrite (H12 H9).
-        reflexivity.
+    destruct (is_Fnil f) eqn:Hf; intros; revert v0; simpl; rewrite Hf; intros; [|destruct v0].
+    * rewrite <- (withspacer_add _ _ _ _ _ _ H5).
+      repeat rewrite withspacer_spacer.
+      repeat rewrite lower_sepcon_val'.
+      rewrite <- (H1 pos' H3 H7 H8).
+      rewrite Zplus_assoc_reverse.
+      reflexivity.
+    * erewrite <- withspacer_add; [| exact H5].
+      repeat rewrite withspacer_spacer.
+      repeat rewrite lower_sepcon_val'.
+      rewrite Zplus_assoc_reverse.
+      rewrite <- (H1 pos' H3 H7 H8).
+      reflexivity.
+    * assert (alignof_fields f | alignment); [
+        eapply Z.divide_trans; [|exact H4];
+        apply alignof_fields_tl_divide |]. 
+      destruct (H2 pos' alignment H10 H11 H5) as [_ ?].
+      rewrite (H12 H9).
+      reflexivity.
   + apply Z.divide_0_r.
 Qed.
 
@@ -777,7 +814,47 @@ Lemma data_at_data_at_ :
 Proof.
   intros.
   unfold data_at_, data_at.
-Admitted.
+  remember 0 as pos.
+  assert (alignof t | pos).
+    subst pos.
+    apply Zdivide_0.
+Check sfieldlist_at'.
+Print default_val.
+  apply (type_mut 
+    (fun t => forall pos v, data_at' sh empty_ti t pos v p |-- data_at' sh empty_ti t pos (default_val t) p) (fun t => True)
+    (fun f => (forall alignment pos v, sfieldlist_at' sh empty_ti alignment f pos v p |-- sfieldlist_at' sh empty_ti alignment f pos (struct_default_val f) p) /\ forall alignment pos v, ufieldlist_at' sh empty_ti alignment f pos v p |-- ufieldlist_at' sh empty_ti alignment f pos (union_default_val f) p));
+  intros; simpl;
+  try (apply derives_refl; reflexivity);
+  try (unfold at_offset2; eapply derives_trans; 
+    [apply at_offset_derives; go_lower; apply mapsto_mapsto_; reflexivity |
+    unfold mapsto_; apply derives_refl; reflexivity]);
+  try tauto.
+  + admit. (* array case *)
+  + destruct H0 as [? _].
+    apply H0.
+  + destruct H0 as [_ ?].
+    apply H0.
+  + split; intros; apply derives_refl.
+  + split; intros; destruct (is_Fnil f).
+    * repeat rewrite withspacer_spacer.
+      repeat rewrite lower_sepcon_val'.
+      cancel.
+    * apply sepcon_derives.
+      - repeat rewrite withspacer_spacer.
+        repeat rewrite lower_sepcon_val'.
+        cancel.
+      - destruct H1 as [? _].
+        apply H1.
+    * repeat rewrite withspacer_spacer.
+      repeat rewrite lower_sepcon_val'.
+      cancel.
+    * simpl default_val. destruct v0.
+      - repeat rewrite withspacer_spacer.
+        repeat rewrite lower_sepcon_val'.
+        cancel.
+      - admit. (* Here, we need the help from memory_block and mapsto_ lemmas. *)
+Qed.
+
 Hint Resolve data_at_data_at_.
 
 
