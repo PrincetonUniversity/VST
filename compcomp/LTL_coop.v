@@ -58,39 +58,6 @@ Definition LTL_at_external (c: LTL_core) : option (external_function * signature
     | LTL_Returnstate _ _ _ => None
  end.
 
-Fixpoint encode_longs (tyl : list typ) (vl : list val) :=
-  match tyl with
-    | nil => nil
-    | Tlong :: tyl' => 
-      match vl with 
-        | nil => nil
-        | Vlong n :: vl' => Vint (Int64.hiword n) :: Vint (Int64.loword n) 
-                            :: encode_longs tyl' vl'
-        | Vundef :: vl' => Vundef :: Vundef :: encode_longs tyl' vl'
-        | _ :: _ => nil
-      end
-    | t :: tyl' => 
-      match vl with
-        | nil => nil
-        | v :: vl' => v :: encode_longs tyl' vl'
-      end
-  end.
-
-Lemma decode_encode_longs tyl vl : 
-  Val.has_type_list vl tyl -> 
-  decode_longs tyl (encode_longs tyl vl) = vl.
-Proof.
-revert tyl; induction vl.
-destruct tyl. simpl; auto.
-destruct t; simpl; auto.
-destruct tyl. simpl. inversion 1. inversion 1; subst. clear H.
-simpl. destruct t; auto; try rewrite IHvl; auto.
-destruct a; simpl; try solve[inv H0].
-rewrite IHvl; auto.
-rewrite IHvl; auto. f_equal. 
-rewrite Int64.ofwords_recompose; auto.
-Qed.
-
 Definition LTL_after_external (vret: option val) (c: LTL_core) : option LTL_core :=
   match c with 
     | LTL_Callstate s f rs => 

@@ -4114,6 +4114,10 @@ destruct a; simpl.
   rewrite IHsgargs. rewrite Locmap.gso. rewrite Locmap.gso; trivial. constructor. constructor.
   destruct vals; try reflexivity.
   rewrite IHsgargs. rewrite Locmap.gso; trivial. constructor.
+  rewrite IHsgargs. rewrite Locmap.gso; trivial. constructor.  
+  rewrite IHsgargs. rewrite Locmap.gso; trivial. constructor.  
+  rewrite IHsgargs. rewrite Locmap.gso; trivial. constructor.  
+  destruct vals; auto. rewrite IHsgargs. rewrite Locmap.gso; trivial. constructor.  
 Qed.
 (*
 Lemma setlist_encode_long_slots: forall sl pos ty sgargs i vals LM,
@@ -6137,10 +6141,11 @@ rewrite replace_externs_as_inj, replace_externs_vis.
              intuition.
        apply REACH_nil. unfold exportedSrc.
          apply frgnSrc_shared in H2; trivial.
-         rewrite H2; intuition.
-         admit. (*TODO (GS): encode_longs_inject*)
-
-     (*clear - RValInjNu' WDnu'. destruct RValInjNu'; econstructor; eauto. 
+         solve[rewrite H2; intuition].
+       apply val_casted.encode_longs_inject; auto.
+       { constructor. 
+       clear - RValInjNu' WDnu'.
+       destruct RValInjNu'; econstructor; eauto. 
        eapply restrictI_Some; try eassumption.
        apply orb_true_iff.
        remember (locBlocksSrc nu' b1) as q.
@@ -6149,7 +6154,7 @@ rewrite replace_externs_as_inj, replace_externs_vis.
        split. eapply as_inj_DomRng; eassumption.
        apply REACH_nil. unfold exportedSrc. apply orb_true_iff. left.
          rewrite getBlocks_char. exists ofs1; left; trivial.
-      constructor.*)
+      constructor. }
 
     eapply agree_callee_save_set_result. eassumption.
 

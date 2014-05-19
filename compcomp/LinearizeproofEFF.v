@@ -1479,8 +1479,8 @@ split.
               unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H2). intuition. 
               apply REACH_nil. unfold exportedSrc. rewrite sharedSrc_iff_frgnpub, H2; trivial. 
               intuition.
-        admit. (*TODO (GS): encode_longs_inject*)
-(*      rewrite restrict_nest; trivial.
+        apply val_casted.encode_longs_inject.
+        rewrite restrict_nest; trivial.
         constructor; eauto. inv RValInjNu'; econstructor; try reflexivity.
         apply restrictI_Some; trivial.
         remember (locBlocksSrc nu' b1) as q.
@@ -1489,7 +1489,7 @@ split.
           eapply as_inj_DomRng; eassumption.
           apply REACH_nil. unfold exportedSrc. 
             apply orb_true_iff; left.
-            rewrite getBlocks_char. eexists; left. reflexivity.*)
+            solve[rewrite getBlocks_char; eexists; left; reflexivity].
       apply map_R_outgoing.  
 destruct (eff_after_check2 _ _ _ _ _ MemInjNu' RValInjNu' 
       _ (eq_refl _) _ (eq_refl _) _ (eq_refl _) WDnu' SMvalNu').
@@ -2005,7 +2005,9 @@ Proof. intros.
           try rewrite (freshloc_free _ _ _ _ _ H); intuition.
   split. 
     assert (FNSIG: sig_res (LTL.fn_sig f) = sig_res (fn_sig tf)).
-    { admit. }
+    { unfold transf_function in TRF. 
+      destruct (enumerate f). simpl in TRF. inv TRF. simpl. solve[auto]. 
+      simpl in TRF. inv TRF. }
     rewrite FNSIG. econstructor; eauto.
            eapply agree_regs_return. 
              rewrite vis_restrict_sm, restrict_sm_all, restrict_nest; trivial.
@@ -2636,7 +2638,9 @@ Proof. intros.
   split.
     split. 
     assert (FNSIG: sig_res (LTL.fn_sig f) = sig_res (fn_sig tf)).
-    { admit. (*TODO (GS): encode_longs_inject*) }
+    { unfold transf_function in TRF. 
+      destruct (enumerate f). simpl in TRF. inv TRF. simpl. solve[auto]. 
+      simpl in TRF. inv TRF. }
     rewrite FNSIG; econstructor; eauto.
            eapply agree_regs_return. 
              rewrite vis_restrict_sm, restrict_sm_all, restrict_nest; trivial.
@@ -2816,17 +2820,24 @@ Proof. intros.
         unfold vis, initial_SM; simpl.
         apply forall_inject_val_list_inject.
         eapply restrict_forall_vals_inject.
-        admit. (*TODO (GS): encode_longs_inject*)
+        apply val_list_inject_forall_inject.
+        apply val_casted.encode_longs_inject; auto.
+        apply forall_inject_val_list_inject; auto.
 
-        Lemma getBlocks_encode_longs tys vals : 
-          getBlocks vals = getBlocks (encode_longs tys vals).
+        Lemma getBlocks_encode_longs tys vals b : 
+          getBlocks (val_casted.encode_longs tys vals) b=true ->
+          getBlocks vals b=true.
         Proof.
-          extensionality b. admit. (*TODO (GS)*)
+          revert tys; induction vals; destruct tys; try destruct t; simpl; auto.
+          unfold getBlocks; simpl; congruence.
+          admit.
+          admit.
+          destruct a. admit. admit. admit. admit. admit. admit.
         Qed.
 
           intros. apply REACH_nil. 
-          rewrite (getBlocks_encode_longs (sig_args (LTL.funsig f))). 
-          rewrite H; intuition.
+          rewrite orb_true_iff. right. 
+          apply (getBlocks_encode_longs (sig_args (LTL.funsig f))); auto.
       red; intros. apply Conventions1.loc_arguments_rec_charact in H. 
            destruct l; try contradiction.
            destruct sl; try contradiction. trivial. 

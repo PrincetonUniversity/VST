@@ -442,7 +442,7 @@ Fixpoint encode_longs (tyl : list typ) (vl : list val) :=
         | Vlong n :: vl' => Vint (Int64.hiword n) :: Vint (Int64.loword n) 
                             :: encode_longs tyl' vl'
         | Vundef :: vl' => Vundef :: Vundef :: encode_longs tyl' vl'
-        | _ :: _ => nil
+        | _ :: vl' => Vundef :: Vundef :: encode_longs tyl' vl'
       end
     | t :: tyl' => 
       match vl with
@@ -464,4 +464,64 @@ destruct a; simpl; try solve[inv H0].
 rewrite IHvl; auto.
 rewrite IHvl; auto. f_equal. 
 rewrite Int64.ofwords_recompose; auto.
+Qed.
+
+Lemma encode_longs_inject:
+  forall (f : meminj) (tyl : list typ) (vl1 vl2 : list val),
+  val_list_inject f vl1 vl2 ->
+  val_list_inject f (encode_longs tyl vl1) (encode_longs tyl vl2).
+Proof.
+intros until vl2; intros H; revert tyl; induction H; simpl.
+destruct tyl; simpl; [solve[constructor]|]. solve[destruct t; auto].
+destruct tyl; simpl; [solve[constructor]|]. destruct t.
+solve[constructor; auto]. 
+solve[constructor; auto].
+inv H. solve[auto]. constructor; auto. solve[auto]. solve[auto].
+destruct v'; solve[auto|constructor; auto].
+solve[constructor; auto].
+Qed.
+
+Fixpoint getBlocks' (vl : list val) (b0 : block) := 
+  match vl with
+    | nil => false
+    | Vptr b _ :: vl' => eq_block b b0 || getBlocks' vl' b0
+    | _ :: vl' => getBlocks' vl' b0
+  end.
+
+Lemma getBlocks_getBlocks' vl b0 : getBlocks vl b0 = getBlocks' vl b0.
+Proof.
+induction vl; simpl; auto.
+destruct a; auto. unfold getBlocks. simpl. 
+destruct (eq_block b b0); simpl; auto.
+rewrite <-IHvl. unfold getBlocks. 
+destruct (
+     in_dec eq_block b0
+       (fold_right
+          (fun (v : val) (L : list block) =>
+           match v with
+           | Vundef => L
+           | Vint _ => L
+           | Vlong _ => L
+           | Vfloat _ => L
+           | Vptr b' _ => b' :: L
+           end) nil vl)
+); auto.
+Qed.
+
+Lemma getBlocks_encode_longs tys vals b : 
+  getBlocks (encode_longs tys vals) b=true ->
+  getBlocks vals b=true.
+Proof.
+  rewrite !getBlocks_getBlocks'.
+  revert tys; induction vals; simpl; auto. destruct tys. simpl; auto. 
+  solve[destruct t; simpl; auto].
+  destruct tys. simpl; congruence.
+  simpl. destruct t; destruct a; simpl; intros; try solve[eapply IHvals; eauto].
+  rewrite orb_true_iff in H. destruct H. rewrite H; auto. 
+    rewrite orb_true_iff. right. solve[eapply IHvals; eauto].
+  rewrite orb_true_iff in H. destruct H. rewrite H; auto. 
+    rewrite orb_true_iff. right. solve[eapply IHvals; eauto].
+  rewrite orb_true_iff. right. solve[eapply IHvals; eauto].
+  rewrite orb_true_iff in H. destruct H. rewrite H; auto. 
+    rewrite orb_true_iff. right. solve[eapply IHvals; eauto].
 Qed.

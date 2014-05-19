@@ -2322,7 +2322,7 @@ Proof. intros.
   exploit function_ptr_translated; eauto. intros [tf [FP TF]].
   simpl. exists (LTL_Callstate nil tf 
                   (Locmap.setlist (loc_arguments (funsig tf)) 
-                    (encode_longs (sig_args (funsig tf)) vals2) 
+                    (val_casted.encode_longs (sig_args (funsig tf)) vals2) 
                     (Locmap.init Vundef))). 
  split. 
     destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
