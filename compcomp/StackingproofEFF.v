@@ -4709,6 +4709,27 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
   exploit function_epilogue_correct; eauto.
   intros [rs1 [m1' [P [Q [R [S [T [U V]]]]]]]].
   exploit find_function_translated; eauto. intros [bf [tf' [A [B C]]]].
+  assert (MS: match_stacks mu m' m1' s cs' (Linear.funsig f') 
+           (Mem.nextblock m') (Mem.nextblock m1')).
+    apply match_stacks_change_sig with (Linear.fn_sig f); auto.
+    apply match_stacks_change_bounds with stk sp'.
+    apply match_stacks_change_linear_mem with m. 
+    apply match_stacks_change_mach_mem with m2.
+    apply STACKS.
+    eauto with mem. intros. eapply Mem.perm_free_1; eauto. 
+    intros. rewrite <- H3. eapply Mem.load_free; eauto. 
+    eauto with mem. intros. eapply Mem.perm_free_3; eauto. 
+    apply Plt_Ple. change (Mem.valid_block m' stk). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_linear; eauto. 
+    apply Plt_Ple. change (Mem.valid_block m1' sp'). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_mach; eauto. 
+    apply zero_size_arguments_tailcall_possible; auto.
+  clear STACKS.
+  
+  (*New: distinguish whether invoked function is internal or external - 
+    in the latter case, we now perform an additional step*)
+  destruct f'.
+
+  (*Mtailcall: case f' = Internal f0*)
+  monadInv C.
   eexists; eexists; split.
     eapply corestep_star_plus_trans.
       eexact S.
@@ -4723,20 +4744,8 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
       apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ H2). intuition.
       apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ R). intuition.
   split.
-assert (exists tfi', tf' = Internal tfi'). admit. (*TODO: tailcalls are internal functions*)
-destruct H1. subst tf'.
     econstructor; eauto.
-    apply match_stacks_change_sig with (Linear.fn_sig f); auto.
-    apply match_stacks_change_bounds with stk sp'.
-    apply match_stacks_change_linear_mem with m. 
-    apply match_stacks_change_mach_mem with m2.
-    auto. 
-    eauto with mem. intros. eapply Mem.perm_free_1; eauto. 
-    intros. rewrite <- H3. eapply Mem.load_free; eauto. 
-    eauto with mem. intros. eapply Mem.perm_free_3; eauto. 
-    apply Plt_Ple. change (Mem.valid_block m' stk). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_linear; eauto. 
-    apply Plt_Ple. change (Mem.valid_block m1' sp'). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_mach; eauto. 
-    apply zero_size_arguments_tailcall_possible; auto.
+    simpl. unfold bind. rewrite EQ. reflexivity.
     apply wt_return_regs; auto. eapply match_stacks_wt_locset; eauto. eapply agree_wt_ls; eauto.
   intuition.
     eapply REACH_closed_free; try eassumption.
@@ -4745,6 +4754,40 @@ destruct H1. subst tf'.
         eapply SMV; assumption.
       eapply Mem.valid_block_free_1; try eassumption.
         eapply SMV; assumption.
+
+  (*Mtailcall: case f' = External e*)
+  exploit transl_external_arguments. eapply MS.
+     eassumption. assumption.
+  intros [targs [ExtCallArgs ArgsInj]].
+  rewrite <- (sig_preserved _ _ C) in ExtCallArgs; simpl in ExtCallArgs.
+  monadInv C.
+  eexists; eexists; split.
+    eapply corestep_star_plus_trans.
+      eexact S.
+    eapply corestep_plus_two.
+      econstructor; eauto.
+      (*Here's the extra step:*)
+      eapply Mach_exec_function_external. eassumption. eapply ExtCallArgs.
+  exists mu.
+  split. apply intern_incr_refl. 
+  split. apply sm_inject_separated_same_sminj.
+  split. apply sm_locally_allocatedChar.
+      intuition.
+      apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ H2). intuition.
+      apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ R). intuition.
+      apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ H2). intuition.
+      apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ R). intuition.
+  split.
+    econstructor; eauto. 
+    apply wt_return_regs; auto. eapply match_stacks_wt_locset; eauto. eapply agree_wt_ls; eauto.
+  intuition.
+    eapply REACH_closed_free; try eassumption.
+    split; intros. 
+      eapply Mem.valid_block_free_1; try eassumption.
+        eapply SMV; assumption.
+      eapply Mem.valid_block_free_1; try eassumption.
+        eapply SMV; assumption.
+
 
   (* Mbuiltin*)
   destruct PRE as [RC [PG [Glob [SMV WD]]]].
@@ -5426,6 +5469,27 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
   exploit function_epilogue_correct_eff; eauto.
   intros [rs1 [m1' [P [Q [R [S [T [U V]]]]]]]].
   exploit find_function_translated; eauto. intros [bf [tf' [A [B C]]]].
+  assert (MS: match_stacks mu m' m1' s cs' (Linear.funsig f') 
+           (Mem.nextblock m') (Mem.nextblock m1')).
+    apply match_stacks_change_sig with (Linear.fn_sig f); auto.
+    apply match_stacks_change_bounds with stk sp'.
+    apply match_stacks_change_linear_mem with m. 
+    apply match_stacks_change_mach_mem with m2.
+    apply STACKS.
+    eauto with mem. intros. eapply Mem.perm_free_1; eauto. 
+    intros. rewrite <- H3. eapply Mem.load_free; eauto. 
+    eauto with mem. intros. eapply Mem.perm_free_3; eauto. 
+    apply Plt_Ple. change (Mem.valid_block m' stk). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_linear; eauto. 
+    apply Plt_Ple. change (Mem.valid_block m1' sp'). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_mach; eauto. 
+    apply zero_size_arguments_tailcall_possible; auto.
+  clear STACKS.
+  
+  (*New: distinguish whether invoked function is internal or external - 
+    in the latter case, we now perform an additional step*)
+  destruct f'.
+
+  (*Mtailcall: case f' = Internal f0*)
+  monadInv C.
   eexists; eexists; eexists; split.
     eapply effstep_star_plus_trans'.
       eexact S.
@@ -5441,21 +5505,9 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
       apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ H2). intuition.
       apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ R). intuition.
   split.
-    econstructor.
-      assert (exists tfi', tf' = Internal tfi'). admit. (*TODO: tailcalls are internal functions*)
-      destruct H1. subst tf'.
+    split.
       econstructor; eauto.
-      apply match_stacks_change_sig with (Linear.fn_sig f); auto.
-      apply match_stacks_change_bounds with stk sp'.
-      apply match_stacks_change_linear_mem with m. 
-      apply match_stacks_change_mach_mem with m2.
-      auto. 
-      eauto with mem. intros. eapply Mem.perm_free_1; eauto. 
-      intros. rewrite <- H3. eapply Mem.load_free; eauto. 
-      eauto with mem. intros. eapply Mem.perm_free_3; eauto. 
-      apply Plt_Ple. change (Mem.valid_block m' stk). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_linear; eauto. 
-      apply Plt_Ple. change (Mem.valid_block m1' sp'). eapply Mem.valid_block_free_1; eauto. eapply agree_valid_mach; eauto. 
-      apply zero_size_arguments_tailcall_possible; auto.
+      simpl. unfold bind. rewrite EQ. reflexivity.
       apply wt_return_regs; auto. eapply match_stacks_wt_locset; eauto. eapply agree_wt_ls; eauto.
     intuition.
       eapply REACH_closed_free; try eassumption.
@@ -5466,6 +5518,47 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
           eapply SMV; assumption.
   unfold EmptyEffect; simpl; intros.
     apply andb_true_iff in H1. destruct H1.
+    destruct AGFRAME.
+    apply FreeEffectD in H1. destruct H1 as [? [VB Arith2]]; subst.
+    split. eapply visPropagateR; eassumption.
+    rewrite SPlocalTgt. intuition.
+
+  (*Mtailcall: case f' = External e*)
+  exploit transl_external_arguments. eapply MS.
+     eassumption. assumption.
+  intros [targs [ExtCallArgs ArgsInj]].
+  rewrite <- (sig_preserved _ _ C) in ExtCallArgs; simpl in ExtCallArgs.
+  monadInv C.
+  eexists; eexists; eexists; split.
+    eapply effstep_star_plus_trans'.
+      eexact S.
+    eapply effstep_plus_two.
+      econstructor; eauto.
+      (*Here's the extra step:*)
+      eapply Mach_effexec_function_external. eassumption. eapply ExtCallArgs.
+    reflexivity.
+  exists mu.
+  split. apply intern_incr_refl. 
+  split. apply sm_inject_separated_same_sminj.
+  split. apply sm_locally_allocatedChar.
+      intuition.
+      apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ H2). intuition.
+      apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ R). intuition.
+      apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ H2). intuition.
+      apply extensionality; intros; rewrite (freshloc_free _ _ _ _ _ R). intuition.
+  split.
+    split.
+      econstructor; eauto. 
+      apply wt_return_regs; auto. eapply match_stacks_wt_locset; eauto. eapply agree_wt_ls; eauto.
+    intuition.
+      eapply REACH_closed_free; try eassumption.
+      split; intros. 
+        eapply Mem.valid_block_free_1; try eassumption.
+          eapply SMV; assumption.
+        eapply Mem.valid_block_free_1; try eassumption.
+          eapply SMV; assumption.
+  unfold EmptyEffect; simpl; intros.
+    apply andb_true_iff in H1. rewrite orb_false_r in H1. destruct H1.
     destruct AGFRAME.
     apply FreeEffectD in H1. destruct H1 as [? [VB Arith2]]; subst.
     split. eapply visPropagateR; eassumption.
