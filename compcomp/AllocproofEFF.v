@@ -2279,6 +2279,165 @@ Proof.
     apply MC. apply MC.
 Qed.
 
+Fixpoint locs_diff (locs : list loc) :=
+  match locs with
+    | nil => True
+    | a :: locs' => Loc.notin a locs' /\ locs_diff locs'
+  end.
+
+Fixpoint locs_val_types (locs : list loc) (vals : list val) :=
+  match locs,vals with
+    | nil,nil => True
+    | R _::locs',v::vals' => locs_val_types locs' vals'
+    | S Outgoing ofs t::locs',v::vals' => 
+      Val.has_type v t /\ locs_val_types locs' vals'
+    | _,_ => False
+  end.
+
+Lemma map_locmap_setlist_eq locs args m : 
+  locs_diff locs -> 
+  locs_val_types locs args ->
+  length args=length locs ->
+  map (Locmap.setlist locs args m) locs = args.
+Proof.
+  revert m args; induction locs.
+  simpl. solve[intros ? ? ?; destruct args; try inversion 2; auto].
+  destruct args; inversion 3. simpl. rewrite IHlocs; auto.
+  rewrite Locmap.gsetlisto. rewrite Locmap.gss. 
+  destruct a; auto.
+  rewrite Val.load_result_same; auto.
+  simpl in H0. destruct sl; try solve[inv H0]. destruct H0 as [H2 H4]; auto.
+  simpl in H. solve[destruct H; auto].
+  simpl in H. solve[destruct H; auto].
+  simpl in H0. 
+  destruct a; try solve[inv H0]. 
+  solve[auto].
+  destruct sl; try solve[inv H0]. destruct H0 as [? ?]; auto.
+Qed.
+
+Fixpoint all_diff (l : list loc) : Prop :=
+  match l with
+    | nil => True
+    | a :: l' => Forall (Loc.diff a) l' /\ all_diff l'
+  end.
+
+Lemma loc_arguments_rec_all_diff tyl ofs : all_diff (loc_arguments_rec tyl ofs).
+Proof.
+  revert ofs. induction tyl; simpl; auto.
+  intros ofs. destruct a. simpl. split.
+  clear IHtyl.
+  { remember (ofs + 1) as k.
+    assert (k > ofs). omega.
+    clear Heqk.
+    revert k H. induction tyl. simpl. auto.
+    simpl. destruct a. constructor. simpl. right; left. omega.
+    specialize (IHtyl (k+1)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    specialize (IHtyl (k+2)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    constructor. simpl. right; left; omega.
+    specialize (IHtyl (k+2)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    specialize (IHtyl (k+1)). apply IHtyl. omega. }
+  eapply IHtyl; eauto.
+  simpl. split.
+  { clear IHtyl. 
+    remember (ofs + 2) as k.
+    assert (k > ofs+1). omega.
+    clear Heqk.
+    revert k H. induction tyl. simpl. auto.
+    simpl. destruct a. intros. constructor. 
+    simpl. right; left; omega.
+    specialize (IHtyl (k+1)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    specialize (IHtyl (k+2)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    constructor. simpl. right; left; omega.
+    specialize (IHtyl (k+2)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    specialize (IHtyl (k+1)). apply IHtyl. omega. }
+  eapply IHtyl; eauto.
+  simpl. split. constructor. right. right. simpl. omega.
+  { clear IHtyl. 
+    remember (ofs + 2) as k.
+    assert (k > ofs+1). omega.
+    clear Heqk.
+    revert k H. induction tyl. simpl. 
+    intros. constructor.
+    intros. simpl. destruct a. constructor. simpl. right; left; omega.
+    specialize (IHtyl (k+1)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    specialize (IHtyl (k+2)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    constructor. simpl. right; left; omega.
+    specialize (IHtyl (k+2)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    specialize (IHtyl (k+1)). apply IHtyl. omega. }
+  split. 
+  { clear IHtyl. 
+    remember (ofs + 2) as k.
+    assert (k > ofs+1). omega.
+    clear Heqk.
+    revert k H. induction tyl. simpl. 
+    intros. constructor.
+    intros. simpl. destruct a. constructor. simpl. right; left; omega.
+    specialize (IHtyl (k+1)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    specialize (IHtyl (k+2)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    constructor. simpl. right; left; omega.
+    specialize (IHtyl (k+2)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    specialize (IHtyl (k+1)). apply IHtyl. omega. }
+  eapply IHtyl; eauto.
+  simpl. split. 
+  { clear IHtyl. 
+    remember (ofs + 1) as k.
+    assert (k > ofs). omega.
+    clear Heqk.
+    revert k H. induction tyl. simpl. 
+    intros. constructor.
+    intros. simpl. destruct a. constructor. simpl. right; left; omega.
+    specialize (IHtyl (k+1)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    specialize (IHtyl (k+2)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    constructor. simpl. right; left; omega.
+    specialize (IHtyl (k+2)). apply IHtyl. omega.
+    intros. constructor. simpl. right; left. omega.
+    specialize (IHtyl (k+1)). apply IHtyl. omega. }
+  eapply IHtyl; eauto. 
+Qed.
+
+Lemma all_diff_locs_diff l : all_diff l -> locs_diff l.
+Proof.
+induction l. simpl; auto.
+simpl. intros [H H2]. split; auto.
+clear - H. revert a H. induction l. simpl; auto. 
+simpl. intros a0; inversion 1; subst. split; auto.
+Qed.
+
+Lemma loc_arguments_rec_locs_diff tyl ofs : locs_diff (loc_arguments_rec tyl ofs).
+Proof.
+  apply all_diff_locs_diff.
+  apply loc_arguments_rec_all_diff.
+Qed.
+
+Lemma has_type_list_locs_val_types vals l z :
+  Val.has_type_list vals l ->
+  locs_val_types (loc_arguments_rec l z) (val_casted.encode_longs l vals).
+Proof.
+revert vals z; induction l. simpl; auto. simpl.
+destruct a. simpl. destruct vals; auto. simpl; intros z [? ?]. solve[split; auto].
+intros vals z; destruct vals. inversion 1. inversion 1; subst. simpl. solve[split; auto].
+intros vals z; destruct vals. inversion 1. inversion 1; subst. simpl. 
+  destruct v; split; auto; try solve[econstructor].
+  split; auto; try solve[econstructor].
+  split; auto; try solve[econstructor].
+  solve[split; auto; try solve[econstructor]].
+intros vals z; destruct vals. inversion 1. inversion 1; subst. simpl. solve[split; auto].
+Qed.
+
 Lemma MATCH_initial: forall v1 v2 sig entrypoints
       (EP: In (v1, v2, sig) entrypoints)
       (entry_points_ok : forall (v1 v2 : val) (sig : signature),
@@ -2367,7 +2526,48 @@ Proof. intros.
           unfold vis, initial_SM; simpl.
           apply forall_inject_val_list_inject.
           eapply restrict_forall_vals_inject; try eassumption.
-          admit. (*should follow be decode-encode*)
+
+          clear - H2 VInj TF.
+
+          rewrite andb_true_iff in H2. destruct H2.
+
+          assert (A: sig_args (funsig tf) = sig_args (RTL.funsig f)).
+          { erewrite sig_function_translated; eauto. }
+
+          assert (B: Val.has_type_list vals2 (sig_args (funsig tf))).
+          { rewrite val_casted.val_has_type_list_func_charact; auto.
+            eapply val_casted.val_list_inject_hastype. 
+            eapply forall_inject_val_list_inject; eauto. auto.
+            rewrite A, H; auto. }
+
+          assert (len: 
+            length (val_casted.encode_longs (sig_args (funsig tf)) vals2) =
+            length (loc_arguments (funsig tf))).
+          { rewrite <-A in H. clear A. clear H H0 vals1 VInj.
+            destruct (funsig tf). simpl. unfold loc_arguments. simpl. 
+            revert vals2 B; generalize 0; induction sig_args; auto.
+            destruct a; simpl. 
+            destruct vals2; simpl; try solve[inversion 1].
+            intros [H2 H3]. f_equal. solve[erewrite IHsig_args; eauto].
+            destruct vals2; inversion 1; subst. simpl. f_equal.
+            solve[erewrite IHsig_args; eauto].
+            destruct vals2; simpl; try solve[inversion 1].
+            intros [H2 H3]. destruct v; simpl. f_equal. 
+            solve[erewrite IHsig_args; eauto].
+            solve[erewrite IHsig_args; eauto].
+            solve[erewrite IHsig_args; eauto].
+            solve[erewrite IHsig_args; eauto].
+            solve[erewrite IHsig_args; eauto].
+            destruct vals2. simpl. inversion 1.
+            simpl. intros [H2 H3]. f_equal. 
+            solve[erewrite IHsig_args; eauto]. }
+
+          rewrite map_locmap_setlist_eq.
+          rewrite val_casted.decode_encode_longs; auto.
+          apply loc_arguments_rec_locs_diff.
+          apply has_type_list_locs_val_types; auto.
+          solve[apply len].
+
         intros. apply REACH_nil. rewrite H; intuition.
         simpl. red; intros. red in H. 
           destruct l.
@@ -2399,6 +2599,14 @@ Proof. intros.
           apply orb_true_iff. left. apply genv2blocksBool_char1.
             simpl. exists id; eassumption.
     rewrite initial_SM_as_inj; assumption.
+Qed.
+
+Lemma loc_result_locs_diff sig : locs_diff (map R (loc_result sig)).
+Proof.
+  unfold loc_result.
+  destruct (sig_res sig). destruct t; simpl; auto.
+  split; auto. split; auto. intros; congruence.
+  simpl; split; auto.
 Qed.
 
 Lemma MATCH_afterExternal: forall
@@ -2608,10 +2816,14 @@ assert (GFnu': forall b, isGlobalBlock (Genv.globalenv prog) b = true ->
           unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ Glob). intuition.
           apply REACH_nil. unfold exportedSrc.
           rewrite (frgnSrc_shared _ WDnu' _ Glob). intuition.
+ 
+assert (retty1: Val.has_type ret1 (proj_sig_res (ef_sig e'))).
+{ admit. (*ret typing condition*)}
+
 split. 
   unfold vis in *. 
   rewrite replace_externs_as_inj, replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc in *.
-  econstructor; try eassumption.
+  apply match_states_return; try eauto.
       clear RRC RR1 RC' PHnu' INCvisNu' UnchLOOR UnchPrivSrc.
       destruct INC. rewrite replace_locals_extern in H.
         rewrite replace_locals_frgnBlocksTgt, replace_locals_frgnBlocksSrc,
@@ -2636,8 +2848,27 @@ split.
             split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H11). intuition.
                apply REACH_nil. unfold exportedSrc. 
                  apply frgnSrc_shared in H11; trivial. rewrite H11; intuition.
+
        remember (sig_res (ef_sig e')) as o. 
-              admit. (*encode_long stuff*)
+        { rewrite map_locmap_setlist_eq.
+          apply encode_long_inject.
+          inv RValInjNu'; try econstructor. 
+          eapply restrictI_Some; try eassumption.
+          destruct (as_inj_DomRng _ _ _ _ H); trivial.
+          rewrite H0; simpl. unfold DomSrc in H0.
+          remember (locBlocksSrc nu' b1) as d.
+          destruct d; simpl in *. trivial.
+          eapply REACH_nil. unfold exportedSrc. apply orb_true_iff; left.
+          unfold getBlocks. simpl. solve[destruct (eq_block b1 b1); auto]. 
+          solve[auto].
+          solve[apply loc_result_locs_diff].
+          unfold encode_long,loc_result. subst o.          
+          destruct (sig_res (ef_sig e')). destruct t; auto.
+          simpl; auto. simpl; auto. simpl; auto. simpl; auto. solve[simpl; auto].
+          unfold encode_long,loc_result. subst o.
+          destruct (sig_res (ef_sig e')). destruct t; auto.
+          solve[simpl; auto]. }
+
         red; intros. rewrite AG. apply eq_sym. red in H. 
           destruct l.
             rewrite Locmap.gsetlisto; trivial. 
@@ -2649,8 +2880,7 @@ split.
             apply list_in_map_inv in H0. destruct H0 as [rr [? ?]]. subst.
             constructor. 
           assumption.
-         (*type info*)
-    admit. (*Val.has_type ret1 (proj_sig_res (ef_sig e'))*)
+
 unfold vis.
 rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
         replace_externs_as_inj.
@@ -4589,7 +4819,7 @@ simpl in LD4.
      repeat rewrite andb_true_iff in H2. simpl in H2.
      destruct H2 as [Range |  Range].
        assert (Arith: Int.unsigned i <= ofs - delta < Int.unsigned i + size_chunk Mint32).
-         specialize (Int.unsigned_range i); intros I.
+       { specialize (Int.unsigned_range i); intros I.
          assert (URdelta: Int.unsigned (Int.repr delta) = delta).
             apply Int.unsigned_repr. split. omega. omega.
          rewrite Int.add_unsigned, URdelta, (Int.unsigned_repr _ DD2) in Range. simpl.
@@ -4600,18 +4830,30 @@ simpl in LD4.
            omega.
          destruct (zlt ofs (Int.unsigned i + delta + 4)); try inv BB. clear BB.
            rewrite Int.add_unsigned, URdelta, (Int.unsigned_repr _ DD2) in g.
-           omega.
-         split.
+           omega. }
+        split.
            destruct (zle (Int.unsigned i) (ofs - delta)); simpl.
              destruct (zlt (ofs - delta)
                            (Int.unsigned i + Z.of_nat (length (encode_val Mint64 rs # src)))); trivial.
              exfalso.
-               clear Range. rewrite encode_val_length in g. simpl in g. destruct Arith; simpl in *. clear -g H0. omega.
+               clear Range. rewrite encode_val_length in g. simpl in g. destruct Arith; simpl in *. 
+               clear -g H0. omega.
              destruct Arith. clear - g H. omega.
            eapply Mem.perm_implies. eapply Mem.perm_max.
              eapply H5. simpl in *. omega. constructor.
        rewrite Int.add_unsigned in Range.
        rewrite (Int.add_unsigned i) in Range.
+
+       assert (VAL: Mem.valid_pointer m b0 (Int.unsigned i+4)=true).
+       { inv H5. 
+         unfold Mem.range_perm in H.
+         specialize (H (Int.unsigned i+4)). unfold Mem.valid_pointer.
+         destruct (Mem.perm_dec m b0 (Int.unsigned i+4) Cur Nonempty); auto.
+         elimtype False; apply n.
+         eapply Mem.perm_implies. eapply H. solve[simpl; split; auto; try omega].
+         constructor. }
+
+       (*eapply Mem.valid_pointer_inject_no_overflow in VAL.*)
        rewrite Int.unsigned_repr in Range.
        specialize (Int.unsigned_repr _ DD2). intros.
          specialize (Int.unsigned_range i); intros I.
@@ -4619,11 +4861,12 @@ simpl in LD4.
             apply Int.unsigned_repr. split. omega. omega.
        rewrite URdelta in Range.
        assert (UR4: Int.unsigned (Int.repr 4) = 4).
-                    specialize (Int.unsigned_range_2 (Int.repr 4)). intros.
+       { specialize (Int.unsigned_range_2 (Int.repr 4)). intros.
          rewrite Int.unsigned_repr. trivial. simpl in *. split. omega.
          specialize (Int.two_p_range 2). simpl. unfold two_power_pos, shift_pos.
-            simpl. intros. eapply H2. unfold  Int.zwordsize, Int.wordsize, Wordsize_32.wordsize. simpl. omega.
-       rewrite UR4 in *. rewrite Int.unsigned_repr in Range. 
+            simpl. intros. eapply H2. unfold  Int.zwordsize, Int.wordsize, Wordsize_32.wordsize. 
+            simpl. omega. }
+       rewrite UR4 in *. rewrite Int.unsigned_repr in Range.
        destruct Range as [AA BB].
        destruct (zle (Int.unsigned i + delta + 4) ofs); try inv AA. clear AA.
        destruct (zlt ofs (Int.unsigned i + delta + 4 + 4)); try inv BB. clear BB.
@@ -4633,27 +4876,32 @@ simpl in LD4.
                  clear - g l0. omega. omega.
            eapply Mem.perm_implies. eapply Mem.perm_max.
              eapply H5. simpl. split. omega. omega. constructor.
-        assumption.
-admit. (*TODO: correct this:
+       assumption.
+
        assert (UR4: Int.unsigned (Int.repr 4) = 4).
-                    specialize (Int.unsigned_range_2 (Int.repr 4)). intros.
+       { specialize (Int.unsigned_range_2 (Int.repr 4)). intros.
          rewrite Int.unsigned_repr. trivial. simpl in *. split. omega.
          specialize (Int.two_p_range 2). simpl. unfold two_power_pos, shift_pos.
-            simpl. intros. eapply H0. unfold  Int.zwordsize, Int.wordsize, Wordsize_32.wordsize. simpl. omega. 
-        split. specialize (Int.unsigned_range (Int.repr (Int.unsigned i + Int.unsigned (Int.repr delta)))). intros.
-               specialize (Int.unsigned_range (Int.repr 4)); intros. omega.
-        destruct Range as [AA BB]. destruct H5. simpl in *.
-         assert (URdelta: Int.unsigned (Int.repr delta) = delta).
-            apply Int.unsigned_repr. split. omega. 
-            specialize (Int.unsigned_range i); intros I. omega.
-        rewrite URdelta in *; trivial.
-        exploit (H (Int.unsigned i + 4)). omega.
-        clear AA BB; intros. 
-        exploit Mem.address_inject; try eassumption.
-        Focus 2. intros. rewrite Int.add_unsigned in H3.
-                   rewrite URdelta in H3. rewrite H3.
-        rewrite <- Zplus_assoc. rewrite (Zplus_comm delta), Zplus_assoc.
-        rewrite UR4.*)
+            simpl. intros. eapply H0. 
+            unfold Int.zwordsize, Int.wordsize, Wordsize_32.wordsize. simpl. omega. }
+       split. 
+       specialize (Int.unsigned_range (Int.repr (Int.unsigned i + Int.unsigned (Int.repr delta)))). 
+       intros.
+       specialize (Int.unsigned_range (Int.repr 4)); intros. omega.
+       destruct Range as [AA BB]. destruct H5. simpl in *.
+       assert (URdelta: Int.unsigned (Int.repr delta) = delta).
+       { apply Int.unsigned_repr. split. omega. 
+         specialize (Int.unsigned_range i); intros I. omega. }
+       rewrite URdelta in *; trivial.
+       exploit (H (Int.unsigned i + 4)). omega.
+       intros.
+       exploit Mem.address_inject; try eassumption.
+       Focus 2. intros. rewrite Int.add_unsigned in H3.
+       rewrite URdelta in H3. rewrite H3.
+       rewrite <- Zplus_assoc. rewrite (Zplus_comm delta), Zplus_assoc.
+       rewrite UR4. 
+       admit. (*long address representability*)       
+       eapply (H (Int.unsigned i)). omega.
      
 (* call *)
 - set (sg := RTL.funsig fd) in *.
@@ -5270,7 +5518,7 @@ assert (GDE:= GDE_lemma).
       { rewrite <-H0. auto. }
       inversion H5. subst vl vl' v' v. solve[rewrite Heq in H8; auto].
    + exists (ls (R FP0)); split; auto.
-   + admit. (*ty mismatch - None w/ return value*) }
+   + simpl. intros H; inversion 1; subst. exists (ls (R AX)). split; auto. }
 (* at_external*)
   { intros. destruct H as [MC [RC [PG [GFP [Glob [SMV [WD INJ]]]]]]].
     split; trivial.

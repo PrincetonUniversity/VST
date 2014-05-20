@@ -67,10 +67,10 @@ Definition LTL_after_external (vret: option val) (c: LTL_core) : option LTL_core
           match vret with
             | None => Some (LTL_Returnstate s (sig_res (ef_sig ef))
                 (Locmap.setlist (map R (loc_result (ef_sig ef))) 
-                  (encode_longs (sig_args (ef_sig ef)) (Vundef::nil)) rs))
+                  (encode_long (sig_res (ef_sig ef)) Vundef) rs))
             | Some v => Some (LTL_Returnstate s (sig_res (ef_sig ef))
                 (Locmap.setlist (map R (loc_result (ef_sig ef))) 
-                  (encode_longs (sig_args (ef_sig ef)) (v::nil)) rs))
+                  (encode_long (sig_res (ef_sig ef)) v) rs))
           end
       end
     | _ => None
@@ -196,6 +196,10 @@ Definition LTL_halted (q : LTL_core): option val :=
                            | _ :: _ => None
                          end
            end
+
+      (*Return Tvoid - modeled as integer return*)
+      | LTL_Returnstate nil None rs => Some (rs (R AX))
+
       | _ => None
     end.
 
