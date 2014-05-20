@@ -8,11 +8,7 @@ Import ListNotations.
 
 Ltac transl := autorewrite with translate in *; try reflexivity.
 
-Section env.
-Parameter funcs' : list(signature (all_types_r nil)).
-Parameter uenv : env (all_types_r []).
-
-Definition funcs := (our_functions nil) ++ funcs'.
+Definition funcs funcs' := (our_functions nil) ++ funcs'.
 
 
 Fixpoint ident_to_expr (i: ident) :=
@@ -23,10 +19,10 @@ match i with
 end. 
 
 Lemma ident_to_expr_correct :
-forall i,
-exprD funcs uenv [] (ident_to_expr i) ident_tv = Some i.
+forall i funcs' uenv,
+exprD (funcs funcs') uenv [] (ident_to_expr i) ident_tv = Some i.
 Proof.
-induction i; try reflexivity; simpl in *; rewrite IHi; auto.
+induction i; intros; try reflexivity; simpl in *; rewrite IHi; auto.
 Qed.
 
 Hint Rewrite ident_to_expr_correct : translate.
@@ -39,10 +35,10 @@ match p with
 end.
 
 Lemma pos_to_expr_correct :
-forall p,
-exprD funcs uenv [] (pos_to_expr p) positive_tv = Some p.
+forall p funcs' uenv,
+exprD (funcs funcs') uenv [] (pos_to_expr p) positive_tv = Some p.
 Proof.
-induction p; try reflexivity; simpl in *; rewrite IHp; auto.
+induction p; intros; try reflexivity; simpl in *; rewrite IHp; auto.
 Qed.
 
 Hint Rewrite pos_to_expr_correct : translate.
@@ -55,8 +51,8 @@ match z with
 end.
 
 Lemma Z_to_expr_correct :
-forall i,
-exprD funcs uenv [] (Z_to_expr i) Z_tv = Some i.
+forall i funcs' uenv,
+exprD (funcs funcs') uenv [] (Z_to_expr i) Z_tv = Some i.
 intros.
 destruct i; try reflexivity;
 simpl in *; rewrite pos_to_expr_correct; auto.
@@ -97,16 +93,18 @@ Qed.
 Hint Rewrite repr_intval : translate.
 
 
-Lemma int32_to_expr_correct (i: int) :
-exprD funcs uenv [] (Func int_repr_f [Z_to_expr (Int.intval i)]) int_tv = Some i.
+Lemma int32_to_expr_correct:
+forall i funcs' uenv,
+exprD (funcs funcs') uenv [] (Func int_repr_f [Z_to_expr (Int.intval i)]) int_tv = Some i.
 Proof.
+intros.
 simpl. autorewrite with translate. auto using repr_intval.
 Qed.
 
 Hint Rewrite int32_to_expr_correct : translate.
 
 Definition int64_to_expr (i : int64) :=
-Func int_repr_f [Z_to_expr (Int64.intval i)].
+Func int_64_repr_f [Z_to_expr (Int64.intval i)].
 
 Lemma int64_eq_Z : forall z1 z2 p1 p2,
 let i1 := Int64.mkint z1 p1 in
@@ -139,9 +137,10 @@ Qed.
 
 Hint Rewrite repr_intval64 : translate.
 
-Lemma int64_to_expr_correct (i: int64) :
-exprD funcs uenv [] (Func int_64_repr_f [Z_to_expr (Int64.intval i)]) int64_tv = Some i.
-Proof.
+Lemma int64_to_expr_correct :
+forall i funcs' uenv,
+exprD (funcs funcs') uenv [] (Func int_64_repr_f [Z_to_expr (Int64.intval i)]) int64_tv = Some i.
+Proof. intros.
 simpl. autorewrite with translate. auto using repr_intval64.
 Qed.
 
@@ -154,8 +153,11 @@ match on with
   | None => Func None_N_f []
 end.
 
-Lemma optN_to_expr_correct (on : option N) :
-exprD funcs uenv [] (optN_to_expr on) option_N_tv = Some on.
+Lemma optN_to_expr_correct :
+forall on funcs' uenv, 
+exprD (funcs  funcs') uenv [] (optN_to_expr on) option_N_tv = Some on.
+Proof.
+intros.
 destruct on; [ induction n | auto]; simpl; transl.
 Qed.
 
@@ -168,8 +170,8 @@ match b with
 end.
 
 Lemma bool_to_expr_correct :
-forall a,
-exprD funcs uenv [] (bool_to_expr a) bool_tv = Some a.
+forall a funcs' uenv,
+exprD (funcs funcs') uenv [] (bool_to_expr a) bool_tv = Some a.
 Proof.
 destruct a; auto. 
 Qed.
@@ -183,8 +185,8 @@ Func mk_attr_f [bool_to_expr b; optN_to_expr a]
 end.
 
 Lemma attr_to_expr_correct :
-forall a,
-exprD funcs uenv [] (attr_to_expr a) attr_tv = Some a.
+forall a funcs' uenv,
+exprD (funcs funcs') uenv [] (attr_to_expr a) attr_tv = Some a.
 Proof.
 intros.  destruct a; simpl; transl.
 Qed.
@@ -200,8 +202,8 @@ I8 => Func I8_f []
 end.
 
 Lemma intsize_to_expr_correct :
-forall i,
-exprD funcs uenv [] (intsize_to_expr i) intsize_tv = Some i.
+forall i funcs' uenv,
+exprD (funcs funcs') uenv [] (intsize_to_expr i) intsize_tv = Some i.
 induction i; auto.
 Qed.
 
@@ -214,8 +216,8 @@ F32 => Func F32_f []
 end.
 
 Lemma floatsize_to_expr_correct :
-forall i,
-exprD funcs uenv [] (floatsize_to_expr i) floatsize_tv = Some i.
+forall i funcs' uenv,
+exprD (funcs funcs') uenv [] (floatsize_to_expr i) floatsize_tv = Some i.
 induction i; auto.
 Qed.
 
@@ -228,8 +230,8 @@ match s with
 end.
 
 Lemma sign_to_expr_correct :
-forall s,
-exprD funcs uenv [] (signedness_to_expr s) signedness_tv = Some s.
+forall s funcs' uenv,
+exprD (funcs funcs') uenv [] (signedness_to_expr s) signedness_tv = Some s.
 destruct s; auto.
 Qed.
 
@@ -260,20 +262,26 @@ match fl with
 | Fcons id ty t => Func Fcons_f [ident_to_expr id; type_to_expr ty; fieldlist_to_expr t]
 end.
 
-Lemma type_to_expr_correct (ty : Ctypes.type) :
-exprD funcs uenv [] (type_to_expr ty ) c_type_tv = Some ty
+Lemma type_to_expr_correct :
+forall ty funcs' uenv,
+exprD (funcs  funcs') uenv [] (type_to_expr ty ) c_type_tv = Some ty
 with
-typelist_to_expr_correct tl : 
-exprD funcs uenv [] (typelist_to_expr tl) typelist_tv = Some tl
+typelist_to_expr_correct :
+forall tl funcs' uenv, 
+exprD (funcs funcs') uenv [] (typelist_to_expr tl) typelist_tv = Some tl
 with
-fieldlist_to_expr_correct fl : 
-exprD funcs uenv [] (fieldlist_to_expr fl) fieldlist_tv = Some fl.
+fieldlist_to_expr_correct :
+forall fl funcs' uenv, 
+exprD (funcs funcs') uenv [] (fieldlist_to_expr fl) fieldlist_tv = Some fl.
+intros.
 destruct ty; try solve [repeat (transl; simpl); try rewrite type_to_expr_correct; auto].
 simpl. rewrite typelist_to_expr_correct; auto. rewrite type_to_expr_correct; auto.
 simpl; transl. rewrite fieldlist_to_expr_correct; auto.
 simpl; transl. rewrite fieldlist_to_expr_correct; auto.
+intros.
 destruct tl; repeat (simpl; transl). rewrite type_to_expr_correct; auto.
 rewrite typelist_to_expr_correct; auto.
+intros.
 destruct fl; repeat (simpl; transl).
 rewrite type_to_expr_correct; auto.
 rewrite fieldlist_to_expr_correct; auto.
@@ -290,8 +298,9 @@ match o with
   | Oneg => Func Oneg_f []
 end.
 
-Lemma unop_to_expr_correct o :
-exprD funcs uenv [] (unop_to_expr o) unary_operation_tv = Some o.
+Lemma unop_to_expr_correct :
+forall o funcs' uenv,
+exprD (funcs funcs') uenv [] (unop_to_expr o) unary_operation_tv = Some o.
 destruct o; auto.
 Qed.
 
@@ -317,36 +326,12 @@ match o with
   | Oge => Func Oge_f []
 end.
 
-Lemma binop_to_expr_correct o :
-exprD funcs uenv [] (binop_to_expr o) binary_operation_tv = Some o.
+Lemma binop_to_expr_correct :
+forall o funcs' uenv,
+exprD (funcs funcs') uenv [] (binop_to_expr o) binary_operation_tv = Some o.
 destruct o; auto.
 Qed.
 
 Hint Rewrite binop_to_expr_correct : translate.
-
 Definition float_to_expr (f:float) := Func functions.O_f []. (*Placeholder, deal with floats later*)
-
-End env.
-
-Hint Rewrite ident_to_expr_correct : translate.
-Hint Rewrite pos_to_expr_correct : translate.
-Hint Rewrite Z_to_expr_correct : translate.
-Hint Rewrite repr_intval : translate.
-Hint Rewrite int32_to_expr_correct : translate.
-Hint Rewrite repr_intval64 : translate.
-Hint Rewrite int64_to_expr_correct : translate.
-Hint Rewrite optN_to_expr_correct : translate.
-Hint Rewrite bool_to_expr_correct : translate.
-Hint Rewrite attr_to_expr_correct : translate.
-Hint Rewrite intsize_to_expr_correct : translate.
-Hint Rewrite floatsize_to_expr_correct : translate.
-Hint Rewrite sign_to_expr_correct : translate.
-Hint Rewrite type_to_expr_correct : translate.
-Hint Rewrite typelist_to_expr_correct : translate.
-Hint Rewrite fieldlist_to_expr_correct : translate.
-Hint Rewrite unop_to_expr_correct : translate.
-Hint Rewrite binop_to_expr_correct : translate.
-
-
-
 
