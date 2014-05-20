@@ -257,6 +257,15 @@ Program Definition jam {A} {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Ag
   if_tac; try (eapply pred_hereditary; eauto).
  Qed.
 
+Lemma allp_noat_emp: allp noat = emp.
+Proof.
+  apply pred_ext; unfold derives; intros; simpl in *.
+  + apply all_resource_at_identity.
+    exact H.
+  + intros. apply compcert_rmaps.RML.resource_at_identity.
+    exact H.
+Qed.    
+
 Lemma jam_true: forall A JA PA agA AgeA B (S': B -> Prop) S P Q loc, S' loc -> @jam A JA PA agA AgeA B S' S P Q loc = P loc.
 Proof.
 intros.
