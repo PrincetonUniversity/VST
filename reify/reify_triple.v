@@ -291,129 +291,69 @@ end.
 Definition make_P funcs uenv l :=
 make_P' (PTree.empty expr) l funcs uenv.
 
+Fixpoint remove_id (funcs' : functions (all_types_r (@nil type))) uvars id locals :=
+match locals with
+| Func 114%nat [val_e; id_e] :: t => if (Pos.eqb (reflect_id funcs' uvars id_e) id) then
+                                       remove_id funcs' uvars id t
+                                     else Func 114%nat [val_e; id_e] :: remove_id funcs' uvars id t
+                                              
+| h :: t => remove_id funcs' uvars id t
+| nil => nil
+end.
+
+Definition denote_tc_assert_b a:=
+match a with 
+| tc_TT => true
+| _ => false
+end.
+
+Definition tc_expr_b e c :=
+denote_tc_assert_b (typecheck_expr e c).
+
+Definition tc_temp_id_b id t Delta e:=
+denote_tc_assert_b (typecheck_temp_id id t Delta e).
+
+Lemma tc_expr_b_sound : 
+forall e c rho,
+tc_expr_b e c= true ->
+tc_expr e c rho .
+Proof.
+intros.
+unfold tc_expr, tc_expr_b in *.
+destruct (typecheck_expr e c); simpl in *; auto; try congruence.
+Qed.
+
+Lemma tc_temp_id_b_sound : 
+forall id t Delta e rho,
+tc_temp_id_b id t Delta e= true ->
+tc_temp_id id t Delta e rho .
+Proof.
+intros. 
+unfold tc_temp_id, tc_temp_id_b in *.
+destruct (typecheck_temp_id id t Delta e); simpl in *; auto; try congruence.
+Qed.
+
 Definition symexe (t : Triple) funcs uenv : Triple :=
 match (Tcommand t) with
 | (Ssequence (Sset id e) c) => 
-  match (msubst_eval_expr (make_P funcs uenv (Tlocal t)) e) with
-    | Some v => 
-      {|Tdelta := update_tycon (Tdelta t) (Sset id e); 
-        Tprop := Tprop t;
-        Tlocal := (Func 114%nat [v ; ident_to_expr id] :: Tlocal t);
-        Tsep := Tsep t;
-        Tcommand := c;
-        Tpost := Tpost t
-      |}
-    | _ => t
-  end
+  if andb (tc_expr_b (Tdelta t) e) (tc_temp_id_b id (Clight.typeof e) (Tdelta t) e) then 
+    match (msubst_eval_expr (make_P funcs uenv (Tlocal t)) e) with
+      | Some v => 
+        {|Tdelta := update_tycon (Tdelta t) (Sset id e); 
+          Tprop := Tprop t;
+          Tlocal := (Func 114%nat [v ; ident_to_expr id] :: (remove_id funcs uenv id (Tlocal t)));
+          Tsep := Tsep t;
+          Tcommand := c;
+          Tpost := Tpost t
+        |}
+      | _ => t
+    end
+  else t
 | _ => t
 end.
 
 Axiom symexe_sound : forall funcs preds uenv trip, TripleD funcs preds uenv (symexe trip funcs uenv) ->
 TripleD funcs preds uenv trip.
-
-Ltac reflect_triple :=
-let types' := get_types in
-let types := get_types_name in
-let funcs := get_funcs_name types' in
-let preds := get_predicates_name types' in 
-let uenv := get_uenv_name types' in
-cbv [
-TripleD Tdelta Tcommand Tpost Tprop Tlocal Tsep PreD reflect_Tprop reflect_prop map' 
-force_Opt reflect_Tlocal reflect_Tsep s_reflect all_preds tvar_rec tvar_rect
-exprD functionTypeD applyD reflect_local
-forallEach AllProvable_impl AllProvable_gen AllProvable_and projT1 projT2 Provable lookupAs
-nth_error equiv_dec length fold_right tvarD Impl_ EqDec_tvar eq_nat_dec
-Basics.impl Impl Exc
-Sep.sexprD Sep.SDenotation Sep.SDomain Denotation Domain Range 
-VericSepLogic.himp  VericSepLogic.inj VericSepLogic.star VericSepLogic_Kernel.emp VericSepLogic.hprop
-sumbool_rec sumbool_rect nat_rec nat_rect eq_rec_r eq_rec eq_rect eq_sym f_equal
-funcs preds types uenv abbreviate value
-
-functions.two_power_nat_signature functions.O_signature functions.force_ptr_signature
-functions.app_val_signature functions.int_max_unsigned_signature functions.and_signature
-functions.align_signature functions.cons_val_signature functions.int_sub_signature 
-functions.Vint_signature functions.map_Vint_signature functions.typed_true_signature 
-functions.int_add_signature functions.S_signature functions.Z_lt_signature
-functions.Z_le_signature functions.Z_gt_signature functions.Z_ge_signature
-functions.Zpos_signature functions.Zneg_signature functions.Z0_signature
-functions.xI_signature functions.xO_signature functions.xH_signature functions.int_lt_signature
-functions.int_ltu_signature functions.int_mul_signature functions.int_neg_signature 
-functions.Z_add_signature functions.Z_sub_signature functions.Z_mul_signature
-functions.Z_div_signature functions.Z_mod_signature functions.Z_max_signature
-functions.Z_opp_signature functions.Ceq_signature functions.Cne_signature
-functions.Clt_signature functions.Cle_signature functions.Cgt_signature
-functions.Cge_signature functions.int_cmp_signature functions.int_cmpu_signature
-functions.int_repr_signature functions.int_signed_signature functions.int_unsigned_signature
-functions.nullval_signature functions.tptr_signature functions.nil_val_signature
-functions.reverse_t_struct_list_signature functions.reverse__tail_signature
-functions.True_signature functions.eval_id_signature
-functions.lift_eq_signature functions.lift_eq functions.sep_predicates
-functions.lseg_sample_ls_psig
-eval_binop_signature  eval_unop_signature  Some_N_signature  None_N_signature  N0_signature
- Npos_signature true_signature false_signature mk_attr_signature I8_signature I16_signature
- I32_signature IBool_signature signed_signature unsigned_signature Tnil_signature Tcons_signature
- Fnil_signature Fcons_signature F32_signature F64_signature Onotbool_signature Onotint_signature
- Oneg_signature Oadd_signature Osub_signature Omul_signature Odiv_signature Omod_signature 
-Oand_signature Oor_signature Oxor_signature Oshl_signature Oshr_signature Oeq_signature
- One_signature Olt_signature Ogt_signature Ole_signature Oge_signature eval_cast_signature
- deref_noload_signature eval_field_signature
-Tvoid_signature Tint_signature Tlong_signature Tfloat_signature
- Tpointer_signature Tarray_signature Tfunction_signature
- Tstruct_signature  Tunion_signature Tcomp_ptr_signature 
-xIp_signature xOp_signature xHp_signature Vint_signature Vfloat_signature Vlong_signature
-int64_repr_signature tc_environ_signature False_signature 
-
- two_power_nat_f O_f  force_ptr_f app_val_f  int_max_unsigned_f and_f  align_f  cons_val_f
- int_sub_f vint_f  map_Vint_f  typed_true_f  int_add_f S_f Z_lt_f Z_le_f Z_gt_f Z_ge_f 
- Zpos_f  Zneg_f  Z0_f xI_f 
- xO_f xH_f int_lt_f int_ltu_f int_mul_f int_neg_f Z_add_f Z_sub_f Z_mul_f Z_div_f 
- Z_mod_f Z_max_f Z_opp_f Ceq_f Cne_f Clt_f Cle_f Cgt_f Cge_f int_cmp_f int_cmpu_f 
- int_repr_f int_signed_f int_unsigned_f nullval_f tptr_f nil_val_f 
- reverse_t_struct_list_f reverse__tail_f vfloat_f vlong_f Tvoid_f Tint_f Tlong_f 
- Tfloat_f Tpointer_f Tarray_f Tfunction_f Tstruct_f Tunion_f Tcomp_ptr_f eval_binop_f
- eval_unop_f Some_N_f None_N_f N0_f Npos_f true_f false_f mk_attr_f I8_f 
- I16_f I32_f IBool_f signed_f unsigned_f Tnil_f Tcons_f Fnil_f Fcons_f F32_f 
- F64_f Onotbool_f Onotint_f Oneg_f Oadd_f Osub_f Omul_f Odiv_f Omod_f Oand_f Oor_f Oxor_f
- Oshl_f Oshr_f Oeq_f One_f Olt_f Ogt_f Ole_f Oge_f eval_cast_f deref_noload_f
- eval_field_f int_64_repr_f xIp_f xOp_f xHp_f 
-
-types.tycontext_tv lift_prop_tv
-types.c_expr_tv types.c_type_tv types.environ_tv types.val_tv types.share_tv 
-types.ident_tv types.list_val_tv types.list_int_tv types.int_tv types.Z_tv
-types.nat_tv types.positive_tv types.bool_tv types.comparison_tv types.tc_assert_tv 
-types.our_types typelist_tv
-binary_operation_tv float_tv int64_tv floatsize_tv unary_operation_tv 
-N_tv option_N_tv attr_tv intsize_tv signedness_tv fieldlist_tv 
-
-val_map_type 
-types.tycontext_type
-types.c_expr_type types.c_type_type types.environ_type types.val_type types.share_type 
-types.ident_type types.list_val_type types.list_int_type  types.int_type types.Z_type
-types.nat_type types.positive_type types.bool_type types.comparison_type
-types.tc_assert_type
-types.no_eqb_type lift_prop_type
-lift_mpred_type int64_type float_type
-                                  attr_type signedness_type intsize_type
-                                  floatsize_type typelist_type
-                                  fieldlist_type binary_operation_type
-                                  unary_operation_type N_type
-                                  option_N_type
- val_eq.list_eqb_type  
-
-Env.repr Env.listToRepr
-
-symexe int32_to_expr Z_to_expr eqb_comparison make_P make_P' reflect_id msubst_eval_expr
-msubst_eval_lvalue_expr  binop_to_expr unop_to_expr pos_to_expr type_to_expr
-pos_to_expr Z_to_expr int32_to_expr int64_to_expr  optN_to_expr bool_to_expr attr_to_expr
-intsize_to_expr  floatsize_to_expr signedness_to_expr ident_to_expr type_from_eq
-value fieldlist_to_expr
-
-Int.intval Int.repr Int.Z_mod_modulus 
-
-PTree.get PTree.set map Clight.typeof tint tptr tlong tvoid noattr
-
-_w].
-
 
 Ltac simpl_reflect := cbv [Tdelta Tprop Tlocal Tsep PreD Tcommand Tpost] in *.
 
@@ -457,16 +397,67 @@ h :: t => match h with
                                     end
             | _ => false
           end
-| _ => true
+| _ => false
 end.
-Check exprD.
+
 Inductive locals_wf (funcs' : list (signature (all_types_r []))) uenv : list expr -> Prop :=
   | locals_wf_nil : locals_wf  funcs' uenv []
   | locals_wf_cons : forall tl id val v,
        id_in_local (reflect_id (funcs') uenv id) tl (funcs') uenv = false ->
        exprD funcs' uenv nil val val_tv = Some v -> 
        locals_wf funcs' uenv tl ->
-       locals_wf funcs' uenv ((Func (lift_eq_f nil)  [val; id]) :: tl).
+       locals_wf funcs' uenv ((Func (lift_eq_f)  [val; id]) :: tl).
+
+Inductive sep_wf  : list sepE -> Prop :=
+| sep_wf_nil : sep_wf  []
+| sep_wf_cons : forall tl id exp sep ty,
+       match exp with
+         | one_arg e => e = Func lift_eval_var_f [sep; id; ty]
+         | _ => True
+       end ->
+       sep_wf  tl ->
+       sep_wf (exp :: tl).
+
+Lemma remove_id_closed : forall id funcs' uenv locals,
+locals_wf (funcs funcs') uenv locals->
+closed_wrt_vars (eq id) (fold_right `and `True (reflect_Tlocal (funcs funcs') uenv (remove_id (funcs funcs') uenv id locals))).
+Proof.
+intros.
+induction locals.
+simpl. auto with closed.
+inv H. simpl.
+intro rho; intros.
+case_eq ((reflect_id (funcs funcs') uenv id0 =? id)%positive); intros.
+eapply IHlocals; eauto.
+simpl. super_unfold_lift. intuition.
+f_equal; eauto. specialize (H (reflect_id (funcs funcs') uenv id0)).
+destruct H. apply Pos.eqb_neq in H0. intuition. unfold reflect_local.
+simpl. rewrite H3. case_eq (exprD (funcs funcs') uenv [] id0 ident_tv).
+intros. simpl. unfold lift_eq. super_unfold_lift. unfold eval_id. simpl. 
+unfold reflect_id in H. rewrite H5 in *. simpl in H. rewrite H. auto.
+intros. auto.
+Qed.
+
+
+Lemma sep_wf_closed :
+forall funcs' preds uenv sep id,
+sep_wf sep ->
+closed_wrt_vars (eq id) (fold_right sepcon emp (reflect_Tsep (funcs funcs') preds uenv sep)).
+Proof with auto 50 with closed.
+intros.
+induction sep...
+simpl in *.
+intro rho; intros.
+destruct a. simpl. f_equal. inv H; intuition.
+inv H. simpl.
+case_eq (exprD (funcs funcs') uenv [] sep0 val_mpred_tv); intros;
+case_eq (exprD (funcs funcs') uenv [] id0 ident_tv); intros;
+case_eq (exprD (funcs funcs') uenv [] ty c_type_tv); intros;
+simpl; f_equal; auto 50 with closed; eapply IHsep; eauto.
+Qed.
+
+
+
 
 Lemma make_P_help : forall locals id id2 funcs' uenv val P 
 (LWF : locals_wf (funcs funcs') uenv locals),
@@ -618,9 +609,47 @@ Proof.
   + ind1 idtac idtac. simpl in *. transl.
     edestruct (wf_locals_lvalue_reflect); eauto. rewrite H0; eauto.
 Qed.
- 
+
+Lemma remove_local_imp : forall funcs uenv local rho id,
+locals_wf funcs uenv local ->
+fold_right `and `True (reflect_Tlocal funcs uenv local) rho ->
+fold_right `and `True (reflect_Tlocal funcs uenv (remove_id funcs uenv id local)) rho.
+Proof.
+induction local; intros.
+auto. inv H.
+simpl in *. case_eq ((reflect_id funcs0 uenv id0 =? id)%positive); intros.
+super_unfold_lift; intuition.
+simpl.
+super_unfold_lift. split; intuition.
+eapply IHlocal; eauto.
+Qed.
+
+Lemma remove_local_imp2 : forall funcs' uenv local rho id (x: val),
+locals_wf (funcs funcs') uenv local ->
+fold_right `and `True
+         (map (subst id `x) (reflect_Tlocal (funcs funcs') uenv local)) rho ->
+fold_right `and `True (reflect_Tlocal (funcs funcs') uenv (remove_id (funcs funcs') uenv id local)) rho.
+Proof.
+induction local; intros.
+auto. inv H.
+simpl in *. case_eq ((reflect_id (funcs funcs') uenv id0 =? id)%positive); intros.
+super_unfold_lift. 
+destruct H0.
+eapply IHlocal; auto. apply H1.
+simpl.
+super_unfold_lift. intuition.
+unfold reflect_local in *. simpl in *. rewrite H4 in *.
+case_eq (exprD (funcs funcs') uenv [] id0 ident_tv); intros; try rewrite H0 in *.
+simpl in *. unfold lift_eq in *. super_unfold_lift.
+apply Pos.eqb_neq in H. 
+inv H1. unfold eval_id. simpl. rewrite Map.gso; auto.
+unfold reflect_id in H. rewrite H0 in H. simpl in H. auto. auto.
+eapply IHlocal; eauto.
+Qed.
+
 Theorem symexe_sound_s : forall funcs' preds uenv trip
-(LWF : locals_wf (funcs funcs') uenv (Tlocal trip)),
+(LWF : locals_wf (funcs funcs') uenv (Tlocal trip))
+(SWF : sep_wf (Tsep trip) ),
 TripleD (funcs funcs') preds uenv (symexe trip (funcs funcs') uenv) ->
 TripleD (funcs funcs') preds uenv trip.
 intros.
@@ -631,6 +660,8 @@ try solve [unfold symexe in *; simpl in *; auto].
 destruct Tcommand0_1;
 try solve [unfold symexe in *; simpl in *; auto].
 simpl_reflect. unfold symexe in H. simpl_reflect.
+destruct ((tc_expr_b Tdelta0 e &&
+             tc_temp_id_b i (Clight.typeof e) Tdelta0 e)%bool) eqn:TC; auto.
 unfold TripleD, PreD, Tlocal, reflect_Tlocal, reflect_Tprop in H.
 revert H. case_eq (msubst_eval_expr (make_P (funcs funcs') uenv Tlocal0) e); intros. simpl in *.
 unfold reflect_local in H0. simpl in H0. edestruct wf_locals_reflect; eauto.
@@ -639,67 +670,143 @@ eapply semax_seq.
 apply sequential'. 
 eapply semax_post; [ | apply forward_setx; auto]. 
 intros.
-Focus 3.
+Focus 3. 
 simpl. 
  apply H0. intro rho. normalize.
 apply normal_ret_assert_derives.
-entailer!.
-SearchAbout subst.
-Check semax_seq. intros. destruct ek; simpl. 
+entailer!. rename x0 into old.
+rewrite fold_right_sepcon_subst.
+assert (closed_wrt_vars (eq i) (fold_right sepcon emp (reflect_Tsep (funcs funcs') preds uenv Tsep0))).
+apply sep_wf_closed; auto. autorewrite with subst. entailer. 
+apply prop_right.
+split. 
+symmetry in H.
+unfold lift_eq. 
+eapply msubst_eval_expr_eq in H; eauto.
+unfold lift_eq; super_unfold_lift. rewrite H. clear H. 
+eauto. apply make_P_sound; auto.
+clear - H5. induction Tlocal0; simpl in *; auto.
+super_unfold_lift. intuition.
+eapply remove_local_imp2; eauto.
 
-intros. 
-Check forward_setx.
-Print normal_ret_assert.
-rewrite overridePost_normal'.
-SearchAbout overridePost.
-Check normal_ret_assert.
-intros.  entailer!.
-intro rho. normalize.
-SearchAbout normal_ret_assert.
-apply derives_extract_prop.
+(*typechecking fact, needs a check in symexe *)
+go_lowerx.
+apply andb_true_iff in TC. destruct TC as [TC1 TC2].
+ apply andp_right; apply prop_right.
+apply tc_expr_b_sound; auto.
+apply tc_temp_id_b_sound; auto.
+unfold tc_temp_id. unfold typecheck_temp_id. simpl.
 
- simpl in H.
-symmetry in H0.
-extensionality.
-eapply msubst_eval_expr_eq in H0; eauto.
-Focus 2.
-forward. Focus 2. simpl.
-simpl_reflect_local in H.
-simpl ((force_Opt
-                 (exprD funcs uenv []
-                    (Func 114%nat
-                       [msubst_eval_expr (make_P funcs Tlocal0) e;
-                       ident_to_expr i]) (tvType 17)) False')) in H.
-unfold TripleD in H; unfold PreD in H; simpl in H.
-simpl_reflect_local in H.  simpl in H.
+auto.
+Qed.
 
-simpl (nth_error funcs 114) in H.
+Ltac reflect_triple :=
+let types' := get_types in
+let types := get_types_name in
+let funcs := get_funcs_name types' in
+let preds := get_predicates_name types' in 
+let uenv := get_uenv_name types' in
+cbv [
+TripleD Tdelta Tcommand Tpost Tprop Tlocal Tsep PreD reflect_Tprop reflect_prop map' 
+force_Opt reflect_Tlocal reflect_Tsep s_reflect all_preds tvar_rec tvar_rect
+exprD functionTypeD applyD reflect_local
+forallEach AllProvable_impl AllProvable_gen AllProvable_and projT1 projT2 Provable lookupAs
+nth_error equiv_dec length fold_right tvarD Impl_ EqDec_tvar eq_nat_dec
+Basics.impl Impl Exc
+Sep.sexprD Sep.SDenotation Sep.SDomain Denotation Domain Range 
+VericSepLogic.himp  VericSepLogic.inj VericSepLogic.star VericSepLogic_Kernel.emp VericSepLogic.hprop
+sumbool_rec sumbool_rect nat_rec nat_rect eq_rec_r eq_rec eq_rect eq_sym f_equal
+funcs preds types uenv abbreviate value
 
-compute (nth_error_funcs 114).
+functions.two_power_nat_signature functions.O_signature functions.force_ptr_signature
+functions.app_val_signature functions.int_max_unsigned_signature functions.and_signature
+functions.align_signature functions.cons_val_signature functions.int_sub_signature 
+functions.Vint_signature functions.map_Vint_signature functions.typed_true_signature 
+functions.int_add_signature functions.S_signature functions.Z_lt_signature
+functions.Z_le_signature functions.Z_gt_signature functions.Z_ge_signature
+functions.Zpos_signature functions.Zneg_signature functions.Z0_signature
+functions.xI_signature functions.xO_signature functions.xH_signature functions.int_lt_signature
+functions.int_ltu_signature functions.int_mul_signature functions.int_neg_signature 
+functions.Z_add_signature functions.Z_sub_signature functions.Z_mul_signature
+functions.Z_div_signature functions.Z_mod_signature functions.Z_max_signature
+functions.Z_opp_signature functions.Ceq_signature functions.Cne_signature
+functions.Clt_signature functions.Cle_signature functions.Cgt_signature
+functions.Cge_signature functions.int_cmp_signature functions.int_cmpu_signature
+functions.int_repr_signature functions.int_signed_signature functions.int_unsigned_signature
+functions.nullval_signature functions.tptr_signature functions.nil_val_signature
+functions.reverse_t_struct_list_signature functions.reverse__tail_signature
+functions.True_signature functions.eval_id_signature
+functions.lift_eq_signature functions.lift_eq functions.sep_predicates
+functions.lseg_sample_ls_psig
+eval_binop_signature  eval_unop_signature  Some_N_signature  None_N_signature  N0_signature
+ Npos_signature true_signature false_signature mk_attr_signature I8_signature I16_signature
+ I32_signature IBool_signature signed_signature unsigned_signature Tnil_signature Tcons_signature
+ Fnil_signature Fcons_signature F32_signature F64_signature Onotbool_signature Onotint_signature
+ Oneg_signature Oadd_signature Osub_signature Omul_signature Odiv_signature Omod_signature 
+Oand_signature Oor_signature Oxor_signature Oshl_signature Oshr_signature Oeq_signature
+ One_signature Olt_signature Ogt_signature Ole_signature Oge_signature eval_cast_signature
+ deref_noload_signature eval_field_signature
+Tvoid_signature Tint_signature Tlong_signature Tfloat_signature
+ Tpointer_signature Tarray_signature Tfunction_signature
+ Tstruct_signature  Tunion_signature Tcomp_ptr_signature 
+xIp_signature xOp_signature xHp_signature Vint_signature Vfloat_signature Vlong_signature
+int64_repr_signature tc_environ_signature False_signature 
 
-unfold TripleD in H0. simpl_reflect.
-unfold reflect_Tlocal in H0. unfold map' in H0. simpl in H0.
+ two_power_nat_f O_f  force_ptr_f app_val_f  int_max_unsigned_f and_f  align_f  cons_val_f
+ int_sub_f vint_f  map_Vint_f  typed_true_f  int_add_f S_f Z_lt_f Z_le_f Z_gt_f Z_ge_f 
+ Zpos_f  Zneg_f  Z0_f xI_f 
+ xO_f xH_f int_lt_f int_ltu_f int_mul_f int_neg_f Z_add_f Z_sub_f Z_mul_f Z_div_f 
+ Z_mod_f Z_max_f Z_opp_f Ceq_f Cne_f Clt_f Cle_f Cgt_f Cge_f int_cmp_f int_cmpu_f 
+ int_repr_f int_signed_f int_unsigned_f nullval_f tptr_f nil_val_f 
+ reverse_t_struct_list_f reverse__tail_f vfloat_f vlong_f Tvoid_f Tint_f Tlong_f 
+ Tfloat_f Tpointer_f Tarray_f Tfunction_f Tstruct_f Tunion_f Tcomp_ptr_f eval_binop_f
+ eval_unop_f Some_N_f None_N_f N0_f Npos_f true_f false_f mk_attr_f I8_f 
+ I16_f I32_f IBool_f signed_f unsigned_f Tnil_f Tcons_f Fnil_f Fcons_f F32_f 
+ F64_f Onotbool_f Onotint_f Oneg_f Oadd_f Osub_f Omul_f Odiv_f Omod_f Oand_f Oor_f Oxor_f
+ Oshl_f Oshr_f Oeq_f One_f Olt_f Ogt_f Ole_f Oge_f eval_cast_f deref_noload_f
+ eval_field_f int_64_repr_f xIp_f xOp_f xHp_f 
 
-let f := eval vm_compute in funcs in id_this f.
+types.tycontext_tv lift_prop_tv
+types.c_expr_tv types.c_type_tv types.environ_tv types.val_tv types.share_tv 
+types.ident_tv types.list_val_tv types.list_int_tv types.int_tv types.Z_tv
+types.nat_tv types.positive_tv types.bool_tv types.comparison_tv types.tc_assert_tv 
+types.our_types typelist_tv
+binary_operation_tv float_tv int64_tv floatsize_tv unary_operation_tv 
+N_tv option_N_tv attr_tv intsize_tv signedness_tv fieldlist_tv 
 
-Ltac nth_unfold H :=
-match goal with
-[ H : context[nth_error ?funcs ?id]] 
+val_map_type 
+types.tycontext_type
+types.c_expr_type types.c_type_type types.environ_type types.val_type types.share_type 
+types.ident_type types.list_val_type types.list_int_type  types.int_type types.Z_type
+types.nat_type types.positive_type types.bool_type types.comparison_type
+types.tc_assert_type
+types.no_eqb_type lift_prop_type
+lift_mpred_type int64_type float_type
+                                  attr_type signedness_type intsize_type
+                                  floatsize_type typelist_type
+                                  fieldlist_type binary_operation_type
+                                  unary_operation_type N_type
+                                  option_N_type
+ val_eq.list_eqb_type  
 
+Env.repr Env.listToRepr
 
+symexe int32_to_expr Z_to_expr eqb_comparison make_P make_P' reflect_id msubst_eval_expr
+msubst_eval_lvalue_expr  binop_to_expr unop_to_expr pos_to_expr type_to_expr
+pos_to_expr Z_to_expr int32_to_expr int64_to_expr  optN_to_expr bool_to_expr attr_to_expr
+intsize_to_expr  floatsize_to_expr signedness_to_expr ident_to_expr type_from_eq
+value fieldlist_to_expr
 
+Int.intval Int.repr Int.Z_mod_modulus 
 
-unfold reflect_local in H0.
+PTree.get PTree.set map Clight.typeof tint tptr tlong tvoid noattr
 
-Ltac compute_exprD_h H :=
-match goal with
+_w
 
+tc_expr_b tc_temp_id_b denote_tc_assert_b typecheck_expr tc_andp tc_orp
+isCastResultType classify_cast eqb_type is_pointer_type is_int_type
+ tc_iszero andb orb eval_expr].
 
- simpl in H0. rewrite H in H0.
-simpl in H0.
-Print closed_wrt_vars. 
-
-*)
 
 Lemma triple : forall p contents sh,
 exists POSTCONDITION,
@@ -712,8 +819,11 @@ intros.
 eexists.
 pose_env.
 reify_triple.
-apply symexe_sound.
-reflect_triple. simpl. 
+apply symexe_sound_s. 
+simpl.
+repeat econstructor; auto.
+repeat econstructor; auto.
+reflect_triple. 
 
 assert (
 (PROP  ()

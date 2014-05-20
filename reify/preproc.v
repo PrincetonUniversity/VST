@@ -17,14 +17,14 @@ Definition reflect_and a b := @Func 5%nat (a :: b :: nil).
 
 Fixpoint unflatten_conjuncts l : Expr.expr :=
 match l with
-| nil => Func (functions.True_f nil) nil
+| nil => Func (functions.True_f) nil
 | h::nil => h
 | h::t => Func 5%nat (h::(unflatten_conjuncts t)::nil)
 end .
 
 Fixpoint unflatten_conjuncts_sep l : Sep.sexpr :=
 match l with
-| nil => Sep.Inj (Func (functions.True_f nil) nil)
+| nil => Sep.Inj (Func (functions.True_f) nil)
 | h::nil => Sep.Inj h
 | h::t => Sep.Star (Sep.Inj h) (unflatten_conjuncts_sep t)
 end .
@@ -41,7 +41,7 @@ end.
 
 Definition is_true_e (p: Expr.expr) :=
 match p with
-| Func f nil  => beq_nat (functions.True_f nil) f
+| Func f nil  => beq_nat (functions.True_f) f
 | _ => false
 end.
 
@@ -101,7 +101,7 @@ Qed.
 
 Lemma provable_unflatten_cons : forall t l a f uenv,
                                   nth_error f 5 = Some (functions.and_signature t) ->
-                                  nth_error f (functions.True_f nil) = Some (functions.True_signature t) ->
+                                  nth_error f (functions.True_f) = Some (functions.True_signature t) ->
                                   (Provable f uenv nil (unflatten_conjuncts (a :: l)) <->
                                   Provable f uenv nil a /\ Provable f uenv nil (unflatten_conjuncts l)).
 Proof.
@@ -119,7 +119,7 @@ Hint Rewrite provable_unflatten_cons: Provable_and.
 Lemma unflatten_conjuncts_app :
 forall t l1 l2 f uenv, 
 nth_error f 5%nat = Some (functions.and_signature t) -> 
-nth_error f (functions.True_f nil) = Some (functions.True_signature t) ->
+nth_error f (functions.True_f) = Some (functions.True_signature t) ->
 (Provable f uenv nil
 (Func 5%nat 
 ((unflatten_conjuncts l1) :: ((unflatten_conjuncts) l2) :: nil)) <->
@@ -159,8 +159,8 @@ destruct (exprD f uenv nil e0 tvProp); intuition.
 Qed.
 
 Lemma func_True : forall t f uenv,  
-nth_error f (functions.True_f nil) = Some (functions.True_signature t) ->
-Provable f uenv nil (Func (functions.True_f nil) nil) = True.
+nth_error f (functions.True_f) = Some (functions.True_signature t) ->
+Provable f uenv nil (Func (functions.True_f) nil) = True.
 Proof.
 intros.
 unfold Provable.
@@ -178,7 +178,7 @@ end.
 
 Lemma Provable_remove_trues : forall t e uenv f,
 nth_error f 5 = Some (functions.and_signature t) ->
-nth_error f (functions.True_f nil) = Some (functions.True_signature t) ->
+nth_error f (functions.True_f) = Some (functions.True_signature t) ->
 (Provable f uenv nil e <-> Provable f uenv nil (remove_trues e)). 
 Proof.
 intros; split; induction e; intros; auto.
@@ -197,7 +197,7 @@ intros; split; induction e; intros; auto.
    rewrite Forall_forall in H1. unfold remove_trues in H1.
    intuition.
    auto. auto.
-   do_n (True_f nil) ltac:(destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
+   do_n (True_f) ltac:(destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
    unfold Provable; simpl. auto.
    destruct l; auto.
  + do 5 (destruct f0; [ unfold remove_trues; try destruct l; auto | ]). 
@@ -209,12 +209,12 @@ intros; split; induction e; intros; auto.
    rp. rewrite Forall_forall in H1. 
    intuition.
    auto. auto.
-   do_n (True_f nil) ltac:(destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
+   do_n (True_f) ltac:(destruct f0; [ unfold remove_trues; try destruct l; auto | auto ]).
    unfold remove_trues in *. simpl in H2. destruct l; auto.
 Qed.
 
 Lemma unflatten_conjuncts_sep_app : forall t f p uenv l1 l2,
-nth_error f (functions.True_f nil) = Some (functions.True_signature t) ->
+nth_error f (functions.True_f) = Some (functions.True_signature t) ->
 Sep.sexprD f p uenv nil 
 (Sep.Star (unflatten_conjuncts_sep l1) (unflatten_conjuncts_sep l2)) =
 Sep.sexprD f p uenv nil
@@ -318,7 +318,7 @@ Qed.
 
 Lemma Provable_lift_and : forall t e uenv f p,
 nth_error f 5 = Some (functions.and_signature t) ->
-nth_error f (functions.True_f nil) = Some (functions.True_signature t) ->
+nth_error f (functions.True_f) = Some (functions.True_signature t) ->
 Sep.sexprD f p uenv nil (Sep.Inj e) = Sep.sexprD f p uenv nil (lift_and e).
 Proof.
 intros. apply pred_ext.
@@ -398,7 +398,7 @@ Qed.
 
 Lemma lift_ands_eq : forall t f p s uenv,
 nth_error f 5 = Some (functions.and_signature t) ->
-nth_error f (functions.True_f nil) = Some (functions.True_signature t) ->
+nth_error f (functions.True_f) = Some (functions.True_signature t) ->
 Sep.sexprD f p uenv nil s =
 Sep.sexprD f p uenv nil (lift_ands s).
 Proof.
@@ -415,7 +415,7 @@ Qed.
 Lemma goal_lift_and :
 forall t f preds uenv a l r,
 nth_error f 5 = Some (functions.and_signature t) ->
-nth_error f (functions.True_f nil) = Some (functions.True_signature t) ->
+nth_error f (functions.True_f) = Some (functions.True_signature t) ->
 (goalD (functions.all_types_r t) f preds uenv nil (a, (l,r)) <-> 
 goalD (functions.all_types_r t) f preds uenv nil (a, ((lift_ands l), (lift_ands r)))).
 intuition.
@@ -431,7 +431,7 @@ Qed.
 Lemma goal_lift_and' :
 forall t f preds uenv a l r newl newr n,
 nth_error f 5 = Some (functions.and_signature t) ->
-nth_error f (functions.True_f nil) = Some (functions.True_signature t) ->
+nth_error f (functions.True_f) = Some (functions.True_signature t) ->
 lift_ands l = newl -> lift_ands r = newr ->
 n = nil ->
 (goalD (functions.all_types_r t) f preds uenv n (a, (l,r)) <-> 

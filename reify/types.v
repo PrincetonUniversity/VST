@@ -197,6 +197,7 @@ Qed.
 
 Definition option_N_type := type_from_eq (beq_option_true beq_N_true).
 
+Definition val_mpred_type := no_eqb_type (val -> mpred).
 
 Definition our_types :=[tycontext_type
 ;c_expr_type 
@@ -229,6 +230,7 @@ Definition our_types :=[tycontext_type
 ;unary_operation_type
 ;N_type
 ;option_N_type
+;val_mpred_type
 ].
 
 
@@ -264,3 +266,4 @@ Definition binary_operation_tv := Expr.tvType 27.
 Definition unary_operation_tv := Expr.tvType 28.
 Definition N_tv := Expr.tvType 29.
 Definition option_N_tv := Expr.tvType 30.
+Definition val_mpred_tv := Expr.tvType 31.

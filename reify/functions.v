@@ -393,6 +393,12 @@ Expr.Sig all_types nil ident_tv reverse._tail.
 
 Definition lift_eq a b : environ -> Prop := `(eq a) (eval_id b).
 
+Definition lift_eval_var (a:val -> mpred) id t : environ -> mpred :=
+fun rho => (a (eval_var id t rho)).
+
+Definition lift_eval_var_signature :=
+Expr.Sig all_types (val_mpred_tv :: ident_tv :: c_type_tv :: nil) lift_mpred_tv lift_eval_var.
+
 Definition lift_eq_signature :=
 Expr.Sig all_types (val_tv :: ident_tv :: nil) lift_prop_tv lift_eq.
 
@@ -406,8 +412,6 @@ Definition eval_field_signature :=
 Expr.Sig all_types [c_type_tv; ident_tv; val_tv] val_tv eval_field.
 
 Import ListNotations.
-
-Print Cop.unary_operation.
 
 Definition computable_functions :=
 [ two_power_nat_signature 
@@ -528,6 +532,7 @@ Definition non_computable_functions :=
 ; True_signature
 ; False_signature
 ; lift_eq_signature
+; lift_eval_var_signature
 ].
 
 Definition our_functions := 
@@ -651,13 +656,6 @@ Definition xIp_f := S(int_64_repr_f).
 Definition xOp_f := S(xIp_f).
 Definition xHp_f := S(xOp_f).
 
-(* Past this point are functions that should not compute into Consts *)
-Definition tc_environ_f := length computable_functions.
-Definition eval_id_f := S (tc_environ_f).
-Definition True_f := S (eval_id_f).
-Definition False_f := S (True_f).
-Definition lift_eq_f := S(False_f).
-
 (*Separation Logic predicates *)
 Definition field_at_psig :=
 Sep.PSig all_types (share_tv :: c_type_tv :: ident_tv :: val_tv :: val_tv :: nil)
@@ -727,3 +725,14 @@ Definition lseg_sample_ls_p := 1%nat.
 Definition list_cell_sample_ls_p := 2%nat.
 
 End typed.
+
+(* Past this point are functions that should not compute into Consts *)
+Definition tc_environ_f := length (computable_functions nil).
+Definition eval_id_f := S (tc_environ_f).
+Definition True_f := S (eval_id_f).
+Definition False_f := S (True_f).
+Definition lift_eq_f := S(False_f).
+Definition lift_eval_var_f := S(lift_eq_f).
+
+
+
