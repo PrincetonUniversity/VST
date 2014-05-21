@@ -1,0 +1,82 @@
+PROBLEM: Assume we want to initialize a Mach/Asm core with arguments
+v1,v2,...,vn. In other words, how do we define
+
+  mach_initial_core f v1,v2,...,vn = 
+     ...
+
+when core states in Mach are just the (finite) register bank modeling
+finite machine registers? Where do we put the arguments v1,v2,...,vn?
+In particular, we may not be able to fit them in registers, and real
+calling conventions don't pass most arguments in registers anyway.
+
+In Clight and other higher-level languages, initialization is easier.
+We produce the corestate
+
+  CL_Callstate f (v1,v2,...,vn) Kstop
+
+in which the function arguments are stored "abstractly".  We are not
+constrained by the resources, e.g., number of registers, of the
+machine.
+
+In calling conventions like __stdcall, registers are passed on the
+stack, in right-to-left order. That is,
+
+  push vn
+  push vn-1
+  ...
+  push v2
+  push v1
+
+In order to support calls from external modules following standard
+calling conventions, this suggests that we should initialize cores in
+"resource-constrained" languages such as Mach not with values, but
+with *pointers* to values (with the arguments themselves allocated in
+memory). To access parameters, we do so indirectly, through the
+pointers.
+
+But we need to do this consistently. In particular, we need to make
+sure that we access parameters indirectly even in the higher-level
+languages like Clight. Program contexts that initialize a module
+compiled from Clight->Mach->Asm should not be able to distinguish the
+module depending on its use of "abstract" vs. stack-passing calling
+conventions. 
+
+PLAN:
+1) Update the "resource-unconstrained" languages (Clight->LTL) in 
+the following way:
+    a) In initial_core, initialize callstates with values loaded 
+       from memory, as in:
+       
+         initial_core f m (v1,v2,...,vn) =
+            let v1' := load m v1
+                v2' := load m v2 
+                ...
+                vn' := load m vn
+            in CL_Callstate f (v1',v2',...,vn') Kstop
+
+       If one of these loads fails, then initial_core returns None.
+       The simulation proofs show that initialization behavior 
+       is preserved.
+
+    b) In order to marshall arguments to external functions, add a new
+       step to the corestep relation for each language that allocates
+       a memory block of the right chunk size for each external
+       function argument, and store each argument into the allocated
+       block. Only then does the core actually step to the ExtCall state.
+
+    c) In at_external, expose the *locations* of the arguments (as
+       Vptrs), not the arguments themselves.
+
+2) Update proofs. This will involve:
+    a) Updating the match_initial_core and at_external cases of the
+       simulation proofs, from Clight down.
+
+    b) The trickier bit: showing that the argument allocations/stores
+       done by external calls in Clight through LTL are simulated by
+       stores into Mach stackframes.
+
+
+
+
+
+          
