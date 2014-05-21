@@ -1185,7 +1185,6 @@ Proof.
   eapply B. simpl in H. eassumption.
   eapply B. simpl in H. eassumption.
   eapply B. simpl in H. eassumption.
-  eapply B. simpl in H. eassumption.
   simpl in H. clear -H.
   assert (forall L, (forall mv, In mv L -> exists n, mv = Pointer b0 i n) ->
           forall  mv, In mv L -> exists n, mv = Pointer b0 i n).

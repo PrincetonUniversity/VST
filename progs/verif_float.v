@@ -15,10 +15,7 @@ Definition Vprog : varspecs := (_s, t_struct_foo)::nil.
 Definition Gprog : funspecs := 
      main_spec::nil.
 
-Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
-
-
-Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
 name x1 _x1.

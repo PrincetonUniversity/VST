@@ -137,7 +137,7 @@ Lemma semax_fun_id:
       (GLBL: (var_types Delta) ! id = None),
     (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A P' Q')) ->
        semax Espec Delta (fun rho => P rho 
-                                && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig))) rho))
+                                && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default)) rho))
                               c Q ->
        semax Espec Delta P c Q.
 Proof.
@@ -1366,7 +1366,7 @@ forall (Delta : tycontext) (A : Type)
   (tx : temp_env) (k : cont) (rho : environ) (ora : OK_ty) (jm : juicy_mem)
   (b : block)
  (TC0 : Cop.classify_fun (typeof a) =
-      Cop.fun_case_f (type_of_params params) retty)
+      Cop.fun_case_f (type_of_params params) retty cc_default)
  (TCret : tc_fn_return Delta ret retty)
  (TC1 : (tc_expr Delta a rho) (m_phi jm))
  (TC2 : (tc_exprlist Delta (map snd params) bl rho) (m_phi jm))
@@ -1400,7 +1400,7 @@ destruct TC3 as [TC3 TC3'].
 rewrite <- snd_split in TC2.
 assert (H21 := exprlist_eval Delta (params,retty) bl psi vx tx _ 
       (m_dry jm) TC2 TC3 H0
-      (mkfunction retty params nil nil Sskip)
+      (mkfunction retty cc_default params nil nil Sskip)
       (eq_refl _)). simpl in H21.
 rewrite snd_split in TC2.
 
@@ -1408,6 +1408,7 @@ unfold believe_external in H15.
 destruct (Genv.find_funct psi (Vptr b Int.zero)) eqn:H22; try (contradiction H15).
 destruct f; try (contradiction H15).
 destruct H15 as [H5 H15]. hnf in H5.
+destruct H5 as [H5 H5']; subst c.
 inv H5; rename t0 into retty; rename t into tys.
 specialize (H15 psi x n).
 spec H15; [constructor 1; rewrite H2; constructor | ].
@@ -1634,7 +1635,7 @@ Lemma semax_call_aux:
   (bl : list expr) (R : ret_assert) (psi : genv) (vx:env) (tx:Clight.temp_env) (k : cont) (rho : environ)
   (ora : OK_ty) (jm : juicy_mem) (b : block) (id : ident),
    Cop.classify_fun (typeof a) =
-   Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) ->
+   Cop.fun_case_f (type_of_params (fst fsig)) (snd fsig) cc_default ->
    tc_fn_return Delta ret (snd fsig) ->
    tc_expr Delta a rho (m_phi jm) ->
    tc_exprlist Delta (snd (split (fst fsig))) bl rho (m_phi jm) ->
@@ -1690,7 +1691,7 @@ eapply semax_call_external; eassumption.
 }
 specialize (H14 _ (age_laterR H13)).
 destruct H15 as [b' [f [[? [? [? ?]]] ?]]].
-destruct H18 as [H17' H18].
+destruct H18 as [H17' [H18 H18']].
 inversion H15; clear H15; subst b'.
 specialize (H19 x n LATER).
 rewrite semax_fold_unfold in H19.
@@ -1950,7 +1951,8 @@ eapply eval_expr_relate; try solve[rewrite H0; auto]; auto. destruct TC3; eassum
 destruct (fsig). unfold fn_funsig in *. inv H18.
 eapply exprlist_eval; try eassumption; auto.
  apply TC2. destruct TC3 ; auto.
-unfold type_of_function. destruct fsig; inv H18; auto. 
+unfold type_of_function.
+rewrite H18'; destruct fsig; inv H18; auto. 
 rewrite <- (age_jm_dry H20x); auto.
 split.
  destruct H20;  apply resource_decay_trans with (nextblock (m_dry jm')) (m_phi jm'); auto.
@@ -2083,7 +2085,7 @@ Qed.
 Lemma semax_call: 
     forall Delta A (P Q: A -> assert) x F ret argsig retsig a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig -> 
+           Cop.fun_case_f (type_of_params argsig) retsig cc_default -> 
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax Espec Delta
@@ -2200,7 +2202,7 @@ Qed.
 Lemma semax_call_alt: 
     forall Delta A (P Q: A -> assert) x F ret argsig retsig a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig -> 
+           Cop.fun_case_f (type_of_params argsig) retsig cc_default -> 
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax Espec Delta

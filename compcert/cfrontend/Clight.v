@@ -108,8 +108,9 @@ Inductive statement : Type :=
   | Sgoto : label -> statement
 
 with labeled_statements : Type :=            (**r cases of a [switch] *)
-  | LSdefault: statement -> labeled_statements
-  | LScase: int -> statement -> labeled_statements -> labeled_statements.
+  | LSnil: labeled_statements
+  | LScons: option int -> statement -> labeled_statements -> labeled_statements.
+                      (**r [None] is [default], [Some x] is [case x] *)
 
 (** The C loops are derived forms. *)
 
@@ -131,6 +132,7 @@ Definition Sfor (s1: statement) (e2: expr) (s3: statement) (s4: statement) :=
 
 Record function : Type := mkfunction {
   fn_return: type;
+  fn_callconv: calling_convention;
   fn_params: list (ident * type);
   fn_vars: list (ident * type);
   fn_temps: list (ident * type);
@@ -145,17 +147,17 @@ Definition var_names (vars: list(ident * type)) : list ident :=
 
 Inductive fundef : Type :=
   | Internal: function -> fundef
-  | External: external_function -> typelist -> type -> fundef.
+  | External: external_function -> typelist -> type -> calling_convention -> fundef.
 
 (** The type of a function definition. *)
 
 Definition type_of_function (f: function) : type :=
-  Tfunction (type_of_params (fn_params f)) (fn_return f).
+  Tfunction (type_of_params (fn_params f)) (fn_return f) (fn_callconv f).
 
 Definition type_of_fundef (f: fundef) : type :=
   match f with
   | Internal fd => type_of_function fd
-  | External id args res => Tfunction args res
+  | External id args res cc => Tfunction args res cc
   end.
 
 (** ** Programs *)
@@ -218,8 +220,8 @@ Inductive assign_loc (ty: type) (m: mem) (b: block) (ofs: int):
       assign_loc ty m b ofs v m'
   | assign_loc_copy: forall b' ofs' bytes m',
       access_mode ty = By_copy ->
-      (alignof_blockcopy ty | Int.unsigned ofs') ->
-      (alignof_blockcopy ty | Int.unsigned ofs) ->
+      (sizeof ty > 0 -> (alignof_blockcopy ty | Int.unsigned ofs')) ->
+      (sizeof ty > 0 -> (alignof_blockcopy ty | Int.unsigned ofs)) ->
       b' <> b \/ Int.unsigned ofs' = Int.unsigned ofs
               \/ Int.unsigned ofs' + sizeof ty <= Int.unsigned ofs
               \/ Int.unsigned ofs + sizeof ty <= Int.unsigned ofs' ->
@@ -301,37 +303,37 @@ Definition set_opttemp (optid: option ident) (v: val) (le: temp_env) :=
 (** Selection of the appropriate case of a [switch], given the value [n]
   of the selector expression. *)
 
-Fixpoint select_switch (n: int) (sl: labeled_statements)
-                       {struct sl}: labeled_statements :=
+Fixpoint select_switch_default (sl: labeled_statements): labeled_statements :=
   match sl with
-  | LSdefault _ => sl
-  | LScase c s sl' => if Int.eq c n then sl else select_switch n sl'
+  | LSnil => sl
+  | LScons None s sl' => sl
+  | LScons (Some i) s sl' => select_switch_default sl'
+  end.
+
+Fixpoint select_switch_case (n: int) (sl: labeled_statements): option labeled_statements :=
+  match sl with
+  | LSnil => None
+  | LScons None s sl' => select_switch_case n sl'
+  | LScons (Some c) s sl' => if Int.eq c n then Some sl else select_switch_case n sl'
+  end.
+
+Definition select_switch (n: int) (sl: labeled_statements): labeled_statements :=
+  match select_switch_case n sl with
+  | Some sl' => sl'
+  | None => select_switch_default sl
   end.
 
 (** Turn a labeled statement into a sequence *)
 
 Fixpoint seq_of_labeled_statement (sl: labeled_statements) : statement :=
   match sl with
-  | LSdefault s => s
-  | LScase c s sl' => Ssequence s (seq_of_labeled_statement sl')
+  | LSnil => Sskip
+  | LScons _ s sl' => Ssequence s (seq_of_labeled_statement sl')
   end.
 
 Section SEMANTICS.
 
 Variable ge: genv.
-
-(** [type_of_global b] returns the type of the global variable or function
-  at address [b]. *)
-
-Definition type_of_global (b: block) : option type :=
-  match Genv.find_var_info ge b with
-  | Some gv => Some gv.(gvar_info)
-  | None =>
-      match Genv.find_funct_ptr ge b with
-      | Some fd => Some(type_of_fundef fd)
-      | None => None
-      end
-  end.
 
 (** ** Evaluation of expressions *)
 
@@ -387,7 +389,6 @@ with eval_lvalue: expr -> block -> int -> Prop :=
   | eval_Evar_global: forall id l ty,
       e!id = None ->
       Genv.find_symbol ge id = Some l ->
-      type_of_global l = Some ty ->
       eval_lvalue (Evar id ty) l Int.zero
   | eval_Ederef: forall a ty l ofs,
       eval_expr a (Vptr l ofs) ->
@@ -507,8 +508,8 @@ Fixpoint find_label (lbl: label) (s: statement) (k: cont)
 with find_label_ls (lbl: label) (sl: labeled_statements) (k: cont) 
                     {struct sl}: option (statement * cont) :=
   match sl with
-  | LSdefault s => find_label lbl s k
-  | LScase _ s sl' =>
+  | LSnil => None
+  | LScons _ s sl' =>
       match find_label lbl s (Kseq (seq_of_labeled_statement sl') k) with
       | Some sk => Some sk
       | None => find_label_ls lbl sl' k
@@ -542,12 +543,12 @@ Inductive step: state -> trace -> state -> Prop :=
       step (State f (Sset id a) k e le m)
         E0 (State f Sskip k e (PTree.set id v le) m)
 
-  | step_call:   forall f optid a al k e le m tyargs tyres vf vargs fd,
-      classify_fun (typeof a) = fun_case_f tyargs tyres ->
+  | step_call:   forall f optid a al k e le m tyargs tyres cconv vf vargs fd,
+      classify_fun (typeof a) = fun_case_f tyargs tyres cconv ->
       eval_expr e le m a vf ->
       eval_exprlist e le m al tyargs vargs ->
       Genv.find_funct ge vf = Some fd ->
-      type_of_fundef fd = Tfunction tyargs tyres ->
+      type_of_fundef fd = Tfunction tyargs tyres cconv ->
       step (State f (Scall optid a al) k e le m)
         E0 (Callstate fd vargs (Kcall optid f e le k) m)
 
@@ -635,9 +636,9 @@ Inductive step: state -> trace -> state -> Prop :=
       step (Callstate (Internal f) vargs k m)
         E0 (State f f.(fn_body) k e le m1)
 
-  | step_external_function: forall ef targs tres vargs k m vres t m',
+  | step_external_function: forall ef targs tres cconv vargs k m vres t m',
       external_call ef ge vargs m t vres m' ->
-      step (Callstate (External ef targs tres) vargs k m)
+      step (Callstate (External ef targs tres cconv) vargs k m)
          t (Returnstate vres k m')
 
   | step_returnstate: forall v optid f e le k m,
@@ -657,7 +658,7 @@ Inductive initial_state (p: program): state -> Prop :=
       Genv.init_mem p = Some m0 ->
       Genv.find_symbol ge p.(prog_main) = Some b ->
       Genv.find_funct_ptr ge b = Some f ->
-      type_of_fundef f = Tfunction Tnil type_int32s ->
+      type_of_fundef f = Tfunction Tnil type_int32s cc_default ->
       initial_state p (Callstate f nil Kstop m0).
 
 (** A final state is a [Returnstate] with an empty continuation. *)

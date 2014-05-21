@@ -30,8 +30,6 @@ Definition Vprog : varspecs := nil.
 Definition Gprog : funspecs := 
     do_or_spec :: do_and_spec :: main_spec::nil.
 
-Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
-
 Lemma or_one_zero :
 forall r a b, 
 Vint r = logical_or_result tbool (Vint a) tbool (Vint b) ->
@@ -52,7 +50,7 @@ intros. unfold logical_and_result in *. simpl in *.
 repeat if_tac in H; inv H; auto.
 Qed.
 
-Lemma body_do_or: semax_body Vprog Gtot f_do_or do_or_spec.
+Lemma body_do_or: semax_body Vprog Gprog f_do_or do_or_spec.
 Proof.
 start_function.
 name a_ _a.
@@ -64,7 +62,7 @@ forward. rewrite <- H.
 eapply or_one_zero; eauto.
 Qed.
 
-Lemma body_do_and: semax_body Vprog Gtot f_do_and do_and_spec.
+Lemma body_do_and: semax_body Vprog Gprog f_do_and do_and_spec.
 Proof.
 start_function.
 name a_ _a.
@@ -76,7 +74,7 @@ forward. rewrite <- H.
 eapply and_one_zero; eauto.
 Qed.
 
-Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
 forward.
@@ -90,13 +88,13 @@ Qed.
 Existing Instance NullExtension.Espec.
 
 Lemma all_funcs_correct:
-  semax_func Vprog Gtot (prog_funct prog) Gtot.
+  semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
-unfold Gtot, Gprog, prog, prog_funct; simpl.
-repeat (apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ]).
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_do_or | ].
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_do_and | ].
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_main | ].
+unfold Gprog, prog, prog_funct; simpl.
+semax_func_skipn.
+semax_func_cons body_do_or.
+semax_func_cons body_do_and.
+semax_func_cons body_main.
 apply semax_func_nil.
 Qed.
 

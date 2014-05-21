@@ -422,7 +422,7 @@ Proof.
 intros. generalize dependent ge. induction e; intros;
 try solve[intuition; constructor; auto | subst; inv H1]; intuition.
 
-(* var*)
+* (* eval_expr Evar*)
 
 assert (TC_Sound:= typecheck_expr_sound).
 rewrite tc_val_eq in TC_Sound.
@@ -464,70 +464,46 @@ apply Clight.eval_Evar_global.
 symmetry in Heqo; apply Heqo.
 unfold filter_genv in *. invSome. destruct (type_of_global ge b0); inv H8; auto. 
 
-unfold filter_genv in *.  
-remember (Genv.find_symbol ge i). 
-destruct o; try congruence. 
-assert (b = b0). clear - Heqo0 H3. rename H3 into H4. 
-destruct (type_of_global ge b0); inv H4; auto. 
-subst. 
-remember (type_of_global ge b0). 
-destruct o; try congruence. inv H3. 
-remember (eqb_type t (globtype g)). destruct b.
-symmetry in Heqb. apply eqb_type_true in Heqb. auto. 
-destruct t; inv TC_Sound.  inv H3. rewrite <- H7 in H4; inv H4. 
+* (* eval_lvalue Evar *)
+(*
+pose proof (typecheck_lvalue_sound Delta rho (Evar i t) H0 H1).
+ simpl in H2.
+ *)
+ simpl in H1.
+ destruct (get_var_type Delta i) eqn:?; [ | contradiction].
+ rewrite denote_tc_assert_andp in H1; destruct H1.
+ destruct (eqb_type t t0) eqn:?; inversion H1; clear H1.
+ destruct (type_is_volatile t) eqn:?; inversion H2; clear H2.
+ apply eqb_type_true in Heqb; subst t0.
+ destruct H0 as [_ [? [? ?]]].
+ subst rho; simpl in *.
+ hnf in H0,H1.
+ unfold get_var_type in Heqo.
+ destruct ((var_types Delta)!i) eqn:?; inv Heqo.
+ +
+ apply H0 in Heqo0. destruct Heqo0 as [b ?];
+ exists b; exists Int.zero; split; auto.
+ constructor; auto.
+ unfold eval_var; simpl. rewrite H.
+ rewrite eqb_type_refl. rewrite Heqb0; reflexivity.
+ +
+ destruct ((glob_types Delta)!i) eqn:?; inv H3.
+ destruct (H1 _ _ Heqo) as [b [? ?]];
+ exists b; exists Int.zero; split; auto.
+ specialize (H2 _ _ Heqo).
+ simpl in H2.
+ destruct H2.
+ constructor 2; auto.
+ unfold filter_genv in H. destruct (Genv.find_symbol ge i); inv H.
+ destruct (type_of_global ge b0); inv H5; auto.
+ destruct H2 as [t ?]. congruence.
+ unfold eval_var. simpl.
+ specialize (H2 _ _ Heqo).
+ destruct H2. simpl in H2. unfold Map.get; rewrite H2.
+ rewrite H. rewrite eqb_type_refl. auto.
+ destruct H2; congruence.
 
-assert (TC_Sound:= typecheck_lvalue_sound).
-specialize (TC_Sound Delta rho (Evar i t) H0 H1).
- 
-simpl in *. unfold eval_var in *. 
-remember (Map.get (ve_of rho) i); destruct o; try destruct p; 
-try rewrite eqb_type_eq in *; simpl in *.
-destruct (type_eq t t0); simpl in *; intuition.
-subst t0. if_tac; intuition.
-exists b. exists Int.zero. intuition. constructor.
-unfold Map.get in Heqo. unfold construct_rho in *.
-destruct rho; inv H; simpl in *;  auto. 
-
-remember (ge_of rho i). destruct o; try destruct p; auto;
-try rewrite eqb_type_eq in *; simpl in *; intuition.
-destruct (type_eq t t0); simpl in *. subst t0.
-
-unfold get_var_type in *. 
-remember ((var_types Delta) ! i). 
-destruct o; try rewrite eqb_type_eq in *; simpl in *; super_unfold_lift; intuition.
-destruct (type_eq t t0); simpl in *; [ | contradiction]. subst t0.
-symmetry in Heqo1.
-destruct rho.  
-unfold typecheck_environ in *. 
-intuition. clear H2 H5. 
-unfold typecheck_var_environ, typecheck_glob_environ in *. 
-specialize (H0 i t Heqo1). unfold ge_of in *. unfold Map.get in *. 
-destruct H0. congruence.
-
-destruct rho. 
-unfold typecheck_environ in *; intuition. clear H2 H0 H5. 
-unfold typecheck_glob_environ in *. 
-remember ((glob_types Delta) ! i). destruct o; simpl in H1; try congruence.
-repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-super_unfold_lift. destruct H1. 
-rename H3 into H4. 
-symmetry in Heqo2. specialize (H4 _ _ Heqo2).  destruct H4. destruct H2. 
-simpl in Heqo0. rewrite H2 in *. inv Heqo0. exists x. exists Int.zero. split; auto. 
-unfold construct_rho in *. inv H. simpl in Heqo. clear H1. 
-remember (filter_genv ge). symmetry in Heqg0. 
-assert (ZO := filter_genv_zero_ofs _ _ _ _ _ Heqg0 _ H2).  subst.
-apply Clight.eval_Evar_global. auto.  unfold filter_genv in H2.
-destruct (Genv.find_symbol ge i). destruct (type_of_global ge b); inv H2; auto. 
-congruence.  
-
-unfold filter_genv in H2.
-remember (Genv.find_symbol ge i).  destruct o; try congruence.  
-assert (x = b). destruct (type_of_global ge b); inv H2; auto. subst.
-destruct (type_of_global ge b). inv H2; auto. inv H2. rewrite <- H1 in *. simpl in *.
-congruence. 
-intuition. contradiction.
-
-(*temp*)  
+* (*temp*)  
 assert (TC:= typecheck_expr_sound).
 specialize (TC Delta rho (Etempvar i t)). simpl in *. 
 intuition.  
@@ -536,7 +512,7 @@ destruct o;  auto. destruct rho; inv H; unfold make_tenv in *.
 unfold Map.get in *. auto. 
 simpl in *. destruct t; contradiction H3.
 
-(*deref*)
+* (*deref*)
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
 specialize (IHe ge). intuition. simpl in H1.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
@@ -546,7 +522,7 @@ intuition.
 exists b. exists i. simpl in *. intuition. constructor.
 auto.
 
-(*addrof*)
+* (*addrof*)
 
 simpl in H1. 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
@@ -559,7 +535,7 @@ simpl. destruct H10. destruct H9. intuition. congruence.
 destruct H10. destruct H9. destruct H6. destruct H6. destruct H9.  simpl in *.
 intuition. rewrite H6 in *. constructor. inv H10. auto.
 
-(*unop*)
+* (*unop*)
 
 simpl in *. 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
@@ -574,7 +550,8 @@ destruct (classify_bool (typeof e)); auto. unfold sem_notint, Cop.sem_notint.
 destruct (classify_notint (typeof e)); reflexivity.
 unfold sem_neg, Cop.sem_neg. 
 destruct (classify_neg (typeof e)); reflexivity.
-
+unfold sem_absfloat, Cop.sem_absfloat.
+destruct (classify_neg (typeof e)); try reflexivity.
 
 apply typecheck_expr_sound in H3; auto. unfold sem_unary_operation in *.
 destruct u. simpl in *. remember (typeof e); destruct t0; try inv H2;
@@ -591,9 +568,12 @@ simpl in *. remember (typeof e). destruct t0;
 try destruct i; try destruct s; try inversion H3; simpl in *; destruct t; intuition;
 destruct (eval_expr e rho); intuition; unfold sem_neg in *;
 simpl in *; inv Heqo.
+simpl in *. remember (typeof e). destruct t0;
+try destruct i; try destruct s; try inversion H3; simpl in *; destruct t; intuition;
+destruct (eval_expr e rho); intuition; unfold sem_neg in *;
+simpl in *; inv Heqo.
 
-
-(*binop*)
+* (*binop*)
 simpl in *. 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold eval_binop in *; super_unfold_lift; intuition. unfold force_val2, force_val.
@@ -620,7 +600,7 @@ remember (sem_binary_operation' b (typeof e1) (typeof e2) true2 (eval_expr e1 rh
 }
 
 
-(*Cast*) {
+* (*Cast*) {
 assert (TC := typecheck_expr_sound _ _ _ H0 H1).
 rewrite tc_val_eq in TC.
 simpl in *; 
@@ -633,7 +613,7 @@ rewrite <- cop2_sem_cast in *.
 destruct (Cop.sem_cast (eval_expr e rho) (typeof e) t). auto.
 inv TC. } 
 
-(*Field*)
+* (*Field*)
 specialize (IHe ge H). assert (TC := typecheck_expr_sound _ _ _ H0 H1). 
 simpl in H1. remember (access_mode t). destruct m0; try solve [inv H1]. 
   repeat rewrite tc_andp_sound in *. 
@@ -660,7 +640,8 @@ apply Clight.deref_loc_copy.
 rewrite <- Heqt0. auto. eauto.
 simpl. rewrite H6. simpl. apply Clight.deref_loc_reference; auto. 
 
-assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
+*
+ assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
 specialize (IHe ge). intuition. simpl in H1. 
 simpl in *.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
@@ -842,7 +823,7 @@ rewrite var_types_update_tycon. apply var_types_update_tycon.
 rewrite var_types_update_dist. apply var_types_update_tycon. 
 apply var_types_join_labeled. 
 
-intros. destruct l. simpl. apply var_types_update_tycon. 
+intros. destruct l. simpl. auto.
 simpl. rewrite var_types_update_dist.  
 rewrite var_types_update_tycon. reflexivity.  
  
@@ -913,7 +894,9 @@ eauto. exists (x && x0). rewrite orb_andb_distrib_r.  auto.
 
 apply update_labeled_te_same.  exact H.  (*these are the problem if it won't qed*) 
 
-intros. destruct ls. simpl. eauto.
+intros. destruct ls. simpl. exists false.
+rewrite H. f_equal. f_equal. destruct b; reflexivity.
+
 simpl. rewrite temp_types_update_dist.
 edestruct update_tycon_te_same. apply H.
 edestruct update_labeled_te_same. apply H.
@@ -978,8 +961,7 @@ destruct H. exists x1. split. destruct H. auto. left. auto.
 destruct H2. exists x0. split; auto. destruct b; simpl; auto.
 * 
 intros. destruct l; simpl in *.
-destruct (update_tycon_te_same s _ _ _ _ H).
-eauto.
+exists b; assumption.
  destruct (update_tycon_te_same s _ _ _ _ H).
 edestruct typecheck_ls_update_te. apply H.
 rewrite temp_types_update_dist. erewrite join_te_eqv; eauto.
@@ -1027,8 +1009,7 @@ rewrite update_tycon_eqv_ve. auto.
 erewrite update_le_eqv_ve. auto.
 
 intros. 
- destruct l. simpl in *. rewrite update_tycon_eqv_ve.
-reflexivity.
+ destruct l. simpl in *. auto. 
  simpl in *. rewrite var_types_update_dist.
 rewrite update_tycon_eqv_ve. auto.
 Qed.
@@ -1053,7 +1034,7 @@ rewrite update_tycon_eqv_ret. auto.
 rewrite update_le_eqv_ret. auto.
 
 intros. 
- destruct l. simpl in *. rewrite update_tycon_eqv_ret.
+ destruct l. simpl in *. 
 reflexivity.
  simpl in *. rewrite ret_type_update_dist.
 rewrite update_tycon_eqv_ret. auto.
@@ -1095,7 +1076,7 @@ rewrite update_tycon_eqv_ge. auto.
 erewrite update_le_eqv_ge. auto.
 
 intros. 
- destruct l. simpl in *. rewrite update_tycon_eqv_ge.
+ destruct l. simpl in *. 
 auto. 
 simpl in *. rewrite glob_types_update_dist.
 rewrite update_tycon_eqv_ge. auto.

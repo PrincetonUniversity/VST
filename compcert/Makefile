@@ -16,9 +16,9 @@
 include Makefile.config
 
 DIRS=lib common $(ARCH)/$(VARIANT) $(ARCH) backend cfrontend driver \
-  flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight
+  flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight cparser cparser/validator
 
-RECDIRS=lib common backend cfrontend driver flocq exportclight
+RECDIRS=lib common backend cfrontend driver flocq exportclight cparser
 
 COQINCLUDES=$(foreach d, $(RECDIRS), -R $(d) -as compcert.$(d)) \
   -I $(ARCH)/$(VARIANT) -as compcert.$(ARCH).$(VARIANT) \
@@ -26,11 +26,12 @@ COQINCLUDES=$(foreach d, $(RECDIRS), -R $(d) -as compcert.$(d)) \
 
 CAMLINCLUDES=$(patsubst %,-I %, $(DIRS)) -I extraction -I cparser
 
-COQC=coqc -q $(COQINCLUDES)
-COQDEP=coqdep $(COQINCLUDES)
-COQDOC=coqdoc
-COQEXEC=coqtop $(COQINCLUDES) -batch -load-vernac-source
-COQCHK=coqchk $(COQINCLUDES)
+MENHIR=menhir
+COQC="$(COQBIN)coqc" -q $(COQINCLUDES)
+COQDEP="$(COQBIN)coqdep" $(COQINCLUDES)
+COQDOC="$(COQBIN)coqdoc"
+COQEXEC="$(COQBIN)coqtop" $(COQINCLUDES) -batch -load-vernac-source
+COQCHK="$(COQBIN)coqchk" $(COQINCLUDES)
 
 OCAMLBUILD=ocamlbuild
 OCB_OPTIONS=\
@@ -65,13 +66,13 @@ FLOCQ=\
 # General-purpose libraries (in lib/)
 
 LIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
-  Iteration.v Integers.v Floats.v Nan.v Parmov.v UnionFind.v Wfsimpl.v \
-  Postorder.v FSetAVLplus.v
+  Iteration.v Integers.v Archi.v Floats.v Parmov.v UnionFind.v Wfsimpl.v \
+  Postorder.v FSetAVLplus.v IntvSets.v
 
 # Parts common to the front-ends and the back-end (in common/)
 
 COMMON=Errors.v AST.v Events.v Globalenvs.v Memdata.v Memtype.v Memory.v \
-  Values.v Smallstep.v Behaviors.v Switch.v Determinism.v Subtyping.v
+  Values.v Smallstep.v Behaviors.v Switch.v Determinism.v Unityping.v
 
 # Back-end modules (in backend/, $(ARCH)/, $(ARCH)/$(VARIANT))
 
@@ -86,8 +87,10 @@ BACKEND=\
   Renumber.v Renumberproof.v \
   RTLtyping.v \
   Kildall.v Liveness.v \
+  ValueDomain.v ValueAOp.v ValueAnalysis.v \
   ConstpropOp.v Constprop.v ConstpropOpproof.v Constpropproof.v \
-  CombineOp.v CSE.v CombineOpproof.v CSEproof.v \
+  CSEdomain.v CombineOp.v CSE.v CombineOpproof.v CSEproof.v \
+  NeedDomain.v NeedOp.v Deadcode.v Deadcodeproof.v \
   Machregs.v Locations.v Conventions1.v Conventions.v LTL.v \
   Allocation.v Allocproof.v \
   Tunneling.v Tunnelingproof.v \
@@ -107,13 +110,24 @@ CFRONTEND=Ctypes.v Cop.v Csyntax.v Csem.v Cstrategy.v Cexec.v \
   Cshmgen.v Cshmgenproof.v \
   Csharpminor.v Cminorgen.v Cminorgenproof.v
 
+# LR(1) parser validator
+
+PARSERVALIDATOR=Alphabet.v Interpreter_complete.v Interpreter.v \
+  Validator_complete.v Automaton.v Interpreter_correct.v Main.v \
+  Validator_safe.v Grammar.v Interpreter_safe.v Tuples.v
+
+# Parser
+
+PARSER=Cabs.v Parser.v
+
 # Putting everything together (in driver/)
 
-DRIVER=Compiler.v Complements.v
+DRIVER=Compopts.v Compiler.v Complements.v
 
 # All source files
 
-FILES=$(LIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(DRIVER) $(FLOCQ)
+FILES=$(LIB) $(COMMON) $(BACKEND) $(CFRONTEND) $(DRIVER) $(FLOCQ) \
+  $(PARSERVALIDATOR) $(PARSER)
 
 # Symbolic links vs. copy
 
@@ -138,7 +152,7 @@ proof: $(FILES:.v=.vo)
 
 extraction: extraction/STAMP
 
-extraction/STAMP: $(FILES:.v=.vo) extraction/extraction.v
+extraction/STAMP: $(FILES:.v=.vo) extraction/extraction.v $(ARCH)/extractionMachdep.v
 	rm -f extraction/*.ml extraction/*.mli
 	$(COQEXEC) extraction/extraction.v
 	touch extraction/STAMP
@@ -180,7 +194,7 @@ documentation: doc/coq2html $(FILES)
 	mkdir -p doc/html
 	rm -f doc/html/*.html
 	doc/coq2html -o 'doc/html/%.html' doc/*.glob \
-          $(filter-out doc/coq2html, $^)
+          $(filter-out doc/coq2html cparser/Parser.v, $^)
 	cp doc/coq2html.css doc/coq2html.js doc/html/
 
 doc/coq2html: doc/coq2html.ml
@@ -220,6 +234,9 @@ driver/Configuration.ml: Makefile.config VERSION
          echo let version = "\"$$version\"") \
         > driver/Configuration.ml
 
+cparser/Parser.v: cparser/Parser.vy
+	$(MENHIR) --coq cparser/Parser.vy
+
 depend: $(FILES) exportclight/Clightdefs.v
 	$(COQDEP) $^ \
         | sed -e 's|$(ARCH)/$(VARIANT)/|$$(ARCH)/$$(VARIANT)/|g' \
@@ -241,10 +258,11 @@ clean:
 	rm -f ccomp ccomp.byte cchecklink cchecklink.byte clightgen clightgen.byte
 	rm -rf _build
 	rm -rf doc/html doc/*.glob
-	rm -f doc/coq2html.ml doc/coq2html
+	rm -f doc/coq2html.ml doc/coq2html doc/*.cm? doc/*.o
 	rm -f driver/Configuration.ml
 	rm -f extraction/STAMP extraction/*.ml extraction/*.mli
-	rm -f tools/ndfun
+	rm -f tools/ndfun tools/*.cm? tools/*.o
+	rm -f $(ARCH)/ConstpropOp.v $(ARCH)/SelectOp.v backend/SelectDiv.v backend/SelectLong.v
 	$(MAKE) -C runtime clean
 	$(MAKE) -C test clean
 

@@ -12,7 +12,7 @@ Definition update_inner_if_then :=
            (Evar _memcpy
               (Tfunction
                  (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                 (tptr tvoid)))
+                 (tptr tvoid) cc_default))
            [Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _n tuint)
               (tptr tuchar), Etempvar _data (tptr tuchar),
            Etempvar _fragment tuint])
@@ -21,7 +21,7 @@ Definition update_inner_if_then :=
            (Evar _sha256_block_data_order
               (Tfunction
                  (Tcons (tptr t_struct_SHA256state_st)
-                    (Tcons (tptr tvoid) Tnil)) tvoid))
+                    (Tcons (tptr tvoid) Tnil)) tvoid cc_default))
            [Etempvar _c (tptr t_struct_SHA256state_st),
            Etempvar _p (tptr tuchar)])
         (Ssequence
@@ -36,7 +36,7 @@ Definition update_inner_if_then :=
                     (Evar _memset
                        (Tfunction
                           (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
-                          (tptr tvoid)))
+                          (tptr tvoid) cc_default))
                     [Etempvar _p (tptr tuchar), Econst_int (Int.repr 0) tint,
                     Ebinop Omul (Econst_int (Int.repr 16) tint)
                       (Econst_int (Int.repr 4) tint) tint]))))).
@@ -47,7 +47,7 @@ Definition  update_inner_if_else :=
                       (Evar _memcpy (Tfunction
                                       (Tcons (tptr tvoid)
                                         (Tcons (tptr tvoid)
-                                          (Tcons tuint Tnil))) (tptr tvoid)))
+                                          (Tcons tuint Tnil))) (tptr tvoid) cc_default))
                       ((Ebinop Oadd (Etempvar _p (tptr tuchar))
                          (Etempvar _n tuint) (tptr tuchar)) ::
                        (Etempvar _data (tptr tuchar)) ::
@@ -186,7 +186,7 @@ Proof.
  clear fragment H5.
  rewrite negb_true_iff in H6. 
  apply ltu_repr_false in H6; [ | repable_signed | omega].
- clear TC.
+ clear TC1.
  unfold j,k in *; clear j k.
 rewrite cVint_force_int_ZnthV
  by (rewrite initial_world.Zlength_map; omega).
@@ -362,7 +362,7 @@ entailer!.
  entailer.
  rewrite negb_true_iff in H6.
  apply ltu_repr_false in H6; [ | omega..].
- clear TC0  TC.
+ clear TC0  TC1.
  apply exp_right with (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)).
  assert (LL: length (dd ++ firstn (Z.to_nat k) data) = CBLOCK). {
  rewrite app_length. rewrite firstn_length. rewrite min_l.

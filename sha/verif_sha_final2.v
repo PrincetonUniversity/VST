@@ -17,7 +17,7 @@ Definition Body_final_if1 :=
                 (Evar _memset (Tfunction
                                 (Tcons (tptr tvoid)
                                   (Tcons tint (Tcons tuint Tnil)))
-                                (tptr tvoid)))
+                                (tptr tvoid) cc_default))
                 ((Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _n tuint)
                    (tptr tuchar)) :: (Econst_int (Int.repr 0) tint) ::
                  (Ebinop Osub
@@ -31,7 +31,7 @@ Definition Body_final_if1 :=
                                                    (Tcons
                                                      (tptr t_struct_SHA256state_st)
                                                      (Tcons (tptr tvoid)
-                                                       Tnil)) tvoid))
+                                                       Tnil)) tvoid cc_default))
                   ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
                    (Etempvar _p (tptr tuchar)) :: nil)))).
 
@@ -325,7 +325,7 @@ Definition final_loop :=
                                 (Evar ___builtin_write32_reversed
                                    (Tfunction
                                       (Tcons (tptr tuint) (Tcons tuint Tnil))
-                                      tvoid))
+                                      tvoid cc_default))
                                 [Ecast (Etempvar _md (tptr tuchar))
                                    (tptr tuint), Etempvar _ll tuint])
                              (Sset _md

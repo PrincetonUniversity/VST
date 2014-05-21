@@ -17,7 +17,7 @@ Require Import sepcomp.forward_simulations.
 Require Import sepcomp.compiler_correctness.
 
 Require Import sepcomp.forward_simulations_trans.
-Definition main_sig : signature := mksignature nil (Some AST.Tint).
+Definition main_sig : signature := mksignature nil (Some AST.Tint) cc_default.
 
 Lemma cc_sim_coop_sim: forall {F1 C1 V1 F2 C2 V2:Type}
   (Sem1 : CoopCoreSem (Genv.t F1 V1) C1)

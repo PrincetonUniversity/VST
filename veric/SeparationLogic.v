@@ -265,7 +265,8 @@ simpl;
 auto.
 Qed.
 
-Definition type_of_funsig (fsig: funsig) := Tfunction (type_of_params (fst fsig)) (snd fsig).
+Definition type_of_funsig (fsig: funsig) := 
+   Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default.
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
 Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
@@ -276,7 +277,7 @@ Definition tc_fn_return (Delta: tycontext) (ret: option ident) (t: type) :=
 
 Definition bool_type (t: type) : bool :=
   match t with
-  | Tint _ _ _ | Tlong _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tfloat _ _ => true
+  | Tint _ _ _ | Tlong _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tfloat _ _ => true
   | _ => false
   end.
 
@@ -561,6 +562,7 @@ Axiom semax_func_cons:
       andb (id_in_list id (map (@fst _ _) G)) 
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
+       f.(fn_callconv) = cc_default ->
        precondition_closed f P ->
       semax_body V G f (id, mk_funspec (fn_funsig f) A P Q ) ->
       @semax_func Espec V G fs G' ->
@@ -571,9 +573,12 @@ Parameter semax_external:
   forall {Espec: OracleKind},
   forall (ef: external_function) (A: Type) (P Q: A -> environ->mpred),  Prop.
 
-Axiom semax_external_FF:
+Axiom semax_func_skip: 
   forall {Espec: OracleKind},
-  forall ef A Q, @semax_external Espec ef A FF Q.
+   forall 
+        V (G: funspecs) fs idf (G': funspecs),
+      semax_func V G fs G' ->
+      semax_func V G (idf::fs) G'.
 
 Axiom semax_func_cons_ext: 
   forall {Espec: OracleKind},
@@ -582,7 +587,7 @@ Axiom semax_func_cons_ext:
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
       @semax_external Espec ef A P Q ->
       @semax_func Espec V G fs G' ->
-      @semax_func Espec V G ((id, External ef argsig retsig)::fs) 
+      @semax_func Espec V G ((id, External ef argsig retsig cc_default)::fs) 
            ((id, mk_funspec (arglist 1%positive argsig, retsig) A P Q)  :: G').
 
 (* THESE RULES FROM semax_loop *)
@@ -641,7 +646,7 @@ Axiom semax_call :
   forall {Espec: OracleKind},
     forall Delta A (P Q: A -> environ -> mpred) (x: A) (F: environ -> mpred) ret argsig retsig a bl,
            Cop.classify_fun (typeof a) =
-           Cop.fun_case_f (type_of_params argsig) retsig ->
+           Cop.fun_case_f (type_of_params argsig) retsig cc_default ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax Espec Delta

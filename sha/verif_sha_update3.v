@@ -119,7 +119,7 @@ rewrite array_at_tuchar_isbyteZ.
  rewrite (prop_true_andp (Forall _ data)) by auto.
  rewrite negb_false_iff in H5.
  apply ltu_repr in H5; [ | repable_signed | omega].
- clear TC.
+ clear TC1.
  unfold k in H0,H5.
  rewrite (prop_true_andp (_ /\ _)).
 Focus 2. {

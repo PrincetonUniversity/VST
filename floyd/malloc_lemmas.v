@@ -51,7 +51,7 @@ Fixpoint reptype (ty: type) : Type :=
   | Tfloat _ _ => val
   | Tpointer t1 a => val
   | Tarray t1 sz a => list (reptype t1)
-  | Tfunction t1 t2 => unit
+  | Tfunction t1 t2 _ => unit
   | Tstruct id fld a => reptype_structlist fld
   | Tunion id fld a => reptype_unionlist fld
   | Tcomp_ptr id a => val
@@ -80,7 +80,7 @@ Fixpoint reptype' (ty: type) : Type :=
   | Tfloat _ _ => float
   | Tpointer t1 a => val
   | Tarray t1 sz a => list (reptype' t1)
-  | Tfunction t1 t2 => unit
+  | Tfunction t1 t2 _ => unit
   | Tstruct id fld a => reptype'_structlist fld
   | Tunion id fld a => reptype'_unionlist fld
   | Tcomp_ptr id a => val
@@ -108,7 +108,7 @@ match t as t0 return (reptype' t0 -> reptype t0) with
 | Tfloat _ _ => Vfloat
 | Tpointer _ _ => id
 | Tarray t0 _ _ => (map (repinj t0))
-| Tfunction _ _ => id
+| Tfunction _ _ _ => id
 | Tstruct _ f _ => (repinj_structlist f)
 | Tunion _ f _ => (repinj_unionlist f)
 | Tcomp_ptr _ _ => id
@@ -208,7 +208,7 @@ Fixpoint default_val (t: type) : reptype t :=
   | Tfloat _ _ => Vundef
   | Tpointer _ _ => Vundef
   | Tarray t0 _ _ => nil
-  | Tfunction _ _ => tt
+  | Tfunction _ _ _ => tt
   | Tstruct _ f _ => struct_default_val f
   | Tunion _ f _ =>
       match f as f0 return (reptype_unionlist f0) with
@@ -300,8 +300,8 @@ match t1 as t return (t1 = t -> reptype t1 -> val -> mpred) with
                  withspacer sh pos (alignof t)
                   (at_offset' (array_at' t sh (data_at' sh t 0) (ZnthV _ v3) 0 z) (align pos (alignof t))))
         H
-| Tfunction t t0 => fun _ _ => withspacer sh pos (alignof (Tfunction t t0))
-          (at_offset' (memory_block sh (Int.repr (sizeof (Tfunction t t0))))pos)
+| Tfunction t t0 cc => fun _ _ => withspacer sh pos (alignof (Tfunction t t0 cc))
+          (at_offset' (memory_block sh (Int.repr (sizeof (Tfunction t t0 cc))))pos)
 | Tstruct i f a =>
     fun H : t1 = Tstruct i f a =>
       eq_rect_r (fun t2 : type =>  reptype t2 -> val -> mpred)

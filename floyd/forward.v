@@ -702,7 +702,7 @@ Lemma semax_call_id1_x:
   @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: Q) 
                                      (SEPx (`(Pre x) (make_args' (argsig,retty') (eval_exprlist (argtypes argsig) bl)) :: R))))
     (Ssequence (Scall (Some ret')
-             (Evar id (Tfunction (type_of_params argsig) retty'))
+             (Evar id (Tfunction (type_of_params argsig) retty' cc_default))
              bl)
       (Sset ret (Etempvar ret' retty')))
     (normal_ret_assert 
@@ -737,7 +737,7 @@ PROP  ()
    (tc_environ
       (initialized ret
          (update_tycon Delta
-            (Scall (Some ret') (Evar id (Tfunction (type_of_params argsig) retty')) bl)))
+            (Scall (Some ret') (Evar id (Tfunction (type_of_params argsig) retty' cc_default)) bl)))
     :: `eq (eval_id ret)
          (subst ret (`x0) (eval_expr (Etempvar ret' retty')))
        :: map (subst ret (`x0)) Q)
@@ -849,7 +849,7 @@ Lemma semax_call_id1_x_alt:
    (CLOSR: Forall (closed_wrt_vars (eq ret')) Frame),
    @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
     (Ssequence (Scall (Some ret')
-             (Evar id (Tfunction paramty retty'))
+             (Evar id (Tfunction paramty retty' cc_default))
              bl)
       (Sset ret (Etempvar ret' retty')))
     (normal_ret_assert 

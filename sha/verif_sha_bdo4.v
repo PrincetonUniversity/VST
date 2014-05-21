@@ -79,7 +79,7 @@ Lemma read32_reversed_in_bytearray:
  semax Delta  (PROPx P (LOCALx Q (SEP (`(array_at tuchar sh contents lo hi base)))))
         (Scall (Some i)
            (Evar ___builtin_read32_reversed
-              (Tfunction (Tcons (tptr tuint) Tnil) tuint))
+              (Tfunction (Tcons (tptr tuint) Tnil) tuint cc_default))
            [e])
         (normal_ret_assert
          (PROP () 

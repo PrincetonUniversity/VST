@@ -897,7 +897,7 @@ Qed.
 
 
 Lemma typed_true_isptr:
- forall t, match t with Tpointer _ _ => True | Tarray _ _ _ => True | Tfunction _ _ => True | _ => False end ->
+ forall t, match t with Tpointer _ _ => True | Tarray _ _ _ => True | Tfunction _ _ _ => True | _ => False end ->
           typed_true t = isptr.
 Proof.
 intros. extensionality x; apply prop_ext.
@@ -2536,14 +2536,6 @@ Fixpoint iota_formals (i: ident) (tl: typelist) :=
  match tl with
  | Tcons t tl' => (i,t) :: iota_formals (i+1)%positive tl'
  | Tnil => nil
- end.
-
-Fixpoint do_builtins (defs : list (ident * globdef fundef type)) : funspecs :=
- match defs with
-  | (id, Gfun (External (EF_builtin _ sig) argtys resty))::defs' => 
-     (id, mk_funspec (iota_formals 1%positive argtys, resty) unit FF FF) 
-      :: do_builtins defs'
-  | _ => nil
  end.
 
 Lemma semax_post_flipped' : 

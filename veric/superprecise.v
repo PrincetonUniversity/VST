@@ -46,7 +46,7 @@ Lemma decode_int_uniq:
   forall i j, length i = length j -> decode_int i = decode_int j -> i=j.
 Proof.
  unfold decode_int, rev_if_be.
- destruct big_endian.
+ destruct Archi.big_endian.
  intros. rewrite <- (rev_involutive i). rewrite <- (rev_involutive j).
  f_equal.
  assert (length (rev i) = length (rev j)).
@@ -480,13 +480,6 @@ try (apply decode_int_uniq; [ congruence | ];
   congruence.
   apply WH.
 * (* Mfloat64 *)
-  inv H3.
-  apply decode_int_uniq; [congruence | ].
-  apply double_of_bits_inj in H2.
-  apply repr_decode_int64_inj in H2; auto.
-  congruence.
-
-* (* Mfloat64al32 *)
   inv H3.
   apply decode_int_uniq; [congruence | ].
   apply double_of_bits_inj in H2.

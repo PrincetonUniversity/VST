@@ -18,6 +18,7 @@
 Require Import Coqlib.
 Require Import AST.
 Require Import Errors.
+Require Archi.
 
 (** * Syntax of types *)
 
@@ -97,7 +98,7 @@ Inductive type : Type :=
   | Tfloat: floatsize -> attr -> type              (**r floating-point types *)
   | Tpointer: type -> attr -> type                 (**r pointer types ([*ty]) *)
   | Tarray: type -> Z -> attr -> type              (**r array types ([ty[len]]) *)
-  | Tfunction: typelist -> type -> type            (**r function types *)
+  | Tfunction: typelist -> type -> calling_convention -> type    (**r function types *)
   | Tstruct: ident -> fieldlist -> attr -> type    (**r struct types *)
   | Tunion: ident -> fieldlist -> attr -> type     (**r union types *)
   | Tcomp_ptr: ident -> attr -> type               (**r pointer to named struct or union *)
@@ -119,11 +120,11 @@ Proof.
   assert (forall (x y: floatsize), {x=y} + {x<>y}) by decide equality.
   assert (forall (x y: attr), {x=y} + {x<>y}).
   { decide equality. decide equality. apply N.eq_dec. apply bool_dec. }
-  generalize ident_eq zeq. intros E1 E2. 
+  generalize ident_eq zeq bool_dec. intros E1 E2 E3.
   decide equality.
   decide equality.
-  generalize ident_eq. intros E1.
   decide equality.
+  generalize ident_eq. intros E1. decide equality.
 Defined.
 
 Opaque type_eq typelist_eq fieldlist_eq.
@@ -138,29 +139,66 @@ Definition attr_of_type (ty: type) :=
   | Tfloat sz a => a
   | Tpointer elt a => a
   | Tarray elt sz a => a
-  | Tfunction args res => noattr
+  | Tfunction args res cc => noattr
   | Tstruct id fld a => a
   | Tunion id fld a => a
   | Tcomp_ptr id a => a
   end.
 
+(** Change the top-level attributes of a type *)
+
+Definition change_attributes (f: attr -> attr) (ty: type) : type :=
+  match ty with
+  | Tvoid => ty
+  | Tint sz si a => Tint sz si (f a)
+  | Tlong si a => Tlong si (f a)
+  | Tfloat sz a => Tfloat sz (f a)
+  | Tpointer elt a => Tpointer elt (f a)
+  | Tarray elt sz a => Tarray elt sz (f a)
+  | Tfunction args res cc => ty
+  | Tstruct id fld a => Tstruct id fld (f a)
+  | Tunion id fld a => Tunion id fld (f a)
+  | Tcomp_ptr id a => Tcomp_ptr id (f a)
+  end.
+
+(** Erase the top-level attributes of a type *)
+
+Definition remove_attributes (ty: type) : type :=
+  change_attributes (fun _ => noattr) ty.
+
+(** Add extra attributes to the top-level attributes of a type *)
+
+Definition attr_union (a1 a2: attr) : attr :=
+  {| attr_volatile := a1.(attr_volatile) || a2.(attr_volatile);
+     attr_alignas :=
+       match a1.(attr_alignas), a2.(attr_alignas) with
+       | None, al => al
+       | al, None => al
+       | Some n1, Some n2 => Some (N.max n1 n2)
+       end 
+  |}.
+
+Definition merge_attributes (ty: type) (a: attr) : type :=
+  change_attributes (attr_union a) ty.
+
 Definition type_int32s := Tint I32 Signed noattr.
 Definition type_bool := Tint IBool Signed noattr.
 
 (** The usual unary conversion.  Promotes small integer types to [signed int32]
-  and degrades array types and function types to pointer types. *)
+  and degrades array types and function types to pointer types. 
+  Attributes are erased. *)
 
 Definition typeconv (ty: type) : type :=
   match ty with
-  | Tint (I8 | I16 | IBool) _ a => Tint I32 Signed a
-  | Tarray t sz a       => Tpointer t a
-  | Tfunction _ _       => Tpointer ty noattr
-  | _                   => ty
+  | Tint (I8 | I16 | IBool) _ _ => Tint I32 Signed noattr
+  | Tarray t sz a       => Tpointer t noattr
+  | Tfunction _ _ _     => Tpointer ty noattr
+  | _                   => remove_attributes ty
   end.
 
 (** * Operations over types *)
 
-(** Natural alignment of a type, in bytes. *)
+(** Alignment of a type, in bytes. *)
 
 Fixpoint alignof (t: type) : Z :=
   match attr_alignas (attr_of_type t) with
@@ -172,12 +210,12 @@ Fixpoint alignof (t: type) : Z :=
       | Tint I16 _ _ => 2
       | Tint I32 _ _ => 4
       | Tint IBool _ _ => 1
-      | Tlong _ _ => 8
+      | Tlong _ _ => Archi.align_int64
       | Tfloat F32 _ => 4
-      | Tfloat F64 _ => 8
+      | Tfloat F64 _ => Archi.align_float64
       | Tpointer _ _ => 4
       | Tarray t' _ _ => alignof t'
-      | Tfunction _ _ => 1
+      | Tfunction _ _ _ => 1
       | Tstruct _ fld _ => alignof_fields fld
       | Tunion _ fld _ => alignof_fields fld
       | Tcomp_ptr _ _ => 4
@@ -214,10 +252,14 @@ Proof.
   induction t; apply X; simpl; auto.
   exists 0%nat; auto.
   destruct i.
-    exists 0%nat; auto. exists 1%nat; auto. exists 2%nat; auto.
-    exists 0%nat; auto. exists 3%nat; auto.
+    exists 0%nat; auto.
+    exists 1%nat; auto.
+    exists 2%nat; auto.
+    exists 0%nat; auto.
+    (exists 2%nat; reflexivity) || (exists 3%nat; reflexivity).
   destruct f.
-    exists 2%nat; auto. exists 3%nat; auto.
+    exists 2%nat; auto.
+    (exists 2%nat; reflexivity) || (exists 3%nat; reflexivity).
   exists 2%nat; auto.
   exists 0%nat; auto.
   exists 2%nat; auto.
@@ -241,24 +283,22 @@ Qed.
 (** Size of a type, in bytes. *)
 
 Fixpoint sizeof (t: type) : Z :=
-  let sz :=
-    match t with
-    | Tvoid => 1
-    | Tint I8 _ _ => 1
-    | Tint I16 _ _ => 2
-    | Tint I32 _ _ => 4
-    | Tint IBool _ _ => 1
-    | Tlong _ _ => 8
-    | Tfloat F32 _ => 4
-    | Tfloat F64 _ => 8
-    | Tpointer _ _ => 4
-    | Tarray t' n _ => sizeof t' * Zmax 1 n
-    | Tfunction _ _ => 1
-    | Tstruct _ fld _ => Zmax 1 (sizeof_struct fld 0)
-    | Tunion _ fld _ => Zmax 1 (sizeof_union fld)
-    | Tcomp_ptr _ _ => 4
-    end
-  in align sz (alignof t)
+  match t with
+  | Tvoid => 1
+  | Tint I8 _ _ => 1
+  | Tint I16 _ _ => 2
+  | Tint I32 _ _ => 4
+  | Tint IBool _ _ => 1
+  | Tlong _ _ => 8
+  | Tfloat F32 _ => 4
+  | Tfloat F64 _ => 8
+  | Tpointer _ _ => 4
+  | Tarray t' n _ => sizeof t' * Zmax 0 n
+  | Tfunction _ _ _ => 1
+  | Tstruct _ fld _ => align (sizeof_struct fld 0) (alignof t)
+  | Tunion _ fld _ => align (sizeof_union fld) (alignof t)
+  | Tcomp_ptr _ _ => 4
+  end
 
 with sizeof_struct (fld: fieldlist) (pos: Z) {struct fld} : Z :=
   match fld with
@@ -273,33 +313,56 @@ with sizeof_union (fld: fieldlist) : Z :=
   end.
 
 Lemma sizeof_pos:
-  forall t, sizeof t > 0.
-Proof.
-  assert (X: forall t sz, sz > 0 -> align sz (alignof t) > 0).
-  {
-    intros. generalize (align_le sz (alignof t) (alignof_pos t)). omega. 
-  }
-Local Opaque alignof.
-  induction t; simpl; apply X; try xomega.
-  destruct i; omega.
-  destruct f; omega.
-  apply Zmult_gt_0_compat. auto. xomega.
-Qed.
-
-Lemma sizeof_struct_incr:
+  forall t, sizeof t >= 0
+with sizeof_struct_incr:
   forall fld pos, pos <= sizeof_struct fld pos.
 Proof.
-  induction fld; intros; simpl. omega. 
+- Local Opaque alignof.
+  assert (X: forall n t, n >= 0 -> align n (alignof t) >= 0).
+  {
+    intros. generalize (align_le n (alignof t) (alignof_pos t)). omega.
+  }
+  induction t; simpl; try xomega.
+  destruct i; omega.
+  destruct f; omega.
+  change 0 with (0 * Z.max 0 z) at 2. apply Zmult_ge_compat_r. auto. xomega. 
+  apply X. apply Zle_ge. apply sizeof_struct_incr. 
+  apply X. induction f; simpl; xomega.
+- induction fld; intros; simpl.
+  omega. 
   eapply Zle_trans. 2: apply IHfld.
   apply Zle_trans with (align pos (alignof t)). 
   apply align_le. apply alignof_pos.
   generalize (sizeof_pos t); omega.
 Qed.
 
+Fixpoint naturally_aligned (t: type) : Prop :=
+  match t with
+  | Tint _ _ a | Tlong _ a | Tfloat _ a | Tpointer _ a | Tcomp_ptr _ a =>
+      attr_alignas a = None
+  | Tarray t' _ a =>
+      attr_alignas a = None /\ naturally_aligned t'
+  | Tvoid | Tfunction _ _ _ | Tstruct _ _ _ | Tunion _ _ _ =>
+      True
+  end.
+
 Lemma sizeof_alignof_compat:
-  forall t, (alignof t | sizeof t).
+  forall t, naturally_aligned t -> (alignof t | sizeof t).
 Proof.
-  intros. destruct t; apply align_divides; apply alignof_pos.
+Local Transparent alignof.
+  induction t; simpl; intros.
+- apply Zdivide_refl.
+- rewrite H. destruct i; apply Zdivide_refl.
+- rewrite H. exists (8 / Archi.align_int64); reflexivity. 
+- rewrite H. destruct f. apply Zdivide_refl. exists (8 / Archi.align_float64); reflexivity. 
+- rewrite H; apply Zdivide_refl.
+- destruct H. rewrite H. apply Z.divide_mul_l; auto. 
+- apply Zdivide_refl.
+- change (alignof (Tstruct i f a) | align (sizeof_struct f 0) (alignof (Tstruct i f a))).
+  apply align_divides. apply alignof_pos.
+- change (alignof (Tunion i f a) | align (sizeof_union f) (alignof (Tunion i f a))).
+  apply align_divides. apply alignof_pos.
+- rewrite H; apply Zdivide_refl.
 Qed.
 
 (** Byte offset for a field in a struct or union.
@@ -350,8 +413,10 @@ Lemma field_offset_in_range:
   0 <= ofs /\ ofs + sizeof ty <= sizeof (Tstruct sid fld a).
 Proof.
   intros. exploit field_offset_rec_in_range; eauto. intros [A B].
-  split. auto.  simpl. eapply Zle_trans. eauto.
-  eapply Zle_trans. eapply Zle_max_r. apply align_le. apply alignof_pos.
+  split. auto.
+Local Opaque alignof. 
+  simpl. eapply Zle_trans; eauto. 
+  apply align_le. apply alignof_pos. 
 Qed.
 
 (** Second, two distinct fields do not overlap *)
@@ -452,7 +517,7 @@ Definition access_mode (ty: type) : mode :=
   | Tvoid => By_nothing
   | Tpointer _ _ => By_value Mint32
   | Tarray _ _ _ => By_reference
-  | Tfunction _ _ => By_reference
+  | Tfunction _ _ _ => By_reference
   | Tstruct _ _ _ => By_copy
   | Tunion _ _ _ => By_copy
   | Tcomp_ptr _ _ => By_nothing
@@ -484,7 +549,7 @@ Fixpoint unroll_composite (ty: type) : type :=
   | Tfloat _ _ => ty
   | Tpointer t1 a => Tpointer (unroll_composite t1) a
   | Tarray t1 sz a => Tarray (unroll_composite t1) sz a
-  | Tfunction t1 t2 => Tfunction (unroll_composite_list t1) (unroll_composite t2)
+  | Tfunction t1 t2 a => Tfunction (unroll_composite_list t1) (unroll_composite t2) a
   | Tstruct id fld a => if ident_eq id cid then ty else Tstruct id (unroll_composite_fields fld) a
   | Tunion id fld a => if ident_eq id cid then ty else Tunion id (unroll_composite_fields fld) a
   | Tcomp_ptr id a => if ident_eq id cid then Tpointer comp a else ty
@@ -531,7 +596,7 @@ Local Opaque alignof.
                    /\ forall pos,
                       sizeof_struct (unroll_composite_fields fld) pos = sizeof_struct fld pos));
   simpl; intros; auto.
-- rewrite H. rewrite <- (alignof_unroll_composite (Tarray t z a)). auto.
+- rewrite H. auto.
 - rewrite <- (alignof_unroll_composite (Tstruct i f a)). simpl.
   destruct H. destruct (ident_eq i cid). auto. simpl. rewrite H0. auto.
 - rewrite <- (alignof_unroll_composite (Tunion i f a)). simpl.
@@ -544,39 +609,82 @@ Qed.
 
 End UNROLL_COMPOSITE.
 
-(** A variatn of [alignof] for use in block copy operations
-  (which do not support alignments greater than 8). *)
+(** A variant of [alignof] for use in block copy operations.
+  Block copy operations do not support alignments greater than 8,
+  and require the size to be an integral multiple of the alignment. *)
 
-Definition alignof_blockcopy (ty: type) := Zmin 8 (alignof ty).
+Fixpoint alignof_blockcopy (t: type) : Z :=
+  match t with
+  | Tvoid => 1
+  | Tint I8 _ _ => 1
+  | Tint I16 _ _ => 2
+  | Tint I32 _ _ => 4
+  | Tint IBool _ _ => 1
+  | Tlong _ _ => 8
+  | Tfloat F32 _ => 4
+  | Tfloat F64 _ => 8
+  | Tpointer _ _ => 4
+  | Tarray t' _ _ => alignof_blockcopy t'
+  | Tfunction _ _ _ => 1
+  | Tstruct _ fld _ => Zmin 8 (alignof t)
+  | Tunion _ fld _ => Zmin 8 (alignof t)
+  | Tcomp_ptr _ _ => 4
+  end.
 
 Lemma alignof_blockcopy_1248:
   forall ty, let a := alignof_blockcopy ty in a = 1 \/ a = 2 \/ a = 4 \/ a = 8.
 Proof.
-  intros. unfold a, alignof_blockcopy. 
-  destruct (alignof_two_p ty) as [n EQ]. rewrite EQ.
-  destruct n; auto.
-  destruct n; auto.
-  destruct n; auto.
-  right; right; right. apply Z.min_l.
-  rewrite two_power_nat_two_p. rewrite ! inj_S. 
-  change 8 with (two_p 3). 
-  apply two_p_monotone. omega.
+  assert (X: forall ty, let a := Zmin 8 (alignof ty) in
+             a = 1 \/ a = 2 \/ a = 4 \/ a = 8).
+  {
+    intros. destruct (alignof_two_p ty) as [n EQ]. unfold a; rewrite EQ. 
+    destruct n; auto.
+    destruct n; auto.
+    destruct n; auto.
+    right; right; right. apply Z.min_l.
+    rewrite two_power_nat_two_p. rewrite ! inj_S. 
+    change 8 with (two_p 3). apply two_p_monotone. omega.
+  }
+  induction ty; simpl; auto.
+  destruct i; auto.
+  destruct f; auto.
 Qed.
 
-Lemma alignof_blockcopy_divides:
-  forall ty, (alignof_blockcopy ty | alignof ty).
+Lemma alignof_blockcopy_pos:
+  forall ty, alignof_blockcopy ty > 0.
 Proof.
-  intros. unfold alignof_blockcopy. 
-  destruct (alignof_two_p ty) as [n EQ]. rewrite EQ.
-  destruct n. apply Zdivide_refl.
-  destruct n. apply Zdivide_refl.
-  destruct n. apply Zdivide_refl.
-  replace (two_power_nat (S(S(S n)))) with (two_p (3 + Z.of_nat n)).
-  rewrite two_p_is_exp by omega. change (two_p 3) with 8.
-  apply Z.min_case. 
-  exists (two_p (Z.of_nat n)). ring.
+  intros. generalize (alignof_blockcopy_1248 ty). simpl. intuition omega.
+Qed.
+
+Lemma sizeof_alignof_blockcopy_compat:
+  forall ty, (alignof_blockcopy ty | sizeof ty).
+Proof.
+  assert (X: forall ty sz, (alignof ty | sz) -> (Zmin 8 (alignof ty) | sz)).
+  {
+    intros. destruct (alignof_two_p ty) as [n EQ]. rewrite EQ in *.
+    destruct n; auto.
+    destruct n; auto.
+    destruct n; auto.
+    eapply Zdivide_trans; eauto. 
+    apply Z.min_case. 
+    replace (two_power_nat (S(S(S n)))) with (two_p (3 + Z.of_nat n)).
+    rewrite two_p_is_exp by omega. change (two_p 3) with 8.
+    exists (two_p (Z.of_nat n)). ring.
+    rewrite two_power_nat_two_p. rewrite !inj_S. f_equal. omega.
+    apply Zdivide_refl.
+  }
+  Local Opaque alignof.
+  induction ty; simpl.
   apply Zdivide_refl.
-  rewrite two_power_nat_two_p. rewrite !inj_S. f_equal. omega.
+  destruct i; apply Zdivide_refl.
+  apply Zdivide_refl.
+  destruct f; apply Zdivide_refl.
+  apply Zdivide_refl.
+  apply Z.divide_mul_l. auto.
+  apply Zdivide_refl.
+  apply X. apply align_divides. apply alignof_pos.
+  apply X. apply align_divides. apply alignof_pos.
+  apply Zdivide_refl.
 Qed.
 
 (** Extracting a type list from a function parameter declaration. *)
@@ -612,5 +720,15 @@ Fixpoint typlist_of_typelist (tl: typelist) : list AST.typ :=
   | Tcons hd tl => typ_of_type hd :: typlist_of_typelist tl
   end.
 
-Definition signature_of_type (args: typelist) (res: type) : signature :=
-  mksignature (typlist_of_typelist args) (opttyp_of_type res).
+Definition signature_of_type (args: typelist) (res: type) (cc: calling_convention): signature :=
+  mksignature (typlist_of_typelist args) (opttyp_of_type res) cc.
+
+(** Like [typ_of_type], but apply default argument promotion. *)
+
+Definition typ_of_type_default (t: type) : AST.typ :=
+  match t with
+  | Tfloat _ _ => AST.Tfloat
+  | Tlong _ _ => AST.Tlong
+  | _ => AST.Tint
+  end.
+

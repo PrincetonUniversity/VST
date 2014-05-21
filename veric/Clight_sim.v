@@ -32,7 +32,7 @@ Proof.
   inversion2 H9 H4.
   pose proof (alloc_variables_fun H8 H3). inv H4.
   auto.
-  destruct (Events.external_call_determ _ _ _ _ _ _ _ _ _ _ H9 H1).
+  destruct (Events.external_call_determ _ _ _ _ _ _ _ _ _ _ H10 H1).
   destruct H0; subst; auto.
 Qed.
 
@@ -160,7 +160,7 @@ Inductive step' ge : (corestate * mem) -> Events.trace -> (corestate * mem) -> P
  mk_step': forall q m q' m', cl_step ge q m q' m' -> step' ge (q,m) Events.E0 (q',m').
 
 (*Module SS := compcert.Smallstep.*)
-Definition ef_exit := EF_external exit_syscall_number (mksignature nil None).
+Definition ef_exit := EF_external exit_syscall_number (mksignature nil None cc_default).
 
 Inductive initial_state (p: program): (corestate * mem) -> Prop :=
 (*
@@ -328,8 +328,7 @@ Proof. induction s1; intros; simpl in *; auto.
  simpl. constructor; auto.
  eapply match_find_ls_None; eauto. constructor. auto.
  if_tac. subst. inv H0. eapply match_find_label_None; eauto.
- induction ls; intros; simpl in *.
- eapply match_find_label_None; eauto.
+ induction ls; intros; simpl in *; auto.
  revert H0; case_eq (find_label lbl s (Kseq (seq_of_labeled_statement ls) :: k0)); intros.
  inv H1.
  erewrite match_find_label_None; eauto. apply match_cont_strip. auto.
@@ -382,18 +381,28 @@ Proof.
  destruct (IHs1 k0 k0') as [s2 [k2' [? ?]]]; auto.
  exists s2, k2'; split; auto.
  
+ clear match_find_label_ls.
  induction s1; intros. simpl in *.
- eauto.
- simpl in *.
- revert H0; case_eq (find_label lbl s (Kseq (seq_of_labeled_statement s1) :: k0)); intros.
- inv H1.
-destruct (match_find_label lbl k' s (Kseq (seq_of_labeled_statement s1) :: k0) (CC.Kseq (seq_of_labeled_statement s1)  k0')) as [s2 [k2' [? ?]]]; auto.
-apply match_cont_strip. auto.
+ inv H0.
+ simpl in H0.
+ destruct (find_label lbl s (Kseq (seq_of_labeled_statement s1) :: k0))
+   eqn:?; auto.  
+ *
+  destruct (match_find_label lbl k' s (Kseq (seq_of_labeled_statement s1) :: k0) (CC.Kseq (seq_of_labeled_statement s1)  k0')) as [s2 [k2' [? ?]]]; auto.
+  apply match_cont_strip. auto.
+  inv H0.
+  auto.
+  inv H0.
  exists s2, k2'; split; auto.
+ simpl. 
  rewrite H1. auto.
- erewrite match_find_label_None; eauto.
-apply match_cont_strip. auto.
-Qed. 
+ *
+  simpl.
+ destruct (IHs1 _ _ H H0) as [s3 [k3' [? ?]]].
+ exists s3, k3'; split; auto.
+ erewrite match_find_label_None; try eassumption.
+ apply match_cont_strip. auto.
+Qed.
  
 Lemma current_function_strip: forall k, current_function (strip_skip k) = current_function k.
 Proof.
@@ -426,12 +435,12 @@ Qed.
   eapply current_function_find_label_ls; [ | eauto]. simpl; auto.
   if_tac in H0. inv H0. simpl. auto.
    eapply IHs; [ | eauto]. simpl; auto.
+
    induction s; simpl; intros; try discriminate.
-  eapply current_function_find_label; [ | eauto]. simpl; auto.
   revert H0; case_eq (find_label lbl s (Kseq (seq_of_labeled_statement s0) :: k)); intros.
  inv H1.
   eapply current_function_find_label; [ | eauto]. simpl; auto. 
-   eapply IHs; [ | eauto]. simpl; auto.
+   eapply IHs; [ | eauto]. simpl; auto. 
  Qed.
 
 Lemma step_continue_strip:
@@ -508,8 +517,8 @@ Inductive match_states: forall (qm: corestate) (st: CC_core), Prop :=
  | match_states_ext: forall k f ef tyargs tyres args lid ve te k'
       (CUR: current_function k = Some f),
       match_cont (strip_skip k) (strip_skip' k') ->
-      match_states (ExtCall ef (signature_of_type tyargs tyres) args lid ve te k) 
-           (CC_core_Callstate (External ef tyargs tyres) args (CC.Kcall lid f ve te k')).
+      match_states (ExtCall ef (signature_of_type tyargs tyres cc_default) args lid ve te k) 
+           (CC_core_Callstate (External ef tyargs tyres cc_default) args (CC.Kcall lid f ve te k')).
 
 Lemma Clightnew_Clight_sim_eq_noOrder_SSplusConclusion:
 forall p (c1 : corestate) (m : mem) (c1' : corestate) (m' : mem),
@@ -565,7 +574,7 @@ inv H3.
  destruct (exec_skips H8 ge f ve te m) as [k2 [? ?]]; auto.
  rewrite H3 in *. inv H8. simpl in CUR. 
  (*econstructor; split.  -- again, we need to instantiate manually*)
-  exists (CC_core_Callstate (External ef tyargs tyres) vargs (CC.Kcall optid f ve te k2)).
+  exists (CC_core_Callstate (External ef tyargs tyres cc_default) vargs (CC.Kcall optid f ve te k2)).
   split.
    (*a*) eapply star_plus_trans. eassumption. eapply Smallstep.plus_one. econstructor; eauto.
    (*b*) econstructor; eauto.
@@ -1006,10 +1015,10 @@ Definition CC_at_external (c: CC_core) : option (external_function * signature *
   | CC_core_Callstate fd args k => 
     match fd with
       Internal _ => None
-      | External ef tps tp  => 
+      | External ef tps tp cc => 
           match tp with 
-          | Tvoid => Some (ef, mksignature (typlist_of_typelist tps) None, args)
-          | _ => Some (ef, mksignature (typlist_of_typelist tps) (Some (typ_of_type tp)), args)
+          | Tvoid => Some (ef, mksignature (typlist_of_typelist tps) None cc, args)
+          | _ => Some (ef, mksignature (typlist_of_typelist tps) (Some (typ_of_type tp)) cc, args)
           end
     end
   | CC_core_Returnstate _ _ => None
@@ -1021,7 +1030,7 @@ Definition CC_after_external (rv: option val) (c: CC_core) : option CC_core :=
      CC_core_Callstate fd vargs (CC.Kcall optid f e lenv k) =>
         match fd with
           Internal _ => None
-        | External ef tps tp =>
+        | External ef tps tp cc =>
             match rv, optid with
               Some v, _ => Some(CC_core_State f Sskip k e (set_opttemp optid v lenv))
             |   None, None    => Some(CC_core_State f Sskip k e lenv)
@@ -1061,14 +1070,14 @@ Definition CC_initial_core (ge: genv) (v: val) (args: list val) : option CC_core
   let tl := typed_params 2%positive (length args)
    in Some (CC_core_State main_function myStatement
                            (CC.Kseq (Scall None 
-                                  (Etempvar 1%positive (Tfunction (type_of_params tl) Tvoid))
+                                  (Etempvar 1%positive (Tfunction (type_of_params tl) Tvoid cc_default))
                                   (map (fun x => Etempvar (fst x) (snd x)) tl))
                               (CC.Kseq (Sloop Sskip Sskip) CC.Kstop)) (*IS THE FORMATION OF THE CONT HERE CORRECT? WAS A cont list*)
                           empty_env (temp_bindings 1%positive (v::args))).
 
 Definition CC_step (ge: Genv.t fundef type) (q:CC_core) (m:mem) (q': CC_core) (m': mem) : Prop :=
   match q with 
-      CC_core_Callstate (External _ _ _ ) _ _ => False 
+      CC_core_Callstate (External _ _ _ _) _ _ => False 
    | _ => CCstep ge (CC_core_to_CC_state q m) (Events.E0)(CC_core_to_CC_state q' m')
   end.
 
@@ -1116,7 +1125,7 @@ Lemma CC_step_to_CCstep: forall ge q m q' m',
   Qed. 
 
 Definition isExternalCallState (c:CC.state) :=
-  match c with CC.Callstate (External _ _ _ ) _ _ _  => True
+  match c with CC.Callstate (External _ _ _ _ ) _ _ _  => True
                       | _ => False
   end.
 
@@ -1382,7 +1391,7 @@ inv H3.
  destruct (exec_skips_CC H8 ge f ve te m) as [k2 [? ?]]; auto.
  rewrite H3 in *. inv H8. simpl in CUR. 
  (*econstructor; split.  -- again, we need to instantiate manually*)
-  exists (CC_core_Callstate (External ef tyargs tyres) vargs (CC.Kcall optid f ve te k2)).
+  exists (CC_core_Callstate (External ef tyargs tyres cc_default) vargs (CC.Kcall optid f ve te k2)).
   split.
    (*a*) eapply corestep_star_plus_trans. eassumption. eapply corestep_plus_one. econstructor; eauto.
    (*b*) econstructor; eauto.

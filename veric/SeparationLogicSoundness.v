@@ -76,6 +76,7 @@ Definition semax_func := @semax_func.
 Definition semax_prog := @semax_prog.
 Definition semax_func_nil := @semax_func_nil.
 Definition semax_func_cons := @semax_func_cons.
+Definition semax_func_skip := @semax_func_skip.
 Definition semax_func_cons_ext := @semax_func_cons_ext.
 Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
@@ -102,14 +103,6 @@ Definition semax_extract_prop := @semax_extract_prop.
 Definition semax_ptr_compare := @semax_ptr_compare.
 
 Definition semax_external {Espec: OracleKind} ef A P Q := forall n, semax_external Espec ef A P Q n.
-
-Lemma semax_external_FF:
-forall (Espec: OracleKind),
-  forall ef A Q,
-     @semax_external Espec ef A (fun _ _ => FF) Q.
-Proof.
-repeat intro.  destruct H2 as [? [? [? [? ?]]]]. contradiction.
-Qed.
 
 Definition juicy_ext_spec := juicy_ext_spec.
 

@@ -93,7 +93,6 @@ Inductive eval_simple_lvalue: expr -> block -> int -> Prop :=
   | esl_var_global: forall x ty b,
       e!x = None ->
       Genv.find_symbol ge x = Some b ->
-      type_of_global ge b = Some ty ->
       eval_simple_lvalue (Evar x ty) b Int.zero
   | esl_deref: forall r ty b ofs,
       eval_simple_rvalue r (Vptr b ofs) ->
@@ -322,7 +321,7 @@ Inductive estep: state -> trace -> state -> Prop :=
       eval_simple_lvalue e m l b ofs ->
       deref_loc ge ty m b ofs t1 v1 ->
       sem_incrdecr id v1 ty = Some v2 ->
-      sem_cast v2 (typeconv ty) ty = Some v3 ->
+      sem_cast v2 (incrdecr_type ty) ty = Some v3 ->
       assign_loc ge ty m b ofs v3 t2 m' ->
       ty = typeof l ->
       t = t1 ** t2 ->
@@ -336,7 +335,7 @@ Inductive estep: state -> trace -> state -> Prop :=
       match sem_incrdecr id v1 ty with
       | None => True
       | Some v2 =>
-          match sem_cast v2 (typeconv ty) ty with
+          match sem_cast v2 (incrdecr_type ty) ty with
           | None => True
           | Some v3 => forall t2 m', ~(assign_loc ge (typeof l) m b ofs v3 t2 m')
           end
@@ -359,13 +358,13 @@ Inductive estep: state -> trace -> state -> Prop :=
       estep (ExprState f (C (Eparen r ty)) k e m)
          E0 (ExprState f (C (Eval v ty)) k e m)
 
-  | step_call: forall f C rf rargs ty k e m targs tres vf vargs fd,
+  | step_call: forall f C rf rargs ty k e m targs tres cconv vf vargs fd,
       leftcontext RV RV C ->
-      classify_fun (typeof rf) = fun_case_f targs tres ->
+      classify_fun (typeof rf) = fun_case_f targs tres cconv ->
       eval_simple_rvalue e m rf vf ->
       eval_simple_list e m rargs targs vargs ->
       Genv.find_funct ge vf = Some fd ->
-      type_of_fundef fd = Tfunction targs tres ->
+      type_of_fundef fd = Tfunction targs tres cconv ->
       estep (ExprState f (C (Ecall rf rargs ty)) k e m)
          E0 (Callstate fd vargs (Kcall f e C ty k) m)
 
@@ -520,7 +519,7 @@ Definition invert_expr_prop (a: expr) (m: mem) : Prop :=
   | Evar x ty =>
       exists b,
       e!x = Some(b, ty)
-      \/ (e!x = None /\ Genv.find_symbol ge x = Some b /\ type_of_global ge b = Some ty)
+      \/ (e!x = None /\ Genv.find_symbol ge x = Some b)
   | Ederef (Eval v ty1) ty =>
       exists b, exists ofs, v = Vptr b ofs
   | Efield (Eval v ty1) f ty =>
@@ -562,11 +561,11 @@ Definition invert_expr_prop (a: expr) (m: mem) : Prop :=
       exists v, sem_cast v1 ty1 ty = Some v
   | Ecall (Eval vf tyf) rargs ty =>
       exprlist_all_values rargs ->
-      exists tyargs, exists tyres, exists fd, exists vl,
-         classify_fun tyf = fun_case_f tyargs tyres
+      exists tyargs tyres cconv fd vl,
+         classify_fun tyf = fun_case_f tyargs tyres cconv
       /\ Genv.find_funct ge vf = Some fd
       /\ cast_arguments rargs tyargs vl
-      /\ type_of_fundef fd = Tfunction tyargs tyres
+      /\ type_of_fundef fd = Tfunction tyargs tyres cconv
   | Ebuiltin ef tyargs rargs ty =>
       exprlist_all_values rargs ->
       exists vargs, exists t, exists vres, exists m',
@@ -610,7 +609,7 @@ Lemma callred_invert:
   invert_expr_prop r m.
 Proof.
   intros. inv H. simpl.
-  intros. exists tyargs; exists tyres; exists fd; exists args; auto.
+  intros. exists tyargs, tyres, cconv, fd, args; auto.
 Qed.
 
 Scheme context_ind2 := Minimality for context Sort Prop
@@ -1342,7 +1341,7 @@ Proof.
   intros [b1 [ofs [E1 S1]]].
   exploit safe_inv. eexact S1. eauto. simpl. intros [t [v1 [A B]]].
   destruct (sem_incrdecr id v1 ty) as [v2|] eqn:?.
-  destruct (sem_cast v2 (typeconv ty) ty) as [v3|] eqn:?.
+  destruct (sem_cast v2 (incrdecr_type ty) ty) as [v3|] eqn:?.
   destruct (classic (exists t2, exists m', assign_loc ge ty m b1 ofs v3 t2 m')).
   destruct H0 as [t2 [m' D]].
   econstructor; econstructor; eapply step_postincr; eauto.
@@ -1369,7 +1368,7 @@ Proof.
   eapply safe_steps. eexact S1.
   apply (eval_simple_list_steps f k e m rargs vl E2 C'); auto.
   simpl. intros X. exploit X. eapply rval_list_all_values. 
-  intros [tyargs [tyres [fd [vargs [P [Q [U V]]]]]]].
+  intros [tyargs [tyres [cconv [fd [vargs [P [Q [U V]]]]]]]].
   econstructor; econstructor; eapply step_call; eauto. eapply can_eval_simple_list; eauto. 
 (* builtin *)
   pose (C' := fun x => C(Ebuiltin ef tyargs x ty)).
@@ -1523,7 +1522,7 @@ Proof.
   econstructor; econstructor; eauto.
   inv H9. exploit deref_loc_receptive; eauto. intros [EQ [v1' A]]. subst t0.
   destruct (sem_incrdecr id v1' (typeof l)) as [v2'|] eqn:?.
-  destruct (sem_cast v2' (typeconv (typeof l)) (typeof l)) as [v3'|] eqn:?.
+  destruct (sem_cast v2' (incrdecr_type (typeof l)) (typeof l)) as [v3'|] eqn:?.
   destruct (classic (exists t2', exists m'', assign_loc (Genv.globalenv p) (typeof l) m b ofs v3' t2' m'')).
   destruct H1 as [t2' [m'' P]]. 
   econstructor; econstructor. left; eapply step_postincr with (v1 := v1'); eauto. simpl; reflexivity. 
@@ -1536,7 +1535,7 @@ Proof.
   (* postincr stuck *)
   exploit deref_loc_receptive; eauto. intros [EQ [v1' A]]. subst t1.
   destruct (sem_incrdecr id v1' (typeof l)) as [v2'|] eqn:?.
-  destruct (sem_cast v2' (typeconv (typeof l)) (typeof l)) as [v3'|] eqn:?.
+  destruct (sem_cast v2' (incrdecr_type (typeof l)) (typeof l)) as [v3'|] eqn:?.
   destruct (classic (exists t2', exists m'', assign_loc (Genv.globalenv p) (typeof l) m b ofs v3' t2' m'')).
   destruct H1 as [t2' [m'' P]]. 
   econstructor; econstructor. left; eapply step_postincr with (v1 := v1'); eauto. simpl; reflexivity. 
@@ -1745,7 +1744,7 @@ with eval_expr: env -> mem -> kind -> expr -> trace -> mem -> expr -> Prop :=
       eval_simple_lvalue ge e m1 l' b ofs ->
       deref_loc ge ty m1 b ofs t2 v1 ->
       sem_incrdecr id v1 ty = Some v2 ->
-      sem_cast v2 (typeconv ty) ty = Some v3 ->
+      sem_cast v2 (incrdecr_type ty) ty = Some v3 ->
       assign_loc ge ty m1 b ofs v3 t3 m2 ->
       ty = typeof l ->
       eval_expr e m RV (Epostincr id l ty) (t1**t2**t3) m2 (Eval v1 ty)
@@ -1756,13 +1755,13 @@ with eval_expr: env -> mem -> kind -> expr -> trace -> mem -> expr -> Prop :=
       ty = typeof r2 ->
       eval_expr e m RV (Ecomma r1 r2 ty) (t1**t2) m2 r2'
   | eval_call: forall e m rf rargs ty t1 m1 rf' t2 m2 rargs' vf vargs
-                      targs tres fd t3 m3 vres,
+                      targs tres cconv fd t3 m3 vres,
       eval_expr e m RV rf t1 m1 rf' -> eval_exprlist e m1 rargs t2 m2 rargs' ->
       eval_simple_rvalue ge e m2 rf' vf ->
       eval_simple_list ge e m2 rargs' targs vargs ->
-      classify_fun (typeof rf) = fun_case_f targs tres ->
+      classify_fun (typeof rf) = fun_case_f targs tres cconv ->
       Genv.find_funct ge vf = Some fd ->
-      type_of_fundef fd = Tfunction targs tres ->
+      type_of_fundef fd = Tfunction targs tres cconv ->
       eval_funcall m2 fd vargs t3 m3 vres ->
       eval_expr e m RV (Ecall rf rargs ty) (t1**t2**t3) m3 (Eval vres ty)
 
@@ -1901,9 +1900,9 @@ with eval_funcall: mem -> fundef -> list val -> trace -> mem -> val -> Prop :=
       outcome_result_value out f.(fn_return) vres ->
       Mem.free_list m3 (blocks_of_env e) = Some m4 ->
       eval_funcall m (Internal f) vargs t m4 vres
-  | eval_funcall_external: forall m ef targs tres vargs t vres m',
+  | eval_funcall_external: forall m ef targs tres cconv vargs t vres m',
       external_call ef ge vargs m t vres m' ->
-      eval_funcall m (External ef targs tres) vargs t m' vres.
+      eval_funcall m (External ef targs tres cconv) vargs t m' vres.
 
 Scheme eval_expression_ind5 := Minimality for eval_expression Sort Prop
   with eval_expr_ind5 := Minimality for eval_expr Sort Prop
@@ -1999,13 +1998,13 @@ CoInductive evalinf_expr: env -> mem -> kind -> expr -> traceinf -> Prop :=
       evalinf_exprlist e m1 a2 t2 ->
       evalinf_expr e m RV (Ecall a1 a2 ty) (t1 *** t2)
   | evalinf_call: forall e m rf rargs ty t1 m1 rf' t2 m2 rargs' vf vargs
-                      targs tres fd t3,
+                      targs tres cconv fd t3,
       eval_expr e m RV rf t1 m1 rf' -> eval_exprlist e m1 rargs t2 m2 rargs' ->
       eval_simple_rvalue ge e m2 rf' vf ->
       eval_simple_list ge e m2 rargs' targs vargs ->
-      classify_fun (typeof rf) = fun_case_f targs tres ->
+      classify_fun (typeof rf) = fun_case_f targs tres cconv ->
       Genv.find_funct ge vf = Some fd ->
-      type_of_fundef fd = Tfunction targs tres ->
+      type_of_fundef fd = Tfunction targs tres cconv ->
       evalinf_funcall m2 fd vargs t3 ->
       evalinf_expr e m RV (Ecall rf rargs ty) (t1***t2***t3)
 
@@ -3034,7 +3033,7 @@ Inductive bigstep_program_terminates (p: program): trace -> int -> Prop :=
       Genv.init_mem p = Some m0 ->
       Genv.find_symbol ge p.(prog_main) = Some b ->
       Genv.find_funct_ptr ge b = Some f ->
-      type_of_fundef f = Tfunction Tnil type_int32s ->
+      type_of_fundef f = Tfunction Tnil type_int32s cc_default ->
       eval_funcall ge m0 f nil t m1 (Vint r) ->
       bigstep_program_terminates p t r.
 
@@ -3044,7 +3043,7 @@ Inductive bigstep_program_diverges (p: program): traceinf -> Prop :=
       Genv.init_mem p = Some m0 ->
       Genv.find_symbol ge p.(prog_main) = Some b ->
       Genv.find_funct_ptr ge b = Some f ->
-      type_of_fundef f = Tfunction Tnil type_int32s ->
+      type_of_fundef f = Tfunction Tnil type_int32s cc_default ->
       evalinf_funcall ge m0 f nil t ->
       bigstep_program_diverges p t.
 

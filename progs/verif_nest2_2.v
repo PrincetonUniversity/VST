@@ -32,9 +32,7 @@ Definition Vprog : varspecs := (_p, t_struct_b)::nil.
 Definition Gprog : funspecs := 
     get_spec::set_spec::nil.
 
-Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
-  
-Lemma body_get:  semax_body Vprog Gtot f_get get_spec.
+Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
 Proof.
  start_function.
 name i _i.
@@ -79,7 +77,7 @@ unfold_field_at 4%nat.
 cancel.
 Qed.
 
-Lemma body_set:  semax_body Vprog Gtot f_set set_spec.
+Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
 Proof.
  start_function.
 name i_ _i.

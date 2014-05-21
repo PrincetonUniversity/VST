@@ -5,6 +5,7 @@ Require Import compcert.common.Values.
 Require Import compcert.lib.Maps.
 Require Import compcert.lib.Integers.
 Require Import compcert.common.AST.
+Require Import msl.Extensionality.
 
 Require Import compcert.common.Globalenvs.
 

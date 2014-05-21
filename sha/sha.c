@@ -7,7 +7,9 @@ extern unsigned int __builtin_read32_reversed(const unsigned int * ptr);
 extern void __builtin_write32_reversed(unsigned int * ptr, unsigned int x);
 
 #include <stddef.h>
-#include <string.h> /* for memcpy, memset */
+
+void * memcpy(void * __restrict, const void * __restrict, size_t);
+void * memset(void *, int, size_t);
 
 /* from md32_common.h */
 #ifdef COMPCERT

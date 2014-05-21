@@ -84,13 +84,6 @@ Definition Vprog : varspecs :=
 Definition Gprog : funspecs := 
     sumlist_spec :: reverse_spec :: main_spec::nil.
 
-(** The [prog] definition in reverse.v lists several compiler-builtins
- ** in addition to the user-defined sumlist,reverse,main.
- ** The [do_builtins] tactic adds vacuous (but sound) declarations
- ** for them, turning Gprog in to Gtot.
- **)
-Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
-
 (** Two little equations about the list_cell predicate *)
 Lemma list_cell_eq: forall sh i,
    list_cell LS sh (Vint i) = field_at sh t_struct_list _head (Vint i).
@@ -108,7 +101,7 @@ Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
  ** function-body (in this case, f_sumlist) satisfies its specification
  ** (in this case, sumlist_spec).  
  **)
-Lemma body_sumlist: semax_body Vprog Gtot f_sumlist sumlist_spec.
+Lemma body_sumlist: semax_body Vprog Gprog f_sumlist sumlist_spec.
 Proof.
 (** Here is the standard way to start a function-body proof:  First,
  ** start-function; then for every function-parameter and every
@@ -166,7 +159,7 @@ Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
             SEP (`(lseg LS sh cts1 w nullval);
                    `(lseg LS sh cts2 v nullval))).
 
-Lemma body_reverse: semax_body Vprog Gtot f_reverse reverse_spec.
+Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
 start_function.
 name p_ _p.
@@ -335,7 +328,7 @@ Qed.
 (**  Third, we specialize it to the precondition of our main function: **)
 Lemma setup_globals:
   PROP () LOCAL() SEP (
-   id2pred_star (func_tycontext f_main Vprog Gtot) Ews (tarray t_struct_list 3)
+   id2pred_star (func_tycontext f_main Vprog Gprog) Ews (tarray t_struct_list 3)
       (eval_var _three (tarray t_struct_list 3)) 0
       (Init_int32 (Int.repr 1)
        :: Init_addrof _three (Int.repr 8)
@@ -353,7 +346,7 @@ Proof.
  simpl; omega.
 Qed. 
 
-Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
 name r _r.
@@ -378,12 +371,12 @@ Qed.
 Existing Instance NullExtension.Espec.
 
 Lemma all_funcs_correct:
-  semax_func Vprog Gtot (prog_funct prog) Gtot.
+  semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
-unfold Gtot, Gprog, prog, prog_funct; simpl.
-repeat (apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ]).
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_sumlist | ].
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_reverse | ].
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_main | ].
+unfold Gprog, prog, prog_funct; simpl.
+semax_func_skipn.
+semax_func_cons body_sumlist.
+semax_func_cons body_reverse.
+semax_func_cons body_main.
 apply semax_func_nil.
 Qed.

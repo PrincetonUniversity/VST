@@ -47,7 +47,7 @@ Definition sha_update_loop_body :=
         (Evar _sha256_block_data_order
            (Tfunction
               (Tcons (tptr t_struct_SHA256state_st) (Tcons (tptr tvoid) Tnil))
-              tvoid))
+              tvoid cc_default))
         [Etempvar _c (tptr t_struct_SHA256state_st),
         Etempvar _data (tptr tuchar)])
      (Ssequence
@@ -148,7 +148,7 @@ replace_SEP 2%Z (`K_vector (eval_var _K256 (tarray tuint 64)));
  unfold sha_update_inv.
  apply exp_right with (blocks++ bl).
  entailer.
- clear TC0 TC.
+ clear TC0 TC1.
  rewrite negb_true_iff in H8.
  unfold Int.ltu in H8.
  if_tac in H8; inv H8.

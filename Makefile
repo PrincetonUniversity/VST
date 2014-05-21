@@ -26,7 +26,7 @@ CV1=$(shell cat compcert/VERSION)
 CV2=$(shell cat $(COMPCERT)/VERSION)
 
 ifneq ($(CV1), $(CV2))
-$(error COMPCERT_VERSION=$(CV1) but $(COMPCERT)/VERSION=$(CV2))
+ $(error COMPCERT_VERSION=$(CV1) but $(COMPCERT)/VERSION=$(CV2))
 endif
 
 ifeq ($(wildcard $(COMPCERT)/*/Clight.vo), )
@@ -171,7 +171,7 @@ PROGS_FILES= \
    entail_examples.v \
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
   verif_float.v \
-  verif_nest3.v nest2.v verif_nest2.v verif_nest2_1.v verif_nest2_2.v verif_nest2_3.v\
+  verif_nest3.v verif_nest2.v verif_nest2_1.v verif_nest2_2.v verif_nest2_3.v\
   logical_compare.v verif_logical_compare.v
 
 SHA_FILES= \
@@ -183,7 +183,7 @@ SHA_FILES= \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
   verif_addlength.v verif_SHA256.v entail_examples2.v 
 
-C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c
+C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -222,25 +222,32 @@ progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
 sha:     .loadpath $(SHA_FILES:%.v=sha/%.vo)
 compcomp:  .loadpath $(COMPCOMP_FILES:%.v=compcomp/%.vo) 
 
+CGFLAGS =  -DCOMPCERT
 
 ifdef CLIGHTGEN
 sha/sha.v: sha/sha.c
-	$(CLIGHTGEN) -DCOMPCERT $<
+	$(CLIGHTGEN) ${CGFLAGS} $<
 # Is there a way to generate the next 5 rules automatically from C_FILES? 
 progs/revarray.v: progs/revarray.c
-	$(CLIGHTGEN) -DCOMPCERT $<
+	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/reverse.v: progs/reverse.c
-	$(CLIGHTGEN) -DCOMPCERT $<
+	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/queue.v: progs/queue.c
-	$(CLIGHTGEN) -DCOMPCERT $<
+	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/sumarray.v: progs/sumarray.c
-	$(CLIGHTGEN) -DCOMPCERT $<
+	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/message.v: progs/message.c
-	$(CLIGHTGEN) -DCOMPCERT $<
+	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/insertionsort.v: progs/insertionsort.c
-	$(CLIGHTGEN) -DCOMPCERT $<
+	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/float.v: progs/float.c
-	$(CLIGHTGEN) -DCOMPCERT $<
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/logical_compare.v: progs/logical_compare.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/nest2.v: progs/nest2.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/nest3.v: progs/nest3.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
 version.v: $(FILES) util/make_version

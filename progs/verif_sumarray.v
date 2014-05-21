@@ -33,8 +33,6 @@ Definition Vprog : varspecs := (_four, Tarray tint 4 noattr)::nil.
 Definition Gprog : funspecs := 
     sumarray_spec :: main_spec::nil.
 
-Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
-
 Definition sumarray_Inv a0 sh contents size := 
  EX i: Z,
   (PROP  (0 <= i <= size)
@@ -106,7 +104,7 @@ rewrite Int.add_assoc.
 auto.
 Qed.
 
-Lemma body_sumarray: semax_body Vprog Gtot f_sumarray sumarray_spec.
+Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
 start_function.
 name a _a.
@@ -148,7 +146,7 @@ Qed.
 Definition four_contents := (ZnthV tint
            (map Vint (map Int.repr (1::2::3::4:: nil)))).
 
-Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
 name s _s.
@@ -167,12 +165,12 @@ Qed.
 Existing Instance NullExtension.Espec.
 
 Lemma all_funcs_correct:
-  semax_func Vprog Gtot (prog_funct prog) Gtot.
+  semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
-unfold Gtot, Gprog, prog, prog_funct; simpl.
-repeat (apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ]).
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_sumarray | ].
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_main | ].
+unfold Gprog, prog, prog_funct; simpl.
+semax_func_skipn.
+semax_func_cons body_sumarray.
+semax_func_cons body_main.
 apply semax_func_nil.
 Qed.
 

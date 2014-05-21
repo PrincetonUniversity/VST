@@ -136,21 +136,21 @@ unfold address_mapsto; apply exp_left; intro bl;
 apply prop_andp_left; intros [? [? ?]] ? ?; hnf; clear - MIN MAX H0;
 unfold decode_val in H0; destruct bl; simpl in H0.
 unfold decode_int, rev_if_be in H0.
-destruct big_endian; inv H0.
+destruct Archi.big_endian; inv H0.
 apply (Int.sign_ext_range 8); compute; auto.
 apply (Int.sign_ext_range 8); compute; auto.
 destruct m; try discriminate.
 destruct (proj_bytes bl); inv H0.
 apply (Int.sign_ext_range 8);  compute; auto.
 unfold decode_int, rev_if_be in H0.
-destruct big_endian; inv H0.
+destruct Archi.big_endian; inv H0.
 apply (Int.zero_ext_range 8); compute; split; congruence.
 apply (Int.zero_ext_range 8); compute; split; congruence.
 destruct m; try discriminate.
 destruct (proj_bytes bl); inv H0.
 apply (Int.zero_ext_range 8); compute; split; congruence.
 unfold decode_int, rev_if_be in H0.
-destruct big_endian; inv H0.
+destruct Archi.big_endian; inv H0.
 apply (Int.sign_ext_range 16);  compute; auto.
 apply (Int.sign_ext_range 16);  compute; auto.
 destruct m; try discriminate.
@@ -210,7 +210,7 @@ Qed.
 
 Lemma rev_if_be_singleton:
   forall x, rev_if_be (x::nil) = (x::nil).
-Proof. intro. unfold rev_if_be; destruct big_endian; auto. Qed.
+Proof. intro. unfold rev_if_be; destruct Archi.big_endian; auto. Qed.
 
 Lemma resource_fmap_core:
   forall w loc, resource_fmap (approx (level w)) (core (w @ loc)) = core (w @ loc).
@@ -437,8 +437,6 @@ exists w1; exists w2; split3; auto.
 + exists (Byte Byte.zero :: nil); split.
  split. reflexivity. split.
  unfold decode_val. simpl. f_equal.
- unfold decode_int. rewrite rev_if_be_singleton. simpl.
- reflexivity.
  apply Z.divide_1_l.
  intro loc. hnf. if_tac. exists H0.
  destruct loc as [b' i']. destruct H8; subst b'.

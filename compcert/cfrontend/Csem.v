@@ -148,19 +148,32 @@ Definition blocks_of_env (e: env) : list (block * Z * Z) :=
 (** Selection of the appropriate case of a [switch], given the value [n]
   of the selector expression. *)
 
-Fixpoint select_switch (n: int) (sl: labeled_statements)
-                       {struct sl}: labeled_statements :=
+Fixpoint select_switch_default (sl: labeled_statements): labeled_statements :=
   match sl with
-  | LSdefault _ => sl
-  | LScase c s sl' => if Int.eq c n then sl else select_switch n sl'
+  | LSnil => sl
+  | LScons None s sl' => sl
+  | LScons (Some i) s sl' => select_switch_default sl'
+  end.
+
+Fixpoint select_switch_case (n: int) (sl: labeled_statements): option labeled_statements :=
+  match sl with
+  | LSnil => None
+  | LScons None s sl' => select_switch_case n sl'
+  | LScons (Some c) s sl' => if Int.eq c n then Some sl else select_switch_case n sl'
+  end.
+
+Definition select_switch (n: int) (sl: labeled_statements): labeled_statements :=
+  match select_switch_case n sl with
+  | Some sl' => sl'
+  | None => select_switch_default sl
   end.
 
 (** Turn a labeled statement into a sequence *)
 
 Fixpoint seq_of_labeled_statement (sl: labeled_statements) : statement :=
   match sl with
-  | LSdefault s => s
-  | LScase c s sl' => Ssequence s (seq_of_labeled_statement sl')
+  | LSnil => Sskip
+  | LScons _ s sl' => Ssequence s (seq_of_labeled_statement sl')
   end.
 
 (** Extract the values from a list of function arguments *)
@@ -175,19 +188,6 @@ Inductive cast_arguments: exprlist -> typelist -> list val -> Prop :=
 Section SEMANTICS.
 
 Variable ge: genv.
-
-(** [type_of_global b] returns the type of the global variable or function
-  at address [b]. *)
-
-Definition type_of_global (b: block) : option type :=
-  match Genv.find_var_info ge b with
-  | Some gv => Some gv.(gvar_info)
-  | None =>
-      match Genv.find_funct_ptr ge b with
-      | Some fd => Some(type_of_fundef fd)
-      | None => None
-      end
-  end.
 
 (** ** Reduction semantics for expressions *)
 
@@ -210,7 +210,6 @@ Inductive lred: expr -> mem -> expr -> mem -> Prop :=
   | red_var_global: forall x ty m b,
       e!x = None ->
       Genv.find_symbol ge x = Some b ->
-      type_of_global b = Some ty ->
       lred (Evar x ty) m
            (Eloc b Int.zero ty) m
   | red_deref: forall b ofs ty1 ty m,
@@ -287,7 +286,9 @@ Inductive rred: expr -> mem -> trace -> expr -> mem -> Prop :=
       op = match id with Incr => Oadd | Decr => Osub end ->
       rred (Epostincr id (Eloc b ofs ty) ty) m
          t (Ecomma (Eassign (Eloc b ofs ty) 
-                           (Ebinop op (Eval v1 ty) (Eval (Vint Int.one) type_int32s) (typeconv ty))
+                            (Ebinop op (Eval v1 ty)
+                                       (Eval (Vint Int.one) type_int32s)
+                                       (incrdecr_type ty))
                            ty)
                    (Eval v1 ty) ty) m
   | red_comma: forall v ty1 r2 ty m,
@@ -309,11 +310,11 @@ Inductive rred: expr -> mem -> trace -> expr -> mem -> Prop :=
     (More exactly, identification of function calls that can reduce.) *)
 
 Inductive callred: expr -> fundef -> list val -> type -> Prop :=
-  | red_Ecall: forall vf tyf tyargs tyres el ty fd vargs,
+  | red_Ecall: forall vf tyf tyargs tyres cconv el ty fd vargs,
       Genv.find_funct ge vf = Some fd ->
       cast_arguments el tyargs vargs ->
-      type_of_fundef fd = Tfunction tyargs tyres ->
-      classify_fun tyf = fun_case_f tyargs tyres ->
+      type_of_fundef fd = Tfunction tyargs tyres cconv ->
+      classify_fun tyf = fun_case_f tyargs tyres cconv ->
       callred (Ecall (Eval vf tyf) el ty)
               fd vargs ty.
 
@@ -559,8 +560,8 @@ Fixpoint find_label (lbl: label) (s: statement) (k: cont)
 with find_label_ls (lbl: label) (sl: labeled_statements) (k: cont) 
                     {struct sl}: option (statement * cont) :=
   match sl with
-  | LSdefault s => find_label lbl s k
-  | LScase _ s sl' =>
+  | LSnil => None
+  | LScons _ s sl' =>
       match find_label lbl s (Kseq (seq_of_labeled_statement sl') k) with
       | Some sk => Some sk
       | None => find_label_ls lbl sl' k
@@ -741,9 +742,9 @@ Inductive sstep: state -> trace -> state -> Prop :=
       sstep (Callstate (Internal f) vargs k m)
          E0 (State f f.(fn_body) k e m2)
 
-  | step_external_function: forall ef targs tres vargs k m vres t m',
+  | step_external_function: forall ef targs tres cc vargs k m vres t m',
       external_call ef  ge vargs m t vres m' ->
-      sstep (Callstate (External ef targs tres) vargs k m)
+      sstep (Callstate (External ef targs tres cc) vargs k m)
           t (Returnstate vres k m')
 
   | step_returnstate: forall v f e C ty k m,
@@ -768,7 +769,7 @@ Inductive initial_state (p: program): state -> Prop :=
       Genv.init_mem p = Some m0 ->
       Genv.find_symbol ge p.(prog_main) = Some b ->
       Genv.find_funct_ptr ge b = Some f ->
-      type_of_fundef f = Tfunction Tnil type_int32s ->
+      type_of_fundef f = Tfunction Tnil type_int32s cc_default ->
       initial_state p (Callstate f nil Kstop m0).
 
 (** A final state is a [Returnstate] with an empty continuation. *)

@@ -497,9 +497,30 @@ Fixpoint prog_funct' {F V} (l: list (ident * globdef F V)) : list (ident * F) :=
 
 Definition prog_funct (p: program) := prog_funct' (prog_defs p).
 
+Inductive match_fdecs: list  (ident * fundef) -> funspecs -> Prop :=
+| match_fdecs_nil: match_fdecs nil nil
+| match_fdecs_cons: forall i fd fspec fs G,
+                  type_of_fundef fd = type_of_funspec fspec ->
+                  match_fdecs fs G ->
+                  match_fdecs ((i,fd)::fs) ((i,fspec)::G)
+| match_fdecs_skip: forall ifd fs G,
+                 match_fdecs fs G ->
+                 match_fdecs (ifd::fs) G.
+(*
+Fixpoint match_fdecs (fdecs: list (ident * fundef)) (G: funspecs) :=
+ match fdecs, G with
+ | _, nil => True
+ | (i,fd)::f', (j,fspec)::G' =>
+       i=j /\ type_of_fundef fd = type_of_funspec fspec /\ match_fdecs f' G'
+        \/ match_fdecs f' G
+ | nil, _::_ => False
+ end.
+*)
+(*
 Definition match_fdecs (fdecs: list (ident * fundef)) (G: funspecs) :=
  map (fun idf => (fst idf, Clight.type_of_fundef (snd idf))) fdecs = 
  map (fun idf => (fst idf, type_of_funspec (snd idf))) G.
+*)
 
 
 Lemma match_fdecs_exists_Gfun: 
@@ -509,23 +530,20 @@ Lemma match_fdecs_exists_Gfun:
     exists fd,   In (i, Gfun fd) (prog_defs prog) /\ 
                      type_of_fundef fd = type_of_funspec f.
 Proof. unfold prog_funct. unfold prog_defs_names.
-intros ? ? ?.
+intros ? ? ? ?.
 forget (prog_defs prog) as dl.
-revert G; induction dl; intros.
-destruct G; inv H. inv H0.
-destruct a.
-destruct g; simpl in *.
-destruct G; inv H0.
-destruct p. simpl in *.
-if_tac in H. subst i0; inv H.
-eexists; split; [left; reflexivity | auto].
-destruct (IHdl _ _ H H4).
-exists x; split; [right; auto | ]. destruct H1; auto.
-destruct H1; auto.
-destruct (IHdl G f); auto.
-exists x; split; [right; auto | ].
-destruct H1; auto.
-destruct H1; auto.
+revert G; induction dl; simpl; intros.
+inv H0. inv H.
+destruct a as [i' [?|?]].
+inv H0.
+simpl in H; if_tac in H. subst i'; inv H.
+eauto.
+destruct (IHdl G0) as [fd [? ?]]; auto.
+exists fd; split; auto.
+destruct (IHdl G) as [fd [? ?]]; auto.
+exists fd; split; auto.
+destruct (IHdl G) as [fd [? ?]]; auto.
+exists fd; split; auto.
 Qed.
 
 Lemma find_symbol_add_globals_nil:

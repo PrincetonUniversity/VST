@@ -122,8 +122,8 @@ Fixpoint find_label (lbl: label) (s: statement) (k: cont)
 with find_label_ls (lbl: label) (sl: labeled_statements) (k: cont) 
                     {struct sl}: option cont :=
   match sl with
-  | LSdefault s => find_label lbl s k
-  | LScase _ s sl' =>
+  | LSnil => None
+  | LScons _ s sl' =>
       match find_label lbl s (Kseq (seq_of_labeled_statement sl') :: k) with
       | Some sk => Some sk
       | None => find_label_ls lbl sl' k
@@ -148,11 +148,11 @@ Inductive cl_step (ge: Clight.genv): forall (q: corestate) (m: mem) (q': coresta
       cl_step ge (State ve te (Kseq (Sset id a) :: k)) m (State ve (PTree.set id v te) k) m
 
   | step_call_internal:   forall ve te k m optid a al tyargs tyres vf vargs f m1 ve' le',
-      Cop.classify_fun (typeof a) = Cop.fun_case_f tyargs tyres ->
+      Cop.classify_fun (typeof a) = Cop.fun_case_f tyargs tyres cc_default ->
       Clight.eval_expr ge ve te m a vf ->
       Clight.eval_exprlist ge ve te m al tyargs vargs ->
       Genv.find_funct ge vf = Some (Internal f) ->
-      type_of_function f = Tfunction tyargs tyres ->
+      type_of_function f = Tfunction tyargs tyres cc_default ->
       list_norepet (var_names f.(fn_params) ++ var_names f.(fn_temps)) ->
       forall (NRV: list_norepet (var_names f.(fn_vars))),
       Clight.alloc_variables empty_env m (f.(fn_vars)) ve' m1 ->
@@ -162,11 +162,11 @@ le' ->
                    (State ve' le' (Kseq f.(fn_body) :: Kseq (Sreturn None) :: Kcall optid f ve te :: k)) m1
 
   | step_call_external:   forall ve te k m optid a al tyargs tyres vf vargs ef,
-      Cop.classify_fun (typeof a) = Cop.fun_case_f tyargs tyres ->
+      Cop.classify_fun (typeof a) = Cop.fun_case_f tyargs tyres cc_default ->
       Clight.eval_expr ge ve te m a vf ->
       Clight.eval_exprlist ge ve te m al tyargs vargs ->
-      Genv.find_funct ge vf = Some (External ef tyargs tyres) ->
-      cl_step ge (State ve te (Kseq (Scall optid a al) :: k)) m (ExtCall ef (signature_of_type tyargs tyres) vargs optid ve te k) m
+      Genv.find_funct ge vf = Some (External ef tyargs tyres cc_default) ->
+      cl_step ge (State ve te (Kseq (Scall optid a al) :: k)) m (ExtCall ef (signature_of_type tyargs tyres cc_default) vargs optid ve te k) m
 
   | step_seq: forall ve te k m s1 s2 st' m',
           cl_step ge (State ve te (Kseq s1 :: Kseq s2 :: k)) m st' m' ->
@@ -230,7 +230,7 @@ Definition exit_syscall_number : ident := 1%positive.
 
 Definition cl_halted (c: corestate) : option val := None.
 
-Definition empty_function : function := mkfunction Tvoid nil nil nil Sskip.
+Definition empty_function : function := mkfunction Tvoid cc_default nil nil nil Sskip.
 
 Fixpoint temp_bindings (i: positive) (vl: list val) :=
  match vl with
@@ -251,7 +251,7 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option coresta
   let tl := typed_params 2%positive (length args)
    in Some (State empty_env (temp_bindings 1%positive (v::args))
                   (Kseq (Scall None 
-                                  (Etempvar 1%positive (Tfunction (type_of_params tl) Tvoid))
+                                  (Etempvar 1%positive (Tfunction (type_of_params tl) Tvoid cc_default))
                                   (map (fun x => Etempvar (fst x) (snd x)) tl)) :: 
                      Kseq (Sloop Sskip Sskip) :: nil)).
 

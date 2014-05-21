@@ -67,7 +67,7 @@ rewrite mul_repr, sub_repr in H1; apply ltu_repr_false in H1.
 2: split; computable.
 2: assert (64 < Int.max_unsigned)%Z by computable; unfold ddlen in *;
    split; try omega.
-clear TC.
+clear TC0.
 change (16*4)%Z with (Z.of_nat CBLOCK) in H1.
 apply andp_right; [apply prop_right; repeat split | cancel].
 rewrite Forall_app; split; auto.

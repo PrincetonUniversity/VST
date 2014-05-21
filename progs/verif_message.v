@@ -92,9 +92,7 @@ Definition message (sh: share) {t: type} (format: message_format t) (m: val) : m
 Definition Gprog : funspecs := 
     intpair_serialize_spec :: intpair_deserialize_spec :: main_spec::nil.
 
-Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
-
-Lemma body_intpair_serialize: semax_body Vprog Gtot f_intpair_serialize intpair_serialize_spec.
+Lemma body_intpair_serialize: semax_body Vprog Gprog f_intpair_serialize intpair_serialize_spec.
 Proof.
 unfold intpair_serialize_spec.
 unfold serialize_spec.
@@ -130,7 +128,7 @@ apply sepcon_derives; apply derives_refl';
  rewrite Int.add_assoc; reflexivity.
 Qed.
 
-Lemma body_intpair_deserialize: semax_body Vprog Gtot f_intpair_deserialize intpair_deserialize_spec.
+Lemma body_intpair_deserialize: semax_body Vprog Gprog f_intpair_deserialize intpair_deserialize_spec.
 Proof.
 unfold intpair_deserialize_spec, deserialize_spec.
 start_function. destruct shs as (sh,sh'). simpl @fst; simpl @snd.
@@ -215,16 +213,16 @@ Ltac get_global_function' id :=
 
 Lemma  create_message_object:
  forall t (msg: message_format t) objid serid desid
- (Vobj: (var_types (func_tycontext f_main Vprog Gtot)) ! objid = None)
- (Gobj: (glob_types (func_tycontext f_main Vprog Gtot)) ! objid = Some (Global_var t_struct_message))
- (Vser: (var_types (func_tycontext f_main Vprog Gtot)) ! serid = None)
- (Gser: (glob_types (func_tycontext f_main Vprog Gtot)) ! serid =
+ (Vobj: (var_types (func_tycontext f_main Vprog Gprog)) ! objid = None)
+ (Gobj: (glob_types (func_tycontext f_main Vprog Gprog)) ! objid = Some (Global_var t_struct_message))
+ (Vser: (var_types (func_tycontext f_main Vprog Gprog)) ! serid = None)
+ (Gser: (glob_types (func_tycontext f_main Vprog Gprog)) ! serid =
                                    Some (Global_func (serialize_spec msg)))
- (Vdes: (var_types (func_tycontext f_main Vprog Gtot)) ! desid = None)
- (Gdes: (glob_types (func_tycontext f_main Vprog Gtot)) ! desid =
+ (Vdes: (var_types (func_tycontext f_main Vprog Gprog)) ! desid = None)
+ (Gdes: (glob_types (func_tycontext f_main Vprog Gprog)) ! desid =
                                    Some (Global_func (deserialize_spec msg))),
 PROP  ()
-LOCAL (tc_environ (func_tycontext f_main Vprog Gtot))
+LOCAL (tc_environ (func_tycontext f_main Vprog Gprog))
 SEP
    (`(func_ptr (serialize_spec msg))
       (eval_var serid
@@ -232,7 +230,7 @@ SEP
     (`(func_ptr (deserialize_spec msg))
        (eval_var desid
           (globtype (Global_func (deserialize_spec msg)))) &&
-  (id2pred_star (func_tycontext f_main Vprog Gtot) Ews t_struct_message
+  (id2pred_star (func_tycontext f_main Vprog Gprog) Ews t_struct_message
     (eval_var objid t_struct_message) 0
     (Init_int32 (Int.repr (mf_size msg))
      :: Init_addrof serid (Int.repr 0)
@@ -247,10 +245,10 @@ normalize.
  unfold message.
  apply exp_right with
  (eval_var serid
-     (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint) rho,
+     (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint cc_default) rho,
  eval_var desid
       (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) (Tcons tint Tnil)))
-         tvoid) rho).
+         tvoid cc_default) rho).
 rewrite andp_assoc.
 apply andp_derives; auto.
 apply andp_derives; auto.
@@ -339,7 +337,7 @@ Lemma call_serialize:
  eval_expr e_p = d_p ->
  eval_lvalue e_buf = d_buf ->
  typeof e_obj = t_struct_message ->
- (temp_type_is Delta ser (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint)) /\
+ (temp_type_is Delta ser (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint cc_default)) /\
   temp_type_is Delta x tint /\ temp_type_is Delta id tint ) ->
  writable_share sh_buf ->
  x <> ser /\ x <> id /\ id <> ser ->
@@ -358,10 +356,10 @@ Lemma call_serialize:
    (Ssequence 
     (Sset ser 
      (Efield e_obj _serialize 
-        (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint))))
+        (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint cc_default))))
       (Ssequence
            (Scall (Some x)
-              (Etempvar ser (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint)))
+              (Etempvar ser (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint cc_default)))
               (e_p :: e_buf :: nil))
            (Sset id (Etempvar x tint))))
     (normal_ret_assert (PROP () LOCAL()
@@ -447,7 +445,7 @@ focus_SEP 3 1.
                 (Etempvar ser
                    (tptr
                       (Tfunction
-                         (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint)));
+                         (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint cc_default)));
               tc_exprlist  (initialized ser Delta) (snd (split (fst (serialize_fsig msg))))   (e_p :: e_buf :: nil); 
               `eq (eval_id ser) `f;
               `(eq p) (eval_expr e_p);  `(eq buf) (eval_lvalue e_buf)) 
@@ -461,7 +459,7 @@ focus_SEP 3 1.
                             (tptr
                                (Tfunction
                                   (Tcons (tptr tvoid)
-                                     (Tcons (tptr tuchar) Tnil)) tint))));
+                                     (Tcons (tptr tuchar) Tnil)) tint cc_default))));
              `(field_at sh_obj t_struct_message _serialize)  (eval_id ser)
                             (eval_lvalue e_obj);
               `(field_at sh_obj t_struct_message _bufsize (Vint (Int.repr (mf_size msg))))
@@ -485,7 +483,7 @@ apply tc_expr_init; auto.
 eapply semax_seq'.
 apply (call_lemmas.semax_call' Espec (initialized ser Delta) (serialize_A msg) (serialize_pre msg) (serialize_post msg)
    (v,p,buf,sh_p,sh_buf)  (Some x) (fst (serialize_fsig msg)) (snd (serialize_fsig msg))
-   (Etempvar ser (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint)))
+   (Etempvar ser (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint cc_default)))
    (e_p :: e_buf :: nil)).
 reflexivity. simpl. auto.
 hnf.
@@ -596,9 +594,9 @@ Lemma call_deserialize:
    (Ssequence 
     (Sset ser 
      (Efield e_obj _deserialize 
-        (tptr  (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid))))
+        (tptr  (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid cc_default))))
       (Scall None
-        (Etempvar ser (tptr  (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid)))
+        (Etempvar ser (tptr  (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid cc_default)))
           (e_p :: e_buf :: e_len :: nil)))
     (normal_ret_assert (PROPx P (LOCALx Q
      (SEPx (`(message sh_obj msg) d_obj :: 
@@ -624,7 +622,7 @@ unfold_lift.
 normalize.
 Qed.
 
-Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function. unfold MORE_COMMANDS, abbreviate.
 simpl_stackframe_of.

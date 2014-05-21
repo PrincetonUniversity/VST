@@ -287,6 +287,15 @@ destruct v; inv H2.
 destruct i,s; inv H1; simpl; destruct t; try inv H0; auto.
 destruct v; inv H2.
 destruct f; inv H1; simpl; destruct t; try inv H0; auto.
+(* absfloat case *)
+unfold sem_absfloat.
+destruct (classify_neg (typeof e)) eqn:H3; try discriminate;
+destruct t; inv H.
+destruct (typeof e); inv H3; destruct v; inv H2; reflexivity.
+destruct (typeof e); inv H3; destruct v; inv H2; try reflexivity.
+destruct i; try destruct s; inv H0.
+destruct (typeof e); inv H3; destruct v; inv H2; try reflexivity.
+destruct i; try destruct s0; inv H0.
 Qed.
 
 Lemma same_base_tc_val : forall v t1 t2,

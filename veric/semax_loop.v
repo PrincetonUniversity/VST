@@ -126,6 +126,7 @@ apply tycontext_evolve_join; auto.
 auto.
 clear tycontext_evolve_join_labeled.
 induction l; simpl; auto; intros.
+apply tycontext_evolve_refl.
 apply tycontext_evolve_join; auto.
 Qed.
 

@@ -352,7 +352,7 @@ Ltac dtca := autorewrite with dtca; auto.
 Definition stupid_typeconv ty := 
 match ty with
 | Tarray t _ a => Tpointer t a
-| Tfunction _ _ => Tpointer ty noattr
+| Tfunction _ _ _ => Tpointer ty noattr
 | _ => ty
 end.
 
@@ -360,8 +360,8 @@ Definition classify_sub' ty1 ty2 :=
 match stupid_typeconv ty1 with
 | Tpointer ty a =>
     match stupid_typeconv ty2 with
-    | Tint _ _ _ => sub_case_pi ty a
-    | Tlong _ _ => sub_case_pl ty a
+    | Tint _ _ _ => sub_case_pi ty
+    | Tlong _ _ => sub_case_pl ty
     | Tpointer _ _ => sub_case_pp ty
     | _ => sub_default
     end
@@ -398,18 +398,18 @@ Definition classify_add' ty1 ty2 :=
  match stupid_typeconv ty1 with
  | Tint _ _ _ =>
     match stupid_typeconv ty2 with
-    | Tpointer ty a => add_case_ip ty a
+    | Tpointer ty a => add_case_ip ty
     |  _ => add_default
     end
 | Tlong _ _ =>
     match stupid_typeconv ty2 with
-    | Tpointer ty a => add_case_lp ty a
+    | Tpointer ty a => add_case_lp ty
     | _ => add_default
     end
 | Tpointer ty a =>
     match stupid_typeconv ty2 with
-    | Tint _ _ _ => add_case_pi ty a
-    | Tlong _ _ => add_case_pl ty a
+    | Tint _ _ _ => add_case_pi ty
+    | Tlong _ _ => add_case_pl ty
     | _ => add_default
     end
  | _ => add_default
@@ -450,15 +450,15 @@ let deferr := arg_type e in
 denote_tc_assert
 match op with
   | Cop.Oadd => match classify_add' (typeof a1) (typeof a2) with 
-                    | Cop.add_case_pi _ _ => tc_andp' (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
-                    | Cop.add_case_ip _ _ => tc_andp' (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_pl _ _ => tc_andp' (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
-                    | Cop.add_case_lp _ _ => tc_andp' (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.add_case_pi _ => tc_andp' (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
+                    | Cop.add_case_ip _ => tc_andp' (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.add_case_pl _ => tc_andp' (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
+                    | Cop.add_case_lp _ => tc_andp' (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match classify_sub' (typeof a1) (typeof a2) with 
-                    | Cop.sub_case_pi _ _ => tc_andp' (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.sub_case_pl _ _ => tc_andp' (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.sub_case_pi _ => tc_andp' (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.sub_case_pl _ => tc_andp' (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
                              tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_samebase a1 a2)
                              (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int_type ty) reterr))
@@ -489,7 +489,7 @@ match op with
                                                         (tc_bool (is_int_type ty) reterr)
                     | Cop.bin_case_l Signed => tc_andp' (tc_andp' (tc_nonzero' a2) (tc_nodivover' a1 a2)) 
                                                         (tc_bool (is_long_type ty) reterr)
-                    | Cop.bin_case_f  =>  tc_bool (is_float_type ty) reterr 
+                    | Cop.bin_case_f _  =>  tc_bool (is_float_type ty) reterr 
                     | Cop.bin_default => tc_FF deferr
             end
   | Cop.Oshl | Cop.Oshr => match classify_shift' (typeof a1) (typeof a2) with
@@ -519,14 +519,17 @@ Proof.
  rewrite <- classify_add_eq. rewrite <- classify_sub_eq.
  rewrite <- classify_shift_eq. rewrite <- classify_cmp_eq.
  unfold isBinOpResultType, classify_add, classify_sub, classify_binarith, classify_shift, 
-  classify_cmp, check_pp_int, check_pp_int', check_pl_long, check_pl_long', typeconv;
+  classify_cmp, check_pp_int, check_pp_int', check_pl_long, check_pl_long', typeconv,
+  remove_attributes, change_attributes;
   destruct op; dtca;
  extensionality rho;
  destruct (typeof a1), (typeof a2); dtca;
  try (destruct i; dtca); 
  try (destruct s; dtca);
  try (destruct i0; dtca);
- try (destruct s0; dtca).
+ try (destruct s0; dtca);
+ try (destruct f; dtca);
+ try (destruct f0; dtca).
 Qed.
 
 Lemma denote_tc_assert'_andp'_e:
@@ -675,11 +678,13 @@ Ltac sem_cmp_solver t1 t2 :=
 match t1 with 
   | Tint ?i ?s _ => destruct i,s
   | Tlong ?s _ => destruct s
+  | Tfloat ?i _ => destruct i
   | _ => idtac
   end;
   match t2 with 
   | Tint ?i ?s _ => destruct i,s
   | Tlong ?s _ => destruct s
+  | Tfloat ?i _ => destruct i
   | _ => idtac
   end;
   unfold Cop2.sem_cmp, sem_cmp_pp, sem_cmp_pl, sem_cmp_lp; simpl;
@@ -745,6 +750,8 @@ repeat (
  | H: denote_tc_assert' (tc_nodivover' _ _) _ |- _ => hnf in H
  | H: denote_tc_assert' (tc_samebase _ _) _ |- _ => hnf in H
  | H: denote_tc_iszero _ |- _ => hnf in H
+ | H : Int.eq ?i Int.zero = true |- _ => apply int_eq_e in H; subst i
+ | H : if ?a then True else False |- _ => destruct a eqn:?; try contradiction; clear H
   | H: ?A=true |- _ => rewrite H; simpl
   | H: ?A=false |- _ => rewrite H; simpl
   | H: negb ?A = true |- _ => destruct A eqn:?; inv H; simpl; auto
@@ -796,7 +803,7 @@ unfold classify_cmp',classify_add',classify_sub',classify_shift',stupid_typeconv
 crunchp;
 try rewrite E1 in *; 
 try rewrite E2 in *; 
-simpl in *; crunchp;
+simpl in *; crunchp; try rewrite Int.eq_true;
 cbv beta;
 first [ apply typecheck_val_sem_cmp; apply I
        |  apply typecheck_sem_div_sound; assumption 
@@ -807,6 +814,10 @@ try match goal with
 | |- context [Cop2.sem_add] =>
   unfold Cop2.sem_add; rewrite classify_add_eq; unfold classify_add', stupid_typeconv; 
   reflexivity
+| |- context [Cop2.sem_sub] =>
+    unfold Cop2.sem_sub;    rewrite classify_sub_eq;
+    unfold classify_sub', stupid_typeconv;
+     simpl; rewrite if_true by auto; rewrite Heqb2; reflexivity
  | |- typecheck_val (force_val ((Cop2.sem_cmp _ ?t1 ?t2 _ _ _ ))) _ = true =>
         sem_cmp_solver t1 t2
 | |- typecheck_val (force_val (sem_cmp_default _ ?t1 ?t2 _ _)) _ = true =>
@@ -823,10 +834,15 @@ try match goal with
        unfold Cop2.sem_div, Cop2.sem_mod, Cop2.sem_binarith, Cop2.sem_cast;
        simpl; unfold both_int,both_long; simpl; (rewrite H || rewrite cast_int_long_nonzero by assumption); 
        reflexivity
- | H: if Int.ltu ?i Int.iwordsize then True else False |- typecheck_val  (force_val  (_ _ _ _ (Vint ?i0))) _ = true =>
+ | H: Int.ltu ?i Int.iwordsize = true |- 
+      typecheck_val (force_val (Cop2.sem_shift _ _ _ _ _ _)) _ = _ =>
        unfold Cop2.sem_shl, Cop2.sem_shr, Cop2.sem_shift;
-     rewrite classify_shift_eq; unfold classify_shift', stupid_typeconv;
-      simpl; destruct (Int.ltu i Int.iwordsize); try contradiction; reflexivity
+     rewrite classify_shift_eq; unfold classify_shift', 
+        stupid_typeconv; simpl; rewrite H; reflexivity
+ | |- typecheck_val (force_val (Cop2.sem_binarith _ _ _ ?t1 ?t2 _ _)) _ = true => 
+   sem_cmp_solver t1 t2 
+ | |- typecheck_val (force_val (Cop2.sem_cmp _ ?t1 ?t2 _ _ _)) _ = true => 
+    sem_cmp_solver t1 t2 
 | |- typecheck_val (force_val ( _ ?t1 ?t2 _ _)) _ = true => sem_cmp_solver t1 t2 
 end).
 Qed.

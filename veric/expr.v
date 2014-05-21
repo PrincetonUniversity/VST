@@ -145,8 +145,8 @@ Fixpoint modifiedvars' (c: statement) (S: idset) : idset :=
  with
  modifiedvars_ls (cs: labeled_statements) (S: idset) : idset := 
  match cs with
- | LSdefault _ => S
- | LScase _ c ls => modifiedvars' c (modifiedvars_ls ls S)
+ | LSnil => S
+ | LScons _ c ls => modifiedvars' c (modifiedvars_ls ls S)
  end.
 
 Definition isSome {A} (o: option A) := match o with Some _ => True | None => False end.
@@ -186,9 +186,19 @@ Qed.
 Definition modifiedvars (c: statement) (id: ident) :=
    isSome ((modifiedvars' c idset0) ! id).
 
+Definition type_of_global (ge: Clight.genv) (b: block) : option type :=
+  match Genv.find_var_info ge b with
+  | Some gv => Some gv.(gvar_info)
+  | None =>
+      match Genv.find_funct_ptr ge b with
+      | Some fd => Some(type_of_fundef fd)
+      | None => None
+      end
+  end.
+
 Definition filter_genv (ge: Clight.genv) : genviron :=
   fun id => match Genv.find_symbol ge id with
-                   | Some b => match Clight.type_of_global ge b with
+                   | Some b => match type_of_global ge b with
                                         | Some t => Some (Vptr b Int.zero, t)
                                         | None => Some (Vptr b Int.zero, Tvoid)
                                         end
@@ -266,6 +276,10 @@ Definition eqb_signedness (a b : signedness) :=
  | _, _ => false
  end.
 
+Definition eqb_calling_convention (a b: calling_convention) :=
+ andb (eqb (cc_vararg a) (cc_vararg b)) 
+     (eqb (cc_structret a) (cc_structret b)) .
+
 Fixpoint eqb_type (a b: type) {struct a} : bool :=
  match a, b with
  | Tvoid, Tvoid => true
@@ -276,7 +290,8 @@ Fixpoint eqb_type (a b: type) {struct a} : bool :=
  | Tpointer ta aa, Tpointer tb ab => andb (eqb_type ta tb) (eqb_attr aa ab)
  | Tarray ta sa aa, Tarray tb sb ab => andb (eqb_type ta tb) 
                                                                    (andb (Zeq_bool sa sb) (eqb_attr aa ab))
- | Tfunction sa ta, Tfunction sb tb => andb (eqb_typelist sa sb) (eqb_type ta tb)
+ | Tfunction sa ta ca, Tfunction sb tb cb => 
+       andb (andb (eqb_typelist sa sb) (eqb_type ta tb)) (eqb_calling_convention ca cb)
  | Tstruct ia fa aa, Tstruct ib fb ab => andb (eqb_ident ia ib) 
                                                                   (andb (eqb_fieldlist fa fb) (eqb_attr aa ab))
  | Tunion ia fa aa, Tunion ib fb ab => andb (eqb_ident ia ib) 
@@ -341,10 +356,11 @@ apply (eqb_type_sch
    inv H0; apply H; auto.
    apply H; auto.
    inv H0; apply H; auto.
-   apply H; auto.
-   inv H2; apply H0; auto.
+   apply H; auto. apply H0; auto.
+   clear - H2; destruct c as [[|] [|]]; destruct c0 as [[|] [|]]; inv H2; auto.
    inv H1; apply H; auto.
    inv H1; apply H0; auto.
+   inv H1; destruct c0 as [[|] [|]]; reflexivity.
    apply H; auto.
    inv H0; apply H; auto.
    inv H1; apply H; auto.
@@ -390,9 +406,9 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    match v, t with
    | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))
    | Vlong n, Tlong _ _ => Some (negb (Int64.eq n Int64.zero))
-   | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _) =>
+   | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) =>
              if Int.eq n Int.zero then Some false else None
-   | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _) => Some true
+   | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) => Some true
    | Vfloat f, Tfloat sz _ => Some (negb(Float.cmp Ceq f Float.zero))
    | _, _ => None
    end.
@@ -517,7 +533,7 @@ Inductive funspec :=
 Definition funspecs := list (ident * funspec).
 
 Definition type_of_funspec (fs: funspec) : type :=  
-  match fs with mk_funspec fsig _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig)  end.
+  match fs with mk_funspec fsig _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default end.
 
 Inductive global_spec :=
 | Global_func : forall fs: funspec, global_spec
@@ -541,7 +557,7 @@ Definition glob_types (Delta: tycontext) : PTree.t global_spec := snd Delta.
 
 Definition bool_type (t: type) : bool :=
   match t with
-  | Tint _ _ _ | Tlong _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tfloat _ _ => true
+  | Tint _ _ _ | Tlong _ _ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tfloat _ _ => true
   | _ => false
   end.
 
@@ -557,6 +573,7 @@ match op with
   | Cop.Onotbool => (Tint IBool Signed noattr) 
   | Cop.Onotint => (Tint I32 Signed noattr) 
   | Cop.Oneg => (typeof a)
+  | Cop.Oabsfloat => (typeof a)
 end.
 
 Definition is_int_type ty := 
@@ -581,10 +598,12 @@ end.
 Definition is_pointer_type ty :=
 match ty with
 | (Tpointer _ _ | Tarray _ _ _ 
-                   | Tfunction _ _ | Tstruct _ _ _ 
+                   | Tfunction _ _ _ | Tstruct _ _ _ 
                    | Tunion _ _ _) => true
 | _ => false
 end.
+
+Print Cop.sem_absfloat.
 
 Definition isUnOpResultType op a ty := 
 match op with 
@@ -599,7 +618,13 @@ match op with
                         end
   | Cop.Oneg => match Cop.classify_neg (typeof a) with
                     | Cop.neg_case_i sg => is_int_type ty
-                    | Cop.neg_case_f => is_float_type ty
+                    | Cop.neg_case_f _ => is_float_type ty
+                    | _ => false
+                    end
+  | Cop.Oabsfloat =>match Cop.classify_neg (typeof a) with
+                    | Cop.neg_case_i sg => is_float_type ty
+                    | Cop.neg_case_l _ => is_float_type ty
+                    | Cop.neg_case_f _ => is_float_type ty
                     | _ => false
                     end
 end.
@@ -705,7 +730,7 @@ Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
  match Cop.classify_binarith t1 t2 with
   | Cop.bin_case_i sg =>  tc_bool (is_int_type ty) reterr 
   | Cop.bin_case_l sg => tc_bool (is_long_type ty) reterr 
-  | Cop.bin_case_f    => tc_bool (is_float_type ty) reterr
+  | Cop.bin_case_f _   => tc_bool (is_float_type ty) reterr
  | Cop.bin_default => tc_FF deferr
  end.
 
@@ -724,15 +749,15 @@ let reterr := op_result_type e in
 let deferr := arg_type e in 
 match op with
   | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with 
-                    | Cop.add_case_pi _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
-                    | Cop.add_case_ip _ _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_pl _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
-                    | Cop.add_case_lp _ _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.add_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
+                    | Cop.add_case_ip _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.add_case_pl _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
+                    | Cop.add_case_lp _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with 
-                    | Cop.sub_case_pi _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.sub_case_pl _ _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.sub_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.sub_case_pl _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
                              tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
                              (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int_type ty) reterr))
@@ -763,7 +788,7 @@ match op with
                                                         (tc_bool (is_int_type ty) reterr)
                     | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) 
                                                         (tc_bool (is_long_type ty) reterr)
-                    | Cop.bin_case_f  =>  tc_bool (is_float_type ty) reterr 
+                    | Cop.bin_case_f _  =>  tc_bool (is_float_type ty) reterr 
                     | Cop.bin_default => tc_FF deferr
             end
   | Cop.Oshl | Cop.Oshr => match Cop.classify_shift (typeof a1) (typeof a2) with
@@ -830,7 +855,7 @@ Definition tc_val (ty: type) : val -> Prop :=
  | Tint _ _ _ => is_int
  | Tlong _ _ => is_long 
  | Tfloat _ _ => is_float
- | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _ => is_pointer_or_null
+ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _ => is_pointer_or_null
  | Tstruct _ _ _ => isptr
  | Tunion _ _ _ => isptr
  | _ => fun _ => False
@@ -891,8 +916,8 @@ match t1, t2 with
   Tint _ _ _, Tint _ _ _ 
 | Tlong _ _, Tlong _ _
 | Tfloat _ _, Tfloat _ _  => true
-| (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _), 
-   (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _) => true
+| (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _), 
+   (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => true
 | (Tstruct _ _ _ | Tunion _ _ _), (Tstruct _ _ _ | Tunion _ _ _ ) => true
 | _, _ => false
 end.
@@ -1029,12 +1054,12 @@ Definition typecheck_val (v: val) (ty: type) : bool :=
  | Vint i, Tint _ _ _ => true  
  | Vlong i, Tlong _ _ => true
  | Vfloat v, Tfloat _ _ => true  
- | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _) => 
+ | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) => 
                     (Int.eq i Int.zero) 
-(* | Vlong i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ | Tcomp_ptr _ _) => 
+(* | Vlong i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) => 
                     (Int64.eq i Int64.zero)  *)
  | Vptr b z,  (Tpointer _ _ | Tarray _ _ _ 
-                   | Tfunction _ _ | Tstruct _ _ _ 
+                   | Tfunction _ _ _ | Tstruct _ _ _ 
                    | Tunion _ _ _ | Tcomp_ptr _ _) => true
  | Vundef, _ => false
  | _, _ => false
@@ -1249,8 +1274,8 @@ end
 
 with join_tycon_labeled ls Delta :=
 match ls with
-| LSdefault s => update_tycon Delta s 
-| LScase int s ls' => join_tycon (update_tycon Delta s) 
+| LSnil => Delta
+| LScons int s ls' => join_tycon (update_tycon Delta s) 
                       (join_tycon_labeled ls' Delta)
 end.
 

@@ -1060,8 +1060,7 @@ Proof.
   exists (Kseq s :: nil); auto.
   apply IHs; auto.
 
- induction s; simpl; intros.
- destruct (find_label_prefix _ _ _ _ H) as [j ?]. exists j; auto. 
+ induction s; simpl; intros. inv H.
  revert H; case_eq (find_label lbl s (Kseq (seq_of_labeled_statement s0) :: ctl)); intros.
  inv H0.
  destruct (find_label_prefix _ _ _ _ H) as [j ?]; exists (j++Kseq (seq_of_labeled_statement s0) ::nil); rewrite app_ass; auto.

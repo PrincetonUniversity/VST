@@ -132,7 +132,7 @@ Proof.
  * inv H4. apply H0 in H10. apply H2 in H11. congruence. inv H5.
  * inv H2. apply H0 in H5. congruence. inv H4. inv H3. inv H3. inv H3.
  * inv H; inv H2. apply H0 in H. inv H. eapply deref_loc_fun; eauto. 
-   inv H. congruence. inversion2 H4 H9.  eapply deref_loc_fun; eauto.
+   inv H. congruence. inversion2 H4 H10.  eapply deref_loc_fun; eauto.
    apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
    apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
    apply H0 in H. inv H.  eapply deref_loc_fun; eauto.

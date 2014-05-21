@@ -110,23 +110,6 @@ Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: 
                                    then `(data_at_ sh ty) v
                                    else if zlt n 0 then TT
                                    else`(memory_block sh (Int.repr n)) v
-(*
-      match ty  with
-      | Tarray t j att => if zeq n (sizeof ty)
-                                  then `(array_at_ t sh 0 j) v (* FIXME *)
-                                  else TT
-      | Tvoid => TT
-      | Tfunction _ _ => TT
-      | Tstruct _ _ _ => if zeq n (sizeof ty)
-                                   then `(data_at_ sh ty) v
-                                   else TT
-      | Tunion _ _ _ => TT (* FIXME *)
-      | Tcomp_ptr _ _ => TT
-      | t=> if zeq n (sizeof t) 
-                               then `(mapsto sh t) v `(zero_of_type t)
-                               else  TT
-      end
-*)
   | Init_addrof symb ofs => 
       match (var_types Delta) ! symb, (glob_types Delta) ! symb with
       | None, Some (Global_var (Tarray t n' att)) =>`(mapsto sh (Tpointer t noattr)) v (`(offset_val ofs) (eval_var symb (Tarray t n' att)))
@@ -214,7 +197,7 @@ intros H1 H6' H6 H7 H8.
  +  destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
      simpl. destruct fs; simpl.
      rewrite H8. 
-    assert (eval_var i (Tfunction (type_of_params (fst f)) (snd f)) rho = Vptr b' Int.zero).
+    assert (eval_var i (Tfunction (type_of_params (fst f)) (snd f) cc_default) rho = Vptr b' Int.zero).
     { destruct (globfun_eval_var _ _ _ _ H7 Hv Hg) as [bx [ix [? ?]]].
       rewrite H15 in H0. symmetry in H0; inv H0.
       rewrite <- H. reflexivity.

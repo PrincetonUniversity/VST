@@ -12,7 +12,7 @@ Definition sha_final_epilog :=
                             (Evar _sha256_block_data_order (Tfunction
                                  (Tcons(tptr t_struct_SHA256state_st)
                                    (Tcons (tptr tvoid) Tnil))
-                                 tvoid))
+                                 tvoid cc_default))
                             ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
                              (Etempvar _p (tptr tuchar)) :: nil))
                           (Ssequence
@@ -28,7 +28,7 @@ Definition sha_final_epilog :=
                                                 (Tcons (tptr tvoid)
                                                   (Tcons tint
                                                     (Tcons tuint Tnil)))
-                                                (tptr tvoid)))
+                                                (tptr tvoid) cc_default))
                                 ((Etempvar _p (tptr tuchar)) ::
                                  (Econst_int (Int.repr 0) tint) ::
                                  (Ebinop Omul (Econst_int (Int.repr 16) tint)
@@ -302,7 +302,7 @@ semax Delta_final_if1
         (Ssequence
            (Scall None
               (Evar ___builtin_write32_reversed
-                 (Tfunction (Tcons (tptr tuint) (Tcons tuint Tnil)) tvoid))
+                 (Tfunction (Tcons (tptr tuint) (Tcons tuint Tnil)) tvoid cc_default))
               [Ecast (Etempvar _p (tptr tuchar)) (tptr tuint),
               Etempvar _cNh tuint])
            (Sset _p
@@ -318,7 +318,7 @@ semax Delta_final_if1
                  (Scall None
                     (Evar ___builtin_write32_reversed
                        (Tfunction (Tcons (tptr tuint) (Tcons tuint Tnil))
-                          tvoid))
+                          tvoid cc_default))
                     [Ecast (Etempvar _p (tptr tuchar)) (tptr tuint),
                     Etempvar _cNl tuint])
                  (Sset _p
@@ -334,7 +334,7 @@ semax Delta_final_if1
                        (Evar _sha256_block_data_order
                           (Tfunction
                              (Tcons (tptr t_struct_SHA256state_st)
-                                (Tcons (tptr tvoid) Tnil)) tvoid))
+                                (Tcons (tptr tvoid) Tnil)) tvoid cc_default))
                        [Etempvar _c (tptr t_struct_SHA256state_st),
                        Etempvar _p (tptr tuchar)])
                     (Ssequence
@@ -350,7 +350,7 @@ semax Delta_final_if1
                                    (Tfunction
                                       (Tcons (tptr tvoid)
                                          (Tcons tint (Tcons tuint Tnil)))
-                                      (tptr tvoid)))
+                                      (tptr tvoid) cc_default))
                                 [Etempvar _p (tptr tuchar),
                                 Econst_int (Int.repr 0) tint,
                                 Ebinop Omul (Econst_int (Int.repr 16) tint)

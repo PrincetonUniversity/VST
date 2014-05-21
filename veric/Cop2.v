@@ -274,8 +274,34 @@ Definition sem_neg_l (v: val) : option val :=
 Definition sem_neg (t: type) : val -> option val :=
   match Cop.classify_neg t with
   | Cop.neg_case_i sg => sem_neg_i
-  | Cop.neg_case_f => sem_neg_f
+  | Cop.neg_case_f _ => sem_neg_f
   | Cop.neg_case_l sg => sem_neg_l
+  | neg_default => fun v => None
+  end.
+
+Definition sem_absfloat_i sg (v: val) : option val :=
+  match v with
+      | Vint n => Some (Vfloat (Float.abs (Cop.cast_int_float sg F64 n)))
+      | _ => None
+      end.
+
+Definition sem_absfloat_f (v: val) :=
+     match v with
+      | Vfloat f => Some (Vfloat (Float.abs f))
+      | _ => None
+      end.
+
+Definition sem_absfloat_l sg v :=
+      match v with
+      | Vlong n => Some (Vfloat (Float.abs (Cop.cast_long_float sg F64 n)))
+      | _ => None
+      end.
+
+Definition sem_absfloat (ty: type)  : val -> option val :=
+  match Cop.classify_neg ty with
+  | Cop.neg_case_i sg => sem_absfloat_i sg      
+  | Cop.neg_case_f sz => sem_absfloat_f
+   | Cop.neg_case_l sg => sem_absfloat_l sg
   | neg_default => fun v => None
   end.
 
@@ -318,7 +344,7 @@ Definition sem_binarith
   let t := Cop.binarith_type c in
   match c with
   | Cop.bin_case_i sg => both_int (sem_int sg) (sem_cast t1 t) (sem_cast t2 t)
-  | Cop.bin_case_f => both_float (sem_float) (sem_cast t1 t) (sem_cast t2 t)
+  | Cop.bin_case_f sz => both_float (sem_float) (sem_cast t1 t) (sem_cast t2 t)
   | Cop.bin_case_l sg => both_long (sem_long sg) (sem_cast t1 t) (sem_cast t2 t)
   | bin_default => fun _ _ => None
   end.
@@ -363,10 +389,10 @@ sem_binarith
 
 Definition sem_add (t1:type) (t2:type) :  val->val->option val :=
   match Cop.classify_add t1 t2 with 
-  | Cop.add_case_pi ty _ =>  sem_add_pi ty
-  | Cop.add_case_ip ty _ => sem_add_ip ty   (**r integer plus pointer *)
-  | Cop.add_case_pl ty _ => sem_add_pl ty   (**r pointer plus long *)
-  | Cop.add_case_lp ty _ => sem_add_lp ty   (**r long plus pointer *)
+  | Cop.add_case_pi ty =>  sem_add_pi ty
+  | Cop.add_case_ip ty => sem_add_ip ty   (**r integer plus pointer *)
+  | Cop.add_case_pl ty => sem_add_pl ty   (**r pointer plus long *)
+  | Cop.add_case_lp ty => sem_add_lp ty   (**r long plus pointer *)
   | add_default => sem_add_default t1 t2      
   end.
 
@@ -405,8 +431,8 @@ Definition sem_sub_default t1 t2 (v1 v2 : val) : option val :=
         t1 t2 v1 v2.
 Definition sem_sub (t1:type) (t2:type) : val -> val -> option val :=
   match Cop.classify_sub t1 t2 with
-  | Cop.sub_case_pi ty attr => sem_sub_pi ty  (**r pointer minus integer *)
-  | Cop.sub_case_pl ty attr => sem_sub_pl ty  (**r pointer minus long *)
+  | Cop.sub_case_pi ty => sem_sub_pi ty  (**r pointer minus integer *)
+  | Cop.sub_case_pl ty => sem_sub_pl ty  (**r pointer minus long *)
   | Cop.sub_case_pp ty => sem_sub_pp ty       (**r pointer minus pointer *)
   | sub_default => sem_sub_default t1 t2     
   end.
@@ -602,6 +628,7 @@ Definition sem_unary_operation
   | Cop.Onotbool => sem_notbool ty v 
   | Cop.Onotint => sem_notint ty v 
   | Cop.Oneg => sem_neg ty v 
+  | Cop.Oabsfloat => sem_absfloat ty v
   end.
 
 (*Removed memory from sem_cmp calls/args*)

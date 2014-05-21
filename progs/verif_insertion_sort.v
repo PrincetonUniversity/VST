@@ -53,8 +53,6 @@ Definition Vprog : varspecs := nil.
 
 Definition Gprog : funspecs := insert_spec :: insertionsort_spec ::  nil.
 
-Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
-
 Lemma list_cell_eq: forall sh,
    list_cell LS sh = field_at sh t_struct_list _head.
 Proof.  reflexivity.  Qed.
@@ -284,7 +282,7 @@ Proof.
 Qed.
 
 
-Lemma body_insertionsort : semax_body Vprog Gtot f_insertionsort insertionsort_spec.
+Lemma body_insertionsort : semax_body Vprog Gprog f_insertionsort insertionsort_spec.
 Proof.
 start_function.
 name p _p.
@@ -405,7 +403,7 @@ forward.
 destruct unsorted_list; inv H0; rewrite app_nil_r. cancel.
 Qed.
 
-Lemma body_insert: semax_body Vprog Gtot f_insert insert_spec.
+Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
 start_function.
 name insert_value _insert_value.

@@ -24,7 +24,7 @@ Definition maybe_retval (Q: environ -> mpred) retty ret :=
  end.
 
 Lemma semax_call': forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) ret argsig retsig a bl P Q R,
-   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig ->
+   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig cc_default ->
    match retsig, ret with
    | Tvoid, None => True
    | Tvoid, Some _ => False
@@ -72,7 +72,7 @@ normalize.
 Qed.
 
 Lemma semax_call1: forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) id argsig retsig a bl P Q R,
-   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig ->
+   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig cc_default ->
    match retsig with
    | Tvoid => False
    | _ => True
@@ -97,7 +97,7 @@ Definition ifvoid {T} t (A B: T) :=
 
 Lemma semax_call0: forall Espec Delta A (Pre Post: A -> environ->mpred) (x: A) 
       argsig retty a bl P Q R,
-   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty ->
+   Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty cc_default ->
   @semax Espec Delta
          (PROPx P (LOCALx (tc_expr Delta a :: tc_exprlist Delta (argtypes argsig) bl :: Q)
             (SEPx (`(Pre x) ( (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl))) ::
@@ -166,15 +166,15 @@ Lemma semax_call_id0:
    (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig, retty) A Pre Post)) ->
   @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: Q)
                  (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) :: R))))
-    (Scall None (Evar id (Tfunction (type_of_params argsig) retty)) bl)
+    (Scall None (Evar id (Tfunction (type_of_params argsig) retty cc_default)) bl)
     (normal_ret_assert 
        (PROPx P (LOCALx Q (SEPx (ifvoid retty (`(Post x) (make_args nil nil))
                                                    (EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil)))
                                                     :: R))))).
 Proof.
 intros.
-assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty)))=
-               Cop.fun_case_f (type_of_params argsig) retty).
+assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty cc_default)))=
+               Cop.fun_case_f (type_of_params argsig) retty cc_default).
 simpl. subst. reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,retty) A Pre Post); auto.
 subst. 
@@ -219,7 +219,7 @@ Lemma semax_call_id1:
   @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: Q) 
                  (SEPx (`(Pre x) (make_args' (argsig,Tvoid) (eval_exprlist (argtypes argsig) bl)) :: R))))
     (Scall (Some ret)
-             (Evar id (Tfunction (type_of_params argsig) retty))
+             (Evar id (Tfunction (type_of_params argsig) retty cc_default))
              bl)
     (normal_ret_assert 
        (EX old:val, 
@@ -227,8 +227,8 @@ Lemma semax_call_id1:
              (SEPx (`(Post x) (get_result1 ret) :: map (subst ret (`old)) R))))).
 Proof.
 intros. rename H1 into Hret.
-assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty)))=
-               Cop.fun_case_f (type_of_params argsig) retty).
+assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty cc_default)))=
+               Cop.fun_case_f (type_of_params argsig) retty cc_default).
 subst; reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,retty)  A Pre Post); auto.
 subst. 
@@ -268,7 +268,7 @@ Lemma semax_call_id0_alt:
   PROPx nil (LOCALx (tc_exprlist Delta (argtypes argsig) bl ::nil) 
      (SEPx (`(Pre witness) (make_args' (argsig, retty) (eval_exprlist (argtypes argsig) bl)) :: Frame))) ->
   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) 
-    (Scall None (Evar id (Tfunction paramty retty)) bl)
+    (Scall None (Evar id (Tfunction paramty retty cc_default)) bl)
     (normal_ret_assert 
        (PROPx P (LOCALx Q (SEPx (ifvoid retty (`(Post witness) (make_args nil nil))
                                                    (EX v:val, `(Post witness) (make_args (ret_temp::nil) (v::nil)))
@@ -305,7 +305,7 @@ Lemma semax_call_id1_alt:
   PROPx nil (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: nil) 
        (SEPx (`(Pre witness) (make_args' (argsig, retty) (eval_exprlist (argtypes argsig) bl)) :: Frame))) ->
   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
-    (Scall (Some ret) (Evar id (Tfunction paramty retty)) bl)
+    (Scall (Some ret) (Evar id (Tfunction paramty retty cc_default)) bl)
     (normal_ret_assert 
        (EX old:val, 
           PROPx P (LOCALx (map (subst ret (`old)) Q) 
@@ -345,7 +345,7 @@ Lemma semax_call_id1':
   @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: Q)
             (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) :: R))))
     (Scall (Some ret)
-             (Evar id (Tfunction (type_of_params argsig) retty))
+             (Evar id (Tfunction (type_of_params argsig) retty cc_default))
              bl)
     (normal_ret_assert 
        (PROPx P (LOCALx Q   (SEPx (`(Post x) (get_result1 ret) ::  R))))).
@@ -395,7 +395,7 @@ Lemma semax_call_id1_Eaddrof:
   @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: Q) 
                (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) :: R))))
     (Scall (Some ret)
-             (Eaddrof (Evar id (Tfunction (type_of_params argsig) retty)) (Tpointer (Tfunction (type_of_params argsig) retty) noattr))
+             (Eaddrof (Evar id (Tfunction (type_of_params argsig) retty cc_default)) (Tpointer (Tfunction (type_of_params argsig) retty cc_default) noattr))
              bl)
     (normal_ret_assert 
        (EX old:val, 
@@ -403,8 +403,8 @@ Lemma semax_call_id1_Eaddrof:
              (SEPx (`(Post x) (get_result1 ret) :: map (subst ret (`old)) R))))).
 Proof.
 intros. rename H1 into Hret.
-assert (Cop.classify_fun (typeof (Eaddrof (Evar id (Tfunction (type_of_params argsig) retty)) (Tpointer (Tfunction (type_of_params argsig) retty) noattr)))=
-               Cop.fun_case_f (type_of_params argsig) retty).
+assert (Cop.classify_fun (typeof (Eaddrof (Evar id (Tfunction (type_of_params argsig) retty cc_default)) (Tpointer (Tfunction (type_of_params argsig) retty cc_default) noattr)))=
+               Cop.fun_case_f (type_of_params argsig) retty cc_default).
 subst; reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,retty) A Pre Post); auto.
 subst. 

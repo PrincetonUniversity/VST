@@ -29,7 +29,9 @@
 Require Import Zwf.
 Require Import Axioms.
 Require Import Coqlib.
+Require Intv.
 Require Import Maps.
+Require Archi.
 Require Import AST.
 Require Import Integers.
 Require Import Floats.
@@ -513,12 +515,21 @@ Proof.
   apply H. omega. apply IHn. intros. apply H. omega.
 Qed.
 
+Remark getN_setN_disjoint:
+  forall vl q c n p,
+  Intv.disjoint (p, p + Z_of_nat n) (q, q + Z_of_nat (length vl)) ->
+  getN n p (setN vl q c) = getN n p c.
+Proof.
+  intros. apply getN_exten. intros. apply setN_other.
+  intros; red; intros; subst r. eelim H; eauto. 
+Qed.
+
 Remark getN_setN_outside:
   forall vl q c n p,
   p + Z_of_nat n <= q \/ q + Z_of_nat (length vl) <= p ->
   getN n p (setN vl q c) = getN n p c.
 Proof.
-  intros. apply getN_exten. intros. apply setN_outside. omega. 
+  intros. apply getN_setN_disjoint. apply Intv.disjoint_range. auto. 
 Qed.
 
 Remark setN_default:
@@ -716,6 +727,7 @@ Proof.
   rewrite pred_dec_false; auto.
 Qed.
 
+(*
 Theorem load_float64al32:
   forall m b ofs v,
   load Mfloat64 m b ofs = Some v -> load Mfloat64al32 m b ofs = Some v.
@@ -731,6 +743,7 @@ Theorem loadv_float64al32:
 Proof.
   unfold loadv; intros. destruct a; auto. apply load_float64al32; auto.
 Qed.
+*)
 
 (** ** Properties related to [loadbytes] *)
 
@@ -881,8 +894,8 @@ Theorem load_int64_split:
   forall m b ofs v,
   load Mint64 m b ofs = Some v ->
   exists v1 v2,
-     load Mint32 m b ofs = Some (if big_endian then v1 else v2)
-  /\ load Mint32 m b (ofs + 4) = Some (if big_endian then v2 else v1)
+     load Mint32 m b ofs = Some (if Archi.big_endian then v1 else v2)
+  /\ load Mint32 m b (ofs + 4) = Some (if Archi.big_endian then v2 else v1)
   /\ v = Val.longofwords v1 v2.
 Proof.
   intros. 
@@ -899,10 +912,10 @@ Proof.
   exploit loadbytes_load. eexact LB2.
   simpl. apply Zdivide_plus_r. apply Zdivides_trans with 8; auto. exists 2; auto. exists 1; auto.
   intros L2.
-  exists (decode_val Mint32 (if big_endian then bytes1 else bytes2));
-  exists (decode_val Mint32 (if big_endian then bytes2 else bytes1)).
-  split. destruct big_endian; auto.
-  split. destruct big_endian; auto.
+  exists (decode_val Mint32 (if Archi.big_endian then bytes1 else bytes2));
+  exists (decode_val Mint32 (if Archi.big_endian then bytes2 else bytes1)).
+  split. destruct Archi.big_endian; auto.
+  split. destruct Archi.big_endian; auto.
   rewrite EQ. rewrite APP. apply decode_val_int64.
   erewrite loadbytes_length; eauto. reflexivity. 
   erewrite loadbytes_length; eauto. reflexivity. 
@@ -912,8 +925,8 @@ Theorem loadv_int64_split:
   forall m a v,
   loadv Mint64 m a = Some v ->
   exists v1 v2,
-     loadv Mint32 m a = Some (if big_endian then v1 else v2)
-  /\ loadv  Mint32 m (Val.add a (Vint (Int.repr 4))) = Some (if big_endian then v2 else v1)
+     loadv Mint32 m a = Some (if Archi.big_endian then v1 else v2)
+  /\ loadv  Mint32 m (Val.add a (Vint (Int.repr 4))) = Some (if Archi.big_endian then v2 else v1)
   /\ v = Val.longofwords v1 v2.
 Proof.
   intros. destruct a; simpl in H; try discriminate.
@@ -1400,6 +1413,7 @@ Proof.
   auto.
 Qed.
 
+(*
 Theorem store_float64al32:
   forall m b ofs v m',
   store Mfloat64 m b ofs v = Some m' -> store Mfloat64al32 m b ofs v = Some m'.
@@ -1417,6 +1431,7 @@ Theorem storev_float64al32:
 Proof.
   unfold storev; intros. destruct a; auto. apply store_float64al32; auto.
 Qed.
+*)
 
 (** ** Properties related to [storebytes]. *)
 
@@ -1559,6 +1574,24 @@ Proof.
   red; eauto with mem. 
 Qed.
 
+Theorem loadbytes_storebytes_disjoint:
+  forall b' ofs' len,
+  len >= 0 ->
+  b' <> b \/ Intv.disjoint (ofs', ofs' + len) (ofs, ofs + Z_of_nat (length bytes)) ->
+  loadbytes m2 b' ofs' len = loadbytes m1 b' ofs' len.
+Proof.
+  intros. unfold loadbytes.
+  destruct (range_perm_dec m1 b' ofs' (ofs' + len) Cur Readable).
+  rewrite pred_dec_true. 
+  rewrite storebytes_mem_contents. decEq. 
+  rewrite PMap.gsspec. destruct (peq b' b). subst b'. 
+  apply getN_setN_disjoint. rewrite nat_of_Z_eq; auto. intuition congruence.
+  auto.
+  red; auto with mem.
+  apply pred_dec_false. 
+  red; intros; elim n. red; auto with mem.
+Qed.
+
 Theorem loadbytes_storebytes_other:
   forall b' ofs' len,
   len >= 0 ->
@@ -1567,16 +1600,8 @@ Theorem loadbytes_storebytes_other:
   \/ ofs + Z_of_nat (length bytes) <= ofs' ->
   loadbytes m2 b' ofs' len = loadbytes m1 b' ofs' len.
 Proof.
-  intros. unfold loadbytes.
-  destruct (range_perm_dec m1 b' ofs' (ofs' + len) Cur Readable).
-  rewrite pred_dec_true. 
-  rewrite storebytes_mem_contents. decEq. 
-  rewrite PMap.gsspec. destruct (peq b' b). subst b'. 
-  apply getN_setN_outside. rewrite nat_of_Z_eq; auto. intuition congruence.
-  auto.
-  red; auto with mem.
-  apply pred_dec_false. 
-  red; intros; elim n. red; auto with mem.
+  intros. apply loadbytes_storebytes_disjoint; auto. 
+  destruct H0; auto. right. apply Intv.disjoint_range; auto. 
 Qed.
 
 Theorem load_storebytes_other:
@@ -1654,8 +1679,8 @@ Theorem store_int64_split:
   forall m b ofs v m',
   store Mint64 m b ofs v = Some m' ->
   exists m1,
-     store Mint32 m b ofs (if big_endian then Val.hiword v else Val.loword v) = Some m1
-  /\ store Mint32 m1 b (ofs + 4) (if big_endian then Val.loword v else Val.hiword v) = Some m'.
+     store Mint32 m b ofs (if Archi.big_endian then Val.hiword v else Val.loword v) = Some m1
+  /\ store Mint32 m1 b (ofs + 4) (if Archi.big_endian then Val.loword v else Val.hiword v) = Some m'.
 Proof.
   intros. 
   exploit store_valid_access_3; eauto. intros [A B]. simpl in *.
@@ -1674,8 +1699,8 @@ Theorem storev_int64_split:
   forall m a v m',
   storev Mint64 m a v = Some m' ->
   exists m1,
-     storev Mint32 m a (if big_endian then Val.hiword v else Val.loword v) = Some m1
-  /\ storev Mint32 m1 (Val.add a (Vint (Int.repr 4))) (if big_endian then Val.loword v else Val.hiword v) = Some m'.
+     storev Mint32 m a (if Archi.big_endian then Val.hiword v else Val.loword v) = Some m1
+  /\ storev Mint32 m1 (Val.add a (Vint (Int.repr 4))) (if Archi.big_endian then Val.loword v else Val.hiword v) = Some m'.
 Proof.
   intros. destruct a; simpl in H; try discriminate.
   exploit store_int64_split; eauto. intros [m1 [A B]].
@@ -1866,6 +1891,34 @@ Proof.
   eapply load_alloc_same; eauto.
 Qed.
 
+Theorem loadbytes_alloc_unchanged:
+  forall b' ofs n,
+  valid_block m1 b' ->
+  loadbytes m2 b' ofs n = loadbytes m1 b' ofs n.
+Proof.
+  intros. unfold loadbytes. 
+  destruct (range_perm_dec m1 b' ofs (ofs + n) Cur Readable).
+  rewrite pred_dec_true.
+  injection ALLOC; intros A B. rewrite <- B; simpl. 
+  rewrite PMap.gso. auto. rewrite A. eauto with mem.
+  red; intros. eapply perm_alloc_1; eauto. 
+  rewrite pred_dec_false; auto.
+  red; intros; elim n0. red; intros. eapply perm_alloc_4; eauto. eauto with mem. 
+Qed.
+
+Theorem loadbytes_alloc_same:
+  forall n ofs bytes byte,
+  loadbytes m2 b ofs n = Some bytes ->
+  In byte bytes -> byte = Undef.
+Proof.
+  unfold loadbytes; intros. destruct (range_perm_dec m2 b ofs (ofs + n) Cur Readable); inv H.
+  revert H0.
+  injection ALLOC; intros A B. rewrite <- A; rewrite <- B; simpl. rewrite PMap.gss. 
+  generalize (nat_of_Z n) ofs. induction n0; simpl; intros. 
+  contradiction. 
+  rewrite ZMap.gi in H0. destruct H0; eauto.
+Qed.
+
 End ALLOC.
 
 Local Hint Resolve valid_block_alloc fresh_block_alloc valid_new_block: mem.
@@ -2033,6 +2086,40 @@ Proof.
   red; intro; elim n. eapply valid_access_free_1; eauto. 
 Qed.
 
+Theorem load_free_2:
+  forall chunk b ofs v,
+  load chunk m2 b ofs = Some v -> load chunk m1 b ofs = Some v.
+Proof.
+  intros. unfold load. rewrite pred_dec_true. 
+  rewrite (load_result _ _ _ _ _ H). rewrite free_result; auto. 
+  apply valid_access_free_inv_1. eauto with mem.
+Qed.
+
+Theorem loadbytes_free:
+  forall b ofs n,
+  b <> bf \/ lo >= hi \/ ofs + n <= lo \/ hi <= ofs ->
+  loadbytes m2 b ofs n = loadbytes m1 b ofs n.
+Proof.
+  intros. unfold loadbytes. 
+  destruct (range_perm_dec m2 b ofs (ofs + n) Cur Readable).
+  rewrite pred_dec_true. 
+  rewrite free_result; auto. 
+  red; intros. eapply perm_free_3; eauto. 
+  rewrite pred_dec_false; auto. 
+  red; intros. elim n0; red; intros. 
+  eapply perm_free_1; eauto. destruct H; auto. right; omega. 
+Qed.
+
+Theorem loadbytes_free_2:
+  forall b ofs n bytes,
+  loadbytes m2 b ofs n = Some bytes -> loadbytes m1 b ofs n = Some bytes.
+Proof.
+  intros. unfold loadbytes in *.
+  destruct (range_perm_dec m2 b ofs (ofs + n) Cur Readable); inv H.
+  rewrite pred_dec_true. rewrite free_result; auto.
+  red; intros. apply perm_free_3; auto. 
+Qed.
+
 End FREE.
 
 Local Hint Resolve valid_block_free_1 valid_block_free_2
@@ -2162,6 +2249,27 @@ Proof.
   eapply valid_access_drop_1; eauto. 
   rewrite pred_dec_false. auto.
   red; intros; elim n. eapply valid_access_drop_2; eauto.
+Qed.
+
+Theorem loadbytes_drop:
+  forall b' ofs n, 
+  b' <> b \/ ofs + n <= lo \/ hi <= ofs \/ perm_order p Readable ->
+  loadbytes m' b' ofs n = loadbytes m b' ofs n.
+Proof.
+  intros.
+  unfold loadbytes.
+  destruct (range_perm_dec m b' ofs (ofs + n) Cur Readable).
+  rewrite pred_dec_true.
+  unfold drop_perm in DROP. destruct (range_perm_dec m b lo hi Cur Freeable); inv DROP. simpl. auto.
+  red; intros.
+  destruct (eq_block b' b). subst b'.
+  destruct (zlt ofs0 lo). eapply perm_drop_3; eauto. 
+  destruct (zle hi ofs0). eapply perm_drop_3; eauto.
+  apply perm_implies with p. eapply perm_drop_1; eauto. omega. intuition.
+  eapply perm_drop_3; eauto. 
+  rewrite pred_dec_false; eauto. 
+  red; intros; elim n0; red; intros. 
+  eapply perm_drop_4; eauto. 
 Qed.
 
 End DROP.
@@ -2514,6 +2622,31 @@ Proof.
   destruct (zle (ofs + Z_of_nat (length bytes2)) (ofs0 + delta)). omega. 
   byContradiction. eapply H0; eauto. omega. 
   eauto with mem.
+Qed.
+
+Lemma storebytes_empty_inj:
+  forall f m1 b1 ofs1 m1' m2 b2 ofs2 m2',
+  mem_inj f m1 m2 ->
+  storebytes m1 b1 ofs1 nil = Some m1' ->
+  storebytes m2 b2 ofs2 nil = Some m2' ->
+  mem_inj f m1' m2'.
+Proof.
+  intros. destruct H. constructor. 
+(* perm *)
+  intros.
+  eapply perm_storebytes_1; eauto. 
+  eapply mi_perm0; eauto.
+  eapply perm_storebytes_2; eauto.
+(* align *)
+  intros. eapply mi_align0 with (ofs := ofs) (p := p); eauto.
+  red; intros. eapply perm_storebytes_2; eauto. 
+(* mem_contents *)
+  intros.
+  assert (perm m1 b0 ofs Cur Readable). eapply perm_storebytes_2; eauto. 
+  rewrite (storebytes_mem_contents _ _ _ _ _ H0).
+  rewrite (storebytes_mem_contents _ _ _ _ _ H1).
+  simpl. rewrite ! PMap.gsspec. 
+  destruct (peq b0 b1); destruct (peq b3 b2); subst; eapply mi_memval0; eauto.
 Qed.
 
 (** Preservation of allocations *)
@@ -3293,7 +3426,7 @@ Proof.
     destruct H0. subst; exists Mint8unsigned; auto.
     destruct H0. subst; exists Mint16unsigned; auto.
     destruct H0. subst; exists Mint32; auto.
-    subst; exists Mfloat64; auto.
+    subst; exists Mint64; auto.
   destruct R as [chunk [A B]].
   assert (valid_access m chunk b ofs Nonempty).
     split. red; intros; apply H3. omega. congruence.
@@ -3498,6 +3631,27 @@ Proof.
   auto.
 (* representable *)
   auto.
+Qed.
+
+Theorem storebytes_empty_inject:
+  forall f m1 b1 ofs1 m1' m2 b2 ofs2 m2',
+  inject f m1 m2 ->
+  storebytes m1 b1 ofs1 nil = Some m1' ->
+  storebytes m2 b2 ofs2 nil = Some m2' ->
+  inject f m1' m2'.
+Proof.
+  intros. inversion H. constructor; intros.
+(* inj *)
+  eapply storebytes_empty_inj; eauto.
+(* freeblocks *)
+  intros. apply mi_freeblocks0. red; intros; elim H2; eapply storebytes_valid_block_1; eauto.
+(* mappedblocks *)
+  intros. eapply storebytes_valid_block_1; eauto. 
+(* no overlap *)
+  red; intros. eapply mi_no_overlap0; eauto; eapply perm_storebytes_2; eauto. 
+(* representable *)
+  intros. eapply mi_representable0; eauto.
+  destruct H3; eauto using perm_storebytes_2. 
 Qed.
 
 (* Preservation of allocations *)
@@ -4061,6 +4215,26 @@ Proof.
   intros. destruct H. apply unchanged_on_perm0; auto. 
 Qed.
 
+Lemma loadbytes_unchanged_on_1:
+  forall m m' b ofs n,
+  unchanged_on m m' ->
+  valid_block m b ->
+  (forall i, ofs <= i < ofs + n -> P b i) ->
+  loadbytes m' b ofs n = loadbytes m b ofs n.
+Proof.
+  intros. 
+  destruct (zle n 0).
++ erewrite ! loadbytes_empty by assumption. auto.
++ unfold loadbytes. destruct H.
+  destruct (range_perm_dec m b ofs (ofs + n) Cur Readable).
+  rewrite pred_dec_true. f_equal.
+  apply getN_exten. intros. rewrite nat_of_Z_eq in H by omega.
+  apply unchanged_on_contents0; auto.
+  red; intros. apply unchanged_on_perm0; auto. 
+  rewrite pred_dec_false. auto.
+  red; intros; elim n0; red; intros. apply <- unchanged_on_perm0; auto.
+Qed.
+
 Lemma loadbytes_unchanged_on:
   forall m m' b ofs n bytes,
   unchanged_on m m' ->
@@ -4071,15 +4245,24 @@ Proof.
   intros. 
   destruct (zle n 0).
 + erewrite loadbytes_empty in * by assumption. auto.
-+ unfold loadbytes in *. destruct H.
-  destruct (range_perm_dec m b ofs (ofs + n) Cur Readable); inv H1.
-  assert (valid_block m b). 
-  { eapply perm_valid_block. apply (r ofs). omega. } 
-  assert (range_perm m' b ofs (ofs + n) Cur Readable).
-  { red; intros. apply unchanged_on_perm0; auto. } 
-  rewrite pred_dec_true by assumption. f_equal.
-  apply getN_exten. intros. rewrite nat_of_Z_eq in H2 by omega.
-  apply unchanged_on_contents0; auto.
++ rewrite <- H1. apply loadbytes_unchanged_on_1; auto. 
+  exploit loadbytes_range_perm; eauto. instantiate (1 := ofs). omega. 
+  intros. eauto with mem.
+Qed.
+
+Lemma load_unchanged_on_1:
+  forall m m' chunk b ofs,
+  unchanged_on m m' ->
+  valid_block m b ->
+  (forall i, ofs <= i < ofs + size_chunk chunk -> P b i) ->
+  load chunk m' b ofs = load chunk m b ofs.
+Proof.
+  intros. unfold load. destruct (valid_access_dec m chunk b ofs Readable).
+  destruct v. rewrite pred_dec_true. f_equal. f_equal. apply getN_exten. intros. 
+  rewrite <- size_chunk_conv in H4. eapply unchanged_on_contents; eauto.
+  split; auto. red; intros. eapply perm_unchanged_on; eauto.
+  rewrite pred_dec_false. auto. 
+  red; intros [A B]; elim n; split; auto. red; intros; eapply perm_unchanged_on_2; eauto. 
 Qed.
 
 Lemma load_unchanged_on:
@@ -4089,10 +4272,7 @@ Lemma load_unchanged_on:
   load chunk m b ofs = Some v ->
   load chunk m' b ofs = Some v.
 Proof.
-  intros. 
-  exploit load_valid_access; eauto. intros [A B].
-  exploit load_loadbytes; eauto. intros [bytes [C D]].
-  subst v. apply loadbytes_load; auto. eapply loadbytes_unchanged_on; eauto.
+  intros. rewrite <- H1. eapply load_unchanged_on_1; eauto with mem.
 Qed.
 
 Lemma store_unchanged_on:

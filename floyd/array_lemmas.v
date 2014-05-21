@@ -239,7 +239,7 @@ match t as t0 return (reptype t0 -> Prop) with
     fun v0 : reptype (Tfloat f a) => exists v' : float, v0 = Vfloat v'
 | Tpointer t0 a => fun v0 : reptype (Tpointer t0 a) => is_pointer_or_null v0
 | Tarray t0 z a => fun _ : reptype (Tarray t0 z a) => False
-| Tfunction t0 t1 => fun _ : reptype (Tfunction t0 t1) => False
+| Tfunction t0 t1 cc => fun _ : reptype (Tfunction t0 t1 cc) => False
 | Tstruct i f a => fun _ : reptype (Tstruct i f a) => False
 | Tunion i f a => fun _ : reptype (Tunion i f a) => False
 | Tcomp_ptr i a => fun _ : reptype (Tcomp_ptr i a) => False

@@ -89,8 +89,6 @@ Definition Gprog : funspecs :=
          :: fifo_empty_spec :: fifo_get_spec 
          :: make_elem_spec :: main_spec::nil.
 
-Definition Gtot := do_builtins (prog_defs prog) ++ Gprog.
-
 Lemma memory_block_fifo:
  forall e, 
    `(memory_block Tsh (Int.repr 8)) e =
@@ -111,7 +109,7 @@ Lemma list_cell_eq: forall sh elem,
    field_at sh t_struct_elem _b (snd elem). 
 Proof. reflexivity. Qed.
  
-Lemma body_fifo_empty: semax_body Vprog Gtot f_fifo_empty fifo_empty_spec.
+Lemma body_fifo_empty: semax_body Vprog Gprog f_fifo_empty fifo_empty_spec.
 Proof.
 start_function.
 name Q _Q.
@@ -131,7 +129,7 @@ destruct (isnil contents).
  destruct prefix; entailer; elim_hyps; simpl; apply prop_right; auto.
 Qed.
 
-Lemma body_fifo_new: semax_body Vprog Gtot f_fifo_new fifo_new_spec.
+Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
 start_function.
 name Q _Q.
@@ -158,7 +156,7 @@ forward. (* return Q; *)
   entailer!.
 Qed.
 
-Lemma body_fifo_put: semax_body Vprog Gtot f_fifo_put fifo_put_spec.
+Lemma body_fifo_put: semax_body Vprog Gprog f_fifo_put fifo_put_spec.
 Proof.
 start_function.
 name Q _Q.
@@ -214,7 +212,7 @@ forward_if
     forward. (* return ; *)
 Qed.
 
-Lemma body_fifo_get: semax_body Vprog Gtot f_fifo_get fifo_get_spec.
+Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.
 Proof.
 start_function.
 name Q _Q.
@@ -249,7 +247,8 @@ destruct prefix; inversion H1; clear H1.
     entailer!.
 Qed.
 
-Lemma body_make_elem: semax_body Vprog Gtot f_make_elem make_elem_spec.
+Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.
+
 Proof.
 start_function. rename a into a0; rename b into b0.
 name a _a.
@@ -271,36 +270,7 @@ unfold elemrep.
 entailer!.
 Qed.
 
-(*
-Lemma andp_get_result1:
-  forall (P Q: environ->mpred) i, `(P && Q) (get_result1 i) = `P (get_result1 i) && `Q (get_result1 i).
-Proof. reflexivity. Qed.
-Hint Rewrite andp_get_result1: norm.
-
-Lemma lift_lift0_retval:
-  forall T (P: T) i, @liftx (Tarrow environ (LiftEnviron T)) (`P) (get_result1 i) = `P.
-Proof. reflexivity. Qed.
-
-Hint Rewrite lift_lift0_retval : norm.
-
-Lemma lift_local_get_result1:
- forall (P: environ->Prop) i,
-  @liftx (Tarrow environ (LiftEnviron mpred)) (local P) (get_result1 i) =
-   local (`P (get_result1 i)).
-Proof. reflexivity. Qed.
-Hint Rewrite lift_local_get_result1 : norm.
-
-
-Lemma lift_retval_get_result1: 
- forall T (P: val -> T) i,
-   @liftx (Tarrow environ (LiftEnviron T))
-     (@liftx (Tarrow val (LiftEnviron T)) P retval) (get_result1 i) =
-    `P (eval_id i).
-Proof. reflexivity. Qed.
-Hint Rewrite lift_retval_get_result1 : norm.
-*)
-
-Lemma body_main:  semax_body Vprog Gtot f_main main_spec.
+Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
 name i _i.
@@ -359,31 +329,31 @@ Existing Instance NullExtension.Espec.
 Parameter body_mallocN:
  semax_external
   (EF_external _mallocN
-     {| sig_args := AST.Tint :: nil; sig_res := Some AST.Tint |}) int
+     {| sig_args := AST.Tint :: nil; sig_res := Some AST.Tint; sig_cc := cc_default |}) int
   (fun n : int => PROP (4 <= Int.signed n) LOCAL (`(eq (Vint n)) (eval_id 1%positive)) SEP ())
   (fun n : int => `(memory_block Tsh n) retval).
 
 Parameter body_freeN:
 semax_external
   (EF_external _freeN
-     {| sig_args := AST.Tint :: AST.Tint :: nil; sig_res := None |}) unit
+     {| sig_args := AST.Tint :: AST.Tint :: nil; sig_res := None; sig_cc := cc_default |}) unit
   (fun _ : unit =>
       PROP() LOCAL () SEP (`(memory_block Tsh) (`force_int (eval_id 2%positive)) (eval_id 1%positive)))
  (fun _ : unit => emp).
 
 Lemma all_funcs_correct:
-  semax_func Vprog Gtot (prog_funct prog) Gtot.
+  semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
-unfold Gtot, Gprog, prog, prog_funct; simpl.
-repeat (apply semax_func_cons_ext; [ reflexivity | apply semax_external_FF | ]).
-apply semax_func_cons_ext; [ reflexivity | apply body_mallocN | ].
-apply semax_func_cons_ext; [ reflexivity | apply body_freeN | ].
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_fifo_new | ].
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_fifo_put | ].
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_fifo_empty | ].
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_fifo_get | ].
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_make_elem | ].
-apply semax_func_cons; [ reflexivity | precondition_closed | apply body_main | ].
+unfold Gprog, prog, prog_funct; simpl.
+semax_func_skipn.
+semax_func_cons body_mallocN.
+semax_func_cons body_freeN.
+semax_func_cons body_fifo_new.
+semax_func_cons body_fifo_put.
+semax_func_cons body_fifo_empty.
+semax_func_cons body_fifo_get.
+semax_func_cons body_make_elem.
+semax_func_cons body_main.
 apply semax_func_nil.
 Qed.
 

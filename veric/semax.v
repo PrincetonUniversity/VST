@@ -72,7 +72,7 @@ Definition guard  (Espec : OracleKind)
              >=> assert_safe Espec gx vx tx ctl rho.
 
 Definition zap_fn_return (f: function) : function :=
- mkfunction Tvoid f.(fn_params) f.(fn_vars) f.(fn_temps) f.(fn_body).
+ mkfunction Tvoid f.(fn_callconv) f.(fn_params) f.(fn_vars) f.(fn_temps) f.(fn_body).
 
 Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : cont :=
   match ek with
@@ -163,8 +163,8 @@ Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
 Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsig)
    (A: Type) (P Q: A -> environ -> pred rmap) : pred nat :=
   match Genv.find_funct gx v with 
-  | Some (External ef sigargs sigret) => 
-        !! (fsig = (arglist 1%positive sigargs,sigret)) && semax_external Hspec ef A P Q 
+  | Some (External ef sigargs sigret cc) => 
+        !! (fsig = (arglist 1%positive sigargs,sigret) /\ cc=cc_default) && semax_external Hspec ef A P Q 
   | _ => FF 
   end.
 
@@ -183,7 +183,7 @@ Definition believe_internal_
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars))
-                 /\ fsig = fn_funsig f)
+                 /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
   && ALL x : A, |> semax (SemaxArg  (func_tycontext' f Delta)
                                 (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of f rho)
                                              && funassert (func_tycontext' f Delta) rho)
@@ -225,7 +225,7 @@ Definition believe_internal (Espec:  OracleKind)
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars))
-                 /\ fsig = fn_funsig f)
+                 /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
   && ALL x : A, |> semax' Espec (func_tycontext' f Delta)
                                 (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of f rho)
                                              && funassert (func_tycontext' f Delta) rho)

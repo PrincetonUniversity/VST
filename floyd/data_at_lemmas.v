@@ -181,7 +181,7 @@ Fixpoint reptype (ty: type) : Type :=
   | Tfloat _ _ => val
   | Tpointer t1 a => val
   | Tarray t1 sz a => list (reptype t1)
-  | Tfunction t1 t2 => unit
+  | Tfunction t1 t2 _  => unit
   | Tstruct id fld a => reptype_structlist fld
   | Tunion id fld a => reptype_unionlist fld
   | Tcomp_ptr id a => val
@@ -211,7 +211,7 @@ Fixpoint reptype' (ty: type) : Type :=
   | Tfloat _ _ => float
   | Tpointer t1 a => val
   | Tarray t1 sz a => list (reptype' t1)
-  | Tfunction t1 t2 => unit
+  | Tfunction t1 t2 _ => unit
   | Tstruct id fld a => reptype'_structlist fld
   | Tunion id fld a => reptype'_unionlist fld
   | Tcomp_ptr id a => val
@@ -241,7 +241,7 @@ Fixpoint repinj (t: type): reptype' t -> reptype t :=
   | Tfloat _ _ => Vfloat
   | Tpointer _ _ => id
   | Tarray t0 _ _ => (map (repinj t0))
-  | Tfunction _ _ => id
+  | Tfunction _ _ _ => id
   | Tstruct _ f _ => (repinj_structlist f)
   | Tunion _ f _ => (repinj_unionlist f)
   | Tcomp_ptr _ _ => id
@@ -291,7 +291,7 @@ Fixpoint default_val (t: type) : reptype t :=
   | Tfloat _ _ => Vundef
   | Tpointer _ _ => Vundef
   | Tarray t0 _ _ => nil
-  | Tfunction _ _ => tt
+  | Tfunction _ _ _ => tt
   | Tstruct _ f _ => struct_default_val f
   | Tunion _ f _ => union_default_val f
   | Tcomp_ptr _ _ => Vundef
@@ -530,7 +530,7 @@ Fixpoint data_at' (sh: Share.t) (e: type_id_env) (t1: type): Z -> reptype t1 -> 
   match t1 as t return (Z -> reptype t -> val -> mpred) with
   | Tvoid => at_offset2 (fun v _ => memory_block sh (Int.repr (sizeof t1)) v)
   | Tarray t z a => array_at' sh t z (data_at' sh e t)
-  | Tfunction t t0 => at_offset2 (fun v _ => memory_block sh (Int.repr (sizeof t1)) v)
+  | Tfunction t t0 cc => at_offset2 (fun v _ => memory_block sh (Int.repr (sizeof t1)) v)
   | Tstruct i f a => sfieldlist_at' sh e (alignof t1) f
   | Tunion i f a => ufieldlist_at' sh e (alignof t1) f
   | Tcomp_ptr i a => at_offset2 (mapsto sh (Tpointer (look_up_ident_default i e) a))
@@ -1800,4 +1800,3 @@ Qed.
 
 
 ************************************************)
-

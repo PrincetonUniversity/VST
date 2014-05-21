@@ -2,61 +2,80 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _len : ident := 40%positive.
-Definition _T2 : ident := 32%positive.
-Definition _Nl : ident := 16%positive.
-Definition _sha256_block_data_order : ident := 38%positive.
-Definition _n : ident := 46%positive.
-Definition _main : ident := 54%positive.
-Definition _c : ident := 24%positive.
-Definition _a : ident := 22%positive.
-Definition _h : ident := 17%positive.
-Definition ___builtin_memcpy_aligned : ident := 8%positive.
-Definition ___builtin_subl : ident := 5%positive.
-Definition _ll : ident := 50%positive.
-Definition _SHA256_addlength : ident := 43%positive.
-Definition _memset : ident := 12%positive.
-Definition _SHA256 : ident := 53%positive.
-Definition _fragment : ident := 47%positive.
-Definition ___builtin_read32_reversed : ident := 10%positive.
-Definition _data_ : ident := 44%positive.
+Definition _n : ident := 65%positive.
+Definition _in : ident := 40%positive.
+Definition ___compcert_va_int64 : ident := 16%positive.
+Definition _K256 : ident := 38%positive.
+Definition _f : ident := 46%positive.
+Definition _ll : ident := 69%positive.
+Definition _SHA256_addlength : ident := 62%positive.
+Definition _l : ident := 54%positive.
+Definition ___builtin_fmax : ident := 22%positive.
+Definition ___builtin_va_arg : ident := 12%positive.
+Definition _data_ : ident := 63%positive.
+Definition ___builtin_annot_intval : ident := 10%positive.
+Definition _d : ident := 44%positive.
 Definition ___builtin_negl : ident := 3%positive.
 Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
-Definition _Ki : ident := 36%positive.
-Definition _T1 : ident := 31%positive.
-Definition _data : ident := 14%positive.
-Definition ___builtin_mull : ident := 6%positive.
-Definition _e : ident := 26%positive.
-Definition _K256 : ident := 19%positive.
-Definition _SHA256_Init : ident := 39%positive.
-Definition _memcpy : ident := 11%positive.
-Definition _md : ident := 49%positive.
-Definition _i : ident := 37%positive.
+Definition _memset : ident := 31%positive.
+Definition _SHA256 : ident := 72%positive.
+Definition _s1 : ident := 49%positive.
+Definition _fragment : ident := 66%positive.
+Definition _len : ident := 59%positive.
 Definition ___builtin_addl : ident := 4%positive.
-Definition _g : ident := 28%positive.
+Definition _md : ident := 68%positive.
+Definition _SHA256_Init : ident := 58%positive.
+Definition ___builtin_read16_reversed : ident := 28%positive.
 Definition ___builtin_fabs : ident := 7%positive.
-Definition _cNh : ident := 42%positive.
-Definition _in : ident := 21%positive.
-Definition _struct_SHA256state_st : ident := 18%positive.
-Definition ___builtin_annot_intval : ident := 9%positive.
-Definition _SHA256_Final : ident := 52%positive.
-Definition _p : ident := 45%positive.
-Definition _cNl : ident := 41%positive.
-Definition _num : ident := 13%positive.
-Definition _f : ident := 27%positive.
-Definition _t : ident := 33%positive.
-Definition _d : ident := 25%positive.
-Definition _Nh : ident := 15%positive.
-Definition _X : ident := 34%positive.
-Definition _s0 : ident := 29%positive.
-Definition _l : ident := 35%positive.
-Definition _s1 : ident := 30%positive.
-Definition _b : ident := 23%positive.
-Definition _xn : ident := 51%positive.
-Definition _SHA256_Update : ident := 48%positive.
-Definition _ctx : ident := 20%positive.
-Definition _l' : ident := 55%positive.
+Definition ___builtin_fsqrt : ident := 21%positive.
+Definition ___builtin_bswap : ident := 18%positive.
+Definition _e : ident := 45%positive.
+Definition ___builtin_va_copy : ident := 13%positive.
+Definition ___builtin_fnmsub : ident := 27%positive.
+Definition _data : ident := 33%positive.
+Definition _i : ident := 56%positive.
+Definition ___builtin_fmsub : ident := 25%positive.
+Definition ___compcert_va_int32 : ident := 15%positive.
+Definition _cNl : ident := 60%positive.
+Definition ___builtin_bswap16 : ident := 20%positive.
+Definition _num : ident := 32%positive.
+Definition _xn : ident := 70%positive.
+Definition ___builtin_fmadd : ident := 24%positive.
+Definition _SHA256_Update : ident := 67%positive.
+Definition ___compcert_va_float64 : ident := 17%positive.
+Definition ___builtin_memcpy_aligned : ident := 8%positive.
+Definition ___builtin_subl : ident := 5%positive.
+Definition _main : ident := 73%positive.
+Definition _T1 : ident := 50%positive.
+Definition _c : ident := 43%positive.
+Definition _X : ident := 53%positive.
+Definition _g : ident := 47%positive.
+Definition _sha256_block_data_order : ident := 57%positive.
+Definition _h : ident := 36%positive.
+Definition ___builtin_va_end : ident := 14%positive.
+Definition ___builtin_mull : ident := 6%positive.
+Definition ___builtin_fnmadd : ident := 26%positive.
+Definition ___builtin_bswap32 : ident := 19%positive.
+Definition _ctx : ident := 39%positive.
+Definition _cNh : ident := 61%positive.
+Definition ___builtin_va_start : ident := 11%positive.
+Definition _struct_SHA256state_st : ident := 37%positive.
+Definition _b : ident := 42%positive.
+Definition ___builtin_annot : ident := 9%positive.
+Definition _p : ident := 64%positive.
+Definition _t : ident := 52%positive.
+Definition _a : ident := 41%positive.
+Definition _SHA256_Final : ident := 71%positive.
+Definition _Nh : ident := 34%positive.
+Definition ___builtin_read32_reversed : ident := 29%positive.
+Definition _Ki : ident := 55%positive.
+Definition _Nl : ident := 35%positive.
+Definition _memcpy : ident := 30%positive.
+Definition ___builtin_fmin : ident := 23%positive.
+Definition _T2 : ident := 51%positive.
+Definition _s0 : ident := 48%positive.
+Definition _l' : ident := 74%positive.
 
 Definition t_struct_SHA256state_st :=
    (Tstruct _struct_SHA256state_st
@@ -138,6 +157,7 @@ Definition v_K256 := {|
 
 Definition f_sha256_block_data_order := {|
   fn_return := tvoid;
+  fn_callconv := cc_default;
   fn_params := ((_ctx, (tptr t_struct_SHA256state_st)) ::
                 (_in, (tptr tvoid)) :: nil);
   fn_vars := ((_X, (tarray tuint 16)) :: nil);
@@ -233,7 +253,8 @@ Definition f_sha256_block_data_order := {|
                                                                     (Tcons
                                                                     (tptr tuint)
                                                                     Tnil)
-                                                                    tuint))
+                                                                    tuint
+                                                                    cc_default))
                                   ((Ecast (Etempvar _data (tptr tuchar))
                                      (tptr tuint)) :: nil))
                                 (Sset _l (Ecast (Etempvar _l' tuint) tuint)))
@@ -904,6 +925,7 @@ Definition f_sha256_block_data_order := {|
 
 Definition f_SHA256_Init := {|
   fn_return := tvoid;
+  fn_callconv := cc_default;
   fn_params := ((_c, (tptr t_struct_SHA256state_st)) :: nil);
   fn_vars := nil;
   fn_temps := nil;
@@ -1004,6 +1026,7 @@ Definition f_SHA256_Init := {|
 
 Definition f_SHA256_addlength := {|
   fn_return := tvoid;
+  fn_callconv := cc_default;
   fn_params := ((_c, (tptr t_struct_SHA256state_st)) :: (_len, tuint) :: nil);
   fn_vars := nil;
   fn_temps := ((_l, tuint) :: (_cNl, tuint) :: (_cNh, tuint) :: nil);
@@ -1053,6 +1076,7 @@ Definition f_SHA256_addlength := {|
 
 Definition f_SHA256_Update := {|
   fn_return := tvoid;
+  fn_callconv := cc_default;
   fn_params := ((_c, (tptr t_struct_SHA256state_st)) ::
                 (_data_, (tptr tvoid)) :: (_len, tuint) :: nil);
   fn_vars := nil;
@@ -1065,7 +1089,7 @@ Definition f_SHA256_Update := {|
     (Scall None
       (Evar _SHA256_addlength (Tfunction
                                 (Tcons (tptr t_struct_SHA256state_st)
-                                  (Tcons tuint Tnil)) tvoid))
+                                  (Tcons tuint Tnil)) tvoid cc_default))
       ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
        (Etempvar _len tuint) :: nil))
     (Ssequence
@@ -1094,7 +1118,7 @@ Definition f_SHA256_Update := {|
                     (Evar _memcpy (Tfunction
                                     (Tcons (tptr tvoid)
                                       (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                                    (tptr tvoid)))
+                                    (tptr tvoid) cc_default))
                     ((Ebinop Oadd (Etempvar _p (tptr tuchar))
                        (Etempvar _n tuint) (tptr tuchar)) ::
                      (Etempvar _data (tptr tuchar)) ::
@@ -1105,7 +1129,8 @@ Definition f_SHA256_Update := {|
                                                        (Tcons
                                                          (tptr t_struct_SHA256state_st)
                                                          (Tcons (tptr tvoid)
-                                                           Tnil)) tvoid))
+                                                           Tnil)) tvoid
+                                                       cc_default))
                       ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
                        (Etempvar _p (tptr tuchar)) :: nil))
                     (Ssequence
@@ -1120,7 +1145,7 @@ Definition f_SHA256_Update := {|
                           (Evar _memset (Tfunction
                                           (Tcons (tptr tvoid)
                                             (Tcons tint (Tcons tuint Tnil)))
-                                          (tptr tvoid)))
+                                          (tptr tvoid) cc_default))
                           ((Etempvar _p (tptr tuchar)) ::
                            (Econst_int (Int.repr 0) tint) ::
                            (Ebinop Omul (Econst_int (Int.repr 16) tint)
@@ -1130,7 +1155,7 @@ Definition f_SHA256_Update := {|
                     (Evar _memcpy (Tfunction
                                     (Tcons (tptr tvoid)
                                       (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                                    (tptr tvoid)))
+                                    (tptr tvoid) cc_default))
                     ((Ebinop Oadd (Etempvar _p (tptr tuchar))
                        (Etempvar _n tuint) (tptr tuchar)) ::
                      (Etempvar _data (tptr tuchar)) ::
@@ -1155,7 +1180,8 @@ Definition f_SHA256_Update := {|
                                                    (Tcons
                                                      (tptr t_struct_SHA256state_st)
                                                      (Tcons (tptr tvoid)
-                                                       Tnil)) tvoid))
+                                                       Tnil)) tvoid
+                                                   cc_default))
                   ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
                    (Etempvar _data (tptr tuchar)) :: nil))
                 (Ssequence
@@ -1180,7 +1206,7 @@ Definition f_SHA256_Update := {|
                     (Evar _memcpy (Tfunction
                                     (Tcons (tptr tvoid)
                                       (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                                    (tptr tvoid)))
+                                    (tptr tvoid) cc_default))
                     ((Etempvar _p (tptr tuchar)) ::
                      (Etempvar _data (tptr tuchar)) ::
                      (Etempvar _len tuint) :: nil))
@@ -1190,6 +1216,7 @@ Definition f_SHA256_Update := {|
 
 Definition f_SHA256_Final := {|
   fn_return := tvoid;
+  fn_callconv := cc_default;
   fn_params := ((_md, (tptr tuchar)) ::
                 (_c, (tptr t_struct_SHA256state_st)) :: nil);
   fn_vars := nil;
@@ -1226,7 +1253,7 @@ Definition f_SHA256_Final := {|
                 (Evar _memset (Tfunction
                                 (Tcons (tptr tvoid)
                                   (Tcons tint (Tcons tuint Tnil)))
-                                (tptr tvoid)))
+                                (tptr tvoid) cc_default))
                 ((Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _n tuint)
                    (tptr tuchar)) :: (Econst_int (Int.repr 0) tint) ::
                  (Ebinop Osub
@@ -1240,7 +1267,8 @@ Definition f_SHA256_Final := {|
                                                    (Tcons
                                                      (tptr t_struct_SHA256state_st)
                                                      (Tcons (tptr tvoid)
-                                                       Tnil)) tvoid))
+                                                       Tnil)) tvoid
+                                                   cc_default))
                   ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
                    (Etempvar _p (tptr tuchar)) :: nil))))
             Sskip)
@@ -1248,8 +1276,8 @@ Definition f_SHA256_Final := {|
             (Scall None
               (Evar _memset (Tfunction
                               (Tcons (tptr tvoid)
-                                (Tcons tint (Tcons tuint Tnil)))
-                              (tptr tvoid)))
+                                (Tcons tint (Tcons tuint Tnil))) (tptr tvoid)
+                              cc_default))
               ((Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _n tuint)
                  (tptr tuchar)) :: (Econst_int (Int.repr 0) tint) ::
                (Ebinop Osub
@@ -1276,7 +1304,8 @@ Definition f_SHA256_Final := {|
                       (Evar ___builtin_write32_reversed (Tfunction
                                                           (Tcons (tptr tuint)
                                                             (Tcons tuint
-                                                              Tnil)) tvoid))
+                                                              Tnil)) tvoid
+                                                          cc_default))
                       ((Ecast (Etempvar _p (tptr tuchar)) (tptr tuint)) ::
                        (Etempvar _cNh tuint) :: nil))
                     (Sset _p
@@ -1295,7 +1324,8 @@ Definition f_SHA256_Final := {|
                                                                 (tptr tuint)
                                                                 (Tcons tuint
                                                                   Tnil))
-                                                              tvoid))
+                                                              tvoid
+                                                              cc_default))
                           ((Ecast (Etempvar _p (tptr tuchar)) (tptr tuint)) ::
                            (Etempvar _cNl tuint) :: nil))
                         (Sset _p
@@ -1314,8 +1344,8 @@ Definition f_SHA256_Final := {|
                                                                (tptr t_struct_SHA256state_st)
                                                                (Tcons
                                                                  (tptr tvoid)
-                                                                 Tnil))
-                                                             tvoid))
+                                                                 Tnil)) tvoid
+                                                             cc_default))
                             ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
                              (Etempvar _p (tptr tuchar)) :: nil))
                           (Ssequence
@@ -1331,7 +1361,7 @@ Definition f_SHA256_Final := {|
                                                 (Tcons (tptr tvoid)
                                                   (Tcons tint
                                                     (Tcons tuint Tnil)))
-                                                (tptr tvoid)))
+                                                (tptr tvoid) cc_default))
                                 ((Etempvar _p (tptr tuchar)) ::
                                  (Econst_int (Int.repr 0) tint) ::
                                  (Ebinop Omul (Econst_int (Int.repr 16) tint)
@@ -1366,7 +1396,8 @@ Definition f_SHA256_Final := {|
                                             (Evar ___builtin_write32_reversed 
                                             (Tfunction
                                               (Tcons (tptr tuint)
-                                                (Tcons tuint Tnil)) tvoid))
+                                                (Tcons tuint Tnil)) tvoid
+                                              cc_default))
                                             ((Ecast
                                                (Etempvar _md (tptr tuchar))
                                                (tptr tuint)) ::
@@ -1384,6 +1415,7 @@ Definition f_SHA256_Final := {|
 
 Definition f_SHA256 := {|
   fn_return := tvoid;
+  fn_callconv := cc_default;
   fn_params := ((_d, (tptr tuchar)) :: (_n, tuint) :: (_md, (tptr tuchar)) ::
                 nil);
   fn_vars := ((_c, t_struct_SHA256state_st) :: nil);
@@ -1392,15 +1424,15 @@ Definition f_SHA256 := {|
 (Ssequence
   (Scall None
     (Evar _SHA256_Init (Tfunction (Tcons (tptr t_struct_SHA256state_st) Tnil)
-                         tvoid))
+                         tvoid cc_default))
     ((Eaddrof (Evar _c t_struct_SHA256state_st)
        (tptr t_struct_SHA256state_st)) :: nil))
   (Ssequence
     (Scall None
       (Evar _SHA256_Update (Tfunction
                              (Tcons (tptr t_struct_SHA256state_st)
-                               (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                             tvoid))
+                               (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid
+                             cc_default))
       ((Eaddrof (Evar _c t_struct_SHA256state_st)
          (tptr t_struct_SHA256state_st)) :: (Etempvar _d (tptr tuchar)) ::
        (Etempvar _n tuint) :: nil))
@@ -1409,7 +1441,7 @@ Definition f_SHA256 := {|
         (Evar _SHA256_Final (Tfunction
                               (Tcons (tptr tuchar)
                                 (Tcons (tptr t_struct_SHA256state_st) Tnil))
-                              tvoid))
+                              tvoid cc_default))
         ((Etempvar _md (tptr tuchar)) ::
          (Eaddrof (Evar _c t_struct_SHA256state_st)
            (tptr t_struct_SHA256state_st)) :: nil))
@@ -1420,40 +1452,143 @@ Definition prog : Clight.program := {|
 prog_defs :=
 ((___builtin_fabs,
    Gfun(External (EF_builtin ___builtin_fabs
-                   (mksignature (AST.Tfloat :: nil) (Some AST.Tfloat)))
-     (Tcons tdouble Tnil) tdouble)) ::
+                   (mksignature (AST.Tfloat :: nil) (Some AST.Tfloat)
+                     cc_default)) (Tcons tdouble Tnil) tdouble cc_default)) ::
  (___builtin_memcpy_aligned,
    Gfun(External (EF_builtin ___builtin_memcpy_aligned
                    (mksignature
                      (AST.Tint :: AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     None))
+                     None cc_default))
      (Tcons (tptr tvoid)
-       (Tcons (tptr tvoid) (Tcons tuint (Tcons tuint Tnil)))) tvoid)) ::
+       (Tcons (tptr tvoid) (Tcons tuint (Tcons tuint Tnil)))) tvoid
+     cc_default)) ::
+ (___builtin_annot,
+   Gfun(External (EF_builtin ___builtin_annot
+                   (mksignature (AST.Tint :: nil) None
+                     {|cc_vararg:=true; cc_structret:=false|}))
+     (Tcons (tptr tschar) Tnil) tvoid
+     {|cc_vararg:=true; cc_structret:=false|})) ::
  (___builtin_annot_intval,
    Gfun(External (EF_builtin ___builtin_annot_intval
-                   (mksignature (AST.Tint :: AST.Tint :: nil)
-                     (Some AST.Tint)))
-     (Tcons (tptr tschar) (Tcons tint Tnil)) tint)) ::
+                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
+                     cc_default)) (Tcons (tptr tschar) (Tcons tint Tnil))
+     tint cc_default)) ::
+ (___builtin_va_start,
+   Gfun(External (EF_builtin ___builtin_va_start
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (___builtin_va_arg,
+   Gfun(External (EF_builtin ___builtin_va_arg
+                   (mksignature (AST.Tint :: AST.Tint :: nil) None
+                     cc_default)) (Tcons (tptr tvoid) (Tcons tuint Tnil))
+     tvoid cc_default)) ::
+ (___builtin_va_copy,
+   Gfun(External (EF_builtin ___builtin_va_copy
+                   (mksignature (AST.Tint :: AST.Tint :: nil) None
+                     cc_default))
+     (Tcons (tptr tvoid) (Tcons (tptr tvoid) Tnil)) tvoid cc_default)) ::
+ (___builtin_va_end,
+   Gfun(External (EF_builtin ___builtin_va_end
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (___compcert_va_int32,
+   Gfun(External (EF_external ___compcert_va_int32
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons (tptr tvoid) Tnil) tuint cc_default)) ::
+ (___compcert_va_int64,
+   Gfun(External (EF_external ___compcert_va_int64
+                   (mksignature (AST.Tint :: nil) (Some AST.Tlong)
+                     cc_default)) (Tcons (tptr tvoid) Tnil) tulong
+     cc_default)) ::
+ (___compcert_va_float64,
+   Gfun(External (EF_external ___compcert_va_float64
+                   (mksignature (AST.Tint :: nil) (Some AST.Tfloat)
+                     cc_default)) (Tcons (tptr tvoid) Tnil) tdouble
+     cc_default)) ::
+ (___builtin_bswap,
+   Gfun(External (EF_builtin ___builtin_bswap
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) tuint cc_default)) ::
+ (___builtin_bswap32,
+   Gfun(External (EF_builtin ___builtin_bswap32
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) tuint cc_default)) ::
+ (___builtin_bswap16,
+   Gfun(External (EF_builtin ___builtin_bswap16
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tushort Tnil) tushort cc_default)) ::
+ (___builtin_fsqrt,
+   Gfun(External (EF_builtin ___builtin_fsqrt
+                   (mksignature (AST.Tfloat :: nil) (Some AST.Tfloat)
+                     cc_default)) (Tcons tdouble Tnil) tdouble cc_default)) ::
+ (___builtin_fmax,
+   Gfun(External (EF_builtin ___builtin_fmax
+                   (mksignature (AST.Tfloat :: AST.Tfloat :: nil)
+                     (Some AST.Tfloat) cc_default))
+     (Tcons tdouble (Tcons tdouble Tnil)) tdouble cc_default)) ::
+ (___builtin_fmin,
+   Gfun(External (EF_builtin ___builtin_fmin
+                   (mksignature (AST.Tfloat :: AST.Tfloat :: nil)
+                     (Some AST.Tfloat) cc_default))
+     (Tcons tdouble (Tcons tdouble Tnil)) tdouble cc_default)) ::
+ (___builtin_fmadd,
+   Gfun(External (EF_builtin ___builtin_fmadd
+                   (mksignature
+                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
+                     (Some AST.Tfloat) cc_default))
+     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
+     cc_default)) ::
+ (___builtin_fmsub,
+   Gfun(External (EF_builtin ___builtin_fmsub
+                   (mksignature
+                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
+                     (Some AST.Tfloat) cc_default))
+     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
+     cc_default)) ::
+ (___builtin_fnmadd,
+   Gfun(External (EF_builtin ___builtin_fnmadd
+                   (mksignature
+                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
+                     (Some AST.Tfloat) cc_default))
+     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
+     cc_default)) ::
+ (___builtin_fnmsub,
+   Gfun(External (EF_builtin ___builtin_fnmsub
+                   (mksignature
+                     (AST.Tfloat :: AST.Tfloat :: AST.Tfloat :: nil)
+                     (Some AST.Tfloat) cc_default))
+     (Tcons tdouble (Tcons tdouble (Tcons tdouble Tnil))) tdouble
+     cc_default)) ::
+ (___builtin_read16_reversed,
+   Gfun(External (EF_builtin ___builtin_read16_reversed
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons (tptr tushort) Tnil) tushort cc_default)) ::
+ (___builtin_write16_reversed,
+   Gfun(External (EF_builtin ___builtin_write16_reversed
+                   (mksignature (AST.Tint :: AST.Tint :: nil) None
+                     cc_default)) (Tcons (tptr tushort) (Tcons tushort Tnil))
+     tvoid cc_default)) ::
  (___builtin_read32_reversed,
    Gfun(External (EF_builtin ___builtin_read32_reversed
-                   (mksignature (AST.Tint :: nil) (Some AST.Tint)))
-     (Tcons (tptr tuint) Tnil) tuint)) ::
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons (tptr tuint) Tnil) tuint cc_default)) ::
  (___builtin_write32_reversed,
    Gfun(External (EF_builtin ___builtin_write32_reversed
-                   (mksignature (AST.Tint :: AST.Tint :: nil) None))
-     (Tcons (tptr tuint) (Tcons tuint Tnil)) tvoid)) ::
+                   (mksignature (AST.Tint :: AST.Tint :: nil) None
+                     cc_default)) (Tcons (tptr tuint) (Tcons tuint Tnil))
+     tvoid cc_default)) ::
  (_memcpy,
    Gfun(External (EF_external _memcpy
                    (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     (Some AST.Tint)))
+                     (Some AST.Tint) cc_default))
      (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-     (tptr tvoid))) ::
+     (tptr tvoid) cc_default)) ::
  (_memset,
    Gfun(External (EF_external _memset
                    (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     (Some AST.Tint)))
-     (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil))) (tptr tvoid))) ::
- (_K256, Gvar v_K256) ::
+                     (Some AST.Tint) cc_default))
+     (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil))) (tptr tvoid)
+     cc_default)) :: (_K256, Gvar v_K256) ::
  (_sha256_block_data_order, Gfun(Internal f_sha256_block_data_order)) ::
  (_SHA256_Init, Gfun(Internal f_SHA256_Init)) ::
  (_SHA256_addlength, Gfun(Internal f_SHA256_addlength)) ::
