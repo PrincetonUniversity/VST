@@ -29,6 +29,15 @@ Record Triple := mkTriple
   Tret : option exitkind*)
 }.
 
+Record PreC := mkPreC
+{
+  Pprop : list expr;
+  Plocal : list expr;
+  Psep : list sepE;
+  Pcommand : statement;
+  Pinitialized : list ident
+}.
+
 Section denotation.
 
 Variable functions : functions (all_types_r (@nil type)).
@@ -187,9 +196,13 @@ match goal with
 end.
 
 Ltac abbreviate_triple :=
+let funcs := fresh "funcs" in
+let preds := fresh "preds" in
+let uenv := fresh "uenv" in
+clear_all;
+unfold abbreviate in *;
 match goal with
 [ |- TripleD ?f ?p ?u _ ] => 
-clear_all;
 abbreviate f as funcs;
 abbreviate p as preds;
 abbreviate u as uenv
@@ -319,7 +332,7 @@ tc_expr_b e c= true ->
 tc_expr e c rho .
 Proof.
 intros.
-unfold tc_expr, tc_expr_b in *.
+unfold tc_expr, tc_expr_b in *. 
 destruct (typecheck_expr e c); simpl in *; auto; try congruence.
 Qed.
 
@@ -333,27 +346,58 @@ unfold tc_temp_id, tc_temp_id_b in *.
 destruct (typecheck_temp_id id t Delta e); simpl in *; auto; try congruence.
 Qed.
 
-Definition symexe (t : Triple) funcs uenv : Triple :=
+Definition triple_to_prec t :=
+match t with
+{| Tdelta := Delta;
+  Tprop := P;
+  Tlocal := Q;
+  Tsep := R;
+  Tcommand := C;
+  Tpost := PQR'
+|} =>
+{| Pprop := P;
+   Plocal := Q;
+   Psep := R;
+   Pcommand := C;
+   Pinitialized := []
+|}
+end.
+
+Definition prec_to_triple post Delta t : Triple:=
+match t with
+{| Pprop := P;
+   Plocal := Q;
+   Psep := R;
+   Pcommand := C;
+   Pinitialized := l
+|} =>
+{| Tdelta := fold_right initialized  Delta l;
+  Tprop := P;
+  Tlocal := Q;
+  Tsep := R;
+  Tcommand := C;
+  Tpost := post
+|}
+end.
+
+Definition symexe (t : Triple) funcs uenv :  PreC:=
 match (Tcommand t) with
 | (Ssequence (Sset id e) c) => 
   if andb (tc_expr_b (Tdelta t) e) (tc_temp_id_b id (Clight.typeof e) (Tdelta t) e) then 
     match (msubst_eval_expr (make_P funcs uenv (Tlocal t)) e) with
       | Some v => 
-        {|Tdelta := update_tycon (Tdelta t) (Sset id e); 
-          Tprop := Tprop t;
-          Tlocal := (Func 114%nat [v ; ident_to_expr id] :: (remove_id funcs uenv id (Tlocal t)));
-          Tsep := Tsep t;
-          Tcommand := c;
-          Tpost := Tpost t
+        {| 
+          Pprop := Tprop t;
+          Plocal := (Func 114%nat [v ; ident_to_expr id] :: (remove_id funcs uenv id (Tlocal t)));
+          Psep := Tsep t;
+          Pcommand := c;
+          Pinitialized := [id]
         |}
-      | _ => t
+      | _ => triple_to_prec t
     end
-  else t
-| _ => t
+  else triple_to_prec t
+| _ => triple_to_prec t
 end.
-
-Axiom symexe_sound : forall funcs preds uenv trip, TripleD funcs preds uenv (symexe trip funcs uenv) ->
-TripleD funcs preds uenv trip.
 
 Ltac simpl_reflect := cbv [Tdelta Tprop Tlocal Tsep PreD Tcommand Tpost] in *.
 
@@ -455,9 +499,6 @@ case_eq (exprD (funcs funcs') uenv [] id0 ident_tv); intros;
 case_eq (exprD (funcs funcs') uenv [] ty c_type_tv); intros;
 simpl; f_equal; auto 50 with closed; eapply IHsep; eauto.
 Qed.
-
-
-
 
 Lemma make_P_help : forall locals id id2 funcs' uenv val P 
 (LWF : locals_wf (funcs funcs') uenv locals),
@@ -647,25 +688,29 @@ unfold reflect_id in H. rewrite H0 in H. simpl in H. auto. auto.
 eapply IHlocal; eauto.
 Qed.
 
-Theorem symexe_sound_s : forall funcs' preds uenv trip
+Theorem symexe_sound_s : forall funcs' preds uenv trip (prec : PreC)
 (LWF : locals_wf (funcs funcs') uenv (Tlocal trip))
-(SWF : sep_wf (Tsep trip) ),
-TripleD (funcs funcs') preds uenv (symexe trip (funcs funcs') uenv) ->
+(SWF : sep_wf (Tsep trip) ), 
+symexe trip (funcs funcs') uenv = prec ->
+TripleD (funcs funcs') preds uenv (prec_to_triple (Tpost trip) (Tdelta trip) prec) ->
 TripleD (funcs funcs') preds uenv trip.
 intros.
 unfold TripleD.
 destruct trip.
+destruct prec.
 destruct Tcommand0;
-try solve [unfold symexe in *; simpl in *; auto].
+try solve [unfold symexe in *; inv H; simpl in *; auto].
 destruct Tcommand0_1;
-try solve [unfold symexe in *; simpl in *; auto].
+try solve [unfold symexe in *; inv H; simpl in *; auto].
 simpl_reflect. unfold symexe in H. simpl_reflect.
 destruct ((tc_expr_b Tdelta0 e &&
-             tc_temp_id_b i (Clight.typeof e) Tdelta0 e)%bool) eqn:TC; auto.
-unfold TripleD, PreD, Tlocal, reflect_Tlocal, reflect_Tprop in H.
-revert H. case_eq (msubst_eval_expr (make_P (funcs funcs') uenv Tlocal0) e); intros. simpl in *.
+             tc_temp_id_b i (Clight.typeof e) Tdelta0 e)%bool) eqn:TC; try solve [inv H; auto].
+unfold TripleD, PreD, Tlocal, reflect_Tlocal, reflect_Tprop in H0.
+inv H. simpl in H0.
+destruct  (msubst_eval_expr (make_P (funcs funcs') uenv Tlocal0) e) eqn : MSBST. simpl in *.
 unfold reflect_local in H0. simpl in H0. edestruct wf_locals_reflect; eauto.
-rewrite H1 in H0. transl_H H0. simpl in H0.
+inv H2. simpl in *. rewrite H in H0.
+ transl_H H0. simpl in H0.
 eapply semax_seq.
 apply sequential'. 
 eapply semax_post; [ | apply forward_setx; auto]. 
@@ -676,7 +721,7 @@ simpl.
 apply normal_ret_assert_derives.
 entailer!. rename x0 into old.
 rewrite fold_right_sepcon_subst.
-assert (closed_wrt_vars (eq i) (fold_right sepcon emp (reflect_Tsep (funcs funcs') preds uenv Tsep0))).
+assert (closed_wrt_vars (eq i) (fold_right sepcon emp (reflect_Tsep (funcs funcs') preds uenv Psep0))).
 apply sep_wf_closed; auto. autorewrite with subst. entailer. 
 apply prop_right.
 split. 
@@ -685,7 +730,7 @@ unfold lift_eq.
 eapply msubst_eval_expr_eq in H; eauto.
 unfold lift_eq; super_unfold_lift. rewrite H. clear H. 
 eauto. apply make_P_sound; auto.
-clear - H5. induction Tlocal0; simpl in *; auto.
+clear - H4. induction Tlocal0; simpl in *; auto.
 super_unfold_lift. intuition.
 eapply remove_local_imp2; eauto.
 
@@ -695,28 +740,28 @@ apply andb_true_iff in TC. destruct TC as [TC1 TC2].
  apply andp_right; apply prop_right.
 apply tc_expr_b_sound; auto.
 apply tc_temp_id_b_sound; auto.
-unfold tc_temp_id. unfold typecheck_temp_id. simpl.
-
-auto.
+inv H2; auto.
 Qed.
 
 Ltac reflect_triple :=
 let types' := get_types in
 let types := get_types_name in
-let funcs := get_funcs_name types' in
+let funcs' := get_funcs_name types' in
 let preds := get_predicates_name types' in 
 let uenv := get_uenv_name types' in
 cbv [
+our_functions computable_functions non_computable_functions app funcs abbreviate
+
 TripleD Tdelta Tcommand Tpost Tprop Tlocal Tsep PreD reflect_Tprop reflect_prop map' 
 force_Opt reflect_Tlocal reflect_Tsep s_reflect all_preds tvar_rec tvar_rect
 exprD functionTypeD applyD reflect_local
 forallEach AllProvable_impl AllProvable_gen AllProvable_and projT1 projT2 Provable lookupAs
-nth_error equiv_dec length fold_right tvarD Impl_ EqDec_tvar eq_nat_dec
+nth_error equiv_dec length tvarD Impl_ EqDec_tvar eq_nat_dec
 Basics.impl Impl Exc
 Sep.sexprD Sep.SDenotation Sep.SDomain Denotation Domain Range 
 VericSepLogic.himp  VericSepLogic.inj VericSepLogic.star VericSepLogic_Kernel.emp VericSepLogic.hprop
 sumbool_rec sumbool_rect nat_rec nat_rect eq_rec_r eq_rec eq_rect eq_sym f_equal
-funcs preds types uenv abbreviate value
+funcs' preds types uenv abbreviate value
 
 functions.two_power_nat_signature functions.O_signature functions.force_ptr_signature
 functions.app_val_signature functions.int_max_unsigned_signature functions.and_signature
@@ -789,55 +834,50 @@ lift_mpred_type int64_type float_type
                                   option_N_type
  val_eq.list_eqb_type  
 
-Env.repr Env.listToRepr
+update_tycon  remove_id prec_to_triple].
 
-symexe int32_to_expr Z_to_expr eqb_comparison make_P make_P' reflect_id msubst_eval_expr
-msubst_eval_lvalue_expr  binop_to_expr unop_to_expr pos_to_expr type_to_expr
-pos_to_expr Z_to_expr int32_to_expr int64_to_expr  optN_to_expr bool_to_expr attr_to_expr
-intsize_to_expr  floatsize_to_expr signedness_to_expr ident_to_expr type_from_eq
-value fieldlist_to_expr
 
-Int.intval Int.repr Int.Z_mod_modulus 
+Ltac e_vm_compute_left :=
+match goal with 
+| |- ?X = Some _ => match eval vm_compute in X with 
+                   | Some ?Y => exact (@eq_refl _ (Some Y) (*<: (Some Y) = (Some Y)*))
+                   end
+| |- ?X = _ => let comp := eval vm_compute in X in exact (@eq_refl _ comp)
+end.
 
-PTree.get PTree.set map Clight.typeof tint tptr tlong tvoid noattr
+Ltac simpl_triple :=
+try (cbv [prec_to_triple Tpost Tdelta];
+abbreviate_triple).
 
-_w
-
-tc_expr_b tc_temp_id_b denote_tc_assert_b typecheck_expr tc_andp tc_orp
-isCastResultType classify_cast eqb_type is_pointer_type is_int_type
- tc_iszero andb orb eval_expr].
-
+Ltac rforward :=
+pose_env;
+reify_triple;
+eapply symexe_sound_s;
+[ repeat econstructor; auto 
+| repeat econstructor; auto
+| e_vm_compute_left
+| reflect_triple].
 
 Lemma triple : forall p contents sh,
-exists POSTCONDITION,
 semax Delta2
      (PROP  ()
       LOCAL  (`(eq p) (eval_id _p))  SEP  (`(lseg LS sh contents p nullval)))
      (Ssequence (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
-        Sskip) POSTCONDITION.
-intros. 
-eexists.
-pose_env.
-reify_triple.
-apply symexe_sound_s. 
-simpl.
-repeat econstructor; auto.
-repeat econstructor; auto.
-reflect_triple. 
-
-assert (
-(PROP  ()
+        Sskip) 
+(normal_ret_assert (PROP  ()
       LOCAL  (`(eq (Vint (Int.repr 0))) (eval_id _w); 
-      `(eq p) (eval_id _p))  SEP  (`(lseg LS sh contents p nullval))) (*the one from forward*)
-|--
-(PROP  ()
-      LOCAL 
-      (`(eq
-           (Vint
-              {|
-              Int.intval := 0;
-              Int.intrange := Int.Z_mod_modulus_range' 0 |}))
-         (eval_id 19%positive); `(eq p) (eval_id _p))
-      SEP  (`(lseg LS sh contents p nullval)))). (*the one from symexe*)
-entailer!.
-Abort.
+      `(eq p) (eval_id _p))  SEP  (`(lseg LS sh contents p nullval)))).
+intros. 
+(* rforward. or...*)
+pose_env;
+reify_triple.
+eapply symexe_sound_s;
+[ repeat econstructor; auto 
+| repeat econstructor; auto
+| e_vm_compute_left
+| ].
+simpl_triple.
+reflect_triple. 
+forward. fold _w.
+ entailer!. 
+Qed.
