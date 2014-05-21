@@ -353,9 +353,8 @@ Definition semax_cast_load_37 := @semax_cast_load.
 
 Lemma semax_cast_load_37' : 
   forall {Espec: OracleKind},
-forall (Delta: tycontext) sh id P Q R e1 t1 t2 (v2: val),
-    typeof_temp Delta id = Some t2 ->
-    is_neutral_cast t1 t2 = true ->
+forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
+    typeof_temp Delta id = Some t1 ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
          local (tc_lvalue Delta e1) &&
          local (`(tc_val t1 (eval_cast (typeof e1) t1 v2))) &&
@@ -367,8 +366,8 @@ forall (Delta: tycontext) sh id P Q R e1 t1 t2 (v2: val),
    (LOCALx (`eq (eval_id id) `(eval_cast (typeof e1) t1 v2) :: map (subst id (`old)) Q)
      (SEPx (map (subst id (`old)) R))))).
 Proof.
-intros.
-eapply semax_pre_post; [ | | apply semax_cast_load with (sh0:=sh)(t4:=t2)(v3:= `v2); auto].
+intros. rename H0 into H1; pose proof I.
+eapply semax_pre_post; [ | | apply semax_cast_load with (sh0:=sh)(v3:= `v2); auto].
 * instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
   apply later_left2.
   rewrite insert_local.
@@ -472,9 +471,8 @@ Qed.
 
 Lemma semax_cast_load_field'':
 forall  (sh: share) (v: val)
-       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 t3 t4 sid fields ,
-    typeof_temp Delta id = Some t4 ->
-    is_neutral_cast t3 t4 = true ->
+       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 t3 sid fields ,
+    typeof_temp Delta id = Some t3 ->
     typeof e1 = Tstruct sid fields noattr ->
    t1 = typeof e1 ->
    t2 = type_of_field
@@ -491,7 +489,8 @@ forall  (sh: share) (v: val)
                      (LOCALx (`(eq (eval_cast t2 t3 v)) (eval_id id) :: map (subst id (`old)) Q)
                      (SEPx (map (subst id (`old)) R))))).
 Proof.
-intros until fields; intros H H0 H1 TE1 TC2 TC3 H6 TC4.
+intros until fields; intros H H1 TE1 TC2 TC3 H6 TC4.
+pose proof I.
 subst t1.
 repeat rewrite <- insert_local in H6.
 repeat rewrite <- insert_local in TC3.
@@ -504,7 +503,7 @@ replace  (EX  old : val,
   by (f_equal; extensionality old; autorewrite with subst; rewrite insert_local; auto).
 forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
 eapply semax_pre_post; [ | | 
-   apply (semax_cast_load Delta sh id PQR _ _ t4 `v); auto].
+   apply (semax_cast_load Delta sh id PQR _ _ `v); auto].
 * (* PRECONDITION *)
 apply later_left2.
 apply andp_right; [ | apply andp_left2; auto].
@@ -573,12 +572,11 @@ Qed.
 
 Lemma semax_cast_load_field_38:
 forall  (sh: share) (v: val)
-       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 t3 t4 sid fields ,
+       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 t3 sid fields ,
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
     typeof e1 = Tstruct sid fields noattr ->
-    typeof_temp Delta id = Some t4 ->
-    is_neutral_cast t3 t4 = true ->
+    typeof_temp Delta id = Some t3 ->
    t1 = typeof e1 ->
    t2 = type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
@@ -643,15 +641,14 @@ Qed.
 
 Lemma semax_cast_load_field_40:
 forall  (sh: share) (v: val)
-       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 t3 t4 sid fields ,
+       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 t3 sid fields ,
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
     t1 = Tstruct sid fields noattr ->
-   typeof_temp Delta id = Some t4 ->
+   typeof_temp Delta id = Some t3 ->
    t2 = type_of_field
              (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
    typeof e1 = tptr t1 ->
-   is_neutral_cast t3 t4 = true ->
    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) 
          |--  local (tc_expr Delta e1) && (`(field_at sh t1 fld v) (eval_expr e1) * TT) ->
    tc_val t3 (eval_cast t2 t3 v) ->
@@ -659,7 +656,7 @@ forall  (sh: share) (v: val)
        (Sset id (Ecast (Efield (Ederef e1 t1) fld t2) t3))
        (normal_ret_assert (PROPx P (LOCALx (`(eq (eval_cast t2 t3 v)) (eval_id id) :: Q) (SEPx R)))).
 Proof.
-intros. rename H7 into TC4.
+intros until 6. pose proof I; intros; rename H7 into TC4.
 eapply semax_cast_load_field_38; eauto.
 do 2 rewrite <- insert_local. rewrite <- andp_assoc.
 rewrite (andp_comm (local _)).

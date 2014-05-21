@@ -16,7 +16,7 @@ Definition update_last_if :=
                     (Evar _memcpy (Tfunction
                                     (Tcons (tptr tvoid)
                                       (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                                    (tptr tvoid)))
+                                    (tptr tvoid) cc_default))
                     ((Etempvar _p (tptr tuchar)) ::
                      (Etempvar _data (tptr tuchar)) ::
                      (Etempvar _len tuint) :: nil))
@@ -171,7 +171,7 @@ apply exp_right
               (firstn (len - (length blocks * 4 - length dd))
                 (skipn (length blocks * 4 - length dd) data))).
 entailer.
-clear TC TC0.
+clear TC1 TC0.
  rewrite prop_true_andp. 
 Focus 2. {
  apply Update_abs; auto.

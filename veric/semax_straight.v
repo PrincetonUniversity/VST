@@ -822,9 +822,8 @@ split; [split3 | ].
 Qed.
 
 Lemma semax_cast_load : 
-forall (Delta: tycontext) sh id P e1 t1 t2 v2,
-    typeof_temp Delta id = Some t2 ->
-    is_neutral_cast t1 t2 = true ->
+forall (Delta: tycontext) sh id P e1 t1 v2,
+    typeof_temp Delta id = Some t1 ->
    (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT) ->
     semax Espec Delta 
        (fun rho => |>
@@ -837,7 +836,7 @@ forall (Delta: tycontext) sh id P e1 t1 t2 v2,
                          (subst id old P rho)))).
 Proof.
 intros until v2.  
-intros Hid TC1 H99.
+intros Hid (*TC1*) H99.
 replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho && 
        (!! tc_val t1  (`(eval_cast (typeof e1) t1) v2 rho)) &&
        P rho)))
@@ -863,6 +862,7 @@ apply (typeof_temp_sub _ _ TS) in Hid.
 assert (H99': forall rho : environ,
       !!typecheck_environ Delta' rho && P rho
       |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT).
+intros.
 intro; eapply derives_trans; [ | apply H99]; apply andp_derives; auto.
 intros ? ?; do 3 red.
 eapply typecheck_environ_sub; eauto.
@@ -879,14 +879,14 @@ rewrite <- map_ptree_rel.
 apply guard_environ_put_te'.
 unfold typecheck_temp_id in *. 
 unfold construct_rho in *. destruct rho; inv Hge; auto.
-clear - Hid TC1 TC2 TC3 TC' H2 Hge H0 H99'.
+clear - Hid TC2 TC3 TC' H2 Hge H0 H99'.
 intros.
 destruct t as [t x].
 unfold typeof_temp in Hid. rewrite H in Hid.
 inv Hid.
 simpl.
 rewrite tc_val_eq' in TC3|-*.
-apply (neutral_cast_lemma2 t1 t2 _ TC1 TC3).
+apply TC3.
 split; [split3 | ].
 * simpl.
    rewrite <- (age_jm_dry H); constructor; auto.

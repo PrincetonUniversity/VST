@@ -734,9 +734,8 @@ forall (Delta: tycontext) sh id P e1 t2 (v2: environ -> val),
 
 Axiom semax_cast_load : 
   forall {Espec: OracleKind},
-forall (Delta: tycontext) sh id P e1 t1 t2 (v2: environ -> val),
-    typeof_temp Delta id = Some t2 ->
-    is_neutral_cast t1 t2 = true ->
+forall (Delta: tycontext) sh id P e1 t1 (v2: environ -> val),
+    typeof_temp Delta id = Some t1 ->
       local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
     @semax Espec Delta 
        (|> (local (tc_lvalue Delta e1) && 

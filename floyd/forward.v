@@ -1571,14 +1571,14 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  | Ederef _ _ => 
    (eapply (semax_cast_load_field_40);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
-   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | reflexivity | reflexivity | reflexivity | reflexivity  
    | solve [entailer!]
    | try apply I; try assumption; reflexivity
    ]) || fail 1
  | _ =>
    eapply (semax_cast_load_field_38);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
-   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
    | solve [entailer; unfold at_offset; cancel]
    | try apply I; try assumption; reflexivity
@@ -1593,7 +1593,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    ]
  | |- semax _ _ (Sset _ (Ecast (Efield _ _ _) _)) _ =>
   eapply (semax_cast_load_field'');
-   [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   [reflexivity | reflexivity | reflexivity | reflexivity 
    | try solve [entailer]
    | solve [entailer; simpl_data_at; unfold at_offset; simpl; cancel]
    | try apply I; try assumption; reflexivity
@@ -1610,7 +1610,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
            do 2 eexists; split; reflexivity)
     ]
  | |- _ => eapply semax_cast_load_37';
-   [reflexivity | reflexivity
+   [reflexivity 
    |entailer;
     try (apply andp_right; [apply prop_right | solve [cancel] ];
            do 2 eexists; split; reflexivity)
