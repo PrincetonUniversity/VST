@@ -204,7 +204,7 @@ Proof.
   + apply Z.divide_refl.
 Qed.
 
-Lemma legal_nested_alignas_type_Tstruct: forall i f a, legal_alignas_type (Tstruct i f a) = true -> (alignof_fields f | alignof (Tstruct i f a)).
+Lemma legal_alignas_type_Tstruct: forall i f a, legal_alignas_type (Tstruct i f a) = true -> (alignof_fields f | alignof (Tstruct i f a)).
 Proof.
   intros.
   apply nested_pred_atom_pred in H.
@@ -212,7 +212,7 @@ Proof.
   exact H.
 Qed.
 
-Lemma legal_nested_alignas_type_Tunion: forall i f a, legal_alignas_type (Tunion i f a) = true -> (alignof_fields f | alignof (Tunion i f a)).
+Lemma legal_alignas_type_Tunion: forall i f a, legal_alignas_type (Tunion i f a) = true -> (alignof_fields f | alignof (Tunion i f a)).
 Proof.
   intros.
   apply nested_pred_atom_pred in H.
