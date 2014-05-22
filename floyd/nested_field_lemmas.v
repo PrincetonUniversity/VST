@@ -85,7 +85,7 @@ Qed.
 
 (************************************************
 
-Definition, lemmas and usefulsamples of nested_pred
+Definition, lemmas and useful samples of nested_pred
 
 nested_pred only ensure the specific property to be true on nested types with
 memory assigned, i.e. inside structure of pointer, function are not included.
@@ -148,6 +148,78 @@ Proof.
       apply IHf; assumption.
 Qed.
 
+(******* Samples : legal_alignas_type *************)
+
+Definition local_legal_alignas_type (t: type): bool :=
+  match t with
+  | Tvoid            => true
+  | Tint _ _ a       => match attr_alignas a with | None => true | _ => false end
+  | Tlong _ a        => match attr_alignas a with | None => true | _ => false end
+  | Tfloat _ a       => match attr_alignas a with | None => true | _ => false end
+  | Tpointer _ a     => match attr_alignas a with | None => true | _ => false end
+  | Tfunction _ _ _  => true
+  | Tarray t _ a     => match attr_alignas a with | None => true | _ => false end
+  | Tstruct _ flds a => 
+      match attr_alignas a with
+      | None => true 
+      | Some l => Z.leb (alignof_fields flds) (two_p (Z.of_N l))
+      end
+  | Tunion _ flds a  =>
+      match attr_alignas a with
+      | None => true 
+      | Some l => Z.leb (alignof_fields flds) (two_p (Z.of_N l))
+      end
+  | Tcomp_ptr _ a    => match attr_alignas a with | None => true | _ => false end
+  end.
+
+Definition legal_alignas_type := nested_pred local_legal_alignas_type.
+
+Lemma local_legal_alignas_type_Tstruct: forall i f a, local_legal_alignas_type (Tstruct i f a) = true -> (alignof_fields f | alignof (Tstruct i f a)).
+Proof.
+  intros.
+  simpl.
+  simpl in H.
+  destruct (attr_alignas a).
+  + apply Zle_is_le_bool in H.
+    rewrite <- N_nat_Z in *.
+    rewrite <- two_power_nat_two_p in *.
+    destruct (alignof_fields_two_p f).
+    rewrite H0 in *; clear H0.
+    apply (power_nat_divide _ _ H).
+  + apply Z.divide_refl.
+Qed.
+
+Lemma local_legal_alignas_type_Tunion: forall i f a, local_legal_alignas_type (Tunion i f a) = true -> (alignof_fields f | alignof (Tunion i f a)).
+Proof.
+  intros.
+  simpl.
+  simpl in H.
+  destruct (attr_alignas a).
+  + apply Zle_is_le_bool in H.
+    rewrite <- N_nat_Z in *.
+    rewrite <- two_power_nat_two_p in *.
+    destruct (alignof_fields_two_p f).
+    rewrite H0 in *; clear H0.
+    apply (power_nat_divide _ _ H).
+  + apply Z.divide_refl.
+Qed.
+
+Lemma legal_nested_alignas_type_Tstruct: forall i f a, legal_alignas_type (Tstruct i f a) = true -> (alignof_fields f | alignof (Tstruct i f a)).
+Proof.
+  intros.
+  apply nested_pred_atom_pred in H.
+  apply local_legal_alignas_type_Tstruct.
+  exact H.
+Qed.
+
+Lemma legal_nested_alignas_type_Tunion: forall i f a, legal_alignas_type (Tunion i f a) = true -> (alignof_fields f | alignof (Tunion i f a)).
+Proof.
+  intros.
+  apply nested_pred_atom_pred in H.
+  apply local_legal_alignas_type_Tunion.
+  exact H.
+Qed.
+
 (******* Samples : no_alignas_type *************)
 
 Definition no_alignas a : bool := match attr_alignas a with  None => true | _ => false end.
@@ -204,7 +276,7 @@ Proof.
   exact H.
 Qed.
 
-(******* Samples : no_replicate *************)
+(******* Samples : fieldlist_no_replicate *************)
 
 Fixpoint fieldlist_in (id: ident) (f: fieldlist) : bool :=
   match f with
