@@ -43,6 +43,430 @@ Qed.
 
 (******************************************
 
+To prove memory_block_mapsto_
+
+******************************************)
+
+Definition by_value_non_volatile t :=
+  match t with
+  | Tint _ _ a => attr_volatile a = false
+  | Tlong _ a => attr_volatile a = false
+  | Tfloat _ a => attr_volatile a = false
+  | Tpointer _ a => attr_volatile a = false
+  | _ => False
+  end.
+
+Lemma access_mode_by_value_non_volatile: forall t, by_value_non_volatile t -> exists ch, access_mode t = By_value ch.
+Proof.
+  intros.
+  assert (forall ch', exists ch, By_value ch' = By_value ch).
+    intros. exists ch'. reflexivity.
+  destruct t; inversion H; simpl.
+  - destruct i, s; apply H0.
+  - apply H0.
+  - destruct f; apply H0.
+  - apply H0.
+Qed.
+
+(* It might be useful to prove memory_block_mapsto *)
+Lemma repr_unsigned: forall i, Int.repr (Int.unsigned i) = i.
+Proof.
+  intros.
+  apply Int.eqm_repr_eq.
+  apply Int.eqm_refl.
+Qed.
+
+(*
+Lemma unsigned_repr: forall i, Int.unsigned (Int.repr i) = i.
+Proof.
+  intros.
+SearchAbout Int.unsigned Int.repr.
+*)
+(*
+Lemma at_offset'_zero:
+  forall P, 
+    (forall v, P (offset_val (Int.repr 0) v) = P v) ->
+  forall ofs v,
+    at_offset' P ofs (offset_val (Int.repr 0) v) = at_offset' P ofs v.
+Proof.
+  intros.
+  repeat rewrite at_offset'_eq. 
+  rewrite offset_offset_val. rewrite Int.add_zero_l. auto. auto.
+  f_equal.  rewrite offset_offset_val. reflexivity.
+Qed.
+*)
+
+Lemma FF_orp: forall {A: Type} `{NatDed A} (P: A), FF || P = P.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply orp_left.
+    apply FF_left.
+    apply derives_refl.
+  + apply orp_right2.
+    apply derives_refl.
+Qed.
+
+Lemma mapsto__exp_address_mapsto:
+  forall sh t b i_ofs ch,
+   access_mode t = By_value ch ->
+   by_value_non_volatile t -> 
+   mapsto_ sh t (Vptr b i_ofs) = EX  v2' : val,
+             address_mapsto ch v2' (Share.unrel Share.Lsh sh)
+               (Share.unrel Share.Rsh sh) (b, (Int.unsigned i_ofs)).
+Proof.
+  intros.
+  unfold mapsto_, mapsto.
+  rewrite H.
+  destruct (type_is_volatile t) eqn:HH.
+  - unfold type_is_volatile in HH.
+    rewrite H in HH.
+    destruct t; try destruct a; try destruct attr_volatile, attr_alignas; try inversion H0; try inversion HH.
+  - assert (!!(tc_val t Vundef) = @FF mpred Nveric) by (destruct t; reflexivity).
+    rewrite H1.
+    rewrite FF_andp, FF_orp.
+    assert (!!(Vundef = Vundef) = @TT mpred Nveric) by (apply pred_ext; normalize).
+    rewrite H2.
+    rewrite TT_andp.
+    reflexivity.
+Qed.
+
+Fixpoint list_address_mapsto ch vs rsh sh b ofs :=
+  match vs with
+  | nil => emp
+  | v :: vs' => address_mapsto ch v rsh sh (b, Int.unsigned (Int.repr ofs)) * list_address_mapsto ch vs' rsh sh b (ofs + 1)
+  end.
+
+Fixpoint list_address_mapsto' ch vs rsh sh b ofs bls:=
+  match vs, bls with
+  | nil, nil => emp
+  | nil, _ => FF
+  | _, nil => FF
+  | v :: vs', bl :: bls' =>
+    (!! (length bl = Memdata.size_chunk_nat ch  /\ Memdata.decode_val ch bl = v /\ (Memdata.align_chunk ch | Int.unsigned (Int.repr ofs)))  && allp (res_predicates.jam (adr_range_dec (b, Int.unsigned (Int.repr ofs)) (Memdata.size_chunk ch))
+    (fun loc => res_predicates.yesat compcert_rmaps.R.NoneP (compcert_rmaps.VAL (nth (nat_of_Z (snd loc - Int.unsigned (Int.repr ofs))) bl Memdata.Undef)) rsh sh loc) res_predicates.noat)) * list_address_mapsto' ch vs' rsh sh b (ofs + 1) bls'
+  end.
+
+Lemma memory_block'_list_address_mapsto: forall sh n b ofs, memory_block' sh n b ofs = EX vs: list val, (!! (length vs = n)) && list_address_mapsto Mint8unsigned vs (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) b ofs.
+Proof.
+  intros.
+  apply pred_ext; revert ofs; induction n; intros.
+  + apply (exp_right nil).
+    simpl.
+    normalize.
+  + simpl.
+    erewrite mapsto__exp_address_mapsto; [|reflexivity|simpl; reflexivity].
+    eapply derives_trans; [apply sepcon_derives; [apply derives_refl| exact (IHn (ofs + 1))]|].
+    normalize.
+    apply (exp_right (x :: v2')).
+    simpl.
+    normalize.
+  + normalize. 
+    destruct vs; simpl; [normalize | inversion H].
+  + normalize.
+    destruct vs; simpl; inversion H.
+    erewrite mapsto__exp_address_mapsto; [|reflexivity|simpl; reflexivity].
+    apply sepcon_derives. 
+    - apply (exp_right v).
+      normalize.
+    - rewrite H1. eapply derives_trans; [| exact (IHn (ofs + 1))].
+      apply (exp_right vs).
+      normalize.
+Qed.
+
+Lemma list_address_mapsto_list_address_mapsto': forall ch vs rsh sh b ofs, list_address_mapsto ch vs rsh sh b ofs = EX bls:_, list_address_mapsto' ch vs rsh sh b ofs bls.
+Proof.
+  intros.
+  revert ofs.
+  induction vs; intros.
+  + simpl.
+    apply pred_ext.
+    - apply (exp_right nil), derives_refl.
+    - apply exp_left; intros; destruct x; normalize.
+  + simpl.
+    unfold address_mapsto, res_predicates.address_mapsto.      
+    change (@predicates_hered.exp compcert_rmaps.RML.R.rmap
+           compcert_rmaps.R.ag_rmap) with (@exp mpred Nveric).
+    change (@predicates_hered.andp compcert_rmaps.RML.R.rmap
+           compcert_rmaps.R.ag_rmap) with (@andp mpred Nveric).
+    change (@predicates_hered.prop compcert_rmaps.RML.R.rmap
+           compcert_rmaps.R.ag_rmap) with (@prop mpred Nveric).
+    change (@predicates_hered.allp compcert_rmaps.RML.R.rmap
+           compcert_rmaps.R.ag_rmap) with (@allp mpred Nveric).
+    apply pred_ext.
+    - rewrite IHvs.
+      normalize.
+      apply (exp_right (x :: bl)).
+      normalize.
+    - rewrite IHvs.
+      normalize. destruct bls as [|x bl]; normalize.
+      apply (exp_right bl). cancel. apply (exp_right x).
+      normalize.
+Qed.
+
+Definition bl_to_bls bl := map (fun x:Memdata.memval => x :: nil) bl.
+Definition bls_to_bl bls := fold_right (@app Memdata.memval) nil bls.
+
+Definition list_address_mapsto'_Mint8unsigned: forall vs rsh sh b ofs bls,
+  list_address_mapsto' Mint8unsigned vs rsh sh b ofs bls
+  |-- !!(length (bls_to_bl bls) = length bls) && !!(length bls = length vs).
+Proof.
+  intros.
+  revert bls ofs.
+  induction vs; intros; destruct bls; simpl.
+  + normalize.
+  + normalize.
+  + normalize.
+  + unfold Memdata.size_chunk_nat, nat_of_Z, bls_to_bl.
+    rewrite app_length.
+    simpl.
+    replace (Pos.to_nat 1) with 1%nat by reflexivity.
+    normalize.
+    rewrite H.
+    simpl.
+    assert ((!!(S (length (fold_right (app (A:=Memdata.memval)) nil bls)) =
+          S (length bls) /\ S (length bls) = S (length vs))) =
+            (!!(True /\ (S (length (fold_right (app (A:=Memdata.memval)) nil bls)) =
+          S (length bls) /\ S (length bls) = S (length vs)))))
+    by (rewrite prop_and; apply pred_ext; normalize).
+    change (@predicates_hered.pred compcert_rmaps.RML.R.rmap
+           compcert_rmaps.R.ag_rmap) with mpred.
+    rewrite H1; clear H1.
+    apply saturate_aux20; [normalize |].
+    eapply derives_trans; [apply IHvs| normalize].
+Qed.
+
+Lemma allp_forall: forall A P Q (x:A), (forall x:A, (P x = Q)) -> (allp P = Q).
+Proof.
+  intros.
+  apply pred_ext.
+  + apply (allp_left _ x).
+    rewrite H.
+    apply derives_refl.
+  + apply allp_right.
+    intros.
+    rewrite H.
+    apply derives_refl.
+Qed.
+
+Lemma allp_andp: forall P Q, allp (P && Q) = allp P && allp Q.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply andp_right; apply allp_derives; intros;
+    simpl; [apply andp_left1|apply andp_left2]; apply derives_refl.
+  + apply allp_right; intros.
+    simpl; apply andp_right; [apply andp_left1|apply andp_left2];
+    apply (allp_left _ v); apply derives_refl.
+Qed.
+
+Lemma allp_jam_merge: forall f g h P 
+  (decf: forall l, {f l} + {~ f l})
+  (decg: forall l, {g l} + {~ g l})
+  (decfg: forall l, {h l} + {~ h l}),
+  (forall l, f l \/ g l <-> h l) ->
+  (forall l, ~ (f l /\ g l)) ->
+  predicates_hered.allp (res_predicates.jam decfg P res_predicates.noat) =
+  predicates_hered.allp (res_predicates.jam decf P res_predicates.noat) *
+  predicates_hered.allp (res_predicates.jam decg P res_predicates.noat).
+Proof.
+  intros.
+  apply pred_ext;
+  change derives with (@predicates_hered.derives compcert_rmaps.RML.R.rmap
+           compcert_rmaps.R.ag_rmap);
+  change sepcon with predicates_sl.sepcon.
+  + unfold predicates_hered.derives, predicates_sl.sepcon, predicates_hered.allp. simpl.
+    intros.
+    (*compcert_rmaps.RML.rmap_valid*)
+    (*compcert_rmaps.RML.resource_at_approx*)
+    remember (fun l => if (decf l) 
+          then compcert_rmaps.RML.R.resource_at a l
+          else compcert_rmaps.R.NO Share.bot) as funn.
+    pose proof compcert_rmaps.RML.make_rmap funn.
+    assert (compcert_rmaps.R.AV.valid (base.compose compcert_rmaps.R.res_option funn)).
+      subst.
+      pose proof compcert_rmaps.RML.rmap_valid a.
+      unfold base.compose, compcert_rmaps.R.res_option in *. simpl.
+      admit.
+    admit.
+  + admit.
+Qed.
+
+Lemma allp_jam_range_rec: forall b ofs n P,
+  n > 0 ->
+  allp (res_predicates.jam (adr_range_dec (b, ofs) n) P res_predicates.noat) =
+  allp (res_predicates.jam (adr_range_dec (b, ofs) 1) P res_predicates.noat) *
+  allp (res_predicates.jam (adr_range_dec (b, ofs + 1) (n - 1)) P res_predicates.noat).
+Proof.
+  intros.
+  change allp with (@predicates_hered.allp compcert_rmaps.RML.R.rmap compcert_rmaps.R.ag_rmap address).
+  apply allp_jam_merge;
+  intros;
+  destruct l;
+  simpl adr_range;
+  [split|unfold not]; intros.
+  + destruct H0; destruct H0; (split; [subst; reflexivity | omega]).
+  + destruct H0.
+    subst.
+    pose proof zle (ofs + 1) z.
+    destruct H0; [right|left]; (split; [reflexivity|omega]).
+  + destruct H0.
+    omega.
+Qed.
+
+Lemma allp_jam_range_basic: forall b ofs P,
+  allp (res_predicates.jam (adr_range_dec (b, ofs) 0) P res_predicates.noat) = emp.
+Proof.
+  intros.
+  assert ((res_predicates.jam (adr_range_dec (b, ofs) 0) P res_predicates.noat) =
+    res_predicates.noat).
+    extensionality.  
+    apply res_predicates.jam_false.
+    unfold not.
+    unfold adr_range; intros.
+    destruct x.
+    destruct H.
+    omega.
+  rewrite H.
+  change emp with predicates_sl.emp.
+  change allp with (@predicates_hered.allp compcert_rmaps.RML.R.rmap compcert_rmaps.R.ag_rmap address).
+  apply res_predicates.allp_noat_emp.
+Qed.
+
+Lemma add_andp_to_left: forall P Q R, P |-- Q -> P && Q |-- R -> P |-- R.
+Proof.
+  intros.
+  eapply derives_trans; [| exact H0].
+  apply andp_right; normalize.
+Qed.
+
+Lemma address_mapsto_list_address_mapsto_Mint8unsigned:
+  forall ch rsh sh b ofs, (Memdata.align_chunk ch | ofs) -> 
+  EX v:val, address_mapsto ch v rsh sh (b, ofs) = 
+  EX vs:list val, !! (length vs = Memdata.size_chunk_nat ch) && list_address_mapsto Mint8unsigned vs rsh sh b ofs.
+Proof.
+  intros.
+  unfold address_mapsto, res_predicates.address_mapsto.
+  change (@predicates_hered.exp compcert_rmaps.RML.R.rmap
+           compcert_rmaps.R.ag_rmap) with (@exp mpred Nveric).
+  change (@predicates_hered.andp compcert_rmaps.RML.R.rmap
+           compcert_rmaps.R.ag_rmap) with (@andp mpred Nveric).
+  change (@predicates_hered.prop compcert_rmaps.RML.R.rmap
+           compcert_rmaps.R.ag_rmap) with (@prop mpred Nveric).
+  change (@predicates_hered.allp compcert_rmaps.RML.R.rmap
+           compcert_rmaps.R.ag_rmap) with (@allp mpred Nveric).
+  replace (fun vs => !!(length vs = Memdata.size_chunk_nat ch) && list_address_mapsto Mint8unsigned vs rsh sh b ofs) with
+         (fun vs => !!(length vs = Memdata.size_chunk_nat ch) && EX bls: _, list_address_mapsto' Mint8unsigned vs rsh sh b ofs bls) by
+    (extensionality vs;
+     rewrite <- (list_address_mapsto_list_address_mapsto' Mint8unsigned vs rsh sh b ofs);
+     reflexivity).
+  apply pred_ext.
+  + normalize.
+    apply (exp_right (map (fun bl => Memdata.decode_val Mint8unsigned bl) (bl_to_bls bl))).
+    apply andp_right; [apply prop_right; unfold bl_to_bls; repeat rewrite map_length; exact H0|].
+    apply (exp_right (bl_to_bls bl)).
+    rewrite Memdata.size_chunk_conv in *.
+    forget (Memdata.size_chunk_nat ch) as n.
+    clear H ch.
+    revert n H0 ofs; induction bl; intros.
+    - subst n. simpl in *.
+      rewrite allp_jam_range_basic. apply derives_refl.
+    - simpl. assert (HH: (1 | Int.Z_mod_modulus ofs)) by apply Z.divide_1_l. normalize. clear HH.
+      rewrite allp_jam_range_rec; [| simpl in H0; omega].
+      apply sepcon_derives.
+      * apply allp_derives; intros.
+        admit.
+      * pose proof (IHbl (length bl)) eq_refl (ofs + 1); clear IHbl.
+        replace (Z.of_nat n - 1) with (Z.of_nat (length bl)).
+        admit.
+        subst n. simpl length. rewrite Nat2Z.inj_succ. omega.
+  + normalize.
+    apply (exp_right (Memdata.decode_val ch (bls_to_bl bls))).
+    apply (exp_right (bls_to_bl bls)).
+    pose proof list_address_mapsto'_Mint8unsigned vs rsh sh b ofs bls.
+    eapply add_andp_to_left; [exact H1|clear H1].
+    normalize.
+    rewrite H1, H2.
+    apply andp_right; [apply prop_right; repeat split|]; [exact H0 | exact H |].
+    rewrite Memdata.size_chunk_conv.
+    forget (Memdata.size_chunk_nat ch) as n.
+    clear H H1 H2.
+    revert ofs n vs H0; induction bls; intros; destruct vs; simpl in *.
+    - subst n; simpl.
+      rewrite allp_jam_range_basic.
+      normalize.
+    - normalize.
+    - normalize.
+    - normalize. change (Memdata.size_chunk_nat Mint8unsigned) with (1%nat) in H.
+      clear H1.
+      rewrite (allp_jam_range_rec _ _ (Z.of_nat n)); [| simpl in H0; omega].
+      apply sepcon_derives.
+      * admit.
+      * (*pose proof list_address_mapsto'_Mint8unsigned vs rsh sh b (ofs + 1) bls.
+        eapply add_andp_to_left; [exact H1|clear H1].
+        normalize.*)
+        pose proof IHbls (ofs + 1) (length vs) vs eq_refl as HH.
+        eapply derives_trans; [exact HH|clear HH].
+        admit.
+Qed.
+
+Lemma align_chunk_alignof: forall t ch, access_mode t = By_value ch -> legal_alignas_type t = true -> alignof t = Memdata.align_chunk ch.
+Proof.
+Transparent alignof.
+  intros.
+  destruct t; inversion H.
+  - unfold legal_alignas_type in H0.
+    simpl in H0.
+    destruct i, s; inversion H2; simpl;
+    destruct (attr_alignas a); try inversion H0; reflexivity.
+  - unfold legal_alignas_type in H0.
+    simpl in H0.
+    destruct s; inversion H2; simpl;
+    destruct (attr_alignas a); try inversion H0; admit. (* Tlong uncompatible problem *)
+  - unfold legal_alignas_type in H0.
+    simpl in H0.
+    destruct f; inversion H2; simpl;
+    destruct (attr_alignas a); try inversion H0; reflexivity.
+  - unfold legal_alignas_type in H0.
+    simpl in H0.
+    inversion H2; simpl;
+    destruct (attr_alignas a); try inversion H0; reflexivity.
+Opaque alignof.
+Qed.
+
+Lemma size_chunk_sizeof: forall t ch, access_mode t = By_value ch -> sizeof t = Memdata.size_chunk ch.
+Proof.
+  intros.
+  destruct t; inversion H.
+  - destruct i, s; inversion H1; reflexivity.
+  - destruct s; inversion H1; reflexivity.
+  - destruct f; inversion H1; reflexivity.
+  - inversion H1; reflexivity.
+Qed.
+
+Lemma memory_block_mapsto_:
+  forall n sh t b i_ofs, 
+   by_value_non_volatile t ->
+   legal_alignas_type t = true ->
+   (alignof t | Int.unsigned i_ofs) ->
+   Int.unsigned n = sizeof t ->
+   memory_block sh n (Vptr b i_ofs) = mapsto_ sh t (Vptr b i_ofs).
+Proof.
+  intros.
+  unfold memory_block.
+  rewrite memory_block'_list_address_mapsto.
+  destruct (access_mode_by_value_non_volatile t H) as [ch ?].
+  erewrite mapsto__exp_address_mapsto; [|exact H3|exact H].
+  rewrite address_mapsto_list_address_mapsto_Mint8unsigned; 
+    [| erewrite align_chunk_alignof in H1; [exact H1| exact H3| exact H0]].
+  unfold Memdata.size_chunk_nat.
+  erewrite size_chunk_sizeof in H2; [| exact H3].
+  rewrite H2.
+  reflexivity.
+Qed.
+
+(******************************************
+
 Lemmas about mapsto and mapsto_.
 
 Other lemmas has been proved elsewhere:
@@ -181,7 +605,7 @@ Fixpoint reptype (ty: type) : Type :=
   | Tfloat _ _ => val
   | Tpointer t1 a => val
   | Tarray t1 sz a => list (reptype t1)
-  | Tfunction t1 t2 _  => unit
+  | Tfunction t1 t2 _ => unit
   | Tstruct id fld a => reptype_structlist fld
   | Tunion id fld a => reptype_unionlist fld
   | Tcomp_ptr id a => val
@@ -530,7 +954,7 @@ Fixpoint data_at' (sh: Share.t) (e: type_id_env) (t1: type): Z -> reptype t1 -> 
   match t1 as t return (Z -> reptype t -> val -> mpred) with
   | Tvoid => at_offset2 (fun v _ => memory_block sh (Int.repr (sizeof t1)) v)
   | Tarray t z a => array_at' sh t z (data_at' sh e t)
-  | Tfunction t t0 cc => at_offset2 (fun v _ => memory_block sh (Int.repr (sizeof t1)) v)
+  | Tfunction t t0 _ => at_offset2 (fun v _ => memory_block sh (Int.repr (sizeof t1)) v)
   | Tstruct i f a => sfieldlist_at' sh e (alignof t1) f
   | Tunion i f a => ufieldlist_at' sh e (alignof t1) f
   | Tcomp_ptr i a => at_offset2 (mapsto sh (Tpointer (look_up_ident_default i e) a))
@@ -818,8 +1242,6 @@ Proof.
   assert (alignof t | pos).
     subst pos.
     apply Zdivide_0.
-Check sfieldlist_at'.
-Print default_val.
   apply (type_mut 
     (fun t => forall pos v, data_at' sh empty_ti t pos v p |-- data_at' sh empty_ti t pos (default_val t) p) (fun t => True)
     (fun f => (forall alignment pos v, sfieldlist_at' sh empty_ti alignment f pos v p |-- sfieldlist_at' sh empty_ti alignment f pos (struct_default_val f) p) /\ forall alignment pos v, ufieldlist_at' sh empty_ti alignment f pos v p |-- ufieldlist_at' sh empty_ti alignment f pos (union_default_val f) p));
@@ -1420,107 +1842,6 @@ Proof.
 Qed.
 *)
 
-Lemma at_offset'_zero:
-  forall P, 
-    (forall v, P (offset_val (Int.repr 0) v) = P v) ->
-  forall ofs v,
-    at_offset' P ofs (offset_val (Int.repr 0) v) = at_offset' P ofs v.
-Proof.
-  intros.
-  repeat rewrite at_offset'_eq. 
-  rewrite offset_offset_val. rewrite Int.add_zero_l. auto. auto.
-  f_equal.  rewrite offset_offset_val. reflexivity.
-Qed.
-
-Lemma FF_orp: forall {A: Type} `{NatDed A} (P: A), FF || P = P.
-Proof.
-  intros.
-  apply pred_ext.
-  + apply orp_left.
-    apply FF_left.
-    apply derives_refl.
-  + apply orp_right2.
-    apply derives_refl.
-Qed.
-
-(* Originally, by_value_no_alignof : type -> Prop. Now, it is changed to computation. *)
-Definition by_value_no_alignof t :=
-  match t with
-  | Tint _ _ (mk_attr false None) => True
-  | Tlong _ (mk_attr false None) => True
-  | Tfloat _ (mk_attr false None) => True
-  | Tpointer _ (mk_attr false None) => True
-  | _ => False
-  end.
-
-(*
-Definition by_value_no_alignof t :=
-  match t with
-  | Tint _ _ (mk_attr false None) => true
-  | Tlong _ (mk_attr false None) => true
-  | Tfloat _ (mk_attr false None) => true
-  | Tpointer _ (mk_attr false None) => true
-  | _ => false
-  end.
-*)
-
-Lemma memory_block_mapsto_:
-  forall n sh t v, 
-  by_value_no_alignof t ->
-  n = sizeof t ->
-  memory_block sh (Int.repr n) v = mapsto_ sh t v.
-Proof.
-  Admitted.
-
-(************************************************
-
-Originally, this is proved as follows. It depends on some admitted lemma.
-However, I think it is not the correct approach. Memory block is defined upon
-mapsto. So, we should resolve the lemma to the level of mapsto but not unfold
-mapsto to make things more complicated. Now, I admitted it directly, which is
-not worse than before. 
-
-Lemma memory_block_address_mapsto:
-  forall n sh ch b i,
-  n = Memdata.size_chunk ch ->
-  memory_block sh (Int.repr n) (Vptr b i) =
- !!False && address_mapsto ch Vundef (Share.unrel Share.Lsh sh)
-  (Share.unrel Share.Rsh sh) (b, Int.unsigned i)
-|| !!(Vundef = Vundef) &&
-   (EX  v2' : val,
-    address_mapsto ch v2' (Share.unrel Share.Lsh sh)
-      (Share.unrel Share.Rsh sh) (b, Int.unsigned i)).
-Proof.
-  intros.
-  change (!!False) with FF.
-  rewrite FF_andp.
-  rewrite FF_orp.
-  assert (!!(Vundef = Vundef) = TT); [apply pred_ext; normalize|].
-  rewrite H0; clear H0.
-  rewrite TT_andp.
-Admitted.
-
-Lemma memory_block_mapsto_:
-  forall n sh t v, 
-   by_value_no_alignof t ->
-   n = sizeof t ->
-   memory_block sh (Int.repr n) v = mapsto_ sh t v.
-Proof.
-  intros. subst n.
-  pose proof (sizeof_pos t).
-  destruct t; try contradiction; (* only by_value type left *)
-  destruct a as [[|] [|]]; try contradiction; (* only no_alignof type left *)
-  simpl;
- unfold mapsto_, mapsto; simpl;
- try (destruct i,s); try destruct f; 
- rewrite memory_block_isptr by apply H0;
- destruct v; simpl; try  apply FF_andp; 
- rewrite prop_true_andp by auto;
- (apply memory_block_address_mapsto;  try reflexivity).
-Qed.
-
-************************************************)
-
 Lemma spacer_memory_block:
   forall sh pos a v, isptr v -> 
  spacer sh pos a v = memory_block sh (Int.repr (align pos a - pos)) (offset_val (Int.repr pos) v).
@@ -1800,3 +2121,4 @@ Qed.
 
 
 ************************************************)
+

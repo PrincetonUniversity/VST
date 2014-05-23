@@ -114,8 +114,8 @@ eapply semax_seq'.
 abbreviate_semax.
 forward. (* return; *)
 
-unfold_data_at 2%nat.
-unfold_field_at 4%nat.
+unfold_data_at 3%nat.
+unfold_field_at 3%nat.
 
 cancel.
 Qed.
