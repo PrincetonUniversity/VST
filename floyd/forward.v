@@ -1603,6 +1603,11 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
       | solve [entailer; unfold at_offset; cancel]
       | ]
+ | |- semax _ _ (Sset _ (Ecast (Ederef (Ebinop Oadd ?e1 ?e2 _) _) _)) _ =>
+    eapply semax_cast_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
+      [ reflexivity | reflexivity | reflexivity | reflexivity 
+      | solve [entailer; unfold at_offset; cancel]
+      | ]
  | |- _ => eapply semax_load_37';
    [reflexivity | reflexivity
    | entailer;
@@ -1918,7 +1923,7 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
               |new_load_tac]
   | Sset _ (Ederef ?e _) => 
          no_loads_expr e true false; new_load_tac
-  | Sset (Ecast (Ederef ?e _) ?t) => 
+  | Sset _ (Ecast (Ederef ?e _) ?t) => 
          no_loads_expr e true false; 
       first [unify true (match t with Tarray _ _ _ => true | _ => false end);
                forward_setx
