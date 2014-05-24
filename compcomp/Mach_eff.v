@@ -83,25 +83,54 @@ Inductive mach_effstep: (block -> Z -> bool) ->
         (StoreEffect a (encode_val chunk (rs src)))
         (Mach_State s f sp (Mstore chunk addr args src :: c) rs) m
         (Mach_State s f sp c rs') m'
-  | Mach_effexec_Mcall:
-      forall s fb sp sig ros c rs m f f' ra,
+  | Mach_effexec_Mcall_internal:
+      forall s fb sp sig ros c rs m f f' ra callee,
       find_function_ptr ge ros rs = Some f' ->
       Genv.find_funct_ptr ge fb = Some (Internal f) ->
       return_address_offset f c ra ->
+      (*NEW: check that the block f' actually contains a function:*)
+         Genv.find_funct_ptr ge f' = Some (Internal callee) ->
       mach_effstep EmptyEffect 
         (Mach_State s fb sp (Mcall sig ros :: c) rs) m
         (Mach_Callstate (Stackframe fb sp (Vptr fb ra) c :: s)
                        f' rs) m
-  | Mach_effexec_Mtailcall:
-      forall s fb stk soff sig ros c rs m f f' m',
+  | Mach_effexec_Mcall_external:
+      forall s fb sp sig ros c rs m f f' ra callee args,
+      find_function_ptr ge ros rs = Some f' ->
+      Genv.find_funct_ptr ge fb = Some (Internal f) ->
+      return_address_offset f c ra ->
+      (*NEW: check that the block f' actually contains a (external) function, and perform the "extra step":*)
+         Genv.find_funct_ptr ge f' = Some (External callee) ->
+      extcall_arguments rs m (parent_sp (Stackframe fb sp (Vptr fb ra) c ::s))
+        (ef_sig callee) args ->
+      mach_effstep EmptyEffect
+         (Mach_State s fb sp (Mcall sig ros :: c) rs) m
+         (Mach_CallstateArgs (Stackframe fb sp (Vptr fb ra) c :: s) f' callee args rs) m
+  | Mach_effexec_Mtailcall_internal:
+      forall s fb stk soff sig ros c rs m f f' m' callee,
       find_function_ptr ge ros rs = Some f' ->
       Genv.find_funct_ptr ge fb = Some (Internal f) ->
       load_stack m (Vptr stk soff) Tint f.(fn_link_ofs) = Some (parent_sp s) ->
       load_stack m (Vptr stk soff) Tint f.(fn_retaddr_ofs) = Some (parent_ra s) ->
       Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
+      (*NEW: check that the block f' actually contains a function:*)
+         Genv.find_funct_ptr ge f' = Some (Internal callee) ->
       mach_effstep (FreeEffect m 0 (f.(fn_stacksize)) stk)
         (Mach_State s fb (Vptr stk soff) (Mtailcall sig ros :: c) rs) m
         (Mach_Callstate s f' rs) m'
+  | Mach_effexec_Mtailcall_external:
+      forall s fb stk soff sig ros c rs m f f' m' callee args,
+      find_function_ptr ge ros rs = Some f' ->
+      Genv.find_funct_ptr ge fb = Some (Internal f) ->
+      load_stack m (Vptr stk soff) Tint f.(fn_link_ofs) = Some (parent_sp s) ->
+      load_stack m (Vptr stk soff) Tint f.(fn_retaddr_ofs) = Some (parent_ra s) ->
+      Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
+      (*NEW: check that the block f' actually contains a function:*)
+         Genv.find_funct_ptr ge f' = Some (External callee) ->
+      extcall_arguments rs m' (parent_sp s) (ef_sig callee) args ->
+      mach_effstep (FreeEffect m 0 (f.(fn_stacksize)) stk)
+         (Mach_State s fb (Vptr stk soff) (Mtailcall sig ros :: c) rs) m
+         (Mach_CallstateArgs s f' callee args rs) m'
   | Mach_effexec_Mbuiltin:
       forall s f sp rs m ef args res b t vl rs' m',
       external_call' ef ge rs##args m t vl m' ->
@@ -171,14 +200,14 @@ Inductive mach_effstep: (block -> Z -> bool) ->
         (Mach_Callstate s fb rs) m
         (Mach_State s fb sp f.(fn_code) rs') m3
 (*auxiliary step that extracts call arguments and invoked external function,
-  in accordance with the core semantics interface*)
+  in accordance with the core semantics interface
   | Mach_effexec_function_external:
       forall s fb rs m ef args,
       Genv.find_funct_ptr ge fb = Some (External ef) ->
       extcall_arguments rs m (parent_sp s) (ef_sig ef) args ->
       mach_effstep EmptyEffect 
         (Mach_Callstate s fb rs) m
-        (Mach_CallstateArgs s (*(parent_sp s)*) ef args rs) m
+        (Mach_CallstateArgs s (*(parent_sp s)*) fb ef args rs) m*)
 (*NO RULE FOR EXTERNAL CALLS
   | Mach_effexec_function_external:
       forall s fb rs m t rs' ef args res m',
@@ -221,9 +250,13 @@ intros.
          apply Mem.unchanged_on_refl.
   split. econstructor; eassumption.
          eapply StoreEffect_Storev; eassumption. 
-  split. econstructor; eassumption.
+  split. eapply Mach_exec_Mcall_internal; eassumption.
          apply Mem.unchanged_on_refl.
-  split. econstructor; eassumption.
+  split. eapply Mach_exec_Mcall_external; eassumption.
+         apply Mem.unchanged_on_refl.
+  split. eapply Mach_exec_Mtailcall_internal; eassumption.
+         eapply FreeEffect_free; eassumption.
+  split. eapply Mach_exec_Mtailcall_external; eassumption.
          eapply FreeEffect_free; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          inv H.
@@ -262,8 +295,8 @@ intros.
         rewrite PMap.gso; trivial. 
         rewrite PMap.gso; trivial. 
         eapply EmptyEffect_alloc; eassumption.
-  split. econstructor; eassumption.
-         apply Mem.unchanged_on_refl.
+(*  split. econstructor; eassumption.
+         apply Mem.unchanged_on_refl.*)
   split. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
 Qed.
@@ -281,8 +314,10 @@ Proof.
     eexists. eapply Mach_effexec_Mop; try eassumption; trivial.
     eexists. eapply Mach_effexec_Mload; try eassumption; trivial.
     eexists. eapply Mach_effexec_Mstore; try eassumption; trivial.
-    eexists. eapply Mach_effexec_Mcall; try eassumption; trivial.
-    eexists. eapply Mach_effexec_Mtailcall; try eassumption; trivial.
+    eexists. eapply Mach_effexec_Mcall_internal; try eassumption; trivial.
+    eexists. eapply Mach_effexec_Mcall_external; try eassumption; trivial.
+    eexists. eapply Mach_effexec_Mtailcall_internal; try eassumption; trivial.
+    eexists. eapply Mach_effexec_Mtailcall_external; try eassumption; trivial.
     eexists. eapply Mach_effexec_Mbuiltin; try eassumption; trivial.
 (*    eexists. eapply Mach_effexec_Mannot; try eassumption; trivial.*)
     eexists. eapply Mach_effexec_Mgoto; try eassumption; trivial.
@@ -291,7 +326,7 @@ Proof.
     eexists. eapply Mach_effexec_Mjumptable; try eassumption; trivial.
     eexists. eapply Mach_effexec_Mreturn; try eassumption; trivial.
     eexists. eapply Mach_effexec_function_internal; try eassumption; trivial.
-    eexists. eapply Mach_effexec_function_external; try eassumption; trivial.
+(*    eexists. eapply Mach_effexec_function_external; try eassumption; trivial.*)
     eexists. eapply Mach_effexec_return; try eassumption; trivial.
 Qed.
 
@@ -314,6 +349,7 @@ intros.
   eapply Mem.valid_access_valid_block.
   eapply Mem.valid_access_implies; try eassumption. constructor.
 
+  eapply FreeEffect_validblock; eassumption.
   eapply FreeEffect_validblock; eassumption.
   eapply BuiltinEffect_valid_block; eassumption.
   eapply FreeEffect_validblock; eassumption.

@@ -34,12 +34,16 @@ Require Import msl.Axioms.
 Require Import sepcomp.mem_lemmas. (*for valid_block_dec, mem_forward etc*)
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.core_semantics_lemmas.
+Require Import StructuredInjections.
 Require Import sepcomp.effect_semantics.
+Require Import reach.
 Require Import Asm_coop.
 Require Import Asm_eff.
-Require Import StructuredInjections.
 
 (** * Processor registers and register states *)
+
+Definition zero_or_localid (mu: SM_Injection) (v:val) :=
+  v = Vzero \/ exists b ofs tb, v = Vptr b ofs /\ local_of mu b = Some(tb,0).
 
 Hint Extern 2 (_ <> _) => congruence: asmgen.
 
@@ -172,11 +176,10 @@ Qed.
 
 (*Lenb: added parameter j:meminj and changed lessdef into val_inject*)
 Record agree mu (ms: Mach.regset) (sp: val) (rs: Asm.regset) : Prop := mkagree {
-  agree_sp: rs#SP = sp;
-  (*agree_sp_def: exists b ofs, sp=Vptr b ofs /\ 
-                local_of mu b=Some(b,0);*)
+  (*Modified*) agree_sp: val_inject (local_of mu) sp (rs#SP);
   agree_sp_def: sp <> Vundef; 
-  (*New:*) agree_sp_ptr: forall b ofs, sp=Vptr b ofs -> local_of mu b=Some(b,0);
+  (*New:*) agree_sp_ptr: forall b ofs, sp=Vptr b ofs -> 
+           exists tb, local_of mu b=Some(tb,0);
   agree_mregs: forall r: mreg, val_inject (as_inj mu) (ms r) (rs#(preg_of r))
 }.
 
@@ -186,26 +189,10 @@ Record agree mu (ms: Mach.regset) (sp: val) (rs: Asm.regset) : Prop := mkagree {
   agree_mregs: forall r: mreg, Val.lessdef (ms r) (rs#(preg_of r))
 }.*)
 
-(*Lemma add_eq_zero ofs delta: ofs = Int.add ofs (Int.repr delta) -> 
-      Int.repr delta = Int.zero.
-Proof. intros. 
-specialize (Int.translate_eq Int.zero (Int.repr delta) ofs). intros.
-rewrite Int.add_commut in H. rewrite <- H in H0. clear H.
-rewrite Int.add_zero_l in H0.
-rewrite Int.eq_true in H0.
-specialize (Int.eq_spec Int.zero (Int.repr delta)).
-rewrite <- H0. intuition. 
-Qed.
-*)
 Lemma agree_sp_local mu ms sp rs:
       forall (A:agree mu ms sp rs),
       val_inject (local_of mu) sp (rs#SP).
-Proof. intros. inv A.
-  remember (rs ESP) as v.
-  destruct v; try econstructor.
-    eauto.
-    rewrite Int.add_zero. trivial.
-Qed.
+Proof. intros. eapply A. Qed.
 
 (*NEW
 Lemma agree_sp_shape mu ms sp rs:
@@ -224,8 +211,9 @@ Lemma agree_intern_incr ms sp rs: forall mu mu' (WD': SM_wd mu')
       agree mu' ms sp rs.
 Proof. intros. inv A.
   split; auto.
-    intros. specialize (agree_sp_ptr0 _ _ H).
-    eapply INC. assumption.
+    eapply val_inject_incr; try eassumption. eapply INC.
+    intros. destruct (agree_sp_ptr0 _ _ H). exists x.
+            eapply INC. assumption.
   intros. apply intern_incr_as_inj in INC; trivial. 
           eapply (val_inject_incr _ _ _ _ INC). auto.
 Qed.
@@ -243,12 +231,13 @@ Lemma preg_vals:
 Proof.
   induction l; simpl. constructor. constructor. eapply preg_val; eauto. auto.
 Qed.
-
+(*
 Lemma sp_val:
   forall mu ms sp rs, agree mu ms sp rs -> sp = rs#SP.
 Proof.
   intros. destruct H; auto.
 Qed.
+*)
 
 Lemma sp_as_inj:
   forall mu ms sp rs, agree mu ms sp rs -> SM_wd mu ->
@@ -380,15 +369,25 @@ Proof.
   intros. rewrite Pregmap.gso; auto. 
 Qed.
 
-
 Lemma agree_change_sp:
-  forall mu ms sp rs sp',
-  agree mu ms sp rs -> sp' <> Vundef ->
-  (*NEW:*) 
-  (forall b ofs, sp' = Vptr b ofs -> local_of mu b = Some (b, 0)) ->
-  agree mu ms sp' (rs#SP <- sp').
+  forall mu ms sp rs sp' tsp',
+  agree mu ms sp rs -> 
+  (*NEW:*) zero_or_localid mu sp' ->
+  val_inject (as_inj mu) sp' tsp' -> SM_wd mu ->
+  agree mu ms sp' (rs#SP <- tsp').
 Proof.
   intros. inv H. split; auto.
+  rewrite Pregmap.gss.
+    destruct H0 as [ZERO | [spb' [z [tspb' [SPB' LOC]]]]]; subst; inv H1.
+     constructor.
+     rewrite (local_in_all _ H2 _ _ _ LOC) in H3. inv H3.
+       econstructor; try eassumption. trivial.
+    destruct H0 as [ZERO | [spb' [z [tspb' [SPB' LOC]]]]]; subst; inv H1.
+       unfold Vzero; congruence. congruence.
+  intros. subst. inv H1.
+    destruct H0 as [ZERO | [spb' [z [tspb' [SPB' LOC]]]]]; subst. inv ZERO.
+    inv SPB'. rewrite (local_in_all _ H2 _ _ _ LOC) in H4; inv H4.
+    eexists; eassumption.
   intros. rewrite Pregmap.gso; auto with asmgen.
 Qed.
 
@@ -472,11 +471,14 @@ Proof.
   exists (rs (preg_of r)); split. constructor. eapply preg_val; eauto.
 (* stack *)
   inv H.
+  destruct (agree_sp_ptr0 _ _ (eq_refl _)) as [tstk stk_local]. 
   exploit Mem.load_inject; eauto. eapply local_in_all; eauto.
   rewrite Zplus_0_r.
   intros [v' [A B]].
+  inv agree_sp0. rewrite H4 in stk_local. inv stk_local.
+    rewrite Int.add_zero in H3.
   exists v'; split; auto.
-  eapply annot_arg_stack. eassumption.
+  eapply annot_arg_stack. apply eq_sym in H3. eassumption.
   exploit Mem.load_inject; eauto. eapply local_in_all; eauto.
 Qed.
 
@@ -1178,37 +1180,49 @@ Section MATCH_STACK.
 
 Variable ge: Mach.genv.
 
-(*NEW: added parameter j*)
-Inductive match_stack (j:meminj) : list Mach.stackframe -> Prop :=
+Definition zero_or_vis (mu: SM_Injection) (v:val) :=
+  v = Vzero \/ exists b ofs, v = Vptr b ofs /\ 
+               ((exists tb, local_of mu b = Some(tb,0)) \/ isGlobalBlock ge b = true).
+
+(*NEW: added parameter mu*)
+Inductive match_stack mu : list Mach.stackframe -> Prop :=
   | match_stack_nil:
-      match_stack j nil
+      match_stack mu nil
   | match_stack_cons: forall fb sp ra c s f tf tc,
       Genv.find_funct_ptr ge fb = Some (Internal f) ->
       transl_code_at_pc ge ra fb f c false tf tc ->
       (*WAS: sp <> Vundef ->*)
-      (*NEW:*) (exists b ofs, sp = Vptr b ofs /\ j b = Some(b,0)) ->
-      (*NEW:*) (exists b ofs, ra = Vptr b ofs /\ j b = Some(b,0)) ->
-      match_stack j s ->
-      match_stack j (Stackframe fb sp ra c :: s).
+      (*NEW:*) (zero_or_localid mu sp) ->
+      (*NEW:*) (zero_or_vis mu ra) ->
+      match_stack mu s ->
+      match_stack mu (Stackframe fb sp ra c :: s).
 
-Lemma parent_sp_def: forall j s, match_stack j s -> parent_sp s <> Vundef.
+Lemma parent_sp_def: forall mu s, match_stack mu s -> parent_sp s <> Vundef.
 Proof. induction 1; simpl. unfold Vzero; congruence.
-  destruct H1 as [b [ofs [X J]]]; subst. congruence. Qed.
+  destruct H1 as [ZERO | [b [ofs X]]].
+    subst; unfold Vzero; congruence.
+  destruct X as [tb [SP LOC]]. subst; congruence.
+Qed.
 
 (*NEW*)
-Lemma parent_sp_zero_or_ptr: forall j s, match_stack j s -> 
-      parent_sp s=Vzero \/ exists b ofs, parent_sp s = Vptr b ofs /\ j b = Some(b,0).
-Proof. induction 1; simpl. left; trivial. right. trivial. Qed.
+Lemma parent_sp_zero_or_ptr: forall mu s, match_stack mu s -> 
+      parent_sp s=Vzero \/ 
+      exists b ofs tb, parent_sp s = Vptr b ofs /\ local_of mu b = Some(tb,0).
+Proof. induction 1; simpl. left; trivial. apply H1. Qed.
 
-Lemma parent_ra_def: forall j s, match_stack j s -> parent_ra s <> Vundef.
-Proof. induction 1; simpl. unfold Vzero; congruence. inv H0. congruence. Qed.
+Lemma parent_ra_def: forall mu s, match_stack mu s -> parent_ra s <> Vundef.
+Proof. induction 1; simpl. unfold Vzero; congruence. 
+  destruct H2 as [ZERO | [b [ofs [X J]]]]; subst. unfold Vzero; congruence.
+  congruence. Qed. 
 
 (*NEW*)
-Lemma parent_ra_zero_or_ptr: forall j s, match_stack j s -> 
-      parent_ra s=Vzero \/ exists b ofs, parent_ra s = Vptr b ofs /\ j b = Some(b,0).
-Proof. induction 1; simpl. left; trivial. right. trivial. Qed.
+Lemma parent_ra_zero_or_ptr: forall mu s, match_stack mu s -> 
+      parent_ra s=Vzero \/ 
+      exists b ofs, parent_ra s = Vptr b ofs /\ 
+          ((exists tb, local_of mu b = Some(tb,0)) \/ isGlobalBlock ge b = true).
+Proof. induction 1; simpl. left; trivial. apply H2. Qed.
 
-(*Leb: not needed any more
+(*Lenb: not needed any more
 Lemma lessdef_parent_sp:
   forall j s v,
   match_stack j s -> Val.lessdef (parent_sp s) v -> v = parent_sp s.

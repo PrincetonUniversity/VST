@@ -48,6 +48,7 @@ Inductive Mach_core: Type :=
   | Mach_CallstateArgs: 
       forall (stack: list stackframe)  (**r call stack *)
              (*(sp:val)                  stack pointer*)
+             (b: block)                (*global block holding the external function to be called*)
              (f: external_function)    (**external function to be called *)
              (vals: list val)          (**include explicit call arguments *)
              (rs: regset),             (**r register state *)
@@ -103,23 +104,49 @@ Inductive mach_step: Mach_core -> mem -> Mach_core -> mem -> Prop :=
       rs' = undef_regs (destroyed_by_store chunk addr) rs ->
       mach_step (Mach_State s f sp (Mstore chunk addr args src :: c) rs) m
         (Mach_State s f sp c rs') m'
-  | Mach_exec_Mcall:
-      forall s fb sp sig ros c rs m f f' ra,
+  | Mach_exec_Mcall_internal:
+      forall s fb sp sig ros c rs m f f' ra callee,
       find_function_ptr ge ros rs = Some f' ->
       Genv.find_funct_ptr ge fb = Some (Internal f) ->
       return_address_offset f c ra ->
+      (*NEW: check that the block f' actually contains a (internal) function:*)
+         Genv.find_funct_ptr ge f' = Some (Internal callee) ->
       mach_step (Mach_State s fb sp (Mcall sig ros :: c) rs) m
         (Mach_Callstate (Stackframe fb sp (Vptr fb ra) c :: s)
                        f' rs) m
-  | Mach_exec_Mtailcall:
-      forall s fb stk soff sig ros c rs m f f' m',
+  | Mach_exec_Mcall_external:
+      forall s fb sp sig ros c rs m f f' ra callee args,
+      find_function_ptr ge ros rs = Some f' ->
+      Genv.find_funct_ptr ge fb = Some (Internal f) ->
+      return_address_offset f c ra ->
+      (*NEW: check that the block f' actually contains a (external) function, and perform the "extra step":*)
+         Genv.find_funct_ptr ge f' = Some (External callee) ->
+      extcall_arguments rs m sp (ef_sig callee) args ->
+      mach_step (Mach_State s fb sp (Mcall sig ros :: c) rs) m
+         (Mach_CallstateArgs (Stackframe fb sp (Vptr fb ra) c :: s) f' callee args rs) m
+  | Mach_exec_Mtailcall_internal:
+      forall s fb stk soff sig ros c rs m f f' m' callee,
       find_function_ptr ge ros rs = Some f' ->
       Genv.find_funct_ptr ge fb = Some (Internal f) ->
       load_stack m (Vptr stk soff) Tint f.(fn_link_ofs) = Some (parent_sp s) ->
       load_stack m (Vptr stk soff) Tint f.(fn_retaddr_ofs) = Some (parent_ra s) ->
       Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
+      (*NEW: check that the block f' actually contains a function:*)
+         Genv.find_funct_ptr ge f' = Some (Internal callee) ->
       mach_step (Mach_State s fb (Vptr stk soff) (Mtailcall sig ros :: c) rs) m
         (Mach_Callstate s f' rs) m'
+  | Mach_exec_Mtailcall_external:
+      forall s fb stk soff sig ros c rs m f f' m' callee args,
+      find_function_ptr ge ros rs = Some f' ->
+      Genv.find_funct_ptr ge fb = Some (Internal f) ->
+      load_stack m (Vptr stk soff) Tint f.(fn_link_ofs) = Some (parent_sp s) ->
+      load_stack m (Vptr stk soff) Tint f.(fn_retaddr_ofs) = Some (parent_ra s) ->
+      Mem.free m stk 0 f.(fn_stacksize) = Some m' ->
+      (*NEW: check that the block f' actually contains a function:*)
+         Genv.find_funct_ptr ge f' = Some (External callee) ->
+      extcall_arguments rs m' (parent_sp s) (ef_sig callee) args ->
+      mach_step (Mach_State s fb (Vptr stk soff) (Mtailcall sig ros :: c) rs) m
+         (Mach_CallstateArgs s f' callee args rs) m'
   | Mach_exec_Mbuiltin:
       forall s f sp rs m ef args res b t vl rs' m',
       external_call' ef ge rs##args m t vl m' ->
@@ -181,13 +208,13 @@ Inductive mach_step: Mach_core -> mem -> Mach_core -> mem -> Prop :=
       mach_step (Mach_Callstate s fb rs) m
         (Mach_State s fb sp f.(fn_code) rs') m3
 (*auxiliary step that extracts call arguments and invoked external function,
-  in accordance with the core semantics interface*)
+  in accordance with the core semantics interface
   | Mach_exec_function_external:
       forall s fb rs m ef args,
       Genv.find_funct_ptr ge fb = Some (External ef) ->
       extcall_arguments rs m (parent_sp s) (ef_sig ef) args ->
       mach_step (Mach_Callstate s fb rs) m
-         (Mach_CallstateArgs s (*(parent_sp s)*) ef args rs) m
+         (Mach_CallstateArgs s (*(parent_sp s)*) fb ef args rs) m*)
 (*NO RULE FOR EXTERNAL CALLS
   | Mach_exec_function_external:
       forall s fb rs m t rs' ef args res m',
@@ -274,8 +301,16 @@ Definition Mach_at_external (c: Mach_core):
   match c with
   | Mach_State _ _ _ _ _ => None
   | Mach_Callstate _ _ _ => None
-  | Mach_CallstateArgs s (*sp*) ef args rs => 
+  | Mach_CallstateArgs s (*sp*) fb ef args rs => 
           Some (ef, ef_sig ef, decode_longs (sig_args (ef_sig ef)) args)
+(*
+  | Mach_CallstateArgs s (*sp*) fb args rs => 
+      match Genv.find_funct_ptr ge fb with
+        None => None
+      | Some (External ef) => Some (ef, ef_sig ef, decode_longs (sig_args (ef_sig ef)) args)
+      end*)
+(*  | Mach_CallstateArgs s (*sp*) ef args rs => 
+          Some (ef, ef_sig ef, decode_longs (sig_args (ef_sig ef)) args)*)
   | Mach_Returnstate _ _ _ => None
  end.
 (*CompCert:
@@ -288,7 +323,7 @@ Definition Mach_at_external (c: Mach_core):
 
 Definition Mach_after_external (vret: option val)(c: Mach_core) : option Mach_core :=
   match c with 
-    Mach_CallstateArgs s (*sp*) ef args rs => 
+    Mach_CallstateArgs s (*sp*) fb ef args rs => 
       match vret with
             | None => Some (Mach_Returnstate s (sig_res (ef_sig ef))
                              (set_regs (loc_result (ef_sig ef))
@@ -354,7 +389,9 @@ Lemma Mach_forward : forall g c m c' m'
    (*Mstore*)
      destruct a; simpl in H0; inv H0. 
      eapply store_forward. eassumption. 
-   (*Mtailcall*)
+   (*Mtailcall_internal*)
+     eapply free_forward; eassumption.
+   (*Mtailcall_external*)
      eapply free_forward; eassumption.
    (*Mbuiltin**)
       inv H.
