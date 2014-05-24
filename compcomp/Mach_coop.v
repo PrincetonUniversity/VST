@@ -293,6 +293,10 @@ Definition Mach_halted (q : Mach_core): option val :=
                            | _ :: _ => None
                          end
            end
+
+      (*Return Tvoid - modeled as integer return*)
+      | Mach_Returnstate nil None rs => Some (rs AX)
+
       | _ => None
     end.
 
@@ -327,10 +331,10 @@ Definition Mach_after_external (vret: option val)(c: Mach_core) : option Mach_co
       match vret with
             | None => Some (Mach_Returnstate s (sig_res (ef_sig ef))
                              (set_regs (loc_result (ef_sig ef))
-                               (encode_longs (sig_args (ef_sig ef)) (Vundef::nil)) rs))
+                               (encode_long (sig_res (ef_sig ef)) Vundef) rs))
             | Some v => Some (Mach_Returnstate s (sig_res (ef_sig ef))
                                (set_regs (loc_result (ef_sig ef))
-                                 (encode_longs (sig_args (ef_sig ef)) (v::nil)) rs))
+                                 (encode_long (sig_res (ef_sig ef)) v) rs))
           end
   | _ => None
   end.

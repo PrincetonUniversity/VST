@@ -6336,8 +6336,8 @@ rewrite replace_externs_as_inj, replace_externs_vis.
        apply REACH_nil. unfold exportedSrc.
          apply frgnSrc_shared in H2; trivial.
          solve[rewrite H2; intuition].
-       apply val_casted.encode_longs_inject; auto.
-       { constructor. 
+       apply encode_long_inject; auto.
+       { (*constructor. *)
        clear - RValInjNu' WDnu'.
        destruct RValInjNu'; econstructor; eauto. 
        eapply restrictI_Some; try eassumption.
@@ -6348,7 +6348,7 @@ rewrite replace_externs_as_inj, replace_externs_vis.
        split. eapply as_inj_DomRng; eassumption.
        apply REACH_nil. unfold exportedSrc. apply orb_true_iff. left.
          rewrite getBlocks_char. exists ofs1; left; trivial.
-      constructor. }
+       (*constructor.*) }
 
     eapply agree_callee_save_set_result. eassumption.
 
@@ -6450,13 +6450,16 @@ assert (GDE:= GDE_lemma).
     destruct cs; inv H0.    
     remember (ls (Locations.R AX)) as d.
     inv STACKS.
-    destruct retty; try solve[inv H2]. destruct t; inv H2.
-    + exists (rs AX); split; auto. 
-    + exists (rs FP0); split; auto. 
-    + exists (Val.longofwords (rs DX) (rs AX)).
-      split; auto. split; auto. 
-      apply val_longofwords_inject; auto. 
-   + exists (rs FP0); split; auto. }
+    destruct retty. (* try solve[inv H2].*)
+    { destruct t; inv H2.
+      + exists (rs AX); split; auto. 
+      + exists (rs FP0); split; auto. 
+      + exists (Val.longofwords (rs DX) (rs AX)).
+        split; auto. split; auto. 
+        apply val_longofwords_inject; auto. 
+      + exists (rs FP0); split; auto. }
+    { inv H2.
+      exists (rs AX); split; auto. } }
 (* at_external*) 
   { eapply MATCH_atExternal; eassumption. }
 (* after_external*)

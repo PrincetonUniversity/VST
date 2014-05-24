@@ -217,6 +217,10 @@ Definition Linear_halted (q : Linear_core): option val :=
                            | _ :: _ => None
                          end
            end
+
+      (*Return Tvoid - modeled as integer return*)
+      | Linear_Returnstate nil None rs => Some (rs (R AX))
+
       | _ => None
     end.
 
@@ -250,10 +254,10 @@ Definition Linear_after_external (vret: option val) (c: Linear_core) : option Li
           match vret with
             | None => Some (Linear_Returnstate s (sig_res (ef_sig ef))
                              (Locmap.setlist (map R (loc_result (ef_sig ef))) 
-                               (encode_longs (sig_args (ef_sig ef)) (Vundef::nil)) rs))
+                               (encode_long (sig_res (ef_sig ef)) Vundef) rs))
             | Some v => Some (Linear_Returnstate s (sig_res (ef_sig ef))
                                (Locmap.setlist (map R (loc_result (ef_sig ef))) 
-                                 (encode_longs (sig_args (ef_sig ef)) (v::nil)) rs))
+                                 (encode_long (sig_res (ef_sig ef)) v) rs))
           end
       end
     | _ => None

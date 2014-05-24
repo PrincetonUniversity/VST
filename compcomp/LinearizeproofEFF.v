@@ -1479,9 +1479,9 @@ split.
               unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H2). intuition. 
               apply REACH_nil. unfold exportedSrc. rewrite sharedSrc_iff_frgnpub, H2; trivial. 
               intuition.
-        apply val_casted.encode_longs_inject.
+        apply encode_long_inject.
         rewrite restrict_nest; trivial.
-        constructor; eauto. inv RValInjNu'; econstructor; try reflexivity.
+        inv RValInjNu'; econstructor; try reflexivity.
         apply restrictI_Some; trivial.
         remember (locBlocksSrc nu' b1) as q.
         destruct q; simpl; trivial.
@@ -2935,12 +2935,11 @@ assert (GDE:= GDE_lemma).
     apply LNR.
     apply LT. }
 (*halted*)
-  { intros. destruct H as [MC [RC [PG [Glob [VAL [WD INJ]]]]]].
+  { intros. destruct H as [MC [RC [PG [GFP [Glob [VAL [WD INJ]]]]]]].
     revert H0. simpl. destruct c1; try solve[inversion 1]. inversion 1.
     revert H1. destruct stack; try solve[inversion 1].
-    destruct retty; try solve[inversion 1].
-    destruct INJ as [WD0 INJ].
-    inv MC.
+    destruct retty.
+    { inv MC.
     destruct t; try solve[inversion 1]; simpl. inversion 1; subst. clear H1.
     + exists (ls2 (R AX)). split; auto. split. 
       rewrite vis_restrict_sm, restrict_sm_all, restrict_nest in AGREE; trivial.
@@ -2961,6 +2960,11 @@ assert (GDE:= GDE_lemma).
       rewrite vis_restrict_sm, restrict_sm_all, restrict_nest in AGREE; trivial.
       destruct AGREE as [AGREE_R _]; specialize (AGREE_R FP0); auto.
       inv H6; auto. }
+    { inversion 1; subst. simpl in *.
+      inv MC. simpl. exists (ls2 (R AX)). split; trivial.
+      split. rewrite vis_restrict_sm, restrict_sm_all, restrict_nest in AGREE; trivial.
+        destruct AGREE as [AGREE_R _]. apply (AGREE_R AX).
+      inv H7; auto. } }
 (*atExternal*)
   { eapply MATCH_atExternal; eassumption. }
 (*afterExternal*)
