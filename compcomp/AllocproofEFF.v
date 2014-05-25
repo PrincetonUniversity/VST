@@ -3553,13 +3553,15 @@ Proof. intros.
             try (rewrite (storev_freshloc _ _ _ _ _ STORE2));
             try (rewrite (storev_freshloc _ _ _ _ _ STORE1'));
             try (rewrite (storev_freshloc _ _ _ _ _ STORE2')); intuition.
-  split. exploit satisf_successors; eauto. simpl; eauto.
+  split.
+  { (*MATCH*) 
+     exploit satisf_successors; eauto. simpl; eauto.
            eapply can_undef_satisf. eauto.
            eapply add_equation_satisf. eapply add_equations_satisf; eauto.
-         intros [enext [P Q]].
-         split. econstructor; eauto.
-                exists b, b'; eauto.
-         intuition.
+     intros [enext [P Q]].
+     split. econstructor; eauto. exists b, b'; eauto.
+     intuition.
+     (*REACH_closed m' (vis mu)*)
          destruct a; inv STORE1.
          inv G2. destruct (restrictD_Some _ _ _ _ _ H5).
          assert (RC1: REACH_closed m1 (vis mu)).
@@ -3571,11 +3573,14 @@ Proof. intros.
                     destruct (restrictD_Some _ _ _ _ _ H2); trivial.
          eapply REACH_Store; try eassumption.
            intros bb' Hbb'. rewrite getBlocks_char in Hbb'. destruct Hbb' as [off Hoff].
-                  destruct Hoff; try contradiction. subst.
- (*TODO MInt64 word-visibility*)
-  admit. (*TODO: 64bit - ensure that rs#src is vis!*)
-
-  clear - H1 G1 G2 MInj STORE1' STORE1 STORE2' STORE2 LD2 LD4. 
+           destruct Hoff; try contradiction.
+           exfalso. clear - H6 WTRS WTI. inv WTI. clear H2 H7.
+           specialize (WTRS src).
+           rewrite H6 in *. simpl in WTRS.
+           remember (env src) as srcTy; destruct srcTy; inv WTRS.
+           inv H5.
+     (*Mem.inject (as_inj mu) m' m2'*)
+       clear - H1 G1 G2 MInj STORE1' STORE1 STORE2' STORE2 LD2 LD4. 
          destruct a; inv H1.
          inv G2. inv G1. rewrite H3 in H2. inv H2.
          exploit (Mem.storev_mapped_inject (as_inj mu)).
@@ -3592,7 +3597,8 @@ Proof. intros.
             simpl in *. rewrite Int.add_assoc in *.
             rewrite (Int.add_commut (Int.repr delta)) in STORE2'.
             rewrite ST2 in STORE2'. inv STORE2'. assumption.
-   split; trivial.
+  }
+  split; trivial.
 
 (* call *)
 - set (sg := RTL.funsig fd) in *.
@@ -4738,13 +4744,14 @@ induction CS;
             try (rewrite (storev_freshloc _ _ _ _ _ STORE2));
             try (rewrite (storev_freshloc _ _ _ _ _ STORE1'));
             try (rewrite (storev_freshloc _ _ _ _ _ STORE2')); intuition.
-  split. exploit satisf_successors; eauto. simpl; eauto.
+  split. 
+  { (*MATCH*) 
+    exploit satisf_successors; eauto. simpl; eauto.
            eapply can_undef_satisf. eauto.
            eapply add_equation_satisf. eapply add_equations_satisf; eauto.
-         intros [enext [P Q]].
-         split. econstructor; eauto.
-                exists b, b'; eauto.
-         intuition.
+     intros [enext [P Q]].
+     split. econstructor; eauto. exists b, b'; eauto.
+     intuition.
          destruct a; inv STORE1.
          inv G2. destruct (restrictD_Some _ _ _ _ _ H5).
          assert (RC1: REACH_closed m1 (vis mu)).
@@ -4756,21 +4763,14 @@ induction CS;
                     destruct (restrictD_Some _ _ _ _ _ H2); trivial.
          eapply REACH_Store; try eassumption.
            intros bb' Hbb'. rewrite getBlocks_char in Hbb'. destruct Hbb' as [off Hoff].
-                  destruct Hoff; try contradiction. subst.
-admit. (*TODO MInt64 word-visibilityclear F2' F2'' STORE2' H2 H4 RC1 F2. 
-clear wt_instrs wt_params U EXT1 STORE1' MInjR F1' G1 G1 X H3.
-rewrite H6 in *. clear H6 EXT2 F1. clear - LD4.
-unfold kind_second_word, sel_val in LD4.
-remember (if big_endian then Low else High) as d.
-destruct d.
-   inv LD4. destruct (restrictD_Some _ _ _ _ _ H2); trivial.
-simpl in LD4.
-   inv LD4. destruct (restrictD_Some _ _ _ _ _ H2); trivial.
-   inv LD4. destruct (restrictD_Some _ _ _ _ _ H2); trivial.
-
-*)
-
-  clear - H1 G1 G2 MInj STORE1' STORE1 STORE2' STORE2 LD2 LD4. 
+           destruct Hoff; try contradiction.
+           exfalso. clear - H6 WTRS WTI. inv WTI. clear H2 H7.
+           specialize (WTRS src).
+           rewrite H6 in *. simpl in WTRS.
+           remember (env src) as srcTy; destruct srcTy; inv WTRS.
+           inv H5.
+     (*Mem.inject (as_inj mu) m' m2'*)
+       clear - H1 G1 G2 MInj STORE1' STORE1 STORE2' STORE2 LD2 LD4. 
          destruct a; inv H1.
          inv G2. inv G1. rewrite H3 in H2. inv H2.
          exploit (Mem.storev_mapped_inject (as_inj mu)).
@@ -4787,8 +4787,9 @@ simpl in LD4.
             simpl in *. rewrite Int.add_assoc in *.
             rewrite (Int.add_commut (Int.repr delta)) in STORE2'.
             rewrite ST2 in STORE2'. inv STORE2'. assumption.
-    intuition.
-      apply orb_true_iff in H2. 
+  }
+  intuition.
+    apply orb_true_iff in H2. 
       destruct H2. 
       apply StoreEffectD in H2. destruct H2 as [i [VADDR' _]]. subst. 
         simpl in STORE1'.
@@ -4797,7 +4798,6 @@ simpl in LD4.
       apply StoreEffectD in H2. destruct H2 as [i [VADDR' _]]. subst. 
         destruct a; inv STORE1. inv G2. inv VADDR'. 
         eapply visPropagateR; try eassumption. 
-
   (*Effects*)
    clear X U.
    destruct a; inv H1.

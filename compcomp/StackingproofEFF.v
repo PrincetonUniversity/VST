@@ -4389,6 +4389,334 @@ induction args; simpl.
   specialize (typesize_pos a). intros. omega. 
 Qed. 
 
+(*
+Lemma match_stacks_inject_incr j m m' cs cs' sg bound bound' j': 
+      forall (MS:match_stacks j m m' cs cs' sg bound bound') 
+             (INC: inject_incr j j'), 
+      match_stacks j' m m' cs cs' sg bound bound'.
+Proof. intros. 
+       eapply tr_cont_match_stacks_inject_incr; try eassumption. 
+Qed. 
+*)
+
+Lemma match_stacks_replace_externs FSrc FTgt:
+  forall mu  m m' cs cs' sg bound bound'
+  (PGmu: meminj_preserves_globals (Genv.globalenv prog) (as_inj mu))
+  (HFSrc: forall b, vis mu b = true -> locBlocksSrc mu b || FSrc b = true),
+  match_stacks mu  m m' cs cs' sg bound bound' -> SM_wd mu ->
+  match_stacks (replace_externs mu FSrc FTgt) m m' cs cs' sg bound bound'.
+Proof.
+  intros.
+   induction H; try econstructor; eauto.
+   rewrite replace_externs_as_inj, replace_externs_vis.
+       inv H2. constructor; eauto.
+       intros. specialize (DOMAIN _ H2).
+          destruct (restrictD_Some _ _ _ _ _ DOMAIN).
+          eapply restrictI_Some; try eassumption.
+          apply HFSrc; trivial.
+       intros. 
+          destruct (restrictD_Some _ _ _ _ _ H2); clear H2.
+          symmetry. eapply PGmu; eassumption. 
+ 
+     rewrite replace_externs_as_inj, replace_externs_vis.
+       eapply agree_frame_inject_incr_restrict; try eassumption.
+       intros. destruct (restrictD_Some _ _ _ _ _ H1); clear H1.
+               eapply restrictI_Some; try eassumption.
+               unfold vis.
+               rewrite <- (as_inj_locBlocks _ _ _ _ H0 H2) in SPlocalTgt.
+               rewrite SPlocalTgt. trivial.
+
+     rewrite replace_externs_locBlocksTgt; trivial.
+Qed.
+
+Lemma MATCH_afterExternal: forall
+      (GDE : genvs_domain_eq ge tge)
+      mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
+      (MemInjMu : Mem.inject (as_inj mu) m1 m2)
+      (MatchMu: MATCH st1 mu st1 m1 st2 m2)
+      (AtExtSrc : at_external Linear_eff_sem st1 = Some (e, ef_sig, vals1))
+      (AtExtTgt : at_external (Mach_eff_sem return_address_offset) st2 = Some (e', ef_sig', vals2))
+      (ValInjMu : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
+      (pubSrc' : block -> bool)
+      (pubSrcHyp : pubSrc' =
+                 (fun b : block => 
+                 locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b))
+      (pubTgt' : block -> bool)
+      (pubTgtHyp: pubTgt' =
+                 (fun b : block => 
+                 locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b))
+       nu (NuHyp: nu = replace_locals mu pubSrc' pubTgt')
+       nu' ret1 m1' ret2 m2' 
+       (INC: extern_incr nu nu')
+       (SEP: sm_inject_separated nu nu' m1 m2)
+       (WDnu': SM_wd nu')
+       (SMvalNu': sm_valid nu' m1' m2')
+       (MemInjNu': Mem.inject (as_inj nu') m1' m2')
+       (RValInjNu': val_inject (as_inj nu') ret1 ret2)
+       (FwdSrc: mem_forward m1 m1')
+       (FwdTgt: mem_forward m2 m2')
+       (frgnSrc' : block -> bool)
+       (frgnSrcHyp: frgnSrc' =
+             (fun b : block => DomSrc nu' b &&
+            (negb (locBlocksSrc nu' b) && REACH m1' (exportedSrc nu' (ret1 :: nil)) b)))
+       (frgnTgt' : block -> bool)
+       (frgnTgtHyp: frgnTgt' =
+            (fun b : block => DomTgt nu' b &&
+             (negb (locBlocksTgt nu' b) && REACH m2' (exportedTgt nu' (ret2 :: nil)) b)))
+       mu' (Mu'Hyp: mu' = replace_externs nu' frgnSrc' frgnTgt')
+       (UnchPrivSrc: Mem.unchanged_on
+               (fun b z => locBlocksSrc nu b = true /\ pubBlocksSrc nu b = false) m1 m1')
+       (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
+  exists st1' st2',
+  after_external Linear_eff_sem (Some ret1) st1 =Some st1' /\
+  after_external (Mach_eff_sem return_address_offset) (Some ret2) st2 = Some st2' /\
+  MATCH st1' mu' st1' m1' st2' m2'.
+Proof. intros.
+simpl. 
+ destruct MatchMu as [MC [INJ [RC [PG [GFP [VAL WDmu]]]]]].
+ simpl in *. inv MC; simpl in *; inv AtExtSrc.
+ inv AtExtTgt.
+ destruct f; inv H0. 
+ inv AtExtTgt.
+ eexists. eexists.
+    split. reflexivity.
+    split. reflexivity.
+ simpl in *.
+ inv TRANSL.
+ assert (INCvisNu': inject_incr
+  (restrict (as_inj nu')
+     (vis
+        (replace_externs nu'
+           (fun b : Values.block =>
+            DomSrc nu' b &&
+            (negb (locBlocksSrc nu' b) &&
+             REACH m1' (exportedSrc nu' (ret1 :: nil)) b))
+           (fun b : Values.block =>
+            DomTgt nu' b &&
+            (negb (locBlocksTgt nu' b) &&
+             REACH m2' (exportedTgt nu' (ret2 :: nil)) b))))) (as_inj nu')).
+      unfold vis. rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc.
+      apply restrict_incr. 
+assert (RC': REACH_closed m1' (mapped (as_inj nu'))).
+        eapply inject_REACH_closed; eassumption.
+assert (PGnu': meminj_preserves_globals (Genv.globalenv prog) (as_inj nu')).
+    subst. clear - INC SEP PG GFP WDmu WDnu'.
+    apply meminj_preserves_genv2blocks in PG.
+    destruct PG as [PGa [PGb PGc]].
+    apply meminj_preserves_genv2blocks.
+    split; intros.
+      specialize (PGa _ H).
+      apply joinI; left. apply INC.
+      rewrite replace_locals_extern.
+      assert (GG: isGlobalBlock ge b = true).
+          unfold isGlobalBlock, ge. apply genv2blocksBool_char1 in H.
+          rewrite H. trivial.
+      destruct (frgnSrc _ WDmu _ (GFP _ GG)) as [bb2 [dd [FF FT2]]].
+      rewrite (foreign_in_all _ _ _ _ FF) in PGa. inv PGa.
+      apply foreign_in_extern; eassumption.
+    split; intros. specialize (PGb _ H).
+      apply joinI; left. apply INC.
+      rewrite replace_locals_extern.
+      assert (GG: isGlobalBlock ge b = true).
+          unfold isGlobalBlock, ge. apply genv2blocksBool_char2 in H.
+          rewrite H. intuition.
+      destruct (frgnSrc _ WDmu _ (GFP _ GG)) as [bb2 [dd [FF FT2]]].
+      rewrite (foreign_in_all _ _ _ _ FF) in PGb. inv PGb.
+      apply foreign_in_extern; eassumption.
+    eapply (PGc _ _ delta H). specialize (PGb _ H). clear PGa PGc.
+      remember (as_inj mu b1) as d.
+      destruct d; apply eq_sym in Heqd.
+        destruct p. 
+        apply extern_incr_as_inj in INC; trivial.
+        rewrite replace_locals_as_inj in INC.
+        rewrite (INC _ _ _ Heqd) in H0. trivial.
+      destruct SEP as [SEPa _].
+        rewrite replace_locals_as_inj, replace_locals_DomSrc, replace_locals_DomTgt in SEPa. 
+        destruct (SEPa _ _ _ Heqd H0).
+        destruct (as_inj_DomRng _ _ _ _ PGb WDmu).
+        congruence.
+assert (RR1: REACH_closed m1'
+  (fun b : Values.block =>
+   locBlocksSrc nu' b
+   || DomSrc nu' b &&
+      (negb (locBlocksSrc nu' b) &&
+       REACH m1' (exportedSrc nu' (ret1 :: nil)) b))).
+  intros b Hb. rewrite REACHAX in Hb. destruct Hb as [L HL].
+  generalize dependent b.
+  induction L; simpl; intros; inv HL.
+     assumption.
+  specialize (IHL _ H1); clear H1.
+  apply orb_true_iff in IHL.
+  remember (locBlocksSrc nu' b') as l.
+  destruct l; apply eq_sym in Heql.
+  (*case locBlocksSrc nu' b' = true*)
+    clear IHL.
+    remember (pubBlocksSrc nu' b') as p.
+    destruct p; apply eq_sym in Heqp.
+      assert (Rb': REACH m1' (mapped (as_inj nu')) b' = true).
+        apply REACH_nil. 
+        destruct (pubSrc _ WDnu' _ Heqp) as [bb2 [dd1 [PUB PT]]].
+        eapply mappedI_true.
+         apply (pub_in_all _ WDnu' _ _ _ PUB).
+      assert (Rb:  REACH m1' (mapped (as_inj nu')) b = true).
+        eapply REACH_cons; try eassumption.
+      specialize (RC' _ Rb).
+      destruct (mappedD_true _ _ RC') as [[b2 d1] AI'].
+      remember (locBlocksSrc nu' b) as d.
+      destruct d; simpl; trivial.
+      apply andb_true_iff. 
+      split. eapply as_inj_DomRng; try eassumption.
+      eapply REACH_cons; try eassumption.
+        apply REACH_nil. unfold exportedSrc.
+        rewrite (pubSrc_shared _ WDnu' _ Heqp). intuition.
+      destruct (UnchPrivSrc) as [UP UV]; clear UnchLOOR.
+        specialize (UP b' z Cur Readable). 
+        specialize (UV b' z). 
+        destruct INC as [_ [_ [_ [_ [LCnu' [_ [PBnu' [_ [FRGnu' _]]]]]]]]].
+        rewrite <- LCnu'. rewrite replace_locals_locBlocksSrc.  
+        rewrite <- LCnu' in Heql. rewrite replace_locals_locBlocksSrc in *.
+        rewrite <- PBnu' in Heqp. rewrite replace_locals_pubBlocksSrc in *.
+        clear INCvisNu'. 
+        rewrite Heql in *. simpl in *. intuition.
+        assert (VB: Mem.valid_block m1 b').
+          eapply VAL. unfold DOM, DomSrc. rewrite Heql. intuition.
+        apply (H VB) in H2.
+        rewrite (H0 H2) in H4. clear H H0.
+        remember (locBlocksSrc mu b) as q.
+        destruct q; simpl; trivial; apply eq_sym in Heqq.
+        assert (Rb : REACH m1 (vis mu) b = true).
+           eapply REACH_cons; try eassumption.
+           apply REACH_nil. unfold vis. rewrite Heql; trivial.
+        specialize (RC _ Rb). unfold vis in RC.
+           rewrite Heqq in RC; simpl in *.
+        rewrite replace_locals_frgnBlocksSrc in FRGnu'.
+        rewrite FRGnu' in RC.
+        apply andb_true_iff.  
+        split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ RC). intuition.
+        apply REACH_nil. unfold exportedSrc.
+          rewrite (frgnSrc_shared _ WDnu' _ RC). intuition.
+  (*case DomSrc nu' b' &&
+    (negb (locBlocksSrc nu' b') &&
+     REACH m1' (exportedSrc nu' (ret1 :: nil)) b') = true*)
+    destruct IHL. congruence.
+    apply andb_true_iff in H. simpl in H. 
+    destruct H as [DomNu' Rb']. 
+    clear INC SEP INCvisNu' UnchLOOR UnchPrivSrc.
+    remember (locBlocksSrc nu' b) as d.
+    destruct d; simpl; trivial. apply eq_sym in Heqd.
+    apply andb_true_iff.
+    split. assert (RET: Forall2 (val_inject (as_inj nu')) (ret1::nil) (ret2::nil)).
+              constructor. assumption. constructor.
+           destruct (REACH_as_inj _ WDnu' _ _ _ _ MemInjNu' RET
+               _ Rb' (fun b => true)) as [b2 [d1 [AI' _]]]; trivial.
+           assert (REACH m1' (mapped (as_inj nu')) b = true).
+             eapply REACH_cons; try eassumption.
+             apply REACH_nil. eapply mappedI_true; eassumption.
+           specialize (RC' _ H). 
+           destruct (mappedD_true _ _ RC') as [[? ?] ?].
+           eapply as_inj_DomRng; eassumption.
+    eapply REACH_cons; try eassumption.
+(*assert (RRR: REACH_closed m1' (exportedSrc nu' (ret1 :: nil))).
+    intros b Hb. apply REACHAX in Hb.
+       destruct Hb as [L HL].
+       generalize dependent b.
+       induction L ; simpl; intros; inv HL; trivial.
+       specialize (IHL _ H1); clear H1.
+       unfold exportedSrc.
+       eapply REACH_cons; eassumption.*)
+    
+assert (RRC: REACH_closed m1' (fun b : Values.block =>
+                         mapped (as_inj nu') b &&
+                           (locBlocksSrc nu' b
+                            || DomSrc nu' b &&
+                               (negb (locBlocksSrc nu' b) &&
+                           REACH m1' (exportedSrc nu' (ret1 :: nil)) b)))).
+  eapply REACH_closed_intersection; eassumption.
+assert (GFnu': forall b, isGlobalBlock (Genv.globalenv prog) b = true ->
+               DomSrc nu' b &&
+               (negb (locBlocksSrc nu' b) && REACH m1' (exportedSrc nu' (ret1 :: nil)) b) = true).
+     intros. specialize (GFP _ H).
+       assert (FSRC:= extern_incr_frgnBlocksSrc _ _ INC).
+          rewrite replace_locals_frgnBlocksSrc in FSRC.
+       rewrite FSRC in GFP.
+       rewrite (frgnBlocksSrc_locBlocksSrc _ WDnu' _ GFP). 
+       apply andb_true_iff; simpl.
+        split.
+          unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ GFP). intuition.
+          apply REACH_nil. unfold exportedSrc.
+          rewrite (frgnSrc_shared _ WDnu' _ GFP). intuition.
+split.
+  econstructor. instantiate (1:=ef_sig e'). 
+    { exploit match_stack_change_extcall. eapply FwdSrc. eapply FwdTgt. 
+       eassumption. 
+       eapply replace_locals_wd. assumption. 
+         intros. apply andb_true_iff in H; destruct H.
+            eapply forall_vals_inject_restrictD in ValInjMu. 
+            exploit (REACH_local_REACH mu); try eassumption.
+              intros [b2 [d [loc R2]]].
+              destruct (local_DomRng _ WDmu _ _ _ loc).
+              exists b2, d. rewrite R2, H2; simpl. split; trivial.
+            intros. apply andb_true_iff in H; eapply H.
+            assumption.
+         clear - SEP. assumption.
+         assumption.
+      eapply match_stacks_replace_locals. eassumption. 
+      xomega.
+      xomega. 
+      intros. eapply match_stacks_change_bounds.
+        eapply match_stacks_replace_externs; try eassumption.
+        intros. unfold vis in H0.
+        destruct (locBlocksSrc nu' b); simpl in *; trivial.
+
+      apply andb_true_iff.
+        split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H0).
+               intuition.
+        apply REACH_nil. unfold exportedSrc.
+          apply frgnSrc_shared in H0; trivial.
+          rewrite H0; intuition.
+      eapply forward_nextblock; assumption.
+      eapply forward_nextblock; assumption. 
+    }
+  (*wtlocset*)
+    eapply wt_setlist_result. 2: assumption. 
+    admit. (*MATCH_afterExternal: eapply external_call_well_typed; eauto. *)
+  (*agree*)
+   { rewrite replace_externs_as_inj, replace_externs_vis. 
+     apply agree_regs_set_regs; auto.
+     eapply agree_regs_inject_incr. (* with j; auto. *)
+       eassumption.
+       clear - WDnu' INC. 
+         apply extern_incr_restrict in INC; trivial. 
+         rewrite replace_locals_as_inj, replace_locals_vis in INC.
+         red; intros. apply INC in H.
+         destruct (restrictD_Some _ _ _ _ _ H); clear H.
+         apply restrictI_Some; trivial.
+         destruct (as_inj_DomRng _ _ _ _ H0 WDnu'). rewrite H.
+         unfold vis in H1.
+         destruct (locBlocksSrc nu' b); simpl in *; trivial. 
+         apply REACH_nil. unfold exportedSrc.
+           rewrite (frgnSrc_shared _ WDnu' _ H1). intuition.
+       clear - WDnu' RValInjNu'. 
+         eapply encode_long_inject.
+         inv RValInjNu'; econstructor; eauto.
+         apply restrictI_Some; trivial.
+         destruct (as_inj_DomRng _ _ _ _ H WDnu'). rewrite H0.
+         destruct (locBlocksSrc nu' b1); simpl in *; trivial. 
+         apply REACH_nil. unfold exportedSrc.
+         apply orb_true_iff; left.
+         apply getBlocks_char. exists ofs1; left; trivial. }
+ (*agree_callee_save*)
+    apply agree_callee_save_set_result; auto.
+
+unfold vis in *.
+rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
+        replace_externs_as_inj in *.
+destruct (eff_after_check2 _ _ _ _ _ MemInjNu' RValInjNu' 
+      _ (eq_refl _) _ (eq_refl _) _ (eq_refl _) WDnu' SMvalNu').
+unfold vis in *.
+intuition.
+Qed.
+
 Lemma MATCH_diagram: forall st1 m1 st1' m1'
       (CS: corestep Linear_eff_sem ge st1 m1 st1' m1')
       st2 mu m2 (MTCH: MATCH st1 mu st1 m1 st2 m2),
@@ -5964,399 +6292,6 @@ destruct CS; intros; destruct MTCH as [MS [INJ PRE]];
       apply agree_frame_return with rs0; auto.
     intuition.
   intuition. 
-Qed.
-(*
-Lemma match_stacks_inject_incr j m m' cs cs' sg bound bound' j': 
-      forall (MS:match_stacks j m m' cs cs' sg bound bound') 
-             (INC: inject_incr j j'), 
-      match_stacks j' m m' cs cs' sg bound bound'.
-Proof. intros. 
-       eapply tr_cont_match_stacks_inject_incr; try eassumption. 
-Qed. 
-*)
-
-Lemma match_stacks_replace_externs FSrc FTgt:
-  forall mu  m m' cs cs' sg bound bound'
-  (PGmu: meminj_preserves_globals (Genv.globalenv prog) (as_inj mu))
-  (HFSrc: forall b, vis mu b = true -> locBlocksSrc mu b || FSrc b = true),
-  match_stacks mu  m m' cs cs' sg bound bound' -> SM_wd mu ->
-  match_stacks (replace_externs mu FSrc FTgt) m m' cs cs' sg bound bound'.
-Proof.
-  intros.
-   induction H; try econstructor; eauto.
-   rewrite replace_externs_as_inj, replace_externs_vis.
-       inv H2. constructor; eauto.
-       intros. specialize (DOMAIN _ H2).
-          destruct (restrictD_Some _ _ _ _ _ DOMAIN).
-          eapply restrictI_Some; try eassumption.
-          apply HFSrc; trivial.
-       intros. 
-          destruct (restrictD_Some _ _ _ _ _ H2); clear H2.
-          symmetry. eapply PGmu; eassumption. 
- 
-     rewrite replace_externs_as_inj, replace_externs_vis.
-       eapply agree_frame_inject_incr_restrict; try eassumption.
-       intros. destruct (restrictD_Some _ _ _ _ _ H1); clear H1.
-               eapply restrictI_Some; try eassumption.
-               unfold vis.
-               rewrite <- (as_inj_locBlocks _ _ _ _ H0 H2) in SPlocalTgt.
-               rewrite SPlocalTgt. trivial.
-
-     rewrite replace_externs_locBlocksTgt; trivial.
-Qed.
-
-Lemma MATCH_afterExternal: forall
-      (GDE : genvs_domain_eq ge tge)
-      mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
-      (MemInjMu : Mem.inject (as_inj mu) m1 m2)
-      (MatchMu: MATCH st1 mu st1 m1 st2 m2)
-      (AtExtSrc : at_external Linear_eff_sem st1 = Some (e, ef_sig, vals1))
-      (AtExtTgt : at_external (Mach_eff_sem return_address_offset) st2 = Some (e', ef_sig', vals2))
-      (ValInjMu : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
-      (pubSrc' : block -> bool)
-      (pubSrcHyp : pubSrc' =
-                 (fun b : block => 
-                 locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b))
-      (pubTgt' : block -> bool)
-      (pubTgtHyp: pubTgt' =
-                 (fun b : block => 
-                 locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b))
-       nu (NuHyp: nu = replace_locals mu pubSrc' pubTgt')
-       nu' ret1 m1' ret2 m2' 
-       (INC: extern_incr nu nu')
-       (SEP: sm_inject_separated nu nu' m1 m2)
-       (WDnu': SM_wd nu')
-       (SMvalNu': sm_valid nu' m1' m2')
-       (MemInjNu': Mem.inject (as_inj nu') m1' m2')
-       (RValInjNu': val_inject (as_inj nu') ret1 ret2)
-       (FwdSrc: mem_forward m1 m1')
-       (FwdTgt: mem_forward m2 m2')
-       (frgnSrc' : block -> bool)
-       (frgnSrcHyp: frgnSrc' =
-             (fun b : block => DomSrc nu' b &&
-            (negb (locBlocksSrc nu' b) && REACH m1' (exportedSrc nu' (ret1 :: nil)) b)))
-       (frgnTgt' : block -> bool)
-       (frgnTgtHyp: frgnTgt' =
-            (fun b : block => DomTgt nu' b &&
-             (negb (locBlocksTgt nu' b) && REACH m2' (exportedTgt nu' (ret2 :: nil)) b)))
-       mu' (Mu'Hyp: mu' = replace_externs nu' frgnSrc' frgnTgt')
-       (UnchPrivSrc: Mem.unchanged_on
-               (fun b z => locBlocksSrc nu b = true /\ pubBlocksSrc nu b = false) m1 m1')
-       (UnchLOOR: Mem.unchanged_on (local_out_of_reach nu m1) m2 m2'),
-  exists st1' st2',
-  after_external Linear_eff_sem (Some ret1) st1 =Some st1' /\
-  after_external (Mach_eff_sem return_address_offset) (Some ret2) st2 = Some st2' /\
-  MATCH st1' mu' st1' m1' st2' m2'.
-Proof. intros.
-simpl. 
- destruct MatchMu as [MC [INJ [RC [PG [GFP [VAL WDmu]]]]]].
- simpl in *. inv MC; simpl in *; inv AtExtSrc.
- inv AtExtTgt.
- destruct f; inv H0. 
- inv AtExtTgt.
- eexists. eexists.
-    split. reflexivity.
-    split. reflexivity.
- simpl in *.
- inv TRANSL.
- assert (INCvisNu': inject_incr
-  (restrict (as_inj nu')
-     (vis
-        (replace_externs nu'
-           (fun b : Values.block =>
-            DomSrc nu' b &&
-            (negb (locBlocksSrc nu' b) &&
-             REACH m1' (exportedSrc nu' (ret1 :: nil)) b))
-           (fun b : Values.block =>
-            DomTgt nu' b &&
-            (negb (locBlocksTgt nu' b) &&
-             REACH m2' (exportedTgt nu' (ret2 :: nil)) b))))) (as_inj nu')).
-      unfold vis. rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc.
-      apply restrict_incr. 
-assert (RC': REACH_closed m1' (mapped (as_inj nu'))).
-        eapply inject_REACH_closed; eassumption.
-assert (PGnu': meminj_preserves_globals (Genv.globalenv prog) (as_inj nu')).
-    subst. clear - INC SEP PG GFP WDmu WDnu'.
-    apply meminj_preserves_genv2blocks in PG.
-    destruct PG as [PGa [PGb PGc]].
-    apply meminj_preserves_genv2blocks.
-    split; intros.
-      specialize (PGa _ H).
-      apply joinI; left. apply INC.
-      rewrite replace_locals_extern.
-      assert (GG: isGlobalBlock ge b = true).
-          unfold isGlobalBlock, ge. apply genv2blocksBool_char1 in H.
-          rewrite H. trivial.
-      destruct (frgnSrc _ WDmu _ (GFP _ GG)) as [bb2 [dd [FF FT2]]].
-      rewrite (foreign_in_all _ _ _ _ FF) in PGa. inv PGa.
-      apply foreign_in_extern; eassumption.
-    split; intros. specialize (PGb _ H).
-      apply joinI; left. apply INC.
-      rewrite replace_locals_extern.
-      assert (GG: isGlobalBlock ge b = true).
-          unfold isGlobalBlock, ge. apply genv2blocksBool_char2 in H.
-          rewrite H. intuition.
-      destruct (frgnSrc _ WDmu _ (GFP _ GG)) as [bb2 [dd [FF FT2]]].
-      rewrite (foreign_in_all _ _ _ _ FF) in PGb. inv PGb.
-      apply foreign_in_extern; eassumption.
-    eapply (PGc _ _ delta H). specialize (PGb _ H). clear PGa PGc.
-      remember (as_inj mu b1) as d.
-      destruct d; apply eq_sym in Heqd.
-        destruct p. 
-        apply extern_incr_as_inj in INC; trivial.
-        rewrite replace_locals_as_inj in INC.
-        rewrite (INC _ _ _ Heqd) in H0. trivial.
-      destruct SEP as [SEPa _].
-        rewrite replace_locals_as_inj, replace_locals_DomSrc, replace_locals_DomTgt in SEPa. 
-        destruct (SEPa _ _ _ Heqd H0).
-        destruct (as_inj_DomRng _ _ _ _ PGb WDmu).
-        congruence.
-assert (RR1: REACH_closed m1'
-  (fun b : Values.block =>
-   locBlocksSrc nu' b
-   || DomSrc nu' b &&
-      (negb (locBlocksSrc nu' b) &&
-       REACH m1' (exportedSrc nu' (ret1 :: nil)) b))).
-  intros b Hb. rewrite REACHAX in Hb. destruct Hb as [L HL].
-  generalize dependent b.
-  induction L; simpl; intros; inv HL.
-     assumption.
-  specialize (IHL _ H1); clear H1.
-  apply orb_true_iff in IHL.
-  remember (locBlocksSrc nu' b') as l.
-  destruct l; apply eq_sym in Heql.
-  (*case locBlocksSrc nu' b' = true*)
-    clear IHL.
-    remember (pubBlocksSrc nu' b') as p.
-    destruct p; apply eq_sym in Heqp.
-      assert (Rb': REACH m1' (mapped (as_inj nu')) b' = true).
-        apply REACH_nil. 
-        destruct (pubSrc _ WDnu' _ Heqp) as [bb2 [dd1 [PUB PT]]].
-        eapply mappedI_true.
-         apply (pub_in_all _ WDnu' _ _ _ PUB).
-      assert (Rb:  REACH m1' (mapped (as_inj nu')) b = true).
-        eapply REACH_cons; try eassumption.
-      specialize (RC' _ Rb).
-      destruct (mappedD_true _ _ RC') as [[b2 d1] AI'].
-      remember (locBlocksSrc nu' b) as d.
-      destruct d; simpl; trivial.
-      apply andb_true_iff. 
-      split. eapply as_inj_DomRng; try eassumption.
-      eapply REACH_cons; try eassumption.
-        apply REACH_nil. unfold exportedSrc.
-        rewrite (pubSrc_shared _ WDnu' _ Heqp). intuition.
-      destruct (UnchPrivSrc) as [UP UV]; clear UnchLOOR.
-        specialize (UP b' z Cur Readable). 
-        specialize (UV b' z). 
-        destruct INC as [_ [_ [_ [_ [LCnu' [_ [PBnu' [_ [FRGnu' _]]]]]]]]].
-        rewrite <- LCnu'. rewrite replace_locals_locBlocksSrc.  
-        rewrite <- LCnu' in Heql. rewrite replace_locals_locBlocksSrc in *.
-        rewrite <- PBnu' in Heqp. rewrite replace_locals_pubBlocksSrc in *.
-        clear INCvisNu'. 
-        rewrite Heql in *. simpl in *. intuition.
-        assert (VB: Mem.valid_block m1 b').
-          eapply VAL. unfold DOM, DomSrc. rewrite Heql. intuition.
-        apply (H VB) in H2.
-        rewrite (H0 H2) in H4. clear H H0.
-        remember (locBlocksSrc mu b) as q.
-        destruct q; simpl; trivial; apply eq_sym in Heqq.
-        assert (Rb : REACH m1 (vis mu) b = true).
-           eapply REACH_cons; try eassumption.
-           apply REACH_nil. unfold vis. rewrite Heql; trivial.
-        specialize (RC _ Rb). unfold vis in RC.
-           rewrite Heqq in RC; simpl in *.
-        rewrite replace_locals_frgnBlocksSrc in FRGnu'.
-        rewrite FRGnu' in RC.
-        apply andb_true_iff.  
-        split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ RC). intuition.
-        apply REACH_nil. unfold exportedSrc.
-          rewrite (frgnSrc_shared _ WDnu' _ RC). intuition.
-  (*case DomSrc nu' b' &&
-    (negb (locBlocksSrc nu' b') &&
-     REACH m1' (exportedSrc nu' (ret1 :: nil)) b') = true*)
-    destruct IHL. congruence.
-    apply andb_true_iff in H. simpl in H. 
-    destruct H as [DomNu' Rb']. 
-    clear INC SEP INCvisNu' UnchLOOR UnchPrivSrc.
-    remember (locBlocksSrc nu' b) as d.
-    destruct d; simpl; trivial. apply eq_sym in Heqd.
-    apply andb_true_iff.
-    split. assert (RET: Forall2 (val_inject (as_inj nu')) (ret1::nil) (ret2::nil)).
-              constructor. assumption. constructor.
-           destruct (REACH_as_inj _ WDnu' _ _ _ _ MemInjNu' RET
-               _ Rb' (fun b => true)) as [b2 [d1 [AI' _]]]; trivial.
-           assert (REACH m1' (mapped (as_inj nu')) b = true).
-             eapply REACH_cons; try eassumption.
-             apply REACH_nil. eapply mappedI_true; eassumption.
-           specialize (RC' _ H). 
-           destruct (mappedD_true _ _ RC') as [[? ?] ?].
-           eapply as_inj_DomRng; eassumption.
-    eapply REACH_cons; try eassumption.
-(*assert (RRR: REACH_closed m1' (exportedSrc nu' (ret1 :: nil))).
-    intros b Hb. apply REACHAX in Hb.
-       destruct Hb as [L HL].
-       generalize dependent b.
-       induction L ; simpl; intros; inv HL; trivial.
-       specialize (IHL _ H1); clear H1.
-       unfold exportedSrc.
-       eapply REACH_cons; eassumption.*)
-    
-assert (RRC: REACH_closed m1' (fun b : Values.block =>
-                         mapped (as_inj nu') b &&
-                           (locBlocksSrc nu' b
-                            || DomSrc nu' b &&
-                               (negb (locBlocksSrc nu' b) &&
-                           REACH m1' (exportedSrc nu' (ret1 :: nil)) b)))).
-  eapply REACH_closed_intersection; eassumption.
-assert (GFnu': forall b, isGlobalBlock (Genv.globalenv prog) b = true ->
-               DomSrc nu' b &&
-               (negb (locBlocksSrc nu' b) && REACH m1' (exportedSrc nu' (ret1 :: nil)) b) = true).
-     intros. specialize (GFP _ H).
-       assert (FSRC:= extern_incr_frgnBlocksSrc _ _ INC).
-          rewrite replace_locals_frgnBlocksSrc in FSRC.
-       rewrite FSRC in GFP.
-       rewrite (frgnBlocksSrc_locBlocksSrc _ WDnu' _ GFP). 
-       apply andb_true_iff; simpl.
-        split.
-          unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ GFP). intuition.
-          apply REACH_nil. unfold exportedSrc.
-          rewrite (frgnSrc_shared _ WDnu' _ GFP). intuition.
-split.
-  econstructor. instantiate (1:=ef_sig e'). 
-(*    induction STACKS.
-      econstructor; try eassumption.
-        Focus 3. rewrite replace_externs_as_inj. instantiate (1:=hi).
-          rewrite replace_externs_vis.
-          inv H1.
-          constructor; try eassumption.
-          intros. specialize (DOMAIN _ H1).  
-            destruct (restrictD_Some _ _ _ _ _ DOMAIN).
-            eapply restrictI_Some.
-              eapply (extern_incr_as_inj _ _ INC). assumption.
-              rewrite replace_locals_as_inj. assumption.
-            specialize (extern_incr_vis _ _ INC).
-              rewrite replace_locals_vis. intros. rewrite H5 in H4.
-              unfold vis in H4. destruct (locBlocksSrc nu' b); simpl in *. trivial.
-              apply andb_true_iff. split. 
-                apply frgnBlocksSrc_extBlocksSrc in H4. unfold DomSrc. rewrite H4. intuition.
-                  trivial.
-                apply REACH_nil. unfold exportedSrc. apply frgnSrc_shared in H4. rewrite H4; intuition. trivial.
-          intros.
-            destruct (restrictD_Some _ _ _ _ _ H1); clear H1.
-            symmetry. eapply PGnu'; eassumption.
-        xomega.
-           assumption.
- eassumption.
-             specialize (as_inj_locBlocks _ _ _ _ WDnu' H4). intros.
-             specialize (DOMAIN _ H3). destruct (restrictD_Some _ _ _ _ _ DOMAIN); clear DOMAIN.
-             specialize (as_inj_locBlocks _ _ _ _ WDmu H6). intros.
-             case_eq (as_inj mu b1); intros.
-               destruct p.
-               specialize (extern_incr_as_inj _ _ INC WDnu').
-               rewrite replace_locals_as_inj; intros.
-               rewrite (H10 _ _ _ H9) in H4. inv H4.
-               specialize (extern_incr_vis _ _ INC). rewrite replace_locals_vis. intros. rewrite H4 in H7.
-               specialize (as_inj_locBlocks _ _ _ _ WDmu H9); intros.
-               rewrite <- H4 in H7. 
-               assert (locBlocksSrc mu = locBlocksSrc nu').
-                 destruct INC. rewrite replace_locals_locBlocksSrc in H13. eapply H13.
-               remember (locBlocksSrc mu b1) as q.
-               destruct q; simpl in *.
-                  eapply IMAGE; trivial.
-                  eapply restrictI_Some; try eassumption. 
-                    unfold vis. rewrite <- Heqq; trivial.
-               rewrite <- H12, <- Heqq in *. simpl in *.
-                 apply andb_true_iff in H5. destruct H5.
-                 unfold vis in H7. rewrite H8, <- H11 in H7. simpl in H7.
-                 destruct INC; destruct SEP.
-                 rewrite replace_locals_DomSrc, replace_locals_DomTgt, replace_locals_frgnBlocksSrc, replace_locals_frgnBlocksTgt in *.
-                 
-              rewrite <- H12 in *. rewrite H8, <- H11 in H7.
-               remember (locBlocksSrc mu b1); simpl.
-                  eapply IMAGE. eapply restrictI_Some; try eassumption. unfold vis. 
-             destruct SEP. rewrite replace_locals_as_inj, replace_locals_DomSrc,replace_locals_DomTgt in H8.
-               destruct (H8 _ _ _ H7 H4).
-               destruct (as_inj_DomRng _ _ _ _ H1 WDmu). rewrite H13 in H11; discriminate.  
-                
-              rewrite 
-           destruct INC. rewrite replace_locals_locBlocksSrc, replace_locals_frgnBlocksSrc in H6.
-            assert (frgnBlocksSrc mu = frgnBlocksSrc nu') by eapply H6.
-  *)  exploit match_stack_change_extcall. eapply FwdSrc. eapply FwdTgt. 
-       eassumption. 
-       eapply replace_locals_wd. assumption. 
-         intros. apply andb_true_iff in H; destruct H.
-            eapply forall_vals_inject_restrictD in ValInjMu. 
-            exploit (REACH_local_REACH mu); try eassumption.
-              intros [b2 [d [loc R2]]].
-              destruct (local_DomRng _ WDmu _ _ _ loc).
-              exists b2, d. rewrite R2, H2; simpl. split; trivial.
-            intros. apply andb_true_iff in H; eapply H.
-            assumption.
-         clear - SEP. assumption.
-         assumption.
-    eapply match_stacks_replace_locals. eassumption.
-    xomega.
-    xomega.
-    intros. eapply match_stacks_change_bounds.
-        eapply match_stacks_replace_externs; try eassumption.
-        intros. unfold vis in H0.
-        destruct (locBlocksSrc nu' b); simpl in *; trivial.
-    
-    apply andb_true_iff.
-      split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H0).
-             intuition.
-      apply REACH_nil. unfold exportedSrc.
-        apply frgnSrc_shared in H0; trivial.
-        rewrite H0; intuition.
-    eapply forward_nextblock; assumption.
-    eapply forward_nextblock; assumption. 
- (*wtlocset*)
-   assert (RET: val_list_inject (as_inj nu')
-       (encode_long (sig_res (ef_sig e')) ret1) (ret2::nil)).
-     admit. (*MATCH_afterExternal:  will get this from RValInjNu'??*)
-   admit. (*MATCH_afterExternal: apply wt_setlist_result. eapply external_call_well_typed; eauto. auto.
-  apply agree_regs_set_regs; auto. apply agree_regs_inject_incr with j; auto. 
-  apply agree_callee_save_set_result; auto. *)
-rewrite replace_externs_as_inj, replace_externs_vis.
-  apply agree_regs_set_regs.
-    eapply agree_regs_inject_incr. eassumption.
-     red; intros. 
-     specialize (extern_incr_restrict _ _ INC WDnu').
-     rewrite replace_locals_as_inj, replace_locals_vis. intros.
-     apply H0 in H.
-     destruct (restrictD_Some _ _ _ _ _ H).
-     eapply restrictI_Some; try eassumption.
-     unfold vis in H2.
-     destruct (locBlocksSrc nu' b); simpl in *; trivial.
-     apply andb_true_iff; split.
-       unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H2).
-             intuition.
-       apply REACH_nil. unfold exportedSrc.
-         apply frgnSrc_shared in H2; trivial.
-         solve[rewrite H2; intuition].
-       apply encode_long_inject; auto.
-       { (*constructor. *)
-       clear - RValInjNu' WDnu'.
-       destruct RValInjNu'; econstructor; eauto. 
-       eapply restrictI_Some; try eassumption.
-       apply orb_true_iff.
-       remember (locBlocksSrc nu' b1) as q.
-       destruct q; simpl. left; trivial.
-       right. apply andb_true_iff.
-       split. eapply as_inj_DomRng; eassumption.
-       apply REACH_nil. unfold exportedSrc. apply orb_true_iff. left.
-         rewrite getBlocks_char. exists ofs1; left; trivial.
-       (*constructor.*) }
-
-    eapply agree_callee_save_set_result. eassumption.
-
-unfold vis in *.
-rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
-        replace_externs_as_inj in *.
-destruct (eff_after_check2 _ _ _ _ _ MemInjNu' RValInjNu' 
-      _ (eq_refl _) _ (eq_refl _) _ (eq_refl _) WDnu' SMvalNu').
-unfold vis in *.
-intuition.
 Qed.
 
 (** The simulation proof *)
