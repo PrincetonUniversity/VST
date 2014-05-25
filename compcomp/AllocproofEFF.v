@@ -2478,6 +2478,7 @@ Proof. intros.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
   remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
     apply eq_sym in Heqzz.
+  destruct f; try discriminate.
   exploit function_ptr_translated; eauto. intros [tf [FP TF]].
   simpl. exists (LTL_Callstate nil tf 
                   (Locmap.setlist (loc_arguments (funsig tf)) 
@@ -2498,15 +2499,16 @@ Proof. intros.
     destruct (val_casted.vals_defined vals1); auto.
     rewrite andb_comm in H1; simpl in H1. solve[inv H1].
     assert (sig_args (funsig tf)
-          = sig_args (RTL.funsig f)) as ->.
+          = sig_args (RTL.funsig (Internal f))) as ->.
     { erewrite sig_function_translated; eauto. }
     destruct (val_casted.val_has_type_list_func vals1
-      (sig_args (RTL.funsig f))); auto. inv H1. }
+      (sig_args (RTL.funsig (Internal f)))); auto. inv H1. }
   assert (val_casted.vals_defined vals2=true) as ->.
   { eapply val_casted.val_list_inject_defined.
     eapply forall_inject_val_list_inject; eauto.
     destruct (val_casted.vals_defined vals1); auto.
     rewrite andb_comm in H1; inv H1. }
+  monadInv TF. rename x into tf.
   solve[simpl; auto].
 
   intros CONTRA. solve[elimtype False; auto].
@@ -2517,7 +2519,7 @@ Proof. intros.
   split.
     revert H1.
     case_eq (val_casted.val_has_type_list_func vals1
-               (sig_args (RTL.funsig f)) && val_casted.vals_defined vals1).
+               (sig_args (RTL.funsig (Internal f))) && val_casted.vals_defined vals1).
     intros H2. inversion 1; subst. clear H1.
     eapply match_states_call.
       constructor.
@@ -2531,7 +2533,7 @@ Proof. intros.
 
           rewrite andb_true_iff in H2. destruct H2.
 
-          assert (A: sig_args (funsig tf) = sig_args (RTL.funsig f)).
+          assert (A: sig_args (funsig tf) = sig_args (RTL.funsig (Internal f))).
           { erewrite sig_function_translated; eauto. }
 
           assert (B: Val.has_type_list vals2 (sig_args (funsig tf))).

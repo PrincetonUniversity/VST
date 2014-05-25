@@ -3916,6 +3916,142 @@ destruct (eff_after_check2 _ _ _ _ _ MemInjNu' RValInjNu'
 intuition.
 Qed.
 
+
+Lemma match_globalenvs_init':
+  forall (R: list_norepet (map fst (prog_defs prog)))
+  m j,
+  Genv.init_mem prog = Some m ->
+  meminj_preserves_globals ge j ->
+  match_globalenvs j (Mem.nextblock m).
+Proof.
+  intros. 
+  destruct H0 as [A [B C]].
+  constructor. 
+  intros b D. (*intros [[id E]|[[gv E]|[fptr E]]]; eauto.*)
+  cut (exists id, Genv.find_symbol (Genv.globalenv prog) id = Some b).
+  intros [id ID].
+  solve[eapply A; eauto].
+  eapply valid_init_is_global; eauto.
+  intros. symmetry. solve [eapply (C _ _ _ _ GV); eauto].
+  intros. eapply Genv.find_symbol_not_fresh; eauto.
+  intros. eapply Genv.find_funct_ptr_not_fresh ; eauto.
+  intros. eapply Genv.find_var_info_not_fresh; eauto. 
+Qed.
+
+Lemma type_of_transf_function f tf : 
+  transf_function f = OK tf -> 
+  type_of_function f = type_of_function tf.
+Proof.
+unfold transf_function. 
+destruct (list_disjoint_dec ident_eq 
+  (var_names (fn_params f)) (var_names (fn_temps f))); simpl.
+destruct (simpl_stmt (cenv_for f) (fn_body f)); simpl.
+inversion 1; auto. 
+inversion 1; auto.
+inversion 1; auto.
+Qed.
+
+Lemma type_of_transf_fundef f tf : 
+  transf_fundef f = OK tf -> 
+  type_of_fundef f = type_of_fundef tf.
+Proof.
+destruct f; inversion 1; subst.
+simpl. revert H1. case_eq (transf_function f); simpl. inversion 2; subst; simpl.
+apply type_of_transf_function; auto. intros; congruence. intros; congruence.
+Qed.
+
+Lemma MATCH_init_core: forall (v1 v2 : val) (sig : signature) entrypoints
+  (EP: In (v1, v2, sig) entrypoints)
+  (entry_points_ok : forall (v1 v2 : val) (sig : signature),
+                  In (v1, v2, sig) entrypoints ->
+                  exists
+                    (b : Values.block) f1 f2,
+                    v1 = Vptr b Int.zero /\
+                    v2 = Vptr b Int.zero /\
+                    Genv.find_funct_ptr ge b = Some f1 /\
+                    Genv.find_funct_ptr tge b = Some f2)
+  (vals1 : list val) c1 (m1 : mem) (j : meminj)
+  (vals2 : list val) (m2 : mem) (DomS DomT : Values.block -> bool)
+  (CSM_Ini :initial_core CL_eff_sem1 ge v1 vals1 = Some c1)
+  (Inj: Mem.inject j m1 m2)
+  (VInj: Forall2 (val_inject j) vals1 vals2)
+  (PG: meminj_preserves_globals ge j)
+  (R : list_norepet (map fst (prog_defs prog)))
+  (J: forall b1 b2 d, j b1 = Some (b2, d) -> 
+                      DomS b1 = true /\ DomT b2 = true)
+  (RCH: forall b, REACH m2
+        (fun b' : Values.block => isGlobalBlock tge b' || getBlocks vals2 b') b =
+         true -> DomT b = true)
+  (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
+      /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
+      /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))
+  (GDE: genvs_domain_eq ge tge)
+  (HDomS: forall b : Values.block, DomS b = true -> Mem.valid_block m1 b)
+  (HDomT: forall b : Values.block, DomT b = true -> Mem.valid_block m2 b),
+exists c2,
+  initial_core CL_eff_sem2 tge v2 vals2 = Some c2 /\
+  MATCH c1
+    (initial_SM DomS DomT
+       (REACH m1
+          (fun b : Values.block => isGlobalBlock ge b || getBlocks vals1 b))
+       (REACH m2
+          (fun b : Values.block => isGlobalBlock tge b || getBlocks vals2 b))
+       j) c1 m1 c2 m2. 
+Proof. intros.
+  inversion CSM_Ini.
+  unfold CL_initial_core in H0. unfold ge in *. unfold tge in *.
+  destruct v1; inv H0.
+  remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
+  remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
+    apply eq_sym in Heqzz.
+  destruct f; try discriminate.
+  revert H1. case_eq (type_of_fundef (Internal f)); try solve[intros; congruence].
+  intros targs tres tyof.
+  case_eq (val_casted_list_func vals1 targs); try solve[simpl; intros; congruence].
+  case_eq (tys_nonvoid targs); try solve[simpl; intros; congruence].
+  case_eq (vals_defined vals1); try solve[simpl; intros; congruence].
+  intros DEF TNV VALCAST; inversion 1; subst.
+  exploit function_ptr_translated; eauto. intros [tf [FIND TR]].
+  exists (CL_Callstate tf vals2 Kstop).
+  split. simpl.
+  destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
+  subst. inv A. rewrite C in Heqzz. inv Heqzz. unfold tge in FIND. 
+    rewrite D in FIND. inv FIND. simpl.
+  case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
+  rewrite D, <-(type_of_transf_fundef _ _ TR), tyof.
+  assert (H: val_casted_list vals2 targs). 
+  { cut (val_casted_list vals1 targs).
+    cut (val_list_inject j vals1 vals2).
+    apply val_casted_list_inj; auto.
+    apply forall_inject_val_list_inject; auto.
+    apply val_casted_list_funcP; auto. }
+  assert (vals_defined vals2=true) as ->.
+  { eapply vals_inject_defined; eauto. 
+    eapply forall_inject_val_list_inject; eauto. }
+  monadInv TR. rename x into tf. 
+  solve[rewrite <-val_casted_list_funcP in H; rewrite H, TNV; auto].
+  intros CONTRA.
+  solve[elimtype False; auto].
+  destruct InitMem as [m0 [INIT_MEM [A B]]].
+  split. econstructor; try rewrite initial_SM_as_inj; try eassumption.
+          intros. econstructor. 
+            eapply match_globalenvs_init'. assumption. eassumption.
+              eapply restrict_preserves_globals. rewrite initial_SM_as_inj. assumption. 
+          unfold vis, initial_SM; simpl; intros. 
+             apply REACH_nil. unfold ge in H. rewrite H. intuition.
+          assumption.
+          assumption.
+          unfold vis, initial_SM; simpl. 
+            apply forall_inject_val_list_inject.
+            eapply restrict_forall_vals_inject; try eassumption.
+            intros. apply REACH_nil. rewrite H; intuition. 
+          apply val_casted_list_funcP; auto.
+destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
+    VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
+   as [AA [BB [CC [DD [EE [FF GG]]]]]].
+intuition. rewrite initial_SM_as_inj. assumption.
+Qed.
+
 Lemma MATCH_corediagram: forall st1 m1 st1' m1' 
      (CS:corestep CL_eff_sem1 ge st1 m1 st1' m1')
      (st2 : CL_core) (mu : SM_Injection) (m2 : mem)
@@ -5520,139 +5656,6 @@ inv MS; simpl in *; try (monadInv TRS).
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
       apply extensionality; intros; rewrite (freshloc_irrefl). intuition.
   intuition.
-Qed.
-
-Lemma match_globalenvs_init':
-  forall (R: list_norepet (map fst (prog_defs prog)))
-  m j,
-  Genv.init_mem prog = Some m ->
-  meminj_preserves_globals ge j ->
-  match_globalenvs j (Mem.nextblock m).
-Proof.
-  intros. 
-  destruct H0 as [A [B C]].
-  constructor. 
-  intros b D. (*intros [[id E]|[[gv E]|[fptr E]]]; eauto.*)
-  cut (exists id, Genv.find_symbol (Genv.globalenv prog) id = Some b).
-  intros [id ID].
-  solve[eapply A; eauto].
-  eapply valid_init_is_global; eauto.
-  intros. symmetry. solve [eapply (C _ _ _ _ GV); eauto].
-  intros. eapply Genv.find_symbol_not_fresh; eauto.
-  intros. eapply Genv.find_funct_ptr_not_fresh ; eauto.
-  intros. eapply Genv.find_var_info_not_fresh; eauto. 
-Qed.
-
-Lemma type_of_transf_function f tf : 
-  transf_function f = OK tf -> 
-  type_of_function f = type_of_function tf.
-Proof.
-unfold transf_function. 
-destruct (list_disjoint_dec ident_eq 
-  (var_names (fn_params f)) (var_names (fn_temps f))); simpl.
-destruct (simpl_stmt (cenv_for f) (fn_body f)); simpl.
-inversion 1; auto. 
-inversion 1; auto.
-inversion 1; auto.
-Qed.
-
-Lemma type_of_transf_fundef f tf : 
-  transf_fundef f = OK tf -> 
-  type_of_fundef f = type_of_fundef tf.
-Proof.
-destruct f; inversion 1; subst.
-simpl. revert H1. case_eq (transf_function f); simpl. inversion 2; subst; simpl.
-apply type_of_transf_function; auto. intros; congruence. intros; congruence.
-Qed.
-
-Lemma MATCH_init_core: forall (v1 v2 : val) (sig : signature) entrypoints
-  (EP: In (v1, v2, sig) entrypoints)
-  (entry_points_ok : forall (v1 v2 : val) (sig : signature),
-                  In (v1, v2, sig) entrypoints ->
-                  exists
-                    (b : Values.block) f1 f2,
-                    v1 = Vptr b Int.zero /\
-                    v2 = Vptr b Int.zero /\
-                    Genv.find_funct_ptr ge b = Some f1 /\
-                    Genv.find_funct_ptr tge b = Some f2)
-  (vals1 : list val) c1 (m1 : mem) (j : meminj)
-  (vals2 : list val) (m2 : mem) (DomS DomT : Values.block -> bool)
-  (CSM_Ini :initial_core CL_eff_sem1 ge v1 vals1 = Some c1)
-  (Inj: Mem.inject j m1 m2)
-  (VInj: Forall2 (val_inject j) vals1 vals2)
-  (PG: meminj_preserves_globals ge j)
-  (R : list_norepet (map fst (prog_defs prog)))
-  (J: forall b1 b2 d, j b1 = Some (b2, d) -> 
-                      DomS b1 = true /\ DomT b2 = true)
-  (RCH: forall b, REACH m2
-        (fun b' : Values.block => isGlobalBlock tge b' || getBlocks vals2 b') b =
-         true -> DomT b = true)
-  (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
-      /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
-      /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))
-  (GDE: genvs_domain_eq ge tge)
-  (HDomS: forall b : Values.block, DomS b = true -> Mem.valid_block m1 b)
-  (HDomT: forall b : Values.block, DomT b = true -> Mem.valid_block m2 b),
-exists c2,
-  initial_core CL_eff_sem2 tge v2 vals2 = Some c2 /\
-  MATCH c1
-    (initial_SM DomS DomT
-       (REACH m1
-          (fun b : Values.block => isGlobalBlock ge b || getBlocks vals1 b))
-       (REACH m2
-          (fun b : Values.block => isGlobalBlock tge b || getBlocks vals2 b))
-       j) c1 m1 c2 m2. 
-Proof. intros.
-  inversion CSM_Ini.
-  unfold CL_initial_core in H0. unfold ge in *. unfold tge in *.
-  destruct v1; inv H0.
-  remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
-  remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
-    apply eq_sym in Heqzz.
-  revert H1. case_eq (type_of_fundef f); try solve[intros; congruence].
-  intros targs tres tyof.
-  case_eq (val_casted_list_func vals1 targs); try solve[simpl; intros; congruence].
-  case_eq (tys_nonvoid targs); try solve[simpl; intros; congruence].
-  case_eq (vals_defined vals1); try solve[simpl; intros; congruence].
-  intros DEF TNV VALCAST; inversion 1; subst.
-  exploit function_ptr_translated; eauto. intros [tf [FIND TR]].
-  exists (CL_Callstate tf vals2 Kstop).
-  split. simpl.
-  destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
-  subst. inv A. rewrite C in Heqzz. inv Heqzz. unfold tge in FIND. 
-    rewrite D in FIND. inv FIND. simpl.
-  case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
-  rewrite D, <-(type_of_transf_fundef _ _ TR), tyof.
-  assert (H: val_casted_list vals2 targs). 
-  { cut (val_casted_list vals1 targs).
-    cut (val_list_inject j vals1 vals2).
-    apply val_casted_list_inj; auto.
-    apply forall_inject_val_list_inject; auto.
-    apply val_casted_list_funcP; auto. }
-  assert (vals_defined vals2=true) as ->.
-  { eapply vals_inject_defined; eauto. 
-    eapply forall_inject_val_list_inject; eauto. } 
-  solve[rewrite <-val_casted_list_funcP in H; rewrite H, TNV; auto].
-  intros CONTRA.
-  solve[elimtype False; auto].
-  destruct InitMem as [m0 [INIT_MEM [A B]]].
-  split. econstructor; try rewrite initial_SM_as_inj; try eassumption.
-          intros. econstructor. 
-            eapply match_globalenvs_init'. assumption. eassumption.
-              eapply restrict_preserves_globals. rewrite initial_SM_as_inj. assumption. 
-          unfold vis, initial_SM; simpl; intros. 
-             apply REACH_nil. unfold ge in H. rewrite H. intuition.
-          assumption.
-          assumption.
-          unfold vis, initial_SM; simpl. 
-            apply forall_inject_val_list_inject.
-            eapply restrict_forall_vals_inject; try eassumption.
-            intros. apply REACH_nil. rewrite H; intuition. 
-          apply val_casted_list_funcP; auto.
-destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
-    VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
-   as [AA [BB [CC [DD [EE [FF GG]]]]]].
-intuition. rewrite initial_SM_as_inj. assumption.
 Qed.
 
 (** The simulation proof *)

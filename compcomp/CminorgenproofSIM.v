@@ -315,6 +315,7 @@ Proof. intros.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
   remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
     apply eq_sym in Heqzz.
+  destruct f; try discriminate.
   exploit function_ptr_translated; eauto. intros [tf [FIND TR]].
   exists (CMin_Callstate tf vals2 Cminor.Kstop).
   split.
@@ -323,7 +324,7 @@ Proof. intros.
   subst. inv A. rewrite C in Heqzz. inv Heqzz. rewrite D in FIND. inv FIND.
   unfold CMin_initial_core. revert CSM_Ini; simpl.
   case_eq (Int.eq_dec Int.zero Int.zero). intros ? e. rewrite C, D.
-  case_eq (val_casted.val_has_type_list_func vals1 (sig_args (Csharpminor.funsig f))).
+  case_eq (val_casted.val_has_type_list_func vals1 (sig_args (Csharpminor.funsig (Internal f)))).
   case_eq (val_casted.vals_defined vals1).
   intros H H2.
 
@@ -332,14 +333,15 @@ Proof. intros.
   { eapply val_casted.val_list_inject_hastype; eauto.
     eapply forall_inject_val_list_inject; eauto.
     assert (sig_args (funsig tf)
-          = sig_args (Csharpminor.funsig f)) as ->.
+          = sig_args (Csharpminor.funsig (Internal f))) as ->.
     { erewrite sig_preserved; eauto. }
     destruct (val_casted.val_has_type_list_func vals1
-      (sig_args (Csharpminor.funsig f))); auto. }
+      (sig_args (Csharpminor.funsig (Internal f)))); auto. }
   assert (val_casted.vals_defined vals2=true) as ->.
   { eapply val_casted.val_list_inject_defined.
     eapply forall_inject_val_list_inject; eauto.
     destruct (val_casted.vals_defined vals1); auto. }
+  monadInv TR. rename x into tf.
   solve[simpl; auto].
 
   auto. 
@@ -347,7 +349,7 @@ Proof. intros.
   simpl; intros; congruence.
   intros. solve[elim n; auto].
   revert H1.
-  case_eq (val_casted.val_has_type_list_func vals1 (sig_args (Csharpminor.funsig f))).
+  case_eq (val_casted.val_has_type_list_func vals1 (sig_args (Csharpminor.funsig (Internal f)))).
   intros ?; inversion 1; subst. 
   case_eq (val_casted.vals_defined vals1). intros H3. rewrite H3 in H2. inv H2.
   eapply MC_callstate with (cenv:=PTree.empty _)(cs := @nil frame); try eassumption.

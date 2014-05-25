@@ -4243,8 +4243,9 @@ Proof. intros.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
   remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
     apply eq_sym in Heqzz.
+  destruct f; try discriminate.
   case_eq (val_casted.val_has_type_list_func vals1 
-            (sig_args (Linear.funsig f)) 
+            (sig_args (Linear.funsig (Internal f))) 
            && val_casted.vals_defined vals1).
   2: solve[intros H2; rewrite H2 in H1; inv H1].
   intros H2; rewrite H2 in H1. inv H1. 
@@ -4263,16 +4264,18 @@ Proof. intros.
     destruct (val_casted.vals_defined vals1); auto.
     rewrite andb_comm in H2; simpl in H2. solve[inv H2].
     assert (sig_args (funsig tf)
-          = sig_args (Linear.funsig f)) as ->.
+          = sig_args (Linear.funsig (Internal f))) as ->.
     { erewrite sig_preserved; eauto. }
     destruct (val_casted.val_has_type_list_func vals1
-      (sig_args (Linear.funsig f))); auto. }
+      (sig_args (Linear.funsig (Internal f)))); auto. }
   assert (val_casted.vals_defined vals2=true) as ->.
   { eapply val_casted.val_list_inject_defined.
     eapply forall_inject_val_list_inject; eauto.
     destruct (val_casted.vals_defined vals1); auto.
     rewrite andb_comm in H2; inv H2. }
+  monadInv TF. rename x into tf.
   solve[simpl; auto].
+
   destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
      VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
     as [AA [BB [CC [DD [EE [FF GG]]]]]].
@@ -4287,9 +4290,7 @@ Proof. intros.
         assumption. 
         apply LT.
   split. 2: rewrite initial_SM_as_inj; intuition.
-  destruct f.
-    (*Internal *) 
-      apply bind_inversion in TF. destruct TF as [x [TF X]]. inv X.
+  apply bind_inversion in TF. destruct TF as [x [TF X]]. inv X.
       eapply match_states_call_intern; try eassumption.
       eapply match_stacks_empty. eassumption. eassumption.
         rewrite initial_SM_as_inj. unfold vis; simpl.
@@ -4318,11 +4319,7 @@ Proof. intros.
     destruct l.
       rewrite setlist_encode_long_regs. constructor.
     admit. (*TODO: finish MATCH_init - setlist_encode_long_slots not quite right*)
-      
-(*External *)
-   admit. (*TODO: finish MATCH_init: function should not be an external one!!*)
 Qed.
-
 
 Lemma MATCH_atExternal: forall mu c1 m1 c2 m2 e vals1 ef_sig
        (MTCH: MATCH c1 mu c1 m1 c2 m2)
@@ -4366,12 +4363,13 @@ intuition.
   subst.
   split. econstructor; try rewrite replace_locals_as_inj, replace_locals_vis; eauto. 
            eapply match_stacks_replace_locals; eassumption.
-           rewrite replace_locals_as_inj, replace_locals_vis, replace_locals_frgnBlocksSrc.
-           intuition.
-            (*sm_valid*)
-            red. rewrite replace_locals_DOM, replace_locals_RNG. apply SMV.
-   eapply inject_shared_replace_locals; try eassumption.
-   subst; trivial.
+  rewrite replace_locals_as_inj, replace_locals_vis, replace_locals_frgnBlocksSrc.
+  intuition.
+  (*sm_valid*)
+    red. rewrite replace_locals_DOM, replace_locals_RNG. apply SMV.
+  (*inject_shared*)
+    eapply inject_shared_replace_locals; try eassumption.
+    subst; trivial.
 Qed.
 
 Lemma list_Loc_type_mreg r: Loc.type ## (R ## r) = mreg_type ## r.

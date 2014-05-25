@@ -242,6 +242,7 @@ Definition LTL_initial_core (ge:genv) (v: val) (args:list val): option LTL_core 
           then match Genv.find_funct_ptr ge b with
                  | None => None
                  | Some f => 
+                    match f with Internal fi =>
                      let tyl := sig_args (funsig f) in
                      if val_has_type_list_func args (sig_args (funsig f))
                         && vals_defined args
@@ -253,6 +254,8 @@ Definition LTL_initial_core (ge:genv) (v: val) (args:list val): option LTL_core 
                                           (encode_longs tyl args)
                                           (Locmap.init Vundef)))
                      else None
+                   | External _ => None
+                   end
                end
           else None
      | _ => None

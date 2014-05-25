@@ -222,10 +222,13 @@ Definition CMinSel_initial_core (ge:genv) (v: val) (args:list val): option CMinS
           then match Genv.find_funct_ptr ge b with
                  | None => None
                  | Some f => 
-                   if val_has_type_list_func args (sig_args (funsig f))
-                      && vals_defined args
-                   then Some (CMinSel_Callstate f args Kstop)
-                   else None
+                    match f with Internal fi =>
+                     if val_has_type_list_func args (sig_args (funsig f))
+                        && vals_defined args
+                     then Some (CMinSel_Callstate f args Kstop)
+                     else None
+                    | External _ => None
+                    end
                end
           else None
      | _ => None

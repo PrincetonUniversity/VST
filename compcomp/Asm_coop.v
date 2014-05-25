@@ -16,6 +16,7 @@ Require Import Asm.
 
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
+Require Import compcomp.val_casted.
 
 Notation SP := ESP (only parsing).
 
@@ -77,7 +78,7 @@ End RELSEM.
 Definition Asm_at_external (c: state):
           option (external_function * signature * list val) :=
   match c with
-    ExtCallState ef args rs => Some(ef, ef_sig ef, args)
+    ExtCallState ef args rs => Some(ef, ef_sig ef, decode_longs (sig_args (ef_sig ef)) args)
   | _ => None
   end.
 
@@ -85,8 +86,10 @@ Definition Asm_after_external (vret: option val)(c: state) : option state :=
   match c with 
     ExtCallState ef args rs => 
       match vret with
-         None => Some (State ((set_regs (loc_external_result (ef_sig ef)) (Vundef::nil) rs) #PC <- (rs RA)))
-       | Some res => Some (State ((set_regs (loc_external_result (ef_sig ef)) (res::nil) rs) #PC <- (rs RA))) 
+         None => Some (State ((set_regs (loc_external_result (ef_sig ef)) 
+                               (encode_long (sig_res (ef_sig ef)) Vundef) rs) #PC <- (rs RA)))
+       | Some res => Some (State ((set_regs (loc_external_result (ef_sig ef)) 
+                               (encode_long (sig_res (ef_sig ef)) res) rs) #PC <- (rs RA))) 
       end
   | _ => None
   end.
@@ -98,11 +101,19 @@ Definition Asm_initial_core (ge:genv) (v: val) (args:list val):
           if Int.eq_dec i Int.zero 
           then match Genv.find_funct_ptr ge b with
                  | None => None
-                 | Some f => Some (State 
+                 | Some f => 
+                    match f with Internal fi =>
+                     if (*Lenb: which signature should we take here?
+                          val_has_type_list_func args (sig_args fi))
+                        &&*)  vals_defined args
+                     then Some (State 
                                ((Pregmap.init Vundef)
                                     # PC <- (Vptr b Int.zero) (*lenb: is this use of f correct here?*)
                                     # RA <- Vzero
                                     # ESP <- Vzero))
+                     else None
+                   | External _ => None
+                   end
                end
           else None
      | _ => None
@@ -127,13 +138,13 @@ Inductive final_state: state -> int -> Prop :=
 *)
 
 Definition Asm_halted (q : state): option val :=
+    (*What fundef should we use here to check whether return type is long???*)
     match q with
       State rs => if Val.cmp_bool Ceq (rs#PC) Vzero 
                   then Some(rs#EAX) (*no check for integer return value*)
                   else None
     | _ => None
     end.
-
 
 Section ASM_CORESEM.
 Lemma Asm_at_external_halted_excl :

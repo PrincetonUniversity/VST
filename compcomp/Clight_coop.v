@@ -245,15 +245,18 @@ Definition CL_initial_core (v: val) (args:list val): option CL_core :=
           then match Genv.find_funct_ptr ge b with
                  | None => None
                  | Some f => 
-                   match type_of_fundef f with
-                     | Tfunction targs tres => 
-                         if val_casted_list_func args targs 
-                            && tys_nonvoid targs 
-                            && vals_defined args
-                         then Some (CL_Callstate f args Kstop)
-                         else None
-                     | _ => None
-                   end
+                    match f with Internal fi =>
+                      match type_of_fundef f with
+                        | Tfunction targs tres => 
+                            if val_casted_list_func args targs 
+                               && tys_nonvoid targs 
+                               && vals_defined args
+                            then Some (CL_Callstate f args Kstop)
+                            else None
+                        | _ => None
+                      end
+                    | External _ _ _ => None
+                    end
                end
           else None
      | _ => None

@@ -648,20 +648,7 @@ Inductive structured_match_cores: core_data -> SM_Injection -> CSharpMin_core ->
       (*(PG: meminj_preserves_globals ge (as_inj mu))*),
       structured_match_cores d mu (CSharpMin_Returnstate v k) m
                    (CMin_Returnstate tv tk) tm.
-(*
-Definition protected m mu:=
-   forall b, REACH m (extBlocksSrc mu) b = true ->
-             locBlocksSrc mu b = true -> 
-             REACH m (frgnBlocksSrc mu) b = true.
 
-Lemma protected_restr: forall m mu X
-      (PROT : protected m mu), protected m (restrict_sm mu X).
-Proof. intros.
-red. rewrite restrict_sm_frgnBlocksSrc, restrict_sm_extBlocksSrc, 
-             restrict_sm_locBlocksSrc; intros.
-  eapply PROT; eassumption.
-Qed.
-*)
 Definition MATCH d mu c1 m1 c2 m2:Prop :=
   structured_match_cores d mu c1 m1 c2 m2 (*(restrict_sm mu (vis mu)) doesn't work here, since 
                               some of the conditions of match_env are "global"*) /\
@@ -830,7 +817,8 @@ Proof. intros.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H0. clear Heqz.
   remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz.
     apply eq_sym in Heqzz.
-  case_eq (val_casted.val_has_type_list_func vals1 (sig_args (Csharpminor.funsig f))).
+  destruct f; try discriminate.
+  case_eq (val_casted.val_has_type_list_func vals1 (sig_args (Csharpminor.funsig (Internal f)))).
   2: solve[intros cast; rewrite cast in H1; inv H1].
   intros cast. case_eq (val_casted.vals_defined vals1).
   2: solve[intros def; rewrite cast, def in H1; inv H1].
@@ -850,14 +838,15 @@ Proof. intros.
   { eapply val_casted.val_list_inject_hastype; eauto.
     eapply forall_inject_val_list_inject; eauto.
     assert (sig_args (funsig tf)
-          = sig_args (Csharpminor.funsig f)) as ->.
+          = sig_args (Csharpminor.funsig (Internal f))) as ->.
     { erewrite sig_preserved; eauto. }
     destruct (val_casted.val_has_type_list_func vals1
-      (sig_args (Csharpminor.funsig f))); auto. }
+      (sig_args (Csharpminor.funsig (Internal f)))); auto. }
   assert (val_casted.vals_defined vals2=true) as ->.
   { eapply val_casted.val_list_inject_defined.
     eapply forall_inject_val_list_inject; eauto.
     destruct (val_casted.vals_defined vals1); auto. }
+  monadInv TR. rename x into tf.
   solve[simpl; auto].
 
   intros CONTRA.

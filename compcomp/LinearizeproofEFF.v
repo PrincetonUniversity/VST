@@ -1503,6 +1503,122 @@ intuition.
   rewrite replace_locals_as_inj. assumption.
 Qed. 
 
+Lemma MATCH_initial: forall (v1 v2 : val) (sig : signature) entrypoints
+  (EP: In (v1, v2, sig) entrypoints)
+  (entry_points_ok : forall (v1 v2 : val) (sig : signature),
+                  In (v1, v2, sig) entrypoints ->
+                  exists
+                    (b : Values.block) f1 f2,
+                    v1 = Vptr b Int.zero /\
+                    v2 = Vptr b Int.zero /\
+                    Genv.find_funct_ptr ge b = Some f1 /\
+                    Genv.find_funct_ptr tge b = Some f2)
+  (vals1 : list val) c1 (m1 : mem) (j : meminj)
+  (vals2 : list val) (m2 : mem) (DomS DomT : Values.block -> bool)
+  (Ini : initial_core LTL_eff_sem ge v1 vals1 = Some c1)
+  (Inj: Mem.inject j m1 m2)
+  (VInj: Forall2 (val_inject j) vals1 vals2)
+  (PG: meminj_preserves_globals ge j)
+  (R : list_norepet (map fst (prog_defs prog)))
+  (J: forall b1 b2 d, j b1 = Some (b2, d) -> 
+                      DomS b1 = true /\ DomT b2 = true)
+  (RCH: forall b, REACH m2
+        (fun b' : Values.block => isGlobalBlock tge b' || getBlocks vals2 b') b =
+         true -> DomT b = true)
+  (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
+      /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
+      /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))
+  (GDE: genvs_domain_eq ge tge)
+  (HDomS: forall b : Values.block, DomS b = true -> Mem.valid_block m1 b)
+  (HDomT: forall b : Values.block, DomT b = true -> Mem.valid_block m2 b),
+exists c2,
+  initial_core Linear_eff_sem tge v2 vals2 = Some c2 /\
+  MATCH 
+    (initial_SM DomS DomT
+       (REACH m1
+          (fun b : Values.block => isGlobalBlock ge b || getBlocks vals1 b))
+       (REACH m2
+          (fun b : Values.block => isGlobalBlock tge b || getBlocks vals2 b))
+       j) c1 m1 c2 m2. 
+Proof. intros.
+  inversion Ini.
+  unfold LTL_initial_core in H0. unfold ge in *. unfold tge in *.
+  destruct v1; inv H0.
+  remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
+  remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
+    apply eq_sym in Heqzz.
+  destruct f; try discriminate.
+  case_eq (val_casted.val_has_type_list_func vals1 (sig_args (LTL.funsig (Internal f))) &&
+           val_casted.vals_defined vals1). 
+  2: solve[intros Heq; rewrite Heq in H1; inv H1].
+  intros Heq; rewrite Heq in H1; inv H1.
+  exploit function_ptr_translated; eauto. intros [tf [FP TF]].
+  exists (Linear_Callstate nil tf
+            (Locmap.setlist (Conventions1.loc_arguments (funsig tf)) 
+              (val_casted.encode_longs (sig_args (funsig tf)) vals2)
+              (Locmap.init Vundef))).
+  split.
+    destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
+    subst. inv A. rewrite C in Heqzz. inv Heqzz.
+    unfold tge in FP. rewrite D in FP. inv FP.
+    unfold Linear_eff_sem, Linear_coop_sem. simpl.
+    case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
+    rewrite D.
+    assert (val_casted.val_has_type_list_func vals2 (sig_args (funsig tf))=true) as ->.
+    { eapply val_casted.val_list_inject_hastype; eauto.
+      eapply forall_inject_val_list_inject; eauto.
+      destruct (val_casted.vals_defined vals1); auto.
+      rewrite andb_comm in Heq; simpl in Heq. solve[inv Heq].
+      assert (sig_args (funsig tf)
+        = sig_args (LTL.funsig (Internal f))) as ->.
+      { erewrite sig_preserved; eauto. }
+      destruct (val_casted.val_has_type_list_func vals1
+        (sig_args (LTL.funsig (Internal f)))); auto. }
+    assert (val_casted.vals_defined vals2=true) as ->.
+    { eapply val_casted.val_list_inject_defined.
+      eapply forall_inject_val_list_inject; eauto.
+      destruct (val_casted.vals_defined vals1); auto.
+      rewrite andb_comm in Heq; inv Heq. }
+    monadInv TF. rename x into tf.
+    solve[auto].
+
+    intros CONTRA. solve[elimtype False; auto].
+  destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
+     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
+    as [AA [BB [CC [DD [EE [FF GG]]]]]].
+  split.
+    eapply match_states_call; try eassumption.
+      constructor.
+      rewrite vis_restrict_sm, restrict_sm_all, restrict_nest.
+      rewrite (sig_preserved _ _ TF).
+      eapply agree_regs_setlist.
+        split; intros; constructor.
+      rewrite initial_SM_as_inj.
+        unfold vis, initial_SM; simpl.
+        apply forall_inject_val_list_inject.
+        eapply restrict_forall_vals_inject.
+        apply val_list_inject_forall_inject.
+        apply val_casted.encode_longs_inject; auto.
+        apply forall_inject_val_list_inject; auto.
+          intros. apply REACH_nil. 
+          rewrite orb_true_iff. right. 
+          apply (val_casted.getBlocks_encode_longs (sig_args (LTL.funsig (Internal f)))); auto.
+      red; intros. apply Conventions1.loc_arguments_rec_charact in H. 
+           destruct l; try contradiction.
+           destruct sl; try contradiction. trivial. 
+    trivial.
+  rewrite initial_SM_as_inj.
+  intuition.
+      red; intros. specialize (Genv.find_funct_ptr_not_fresh prog). intros.
+         destruct InitMem as [m0 [INIT_MEM [? ?]]].
+         specialize (H0 _ _ _ INIT_MEM H). 
+         destruct (valid_init_is_global _ R _ INIT_MEM _ H0) as [id Hid]. 
+           destruct PG as [PGa [PGb PGc]]. split. eapply PGa; eassumption.
+         unfold isGlobalBlock. 
+          apply orb_true_iff. left. apply genv2blocksBool_char1.
+            simpl. exists id; eassumption.
+Qed.
+
 Lemma MATCH_corediagram: forall st1 m1 st1' m1'
          (CS:corestep LTL_eff_sem ge st1 m1 st1' m1')
          st2 mu m2 (MTCH:MATCH mu st1 m1 st2 m2),
@@ -2726,132 +2842,6 @@ Proof. intros.
           try rewrite (freshloc_irrefl); intuition.
       split. econstructor; eauto.
     intuition.
-Qed.
-
-Lemma MATCH_initial: forall (v1 v2 : val) (sig : signature) entrypoints
-  (EP: In (v1, v2, sig) entrypoints)
-  (entry_points_ok : forall (v1 v2 : val) (sig : signature),
-                  In (v1, v2, sig) entrypoints ->
-                  exists
-                    (b : Values.block) f1 f2,
-                    v1 = Vptr b Int.zero /\
-                    v2 = Vptr b Int.zero /\
-                    Genv.find_funct_ptr ge b = Some f1 /\
-                    Genv.find_funct_ptr tge b = Some f2)
-  (vals1 : list val) c1 (m1 : mem) (j : meminj)
-  (vals2 : list val) (m2 : mem) (DomS DomT : Values.block -> bool)
-  (Ini : initial_core LTL_eff_sem ge v1 vals1 = Some c1)
-  (Inj: Mem.inject j m1 m2)
-  (VInj: Forall2 (val_inject j) vals1 vals2)
-  (PG: meminj_preserves_globals ge j)
-  (R : list_norepet (map fst (prog_defs prog)))
-  (J: forall b1 b2 d, j b1 = Some (b2, d) -> 
-                      DomS b1 = true /\ DomT b2 = true)
-  (RCH: forall b, REACH m2
-        (fun b' : Values.block => isGlobalBlock tge b' || getBlocks vals2 b') b =
-         true -> DomT b = true)
-  (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
-      /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
-      /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))
-  (GDE: genvs_domain_eq ge tge)
-  (HDomS: forall b : Values.block, DomS b = true -> Mem.valid_block m1 b)
-  (HDomT: forall b : Values.block, DomT b = true -> Mem.valid_block m2 b),
-exists c2,
-  initial_core Linear_eff_sem tge v2 vals2 = Some c2 /\
-  MATCH 
-    (initial_SM DomS DomT
-       (REACH m1
-          (fun b : Values.block => isGlobalBlock ge b || getBlocks vals1 b))
-       (REACH m2
-          (fun b : Values.block => isGlobalBlock tge b || getBlocks vals2 b))
-       j) c1 m1 c2 m2. 
-Proof. intros.
-  inversion Ini.
-  unfold LTL_initial_core in H0. unfold ge in *. unfold tge in *.
-  destruct v1; inv H0.
-  remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
-  remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
-    apply eq_sym in Heqzz.
-  case_eq (val_casted.val_has_type_list_func vals1 (sig_args (LTL.funsig f)) &&
-           val_casted.vals_defined vals1). 
-  2: solve[intros Heq; rewrite Heq in H1; inv H1].
-  intros Heq; rewrite Heq in H1; inv H1.
-  exploit function_ptr_translated; eauto. intros [tf [FP TF]].
-  exists (Linear_Callstate nil tf
-            (Locmap.setlist (Conventions1.loc_arguments (funsig tf)) 
-              (val_casted.encode_longs (sig_args (funsig tf)) vals2)
-              (Locmap.init Vundef))).
-  split.
-    destruct (entry_points_ok _ _ _ EP) as [b0 [f1 [f2 [A [B [C D]]]]]].
-    subst. inv A. rewrite C in Heqzz. inv Heqzz.
-    unfold tge in FP. rewrite D in FP. inv FP.
-    unfold Linear_eff_sem, Linear_coop_sem. simpl.
-    case_eq (Int.eq_dec Int.zero Int.zero). intros ? e.
-    rewrite D.
-    assert (val_casted.val_has_type_list_func vals2 (sig_args (funsig tf))=true) as ->.
-    { eapply val_casted.val_list_inject_hastype; eauto.
-      eapply forall_inject_val_list_inject; eauto.
-      destruct (val_casted.vals_defined vals1); auto.
-      rewrite andb_comm in Heq; simpl in Heq. solve[inv Heq].
-      assert (sig_args (funsig tf)
-        = sig_args (LTL.funsig f)) as ->.
-      { erewrite sig_preserved; eauto. }
-      destruct (val_casted.val_has_type_list_func vals1
-        (sig_args (LTL.funsig f))); auto. }
-    assert (val_casted.vals_defined vals2=true) as ->.
-    { eapply val_casted.val_list_inject_defined.
-      eapply forall_inject_val_list_inject; eauto.
-      destruct (val_casted.vals_defined vals1); auto.
-      rewrite andb_comm in Heq; inv Heq. }
-    solve[auto].
-
-    intros CONTRA. solve[elimtype False; auto].
-  destruct (core_initial_wd ge tge _ _ _ _ _ _ _  Inj
-     VInj J RCH PG GDE HDomS HDomT _ (eq_refl _))
-    as [AA [BB [CC [DD [EE [FF GG]]]]]].
-  split.
-    eapply match_states_call; try eassumption.
-      constructor.
-      rewrite vis_restrict_sm, restrict_sm_all, restrict_nest.
-      rewrite (sig_preserved _ _ TF).
-      eapply agree_regs_setlist.
-        split; intros; constructor.
-      rewrite initial_SM_as_inj.
-        unfold vis, initial_SM; simpl.
-        apply forall_inject_val_list_inject.
-        eapply restrict_forall_vals_inject.
-        apply val_list_inject_forall_inject.
-        apply val_casted.encode_longs_inject; auto.
-        apply forall_inject_val_list_inject; auto.
-
-        Lemma getBlocks_encode_longs tys vals b : 
-          getBlocks (val_casted.encode_longs tys vals) b=true ->
-          getBlocks vals b=true.
-        Proof.
-          revert tys; induction vals; destruct tys; try destruct t; simpl; auto.
-          unfold getBlocks; simpl; congruence.
-          admit.
-          admit.
-          destruct a. admit. admit. admit. admit. admit. admit.
-        Qed.
-
-          intros. apply REACH_nil. 
-          rewrite orb_true_iff. right. 
-          apply (getBlocks_encode_longs (sig_args (LTL.funsig f))); auto.
-      red; intros. apply Conventions1.loc_arguments_rec_charact in H. 
-           destruct l; try contradiction.
-           destruct sl; try contradiction. trivial. 
-    trivial.
-  rewrite initial_SM_as_inj.
-  intuition.
-      red; intros. specialize (Genv.find_funct_ptr_not_fresh prog). intros.
-         destruct InitMem as [m0 [INIT_MEM [? ?]]].
-         specialize (H0 _ _ _ INIT_MEM H). 
-         destruct (valid_init_is_global _ R _ INIT_MEM _ H0) as [id Hid]. 
-           destruct PG as [PGa [PGb PGc]]. split. eapply PGa; eassumption.
-         unfold isGlobalBlock. 
-          apply orb_true_iff. left. apply genv2blocksBool_char1.
-            simpl. exists id; eassumption.
 Qed.
 
 (*program structure not yet updated to module*)
