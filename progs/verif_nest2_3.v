@@ -107,6 +107,8 @@ eapply semax_seq'.
     instantiate (1:= Ews).
     apply nested_data_at_nested_data_at_.
     reflexivity.
+    admit. (*size_compatible*)
+    admit. (*align_compatible*)
   - auto.
   - simpl. normalize.
   - instantiate (1:= (Vint i)). simpl. go_lower. normalize.

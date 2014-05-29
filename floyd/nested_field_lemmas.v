@@ -132,6 +132,24 @@ Proof.
   apply andb_true_iff in H; tauto.
 Qed.
 
+Lemma nested_fields_pred_hd: forall {atom_pred: type -> bool} i t f,
+  nested_fields_pred atom_pred (Fcons i t f) = true ->
+  nested_pred atom_pred t = true.
+Proof.
+  intros.
+  simpl in H.
+  apply andb_true_iff in H; tauto.
+Qed.
+
+Lemma nested_fields_pred_tl: forall {atom_pred: type -> bool} i t f,
+  nested_fields_pred atom_pred (Fcons i t f) = true ->
+  nested_fields_pred atom_pred f = true.
+Proof.
+  intros.
+  simpl in H.
+  apply andb_true_iff in H; tauto.
+Qed.
+
 Lemma nested_fields_pred_nested_pred: forall {atom_pred: type -> bool} i t f, field_type i f = Errors.OK t -> nested_fields_pred atom_pred f = true -> nested_pred atom_pred t = true.
 Proof.
   intros.
@@ -217,62 +235,6 @@ Proof.
   intros.
   apply nested_pred_atom_pred in H.
   apply local_legal_alignas_type_Tunion.
-  exact H.
-Qed.
-
-(******* Samples : no_alignas_type *************)
-
-Definition no_alignas a : bool := match attr_alignas a with  None => true | _ => false end.
-
-Definition no_alignas_type (t: type): bool :=
-  match t with
-  | Tvoid => true
-  | Tint _ _ a => no_alignas a
-  | Tlong _ a => no_alignas a
-  | Tfloat _ a => no_alignas a
-  | Tpointer _ a => no_alignas a
-  | Tfunction _ _ _ => true
-  | Tarray t _ a => no_alignas a
-  | Tstruct _ flds a => no_alignas a
-  | Tunion _ flds a => no_alignas a
-  | Tcomp_ptr _ a => no_alignas a
- end.
-
-Definition no_nested_alignas_type := nested_pred no_alignas_type.
-
-Lemma no_alignas_type_Tstruct: forall i f a, no_alignas_type (Tstruct i f a) = true -> alignof (Tstruct i f a) = alignof_fields f.
-Proof.
-  intros.
-  simpl.
-  unfold no_alignas_type, no_alignas in H.
-  destruct (attr_alignas a).
-  + inversion H.
-  + reflexivity.
-Qed.
-
-Lemma no_alignas_type_Tunion: forall i f a, no_alignas_type (Tunion i f a) = true -> alignof (Tunion i f a) = alignof_fields f.
-Proof.
-  intros.
-  simpl.
-  unfold no_alignas_type, no_alignas in H.
-  destruct (attr_alignas a).
-  + inversion H.
-  + reflexivity.
-Qed.
-
-Lemma no_nested_alignas_type_Tstruct: forall i f a, no_nested_alignas_type (Tstruct i f a) = true -> alignof (Tstruct i f a) = alignof_fields f.
-Proof.
-  intros.
-  apply nested_pred_atom_pred in H.
-  apply no_alignas_type_Tstruct.
-  exact H.
-Qed.
-
-Lemma no_nested_alignas_type_Tunion: forall i f a, no_nested_alignas_type (Tunion i f a) = true -> alignof (Tunion i f a) = alignof_fields f.
-Proof.
-  intros.
-  apply nested_pred_atom_pred in H.
-  apply no_alignas_type_Tunion.
   exact H.
 Qed.
 
@@ -564,10 +526,10 @@ Proof.
   - congruence.
 Qed.
 
-Lemma nested_field_rec_divide: forall ids t pos t', nested_field_rec ids t = Some (pos, t') -> no_nested_alignas_type t = true -> Z.divide (alignof t') pos.
+Lemma nested_field_rec_divide: forall ids t pos t', nested_field_rec ids t = Some (pos, t') -> legal_alignas_type t = true -> Z.divide (alignof t') pos.
 Proof.
   intros.
-  assert ((alignof t' | pos) /\ no_nested_alignas_type t' = true); [| tauto].
+  assert ((alignof t' | pos) /\ legal_alignas_type t' = true); [| tauto].
   revert pos t' H; induction ids; intros.
   + inversion H. split; [apply Z.divide_0_r | inversion H; subst; exact H0].
   + valid_nested_field_rec ids t H.
@@ -576,7 +538,9 @@ Proof.
       subst.
       destruct (IHids ofs (Tstruct i f a0) eq_refl).
       pose proof field_offset_aligned a f ofs0 t' H4 H2.
-      rewrite no_nested_alignas_type_Tstruct in H; [|exact H3].
+      assert (alignof_fields f | ofs) by
+        (eapply Zdivides_trans; [apply legal_alignas_type_Tstruct; exact H3 | exact H]).
+      clear H; rename H6 into H.
       split.
       * apply Z.divide_add_r; try assumption.
         eapply Z.divide_trans. eapply alignof_type_divide_whole_fl. exact H2. exact H.
@@ -585,13 +549,15 @@ Proof.
       subst.
       destruct (IHids pos (Tunion i f a0) eq_refl).
       pose proof field_offset_aligned a f ofs0 t' H4 H2.
-      rewrite no_nested_alignas_type_Tunion in H; [|exact H3].
+      assert (alignof_fields f | pos) by
+        (eapply Zdivides_trans; [apply legal_alignas_type_Tunion; exact H3 | exact H]).
+      clear H; rename H6 into H.
       split.
       * eapply Z.divide_trans. eapply alignof_type_divide_whole_fl. exact H2. exact H.
       * eapply nested_fields_pred_nested_pred. exact H2. apply nested_pred_Tunion in H3. exact H3.
 Qed.
 
-Lemma nested_field_offset2_type2_divide: forall ids t, no_nested_alignas_type t = true -> Z.divide (alignof (nested_field_type2 ids t)) (nested_field_offset2 ids t).
+Lemma nested_field_offset2_type2_divide: forall ids t, legal_alignas_type t = true -> Z.divide (alignof (nested_field_type2 ids t)) (nested_field_offset2 ids t).
 Proof.
   intros.
   unfold nested_field_type2, nested_field_offset2.
@@ -631,7 +597,7 @@ Proof.
   replace (ofs + 0) with ofs; [reflexivity | omega].
 Qed.
 
-Lemma nested_field_rec_mid: forall i1 t1 i0 t0 ids t i f' f a ofs ofs0, no_nested_alignas_type t = true -> nested_legal_fieldlist t = true -> nested_field_rec ids t = Some (ofs, Tstruct i (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) a) -> nested_field_rec (i1 :: ids) t = Some (ofs0, t1) -> nested_field_rec (i0 :: ids) t = Some (align (ofs0 + sizeof t1) (alignof t0), t0).
+Lemma nested_field_rec_mid: forall i1 t1 i0 t0 ids t i f' f a ofs ofs0, legal_alignas_type t = true -> nested_legal_fieldlist t = true -> nested_field_rec ids t = Some (ofs, Tstruct i (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) a) -> nested_field_rec (i1 :: ids) t = Some (ofs0, t1) -> nested_field_rec (i0 :: ids) t = Some (align (ofs0 + sizeof t1) (alignof t0), t0).
 Proof.
   intros.
   simpl in H2; rewrite H1 in H2; simpl; rewrite H1.
@@ -647,12 +613,12 @@ Proof.
   apply divide_add_align.
   eapply Zdivide_trans; [| apply (nested_field_rec_divide ids t _ _ H1 H)].
   pose proof (nested_field_rec_nest_pred ids t ofs _ H H1).
-  rewrite (no_nested_alignas_type_Tstruct); [| exact H2].
+  eapply Zdivides_trans; [| apply legal_alignas_type_Tstruct; exact H2].
   rewrite fieldlist_app_Fcons.
   apply (alignof_type_divide_whole_fl i0 _ _ HH).
 Qed.
 
-Lemma nested_field_offset2_mid: forall i0 t0 i1 t1 ids t i f a f', no_nested_alignas_type t = true -> nested_field_type2 ids t = Tstruct i (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) a -> fieldlist_no_replicate (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = true -> nested_field_offset2 (i0 :: ids) t = align (nested_field_offset2 (i1 :: ids) t + sizeof t1) (alignof t0).
+Lemma nested_field_offset2_mid: forall i0 t0 i1 t1 ids t i f a f', legal_alignas_type t = true -> nested_field_type2 ids t = Tstruct i (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) a -> fieldlist_no_replicate (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = true -> nested_field_offset2 (i0 :: ids) t = align (nested_field_offset2 (i1 :: ids) t + sizeof t1) (alignof t0).
 Proof.
   intros ? ? ? ? ? ? ? ? ? ? Hnoalignas H H0.
 (* SearchAbout fieldlist_no_replicate. nested_legal_fieldlist *)
@@ -662,7 +628,8 @@ Proof.
   pose proof nested_field_type2_nest_pred eq_refl ids _ Hnoalignas as HHHH.
   rewrite HHH in HHHH; clear HHH.
   apply nested_field_rec_divide in HH; [|exact Hnoalignas].
-  rewrite no_nested_alignas_type_Tstruct in HH; [|exact HHHH]; clear HHHH.
+  pose proof Zdivides_trans _ _ _ (legal_alignas_type_Tstruct _ _ _ HHHH) HH.
+  clear HHHH HH; rename H into HH.
   pose proof field_offset_field_type_match i0 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) as HH1.
   pose proof field_offset_field_type_match i1 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) as HH2.
   destruct (field_offset i0 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f)))) eqn:H1;

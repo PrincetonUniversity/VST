@@ -451,7 +451,7 @@ Lemma semax_nested_data_load':
          (v2 : reptype (nested_field_type2 ids (typeof e1))) (v2' : val) 
        (HH1: uncompomize (nested_field_type2 ids (typeof e1)) = typeof (nested_efield e1 ids tts))
        (HH2: is_neutral_cast (typeof (nested_efield e1 ids tts)) t2 = true),
-       no_nested_alignas_type (typeof e1) = true ->
+       legal_alignas_type (typeof e1) = true ->
        legal_nested_efield ids tts (typeof e1) = true ->
        typeof_temp Delta id = Some t2 ->
        eq_rect_r (fun x => x) v2' (is_neutral_reptype' _ _ _ HH1 HH2) = v2 ->
@@ -574,7 +574,7 @@ Lemma semax_nested_data_store':
          (t1: type) ids tts (v: val) (v' : reptype (nested_field_type2 ids (typeof e1)))
        (HH1: uncompomize (nested_field_type2 ids (typeof e1)) = t1)
        (HH2: is_neutral_cast t1 t1 = true),
-       no_nested_alignas_type (typeof e1) = true ->
+       legal_alignas_type (typeof e1) = true ->
        legal_nested_efield ids tts (typeof e1) = true ->
        eq_rect_r (fun x => x) v (is_neutral_reptype' _ _ _ HH1 HH2) = v' ->
        typeof (nested_efield e1 ids tts) = t1 ->
