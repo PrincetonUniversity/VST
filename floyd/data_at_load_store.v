@@ -5,6 +5,7 @@ Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.loadstore_lemmas.
 Require Import floyd.data_at_lemmas.
+Require Import Coq.Logic.JMeq.
 Opaque alignof.
 
 Local Open Scope logic.
@@ -29,14 +30,20 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma is_neutral_data_at: forall sh t t' v v' p (Htype: is_neutral_cast t t' = true), eq_rect_r (fun x => x) v' (is_neutral_reptype t t' Htype) = v -> data_at sh t v p = mapsto sh t p v'.
+Lemma is_neutral_data_at: forall sh t t' v v' p,
+  is_neutral_cast t t' = true ->
+  JMeq v v' ->
+  data_at sh t v p = mapsto sh t p v'.
 Proof.
   intros.
-  destruct t, t'; try inversion Htype; simpl in v;
-  try (unfold data_at; simpl; unfold eq_rect_r in H; rewrite <- eq_rect_eq in H; rewrite H; reflexivity).
+  destruct t, t'; try inversion H; simpl in v;
+  try (unfold data_at; simpl; rewrite H0; reflexivity).
 Qed.
 
-Lemma is_neutral_lifted_data_at: forall sh t t' v v' p (Htype: is_neutral_cast t t' = true), eq_rect_r (fun x => x) v' (is_neutral_reptype t t' Htype) = v -> `(data_at sh t v) p = `(mapsto sh t) p `(v').
+Lemma is_neutral_lifted_data_at: forall sh t t' v (v':val) p,
+  is_neutral_cast t t' = true ->
+  JMeq v v' ->
+  `(data_at sh t v) p = `(mapsto sh t) p `(v').
 Proof.
   intros.
   unfold liftx, lift. simpl.
@@ -45,20 +52,20 @@ Proof.
   exact H.
 Qed.
 
-Lemma is_neutral_data_at_: forall sh t t' p (Htype: is_neutral_cast t t' = true), data_at_ sh t p = mapsto_ sh t p.
+Lemma is_neutral_data_at_: forall sh t t' p, is_neutral_cast t t' = true -> data_at_ sh t p = mapsto_ sh t p.
 Proof.
   intros.
   unfold data_at_, mapsto_.
-  destruct t, t'; try inversion Htype; simpl default_val; unfold data_at; simpl; reflexivity.
+  destruct t, t'; try inversion H; simpl default_val; unfold data_at; simpl; reflexivity.
 Qed.
 
-Lemma is_neutral_lifted_data_at_: forall sh t t' (Htype: is_neutral_cast t t' = true), `(data_at_ sh t) = `(mapsto_ sh t).
+Lemma is_neutral_lifted_data_at_: forall sh t t', is_neutral_cast t t' = true -> `(data_at_ sh t) = `(mapsto_ sh t).
 Proof.
   intros.
   unfold liftx, lift. simpl.
   repeat extensionality.
   eapply is_neutral_data_at_; try assumption.
-  exact Htype.
+  exact H.
 Qed.
 
 (* 
@@ -71,10 +78,10 @@ Lemma semax_data_load:
     forall (Delta : tycontext) (sh : Share.t) (id : ident) 
          (P : list Prop) (Q : list (environ -> Prop))
          (R : list (environ -> mpred)) (e1 : expr) 
-         (t2 : type) (v2 : reptype (typeof e1)) (v2' : val)
-       (_: typeof_temp Delta id = Some t2)
-       (Htype: is_neutral_cast (typeof e1) t2 = true),
-       eq_rect_r (fun x => x) v2' (is_neutral_reptype (typeof e1) t2 Htype) = v2 ->
+         (t2 : type) (v2 : reptype (typeof e1)) (v2' : val),
+       typeof_temp Delta id = Some t2 ->
+       is_neutral_cast (typeof e1) t2 = true ->
+       JMeq v2 v2' ->
        PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
        |-- local (tc_lvalue Delta e1) && local `(tc_val (typeof e1) v2') &&
            (`(data_at sh (typeof e1) v2) (eval_lvalue e1) * TT) ->
@@ -87,16 +94,16 @@ Lemma semax_data_load:
                   (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
+  rename H0 into Htype.
   eapply semax_load_37'.
   + exact H.
   + exact Htype.
   + instantiate (1:=sh).
-    apply (derives_trans _ _ _ H1).
+    apply (derives_trans _ _ _ H2).
     apply andp_derives; [normalize |].
     remember (eval_lvalue e1) as p.
     go_lower.
-    rewrite (is_neutral_data_at _ _ _ _ v2' _ Htype H0).
-    cancel.
+    erewrite is_neutral_data_at; [apply derives_refl | exact Htype | exact H1].
 Qed.
 
 Lemma semax_store_nth':
@@ -158,9 +165,9 @@ Lemma semax_data_store_nth:
     forall (n : nat) (Delta : tycontext) (P : list Prop)
          (Q : list (environ -> Prop)) (R : list (LiftEnviron mpred))
          (e1 e2 : expr) (Rn : LiftEnviron mpred) (sh : Share.t) 
-         (t1 : type) (v: val) (v' : reptype t1)
-       (Htype: is_neutral_cast t1 t1 = true),
-       eq_rect_r (fun x => x) v (is_neutral_reptype t1 t1 Htype) = v' ->
+         (t1 : type) (v: val) (v' : reptype t1),
+       is_neutral_cast t1 t1 = true ->
+       JMeq v' v ->
        typeof e1 = t1 ->
        nth_error R n = Some Rn ->
        Rn |-- `(data_at_ sh t1) (eval_lvalue e1) ->
@@ -178,10 +185,10 @@ Lemma semax_data_store_nth:
                         (`(data_at sh t1 v') (eval_lvalue e1)
                           )))))).
 Proof.
-  intros.
-  rewrite (is_neutral_lifted_data_at _ _ _ _ v _ Htype H).
-  rewrite (is_neutral_lifted_data_at_ _ _ _ Htype) in H2.
-  rewrite (is_neutral_lifted_data_at_ _ _ _ Htype) in H5.
+  intros until v'. intro Htype. intros.
+  erewrite is_neutral_lifted_data_at; [|exact Htype| exact H].
+  erewrite is_neutral_lifted_data_at_ in H2; [|exact Htype].
+  erewrite is_neutral_lifted_data_at_ in H5; [|exact Htype].
   eapply semax_post0; [| eapply semax_store_nth'].
   Focus 2. exact H0.
   Focus 2. exact H1.
@@ -244,58 +251,75 @@ Definition uncompomize (t: type) : type :=
   | _ => t
   end.
 
-Lemma is_neutral_reptype': forall t t' t'', uncompomize t = t' -> is_neutral_cast t' t'' = true -> reptype t = val.
+Lemma is_neutral_reptype': forall t t' t'',
+  uncompomize t = t' ->
+  is_neutral_cast t' t'' = true ->
+  reptype t = val.
 Proof.
   intros.
   destruct t, t', t''; try inversion H; try inversion H0; try reflexivity.
 Qed.
 
-Lemma is_neutral_data_at': forall sh t t' t'' v v' p (HH1: uncompomize t = t') (HH2: is_neutral_cast t' t'' = true), eq_rect_r (fun x => x) v' (is_neutral_reptype' t t' t'' HH1 HH2) = v -> data_at sh t v p = mapsto sh t' p v'.
+Lemma is_neutral_data_at': forall sh t t' t'' v v' p,
+  uncompomize t = t' ->
+  is_neutral_cast t' t'' = true ->
+  JMeq v' v ->
+  data_at sh t v p = mapsto sh t' p v'.
 Proof.
   intros.
-  destruct t, t', t''; try inversion HH1; try inversion HH2; simpl in v;
-  try (unfold data_at; simpl; unfold eq_rect_r in H; rewrite <- eq_rect_eq in H; rewrite H; reflexivity).
+  destruct t, t', t''; try inversion H; try inversion H0; simpl in v;
+  try (unfold data_at; simpl; rewrite H1; reflexivity).
 Qed.
 
-Lemma is_neutral_lifted_data_at': forall sh t t' t'' v v' p (HH1: uncompomize t = t') (HH2: is_neutral_cast t' t'' = true), eq_rect_r (fun x => x) v' (is_neutral_reptype' t t' t'' HH1 HH2) = v -> `(data_at sh t v) p = `(mapsto sh t') p `v'.
+Lemma is_neutral_lifted_data_at': forall sh t t' t'' v (v': val) p,
+  uncompomize t = t' ->
+  is_neutral_cast t' t'' = true ->
+  JMeq v' v ->
+  `(data_at sh t v) p = `(mapsto sh t') p `v'.
 Proof.
   intros.
   unfold liftx, lift. simpl.
   extensionality.
   eapply is_neutral_data_at'; try assumption.
-  exact H.
+  exact H0.
 Qed.
 
-Lemma is_neutral_data_at_': forall sh t t' t'' p (HH1: uncompomize t = t') (HH2: is_neutral_cast t' t'' = true), data_at_ sh t p = mapsto_ sh t' p.
+Lemma is_neutral_data_at_': forall sh t t' t'' p,
+  uncompomize t = t' ->
+  is_neutral_cast t' t'' = true ->
+  data_at_ sh t p = mapsto_ sh t' p.
 Proof.
   intros.
-  destruct t, t', t''; try inversion HH1; try inversion HH2;
+  destruct t, t', t''; try inversion H; try inversion H0;
   try (unfold data_at; simpl; reflexivity).
 Qed.
 
-Lemma is_neutral_lifted_data_at_': forall sh t t' t'' p (HH1: uncompomize t = t') (HH2: is_neutral_cast t' t'' = true), `(data_at_ sh t) p = `(mapsto_ sh t') p.
+Lemma is_neutral_lifted_data_at_': forall sh t t' t'' p,
+  uncompomize t = t' ->
+  is_neutral_cast t' t'' = true ->
+  `(data_at_ sh t) p = `(mapsto_ sh t') p.
 Proof.
   intros.
   unfold liftx, lift. simpl.
   extensionality.
   eapply is_neutral_data_at_'; try assumption.
-  exact HH2.
+  exact H0.
 Qed.
 
 Lemma semax_data_load':
   forall {Espec: OracleKind},
     forall (Delta : tycontext) (sh : Share.t) (id : ident) 
-         (P : list Prop) (Q : list (environ -> Prop))
-         (R : list (environ -> mpred)) (e1 : expr) 
-         (t1 t2 : type) (v2 : reptype t1) (v2' : val)
-       (HH1: uncompomize t1 = typeof e1)
-       (HH2: is_neutral_cast (typeof e1) t2 = true),
-       typeof_temp Delta id = Some t2 ->
-       eq_rect_r (fun x => x) v2' (is_neutral_reptype' t1 (typeof e1) t2 HH1 HH2) = v2 ->
-       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
-       |-- local (tc_lvalue Delta e1) && local `(tc_val (typeof e1) v2') &&
-           (`(data_at sh t1 v2) (eval_lvalue e1) * TT) ->
-       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+      (P : list Prop) (Q : list (environ -> Prop))
+      (R : list (environ -> mpred)) (e1 : expr) 
+      (t1 t2 : type) (v2 : reptype t1) (v2' : val),
+      uncompomize t1 = typeof e1 ->
+      is_neutral_cast (typeof e1) t2 = true ->
+      typeof_temp Delta id = Some t2 ->
+      JMeq v2' v2 ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
+      |-- local (tc_lvalue Delta e1) && local `(tc_val (typeof e1) v2') &&
+          (`(data_at sh t1 v2) (eval_lvalue e1) * TT) ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
          (Sset id e1)
          (normal_ret_assert
             (EX  old : val,
@@ -305,15 +329,14 @@ Lemma semax_data_load':
 Proof.
   intros.
   eapply semax_load_37'.
-  + exact H.
-  + exact HH2.
+  + exact H1.
+  + exact H0.
   + instantiate (1:=sh).
-    apply (derives_trans _ _ _ H1).
+    apply (derives_trans _ _ _ H3).
     apply andp_derives; [normalize |].
     forget (eval_lvalue e1) as p.
     go_lower.
-    erewrite is_neutral_data_at'.
-    apply derives_refl.
+    erewrite is_neutral_data_at'; [apply derives_refl| | |]; try assumption.
     exact H0.
 Qed.
 
@@ -330,7 +353,9 @@ Fixpoint legal_nested_efield t (ids: list ident) (tts: list type) : bool :=
     end
   end.
 
-Lemma legal_nested_efield_cons: forall id ids t tts e, legal_nested_efield (typeof e) (id :: ids) (t :: tts) = true -> legal_nested_efield (typeof e) ids tts = true.
+Lemma legal_nested_efield_cons: forall id ids t tts e,
+  legal_nested_efield (typeof e) (id :: ids) (t :: tts) = true ->
+  legal_nested_efield (typeof e) ids tts = true.
 Proof.
   intros.
   simpl in H.
@@ -342,16 +367,6 @@ Proof.
   rewrite H, H1;
   reflexivity.
 Qed.
-
-(*
-Definition legal_nested_efield (ids: list ident) (tts: list type) t : bool :=
-  match ids, tts with
-  | nil, nil => true
-  | nil, _ => false
-  | _ , nil => false
-  | cons id ids', cons t_ tts' => type_eq (uncompomize (nested_field_type2 ids t)) t_
-  end.
-*)
 
 Fixpoint nested_efield (e: expr) (ids: list ident) (tts: list type) : expr :=
   match ids, tts with
@@ -448,13 +463,13 @@ Lemma semax_nested_data_load':
          (P : list Prop) (Q : list (environ -> Prop))
          (R : list (environ -> mpred)) (e1 : expr) 
          (t2 : type) (ids: list ident) (tts: list type)
-         (v2 : reptype (nested_field_type2 (typeof e1) ids)) (v2' : val) 
-       (HH1: uncompomize (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts))
-       (HH2: is_neutral_cast (typeof (nested_efield e1 ids tts)) t2 = true),
+         (v2 : reptype (nested_field_type2 (typeof e1) ids)) (v2' : val),
+       uncompomize (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
+       is_neutral_cast (typeof (nested_efield e1 ids tts)) t2 = true ->
        legal_alignas_type (typeof e1) = true ->
        legal_nested_efield (typeof e1) ids tts = true ->
        typeof_temp Delta id = Some t2 ->
-       eq_rect_r (fun x => x) v2' (is_neutral_reptype' _ _ _ HH1 HH2) = v2 ->
+       JMeq v2' v2 ->
        PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
        |-- local (tc_lvalue Delta (nested_efield e1 ids tts)) &&
            local `(tc_val (typeof (nested_efield e1 ids tts)) v2') &&
@@ -467,23 +482,23 @@ Lemma semax_nested_data_load':
                (LOCALx (`eq (eval_id id) `v2' :: map (subst id `old) Q)
                   (SEPx (map (subst id `old) R))))).
 Proof.
-  intros until HH2. intros H98 H99 ? ? ?.
+  intros.
   eapply semax_data_load'.
   + exact H.
   + exact H0.
-  + eapply derives_trans; [exact H1|].
+  + exact H3.
+  + exact H4.
+  + eapply derives_trans; [exact H5|].
     instantiate (1:=sh).
     apply andp_derives; [normalize |].
     remember eval_lvalue as v.
     go_lower.
     subst v.
-    rewrite nested_data_at_data_at.
+    rewrite nested_data_at_data_at; [| exact H1].
     rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
-    rewrite (eval_lvalue_nested_efield _ _ tts). 
+    rewrite (eval_lvalue_nested_efield _ _ tts); [| exact H2].
     rewrite <- data_at_offset_zero.
     apply derives_refl.
-    exact H99.
-    exact H98.
 Qed.
 
 Lemma semax_data_store_nth':
@@ -491,10 +506,10 @@ Lemma semax_data_store_nth':
     forall (n : nat) (Delta : tycontext) (P : list Prop)
          (Q : list (environ -> Prop)) (R : list (LiftEnviron mpred))
          (e1 e2 : expr) (Rn : LiftEnviron mpred) (sh : Share.t) 
-         (t1 t2: type) (v: val) (v' : reptype t2)
-       (HH1: uncompomize t2 = t1)
-       (HH2: is_neutral_cast t1 t1 = true),
-       eq_rect_r (fun x => x) v (is_neutral_reptype' _ _ _ HH1 HH2) = v' ->
+         (t1 t2: type) (v: val) (v' : reptype t2),
+       uncompomize t2 = t1 ->
+       is_neutral_cast t1 t1 = true ->
+       JMeq v v' ->
        typeof e1 = t1 ->
        nth_error R n = Some Rn ->
        Rn |-- `(data_at_ sh t2) (eval_lvalue e1) ->
@@ -513,15 +528,15 @@ Lemma semax_data_store_nth':
                           )))))).
 Proof.
   intros.
-  rewrite (is_neutral_lifted_data_at' _ _ _ _ _ v _ HH1 HH2 H).
-  rewrite (is_neutral_lifted_data_at_' _ _ _ _ _ HH1 HH2) in H2.
-  rewrite (is_neutral_lifted_data_at_' _ _ _ _ _ HH1 HH2) in H5.
+  erewrite is_neutral_lifted_data_at'; [| exact H | exact H0 | exact H1].
+  erewrite is_neutral_lifted_data_at_' in H4; [| exact H | exact H0].
+  erewrite is_neutral_lifted_data_at_' in H7; [| exact H | exact H0].
   eapply semax_post0; [| eapply semax_store_nth'].
-  Focus 2. exact H0.
-  Focus 2. exact H1.
   Focus 2. exact H2.
   Focus 2. exact H3.
-  Focus 2. eapply derives_trans. exact H4. cancel.
+  Focus 2. exact H4.
+  Focus 2. exact H5.
+  Focus 2. eapply derives_trans. exact H6. cancel.
   apply normal_ret_assert_derives'.
 
   eapply derives_trans.
@@ -549,7 +564,7 @@ Proof.
     simpl.
     repeat try apply andp_right.
     - apply andp_left1; cancel.
-    - eapply derives_trans; [exact (H6 x) |exact (H5 x)].
+    - eapply derives_trans; [exact (H8 x) |exact (H7 x)].
     - apply andp_left2; apply andp_left1; cancel.
     - apply andp_left2; apply andp_left2; cancel.
   + rewrite <- insert_local.
@@ -559,7 +574,7 @@ Opaque eval_expr.
     remember PROPx.
     normalize.
     subst m.
-    unfold liftx, lift in H6; simpl in H6.
+    unfold liftx, lift in H8; simpl in H8.
 Transparent eval_expr.
     subst v.
     apply replace_nth_SEP'.
@@ -571,12 +586,12 @@ Lemma semax_nested_data_store':
     forall (n : nat) (Delta : tycontext) (P : list Prop)
          (Q : list (environ -> Prop)) (R : list (LiftEnviron mpred))
          (e1 e2 : expr) (Rn : LiftEnviron mpred) (sh : Share.t) 
-         (t1: type) ids tts (v: val) (v' : reptype (nested_field_type2 (typeof e1) ids))
-       (HH1: uncompomize (nested_field_type2 (typeof e1) ids) = t1)
-       (HH2: is_neutral_cast t1 t1 = true),
+         (t1: type) ids tts (v: val) (v' : reptype (nested_field_type2 (typeof e1) ids)),
+       uncompomize (nested_field_type2 (typeof e1) ids) = t1 ->
+       is_neutral_cast t1 t1 = true ->
        legal_alignas_type (typeof e1) = true ->
        legal_nested_efield (typeof e1) ids tts = true ->
-       eq_rect_r (fun x => x) v (is_neutral_reptype' _ _ _ HH1 HH2) = v' ->
+       JMeq v v' ->
        typeof (nested_efield e1 ids tts) = t1 ->
        nth_error R n = Some Rn ->
        Rn |-- `(nested_data_at_ sh (typeof e1) ids) (eval_lvalue e1) ->
@@ -600,19 +615,19 @@ Proof.
                  (eval_lvalue (nested_efield e1 ids tts))) =
               (`(nested_data_at sh (typeof e1) ids v) (eval_lvalue e1))).
     intros.
-    rewrite nested_data_at_data_at; [|exact H].
+    rewrite nested_data_at_data_at; [|exact H1].
     rewrite lifted_at_offset'_eq; [| intros; rewrite <- data_at_offset_zero; reflexivity].
     unfold liftx, lift; simpl. extensionality rho.
-    rewrite (eval_lvalue_nested_efield _ _ tts); [|exact H0].
+    rewrite (eval_lvalue_nested_efield _ _ tts); [|exact H2].
     rewrite <- data_at_offset_zero.
     reflexivity.
-  rewrite <- H8.
-  eapply semax_data_store_nth'; [| exact H2 | exact H3 | | auto | exact H6 |].
-  - exact H1.
+  rewrite <- H10.
+  eapply semax_data_store_nth'; [exact H| exact H0 | exact H3 | exact H4 | | | auto | exact H8 |].
+  - exact H5.
   - unfold data_at_. unfold nested_data_at_ in H4.
-    rewrite H8.
-    exact H4.
-  - unfold data_at_. unfold nested_data_at_ in H7.
-    rewrite H8.
-    exact H7.
+    rewrite H10.
+    exact H6.
+  - unfold data_at_. unfold nested_data_at_ in H9.
+    rewrite H10.
+    exact H9.
 Qed.

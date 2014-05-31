@@ -48,15 +48,8 @@ eapply semax_seq'.
   change (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tint) with
          (nested_efield (Evar _p t_struct_b) (_x2 :: _y2 ::nil) (tint :: t_struct_a:: nil) ).
 
-  eapply semax_nested_data_load'.
+  eapply semax_nested_data_load'; try reflexivity.
   - reflexivity.
-  - reflexivity.
-  - reflexivity.
-  - unfold eq_rect_r.
-    instantiate (2:= eq_refl).
-    instantiate (2:= eq_refl).
-    rewrite <- eq_rect_eq.
-    reflexivity.
   - repeat apply andp_right.
     * go_lower.
       apply prop_right.
@@ -96,13 +89,8 @@ eapply semax_seq'.
   change (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tint) with
          (nested_efield (Evar _p t_struct_b) (_x2 :: _y2 ::nil) (tint :: t_struct_a:: nil) ).
 
-  eapply semax_nested_data_store'; [reflexivity | reflexivity | | reflexivity | 
-    instantiate (2:=1%nat); reflexivity | | auto | |].
-  - unfold eq_rect_r.
-    instantiate (2:= eq_refl).
-    instantiate (2:= eq_refl).
-    rewrite <- eq_rect_eq.
-    reflexivity.
+  eapply semax_nested_data_store'; try reflexivity.
+  - instantiate (2:=1%nat); reflexivity.
   - unfold liftx, lift. simpl. intros.
     instantiate (1:= Ews).
     apply nested_data_at_nested_data_at_.

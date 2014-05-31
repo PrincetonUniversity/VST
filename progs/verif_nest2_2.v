@@ -52,10 +52,8 @@ eapply semax_seq'.
 
   eapply semax_data_load.
   - reflexivity.
-  - unfold eq_rect_r.
-    instantiate (2:= eq_refl).
-    rewrite <- eq_rect_eq.
-    reflexivity.
+  - reflexivity.
+  - reflexivity.
   - repeat apply andp_right.
     * go_lower.
       apply prop_right.
@@ -96,13 +94,13 @@ eapply semax_seq'.
   ensure_normal_ret_assert;
   hoist_later_in_pre.
   
-  eapply semax_data_store_nth; [| reflexivity | instantiate (2:= 1%nat); reflexivity | | | |].
-  - unfold eq_rect_r. 
-    instantiate (2:= eq_refl).
-    rewrite <- eq_rect_eq.
-    reflexivity.
+  eapply semax_data_store_nth; [| | reflexivity | | | | |].
+  - reflexivity.
+  - reflexivity.
+  - instantiate (2:=1%nat). reflexivity.
   - simpl.
     instantiate (1:= Ews).
+    intros. 
     admit.
   - auto.
   - simpl. normalize.
