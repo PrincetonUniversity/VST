@@ -93,7 +93,7 @@ eapply semax_seq'.
   - instantiate (2:=1%nat); reflexivity.
   - unfold liftx, lift. simpl. intros.
     instantiate (1:= Ews).
-    apply nested_data_at_nested_data_at_.
+    apply field_at_nested_field_at_.
     reflexivity.
     admit. (*size_compatible*)
     admit. (*align_compatible*)

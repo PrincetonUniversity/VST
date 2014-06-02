@@ -42,8 +42,7 @@ unfold_data_at 1%nat.
 unfold_field_at 2%nat.
 
 eapply semax_seq'.
-+ rewrite nested_data_at_data_at at 1; [| reflexivity].
-
++ rewrite field_at_data_at at 1; [| reflexivity].
   unfold nested_field_lemmas.nested_field_type2, nested_field_lemmas.nested_field_offset2.
   simpl.
   
@@ -85,7 +84,7 @@ unfold_data_at 1%nat.
 unfold_field_at 2%nat.
 
 eapply semax_seq'.
-+ rewrite nested_data_at_data_at at 1; [| reflexivity].
++ rewrite field_at_data_at at 1; [| reflexivity].
 
   unfold nested_field_lemmas.nested_field_type2, nested_field_lemmas.nested_field_offset2.
   simpl.

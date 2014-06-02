@@ -242,7 +242,7 @@ Qed.
 
 (********************************************
 
-Max length ids nested_data_at load store
+Max length ids field_at load store
 
 ********************************************)
 
@@ -468,7 +468,7 @@ Lemma semax_nested_data_load':
        PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
        |-- local (tc_lvalue Delta (nested_efield e1 ids tts)) &&
            local `(tc_val (typeof (nested_efield e1 ids tts)) v2') &&
-           (`(nested_data_at sh (typeof e1) ids v2) (eval_lvalue e1) * TT) ->
+           (`(field_at sh (typeof e1) ids v2) (eval_lvalue e1) * TT) ->
        semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
          (Sset id (nested_efield e1 ids tts))
          (normal_ret_assert
@@ -489,7 +489,7 @@ Proof.
     remember eval_lvalue as v.
     go_lower.
     subst v.
-    rewrite nested_data_at_data_at; [| exact H1].
+    rewrite field_at_data_at; [| exact H1].
     rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
     rewrite (eval_lvalue_nested_efield _ _ tts); [| exact H2].
     rewrite <- data_at_offset_zero.
@@ -589,12 +589,12 @@ Lemma semax_nested_data_store':
        JMeq v v' ->
        typeof (nested_efield e1 ids tts) = t1 ->
        nth_error R n = Some Rn ->
-       Rn |-- `(nested_data_at_ sh (typeof e1) ids) (eval_lvalue e1) ->
+       Rn |-- `(field_at_ sh (typeof e1) ids) (eval_lvalue e1) ->
        writable_share sh ->
        PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
        |-- local (tc_lvalue Delta (nested_efield e1 ids tts)) && 
            local (tc_expr Delta (Ecast e2 t1)) ->
-       PROPx P (LOCALx Q (SEPx (replace_nth n R (`(nested_data_at_ sh (typeof e1) ids) (eval_lvalue e1))))) |-- local (`(eq) (eval_expr (Ecast e2 t1)) `v) ->
+       PROPx P (LOCALx Q (SEPx (replace_nth n R (`(field_at_ sh (typeof e1) ids) (eval_lvalue e1))))) |-- local (`(eq) (eval_expr (Ecast e2 t1)) `v) ->
        semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
          (Sassign (nested_efield e1 ids tts) e2)
          (normal_ret_assert
@@ -602,15 +602,15 @@ Lemma semax_nested_data_store':
                (LOCALx Q
                   (SEPx
                      (replace_nth n R
-                        (`(nested_data_at sh (typeof e1) ids v') (eval_lvalue e1)
+                        (`(field_at sh (typeof e1) ids v') (eval_lvalue e1)
                           )))))).
 Proof.
   intros.
   assert (forall v, (`(data_at sh (nested_field_type2 (typeof e1) ids) v)
                  (eval_lvalue (nested_efield e1 ids tts))) =
-              (`(nested_data_at sh (typeof e1) ids v) (eval_lvalue e1))).
+              (`(field_at sh (typeof e1) ids v) (eval_lvalue e1))).
     intros.
-    rewrite nested_data_at_data_at; [|exact H1].
+    rewrite field_at_data_at; [|exact H1].
     rewrite lifted_at_offset'_eq; [| intros; rewrite <- data_at_offset_zero; reflexivity].
     unfold liftx, lift; simpl. extensionality rho.
     rewrite (eval_lvalue_nested_efield _ _ tts); [|exact H2].
@@ -619,10 +619,10 @@ Proof.
   rewrite <- H10.
   eapply semax_data_store_nth'; [exact H| exact H0 | exact H3 | exact H4 | | | auto | exact H8 |].
   - exact H5.
-  - unfold data_at_. unfold nested_data_at_ in H4.
+  - unfold data_at_. unfold field_at_ in H4.
     rewrite H10.
     exact H6.
-  - unfold data_at_. unfold nested_data_at_ in H9.
+  - unfold data_at_. unfold field_at_ in H9.
     rewrite H10.
     exact H9.
 Qed.
