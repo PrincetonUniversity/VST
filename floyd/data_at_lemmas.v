@@ -3,6 +3,7 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
+Require Import Coq.Logic.JMeq.
 Opaque alignof.
 
 Local Open Scope logic.
@@ -905,10 +906,10 @@ Proof.
   destruct p; simpl; apply derives_refl.
 Qed.
 
-Lemma at_offset2_preserve_local_facts: forall {A: Type} P pos (v: A), (forall p, P p v |-- !!(isptr p)) -> (forall p, at_offset2 P pos v p |-- !!(isptr p)).
+Lemma at_offset'_preserve_local_facts: forall {A: Type} P pos, (forall p, P p |-- !!(isptr p)) -> (forall p, at_offset' P pos p |-- !!(isptr p)).
 Proof.
   intros.
-  unfold at_offset2, at_offset', at_offset.
+  unfold at_offset', at_offset.
   destruct pos.
   + exact (H p).
   + eapply derives_trans. exact (H _). apply offset_val_preserve_isptr.
@@ -936,7 +937,7 @@ Always assume in arguments of data_at', array_at', sfieldlist_at', ufieldlist_
 at' has argument pos with alignment criterian. So, spacers are only added after
 fields of structs or unions.
 
-A new array_at' is used here. But it worths discussion which version is better.
+A new array_at' could be used here. But it worths discussion which version is better.
 
 Personally, I don't know why "function" case looks like this. I just copy it
 from previous version.
@@ -1385,6 +1386,54 @@ Proof.
   + assumption.
 Qed.
 
+Lemma data_at'_env_changable: forall (sh: Share.t) (e1 e2: type_id_env) (t: type), data_at' sh e1 t = data_at' sh e2 t.
+Proof.
+  intros.
+  apply (type_mut (fun t => data_at' sh e1 t = data_at' sh e2 t) (fun _ => True) (fun flds => (forall alignment: Z, sfieldlist_at' sh e1 flds alignment = sfieldlist_at' sh e2 flds alignment) /\ (forall size: Z, ufieldlist_at' sh e1 flds size = ufieldlist_at' sh e2 flds size))); intros; try reflexivity. (* Happily, Tcomp_ptr case is solved by reflexivity automatically. *)
+  + simpl. rewrite H. reflexivity. (* About array *)
+  + simpl. destruct H as [? _]. apply H. (* About struct *)
+  + simpl. destruct H as [_ ?]. apply H. (* About union *)
+  + simpl. split; reflexivity.  (* Fnil case of fieldlist induction *)
+  + destruct H0. simpl. split; intros. (* Fcons case of fieldlist induction *)
+    rewrite H, H0. reflexivity.
+    rewrite H, H1. reflexivity.
+Qed.
+
+Lemma data_at'_type_changable: forall (sh: Share.t) (e: type_id_env) (t1 t2: type) (pos: Z) v1 v2,
+  t1 = t2 ->
+  JMeq v1 v2 ->
+  data_at' sh e t1 pos v1 = data_at' sh e t2 pos v2.
+Proof.
+  intros.
+  subst t2.
+  rewrite H0.
+  reflexivity.
+Qed.
+
+Lemma data_at_type_changable: forall (sh: Share.t) (t1 t2: type) v1 v2,
+  t1 = t2 ->
+  JMeq v1 v2 ->
+  data_at sh t1 v1 = data_at sh t2 v2.
+Proof.
+  intros.
+  unfold data_at.
+  apply data_at'_type_changable; assumption.
+Qed.
+
+Lemma by_value_default_val: forall t:type, 
+  type_is_by_value t -> JMeq (default_val t) Vundef.
+Proof.
+  intros.
+  destruct t; try tauto.
+Qed.
+
+(************************************************
+
+local_facts, isptr and offset_zero properties of array_at', data_at', data_at
+and data_at_.
+
+************************************************)
+
 Lemma array_at'_local_facts: forall t sh tmap f lo hi p,
   array_at' t sh tmap f lo hi p |-- !! (isptr p).
 Proof.
@@ -1399,9 +1448,9 @@ Proof.
   intros.
   revert p.
   apply (type_mut (fun (t: type) => forall pos v p, (data_at' sh e t pos v p |-- !!(isptr p))) (fun _ => True) (fun flds => (forall alignment pos v p, sfieldlist_at' sh e flds alignment pos v p |-- !!(isptr p)) /\ (forall alignment pos v p, ufieldlist_at' sh e flds alignment pos v p |-- !!(isptr p)))); intros; auto; simpl; 
-  try (apply at_offset2_preserve_local_facts; intros; apply mapsto_local_facts);
-  try (apply at_offset2_preserve_local_facts; intros; apply memory_block_local_facts).
-  + apply at_offset2_preserve_local_facts; intros. (* Array case *)
+  try (unfold at_offset2; apply (@at_offset'_preserve_local_facts val); intros; apply mapsto_local_facts);
+  try (unfold at_offset2; apply (@at_offset'_preserve_local_facts val); intros; apply memory_block_local_facts).
+  + unfold at_offset2; apply (@at_offset'_preserve_local_facts val). intros. (* Array case *)
     apply array_at'_local_facts.
   + destruct H. apply H. (* struct case *)
   + destruct H. apply H0. (* union case *)
@@ -1454,17 +1503,63 @@ Proof. intros. unfold data_at_. apply data_at_isptr. Qed.
 Lemma data_at__offset_zero: forall sh t p, data_at_ sh t p = data_at_ sh t (offset_val (Int.repr 0) p).
 Proof. intros. unfold data_at_. apply data_at_offset_zero. Qed.
 
-Lemma data_at'_lemma: forall (sh: Share.t) (e1 e2: type_id_env) (t: type), data_at' sh e1 t = data_at' sh e2 t.
+(************************************************
+
+Transformation among data_at', data_at and mapsto.
+
+************************************************)
+
+Definition uncompomize (t: type) : type :=
+  match t with
+  | Tcomp_ptr i a => Tpointer Tvoid a
+  | _ => t
+  end.
+
+Lemma uncompomize_reptype: forall t, reptype (uncompomize t) = reptype t.
 Proof.
   intros.
-  apply (type_mut (fun t => data_at' sh e1 t = data_at' sh e2 t) (fun _ => True) (fun flds => (forall alignment: Z, sfieldlist_at' sh e1 flds alignment = sfieldlist_at' sh e2 flds alignment) /\ (forall size: Z, ufieldlist_at' sh e1 flds size = ufieldlist_at' sh e2 flds size))); intros; try reflexivity. (* Happily, Tcomp_ptr case is solved by reflexivity automatically. *)
-  + simpl. rewrite H. reflexivity. (* About array *)
-  + simpl. destruct H as [? _]. apply H. (* About struct *)
-  + simpl. destruct H as [_ ?]. apply H. (* About union *)
-  + simpl. split; reflexivity.  (* Fnil case of fieldlist induction *)
-  + destruct H0. simpl. split; intros. (* Fcons case of fieldlist induction *)
-    rewrite H, H0. reflexivity.
-    rewrite H, H1. reflexivity.
+  destruct t; reflexivity.
+Qed.
+
+Lemma by_value_reptype: forall t, type_is_by_value t -> reptype t = val.
+Proof.
+  intros.
+  destruct t; simpl in H; tauto.
+Qed.
+
+Lemma by_value_data_at: forall sh t v v' p,
+  type_is_by_value t ->
+  JMeq v v' ->
+  data_at sh t v p = mapsto sh t p v'.
+Proof.
+  intros.
+  destruct t; simpl in H; try tauto; simpl in v;
+  try (unfold data_at; simpl; rewrite H0; reflexivity).
+Qed.
+
+Lemma uncompomize_data_at: forall sh t v v' p,
+  JMeq v v' ->
+  data_at sh t v p = data_at sh (uncompomize t) v' p.
+Proof.
+  intros.
+  destruct t; simpl in *; rewrite H; reflexivity.
+Qed.
+
+Lemma uncompomize_by_value_data_at: forall sh t v v' p,
+  type_is_by_value (uncompomize t) ->
+  JMeq v v' ->
+  data_at sh t v p = mapsto sh (uncompomize t) p v'.
+Proof.
+  intros.
+  remember v as v'' eqn:HH. 
+  assert (JMeq v'' v) by (subst; reflexivity); clear HH.
+  revert v H1.
+  pattern (reptype t) at 1 3. rewrite <- (uncompomize_reptype t).
+  intros.  
+  erewrite <- by_value_data_at; [|exact H | rewrite <- H0; rewrite H1; reflexivity].
+
+  apply uncompomize_data_at.
+  exact H1.
 Qed.
 
 Lemma lower_sepcon_val':

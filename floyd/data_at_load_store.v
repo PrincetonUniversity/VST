@@ -8,6 +8,7 @@ Require Import floyd.data_at_lemmas.
 Require Import Coq.Logic.JMeq.
 Opaque alignof.
 
+
 Local Open Scope logic.
 
 (***************************************
@@ -244,12 +245,6 @@ Qed.
 Max length ids nested_data_at load store
 
 ********************************************)
-
-Definition uncompomize (t: type) : type :=
-  match t with
-  | Tcomp_ptr i a => Tpointer Tvoid a
-  | _ => t
-  end.
 
 Lemma is_neutral_reptype': forall t t' t'',
   uncompomize t = t' ->
