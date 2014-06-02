@@ -1422,23 +1422,9 @@ Lemma field_at_ptr_neq_null: forall sh t fld v p,
    field_at sh t fld v p |-- !! (~ ptr_eq p nullval).
 Proof.
    intros.
-   rewrite -> field_at_nonnull.
+   rewrite -> field_at_isptr.
    entailer!.
-   unfold Cop.bool_val in H.
-   destruct p; try (inversion H).
-   (* part 1 *)
-     unfold negb in H1; destruct (Int.eq i Int.zero) eqn:H2; [inversion H1|].
-     unfold ptr_eq.
-     unfold nullval.
-     unfold Int.cmpu.
-     rewrite -> H2.
-     unfold not; intros.
-     inversion H0.
-     inversion H3.
-   (* part 2 *)
-     unfold ptr_eq.
-     unfold nullval.
-     auto.
+   destruct p; unfold nullval; simpl in *; tauto.
 Qed.
 
 (* About Power later *************************)

@@ -265,27 +265,6 @@ rewrite mapsto_isptr. apply andp_left1; auto.
 destruct x; simpl; normalize.
 Qed.
 
-Lemma field_at_nonnull:  forall t fld sh x y, 
-     field_at sh t fld y x = 
-               !! (Cop.bool_val x (Tpointer t noattr) = Some true) && field_at sh t fld y x.
-Proof.
-intros; apply pred_ext; normalize.
-apply andp_right; auto.
-unfold field_at.
-destruct t; normalize.
-destruct ( field_offset fld (unroll_composite_fields i (Tstruct i f a) f) ); normalize.
-rewrite mapsto_isptr. apply andp_left1; auto.
-destruct x; simpl; normalize.
-Qed.
-
-Lemma field_at__nonnull:  forall t fld sh x, 
-     field_at_ sh t fld x = 
-               !! (Cop.bool_val x (Tpointer t noattr) = Some true) && field_at_ sh t fld x.
-Proof.
-intros.
-apply field_at_nonnull.
-Qed.
-
 Lemma field_offset_exists1: 
   forall sid t fields fld,
     type_of_field (unroll_composite_fields sid t fields) fld <> Tvoid ->
