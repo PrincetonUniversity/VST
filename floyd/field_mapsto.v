@@ -503,13 +503,12 @@ Lemma field_at_local_facts:
  forall sh id t fList fld att (x y: val),
    t = Tstruct id fList att ->
    field_at sh t fld y x |--
-      !! (isptr x  /\ type_is_volatile t = false).
+      !! (isptr x).
 Proof.
 intros.
 erewrite field_at_isptr.
 rewrite field_at_nonvolatile.
 normalize.
-apply prop_right; repeat split; auto.
 Qed.
 
 Hint Extern 2 (@derives _ _ _ _) => 
@@ -519,7 +518,7 @@ Lemma field_at__local_facts:
  forall sh id t fList fld att (x: val),
    t = Tstruct id fList att ->
    field_at_ sh t fld x |--
-      !! (isptr x /\ type_is_volatile t = false).
+      !! (isptr x).
 Proof.
 intros.
 eapply field_at_local_facts; eauto.

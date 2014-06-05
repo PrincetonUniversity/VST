@@ -55,6 +55,39 @@ Proof.
   apply Z.divide_1_l.
 Qed.
 
+Lemma size_compatible_nested_field_aux: forall t ids,
+  isSome (nested_field_rec t ids) ->
+  (nested_field_offset2 t ids) + sizeof (nested_field_type2 t ids) <= sizeof t.
+Proof.
+  intros.
+  admit.
+Qed.
+
+Lemma nested_field_offset2_pos: forall t ids, nested_field_offset2 t ids >= 0.
+Proof.
+  admit.
+Qed.
+  
+Lemma size_compatible_nested_field: forall t ids p,
+  size_compatible t p ->
+  size_compatible (nested_field_type2 t ids) (offset_val (Int.repr (nested_field_offset2 t ids)) p).
+Proof.
+  intros.
+  destruct p; simpl; try tauto.
+  repeat rewrite Int.Z_mod_modulus_eq.
+  assert (0 < Int.modulus) by (cbv; reflexivity).
+  assert (0 <= nested_field_offset2 t ids) by (pose proof nested_field_offset2_pos t ids; omega).
+  pose proof Zmod_le (nested_field_offset2 t ids) (Int.modulus) H0 H1.
+  admit.
+Qed.
+
+Lemma align_compatible_nested_field: forall t ids p,
+  align_compatible t p ->
+  align_compatible (nested_field_type2 t ids) (offset_val (Int.repr (nested_field_offset2 t ids)) p).
+Proof.
+  admit.
+Qed.
+
 (******************************************
 
 To prove memory_block_mapsto_
@@ -1162,7 +1195,9 @@ with ufieldlist_at' (sh: Share.t) (e: type_id_env) (flds: fieldlist) (size: Z) (
     eq_refl v
   end.
 
-Definition data_at (sh: Share.t) (t: type) := data_at' sh empty_ti t 0.
+Definition data_at (sh: Share.t) (t: type) :=
+  (fun (_:reptype t) p => (!! (size_compatible t p /\ align_compatible t p))) 
+  && data_at' sh empty_ti t 0.
 
 Definition data_at_ (sh: Share.t) (t: type) := data_at sh t (default_val _).
 
@@ -1297,11 +1332,11 @@ Proof.
   + apply H3; assumption.
   + apply H4; try assumption. (* array case *)
     intros; apply H18.
-    - eapply nested_pred_Tarray; exact H19.
+    - eapply nested_pred_Tarray; [exact H19|destruct H22; omega].
     - apply Z.divide_add_r. 
       * rewrite legal_alignas_type_Tarray in H20; [exact H20 | exact H19].
       * apply Z.divide_mul_l, legal_alignas_sizeof_alignof_compat.
-        eapply nested_pred_Tarray; exact H19.
+        eapply nested_pred_Tarray; [exact H19|destruct H22; omega].
     - simpl in H21.
       destruct H22.
       replace (Z.max 0 z) with z in H21 by (apply eq_sym; apply Z.max_r; omega).
@@ -1417,7 +1452,10 @@ Lemma data_at_type_changable: forall (sh: Share.t) (t1 t2: type) v1 v2,
 Proof.
   intros.
   unfold data_at.
-  apply data_at'_type_changable; assumption.
+  simpl. extensionality.
+  erewrite data_at'_type_changable; [| exact H| exact H0].
+  rewrite H.
+  reflexivity.
 Qed.
 
 Lemma by_value_default_val: forall t:type, 
@@ -1486,13 +1524,13 @@ Lemma data_at'_offset_zero:
 Proof. intros. rewrite <- local_facts_offset_zero. reflexivity. apply data_at'_local_facts. Qed.
 
 Lemma data_at_local_facts: forall sh t v p, data_at sh t v p |-- !!(isptr p).
-Proof. intros. unfold data_at. apply data_at'_local_facts. Qed.
+Proof. intros. unfold data_at. simpl. apply andp_left2. apply data_at'_local_facts. Qed.
 
 Lemma data_at_isptr: forall sh t v p, data_at sh t v p = !!(isptr p) && data_at sh t v p.
-Proof. intros. unfold data_at. apply data_at'_isptr. Qed.
+Proof. intros. rewrite <- local_facts_isptr. reflexivity. apply data_at_local_facts. Qed.
 
 Lemma data_at_offset_zero: forall sh t v p, data_at sh t v p = data_at sh t v (offset_val (Int.repr 0) p).
-Proof. intros. unfold data_at. apply data_at'_offset_zero. Qed.
+Proof. intros. rewrite <- local_facts_offset_zero. reflexivity. apply data_at_local_facts. Qed.
 
 Lemma data_at__local_facts: forall sh t p, data_at_ sh t p |-- !!(isptr p).
 Proof. intros. unfold data_at_. apply data_at_local_facts. Qed.
@@ -1505,7 +1543,7 @@ Proof. intros. unfold data_at_. apply data_at_offset_zero. Qed.
 
 (************************************************
 
-Transformation among data_at', data_at and mapsto.
+Transformation between data_at/data_at_ and mapsto.
 
 ************************************************)
 
@@ -1521,20 +1559,10 @@ Proof.
   destruct t; reflexivity.
 Qed.
 
-Lemma by_value_reptype: forall t, type_is_by_value t -> reptype t = val.
+Lemma uncompomize_default_val: forall t, JMeq (default_val (uncompomize t)) (default_val t).
 Proof.
   intros.
-  destruct t; simpl in H; tauto.
-Qed.
-
-Lemma by_value_data_at: forall sh t v v' p,
-  type_is_by_value t ->
-  JMeq v v' ->
-  data_at sh t v p = mapsto sh t p v'.
-Proof.
-  intros.
-  destruct t; simpl in H; try tauto; simpl in v;
-  try (unfold data_at; simpl; rewrite H0; reflexivity).
+  destruct t; reflexivity.
 Qed.
 
 Lemma uncompomize_data_at: forall sh t v v' p,
@@ -1545,10 +1573,29 @@ Proof.
   destruct t; simpl in *; rewrite H; reflexivity.
 Qed.
 
+Lemma by_value_reptype: forall t, type_is_by_value t -> reptype t = val.
+Proof.
+  intros.
+  destruct t; simpl in H; tauto.
+Qed.
+
+Lemma by_value_data_at: forall sh t v v' p,
+  type_is_by_value t ->
+  JMeq v v' ->
+  data_at sh t v p = (!! size_compatible t p) && (!! align_compatible t p) && mapsto sh t p v'.
+Proof.
+  intros.
+  destruct t; simpl in H; try tauto; simpl in v;
+  try (unfold data_at; simpl; rewrite H0; apply pred_ext; normalize).
+Qed.
+
 Lemma uncompomize_by_value_data_at: forall sh t v v' p,
   type_is_by_value (uncompomize t) ->
   JMeq v v' ->
-  data_at sh t v p = mapsto sh (uncompomize t) p v'.
+  data_at sh t v p = 
+  (!! size_compatible (uncompomize t) p) &&
+  (!! align_compatible (uncompomize t) p) &&
+  mapsto sh (uncompomize t) p v'.
 Proof.
   intros.
   remember v as v'' eqn:HH. 
@@ -1557,22 +1604,60 @@ Proof.
   pattern (reptype t) at 1 3. rewrite <- (uncompomize_reptype t).
   intros.  
   erewrite <- by_value_data_at; [|exact H | rewrite <- H0; rewrite H1; reflexivity].
-
   apply uncompomize_data_at.
   exact H1.
 Qed.
+
+Lemma by_value_data_at_: forall sh t p,
+  type_is_by_value t ->
+  data_at_ sh t p = (!! size_compatible t p) && (!! align_compatible t p) && mapsto_ sh t p.
+Proof.
+  intros.
+  destruct t; simpl in H; try tauto;
+  try (unfold data_at_, data_at; simpl; apply pred_ext; normalize).
+Qed.
+
+Lemma uncompomize_by_value_data_at_: forall sh t p,
+  type_is_by_value (uncompomize t) ->
+  data_at_ sh t p = 
+  (!! size_compatible (uncompomize t) p) &&
+  (!! align_compatible (uncompomize t) p) &&
+  mapsto_ sh (uncompomize t) p.
+Proof.
+  intros.
+  unfold data_at_, mapsto_.
+  apply uncompomize_by_value_data_at; [exact H|].
+  rewrite <- uncompomize_default_val.
+  apply by_value_default_val.
+  exact H.
+Qed.
+
+(************************************************
+
+Transformation between data_at and data_at'. This is used in transformation
+between field_at and data_at.
+
+************************************************)
 
 Lemma lower_sepcon_val':
   forall (P Q: val->mpred) v, 
   ((P*Q) v) = (P v * Q v).
 Proof. reflexivity. Qed.
 
-Lemma data_at'_data_at: forall sh t v pos, (legal_alignas_type t = true) -> (alignof t | pos) -> data_at' sh empty_ti t pos v = at_offset' (data_at sh t v) pos.
+Lemma data_at'_data_at: forall sh t v pos,
+  (legal_alignas_type t = true) ->
+  (alignof t | pos) ->
+  (fun p => !! (size_compatible t (offset_val (Int.repr pos) p)
+             /\ align_compatible t (offset_val (Int.repr pos) p))) &&
+  data_at' sh empty_ti t pos v = at_offset' (data_at sh t v) pos.
 Proof.
   intros.
   extensionality p.
   rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
   unfold data_at.
+  simpl.
+  assert (HH : data_at' sh empty_ti t pos v p = 
+          data_at' sh empty_ti t 0 v (offset_val (Int.repr pos) p)); [|rewrite HH; reflexivity].
   replace (data_at' sh empty_ti t pos) with (data_at' sh empty_ti t (pos + 0)) by
     (replace (pos + 0) with pos by omega; reflexivity).
   apply (data_at'_mut sh empty_ti (0 + sizeof t) 
@@ -1645,24 +1730,23 @@ Proof.
   + exact H0.
 Qed.
 
-Lemma memory_block_data_at_: forall (sh : share) (t : type) (p : val),
-       legal_alignas_type t = true ->
-       size_compatible t p ->
-       align_compatible t p -> memory_block sh (Int.repr (sizeof t)) p = data_at_ sh t p.
+Definition nested_non_volatile_type := nested_pred (fun t => negb (type_is_volatile t)).
+
+Lemma memory_block_data_at_: forall (sh : share) (t : type),
+  legal_alignas_type t = true ->
+  nested_non_volatile_type t = true ->
+  (fun p => !! (size_compatible t p /\ align_compatible t p)) &&
+  memory_block sh (Int.repr (sizeof t)) = data_at_ sh t.
 Proof.
   intros.
+  simpl.
+  extensionality p.
   destruct p;
     try (rewrite memory_block_isptr;
      rewrite data_at__isptr;
      apply pred_ext; normalize; reflexivity).
   unfold data_at_, data_at.
-  assert (0 + sizeof t <= Int.modulus - Int.unsigned i) by
-    (simpl in H0; omega).
-  assert (alignof t | 0) by apply Z.divide_0_r.
-  clear H1 H0.
-  rewrite <- memory_block_offset_zero.
-  unfold Int.zero.
-  forget 0 as pos.
+  simpl.
   admit.
   (* To prove this lemma, we need non-volatility *)
 (*
@@ -1689,25 +1773,23 @@ Proof.
        *)  
 Qed.
 
-Lemma data_at_data_at_ : forall sh t v p, 
-  legal_alignas_type t = true ->
-  size_compatible t p ->
-  align_compatible t p ->
-  data_at sh t v p |-- data_at_ sh t p.
+Lemma data_at_non_volatile: forall sh t v p, 
+  data_at sh t v p |-- !! (nested_non_volatile_type t = true).
 Proof.
-  intros ? ? ? ? H97 H98 H99.
-  destruct p;
-    try (rewrite data_at_isptr;
-     rewrite data_at__isptr;
-     normalize; reflexivity).
-  assert (0 + sizeof t <= Int.modulus - Int.unsigned i) by
-    (simpl in H98; omega).
-  assert (alignof t | 0) by apply Z.divide_0_r.
-  unfold data_at_, data_at.
-  remember 0 as pos.
-  clear Heqpos H98 H99.
+  admit.
+Qed.
 
-  apply (data_at'_mut sh empty_ti (Int.modulus - Int.unsigned i)
+Lemma data_at'_data_at'_ : forall sh e t v pos b i, 
+  legal_alignas_type t = true ->
+  Int.unsigned i + pos + sizeof t <= Int.modulus ->
+  (alignof t | pos) ->
+  (alignof t | Int.unsigned i) ->
+  data_at' sh e t pos v (Vptr b i) |-- data_at' sh e t pos (default_val t) (Vptr b i).
+Proof.
+  intros.
+  assert (pos + sizeof t <= Int.modulus - Int.unsigned i) by omega; clear H0.
+
+  apply (data_at'_mut sh e (Int.modulus - Int.unsigned i)
     (fun t data_at'_pred pos => forall v p, data_at'_pred pos v p |-- data_at'_pred pos (default_val t) p)
     (fun f sfieldlist_at'_pred alignment pos => forall v p, sfieldlist_at'_pred alignment pos v p |-- sfieldlist_at'_pred alignment pos (struct_default_val f) p)
     (fun f ufieldlist_at'_pred alignment pos => forall v p, ufieldlist_at'_pred alignment pos v p |-- ufieldlist_at'_pred alignment pos (union_default_val f) p));
@@ -1719,24 +1801,43 @@ Proof.
   try tauto.
   + admit. (* Tarray case *)
     (* Need to figure out whether the current definition in default value is correct. *)
-  + apply H4. (* Tstruct case *)
-  + apply H4. (* Tunion case *)
+  + apply H6. (* Tstruct case *)
+  + apply H6. (* Tunion case *)
   + repeat rewrite withspacer_spacer.
     repeat rewrite lower_sepcon_val'.
     cancel.
-  + revert v0; simpl; rewrite H6; intros.
+  + revert v0; simpl; rewrite H8; intros.
     repeat rewrite withspacer_spacer.
     repeat rewrite lower_sepcon_val'.
     cancel.
   + repeat rewrite withspacer_spacer.
     repeat rewrite lower_sepcon_val'.
     cancel.
-  + revert v0; simpl; rewrite H5; intros.
+  + revert v0; simpl; rewrite H7; intros.
     destruct v0.
     - repeat rewrite withspacer_spacer.
       repeat rewrite lower_sepcon_val'.
       cancel.
     - admit.
+Qed.
+
+Lemma data_at_data_at_ : forall sh t v p, 
+  legal_alignas_type t = true ->
+  data_at sh t v p |-- data_at_ sh t p.
+Proof.
+  intros.
+  destruct p;
+    try (rewrite data_at_isptr;
+     rewrite data_at__isptr;
+     normalize; reflexivity).
+  unfold data_at_, data_at.
+  simpl.
+  normalize.
+  apply data_at'_data_at'_.
+  + exact H.
+  + omega.
+  + apply Z.divide_0_r.
+  + exact H1.
 Qed.
 
 Hint Resolve data_at_data_at_.
@@ -1915,9 +2016,10 @@ Proof.
   reflexivity.
 Qed.
 
-Definition field_at (sh: Share.t) (t1: type) (ids: list ident) (v: reptype (nested_field_type2 t1 ids)) : val -> mpred := data_at' sh empty_ti (nested_field_type2 t1 ids) (nested_field_offset2 t1 ids) v.
+Definition field_at (sh: Share.t) (t: type) (ids: list ident) (v: reptype (nested_field_type2 t ids)) : val -> mpred := (fun p => (!! (size_compatible t p /\ align_compatible t p /\ isSome (nested_field_rec t ids)))) 
+  && data_at' sh empty_ti (nested_field_type2 t ids) (nested_field_offset2 t ids) v.
 
-Definition field_at_ (sh: Share.t) (t1: type) (ids: list ident) : val -> mpred := field_at sh t1 ids (default_val (nested_field_type2 t1 ids)).
+Definition field_at_ (sh: Share.t) (t: type) (ids: list ident) : val -> mpred := field_at sh t ids (default_val (nested_field_type2 t ids)).
 
 Fixpoint nested_sfieldlist_at (sh: Share.t) (t1: type) (ids: list ident) (flds: fieldlist) (v: nested_reptype_structlist t1 ids flds) : val -> mpred := 
   match flds as f return (nested_reptype_structlist t1 ids f -> val -> mpred) with
@@ -1944,111 +2046,137 @@ Fixpoint nested_sfieldlist_at (sh: Share.t) (t1: type) (ids: list ident) (flds: 
    eq_refl v
   end v.
 
-Lemma field_at_Tstruct: forall sh t ids i f a v1 v2
-  (H1: nested_field_type2 t ids = Tstruct i f a)
-  (H2: nested_legal_fieldlist t = true),
-  (eq_rect _ (fun x => x) v1 _ (nested_reptype_structlist_lemma2 _ _ _ _ _ H1 H2)  = v2) ->
+Lemma eqb_fieldlist_true: forall f1 f2, eqb_fieldlist f1 f2 = true -> f1 = f2.
+Proof.
+  intros.
+  revert f2 H; induction f1; intros; destruct f2; simpl in *.
+  + reflexivity.
+  + inversion H.
+  + inversion H.
+  + apply andb_true_iff in H.
+    destruct H.
+    apply andb_true_iff in H0.
+    destruct H0.
+    apply IHf1 in H1.
+    apply eqb_type_true in H0.
+    apply eqb_ident_spec in H.
+    subst; reflexivity.
+Qed.   
+
+Lemma field_at_Tstruct: forall sh t ids i f a v1 v2,
+  eqb_fieldlist f Fnil = false ->
+  nested_field_type2 t ids = Tstruct i f a ->
+  nested_legal_fieldlist t = true ->
+  JMeq v1 v2 ->
   legal_alignas_type t = true ->
   field_at sh t ids v1 = nested_sfieldlist_at sh t ids f v2.
 Proof.
   intros.
-  remember (nested_reptype_structlist_lemma2 t ids i f a H1 H2) as Heq; clear HeqHeq.
   unfold field_at.
   unfold nested_field_type2, nested_field_offset2 in *.
-  valid_nested_field_rec t ids H1. subst t0.
-  revert Heq v1 H; simpl (reptype (Tstruct i f a)); simpl data_at'; intros.
-  destruct f; [reflexivity|].
-  pose proof nested_field_rec_hd _ _ _ _ _ _ _ _ H3.
+  valid_nested_field_rec t ids H1; inversion H0; clear H5. subst t0.
+  revert v1 H2; simpl (reptype (Tstruct i f a)); simpl data_at'; intros.
+
+  destruct f; [inversion H|].
+  pose proof nested_field_rec_hd _ _ _ _ _ _ _ _ H4.
   change (Tstruct i (Fcons i0 t0 f) a) with (Tstruct i (fieldlist_app Fnil (Fcons i0 t0 f)) a).
-  change (Fcons i0 t0 f) with (fieldlist_app Fnil (Fcons i0 t0 f)) in H2, H3.
-  remember ofs as ofs0; rewrite Heqofs0 in H3; clear Heqofs0.
-  remember Fnil as f'; clear Heqf'.
-  revert ofs0 f' i0 t0 v1 v2 Heq H H2 H3 H1; induction f; intros.
+  change (Fcons i0 t0 f) with (fieldlist_app Fnil (Fcons i0 t0 f)) in H, H4.
+  remember ofs as ofs0. rewrite Heqofs0 in H4. clear Heqofs0.
+  forget Fnil as f'.
+  revert ofs0 f' i0 t0 v1 v2 H H0 H2 H4; induction f; intros.
   + simpl.
     unfold field_at.
-    revert Heq v1 v2 H.
+    revert v1 v2 H2.
     simpl reptype_structlist. simpl nested_reptype_structlist.
     unfold nested_field_offset2, nested_field_type2.
-    rewrite H3. rewrite H1.
+    rewrite H4. rewrite H0.
     intros.
-    unfold eq_rect_r in H. rewrite <- eq_rect_eq in H. rewrite H. reflexivity.
+    rewrite H2. extensionality p.
+    repeat rewrite withspacer_spacer.
+    apply pred_ext; simpl; normalize.
   + assert (is_Fnil (Fcons i0 t0 f) = false) by reflexivity.
     remember (Fcons i0 t0 f) as f''.
-    revert v1 v2 Heq H.
+    revert v1 v2 H2.
     simpl reptype_structlist. simpl nested_reptype_structlist.
     simpl sfieldlist_at'. simpl nested_sfieldlist_at.
-    rewrite H4; intros.
+    rewrite H5; intros.
     extensionality p.
     assert (Heq_fst: reptype t1 = reptype (nested_field_type2 t (i1 :: ids))).
-      unfold nested_field_type2; rewrite H1; reflexivity.
+      unfold nested_field_type2; rewrite H0; reflexivity.
     assert (Heq_snd: reptype_structlist f'' = nested_reptype_structlist t ids f'').
-      rewrite fieldlist_app_Fcons in H3.
-      apply (nested_reptype_structlist_lemma t ids i _ _ a _ H3 H2).
-    assert (H_fst: eq_rect_r (fun x : Type => x) (fst v2) Heq_fst = fst v1).
-      revert v1 v2 Heq H. rewrite Heq_fst, Heq_snd. intros. 
-      unfold eq_rect_r in *. rewrite <- eq_rect_eq in *. rewrite H. reflexivity.
-    assert (H_snd: eq_rect _ (fun x : Type => x) (snd v1) _ Heq_snd = snd v2).
-      clear H_fst. revert v1 v2 Heq H. rewrite Heq_fst, Heq_snd. intros. 
-      unfold eq_rect_r in *. rewrite <- eq_rect_eq in *. rewrite H. reflexivity.
+      rewrite fieldlist_app_Fcons in H4.
+      apply (nested_reptype_structlist_lemma t ids i _ _ a _ H4 H1).
+    assert (H_fst: JMeq (fst v2) (fst v1)).
+      revert v1 v2 H2. rewrite Heq_fst, Heq_snd. intros. 
+      rewrite H2. reflexivity.
+    assert (H_snd: JMeq (snd v1) (snd v2)).
+      clear H_fst. revert v1 v2 H2. rewrite Heq_fst, Heq_snd. intros. 
+      rewrite H2. reflexivity.
     remember (fst v1) as fst_v1; clear Heqfst_v1.
     remember (snd v1) as snd_v1; clear Heqsnd_v1.
     remember (fst v2) as fst_v2; clear Heqfst_v2.
     remember (snd v2) as snd_v2; clear Heqsnd_v2.
-    clear H Heq v1 v2.
+    clear H2 v1 v2.
     revert fst_v2 snd_v2 Heq_fst Heq_snd H_fst H_snd.
     simpl reptype_structlist. simpl nested_reptype_structlist.
     unfold field_at.
     unfold nested_field_offset2, nested_field_type2.
-    rewrite H1. intros.
-    unfold eq_rect_r in H_fst. rewrite <- eq_rect_eq in H_fst. rewrite H_fst.
+    rewrite H0. intros.
+    rewrite H_fst.
+    simpl.
+    repeat rewrite withspacer_spacer.
+    repeat rewrite lower_sepcon_val'.
     subst f''.
-    assert (nested_field_rec t (i0 :: ids) = Some (align (ofs0 + sizeof t1) (alignof_hd (Fcons i0 t0 f)), t0)); [simpl alignof_hd; apply (nested_field_rec_mid i1 t1 i0 t0 t ids i f' f a ofs ofs0 H0 H2 H3 H1)|].
+    assert (nested_field_rec t (i0 :: ids) = 
+      Some (align (ofs0 + sizeof t1) (alignof_hd (Fcons i0 t0 f)), t0)); [simpl alignof_hd; apply (nested_field_rec_mid i1 t1 i0 t0 t ids i f' f a ofs ofs0); assumption|].
     rewrite fieldlist_app_Fcons in *.
-    rewrite (IHf _ _ _ _ _ _ Heq_snd H_snd H2 H3 H).
-    reflexivity.
+    erewrite <- IHf; [| | exact H2 | exact H_snd |exact H4].
+    apply pred_ext; simpl; normalize.
+
+    destruct (eqb_fieldlist
+     (fieldlist_app (fieldlist_app f' (Fcons i1 t1 Fnil)) (Fcons i0 t0 f))
+     (fieldlist_app f' (Fcons i1 t1 Fnil))) eqn:HH; [|reflexivity].
+    apply eqb_fieldlist_true in HH.
+    admit. (* subtle proofs about fieldlist_app. Target is to inversion HH *)
 Qed.
 
 Lemma data_at_field_at: forall sh t, data_at sh t = field_at sh t nil.
-Proof. intros. reflexivity. Qed.
+Proof.
+  intros.
+  unfold data_at, field_at.
+  extensionality v p; simpl.
+  apply pred_ext; normalize.
+Qed.
 
-Lemma field_at_data_at: forall sh t ids v, legal_alignas_type t = true -> field_at sh t ids v = at_offset' (data_at sh (nested_field_type2 t ids) v) (nested_field_offset2 t ids).
+Lemma field_at_data_at: forall sh t ids v, legal_alignas_type t = true -> field_at sh t ids v |-- at_offset' (data_at sh (nested_field_type2 t ids) v) (nested_field_offset2 t ids).
 Proof.
   intros.
   unfold field_at.
-  rewrite data_at'_data_at.
-  reflexivity.
+  go_lower.
+  rewrite <- data_at'_data_at; simpl.
+  normalize.
+  apply andp_right.
+  apply prop_right.
+  split.
+  apply size_compatible_nested_field; exact H0.
+  apply align_compatible_nested_field; exact H1.
+  apply derives_refl.
   apply (nested_field_type2_nest_pred eq_refl).
   exact H.
   apply nested_field_offset2_type2_divide.
   exact H.
 Qed.
 
-Lemma field_at_field_at_: forall sh t ids v p, 
-  legal_alignas_type t = true -> 
-  size_compatible (nested_field_type2 t ids) (offset_val (Int.repr (nested_field_offset2 t ids)) p) ->
-  align_compatible (nested_field_type2 t ids) (offset_val (Int.repr (nested_field_offset2 t ids)) p) ->
-  field_at sh t ids v p |-- field_at_ sh t ids p.
-Proof.
-  intros.
-  unfold field_at_.
-  repeat (rewrite field_at_data_at; [|exact H]).
-  repeat (rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity]).
-  eapply derives_trans.
-  apply data_at_data_at_; try assumption.
-  apply nested_field_type2_nest_pred; [reflexivity| exact H].
-  unfold data_at_.
-  apply derives_refl.
-Qed.
-
-Hint Resolve field_at_field_at_.
-
 Lemma field_at_local_facts: forall sh t ids v p,
   field_at sh t ids v p |-- !! isptr p.
 Proof.
   intros.
-  unfold field_at.
+  unfold field_at. simpl. apply andp_left2.
   apply data_at'_local_facts.
 Qed.
+
+Hint Extern 2 (@derives _ _ _ _) => 
+   simple eapply field_at_local_facts; reflexivity : saturate_local.
 
 Lemma field_at_isptr: forall sh t ids v p,
   field_at sh t ids v p = (!! isptr p) && field_at sh t ids v p.
@@ -2058,7 +2186,47 @@ Lemma field_at_offset_zero: forall sh t ids v p,
   field_at sh t ids v p = field_at sh t ids v (offset_val Int.zero p).
 Proof. intros. apply local_facts_offset_zero. apply field_at_local_facts. Qed.
 
+Lemma field_at__local_facts: forall sh t ids p,
+  field_at_ sh t ids p |-- !! isptr p.
+Proof.
+  intros.
+  unfold field_at_.
+  apply field_at_local_facts.
+Qed.
+
+Hint Extern 2 (@derives _ _ _ _) => 
+   simple eapply field_at__local_facts; reflexivity : saturate_local.
+
+Lemma field_at__isptr: forall sh t ids p,
+  field_at_ sh t ids p = (!! isptr p) && field_at_ sh t ids p.
+Proof. intros. apply local_facts_isptr. apply field_at__local_facts. Qed.
+
+Lemma field_at__offset_zero: forall sh t ids p,
+  field_at_ sh t ids p = field_at_ sh t ids (offset_val Int.zero p).
+Proof. intros. apply local_facts_offset_zero. apply field_at__local_facts. Qed.
+
+Lemma field_at_field_at_: forall sh t ids v p, 
+  legal_alignas_type t = true -> 
+  field_at sh t ids v p |-- field_at_ sh t ids p.
+Proof.
+  intros.
+  destruct p; try (rewrite field_at_isptr, field_at__isptr; normalize; reflexivity).
+  unfold field_at_, field_at.
+  simpl; fold size_compatible.
+  normalize.
+  apply data_at'_data_at'_.
+  + apply nested_field_type2_nest_pred; [reflexivity|exact H].
+  + pose proof size_compatible_nested_field_aux t ids H2.
+    omega.
+  + apply nested_field_offset2_type2_divide, H.
+  + eapply Zdivides_trans; [|exact H1].
+    admit.
+Qed.
+
 Hint Rewrite field_at_offset_zero: norm.
+Hint Rewrite field_at__offset_zero: norm.
+
+Hint Resolve field_at_field_at_.
 
 (********************************************
 
@@ -2283,11 +2451,17 @@ Definition array_at (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
 
 Definition array_at_ t sh lo hi := array_at t sh (fun _ => default_val t) lo hi.
 
-
 Lemma data_at_tint: forall sh v2 v1,
   data_at sh tint v2 v1 = mapsto sh tint v1 v2.
 Proof.
-  intros. reflexivity. 
+  intros.
+  unfold data_at, data_at'.
+  simpl.
+  apply pred_ext; normalize.
+  apply andp_right; [|normalize].
+  unfold mapsto. simpl.
+  destruct v1; normalize.
+  admit.
 Qed.
 
 Fixpoint typecount (t: type) : nat :=
@@ -2380,7 +2554,7 @@ Lemma align_1: forall n, align n 1 = n.
 Proof.  intros; unfold align. rewrite Z.div_1_r. rewrite Z.mul_1_r. omega.
 Qed.
 
-
+(*
 Lemma memory_block_typed': forall sh e pos ty b ofs, 
   no_attr_type ty = true ->
   spacer sh pos (align pos (alignof ty)) (Vptr b ofs) *
@@ -2405,12 +2579,13 @@ extensionality v.
 rewrite memory_block_isptr.
 rewrite data_at__isptr.
 destruct v; simpl; normalize.
-unfold data_at_, data_at; rewrite <- memory_block_typed'; auto.
+unfold data_at_, data_at; simpl; rewrite <- memory_block_typed'; auto.
 unfold spacer.
 rewrite align_0 by (apply alignof_pos).
 simpl. rewrite emp_sepcon.
 rewrite Int.add_zero. auto.
 Qed.
+*)
 
 Lemma var_block_data_at_:
   forall  sh id t, 
@@ -2419,6 +2594,10 @@ Lemma var_block_data_at_:
    !!(sizeof t <= Int.max_unsigned) &&
             `(data_at_ sh t) (eval_var id t).
 Proof.
+  admit.
+Qed.
+
+(*
 intros; extensionality rho.
 unfold_lift.
 rewrite <- memory_block_typed by auto.
@@ -2427,6 +2606,7 @@ simpl. unfold_lift.
 rewrite memory_block_isptr.
 destruct (eval_var id t rho); simpl; normalize.
 Qed.
+*)
 
 Lemma array_at_local_facts:
  forall t sh f lo hi v,

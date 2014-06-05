@@ -94,7 +94,7 @@ memory assigned, i.e. inside structure of pointer, function are not included.
 
 Fixpoint nested_pred (atom_pred: type -> bool) (t: type) : bool :=
   match t with
-  | Tarray t0 _ _ => (atom_pred t && nested_pred atom_pred t0)%bool
+  | Tarray t0 n _ => (atom_pred t && (Z.leb n 0 || nested_pred atom_pred t0))%bool
   | Tstruct _ flds _ => (atom_pred t && nested_fields_pred atom_pred flds)%bool
   | Tunion _ flds _ => (atom_pred t && nested_fields_pred atom_pred flds)%bool
   | _ => atom_pred t
@@ -105,17 +105,25 @@ with nested_fields_pred (atom_pred: type -> bool) (f: fieldlist) : bool :=
   | Fcons _ t f' => (nested_pred atom_pred t && nested_fields_pred atom_pred f')%bool
   end.
 
-Lemma nested_pred_atom_pred: forall {atom_pred: type -> bool} (t: type), nested_pred atom_pred t = true -> atom_pred t = true.
+Lemma nested_pred_atom_pred: forall {atom_pred: type -> bool} (t: type),
+  nested_pred atom_pred t = true -> atom_pred t = true.
 Proof.
   intros.
   destruct t; simpl in *; try apply andb_true_iff in H; tauto.
 Qed.
 
-Lemma nested_pred_Tarray: forall {atom_pred: type -> bool} t n a, nested_pred atom_pred (Tarray t n a) = true -> nested_pred atom_pred t = true.
+Lemma nested_pred_Tarray: forall {atom_pred: type -> bool} t n a,
+  nested_pred atom_pred (Tarray t n a) = true -> n > 0 -> nested_pred atom_pred t = true.
 Proof.
   intros.
   simpl in H.
-  apply andb_true_iff in H; tauto.
+  apply andb_true_iff in H.
+  destruct H.
+  apply orb_true_iff in H1.
+  destruct H1.
+  + apply Zle_is_le_bool in H1.
+    omega.
+  + exact H1.
 Qed.
 
 Lemma nested_pred_Tstruct: forall {atom_pred: type -> bool} i f a, nested_pred atom_pred (Tstruct i f a) = true -> nested_fields_pred atom_pred f = true.
@@ -268,8 +276,6 @@ Proof.
   exact H.
 Qed.
 
-
-
 Lemma legal_alignas_sizeof_alignof_compat: forall t : type,
   legal_alignas_type t = true -> (alignof t | sizeof t).
 Proof.
@@ -282,10 +288,14 @@ Proof.
   - destruct f. apply Z.divide_refl.
     unfold Z.divide. exists 2. reflexivity.
   - apply Z.divide_refl.
-  - apply nested_pred_Tarray in H.
-    apply IHt in H.
-    apply Z.divide_mul_l.
-    exact H.
+  - destruct (zle z 0).
+    * rewrite Z.max_l; [|exact l].
+      rewrite <- Zmult_0_r_reverse.
+      apply Z.divide_0_r.
+    * apply nested_pred_Tarray in H; [|exact g].
+      apply IHt in H.
+      apply Z.divide_mul_l.
+      exact H.
   - apply Z.divide_refl.
   - apply align_divides, two_p_gt_ZERO, N2Z.is_nonneg.
   - apply align_divides, alignof_fields_pos.
