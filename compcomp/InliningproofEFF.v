@@ -10,12 +10,12 @@ Require Import Events.
 Require Import Smallstep.
 Require Import Op.
 Require Import Registers.
-Require Import sepcomp.Inlining.
-Require Import sepcomp.Inliningspec.
+Require Import Inlining.
+Require Import Inliningspec.
 Require Import RTL.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.core_semantics.
+Require Import mem_lemmas.
+Require Import core_semantics.
 Require Import sepcomp.reach.
 Require Import sepcomp.effect_semantics.
 Require Import StructuredInjections.
@@ -30,11 +30,12 @@ Require Import RTL_coop.
 
 Load Santiago_tactics.
 
-Variable SrcProg: RTL.program.
-Variable TrgProg: RTL.program.
+Variable SrcProg: program.
+Variable TrgProg: program.
+About transf_program.
 Hypothesis TRANSF: transf_program SrcProg = OK TrgProg.
-Let ge : RTL.genv := Genv.globalenv SrcProg.
-Let tge : RTL.genv := Genv.globalenv TrgProg.
+Let ge : genv := Genv.globalenv SrcProg.
+Let tge : genv := Genv.globalenv TrgProg.
 Let fenv := funenv_program SrcProg.
 
 Lemma symbols_preserved:
@@ -50,21 +51,21 @@ Proof.
 Qed.
 
 Lemma functions_translated:
-  forall (v: val) (f: fundef),
+  forall (v: val) (f:  fundef),
     Genv.find_funct ge v = Some f ->
     exists f', Genv.find_funct tge v = Some f' /\ transf_fundef fenv f = OK f'.
 Proof.
   eapply (Genv.find_funct_transf_partial (transf_fundef fenv) _ TRANSF).
 Qed.
 Lemma function_ptr_translated:
-  forall (b: block) (f: fundef),
+  forall (b: block) (f:  fundef),
     Genv.find_funct_ptr ge b = Some f ->
     exists f', Genv.find_funct_ptr tge b = Some f' /\ transf_fundef fenv f = OK f'.
 Proof.
 eapply (Genv.find_funct_ptr_transf_partial (transf_fundef fenv) _ TRANSF).
 Qed.
 Lemma sig_function_translated:
-  forall f f', transf_fundef fenv f = OK f' -> funsig f' = funsig f.
+  forall f f', transf_fundef fenv f = OK f' ->  funsig f' =  funsig f.
 Proof.
   intros. destruct f; Errors.monadInv H.
   exploit transf_function_spec; eauto. intros SP; inv SP. auto. 
@@ -226,7 +227,7 @@ Lemma tr_moves_init_regs:
                                    (forall r, In r rdsts -> Ple r ctx2.(mreg)) ->
                                    list_forall2 (val_reg_charact F ctx1 rs1) vl rsrcs ->
                                    exists rs2,
-                                     star step tge (State stk f sp pc1 rs1 m)
+                                     star  step tge (State stk f sp pc1 rs1 m)
                                           E0 (State stk f sp pc2 rs2 m)
                                      /\ agree_regs F ctx2 (init_regs vl rdsts) rs2
                                      /\ forall r, Plt r ctx2.(dreg) -> rs2#r = rs1#r.
@@ -240,7 +241,7 @@ Proof.
   simpl in H0. inv H0.
   exploit IHrdsts; eauto. intros [rs2 [A [B C]]].
   exists (rs2#(sreg ctx2 a) <- (rs2#(sreg ctx1 b1))).
-  split. eapply star_right. eauto. eapply exec_Iop; eauto. traceEq.
+  split. eapply star_right. eauto. eapply  exec_Iop; eauto. traceEq.
   split. destruct H3 as [[P Q] | [P Q]].
   subst a1. eapply agree_set_reg_undef; eauto.
   eapply agree_set_reg; eauto. rewrite C; auto.  apply context_below_lt; auto.
@@ -398,7 +399,7 @@ Inductive match_stacks (mu: SM_Injection) (m m': mem):
                            (MG: match_globalenvs (as_inj mu) bound1)
                            (BELOW: Ple bound1 bound),
                       match_stacks mu m m' nil nil bound
-| match_stacks_cons: forall res f sp pc rs stk f' sp' rs' stk' bound ctx
+| match_stacks_cons: forall res (f:function) sp pc rs stk (f':function) sp' rs' stk' bound ctx
                             (MS: match_stacks_inside mu m m' stk stk' f' ctx sp' rs')
                             (FB: tr_funbody fenv f'.(fn_stacksize) ctx f f'.(fn_code))
                             (AG: agree_regs (as_inj mu) ctx rs rs')
@@ -1005,11 +1006,11 @@ Lemma MATCH_initial_core: forall (v1 v2 : val) (sig : signature) entrypoints
    exists c2 : RTL_core,
      initial_core rtl_eff_sem tge v2 vals2 = Some c2 /\
      MATCH c1
-       (initial_SM DomS DomT DomS DomT j) (*
+       (initial_SM DomS DomT
           (REACH m1
              (fun b : block => isGlobalBlock ge b || getBlocks vals1 b))
           (REACH m2
-             (fun b : block => isGlobalBlock tge b || getBlocks vals2 b)) j)*)
+             (fun b : block => isGlobalBlock tge b || getBlocks vals2 b)) j)
        c1 m1 c2 m2.
  Proof.
   intros.
@@ -1340,9 +1341,9 @@ Print sm_locally_allocated.
                                          (st2 : RTL_core) (mu : SM_Injection) (m2 : mem)
                                          (MC:MATCH st1 mu st1 m1 st2 m2),
                                   exists (st2' : RTL_core) (m2' : mem),
-                                    (corestep_plus rtl_eff_sem tge st2 m2 st2' m2' \/
+                                    (core_semantics_lemmas.corestep_plus rtl_eff_sem tge st2 m2 st2' m2' \/
                                      (RTL_measure st1' < RTL_measure st1)%nat /\
-                                     corestep_star rtl_eff_sem tge st2 m2 st2' m2') /\
+                                     core_semantics_lemmas.corestep_star rtl_eff_sem tge st2 m2 st2' m2') /\
                                     exists (mu' : SM_Injection),
                                       intern_incr mu mu' /\
                                       sm_inject_separated mu mu' m1 m2 /\
@@ -1361,7 +1362,7 @@ Print sm_locally_allocated.
 
     split.
     left.
-    eapply corestep_plus_one.
+    eapply core_semantics_lemmas.corestep_plus_one.
     eapply rtl_corestep_exec_Inop. eassumption.
     exists mu.
     intuition.
@@ -1387,7 +1388,7 @@ Print sm_locally_allocated.
     eexists. eexists.
     split; simpl.
     left. 
-    eapply corestep_plus_one. 
+    eapply core_semantics_lemmas.corestep_plus_one. 
 
     eapply rtl_corestep_exec_Iop. eassumption.
     erewrite eval_operation_preserved; eauto.
@@ -1419,7 +1420,7 @@ Print sm_locally_allocated.
     rewrite <- P. apply eval_addressing_preserved. exact symbols_preserved.
     eexists. eexists.
     split; simpl. left.
-    eapply corestep_plus_one. 
+    eapply core_semantics_lemmas.corestep_plus_one. 
     eapply rtl_corestep_exec_Iload; try eassumption.
     exists mu.
     intuition.
@@ -1449,7 +1450,7 @@ Print sm_locally_allocated.
     eexists. eexists.
     split; simpl.
     left.
-    eapply corestep_plus_one. eapply rtl_corestep_exec_Istore; eauto.
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Istore; eauto.
 
     exists mu.
     intuition.
@@ -1508,7 +1509,7 @@ Print sm_locally_allocated.
     eexists. eexists.
     split; simpl.
     left.
-    eapply corestep_plus_one. eapply rtl_corestep_exec_Icall; eauto.
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Icall; eauto.
     Print rtl_corestep_exec_Icall.
     eapply sig_function_translated; eauto.
     exists mu.
@@ -1535,7 +1536,7 @@ Print sm_locally_allocated.
     eexists. eexists.
     split; simpl.
     right; split. simpl; omega.
-    eapply corestep_star_zero.
+    eapply core_semantics_lemmas.corestep_star_zero.
 
     exists mu.
     intuition.
@@ -1576,7 +1577,7 @@ Print sm_locally_allocated.
     eexists. eexists.
     split; simpl.
     left. 
-    eapply corestep_plus_one. eapply rtl_corestep_exec_Itailcall; eauto.
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Itailcall; eauto.
     eapply sig_function_translated; eauto.
     exists mu.
     intuition.
@@ -1617,7 +1618,7 @@ Print sm_locally_allocated.
     (* turned into a call *)
     eexists. eexists. split; simpl.
     left. 
-    eapply corestep_plus_one. eapply rtl_corestep_exec_Icall; eauto.
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Icall; eauto.
     eapply sig_function_translated; eauto.
     
     exists mu.
@@ -1653,7 +1654,7 @@ Print sm_locally_allocated.
     eexists. eexists.
     split; simpl.
     right; split. simpl; omega. 
-    eapply corestep_star_zero.
+    eapply core_semantics_lemmas.corestep_star_zero.
 
     exists mu.
     intuition.
@@ -1691,7 +1692,7 @@ Print sm_locally_allocated.
     eexists. eexists. 
     split; simpl.
     left. 
-    eapply corestep_plus_one.
+    eapply core_semantics_lemmas.corestep_plus_one.
     eapply rtl_corestep_exec_Icond; eauto.
 
     exists mu. intuition.
@@ -1713,7 +1714,7 @@ Print sm_locally_allocated.
     eexists. eexists.
     split; simpl.
     left.
-    eapply corestep_plus_one. eapply rtl_corestep_exec_Ijumptable; eauto.
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Ijumptable; eauto.
     rewrite list_nth_z_map. rewrite H2. simpl; reflexivity. 
     
     exists mu. intuition.
@@ -1742,7 +1743,7 @@ Print sm_locally_allocated.
     eexists. eexists.
     split; simpl.
     left.
-    eapply corestep_plus_one. eapply rtl_corestep_exec_Ireturn; eauto. 
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Ireturn; eauto. 
     
     exists mu.
     intuition.
@@ -1794,7 +1795,7 @@ Print sm_locally_allocated.
     split; simpl.
     right; split; simpl. omega.
     
-    eapply corestep_star_zero.
+    eapply core_semantics_lemmas.corestep_star_zero.
 
     exists mu.
     intuition.
@@ -1835,7 +1836,7 @@ Print sm_locally_allocated.
     eexists. eexists.
     split; simpl.
     left.
-    eapply corestep_plus_one. eapply rtl_corestep_exec_function_internal; eauto.
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_function_internal; eauto.
 
     rewrite H5.
     exists mu'. 
@@ -1917,7 +1918,7 @@ Print sm_locally_allocated.
     eexists. eexists.
     split; simpl. 
     left.
-    eapply corestep_plus_one. eapply rtl_corestep_exec_Inop; eauto. 
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Inop; eauto. 
     Print star.
     (* eexact P. traceEq.
   eapply match_regular_states.
@@ -1942,7 +1943,7 @@ Print sm_locally_allocated.
   intros [F1 [v1 [m1' [A [B [C [D [E [J K]]]]]]]]].*)
   simpl in FD. inv FD. 
   left; econstructor; split.
-  eapply plus_one. eapply exec_function_external; eauto. 
+  eapply core_semantics_lemmas.plus_one. eapply exec_function_external; eauto. 
     eapply external_call_symbols_preserved; eauto. 
     exact symbols_preserved. exact varinfo_preserved.
   econstructor.
@@ -1960,7 +1961,7 @@ Print sm_locally_allocated.
     eexists. eexists.
     split; simpl.
     left.
-    eapply corestep_plus_one. eapply rtl_corestep_exec_return.
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_return.
     
     exists mu. intuition.
     apply intern_incr_refl.
@@ -1983,7 +1984,7 @@ Print sm_locally_allocated.
     eexists. eexists.     
     split; simpl.
     left.
-    eapply corestep_plus_one. eapply rtl_corestep_exec_return.
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_return.
     exists mu. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
@@ -2008,7 +2009,7 @@ Print sm_locally_allocated.
     eexists. eexists.
     split; simpl.
     left. 
-    eapply corestep_plus_one.
+    eapply core_semantics_lemmas.corestep_plus_one.
     eapply rtl_corestep_exec_Iop; eauto. simpl. reflexivity.
     
     exists mu. intuition.
@@ -2021,7 +2022,7 @@ Print sm_locally_allocated.
     (* without a result *)
     eexists. eexists.
     split; simpl. left.  
-    eapply corestep_plus_one. eapply rtl_corestep_exec_Inop; eauto.
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Inop; eauto.
     exists mu. intuition.
     apply intern_incr_refl.
     apply sm_inject_separated_same_sminj.
