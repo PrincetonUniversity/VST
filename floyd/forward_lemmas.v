@@ -1,6 +1,8 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
+Require Import floyd.nested_field_lemmas.
+Require Import floyd.data_at_lemmas.
 Require Import floyd.field_mapsto.
 Require Import floyd.closed_lemmas.
 Import Cop.
@@ -416,33 +418,35 @@ Qed.
 
 Lemma field_at_mapsto__at1:
   forall Espec Delta P Q sh ty fld e v R c Post,
+    legal_alignas_type ty = true ->
     @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_at_ sh ty fld) e :: R)))) c Post ->
     @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_at sh ty fld) v e :: R)))) c Post.
 Proof.
 intros.
- eapply semax_pre0; [ | apply H].
+ eapply semax_pre0; [ | apply H0].
  intro rho; unfold PROPx, LOCALx, SEPx.
  simpl.
  apply andp_derives; auto.
  apply andp_derives; auto.
  apply sepcon_derives; auto.
- unfold_lift; apply field_at_field_at_.
+ unfold_lift; apply field_at_field_at_, H.
 Qed.
 
 Lemma later_field_at_mapsto__at1:
   forall Espec Delta P Q sh ty fld e v R c Post,
+    legal_alignas_type ty = true ->
     @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|>`(field_at_ sh ty fld) e :: R)))) c Post ->
     @semax Espec Delta (PROPx P (LOCALx Q (SEPx (|> `(field_at sh ty fld) v e :: R)))) c Post.
 Proof.
 intros.
- eapply semax_pre0; [ | apply H].
+ eapply semax_pre0; [ | apply H0].
  intro rho; unfold PROPx, LOCALx, SEPx.
  simpl.
  apply andp_derives; auto.
  apply andp_derives; auto.
  apply sepcon_derives; auto.
  apply later_derives; auto.
- unfold_lift; apply field_at_field_at_.
+ unfold_lift; apply field_at_field_at_, H.
 Qed.
 
 Lemma forward_setx':

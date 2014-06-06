@@ -1,26 +1,11 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
+Require Import floyd.data_at_lemmas.
+Require Import floyd.client_lemmas.
+Require Import floyd.nested_field_lemmas.
+Require Import Coq.Logic.JMeq.
 
 Local Open Scope logic.
-
-Lemma mapsto_mapsto_: forall sh t v v',
-   mapsto sh t v v' |-- mapsto_ sh t v.
-Proof. unfold mapsto_; intros.
-normalize.
-unfold mapsto.
-destruct (access_mode t); auto.
-destruct (type_is_volatile t); try apply FF_left.
-destruct v; auto.
-apply orp_left.
-apply orp_right2.
-apply andp_left2.
-apply andp_right. apply prop_right; auto.
-apply exp_right with v'; auto.
-normalize.
-apply orp_right2. apply exp_right with v2'.
-normalize.
-Qed.
-Hint Resolve mapsto_mapsto_ : cancel.
 
 Lemma mapsto_tuint_tint:
   forall sh, mapsto sh tuint = mapsto sh tint.
@@ -73,27 +58,6 @@ f_equal. f_equal.
 apply prop_ext; split; intro; hnf in *|-*; auto.
 Qed.
 
-Lemma mapsto_isptr:
-  forall sh t v1 v2,
-   mapsto sh t v1 v2 = !! (isptr v1) && mapsto sh t v1 v2.
-Proof.
-intros; apply pred_ext; normalize.
-apply andp_right; auto.
-unfold mapsto.
-destruct (access_mode t); normalize.
-destruct (type_is_volatile t); normalize.
-destruct v1; normalize.
-apply prop_right; apply I.
-Qed.
-
-Lemma mapsto__isptr:
-  forall sh t v1,
-   mapsto_ sh t v1 = !! (isptr v1) && mapsto_ sh t v1.
-Proof.
-intros.
-unfold mapsto_. apply mapsto_isptr.
-Qed.
-
 Lemma field_offset_rec_unroll:
   forall t_subst fld sid fields n,
     field_offset_rec fld (unroll_composite_fields sid t_subst fields) n =
@@ -131,6 +95,7 @@ Fixpoint type_of_field (f: fieldlist) (fld: ident) : type :=
  | Fcons i t fl => if eq_dec i fld then t else type_of_field fl fld
  end.
 
+(*
 Definition field_at (sh: Share.t) (t1: type) (fld: ident) (v2 v1: val) : mpred :=
  match t1 with
   |  Tstruct id fList  att =>
@@ -144,12 +109,10 @@ Definition field_at (sh: Share.t) (t1: type) (fld: ident) (v2 v1: val) : mpred :
      end
   | _  => FF
   end.
-
 Arguments field_at sh t1 fld v2 v1 : simpl never.
 
 Definition field_at_ sh t1 fld := field_at sh t1 fld Vundef.
 Arguments field_at_ sh t1 fld v1 : simpl never.
-
 
 Lemma field_at_field_at_:
   forall sh t1 fld v1 v2, field_at sh t1 fld v2 v1 |-- field_at_ sh t1 fld v1.
@@ -174,6 +137,7 @@ apply exp_right with v2'; normalize.
 Qed.
 
 Hint Resolve field_at_field_at_: cancel.
+*)
 
 Lemma offset_val_force_ptr:
   offset_val Int.zero = force_ptr.
@@ -190,46 +154,63 @@ Qed.
 
 Hint Rewrite mapsto_force_ptr: norm.
 
+Lemma lower_andp_val:
+  forall (P Q: val->mpred) v, 
+  ((P && Q) v) = (P v && Q v).
+Proof. reflexivity. Qed.
+
 Lemma mapsto_field_at:
-  forall v1 v1' v2 sh ofs t structid fld fields,
-   t = type_of_field
-           (unroll_composite_fields structid (Tstruct structid fields noattr)
-              fields) fld ->
-(*  access_mode t = By_value ch -> *)
+  forall p p'  v' sh ofs t structid fld fields (v: reptype
+    (nested_field_lemmas.nested_field_type2 (Tstruct structid fields noattr)
+       (fld :: nil))),
+  type_is_by_value t ->
+  t = (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil)) ->
   field_offset fld fields = Errors.OK ofs ->
-  offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
+  offset_val Int.zero p' = offset_val (Int.repr ofs) p ->
   type_is_volatile t = false -> 
-  mapsto sh t v1' v2 = field_at sh (Tstruct structid fields noattr) fld v2 v1.
+  JMeq v' v ->
+  legal_alignas_type (Tstruct structid fields noattr) = true ->
+  (!! (size_compatible (Tstruct structid fields noattr) p)) && (!! (align_compatible (Tstruct structid fields noattr) p)) && (!! (isSome (nested_field_rec (Tstruct structid fields noattr) (fld :: nil)))) 
+  && mapsto sh t p' v' = field_at sh (Tstruct structid fields noattr) (fld :: nil) v p.
 Proof.
-intros.
-unfold field_at, mapsto.
-rewrite tc_val_eq.
-rewrite <- H.
-rewrite field_offset_unroll.
-rewrite H0.
-normalize.
-destruct (access_mode t); try rewrite andp_FF; auto.
-rewrite <- H1.
-rewrite offset_val_force_ptr.
-destruct v1'; simpl; try rewrite andp_FF; auto.
+  intros.
+  rewrite field_at_data_at; [|exact H5].
+  remember v as v''; assert (JMeq v'' v) by (subst v; reflexivity); clear Heqv''.
+  revert v H6; 
+  pattern (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil)) at 1 3.
+  rewrite <- H0; intros.
+  rewrite lower_andp_val.
+  rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
+  apply (field_offset_nested_field_offset2 structid fields noattr) in H1; subst ofs.
+  rewrite <- H2.
+  subst t; erewrite by_value_data_at; [|exact H| rewrite H4, H6; reflexivity].
+  rewrite H2.
+  apply pred_ext; normalize; repeat apply andp_right.
+  + apply prop_right; split. 
+    apply size_compatible_nested_field; tauto.
+    apply align_compatible_nested_field; tauto.
+  + rewrite <- H2. rewrite mapsto_offset_zero.
+    cancel.
+  + rewrite <- H2. rewrite mapsto_offset_zero.
+    cancel.
 Qed.
 
-Lemma mapsto_field_at_:
-  forall v1 v1' sh ofs t structid fld fields,
- (type_of_field
-     (unroll_composite_fields structid (Tstruct structid fields noattr)
-        fields) fld) = t ->
+(* Original name is mapsto_field_at_, but I think current name is better. *)
+Lemma mapsto__field_at_:
+  forall p p' sh ofs t structid fld fields,
+  type_is_by_value t ->
+  t = (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil)) ->
   field_offset fld fields = Errors.OK ofs ->
-  offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
-  (type_is_volatile
-         (type_of_field
-            (unroll_composite_fields structid
-               (Tstruct structid fields noattr) fields) fld) = false) ->
-  mapsto_ sh t v1'  = field_at_ sh (Tstruct structid fields noattr) fld v1.
+  offset_val Int.zero p' = offset_val (Int.repr ofs) p ->
+  type_is_volatile t = false -> 
+  legal_alignas_type (Tstruct structid fields noattr) = true ->
+  (!! (size_compatible (Tstruct structid fields noattr) p)) && (!! (align_compatible (Tstruct structid fields noattr) p)) && (!! (isSome (nested_field_rec (Tstruct structid fields noattr) (fld :: nil)))) 
+  && mapsto_ sh t p'  = field_at_ sh (Tstruct structid fields noattr) (fld::nil) p.
 Proof.
-intros.
-eapply mapsto_field_at; eauto.
-rewrite H in H2; auto.
+  intros.
+  eapply mapsto_field_at; eauto.
+  rewrite <- H0; simpl.
+  apply JMeq_sym, by_value_default_val, H.
 Qed.
 
 (*
@@ -253,18 +234,8 @@ apply orp_left; normalize.
 Qed.
 *)
 
-Lemma field_at_isptr: forall t fld sh x y,
-  field_at sh t fld y x = !!(isptr x) && field_at sh t fld y x.
-Proof.
-intros; apply pred_ext; normalize.
-apply andp_right; auto.
-unfold field_at.
-destruct t; normalize.
-destruct ( field_offset fld (unroll_composite_fields i (Tstruct i f a) f) ); normalize.
-rewrite mapsto_isptr. apply andp_left1; auto.
-destruct x; simpl; normalize.
-Qed.
-
+(*
+(* never used else where *)
 Lemma field_offset_exists1: 
   forall sid t fields fld,
     type_of_field (unroll_composite_fields sid t fields) fld <> Tvoid ->
@@ -280,8 +251,10 @@ simpl. rewrite if_false by auto.
 destruct (IHfields H (align k (alignof t0) + sizeof t0)).
 eauto.
 Qed.
+*)
 
-
+(*
+(* never used elsewhere *)
 Lemma field_umapsto_access_mode:
   forall sh v t fld v' id fList att,
    t = Tstruct id fList att ->
@@ -300,6 +273,7 @@ case_eq (access_mode
        (unroll_composite_fields id (Tstruct id fList att) fList) fld)); intros; normalize.
 apply prop_right; eauto.
 Qed.
+*)
 
 Lemma splice_top_top: Share.splice Tsh Tsh = Tsh.
 Proof.
@@ -339,80 +313,50 @@ apply orp_left; normalize.
 Qed.
 *)
 
-Lemma mapsto_field_at':
-  forall v1 v1' v2 sh ofs t structid fld fields,
-  access_mode t = 
-  access_mode (type_of_field
-           (unroll_composite_fields structid (Tstruct structid fields noattr)
-              fields) fld) ->
-  field_offset fld fields = Errors.OK ofs ->
-  offset_val Int.zero v1' = offset_val (Int.repr ofs) v1 ->
-  tc_val (type_of_field
-           (unroll_composite_fields structid (Tstruct structid fields noattr)
-              fields) fld) v2  ->
-  type_is_volatile (type_of_field
-           (unroll_composite_fields structid (Tstruct structid fields noattr)
-              fields) fld) = false ->
-  mapsto sh t v1' v2 |-- field_at sh (Tstruct structid fields noattr) fld v2 v1.
+(*
+Lemma by_value_access_mode_eq_type_eq: forall t t',
+  type_is_by_value t ->
+  access_mode t = access_mode t' ->
+  t = t'.
 Proof.
-intros.
-rewrite offset_val_force_ptr in H1.
-unfold field_at.
-rewrite field_offset_unroll. rewrite H0.
-rewrite H3.
-unfold mapsto.
-rewrite <- H.
-case_eq (access_mode t); intros; try apply FF_left.
-case_eq (type_is_volatile t); intros; try apply FF_left.
-rewrite H3.
-destruct v1'; normalize.
-rewrite <- H1; simpl.
-apply orp_left; normalize.
-apply orp_right1; auto.
-apply orp_right2; apply exp_right with v2'.
-normalize.
+  intros.
+  destruct t; [| destruct i, s, a| destruct s,a |destruct f | | | | | |];
+  (destruct t'; [| destruct i, s, a| destruct s,a |destruct f | | | | | |]);
+  simpl in *; inversion H0; try tauto.
+*)
+
+Lemma mapsto_field_at':
+  forall p p' v' sh ofs t structid fld fields (v: reptype (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil))),
+  access_mode t = access_mode (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil)) ->
+  field_offset fld fields = Errors.OK ofs ->
+  offset_val Int.zero p' = offset_val (Int.repr ofs) p ->
+  tc_val (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil)) v' ->
+  type_is_volatile (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil)) = false ->
+  JMeq v' v ->
+  legal_alignas_type (Tstruct structid fields noattr) = true ->
+  (!! (size_compatible (Tstruct structid fields noattr) p /\  align_compatible (Tstruct structid fields noattr) p /\ isSome (nested_field_rec (Tstruct structid fields noattr) (fld :: nil)))) 
+  && mapsto sh t p' v' |-- field_at sh (Tstruct structid fields noattr) (fld::nil) v p.
+Proof.
+  intros.
+  rewrite field_at_data_at; [| exact H5].
+  destruct (access_mode t) eqn:HH;
+    try (unfold mapsto; rewrite HH; normalize; reflexivity).
+  remember v' as v''; assert (JMeq v' v'') by (subst v'; reflexivity); clear Heqv''.
+  assert (type_is_by_value t) by (destruct t; inversion HH; simpl; tauto).
+
+  revert v' H6.
+  pattern val at 1 2.
+  erewrite <- by_value_reptype; [intros|exact H7].
+  rewrite lower_andp_val.
+  rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].  
+  apply (field_offset_nested_field_offset2 structid fields noattr) in H0.
+  subst ofs.
+  rewrite <- H1; clear H1.
+  (*erewrite by_value_data_at; [| exact H7|exact H6].*)
+  admit.
 Qed.
 
 (*
-Ltac mapsto_field_at_tac :=  
- eapply mapsto_field_at';
-  [ simpl; reflexivity
-  | unfold field_offset;  simpl; reflexivity
-  | simpl; repeat rewrite Int.add_assoc; repeat f_equal; symmetry; apply Int.add_zero
-  | simpl; reflexivity
-  | simpl; reflexivity
-  ].
-*)
-
-Lemma field_at_force_ptr: 
-   forall sh t fld v2 v, field_at sh t fld v2 (force_ptr v) = field_at sh t fld v2 v.
-Proof.
-intros.
-unfold field_at.
-destruct t; normalize.
-destruct (field_offset fld (unroll_composite_fields i (Tstruct i f a) f)); normalize.
-destruct v; simpl; reflexivity.
-Qed.
-
-Hint Rewrite field_at_force_ptr : norm.
-
-Lemma field_at__isptr: forall t fld sh x,
-  field_at_ sh t fld x = !!(isptr x) && field_at_ sh t fld x.
-Proof.
-intros.
-apply field_at_isptr.
-Qed.
-
-Lemma field_at__force_ptr: forall t fld sh x,
-  field_at_ sh t fld (force_ptr x) = field_at_ sh t fld x.
-Proof.
-intros.
-unfold field_at_.
-rewrite field_at_force_ptr. auto.
-Qed.
-Hint Rewrite field_at__force_ptr : norm.
-
-
 Lemma field_at_nonvolatile:
   forall sh t fld v v', field_at sh t fld v' v = !!(type_is_volatile t = false) && field_at sh t fld v' v.
 Proof.
@@ -433,6 +377,7 @@ Proof.
  intros.
 apply field_at_nonvolatile.
 Qed.
+*)
 
 Lemma address_mapsto_overlap:
   forall rsh sh ch1 v1 ch2 v2 a1 a2,
@@ -458,71 +403,115 @@ rewrite distrib_orp_sepcon.
 apply orp_left; normalize;
 try (rewrite sepcon_comm; rewrite distrib_orp_sepcon; apply orp_left; normalize;
       apply address_mapsto_overlap; split; auto; omega).
+(*
 rewrite sepcon_comm; rewrite distrib_orp_sepcon; apply orp_left; normalize; intros;
 apply address_mapsto_overlap; split; auto; omega.
+*)
+(* originally, this proof is neccesary. but it is not now. I don't know why.  - Qinxiang *)
 Qed.
 
-Lemma field_at_conflict:
-  forall sh t fld v v2 v3,
-        field_at sh t fld v2 v
-        * field_at sh t fld v3 v |-- FF.
+Lemma memory_block_conflict: forall sh n m p,
+  0 < n <= Int.max_unsigned -> 0 < m <= Int.max_unsigned ->
+  memory_block sh (Int.repr n) p * memory_block sh (Int.repr m) p |-- FF.
 Proof.
-intros.
-unfold field_at.
-destruct t; try (rewrite FF_sepcon ; apply FF_left).
-destruct (field_offset fld (unroll_composite_fields i (Tstruct i f a) f));
- try (rewrite FF_sepcon ; apply FF_left).
-normalize.
-apply mapsto_conflict.
+  intros.
+  destruct H, H0.
+Transparent memory_block.
+  unfold memory_block.
+Opaque memory_block.
+  destruct p; normalize.
+  remember (nat_of_Z (Int.unsigned (Int.repr n))) as n' eqn:Hn.
+  rewrite Int.unsigned_repr in Hn; [| split; omega].
+  rewrite <- (nat_of_Z_eq n) in H; [|omega].
+  rewrite <- Hn in H.
+  destruct n'; simpl in H; [omega|].
+
+  remember (nat_of_Z (Int.unsigned (Int.repr m))) as m' eqn:Hm.
+  rewrite Int.unsigned_repr in Hm; [| split; omega].
+  rewrite <- (nat_of_Z_eq m) in H0; [|omega].
+  rewrite <- Hm in H0.
+  destruct m'; simpl in H0; [omega|].
+  simpl.
+  unfold mapsto_.
+  apply derives_trans with (mapsto sh (Tint I8 Unsigned noattr) (Vptr b (Int.repr (Int.unsigned i)))
+     Vundef * mapsto sh (Tint I8 Unsigned noattr) (Vptr b (Int.repr (Int.unsigned i)))
+      Vundef * TT).
+  cancel.
+  apply derives_trans with (FF * TT).
+  apply sepcon_derives; [|cancel].
+  apply mapsto_conflict.
+  normalize.
+Qed.
+
+(*
+Lemma data_at'_conflict: forall sh e t pos v v' p,
+  data_at' sh e t pos v p * data_at' sh e t pos v' p |-- FF.
+Proof.
+  intros.
+  assert (32 < Int.max_unsigned).
+    cbv.
+    reflexivity.
+  apply (type_mut
+         (fun t => forall pos v v' p, data_at' sh e t pos v p * data_at' sh e t pos v' p |-- FF)
+         (fun _ => True)
+         (fun f => (forall alignment pos v v' p, sfieldlist_at' sh e f alignment pos v p *
+         sfieldlist_at' sh e f alignment pos v' p |-- FF) /\ (forall size pos v v' p,
+         ufieldlist_at' sh e f size pos v p * ufieldlist_at' sh e f size pos v' p |-- FF)));
+    intros;
+    simpl data_at'; simpl sfieldlist_at'; simpl ufieldlist_at';
+    unfold at_offset2;
+    try (repeat (rewrite at_offset'_eq; [|rewrite memory_block_offset_zero; reflexivity]);
+    apply memory_block_conflict; split; omega);
+    try (repeat (rewrite at_offset'_eq; [|rewrite mapsto_offset_zero; reflexivity]);
+    apply mapsto_conflict).
+Print sizeof.
+*)
+
+Lemma data_at_conflict: forall sh t v v' p,
+  sizeof t > 0 ->
+  legal_alignas_type t = true ->
+  data_at sh t v p * data_at sh t v' p |-- FF.
+Proof.
+  intros.
+  eapply derives_trans.
+  + apply sepcon_derives.
+    apply data_at_data_at_; assumption.
+    apply data_at_data_at_; assumption.
+  + destruct (nested_non_volatile_type t) eqn:HH.
+    - rewrite <- memory_block_data_at_; try assumption.
+      normalize.
+      apply memory_block_conflict; admit. (* can be proved by size_compatible *)
+    - unfold data_at_.
+      eapply derives_trans; [apply sepcon_derives; apply data_at_non_volatile|].
+      rewrite client_lemmas.sepcon_prop_prop.
+      rewrite HH.
+      normalize.
+      inversion H1.
+Qed.
+
+
+Lemma field_at_conflict: forall sh t fld p v v',
+  sizeof (nested_field_type2 t (fld::nil)) > 0 ->
+  legal_alignas_type t = true ->
+  field_at sh t (fld::nil) v p * field_at sh t (fld::nil) v' p|-- FF.
+Proof.
+  intros.
+  repeat (rewrite field_at_data_at; try assumption).
+  repeat rewrite lower_andp_val.
+  repeat (rewrite at_offset'_eq; [|rewrite <- data_at_offset_zero; reflexivity]).
+  normalize.
+  apply data_at_conflict; try assumption.
+  apply nested_field_type2_nest_pred; [
+    reflexivity| exact H0].
 Qed.
 
 Lemma field_at__conflict:
-  forall sh t fld v,
-        field_at_ sh t fld v
-        * field_at_ sh t fld v |-- FF.
+  forall sh t fld p,
+  sizeof (nested_field_type2 t (fld::nil)) > 0 ->
+  legal_alignas_type t = true ->
+        field_at_ sh t (fld::nil) p
+        * field_at_ sh t (fld::nil) p |-- FF.
 Proof.
 intros.
-apply field_at_conflict.
+apply field_at_conflict; assumption.
 Qed.
-
-Lemma field_at_local_facts':
-  forall sh t fld y x,
-   field_at sh t fld y x |-- !!(isptr x).
-Proof.
-intros.
-unfold field_at.
-destruct t; try apply FF_left.
-destruct (field_offset fld (unroll_composite_fields i (Tstruct i f a) f));
-  try apply FF_left.
-rewrite mapsto_isptr.
-normalize.
-Qed.
-Hint Resolve field_at_local_facts' : saturate_local.
-
-Lemma field_at_local_facts:
- forall sh id t fList fld att (x y: val),
-   t = Tstruct id fList att ->
-   field_at sh t fld y x |--
-      !! (isptr x).
-Proof.
-intros.
-erewrite field_at_isptr.
-rewrite field_at_nonvolatile.
-normalize.
-Qed.
-
-Hint Extern 2 (@derives _ _ _ _) => 
-   simple eapply field_at_local_facts; reflexivity : saturate_local.
-
-Lemma field_at__local_facts:
- forall sh id t fList fld att (x: val),
-   t = Tstruct id fList att ->
-   field_at_ sh t fld x |--
-      !! (isptr x).
-Proof.
-intros.
-eapply field_at_local_facts; eauto.
-Qed.
-
-Hint Extern 2 (@derives _ _ _ _) => 
-   simple eapply field_at__local_facts; reflexivity : saturate_local.
