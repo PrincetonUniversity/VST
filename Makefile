@@ -163,7 +163,7 @@ FLOYD_FILES= \
    client_lemmas.v canonicalize.v assert_lemmas.v closed_lemmas.v \
    field_mapsto.v compare_lemmas.v array_lemmas.v \
    call_lemmas.v loadstore_lemmas.v forward_lemmas.v forward.v \
-   entailer.v globals_lemmas.v nested_field_lemmas.v data_at_lemmas.v data_at_load_store.v
+   entailer.v globals_lemmas.v nested_field_lemmas.v data_at_lemmas.v
 
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \

@@ -2018,8 +2018,10 @@ Qed.
 
 Definition field_at (sh: Share.t) (t: type) (ids: list ident) (v: reptype (nested_field_type2 t ids)) : val -> mpred := (fun p => (!! (size_compatible t p /\ align_compatible t p /\ isSome (nested_field_rec t ids)))) 
   && data_at' sh empty_ti (nested_field_type2 t ids) (nested_field_offset2 t ids) v.
+Arguments field_at sh t ids v p : simpl never.
 
 Definition field_at_ (sh: Share.t) (t: type) (ids: list ident) : val -> mpred := field_at sh t ids (default_val (nested_field_type2 t ids)).
+Arguments field_at_ sh t ids p : simpl never.
 
 Fixpoint nested_sfieldlist_at (sh: Share.t) (t1: type) (ids: list ident) (flds: fieldlist) (v: nested_reptype_structlist t1 ids flds) : val -> mpred := 
   match flds as f return (nested_reptype_structlist t1 ids f -> val -> mpred) with
@@ -2148,23 +2150,25 @@ Proof.
   apply pred_ext; normalize.
 Qed.
 
-Lemma field_at_data_at: forall sh t ids v, legal_alignas_type t = true -> field_at sh t ids v |-- at_offset' (data_at sh (nested_field_type2 t ids) v) (nested_field_offset2 t ids).
+Lemma field_at_data_at: forall sh t ids v,
+  legal_alignas_type t = true ->
+  field_at sh t ids v = (fun p => (!! (size_compatible t p /\ 
+  align_compatible t p /\ isSome (nested_field_rec t ids)))) 
+  && at_offset' (data_at sh (nested_field_type2 t ids) v) (nested_field_offset2 t ids).
 Proof.
   intros.
   unfold field_at.
-  go_lower.
-  rewrite <- data_at'_data_at; simpl.
-  normalize.
+  extensionality p.
+  rewrite <- data_at'_data_at; [simpl |
+    apply (nested_field_type2_nest_pred eq_refl), H |
+    apply nested_field_offset2_type2_divide, H].
+  apply pred_ext; normalize.
   apply andp_right.
   apply prop_right.
   split.
   apply size_compatible_nested_field; exact H0.
   apply align_compatible_nested_field; exact H1.
-  apply derives_refl.
-  apply (nested_field_type2_nest_pred eq_refl).
-  exact H.
-  apply nested_field_offset2_type2_divide.
-  exact H.
+  apply derives_refl.  
 Qed.
 
 Lemma field_at_local_facts: forall sh t ids v p,
