@@ -2016,11 +2016,13 @@ Proof.
   reflexivity.
 Qed.
 
-Definition field_at (sh: Share.t) (t: type) (ids: list ident) (v: reptype (nested_field_type2 t ids)) : val -> mpred := (fun p => (!! (size_compatible t p /\ align_compatible t p /\ isSome (nested_field_rec t ids)))) 
+Definition field_at (sh: Share.t) (t: type) (ids: list ident) (v: reptype (nested_field_type2 t ids)) : val -> mpred := 
+  (fun p => (!! (size_compatible t p /\ align_compatible t p /\ isSome (nested_field_rec t ids)))) 
   && data_at' sh empty_ti (nested_field_type2 t ids) (nested_field_offset2 t ids) v.
 Arguments field_at sh t ids v p : simpl never.
 
-Definition field_at_ (sh: Share.t) (t: type) (ids: list ident) : val -> mpred := field_at sh t ids (default_val (nested_field_type2 t ids)).
+Definition field_at_ (sh: Share.t) (t: type) (ids: list ident) : val -> mpred :=
+  field_at sh t ids (default_val (nested_field_type2 t ids)).
 Arguments field_at_ sh t ids p : simpl never.
 
 Fixpoint nested_sfieldlist_at (sh: Share.t) (t1: type) (ids: list ident) (flds: fieldlist) (v: nested_reptype_structlist t1 ids flds) : val -> mpred := 
@@ -2150,22 +2152,23 @@ Proof.
   apply pred_ext; normalize.
 Qed.
 
-Lemma field_at_data_at: forall sh t ids v,
+Lemma field_at_data_at: forall sh t ids v p,
   legal_alignas_type t = true ->
-  field_at sh t ids v = (fun p => (!! (size_compatible t p /\ 
-  align_compatible t p /\ isSome (nested_field_rec t ids)))) 
-  && at_offset' (data_at sh (nested_field_type2 t ids) v) (nested_field_offset2 t ids).
+  field_at sh t ids v p = 
+  (!! (size_compatible t p)) &&  
+  (!! (align_compatible t p)) &&
+  (!! (isSome (nested_field_rec t ids))) && 
+  at_offset' (data_at sh (nested_field_type2 t ids) v) (nested_field_offset2 t ids) p.
 Proof.
   intros.
   unfold field_at.
-  extensionality p.
   rewrite <- data_at'_data_at; [simpl |
     apply (nested_field_type2_nest_pred eq_refl), H |
     apply nested_field_offset2_type2_divide, H].
   apply pred_ext; normalize.
   apply andp_right.
   apply prop_right.
-  split.
+  repeat split; try assumption.
   apply size_compatible_nested_field; exact H0.
   apply align_compatible_nested_field; exact H1.
   apply derives_refl.  

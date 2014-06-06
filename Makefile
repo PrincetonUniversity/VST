@@ -159,7 +159,7 @@ VERIC_FILES= \
   NullExtension.v SequentialClight.v superprecise.v
 
 FLOYD_FILES= \
-   base.v proofauto.v malloc_lemmas.v \
+   base.v proofauto.v \
    client_lemmas.v canonicalize.v assert_lemmas.v closed_lemmas.v \
    field_mapsto.v compare_lemmas.v array_lemmas.v \
    call_lemmas.v loadstore_lemmas.v forward_lemmas.v forward.v \

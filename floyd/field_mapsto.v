@@ -179,7 +179,6 @@ Proof.
   revert v H6; 
   pattern (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil)) at 1 3.
   rewrite <- H0; intros.
-  rewrite lower_andp_val.
   rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
   apply (field_offset_nested_field_offset2 structid fields noattr) in H1; subst ofs.
   rewrite <- H2.
@@ -347,7 +346,6 @@ Proof.
   revert v' H6.
   pattern val at 1 2.
   erewrite <- by_value_reptype; [intros|exact H7].
-  rewrite lower_andp_val.
   rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].  
   apply (field_offset_nested_field_offset2 structid fields noattr) in H0.
   subst ofs.
@@ -483,12 +481,11 @@ Proof.
       apply memory_block_conflict; admit. (* can be proved by size_compatible *)
     - unfold data_at_.
       eapply derives_trans; [apply sepcon_derives; apply data_at_non_volatile|].
-      rewrite client_lemmas.sepcon_prop_prop.
+      rewrite sepcon_prop_prop.
       rewrite HH.
       normalize.
       inversion H1.
 Qed.
-
 
 Lemma field_at_conflict: forall sh t fld p v v',
   sizeof (nested_field_type2 t (fld::nil)) > 0 ->
