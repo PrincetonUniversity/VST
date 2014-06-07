@@ -352,7 +352,8 @@ Qed.
 (***************************************
 
 Load/store lemmas about data_at:
-  semax_data_load.
+  semax_data_load_37'.
+  semax_data_cast_load_37'.
   semax_data_store_nth.
 
 ***************************************)
@@ -422,7 +423,7 @@ Proof.
   exact H.
 Qed.
 
-Lemma semax_data_load: 
+Lemma semax_data_load_37':
   forall {Espec: OracleKind},
     forall (Delta : tycontext) (sh : Share.t) (id : ident) 
          (P : list Prop) (Q : list (environ -> Prop))
@@ -453,6 +454,32 @@ Proof.
     remember (eval_lvalue e1) as p.
     go_lower.
     erewrite is_neutral_data_at; [normalize| exact Htype | exact H1].
+Qed.
+
+Lemma semax_data_cast_load_37':
+  forall {Espec: OracleKind},
+forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val) (v2' : reptype (typeof e1)),
+    typeof_temp Delta id = Some t1 ->
+    type_is_by_value (typeof e1) ->
+    JMeq v2' v2 ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+      local (tc_lvalue Delta e1) &&
+      local (`(tc_val t1 (eval_cast (typeof e1) t1 v2))) &&
+      (`(data_at sh (typeof e1) v2') (eval_lvalue e1) * TT) ->
+    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sset id (Ecast e1 t1))
+       (normal_ret_assert (EX old:val, 
+       PROPx P 
+       (LOCALx (`eq (eval_id id) `(eval_cast (typeof e1) t1 v2) :: map (subst id (`old)) Q)
+       (SEPx (map (subst id (`old)) R))))).
+Proof.
+  intros.
+  eapply semax_cast_load_37'.
+  exact H.
+  eapply derives_trans; [exact H2 |].
+  apply andp_derives; [apply derives_refl |].
+  unfold liftx, lift; simpl; intros.
+  erewrite by_value_data_at; [normalize | exact H0 | exact H1].
 Qed.
 
 Lemma semax_data_store_nth:
@@ -572,8 +599,9 @@ Qed.
 (***************************************
 
 Load/store lemmas about data_at with uncompomize function on type:
-  semax_data_load'.
-  semax_data_store_nth'.
+  semax_ucdata_load_37'.
+  semax_ucdata_cast_load_37'.
+  semax_ucdata_store_nth.
 
 ***************************************)
 
@@ -642,7 +670,7 @@ Proof.
   exact H0.
 Qed.
 
-Lemma semax_data_load':
+Lemma semax_ucdata_load_37':
   forall {Espec: OracleKind},
     forall (Delta : tycontext) (sh : Share.t) (id : ident) 
       (P : list Prop) (Q : list (environ -> Prop))
@@ -676,7 +704,34 @@ Proof.
     exact H0.
 Qed.
 
-Lemma semax_data_store_nth':
+Lemma semax_ucdata_cast_load_37':
+  forall {Espec: OracleKind},
+forall (Delta: tycontext) sh id P Q R e1 t1 t2 (v2: val) (v2' : reptype t2),
+    typeof_temp Delta id = Some t1 ->
+    uncompomize t2 = typeof e1 ->
+    type_is_by_value (typeof e1) ->
+    JMeq v2' v2 ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+      local (tc_lvalue Delta e1) &&
+      local (`(tc_val t1 (eval_cast (typeof e1) t1 v2))) &&
+      (`(data_at sh t2 v2') (eval_lvalue e1) * TT) ->
+    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sset id (Ecast e1 t1))
+       (normal_ret_assert (EX old:val, 
+       PROPx P 
+       (LOCALx (`eq (eval_id id) `(eval_cast (typeof e1) t1 v2) :: map (subst id (`old)) Q)
+       (SEPx (map (subst id (`old)) R))))).
+Proof.
+  intros.
+  eapply semax_cast_load_37'.
+  exact H.
+  eapply derives_trans; [exact H3 |].
+  apply andp_derives; [apply derives_refl |].
+  unfold liftx, lift; simpl; intros.
+  erewrite uncompomize_by_value_data_at; [rewrite H0; normalize | rewrite H0; exact H1 | exact H2].
+Qed.
+
+Lemma semax_ucdata_store_nth:
   forall {Espec: OracleKind},
     forall (n : nat) (Delta : tycontext) (P : list Prop)
          (Q : list (environ -> Prop)) (R : list (LiftEnviron mpred))
@@ -792,7 +847,10 @@ Qed.
 
 (********************************************
 
-Max length ids field_at load store
+Max length ids field_at load store:
+  semax_max_path_field_load_37'.
+  semax_max_path_field_cast_load_37'.
+  semax_max_path_field_store_nth.
 
 ********************************************)
 
@@ -913,7 +971,7 @@ Proof.
       apply (IHids _ _ H).
 Qed.
 
-Lemma semax_field_load_max_path:
+Lemma semax_max_path_field_load_37':
   forall {Espec: OracleKind},
     forall (Delta : tycontext) (sh : Share.t) (id : ident) 
          (P : list Prop) (Q : list (environ -> Prop))
@@ -939,7 +997,7 @@ Lemma semax_field_load_max_path:
                   (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
-  eapply semax_data_load'.
+  eapply semax_ucdata_load_37'.
   + exact H.
   + exact H0.
   + exact H3.
@@ -953,6 +1011,42 @@ Proof.
     rewrite field_at_data_at; [|exact H1].
     rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
     rewrite (eval_lvalue_nested_efield _ _ tts); [| exact H2].
+    rewrite <- data_at_offset_zero.
+    normalize.
+Qed.
+
+Lemma semax_max_path_field_cast_load_37':
+  forall {Espec: OracleKind},
+forall (Delta: tycontext) sh id P Q R e1 ids tts t1 (v2: val) (v2' : reptype (nested_field_type2 (typeof e1) ids)),
+    typeof_temp Delta id = Some t1 ->
+    legal_alignas_type (typeof e1) = true ->
+    legal_nested_efield (typeof e1) ids tts = true ->
+    uncompomize (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
+    type_is_by_value (typeof (nested_efield e1 ids tts)) ->
+    JMeq v2' v2 ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+      local (tc_lvalue Delta (nested_efield e1 ids tts)) &&
+      local (`(tc_val t1 (eval_cast (typeof (nested_efield e1 ids tts)) t1 v2))) &&
+      (`(field_at sh (typeof e1) ids v2') (eval_lvalue e1) * TT) ->
+    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sset id (Ecast (nested_efield e1 ids tts) t1))
+       (normal_ret_assert (EX old:val, 
+       PROPx P 
+       (LOCALx (`eq (eval_id id) `(eval_cast (typeof (nested_efield e1 ids tts)) t1 v2) :: map (subst id (`old)) Q)
+       (SEPx (map (subst id (`old)) R))))).
+Proof.
+  intros.
+  eapply semax_ucdata_cast_load_37'; try assumption.
+  + exact H2.
+  + exact H4.
+  + eapply derives_trans; [exact H5|].
+    apply andp_derives; [apply derives_refl|].
+    remember eval_lvalue as v.
+    go_lower.
+    subst v.
+    rewrite field_at_data_at; [|exact H0].
+    rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
+    rewrite (eval_lvalue_nested_efield _ _ tts); [| exact H1].
     rewrite <- data_at_offset_zero.
     normalize.
 Qed.
@@ -1005,7 +1099,7 @@ Proof.
   apply field_at__data_at_, H.
 Qed.
 
-Lemma semax_field_store_nth_max_len:
+Lemma semax_max_path_field_store_nth:
   forall {Espec: OracleKind},
     forall (n : nat) (Delta : tycontext) (P : list Prop)
          (Q : list (environ -> Prop)) (R : list (LiftEnviron mpred))
@@ -1061,7 +1155,7 @@ Proof.
   repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) in H9; [|exact H5]).
 
 
-  eapply semax_post0; [| eapply semax_data_store_nth'].
+  eapply semax_post0; [| eapply semax_ucdata_store_nth].
   Focus 2. exact H.
   Focus 2. exact H0.
   Focus 2. exact H3.
@@ -1100,7 +1194,16 @@ Proof.
     apply derives_refl.
 Qed.
 
+(********************************************
+
+Length-1 ids field_at load store
+
+********************************************)
+
 (*
+(* This lemma is only used to prove semax_store_field_nth *)
+(* However, that one can be proved by max-len store_nth lemma *)
+
 Lemma semax_store_field: 
 forall Espec (Delta: tycontext) sh e1 fld P t2 e2 sid fields ,
     writable_share sh ->
@@ -1236,7 +1339,105 @@ auto.
 destruct (access_mode t2); try apply FF_left.
 destruct (type_is_volatile t2); try apply FF_left.
 Qed.
+*)
 
+Lemma semax_field_store_nth:
+  forall {Espec: OracleKind},
+    forall (n : nat) (Delta : tycontext) (P : list Prop)
+         (Q : list (environ -> Prop)) (R : list (LiftEnviron mpred))
+         (e1 e2 : expr) (Rn : LiftEnviron mpred) (sh : Share.t) 
+         (t1: type) fld t (v: val) (v' : reptype (nested_field_type2 (typeof e1) (fld::nil))),
+       uncompomize (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
+       is_neutral_cast t1 t1 = true ->
+       legal_alignas_type (typeof e1) = true ->
+       legal_nested_efield (typeof e1) (fld::nil) (t::nil) = true ->
+       JMeq v' v ->
+       t = t1 ->
+       nth_error R n = Some Rn ->
+       Rn |-- `(field_at_ sh (typeof e1) (fld::nil)) (eval_lvalue e1) ->
+       writable_share sh ->
+       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
+       |-- local (tc_lvalue Delta (Efield e1 fld t)) && 
+           local (tc_expr Delta (Ecast e2 t1)) ->
+       PROPx P (LOCALx Q (SEPx (replace_nth n R (`(field_at_ sh (typeof e1) (fld::nil)) (eval_lvalue e1)))))
+       |-- local (`(eq) (eval_expr (Ecast e2 t1)) `v) ->
+       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+         (Sassign (Efield e1 fld t) e2)
+         (normal_ret_assert
+            (PROPx P
+               (LOCALx Q
+                  (SEPx
+                     (replace_nth n R
+                        (`(field_at sh (typeof e1) (fld::nil) v') (eval_lvalue e1)
+                          )))))).
+Proof.
+  intros until t.
+  change (Efield e1 fld t) with (nested_efield e1 (fld::nil) (t::nil)).
+  change t with (typeof (nested_efield e1 (fld::nil) (t::nil))) at 2.
+  apply semax_max_path_field_store_nth.
+Qed.
+
+Lemma semax_load_field_37':
+  forall {Espec: OracleKind},
+    forall (Delta : tycontext) (sh : Share.t) (id : ident) 
+         (P : list Prop) (Q : list (environ -> Prop))
+         (R : list (environ -> mpred)) (e1 : expr) 
+         (t2 : type) (fld: ident) (t: type)
+         (v2 : reptype (nested_field_type2 (typeof e1) (fld::nil))) (v2' : val),
+       uncompomize (nested_field_type2 (typeof e1) (fld::nil)) = t ->
+       is_neutral_cast t t2 = true ->
+       legal_alignas_type (typeof e1) = true ->
+       legal_nested_efield (typeof e1) (fld::nil) (t::nil) = true ->
+       typeof_temp Delta id = Some t2 ->
+       JMeq v2 v2' ->
+       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
+       |-- local (tc_lvalue Delta (Efield e1 fld t)) &&
+           local `(tc_val (typeof (Efield e1 fld t)) v2') &&
+           (`(field_at sh (typeof e1) (fld::nil) v2) (eval_lvalue e1) * TT) ->
+       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+         (Sset id (Efield e1 fld t))
+         (normal_ret_assert
+            (EX  old : val,
+             PROPx P
+               (LOCALx (`eq (eval_id id) `v2' :: map (subst id `old) Q)
+                  (SEPx (map (subst id `old) R))))).
+Proof.
+  intros until t.
+  change (Efield e1 fld t) with (nested_efield e1 (fld::nil) (t::nil)).
+  change t with (typeof (nested_efield e1 (fld::nil) (t::nil))) at 1 2.
+  apply semax_max_path_field_load_37'.
+Qed.
+
+Definition semax_load_field'' := @semax_load_field_37'.
+
+Lemma semax_field_cast_load_37':
+  forall {Espec: OracleKind},
+forall (Delta: tycontext) sh id P Q R e1 fld t t1 (v2: val) (v2' : reptype (nested_field_type2 (typeof e1) (fld::nil))),
+    typeof_temp Delta id = Some t1 ->
+    legal_alignas_type (typeof e1) = true ->
+    legal_nested_efield (typeof e1) (fld::nil) (t::nil) = true ->
+    uncompomize (nested_field_type2 (typeof e1) (fld::nil)) = t ->
+    type_is_by_value t ->
+    JMeq v2' v2 ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+      local (tc_lvalue Delta (Efield e1 fld t)) &&
+      local (`(tc_val t1 (eval_cast t t1 v2))) &&
+      (`(field_at sh (typeof e1) (fld::nil) v2') (eval_lvalue e1) * TT) ->
+    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sset id (Ecast (Efield e1 fld t) t1))
+       (normal_ret_assert (EX old:val, 
+       PROPx P 
+       (LOCALx (`eq (eval_id id) `(eval_cast t t1 v2) :: map (subst id (`old)) Q)
+       (SEPx (map (subst id (`old)) R))))).
+Proof.
+  intros until t.
+  change (Efield e1 fld t) with (nested_efield e1 (fld::nil) (t::nil)).
+  change t with (typeof (nested_efield e1 (fld::nil) (t::nil))) at 2 3 4.
+  apply semax_max_path_field_cast_load_37'.
+Qed.
+
+(*
+(* Original lemma and original proof *)
 Lemma semax_store_field_nth:
 forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 e2 t2 R1 sid fields, 
     nth_error R n = Some R1 ->

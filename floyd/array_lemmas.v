@@ -4,7 +4,8 @@ Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.compare_lemmas.
-Require Import floyd.malloc_lemmas.
+Require Import floyd.nested_field_lemmas.
+Require Import floyd.data_at_lemmas.
 Require Import floyd.loadstore_lemmas.
 Local Open Scope logic.
 
