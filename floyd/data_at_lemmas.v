@@ -1632,6 +1632,50 @@ Proof.
   exact H.
 Qed.
 
+Lemma lifted_by_value_data_at: forall sh t v (v':val) p,
+  type_is_by_value t ->
+  JMeq v v' ->
+  `(data_at sh t v) p =
+  `prop (`(size_compatible t) p) &&
+  `prop (`(align_compatible t) p) && `(mapsto sh t) p `v'.
+Proof.
+  unfold liftx, lift; simpl; intros; extensionality rho.
+  apply by_value_data_at; assumption.
+Qed.
+
+Lemma lifted_uncompomize_by_value_data_at: forall sh t v (v':val) p,
+  type_is_by_value (uncompomize t) ->
+  JMeq v v' ->
+  `(data_at sh t v) p =
+  `prop (`(size_compatible (uncompomize t)) p) &&
+  `prop (`(align_compatible (uncompomize t)) p) &&
+  `(mapsto sh (uncompomize t)) p `v'.
+Proof.
+  unfold liftx, lift; simpl; intros; extensionality rho.
+  apply uncompomize_by_value_data_at; assumption.
+Qed.
+
+Lemma lifted_by_value_data_at_: forall sh t p,
+  type_is_by_value t ->
+  `(data_at_ sh t) p =
+  `prop (`(size_compatible t) p) &&
+  `prop (`(align_compatible t) p) && `(mapsto_ sh t) p.
+Proof.
+  unfold liftx, lift; simpl; intros; extensionality rho.
+  apply by_value_data_at_; assumption.
+Qed.
+
+Lemma lifted_uncompomize_by_value_data_at_: forall sh t p,
+  type_is_by_value (uncompomize t) ->
+  `(data_at_ sh t) p =
+  `prop (`(size_compatible (uncompomize t)) p) &&
+  `prop (`(align_compatible (uncompomize t)) p) &&
+  `(mapsto_ sh (uncompomize t)) p.
+Proof.
+  unfold liftx, lift; simpl; intros; extensionality rho.
+  apply uncompomize_by_value_data_at_; assumption.
+Qed.
+
 (************************************************
 
 Transformation between data_at and data_at'. This is used in transformation
@@ -2172,6 +2216,49 @@ Proof.
   apply size_compatible_nested_field; exact H0.
   apply align_compatible_nested_field; exact H1.
   apply derives_refl.  
+Qed.
+
+Lemma field_at__data_at_: forall sh t ids p,
+  legal_alignas_type t = true ->
+  field_at_ sh t ids p = 
+  (!! (size_compatible t p)) &&  
+  (!! (align_compatible t p)) &&
+  (!! (isSome (nested_field_rec t ids))) && 
+  at_offset' (data_at_ sh (nested_field_type2 t ids)) (nested_field_offset2 t ids) p.
+Proof.
+  intros.
+  unfold field_at_, data_at_.
+  apply field_at_data_at, H.
+Qed.
+
+Lemma lifted_field_at_data_at: forall sh t ids v p,
+       legal_alignas_type t = true ->
+       `(field_at sh t ids v) p =
+       `prop (`(size_compatible t) p) && 
+       `prop (`(align_compatible t) p) && 
+       `prop (`(isSome (nested_field_rec t ids))) &&
+       `(at_offset' (data_at sh (nested_field_type2 t ids) v)
+         (nested_field_offset2 t ids)) p.
+Proof.
+  intros.
+  extensionality rho.
+  unfold liftx, lift; simpl.
+  apply field_at_data_at, H.
+Qed.
+
+Lemma lifted_field_at__data_at_: forall sh t ids p,
+       legal_alignas_type t = true ->
+       `(field_at_ sh t ids) p =
+       `prop (`(size_compatible t) p) && 
+       `prop (`(align_compatible t) p) && 
+       `prop (`(isSome (nested_field_rec t ids))) &&
+       `(at_offset' (data_at_ sh (nested_field_type2 t ids))
+         (nested_field_offset2 t ids)) p.
+Proof.
+  intros.
+  extensionality rho.
+  unfold liftx, lift; simpl.
+  apply field_at__data_at_, H.
 Qed.
 
 Lemma field_at_local_facts: forall sh t ids v p,
