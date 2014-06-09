@@ -2039,7 +2039,6 @@ end;
      simpl in Delta
  end.
 
-(*
 Ltac start_function := 
  match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
@@ -2093,4 +2092,3 @@ match goal with |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (
 end.
 
 Ltac debug_store := (forward0; [debug_store' | ]) || debug_store'.
-*)

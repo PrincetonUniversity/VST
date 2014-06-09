@@ -457,7 +457,9 @@ Proof.
   unfold Memdata.size_chunk_nat.
   erewrite size_chunk_sizeof in H3; [| exact H5].
   rewrite H3.
-  reflexivity.
+  assert (Int.unsigned i_ofs + Memdata.size_chunk ch <= Int.modulus) by 
+    (erewrite <- size_chunk_sizeof; [|exact H5]; omega).
+  apply pred_ext; normalize; apply (exp_right vs); normalize.
 Qed.
 
 Lemma memory_block_mapsto_:
@@ -595,7 +597,9 @@ Proof.
   rewrite Int.unsigned_zero.
   change (nat_of_Z 0) with (0%nat).
   unfold memory_block'.
-  reflexivity.
+  pose proof Int.unsigned_range z.
+  assert (Int.unsigned z <= Int.modulus) by omega.
+  apply pred_ext; normalize.
 Qed.
 Hint Rewrite memory_block_zero: norm.
 
@@ -1780,7 +1784,7 @@ Definition nested_non_volatile_type := nested_pred (fun t => negb (type_is_volat
 Lemma memory_block_data_at_: forall (sh : share) (t : type),
   legal_alignas_type t = true ->
   nested_non_volatile_type t = true ->
-  (fun p => !! (size_compatible t p /\ align_compatible t p)) &&
+  (fun p => !! (align_compatible t p)) &&
   memory_block sh (Int.repr (sizeof t)) = data_at_ sh t.
 Proof.
   intros.
@@ -2684,24 +2688,23 @@ Qed.
 
 Lemma var_block_data_at_:
   forall  sh id t, 
-  no_attr_type t = true ->
- var_block sh (id, t) = 
+  legal_alignas_type t = true ->
+  nested_non_volatile_type t = true ->
+ (local (`(align_compatible t) (eval_var id t))) && var_block sh (id, t) = 
    !!(sizeof t <= Int.max_unsigned) &&
             `(data_at_ sh t) (eval_var id t).
 Proof.
-  admit.
+  intros; extensionality rho.
+  unfold local, lift1.
+  unfold_lift.
+  rewrite <- memory_block_data_at_ by auto.
+  unfold var_block.
+  simpl. unfold_lift.
+  rewrite memory_block_isptr.
+destruct (eval_var id t rho); simpl; normalize.
+  apply pred_ext; normalize.
 Qed.
 
-(*
-intros; extensionality rho.
-unfold_lift.
-rewrite <- memory_block_typed by auto.
-unfold var_block.
-simpl. unfold_lift.
-rewrite memory_block_isptr.
-destruct (eval_var id t rho); simpl; normalize.
-Qed.
-*)
 
 Lemma array_at_local_facts:
  forall t sh f lo hi v,

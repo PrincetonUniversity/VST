@@ -1152,7 +1152,7 @@ unfold make_venv in H3.
 rewrite (Hve id (b,t)) in H3 by (left; auto).
 rewrite eqb_type_refl in H3.
 destruct (type_is_volatile t) eqn:?; try (contradiction H3).
-simpl in H3.
+simpl in H3; destruct H3 as [_ H3].
 rewrite Int.unsigned_repr in H3 by omega.
 change nat_of_Z with Z.to_nat in H3.
 rewrite memory_block'_eq in H3; 

@@ -227,7 +227,7 @@ Fixpoint memory_block' (sh: share) (n: nat) (b: block) (i: Z) : mpred :=
 
 Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
  match v with 
- | Vptr b ofs => memory_block' sh (nat_of_Z (Int.unsigned n)) b (Int.unsigned ofs)
+ | Vptr b ofs => (!! (Int.unsigned ofs + Int.unsigned n <= Int.modulus)) && memory_block' sh (nat_of_Z (Int.unsigned n)) b (Int.unsigned ofs)
  | _ => FF
  end.
 
