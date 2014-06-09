@@ -1675,7 +1675,7 @@ Proof.
   apply semax_max_path_field_cast_load_40.
 Qed.
 
-Lemma semax_field_store_nth:
+Lemma semax_store_field_nth:
   forall {Espec: OracleKind},
     forall Delta sh n P Q R Rn (e1 e2 : expr)
       (t: type) (fld: ident) (t1: type)

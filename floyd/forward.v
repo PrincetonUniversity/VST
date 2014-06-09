@@ -4,8 +4,9 @@ Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
+Require Import floyd.nested_field_lemmas.
+Require Import floyd.data_at_lemmas.
 Require Import floyd.loadstore_lemmas.
-Require Import floyd.malloc_lemmas.
 Require Import floyd.array_lemmas.
 Require Import floyd.entailer.
 Require Import floyd.globals_lemmas.
@@ -2038,6 +2039,7 @@ end;
      simpl in Delta
  end.
 
+(*
 Ltac start_function := 
  match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
@@ -2091,3 +2093,4 @@ match goal with |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (
 end.
 
 Ltac debug_store := (forward0; [debug_store' | ]) || debug_store'.
+*)

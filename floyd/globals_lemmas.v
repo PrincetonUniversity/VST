@@ -127,6 +127,7 @@ Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: 
       end
  end.
 
+(*
 Lemma unpack_globvar_aux1:
   forall sh t b v ofs, 
    ofs + sizeof (Tpointer t noattr) <= Int.max_unsigned ->
@@ -695,3 +696,4 @@ Ltac expand_main_pre :=
  change (Share.splice extern_retainer Tsh) with Ews;
 *)
 
+*)
