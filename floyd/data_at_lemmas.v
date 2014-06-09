@@ -342,11 +342,12 @@ Proof.
   apply res_predicates.allp_noat_emp.
 Qed.
 
-Lemma add_andp_to_left: forall P Q R, P |-- Q -> P && Q |-- R -> P |-- R.
+Lemma add_andp: forall {A: Type} `{NatDed A} (P Q R: A), P |-- Q -> P = P && Q.
 Proof.
   intros.
-  eapply derives_trans; [| exact H0].
-  apply andp_right; normalize.
+  apply pred_ext.
+  + apply andp_right; normalize.
+  + apply andp_left1; apply derives_refl.
 Qed.
 
 Lemma address_mapsto_list_address_mapsto_Mint8unsigned:
@@ -2711,6 +2712,15 @@ Proof.
 Qed.
 
 Hint Resolve array_at_local_facts : saturate_local.
+
+Lemma array_at_isptr:
+  forall t sh f lo hi v, array_at t sh f lo hi v = array_at t sh f lo hi v && !!isptr v.
+Proof.
+intros.
+apply pred_ext; intros.
+apply andp_right; auto. apply array_at_local_facts.
+normalize.
+Qed.
 
 Lemma array_at__local_facts:
  forall t sh lo hi v,

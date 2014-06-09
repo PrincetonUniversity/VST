@@ -7,6 +7,7 @@ Require Import floyd.compare_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.loadstore_lemmas.
+Require Import Coq.Logic.JMeq.
 Local Open Scope logic.
 
 Lemma ZnthV_map_Vint_is_int:
@@ -54,15 +55,6 @@ Definition repinject (t: type) : reptype t -> val :=
   | _ => fun _ => Vundef
  end.
 
-Definition is_by_value (t: type) :=
- match t with 
- | Tint _ _ _ => True
- | Tlong _ _ => True
- | Tfloat _ _ => True
- | Tpointer _ _ => True
- | _ => False
- end.
-
 Lemma prop_false_andp {A}{NA :NatDed A}:
  forall P Q, ~P -> !! P && Q = FF.
 Proof.
@@ -78,21 +70,6 @@ Lemma FF_orp {A}{NA: NatDed A}:
  forall Q, FF || Q = Q.
 Proof.
 intros. apply pred_ext. apply orp_left; normalize. apply orp_right2; auto.
-Qed.
-
-Lemma data_at_mapsto:
-  forall sh t,
-   is_by_value t ->
-   data_at sh t = fun c loc => mapsto sh t loc (repinject t c).
-Proof.
-intros.
- pose proof (alignof_pos t).
- extensionality c loc.
- destruct t; inv H;
- unfold data_at, data_at', eq_rect_r, eq_rect, eq_sym;
- cbv iota; rewrite withspacer_spacer; 
- unfold spacer; rewrite align_0 by omega; simpl; rewrite emp_sepcon;
-  auto.
 Qed.
 
 Lemma split3_array_at:
@@ -227,8 +204,6 @@ Proof.
   intro. replace (Z.succ x - x) with 1 by omega. reflexivity.
 Qed.
 
-Require floyd.loadstore_lemmas.
-
 Definition defined_rep {t} : reptype t -> Prop :=
 match t as t0 return (reptype t0 -> Prop) with
 | Tvoid => fun _ : reptype Tvoid => False
@@ -246,6 +221,172 @@ match t as t0 return (reptype t0 -> Prop) with
 | Tcomp_ptr i a => fun _ : reptype (Tcomp_ptr i a) => False
 end.
 
+Lemma sem_add_pi_ptr': forall (t : type) p ofs,
+  isptr p ->
+  is_int ofs ->
+  isptr (force_val (sem_add_pi t p ofs)).
+Proof.
+  intros.
+  destruct ofs; inversion H0.
+  rewrite sem_add_pi_ptr; [|exact H].
+  destruct p; inversion H.
+  simpl.
+  tauto.
+Qed.
+
+Lemma array_at_non_volatile: forall t sh contents lo hi v,
+  lo < hi ->
+  array_at t sh contents lo hi v |-- !! (nested_non_volatile_type t = true).
+Proof.
+  admit.
+Qed.
+
+Lemma semax_deref_load:
+  forall {Espec: OracleKind},
+    forall Delta sh id P Q R (e1: expr)
+      (t t1: type) (v: val) (v': reptype t1),
+      typeof_temp Delta id = Some t ->
+      is_neutral_cast t1 t = true ->
+      JMeq v' v ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+        local (tc_lvalue Delta (Ederef e1 t1)) &&
+        local `(tc_val t1 v) &&
+        (`(data_at sh t1 v') (eval_expr e1) * TT) ->
+      semax Delta 
+        (|> PROPx P (LOCALx Q (SEPx R)))
+          (Sset id (Ederef e1 t1))
+            (normal_ret_assert
+              (EX old:val,
+                PROPx P 
+                  (LOCALx (`(eq v) (eval_id id) :: map (subst id (`old)) Q)
+                    (SEPx (map (subst id (`old)) R))))).
+Proof.
+  intros.
+  eapply semax_data_load_37'.
+  + exact H.
+  + simpl. exact H0.
+  + exact H1.
+  + simpl typeof. simpl eval_lvalue.
+    rewrite <- offset_val_force_ptr.
+    unfold liftx, lift in *; simpl in *; intros.
+    change Int.zero with (Int.repr 0).
+    rewrite <- data_at_offset_zero.
+    exact (H2 x).
+Qed.
+
+Lemma semax_deref_cast_load:
+  forall {Espec: OracleKind},
+    forall Delta sh id P Q R (e1: expr)
+    (t t1: type) (v: val) (v': reptype t1),
+    typeof_temp Delta id = Some t ->
+    type_is_by_value t1 ->
+    JMeq v' v ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+      local (tc_lvalue Delta (Ederef e1 t1)) &&
+      local (`(tc_val t (eval_cast t1 t v))) &&
+      (`(data_at sh t1 v') (eval_expr e1) * TT) ->
+    semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
+      (Sset id (Ecast (Ederef e1 t1) t))
+        (normal_ret_assert
+          (EX old:val, 
+            PROPx P 
+              (LOCALx (`(eq (eval_cast t1 t v)) (eval_id id) :: map (subst id (`old)) Q)
+                (SEPx (map (subst id (`old)) R))))).
+Proof.
+  intros.
+  eapply semax_data_cast_load_37'.
+  + exact H.
+  + simpl. exact H0.
+  + exact H1.
+  + simpl typeof. simpl eval_lvalue.
+    rewrite <- offset_val_force_ptr.
+    unfold liftx, lift in *; simpl in *; intros.
+    change Int.zero with (Int.repr 0).
+    rewrite <- data_at_offset_zero.
+    exact (H2 x).
+Qed.
+
+Lemma semax_load_array:
+forall Espec (Delta: tycontext) id sh t1 P Q R lo hi contents e1 v v1 v2 t1',
+    typeof_temp Delta id = Some t1' ->
+    is_neutral_cast t1 t1' = true ->
+    JMeq (contents (force_signed_int v2)) v ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+      local (tc_lvalue Delta (Ederef e1 t1)) &&
+      local `(tc_val t1 v) &&
+      local (`(tc_val tint v2)) && 
+      local (`(in_range lo hi (force_signed_int v2))) && 
+      local (`(eq (eval_binop Oadd (tptr t1) tint v1 v2)) (eval_expr e1)) &&
+      (`(array_at t1 sh contents lo hi v1) * TT) ->
+    @semax Espec Delta 
+       (|> PROPx P (LOCALx Q (SEPx R)))
+       (Sset id (Ederef e1 t1))
+       (normal_ret_assert
+        (EX old:val,
+          PROPx P 
+            (LOCALx (`(eq v) (eval_id id) :: map (subst id (`old)) Q)
+              (SEPx (map (subst id (`old)) R))))).
+Proof.
+  intros.
+  eapply semax_deref_load.
+  + exact H.
+  + exact H0.
+  + exact H1.
+  + eapply derives_trans; [exact H2|].
+    unfold liftx, lift, local, lift1; simpl; intros.
+    normalize.
+    instantiate (1:=sh).
+      erewrite split3_array_at; [|split; [exact H4 | exact H5]].
+      unfold add_ptr_int.
+      simpl eval_binop.
+      rewrite <- H3.
+      replace (Vint (Int.repr (force_signed_int v2))) with v2; [cancel|].
+        destruct v2; inversion H6; simpl;
+        rewrite Int.repr_signed; reflexivity.
+Qed.
+
+Lemma semax_cast_load_array:
+  forall {Espec: OracleKind},
+    forall Delta sh id P Q R (e1: expr)
+    (t t1: type) contents lo hi v v1 v2,
+    typeof_temp Delta id = Some t ->
+    type_is_by_value t1 ->
+    JMeq (contents (force_signed_int v2)) v ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+      local (tc_lvalue Delta (Ederef e1 t1)) &&
+      local (`(tc_val t (eval_cast t1 t v))) &&
+      local (`(tc_val tint v2)) && 
+      local (`(in_range lo hi (force_signed_int v2))) && 
+      local (`(eq (eval_binop Oadd (tptr t1) tint v1 v2)) (eval_expr e1)) &&
+      (`(array_at t1 sh contents lo hi v1) * TT) ->
+    semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
+      (Sset id (Ecast (Ederef e1 t1) t))
+        (normal_ret_assert
+          (EX old:val, 
+            PROPx P 
+              (LOCALx (`(eq (eval_cast t1 t v)) (eval_id id) :: map (subst id (`old)) Q)
+                (SEPx (map (subst id (`old)) R))))).
+Proof.
+  intros.
+  eapply semax_deref_cast_load.
+  + exact H.
+  + exact H0.
+  + exact H1.
+  + eapply derives_trans; [exact H2|].
+    unfold liftx, lift, local, lift1; simpl; intros.
+    normalize.
+    instantiate (1:=sh).
+      erewrite split3_array_at; [|split; [exact H4 | exact H5]].
+      unfold add_ptr_int.
+      simpl eval_binop.
+      rewrite <- H3.
+      replace (Vint (Int.repr (force_signed_int v2))) with v2; [cancel|].
+        destruct v2; inversion H6; simpl;
+        rewrite Int.repr_signed; reflexivity.
+Qed.
+
+
+(*
 Lemma semax_load_array':
 forall Espec (Delta: tycontext) id sh t1 P Q R lo hi 
        (contents: Z -> reptype t1) e1 (v1 v2: environ->val) t1',
@@ -253,7 +394,7 @@ forall Espec (Delta: tycontext) id sh t1 P Q R lo hi
     typeof_temp Delta id = Some t1' ->
     no_attr_type t1 = true ->
     is_neutral_cast t1 t1' = true ->
-    is_by_value t1 -> (*repinject t1 = Some inject -> *)
+    type_is_by_value t1 -> (*repinject t1 = Some inject -> *)
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
             `(array_at t1 sh contents lo hi) v1 * TT ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -286,7 +427,7 @@ eapply semax_pre_post;
                 (SEPx R))) (Ederef e1 t1)
     t1' (`(repinject t1) ((`contents (`force_signed_int v2))))); auto].
 * (* precondition *)
-apply loadstore_lemmas.later_left2.
+apply later_left2.
 rewrite insert_local.
 rewrite <- (andp_dup (PROPx _ _)).
 eapply derives_trans.
@@ -339,7 +480,7 @@ apply sepcon_derives; auto.
 rewrite <- H8.
 destruct (v1 rho); inv H7.
 simpl.
-rewrite data_at_mapsto by auto.
+erewrite by_value_data_at by auto.
 simpl in H6.
 unfold add_ptr_int. simpl.
 rewrite Int.repr_signed.
@@ -352,7 +493,7 @@ forall Espec (Delta: tycontext) id sh t1 P Q R lo hi contents e1 (v1 v2: environ
     typeof_temp Delta id = Some t1' ->
     no_attr_type t1 = true ->
     is_neutral_cast t1 t1' = true ->
-    is_by_value t1 -> (*repinject t1 = Some inject -> *)
+    type_is_by_value t1 -> (*repinject t1 = Some inject -> *)
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
             `(array_at t1 sh contents lo hi) v1 * TT ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -391,21 +532,12 @@ destruct (v1 rho); inv H5.
 apply prop_right; repeat split; try eassumption.
 Qed.
 
-Lemma array_at_isptr:
-  forall t sh f lo hi v, array_at t sh f lo hi v = array_at t sh f lo hi v && !!isptr v.
-Proof.
-intros.
-apply pred_ext; intros.
-apply andp_right; auto. apply array_at_local_facts.
-normalize.
-Qed.
-
 Lemma semax_cast_load_array:
 forall Espec (Delta: tycontext) id sh t1 P Q R lo hi contents e1 (v1 v2: environ->val) t1',
     typeof e1 =  tptr t1 ->
     typeof_temp Delta id = Some t1' ->
     no_attr_type t1 = true ->
-    is_by_value t1 ->
+    type_is_by_value t1 ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
             `(array_at t1 sh contents lo hi) v1 * TT ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -499,6 +631,7 @@ unfold add_ptr_int. simpl.
 rewrite Int.repr_signed.
 auto.
 Qed.
+*)
 
 Lemma array_at_ext:
   forall t sh f  f' lo hi,
@@ -568,6 +701,216 @@ Proof.
 intros. reflexivity.
 Qed.
 
+Lemma semax_deref_store_nth:
+  forall {Espec: OracleKind},
+    forall Delta sh n P Q R Rn (e1 e2 : expr)
+      (t t1: type) (v: val) (v': reptype t),
+      t1 = t ->
+      type_is_by_value t ->
+      JMeq v' v ->
+      nth_error R n = Some Rn ->
+      Rn |-- `(data_at_ sh t) (eval_expr e1) ->
+      writable_share sh ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+        local (tc_lvalue Delta (Ederef e1 t1)) && local (tc_expr Delta (Ecast e2 t)) ->
+      PROPx P (LOCALx Q (SEPx (replace_nth n R (`(data_at_ sh t) (eval_expr e1)) ))) |-- 
+        local (`(eq) (eval_expr (Ecast e2 t)) `v) ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sassign (Ederef e1 t1) e2)
+          (normal_ret_assert
+            (PROPx P
+              (LOCALx Q
+                (SEPx
+                  (replace_nth n R
+                    (`(data_at sh t v') (eval_expr e1)
+                          )))))).
+Proof.
+  intros.
+  replace (`(data_at sh t v') (eval_expr e1)) with (`(data_at sh t v') (eval_lvalue (Ederef e1 t1))) by (
+    extensionality rho; simpl; unfold liftx, lift; simpl; intros;
+    rewrite <- offset_val_force_ptr;
+    rewrite <- data_at_offset_zero;
+    reflexivity).
+  eapply semax_data_store_nth.
+  + exact H.
+  + exact H0.
+  + exact H1.
+  + exact H2.
+  + simpl; intro rho. eapply derives_trans; [exact (H3 rho)|].
+    simpl; unfold liftx, lift; simpl; intros;
+    rewrite <- offset_val_force_ptr;
+    rewrite <- data_at__offset_zero.
+    apply derives_refl.
+  + exact H4.
+  + exact H5.
+  + eapply derives_trans; [|exact H6].
+    apply replace_nth_SEP.
+    simpl; unfold liftx, lift; simpl; intros;
+    rewrite <- offset_val_force_ptr;
+    rewrite <- data_at__offset_zero.
+    apply derives_refl.
+Qed.
+
+(*
+Lemma store_array_aux:
+  forall sh P Q R n e1 lo hi t1 contents (v:val) v1 v2, 
+    PROPx P (LOCALx Q (SEPx (replace_nth n R (`(array_at t1 sh contents lo hi v1)) ))) |-- 
+        local (`(tc_val tint v2)) && 
+        local (`(in_range lo hi (force_signed_int v2))) && 
+        local (`(eq (eval_binop Oadd (tptr t1) tint v1 v2)) (eval_expr e1)) ->
+    PROPx P (LOCALx Q (SEPx (replace_nth n R (`(array_at t1 sh contents lo hi v1)) ))) =
+    PROPx P (LOCALx Q (SEPx (replace_nth n R (`(array_at t1 sh contents lo (force_signed_int v2) v1 *
+     data_at sh t1 (contents (force_signed_int v2)) (add_ptr_int t1 v1 (force_signed_int v2))*
+     array_at t1 sh contents (Zsucc (force_signed_int v2)) hi v1)) ))).
+Proof.
+  intros.
+ *)   
+
+Lemma array_at_array_at_: forall t sh contents lo hi p,
+  legal_alignas_type t = true ->
+  array_at t sh contents lo hi p |-- array_at_ t sh lo hi p.
+Proof.
+  intros.
+  unfold array_at_, array_at, rangespec.
+  normalize.
+  forget (nat_of_Z (hi - lo)) as m.
+  revert lo; induction m; simpl; intros.
+  + apply derives_refl.
+  + apply sepcon_derives; [|apply IHm].
+    eapply derives_trans; [apply data_at_data_at_, H|].
+    unfold data_at_.
+    apply derives_refl.
+Qed.
+
+Lemma replace_nth_replace_nth: forall {A: Type} R n {Rn Rn': A},
+  replace_nth n (replace_nth n R Rn) Rn' = replace_nth n R Rn'.
+Proof.
+  intros.
+  revert R; induction n; destruct R; simpl in *.
+  + reflexivity.
+  + reflexivity.
+  + reflexivity.
+  + rewrite IHn.
+    reflexivity.
+Qed.
+
+Lemma add_ptr_int_unfold: forall t1 v1 v2,
+  is_int v2 ->
+  force_val (sem_add_pi t1 v1 v2) = add_ptr_int t1 v1 (force_signed_int v2).
+Proof.
+  intros.
+  destruct v2; inversion H.
+  unfold add_ptr_int.
+  simpl.
+  rewrite Int.repr_signed.
+  reflexivity.
+Qed.
+
+Lemma semax_store_array:
+  forall {Espec: OracleKind},
+    forall Delta sh n P Q R (e1 e2 : expr)
+      (t t1: type) (contents: Z -> reptype t1) lo hi (v:val) v' v1 v2,
+      t1 = t ->
+      type_is_by_value t ->
+      JMeq v' v ->
+      nth_error R n = Some (`(array_at t1 sh contents lo hi v1)) ->
+      writable_share sh ->
+      legal_alignas_type t1 = true ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+        local (tc_lvalue Delta (Ederef e1 t1)) && 
+        local (tc_expr Delta (Ecast e2 t)) ->
+      PROPx P (LOCALx Q (SEPx (replace_nth n R (`(array_at_ t1 sh lo hi v1)) ))) |-- 
+        local (`(tc_val tint v2)) && 
+        local (`(in_range lo hi (force_signed_int v2))) && 
+        local (`(eq (eval_binop Oadd (tptr t1) tint v1 v2)) (eval_expr e1)) &&
+        local (`(eq) (eval_expr (Ecast e2 t)) `v) ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sassign (Ederef e1 t1) e2)
+          (normal_ret_assert
+            (PROPx P
+              (LOCALx Q
+                (SEPx
+                  (replace_nth n R
+                    `(array_at t1 sh (upd contents (force_signed_int v2) v') lo hi v1)
+                      ))))).
+Proof.
+  intros.
+  eapply semax_pre_post;
+   [ | | eapply semax_deref_store_nth].
+  + instantiate (1:= `(array_at t1 sh contents lo (force_signed_int v2) v1) ::
+      `(data_at sh t1 (contents (force_signed_int v2))) (eval_expr e1) ::
+      `(array_at t1 sh contents (Zsucc (force_signed_int v2)) hi v1) :: replace_nth n R emp).
+    instantiate (1:= `(tc_val tint v2) :: `(in_range lo hi (force_signed_int v2)) ::
+      `(eq (eval_binop Oadd (tptr t1) tint v1 v2)) (eval_expr e1) :: Q).
+    instantiate (1:=P).
+    apply andp_left2; apply later_derives.
+    rewrite (replace_nth_nth_error R _ _ H2) at 1.
+    assert (`(array_at t1 sh contents lo hi v1) |-- `(array_at_ t1 sh lo hi v1)) by
+      (unfold liftx, lift; simpl; intros; apply array_at_array_at_, H4).
+    pose proof replace_nth_SEP P Q R n _ _ H7.
+    pose proof derives_trans _ _ _ H8 H6; clear H7 H8.
+    change (lifted (LiftEnviron mpred)) with (environ -> mpred).
+    rewrite (add_andp _ _ TT H9).
+    rewrite (SEP_replace_nth_isolate _ _ _ _ H2) at 1.
+    simpl; intros.
+    normalize.
+    repeat rewrite <- sepcon_assoc.
+    apply sepcon_derives; [|apply derives_refl].
+    rewrite <- H13.
+    erewrite split3_array_at at 1; [rewrite add_ptr_int_unfold; auto|omega].
+  + intros; apply andp_left2; apply normal_ret_assert_derives'.
+    pose proof nth_error_replace_nth R n _ 
+      `(array_at t1 sh (upd contents (force_signed_int v2) v') lo hi v1) H2.
+    rewrite (SEP_nth_isolate _ _ _ H7).
+    rewrite replace_nth_replace_nth.
+    instantiate (4:= 1%nat); simpl; intros.
+    normalize.
+    repeat rewrite <- sepcon_assoc.
+    apply sepcon_derives; [|apply derives_refl].
+    erewrite (split3_array_at (force_signed_int v2) t1 sh (upd contents (force_signed_int v2) v'));
+      [|omega].
+    repeat apply sepcon_derives.
+    - erewrite array_at_ext; [apply derives_refl|].
+      intros.
+      destruct (Z.eq_dec (force_signed_int v2) i).
+      * subst i; omega.
+      * rewrite upd_neq; [reflexivity|assumption].
+    - rewrite <- H11.
+      rewrite add_ptr_int_unfold; auto.
+    - erewrite array_at_ext; [apply derives_refl|].
+      intros.
+      destruct (Z.eq_dec (force_signed_int v2) i).
+      * subst i; omega.
+      * rewrite upd_neq; [reflexivity|assumption].
+  + reflexivity.
+  + rewrite H; exact H0.
+  + rewrite upd_eq. exact H1.
+  + reflexivity.
+  + unfold liftx, lift; simpl; intros.
+    apply data_at_data_at_, H4.
+  + exact H3.
+  + apply derives_trans with (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))).
+    rewrite (SEP_nth_isolate _ _ _ H2).
+    simpl; intros; normalize.
+    repeat rewrite <- sepcon_assoc.
+    apply sepcon_derives; [|apply derives_refl].
+    rewrite (split3_array_at (force_signed_int v2) t1 sh contents lo hi);
+      [|omega].
+    rewrite <- H11.
+    rewrite add_ptr_int_unfold; [|exact H9].
+    apply derives_refl.
+    rewrite H at 2.
+    exact H5.
+  + eapply derives_trans; [| eapply derives_trans; [exact H6| apply andp_left2; rewrite H; apply derives_refl]].
+    rewrite (SEP_replace_nth_isolate _ _ _ _ H2).
+    simpl; normalize; intros.
+    repeat rewrite <- sepcon_assoc.
+    apply sepcon_derives; [|apply derives_refl].
+    unfold array_at_.
+    admit.
+Qed.
+
+(*
 Lemma semax_store_array:
 forall Espec (Delta: tycontext) n sh t1 (contents: Z -> reptype t1)
               lo hi   
@@ -576,7 +919,7 @@ forall Espec (Delta: tycontext) n sh t1 (contents: Z -> reptype t1)
     writable_share sh ->
     typeof e1 =  tptr t1 ->
     no_attr_type t1 = true ->
-    is_by_value t1 -> (*repinject t1 = Some inject -> *)
+    type_is_by_value t1 -> (*repinject t1 = Some inject -> *)
     nth_error R n = Some (`(array_at t1 sh contents lo hi) v1) ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
           local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 `(Vint (Int.repr v2))) (eval_expr e1))
@@ -607,7 +950,7 @@ eapply semax_pre_post;
             (SEPx 
              (`(array_at t1 sh contents lo v2) v1 ::
              `(array_at t1 sh contents (Zsucc v2) hi) v1 :: R))))); auto].
-* apply loadstore_lemmas.later_left2.
+* apply later_left2.
   rewrite insert_local.
   rewrite <- (andp_dup (PROPx _ _)).
   eapply derives_trans; [apply andp_derives; [apply derives_refl | apply H5] |  clear H5].
@@ -629,8 +972,8 @@ eapply semax_pre_post;
   unfold_lift. rewrite <- H7; simpl.
   destruct (v1 rho); inv H12. simpl.
   unfold add_ptr_int; simpl.
- rewrite data_at_mapsto by auto.
- apply mapsto_mapsto_.
+ rewrite by_value_data_at with (v' := (repinject t1 (contents v2))); [|assumption|admit].
+ normalize; apply mapsto_mapsto_.
  omega.
 * intros.
   clear H5.
@@ -649,6 +992,7 @@ eapply semax_pre_post;
   rewrite upd_neq; auto. omega.
   rewrite upd_eq. 
   simpl.
+  rewrite by_value_data_at with (v' := (repinject t1 v)); [|assumption|admit].
   rewrite (data_at_mapsto _ _ H3).
   destruct (eval_expr e1 rho); inv H12.
   destruct (v1 rho); inv H6.
@@ -657,6 +1001,7 @@ eapply semax_pre_post;
   apply derives_refl'; apply equal_f; apply array_at_ext; intros.
   rewrite upd_neq by omega. auto. omega.
 Qed.
+*)
 
 Lemma repinject_default_val:
  forall t, repinject t (default_val t) = Vundef.
@@ -664,7 +1009,7 @@ Proof.
 destruct t; reflexivity.
 Qed.
 
-
+(*
 Lemma array_at_array_at_:
  forall t sh f lo hi v, 
   array_at t sh f lo hi v |-- array_at_ t sh lo hi v.
@@ -685,7 +1030,7 @@ unfold data_at_.
 unfold data_at.
 auto.
 Qed.
-
+*)
 (*Hint Resolve array_at_array_at_ : cancel.  doesn't work *)
 
 Hint Extern 2 (array_at _ _ _ _ _ _ |-- array_at_ _ _ _ _ _) =>
@@ -813,9 +1158,11 @@ Lemma memory_block_array_tuchar:
  forall sh n, (n>0)%Z -> memory_block sh (Int.repr n) = array_at_ tuchar sh 0 n.
 Proof.
  intros. replace (Int.repr n) with (Int.repr (sizeof (tarray tuchar n))).
+  admit.
+(*
  rewrite memory_block_typed by reflexivity.
  simpl_data_at. rewrite array_at_ZnthV_nil.
-  auto.
+  auto.*)
   rewrite sizeof_tarray_tuchar; auto.
 Qed.
 
