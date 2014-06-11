@@ -617,6 +617,7 @@ apply necR_nat in H5. apply nec_nat in H5.
  change R.rmap with rmap in *; omega. 
 clear y H5 H4. rename H11 into H5. pose (H4:=True).
 generalize H; rewrite semax_unfold; intros H'.
+change ((believe Espec Delta' psi Delta') (level jm')) in Prog_OK2.
 specialize (H' psi Delta' (level jm') (tycontext_sub_refl _) Prog_OK2 (Kseq Scontinue :: Kloop1 body incr :: k) F CLO_body).
 spec H'.
 intros ek vl.

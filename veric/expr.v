@@ -603,8 +603,6 @@ match ty with
 | _ => false
 end.
 
-Print Cop.sem_absfloat.
-
 Definition isUnOpResultType op a ty := 
 match op with 
   | Cop.Onotbool => match Cop.classify_bool (typeof a) with

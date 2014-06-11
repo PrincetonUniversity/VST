@@ -444,7 +444,7 @@ exists w1; exists w2; split3; auto.
  rewrite Zminus_diag. hnf. rewrite preds_fmap_NoneP.
   rewrite H4. rewrite if_true by auto. f_equal.
  unfold noat. simpl. rewrite H4. rewrite if_false. apply core_identity.
-  swap H8. subst. split; auto. simpl; omega.
+  contradict H8. subst. split; auto. simpl; omega.
 + intro loc. hnf. 
  if_tac. exists H0. hnf. rewrite H7.
  rewrite if_true by auto. rewrite preds_fmap_NoneP. auto.
@@ -504,7 +504,7 @@ intros [b' z']; unfold jam; extensionality P Q loc;
  destruct loc as [b'' z'']; apply exist_ext; extensionality w;
  if_tac; [rewrite if_true | rewrite if_false]; auto;
   [destruct H; subst; f_equal;  simpl in H0; omega 
-  | swap H; inv H0; split; simpl; auto; omega].
+  | contradict H; inv H; split; simpl; auto; omega].
 apply pred_ext.
 intros w ?.
 right; split; hnf; auto.

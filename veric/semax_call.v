@@ -1873,7 +1873,7 @@ exists  (State (vx)(te2) k); exists jm2''.
 replace n0 with (level jm2'')
  by (rewrite <- H25; 
       apply age_level in H24; 
-      rewrite <- level_juice_level_phi in H21;
+      try rewrite <- level_juice_level_phi in H21;
       clear - H21 H24; omega).
 split; auto.
 split.
