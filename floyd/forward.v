@@ -1601,9 +1601,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    ]
  | |- semax _ _ (Sset _ (Ederef (Ebinop Oadd ?e1 ?e2 _) _)) _ =>
     eapply semax_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
-      [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-      | solve [entailer; unfold at_offset; cancel]
-      | ]
+      [ reflexivity | reflexivity | ]
  | |- semax _ _ (Sset _ (Ecast (Ederef (Ebinop Oadd ?e1 ?e2 _) _) _)) _ =>
     eapply semax_cast_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
       [ reflexivity | reflexivity | reflexivity | reflexivity 

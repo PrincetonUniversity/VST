@@ -796,6 +796,32 @@ Lemma int_add_repr_0_r: forall i, Int.add i (Int.repr 0) = i.
 Proof. intros. apply Int.add_zero. Qed.
 Hint Rewrite int_add_repr_0_l int_add_repr_0_r : norm.
 
+Definition repinject (t: type) : reptype t -> val :=
+  match t as t0 return reptype t0 -> val with
+  | Tint _ _ _ => fun v => v
+  | Tlong _ _ => fun v => v
+  | Tfloat _ _ => fun v => v
+  | Tpointer _ _ => fun v => v
+  | Tcomp_ptr _ _ => fun v => v
+  | _ => fun _ => Vundef
+ end.
+
+Definition valinject (t: type) : val -> reptype t :=
+  match t as t0 return val -> reptype t0 with
+  | Tint _ _ _ => fun v => v
+  | Tlong _ _ => fun v => v
+  | Tfloat _ _ => fun v => v
+  | Tpointer _ _ => fun v => v
+  | Tcomp_ptr _ _ => fun v => v
+  | t => fun _ => default_val t
+ end.
+
+Lemma valinject_JMeq: forall t v, type_is_by_value t -> JMeq (valinject t v) v.
+Proof.
+  intros.
+  destruct t; simpl in *; try tauto.
+Qed.
+
 (*
 Lemma field_at__offset_zero:
   forall sh ty id v, 
@@ -1564,6 +1590,12 @@ Proof.
   destruct t; reflexivity.
 Qed.
 
+Lemma uncompomize_valinject: forall t v, JMeq (valinject (uncompomize t) v) (valinject t v).
+Proof.
+  intros.
+  destruct t; reflexivity.
+Qed.
+
 Lemma uncompomize_default_val: forall t, JMeq (default_val (uncompomize t)) (default_val t).
 Proof.
   intros.
@@ -1637,27 +1669,26 @@ Proof.
   exact H.
 Qed.
 
-Lemma lifted_by_value_data_at: forall sh t v (v':val) p,
+Lemma lifted_by_value_data_at: forall sh t v p,
   type_is_by_value t ->
-  JMeq v v' ->
-  `(data_at sh t v) p =
+  `(data_at sh t) (`(valinject t) v) p =
   `prop (`(size_compatible t) p) &&
-  `prop (`(align_compatible t) p) && `(mapsto sh t) p `v'.
+  `prop (`(align_compatible t) p) && `(mapsto sh t) p v.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
-  apply by_value_data_at; assumption.
+  apply by_value_data_at; [|apply valinject_JMeq]; assumption.
 Qed.
 
-Lemma lifted_uncompomize_by_value_data_at: forall sh t v (v':val) p,
+Lemma lifted_uncompomize_by_value_data_at: forall sh t v p,
   type_is_by_value (uncompomize t) ->
-  JMeq v v' ->
-  `(data_at sh t v) p =
+  `(data_at sh t) (`(valinject t) v) p =
   `prop (`(size_compatible (uncompomize t)) p) &&
   `prop (`(align_compatible (uncompomize t)) p) &&
-  `(mapsto sh (uncompomize t)) p `v'.
+  `(mapsto sh (uncompomize t)) p v.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
-  apply uncompomize_by_value_data_at; assumption.
+  apply uncompomize_by_value_data_at;
+  [|rewrite <- uncompomize_valinject; apply valinject_JMeq]; assumption.
 Qed.
 
 Lemma lifted_by_value_data_at_: forall sh t p,
@@ -2238,12 +2269,12 @@ Qed.
 
 Lemma lifted_field_at_data_at: forall sh t ids v p,
        legal_alignas_type t = true ->
-       `(field_at sh t ids v) p =
+       `(field_at sh t ids) v p =
        `prop (`(size_compatible t) p) && 
        `prop (`(align_compatible t) p) && 
        `prop (`(isSome (nested_field_rec t ids))) &&
-       `(at_offset' (data_at sh (nested_field_type2 t ids) v)
-         (nested_field_offset2 t ids)) p.
+       `(at_offset') (fun rho => (data_at sh (nested_field_type2 t ids)) (v rho))
+         `(nested_field_offset2 t ids) p.
 Proof.
   intros.
   extensionality rho.

@@ -185,6 +185,14 @@ Proof.
 Qed.
 
 Lemma eq_sym_LOCAL: forall P Q R id v, 
+  PROPx P (LOCALx (`eq v (eval_id id) :: Q) (SEPx R)) = 
+  PROPx P (LOCALx (`eq (eval_id id) v:: Q) (SEPx R)).
+Proof.
+  intros.
+  extensionality; apply pred_ext; normalize.
+Qed.
+
+Lemma eq_sym_LOCAL': forall P Q R id v, 
   PROPx P (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)) = 
   PROPx P (LOCALx (`eq (eval_id id) `v:: Q) (SEPx R)).
 Proof.
@@ -192,7 +200,20 @@ Proof.
   normalize.
 Qed.
 
+(* This lemma is for load_37 *)
 Lemma eq_sym_post_LOCAL: forall P Q R id v,
+  (EX  old : val, PROPx P
+  (LOCALx (`eq (subst id `old v) (eval_id id)::map (subst id `old) Q) (SEPx (map (subst id `old) R)))) = 
+  (EX  old : val, PROPx P
+  (LOCALx (`eq (eval_id id) (subst id `old v)::map (subst id `old) Q) (SEPx (map (subst id `old) R)))).
+Proof.
+  intros.
+  apply pred_ext; normalize; apply (exp_right old);
+  rewrite eq_sym_LOCAL; apply derives_refl.
+Qed.
+
+(* This lemma is for load_37' *)
+Lemma eq_sym_post_LOCAL': forall P Q R id v,
   (EX  old : val, PROPx P
   (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q) (SEPx (map (subst id `old) R)))) = 
   (EX  old : val, PROPx P
@@ -200,7 +221,7 @@ Lemma eq_sym_post_LOCAL: forall P Q R id v,
 Proof.
   intros.
   apply pred_ext; normalize; apply (exp_right old);
-  rewrite eq_sym_LOCAL; apply derives_refl.
+  rewrite eq_sym_LOCAL'; apply derives_refl.
 Qed.
 
 (***************************************
@@ -452,6 +473,94 @@ Proof.
   exact H.
 Qed.
 
+Lemma semax_data_load_37:
+  forall {Espec: OracleKind},
+    forall Delta sh id P Q R (e1 : expr)
+    (t: type) (v: environ -> val),
+    typeof_temp Delta id = Some t ->
+    is_neutral_cast (typeof e1) t = true ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+      local (tc_lvalue Delta e1) && local (`(tc_val (typeof e1)) v) &&
+      (`(data_at sh (typeof e1)) (`(valinject (typeof e1)) v) (eval_lvalue e1) * TT) ->
+    semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+      (Sset id e1)
+        (normal_ret_assert
+          (EX  old : val,
+            PROPx P
+              (LOCALx (`(eq) (subst id `old v) (eval_id id) :: map (subst id `old) Q)
+                 (SEPx (map (subst id `old) R))))).
+Proof.
+  intros.
+  rewrite eq_sym_post_LOCAL.
+  eapply semax_post'; [|eapply semax_pre_simple].
+  + instantiate (1:= 
+       (EX  old : val,
+        (local (`eq (eval_id id) (subst id `old v))) && (subst id `old (PROPx P (LOCALx Q (SEPx R)))))).
+    apply exp_left; intro old; apply (exp_right old).
+    rewrite <- insert_local.
+    rewrite subst_PROP.
+    apply derives_refl.
+  + instantiate (1:= |> (local (tc_lvalue Delta e1) && local (`(tc_val (typeof e1)) v) && 
+      PROPx P (LOCALx Q (SEPx R)) )).
+    rewrite later_andp; apply andp_right; [|apply andp_left2; apply derives_refl].
+    eapply derives_trans; [apply andp_derives; [apply now_later|apply derives_refl]|].
+    rewrite <- later_andp. apply later_derives.
+    rewrite <- insert_local in H1.
+    eapply derives_trans; [exact H1|apply andp_left1; apply derives_refl].
+  + eapply semax_load_37.
+    exact H.
+    exact H0.
+    rewrite <- insert_local in H1.
+    eapply derives_trans; [exact H1|apply andp_left2].
+    rewrite lifted_by_value_data_at; [|eapply is_neutral_cast_by_value, H0].
+    go_lower.
+    normalize.
+Qed.
+
+Lemma semax_data_cast_load_37:
+  forall {Espec: OracleKind},
+    forall Delta sh id P Q R (e1: expr)
+    (t: type) (v: environ -> val),
+    typeof_temp Delta id = Some t ->
+    type_is_by_value (typeof e1) ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+      local (tc_lvalue Delta e1) &&
+      local (`(tc_val t) (`(eval_cast (typeof e1) t) v)) &&
+      (`(data_at sh (typeof e1)) (`(valinject (typeof e1)) v) (eval_lvalue e1) * TT) ->
+    semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
+      (Sset id (Ecast e1 t))
+        (normal_ret_assert (EX old:val, 
+          PROPx P 
+            (LOCALx (`eq (subst id `old (`(eval_cast (typeof e1) t) v)) (eval_id id) :: map (subst id (`old)) Q)
+              (SEPx (map (subst id (`old)) R))))).
+Proof.
+  intros.
+  rewrite eq_sym_post_LOCAL.
+  eapply semax_post'; [|eapply semax_pre_simple].
+  + instantiate (1:= 
+       (EX  old : val,
+        (local (`eq (eval_id id) (subst id `old (`(eval_cast (typeof e1) t) v)))) && (subst id `old (PROPx P (LOCALx Q (SEPx R)))))).
+    apply exp_left; intro old; apply (exp_right old).
+    rewrite <- insert_local.
+    rewrite subst_PROP.
+    apply derives_refl.
+  + instantiate (1:= |> (local (tc_lvalue Delta e1) && 
+      local (`(tc_val t) (`(eval_cast (typeof e1) t) v)) && 
+      PROPx P (LOCALx Q (SEPx R)) )).
+    rewrite later_andp; apply andp_right; [|apply andp_left2; apply derives_refl].
+    eapply derives_trans; [apply andp_derives; [apply now_later|apply derives_refl]|].
+    rewrite <- later_andp. apply later_derives.
+    rewrite <- insert_local in H1.
+    eapply derives_trans; [exact H1|apply andp_left1; apply derives_refl].
+  + eapply semax_cast_load_37.
+    exact H.
+    rewrite <- insert_local in H1.
+    eapply derives_trans; [exact H1|apply andp_left2].
+    rewrite lifted_by_value_data_at by exact H0.
+    go_lower.
+    normalize.
+Qed.
+
 Lemma semax_data_load_37':
   forall {Espec: OracleKind},
     forall Delta sh id P Q R (e1 : expr) 
@@ -471,7 +580,7 @@ Lemma semax_data_load_37':
                  (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
-  rewrite eq_sym_post_LOCAL.
+  rewrite eq_sym_post_LOCAL'.
   rename H0 into Htype.
   eapply semax_load_37'.
   + exact H.
@@ -503,7 +612,7 @@ Lemma semax_data_cast_load_37':
               (SEPx (map (subst id (`old)) R))))).
 Proof.
   intros.
-  rewrite eq_sym_post_LOCAL.
+  rewrite eq_sym_post_LOCAL'.
   eapply semax_cast_load_37'.
   exact H.
   eapply derives_trans; [exact H2 |].
@@ -515,17 +624,14 @@ Qed.
 Lemma semax_data_store_nth:
   forall {Espec: OracleKind},
     forall Delta sh n P Q R Rn (e1 e2 : expr)
-      (t : type) (v: val) (v' : reptype t),
+      (t : type),
       typeof e1 = t ->
       type_is_by_value t ->
-      JMeq v' v ->
       nth_error R n = Some Rn ->
       Rn |-- `(data_at_ sh t) (eval_lvalue e1) ->
       writable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t)) ->
-      PROPx P (LOCALx Q (SEPx (replace_nth n R (`(data_at_ sh t) (eval_lvalue e1)) ))) |-- 
-        local (`(eq) (eval_expr (Ecast e2 t)) `v) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sassign e1 e2)
           (normal_ret_assert
@@ -533,96 +639,42 @@ Lemma semax_data_store_nth:
               (LOCALx Q
                 (SEPx
                   (replace_nth n R
-                    (`(data_at sh t v') (eval_lvalue e1)
+                    (`(data_at sh t) (`(valinject t) (eval_expr (Ecast e2 t))) (eval_lvalue e1)
                           )))))).
 Proof.
   intros.
-
-  erewrite lifted_by_value_data_at; [|exact H0| exact H1].
-  erewrite lifted_by_value_data_at_ in H3; [|exact H0].
-  erewrite lifted_by_value_data_at_ in H6; [|exact H0].
-
+  erewrite lifted_by_value_data_at; [|exact H0].
+  erewrite lifted_by_value_data_at_ in H2; [|exact H0].
+  
   assert (Rn |-- `prop (`(size_compatible t) (eval_lvalue e1)) &&
                   `prop (`(align_compatible t) (eval_lvalue e1)) && Rn) by (
     apply andp_right; [|apply derives_refl];
-    eapply derives_trans; [exact H3|apply andp_left1; apply derives_refl]).           
+    eapply derives_trans; [exact H2|apply andp_left1; apply derives_refl]).           
 
   eapply semax_pre0.
   apply later_derives. Focus 1.
   + instantiate (1:= PROPx P (LOCALx Q (SEPx (replace_nth n R (`prop (`(size_compatible t) (eval_lvalue e1)) && `prop (`(align_compatible t) (eval_lvalue e1)) && Rn))))).
-    rewrite (replace_nth_nth_error R _ _ H2) at 1.
-    apply replace_nth_SEP, H7.
+    rewrite (replace_nth_nth_error R _ _ H1) at 1.
+    apply replace_nth_SEP, H5.
     
   rewrite andp_assoc.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn); [|exact H2]).
-  rewrite <- replace_nth_nth_error.
+  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) by (exact H1)).
+  rewrite <- replace_nth_nth_error by exact H1.
 
   rewrite andp_assoc.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn); [|exact H2]).
+  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) by (exact H1)).
 
-  rewrite andp_assoc in H6.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) in H6; [|exact H2]).
+  rewrite andp_assoc in H5.
+  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) in H5 by (exact H1)).
 
   eapply semax_post0; [| eapply semax_store_nth'].
-  Focus 2. exact H.
-  Focus 2. exact H2.
-  Focus 2. eapply derives_trans; [exact H3|]. apply andp_left2; apply derives_refl.
-  Focus 2. exact H4.
-  Focus 2. rewrite (replace_nth_nth_error R _ _ H2).
-           rewrite LOCAL_2_hd. rewrite <- (replace_nth_SEP_andp_local P _ R n Rn); [|exact H2].
-           rewrite LOCAL_2_hd. rewrite -> (replace_nth_SEP_andp_local P _ R n Rn); [|exact H2].
-           rewrite <- (replace_nth_nth_error R _ _ H2).
-           eapply derives_trans; [|exact H5].
-           go_lower; normalize.
-  Focus 2. exact H2.
-
-  apply normal_ret_assert_derives'.
-
-  eapply derives_trans.
-  + instantiate (1:= PROPx P
-     (LOCALx (`eq (eval_expr (Ecast e2 t)) `v :: `(align_compatible t) (eval_lvalue e1)
-         :: `(size_compatible t) (eval_lvalue e1) :: Q) (SEPx (replace_nth n R (`(mapsto sh t) (eval_lvalue e1) (eval_expr (Ecast e2 t))))))).
-    assert (
-    PROPx P
-     (LOCALx (`(align_compatible t) (eval_lvalue e1)
-         :: `(size_compatible t) (eval_lvalue e1) ::Q)
-        (SEPx
-           (replace_nth n R
-              (`(mapsto sh t) (eval_lvalue e1) (eval_expr (Ecast e2 t))))))
-    |--
-    PROPx P
-     (LOCALx (`(align_compatible t) (eval_lvalue e1)
-         :: `(size_compatible t) (eval_lvalue e1) ::Q)
-        (SEPx
-           (replace_nth n R
-              (`(mapsto_ sh t) (eval_lvalue e1)))))).
-      apply replace_nth_SEP. unfold liftx, lift. simpl. intros. apply mapsto_mapsto_.
-    unfold PROPx, LOCALx.
-    unfold PROPx, LOCALx in H6, H8.
-    simpl.
-    simpl in H6, H8.
-    intros.
-    repeat rewrite local_lift2_and in *.
-    simpl.
-    repeat try apply andp_right.
-    - apply andp_left1; cancel.
-    - eapply derives_trans; [exact (H8 x)| exact (H6 x)].
-    - apply andp_left2; apply andp_left1; apply andp_left1; cancel.
-    - apply andp_left2; apply andp_left1; apply andp_left2; apply andp_left1; cancel.
-    - apply andp_left2; apply andp_left1; apply andp_left2; apply andp_left2; cancel.
-    - apply andp_left2; apply andp_left2; cancel.
-  + rewrite <- insert_local.
-    unfold local, lift1.
-Opaque eval_expr.
-    simpl; intros.
-    remember PROPx as m.
-    normalize.
-    subst m.
-    unfold liftx, lift in H8; simpl in H8.
-Transparent eval_expr.
-    subst v.
-    apply replace_nth_SEP'.
-    unfold liftx, lift. cancel.
+  + apply derives_refl.
+  + exact H.
+  + exact H1.
+  + eapply derives_trans; [exact H2|]. apply andp_left2; apply derives_refl.
+  + exact H3.
+  + eapply derives_trans; [|exact H4].
+    go_lower; normalize.
 Qed.
 
 (***************************************
@@ -721,7 +773,7 @@ Lemma semax_ucdata_load_37':
                   (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
-  rewrite eq_sym_post_LOCAL.
+  rewrite eq_sym_post_LOCAL'.
   eapply semax_load_37'.
   + exact H.
   + exact H1.
@@ -755,7 +807,7 @@ Lemma semax_ucdata_cast_load_37':
                   (SEPx (map (subst id (`old)) R))))).
 Proof.
   intros.
-  rewrite eq_sym_post_LOCAL.
+  rewrite eq_sym_post_LOCAL'.
   eapply semax_cast_load_37'.
   exact H.
   eapply derives_trans; [exact H3 |].
@@ -818,18 +870,15 @@ Qed.
 Lemma semax_ucdata_store_nth:
   forall {Espec: OracleKind},
     forall Delta sh n P Q R Rn (e1 e2 : expr)
-      (t1 t2: type) (v: val) (v' : reptype t2),
+      (t1 t2: type),
       typeof e1 = t1 ->
       uncompomize t2 = t1 ->
       type_is_by_value t1 ->
-      JMeq v' v ->
       nth_error R n = Some Rn ->
       Rn |-- `(data_at_ sh t2) (eval_lvalue e1) ->
       writable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t1)) ->
-      PROPx P (LOCALx Q (SEPx (replace_nth n R (`(data_at_ sh t2) (eval_lvalue e1))))) |--
-        local (`(eq) (eval_expr (Ecast e2 t1)) `v) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sassign e1 e2)
           (normal_ret_assert
@@ -837,95 +886,42 @@ Lemma semax_ucdata_store_nth:
               (LOCALx Q
                 (SEPx
                   (replace_nth n R
-                    (`(data_at sh t2 v') (eval_lvalue e1)
+                    (`(data_at sh t2) (`(valinject t2) (eval_expr (Ecast e2 t1))) (eval_lvalue e1)
                           )))))).
 Proof.
   intros.
-  erewrite lifted_uncompomize_by_value_data_at; [| rewrite H0; exact H1 | exact H2].
-  erewrite lifted_uncompomize_by_value_data_at_ in H4; [| rewrite H0; exact H1].
-  erewrite lifted_uncompomize_by_value_data_at_ in H7; [| rewrite H0; exact H1].
+  erewrite lifted_uncompomize_by_value_data_at; [| rewrite H0; exact H1].
+  erewrite lifted_uncompomize_by_value_data_at_ in H3; [| rewrite H0; exact H1].
 
   assert (Rn |-- `prop (`(size_compatible (uncompomize t2)) (eval_lvalue e1)) &&
                   `prop (`(align_compatible (uncompomize t2)) (eval_lvalue e1)) && Rn) by (
     apply andp_right; [|apply derives_refl];
-    eapply derives_trans; [exact H4|apply andp_left1; apply derives_refl]).        
+    eapply derives_trans; [exact H3|apply andp_left1; apply derives_refl]).        
 
   eapply semax_pre0.
   apply later_derives. Focus 1.
   + instantiate (1:= PROPx P (LOCALx Q (SEPx (replace_nth n R (`prop (`(size_compatible (uncompomize t2)) (eval_lvalue e1)) && `prop (`(align_compatible (uncompomize t2)) (eval_lvalue e1)) && Rn))))).
-    rewrite (replace_nth_nth_error R _ _ H3) at 1.
-    apply replace_nth_SEP, H8.
+    rewrite (replace_nth_nth_error R _ _ H2) at 1.
+    apply replace_nth_SEP, H6.
     
   rewrite andp_assoc.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn); [|exact H3]).
-  rewrite <- replace_nth_nth_error.
+  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) by exact H2).
+  rewrite <- replace_nth_nth_error by exact H2.
 
   rewrite andp_assoc.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn); [|exact H3]).
+  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) by exact H2).
 
-  rewrite andp_assoc in H7.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) in H7; [|exact H3]).
+  rewrite andp_assoc in H6.
+  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) in H6 by exact H2).
 
   eapply semax_post0; [| eapply semax_store_nth'].
-  Focus 2. exact H.
-  Focus 2. exact H3.
-  Focus 2. eapply derives_trans; [exact H4|]. rewrite H0; apply andp_left2; apply derives_refl.
-  Focus 2. exact H5.
-  Focus 2. rewrite (replace_nth_nth_error R _ _ H3).
-           rewrite LOCAL_2_hd. rewrite <- (replace_nth_SEP_andp_local P _ R n Rn); [|exact H3].
-           rewrite LOCAL_2_hd. rewrite -> (replace_nth_SEP_andp_local P _ R n Rn); [|exact H3].
-           rewrite <- (replace_nth_nth_error R _ _ H3).
-           eapply derives_trans; [|exact H6].
-           go_lower; normalize.
-  Focus 2. exact H3.
-
-  apply normal_ret_assert_derives'.
-
-  eapply derives_trans.
-  + instantiate (1:= PROPx P
-     (LOCALx (`eq (eval_expr (Ecast e2 (uncompomize t2))) `v :: `(align_compatible (uncompomize t2)) (eval_lvalue e1)
-         :: `(size_compatible t1) (eval_lvalue e1) :: Q) (SEPx (replace_nth n R (`(mapsto sh t1) (eval_lvalue e1) (eval_expr (Ecast e2 t1))))))).
-    assert (
-    PROPx P
-     (LOCALx (`(align_compatible (uncompomize t2)) (eval_lvalue e1)
-         :: `(size_compatible (uncompomize t2)) (eval_lvalue e1) ::Q)
-        (SEPx
-           (replace_nth n R
-              (`(mapsto sh t1) (eval_lvalue e1) (eval_expr (Ecast e2 t1))))))
-    |--
-    PROPx P
-     (LOCALx (`(align_compatible (uncompomize t2)) (eval_lvalue e1)
-         :: `(size_compatible (uncompomize t2)) (eval_lvalue e1) ::Q)
-        (SEPx
-           (replace_nth n R
-              (`(mapsto_ sh t1) (eval_lvalue e1)))))).
-      apply replace_nth_SEP. unfold liftx, lift. simpl. intros. apply mapsto_mapsto_.
-    unfold PROPx, LOCALx.
-    unfold PROPx, LOCALx in H7, H9.
-    simpl.
-    simpl in H7, H9.
-    intros.
-    repeat rewrite local_lift2_and in *.
-    simpl.
-    subst t1; repeat try apply andp_right; repeat rewrite <- H0 in *.
-    - apply andp_left1; cancel.
-    - eapply derives_trans; [exact (H9 x)| exact (H7 x)].
-    - apply andp_left2; apply andp_left1; apply andp_left1; cancel.
-    - apply andp_left2; apply andp_left1; apply andp_left2; apply andp_left1; cancel.
-    - apply andp_left2; apply andp_left1; apply andp_left2; apply andp_left2; cancel.
-    - apply andp_left2; apply andp_left2; cancel.
-  + rewrite <- insert_local.
-    unfold local, lift1.
-Opaque eval_expr.
-    simpl; intros.
-    remember PROPx as m.
-    normalize.
-    subst m.
-    unfold liftx, lift in H9; simpl in H9.
-Transparent eval_expr.
-    subst v.
-    subst t1; rewrite <- H0; apply replace_nth_SEP'.
-    unfold liftx, lift. cancel.
+  + rewrite <- H0; apply derives_refl.
+  + rewrite H0; exact H.
+  + exact H2.
+  + eapply derives_trans; [exact H3|]. rewrite H0; apply andp_left2; apply derives_refl.
+  + exact H4.
+  + rewrite H0; eapply derives_trans; [|exact H5].
+    go_lower; normalize.
 Qed.
 
 (********************************************
@@ -1261,22 +1257,18 @@ Proof. reflexivity. Qed.
 Lemma semax_max_path_field_store_nth:
   forall {Espec: OracleKind},
     forall Delta sh n P Q R Rn (e1 e2 : expr)
-      (t : type) (ids: list ident) (tts: list type) 
-      (v: val) (v' : reptype (nested_field_type2 (typeof e1) ids)),
+      (t : type) (ids: list ident) (tts: list type),
       typeof (nested_efield e1 ids tts) = t ->
       uncompomize (nested_field_type2 (typeof e1) ids) = t ->
       type_is_by_value t ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield (typeof e1) ids tts = true ->
-      JMeq v' v ->
       nth_error R n = Some Rn ->
       Rn |-- `(field_at_ sh (typeof e1) ids) (eval_lvalue e1) ->
       writable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_lvalue Delta (nested_efield e1 ids tts)) && 
         local (tc_expr Delta (Ecast e2 t)) ->
-      PROPx P (LOCALx Q (SEPx (replace_nth n R (`(field_at_ sh (typeof e1) ids) (eval_lvalue e1))))) |--
-        local (`(eq) (eval_expr (Ecast e2 t)) `v) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sassign (nested_efield e1 ids tts) e2)
           (normal_ret_assert
@@ -1284,41 +1276,49 @@ Lemma semax_max_path_field_store_nth:
               (LOCALx Q
                 (SEPx
                   (replace_nth n R
-                    (`(field_at sh (typeof e1) ids v') (eval_lvalue e1)
+                    (`(field_at sh (typeof e1) ids)
+                      (`(valinject (nested_field_type2 (typeof e1) ids)) (eval_expr (Ecast e2 t))) 
+                        (eval_lvalue e1)
                           )))))).
 Proof.
   intros.
   rewrite lifted_field_at_data_at in *; [|exact H2].
-  rewrite lifted_field_at__data_at_ in *; [|exact H2|exact H2|exact H2].
+  rewrite lifted_field_at__data_at_ in *; [|exact H2].
   assert (Rn |-- 
            `prop (`(size_compatible (typeof e1)) (eval_lvalue e1)) &&
            `prop (`(align_compatible (typeof e1)) (eval_lvalue e1)) &&
            `prop (`(isSome (nested_field_rec (typeof e1) ids))) && Rn).
-    apply andp_right; [apply (derives_trans _ _ _ H6) | apply derives_refl].
+    apply andp_right; [apply (derives_trans _ _ _ H5) | apply derives_refl].
     apply andp_left1; apply derives_refl.
-  rewrite (replace_nth_nth_error _ _ _ H5) at 1.
-  eapply semax_pre0; [apply later_derives, replace_nth_SEP, H10|].
+  rewrite (replace_nth_nth_error _ _ _ H4) at 1.
+  eapply semax_pre0; [apply later_derives, replace_nth_SEP, H8|].
 
   rewrite andp_assoc.
   rewrite andp_assoc.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn); [|exact H5]).
-  rewrite <- replace_nth_nth_error; [|exact H5].
+  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) by exact H4).
+  rewrite <- replace_nth_nth_error by exact H4.
 
   rewrite andp_assoc.
   rewrite andp_assoc.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn); [|exact H5]).
+  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) by exact H4).
 
-  rewrite andp_assoc in H9.
-  rewrite andp_assoc in H9.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) in H9; [|exact H5]).
+  rewrite andp_assoc in H8.
+  rewrite andp_assoc in H8.
+  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) in H8 by exact H4).
 
   eapply semax_post0; [| eapply semax_ucdata_store_nth].
   Focus 2. exact H.
   Focus 2. exact H0.
   Focus 2. exact H1.
   Focus 2. exact H4.
-  Focus 2. exact H5.
-  Focus 3. exact H7.
+  Focus 2. eapply derives_trans; [exact H5|].
+           apply andp_left2.
+           unfold_lift; simpl; intros.
+           rewrite at_offset'_eq; [| rewrite <- data_at__offset_zero; reflexivity].
+           erewrite eval_lvalue_nested_efield; [|exact H3].
+           rewrite <- data_at__offset_zero.
+           apply derives_refl.
+  Focus 2. exact H6.
   
   + apply normal_ret_assert_derives'.
     apply replace_nth_SEP.
@@ -1327,28 +1327,8 @@ Proof.
     erewrite eval_lvalue_nested_efield; [|exact H3].
     rewrite <- data_at_offset_zero.
     apply derives_refl.
-  + apply (derives_trans _ _ _ H6).
-    apply andp_left2.
-    unfold liftx, lift; simpl; intros.
-    rewrite at_offset'_eq; [| rewrite <- data_at__offset_zero; reflexivity].
-    erewrite eval_lvalue_nested_efield; [|exact H3].
-    rewrite <- data_at__offset_zero.
-    apply derives_refl.
-  + rewrite (replace_nth_nth_error R _ _ H5).
-    rewrite LOCAL_2_hd. rewrite <- (replace_nth_SEP_andp_local P _ R n Rn); [|exact H5].
-    rewrite LOCAL_2_hd. rewrite <- (replace_nth_SEP_andp_local P _ R n Rn); [|exact H5].
-    rewrite LOCAL_2_hd. rewrite <- (replace_nth_SEP_andp_local P _ R n Rn); [|exact H5].
-    eapply derives_trans; [|exact H8].
-    rewrite (replace_nth_nth_error R _ _ H5) at 2.
-    apply replace_nth_SEP.
-    repeat apply andp_left2; apply derives_refl.
-  + eapply derives_trans; [|exact H9].
-    apply replace_nth_SEP.
-    unfold liftx, lift; simpl; intros.
-    rewrite at_offset'_eq; [| rewrite <- data_at__offset_zero; reflexivity].
-    erewrite eval_lvalue_nested_efield; [|exact H3].
-    rewrite <- data_at__offset_zero.
-    apply derives_refl.
+  + eapply derives_trans; [|exact H7].
+    go_lower; normalize.
 Qed.
 
 (********************************************
@@ -1678,22 +1658,18 @@ Qed.
 Lemma semax_store_field_nth:
   forall {Espec: OracleKind},
     forall Delta sh n P Q R Rn (e1 e2 : expr)
-      (t: type) (fld: ident) (t1: type)
-      (v: val) (v' : reptype (nested_field_type2 (typeof e1) (fld::nil))),
+      (t: type) (fld: ident) (t1: type),
       t1 = t ->
       uncompomize (nested_field_type2 (typeof e1) (fld::nil)) = t ->
       type_is_by_value t ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield (typeof e1) (fld::nil) (t1::nil) = true ->
-      JMeq v' v ->
       nth_error R n = Some Rn ->
       Rn |-- `(field_at_ sh (typeof e1) (fld::nil)) (eval_lvalue e1) ->
       writable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_lvalue Delta (Efield e1 fld t1)) && 
         local (tc_expr Delta (Ecast e2 t)) ->
-      PROPx P (LOCALx Q (SEPx (replace_nth n R (`(field_at_ sh (typeof e1) (fld::nil)) (eval_lvalue e1))))) |--
-        local (`(eq) (eval_expr (Ecast e2 t)) `v) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sassign (Efield e1 fld t1) e2)
           (normal_ret_assert
@@ -1701,7 +1677,9 @@ Lemma semax_store_field_nth:
               (LOCALx Q
                 (SEPx
                   (replace_nth n R
-                    (`(field_at sh (typeof e1) (fld::nil) v') (eval_lvalue e1)
+                    (`(field_at sh (typeof e1) (fld::nil)) 
+                      (`(valinject (nested_field_type2 (typeof e1) (fld::nil))) (eval_expr (Ecast e2 t)))
+                        (eval_lvalue e1)
                           )))))).
 Proof.
   intros until t1.
@@ -1709,8 +1687,6 @@ Proof.
   change t1 with (typeof (nested_efield e1 (fld::nil) (t1::nil))) at 1.
   apply semax_max_path_field_store_nth.
 Qed.
-
-
 
 (*
 (* Original lemma and original proof *)

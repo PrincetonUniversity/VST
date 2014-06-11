@@ -126,9 +126,9 @@ entailer!.
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
 entailer!. f_equal. omega.
-(* Prove that loop body preserves invariant *)
-forward.  (* x = a[i]; *)
+forward.
 entailer!.
+omega.
 forward. (* s += x; *)
 forward. (* i++; *)
 (* Prove postcondition of loop body implies loop invariant *)
