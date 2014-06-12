@@ -342,7 +342,7 @@ Proof.
   apply res_predicates.allp_noat_emp.
 Qed.
 
-Lemma add_andp: forall {A: Type} `{NatDed A} (P Q R: A), P |-- Q -> P = P && Q.
+Lemma add_andp: forall {A: Type} `{NatDed A} (P Q: A), P |-- Q -> P = P && Q.
 Proof.
   intros.
   apply pred_ext.
@@ -1853,6 +1853,24 @@ Proof.
        *)  
 Qed.
 
+Lemma align_1_memory_block_data_at_: forall (sh : share) (t : type),
+  legal_alignas_type t = true ->
+  nested_non_volatile_type t = true ->
+  alignof t = 1 ->
+  memory_block sh (Int.repr (sizeof t)) = data_at_ sh t.
+Proof.
+  intros.
+  rewrite <- memory_block_data_at_ by auto.
+  rewrite andp_comm.
+  apply add_andp.
+  go_lower.
+  apply prop_right.
+  unfold align_compatible.
+  rewrite H1.
+  destruct rho; auto.
+  apply Z.divide_1_l.
+Qed.
+
 Lemma data_at_non_volatile: forall sh t v p, 
   data_at sh t v p |-- !! (nested_non_volatile_type t = true).
 Proof.
@@ -2353,8 +2371,8 @@ Proof.
     admit.
 Qed.
 
-Hint Rewrite field_at_offset_zero: norm.
-Hint Rewrite field_at__offset_zero: norm.
+Hint Rewrite <- field_at_offset_zero: norm.
+Hint Rewrite <- field_at__offset_zero: norm.
 
 Hint Resolve field_at_field_at_.
 
@@ -2419,9 +2437,7 @@ Lemma at_offset_data_at: forall pos sh t v p, (at_offset pos (data_at sh t v)) p
 Proof. intros. reflexivity. Qed.
 
 Ltac unfold_field_at' H := 
-   erewrite field_at_Tstruct in H; 
-    [|instantiate (2:= eq_refl); instantiate (2:= eq_refl); rewrite <- eq_rect_eq; reflexivity
-    | reflexivity];
+   erewrite field_at_Tstruct in H; try reflexivity; try reflexivity;
    unfold nested_sfieldlist_at, withspacer in H.
 
 Ltac floyd_simpl T H MA TAC :=

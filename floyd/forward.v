@@ -1554,10 +1554,8 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  | Ederef _ _ => 
    (eapply (semax_load_field_40);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
-   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-   | solve [entailer!]
-   | try apply I; try assumption; reflexivity
-   ]) || fail 1
+   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | solve [(entailer!; try apply I; try assumption; reflexivity)]] ) || fail 1
  | _ =>
    eapply (semax_load_field_38);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
@@ -1572,10 +1570,8 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  | Ederef _ _ => 
    (eapply (semax_cast_load_field_40);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
-   | reflexivity | reflexivity | reflexivity | reflexivity  
-   | solve [entailer!]
-   | try apply I; try assumption; reflexivity
-   ]) || fail 1
+   | reflexivity | reflexivity | simpl; auto | reflexivity | reflexivity | reflexivity 
+   | solve [(entailer!; try apply I; try assumption; reflexivity)]] ) || fail 1
  | _ =>
    eapply (semax_cast_load_field_38);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
@@ -1601,12 +1597,10 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    ]
  | |- semax _ _ (Sset _ (Ederef (Ebinop Oadd ?e1 ?e2 _) _)) _ =>
     eapply semax_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
-      [ reflexivity | reflexivity | ]
+      [ reflexivity | reflexivity | solve [entailer; unfold at_offset; cancel]]
  | |- semax _ _ (Sset _ (Ecast (Ederef (Ebinop Oadd ?e1 ?e2 _) _) _)) _ =>
     eapply semax_cast_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
-      [ reflexivity | reflexivity | reflexivity | reflexivity 
-      | solve [entailer; unfold at_offset; cancel]
-      | ]
+      [ reflexivity | simpl; auto | solve [entailer; unfold at_offset; cancel]]
  | |- _ => eapply semax_load_37';
    [reflexivity | reflexivity
    | entailer;

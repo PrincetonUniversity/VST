@@ -820,7 +820,7 @@ Proof.
     pose proof replace_nth_SEP P Q R n _ _ H6.
     pose proof derives_trans _ _ _ H7 H5; clear H6 H7.
     change (lifted (LiftEnviron mpred)) with (environ -> mpred).
-    rewrite (add_andp _ _ TT H8).
+    rewrite (add_andp _ _ H8).
     rewrite (SEP_replace_nth_isolate _ _ _ _ H1) at 1.
     simpl; intros.
     normalize.
