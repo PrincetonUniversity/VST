@@ -2109,6 +2109,8 @@ Theorem transl_program_correct:
     split; eauto.
     assumption.
 
+admit.
+(*
 (* internal function, inlined *)
 inversion FB; subst.
 repeat open_Hyp.
@@ -2314,7 +2316,7 @@ auto.
 Print star.
 
 econstructor.
-
+*)
 
 
 (* external function *)
@@ -2338,6 +2340,8 @@ econstructor.
     eapply external_call_nextblock; eauto. 
     auto. auto.*)
 
+
+
 (* return fron noninlined function *)
 inv MS0.
 (* normal case *)
@@ -2347,13 +2351,13 @@ left.
 eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_return.
 
 exists mu. intuition.
-apply intern_incr_refl.
 apply sm_inject_separated_same_sminj.
 loc_alloc_solve.
 
 unfold MATCH; intuition.
 econstructor; eauto. 
 apply match_stacks_inside_set_reg; auto. 
+apply restrict_sm_WD; auto.
 apply agree_set_reg; auto.
 
 (* untailcall case *)
@@ -2369,16 +2373,33 @@ split; simpl.
 left.
 eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_return.
 exists mu. intuition.
-apply intern_incr_refl.
 apply sm_inject_separated_same_sminj.
 loc_alloc_solve.
 
 unfold MATCH. intuition.
+Print match_regular_states.
 eapply match_regular_states. 
 eapply match_stacks_inside_set_reg; eauto.
-auto. 
+apply restrict_sm_WD; auto.
+auto.
 apply agree_set_reg; auto.
-auto. auto. auto.
+admit.
+(*
+Print local_of.
+unfold as_inj; unfold join.
+rewrite SP.
+destruct (extern_of (restrict_sm mu (vis mu)) sp0) eqn: eq; eauto.
+destruct H5.
+assert (locBlocksTgt mu sp' = true).
+unfold restrict_sm in SL.
+destruct mu; simpl in *.
+apply SL.
+
+destruct p.
+eapply extern_DomRng in eq.*)
+
+admit.
+auto.
 red; intros. destruct (zlt ofs (dstk ctx)). apply PAD; omega. apply PRIV; omega.
 auto. auto. 
 
@@ -2386,7 +2407,26 @@ auto. auto.
 inv MS0; try congruence. rewrite RET0 in RET; inv RET. 
 unfold inline_return in AT. 
 assert (PRIV': range_private (as_inj mu) m1' m2 sp' (dstk ctx' + mstk ctx') f'.(fn_stacksize)).
+assert (restrict_bridge: range_private (as_inj (restrict_sm mu (vis mu))) m1' m2 sp' (dstk ctx' + mstk ctx') (fn_stacksize f')).
 red; intros. destruct (zlt ofs (dstk ctx)). apply PAD. omega. apply PRIV. omega.
+red; intros.
+red in restrict_bridge.
+apply restrict_bridge in H0.
+
+(*This should be a lemma*)
+unfold loc_private in *.
+repeat open_Hyp.
+split.
+auto.
+intros.
+apply H1.
+assert (SL': locBlocksTgt mu sp' = true).
+erewrite <- restrict_sm_locBlocksTgt. apply SL.
+autorewrite with restrict; unfold restrict; unfold vis.
+SearchAbout locBlocksSrc locBlocksTgt as_inj.
+erewrite <- (as_inj_locBlocks) in SL'; eauto.
+erewrite SL'; rewrite orb_true_l; eauto.
+
 (* with a result *)
 destruct or.
 eexists. eexists.
@@ -2396,18 +2436,29 @@ eapply core_semantics_lemmas.corestep_plus_one.
 eapply rtl_corestep_exec_Iop; eauto. simpl. reflexivity.
 
 exists mu. intuition.
-apply intern_incr_refl.
 apply sm_inject_separated_same_sminj.
 loc_alloc_solve.
 
 unfold MATCH; intuition.
-econstructor; eauto. apply match_stacks_inside_set_reg; auto. apply agree_set_reg; auto.
+econstructor; eauto. apply match_stacks_inside_set_reg; auto. 
+apply restrict_sm_WD; auto.
+apply agree_set_reg; auto.
 (* without a result *)
+admit.
+unfold range_private in *.
+intros.
+apply PRIV' in H6.
+unfold loc_private in *.
+repeat open_Hyp.
+split; auto.
+intros. apply H8.
+apply as_inj_retrict; auto.
+
+
 eexists. eexists.
 split; simpl. left.  
 eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Inop; eauto.
 exists mu. intuition.
-apply intern_incr_refl.
 apply sm_inject_separated_same_sminj.
 apply sm_locally_allocatedChar.
 repeat split; extensionality b0;
@@ -2415,4 +2466,78 @@ rewrite freshloc_irrefl;
 intuition.
 unfold MATCH; intuition.
 econstructor; eauto. subst vres. apply agree_set_reg_undef'; auto.
+admit.
+admit.
+
 Qed.
+
+intros.
+exploit step_simulation_noeffect; eauto.
+intros; repeat open_Hyp; eauto.
+exists x.
+exists x0.
+exists x1.
+intuition.
+
+Lemma step_simulation_effect: forall (st1 : RTL_core) (m1 : mem) (st1' : RTL_core) 
+     (m1' : mem) (U1 : block -> Z -> bool)
+   (ES: effstep rtl_eff_sem ge U1 st1 m1 st1' m1'),
+   forall (st2 : RTL_core) (mu : SM_Injection) (m2 : mem)
+   (U2vis: forall (b : block) (ofs : Z), U1 b ofs = true -> vis mu b = true)
+   (MC: MATCH st1 mu st1 m1 st2 m2),
+   exists (st2' : RTL_core) (m2' : mem) (mu' : SM_Injection),
+     intern_incr mu mu' /\
+     sm_inject_separated mu mu' m1 m2 /\
+     sm_locally_allocated mu mu' m1 m2 m1' m2' /\
+     MATCH st1' mu' st1' m1' st2' m2' /\
+     (exists U2 : block -> Z -> bool,
+        (effstep_plus rtl_eff_sem tge U2 st2 m2 st2' m2' \/
+         (RTL_measure st1' < RTL_measure st1)%nat /\
+         effstep_star rtl_eff_sem tge U2 st2 m2 st2' m2') /\
+        (forall (b : block) (ofs : Z),
+         U2 b ofs = true ->
+         visTgt mu b = true /\
+         (locBlocksTgt mu b = false ->
+          exists (b1 : block) (delta1 : Z),
+            foreign_of mu b1 = Some (b, delta1) /\
+            U1 b1 (ofs - delta1) = true /\
+            Mem.perm m1 b1 (ofs - delta1) Max Nonempty))).
+intros.
+destruct MC as [MS H].
+induction ES; simpl in *.
+Print intern_incr.
+Print sm_locally_allocated.
+Print sm_inject_separated.
+Print SM_Injection.
+Print DomSrc.
+Print DomTgt.
+Print freshloc.
+
+
+exploit step_simulation_noeffect; simpl; eauto.
+simpl.
+inv ES; inv MS.
+
+
+Lemma step_simulation_effect: forall (st1 : RTL_core) (m1 : mem) (st1' : RTL_core) (m1' : mem)
+                                         (CS: corestep rtl_eff_sem ge st1 m1 st1' m1')
+                                         (st2 : RTL_core) (mu : SM_Injection) (m2 : mem)
+                                         (MC:MATCH st1 mu st1 m1 st2 m2),
+                                  exists (st2' : RTL_core) (m2' : mem),
+                                    (core_semantics_lemmas.corestep_plus rtl_eff_sem tge st2 m2 st2' m2' \/
+                                     (RTL_measure st1' < RTL_measure st1)%nat /\
+                                     core_semantics_lemmas.corestep_star rtl_eff_sem tge st2 m2 st2' m2') /\
+                                    exists (mu' : SM_Injection),
+                                      intern_incr mu mu' /\
+                                      sm_inject_separated mu mu' m1 m2 /\
+                                      sm_locally_allocated mu mu' m1 m2 m1' m2' /\
+                                      MATCH st1' mu' st1' m1' st2' m2'.
+    
+    intros.
+    simpl in *.
+    destruct MC as [MS H].
+    
+    inv CS;
+      inv MS.
+
+apply step_simulation_effect.
