@@ -95,29 +95,6 @@ Definition message (sh: share) {t: type} (format: message_format t) (m: val) : m
 Definition Gprog : funspecs := 
     intpair_serialize_spec :: intpair_deserialize_spec :: main_spec::nil.
 
-Require Import Coq.Logic.JMeq.
-
-Lemma data_at_array_at: forall sh t n a v v' p, 
-  JMeq v v' -> 
-  data_at sh (Tarray t n a) v p = 
-  (!! (size_compatible (Tarray t n a) p)) &&
-  array_at t sh (ZnthV t v') 0 n p.
-Proof.
-  intros.
-  unfold array_at, data_at.
-  simpl.
-  unfold array_at', rangespec. (*
-  apply pred_ext; normalize.
-  + erewrite rangespec'_ext; [apply derives_refl|]; intros.
-    simpl.
-    rewrite andp_comm.
-    rewrite <- add_andp; [rewrite H; reflexivity|].
-    *)
-  (* after apply rangespec'_ext, we had to prove something about data_at' but not data_at *)
-  (* need to find how to fixthat *)
-  admit.
-Qed.
-
 Lemma body_intpair_serialize: semax_body Vprog Gprog f_intpair_serialize intpair_serialize_spec.
 Proof.
 unfold intpair_serialize_spec.

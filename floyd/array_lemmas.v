@@ -776,6 +776,32 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma data_at_array_at: forall sh t n a v v' p, 
+  JMeq v v' -> 
+  data_at sh (Tarray t n a) v p = 
+  (!! (size_compatible (Tarray t n a) p)) &&
+  array_at t sh (ZnthV t v') 0 n p.
+Proof.
+  intros.
+  unfold array_at, data_at.
+  simpl.
+  unfold array_at', rangespec.
+(*
+  apply pred_ext; normalize.
+
+  + erewrite rangespec'_ext; [apply derives_refl|]; intros.
+    simpl.
+    rewrite andp_comm.
+    rewrite <- add_andp; [rewrite H; reflexivity|].
+    apply prop_right.
+    destruct p; inversion Pp.
+    unfold size_compatible, align_compatible in *.
+    split; simpl in *.
+    *)
+  (* rangespec'_ext has bad specification. i in it should have a upper bound *)
+  admit.
+Qed.
+
 Lemma semax_store_array:
   forall {Espec: OracleKind},
     forall Delta sh n P Q R (e1 e2 : expr)
@@ -1236,3 +1262,4 @@ unfold array_at_.
 etransitivity; [ | apply offset_val_array_at].
 f_equal.
 Qed.
+
