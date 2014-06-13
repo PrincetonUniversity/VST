@@ -1597,10 +1597,10 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    ]
  | |- semax _ _ (Sset _ (Ederef (Ebinop Oadd ?e1 ?e2 _) _)) _ =>
     eapply semax_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
-      [ reflexivity | reflexivity | solve [entailer; unfold at_offset; cancel]]
+      [ reflexivity | reflexivity | entailer ]
  | |- semax _ _ (Sset _ (Ecast (Ederef (Ebinop Oadd ?e1 ?e2 _) _) _)) _ =>
     eapply semax_cast_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
-      [ reflexivity | simpl; auto | solve [entailer; unfold at_offset; cancel]]
+      [ reflexivity | simpl; auto | entailer ]
  | |- _ => eapply semax_load_37';
    [reflexivity | reflexivity
    | entailer;
@@ -1710,40 +1710,38 @@ match goal with
   let contents := fresh "contents" in evar (contents: Z -> reptype t);
   let lo := fresh "lo" in evar (lo: Z);
   let hi := fresh "hi" in evar (hi: Z);
+  let contents0 := fresh "contents" in
+  let lo0 := fresh "lo" in
+  let hi0 := fresh "hi" in
   assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
      |-- (`(numbd n (array_at t sh contents lo hi)) (eval_expr e1)) * TT) as _;
   [unfold number_list, n, sh, contents, lo, hi; 
    repeat rewrite numbd_lift0; repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
    unfold at_offset; solve [entailer; cancel]
- |  ];
-  eapply(@semax_store_array Esp Delta n sh t contents lo hi);
+  | ];
+  eapply (semax_store_array' Delta sh n) with (contents0:= contents) (lo0 := lo) (hi0 := hi);
   unfold number_list, n, sh, contents, lo, hi;
-  clear n sh contents lo hi;
-  [solve [auto] | reflexivity | reflexivity | reflexivity
-  | norm_rewrite; try reflexivity;
-    fail 4 "Cannot prove 6th premise of semax_store_array"
-  | ]
- | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
+  clear n sh contents lo hi ;
+  [reflexivity | solve [auto] | reflexivity | assumption | reflexivity |
+   solve [(entailer!; try apply I; try assumption; reflexivity)]| entailer]
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
   let n := fresh "n" in evar (n: nat); 
   let sh := fresh "sh" in evar (sh: share);
   assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
-     |-- (`(numbd n (field_at_ sh (typeof e) fld)) (eval_lvalue e)) * TT) as _;
+     |-- (`(numbd n (field_at_ sh (typeof e) (fld::nil))) (eval_lvalue e)) * TT) as _;
   [unfold number_list, n, sh; 
    repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
    unfold at_offset; solve [entailer; cancel]
- |  ];
+ |  ] ;
 (**** 12.8 seconds to here ****)
  apply (semax_pre_later (PROPx P (LOCALx Q 
-                (SEPx (replace_nth n R (`(field_at_ sh (typeof e) fld) (eval_lvalue e)))))));
- [ eapply (fast_entail n); [reflexivity | entailer; unfold at_offset; simpl; cancel] | ];
+                (SEPx (replace_nth n R (`(field_at_ sh (typeof e) (fld::nil)) (eval_lvalue e)))))));
+ [ eapply (fast_entail n); [reflexivity | entailer; unfold at_offset; simpl; cancel] | ] ;
 (**** 14.2 seconds to here  *)
- eapply (semax_store_field_nth _ _ n sh); 
-   [reflexivity | auto | reflexivity | reflexivity | reflexivity
-      | (apply local_lifted_reflexivity || solve [entailer])
-      | try solve [entailer]
-     ];
-  unfold n,sh; clear n sh
- (**** 21.1 seconds to here *****)
+ eapply (semax_store_field_nth _ sh n);
+   [reflexivity | reflexivity | auto | reflexivity | reflexivity | reflexivity
+   | solve [entailer!] | assumption | try solve [entailer!]];
+  unfold n,sh; clear n sh (**** 21.1 seconds to here *****)
   | |- @semax ?Espec ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign ?e ?e2) _ =>
 

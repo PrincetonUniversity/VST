@@ -889,6 +889,69 @@ Proof.
     exact H4.
 Qed.
 
+Lemma semax_store_array':
+  forall {Espec: OracleKind},
+    forall Delta sh n P Q R (e1 e2 : expr)
+      (t t1: type) (contents: Z -> reptype t1) lo hi v v1 v2,
+      t1 = t ->
+      type_is_by_value t ->
+      nth_error R n = Some (`(array_at t1 sh contents lo hi) v1) ->
+      writable_share sh ->
+      legal_alignas_type t1 = true ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+        local (tc_lvalue Delta (Ederef e1 t1)) && 
+        local (tc_expr Delta (Ecast e2 t)) ->
+      PROPx P (LOCALx Q (SEPx (replace_nth n R (`(array_at_ t1 sh lo hi) v1) ))) |-- 
+        local (`(in_range lo hi v2)) && 
+        local (`(eq (repinject t1 v)) (eval_expr (Ecast e2 t1))) &&
+        local (`eq (`(eval_binop Oadd (tptr t1) tint) v1 `(Vint (Int.repr v2))) (eval_expr e1)) ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sassign (Ederef e1 t1) e2)
+          (normal_ret_assert
+            (PROPx P
+              (LOCALx Q
+                (SEPx
+                  (replace_nth n R
+                    (`(array_at t1 sh (upd contents v2 v) lo hi) v1)))))).
+Proof.
+  intros.
+  eapply semax_post'; [|eapply semax_store_array].
+  + instantiate (1:= v1).
+    instantiate (1:= hi).
+    instantiate (1:= lo).
+    instantiate (1:= t1).
+    instantiate (1:= `(Vint (Int.repr v2))).
+    instantiate (1:= contents).
+    instantiate (1:= sh).
+    instantiate (1:= n).
+    match goal with
+    | |- (?P |-- ?Q) => erewrite (add_andp P); [|eapply derives_trans; [|exact H5]]
+    end.
+    - erewrite SEP_replace_nth_isolate by exact H1.
+      erewrite SEP_replace_nth_isolate by exact H1.
+      simpl; normalize. intros. simpl.
+      rewrite <- H10.
+      rewrite valinject_repinject by (subst t; exact H0).
+      rewrite Int.signed_repr by admit. (* should be by omega, we can prove that by reasoning on the range of lo and hi *)
+      cancel.
+    - erewrite SEP_replace_nth_isolate by exact H1.
+      erewrite SEP_replace_nth_isolate by exact H1.
+      simpl; normalize; intros.
+      cancel. apply array_at_array_at_.
+      exact H3.
+  + reflexivity.
+  + subst t; exact H0.
+  + exact H1.
+  + exact H2. 
+  + exact H3.
+  + subst t; exact H4.
+  + eapply derives_trans; [exact H5|].
+    simpl; normalize; intros.
+    apply andp_right; apply prop_right.
+    - simpl. admit. (* same reason; should be omega *)
+    - exact H6.
+Qed.
+
 (*
 Lemma semax_store_array:
 forall Espec (Delta: tycontext) n sh t1 (contents: Z -> reptype t1)
