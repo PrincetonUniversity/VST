@@ -1066,6 +1066,8 @@ Theorem transl_program_correct:
     solve[rewrite D; auto].
     intros CONTRA.
     solve[elimtype False; auto].
+
+    unfold MATCH.
     admit.
   Qed.
   Hint Resolve MATCH_initial_core: trans_correct.
@@ -1713,20 +1715,7 @@ Theorem transl_program_correct:
     eapply H7; assumption.
     eapply Mem.valid_block_free_1; try eassumption.
     eapply H7; assumption.
-    (*  Mem.inject (as_inj mu) m1' m2' *)(* Got it for free*)
-    (* eapply Mem.free_right_inject; eauto. eapply Mem.free_left_inject; eauto.*)
-    (* show that no valid location points into the stack block being freed *)
-    (*The following isnot needed*)
-    (*intros. rewrite DSTK in PRIV'. exploit (PRIV' (ofs + delta)). omega. intros [P Q]. 
-    eelim Q.
-    assert (HH: vis mu b1 = true).
-    admit.
-    instantiate (2:= b1).
-    autorewrite with restrict. 
-    unfold restrict. erewrite HH; simpl; eauto.
-    replace (ofs + delta - delta) with (ofs) by omega. 
 (*    replace (ofs + delta - dstk ctx) with ofs by omega. *)
-    apply Mem.perm_max with k. apply Mem.perm_implies with p; auto with mem.*)
 
     (* turned into a call *)
     eexists. eexists. split; simpl.
@@ -1992,7 +1981,11 @@ Theorem transl_program_correct:
     autorewrite with restrict.
     unfold restrict.
     rewrite H14; auto.
-    assert (vis mu' b1 = true ) by admit.
+    assert (vis mu' b1 = true ).
+    destruct (vis mu' b1) eqn:vismu'b1; auto.
+    autorewrite with restrict in H20.
+    unfold restrict in H20.
+    rewrite vismu'b1 in H20; inv H20.
     erewrite (intern_incr_vis_inv mu mu'); auto.
     rewrite H22; auto.
     rewrite <- H14; auto.
@@ -2383,6 +2376,24 @@ eapply match_stacks_inside_set_reg; eauto.
 apply restrict_sm_WD; auto.
 auto.
 apply agree_set_reg; auto.
+
+(*This should be a lemma*)
+autorewrite with restrict.
+unfold restrict.
+rewrite restrict_sm_local in SP; auto.
+unfold restrict in SP.
+destruct (vis mu sp0) eqn:vismusp0; simpl in SP; try solve [inv SP].
+unfold as_inj, join.
+rewrite SP.
+destruct (extern_of mu sp0) eqn:extofmusp0; simpl; auto. destruct p.
+apply H5 in extofmusp0; apply H5 in SP.
+repeat open_Hyp.
+destruct H5; specialize (disjoint_extern_local_Src sp0);
+destruct disjoint_extern_local_Src. 
+rewrite H9 in H5; inv H5.
+rewrite H6 in H5; inv H5.
+
+(* This should be a lemma*)
 admit.
 (*
 Print local_of.
@@ -2471,13 +2482,6 @@ admit.
 
 Qed.
 
-intros.
-exploit step_simulation_noeffect; eauto.
-intros; repeat open_Hyp; eauto.
-exists x.
-exists x0.
-exists x1.
-intuition.
 
 Lemma step_simulation_effect: forall (st1 : RTL_core) (m1 : mem) (st1' : RTL_core) 
      (m1' : mem) (U1 : block -> Z -> bool)
@@ -2485,11 +2489,7 @@ Lemma step_simulation_effect: forall (st1 : RTL_core) (m1 : mem) (st1' : RTL_cor
    forall (st2 : RTL_core) (mu : SM_Injection) (m2 : mem)
    (U2vis: forall (b : block) (ofs : Z), U1 b ofs = true -> vis mu b = true)
    (MC: MATCH st1 mu st1 m1 st2 m2),
-   exists (st2' : RTL_core) (m2' : mem) (mu' : SM_Injection),
-     intern_incr mu mu' /\
-     sm_inject_separated mu mu' m1 m2 /\
-     sm_locally_allocated mu mu' m1 m2 m1' m2' /\
-     MATCH st1' mu' st1' m1' st2' m2' /\
+   exists (st2' : RTL_core) (m2' : mem),
      (exists U2 : block -> Z -> bool,
         (effstep_plus rtl_eff_sem tge U2 st2 m2 st2' m2' \/
          (RTL_measure st1' < RTL_measure st1)%nat /\
@@ -2501,43 +2501,405 @@ Lemma step_simulation_effect: forall (st1 : RTL_core) (m1 : mem) (st1' : RTL_cor
           exists (b1 : block) (delta1 : Z),
             foreign_of mu b1 = Some (b, delta1) /\
             U1 b1 (ofs - delta1) = true /\
-            Mem.perm m1 b1 (ofs - delta1) Max Nonempty))).
-intros.
-destruct MC as [MS H].
-induction ES; simpl in *.
-Print intern_incr.
-Print sm_locally_allocated.
-Print sm_inject_separated.
-Print SM_Injection.
-Print DomSrc.
-Print DomTgt.
-Print freshloc.
+            Mem.perm m1 b1 (ofs - delta1) Max Nonempty))) /\
+exists (mu' : SM_Injection),
+     intern_incr mu mu' /\
+     sm_inject_separated mu mu' m1 m2 /\
+     sm_locally_allocated mu mu' m1 m2 m1' m2' /\
+     MATCH st1' mu' st1' m1' st2' m2'.
 
-
-exploit step_simulation_noeffect; simpl; eauto.
-simpl.
-inv ES; inv MS.
-
-
-Lemma step_simulation_effect: forall (st1 : RTL_core) (m1 : mem) (st1' : RTL_core) (m1' : mem)
-                                         (CS: corestep rtl_eff_sem ge st1 m1 st1' m1')
-                                         (st2 : RTL_core) (mu : SM_Injection) (m2 : mem)
-                                         (MC:MATCH st1 mu st1 m1 st2 m2),
-                                  exists (st2' : RTL_core) (m2' : mem),
-                                    (core_semantics_lemmas.corestep_plus rtl_eff_sem tge st2 m2 st2' m2' \/
-                                     (RTL_measure st1' < RTL_measure st1)%nat /\
-                                     core_semantics_lemmas.corestep_star rtl_eff_sem tge st2 m2 st2' m2') /\
-                                    exists (mu' : SM_Injection),
-                                      intern_incr mu mu' /\
-                                      sm_inject_separated mu mu' m1 m2 /\
-                                      sm_locally_allocated mu mu' m1 m2 m1' m2' /\
-                                      MATCH st1' mu' st1' m1' st2' m2'.
-    
-    intros.
+  intros.
     simpl in *.
     destruct MC as [MS H].
     
-    inv CS;
+    inv ES;
       inv MS.
+    (* Inop *)
+    exploit tr_funbody_inv; eauto. intros TR; inv TR.
+    eexists. eexists. split.
+    eexists. split.
+    left; simpl.
+    eapply effstep_plus_one; simpl.
+    Print RTL_effstep.
+    eapply rtl_effstep_exec_Inop. eassumption.
+    intros.
+    split.
+    unfold visTgt.
+    exists mu.
+    intuition.
+    (*apply intern_incr_refl.*)(* This is a Hint now*)
+    apply sm_inject_separated_same_sminj.
+    loc_alloc_solve.
+    unfold MATCH.
+    intuition.
+    eapply match_regular_states; first [eassumption| split; eassumption].
 
-apply step_simulation_effect.
+
+    (* Iop *)
+    Focus 1.
+    exploit tr_funbody_inv; eauto. intros TR; inv TR.
+    repeat open_Hyp.
+    exploit eval_operation_inject. 
+
+    eapply match_stacks_inside_globals; eauto.
+    exact SP.
+    instantiate (2 := rs##args). instantiate (1 := rs'##(sregs ctx args)). eapply agree_val_regs; eauto.
+    eexact MINJ. eauto.
+    fold (sop ctx op). intros [v' [A B]].
+    eexists. eexists.
+    split; simpl.
+    left. 
+    eapply core_semantics_lemmas.corestep_plus_one. 
+
+    eapply rtl_corestep_exec_Iop. eassumption.
+    erewrite eval_operation_preserved; eauto.
+    exact symbols_preserved. 
+    econstructor; eauto. 
+    intuition.
+    (*apply intern_incr_refl.*)
+    apply sm_inject_separated_same_sminj.
+    loc_alloc_solve.
+    unfold MATCH.
+    intuition.
+    eapply match_regular_states; eauto.
+    apply match_stacks_inside_set_reg; auto.
+    SearchAbout SM_wd restrict_sm.
+    eapply restrict_sm_WD; auto.
+    apply agree_set_reg; auto. 
+
+    (* Iload *)
+    exploit tr_funbody_inv; eauto. intros TR; inv TR.
+    exploit eval_addressing_inject. 
+    eapply match_stacks_inside_globals; eauto.
+    eexact SP.
+    instantiate (2 := rs##args). instantiate (1 := rs'##(sregs ctx args)). eapply agree_val_regs; eauto.
+    eauto.
+    fold (saddr ctx addr). intros [a' [P Q]].
+    exploit Mem.loadv_inject; eauto. intros [v' [U V]].
+    assert (eval_addressing tge (Vptr sp' Int.zero) (saddr ctx addr) rs' ## (sregs ctx args) = Some a').
+    rewrite <- P. apply eval_addressing_preserved. exact symbols_preserved.
+    eexists. eexists.
+    split; simpl. left.
+    eapply core_semantics_lemmas.corestep_plus_one. 
+    eapply rtl_corestep_exec_Iload; try eassumption.
+    exists mu.
+    intuition.
+    (*apply intern_incr_refl.*)
+    apply sm_inject_separated_same_sminj.
+    loc_alloc_solve.
+    unfold MATCH;
+      intuition.
+    eapply match_regular_states; eauto.
+    apply match_stacks_inside_set_reg; auto.
+    eapply restrict_sm_WD; auto.
+    apply agree_set_reg; auto.
+    
+
+    (* Istore *)
+
+    exploit tr_funbody_inv; eauto. intros TR; inv TR.
+    
+    destruct H as [RC [PG [GF [SMV [WD INJ]]]]].
+    exploit eval_addressing_inject.
+    eapply match_stacks_inside_globals. 
+    eassumption.
+    eexact SP.
+    instantiate (2 := rs##args). instantiate (1 := rs'##(sregs ctx args)). eapply agree_val_regs; eauto.
+    eauto.
+    fold saddr. intros [a' [P Q]].
+    Check Mem.storev_mapped_inject. 
+    Search val_inject.
+    exploit Mem.storev_mapped_inject. 
+    eexact INJ.
+    eassumption.
+    eapply val_inject_incr; try eapply Q.
+    autorewrite with restrict.
+    apply restrict_incr.
+    SearchAbout val_inject Mem.storev.
+    eapply agree_val_reg; eauto.
+    eapply agree_regs_incr.
+    eassumption.
+    autorewrite with restrict.
+    apply restrict_incr.
+    
+    intros [m2' [U V]].
+    assert (eval_addressing tge (Vptr sp' Int.zero) (saddr ctx addr) rs' ## (sregs ctx args) = Some a').
+    rewrite <- P. apply eval_addressing_preserved. exact symbols_preserved.
+    eexists. eexists.
+    split; simpl.
+    left.
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Istore; eauto.
+
+    exists mu.
+    intuition.
+    (*apply intern_incr_refl.*)
+    apply sm_inject_separated_same_sminj.
+    loc_alloc_solve.
+
+    destruct a; simpl in H1; try discriminate.
+    destruct a'; simpl in U; try discriminate.
+    assert (RC1': REACH_closed m1' (vis mu)).
+    eapply REACH_Store;
+    try eassumption.
+    inv Q.
+    autorewrite with restrict in H8.
+    eapply restrictD_Some.
+    eapply H8.
+    intros.
+    rewrite getBlocks_char in H5.
+    destruct H5. 
+    destruct H5.
+    Check agree_val_reg.
+    assert (val_inject (as_inj (restrict_sm mu (vis mu))) rs # src rs' # (sreg ctx src)).
+    eapply agree_val_reg; eauto.
+    rewrite H5 in H6.
+    inv H6.
+    autorewrite with restrict in H10.
+    eapply restrictD_Some.
+    eassumption.
+    simpl in H5.
+    contradiction.
+
+    unfold MATCH;
+      intuition.
+    (*match_states*)
+    econstructor; eauto.
+    eapply match_stacks_inside_store; eauto.
+    SearchAbout SM_wd restrict_sm.
+    apply restrict_sm_WD; auto.
+    autorewrite with restrict; eapply inject_restrict; try eassumption.
+    
+    eapply Mem.store_valid_block_1; eauto.
+    eapply range_private_invariant; eauto.
+    intros; split; auto. eapply Mem.perm_store_2; eauto.
+    intros; eapply Mem.perm_store_1; eauto.
+    intros. eapply SSZ2. eapply Mem.perm_store_2; eauto.
+    inv H2.
+
+    (* sm_valid mu m1' m2' *)
+    split; intros. 
+    eapply Mem.store_valid_block_1; try eassumption.
+    eapply SMV; assumption.
+    eapply Mem.store_valid_block_1; try eassumption.
+    eapply SMV; assumption.
+    
+    (* Icall *)
+    exploit match_stacks_inside_globalenvs; eauto. intros [bound G].
+    exploit find_function_agree; eauto.
+    SearchAbout find_function.
+    eauto. intros [fd' [A B]].
+    exploit tr_funbody_inv; eauto. intros TR. inv TR.
+
+    (* not inlined *)
+    eexists. eexists.
+    split; simpl.
+    left.
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Icall; eauto.
+    Print rtl_corestep_exec_Icall.
+    eapply sig_function_translated; eauto.
+    exists mu.
+    intuition.
+    (*apply intern_incr_refl.*)
+    apply sm_inject_separated_same_sminj.
+    loc_alloc_solve.
+
+    unfold MATCH.
+    split.
+    econstructor; eauto.
+    eapply match_stacks_cons; eauto.
+    destruct MS0; assumption.
+    eapply agree_val_regs; eauto.   
+    intuition.
+
+    (* inlined *)
+    assert (fd = Internal f0).
+    simpl in H1. destruct (Genv.find_symbol ge id) as [b|] eqn:?; try discriminate.
+    exploit (funenv_program_compat SrcProg). 
+    try eassumption. eauto. intros. 
+    unfold ge in H1. congruence.
+    subst fd.
+    
+    eexists. eexists.
+    split; simpl.
+    right; split. simpl; omega.
+    eapply core_semantics_lemmas.corestep_star_zero.
+
+    exists mu.
+    intuition.
+    (*apply intern_incr_refl.*)
+    apply sm_inject_separated_same_sminj.
+    loc_alloc_solve.
+
+    unfold MATCH;
+      intuition.
+    Focus 1.
+    eapply match_call_regular_states; eauto. (* match_call_regular_states*)
+    assert (SL: locBlocksTgt (restrict_sm mu (vis mu)) sp' = true) by (destruct MS0; assumption).
+    eapply match_stacks_inside_inlined; eauto.
+    Lemma local_of_loc_inj: forall mu b b' delta (WD: SM_wd mu) (loc: locBlocksTgt mu b' = true), as_inj  mu b = Some (b', delta) -> local_of mu b = Some (b', delta).
+      unfold as_inj. unfold join. 
+      intros.
+      destruct WD.
+      destruct (extern_of mu b) eqn:extern_mu_b; try assumption.
+      destruct p. inv H.
+      apply extern_DomRng in extern_mu_b.
+      destruct extern_mu_b as [extDom  extRng].
+      destruct (disjoint_extern_local_Tgt b'); [rewrite loc in H | rewrite extRng in H]; discriminate. 
+    Qed. (* Need to get  locBlocksTgt from MS0*)
+    apply local_of_loc_inj; auto;
+     try (apply restrict_sm_WD); auto.
+    
+    red; intros. apply PRIV. inv H14. destruct H17.
+    xomega.
+    apply agree_val_regs_gen; auto.
+    red; intros; apply PRIV. destruct H17. omega.
+
+    (* Itailcall *)
+    exploit match_stacks_inside_globalenvs; eauto. intros [bound G].
+    exploit find_function_agree; eauto. intros [fd' [A B]].
+    assert (PRIV': range_private (as_inj (restrict_sm mu (vis mu))) m1' m2 sp' (dstk ctx) f'.(fn_stacksize)).
+    eapply range_private_free_left; eauto. 
+    inv FB. rewrite <- H5. auto.
+    exploit tr_funbody_inv; eauto.
+    intros TR. 
+    inv TR.
+
+    (* within the original function *)
+    inv MS0; try congruence.
+
+    assert (X: { m1' | Mem.free m2 sp' 0 (fn_stacksize f') = Some m1'}).
+    apply Mem.range_perm_free. red; intros.
+    destruct (zlt ofs f.(fn_stacksize)). 
+    replace ofs with (ofs + dstk ctx) by omega. eapply Mem.perm_inject; eauto.
+    eapply Mem.free_range_perm; eauto. omega.
+    inv FB. eapply range_private_perms; eauto. xomega.
+    destruct X as [m2' FREE].
+    
+    eexists. eexists.
+    split; simpl.
+    left. 
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Itailcall; eauto.
+    eapply sig_function_translated; eauto.
+    exists mu.
+    intuition.
+    (*apply intern_incr_refl.*)
+    apply sm_inject_separated_same_sminj.
+    loc_alloc_solve.
+    
+    assert (Mem.inject (as_inj mu) m1' m2').
+    eapply Mem.free_right_inject. eapply Mem.free_left_inject. eapply H12.
+    eassumption.
+    eassumption.
+
+    intros. rewrite DSTK in PRIV'. exploit (PRIV' (ofs + delta)). omega. intros [P Q]. 
+    eelim Q.
+    autorewrite with restrict.
+    eapply restrictI_Some.
+    eapply H11.
+    rewrite restrict_sm_locBlocksTgt in SL.
+    erewrite <- (as_inj_locBlocks _ b1 sp') in SL; try eassumption.
+    unfold vis.
+    rewrite SL.
+    eapply orb_true_l.
+    replace (ofs + delta - delta) with ofs by omega.
+    apply Mem.perm_max with k. apply Mem.perm_implies with p; auto with mem.
+
+    unfold MATCH.
+    intuition.
+    econstructor; eauto.
+    eapply match_stacks_bound with (bound := sp'). 
+    eapply match_stacks_invariant; eauto.
+    apply restrict_sm_WD; auto.
+    intros. eapply Mem.perm_free_3; eauto. 
+    intros. eapply Mem.perm_free_1; eauto. 
+    intros. eapply Mem.perm_free_3; eauto.
+    erewrite Mem.nextblock_free; eauto. red in VB; xomega.
+    eapply agree_val_regs; eauto.
+    eapply Mem.free_right_inject; eauto. eapply Mem.free_left_inject; eauto.
+    (* show that no valid location points into the stack block being freed *)
+    intros. rewrite DSTK in PRIV'. exploit (PRIV' (ofs + delta)). omega. intros [P Q]. 
+    eelim Q; eauto. replace (ofs + delta - delta) with ofs by omega. 
+    apply Mem.perm_max with k. apply Mem.perm_implies with p; auto with mem.
+    eapply REACH_closed_free; eauto.
+    (* sm_valid mu m1' m2' *)
+    split; intros. 
+    eapply Mem.valid_block_free_1; try eassumption.
+    eapply H7; assumption.
+    eapply Mem.valid_block_free_1; try eassumption.
+    eapply H7; assumption.
+    (*  Mem.inject (as_inj mu) m1' m2' *)(* Got it for free*)
+    (* eapply Mem.free_right_inject; eauto. eapply Mem.free_left_inject; eauto.*)
+    (* show that no valid location points into the stack block being freed *)
+    (*The following isnot needed*)
+    (*intros. rewrite DSTK in PRIV'. exploit (PRIV' (ofs + delta)). omega. intros [P Q]. 
+    eelim Q.
+    assert (HH: vis mu b1 = true).
+    admit.
+    instantiate (2:= b1).
+    autorewrite with restrict. 
+    unfold restrict. erewrite HH; simpl; eauto.
+    replace (ofs + delta - delta) with (ofs) by omega. 
+(*    replace (ofs + delta - dstk ctx) with ofs by omega. *)
+    apply Mem.perm_max with k. apply Mem.perm_implies with p; auto with mem.*)
+
+    (* turned into a call *)
+    eexists. eexists. split; simpl.
+    left. 
+    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Icall; eauto.
+    eapply sig_function_translated; eauto.
+    
+    exists mu.
+    intuition.
+    (*apply intern_incr_refl.*)
+    apply sm_inject_separated_same_sminj.
+    loc_alloc_solve.
+
+    unfold MATCH.
+    intuition.
+    econstructor; eauto.
+    eapply match_stacks_untailcall; eauto.
+    eapply match_stacks_inside_invariant; eauto. 
+    apply restrict_sm_WD; auto.
+    intros. eapply Mem.perm_free_3; eauto.
+    destruct MS0; assumption.
+   
+    eapply agree_val_regs; eauto.
+    eapply Mem.free_left_inject; eauto.
+    eapply REACH_closed_free; eauto.
+    
+    (*  sm_valid mu m1' m2 *)
+    split; intros. 
+    eapply Mem.valid_block_free_1; try eassumption.
+    eapply H7; assumption.
+    eapply H7; assumption.
+    (*  Mem.inject (as_inj mu) m1' m2' *)
+    eapply Mem.free_left_inject; eauto.
+
+    (* inlined *)
+    assert (fd = Internal f0).
+    simpl in H1. destruct (Genv.find_symbol ge id) as [b|] eqn:?; try discriminate.
+    exploit (funenv_program_compat SrcProg); eauto. intros. 
+    unfold ge in H1. congruence.
+    subst fd.
+    eexists. eexists.
+    split; simpl.
+    right; split. simpl; omega. 
+    eapply core_semantics_lemmas.corestep_star_zero.
+
+    exists mu.
+    intuition.
+    (*apply intern_incr_refl.*)
+    apply sm_inject_separated_same_sminj.
+    loc_alloc_solve.
+
+    unfold MATCH;
+      intuition.
+    econstructor; eauto.
+    eapply match_stacks_inside_inlined_tailcall; eauto.
+    eapply match_stacks_inside_invariant; eauto.
+    apply restrict_sm_WD; auto.
+    intros. eapply Mem.perm_free_3; eauto.
+    apply agree_val_regs_gen; auto.
+    eapply Mem.free_left_inject; eauto.
+    red; intros; apply PRIV'. 
+    assert (dstk ctx <= dstk ctx'). red in H15; rewrite H15. apply align_le. apply min_alignment_pos.
