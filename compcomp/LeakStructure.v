@@ -24,7 +24,6 @@ Require Export Axioms.
 Load Santiago_tactics.
 
 (** * Tactic Preamble *)
-
 Ltac dest_own mu b:= 
 destruct (locBlocksSrc mu b) eqn:locS, (pubBlocksSrc mu b) eqn:pubS, (extBlocksSrc mu b) eqn:extS, (frgnBlocksSrc mu b) eqn:frgnS, (locBlocksTgt mu b) eqn:locT, (pubBlocksTgt mu b) eqn:pubT, (extBlocksTgt mu b) eqn:extT, (frgnBlocksTgt mu b) eqn:frgnT; simpl; auto.
 Ltac dest_own_S mu b:=
@@ -227,7 +226,6 @@ Ltac complete:= (repeat match goal with
                     |H: _ = true |- _ => apply complete_pubT in H; [|solve [assumption]]
                     |H: _ = true |- _ => apply complete_frgnT in H; [|solve [assumption]]
                  end); repeat open_Hyp.
-
 (** End Of Preamble*)
 
 
@@ -287,8 +285,9 @@ Infix "=o" := Own_eq (at level 80, right associativity).
 
 Definition structure:= block -> Leakage.
 
+(*This might be too strong, but I think it makes everything pretty. 
+  It can easily be removed by adding other conditions.*)
 Definition wd_structure st mem := forall b, ~ Mem.valid_block mem b <-> st b = Undf.
-
 
 (** *translation*)
 Definition locBlocks (st:structure) b:= (st b == Publ) || (st b == Priv).
@@ -305,7 +304,6 @@ Definition local_restrict (F: meminj) (st: structure):=
 Definition external_restrict (F: meminj) (st: structure):=
   fun b => if extBlocks st b then F b else None.
 
-Print SM_Injection.
 Definition factor (F: meminj) (st1 st2: structure) :=
   Build_SM_Injection
     (locBlocks st1)
@@ -348,7 +346,6 @@ Definition SM2structure2 (mu: SM_Injection):=
 Definition de_factor (mu:SM_Injection):=
   (SM2structure1 mu, SM2structure2 mu, as_inj mu).
 
-Print SM_wd.
 (** *Well-formedness *)
 Record inj_wd (F:meminj) (st1 st2: structure) := Build_inj_wd
 { non_decreasing_ownership: forall b1 b2 z, F b1 = Some (b2, z) -> st2 b2 <= st1 b1;
@@ -356,9 +353,7 @@ Record inj_wd (F:meminj) (st1 st2: structure) := Build_inj_wd
   foreign_axiom: forall b1, st1 b1 = Frgn -> exists b2 z, F b1 = Some( b2, z);
   undefined_axiom: forall b1, st1 b1 = Undf -> F b1 = None}.
 
-
 (** *Equivalence* *)
-Print SM_wd.
 Lemma factor_wd : forall F st1 st2, inj_wd F st1 st2 -> SM_wd (factor F st1 st2).
 intros.
 destruct H; unfold factor, local_restrict, external_restrict, locBlocks, pubBlocks, extBlocks, frgnBlocks.
@@ -411,7 +406,6 @@ apply H in H6. destruct H6 as [?[?[? ?]]]. complete; clean. inv extof; clean; di
 destruct (pubBlocksTgt mu b2) eqn:pub2, (pubBlocksSrc mu b1) eqn:pub1; complete; clean; try discriminate; try solve[destruct mu; clean; auto]. 
 apply H in H6. destruct H6 as [?[?[? ?]]]. complete; clean. inv locof; clean; discriminate.
 
-Print inj_wd.
 (*public_axiom*)
 destruct (extern_of mu b1) eqn:extof; try destruct p;
 destruct (local_of mu b1) eqn:locof; try destruct p; inv H0;
@@ -505,12 +499,9 @@ Qed.
 
 (** *locAllocated *)
 
-Print sm_locally_allocated.
-(* This definition is too strong but beautiful *)
 Definition st_nonalloc_step (st st':structure) m m':= forall b, (freshloc m m' b = false) -> st' b =o st b.
 Definition st_alloc_step (st':structure) m m':= forall b, (freshloc m m' b = true) -> st' b <= Priv.
 Definition st_locally_allocated (st st':structure) m m':= st_nonalloc_step st st' m m' /\ st_alloc_step st' m m'.
-
 
 Lemma locAllocated_equiv2: forall mu mu' m1 m2 m1' m2', 
 SM_wd mu ->
@@ -672,6 +663,9 @@ destruct (pubBlocksTgt mu b2) eqn:pubT; complete; clean; try discriminate.
 destruct mu; clean; auto.
 Qed.
 
+Print DomSrc.
+Print sm_inject_separated.
+Print sm_locally_allocated.
 Lemma separated_equiv1: forall F F' st1 st2 st1' st2' m1 m2,
 inj_wd F st1 st2 ->
 wd_structure st1 m1 ->
@@ -701,3 +695,4 @@ apply H1.
 destruct (st2 b2); auto; clean; try discriminate.
 
 Qed.
+
