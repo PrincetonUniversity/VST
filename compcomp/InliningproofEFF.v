@@ -30,6 +30,11 @@ Require Import RTL_coop.
 
 Load Santiago_tactics.
 
+(* The rewriters *)
+Hint Rewrite vis_restrict_sm: restrict.
+Hint Rewrite restrict_sm_all: restrict.
+Hint Rewrite restrict_sm_frgnBlocksSrc: restrict.
+
 Variable SrcProg: program.
 Variable TrgProg: program.
 About transf_program.
@@ -1067,8 +1072,16 @@ Theorem transl_program_correct:
     intros CONTRA.
     solve[elimtype False; auto].
 
+    remember (initial_SM DomS DomT
+        (REACH m1
+           (fun b0 : block =>
+            isGlobalBlock (Genv.globalenv SrcProg) b0 || getBlocks vals1 b0))
+        (REACH m2
+           (fun b0 : block =>
+            isGlobalBlock (Genv.globalenv TrgProg) b0 || getBlocks vals2 b0))
+        j) as m.
     unfold MATCH.
-    admit.
+    admit.      
   Qed.
   Hint Resolve MATCH_initial_core: trans_correct.
   eauto with trans_correct.
@@ -1103,10 +1116,6 @@ Theorem transl_program_correct:
   Hint Resolve Match_Halted: trans_correct.
   eauto with trans_correct.
 
-  (* The rewriters *)
-  Hint Rewrite vis_restrict_sm: restrict.
-  Hint Rewrite restrict_sm_all: restrict.
-  Hint Rewrite restrict_sm_frgnBlocksSrc: restrict.
 
   Lemma at_external_lemma: forall (mu : SM_Injection) (c1 : RTL_core) (m1 : mem) 
                                   (c2 : RTL_core) (m2 : mem) (e : external_function) 
@@ -1424,7 +1433,6 @@ Theorem transl_program_correct:
 
 
     (* Iop *)
-    Focus 1.
     exploit tr_funbody_inv; eauto. intros TR; inv TR.
     repeat open_Hyp.
     exploit eval_operation_inject. 
@@ -1451,7 +1459,6 @@ Theorem transl_program_correct:
     intuition.
     eapply match_regular_states; eauto.
     apply match_stacks_inside_set_reg; auto.
-    SearchAbout SM_wd restrict_sm.
     eapply restrict_sm_WD; auto.
     apply agree_set_reg; auto. 
 
@@ -2169,7 +2176,7 @@ Search core_semantics_lemmas.corestep_star.
 exists mu'; intuition.
 
 Lemma sm_inject_separated_impication: forall mu mu' m1 m2 m1' m2' stk sp' delta (laloc: sm_locally_allocated mu mu' m1 m2 m1' m2')(C: as_inj mu' stk = Some (sp', delta))(H14: forall b : block, (b = stk -> False) -> as_inj mu' b = as_inj mu b)(WD: SM_wd mu) (WD': SM_wd mu'), sm_inject_separated mu mu' m1 m2.
-Admitted.
+A d mitted.
 
 eapply sm_inject_separated_impication; eauto.
 
@@ -2369,50 +2376,40 @@ exists mu. intuition.
 apply sm_inject_separated_same_sminj.
 loc_alloc_solve.
 
+Print MATCH.
+
 unfold MATCH. intuition.
-Print match_regular_states.
-eapply match_regular_states. 
+eapply match_regular_states; eauto. 
 eapply match_stacks_inside_set_reg; eauto.
 apply restrict_sm_WD; auto.
-auto.
 apply agree_set_reg; auto.
 
 (*This should be a lemma*)
-autorewrite with restrict.
-unfold restrict.
-rewrite restrict_sm_local in SP; auto.
-unfold restrict in SP.
-destruct (vis mu sp0) eqn:vismusp0; simpl in SP; try solve [inv SP].
-unfold as_inj, join.
-rewrite SP.
-destruct (extern_of mu sp0) eqn:extofmusp0; simpl; auto. destruct p.
-apply H5 in extofmusp0; apply H5 in SP.
-repeat open_Hyp.
-destruct H5; specialize (disjoint_extern_local_Src sp0);
-destruct disjoint_extern_local_Src. 
-rewrite H9 in H5; inv H5.
-rewrite H6 in H5; inv H5.
+Lemma local_of_restrict_vis: forall mu sp sp' delta,  
+                               SM_wd mu -> 
+                               local_of (restrict_sm mu (vis mu)) sp = Some (sp', delta) -> 
+                               as_inj (restrict_sm mu (vis mu)) sp = Some (sp', delta).
+  intros mu sp sp' delta SMWD SP.
+  autorewrite with restrict.
+  unfold restrict.
+  rewrite restrict_sm_local in SP; auto.
+  unfold restrict in SP.
+  destruct (vis mu sp) eqn:vismusp; simpl in SP; try solve [inv SP].
+  unfold as_inj, join.
+  rewrite SP.
+  destruct (extern_of mu sp) eqn:extofmusp; simpl; auto. destruct p.
+  apply SMWD in extofmusp; apply SMWD in SP.
+  repeat open_Hyp.
+  destruct SMWD; specialize (disjoint_extern_local_Src sp);
+  destruct disjoint_extern_local_Src. 
+  rewrite H3 in H1; inv H1.
+  rewrite H3 in H; inv H.
+Qed.
+(*End lemma *)
 
-(* This should be a lemma*)
-admit.
-(*
-Print local_of.
-unfold as_inj; unfold join.
-rewrite SP.
-destruct (extern_of (restrict_sm mu (vis mu)) sp0) eqn: eq; eauto.
-destruct H5.
-assert (locBlocksTgt mu sp' = true).
-unfold restrict_sm in SL.
-destruct mu; simpl in *.
-apply SL.
+apply local_of_restrict_vis; auto.
 
-destruct p.
-eapply extern_DomRng in eq.*)
-
-admit.
-auto.
 red; intros. destruct (zlt ofs (dstk ctx)). apply PAD; omega. apply PRIV; omega.
-auto. auto. 
 
 (* return from inlined function *)
 inv MS0; try congruence. rewrite RET0 in RET; inv RET. 
@@ -2455,16 +2452,8 @@ econstructor; eauto. apply match_stacks_inside_set_reg; auto.
 apply restrict_sm_WD; auto.
 apply agree_set_reg; auto.
 (* without a result *)
-admit.
-unfold range_private in *.
-intros.
-apply PRIV' in H6.
-unfold loc_private in *.
-repeat open_Hyp.
-split; auto.
-intros. apply H8.
-apply as_inj_retrict; auto.
-
+apply local_of_restrict_vis; auto.
+red; intros. destruct (zlt ofs (dstk ctx)). apply PAD; omega. apply PRIV; omega.
 
 eexists. eexists.
 split; simpl. left.  
@@ -2477,9 +2466,9 @@ rewrite freshloc_irrefl;
 intuition.
 unfold MATCH; intuition.
 econstructor; eauto. subst vres. apply agree_set_reg_undef'; auto.
-admit.
-admit.
+apply local_of_restrict_vis; auto.
 
+red; intros. destruct (zlt ofs (dstk ctx)). apply PAD; omega. apply PRIV; omega.
 Qed.
 
 
@@ -2518,25 +2507,22 @@ exists (mu' : SM_Injection),
     exploit tr_funbody_inv; eauto. intros TR; inv TR.
     eexists. eexists. split.
     eexists. split.
+
     left; simpl.
     eapply effstep_plus_one; simpl.
-    Print RTL_effstep.
     eapply rtl_effstep_exec_Inop. eassumption.
-    intros.
-    split.
-    unfold visTgt.
+    intros b ofs empt;
+    unfold EmptyEffect in empt; inv empt.
+
     exists mu.
     intuition.
-    (*apply intern_incr_refl.*)(* This is a Hint now*)
     apply sm_inject_separated_same_sminj.
     loc_alloc_solve.
     unfold MATCH.
     intuition.
     eapply match_regular_states; first [eassumption| split; eassumption].
 
-
     (* Iop *)
-    Focus 1.
     exploit tr_funbody_inv; eauto. intros TR; inv TR.
     repeat open_Hyp.
     exploit eval_operation_inject. 
@@ -2548,13 +2534,19 @@ exists (mu' : SM_Injection),
     fold (sop ctx op). intros [v' [A B]].
     eexists. eexists.
     split; simpl.
-    left. 
-    eapply core_semantics_lemmas.corestep_plus_one. 
+    eexists. split.
+    
+    left; simpl.
+    eapply effstep_plus_one; simpl.
 
-    eapply rtl_corestep_exec_Iop. eassumption.
+    eapply rtl_effstep_exec_Iop. eassumption.
     erewrite eval_operation_preserved; eauto.
     exact symbols_preserved. 
+    intros b ofs empt;
+    unfold EmptyEffect in empt; inv empt.
+
     econstructor; eauto. 
+    split; auto.
     intuition.
     (*apply intern_incr_refl.*)
     apply sm_inject_separated_same_sminj.
@@ -2579,9 +2571,16 @@ exists (mu' : SM_Injection),
     assert (eval_addressing tge (Vptr sp' Int.zero) (saddr ctx addr) rs' ## (sregs ctx args) = Some a').
     rewrite <- P. apply eval_addressing_preserved. exact symbols_preserved.
     eexists. eexists.
-    split; simpl. left.
-    eapply core_semantics_lemmas.corestep_plus_one. 
-    eapply rtl_corestep_exec_Iload; try eassumption.
+    split; simpl. 
+    eexists. split.
+
+    left; simpl.
+    eapply effstep_plus_one. 
+    eapply rtl_effstep_exec_Iload; try eassumption.
+
+    intros b ofs empt;
+    unfold EmptyEffect in empt; inv empt.
+
     exists mu.
     intuition.
     (*apply intern_incr_refl.*)
@@ -2594,9 +2593,7 @@ exists (mu' : SM_Injection),
     eapply restrict_sm_WD; auto.
     apply agree_set_reg; auto.
     
-
     (* Istore *)
-
     exploit tr_funbody_inv; eauto. intros TR; inv TR.
     
     destruct H as [RC [PG [GF [SMV [WD INJ]]]]].
@@ -2625,10 +2622,23 @@ exists (mu' : SM_Injection),
     intros [m2' [U V]].
     assert (eval_addressing tge (Vptr sp' Int.zero) (saddr ctx addr) rs' ## (sregs ctx args) = Some a').
     rewrite <- P. apply eval_addressing_preserved. exact symbols_preserved.
-    eexists. eexists.
-    split; simpl.
-    left.
-    eapply core_semantics_lemmas.corestep_plus_one. eapply rtl_corestep_exec_Istore; eauto.
+    eexists. eexists. split.
+    eexists. split.
+
+    left; simpl.
+    eapply effstep_plus_one. eapply rtl_effstep_exec_Istore; eauto.
+
+    intros b ofs eff; split.
+    apply U2vis in eff.
+    apply 
+    unfold StoreEffect in eff.
+    destruct a'; simpl in *; try discriminate.
+    split. unfold visTgt.
+    SearchAbout andb true.
+    apply andb_true_iff in eff; destruct eff as [Hcont zltofs].
+    apply andb_true_iff in Hcont; destruct Hcont as [? ?].
+    
+    unfold EmptyEffect in empt; inv empt.
 
     exists mu.
     intuition.
@@ -2834,7 +2844,7 @@ exists (mu' : SM_Injection),
     (*intros. rewrite DSTK in PRIV'. exploit (PRIV' (ofs + delta)). omega. intros [P Q]. 
     eelim Q.
     assert (HH: vis mu b1 = true).
-    admit.
+    a d m i t.
     instantiate (2:= b1).
     autorewrite with restrict. 
     unfold restrict. erewrite HH; simpl; eauto.
