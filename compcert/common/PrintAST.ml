@@ -16,33 +16,37 @@ open Printf
 open Camlcoq
 open AST
 
-let name_of_type = function Tint -> "int" | Tfloat -> "float"
+let name_of_type = function
+  | Tint -> "int"
+  | Tfloat -> "float"
+  | Tlong -> "long"
+  | Tsingle -> "single"
 
 let name_of_chunk = function
-  | Mint8signed -> "int8signed"
-  | Mint8unsigned -> "int8unsigned"
-  | Mint16signed -> "int16signed"
-  | Mint16unsigned -> "int16unsigned"
+  | Mint8signed -> "int8s"
+  | Mint8unsigned -> "int8u"
+  | Mint16signed -> "int16s"
+  | Mint16unsigned -> "int16u"
   | Mint32 -> "int32"
+  | Mint64 -> "int64"
   | Mfloat32 -> "float32"
   | Mfloat64 -> "float64"
-  | Mfloat64al32 -> "float64al32"
 
 let name_of_external = function
-  | EF_external(name, sg) -> extern_atom name
-  | EF_builtin(name, sg) -> extern_atom name
+  | EF_external(name, sg) -> sprintf "extern %S" (extern_atom name)
+  | EF_builtin(name, sg) -> sprintf "builtin %S" (extern_atom name)
   | EF_vload chunk -> sprintf "volatile load %s" (name_of_chunk chunk)
   | EF_vstore chunk -> sprintf "volatile store %s" (name_of_chunk chunk)
   | EF_vload_global(chunk, id, ofs) ->
-      sprintf "volatile load %s global %s %ld"
+      sprintf "volatile load %s global %S %ld"
               (name_of_chunk chunk) (extern_atom id) (camlint_of_coqint ofs)
   | EF_vstore_global(chunk, id, ofs) ->
-      sprintf "volatile store %s global %s %ld"
+      sprintf "volatile store %s global %S %ld"
               (name_of_chunk chunk) (extern_atom id) (camlint_of_coqint ofs)
   | EF_malloc -> "malloc"
   | EF_free -> "free"
   | EF_memcpy(sz, al) ->
-      sprintf "memcpy size %ld align %ld " (camlint_of_z sz) (camlint_of_z al)
+      sprintf "memcpy size %s align %s " (Z.to_string sz) (Z.to_string al)
   | EF_annot(text, targs) -> sprintf "annot %S" (extern_atom text)
   | EF_annot_val(text, targ) ->  sprintf "annot_val %S" (extern_atom text)
   | EF_inline_asm text -> sprintf "inline_asm %S" (extern_atom text)

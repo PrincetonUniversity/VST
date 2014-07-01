@@ -35,15 +35,24 @@ Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :
 Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
   fold_range' f zero lo (nat_of_Z (hi-lo)).
 
-Lemma rangespec'_ext:
- forall f f' contents lo,
-   (forall i, i>=lo -> f i = f' i) -> 
-   rangespec' lo contents f = rangespec' lo contents f'.
+Lemma rangespec'_ext: forall f f' lo len,
+  (forall i, lo <= i < lo + Z_of_nat len -> f i = f' i) -> 
+  rangespec' lo len f = rangespec' lo len f'.
 Proof.
-induction contents; intros.
-simpl. auto.
-simpl. f_equal. apply H. omega.
-apply IHcontents. intros. apply H. omega.
+  intros; revert lo H; 
+  induction len; intros.
+  + simpl. auto.
+  + simpl. f_equal.
+    - apply H.
+      rewrite Nat2Z.inj_succ.
+      rewrite <- Z.add_1_r.
+      pose proof Zle_0_nat (S len).
+      omega.
+    - apply IHlen. intros. apply H.
+      rewrite Nat2Z.inj_succ.
+      rewrite <- Z.add_1_r.
+      pose proof Zle_0_nat (S len).
+      omega.
 Qed.
 
 Lemma prop_false_andp {A}{NA :NatDed A}:
@@ -776,8 +785,81 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma size_compatible_array: forall t n a i b ofs ofs',
+  size_compatible (Tarray t n a) (Vptr b ofs) ->
+  0 <= i < n ->
+  add_ptr_int t (Vptr b ofs) i = (Vptr b ofs') ->
+  Int.unsigned ofs' = Int.unsigned ofs + sizeof t * i.
+Proof.
+  intros.
+  unfold add_ptr_int in H1.
+  simpl in *.
+  inversion H1; clear ofs' H1 H3.
+  rewrite Z.max_r in H by omega.
+  unfold Int.mul.
+  destruct (zeq i 0); [|destruct (zeq (sizeof t) 0)].
+  + subst i.
+    simpl.
+    repeat rewrite <- Zmult_0_r_reverse.
+    simpl.
+    repeat rewrite <- Zplus_0_r_reverse.
+    rewrite Int.Z_mod_modulus_eq.
+    rewrite <- Int.unsigned_repr_eq.
+    rewrite Int.repr_unsigned.
+    reflexivity.
+  + rewrite e; clear e.
+    simpl.
+    repeat rewrite <- Zplus_0_r_reverse.
+    rewrite Int.Z_mod_modulus_eq.
+    rewrite <- Int.unsigned_repr_eq.
+    rewrite Int.repr_unsigned.
+    reflexivity.
+  + assert (i > 0) by omega.
+    assert (n >= 2) by omega.
+    pose proof sizeof_pos t.
+    pose proof Int.modulus_pos.
+    pose proof Int.unsigned_range ofs.
+    assert (sizeof t < Int.modulus).
+      assert (sizeof t * 2 <= sizeof t * n) by (apply Zmult_le_compat_l; omega).
+      rewrite <- Zplus_diag_eq_mult_2 in H6.
+      omega.
+    assert (n <= Int.modulus).
+      assert (n <= sizeof t * n) by (rewrite <- Z.mul_1_l at 1; apply Zmult_le_compat_r; omega).
+      omega.
+    assert (sizeof t * i < sizeof t * n) by (apply Zmult_lt_compat_l; omega).
+    assert (sizeof t * i > 0) by (apply Zmult_gt_0_compat; omega).
+    rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+    rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+    simpl.
+    repeat (rewrite Int.Z_mod_modulus_eq; rewrite <- Int.unsigned_repr_eq).
+    rewrite (Int.unsigned_repr (sizeof t * i)) by (unfold Int.max_unsigned; omega).
+    rewrite Int.unsigned_repr; unfold Int.max_unsigned; try omega.
+Qed.
+
+(*
+Lemma size_compatible_max: forall t n a p,
+  size_compatible (Tarray t n a) p ->
+  size_compatible (Tarray t (Z.max 0 n) a) p.
+Proof.
+  intros.
+  destruct p; auto.
+  unfold size_compatible in *; simpl in *.
+  replace (Z.max 0 (Z.max 0 n)) with (Z.max 0 n); auto.
+  apply eq_sym, Z.max_r, Z.le_max_l.
+Qed.
+
+Lemma align_compatible_max: forall t n a p,
+  align_compatible (Tarray t n a) p ->
+  align_compatible (Tarray t (Z.max 0 n) a) p.
+Proof.
+  intros.
+  destruct p; auto.
+Qed.
+*)
+
 Lemma data_at_array_at: forall sh t n a v v' p, 
   JMeq v v' -> 
+  legal_alignas_type (Tarray t n a) = true ->
   data_at sh (Tarray t n a) v p = 
   (!! (size_compatible (Tarray t n a) p)) &&
   array_at t sh (ZnthV t v') 0 n p.
@@ -786,20 +868,42 @@ Proof.
   unfold array_at, data_at.
   simpl.
   unfold array_at', rangespec.
-(*
-  apply pred_ext; normalize.
 
+  apply pred_ext; normalize.
   + erewrite rangespec'_ext; [apply derives_refl|]; intros.
     simpl.
     rewrite andp_comm.
     rewrite <- add_andp; [rewrite H; reflexivity|].
     apply prop_right.
     destruct p; inversion Pp.
+    rewrite <- Zminus_0_l_reverse in H3.
+    rewrite nat_of_Z_max in H3.
+    replace (0 + Z.max n 0) with (Z.max n 0) in H3 by omega.
+    replace (Z.max n 0) with n in H3 by (
+      destruct (Z.max_spec_le n 0) as [[? HH] | [? ?]]; [
+      rewrite HH in H3; omega |
+      auto]).
+    destruct (add_ptr_int t (Vptr b i0) i) eqn:HH; inversion HH.
+    subst b0.
+    rewrite H6 in *.
+    pose proof size_compatible_array _ _ _ _ _ _ _ H1 H3 HH.
     unfold size_compatible, align_compatible in *.
+    rewrite legal_alignas_type_Tarray in H2 by exact H0.
+    rewrite H4.
     split; simpl in *.
-    *)
+    - rewrite Zplus_assoc_reverse, Zmult_succ_r_reverse.
+      rewrite <- Z.add_1_r.
+      assert (sizeof t * (i + 1) <= sizeof t * Z.max 0 n).
+        pose proof Z.le_max_r 0 n.
+        pose proof sizeof_pos t.
+        apply Zmult_le_compat_l; omega.
+      omega.
+    - apply Z.divide_add_r; auto.
+      apply Z.divide_mul_l, legal_alignas_sizeof_alignof_compat.
+      eapply nested_pred_Tarray.
+      exact H0. omega.
+  + admit.
   (* rangespec'_ext has bad specification. i in it should have a upper bound *)
-  admit.
 Qed.
 
 Lemma semax_store_array:

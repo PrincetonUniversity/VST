@@ -20,26 +20,31 @@ open Camlcoq
 
 (* #pragma section *)
 
-let sda_supported =
-  match Configuration.arch, Configuration.system with
-  | "powerpc", "linux" -> true
-  | "powerpc", "diab"  -> true
-  | _, _ -> false
-
 let process_section_pragma classname istring ustring addrmode accmode =
   Sections.define_section classname
     ?iname: (if istring = "" then None else Some istring)
     ?uname: (if ustring = "" then None else Some ustring)
-    ?writable: (if accmode = "" then None else Some(String.contains accmode 'W'))
-    ?executable: (if accmode = "" then None else Some(String.contains accmode 'X'))
-    ?near: (if addrmode = "" then None else Some(sda_supported && addrmode = "near-data"))
+    ?writable:
+      (if accmode = "" then None else Some(String.contains accmode 'W'))
+    ?executable:
+      (if accmode = "" then None else Some(String.contains accmode 'X'))
+    ?access:
+      (match addrmode with
+       | "" -> None
+       | "near-data" -> Some Sections.Access_near
+       | "far-data" -> Some Sections.Access_far
+       | _ -> Some Sections.Access_default)
     ()
 
 (* #pragma use_section *)
 
+let re_c_ident = Str.regexp "[A-Za-z_][A-Za-z_0-9]*$"
+
 let process_use_section_pragma classname id =
-  if not (Sections.use_section_for (intern_string id) classname)
-  then C2C.error (sprintf "unknown section name `%s'" classname)
+  if not (Str.string_match re_c_ident id 0) then
+    C2C.error (sprintf "bad identifier `%s' in #pragma use_section" id);
+  if not (Sections.use_section_for (intern_string id) classname) then
+    C2C.error (sprintf "unknown section name `%s'" classname)
 
 (* #pragma reserve_register *)
 
@@ -49,8 +54,7 @@ let process_reserve_register_pragma name =
       C2C.error "unknown register in `reserve_register' pragma"
   | Some r ->
       if Machregsaux.can_reserve_register r then
-        Coloringaux.reserved_registers :=
-          r :: !Coloringaux.reserved_registers
+        IRC.reserved_registers := r :: !IRC.reserved_registers
       else
         C2C.error "cannot reserve this register (not a callee-save)"
 

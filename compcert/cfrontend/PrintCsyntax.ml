@@ -30,6 +30,7 @@ let name_unop = function
   | Onotbool -> "!"
   | Onotint  -> "~"
   | Oneg     -> "-"
+  | Oabsfloat -> "__builtin_fabs"
 
 let name_binop = function
   | Oadd -> "+"
@@ -64,30 +65,32 @@ let name_floattype sz =
   | F32 -> "float"
   | F64 -> "double"
 
+let name_longtype sg =
+  match sg with
+  | Signed -> "long long"
+  | Unsigned -> "unsigned long long"
+
 (* Collecting the names and fields of structs and unions *)
 
-module StructUnionSet = Set.Make(struct
-  type t = string * fieldlist
-  let compare (n1, _ : t) (n2, _ : t) = compare n1 n2
-end)
+module StructUnion = Map.Make(String)
 
-let struct_unions = ref StructUnionSet.empty
-
-let register_struct_union id fld =
-  struct_unions := StructUnionSet.add (extern_atom id, fld) !struct_unions
+let struct_unions = ref StructUnion.empty
 
 (* Declarator (identifier + type) *)
 
 let attributes a =
-  if attr_volatile a then " volatile" else ""
+  let s1 = if a.attr_volatile then " volatile" else "" in
+  match a.attr_alignas with
+  | None -> s1
+  | Some l ->
+      sprintf " _Alignas(%Ld)%s" (Int64.shift_left 1L (N.to_int l)) s1
+
+let attributes_space a =
+  let s = attributes a in 
+  if String.length s = 0 then s else s ^ " "
 
 let name_optid id =
   if id = "" then "" else " " ^ id
-
-(*
-let parenthesize_if_pointer id =
-  if String.length id > 0 && id.[0] = '*' then "(" ^ id ^ ")" else id
-*)
 
 let rec name_cdecl id ty =
   match ty with
@@ -97,32 +100,36 @@ let rec name_cdecl id ty =
       name_inttype sz sg ^ attributes a ^ name_optid id
   | Tfloat(sz, a) ->
       name_floattype sz ^ attributes a ^ name_optid id
+  | Tlong(sg, a) ->
+      name_longtype sg ^ attributes a ^ name_optid id
   | Tpointer(t, a) ->
       let id' =
         match t with
-        | Tfunction _ | Tarray _ -> sprintf "(*%s%s)" (attributes a) id
-        | _                      -> sprintf "*%s%s" (attributes a) id in
+        | Tfunction _ | Tarray _ -> sprintf "(*%s%s)" (attributes_space a) id
+        | _                      -> sprintf "*%s%s" (attributes_space a) id in
       name_cdecl id' t
   | Tarray(t, n, a) ->
       name_cdecl (sprintf "%s[%ld]" id (camlint_of_coqint n)) t
-  | Tfunction(args, res) ->
+  | Tfunction(args, res, cconv) ->
       let b = Buffer.create 20 in
       if id = ""
       then Buffer.add_string b "(*)"
       else Buffer.add_string b id;
       Buffer.add_char b '(';
-      begin match args with
+      let rec add_args first = function
       | Tnil ->
-          Buffer.add_string b "void"
-      | _ ->
-          let rec add_args first = function
-          | Tnil -> ()
-          | Tcons(t1, tl) ->
-              if not first then Buffer.add_string b ", ";
-              Buffer.add_string b (name_cdecl "" t1);
-              add_args false tl in
-          add_args true args
-      end;
+          if first then
+            Buffer.add_string b
+               (if cconv.cc_vararg then "..." else "void")
+          else if cconv.cc_vararg then
+            Buffer.add_string b ", ..."
+          else
+            ()
+      | Tcons(t1, tl) ->
+          if not first then Buffer.add_string b ", ";
+          Buffer.add_string b (name_cdecl "" t1);
+          add_args false tl in
+      add_args true args;
       Buffer.add_char b ')';
       name_cdecl (Buffer.contents b) res
   | Tstruct(name, fld, a) ->
@@ -176,12 +183,24 @@ let print_pointer_hook
    : (formatter -> Values.block * Integers.Int.int -> unit) ref
    = ref (fun p (b, ofs) -> ())
 
-let print_value p v =
-  match v with
-  | Vint n -> fprintf p "%ld" (camlint_of_coqint n)
-  | Vfloat f -> fprintf p "%F" (camlfloat_of_coqfloat f)
-  | Vptr(b, ofs) -> fprintf p "<ptr%a>" !print_pointer_hook (b, ofs)
-  | Vundef -> fprintf p "<undef>"
+let print_typed_value p v ty =
+  match v, ty with
+  | Vint n, Tint(I32, Unsigned, _) ->
+      fprintf p "%luU" (camlint_of_coqint n)
+  | Vint n, _ ->
+      fprintf p "%ld" (camlint_of_coqint n)
+  | Vfloat f, _ ->
+      fprintf p "%F" (camlfloat_of_coqfloat f)
+  | Vlong n, Tlong(Unsigned, _) ->
+      fprintf p "%LuLLU" (camlint64_of_coqint n)
+  | Vlong n, _ ->
+      fprintf p "%LdLL" (camlint64_of_coqint n)
+  | Vptr(b, ofs), _ ->
+      fprintf p "<ptr%a>" !print_pointer_hook (b, ofs)
+  | Vundef, _ ->
+      fprintf p "<undef>"
+
+let print_value p v = print_typed_value p v Tvoid
 
 let rec expr p (prec, e) =
   let (prec', assoc) = precedence e in
@@ -203,12 +222,14 @@ let rec expr p (prec, e) =
       fprintf p "%a.%s" expr (prec', a1) (extern_atom f)
   | Evalof(l, _) ->
       expr p (prec, l)
-  | Eval(v, _) ->
-      print_value p (v)
+  | Eval(v, ty) ->
+      print_typed_value p v ty
   | Esizeof(ty, _) ->
       fprintf p "sizeof(%s)" (name_type ty)
   | Ealignof(ty, _) ->
       fprintf p "__alignof__(%s)" (name_type ty)
+  | Eunop(Oabsfloat, a1, _) ->
+      fprintf p "__builtin_fabs(%a)" expr (2, a1)
   | Eunop(op, a1, _) ->
       fprintf p "%s%a" (name_unop op) expr (prec', a1)
   | Eaddrof(a1, _) ->
@@ -240,11 +261,13 @@ let rec expr p (prec, e) =
                 (camlint_of_coqint sz) (camlint_of_coqint al)
                 exprlist (true, args)
   | Ebuiltin(EF_annot(txt, _), _, args, _) ->
-      fprintf p "__builtin_annot@[<hov 1>(%S,@ %a)@]"
-                (extern_atom txt) exprlist (true, args)
+      fprintf p "__builtin_annot@[<hov 1>(%S%a)@]"
+                (extern_atom txt) exprlist (false, args)
   | Ebuiltin(EF_annot_val(txt, _), _, args, _) ->
-      fprintf p "__builtin_annot_val@[<hov 1>(%S,@ %a)@]"
-                (extern_atom txt) exprlist (true, args)
+      fprintf p "__builtin_annot_val@[<hov 1>(%S%a)@]"
+                (extern_atom txt) exprlist (false, args)
+  | Ebuiltin(EF_external(id, sg), _, args, _) ->
+      fprintf p "%s@[<hov 1>(%a)@]" (extern_atom id) exprlist (true, args)
   | Ebuiltin(_, _, args, _) ->
       fprintf p "<unknown builtin>@[<hov 1>(%a)@]" exprlist (true, args)
   | Eparen(a1, ty) ->
@@ -315,19 +338,21 @@ let rec print_stmt p s =
 
 and print_cases p cases =
   match cases with
-  | LSdefault Sskip ->
+  | LSnil ->
       ()
-  | LSdefault s ->
-      fprintf p "@[<v 2>default:@ %a@]" print_stmt s
-  | LScase(lbl, Sskip, rem) ->
-      fprintf p "case %ld:@ %a"
-              (camlint_of_coqint lbl)
+  | LScons(lbl, Sskip, rem) ->
+      fprintf p "%a:@ %a"
+              print_case_label lbl
               print_cases rem
-  | LScase(lbl, s, rem) ->
-      fprintf p "@[<v 2>case %ld:@ %a@]@ %a"
-              (camlint_of_coqint lbl)
+  | LScons(lbl, s, rem) ->
+      fprintf p "@[<v 2>%a:@ %a@]@ %a"
+              print_case_label lbl
               print_stmt s
               print_cases rem
+
+and print_case_label p = function
+  | None -> fprintf p "default"
+  | Some lbl -> fprintf p "case %ld" (camlint_of_coqint lbl)
 
 and print_stmt_for p s =
   match s with
@@ -340,16 +365,17 @@ and print_stmt_for p s =
   | _ ->
       fprintf p "({ %a })" print_stmt s
 
-let name_function_parameters fun_name params =
+let name_function_parameters fun_name params cconv =
   let b = Buffer.create 20 in
   Buffer.add_string b fun_name;
   Buffer.add_char b '(';
   begin match params with
   | [] ->
-      Buffer.add_string b "void"
+      Buffer.add_string b (if cconv.cc_vararg then "..." else "void")
   | _ ->
       let rec add_params first = function
-      | [] -> ()
+      | [] ->
+          if cconv.cc_vararg then Buffer.add_string b "..."
       | (id, ty) :: rem ->
           if not first then Buffer.add_string b ", ";
           Buffer.add_string b (name_cdecl (extern_atom id) ty);
@@ -362,7 +388,7 @@ let name_function_parameters fun_name params =
 let print_function p id f =
   fprintf p "%s@ "
             (name_cdecl (name_function_parameters (extern_atom id)
-                                                  f.fn_params)
+                                                  f.fn_params f.fn_callconv)
                         f.fn_return);
   fprintf p "@[<v 2>{@ ";
   List.iter
@@ -374,10 +400,10 @@ let print_function p id f =
 
 let print_fundef p id fd =
   match fd with
-  | External(EF_external(_,_), args, res) ->
+  | External(EF_external(_,_), args, res, cconv) ->
       fprintf p "extern %s;@ @ "
-                (name_cdecl (extern_atom id) (Tfunction(args, res)))
-  | External(_, _, _) ->
+                (name_cdecl (extern_atom id) (Tfunction(args, res, cconv)))
+  | External(_, _, _, _) ->
       ()
   | Internal f ->
       print_function p id f
@@ -396,46 +422,56 @@ let string_of_init id =
 
 let chop_last_nul id =
   match List.rev id with
-  | Init_int8 BinInt.Z0 :: tl -> List.rev tl
+  | Init_int8 Z.Z0 :: tl -> List.rev tl
   | _ -> id
 
 let print_init p = function
-  | Init_int8 n -> fprintf p "%ld,@ " (camlint_of_coqint n)
-  | Init_int16 n -> fprintf p "%ld,@ " (camlint_of_coqint n)
-  | Init_int32 n -> fprintf p "%ld,@ " (camlint_of_coqint n)
-  | Init_float32 n -> fprintf p "%F,@ " (camlfloat_of_coqfloat n)
-  | Init_float64 n -> fprintf p "%F,@ " (camlfloat_of_coqfloat n)
-  | Init_space n -> fprintf p "/* skip %ld, */@ " (camlint_of_coqint n)
+  | Init_int8 n -> fprintf p "%ld" (camlint_of_coqint n)
+  | Init_int16 n -> fprintf p "%ld" (camlint_of_coqint n)
+  | Init_int32 n -> fprintf p "%ld" (camlint_of_coqint n)
+  | Init_int64 n -> fprintf p "%LdLL" (camlint64_of_coqint n)
+  | Init_float32 n -> fprintf p "%F" (camlfloat_of_coqfloat n)
+  | Init_float64 n -> fprintf p "%F" (camlfloat_of_coqfloat n)
+  | Init_space n -> fprintf p "/* skip %ld */@ " (camlint_of_coqint n)
   | Init_addrof(symb, ofs) ->
       let ofs = camlint_of_coqint ofs in
       if ofs = 0l
-      then fprintf p "&%s,@ " (extern_atom symb)
-      else fprintf p "(void *)((char *)&%s + %ld),@ " (extern_atom symb) ofs
+      then fprintf p "&%s" (extern_atom symb)
+      else fprintf p "(void *)((char *)&%s + %ld)" (extern_atom symb) ofs
+
+let print_composite_init p il =
+  fprintf p "{@ ";
+  List.iter
+    (fun i ->
+      print_init p i;
+      match i with Init_space _ -> () | _ -> fprintf p ",@ ")
+    il;
+  fprintf p "}"
 
 let re_string_literal = Str.regexp "__stringlit_[0-9]+"
 
 let print_globvar p id v =
   let name1 = extern_atom id in
   let name2 = if v.gvar_readonly then "const " ^ name1 else name1 in
-  let name3 = if v.gvar_volatile then "volatile " ^ name2 else name2 in
   match v.gvar_init with
   | [] ->
       fprintf p "extern %s;@ @ "
-              (name_cdecl name3 v.gvar_info)
+              (name_cdecl name2 v.gvar_info)
   | [Init_space _] ->
       fprintf p "%s;@ @ "
-              (name_cdecl name3 v.gvar_info)
+              (name_cdecl name2 v.gvar_info)
   | _ ->
       fprintf p "@[<hov 2>%s = "
-              (name_cdecl name3 v.gvar_info);
-      if Str.string_match re_string_literal (extern_atom id) 0
-      && List.for_all (function Init_int8 _ -> true | _ -> false) v.gvar_init
-      then
-        fprintf p "\"%s\"" (string_of_init (chop_last_nul v.gvar_init))
-      else begin
-        fprintf p "{@ ";
-        List.iter (print_init p) v.gvar_init;
-        fprintf p "}"
+              (name_cdecl name2 v.gvar_info);
+      begin match v.gvar_info, v.gvar_init with
+      | (Tint _ | Tlong _ | Tfloat _ | Tpointer _ | Tfunction _ | Tcomp_ptr _),
+        [i1] ->
+          print_init p i1
+      | _, il ->
+          if Str.string_match re_string_literal (extern_atom id) 0
+          && List.for_all (function Init_int8 _ -> true | _ -> false) il
+          then fprintf p "\"%s\"" (string_of_init (chop_last_nul il))
+          else print_composite_init p il
       end;
       fprintf p ";@]@ @ "
 
@@ -450,11 +486,16 @@ let rec collect_type = function
   | Tvoid -> ()
   | Tint _ -> ()
   | Tfloat _ -> ()
+  | Tlong _ -> ()
   | Tpointer(t, _) -> collect_type t
   | Tarray(t, _, _) -> collect_type t
-  | Tfunction(args, res) -> collect_type_list args; collect_type res
-  | Tstruct(id, fld, _) -> register_struct_union id fld; collect_fields fld
-  | Tunion(id, fld, _) -> register_struct_union id fld; collect_fields fld
+  | Tfunction(args, res, _) -> collect_type_list args; collect_type res
+  | Tstruct(id, fld, _) | Tunion(id, fld, _) ->
+      let s = extern_atom id in
+      if not (StructUnion.mem s !struct_unions) then begin
+        struct_unions := StructUnion.add s fld !struct_unions;
+        collect_fields fld
+      end
   | Tcomp_ptr _ -> ()
 
 and collect_type_list = function
@@ -515,8 +556,8 @@ let rec collect_stmt = function
   | Sgoto lbl -> ()
 
 and collect_cases = function
-  | LSdefault s -> collect_stmt s
-  | LScase(lbl, s, rem) -> collect_stmt s; collect_cases rem
+  | LSnil -> ()
+  | LScons(lbl, s, rem) -> collect_stmt s; collect_cases rem
 
 let collect_function f =
   collect_type f.fn_return;
@@ -526,17 +567,17 @@ let collect_function f =
 
 let collect_globdef (id, gd) =
   match gd with
-  | Gfun(External(_, args, res)) -> collect_type_list args; collect_type res
+  | Gfun(External(_, args, res, _)) -> collect_type_list args; collect_type res
   | Gfun(Internal f) -> collect_function f
   | Gvar v -> collect_type v.gvar_info
 
 let collect_program p =
   List.iter collect_globdef p.prog_defs
 
-let declare_struct_or_union p (name, fld) =
+let declare_struct_or_union p name fld =
   fprintf p "%s;@ @ " name
 
-let print_struct_or_union p (name, fld) =
+let print_struct_or_union p name fld =
   fprintf p "@[<v 2>%s {" name;
   let rec print_fields = function
   | Fnil -> ()
@@ -547,11 +588,11 @@ let print_struct_or_union p (name, fld) =
   fprintf p "@;<0 -2>};@]@ @ "
 
 let print_program p prog =
-  struct_unions := StructUnionSet.empty;
+  struct_unions := StructUnion.empty;
   collect_program prog;
   fprintf p "@[<v 0>";
-  StructUnionSet.iter (declare_struct_or_union p) !struct_unions;
-  StructUnionSet.iter (print_struct_or_union p) !struct_unions;
+  StructUnion.iter (declare_struct_or_union p) !struct_unions;
+  StructUnion.iter (print_struct_or_union p) !struct_unions;
   List.iter (print_globdef p) prog.prog_defs;
   fprintf p "@]@."
 

@@ -1866,7 +1866,9 @@ apply sepcon_derives.
 specialize (H1 ora' jm2).
 specialize (H1 (eq_refl _) (eq_refl _)).
 case_eq (@level rmap ag_rmap (m_phi jm')); intros; [solve [auto] |].
+rewrite <- level_juice_level_phi in H21.
 destruct (levelS_age1 jm' _ H21) as [jm'' ?].
+rewrite -> level_juice_level_phi in H21.
 destruct (age_twin' jm' jm2 jm'') as [jm2'' [? ?]]; auto.
 pose proof (age_safe _ _ _ _ H26 _ _ _ H1).
 exists  (State (vx)(te2) k); exists jm2''.
