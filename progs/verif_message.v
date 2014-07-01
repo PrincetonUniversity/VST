@@ -5,6 +5,27 @@ Local Open Scope logic.
 
 (*   mf_assert msgfmt sh buf len data  := the [data] is formatted into a message 
          at most [len] bytes,  stored starting at address [buf] with share [sh] *)
+
+Definition natural_alignment := 8.
+
+Lemma natural_alignment_enough: forall t, type_is_by_value t -> legal_alignas_type t = true -> (alignof t | 8).
+Proof.
+  intros.
+  assert (1 | 8). exists 8. reflexivity.
+  assert (2 | 8). exists 4. reflexivity.
+  assert (4 | 8). exists 2. reflexivity.
+  assert (8 | 8). exists 1. reflexivity.
+  destruct t; try inversion H; simpl;
+  unfold legal_alignas_type in H0; simpl in H0;
+  destruct (attr_alignas a); inversion H0; [destruct i| | destruct f|]; assumption.
+Qed.
+
+Definition natural_align_compatible p :=
+  match p with
+  | Vptr b ofs => (natural_alignment | Int.unsigned ofs)
+  | _ => True
+  end.
+
 Record message_format (t: type) : Type :=
 mf_build {
    mf_size: Z;
@@ -15,7 +36,7 @@ mf_build {
            mf_assert sh buf len data |-- 
                  !!(0 <= len <= mf_size) && memory_block sh (Int.repr len) buf;
    mf_restbuf := fun (sh: share) (buf: val) (len: Z) => 
-                              memory_block sh (Int.repr (mf_size-len)) (offset_val (Int.repr len) buf)
+          memory_block sh (Int.repr (mf_size-len)) (offset_val (Int.repr len) buf)
 }.
 
 Implicit Arguments mf_build [[t]].
@@ -28,7 +49,6 @@ Implicit Arguments mf_restbuf [[t]].
 (* need to add a proof to message_format, that the
      representation of a  buf implies the data_at_ of the bufsize array *)
 
-
 Program Definition intpair_message: message_format t_struct_intpair :=
   mf_build 8 (fun data => is_int (fst data) /\ is_int (snd data))
              (fun sh buf len data => !!(len=8/\ is_int (fst data) /\ is_int (snd data)) 
@@ -38,11 +58,17 @@ Next Obligation.
 compute; split; congruence.
 Qed.
 Next Obligation.
- normalize. repeat rewrite prop_and. repeat apply andp_right; try (apply prop_right; compute; congruence).
- change 8 with (sizeof t_struct_intpair). 
+ normalize.
  eapply derives_trans; [apply data_at_data_at_; reflexivity|].
  rewrite <- memory_block_data_at_ by reflexivity.
- rewrite lower_andp_val; apply andp_left2; apply derives_refl.
+ rewrite lower_andp_val. normalize. 
+
+ repeat rewrite prop_and. repeat apply andp_right; try apply prop_right.
+ + compute; congruence.
+ + compute; congruence.
+
+ + change 8 with (sizeof t_struct_intpair). 
+   apply derives_refl.
 Qed.
 
 (* align_compatible requirement is neccesary in precondition *)
@@ -64,9 +90,10 @@ Definition deserialize_spec {t: type} (format: message_format t) :=
   PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar), _length OF tint ] 
           PROP (writable_share (fst shs); 0 <= len <= mf_size format)
           LOCAL (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf);
-                        `(eq (Vint (Int.repr len))) (eval_id _length))
+                        `(eq (Vint (Int.repr len))) (eval_id _length);
+                   `(natural_align_compatible p))
           SEP (`(mf_assert format (snd shs) buf len data);
-                 `(data_at_ (fst shs) t_struct_intpair p))
+                 `(memory_block (fst shs) (Int.repr (mf_size format)) p))
   POST [ tvoid ]
           PROP (mf_data_assert format data)  LOCAL ()
           SEP (`(mf_assert format (snd shs) buf len data);
@@ -111,7 +138,7 @@ unfold_data_at 1%nat.
 unfold data_at_.
 (* Here, we need to use unfold_data_at to unfold data_at tarray into array_at *)
 unfold tarray.
-erewrite data_at_array_at; [|reflexivity].
+erewrite data_at_array_at; [| reflexivity|reflexivity].
 
 normalize.
 
@@ -146,6 +173,26 @@ unfold Int.mul; simpl; rewrite int_add_repr_0_r.
 normalize.
 Qed.
 
+Check memory_block_data_at_.
+
+Lemma memory_block_size_compatible:
+  forall sh t b ofs,
+  sizeof t < Int.modulus ->
+  memory_block sh (Int.repr (sizeof t)) (Vptr b ofs) = 
+  !!( Int.unsigned ofs + sizeof t <= Int.modulus) && memory_block sh (Int.repr (sizeof t)) (Vptr b ofs).
+Proof.
+  intros.
+Transparent memory_block.
+  unfold memory_block.
+Opaque memory_block.
+  replace (Int.unsigned (Int.repr (sizeof t))) with (sizeof t).
+  apply pred_ext; normalize.
+  rewrite Int.unsigned_repr; [reflexivity|].
+  unfold Int.max_unsigned.
+  pose proof sizeof_pos t. 
+  omega.
+Qed.
+
 Lemma body_intpair_deserialize: semax_body Vprog Gprog f_intpair_deserialize intpair_deserialize_spec.
 Proof.
 unfold intpair_deserialize_spec, deserialize_spec.
@@ -155,14 +202,11 @@ name buf0 _buf.
 name x _x.
 name y _y.
 name len0 _length.
-unfold data_at_.
-unfold_data_at 1%nat.
 destruct data as (x1,y1); simpl in *.
 normalize.
-destruct H1 as [? [? ?]].
 destruct x1 as [|x1| | |]; try contradiction.
 destruct y1 as [|y1| | |]; try contradiction.
-clear H2 H3.
+clear H4 H3.
 apply semax_pre with
  (PROP  (isptr buf)
    LOCAL  (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf); `(eq (Vint (Int.repr len))) (eval_id _length))
@@ -172,17 +216,34 @@ apply semax_pre with
     `prop (`(size_compatible (tarray tint 2)) (eval_id _buf)) &&
     `(array_at tint sh' (ZnthV tint (Vint x1 :: Vint y1:: nil)) 0 2) (eval_id _buf))). Focus 1.
 + unfold_data_at 1%nat.
+  rewrite memory_block_isptr.
   entailer.
+  change 8 with (sizeof (tarray tint 2)).
+  destruct buf0; inversion Pbuf0.
+  destruct p0; inversion Pp0.
+  rewrite memory_block_size_compatible by (reflexivity).
+  replace (memory_block sh (Int.repr (sizeof (tarray tint 2))) (Vptr b0 i0)) with
+      (((fun p : val => !!align_compatible (tarray tint 2) p) &&
+       memory_block sh (Int.repr (sizeof (tarray tint 2)))) (Vptr b0 i0)) by
+      (simpl;
+       assert (4 | Int.unsigned i0) by (eapply Zdivides_trans; [exists 2; reflexivity| exact H1]);
+       apply pred_ext; normalize).
+  rewrite memory_block_data_at_ by reflexivity.
+  unfold data_at_, tarray.
+  erewrite data_at_array_at by reflexivity.
+  
   unfold array_at, rangespec; simpl.
   unfold ZnthV; simpl. unfold field_at_. cancel.
   repeat rewrite field_at_data_at by reflexivity.
   repeat (rewrite at_offset'_eq; [|rewrite <- data_at_offset_zero; reflexivity]).
   unfold nested_field_offset2, nested_field_type2; simpl.
   normalize.
-  destruct buf0; inversion Pbuf0.
   unfold upd, add_ptr_int. simpl.
-  unfold Int.mul; simpl; rewrite int_add_repr_0_r.
-  apply derives_refl.
+  unfold Int.mul; simpl; rewrite !int_add_repr_0_r.
+  apply andp_right; [|cancel].
+  apply prop_right. repeat split;
+    try (eapply Zdivides_trans; [exists 2; reflexivity |exact H1]);
+    try exact H2.
 
 forward. (* x = ((int * )buf)[0]; *)
 entailer!. omega. apply I.
@@ -197,8 +258,7 @@ unfold array_at, rangespec; simpl.
 unfold ZnthV.
 rewrite if_false by omega. rewrite if_false by omega.
 simpl.
-inv H1; inv H2.
-cancel.
+normalize.
 unfold_data_at 3%nat.
 repeat rewrite field_at_data_at by reflexivity.
 repeat (rewrite at_offset'_eq; [|rewrite <- data_at_offset_zero; reflexivity]).
@@ -206,7 +266,8 @@ unfold nested_field_offset2, nested_field_type2; simpl.
 normalize.
 unfold upd, add_ptr_int. simpl.
 destruct buf0; inversion Pbuf.
-apply andp_right; [|unfold Int.mul; simpl; rewrite int_add_repr_0_r; apply derives_refl].
+inv H3. inv H4.
+apply andp_right; [|simpl; unfold Int.mul; simpl; rewrite int_add_repr_0_r; cancel].
 repeat (erewrite by_value_data_at; [|apply I|reflexivity]).
 unfold size_compatible, align_compatible in *; simpl in *.
 unfold Int.mul; simpl; rewrite int_add_repr_0_r.
