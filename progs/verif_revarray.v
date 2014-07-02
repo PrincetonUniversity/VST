@@ -96,39 +96,254 @@ assert (j+j=size \/ j+j=size-1) by omega.
 destruct H1; try omega.
 (* Prove that loop body preserves invariant *)
 forward.  (* t = a[lo]; *)
-entailer.
 rewrite Int.sub_signed in H3.
 normalize in H3.
 simpl_compare.
-apply prop_right; split; [ | omega].
+entailer!.
+omega.
+unfold flip_between.
 apply POP.
 rewrite if_false by omega.
 rewrite if_true by omega. omega.
 forward.  (* s = a[hi]; *)
-entailer. apply prop_right.
 rewrite Int.sub_signed in H4.
 normalize in H4.
 simpl_compare.
-split.
+entailer!.
+omega. 
 apply POP.
 rewrite if_false by omega. rewrite if_true by omega.
-omega. omega.
+omega.
 normalize. simpl typeof.
+(*
+semax Delta
+     (PROP  (0 <= j; j <= size - j; isptr a0)
+      LOCAL 
+      (`eq
+         (`(repinject tint)
+            (`(flip_between size j (size - j) contents)
+               (`force_signed_int
+                  (eval_expr
+                     (Ebinop Osub (Etempvar _hi tint)
+                        (Econst_int (Int.repr 1) tint) tint))))) 
+         (eval_id _s);
+      `eq
+        (`(repinject tint)
+           (`(flip_between size j (size - j) contents)
+              (`force_signed_int (eval_expr (Etempvar _lo tint)))))
+        (eval_id _t);
+      `(typed_true tint)
+        (eval_expr
+           (Ebinop Olt (Etempvar _lo tint)
+              (Ebinop Osub (Etempvar _hi tint) (Econst_int (Int.repr 1) tint)
+                 tint) tint)); `(eq a0) (eval_id _a);
+      `(eq (Vint (Int.repr j))) (eval_id _lo);
+      `(eq (Vint (Int.repr (size - j)))) (eval_id _hi))
+      SEP 
+      (`(array_at tint sh (flip_between size j (size - j) contents) 0 size a0)))
+     (Ssequence
+        (Sassign
+           (Ederef
+              (Ebinop Oadd (Etempvar _a (tptr tint))
+                 (Ebinop Osub (Etempvar _hi tint)
+                    (Econst_int (Int.repr 1) tint) tint) 
+                 (tptr tint)) tint) (Etempvar _t tint)) MORE_COMMANDS)
+     POSTCONDITION
+*)
 forward. (*  a[hi-1] = t ; *)
+
+(*
+array_at_ tint sh 0 size (eval_id _a rho)
+   |-- !!(offset_val (Int.repr (sizeof tint * ?11568)) (eval_id _a rho) =
+          force_val
+            (sem_add_pi tint (eval_id _a rho)
+               (force_val
+                  (sem_sub_default tint tint (eval_id _hi rho)
+                     (Vint (Int.repr 1))))) /\
+          0 <= ?11568 /\
+          ?11568 < size /\
+          ?11569 = force_val (sem_cast_neutral (eval_id _t rho)))
+
+
+ semax Delta
+   (PROP  ()
+    LOCAL 
+    (`eq
+       (`((repinject tint oo flip_between size j (size - j) contents)
+          oo force_signed_int)
+          (eval_expr
+             (Ebinop Osub (Etempvar _hi tint) (Econst_int (Int.repr 1) tint)
+                tint))) (eval_id _s);
+    `eq
+      (`((repinject tint oo flip_between size j (size - j) contents)
+         oo force_signed_int) (eval_expr (Etempvar _lo tint))) 
+      (eval_id _t);
+    `(typed_true tint)
+      (eval_expr
+         (Ebinop Olt (Etempvar _lo tint)
+            (Ebinop Osub (Etempvar _hi tint) (Econst_int (Int.repr 1) tint)
+               tint) tint)); `(eq a0) (eval_id _a);
+    `(eq (Vint (Int.repr j))) (eval_id _lo);
+    `(eq (Vint (Int.repr (size - j)))) (eval_id _hi))
+    SEP 
+    (`(array_at tint sh
+         (upd (flip_between size j (size - j) contents) ?11568 ?11569) 0 size)
+       (fun _ : lift_S (LiftEnviron mpred) => a0)))
+   (Ssequence
+      (Sassign
+         (Ederef
+            (Ebinop Oadd (Etempvar _a (tptr tint)) 
+               (Etempvar _lo tint) (tptr tint)) tint) 
+         (Etempvar _s tint)) MORE_COMMANDS) POSTCONDITION
+*)
+(* PROP  ()
+   LOCAL  (tc_environ Delta;
+   `eq (eval_id _s)
+     (`((repinject tint oo flip_between size j (size - j) contents)
+        oo force_signed_int)
+        (eval_expr
+           (Ebinop Osub (Etempvar _hi tint) (Econst_int (Int.repr 1) tint)
+              tint)));
+   `eq (eval_id _t)
+     (`((repinject tint oo flip_between size j (size - j) contents)
+        oo force_signed_int) (eval_expr (Etempvar _lo tint)));
+   `(typed_true tint)
+     (eval_expr
+        (Ebinop Olt (Etempvar _lo tint)
+           (Ebinop Osub (Etempvar _hi tint) (Econst_int (Int.repr 1) tint)
+              tint) tint)); `(eq a0) (eval_id _a);
+   `(eq (Vint (Int.repr j))) (eval_id _lo);
+   `(eq (Vint (Int.repr (size - j)))) (eval_id _hi))
+   SEP 
+   (`(array_at tint sh (flip_between size j (size - j) contents) 0 size a0))
+   |-- local
+         (`eq
+            (`(eval_binop Oadd (tptr tint) tint)
+               (fun _ : lift_S (LiftEnviron mpred) => a0)
+               `(Vint (Int.repr ?11786)))
+            (eval_expr
+               (Ebinop Oadd (Etempvar _a (tptr tint))
+                  (Ebinop Osub (Etempvar _hi tint)
+                     (Econst_int (Int.repr 1) tint) tint) 
+                  (tptr tint)))) && !!in_range 0 size ?11786 &&
+       local
+         (tc_expr Delta
+            (Ebinop Oadd (Etempvar _a (tptr tint))
+               (Ebinop Osub (Etempvar _hi tint)
+                  (Econst_int (Int.repr 1) tint) tint) 
+               (tptr tint))) &&
+       local (tc_expr Delta (Ecast (Etempvar _t tint) tint)) &&
+       local
+         (`(eq (repinject tint ?11787))
+            (eval_expr (Ecast (Etempvar _t tint) tint)))
+
+ semax Delta
+   (PROP  ()
+    LOCAL 
+    (`eq (eval_id _s)
+       (`((repinject tint oo flip_between size j (size - j) contents)
+          oo force_signed_int)
+          (eval_expr
+             (Ebinop Osub (Etempvar _hi tint) (Econst_int (Int.repr 1) tint)
+                tint)));
+    `eq (eval_id _t)
+      (`((repinject tint oo flip_between size j (size - j) contents)
+         oo force_signed_int) (eval_expr (Etempvar _lo tint)));
+    `(typed_true tint)
+      (eval_expr
+         (Ebinop Olt (Etempvar _lo tint)
+            (Ebinop Osub (Etempvar _hi tint) (Econst_int (Int.repr 1) tint)
+               tint) tint)); `(eq a0) (eval_id _a);
+    `(eq (Vint (Int.repr j))) (eval_id _lo);
+    `(eq (Vint (Int.repr (size - j)))) (eval_id _hi))
+    SEP 
+    (`(array_at tint sh
+         (upd (flip_between size j (size - j) contents) ?11786 ?11787) 0 size)
+       (fun _ : lift_S (LiftEnviron mpred) => a0)))
+   (Ssequence
+      (Sassign
+         (Ederef
+            (Ebinop Oadd (Etempvar _a (tptr tint)) 
+               (Etempvar _lo tint) (tptr tint)) tint) 
+         (Etempvar _s tint)) MORE_COMMANDS) POSTCONDITION
+*)
 entailer; apply prop_right.
+rewrite <- H7 in *.
+rewrite <- H8 in *.
+simpl in H4, H6.
 rewrite Int.sub_signed in H4, H6.
 normalize in H4. normalize in H6.
 simpl_compare.
 split.
-symmetry; apply H5.  omega.
-normalize.
+simpl force_val.
+rewrite sem_add_pi_ptr by assumption.
+simpl force_val.
+unfold Int.mul.
+simpl.
+reflexivity.
+
+assert (size <= Int.max_unsigned).
+  unfold Int.max_signed, Int.half_modulus, Int.max_unsigned in *.
+  assert (0 < 2) by omega.
+  pose proof Z.mul_div_le Int.modulus 2 H9.
+  omega.
+
+unfold Int.sub. rewrite (Int.unsigned_repr (size - j)) by omega. 
+rewrite (Int.unsigned_repr 1) by omega.
+rewrite (Int.unsigned_repr (size - j - 1)) by omega.
+
+repeat split; try omega. 
+rewrite <- H5.
+simpl.
+unfold flip_between.
+assert (Int.min_signed < 0) by
+  (unfold Int.min_signed; unfold Int.max_signed in H; omega).
+rewrite !Int.signed_repr by omega.
+rewrite if_false by omega. rewrite if_true by omega.
+instantiate (1:= contents j).
+assert (0 <= j < size) by omega.
+pose proof POP j H11; destruct (contents j); inversion H12.
+reflexivity.
+normalize. 
 forward. (*  a[lo] = s; *) 
 entailer. apply prop_right.
+rewrite <- H7 in *.
+rewrite <- H8 in *.
+simpl in H4, H6.
 rewrite Int.sub_signed in H4, H6.
 normalize in H4. normalize in H6.
 simpl_compare.
 split.
-symmetry; apply H4. omega.
+simpl force_val.
+rewrite sem_add_pi_ptr by assumption.
+simpl force_val.
+unfold Int.mul.
+simpl.
+reflexivity.
+
+assert (size <= Int.max_unsigned).
+  unfold Int.max_signed, Int.half_modulus, Int.max_unsigned in *.
+  assert (0 < 2) by omega.
+  pose proof Z.mul_div_le Int.modulus 2 H9.
+  omega.
+
+repeat split.
+rewrite (Int.unsigned_repr j) by omega. omega.
+rewrite (Int.unsigned_repr j) by omega. omega.
+rewrite <- H4.
+
+unfold flip_between.
+assert (Int.min_signed < 0) by
+  (unfold Int.min_signed; unfold Int.max_signed in H; omega).
+rewrite (Int.signed_repr (size - j)) by omega.
+rewrite (Int.signed_repr 1) by omega.
+rewrite (Int.signed_repr (size - j - 1)) by omega.
+rewrite if_false by omega. rewrite if_true by omega.
+instantiate (1:= contents (size - j - 1)).
+assert (0 <= size - j - 1 < size) by omega.
+pose proof POP (size - j - 1) H11; destruct (contents (size - j - 1)); inversion H12.
+reflexivity.
+
 normalize.
 forward. (* lo++; *)
 forward. (* hi--; *)
@@ -143,33 +358,33 @@ repeat rewrite (Int.signed_repr)  by repable_signed.
  rewrite (Int.signed_repr) in H6 by repable_signed.
  simpl_compare.
  apply andp_right.
- apply prop_right.
- normalize. repeat split; try omega.
- f_equal; omega.
- apply derives_refl'.
- apply equal_f.
- apply array_at_ext; intros.
- unfold upd. if_tac. subst.
- normalize.
- unfold flip_between.
- rewrite (Int.signed_repr (size-i)) by repable_signed.
- rewrite (Int.signed_repr 1)  by repable_signed.
- rewrite Int.signed_repr by repable_signed.
- rewrite if_false by omega.
- rewrite if_true by omega.
- rewrite if_true by omega.
- assert (is_int (contents (size-1-i))).
- apply POP; omega.
- replace (size-i-1) with (size-1-i) by omega.
- reflexivity.
- if_tac.
- unfold flip_between. rewrite if_false by omega.
- if_tac; try omega. if_tac; try omega. if_tac; try omega.
- f_equal; omega.
- unfold flip_between.
- repeat (if_tac; try omega); auto.
-(* After the loop *)
-forward. (* return; *)
+ + apply prop_right.
+   normalize. repeat split; try omega.
+   f_equal; omega.
+ + apply derives_refl'.
+   apply equal_f.
+   apply array_at_ext; intros.
+   unfold upd. 
+   rewrite (Int.unsigned_repr j) by repable_signed.
+   if_tac. subst.
+   - normalize.
+     unfold flip_between.
+     rewrite if_true by omega.
+     replace (size-i-1) with (size-1-i) by omega.
+     reflexivity.
+   - unfold flip_between.
+     rewrite (Int.unsigned_repr (size-j-1)) by repable_signed.
+     
+     if_tac.
+     * subst.
+       rewrite if_false by omega.
+       rewrite if_false by omega.
+       replace (size - 1 - (size - j - 1)) with j by omega.
+       reflexivity.
+     * assert (i < j <-> i < (Z.succ j)) by (split; intros; try omega).
+       assert (i < size - j <-> i < size - (Z.succ j)) by (split; intros; try omega).
+  if_tac; [|if_tac];  (if_tac; [|if_tac]); try congruence; try omega.
+ + forward. (* return; *)
 Qed.
 
 Definition four_contents := (ZnthV tint
