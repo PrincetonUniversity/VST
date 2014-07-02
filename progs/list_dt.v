@@ -8,9 +8,8 @@ Class listspec (list_struct: type) (list_link: ident) :=
    list_fields: fieldlist;
    list_structid: ident;
    list_struct_eq: list_struct= Tstruct list_structid list_fields noattr;
-   list_link_type: (type_of_field
-          (unroll_composite_fields list_structid list_struct list_fields)
-          list_link) = tptr list_struct
+   list_struct_alignas_legal: legal_alignas_type list_struct = true;
+   list_link_type: nested_field_type2 list_struct (list_link :: nil) = Tcomp_ptr list_structid noattr
 }.
 
 Section LIST.
@@ -23,7 +22,7 @@ Definition links' (ls: listspec list_struct list_link) (sh: share) :=
                 (!! (h=first /\ ~ (ptr_eq first last)) && 
                         EX tail:val, 
                            !! (is_pointer_or_null tail) &&
-                           field_at sh list_struct list_link tail first
+                           field_at sh list_struct (list_link::nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) tail) first
                            * |> R (hs, (tail, last)))
         | (nil, (first,last)) =>
                  !! (ptr_eq first last) && emp
@@ -37,7 +36,7 @@ Lemma links_unfold (ls: listspec list_struct list_link): forall sh contents v1 v
   match contents with
   | h::t => !!(h=v1 /\ ~ptr_eq v1 v2) && EX tail: val, 
                            !! (is_pointer_or_null tail) &&
-                           field_at sh list_struct list_link tail v1
+                           field_at sh list_struct (list_link::nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) tail) v1
                            * |> links ls sh t tail v2
   | nil => !! (ptr_eq v1 v2) && emp
  end.
@@ -73,7 +72,7 @@ Definition links_cons (ls: listspec list_struct list_link) sh (l: list val) (x z
         !! (~ ptr_eq x z) && 
        EX r:list val, EX y:val, 
              !!(l=x::r  /\ is_pointer_or_null y) && 
-             field_at sh list_struct list_link y x * 
+             field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y) x * 
              |> links ls sh r y z.
 
 Lemma links_neq (ls: listspec list_struct list_link):  forall sh l x z , 
@@ -199,7 +198,7 @@ Lemma links_cons_eq (ls: listspec list_struct list_link):
         !!(h=x /\ ~ ptr_eq x z) &&
          (EX  y : val,
           !!(is_pointer_or_null y) &&
-   field_at sh list_struct list_link y x *
+   field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y) x *
    |>links ls sh r y z).
 Proof.
  intros. rewrite links_unroll.
@@ -251,7 +250,6 @@ Proof.
  rewrite fash_andp; apply andp_right; apply subp_i1; auto.
 Qed.
 
-
 Lemma ptr_eq_dec:
   forall x z, {ptr_eq x z}+{~ptr_eq x z}.
 Proof.
@@ -262,7 +260,6 @@ destruct z; auto. destruct (eq_dec b b0).
 subst. destruct (Int.eq i i0); auto. right; intros [? ?]; auto. inv H0.
 right; intros [? ?]. contradiction.
 Qed.
-
 
 Lemma list_last: forall {A} (l: list A),
    l=nil \/ exists prefix, exists y, l = prefix ++ y :: nil.
@@ -293,13 +290,13 @@ f_equal. extensionality x. rewrite andp_comm; auto.
 Qed.
 
 Lemma links_cons_right_null (ls: listspec list_struct list_link): forall sh l x y, 
-             field_at sh list_struct list_link nullval y * 
+             field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) y * 
              links ls sh l x y
    |--   links ls sh (l++y::nil) x nullval.
 Proof.
 intros.
 assert (TT |-- ALL l: list val, ALL x: val,
-                   (field_at sh list_struct list_link nullval y * links ls sh l x y)  
+                   (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) y * links ls sh l x y)  
                      >=> links ls sh (l++y::nil) x nullval).
 Focus 2.
 apply subp_e; eapply derives_trans; [apply H | apply allp_left with l; apply allp_left with x; auto].
@@ -326,7 +323,7 @@ apply exp_right with nullval.
 rewrite prop_true_andp by (simpl; auto).
 rewrite links_nil_eq.
 rewrite prop_true_andp. 
-apply derives_trans with (field_at sh list_struct list_link nullval x * emp).
+apply derives_trans with (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) x * emp).
 rewrite sepcon_emp; auto.
 apply sepcon_derives; auto.
 apply now_later.
@@ -389,10 +386,10 @@ rewrite sepcon_emp; auto.
 simpl. auto.
 eapply derives_trans.
 apply andp_derives; [apply unfash_fash | apply derives_refl].
-rewrite andp_comm. 
+rewrite andp_comm.
 apply derives_trans
- with ((field_at sh list_struct list_link nullval y *  links ls sh (v::l) z y ) &&
-   (field_at sh list_struct list_link nullval y *  links ls sh (v::l) z y 
+ with ((field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) y *  links ls sh (v::l) z y ) &&
+   (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) y *  links ls sh (v::l) z y 
      --> links ls sh ((v::l) ++ y :: nil) z nullval)).
 2: apply modus_ponens.
 apply andp_derives; auto.
@@ -406,6 +403,7 @@ destruct x; simpl; intros; try contradiction.
 split; auto. apply Int.eq_true.
 Qed.
 
+(*
 Lemma links_cons_right_null' (ls: listspec list_struct list_link): forall sh l x y, 
      links ls sh (l++y::nil) x nullval
     |-- links ls sh l x y * |> field_at sh list_struct list_link y nullval.
@@ -415,33 +413,39 @@ Proof.
   One can prove that later-later-later, x<>y, but not now x<>y.
 *)
 Abort.
-
+*)
 
 Lemma another_ewand_TT_lemma:
  forall A B C: mpred, A && ewand C TT >=> B && ewand C TT |-- A*C >=> B*C.
 Admitted.
 
+Lemma list_link_size_pos (ls: listspec list_struct list_link):  
+  sizeof (nested_field_type2 list_struct (list_link :: nil)) > 0.
+Proof.
+  rewrite list_link_type.
+  reflexivity.
+Qed.
 
 Lemma links_cons_right (ls: listspec list_struct list_link): forall sh l x y z w, 
-             field_at sh list_struct list_link z y * 
-             field_at sh list_struct list_link w z * 
+             field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) y * 
+             field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z * 
              links ls sh l x y
-   |--   links ls sh (l++y::nil) x z * field_at sh list_struct list_link w z.
+   |--   links ls sh (l++y::nil) x z * field_at sh list_struct (list_link::nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z.
 Proof.
 intros.
-rewrite (field_at_isptr _ _ _ z).
+rewrite (field_at_isptr _ _ _ _ z).
 normalize.
 assert (TT |-- ALL l: list val, ALL x: val,
-                   (((field_at sh list_struct list_link z y) * links ls sh l x y)  
-                          && (ewand (field_at sh list_struct list_link w z) TT))
+                   (((field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) y) * links ls sh l x y)  
+                          && (ewand (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z) TT))
                      >=> (links ls sh (l++y::nil) x z 
-                                 && (ewand (field_at sh list_struct list_link w z) TT))).
+                                 && (ewand (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z) TT))).
 Focus 2.
 apply subp_e; eapply derives_trans;
    [apply H | apply allp_left with l; apply allp_left with x; auto].
-forget (field_at sh list_struct list_link z y) as A.
+forget (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) y) as A.
 forget (links ls sh (l ++ y :: nil) x z) as B.
-forget (field_at sh list_struct list_link w z) as C.
+forget (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z) as C.
 forget (links ls sh l x y) as D.
 rewrite (sepcon_assoc). rewrite (sepcon_comm C). rewrite <- sepcon_assoc.
 apply another_ewand_TT_lemma.
@@ -469,14 +473,15 @@ apply andp_right.
 rewrite prop_and; rewrite prop_true_andp by auto.
 apply not_prop_right; intro. apply ptr_eq_e in H0; subst z.
 apply ewand_conflict.
-eapply derives_trans; [apply sepcon_derives | apply field_at__conflict]; 
-  apply field_at_field_at_.
+eapply derives_trans; [apply sepcon_derives | apply field_at__conflict];
+  try apply field_at_field_at_;try apply list_struct_alignas_legal;
+  try apply (list_link_size_pos ls).
 apply exp_right with z.
 normalize.
 rewrite links_nil_eq.
 rewrite prop_true_andp by (destruct z; try contradiction; simpl; auto).
 apply andp_left1.
-apply derives_trans with (field_at sh list_struct list_link z x * emp).
+apply derives_trans with (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) x * emp).
 rewrite sepcon_emp; auto.
 apply sepcon_derives; auto.
 rewrite prop_true_andp.
@@ -517,7 +522,8 @@ repeat rewrite <- sepcon_assoc.
 eapply derives_trans; [ apply sepcon_derives ; [ | apply derives_refl ]| ].
 apply sepcon_derives ; [ | apply derives_refl ].
 eapply derives_trans; [apply sepcon_derives | apply field_at__conflict]; 
-  apply field_at_field_at_.
+  try apply field_at_field_at_; try apply list_struct_alignas_legal;
+  try apply (list_link_size_pos ls).
 repeat rewrite FF_sepcon; auto.
 normalize in H1.
 apply andp_right.
@@ -549,7 +555,7 @@ rewrite andp_comm.
 eapply derives_trans; [ apply modus_ponens |  ].
 apply andp_left1; auto.
 Qed.
-
+(*
 Lemma links_unroll_right (ls: listspec list_struct list_link): forall sh l x z , 
     links ls sh l x z = 
              (!! (ptr_eq x z) && !! (l=nil) && emp) 
@@ -560,7 +566,7 @@ Lemma links_unroll_right (ls: listspec list_struct list_link): forall sh l x z ,
              |> links ls sh r x y).
 Proof.
 Abort.  (* probably not true *)
-
+*)
 Fixpoint all_but_link (ls: listspec list_struct list_link) (f: fieldlist) : fieldlist :=
  match f with
  | Fnil => Fnil
