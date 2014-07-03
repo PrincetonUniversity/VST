@@ -679,7 +679,7 @@ Ltac expand_one_globvar :=
  (* given a proof goal of the form   local (tc_environ Delta) && globvar2pred (_,_) |-- ?33 *)
 first [
     eapply unpack_globvar;
-      [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+      [reflexivity | reflexivity | split; reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence ]
  | eapply unpack_globvar_array;
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply I 
@@ -688,7 +688,7 @@ first [
       | compute; split; clear; congruence ]
  | eapply derives_trans;
     [ apply unpack_globvar_star; 
-        [reflexivity | reflexivity | reflexivity
+        [reflexivity | reflexivity | split; reflexivity
         | reflexivity | compute; split; clear; congruence ]
     |  cbv beta; simpl gvar_info; simpl gvar_readonly; simpl readonly2share;
       change (Share.splice extern_retainer Tsh) with Ews

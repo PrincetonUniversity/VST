@@ -483,6 +483,115 @@ Proof.
     omega.
 Qed.
 
+Lemma memory_block_size_compatible:
+  forall sh t p,
+  sizeof t < Int.modulus ->
+  memory_block sh (Int.repr (sizeof t)) p = 
+  !! (size_compatible t p) && memory_block sh (Int.repr (sizeof t)) p.
+Proof.
+  intros.
+  unfold memory_block, size_compatible.
+  replace (Int.unsigned (Int.repr (sizeof t))) with (sizeof t).
+  apply pred_ext; destruct p; normalize.
+  pose proof sizeof_pos t. 
+  rewrite Int.unsigned_repr; [reflexivity|].
+  unfold Int.max_unsigned.
+  omega.
+Qed.
+
+Lemma mapsto_align_compatible:
+  forall sh t p v, legal_alignas_type t = true ->
+  mapsto sh t p v = !!( align_compatible t p) && mapsto sh t p v.
+Proof.
+  intros.
+  unfold mapsto, align_compatible.
+  destruct (access_mode t) eqn:?, (type_is_volatile t), p;
+  apply pred_ext; normalize.
+  unfold address_mapsto, res_predicates.address_mapsto.
+  apply andp_right; [|cancel].
+  erewrite align_chunk_alignof by eassumption.
+  apply orp_left.
+  + change (@predicates_hered.exp compcert_rmaps.RML.R.rmap
+        compcert_rmaps.R.ag_rmap (list Memdata.memval)) with (@exp mpred _ (list Memdata.memval)).
+    normalize.
+    change (@predicates_hered.andp compcert_rmaps.RML.R.rmap
+        compcert_rmaps.R.ag_rmap) with (@andp mpred _ ).
+    change (@predicates_hered.prop compcert_rmaps.RML.R.rmap
+        compcert_rmaps.R.ag_rmap) with (@prop mpred _ ).
+    normalize.
+  + change (@predicates_hered.exp compcert_rmaps.RML.R.rmap
+        compcert_rmaps.R.ag_rmap (list Memdata.memval)) with (@exp mpred _ (list Memdata.memval)).
+    normalize.
+    change (@predicates_hered.andp compcert_rmaps.RML.R.rmap
+        compcert_rmaps.R.ag_rmap) with (@andp mpred _ ).
+    change (@predicates_hered.prop compcert_rmaps.RML.R.rmap
+        compcert_rmaps.R.ag_rmap) with (@prop mpred _ ).
+    normalize.
+Qed.
+
+Lemma mapsto_by_value: forall sh t p v, mapsto sh t p v = !! (type_is_by_value t) && mapsto sh t p v.
+Proof.
+  intros.
+  apply pred_ext; normalize.
+  apply andp_right; [|cancel].
+  unfold mapsto.
+  destruct t; simpl; normalize; try (apply prop_right; auto).
+Qed.
+
+Lemma mapsto_size_compatible_aux: forall t, type_is_by_value t -> legal_alignas_type t = true -> alignof t < Int.modulus.
+Proof.
+  unfold legal_alignas_type.
+  intros. 
+  destruct t; inversion H.
+Transparent alignof.
+  + destruct i, s; unfold alignof; simpl in *; destruct (attr_alignas a); try inversion H0; try reflexivity.
+  + destruct s; unfold alignof; simpl in *; destruct (attr_alignas a); try inversion H0; try reflexivity.
+  + destruct f; unfold alignof; simpl in *; destruct (attr_alignas a); try inversion H0; try reflexivity.
+  + unfold alignof; simpl in *; destruct (attr_alignas a); try inversion H0; try reflexivity.
+Opaque alignof.
+Qed.
+
+Lemma mapsto_size_compatible:
+  forall sh t p v, legal_alignas_type t = true ->
+  sizeof t = alignof t ->
+  mapsto sh t p v = !!(size_compatible t p) && mapsto sh t p v.
+Proof.
+  intros.
+  apply pred_ext; normalize.
+  apply andp_right; [|cancel].
+  rewrite mapsto_align_compatible by assumption.
+  unfold size_compatible, align_compatible.
+  pose proof alignof_pos t.
+  rewrite mapsto_by_value.
+  normalize; apply prop_right.
+  destruct p; auto.
+  destruct (alignof_two_p t).
+  rewrite H0.
+  pose proof mapsto_size_compatible_aux t H3 H.
+  rewrite H4 in *.
+  clear t H H0 H3 H4.
+  pose proof Int.unsigned_range i.
+  unfold Int.modulus in *.
+  destruct H2 as [K ?].
+  rewrite H0 in *; clear H0.
+  rewrite !two_power_nat_two_p in *.
+  pose proof Zle_0_nat x.
+  pose proof Zle_0_nat Int.wordsize.
+  forget (Z.of_nat x) as X.
+  forget (Z.of_nat Int.wordsize) as Y.
+  destruct (zle Y X).
+  + pose proof two_p_monotone Y X (conj H2 l).
+    omega.
+  + replace Y with ((Y-X) + X) in H by omega.
+    rewrite two_p_is_exp in H by omega.
+    destruct H.
+    apply Z.mul_lt_mono_pos_r in H3; [|omega].
+    replace Y with ((Y-X) + X) by omega.
+    rewrite two_p_is_exp by omega.
+    rewrite Zmult_succ_l_reverse.
+    apply Z.mul_le_mono_pos_r; omega.
+Qed.
+
 (******************************************
 
 Basic lemmas about local_facts, isptr, offset_zero

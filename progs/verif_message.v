@@ -173,26 +173,6 @@ unfold Int.mul; simpl; rewrite int_add_repr_0_r.
 normalize.
 Qed.
 
-Check memory_block_data_at_.
-
-Lemma memory_block_size_compatible:
-  forall sh t b ofs,
-  sizeof t < Int.modulus ->
-  memory_block sh (Int.repr (sizeof t)) (Vptr b ofs) = 
-  !!( Int.unsigned ofs + sizeof t <= Int.modulus) && memory_block sh (Int.repr (sizeof t)) (Vptr b ofs).
-Proof.
-  intros.
-Transparent memory_block.
-  unfold memory_block.
-Opaque memory_block.
-  replace (Int.unsigned (Int.repr (sizeof t))) with (sizeof t).
-  apply pred_ext; normalize.
-  rewrite Int.unsigned_repr; [reflexivity|].
-  unfold Int.max_unsigned.
-  pose proof sizeof_pos t. 
-  omega.
-Qed.
-
 Lemma body_intpair_deserialize: semax_body Vprog Gprog f_intpair_deserialize intpair_deserialize_spec.
 Proof.
 unfold intpair_deserialize_spec, deserialize_spec.
