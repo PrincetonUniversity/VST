@@ -10,6 +10,7 @@ Require Import floyd.loadstore_lemmas.
 Require Import floyd.array_lemmas.
 Require Import floyd.entailer.
 Require Import floyd.globals_lemmas.
+Require Import floyd.type_id_env.
 Import Cop.
 
 Local Open Scope logic.
@@ -1549,15 +1550,15 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  ensure_normal_ret_assert;
  hoist_later_in_pre;
  match goal with   
- | |- semax _ _ (Sset _ (Efield ?e _ _)) _ =>
+ | |- semax ?Delta _ (Sset _ (Efield ?e _ _)) _ =>
  match e with
  | Ederef _ _ => 
-   (eapply (semax_load_field_40);
+   (eapply (semax_load_field_40) with (e := compute_type_id_env Delta);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [(entailer!; try apply I; try assumption; reflexivity)]] ) || fail 1
  | _ =>
-   eapply (semax_load_field_38);
+   eapply (semax_load_field_38) with (e := compute_type_id_env Delta);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
@@ -1565,15 +1566,15 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    | try apply I; try assumption; reflexivity
    ]
  end
- | |- semax _ _ (Sset _ (Ecast (Efield ?e _ _) _)) _ =>
+ | |- semax ?Delta _ (Sset _ (Ecast (Efield ?e _ _) _)) _ =>
  match e with
  | Ederef _ _ => 
-   (eapply (semax_cast_load_field_40);
+   (eapply (semax_cast_load_field_40) with (e := compute_type_id_env Delta);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | simpl; auto | reflexivity | reflexivity | reflexivity 
    | solve [(entailer!; try apply I; try assumption; reflexivity)]] ) || fail 1
  | _ =>
-   eapply (semax_cast_load_field_38);
+   eapply (semax_cast_load_field_38) with (e := compute_type_id_env Delta);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
@@ -1581,15 +1582,14 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    | try apply I; try assumption; reflexivity
    ]
  end
- | |- semax _ _ (Sset _ (Efield _ _ _)) _ =>
-  eapply (semax_load_field'');
+ | |- semax ?Delta _ (Sset _ (Efield _ _ _)) _ =>
+  eapply (semax_load_field'') with (e := compute_type_id_env Delta);
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
-   | try solve [entailer]
-   | solve [entailer; simpl_data_at; unfold at_offset; simpl; cancel]
-   | try apply I; try assumption; reflexivity
+   | reflexivity
+   |solve [(entailer!; try apply I; try assumption; reflexivity)]
    ]
- | |- semax _ _ (Sset _ (Ecast (Efield _ _ _) _)) _ =>
-  eapply (semax_cast_load_field'');
+ | |- semax ?Delta _ (Sset _ (Ecast (Efield _ _ _) _)) _ =>
+  eapply (semax_cast_load_field'') with (e := compute_type_id_env Delta);
    [reflexivity | reflexivity | reflexivity | reflexivity 
    | try solve [entailer]
    | solve [entailer; simpl_data_at; unfold at_offset; simpl; cancel]
@@ -1738,7 +1738,7 @@ match goal with
                 (SEPx (replace_nth n R (`(field_at_ sh (typeof e) (fld::nil)) (eval_lvalue e)))))));
  [ eapply (fast_entail n); [reflexivity | entailer; unfold at_offset; simpl; cancel] | ] ;
 (**** 14.2 seconds to here  *)
- eapply (semax_store_field_nth _ sh n);
+ eapply (semax_store_field_nth _ sh (compute_type_id_env Delta) n);
    [reflexivity | reflexivity | auto | reflexivity | reflexivity | reflexivity
    | solve [entailer!] | assumption | try solve [entailer!]];
   unfold n,sh; clear n sh (**** 21.1 seconds to here *****)

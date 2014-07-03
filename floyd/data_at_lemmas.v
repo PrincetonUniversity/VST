@@ -2374,7 +2374,7 @@ Qed.
 Hint Rewrite <- field_at_offset_zero: norm.
 Hint Rewrite <- field_at__offset_zero: norm.
 
-Hint Resolve field_at_field_at_.
+Hint Resolve field_at_field_at_: cancel.
 
 (********************************************
 

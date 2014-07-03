@@ -324,7 +324,7 @@ Proof.
   simpl in *; inversion H0; try tauto.
 *)
 
-Lemma mapsto_field_at':
+Lemma mapsto_field_at'':
   forall p p' v' sh ofs t structid fld fields (v: reptype (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil))),
   access_mode t = access_mode (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil)) ->
   field_offset fld fields = Errors.OK ofs ->
@@ -352,6 +352,25 @@ Proof.
   rewrite <- H1; clear H1.
   (*erewrite by_value_data_at; [| exact H7|exact H6].*)
   admit.
+Qed.
+
+Lemma mapsto_field_at':
+  forall p p' v' sh ofs t structid fld fields (v: reptype (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil))),
+  access_mode t = access_mode (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil)) ->
+  field_offset fld fields = Errors.OK ofs ->
+  offset_val Int.zero p' = offset_val (Int.repr ofs) p ->
+  tc_val (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil)) v' ->
+  type_is_volatile (nested_field_type2 (Tstruct structid fields noattr) (fld :: nil)) = false ->
+  JMeq v' v ->
+  legal_alignas_type (Tstruct structid fields noattr) = true ->
+  size_compatible (Tstruct structid fields noattr) p ->
+  align_compatible (Tstruct structid fields noattr) p ->
+  isSome (nested_field_rec (Tstruct structid fields noattr) (fld :: nil)) -> 
+  mapsto sh t p' v' |-- field_at sh (Tstruct structid fields noattr) (fld::nil) v p.
+Proof.
+  intros.
+  eapply derives_trans; [ | eapply mapsto_field_at''; eassumption].
+  normalize.
 Qed.
 
 (*

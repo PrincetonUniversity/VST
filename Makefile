@@ -162,7 +162,7 @@ FLOYD_FILES= \
    base.v proofauto.v \
    client_lemmas.v canonicalize.v assert_lemmas.v closed_lemmas.v \
    field_mapsto.v compare_lemmas.v array_lemmas.v \
-   call_lemmas.v loadstore_lemmas.v forward_lemmas.v forward.v \
+   call_lemmas.v loadstore_lemmas.v type_id_env.v forward_lemmas.v forward.v \
    entailer.v globals_lemmas.v nested_field_lemmas.v data_at_lemmas.v
 
 PROGS_FILES= \
