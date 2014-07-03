@@ -1578,33 +1578,33 @@ Transformation between data_at/data_at_ and mapsto.
 
 ************************************************)
 
-Definition uncompomize (t: type) : type :=
+Definition uncompomize (e: type_id_env) (t: type) : type :=
   match t with
-  | Tcomp_ptr i a => Tpointer Tvoid a
+  | Tcomp_ptr i a => Tpointer (look_up_ident_default i e) a
   | _ => t
   end.
 
-Lemma uncompomize_reptype: forall t, reptype (uncompomize t) = reptype t.
+Lemma uncompomize_reptype: forall e t, reptype (uncompomize e t) = reptype t.
 Proof.
   intros.
   destruct t; reflexivity.
 Qed.
 
-Lemma uncompomize_valinject: forall t v, JMeq (valinject (uncompomize t) v) (valinject t v).
+Lemma uncompomize_valinject: forall e t v, JMeq (valinject (uncompomize e t) v) (valinject t v).
 Proof.
   intros.
   destruct t; reflexivity.
 Qed.
 
-Lemma uncompomize_default_val: forall t, JMeq (default_val (uncompomize t)) (default_val t).
+Lemma uncompomize_default_val: forall e t, JMeq (default_val (uncompomize e t)) (default_val t).
 Proof.
   intros.
   destruct t; reflexivity.
 Qed.
 
-Lemma uncompomize_data_at: forall sh t v v' p,
+Lemma uncompomize_data_at: forall sh e t v v' p,
   JMeq v v' ->
-  data_at sh t v p = data_at sh (uncompomize t) v' p.
+  data_at sh t v p = data_at sh (uncompomize e t) v' p.
 Proof.
   intros.
   destruct t; simpl in *; rewrite H; reflexivity.
@@ -1626,19 +1626,19 @@ Proof.
   try (unfold data_at; simpl; rewrite H0; apply pred_ext; normalize).
 Qed.
 
-Lemma uncompomize_by_value_data_at: forall sh t v v' p,
-  type_is_by_value (uncompomize t) ->
+Lemma uncompomize_by_value_data_at: forall sh e t v v' p,
+  type_is_by_value (uncompomize e t) ->
   JMeq v v' ->
   data_at sh t v p = 
-  (!! size_compatible (uncompomize t) p) &&
-  (!! align_compatible (uncompomize t) p) &&
-  mapsto sh (uncompomize t) p v'.
+  (!! size_compatible (uncompomize e t) p) &&
+  (!! align_compatible (uncompomize e t) p) &&
+  mapsto sh (uncompomize e t) p v'.
 Proof.
   intros.
   remember v as v'' eqn:HH. 
   assert (JMeq v'' v) by (subst; reflexivity); clear HH.
   revert v H1.
-  pattern (reptype t) at 1 3. rewrite <- (uncompomize_reptype t).
+  pattern (reptype t) at 1 3. rewrite <- (uncompomize_reptype e t).
   intros.  
   erewrite <- by_value_data_at; [|exact H | rewrite <- H0; rewrite H1; reflexivity].
   apply uncompomize_data_at.
@@ -1654,17 +1654,17 @@ Proof.
   try (unfold data_at_, data_at; simpl; apply pred_ext; normalize).
 Qed.
 
-Lemma uncompomize_by_value_data_at_: forall sh t p,
-  type_is_by_value (uncompomize t) ->
+Lemma uncompomize_by_value_data_at_: forall sh e t p,
+  type_is_by_value (uncompomize e t) ->
   data_at_ sh t p = 
-  (!! size_compatible (uncompomize t) p) &&
-  (!! align_compatible (uncompomize t) p) &&
-  mapsto_ sh (uncompomize t) p.
+  (!! size_compatible (uncompomize e t) p) &&
+  (!! align_compatible (uncompomize e t) p) &&
+  mapsto_ sh (uncompomize e t) p.
 Proof.
   intros.
   unfold data_at_, mapsto_.
   apply uncompomize_by_value_data_at; [exact H|].
-  rewrite <- uncompomize_default_val.
+  erewrite <- uncompomize_default_val.
   apply by_value_default_val.
   exact H.
 Qed.
@@ -1679,16 +1679,16 @@ Proof.
   apply by_value_data_at; [|apply valinject_JMeq]; assumption.
 Qed.
 
-Lemma lifted_uncompomize_by_value_data_at: forall sh t v p,
-  type_is_by_value (uncompomize t) ->
+Lemma lifted_uncompomize_by_value_data_at: forall sh e t v p,
+  type_is_by_value (uncompomize e t) ->
   `(data_at sh t) (`(valinject t) v) p =
-  `prop (`(size_compatible (uncompomize t)) p) &&
-  `prop (`(align_compatible (uncompomize t)) p) &&
-  `(mapsto sh (uncompomize t)) p v.
+  `prop (`(size_compatible (uncompomize e t)) p) &&
+  `prop (`(align_compatible (uncompomize e t)) p) &&
+  `(mapsto sh (uncompomize e t)) p v.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
   apply uncompomize_by_value_data_at;
-  [|rewrite <- uncompomize_valinject; apply valinject_JMeq]; assumption.
+  [|erewrite <- uncompomize_valinject; apply valinject_JMeq]; eassumption.
 Qed.
 
 Lemma lifted_by_value_data_at_: forall sh t p,
@@ -1701,12 +1701,12 @@ Proof.
   apply by_value_data_at_; assumption.
 Qed.
 
-Lemma lifted_uncompomize_by_value_data_at_: forall sh t p,
-  type_is_by_value (uncompomize t) ->
+Lemma lifted_uncompomize_by_value_data_at_: forall sh e t p,
+  type_is_by_value (uncompomize e t) ->
   `(data_at_ sh t) p =
-  `prop (`(size_compatible (uncompomize t)) p) &&
-  `prop (`(align_compatible (uncompomize t)) p) &&
-  `(mapsto_ sh (uncompomize t)) p.
+  `prop (`(size_compatible (uncompomize e t)) p) &&
+  `prop (`(align_compatible (uncompomize e t)) p) &&
+  `(mapsto_ sh (uncompomize e t)) p.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
   apply uncompomize_by_value_data_at_; assumption.

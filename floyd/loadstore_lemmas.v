@@ -688,8 +688,8 @@ Load/store lemmas about data_at with uncompomize function on type:
 
 ***************************************)
 
-Lemma is_neutral_reptype': forall t t' t'',
-  uncompomize t = t' ->
+Lemma is_neutral_reptype': forall e t t' t'',
+  uncompomize e t = t' ->
   is_neutral_cast t' t'' = true ->
   reptype t = val.
 Proof.
@@ -697,13 +697,13 @@ Proof.
   destruct t, t', t''; try inversion H; try inversion H0; try reflexivity.
 Qed.
 
-Lemma is_neutral_data_at': forall sh t t' t'' v v' p,
-  uncompomize t = t' ->
+Lemma is_neutral_data_at': forall sh e t t' t'' v v' p,
+  uncompomize e t = t' ->
   is_neutral_cast t' t'' = true ->
   JMeq v v' ->
   data_at sh t v p =
-  (!! size_compatible (uncompomize t) p) &&
-  (!! align_compatible (uncompomize t) p) && mapsto sh t' p v'.
+  (!! size_compatible (uncompomize e t) p) &&
+  (!! align_compatible (uncompomize e t) p) && mapsto sh t' p v'.
 Proof.
   intros.
   subst t'.
@@ -711,13 +711,13 @@ Proof.
   eapply is_neutral_cast_by_value, H0.
 Qed.
 
-Lemma is_neutral_lifted_data_at': forall sh t t' t'' v (v': val) p,
-  uncompomize t = t' ->
+Lemma is_neutral_lifted_data_at': forall sh e t t' t'' v (v': val) p,
+  uncompomize e t = t' ->
   is_neutral_cast t' t'' = true ->
   JMeq v v' ->
   `(data_at sh t v) p = 
-  `prop (`(size_compatible (uncompomize t)) p) &&
-  `prop (`(align_compatible (uncompomize t)) p) && `(mapsto sh t') p `v'.
+  `prop (`(size_compatible (uncompomize e t)) p) &&
+  `prop (`(align_compatible (uncompomize e t)) p) && `(mapsto sh t') p `v'.
 Proof.
   intros.
   unfold liftx, lift. simpl.
@@ -726,12 +726,12 @@ Proof.
   exact H0.
 Qed.
 
-Lemma is_neutral_data_at_': forall sh t t' t'' p,
-  uncompomize t = t' ->
+Lemma is_neutral_data_at_': forall sh e t t' t'' p,
+  uncompomize e t = t' ->
   is_neutral_cast t' t'' = true ->
   data_at_ sh t p =
-  (!! size_compatible (uncompomize t) p) &&
-  (!! align_compatible (uncompomize t) p) && mapsto_ sh t' p.
+  (!! size_compatible (uncompomize e t) p) &&
+  (!! align_compatible (uncompomize e t) p) && mapsto_ sh t' p.
 Proof.
   intros.
   subst t'.
@@ -739,12 +739,12 @@ Proof.
   eapply is_neutral_cast_by_value, H0.
 Qed.
 
-Lemma is_neutral_lifted_data_at_': forall sh t t' t'' p,
-  uncompomize t = t' ->
+Lemma is_neutral_lifted_data_at_': forall sh e t t' t'' p,
+  uncompomize e t = t' ->
   is_neutral_cast t' t'' = true ->
   `(data_at_ sh t) p =
-  `prop (`(size_compatible (uncompomize t)) p) &&
-  `prop (`(align_compatible (uncompomize t)) p) && `(mapsto_ sh t') p.
+  `prop (`(size_compatible (uncompomize e t)) p) &&
+  `prop (`(align_compatible (uncompomize e t)) p) && `(mapsto_ sh t') p.
 Proof.
   intros.
   unfold liftx, lift. simpl.
@@ -755,10 +755,10 @@ Qed.
 
 Lemma semax_ucdata_load_37':
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1 : expr) 
+    forall Delta sh e id P Q R (e1 : expr) 
       (t1 t2 : type) (v : val) (v' : reptype t1),
       typeof_temp Delta id = Some t2 ->
-      uncompomize t1 = typeof e1 ->
+      uncompomize e t1 = typeof e1 ->
       is_neutral_cast (typeof e1) t2 = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
@@ -782,16 +782,15 @@ Proof.
     apply andp_derives; [normalize |].
     forget (eval_lvalue e1) as p.
     go_lower.
-    erewrite is_neutral_data_at'; [normalize| | |]; try assumption.
-    exact H1.
+    erewrite is_neutral_data_at'; [normalize| | |]; try eassumption.
 Qed.
 
 Lemma semax_ucdata_cast_load_37':
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t1 t2: type) (v: val) (v' : reptype t2),
       typeof_temp Delta id = Some t1 ->
-      uncompomize t2 = typeof e1 ->
+      uncompomize e t2 = typeof e1 ->
       type_is_by_value (typeof e1) ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -813,17 +812,17 @@ Proof.
   eapply derives_trans; [exact H3 |].
   apply andp_derives; [apply derives_refl |].
   unfold liftx, lift; simpl; intros.
-  erewrite uncompomize_by_value_data_at; [rewrite H0; normalize | rewrite H0; exact H1 | exact H2].
+  erewrite uncompomize_by_value_data_at with (e := e); [rewrite H0; normalize | rewrite H0; exact H1 | exact H2].
 Qed.
 
 Lemma semax_ucdata_load_38:
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1 : expr) 
+    forall Delta sh e id P Q R (e1 : expr) 
       (t1 t2 : type) (v : val) (v' : reptype t1),
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t2 ->
-      uncompomize t1 = typeof e1 ->
+      uncompomize e t1 = typeof e1 ->
       is_neutral_cast (typeof e1) t2 = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
@@ -843,12 +842,12 @@ Qed.
 
 Lemma semax_ucdata_cast_load_38:
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t1 t2: type) (v: val) (v' : reptype t2),
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t1 ->
-      uncompomize t2 = typeof e1 ->
+      uncompomize e t2 = typeof e1 ->
       type_is_by_value (typeof e1) ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -869,10 +868,10 @@ Qed.
 
 Lemma semax_ucdata_store_nth:
   forall {Espec: OracleKind},
-    forall Delta sh n P Q R Rn (e1 e2 : expr)
+    forall Delta sh e n P Q R Rn (e1 e2 : expr)
       (t1 t2: type),
       typeof e1 = t1 ->
-      uncompomize t2 = t1 ->
+      uncompomize e t2 = t1 ->
       type_is_by_value t1 ->
       nth_error R n = Some Rn ->
       Rn |-- `(data_at_ sh t2) (eval_lvalue e1) ->
@@ -890,17 +889,17 @@ Lemma semax_ucdata_store_nth:
                           )))))).
 Proof.
   intros.
-  erewrite lifted_uncompomize_by_value_data_at; [| rewrite H0; exact H1].
-  erewrite lifted_uncompomize_by_value_data_at_ in H3; [| rewrite H0; exact H1].
+  erewrite lifted_uncompomize_by_value_data_at with (e:=e); [| rewrite H0; exact H1].
+  erewrite lifted_uncompomize_by_value_data_at_ with (e:=e) in H3; [| rewrite H0; exact H1].
 
-  assert (Rn |-- `prop (`(size_compatible (uncompomize t2)) (eval_lvalue e1)) &&
-                  `prop (`(align_compatible (uncompomize t2)) (eval_lvalue e1)) && Rn) by (
+  assert (Rn |-- `prop (`(size_compatible (uncompomize e t2)) (eval_lvalue e1)) &&
+                  `prop (`(align_compatible (uncompomize e t2)) (eval_lvalue e1)) && Rn) by (
     apply andp_right; [|apply derives_refl];
     eapply derives_trans; [exact H3|apply andp_left1; apply derives_refl]).        
 
   eapply semax_pre0.
   apply later_derives. Focus 1.
-  + instantiate (1:= PROPx P (LOCALx Q (SEPx (replace_nth n R (`prop (`(size_compatible (uncompomize t2)) (eval_lvalue e1)) && `prop (`(align_compatible (uncompomize t2)) (eval_lvalue e1)) && Rn))))).
+  + instantiate (1:= PROPx P (LOCALx Q (SEPx (replace_nth n R (`prop (`(size_compatible (uncompomize e t2)) (eval_lvalue e1)) && `prop (`(align_compatible (uncompomize e t2)) (eval_lvalue e1)) && Rn))))).
     rewrite (replace_nth_nth_error R _ _ H2) at 1.
     apply replace_nth_SEP, H6.
     
@@ -937,22 +936,22 @@ Max length ids field_at load store:
 
 ********************************************)
 
-Fixpoint legal_nested_efield t (ids: list ident) (tts: list type) : bool :=
+Fixpoint legal_nested_efield env t (ids: list ident) (tts: list type) : bool :=
   match ids, tts with
-  | nil, nil => eqb_type (uncompomize t) t
+  | nil, nil => eqb_type (uncompomize env t) t
   | nil, _ => false
   | _ , nil => false
   | cons id ids', cons t_ tts' => 
     match nested_field_rec t ids with
-    | Some (_, ttt) => (legal_nested_efield t ids' tts' && 
-                       eqb_type (uncompomize ttt) t_)%bool
+    | Some (_, ttt) => (legal_nested_efield env t ids' tts' && 
+                       eqb_type (uncompomize env ttt) t_)%bool
     | None => false
     end
   end.
 
-Lemma legal_nested_efield_cons: forall id ids t tts e,
-  legal_nested_efield (typeof e) (id :: ids) (t :: tts) = true ->
-  legal_nested_efield (typeof e) ids tts = true.
+Lemma legal_nested_efield_cons: forall env id ids t tts e,
+  legal_nested_efield env (typeof e) (id :: ids) (t :: tts) = true ->
+  legal_nested_efield env (typeof e) ids tts = true.
 Proof.
   intros.
   simpl in H.
@@ -995,9 +994,9 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma typeof_nested_efield: forall e ids tts,
-  legal_nested_efield (typeof e) ids tts = true ->
-  eqb_type (uncompomize (nested_field_type2 (typeof e) ids))
+Lemma typeof_nested_efield: forall env e ids tts,
+  legal_nested_efield env (typeof e) ids tts = true ->
+  eqb_type (uncompomize env (nested_field_type2 (typeof e) ids))
   (typeof (nested_efield e ids tts)) = true .
 Proof.
   intros.
@@ -1015,8 +1014,8 @@ Proof.
     reflexivity.
 Qed.
 
-Lemma eval_lvalue_nested_efield: forall e ids tts rho,
-  legal_nested_efield (typeof e) ids tts = true ->
+Lemma eval_lvalue_nested_efield: forall env e ids tts rho,
+  legal_nested_efield env (typeof e) ids tts = true ->
   offset_val (Int.repr (nested_field_offset2 (typeof e) ids)) (eval_lvalue e rho) = 
   offset_val Int.zero (eval_lvalue (nested_efield e ids tts) rho).
 Proof.
@@ -1033,8 +1032,8 @@ Proof.
   + reflexivity.
   + inversion H.
   + unfold eval_field.
-    pose proof legal_nested_efield_cons _ _ _ _ _ H.
-    pose proof typeof_nested_efield _ _ _ H0.
+    pose proof legal_nested_efield_cons _ _ _ _ _ _ H.
+    pose proof typeof_nested_efield _ _ _ _ H0.
     unfold nested_field_type2 in H1.
     valid_nested_field_rec (typeof e) ids H. 
     apply eqb_type_true in H1.
@@ -1056,14 +1055,14 @@ Qed.
 
 Lemma semax_max_path_field_load_37':
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t : type) (ids: list ident) (tts: list type)
       (v : val) (v' : reptype (nested_field_type2 (typeof e1) ids)),
       typeof_temp Delta id = Some t ->
-      uncompomize (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
+      uncompomize e (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
       is_neutral_cast (typeof (nested_efield e1 ids tts)) t = true ->
       legal_alignas_type (typeof e1) = true ->
-      legal_nested_efield (typeof e1) ids tts = true ->
+      legal_nested_efield e (typeof e1) ids tts = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_lvalue Delta (nested_efield e1 ids tts)) &&
@@ -1091,21 +1090,21 @@ Proof.
     subst el.
     rewrite field_at_data_at; [|exact H2].
     rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
-    rewrite (eval_lvalue_nested_efield _ _ tts); [| exact H3].
+    rewrite (eval_lvalue_nested_efield e _ _ tts); [| exact H3].
     rewrite <- data_at_offset_zero.
     normalize.
 Qed.
 
 Lemma semax_max_path_field_cast_load_37':
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t : type) (ids: list ident) (tts: list type)
       (v : val) (v' : reptype (nested_field_type2 (typeof e1) ids)),
       typeof_temp Delta id = Some t ->
-      uncompomize (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
+      uncompomize e (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
       type_is_by_value (typeof (nested_efield e1 ids tts)) ->
       legal_alignas_type (typeof e1) = true ->
-      legal_nested_efield (typeof e1) ids tts = true ->
+      legal_nested_efield e (typeof e1) ids tts = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_lvalue Delta (nested_efield e1 ids tts)) &&
@@ -1130,23 +1129,23 @@ Proof.
     subst el.
     rewrite field_at_data_at; [|exact H2].
     rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
-    rewrite (eval_lvalue_nested_efield _ _ tts); [| exact H3].
+    rewrite (eval_lvalue_nested_efield e _ _ tts); [| exact H3].
     rewrite <- data_at_offset_zero.
     normalize.
 Qed.
 
 Lemma semax_max_path_field_load_38:
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t : type) (ids: list ident) (tts: list type)
       (v : val) (v' : reptype (nested_field_type2 (typeof e1) ids)),
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
+      uncompomize e (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
       is_neutral_cast (typeof (nested_efield e1 ids tts)) t = true ->
       legal_alignas_type (typeof e1) = true ->
-      legal_nested_efield (typeof e1) ids tts = true ->
+      legal_nested_efield e (typeof e1) ids tts = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_lvalue Delta (nested_efield e1 ids tts)) &&
@@ -1166,16 +1165,16 @@ Qed.
 
 Lemma semax_max_path_field_cast_load_38:
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t : type) (ids: list ident) (tts: list type)
       (v : val) (v' : reptype (nested_field_type2 (typeof e1) ids)),
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
+      uncompomize e (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
       type_is_by_value (typeof (nested_efield e1 ids tts)) ->
       legal_alignas_type (typeof e1) = true ->
-      legal_nested_efield (typeof e1) ids tts = true ->
+      legal_nested_efield e (typeof e1) ids tts = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_lvalue Delta (nested_efield e1 ids tts)) &&
@@ -1195,16 +1194,16 @@ Qed.
 
 Lemma semax_max_path_field_load_40:
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t t_str: type) (ids: list ident) (tts: list type)
       (v : val) (v' : reptype (nested_field_type2 t_str ids)),
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize (nested_field_type2 t_str ids) = typeof (nested_efield (Ederef e1 t_str) ids tts) ->
+      uncompomize e (nested_field_type2 t_str ids) = typeof (nested_efield (Ederef e1 t_str) ids tts) ->
       is_neutral_cast (typeof (nested_efield (Ederef e1 t_str) ids tts)) t = true ->
       legal_alignas_type t_str = true ->
-      legal_nested_efield t_str ids tts = true ->
+      legal_nested_efield e t_str ids tts = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_lvalue Delta (nested_efield (Ederef e1 t_str) ids tts)) &&
@@ -1223,16 +1222,16 @@ Qed.
 
 Lemma semax_max_path_field_cast_load_40:
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t t_str: type) (ids: list ident) (tts: list type)
       (v: val) (v': reptype (nested_field_type2 t_str ids)),
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize (nested_field_type2 t_str ids) = typeof (nested_efield (Ederef e1 t_str) ids tts) ->
+      uncompomize e (nested_field_type2 t_str ids) = typeof (nested_efield (Ederef e1 t_str) ids tts) ->
       type_is_by_value (typeof (nested_efield (Ederef e1 t_str) ids tts)) ->
       legal_alignas_type t_str = true ->
-      legal_nested_efield t_str ids tts = true ->
+      legal_nested_efield e t_str ids tts = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_lvalue Delta (nested_efield (Ederef e1 t_str) ids tts)) &&
@@ -1256,13 +1255,13 @@ Proof. reflexivity. Qed.
 
 Lemma semax_max_path_field_store_nth:
   forall {Espec: OracleKind},
-    forall Delta sh n P Q R Rn (e1 e2 : expr)
+    forall Delta sh e n P Q R Rn (e1 e2 : expr)
       (t : type) (ids: list ident) (tts: list type),
       typeof (nested_efield e1 ids tts) = t ->
-      uncompomize (nested_field_type2 (typeof e1) ids) = t ->
+      uncompomize e (nested_field_type2 (typeof e1) ids) = t ->
       type_is_by_value t ->
       legal_alignas_type (typeof e1) = true ->
-      legal_nested_efield (typeof e1) ids tts = true ->
+      legal_nested_efield e (typeof e1) ids tts = true ->
       nth_error R n = Some Rn ->
       Rn |-- `(field_at_ sh (typeof e1) ids) (eval_lvalue e1) ->
       writable_share sh ->
@@ -1337,157 +1336,16 @@ Length-1 ids field_at load store
 
 ********************************************)
 
-(*
-(* This lemma is only used to prove semax_store_field_nth *)
-(* However, that one can be proved by max-len store_nth lemma *)
-
-Lemma semax_store_field: 
-forall Espec (Delta: tycontext) sh e1 fld P t2 e2 sid fields ,
-    writable_share sh ->
-    typeof e1 = Tstruct sid fields noattr ->
-    t2 = type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-   @semax Espec Delta 
-       (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
-          (`(field_at_ sh (typeof e1) fld) (eval_lvalue e1) * P)))
-       (Sassign (Efield e1 fld t2) e2) 
-       (normal_ret_assert 
-          (`(field_at sh (typeof e1) fld) 
-                  (`force_val (`(sem_cast (typeof e2) t2) (eval_expr e2))) (eval_lvalue e1)  * P)).
-Proof.
-pose proof I. intros until fields. intro WS.
-intros.
-rename H0 into TE1.
-unfold field_at_, field_at.
-
-apply semax_pre0 with
- (EX v2: val,
-   ((|>(local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) &&
-      (lift1(fun v1 : val =>
-         match v1 with
-         | Vundef => FF
-         | Vint _ => FF
-         | Vlong _ => FF
-         | Vfloat _ => FF
-         | Vptr l ofs =>
-             match typeof e1 with
-             | Tstruct id fList _ =>
-                 match
-                   field_offset fld
-                     (unroll_composite_fields id (typeof e1) fList)
-                 with
-                 | Errors.OK delta =>
-                     match
-                       access_mode
-                         (type_of_field
-                            (unroll_composite_fields id (typeof e1) fList)
-                            fld)
-                     with
-                     | By_value ch =>
-                         !!(type_is_volatile
-                              (type_of_field
-                                 (unroll_composite_fields id (typeof e1)
-                                    fList) fld) = false) &&
-                         (address_mapsto ch v2 (Share.unrel Share.Lsh sh)
-                            (Share.unrel Share.Rsh sh)
-                            (l, Int.unsigned (Int.add ofs (Int.repr delta))))
-                     | _ => FF
-                     end
-                 | _ => FF
-                 end
-             | _ => FF
-             end
-         end) (eval_lvalue e1) * P))))).
-rewrite <- later_exp' by apply Vundef.
-apply later_derives.
-rewrite <- exp_andp2.
-apply andp_derives; auto.
-unfold lift1; intro rho; unfold_lift.
-simpl sepcon. cbv beta.
-rewrite TE1. rewrite <- H1. rewrite field_offset_unroll.
-destruct (field_offset fld fields);
-   try (rewrite FF_sepcon; apply FF_left).
-normalize.
-unfold mapsto.
-destruct (access_mode t2);    try (rewrite FF_sepcon; apply FF_left).
-destruct (type_is_volatile t2); try (rewrite FF_sepcon; apply FF_left).
-case_eq (eval_lvalue e1 rho); simpl; intros; try rewrite FF_sepcon; try apply FF_left.
-rewrite distrib_orp_sepcon.
-apply orp_left.
-normalize. elimtype False; clear - H3; destruct t2; contradiction.
-normalize. apply exp_right with v2'. normalize.
-apply extract_exists_pre; intro v0.
-
-pose proof (semax_store Delta (Efield e1 fld t2) e2 sh 
-               (local (`(tc_val t2) (`force_val (`(sem_cast (typeof e2) t2) (eval_expr e2)))) &&
-                 !! (type_is_volatile t2 = false) &&   P)).
-simpl typeof in H0. 
-eapply semax_pre_post ; [ | | apply H0; auto]; clear H0.
-match goal with |- (?A && |> ?B |-- |> ?C) =>
-  apply derives_trans with (|> (A && B));
-    [rewrite (later_andp A B); apply andp_derives; auto; apply now_later 
-    | apply later_derives]
-end.
-
-intro rho; unfold lift1; unfold_lift.
- simpl andp; simpl sepcon. cbv beta.
-rewrite TE1.
-normalize.
-unfold mapsto_, mapsto.
-case_eq (eval_lvalue e1 rho); intros; try (rewrite FF_sepcon; apply FF_left).
-case_eq (field_offset fld
-    (unroll_composite_fields sid (Tstruct sid fields noattr) fields)); intros; try (rewrite FF_sepcon; apply FF_left).
-rewrite <- H1.
-case_eq (access_mode t2); intros; try (rewrite FF_sepcon; apply FF_left).
-simpl eval_lvalue.
-unfold lift1. unfold_lift. 
-rewrite TE1. rewrite H4; simpl eval_field.
-rewrite field_offset_unroll in H5. rewrite H5.
-normalize.
-rewrite H7.
-repeat apply andp_right; try apply prop_right; 
-  repeat simple apply conj; auto.
-hnf; simpl. rewrite TE1.
-rewrite H5. rewrite tc_andp_TT2.
-rewrite denote_tc_assert_andp.
-split; auto. rewrite H7; auto.
-hnf in H3. simpl in H3.
-rewrite denote_tc_assert_andp in H3. destruct H3.
-rewrite tc_val_eq;
-eapply expr_lemmas.typecheck_val_sem_cast; eassumption.
-apply sepcon_derives; auto.
-simpl.
-apply orp_right2. apply andp_right; try apply prop_right; auto.
-apply exp_right with v0; auto.
-
-intros ek vl; unfold normal_ret_assert; go_lowerx.
-normalize.
-apply sepcon_derives; auto.
-unfold mapsto, field_at.
-rewrite TE1.
-rewrite field_offset_unroll.
-simpl.
-case_eq (field_offset fld fields); simpl; intros; try apply FF_left.
-rewrite <- H1.
-destruct (access_mode t2); try apply FF_left.
-destruct (type_is_volatile t2); try apply FF_left.
-rewrite prop_true_andp by auto.
-auto.
-destruct (access_mode t2); try apply FF_left.
-destruct (type_is_volatile t2); try apply FF_left.
-Qed.
-*)
-
 Lemma semax_field_load_37':
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t: type) (fld: ident) (t1: type)
       (v: val) (v': reptype (nested_field_type2 (typeof e1) (fld::nil))),
       typeof_temp Delta id = Some t ->
-      uncompomize (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
+      uncompomize e (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
       is_neutral_cast t1 t = true ->
       legal_alignas_type (typeof e1) = true ->
-      legal_nested_efield (typeof e1) (fld::nil) (t1::nil) = true ->
+      legal_nested_efield e (typeof e1) (fld::nil) (t1::nil) = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_lvalue Delta (Efield e1 fld t1)) &&
@@ -1511,14 +1369,14 @@ Definition semax_load_field'' := @semax_field_load_37'.
 
 Lemma semax_field_cast_load_37':
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t: type) (fld: ident) (t1: type)
       (v: val) (v' : reptype (nested_field_type2 (typeof e1) (fld::nil))),
       typeof_temp Delta id = Some t ->
-      uncompomize (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
+      uncompomize e (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
       type_is_by_value t1 ->
       legal_alignas_type (typeof e1) = true ->
-      legal_nested_efield (typeof e1) (fld::nil) (t1::nil) = true ->
+      legal_nested_efield e (typeof e1) (fld::nil) (t1::nil) = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_lvalue Delta (Efield e1 fld t1)) &&
@@ -1542,16 +1400,16 @@ Definition semax_cast_load_field'' := @semax_field_cast_load_37'.
 
 Lemma semax_load_field_38:
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t : type) (fld: ident) (t1: type)
       (v : val) (v' : reptype (nested_field_type2 (typeof e1) (fld::nil))),
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
+      uncompomize e (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
       is_neutral_cast t1 t = true ->
       legal_alignas_type (typeof e1) = true ->
-      legal_nested_efield (typeof e1) (fld::nil) (t1::nil) = true ->
+      legal_nested_efield e (typeof e1) (fld::nil) (t1::nil) = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_lvalue Delta (Efield e1 fld t1)) &&
@@ -1562,6 +1420,7 @@ Lemma semax_load_field_38:
           (normal_ret_assert
             (PROPx P
               (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)))).
+Proof.
   intros until t1.
   change (Efield e1 fld t1) with (nested_efield e1 (fld::nil) (t1::nil)).
   change t1 with (typeof (nested_efield e1 (fld::nil) (t1::nil))) at 1 2 5.
@@ -1570,16 +1429,16 @@ Qed.
 
 Lemma semax_cast_load_field_38:
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t: type) (fld: ident) (t1: type)
       (v: val) (v' : reptype (nested_field_type2 (typeof e1) (fld::nil))),
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
+      uncompomize e (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
       type_is_by_value t1 ->
       legal_alignas_type (typeof e1) = true ->
-      legal_nested_efield (typeof e1) (fld::nil) (t1::nil) = true ->
+      legal_nested_efield e (typeof e1) (fld::nil) (t1::nil) = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_lvalue Delta (Efield e1 fld t1)) &&
@@ -1599,16 +1458,16 @@ Qed.
 
 Lemma semax_load_field_40:
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t t_str: type) (fld: ident) (t1: type)
       (v : val) (v' : reptype (nested_field_type2 t_str (fld::nil))),
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize (nested_field_type2 t_str (fld::nil)) = t1 ->
+      uncompomize e (nested_field_type2 t_str (fld::nil)) = t1 ->
       is_neutral_cast t1 t = true ->
       legal_alignas_type t_str = true ->
-      legal_nested_efield t_str (fld::nil) (t1::nil) = true ->
+      legal_nested_efield e t_str (fld::nil) (t1::nil) = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_lvalue Delta (Efield (Ederef e1 t_str) fld t1)) &&
@@ -1628,16 +1487,16 @@ Qed.
 
 Lemma semax_cast_load_field_40:
   forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
+    forall Delta sh e id P Q R (e1: expr)
       (t t_str: type) (fld: ident) (t1: type)
       (v: val) (v' : reptype (nested_field_type2 t_str (fld::nil))),
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize (nested_field_type2 t_str (fld::nil)) = t1 ->
+      uncompomize e (nested_field_type2 t_str (fld::nil)) = t1 ->
       type_is_by_value t1 ->
       legal_alignas_type t_str = true ->
-      legal_nested_efield t_str (fld::nil) (t1::nil) = true ->
+      legal_nested_efield e t_str (fld::nil) (t1::nil) = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_lvalue Delta (Efield (Ederef e1 t_str) fld t1)) &&
@@ -1657,13 +1516,13 @@ Qed.
 
 Lemma semax_store_field_nth:
   forall {Espec: OracleKind},
-    forall Delta sh n P Q R Rn (e1 e2 : expr)
+    forall Delta sh e n P Q R Rn (e1 e2 : expr)
       (t: type) (fld: ident) (t1: type),
       t1 = t ->
-      uncompomize (nested_field_type2 (typeof e1) (fld::nil)) = t ->
+      uncompomize e (nested_field_type2 (typeof e1) (fld::nil)) = t ->
       type_is_by_value t ->
       legal_alignas_type (typeof e1) = true ->
-      legal_nested_efield (typeof e1) (fld::nil) (t1::nil) = true ->
+      legal_nested_efield e (typeof e1) (fld::nil) (t1::nil) = true ->
       nth_error R n = Some Rn ->
       Rn |-- `(field_at_ sh (typeof e1) (fld::nil)) (eval_lvalue e1) ->
       writable_share sh ->
