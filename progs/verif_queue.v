@@ -10,12 +10,33 @@ Proof. eapply mk_listspec; reflexivity. Defined.
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
 Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
 
+Definition natural_alignment := 8.
+
+Lemma natural_alignment_enough: forall t, type_is_by_value t -> legal_alignas_type t = true -> (alignof t | 8).
+Proof.
+  intros.
+  assert (1 | 8). exists 8. reflexivity.
+  assert (2 | 8). exists 4. reflexivity.
+  assert (4 | 8). exists 2. reflexivity.
+  assert (8 | 8). exists 1. reflexivity.
+  destruct t; try inversion H; simpl;
+  unfold legal_alignas_type in H0; simpl in H0;
+  destruct (attr_alignas a); inversion H0; [destruct i| | destruct f|]; assumption.
+Qed.
+
+Definition natural_align_compatible p :=
+  match p with
+  | Vptr b ofs => (natural_alignment | Int.unsigned ofs)
+  | _ => True
+  end.
+
 Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: int
   PRE [ 1%positive OF tint]
-     PROP (4 <= Int.signed n) LOCAL (`(eq (Vint n)) (eval_id 1%positive)) SEP ()
-  POST [ tptr tvoid ] `(memory_block Tsh n) retval.
+     PROP (4 <= Int.unsigned n) LOCAL (`(eq (Vint n)) (eval_id 1%positive)) SEP ()
+  POST [ tptr tvoid ] 
+     PROP () LOCAL (`natural_align_compatible retval) SEP (`(memory_block Tsh n) retval).
 
 Definition freeN_spec :=
  DECLARE _freeN
@@ -25,20 +46,20 @@ Definition freeN_spec :=
   POST [ tvoid ]  emp.
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
-  field_at Tsh t_struct_elem _a (fst rep) p * 
-  (field_at Tsh t_struct_elem _b (snd rep) p *
-   (field_at_ Tsh t_struct_elem _next) p).
+  field_at Tsh t_struct_elem (_a::nil) (fst rep) p * 
+  (field_at Tsh t_struct_elem (_b::nil) (snd rep) p *
+   (field_at_ Tsh t_struct_elem (_next::nil)) p).
 
 Definition fifo (contents: list val) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
       !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
-      field_at Tsh t_struct_fifo _head hd p *
-      field_at Tsh t_struct_fifo _tail tl p *
+      field_at Tsh t_struct_fifo (_head::nil) hd p *
+      field_at Tsh t_struct_fifo (_tail::nil) tl p *
       if isnil contents
       then (!!(hd=nullval) && emp)
       else (EX prefix: list val, 
               !!(contents = prefix++tl::nil)
-            &&  (links QS Tsh prefix hd tl * field_at Tsh t_struct_elem _next nullval tl)).
+            &&  (links QS Tsh prefix hd tl * field_at Tsh t_struct_elem (_next::nil) nullval tl)).
 
 Definition fifo_new_spec :=
  DECLARE _fifo_new
@@ -51,7 +72,7 @@ Definition fifo_put_spec :=
   WITH q: val, contents: list val, p: val
   PRE  [ _Q OF (tptr t_struct_fifo) , _p OF (tptr t_struct_elem) ]
           PROP () LOCAL (`(eq q) (eval_id _Q); `(eq p) (eval_id _p)) 
-          SEP (`(fifo contents q); `(field_at_ Tsh t_struct_elem _next p))
+          SEP (`(fifo contents q); `(field_at_ Tsh t_struct_elem (_next::nil) p))
   POST [ tvoid ] `(fifo (contents++(p :: nil)) q).
 
 Definition fifo_empty_spec :=
@@ -67,7 +88,7 @@ Definition fifo_get_spec :=
   PRE  [ _Q OF (tptr t_struct_fifo) ]
        PROP() LOCAL (`(eq q) (eval_id _Q)) SEP (`(fifo (p :: contents) q)) 
   POST [ (tptr t_struct_elem) ] 
-        local (`(eq p) retval) && `(fifo contents q) * `(field_at_ Tsh t_struct_elem _next) retval.
+        local (`(eq p) retval) && `(fifo contents q) * `(field_at_ Tsh t_struct_elem (_next::nil)) retval.
 
 Definition make_elem_spec :=
  DECLARE _make_elem
@@ -91,24 +112,30 @@ Definition Gprog : funspecs :=
 
 Lemma memory_block_fifo:
  forall e, 
-   `(memory_block Tsh (Int.repr 8)) e =
-  `(field_at_ Tsh t_struct_fifo queue._head) e *
-  `(field_at_ Tsh t_struct_fifo queue._tail) e.
+  `prop (`(align_compatible t_struct_fifo) e) &&
+  `(memory_block Tsh (Int.repr 8)) e =
+  `(field_at_ Tsh t_struct_fifo (queue._head::nil)) e *
+  `(field_at_ Tsh t_struct_fifo (queue._tail::nil)) e.
 Proof.
  intros.
  extensionality rho. unfold_lift. simpl.
  change 8 with (sizeof t_struct_fifo).
- rewrite memory_block_typed by reflexivity.
- simpl_data_at.
+ replace (!!align_compatible t_struct_fifo (e rho) &&
+   memory_block Tsh (Int.repr (sizeof t_struct_fifo)) (e rho)) with
+  (((fun p : val => !!align_compatible t_struct_fifo p) &&
+                 memory_block Tsh (Int.repr (sizeof t_struct_fifo))) (e rho)) by reflexivity.
+ rewrite memory_block_data_at_ by reflexivity.
+ unfold data_at_.
+ unfold_data_at 1%nat.
  reflexivity.
 Qed.
 
 Lemma list_cell_eq: forall sh elem,
   list_cell QS sh elem = 
-   field_at sh t_struct_elem _a (fst elem) * 
-   field_at sh t_struct_elem _b (snd elem). 
-Proof. reflexivity. Qed.
- 
+   field_at sh t_struct_elem (_a::nil) (fst elem) * 
+   field_at sh t_struct_elem (_b::nil) (snd elem). 
+Proof. admit. Qed.
+
 Lemma body_fifo_empty: semax_body Vprog Gprog f_fifo_empty fifo_empty_spec.
 Proof.
 start_function.
@@ -137,13 +164,16 @@ name Q' _Q'.
 forward_call (* Q' = mallocN(sizeof ( *Q)); *) 
       (Int.repr 8).
   (* goal_2 *) entailer!.
-after_call.
+after_call. (* This expression is strange *)
+simpl.
 forward. (* Q = (struct fifo * )Q'; *)
 apply semax_pre 
   with (PROP  () LOCAL ()
-   SEP  (`(memory_block Tsh (Int.repr 8)) (eval_id _Q))).
+   SEP  (`prop (`(align_compatible t_struct_fifo) (eval_id _Q)) && `(memory_block Tsh (Int.repr 8)) (eval_id _Q))).
   (* goal_3 *) entailer!.
-rewrite memory_block_fifo.
+               destruct Q'; auto.
+               eapply Zdivides_trans; [exists 2; reflexivity|exact H].
+rewrite memory_block_fifo. (* we don't even need it now *) 
 normalize.
 forward. (* Q->head = NULL; *)
 (* goal_4 *)
@@ -166,6 +196,7 @@ name t _t.
 unfold fifo at 1.
 normalize. intros [hd tl]. normalize.
 (* goal_7 *)
+
 forward. (* p->next = NULL; *)
 normalize.
 forward. (*   h = Q->head; *)
@@ -204,16 +235,19 @@ forward_if
      normalize.
      apply exp_right with (prefix ++ t :: nil).
      entailer.
-     remember (field_at Tsh t_struct_elem _next nullval p') as A. (* prevent it from canceling! *)
+     remember (field_at Tsh t_struct_elem (_next::nil) nullval p') as A. (* prevent it from canceling! *)
      cancel. subst A. 
+     change nullval with (valinject (nested_field_type2 t_struct_elem (_next :: nil)) nullval).
      eapply derives_trans; [ | apply links_cons_right ].
      cancel.
 * (* after the if *)
     forward. (* return ; *)
 Qed.
 
+
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.
 Proof.
+pose proof list_struct_alignas_legal as H99.
 start_function.
 name Q _Q.
 name h _h.
@@ -260,9 +294,21 @@ forward_call (*  p = mallocN(sizeof ( *p));  *)
 entailer!.
 auto 50 with closed.
 after_call.
+simpl.
 change 12 with (sizeof (t_struct_elem)).
-rewrite memory_block_typed by reflexivity.
-simpl_data_at.
+eapply semax_pre0 with (PROP  ()
+      LOCAL  (`(eq (Vint a0)) (eval_id _a); `(eq (Vint b0)) (eval_id _b);
+      `natural_align_compatible (eval_id _p))
+      SEP 
+      (`(data_at_ Tsh t_struct_elem) (eval_id _p))).
+  rewrite <- memory_block_data_at_ by reflexivity.
+  entailer.
+  apply prop_right.
+  unfold align_compatible; unfold natural_align_compatible in H1.
+  destruct (eval_id _p rho); auto.
+  eapply Zdivides_trans; [exists 2; reflexivity|exact H1].
+unfold data_at_.
+unfold_data_at 1%nat.
 forward.  (*  p->a=a; *)
 forward.  (*  p->b=b; *)
 forward.  (* return p; *)
@@ -292,6 +338,7 @@ forward_call (* fifo_put(Q,p);*)
     ((q, @nil val),p').
 unfold elemrep; entailer!.
 after_call.
+simpl.
 forward_call (*  p = make_elem(2,20); *)
     (Int.repr 2, Int.repr 20).
 unfold elemrep; entailer!.
@@ -302,6 +349,7 @@ after_call.
     ((q,(p':: nil)),p2).
  unfold elemrep; entailer!.
 after_call.
+simpl.
 forward_call (*   p' = fifo_get(Q); p = p'; *)
   ((q,(p2 :: nil)),p').
  entailer!.
@@ -315,9 +363,17 @@ forward_call (*  freeN(p, sizeof( *p)); *)
    tt. {
   entailer.
   change 12 with (sizeof t_struct_elem).
-  rewrite memory_block_typed by reflexivity.
-  simpl_data_at.
-  entailer!.
+  eapply derives_trans; [ | apply sepcon_derives; [| apply derives_refl]].
+
+  instantiate (1:= field_at_ Tsh t_struct_elem (_next :: nil) p' *
+   field_at Tsh t_struct_elem (_a :: nil) (Vint (Int.repr 1)) p' *
+   field_at Tsh t_struct_elem (_b :: nil) (Vint (Int.repr 10)) p'). cancel.
+
+  apply derives_trans with (data_at_ Tsh t_struct_elem p'). unfold data_at_. 
+  unfold_data_at 1%nat; cancel.
+  apply sepcon_derives; apply field_at_field_at_; reflexivity.
+  
+  erewrite <- memory_block_data_at_ by reflexivity. simpl; normalize.
 } after_call.
 forward. (* return i+j; *)
 unfold main_post.
@@ -330,8 +386,8 @@ Parameter body_mallocN:
  semax_external
   (EF_external _mallocN
      {| sig_args := AST.Tint :: nil; sig_res := Some AST.Tint; sig_cc := cc_default |}) int
-  (fun n : int => PROP (4 <= Int.signed n) LOCAL (`(eq (Vint n)) (eval_id 1%positive)) SEP ())
-  (fun n : int => `(memory_block Tsh n) retval).
+  (fun n : int => PROP (4 <= Int.unsigned n) LOCAL (`(eq (Vint n)) (eval_id 1%positive)) SEP ())
+  (fun n : int => PROP () LOCAL (`natural_align_compatible retval) SEP (`(memory_block Tsh n) retval)).
 
 Parameter body_freeN:
 semax_external

@@ -499,3 +499,4 @@ rewrite Z.mul_1_r.
 apply prop_ext; intuition.
 Qed.
 Hint Rewrite offset_val_sizeof_hack3 : norm.
+

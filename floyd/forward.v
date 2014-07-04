@@ -1722,8 +1722,8 @@ match goal with
   eapply (semax_store_array' Delta sh n) with (contents0:= contents) (lo0 := lo) (hi0 := hi);
   unfold number_list, n, sh, contents, lo, hi;
   clear n sh contents lo hi ;
-  [reflexivity | solve [auto] | reflexivity | assumption | reflexivity |
-   solve [(entailer!; try apply I; try assumption; reflexivity)]| entailer]
+  [reflexivity | solve [auto] | reflexivity | auto | reflexivity |
+   solve [(entailer!; try apply I; try tauto; reflexivity)]| entailer]
 | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
   let n := fresh "n" in evar (n: nat); 
   let sh := fresh "sh" in evar (sh: share);
@@ -1740,7 +1740,7 @@ match goal with
 (**** 14.2 seconds to here  *)
  eapply (semax_store_field_nth _ sh (compute_type_id_env Delta) n);
    [reflexivity | reflexivity | auto | reflexivity | reflexivity | reflexivity
-   | solve [entailer!] | assumption | try solve [entailer!]];
+   | solve [entailer!] | auto | try solve [entailer!]];
   unfold n,sh; clear n sh (**** 21.1 seconds to here *****)
   | |- @semax ?Espec ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign ?e ?e2) _ =>

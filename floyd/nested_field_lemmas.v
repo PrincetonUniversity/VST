@@ -200,6 +200,8 @@ Definition local_legal_alignas_type (t: type): bool :=
 
 Definition legal_alignas_type := nested_pred local_legal_alignas_type.
 
+Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
+
 Lemma local_legal_alignas_type_Tstruct: forall i f a,
   local_legal_alignas_type (Tstruct i f a) = true ->
   (alignof_fields f | alignof (Tstruct i f a)).

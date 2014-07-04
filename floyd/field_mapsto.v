@@ -145,6 +145,8 @@ Proof. extensionality v. destruct v; try reflexivity.
 simpl. rewrite Int.add_zero; auto.
 Qed.
 
+Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
+
 Lemma mapsto_force_ptr: forall sh t v v', 
   mapsto sh t (force_ptr v) v' = mapsto sh t v v'.
 Proof.

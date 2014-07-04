@@ -8,8 +8,8 @@ Fixpoint add_type (t: type) (e: type_id_env): type_id_env :=
   | Tvoid 
   | Tint _ _ _ 
   | Tlong _ _
-  | Tfloat _ _ 
-  | Tpointer _ _ => e
+  | Tfloat _ _ => e
+  | Tpointer t1 a => add_type t1 e
   | Tarray t1 sz a => add_type t1 e
   | Tfunction t1 t2 _ => add_typelist t1 (add_type t2 e)
   | Tstruct id fld a => add_fieldlist fld (PTree.set id t e)

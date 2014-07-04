@@ -197,7 +197,6 @@ normalize.
 focus_SEP 1; apply semax_lseg_nonnull;
         [entailer | intros h r y ? ?].
 subst cts2.
-pose proof list_struct_alignas_legal as H99.
 forward.  (* t = v->tail; *)
 forward. (*  v->tail = w; *)
 simpl eval_lvalue.
