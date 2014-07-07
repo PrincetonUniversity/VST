@@ -48,7 +48,7 @@ Lemma update_inner_if_else_proof:
    `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64
        (offset_val (Int.repr 40) c));
-   `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd)))
+   `(field_at Tsh t_struct_SHA256state_st [_num] (Vint (Int.repr (Zlength dd)))
        c); `K_vector (eval_var _K256 (tarray tuint 64));
    `(array_at tuchar sh (tuchars (map Int.repr data)) 0 (Zlength data) d)))
   update_inner_if_else
@@ -146,8 +146,12 @@ Focus 2. {
      (map Vint (map Int.repr (dd ++ firstn len data)),
      (Vint (Int.repr (Zlength dd + Z.of_nat len))))))).
  rewrite prop_true_andp.
- simpl_data_at.
- unfold at_offset.
+ unfold_data_at 1%nat.
+ rewrite field_at_data_at with (ids := [_h]) by reflexivity.
+ rewrite field_at_data_at with (ids := [_data]) by reflexivity.
+ rewrite !at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
+ unfold nested_field_type2; simpl; unfold tarray.
+ repeat erewrite data_at_array_at by reflexivity.
  cancel.
  pull_left (array_at tuchar sh (ZnthV tuchar (map Vint (map Int.repr data)))
   (Z.of_nat len) (Zlength data) data').
@@ -156,16 +160,21 @@ Focus 2. {
  rewrite <- split_array_at by omega.
  replace (offset_val (Int.repr j) c')
   with (offset_val (Int.repr (sizeof tuchar * Zlength dd)) (offset_val (Int.repr 40) c')).
-rewrite <- offset_val_array_at.
+ rewrite <- offset_val_array_at.
  rewrite Z.add_0_r.
  cancel.
  rewrite (split_array_at (Zlength dd) _ _ _ 0 64) by omega.
  rewrite (split_array_at (Zlength dd+ Z.of_nat len) _ _ _ (Zlength dd) 64) by omega.
+ normalize. apply andp_right. admit. (* size_compatible and align_compatible *)
+ unfold nested_field_offset2; simpl.
  pull_left (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0
-  (Zlength dd) (offset_val (Int.repr 40) c')).
+     (Zlength dd) (offset_val (Int.repr 40) c')).
+ pull_left (array_at tuint Tsh
+     (ZnthV tuint (map Vint (hash_blocks init_registers hashed))) 0 8 c').
  repeat rewrite <- sepcon_assoc.
  repeat apply sepcon_derives; apply derives_refl'; apply equal_f;
  apply array_at_ext; intros.
+ reflexivity.
  unfold ZnthV. repeat rewrite if_false by omega.
   repeat rewrite map_map. 
   repeat rewrite (@nth_map' Z val _ _ 0%Z).

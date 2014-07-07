@@ -1,4 +1,5 @@
 Require Import floyd.proofauto.
+Import ListNotations.
 Require Import sha.sha.
 Require Import sha.SHA256.
 Local Open Scope logic.
@@ -61,8 +62,8 @@ Definition cVint (f: Z -> int) (i: Z) := Vint (f i).
 Definition sha256_length (len: Z)  (c: val) : mpred :=
    EX lo:int, EX hi:int, 
      !! (hilo hi lo = len) &&
-     (field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c *
-      field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c).
+     (field_at Tsh t_struct_SHA256state_st [_Nl] (Vint lo) c *
+      field_at Tsh t_struct_SHA256state_st [_Nh] (Vint hi) c).
 
 Definition sha256state_ (a: s256abs) (c: val) : mpred :=
    EX r:s256state, 

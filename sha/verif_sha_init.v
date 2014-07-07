@@ -19,10 +19,14 @@ Lemma body_SHA256_Init: semax_body Vprog Gtot f_SHA256_Init SHA256_Init_spec.
 Proof.
 start_function.
 name c_ _c.
-simpl_data_at.
-normalize. 
-do 8 (forward; [entailer! | rewrite upd_Znth_next by (compute; reflexivity); simpl app]).
-change (fun _ => c) with (`c). normalize.
+unfold data_at_.
+unfold_data_at 1%nat.
+rewrite (field_at_data_at) with (ids := [_h]) by reflexivity.
+rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
+unfold nested_field_type2; simpl; unfold tarray.
+erewrite data_at_array_at by reflexivity.
+normalize.
+do 8 (forward;normalize; rewrite upd_Znth_next by (compute; reflexivity); simpl app).
 forward. (* c->Nl=0; *)
 forward. (* c->Nh=0; *)
 forward. (* c->num=0; *)
@@ -30,8 +34,11 @@ forward. (* return; *)
 unfold sha256state_.
 apply exp_right with (map Vint init_registers, 
       (Vint Int.zero, (Vint Int.zero, (nil, Vint Int.zero)))).
-simpl_data_at.
-unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
+unfold_data_at 1%nat.
+rewrite (field_at_data_at) with (ids := [_h]) by reflexivity.
+rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
+unfold nested_field_type2; simpl nested_field_rec; unfold tarray.
+erewrite data_at_array_at by reflexivity.
 entailer!.
 repeat split; auto.
 rewrite hash_blocks_equation. reflexivity.

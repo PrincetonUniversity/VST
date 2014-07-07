@@ -1,4 +1,4 @@
-Require Import proofauto.
+Require Import floyd.proofauto.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha.
@@ -655,7 +655,6 @@ simpl nth.
 apply derives_trans with (data_at sh tuchar (Vint i) (add_ptr_int tuchar v 0) * TT).
 cancel.
 unfold data_at. simpl. unfold eq_rect_r; simpl.
-rewrite withspacer_spacer. simpl.
 destruct v; inv Pv. unfold add_ptr_int;  simpl.
 forget  (Int.add i0 (Int.mul (Int.repr (align 1 1)) (Int.repr 0))) as z.
 unfold spacer; simpl. normalize.

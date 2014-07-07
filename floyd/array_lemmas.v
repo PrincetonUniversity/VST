@@ -761,6 +761,8 @@ Proof.
     apply derives_refl.
 Qed.
 
+Hint Resolve array_at_array_at_: cancel.
+
 Lemma replace_nth_replace_nth: forall {A: Type} R n {Rn Rn': A},
   replace_nth n (replace_nth n R Rn) Rn' = replace_nth n R Rn'.
 Proof.
@@ -1067,8 +1069,7 @@ Proof.
     - erewrite SEP_replace_nth_isolate by exact H1.
       erewrite SEP_replace_nth_isolate by exact H1.
       simpl; normalize; intros.
-      cancel. apply array_at_array_at_.
-      exact H3.
+      cancel.
   + reflexivity.
   + subst t; exact H0.
   + exact H1.
