@@ -426,13 +426,34 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma links_cons_right (ls: listspec list_struct list_link): forall sh l x y z w, 
-             field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) y * 
-             field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z * 
-             links ls sh l x y
-   |--   links ls sh (l++y::nil) x z * field_at sh list_struct (list_link::nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z.
+Lemma uncompomized_valinject_repinject: forall e t (v : reptype t),
+  type_is_by_value (uncompomize e t) -> valinject t (repinject t v) = v.
+Proof.
+  intros.
+  destruct t; try inversion H; reflexivity.
+Qed.
+
+Lemma links_cons_right (ls: listspec list_struct list_link): forall (sh : Share.t) 
+         (l : list val) (x y z: val) w,
+       field_at sh list_struct (list_link :: nil)
+         (valinject (nested_field_type2 list_struct (list_link :: nil)) z) y *
+       field_at sh list_struct (list_link :: nil)
+         w z *
+       links ls sh l x y
+       |-- links ls sh (l ++ y :: nil) x z *
+           field_at sh list_struct (list_link :: nil)
+             w z.
 Proof.
 intros.
+assert (type_is_by_value
+        (uncompomize (PTree.empty type)
+           (nested_field_type2 list_struct (list_link :: nil)))).
+  rewrite list_link_type; simpl; auto.
+pose proof uncompomized_valinject_repinject (PTree.empty _) (nested_field_type2 list_struct (list_link :: nil)) w H.
+remember (repinject (nested_field_type2 list_struct (list_link :: nil)) w) as w'.
+subst w.
+clear H Heqw'.
+rename w' into w.
 rewrite (field_at_isptr _ _ _ _ z).
 normalize.
 assert (TT |-- ALL l: list val, ALL x: val,

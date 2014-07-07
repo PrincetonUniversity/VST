@@ -237,13 +237,11 @@ forward_if
      entailer.
      remember (field_at Tsh t_struct_elem (_next::nil) nullval p') as A. (* prevent it from canceling! *)
      cancel. subst A. 
-     change nullval with (valinject (nested_field_type2 t_struct_elem (_next :: nil)) nullval).
      eapply derives_trans; [ | apply links_cons_right ].
      cancel.
 * (* after the if *)
     forward. (* return ; *)
 Qed.
-
 
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.
 Proof.
