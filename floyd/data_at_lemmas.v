@@ -2702,9 +2702,22 @@ Here, we need to think about how to use array in examples.
 
 **********************************************)
 
+Definition offset_in_range ofs p :=
+  match p with
+  | Vptr b iofs => 0 <= Int.unsigned iofs + ofs <= Int.modulus
+  | _ => True
+  end.
+
+Definition offset_strict_in_range ofs p :=
+  match p with
+  | Vptr b iofs => 0 <= Int.unsigned iofs + ofs < Int.modulus
+  | _ => True
+  end.
+
 Definition array_at (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
                                    (v: val) : mpred :=
-           !! isptr v && rangespec lo hi (fun i => data_at sh t  (f i) (add_ptr_int t v i)).
+  !! isptr v && !! offset_in_range (sizeof t * lo) v && !! offset_in_range (sizeof t * hi) v
+  && !! align_compatible t v && rangespec lo hi (fun i => data_at sh t (f i) (add_ptr_int t v i)).
 
 Definition array_at_ t sh lo hi := array_at t sh (fun _ => default_val t) lo hi.
 

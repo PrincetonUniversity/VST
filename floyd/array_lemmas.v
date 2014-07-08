@@ -55,6 +55,21 @@ Proof.
       omega.
 Qed.
 
+Lemma rangespec'_elim: forall f lo len i,
+  lo <= i < lo + Z_of_nat len -> rangespec' lo len f |-- f i * TT.
+Proof.
+  intros. revert lo i H; induction len; intros.
+  + simpl in H. omega.
+  + simpl. destruct (Z.eq_dec i lo).
+    - subst. cancel.
+    - replace (f i * TT) with (TT * (f i * TT)) by (apply pred_ext; cancel).
+      apply sepcon_derives; [cancel |].
+      apply IHlen.
+      rewrite Nat2Z.inj_succ in H.
+      rewrite <- Z.add_1_l in *.
+      omega.
+Qed.      
+
 Lemma prop_false_andp {A}{NA :NatDed A}:
  forall P Q, ~P -> !! P && Q = FF.
 Proof.
@@ -72,6 +87,21 @@ Proof.
 intros. apply pred_ext. apply orp_left; normalize. apply orp_right2; auto.
 Qed.
 
+Lemma offset_in_range_mid: forall lo hi i t p,
+  lo <= i <= hi ->
+  offset_in_range (sizeof t * lo) p ->
+  offset_in_range (sizeof t * hi) p ->
+  offset_in_range (sizeof t * i) p.
+Proof.
+  intros.
+  unfold offset_in_range in *.
+  destruct p; auto.
+  pose proof sizeof_pos t.
+  assert (sizeof t * i <= sizeof t * hi) by (apply Zmult_le_compat_l; omega).
+  assert (sizeof t * lo <= sizeof t * i) by (apply Zmult_le_compat_l; omega).
+  omega.
+Qed.
+
 Lemma split3_array_at:
   forall i ty sh contents lo hi v,
        lo <= i < hi ->
@@ -80,15 +110,15 @@ Lemma split3_array_at:
      data_at sh ty  (contents i) (add_ptr_int ty v i)*
      array_at ty sh contents (Zsucc i) hi v.
 Proof.
- intros.
- unfold array_at, rangespec.
- remember (nat_of_Z (i - lo)) as n.
- replace (nat_of_Z (hi - lo)) with (n + nat_of_Z (hi - i))%nat.
-Focus 2. {subst; unfold nat_of_Z; rewrite <- Z2Nat.inj_add by omega.
-   f_equal.  omega.
-} Unfocus.
- unfold nat_of_Z in *.
- replace (Z.to_nat (hi - i)) with (S (Z.to_nat (hi-Z.succ i))).
+  intros.
+  unfold array_at, rangespec.
+  remember (nat_of_Z (i - lo)) as n.
+  replace (nat_of_Z (hi - lo)) with (n + nat_of_Z (hi - i))%nat.
+  Focus 2. {subst; unfold nat_of_Z; rewrite <- Z2Nat.inj_add by omega.
+    f_equal.  omega.
+  } Unfocus.
+  unfold nat_of_Z in *.
+  replace (Z.to_nat (hi - i)) with (S (Z.to_nat (hi-Z.succ i))).
 Focus 2. {
  unfold Z.succ. 
  replace (hi-i) with (1 + (hi-(i+1))) by omega.
@@ -96,8 +126,9 @@ Focus 2. {
  simpl. auto.
  } Unfocus.
  normalize.
- f_equal. f_equal. apply prop_ext; intuition.
- revert lo Heqn H; induction n; simpl; intros.
+ f_equal; [f_equal; apply prop_ext; intuition| revert lo Heqn H; induction n; simpl; intros].
+* eapply offset_in_range_mid with lo hi; try omega; assumption.
+* eapply offset_in_range_mid with lo hi; try omega; assumption.
 * destruct (zlt 0 (i-lo)).
   destruct (i-lo); try omega.
   rewrite Z2Nat.inj_pos in Heqn.
@@ -745,6 +776,29 @@ Proof.
   + exact H4.
 Qed.
 
+Ltac Z_and_int :=
+  repeat
+  match goal with
+  | |- appcontext [Z.mul _ 0] => rewrite Z.mul_0_r
+  | |- appcontext [Z.add _ 0] => rewrite Z.add_0_r
+  | |- appcontext [Z.max _ _] => rewrite Z.max_r by omega
+  | |- appcontext [Z.max _ _] => rewrite Z.max_l by omega
+  | |- appcontext [Int.repr (Int.unsigned _)] => rewrite Int.repr_unsigned
+  | |- Int.unsigned ?I <= Int.modulus => pose proof Int.unsigned_range I; omega
+  | |- appcontext [Int.add] => unfold Int.add
+  | |- appcontext [Int.mul] => unfold Int.mul
+  | |- appcontext [Z.of_nat (S _)] => rewrite Nat2Z.inj_succ
+  | |- appcontext [Z.succ _] => rewrite <- Z.add_1_r
+  | |- appcontext [Int.unsigned (Int.repr _)] => rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega)
+  | |- appcontext [Int.Z_mod_modulus ?Z] => change (Int.Z_mod_modulus Z) with (Int.unsigned (Int.repr Z))
+  | H: appcontext [Z.of_nat (S _)] |- _ => rewrite Nat2Z.inj_succ in H
+  | H: appcontext [Z.succ _] |- _ => rewrite <- Z.add_1_r in H
+  | H: appcontext [Int.add] |- _ => unfold Int.add in H
+  | H: appcontext [Int.mul] |- _ => unfold Int.mul in H
+  | H: appcontext [Int.unsigned (Int.repr _)] |- _ => rewrite Int.unsigned_repr in H by (unfold Int.max_unsigned; omega)
+  | H: appcontext [Int.Z_mod_modulus ?Z] |- _ => change (Int.Z_mod_modulus Z) with (Int.unsigned (Int.repr Z)) in H
+  end.
+
 Lemma array_at_array_at_: forall t sh contents lo hi p,
   legal_alignas_type t = true ->
   array_at t sh contents lo hi p |-- array_at_ t sh lo hi p.
@@ -752,13 +806,21 @@ Proof.
   intros.
   unfold array_at_, array_at, rangespec.
   normalize.
-  forget (nat_of_Z (hi - lo)) as m.
-  revert lo; induction m; simpl; intros.
-  + apply derives_refl.
-  + apply sepcon_derives; [|apply IHm].
-    eapply derives_trans; [apply data_at_data_at_, H|].
-    unfold data_at_.
-    apply derives_refl.
+  destruct (zlt hi lo).
+  + rewrite nat_of_Z_neg by omega. apply derives_refl.
+  + replace hi with (lo + Z.of_nat (nat_of_Z (hi - lo))) in H1 by
+      (rewrite nat_of_Z_eq by omega; omega).
+    forget (nat_of_Z (hi - lo)) as m. clear hi g.
+    revert lo H1 H2; induction m; intros; simpl.
+    - apply derives_refl.
+    - apply sepcon_derives; [|apply IHm].
+      * eapply derives_trans; [apply data_at_data_at_, H|].
+        unfold data_at_.
+        apply derives_refl.
+      * Z_and_int. eapply offset_in_range_mid; [| exact H2 | exact H1].
+        omega.
+      * Z_and_int. eapply offset_in_range_mid; [| exact H2 | exact H1].
+        omega.
 Qed.
 
 Hint Resolve array_at_array_at_: cancel.
@@ -787,7 +849,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma size_compatible_array: forall t n a i b ofs ofs',
+Lemma size_compatible_array_left: forall t n a i b ofs ofs',
   size_compatible (Tarray t n a) (Vptr b ofs) ->
   0 <= i < n ->
   add_ptr_int t (Vptr b ofs) i = (Vptr b ofs') ->
@@ -837,76 +899,167 @@ Proof.
     rewrite (Int.unsigned_repr (sizeof t * i)) by (unfold Int.max_unsigned; omega).
     rewrite Int.unsigned_repr; unfold Int.max_unsigned; try omega.
 Qed.
-
 (*
-Lemma size_compatible_max: forall t n a p,
-  size_compatible (Tarray t n a) p ->
-  size_compatible (Tarray t (Z.max 0 n) a) p.
+Lemma size_compatible_array_right: forall t n a b ofs,
+  (forall i ofs', 
+  0 <= i < n ->
+  add_ptr_int t (Vptr b ofs) i = (Vptr b ofs') ->
+  Int.unsigned ofs' + sizeof t <= Int.modulus) ->
+  size_compatible (Tarray t n a) (Vptr b ofs).
 Proof.
   intros.
-  destruct p; auto.
-  unfold size_compatible in *; simpl in *.
-  replace (Z.max 0 (Z.max 0 n)) with (Z.max 0 n); auto.
-  apply eq_sym, Z.max_r, Z.le_max_l.
-Qed.
+  unfold size_compatible; simpl.
+  destruct (zlt n 0); Z_and_int.
+  assert (Z.of_nat (nat_of_Z n) = n) by (apply nat_of_Z_eq; omega).
+  remember (nat_of_Z n) as nn eqn:HH.
+  revert n g HH H H0.
+  induction nn; intros.
+  + simpl in H0; subst. Z_and_int.
+  + assert (Int.unsigned ofs + sizeof t * (n - 1) <= Int.modulus).
+    - apply (IHnn (n - 1)).
+      * Z_and_int.
+        pose proof Zle_0_nat nn; omega.
+      * subst.
+        Z_and_int.
+        replace (Z.of_nat nn + 1 - 1) with (Z.of_nat nn) by omega.
+        rewrite nat_of_Z_of_nat; reflexivity.
+      * intros.
+        apply (H i ofs'); [omega | assumption].
+      * subst. Z_and_int.
+        omega.
+    - Z_and_int. assert (0 <= n - 1 < n) by omega.
+      pose proof H (n - 1) (Int.repr (Int.unsigned ofs + sizeof t * (n - 1))) H2.
+      unfold add_ptr_int in H3; simpl in H3.
+      Z_and_int.
+      replace (Int.unsigned
+               (Int.repr
+                  (Int.unsigned (Int.repr (sizeof t)) *
+                   Int.unsigned (Int.repr (n - 1))))) with 
+              (Int.unsigned
+               (Int.repr
+                  (sizeof t * (n - 1)))) in H3.
+      assert (
 
-Lemma align_compatible_max: forall t n a p,
-  align_compatible (Tarray t n a) p ->
-  align_compatible (Tarray t (Z.max 0 n) a) p.
-Proof.
-  intros.
-  destruct p; auto.
-Qed.
+SearchAbout Z.of_nat nat_of_Z.
 *)
 
+Lemma data_at_array_at_aux: forall i t p n a,
+  legal_alignas_type (Tarray t n a) = true ->
+  size_compatible (Tarray t n a) p ->
+  align_compatible (Tarray t n a) p ->
+  0 <= i < 0 + Z.of_nat (nat_of_Z (n - 0)) ->
+  isptr p -> 
+  size_compatible t (add_ptr_int t p i) /\
+  align_compatible t (add_ptr_int t p i).
+Proof.
+  intros.
+  destruct p; inversion H3.
+  rewrite <- Zminus_0_l_reverse in H2.
+  rewrite nat_of_Z_max in H2.
+  rewrite Zplus_0_l in H2.
+  replace (Z.max n 0) with n in H2 by (
+    destruct (Z.max_spec_le n 0) as [[? HH] | [? ?]]; [
+    rewrite HH in H2; omega |
+    auto]).
+  destruct (add_ptr_int t (Vptr b i0) i) eqn:HH; inversion HH.
+  subst b0.
+  rewrite H6 in *.
+  pose proof size_compatible_array_left _ _ _ _ _ _ _ H0 H2 HH.
+  unfold size_compatible, align_compatible in *.
+  rewrite legal_alignas_type_Tarray in H1 by exact H.
+  rewrite H4.
+  split; simpl in *.
+  - rewrite Zplus_assoc_reverse, Zmult_succ_r_reverse.
+    rewrite <- Z.add_1_r.
+    assert (sizeof t * (i + 1) <= sizeof t * Z.max 0 n).
+      pose proof Z.le_max_r 0 n.
+      pose proof sizeof_pos t.
+      apply Zmult_le_compat_l; omega.
+    omega.
+  - apply Z.divide_add_r; auto.
+    apply Z.divide_mul_l, legal_alignas_sizeof_alignof_compat.
+    eapply nested_pred_Tarray.
+    exact H. omega.
+Qed.
+
+Lemma offset_in_range_size_compatible: forall n t a p,
+  offset_in_range (sizeof t * n) p -> size_compatible (Tarray t n a) p.
+Proof.
+  intros.
+  unfold offset_in_range in *.
+  unfold size_compatible; simpl sizeof.
+  destruct p; auto.
+  destruct (zlt n 0); Z_and_int; omega.
+Qed.
+
 Lemma data_at_array_at: forall sh t n a v v' p, 
-  JMeq v v' -> 
+  JMeq v v' ->
+  n >= 0 ->
   legal_alignas_type (Tarray t n a) = true ->
   data_at sh (Tarray t n a) v p = 
-  (!! (size_compatible (Tarray t n a) p)) &&
   array_at t sh (ZnthV t v') 0 n p.
 Proof.
   intros.
   unfold array_at, data_at.
   simpl.
   unfold array_at', rangespec.
-
-  apply pred_ext; normalize.
+  apply pred_ext; normalize; apply andp_right.
+  + apply prop_right.
+    unfold align_compatible in *.
+    rewrite legal_alignas_type_Tarray in H3 by assumption.
+    unfold size_compatible in *; simpl sizeof in *.
+    unfold offset_in_range.
+    destruct p; auto.
+    pose proof Int.unsigned_range i.
+    rewrite Z.max_r in H2 by omega.
+    pose proof sizeof_pos t.
+    assert (0 <= sizeof t * n) by (apply Z.mul_nonneg_nonneg; omega).
+    repeat split; auto; omega.
   + erewrite rangespec'_ext; [apply derives_refl|]; intros.
     simpl.
     rewrite andp_comm.
-    rewrite <- add_andp; [rewrite H; reflexivity|].
-    apply prop_right.
-    destruct p; inversion Pp.
-    rewrite <- Zminus_0_l_reverse in H3.
-    rewrite nat_of_Z_max in H3.
-    replace (0 + Z.max n 0) with (Z.max n 0) in H3 by omega.
-    replace (Z.max n 0) with n in H3 by (
-      destruct (Z.max_spec_le n 0) as [[? HH] | [? ?]]; [
-      rewrite HH in H3; omega |
-      auto]).
-    destruct (add_ptr_int t (Vptr b i0) i) eqn:HH; inversion HH.
-    subst b0.
-    rewrite H6 in *.
-    pose proof size_compatible_array _ _ _ _ _ _ _ H1 H3 HH.
-    unfold size_compatible, align_compatible in *.
-    rewrite legal_alignas_type_Tarray in H2 by exact H0.
-    rewrite H4.
-    split; simpl in *.
-    - rewrite Zplus_assoc_reverse, Zmult_succ_r_reverse.
-      rewrite <- Z.add_1_r.
-      assert (sizeof t * (i + 1) <= sizeof t * Z.max 0 n).
-        pose proof Z.le_max_r 0 n.
-        pose proof sizeof_pos t.
-        apply Zmult_le_compat_l; omega.
-      omega.
-    - apply Z.divide_add_r; auto.
-      apply Z.divide_mul_l, legal_alignas_sizeof_alignof_compat.
-      eapply nested_pred_Tarray.
-      exact H0. omega.
-  + admit.
-  (* rangespec'_ext has bad specification. i in it should have a upper bound *)
+    rewrite <- add_andp; [rewrite H; reflexivity | apply prop_right].
+    eapply data_at_array_at_aux; eassumption.
+  + apply prop_right. unfold align_compatible in *.
+    rewrite legal_alignas_type_Tarray by assumption.
+    assert (size_compatible (Tarray t n a) p) by
+      (apply offset_in_range_size_compatible; assumption).
+    tauto.
+  + erewrite rangespec'_ext; [apply derives_refl|]; intros.
+    simpl.
+    simpl in v.
+    subst v.
+    apply pred_ext; normalize.
+    apply andp_right; [apply prop_right | cancel].
+    eapply data_at_array_at_aux; try eassumption.
+    - apply offset_in_range_size_compatible; assumption.
+    - unfold align_compatible in *.
+      rewrite legal_alignas_type_Tarray by assumption.
+      assumption.
 Qed.
+
+Lemma array_at_ZnthV_nil:
+  forall t sh, array_at t sh (ZnthV t nil) = array_at_ t sh.
+Proof. intros.
+unfold array_at_.
+extensionality lo hi.
+apply array_at_ext; intros.
+unfold ZnthV. if_tac; auto. rewrite nth_overflow; auto.
+simpl; omega.
+Qed.
+
+Lemma data_at__array_at_: forall sh t n a p, 
+  n >= 0 ->
+  legal_alignas_type (Tarray t n a) = true ->
+  data_at_ sh (Tarray t n a) p = array_at_ t sh 0 n p.
+Proof.
+  intros.
+  unfold data_at_.
+  rewrite <- array_at_ZnthV_nil.
+  erewrite data_at_array_at; [| reflexivity | omega | assumption].
+  simpl default_val.
+  reflexivity.
+Qed.  
 
 Lemma semax_store_array:
   forall {Espec: OracleKind},
@@ -1217,34 +1370,17 @@ Lemma split_array_at:
   array_at ty sh contents lo i v * array_at ty sh contents i hi v.
 Proof.
 intros.
-replace lo with (i-(i-lo)) in * by omega.
-rewrite <- (Z2Nat.id (i-lo)) in * by omega.
-forget (Z.to_nat (i-lo)) as n.
-clear lo.
-unfold array_at.
-normalize.
-assert (~isptr v \/ isptr v) by (destruct v; simpl; auto).
-destruct H0.
-apply pred_ext; normalize; contradiction.
-repeat rewrite prop_true_andp by auto.
-unfold rangespec.
-set (f :=fun i0 : Z => data_at sh ty (contents i0) (add_ptr_int ty v i0)).
-replace (i - (i - Z.of_nat n)) with (Z.of_nat n) by omega.
-replace (hi - (i - Z.of_nat n)) with (Z.of_nat n + (hi-i)) by omega.
-rewrite Z2Nat.inj_add by omega.
-repeat rewrite Nat2Z.id.
-induction n.
-*
- change (Z.of_nat 0) with 0 in *.
- rewrite Z.sub_0_r in *. simpl. rewrite emp_sepcon; auto.
-*
- unfold plus; fold plus.
-unfold rangespec'; fold rangespec'.
- rewrite sepcon_assoc.
- f_equal.
- replace (Z.succ (i - Z.of_nat (S n))) with (i - Z.of_nat n) by (rewrite inj_S; omega).
- apply IHn.
- omega.
+  destruct (zlt i hi).
+  + rewrite split3_array_at with (lo := lo) (hi := hi) (i := i) by omega.
+    rewrite split3_array_at with (lo := i) (hi := hi) (i := i) by omega.
+    unfold array_at, rangespec.
+    rewrite Zminus_diag. simpl.
+    apply pred_ext; normalize.
+  + assert (i = hi) by omega. 
+    subst.
+    unfold array_at, rangespec.
+    rewrite Zminus_diag. simpl.
+    apply pred_ext; normalize.
 Qed.
 
 Lemma split_array_at_:
@@ -1265,32 +1401,73 @@ Proof. intros. apply pred_ext; normalize. Qed.
 
 Lemma offset_val_array_at:
  forall ofs t sh f lo hi v,
+  legal_alignas_type t = true ->
+  offset_strict_in_range (sizeof t * ofs) v ->
   array_at t sh (fun i => f (i-ofs)%Z)
                (ofs + lo) (ofs + hi) v =
   array_at t sh f lo hi (offset_val (Int.repr (sizeof t * ofs)) v).
 Proof.
- intros.
-unfold array_at, rangespec.
- replace (ofs + hi - (ofs + lo))%Z
-   with (hi-lo)%Z by omega.
-forget (nat_of_Z (hi-lo)) as n.
-clear hi.
-replace (isptr (offset_val (Int.repr (sizeof t * ofs)) v))
-             with (isptr v)
- by (apply prop_ext; destruct v; intuition).
-revert lo; induction n; simpl; intros; auto.
-replace (ofs+lo-ofs)%Z with lo by omega.
-unfold add_ptr_int; simpl. unfold sem_add; simpl.
-destruct v; simpl; repeat rewrite False_andp; auto.
-f_equal. f_equal.
-rewrite Int.add_assoc.  f_equal.
-rewrite <- add_repr.
-rewrite <- mul_repr.
-rewrite Int.mul_add_distr_r.
-auto.
-replace (Z.succ (ofs + lo))%Z with (ofs + Z.succ lo)%Z by omega.
-specialize (IHn (Z.succ lo)).
-simpl  in IHn. normalize in IHn.
+  intros.
+  unfold array_at, rangespec.
+  replace (ofs + hi - (ofs + lo))%Z
+    with (hi-lo)%Z by omega.
+  forget (nat_of_Z (hi-lo)) as n.
+  replace (isptr (offset_val (Int.repr (sizeof t * ofs)) v)) with (isptr v)
+    by (apply prop_ext; destruct v; intuition).
+  assert (isptr v -> rangespec' (ofs + lo) n
+      (fun i : Z => data_at sh t (f (i - ofs)) (add_ptr_int t v i)) =
+      rangespec' lo n (fun i : Z =>
+      data_at sh t (f i)
+        (add_ptr_int t (offset_val (Int.repr (sizeof t * ofs)) v) i))).
+  + clear hi.
+    revert lo; induction n; simpl; intros; auto.
+    replace (ofs+lo-ofs)%Z with lo by omega.
+    destruct v; simpl; try tauto.
+    f_equal. f_equal.
+    unfold add_ptr_int; simpl. unfold sem_add; simpl.
+    rewrite Int.add_assoc. f_equal.
+    rewrite <- add_repr.
+    rewrite <- mul_repr.
+    rewrite Int.mul_add_distr_r.
+    auto.
+    replace (Z.succ (ofs + lo))%Z with (ofs + Z.succ lo)%Z by omega.
+    specialize (IHn (Z.succ lo)).
+    simpl in IHn. exact (IHn I).
+  + unfold offset_in_range, offset_strict_in_range in *.
+    destruct v; simpl offset_val in *; auto; apply pred_ext; normalize;
+    (rewrite (H1 H5); apply andp_right; [apply prop_right | apply derives_refl]).
+    - assert(Int.unsigned (Int.add i (Int.repr (sizeof t * ofs))) = Int.unsigned i + sizeof t * ofs).
+      Focus 1. {
+        unfold Int.add.
+        rewrite !Int.unsigned_repr_eq.
+        rewrite Zplus_mod_idemp_r.
+        rewrite <- Int.unsigned_repr_eq.
+        rewrite Int.unsigned_repr; [reflexivity|].
+        unfold Int.max_unsigned.
+        omega. } Unfocus.
+      unfold align_compatible in *.
+      rewrite !H8.
+      rewrite <- !Zplus_assoc, <- !Z.mul_add_distr_l.
+      repeat split; try omega.
+      apply Z.divide_add_r, Z.divide_mul_l; [assumption|].
+      apply legal_alignas_sizeof_alignof_compat; assumption.
+    - assert(Int.unsigned (Int.add i (Int.repr (sizeof t * ofs))) = Int.unsigned i + sizeof t * ofs).
+      Focus 1. {
+        unfold Int.add.
+        rewrite !Int.unsigned_repr_eq.
+        rewrite Zplus_mod_idemp_r.
+        rewrite <- Int.unsigned_repr_eq.
+        rewrite Int.unsigned_repr; [reflexivity|].
+        unfold Int.max_unsigned.
+        omega. } Unfocus.
+      unfold align_compatible in *.
+      rewrite !H8 in *.
+      rewrite <- !Zplus_assoc, <- !Z.mul_add_distr_l in *.
+      repeat split; try omega.
+      rewrite Zplus_comm in H2.
+      eapply Z.divide_add_cancel_r; [|exact H2].
+      apply Z.divide_mul_l.
+      apply legal_alignas_sizeof_alignof_compat; assumption.
 Qed.
 
 (* move this elsewhere *)
@@ -1308,16 +1485,6 @@ eapply derives_trans.
 rewrite later_andp; apply andp_derives; auto; apply now_later.
 Qed.
 
-Lemma array_at_ZnthV_nil:
-  forall t sh, array_at t sh (ZnthV t nil) = array_at_ t sh.
-Proof. intros.
-unfold array_at_.
-extensionality lo hi.
-apply array_at_ext; intros.
-unfold ZnthV. if_tac; auto. rewrite nth_overflow; auto.
-simpl; omega.
-Qed.
-
 Lemma sizeof_tarray_tuchar:
  forall (n:Z), (n>0)%Z -> (sizeof (tarray tuchar n) =  n)%Z.
 Proof. intros.
@@ -1328,15 +1495,24 @@ Proof. intros.
 Qed.
 
 Lemma memory_block_array_tuchar:
- forall sh n, (n>0)%Z -> memory_block sh (Int.repr n) = array_at_ tuchar sh 0 n.
+  forall sh n, (n>0)%Z -> memory_block sh (Int.repr n) = array_at_ tuchar sh 0 n.
 Proof.
- intros. replace (Int.repr n) with (Int.repr (sizeof (tarray tuchar n))).
-  admit.
-(*
- rewrite memory_block_typed by reflexivity.
- simpl_data_at. rewrite array_at_ZnthV_nil.
-  auto.*)
-  rewrite sizeof_tarray_tuchar; auto.
+  intros.
+  replace (Int.repr n) with (Int.repr (sizeof (tarray tuchar n))) by
+   (unfold tarray; simpl; rewrite Z.max_r by omega; destruct n; reflexivity).
+  assert (legal_alignas_type (Tarray tuchar n noattr) = true).
+    unfold tuchar, legal_alignas_type.
+    simpl; destruct (n <=? 0); reflexivity.
+  assert (nested_non_volatile_type (Tarray tuchar n noattr) = true).
+    unfold tuchar, nested_non_volatile_type.
+    simpl; destruct (n <=? 0); reflexivity.
+  extensionality. erewrite <- data_at__array_at_; [| omega | eassumption].
+  rewrite <- memory_block_data_at_ by assumption.
+Opaque sizeof.
+  simpl. apply pred_ext; normalize.
+  apply andp_right; [apply prop_right | apply derives_refl].
+  apply align_1_compatible. reflexivity.
+Transparent sizeof.
 Qed.
 
 Lemma memory_block_array_tuchar':
@@ -1345,26 +1521,32 @@ Lemma memory_block_array_tuchar':
    (n>=0)%Z -> 
    memory_block sh (Int.repr n) p = array_at_ tuchar sh 0 n p.
 Proof.
- intros.
- destruct p; try contradiction. clear H.
- assert (n=0 \/ n>0)%Z by omega.
- destruct H.
- subst n. 
- rewrite memory_block_zero.
- unfold array_at_, array_at. rewrite prop_true_andp by apply I.
- unfold rangespec;  simpl. reflexivity.
- apply equal_f; 
-  apply memory_block_array_tuchar; auto.
+  intros.
+  destruct p; try contradiction. clear H.
+  assert (n=0 \/ n>0)%Z by omega.
+  destruct H.
+  + subst n.
+    rewrite memory_block_zero.
+    unfold array_at_, array_at. rewrite prop_true_andp by apply I.
+    unfold rangespec;  simpl.
+    apply pred_ext; normalize.
+    apply andp_right; [apply prop_right | apply derives_refl].
+    pose proof Int.unsigned_range i; repeat split; try omega.
+    apply Z.divide_1_l.
+  + apply equal_f; 
+    apply memory_block_array_tuchar; auto.
 Qed.
 
 Lemma offset_val_array_at_:
  forall ofs t sh lo hi v,
+  legal_alignas_type t = true ->
+  offset_strict_in_range (sizeof t * ofs) v ->
   array_at_ t sh (ofs + lo) (ofs + hi) v =
   array_at_ t sh lo hi (offset_val (Int.repr (sizeof t * ofs)) v).
 Proof.
 intros.
 unfold array_at_.
-etransitivity; [ | apply offset_val_array_at].
+etransitivity; [ | apply offset_val_array_at; try assumption].
 f_equal.
 Qed.
 

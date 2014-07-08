@@ -74,7 +74,7 @@ semax
        (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
    `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
-   `(field_at Tsh t_struct_SHA256state_st _num)
+   `(field_at Tsh t_struct_SHA256state_st [_num])
      (`force_val
         (`(sem_cast (typeof (Etempvar _len tuint)) tuint)
            (eval_expr (Etempvar _len tuint))))

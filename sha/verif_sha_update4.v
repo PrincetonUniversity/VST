@@ -104,7 +104,7 @@ semax Delta
         (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
    `(sha256_length (hilo r_Nh r_Nl + (Z.of_nat len)*8) c);
    `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
-   `(field_at_ Tsh t_struct_SHA256state_st _num c);
+   `(field_at_ Tsh t_struct_SHA256state_st [_num] c);
    `(data_block sh data d)))
    sha_update_loop_body
   (loop1_ret_assert
@@ -267,7 +267,7 @@ semax
    `(at_offset 40
        (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64)
        c);
-   `(field_at Tsh t_struct_SHA256state_st _num (Vint (Int.repr (Zlength dd)))
+   `(field_at Tsh t_struct_SHA256state_st [_num] (Vint (Int.repr (Zlength dd)))
        c);
    `K_vector (eval_var _K256 (tarray tuint 64));
    `(data_block sh data d))) update_outer_if
