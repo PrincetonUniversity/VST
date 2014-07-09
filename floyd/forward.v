@@ -1601,15 +1601,15 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  | |- semax _ _ (Sset _ (Ecast (Ederef (Ebinop Oadd ?e1 ?e2 _) _) _)) _ =>
     eapply semax_cast_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
       [ reflexivity | simpl; auto | entailer ]
- | |- _ => eapply semax_load_37';
-   [reflexivity | reflexivity
-   | entailer;
-    try (apply andp_right; [apply prop_right | solve [cancel] ];
-           do 2 eexists; split; reflexivity)
-    ]
  | |- _ => eapply semax_cast_load_37';
    [reflexivity 
    |entailer;
+    try (apply andp_right; [apply prop_right | solve [cancel] ];
+           do 2 eexists; split; reflexivity)
+    ]
+ | |- _ => eapply semax_load_37';
+   [reflexivity | reflexivity
+   | entailer;
     try (apply andp_right; [apply prop_right | solve [cancel] ];
            do 2 eexists; split; reflexivity)
     ]

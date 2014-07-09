@@ -22,40 +22,17 @@ name x1 _x1.
 name y1 _y1.
 name y2 _y2.
 unfold v_s.
-apply semax_pre with (PROP() LOCAL () 
-            SEP(`(data_at Ews t_struct_foo (Vint (Int.repr 5), 
-                         (Vfloat (Float.singleoffloat (Float.double_of_bits
-                              (Int64.repr 4614861056357957632))),
-                          Vfloat (Float.double_of_bits (Int64.repr 0)))))
-                (eval_var _s t_struct_foo))).
+
+apply semax_pre with  (PROP() LOCAL ()
+  SEP(`(mapsto Ews tuint) (`(offset_val (Int.repr 0)) (eval_var _s t_struct_foo))
+        `(Vint (Int.repr 5));
+      `(mapsto Ews tfloat) (`(offset_val (Int.repr 4)) (eval_var _s t_struct_foo))
+        `(Vfloat (Float.singleoffloat (Float.double_of_bits (Int64.repr 4614861056357957632))));
+     `(mapsto Ews tdouble) (`(offset_val (Int.repr 8)) (eval_var _s t_struct_foo))
+         `(Vfloat (Float.double_of_bits (Int64.repr 0))))).
 go_lower. apply andp_derives; auto. apply andp_derives; auto.
-simpl_data_at.
-normalize.
-repeat rewrite sepcon_assoc.
-apply sepcon_derives.
-eapply mapsto_field_at'.
-reflexivity.
-reflexivity.
-simpl.
-rewrite offset_offset_val. reflexivity.
-apply I.
-reflexivity.
-apply sepcon_derives.
-eapply mapsto_field_at'.
-reflexivity.
-reflexivity.
-simpl.
-rewrite offset_offset_val. reflexivity.
-apply I.
-reflexivity.
-eapply mapsto_field_at'.
-reflexivity.
-reflexivity.
-simpl.
-rewrite offset_offset_val. reflexivity.
-apply I.
-reflexivity.
-simpl_data_at.
+cancel.
+
 forward.
 forward.
 forward.
