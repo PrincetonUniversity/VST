@@ -138,7 +138,7 @@ unfold_data_at 1%nat.
 unfold data_at_.
 (* Here, we need to use unfold_data_at to unfold data_at tarray into array_at *)
 unfold tarray.
-erewrite data_at_array_at; [| reflexivity|reflexivity].
+erewrite data_at_array_at; [| reflexivity| omega |reflexivity].
 
 normalize.
 
@@ -146,9 +146,9 @@ forward. (* x = p->x; *)
 forward. (* y = p->y; *)
 
 forward. (*  ((int * )buf)[0]=x; *)
-apply prop_right; rewrite <- H2; reflexivity.
-forward. (*  ((int * )buf)[1]=y; *)
 apply prop_right; rewrite <- H1; reflexivity.
+forward. (*  ((int * )buf)[1]=y; *)
+apply prop_right; rewrite <- H0; reflexivity.
 forward. (* return 8; *)
 apply exp_right with 8.
 entailer.
@@ -166,11 +166,7 @@ repeat (rewrite at_offset'_eq; [|rewrite <- data_at_offset_zero; reflexivity]).
 unfold nested_field_offset2, nested_field_type2; simpl.
 normalize.
 unfold upd, add_ptr_int. simpl.
-apply andp_right; [|unfold Int.mul; simpl; rewrite int_add_repr_0_r; apply derives_refl].
-repeat (erewrite by_value_data_at; [|apply I|reflexivity]).
-unfold size_compatible, align_compatible in *; simpl in *.
-unfold Int.mul; simpl; rewrite int_add_repr_0_r.
-normalize.
+unfold Int.mul; simpl; rewrite int_add_repr_0_r; apply derives_refl.
 Qed.
 
 Lemma body_intpair_deserialize: semax_body Vprog Gprog f_intpair_deserialize intpair_deserialize_spec.
@@ -210,7 +206,7 @@ apply semax_pre with
        apply pred_ext; normalize).
   rewrite memory_block_data_at_ by reflexivity.
   unfold data_at_, tarray.
-  erewrite data_at_array_at by reflexivity.
+  erewrite data_at_array_at; [| reflexivity | omega | reflexivity].
   
   unfold array_at, rangespec; simpl.
   unfold ZnthV; simpl. unfold field_at_. cancel.
@@ -218,12 +214,20 @@ apply semax_pre with
   repeat (rewrite at_offset'_eq; [|rewrite <- data_at_offset_zero; reflexivity]).
   unfold nested_field_offset2, nested_field_type2; simpl.
   normalize.
+  unfold data_at.
   unfold upd, add_ptr_int. simpl.
   unfold Int.mul; simpl; rewrite !int_add_repr_0_r.
+  unfold Int.add; change (Int.unsigned (Int.repr 4)) with 4.
   apply andp_right; [|cancel].
-  apply prop_right. repeat split;
+  normalize.
+
+  apply prop_right.
+  pose proof Int.unsigned_range i.
+  rewrite Int.unsigned_repr in H13 by (unfold Int.max_unsigned; omega).
+  repeat split;
     try (eapply Zdivides_trans; [exists 2; reflexivity |exact H1]);
-    try exact H2.
+    try assumption;
+    try omega.
 
 forward. (* x = ((int * )buf)[0]; *)
 entailer!. omega. apply I.
@@ -247,11 +251,7 @@ normalize.
 unfold upd, add_ptr_int. simpl.
 destruct buf0; inversion Pbuf.
 inv H3. inv H4.
-apply andp_right; [|simpl; unfold Int.mul; simpl; rewrite int_add_repr_0_r; cancel].
-repeat (erewrite by_value_data_at; [|apply I|reflexivity]).
-unfold size_compatible, align_compatible in *; simpl in *.
-unfold Int.mul; simpl; rewrite int_add_repr_0_r.
-normalize.
+simpl; unfold Int.mul; simpl; rewrite int_add_repr_0_r; cancel.
 Qed.
 
 Ltac simpl_stackframe_of := 
