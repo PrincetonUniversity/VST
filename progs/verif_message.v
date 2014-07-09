@@ -402,7 +402,6 @@ Section HINTS.
 Hint Resolve closed_wrt_eval_expr : closed.
 Hint Resolve closed_wrt_lvalue : closed.
 
-(*
 Lemma call_serialize:
  forall Espec (Delta: tycontext) (ser id x: ident)
            (sh_obj : share) (e_obj: expr) (d_obj: environ -> val)
@@ -483,7 +482,7 @@ apply andp_left1. apply func_ptr_isptr.
 apply prop_True_right.
 rewrite sepcon_prop_prop. apply prop_derives; intuition.
 normalize.
-eapply semax_pre with
+apply semax_pre with
   (EX p:val, EX buf:val, |>(PROP()
      LOCAL(tc_lvalue Delta e_obj; `(eq p) (eval_expr e_p);
                      `(eq buf) (eval_lvalue e_buf);
@@ -506,14 +505,20 @@ destruct p0.
 subst t0.
 eapply semax_seq'.
 {
-   eapply (semax_load_field_38); try eassumption; try reflexivity.
+  apply semax_load_field_38
+   with (t0 := (tptr
+          (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint
+             cc_default)))
+     (e:= PTree.empty _)(sh := sh_obj) (v':= valinject (nested_field_type2 (typeof e_obj) (_serialize :: @nil ident)) f) (*t:= t_struct_message*);
+    try assumption; try rewrite H2; try reflexivity.
   admit.  (* closed...  should be fine *)
    admit.  (* closed...  should be fine *)
  unfold typeof_temp; rewrite H0. reflexivity.
- reflexivity.
  go_lowerx; entailer.
- go_lowerx; entailer. rewrite H2; cancel.
- simpl. auto. 
+ simpl. cancel.
+ entailer!. 
+ hnf. simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
+ rewrite H2. simpl. hnf; auto.
 }
 rename H into H'. 
 focus_SEP 3 1.
@@ -537,11 +542,11 @@ focus_SEP 3 1.
                                (Tfunction
                                   (Tcons (tptr tvoid)
                                      (Tcons (tptr tuchar) Tnil)) tint cc_default))));
-             `(field_at sh_obj t_struct_message _serialize)  (eval_id ser)
+             `(field_at sh_obj t_struct_message (_serialize::nil))  (eval_id ser)
                             (eval_lvalue e_obj);
-              `(field_at sh_obj t_struct_message _bufsize (Vint (Int.repr (mf_size msg))))
+              `(field_at sh_obj t_struct_message (_bufsize::nil) (Vint (Int.repr (mf_size msg))))
                        (eval_lvalue e_obj);
-               `(field_at sh_obj t_struct_message _deserialize g)
+               `(field_at sh_obj t_struct_message (_deserialize::nil) g)
                             (eval_lvalue e_obj)))).
 go_lowerx. subst.
 apply andp_right; auto.
@@ -612,13 +617,13 @@ apply derives_trans with
 ((!!(0 <= len <= mf_size msg) && 
   mf_assert msg sh_buf (eval_lvalue e_buf rho) len v ) *
 mf_restbuf msg sh_buf (eval_lvalue e_buf rho) len *
-field_at sh_obj t_struct_message _serialize 
+field_at sh_obj t_struct_message (_serialize ::nil)
     (eval_id ser rho) (eval_lvalue e_obj rho)
   *
-field_at sh_obj t_struct_message _bufsize
+field_at sh_obj t_struct_message (_bufsize::nil)
     (Vint (Int.repr (mf_size msg))) (eval_lvalue e_obj rho)
   *
-field_at sh_obj t_struct_message _deserialize g (eval_lvalue e_obj rho)).
+field_at sh_obj t_struct_message (_deserialize::nil) g (eval_lvalue e_obj rho)).
 repeat apply sepcon_derives; auto.
 apply andp_right; auto.
 eapply derives_trans; [ apply mf_bufprop | ].
@@ -635,9 +640,12 @@ apply exp_right with (eval_id ser rho, g).
 apply andp_right.
 admit.  (* need to preserve these from above *)
 rename H into HYP. (*remove when simpl_data_at is fixed (explanation in verif_queue)*)
-simpl_data_at.
+simpl_data_at; try reflexivity.
 simpl.
-cancel.
+normalize.
+unfold at_offset.
+normalize.
+cancel. 
 Qed.
 
 Lemma call_deserialize:
@@ -681,9 +689,9 @@ Lemma call_deserialize:
                `(mf_assert msg sh_buf) d_buf d_len`v::
                 R))))).
 Admitted.
-*)
+
 End HINTS.
-(*
+
 Lemma intpair_message_length:
   forall sh p (len: environ -> Z) v P Q R,
     (PROPx P (LOCALx Q (SEPx
@@ -722,7 +730,10 @@ unfold app.
 rewrite -> seq_assoc.
 eapply semax_seq'.
 frame_SEP 3.
-simpl_data_at.
+admit.  (* closed *)
+(*
+deal with the var_block...
+normalize.
 forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
 unfold replace_nth.
@@ -829,4 +840,4 @@ cancel.
 Qed.
 
 *)
-
+Admitted.
