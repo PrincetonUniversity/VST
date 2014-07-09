@@ -369,10 +369,12 @@ pose (sizeof_pos t). omega. omega. omega.
 Qed.
 
 Lemma array_at_emp:
- forall t sh f lo v, array_at t sh f lo lo v = !!isptr v && emp.
+  forall t sh f lo v, array_at t sh f lo lo v = !!isptr v && !!offset_in_range (sizeof t * lo) v && 
+  !!align_compatible t v && emp.
 Proof. intros. unfold array_at, rangespec.
 replace (lo-lo) with 0 by omega.
-simpl. auto.
+simpl.
+apply pred_ext; normalize.
 Qed.
 
 Definition inttype2init_data (sz: intsize) : (int -> init_data) :=
@@ -494,97 +496,118 @@ Qed.
 Lemma id2pred_star_ZnthV_Tint:
  forall Delta sh n v (data: list int) sz sign mdata
   (NBS: notboolsize sz),
-  n = Zlength mdata ->
+  n = Zlength mdata -> 
   mdata = map (inttype2init_data sz) data ->
-  local (`isptr v) && id2pred_star Delta sh (tarray (Tint sz sign noattr) n) v 0 mdata |--
+  local (`isptr v) && local (`(align_compatible (Tint sz sign noattr)) v) &&
+  local (`(offset_in_range (sizeof (Tint sz sign noattr) * n)) v) &&
+  id2pred_star Delta sh (tarray (Tint sz sign noattr) n) v 0 mdata |--
   `(array_at (Tint sz sign noattr) sh (ZnthV (Tint sz sign noattr) 
            (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data)) 0 n) v.
 Proof.
-intros. subst n mdata.
-replace (Zlength (map  (inttype2init_data sz) data)) with (Zlength data)
- by (repeat rewrite Zlength_correct; rewrite map_length; auto).
-go_lowerx.
-set (ofs:=0%Z).
-unfold ofs at 1.
-change 0 with (ofs* sizeof (Tint sz sign noattr))%Z.
-set (N := Zlength data). unfold N at 2. clearbody N.
-replace (Zlength data) with (ofs + Zlength data) by (unfold ofs; omega).
-replace (ZnthV (Tint sz sign noattr) (map (Basics.compose Vint (cast_int_int sz sign)) data))
-   with (fun i => ZnthV (Tint sz sign noattr) (map (Basics.compose Vint (cast_int_int sz sign)) data) (i-ofs))
-  by (extensionality i; unfold ofs; rewrite Z.sub_0_r; auto).
-clearbody ofs.
-rename H into H'.
+  intros. subst n mdata.
+  replace (Zlength (map  (inttype2init_data sz) data)) with (Zlength data)
+    by (repeat rewrite Zlength_correct; rewrite map_length; auto).
+  set (ofs:=0%Z).
+  unfold ofs at 1.
+  go_lowerx.
+  assert (offset_in_range (sizeof (Tint sz sign noattr) * ofs) (v rho)) by
+    (unfold ofs, offset_in_range; destruct (v rho); auto;
+     pose proof Int.unsigned_range i; omega).
+  change 0 with (ofs* sizeof (Tint sz sign noattr))%Z.
+  set (N := Zlength data). unfold N at 2. clearbody N.
+  replace (Zlength data) with (ofs + Zlength data) in * by (unfold ofs; omega).
+  replace (ZnthV (Tint sz sign noattr) (map (Basics.compose Vint (cast_int_int sz sign)) data))
+    with (fun i => ZnthV (Tint sz sign noattr) (map (Basics.compose Vint (cast_int_int sz sign)) data) (i-ofs))
+    by (extensionality i; unfold ofs; rewrite Z.sub_0_r; auto).
+  
+  clearbody ofs.
+  rename H into H'.
 
-revert ofs;
+revert ofs H1 H2;
 induction data; intros; simpl; auto.
-* rewrite Zlength_nil. unfold array_at, rangespec; simpl.
- replace (ofs+0-ofs) with 0 by omega. simpl. normalize.
-* rewrite Zlength_cons.
+Focus 1. {
+  rewrite Zlength_nil. unfold array_at, rangespec; simpl.
+  replace (ofs+0-ofs) with 0 by omega. simpl. normalize.
+} Unfocus.
+rewrite Zlength_cons.
 set (w := match sz with
              | I8 => 1
              | I16 => 2
              | I32 => 4
              | IBool => 1
-             end).
-replace (sizeof (Tint sz sign noattr)) with w in IHdata by (destruct sz; reflexivity).
-replace (align w w) with w by (unfold w; destruct sz; reflexivity).
+             end) in *.
+replace (sizeof (Tint sz sign noattr)) with w in * by (destruct sz; reflexivity).
+replace (align w w) with w in * by (unfold w; destruct sz; reflexivity).
 replace (init_data_size (inttype2init_data sz a))
   with w by (destruct sz; reflexivity).
 replace (ofs*w+w) with ((Z.succ ofs) * w)%Z 
  by (destruct sz; unfold Z.succ; rewrite Z.mul_add_distr_r; reflexivity).
+
 replace (ofs + Z.succ (Zlength data)) with (Z.succ ofs + Zlength data) by omega.
 rewrite (split3_array_at ofs).
 rewrite array_at_emp.
-rewrite prop_true_andp by auto. rewrite emp_sepcon.
+rewrite prop_true_andp by auto. normalize. (* rewrite emp_sepcon. *)
 apply sepcon_derives; auto.
-unfold_lift.
-apply derives_trans with
-  (`(mapsto sh (Tint sz sign noattr))
-   (fun x : environ => offset_val (Int.repr (ofs * w)) (v x))
-   `(Vint (cast_int_int sz sign a)) rho).
-apply derives_refl'.
-destruct sz; simpl; unfold_lift; auto.
-destruct sign; simpl; auto.
-apply (mapsto_unsigned_signed Unsigned Signed sh I8).
-destruct sign; simpl; auto.
-apply (mapsto_unsigned_signed Unsigned Signed sh I16).
-contradiction.
-simpl_data_at; fold w.
-replace ((w-1)/w*w)%Z with 0%Z by (destruct sz; reflexivity).
-simpl.
-unfold_lift.
-rewrite mapsto_isptr.
-apply derives_extract_prop. intro.
-destruct (v rho); inv H.
-simpl offset_val.
-unfold add_ptr_int; simpl.
-fold w.
-rewrite mul_repr.
-unfold ZnthV.
-replace (align w w) with w by (destruct sz; reflexivity).
-rewrite Zmult_comm.
-rewrite if_false by omega.
-rewrite Z.sub_diag. simpl nth. 
-apply andp_right; [|auto].
-admit. (* align_compatible and size_compatible, should be provable *)
-auto.
-eapply derives_trans; [ apply IHdata | ].
-apply derives_refl'.
-apply equal_f. apply array_at_ext.
-intros. unfold ZnthV. if_tac. rewrite if_true by omega. auto.
-rewrite if_false by omega.
-assert (Z.to_nat (i-ofs) = S (Z.to_nat (i - Z.succ ofs))).
-apply Nat2Z.inj. rewrite inj_S. rewrite Z2Nat.id by omega.
-rewrite Z2Nat.id by omega. omega.
-rewrite H1. simpl. auto.
-rewrite Zlength_correct; clear; omega.
++ unfold_lift.
+  apply derives_trans with
+    (`(mapsto sh (Tint sz sign noattr))
+     (fun x : environ => offset_val (Int.repr (ofs * w)) (v x))
+     `(Vint (cast_int_int sz sign a)) rho).
+  - apply derives_refl'.
+    destruct sz; simpl; unfold_lift; auto.
+    destruct sign; simpl; auto.
+    apply (mapsto_unsigned_signed Unsigned Signed sh I8).
+    destruct sign; simpl; auto.
+    apply (mapsto_unsigned_signed Unsigned Signed sh I16).
+    contradiction.
+  - simpl_data_at; fold w.
+ (*   replace ((w-1)/w*w)%Z with 0%Z by (destruct sz; reflexivity).
+    simpl. *)
+    unfold_lift.
+    rewrite mapsto_isptr.
+    apply derives_extract_prop. intro.
+    destruct (v rho); inv H.
+    simpl offset_val.
+    unfold add_ptr_int; simpl.
+    fold w.
+    rewrite mul_repr.
+    unfold ZnthV.
+    (* replace (align w w) with w by (destruct sz; reflexivity). *)
+    rewrite Zmult_comm.
+    rewrite if_false by omega.
+    rewrite Z.sub_diag. simpl nth. 
+    apply andp_right; [|auto].
+    admit. (* align_compatible and size_compatible, should be provable *)
++ auto.
+  eapply derives_trans; [ apply IHdata | ].
+  - rewrite Zlength_cons in H1.
+    Z_and_int.
+    replace (ofs + 1 + Zlength data) with (ofs + (Zlength data + 1)) by omega.
+    exact H1.
+  - replace w with (sizeof (Tint sz sign noattr)) in * by (destruct sz; reflexivity).
+    eapply offset_in_range_mid; [| exact H2 | exact H1].
+    rewrite Zlength_cons.
+    Z_and_int.
+    pose proof (initial_world.zlength_nonneg _ data).
+    omega.
+  - apply derives_refl'.
+    apply equal_f. apply array_at_ext.
+    intros. unfold ZnthV. if_tac. rewrite if_true by omega. auto.
+    rewrite if_false by omega.
+    assert (Z.to_nat (i-ofs) = S (Z.to_nat (i - Z.succ ofs))).
+    apply Nat2Z.inj. rewrite inj_S. rewrite Z2Nat.id by omega.
+    rewrite Z2Nat.id by omega. omega.
+    rewrite H4. simpl. auto.
++ rewrite Zlength_correct; clear; omega.
 Qed.
 
 Lemma id2pred_star_ZnthV_tint:
  forall Delta sh n v (data: list int) mdata,
   n = Zlength mdata ->
   mdata = map Init_int32 data ->
-  local (`isptr v) && id2pred_star Delta sh (tarray tint n) v 0 mdata |--
+  local (`isptr v) && local (`(align_compatible tint) v) &&
+  local (`(offset_in_range (sizeof tint * n)) v) &&
+  id2pred_star Delta sh (tarray tint n) v 0 mdata |--
   `(array_at tint sh (ZnthV tint (map Vint data)) 0 n) v.
 Proof. intros; apply id2pred_star_ZnthV_Tint; auto; apply I.
 Qed.
@@ -604,22 +627,52 @@ Lemma unpack_globvar_array:
       `(array_at (Tint sz sign noattr) (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
     (ZnthV (Tint sz sign noattr) (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data)) 0 n) (eval_var i (tarray t n)).
 Proof.
- intros. subst t.
- match goal with |- ?A |-- _ =>
- eapply derives_trans with (local (`isptr (eval_var i (tarray (Tint sz sign noattr) n))) && A)
- end.
- apply andp_right; auto.
- go_lowerx. apply prop_right. eapply eval_var_isptr; eauto.
- right; split; auto. rewrite <- H1; auto.
- eapply derives_trans;[ apply andp_derives; 
-                                    [ apply derives_refl 
-                                    | eapply unpack_globvar_star; try eassumption; try reflexivity ] |].
-split; rewrite H1. cbv; destruct n; reflexivity. cbv; destruct n, sz, sign; reflexivity.
- rewrite H1. (* rewrite H3.*)  rewrite H5.
+  intros. subst t.
+  match goal with |- ?A |-- _ =>
+    erewrite (add_andp A (local (tc_environ Delta)))
+  end.
+  Focus 2. {
+    apply andp_left1; cancel.
+  } Unfocus.
+  match goal with |- ?A |-- _ =>
+    erewrite (add_andp A (local (`isptr (eval_var i (tarray (Tint sz sign noattr) n)))))
+  end.
+  Focus 2. {
+    go_lowerx. apply prop_right. eapply eval_var_isptr; eauto.
+    right; split; auto. rewrite <- H1; auto.
+   } Unfocus.
+  eapply derives_trans;[ apply andp_derives; [ apply andp_derives; [ eapply unpack_globvar_star; try eassumption; try reflexivity | apply derives_refl]  | apply derives_refl] |].
+  split; rewrite H1. cbv; destruct n; reflexivity. cbv; destruct n, sz, sign; reflexivity.
+  rewrite H1. (* rewrite H3.*)  rewrite H5.
 (* change (Share.splice extern_retainer (readonly2share false)) with Ews. *)
- eapply derives_trans; [ |  apply id2pred_star_ZnthV_Tint; auto].
- apply derives_refl.
- rewrite <- H5. auto.
+  eapply derives_trans; [| apply id2pred_star_ZnthV_Tint; auto].
+Opaque sizeof. 
+  go_lower.
+Transparent sizeof.
+  normalize.
+  destruct (globvar_eval_var Delta rho _ _ H7 H H0) as [? [? ?]].
+  rewrite H1 in H8.
+  assert (align_compatible (Tint sz sign noattr) (eval_var i (tarray (Tint sz sign noattr) n) rho)).
+  Focus 1. {
+    rewrite H8.
+    unfold align_compatible.
+    simpl.
+    apply Z.divide_0_r.
+  } Unfocus.
+  assert (offset_in_range (sizeof (Tint sz sign noattr) * n)
+           (eval_var i (tarray (Tint sz sign noattr) n) rho)).
+  Focus 1. {
+    rewrite H8.
+    unfold offset_in_range; simpl.
+    rewrite H1 in H6; simpl in H6.
+    pose proof initial_world.zlength_nonneg _ (gvar_init gv).
+    rewrite Z.max_r in H6 by omega.
+    unfold Int.max_unsigned in H6.
+    pose proof init_data_list_size_pos (gvar_init gv).
+    omega.
+  } Unfocus.
+  normalize.
+rewrite <- H5; auto.
 Qed.
 
 Lemma map_instantiate:
