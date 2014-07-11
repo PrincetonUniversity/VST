@@ -368,15 +368,6 @@ apply andp_right.
 pose (sizeof_pos t). omega. omega. omega.
 Qed.
 
-Lemma array_at_emp:
-  forall t sh f lo v, array_at t sh f lo lo v = !!isptr v && !!offset_in_range (sizeof t * lo) v && 
-  !!align_compatible t v && emp.
-Proof. intros. unfold array_at, rangespec.
-replace (lo-lo) with 0 by omega.
-simpl.
-apply pred_ext; normalize.
-Qed.
-
 Definition inttype2init_data (sz: intsize) : (int -> init_data) :=
  match sz with 
  | IBool  =>  Init_int8

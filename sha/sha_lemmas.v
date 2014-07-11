@@ -432,156 +432,201 @@ apply IHl1. intuition.
 inv H0; auto.
 Qed.
 
+Lemma split2_data_block:
+  forall n sh data d,
+  n <= length data ->
+  data_block sh data d = 
+  (!! offset_in_range (sizeof tuchar * Zlength data) d &&
+  data_block sh (firstn n data) d *
+  data_block sh (skipn n data) (offset_val (Int.repr (Z.of_nat n)) d))%logic.
+Proof.
+  intros.
+  assert (isptr d \/ ~isptr d) by (clear; destruct d; simpl; intuition).
+  destruct H0; [ | apply pred_ext; entailer].
+  unfold data_block.
+  remember (sizeof tuchar) as TU.
+  simpl.
+  normalize.
+  subst TU.
+  rewrite prop_and.
+  rewrite (andp_comm (prop (offset_in_range (sizeof tuchar * Zlength data) d))).
+  rewrite andp_assoc.
+  f_equal.
+  Focus 1. {
+    f_equal.
+    apply prop_ext.
+    repeat rewrite <- Forall_app.
+    rewrite firstn_skipn.
+    intuition.
+  } Unfocus.
+  match goal with
+  | |- ?A = _ => rewrite (add_andp A (!!offset_in_range (sizeof tuchar * Zlength data) d)%logic)
+  end;
+    [| unfold array_at; simpl (sizeof tuchar); rewrite !Zmult_1_l; normalize].
+  rewrite andp_comm.
+
+  assert (~ offset_strict_in_range (sizeof tuchar * Z.of_nat n) d \/
+    offset_strict_in_range (sizeof tuchar * Z.of_nat n) d) by
+    (unfold offset_strict_in_range; destruct d; auto; omega).
+  destruct H1 as [HH0 | HH1].
+  Focus 1. {
+    assert (offset_in_range (sizeof tuchar * Zlength data) d -> n = length data).
+      intros.
+      assert (offset_in_range (sizeof tuchar * 0) d).
+        unfold offset_in_range; destruct d; auto.
+        rewrite Zmult_0_r.
+        pose proof Int.unsigned_range i; omega.
+      assert (0 <= Z.of_nat n <= Zlength data)%Z.
+        rewrite Zlength_correct.
+        omega.
+      pose proof offset_in_range_mid 0 (Zlength data) (Z.of_nat n) _ _ H3 H2 H1.
+      unfold offset_in_range, offset_strict_in_range in *.
+      destruct d; try tauto.
+      simpl sizeof in *.
+      rewrite Zmult_1_l in *.
+      assert (Int.unsigned i + Z.of_nat n = Int.modulus)%Z by omega.
+      assert (Zlength data <= Z.of_nat n)%Z by omega.
+      rewrite Zlength_correct in H6.
+      omega.
+    simpl sizeof in *.
+    rewrite Zmult_1_l in *.
+    apply pick_prop_from_eq; intros.
+    assert (n = length data) by tauto; subst n.
+    assert (length data >= length data) by omega.
+    rewrite (firstn_same _ (length data) data H3).
+    rewrite !Zlength_correct.
+    rewrite (skipn_length (length data) data H3).
+    replace (length data - length data) with 0 by omega.
+    simpl.
+    rewrite array_at_emp.
+    apply pred_ext; normalize.
+    apply andp_right; [apply prop_right | apply derives_refl].
+    destruct (offset_val (Int.repr (Z.of_nat (length data))) d); repeat split; auto.
+    + unfold align_compatible. apply Z.divide_1_l.
+    + pose proof Int.unsigned_range i; omega.
+    + pose proof Int.unsigned_range i; omega.
+  } Unfocus.
+  f_equal.
+  rewrite (split_array_at (Z.of_nat n)).
+  f_equal.
+  + apply equal_f; apply array_at_ext'; intros; auto.
+    unfold tuchars, ZnthV.
+    repeat rewrite if_false by omega.
+    repeat rewrite map_map.
+    repeat rewrite @nth_map' with (d':=0%Z).
+    rewrite nth_firstn_low; auto.
+    rewrite <- (Z2Nat.id i) in H1 by omega.
+    destruct H1 as [_ ?].
+    apply Nat2Z.inj_lt in H1.
+    omega.
+    rewrite firstn_length.
+    rewrite min_l by omega.
+    rewrite <- (Z2Nat.id i) in H1 by omega.
+    destruct H1 as [_ ?].
+    apply Nat2Z.inj_lt in H1.
+    omega.
+    rewrite <- (Z2Nat.id i) in H1 by omega.
+    destruct H1 as [_ ?].
+    apply Nat2Z.inj_lt in H1.
+    omega.
+    rewrite Zlength_correct.
+    rewrite firstn_length.
+    f_equal.
+    rewrite min_l by omega.
+    auto.
+  + replace (Int.repr (Z.of_nat n)) with (Int.repr (sizeof tuchar * Z.of_nat n))
+      by (rewrite sizeof_tuchar; rewrite Z.mul_1_l; auto).
+    rewrite <- offset_val_array_at; [| reflexivity | assumption].
+    apply equal_f; apply array_at_ext'; intros; auto.
+    unfold tuchars, ZnthV.
+    repeat rewrite if_false by omega.
+    repeat rewrite map_map.
+    repeat rewrite @nth_map' with (d':=0%Z).
+    f_equal. f_equal.
+    rewrite nth_skipn; auto.
+    f_equal.
+    rewrite Z2Nat.inj_sub by omega.
+    rewrite Nat2Z.id.
+    destruct H1.
+    rewrite <- (Z2Nat.id i) in H1 by omega.
+    apply Nat2Z.inj_le in H1.
+    omega.
+    rewrite skipn_length.
+    rewrite Z2Nat.inj_sub by omega.
+    rewrite <- (Z2Nat.id i) in H1 by omega.
+    destruct H1.
+    apply Nat2Z.inj_le in H1.
+    rewrite Zlength_correct in H2.
+    apply Nat2Z.inj_lt in H2.
+    rewrite Nat2Z.id.
+    omega.
+    omega.
+    rewrite <- (Z2Nat.id i) in H1 by omega.
+    destruct H1.
+    apply Nat2Z.inj_le in H1.
+    rewrite Zlength_correct in H2.
+    apply Nat2Z.inj_lt in H2.
+    omega.
+    omega.
+    rewrite !Zlength_correct.
+    rewrite skipn_length by omega.
+    rewrite <- Nat2Z.inj_add.
+    f_equal.
+    omega.
+  + rewrite Zlength_correct.
+    omega.
+Qed.
+
+Lemma firstn_firstn: forall {A} lo n (data: list A), firstn lo (firstn (lo + n) data) = firstn lo data.
+Proof.
+  intros.
+  revert data; induction lo; intros.
+  + reflexivity.
+  + destruct data; simpl; [reflexivity |].
+    rewrite IHlo.
+    reflexivity.
+Qed.
+
+Lemma skipn_firstn: forall {A} lo n (data: list A), skipn lo (firstn (lo + n) data) = firstn n (skipn lo data).
+Proof.
+  intros.
+  revert data; induction lo; intros.
+  + reflexivity.
+  + destruct data; simpl.
+    - destruct n; reflexivity.
+    - apply IHlo.
+Qed.
+
 Lemma split3_data_block:
   forall lo n sh data d,
   lo+n <= length data ->
   data_block sh data d = 
+  (!! offset_in_range (sizeof tuchar * Zlength data) d &&
   (data_block sh (firstn lo data) d *
   data_block sh (firstn n (skipn lo data)) (offset_val (Int.repr (Z.of_nat lo)) d) *
-  data_block sh (skipn (lo+n) data)  (offset_val (Int.repr (Z.of_nat (lo+n))) d))%logic.
+  data_block sh (skipn (lo+n) data)  (offset_val (Int.repr (Z.of_nat (lo+n))) d)))%logic.
 Proof.
-intros.
-assert (isptr d \/ ~isptr d) by (clear; destruct d; simpl; intuition).
-destruct H0; [ | apply pred_ext; entailer].
-unfold data_block.
-simpl.
-normalize.
-f_equal. f_equal.
-apply prop_ext.
-rewrite plus_comm.
-rewrite <- skipn_drop.
-rewrite (and_comm (Forall _ (skipn _ _))).
-repeat rewrite <- Forall_app.
-rewrite firstn_skipn.
-rewrite firstn_skipn.
-intuition.
-rewrite (split_array_at (Z.of_nat (lo+n))).
-rewrite (split_array_at (Z.of_nat lo)).
-f_equal; [f_equal | ].
-*
- apply equal_f; apply array_at_ext'; intros; auto.
- unfold tuchars, ZnthV.
- repeat rewrite if_false by omega.
- repeat rewrite map_map.
- repeat rewrite @nth_map' with (d':=0%Z).
- rewrite nth_firstn_low; auto.
- rewrite <- (Z2Nat.id i) in H1 by omega.
- destruct H1 as [_ ?].
- apply Nat2Z.inj_lt in H1.
- omega.
- rewrite firstn_length.
- rewrite min_l by omega.
- rewrite <- (Z2Nat.id i) in H1 by omega.
- destruct H1 as [_ ?].
- apply Nat2Z.inj_lt in H1.
- omega.
- rewrite <- (Z2Nat.id i) in H1 by omega.
- destruct H1 as [_ ?].
- apply Nat2Z.inj_lt in H1.
- omega.
- rewrite Zlength_correct.
- rewrite firstn_length.
- f_equal.
- rewrite min_l by omega.
- auto.
-* 
-replace (Int.repr (Z.of_nat lo)) with (Int.repr (sizeof tuchar * Z.of_nat lo))
- by (rewrite sizeof_tuchar; rewrite Z.mul_1_l; auto).
-rewrite <- offset_val_array_at.
- apply equal_f; apply array_at_ext'; intros; auto.
- unfold tuchars, ZnthV.
- repeat rewrite if_false by omega.
- repeat rewrite map_map.
- repeat rewrite @nth_map' with (d':=0%Z).
- f_equal. f_equal.
- rewrite nth_firstn_low; auto.
- rewrite nth_skipn; auto.
- f_equal.
- rewrite Z2Nat.inj_sub by omega.
- rewrite Nat2Z.id.
- destruct H1.
- rewrite <- (Z2Nat.id i) in H1 by omega.
- apply Nat2Z.inj_le in H1.
- omega.
- rewrite skipn_length.
- rewrite Z2Nat.inj_sub by omega.
- rewrite <- (Z2Nat.id i) in H1 by omega.
- destruct H1.
- apply Nat2Z.inj_le in H1.
- apply Nat2Z.inj_lt in H2.
- rewrite Nat2Z.id.
- omega.
- omega.
- rewrite <- (Z2Nat.id i) in H1 by omega.
- destruct H1.
- apply Nat2Z.inj_le in H1.
- apply Nat2Z.inj_lt in H2.
- rewrite Z2Nat.inj_sub by omega.
- rewrite Nat2Z.id.
- rewrite firstn_length.
- rewrite skipn_length.
- rewrite min_l by omega.
- omega.
- omega.
- rewrite <- (Z2Nat.id i) in H1 by omega.
- destruct H1.
- apply Nat2Z.inj_le in H1.
- apply Nat2Z.inj_lt in H2. 
- omega.
- omega.
- rewrite Zlength_correct.
- rewrite firstn_length.
- rewrite skipn_length by omega.
- rewrite min_l by omega.
- rewrite Nat2Z.inj_add.
- omega.
-*
- replace (Int.repr (Z.of_nat (lo+n))) with (Int.repr (sizeof tuchar * Z.of_nat (lo+n)))
- by (rewrite sizeof_tuchar; rewrite Z.mul_1_l; auto).
-rewrite <- offset_val_array_at.
- apply equal_f; apply array_at_ext'; intros; auto.
- rewrite Zlength_correct in H1.
- unfold tuchars, ZnthV.
- repeat rewrite if_false by omega.
- repeat rewrite map_map.
- repeat rewrite @nth_map' with (d':=0%Z).
- f_equal. f_equal.
- rewrite nth_skipn; auto.
- f_equal.
- rewrite Z2Nat.inj_sub by omega.
- rewrite <- (Z2Nat.id i) in H1 by omega.
- destruct H1.
- apply Nat2Z.inj_le in H1.
- apply Nat2Z.inj_lt in H2.
- rewrite Nat2Z.id.
- omega.
- rewrite <- (Z2Nat.id i) in H1 by omega.
- destruct H1.
- apply Nat2Z.inj_le in H1.
- apply Nat2Z.inj_lt in H2.
- rewrite skipn_length.
- rewrite Z2Nat.inj_sub by omega.
- rewrite Nat2Z.id.
- omega.
- omega.
- rewrite <- (Z2Nat.id i) in H1 by omega.
- destruct H1.
- apply Nat2Z.inj_le in H1.
- apply Nat2Z.inj_lt in H2.
- omega.
- omega.
- repeat rewrite Zlength_correct.
- rewrite skipn_length by omega.
- rewrite Nat2Z.inj_sub.
- omega.
- auto.
-*
- split. omega.
- apply Nat2Z.inj_le. omega.
-* 
- split. omega.
- rewrite Zlength_correct.
- apply Nat2Z.inj_le. omega.
+  intros.
+  rewrite split2_data_block with (n := lo + n) by omega.
+  rewrite split2_data_block with (n := lo) (data := firstn (lo + n) data) by
+    (rewrite firstn_length; rewrite Min.min_l by omega; omega).
+  assert (!!offset_in_range (sizeof tuchar * Zlength data) d |-- 
+    !! offset_in_range (sizeof tuchar * Zlength (firstn (lo + n) data)) d)%logic.
+    remember (sizeof tuchar) as ST; normalize; subst ST.
+    apply offset_in_range_mid with (lo := 0%Z) (hi := Zlength data); try assumption.
+    rewrite !Zlength_correct.
+    rewrite firstn_length; rewrite Min.min_l by omega. split; try omega.
+    apply inj_le, H.
+    rewrite Zmult_0_r.
+    unfold offset_in_range; destruct d; auto.
+    pose proof Int.unsigned_range i; omega.
+  rewrite (add_andp _ _ H0) at 2.
+  normalize.
+  f_equal.
+  f_equal.
+  f_equal; f_equal.
+  apply firstn_firstn.
+  apply skipn_firstn.
 Qed.
 
 Lemma divide_length_app:
@@ -663,19 +708,37 @@ fold tuchar.
 rewrite mapsto_tuchar_isbyteZ.
 normalize. apply prop_right; split; auto.
 * (* rest of bytes, using induction hyp *)
-rewrite (split_array_at 1) by omega.
+rewrite split_offset_array_at with (lo := 1); [| omega | simpl; omega | reflexivity].
+normalize.
 apply derives_trans with (TT *  !!Forall isbyteZ (firstn n (map Int.unsigned dd))); auto.
 apply sepcon_derives; auto.
 replace v with (offset_val (Int.repr (sizeof tuchar * -1)) (offset_val (Int.repr 1%Z) v))
  by (destruct v; inv Pv; simpl; f_equal; normalize).
-rewrite <- offset_val_array_at.
 eapply derives_trans; [ | apply (IHn (offset_val (Int.repr 1) v)); normalize].
-apply derives_refl'; apply equal_f; apply array_at_ext'; intros; try omega.
+apply derives_refl'. 
+replace (offset_val (Int.repr 1)
+        (offset_val (Int.repr (sizeof tuchar * -1))
+           (offset_val (Int.repr 1) v))) with (offset_val (Int.repr 1) v).
+apply equal_f. apply array_at_ext'; intros; try omega.
 unfold ZnthV. if_tac. omega. if_tac; try omega.
-replace (Z.to_nat (i0 - -1)) with (S (Z.to_nat i0)).
+replace (Z.to_nat (i0 + 1)) with (S (Z.to_nat i0)).
 simpl. auto.
-replace (i0 - -1)%Z with (1+i0)%Z by omega.
-rewrite Z2Nat.inj_add by omega. simpl.  auto. 
+replace (i0 + 1)%Z with (1+i0)%Z by omega.
+rewrite Z2Nat.inj_add by omega. simpl.  auto.
+
+ destruct v; auto.
+ unfold offset_val, Int.add.
+ f_equal.
+ rewrite !Int.unsigned_repr_eq.
+ rewrite Zplus_mod_idemp_r.
+ rewrite Zplus_mod_idemp_l.
+ change (1 mod Int.modulus) with 1.
+ simpl.
+ replace (Int.unsigned i0 + 1 + -1) with (Int.unsigned i0) by omega.
+ rewrite <- Int.unsigned_repr_eq.
+ rewrite Int.repr_unsigned.
+ reflexivity.
+
 clear.
 rewrite <- (andp_TT (!! _)).
 normalize.

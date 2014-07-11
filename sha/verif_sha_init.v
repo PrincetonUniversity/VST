@@ -24,7 +24,7 @@ unfold_data_at 1%nat.
 rewrite (field_at_data_at) with (ids := [_h]) by reflexivity.
 rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
 unfold nested_field_type2; simpl; unfold tarray.
-erewrite data_at_array_at by reflexivity.
+erewrite data_at_array_at; [| reflexivity | omega | reflexivity].
 normalize.
 do 8 (forward;normalize; rewrite upd_Znth_next by (compute; reflexivity); simpl app).
 forward. (* c->Nl=0; *)
@@ -38,7 +38,7 @@ unfold_data_at 1%nat.
 rewrite (field_at_data_at) with (ids := [_h]) by reflexivity.
 rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
 unfold nested_field_type2; simpl nested_field_rec; unfold tarray.
-erewrite data_at_array_at by reflexivity.
+erewrite data_at_array_at; [| reflexivity | omega | reflexivity].
 entailer!.
 repeat split; auto.
 rewrite hash_blocks_equation. reflexivity.
