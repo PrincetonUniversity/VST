@@ -21,10 +21,12 @@ start_function.
 name c_ _c.
 unfold data_at_.
 unfold_data_at 1%nat.
+unfold_field_at 5%nat.
+fold t_struct_SHA256state_st. (*
 rewrite (field_at_data_at) with (ids := [_h]) by reflexivity.
 rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
 unfold nested_field_type2; simpl; unfold tarray.
-erewrite data_at_array_at; [| reflexivity | omega | reflexivity].
+erewrite data_at_array_at; [| reflexivity | omega | reflexivity]. *)
 normalize.
 do 8 (forward;normalize; rewrite upd_Znth_next by (compute; reflexivity); simpl app).
 forward. (* c->Nl=0; *)
@@ -35,10 +37,7 @@ unfold sha256state_.
 apply exp_right with (map Vint init_registers, 
       (Vint Int.zero, (Vint Int.zero, (nil, Vint Int.zero)))).
 unfold_data_at 1%nat.
-rewrite (field_at_data_at) with (ids := [_h]) by reflexivity.
-rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
-unfold nested_field_type2; simpl nested_field_rec; unfold tarray.
-erewrite data_at_array_at; [| reflexivity | omega | reflexivity].
+unfold_field_at 5%nat.
 entailer!.
 repeat split; auto.
 rewrite hash_blocks_equation. reflexivity.

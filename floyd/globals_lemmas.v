@@ -7,6 +7,7 @@ Require Import floyd.data_at_lemmas.
 Require Import floyd.loadstore_lemmas.
 Require Import floyd.array_lemmas.
 Require Import floyd.closed_lemmas.
+Require Import floyd.unfold_data_at.
 Local Open Scope logic.
 
 Fixpoint fold_right_sepcon' (l: list(environ->mpred)) : environ -> mpred :=

@@ -1,6 +1,7 @@
 Require Import floyd.proofauto.
 Require Import progs.message.
 
+Local Open Scope Z.
 Local Open Scope logic.
 
 (*   mf_assert msgfmt sh buf len data  := the [data] is formatted into a message 
@@ -58,17 +59,13 @@ Next Obligation.
 compute; split; congruence.
 Qed.
 Next Obligation.
- normalize.
- eapply derives_trans; [apply data_at_data_at_; reflexivity|].
- rewrite <- memory_block_data_at_ by reflexivity.
- rewrite lower_andp_val. normalize. 
-
- repeat rewrite prop_and. repeat apply andp_right; try apply prop_right.
- + compute; congruence.
- + compute; congruence.
-
- + change 8 with (sizeof t_struct_intpair). 
-   apply derives_refl.
+  normalize.
+  eapply derives_trans; [apply data_at_data_at_; reflexivity|].
+  rewrite <- memory_block_data_at_ by reflexivity.
+  rewrite lower_andp_val. normalize.
+  apply andp_right; [apply prop_right; omega|].
+  simpl.
+  apply derives_refl.
 Qed.
 
 (* align_compatible requirement is neccesary in precondition *)
@@ -136,9 +133,7 @@ destruct data as [[|x1 | | | ] [|y1 | | | ]]; try contradiction. clear Dx Dy.
 
 unfold_data_at 1%nat.
 unfold data_at_.
-(* Here, we need to use unfold_data_at to unfold data_at tarray into array_at *)
-unfold tarray.
-erewrite data_at_array_at; [| reflexivity| omega |reflexivity].
+unfold_data_at 1%nat.
 
 normalize.
 
@@ -146,9 +141,9 @@ forward. (* x = p->x; *)
 forward. (* y = p->y; *)
 
 forward. (*  ((int * )buf)[0]=x; *)
-apply prop_right; rewrite <- H1; reflexivity.
+apply prop_right; rewrite <- H3; reflexivity.
 forward. (*  ((int * )buf)[1]=y; *)
-apply prop_right; rewrite <- H0; reflexivity.
+apply prop_right; rewrite <- H2; reflexivity.
 forward. (* return 8; *)
 apply exp_right with 8.
 entailer.
@@ -205,8 +200,8 @@ apply semax_pre with
        assert (4 | Int.unsigned i0) by (eapply Zdivides_trans; [exists 2; reflexivity| exact H1]);
        apply pred_ext; normalize).
   rewrite memory_block_data_at_ by reflexivity.
-  unfold data_at_, tarray.
-  erewrite data_at_array_at; [| reflexivity | omega | reflexivity].
+  unfold data_at_.
+  unfold_data_at 1%nat.
   
   unfold array_at, rangespec; simpl.
   unfold ZnthV; simpl. unfold field_at_. cancel.
@@ -223,7 +218,6 @@ apply semax_pre with
 
   apply prop_right.
   pose proof Int.unsigned_range i.
-  rewrite Int.unsigned_repr in H13 by (unfold Int.max_unsigned; omega).
   repeat split;
     try (eapply Zdivides_trans; [exists 2; reflexivity |exact H1]);
     try assumption;

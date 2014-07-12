@@ -11,6 +11,7 @@ Require Export floyd.nested_field_lemmas.
 Require Export floyd.data_at_lemmas.
 Require Export floyd.loadstore_lemmas.
 Require Export floyd.array_lemmas.
+Require Export floyd.unfold_data_at.
 Require Export floyd.entailer.
 Require Export floyd.globals_lemmas.
 
