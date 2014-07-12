@@ -136,9 +136,12 @@ simpl.
  rewrite Zlength_correct in H3; change CBLOCKz with (Z.of_nat CBLOCK) in H3;
   apply Nat2Z.inj_lt in H3.
  rewrite (split3_data_block (length blocks * 4 - length r_data) CBLOCK sh data) by omega.
+ rewrite !sepcon_assoc.
+ rewrite <- sepcon_andp_prop'.
  cancel.
 after_call.
 
+ rename H2 into H99.
 replace_SEP 2%Z (`K_vector (eval_var _K256 (tarray tuint 64))); 
   [entailer | ].
  forward. (* data += SHA_CBLOCK; *)
@@ -214,9 +217,10 @@ rewrite NPeano.Nat.add_sub_swap by auto.
  rewrite (split3_data_block (length blocks * 4 - length r_data) CBLOCK sh data)
   by omega.
  cancel.
-apply derives_refl'. f_equal. auto.
+apply derives_refl'. f_equal.
+rewrite H6.
+apply pred_ext; normalize; cancel.
 Qed.
-
 
 Definition update_outer_if :=
      Sifthenelse
