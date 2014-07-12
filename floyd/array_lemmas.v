@@ -992,14 +992,15 @@ Proof.
   destruct (zlt n 0); Z_and_int; omega.
 Qed.
 
-Lemma data_at_array_at: forall sh t n a v v' p, 
+Lemma data_at_array_at: forall sh t n a v v', 
   JMeq v v' ->
   n >= 0 ->
   legal_alignas_type (Tarray t n a) = true ->
-  data_at sh (Tarray t n a) v p = 
-  array_at t sh (ZnthV t v') 0 n p.
+  data_at sh (Tarray t n a) v = 
+  array_at t sh (ZnthV t v') 0 n.
 Proof.
   intros.
+  extensionality p.
   unfold array_at, data_at.
   simpl.
   unfold array_at', rangespec.
