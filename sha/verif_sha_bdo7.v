@@ -272,8 +272,8 @@ assert (16 <= Z.of_nat i < 64)%Z. {
 }
 
 forward.	(*s0 = X[(i+1)&0x0f]; *)
-drop_LOCAL 3. drop_LOCAL 2.
-clear; entailer; apply prop_right; apply and_mod_15_lem.
+clear; entailer; apply andp_right; [| cancel].
+apply prop_right; repeat split; try apply and_mod_15_lem.
 
 forward. (* s0 = sigma0(s0); *)
 rename x into s0'.
@@ -298,7 +298,7 @@ drop_LOCAL 1.
 clear s0'.
 
 forward. (* s1 = X[(i+14)&0x0f]; *)
-clear;  (entailer; apply prop_right; apply and_mod_15_lem).
+clear;  (entailer; apply andp_right; [| cancel]; apply prop_right; repeat split; apply and_mod_15_lem).
 forward. (* s1 = sigma1(s1); *)
 rename x into s1'.
 
@@ -318,12 +318,9 @@ drop_LOCAL 1.
 drop_LOCAL 1.
 clear s1'.
 
-
-
 forward. (* T1 = X[i&0xf]; *) 
 clear - H H1 LBE.
-drop_LOCAL 5%nat.
-abstract (entailer; apply prop_right; apply and_mod_15_lem).
+clear; (entailer; apply andp_right; [| cancel]; apply prop_right; repeat split; apply and_mod_15_lem).
 
 apply (assert_LOCAL (`(eq (Vint (W (nthi b) (Z.of_nat i - 16 + 0)))) (eval_id _T1))). 
 drop_LOCAL 6%nat.
@@ -341,8 +338,7 @@ abstract (
 ).
 drop_LOCAL 1%nat.
 forward. (* t = X[(i+9)&0xf]; *)
-clear - H H1 LBE.
-abstract (entailer; apply prop_right; apply and_mod_15_lem).
+clear;  (entailer; apply andp_right; [| cancel]; apply prop_right; repeat split; apply and_mod_15_lem).
 
 apply (assert_LOCAL (`(eq (Vint (W (nthi b) (Z.of_nat i - 16 + 9)))) (eval_id _t))).
 clear - H H0 H1 LBE.
@@ -374,28 +370,53 @@ do 3 drop_LOCAL 1%nat.
 (* clear s0 s1. *)
 
 forward. (* X[i&0xf] = T1; *)
-instantiate (2:= (Z.of_nat i  mod 16)).
-instantiate (1:=  (Vint  (W (nthi b) (Z.of_nat i)))).
-abstract (
- entailer;
- apply prop_right; split;
- [ unfold Int.and; rewrite mul_repr;
-  f_equal; f_equal; f_equal; 
-  change (Int.unsigned (Int.repr 15)) with (Z.ones 4);
-  rewrite Z.land_ones by (clear; omega);
-  f_equal; rewrite Int.unsigned_repr by repable_signed; auto
- | change LBLOCKz with 16%Z; apply Z.mod_bound_pos; omega
- ]).
+{
+  instantiate (2:= (Z.of_nat i  mod 16)).
+  instantiate (1:=  (Vint  (W (nthi b) (Z.of_nat i)))).
+   
+  apply prop_right; split.
+   
+  change (tarray tuint 16) with (tarray tuint LBLOCKz).
+  replace (force_val (sem_and tint tint (eval_id _i rho) (Vint (Int.repr 15))))
+    with (Vint (Int.repr (Z.of_nat i mod 16))).
+  rewrite sem_add_pi_ptr by assumption.
+  simpl force_val.
+  unfold Int.mul.
+  rewrite Int.unsigned_repr by repable_signed. 
+  rewrite Int.unsigned_repr.
+  simpl sizeof.
+  reflexivity.
+   
+  assert (0 <= Z.of_nat i mod 16 < 16)%Z by (apply Z_mod_lt; omega).
+  repable_signed.
+   
+    change (Int.repr 15) with (Int.repr (Z.ones 4)).
+    change (16)%Z with (2 ^ 4)%Z.
+    rewrite <- Z.land_ones by (clear; omega).
+    rewrite <- H3.
+    unfold sem_and.
+    simpl.
+    unfold Int.and.
+    rewrite Int.unsigned_repr by repable_signed; auto.
+   
+  rewrite <- and_assoc. split.
+   
+  change LBLOCKz with 16%Z; apply Z.mod_bound_pos; omega.
+   
+  rewrite <- H2.
+  reflexivity.
+}
 rewrite Xarray_update by (apply Zlength_length in H; auto).
 
 unfold K_vector.
 forward.  (* Ki=K256[i]; *)
-abstract (
- entailer!;
- [unfold tuints, ZnthV; rewrite if_false by (clear; omega);
+ entailer!.
+ change (Zlength K256) with 64%Z; clear - H1; omega.
+unfold tuints, ZnthV; rewrite if_false by (clear; omega);
  rewrite (@nth_map' int val _ _ Int.zero); [apply I | ];
- change (length K256) with 64%nat; rewrite Nat2Z.id; destruct H0 as [_ H0]; apply H0
- | change (Zlength K256) with 64%Z; clear - H1; omega]).
+ change (length K256) with 64%nat; rewrite Nat2Z.id; destruct H0 as [_ H0]; apply H0.
+
+(* I am wondering whether this is because I changed the order or assumptions *)
 
 apply (assert_LOCAL (`(eq (Vint (nth i K256 Int.zero))) (eval_id _Ki))).
 drop_LOCAL 5%nat. drop_LOCAL 3%nat. drop_LOCAL 2%nat.
