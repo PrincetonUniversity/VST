@@ -81,8 +81,9 @@ name data_ _data.
 abbreviate_semax.
 assert (H5': Zlength r_h = 8%Z).
 rewrite Zlength_correct; rewrite H5; reflexivity.
+
 do 8 (forward;
-         [ entailer!; apply ZnthV_map_Vint_is_int; omega | ]).
+         [ entailer!; [|apply ZnthV_map_Vint_is_int]; omega | ]).
 forward.  (* skip; *)
 entailer. apply prop_right.
 revert H H0 H1 H2 H3 H4 H6 H7.
@@ -195,43 +196,125 @@ eapply semax_load_array with (lo:=0)
      try reflexivity.
      apply H3.
      reflexivity.
-     entailer; unfold at_offset; cancel.
-    clear H5.
+     instantiate (2:= (tuints (add_upto i regs atoh))).
+     instantiate (1:= 8).
+     instantiate (1:= Tsh).
+     clear H5.
     intro rho.
-    unfold PROPx, LOCALx, SEPx. simpl.
     unfold local; super_unfold_lift.
     normalize.
    saturate_local.
-  apply prop_right; simpl.
-   rewrite Int.signed_repr by repable_signed.
-  repeat split; auto.
-  unfold tuints, ZnthV.
-   rewrite if_false by (clear; omega).
+  entailer!.
+  Focus 1. {
+    simpl.
+    rewrite Int.signed_repr by repable_signed.
+    omega.
+  } Unfocus.
+  Focus 1. {
+    unfold tc_lvalue. unfold typecheck_lvalue. 
+    rewrite !binop_lemmas.denote_tc_assert_andp.
+    rewrite H2.
+    simpl.
+    repeat split; auto.
+    unfold_lift.
+    unfold tuint, tarray, deref_noload.
+    simpl.
+    destruct (eval_id _ctx rho); try inversion H14; simpl; auto.
+    unfold tuint, tarray, deref_noload.
+    simpl.
+    unfold_lift.
+    destruct (eval_id _ctx rho); try inversion H14; simpl; auto.
+  } Unfocus.
+  Focus 1. {
+    unfold tuints, ZnthV.
+    simpl; rewrite Int.signed_repr by repable_signed.
+   rewrite if_false by omega.
    rewrite (@nth_map' int val _ _ Int.zero).
    apply I.
    rewrite Nat2Z.id.
- rewrite LENADD; auto.
-  clear; omega.
-  apply Z2Nat.inj_lt; try omega.
-  rewrite Nat2Z.id. apply H4.
-  hnf. unfold typecheck_expr; fold typecheck_expr.
-  rewrite H2. simpl.
-  unfold_lift.
-  split; auto.
- destruct (eval_id _ctx rho); try contradiction; auto.
+   rewrite LENADD; auto.
+  } Unfocus.
+  Focus 1. {
+    simpl.  unfold tuints, tuint, tarray, deref_noload.
+    simpl.
+    unfold_lift.
+    destruct (eval_id _ctx rho); try inversion H14; simpl; auto.
+    rewrite Int.add_zero.
+    cancel.
+  } Unfocus.
+ 
  simpl update_tycon.
  apply extract_exists_pre; intro old.
  autorewrite with subst. clear old.
- 
+
  unfold add_h.
 eapply semax_seq'.
 ensure_normal_ret_assert;
  hoist_later_in_pre.
- eapply(@semax_store_array Espec (initialized _t Delta) O Tsh tuint (tuints (add_upto i regs atoh)) 0 8);
+ eapply(@semax_store_array Espec (initialized _t Delta) Tsh 0) with (t := tuint) (contents := (tuints (add_upto i regs atoh))) (lo := 0) (hi := 8);
   try reflexivity.
  apply writable_share_top.
- instantiate (2:= Z.of_nat i).
- instantiate (1:= Vint (Int.add (nth i regs Int.zero) (nth i atoh Int.zero))).
+
+{
+  intro rho.
+  set (i' := nth i [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive).
+  unfold PROPx, LOCALx, SEPx.
+  unfold local; super_unfold_lift.
+  simpl.
+  normalize.
+  saturate_local.
+  apply prop_right; simpl.
+  replace (eval_id i' rho) with (Vint (nth i atoh Int.zero)). 
+  Focus 2. {
+    unfold i'.
+    destruct i as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try assumption.
+    clear - H4; omega.
+  } Unfocus.
+  unfold tc_lvalue, typecheck_lvalue.
+  rewrite !binop_lemmas.denote_tc_assert_andp.
+  replace ((temp_types (initialized _t Delta)) ! _ctx) with (Some (tptr t_struct_SHA256state_st, true)).
+  Focus 2. {
+    clear - H3 H2.
+    unfold typeof_temp in H3.
+    unfold initialized.
+    destruct ((temp_types Delta) ! _t) eqn:?; inversion H3.
+    destruct p; inv H0. unfold temp_types.
+    destruct Delta. destruct p. destruct p.
+    unfold fst, snd. rewrite PTree.gso. auto.
+    cbv. intros. inversion H.
+  } Unfocus.
+  simpl.
+  unfold_lift.
+  repeat split; auto.
+  + unfold tuint, tarray, deref_noload.
+    simpl.
+    destruct (eval_id _ctx rho); try inversion Heqv; simpl; auto.
+  + unfold tuint, tarray, deref_noload.
+    simpl.
+    destruct (eval_id _ctx rho); try inversion Heqv; simpl; auto.
+  + unfold tc_expr, typecheck_expr.
+    replace ((temp_types (initialized _t Delta)) ! _t) with (Some (tuint,true)).
+    Focus 2. {
+      clear - H3.
+      unfold typeof_temp in H3.
+      unfold initialized.
+      destruct ((temp_types Delta) ! _t); inv H3.
+      destruct p; inv H0. unfold temp_types.
+      destruct Delta. destruct p. destruct p.
+      unfold fst, snd. rewrite PTree.gss. auto.
+    } Unfocus.
+    rewrite !binop_lemmas.denote_tc_assert_andp.
+    simpl.
+    rewrite <- (expr_lemmas.initialized_ne Delta i' _t).
+    specialize (H1 _ H4).
+    unfold i'.
+    rewrite H1. 
+    repeat split; auto.
+    cbv. intros.  destruct i as [ | [ | [ | [ | [ | [ | [ | [ | [ | ] ]]]]]]]]; inv H17.
+}
+
+{
+ instantiate (1:= `(Vint (Int.repr (Z.of_nat i)))).
  intro rho.
  set (i' := nth i [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive).
  unfold PROPx, LOCALx, SEPx.
@@ -240,64 +323,43 @@ ensure_normal_ret_assert;
  normalize.
  saturate_local.
  apply prop_right; simpl.
-  rewrite H7.
- replace (eval_id i' rho) with (Vint (nth i atoh Int.zero)).
- destruct (eval_id _ctx rho) eqn:?; try (contradiction H16).
+ destruct (eval_id _ctx rho) eqn:?; try (contradiction H15).
  simpl.
- rewrite Int.signed_repr by repable_signed.
  repeat split; auto.
- unfold tuints, ZnthV. rewrite if_false by (clear; omega).
- rewrite Nat2Z.id.
- rewrite (@nth_map' int val _ _ Int.zero).
- simpl.
+ + 
  f_equal.
- f_equal.
- clear; revert regs atoh; induction i; destruct regs, atoh; simpl; auto.
- rewrite LENADD; auto.
- hnf.
- unfold typecheck_expr; fold typecheck_expr.
- repeat rewrite denote_tc_assert_andp; repeat split; auto.
- replace ((temp_types (initialized _t Delta)) ! _t) with (Some (tuint,true)).
- apply I.
- clear - H3.
- unfold typeof_temp in H3.
- unfold initialized.
- destruct ((temp_types Delta) ! _t); inv H3.
- destruct p; inv H0. unfold temp_types.
- destruct Delta. destruct p. destruct p.
- unfold fst, snd. rewrite PTree.gss. auto.
- rewrite <- (expr_lemmas.initialized_ne Delta i' _t).
- specialize (H1 _ H4).
- unfold i'.
- rewrite H1. simpl. apply I.
- unfold i'.
- clear.
- intro.
- destruct i as [ | [ | [ | [ | [ | [ | [ | [ | [ | ] ]]]]]]]]; inv H.
- apply tc_expr_init.
- hnf.
- unfold typecheck_expr; fold typecheck_expr.
- rewrite H2. simpl. unfold_lift.
- rewrite Heqv. split; simpl; auto.
- f_equal. rewrite Int.add_assoc.
- f_equal. rewrite Int.add_zero_l. auto.
- clear; omega.
-  apply Z2Nat.inj_lt; try omega.
-  rewrite Nat2Z.id. apply H4.
- unfold i'.
-  destruct i as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try assumption.
-  clear - H4; omega.
+  f_equal. rewrite Int.add_zero. reflexivity.
+ + omega.
+ + omega.
+}
  simpl update_tycon.
  unfold replace_nth. 
  eapply semax_pre; try apply H5.
  apply (drop_LOCAL' 0); unfold delete_nth.
- apply (drop_LOCAL' 0); unfold delete_nth.
+(* apply (drop_LOCAL' 0); unfold delete_nth. *)
+ intros rho.
+ normalize.
  replace (array_at tuint Tsh
-     (upd (tuints (add_upto i regs atoh)) (Z.of_nat i)
-        (Vint (Int.add (nth i regs Int.zero) (nth i atoh Int.zero)))) 0 8)
+     (upd (tuints (add_upto i regs atoh))
+        (force_signed_int (Vint (Int.repr (Z.of_nat i))))
+        (valinject tuint
+           (eval_expr
+              (Ecast
+                 (Ebinop Oadd (Etempvar _t tuint)
+                    (Etempvar
+                       (nth i [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive)
+                       tuint) tuint) tuint) rho))) 0 8) 
   with (array_at tuint Tsh (tuints (add_upto (S i) regs atoh)) 0 8).
   apply derives_refl.
- clear - H H0 H4 LENADD.
+  replace (force_signed_int (Vint (Int.repr (Z.of_nat i)))) with (Z.of_nat i) by 
+    (simpl; rewrite Int.signed_repr by repable_signed; reflexivity).
+  replace (valinject tuint (eval_expr
+              (Ecast
+                 (Ebinop Oadd (Etempvar _t tuint)
+                    (Etempvar
+                       (nth i [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive)
+                       tuint) tuint) tuint) rho)) with (Vint (Int.add (nth i regs Int.zero) (nth i atoh Int.zero))).
+  + clear - H H0 H4 LENADD.
 apply array_at_ext; intros j ?.
 unfold upd, tuints, ZnthV.
  rewrite if_false by omega.
@@ -324,6 +386,29 @@ unfold upd, tuints, ZnthV.
  unfold add_upto; fold add_upto.
  unfold map; fold map. simpl. 
  apply (IHn _ k); auto; try omega.
+  + 
+ set (i' := nth i [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive).
+ unfold PROPx, LOCALx, SEPx.
+ simpl.
+ unfold_lift.
+  rewrite <- H6.
+ replace (eval_id i' rho) with (Vint (nth i atoh Int.zero)).
+  Focus 2. {
+    unfold i'.
+    destruct i as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try assumption.
+    clear - H4; omega.
+  } Unfocus.
+ simpl.
+ rewrite Int.signed_repr by repable_signed.
+
+unfold tuints, ZnthV. rewrite if_false by (clear; omega).
+ rewrite Nat2Z.id.
+ rewrite (@nth_map' int val _ _ Int.zero).
+ simpl.
+ f_equal.
+ f_equal.
+ clear; revert regs atoh; induction i; destruct regs, atoh; simpl; auto.
+ rewrite LENADD; auto.
 Qed.
 
 Lemma add_them_back_proof:
