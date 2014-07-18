@@ -701,7 +701,7 @@ unfold_lift.
 normalize.
 Qed.
 
-Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
+Lemma body_main: semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function. unfold MORE_COMMANDS, abbreviate.
 simpl_stackframe_of.
@@ -724,10 +724,9 @@ unfold app.
 rewrite -> seq_assoc.
 eapply semax_seq'.
 frame_SEP 3.
-admit.  (* closed *)
-(*
-deal with the var_block...
-normalize.
+unfold data_at_.
+unfold_data_at 1%nat.
+
 forward. (*  p.x = 1; *)
 forward. (* p.y = 2; *)
 unfold replace_nth.
@@ -747,7 +746,7 @@ Ltac gather_SEP' L :=
 gather_SEP' (0::1::nil).
 replace_SEP 0 (`(data_at Tsh t_struct_intpair (Vint (Int.repr 1), Vint (Int.repr 2)))
                       (eval_var _p t_struct_intpair) ).
-simpl_data_at.
+unfold_data_at 1%nat.
 entailer.
 rewrite -> seq_assoc. simpl.
 eapply semax_seq'.
@@ -798,10 +797,11 @@ assert (CLY: closed_wrt_vars (eq _des)
 auto 50 with closed.
 focus_SEP 1.
 replace_SEP 0
-  ((`( field_at Tsh t_struct_intpair _x (Vint (Int.repr 1))) (eval_var _q t_struct_intpair) *
-   `( field_at Tsh t_struct_intpair _y (Vint (Int.repr 2))) (eval_var _q t_struct_intpair))
+  ((`( field_at Tsh t_struct_intpair (_x :: nil) (Vint (Int.repr 1))) (eval_var _q t_struct_intpair) *
+   `( field_at Tsh t_struct_intpair (_y :: nil) (Vint (Int.repr 2))) (eval_var _q t_struct_intpair))
     ).
-simpl_data_at; entailer!.
+unfold_data_at 1%nat.
+entailer!.
 forward. (* x = q.x; *)
 forward. (* y = q.y; *)
 forward. (* return x+y; *)
@@ -825,13 +825,29 @@ simpl.
 repeat rewrite var_block_data_at_ by reflexivity.
 unfold id.
 entailer.
-replace ( data_at_ Tsh (tarray tuchar 8) (eval_var _buf (tarray tuchar 8) rho))
-   with (data_at_ Tsh t_struct_intpair (eval_var _buf (tarray tuchar 8) rho) )
- by (repeat rewrite <- memory_block_typed by reflexivity; auto).
+
+assert (data_at_ Tsh t_struct_intpair (eval_var _buf (tarray tuchar 8) rho) |--
+   data_at_ Tsh (tarray tuchar 8) (eval_var _buf (tarray tuchar 8) rho)).
+  rewrite <- !memory_block_data_at_ by reflexivity.
+  unfold align_compatible; simpl.
+  destruct (eval_var _buf (tarray tuchar 8) rho); entailer!.
+  eapply Zdivides_trans; [exists 4; reflexivity | exact H1].
 rename H into HYP. (*remove when simpl_data_at is fixed (explanation in verif_queue)*)
-simpl_data_at.
+unfold data_at_ at 2.
+unfold_data_at 3%nat.
+change (field_at Tsh t_struct_intpair (_x :: nil) Vundef
+          (eval_var _q t_struct_intpair rho)) with 
+  (field_at_ Tsh t_struct_intpair (_x :: nil)
+          (eval_var _q t_struct_intpair rho)).
+change (field_at Tsh t_struct_intpair (_y :: nil) Vundef
+          (eval_var _q t_struct_intpair rho)) with 
+  (field_at_ Tsh t_struct_intpair (_y :: nil)
+          (eval_var _q t_struct_intpair rho)).
 cancel.
+rewrite !sepcon_assoc.
+apply sepcon_derives; [cancel|].
+rewrite sepcon_comm.
+apply sepcon_derives; [apply data_at_data_at_; reflexivity |].
+eapply derives_trans; [apply data_at_data_at_; reflexivity | exact H1].
 Qed.
 
-*)
-Admitted.

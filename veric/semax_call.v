@@ -958,7 +958,10 @@ Proof.
  unfold Map.get. rewrite H. rewrite eqb_type_refl.
  case_eq (type_is_volatile ty); intros; simpl negb; cbv iota;
  unfold memory_block. normalize. {
- normalize.
+ rewrite andp_assoc; apply derives_extract_prop; intros.
+ apply derives_extract_prop; intros.
+  rename H8 into H99.
+ normalize. (* don't know why we cannot do normalize at first *)
  rewrite memory_block'_eq.
  2: rewrite Int.unsigned_zero; omega.
  Focus 2.
@@ -1151,8 +1154,8 @@ unfold eval_var, Map.get in H3. simpl in H3.
 unfold make_venv in H3.
 rewrite (Hve id (b,t)) in H3 by (left; auto).
 rewrite eqb_type_refl in H3.
-destruct (type_is_volatile t) eqn:?; try (contradiction H3).
-simpl in H3; destruct H3 as [_ H3].
+destruct (type_is_volatile t) eqn:?; try (simpl in H3; tauto).
+simpl in H3; destruct H3 as [[H99 H98] H3].
 rewrite Int.unsigned_repr in H3 by omega.
 change nat_of_Z with Z.to_nat in H3.
 rewrite memory_block'_eq in H3; 
@@ -1163,8 +1166,10 @@ rewrite Int.unsigned_zero in H3.
 rewrite Share.contains_Lsh_e in H3 by apply top_correct'.
 rewrite Share.contains_Rsh_e in H3 by apply top_correct'.
 rewrite Z2Nat.id in H3 by omega.
-assert (join_sub phi1 (m_phi jm))
+destruct H3 as [_ ?H].
+assert (join_sub phi1 (m_phi jm)) as H7
  by ( apply join_sub_trans with phi; auto; eexists; eauto).
+pose I as H6.
 destruct (VALspec_range_free _ _ _ _ H3 H7)
  as [m3 ?H].
 pose (jm3 := free_juicy_mem _ _ _ _ _ H8).

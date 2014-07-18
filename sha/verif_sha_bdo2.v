@@ -36,15 +36,7 @@ unfold frame_ret_assert; simpl.
 unfold sha256state_.
 set (regs := hash_block (hash_blocks init_registers hashed) b).
 unfold_lift.
-unfold stackframe_of; simpl.
-eapply derives_trans; [| apply sepcon_derives; [apply derives_refl |]].
-Focus 2. {
-  instantiate (1:= (local (`(align_compatible (tarray tuint 16))
-     (eval_var _X (tarray tuint 16))) && var_block Tsh (_X, tarray tuint 16)) rho).
-  normalize.
-} Unfocus.
-rewrite var_block_data_at_ by reflexivity.
-rewrite prop_true_andp by (compute; congruence).
+simpl_stackframe_of.
 unfold data_at_.
 unfold tarray.
 erewrite data_at_array_at; [| reflexivity | omega | reflexivity].

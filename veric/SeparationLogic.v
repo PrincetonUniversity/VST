@@ -249,8 +249,15 @@ reflexivity.
 omega. omega. omega.
 Qed.
 
+Definition align_compatible t p :=
+  match p with
+  | Vptr b i_ofs => (alignof t | Int.unsigned i_ofs)
+  | _ => True
+  end.
+
 Definition var_block (sh: Share.t) (idt: ident * type) : environ->mpred :=
       !! (sizeof  (snd idt) <= Int.max_unsigned) &&
+  local (` (align_compatible (snd idt)) (eval_var (fst idt) (snd idt))) &&
  `(memory_block sh (Int.repr (sizeof (snd idt))))
              (eval_var (fst idt) (snd idt)).
 

@@ -23,12 +23,6 @@ Definition size_compatible t p :=
   | _ => True
   end.
 
-Definition align_compatible t p :=
-  match p with
-  | Vptr b i_ofs => (alignof t | Int.unsigned i_ofs)
-  | _ => True
-  end.
-
 Lemma size_1_compatible: forall t, sizeof t = 1 -> forall p, size_compatible t p.
 Proof.
   intros.
@@ -2652,21 +2646,20 @@ Lemma var_block_data_at_:
   forall  sh id t, 
   legal_alignas_type t = true ->
   nested_non_volatile_type t = true ->
- (local (`(align_compatible t) (eval_var id t))) && var_block sh (id, t) = 
+  var_block sh (id, t) = 
    !!(sizeof t <= Int.max_unsigned) &&
             `(data_at_ sh t) (eval_var id t).
 Proof.
   intros; extensionality rho.
-  unfold local, lift1.
   unfold_lift.
   rewrite <- memory_block_data_at_ by auto.
   unfold var_block.
-  simpl. unfold_lift.
+  simpl. unfold local, lift1. unfold_lift.
   rewrite memory_block_isptr.
-destruct (eval_var id t rho); simpl; normalize.
+  unfold align_compatible.
+  destruct (eval_var id t rho); simpl in *; normalize.
   apply pred_ext; normalize.
 Qed.
-
 
 Lemma array_at_local_facts:
  forall t sh f lo hi v,

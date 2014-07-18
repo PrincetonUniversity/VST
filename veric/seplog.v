@@ -540,8 +540,15 @@ Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
  | _ => FF
  end.
 
+Definition align_compatible t p :=
+  match p with
+  | Vptr b i_ofs => (alignof t | Int.unsigned i_ofs)
+  | _ => True
+  end.
+
 Definition lvalue_block (sh: Share.t) (e: Clight.expr) (rho: environ) : mpred :=
-  !! (sizeof  (Clight.typeof e) <= Int.max_unsigned) &&
+  !! (sizeof (Clight.typeof e) <= Int.max_unsigned) &&
+  !! (align_compatible (Clight.typeof e) (eval_lvalue e rho)) &&
   (memory_block sh (Int.repr (sizeof (Clight.typeof e))))
              (eval_lvalue e rho).
 

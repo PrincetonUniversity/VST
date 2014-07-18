@@ -10,6 +10,17 @@ Require Import sha.verif_sha_bdo7.
 Require Import sha.verif_sha_bdo8.
 Local Open Scope logic.
 
+Lemma exp_prop: forall A P, exp (fun x: A => prop (P x)) = prop (exists x: A, P x).
+Proof.
+  intros.
+  apply pred_ext; normalize.
+  + exists x; auto.
+  + destruct H as [x ?].
+    apply (exp_right x).
+    normalize.
+Qed.
+(* move somewhere else *)
+
 Lemma body_sha256_block_data_order: semax_body Vprog Gtot f_sha256_block_data_order sha256_block_data_order_spec.
 Proof.
 start_function.
@@ -27,7 +38,7 @@ name in_ _in.
 name ctx_ _ctx.
 name i_ _i.
 name data_ _data.
-simpl_stackframe_of. 
+simpl_stackframe_of.
 
 remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
 assert (Lregs: length regs = 8%nat) 
@@ -48,7 +59,9 @@ rewrite Zregs.
 entailer!.
 instantiate (1:=[`K_vector (eval_var _K256 (tarray tuint 64))]); simpl; (* this line shouldn't be needed? *)
  cancel.
++
 auto 50 with closed.
++
 abbreviate_semax.
 simpl.
 forward.  (* i = 0; *)
@@ -60,9 +73,17 @@ simple apply (sha256_block_data_order_loop1_proof
   _ sh b ctx data regs); auto.
 apply Zlength_length in H; auto.
 rewrite Zregs.
-simpl_data_at.
+
+unfold data_at_.
+unfold tarray.
+erewrite data_at_array_at; [| reflexivity | omega | reflexivity].
+(* unfold_data_at 1%nat. (* this line should be like this *)*)
 entailer!.
+
 auto 50 with closed.
+
+
+
 simpl; abbreviate_semax.
 
 eapply semax_frame_seq
