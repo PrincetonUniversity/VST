@@ -178,6 +178,7 @@ Proof.
            (firstn (len - (length blocks * 4 - length dd))
            (skipn (length blocks * 4 - length dd) data))).
 entailer.
+rename H2 into H98; rename H5 into H99.
 clear TC1 TC0.
  rewrite prop_true_andp. 
 Focus 2. {
@@ -197,7 +198,6 @@ Focus 2. {
  clear - Hblocks_len.
  fold b4d; omega.
 } Unfocus.
-rename H2 into H99.
 unfold data_block, tuchars.
 rewrite prop_true_andp by auto.
 pull_right (K_vector (eval_var _K256 (tarray tuint 64) rho)).
@@ -235,7 +235,7 @@ rewrite Nat2Z.id in H5; omega.
 } Unfocus.
 
 unfold sha256_length.
-normalize. rename x0 into hi'; rename x into lo'.
+normalize. cancel. rename x0 into hi'; rename x into lo'.
 unfold sha256state_.
 set (dd' := firstn (len - (length blocks * 4 - length dd))
               (skipn (length blocks * 4 - length dd) data)).

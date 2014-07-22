@@ -110,6 +110,7 @@ Proof.
   forward. (* c->num = n+(unsigned int)len; *)
   fold j; fold k.
   forward. (* return; *)
+  rename H6 into H6'; rename H8 into H6.
   apply exp_right with (S256abs hashed (dd ++ firstn len data)).
   unfold id.
   unfold data_block.

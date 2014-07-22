@@ -1740,7 +1740,7 @@ match goal with
  [ eapply (fast_entail n); [reflexivity | entailer; unfold at_offset; simpl; cancel] | ] ;
 (**** 14.2 seconds to here  *)
  eapply (semax_store_field_nth _ sh (compute_type_id_env Delta) n);
-   [reflexivity | reflexivity | auto | reflexivity | reflexivity | reflexivity
+   [reflexivity | reflexivity | simpl; auto | reflexivity | reflexivity | reflexivity
    | solve [entailer!] | auto | try solve [entailer!]];
   unfold n,sh; clear n sh (**** 21.1 seconds to here *****)
   | |- @semax ?Espec ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 

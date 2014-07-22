@@ -211,78 +211,7 @@ rewrite cVint_force_int_ZnthV
  entailer!.
  repeat flatten_sepcon_in_SEP.
  fold j k.
-(*
-  Espec : OracleKind
-  hashed : list int
-  dd : list Z
-  data : list Z
-  c : val
-  d : val
-  sh : share
-  len : nat
-  hi : int
-  lo : int
-  H : (Z.of_nat len <= Zlength data)%Z
-  H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo
-  H3 : (Zlength dd < CBLOCKz)%Z
-  H3' : Forall isbyteZ dd
-  H4 : (LBLOCKz | Zlength hashed)
-  Hlen : (Z.of_nat len <= Int.max_unsigned)%Z
-  c' : name _c
-  data_ : name _data
-  len' : name _len
-  data' : name _data
-  p : name _p
-  n : name _n
-  fragment_ : name _fragment
-  j := (40 + Zlength dd)%Z : Z
-  k := (64 - Zlength dd)%Z : Z
-  H0 : (0 < k <= 64)%Z
-  H1 : (64 < Int.max_unsigned)%Z
-  DBYTES : Forall isbyteZ data
-  fragment : val
-  Delta := abbreviate : tycontext
-  POSTCONDITION := abbreviate : ret_assert
-  MORE_COMMANDS := abbreviate : statement
-  H2 : offset_in_range 64 (offset_val (Int.repr 40) c)
-  retval0 : val
-  ============================
-   semax Delta
-     (PROP  ()
-      LOCAL  (`(eq fragment) (eval_id _fragment);
-      `(typed_true tint)
-        (eval_expr
-           (Ebinop Oge (Etempvar _len tuint) (Etempvar _fragment tuint) tint));
-      `(eq (Vint (Int.repr k))) (eval_id _fragment);
-      `(eq (offset_val (Int.repr 40) c)) (eval_id _p);
-      `(eq (Vint (Int.repr (Zlength dd)))) (eval_id _n);
-      `(eq c) (eval_id _c); `(eq d) (eval_id _data);
-      `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len))
-      SEP 
-      (`(array_at tuchar sh
-           (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
-           0 (Int.unsigned (force_int fragment)) d);
-      `(array_at tuchar Tsh
-          (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
-          0 (Int.unsigned (force_int fragment)) (offset_val (Int.repr j) c));
-      `(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8 c);
-      `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
-      `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0
-          (Zlength dd) (offset_val (Int.repr 40) c));
-      `(field_at Tsh t_struct_SHA256state_st [_num]
-          (Vint (Int.repr (Zlength dd))) c);
-      `K_vector (eval_var _K256 (tarray tuint 64));
-      `(array_at tuchar sh (tuchars (map Int.repr data)) k (Zlength data) d)))
-     (Ssequence
-        (Scall None
-           (Evar _sha256_block_data_order
-              (Tfunction
-                 (Tcons (tptr t_struct_SHA256state_st)
-                    (Tcons (tptr tvoid) Tnil)) tvoid cc_default))
-           [Etempvar _c (tptr t_struct_SHA256state_st),
-           Etempvar _p (tptr tuchar)]) MORE_COMMANDS) POSTCONDITION
-
-*)
+ rename H5 into H2'.
  gather_SEP 4%Z 1%Z.
  replace_SEP 0%Z (`(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr (dd ++ data) ))) 0
         64 (offset_val (Int.repr 40) c))).

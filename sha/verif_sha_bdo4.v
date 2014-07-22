@@ -64,69 +64,6 @@ rewrite inj_S;
 omega.
 Qed.
 
-Lemma split_offset_array_at: forall (ty : type) (sh : Share.t) (contents : Z -> reptype ty)
-         (z lo hi : Z) (v : val),
-       z <= lo <= hi ->
-       sizeof ty > 0 ->
-       legal_alignas_type ty = true ->
-       array_at ty sh contents z hi v =
-       !! offset_in_range (sizeof ty * z) v &&
-       !! offset_in_range (sizeof ty * hi) v &&
-       array_at ty sh contents z lo v * 
-       array_at ty sh (fun i => contents (i + lo)) 0 (hi - lo) 
-       (offset_val (Int.repr (sizeof ty * lo)) v).
-Proof.
-  intros.
-  assert (~ offset_strict_in_range (sizeof ty * lo) v \/
-          offset_strict_in_range (sizeof ty * lo) v) by
-    (unfold offset_strict_in_range; destruct v; auto; omega).
-  destruct H2.
-  + rewrite (add_andp (array_at ty sh contents z hi v) (!!offset_in_range (sizeof ty * hi) v)) by 
-      (unfold array_at; normalize).
-    rewrite (add_andp (array_at ty sh contents z hi v) (!!offset_in_range (sizeof ty * z) v)) by 
-      (unfold array_at; normalize).
-    rewrite andp_assoc.
-    rewrite andp_comm.
-    normalize.
-    apply pick_prop_from_eq; intros.
-    assert (lo = hi).
-      assert (offset_in_range (sizeof ty * lo) v).
-      apply offset_in_range_mid with (lo := z) (hi := hi); [omega | auto |auto].
-      tauto.
-      tauto.
-      assert ((sizeof ty * lo)%Z <= (sizeof ty * hi)%Z) by (apply Z.mul_le_mono_nonneg_l; omega).
-      unfold offset_in_range, offset_strict_in_range in *; destruct v; try tauto.
-      apply (Z.mul_cancel_l) with (p := sizeof ty); omega.
-    subst.
-    replace (hi - hi) with 0 by omega.
-    rewrite array_at_emp.
-    unfold array_at; apply pred_ext; normalize.
-    apply andp_right; [apply prop_right | apply derives_refl].
-    unfold offset_in_range, offset_strict_in_range in *; destruct v; try tauto.
-    unfold offset_val, Int.add, align_compatible.
-    pose proof Int.unsigned_range i.
-    rewrite !Int.unsigned_repr_eq.
-    rewrite Zplus_mod_idemp_r.
-    assert ((Int.unsigned i + sizeof ty * hi) = Int.modulus) by omega.
-    rewrite H8.
-    rewrite Z_mod_same_full.
-    repeat split; auto; try omega.
-    apply Z.divide_0_r.
-  + rewrite split_array_at with (i := lo) (lo := z) (hi := hi) by omega.
-    rewrite <- offset_val_array_at with (lo := 0) (hi := hi - lo) (ofs := lo) by assumption.
-    rewrite (add_andp (array_at ty sh contents lo hi v) (!!offset_in_range (sizeof ty * hi) v)) by 
-      (unfold array_at; normalize).
-    rewrite (add_andp (array_at ty sh contents z lo v) (!!offset_in_range (sizeof ty * z) v)) at 1 by 
-      (unfold array_at; normalize).
-    normalize.
-    f_equal.
-    f_equal.
-    f_equal; [| omega].
-    extensionality.
-    f_equal.
-    omega.
-Qed.
-
 Lemma read32_reversed_in_bytearray:
  forall {Espec: OracleKind} Delta (ofs: int) (lo hi: Z) base e sh (contents: Z -> val) i P Q
  (VS:  (var_types Delta) ! ___builtin_read32_reversed = None) 

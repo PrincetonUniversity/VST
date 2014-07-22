@@ -1489,13 +1489,14 @@ Proof.
 Qed.
 
 Lemma split_offset_array_at: forall (ty : type) (sh : Share.t) (contents : Z -> reptype ty)
-         (lo hi : Z) (v : val),
-       0 <= lo <= hi ->
+         (z lo hi : Z) (v : val),
+       z <= lo <= hi ->
        sizeof ty > 0 ->
        legal_alignas_type ty = true ->
-       array_at ty sh contents 0 hi v =
+       array_at ty sh contents z hi v =
+       !! offset_in_range (sizeof ty * z) v &&
        !! offset_in_range (sizeof ty * hi) v &&
-       array_at ty sh contents 0 lo v * 
+       array_at ty sh contents z lo v * 
        array_at ty sh (fun i => contents (i + lo)) 0 (hi - lo) 
        (offset_val (Int.repr (sizeof ty * lo)) v).
 Proof.
@@ -1504,18 +1505,21 @@ Proof.
           offset_strict_in_range (sizeof ty * lo) v) by
     (unfold offset_strict_in_range; destruct v; auto; omega).
   destruct H2.
-  + assert (offset_in_range (sizeof ty * 0) v) by
-      (unfold offset_in_range; destruct v; auto; pose proof Int.unsigned_range i; omega).
-    rewrite (add_andp (array_at ty sh contents 0 hi v) (!!offset_in_range (sizeof ty * hi) v)) by 
+  + rewrite (add_andp (array_at ty sh contents z hi v) (!!offset_in_range (sizeof ty * hi) v)) by 
       (unfold array_at; normalize).
+    rewrite (add_andp (array_at ty sh contents z hi v) (!!offset_in_range (sizeof ty * z) v)) by 
+      (unfold array_at; normalize).
+    rewrite andp_assoc.
     rewrite andp_comm.
     normalize.
     apply pick_prop_from_eq; intros.
     assert (lo = hi).
       assert (offset_in_range (sizeof ty * lo) v).
-      apply offset_in_range_mid with (lo := 0) (hi := hi); [omega | auto |auto].
-      unfold offset_in_range, offset_strict_in_range in *; destruct v; try tauto.
+      apply offset_in_range_mid with (lo := z) (hi := hi); [omega | auto |auto].
+      tauto.
+      tauto.
       assert ((sizeof ty * lo)%Z <= (sizeof ty * hi)%Z) by (apply Z.mul_le_mono_nonneg_l; omega).
+      unfold offset_in_range, offset_strict_in_range in *; destruct v; try tauto.
       apply (Z.mul_cancel_l) with (p := sizeof ty); omega.
     subst.
     replace (hi - hi) with 0 by omega.
@@ -1528,13 +1532,15 @@ Proof.
     rewrite !Int.unsigned_repr_eq.
     rewrite Zplus_mod_idemp_r.
     assert ((Int.unsigned i + sizeof ty * hi) = Int.modulus) by omega.
-    rewrite H7.
+    rewrite H8.
     rewrite Z_mod_same_full.
     repeat split; auto; try omega.
     apply Z.divide_0_r.
-  + rewrite split_array_at with (i := lo) (lo := 0) (hi := hi) by omega.
+  + rewrite split_array_at with (i := lo) (lo := z) (hi := hi) by omega.
     rewrite <- offset_val_array_at with (lo := 0) (hi := hi - lo) (ofs := lo) by assumption.
     rewrite (add_andp (array_at ty sh contents lo hi v) (!!offset_in_range (sizeof ty * hi) v)) by 
+      (unfold array_at; normalize).
+    rewrite (add_andp (array_at ty sh contents z lo v) (!!offset_in_range (sizeof ty * z) v)) at 1 by 
       (unfold array_at; normalize).
     normalize.
     f_equal.

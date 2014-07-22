@@ -108,7 +108,7 @@ set (ddlen := Zlength dd) in *.
 change CBLOCKz with 64 in Hddlen.
 rewrite (split_offset_array_at tuchar) with (lo := ddlen+1) (hi := 64); [|omega| simpl; omega | reflexivity].
 normalize.
-rename H0 into H99.
+rename H0 into H99; rename H1 into H98.
 forward_call (* memset (p+n,0,SHA_CBLOCK-n); *)
    ((Tsh,
      offset_val (Int.repr (ddlen + 1)) (offset_val (Int.repr data_offset) c)%Z, 
@@ -571,12 +571,17 @@ forward_for
   (tuchars (map Int.repr (intlist_to_Zlist (firstn i hashedmsg)))) 0
   (Z.of_nat i * 4) md).
  replace (Z.succ (Z.of_nat i)) with (Z.of_nat (S i)) by apply Nat2Z.inj_succ.
- erewrite (add_andp (array_at tuchar shmd
+ rewrite (add_andp (array_at tuchar shmd
      (tuchars (map Int.repr (intlist_to_Zlist (firstn i hashedmsg))))
      (Z.of_nat (S i) * 4) 32 md) (!!offset_in_range (sizeof tuchar * (Z.of_nat (S i) * 4)) md)) by
    (unfold array_at; normalize).
+ rewrite (add_andp (array_at tuchar shmd
+     (tuchars (map Int.repr (intlist_to_Zlist (firstn i hashedmsg))))
+     (Z.of_nat (S i) * 4) 32 md) (!!offset_in_range (sizeof tuchar * 0) md)) by
+    ( apply prop_right; unfold offset_in_range; destruct md; auto;
+    pose proof Int.unsigned_range i0; omega).
  normalize.
- rename H4 into H98.
+ rename H4 into H98; rename H5 into H97.
  repeat apply sepcon_derives; auto.
  + 
  apply derives_refl'; apply equal_f; apply array_at_ext; intros.
