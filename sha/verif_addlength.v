@@ -52,8 +52,8 @@ apply semax_pre with
    `(eq (Vint lo)) (eval_id _cNl);
    `(eq (Vint (Int.repr len))) (eval_id _len);
    `(eq c) (eval_id _c))
-   SEP  (`(field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c);
-   `(field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c))).
+   SEP  (`(field_at Tsh t_struct_SHA256state_st [_Nl] (Vint lo) c);
+   `(field_at Tsh t_struct_SHA256state_st [_Nh] (Vint hi) c))).
 entailer!.
 apply Int.unsigned_range.
 apply Int.unsigned_range.
@@ -73,8 +73,8 @@ forward_if (
    `(eq (Vint (Int.repr (Int.unsigned hi + carry)))) (eval_id _cNh);
    `(eq (Vint lo)) (eval_id _cNl);
    `(eq (Vint (Int.repr len))) (eval_id _len); `(eq c) (eval_id _c))
-   SEP  (`(field_at Tsh t_struct_SHA256state_st _Nl (Vint lo) c);
-   `(field_at Tsh t_struct_SHA256state_st _Nh (Vint hi) c))).
+   SEP  (`(field_at Tsh t_struct_SHA256state_st [_Nl] (Vint lo) c);
+   `(field_at Tsh t_struct_SHA256state_st [_Nh] (Vint hi) c))).
 * (* then-clause *)
  forward.
  entailer!.
