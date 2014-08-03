@@ -299,7 +299,10 @@ semax Delta_final_if1
    `(field_at Tsh t_struct_SHA256state_st [_Nh] (Vint hi) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 (Zlength dd')
        (offset_val (Int.repr 40) c));
-   `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 8
+   `(array_at tuchar Tsh
+       (fun i : Z =>
+        ZnthV tuchar (map Vint (map Int.repr dd'))
+          (i + (Z.of_nat CBLOCK - 8))) 0 8
        (offset_val (Int.repr 96) c));
    `(field_at_ Tsh t_struct_SHA256state_st [_num] c);
    `K_vector (eval_var _K256 (tarray tuint 64));
@@ -400,13 +403,15 @@ Proof.
    f_equal; extensionality z; unfold Basics.compose.
    f_equal; f_equal.
    change (Z.of_nat 0 * 4)%Z with 0%Z. clear; omega.
-   pull_left  (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 4
-     (offset_val (Int.repr 96) c)) .
+   pull_left (array_at tuchar Tsh
+     (fun i : Z =>
+      ZnthV tuchar (map Vint (map Int.repr dd')) (i + (Z.of_nat CBLOCK - 8)))
+     0 4 (offset_val (Int.repr 96) c)) .
    repeat rewrite sepcon_assoc.
    apply sepcon_derives; [ | cancel_frame].
    change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).
-   erewrite <- data_at_array_at; [| reflexivity | omega | instantiate (1:=noattr); reflexivity].
-   eapply derives_trans; [apply data_at_data_at_; reflexivity |].
+   eapply derives_trans; [apply array_at_array_at_; reflexivity |].
+   erewrite <- data_at__array_at_; [| omega | instantiate (1:=noattr); reflexivity].
    rewrite <- memory_block_data_at_ by reflexivity.
    entailer.
  } after_call.
@@ -423,9 +428,10 @@ Proof.
   f_equal; extensionality z; unfold Basics.compose.
   f_equal; f_equal.
   change (Z.of_nat 0 * 4)%Z with 0%Z. clear; omega.
-  pull_left   (array_at tuchar Tsh
-     (fun i : Z => ZnthV tuchar (map Vint (map Int.repr dd')) (i + 4)) 0 4
-     (offset_val (Int.repr 100) c)) .
+  pull_left (array_at tuchar Tsh
+     (fun i : Z =>
+      ZnthV tuchar (map Vint (map Int.repr dd'))
+        (i + 4 + (Z.of_nat CBLOCK - 8))) 0 4 (offset_val (Int.repr 100) c)) .
   repeat rewrite sepcon_assoc.
   apply sepcon_derives; [ | cancel_frame].
   change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).

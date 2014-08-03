@@ -118,8 +118,7 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
 change 40%Z with data_offset.
 entailer!.
 rewrite Int.unsigned_repr. Omega1. Omega1. 
-rewrite (split_array_at (Z.of_nat CBLOCK - 8)%Z tuchar _ _ _ 64%Z) by
- (change CBLOCK with (64%nat); simpl; omega).
+rewrite split_offset_array_at with (z := 0) (lo := (Z.of_nat CBLOCK - 8)%Z) (hi := 64%Z); [| change CBLOCK with (64%nat); simpl; omega | simpl; omega | reflexivity].
 rewrite split_offset_array_at with (z := 0) (lo := Zlength dd') (hi := Z.of_nat CBLOCK - 8); [| | simpl; omega | reflexivity].
 Focus 2.
   { 
@@ -130,6 +129,10 @@ Focus 2.
   } Unfocus.
 repeat rewrite <- sepcon_assoc.
 normalize.
+replace (memory_block shmd (Int.repr 32) md) with 
+  (memory_block shmd (Int.repr 32) md && !! (offset_in_range (sizeof tuchar * 64)
+         (offset_val (Int.repr data_offset) c))) by
+  (rewrite <- add_andp; [reflexivity | normalize]).
 pull_left (array_at tuchar Tsh
      (fun i : Z =>
       ZnthV tuchar (map Vint (map Int.repr dd')) (i + Zlength dd')) 0
@@ -151,13 +154,13 @@ entailer!.
 
   change (sizeof tuchar) with 1%Z; rewrite Z.mul_1_l.
   rewrite offset_offset_val. rewrite add_repr; auto.
-  clear - H0. apply Nat2Z.inj_le in H0. rewrite Nat2Z.inj_add in H0.
 
   (* after_call matually *)
   cbv beta iota. autorewrite with subst.
 replace_SEP 0%Z (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
           (Z.of_nat CBLOCK - 8 - Zlength dd')
           (offset_val (Int.repr (Zlength dd')) (offset_val (Int.repr 40) c)))).
+
 entailer!.
  forward.  (* p += SHA_CBLOCK-8; *)
  entailer!.
@@ -167,62 +170,25 @@ entailer!.
  replace Delta with Delta_final_if1
   by (simplify_Delta; reflexivity).
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-
-(*
-1 focused subgoals (unfocused: 0)
-, subgoal 1 (ID 18263)
-  
-  Espec : OracleKind
-  hashed : list int
-  dd : list Z
-  md : val
-  c : val
-  shmd : share
-  hi : int
-  lo : int
-  hashed' : list int
-  dd' : list Z
-  H0 : Z.of_nat (length dd') + Z.of_nat 8 <= Z.of_nat CBLOCK
-  x : val
-  Delta := abbreviate : tycontext
-  MORE_COMMANDS := abbreviate : statement
-  ============================
-   semax Delta_final_if1
-     (PROP  ()
-      LOCAL 
-      (`(eq (force_val (sem_add_pi tuchar x (Vint (Int.repr (16 * 4 - 8))))))
-         (eval_id _p); `(eq (Vint (Int.repr (Zlength dd')))) (eval_id _n);
-      `(eq x oo offset_val (Int.repr 40) oo offset_val Int.zero) (eval_id _c);
-      `(eq md) (eval_id _md); `(eq c) (eval_id _c))
-      SEP 
-      (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
-           (Z.of_nat CBLOCK - 8 - Zlength dd')
-           (offset_val (Int.repr (40 + Zlength dd')) c));
-      `(array_at tuint Tsh
-          (ZnthV tuint (map Vint (hash_blocks init_registers hashed'))) 0 8 c);
-      `(field_at Tsh t_struct_SHA256state_st [_Nl] (Vint lo) c);
-      `(field_at Tsh t_struct_SHA256state_st [_Nh] (Vint hi) c);
-      `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0
-          (Zlength dd') (offset_val (Int.repr data_offset) c));
-      `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd')))
-          (Z.of_nat CBLOCK - 8) 64 (offset_val (Int.repr data_offset) c));
-      `(field_at_ Tsh t_struct_SHA256state_st [_num] c);
-      `K_vector (eval_var _K256 (tarray tuint 64));
-      `(memory_block shmd (Int.repr 32) md)))
-     (Ssequence
-        (Sset _cNh
-           (Efield
-              (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                 t_struct_SHA256state_st) _Nh tuint)) MORE_COMMANDS)
-     (function_body_ret_assert tvoid
-        (PROP  ()
-         LOCAL ()
-         SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
-         `(data_at_ Tsh t_struct_SHA256state_st c);
-         `(data_block shmd
-             (intlist_to_Zlist
-                (hash_blocks init_registers
-                   (generate_and_pad (intlist_to_Zlist hashed ++ dd)))) md))))
-*)
+replace (`(eq p0 oo offset_val (Int.repr 40) oo offset_val Int.zero)
+        (eval_id _c)) with (`(eq p0) (`(offset_val (Int.repr 40)) (`force_ptr (eval_id _c)))).
+change data_offset with 40.
+replace (`(array_at tuchar Tsh
+          (fun i : Z =>
+           ZnthV tuchar (map Vint (map Int.repr dd'))
+             (i + (Z.of_nat CBLOCK - 8))) 0 (64 - (Z.of_nat CBLOCK - 8))
+          (offset_val (Int.repr (40 + (Z.of_nat CBLOCK - 8))) c))) with 
+   (`(array_at tuchar Tsh (fun i : Z =>
+           ZnthV tuchar (map Vint (map Int.repr dd'))
+             (i + (Z.of_nat CBLOCK - 8)))
+              0 8 (offset_val (Int.repr 96) c))).
 simple apply final_part2 with pad; assumption.
++ change ((40 + (Z.of_nat CBLOCK - 8))) with 96.
+  change ((64 - (Z.of_nat CBLOCK - 8))) with 8.
+reflexivity.
++ extensionality rho.
+  unfold_lift.
+  simpl.
+  rewrite offset_val_force_ptr.
+  reflexivity.
 Qed.
