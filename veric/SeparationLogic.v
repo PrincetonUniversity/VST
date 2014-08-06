@@ -14,10 +14,12 @@ Require Export msl.seplog.
 Require Export msl.alg_seplog.
 Require Export msl.log_normalize.
 Require Export veric.expr.
+Require Export veric.expr_rel.
 Require veric.seplog.
 Require veric.assert_lemmas. 
 Require Import sepcomp.Coqlib2.
 Require Import veric.juicy_extspec.
+
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
@@ -502,6 +504,93 @@ Lemma mapsto_value_range:
     !! int_range sz sgn i && mapsto sh (Tint sz sgn noattr) v (Vint i).
 Proof. exact seplog.mapsto_value_range. Qed.
 
+(* BEGIN rel_expr stuff *)
+
+Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+
+Lemma rel_expr_const_int: forall i ty P rho, 
+              P |-- rel_expr (Econst_int i ty) (Vint i) rho.
+Proof. intros. intros ? ?; constructor. Qed.
+
+Lemma rel_expr_const_float: forall f ty P rho, 
+              P |-- rel_expr (Econst_float f ty) (Vfloat f) rho.
+Proof. intros. intros ? ?; constructor. Qed.
+
+Lemma rel_expr_const_long: forall i ty P rho, 
+             P |--  rel_expr (Econst_long i ty) (Vlong i) rho.
+Proof. intros. intros ? ?; constructor. Qed.
+
+Lemma rel_expr_tempvar: forall id ty v P rho,
+          Map.get (te_of rho) id = Some v ->
+          P |-- rel_expr (Etempvar id ty) v rho.
+Proof. intros. intros ? ?. constructor; auto. Qed.
+
+Lemma rel_expr_addrof: forall a ty v P rho,
+               P |-- rel_lvalue a v rho ->
+               P |-- rel_expr (Eaddrof a ty) v rho.
+Proof. intros. intros ? ?. constructor; auto. apply H; auto. Qed.
+
+Lemma rel_expr_unop: forall P a1 v1 v ty op rho,
+                 P |-- rel_expr a1 v1 rho ->
+                 Cop.sem_unary_operation op v1 (typeof a1) = Some v ->
+                 P |-- rel_expr (Eunop op a1 ty) v rho.
+Proof.
+intros. intros ? ?. econstructor; eauto. apply H; auto. Qed.
+
+Lemma rel_expr_binop: forall a1 a2 v1 v2 v ty op P rho,
+                 P |-- rel_expr a1 v1 rho ->
+                 P |-- rel_expr a2 v2 rho ->
+                 (forall m, Cop.sem_binary_operation op v1 (typeof a1) v2 (typeof a2) m = Some v) ->
+                 P |-- rel_expr (Ebinop op a1 a2 ty) v rho.
+Proof.
+intros. intros ? ?. econstructor; eauto. apply H; auto. apply H0; auto. Qed.
+
+Lemma rel_expr_cast: forall a1 v1 v ty P rho,
+                 P |-- rel_expr a1 v1 rho ->
+                 Cop.sem_cast v1 (typeof a1) ty = Some v ->
+                 P |-- rel_expr (Ecast a1 ty) v rho.
+Proof.
+intros. intros ? ?. econstructor; eauto. apply H; auto. Qed. 
+
+Lemma rel_expr_lvalue: forall a sh v1 v2 P rho,
+           P |-- rel_lvalue a v1 rho ->
+           P |-- mapsto sh (typeof a) v1 v2 * TT  ->
+           v2 <> Vundef ->
+           P |-- rel_expr a v2 rho.
+Proof.
+intros. intros ? ?. econstructor; eauto. apply H; auto. apply H0; auto. Qed.
+
+Lemma rel_lvalue_local: forall id ty b P rho,
+                 P |-- !! (Map.get (ve_of rho) id = Some (b,ty)) ->
+                 P |-- rel_lvalue (Evar id ty) (Vptr  b Int.zero) rho.
+Proof.
+intros. intros ? ?. constructor.  specialize (H _ H0). apply H. Qed.
+
+Lemma rel_lvalue_global: forall id ty v P rho,
+              P |-- !! (Map.get (ve_of rho) id = None /\ Map.get (ge_of rho) id = Some (v,ty)) ->
+              P |-- rel_lvalue (Evar id ty) v rho.
+Proof.
+intros. intros ? ?. specialize (H _ H0). destruct H. constructor; auto.
+Qed.
+
+Lemma rel_lvalue_deref: forall a b z ty P rho,
+              P |-- rel_expr a (Vptr b z) rho->
+              P |-- rel_lvalue (Ederef a ty) (Vptr b z) rho.
+Proof. intros. intros ? ?. constructor. apply H. auto. Qed.
+
+Lemma rel_lvalue_field_struct: forall i ty a b z id fList att delta P rho,
+               typeof a = Tstruct id fList att ->
+               field_offset i fList = Errors.OK delta ->
+               P |-- rel_expr a (Vptr b z) rho ->
+               P |-- rel_lvalue (Efield a i ty) (Vptr b (Int.add z (Int.repr delta))) rho.
+Proof.
+intros. intros ? ?. econstructor; eauto. apply H1; auto. Qed.
+
+Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+Global Opaque rel_expr.
+Global Opaque rel_lvalue.
+
+(* END rel_expr stuff *)
 
 (* Don't know why this next Hint doesn't work unless fully instantiated;
    perhaps because one needs both "contractive" and "typeclass_instances"
@@ -762,6 +851,17 @@ Axiom semax_store:
           (Sassign e1 e2) 
           (normal_ret_assert 
                (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) * P)).
+
+Axiom semax_loadstore:
+  forall {Espec: OracleKind},
+ forall v0 v1 v2 (Delta: tycontext) e1 e2 sh P P', 
+   writable_share sh ->
+   P |-- !! (tc_val (typeof e1) v2)
+           && rel_lvalue e1 v1 
+           && rel_expr (Ecast e2 (typeof e1)) v2 
+           && (`(mapsto sh (typeof e1) v1 v0) * P') ->
+   @semax Espec Delta (|> P) (Sassign e1 e2) 
+          (normal_ret_assert (`(mapsto sh (typeof e1) v1 v2) * P')).
 
 (* THESE RULES FROM semax_lemmas *)
 

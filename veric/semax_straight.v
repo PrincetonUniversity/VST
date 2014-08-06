@@ -1259,4 +1259,138 @@ destruct (nec_join2 H6 H2) as [w2' [w' [? [? ?]]]].
 exists w2'; exists w'; split3; auto; eapply pred_nec_hereditary; eauto.
 Qed.
 
+Require Import veric.expr_rel.
+
+Lemma semax_loadstore:
+ forall v0 v1 v2 (Delta: tycontext) e1 e2 sh P P', 
+   writable_share sh ->
+   (forall rho, P rho |-- !! (tc_val (typeof e1) v2)
+                                    && rel_lvalue e1 v1 rho
+                                    && rel_expr (Ecast e2 (typeof e1)) v2 rho
+                                    && (mapsto sh (typeof e1) v1 v0 * P' rho)) ->
+   semax Espec Delta (fun rho => |> P rho) (Sassign e1 e2) 
+          (normal_ret_assert (fun rho => mapsto sh (typeof e1) v1 v2 * P' rho)).
+Proof.
+intros until 1.
+intro E.
+apply semax_pre with (fun rho => TT && |> P rho).
+intros. apply andp_left2; apply andp_right; auto.
+apply semax_straight_simple; auto.
+
+intros jm jm1 Delta' ge ve te rho k F TS _ TC4 Hcl Hge Hage [H0 H0'].
+clear Delta TS.
+apply later_sepcon2 in H0.
+specialize (H0 _ (age_laterR (age_jm_phi Hage))).
+destruct H0 as [?w [?w [? [? ?]]]].
+specialize (E _ _ H2).
+destruct E as [[[E4 E1] E2] E3].
+do 3 red in E4.
+apply (boxy_e _ _ (rel_lvalue_extend e1 v1 rho) _ (m_phi jm1) )  in E1;
+ [ | econstructor; eauto].
+apply (boxy_e _ _ (rel_expr_extend _ _ rho) _ (m_phi jm1) )  in E2;
+ [ | econstructor; eauto].
+destruct E3 as [?w [?w [H3 [H4 H5]]]].
+clear P H2.
+unfold mapsto in H4.
+revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
+rename H2 into Hmode. rename m into ch.
+destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
+destruct v1; try contradiction.
+rename i into z. rename b into b0.
+rewrite writable_share_right in H4 by auto.
+assert (exists v, address_mapsto ch v (Share.unrel Share.Lsh sh) Share.top
+        (b0, Int.unsigned z) w1)
+  by (destruct H4 as [[? H4] | [_ [? ?]]]; eauto).
+clear v0 H4; destruct H2 as [v3 H4].
+assert (He1 := rel_lvalue_relate ge te ve rho e1 _ _ _ Hge E1).
+rename z into i.
+assert (He2 := rel_expr_relate ge te ve rho _ _ _ Hge E2).
+destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
+
+assert (H11': (res_predicates.address_mapsto ch v3 (Share.unrel Share.Lsh sh) Share.top
+        (b0, Int.unsigned i) * TT)%pred (m_phi jm1))
+ by (exists w1; exists w3; split3; auto).
+assert (H11: (res_predicates.address_mapsto ch v3  (Share.unrel Share.Lsh sh) Share.top
+        (b0, Int.unsigned i) * exactly w3)%pred (m_phi jm1)).
+generalize (address_mapsto_precise ch v3 (Share.unrel Share.Lsh sh) Share.top (b0,Int.unsigned i)); unfold precise; intro.
+destruct H11' as [m7 [m8 [? [? _]]]].
+specialize (H2 (m_phi jm1) _ _ H4 H9).
+spec H2; [ eauto with typeclass_instances| ].
+spec H2; [ eauto with typeclass_instances | ].
+subst m7.
+exists w1; exists w3; split3; auto. hnf. apply necR_refl.
+apply address_mapsto_can_store 
+  with (v':=v2) in H11.
+Focus 2.
+clear - He2  Hmode.
+dec_enc; rewrite DE; clear DE.
+inv He2.
+eapply sem_cast_load_result; eauto.
+simpl in H0.
+eapply deref_loc_load_result; eauto.
+
+destruct H11 as [m' [H11 AM]].
+exists (store_juicy_mem _ _ _ _ _ _ H11).
+exists (te);  exists rho; split3; auto.
+subst; simpl; auto.
+rewrite level_store_juicy_mem. apply age_level; auto.
+split; auto.
+split.
+split3; auto.
+{
+ inv He2.
+ * econstructor; try eassumption. 
+    rewrite (age_jm_dry Hage); eauto.
+    rewrite (age_jm_dry Hage); eauto.
+    simpl.
+    eapply Clight.assign_loc_value.
+    apply Hmode.
+    unfold Mem.storev.
+    simpl m_dry.
+    rewrite (age_jm_dry Hage); auto.
+ * inv H2.
+}
+apply (resource_decay_trans _ (nextblock (m_dry jm1)) _ (m_phi jm1)).
+rewrite (age_jm_dry Hage); xomega.
+apply (age1_resource_decay _ _ Hage).
+apply resource_nodecay_decay.
+apply juicy_store_nodecay.
+rewrite level_store_juicy_mem. apply age_level; auto.
+split.
+Focus 2.
+rewrite corable_funassert.
+replace (core  (m_phi (store_juicy_mem _ _ _ _ _ _ H11))) with (core (m_phi jm1)).
+rewrite <- corable_funassert.
+eapply pred_hereditary; eauto. apply age_jm_phi; auto.
+symmetry.
+forget (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))) as v.
+apply rmap_ext.
+do 2 rewrite level_core.
+rewrite <- level_juice_level_phi; rewrite level_store_juicy_mem.
+reflexivity.
+intro loc.
+unfold store_juicy_mem.
+simpl. rewrite <- core_resource_at. unfold inflate_store. simpl.
+rewrite resource_at_make_rmap. rewrite <- core_resource_at.
+ case_eq (m_phi jm1 @ loc); intros; auto.
+ destruct k0; simpl; repeat rewrite core_YES; auto.
+rewrite sepcon_comm.
+rewrite sepcon_assoc.
+eapply sepcon_derives; try apply AM; auto.
+unfold mapsto.
+(*destruct TC4 as [TC4 _]. *)
+
+rewrite Hmode.
+rewrite NONVOL.
+apply orp_right1.
+apply andp_right.
+intros ? _; do 3 red. auto.
+rewrite writable_share_right; try rewrite cop2_sem_cast; auto.
+
+intros ? ?. 
+do 3 red in H2.
+destruct (nec_join2 H6 H2) as [w2' [w' [? [? ?]]]].
+exists w2'; exists w'; split3; auto; eapply pred_nec_hereditary; eauto.
+Qed.
+
 End extensions.

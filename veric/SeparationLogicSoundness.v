@@ -25,6 +25,7 @@ Require Import veric.semax_straight.
 Require Import veric.semax_loop.
 Require Import veric.semax_prog.
 Require Import veric.SeparationLogic.
+Require Import veric.expr_rel.
 
 Module Type SEPARATION_LOGIC_SOUNDNESS.
 
@@ -94,6 +95,7 @@ Definition semax_ifthenelse := @semax_ifthenelse.
 Definition semax_return := @semax_return.
 Definition semax_store := @semax_store.
 Definition semax_load := @semax_load.
+Definition semax_loadstore := @semax_loadstore.
 Definition semax_cast_load := @semax_cast_load.
 Definition semax_skip := @semax_skip.
 Definition semax_frame := @semax_frame.

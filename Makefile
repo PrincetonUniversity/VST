@@ -150,7 +150,7 @@ COMPCOMP_FILES= \
 
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
-  lift.v expr.v environ_lemmas.v binop_lemmas.v expr_lemmas.v expr_lemmas2.v \
+  lift.v expr.v environ_lemmas.v binop_lemmas.v expr_lemmas.v expr_lemmas2.v expr_rel.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_sim.v \
   slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_extspec.v \
@@ -170,7 +170,7 @@ PROGS_FILES= \
   insertionsort.v reverse.v queue.v sumarray.v message.v \
    entail_examples.v \
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
-  verif_float.v \
+  verif_float.v verif_dotprod.v \
   verif_nest3.v verif_nest2.v\
   logical_compare.v verif_logical_compare.v
 
@@ -183,7 +183,7 @@ SHA_FILES= \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
   verif_addlength.v verif_SHA256.v entail_examples2.v 
 
-C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c
+C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
