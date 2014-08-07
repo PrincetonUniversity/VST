@@ -62,83 +62,41 @@ clear MORE_COMMANDS POSTCONDITION.
 unfold proj_x, proj_y, proj_z; simpl.
 eapply semax_seq'.
 hoist_later_in_pre.
-apply (semax_loadstore
-             (Vfloat (fx i))
-             (offset_val (Int.repr (i * sizeof tdouble)) x)
-             (Vfloat (Float.add (fy i) (fz i)))
-             _ _ _ Tsh _
-              (PROP  ()
-     LOCAL  (`(eq (Vint (Int.repr i))) (eval_id _i);
-     `(eq x) (eval_id _x); `(eq y) (eval_id _y); `(eq z) (eval_id _z))
-     SEP  (`(array_at tdouble Tsh (Vfloat oo fx) 0 i x);
-      `(array_at tdouble Tsh (Vfloat oo fx) (i+1) n x);
-     `(array_at tdouble Tsh (Vfloat oo fy) 0 n y);
-     `(array_at tdouble Tsh (Vfloat oo fz) 0 n z)))
-       writable_share_top).
+eapply (semax_loadstore_array 0 i 0 n tdouble
+               (Vfloat oo fx) x  (Vfloat (Float.add (fy i) (fz i))));
+  try apply writable_share_top;
+  try apply I; try reflexivity;
+  try assumption.
 *
  entailer.
  destruct (eval_id _x rho) eqn:Jx; inv H2. rename b into bx; rename i0 into zx.
  destruct (eval_id _y rho) eqn:Jy; inv H3. rename b into by'; rename i0 into zy.
  destruct (eval_id _z rho) eqn:Jz; inv H4. rename b into bz; rename i0 into zz.
- repeat apply andp_right; simpl.
- eapply rel_lvalue_deref.
- eapply rel_expr_binop.
+ repeat apply andp_right.
  apply rel_expr_tempvar; apply eval_id_get; [solve [auto] | congruence ].
  apply rel_expr_tempvar; apply eval_id_get; [solve [auto] | congruence ].
- intro m; simpl. rewrite <- H1; simpl.
- rewrite Jx; unfold Cop.sem_add; simpl. rewrite mul_repr. rewrite Z.mul_comm. auto.
  eapply rel_expr_cast.
  eapply rel_expr_binop.
- eapply rel_expr_lvalue.
- apply rel_lvalue_deref.
- eapply rel_expr_binop.
+ apply (rel_expr_array_load tdouble Tsh (Vfloat oo fy) 0 n (Vptr by' zy) i);
+  auto.
+ entailer.
+ repeat apply andp_right. cancel.
  eapply rel_expr_tempvar; apply eval_id_get; [auto| congruence].
  eapply rel_expr_tempvar; apply eval_id_get; [auto| congruence].
- intro m; simpl. rewrite <- H1; simpl.
- rewrite Jy; unfold Cop.sem_add; simpl. rewrite mul_repr. rewrite Z.mul_comm. auto.
- simpl typeof. (instantiate (2:=Tsh)). instantiate (1:= (Vfloat (fy i))).
- rewrite (split3_array_at i tdouble Tsh (Vfloat oo fy) 0 n (Vptr by' zy) H).
- simpl_data_at. normalize.
- unfold add_ptr_int. simpl. rewrite mul_repr. rewrite Z.mul_comm.
- cancel.
- congruence.
- eapply rel_expr_lvalue.
- apply rel_lvalue_deref.
- eapply rel_expr_binop.
+ apply (rel_expr_array_load tdouble Tsh (Vfloat oo fz) 0 n (Vptr bz zz) i);
+  auto.
+ repeat apply andp_right. entailer!.
  eapply rel_expr_tempvar; apply eval_id_get; [auto| congruence].
  eapply rel_expr_tempvar; apply eval_id_get; [auto| congruence].
- intro m; simpl. rewrite <- H1; simpl.
- rewrite Jz; unfold Cop.sem_add; simpl. rewrite mul_repr. rewrite Z.mul_comm. auto.
- simpl typeof. (instantiate (2:=Tsh)). instantiate (1:= (Vfloat (fz i))).
- rewrite (split3_array_at i tdouble Tsh (Vfloat oo fz) 0 n (Vptr bz zz) H).
- simpl_data_at. normalize.
- unfold add_ptr_int. simpl. rewrite mul_repr. rewrite Z.mul_comm.
- cancel.
- congruence.
- intro m. simpl. reflexivity.
- simpl. auto.
- rewrite (split3_array_at i tdouble Tsh (Vfloat oo fx) 0 n (Vptr bx zx) H).
- cancel.
- simpl_data_at.
- normalize.
- unfold add_ptr_int. simpl. rewrite mul_repr. rewrite Z.mul_comm.
- cancel.
+ reflexivity.
+ reflexivity.
 *
  simpl update_tycon.
- rewrite insert_SEP.
- simpl typeof.
  forward.
  cancel.
- rewrite (split3_array_at i tdouble Tsh (Vfloat oo upd fx i (Float.add (fy i) (fz i))) 0 n x_ H).
- rewrite (array_at_ext tdouble Tsh (Vfloat oo upd fx i (Float.add (fy i) (fz i))) (Vfloat oo fx) 0 i).
- rewrite (array_at_ext tdouble Tsh (Vfloat oo upd fx i (Float.add (fy i) (fz i))) (Vfloat oo fx) _ n).
- cancel.
- simpl_data_at.
- apply andp_right. apply prop_right.
- admit.  (* how to prove this? *)
- destruct x_; try contradiction.
- unfold add_ptr_int. simpl. rewrite mul_repr.
- rewrite Z.mul_comm. rewrite upd_eq. auto.
- intros. unfold Basics.compose.  f_equal. rewrite upd_neq; auto. omega.
- intros. unfold Basics.compose.  f_equal. rewrite upd_neq; auto. omega.
+ apply derives_refl'.
+ apply equal_f.
+ apply array_at_ext; intros.
+ unfold upd, Basics.compose.  if_tac; auto.
 Qed.
+

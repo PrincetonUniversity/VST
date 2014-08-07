@@ -151,6 +151,126 @@ Focus 2. {
   omega.
 Qed.
 
+Lemma prop_andp_ext':
+ forall {A} {ND: NatDed A}
+    P1 Q1 P2 Q2, 
+    (P1 <-> P2) -> (P1 -> (Q1 = Q2)) ->
+    (!! P1 && Q1 = !! P2 && Q2).
+Proof.
+intros.
+apply pred_ext; intros; normalize; rewrite H0; auto; intuition;
+ apply andp_right; auto; apply prop_right; intuition.
+Qed.
+
+Lemma split3_array_at':
+  forall i ty sh contents lo hi v (c: val),
+     type_is_by_value ty  ->
+     legal_alignas_type ty = true ->
+     JMeq (contents i) c ->
+     reptype ty = val ->
+       lo <= i < hi ->
+     array_at ty sh contents lo hi v =
+     array_at ty sh contents lo i v *
+     mapsto sh ty (add_ptr_int ty v i) c *
+     array_at ty sh contents (Zsucc i) hi v.
+Proof.
+  intros until 1; intro LAT; intros.
+  unfold array_at, rangespec.
+  remember (nat_of_Z (i - lo)) as n.
+  replace (nat_of_Z (hi - lo)) with (n + nat_of_Z (hi - i))%nat.
+  Focus 2. {subst; unfold nat_of_Z; rewrite <- Z2Nat.inj_add by omega.
+    f_equal.  omega.
+  } Unfocus.
+  unfold nat_of_Z in *.
+  replace (Z.to_nat (hi - i)) with (S (Z.to_nat (hi-Z.succ i))).
+Focus 2. {
+ unfold Z.succ. 
+ replace (hi-i) with (1 + (hi-(i+1))) by omega.
+ rewrite Z2Nat.inj_add by omega.
+ simpl. auto.
+ } Unfocus.
+ normalize.
+ apply prop_andp_ext'.
+ intuition.
+ eapply offset_in_range_mid with lo hi; try omega; assumption.
+ eapply offset_in_range_mid with lo hi; try omega; assumption.
+ intros [? [? [? ?]]].
+ assert (H7: 0 < sizeof ty)
+  by ( clear - H; destruct ty; try contradiction; try destruct i; try destruct f; try destruct s; simpl; omega).
+ revert lo Heqn H2 H6; induction n; simpl; intros.
+*
+  destruct (zlt 0 (i-lo)).
+  destruct (i-lo); try omega.
+  rewrite Z2Nat.inj_pos in Heqn.
+  generalize (Pos2Nat.is_pos p); omega.
+  generalize (Pos2Z.neg_is_neg p); omega.
+  assert (i=lo) by omega. subst i.
+ clear g Heqn.
+ rewrite (by_value_data_at sh ty (contents lo) c); auto.
+ normalize.
+ rewrite prop_true_andp; auto.
+ destruct v; try contradiction.
+ hnf in H4,H6.
+ assert (H6': 0 <= Int.unsigned i + sizeof ty * lo < Int.modulus). {
+  split; [ omega | ].
+  assert (Int.unsigned i + sizeof ty * lo < Int.unsigned i + sizeof ty * hi).
+ apply Zplus_lt_compat_l.
+ apply Zmult_lt_compat_l.
+ omega.
+ omega. omega.
+}
+ split.
++
+ hnf in H4. unfold add_ptr_int. simpl eval_binop. rewrite mul_repr.
+ red. rewrite <- (Int.repr_unsigned i).
+  rewrite add_repr. 
+  rewrite Int.unsigned_repr
+    by ( change Int.max_unsigned with (Int.modulus - 1); omega).
+ assert (sizeof ty * lo + sizeof ty <= sizeof ty * hi); [ | omega].
+ replace (sizeof ty * lo + sizeof ty) with (sizeof ty * (lo+1))%Z.
+ apply Zmult_le_compat_l; try omega.
+ rewrite Z.mul_add_distr_l. omega.
++
+  destruct H3 as [z ?].
+  unfold add_ptr_int. simpl eval_binop.
+ hnf in H6.
+ hnf.
+ rewrite <- (Int.repr_unsigned i).
+ rewrite H3 in H6|-*.
+ rewrite mul_repr. rewrite add_repr.
+ rewrite Int.unsigned_repr
+     by ( change Int.max_unsigned with (Int.modulus - 1); omega).
+  apply legal_alignas_sizeof_alignof_compat in LAT.
+ destruct LAT.
+ rewrite H8.
+ exists (z+x*lo).
+ rewrite Z.mul_add_distr_r.
+ f_equal. repeat rewrite <- Z.mul_assoc. f_equal.
+ apply Z.mul_comm.
+* repeat rewrite sepcon_assoc.
+  f_equal; auto.
+  assert (i<>lo).
+  intro. subst. replace (lo-lo) with 0 in Heqn by omega. 
+  inv Heqn.
+  assert (n = Z.to_nat (i - Z.succ lo)).
+    replace (i - Z.succ lo) with ((i-lo)- 1) by omega.
+    rewrite Z2Nat.inj_sub by omega.  
+   rewrite <- Heqn. simpl. omega.
+ rewrite (IHn (Z.succ lo)); auto.
+ repeat rewrite sepcon_assoc.
+ f_equal.
+ omega.
+ clear - H7 H4 H6 H2.
+ hnf in H4,H6|-*.
+ destruct v; auto.
+ unfold Z.succ.
+ assert (sizeof ty * lo < sizeof ty * (lo+1) <= sizeof ty * hi); [ | omega].
+ split.
+ apply Zmult_lt_compat_l; try omega.
+ apply Zmult_le_compat_l; try omega.
+Qed.
+
+
 Lemma lift_split3_array_at:
   forall i ty sh contents lo hi,
        lo <= i < hi ->
@@ -1235,6 +1355,160 @@ Proof.
     apply andp_right; apply prop_right.
     - simpl. admit. (* same reason; should be omega *)
     - exact H6.
+Qed.
+
+Lemma semax_loadstore_array':
+  forall {Espec: OracleKind},
+ forall vi lo hi t1 (contents: Z -> reptype t1) v1 v2 (Delta: tycontext) e1 e2 sh P P', 
+   writable_share sh ->
+   reptype t1 = val -> 
+   type_is_by_value t1 ->
+   legal_alignas_type t1 = true ->
+   typeof e1 = t1 ->
+   tc_val t1 v2 ->
+   in_range lo hi vi ->
+   P |--  rel_lvalue e1  (eval_binop Oadd (tptr t1) tint v1 (Vint (Int.repr vi)) )
+           && rel_expr (Ecast e2 t1) v2 
+           && (`(array_at t1 sh contents lo hi v1) * P') ->
+   @semax Espec Delta (|> P) (Sassign e1 e2) 
+          (normal_ret_assert (`(array_at t1 sh (upd contents vi (valinject _ v2)) lo hi v1) * P')).
+Proof.
+intros until 2. intros BYVAL LAT H1 TCV RANGE H2.
+  eapply semax_pre_post; [| | eapply semax_loadstore]; try eassumption.
+  apply andp_left2; apply derives_refl.
+ intros.
+*
+ apply andp_left2.
+ apply normal_ret_assert_derives'.
+ intro rho.
+ unfold_lift; simpl.
+  rewrite H1.
+ match goal with |- ?A |-- _ => set (XX := A) end.
+  rewrite (split3_array_at' vi t1 sh (upd contents vi (valinject t1 v2)) lo hi v1 v2); auto.
+ 2: rewrite upd_eq; apply valinject_JMeq; auto.
+ rewrite (sepcon_comm (array_at t1 sh (upd contents vi (valinject t1 v2)) lo vi v1)).
+ repeat rewrite sepcon_assoc.
+ unfold XX; clear XX.
+ apply derives_refl.
+*
+ rewrite H1.
+ repeat rewrite prop_true_andp by auto.
+ rewrite <- (andp_dup P).
+ eapply derives_trans.
+ apply andp_derives. apply H2. apply derives_refl.
+(* normalize. *)
+ apply andp_right.
+ apply andp_right.
+ apply andp_left1. apply andp_left1. apply andp_left1. apply derives_refl.
+ apply andp_left1. apply andp_left1. apply andp_left2. apply derives_refl.
+ intro rho. unfold_lift. simpl.
+ apply andp_left1. apply andp_left2.
+ rewrite (split3_array_at' vi t1 sh contents lo hi v1 (repinject _ (contents vi))); auto.
+ rewrite (sepcon_comm (array_at t1 sh contents lo vi v1)).
+ repeat rewrite sepcon_assoc.
+ apply sepcon_derives.
+ apply derives_refl.
+ repeat rewrite <- sepcon_assoc.
+ apply sepcon_derives; [ |  apply derives_refl].
+ apply sepcon_derives; apply derives_refl'; apply equal_f; apply array_at_ext; intros;
+ rewrite upd_neq by omega; auto.
+ clear - H0 BYVAL.
+ destruct t1; try contradiction.
+ destruct i,s; reflexivity.
+ destruct s; reflexivity.
+ destruct f; reflexivity.
+ reflexivity.
+Qed.
+
+
+Lemma semax_loadstore_array:
+  forall {Espec: OracleKind},
+ forall n vi lo hi t1 (contents: Z -> reptype t1) v1 v2 (Delta: tycontext) e1 ei e2 sh P Q R, 
+   writable_share sh ->
+   reptype t1 = val -> 
+   type_is_by_value t1 ->
+   legal_alignas_type t1 = true ->
+   typeof e1 = tptr t1 ->
+   typeof ei = tint ->
+   tc_val t1 v2 ->
+   in_range lo hi vi ->
+   nth_error R n = Some (`(array_at t1 sh contents lo hi v1)) ->
+   PROPx P (LOCALx Q (SEPx R)) |--  rel_expr e1 v1 && rel_expr ei (Vint (Int.repr vi))
+           && rel_expr (Ecast e2 t1) v2 ->
+   @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R))) (Sassign (Ederef (Ebinop Oadd e1 ei (tptr t1)) t1) e2) 
+          (normal_ret_assert 
+           (PROPx P (LOCALx Q (SEPx 
+            (replace_nth n R `(array_at t1 sh (upd contents vi (valinject _ v2)) lo hi v1)))))).
+Proof.
+intros.
+eapply semax_post_flipped'.
+apply semax_loadstore_array'; eauto.
+apply derives_trans with (!! isptr v1 && PROPx P (LOCALx Q (SEPx R))).
+rewrite (SEP_nth_isolate _ _ _ H7).
+repeat rewrite <- insert_SEP.
+rewrite array_at_isptr. normalize.
+normalize.
+destruct v1; try contradiction.
+instantiate (2:=v1).
+simpl eval_binop. rewrite mul_repr.
+apply andp_right; auto.
+eapply derives_trans; [ apply H8 |].
+intro rho. simpl.
+repeat apply andp_right.
+apply rel_lvalue_deref.
+eapply rel_expr_binop.
+repeat apply andp_left1. apply derives_refl.
+apply andp_left1. apply andp_left2. apply derives_refl.
+intro; rewrite H4; simpl. rewrite H3; simpl. 
+  unfold Cop.sem_add; simpl. rewrite mul_repr. auto.
+ apply andp_left2. auto.
+rewrite (SEP_nth_isolate _ _ _ H7).
+repeat rewrite <- insert_SEP.
+apply derives_refl.
+rewrite (SEP_replace_nth_isolate _ _ _ `(array_at t1 sh (upd contents vi (valinject t1 v2)) lo hi v1) H7).
+rewrite insert_SEP.
+auto.
+Qed. 
+ 
+Lemma rel_expr_array_load:
+  forall ty sh (contents: Z -> reptype ty) lo hi v1 (i: Z) e1 e2 P  rho,
+  tc_val ty (repinject _ (contents i)) ->
+  typeof e1 = tptr ty ->
+  typeof e2 = tint ->
+  type_is_by_value ty ->
+  P |--  !! (lo <= i < hi)
+         && array_at ty sh contents lo hi v1 * TT
+        && rel_expr e1 v1 rho
+        && rel_expr e2 (Vint (Int.repr i)) rho ->
+  P |--  rel_expr
+      (Ederef
+         (Ebinop Oadd e1 e2 (tptr ty)) ty) (repinject _ (contents i)) rho.
+Proof.
+intros.
+eapply derives_trans; [eassumption | clear H3].
+ rewrite array_at_isptr. normalize.
+ destruct v1; try contradiction. rename i0 into ofs.
+ eapply rel_expr_lvalue.
+ apply rel_lvalue_deref.
+ eapply rel_expr_binop.
+ apply andp_left1. apply andp_left2. apply derives_refl.
+ apply andp_left2; apply derives_refl.
+ intro m. rewrite H0, H1. simpl. unfold Cop.sem_add; simpl.
+  rewrite mul_repr. reflexivity.
+ repeat  apply andp_left1.
+  rewrite (split3_array_at i ty sh contents lo hi) by omega.
+  rewrite (sepcon_comm (array_at ty sh contents lo i (Vptr b ofs))).
+  repeat rewrite sepcon_assoc.
+  apply sepcon_derives; auto.
+  instantiate (1:=sh).
+   simpl typeof.
+  unfold add_ptr_int. simpl. rewrite mul_repr.
+  rewrite  (by_value_data_at sh ty (contents i) (repinject ty (contents i))); auto.
+  apply andp_left2. auto.
+  clear - H2.
+  destruct ty; try contradiction; reflexivity.
+  intro Hx; rewrite Hx in H; clear Hx.
+  apply tc_val_Vundef in H; auto.
 Qed.
 
 (*
