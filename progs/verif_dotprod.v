@@ -48,6 +48,69 @@ f_equal; assumption.
 subst. contradiction H0; auto.
 Qed.
 
+Ltac instantiate_Vptr :=
+match goal with H: isptr (eval_id ?i ?rho), A: name ?i |- _ =>
+   let b := fresh "b_" A in let z := fresh "z_" A in let J := fresh "H_" A in
+   destruct (eval_id i rho) as [ | | | | b z] eqn:J; try contradiction H; clear H;
+     rename J into H
+end.
+
+Ltac solve_nth_error :=
+match goal with |- @nth_error ?T (?A::_) ?n = Some ?B => 
+ first [unify n O; unfold nth_error, value; repeat f_equal; reflexivity
+        | let b := fresh "n" in evar (b:nat);  unify n (S b); 
+          unfold nth_error; fold (@nth_error  T); solve_nth_error
+        ]
+end.
+
+Lemma upd_compose:
+  forall {A}{B}{C} {EA: EqDec A}(f: B ->C) (g: A -> B) (x: A) (y: B) x', 
+           upd (Basics.compose f g) x (f y) x' = f (upd g x y x').
+Proof.
+ intros; unfold upd, Basics.compose.  if_tac; auto.
+Qed.
+Hint Rewrite @upd_compose : norm.
+
+Lemma array_at_ext':
+  forall t sh f g lo hi p,
+   (forall i, lo <= i < hi -> f i = g i) ->
+   array_at t sh f lo hi p |-- array_at t sh g lo hi p.
+Proof.
+ intros.
+ apply derives_refl';  apply equal_f;  apply array_at_ext; auto.
+Qed.
+
+Hint Extern 2 (array_at _ _ _ _ _ _ |-- array_at _ _ _ _ _ _) =>
+  (apply array_at_ext'; intros; solve [normalize]) : cancel.
+
+Ltac forward_nl :=
+ first
+ [ simple eapply semax_seq';
+   [hoist_later_in_pre;
+    simple eapply semax_loadstore_array;
+       [ reflexivity | apply I | reflexivity | reflexivity| reflexivity 
+       | entailer; repeat instantiate_Vptr; repeat apply andp_right;
+               forward_nl
+       | try solve_nth_error | auto .. ]
+    | unfold replace_nth; simpl valinject; abbreviate_semax ]
+ | simple eapply rel_expr_array_load; [reflexivity | reflexivity | apply I 
+   | repeat apply andp_right; [forward_nl | forward_nl | cancel | entailer.. ]]
+ | simple apply rel_expr_tempvar;  apply eval_id_get; [solve [eauto] | congruence ]
+ | simple eapply rel_expr_cast; [forward_nl | try reflexivity ]
+ | simple eapply rel_expr_unop; [forward_nl | try reflexivity ]
+ | simple eapply rel_expr_binop; [forward_nl | forward_nl | try reflexivity ]
+ | simple apply rel_expr_const_int
+ | simple apply rel_expr_const_float
+ | simple apply rel_expr_const_long
+ | simple eapply rel_lvalue_local
+ | simple eapply rel_lvalue_global
+ | simple eapply rel_lvalue_deref; [forward_nl ]
+ | simple eapply rel_lvalue_field_struct; [ reflexivity | reflexivity | forward_nl ]
+ | simple eapply rel_expr_lvalue; [ forward_nl | cancel | ]
+ | idtac
+ ].
+
+
 Lemma body_add:  semax_body Vprog Gprog f_add add_spec.
 Proof.
 start_function.
@@ -57,46 +120,9 @@ name y_ _y.
 name z_ _z.
 destruct xyz as [[x y] z].
 destruct f as [[fx fy] fz].
-unfold MORE_COMMANDS, POSTCONDITION, abbreviate.
-clear MORE_COMMANDS POSTCONDITION.
 unfold proj_x, proj_y, proj_z; simpl.
-eapply semax_seq'.
-hoist_later_in_pre.
-eapply (semax_loadstore_array 0 i 0 n tdouble
-               (Vfloat oo fx) x  (Vfloat (Float.add (fy i) (fz i))));
-  try apply writable_share_top;
-  try apply I; try reflexivity;
-  try assumption.
-*
- entailer.
- destruct (eval_id _x rho) eqn:Jx; inv H2. rename b into bx; rename i0 into zx.
- destruct (eval_id _y rho) eqn:Jy; inv H3. rename b into by'; rename i0 into zy.
- destruct (eval_id _z rho) eqn:Jz; inv H4. rename b into bz; rename i0 into zz.
- repeat apply andp_right.
- apply rel_expr_tempvar; apply eval_id_get; [solve [auto] | congruence ].
- apply rel_expr_tempvar; apply eval_id_get; [solve [auto] | congruence ].
- eapply rel_expr_cast.
- eapply rel_expr_binop.
- apply (rel_expr_array_load tdouble Tsh (Vfloat oo fy) 0 n (Vptr by' zy) i);
-  auto.
- entailer.
- repeat apply andp_right. cancel.
- eapply rel_expr_tempvar; apply eval_id_get; [auto| congruence].
- eapply rel_expr_tempvar; apply eval_id_get; [auto| congruence].
- apply (rel_expr_array_load tdouble Tsh (Vfloat oo fz) 0 n (Vptr bz zz) i);
-  auto.
- repeat apply andp_right. entailer!.
- eapply rel_expr_tempvar; apply eval_id_get; [auto| congruence].
- eapply rel_expr_tempvar; apply eval_id_get; [auto| congruence].
- reflexivity.
- reflexivity.
-*
- simpl update_tycon.
- forward.
+forward_nl. (* x[i] = y[i] + z[i]; *)
+ forward. (*   return; *)
  cancel.
- apply derives_refl'.
- apply equal_f.
- apply array_at_ext; intros.
- unfold upd, Basics.compose.  if_tac; auto.
 Qed.
 

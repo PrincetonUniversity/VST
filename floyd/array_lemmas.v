@@ -1424,23 +1424,24 @@ Qed.
 Lemma semax_loadstore_array:
   forall {Espec: OracleKind},
  forall n vi lo hi t1 (contents: Z -> reptype t1) v1 v2 (Delta: tycontext) e1 ei e2 sh P Q R, 
-   writable_share sh ->
-   reptype t1 = val -> 
-   type_is_by_value t1 ->
-   legal_alignas_type t1 = true ->
-   typeof e1 = tptr t1 ->
-   typeof ei = tint ->
-   tc_val t1 v2 ->
-   in_range lo hi vi ->
-   nth_error R n = Some (`(array_at t1 sh contents lo hi v1)) ->
-   PROPx P (LOCALx Q (SEPx R)) |--  rel_expr e1 v1 && rel_expr ei (Vint (Int.repr vi))
+  (*H0*) reptype t1 = val -> 
+  (*H1*) type_is_by_value t1 ->
+  (*H2*) legal_alignas_type t1 = true ->
+  (*H3*) typeof e1 = tptr t1 ->
+  (*H4*) typeof ei = tint ->
+  (*H8*) PROPx P (LOCALx Q (SEPx R)) |--  rel_expr e1 v1 && rel_expr ei (Vint (Int.repr vi))
            && rel_expr (Ecast e2 t1) v2 ->
+  (*H7*) nth_error R n = Some (`(array_at t1 sh contents lo hi v1)) ->
+  (*H *) writable_share sh ->
+  (*H5*) tc_val t1 v2 ->
+  (*H6*) in_range lo hi vi ->
    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R))) (Sassign (Ederef (Ebinop Oadd e1 ei (tptr t1)) t1) e2) 
           (normal_ret_assert 
            (PROPx P (LOCALx Q (SEPx 
             (replace_nth n R `(array_at t1 sh (upd contents vi (valinject _ v2)) lo hi v1)))))).
 Proof.
-intros.
+intros until R.
+intros H0 H1 H2 H3 H4 H8 H7 H H5 H6.
 eapply semax_post_flipped'.
 apply semax_loadstore_array'; eauto.
 apply derives_trans with (!! isptr v1 && PROPx P (LOCALx Q (SEPx R))).
@@ -1472,30 +1473,30 @@ Qed.
  
 Lemma rel_expr_array_load:
   forall ty sh (contents: Z -> reptype ty) lo hi v1 (i: Z) e1 e2 P  rho,
-  tc_val ty (repinject _ (contents i)) ->
   typeof e1 = tptr ty ->
   typeof e2 = tint ->
   type_is_by_value ty ->
-  P |--  !! (lo <= i < hi)
-         && array_at ty sh contents lo hi v1 * TT
-        && rel_expr e1 v1 rho
-        && rel_expr e2 (Vint (Int.repr i)) rho ->
+  P |--  rel_expr e1 v1 rho
+        && rel_expr e2 (Vint (Int.repr i)) rho
+         && (array_at ty sh contents lo hi v1 * TT)
+         &&  !! (lo <= i < hi) 
+         &&  !! tc_val ty (repinject _ (contents i)) ->
   P |--  rel_expr
       (Ederef
          (Ebinop Oadd e1 e2 (tptr ty)) ty) (repinject _ (contents i)) rho.
 Proof.
 intros.
-eapply derives_trans; [eassumption | clear H3].
+eapply derives_trans; [eassumption | clear H2].
  rewrite array_at_isptr. normalize.
  destruct v1; try contradiction. rename i0 into ofs.
  eapply rel_expr_lvalue.
  apply rel_lvalue_deref.
  eapply rel_expr_binop.
+ apply andp_left1. apply andp_left1. apply derives_refl.
  apply andp_left1. apply andp_left2. apply derives_refl.
- apply andp_left2; apply derives_refl.
- intro m. rewrite H0, H1. simpl. unfold Cop.sem_add; simpl.
+ intro m. rewrite H, H0. simpl. unfold Cop.sem_add; simpl.
   rewrite mul_repr. reflexivity.
- repeat  apply andp_left1.
+ repeat  apply andp_left2.
   rewrite (split3_array_at i ty sh contents lo hi) by omega.
   rewrite (sepcon_comm (array_at ty sh contents lo i (Vptr b ofs))).
   repeat rewrite sepcon_assoc.
@@ -1505,10 +1506,10 @@ eapply derives_trans; [eassumption | clear H3].
   unfold add_ptr_int. simpl. rewrite mul_repr.
   rewrite  (by_value_data_at sh ty (contents i) (repinject ty (contents i))); auto.
   apply andp_left2. auto.
-  clear - H2.
+  clear - H1.
   destruct ty; try contradiction; reflexivity.
-  intro Hx; rewrite Hx in H; clear Hx.
-  apply tc_val_Vundef in H; auto.
+  intro Hx; rewrite Hx in H2; clear Hx.
+  apply tc_val_Vundef in H2; auto.
 Qed.
 
 (*
