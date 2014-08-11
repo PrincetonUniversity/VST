@@ -224,6 +224,15 @@ compcomp:  .loadpath $(COMPCOMP_FILES:%.v=compcomp/%.vo)
 
 CGFLAGS =  -DCOMPCERT
 
+CVFILES = progs/revarray.v progs/reverse.v progs/queue.v progs/sumarray.v \
+         progs/message.v progs/insertionsort.v progs/float.v progs/logical_compare.v \
+         progs/nest2.v progs/nest3.v progs/dotprod.v
+
+cvfiles: $(CVFILES)
+
+clean_cvfiles: 
+	rm $(CVFILES)
+
 ifdef CLIGHTGEN
 sha/sha.v: sha/sha.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
@@ -247,6 +256,8 @@ progs/logical_compare.v: progs/logical_compare.c
 progs/nest2.v: progs/nest2.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/nest3.v: progs/nest3.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/dotprod.v: progs/dotprod.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
