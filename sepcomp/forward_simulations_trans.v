@@ -19,7 +19,7 @@ Require Import AST.
 Require Import Globalenvs.
 Require Import Memory.
 
-Require Import sepcomp.Coqlib2. 
+Require Import msl.Coqlib2. 
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.core_semantics.

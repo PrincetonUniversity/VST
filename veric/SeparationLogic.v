@@ -17,7 +17,7 @@ Require Export veric.expr.
 Require Export veric.expr_rel.
 Require veric.seplog.
 Require veric.assert_lemmas. 
-Require Import sepcomp.Coqlib2.
+Require Import msl.Coqlib2.
 Require Import veric.juicy_extspec.
 
 

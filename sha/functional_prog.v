@@ -3,6 +3,7 @@ Require Import Integers.
 Require Coq.Strings.String.
 Require Coq.Strings.Ascii.
 Require Import Coqlib.
+Require Import msl.Coqlib2.
 Require Import List.
 Require Import sha.SHA256.
 
@@ -137,7 +138,7 @@ End CHECKS.
     FUNCTIONAL SPECIFICATION *)
 
 Require Import sha.common_lemmas.
-Require Import sepcomp.Coqlib2.
+Require Import msl.Coqlib2.
 
 Local Open Scope nat.
 

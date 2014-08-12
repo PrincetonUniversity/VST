@@ -8,7 +8,7 @@ Require Import Maps.
 Require Import Integers.
 Require Import Globalenvs.
 
-Require Import sepcomp.Coqlib2. 
+Require Import msl.Coqlib2. 
 
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.mem_interpolants.

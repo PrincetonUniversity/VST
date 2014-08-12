@@ -13,7 +13,6 @@ Require Export Ctypes.
 Require Export Clight.
 
 Require Export EqNat.
-Require Export sepcomp.Coqlib2.
 Require Export msl.Coqlib2.
 Require Export sepcomp.Address.
 Require Export Relations.
