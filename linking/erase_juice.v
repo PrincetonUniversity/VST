@@ -30,91 +30,7 @@ Notation source := (LinkerSem.coresem N sems_S plt).
 Notation target := (LinkerSem.coresem N sems_T plt).
 
 Lemma C_types_eq ix : Modsem.C (sems_S ix) = Modsem.C (sems_T ix).
-Proof. by rewrite /sems_S; case: (sems_T ix). Qed.
-
-(*
-
-(* The types `linker N sems_S' and `linker N sems_T' are morally
-   equal, but dependent types get in the way. Here I try to ease the
-   pain somewhat. *)
-
-Require Import stack.
-
-Fixpoint stack_coerce (s : Stack.t (Core.t sems_S)) : Stack.t (Core.t sems_T).
-case: s=> [|[ix c] sg s']; first by refine nil. 
-apply: cons.
-rewrite /sems_S in c.
-apply: Core.mk.
-refine ix.
-move: c; case: (sems_T ix)=> /= F V ge C sem c.
-refine c.
-refine sg.
-refine (stack_coerce s').
-Defined.
-
-Lemma stack_coerce_at_external 
-    (s : Stack.t (Core.t sems_S)) (allAt : all (atExternal sems_S) s) :
-  all (atExternal sems_T) (stack_coerce s).
-Proof.
-elim: s allAt=> // [[ix c] sg] s' IH /=.
-
-case H: (at_external (Modsem.sem (sems_S ix)) c)=> [[[x y] z]|] H2.
-move: (IH H2)=> H3; move: H. case: (sems_S ix). => F V ge C sem.
-
-
-Lemma stack_coerce_wf (s : Stack.t (Core.t sems_S)) (wf : wf_callStack s) : 
-  wf_callStack (stack_coerce s).
-Proof.
-case: s wf=> // [[ix c] sg] s'.
-rewrite /wf_callStack; move/andP; case=> /= H H2; apply/andP; split=> //=.
-
-
-Definition linker_coerce (l : linker _ sems_S) : linker _ sems_T.
-case: l=> fn_tbl stk; apply: (Linker.mkLinker fn_tbl).
-case: stk=> stk wf.
-
-Lemma core_types_eq : Core.t sems_S = Core.t sems_T.
-Admitted.
-
-Lemma linker_types_eq : linker N sems_S = linker N sems_T.
-Admitted.
-
-Definition coerce_C ix (c : Modsem.C (sems_S ix)) : Modsem.C (sems_T ix).
-rewrite -C_types_eq; refine c.
-Defined.
-
-Definition coerce_core (c : Core.t sems_S) : Core.t sems_T.
-rewrite -core_types_eq; refine c.
-Defined.
-
-Definition coerce_linker (l : linker N sems_S) : linker N sems_T.
-rewrite -linker_types_eq; refine l.
-Defined.
-
-Require Import cast.
-
-Lemma initial_core_eq ge v vs : 
-  initial_core source ge v vs 
-= cast initial_core target ge v vs).
-Proof.
-rewrite /= /LinkerSem.initial_core.
-case: v; try by move=> _; rewrite linker_types_eq; apply: JMeq_refl.
-by rewrite linker_types_eq; apply: JMeq_refl.
-move=> b _; case: (plt b); last by rewrite linker_types_eq; apply: JMeq_refl.
-move=> ix; rewrite /initCore; case init: (initial_core _ _ _ _)=> [c|]. 
-have [c' [init' jmeqcc']]: exists c', 
-  [/\ initial_core (Modsem.sem (sems_T ix)) (Modsem.ge (sems_T ix))
-                   (Vptr b Integers.Int.zero) vs = Some c'
-    & JMeq c c'].
-{ move: c init; rewrite /sems_S.
-  by case: (sems_T ix)=> /= F V ge0 C sem c init; exists c. }
-rewrite init'.
-have eqcc': coerce_C c = c'.
-{ clear -jmeqcc'; move: c c' jmeqcc'.
-  rewrite /coerce_C /=.
-
-clear -eqcc'; move: c c' eqcc'; move: (C_types_eq ix).
-*)
+Proof. by rewrite /sems_S; case: (sems_T ix). Defined.
 
 Require Import cast.
 
@@ -157,7 +73,9 @@ Lemma initial_core_eq ix b vals c :
   initial_core (Modsem.sem (sems_T ix)) (Modsem.ge (sems_T ix))
     (Vptr b Integers.Int.zero) vals = Some (cast_ty (C_types_eq ix) c).
 Proof.
-Admitted.
+rewrite /cast_ty; move: c; rewrite /C_types_eq /= /sems_S.
+by case: (sems_T ix)=> /= F V ge c sem c0 -> //.
+Qed.
 
 Lemma Juicy_linked_erasure ge main : 
   Wholeprog_sim source target ge ge main eq
@@ -194,7 +112,7 @@ by exists erefl; rewrite /match_Cs' cast_ty_erefl.
 }
 
 { (*step*)
-admit.
+move=> st1 m1 st1' m1' /= STEP _ st2 _ m2 []<- H.
 }
 
 { (*halted*)
