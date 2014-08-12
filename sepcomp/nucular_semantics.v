@@ -1,10 +1,10 @@
-Require Import sepcomp.compcert. Import CompcertAll.
+Require Import compcert. Import CompcertAll.
 
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.core_semantics_lemmas.
-Require Import sepcomp.mem_wd.
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.reach.
+Require Import core_semantics.
+Require Import core_semantics_lemmas.
+Require Import mem_wd.
+Require Import mem_lemmas.
+Require Import reach.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -22,19 +22,7 @@ Lemma valid_genv_isGlobal F V (ge : Genv.t F V) m b :
   Mem.valid_block m b.
 Proof.
 intros H H2.
-destruct H.
-unfold isGlobalBlock in H2.
-rewrite orb_true_iff in H2.
-unfold genv2blocksBool in H2; simpl in H2.
-destruct H2.
-generalize H1; case_eq (Genv.invert_symbol ge b).
-intros i inv _; apply Genv.invert_find_symbol in inv.
-apply (H _ _ inv).
-intros none; rewrite none in H1; discriminate.
-revert H1; case_eq (Genv.find_var_info ge b).
-intros gv fnd _.
-apply (H0 _ _ fnd).
-discriminate.
+apply H; auto.
 Qed.
 
 Lemma mem_wd_reach m : 
@@ -79,7 +67,6 @@ revert b H3; induction L; simpl.
 intros b; inversion 1; subst.
 rewrite orb_true_iff in H0.
 destruct H0.
-unfold valid_genv in H2.
 eapply valid_genv_isGlobal; eauto.
 rewrite getBlocks_char in H0.
 destruct H0.
@@ -180,15 +167,13 @@ Lemma valid_genv_fwd F V (ge : Genv.t F V) m m' :
   mem_forward m m' -> 
   valid_genv ge m'.
 Proof.
-intros H fwd. destruct H as [A B]. split.
-{ intros id b fnd.
-cut (val_valid (Vptr b Int.zero) m). 
+intros H fwd. inv H; constructor; intros.
+{ cut (val_valid (Vptr b Int.zero) m). 
 + intros H2; apply (val_valid_fwd H2 fwd).
-+ specialize (A id b fnd); auto. }
-{ intros gv b H.
-cut (val_valid (Vptr b Int.zero) m). 
++ eauto. }
+{ cut (val_valid (Vptr b Int.zero) m). 
 + intros H2; apply (val_valid_fwd H2 fwd).
-+ specialize (B gv b); auto. }
++ eauto. }
 Qed.
 
 Lemma valid_genv_step F V C (ge : Genv.t F V) 

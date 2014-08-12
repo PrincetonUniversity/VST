@@ -6,10 +6,10 @@ Require Import msl.Axioms.
 
 Require Import compcert. Import CompcertCommon.
 
-Require Import linking.sepcomp. Import SepComp.
-Require Import sepcomp.arguments.
+Require Import sepcomp. Import SepComp.
+Require Import arguments.
 
-Require Import linking.core_semantics_lemmas.
+Require Import core_semantics_tcs.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -118,7 +118,11 @@ Definition after_external ov c :=
     | None => None
   end.
 
-Definition halted c := halted sem (core c).
+Definition halted c := 
+  match halted sem (core c) with
+    | Some rv => if vals_def (rv::nil) then Some rv else None
+    | None => None
+  end.
 
 Arguments halted /.
 
@@ -215,13 +219,16 @@ apply corestep_not_at_external in X; rewrite X in H5; congruence.
 Qed.
 Next Obligation. 
 destruct (effax1 H0) as [X Y].
-revert X; apply corestep_not_halted; auto.
+case_eq (core_semantics.halted sem q). intros v.
+apply corestep_not_halted in X. rewrite X; inversion 1.
+auto.
 Qed.
 Next Obligation. 
 case_eq (at_external_halted_excl sem (core q)); auto; intros e _. 
 case_eq (core_semantics.at_external sem q); auto; intros [[ef dep_sig] args] H5.
 destruct (vals_def args); auto.
 rewrite e in H5; congruence.
+rewrite e; auto.
 Qed.
 
 Program Definition coopsem : CoopCoreSem (Genv.t F V) state :=

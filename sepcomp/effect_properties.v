@@ -1,21 +1,19 @@
 Require Import Events.
 Require Import Memory.
 Require Import Coqlib.
-Require Import compcert.common.Values.
+Require Import Values.
 Require Import Maps.
 Require Import Integers.
 Require Import AST.
-
 Require Import Globalenvs.
-
 Require Import msl.Axioms.
 
-Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.StructuredInjections.
-Require Import sepcomp.reach.
-Require Import sepcomp.effect_simulations.
+Require Import mem_lemmas. (*needed for definition of mem_forward etc*)
+Require Import core_semantics.
+Require Import effect_semantics.
+Require Import StructuredInjections.
+Require Import reach.
+Require Import effect_simulations.
 
 Goal forall mu Etgt Esrc m2 m2' (WD: SM_wd mu) m1
             (TgtHyp: forall b ofs, Etgt b ofs = true -> 
@@ -1216,13 +1214,13 @@ Proof. intros A n.
 Qed.
 
 Lemma REACH_Store: forall m chunk b i v m'
-     (ST: Mem.store chunk m b (Int.unsigned i) v = Some m')
+     (ST: Mem.store chunk m b i v = Some m')
      Roots (VISb: Roots b = true)
      (VISv : forall b', getBlocks (v :: nil) b' = true -> 
              Roots b' = true)
      (R: REACH_closed m Roots),
      REACH_closed m' Roots.
-Proof. intros.
+Proof. intros. 
 intros bb Hbb.
 apply R. clear R.
 rewrite REACHAX.
@@ -1253,12 +1251,12 @@ destruct (eq_block r b); subst.
      rewrite (Mem.store_mem_contents _ _ _ _ _ _ ST) in H4, H0. 
           apply Mem.store_valid_access_3 in ST. destruct ST as [RP ALGN].
           rewrite PMap.gss in H4.
-          destruct (zlt zz (Int.unsigned i)).
+          destruct (zlt zz i).
             rewrite Mem.setN_outside in H4.
             eexists. eapply reach_cons; try eassumption.
                      apply reach_nil. assumption.
             left; trivial. 
-          destruct (zlt zz ((Int.unsigned i) + Z.of_nat (length (encode_val chunk v)))).
+          destruct (zlt zz (i + Z.of_nat (length (encode_val chunk v)))).
           Focus 2.
             rewrite Mem.setN_outside in H4.
             eexists. eapply reach_cons; try eassumption.
@@ -1266,11 +1264,11 @@ destruct (eq_block r b); subst.
             right; trivial.
           rewrite encode_val_length in *. rewrite <- size_chunk_conv in *.
             rewrite PMap.gss in H0.
-            remember ((Mem.setN (encode_val chunk v) (Int.unsigned i)
+            remember ((Mem.setN (encode_val chunk v) i
           (Mem.mem_contents m) !! b)) as c. apply eq_sym in H0.
-          specialize (getN_aux (nat_of_Z ((size_chunk chunk))) (Int.unsigned i) c).
-          assert (exists z, zz = Int.unsigned i + z /\ z>=0 /\ z < size_chunk chunk).
-            exists (zz - Int.unsigned i). omega.
+          specialize (getN_aux (nat_of_Z ((size_chunk chunk))) i c).
+          assert (exists z, zz = i + z /\ z>=0 /\ z < size_chunk chunk).
+            exists (zz - i). omega.
           destruct H1 as [z [Z1 [Z2 Z3]]]. clear g l. subst zz.
           rewrite <- (nat_of_Z_eq _ Z2) in H4.
           assert (SPLIT: exists vl1 u vl2,
@@ -1343,7 +1341,7 @@ Qed.
 
 (*similar proof as Lemma REACH_Store. *)
 Lemma REACH_Storebytes: forall m b i bytes m'
-     (ST: Mem.storebytes m b (Int.unsigned i) bytes = Some m')
+     (ST: Mem.storebytes m b i bytes = Some m')
      Roots (VISb: Roots b = true)
      (VISv : forall b' z n, In (Pointer b' z n) bytes -> 
              Roots b' = true)
@@ -1380,23 +1378,23 @@ destruct (eq_block r b); subst.
      rewrite (Mem.storebytes_mem_contents _ _ _ _ _ ST) in H4, H0. 
           apply Mem.storebytes_range_perm in ST. (*destruct ST as [RP ALGN].*)
           rewrite PMap.gss in H4.
-          destruct (zlt zz (Int.unsigned i)).
+          destruct (zlt zz i).
             rewrite Mem.setN_outside in H4.
             eexists. eapply reach_cons; try eassumption.
                      apply reach_nil. assumption.
             left; trivial. 
-          destruct (zlt zz ((Int.unsigned i) + Z.of_nat (length bytes))).
+          destruct (zlt zz (i + Z.of_nat (length bytes))).
           Focus 2.
             rewrite Mem.setN_outside in H4.
             eexists. eapply reach_cons; try eassumption.
                      apply reach_nil. assumption.
             right; trivial.
           rewrite nat_of_Z_of_nat in H0. rewrite PMap.gss in H0.
-            remember ((Mem.setN bytes (Int.unsigned i)
-          (Mem.mem_contents m) !! b)) as c. apply eq_sym in H0.
-          specialize (getN_aux (length bytes) (Int.unsigned i) c).
-          assert (exists z, zz = Int.unsigned i + z /\ z>=0 /\ z < Z.of_nat(length bytes)).
-            exists (zz - Int.unsigned i). omega.
+            remember ((Mem.setN bytes i (Mem.mem_contents m) !! b)) as c.
+             apply eq_sym in H0.
+          specialize (getN_aux (length bytes) i c).
+          assert (exists z, zz = i + z /\ z>=0 /\ z < Z.of_nat(length bytes)).
+            exists (zz - i). omega.
           destruct H1 as [z [Z1 [Z2 Z3]]]. clear g l. subst zz.
           rewrite <- (nat_of_Z_eq _ Z2) in H4.
           assert (SPLIT: exists vl1 u vl2,
@@ -2089,16 +2087,6 @@ Proof. intros.
     rewrite Mem.nextblock_empty in VBEmpty. xomega.
 Qed.
 
-Lemma find_symbol_isGlobal: forall {V F} (ge : Genv.t F V) x b
-       (Find: Genv.find_symbol ge x = Some b),
-     isGlobalBlock ge b = true.
-Proof. intros.
-  unfold isGlobalBlock.
-  unfold genv2blocksBool. simpl.
-  rewrite (Genv.find_invert_symbol _ _ Find). reflexivity.
-Qed.
-
-
 (*New Lemma, based on (proof of) Mem.alloc_parallel_inject*)
 Theorem alloc_parallel_intern:
   forall mu m1 m2 lo1 hi1 m1' b1 lo2 hi2 
@@ -2203,6 +2191,52 @@ Proof.
 (*REACH_closed*)
   eapply REACH_closed_alloc_left_sm; eassumption.
 Qed.
+
+(*TODO: Move*)
+Lemma local_ofI_Some mu b b' z : 
+  SM_wd mu -> 
+  as_inj mu b = Some (b',z) -> 
+  locBlocksSrc mu b=true -> 
+  local_of mu b = Some (b',z).
+Proof.
+intros WD. destruct mu. simpl in *. unfold as_inj, join. simpl. 
+case_eq (extern_of b). intros [? ?] H. inversion 1; subst. 
+intros loc. exploit locBlocksSrc_externNone; eauto. simpl. 
+  rewrite H; intros; congruence.
+intros; auto.
+Qed.
+
+Lemma eq_block_refl b : exists P, eq_block b b = left P.
+Proof. destruct (eq_block b b). eexists; eauto. elimtype False; auto. Qed.
+
+Lemma alloc_parallel_intern':
+  forall mu m1 m2 lo1 hi1 m1' b1 lo2 hi2 
+        (SMV: sm_valid mu m1 m2) (WD: SM_wd mu),
+  Mem.inject (as_inj mu) m1 m2 ->
+  Mem.alloc m1 lo1 hi1 = (m1', b1) ->
+  lo2 <= lo1 -> hi1 <= hi2 ->
+  exists mu', exists m2', exists b2,
+  Mem.alloc m2 lo2 hi2 = (m2', b2)
+  /\ Mem.inject (as_inj mu') m1' m2'
+  /\ intern_incr mu mu'
+  /\ local_of mu' b1 = Some(b2, 0)
+  /\ (forall b, b <> b1 -> as_inj mu' b = as_inj mu b)
+  /\ sm_inject_separated mu mu' m1 m2 
+  /\ sm_locally_allocated mu mu' m1 m2 m1' m2'
+  /\ SM_wd mu' /\ sm_valid mu' m1' m2' /\
+  (REACH_closed m1 (vis mu) -> REACH_closed m1' (vis mu')). 
+Proof.
+  intros.
+  exploit alloc_parallel_intern; eauto.
+  intros [mu' [m2' [b2 [? [? [? [? [? [? [? [? [? ?]]]]]]]]]]]].
+  exists mu',m2',b2; intuition.
+  apply local_ofI_Some; auto. 
+  rewrite sm_locally_allocatedChar in H9. 
+  destruct H9 as [_ [_ [-> _]]].
+  rewrite orb_true_iff. right.
+  erewrite freshloc_alloc; eauto.
+  destruct (eq_block_refl b1) as [? ->]; auto.
+Qed. 
 
 Lemma freelist_right_inject: forall j m1 l m2 m2'
        (F:Mem.free_list m2 l = Some m2')
@@ -2326,3 +2360,11 @@ Proof. intros. remember (as_inj mu1 b) as AI.
            destruct (SEP1 _ _ _ HeqAI H).
            elim (SEP3 _ H2). eapply as_inj_DomRng; eassumption. apply H0.
 Qed. 
+
+Lemma restrict_sm_replace_externs mu X FS FT:
+    replace_externs (restrict_sm mu X) FS FT =
+    restrict_sm (replace_externs mu FS FT) X.
+Proof. intros.
+destruct mu; simpl.
+f_equal.
+Qed.

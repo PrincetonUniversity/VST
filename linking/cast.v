@@ -73,6 +73,12 @@ Proof.
 by move: pf; rewrite <-eq; rewrite (cast_ty_erefl x). 
 Qed.
 
+Lemma cast_indnatdep''
+  (x : T i) (eq : j = i) (pf : P (cast_ty (lift_eq T (sym_eq eq)) x)) : P x.
+Proof. 
+by move: pf; subst j; rewrite (cast_ty_erefl x). 
+Qed.
+
 End ind_natdep.
 
 Section ind_natdep2.

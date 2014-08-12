@@ -1,6 +1,6 @@
-Require Import compcert.common.AST.
-Require Import compcert.common.Values.
-Require Import compcert.common.Memory.
+Require Import AST.
+Require Import Values.
+Require Import Memory.
 
 Require Import ListSet.
 

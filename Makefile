@@ -18,7 +18,7 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric floyd progs sha linking compcomp
+DIRS= msl sepcomp veric floyd progs sha linking
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert
 # $(foreach a,$(CC_DIRS), -R $(COMPCERT)/$(a) -as compcert.$(a)) -I $(COMPCERT)/flocq -as compcert.flocq
 
@@ -81,7 +81,8 @@ SEPCOMP_FILES= \
   effect_simulations_lemmas.v effect_corediagram_trans.v \
   effect_properties.v effect_interpolants.v effect_simulations_trans.v \
   effect_interpolation_II.v effect_interpolation_proofs.v \
-  arguments.v closed_safety.v compcert.v open_semantics_preservation.v \
+  arguments.v closed_safety.v compcert.v \
+  val_casted.v \
   reach.v \
   trace_semantics.v \
   arguments.v \
@@ -101,7 +102,6 @@ LINKING_FILES= \
   seq_lemmas.v \
   wf_lemmas.v \
   reestablish.v \
-  core_semantics_lemmas.v \
   pred_lemmas.v \
   inj_lemmas.v \
   join_sm.v \
@@ -111,8 +111,8 @@ LINKING_FILES= \
   reach_lemmas.v \
   linking.v \
   compcert_linking.v \
+  core_semantics_tcs.v \
   linking_lemmas.v \
-  compcert_linking_lemmas.v \
   linking_inv.v \
   call_lemmas.v \
   ret_lemmas.v \
@@ -120,33 +120,6 @@ LINKING_FILES= \
   linking_proof.v \
   stacking.v \
   context_equiv.v 
-  #dep_linking_proof.v 
-
-COMPCOMP_FILES= \
-  Ordered.v Switch.v val_casted.v BuiltinEffects.v\
-  Clight_coop.v Clight_eff.v SimplLocals.v SimplLocalsproofEFF.v \
-  Cminor.v Cminor_coop.v Cminor_eff.v \
-  Csharpminor.v Csharpminor_coop.v Csharpminor_eff.v \
-  Cshmgen.v \
-  Cminorgen.v CminorgenproofRestructured.v CminorgenproofSIM.v CminorgenproofEFF.v \
-  Op.v CminorSel.v CminorSel_coop.v CminorSel_eff.v \
-  SelectOp.v SelectDiv.v SelectLong.v \
-  SelectOpproof.v SelectDivproof.v SelectLongproof.v \
-  Selection.v SelectionproofEFF.v Registers.v RTL.v \
-  RTL_coop.v RTL_eff.v RTLgen.v RTLgenspec.v RTLgenproofEFF.v \
-  Machregs.v Locations.v Conventions1.v Conventions.v LTL.v \
-  Subtyping.v RTLtyping.v LTL_coop.v LTL_eff.v \
-  Lattice.v Wfsimpl.v Iteration.v Heaps.v Kildall.v \
-  FSetAVLplus.v Allocation.v AllocproofEFF.v \
-  Inlining.v Inliningspec.v Inliningproof.v \
-  Linear.v Linear_coop.v Linear_eff.v Lineartyping.v \
-  Bounds.v Stacklayout.v \
-  Mach.v Mach_coop.v Mach_eff.v \
-  Stacking.v StackingproofEFF.v \
-  OpEFF.v Linearize.v LinearizeproofEFF.v \
-  Asm.v Asm_coop.v Asm_eff.v Asmgen.v \
-  Asmgenproof0EFF.v Asmgenproof1EFF.v AsmgenproofEFF.v \
-#Selectionproof.v
 
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
@@ -220,7 +193,6 @@ veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo) floyd/floyd.coq
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
 sha:     .loadpath $(SHA_FILES:%.v=sha/%.vo)
-compcomp:  .loadpath $(COMPCOMP_FILES:%.v=compcomp/%.vo) 
 
 CGFLAGS =  -DCOMPCERT
 
@@ -278,9 +250,6 @@ depend:
 
 depend-linking:
 	$(COQDEP) $(DEPFLAGS) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
-
-depend-compcomp:
-	$(COQDEP) $(DEPFLAGS) $(FILES) $(COMPCOMP_FILES:%.v=compcomp/%.v) > .depend
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend

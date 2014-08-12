@@ -3,16 +3,16 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import msl.Axioms.
+Require Import compcert.lib.Axioms.
 
-Require Import compcert.common.Memory.
+Require Import Memory.
 Require Import ZArith.
 
-Require Import linking.sepcomp. Import SepComp.
+Require Import sepcomp. Import SepComp.
 
-Require Import linking.pred_lemmas.
-Require Import linking.inj_lemmas.
-Require Import linking.join_sm.
+Require Import pred_lemmas.
+Require Import inj_lemmas.
+Require Import join_sm.
 
 (* [disjinv] enforces disjointness conditions on the local, public and     *)
 (* foreign block sets declared by [mu0] and [mu].  The definition is used  *)
@@ -276,22 +276,3 @@ Qed.
 (*   sm_inject_separated mu mu' m1 m2  ->  *)
 (*   sm_valid mu0 m10 m20 ->  *)
 (*   disjinv mu0 mu'. *)
-(* Proof. *)
-(* move=> inv H2 H3 H4 H5 H6 Hvalid; case: H2. *)
-(* move=> H7 []H8 []H9 []H10 []H11 []H12 []H13 []H14 []H15 H16. *)
-(* apply: Build_disjinv. *)
-(* by rewrite -H11; apply: (disj_locsrc inv). *)
-(* move=> b A; apply: (disj_pubfrgnsrc inv).  *)
-(* move: A; rewrite !in_predI; move/andP=> [].  *)
-(* rewrite/in_mem /= => A B; apply/andP; split=> //. *)
-(* admit. (*not true?*) *)
-(* by rewrite -H12; apply: (disj_loctgt inv). *)
-(* move=> b1 b2 d A B.  *)
-(* case C: (foreign_of mu b1)=> [[b2' d']|]. *)
-(* have D: extern_of mu b1 = Some (b2', d') by apply: foreign_in_extern. *)
-(* have E: extern_of mu' b1 = Some (b2, d)  by apply: foreign_in_extern. *)
-(* move: (H7 _ _ _ D) B; rewrite E; case=> -> ->. *)
-(* by apply: (disj_pubfrgntgt inv). *)
-(* case D: (pub_of mu0 b1)=> [[b2' d']|]. admit. (*easy case*) *)
-(* admit. (*not true?*) *)
-(* Abort. *)

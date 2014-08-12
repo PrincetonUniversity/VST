@@ -3,7 +3,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import linking.sepcomp. Import SepComp.
+Require Import sepcomp. Import SepComp.
 
 Lemma reestablish_locBlocksSrc mu0 mu : 
   locBlocksSrc (reestablish mu0 mu) = locBlocksSrc mu0.

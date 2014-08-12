@@ -1,10 +1,11 @@
 Module SepComp.
 Require Export sepcomp.core_semantics.
+(*Require Export sepcomp.core_semantics_lemmas.*)
 Require Export sepcomp.mem_lemmas.
 Require Export sepcomp.StructuredInjections.
 Require Export sepcomp.effect_semantics.
 Require Export sepcomp.reach. 
-Require Export sepcomp.effect_simulationsEXP.
+Require Export sepcomp.effect_simulations.
 Require Export sepcomp.wholeprog_simulations.
 Require Export sepcomp.barebones_simulations.
 Require Export sepcomp.effect_properties.

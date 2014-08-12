@@ -5,17 +5,17 @@ Unset Printing Implicit Defensive.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
   after Ssreflect eqtype.*)
-Require Import compcert.common.AST.    (*for typ*)
-Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
-Require Import compcert.common.Memory.
-Require Import compcert.lib.Integers.
+Require Import AST.    (*for typ*)
+Require Import Values. (*for val*)
+Require Import Globalenvs. 
+Require Import Memory.
+Require Import Integers.
 
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.core_semantics_lemmas.
-Require Import sepcomp.barebones_simulations.
+Require Import core_semantics.
+Require Import core_semantics_lemmas.
+Require Import barebones_simulations.
 
-Require Import linking.compcert_linking.
+Require Import compcert_linking.
 
 Module Stacking_monoid.
 
@@ -80,7 +80,7 @@ Record t : Type := mk
 
 End Stacking_monoid_ok. End Stacking_monoid_ok.
 
-Require Import linking.pos.
+Require Import pos.
 
 Section Stacking_simulation.
 

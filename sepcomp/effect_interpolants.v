@@ -4,13 +4,13 @@ Require Import Events. (*needed for standard definitions of
 Require Import Memory.
 Require Import AST.
 Require Import Coqlib.
-Require Import compcert.common.Values.
+Require Import Values.
 Require Import Maps.
 Require Import Integers.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.StructuredInjections.
-Require Import sepcomp.reach.
+Require Import mem_lemmas.
+Require Import StructuredInjections.
+Require Import reach.
 Require Import effect_simulations.
 Require Import effect_simulations_lemmas.
 

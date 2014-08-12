@@ -1,16 +1,16 @@
-Require Import msl.Axioms.
+Require Import compcert.lib.Axioms.
 
-Require Import sepcomp.effect_semantics.
+Require Import effect_semantics.
 
-Require Import linking.pos.
-Require Import linking.linking.
+Require Import pos.
+Require Import linking.
 
 Require Import ssreflect ssrbool ssrnat ssrfun seq fintype.
 Set Implicit Arguments.
 
-Require Import compcert.common.AST. (*for ident*)
-Require Import compcert.common.Values. 
-Require Import compcert.common.Globalenvs. 
+Require Import AST. (*for ident*)
+Require Import Values. 
+Require Import Globalenvs. 
 
 Section linkingLemmas.
 
@@ -29,7 +29,7 @@ Lemma peek_upd (st : Linker.linker N cores) :
   updCore st (peekCore st) = st.
 Proof.
 case: st=> fn_tbl; case; case=> //= a l pf.
-by case: a pf=> ? c pf /=; do 2 f_equal=> //=; apply: proof_irr.
+by case: a pf=> ? c sg pf /=; do 2 f_equal=> //=; apply: proof_irr.
 Qed.
 
 Lemma upd_peek (st : Linker.linker N cores) c : peekCore (updCore st c) = c.

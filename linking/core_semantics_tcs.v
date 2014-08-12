@@ -1,15 +1,15 @@
 Require Import ZArith.
 
-Require Import compcert.common.AST. (*for mksignature*)
-Require Import compcert.common.Globalenvs.
+Require Import AST. (*for mksignature*)
+Require Import Globalenvs.
 
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.core_semantics_lemmas.
-Require Import sepcomp.effect_semantics.
+Require Import core_semantics.
+Require Import core_semantics_lemmas.
+Require Import effect_semantics.
 
 Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 
-Require Import compcert.common.Values.
+Require Import Values.
 
 (** This module defines a core semantics typeclass, for building 
     functors over coresem-like objects.  *)

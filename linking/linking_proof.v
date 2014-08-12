@@ -9,33 +9,33 @@ Require Import msl.Axioms. (*for proof_irr*)
 (* sepcomp imports *)
 
 Require Import linking.sepcomp. Import SepComp. 
-Require Import sepcomp.arguments.
+Require Import arguments.
 
-Require Import linking.pos.
-Require Import linking.stack.
-Require Import linking.cast.
-Require Import linking.pred_lemmas.
-Require Import linking.seq_lemmas.
-Require Import linking.wf_lemmas.
-Require Import linking.reestablish.
-Require Import linking.core_semantics_lemmas.
-Require Import linking.inj_lemmas.
-Require Import linking.join_sm.
-Require Import linking.reach_lemmas.
-Require Import linking.compcert_linking.
-Require Import linking.compcert_linking_lemmas.
-Require Import linking.disjointness.
-Require Import linking.rc_semantics.
-Require Import linking.rc_semantics_lemmas.
-Require Import linking.linking_inv.
+Require Import pos.
+Require Import stack.
+Require Import cast.
+Require Import pred_lemmas.
+Require Import seq_lemmas.
+Require Import wf_lemmas.
+Require Import reestablish.
+Require Import core_semantics_tcs.
+Require Import inj_lemmas.
+Require Import join_sm.
+Require Import reach_lemmas.
+Require Import compcert_linking.
+Require Import compcert_linking_lemmas.
+Require Import disjointness.
+Require Import rc_semantics.
+Require Import rc_semantics_lemmas.
+Require Import linking_inv.
 Require Import linking.call_lemmas.
-Require Import linking.ret_lemmas.
+Require Import ret_lemmas.
 
 (* compcert imports *)
 
-Require Import compcert.common.AST.    (*for ident*)
-Require Import compcert.common.Globalenvs.   
-Require Import compcert.common.Memory.   
+Require Import AST.    (*for ident*)
+Require Import Globalenvs.   
+Require Import Memory.   
 
 (* ssreflect *)
 
@@ -44,14 +44,14 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import compcert.common.Values.   
-Require Import sepcomp.nucular_semantics.
+Require Import Values.   
+Require Import nucular_semantics.
 
 (* This file proves the main linking simulation result (see               *)
 (* linking/linking_spec.v for the specification of the theorem that's     *)
 (* proved).                                                               *)
 
-Import Wholeprog_simulation.
+Import Wholeprog_sim.
 Import SM_simulation.
 Import Linker. 
 Import Modsem.
@@ -61,6 +61,11 @@ Section linkingSimulation.
 Variable N : pos.
 
 Variable cores_S' cores_T : 'I_N -> Modsem.t. 
+
+Variable find_symbol_ST : 
+  forall (i : 'I_N) id bf, 
+  Genv.find_symbol (ge (cores_S' i)) id = Some bf -> 
+  Genv.find_symbol (ge (cores_T i)) id = Some bf.
 
 Variable nucular_T : forall i : 'I_N, Nuke_sem.t (cores_T i).(sem).
 
@@ -118,7 +123,7 @@ Qed.
 
 End halted_lems.
 
-Require Import sepcomp.mem_wd.
+Require Import mem_wd.
 
 (*TODO: move elsewhere*)
 Lemma valid_genvs_domain_eq F1 F2 V1 V2 
@@ -127,28 +132,16 @@ Lemma valid_genvs_domain_eq F1 F2 V1 V2
   valid_genv ge1 m -> 
   valid_genv ge2 m.
 Proof.
-move=> H1 []H2 H3; split.
-move=> id b fnd. 
-have isGlob: isGlobalBlock ge2 b.
-{ rewrite /isGlobalBlock /=; apply/orP; left.
-  by move: fnd; move/Genv.find_invert_symbol=> ->. }
+move=> H1 []H2 H3; constructor=> b isGlob. 
 move: (genvs_domain_eq_isGlobal _ _ H1)=> A; rewrite -A in isGlob.
-have [[id' fnd']|[id' fnd']]: 
-   (exists id, Genv.find_symbol ge1 id = Some b)
-\/ (exists gv, Genv.find_var_info ge1 b = Some gv).
-{ case: (orP isGlob)=> /=.
-  case e: (Genv.invert_symbol _ _)=> [id'|//]=> _.
-  by left; exists id'; apply: Genv.invert_find_symbol.
-  by case e: (Genv.find_var_info _ _)=> [gv|//]=> _; right; exists gv. }
-by apply: (H2 _ _ fnd').
-by apply: (H3 _ _ fnd').
-move=> gv b; case: H1=> _; move/(_ b)=> /= []A B C; case: B; first by exists gv.
-by move=> x fnd; apply: (H3 _ _ fnd).
+by apply (H2 _ isGlob).
+case: H1=> _ []_; case/(_ b)=> X Y Z; case: Y; first by exists isGlob.
+by move=> x FND; apply: (H3 _ _ FND).
 Qed.
 
-Lemma link (main : val) : Wholeprog_simulation linker_S linker_T my_ge my_ge main.
+Lemma link (main : val) : CompCert_wholeprog_sim linker_S linker_T my_ge my_ge main.
 Proof.
-eapply Build_Wholeprog_simulation
+eapply Build_Wholeprog_sim
   with (core_data   := sig_data N (fun ix : 'I_N => (sims sims' ix).(core_data)))
        (core_ord    := sig_ord (fun ix : 'I_N => (sims sims' ix).(core_ord)))
        (match_state := R).
@@ -160,7 +153,8 @@ eapply Build_Wholeprog_simulation
 { by apply: genvs_domain_eq_refl. }
 
 {(* Case: [core_initial] *)
-  move=> j c1 vals1 m1 vals2 m2 init1 inj vinj pres reach wd vgenv vval.
+  move=> j c1 vals1 m1 vals2 m2 init1.
+  case=>inj []vinj []pres []reach []wd []vgenv vval.
   move: init1. 
   rewrite /= /LinkerSem.initial_core.
   case e: main=> [//|//|//|//|b ofs].
@@ -183,9 +177,9 @@ eapply Build_Wholeprog_simulation
 
   Arguments core_initial : default implicits.
 
-  move: init1; rewrite /initCore.
+  move: init1 g; rewrite /initCore.
   case g: (core_semantics.initial_core _ _ _ _)=> [c|//].
-  case=> eq1 H2. subst ix1.
+  move=> sig1; case=> eq1 H2. subst ix1.
   apply Eqdep_dec.inj_pair2_eq_dec in H2. subst c0.
 
   have valid_dec: forall m b, Mem.valid_block m b -> valid_block_dec m b.
@@ -226,10 +220,10 @@ eapply Build_Wholeprog_simulation
 
   { by apply: valid_dec'. }
 
-  move=> cd []c2 []init2 mtch12.
+  move=> cd []c2 []init2 mtch12 mainsig_sig1.
 
   exists (existT _ ix cd).
-  exists (mkLinker fun_tbl (CallStack.singl (Core.mk _ _ ix c2))).
+  exists (mkLinker fun_tbl (CallStack.singl (Core.mk _ _ ix c2 sig1))).
   
   split.
 
@@ -238,7 +232,7 @@ eapply Build_Wholeprog_simulation
 
   simpl in init2.
 
-  rewrite -main_eq init2; split=> //.
+  rewrite -main_eq init2 mainsig_sig1; split=> //.
 
   set mu_top0 := initial_SM dS dT fS fT j.
 
@@ -307,8 +301,8 @@ eapply Build_Wholeprog_simulation
     by move=> b1; rewrite /DOM /DomSrc; case/orP=> //=; apply: valid_dec'.
     by move=> b2; rewrite /RNG /DomTgt; case/orP=> //=; apply: valid_dec'. }
 
-  apply: Build_R=> /=.
-  exists erefl,mu_top,[::]=> /=; split=> //.
+  apply: Build_R=> //=.
+  exists erefl,erefl,mu_top,[::]=> /=; split=> //.
 
   exists erefl; apply: Build_head_inv=> //.
   apply: Build_vis_inv; rewrite /= /RC.roots /vis /mu_top0 /= /fS.
@@ -333,17 +327,13 @@ eapply Build_Wholeprog_simulation
   { by apply: (valid_genvs_domain_eq (my_ge_T ix) vgenv). }
 
   by apply: (Nuke_sem.wmd_initial _ vval vgenv_ix wd init2).
-  by [].
-
   by move=> ix'; move: vgenv; apply: valid_genvs_domain_eq.
-
   by apply: ord_dec. 
-
   by case: (Integers.Int.eq _ _).
   by case: (Integers.Int.eq _ _). }(*END [Case: core_initial]*)
     
 {(*[Case: diagram]*)
-move=> st1 m1 st1' m1' U1 STEP data st2 mu m2 INV. 
+move=> st1 m1 st1' m1' STEP data st2 mu m2 INV. 
 case: STEP=> STEP STEP_EFFSTEP; case: STEP.
 
 {(*[Subcase: corestep0]*)
@@ -351,11 +341,14 @@ move=> STEP.
 set c1 := peekCore st1.
 set c2 := peekCore st2.
 
-have [c1' [STEP0 [U1'_EQ [c1_args [c1_rets [c1_locs ST1']]]]]]:
-   exists c1',
+have [U1 [c1' [STEP0 [ESTEP0 [U1'_EQ [c1_args [c1_rets [c1_locs ST1']]]]]]]]:
+   exists (U1:block -> Z -> bool) c1',
        Coresem.corestep 
          (t := effect_instance (sem (cores_S (Core.i c1)))) 
          (ge (cores_S (Core.i c1))) (Core.c c1) m1 c1' m1' 
+   /\  effect_semantics.effstep 
+         (sem (cores_S (Core.i c1)))
+         (ge (cores_S (Core.i c1))) U1 (Core.c c1) m1 c1' m1'
    /\ (forall b ofs, U1 b ofs -> 
        RC.reach_set (ge (cores_S (Core.i c1))) (Core.c c1) m1 b)
    /\ RC.args (Core.c (c INV)) = RC.args c1'
@@ -367,21 +360,15 @@ have [c1' [STEP0 [U1'_EQ [c1_args [c1_rets [c1_locs ST1']]]]]]:
   { move: (STEP_EFFSTEP STEP)=> EFFSTEP.
     move: STEP; rewrite/LinkerSem.corestep0=> [][]c1' []B C. 
     move: EFFSTEP; rewrite/effstep0.
-    move=> []? []/=; rewrite/RC.effstep=> [][]EFFSTEP []u1 []args []rets locs D.
-    exists c1'. split=> //. split=> //.
+    move=> []U1 []/=; rewrite/RC.effstep=> x [][]EFFSTEP []u1 []args []rets locs D.
+    exists U1, c1'. split=> //. split=> //.
+    by move: C D=> ->; move/updCore_inj_upd=> ->; split. 
     by move: C D=> ->; move/updCore_inj_upd=> ->; split. }
-
-have EFFSTEP: 
-    effect_semantics.effstep 
-    (sem (cores_S (Core.i c1)))
-    (ge (cores_S (Core.i c1))) U1 (Core.c c1) m1 c1' m1'.
-  { move: (STEP_EFFSTEP STEP); rewrite/effstep0=> [][] c1'' [] STEP0' ST1''. 
-    by rewrite ST1'' in ST1'; rewrite -(updCore_inj_upd ST1'). }
 
 (* specialize core diagram at module (Core.i c1) *)
 move: (effcore_diagram _ _ _ _ (sims sims' (Core.i c1))).  
-move/(_ _ _ _ _ _ EFFSTEP).
-case: (R_inv INV)=> pf []mupkg []mus []mu_eq.
+move/(_ _ _ _ _ _ ESTEP0).
+case: (R_inv INV)=> pf []pf_sig []mupkg []mus []mu_eq.
 move=> []pf2 hdinv tlinv.
 
 move: (head_match hdinv)=> MATCH.
@@ -398,7 +385,7 @@ have U1_DEF': forall b ofs, U1 b ofs -> vis mupkg b.
     (ge1 := ge (cores_S (Core.i c1))) (ge2 := my_ge))=> //.
   by apply: genvs_domain_eq_sym; apply: my_ge_S. }
 
-move/(_ _ _ _ _ U1_DEF' MATCH).
+move/(_ _ _ _ _ MATCH).
 move=> []c2' []m2' []cd' []mu_top0.
 move=> []INCR []SEP []LOCALLOC []MATCH' []U2 []STEP' PERM.
 
@@ -419,29 +406,32 @@ set data'  := (existT (fun ix => core_data (sims sims' ix)) (Core.i c1) cd').
 set mu'    := mu_top'.
 exists st2', m2', data', mu'. 
 
-have [n STEPN]: 
- exists n, effstepN (sem (cores_T (Core.i c2)))
-   (ge (cores_T (Core.i c2))) n U2 (Core.c (d INV)) m2 c2'' m2'. 
- { set T := C \o cores_T.
-   case: STEP'. case=> n step; exists (S n).
-   set P := fun ix (x : T ix) (y : T ix) => 
+have [n STEPN]:
+  exists n, effstepN (sem (cores_T (Core.i c2)))
+    (ge (cores_T (Core.i c2))) n U2 (Core.c (d INV)) m2 c2'' m2'.
+{ set T := C \o cores_T.
+  case: STEP'. case=> n step; exists (S n).
+  set P := fun ix (x : T ix) (y : T ix) =>
              effstepN (sem (cores_T ix))
-             (ge (cores_T ix)) (S n) U2 x m2 y m2'.
-   change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
-   by move: step; have ->: pf = peek_ieq INV by apply: proof_irr.
-   case; case=> n step _; exists n.
-   set P := fun ix (x : T ix) (y : T ix) => 
+                      (ge (cores_T ix)) (S n) U2 x m2 y m2'.
+  change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
+  by move: step; have ->: pf = peek_ieq INV by apply: proof_irr.
+  case; case=> n step _; exists n.
+  set P := fun ix (x : T ix) (y : T ix) =>
              effstepN (sem (cores_T ix))
-             (ge (cores_T ix)) n U2 x m2 y m2'.
-   change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
-   by move: step; have ->: pf = peek_ieq INV by apply: proof_irr. }
+                      (ge (cores_T ix)) n U2 x m2 y m2'.
+  change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
+    by move: step; have ->: pf = peek_ieq INV by apply: proof_irr. }
 
 split. 
 
 {(* Label: [re-establish invariant] *) 
  apply: Build_R. rewrite ST1'; rewrite /st2'.
 
- exists pf,mupkg',mus; split=> //.
+ have sgeq: Core.sg c1=Core.sg c2.
+ { by move: pf_sig; rewrite /c /d /c1 /c2 /= => <-. }
+
+ exists pf,sgeq,mupkg',mus; split=> //.
 
  (* head_inv *)
  { case: tlinv=> allrel frameall.
@@ -458,10 +448,10 @@ split.
 
  (* tail_inv *)
  { eapply tail_inv_step with (Esrc := U1) (Etgt := U2) (mu' := mu_top'); eauto.
-   by apply: (effstep_unchanged _ _ _ _ _ _ _ EFFSTEP).
+   by apply: (effstep_unchanged _ _ _ _ _ _ _ ESTEP0).
    by move: STEPN; apply: effect_semantics.effstepN_unchanged.
-   by move: (effax1 EFFSTEP)=> []; move/corestep_fwd.
-   move=> ? ? X; move: (PERM _ _ X)=> []Y Z; split=> //.
+   by move: (effax1 ESTEP0)=> []; move/corestep_fwd.
+   move=> ? ? X; move: (PERM U1_DEF' _ _ X)=> []Y Z; split=> //.
    by eapply effstepN_valid in STEPN; eauto.
    by apply: (head_valid hdinv).
    by apply match_visible in MATCH'; apply: MATCH'.
@@ -473,6 +463,17 @@ split.
  (* valid_genv *)
  { move=> ix; move: (R_ge INV); move/(_ ix)=> vgenv. 
    by apply: (Nuke_sem.valid_genv_fwd vgenv). }
+
+ unfold c1 in *; rewrite ST1'; move: (R_tys1 INV). 
+ rewrite /s1 => tys; clear -tys; case st1_eq: st1 tys c1'=> // [fntbl stack]. 
+ case stack_eq: stack=> [stack0 WF]; rewrite /= => tys _.
+ by case stack0_eq: stack0 WF stack_eq tys.
+
+ unfold c2 in *; rewrite /st2'; move: (R_tys2 INV); rewrite /s2=> tys.
+ clear -tys; case st2_eq: st2 tys c2' c2''=> // [fntbl stack]. 
+ case stack_eq: stack=> [stack0 WF]; rewrite /= => tys _.
+ by case stack0_eq: stack0 WF stack_eq tys.
+
  } (*end [re-establish invariant]*)
  
  {(* Label: [matching execution] *) 
@@ -484,11 +485,11 @@ split.
          foreign_of mu b1 = Some (b, d1) /\
          U1 b1 (ofs - d1) = true /\
          Mem.perm m1 b1 (ofs - d1) Max Nonempty).
- { move=> b ofs X; move: (PERM _ _ X)=> []H Y; split.
+ { move=> b ofs X; move: (PERM U1_DEF' _ _ X)=> []H Y; split.
    by move: H; rewrite mu_eq. 
    by rewrite mu_eq. }
 
-exists U2; split=> //; case: STEP'=> STEP'.
+case: STEP'=> STEP'.
 
 have STEP'': 
   effstep_plus (sem (cores_T (Core.i c2)))
@@ -499,7 +500,8 @@ have STEP'':
              (ge (cores_T ix)) U2 x m2 y m2'.
    change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
    by move: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr. }
-by left; move: STEP''; apply: stepPLUS_STEPPLUS.
+left; move: STEP''; move/(@stepPLUS_STEPPLUS _ _ fun_tbl my_ge).
+by case=> m H; apply effstepN_corestepN in H; exists m; apply: H.
 
 have STEP'': 
   effstep_star (sem (cores_T (Core.i c2)))
@@ -510,7 +512,8 @@ have STEP'':
              (ge (cores_T ix)) U2 x m2 y m2'.
    change (P (Core.i c2) (Core.c c2) c2''); apply: cast_indnatdep2.
    by case: STEP'; have ->: pf = peek_ieq INV by apply: proof_irr; by []. }
-right; split; first by move: STEP''; apply: stepSTAR_STEPSTAR.
+right; move: STEP''; move/(@stepSTAR_STEPSTAR _ _ fun_tbl my_ge).
+case=> m H; apply effstepN_corestepN in H; split; first by exists m; apply: H.
 rewrite /sig_ord /data' /=.
 
 have eq: Core.i c1 = projT1 data.
@@ -526,14 +529,14 @@ case AT1: (LinkerSem.at_external0 st1)=> [[[ef1 sig1] args1]|].
 
 {(*[Subcase: at_external0]*)
 case FID: (LinkerSem.fun_id ef1)=> [id|//].
-case HDL: (LinkerSem.handle _)=> [st1''|//] eq1 A.
+case HDL: (LinkerSem.handle _ _ _ _)=> [st1''|//] eq1.
 have wd: SM_wd mu by apply: (R_wd INV).
 have INV': R data (Inj.mk wd) st1 m1 st2 m2 by [].
 case: (atext2 AT1 INV')=> args2 AT2.
-case: (hdl2 my_ge_S my_ge_T AT1 HDL INV' AT2)=> cd' []st2' []mu' []HDL2 INV2.
+case: (hdl2 find_symbol_ST my_ge_S my_ge_T AT1 HDL INV' AT2)=> 
+  cd' []st2' []mu' []HDL2 INV2.
 exists st2',m2,cd',mu'; split=> //; first by rewrite eq1.
-set (empty_U := fun (_ : block) (_ : Z) => false); exists empty_U; split=> //.
-left; exists O=> /=; exists st2',m2,empty_U,empty_U; split=> //.
+left; exists O=> /=; exists st2',m2; split=> //.
 constructor=> //. 
 right; split=> //; split=> //.
 by move/LinkerSem.corestep_not_at_external0; rewrite AT2.
@@ -546,7 +549,7 @@ case HLT1: (LinkerSem.halted0 st1)=> [rv|].
 
 {(*[Subcase: halted0]*)
 case POP1: (popCore st1)=> [st1''|//].
-case AFT1: (LinkerSem.after_external (Some rv) st1'')=> [st1'''|//] eq1 A.
+case AFT1: (LinkerSem.after_external (Some rv) st1'')=> [st1'''|//] eq1.
 
 have mu_wd: SM_wd mu. 
 { by apply: (R_wd INV). }
@@ -554,12 +557,11 @@ have mu_wd: SM_wd mu.
 have INV': R data (Inj.mk mu_wd) st1 m1 st2 m2.
 { by apply: INV. }
 
-case: (aft2 my_ge_S HLT1 POP1 AFT1 INV')=> 
+case: (aft2 my_ge_S HLT1 POP1 INV' AFT1)=> 
   rv2 []st2'' []st2' []cd' []mu' []HLT2 CTX2 POP2 AFT2 INV''.
 exists st2',m2,cd',mu'.
 split=> //; first by rewrite eq1.
-exists (fun _ _ => false); split=> //.
-left; exists O=> /=; exists st2',m2,(fun _ _ => false),(fun _ _ => false).
+left; exists O=> /=; exists st2',m2.
 split=> //.
 rewrite /effstep; split=> //.
 rewrite /LinkerSem.corestep; right; split=> //.
@@ -587,7 +589,7 @@ move=> cd mu c1 m1 c2 m2 v1 inv hlt1.
 have mu_wd: SM_wd mu by apply: R_wd inv.
 have inv': R cd (Inj.mk mu_wd) c1 m1 c2 m2 by [].
 case: (toplevel_hlt2 hlt1 inv')=> v2 hlt2.
-case: (R_inv inv')=> pf []mupkg []mus []mu_eq.
+case: (R_inv inv')=> pf []pf_sig []mupkg []mus []mu_eq.
 move=> []pf2 hdinv tlinv; move: (head_match hdinv)=> mtch0.
 
 have hlt10: 
@@ -596,26 +598,36 @@ have hlt10:
 { move: hlt1; rewrite /= /LinkerSem.halted.
   case inCtx1: (inContext c1)=> //=.
   case hlt10: (LinkerSem.halted0 c1)=> [v1'|//]; case=> <-.
-  by move: hlt10; rewrite /LinkerSem.halted0 /c /= /RC.halted=> ->. }
+  move: hlt10; rewrite /LinkerSem.halted0 /c /= /RC.halted.
+  case hlt100: (halted _ _)=> //.
+  case defs: (vals_def _)=> //.
+  case hasty: (val_casted.val_has_type_func _ _)=> //. }
 
 case: (core_halted (sims sims' (Core.i (c inv'))) _ _ _ _ _ _ mtch0 hlt10).
 move=> v2' []inj []vinj hlt2'.
 
-exists (as_inj mupkg),v2'; split.
+exists mupkg,v2'; split.
 
+rewrite /cc_halt_inv.
 rewrite -meminj_preserves_genv2blocks.
 rewrite (genvs_domain_eq_match_genvs (my_ge_S (Core.i (c inv')))).
 rewrite meminj_preserves_genv2blocks.
 case: (match_genv mtch0)=> ext isGlob_frgn.
 rewrite match_genv_meminj_preserves_extern_iff_all=> //.
-by apply: Inj_wd.
+split=> //. 
 split; first by apply: (val_inject_restrictD _ _ _ _ vinj).
-split; first by [].
+by [].
+by apply: Inj_wd.
 rewrite /= hlt2.
 move: hlt2; rewrite /LinkerSem.halted.
 case e: (~~ inContext c2)=> //.
 case f: (LinkerSem.halted0 c2)=> [rv|//]; case=> <-.
 rewrite /LinkerSem.halted0 /= /RC.halted in f hlt2'.
+have f': halted (sem (cores_T (Core.i (peekCore c2)))) (Core.c (peekCore c2))
+       = Some rv.
+{ move: f.
+  case: (halted _ _)=> //v.
+  case: (val_casted.val_has_type_func _ _)=> //. }
 have g: halted (sem (cores_T (Core.i (c inv'))))
                (cast'' pf (Core.c (d inv')))  
       = Some rv.
@@ -624,21 +636,23 @@ have g: halted (sem (cores_T (Core.i (c inv'))))
              halted (sem (cores_T ix)) x  
            = Some rv.
   change (P (Core.i (c inv')) (cast T (sym_eq pf) (Core.c (d inv')))).
-  by apply: cast_indnatdep; rewrite /P; rewrite -f. }
+  by apply: cast_indnatdep; rewrite /P; rewrite -f'. }
 by rewrite -g. }(*END Case: halted*)
 
 Qed.
 
 End linkingSimulation.
 
-Print Assumptions link.
-
-Require Import linking.linking_spec.
+Require Import linking_spec.
 
 Module LinkingSimulation : LINKING_SIMULATION.
 
 Lemma link : 
-  forall (N : pos) (sems_S sems_T : 'I_N -> t),
+  forall (N : pos) (sems_S sems_T : 'I_N -> t)
+         (find_symbol_ST : 
+          forall (i : 'I_N) id bf, 
+          Genv.find_symbol (ge (sems_S i)) id = Some bf -> 
+          Genv.find_symbol (ge (sems_T i)) id = Some bf),
   (forall ix : 'I_N, Nuke_sem.t (sem (sems_T ix))) ->
   forall (plt : ident -> option 'I_N)
     (sims : forall ix : 'I_N,
@@ -658,7 +672,8 @@ Lemma link :
     sem := RC.effsem (sem (sems_S ix)) |} in
   let linker_S := effsem N sems_S0 plt in
   let linker_T := effsem N sems_T plt in
-  forall main : val, Wholeprog_simulation linker_S linker_T ge_top ge_top main.
+  forall main : val, 
+  CompCert_wholeprog_sim linker_S linker_T ge_top ge_top main.
 Proof. by move=> *; apply: link. Qed.
 
 End LinkingSimulation.

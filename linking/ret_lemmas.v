@@ -8,32 +8,32 @@ Require Import msl.Axioms. (*for proof_irr*)
 
 (* sepcomp imports *)
 
-Require Import linking.sepcomp. Import SepComp. 
-Require Import sepcomp.arguments.
+Require Import sepcomp. Import SepComp. 
+Require Import arguments.
 
-Require Import linking.pos.
-Require Import linking.stack.
-Require Import linking.cast.
-Require Import linking.pred_lemmas.
-Require Import linking.seq_lemmas.
-Require Import linking.wf_lemmas.
-Require Import linking.reestablish.
-Require Import linking.core_semantics_lemmas.
-Require Import linking.inj_lemmas.
-Require Import linking.join_sm.
-Require Import linking.reach_lemmas.
-Require Import linking.compcert_linking.
-Require Import linking.compcert_linking_lemmas.
-Require Import linking.disjointness.
-Require Import linking.rc_semantics.
-Require Import linking.rc_semantics_lemmas.
-Require Import linking.linking_inv.
+Require Import pos.
+Require Import stack.
+Require Import cast.
+Require Import pred_lemmas.
+Require Import seq_lemmas.
+Require Import wf_lemmas.
+Require Import reestablish.
+Require Import core_semantics_tcs.
+Require Import inj_lemmas.
+Require Import join_sm.
+Require Import reach_lemmas.
+Require Import compcert_linking.
+Require Import compcert_linking_lemmas.
+Require Import disjointness.
+Require Import rc_semantics.
+Require Import rc_semantics_lemmas.
+Require Import linking_inv.
 
 (* compcert imports *)
 
-Require Import compcert.common.AST.    (*for ident*)
-Require Import compcert.common.Globalenvs.   
-Require Import compcert.common.Memory.   
+Require Import AST.    (*for ident*)
+Require Import Globalenvs.   
+Require Import Memory.   
 
 (* ssreflect *)
 
@@ -42,14 +42,14 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import compcert.common.Values.   
-Require Import sepcomp.nucular_semantics.
+Require Import Values.   
+Require Import nucular_semantics.
 
 (* This file proves the main linking simulation result (see               *)
 (* linking/linking_spec.v for the specification of the theorem that's     *)
 (* proved).                                                               *)
 
-Import Wholeprog_simulation.
+Import Wholeprog_sim.
 Import SM_simulation.
 Import Linker. 
 Import Modsem.
@@ -89,29 +89,51 @@ Context
 (valid : sm_valid mu m1 m2)
 (hlt1 : LinkerSem.halted0 st1 = Some rv1)
 (pop1 : popCore st1 = Some st1'')
-(aft1 : LinkerSem.after_external (Some rv1) st1'' = Some st1')
 (inv : R cd mu st1 m1 st2 m2).
 
 Lemma hlt2 : exists rv2, LinkerSem.halted0 st2 = Some rv2.
 Proof.
-case: (R_inv inv)=> pf []mu_top []mus []mu_eq.
+case: (R_inv inv)=> pf []pf_sig []mu_top []mus []mu_eq.
 move=> []pf2 hdinv tlinv.
-move: hlt1; rewrite /LinkerSem.halted0=> hlt10.
+move: hlt1; rewrite /LinkerSem.halted0.
+case hlt10: (halted _ _)=> //[rv].
+case hasty: (val_casted.val_has_type_func _ _)=> //. 
+case=> Heq; subst rv1.
 case: (core_halted (sims sims' (Core.i (peekCore st1)))
        _ _ _ _ _ _ (head_match hdinv) hlt10)
        => rv2 []inj12 []vinj hlt2.
 exists rv2.
 set T := C \o cores_T.
-set P := fun ix (x : T ix) => 
-  halted (sem (cores_T ix)) x = Some rv2.
-change (P (Core.i (peekCore st2)) (Core.c (peekCore st2))).
-apply: (cast_indnatdep' (j := Core.i (peekCore st1)))=> // H.
-rewrite /P; move: hlt2; rewrite /= /RC.halted /= => <-. 
-f_equal.
-f_equal.
-f_equal.
-f_equal.
-by apply: proof_irr.
+set P := fun sg ix (x : T ix) => 
+  match
+     halted (sem (cores_T ix)) x
+  with
+   | Some mv =>
+       if val_casted.val_has_type_func mv (proj_sig_res sg)
+       then Some mv
+       else None
+   | None => None
+   end = Some rv2.
+change (P (Core.sg (peekCore st2)) 
+          (Core.i (peekCore st2)) (Core.c (peekCore st2))).
+apply: (cast_indnatdep'' (j := Core.i (peekCore st1))).
+rewrite /P; move: hlt2; rewrite /= /RC.halted /= => ->. 
+
+have H: val_casted.val_has_type_func rv2 (proj_sig_res (Core.sg (peekCore st2))).
+{ move: hlt1; rewrite /LinkerSem.halted0.
+  case: (halted _ _)=> //[rv'].
+  case hasty': (val_casted.val_has_type_func _ _)=> //; case=> veq; subst rv'.
+  have ->: Core.sg (peekCore st2)=Core.sg (peekCore st1). 
+  { by clear -pf_sig; move: pf_sig; rewrite /c /d /s1 /s2 /peekCore /= => ->. }
+  move: hasty'; move/val_casted.val_has_type_funcP=> hasty'.
+  apply/val_casted.val_has_type_funcP.
+  apply: (val_casted.valinject_hastype' _ _ _ vinj)=> //. 
+  move: hlt10; rewrite /halted /= /RC.halted.
+  case: (halted _ _)=> //a; case def: (vals_def _)=> //.
+  case=> <-; move: def=> /=; rewrite andb_comm=> /=; move/negP.
+  by rewrite /is_vundef; case: a. }
+
+by rewrite H.
 Qed.
 
 Lemma pop2 : exists st2'', popCore st2 = Some st2''.
@@ -127,7 +149,9 @@ exists (updStack st2
 by apply: popCoreI.
 Qed.
 
-Require Import sepcomp.mem_wd.
+Require Import mem_wd.
+
+Context (aft1 : LinkerSem.after_external (Some rv1) st1'' = Some st1').
 
 Lemma aft2 : 
   exists rv2 st2'' (st2' : linker N cores_T) cd' mu', 
@@ -137,17 +161,34 @@ Lemma aft2 :
     , LinkerSem.after_external (Some rv2) st2'' = Some st2'
     & R cd' mu' st1' m1 st2' m2].
 Proof.
-case: (R_inv inv)=> pf []mu_top []mus []mu_eq.
+case: (R_inv inv)=> pf []pf_sig []mu_top []mus []mu_eq.
 move=> []pf_hd hdinv tlinv.
-move: hlt1; rewrite /LinkerSem.halted0=> hlt10.
+move: hlt1; rewrite /LinkerSem.halted0=> hlt100.
+move: hlt100; case hlt10: (halted _ _)=> //[rv1'].
+case hasty1: (val_casted.val_has_type_func _ _)=> //; case=> X; subst rv1'.
+
+move: (R_tys1 inv); rewrite /s1=> tys1.
+move: (R_tys2 inv); rewrite /s2=> tys2.
+
 case: (core_halted (sims sims' (Core.i (peekCore st1)))
        _ _ _ _ _ _ (head_match hdinv) hlt10)
        => rv2 []inj12 []vinj hlt2.
+
+have hasty2: (val_casted.val_has_type_func rv2 (proj_sig_res (Core.sg (peekCore st2)))).
+{ move: pf_sig hasty1; rewrite /c /d /s1 /s2 /peekCore /= => ->.
+  move/val_casted.val_has_type_funcP=> hasty1.
+  apply/val_casted.val_has_type_funcP.
+  apply: (val_casted.valinject_hastype' _ _ _ vinj)=> //.
+  move: hlt10; rewrite /halted /= /RC.halted.
+  case: (halted _ _)=> //a; case def: (vals_def _)=> //.
+  case=> <-; move: def=> /=; rewrite andb_comm=> /=; move/negP.
+  by rewrite /is_vundef; case: a. }
+
 exists rv2.
 case: pop2=> st2'' pop2.
 
 case: (LinkerSem.after_externalE _ _ aft1)=> fntbl []hd1 []hd1' []tl1.
-move=> []pf1 []pf2 []e1 []st1''_eq st1'_eq aft1'; exists st2''.
+move=> []pf1 []pf2 []e1 []esig []st1''_eq st1'_eq aft1'; exists st2''.
 rewrite /s1 /s2 in tlinv.
 
 have [hd2 [tl2 [pf20 st2''_eq]]]:
@@ -182,7 +223,7 @@ rewrite /updStack st1''_eq; case=> fntbleq1 eq1; rewrite -eq1 in frameall|-*.
 case: (popCoreE _ pop2)=> pf_wf2 []ctx2.
 rewrite /updStack st2''_eq; case=> fntbleq2 eq2; rewrite -eq2 in frameall|-*.
 move {eq1 eq2}.
-case; case=> pf0 []cd0 []x0 []sig01 []vals01 []e0 []sig02 []vals02.
+case; case=> pf0 []pf_sig0 []cd0 []x0 []sig01 []vals01 []e0 []sig02 []vals02.
 move=> fr0 frametail.
 
 move: (frame_inj0 fr0)=> inj0.
@@ -342,9 +383,41 @@ set frgnTgt' := fun b =>
 
 set mu' := replace_externs nu' frgnSrc' frgnTgt'.
 
-have [hd2' [pf_eq22' [pf_eq12' [cd' [aft2' mtch12']]]]]:
+have sgeq1: Core.sg (peekCore st1)=ef_sig x0. 
+{ clear -tys1 at01 st1''_eq pop1; move: tys1; rewrite /peekCore.
+  case: (popCoreE _ pop1)=> wf []_ st1''_eq2. 
+  rewrite st1''_eq2 in st1''_eq; move: st1''_eq; case=> _ /=. 
+  clear -at01; case: st1=> /= _; case; case=> // a l _ /= => -> /=.
+  by rewrite /sig_of; rewrite at01; case. }
+
+have hasty_rv1: Val.has_type rv1 (proj_sig_res (ef_sig x0)).
+{ by move: hasty1; move/val_casted.val_has_type_funcP; rewrite -sgeq1. }
+
+have sgeq2: Core.sg (peekCore st2)=ef_sig e0. 
+{ clear -tys2 at02 st2''_eq pop2; move: tys2; rewrite /peekCore.
+  case: (popCoreE _ pop2)=> wf []_ st2''_eq2. 
+  rewrite st2''_eq2 in st2''_eq; move: st2''_eq; case=> _ /=. 
+  clear -at02; case: st2=> /= _; case; case=> // a l _ /= => -> /=.
+  rewrite /sig_of. 
+  have at02': at_external (sem (cores_T (Core.i hd2))) (Core.c hd2) =
+              Some (e0, sig02, vals02). 
+  { set T := C \o cores_T.  
+    set P := fun ix (x : T ix) =>
+      at_external (sem (cores_T ix)) x = Some (e0,sig02,vals02).
+    move: at02.
+    change (P (Core.i hd1) (cast T (sym_eq pf0) (Core.c hd2)) 
+         -> P (Core.i hd2) (Core.c hd2)).
+    by apply: cast_indnatdep'. }
+  by rewrite at02'; case. }
+
+have hasty_rv2: Val.has_type rv2 (proj_sig_res (ef_sig e0)).
+{ by move: hasty2; move/val_casted.val_has_type_funcP; rewrite -sgeq2. }
+
+have [hd2' [pf_eq22' [pf_sig22' [pf_eq12' [pf_sig12' [cd' [aft2' mtch12']]]]]]]:
   exists hd2' (pf_eq22' : Core.i hd2 = Core.i hd2') 
+              (pf_sig22' : Core.sg hd2 = Core.sg hd2')
               (pf_eq12' : Core.i hd1' = Core.i hd2')
+              (pf_sig12' : Core.sg hd1' = Core.sg hd2')
          cd',
   [/\ after_external (sem (cores_T (Core.i hd2)))
         (Some rv2) (Core.c hd2) 
@@ -365,7 +438,7 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [aft2' mtch12']]]]]:
 
   nu' rv1 m1 rv2 m2
 
-  nu_nu'_eincr nu_nu'_sep
+  hasty_rv1 hasty_rv2 nu_nu'_eincr nu_nu'_sep
   nu'_wd nu'_valid nu'_inj nu'_vinj
   fwd1 fwd2
 
@@ -373,7 +446,11 @@ have [hd2' [pf_eq22' [pf_eq12' [cd' [aft2' mtch12']]]]]:
 
   unch1 unch2).
   case=> cd' []c0' []d0' []aft1'' []aft2'' mtch12'.
-  exists (Core.mk _ cores_T (Core.i hd1) d0'),(sym_eq pf0),(sym_eq e1)=> /=.
+  exists (Core.mk _ cores_T (Core.i hd1) d0' (Core.sg hd1)). 
+  exists (sym_eq pf0). 
+  exists (sym_eq pf_sig0).
+  exists (sym_eq e1)=> /=.
+  exists (sym_eq esig).
   exists (cast (fun ix => core_data (sims sims' ix)) e1 cd'); split=> //.
   
   move: aft2''.
@@ -405,14 +482,21 @@ exists mu'.
 
 split=> //.
 
-move: hlt2.
+have hlt02': 
+  (halted (sem (cores_T (Core.i (peekCore st2)))) (Core.c (peekCore st2))
+   = Some rv2).
+{ set T := C \o cores_T.
+  set P := fun ix (x : T ix) => 
+   halted (sem (cores_T ix)) x = Some rv2.
+  move: hlt2.
+  change (P (Core.i (peekCore st1)) (cast T (sym_eq pf) (Core.c (d inv)))
+       -> P (Core.i (peekCore st2)) (Core.c (peekCore st2))).
+  by apply: cast_indnatdep'. }
 
-set T := C \o cores_T.
-set P := fun ix (x : T ix) => 
- halted (sem (cores_T ix)) x = Some rv2.
-change (P (Core.i (peekCore st1)) (cast T (sym_eq pf) (Core.c (d inv)))
-     -> P (Core.i (peekCore st2)) (Core.c (peekCore st2))).
-by apply: cast_indnatdep'.
+rewrite hlt02' sgeq2.
+have ->: val_casted.val_has_type_func rv2 (proj_sig_res (ef_sig e0)).
+{ by apply/val_casted.val_has_type_funcP. }
+by [].         
 
 by rewrite pop2 st2''_eq.
 
@@ -420,12 +504,12 @@ by rewrite pop2 st2''_eq.
 rewrite /LinkerSem.after_external /= => -> /=. 
 rewrite /SeqStack.updStack /Core.upd.
 do 3 f_equal; first by move=> ? ?; case=> -> ->.
-f_equal; clear - hd2' pf_eq22'; destruct hd2'=> /=.
-by move: pf_eq22'=> /= pf; subst; f_equal.
+f_equal; clear - hd2' pf_eq22' pf_sig22'; destruct hd2'=> /=.
+by rewrite pf_sig22'; rewrite ->pf_eq22'=> /=; f_equal=> //. 
 by apply: proof_irr. }
 
 apply: Build_R=> /=.
-rewrite st1'_eq; exists pf_eq12'.
+rewrite st1'_eq; exists pf_eq12', pf_sig12'.
 
 have mu'_wd : SM_wd mu'.
 { case: (eff_after_check2 nu' rv1 m1 m2 rv2 nu'_inj nu'_vinj
@@ -858,6 +942,15 @@ split; first by move: allinv; rewrite mus_eq.
 by rewrite mus_eq.
 by rewrite st1'_eq.
 by apply: (R_ge inv).
+
+{ rewrite st1'_eq; move: tys1; case: (popCoreE _ pop1); rewrite st1''_eq=> x []_. 
+  case=> _; case: st1 x=> y; case=> /=; case=> // a l _ _ /= => <- /=.
+  by case sgof: (sig_of hd1)=> //; case=> ?; rewrite esig. }
+
+{ move: tys2; case: (popCoreE _ pop2); rewrite st2''_eq=> x []_. 
+  case=> _; case: st2 x=> y; case=> /=; case=> // a l _ _ /= => <- /=.
+  by case sgof: (sig_of hd2)=> //; case=> ?; rewrite pf_sig22'. }
+
 Qed.
 
 End return_lems.

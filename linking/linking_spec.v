@@ -1,12 +1,12 @@
 (* sepcomp imports *)
 
-Require Import linking.sepcomp. Import SepComp. 
-Require Import sepcomp.arguments.
+Require Import sepcomp. Import SepComp. 
+Require Import arguments.
 
-Require Import linking.pos.
-Require Import linking.core_semantics_lemmas.
-Require Import linking.compcert_linking.
-Require Import linking.rc_semantics.
+Require Import pos.
+Require Import core_semantics_tcs.
+Require Import compcert_linking.
+Require Import rc_semantics.
 
 (* ssreflect *)
 
@@ -15,8 +15,8 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require Import sepcomp.nucular_semantics.
-Require Import compcert.common.Values.   
+Require Import nucular_semantics.
+Require Import Values.   
 
 (* This file states the main linking simulation result.                   *)
 (* Informally,                                                            *)
@@ -46,7 +46,7 @@ Require Import compcert.common.Values.
 (* where >< denotes the semantic linking operation defined in             *)
 (* compcert_linking.v.                                                    *)
 
-Import Wholeprog_simulation.
+Import Wholeprog_sim.
 Import SM_simulation.
 Import Linker. 
 Import Modsem.
@@ -56,6 +56,10 @@ Module Type LINKING_SIMULATION.
 Axiom link : forall 
   (N : pos)
   (sems_S sems_T : 'I_N -> Modsem.t)
+  (find_symbol_ST : 
+     forall (i : 'I_N) id bf, 
+     Genv.find_symbol (ge (sems_S i)) id = Some bf -> 
+     Genv.find_symbol (ge (sems_T i)) id = Some bf)
   (nucular_T : forall ix : 'I_N, Nuke_sem.t (sems_T ix).(sem))
   (plt : ident -> option 'I_N)
   (sims : forall ix : 'I_N, 
@@ -70,7 +74,7 @@ Axiom link : forall
   let linker_S := effsem N sems_S plt in
   let linker_T := effsem N sems_T plt in forall
   (main : val), 
-  Wholeprog_simulation linker_S linker_T ge_top ge_top main.
+  CompCert_wholeprog_sim linker_S linker_T ge_top ge_top main.
 
 End LINKING_SIMULATION.
 

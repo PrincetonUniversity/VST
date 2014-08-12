@@ -36,7 +36,8 @@ Require Import linking.pred_lemmas.
 Require Import linking.seq_lemmas.
 Require Import linking.wf_lemmas.
 Require Import linking.reestablish.
-Require Import linking.core_semantics_lemmas.
+Require Import sepcomp.core_semantics_lemmas.
+Require Import linking.core_semantics_tcs.
 Require Import linking.inj_lemmas.
 Require Import linking.join_sm.
 Require Import linking.reach_lemmas.

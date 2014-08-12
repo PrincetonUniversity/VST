@@ -6,21 +6,21 @@ Unset Printing Implicit Defensive.
 Require Import Bool.
 Require Import Zbool.
 Require Import BinPos. 
-Require Import eq_dec.
+Require Import msl.eq_dec.
 
-Require Import compcert.common.Globalenvs.
-Require Import compcert.common.Memory.
-Require Import compcert.common.Values.
-Require Import compcert.lib.Maps.
+Require Import Globalenvs.
+Require Import Memory.
+Require Import Values.
+Require Import Maps.
 
-Require Import msl.Axioms.
+Require Import compcert.lib.Axioms.
 
-Require Import linking.sepcomp. Import SepComp.
+Require Import sepcomp. Import SepComp.
 
-Require Import linking.pred_lemmas.
-Require Import linking.seq_lemmas.
-Require Import linking.inj_lemmas.
-Require Import linking.join_sm.
+Require Import pred_lemmas.
+Require Import seq_lemmas.
+Require Import inj_lemmas.
+Require Import join_sm.
 
 (* nwp = no wild pointers *)
 

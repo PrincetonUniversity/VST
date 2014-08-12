@@ -11,11 +11,11 @@ Require Import compcert. Import CompcertCommon.
 
 Require Import msl.Axioms.
 
-Require Import linking.sepcomp. Import SepComp.
+Require Import sepcomp. Import SepComp.
 
-Require Import linking.pred_lemmas.
-Require Import linking.seq_lemmas.
-Require Import linking.inj_lemmas.
+Require Import pred_lemmas.
+Require Import seq_lemmas.
+Require Import inj_lemmas.
 
 (* The following variation of [join] is appropriate for shared resources  *)
 (* like extern injections: each core must have a consistent mapping on    *)
@@ -1373,8 +1373,7 @@ Lemma join_all_restrict_sep
 Proof.
 move=> A B C D val incr E loc_alloc mu_tot mu_tot' F tot'_wd tot_wd.
 have Cut: sm_inject_separated mu_tot mu_tot' m1 m2.
-  apply: join_all_sm_inject_separated=> //.
-  by eapply loc_alloc.
+  by eapply (join_all_sm_inject_separated (m1':=m1')); eauto.
 set mu_tot2 := Inj.mk tot_wd. 
 change (sm_inject_separated 
          (restrict_sm mu_tot2 (vis mu_tot2))

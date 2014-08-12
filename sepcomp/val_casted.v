@@ -1,9 +1,4 @@
-(*TODO: These imports should be pared down*)
-Require Import FSets.
-Require FSetAVL.
 Require Import Coqlib.
-Require Import Errors.
-Require Import Ordered.
 Require Import AST.
 Require Import Maps.
 Require Import Integers.
@@ -11,24 +6,21 @@ Require Import Floats.
 Require Import Values.
 Require Import Memory.
 Require Import Globalenvs.
-Require Import Events.
-Require Import Smallstep.
 Require Import Ctypes.
 Require Import Cop.
-Require Import Clight.
-Require Import compcomp.SimplLocals.
+Require Import Events.
 
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.core_semantics_lemmas.
-Require Import sepcomp.reach.
-Require Import sepcomp.effect_semantics.
+Require Import mem_lemmas.
+Require Import core_semantics.
+Require Import core_semantics_lemmas.
+Require Import reach.
+Require Import effect_semantics.
 Require Import StructuredInjections.
 Require Import effect_simulations.
-Require Import sepcomp.effect_properties.
+Require Import effect_properties.
 Require Import effect_simulations_lemmas.
 
-Require Export Axioms.
+Require Export compcert.lib.Axioms.
 
 (** Properties of values obtained by casting to a given type. *)
 
@@ -349,7 +341,7 @@ Lemma val_has_type_list_func_charact vl tyl :
 Proof.
 revert tyl; induction vl.
 destruct tyl. simpl. split; auto. simpl. split; auto. inversion 1.
-intros. destruct tyl. simpl. split; auto. inversion 1.
+intros. destruct tyl. simpl; auto. split; auto. inversion 1.
 simpl. split. intros [H H2]. 
 + rewrite andb_true_iff. split. 
   rewrite <-val_has_type_funcP; auto.
@@ -451,6 +443,23 @@ Fixpoint encode_longs (tyl : list typ) (vl : list val) :=
       end
   end.
 
+Fixpoint encode_typs (tyl : list typ) : list typ :=
+  match tyl with
+    | nil => nil
+    | AST.Tlong :: tyl' => AST.Tint :: AST.Tint :: encode_typs tyl'
+    | t :: tyl' => t :: encode_typs tyl'
+  end.
+
+Lemma encode_longs_has_type tyl vl :  
+  Val.has_type_list vl tyl -> 
+  Val.has_type_list (encode_longs tyl vl) (encode_typs tyl).
+Proof.
+revert vl; induction tyl. simpl; auto. 
+destruct vl. intros; contradiction. intros [H H2]. simpl.
+destruct a; try solve[split; auto].
+destruct v; simpl; auto.
+Qed.
+
 Lemma decode_encode_longs tyl vl : 
   Val.has_type_list vl tyl -> 
   decode_longs tyl (encode_longs tyl vl) = vl.
@@ -524,4 +533,34 @@ Proof.
   rewrite orb_true_iff. right. solve[eapply IHvals; eauto].
   rewrite orb_true_iff in H. destruct H. rewrite H; auto. 
     rewrite orb_true_iff. right. solve[eapply IHvals; eauto].
+Qed.
+
+Lemma val_casted_has_type a t :
+  tys_nonvoid (Tcons t Tnil) = true -> 
+  val_casted_func a t = true -> 
+  val_has_type_func a (typ_of_type t) = true.
+Proof.
+intros H0 H.
+apply val_casted_funcE in H.
+induction H; try solve[auto].
+destruct H. destruct sz. simpl. 
+generalize (Float.singleoffloat_is_single n0).
+destruct (Float.is_single_dec (Float.singleoffloat n0)); auto. auto.
+simpl in H0. congruence.
+Qed.
+
+Lemma val_casted_has_type_list vals tys : 
+  tys_nonvoid tys = true ->
+  val_casted_list_func vals tys = true -> 
+  val_has_type_list_func vals (typlist_of_typelist tys) = true.
+Proof.
+revert vals; induction tys. simpl. intros vals.
+destruct vals. simpl; auto. simpl. solve[inversion 2].
+simpl; intros vals; revert tys IHtys; induction vals. simpl. 
+  intros; congruence.
+simpl; intros. rewrite andb_true_iff in H0; destruct H0 as [H0 H2].
+assert (H3: tys_nonvoid tys = true).
+{ destruct t; solve[congruence|auto]. }
+rewrite andb_true_iff. split; auto.
+apply val_casted_has_type; auto. destruct t; auto.
 Qed.

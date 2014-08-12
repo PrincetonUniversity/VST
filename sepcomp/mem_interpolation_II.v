@@ -2,13 +2,13 @@ Require Import Events. (*is needed for some definitions (loc_unmapped etc*)
 Require Import Memory.
 Require Import Coqlib.
 Require Import Integers.
-Require Import compcert.common.Values.
+Require Import Values.
 Require Import Maps.
+Require Import FiniteMaps.
 Require Import msl.Axioms.
 
-Require Import FiniteMaps.
-Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.mem_interpolation_defs.
+Require Import mem_lemmas.
+Require Import mem_interpolation_defs.
 
 Fixpoint mkInjectionsN (N:nat)(n1 n2:block)(j k l: meminj) 
                      :  meminj * meminj * block * block := 

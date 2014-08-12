@@ -1,21 +1,19 @@
-Require Import compcert.common.Events.
-Require Import compcert.common.Memory.
-Require Import compcert.lib.Coqlib.
-Require Import compcert.common.Values.
-Require Import compcert.lib.Maps.
-Require Import compcert.lib.Integers.
-Require Import compcert.common.AST.
-
-Require Import compcert.common.Globalenvs.
-
+Require Import Events.
+Require Import Memory.
+Require Import Coqlib.
+Require Import Values.
+Require Import Maps.
+Require Import Integers.
+Require Import AST.
+Require Import Globalenvs.
 Require Import compcert.lib.Axioms.
 
-Require Import sepcomp.mem_lemmas. (*needed for definition of mem_forward etc*)
-Require Import sepcomp.core_semantics.
-Require Import sepcomp.effect_semantics.
-Require Import sepcomp.StructuredInjections.
-Require Import sepcomp.reach.
-Require Import sepcomp.effect_simulations.
+Require Import mem_lemmas. (*needed for definition of mem_forward etc*)
+Require Import core_semantics.
+Require Import effect_semantics.
+Require Import StructuredInjections.
+Require Import reach.
+Require Import effect_simulations.
 
 Definition FLIP mu := 
   match mu with
