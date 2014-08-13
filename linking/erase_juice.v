@@ -77,6 +77,28 @@ rewrite /cast_ty; move: c; rewrite /C_types_eq /= /sems_S.
 by case: (sems_T ix)=> /= F V ge c sem c0 ->.
 Qed.
 
+Lemma atext_eq a1 a2 :
+  match_cores a1 a2 -> 
+  at_external (Modsem.sem (sems_S (Core.i a1))) (Core.c a1) =
+  at_external (Modsem.sem (sems_T (Core.i a2))) (Core.c a2).
+Proof.
+case=> _ []Heq; move: a1 a2 Heq.
+rewrite /match_Cs' /match_Cs=> a1 a2 Heq <- /=; rewrite <-Heq; clear Heq.
+rewrite cast_ty_erefl /cast_ty /C_types_eq; move: (Core.c a1); rewrite /sems_S. 
+by case: (sems_T (Core.i a1)).
+Qed.
+
+Lemma atExternal_eq a1 a2 :
+  match_cores a1 a2 -> 
+  atExternal sems_S a1 -> 
+  atExternal sems_T a2.
+Proof.
+case: a1; case: a2=> ? a1 ? ? a2 ? /=.
+case at1: (at_external _ _)=> // [[[? ?] ?]].
+case at2: (at_external _ _)=> // [[[? ?] ?]|] //.
+by move/atext_eq; rewrite /= at1 at2.
+Qed.
+
 Lemma match_linked_handle ef id vals st1 st2 st1' : 
   match_linked st1 st2 -> 
   LinkerSem.handle (ef_sig ef) id st1 vals = Some st1' -> 
@@ -96,24 +118,19 @@ have [c' [Hinit' HC]]:
   rewrite Hinit'; split=> //; split; first by rewrite -Heqcc'.
   by rewrite -Heqcc'; exists erefl. }
 have pf': all (atExternal sems_T) (CallStack.callStack (Linker.stack st2)).
-  admit.
+{ clear -pf H; case: H=> _; rewrite /match_stacks.
+  case: st1 pf=> /= _; case=> stk /= _ H H2.
+  case: st2 H2=> /= _; case=> stk2 /= _ H2.
+  elim: stk stk2 H H2; first by case.
+  move=> a1 l1 IH; case=> // a2 l2 /=; case/andP=> H H2 []H3 H4. 
+  apply/andP; split; first by apply: (atExternal_eq H3 H).
+  by apply: (IH _ H2). }
 exists (pushCore st2 c' pf'); split.
 apply/LinkerSem.handleP.
 exists pf', ix, bf, c'; split=> //; first by case: H=> <- _.
 by clear - Hfnd1; move: Hfnd1; rewrite /sems_S; case: (sems_T ix).
 apply: mk_match_linked; first by case H; rewrite Heq.
 by case: H; rewrite Heq /match_stacks /=; split.
-Qed.
-
-Lemma atext_eq a1 a2 :
-  match_cores a1 a2 -> 
-  at_external (Modsem.sem (sems_S (Core.i a1))) (Core.c a1) =
-  at_external (Modsem.sem (sems_T (Core.i a2))) (Core.c a2).
-Proof.
-case=> _ []Heq; move: a1 a2 Heq.
-rewrite /match_Cs' /match_Cs=> a1 a2 Heq <- /=; rewrite <-Heq; clear Heq.
-rewrite cast_ty_erefl /cast_ty /C_types_eq; move: (Core.c a1); rewrite /sems_S. 
-by case: (sems_T (Core.i a1)).
 Qed.
 
 Lemma halted_eq a1 a2 :
@@ -188,15 +205,20 @@ rewrite /match_stacks /=; split=> //; split=> //=.
 by exists Heq.
 Qed.
 
+Lemma match_stacks_rec_size_eq s1 s2 :
+  match_stacks_rec s1 s2 -> size s1 = size s2.
+Proof.
+elim: s1 s2; case=> //.
+by move=> ? ? ? ? IH; case=> // ? ? /= []H H2; rewrite (IH _ H2).
+Qed.
+
 Lemma match_stacks_size_eq s1 s2 :
   match_stacks (Linker.stack s1) (Linker.stack s2) -> 
   CallStack.callStackSize (Linker.stack s1) 
 = CallStack.callStackSize (Linker.stack s2).
 Proof.
 rewrite /match_stacks /CallStack.callStackSize.
-case: s1 s2=> ?; case=> stk /= _; case=> ?; case=> s2 /= _; elim: stk s2.
-by case=> //.
-by move=> a1 l1 IH; case=> // a2 l2 /= []H H2; rewrite (IH _ H2).
+by apply: match_stacks_rec_size_eq.
 Qed.
 
 Lemma match_linked_inContext st1 st2 :
@@ -216,7 +238,22 @@ Proof.
 move=> H; case/popCoreE=> Hwf []Hctx ->.
 rewrite (match_linked_inContext H) in Hctx.
 have Hwf': wf_callStack (STACK.pop (CallStack.callStack (Linker.stack st2))).
-  admit.
+{ case: H=> _; rewrite /match_stacks; clear -Hwf.
+  case: st1 Hwf=> /= _; case=> stk /= _; case: st2=> /= _; case=> s2 /= _ H. 
+  case: stk s2 H=> // a1 l1; case=> // a2 l2 /= H []H2 H3.
+  move: H; rewrite /wf_callStack; case/andP=> H H4; apply/andP; split.
+  { clear -H H3; move: H. 
+    have Hpop: match_stacks_rec (STACK.pop l1) (STACK.pop l2).
+    { by case: l1 H3=> //; case: l2=> // ? ? ? ? /= []. }
+    clear H3; move: Hpop.
+    move: (STACK.pop l1)=> l1'.
+    move: (STACK.pop l2)=> l2'.
+    clear l1 l2.
+    elim: l1' l2'; first by case.
+    move=> a1 l1 /= IH; case=> // a2 l2 /= []H2 H3.
+    case/andP=> H H4; apply/andP; split; first by apply: (atExternal_eq H2 H).
+    by apply: IH. }
+  by rewrite (match_stacks_rec_size_eq H3) in H4. }
 exists (updStack st2 
   (CallStack.mk (STACK.pop (CallStack.callStack (Linker.stack st2))) Hwf')).
 split; first by erewrite popCoreI; eauto.
@@ -237,21 +274,41 @@ by case: (sems_T ix)=> /= F V ge c sem c0 c'; case=> H _.
 Qed.
 
 Lemma depeq_corestep s1 m1 c' m1' s2 
+      (Hmatch : match_cores (peekCore s1) (peekCore s2))
       (Heq : Core.i (peekCore s1) = Core.i (peekCore s2)) :
   corestep (Modsem.sem (sems_T (Core.i (peekCore s1))))
            (Modsem.ge (sems_T (Core.i (peekCore s1))))
            (cast_ty (C_types_eq (Core.i (peekCore s1)))
                     (Core.c (peekCore s1))) (m_dry m1)
-           (cast_ty (C_types_eq (Core.i (peekCore s1))) c') 
+           c'
            (m_dry m1') -> 
   corestep (Modsem.sem (sems_T (Core.i (peekCore s2))))
            (Modsem.ge (sems_T (Core.i (peekCore s2)))) 
            (Core.c (peekCore s2)) (m_dry m1) 
-           (cast (fun i : 'I_N => Modsem.C (sems_T i)) Heq
-             (cast_ty (C_types_eq (Core.i (peekCore s1))) c')) (m_dry m1').
+           (cast (fun i : 'I_N => Modsem.C (sems_T i)) Heq c')
+           (m_dry m1').
 Proof.
-move: c'; rewrite /C_types_eq /cast_ty /eq_rect_r /sems_S.
-Admitted.
+set T := fun ix => Modsem.C (sems_T ix).
+set P := fun ix (x : T ix) (y : T ix) => 
+  corestep (Modsem.sem (sems_T ix)) (Modsem.ge (sems_T ix))
+           x (m_dry m1) y (m_dry m1').
+move=> H.
+have: P (Core.i (peekCore s1)) 
+        (cast_ty (C_types_eq (Core.i (peekCore s1))) (Core.c (peekCore s1))) 
+        c'=> // H2.
+have H3: (P (Core.i (peekCore s2)) (Core.c (peekCore s2)) (cast T Heq c')).
+apply: cast_indnatdep2=> //.
+have H3: 
+  cast_ty (C_types_eq (Core.i (peekCore s1))) (Core.c (peekCore s1))
+= cast T (Logic.eq_sym Heq) (Core.c (peekCore s2)).
+{ clear -Heq Hmatch; case: Hmatch=> _ []Hpf. 
+  rewrite /match_Cs' /match_Cs=> <-.
+  have Hpfeq: Hpf = Heq by apply: proof_irr. 
+  rewrite Hpfeq; clear Hpf Hpfeq. 
+  by rewrite /C_types_eq /cast_ty /T /=; clear T; rewrite <-Heq. }
+by rewrite -H3.
+by apply: H3.
+Qed.
 
 Lemma match_stacks_sg_eq s1 s2 :
   match_stacks (Linker.stack s1) (Linker.stack s2) -> 
@@ -288,7 +345,11 @@ have Heq: Core.i (peekCore s1) = Core.i (peekCore s2).
 set c'' := (cast (fun i => Modsem.C (sems_T i)) Heq 
            (cast_ty (C_types_eq (Core.i (peekCore s1))) c')).
 exists (updCore s2 (Core.upd (peekCore s2) c'')); split.
-exists c''; split=> //; first by apply: depeq_corestep.
+exists c''; split=> //.
+apply: depeq_corestep=> //.
+{ clear -Hstk; case: s1 Hstk=> /= _; rewrite /match_stacks.
+  case; case=> /= ?; case: s2=> /= _; case; case=> //.
+  by move=> a1 l1 /= _ ? _ []. }
 apply: mk_match_linked=> //; split=> //. 
 split=> //; first by apply: match_stacks_sg_eq.
 exists Heq; rewrite /match_Cs' /match_Cs /c''; clear -c'.
