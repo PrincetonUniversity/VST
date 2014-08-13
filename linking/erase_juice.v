@@ -74,7 +74,228 @@ Lemma initial_core_eq ix b vals c :
     (Vptr b Integers.Int.zero) vals = Some (cast_ty (C_types_eq ix) c).
 Proof.
 rewrite /cast_ty; move: c; rewrite /C_types_eq /= /sems_S.
-by case: (sems_T ix)=> /= F V ge c sem c0 -> //.
+by case: (sems_T ix)=> /= F V ge c sem c0 ->.
+Qed.
+
+Lemma match_linked_handle ef id vals st1 st2 st1' : 
+  match_linked st1 st2 -> 
+  LinkerSem.handle (ef_sig ef) id st1 vals = Some st1' -> 
+  exists st2',
+    LinkerSem.handle (ef_sig ef) id st2 vals = Some st2'
+    /\ match_linked st1' st2'.
+Proof.
+move=> H; case/LinkerSem.handleP=> pf []ix []bf []c []Htbl1 Hfnd1 Hinit Heq.
+have [c' [Hinit' HC]]: 
+  exists c', 
+    initCore sems_T (ef_sig ef) ix (Vptr bf Integers.Int.zero) vals = Some c'
+    /\ match_cores c c'.
+{ move: Hinit; rewrite /initCore.
+  case Hinit: (initial_core _ _ _ _)=> // [c']; case=> Heqcc'.
+  move: (initial_core_eq Hinit)=> Hinit'.
+  exists {| Core.i:=ix; Core.c:=cast_ty (C_types_eq ix) c'; Core.sg:=ef_sig ef|}.
+  rewrite Hinit'; split=> //; split; first by rewrite -Heqcc'.
+  by rewrite -Heqcc'; exists erefl. }
+have pf': all (atExternal sems_T) (CallStack.callStack (Linker.stack st2)).
+  admit.
+exists (pushCore st2 c' pf'); split.
+apply/LinkerSem.handleP.
+exists pf', ix, bf, c'; split=> //; first by case: H=> <- _.
+by clear - Hfnd1; move: Hfnd1; rewrite /sems_S; case: (sems_T ix).
+apply: mk_match_linked; first by case H; rewrite Heq.
+by case: H; rewrite Heq /match_stacks /=; split.
+Qed.
+
+Lemma atext_eq a1 a2 :
+  match_cores a1 a2 -> 
+  at_external (Modsem.sem (sems_S (Core.i a1))) (Core.c a1) =
+  at_external (Modsem.sem (sems_T (Core.i a2))) (Core.c a2).
+Proof.
+case=> _ []Heq; move: a1 a2 Heq.
+rewrite /match_Cs' /match_Cs=> a1 a2 Heq <- /=; rewrite <-Heq; clear Heq.
+rewrite cast_ty_erefl /cast_ty /C_types_eq; move: (Core.c a1); rewrite /sems_S. 
+by case: (sems_T (Core.i a1)).
+Qed.
+
+Lemma halted_eq a1 a2 :
+  match_cores a1 a2 -> 
+  halted (Modsem.sem (sems_S (Core.i a1))) (Core.c a1) =
+  halted (Modsem.sem (sems_T (Core.i a2))) (Core.c a2).
+Proof.
+case=> _ []Heq; move: a1 a2 Heq.
+rewrite /match_Cs' /match_Cs=> a1 a2 Heq <- /=; rewrite <-Heq; clear Heq.
+rewrite cast_ty_erefl /cast_ty /C_types_eq; move: (Core.c a1); rewrite /sems_S. 
+by case: (sems_T (Core.i a1)).
+Qed.
+
+Lemma match_linked_atext st1 st2 :
+  match_linked st1 st2 -> 
+  LinkerSem.at_external0 st1 = LinkerSem.at_external0 st2.
+Proof.
+case; rewrite /LinkerSem.at_external0=> _.
+case: st1=> ?; case; case=> //= a1 l1 ?.
+case: st2=> ?; case; case=> //= a2 l2 ?.
+rewrite /match_stacks /=; case=> Hh Ht.
+by rewrite (atext_eq Hh).
+Qed.
+
+Lemma match_linked_halted st1 st2 :
+  match_linked st1 st2 -> 
+  LinkerSem.halted0 st1 = LinkerSem.halted0 st2.
+Proof.
+case; rewrite /LinkerSem.halted0=> _.
+case: st1=> ?; case; case=> //= a1 l1 ?.
+case: st2=> ?; case; case=> //= a2 l2 ?.
+rewrite /match_stacks /=; case=> Hh Ht.
+case Hhlt: (halted _ _)=> // [rv|].
+rewrite (halted_eq Hh) in Hhlt; rewrite Hhlt.
+by case: Hh=> -> _; case: (val_casted.val_has_type_func _ _).
+by rewrite (halted_eq Hh) in Hhlt; rewrite Hhlt.
+Qed.
+
+Lemma match_linked_aft' rv a1 a2 a1' (pf : Core.i a1=Core.i a2) :
+  match_Cs' pf (Core.c a1) (Core.c a2) ->
+  after_external (Modsem.sem (sems_S (Core.i a1))) 
+                 (Some rv) (Core.c a1) = Some a1' -> 
+  exists a2',
+    after_external (Modsem.sem (sems_T (Core.i a2))) 
+                   (Some rv) (Core.c a2) = Some a2'
+    /\ match_Cs' pf a1' a2'.
+Proof.
+move: rv a1 a2 a1' pf.
+rewrite /match_Cs' /match_Cs=> rv a1 a2 a1' pf <- /=; move: a1'.
+rewrite <-pf; clear pf.
+rewrite cast_ty_erefl /cast_ty /C_types_eq; move: (Core.c a1). 
+rewrite /sems_S /=; case: (sems_T (Core.i a1))=> /= F V ge C sem. 
+by move=> c a1' aft /=; rewrite /eq_rect_r /=; exists a1'.
+Qed.
+
+Lemma match_linked_aft st1 rv st1' st2 : 
+  match_linked st1 st2 -> 
+  LinkerSem.after_external (Some rv) st1 = Some st1' -> 
+  exists st2',
+    LinkerSem.after_external (Some rv) st2 = Some st2' 
+    /\ match_linked st1' st2'.
+Proof.
+case; rewrite /LinkerSem.after_external=> Htbl.
+case: st1 Htbl=> ?; case; case=> //= a1 l1 ? Htbl.
+case: st2 Htbl=> ?; case; case=> //= a2 l2 ? Htbl.
+rewrite /match_stacks /=; case=> Hh Ht.
+case Haft: (after_external _ _ _)=> // [a1'].
+case: Hh=> Hsg []Heq Hc; case=> <-.
+case: (match_linked_aft' Hc Haft)=> a2' []Haft' Hc'.
+rewrite Haft'; eexists; split=> //; apply: mk_match_linked=> //.
+rewrite /match_stacks /=; split=> //; split=> //=.
+by exists Heq.
+Qed.
+
+Lemma match_stacks_size_eq s1 s2 :
+  match_stacks (Linker.stack s1) (Linker.stack s2) -> 
+  CallStack.callStackSize (Linker.stack s1) 
+= CallStack.callStackSize (Linker.stack s2).
+Proof.
+rewrite /match_stacks /CallStack.callStackSize.
+case: s1 s2=> ?; case=> stk /= _; case=> ?; case=> s2 /= _; elim: stk s2.
+by case=> //.
+by move=> a1 l1 IH; case=> // a2 l2 /= []H H2; rewrite (IH _ H2).
+Qed.
+
+Lemma match_linked_inContext st1 st2 :
+  match_linked st1 st2 -> 
+  inContext st1 = inContext st2.
+Proof.
+by case=> _ H; rewrite /inContext; rewrite (match_stacks_size_eq H).
+Qed.
+
+Lemma match_linked_popCore st1 st2 st1' :
+  match_linked st1 st2 -> 
+  popCore st1 = Some st1' -> 
+  exists st2', 
+    popCore st2 = Some st2' 
+    /\ match_linked st1' st2'.
+Proof.
+move=> H; case/popCoreE=> Hwf []Hctx ->.
+rewrite (match_linked_inContext H) in Hctx.
+have Hwf': wf_callStack (STACK.pop (CallStack.callStack (Linker.stack st2))).
+  admit.
+exists (updStack st2 
+  (CallStack.mk (STACK.pop (CallStack.callStack (Linker.stack st2))) Hwf')).
+split; first by erewrite popCoreI; eauto.
+case: H=> H H2; apply: mk_match_linked=> //=.
+clear -H2; move: H2; rewrite /match_stacks.
+case: st1 Hwf Hwf'=> /= _; case; case=> // a1 l1 /= _ _ _.
+by case: st2=> /= _; case; case=> // a2 l2 /= _; case.
+Qed.
+
+Lemma erase_corestep ix c m c' m' :
+  corestep (Modsem.sem (sems_S ix)) (Modsem.ge (sems_S ix)) c m c' m' -> 
+  corestep (Modsem.sem (sems_T ix)) (Modsem.ge (sems_T ix)) 
+           (cast_ty (C_types_eq ix) c) (m_dry m) 
+           (cast_ty (C_types_eq ix) c') (m_dry m').
+Proof.
+rewrite /cast_ty; move: c c'; rewrite /C_types_eq /= /sems_S.
+by case: (sems_T ix)=> /= F V ge c sem c0 c'; case=> H _.
+Qed.
+
+Lemma depeq_corestep s1 m1 c' m1' s2 
+      (Heq : Core.i (peekCore s1) = Core.i (peekCore s2)) :
+  corestep (Modsem.sem (sems_T (Core.i (peekCore s1))))
+           (Modsem.ge (sems_T (Core.i (peekCore s1))))
+           (cast_ty (C_types_eq (Core.i (peekCore s1)))
+                    (Core.c (peekCore s1))) (m_dry m1)
+           (cast_ty (C_types_eq (Core.i (peekCore s1))) c') 
+           (m_dry m1') -> 
+  corestep (Modsem.sem (sems_T (Core.i (peekCore s2))))
+           (Modsem.ge (sems_T (Core.i (peekCore s2)))) 
+           (Core.c (peekCore s2)) (m_dry m1) 
+           (cast (fun i : 'I_N => Modsem.C (sems_T i)) Heq
+             (cast_ty (C_types_eq (Core.i (peekCore s1))) c')) (m_dry m1').
+Proof.
+move: c'; rewrite /C_types_eq /cast_ty /eq_rect_r /sems_S.
+Admitted.
+
+Lemma match_stacks_sg_eq s1 s2 :
+  match_stacks (Linker.stack s1) (Linker.stack s2) -> 
+  Core.sg (peekCore s1) = Core.sg (peekCore s2).
+Proof.
+rewrite /match_stacks; case: s1=> /= _; case; case=> // a1 l1 /= _.
+by case: s2=> /= _; case; case=> // a2 l2 /= _; case; case=> ->.
+Qed.
+
+Lemma match_stacks_rec_pop s1 s2 :
+  match_stacks_rec (CallStack.callStack (Linker.stack s1))
+                   (CallStack.callStack (Linker.stack s2)) -> 
+  match_stacks_rec (STACK.pop (CallStack.callStack (Linker.stack s1)))
+                   (STACK.pop (CallStack.callStack (Linker.stack s2))).
+Proof.
+case: s1=> ?; case; case=> // a1 l1 ?.
+by case: s2=> ?; case; case=> // a2 l2 ? /=; case.
+Qed.
+
+Lemma corestep0_match s1 m1 s1' m1' s2 :
+  match_linked s1 s2 -> 
+  LinkerSem.corestep0 s1 m1 s1' m1' ->
+  exists s2', 
+    LinkerSem.corestep0 s2 (m_dry m1) s2' (m_dry m1')
+    /\ match_linked s1' s2'.
+Proof.
+rewrite /LinkerSem.corestep0; case=> Hfn Hstk []c' [].
+move/erase_corestep=> Hstep=> ->.
+have Heq: Core.i (peekCore s1) = Core.i (peekCore s2). 
+{ clear -Hstk; move: Hstk.
+  case: s1=> /= _; case; case=> // a1 l1 ? /=.
+  case: s2=> /= _; case; case=> // a2 l2 ? /=.                                   
+  by rewrite /match_stacks /=; case; case=> _; case. }
+set c'' := (cast (fun i => Modsem.C (sems_T i)) Heq 
+           (cast_ty (C_types_eq (Core.i (peekCore s1))) c')).
+exists (updCore s2 (Core.upd (peekCore s2) c'')); split.
+exists c''; split=> //; first by apply: depeq_corestep.
+apply: mk_match_linked=> //; split=> //. 
+split=> //; first by apply: match_stacks_sg_eq.
+exists Heq; rewrite /match_Cs' /match_Cs /c''; clear -c'.
+move: c'; rewrite /sems_S /= /C_types_eq /cast_ty /eq_rect_r /=.
+rewrite <-Heq; clear Heq=> /=.
+by case: (sems_T (Core.i (peekCore s1))).
+by apply: match_stacks_rec_pop.
 Qed.
 
 Lemma Juicy_linked_erasure ge main : 
@@ -90,8 +311,7 @@ apply Build_Wholeprog_sim
             m_dry m1=m2 /\
             match_linked c1 c2)=> //.
 
-(* init *)
-{ 
+{ (* init *) 
 move=> j c1 vals1 m1 vals2 m2 init []_ []<- <-.
 exists (Build_SM_Injection xpred0 xpred0 xpred0 xpred0 (fun _ => None)
                            xpred0 xpred0 xpred0 xpred0 j).
@@ -112,11 +332,46 @@ by exists erefl; rewrite /match_Cs' cast_ty_erefl.
 }
 
 { (*step*)
-move=> st1 m1 st1' m1' /= STEP _ st2 _ m2 []<- H.
+move=> st1 m1 st1' m1' /= STEP _ st2 mu m2 []<- H.
+case: STEP.
+move/corestep0_match.
+case/(_ _ H)=> st2' []STEP' MTCH; exists st2', (m_dry m1'), tt, mu.
+split=> //; left; exists O=> /=; exists st2', (m_dry m1'); split=> //.
+by left.
+case=> <-; case=> NSTEP.
+case Hat: (LinkerSem.at_external0 st1)=> // [[[ef1 sg1] vals1]|].
+case Hfun: (LinkerSem.fun_id ef1)=> // [id].
+case Hhdl: (LinkerSem.handle _ _ _ _)=> // [st1''] ->.
+case: (match_linked_handle H Hhdl)=> st2'' []Hhdl' H'.
+exists st2'', (m_dry m1), tt, mu; split=> //; left.
+exists O=> /=. exists st2'', (m_dry m1); split=> //; right.
+split=> //; split.
+move=> step; move: (LinkerSem.corestep_not_at_external0 step).
+by rewrite (match_linked_atext H) in Hat; rewrite Hat; discriminate.
+rewrite -(match_linked_atext H) Hat Hfun Hhdl'=> //.
+case Hctx: (inContext _)=> //.
+case Hhlt: (LinkerSem.halted0 _)=> // [rv].
+case Hpop: (popCore _)=> // [st1''].
+case Haft: (LinkerSem.after_external _ _)=> // [st1'''] ->.
+rewrite (match_linked_atext H) in Hat.
+rewrite (match_linked_halted H) in Hhlt.
+case: (match_linked_popCore H Hpop)=> st2'' []Hpop' H'.
+rewrite (match_linked_inContext H) in Hctx.
+case: (match_linked_aft H' Haft)=> st2''' []Haft' H''.
+exists st2''', (m_dry m1), tt, mu; split=> //; left.
+exists O=> /=. exists st2''', (m_dry m1); split=> //; right.
+split=> //; split.
+move=> step; move: (LinkerSem.corestep_not_halted0' step).
+by rewrite Hhlt; discriminate.
+by rewrite Hat Hctx Hhlt Hpop' Haft'.
 }
 
 { (*halted*)
-admit.
+move=> _ mu s1 m1 s2 m2 v []Hmeq H Hhlt; exists mu, v; split=> //.
+move: Hhlt; rewrite /= /LinkerSem.halted; case Hctx: (inContext s1)=> //=.
+rewrite (match_linked_inContext H) in Hctx; rewrite Hctx=> /=.
+case Hhlt: (LinkerSem.halted0 _)=> // [rv]. 
+by rewrite (match_linked_halted H) in Hhlt; rewrite Hhlt; case=> ->.
 }
 Qed.
 

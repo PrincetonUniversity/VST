@@ -260,6 +260,37 @@ Arguments peekCore {M N} {my_cores} !l /.
 
 Arguments emptyStack {M N} {my_cores} !l /.
 
+Lemma popCoreI M N my_cores l l' pf : 
+  inContext l -> 
+  l' = updStack l (CallStack.mk (STACK.pop (CallStack.callStack l)) pf) ->
+  @popCore M N my_cores l = Some l'.
+Proof.
+rewrite /popCore.
+move: (popCore_obligation_1 l); move: (popCore_obligation_2 l).
+case: (inContext l)=> pf1 pf2 // _ ->.
+f_equal=> //.
+f_equal=> //.
+f_equal=> //.
+by apply: proof_irr.
+Qed.
+
+Lemma popCoreE M N my_cores l l' : 
+  @popCore M N my_cores l = Some l' ->
+  exists pf,
+  [/\ inContext l
+    & l' = updStack l (CallStack.mk (STACK.pop (CallStack.callStack l)) pf)].
+Proof.
+rewrite /popCore.
+move: (popCore_obligation_1 l); move: (popCore_obligation_2 l).
+case: (inContext l)=> pf1 pf2 //; case=> <-.
+have pf: wf_callStack (STACK.pop (CallStack.callStack l)).
+{ case: (andP (pf1 erefl))=> A B; apply/andP; split=> //.
+  by apply: SeqStack.all_pop.
+  by move: (pf2 erefl); clear pf1 pf2 A B; case: l=> /= ?; case; elim. }
+exists pf; split=> //.
+by f_equal; f_equal; apply: proof_irr.
+Qed.
+
 (** The linking semantics *)
 
 Module LinkerSem. Section linkerSem.
@@ -599,6 +630,13 @@ Lemma corestep_not_halted0 m c m' c' : corestep0 c m c' m' -> halted c = None.
 Proof.
 move=> []newCore []H1 H2; rewrite/halted.
 case Hcx: (~~ inContext _)=>//; case Hht: (halted0 _)=>//.
+by move: Hht; rewrite/halted0; apply corestep_not_halted in H1; rewrite /= H1.
+Qed.
+
+Lemma corestep_not_halted0' m c m' c' : corestep0 c m c' m' -> halted0 c = None.
+Proof.
+move=> []newCore []H1 H2; rewrite/halted.
+case Hht: (halted0 _)=>//.
 by move: Hht; rewrite/halted0; apply corestep_not_halted in H1; rewrite /= H1.
 Qed.
 
