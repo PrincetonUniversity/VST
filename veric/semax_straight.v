@@ -1261,6 +1261,104 @@ Qed.
 
 Require Import veric.expr_rel.
 
+Lemma semax_set_forward_nl:
+forall (Delta: tycontext) (P: assert) id e v t,
+    typeof_temp Delta id = Some t ->
+    (forall rho, P rho |-- rel_expr e v rho) ->
+    tc_val t v ->
+    semax Espec Delta 
+        (fun rho => |> (P rho)) 
+          (Sset id e) 
+        (normal_ret_assert 
+          (fun rho => (EX old:val, !! (v = eval_id id rho) && subst id old P rho))).
+Proof.
+intros until 1; pose proof I. intros H2 H1.
+apply semax_pre with (fun rho => (fun _ => TT) rho && |> P rho).
+intros; normalize.
+apply semax_straight_simple; auto. 
+intros jm jm' Delta' ge vx tx rho k F TS _ TC' Hcl Hge ? ?.
+apply (typeof_temp_sub _ _ TS) in H.
+clear Delta TS.
+exists jm', (PTree.set id v (tx)).
+econstructor.
+split.
+reflexivity.
+split3; auto.
+apply age_level; auto.
+normalize in H0.
+clear - TC' Hge H H1.
+simpl in *. simpl. rewrite <- map_ptree_rel.
+apply guard_environ_put_te'; auto. subst; simpl in *.
+unfold construct_rho in *; auto.
+intros. simpl in *. unfold typecheck_temp_id in *.
+unfold typeof_temp in H. rewrite H0 in H. destruct t0. simpl. inv H.
+rewrite tc_val_eq in H1. auto.
+split; auto.
+simpl.
+split3; auto.
+destruct (age1_juicy_mem_unpack _ _ H3).
+rewrite <- H6.
+econstructor; eauto.
+destruct H4 as [H4 _].
+apply later_sepcon2 in H4.
+specialize (H4 _ (age_laterR H5)).
+destruct H4 as [w1 [w2 [? [_ ?]]]].
+specialize (H2 _ _ H7). rewrite H6.
+pose proof (boxy_e _ _ (rel_expr_extend e v rho) w2 (m_phi jm')).
+eapply rel_expr_relate; [eassumption | apply H8; auto].
+exists w1; auto.
+apply age1_resource_decay; auto.
+apply age_level; auto.
+
+split.
+2: eapply pred_hereditary; try apply H4; destruct (age1_juicy_mem_unpack _ _ H3); auto.
+
+assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
+rewrite later_sepcon. eapply sepcon_derives; try apply H4; auto.
+assert (laterR (m_phi jm) (m_phi jm')).
+constructor 1.
+destruct (age1_juicy_mem_unpack _ _ H3); auto.
+specialize (H5 _ H6).
+eapply sepcon_derives; try  apply H5; auto.
+clear - Hcl Hge.
+rewrite <- map_ptree_rel. 
+specialize (Hcl rho (Map.set id v (make_tenv tx))).
+rewrite <- Hcl; auto.
+intros.
+destruct (eq_dec id i).
+subst.
+left. unfold modifiedvars. simpl.
+ unfold insert_idset; rewrite PTree.gss; hnf; auto.
+right.
+rewrite Map.gso; auto. subst; auto.
+apply exp_right with (eval_id id rho).
+rewrite <- map_ptree_rel.
+assert (env_set
+         (mkEnviron (ge_of rho) (ve_of rho)
+            (Map.set id v (make_tenv tx))) id (eval_id id rho) = rho).
+  unfold env_set; 
+  f_equal.
+  unfold eval_id; simpl.
+  rewrite Map.override.
+  rewrite Map.override_same. subst; auto.
+  rewrite Hge in TC'. 
+  destruct TC' as [TC' _].    
+  destruct TC' as [TC' _]. unfold typecheck_temp_environ in *.
+  rewrite Hge. simpl.
+  unfold typeof_temp in H.
+  destruct ((temp_types Delta') ! id) eqn:?; inv H. destruct p. inv H8.
+    specialize (TC' _ _ _ Heqo). destruct TC' as [? [? ?]].
+   simpl in H. rewrite H. reflexivity.
+apply andp_right.
+intros ? _. simpl.
+unfold subst.
+unfold eval_id at 1. unfold force_val; simpl.
+rewrite Map.gss. auto.
+unfold subst. rewrite H7.
+auto.
+Qed.
+
+
 Lemma semax_loadstore:
  forall v0 v1 v2 (Delta: tycontext) e1 e2 sh P P', 
    writable_share sh ->

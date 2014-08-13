@@ -1552,14 +1552,16 @@ try apply Int.eq_true;
 try solve [apply int_eq_e; auto].
 Qed.
 
+
 Lemma neutral_isCastResultType:
-  forall t v rho, is_neutral_cast t t = true ->
-    denote_tc_assert (isCastResultType t t t v) rho.
+  forall t t' v rho,
+   is_neutral_cast t' t = true ->
+   denote_tc_assert (isCastResultType t' t t v) rho.
 Proof.
 intros.
   unfold isCastResultType;
-  destruct t; inv H; try apply I.
-* destruct i; inv H1; simpl. if_tac; apply I.
+  destruct t',t; inv H; try apply I.
+* destruct i,i0; inv H1; simpl; try apply I; if_tac; apply I.
 * simpl. if_tac; apply I.
 Qed.
 

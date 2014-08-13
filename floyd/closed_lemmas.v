@@ -1120,6 +1120,38 @@ hnf; intros. reflexivity.
 Qed.
 Hint Resolve closed_wrt_PROPx closed_wrtl_PROPx: closed.
 
+
+Lemma closed_wrt_LOCALx:
+ forall S Q R, Forall (closed_wrt_vars S) Q -> 
+                    closed_wrt_vars S R -> 
+                    closed_wrt_vars S (LOCALx Q R).
+Proof.
+intros.
+apply closed_wrt_andp; auto.
+clear - H.
+induction Q; simpl; intros.
+auto with closed.
+normalize.
+inv H.
+apply closed_wrt_andp; auto with closed.
+Qed.
+
+
+Lemma closed_wrtl_LOCALx:
+ forall S Q R, Forall (closed_wrt_lvars S) Q -> 
+                    closed_wrt_lvars S R -> 
+                    closed_wrt_lvars S (LOCALx Q R).
+Proof.
+intros.
+apply closed_wrtl_andp; auto.
+clear - H.
+induction Q; simpl; intros.
+auto with closed.
+normalize.
+inv H.
+apply closed_wrtl_andp; auto with closed.
+Qed.
+(*
 Lemma closed_wrt_LOCALx:
  forall S Q R, Forall (fun q => closed_wrt_vars S (local q)) Q -> 
                     closed_wrt_vars S R -> 
@@ -1134,20 +1166,8 @@ normalize.
 inv H.
 apply closed_wrt_andp; auto with closed.
 Qed.
-Lemma closed_wrtl_LOCALx:
- forall S Q R, Forall (fun q => closed_wrt_lvars S (local q)) Q -> 
-                    closed_wrt_lvars S R -> 
-                    closed_wrt_lvars S (LOCALx Q R).
-Proof.
-intros.
-apply closed_wrtl_andp; auto.
-clear - H.
-induction Q; simpl; intros.
-auto with closed.
-normalize.
-inv H.
-apply closed_wrtl_andp; auto with closed.
-Qed.
+*)
+
 Hint Resolve closed_wrt_LOCALx closed_wrtl_LOCALx: closed.
 
 Lemma closed_wrt_SEPx: forall S P, 

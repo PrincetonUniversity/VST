@@ -852,6 +852,16 @@ Axiom semax_store:
           (normal_ret_assert 
                (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) * P)).
 
+Axiom semax_set_forward_nl:
+  forall {Espec: OracleKind},
+forall (Delta: tycontext) P id e v t,
+    typeof_temp Delta id = Some t ->
+    P |-- rel_expr e v ->
+    tc_val t v ->
+    @semax Espec Delta 
+        ( |> P ) (Sset id e) 
+        (normal_ret_assert (EX old:val, local (`(eq v) (eval_id id)) && subst id `old P)).
+
 Axiom semax_loadstore:
   forall {Espec: OracleKind},
  forall v0 v1 v2 (Delta: tycontext) e1 e2 sh P P', 

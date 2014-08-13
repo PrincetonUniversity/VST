@@ -819,6 +819,18 @@ apply H.
 omega.
 Qed.
 
+Lemma array_at_ext':
+  forall t sh f g lo hi p,
+   (forall i, lo <= i < hi -> f i = g i) ->
+   array_at t sh f lo hi p |-- array_at t sh g lo hi p.
+Proof.
+ intros.
+ apply derives_refl';  apply equal_f;  apply array_at_ext; auto.
+Qed.
+
+Hint Extern 2 (array_at _ _ _ _ _ _ |-- array_at _ _ _ _ _ _) =>
+  (apply array_at_ext'; intros; solve [normalize]) : cancel.
+
 Lemma upd_Znth_next:
  forall t jl i v,
   Zlength jl = i ->

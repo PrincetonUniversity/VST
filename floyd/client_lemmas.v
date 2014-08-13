@@ -1731,6 +1731,11 @@ eapply semax_pre_simple; try apply H0.
  rewrite insert_local. auto.
 Qed.
 
+Ltac hoist_later_in_pre :=
+     match goal with |- semax _ ?P _ _ =>
+       let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]
+     end.
+
 Ltac find_in_list A L :=
  match L with 
   | A :: _ => constr:(O)

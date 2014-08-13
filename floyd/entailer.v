@@ -103,46 +103,12 @@ Inductive computable: forall {A}(x: A), Prop :=
 Hint Constructors computable : computable. 
 Hint Extern 1 (computable ?A) => (unfold A) : computable.
 
-(*
-Hint Extern 5 (@computable _ _) => 
-   match goal with d := ?x |- computable (?d) => 
-         unfold d; auto 50 with computable 
-    end : computable.
-*)
-
 Ltac computable := match goal with |- ?x =>
  no_evars x;
  let H := fresh in assert (H: computable x) by auto 80 with computable; 
  clear H;
  compute; clear; auto; congruence
 end.
-
-(*
-Lemma and_solvable_left:
- forall P Q : Prop,   P -> (P /\ Q) = Q.
-Proof. intros. apply prop_ext; intuition. Qed.
-
-Ltac and_solvable_left_aux1 :=
-  match goal with |- _ /\ _ => fail 1 | |- _ => solve [auto] end.
-
-Lemma and_solvable_right:
- forall Q P : Prop,   Q -> (P /\ Q) = P.
-Proof. intros. apply prop_ext; intuition. Qed.
-
-Ltac and_solvable_left P :=
- match P with
-  | ?P1 /\ ?P2 => try (no_evars P1; try rewrite (and_solvable_left P1) by (computable || auto));
-                           and_solvable_left P2
-  | _ => match P with
-             | _ /\ _ => fail 1 
-             | _ => first [ no_evars P; rewrite (and_solvable_right P) by (computable || auto)
-                                | rewrite (prop_true_andp' P) by (computable || auto)
-                                | apply (prop_right P); solve [(computable || auto)]
-                                | idtac
-                                ]
-             end
-  end.
-*)
 
 Lemma prop_and_same_derives {A}{NA: NatDed A}:
   forall P Q, Q |-- !! P   ->   Q |-- !!P && Q.

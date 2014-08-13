@@ -95,6 +95,7 @@ Definition semax_ifthenelse := @semax_ifthenelse.
 Definition semax_return := @semax_return.
 Definition semax_store := @semax_store.
 Definition semax_load := @semax_load.
+Definition semax_set_forward_nl := @semax_set_forward_nl.
 Definition semax_loadstore := @semax_loadstore.
 Definition semax_cast_load := @semax_cast_load.
 Definition semax_skip := @semax_skip.
