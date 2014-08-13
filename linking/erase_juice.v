@@ -11,6 +11,19 @@ Require Import core_semantics_tcs.
 Require Import linking. 
 Require Import wholeprog_simulations. Import Wholeprog_sim.
 
+(* This file proves that the machine                                      *)
+(*                                                                        *)
+(*   J1 >< J2 >< ... >< Jn                                                *)
+(*                                                                        *)
+(* is simulated by                                                        *)
+(*                                                                        *)
+(*   D1 >< D2 >< ... >< Dn                                                *)
+(*                                                                        *)
+(* where the Di are module semantics operating on CompCert memories. The  *)
+(* Ji are the `juicified' module semantics that result from lifting the   *)
+(* Di to operate on juicy memories. The lifting itself is done using      *)
+(* `jstep' and `juicy_core_sem', as defined in veric/juicy_extspec.       *)
+
 Section erasure.
 
 Variable N : pos.
@@ -18,6 +31,8 @@ Variable N : pos.
 Variable plt : ident -> option 'I_N.
 
 Variable sems_T : 'I_N -> Modsem.t mem.
+
+(* The lifting to juicy memories:                                         *)
 
 Definition sems_S (ix : 'I_N) :=
   match sems_T ix with
@@ -31,6 +46,9 @@ Notation target := (LinkerSem.coresem N sems_T plt).
 
 Lemma C_types_eq ix : Modsem.C (sems_S ix) = Modsem.C (sems_T ix).
 Proof. by rewrite /sems_S; case: (sems_T ix). Defined.
+
+(* Beginning here is the definition of the match relation between         *)
+(* runtime states of the (juicy and dry) machines.                        *)
 
 Require Import cast.
 
@@ -358,6 +376,8 @@ rewrite <-Heq; clear Heq=> /=.
 by case: (sems_T (Core.i (peekCore s1))).
 by apply: match_stacks_rec_pop.
 Qed.
+
+(* The simulation proof proper:                                           *)
 
 Lemma Juicy_linked_erasure ge main : 
   Wholeprog_sim source target ge ge main eq
