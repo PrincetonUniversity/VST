@@ -111,8 +111,8 @@ LINKING_FILES= \
   reach_lemmas.v \
   linking.v \
   compcert_linking.v \
+  compcert_linking_lemmas.v \
   core_semantics_tcs.v \
-  linking_lemmas.v \
   linking_inv.v \
   call_lemmas.v \
   ret_lemmas.v \

@@ -1,5 +1,5 @@
 Require Import Coqlib.
-Require Import sepcomp.Coqlib2.
+Require Import msl.Coqlib2.
 
 (* deliberately imported here *)
 Require Import Coq.Wellfounded.Inclusion.

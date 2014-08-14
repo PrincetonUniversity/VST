@@ -1,4 +1,4 @@
-Require Import Axioms.
+Require Import msl.Axioms.
 
 Require Import effect_semantics.
 

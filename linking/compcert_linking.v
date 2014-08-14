@@ -712,6 +712,13 @@ move: Hht; rewrite/halted0; apply corestep_not_halted in H1.
 by move: H1=> /= ->. 
 Qed.
 
+Lemma corestep_not_halted0' m c m' c' : corestep0 c m c' m' -> halted0 c = None.
+Proof.
+move=> []newCore []H1 H2; rewrite/halted.
+case Hht: (halted0 _)=>//.
+by move: Hht; rewrite/halted0; apply corestep_not_halted in H1; rewrite /= H1.
+Qed.
+
 Lemma corestep_not_at_external (ge : ge_ty) m c m' c' : 
   corestep c m c' m' -> at_external c = None.
 Proof.
