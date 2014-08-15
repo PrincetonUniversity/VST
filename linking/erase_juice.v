@@ -409,8 +409,9 @@ exists (Build_SM_Injection xpred0 xpred0 xpred0 xpred0 (fun _ => None)
                            xpred0 xpred0 xpred0 xpred0 j).
 exists tt; case: c1 init=> fn_tbl stk. 
 rewrite /= /linking.LinkerSem.initial_core /LinkerSem.initial_core.
-case: main=> // b i. 
+case: main=> // bf i. 
 case Hint: (Integers.Int.eq i Integers.Int.zero)=> //.
+case Hfind: (Genv.invert_symbol _ _)=> // [id].
 case Hplt: (plt _)=> [ix|//].
 case Hinit: (linking.initCore _ _ _ _)=> [c|//]; case=> eq1 eq2; subst.
 move: Hinit; rewrite /linking.initCore /initCore. 

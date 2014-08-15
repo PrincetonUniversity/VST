@@ -366,14 +366,15 @@ End handle_lems.
 
 Definition main_sig := mksignature nil (Some Tint) cc_default.
 
-Definition initial_core (tt: ge_ty) (v: val) (args: list val)
+Definition initial_core (ge: ge_ty) (v: val) (args: list val)
   : option (linker N my_cores) :=
-  if v is Vptr id ofs then 
+  if v is Vptr bf ofs then 
   if Int.eq ofs Int.zero then
+  if Genv.invert_symbol ge bf is Some id then
   if my_fn_tbl id is Some ix then
-  if initCore my_cores main_sig ix (Vptr id Int.zero) args is Some c 
+  if initCore my_cores main_sig ix (Vptr bf Int.zero) args is Some c 
   then Some (mkLinker my_fn_tbl (CallStack.singl c))
-  else None else None else None else None.
+  else None else None else None else None else None.
 
 (* Functions suffixed w/ 0 always operate on the running core on the (top *)
 (* of the) call stack.                                                    *)
