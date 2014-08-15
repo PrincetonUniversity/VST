@@ -1,7 +1,8 @@
+#define N 3
 
-void add (int n, double x[], double y[], double z[]) {
+void add (double x[], double y[], double z[]) {
   int i;
-  for (i=0; i<n; i++)
+  for (i=0; i<N; i++)
       x[i] = y[i] + z[i];
   return;
 }
