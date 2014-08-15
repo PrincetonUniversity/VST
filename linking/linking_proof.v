@@ -158,9 +158,10 @@ eapply Build_Wholeprog_sim
   move: init1. 
   rewrite /= /LinkerSem.initial_core.
   case e: main=> [//|//|//|//|b ofs].
-  case f: (fun_tbl b)=> [ix|//].
-  case g: (initCore _ _ _ _)=> [x|//].
   case h: (Integers.Int.eq _ _)=> //.
+  case i: (Genv.invert_symbol _ _)=> // [id].
+  case f: (fun_tbl id)=> [ix|//].
+  case g: (initCore _ _ _ _)=> [x|//].
   case.
   move=> <-.
   case: x g=> ix1 c0 init1.
@@ -328,9 +329,7 @@ eapply Build_Wholeprog_sim
 
   by apply: (Nuke_sem.wmd_initial _ vval vgenv_ix wd init2).
   by move=> ix'; move: vgenv; apply: valid_genvs_domain_eq.
-  by apply: ord_dec. 
-  by case: (Integers.Int.eq _ _).
-  by case: (Integers.Int.eq _ _). }(*END [Case: core_initial]*)
+  by apply: ord_dec. }(*END [Case: core_initial]*)
     
 {(*[Case: diagram]*)
 move=> st1 m1 st1' m1' STEP data st2 mu m2 INV. 
