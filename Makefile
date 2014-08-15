@@ -119,7 +119,9 @@ LINKING_FILES= \
   linking_spec.v \
   linking_proof.v \
   stacking.v \
-  context_equiv.v 
+  context_equiv.v \
+  erase_juice.v \
+  safety.v
 
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\

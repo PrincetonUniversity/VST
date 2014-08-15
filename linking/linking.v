@@ -432,7 +432,7 @@ Definition at_external (l: linker N my_cores) :=
   if at_external0 l is Some (ef, dep_sig, args) 
     then if fun_id ef is Some id then
          if fn_tbl l id is None then Some (ef, dep_sig, args) else None
-         else None
+         else Some (ef, dep_sig, args)
   else at_external0 l.
 
 Definition after_external (mv: option val) (l: linker N my_cores) :=
