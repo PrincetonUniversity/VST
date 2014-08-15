@@ -2,6 +2,8 @@ Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 Unset Strict Implicit.
 
+Require Import JMeq.
+
 Require Import msl.Coqlib2.
 
 Require Import Integers.
@@ -263,29 +265,21 @@ have Hsg': sig_args sig' = sig_args (ef_sig ef').
 rewrite Hsg' in Hpre.
 move: (@entry_points_safe ef' fid idx bf args' z m Hfid Hidx Hfind).
 case/(_ Hx' Hpre)=> c0 []Hinit Hsafe Hpost'.
-set c := (Core.mk _ _ _ c0 (ef_sig ef')).
-set l' := pushCore l c Hall. 
-exists l', m; split=> //. 
-right; split=> //; split.
+set c := (Core.mk _ _ _ c0 (ef_sig ef')); set l' := pushCore l c Hall. 
+exists l', m; split=> //. right; split=> //; split.
 { (* no corestep *)
   move=> Hstep; move: (LinkerSem.corestep_not_at_external0 Hstep).
   by rewrite /LinkerSem.at_external0 Hat. 
 }
-rewrite /LinkerSem.at_external0 Hat.
-rewrite Hfid.
-have [l'' [Hleq Hhdl]]: 
-  exists l'', 
-  [/\ l'=l''
-    & LinkerSem.handle (ef_sig ef') fid l args' = Some l''].
-{ exists l'. 
-  rewrite LinkerSem.handleP; split=> //.
-  exists Hall, idx, bf, c; split=> //.
-  by rewrite /initCore Hinit /c. }
+rewrite /LinkerSem.at_external0 Hat Hfid.
+have [l'' [Hleq Hhdl]]: exists l'', 
+  [/\ l'=l'' & LinkerSem.handle (ef_sig ef') fid l args' = Some l''].
+{ exists l'; rewrite LinkerSem.handleP; split=> //.
+  by exists Hall, idx, bf, c; split=> //; rewrite /initCore Hinit /c. }
 by rewrite Hhdl.
 
 { (* all_safe *)
-exists [:: ef', ef & efs']; split=> //. 
-exists Hx'; split=> //; split=> //.
+exists [:: ef', ef & efs']; split=> //; exists Hx'; split=> //; split=> //.
 exists sig', args', z, m, Hx; split=> //; first by rewrite Hsg'.
 by apply: tail_safe_downward1.
 }
@@ -298,8 +292,7 @@ case=> Hsg Hexit; case: l1 Hwf Htl.
 
 + (* l1 = [::] *) 
 move=> Hwf; case: efs' LFM=> // LFM _; apply: Or32; exists rv.
-rewrite /LinkerSem.halted /inContext /=.
-rewrite /LinkerSem.halted0 /peekCore /= Hhlt.
+rewrite /LinkerSem.halted /inContext /= /LinkerSem.halted0 /peekCore /= Hhlt.
 have Hty: val_casted.val_has_type_func rv (proj_sig_res (ef_sig ef))
   by apply: rets_welltyped.
 by rewrite Hsg Hty.
@@ -314,8 +307,7 @@ have Hwf': wf_callStack [:: a2 & l2].
   by case/andP=> ? ? ?; apply/andP; split. }
 set l' := {| Linker.fn_tbl := plt
            ; Linker.stack := CallStack.mk [:: a2 & l2] Hwf' |}.
-exists (updCore l' (Core.upd a2 c')), m; split=> //.
-right; split=> //.
+exists (updCore l' (Core.upd a2 c')), m; split=> //. right; split=> //.
 have Hty: val_casted.val_has_type_func rv (proj_sig_res (ef_sig ef)) 
   by eapply rets_welltyped; eauto.
 split.
@@ -323,27 +315,18 @@ split.
   move=> Hstep; move: (LinkerSem.corestep_not_halted0' Hstep).
   by rewrite /LinkerSem.halted0 /= Hhlt Hsg Hty.
 }
-rewrite /LinkerSem.at_external0 /peekCore /= Hat.
-rewrite /inContext /=.
-rewrite /LinkerSem.halted0 /peekCore /= Hhlt.
-rewrite Hsg Hty.
-rewrite /LinkerSem.after_external /peekCore /= Haft0.
-f_equal.
-f_equal.
-apply: proof_irr.
+rewrite /LinkerSem.at_external0 /peekCore /= Hat /inContext /=.
+rewrite /LinkerSem.halted0 /peekCore /= Hhlt Hsg Hty.
+rewrite /LinkerSem.after_external /peekCore /= Haft0. 
+by f_equal; f_equal; apply: proof_irr.
 
 { (* all_safe *)
 exists [:: ef' & efs'']; split=> //; exists x0; split.
 
 + (* head_safe *)
-split=> //.
-clear -Hsafe.
-move: Hsafe.
-case: a2 c'=> i c sg c'.
-rewrite /Core.upd /Core.i /Core.c.
-by apply: safe_downward1.
-rewrite -/tail_safe in Htl; rewrite /=.
-by apply: tail_safe_downward1.
+split=> //; clear -Hsafe; move: Hsafe; case: a2 c'=> i c sg c'.
+by rewrite /Core.upd /Core.i /Core.c; apply: safe_downward1.
+by rewrite -/tail_safe in Htl; apply: tail_safe_downward1.
 }
 }
 
@@ -386,17 +369,13 @@ exists l; split=> //.
 
 have [fn_tbl_plt init_all_safe]: 
   [/\ Linker.fn_tbl l = plt & all_safe n z l m].
-{ case: l Hinit=> fn_tbl; case.
-  case=> // a1 l1 Hwf Hinit.
+{ case: l Hinit=> fn_tbl; case; case=> // a1 l1 Hwf Hinit.
   case: (entry_points_safe Hfid Hplt Hfind Hpre)=> c []Hinit' Hsafe.  
-  move: Hinit=> /=.
-  case Heq: (Int.eq _ _)=> //.
+  move: Hinit=> /=; case Heq: (Int.eq _ _)=> //.
   rewrite Hinv Hplt /initCore.
-  case Hinit: (initial_core _ _ _ _)=> // [c']; case=> Heq' <- Hl1.
-  split=> //.
-  exists [:: main_ef]; split=> //. 
-  exists x; split=> //.
-  rewrite Hinit in Hinit'; case: Hinit'=> ->; split=> //=.
+  case Hinit: (initial_core _ _ _ _)=> // [c']; case=> Heq' <- Hl1; split=> //.
+  exists [:: main_ef]; split=> //; exists x; split=> //.
+  rewrite Hinit in Hinit'; case: Hinit'=> ->; split=> //. 
   by rewrite -Hl1.
 }
 
@@ -408,17 +387,15 @@ case: (all_safe_inv fn_tbl all_safe).
 case=> l' []m' []Hplt Hstep Hall_safe /=.
 rewrite (LinkerSem.corestep_not_at_external ge Hstep).
 rewrite (LinkerSem.corestep_not_halted ge Hstep).
-exists l', m'; split=> //.
-by apply: (IH z m' l' Hplt Hall_safe).
+by exists l', m'; split=> //; apply: (IH z m' l' Hplt Hall_safe).
 }
 
 { (* halted *)
-case=> rv Hhlt /=.
+case=> rv Hhlt /=. 
 have ->: LinkerSem.at_external l = None.
 { case: (LinkerSem.at_external_halted_excl l)=> //.
   by move: Hhlt=> /= ->. }
-move: (Hhlt)=> /= ->.
-move: Hhlt; rewrite /= /LinkerSem.halted.
+move: (Hhlt)=> /= ->; move: Hhlt; rewrite /= /LinkerSem.halted.
 case Hctx: (~~ inContext l)=> //.
 case Hhlt: (LinkerSem.halted0 l)=> // [rv']; case=> <-.
 move: Hhlt; rewrite /LinkerSem.halted0.
@@ -426,43 +403,27 @@ case Hhlt: (halted _ _)=> // [rv''].
 case: (val_casted.val_has_type_func _ _)=> //; case=> <-.
 move: all_safe; rewrite /all_safe=> [][]; case.
 case=> _; move {fn_tbl}; case: l Hhlt Hctx=> ?; case; case=> //.
-move=> ef efs'; move {fn_tbl}. 
-case: l Hhlt Hctx=> ?; case. 
+move=> ef efs'; move {fn_tbl}; case: l Hhlt Hctx=> ?; case. 
 case=> // a1 l1 /= Hwf Hhlt Hctx []LFM []x' []Hhd Htl.
 case: Hhd=> _ /=; rewrite Hhlt.
 case: (at_external_halted_excl (Modsem.sem (sems (Core.i a1))) (Core.c a1)).
-move=> -> //.
-move: LFM.
+move=> -> //; move: LFM.
 have ->: efs' = [::].
-{ clear -Htl Hctx; move: Htl Hctx.
-  rewrite /inContext /=.
-  case: efs'=> // ef' efs'.
-  case: l1 Hwf=> //. }
-move=> Heq.
-clear -Heq Hunit.
-move: x x'.
-rewrite Heq.
-move {ef Heq}.
-move=> x x'.
-Require Import JMeq.
+{ clear -Htl Hctx; move: Htl Hctx; rewrite /inContext /=.
+  by case: efs'=> // ef' efs'; case: l1 Hwf=> //. }
+move=> Heq; clear -Heq Hunit; move: x x'; rewrite Heq; move {ef Heq}=> x x'.
 have Eqxx': JMeq x x'.
 { by clear -Hunit; move: x x'; rewrite Hunit; case; case. }
-by move: (JMeq_eq Eqxx')=> -> /=.
-by rewrite Hhlt; case.
+by move: (JMeq_eq Eqxx')=> ->.
+by rewrite Hhlt; discriminate.
 }
 
 { (* at_external *)
-case=> ef []sig []args []Hat []x' []Hpre Hpost /=.
-rewrite Hat.
-case: (LinkerSem.at_external_halted_excl l).
-by rewrite Hat.
-move=> ->.
-exists x'.
-split=> //.
-move=> ret m' z' Hpost'.
-case: (Hpost ret m' z' Hpost')=> l' []Hplt Haft Hall.
-exists l'.
-split=> //.
+case=> ef []sig []args []Hat []x' []Hpre Hpost /=; rewrite Hat.
+case: (LinkerSem.at_external_halted_excl l); first rewrite Hat. 
+discriminate. 
+move=> ->; exists x'; split=> // ret m' z' Hpost'.
+case: (Hpost ret m' z' Hpost')=> l' []Hplt Haft Hall; exists l'; split=> //.
 by apply: (IH _ _ _ Hplt Hall).
 }
 Qed.
