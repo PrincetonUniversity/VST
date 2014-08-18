@@ -1,0 +1,183 @@
+\usepackage[bookmarksopen,
+            pagebackref=true,
+            colorlinks,
+            urlcolor=darkblue,
+            linkcolor=darkblue,
+            citecolor=darkblue,
+            pdfauthor={Andrew W. Appel},
+            pdftitle={Program Logics for Certified Compilers},
+            pdfsubject={Computer Science},
+            linktoc=all
+            ]{hyperref}
+\renewcommand{\chapterautorefname}{Chapter}
+
+% Choose a font.  Bitstream Charter is readable in small formats / low res.
+\usepackage[bitstream-charter]{mathdesign}
+% Other fonts I tried...
+%\usepackage{fouriernc}  % New Century Schoolbook is good too
+%\usepackage{lmodern}
+%\usepackage{tgschola}
+%\usepackage{fourier}
+\usepackage[T1]{fontenc}
+
+% The following stocksize and typeblock size has the following properties:
+%  1. aspect ratio 165x133 works well on Kindle
+%  2. trimmedsize does not matter for Kindle, but these tiny margins
+%     will display well in Adobe Acrobat
+%  Simple headers, no footers for good display on tablets and in Acrobat
+\setstocksize{210mm}{153mm}
+\settrimmedsize{\stockheight}{\stockwidth}{*}
+\settypeblocksize{175mm}{133mm}{*}
+\setlrmargins{*}{*}{1}
+\setulmargins{*}{*}{1}
+\setlength{\footskip}{0mm}
+\setlength{\headsep}{5mm}
+\setlength{\headheight}{7mm}
+\checkandfixthelayout
+
+% Adjust appearance of table of contents for compactness
+\setlength{\cftpartnumwidth}{3em}
+\setlength{\cftbeforepartskip}{2ex}
+\setlength{\cftbeforechapterskip}{1pt}
+
+% Very simple page headings, good on tablets/Kindle/Acrobat
+\pagestyle{myheadings}
+\makeoddhead{myheadings}{\textsc{\leftmark}}{}{\thepage}
+\makeoddhead{plain}{}{}{\thepage}
+\makeoddfoot{plain}{}{}{}
+
+% Tone down the size of chapter titles and section headings
+\renewcommand{\secheadstyle}{\large\itshape\bfseries}
+\renewcommand{\chapnamefont}{\huge\itshape}
+\renewcommand{\chaptitlefont}{\huge\itshape}
+\renewcommand{\chapnumfont}{\huge\itshape}
+\renewcommand{\partnamefont}{\huge\itshape\bfseries}
+\renewcommand{\parttitlefont}{\huge\itshape\bfseries}
+\renewcommand{\partnumfont}{\huge\itshape\bfseries}
+
+% Adjust paragraph style
+\raggedyright
+\setlength{\ragrparindent}{2em}
+\traditionalparskip
+%\setlength{\parindent}{2em}
+
+% I think this is supposed to make things more searchable in PDF files
+\input glyphtounicode
+\pdfgentounicode=1
+
+% Set bounding box for good viewing on Kindle
+\usepackage{color}
+\definecolor{almostwhite}{gray}{0.98}
+\renewcommand*{\trimmarkscolor}{\color{almostwhite}}
+\renewcommand\tmarktl{}
+\renewcommand\tmarktr{}
+\renewcommand\tmarkbl{}
+\renewcommand\tmarkbr{}
+\renewcommand\tmarktm{
+  \begin{picture}(0,0)
+   \setlength{\unitlength}{1mm}\thicklines
+    \put(0,-18){\line(10,0){10}}
+  \end{picture}}
+\renewcommand\tmarkbm{
+  \begin{picture}(0,0)
+   \setlength{\unitlength}{1mm}\thicklines
+    \put(0,6){\line(10,0){10}}
+  \end{picture}}
+\renewcommand\tmarkmr{
+  \begin{picture}(0,0)
+   \setlength{\unitlength}{1mm}\thicklines
+    \put(-10,0){\line(0,10){10}}
+  \end{picture}}
+\renewcommand\tmarkml{
+  \begin{picture}(0,0)
+   \setlength{\unitlength}{1mm}\thicklines
+    \put(9,0){\line(0,10){10}}
+  \end{picture}}
+%\showtrimson  % Maybe this line is not necessary?
+
+\bibliographystyle{plain}
+
+
+\newcommand\newthought[1]{%
+   \addvspace{1.0\baselineskip plus 0.5ex minus 0.2ex}%
+   \noindent\textsc{#1}%
+}
+
+\usepackage[pdftex]{pict2e}
+\usepackage[nocenter]{qtree}
+\usepackage[fleqn]{amsmath}
+%\usepackage{amssymb}  % DON'T NEED THIS WITH  \usepackage[...]{mathdesign}
+\usepackage{mathpartir}
+\usepackage{semantic}
+\usepackage{stmaryrd}
+\usepackage{bussproofs}
+\usepackage{overlay}
+\usepackage{caption}
+\usepackage{stackrel}
+\usepackage{mathtools}
+%\usepackage{txfonts} % just for \boxdotright
+\usepackage[normalem]{ulem}
+
+\definecolor{darkblue}{rgb}{0,0.08,0.71}
+\definecolor{darkred}{rgb}{0.5,0,0}
+
+
+%\usepackage{microtype}
+
+\usepackage{listings}
+\usepackage{lstlangcoq}
+\renewcommand{\lstlistingname}{Figure}
+\lstset{language=Coq,basicstyle=\sffamily,mathescape=true,columns=fullflexible}
+
+\usepackage{booktabs}  % For nicely typeset tabular material
+
+\usepackage[pdftex]{graphicx}
+\graphicspath{{graphics/}}
+%%
+% Prints a trailing space in a smart way.
+\usepackage{xspace}
+
+% Prints the month name (e.g., January) and the year (e.g., 2008)
+\newcommand{\monthyear}{%
+  \ifcase\month\or January\or February\or March\or April\or May\or June\or
+  July\or August\or September\or October\or November\or
+  December\fi\space\number\year
+}
+
+
+\usepackage{units}
+
+% Typesets the font size, leading, and measure in the form of 10/12x26 pc.
+
+\usepackage{makeidx}
+\setsecnumdepth{chapter}
+\setcounter{tocdepth}{0}
+
+
+
+% Disclaimer for cover page (only for draft mode)
+
+\newcommand\chapterfilemark{}
+\newcommand\coverdisclaimer{}
+
+\iffalse % cover page for prepublication draft
+% latex-file-name marking at top right (only for draft mode)
+\renewcommand{\chapterfilemark}{{\textcolor{red}\thefile}\hspace*{2em}}
+\renewcommand\coverdisclaimer{
+\parbox{2in}{\normalsize\textcolor{darkred}{
+PREPUBLICATION DRAFT.\\
+\today\\
+DO NOT REDISTRIBUTE \\
+without permission \\ from the author.}}}
+\fi
+\iffalse % cover page for sample chapter
+\renewcommand{\chapterfilemark}{}
+\renewcommand\coverdisclaimer{
+\parbox{2in}{\normalsize\textcolor{darkred}{
+TABLE OF CONTENTS \\
+and SAMPLE CHAPTER\\
+of prepublication \\
+manuscript\\
+\today \\
+~\\}}}
+\fi

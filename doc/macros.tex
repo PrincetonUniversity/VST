@@ -1,0 +1,180 @@
+% A few hacks for showing index entries in draft mode
+%\setmarginnotes{20pt}{50pt}{10pt}
+%\let\OldIndex\index
+%\renewcommand{\index}[1]{{\textcolor{darkred}#1}\OldIndex{xx#1}}
+% end of ``A few hacks''
+
+\newcommand*{\xchapter}[1]{\refstepcounter{chapter}
+  \ \newline
+    {\rmfamily\itshape\Large\thechapter\hspace{1em} #1 }
+  \newline
+  \addcontentsline{toc}{chapter}{\protect\numberline{\thechapter}#1}}
+
+\newcommand*{\xpart}[1]{\refstepcounter{part}
+  \par\vspace*{20pt}
+  \noindent
+    {\rmfamily\itshape\huge PART~\thepart\hspace{1em} #1 }
+  \newline
+  \addcontentsline{toc}{part}{\protect\numberline{\thepart}#1}}
+
+\newsavebox{\mybox}
+
+\newcommand\thefile{}
+\newcommand\includex[1]{\renewcommand\thefile{\small\textsf{#1}}\include{#1}}
+
+\renewcommand{\_}{\texttt{\textunderscore}}
+
+\newcommand{\measure}[3]{#1/#2$\times$\unit[#3]{pc}}
+
+\newcommand{\hairsp}{\hspace{1pt}}% hair space
+\newcommand{\ie}{\mbox{\textit{i.\hairsp{}e.}}\xspace}
+\newcommand{\eg}{\mbox{\textit{e.\hairsp{}g.}}\xspace}
+\newcommand{\opcit}{\emph{op. cit.}}
+
+\newcommand{\emp}{\mathsf{emp}}
+\newcommand{\subtype}{\hspace{1pt}\includegraphics[width=1em]{Tailrightarrow.pdf}\,}
+\newcommand\rtarrow{\hspace{-.4ex}\rightarrow\hspace{-.5ex}}
+
+\DeclareRobustCommand\longrightarrow
+     {\relbar\mathrel{\mkern-4mu}\rightarrow}
+
+\DeclareRobustCommand
+  \longmapsto{\mapstochar\longrightarrow}
+
+
+\renewcommand{\mapsto}{\,\includegraphics[width=.9em, trim=0 0 0 3]{mapsto.pdf}\,}
+\newcommand{\lbul}{\includegraphics[width=.44em, trim=0 0 0 3]{lbul.pdf}\,}
+\newcommand{\rbul}{\includegraphics[width=.44em, trim=0 0 0 3]{rbul.pdf}\,}
+
+\newcommand{\triple}[3]{\{#1\}\,#2\,\{#3\}}
+\mathlig{|->}{\mapsto}
+\newcommand{\later}{\triangleright}
+%\newcommand{\wand}{\mathrel{\relbar\joinrel\!\!\relbar\!\!\!\ast\,}}
+\newcommand{\wand}{\mathrel{-\hspace{-.7ex}*}}
+\newcommand{\ewand}{\mathrel{-\hspace{-.42ex}\circ}}
+%\newcommand{\ewand}{\multimap}
+\newcommand{\TT}{\ensuremath{\mathbf{\top}}}
+\newcommand{\FF}{\ensuremath{\mathbf{\bot}}}
+\renewcommand{\models}{\mathrel{|}\hspace{-.1ex}\joinrel\Relbar}
+%\newcommand\guards{\raisebox{-.3ex}{\makebox[0pt][l]{$\sqcup$}}\raisebox{.2ex}{$\sqcap$}}
+\newcommand\guards[2]{\{#1\}\hairsp #2}
+\newcommand\semaxfunc[3]{#1\vdash_\mathrm{func} #2:#3}
+\newcommand\pair[2]{\left<#1,#2\right>}
+\newcommand{\boxdotright}{\!\mathrel\boxdot\joinrel\rightarrow\!}
+\newcommand{\islock}{\boxdotright}
+\newcommand{\islocksh}[1]{\stackrel{#1}\boxdotright}
+\newcommand{\nxt}[2]{\mathsf{next}\,#1\,#2}
+\newcommand{\lseg}[2]{#1\!\! \leadsto \!\!#2}
+\newcommand\EVAL[2]{[\hspace{-.25em}[ #1 ]\hspace{-.25em}]_#2}
+\newcommand{\listrep}[3]{#2 \stackrel{#1}{\leadsto} #3}
+\newcommand{\listrepsh}[4]{#3 \stackrel{#2}{\leadsto}_{#1} #4}
+\newcommand{\capar}[1]{~{\scriptsize #1:}}
+\newcommand{\typecheck}[2]{#1 \vdash_\mathrm{type} #2}
+\newcommand{\expcheck}[2]{#1 \vdash_\mathrm{exp} #2}
+
+\newcommand{\andp}{\ensuremath{\,\mathsf{\&\hspace{-.2em}\&}\,}}
+\newcommand{\orp}{\ensuremath{\,\|\,}}
+\newcommand{\imp}{\ensuremath{\longrightarrow}}
+\newcommand{\prop}{\ensuremath{!!}}
+\newcommand\fash{\ensuremath{\#}}
+\newcommand{\unfash}{!}
+
+\newcommand{\PROP}{\mbox{\small PROP}}
+\newcommand{\LOCAL}{\mbox{\small LOCAL}}
+\newcommand{\SEP}{\mbox{\small SEP}}
+
+
+\newcommand\oo{\circ}
+\newcommand\Prop{\mathsf{Prop}}
+
+\newcommand{\file}[1]{\mbox{\textsf{#1}}\index{#1@\textsf{#1}}}
+\newcommand{\idef}[1]{\mbox{\textsf{#1}}\index{#1@\textsf{#1}}}
+\newcommand{\iref}[1]{\mbox{\textsf{#1}}\index{#1@\textsf{#1}}}
+\newcommand{\indexx}[1]{#1\index{#1}}
+\newcommand{\indexy}[1]{\index{#1}}
+
+\IfFileExists{redindex.tex}{\input{redindex.tex}}{}
+
+\newcommand{\defeq}{~\mathsf{:=}~}
+\renewenvironment{prooftree}%
+{\par \vskip2ex plus.8ex minus.4ex}%
+{\DisplayProof \par  \vskip2ex plus.8ex minus.4ex }
+
+%% Set up the Qtree stuff
+\renewcommand{\qtreepadding}{2pt}
+\renewcommand{\qtreeunaryht}{0.5em}
+\newcommand{\qleafhook}{}
+
+\newcommand{\inl}{\mathrm{inl}}
+\newcommand{\inr}{\mathrm{inr}}
+\newcommand{\inj}{\mathrm{inj}}
+\newcommand{\sa}[2]{\langle #1, #2 \rangle}
+\newcommand{\powerset}{\mathcal{P}}
+\newcommand{\Lbrack}{\llbracket}
+\newcommand{\Rbrack}{\rrbracket}
+
+\newcommand{\lf}[1]{\raisebox{.5ex}[.5ex]{#1}}
+\newcommand{\lfx}[1]{\raisebox{.8ex}[.2ex]{#1}}
+\newcommand{\TinyTree}[1]
+  {\renewcommand{\qleafhook}{\small}
+   \raisebox{-.5ex}[0em][0em]{#1}
+   \renewcommand{\qleafhook}{}}
+\newcommand{\T}{\bullet}
+\newcommand{\F}{\circ}
+\newcommand{\Troot}
+  {\TinyTree{\Tree [ $\T$ ] }}
+\newcommand{\Froot}
+  {\TinyTree{\Tree [ $\F$ ] }}
+\newcommand{\splitLeft}
+  {\TinyTree{\Tree [ \lfx{$\T$} \lfx{$\F$} ] }}
+\newcommand{\splitRight}
+  {\TinyTree{\Tree [ \lfx{$\F$} \lfx{$\T$} ] }}
+
+\newcounter{save_eqn}
+
+%%
+% Prints argument within hanging parentheses (i.e., parentheses that take
+% up no horizontal space).  Useful in tabular environments.
+\newcommand{\hangp}[1]{\makebox[0pt][r]{(}#1\makebox[0pt][l]{)}}
+
+%%
+% Prints an asterisk that takes up no horizontal space.
+% Useful in tabular environments.
+\newcommand{\hangstar}{\makebox[0pt][l]{*}}
+
+\definecolor{shadecolor}{cmyk}{0.10,0.03,0,0}
+
+\hyphenation{Comp-Cert}
+\renewcommand{\partpageend}{\vspace{2\baselineskip}}
+
+\newcommand{\estimatedpages}[1]{
+\par
+ \emph{An estimated #1 pages of material goes here.}
+%\addtocounter{page}{#1}\addtocounter{page}{-1}
+}
+
+
+%%% Syntax
+\newcommand{\keyw}[1]{\mathsf{#1}}
+\newcommand{\option}[1]{\keyw{option}\;#1}
+\newcommand{\List}[1]{\keyw{list}\;#1}
+%\newcommand{\Type}{\keyw{Type}}
+%\newcommand{\Prop}{\mathbb{T}}
+\newcommand{\Some}[1]{\keyw{Some}\ #1}
+
+\newcommand{\valtype}{\mathcal{V}}
+\newcommand{\eftype}{\mathcal{F}}
+
+
+\newcommand{\Src}{\ensuremath{\mathrm{Src}}}
+\newcommand{\Mid}{\ensuremath{\mathrm{Mid}}}
+\newcommand{\Tgt}{\ensuremath{\mathrm{Tgt}}}
+\newcommand{\fwdsimEq}{\ensuremath{\cong}}
+\newcommand{\fwdsimExt}{\ensuremath{\simeq}}
+\newcommand{\fwdsimInj}[1]{\ensuremath{\approx}_{#1}}
+%\newcommand{\inject}[3]{\ensuremath{{#2} \xhookrightarrow{\ {#1}\ } {#3}}}
+\newcommand{\extend}[2]{\ensuremath{{#1} \rightarrowtail {#2}}}
+
+\newcommand\Prefix[3]{\vphantom{#3}#1#2#3}
+\newcommand{\injectseparated}[4]{\ensuremath{{#1}\ \Prefix_{{#3}}\!{\bowtie}_{{#4}} {{#2}}}}
+\newcommand{\dom}[1]{\ensuremath{\mathrm{dom}({#1})}}

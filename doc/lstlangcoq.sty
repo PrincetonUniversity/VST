@@ -1,0 +1,51 @@
+%%
+%% Coq definition (c) 2001 Guillaume Dufay 
+%%                           <Guillaume.Dufay@sophia.inria.fr>
+%% with some modifications by J. Charles (2005)
+%% and hacks by Andrew Appel (2011)
+%%
+\lstdefinelanguage{Coq}%
+  {morekeywords={Context,Variable,Inductive,CoInductive,Fixpoint,CoFixpoint,%
+      Definition,Lemma,Theorem,Axiom,Local,Save,Grammar,Syntax,Intro,%
+      Program,Next,Obligation,Notation,Infix,Global,Coercion,%
+      Trivial,Qed,Intros,Symmetry,Simpl,Rewrite,Apply,Elim,Assumption,%
+      Left,Cut,Case,Auto,Unfold,Exact,Right,Hypothesis,Pattern,Destruct,%
+      Constructor,Defined,Fix,Record,Proof,Induction,Hints,Exists,let,in,%
+      Parameter,Split,Red,Reflexivity,Transitivity,if,then,else,Opaque,%
+      Transparent,Inversion,Absurd,Generalize,Mutual,Cases,of,end,Analyze,%
+      AutoRewrite,Functional,Scheme,params,Refine,using,Discriminate,Try,%
+      Require,Load,Import,Scope,Set,Open,Section,End,match,with,Ltac, %, exists, forall
+      Declare,Instance, Class, Tactic, Abort, Hint, Goal
+	},% 
+   sensitive, %
+   morecomment=[n]{(*}{*)},%
+%   morestring=[d]",%
+   literate={=>}{{$\Rightarrow$\ }}1
+   {l_}{{l$\hspace{.2ex}$\raisebox{-.46ex}{-}}}{2}
+   {_}{\raisebox{-.46ex}{-}}1
+   {-}{{\textsf{-}}}1
+   {->}{{$\to\,$}}1
+   {-->}{{$\longrightarrow\,$}}2
+   {<->}{$\leftrightarrow$}1
+   {<-->}{$\!\longleftrightarrow\,$}1
+   {>=}{$\!\ge\,$}1
+   {>=>}{$\subtype$}1
+   {<=>}{$\Leftrightarrow\,$}2
+   {forall}{$\forall\,$}1
+   {forallb}{forallb}7
+   {exists}{$\exists\,$}1
+   {existsb}{existsb}7
+   {existsv}{existsv}7
+   {\/\\}{{$\wedge$\ }}1
+   {|-}{{$\,\vdash\,$}}2
+   {|--}{{$\,\vdash\,$}}2
+   {|>}{{\large$\triangleright\!\!$\ }}1
+%   {-*}{$\wand$}1    doesn't work, don't know why
+   {\\\/}{{$\vee$\ }}1
+   {~}{{$\sim$}}1
+   {`}{$\mbox{\textbf{\`{}}\hspace{-.2ex}}$}1
+%   {<>}{{$\not=$}}1
+   {PROP}{$\PROP$}4
+   {LOCAL}{$\LOCAL$}5
+   {SEP}{$\SEP$}3
+  }[keywords,comments,strings]%

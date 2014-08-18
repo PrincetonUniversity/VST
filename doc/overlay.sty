@@ -1,0 +1,23 @@
+
+%% overlay.sty = overlay and align two symbols, respecting changing styles
+%% see \TeX\ and TUG News vol 3 no 2 pp 10-11 for documentation
+ 
+\def\loverlay#1#2{\mathpalette\@overlay{{#1}{#2}{}{\hfil}}}
+\def\overlay#1#2{\mathpalette\@overlay{{#1}{#2}{\hfil}{\hfil}}}
+\def\roverlay#1#2{\mathpalette\@overlay{{#1}{#2}{\hfil}{}}}
+   % calls to \@overlay look like
+   %    \@overlay\textstyle{{x}{y}{\hfil}{\hfil}}
+ 
+\def\@overlay#1#2{\@@overlay#1#2}
+   % strip brackets from 2nd arg, to get
+   %    \@@overlay\textstyle{x}{y}{\hfil}{\hfil}
+
+ 
+\def\@@overlay#1#2#3#4#5{{%
+   \def\overlaystyle{#1}%
+   \setbox0=\hbox{\m@th$\overlaystyle#2$}%
+   \setbox1=\hbox{\m@th$\overlaystyle#3$}%
+   \ifdim \wd0<\wd1 \setbox2=\box1 \setbox1=\box0 \setbox0=\box2\fi
+      % \box0 is now the wider box
+   \rlap{\hbox to\wd0{#4\box1\relax#5}}\box0%
+}}
