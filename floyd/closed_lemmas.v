@@ -993,6 +993,18 @@ Proof.
 Qed.
 Hint Resolve closed_wrt_tc_Zle : closed.
 
+Lemma closed_wrt_replace_nth:
+  forall {B} S n R (R1: environ -> B),
+    closed_wrt_vars S R1 ->
+    Forall (closed_wrt_vars S) R ->
+    Forall (closed_wrt_vars S) (replace_nth n R R1).
+Proof.
+intros.
+revert R H0; induction n; destruct R; simpl; intros; auto with closed;
+inv H0; constructor; auto with closed.
+Qed.
+Hint Resolve @closed_wrt_replace_nth : closed.
+
 Lemma closed_wrt_tc_nodivover : 
  forall S e1 e2,
  closed_wrt_vars S (eval_expr e1) ->

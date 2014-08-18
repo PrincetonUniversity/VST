@@ -17,6 +17,10 @@ Import Cop.
 
 Local Open Scope logic.
 
+Ltac forward_seq := 
+  first [eapply semax_seq'; [  | abbreviate_semax ]
+         | eapply semax_post_flipped' ].
+
 Definition denote_local_ptree (P: PTree.t val) rho :=
   forall i v, PTree.get i P = Some v -> eval_id i rho = v.
 

@@ -2433,6 +2433,19 @@ Proof.
  apply pred_ext; normalize.
 Qed.
 
+Lemma nth_error_local:
+  forall n P Q R (Qn: environ -> Prop),
+    nth_error Q n = Some Qn ->
+    PROPx P (LOCALx Q (SEPx R)) |-- local Qn.
+Proof.
+intros.
+apply andp_left2. apply andp_left1.
+go_lowerx. normalize.
+revert Q H H0; induction n; destruct Q; intros; inv H.
+destruct H0; auto.
+destruct H0. apply (IHn Q); auto.
+Qed.
+
 (* Hint Rewrite move_prop_from_SEP move_local_from_SEP : norm. *)
 
 Lemma subst_make_args':

@@ -31,11 +31,22 @@ subst. contradiction H0; auto.
 Qed.
 
 Ltac instantiate_Vptr :=
-match goal with H: isptr (eval_id ?i ?rho), A: name ?i |- _ =>
-   let b := fresh "b_" A in let z := fresh "z_" A in let J := fresh "H_" A in
-   destruct (eval_id i rho) as [ | | | | b z] eqn:J; try contradiction H; clear H;
-     symmetry in J; rename J into H
-end.
+  match goal with
+  | H:isptr (eval_id ?i ?rho), A:name ?i
+    |- _ =>
+        let b := fresh "b_" A in
+        let z := fresh "z_" A in
+        let J := fresh "H_" A in
+        destruct (eval_id i rho) as [| | | | b z] eqn:J; try contradiction H;
+         clear H; symmetry in J; rename J into H
+  | H:isptr (eval_id ?i ?rho)
+    |- _ =>
+        let b := fresh "b_"  in
+        let z := fresh "z_"  in
+        let J := fresh "H_"  in
+        destruct (eval_id i rho) as [| | | | b z] eqn:J; try contradiction H;
+         clear H; symmetry in J; rename J into H
+  end.
 
 Ltac solve_nth_error :=
 match goal with |- @nth_error ?T (?A::_) ?n = Some ?B => 
