@@ -1892,9 +1892,42 @@ then leave
 $(\vec{P};\vec{Q};\vec{R}) \vdash (\vec{P};\vec{Q};\vec{R})[S'/S]$
 as a subgoal.
 \item[$\mathsf{frame\_SEP}~i~j~k.$]
-Apply the frame rule to the next command, keeping only
-elements $i,j,k$ of the \SEP{} list.
+Apply the frame rule, keeping only
+elements $i,j,k$ of the \SEP{} list.  See Chapter \ref{refcard:frame}.
 \end{description}
+
+\ychapter{The Frame rule}{}
+\label{refcard:frame}
+
+Separation Logic supports the Frame rule,
+\[\inference[Frame]{\triple{P}{c}{Q}}{\triple{P*F}{c}{Q*F}}\]
+
+To use this in a forward proof, suppose you have the
+proof goal,
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2;c_3$ $~\mathit{Post}$
+\end{lstlisting}
+and suppose you want to ``frame out'' $R_2$ for the duration of 
+$c_1;c_2$, and have it back again for $c_3$.
+First you rewrite by \lstinline{seq_assoc}
+to yield the goal
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $(c_1;c_2);c_3$ $~\mathit{Post}$
+\end{lstlisting}
+Then \lstinline{eapply semax_seq'} to peel off the 
+first command $(c_1;c_2)$ in the new sequence:
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_1;R_2)~$ $c_1;c_2$ $~\mathsf{?88}$
+
+semax $\Delta'$ $~\mathsf{?88}~$ $c_3$ $~\mathit{Post}$
+\end{lstlisting}
+Then \lstinline{frame_SEP$~$0 2} to retain only $R_0;R_2$.
+\begin{lstlisting}
+semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_2)~$ $c_1;c_2$ $~\ldots$
+\end{lstlisting}
+Now you'll see that (in the precondition of the second subgoal)
+the unification variable $\mathsf{?88}$ has been
+instantiated in such a way that $R_2$ is added back in.
 
 \ychapter{Pointer comparisons}{See PLCC Chapter \ref{ch:typecheck}}
 \label{refcard:pointer-cmp}
@@ -2084,6 +2117,85 @@ we use \lstinline{val} to represent them, and the Coq type alone
 does not express the refinement.  One could imagine 
 a version of \lstinline{reptype'} that uses a refinement type
 to accomplish this, but it might be unwieldy.
+
+\ychapter{Signed and unsigned integers}{}
+
+Mathematical proofs use the mathematical integers (the \lstinline{Z}
+type in Coq); C progams use 32-bit signed or unsigned integers.
+They are related as follows:
+
+\begin{lstlisting}
+Int.repr: Z -> int.
+Int.unsigned: int -> Z.
+Int.signed: int -> Z.
+\end{lstlisting}
+
+with the following lemmas:
+\begin{mathpar}
+\inference[Int.repr\_unsigned]{}
+{\mathsf{Int.repr} (\mathsf{Int.unsigned}~z)~=~z}
+
+\inference[Int.unsigned\_repr]{0 \le z \le \mathsf{Int.max\_unsigned}}
+{\mathsf{Int.unsigned} (\mathsf{Int.repr}~z)~=~z}
+
+\inference[Int.repr\_signed]{}
+{\mathsf{Int.repr} (\mathsf{Int.signed}~z)~=~z}
+
+\inference[Int.signed\_repr]{\mathsf{Int.min\_signed} \le z \le \mathsf{Int.max\_signed}}
+{\mathsf{Int.signed} (\mathsf{Int.repr}~z)~=~z}
+\end{mathpar}
+\lstinline{Int.repr} truncates to a
+32-bit twos-complement representation (losing information
+if the input is out of range).  \lstinline{Int.signed}
+and \lstinline{Int.unsigned} are different injections back to \lstinline{Z}
+that never lose information.
+
+When doing proofs about integers, the recommended proof technique
+is to make sure your integers never overflow.  That is,
+if the C variable \lstinline{_x} contains the value
+\lstinline{Vint (Int.repr $x$)}, then make sure $x$ is in
+the appropriate range.  Let's assume that \lstinline{_x} 
+is a signed integer, i.e. declared in C as \lstinline{int x;}
+then the hypothesis is,
+\begin{lstlisting}
+H: Int.min_signed $\le$ $x$ $\le$ Int.max_signed
+\end{lstlisting}
+If you maintain this hypothesis ``above the line'',
+then the \lstinline{normalize} tactic
+can automatically rewrite with
+\lstinline{Int.signed (Int.repr $x$) = $x$}.
+Also, to solve goals such as,
+\begin{lstlisting}
+...
+H2 : 0 <= n <= Int.max_signed
+...
+------------------------
+Int.min_signed <= 0 <= n
+\end{lstlisting}
+you can use the \lstinline{repable_signed} tactic,
+which is basically just \lstinline{omega} with
+knowledge of the values of 
+\lstinline{Int.min_signed},
+\lstinline{Int.max_signed},
+and \lstinline{Int.max_unsigned}.
+
+To take advantage of this, put
+conjuncts into the PROP part of your function precondition
+such as $0\le i < n; ~n \le \mathsf{Int.max\_signed}$.
+Then the \lstinline{start_function} tactic will move them
+above the line, and the other tactics mentioned
+above will make use of them.
+
+To see an example in action,
+look at \lstinline{progs/verif_sumarray.v}.
+The array size and index
+(variables \lstinline{size} and \lstinline{i})
+are kept within bounds;
+but the \emph{contents} of the array might
+overflow when added up, which is why
+\lstinline{add_elem}
+uses \lstinline{Int.add} instead of 
+\lstinline{Z.add}.
 
 \ychapter{For loops}{}
 
