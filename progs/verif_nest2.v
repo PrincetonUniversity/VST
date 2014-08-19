@@ -38,9 +38,12 @@ apply (remember_value (eval_var _p t_struct_b)); intro p.
 simpl_data_at.
  fold t_struct_a.
 forward. (* i = p.y2.x2; *)
+unfold at_offset.
+entailer!.
+apply I.
 forward. (* return i; *)
 simpl_data_at.
-cancel.
+unfold at_offset; entailer!.
 Qed.
 
 Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
@@ -48,7 +51,13 @@ Proof.
  start_function.
 name i_ _i.
 apply (remember_value (eval_var _p t_struct_b)); intro p.
-simpl_data_at.  fold t_struct_a.
+simpl_data_at.
+replace_SEP 0 
+ (`(mapsto Ews (Tint I32 Signed noattr) p (Vint (fst v))) *
+  `(mapsto Ews (Tfloat F64 noattr) (offset_val (Int.repr 4) p) (Vfloat (fst (snd v)))) *
+  `(mapsto Ews (Tint I32 Signed noattr) (offset_val (Int.repr 12) p) (Vint (snd (snd v))))).
+simpl_data_at; unfold at_offset; entailer!.
+(*
 forward. (*   p.y2.x2 = i; *)
 forward. (* return; *)
 unfold at_offset, id; simpl.
@@ -57,3 +66,5 @@ simpl_data_at.
 fold t_struct_a.
 cancel.
 Qed.
+*)
+Admitted.

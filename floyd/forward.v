@@ -1117,26 +1117,6 @@ Ltac complain_open_sep_terms :=
             ]
  end.
 
-Ltac forward_call0_id :=
- complain_open_sep_terms; [auto |
-  ensure_open_normal_ret_assert;
-  match goal with 
-  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall None (Evar ?f _) ?bl) _ =>
-     ensure_open_normal_ret_assert;
-      let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-      evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-       get_global_fun_def Delta f fsig A Pre Post;
-  let witness := fresh "witness" in let F := fresh "Frame" in
-      evar (witness:A); evar (F: list (environ->mpred)); 
-      apply semax_pre 
-         with (PROPx P (LOCALx (tc_exprlist Delta (snd (split (fst fsig))) bl:: Q)
-            (SEPx (`(Pre witness) (make_args' fsig (eval_exprlist (snd (split (fst fsig))) bl)) :: F))));
-          [ 
-          | unfold F in *; apply (semax_call_id0 Espec Delta P Q F f 
-                  bl (fst fsig) (snd fsig) A witness Pre Post (eq_refl _)  (eq_refl _))];
-  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post
-  end].
-
 Lemma semax_post3: 
   forall R' Espec Delta P c R,
     local (tc_environ (update_tycon Delta c)) && R' |-- R ->
@@ -1732,27 +1712,6 @@ Ltac forward_compound_call :=
   unfold fsig, A, Pre, Post in *; clear fsig A Pre Post
 end ].
 
-Ltac forward_call1_id :=
- complain_open_sep_terms; [ auto |
- ensure_open_normal_ret_assert;
- match goal with 
-  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
-
-      let fsig:=fresh "fsig" in let A := fresh "A" in let Pre := fresh "Pre" in let Post := fresh"Post" in
-      evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
-      get_global_fun_def Delta f fsig A Pre Post;
-    let witness := fresh "witness" in let F := fresh "Frame" in
-      evar (witness:A); evar (F: list (environ->mpred)); 
-      apply semax_pre with (PROPx P
-                (LOCALx (tc_exprlist Delta (argtypes (fst fsig)) bl :: Q)
-                 (SEPx (`(Pre witness)  (make_args' fsig (eval_exprlist (argtypes (fst fsig)) bl)) ::
-                            F))));
-       [
-       | apply (semax_call_id1 Espec Delta P Q F id f 
-                 (snd fsig) bl (fst fsig) A witness Pre Post 
-                      (eq_refl _) (eq_refl _) I) ];
-  unfold fsig, A, Pre, Post in *; clear fsig A Pre Post
- end].
 
 Ltac forward_skip := apply semax_skip.
 
@@ -1781,6 +1740,21 @@ Ltac no_loads_exprlist e enforce :=
  | ?e1::?er => no_loads_expr e1 false enforce; no_loads_exprlist er enforce
  | nil => idtac
  end.
+
+Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now := False.
+
+Ltac advise_forward_call := 
+try eapply semax_seq';
+ [match goal with 
+  | |- @semax ?Espec ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
+
+      let fsig:=fresh "fsig" in let A := fresh "Witness_Type" in let Pre := fresh "Pre" in let Post := fresh"Post" in
+      evar (fsig: funsig); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
+      get_global_fun_def Delta f fsig A Pre Post;
+     clear fsig Pre Post;
+      assert Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now
+ end
+ | .. ].
 
 Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert *)
@@ -1814,8 +1788,7 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
   | Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _ => forward_for_complain
   | Ssequence (Scall (Some ?id') (Evar _ _) ?el) (Sset _ (Etempvar ?id' _)) => 
           no_loads_exprlist el false; forward_compound_call
-  | Scall (Some _) (Evar _ _) ?el =>  no_loads_exprlist el false; forward_call1_id
-  | Scall None (Evar _ _) ?el =>  no_loads_exprlist el false; forward_call0_id
+  | Scall _ (Evar _ _) _ =>  advise_forward_call
   | Sskip => forward_skip
   end.
 

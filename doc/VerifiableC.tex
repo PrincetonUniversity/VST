@@ -161,6 +161,10 @@ i.e., \lstinline{mapsto_ $\pi$ $t$ $v$ = mapsto_ $\pi$ $t$ $v$ Vundef}.
 See Chapter~\ref{refcard:structured} of this manual.
 \item Supercanonical form is now suggested; see 
 Chapter~\ref{refcard:supercanonical} of this manual.
+\item For function calls, do not use \lstinline{forward}
+(except to get advice about the witness type);
+instead, use \lstinline{forward_call}.  See page~\pageref{forward-call}.
+
 \end{itemize}
 \ychapter{Memory predicates}{}
 
@@ -1796,21 +1800,18 @@ for the abstract variable \lstinline{ret_var}) entails
 the function's postcondition.
 
 \item[\textsf{$x$ = $f$($a_1, \ldots, a_n$);}]
-For a function call, use \lstinline|forward|. This results a proof goal to show that
-the precondition implies the function precondition and includes two uninstantiated
-variables. \lstinline|witness| is the function arguments. To instantiate it use 
-\begin{lstlisting}
-instantiate (1:= <arguments here>) in (Value of witness).
-\end{lstlisting}
-You may get an error
-message saying 
-"Instance is not well-typed in the environment of \ldots". This means a variable used
-for the instantiation was introduced after the creation of the witness evar. To resolve
-this, apply \lstinline|semax_pre| with an assertion that the variables exist, then introduce
-the variables before calling \lstinline|forward|.
-An example
-of this is in \file{progs/veriv\_queue} before \lstinline|fifo_put| is called. The \lstinline|Frame|
-variable represents the part of the spacial precondition that is unchanged by the function call.
+\label{forward-call}
+For a function call, use \lstinline|forward_call($W$)|,
+where $W$ is a witness, a tuple corresponding (componentwise)
+to the \textsc{with} clause of the function specification.
+(If you do just \lstinline|forward|, you'll get a message with
+advice about the \emph{type} of $W$.)
+
+This results a proof goal to show that
+the precondition implies the function precondition 
+and includes an uninstantiated variable:
+The \lstinline|Frame|
+represents the part of the spacial precondition that is unchanged by the function call.
 It will generally be instantiated by a call to \lstinline|cancel|.
 \end{description}
 
