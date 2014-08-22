@@ -20,7 +20,6 @@ Require veric.assert_lemmas.
 Require Import msl.Coqlib2.
 Require Import veric.juicy_extspec.
 
-
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
 Instance Cveric: ClassicalSep mpred := algClassicalSep compcert_rmaps.RML.R.rmap.
@@ -900,5 +899,29 @@ Axiom semax_extract_prop:
   forall Delta (PP: Prop) P c Q, 
            (PP -> @semax Espec Delta P c Q) -> 
            @semax Espec Delta (!!PP && P) c Q.
+
+(* THESE RULES FROM semax_ext *)
+
+Require veric.semax_ext.
+
+(*TODO: What's the preferred way to expose these defs in the SL interface?*)
+Definition wf_funspec := veric.semax_ext.wf_funspec.
+Definition wf_funspecs := veric.semax_ext.wf_funspecs.
+Definition in_funspecs := veric.semax_ext.in_funspecs.
+Definition local_funspec := veric.semax_ext.local_funspec.
+Definition funspecs_norepeat := veric.semax_ext.funspecs_norepeat.
+Definition add_funspecs := veric.semax_ext.add_funspecs.
+Definition funsig2signature := veric.semax_ext.funsig2signature.
+
+Axiom semax_ext: 
+  forall (Espec : OracleKind) (gx : genv) 
+         (id : ident) (sig : funsig) 
+         (A : Type) (P Q : A -> environ -> mpred) (fs : wf_funspecs),
+    let f := mk_funspec sig A P Q in
+    local_funspec f ->
+    in_funspecs (id, f) fs ->
+    funspecs_norepeat fs ->
+    @semax_external (add_funspecs Espec gx fs)
+      (EF_external id (funsig2signature sig)) A P Q.
 
 End CLIGHT_SEPARATION_LOGIC.

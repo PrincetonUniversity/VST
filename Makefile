@@ -130,7 +130,7 @@ VERIC_FILES= \
   slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v \
-  initial_world.v initialize.v semax_prog.v SeparationLogic.v SeparationLogicSoundness.v  \
+  initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
   NullExtension.v SequentialClight.v superprecise.v
 
 FLOYD_FILES= \

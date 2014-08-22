@@ -24,6 +24,7 @@ Require Import veric.semax_call.
 Require Import veric.semax_straight.
 Require Import veric.semax_loop.
 Require Import veric.semax_prog.
+Require Import veric.semax_ext.
 Require Import veric.SeparationLogic.
 Require Import veric.expr_rel.
 
@@ -105,9 +106,20 @@ Definition semax_extensionality_Delta := @semax_extensionality_Delta.
 Definition semax_extract_prop := @semax_extract_prop.
 Definition semax_ptr_compare := @semax_ptr_compare.
 
-Definition semax_external {Espec: OracleKind} ef A P Q := forall n, semax_external Espec ef A P Q n.
+Definition semax_external {Espec: OracleKind} ef A P Q := 
+  forall n, semax_external Espec ef A P Q n.
 
 Definition juicy_ext_spec := juicy_ext_spec.
+
+Definition wf_funspec := veric.semax_ext.wf_funspec.
+Definition wf_funspecs := veric.semax_ext.wf_funspecs.
+Definition in_funspecs := veric.semax_ext.in_funspecs.
+Definition local_funspec := veric.semax_ext.local_funspec.
+Definition funspecs_norepeat := veric.semax_ext.funspecs_norepeat.
+Definition add_funspecs := veric.semax_ext.add_funspecs.
+Definition funsig2signature := veric.semax_ext.funsig2signature.
+
+Definition semax_ext := @semax_ext.
 
 End CSL.
 
