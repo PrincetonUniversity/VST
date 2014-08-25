@@ -1493,13 +1493,15 @@ change ((ext_spec_post' Espec e x' (opttyp_of_type retty) ret0 z' >=>
           (Q' x (make_ext_rval 1 ret0) *
               (F0 (construct_rho (filter_genv psi) vx tx) *
                F (construct_rho (filter_genv psi) vx tx)))) (level jm')) in H15.
-assert (level jm' > level m')%nat. {
- clear - H5 H6.
- pose proof (JE_rel _ OK_spec _ _ _ _ _ _ _ _ _ _ H5 H6).
- apply JE_Rprop in H. destruct H; omega.
-} 
+assert (level jm' > level m')%nat. 
+{
+ do 2 rewrite level_juice_level_phi.
+ auto.
+}
 apply (pred_nec_hereditary _ _ (level m')) in H15;
  [ | apply nec_nat; omega].
+clear H6.
+rename H7 into H6.
 specialize (H15 m' (le_refl _) _ (necR_refl _) H6).
 
 pose (tx' := match ret,ret0 with 
@@ -1507,7 +1509,8 @@ pose (tx' := match ret,ret0 with
                    | _, _ => tx
                    end).
 specialize (H1 EK_normal None tx' vx (m_phi m')).
-spec H1. clear - H0. admit.  (* easy *)
+spec H1. 
+{ clear - H0 H8. admit. (*easy*) }
 unfold frame_ret_assert in H1.
 rewrite HR in H1; clear R HR.
 simpl exit_cont in H1.
@@ -1539,7 +1542,7 @@ split.
  split.
 Focus 2. {
 assert (H4': (funassert Delta (construct_rho (filter_genv psi) vx tx)) (m_phi m')).
-clear - H7 H4.
+clear - H0 H8 H4.
 admit.  (* need juicy_ext_spec to guarantee that the PURE part stays the same *)
 match type of H4' with ?A => match goal with |- ?B => replace B with A; auto end end.
 f_equal.

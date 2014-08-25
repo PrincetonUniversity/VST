@@ -14,58 +14,28 @@ Require Import veric.initial_world.
 Local Open Scope nat_scope.
 Local Open Scope pred.
 
-(*P,Q is an external function spec. (jspec_rel R) is the property:
-   If P(jm) and Q(jm'), then R(jm,jm').*)
-
-Definition jspec_rel
-      {Z:Type} 
-      (jspec : external_specification juicy_mem external_function Z) 
-      (R : relation juicy_mem) :=
-  forall e t targs tret args rv z z' jm jm',
-  ext_spec_pre jspec e t targs args z jm -> 
-  ext_spec_post jspec e t tret rv z' jm' -> 
-  R jm jm'.
-
-(*jspec_add_rel is the wrapper that maps arbitrary jspecs to jspecs
-satisfying (jspec_rel R) for a particular R.*)
-
-Definition jspec_add_rel
-      {Z:Type} 
-      (jspec : external_specification juicy_mem external_function Z) 
-      (R : relation juicy_mem) :=
-  Build_external_specification _ _ _
-    (fun ef => (juicy_mem*ext_spec_type jspec ef)%type)
-    (fun ef jm_e tys args z jm => 
-      ext_spec_pre jspec ef (snd jm_e) tys args z jm
-      /\ jm = fst jm_e)
-    (fun ef jm_e retty rval z jm' => 
-      ext_spec_post jspec ef (snd jm_e) retty rval z jm' 
-      /\ R (fst jm_e) jm')
-    (ext_spec_exit jspec).
-
-Lemma jspec_rel_add_rel
-      {Z:Type} (jspec : external_specification juicy_mem external_function Z) R
-  : jspec_rel (jspec_add_rel jspec R) R.
-Proof. 
-intros e t targs tret args rv z z' jm jm' [pre lev_pre] [post lev_post]. 
-solve[subst jm; auto].
-Qed.
-
 Definition pures_sub (jm jm' : juicy_mem) := 
   forall adr,
   match resource_at (m_phi jm) adr with
-    | PURE k pp => resource_at (m_phi jm) adr=resource_at (m_phi jm') adr
+    | PURE k pp => resource_at (m_phi jm') adr 
+                 = PURE k (preds_fmap (approx (level jm')) pp)
     | _ => True
   end.
+
+Definition jspec_pures_sub
+      {Z:Type} 
+      (jspec : external_specification juicy_mem external_function Z) :=
+  forall e t targs tret args rv z z' jm jm',
+  ext_spec_pre jspec e t targs args z jm -> 
+  ext_spec_post jspec e t tret rv z' jm' -> 
+  pures_sub jm jm'.
 
 Record juicy_ext_spec (Z: Type) := {
   JE_spec:> external_specification juicy_mem external_function Z;
   JE_pre_hered: forall e t typs args z, hereditary age (ext_spec_pre JE_spec e t typs args z);
   JE_post_hered: forall e t tret rv z, hereditary age (ext_spec_post JE_spec e t tret rv z);
   JE_exit_hered: forall rv z, hereditary age (ext_spec_exit JE_spec rv z);
-  JE_R: relation juicy_mem; (*maybe JE_R needs to be hereditary too?*)
-  JE_Rprop: forall jm jm', JE_R jm jm' -> level jm'<level jm /\ pures_sub jm jm';
-  JE_rel: jspec_rel JE_spec JE_R
+  JE_rel: jspec_pures_sub JE_spec
 }.
  
 Class OracleKind := {
@@ -243,6 +213,12 @@ Proof.
   eapply JE_pre_hered; eauto.
    intros.
    destruct (H1 ret m' z') as [c' [? ?]].
+   auto.
+   assert (level (m_phi jm) < level (m_phi jm0)).
+   { apply age_level in H2.
+     do 2 rewrite <-level_juice_level_phi.
+     rewrite H2; omega. }
+   omega.
    auto.
    exists c'; split; auto.
    eapply safe_downward; try eassumption. 

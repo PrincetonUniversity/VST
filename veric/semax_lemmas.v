@@ -1196,7 +1196,7 @@ Focus 1.
   generalize I as H7; intro.
 (*  intros z' H7; specialize (H5 z' H7).*)
   destruct H5; split; auto.
-  intros ret m'0 z'' H9; specialize (H6 ret m'0 z'' H9).
+  intros ret m'0 z'' H9 H10; specialize (H6 ret m'0 z'' H9 H10).
   destruct H6 as [c' [? ?]].
   unfold cl_after_external in *.
   destruct ret as [ret|]. (*inv H6.*)

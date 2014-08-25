@@ -19,12 +19,11 @@ Definition dryspec : external_specification juicy_mem external_function unit
 
 Definition Espec : OracleKind.
  refine (Build_OracleKind unit 
-   (Build_juicy_ext_spec _ dryspec _ _ _ (fun _ _ => False) _ _)).
+   (Build_juicy_ext_spec _ dryspec _ _ _ _)).
 Proof.
 simpl; intros; contradiction.
 simpl; intros; contradiction.
 simpl; intros; intros ? ? ? ?; contradiction.
-intros; contradiction.
 simpl; intros; intros ? ? ? ? ? ? ? ? ? ?; contradiction.
 Defined.
 

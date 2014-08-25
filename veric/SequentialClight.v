@@ -27,7 +27,6 @@ Definition dryspec : ext_spec unit :=
      (*ext_spec_exit*)
      (fun rv m z => False).
 
-
  Lemma whole_program_sequential_safety:
    forall prog V G m,
      @semax_prog NullExtension.Espec prog V G ->
@@ -37,7 +36,7 @@ Definition dryspec : ext_spec unit :=
        initial_core cl_core_sem
                     (Genv.globalenv prog) (Vptr b Int.zero) nil = Some q /\
        forall n, 
-        safeN cl_core_sem dryspec (Genv.globalenv prog) n tt q m.
+        dry_safeN cl_core_sem dryspec (Genv.globalenv prog) n tt q m.
 Proof.
   assert (H0:=True).
   intros.

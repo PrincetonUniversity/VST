@@ -58,22 +58,16 @@ Definition wf_funspec (f : funspec) :=
     | mk_funspec sig A P Q => 
       forall a rho rho' phi phi', 
         P a rho phi -> Q a rho' phi' -> 
-        (level phi' < level phi)%nat 
-        /\ (forall adr, 
-            match phi @ adr with
-              | NO _ => True
-              | YES _ _ _ _ => True
-              | PURE _ _ => phi @ adr = phi' @ adr
-            end)
+        forall adr, 
+          match phi @ adr with
+            | NO _ => True
+            | YES _ _ _ _ => True
+            | PURE k pp => phi' @ adr = PURE k (preds_fmap (approx (level phi')) pp)
+          end
   end.
 
 Program Definition funspec2jspec f (wf : wf_funspec (snd f)) : juicy_ext_spec Z :=
-  Build_juicy_ext_spec _ (funspec2extspec f) 
-    _ _ _
-    (fun jm jm' => 
-       (level jm' < level jm)%nat /\ pures_sub jm jm'
-       \/ JE_R _ Espec jm jm')
-    _ _.
+  Build_juicy_ext_spec _ (funspec2extspec f) _ _ _ _.
 Next Obligation.
 destruct f; simpl; unfold funspec2pre; simpl.
 simpl in t; revert t.
@@ -96,20 +90,15 @@ Next Obligation.
 intros ? ? ? ?; destruct f; auto.
 Qed.
 Next Obligation.
-destruct H; auto.
-apply (JE_Rprop _ Espec); auto.
-Qed.
-Next Obligation.
-destruct f; unfold jspec_rel; simpl; intros.
+destruct f; unfold jspec_pures_sub; simpl; intros.
 revert wf; unfold wf_funspec; simpl; intros H2. revert t H H0 H2. 
 unfold funspec2pre, funspec2post. 
 destruct (ident_eq i (ef_id e)).
-* intros.
+* intros. intros adr.
 specialize (H2 t (make_ext_args gx 1 args) (make_ext_rval 1 rv)). 
-specialize (H2 (m_phi jm) (m_phi jm') H H0).
-destruct H2; auto.
+apply (H2 (m_phi jm) (m_phi jm') H H0 adr).
 * destruct Espec; simpl; intros.
-clear H2; right; eapply (JE_rel e); eauto.
+clear H2; eapply (JE_rel e); eauto.
 Qed.
 
 End funspecs2jspec.
