@@ -193,9 +193,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
        match ge_of rho symb with
-       | Some (v, Tarray t _ _) => mapsto sh (Tpointer t noattr) a (offset_val ofs v)
-       | Some (v, Tvoid) => TT
-       | Some (v, t) => mapsto sh (Tpointer t noattr) a (offset_val ofs v)
+       | Some b => mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
        | _ => TT
        end
  end.
@@ -216,10 +214,10 @@ Definition globvar2pred (idv: ident * globvar type) : assert :=
  fun rho =>
   match ge_of rho (fst idv) with
   | None => emp
-  | Some (v, t) => if (gvar_volatile (snd idv))
+  | Some b => if (gvar_volatile (snd idv))
                        then  TT
                        else    init_data_list2pred (gvar_init (snd idv))
-                                   (readonly2share (gvar_readonly (snd idv))) v rho
+                                   (readonly2share (gvar_readonly (snd idv))) (Vptr b Int.zero) rho
  end.
 
 Definition globvars2pred (vl: list (ident * globvar type)) : assert :=
@@ -774,83 +772,37 @@ if_tac; auto.
 
 * (* symbol case *)
  rewrite RHO.
-  case_eq (filter_genv ge i); try destruct p; auto; intro.
+  case_eq (filter_genv ge i); try destruct p0; auto; intros.
   unfold filter_genv in H4.
   revert H4; case_eq (Genv.find_symbol ge i); intros; try discriminate.
-  destruct (eq_dec t Tvoid).
-  subst; auto.   rename n into NT.
-  revert H5; case_eq (type_of_global ge b0); intros; try congruence.
-  inv H6. 
+  inv H5.
+  left. split; [apply I | ].
   rewrite H4 in H.
-  match type of H with Some (decode_val ?ch ?A) = Some ?B => 
-       assert (decode_val ch A=B) by (inv H; auto); clear H
-  end.
- replace (offset_val i0 (Vptr b0 Int.zero)) with (Vptr b0 i0)   
-    by (unfold offset_val; rewrite Int.add_zero_l; auto).
-
-  case_eq (match t with Tarray _ _ _ => true | _ => false end); intro HT.
- (* is an array *)
- destruct t; repeat rewrite prop_true_andp by apply I; try left; inv HT.
- exists ( (getN (size_chunk_nat Mint32) z (PMap.get b (mem_contents m3)))).
- repeat split; auto.
+ exists  (getN (size_chunk_nat Mint32) z (mem_contents m3) !! b).
+ repeat split; auto. clear - H; congruence.
   simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
   intro loc; specialize (H2 loc). hnf. simpl Genv.init_data_size in H2.
    simpl size_chunk.
- if_tac.
+ if_tac; [ | apply H2].
   exists NU. hnf. 
   destruct H2.
   apply join_comm in H1.
   apply (resource_at_join _ _ _ loc) in H1.
   apply H2 in H1. hnf; rewrite H1.
   unfold beyond_block. rewrite only_blocks_at.
-  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
+  rewrite if_true
+   by (destruct loc, H,H5; subst; simpl;
+        unfold block; xomega).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
-  unfold inflate_initial_mem'. rewrite H7.
+  unfold inflate_initial_mem'. rewrite H6.
  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto.
   rewrite H0.
-  destruct loc; destruct H.  subst b1.
+  destruct loc; destruct H5.  subst b1.
   apply nth_getN; simpl; omega.
   rewrite H0.
-  destruct loc; destruct H; subst b1.
+  destruct loc; destruct H5; subst b1.
   apply nth_getN; simpl; omega.
-  apply H2.
- (* not an array *)
-assert ((EX  bl : list memval,
- !!(length bl = size_chunk_nat Mint32 /\
-    decode_val Mint32 bl = Vptr b0 i0 /\ (4 | z)) &&
- allp
-   (jam (adr_range_dec (b, z) 4)
-      (fun loc : address =>
-       yesat NoneP
-         (VAL (nth (nat_of_Z ((let (_, y) := loc in y) - z)) bl Undef))
-         extern_retainer (readonly2share (gvar_readonly v)) loc) noat))%pred
-  w1).
- exists ( (getN (size_chunk_nat Mint32) z (PMap.get b (mem_contents m3)))).
- repeat split; auto.
-  simpl in AL. apply Zmod_divide.  intro Hx; inv Hx. apply Zeq_bool_eq; auto.
-  intro loc; specialize (H2 loc). hnf. simpl Genv.init_data_size in H2.
-   simpl size_chunk.
- if_tac.
-  exists NU. hnf. 
-  destruct H2.
-  apply join_comm in H1.
-  apply (resource_at_join _ _ _ loc) in H1.
-  apply H2 in H1. hnf; rewrite H1.
-  unfold beyond_block. rewrite only_blocks_at.
-  rewrite if_true by (  destruct loc; destruct H; subst; simpl; unfold block; xomega).
-  unfold inflate_initial_mem. rewrite resource_at_make_rmap.
-  unfold inflate_initial_mem'. rewrite H7.
- unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
-  destruct (gvar_readonly v);  repeat f_equal; auto.
-  rewrite H0.
-  destruct loc; destruct H.  subst b1.
-  apply nth_getN; simpl; omega.
-  rewrite H0.
-  destruct loc; destruct H; subst b1.
-  apply nth_getN; simpl; omega.
-  apply H2.
-  destruct t; repeat rewrite prop_true_andp by apply I; try left; try apply H. auto.
 Qed.
 
 Lemma init_data_list_size_app:
@@ -1217,7 +1169,7 @@ Qed.
 
 
 Definition prog_var_block (rho: environ) (il: list ident) (b: block) : Prop :=
-  Exists (fun id => match ge_of rho id with Some (Vptr b' _, _) => b'=b | _ => False end) il.
+  Exists (fun id => match ge_of rho id with Some b' => b'=b | _ => False end) il.
 
 Lemma match_fdecs_in:
   forall i vl G,
@@ -1591,10 +1543,6 @@ try (destruct H1 as [[_ H1]|[H1x _]]; [|solve[inv H1x]];
           | destruct (H4 loc) as [HH _]; intuition].
  rewrite <- H5; auto. rewrite H1; apply YES_not_identity.
  destruct (ge_of rho i); try destruct p; auto. 
- destruct (eq_dec t Tvoid). subst; auto. rename n into NT.
- case_eq (match t with Tarray _ _ _ => true | _ => false end); intro HT.
- destruct t; inv HT.
- simpl in *.
  destruct H1 as [[H1' H1]|[H1' H1]];  [left|right]; split; auto;
  destruct H1 as [bl [? H8]].
  exists bl; split; [assumption | ]; intro loc; specialize (H8 loc).
@@ -1610,18 +1558,6 @@ try (destruct H1 as [[_ H1]|[H1x _]]; [|solve[inv H1x]];
  rewrite H8.
  apply YES_not_identity.
  intuition.
- assert (mapsto (Share.splice extern_retainer sh) (Tpointer t noattr) (Vptr b z)
-      (offset_val i0 v) w1'); [ | destruct t; auto].
- assert (H1': mapsto (Share.splice extern_retainer sh) (Tpointer t noattr)
-                (Vptr b z) (offset_val i0 v) w1) by (destruct t; auto; congruence).
- clear H1.
- destruct H1' as [[H7 H1']|[H7 [v2 H1']]]; [left|right]; split; auto;
- try exists v2;
- (destruct H1' as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc);
-  destruct (H4 loc); simpl in *;
-  hnf in H8|-*; if_tac; [ | intuition];
-  destruct H8 as [p H8]; exists p; hnf in H8|-*;
-  rewrite <- H4'; rewrite <- H1; auto; rewrite H8; apply YES_not_identity).
 Qed.
 
 Lemma another_hackfun_lemma:
@@ -1853,7 +1789,7 @@ rewrite Pos_to_nat_eq_S.
   | Some t => Some (Vptr (nextblock m0) Int.zero, t)
   | None => Some (Vptr (nextblock m0) Int.zero, Tvoid)
   end = Some (Vptr (nextblock m0) Int.zero, t)) by (destruct (type_of_global gev (nextblock m0)); eauto).
- destruct H99 as [t H99]; rewrite H99; clear t H99.
+(* destruct H99 as [t H99]; rewrite H99; clear t H99.*)
  case_eq (gvar_volatile v); intros; auto. rename H5 into H10.
 
   unfold Genv.alloc_global in H3.

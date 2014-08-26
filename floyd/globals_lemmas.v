@@ -89,7 +89,6 @@ rewrite H11. rewrite H1.
 rewrite H3; simpl.
 unfold eval_var.
 unfold Map.get. rewrite H10. rewrite H11.
-simpl. rewrite eqb_type_refl.
 simpl.
 change (Share.splice extern_retainer Tsh) with Ews.
 auto.
@@ -163,6 +162,16 @@ Proof. intros.
  unfold init_data_size. rewrite Z.max_l; auto. omega.
 Qed.
 
+
+Lemma mapsto_pointer_void:
+  forall sh t a, mapsto sh (Tpointer t a) = mapsto sh (Tpointer Tvoid a).
+Proof.
+intros.
+unfold mapsto.
+extensionality v1 v2.
+simpl. auto.
+Qed.
+
 Lemma init_data2pred_rejigger:
   forall (Delta : tycontext) (t : type) (idata : init_data) (rho : environ)
      (sh : Share.t) (b : block) ofs (v : environ -> val),
@@ -217,11 +226,14 @@ intros H1 H1' H6' H6 H7 H8 H1''.
      simpl. destruct fs; simpl.
      rewrite H8. 
     assert (eval_var i (Tfunction (type_of_params (fst f)) (snd f) cc_default) rho = Vptr b' Int.zero).
-    { destruct (globfun_eval_var _ _ _ _ H7 Hv Hg) as [bx [ix [? ?]]].
+    { destruct (globfun_eval_var _ _ _ _ H7 Hv Hg) as [bx [? ?]].
       rewrite H15 in H0. symmetry in H0; inv H0.
       rewrite <- H. reflexivity.
     }
-    rewrite H. apply derives_refl.
+    rewrite H. 
+   rewrite (mapsto_pointer_void _ (Tfunction _ _ _)).
+   unfold offset_val; simpl. rewrite Int.add_zero_l.
+   apply derives_refl.
 +  destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
     assert (eval_var i gv rho = Vptr b' Int.zero).
     {destruct (globvar_eval_var _ _ _ _ H7 Hv Hg) as [bx [? ?]].
@@ -229,6 +241,7 @@ intros H1 H1' H6' H6 H7 H8 H1''.
       rewrite <- H. reflexivity.
      }
     destruct gv; simpl; try apply TT_right; try rewrite H8; try rewrite H;
+     unfold offset_val; simpl; rewrite Int.add_zero_l;
     apply derives_refl.
 Qed.
 

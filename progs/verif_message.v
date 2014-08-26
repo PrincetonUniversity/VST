@@ -319,9 +319,9 @@ apply andp_derives; auto.
     rewrite mapsto_tuint_tint.
  destruct (globvar_eval_var _ _ objid _ H Vobj Gobj) as [b1 [Eobj _]].
  simpl in Eobj; rewrite Eobj. clear dependent objid.
- destruct (globfun_eval_var _ _ serid _ H Vser Gser) as [b2 [z2 [Eser _]]].
+ destruct (globfun_eval_var _ _ serid _ H Vser Gser) as [b2 [Eser _]].
  simpl in Eser; rewrite Eser; clear dependent serid.
- destruct (globfun_eval_var _ _ desid _ H Vdes Gdes) as [b3 [z3 [Edes _]]].
+ destruct (globfun_eval_var _ _ desid _ H Vdes Gdes) as [b3 [Edes _]].
  simpl in Edes; rewrite Edes; clear dependent desid.
  apply andp_right.
  + apply prop_right.

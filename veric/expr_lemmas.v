@@ -311,6 +311,7 @@ Qed.
 
 Definition some_pt_type := Tpointer Tvoid noattr.
 
+(*
 Lemma filter_genv_zero_ofs : forall ge ge2 b i t,
   filter_genv ge = ge2 ->
     (forall id, ge2 id = Some (Vptr b i, t) ->
@@ -321,6 +322,7 @@ remember (Genv.find_symbol ge id). destruct o.
 destruct (type_of_global ge b0); inv H0; auto.
 inv H0.
 Qed.
+*)
 
 Lemma typecheck_force_Some : forall ov t, typecheck_val (force_val ov) t = true
 -> exists v, ov = Some v. 
@@ -459,10 +461,8 @@ repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 destruct H2. unfold tc_bool in H2.
 if_tac in H2; try contradiction.
 apply Clight.eval_Elvalue with b Int.zero; [  | econstructor 2; apply MODE].
-assert (ZO := filter_genv_zero_ofs _ _ _ _ _ (eq_refl _) _ H3).  subst.
-apply Clight.eval_Evar_global.
-symmetry in Heqo; apply Heqo.
-unfold filter_genv in *. invSome. destruct (type_of_global ge b0); inv H8; auto. 
+(*assert (ZO := filter_genv_zero_ofs _ _ _ _ _ (eq_refl _) _ H3).  subst.*)
+apply Clight.eval_Evar_global; auto.
 
 * (* eval_lvalue Evar *)
 (*
@@ -495,12 +495,12 @@ pose proof (typecheck_lvalue_sound Delta rho (Evar i t) H0 H1).
  destruct H2.
  constructor 2; auto.
  unfold filter_genv in H. destruct (Genv.find_symbol ge i); inv H.
- destruct (type_of_global ge b0); inv H5; auto.
+(* destruct (type_of_global ge b0); inv H5; auto.*)
  destruct H2 as [t ?]. congruence.
  unfold eval_var. simpl.
  specialize (H2 _ _ Heqo).
  destruct H2. simpl in H2. unfold Map.get; rewrite H2.
- rewrite H. rewrite eqb_type_refl. auto.
+ rewrite H. (*rewrite eqb_type_refl.*) auto.
  destruct H2; congruence.
 
 * (*temp*)  

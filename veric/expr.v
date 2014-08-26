@@ -98,7 +98,7 @@ Unset Implicit Arguments.
 
 (** Environment Definitions **)
 
-Definition genviron := Map.t (val*type).
+Definition genviron := Map.t block.
 
 Definition venviron := Map.t (block * type).
 
@@ -197,13 +197,7 @@ Definition type_of_global (ge: Clight.genv) (b: block) : option type :=
   end.
 
 Definition filter_genv (ge: Clight.genv) : genviron :=
-  fun id => match Genv.find_symbol ge id with
-                   | Some b => match type_of_global ge b with
-                                        | Some t => Some (Vptr b Int.zero, t)
-                                        | None => Some (Vptr b Int.zero, Tvoid)
-                                        end
-                   | None => None
-                   end. 
+    Genv.find_symbol ge.
 
 Definition make_tenv (te : Clight.temp_env) : tenviron := fun id => PTree.get id te.
 
@@ -472,7 +466,7 @@ Definition eval_var (id:ident) (ty: type) (rho: environ) : val :=
                                                     else Vundef
                          | None => 
                             match (ge_of rho) id with
-                            | Some (v,ty') => if eqb_type ty ty' then v else Vundef
+                            | Some b => Vptr b Int.zero
                             | None => Vundef
                             end
                         end.
@@ -1086,7 +1080,7 @@ Definition typecheck_glob_environ
 (ge: genviron) (tc: PTree.t global_spec) :=
 forall id  t,  tc ! id = Some t -> 
 ((exists b, 
-(ge id = Some (Vptr b Int.zero, globtype t) /\ typecheck_val (Vptr b Int.zero) (globtype t) = true))).
+(ge id = Some b /\ typecheck_val (Vptr b Int.zero) (globtype t) = true))).
 
 Definition same_env (rho:environ) (Delta:tycontext)  :=
 forall id t, (glob_types Delta) ! id = Some t ->

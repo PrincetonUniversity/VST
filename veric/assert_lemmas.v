@@ -336,7 +336,6 @@ Proof.
  apply corable_allp; intro.
  apply corable_imp; auto.
  apply corable_exp; intro.
- apply corable_exp; intro.
  apply corable_andp; auto.
  destruct b0.
  apply corable_pureat.
@@ -370,7 +369,6 @@ Lemma corable_fun_assert: forall v fsig A P Q, corable (fun_assert v fsig A P Q)
 Proof.
 intros.
 unfold fun_assert, res_predicates.fun_assert.
-apply corable_exp; intro.
 apply corable_exp; intro.
 apply corable_andp; auto.
 unfold FUNspec.

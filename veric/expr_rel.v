@@ -45,10 +45,10 @@ with rel_lvalue' (rho: environ) (phi: rmap): expr -> val -> Prop :=
  | rel_expr'_local: forall id ty b,
                  Map.get (ve_of rho) id = Some (b,ty) ->
                  rel_lvalue' rho phi (Evar id ty) (Vptr  b Int.zero)
- | rel_expr'_global: forall id ty v,
+ | rel_expr'_global: forall id ty b,
                  Map.get (ve_of rho) id = None ->
-                 Map.get (ge_of rho) id = Some (v,ty) ->
-                 rel_lvalue' rho phi (Evar id ty) v
+                 Map.get (ge_of rho) id = Some b ->
+                 rel_lvalue' rho phi (Evar id ty) (Vptr b Int.zero)
  | rel_lvalue'_deref: forall a b z ty,
                  rel_expr' rho phi a (Vptr b z) ->
                  rel_lvalue' rho phi (Ederef a ty) (Vptr b z)
@@ -71,6 +71,7 @@ apply (rel_expr'_sch rho a (rel_expr' rho a') (rel_lvalue' rho a'));
   eapply rel_expr'_lvalue; auto.
   eassumption.
   eapply pred_hereditary; eassumption.
+ constructor 2; auto.
   auto.
 Qed.
 
@@ -78,8 +79,11 @@ Lemma rel_lvalue'_hered: forall e v rho, hereditary age (fun phi => rel_lvalue' 
 Proof.
 intros.
 intro; intros.
-induction H0; econstructor; eauto.
+induction H0; try solve [ econstructor; eauto].
+ constructor 2; auto.
+ constructor 3; auto.
 apply rel_expr'_hered with a; auto.
+  econstructor 4; eauto.
 apply rel_expr'_hered with a; auto.
 Qed.
 
@@ -308,6 +312,8 @@ destruct (join_assoc H3 H) as [w6 [? ?]].
 exists w3, w6; split3; auto.
 auto.
 *
+econstructor 2; eauto.
+*
 inv H5.
 pose proof (rel_expr'_fun _ _ _ _ _ H10 H1). inv H5.
 rewrite H3 in H12. symmetry in H12; inv H12.
@@ -320,9 +326,12 @@ Lemma rel_lvalue_extend:
 Proof.
 intros. apply boxy_i; intros; auto.
 hnf in H0|-*.
-inv H0; econstructor; eauto.
+inv H0; try solve [econstructor; eauto].
+econstructor 2; eauto.
+econstructor; eauto.
 pose proof (rel_expr_extend a (Vptr b z) rho).
 apply (boxy_e _ _ H0 _ _ H); auto.
+econstructor; eauto.
 apply (boxy_e _ _ (rel_expr_extend a (Vptr b z) rho) _ _ H); auto.
 Qed.
 

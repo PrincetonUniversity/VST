@@ -22,6 +22,7 @@ eval_lvalue e rho = Vundef \/ exists base, exists ofs, eval_lvalue e rho  = Vptr
 Proof. 
 intros.
 induction e; eauto.
+*
 simpl. unfold eval_var. 
 remember (Map.get (ve_of rho) i). destruct o; try rewrite eqb_type_eq; intuition;
 try destruct p; try rewrite eqb_type_eq; simpl; try remember (type_eq t t0); try destruct s;
@@ -29,29 +30,12 @@ simpl; try remember (negb (type_is_volatile t0));try destruct b0; auto;
 try solve[right; eauto].
 remember (ge_of rho i); try rewrite eqb_type_eq; simpl.
 destruct o; try rewrite eqb_type_eq; simpl; eauto.
-destruct p; try rewrite eqb_type_eq; simpl; eauto.
-if_tac; eauto.
-unfold typecheck_var_environ in *. simpl in H2.
-unfold get_var_type in *. 
-remember ((var_types Delta) ! i).
-destruct o. subst. simpl in H2.
-super_unfold_lift.
-try rewrite eqb_type_eq in *; simpl in *; intuition.
-symmetry in Heqo1.
-specialize (H0 i t1 Heqo1).
-destruct H0. congruence.
-remember ((glob_types Delta) ! i). destruct o; simpl in *; try congruence. 
-super_unfold_lift. right. 
- unfold typecheck_glob_environ in H1.
-symmetry in Heqo2. 
-specialize (H1 _  _ Heqo2). destruct H1 as [b [? ?]].
-rewrite <- H in *.  simpl ge_of in Heqo0. rewrite H1 in *.
-inv Heqo0. eauto. inv H2. 
-
-
-
-simpl in *. intuition. super_unfold_lift. unfold force_ptr in *. 
-destruct (eval_expr e rho); eauto.
+*
+(*destruct p; try rewrite eqb_type_eq; simpl; eauto.*)
+(*if_tac; eauto. *)
+simpl. super_unfold_lift.
+destruct (eval_expr e rho); simpl; eauto.
+*
 
 simpl in *. super_unfold_lift.
 rewrite tc_andp_sound in *. simpl in *. 
@@ -118,7 +102,7 @@ unfold same_env in *.
 symmetry in Heqo0.  specialize (H5 _ _ Heqo0). 
 destruct H5. simpl in *. unfold Map.get. rewrite H5. 
 unfold typecheck_glob_environ in *. destruct (H3 i g); auto. destruct H6. 
-rewrite H6. rewrite eqb_type_refl. auto.
+rewrite H6.
 destruct pt; inv H1; reflexivity.
 destruct H5; congruence. inv H0.
 inv H0.
@@ -236,7 +220,7 @@ destruct SM.
 unfold Map.get. rewrite H4. 
 unfold typecheck_glob_environ in *. 
 destruct (H2 i g); auto. destruct H5. 
-rewrite H5. rewrite eqb_type_refl. auto. destruct H4; congruence.
+rewrite H5. auto. destruct H4; congruence.
 inv H0. inv H0. 
 Qed.
 

@@ -172,38 +172,29 @@ destruct SAME as [SAME | [t SAME]]; [ | congruence].
 clear - H6 H8 H SAME H1.
 destruct H6 as [H6 H6'].
 specialize (H6 _ _  _(necR_refl _) H).
-destruct H6 as [v [loc [[? ?] ?]]].
+destruct H6 as [b [? ?]].
 simpl in H0, H1, H2.
-specialize (H8 v fsig A P' Q' _ (necR_refl _)).
+specialize (H8 (Vptr b Int.zero) fsig A P' Q' _ (necR_refl _)).
  
 unfold filter_genv in H0. simpl in H0.
-invSome.
-assert (v = Vptr b Int.zero) by (destruct (type_of_global psi b); inv H6; auto).
-subst v.
-unfold val2adr in H2.
-rewrite Int.signed_zero in H2.
-subst loc.
 spec H8. exists id. split; auto. exists b; auto.
 simpl in SAME.
-exists b. exists Int.zero.
+exists b.
 split.
 unfold eval_lvalue, eval_var.
 simpl ve_of. unfold Map.get. rewrite SAME.
-simpl. unfold filter_genv. rewrite H0.
-destruct (type_of_global psi b); inv H6; auto.
-rewrite eqb_type_refl.
-replace (eqb_typelist (type_of_params (fst fsig)) (type_of_params (fst fsig))) with true.
+simpl. unfold filter_genv. rewrite H0. auto.
+(* replace (eqb_typelist (type_of_params (fst fsig)) (type_of_params (fst fsig))) with true. *)
 simpl; auto.
-clear; induction (type_of_params (fst fsig)); simpl; auto.
+(* clear; induction (type_of_params (fst fsig)); simpl; auto. 
 rewrite <- IHt; simpl; auto.
 rewrite eqb_type_refl; auto.
-hnf; auto.
+hnf; auto.*)
 intro loc.
 hnf.
 if_tac; auto.
 subst.
 hnf. auto.
-hnf; auto.
 Qed.
 
 Definition func_ptr (f: funspec) : val -> mpred := 
@@ -275,25 +266,22 @@ split; [clear H2 | clear H0].
 intros id fs w2 Hw2 H3.
 specialize (H0 id fs). cbv beta in H0.
 specialize (H0 _ (necR_refl _) H3).
-destruct H0 as [v [loc [[? ?] ?]]].
- specialize (H1 loc).
- destruct H1 as [? ?].
-exists v; exists loc; split; auto.
-split; auto.
+destruct H0 as [loc [? ?]].
+exists loc; split; auto.
 destruct fs as [f A a a0].
-simpl in H4|-*.
-pose proof (necR_resource_at (core w) (core w') loc
+simpl in H2|-*.
+pose proof (necR_resource_at (core w) (core w') (loc,0)
          (PURE (FUN f) (SomeP (A :: boolT :: environ :: nil) (packPQ a a0))) CORE).
-pose proof (necR_resource_at _ _ loc
+pose proof (necR_resource_at _ _ (loc,0)
          (PURE (FUN f) (SomeP (A :: boolT :: environ :: nil) (packPQ a a0))) Hw2).
-apply H7.
-clear - H6 H4.
+apply H5.
+clear - H4 H2.
 repeat rewrite <- core_resource_at in *.
-spec H6. rewrite H4.  rewrite core_PURE.  simpl.  rewrite level_core; reflexivity.
-destruct (w' @ loc).
- rewrite core_NO in H6; inv H6.
- rewrite core_YES in H6; inv H6.
- rewrite core_PURE in H6; inv H6. rewrite level_core; reflexivity.
+spec H4. rewrite H2.  rewrite core_PURE.  simpl.  rewrite level_core; reflexivity.
+destruct (w' @ (loc,0)).
+ rewrite core_NO in H4; inv H4.
+ rewrite core_YES in H4; inv H4.
+ rewrite core_PURE in H4; inv H4. rewrite level_core; reflexivity.
 
 intros loc fs w2 Hw2 H6.
 specialize (H2 loc fs _ (necR_refl _)).
@@ -302,36 +290,36 @@ clear - Hw2 CORE H6.
 destruct fs; simpl in *.
 destruct H6 as [pp H6].
  rewrite <- resource_at_approx.
-case_eq (w @ loc); intros.
-assert (core w @ loc = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (NO Share.bot)).
+case_eq (w @ (loc,0)); intros.
+assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (NO Share.bot)).
  rewrite <- core_resource_at.
 simpl; erewrite <- core_NO; f_equal; eassumption.
 pose proof (necR_resource_at _ _ _ _ CORE H0).
 pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
 rewrite <- core_resource_at in H2; rewrite H6 in H2; 
  rewrite core_PURE in H2; inv H2.
-assert (core w @ loc = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (NO Share.bot)).
+assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (NO Share.bot)).
  rewrite <- core_resource_at.
 simpl; erewrite <- core_YES; f_equal; eassumption.
 pose proof (necR_resource_at _ _ _ _ CORE H0).
 pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
 rewrite <- core_resource_at in H2; rewrite H6 in H2; 
  rewrite core_PURE in H2; inv H2.
-pose proof (resource_at_approx w loc).
-pattern (w @ loc) at 1 in H0; rewrite H in H0.
+pose proof (resource_at_approx w (loc,0)).
+pattern (w @ (loc,0)) at 1 in H0; rewrite H in H0.
 symmetry in H0.
-assert (core (w @ loc) = core (compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level w))
+assert (core (w @ (loc,0)) = core (compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level w))
        (PURE k p))) by (f_equal; auto).
 rewrite core_resource_at in H1.
-assert (core w @ loc = 
+assert (core w @ (loc,0) = 
         compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) 
          (PURE k p)). 
  rewrite H1.  simpl. rewrite level_core; rewrite core_PURE; auto.
 pose proof (necR_resource_at _ _ _ _ CORE H2).
- assert (w' @ loc = compcert_rmaps.R.resource_fmap
+ assert (w' @ (loc,0) = compcert_rmaps.R.resource_fmap
        (compcert_rmaps.R.approx (level w')) (PURE k p)).
  rewrite <- core_resource_at in H3. rewrite level_core in H3.
- destruct (w' @ loc).
+ destruct (w' @ (loc,0)).
   rewrite core_NO in H3; inv H3.
   rewrite core_YES in H3; inv H3.
   rewrite core_PURE in H3; inv H3.
@@ -339,8 +327,8 @@ pose proof (necR_resource_at _ _ _ _ CORE H2).
  pose proof (necR_resource_at _ _ _ _ Hw2 H4).
  inversion2 H6 H5.
  exists p. reflexivity.
-destruct H2 as [id [v [[? ?] ?]]].
-exists id, v. split; auto. split; auto.
+destruct H2 as [id [? ?]].
+exists id. split; auto.
 Qed.
 
 Definition substopt {A} (ret: option ident) (v: val) (P: environ -> A)  : environ -> A :=
@@ -552,18 +540,15 @@ Lemma semax_call_typecheck_environ:
    (H : forall (b : ident) (b0 : funspec) (a' : rmap),
     necR (m_phi jm') a' ->
     (glob_types Delta) ! b = Some (Global_func b0) ->
-    exists b1 : val,
-      exists b2 : address,
-        (filter_genv psi b = Some (b1, type_of_funspec b0) /\ val2adr b1 b2) /\
-        (func_at b0 b2) a')
-   (H1 : forall (b : address) (b0 : funspec) (a' : rmap),
+    exists b1 : block,
+        filter_genv psi b = Some b1 /\ 
+        func_at b0 (b1,0) a')
+    (H1: forall (b : block) (b0 : funspec) (a' : rmap),
      necR (m_phi jm') a' ->
-     (func_at' b0 b) a' ->
-     exists b1 : ident,
-       exists b2 : val,
-         (filter_genv psi b1 = Some (b2, type_of_funspec b0) /\ val2adr b2 b) /\
-         (exists fs : funspec,
-            (glob_types Delta) ! b1 = Some (Global_func fs)))
+     (func_at' b0 (b, 0)) a' ->
+     exists (b1 : ident),
+       filter_genv psi b1 = Some b /\
+       (exists fs : funspec, (glob_types Delta) ! b1 = Some (Global_func fs)))
    (l : list ident) (l0 : list type) 
     (Heqp : (l, l0) = split (fn_params f))
    (TC2 : denote_tc_assert (typecheck_exprlist Delta l0 bl)
@@ -1974,6 +1959,7 @@ clear - H2 H20' H20x. rewrite <- level_juice_level_phi in H2.
 apply age_level in H20x; omega. 
 pose (rho3 := mkEnviron (ge_of rho) (make_venv ve') (make_tenv te')).
 assert (app_pred (funassert Delta rho3) (m_phi jm'')).
+{ 
 apply (resource_decay_funassert _ _ (nextblock (m_dry jm)) _ (m_phi jm'')) in H4.
 2: apply laterR_necR; apply age_laterR; auto.
 unfold rho3; clear rho3.
@@ -1981,8 +1967,9 @@ apply H4.
 rewrite CORE. apply age_core. apply age_jm_phi; auto.
  destruct H20;  apply resource_decay_trans with (nextblock (m_dry jm')) (m_phi jm'); auto.
  apply age1_resource_decay; auto.
+}
 specialize (H19 te' ve' _ H22 _ (necR_refl _)).
-spec H19; [clear H19|].
+spec H19; [clear H19|]. {
 split; [split|]; auto. Focus 3. 
 unfold rho3 in H23. unfold construct_rho. rewrite H0 in H23.
 simpl ge_of in H23. auto. 
@@ -2075,7 +2062,7 @@ simpl @fst in *.
  admit.  (* very plausible *)
 }
 (* end   "spec H19" *)
-
+}
 specialize (H19 ora jm'').
 apply age_level in H13.
 destruct H20.
@@ -2123,34 +2110,30 @@ subst w.
 apply extend_sepcon_andp in H3; auto.
 destruct H3 as [H2 H3].
 normalize in H3. unfold fun_assert in *. unfold res_predicates.fun_assert in *. 
-destruct H3 as [[b [i [H3 H6]]] H5].
-specialize (H6 (b, Int.unsigned i)).
+destruct H3 as [[b [H3 H6]] H5].
+specialize (H6 (b, 0)).
 rewrite jam_true in H6 by auto.
 hnf in H3.
 generalize H4; intros [_ H7].
-specialize (H7 (b, Int.unsigned i) (mk_funspec (argsig,retsig) A P Q) _ (necR_refl _)).
+specialize (H7 (b) (mk_funspec (argsig,retsig) A P Q) _ (necR_refl _)).
 spec H7.
 apply func_at_func_at'; apply H6.
-destruct H7 as [id [v [[H7 H8] H9]]].
+destruct H7 as [id [H7 H9]].
 hnf in H9.
-simpl in H8. unfold val2adr in H8. destruct v; try contradiction.
-symmetry in H8; inv H8.
-rename H11 into H12.
 destruct H2 as [TC1 TC2].
 generalize H9; intros [fs H8].
 generalize H4; intros [H10 _].
 specialize (H10 id fs _ (necR_refl _) H8).
-destruct H10 as [v' [b' [[H10] H13]]].
+destruct H10 as [v' [H10 H13]].
 assert (H11: filter_genv psi = ge_of (construct_rho (filter_genv psi) vx tx)) by reflexivity.
 simpl in H10. simpl in H7. inversion2 H7 H10.
-simpl in H0. subst b'.
 unfold func_at in H13.
-rewrite H12 in H13.
+(* rewrite H12 in H13.*)
 destruct fs as [fsig' A' P' Q'].
 assert (fsig' = (argsig,retsig)).
  clear - H6 H13.
  unfold pureat in *. simpl in *. inversion2 H6 H13. auto.
-clear H15; subst fsig'.
+subst fsig'.
 hnf in H6,H13.
 rewrite H6  in H13.
 inversion H13; clear H13.
@@ -2160,18 +2143,18 @@ clear H6; pose (H6:=True).
 clear H9; pose (H9:=True).
 
 unfold filter_genv in H7.
-invSome.
-assert (b0=b/\ i=i0).
- destruct (type_of_global psi b0); inv H10; split; auto.
- rewrite Int.signed_zero in H12. 
- pose proof (Int.repr_unsigned i). rewrite <- H12 in H0. subst; reflexivity.
-destruct H0; subst b0 i.
-clear H11. pose (H16:=True).
+(* destruct (type_of_global psi b); split; auto.
+ rewrite Int.signed_zero in H12. *)
+(* pose proof (Int.repr_unsigned i).  *)
+(* rewrite <- H12 in H0. subst; reflexivity. *)
+(* destruct H0; subst b0 i.*)
+(*clear H11. pose (H16:=True).
 clear H12; pose (H12:=True).
+*)
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 set (args := eval_exprlist (snd (split argsig)) bl rho).
 fold args in H5.
-rename H10 into H10'.
+rename H11 into H10'.
 destruct (function_pointer_aux A P P' Q Q' (m_phi jm)) as [H10 H11].
 f_equal; auto.
 clear H15.
@@ -2205,8 +2188,6 @@ extensionality rho'.
 rewrite prop_true_andp by auto.
 rewrite prop_true_andp by auto.
 auto.
-rewrite H3; f_equal.
-clear - H10'. destruct (type_of_global psi b); inv H10'; auto.
 Qed.
 
 Lemma semax_call_alt: 

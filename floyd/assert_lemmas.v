@@ -285,7 +285,7 @@ Proof.
   destruct (H3 _ _ H1).
   unfold Map.get; rewrite H4.
   destruct (H2 _ _ H1) as [b [? ?]].
-   rewrite H5. simpl. rewrite eqb_type_refl.
+   rewrite H5. simpl.
   eauto.
   destruct H4; congruence.
 Qed.
@@ -574,8 +574,8 @@ Lemma globfun_eval_var:
       tc_environ Delta rho ->
      (var_types Delta) ! id = None ->
      (glob_types Delta) ! id = Some  (Global_func f) ->
-     exists b, exists z,  eval_var id (type_of_funspec f) rho = Vptr b z /\
-             ge_of rho id = Some (Vptr b z, type_of_funspec f).
+     exists b, eval_var id (type_of_funspec f) rho = Vptr b Int.zero /\
+             ge_of rho id = Some b.
 Proof.
 intros.
 unfold tc_environ, typecheck_environ in H.
@@ -583,12 +583,12 @@ repeat rewrite andb_true_iff in H.
 destruct H as [Ha [Hb [Hc Hd]]].
 hnf in Hc.
 specialize (Hc _ _ H1). destruct Hc as [b [Hc Hc']].
-exists b; exists Int.zero.
+exists b.
 unfold eval_var; simpl.
 apply Hd in H1. 
 destruct H1 as [? | [? ?]]; [ | congruence].
 unfold Map.get; rewrite H. rewrite Hc.
-rewrite eqb_type_refl; auto.
+auto.
 Qed.
 
 Lemma globvar_eval_var:
@@ -596,7 +596,8 @@ Lemma globvar_eval_var:
       tc_environ Delta rho ->
      (var_types Delta) ! id = None ->
      (glob_types Delta) ! id = Some  (Global_var t) ->
-     exists b,  eval_var id t rho = Vptr b Int.zero /\ ge_of rho id = Some (Vptr b Int.zero, t).
+     exists b,  eval_var id t rho = Vptr b Int.zero
+            /\ ge_of rho id = Some b.
 Proof.
 intros.
 unfold tc_environ, typecheck_environ in H.
@@ -608,7 +609,7 @@ unfold eval_var; simpl.
 apply Hd in H1. 
 destruct H1 as [? | [? ?]]; [ | congruence].
 unfold Map.get; rewrite H. rewrite Hc.
-rewrite eqb_type_refl; auto.
+auto.
 Qed.
 
 Lemma globvars2pred_unfold: forall vl rho, 
@@ -1017,7 +1018,7 @@ Proof.
   rewrite H4. simpl.
  destruct (H2 _ _ H3).
  unfold Map.get; rewrite H6.
- rewrite eqb_type_refl. auto.
+ auto.
  destruct H6. congruence.
 Qed.
 

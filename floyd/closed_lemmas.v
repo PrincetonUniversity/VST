@@ -425,11 +425,11 @@ apply closed_wrt_sepcon.
 clear; hnf; intros.
 unfold globvar2pred; destruct a; simpl.
 destruct (ge_of rho i) eqn:?; auto.
-destruct p.
 destruct (gvar_volatile g) eqn:?; auto.
 forget (readonly2share (gvar_readonly g)) as sh.
-clear - Heqb.
-revert v; induction (gvar_init g); intro; simpl; f_equal; auto.
+forget (Int.zero) as j.
+clear - Heqb0.
+revert j; induction (gvar_init g); intros; simpl; f_equal; auto.
 apply IHv.
 Qed.
 
@@ -443,11 +443,11 @@ apply closed_wrtl_sepcon.
 clear; hnf; intros.
 unfold globvar2pred; destruct a; simpl.
 destruct (ge_of rho i) eqn:?; auto.
-destruct p.
 destruct (gvar_volatile g) eqn:?; auto.
 forget (readonly2share (gvar_readonly g)) as sh.
-clear - Heqb.
-revert v; induction (gvar_init g); intro; simpl; f_equal; auto.
+forget (Int.zero) as j.
+clear - Heqb0.
+revert j; induction (gvar_init g); intro; simpl; f_equal; auto.
 apply IHv.
 Qed.
 Hint Resolve closed_wrt_globvars closed_wrtl_globvars: closed.

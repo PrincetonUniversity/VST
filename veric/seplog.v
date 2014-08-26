@@ -179,8 +179,8 @@ Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
 Definition writable_block (id: ident) (n: Z): assert :=
    fun rho => 
-        EX v: val*type,  EX a: address, EX rsh: Share.t,
-          !! (ge_of rho id = Some v /\ val2adr (fst v) a) && VALspec_range n rsh Share.top a.
+        EX b: block,  EX rsh: Share.t,
+          !! (ge_of rho id = Some b) && VALspec_range n rsh Share.top (b, 0).
 
 Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
  match bl with
@@ -670,13 +670,11 @@ Definition bind_ret (vl: option val) (t: type) (Q: assert) : assert :=
 Definition funassert (Delta: tycontext): assert := 
  fun rho => 
    (ALL  id: ident, ALL fs:funspec,  !! ((glob_types Delta)!id = Some (Global_func fs)) -->
-              EX v:val, EX loc:address, 
-                   !! (ge_of rho id = Some (v, type_of_funspec fs)
-                                 /\ val2adr v loc) && func_at fs loc)
+              EX b:block, 
+                   !! (ge_of rho id = Some b) && func_at fs (b,0))
    && 
-   (ALL  loc: address, ALL fs:funspec, func_at' fs loc --> 
-             EX id:ident,EX v:val,  !! (ge_of rho id = Some (v, type_of_funspec fs)
-                                 /\ val2adr v loc) 
+   (ALL  b: block, ALL fs:funspec, func_at' fs (b,0) --> 
+             EX id:ident, !! (ge_of rho id = Some b) 
                && !! exists fs, (glob_types Delta)!id = Some (Global_func fs)).
 
 (* Unfortunately, we need core_load in the interface as well as address_mapsto,
@@ -695,9 +693,6 @@ Definition existential_ret_assert {A: Type} (R: A -> ret_assert) :=
 
 Definition normal_ret_assert (Q: assert) : ret_assert := 
    fun ek vl rho => !!(ek = EK_normal) && (!! (vl = None) && Q rho).
-
-Definition with_ge (ge: genviron) (G: assert) : pred rmap :=
-     G (mkEnviron ge (Map.empty _) (Map.empty _)).
 
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert := 
       fun ek vl rho => R ek vl rho * F rho.

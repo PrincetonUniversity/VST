@@ -148,9 +148,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
        match ge_of rho symb with
-       | Some (v, Tarray t _ _) => mapsto sh (Tpointer t noattr) a (offset_val ofs v)
-       | Some (v, Tvoid) => TT
-       | Some (v, t) => mapsto sh (Tpointer t noattr) a (offset_val ofs v)
+       | Some b => mapsto sh (Tpointer Tvoid noattr) a (Vptr b ofs)
        | _ => TT
        end
  end.
@@ -191,10 +189,10 @@ Definition globvar2pred (idv: ident * globvar type) : environ->mpred :=
  fun rho =>
   match ge_of rho (fst idv) with
   | None => emp
-  | Some (v, t) => if (gvar_volatile (snd idv))
+  | Some b => if (gvar_volatile (snd idv))
                        then  TT
                        else    init_data_list2pred (gvar_init (snd idv))
-                                   (readonly2share (gvar_readonly (snd idv))) v rho
+                                   (readonly2share (gvar_readonly (snd idv))) (Vptr b Int.zero) rho
  end.
 
 Definition globvars2pred (vl: list (ident * globvar type)) : environ->mpred :=
@@ -565,11 +563,11 @@ Lemma rel_lvalue_local: forall id ty b P rho,
 Proof.
 intros. intros ? ?. constructor.  specialize (H _ H0). apply H. Qed.
 
-Lemma rel_lvalue_global: forall id ty v P rho,
-              P |-- !! (Map.get (ve_of rho) id = None /\ Map.get (ge_of rho) id = Some (v,ty)) ->
-              P |-- rel_lvalue (Evar id ty) v rho.
+Lemma rel_lvalue_global: forall id ty b P rho,
+              P |-- !! (Map.get (ve_of rho) id = None /\ Map.get (ge_of rho) id = Some b) ->
+              P |-- rel_lvalue (Evar id ty) (Vptr b Int.zero) rho.
 Proof.
-intros. intros ? ?. specialize (H _ H0). destruct H. constructor; auto.
+intros. intros ? ?. specialize (H _ H0). destruct H. constructor 2; auto.
 Qed.
 
 Lemma rel_lvalue_deref: forall a b z ty P rho,
