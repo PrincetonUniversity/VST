@@ -114,7 +114,6 @@ Definition juicy_ext_spec := juicy_ext_spec.
 Definition wf_funspec := veric.semax_ext.wf_funspec.
 Definition wf_funspecs := veric.semax_ext.wf_funspecs.
 Definition in_funspecs := veric.semax_ext.in_funspecs.
-Definition local_funspec := veric.semax_ext.local_funspec.
 Definition funspecs_norepeat := veric.semax_ext.funspecs_norepeat.
 Definition add_funspecs := veric.semax_ext.add_funspecs.
 Definition funsig2signature := veric.semax_ext.funsig2signature.
