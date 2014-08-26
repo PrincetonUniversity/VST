@@ -1,4 +1,5 @@
 Require Import floyd.proofauto.
+
 Require Import progs.even.
 Local Open Scope logic.
 
@@ -36,21 +37,24 @@ Qed.
 
 Definition odd_spec :=
  DECLARE _odd
-  WITH sh : share, z : Z, v : val
-  PRE [ 1%positive OF tuint] PROP(repr z v) LOCAL (`(eq v) (eval_id 1%positive)) SEP ()
-  POST [ tint ] local (`(eq (Vint (if Z.odd z then Int.one else Int.zero))) retval).
+  WITH z : Z, v : val
+  PRE [ (*_n*) 1%positive OF tuint] PROP(repr z v) LOCAL(`(eq v) (eval_id (*_n*) 1%positive)) SEP()
+  POST [ tint ] 
+    PROP() LOCAL(`(eq (Vint (if Z.odd z then Int.one else Int.zero))) retval) SEP().
 
 Definition even_spec :=
  DECLARE _even
   WITH z : Z, v : val
-  PRE [ _n OF tuint] PROP(repr z v) LOCAL (`(eq v) (eval_id _n)) SEP ()
-  POST [ tint ] local (`(eq (Vint (if Z.even z then Int.one else Int.zero))) retval).
+  PRE [ _n OF tuint] PROP(repr z v) LOCAL(`(eq v) (eval_id _n)) SEP()
+  POST [ tint ] 
+    PROP() LOCAL(`(eq (Vint (if Z.even z then Int.one else Int.zero))) retval) SEP().
 
 Definition main_spec :=
  DECLARE _main
   WITH z : Z, v : val
-  PRE [ ] PROP(repr 42 v) LOCAL () SEP ()
-  POST [ tint ] local (`(eq (Vint (if Z.even 42 then Int.one else Int.zero))) retval).
+  PRE [ ] PROP(repr 42 v) LOCAL() SEP ()
+  POST [ tint ] 
+    PROP() LOCAL(`(eq (Vint (if Z.even 42 then Int.one else Int.zero))) retval) SEP().
 
 Definition Vprog : varspecs := nil.
 
@@ -61,37 +65,43 @@ Proof.
 start_function.
 name n _n.
 forward_if (PROP (repr z v /\ z > 0) LOCAL (`(eq v) (eval_id _n)) SEP ()).
-* forward. eapply repr0_even in H0; eauto; rewrite H0; entailer.
+* forward; eapply repr0_even in H0; eauto; rewrite H0; entailer.
 * forward; entailer; inv H.
-  assert (z <> 0) by (apply repr_eq0_not0; auto); entailer.
-* forward_call (Share.top,z-1,Vint (Int.sub (Int.repr z) (Int.repr 1))). 
+  assert (z <> 0) by (apply repr_eq0_not0; auto). entailer.
+* forward_call (z-1,Vint (Int.sub (Int.repr z) (Int.repr 1))). 
   entailer; inversion H; subst z0; rewrite <-H5 in H2; inversion H2; subst n.
-  entailer.
   assert (repr (z - 1) (Vint (Int.repr (z - 1)))). 
   { clear -H H1. inv H. constructor. omega. }
-  entailer!. 
+  entailer!.
   after_call; forward.
   rewrite Z.odd_sub; simpl. 
-  case_eq (Z.odd z); rewrite Zodd_even_bool; 
-   destruct (Z.even z); simpl; congruence.
+  case_eq (Z.odd z); rewrite Zodd_even_bool; destruct (Z.even z); simpl; try congruence.
+  intros; entailer!.
+  intros; entailer!. 
 Qed.
 
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof with (try solve[entailer!|entailer!; constructor; omega]).
 start_function. 
-forward_call (42,Vint (Int.repr 42))... after_call.
+forward_call (42,Vint (Int.repr 42))... 
+after_call.
 forward.
 Qed.
 
-Existing Instance NullExtension.Espec.
+Definition Espec := add_funspecs NullExtension.Espec Gprog.
 
-Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Existing Instance Espec.
+
+Lemma all_funcs_correct: semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+unfold Gprog, prog, prog_funct.
 semax_func_skipn.
 apply semax_func_cons_ext; auto.
-admit. (*how to discharge semax_external?*)
+set (sig := ((1%positive,tuint):: nil, tint)).
+eapply (semax_ext NullExtension.Espec _odd sig (Z*val)).
+{ left; auto. }
+{ split; simpl; auto. intros C. destruct C; auto. inv H; auto. inv H; auto. inv H0.
+split; auto. intros C. inv C; auto. inv H. }
 semax_func_cons body_even.
 semax_func_cons body_main.
 apply semax_func_nil.

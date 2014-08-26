@@ -1,6 +1,7 @@
 Require Import sepcomp.core_semantics.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
+Require Import veric.juicy_safety.
 
 Require Import veric.base.
 Require Import msl.rmaps.
@@ -14,28 +15,11 @@ Require Import veric.initial_world.
 Local Open Scope nat_scope.
 Local Open Scope pred.
 
-Definition pures_sub (jm jm' : juicy_mem) := 
-  forall adr,
-  match resource_at (m_phi jm) adr with
-    | PURE k pp => resource_at (m_phi jm') adr 
-                 = PURE k (preds_fmap (approx (level jm')) pp)
-    | _ => True
-  end.
-
-Definition jspec_pures_sub
-      {Z:Type} 
-      (jspec : external_specification juicy_mem external_function Z) :=
-  forall e t ge_s targs tret args rv z z' jm jm',
-  ext_spec_pre jspec e t ge_s targs args z jm -> 
-  ext_spec_post jspec e t tret rv z' jm' -> 
-  pures_sub jm jm'.
-
 Record juicy_ext_spec (Z: Type) := {
   JE_spec:> external_specification juicy_mem external_function Z;
   JE_pre_hered: forall e t ge_s typs args z, hereditary age (ext_spec_pre JE_spec e t ge_s typs args z);
   JE_post_hered: forall e t tret rv z, hereditary age (ext_spec_post JE_spec e t tret rv z);
-  JE_exit_hered: forall rv z, hereditary age (ext_spec_exit JE_spec rv z);
-  JE_rel: jspec_pures_sub JE_spec
+  JE_exit_hered: forall rv z, hereditary age (ext_spec_exit JE_spec rv z)
 }.
  
 Class OracleKind := {
@@ -195,7 +179,7 @@ Lemma age_safe {F V C}
    safeN (juicy_core_sem csem) Hspec ge (level jm0) ora c jm0 ->
    safeN (juicy_core_sem csem) Hspec ge (level jm) ora c jm.
 Proof.
-  intros. rename H into H2.
+  intros. rename H into H2. 
    rewrite (age_level _ _ H2) in H0.
    remember (level jm) as N.
    revert c jm0 jm HeqN H2 H0; induction N; intros.
@@ -209,16 +193,34 @@ Proof.
    destruct (halted csem c); [contradiction | ].
   destruct H0 as [x ?]. exists x.
   destruct H0; split; auto.
-  clear - H2 H0.
-  eapply JE_pre_hered; eauto.
-   intros.
+  { clear - H2 H0. 
+   eapply JE_pre_hered; eauto. }
+  intros.
    destruct (H1 ret m' z') as [c' [? ?]].
    auto.
    assert (level (m_phi jm) < level (m_phi jm0)).
    { apply age_level in H2.
      do 2 rewrite <-level_juice_level_phi.
      rewrite H2; omega. }
-   omega.
+   destruct H3. split. 
+   do 2 rewrite <-level_juice_level_phi in H5. omega.
+   unfold pures_sub in H6. intros adr. specialize (H6 adr).
+  assert (Hage: age (m_phi jm0) (m_phi jm)).
+  { apply age_jm_phi; auto. }
+  case_eq (m_phi jm0 @ adr); auto.
+  intros k p Hphi.
+  apply age1_resource_at with (loc := adr) (r := PURE k p) in Hage; auto.
+  rewrite Hage in H6; rewrite  H6; simpl.
+  f_equal. unfold preds_fmap. destruct p. f_equal.
+  generalize (approx'_oo_approx (level jm) (level m')); intros H7.
+  spec H7. omega.
+  do 2 rewrite <-level_juice_level_phi.
+  rewrite <-compose_assoc.
+  rewrite H7.
+  auto.
+  rewrite <-resource_at_approx.
+  rewrite Hphi.
+  auto.
    auto.
    exists c'; split; auto.
    eapply safe_downward; try eassumption. 

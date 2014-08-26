@@ -111,8 +111,6 @@ Definition semax_external {Espec: OracleKind} ef A P Q :=
 
 Definition juicy_ext_spec := juicy_ext_spec.
 
-Definition wf_funspec := veric.semax_ext.wf_funspec.
-Definition wf_funspecs := veric.semax_ext.wf_funspecs.
 Definition in_funspecs := veric.semax_ext.in_funspecs.
 Definition funspecs_norepeat := veric.semax_ext.funspecs_norepeat.
 Definition add_funspecs := veric.semax_ext.add_funspecs.

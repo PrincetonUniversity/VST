@@ -903,8 +903,6 @@ Axiom semax_extract_prop:
 Require veric.semax_ext.
 
 (*TODO: What's the preferred way to expose these defs in the SL interface?*)
-Definition wf_funspec := veric.semax_ext.wf_funspec.
-Definition wf_funspecs := veric.semax_ext.wf_funspecs.
 Definition in_funspecs := veric.semax_ext.in_funspecs.
 Definition funspecs_norepeat := veric.semax_ext.funspecs_norepeat.
 Definition add_funspecs := veric.semax_ext.add_funspecs.
@@ -913,7 +911,7 @@ Definition funsig2signature := veric.semax_ext.funsig2signature.
 Axiom semax_ext: 
   forall (Espec : OracleKind) 
          (id : ident) (sig : funsig) 
-         (A : Type) (P Q : A -> environ -> mpred) (fs : wf_funspecs),
+         (A : Type) (P Q : A -> environ -> mpred) (fs : funspecs),
     let f := mk_funspec sig A P Q in
     in_funspecs (id, f) fs ->
     funspecs_norepeat fs ->

@@ -12,6 +12,7 @@ Require Import veric.Clight_new.
 Require Import veric.Clight_lemmas.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
+Require Import veric.juicy_safety.
 Require Import veric.juicy_extspec.
 Require Import veric.expr veric.expr_lemmas.
 

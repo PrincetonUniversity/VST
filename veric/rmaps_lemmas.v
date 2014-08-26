@@ -135,6 +135,14 @@ extensionality P.
  apply pred_ext; intros w ?; unfold approx; simpl in *; intuition.
 Qed.
 
+Lemma approx'_oo_approx:
+  forall n n', (n' <= n)%nat -> approx n' oo approx n = approx n'.
+Proof.
+unfold compose; intros.
+extensionality P.
+ apply pred_ext; intros w ?; unfold approx; simpl in *; intuition.
+Qed.
+
 Lemma approx_oo_approx: forall n, approx n oo approx n = approx n.
 Proof.
 intros; apply approx_oo_approx'; omega.

@@ -12,6 +12,7 @@ Require Import veric.assert_lemmas.
 Require Import veric.Clight_new.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
+Require Import veric.juicy_safety.
 Require Import veric.juicy_extspec.
 Require Import veric.expr veric.expr_lemmas.
 Require Import veric.semax.
@@ -1481,6 +1482,7 @@ change ((ext_spec_post' Espec e x' (opttyp_of_type retty) ret0 z' >=>
 assert (level jm' > level m')%nat. 
 {
  do 2 rewrite level_juice_level_phi.
+ destruct H6.
  auto.
 }
 apply (pred_nec_hereditary _ _ (level m')) in H15;

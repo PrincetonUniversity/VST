@@ -56,29 +56,39 @@ Definition funspec2extspec (f : (ident*funspec))
         (fun rv z m => False)
   end.
 
+Require Import res_predicates.
+
+Local Open Scope pred.
+
 Definition wf_funspec (f : funspec) :=
   match f with
     | mk_funspec sig A P Q => 
-        (forall a rho rho' phi phi', 
-        (P a rho phi -> Q a rho' phi' -> 
-        forall adr, 
-          match phi @ adr with
-            | NO _ => True
-            | YES _ _ _ _ => True
-            | PURE k pp => phi' @ adr = PURE k (preds_fmap (approx (level phi')) pp)
-          end))
-        /\ (forall a ge ge' n args phi, Genv.genv_symb ge = Genv.genv_symb ge' ->
-              (P a (make_ext_args ge n args) phi <-> 
-               P a (make_ext_args ge' n args) phi))
+        forall a ge ge' n args, 
+          Genv.genv_symb ge = Genv.genv_symb ge' ->
+          P a (make_ext_args ge n args) |-- P a (make_ext_args ge' n args)
   end.
 
-Program Definition funspec2jspec f (wf : wf_funspec (snd f)) : juicy_ext_spec Z :=
-  Build_juicy_ext_spec _ (funspec2extspec f) _ _ _ _.
+Lemma make_ext_args_symb ge ge' (H: Genv.genv_symb ge = Genv.genv_symb ge') n args : 
+  make_ext_args ge n args = make_ext_args ge' n args.
+Proof.
+revert ge ge' n H; induction args.
+* simpl; unfold filter_genv, Genv.find_symbol. intros ? ? ? ->; auto.
+* intros ge ge' n H. simpl. f_equal. eapply IHargs; eauto.
+Qed.
+
+Lemma all_funspecs_wf f : wf_funspec f.
+Proof.
+destruct f; simpl; intros a ge ge' n args H.
+erewrite make_ext_args_symb; eauto.
+Qed.
+
+Program Definition funspec2jspec f : juicy_ext_spec Z :=
+  Build_juicy_ext_spec _ (funspec2extspec f) _ _ _.
 Next Obligation.
-destruct f; simpl; unfold funspec2pre; simpl.
+destruct f; simpl; unfold funspec2pre, pureat; simpl; destruct f; simpl; intros.
 simpl in t; revert t.
 destruct (ident_eq i (ef_id e)).
-* clear wf; subst i; intros t a a' Hage; destruct m; simpl.
+* subst i; intros t a a' Hage; destruct m; simpl.
 intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
 apply age1_juicy_mem_unpack in Hage.
 destruct Hage as [Hage Hdry].
@@ -91,10 +101,10 @@ unfold necR. constructor; auto.
 destruct Espec; simpl; apply JE_pre_hered.
 Qed.
 Next Obligation.
-destruct f; simpl; unfold funspec2post; simpl.
+destruct f; simpl; unfold funspec2post, pureat; simpl; destruct f; simpl; intros.
 simpl in t; revert t.
 destruct (ident_eq i (ef_id e)).
-* clear wf; subst i; intros t a a' Hage; destruct m0; simpl.
+* subst i; intros t a a' Hage; destruct m0; simpl.
 intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
 apply age1_juicy_mem_unpack in Hage.
 destruct Hage as [Hage Hdry].
@@ -107,83 +117,49 @@ unfold necR. constructor; auto.
 destruct Espec; simpl; apply JE_post_hered.
 Qed.
 Next Obligation.
-intros ? ? ? ?; destruct f; auto.
-Qed.
-Next Obligation.
-destruct f; unfold jspec_pures_sub; simpl; intros.
-revert wf; unfold wf_funspec; simpl; intros H2. revert t H H0 H2. 
-unfold funspec2pre, funspec2post. 
-destruct (ident_eq i (ef_id e)).
-* intros. intros adr.
-destruct H2 as [H2 _].
-specialize (H2 (snd t) (make_ext_args (symb2genv ge_s) 1 args) (make_ext_rval 1 rv)). 
-destruct H as [phi0 [phi1 [Hjoin [Hpre Hnec]]]].
-destruct H0 as [phi0' [phi1' [Hjoin' [Hpost Hnec']]]].
-generalize (H2 _ _ Hpre Hpost adr). clear H2.
-clear -Hjoin Hjoin'. 
-cut (level phi0' = level jm'). intros Hlev.
-apply resource_at_join with (loc := adr) in Hjoin. revert Hjoin.
-apply resource_at_join with (loc := adr) in Hjoin'. revert Hjoin'.
-case_eq (m_phi jm @ adr); auto. intros k p Hpure.
-case_eq (phi0 @ adr); try solve[inversion 3].
-intros ? ? Hphi0. inversion 2. subst.
-intros H2; rewrite H2 in Hjoin'. inv Hjoin'. rewrite Hlev.
-rewrite level_juice_level_phi; auto.
-apply join_level in Hjoin'. 
-destruct Hjoin'; auto.
-* destruct Espec; simpl; intros.
-clear H2; eapply (JE_rel e); eauto.
+intros ? ? ? ?; destruct f; destruct f; simpl.
+intros a' Hage; auto.
 Qed.
 
 End funspecs2jspec.
 
-Inductive wf_funspecs := 
-| wf_nil : wf_funspecs
-| wf_cons : forall (f : ident*funspec) (wf : wf_funspec (snd f)) (l : wf_funspecs), 
-              wf_funspecs.
-
-Fixpoint in_funspecs (f : (ident*funspec)) (fs : wf_funspecs) :=
+Fixpoint in_funspecs (f : (ident*funspec)) (fs : funspecs) :=
   match fs with
-    | wf_nil => False
-    | wf_cons f' wf fs' => f=f' \/ in_funspecs f fs'
+    | nil => False
+    | cons f' fs' => f=f' \/ in_funspecs f fs'
   end.
 
-Fixpoint in_funspecs_by_id (f : (ident*funspec)) (fs : wf_funspecs) :=
+Fixpoint in_funspecs_by_id (f : (ident*funspec)) (fs : funspecs) :=
   match fs with
-    | wf_nil => False
-    | wf_cons f' wf fs' => fst f=fst f' \/ in_funspecs_by_id f fs'
+    | nil => False
+    | cons f' fs' => fst f=fst f' \/ in_funspecs_by_id f fs'
   end.
 
 Lemma in_funspecs_by_id_lem id f f' fs : 
   in_funspecs_by_id (id,f) fs <-> in_funspecs_by_id (id,f') fs.
 Proof.
 elim fs; simpl; [split; auto|].
-intros [? ?]; simpl; intros H H2 H3; rewrite H3; split; auto.
+intros [? ?]; simpl; intros H H2; rewrite H2; split; auto.
 Qed.
 
 Lemma in_funspecs_in_by_id f fs :
-  in_funspecs f fs -> 
-  in_funspecs_by_id f fs.
+  in_funspecs f fs -> in_funspecs_by_id f fs.
 Proof.
 elim fs; simpl; auto.
-intros [? ?]; simpl; intros ? ? IH.
+intros [? ?]; simpl; intros ? IH.
 intros [?|?]. subst. left; auto. right; auto.
 Qed.
 
 Fixpoint funspecs_norepeat fs :=
   match fs with
-    | wf_nil => True
-    | wf_cons f wf fs' => ~in_funspecs_by_id f fs' /\ funspecs_norepeat fs'
+    | nil => True
+    | cons f fs' => ~in_funspecs_by_id f fs' /\ funspecs_norepeat fs'
   end.
 
-Lemma in_funspecs_wf f fs : in_funspecs f fs -> wf_funspec (snd f).
-Proof. induction fs; simpl; inversion 1; try subst f0; auto. Qed.
-
-Fixpoint add_funspecs_rec (Z : Type) (Espec : juicy_ext_spec Z) (fs : wf_funspecs) :=
+Fixpoint add_funspecs_rec (Z : Type) (Espec : juicy_ext_spec Z) (fs : funspecs) :=
   match fs with
-    | wf_nil => Espec
-    | wf_cons (i,f) wf fs' => 
-      funspec2jspec Z (add_funspecs_rec Z Espec fs') (i,f) wf
+    | nil => Espec
+    | cons (i,f) fs' => funspec2jspec Z (add_funspecs_rec Z Espec fs') (i,f)
   end.
 
 Require Import JMeq.
@@ -202,7 +178,7 @@ induction fs; [intros; elimtype False; auto|]; intros ef H H1 H2 Hpre.
 destruct H1 as [H1|H1].
 
 { 
-subst f;simpl in *.
+subst a; simpl in *.
 clear IHfs H; revert x H2 Hpre; unfold funspec2pre; simpl.
 destruct (ident_eq id id); simpl.
 intros x Hjoin Hp. exists (phi1,x). split; eauto.
@@ -215,7 +191,7 @@ assert (Hin: in_funspecs_by_id (id, mk_funspec sig A P Q) fs).
 destruct H as [Ha Hb]. 
 destruct (IHfs Hb H1 H2 Hpre) as [x' H3].
 clear -Ha Hin H1 H3; revert x' Ha Hin H1 H3.
-destruct f; simpl; destruct f; simpl; unfold funspec2pre; simpl.
+destruct a; simpl; destruct f; simpl; unfold funspec2pre; simpl.
 destruct (ident_eq i id).
 * subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
@@ -240,7 +216,7 @@ induction fs; [intros; elimtype False; auto|]; intros ef H H1 Hpost.
 destruct H1 as [H1|H1].
 
 { 
-subst f;simpl in *.
+subst a; simpl in *.
 clear IHfs H; revert x Hpost; unfold funspec2post; simpl.
 destruct (ident_eq id id); simpl.
 intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].
@@ -254,7 +230,7 @@ assert (Hin: in_funspecs_by_id (id, mk_funspec sig A P Q) fs).
 { clear -H1; apply in_funspecs_in_by_id in H1; auto. }
 destruct H as [Ha Hb]. 
 clear -Ha Hin H1 Hb Hpost IHfs; revert x Ha Hin H1 Hb Hpost IHfs.
-destruct f; simpl; destruct f; simpl; unfold funspec2post; simpl.
+destruct a; simpl; destruct f; simpl; unfold funspec2post; simpl.
 destruct (ident_eq i id).
 * subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
@@ -264,7 +240,7 @@ destruct (ident_eq i id).
 }
 Qed.
 
-Definition add_funspecs (Espec : OracleKind) (fs : wf_funspecs) : OracleKind :=
+Definition add_funspecs (Espec : OracleKind) (fs : funspecs) : OracleKind :=
   match Espec with
     | Build_OracleKind ty spec => 
       Build_OracleKind ty (add_funspecs_rec ty spec fs)
@@ -274,7 +250,7 @@ Section semax_ext.
 
 Variable Espec : OracleKind.
 
-Lemma semax_ext id sig A P Q (fs : wf_funspecs) : 
+Lemma semax_ext id sig A P Q (fs : funspecs) : 
   let f := mk_funspec sig A P Q in
   in_funspecs (id,f) fs -> 
   funspecs_norepeat fs -> 
@@ -286,9 +262,11 @@ intros n ge x n0 Hlater F ts args jm H jm' H2 H3.
 destruct H3 as [s [t [Hjoin [Hp Hf]]]].
 destruct Espec.
 assert (Hp'': P x (make_ext_args (symb2genv (Genv.genv_symb ge)) 1 args) s).
-{ generalize (in_funspecs_wf _ _ Hin). simpl; intros [Hwf1 Hwf2].
-  rewrite Hwf2; eauto.
-  rewrite symb2genv_ax; auto. }
+{ generalize (all_funspecs_wf f) as Hwf2; intro.
+  spec Hwf2 x ge (symb2genv (Genv.genv_symb ge)) 1%positive args.
+  spec Hwf2.
+  rewrite symb2genv_ax; auto. 
+  apply Hwf2; auto. }
 destruct (add_funspecs_pre OK_spec ts (Genv.genv_symb ge) s t Hnorepeat Hin Hjoin Hp'') 
   as [x' [Heq Hpre]].
 simpl.
