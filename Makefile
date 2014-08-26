@@ -128,7 +128,7 @@ VERIC_FILES= \
   lift.v expr.v environ_lemmas.v binop_lemmas.v expr_lemmas.v expr_lemmas2.v expr_rel.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_sim.v \
   slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
-  juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_extspec.v \
+  juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
   NullExtension.v SequentialClight.v superprecise.v
@@ -148,8 +148,9 @@ PROGS_FILES= \
    entail_examples.v \
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
   verif_float.v verif_dotprod.v \
-  verif_nest3.v verif_nest2.v\
-  logical_compare.v verif_logical_compare.v
+  verif_nest3.v verif_nest2.v \
+  logical_compare.v verif_logical_compare.v \
+  even.v verif_even.v
 
 SHA_FILES= \
   SHA256.v common_lemmas.v sha_lemmas.v functional_prog.v \
