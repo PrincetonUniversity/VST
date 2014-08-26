@@ -116,10 +116,11 @@ Record semaxArg :Type := SemaxArg {
 
 
 Definition ext_spec_pre' (Espec: OracleKind) (ef: external_function) 
-   (x': ext_spec_type OK_spec ef) (ts: list typ) (args: list val) (z: OK_ty) : pred juicy_mem :=
+   (x': ext_spec_type OK_spec ef) (ge_s: PTree.t block) 
+   (ts: list typ) (args: list val) (z: OK_ty) : pred juicy_mem :=
   exist (hereditary age) 
-     (ext_spec_pre OK_spec ef x' ts args z)
-     (JE_pre_hered _ _ _ _ _ _ _).
+     (ext_spec_pre OK_spec ef x' ge_s ts args z)
+     (JE_pre_hered _ _ _ _ _ _ _ _).
 
 Program Definition ext_spec_post' (Espec: OracleKind)
    (ef: external_function) (x': ext_spec_type OK_spec ef) 
@@ -149,7 +150,7 @@ Definition semax_external (Hspec: OracleKind) ef (A: Type) (P Q: A -> environ ->
  |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val,
    juicy_mem_op (P x (make_ext_args gx 1%positive args) * F) >=> 
    EX x': ext_spec_type OK_spec ef,
-    ALL z:_, ext_spec_pre' Hspec (* gx *) ef x' ts args z &&
+    ALL z:_, ext_spec_pre' Hspec ef x' (Genv.genv_symb gx) ts args z &&
      ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, 
       ext_spec_post' Hspec ef x' tret ret z' >=>
           juicy_mem_op (Q x (make_ext_rval 1 ret) * F).

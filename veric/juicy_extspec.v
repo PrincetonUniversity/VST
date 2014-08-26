@@ -25,14 +25,14 @@ Definition pures_sub (jm jm' : juicy_mem) :=
 Definition jspec_pures_sub
       {Z:Type} 
       (jspec : external_specification juicy_mem external_function Z) :=
-  forall e t targs tret args rv z z' jm jm',
-  ext_spec_pre jspec e t targs args z jm -> 
+  forall e t ge_s targs tret args rv z z' jm jm',
+  ext_spec_pre jspec e t ge_s targs args z jm -> 
   ext_spec_post jspec e t tret rv z' jm' -> 
   pures_sub jm jm'.
 
 Record juicy_ext_spec (Z: Type) := {
   JE_spec:> external_specification juicy_mem external_function Z;
-  JE_pre_hered: forall e t typs args z, hereditary age (ext_spec_pre JE_spec e t typs args z);
+  JE_pre_hered: forall e t ge_s typs args z, hereditary age (ext_spec_pre JE_spec e t ge_s typs args z);
   JE_post_hered: forall e t tret rv z, hereditary age (ext_spec_post JE_spec e t tret rv z);
   JE_exit_hered: forall rv z, hereditary age (ext_spec_exit JE_spec rv z);
   JE_rel: jspec_pures_sub JE_spec
@@ -188,8 +188,8 @@ unfold rmap in *.
  apply (necR_NO _ _ l Share.bot H4). auto.
 Qed.
 
-Lemma age_safe {G C}
-  (csem: CoreSemantics G C mem){Z}  (Hspec : juicy_ext_spec Z):
+Lemma age_safe {F V C}
+  (csem: CoreSemantics (Genv.t F V) C mem){Z}  (Hspec : juicy_ext_spec Z):
   forall jm jm0, age jm0 jm -> 
   forall ge ora c, 
    safeN (juicy_core_sem csem) Hspec ge (level jm0) ora c jm0 ->

@@ -1,6 +1,8 @@
 Require Import AST.
 Require Import Values.
 Require Import Memory.
+Require Import Globalenvs.
+Require Import Maps.
 
 Require Import ListSet.
 
@@ -9,13 +11,13 @@ Require Import ListSet.
 Structure external_specification (M E Z : Type) := 
   { ext_spec_type : E -> Type
   ; ext_spec_pre: forall e: E, 
-    ext_spec_type e -> list typ -> list val -> Z -> M -> Prop
+    ext_spec_type e -> PTree.t block -> list typ -> list val -> Z -> M -> Prop
   ; ext_spec_post: forall e: E, 
     ext_spec_type e -> option typ -> option val -> Z -> M ->  Prop
   ; ext_spec_exit: option val -> Z -> M ->  Prop }.
 
 Arguments ext_spec_type {M E Z} _ _.
-Arguments ext_spec_pre {M E Z} _ _ _ _ _ _ _.
+Arguments ext_spec_pre {M E Z} _ _ _ _ _ _ _ _.
 Arguments ext_spec_post {M E Z} _ _ _ _ _ _ _.
 Arguments ext_spec_exit {M E Z} _ _ _ _.
 
@@ -46,21 +48,21 @@ Definition oval_inject j (v tv : option val) :=
 Module ExtSpecProperties.
 
 Definition det (M E Z : Type) (spec : external_specification M E Z) :=
-  forall ef (x x' : ext_spec_type spec ef) tys z vals m
+  forall ef (x x' : ext_spec_type spec ef) ge tys z vals m
          oty' ov' z' m' oty'' ov'' z'' m'',
-  ext_spec_pre spec ef x tys vals z m -> 
+  ext_spec_pre spec ef x ge tys vals z m -> 
   ext_spec_post spec ef x oty' ov' z' m' ->  
-  ext_spec_pre spec ef x' tys vals z m -> 
+  ext_spec_pre spec ef x' ge tys vals z m -> 
   ext_spec_post spec ef x' oty'' ov'' z'' m'' ->  
   oty'=oty'' /\ ov'=ov'' /\ z'=z'' /\ m'=m''.
 
 Record closed (Z : Type) (spec : ext_spec Z) :=
   { P_closed : 
-      forall ef (x : ext_spec_type spec ef) j tys vals z m tvals tm, 
-      ext_spec_pre spec ef x tys vals z m -> 
+      forall ef (x : ext_spec_type spec ef) ge j tys vals z m tvals tm, 
+      ext_spec_pre spec ef x ge tys vals z m -> 
       val_list_inject j vals tvals -> 
       Mem.inject j m tm -> 
-      ext_spec_pre spec ef x tys tvals z tm
+      ext_spec_pre spec ef x ge tys tvals z tm
   ; Q_closed : 
       forall ef (x : ext_spec_type spec ef) j oty ov z m otv tm, 
       ext_spec_post spec ef x oty ov z m -> 

@@ -1,17 +1,18 @@
 Require Import AST.
 Require Import Coqlib.
+Require Import Globalenvs.
 
 Require Import extspec.
 Require Import core_semantics.
 Require Import core_semantics_lemmas.
 
 Section safety.
-  Context {G C M Z:Type}.
+  Context {F V C M Z:Type}.
   Context {Hrel: M -> M -> Prop}.
-  Context (Hcore:CoreSemantics G C M).
+  Context (Hcore:CoreSemantics (Genv.t F V) C M).
   Variable (Hspec:external_specification M external_function Z).
 
-  Variable ge : G.
+  Variable ge : Genv.t F V.
 
   Fixpoint safeN' (n:nat) (z:Z) (c:C) (m:M) : Prop :=
     match n with
@@ -24,7 +25,7 @@ Section safety.
              safeN' n' z c' m'
        | Some (e,sig,args), None =>
            exists x:ext_spec_type Hspec e,
-             ext_spec_pre Hspec e x (sig_args sig) args z m /\
+             ext_spec_pre Hspec e x (Genv.genv_symb ge) (sig_args sig) args z m /\
              (forall ret m' z',
                Hrel m m' -> 
                ext_spec_post Hspec e x (sig_res sig) ret z' m' ->
@@ -186,16 +187,16 @@ End safety.
 Require Import msl.ageable.
 
 Section juicy_safety.
-  Context {G C M Z:Type}.
+  Context {F V C M Z:Type}.
   Context `{Hage: ageable M}.
-  Context (Hcore:CoreSemantics G C M).
+  Context (Hcore:CoreSemantics (Genv.t F V) C M).
   Variable (Hspec:external_specification M external_function Z).
-  Definition safeN := @safeN' G C M Z (fun m m' => (level m' < level m)%nat) Hcore Hspec.
+  Definition safeN := @safeN' F V C M Z (fun m m' => (level m' < level m)%nat) Hcore Hspec.
 End juicy_safety.
 
 Section dry_safety.
-  Context {G C M Z:Type}.
-  Context (Hcore:CoreSemantics G C M).
+  Context {F V C M Z:Type}.
+  Context (Hcore:CoreSemantics (Genv.t F V) C M).
   Variable (Hspec:external_specification M external_function Z).
-  Definition dry_safeN := @safeN' G C M Z (fun m m' => True) Hcore Hspec.
+  Definition dry_safeN := @safeN' F V C M Z (fun m m' => True) Hcore Hspec.
 End dry_safety.

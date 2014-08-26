@@ -914,14 +914,13 @@ Definition add_funspecs := veric.semax_ext.add_funspecs.
 Definition funsig2signature := veric.semax_ext.funsig2signature.
 
 Axiom semax_ext: 
-  forall (Espec : OracleKind) (gx : genv) 
+  forall (Espec : OracleKind) 
          (id : ident) (sig : funsig) 
          (A : Type) (P Q : A -> environ -> mpred) (fs : wf_funspecs),
     let f := mk_funspec sig A P Q in
     local_funspec f ->
     in_funspecs (id, f) fs ->
     funspecs_norepeat fs ->
-    @semax_external (add_funspecs Espec gx fs)
-      (EF_external id (funsig2signature sig)) A P Q.
+    @semax_external (add_funspecs Espec fs) (EF_external id (funsig2signature sig)) A P Q.
 
 End CLIGHT_SEPARATION_LOGIC.
