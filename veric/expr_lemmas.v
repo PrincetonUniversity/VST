@@ -440,7 +440,7 @@ unfold get_var_type, eval_var in *.
 remember (Map.get (ve_of rho) i); destruct o; try destruct p; 
 try rewrite eqb_type_eq in *; simpl in *.
 destruct (type_eq t t0); simpl in *; intuition.
-subst t0. if_tac; intuition.
+subst t0.
 apply Clight.eval_Elvalue with b Int.zero;
   [ | constructor; simpl; rewrite MODE; auto].
 apply eval_Evar_local.
@@ -458,22 +458,15 @@ simpl. simpl in H3.
 rewrite H3.
 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-destruct H2. unfold tc_bool in H2.
+unfold tc_bool in H2.
 if_tac in H2; try contradiction.
 apply Clight.eval_Elvalue with b Int.zero; [  | econstructor 2; apply MODE].
-(*assert (ZO := filter_genv_zero_ofs _ _ _ _ _ (eq_refl _) _ H3).  subst.*)
 apply Clight.eval_Evar_global; auto.
 
 * (* eval_lvalue Evar *)
-(*
-pose proof (typecheck_lvalue_sound Delta rho (Evar i t) H0 H1).
- simpl in H2.
- *)
  simpl in H1.
  destruct (get_var_type Delta i) eqn:?; [ | contradiction].
- rewrite denote_tc_assert_andp in H1; destruct H1.
  destruct (eqb_type t t0) eqn:?; inversion H1; clear H1.
- destruct (type_is_volatile t) eqn:?; inversion H2; clear H2.
  apply eqb_type_true in Heqb; subst t0.
  destruct H0 as [_ [? [? ?]]].
  subst rho; simpl in *.
@@ -485,7 +478,7 @@ pose proof (typecheck_lvalue_sound Delta rho (Evar i t) H0 H1).
  exists b; exists Int.zero; split; auto.
  constructor; auto.
  unfold eval_var; simpl. rewrite H.
- rewrite eqb_type_refl. rewrite Heqb0; reflexivity.
+ rewrite eqb_type_refl. reflexivity.
  +
  destruct ((glob_types Delta)!i) eqn:?; inv H3.
  destruct (H1 _ _ Heqo) as [b [? ?]];
@@ -495,12 +488,11 @@ pose proof (typecheck_lvalue_sound Delta rho (Evar i t) H0 H1).
  destruct H2.
  constructor 2; auto.
  unfold filter_genv in H. destruct (Genv.find_symbol ge i); inv H.
-(* destruct (type_of_global ge b0); inv H5; auto.*)
  destruct H2 as [t ?]. congruence.
  unfold eval_var. simpl.
  specialize (H2 _ _ Heqo).
  destruct H2. simpl in H2. unfold Map.get; rewrite H2.
- rewrite H. (*rewrite eqb_type_refl.*) auto.
+ rewrite H. auto.
  destruct H2; congruence.
 
 * (*temp*)  
@@ -619,18 +611,18 @@ simpl in H1. remember (access_mode t). destruct m0; try solve [inv H1].
   repeat rewrite tc_andp_sound in *. 
 simpl in H1. 
 repeat( try rewrite tc_andp_sound in *; simpl in *; super_unfold_lift). 
-destruct H1. destruct H1.
-destruct IHe. specialize (H5 H1). destruct H5 as [b [ofs H5]]. 
+destruct H1.
+destruct IHe. specialize (H4 H1). destruct H4 as [b [ofs H5]]. 
 destruct H5. 
  remember (typeof e). 
-destruct t0; try solve[inv H3]. remember (field_offset i f). destruct r; inv H3. simpl in *. rewrite <- Heqr in *.
+destruct t0; try solve[inv H2]. remember (field_offset i f). destruct r; inv H2. simpl in *. rewrite <- Heqr in *.
 unfold deref_noload in *. rewrite <- Heqm0 in *. 
 eapply Clight.eval_Elvalue; eauto. 
 eapply Clight.eval_Efield_struct; eauto. 
-eapply Clight.eval_Elvalue; auto. apply H5.
+eapply Clight.eval_Elvalue; auto. apply H4.
 rewrite <- Heqt0.
 apply Clight.deref_loc_copy. auto. simpl. 
-rewrite H6. apply Clight.deref_loc_reference. auto. 
+rewrite H5. apply Clight.deref_loc_reference. auto. 
 
 unfold deref_noload. rewrite <- Heqm0. simpl. 
 eapply Clight.eval_Elvalue; eauto.
@@ -638,7 +630,7 @@ eapply Clight.eval_Efield_union.
 eapply Clight.eval_Elvalue; eauto.
 apply Clight.deref_loc_copy. 
 rewrite <- Heqt0. auto. eauto.
-simpl. rewrite H6. simpl. apply Clight.deref_loc_reference; auto. 
+simpl. rewrite H5. simpl. apply Clight.deref_loc_reference; auto. 
 
 *
  assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
@@ -646,20 +638,20 @@ specialize (IHe ge). intuition. simpl in H1.
 simpl in *.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
  unfold eval_field,offset_val in *; super_unfold_lift; remember (eval_lvalue e rho).
-destruct H1. destruct H1. specialize (H4 H1).
+destruct H1.  specialize (H4 H1).
 destruct H4 as [b [ofs H4]].
 remember (typeof e) as t0. destruct t0; intuition.
 remember (field_offset i f) as r.
 destruct r; intuition.
  destruct v; intuition. simpl in *. exists b. exists (Int.add ofs (Int.repr z)). 
-intuition. inv H7.
+intuition. inv H6.
  eapply Clight.eval_Efield_struct; auto.
-eapply Clight.eval_Elvalue in H6. apply H6.
+eapply Clight.eval_Elvalue in H5. apply H5.
 rewrite <- Heqt0. auto. apply Clight.deref_loc_copy. simpl; auto.
 rewrite <- Heqt0; reflexivity. auto.
-inv H7; auto.
+inv H6; auto.
 subst v.
-exists b, ofs. rewrite H7. simpl. split; auto.
+exists b, ofs. rewrite H6. simpl. split; auto.
 eapply Clight.eval_Efield_union; eauto.
 eapply Clight.eval_Elvalue; eauto.
 rewrite <- Heqt0. apply Clight.deref_loc_copy.
@@ -690,6 +682,7 @@ Lemma eval_lvalue_relate:
 apply eval_both_relate.
 Qed.
 
+(*
 Lemma tc_lvalue_nonvol : forall rho Delta e,
 (denote_tc_assert (typecheck_lvalue Delta e) rho) ->
 type_is_volatile (typeof e) = false.
@@ -719,6 +712,7 @@ repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 super_unfold_lift. intuition. unfold tc_bool in *.  rewrite if_negb in *. 
 if_tac in H1; auto. inv H1. 
 Qed.
+*)
 
 (*Proof for "backwards environment checking" that an environment that typechecks
 must have come from an update on an environment that typechecks. 

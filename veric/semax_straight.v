@@ -755,8 +755,6 @@ apply (neutral_cast_lemma2 _ t2 _ TC1 TC3).
 split; [split3 | ].
 * simpl.
    rewrite <- (age_jm_dry H); constructor; auto.
-   assert (NONVOL: type_is_volatile (typeof e1) = false).
-   unfold tc_lvalue in TC2; simpl in TC2. apply tc_lvalue_nonvol in TC2; auto.
    apply Clight.eval_Elvalue with b ofs; auto.
    destruct H0 as [H0 _].
    assert ((|> (F rho * P rho))%pred
@@ -836,7 +834,7 @@ forall (Delta: tycontext) sh id P e1 t1 v2,
                          (subst id old P rho)))).
 Proof.
 intros until v2.  
-intros Hid (*TC1*) H99.
+intros Hid H99.
 replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho && 
        (!! tc_val t1  (`(eval_cast (typeof e1) t1) v2 rho)) &&
        P rho)))
@@ -890,9 +888,6 @@ apply TC3.
 split; [split3 | ].
 * simpl.
    rewrite <- (age_jm_dry H); constructor; auto.
-   assert (NONVOL: type_is_volatile (typeof e1) = false).
-   unfold typecheck_temp_id in *.
-   unfold tc_lvalue in TC2; simpl in TC2. apply tc_lvalue_nonvol in TC2; auto.
    apply Clight.eval_Ecast with (v2 rho);
   [ | clear - TC3; unfold prop,eval_cast, force_val1 in TC3;
      rewrite cop2_sem_cast; 
@@ -914,7 +909,8 @@ split; [split3 | ].
    unfold mapsto in H4. 
    revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
    rename m into ch.
-   rewrite H2, NONVOL in H5.
+   destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
+   rewrite H2 in H5.
    destruct H5 as [[H5' H5] | [H5 _]];
     [ | hnf in TC3; rewrite H5, eval_cast_Vundef in TC3; inv TC3 ].
    assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
@@ -1202,16 +1198,14 @@ split3; auto.
 generalize (eval_expr_relate _ _ _ _ _ e2 (m_dry jm) Hge (guard_environ_e1 _ _ _ TC4)); intro.
 econstructor; try eassumption. 
 unfold tc_lvalue in TC1. simpl in TC1. 
-apply tc_lvalue_nonvol in TC1. auto.  (* typechecking proof *)
-(*instantiate (1:= eval_expr e2 rho).
-auto.*)
+auto.
 instantiate (1:=(force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))).
 rewrite cop2_sem_cast.
 eapply cast_exists; eauto. destruct TC4; auto.
 eapply Clight.assign_loc_value.
 apply Hmode.
 unfold tc_lvalue in TC1. simpl in TC1. 
-apply tc_lvalue_nonvol in TC1. auto. (* typechecking proof *)
+auto. 
 unfold Mem.storev.
 simpl m_dry.
 rewrite (age_jm_dry Hage); auto.
@@ -1476,7 +1470,6 @@ rewrite sepcon_comm.
 rewrite sepcon_assoc.
 eapply sepcon_derives; try apply AM; auto.
 unfold mapsto.
-(*destruct TC4 as [TC4 _]. *)
 
 rewrite Hmode.
 rewrite NONVOL.

@@ -586,7 +586,7 @@ Lemma semax_call_id1_x:
   forall
    (CLOSQ: Forall (closed_wrt_vars (eq ret')) Q)
    (CLOSR: Forall (closed_wrt_vars (eq ret')) R),
-   type_is_volatile retty' = false -> 
+(*   type_is_volatile retty' = false -> *)
    (temp_types Delta) ! ret' = Some (retty', false) ->
    is_neutral_cast retty' retty = true ->
    match (temp_types Delta) ! ret with Some (t,_) => eqb_type t retty | None => false end = true ->
@@ -603,7 +603,7 @@ Lemma semax_call_id1_x:
 Proof.
  pose (H1:=True); pose (H2:=True).
 
- intros. rename H3 into NONVOL.
+ intros until 4. pose proof I. intros.  clear H3. (* rename H3 into NONVOL. *)
  eapply semax_seq';
  [assert (H0':    match retty' with Tvoid => False | _ => True end)
   by (clear - H0; destruct retty'; try contradiction; auto);
@@ -642,7 +642,7 @@ PROP  ()
            | intros ?ek ?vl; apply after_set_special1 ].
  apply andp_right.
  intro rho; unfold tc_expr; simpl.
- rewrite NONVOL. simpl.
+(* rewrite NONVOL. simpl. *)
  replace ( (temp_types (initialized ret' Delta)) ! ret' ) 
      with (Some (retty', true))
    by (unfold initialized;  simpl; rewrite H4;
@@ -728,7 +728,7 @@ Lemma semax_call_id1_x_alt:
    typeof_temp Delta ret = Some retty -> 
    match retty with Tvoid => False | Tcomp_ptr _ _ => False | Tarray _ _ _ => False | _ => True end ->
    paramty = type_of_params argsig ->
-   type_is_volatile retty' = false -> 
+(*   type_is_volatile retty' = false ->  *)
    (temp_types Delta) ! ret' = Some (retty', false) ->
    is_neutral_cast retty' retty = true ->
    forall (CLOSQ: Forall (closed_wrt_vars (eq ret')) Q),
@@ -748,7 +748,7 @@ Lemma semax_call_id1_x_alt:
           PROPx P (LOCALx (map (subst ret (`old)) Q) 
              (SEPx (`(Post witness) (get_result1 ret) :: map (subst ret (`old)) Frame))))).
 Proof.
-intros.
+intros until 5. pose proof I. intros.
 subst paramty.
 eapply semax_pre; [ | apply semax_call_id1_x with retty; try eassumption].
 rewrite <- (insert_local (tc_exprlist Delta (argtypes argsig) bl)).
@@ -1243,7 +1243,7 @@ match goal with
    eapply semax_seq';
     [eapply (semax_call_id1_x_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
       [reflexivity | reflexivity | reflexivity | apply I | reflexivity | reflexivity 
-      | reflexivity | reflexivity | auto 50 with closed | | unfold Frame; clear Frame ]
+      | (*reflexivity |*) reflexivity | auto 50 with closed | | unfold Frame; clear Frame ]
     | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; 
       intro_old_var' i; autorewrite with subst; unfold Frame; clear Frame;
      say_after_call ]
@@ -1254,7 +1254,7 @@ match goal with
    eapply semax_post_flipped3;
     [eapply (semax_call_id1_x_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
       [reflexivity | reflexivity | reflexivity | apply I | reflexivity | reflexivity 
-      | reflexivity | reflexivity | auto 50 with closed | | unfold Frame; clear Frame ]
+      | (*reflexivity |*) reflexivity | auto 50 with closed | | unfold Frame; clear Frame ]
     | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; 
       intro_old_var' i; autorewrite with subst; unfold Frame; clear Frame;
      say_after_call ]

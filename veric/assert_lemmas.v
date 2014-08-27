@@ -411,7 +411,7 @@ induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
   destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
   specialize (H0 i). hnf in H0. rewrite Heqo0 in H0. rewrite H0.
   auto.
-* destruct (negb (type_is_volatile t)); auto.
+*
   destruct ((temp_types Delta)!i) as [[? ?]|] eqn:H1; [ | contradiction].
   destruct H as [H _]. specialize (H i); hnf in H. rewrite H1 in H.
   destruct ((temp_types Delta')!i) as [[? ?]|] eqn:H2; [ | contradiction].
@@ -421,7 +421,7 @@ induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
   destruct b0; auto. apply I.
 * destruct IHe.
   repeat rewrite denote_tc_assert_andp.
-  intros [[[? ?] ?] ?]; repeat split; auto.
+  intros [[? ?] ?]; repeat split; auto.
   unfold tc_expr in H0.
   apply (H0 w); unfold prop; auto.
 *   repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
@@ -434,9 +434,9 @@ induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
    destruct IHe as [H8 _]; apply (H8 w); auto.
 * destruct (access_mode t) eqn:?; auto.
- repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split; auto.
- destruct IHe. apply (H4 w); auto.
-* repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split; auto.
+ repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
+ destruct IHe. apply (H3 w); auto.
+* repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
  destruct IHe as [_ H8]; apply (H8 w); auto.
 Qed.
 

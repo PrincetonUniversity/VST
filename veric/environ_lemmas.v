@@ -187,24 +187,8 @@ Lemma typecheck_val_ptr_lemma:
    typecheck_val (eval_id id rho) (Tpointer t a) = true.
 Proof. 
 intros. unfold strict_bool_val in *. unfold typecheck_val.
-simpl in H0. if_tac in H0; simpl in *; intuition.
-remember ((temp_types Delta) ! id). destruct o; simpl in *; intuition.
-destruct p. simpl in *.  
-unfold eval_id. destruct rho.  
-destruct H as [? _]. unfold typecheck_temp_environ in *.
-edestruct H; eauto. destruct H2.  simpl.  simpl in H2. rewrite H2.
-simpl.
-destruct H3.
-destruct b; simpl in *; try contradiction.
-remember (is_pointer_type t0). repeat (if_tac in H0; intuition). 
-simpl in H0. unfold denote_tc_initialized in *. destruct H0. 
-destruct H0. simpl in H0.  rewrite H0 in H2. inv H2. 
-destruct x; simpl in *; try contradiction; auto.
-destruct (Int.eq i Int.zero); try contradiction; auto.
-destruct x; simpl in *; try congruence.
-destruct t0; simpl in *; try congruence; intuition.
-destruct t0; simpl in *; try congruence; intuition.
-destruct t0; simpl in *; try congruence; intuition.
+destruct (eval_id id rho); try congruence.
+destruct (Int.eq i Int.zero); try congruence.
 Qed. 
 
 

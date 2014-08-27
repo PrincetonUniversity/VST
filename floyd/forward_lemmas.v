@@ -715,7 +715,7 @@ clear tc_expr_init; induction e; intros; auto;
  destruct ((var_types Delta) ! i0); auto.
  rewrite expr_lemmas.set_temp_ge.
  destruct ((glob_types Delta) ! i0); auto.
- destruct (negb (type_is_volatile t)); auto.
+(* destruct (negb (type_is_volatile t)); auto.*)
  destruct ( (temp_types Delta) ! i0) eqn:?; [ | contradiction].
  destruct p.  
  destruct (eq_dec i i0). subst. 
@@ -734,7 +734,7 @@ clear tc_expr_init; induction e; intros; auto;
   destruct H; split; auto.
  destruct (access_mode t); auto.
   repeat rewrite denote_tc_assert_andp in H|-*.
-  destruct H as [[? ?] ?]. split; auto. split; auto.
+  destruct H. split; auto.
  apply tc_lvalue_init; auto.
 
  clear tc_lvalue_init.

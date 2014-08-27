@@ -1046,7 +1046,6 @@ try solve [destruct t; simpl; auto with closed].
   destruct (access_mode t);  simpl; auto with closed.
   destruct (get_var_type Delta i); simpl; auto with closed.
 +
-  destruct (negb (type_is_volatile t)); simpl; auto with closed.
   destruct ((temp_types Delta) ! i); simpl; auto with closed.
   destruct (same_base_type t (fst p)); simpl; auto with closed.
   destruct (snd p);  simpl; auto with closed.

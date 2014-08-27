@@ -26,8 +26,9 @@ induction e; eauto.
 simpl. unfold eval_var. 
 remember (Map.get (ve_of rho) i). destruct o; try rewrite eqb_type_eq; intuition;
 try destruct p; try rewrite eqb_type_eq; simpl; try remember (type_eq t t0); try destruct s;
-simpl; try remember (negb (type_is_volatile t0));try destruct b0; auto;
+simpl; (* try remember (negb (type_is_volatile t0));try destruct b0; auto; *)
 try solve[right; eauto].
+auto.
 remember (ge_of rho i); try rewrite eqb_type_eq; simpl.
 destruct o; try rewrite eqb_type_eq; simpl; eauto.
 *
@@ -39,9 +40,9 @@ destruct (eval_expr e rho); simpl; eauto.
 
 simpl in *. super_unfold_lift.
 rewrite tc_andp_sound in *. simpl in *. 
-super_unfold_lift. rewrite tc_andp_sound in *. 
+super_unfold_lift.
 simpl in *. super_unfold_lift.
-destruct H2 as [[? ?] ?]. 
+destruct H2. 
 spec IHe; auto. destruct IHe. 
 unfold eval_field.
 destruct (eval_lvalue e rho); eauto;
@@ -84,27 +85,25 @@ remember ((var_types Delta) ! i).
 destruct o; try rewrite eqb_type_eq in *; simpl in *; intuition. 
 super_unfold_lift.
 remember (type_eq t t0). destruct s; intuition. 
-subst. remember (negb(type_is_volatile t0)).
-rewrite tc_andp_sound in *. simpl in *. super_unfold_lift.
- destruct b; intuition. 
-clear H3. symmetry in Heqo.
+subst.
+simpl in *. super_unfold_lift.
+symmetry in Heqo.
 specialize (H i t0 Heqo).
 
 {destruct H. 
-rewrite H in *. rewrite <- Heqb. rewrite eqb_type_refl in *. destruct pt; auto.
+rewrite H in *. rewrite eqb_type_refl in *. destruct pt; auto.
 }
 {remember ((glob_types Delta) ! i). destruct o; try congruence.
-rewrite tc_andp_sound in *.  simpl in *. 
-simpl in *. super_unfold_lift. destruct H0. remember (eqb_type t (globtype g)).
+simpl in *. super_unfold_lift.  remember (eqb_type t (globtype g)).
 symmetry in Heqb. destruct b; simpl in *; try congruence. apply eqb_type_true in Heqb.
 subst. 
 unfold same_env in *. 
 symmetry in Heqo0.  specialize (H5 _ _ Heqo0). 
-destruct H5. simpl in *. unfold Map.get. rewrite H5. 
-unfold typecheck_glob_environ in *. destruct (H3 i g); auto. destruct H6. 
-rewrite H6.
+destruct H5. simpl in *. unfold Map.get. rewrite H4. 
+unfold typecheck_glob_environ in *. destruct (H3 i g); auto. destruct H5. 
+rewrite H5.
 destruct pt; inv H1; reflexivity.
-destruct H5; congruence. inv H0.
+destruct H4; congruence. inv H0.
 inv H0.
 } 
 Qed.
@@ -130,9 +129,7 @@ destruct IHe.
 destruct rho.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift). 
 simpl in H0.
-super_unfold_lift. destruct H0 as [[?  ]?].
-revert H4; case_eq (type_is_volatile t); simpl; intros; try contradiction.
-clear H5.
+super_unfold_lift. destruct H0.
 unfold typecheck_environ in H. 
 destruct H as [_ [Hve [Hge _]]]. 
 assert (PTR := eval_lvalue_ptr _ e Delta te ve ge (eq_refl _) Hve Hge H0).
@@ -165,16 +162,14 @@ super_unfold_lift.
  unfold eval_field,offset_val in *; intuition. 
 specialize  (H3 pt). intuition. remember rho.
 destruct e0.
-unfold typecheck_environ in *. intuition. clear H4 H9.
+unfold typecheck_environ in *. intuition. clear H8.
 rewrite Heqe0 in H0.
-assert (PTR := eval_lvalue_ptr _ e _ _ _ _ Heqe0 H H7).
-rewrite Heqe0 in *. clear Heqe0.
-intuition. 
+assert (PTR := eval_lvalue_ptr _ e _ _ _ _ Heqe0 H H6).
+rewrite Heqe0 in *. clear Heqe0 ge ve te.
+simpl.
 remember (eval_lvalue e rho). unfold isptr in *.
-destruct v; intuition; try congruence.
-remember (eval_lvalue e rho). destruct H8. destruct H4.
-destruct v; intuition; try congruence.
-inv H4.
+destruct v; intuition; try congruence;
+try solve [destruct H8 as [? [? ?]]; congruence].
 destruct (typeof e); intuition. 
 destruct (field_offset i f); intuition.
 Qed.
@@ -201,26 +196,24 @@ remember ((var_types Delta) ! i).
 destruct o; try rewrite eqb_type_eq in *; simpl in *; intuition. 
 remember (type_eq t t0). destruct s; intuition. 
 subst. simpl in H0. 
-remember (negb(type_is_volatile t0)). destruct b; intuition. 
 clear H0. 
 symmetry in Heqo. 
 specialize (H i t0 Heqo).
 destruct H. unfold eval_var. simpl. 
-rewrite H in *. rewrite <- Heqb. rewrite eqb_type_refl in *.
+rewrite H in *. rewrite eqb_type_refl in *.
 simpl. destruct t0; try destruct i0; try destruct s; try destruct f; inv MODE; auto.
 remember ((glob_types Delta) ! i). destruct o; try congruence. 
 simpl in *.
-rewrite tc_andp_sound in *. simpl in *. 
 unfold eval_var in *. 
- super_unfold_lift. destruct H0. remember (eqb_type t (globtype g)).
+ super_unfold_lift. remember (eqb_type t (globtype g)).
 symmetry in Heqb. destruct b; simpl in *; try congruence. apply eqb_type_true in Heqb.
 subst. 
 symmetry in Heqo0.  specialize (SM _ _ Heqo0). 
 destruct SM. 
-unfold Map.get. rewrite H4. 
+unfold Map.get. rewrite H3. 
 unfold typecheck_glob_environ in *. 
-destruct (H2 i g); auto. destruct H5. 
-rewrite H5. auto. destruct H4; congruence.
+destruct (H2 i g); auto. destruct H4. 
+rewrite H4. auto. destruct H3; congruence.
 inv H0. inv H0. 
 Qed.
 
@@ -305,7 +298,6 @@ simpl.
 destruct Delta as [[[? ?] ?] ?]. simpl in *.
 unfold temp_types in *. simpl in *.
 specialize (H1 i).
-destruct (type_is_volatile t); simpl in H0; unfold lift in H0; try contradiction.
 destruct (t0 ! i); try (contradiction H0).
 destruct p. destruct (H1 _ _ (eq_refl _)) as [v [? ?]]. clear H1.
 rewrite H.
@@ -338,11 +330,11 @@ intros until pt. intros H IHe H0 H1.
 simpl. unfold lift.
 simpl in H0.
 repeat rewrite denote_tc_assert_andp in H0.
-destruct H0 as [[[? ?] ?] ?].
+destruct H0 as [[? ?] ?].
 destruct IHe as[ ? _].
-specialize (H5 H0).
+specialize (H4 H0).
 revert H2; case_eq (is_pointer_type (typeof e)); intros; hnf in H2; try contradiction.
-clear H H6 H4.
+clear H H5 H4.
 hnf in H3. unfold_lift in H3; hnf in H3.
 unfold_lift.
 destruct (eval_expr e rho); try contradiction.

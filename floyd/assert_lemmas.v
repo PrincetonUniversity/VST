@@ -1000,10 +1000,9 @@ Lemma eval_var_isptr:
             ((var_types Delta) ! i = Some t \/ 
              (var_types Delta)!i = None /\
             (glob_types Delta) ! i = Some (Global_var t)) ->
-            type_is_volatile t = false ->
             isptr (eval_var i t rho).
 Proof.
- intros. rename H1 into NONVOL.
+ intros.
   unfold isptr, eval_var; simpl.
  hnf in H. unfold typecheck_environ in H.
  repeat rewrite andb_true_iff in H.
@@ -1012,7 +1011,7 @@ Proof.
   destruct H0.
   specialize (H _ _ H0). destruct H; rewrite H.
   rewrite eqb_type_refl.
-  rewrite NONVOL. simpl. auto.
+  simpl. auto.
   destruct H0. 
   destruct (H1 _ _ H3) as [b [? ?]].
   rewrite H4. simpl.

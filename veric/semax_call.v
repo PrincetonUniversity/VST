@@ -942,11 +942,11 @@ Proof.
  simpl freeable_blocks. rewrite <- H2.
  apply sepcon_derives.
  unfold Map.get. rewrite H. rewrite eqb_type_refl.
- case_eq (type_is_volatile ty); intros; simpl negb; cbv iota;
+(* case_eq (type_is_volatile ty); intros; simpl negb; cbv iota; *)
  unfold memory_block. normalize. {
  rewrite andp_assoc; apply derives_extract_prop; intros.
  apply derives_extract_prop; intros.
-  rename H8 into H99.
+  rename H6 into H99.
  normalize. (* don't know why we cannot do normalize at first *)
  rewrite memory_block'_eq.
  2: rewrite Int.unsigned_zero; omega.
@@ -1140,7 +1140,7 @@ unfold eval_var, Map.get in H3. simpl in H3.
 unfold make_venv in H3.
 rewrite (Hve id (b,t)) in H3 by (left; auto).
 rewrite eqb_type_refl in H3.
-destruct (type_is_volatile t) eqn:?; try (simpl in H3; tauto).
+(*destruct (type_is_volatile t) eqn:?; try (simpl in H3; tauto).*)
 simpl in H3; destruct H3 as [[H99 H98] H3].
 rewrite Int.unsigned_repr in H3 by omega.
 change nat_of_Z with Z.to_nat in H3.

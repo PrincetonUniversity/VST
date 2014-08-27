@@ -461,8 +461,7 @@ Definition eval_field (ty: type) (fld: ident) : val -> val :=
 Definition eval_var (id:ident) (ty: type) (rho: environ) : val := 
                          match Map.get (ve_of rho) id with
                          | Some (b,ty') => if eqb_type ty ty'
-                                                    then if negb (type_is_volatile ty')
-                                                       then Vptr b Int.zero else Vundef
+                                                    then Vptr b Int.zero
                                                     else Vundef
                          | None => 
                             match (ge_of rho) id with
@@ -922,14 +921,13 @@ let tcr := typecheck_expr Delta in
 match e with
  | Econst_int _ (Tint _ _ _) => tc_TT 
  | Econst_float _ (Tfloat _ _) => tc_TT
- | Etempvar id ty => if negb (type_is_volatile ty) then
+ | Etempvar id ty => 
                        match (temp_types Delta)!id with 
-                         | Some ty' => if(* eqb_type*)same_base_type ty (fst ty') then 
+                         | Some ty' => if same_base_type ty (fst ty') then 
                                          if (snd ty') then tc_TT else (tc_initialized id ty)
                                        else tc_FF (mismatch_context_type ty (fst ty'))
 		         | None => tc_FF (var_not_in_tycontext Delta id)
                        end
-                     else tc_FF (volatile_load ty)
  | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty)
                                                       (op_result_type e))
  | Eunop op a ty => tc_andp (tc_bool (isUnOpResultType op a ty) (op_result_type e)) (tcr a)
@@ -938,16 +936,15 @@ match e with
  | Evar id ty => match access_mode ty with
                          | By_reference => 
                             match get_var_type Delta id with 
-                            | Some ty' => tc_andp (tc_bool (eqb_type ty ty') 
-                                                           (mismatch_context_type ty ty')) 
-                                (tc_bool (negb (type_is_volatile ty)) (volatile_load ty))
+                            | Some ty' => tc_bool (eqb_type ty ty') 
+                                                           (mismatch_context_type ty ty') 
                             | None => tc_FF (var_not_in_tycontext Delta id)
                             end 
                          | _ => tc_FF (deref_byvalue ty)
                         end
  | Efield a i ty => match access_mode ty with
                          | By_reference => 
-                            tc_andp (tc_andp (typecheck_lvalue Delta a) (match typeof a with
+                            tc_andp (typecheck_lvalue Delta a) (match typeof a with
                             | Tstruct id fList att =>
                                   match field_offset i fList with 
                                   | Errors.OK delta => tc_TT
@@ -955,7 +952,7 @@ match e with
                                   end
                             | Tunion id fList att => tc_TT
                             | _ => tc_FF (invalid_field_access e)
-                            end)) (tc_bool (negb (type_is_volatile ty))(volatile_load ty))
+                            end)
                          | _ => tc_FF (deref_byvalue ty)
                         end
  | _ => tc_FF (invalid_expression e)
@@ -964,22 +961,16 @@ end
 with typecheck_lvalue (Delta: tycontext) (e: expr) : tc_assert :=
 match e with
  | Evar id ty => match get_var_type Delta id with 
-                  | Some ty' => tc_andp 
-                                  (tc_bool (eqb_type ty ty') 
-                                           (mismatch_context_type ty ty')) 
-                                  (tc_bool (negb (type_is_volatile ty))
-                                           (volatile_load ty))
+                  | Some ty' => tc_bool (eqb_type ty ty') 
+                                           (mismatch_context_type ty ty')        
                   | None => tc_FF (var_not_in_tycontext Delta id)
                  end
  | Ederef a ty => tc_andp 
-                    (tc_andp 
                        (tc_andp 
                           (typecheck_expr Delta a) 
                           (tc_bool (is_pointer_type (typeof a))(op_result_type e)))
-                       (tc_isptr a)) 
-                    (tc_bool (negb (type_is_volatile ty))(volatile_load ty))
+                       (tc_isptr a)
  | Efield a i ty => tc_andp 
-                      (tc_andp 
                          (typecheck_lvalue Delta a) 
                          (match typeof a with
                             | Tstruct id fList att =>
@@ -989,7 +980,7 @@ match e with
                               end
                             | Tunion id fList att => tc_TT
                             | _ => tc_FF (invalid_field_access e)
-                          end)) (tc_bool (negb (type_is_volatile ty))(volatile_load ty))
+                          end)
  | _  => tc_FF (invalid_lvalue e)
 end.
 

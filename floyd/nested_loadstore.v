@@ -348,8 +348,6 @@ Fixpoint gupd_reptype (t: type) (ids: list ident) (t0: type) (v: reptype t) (v0:
     end (proj_reptype t ids0 v)
   end.
 
-Print Errors.
-
 Lemma all_fields_replace_one2_identical: forall f i t,
   (field_type i f = Errors.OK t \/ exists e, field_type i f = Errors.Error e) -> all_fields_replace_one2 f i t = f.
 Proof.
