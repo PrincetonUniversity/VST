@@ -1398,8 +1398,8 @@ rewrite snd_split in TC2.
 unfold believe_external in H15.
 destruct (Genv.find_funct psi (Vptr b Int.zero)) eqn:H22; try (contradiction H15).
 destruct f; try (contradiction H15).
-destruct H15 as [H5 H15]. hnf in H5.
-destruct H5 as [H5 H5']; subst c.
+destruct H15 as [[H5 H15] Hretty]. hnf in H5.
+destruct H5 as [H5 H5']. subst c.
 inv H5; rename t0 into retty; rename t into tys.
 specialize (H15 psi x n).
 spec H15; [constructor 1; rewrite H2; constructor | ].
@@ -1521,48 +1521,43 @@ split.
  simpl. 
  destruct TC3 as [TC3 _].
  destruct ret; try apply TC3. {
- clear - TCret TC3 H6 TC5.
+ clear - TCret TC3 H6 TC5 H15 Hretty H8 H0.
  simpl in TCret.
  destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?; try contradiction.
  subst retty.
  unfold tx' in *; clear tx'. simpl in TC3.
  assert (Hu: exists u, opttyp_of_type t = Some u).
- clear - TC5; destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; simpl; eauto.
+ clear - TC5; destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; 
+   simpl; eauto.
  spec TC5; [auto | congruence].
  destruct Hu as [u Hu]. rewrite Hu in *. clear TC5.
-(*
- hnf in TCret.
- hnf; intros.
- destruct (ident_eq i id).
- subst id.
- pose proof (temp_types_same_type' i Delta).
- rewrite H in H0.
-
-Definition tc_option_val (t: option type) (v: option val) :=
-  match t, v with
-  | None, _ => True
-  | Some t', None => False
-  | Some t', Some v' => tc_val t' v'
- end.
-Print tc_val.
-
-Lemma ext_spec_post_typecheck:
-  forall {M E Z} (spec: external_specification M E Z) e x t v z m,
-   ext_spec_post spec e x t v z m -> tc_option_val t v.
-Admitted.
- destruct ret0; 
-  try solve [elimtype False; apply (ext_spec_post_Some _ _ _ _ _ _ H6)].
-  exists v.
-  unfold Map.get, make_tenv; simpl. rewrite PTree.gss.
-
-
-SearchAbout (option val -> type -> _).
-contradiction TC5; auto.
-Print opttyp_of_type.
-
-*)
-
- admit.  (* difficulties with mismatch of type and typ *)
+ destruct H15 as [phi1 [phi2 [Ha [Hb Hc]]]].
+ specialize (Hretty x ret0 phi1).
+ spec Hretty. 
+ { apply join_level in Ha. destruct Ha as [? ?].
+   rewrite H. cut ((level jm > level jm')%nat). intros. 
+   simpl. unfold natLevel. do 2 rewrite <-level_juice_level_phi. omega. 
+   apply age_level in H0. omega. }
+ spec Hretty phi1.
+ spec Hretty. apply rt_refl. spec Hretty Hb. simpl in Hretty.
+ unfold typecheck_temp_environ. intros id b0 ty Hty.
+ destruct (ident_eq i id). 
+ + subst i.
+ rewrite temp_types_same_type' in Hty.
+ rewrite Heqo in Hty.
+ destruct ret0; auto.
+ inv Hty. simpl. exists v. split. rewrite <-map_ptree_rel, Map.gss; auto.
+ right. 
+ assert (ty <> Tvoid). { destruct ty; try inv Hu; intros C; congruence. }
+ assert (tc_val ty v). { destruct ty; auto. } 
+ rewrite tc_val_eq in H1; auto.
+ inv Hty. simpl. 
+ assert (ty = Tvoid). { destruct ty; auto; inv Hretty. } subst ty.
+ simpl in Hu. congruence.
+ + rewrite <-initialized_ne with (id2 := i) in Hty; auto. destruct ret0.
+ rewrite <-map_ptree_rel, Map.gso; auto.
+ assert (t = Tvoid). { destruct t; auto; inv Hretty. } subst t.
+ simpl in Hu. congruence.
 }
  destruct (current_function k); auto.
  destruct TC3'; split; auto.

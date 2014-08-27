@@ -162,11 +162,20 @@ Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
   | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
  end.
 
+Definition tc_option_val (sig: type) (ret: option val) :=
+  match sig, ret with
+    | Tvoid, None => True
+    | Tvoid, Some _ => False
+    | ty, Some v => tc_val ty v
+    | _, _ => False
+  end.
+
 Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsig)
    (A: Type) (P Q: A -> environ -> pred rmap) : pred nat :=
   match Genv.find_funct gx v with 
   | Some (External ef sigargs sigret cc) => 
         !! (fsig = (arglist 1%positive sigargs,sigret) /\ cc=cc_default) && semax_external Hspec ef A P Q 
+        && ! (ALL x:A, ALL ret:option val, Q x (make_ext_rval 1 ret) >=> !! tc_option_val sigret ret)
   | _ => FF 
   end.
 

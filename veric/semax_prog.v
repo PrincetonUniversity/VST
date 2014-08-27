@@ -376,13 +376,15 @@ Lemma semax_func_cons_ext:
         V (G: funspecs) fs id ef argsig retsig A P Q (G': funspecs),
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
+      (forall (x: A) (ret : option val),
+         (Q x (make_ext_rval 1 ret) |-- !!tc_option_val retsig ret)) ->
       (forall n, semax_external Espec ef A P Q n) ->
       semax_func V G fs G' ->
       semax_func V G ((id, External ef argsig retsig cc_default)::fs) 
            ((id, mk_funspec (arglist 1%positive argsig, retsig) A P Q)  :: G').
 Proof.
 intros until G'.
-intros H' H [Hf' Hf].
+intros H' Hretty H [Hf' Hf].
 apply andb_true_iff in H'.
 destruct H' as [Hin Hni].
 apply id_in_list_true in Hin.
@@ -427,7 +429,8 @@ subst P' Q'.
 unfold believe_external.
 rewrite H2.
 split; auto.
-hnf. auto.
+hnf. split; auto. split; auto. 
+intros x ret phi Hlev Hx Hnec. apply Hretty.
 
 (***   Vptr b Int.zero <> v'  ********)
 apply (Hf n v' fsig' A' P' Q'); auto.

@@ -673,11 +673,18 @@ Axiom semax_func_skip:
       semax_func V G fs G' ->
       semax_func V G (idf::fs) G'.
 
+Require veric.semax.
+
+Definition make_ext_rval := veric.semax.make_ext_rval.
+Definition tc_option_val := veric.semax.tc_option_val.
+
 Axiom semax_func_cons_ext: 
   forall {Espec: OracleKind},
    forall (V: varspecs) (G: funspecs) fs id ef argsig retsig A P Q (G': funspecs),
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
+      (forall (x: A) (ret: option val),
+         (Q x (make_ext_rval 1 ret) |-- !!tc_option_val retsig ret)) ->
       @semax_external Espec ef A P Q ->
       @semax_func Espec V G fs G' ->
       @semax_func Espec V G ((id, External ef argsig retsig cc_default)::fs) 
