@@ -1497,13 +1497,15 @@ pose (tx' := match ret,ret0 with
                    end).
 specialize (H1 EK_normal None tx' vx (m_phi m')).
 spec H1. 
-{ clear - H0 H8. admit. (*easy*) }
+{ clear - H0 H8.
+  change (level jm >= level m')%nat. 
+  apply age_level in H0. omega.
+}
 unfold frame_ret_assert in H1.
 rewrite HR in H1; clear R HR.
 simpl exit_cont in H1.
 do 3 red in H5.
 specialize (H1 _ (necR_refl _)).
-(* spec H1; [ constructor 1; apply age_jm_phi; assumption | ]. *)
 spec H1. { clear H1.
 split.
 * split; auto.
@@ -1518,8 +1520,50 @@ split.
  } Unfocus.
  simpl. 
  destruct TC3 as [TC3 _].
- destruct ret; try apply TC3.
+ destruct ret; try apply TC3. {
+ clear - TCret TC3 H6 TC5.
+ simpl in TCret.
+ destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?; try contradiction.
+ subst retty.
+ unfold tx' in *; clear tx'. simpl in TC3.
+ assert (Hu: exists u, opttyp_of_type t = Some u).
+ clear - TC5; destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; simpl; eauto.
+ spec TC5; [auto | congruence].
+ destruct Hu as [u Hu]. rewrite Hu in *. clear TC5.
+(*
+ hnf in TCret.
+ hnf; intros.
+ destruct (ident_eq i id).
+ subst id.
+ pose proof (temp_types_same_type' i Delta).
+ rewrite H in H0.
+
+Definition tc_option_val (t: option type) (v: option val) :=
+  match t, v with
+  | None, _ => True
+  | Some t', None => False
+  | Some t', Some v' => tc_val t' v'
+ end.
+Print tc_val.
+
+Lemma ext_spec_post_typecheck:
+  forall {M E Z} (spec: external_specification M E Z) e x t v z m,
+   ext_spec_post spec e x t v z m -> tc_option_val t v.
+Admitted.
+ destruct ret0; 
+  try solve [elimtype False; apply (ext_spec_post_Some _ _ _ _ _ _ H6)].
+  exists v.
+  unfold Map.get, make_tenv; simpl. rewrite PTree.gss.
+
+
+SearchAbout (option val -> type -> _).
+contradiction TC5; auto.
+Print opttyp_of_type.
+
+*)
+
  admit.  (* difficulties with mismatch of type and typ *)
+}
  destruct (current_function k); auto.
  destruct TC3'; split; auto.
  simpl. destruct ret; auto.
@@ -1621,6 +1665,90 @@ Proof.
  right. right. left. split. apply alloc_result in H1; subst b; xomega.
  eauto.
  rewrite <- H0. left. apply resource_at_approx.
+Qed.
+
+Lemma make_args_close_precondition:
+  forall params args ge ve te m tx ve' te' m' P vars,
+    list_norepet (map fst params) ->
+    bind_parameter_temps params args tx = Some te' ->
+    alloc_juicy_variables empty_env m vars = (ve', m') ->
+    P (make_args (map fst params) args (construct_rho ge ve te)) 
+   |-- close_precondition params vars P (construct_rho ge ve' te').
+Proof.
+intros.
+intros phi ?.
+exists (Map.empty (block * type)).
+assert (exists e : temp_env,
+    forall i, e ! i = if in_dec ident_eq i (map fst params) then te' ! i else None). {
+ clear - H H0.
+ revert args tx H H0; induction params as [ | [? ?]]; destruct args; intros; simpl in *; inv H0.
+ exists empty_tenv; intros; apply PTree.gempty.
+ inv H.
+ destruct (IHparams _ _ H4 H2) as [e ?]; clear IHparams.
+ exists (PTree.set i v e); intro j; specialize (H j).
+ destruct (ident_eq i j). subst.
+ symmetry.
+ rewrite PTree.gss.
+ assert ((PTree.set j v tx) ! j = Some v) by (apply PTree.gss).
+ forget (PTree.set j v tx) as tz.
+ clear - H0 H2 H3; revert args tz H0 H2; induction params as [ | [? ? ]]; destruct args; intros; simpl in *; inv H2; auto.
+ apply IHparams with args (PTree.set i v0 tz); auto.
+ rewrite PTree.gso; auto.
+ rewrite PTree.gso by auto.
+ destruct (in_dec ident_eq j (map fst params)); auto.
+}
+destruct H3 as [e ?].
+exists (fun i => e!i).
+split3; intros.
+*
+unfold Map.get.
+simpl. specialize (H3 i). rewrite if_true in H3 by auto. auto.
+*
+simpl.
+ destruct (in_dec ident_eq i (map fst vars)).
+ auto.
+ right.
+ unfold Map.get, Map.empty.
+ symmetry.
+ clear - H1 n.
+ unfold make_venv.
+ assert (empty_env ! i = None) by apply PTree.gempty.
+ forget empty_env as ve.
+ revert ve m H H1; induction vars as [ | [? ?]]; intros. inv H1; auto.
+ spec IHvars. contradict n. right; auto.
+ unfold alloc_juicy_variables in H1; fold alloc_juicy_variables in H1.
+ destruct (juicy_mem_alloc m 0 (sizeof t)).
+ eapply IHvars; try apply H1.
+ rewrite PTree.gso; auto.
+ contradict n. left. auto.
+* 
+ simpl.
+ replace (mkEnviron ge (Map.empty (block * type)) (fun i : positive => e ! i))
+   with  (make_args (map fst params) args (construct_rho ge ve te)); auto.
+ replace (fun i : positive => e ! i)
+  with (fun i => if in_dec ident_eq i (map fst params) then te' ! i else None)
+   by (extensionality j; auto).
+ clear - H H0.
+ change ge with (ge_of (construct_rho ge ve te)) at 2.
+ forget (construct_rho ge ve te) as rho. clear - H H0.
+ revert args tx rho H H0; induction params as [ | [? ? ]]; destruct args; intros; inv H0.
+ reflexivity.
+ simpl.
+ inv H.
+ rewrite (IHparams args (PTree.set i v tx) rho); auto.
+ unfold env_set. simpl.
+ f_equal. unfold Map.set; extensionality j.
+ destruct (ident_eq j i). subst.
+ rewrite if_true by auto.
+ clear - H2 H3.
+ symmetry.
+ replace (Some v) with ((PTree.set i v tx) ! i) by (rewrite PTree.gss; auto).
+ forget (PTree.set i v tx) as tz.
+ revert args tz H2 H3; induction params as [ | [? ? ]]; destruct args; intros; inv H2; auto.
+ rewrite (IHparams args (PTree.set i0 v0 tz)); auto. apply PTree.gso; auto.
+ contradict H3; left; auto. contradict H3; right; auto.
+ destruct (ident_eq i j); try congruence.
+ destruct (in_dec ident_eq j (map fst params)); auto.
 Qed.
 
 Lemma semax_call_aux:
@@ -2057,10 +2185,19 @@ simpl @fst in *.
  subst phi'.
  apply (alloc_juicy_variables_age H18 H20x) in AJV.
  forget (fn_params f) as params.
-(* destruct TC3 as [TC3 _]. *)
-  clear - (*TC3 TC2*) AJV H14 H21.
  forget (eval_exprlist (map snd params) bl rho) as args.
- clear - H21 H14 AJV.
+ clear - H21 H14 AJV H17 H0.
+ assert (app_pred (Frame * close_precondition params (fn_vars f) (P x)
+                               (construct_rho (filter_genv psi) ve' te')) (m_phi jmx)).
+ eapply sepcon_derives; try apply H14; auto.
+ subst rho.
+ eapply make_args_close_precondition; eauto.
+ apply list_norepet_app in H17; intuition.
+ clear H14.
+ forget (Frame *
+     close_precondition params (fn_vars f) (P x)
+       (construct_rho (filter_genv psi) ve' te')) as Frame2.
+ clear - H17 H21 AJV H.
  admit.  (* very plausible *)
 }
 (* end   "spec H19" *)
