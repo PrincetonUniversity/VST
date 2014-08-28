@@ -1323,12 +1323,6 @@ Proof.
  rewrite core_NO; auto.
 Qed.
 
-Lemma type_of_params_arglist:
-  forall i tys, type_of_params (arglist i tys) = tys.
-Proof.
-  intros. revert i; induction tys; simpl; intros; f_equal; auto.
-Qed.
-
 Lemma same_glob_funassert':
   forall Delta1 Delta2 rho rho',
      (forall id, (glob_types Delta1) ! id = (glob_types Delta2) ! id) ->
@@ -1399,8 +1393,8 @@ unfold believe_external in H15.
 destruct (Genv.find_funct psi (Vptr b Int.zero)) eqn:H22; try (contradiction H15).
 destruct f; try (contradiction H15).
 destruct H15 as [[H5 H15] Hretty]. hnf in H5.
-destruct H5 as [H5 H5']. subst c.
-inv H5; rename t0 into retty; rename t into tys.
+destruct H5 as [H5 [H5' Hlen]]. subst c.
+inversion H5. subst t0. rename t into tys. subst rho.
 specialize (H15 psi x n).
 spec H15; [constructor 1; rewrite H2; constructor | ].
 rewrite <- level_juice_level_phi in H2.
@@ -1409,15 +1403,15 @@ specialize (H15
   (F0 (construct_rho (filter_genv psi) vx tx) *
           F (construct_rho (filter_genv psi) vx tx))
    (typlist_of_typelist tys)
-  (eval_exprlist (map snd (arglist 1 tys)) bl
+  (eval_exprlist (snd (split params)) bl
                   (construct_rho (filter_genv psi) vx tx))
    jm').
 spec H15; [ apply age_level in H0; omega | ].
 specialize (H15 _ (necR_refl _)).
 spec H15. { clear H15.
 assert ((|> (P x
-      (make_ext_args psi 1
-         (eval_exprlist (map snd (arglist 1 tys)) bl
+      (make_ext_args psi (map fst params)
+         (eval_exprlist (snd (split params)) bl
             (construct_rho (filter_genv psi) vx tx))) *
     (F0 (construct_rho (filter_genv psi) vx tx) *
      F (construct_rho (filter_genv psi) vx tx)))) (m_phi jm)). {
@@ -1425,32 +1419,46 @@ eapply later_derives; try apply H14.
 rewrite sepcon_comm.
 apply sepcon_derives; auto.
 apply derives_refl'. f_equal.
-clear - TC2.
-forget 1%positive as n.
-revert n bl TC2; induction tys; destruct bl; intros.
-simpl.
-reflexivity.
-contradiction TC2.
-contradiction TC2.
-simpl in TC2.
+rewrite H7 in TC2.
+clear - TC2 H7 Hlen. 
+revert bl tys TC2 H7 Hlen; induction params; destruct bl; simpl; intros; auto.
+{ destruct tys; try congruence.
+simpl in Hlen. destruct a. destruct (split params). inv Hlen.
+destruct a. revert TC2. case_eq (split params). intros l1 l2 Heq. simpl. 
+  intros; inv TC2.
+}
+destruct tys. 
+simpl in Hlen. destruct a. destruct (split params). inv Hlen.
+destruct a. revert TC2. case_eq (split params). intros l1 l2 Heq. 
+  simpl in *. intros TC2.
 repeat rewrite denote_tc_assert_andp in TC2.
 destruct TC2 as [[? ?] ?].
-simpl.
-specialize (IHtys (n+1)%positive _ H1).
-f_equal.
-auto.
+inversion H7. 
+rewrite Heq in *. simpl in *.
+specialize (IHparams _ _ H1). spec IHparams. inv H3; auto.
+rewrite IHparams; auto.
 }
-apply H5.
+simpl.
+rewrite fst_split.
+apply H6.
 constructor 1. 
 apply age_jm_phi; auto.
 }
 clear H14 TC2.
 destruct H15 as [x' H15].
 specialize (H15 ora).
+clear H5.
 destruct H15 as [H5 H15].
 specialize (H15 (opttyp_of_type retty)).
 do 3 red in H15.
 
+assert (Hty: type_of_params params = tys). 
+{ clear -H7 Hlen.
+  rewrite H7. clear H7. revert tys Hlen. induction params.
+  simpl. destruct tys; auto. inversion 1.
+  intros; simpl. destruct a. case_eq (split params). intros l1 l2 Heq. simpl.
+  destruct tys; auto. simpl. rewrite Heq in IHparams. rewrite IHparams; auto. 
+  simpl in Hlen|-*. rewrite Heq in Hlen. inv Hlen. rewrite Heq. auto. }
 eexists; exists jm'.
 split.
 econstructor.
@@ -1460,7 +1468,7 @@ eapply eval_expr_relate; try eassumption.
 reflexivity.
 rewrite H3.
 rewrite H22.
-rewrite type_of_params_arglist; reflexivity.
+rewrite Hty. reflexivity.
 split.
 apply age1_resource_decay; auto.
 apply age_level; auto.
@@ -1469,9 +1477,7 @@ destruct n as [ | n ].
 apply I.
 simpl.
 exists x'; split; auto.
-rewrite type_of_params_arglist.
-rewrite snd_split.
-assumption.
+rewrite Hty; assumption.
 intros.
 specialize (H15 ret0 z').
 change ((ext_spec_post' Espec e x' (opttyp_of_type retty) ret0 z' >=>
@@ -1489,7 +1495,7 @@ apply (pred_nec_hereditary _ _ (level m')) in H15;
  [ | apply nec_nat; omega].
 clear H6.
 rename H7 into H6.
-specialize (H15 m' (le_refl _) _ (necR_refl _) H6).
+specialize (H15 m' (le_refl _) _ (necR_refl _) H8).
 
 pose (tx' := match ret,ret0 with 
                    | Some id, Some v => PTree.set id v tx 
@@ -1497,7 +1503,7 @@ pose (tx' := match ret,ret0 with
                    end).
 specialize (H1 EK_normal None tx' vx (m_phi m')).
 spec H1. 
-{ clear - H0 H8.
+{ clear - H0 H9.
   change (level jm >= level m')%nat. 
   apply age_level in H0. omega.
 }
@@ -1521,15 +1527,16 @@ split.
  simpl. 
  destruct TC3 as [TC3 _].
  destruct ret; try apply TC3. {
- clear - TCret TC3 H6 TC5 H15 Hretty H8 H0.
+ clear - TCret TC3 H6 TC5 H15 Hretty H8 H9 H0.
  simpl in TCret.
  destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?; try contradiction.
  subst retty.
  unfold tx' in *; clear tx'. simpl in TC3.
  assert (Hu: exists u, opttyp_of_type t = Some u).
- clear - TC5; destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; 
+ { clear - TC5; destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; 
    simpl; eauto.
- spec TC5; [auto | congruence].
+   spec TC5; [auto | congruence]. 
+ }
  destruct Hu as [u Hu]. rewrite Hu in *. clear TC5.
  destruct H15 as [phi1 [phi2 [Ha [Hb Hc]]]].
  specialize (Hretty x ret0 phi1).
@@ -1537,7 +1544,8 @@ split.
  { apply join_level in Ha. destruct Ha as [? ?].
    rewrite H. cut ((level jm > level jm')%nat). intros. 
    simpl. unfold natLevel. do 2 rewrite <-level_juice_level_phi. omega. 
-   apply age_level in H0. omega. }
+   apply age_level in H0. omega. 
+ }
  spec Hretty phi1.
  spec Hretty. apply rt_refl. spec Hretty Hb. simpl in Hretty.
  unfold typecheck_temp_environ. intros id b0 ty Hty.
@@ -1546,12 +1554,13 @@ split.
  rewrite temp_types_same_type' in Hty.
  rewrite Heqo in Hty.
  destruct ret0; auto.
- inv Hty. simpl. exists v. split. rewrite <-map_ptree_rel, Map.gss; auto.
+ inversion Hty. subst t. simpl. 
+ exists v. split. rewrite <-map_ptree_rel, Map.gss; auto.
  right. 
  assert (ty <> Tvoid). { destruct ty; try inv Hu; intros C; congruence. }
  assert (tc_val ty v). { destruct ty; auto. } 
  rewrite tc_val_eq in H1; auto.
- inv Hty. simpl. 
+ inversion Hty. subst t b0. simpl. 
  assert (ty = Tvoid). { destruct ty; auto; inv Hretty. } subst ty.
  simpl in Hu. congruence.
  + rewrite <-initialized_ne with (id2 := i) in Hty; auto. destruct ret0.
@@ -1805,7 +1814,7 @@ clear LATER.
 clear id H7.
 clear phi' H13.
 clear Prog_OK.
-eapply semax_call_external; eassumption.
+eapply semax_call_external; eauto.
 }
 specialize (H14 _ (age_laterR H13)).
 destruct H15 as [b' [f [[? [? [? ?]]] ?]]].

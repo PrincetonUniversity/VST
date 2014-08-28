@@ -664,7 +664,8 @@ Axiom semax_func_cons:
 
 Parameter semax_external:
   forall {Espec: OracleKind},
-  forall (ef: external_function) (A: Type) (P Q: A -> environ->mpred),  Prop.
+  forall (ids: list ident) (ef: external_function) 
+         (A: Type) (P Q: A -> environ->mpred),  Prop.
 
 Axiom semax_func_skip: 
   forall {Espec: OracleKind},
@@ -677,18 +678,21 @@ Require veric.semax.
 
 Definition make_ext_rval := veric.semax.make_ext_rval.
 Definition tc_option_val := veric.semax.tc_option_val.
+Definition zip_with_tl {A:Type} :=@veric.semax.zip_with_tl A.
 
 Axiom semax_func_cons_ext: 
   forall {Espec: OracleKind},
-   forall (V: varspecs) (G: funspecs) fs id ef argsig retsig A P Q (G': funspecs),
+   forall (V: varspecs) (G: funspecs) fs id ef argsig retsig A P Q 
+          (G': funspecs) (ids: list ident),
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
-      (forall (x: A) (ret: option val),
+      (forall (x: A) (ret : option val),
          (Q x (make_ext_rval 1 ret) |-- !!tc_option_val retsig ret)) ->
-      @semax_external Espec ef A P Q ->
-      @semax_func Espec V G fs G' ->
-      @semax_func Espec V G ((id, External ef argsig retsig cc_default)::fs) 
-           ((id, mk_funspec (arglist 1%positive argsig, retsig) A P Q)  :: G').
+      length ids = length (typelist2list argsig) ->
+      @semax_external Espec ids ef A P Q ->
+      semax_func V G fs G' ->
+      semax_func V G ((id, External ef argsig retsig cc_default)::fs) 
+           ((id, mk_funspec (zip_with_tl ids argsig, retsig) A P Q)  :: G').
 
 (* THESE RULES FROM semax_loop *)
 
@@ -919,9 +923,10 @@ Axiom semax_ext:
   forall (Espec : OracleKind) 
          (id : ident) (sig : funsig) 
          (A : Type) (P Q : A -> environ -> mpred) (fs : funspecs),
-    let f := mk_funspec sig A P Q in
-    in_funspecs (id, f) fs ->
-    funspecs_norepeat fs ->
-    @semax_external (add_funspecs Espec fs) (EF_external id (funsig2signature sig)) A P Q.
+  let f := mk_funspec sig A P Q in
+  in_funspecs (id,f) fs -> 
+  funspecs_norepeat fs -> 
+  @semax_external (add_funspecs Espec fs) (fst (split (fst sig))) 
+                  (EF_external id (funsig2signature sig)) A P Q.
 
 End CLIGHT_SEPARATION_LOGIC.

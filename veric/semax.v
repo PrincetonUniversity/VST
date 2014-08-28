@@ -133,10 +133,11 @@ Program Definition ext_spec_post' (Espec: OracleKind)
 Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
      # diamond fashionM (exactly (m_phi jm) && P).
 
-Fixpoint make_ext_args (gx: genv) (n: positive) (vl: list val)  :=
-  match vl with 
-  | nil => mkEnviron (filter_genv gx) (Map.empty _) (Map.empty _)
-  | v::vl' => env_set (make_ext_args gx (n+1)%positive vl') n v
+Fixpoint make_ext_args (gx: genv) (ids: list ident) (vl: list val)  :=
+  match ids, vl with 
+  | id::ids', v::vl' => env_set (make_ext_args gx ids' vl') id v
+  | _, v::vl' => env_set (make_ext_args gx ids vl') 1%positive v
+  | _, _ => mkEnviron (filter_genv gx) (Map.empty _) (Map.empty _)
  end.
 
 Definition make_ext_rval (n: positive) (v: option val) :=
@@ -145,22 +146,17 @@ Definition make_ext_rval (n: positive) (v: option val) :=
   | None => any_environ
   end.
 
-Definition semax_external (Hspec: OracleKind) ef (A: Type) (P Q: A -> environ -> pred rmap): 
+Definition semax_external 
+  (Hspec: OracleKind) (ids: list ident) ef (A: Type) (P Q: A -> environ -> pred rmap): 
         pred nat := 
  ALL gx: genv, ALL x: A, 
  |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val,
-   juicy_mem_op (P x (make_ext_args gx 1%positive args) * F) >=> 
+   juicy_mem_op (P x (make_ext_args gx ids args) * F) >=> 
    EX x': ext_spec_type OK_spec ef,
     ALL z:_, ext_spec_pre' Hspec ef x' (Genv.genv_symb gx) ts args z &&
      ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, 
       ext_spec_post' Hspec ef x' tret ret z' >=>
           juicy_mem_op (Q x (make_ext_rval 1 ret) * F).
-
-Fixpoint arglist (n: positive) (tl: typelist) : list (ident*type) :=
- match tl with 
-  | Tnil => nil
-  | Tcons t tl' => (n,t):: arglist (n+1)%positive tl'
- end.
 
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with
@@ -170,12 +166,22 @@ Definition tc_option_val (sig: type) (ret: option val) :=
     | _, _ => False
   end.
 
+Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
+  match l1, l2 with
+    | a::l1', Tcons b l2' => (a,b)::zip_with_tl l1' l2'
+    | _, _ => nil
+  end.
+
 Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsig)
-   (A: Type) (P Q: A -> environ -> pred rmap) : pred nat :=
+           (A: Type) (P Q: A -> environ -> pred rmap) : pred nat :=
   match Genv.find_funct gx v with 
   | Some (External ef sigargs sigret cc) => 
-        !! (fsig = (arglist 1%positive sigargs,sigret) /\ cc=cc_default) && semax_external Hspec ef A P Q 
-        && ! (ALL x:A, ALL ret:option val, Q x (make_ext_rval 1 ret) >=> !! tc_option_val sigret ret)
+      let ids := fst (split (fst fsig)) in
+        !! (fsig = (zip_with_tl ids sigargs, sigret) /\ cc=cc_default 
+            /\ length (typelist2list sigargs)=length ids) 
+        && semax_external Hspec ids ef A P Q 
+        && ! (ALL x:A, ALL ret:option val, 
+                Q x (make_ext_rval 1 ret) >=> !! tc_option_val sigret ret)
   | _ => FF 
   end.
 

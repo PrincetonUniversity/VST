@@ -8,6 +8,7 @@ Require Import sepcomp.extspec.
 Require Import veric.juicy_extspec.
 Require Import veric.expr. 
 Require Import veric.semax.
+Require Import veric.semax_call.
 
 Definition funsig2signature (s : funsig) : signature :=
   mksignature (map typ_of_type (map snd (fst s))) (Some (typ_of_type (snd s))) cc_default.
@@ -24,12 +25,13 @@ Variable Espec : juicy_ext_spec Z.
 Parameter symb2genv : forall (ge_s : PTree.t block), genv. (*TODO*)
 Axiom symb2genv_ax : forall (ge_s : PTree.t block), Genv.genv_symb (symb2genv ge_s) = ge_s.
 
-Definition funspec2pre (A : Type) P id ef x ge_s (tys : list typ) args (z : Z) m : Prop :=
+Definition funspec2pre (A : Type) P ids id ef x ge_s 
+           (tys : list typ) args (z : Z) m : Prop :=
   match ident_eq id (ef_id ef) as s 
   return ((if s then (rmap*A)%type else ext_spec_type Espec ef) -> Prop)
   with 
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m) 
-                       /\ P (snd x') (make_ext_args (symb2genv ge_s) 1 args) phi0
+                       /\ P (snd x') (make_ext_args (symb2genv ge_s) ids args) phi0
                        /\ necR (fst x') phi1 
     | right n => fun x' => ext_spec_pre Espec ef x' ge_s tys args z m
   end x.
@@ -48,10 +50,10 @@ Definition funspec2post (A : Type) (Q : A -> environ -> mpred)
 Definition funspec2extspec (f : (ident*funspec)) 
   : external_specification juicy_mem external_function Z :=
   match f with 
-    | (id, mk_funspec sig A P Q) =>
+    | (id, mk_funspec (params, sigret) A P Q) =>
       Build_external_specification juicy_mem external_function Z
         (fun ef => if ident_eq id (ef_id ef) then (rmap*A)%type else ext_spec_type Espec ef)
-        (funspec2pre A P id)
+        (funspec2pre A P (fst (split params)) id)
         (funspec2post A Q id)
         (fun rv z m => False)
   end.
@@ -73,7 +75,9 @@ Lemma make_ext_args_symb ge ge' (H: Genv.genv_symb ge = Genv.genv_symb ge') n ar
 Proof.
 revert ge ge' n H; induction args.
 * simpl; unfold filter_genv, Genv.find_symbol. intros ? ? ? ->; auto.
-* intros ge ge' n H. simpl. f_equal. eapply IHargs; eauto.
+* intros ge ge' n H. simpl. destruct n; auto. 
+  erewrite IHargs; eauto.
+  erewrite IHargs; eauto.
 Qed.
 
 Lemma all_funspecs_wf f : wf_funspec f.
@@ -85,23 +89,25 @@ Qed.
 Program Definition funspec2jspec f : juicy_ext_spec Z :=
   Build_juicy_ext_spec _ (funspec2extspec f) _ _ _.
 Next Obligation.
-destruct f; simpl; unfold funspec2pre, pureat; simpl; destruct f; simpl; intros.
+destruct f; simpl; unfold funspec2pre, pureat; simpl; destruct f; simpl; 
+  destruct f; simpl; intros.
 simpl in t; revert t.
 destruct (ident_eq i (ef_id e)).
-* subst i; intros t a a' Hage; destruct m; simpl.
+* subst i; intros t a a' Hage. 
 intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
 apply age1_juicy_mem_unpack in Hage.
 destruct Hage as [Hage Hdry].
 destruct (age1_join2 phi0 Hjoin Hage) as [x' [y' [Hjoin' [Hage' H]]]].
 exists x', y'; split; auto.
-split; [solve[eapply h; eauto]|].
-apply (necR_trans (fst t) phi1 y'); auto.
+destruct m. split. eapply h; eauto.
+apply (necR_trans (fst t0) phi1 y'); auto.
 unfold necR. constructor; auto.
 * intros ? ? ?; auto.
 destruct Espec; simpl; apply JE_pre_hered.
 Qed.
 Next Obligation.
-destruct f; simpl; unfold funspec2post, pureat; simpl; destruct f; simpl; intros.
+destruct f; simpl; unfold funspec2post, pureat; simpl; destruct f; simpl; 
+  destruct f; simpl; intros.
 simpl in t; revert t.
 destruct (ident_eq i (ef_id e)).
 * subst i; intros t a a' Hage; destruct m0; simpl.
@@ -111,13 +117,13 @@ destruct Hage as [Hage Hdry].
 destruct (age1_join2 phi0 Hjoin Hage) as [x' [y' [Hjoin' [Hage' H]]]].
 exists x', y'; split; auto.
 split; [solve[eapply h; eauto]|].
-apply (necR_trans (fst t) phi1 y'); auto.
+apply (necR_trans (fst t0) phi1 y'); auto.
 unfold necR. constructor; auto.
 * intros ? ? ?; auto.
 destruct Espec; simpl; apply JE_post_hered.
 Qed.
 Next Obligation.
-intros ? ? ? ?; destruct f; destruct f; simpl.
+intros ? ? ? ?; destruct f; destruct f; destruct f; simpl.
 intros a' Hage; auto.
 Qed.
 
@@ -169,7 +175,7 @@ Lemma add_funspecs_pre {Z fs id sig A P Q x args m} Espec tys ge_s phi0 phi1 :
   funspecs_norepeat fs -> 
   in_funspecs (id, (mk_funspec sig A P Q)) fs -> 
   join phi0 phi1 (m_phi m) ->
-  P x (make_ext_args (symb2genv ge_s) 1%positive args) phi0 ->
+  P x (make_ext_args (symb2genv ge_s) (fst (split (fst sig))) args) phi0 ->
   exists x' : ext_spec_type (JE_spec _ (add_funspecs_rec Z Espec fs)) ef, 
     JMeq (phi1,x) x' 
     /\ forall z, ext_spec_pre (add_funspecs_rec Z Espec fs) ef x' ge_s tys args z m.
@@ -180,7 +186,9 @@ destruct H1 as [H1|H1].
 { 
 subst a; simpl in *.
 clear IHfs H; revert x H2 Hpre; unfold funspec2pre; simpl.
+destruct sig; simpl.
 destruct (ident_eq id id); simpl.
+rewrite fst_split. 
 intros x Hjoin Hp. exists (phi1,x). split; eauto.
 elimtype False; auto.
 }
@@ -191,11 +199,11 @@ assert (Hin: in_funspecs_by_id (id, mk_funspec sig A P Q) fs).
 destruct H as [Ha Hb]. 
 destruct (IHfs Hb H1 H2 Hpre) as [x' H3].
 clear -Ha Hin H1 H3; revert x' Ha Hin H1 H3.
-destruct a; simpl; destruct f; simpl; unfold funspec2pre; simpl.
+destruct a; simpl; destruct f; simpl; destruct f; simpl; unfold funspec2pre; simpl.
 destruct (ident_eq i id).
 * subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
-  rewrite in_funspecs_by_id_lem with (f' := mk_funspec f A0 m0 m1) in Hb.
+  rewrite in_funspecs_by_id_lem with (f' := mk_funspec (l,t) A0 m0 m1) in Hb.
   elimtype False; auto.
 * intros; eexists; eauto.
 }
@@ -218,6 +226,7 @@ destruct H1 as [H1|H1].
 { 
 subst a; simpl in *.
 clear IHfs H; revert x Hpost; unfold funspec2post; simpl.
+destruct sig; simpl.
 destruct (ident_eq id id); simpl.
 intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].
 exists phi0, phi1, (fst x), (snd x).
@@ -231,10 +240,11 @@ assert (Hin: in_funspecs_by_id (id, mk_funspec sig A P Q) fs).
 destruct H as [Ha Hb]. 
 clear -Ha Hin H1 Hb Hpost IHfs; revert x Ha Hin H1 Hb Hpost IHfs.
 destruct a; simpl; destruct f; simpl; unfold funspec2post; simpl.
+destruct f; simpl.
 destruct (ident_eq i id).
 * subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
-  rewrite in_funspecs_by_id_lem with (f' := mk_funspec f A0 m0 m1) in Hb.
+  rewrite in_funspecs_by_id_lem with (f' := mk_funspec (l,t) A0 m0 m1) in Hb.
   elimtype False; auto.
 * intros. apply IHfs; auto.
 }
@@ -254,16 +264,18 @@ Lemma semax_ext id sig A P Q (fs : funspecs) :
   let f := mk_funspec sig A P Q in
   in_funspecs (id,f) fs -> 
   funspecs_norepeat fs -> 
-  (forall n, semax_external (add_funspecs Espec fs) (EF_external id (funsig2signature sig)) _ P Q n).
+  (forall n, semax_external (add_funspecs Espec fs) (fst (split (fst sig))) 
+               (EF_external id (funsig2signature sig)) _ P Q n).
 Proof.
 intros f Hin Hnorepeat.
 unfold semax_external.
 intros n ge x n0 Hlater F ts args jm H jm' H2 H3.
 destruct H3 as [s [t [Hjoin [Hp Hf]]]].
 destruct Espec.
-assert (Hp'': P x (make_ext_args (symb2genv (Genv.genv_symb ge)) 1 args) s).
+assert (Hp'': P x (make_ext_args (symb2genv (Genv.genv_symb ge)) 
+                                 (fst (split (fst sig))) args) s).
 { generalize (all_funspecs_wf f) as Hwf2; intro.
-  spec Hwf2 x ge (symb2genv (Genv.genv_symb ge)) 1%positive args.
+  spec Hwf2 x ge (symb2genv (Genv.genv_symb ge)) (fst (split (fst sig))) args.
   spec Hwf2.
   rewrite symb2genv_ax; auto. 
   apply Hwf2; auto. }

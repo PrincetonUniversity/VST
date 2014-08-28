@@ -373,18 +373,19 @@ Qed.
 
 Lemma semax_func_cons_ext: 
    forall 
-        V (G: funspecs) fs id ef argsig retsig A P Q (G': funspecs),
+        V (G: funspecs) fs id ef argsig retsig A P Q (G': funspecs) ids,
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
       (forall (x: A) (ret : option val),
          (Q x (make_ext_rval 1 ret) |-- !!tc_option_val retsig ret)) ->
-      (forall n, semax_external Espec ef A P Q n) ->
+      length ids = length (typelist2list argsig) ->
+      (forall n, semax_external Espec ids ef A P Q n) ->
       semax_func V G fs G' ->
       semax_func V G ((id, External ef argsig retsig cc_default)::fs) 
-           ((id, mk_funspec (arglist 1%positive argsig, retsig) A P Q)  :: G').
+           ((id, mk_funspec (zip_with_tl ids argsig, retsig) A P Q)  :: G').
 Proof.
-intros until G'.
-intros H' Hretty H [Hf' Hf].
+intros until ids.
+intros H' Hretty Hlen H [Hf' Hf].
 apply andb_true_iff in H'.
 destruct H' as [Hin Hni].
 apply id_in_list_true in Hin.
@@ -393,9 +394,10 @@ split.
 hnf; simpl; f_equal; auto.
 constructor 2. simpl.
 f_equal.
-clear; forget 1%positive as n.
-revert n; induction argsig; simpl;intros; auto.
-f_equal; auto.
+clear -Hlen.
+revert ids Hlen; induction argsig; simpl; intros; auto.
+destruct ids; auto.
+destruct ids; auto. inv Hlen. simpl. f_equal; auto.
 auto.
 intros ge; intros.
 assert (prog_contains ge fs).
@@ -428,8 +430,12 @@ apply JMeq_eq in H4c.
 subst P' Q'.
 unfold believe_external.
 rewrite H2.
+assert (Hty: map fst (zip_with_tl ids argsig) = ids). 
+{ clear -Hlen. revert argsig Hlen. induction ids; auto.
+  simpl; intros. destruct argsig; auto. inv Hlen. 
+  simpl. f_equal. auto. }
+rewrite fst_split. simpl. rewrite Hty.
 split; auto.
-hnf. split; auto. split; auto. 
 intros x ret phi Hlev Hx Hnec. apply Hretty.
 
 (***   Vptr b Int.zero <> v'  ********)
