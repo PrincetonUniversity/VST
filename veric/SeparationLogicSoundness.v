@@ -72,7 +72,6 @@ Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
 Definition semax := @semax.
 Definition extract_exists := @extract_exists.
-Definition semax_body_params_ok := semax_body_params_ok.
 Definition semax_body := @semax_body.
 Definition semax_func := @semax_func.
 Definition semax_prog := @semax_prog.
@@ -108,15 +107,10 @@ Definition semax_extensionality_Delta := @semax_extensionality_Delta.
 Definition semax_extract_prop := @semax_extract_prop.
 Definition semax_ptr_compare := @semax_ptr_compare.
 
-Definition semax_external {Espec: OracleKind} ef A P Q := 
-  forall n, semax_external Espec ef A P Q n.
+Definition semax_external {Espec: OracleKind} ids ef A P Q := 
+  forall n, semax_external Espec ids ef A P Q n.
 
 Definition juicy_ext_spec := juicy_ext_spec.
-
-Definition in_funspecs := veric.semax_ext.in_funspecs.
-Definition funspecs_norepeat := veric.semax_ext.funspecs_norepeat.
-Definition add_funspecs := veric.semax_ext.add_funspecs.
-Definition funsig2signature := veric.semax_ext.funsig2signature.
 
 Definition semax_ext := @semax_ext.
 

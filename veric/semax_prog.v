@@ -245,6 +245,7 @@ Lemma semax_func_cons:
       andb (id_in_list id (map (@fst _ _) G)) 
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
+       var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc_default ->
        precondition_closed f P ->
       semax_body V G f (id, mk_funspec (fn_funsig f) A P Q) ->
@@ -253,7 +254,7 @@ Lemma semax_func_cons:
            ((id, mk_funspec (fn_funsig f) A P Q)  :: G').
 Proof.
 intros until G'.
-intros H' Hcc Hpclos H3 [Hf' Hf].
+intros H' Hvars Hcc Hpclos H3 [Hf' Hf].
 apply andb_true_iff in H'.
 destruct H' as [Hin H'].
 apply andb_true_iff in H'.
@@ -372,20 +373,25 @@ Proof.
 Qed. 
 
 Lemma semax_func_cons_ext: 
-   forall 
-        V (G: funspecs) fs id ef argsig retsig A P Q (G': funspecs) ids,
+   forall (V: varspecs) (G: funspecs) fs id ef argsig retsig A P Q 
+          argsig'
+          (G': funspecs) (ids: list ident),
+      ids = map fst argsig' -> (* redundant but useful for the client,
+               to calculate ids by reflexivity *)
+      argsig' = zip_with_tl ids argsig ->
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
+      length ids = length (typelist2list argsig) ->
       (forall (x: A) (ret : option val),
          (Q x (make_ext_rval 1 ret) |-- !!tc_option_val retsig ret)) ->
-      length ids = length (typelist2list argsig) ->
       (forall n, semax_external Espec ids ef A P Q n) ->
       semax_func V G fs G' ->
       semax_func V G ((id, External ef argsig retsig cc_default)::fs) 
-           ((id, mk_funspec (zip_with_tl ids argsig, retsig) A P Q)  :: G').
+           ((id, mk_funspec (argsig', retsig) A P Q)  :: G').
 Proof.
 intros until ids.
-intros H' Hretty Hlen H [Hf' Hf].
+intros Hids Hargsig H' Hlen Hretty H [Hf' Hf].
+rewrite Hargsig in *.  clear Hids Hargsig argsig'.
 apply andb_true_iff in H'.
 destruct H' as [Hin Hni].
 apply id_in_list_true in Hin.
@@ -434,8 +440,9 @@ assert (Hty: map fst (zip_with_tl ids argsig) = ids).
 { clear -Hlen. revert argsig Hlen. induction ids; auto.
   simpl; intros. destruct argsig; auto. inv Hlen. 
   simpl. f_equal. auto. }
-rewrite fst_split. simpl. rewrite Hty.
+rewrite fst_split. simpl map. rewrite Hty.
 split; auto.
+split; auto. split; auto.
 intros x ret phi Hlev Hx Hnec. apply Hretty.
 
 (***   Vptr b Int.zero <> v'  ********)

@@ -501,6 +501,60 @@ Lemma mapsto_value_range:
     !! int_range sz sgn i && mapsto sh (Tint sz sgn noattr) v (Vint i).
 Proof. exact seplog.mapsto_value_range. Qed.
 
+Definition semax_body_params_ok f : bool :=
+   andb 
+        (compute_list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)))
+        (compute_list_norepet (map (@fst _ _) (fn_vars f))).
+
+Definition var_sizes_ok (vars: list (ident*type)) := 
+   Forall (fun var : ident * type => sizeof (snd var) <= Int.max_unsigned)%Z vars.
+
+Definition make_ext_rval (n: positive) (v: option val) :=
+  match v with
+  | Some v' => env_set any_environ n v'
+  | None => any_environ
+  end.
+
+Definition tc_option_val (sig: type) (ret: option val) :=
+  match sig, ret with
+    | Tvoid, None => True
+    | Tvoid, Some _ => False
+    | ty, Some v => tc_val ty v
+    | _, _ => False
+  end.
+
+Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
+  match l1, l2 with
+    | a::l1', Tcons b l2' => (a,b)::zip_with_tl l1' l2'
+    | _, _ => nil
+  end.
+
+Fixpoint in_funspecs (f : (ident*funspec)) (fs : funspecs) :=
+  match fs with
+    | nil => False
+    | cons f' fs' => f=f' \/ in_funspecs f fs'
+  end.
+
+Fixpoint in_funspecs_by_id (f : (ident*funspec)) (fs : funspecs) :=
+  match fs with
+    | nil => False
+    | cons f' fs' => fst f=fst f' \/ in_funspecs_by_id f fs'
+  end.
+
+Fixpoint funspecs_norepeat fs :=
+  match fs with
+    | nil => True
+    | cons f fs' => ~in_funspecs_by_id f fs' /\ funspecs_norepeat fs'
+  end.
+
+Require veric.semax_ext.
+
+Definition add_funspecs (Espec : OracleKind) (fs : funspecs) : OracleKind :=
+   veric.semax_ext.add_funspecs Espec fs.
+
+Definition funsig2signature (s : funsig) : signature :=
+  mksignature (map typ_of_type (map snd (fst s))) (Some (typ_of_type (snd s))) cc_default.
+
 (* BEGIN rel_expr stuff *)
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
@@ -644,17 +698,13 @@ Definition semax_prog
 Axiom semax_func_nil:   forall {Espec: OracleKind}, 
         forall V G, @semax_func Espec V G nil nil.
 
-Definition semax_body_params_ok f : bool :=
-   andb 
-        (compute_list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)))
-        (compute_list_norepet (map (@fst _ _) (fn_vars f))).
-
 Axiom semax_func_cons: 
   forall {Espec: OracleKind},
      forall fs id f A P Q (V: varspecs)  (G G': funspecs),
       andb (id_in_list id (map (@fst _ _) G)) 
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
+       var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc_default ->
        precondition_closed f P ->
       semax_body V G f (id, mk_funspec (fn_funsig f) A P Q ) ->
@@ -674,25 +724,23 @@ Axiom semax_func_skip:
       semax_func V G fs G' ->
       semax_func V G (idf::fs) G'.
 
-Require veric.semax.
-
-Definition make_ext_rval := veric.semax.make_ext_rval.
-Definition tc_option_val := veric.semax.tc_option_val.
-Definition zip_with_tl {A:Type} :=@veric.semax.zip_with_tl A.
-
 Axiom semax_func_cons_ext: 
   forall {Espec: OracleKind},
    forall (V: varspecs) (G: funspecs) fs id ef argsig retsig A P Q 
+          argsig'
           (G': funspecs) (ids: list ident),
+      ids = map fst argsig' -> (* redundant but useful for the client,
+               to calculate ids by reflexivity *)
+      argsig' = zip_with_tl ids argsig ->
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
+      length ids = length (typelist2list argsig) ->
       (forall (x: A) (ret : option val),
          (Q x (make_ext_rval 1 ret) |-- !!tc_option_val retsig ret)) ->
-      length ids = length (typelist2list argsig) ->
       @semax_external Espec ids ef A P Q ->
       semax_func V G fs G' ->
       semax_func V G ((id, External ef argsig retsig cc_default)::fs) 
-           ((id, mk_funspec (zip_with_tl ids argsig, retsig) A P Q)  :: G').
+           ((id, mk_funspec (argsig', retsig) A P Q)  :: G').
 
 (* THESE RULES FROM semax_loop *)
 
@@ -914,10 +962,6 @@ Axiom semax_extract_prop:
 Require veric.semax_ext.
 
 (*TODO: What's the preferred way to expose these defs in the SL interface?*)
-Definition in_funspecs := veric.semax_ext.in_funspecs.
-Definition funspecs_norepeat := veric.semax_ext.funspecs_norepeat.
-Definition add_funspecs := veric.semax_ext.add_funspecs.
-Definition funsig2signature := veric.semax_ext.funsig2signature.
 
 Axiom semax_ext: 
   forall (Espec : OracleKind) 

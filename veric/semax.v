@@ -193,13 +193,16 @@ make_tycontext_v (fn_vars func) ,
 fn_return func,
  glob_types Delta).
 
+Definition var_sizes_ok (vars: list (ident*type)) := 
+   Forall (fun var : ident * type => sizeof (snd var) <= Int.max_unsigned)%Z vars.
+
 Definition believe_internal_ 
   (semax:semaxArg -> pred nat)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars))
+                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
   && ALL x : A, |> semax (SemaxArg  (func_tycontext' f Delta)
                                 (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of f rho)
@@ -241,7 +244,7 @@ Definition believe_internal (Espec:  OracleKind)
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars))
+                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
   && ALL x : A, |> semax' Espec (func_tycontext' f Delta)
                                 (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of f rho)

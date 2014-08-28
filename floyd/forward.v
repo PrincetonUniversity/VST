@@ -17,6 +17,19 @@ Import Cop.
 
 Local Open Scope logic.
 
+Ltac semax_func_skipn :=
+  repeat first [apply semax_func_nil'
+                     | apply semax_func_skip1;
+                       [clear; solve [auto with closed] | ]].
+
+Ltac semax_func_cons L :=
+ first [apply semax_func_cons; 
+           [ reflexivity 
+        | repeat apply Forall_cons; try apply Forall_nil; computable
+        | reflexivity | precondition_closed | apply L | ]
+        | apply semax_func_cons_ext;  [ reflexivity | apply L | ]
+        ].
+
 Ltac forward_seq := 
   first [eapply semax_seq'; [  | abbreviate_semax ]
          | eapply semax_post_flipped' ].

@@ -1755,6 +1755,153 @@ simpl.
  destruct (in_dec ident_eq j (map fst params)); auto.
 Qed.
 
+Lemma writable_share_top: writable_share Share.top.
+Proof.
+apply Share.contains_Rsh_e. apply top_correct'.
+Qed.
+
+Lemma juicy_mem_alloc_block:
+ forall jm n jm2 b F,
+   juicy_mem_alloc jm 0 n = (jm2, b) ->
+   app_pred F (m_phi jm)  ->
+   0 <= n <= Int.max_unsigned ->
+   app_pred (F * memory_block Share.top (Int.repr n) (Vptr b Int.zero)) (m_phi jm2).
+Proof.
+intros. rename H1 into Hn.
+inv H.
+unfold after_alloc; simpl m_phi.
+match goal with |- context [proj1_sig ?A] => destruct A; simpl proj1_sig end.
+rename x into phi2.
+destruct a.
+unfold after_alloc' in H1.
+destruct (allocate (m_phi jm)
+    (fun loc : address =>
+      if adr_range_dec (snd (alloc (m_dry jm) 0 n), 0) (n - 0) loc
+      then YES Share.top pfullshare (VAL Undef) NoneP
+      else core (m_phi jm @ loc)))
+  as [phi3 [phi4  [? ?]]].
+*
+ hnf; intros. unfold compose.
+ if_tac. apply I. destruct (m_phi jm @ (b,ofs)); simpl. rewrite core_NO; apply I.
+ rewrite core_YES; apply I. rewrite core_PURE; apply I.
+* extensionality loc; unfold compose.
+  if_tac. unfold resource_fmap. rewrite preds_fmap_NoneP. reflexivity.
+  repeat rewrite core_resource_at.
+  rewrite <- level_core.
+  apply resource_at_approx.
+*
+ intros. if_tac.
+ exists (YES Share.top pfullshare (VAL Undef) NoneP).
+ destruct l as [b ofs]; destruct H2.
+ rewrite juicy_mem_alloc_cohere. constructor.
+ apply join_unit1; auto.
+ destruct (alloc (m_dry jm) 0 n) eqn:?H.
+ apply alloc_result in H4. subst. simpl. 
+ xomega.
+ exists (m_phi jm @ l).
+ apply join_comm.
+ apply core_unit.
+*
+assert (phi4 = phi2). {
+ apply rmap_ext. apply join_level in H2. destruct H2; omega.
+ intro loc; apply (resource_at_join _ _ _ loc) in H2.
+ rewrite H3 in H2; rewrite H1.
+ if_tac.
+ inv H2; try pfullshare_join.
+ rewrite (join_sub_share_top rsh3) by (exists rsh1; auto).
+ reflexivity.
+ apply join_comm in H2.
+ apply core_identity in H2. auto.
+}
+subst phi4.
+assert (Int.max_unsigned + 1 = Int.modulus) by reflexivity.
+exists (m_phi jm), phi3; split3; auto.
+split.
+do 3 red.
+rewrite Int.unsigned_zero.
+rewrite Int.unsigned_repr by auto.  simpl.
+omega.
+rewrite Int.unsigned_repr by auto.
+rewrite Int.unsigned_zero.
+rewrite memory_block'_eq; try omega.
+2: rewrite Coqlib.nat_of_Z_eq; omega.
+hnf.
+intro loc. hnf.
+rewrite Coqlib.nat_of_Z_eq by omega.
+if_tac.
+exists Undef.
+rewrite writable_share_right by apply writable_share_top.
+exists top_share_nonunit.
+hnf.
+rewrite H3.
+rewrite Z.sub_0_r.
+rewrite if_true by auto.
+rewrite preds_fmap_NoneP.
+f_equal.
+rewrite Share.contains_Lsh_e; auto.
+apply top_correct'.
+unfold noat. simpl.
+rewrite H3.
+rewrite Z.sub_0_r.
+rewrite if_false by auto.
+apply core_identity.
+Qed.
+
+Lemma alloc_juicy_variables_lem2:
+  forall jm f ge ve te jm' (F: pred rmap),
+      Forall (fun var => sizeof (snd var) <= Int.max_unsigned) (fn_vars f) ->
+      list_norepet (map fst (fn_vars f)) ->
+      alloc_juicy_variables empty_env jm (fn_vars f) = (ve, jm') ->
+      app_pred F (m_phi jm) ->
+      app_pred (F * stackframe_of f (construct_rho ge ve te)) (m_phi jm').
+Proof.
+intros until F; intros Hsize; intros.
+unfold stackframe_of.
+forget (fn_vars f) as vars. clear f.
+(*assert (Hmatch := alloc_juicy_variables_match_venv _ _ _ _ H0). *)
+forget empty_env as ve0.
+revert F ve0 jm Hsize H0 H1; induction vars; intros.
+simpl in H0. inv H0.
+simpl fold_right. rewrite sepcon_emp; auto.
+inv Hsize. rename H4 into Hsize'; rename H5 into Hsize.
+simpl fold_right.
+unfold alloc_juicy_variables in H0; fold alloc_juicy_variables in H0.
+destruct a as [id ty].
+destruct (juicy_mem_alloc jm 0 (sizeof ty)) eqn:?H.
+rewrite <- sepcon_assoc.
+inv H.
+eapply IHvars; eauto. clear IHvars.
+(* pose proof (juicy_mem_alloc_succeeds _ _ _ _ _ H2). *)
+pose proof I.
+unfold var_block, lvalue_block.
+simpl sizeof; simpl typeof. simpl eval_lvalue.
+ unfold eval_var. simpl Map.get. simpl ge_of.
+assert (Map.get (make_venv ve) id = Some (b,ty)). {
+ clear - H0 H5.
+ unfold Map.get, make_venv.
+ assert ((PTree.set id (b,ty) ve0) ! id = Some (b,ty)) by (apply PTree.gss).
+ forget (PTree.set id (b, ty) ve0) as ve1.
+ rewrite <- H; clear H.
+ revert ve1 j H0 H5; induction vars; intros.
+ inv H0; auto.
+ unfold alloc_juicy_variables in H0; fold alloc_juicy_variables in H0.
+ destruct a as [id' ty'].
+ destruct (juicy_mem_alloc j 0 (sizeof ty')) eqn:?H.
+ rewrite (IHvars _ _ H0).
+ rewrite PTree.gso; auto. contradict H5. subst; left; auto.
+ contradict H5; right; auto.
+}
+rewrite H3. rewrite eqb_type_refl.
+simpl in Hsize'.
+rewrite prop_true_andp by auto.
+rewrite (prop_true_andp (align_compatible _ _))
+  by (exists 0; apply Int.unsigned_zero).
+assert (0 <= sizeof ty <= Int.max_unsigned) by (pose proof (sizeof_pos ty); omega).
+forget (sizeof ty) as n.
+clear - H2 H1 H4.
+eapply juicy_mem_alloc_block; eauto.
+Qed.
+
 Lemma semax_call_aux:
  forall (Delta : tycontext) (A : Type)
   (P Q Q' : A -> assert) (x : A) (F : environ -> pred rmap)
@@ -1818,7 +1965,7 @@ eapply semax_call_external; eauto.
 }
 specialize (H14 _ (age_laterR H13)).
 destruct H15 as [b' [f [[? [? [? ?]]] ?]]].
-destruct H18 as [H17' [H18 H18']].
+destruct H18 as [H17' [Hvars [H18 H18']]].
 inversion H15; clear H15; subst b'.
 specialize (H19 x n LATER).
 rewrite semax_fold_unfold in H19.
@@ -2190,7 +2337,7 @@ simpl @fst in *.
  apply (alloc_juicy_variables_age H18 H20x) in AJV.
  forget (fn_params f) as params.
  forget (eval_exprlist (map snd params) bl rho) as args.
- clear - H21 H14 AJV H17 H0.
+ clear - H21 H14 AJV H17 H17' H0 Hvars.
  assert (app_pred (Frame * close_precondition params (fn_vars f) (P x)
                                (construct_rho (filter_genv psi) ve' te')) (m_phi jmx)).
  eapply sepcon_derives; try apply H14; auto.
@@ -2201,8 +2348,8 @@ simpl @fst in *.
  forget (Frame *
      close_precondition params (fn_vars f) (P x)
        (construct_rho (filter_genv psi) ve' te')) as Frame2.
- clear - H17 H21 AJV H.
- admit.  (* very plausible *)
+ clear - H17' H21 AJV H Hvars.
+ eapply alloc_juicy_variables_lem2; eauto.
 }
 (* end   "spec H19" *)
 }

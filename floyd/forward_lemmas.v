@@ -30,17 +30,6 @@ apply semax_func_nil.
 apply semax_func_skip; auto.
 Qed.
 
-Ltac semax_func_skipn :=
-  repeat first [apply semax_func_nil'
-                     | apply semax_func_skip1;
-                       [clear; solve [auto with closed] | ]].
-
-Ltac semax_func_cons L :=
- first [apply semax_func_cons; 
-           [ reflexivity |  reflexivity | precondition_closed | apply L | ]
-        | apply semax_func_cons_ext;  [ reflexivity | apply L | ]
-        ].
-
 Lemma semax_frame_seq:
  forall {Espec: OracleKind} Frame Delta 
      P Q c1 c2 R P1 Q1 R1 P2 Q2 R2 R3,
