@@ -1410,7 +1410,7 @@ spec H15; [ apply age_level in H0; omega | ].
 specialize (H15 _ (necR_refl _)).
 spec H15. { clear H15.
 assert ((|> (P x
-      (make_ext_args psi (map fst params)
+      (make_ext_args (filter_genv psi) (map fst params)
          (eval_exprlist (snd (split params)) bl
             (construct_rho (filter_genv psi) vx tx))) *
     (F0 (construct_rho (filter_genv psi) vx tx) *
@@ -1482,7 +1482,7 @@ intros.
 specialize (H15 ret0 z').
 change ((ext_spec_post' Espec e x' (opttyp_of_type retty) ret0 z' >=>
         juicy_mem_op
-          (Q' x (make_ext_rval 1 ret0) *
+          (Q' x (make_ext_rval  (filter_genv psi) ret0) *
               (F0 (construct_rho (filter_genv psi) vx tx) *
                F (construct_rho (filter_genv psi) vx tx)))) (level jm')) in H15.
 assert (level jm' > level m')%nat. 
@@ -1588,8 +1588,135 @@ destruct ((temp_types Delta)!i); try destruct p; auto.
 do 3 red in H15.
 rewrite (sepcon_comm (F0 _)) in H15.
 rewrite <- sepcon_assoc in H15.
-eapply sepcon_derives; [ | | apply H15]; clear H15.
-Admitted. (* needs some work *)
+assert (H15': ((!!tc_option_val retty ret0 && Q x (make_ext_rval (filter_genv psi) ret0)) *
+       F (construct_rho (filter_genv psi) vx tx) *
+       F0 (construct_rho (filter_genv psi) vx tx))%pred (m_phi m')). {
+rewrite sepcon_assoc in H15|-*.
+destruct H15 as [w1 [w2 [? [? ?]]]]; exists w1; exists w2; split3; auto.
+clear - H7 H1 H9 H11 H0 Hretty.
+specialize (H11 (make_ext_rval (filter_genv psi) ret0) (level (m_phi jm'))).
+specialize (Hretty x ret0 w1).
+spec H11.
+constructor 1. 
+repeat rewrite <- level_juice_level_phi.
+apply age_level in H0. rewrite H0.
+reflexivity.
+spec Hretty.
+repeat rewrite <- level_juice_level_phi.
+apply age_level in H0. rewrite H0.
+apply join_level in H1. destruct H1.
+rewrite H. change (S (level jm') >= level m')%nat.
+omega.
+split.
+apply Hretty; auto.
+destruct (H11 w1) as [? _].
+apply join_level in H1. destruct H1.
+rewrite <- level_juice_level_phi in *.
+omega.
+apply H; auto.
+}
+clear H15.
+normalize in H15'.
+do 2 red in H1.
+rewrite (sepcon_comm (Q _ _)) in H15'.
+rewrite <- exp_sepcon1.
+eapply sepcon_derives; [apply sepcon_derives | | apply H15']; clear H15'.
++ (* F *)
+  destruct TC3 as [TC3 _].
+  hnf in TC3; simpl in TC3.
+ hnf in TCret.
+apply exp_right with 
+  match ret with
+       | Some id =>
+           match tx ! id with
+           | Some old => old
+           | None => Vundef
+           end
+       | None => Vundef
+       end.
+unfold substopt.
+unfold tx' in *; clear tx'.
+destruct ret; auto.
+destruct ((temp_types Delta) ! i) as [[ti init]|] eqn:H29; try contradiction.
+specialize (TC3 _ _ _ H29).
+destruct TC3 as [v [? ?]].
+unfold subst.
+apply derives_refl'.
+f_equal.
+unfold env_set, construct_rho.
+simpl. f_equal.
+unfold Map.set,Map.get, make_tenv in H7 |- *; rewrite H7.
+destruct (type_eq retty Tvoid).
+spec TC5; auto. inv TC5.
+extensionality j.
+if_tac. subst j. auto.
+destruct ret0; auto.
+rewrite PTree.gso; auto.
++ (* Q *)
+destruct (type_eq retty Tvoid).
+subst retty. unfold maybe_retval.
+hnf in H1.
+destruct ret0; try contradiction.
+simpl make_ext_rval.
+spec TC5; auto. unfold tx' in *; subst ret.
+apply derives_refl.
+destruct ret0; hnf in H1; simpl in H1.
+assert (tc_val retty v).
+destruct retty; try congruence; auto.
+clear H1.
+unfold maybe_retval.
+destruct ret.
+ apply derives_refl'; f_equal.
+unfold tx'.
+unfold make_ext_rval, get_result1; simpl.
+unfold ret_temp, eval_id, env_set; simpl.
+f_equal.
+unfold Map.get, make_tenv; simpl.
+rewrite PTree.gss; reflexivity.
+apply derives_trans with 
+  (EX  v0 : val, Q x (make_args (ret_temp :: nil) (v0 :: nil) (construct_rho (filter_genv psi) vx tx'))).
+apply exp_right with v.
+unfold make_args, make_ext_rval; simpl.
+unfold env_set, globals_only; simpl.
+apply derives_refl.
+destruct retty; try congruence.
+destruct retty; try contradiction.
+congruence.
++
+clear - H.
+apply derives_refl'; apply H; intros.
+unfold tx'; clear.
+unfold modifiedvars; simpl. 
+destruct ret; simpl; auto.
+destruct (ident_eq i0 i).
+subst.
+left. unfold insert_idset. rewrite PTree.gss; apply I.
+right.
+unfold Map.get, make_tenv.
+destruct ret0; auto.
+rewrite PTree.gso by auto.
+auto.
+}
+exists 
+match ret0 with
+| Some v =>
+    match ret with
+    | Some id => (State vx (PTree.set id v tx) k)
+    | None => (State vx tx k) (* bogus *)
+    end
+| None => match ret with
+          | Some _ => (State vx tx k) (* bogus *)
+          | None => (State vx tx k)
+          end
+end.
+split.
+unfold cl_after_external.
+destruct ret0, ret; auto.
+hnf in TCret.
+admit. (* hoist the proof about Hretty higher up *)
+admit. (* hoist the proof about Hretty higher up? *)
+admit.  (* use H1? *)
+Admitted. (* still needs some work *)
 
 Lemma alloc_juicy_variables_age:
   forall {rho jm jm1 vl rho' jm' jm1'},

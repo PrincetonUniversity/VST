@@ -509,10 +509,11 @@ Definition semax_body_params_ok f : bool :=
 Definition var_sizes_ok (vars: list (ident*type)) := 
    Forall (fun var : ident * type => sizeof (snd var) <= Int.max_unsigned)%Z vars.
 
-Definition make_ext_rval (n: positive) (v: option val) :=
+Definition make_ext_rval  (gx: genviron) (v: option val):=
   match v with
-  | Some v' => env_set any_environ n v'
-  | None => any_environ
+  | Some v' =>  mkEnviron gx (Map.empty _) 
+                              (Map.set 1%positive v' (Map.empty _))
+  | None => mkEnviron gx (Map.empty _) (Map.empty _)
   end.
 
 Definition tc_option_val (sig: type) (ret: option val) :=
@@ -735,8 +736,8 @@ Axiom semax_func_cons_ext:
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
       length ids = length (typelist2list argsig) ->
-      (forall (x: A) (ret : option val),
-         (Q x (make_ext_rval 1 ret) |-- !!tc_option_val retsig ret)) ->
+      (forall gx (x: A) (ret : option val),
+         (Q x (make_ext_rval gx ret) |-- !!tc_option_val retsig ret)) ->
       @semax_external Espec ids ef A P Q ->
       semax_func V G fs G' ->
       semax_func V G ((id, External ef argsig retsig cc_default)::fs) 

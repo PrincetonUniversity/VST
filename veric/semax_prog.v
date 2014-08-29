@@ -382,8 +382,8 @@ Lemma semax_func_cons_ext:
       andb (id_in_list id (map (@fst _ _) G))
               (negb (id_in_list id (map (@fst _ _) fs))) = true ->
       length ids = length (typelist2list argsig) ->
-      (forall (x: A) (ret : option val),
-         (Q x (make_ext_rval 1 ret) |-- !!tc_option_val retsig ret)) ->
+      (forall gx (x: A) (ret : option val),
+         (Q x (make_ext_rval gx ret) |-- !!tc_option_val retsig ret)) ->
       (forall n, semax_external Espec ids ef A P Q n) ->
       semax_func V G fs G' ->
       semax_func V G ((id, External ef argsig retsig cc_default)::fs) 

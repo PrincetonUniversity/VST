@@ -133,17 +133,18 @@ Program Definition ext_spec_post' (Espec: OracleKind)
 Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
      # diamond fashionM (exactly (m_phi jm) && P).
 
-Fixpoint make_ext_args (gx: genv) (ids: list ident) (vl: list val)  :=
+Fixpoint make_ext_args (gx: genviron) (ids: list ident) (vl: list val)  :=
   match ids, vl with 
   | id::ids', v::vl' => env_set (make_ext_args gx ids' vl') id v
   | _, v::vl' => env_set (make_ext_args gx ids vl') 1%positive v
-  | _, _ => mkEnviron (filter_genv gx) (Map.empty _) (Map.empty _)
+  | _, _ => mkEnviron gx (Map.empty _) (Map.empty _)
  end.
 
-Definition make_ext_rval (n: positive) (v: option val) :=
+Definition make_ext_rval  (gx: genviron) (v: option val):=
   match v with
-  | Some v' => env_set any_environ n v'
-  | None => any_environ
+  | Some v' =>  mkEnviron gx (Map.empty _) 
+                              (Map.set 1%positive v' (Map.empty _))
+  | None => mkEnviron gx (Map.empty _) (Map.empty _)
   end.
 
 Definition semax_external 
@@ -151,12 +152,12 @@ Definition semax_external
         pred nat := 
  ALL gx: genv, ALL x: A, 
  |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val,
-   juicy_mem_op (P x (make_ext_args gx ids args) * F) >=> 
+   juicy_mem_op (P x (make_ext_args (filter_genv gx) ids args) * F) >=> 
    EX x': ext_spec_type OK_spec ef,
     ALL z:_, ext_spec_pre' Hspec ef x' (Genv.genv_symb gx) ts args z &&
      ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, 
       ext_spec_post' Hspec ef x' tret ret z' >=>
-          juicy_mem_op (Q x (make_ext_rval 1 ret) * F).
+          juicy_mem_op (Q x (make_ext_rval (filter_genv gx) ret) * F).
 
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with
@@ -181,7 +182,7 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
             /\ length (typelist2list sigargs)=length ids) 
         && semax_external Hspec ids ef A P Q 
         && ! (ALL x:A, ALL ret:option val, 
-                Q x (make_ext_rval 1 ret) >=> !! tc_option_val sigret ret)
+                Q x (make_ext_rval (filter_genv gx) ret) >=> !! tc_option_val sigret ret)
   | _ => FF 
   end.
 

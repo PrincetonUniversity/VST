@@ -652,7 +652,7 @@ Qed.
 Hint Rewrite retval_get_result1 : norm.
 
 Lemma retval_ext_rval:
-  forall v, retval (make_ext_rval 1 v) = force_val v.
+  forall ge v, retval (make_ext_rval ge v) = force_val v.
 Proof.
  intros. unfold retval, eval_id; simpl. unfold make_ext_rval; simpl.
  destruct v; simpl; auto.

@@ -31,21 +31,23 @@ Definition funspec2pre (A : Type) P ids id ef x ge_s
   return ((if s then (rmap*A)%type else ext_spec_type Espec ef) -> Prop)
   with 
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m) 
-                       /\ P (snd x') (make_ext_args (symb2genv ge_s) ids args) phi0
+                       /\ P (snd x') (make_ext_args (filter_genv (symb2genv ge_s)) ids args) phi0
                        /\ necR (fst x') phi1 
     | right n => fun x' => ext_spec_pre Espec ef x' ge_s tys args z m
   end x.
 
 Definition funspec2post (A : Type) (Q : A -> environ -> mpred) 
-                        id ef x (tret : option typ) ret (z : Z) m : Prop :=
+                        id ef x ge_s (tret : option typ) ret (z : Z) m : Prop :=
   match ident_eq id (ef_id ef) as s 
   return ((if s then (rmap*A)%type else ext_spec_type Espec ef) -> Prop)
   with 
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m) 
-                       /\ Q (snd x') (make_ext_rval 1 ret) phi0
+                       /\ Q (snd x') (make_ext_rval (filter_genv (symb2genv ge_s))  ret) phi0
                        /\ necR (fst x') phi1 
     | right n => fun x' => ext_spec_post Espec ef x' tret ret z m
   end x.
+
+Parameter bogus_gs: PTree.t block.
 
 Definition funspec2extspec (f : (ident*funspec)) 
   : external_specification juicy_mem external_function Z :=
@@ -54,7 +56,9 @@ Definition funspec2extspec (f : (ident*funspec))
       Build_external_specification juicy_mem external_function Z
         (fun ef => if ident_eq id (ef_id ef) then (rmap*A)%type else ext_spec_type Espec ef)
         (funspec2pre A P (fst (split params)) id)
-        (funspec2post A Q id)
+(fun ef x  =>
+    (funspec2post A Q id)
+     ef x bogus_gs)
         (fun rv z m => False)
   end.
 
@@ -67,11 +71,12 @@ Definition wf_funspec (f : funspec) :=
     | mk_funspec sig A P Q => 
         forall a ge ge' n args, 
           Genv.genv_symb ge = Genv.genv_symb ge' ->
-          P a (make_ext_args ge n args) |-- P a (make_ext_args ge' n args)
+          P a (make_ext_args (filter_genv ge) n args) |-- P a (make_ext_args (filter_genv ge') n args)
   end.
 
-Lemma make_ext_args_symb ge ge' (H: Genv.genv_symb ge = Genv.genv_symb ge') n args : 
-  make_ext_args ge n args = make_ext_args ge' n args.
+Lemma make_ext_args_symb (ge ge' : genv)
+      (H: Genv.genv_symb ge = Genv.genv_symb ge') n args : 
+  make_ext_args (filter_genv ge) n args = make_ext_args (filter_genv ge') n args.
 Proof.
 revert ge ge' n H; induction args.
 * simpl; unfold filter_genv, Genv.find_symbol. intros ? ? ? ->; auto.
@@ -83,6 +88,7 @@ Qed.
 Lemma all_funspecs_wf f : wf_funspec f.
 Proof.
 destruct f; simpl; intros a ge ge' n args H.
+unfold filter_genv.
 erewrite make_ext_args_symb; eauto.
 Qed.
 
@@ -175,7 +181,7 @@ Lemma add_funspecs_pre {Z fs id sig A P Q x args m} Espec tys ge_s phi0 phi1 :
   funspecs_norepeat fs -> 
   in_funspecs (id, (mk_funspec sig A P Q)) fs -> 
   join phi0 phi1 (m_phi m) ->
-  P x (make_ext_args (symb2genv ge_s) (fst (split (fst sig))) args) phi0 ->
+  P x (make_ext_args (filter_genv (symb2genv ge_s)) (fst (split (fst sig))) args) phi0 ->
   exists x' : ext_spec_type (JE_spec _ (add_funspecs_rec Z Espec fs)) ef, 
     JMeq (phi1,x) x' 
     /\ forall z, ext_spec_pre (add_funspecs_rec Z Espec fs) ef x' ge_s tys args z m.
@@ -209,7 +215,7 @@ destruct (ident_eq i id).
 }
 Qed.
 
-Lemma add_funspecs_post {Z Espec tret fs id sig A P Q x ret m z} :
+Lemma add_funspecs_post {Z Espec tret fs id sig A P Q x ret m z ge_s} :
   let ef := EF_external id (funsig2signature sig) in
   funspecs_norepeat fs -> 
   in_funspecs (id, (mk_funspec sig A P Q)) fs -> 
@@ -218,7 +224,7 @@ Lemma add_funspecs_post {Z Espec tret fs id sig A P Q x ret m z} :
        join phi0 phi1 (m_phi m) 
     /\ necR phi1' phi1
     /\ JMeq x (phi1',x') 
-    /\ Q x' (make_ext_rval 1%positive ret) phi0.
+    /\ Q x' (make_ext_rval (filter_genv (symb2genv ge_s)) ret) phi0.
 Proof.
 induction fs; [intros; elimtype False; auto|]; intros ef H H1 Hpost.
 destruct H1 as [H1|H1].
@@ -231,6 +237,7 @@ destruct (ident_eq id id); simpl.
 intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].
 exists phi0, phi1, (fst x), (snd x).
 split; auto. split; auto. destruct x; simpl in *. split; auto.
+admit. (* bogus_gs *)
 elimtype False; auto.
 }
 
@@ -272,7 +279,7 @@ unfold semax_external.
 intros n ge x n0 Hlater F ts args jm H jm' H2 H3.
 destruct H3 as [s [t [Hjoin [Hp Hf]]]].
 destruct Espec.
-assert (Hp'': P x (make_ext_args (symb2genv (Genv.genv_symb ge)) 
+assert (Hp'': P x (make_ext_args (filter_genv (symb2genv (Genv.genv_symb ge))) 
                                  (fst (split (fst sig))) args) s).
 { generalize (all_funspecs_wf f) as Hwf2; intro.
   spec Hwf2 x ge (symb2genv (Genv.genv_symb ge)) (fst (split (fst sig))) args.
@@ -294,6 +301,10 @@ assert (JMeq (t,x) (phi1',x'')) by (eapply JMeq_trans; eauto).
 assert ((t,x) = (phi1',x'')) by (apply JMeq_eq in H0; auto).
 inv H1.
 split; auto.
+{ (* BOGUS *)
+instantiate (1:= bogus_gs) in Hq'.
+admit. (* bogus_gs *)
+}
 eapply pred_nec_hereditary; eauto.
 Qed.
   

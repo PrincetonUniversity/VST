@@ -25,7 +25,7 @@ Qed.
 Hint Rewrite tc_option_val'_eq : norm.
 
 Lemma emp_make_ext_rval:
-  forall v, @emp (environ->mpred) _ _ (make_ext_rval 1 v) = emp.
+  forall ge v, @emp (environ->mpred) _ _ (make_ext_rval ge v) = emp.
 Proof. reflexivity. Qed.
 Hint Rewrite emp_make_ext_rval : norm.
 
