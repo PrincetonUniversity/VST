@@ -36,6 +36,38 @@ data_at_with_mexception * [field_at] = data_at
 
 **********************************************)
 
+(*** type level ***)
+
+Lemma nested_field_type2_nil: forall t, nested_field_type2 t nil = t.
+Proof.
+  intros.
+  unfold nested_field_type2.
+  reflexivity.
+Defined.
+
+Definition nested_field_type2_cons: forall t id ids0,
+  nested_field_type2 t (id :: ids0) = 
+  match nested_field_type2 t ids0 with
+  | Tstruct i f a => match field_offset_rec id f 0, field_type id f with
+                     | Errors.OK _, Errors.OK t0 => t0
+                     | _, _ => Tvoid
+                     end
+  | Tunion i f a  => match field_type id f with
+                     | Errors.OK t0 => t0
+                     | _ => Tvoid
+                     end
+  | _ => Tvoid
+  end.
+Proof.
+  intros.
+  unfold nested_field_type2 in *.
+  simpl.
+  destruct (nested_field_rec t ids0) eqn:HH; try reflexivity.
+  destruct p.
+  destruct t0; try reflexivity; unfold field_offset;
+  destruct (field_offset_rec id f 0), (field_type id f); reflexivity.
+Defined.
+
 Fixpoint all_fields_except_one (f: fieldlist) (id: ident) : option fieldlist :=
  match f with
  | Fnil => None
@@ -88,6 +120,11 @@ Fixpoint nf_replace t ids t0: option type :=
       | Some f' => nf_replace t ids0 (Tstruct i f' a)
       | None => None
       end
+    | Tunion i f a =>
+      match all_fields_replace_one f id t0 with
+      | Some f' => nf_replace t ids0 (Tunion i f' a)
+      | None => None
+      end
     | _ => None
     end
   end.
@@ -98,6 +135,7 @@ Fixpoint nf_replace2 t ids t0: type :=
   | id :: ids0 => 
     match nested_field_type2 t ids0 with
     | Tstruct i f a => nf_replace2 t ids0 (Tstruct i (all_fields_replace_one2 f id t0) a)
+    | Tunion i f a => nf_replace2 t ids0 (Tunion i (all_fields_replace_one2 f id t0) a)
     | _ => t
     end
   end.
@@ -109,18 +147,24 @@ Definition nf_sub t id ids: option type :=
     | Some f' => nf_replace t ids (Tstruct i f' a)
     | None => None
     end
+  | Tunion i f a =>
+    match all_fields_except_one f id with
+    | Some f' => nf_replace t ids (Tunion i f' a)
+    | None => None
+    end
   | _ => None
   end.
 
 Definition nf_sub2 t id ids: type :=
   match nested_field_type2 t ids with
   | Tstruct i f a => nf_replace2 t ids (Tstruct i (all_fields_except_one2 f id) a)
+  | Tunion i f a => nf_replace2 t ids (Tunion i (all_fields_except_one2 f id) a)
   | _ => t
   end.
 
 Lemma all_fields_except_one_all_fields_except_one2: forall f id,
   all_fields_except_one f id = Some (all_fields_except_one2 f id) \/
-  all_fields_except_one f id = None.
+  all_fields_except_one f id = None /\ all_fields_except_one2 f id = f.
 Proof.
   intros.
   induction f.
@@ -128,12 +172,12 @@ Proof.
   + simpl; if_tac; [ |destruct IHf].
     - auto.
     - rewrite H0. auto.
-    - rewrite H0. auto.
-Qed.
+    - destruct H0; rewrite H0, H1. auto.
+Defined.
 
 Lemma all_fields_replace_one_all_fields_replace_one2: forall f id t,
   all_fields_replace_one f id t = Some (all_fields_replace_one2 f id t) \/
-  all_fields_replace_one f id t = None.
+  all_fields_replace_one f id t = None /\ all_fields_replace_one2 f id t = f.
 Proof.
   intros.
   induction f.
@@ -141,61 +185,268 @@ Proof.
   + simpl; if_tac; [ |destruct IHf].
     - auto.
     - rewrite H0. auto.
-    - rewrite H0. auto.
-Qed.
+    - destruct H0; rewrite H0, H1. auto.
+Defined.
+
+Lemma all_fields_replace_one2_identical: forall f i t,
+  (field_type i f = Errors.OK t \/ exists e, field_type i f = Errors.Error e) -> all_fields_replace_one2 f i t = f.
+Proof.
+  intros.
+  induction f.
+  + reflexivity.
+  + simpl in *.
+    if_tac in H.
+    - destruct H as [? | [? ?]]; inversion H; reflexivity.
+    - rewrite (IHf H). reflexivity.
+Defined.
+
+Lemma nf_replace2_identical: forall t ids, t = nf_replace2 t ids (nested_field_type2 t ids).
+Proof.
+  intros.
+  induction ids.
+  + reflexivity.
+  + simpl.
+    destruct (nested_field_type2 t ids) eqn:?; auto.
+    - (* Tstruct *)
+      rewrite all_fields_replace_one2_identical; auto.
+      erewrite nested_field_type2_cons; eauto.
+      rewrite Heqt0.
+      change (field_offset_rec a f 0) with (field_offset a f).
+      solve_field_offset_type a f; eauto.
+    - (* Tunion *)
+      rewrite all_fields_replace_one2_identical; auto.
+      erewrite nested_field_type2_cons; eauto.
+      rewrite Heqt0.
+      change (field_offset_rec a f 0) with (field_offset a f).
+      solve_field_offset_type a f; eauto.
+Defined.
 
 Lemma nf_replace_nf_replace2: forall t ids t0,
   nf_replace t ids t0 = Some (nf_replace2 t ids t0) \/
-  nf_replace t ids t0 = None.
+  nf_replace t ids t0 = None /\ nf_replace2 t ids t0 = t.
 Proof.
   induction ids; intros.
   + auto.
-  + simpl; destruct (nested_field_type2 t ids); auto.
-    destruct (all_fields_replace_one_all_fields_replace_one2 f a t0) as [H | H];
-    rewrite H; auto.
-Qed.
+  + simpl. simpl; destruct (nested_field_type2 t ids) eqn:?; auto.
+    - destruct (all_fields_replace_one_all_fields_replace_one2 f a t0) as [H | [H0 H1]].
+      * rewrite H; auto.
+      * rewrite H0, H1, <- Heqt1.
+        rewrite <- nf_replace2_identical.
+        auto.
+    - destruct (all_fields_replace_one_all_fields_replace_one2 f a t0) as [H | [H0 H1]].
+      * rewrite H; auto.
+      * rewrite H0, H1, <- Heqt1.
+        rewrite <- nf_replace2_identical.
+        auto.
+Defined.
 
 Lemma nf_sub_nf_sub2: forall t id ids,
   nf_sub t id ids = Some (nf_sub2 t id ids) \/
-  nf_sub t id ids = None.
+  nf_sub t id ids = None /\ nf_sub2 t id ids = t.
 Proof.
   intros.
   unfold nf_sub2, nf_sub.
-  destruct (nested_field_type2 t ids); auto.
-  destruct (all_fields_except_one_all_fields_except_one2 f id) as [H | H];
-  rewrite H; auto.
-  apply nf_replace_nf_replace2.
-Qed.
-
-Lemma nested_field_type2_nil: forall t, nested_field_type2 t nil = t.
-Proof.
-  intros.
-  unfold nested_field_type2.
-  reflexivity.
+  destruct (nested_field_type2 t ids) eqn:?; auto.
+  + destruct (all_fields_except_one_all_fields_except_one2 f id) as [H | [H0 H1]].
+    - rewrite H; auto.
+      apply nf_replace_nf_replace2.
+    - rewrite H0, H1, <- Heqt0.
+      rewrite <- nf_replace2_identical.
+      auto.
+  + destruct (all_fields_except_one_all_fields_except_one2 f id) as [H | [H0 H1]].
+    - rewrite H; auto.
+      apply nf_replace_nf_replace2.
+    - rewrite H0, H1, <- Heqt0.
+      rewrite <- nf_replace2_identical.
+      auto.
 Defined.
 
-Definition nested_field_type2_cons: forall t id ids0,
-  nested_field_type2 t (id :: ids0) = 
-  match nested_field_type2 t ids0 with
-  | Tstruct i f a => match field_offset_rec id f 0, field_type id f with
-                     | Errors.OK _, Errors.OK t0 => t0
-                     | _, _ => Tvoid
-                     end
-  | Tunion i f a  => match field_type id f with
-                     | Errors.OK t0 => t0
-                     | _ => Tvoid
-                     end
-  | _ => Tvoid
-  end.
+Lemma all_fields_replace_one_isSome_lemma: forall f i t0 t1, isSome (all_fields_replace_one f i t0) -> isSome (all_fields_replace_one f i t1).
 Proof.
   intros.
-  unfold nested_field_type2 in *.
-  simpl.
-  destruct (nested_field_rec t ids0) eqn:HH; try reflexivity.
-  destruct p.
-  destruct t0; try reflexivity; unfold field_offset;
-  destruct (field_offset_rec id f 0), (field_type id f); reflexivity.
+  induction f.
+  + auto.
+  + simpl in *.
+    if_tac.
+    auto.
+    destruct (all_fields_replace_one f i t0), (all_fields_replace_one f i t1); auto.
 Defined.
+
+Lemma nf_replace_isSome_lemma: forall t ids t0 t1, isSome (nf_replace t ids t0) -> isSome (nf_replace t ids t1).
+Proof.
+  induction ids; intros.
+  + auto.
+  + simpl in *.
+    destruct (nested_field_type2 t ids); try inversion H.
+    - pose proof all_fields_replace_one_isSome_lemma f a t0 t1.
+      pose proof all_fields_replace_one_isSome_lemma f a t1 t0.
+      destruct (all_fields_replace_one f a t0), (all_fields_replace_one f a t1).
+      * eapply IHids, H.
+      * simpl in H0. tauto.
+      * simpl in H1. tauto.
+      * inversion H.
+    - pose proof all_fields_replace_one_isSome_lemma f a t0 t1.
+      pose proof all_fields_replace_one_isSome_lemma f a t1 t0.
+      destruct (all_fields_replace_one f a t0), (all_fields_replace_one f a t1).
+      * eapply IHids, H.
+      * simpl in H0. tauto.
+      * simpl in H1. tauto.
+      * inversion H.
+Defined.
+
+Lemma nested_field_type2_nf_replace2_aux:
+  forall i f t0 z2,
+  isSome (all_fields_replace_one f i t0) ->
+  match
+    match field_offset i (all_fields_replace_one2 f i t0) with
+    | Errors.OK ofs =>
+        match field_type i (all_fields_replace_one2 f i t0) with
+        | Errors.OK t'' => Some (z2 + ofs, t'')
+        | Errors.Error _ => None
+        end
+    | Errors.Error _ => None
+    end
+  with
+  | Some (_, t1) => t1
+  | None => Tvoid
+  end = t0.
+Proof.
+  intros.
+  unfold field_offset in *.
+  revert H; generalize 0.
+  induction f; intros.
+  + inversion H.
+  + unfold all_fields_replace_one. simpl in *.
+    if_tac.
+    - simpl; if_tac; [| congruence]; reflexivity.
+    - simpl; if_tac; [congruence |].
+      apply IHf.
+      destruct (all_fields_replace_one f i t0); inversion H; auto.
+Defined.
+
+Lemma nested_field_type2_nf_replace2_aux':
+  forall i f t0 (z2: Z),
+  isSome (all_fields_replace_one f i t0) ->
+  match
+    match field_type i (all_fields_replace_one2 f i t0) with
+    | Errors.OK t'' => Some (z2, t'')
+    | Errors.Error _ => None
+    end
+  with
+  | Some (_, t1) => t1
+  | None => Tvoid
+  end = t0.
+Proof.
+  intros.
+  unfold field_offset in *.
+  revert H.
+  induction f; intros.
+  + inversion H.
+  + unfold all_fields_replace_one. simpl in *.
+    if_tac.
+    - simpl; if_tac; [| congruence]; reflexivity.
+    - simpl; if_tac; [congruence |].
+      apply IHf.
+      destruct (all_fields_replace_one f i t0); inversion H; auto.
+Defined.
+
+Lemma nested_field_type2_nf_replace2: forall t ids t0, isSome (nf_replace t ids t0) -> nested_field_type2 (nf_replace2 t ids t0) ids =  t0.
+Proof.
+  intros.
+  revert t0 H; induction ids; intros.
+  + reflexivity.
+  + simpl.
+    simpl in H.
+    unfold nested_field_type2 in *.
+    destruct (nested_field_rec t ids) as [[z1 t1]|] eqn:?; [| inversion H].
+    destruct t1; try inversion H.
+    - destruct (all_fields_replace_one f a t0) eqn:?; try inversion H. simpl.
+      pose proof (IHids (Tstruct i (all_fields_replace_one2 f a t0) a0)
+                  (nf_replace_isSome_lemma _ _ _ _ H)).
+      destruct (nested_field_rec
+             (nf_replace2 t ids (Tstruct i (all_fields_replace_one2 f a t0) a0))
+             ids) as [[z2 t2]|];
+      try destruct t2; try inversion H0.
+      eapply nested_field_type2_nf_replace2_aux.
+      rewrite Heqo0.
+      simpl; auto.
+    - destruct (all_fields_replace_one f a t0) eqn:?; try inversion H. simpl.
+      pose proof (IHids (Tunion i (all_fields_replace_one2 f a t0) a0)
+                  (nf_replace_isSome_lemma _ _ _ _ H)).
+      destruct (nested_field_rec
+             (nf_replace2 t ids (Tunion i (all_fields_replace_one2 f a t0) a0))
+             ids) as [[z2 t2]|];
+      try destruct t2; try inversion H0.
+      eapply nested_field_type2_nf_replace2_aux'.
+      rewrite Heqo0.
+      simpl; auto.
+Defined.
+
+Lemma all_fields_replace_one2_all_fields_replace_one2: forall f i t0 t1, all_fields_replace_one2 (all_fields_replace_one2 f i t0) i t1 = all_fields_replace_one2 f i t1.
+Proof.
+  intros.
+  induction f.
+  + reflexivity.
+  + simpl.
+    if_tac.
+    - simpl; if_tac; [| congruence]; reflexivity.
+    - simpl; if_tac; [congruence |].
+      f_equal. apply IHf.
+Defined.
+
+Lemma nf_replace2_nf_replace2: forall t ids t0 t1, nf_replace2 (nf_replace2 t ids t0) ids t1 = nf_replace2 t ids t1.
+Proof.
+  intros.
+  destruct (nf_replace t ids t0) as [tt|] eqn:HE.
+  + revert t0 t1 tt HE.
+    induction ids; intros.
+    - reflexivity.
+    - simpl.
+      simpl in HE.
+      destruct (nested_field_type2 t ids) eqn:HH; try rewrite HH; auto.
+      * (* Tstruct *)
+        destruct (all_fields_replace_one f a t0); [ |inversion HE].
+        assert (isSome (nf_replace t ids (Tstruct i (all_fields_replace_one2 f a t0) a0))).
+          apply nf_replace_isSome_lemma with (Tstruct i f0 a0).
+          rewrite HE; simpl; auto.
+        destruct (nf_replace t ids (Tstruct i (all_fields_replace_one2 f a t0) a0)) eqn:?; inversion H.
+        rewrite nested_field_type2_nf_replace2.
+        erewrite IHids.
+        rewrite all_fields_replace_one2_all_fields_replace_one2.
+        reflexivity.
+        eauto.
+        rewrite Heqo. auto.
+      * (* Tunion *)
+        destruct (all_fields_replace_one f a t0); [ |inversion HE].
+        assert (isSome (nf_replace t ids (Tunion i (all_fields_replace_one2 f a t0) a0))).
+          apply nf_replace_isSome_lemma with (Tunion i f0 a0).
+          rewrite HE; simpl; auto.
+        destruct (nf_replace t ids (Tunion i (all_fields_replace_one2 f a t0) a0)) eqn:?; inversion H.
+        rewrite nested_field_type2_nf_replace2.
+        erewrite IHids.
+        rewrite all_fields_replace_one2_all_fields_replace_one2.
+        reflexivity.
+        eauto.
+        rewrite Heqo. auto.
+  + pose proof nf_replace_nf_replace2 t ids t0.
+    destruct H as [? | [? ?]]; [congruence |].
+    rewrite H0.
+    reflexivity.
+Defined.
+
+Lemma nf_replace2_identical': forall t id ids, t = nf_replace2 (nf_sub2 t id ids) ids (nested_field_type2 t ids).
+Proof.
+  intros.
+  unfold nf_sub2.
+  pattern (nested_field_type2 t ids) at 1.
+  destruct (nested_field_type2 t ids); try apply nf_replace2_identical.
+  + rewrite nf_replace2_nf_replace2.
+    apply nf_replace2_identical.
+  + rewrite nf_replace2_nf_replace2.
+    apply nf_replace2_identical.
+Defined.
+
+(*** reptype level ***)
 
 Lemma proj_reptype_aux: forall t ids,
   nested_field_type2 t ids =
@@ -379,6 +630,8 @@ Fixpoint gupd_reptype (t: type) (ids: list ident) (t0: type) (v: reptype t) (v0:
       return reptype T -> reptype (match T with
                                    | Tstruct i f a => nf_replace2 t ids0 
                                      (Tstruct i (all_fields_replace_one2 f id t0) a)
+                                   | Tunion i f a => nf_replace2 t ids0 
+                                     (Tunion i (all_fields_replace_one2 f id t0) a)
                                    | _ => t
                                    end)
     with
@@ -387,32 +640,6 @@ Fixpoint gupd_reptype (t: type) (ids: list ident) (t0: type) (v: reptype t) (v0:
     | _ => fun _ => default_val _
     end (proj_reptype t ids0 v)
   end.
-
-Lemma all_fields_replace_one2_identical: forall f i t,
-  (field_type i f = Errors.OK t \/ exists e, field_type i f = Errors.Error e) -> all_fields_replace_one2 f i t = f.
-Proof.
-  intros.
-  induction f.
-  + reflexivity.
-  + simpl in *.
-    if_tac in H.
-    - destruct H as [? | [? ?]]; inversion H; reflexivity.
-    - rewrite (IHf H). reflexivity.
-Defined.
-
-Lemma nf_replace2_identical: forall t ids, t = nf_replace2 t ids (nested_field_type2 t ids).
-Proof.
-  intros.
-  induction ids.
-  + reflexivity.
-  + simpl.
-    destruct (nested_field_type2 t ids) eqn:?; auto.
-    rewrite all_fields_replace_one2_identical; auto.
-    erewrite nested_field_type2_cons; eauto.
-    rewrite Heqt0.
-    change (field_offset_rec a f 0) with (field_offset a f).
-    solve_field_offset_type a f; eauto.
-Defined.
 
 Fixpoint upd_reptype (t: type) (ids: list ident) (v: reptype t) (v0: reptype (nested_field_type2 t ids)): reptype t :=
   eq_rect_r reptype (gupd_reptype t ids (nested_field_type2 t ids) v v0) (nf_replace2_identical t ids).
@@ -481,11 +708,13 @@ Fixpoint PROJ_reptype (t: type) (id: ident) (ids: list ident) (v: reptype t) : r
     return reptype T ->
            reptype match T with
                    | Tstruct i f a => nf_replace2 t ids (Tstruct i (all_fields_except_one2 f id) a)
+                   | Tunion i f a => nf_replace2 t ids (Tunion i (all_fields_except_one2 f id) a)
                    | _ => t
                    end
   with
   | Tstruct i f a => fun v0 => gupd_reptype t ids (Tstruct i (all_fields_except_one2 f id) a) v 
                      (PROJ_reptype_structlist f id v0)
+  | Tunion i f a => fun _ => default_val _
   | _ => fun _ => v
   end (proj_reptype t ids v).
 
@@ -559,33 +788,106 @@ Fixpoint pair_reptype_structlist (id: ident) (f: fieldlist) (ofs: Z)
                                 (snd v) v0)
   end v v0.
 
-(*
-Lemma nf_replace2_nf_replace2: forall t ids t0 t1, nf_replace2 (nf_replace2 t ids t0) ids t1 = nf_replace2 t ids t1.
+Lemma all_fields_replace_one_field_type_isSome_lemma: forall i f t0,
+  match field_type i f with
+  | Errors.OK _ => isSome (all_fields_replace_one f i t0)
+  | _ => all_fields_replace_one f i t0 = None
+  end.
 Proof.
   intros.
-  induction ids.
-  + reflexivity.
+  induction f.
+  + simpl. auto.
   + simpl.
-    destruct (nested_field_type2 t ids) eqn:HH; try rewrite HH; auto.
+    destruct (ident_eq i i0); [simpl; auto |].
+    destruct (all_fields_replace_one f i t0), (field_type i f); simpl in *; congruence.
+Defined.
 
-Lemma nf_replace2_identical': forall t id ids, t = nf_replace2 (nf_sub2 t id ids) ids (nested_field_type2 t ids).
+Lemma nf_replace_nested_field_type_isSome_lemma: forall t ids t0, isSome (nf_replace t ids t0) <-> isSome (nested_field_type t ids).
+Proof.
+  intros.
+  unfold nested_field_type.
+  induction ids.
+  + simpl. tauto.
+  + simpl.
+    unfold nested_field_type2.
+    destruct (nested_field_rec t ids) as [[z1 t1] |]; [destruct t1|]; try solve[(simpl; tauto)].
+    - (* Tstruct *)
+      pose proof all_fields_replace_one_field_type_isSome_lemma a f t0.
+      destruct (all_fields_replace_one f a t0);
+      solve_field_offset_type a f; auto.
+      * simpl in *.
+        apply iff_trans with (B := isSome (nf_replace t ids t0)); auto.
+        split; apply nf_replace_isSome_lemma.
+      * inversion H.
+      * inversion H.
+      * tauto.
+    - (* Tstruct *)
+      pose proof all_fields_replace_one_field_type_isSome_lemma a f t0.
+      destruct (all_fields_replace_one f a t0);
+      solve_field_offset_type a f; auto.
+      * simpl in *.
+        apply iff_trans with (B := isSome (nf_replace t ids t0)); auto.
+        split; apply nf_replace_isSome_lemma.
+      * inversion H.
+      * inversion H.
+      * tauto.
+Defined.
+
+Lemma pair_reptype_aux: forall t id ids,
+  match nested_field_type2 t ids with
+  | Tstruct i f a => Tstruct i (all_fields_except_one2 f id) a
+  | Tunion i f a => Tunion i (all_fields_except_one2 f id) a
+  | _ => nested_field_type2 t ids
+  end = nested_field_type2 (nf_sub2 t id ids) ids.
 Proof.
   intros.
   unfold nf_sub2.
-  pattern (nested_field_type2 t ids) at 1.
-  destruct (nested_field_type2 t ids); try apply nf_replace2_identical.
-  simpl.
-    destruct (nested_field_type2 t ids) eqn:?; auto.
-    rewrite all_fields_replace_one2_identical; auto.
-    erewrite nested_field_type2_cons; eauto.
-    rewrite Heqt0.
-    change (field_offset_rec a f 0) with (field_offset a f).
-    solve_field_offset_type a f; eauto.
+  destruct (nested_field_type2 t ids) eqn:?; auto.
+  + (* Tstruct *)
+    apply eq_sym, nested_field_type2_nf_replace2.
+    apply nf_replace_nested_field_type_isSome_lemma.
+    unfold nested_field_type, nested_field_type2 in *.
+    destruct (nested_field_rec t ids) as [[? ?]|]; simpl in *.
+    auto.
+    inversion Heqt0.
+  + (* Tunion *)
+    apply eq_sym, nested_field_type2_nf_replace2.
+    apply nf_replace_nested_field_type_isSome_lemma.
+    unfold nested_field_type, nested_field_type2 in *.
+    destruct (nested_field_rec t ids) as [[? ?]|]; simpl in *.
+    auto.
+    inversion Heqt0.
 Defined.
 
+Fixpoint pair_reptype (t: type) (id: ident) (ids: list ident) (v: reptype (nf_sub2 t id ids)) (v0: reptype (nested_field_type2 t (id :: ids))) : reptype t :=
+  match nested_field_type2 t ids as T
+    return reptype match T with
+                   | Tstruct i f a => Tstruct i (all_fields_except_one2 f id) a
+                   | Tunion i f a => Tunion i (all_fields_except_one2 f id) a
+                   | _ => nested_field_type2 t ids
+                   end ->
+           reptype match T with
+                   | Tstruct i f a => match field_offset_rec id f 0, field_type id f with
+                                      | Errors.OK _, Errors.OK t0 => t0
+                                      | _, _ => Tvoid
+                                      end
+                   | Tunion i f a  => match field_type id f with
+                                      | Errors.OK t0 => t0
+                                      | _ => Tvoid
+                                      end
+                   | _ => Tvoid
+                   end ->
+           t = nf_replace2 (nf_sub2 t id ids) ids T ->
+           reptype t
+  with
+  | Tstruct i f a => fun v1 v0 H => eq_rect_r reptype 
+                       (gupd_reptype _ ids (Tstruct i f a) v (pair_reptype_structlist id f 0 v1 v0)) H
+  | _ => fun _ _ _ => default_val _
+  end
+  (eq_rect_r reptype (proj_reptype _ ids v) (pair_reptype_aux t id ids))
+  (eq_rect_r reptype v0 (eq_sym (nested_field_type2_cons t id ids)))
+  (nf_replace2_identical' t id ids).
 
-Fixpoint pair_reptype (t: type) (id: ident) (ids: list ident) (v: reptype (nf_sub2 t id ids)) (v0: reptype (nested_field_type2 t ids)) : reptype t.
-*)
 Module Test.
   Definition T1 := Tstruct 1%positive (Fcons 101%positive tint (Fcons 102%positive tint Fnil)) noattr.
   Definition T2 := Tstruct 2%positive (Fcons 201%positive T1 (Fcons 202%positive T1 Fnil)) noattr.
@@ -618,6 +920,16 @@ Module Test.
     JMeq (PROJ_reptype T3 201%positive (302%positive :: nil) v) 
     (((Vint (Int.repr 1), Vint (Int.repr 2)), (Vint (Int.repr 3), Vint (Int.repr 4))), 
     ((Vint (Int.repr 7), Vint (Int.repr 8)))).
+  Proof.
+    simpl.
+    reflexivity.
+  Qed.
+
+  Lemma Test4:
+    JMeq (pair_reptype T3 201%positive (302%positive :: nil)
+    (((Vint (Int.repr 1), Vint (Int.repr 2)), (Vint (Int.repr 3), Vint (Int.repr 4))), 
+    ((Vint (Int.repr 7), Vint (Int.repr 8))))
+    ((Vint (Int.repr 5), Vint (Int.repr 6)))) v.
   Proof.
     simpl.
     reflexivity.
