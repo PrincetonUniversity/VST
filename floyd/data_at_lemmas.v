@@ -711,6 +711,7 @@ Proof.
   intros.
   destruct p; simpl; normalize.
 Qed.
+Hint Resolve memory_block_local_facts : saturate_local.
 
 Lemma memory_block_offset_zero:
   forall sh n v, memory_block sh n (offset_val Int.zero v) = memory_block sh n v.

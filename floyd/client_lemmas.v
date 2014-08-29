@@ -651,6 +651,14 @@ Proof. intros. unfold retval, get_result1. simpl.
 Qed.
 Hint Rewrite retval_get_result1 : norm.
 
+Lemma retval_ext_rval:
+  forall v, retval (make_ext_rval 1 v) = force_val v.
+Proof.
+ intros. unfold retval, eval_id; simpl. unfold make_ext_rval; simpl.
+ destruct v; simpl; auto.
+Qed.
+Hint Rewrite retval_ext_rval : norm.
+
 Lemma retval_lemma1:
   forall rho v,     retval (env_set rho ret_temp v) = v.
 Proof.

@@ -37,7 +37,7 @@ Qed.
 
 Definition odd_spec :=
  DECLARE _odd
-  WITH z : Z, v : val
+  WITH z : Z, v : val, b: unit
   PRE [ _n (*1%positive*) OF tuint] PROP(repr z v) LOCAL(`(eq v) (eval_id _n (*1%positive*))) SEP()
   POST [ tint ] 
     PROP() LOCAL(`(eq (Vint (if Z.odd z then Int.one else Int.zero))) retval) SEP().
@@ -68,7 +68,8 @@ forward_if (PROP (repr z v /\ z > 0) LOCAL (`(eq v) (eval_id _n)) SEP ()).
 * forward; eapply repr0_even in H0; eauto; rewrite H0; entailer.
 * forward; entailer; inv H.
   assert (z <> 0) by (apply repr_eq0_not0; auto). entailer.
-* forward_call (z-1,Vint (Int.sub (Int.repr z) (Int.repr 1))).
+*
+ forward_call (z-1,Vint (Int.sub (Int.repr z) (Int.repr 1)), tt).
   entailer; inversion H; subst z0; rewrite <-H5 in H2; inversion H2; subst n.
   entailer!.
   inv H. constructor. omega.
@@ -88,22 +89,34 @@ forward.
 Qed.
 
 Definition Espec := add_funspecs NullExtension.Espec Gprog.
-
 Existing Instance Espec.
 
-Lemma all_funcs_correct: semax_func Vprog Gprog (prog_funct prog) Gprog.
+Lemma body_odd: semax_external (_n :: nil)
+  (EF_external _odd
+     {| sig_args := AST.Tint :: nil; sig_res := Some AST.Tint; sig_cc := cc_default |})
+  (Z * val * unit)
+  (fun x => match x with ((z,v),_) => 
+     PROP  (repr z v)  LOCAL  (`(eq v) (eval_id _n))  SEP()
+   end)
+  (fun x => match x with ((z,v),_) => 
+   PROP  ()
+   LOCAL  (`(eq (Vint (if Z.odd z then Int.one else Int.zero))) retval)
+   SEP()
+   end).
 Proof.
-unfold Gprog, prog, prog_funct.
-semax_func_skipn.
-eapply semax_func_cons_ext; try reflexivity.
-intros [? ?] ?. normalize. entailer!.
-destruct ret; unfold retval, eval_id in H; simpl in H; subst; hnf; auto; discriminate.
-admit.
 (*eapply (semax_ext Espec _odd _(Z*val)).
 { left; auto. }
 { split; simpl; auto. intros C. destruct C; auto. inv H; auto. inv H; auto. inv H0.
 split; auto. intros C. inv C; auto. inv H. }
 *)
+Admitted.
+
+Lemma all_funcs_correct: semax_func Vprog Gprog (prog_funct prog) Gprog.
+Proof.
+unfold Gprog, prog, prog_funct.
+semax_func_skipn.
+semax_func_cons body_odd.
+  rewrite <- H; entailer!.
 semax_func_cons body_even.
 semax_func_cons body_main.
 apply semax_func_nil.

@@ -382,6 +382,7 @@ Existing Instance NullExtension.Espec.
 
 Parameter body_mallocN:
  semax_external
+  (1%positive ::nil)
   (EF_external _mallocN
      {| sig_args := AST.Tint :: nil; sig_res := Some AST.Tint; sig_cc := cc_default |}) int
   (fun n : int => PROP (4 <= Int.unsigned n) LOCAL (`(eq (Vint n)) (eval_id 1%positive)) SEP ())
@@ -389,6 +390,7 @@ Parameter body_mallocN:
 
 Parameter body_freeN:
 semax_external
+  (1%positive::2%positive ::nil)
   (EF_external _freeN
      {| sig_args := AST.Tint :: AST.Tint :: nil; sig_res := None; sig_cc := cc_default |}) unit
   (fun _ : unit =>
@@ -401,7 +403,9 @@ Proof.
 unfold Gprog, prog, prog_funct; simpl.
 semax_func_skipn.
 semax_func_cons body_mallocN.
+  entailer.
 semax_func_cons body_freeN.
+  admit.  (* yuck *)
 semax_func_cons body_fifo_new.
 semax_func_cons body_fifo_put.
 semax_func_cons body_fifo_empty.

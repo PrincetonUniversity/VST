@@ -17,6 +17,26 @@ Import Cop.
 
 Local Open Scope logic.
 
+Definition tc_option_val' (t: type) : option val -> Prop :=
+ match t with Tvoid => fun v => match v with None => True | _ => False end | _ => fun v => tc_val t (force_val v) end.
+Lemma tc_option_val'_eq: tc_option_val = tc_option_val'.
+Proof. extensionality t v. destruct t eqn:?,v eqn:?; simpl; try reflexivity.
+Qed.
+Hint Rewrite tc_option_val'_eq : norm.
+
+Lemma emp_make_ext_rval:
+  forall v, @emp (environ->mpred) _ _ (make_ext_rval 1 v) = emp.
+Proof. reflexivity. Qed.
+Hint Rewrite emp_make_ext_rval : norm.
+
+Ltac semax_func_cons_ext_tc :=
+  repeat match goal with
+  | |- (forall x: (?A * ?B), _) => 
+      intros [? ?];  match goal with a1:_ , a2:_ |- _ => revert a1 a2 end
+  | |- forall x, _ => intro  
+  end; 
+  normalize; simpl tc_option_val' .
+
 Ltac semax_func_skipn :=
   repeat first [apply semax_func_nil'
                      | apply semax_func_skip1;
@@ -25,9 +45,13 @@ Ltac semax_func_skipn :=
 Ltac semax_func_cons L :=
  first [apply semax_func_cons; 
            [ reflexivity 
-        | repeat apply Forall_cons; try apply Forall_nil; computable
-        | reflexivity | precondition_closed | apply L | ]
-        | apply semax_func_cons_ext;  [ reflexivity | apply L | ]
+           | repeat apply Forall_cons; try apply Forall_nil; computable
+           | reflexivity | precondition_closed | apply L | 
+           ]
+        | eapply semax_func_cons_ext;
+             [reflexivity | reflexivity | reflexivity | reflexivity 
+             | semax_func_cons_ext_tc | apply L |
+             ]
         ].
 
 Ltac forward_seq := 
