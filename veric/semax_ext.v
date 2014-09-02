@@ -44,10 +44,8 @@ Definition funspec2post (A : Type) (Q : A -> environ -> mpred)
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m) 
                        /\ Q (snd x') (make_ext_rval (filter_genv (symb2genv ge_s))  ret) phi0
                        /\ necR (fst x') phi1 
-    | right n => fun x' => ext_spec_post Espec ef x' tret ret z m
+    | right n => fun x' => ext_spec_post Espec ef x' ge_s tret ret z m
   end x.
-
-Parameter bogus_gs: PTree.t block.
 
 Definition funspec2extspec (f : (ident*funspec)) 
   : external_specification juicy_mem external_function Z :=
@@ -56,9 +54,7 @@ Definition funspec2extspec (f : (ident*funspec))
       Build_external_specification juicy_mem external_function Z
         (fun ef => if ident_eq id (ef_id ef) then (rmap*A)%type else ext_spec_type Espec ef)
         (funspec2pre A P (fst (split params)) id)
-(fun ef x  =>
-    (funspec2post A Q id)
-     ef x bogus_gs)
+        (funspec2post A Q id)
         (fun rv z m => False)
   end.
 
@@ -219,7 +215,7 @@ Lemma add_funspecs_post {Z Espec tret fs id sig A P Q x ret m z ge_s} :
   let ef := EF_external id (funsig2signature sig) in
   funspecs_norepeat fs -> 
   in_funspecs (id, (mk_funspec sig A P Q)) fs -> 
-  ext_spec_post (add_funspecs_rec Z Espec fs) ef x tret ret z m -> 
+  ext_spec_post (add_funspecs_rec Z Espec fs) ef x ge_s tret ret z m -> 
   exists (phi0 phi1 phi1' : rmap) (x' : A), 
        join phi0 phi1 (m_phi m) 
     /\ necR phi1' phi1
@@ -237,7 +233,6 @@ destruct (ident_eq id id); simpl.
 intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].
 exists phi0, phi1, (fst x), (snd x).
 split; auto. split; auto. destruct x; simpl in *. split; auto.
-admit. (* bogus_gs *)
 elimtype False; auto.
 }
 
@@ -301,10 +296,8 @@ assert (JMeq (t,x) (phi1',x'')) by (eapply JMeq_trans; eauto).
 assert ((t,x) = (phi1',x'')) by (apply JMeq_eq in H0; auto).
 inv H1.
 split; auto.
-{ (* BOGUS *)
-instantiate (1:= bogus_gs) in Hq'.
-admit. (* bogus_gs *)
-}
+unfold filter_genv, Genv.find_symbol in Hq'|-*.
+rewrite symb2genv_ax in Hq'; auto.
 eapply pred_nec_hereditary; eauto.
 Qed.
   

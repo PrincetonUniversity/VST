@@ -124,11 +124,11 @@ Definition ext_spec_pre' (Espec: OracleKind) (ef: external_function)
      (JE_pre_hered _ _ _ _ _ _ _ _).
 
 Program Definition ext_spec_post' (Espec: OracleKind)
-   (ef: external_function) (x': ext_spec_type OK_spec ef) 
+   (ef: external_function) (x': ext_spec_type OK_spec ef) (ge_s: PTree.t block)
    (tret: option typ) (ret: option val) (z: OK_ty) : pred juicy_mem :=
   exist (hereditary age) 
-   (ext_spec_post OK_spec ef x' tret ret z)
-     (JE_post_hered _ _ _ _ _ _ _).
+   (ext_spec_post OK_spec ef x' ge_s tret ret z)
+     (JE_post_hered _ _ _ _ _ _ _ _).
 
 Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
      # diamond fashionM (exactly (m_phi jm) && P).
@@ -156,7 +156,7 @@ Definition semax_external
    EX x': ext_spec_type OK_spec ef,
     ALL z:_, ext_spec_pre' Hspec ef x' (Genv.genv_symb gx) ts args z &&
      ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, 
-      ext_spec_post' Hspec ef x' tret ret z' >=>
+      ext_spec_post' Hspec ef x' (Genv.genv_symb gx) tret ret z' >=>
           juicy_mem_op (Q x (make_ext_rval (filter_genv gx) ret) * F).
 
 Definition tc_option_val (sig: type) (ret: option val) :=

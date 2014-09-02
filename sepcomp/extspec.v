@@ -13,12 +13,12 @@ Structure external_specification (M E Z : Type) :=
   ; ext_spec_pre: forall e: E, 
     ext_spec_type e -> PTree.t block -> list typ -> list val -> Z -> M -> Prop
   ; ext_spec_post: forall e: E, 
-    ext_spec_type e -> option typ -> option val -> Z -> M ->  Prop
+    ext_spec_type e -> PTree.t block -> option typ -> option val -> Z -> M ->  Prop
   ; ext_spec_exit: option val -> Z -> M ->  Prop }.
 
 Arguments ext_spec_type {M E Z} _ _.
 Arguments ext_spec_pre {M E Z} _ _ _ _ _ _ _ _.
-Arguments ext_spec_post {M E Z} _ _ _ _ _ _ _.
+Arguments ext_spec_post {M E Z} _ _ _ _ _ _ _ _.
 Arguments ext_spec_exit {M E Z} _ _ _ _.
 
 Definition ext_spec := external_specification mem external_function.
@@ -51,9 +51,9 @@ Definition det (M E Z : Type) (spec : external_specification M E Z) :=
   forall ef (x x' : ext_spec_type spec ef) ge tys z vals m
          oty' ov' z' m' oty'' ov'' z'' m'',
   ext_spec_pre spec ef x ge tys vals z m -> 
-  ext_spec_post spec ef x oty' ov' z' m' ->  
+  ext_spec_post spec ef x ge oty' ov' z' m' ->  
   ext_spec_pre spec ef x' ge tys vals z m -> 
-  ext_spec_post spec ef x' oty'' ov'' z'' m'' ->  
+  ext_spec_post spec ef x' ge oty'' ov'' z'' m'' ->  
   oty'=oty'' /\ ov'=ov'' /\ z'=z'' /\ m'=m''.
 
 Record closed (Z : Type) (spec : ext_spec Z) :=
@@ -64,11 +64,11 @@ Record closed (Z : Type) (spec : ext_spec Z) :=
       Mem.inject j m tm -> 
       ext_spec_pre spec ef x ge tys tvals z tm
   ; Q_closed : 
-      forall ef (x : ext_spec_type spec ef) j oty ov z m otv tm, 
-      ext_spec_post spec ef x oty ov z m -> 
+      forall ef (x : ext_spec_type spec ef) ge j oty ov z m otv tm, 
+      ext_spec_post spec ef x ge oty ov z m -> 
       oval_inject j ov otv ->
       Mem.inject j m tm -> 
-      ext_spec_post spec ef x oty otv z tm 
+      ext_spec_post spec ef x ge oty otv z tm 
   ; exit_closed : 
       forall j ov z m otv tm,
       ext_spec_exit spec ov z m -> 

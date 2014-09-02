@@ -23,7 +23,7 @@ Definition dryspec : ext_spec unit :=
      (*ext_spec_pre*)
      (fun ef Hef ge tys vl m z => False) 
      (*ext_spec_post*)
-     (fun ef Hef ty vl m z => False)
+     (fun ef Hef ge ty vl m z => False)
      (*ext_spec_exit*)
      (fun rv m z => False).
 

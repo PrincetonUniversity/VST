@@ -28,7 +28,7 @@ Section safety.
              ext_spec_pre Hspec e x (Genv.genv_symb ge) (sig_args sig) args z m /\
              (forall ret m' z',
                Hrel m m' -> 
-               ext_spec_post Hspec e x (sig_res sig) ret z' m' ->
+               ext_spec_post Hspec e x (Genv.genv_symb ge) (sig_res sig) ret z' m' ->
                exists c',
                  after_external Hcore ret c = Some c' /\
                  safeN_ n' z' c' m')
