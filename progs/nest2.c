@@ -11,7 +11,6 @@ int get(void) {
 
 void set(int i) {
   p.y2.x2 = i;
-  return;
 }
 
 int main()

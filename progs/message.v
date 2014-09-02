@@ -119,12 +119,10 @@ Definition f_intpair_deserialize := {|
         (Efield
           (Ederef (Etempvar _p (tptr t_struct_intpair)) t_struct_intpair) _x
           tint) (Etempvar _x tint))
-      (Ssequence
-        (Sassign
-          (Efield
-            (Ederef (Etempvar _p (tptr t_struct_intpair)) t_struct_intpair)
-            _y tint) (Etempvar _y tint))
-        (Sreturn None)))))
+      (Sassign
+        (Efield
+          (Ederef (Etempvar _p (tptr t_struct_intpair)) t_struct_intpair) _y
+          tint) (Etempvar _y tint)))))
 |}.
 
 Definition v_intpair_message := {|

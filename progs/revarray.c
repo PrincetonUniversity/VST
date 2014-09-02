@@ -11,7 +11,6 @@ void reverse(int a[], int n) {
     a[lo] = s;
     lo++; hi--;
   }
-  return;
 }
 
 int four[4] = {1,2,3,4};

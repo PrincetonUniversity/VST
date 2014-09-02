@@ -51,28 +51,26 @@ Definition f_add := {|
   fn_temps := ((_i, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Ssequence
-    (Sset _i (Econst_int (Int.repr 0) tint))
-    (Sloop
-      (Ssequence
-        (Sifthenelse (Ebinop Olt (Etempvar _i tint)
-                       (Econst_int (Int.repr 3) tint) tint)
-          Sskip
-          Sbreak)
-        (Sassign
+  (Sset _i (Econst_int (Int.repr 0) tint))
+  (Sloop
+    (Ssequence
+      (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                     (Econst_int (Int.repr 3) tint) tint)
+        Sskip
+        Sbreak)
+      (Sassign
+        (Ederef
+          (Ebinop Oadd (Etempvar _x (tptr tdouble)) (Etempvar _i tint)
+            (tptr tdouble)) tdouble)
+        (Ebinop Oadd
           (Ederef
-            (Ebinop Oadd (Etempvar _x (tptr tdouble)) (Etempvar _i tint)
+            (Ebinop Oadd (Etempvar _y (tptr tdouble)) (Etempvar _i tint)
               (tptr tdouble)) tdouble)
-          (Ebinop Oadd
-            (Ederef
-              (Ebinop Oadd (Etempvar _y (tptr tdouble)) (Etempvar _i tint)
-                (tptr tdouble)) tdouble)
-            (Ederef
-              (Ebinop Oadd (Etempvar _z (tptr tdouble)) (Etempvar _i tint)
-                (tptr tdouble)) tdouble) tdouble)))
-      (Sset _i
-        (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
-  (Sreturn None))
+          (Ederef
+            (Ebinop Oadd (Etempvar _z (tptr tdouble)) (Etempvar _i tint)
+              (tptr tdouble)) tdouble) tdouble)))
+    (Sset _i
+      (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
 |}.
 
 Definition f_dotprod := {|

@@ -33,7 +33,6 @@ void fifo_put (struct fifo *Q, struct elem *p) {
     t->next=p;
     Q->tail=p;
   }
-  return;
 }
 
 int fifo_empty (struct fifo *Q) {

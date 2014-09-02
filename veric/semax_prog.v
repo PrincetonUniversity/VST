@@ -61,7 +61,7 @@ Definition semax_body
     forall Espec x,
       semax Espec (func_tycontext f V G)
           (fun rho => P x rho *  stackframe_of f rho)
-          f.(fn_body)
+           (Ssequence f.(fn_body) (Sreturn None))
           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
  end.
 

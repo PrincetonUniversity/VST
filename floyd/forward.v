@@ -13,6 +13,7 @@ Require Import floyd.entailer.
 Require Import floyd.globals_lemmas.
 Require Import floyd.type_id_env.
 Require Import floyd.semax_tactics.
+Require Import floyd.for_lemmas.
 Import Cop.
 
 Local Open Scope logic.
@@ -906,6 +907,7 @@ Ltac quick_typecheck :=
             | idtac ].
 
 Ltac forward_while Inv Postcond :=
+  repeat (apply -> seq_assoc; abbreviate_semax);
   first [ignore (Inv: environ->mpred) 
          | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
   first [ignore (Postcond: environ->mpred)
@@ -926,7 +928,22 @@ Ltac forward_while Inv Postcond :=
        ])
     ]; abbreviate_semax; autorewrite with ret_assert.
 
+Ltac forward_for_simple_bound n Pre :=
+ repeat match goal with |-
+      semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+      apply -> seq_assoc; abbreviate_semax
+ end;
+ first [ 
+     simple eapply semax_seq'; 
+    [forward_for_simple_bound' n Pre 
+    | cbv beta; simpl update_tycon; abbreviate_semax  ]
+  | eapply semax_post_flipped'; 
+     [forward_for_simple_bound' n Pre 
+     | ]
+  ].
+
 Ltac forward_for Inv PreIncr Postcond :=
+  repeat (apply -> seq_assoc; abbreviate_semax);
   first [ignore (Inv: environ->mpred) 
          | fail 1 "Invariant (first argument to forward_for) must have type (environ->mpred)"];
   first [ignore (Postcond: environ->mpred)
@@ -957,6 +974,7 @@ match goal with
 end.
 
 Ltac forward_if post :=
+  repeat (apply -> seq_assoc; abbreviate_semax);
 first [ignore (post: environ->mpred) 
       | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
 match goal with
@@ -1296,7 +1314,7 @@ match goal with
       intro_old_var' i; autorewrite with subst; unfold Frame; clear Frame;
      say_after_call ]
 | |- semax _ _ (Ssequence (Ssequence _ _) _) _ => 
-     apply -> seq_assoc; forward_call witness
+     apply -> seq_assoc; abbreviate_semax; forward_call witness
 | |- semax _ _ (Ssequence (Scall None _ _) _) _ =>
   let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
   eapply semax_seq';

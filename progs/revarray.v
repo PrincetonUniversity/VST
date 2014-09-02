@@ -54,43 +54,40 @@ Definition f_reverse := {|
   (Sset _lo (Econst_int (Int.repr 0) tint))
   (Ssequence
     (Sset _hi (Etempvar _n tint))
-    (Ssequence
-      (Swhile
-        (Ebinop Olt (Etempvar _lo tint)
-          (Ebinop Osub (Etempvar _hi tint) (Econst_int (Int.repr 1) tint)
-            tint) tint)
+    (Swhile
+      (Ebinop Olt (Etempvar _lo tint)
+        (Ebinop Osub (Etempvar _hi tint) (Econst_int (Int.repr 1) tint) tint)
+        tint)
+      (Ssequence
+        (Sset _t
+          (Ederef
+            (Ebinop Oadd (Etempvar _a (tptr tint)) (Etempvar _lo tint)
+              (tptr tint)) tint))
         (Ssequence
-          (Sset _t
+          (Sset _s
             (Ederef
-              (Ebinop Oadd (Etempvar _a (tptr tint)) (Etempvar _lo tint)
-                (tptr tint)) tint))
+              (Ebinop Oadd (Etempvar _a (tptr tint))
+                (Ebinop Osub (Etempvar _hi tint)
+                  (Econst_int (Int.repr 1) tint) tint) (tptr tint)) tint))
           (Ssequence
-            (Sset _s
+            (Sassign
               (Ederef
                 (Ebinop Oadd (Etempvar _a (tptr tint))
                   (Ebinop Osub (Etempvar _hi tint)
-                    (Econst_int (Int.repr 1) tint) tint) (tptr tint)) tint))
+                    (Econst_int (Int.repr 1) tint) tint) (tptr tint)) tint)
+              (Etempvar _t tint))
             (Ssequence
               (Sassign
                 (Ederef
-                  (Ebinop Oadd (Etempvar _a (tptr tint))
-                    (Ebinop Osub (Etempvar _hi tint)
-                      (Econst_int (Int.repr 1) tint) tint) (tptr tint)) tint)
-                (Etempvar _t tint))
+                  (Ebinop Oadd (Etempvar _a (tptr tint)) (Etempvar _lo tint)
+                    (tptr tint)) tint) (Etempvar _s tint))
               (Ssequence
-                (Sassign
-                  (Ederef
-                    (Ebinop Oadd (Etempvar _a (tptr tint))
-                      (Etempvar _lo tint) (tptr tint)) tint)
-                  (Etempvar _s tint))
-                (Ssequence
-                  (Sset _lo
-                    (Ebinop Oadd (Etempvar _lo tint)
-                      (Econst_int (Int.repr 1) tint) tint))
-                  (Sset _hi
-                    (Ebinop Osub (Etempvar _hi tint)
-                      (Econst_int (Int.repr 1) tint) tint))))))))
-      (Sreturn None))))
+                (Sset _lo
+                  (Ebinop Oadd (Etempvar _lo tint)
+                    (Econst_int (Int.repr 1) tint) tint))
+                (Sset _hi
+                  (Ebinop Osub (Etempvar _hi tint)
+                    (Econst_int (Int.repr 1) tint) tint))))))))))
 |}.
 
 Definition v_four := {|

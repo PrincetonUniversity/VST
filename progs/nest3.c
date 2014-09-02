@@ -12,5 +12,4 @@ int get(void) {
 
 void set(int i) {
   p.z2.y2.x2 = i;
-  return;
 }

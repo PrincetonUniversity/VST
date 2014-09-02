@@ -78,10 +78,8 @@ Definition f_set := {|
   fn_vars := nil;
   fn_temps := nil;
   fn_body :=
-(Ssequence
-  (Sassign (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tint)
-    (Etempvar _i tint))
-  (Sreturn None))
+(Sassign (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tint)
+  (Etempvar _i tint))
 |}.
 
 Definition f_main := {|

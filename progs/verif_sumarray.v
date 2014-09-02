@@ -114,6 +114,8 @@ name s _s.
 name x _x.
 forward.  (* i = 0; *) 
 forward.  (* s = 0; *)
+unfold MORE_COMMANDS, abbreviate.
+repeat apply -> seq_assoc.  (* delete me *)
 forward_while (sumarray_Inv a0 sh contents size)
     (PROP() LOCAL (`(eq a0) (eval_id _a);   
      `(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) (eval_id _s))

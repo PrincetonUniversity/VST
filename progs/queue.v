@@ -124,33 +124,26 @@ Definition f_fifo_put := {|
     (Sset _h
       (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo) _head
         (tptr t_struct_elem)))
-    (Ssequence
-      (Sifthenelse (Ebinop Oeq (Etempvar _h (tptr t_struct_elem))
-                     (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))
-                     tint)
+    (Sifthenelse (Ebinop Oeq (Etempvar _h (tptr t_struct_elem))
+                   (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
+      (Ssequence
+        (Sassign
+          (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
+            _head (tptr t_struct_elem)) (Etempvar _p (tptr t_struct_elem)))
+        (Sassign
+          (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
+            _tail (tptr t_struct_elem)) (Etempvar _p (tptr t_struct_elem))))
+      (Ssequence
+        (Sset _t
+          (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
+            _tail (tptr t_struct_elem)))
         (Ssequence
           (Sassign
-            (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
-              _head (tptr t_struct_elem)) (Etempvar _p (tptr t_struct_elem)))
+            (Efield (Ederef (Etempvar _t (tptr t_struct_elem)) t_struct_elem)
+              _next (tptr t_struct_elem)) (Etempvar _p (tptr t_struct_elem)))
           (Sassign
             (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
-              _tail (tptr t_struct_elem)) (Etempvar _p (tptr t_struct_elem))))
-        (Ssequence
-          (Sset _t
-            (Efield (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
-              _tail (tptr t_struct_elem)))
-          (Ssequence
-            (Sassign
-              (Efield
-                (Ederef (Etempvar _t (tptr t_struct_elem)) t_struct_elem)
-                _next (tptr t_struct_elem))
-              (Etempvar _p (tptr t_struct_elem)))
-            (Sassign
-              (Efield
-                (Ederef (Etempvar _Q (tptr t_struct_fifo)) t_struct_fifo)
-                _tail (tptr t_struct_elem))
-              (Etempvar _p (tptr t_struct_elem))))))
-      (Sreturn None))))
+              _tail (tptr t_struct_elem)) (Etempvar _p (tptr t_struct_elem))))))))
 |}.
 
 Definition f_fifo_empty := {|

@@ -2099,7 +2099,7 @@ rewrite semax_fold_unfold in H19.
 apply (pred_nec_hereditary _ _ n (laterR_necR LATER)) in Prog_OK.
 pose (F0F := fun _: environ => F0 rho * F rho).
 specialize (H19 _ _ _ (necR_refl _) (tycontext_sub_refl _)  _ (necR_refl _) (Prog_OK)  
-                      (Kseq (Sreturn None) :: Kcall ret f (vx) (tx) :: k)
+                      ((*Kseq (Sreturn None) ::*) Kcall ret f (vx) (tx) :: k)
                        F0F _ (necR_refl _)).
 unfold F0F in *; clear F0F.
 spec H19 ; [clear H19 |]. {
@@ -2484,6 +2484,15 @@ specialize (H19 ora jm'').
 apply age_level in H13.
 destruct H20.
 replace n with (level (m_phi jm'')); auto.
+repeat (spec H19; [auto | ]). {
+clear - H19.
+hnf in H19|-*.
+destruct (level (m_phi jm'')); simpl in *; auto.
+destruct H19 as [c' [m' [? ?]]].
+exists c', m'; split; auto.
+inv H; split; auto.
+inv H1; auto.
+}
 clear - H20x H20' H2.
 change (level jm = S n) in H2.
 apply age_level in H20x. change (level jm'' = n); congruence.

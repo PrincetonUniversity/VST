@@ -305,6 +305,10 @@ eapply semax_post_flipped';
 Qed.
 
 Ltac forward_vector_add :=
+ repeat match goal with |-
+      semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+      apply -> seq_assoc; abbreviate_semax
+ end;
  forward_seq;
  [eapply semax_vector_add;
  [reflexivity | auto 50 with closed | auto 50 with closed

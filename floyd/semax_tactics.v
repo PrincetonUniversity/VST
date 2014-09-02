@@ -1,6 +1,8 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
 
+(* Bug: abbreviate replaces _ALL_ instances, when sometimes
+  we only want just one. *)
 Tactic Notation "abbreviate" constr(y) "as"  ident(x)  :=
    (first [ is_var y 
            |  let x' := fresh x in pose (x':= @abbreviate _ y); 
@@ -91,7 +93,11 @@ Ltac abbreviate_semax :=
             abbreviate P : ret_assert as POSTCONDITION;
             match C with
             | Ssequence ?C1 ?C2 =>
-                abbreviate C2 as MORE_COMMANDS;
+               (* use the next 3 lines instead of "abbreviate"
+                  in case C1 contains an instance of C2 *)
+                let MC := fresh "MORE_COMMANDS" in
+                pose (MC := @abbreviate _ C2);
+                change C with (Ssequence C1 MC);
                 match C1 with
                 | Swhile _ ?C3 => abbreviate C3 as LOOP_BODY
                 | _ => idtac

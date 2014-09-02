@@ -715,6 +715,13 @@ repeat flatten_sepcon_in_SEP.
 focus_SEP 3 1.
 get_global_function' _intpair_deserialize.
 get_global_function' _intpair_serialize.
+apply semax_seq with FF; [ | apply semax_ff].
+replace (overridePost FF POSTCONDITION) with POSTCONDITION
+ by (unfold POSTCONDITION, abbreviate;
+      extensionality ek vl rho;
+      unfold overridePost, frame_ret_assert, function_body_ret_assert;
+      destruct ek; simpl; auto; normalize;
+      apply pred_ext; simpl; normalize).
 eapply semax_pre.
 frame_SEP' (0::nil).
 unfold main_pre, globvars2pred, prog_vars. simpl map.
@@ -732,8 +739,6 @@ forward. (* p.y = 2; *)
 unfold replace_nth.
 simpl update_tycon.
 apply derives_refl.  (* SHOULD NOT NEED THIS LINE *)
-(*unfold app.  (* SHOULD NOT NEED THIS LINE *) 
-  autorewrite with subst.  (* SHOULD NOT NEED THIS LINE *) *)
 
 Ltac gather_SEP' L :=
    grab_indexes_SEP L; (*handles lifting better than the one in client_lemmas *)

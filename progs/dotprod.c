@@ -4,7 +4,6 @@ void add (double x[], double y[], double z[]) {
   int i;
   for (i=0; i<N; i++)
       x[i] = y[i] + z[i];
-  return;
 }
 
 double dotprod (int n, double x[], double y[]) {

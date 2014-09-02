@@ -426,13 +426,3 @@ Ltac forward_for_simple_bound' n Pre :=
   | intro; cbv beta; simpl update_tycon; abbreviate_semax;
      try (apply semax_extract_PROP; intro) ]
   ].
-
-Ltac forward_for_simple_bound n Pre :=
- first [ 
-     simple eapply semax_seq'; 
-    [forward_for_simple_bound' n Pre 
-    | cbv beta; simpl update_tycon; abbreviate_semax  ]
-  | eapply semax_post_flipped'; 
-     [forward_for_simple_bound' n Pre 
-     | ]
-  ].

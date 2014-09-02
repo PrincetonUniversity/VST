@@ -208,7 +208,7 @@ Definition believe_internal_
   && ALL x : A, |> semax (SemaxArg  (func_tycontext' f Delta)
                                 (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of f rho)
                                              && funassert (func_tycontext' f Delta) rho)
-                              f.(fn_body)  
+                              (Ssequence f.(fn_body) (Sreturn None))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f)))).
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
@@ -250,7 +250,7 @@ Definition believe_internal (Espec:  OracleKind)
   && ALL x : A, |> semax' Espec (func_tycontext' f Delta)
                                 (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of f rho)
                                              && funassert (func_tycontext' f Delta) rho)
-                              f.(fn_body)  
+                               (Ssequence f.(fn_body) (Sreturn None))  
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))).
 
 Definition believe (Espec:OracleKind)
