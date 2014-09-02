@@ -32,10 +32,10 @@ End Event.
 
 Module TraceSemantics. Section trace_semantics.
 
-Context {G C Z : Type}.
+Context {F V C Z : Type}.
 
 Variable z_init : Z.
-Variable sem : @CoopCoreSem G C.
+Variable sem : @CoopCoreSem (Genv.t F V) C.
 Variable spec : ext_spec Z.
 Variable trace_of :
   forall ef (x : ext_spec_type spec ef), 
@@ -51,7 +51,7 @@ Definition yielded c :=
   \/ exists rv, halted sem c = Some rv.
 
 Inductive step 
-: G -> (Z*list Event.t*C) -> mem -> (Z*list Event.t*C) -> mem -> Prop :=
+: Genv.t F V -> (Z*list Event.t*C) -> mem -> (Z*list Event.t*C) -> mem -> Prop :=
 | trace_step :
   forall ge tr z c m c' m',
   corestep sem ge c m c' m' -> 
@@ -61,13 +61,13 @@ Inductive step
   at_external sem c = Some (ef, sig, args) -> 
   Mem.unchanged_on (fun b ofs => REACH m (getBlocks args) b=false) m m' ->   
   mem_forward m m' -> 
-  ext_spec_pre spec ef x (sig_args sig) args z m -> 
-  ext_spec_post spec ef x (sig_res sig) (Some rv) z' m' -> 
+  ext_spec_pre spec ef x (Genv.genv_symb ge) (sig_args sig) args z m -> 
+  ext_spec_post spec ef x (Genv.genv_symb ge) (sig_res sig) (Some rv) z' m' -> 
   trace_of x (Some rv) z' m' tr tr' -> 
   after_external sem (Some rv) c = Some c' -> 
   step ge (z,tr,c) m (z',Event.mk m m' args (Some rv) :: tr' ++ tr,c') m'.
 
-Definition initial_core (ge : G) (v : val) (vs : list val) 
+Definition initial_core (ge : Genv.t F V) (v : val) (vs : list val) 
   : option (Z*list Event.t*C) := 
   match initial_core sem ge v vs with 
     | Some c => Some (z_init, nil, c)
@@ -76,8 +76,8 @@ Definition initial_core (ge : G) (v : val) (vs : list val)
 
 Definition halted (c : Z*list Event.t*C) := halted sem (snd c).
 
-Program Definition coresem : CoreSemantics G (Z*list Event.t*C) mem :=
-  @Build_CoreSemantics G (Z*list Event.t*C) mem 
+Program Definition coresem : CoreSemantics (Genv.t F V) (Z*list Event.t*C) mem :=
+  @Build_CoreSemantics (Genv.t F V) (Z*list Event.t*C) mem 
   initial_core
   (fun _ => None)
   (fun _ _ => None)
@@ -90,8 +90,8 @@ solve[apply corestep_not_halted in H9; auto].
 solve[destruct (at_external_halted_excl sem c0); try congruence; auto].
 Qed.
 
-Program Definition coopsem : CoopCoreSem G (Z*list Event.t*C) :=
-  @Build_CoopCoreSem G (Z*list Event.t*C) coresem _.
+Program Definition coopsem : CoopCoreSem (Genv.t F V) (Z*list Event.t*C) :=
+  @Build_CoopCoreSem (Genv.t F V) (Z*list Event.t*C) coresem _.
 Next Obligation.
 destruct CS; auto.
 solve[apply corestep_fwd in H; auto].
@@ -259,7 +259,7 @@ destruct (B _ _ _ _ _ _ _ H H7); subst; auto.
 apply corestep_not_at_external in H. rewrite H in H3; congruence.
 apply corestep_not_at_external in H13. rewrite H13 in H; congruence.
 rewrite H9 in H; inv H.
-destruct (A _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H12 H14 H2 H3)
+destruct (A _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H12 H14 H2 H3)
   as [? [X [? ?]]].
 inv X; subst; split; auto.
 do 3 f_equal; auto.
