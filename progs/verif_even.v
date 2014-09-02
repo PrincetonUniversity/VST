@@ -4,7 +4,7 @@ Require Import progs.even.
 Local Open Scope logic.
 
 Inductive repr : Z -> val -> Prop :=
-| mk_repr : forall z, z >= 0 -> repr z (Vint (Int.repr z)).
+| mk_repr : forall z, 0 <= z <= Int.max_signed -> repr z (Vint (Int.repr z)).
 
 Lemma repr0_not_odd z n :
   repr z (Vint n) -> Int.eq n (Int.repr 0) = true -> Z.odd z = false.
@@ -68,8 +68,7 @@ forward_if (PROP (repr z v /\ z > 0) LOCAL (`(eq v) (eval_id _n)) SEP ()).
 * forward; eapply repr0_even in H0; eauto; rewrite H0; entailer.
 * forward; entailer; inv H.
   assert (z <> 0) by (apply repr_eq0_not0; auto). entailer.
-*
- forward_call (z-1,Vint (Int.sub (Int.repr z) (Int.repr 1)), tt).
+* forward_call (z-1,Vint (Int.sub (Int.repr z) (Int.repr 1)), tt).
   entailer; inversion H; subst z0; rewrite <-H5 in H2; inversion H2; subst n.
   entailer!.
   inv H. constructor. omega.
@@ -80,9 +79,14 @@ forward_if (PROP (repr z v /\ z > 0) LOCAL (`(eq v) (eval_id _n)) SEP ()).
   intros; entailer!. 
 Qed.
 
+Ltac repr_tac := 
+  constructor; split; [omega | 
+  unfold Int.max_signed, Int.half_modulus, Int.modulus; simpl; omega].
+
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof with (try solve[entailer!|entailer!; constructor; omega]).
 start_function. 
+assert (X: repr 42 (Vint (Int.repr 42))) by (repr_tac).
 forward_call (42,Vint (Int.repr 42))... 
 after_call.
 forward.
@@ -104,12 +108,33 @@ Lemma body_odd: semax_external (_n :: nil)
    SEP()
    end).
 Proof.
-(*eapply (semax_ext Espec _odd _(Z*val)).
-{ left; auto. }
-{ split; simpl; auto. intros C. destruct C; auto. inv H; auto. inv H; auto. inv H0.
-split; auto. intros C. inv C; auto. inv H. }
-*)
-Admitted.
+set (sig := {|
+        sig_args := AST.Tint :: nil;
+        sig_res := Some AST.Tint;
+        sig_cc := cc_default |}).
+set (P := (fun x : Z * val * unit =>
+      let (p, _) := x in
+      let (z, v) := p in
+      PROP  (repr z v)  LOCAL  (`(eq v) (eval_id _n))  SEP())).
+set (Q := (fun x : Z * val * unit =>
+      let (p, _) := x in
+      let (z, _) := p in
+      PROP  ()
+      LOCAL  (`(eq (Vint (if Z.odd z then Int.one else Int.zero))) retval)
+      SEP())).
+set (sig' := ((_n,tuint)::nil, tint)).
+change (semax_external (fst (split (fst sig')))
+         (EF_external _odd (funsig2signature sig')) (Z*val*unit) P Q).
+apply semax_ext; auto.
+left. unfold odd_spec. f_equal.
+unfold Gprog. simpl; split; auto. 
+  intros C; case C; intros.
+    unfold _odd, _even in H. congruence.
+    destruct H; try (elimtype False; auto). 
+    unfold _odd, _main in H. congruence.
+    split; auto. intros C. case C; auto. intros.
+    unfold _even, _main in H. congruence.    
+Qed.
 
 Lemma all_funcs_correct: semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
