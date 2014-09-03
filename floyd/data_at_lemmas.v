@@ -2076,7 +2076,7 @@ Proof.
   + inversion H.
     reflexivity.
   + inversion H.
-Qed.
+Defined.
 
 (*
 
@@ -2149,7 +2149,7 @@ Proof.
         rewrite H.
         solve_field_offset_type i0 (fieldlist_app f' (Fcons i0 t0 (Fcons i1 t1 f)));
         inversion H1; reflexivity.
-Qed.
+Defined.
 
 Lemma nested_reptype_structlist_lemma2: forall t ids i f a,
   nested_field_type2 t ids = Tstruct i f a ->
@@ -2166,7 +2166,7 @@ Proof.
   valid_nested_field_rec t ids H; inversion H1.
   subst.
   reflexivity.
-Qed.
+Defined.
 
 Lemma nested_reptype_unionlist_lemma: forall t ids i f' f a ofs,
   nested_field_rec t ids = Some (ofs, Tunion i (fieldlist_app f' f) a) ->
@@ -2199,7 +2199,7 @@ Proof.
         rewrite H.
         solve_field_offset_type i0 (fieldlist_app f' (Fcons i0 t0 (Fcons i1 t1 f)));
         inversion H1; reflexivity.
-Qed.
+Defined.
 
 Lemma nested_reptype_unionlist_lemma2: forall t ids i f a,
   nested_field_type2 t ids = Tunion i f a ->
@@ -2216,7 +2216,7 @@ Proof.
   valid_nested_field_rec t ids H; inversion H1.
   subst.
   reflexivity.
-Qed.
+Defined.
 
 Definition field_at (sh: Share.t) (t: type) (ids: list ident) (v: reptype (nested_field_type2 t ids)) : val -> mpred := 
   (fun p => (!! (size_compatible t p /\ align_compatible t p /\ isSome (nested_field_rec t ids)))) 
