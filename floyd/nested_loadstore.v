@@ -597,9 +597,6 @@ Proof.
   eapply eq_sym, nested_reptype_structlist_lemma2; eauto.
 Defined.
 
-Print  proj_reptype_aux.
-Locate nested_reptype_structlist_lemma2.
-
 Fixpoint proj_reptype_rec (t: type) (ids: list ident) (H: nested_legal_fieldlist t = true) (v: reptype t) : reptype (nested_field_type2 t ids) :=
   match ids as ids' return reptype (nested_field_type2 t ids')
   with

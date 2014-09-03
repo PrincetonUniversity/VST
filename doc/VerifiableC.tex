@@ -164,7 +164,9 @@ Chapter~\ref{refcard:supercanonical} of this manual.
 \item For function calls, do not use \lstinline{forward}
 (except to get advice about the witness type);
 instead, use \lstinline{forward_call}.  See page~\pageref{forward-call}.
-
+\item C functions may now fall through the end of the function body,
+and this is (per the C semantics) equivalent to a \lstinline{return;}
+statement.
 \end{itemize}
 \ychapter{Memory predicates}{}
 

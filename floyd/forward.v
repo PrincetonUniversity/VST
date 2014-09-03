@@ -1941,6 +1941,66 @@ end;
      simpl in Delta
  end.
 
+Fixpoint quickflow (c: statement) (ok: exitkind->bool) : bool :=
+ match c with
+ | Sreturn _ => ok EK_return
+ | Ssequence c1 c2 => 
+     quickflow c1 (fun ek => match ek with
+                          | EK_normal => quickflow c2 ok
+                          | _ => ok ek
+                          end)
+ | Sifthenelse e c1 c2 => 
+     andb (quickflow c1 ok) (quickflow c2 ok) 
+ | Sloop body incr => 
+     quickflow body (fun ek => match ek with 
+                              | EK_normal => true 
+                              | EK_break => ok EK_normal
+                              | EK_continue => true
+                              | EK_return => ok EK_return
+                              end)
+ | Sbreak => ok EK_break
+ | Scontinue => ok EK_continue
+ | Sswitch _ _ => false   (* this could be made more generous *)
+ | Slabel _ c => quickflow c ok
+ | Sgoto _ => false
+ | _ => ok EK_normal
+ end.
+
+Definition must_return (ek: exitkind) : bool :=
+  match ek with EK_return => true | _ => false end.
+
+Lemma eliminate_extra_return:
+  forall Espec Delta P c ty Q Post,
+  quickflow c must_return = true ->
+  Post = (function_body_ret_assert ty Q) ->
+  @semax Espec Delta P c Post ->
+  @semax Espec Delta P (Ssequence c (Sreturn None)) Post.
+Proof.
+intros.
+apply semax_seq with FF; [  | apply semax_ff].
+replace (overridePost FF Post) with Post; auto.
+subst; clear.
+extensionality ek vl rho.
+unfold overridePost, frame_ret_assert, function_body_ret_assert.
+destruct ek; normalize.
+Qed.
+
+Lemma eliminate_extra_return':
+  forall Espec Delta P c ty Q F Post,
+  quickflow c must_return = true ->
+  Post = (frame_ret_assert (function_body_ret_assert ty Q) F) ->
+  @semax Espec Delta P c Post ->
+  @semax Espec Delta P (Ssequence c (Sreturn None)) Post.
+Proof.
+intros.
+apply semax_seq with FF; [  | apply semax_ff].
+replace (overridePost FF Post) with Post; auto.
+subst; clear.
+extensionality ek vl rho.
+unfold overridePost, frame_ret_assert, function_body_ret_assert.
+destruct ek; normalize.
+Qed.
+
 Ltac start_function := 
  match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
@@ -1968,6 +2028,9 @@ Ltac start_function :=
   | _ => canonicalize_pre 
  end;
  repeat (apply semax_extract_PROP; intro);
+ first [ eapply eliminate_extra_return'; [ reflexivity | reflexivity | ]
+        | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
+        | idtac];
  abbreviate_semax.
 
 Opaque sepcon.

@@ -86,7 +86,7 @@ rewrite mul_repr, sub_repr in H1; apply ltu_repr_false in H1.
 2: split; computable.
 2: assert (64 < Int.max_unsigned)%Z by computable; unfold ddlen in *;
    split; try omega.
-clear TC0.
+clear TC1.
 change (16*4)%Z with (Z.of_nat CBLOCK) in H1.
 apply andp_right; [apply prop_right; repeat split | cancel].
 rewrite Forall_app; split; auto.
@@ -182,6 +182,7 @@ replace (`(array_at tuchar Tsh
            ZnthV tuchar (map Vint (map Int.repr dd'))
              (i + (Z.of_nat CBLOCK - 8)))
               0 8 (offset_val (Int.repr 96) c))).
+
 simple apply final_part2 with pad; assumption.
 + change ((40 + (Z.of_nat CBLOCK - 8))) with 96.
   change ((64 - (Z.of_nat CBLOCK - 8))) with 8.

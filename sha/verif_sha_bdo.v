@@ -21,6 +21,7 @@ Proof.
 Qed.
 (* move somewhere else *)
 
+
 Lemma body_sha256_block_data_order: semax_body Vprog Gtot f_sha256_block_data_order sha256_block_data_order_spec.
 Proof.
 start_function.
@@ -39,6 +40,7 @@ name ctx_ _ctx.
 name i_ _i.
 name data_ _data.
 simpl_stackframe_of.
+unfold POSTCONDITION, abbreviate.
 
 remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
 assert (Lregs: length regs = 8%nat) 
@@ -81,8 +83,6 @@ erewrite data_at_array_at; [| reflexivity | omega | reflexivity].
 entailer!.
 
 auto 50 with closed.
-
-
 
 simpl; abbreviate_semax.
 
