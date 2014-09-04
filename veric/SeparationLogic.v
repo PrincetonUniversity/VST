@@ -966,12 +966,13 @@ Require veric.semax_ext.
 
 Axiom semax_ext: 
   forall (Espec : OracleKind) 
-         (id : ident) (sig : funsig) 
+         (id : ident) (ids : list ident) (sig : funsig) (sig' : signature)
          (A : Type) (P Q : A -> environ -> mpred) (fs : funspecs),
   let f := mk_funspec sig A P Q in
   in_funspecs (id,f) fs -> 
   funspecs_norepeat fs -> 
-  @semax_external (add_funspecs Espec fs) (fst (split (fst sig))) 
-                  (EF_external id (funsig2signature sig)) A P Q.
+  ids = fst (split (fst sig)) -> 
+  sig' = funsig2signature sig -> 
+  @semax_external (add_funspecs Espec fs) ids (EF_external id sig') _ P Q.
 
 End CLIGHT_SEPARATION_LOGIC.

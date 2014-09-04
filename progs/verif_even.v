@@ -95,53 +95,12 @@ Qed.
 Definition Espec := add_funspecs NullExtension.Espec Gprog.
 Existing Instance Espec.
 
-Lemma body_odd: semax_external (_n :: nil)
-  (EF_external _odd
-     {| sig_args := AST.Tint :: nil; sig_res := Some AST.Tint; sig_cc := cc_default |})
-  (Z * val * unit)
-  (fun x => match x with ((z,v),_) => 
-     PROP  (repr z v)  LOCAL  (`(eq v) (eval_id _n))  SEP()
-   end)
-  (fun x => match x with ((z,v),_) => 
-   PROP  ()
-   LOCAL  (`(eq (Vint (if Z.odd z then Int.one else Int.zero))) retval)
-   SEP()
-   end).
-Proof.
-set (sig := {|
-        sig_args := AST.Tint :: nil;
-        sig_res := Some AST.Tint;
-        sig_cc := cc_default |}).
-set (P := (fun x : Z * val * unit =>
-      let (p, _) := x in
-      let (z, v) := p in
-      PROP  (repr z v)  LOCAL  (`(eq v) (eval_id _n))  SEP())).
-set (Q := (fun x : Z * val * unit =>
-      let (p, _) := x in
-      let (z, _) := p in
-      PROP  ()
-      LOCAL  (`(eq (Vint (if Z.odd z then Int.one else Int.zero))) retval)
-      SEP())).
-set (sig' := ((_n,tuint)::nil, tint)).
-change (semax_external (fst (split (fst sig')))
-         (EF_external _odd (funsig2signature sig')) (Z*val*unit) P Q).
-apply semax_ext; auto.
-left. unfold odd_spec. f_equal.
-unfold Gprog. simpl; split; auto. 
-  intros C; case C; intros.
-    unfold _odd, _even in H. congruence.
-    destruct H; try (elimtype False; auto). 
-    unfold _odd, _main in H. congruence.
-    split; auto. intros C. case C; auto. intros.
-    unfold _even, _main in H. congruence.    
-Qed.
-
 Lemma all_funcs_correct: semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct.
 semax_func_skipn.
-semax_func_cons body_odd.
-  rewrite <- H; entailer!.
+semax_func_cons_ext.
+rewrite <- H; entailer!.
 semax_func_cons body_even.
 semax_func_cons body_main.
 apply semax_func_nil.

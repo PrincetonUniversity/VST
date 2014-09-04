@@ -4,6 +4,7 @@ Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
+Require Import floyd.extcall_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.loadstore_lemmas.
@@ -54,6 +55,22 @@ Ltac semax_func_cons L :=
              | semax_func_cons_ext_tc | apply L |
              ]
         ].
+
+Ltac semax_func_cons_ext :=
+  eapply semax_func_cons_ext;
+    [reflexivity | reflexivity | reflexivity | reflexivity 
+    | semax_func_cons_ext_tc 
+    | solve[ eapply semax_ext; 
+          [ compute; eauto 
+          | apply compute_funspecs_norepeat_e; reflexivity 
+          | reflexivity 
+          | reflexivity ]] 
+      || fail "Try 'eapply semax_func_cons_ext.'" 
+              "To solve [semax_external] judgments, do 'eapply semax_ext.'"
+              "Make sure that the Espec declared using 'Existing Instance' 
+               is defined as 'add_funspecs NullExtension.Espec Gprog.'"
+    | 
+    ].
 
 Ltac forward_seq := 
   first [eapply semax_seq'; [  | abbreviate_semax ]

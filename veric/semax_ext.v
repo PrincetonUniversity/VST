@@ -262,7 +262,7 @@ Section semax_ext.
 
 Variable Espec : OracleKind.
 
-Lemma semax_ext id sig A P Q (fs : funspecs) : 
+Lemma semax_ext' id sig A P Q (fs : funspecs) : 
   let f := mk_funspec sig A P Q in
   in_funspecs (id,f) fs -> 
   funspecs_norepeat fs -> 
@@ -300,5 +300,17 @@ unfold filter_genv, Genv.find_symbol in Hq'|-*.
 rewrite symb2genv_ax in Hq'; auto.
 eapply pred_nec_hereditary; eauto.
 Qed.
-  
+
+Lemma semax_ext id ids sig sig' A P Q (fs : funspecs) : 
+  let f := mk_funspec sig A P Q in
+  in_funspecs (id,f) fs -> 
+  funspecs_norepeat fs -> 
+  ids = fst (split (fst sig)) -> 
+  sig' = funsig2signature sig -> 
+  (forall n, semax_external (add_funspecs Espec fs) ids (EF_external id sig') _ P Q n).
+Proof.
+intros; subst.
+apply semax_ext'; auto.
+Qed.
+
 End semax_ext.  
