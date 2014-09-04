@@ -672,6 +672,19 @@ Proof. intros.  unfold retval, eval_id; simpl. try rewrite Map.gss. reflexivity.
 Qed.
 Hint Rewrite retval_make_args: norm.
 
+Lemma andp_makeargs:
+   forall (a b: environ -> mpred) d e, 
+   `(a && b) (make_args d e) = `a (make_args d e) && `b (make_args d e).
+Proof. intros. reflexivity. Qed.
+Hint Rewrite andp_makeargs: norm.
+
+Lemma local_makeargs:
+   forall (f: val -> Prop) v,
+   `(local (`f retval)) (make_args (cons ret_temp nil) (cons v nil))
+    = (local (`f `v)).
+Proof. intros. reflexivity. Qed. 
+Hint Rewrite local_makeargs: norm.
+
 Lemma simpl_and_get_result1:
   forall (Q R: environ->mpred) i,
     `(Q && R) (get_result1 i) = `Q (get_result1 i) && `R (get_result1 i).
