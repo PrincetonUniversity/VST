@@ -155,10 +155,10 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
  replace (Int.repr (data_offset + (ddlen+1))) with (Int.add (Int.repr data_offset) (Int.repr (ddlen+1)))
   by apply add_repr.
  entailer!.
- normalize in H0.
+ normalize in H1.
  change CBLOCKz with 64 in Hddlen.
- apply ltu_repr in H0; [ | Omega1 | Omega1].
- change (16*4)%Z with (CBLOCKz) in H0.
+ apply ltu_repr in H1; [ | Omega1 | Omega1].
+ change (16*4)%Z with (CBLOCKz) in H1.
  rewrite (split_offset_array_at tuchar) with (lo := ddlen+1) (hi := 64); [| omega | simpl; omega | reflexivity].
  apply sepcon_derives.
  + entailer!. apply derives_refl'; apply equal_f; apply array_at_ext; intros.
@@ -168,7 +168,7 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
    set (dd1 :=  map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)%Z]).
    rewrite app_nth1. auto. 
    unfold dd1; rewrite app_length. 
-   clear - H1; unfold ddlen in *; rewrite Zlength_correct in *;
+   clear - H2 H7 H0; unfold ddlen in *; rewrite Zlength_correct in *;
    rewrite map_length in *. simpl.
     apply Nat2Z.inj_lt. rewrite Z2Nat.id by Omega1.
   rewrite map_length; rewrite Nat2Z.inj_add; Omega1.
@@ -217,7 +217,7 @@ assert (H1: length ddzw = LBLOCK). {
 unfold ddzw.
 apply length_Zlist_to_intlist. rewrite map_length. apply H0'.
 }
-assert (H0: map Int.unsigned ddz = intlist_to_Zlist ddzw). {
+assert (HU: map Int.unsigned ddz = intlist_to_Zlist ddzw). {
 unfold ddzw; rewrite Zlist_to_intlist_to_Zlist; auto.
 rewrite map_length, H0'; exists LBLOCK; reflexivity.
 unfold ddz; repeat rewrite map_app; repeat rewrite Forall_app; repeat split; auto.
@@ -242,7 +242,7 @@ clearbody ddzw.
  apply isbyte_intlist_to_Zlist.
  apply derives_refl'; f_equal. 
  unfold tuchars. f_equal. f_equal.
- rewrite <- H0.
+ rewrite <- HU.
  rewrite map_map.
  replace (fun x => Int.repr (Int.unsigned x)) with (@id int) by 
   (extensionality xx; rewrite Int.repr_unsigned; auto).
@@ -280,7 +280,7 @@ entailer!.
 * rewrite <- app_nil_end.
   rewrite intlist_to_Zlist_app.
   f_equal.
-  rewrite <- H0.
+  rewrite <- HU.
   unfold ddz.
   repeat rewrite map_app.
   repeat rewrite app_ass.
