@@ -1485,16 +1485,22 @@ Hint Rewrite sem_add_ptr_int using assumption : norm.
 Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  ensure_normal_ret_assert;
  hoist_later_in_pre;
+ match goal with
+ | Struct_env := @abbreviate type_id_env _ |- _ => idtac
+ | |- _ => let Struct_env := fresh "Struct_env" in
+     pose (Struct env := @abbreviate _ empty_ti)
+ end; 
  match goal with   
- | |- semax ?Delta _ (Sset _ (Efield ?e _ _)) _ =>
+ | Struct_env := @abbreviate type_id_env _ 
+   |- semax ?Delta _ (Sset _ (Efield ?e _ _)) _ =>
  match e with
  | Ederef _ _ => 
-   (eapply (semax_load_field_40) with (e := compute_type_id_env Delta);
+   (eapply (semax_load_field_40) with (e := Struct_env);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [(entailer!; try apply I; try assumption; reflexivity)]] ) || fail 1
  | _ =>
-   eapply (semax_load_field_38) with (e := compute_type_id_env Delta);
+   eapply (semax_load_field_38) with (e := Struct_env);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
@@ -1502,15 +1508,16 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    | try apply I; try assumption; reflexivity
    ]
  end
- | |- semax ?Delta _ (Sset _ (Ecast (Efield ?e _ _) _)) _ =>
+ | SE := @abbreviate type_id_env _ 
+   |- semax ?Delta _ (Sset _ (Ecast (Efield ?e _ _) _)) _ =>
  match e with
  | Ederef _ _ => 
-   (eapply (semax_cast_load_field_40) with (e := compute_type_id_env Delta);
+   (eapply (semax_cast_load_field_40) with (e := SE);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | simpl; auto | reflexivity | reflexivity | reflexivity 
    | solve [(entailer!; try apply I; try assumption; reflexivity)]] ) || fail 1
  | _ =>
-   eapply (semax_cast_load_field_38) with (e := compute_type_id_env Delta);
+   eapply (semax_cast_load_field_38) with (e := SE);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
    | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
@@ -1518,14 +1525,16 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
    | try apply I; try assumption; reflexivity
    ]
  end
- | |- semax ?Delta _ (Sset _ (Efield _ _ _)) _ =>
-  eapply (semax_load_field'') with (e := compute_type_id_env Delta);
+ | SE := @abbreviate type_id_env _ 
+    |- semax ?Delta _ (Sset _ (Efield _ _ _)) _ =>
+  eapply (semax_load_field'') with (e := SE);
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | reflexivity
    |solve [(entailer!; try apply I; try assumption; reflexivity)]
    ]
- | |- semax ?Delta _ (Sset _ (Ecast (Efield _ _ _) _)) _ =>
-  eapply (semax_cast_load_field'') with (e := compute_type_id_env Delta);
+ | SE := @abbreviate type_id_env _ 
+    |- semax ?Delta _ (Sset _ (Ecast (Efield _ _ _) _)) _ =>
+  eapply (semax_cast_load_field'') with (e := SE);
    [reflexivity | reflexivity | reflexivity | reflexivity 
    | try solve [entailer]
    | solve [entailer; simpl_data_at; unfold at_offset; simpl; cancel]
@@ -1639,6 +1648,11 @@ Ltac new_store_tac :=
 ensure_open_normal_ret_assert;
 hoist_later_in_pre;
 match goal with
+| Struct_env := @abbreviate type_id_env _ |- _ => idtac
+| |- _ => let Struct_env := fresh "Struct_env" in
+   pose (Struct env := @abbreviate _ empty_ti)
+end; 
+match goal with
 | |- @semax ?Esp ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) 
      (Sassign (Ederef (Ebinop Oadd ?e1 ?ei _) ?t) ?e2) _ =>
   let n := fresh "n" in evar (n: nat); 
@@ -1660,7 +1674,8 @@ match goal with
   clear n sh contents lo hi ;
   [reflexivity | solve [auto] | reflexivity | auto | reflexivity |
    solve [(entailer!; try apply I; try tauto; reflexivity)]| entailer]
-| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
+| SE := @abbreviate type_id_env _ 
+    |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
   let n := fresh "n" in evar (n: nat); 
   let sh := fresh "sh" in evar (sh: share);
   assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
@@ -1674,7 +1689,7 @@ match goal with
                 (SEPx (replace_nth n R (`(field_at_ sh (typeof e) (fld::nil)) (eval_lvalue e)))))));
  [ eapply (fast_entail n); [reflexivity | entailer; unfold at_offset; simpl; cancel] | ] ;
 (**** 14.2 seconds to here  *)
- eapply (semax_store_field_nth _ sh (compute_type_id_env Delta) n);
+ eapply (semax_store_field_nth _ sh SE n);
    [reflexivity | reflexivity | simpl; auto | reflexivity | reflexivity | reflexivity
    | solve [entailer!] | auto | try solve [entailer!]];
   unfold n,sh; clear n sh (**** 21.1 seconds to here *****)

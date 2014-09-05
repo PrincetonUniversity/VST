@@ -201,7 +201,7 @@ rewrite cVint_force_int_ZnthV
  cancel.
  
  after_call.
- replace_SEP 0%Z (`(array_at tuchar sh
+(* replace_SEP 0%Z (`(array_at tuchar sh
            (cVint (force_int oo ZnthV tuchar (map Vint (map Int.repr data))))
            0 (Int.unsigned (force_int fragment)) d) *
        `(array_at tuchar Tsh
@@ -210,6 +210,7 @@ rewrite cVint_force_int_ZnthV
            (offset_val (Int.repr (40 + Zlength dd)) c))).
  entailer!.
  repeat flatten_sepcon_in_SEP.
+*)
  fold j k.
  rename H5 into H2'.
  gather_SEP 4%Z 1%Z.
@@ -246,7 +247,7 @@ rewrite cVint_force_int_ZnthV
    (hashed, Zlist_to_intlist (dd++(firstn (Z.to_nat k) data)), c, (offset_val (Int.repr 40) c), Tsh).
  entailer.
  unfold j,k in *|-.
- rewrite negb_true_iff in H8; apply ltu_repr_false in H8; [ | omega..].
+ rewrite negb_true_iff in H9; apply ltu_repr_false in H9; [ | omega..].
  assert (length (dd ++ firstn (Z.to_nat k) data) = 64). {
   unfold k.
   rewrite app_length.
@@ -260,10 +261,10 @@ rewrite cVint_force_int_ZnthV
   omega.
 }
  assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK). {
-  apply length_Zlist_to_intlist. apply H9.
+  apply length_Zlist_to_intlist. apply H10.
 }
  apply andp_right; [apply prop_right |].
- rewrite Zlength_correct, H10. reflexivity.
+ rewrite Zlength_correct, H11. reflexivity.
  replace (data_block Tsh
       (intlist_to_Zlist (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)))
       (offset_val (Int.repr 40) c))
@@ -277,7 +278,7 @@ rewrite cVint_force_int_ZnthV
   with 64%Z
  by (rewrite Zlength_correct;
       change 64%Z with (Z.of_nat 64); symmetry; f_equal;
-       rewrite length_intlist_to_Zlist, H10; reflexivity).
+       rewrite length_intlist_to_Zlist, H11; reflexivity).
   apply equal_f; apply array_at_ext; intros.
  unfold tuchars, ZnthV. repeat rewrite if_false by omega.
  rewrite Zlist_to_intlist_to_Zlist.
@@ -309,7 +310,7 @@ rewrite cVint_force_int_ZnthV
   rewrite app_length, Nat2Z.inj_add.
  repeat rewrite <- Zlength_correct.
   omega.
- rewrite H9; exists LBLOCK; reflexivity.
+ rewrite H10; exists LBLOCK; reflexivity.
  rewrite Forall_app; split; auto.
  apply Forall_firstn; auto.
  apply isbyte_intlist_to_Zlist.
@@ -324,10 +325,10 @@ entailer!.
  unfold data_block.
  entailer!.
  simpl.
- rewrite <- H11 in H6, H9; clear len'0 H11.
- simpl in H6.
- inversion H6; clear H6; subst len'.
- simpl in H9.
+ rewrite <- H12 in H8, H10; clear len'0 H12.
+ simpl in H8.
+ inversion H8; clear H8; subst len'.
+ simpl in H10.
  rewrite memory_block_array_tuchar by omega.
  replace  (Zlength
      (intlist_to_Zlist (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data))))
@@ -350,17 +351,17 @@ entailer!.
  unfold k in *.
  apply Nat2Z.inj_le; rewrite Z2Nat.id by omega.
  rewrite <- Zlength_correct.
- fold k in H9;  simpl in H9.
- unfold Int.ltu in H9; if_tac in H9; try inv H9.
- unfold k in H6; repeat rewrite Int.unsigned_repr in H6 by omega.
+ fold k in H10;  simpl in H10.
+ unfold Int.ltu in H10; if_tac in H10; try inv H10.
+ unfold k in H8; repeat rewrite Int.unsigned_repr in H8 by omega.
  omega.
 }
 
  after_call.
  unfold sha_update_inv.
  entailer.
- rewrite negb_true_iff in H8.
- apply ltu_repr_false in H8; [ | omega..].
+ rewrite negb_true_iff in H9.
+ apply ltu_repr_false in H9; [ | omega..].
  clear TC0  TC1.
  apply exp_right with (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)).
  assert (LL: length (dd ++ firstn (Z.to_nat k) data) = CBLOCK). {

@@ -387,6 +387,7 @@ Proof.
  intros Espec hashed md c shmd H md_ c_ p n cNl cNh
  hi lo dd H4 H7 H3 DDbytes hashed' dd' pad
  DDbytes' PAD H0 H1 H2 H5 p0 Pofs.
+ abbreviate_semax.
  pose (hibytes := Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist [hi]))))).
  pose (lobytes := Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist [lo]))))).
  rewrite split_offset_array_at with (lo := 4%Z) (z := 0%Z) (hi := 8%Z) (v := offset_val (Int.repr 96) c);

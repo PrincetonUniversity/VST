@@ -1,5 +1,7 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
+Require Import floyd.data_at_lemmas.
+Require Import floyd.type_id_env.
 
 (* Bug: abbreviate replaces _ALL_ instances, when sometimes
   we only want just one. *)
@@ -18,6 +20,16 @@ Ltac unfold_abbrev :=
                         unfold H, abbreviate; clear H 
             end.
 
+Ltac unfold_abbrev' :=
+  repeat match goal with
+             | H := @abbreviate ret_assert _ |- _ => 
+                        unfold H, abbreviate; clear H 
+             | H := @abbreviate tycontext _ |- _ => 
+                        unfold H, abbreviate; clear H 
+             | H := @abbreviate statement _ |- _ => 
+                        unfold H, abbreviate; clear H 
+            end.
+
 Ltac unfold_abbrev_ret :=
   repeat match goal with H := @abbreviate ret_assert _ |- _ => 
                         unfold H, abbreviate; clear H 
@@ -28,7 +40,11 @@ Ltac unfold_abbrev_commands :=
                         unfold H, abbreviate; clear H 
             end.
 
-Ltac clear_abbrevs :=  repeat match goal with H := @abbreviate _ _ |- _ => clear H end.
+Ltac clear_abbrevs :=  repeat match goal with
+                                    | H := @abbreviate statement _ |- _ => clear H
+                                    | H := @abbreviate ret_assert _ |- _ => clear H  
+                                    | H := @abbreviate tycontext _ |- _ => clear H  
+                                    end.
 
 Arguments var_types !Delta / .
 
@@ -83,10 +99,18 @@ Ltac simplify_Delta :=
      simplify_Delta_at A; simplify_Delta_at B; reflexivity
 end.
 
+Ltac build_Struct_env :=
+ match goal with
+ | SE := @abbreviate type_id_env _ |- _ => idtac
+ | Delta := @abbreviate tycontext _ |- _ => 
+    pose (Struct_env := @abbreviate _ (type_id_env.compute_type_id_env Delta));
+    simpl type_id_env.compute_type_id_env in Struct_env
+ end.
+
 Ltac abbreviate_semax :=
  match goal with
  | |- semax _ _ _ _ => 
-        unfold_abbrev;
+        unfold_abbrev';
         simplify_Delta;
         match goal with |- semax ?D _ ?C ?P => 
             abbreviate D : tycontext as Delta;
@@ -110,4 +134,5 @@ Ltac abbreviate_semax :=
  | |- _ => idtac
  end;
  clear_abbrevs;
+ build_Struct_env;
  simpl typeof.

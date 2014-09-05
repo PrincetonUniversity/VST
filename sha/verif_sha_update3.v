@@ -62,7 +62,7 @@ Lemma update_inner_if_else_proof:
 Proof.
   intros.
   unfold update_inner_if_else;
-  simplify_Delta; abbreviate_semax.
+  simplify_Delta; abbreviate_semax;
   forward_call (* memcpy (p+n, data, len); *)
       ((sh,Tsh), 
        offset_val (Int.repr (Zlength dd)) (offset_val (Int.repr 40) c),
