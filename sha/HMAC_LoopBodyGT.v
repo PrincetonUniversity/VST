@@ -16,7 +16,6 @@ Lemma eval_var_rel_expr: forall _x t rho CONT b i n, 0 <= i < 64 -> eval_var _x 
       TT * array_at tuchar Tsh CONT i 64 (Vptr b n) |-- rel_expr (Evar _x t) (Vptr b n) rho.
 Proof. intros. admit. Qed.
 
-
 (*Same proof as semax_loadstore_array*)
 Lemma NEWsemax_loadstore_array:
   forall {Espec: OracleKind},
@@ -273,6 +272,16 @@ eapply semax_pre0; [ apply now_later | ].
 eapply semax_post_flipped'.
    eapply NEWsemax_loadstore_array. 
      reflexivity. trivial. reflexivity. reflexivity.  reflexivity.
+     entailer; repeat instantiate_Vptr.
+ destruct (k_ipad VALS) eqn:?Hipad; try contradiction.
+ rewrite <- Hipad in *.
+*  
+ repeat apply andp_right; rel_expr. 
+  intro; simpl. rewrite <- H1. rewrite Hipad. reflexivity.
+  simpl typeof.
+
+works up to here.
+
      Focus 2. instantiate (1:=k_ipad VALS). instantiate (1:=64). instantiate (1:=i).
               instantiate (1:=KKEY). instantiate (1:=Tsh). instantiate (1:=1%nat). simpl. reflexivity.
      2: apply writable_share_top.

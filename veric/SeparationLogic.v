@@ -604,13 +604,25 @@ Lemma rel_expr_cast: forall a1 v1 v ty P rho,
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H; auto. Qed. 
 
-Lemma rel_expr_lvalue: forall a sh v1 v2 P rho,
+Lemma rel_expr_lvalue_By_value: forall ch a sh v1 v2 P rho,
+           access_mode (typeof a) = By_value ch ->
            P |-- rel_lvalue a v1 rho ->
            P |-- mapsto sh (typeof a) v1 v2 * TT  ->
            v2 <> Vundef ->
            P |-- rel_expr a v2 rho.
 Proof.
-intros. intros ? ?. econstructor; eauto. apply H; auto. apply H0; auto. Qed.
+intros. intros ? ?. econstructor; eauto. apply H0; auto. apply H1; auto. Qed.
+
+Lemma rel_expr_lvalue_By_reference: forall a v1 P rho,
+           access_mode (typeof a) = By_reference ->
+           P |-- rel_lvalue a v1 rho ->
+           P |-- rel_expr a v1 rho.
+Proof.
+intros. intros ? ?.
+hnf.
+eapply rel_expr'_lvalue_By_reference; eauto.
+apply H0; auto.
+ Qed.
 
 Lemma rel_lvalue_local: forall id ty b P rho,
                  P |-- !! (Map.get (ve_of rho) id = Some (b,ty)) ->

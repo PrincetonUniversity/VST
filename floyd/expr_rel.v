@@ -14,6 +14,28 @@ Require Import floyd.globals_lemmas.
 Require Import floyd.type_id_env.
 Require Import floyd.semax_tactics.
 
+Lemma rel_lvalue_var:
+ forall (P: mpred) i t v rho,
+ v = eval_var i t rho ->
+ isptr v -> 
+ P |-- rel_lvalue (Evar i t) v rho.
+Proof.
+intros.
+destruct v; try contradiction.
+unfold eval_var in H.
+destruct (Map.get (ve_of rho) i) eqn:?.
+destruct p.
+destruct (eqb_type t t0) eqn:?.
+apply eqb_type_true in Heqb1; subst.
+inv H.
+apply rel_lvalue_local.
+apply prop_right; auto.
+inv H.
+destruct (ge_of rho i) eqn:?; inv H.
+apply rel_lvalue_global.
+apply prop_right; split; auto.
+Qed.
+
 Lemma isptr_not_Vundef:
   forall v, isptr v -> v <> Vundef.
 Proof.
@@ -72,11 +94,15 @@ first [
  | simple apply rel_expr_const_int
  | simple apply rel_expr_const_float
  | simple apply rel_expr_const_long
+ | simple apply rel_lvalue_var; [ eassumption | assumption]
+(*
  | simple eapply rel_lvalue_local
  | simple eapply rel_lvalue_global
+*)
  | simple eapply rel_lvalue_deref; [rel_expr ]
  | simple eapply rel_lvalue_field_struct; [ reflexivity | reflexivity | rel_expr ]
- | simple eapply rel_expr_lvalue; [ rel_expr | rewrite_eval_id; cancel | ]
+ | simple eapply rel_expr_lvalue_By_value; [ reflexivity | rel_expr | rewrite_eval_id; cancel | ]
+ | simple eapply rel_expr_lvalue_By_reference; [ reflexivity | rel_expr ]
  | match goal with |- in_range _ _ _ => hnf; omega end
  | idtac
  ].

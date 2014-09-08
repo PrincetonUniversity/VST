@@ -1530,7 +1530,9 @@ intros.
 eapply derives_trans; [eassumption | clear H2].
  rewrite array_at_isptr. normalize.
  destruct v1; try contradiction. rename i0 into ofs.
- eapply rel_expr_lvalue.
+ destruct (access_mode_by_value _ H1) as [ch H1'].
+ eapply rel_expr_lvalue_By_value with (ch:=ch); auto.
+(* destruct ty; inv H1. try contradiction H1. reflexivity. *)
  apply rel_lvalue_deref.
  eapply rel_expr_binop.
  apply andp_left1. apply andp_left1. apply derives_refl.
