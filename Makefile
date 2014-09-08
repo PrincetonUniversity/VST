@@ -159,7 +159,9 @@ SHA_FILES= \
   bdo_lemmas.v verif_sha_bdo.v verif_sha_bdo2.v \
   verif_sha_bdo4.v verif_sha_bdo7.v verif_sha_bdo8.v \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
-  verif_addlength.v verif_SHA256.v entail_examples2.v 
+  verif_addlength.v verif_SHA256.v entail_examples2.v \
+  hmac_sha256.v HMAC_definitions.v HMAC_part2GT.v HMAC_part2LE.v \
+  HMAC_proofTail.v HMAC_LoopBodyGT.v HMAC_proof.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c
 

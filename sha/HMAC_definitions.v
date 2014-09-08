@@ -70,7 +70,7 @@ Definition repr_text (a: HMAC_Refined.Args) sh: val -> mpred :=
 Definition repr_text_len (a: HMAC_Refined.Args) (v:val): Prop :=
   let l := HMAC_Refined.text_len a in
   (isPosSigned l /\ v = Vint (Int.repr l) /\
-   64 + l <= 1024 (*needed for  instruction memcpy( bufferIn + 64, text, text_len )*)).
+   l + 64 <= 1024 (*needed for  instruction memcpy( bufferIn + 64, text, text_len )*)).
 
 (*writeshare needed*)
 Definition repr_key (a: HMAC_Refined.Args) sh: val -> mpred := 
