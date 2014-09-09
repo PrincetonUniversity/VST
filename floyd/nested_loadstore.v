@@ -666,67 +666,6 @@ Fixpoint proj_reptype (t: type) (ids: list ident) (v: reptype t) : reptype (nest
   end
   in eq_rect_r reptype res (proj_reptype_aux t ids).
 
-(*
-Fixpoint proj_reptype_structlist t id ids f (v: nested_reptype_structlist t ids f) : reptype (nested_field_type2 t (id :: ids)) :=
-  match f as f'
-    return nested_reptype_structlist t ids f' -> reptype (nested_field_type2 t (id :: ids)) with
-  | Fnil => fun _ => default_val _
-  | Fcons i0 t0 flds0 => 
-    if is_Fnil flds0 as b
-      return ((if b 
-               then reptype (nested_field_type2 t (i0 :: ids)) 
-               else reptype (nested_field_type2 t (i0 :: ids)) * 
-                    nested_reptype_structlist t ids flds0) ->
-              reptype (nested_field_type2 t (id :: ids)))
-    then fun v =>
-      match ident_eq id i0 with
-      | left H => eq_rect_r (fun i => reptype (nested_field_type2 t (i :: ids))) v H
-      | right H => default_val _
-      end
-    else fun v => 
-      match ident_eq id i0 with
-      | left H => eq_rect_r (fun i => reptype (nested_field_type2 t (i :: ids))) (fst v) H
-      | right _ => proj_reptype_structlist t id ids flds0 (snd v)
-      end
-  end v.
-
-Lemma proj_reptype_aux: forall t ids, 
-  nested_legal_fieldlist t = true ->
-  match nested_field_type2 t ids with
-  | Tstruct i f a => nested_reptype_structlist t ids f
-  | _ => reptype (nested_field_type2 t ids)
-  end = reptype (nested_field_type2 t ids).
-Proof.
-  intros.
-  destruct (nested_field_type2 t ids) eqn:HH; auto.
-  rewrite <- HH.
-  eapply eq_sym, nested_reptype_structlist_lemma2; eauto.
-Defined.
-
-Fixpoint proj_reptype_rec (t: type) (ids: list ident) (H: nested_legal_fieldlist t = true) (v: reptype t) : reptype (nested_field_type2 t ids) :=
-  match ids as ids' return reptype (nested_field_type2 t ids')
-  with
-  | nil => eq_rect_r reptype v (nested_field_type2_nil t)
-  | id :: ids0 =>
-    match nested_field_type2 t ids0 as T
-      return match T with
-             | Tstruct i f a => nested_reptype_structlist t ids0 f
-             | _ => reptype (nested_field_type2 t ids0)
-             end -> reptype (nested_field_type2 t (id :: ids0))
-    with
-    | Tstruct i f a => fun v => proj_reptype_structlist t id ids0 f v
-    | _ => fun _ => default_val _
-    end (eq_rect_r (fun T => T) (proj_reptype_rec t ids0 H v) (proj_reptype_aux t ids0 H))
-  end.
-
-Definition proj_reptype t ids v :=
- (if nested_legal_fieldlist t as b
-    return nested_legal_fieldlist t = b -> reptype (nested_field_type2 t ids)
-  then fun H => proj_reptype_rec t ids H v
-  else fun _ => default_val _) eq_refl.
-
-Arguments proj_reptype / t ids v.
-*)
 Lemma gupd_reptype_structlist_aux: forall f i0 t0,
   all_fields_replace_one2 f i0 t0 = match f with
                                     | Fnil => Fnil
@@ -775,7 +714,7 @@ Fixpoint gupd_reptype_structlist f (i0: ident) (t0: type) (v: reptype_structlist
           return reptype t1 ->
                  (if b1 then reptype t1 else reptype t1 * 
                      reptype_structlist (all_fields_replace_one2 flds0 i0 t0))
-        then fun _ => default_val _
+        then fun v => v
         else fun _ => (default_val _, struct_default_val _)
       else
         if is_Fnil (all_fields_replace_one2 flds0 i0 t0) as b1
@@ -1052,47 +991,6 @@ Proof.
   rewrite H1.
   reflexivity.
 Qed.
-
-(*
-Lemma proj_reptype_nil: forall t v, nested_legal_fieldlist t = true -> JMeq (proj_reptype t nil v) v.
-Proof.
-  intros.
-  simpl.
-  generalize (@eq_refl bool (nested_legal_fieldlist t)).
-  pattern (nested_legal_fieldlist t) at 2 3.
-  rewrite H; intros.
-  rewrite eq_rect_r_JMeq.
-  reflexivity.
-Qed.
-
-Lemma proj_reptype_cons_Tstruct: forall t id ids i f a v v0,
-  nested_legal_fieldlist t = true ->
-  nested_field_type2 t ids = Tstruct i f a ->
-  JMeq (proj_reptype t ids v) v0 ->
-  JMeq (proj_reptype t (id :: ids) v) (proj_reptype_structlist t id ids f v0).
-Proof.
-  intros.
-  simpl in *.
-  revert H1.
-  generalize (@eq_refl bool (nested_legal_fieldlist t)) as HH.
-  pattern (nested_legal_fieldlist t) at 2 3 7.
-  rewrite H.
-  intros.
-  match goal with
-  | |- JMeq (_ ?T) _ =>
-    assert (JMeq T (proj_reptype_rec t ids HH v)) as H2
-      by apply eq_rect_r_JMeq with (F := fun T => T);
-    revert H2;
-    generalize T
-  end.
-  pattern (nested_field_type2 t ids) at 1 11 22.
-  rewrite H0.
-  intros.
-  rewrite H1 in H2.
-  rewrite H2.
-  reflexivity.
-Qed.
-*)
 
 Module Test.
   Definition T1 := Tstruct 1%positive (Fcons 101%positive tint (Fcons 102%positive tint Fnil)) noattr.
@@ -1756,59 +1654,94 @@ Transparent field_at proj_reptype spacer nested_sfieldlist_at proj_except_reptyp
         reflexivity.
 Qed.
 
-(*
-Lemma proj_except_reptype_structlist_gupd_reptype_structlist: forall f id t0 v v0,
-  JMeq (proj_except_reptype_structlist f id v)
-     (proj_except_reptype_structlist (all_fields_replace_one2 f id t0) id
-        (gupd_reptype_structlist f id t0 v v0)).
-Proof.
-  admit.
-Qed.
-
-Lemma proj_except_reptype_gupd_reptype_cons_Tstruct: forall t id0 ids i f a t1 v v0,
-  nested_field_type2 t (id0 :: ids) = Tstruct i f a ->
-  JMeq (proj_except_reptype t id0 ids v)
-     (proj_except_reptype (nf_replace2 t (id0 :: ids) t1) id0 ids
-       (gupd_reptype t (id0 :: ids) t1 v v0)).
+Lemma is_Fnil_all_fields_replace_one2: forall f id t,
+  is_Fnil (all_fields_replace_one2 f id t) = is_Fnil f.
 Proof.
   intros.
-  assert (isSome (nested_field_rec t (id0 :: ids)))
-    by (unfold nested_field_type2 in H;
-       destruct (nested_field_rec t (id0 :: ids)) as [[? ?]|]; inversion H; simpl; auto).
-  simpl in *.
-  destruct (nested_field_type2 t ids). as [[? ttt]|]; try inversion H0.
-  clear H.
-  revert id0 H0.
-  induction ids; intros.
+  destruct f.
+  + reflexivity.
   + simpl.
-    unfold nested_field_type, nested_field_type2, nested_field_offset2 in *; destruct t; simpl in *;
-    try (inversion H0; auto).
-    solve_field_offset_type id0 f0; [| inversion H0].
-    - (* Tstruct *)
-      apply proj_except_reptype_structlist_gupd_reptype_structlist.
-    - (* Tunion *)
-      admit.
-  + assert (isSome (nested_field_rec t (a0 :: ids))).
-    Focus 1. {
-      simpl in H0 |- *.
-      match goal with
-      | |- isSome ?M => destruct M as [[? ?]|]; try inversion H0; simpl; auto
-      end.
-    } Unfocus.
-    pose proof IHids a0 H as IH; clear IHids.
-    simpl.
-  
-Qed.
-*)
+    if_tac; reflexivity.
+Defined.
+
 Lemma proj_reptype_structlist_gupd_reptype_structlist_identical: forall f id t0 v v0,
   isSome (all_fields_replace_one f id t0) ->
-  JMeq (proj_reptype_structlist id (all_fields_replace_one2 f id t0) 0
-        (gupd_reptype_structlist f id t0 v v0)) v0.
-Admitted.
+  JMeq (proj_reptype_structlist id _ 0 (gupd_reptype_structlist f id t0 v v0)) v0.
+Proof.
+  intros.
+  generalize 0; induction f; intros.
+  + simpl in H.
+    inversion H.
+  + simpl in *.
+    if_tac.
+    - (* id = i *)
+      simpl. revert v. if_tac.
+      * intros; if_tac; [| congruence]. reflexivity.
+      * intros; if_tac; [| congruence]. reflexivity.
+    - (* id <> i *)
+      destruct (is_Fnil f) eqn:?.
+      * destruct f; [| inversion Heqb].
+        simpl in H; inversion H.
+      * simpl; if_tac; [congruence |].
+        rewrite (is_Fnil_all_fields_replace_one2 f id t0), Heqb.
+        simpl.
+        apply IHf.
+        destruct (all_fields_replace_one f id t0); [auto | inversion H].
+Qed.
 
 Lemma proj_except_reptype_structlist_gupd_reptype_structlist: forall f id t0 v v0,
-  JMeq (proj_except_reptype_structlist (all_fields_replace_one2 f id t0) id (gupd_reptype_structlist f id t0 v v0)) (proj_except_reptype_structlist f id v).
-Admitted.
+  JMeq (proj_except_reptype_structlist _ id (gupd_reptype_structlist f id t0 v v0)) (proj_except_reptype_structlist f id v).
+Proof.
+  intros.
+  induction f.
+  + simpl in *. destruct v. reflexivity.
+  + simpl in *.
+    if_tac.
+    - (* id = i *)
+      simpl. if_tac; [| congruence].
+      destruct f; simpl; reflexivity.
+    - (* id <> i *)
+      simpl. if_tac; [congruence |].
+      destruct (is_Fnil f) eqn:?.
+      * destruct f; [| inversion Heqb].
+        simpl. reflexivity.
+      * rewrite (is_Fnil_all_fields_replace_one2 f id t0), Heqb.
+        simpl.
+        pattern (all_fields_except_one2 (all_fields_replace_one2 f id t0) id) at 1 3.
+        rewrite (all_fields_except_one2_all_fields_replace_one2 id f t0).
+        if_tac; [reflexivity |].
+        generalize (IHf (snd v)).
+        match goal with
+        | |- JMeq ?M _ -> _ => generalize M
+        end.
+        rewrite (all_fields_except_one2_all_fields_replace_one2 id f t0).
+        intros.
+        rewrite H1.
+        reflexivity.
+Qed.
+
+Lemma gupd_reptype_structlist_gupd_reptype_structlist: forall f id t0 t1 v v0 v1,
+  JMeq (gupd_reptype_structlist _ id t1 (gupd_reptype_structlist f id t0 v v0) v1)
+    (gupd_reptype_structlist f id t1 v v1).
+Proof.
+  intros.
+  revert t0 t1 v0 v1.
+  induction f; intros.
+  + simpl. reflexivity.
+  + simpl in *.
+    if_tac.
+    - (* id = i *)
+      simpl; if_tac; [| congruence].
+      simpl; if_tac; reflexivity.
+    - (* id <> i *)
+      simpl; if_tac; [congruence |].
+      simpl.
+      destruct (is_Fnil f) eqn:?.
+      * simpl; rewrite !is_Fnil_all_fields_replace_one2, Heqb. reflexivity.
+      * simpl; rewrite !is_Fnil_all_fields_replace_one2, Heqb.
+        simpl. rewrite IHf.
+        reflexivity.
+Qed.
 
 Lemma proj_reptype_gupd_reptype: forall t ids v t0 v0,
   isSome (nf_replace t ids t0) ->
@@ -1842,8 +1775,58 @@ Proof.
 Qed.
 
 Lemma gupd_reptype_gupd_reptype: forall t ids t0 t1 v v0 v1,
+  isSome (nested_field_type t ids) ->
   JMeq (gupd_reptype t ids t1 v v1) (gupd_reptype (nf_replace2 t ids t0) ids t1 (gupd_reptype t ids t0 v v0) v1).
-Admitted.
+Proof.
+  intros.
+  revert t0 t1 v0 v1.
+  induction ids; intros.
+  + simpl. reflexivity.
+  + pose proof H.
+    unfold nested_field_type in H. 
+    simpl in H.
+    simpl.
+    generalize (proj_reptype t ids v).
+    unfold nested_field_type2;
+    destruct (nested_field_rec t ids) as [[? ttt]|]; [| inversion H];
+    destruct ttt eqn:?; try inversion H; intros; subst ttt.
+    - (* Tstruct *)
+      change (match
+        nested_field_rec
+          (nf_replace2 t ids (Tstruct i (all_fields_replace_one2 f a t0) a0))
+          ids
+      with
+      | Some (_, t0) => t0
+      | None => Tvoid
+      end) with (nested_field_type2 (nf_replace2 t ids
+               (Tstruct i (all_fields_replace_one2 f a t0) a0)) ids).
+      assert (isSome (nested_field_type t ids)).
+        unfold nested_field_type in *.
+        simpl in H0.
+        destruct (nested_field_rec t ids) as [[? ?]|]; try inversion H0.
+        simpl; auto.
+      assert (isSome (nf_replace t ids (Tstruct i (all_fields_replace_one2 f a t0) a0))).
+        apply nf_replace_nested_field_type_isSome_lemma; auto.
+      clear H0.
+      generalize (proj_reptype_gupd_reptype t ids v (Tstruct i (all_fields_replace_one2 f a t0) a0)
+        (gupd_reptype_structlist f a t0 r v0) H2).
+      match goal with
+      | |- JMeq ?M _ -> _ => generalize M
+      end.
+      rewrite nested_field_type2_nf_replace2; eauto; intros.
+      rewrite H0.
+      rewrite <- (IHids H1).
+      generalize (gupd_reptype_structlist_gupd_reptype_structlist f a t0 t1 r v0 v1).
+      match goal with
+      | |- JMeq ?M _ -> _ => generalize M
+      end.
+      rewrite all_fields_replace_one2_all_fields_replace_one2.
+      intros.
+      rewrite H3.
+      reflexivity.
+    - (* Tunion *)
+      admit.
+Qed.
 
 Lemma proj_except_reptype_proj_except_reptype_cons_Tstruct: forall t id id0 ids i f a t0 v,
   nested_field_type2 t (id0 :: ids) = Tstruct i f a ->
@@ -1869,29 +1852,30 @@ Proof.
   generalize (proj_reptype t ids v).
   destruct (nested_field_type2 t ids) eqn:HH; try inversion H; intros.
   + (* Tstruct *)
-    assert (forall t0, isSome (nf_replace t ids t0)).
-      intros.
-      apply nf_replace_nested_field_type_isSome_lemma.
+    assert (isSome (nested_field_type t ids)).
       unfold nested_field_type; unfold nested_field_type2 in HH.
       destruct (nested_field_rec t ids) as [[? ?]|]; [simpl; auto | inversion HH].
+    assert (forall t0, isSome (nf_replace t ids t0)).
+      intros.
+      apply nf_replace_nested_field_type_isSome_lemma; auto.
     generalize (proj_reptype_gupd_reptype t ids v 
       (Tstruct i0 (all_fields_replace_one2 f0 id0 t0) a0) 
-      (gupd_reptype_structlist f0 id0 t0 r v0) (H0 _)).
+      (gupd_reptype_structlist f0 id0 t0 r v0) (H2 _)).
     match goal with
     | |- JMeq ?M _ -> _ => generalize M
     end.
-    erewrite nested_field_type2_nf_replace2 by apply H0.
+    erewrite nested_field_type2_nf_replace2 by apply H2.
     intros.
-    rewrite <- gupd_reptype_gupd_reptype.
-    simpl in r0, H2.
-    rewrite H2.
+    rewrite <- gupd_reptype_gupd_reptype by auto.
+    simpl in r0, H3.
+    rewrite H3.
     generalize (proj_except_reptype_structlist_gupd_reptype_structlist f0 id0 t0 r v0).
     match goal with
     | |- JMeq ?M _ -> _ => generalize M
     end.
     rewrite all_fields_except_one2_all_fields_replace_one2.
     intros.
-    rewrite H3.
+    rewrite H4.
     reflexivity.
   + (* Tunion *)
     admit.
@@ -1916,7 +1900,16 @@ Lemma proj_reptype_proj_except_reptype_Tstruct: forall t id ids i f a t0 v v1,
   field_type id f = Errors.OK t0 ->
   JMeq (proj_reptype t ids v) v1 ->
   JMeq (proj_reptype _ ids (proj_except_reptype t id ids v)) (proj_except_reptype_structlist f id v1).
-Admitted.
+Proof.
+  intros.
+  unfold proj_except_reptype, nf_sub2.
+  revert H1; generalize (proj_reptype t ids v). rewrite H.
+  intros. rewrite H1.
+  apply proj_reptype_gupd_reptype.
+  apply nf_replace_nested_field_type_isSome_lemma.
+  unfold nested_field_type; unfold nested_field_type2 in H.
+  destruct (nested_field_rec t ids) as [[? ?]|]; [simpl; auto | inversion H].
+Qed.
 
 Lemma proj_reptype_proj_except_reptype_Tstruct_eq_rect_r: forall t id ids i f a t0 v v1
   (H: nested_field_type2 t ids = Tstruct i f a),
@@ -2023,6 +2016,111 @@ Proof.
 
 
 
+(*
+
+(* Here is potentially another way of defining proj_reptype. This definition *)
+(* is less efficient but easier to prove properties. In principle,           *)
+(* gupd_reptype and other functions can all be defined in this style.        *)
+Fixpoint proj_reptype_structlist t id ids f (v: nested_reptype_structlist t ids f) : reptype (nested_field_type2 t (id :: ids)) :=
+  match f as f'
+    return nested_reptype_structlist t ids f' -> reptype (nested_field_type2 t (id :: ids)) with
+  | Fnil => fun _ => default_val _
+  | Fcons i0 t0 flds0 => 
+    if is_Fnil flds0 as b
+      return ((if b 
+               then reptype (nested_field_type2 t (i0 :: ids)) 
+               else reptype (nested_field_type2 t (i0 :: ids)) * 
+                    nested_reptype_structlist t ids flds0) ->
+              reptype (nested_field_type2 t (id :: ids)))
+    then fun v =>
+      match ident_eq id i0 with
+      | left H => eq_rect_r (fun i => reptype (nested_field_type2 t (i :: ids))) v H
+      | right H => default_val _
+      end
+    else fun v => 
+      match ident_eq id i0 with
+      | left H => eq_rect_r (fun i => reptype (nested_field_type2 t (i :: ids))) (fst v) H
+      | right _ => proj_reptype_structlist t id ids flds0 (snd v)
+      end
+  end v.
+
+Lemma proj_reptype_aux: forall t ids, 
+  nested_legal_fieldlist t = true ->
+  match nested_field_type2 t ids with
+  | Tstruct i f a => nested_reptype_structlist t ids f
+  | _ => reptype (nested_field_type2 t ids)
+  end = reptype (nested_field_type2 t ids).
+Proof.
+  intros.
+  destruct (nested_field_type2 t ids) eqn:HH; auto.
+  rewrite <- HH.
+  eapply eq_sym, nested_reptype_structlist_lemma2; eauto.
+Defined.
+
+Fixpoint proj_reptype_rec (t: type) (ids: list ident) (H: nested_legal_fieldlist t = true) (v: reptype t) : reptype (nested_field_type2 t ids) :=
+  match ids as ids' return reptype (nested_field_type2 t ids')
+  with
+  | nil => eq_rect_r reptype v (nested_field_type2_nil t)
+  | id :: ids0 =>
+    match nested_field_type2 t ids0 as T
+      return match T with
+             | Tstruct i f a => nested_reptype_structlist t ids0 f
+             | _ => reptype (nested_field_type2 t ids0)
+             end -> reptype (nested_field_type2 t (id :: ids0))
+    with
+    | Tstruct i f a => fun v => proj_reptype_structlist t id ids0 f v
+    | _ => fun _ => default_val _
+    end (eq_rect_r (fun T => T) (proj_reptype_rec t ids0 H v) (proj_reptype_aux t ids0 H))
+  end.
+
+Definition proj_reptype t ids v :=
+ (if nested_legal_fieldlist t as b
+    return nested_legal_fieldlist t = b -> reptype (nested_field_type2 t ids)
+  then fun H => proj_reptype_rec t ids H v
+  else fun _ => default_val _) eq_refl.
+
+Arguments proj_reptype / t ids v.
+
+Lemma proj_reptype_nil: forall t v, nested_legal_fieldlist t = true -> JMeq (proj_reptype t nil v) v.
+Proof.
+  intros.
+  simpl.
+  generalize (@eq_refl bool (nested_legal_fieldlist t)).
+  pattern (nested_legal_fieldlist t) at 2 3.
+  rewrite H; intros.
+  rewrite eq_rect_r_JMeq.
+  reflexivity.
+Qed.
+
+Lemma proj_reptype_cons_Tstruct: forall t id ids i f a v v0,
+  nested_legal_fieldlist t = true ->
+  nested_field_type2 t ids = Tstruct i f a ->
+  JMeq (proj_reptype t ids v) v0 ->
+  JMeq (proj_reptype t (id :: ids) v) (proj_reptype_structlist t id ids f v0).
+Proof.
+  intros.
+  simpl in *.
+  revert H1.
+  generalize (@eq_refl bool (nested_legal_fieldlist t)) as HH.
+  pattern (nested_legal_fieldlist t) at 2 3 7.
+  rewrite H.
+  intros.
+  match goal with
+  | |- JMeq (_ ?T) _ =>
+    assert (JMeq T (proj_reptype_rec t ids HH v)) as H2
+      by apply eq_rect_r_JMeq with (F := fun T => T);
+    revert H2;
+    generalize T
+  end.
+  pattern (nested_field_type2 t ids) at 1 11 22.
+  rewrite H0.
+  intros.
+  rewrite H1 in H2.
+  rewrite H2.
+  reflexivity.
+Qed.
+
+*)
 
 
 
