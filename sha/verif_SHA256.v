@@ -23,8 +23,9 @@ entailer!.
 normalize.
 after_call.
 forward_call (* SHA256_Update(&c,d,n); *)
-  (init_s256abs,data,c,d,dsh, length data).
+  (init_s256abs,data,c,d,dsh, Zlength data).
 entailer!.
+pose proof (Zlength_nonneg data); omega.
 after_call.
 replace_SEP 0 (
  EX  x : s256abs,
@@ -49,8 +50,8 @@ forward. (* return; *)
 unfold frame_ret_assert; simpl.
 entailer!.
 replace (SHA_256 data) with (sha_finish a); auto.
-clear - H2.
-inv H2.
+clear - H3.
+inv H3.
 simpl in *.
 rewrite <- H8.
 rewrite firstn_same by (clear; omega).

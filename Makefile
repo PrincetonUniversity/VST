@@ -159,7 +159,9 @@ SHA_FILES= \
   bdo_lemmas.v verif_sha_bdo.v verif_sha_bdo2.v \
   verif_sha_bdo4.v verif_sha_bdo7.v verif_sha_bdo8.v \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
-  verif_addlength.v verif_SHA256.v entail_examples2.v \
+  verif_addlength.v verif_SHA256.v
+
+HMAC_FILES= \
   hmac_sha256.v HMAC_definitions.v HMAC_part2GT.v HMAC_part2LE.v \
   HMAC_proofTail.v HMAC_LoopBodyGT.v HMAC_proof.v
 
@@ -171,7 +173,8 @@ FILES = \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) \
- $(SHA_FILES:%=sha/%) 
+ $(SHA_FILES:%=sha/%) \
+ $(HMAC_FILES:%=sha/%) 
 
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
@@ -200,6 +203,7 @@ veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
 sha:     .loadpath $(SHA_FILES:%.v=sha/%.vo)
+hmac:     .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 
 CGFLAGS =  -DCOMPCERT
 

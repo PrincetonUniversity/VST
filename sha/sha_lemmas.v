@@ -1041,3 +1041,18 @@ Lemma Forall_list_repeat:
 Proof.
  intros; induction n; simpl; auto.
 Qed.
+
+Lemma ZtoNat_Zlength: 
+ forall {A} (l: list A), Z.to_nat (Zlength l) = length l.
+Proof.
+intros. rewrite Zlength_correct. apply Nat2Z.id.
+Qed.
+Hint Rewrite @ZtoNat_Zlength : norm.
+
+Lemma Zlength_nonneg:
+ forall {A} (l: list A), 0 <= Zlength l.
+Proof.
+intros. rewrite Zlength_correct. omega.
+Qed.
+
+

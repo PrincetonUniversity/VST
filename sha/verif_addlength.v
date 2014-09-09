@@ -55,15 +55,13 @@ apply semax_pre with
    SEP  (`(field_at Tsh t_struct_SHA256state_st [_Nl] (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st [_Nh] (Vint hi) c))).
 entailer!.
-apply Int.unsigned_range.
-apply Int.unsigned_range.
+change Int.modulus with (Int.max_unsigned + 1); omega.
 rewrite Int.shl_mul_two_p.
 change (two_p (Int.unsigned (Int.repr 3))) with 8.
 rewrite Int.and_mone.
+rewrite mul_repr.
 rewrite <- add_repr.
-rewrite Int.repr_unsigned.
-f_equal.
-apply Int.repr_unsigned.
+rewrite Int.repr_unsigned. auto.
 apply semax_extract_PROP; intro.
 pose (carry := ((Int.unsigned lo + (len * 8) mod Int.modulus)
                         -  (Int.unsigned lo + len * 8) mod Int.modulus)/Int.modulus).
@@ -83,11 +81,11 @@ forward_if (
  f_equal.
  f_equal.
  unfold carry.
- unfold Int.ltu in H1.
- rewrite <- add_repr in H1.
- rewrite Int.repr_unsigned in H1.
- if_tac in H1; [clear H1 | discriminate].
- clear - MN H0 H.
+ unfold Int.ltu in H2.
+ rewrite <- add_repr in H2.
+ rewrite Int.repr_unsigned in H2.
+ if_tac in H2; [clear H2 | discriminate].
+ clear - MN H1 H. rename H1 into H0.
  destruct (Int.unsigned_add_either lo (Int.repr (len*8))) as [H9|H9].
  elimtype False; rewrite H9 in H0; clear H9.
  destruct (Int.unsigned_range (Int.repr (len*8))) as [? _]; omega.
@@ -109,6 +107,7 @@ forward_if (
  forward.  (* skip; *)
  entailer!.
  unfold carry; clear carry.
+ clear H0; rename H1 into H0.
  unfold Int.ltu in H0.
  rewrite <- add_repr in H0.
  rewrite Int.repr_unsigned in H0.

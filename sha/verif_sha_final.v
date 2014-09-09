@@ -117,7 +117,7 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
      Int.zero).
 change 40%Z with data_offset.
 entailer!.
-rewrite Int.unsigned_repr. Omega1. Omega1. 
+Omega1.
 rewrite split_offset_array_at with (z := 0) (lo := (Z.of_nat CBLOCK - 8)%Z) (hi := 64%Z); [| change CBLOCK with (64%nat); simpl; omega | simpl; omega | reflexivity].
 rewrite split_offset_array_at with (z := 0) (lo := Zlength dd') (hi := Z.of_nat CBLOCK - 8); [| | simpl; omega | reflexivity].
 Focus 2.

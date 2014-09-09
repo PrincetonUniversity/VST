@@ -76,11 +76,14 @@ Definition data_block (sh: share) (contents: list Z) :=
   !! Forall isbyteZ contents &&
   array_at tuchar sh (tuchars (map Int.repr contents)) 0 (Zlength contents).
 
+Definition _ptr : ident := 81%positive.
+Definition _x : ident := 82%positive.
+
 Definition __builtin_read32_reversed_spec :=
  DECLARE ___builtin_read32_reversed
   WITH p: val, sh: share, contents: Z -> int
-  PRE [ 1%positive OF tptr tuint ] 
-        PROP() LOCAL (`(eq p) (eval_id 1%positive))
+  PRE [ _ptr OF tptr tuint ] 
+        PROP() LOCAL (`(eq p) (eval_id _ptr))
         SEP (`(array_at tuchar sh (cVint contents) 0 4 p))
   POST [ tuint ] 
      local (`(eq (Vint (big_endian_integer contents))) retval) &&
@@ -89,10 +92,10 @@ Definition __builtin_read32_reversed_spec :=
 Definition __builtin_write32_reversed_spec :=
  DECLARE ___builtin_write32_reversed
   WITH p: val, sh: share, contents: Z -> int
-  PRE [ 1%positive OF tptr tuint, 2%positive OF tuint ] 
+  PRE [ _ptr OF tptr tuint, _x OF tuint ] 
         PROP(writable_share sh)
-        LOCAL (`(eq p) (eval_id 1%positive);
-                     `(eq (Vint(big_endian_integer contents))) (eval_id 2%positive))
+        LOCAL (`(eq p) (eval_id _ptr);
+                     `(eq (Vint(big_endian_integer contents))) (eval_id _x))
         SEP (`(memory_block sh (Int.repr 4) p))
   POST [ tvoid ] 
      `(array_at tuchar sh (cVint contents) 0 4 p).
@@ -101,9 +104,10 @@ Definition memcpy_spec :=
   DECLARE _memcpy
    WITH sh : share*share, p: val, q: val, n: Z, contents: Z -> int 
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
-       PROP (writable_share (snd sh))
+       PROP (writable_share (snd sh); 0 <= n <= Int.max_unsigned)
        LOCAL (`(eq p) (eval_id 1%positive); `(eq q) (eval_id 2%positive);
-                    `(eq n) (`Int.unsigned (`force_int (eval_id 3%positive))))
+                    `(eq (Vint (Int.repr n))) (eval_id 3%positive))
+(*                    `(eq n) (`Int.unsigned (`force_int (eval_id 3%positive))))*)
        SEP (`(array_at tuchar (fst sh) (cVint contents) 0 n q);
               `(memory_block (snd sh) (Int.repr n) p))
     POST [ tptr tvoid ]
@@ -115,9 +119,10 @@ Definition memset_spec :=
   DECLARE _memset
    WITH sh : share, p: val, n: Z, c: int 
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tint, 3%positive OF tuint ]
-       PROP (writable_share sh)
+       PROP (writable_share sh; 0 <= n <= Int.max_unsigned)
        LOCAL (`(eq p) (eval_id 1%positive); `(eq (Vint c)) (eval_id 2%positive);
-                    `(eq n) (`Int.unsigned (`force_int (eval_id 3%positive))))
+                    `(eq (Vint (Int.repr n))) (eval_id 3%positive))
+(*                    `(eq n) (`Int.unsigned (`force_int (eval_id 3%positive))))*)
        SEP (`(memory_block sh (Int.repr n) p))
     POST [ tptr tvoid ]
          local (`(eq p) retval) &&
@@ -144,8 +149,8 @@ Definition SHA256_addlength_spec :=
  DECLARE _SHA256_addlength
  WITH len : Z, c: val, n: Z
  PRE [ _c OF tptr t_struct_SHA256state_st , _len OF tuint ]
-   PROP ( 0 <= n+len*8 < two_p 64) 
-   LOCAL (`(eq len) (`Int.unsigned (`force_int (eval_id _len))); 
+   PROP ( 0 <= n+len*8 < two_p 64; 0 <= len <= Int.max_unsigned) 
+   LOCAL (`(eq (Vint (Int.repr len))) (eval_id _len); 
                `(eq c) (eval_id _c))
    SEP (`(sha256_length n c))
  POST [ tvoid ]
@@ -173,17 +178,17 @@ Inductive update_abs: list Z -> s256abs -> s256abs -> Prop :=
 
 Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update
-   WITH a: s256abs, data: list Z, c : val, d: val, sh: share, len : nat
+   WITH a: s256abs, data: list Z, c : val, d: val, sh: share, len : Z
    PRE [ _c OF tptr t_struct_SHA256state_st, _data_ OF tptr tvoid, _len OF tuint ]
-         PROP ((len <= length data)%nat; 
-                   (s256a_len a + Z.of_nat len * 8 < two_p 64)%Z)
+         PROP (len <= Zlength data; 0 <= len <= Int.max_unsigned;
+                   (s256a_len a + len * 8 < two_p 64)%Z)
          LOCAL (`(eq c) (eval_id _c); `(eq d) (eval_id _data_); 
-                                  `(eq (Z.of_nat len)) (`Int.unsigned (`force_int (eval_id _len))))
+                                  `(eq (Vint (Int.repr len))) (eval_id _len))
          SEP(`K_vector (eval_var _K256 (tarray tuint 64));
                `(sha256state_ a c); `(data_block sh data d))
   POST [ tvoid ] 
          EX a':_, 
-          PROP (update_abs (firstn len data) a a') LOCAL ()
+          PROP (update_abs (firstn (Z.to_nat len) data) a a') LOCAL ()
           SEP(`K_vector (eval_var _K256 (tarray tuint 64));
                 `(sha256state_ a' c); `(data_block sh data d)).
 
@@ -206,9 +211,9 @@ Definition SHA256_spec :=
   DECLARE _SHA256
    WITH d: val, len: Z, dsh: share, msh: share, data: list Z, md: val
    PRE [ _d OF tptr tuchar, _n OF tuint, _md OF tptr tuchar ]
-         PROP (writable_share msh; Z.of_nat (length data) * 8 < two_p 64) 
+         PROP (writable_share msh; Zlength data * 8 < two_p 64; Zlength data <= Int.max_unsigned) 
          LOCAL (`(eq d) (eval_id _d);
-                     `(eq (Z.of_nat (length data))) (`Int.unsigned (`force_int (eval_id _n)));
+                     `(eq (Vint (Int.repr (Zlength data)))) (eval_id _n);
                      `(eq md) (eval_id _md))
          SEP(`K_vector (eval_var _K256 (tarray tuint 64));
                `(data_block dsh data d); `(memory_block msh (Int.repr 32) md))

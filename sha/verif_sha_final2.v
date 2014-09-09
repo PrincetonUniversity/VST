@@ -119,12 +119,10 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-n); *)
        (fun i : Z =>
         ZnthV tuchar (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)])
           (i + (ddlen + 1))) 0 (64 - (ddlen + 1))
-       (offset_val (Int.repr (sizeof tuchar * (ddlen + 1)))
-          (offset_val (Int.repr data_offset) c))) as A.
+    (offset_val (Int.repr (data_offset + (ddlen + 1))) c))
+     as A.
   entailer!.
-  (*+ rewrite Int.unsigned_repr; auto. 
-      change CBLOCKz with 64 in Hddlen; repable_signed.
-  +*)
+  change CBLOCKz with 64%Z; assert (Int.max_unsigned > 64%Z) by computable; omega.
   change CBLOCKz with 64%Z.
   normalize.
    repeat rewrite <- sepcon_assoc;

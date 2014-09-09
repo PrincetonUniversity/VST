@@ -121,7 +121,6 @@ Proof.
      by (change 64 with CBLOCK; omega).
     rewrite prop_true_andp.
     Focus 2. {
-      rewrite Int.unsigned_repr; [auto | split; [clear; omega | ]].
       apply Z.le_trans with (Z.of_nat 64). 
       apply -> Nat2Z.inj_le; clear - H12; omega.
       change CBLOCK with 64 in H99; clear - H99; omega.
@@ -429,7 +428,8 @@ name data' _data.
 name p _p.
 name n _n.
 name fragment _fragment.
-rename H0 into HBOUND.
+rename H0 into HBOUND'.
+rename H1 into HBOUND.
 
 fold update_inner_if_then in *.
 fold update_inner_if_else in *.
@@ -454,14 +454,16 @@ subst r_Nh r_Nl.
 rename H8 into H1.
 subst r_data.
 subst r_h r_num.
+(*
 apply (assert_PROP (Z.of_nat len <= Int.max_unsigned)%Z); 
    [ | intro Hlen]. {
 entailer!.
 rewrite H1. apply Int.unsigned_range_2.
 }
+*)
 
 forward_call  (* SHA256_addlength(c, len); *)
-  (Z.of_nat len, c, hilo hi lo). {
+  (len, c, hilo hi lo). {
 entailer!.
 * rewrite <- H7. repeat rewrite <- (Z.mul_comm 8). rewrite <- (Z.mul_comm 4).
  rewrite Z.mul_add_distr_l. rewrite Z.mul_assoc.  change (8*4)%Z with 32%Z.
@@ -482,22 +484,28 @@ replace Delta with (initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot))))
  by (simplify_Delta; reflexivity).
 fold update_outer_if.
-apply semax_seq with (sha_update_inv sh hashed len c d dd data hi lo false).
+apply semax_seq with (sha_update_inv sh hashed (Z.to_nat len) c d dd data hi lo false).
 unfold POSTCONDITION, abbreviate.
-eapply semax_pre; [ | simple apply update_outer_if_proof; assumption].
-entailer!.
+eapply semax_pre; [ | simple apply update_outer_if_proof; try assumption].
+entailer!. apply Z2Nat.id. omega. rewrite Z2Nat.id by omega; auto.
+rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; auto; omega.
+rewrite Z2Nat.id by omega; auto.
+rewrite Z2Nat.id by omega; omega.
 (* after if (n!=0) *)
 eapply semax_seq' with
-     (sha_update_inv sh hashed len c d dd data hi lo true).
+     (sha_update_inv sh hashed (Z.to_nat len) c d dd data hi lo true).
 clear POSTCONDITION MORE_COMMANDS Delta.
-simple apply update_while_proof; assumption.
+simple apply update_while_proof; try assumption.
+rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; auto; omega.
+rewrite Z2Nat.id by omega; auto.
+rewrite Z2Nat.id by omega; omega.
 simplify_Delta; abbreviate_semax.
 unfold sha_update_inv.   apply extract_exists_pre; intro blocks.
 apply semax_extract_PROP; apply intro_update_inv; intros.
 forward.    (* c->num=len; *)
 
 apply semax_seq with (EX  a' : s256abs,
-                    PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
+                    PROP  (update_abs (firstn (Z.to_nat len) data) (S256abs hashed dd) a')
                     LOCAL ()
                     SEP 
                     (`K_vector (eval_var _K256 (tarray tuint 64));
@@ -512,7 +520,10 @@ make_sequential.
 rewrite overridePost_normal'.
 fold update_last_if.
 
-simple apply update_last_if_proof; assumption.
+simple apply update_last_if_proof; try assumption.
+rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; auto; omega.
+rewrite Z2Nat.id by omega; auto.
+rewrite Z2Nat.id by omega; omega.
 abbreviate_semax.
 (* after the last if *)
  apply extract_exists_pre; intro a'.
