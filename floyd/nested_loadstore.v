@@ -1757,20 +1757,179 @@ Transparent field_at proj_reptype spacer nested_sfieldlist_at proj_except_reptyp
 Qed.
 
 (*
+Lemma proj_except_reptype_structlist_gupd_reptype_structlist: forall f id t0 v v0,
+  JMeq (proj_except_reptype_structlist f id v)
+     (proj_except_reptype_structlist (all_fields_replace_one2 f id t0) id
+        (gupd_reptype_structlist f id t0 v v0)).
+Proof.
+  admit.
+Qed.
+
+Lemma proj_except_reptype_gupd_reptype_cons_Tstruct: forall t id0 ids i f a t1 v v0,
+  nested_field_type2 t (id0 :: ids) = Tstruct i f a ->
+  JMeq (proj_except_reptype t id0 ids v)
+     (proj_except_reptype (nf_replace2 t (id0 :: ids) t1) id0 ids
+       (gupd_reptype t (id0 :: ids) t1 v v0)).
+Proof.
+  intros.
+  assert (isSome (nested_field_rec t (id0 :: ids)))
+    by (unfold nested_field_type2 in H;
+       destruct (nested_field_rec t (id0 :: ids)) as [[? ?]|]; inversion H; simpl; auto).
+  simpl in *.
+  destruct (nested_field_type2 t ids). as [[? ttt]|]; try inversion H0.
+  clear H.
+  revert id0 H0.
+  induction ids; intros.
+  + simpl.
+    unfold nested_field_type, nested_field_type2, nested_field_offset2 in *; destruct t; simpl in *;
+    try (inversion H0; auto).
+    solve_field_offset_type id0 f0; [| inversion H0].
+    - (* Tstruct *)
+      apply proj_except_reptype_structlist_gupd_reptype_structlist.
+    - (* Tunion *)
+      admit.
+  + assert (isSome (nested_field_rec t (a0 :: ids))).
+    Focus 1. {
+      simpl in H0 |- *.
+      match goal with
+      | |- isSome ?M => destruct M as [[? ?]|]; try inversion H0; simpl; auto
+      end.
+    } Unfocus.
+    pose proof IHids a0 H as IH; clear IHids.
+    simpl.
+  
+Qed.
+*)
+Lemma proj_reptype_structlist_gupd_reptype_structlist_identical: forall f id t0 v v0,
+  isSome (all_fields_replace_one f id t0) ->
+  JMeq (proj_reptype_structlist id (all_fields_replace_one2 f id t0) 0
+        (gupd_reptype_structlist f id t0 v v0)) v0.
+Admitted.
+
+Lemma proj_except_reptype_structlist_gupd_reptype_structlist: forall f id t0 v v0,
+  JMeq (proj_except_reptype_structlist (all_fields_replace_one2 f id t0) id (gupd_reptype_structlist f id t0 v v0)) (proj_except_reptype_structlist f id v).
+Admitted.
+
+Lemma proj_reptype_gupd_reptype: forall t ids v t0 v0,
+  isSome (nf_replace t ids t0) ->
+  JMeq (proj_reptype (nf_replace2 t ids t0) ids (gupd_reptype t ids t0 v v0)) v0.
+Proof.
+  intros.
+  revert t v t0 v0 H.
+  induction ids; intros.
+  + simpl. reflexivity.
+  + simpl in H |- *.
+    generalize (proj_reptype t ids v).
+    destruct (nested_field_type2 t ids); try inversion H; intros.
+    - (* Tstruct *)
+      rewrite eq_rect_JMeq.
+      assert (isSome (nf_replace t ids (Tstruct i (all_fields_replace_one2 f a t0) a0))).
+        destruct (all_fields_replace_one f a t0); [| inversion H].
+        eapply nf_replace_isSome_lemma; eauto.
+      generalize (IHids t v (Tstruct i (all_fields_replace_one2 f a t0) a0) (gupd_reptype_structlist f a t0 r v0) H0).
+      generalize ((proj_reptype
+        (nf_replace2 t ids (Tstruct i (all_fields_replace_one2 f a t0) a0))
+        ids
+        (gupd_reptype t ids (Tstruct i (all_fields_replace_one2 f a t0) a0) v
+           (gupd_reptype_structlist f a t0 r v0)))).
+      erewrite nested_field_type2_nf_replace2; eauto; intros.
+      simpl in r0.
+      rewrite H1.
+      apply proj_reptype_structlist_gupd_reptype_structlist_identical.
+      destruct (all_fields_replace_one f a t0); try inversion H; simpl; auto.
+    - (* Tunion *)
+      admit.
+Qed.
+
+Lemma gupd_reptype_gupd_reptype: forall t ids t0 t1 v v0 v1,
+  JMeq (gupd_reptype t ids t1 v v1) (gupd_reptype (nf_replace2 t ids t0) ids t1 (gupd_reptype t ids t0 v v0) v1).
+Admitted.
+
 Lemma proj_except_reptype_proj_except_reptype_cons_Tstruct: forall t id id0 ids i f a t0 v,
   nested_field_type2 t (id0 :: ids) = Tstruct i f a ->
   field_type id f = Errors.OK t0 ->
-  proj_except_reptype (nf_sub2 t id (id0 :: ids)) id0 ids (proj_except_reptype t id (id0 :: ids) v) =
-  eq_rect_r reptype (proj_except_reptype t id0 ids v) (nf_sub2_nf_sub2_cons _ _ _ _).
+  JMeq (proj_except_reptype (nf_sub2 t id (id0 :: ids)) id0 ids (proj_except_reptype t id (id0 :: ids) v)) (proj_except_reptype t id0 ids v).
 Proof.
   intros.
-  apply eq_sym, JMeq_eq.
-  rewrite (eq_rect_r_JMeq type _ _ reptype (proj_except_reptype t id0 ids v) (nf_sub2_nf_sub2_cons t id id0 ids)).
-  
+  apply JMeq_sym.
   unfold proj_except_reptype at 3.
   unfold nf_sub2.
   generalize (proj_reptype t (id0 :: ids) v).
   rewrite H; intros.
+
+  forget (proj_except_reptype_structlist f id r) as v0; clear r.
+  clear t0 H0.
+  revert v0.
+  change (reptype_structlist (all_fields_except_one2 f id)) with (reptype (Tstruct i (all_fields_except_one2 f id) a)).
+  forget (Tstruct i (all_fields_except_one2 f id) a) as t0.
+  intros.
+
+  rewrite nested_field_type2_cons in H.
+  simpl.
+  generalize (proj_reptype t ids v).
+  destruct (nested_field_type2 t ids) eqn:HH; try inversion H; intros.
+  + (* Tstruct *)
+    assert (forall t0, isSome (nf_replace t ids t0)).
+      intros.
+      apply nf_replace_nested_field_type_isSome_lemma.
+      unfold nested_field_type; unfold nested_field_type2 in HH.
+      destruct (nested_field_rec t ids) as [[? ?]|]; [simpl; auto | inversion HH].
+    generalize (proj_reptype_gupd_reptype t ids v 
+      (Tstruct i0 (all_fields_replace_one2 f0 id0 t0) a0) 
+      (gupd_reptype_structlist f0 id0 t0 r v0) (H0 _)).
+    match goal with
+    | |- JMeq ?M _ -> _ => generalize M
+    end.
+    erewrite nested_field_type2_nf_replace2 by apply H0.
+    intros.
+    rewrite <- gupd_reptype_gupd_reptype.
+    simpl in r0, H2.
+    rewrite H2.
+    generalize (proj_except_reptype_structlist_gupd_reptype_structlist f0 id0 t0 r v0).
+    match goal with
+    | |- JMeq ?M _ -> _ => generalize M
+    end.
+    rewrite all_fields_except_one2_all_fields_replace_one2.
+    intros.
+    rewrite H3.
+    reflexivity.
+  + (* Tunion *)
+    admit.
+Qed.
+
+Lemma proj_except_reptype_proj_except_reptype_cons_Tstruct_eq_rect_r: forall t id id0 ids i f a t0 v,
+  nested_field_type2 t (id0 :: ids) = Tstruct i f a ->
+  field_type id f = Errors.OK t0 ->
+  proj_except_reptype t id0 ids v = eq_rect_r reptype 
+   (proj_except_reptype _ id0 ids (proj_except_reptype t id (id0 :: ids) v))
+   (eq_sym (nf_sub2_nf_sub2_cons _ _ _ _)).
+Proof.
+  intros.
+  apply eq_sym, JMeq_eq.
+  rewrite (eq_rect_r_JMeq type _ _ reptype (proj_except_reptype (nf_sub2 t id (id0 :: ids)) id0 ids
+           (proj_except_reptype t id (id0 :: ids) v)) (eq_sym (nf_sub2_nf_sub2_cons t id id0 ids))).
+  eapply proj_except_reptype_proj_except_reptype_cons_Tstruct; eauto.
+Qed.
+
+Lemma proj_reptype_proj_except_reptype_Tstruct: forall t id ids i f a t0 v v1,
+  nested_field_type2 t ids = Tstruct i f a ->
+  field_type id f = Errors.OK t0 ->
+  JMeq (proj_reptype t ids v) v1 ->
+  JMeq (proj_reptype _ ids (proj_except_reptype t id ids v)) (proj_except_reptype_structlist f id v1).
+Admitted.
+
+Lemma proj_reptype_proj_except_reptype_Tstruct_eq_rect_r: forall t id ids i f a t0 v v1
+  (H: nested_field_type2 t ids = Tstruct i f a),
+  field_type id f = Errors.OK t0 ->
+  JMeq (proj_reptype t ids v) v1 ->
+  proj_except_reptype_structlist f id v1 = eq_rect_r reptype (proj_reptype _ ids (proj_except_reptype t id ids v)) (eq_sym (nested_field_type2_nf_sub2_Tstruct _ _ _ _ _ _ H)).
+Proof.
+  intros.
+  apply eq_sym, JMeq_eq.
+  pose proof (eq_rect_r_JMeq type _ _ reptype (proj_reptype (nf_sub2 t id ids) ids (proj_except_reptype t id ids v)) (eq_sym (nested_field_type2_nf_sub2_Tstruct t id ids i f a H))).
+  simpl reptype in H2. rewrite H2.
+  eapply proj_reptype_proj_except_reptype_Tstruct; eauto.
+Qed.
 
 Definition nested_field_sub_aux: forall sh t id ids p, 
   nested_legal_fieldlist t = true ->
@@ -1809,11 +1968,34 @@ Transparent proj_reptype.
         by (unfold nested_field_type2; rewrite Heqo; simpl; tauto).
       destruct (IHids a H1) as [PH IH]; clear IHids.
       destruct (nested_sfieldlist_at_sub sh t id (a :: ids) i f a0 p t1 H0 H H2 H3) as [P0 ?].
+
       eexists; intros; rewrite IH.
-      erewrite H5.
 
+      pose (eq_rect_r reptype (proj_reptype t (a :: ids) v) (eq_sym H2)) as v1.
+      assert (JMeq (proj_reptype t (a :: ids) v) v1).
+        subst v1.
+        eapply JMeq_sym, eq_rect_r_JMeq.
+      simpl reptype in v1, H6.
+      erewrite H5; eauto.
+      erewrite proj_except_reptype_proj_except_reptype_cons_Tstruct_eq_rect_r; eauto.
+      erewrite proj_reptype_proj_except_reptype_Tstruct_eq_rect_r with (H := H2); eauto.
+      rewrite sepcon_assoc.
+      f_equal.
+      instantiate (1 := fun v' => P0 (eq_rect_r reptype
+        (proj_reptype (nf_sub2 t id (a :: ids)) (a :: ids) v')
+        (eq_sym (nested_field_type2_nf_sub2_Tstruct t id (a :: ids) i f a0 H2))) *
+        PH (eq_rect_r reptype
+        (proj_except_reptype (nf_sub2 t id (a :: ids)) a ids v')
+        (eq_sym (nf_sub2_nf_sub2_cons t id a ids)))).
+Opaque eq_rect_r proj_reptype proj_except_reptype.
+      simpl.
+      reflexivity.
+Transparent eq_rect_r proj_reptype proj_except_reptype.
+    - (* Tunion *)
+      admit.
+Qed.
 
-
+(*
 Lemma semax_nested_efield_load_37':
   forall {Espec: OracleKind},
     forall Delta sh e id P Q R (e1: expr)
