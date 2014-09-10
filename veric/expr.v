@@ -150,6 +150,7 @@ Fixpoint modifiedvars' (c: statement) (S: idset) : idset :=
  end.
 
 Definition isSome {A} (o: option A) := match o with Some _ => True | None => False end.
+Definition isOK {A} (o: Errors.res A) := match o with Errors.OK _ => True | _ => False end.
 
 Lemma modifiedvars'_union:
  forall id c S,

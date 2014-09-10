@@ -594,6 +594,91 @@ Proof.
   - congruence.
 Defined.
 
+Lemma nested_field_rec_cons_isSome_lemma: forall t id ids, 
+  isSome (nested_field_rec t (id :: ids)) <->
+  isSome (nested_field_rec t ids) /\ exists i f a, isOK (field_type id f) /\
+  (nested_field_type2 t ids = Tstruct i f a \/ nested_field_type2 t ids = Tunion i f a).
+Proof.
+  intros.
+  simpl (nested_field_rec t (id :: ids)).
+  unfold nested_field_type2.
+  destruct (nested_field_rec t ids) as [[? tt]|]; [destruct tt |]; 
+  (split; intros; [try inversion H | destruct H as [? [? [? [? [? [? | ?]]]]]]]; try inversion H1).
+  + simpl; split; auto; exists i, f, a.
+    destruct (field_type id f); simpl.
+      auto.
+      destruct (field_offset id f); inversion H.
+  + subst.
+    solve_field_offset_type id x0. simpl; auto. inversion H0.
+  + simpl; split; auto; exists i, f, a.
+    destruct (field_type id f); simpl.
+      auto.
+      destruct (field_offset id f); inversion H.
+  + subst.
+    solve_field_offset_type id x0. simpl; auto. inversion H0.
+Defined.
+
+Lemma nested_field_type2_Tstruct_nested_field_rec_isSome: forall t ids i f a,
+  nested_field_type2 t ids = Tstruct i f a -> isSome (nested_field_rec t ids).
+Proof.
+  intros.
+  unfold nested_field_type2 in H.
+  destruct (nested_field_rec t ids).
+  + simpl; auto.
+  + inversion H.
+Defined.
+
+Lemma nested_field_type2_Tunion_nested_field_rec_isSome: forall t ids i f a,
+  nested_field_type2 t ids = Tunion i f a -> isSome (nested_field_rec t ids).
+Proof.
+  intros.
+  unfold nested_field_type2 in H.
+  destruct (nested_field_rec t ids).
+  + simpl; auto.
+  + inversion H.
+Defined.
+
+Lemma nested_field_type2_nil: forall t, nested_field_type2 t nil = t.
+Proof.
+  intros.
+  unfold nested_field_type2.
+  reflexivity.
+Defined.
+
+Lemma nested_field_type2_cons: forall t id ids0,
+  nested_field_type2 t (id :: ids0) = 
+  match nested_field_type2 t ids0 with
+  | Tstruct i f a => match field_offset id f, field_type id f with
+                     | Errors.OK _, Errors.OK t0 => t0
+                     | _, _ => Tvoid
+                     end
+  | Tunion i f a  => match field_type id f with
+                     | Errors.OK t0 => t0
+                     | _ => Tvoid
+                     end
+  | _ => Tvoid
+  end.
+Proof.
+  intros.
+  unfold nested_field_type2 in *.
+  simpl.
+  destruct (nested_field_rec t ids0) eqn:HH; try reflexivity.
+  destruct p.
+  destruct t0; try reflexivity;
+  destruct (field_offset id f), (field_type id f); reflexivity.
+Defined.
+
+Ltac solve_nested_field_rec_cons_isSome H :=
+  let i := fresh "i" in
+  let f := fresh "f" in
+  let a := fresh "a" in
+  let HH := fresh "HH" in
+  match type of H with
+  | isSome (nested_field_rec ?T (?A :: ?IDS)) => 
+    destruct (nested_field_rec_cons_isSome_lemma T A IDS) as [HH _];
+    destruct (HH H) as [? [i [f [a [? [? | ?]]]]]]; clear HH
+  end.
+
 Lemma nested_field_rec_divide: forall t ids pos t', nested_field_rec t ids = Some (pos, t') -> legal_alignas_type t = true -> Z.divide (alignof t') pos.
 Proof.
   intros.
