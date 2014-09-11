@@ -162,8 +162,11 @@ SHA_FILES= \
   verif_addlength.v verif_SHA256.v
 
 HMAC_FILES= \
-  hmac_sha256.v HMAC_definitions.v HMAC_part2GT.v HMAC_part2LE.v \
-  HMAC_proofTail.v HMAC_LoopBodyGT.v HMAC_proof.v
+  HMAC_functional_prog.v HMAC_refined_fp.v \
+  hmac_sha256.v HMAC_definitions.v HMAC_lemmas.v \
+  HMAC_part2GT.v HMAC_part2LE.v \
+  HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \
+  HMAC_proofLE.v HMAC_proof.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c
 
@@ -203,7 +206,7 @@ veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
 sha:     .loadpath $(SHA_FILES:%.v=sha/%.vo)
-hmac:     .loadpath $(HMAC_FILES:%.v=sha/%.vo)
+hmac:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 
 CGFLAGS =  -DCOMPCERT
 
