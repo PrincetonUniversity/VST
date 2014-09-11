@@ -2606,10 +2606,6 @@ Proof.
   destruct i,s; reflexivity. destruct f; reflexivity.
 Qed.
 
-Lemma align_1: forall n, align n 1 = n.
-Proof.  intros; unfold align. rewrite Z.div_1_r. rewrite Z.mul_1_r. omega.
-Qed.
-
 (*
 Lemma memory_block_typed': forall sh e pos ty b ofs, 
   no_attr_type ty = true ->

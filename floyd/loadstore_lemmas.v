@@ -996,10 +996,10 @@ Qed.
 
 Lemma typeof_nested_efield: forall env e ids tts,
   legal_nested_efield env (typeof e) ids tts = true ->
-  eqb_type (uncompomize env (nested_field_type2 (typeof e) ids))
-  (typeof (nested_efield e ids tts)) = true .
+  uncompomize env (nested_field_type2 (typeof e) ids) = typeof (nested_efield e ids tts).
 Proof.
   intros.
+  apply eqb_type_true.
   revert tts H.
   induction ids; intros; destruct tts; unfold nested_field_type2 in *; simpl in *.
   + exact H.
@@ -1036,7 +1036,6 @@ Proof.
     pose proof typeof_nested_efield _ _ _ _ H0.
     unfold nested_field_type2 in H1.
     valid_nested_field_rec (typeof e) ids H. 
-    apply eqb_type_true in H1.
     destruct t0; inversion H; clear H4; simpl uncompomize in H1; rewrite <- H1.
     - solve_field_offset_type a f; [|inversion H].
       unfold liftx, lift; simpl.

@@ -233,7 +233,7 @@ Defined.
 
 Lemma nested_field_type2_nf_replace2_aux:
   forall i f t0,
-  isOK (field_type i f) ->
+  isOK (field_type i f) = true ->
    match field_offset i (all_fields_replace_one2 f i t0) with
    | Errors.OK _ =>
        match field_type i (all_fields_replace_one2 f i t0) with
@@ -257,7 +257,7 @@ Defined.
 
 Lemma nested_field_type2_nf_replace2_aux':
   forall i f t0,
-  isOK (field_type i f) ->
+  isOK (field_type i f) = true ->
   match field_type i (all_fields_replace_one2 f i t0) with
   | Errors.OK t1 => t1
   | Errors.Error _ => Tvoid
@@ -303,11 +303,11 @@ Proof.
 Defined.
 
 Lemma all_fields_replace_one_field_type_isSome_lemma: forall i f t0,
-  isSome (all_fields_replace_one f i t0) <-> isOK (field_type i f).
+  isSome (all_fields_replace_one f i t0) <-> isOK (field_type i f) = true.
 Proof.
   intros.
   induction f.
-  + simpl. tauto.
+  + simpl. split; intros; firstorder.
   + simpl.
     destruct (ident_eq i i0); [simpl; tauto |].
     destruct (all_fields_replace_one f i t0), (field_type i f); simpl in *; congruence.
@@ -1241,36 +1241,6 @@ Proof.
       exact H1.
 Qed.
 
-Lemma fieldlist_no_replicate_fact2:
-  forall f1 f2, fieldlist_no_replicate (fieldlist_app f1 f2) = true ->
-  forall i t1 t2, field_type i f1 = Errors.OK t1 -> field_type i f2 = Errors.OK t2 -> False.
-Proof.
-  intros.
-  induction f1.
-  + inversion H0.
-  + simpl in H0, H.
-    apply andb_true_iff in H.
-    if_tac in H0.
-    - destruct H as [? _].
-      rewrite fieldlist_app_in in H.
-      rewrite negb_true_iff, orb_false_iff in H.
-      destruct H as [_ ?].
-      subst.
-      clear IHf1 H0.
-      induction f2; [inversion H1|].
-      simpl in H1.
-      if_tac in H1.
-      * subst; simpl in H.
-        rewrite Pos.eqb_refl in H.
-        inversion H.
-      * simpl in H.
-        apply Pos.eqb_neq in H0.
-        rewrite H0 in H.
-        apply IHf2; auto.
-    - destruct H as [_ ?].
-      apply IHf1; auto.
-Qed.
-
 Lemma proj_reptype_structlist_ofs: forall i f ofs ofs0 v,
   JMeq (proj_reptype_structlist i f ofs v) (proj_reptype_structlist i f ofs0 v).
 Proof.
@@ -1301,10 +1271,11 @@ Proof.
     apply proj_reptype_structlist_ofs.
   + simpl in H1 |- *.
     if_tac. (* whether id = i *)
-    - pose proof (fieldlist_no_replicate_fact2 _ _ H id t0 t).
+    - pose proof (fieldlist_no_replicate_fact _ _ id H).
       simpl in H3.
       if_tac in H3; [| congruence].
-      pose proof H3 eq_refl H0.
+      rewrite H0 in H3.
+      pose proof H3 eq_refl eq_refl.
       inversion H5.
     - revert v H1; simpl.
       destruct (is_Fnil (fieldlist_app f0 f)) eqn:?; intros. (* whether fieldlist f0 f is Fnil *)
@@ -2043,14 +2014,17 @@ Definition field_except_at (sh: Share.t) t id ids (v: reptype (nf_sub2 t id ids)
   exact (x v).
 Defined.
 
-Lemma field_except_at_lemma: forall sh t id ids v p,
+Opaque proj_reptype upd_reptype proj_except_reptype.
+
+Lemma field_except_at_lemma: forall sh t id ids v,
   nested_legal_fieldlist t = true ->
   legal_alignas_type t = true ->
   nested_field_type2 t (id :: ids) <> Tvoid ->
-  data_at sh t v p = field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p * 
-    field_except_at sh t id ids (proj_except_reptype t id ids v) p.
+  data_at sh t v = field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) * 
+    field_except_at sh t id ids (proj_except_reptype t id ids v).
 Proof.
   intros.
+  extensionality p.
   assert (isSome (nested_field_rec t (id :: ids))).
     unfold nested_field_type2 in H1.
     destruct (nested_field_rec t (id :: ids)) as [[? ?]|]; 
@@ -2061,28 +2035,28 @@ Proof.
   pattern (nested_legal_fieldlist t) at 2 3; rewrite H.
   pattern (legal_alignas_type t) at 2 3; rewrite H0.
   destruct (isSome_dec (nested_field_rec t (id :: ids))).
-  + intros; destruct (nested_field_sub_aux sh t id ids p e0 e i).
+  + intros. simpl. destruct (nested_field_sub_aux sh t id ids p e0 e i).
     apply e1.
   + pose proof (n H2).
     inversion H3.
 Qed.
 
-(*
 Lemma semax_nested_efield_load_37':
   forall {Espec: OracleKind},
     forall Delta sh e id P Q R (e1: expr)
       (t : type) (ids: list ident) (tts: list type)
-      (v : val) (v' : reptype (nested_field_type2 (typeof e1) ids)),
+      (v : val) (v' : reptype (typeof e1)),
+      nested_legal_fieldlist (typeof e1) = true ->
       typeof_temp Delta id = Some t ->
       uncompomize e (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
       is_neutral_cast (typeof (nested_efield e1 ids tts)) t = true ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) ids tts = true ->
-      JMeq v' v ->
+      JMeq (proj_reptype (typeof e1) ids v') v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_lvalue Delta (nested_efield e1 ids tts)) &&
         local `(tc_val (typeof (nested_efield e1 ids tts)) v) &&
-        (`(field_at sh (typeof e1) ids v') (eval_lvalue e1) * TT) ->
+        (`(data_at sh (typeof e1) v') (eval_lvalue e1) * TT) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sset id (nested_efield e1 ids tts))
           (normal_ret_assert
@@ -2091,9 +2065,24 @@ Lemma semax_nested_efield_load_37':
                 (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q)
                   (SEPx (map (subst id `old) R))))).
 Proof.
-*)
-
-
+  intros.
+  destruct ids.
+  + admit.
+  + assert (type_is_by_value (uncompomize e (nested_field_type2 (typeof e1) (i :: ids)))).
+      eapply is_neutral_cast_by_value; eauto.
+      erewrite typeof_nested_efield; eauto.
+      rewrite field_except_at_lemma with (id := i) (ids := ids) in H6;
+        [| eauto | auto 
+         | clear -H7; destruct (nested_field_type2 (typeof e1) (i :: ids));
+         try inversion H7; simpl; congruence].
+      eapply semax_max_path_field_load_37'; eauto.
+      eapply derives_trans; [exact H6 |].
+      normalize.
+      apply andp_derives; [apply derives_refl |].
+      unfold_lift. simpl; intros. rewrite sepcon_assoc.
+      apply sepcon_derives; [apply derives_refl |].
+      apply prop_right, I.
+Qed.
 
 (*
 

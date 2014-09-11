@@ -694,11 +694,53 @@ rewrite Int.add_assoc. f_equal. apply add_repr.
 Qed.
 Hint Rewrite int_add_assoc1 : norm.
 
+Lemma power_nat_divide: forall n m, two_power_nat n <= two_power_nat m -> Z.divide (two_power_nat n) (two_power_nat m).
+Proof.
+  intros.
+  repeat rewrite two_power_nat_two_p in *.
+  unfold Zdivide.
+  exists (two_p (Z.of_nat m - Z.of_nat n)).
+  assert ((Z.of_nat m) = (Z.of_nat m - Z.of_nat n) + Z.of_nat n) by omega.
+  rewrite H0 at 1.
+  assert (Z.of_nat m >= 0) by omega.
+  assert (Z.of_nat n >= 0) by omega.
+  assert (Z.of_nat n <= Z.of_nat m).
+    destruct (Z_le_gt_dec (Z.of_nat n) (Z.of_nat m)).
+    exact l.
+    assert (Z.of_nat m < Z.of_nat n) by omega.
+    assert (two_p (Z.of_nat m) < two_p (Z.of_nat n)) by (apply two_p_monotone_strict; omega).
+    omega.  
+  apply (two_p_is_exp (Z.of_nat m - Z.of_nat n) (Z.of_nat n)); omega.
+Qed.
+
 Lemma align_0: forall z, 
     z > 0 -> align 0 z = 0.
 Proof. unfold align; intros. rewrite Zdiv_small; omega.
 Qed.
 Hint Rewrite align_0 using omega : norm.
+
+Lemma align_1: forall n, align n 1 = n.
+Proof.  intros; unfold align. rewrite Z.div_1_r. rewrite Z.mul_1_r. omega.
+Qed.
+Hint Rewrite align_1 using omega : norm.
+
+Lemma divide_add_align: forall a b c, Z.divide b a -> a + (align c b) = align (a + c) b.
+Proof.
+  intros.
+  pose proof zeq b 0.
+  destruct H0; unfold Z.divide in H; unfold align.
+  + destruct H. subst. 
+    repeat rewrite Zdiv_0_r.
+    simpl.
+    omega.
+  + destruct H.
+    subst.
+    replace (x * b + c + b - 1) with (x * b + (c + b - 1)) by omega.
+    rewrite Z_div_plus_full_l.
+    rewrite Z.mul_add_distr_r.
+    reflexivity.
+    omega.
+Qed.
 
 Lemma deref_noload_tarray:
   forall ty n, deref_noload (tarray ty n) = (fun v => v).

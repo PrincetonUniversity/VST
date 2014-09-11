@@ -10,46 +10,70 @@ Arguments Z.max !n !m / .
 
 (************************************************
 
-Lemmas about align and divide on alignof 
+Lemmas about fieldlist_app
 
 ************************************************)
 
-Lemma power_nat_divide: forall n m, two_power_nat n <= two_power_nat m -> Z.divide (two_power_nat n) (two_power_nat m).
+Lemma fieldlist_app_Fnil: forall f, fieldlist_app f Fnil = f.
 Proof.
   intros.
-  repeat rewrite two_power_nat_two_p in *.
-  unfold Zdivide.
-  exists (two_p (Z.of_nat m - Z.of_nat n)).
-  assert ((Z.of_nat m) = (Z.of_nat m - Z.of_nat n) + Z.of_nat n) by omega.
-  rewrite H0 at 1.
-  assert (Z.of_nat m >= 0) by omega.
-  assert (Z.of_nat n >= 0) by omega.
-  assert (Z.of_nat n <= Z.of_nat m).
-    destruct (Z_le_gt_dec (Z.of_nat n) (Z.of_nat m)).
-    exact l.
-    assert (Z.of_nat m < Z.of_nat n) by omega.
-    assert (two_p (Z.of_nat m) < two_p (Z.of_nat n)) by (apply two_p_monotone_strict; omega).
-    omega.  
-  apply (two_p_is_exp (Z.of_nat m - Z.of_nat n) (Z.of_nat n)); omega.
+  induction f.
+  + reflexivity.
+  + simpl. rewrite IHf. reflexivity.
+Defined.
+
+Lemma fieldlist_app_Fcons: forall f1 i t f2, fieldlist_app f1 (Fcons i t f2) = fieldlist_app (fieldlist_app f1 (Fcons i t Fnil)) f2.
+Proof.
+  intros.
+  induction f1.
+  + reflexivity.
+  + simpl.
+    rewrite IHf1.
+    reflexivity.
+Defined.
+
+Lemma fieldlist_app_field_type_isOK: forall i f1 f2, isOK (field_type i (fieldlist_app f1 f2)) = (isOK (field_type i f1) || isOK (field_type i f2)) %bool.
+Proof.
+  intros.
+  induction f1; simpl.
+  + reflexivity.
+  + if_tac.
+    - reflexivity.
+    - exact IHf1.
 Qed.
 
-Lemma divide_add_align: forall a b c, Z.divide b a -> a + (align c b) = align (a + c) b.
+Fixpoint fieldlist_no_replicate (f: fieldlist) : bool :=
+  match f with
+  | Fnil => true
+  | Fcons i _ f' => 
+    andb (negb (isOK (field_type i f'))) (fieldlist_no_replicate f')
+  end.
+
+Lemma fieldlist_no_replicate_fact:
+  forall f1 f2 i, fieldlist_no_replicate (fieldlist_app f1 f2) = true ->
+  isOK (field_type i f1) = true -> isOK (field_type i f2) = true -> False.
 Proof.
   intros.
-  pose proof zeq b 0.
-  destruct H0; unfold Z.divide in H; unfold align.
-  + destruct H. subst. 
-    repeat rewrite Zdiv_0_r.
-    simpl.
-    omega.
-  + destruct H.
-    subst.
-    replace (x * b + c + b - 1) with (x * b + (c + b - 1)) by omega.
-    rewrite Z_div_plus_full_l.
-    rewrite Z.mul_add_distr_r.
-    reflexivity.
-    omega.
+  induction f1.
+  + inversion H0.
+  + simpl in H0, H.
+    apply andb_true_iff in H.
+    if_tac in H0.
+    - destruct H as [? _].
+      rewrite fieldlist_app_field_type_isOK in H.
+      rewrite negb_true_iff, orb_false_iff in H.
+      destruct H as [_ ?].
+      subst.
+      congruence.
+    - destruct H as [_ ?].
+      apply IHf1; auto.
 Qed.
+
+(************************************************
+
+Lemmas about alignof and alignof_fields
+
+************************************************)
 
 Lemma alignof_fields_hd_divide: forall i t f, Zdivide (alignof t) (alignof_fields (Fcons i t f)).
 Proof.
@@ -83,12 +107,76 @@ Proof.
     - eapply Z.divide_trans; [exact (IHf H) | apply alignof_fields_tl_divide].
 Qed.
 
+(****************************************************************
+
+field_type_hd, field_type_mid, field_offset_hd, field_offset_mid
+
+****************************************************************)
+
+Lemma field_type_hd: forall i t f, field_type i (Fcons i t f) = Errors.OK t.
+Proof.
+  intros.
+  simpl.
+  if_tac; [reflexivity | congruence].
+Defined.
+
+Lemma field_type_mid: forall i t f' f, fieldlist_no_replicate (fieldlist_app f' (Fcons i t f)) = true -> field_type i (fieldlist_app f' (Fcons i t f)) = Errors.OK t.
+Proof.
+  intros.
+  pose proof field_type_hd i t f.
+  assert (isOK (field_type i (Fcons i t f)) = true) by (simpl; if_tac; [| congruence]; reflexivity).
+  remember (Fcons i t f) as f''; clear Heqf'' f.
+  pose proof (fun HH => fieldlist_no_replicate_fact _ _ _ H HH H1).
+  clear H1.
+  induction f'.
+  + exact H0.
+  + simpl in *.
+    destruct (ident_eq i i0); [simpl in H2; congruence|].
+    apply andb_true_iff in H; destruct H as [_ ?]. 
+    exact (IHf' H H2).
+Defined.
+
+Lemma field_offset_hd: forall i t f, field_offset i (Fcons i t f) = Errors.OK 0.
+Proof.
+  intros.
+  unfold field_offset.
+  simpl.
+  if_tac; [rewrite (align_0 _ (alignof_pos _)); reflexivity | congruence].
+Defined.
+
+Lemma field_offset_mid: forall i0 t0 i1 t1 f' f ofs, fieldlist_no_replicate (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = true -> field_offset i1 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = Errors.OK ofs -> field_offset i0 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = Errors.OK (align (ofs + sizeof t1) (alignof t0)).
+Proof.
+  intros.
+  unfold field_offset in *.
+  remember 0 as pos; clear Heqpos.
+  revert pos H0; induction f'; intros.
+  + simpl in *.
+    if_tac.
+    - if_tac in H; try congruence. inversion H.
+    - if_tac in H; try congruence; clear H1.
+      if_tac in H0; try congruence; clear H1.
+      if_tac; try congruence.
+  + simpl in *.
+    apply andb_true_iff in H.
+    destruct H.
+    destruct (isOK (field_type i (Fcons i1 t1 (Fcons i0 t0 f)))) eqn:H';
+      [rewrite fieldlist_app_field_type_isOK in H; rewrite H' in H;
+       destruct (isOK (field_type i f')); inversion H|].
+    simpl in H'.
+    if_tac in H'; try solve [inversion H'].
+    if_tac in H'; try solve [inversion H'].
+    if_tac; try congruence.
+    if_tac in H0; try congruence.
+    apply (IHf' H1), H0.
+Defined.
+
 (************************************************
 
 Definition, lemmas and useful samples of nested_pred
 
 nested_pred only ensure the specific property to be true on nested types with
-memory assigned, i.e. inside structure of pointer, function are not included.
+memory assigned, i.e. inside structure of pointer, function, empty array are
+not included.
 
 ************************************************)
 
@@ -306,21 +394,9 @@ Proof.
   - apply Z.divide_refl.
 Qed.
 
+Opaque alignof.
+
 (******* Samples : fieldlist_no_replicate *************)
-
-Fixpoint fieldlist_in (id: ident) (f: fieldlist) : bool :=
-  match f with
-  | Fnil => false
-  | Fcons i _ f' => 
-    if (Pos.eqb id i) then true else fieldlist_in id f'
-  end.
-
-Fixpoint fieldlist_no_replicate (f: fieldlist) : bool :=
-  match f with
-  | Fnil => true
-  | Fcons i _ f' => 
-    andb (negb (fieldlist_in i f')) (fieldlist_no_replicate f')
-  end.
 
 Definition nested_legal_fieldlist := nested_pred (fun t => 
   match t with
@@ -328,97 +404,6 @@ Definition nested_legal_fieldlist := nested_pred (fun t =>
   | Tunion i f a => fieldlist_no_replicate f
   | _ => true
   end).
-
-Lemma fieldlist_app_in: forall i f1 f2, fieldlist_in i (fieldlist_app f1 f2) = (fieldlist_in i f1 || fieldlist_in i f2) % bool.
-Proof.
-  intros.
-  induction f1; simpl.
-  + reflexivity.
-  + if_tac.
-    - reflexivity.
-    - exact IHf1.
-Qed.
-
-Lemma fieldlist_no_replicate_fact: forall (f1 f2: fieldlist), fieldlist_no_replicate (fieldlist_app f1 f2) = true -> forall x: ident, fieldlist_in x f2 = true -> fieldlist_in x f1 = false.
-Proof.
-  intros.
-  induction f1; simpl in *.
-  + reflexivity.
-  + destruct (Pos.eqb x i) eqn:Heq.
-    - apply Peqb_true_eq in Heq.
-      subst x.
-      rewrite fieldlist_app_in in H.
-      rewrite H0 in H.
-      destruct (fieldlist_in i f1); inversion H.
-    - apply eq_sym, andb_true_eq in H; destruct H as [_ ?]. apply eq_sym in H.
-      exact (IHf1 H).
-Qed.
-
-(****************************************************************
-
-field_type_hd, field_type_mid, field_offset_hd, field_offset_mid
-
-****************************************************************)
-
-Lemma field_type_hd: forall i t f, field_type i (Fcons i t f) = Errors.OK t.
-Proof.
-  intros.
-  simpl.
-  if_tac; [reflexivity | congruence].
-Defined.
-
-Lemma field_type_mid: forall i t f' f, fieldlist_no_replicate (fieldlist_app f' (Fcons i t f)) = true -> field_type i (fieldlist_app f' (Fcons i t f)) = Errors.OK t.
-Proof.
-  intros.
-  pose proof field_type_hd i t f.
-  assert (fieldlist_in i (Fcons i t f) = true) by (simpl; rewrite (Pos.eqb_refl i); reflexivity).
-  remember (Fcons i t f) as f''; clear Heqf'' f.
-  apply (fieldlist_no_replicate_fact _ _ H) in H1.
-  induction f'.
-  + exact H0.
-  + simpl in *.
-    destruct (Pos.eqb i i0) eqn:Heq; [inversion H1|].
-    apply Pos.eqb_neq in Heq.
-    destruct (ident_eq i i0); [congruence| clear n].
-    apply eq_sym, andb_true_eq in H; destruct H as [_ ?]. apply eq_sym in H.
-    exact (IHf' H H1).
-Defined.
-
-Lemma field_offset_hd: forall i t f, field_offset i (Fcons i t f) = Errors.OK 0.
-Proof.
-  intros.
-  unfold field_offset.
-  simpl.
-  if_tac; [rewrite (align_0 _ (alignof_pos _)); reflexivity | congruence].
-Defined.
-
-Lemma field_offset_mid: forall i0 t0 i1 t1 f' f ofs, fieldlist_no_replicate (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = true -> field_offset i1 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = Errors.OK ofs -> field_offset i0 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = Errors.OK (align (ofs + sizeof t1) (alignof t0)).
-Proof.
-  intros.
-  unfold field_offset in *.
-  remember 0 as pos; clear Heqpos.
-  revert pos H0; induction f'; intros.
-  + simpl in *.
-    destruct (Pos.eqb i1 i0) eqn:Hneq; inversion H.
-    apply Pos.eqb_neq in Hneq.
-    if_tac; try congruence; clear H1.
-    if_tac; try congruence; clear H1.
-    if_tac in H0; try congruence.
-  + simpl in *.
-    apply andb_true_iff in H.
-    destruct H.
-    destruct (fieldlist_in i (Fcons i1 t1 (Fcons i0 t0 f))) eqn:H';
-      [rewrite fieldlist_app_in in H; rewrite H' in H; destruct (fieldlist_in i f'); inversion H|].
-    simpl in H'.
-    destruct (Pos.eqb i i1) eqn:Hneq1; [inversion H' | apply Pos.eqb_neq in Hneq1].
-    destruct (Pos.eqb i i0) eqn:Hneq0; [inversion H'| apply Pos.eqb_neq in Hneq0].
-    if_tac; try congruence; clear H2.
-    if_tac in H0; try congruence; clear H2.
-    apply (IHf' H1).
-    exact H0.
-Defined.
-
-Opaque alignof.
 
 (************************************************
 
@@ -596,7 +581,7 @@ Defined.
 
 Lemma nested_field_rec_cons_isSome_lemma: forall t id ids, 
   isSome (nested_field_rec t (id :: ids)) <->
-  isSome (nested_field_rec t ids) /\ exists i f a, isOK (field_type id f) /\
+  isSome (nested_field_rec t ids) /\ exists i f a, isOK (field_type id f) = true /\
   (nested_field_type2 t ids = Tstruct i f a \/ nested_field_type2 t ids = Tunion i f a).
 Proof.
   intros.
@@ -623,7 +608,7 @@ Definition iffT A B := ((A -> B) * (B -> A))%type.
 Definition nested_field_rec_cons_isSome_lemmaT: forall t id ids, 
   iffT (isSome (nested_field_rec t (id :: ids)))
   (isSome (nested_field_rec t ids) * sigT (fun i => sigT (fun f => sigT (fun a => 
-  isOK (field_type id f) * ((nested_field_type2 t ids = Tstruct i f a) + (nested_field_type2 t ids = Tunion i f a)))))%type).
+  (isOK (field_type id f) = true) * ((nested_field_type2 t ids = Tstruct i f a) + (nested_field_type2 t ids = Tunion i f a)))))%type).
 Proof.
   intros.
   simpl (nested_field_rec t (id :: ids)).
@@ -635,13 +620,13 @@ Proof.
       auto.
       destruct (field_offset id f); inversion H.
   + subst.
-    solve_field_offset_type id x0. simpl; auto. inversion i1.
+    solve_field_offset_type id x0. simpl; auto. inversion e.
   + simpl; split; auto; exists i, f, a.
     destruct (field_type id f); simpl.
       auto.
       destruct (field_offset id f); inversion H.
   + subst.
-    solve_field_offset_type id x0. simpl; auto. inversion i1.
+    solve_field_offset_type id x0. simpl; auto. inversion e.
 Defined.
 
 Lemma nested_field_type2_Tstruct_nested_field_rec_isSome: forall t ids i f a,
@@ -756,25 +741,12 @@ Defined.
 
 (************************************************
 
+nested_field_offset2_hd
+nested_field_offset2_mid
+nested_field_type2_hd
+nested_field_type2_mid
+
 ************************************************)
-
-Lemma fieldlist_app_Fnil: forall f, fieldlist_app f Fnil = f.
-Proof.
-  intros.
-  induction f.
-  + reflexivity.
-  + simpl. rewrite IHf. reflexivity.
-Defined.
-
-Lemma fieldlist_app_Fcons: forall f1 i t f2, fieldlist_app f1 (Fcons i t f2) = fieldlist_app (fieldlist_app f1 (Fcons i t Fnil)) f2.
-Proof.
-  intros.
-  induction f1.
-  + reflexivity.
-  + simpl.
-    rewrite IHf1.
-    reflexivity.
-Defined.
 
 Lemma nested_field_rec_hd: forall i0 t0 ids t i f a ofs, nested_field_rec t ids = Some (ofs, Tstruct i (Fcons i0 t0 f) a) -> nested_field_rec t (i0 :: ids) = Some (ofs, t0).
 Proof.
@@ -839,8 +811,7 @@ Proof.
   unfold field_offset in *.
   remember 0 as pos'; clear Heqpos'.
   revert pos' H1 H3; induction f'; intros; simpl in H0, H1, H3.
-  + destruct (Pos.eqb i1 i0) eqn:H; simpl in H0; try inversion H0.
-    apply Pos.eqb_neq in H.
+  + if_tac in H0; simpl in H0; try inversion H0.
     if_tac in H1; try congruence.
     if_tac in H1; try congruence.
     if_tac in H3; try congruence.
@@ -850,15 +821,13 @@ Proof.
     apply divide_add_align.
     eapply Zdivide_trans; [|exact HH].
     eapply Zdivide_trans; [apply alignof_fields_hd_divide | apply alignof_fields_tl_divide].
-  + destruct (fieldlist_in i2 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f)))) eqn:H;
+  + destruct (isOK (field_type i2 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))))) eqn:H;
       simpl in H0; try inversion H0.
-    simpl fieldlist_in in H.
-    rewrite fieldlist_app_in in H.
-    destruct (fieldlist_in i2 f'), (fieldlist_in i2 (Fcons i1 t1 (Fcons i0 t0 f))) eqn:HH0; inversion H.
+    rewrite fieldlist_app_field_type_isOK in H.
+    destruct (isOK (field_type i2 f')), (isOK (field_type i2 (Fcons i1 t1 (Fcons i0 t0 f)))) eqn:HH0; inversion H.
     simpl in HH0.
-    destruct (Pos.eqb i2 i1) eqn:HH3; simpl in HH0; [inversion HH0|].
-    destruct (Pos.eqb i2 i0) eqn:HH4; simpl in HH0; [inversion HH0|].
-    apply Pos.eqb_neq in HH3. apply Pos.eqb_neq in HH4.
+    if_tac in HH0; [inversion HH0|].
+    if_tac in HH0; [inversion HH0|].
     if_tac in H1; try congruence.
     if_tac in H3; try congruence.
     eapply IHf'.
