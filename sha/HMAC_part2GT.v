@@ -6,10 +6,12 @@ Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha.HMAC_functional_prog.
+Require Import sha.HMAC_refined_fp.
 
 Require Import sha.hmac_sha256.
 
 Require Import HMAC_definitions.
+Require Import HMAC_lemmas.
 
 Module HMAC_Part2ImplementationGT <: HMAC_PART2GT.
 
@@ -42,7 +44,7 @@ Lemma HMAC_GT: forall Espec tsh ksh dsh
 (Heqh1 : h1 = HMAC_Refined.snippet1 h0)
 (HeqKLENGTH : true = (key_len a >? 64))
 (GT : key_len a > 64)
-(H0 : sizes)
+(*(H0 : sizes)*)
 (anew : HMAC_Refined.Args)
 (Heqanew : anew = args h1)
 (TLN : text_len anew = text_len a)
@@ -54,7 +56,7 @@ Lemma HMAC_GT: forall Espec tsh ksh dsh
 (TKN : tk (locals h1) = functional_prog.SHA_256' (key a))
 (ZLenSha : Zlength (tk (locals h1)) = 32)
 (isByteKey : Forall isbyteZ (key a))
-(isByteShaKey : Forall isbyteZ (functional_prog.SHA_256' (key a)))
+(*(isByteShaKey : Forall isbyteZ (functional_prog.SHA_256' (key a)))*)
 (Delta := func_tycontext f_hmac_sha256 Vprog Gtot)
 (H : align_compatible tuchar (k_opad VALS))
 (H1 : isptr (k_opad VALS))
@@ -195,7 +197,7 @@ intros.
   gather_SEP 8.
   forward_call (* memset *) (Tsh, bufferIn VALS, 1024, Int.zero).
   { entailer. 
-    rewrite <- H12; simpl.
+    rewrite <- H11; simpl.
     apply andp_right. 
      (*THIS SHOULD BE provable just by using normalize, and/or sem_cast_neutral_ptr.*)
      unfold data_at_, data_at, data_at', array_at'; simpl. normalize.
@@ -205,7 +207,7 @@ intros.
       simpl. normalize.
       reflexivity.
       reflexivity.
-    apply sepcon_fold. rewrite <- H7. subst Frame. reflexivity.
+    apply sepcon_fold. rewrite <- H6. subst Frame. reflexivity.
    }
    after_call. 
    (*Warning: Collision between bound variables of name x *)
@@ -219,10 +221,11 @@ intros.
      2: omega.
      2: simpl; omega.
      2: reflexivity.
-rename H6 into BufferInOffset0.
-rename H7 into BufferInOffset1024.
+rename H0 into BufferInOffset0.
+rename H6 into BufferInOffset1024.
 assert (BufferInOffset64: offset_in_range 64 (bufferIn VALS)).
-  red. destruct (bufferIn VALS); simpl; trivial. destruct  BufferInOffset1024. destruct BufferInOffset0.
+  red. destruct (bufferIn VALS); simpl; trivial. destruct  BufferInOffset1024. 
+       destruct BufferInOffset0.
      rewrite Zplus_0_r in *. omega.
 
    focus_SEP 0 2.
@@ -265,7 +268,7 @@ assert (BufferInOffset64: offset_in_range 64 (bufferIn VALS)).
    
    remember (64 + text_len a) as tla.
    focus_SEP 11 2.
-   unfold repr_text, data_block. simpl. normalize. rename H6 into isByteText. 
+   unfold repr_text, data_block. simpl. normalize. rename H0 into isByteText. 
    (*the simpl prior to the normalize is important - otherwise the fact isByte text is
      not pushed above the line. SO WHEN does normalize need to be preceded by simpl.
      We don't want to do it always, since it would unfold 64 + X etc?*) 
@@ -276,8 +279,8 @@ assert (BufferInOffset64: offset_in_range 64 (bufferIn VALS)).
      2: subst; omega.
      2: simpl; omega.
      2: reflexivity.
-rename H6 into BufferInOffset64_0.
-rename H7 into BufferInOffset64_960.
+rename H5 into BufferInOffset64_0.
+rename H6 into BufferInOffset64_960.
    focus_SEP 0 2.
    remember (960 - text_len a) as nsa.
 
@@ -294,7 +297,6 @@ rename H7 into BufferInOffset64_960.
      assert (FR: Frame = [
       `(array_at tuchar Tsh ZERO 0 nsa
            (offset_val (Int.repr tla) (bufferIn VALS)));
-      (*`(array_at tuchar Tsh ZERO tla 1024 (bufferIn VALS));*)
       `(array_at tuchar Tsh (cVint IPAD) 0 64 (k_ipad VALS));
       `(array_at tuchar Tsh (cVint IPAD) 0 64 (bufferIn VALS));
       `(array_at tuchar Tsh ZERO 64 65 (k_opad VALS));
@@ -307,7 +309,7 @@ rename H7 into BufferInOffset64_960.
       `(memory_block dsh (Int.repr 32) (DIGEST A)) ]).
       subst Frame. reflexivity.
      rewrite FR; clear FR Frame.
-     entailer. rewrite <- H11.
+     entailer. rewrite <- H10.
    remember (960 - text_len a) as nsa. (*AGAIN*) 
      remember (64 + text_len a) as tla. (*AGAIN*)
      entailer.
@@ -368,12 +370,11 @@ rename H7 into BufferInOffset64_960.
 
      entailer.
      assert (InnerArgTLA:
-       Z.of_nat
-         (length
+       Zlength
             (HMAC_FUN.innerArg (text a)
-               (map Byte.repr (HMAC_FUN.mkKey (key a)))))
+               (map Byte.repr (HMAC_FUN.mkKey (key a))))
         = 64 + text_len a).
-         unfold HMAC_FUN.innerArg, HMAC_FUN.mkArgZ. 
+         unfold HMAC_FUN.innerArg, HMAC_FUN.mkArgZ. rewrite Zlength_correct. 
          rewrite map_length in KIPAD_length.
          rewrite app_length, map_length, KIPAD_length.
          rewrite <- HH8, Zlength_correct, Nat2Z.inj_add. reflexivity.
@@ -387,10 +388,12 @@ rename H7 into BufferInOffset64_960.
         assert (z0 * 8 <= 1024 * 8) by omega. clear - H0.
         destruct (zlt (z0 * 8) (2^64)).  trivial. exfalso. simpl in *. 
           unfold Z.pow_pos in g. simpl in g. omega.
+     assert (Arith1: 64 + text_len a <= Int.max_unsigned).
+       subst tla. clear - TL1024. rewrite int_max_unsigned_eq. omega.
    remember (960 - text_len a) as nsa. (*AGAIN*) 
      entailer.
+     rewrite <- AxiomK. 
      cancel.
-     rewrite <- AxiomK. cancel.
      apply sepcon_derives.
      Focus 2. rewrite <- memory_block_data_at_; try reflexivity.
               entailer.
@@ -423,7 +426,7 @@ rename H7 into BufferInOffset64_960.
          unfold tuchars, cVint, ZnthV; intros.
          simpl. if_tac. omega.
            assert (ARITH: (0 <= Z.to_nat i < 64)%nat).
-             destruct H18 as [X Y]. apply Z2Nat.inj_lt in Y. simpl in Y. omega. assumption. omega.
+             destruct H17 as [X Y]. apply Z2Nat.inj_lt in Y. simpl in Y. omega. assumption. omega.
            rewrite map_app. rewrite map_app, app_nth1.
            destruct (nth_mapVint (Z.to_nat i) KIPAD) as [? N]. rewrite KIPAD_length; apply ARITH.
            rewrite N; reflexivity. 
@@ -435,7 +438,7 @@ rename H7 into BufferInOffset64_960.
          unfold tuchars, cVint, ZnthV; intros.
          simpl. if_tac. omega. if_tac. omega.
            assert (Arith: (Z.to_nat i - 64 < length (text a))%nat).
-             destruct H18 as [X Y]. apply Z2Nat.inj_lt in Y.
+             destruct H17 as [X Y]. apply Z2Nat.inj_lt in Y.
              rewrite Z2Nat.inj_add, Nat2Z.id in Y. rewrite Nat2Z.id in Y. 
               apply (plus_lt_reg_l _ _ 64). rewrite le_plus_minus_r. assumption.
               apply Z2Nat.inj_le in X. apply X. omega. omega. omega.
@@ -446,14 +449,14 @@ rename H7 into BufferInOffset64_960.
              repeat rewrite map_length. rewrite KIPAD_length.
              rewrite  Z2Nat.inj_sub. simpl.
              destruct (nth_mapVintZ (i-64) (text a)) as [? NTH].
-                rewrite Zlength_correct. clear - H18. destruct H18 as [X Y].
+                rewrite Zlength_correct. clear - H17. destruct H17 as [X Y].
                 split. omega. assert (Z.of_nat 64 = 64) by reflexivity.
                 rewrite H in Y. omega.
              rewrite Z2Nat.inj_sub in NTH. simpl in NTH. rewrite NTH. reflexivity.
              omega. omega. 
 
              repeat rewrite map_length; rewrite KIPAD_length. 
-               destruct H18 as [X Y]. apply Z2Nat.inj_le in X. simpl in X. omega. omega. omega. }
+               destruct H17 as [X Y]. apply Z2Nat.inj_le in X. simpl in X. omega. omega. omega. }
 
          reflexivity.
          red. destruct (bufferIn VALS); try contradiction. simpl.
@@ -509,7 +512,7 @@ apply semax_pre with (P':=  (PROP  ()
       simpl. normalize.
       reflexivity.
       reflexivity.
-    apply sepcon_fold. rewrite <- H7. subst Frame. reflexivity.
+    apply sepcon_fold. rewrite <- H6. subst Frame. reflexivity.
    }
    after_call. 
    (*Warning: Collision between bound variables of name x *)
@@ -553,16 +556,16 @@ apply semax_pre with (P':=  (PROP  ()
           unfold update_tycon. simpl. intros. normalize. simpl. entailer.*)
    normalize.
    subst retval0.
-rename H6 into BufferOutOffset0.
-rename H7 into BufferOutOffset1024.
+rename H5 into BufferOutOffset0.
+rename H6 into BufferOutOffset1024.
 
    focus_SEP 2.
    rewrite (split_offset_array_at tuchar Tsh _ 0 32 960). normalize.
      2: omega.
      2: simpl; omega.
      2: reflexivity.
-rename H6 into BufferOutOffset64_0.
-rename H7 into BufferOutOffset64_960.
+rename H5 into BufferOutOffset64_0.
+rename H6 into BufferOutOffset64_960.
    focus_SEP 6 0.
    remember (force_int
            oo ZnthV tuchar
@@ -590,7 +593,7 @@ rename H7 into BufferOutOffset64_960.
         `(memory_block dsh (Int.repr 32) (DIGEST A)) ]).
       subst Frame. reflexivity.
      rewrite FR; clear FR Frame.
-     entailer. rewrite <- H12.
+     entailer. rewrite <- H11.
      entailer. cancel.
      (*rewrite (split_array_at 96). 2: omega.
      cancel.
@@ -642,7 +645,7 @@ rename H7 into BufferOutOffset64_960.
       subst Frame. reflexivity.
      rewrite FR; clear FR Frame. 
      entailer.
-     unfold HMAC_FUN.outerArg, HMAC_FUN.mkArgZ. 
+     unfold HMAC_FUN.outerArg, HMAC_FUN.mkArgZ. repeat rewrite Zlength_correct.
          rewrite app_length, KOPAD_length.
          rewrite <- functional_prog.SHA_256'_eq, length_SHA256'.
      apply andp_right.
@@ -682,7 +685,7 @@ rename H7 into BufferOutOffset64_960.
          unfold tuchars, cVint, ZnthV; intros.
          simpl. if_tac. omega.
            assert (ARITH: (0 <= Z.to_nat i < 64)%nat).
-             destruct H21 as [XX YY]. apply Z2Nat.inj_lt in YY. simpl in YY. omega. assumption. omega.
+             destruct H20 as [XX YY]. apply Z2Nat.inj_lt in YY. simpl in YY. omega. assumption. omega.
            rewrite map_app. rewrite map_app, app_nth1.
            destruct (nth_mapVint (Z.to_nat i) KOPAD) as [? N]. rewrite KOPAD_length; apply ARITH.
            rewrite N; reflexivity. 
@@ -696,8 +699,8 @@ rename H7 into BufferOutOffset64_960.
          simpl. if_tac. omega. if_tac. omega.
            rewrite map_app. rewrite map_app.
            assert (ARITH: (Z.to_nat i - 64 < Z.to_nat SHA256_DIGEST_LENGTH)%nat).
-               clear - H21.
-                  unfold SHA256_DIGEST_LENGTH in *.  simpl in *. destruct H21 as [XX YY].
+               clear - H20.
+                  unfold SHA256_DIGEST_LENGTH in *.  simpl in *. destruct H20 as [XX YY].
                   apply Z2Nat.inj_lt in YY. simpl in YY. omega. omega. omega.
            clear - ARITH KOPAD_length H21.
            rewrite (app_nth2 (map Vint (map Int.repr KOPAD))); intros.
@@ -780,7 +783,7 @@ remember (RefinedHMAC a) as solution.
 remember (960 - text_len a) as nsa. simpl.
 normalize. 
 unfold var_block. simpl.  entailer.
-rewrite <- H8, <- H9, <- H10, <- H11, <- H12, <- H7. 
+rewrite <- H8, <- H9, <- H10, <- H11, <- H6, <- H7. 
 unfold data_block.
 unfold tarray in *. 
 apply andp_right.
@@ -819,8 +822,8 @@ cancel.
      2: simpl; omega.
      2: reflexivity.
 
-   assert (nsa =  1024 - (64 + text_len a)). omega.
-   rewrite HH8, <- H20. normalize. cancel.
+   assert (NSA:nsa =  1024 - (64 + text_len a)). omega.
+   rewrite HH8, <- NSA. normalize. cancel.
 Qed.
 
 

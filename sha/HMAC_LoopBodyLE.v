@@ -14,7 +14,7 @@ Require Import sha.hmac_sha256.
 Require Import HMAC_definitions.
 Require Import HMAC_lemmas.
 
-Lemma loopbodyGT: forall Espec 
+Lemma loopbodyLE: forall Espec 
 (A : ARGS)
 (a : HMAC_Refined.Args)
 (KV : val)
@@ -32,11 +32,10 @@ Lemma loopbodyGT: forall Espec
   (PROP  ()
    LOCAL  (`(eq (Vint (Int.repr i))) (eval_id _i);
    `(eq (Vint (Int.repr 64))) (eval_expr (Econst_int (Int.repr 64) tint));
-   `(eq (TEXT A)) (eval_id _text); `(eq (tk VALS)) (eval_id _key);
+   `(eq (TEXT A)) (eval_id _text); `(eq (KEY A)) (eval_id _key);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64));
-   `(eq (Vint (Int.repr (text_len a)))) (eval_id _text_len);
-   `(eq (Vint (Int.repr 32))) (eval_id _key_len);
-   `(eq (DIGEST A)) (eval_id _digest);
+   `(eq (TEXTLEN A)) (eval_id _text_len);
+   `(eq (KEYLEN A)) (eval_id _key_len); `(eq (DIGEST A)) (eval_id _digest);
    `(eq (k_ipad VALS)) (eval_var _k_ipad (tarray tuchar 65));
    `(eq (k_opad VALS)) (eval_var _k_opad (tarray tuchar 65));
    `(eq (tk VALS)) (eval_var _tk (tarray tuchar 32));
@@ -104,18 +103,17 @@ Lemma loopbodyGT: forall Espec
   (normal_ret_assert
      (PROP  (0 <= i + 1 <= 64)
       LOCAL  (`(eq (Vint (Int.repr i))) (eval_id _i);
-      `(eq (Vint (Int.repr 64))) (eval_expr (Econst_int (Int.repr 64) tint));
-      `(eq (TEXT A)) (eval_id _text); `(eq (tk VALS)) (eval_id _key);
-      `(eq KV) (eval_var sha._K256 (tarray tuint 64));
-      `(eq (Vint (Int.repr (text_len a)))) (eval_id _text_len);
-      `(eq (Vint (Int.repr 32))) (eval_id _key_len);
-      `(eq (DIGEST A)) (eval_id _digest);
-      `(eq (k_ipad VALS)) (eval_var _k_ipad (tarray tuchar 65));
-      `(eq (k_opad VALS)) (eval_var _k_opad (tarray tuchar 65));
-      `(eq (tk VALS)) (eval_var _tk (tarray tuchar 32));
-      `(eq (tk2 VALS)) (eval_var _tk2 (tarray tuchar 32));
-      `(eq (bufferIn VALS)) (eval_var _bufferIn (tarray tuchar 1024));
-      `(eq (bufferOut VALS)) (eval_var _bufferOut (tarray tuchar 1024)))
+   `(eq (Vint (Int.repr 64))) (eval_expr (Econst_int (Int.repr 64) tint));
+   `(eq (TEXT A)) (eval_id _text); `(eq (KEY A)) (eval_id _key);
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64));
+   `(eq (TEXTLEN A)) (eval_id _text_len);
+   `(eq (KEYLEN A)) (eval_id _key_len); `(eq (DIGEST A)) (eval_id _digest);
+   `(eq (k_ipad VALS)) (eval_var _k_ipad (tarray tuchar 65));
+   `(eq (k_opad VALS)) (eval_var _k_opad (tarray tuchar 65));
+   `(eq (tk VALS)) (eval_var _tk (tarray tuchar 32));
+   `(eq (tk2 VALS)) (eval_var _tk2 (tarray tuchar 32));
+   `(eq (bufferIn VALS)) (eval_var _bufferIn (tarray tuchar 1024));
+   `(eq (bufferOut VALS)) (eval_var _bufferOut (tarray tuchar 1024)))
       SEP 
       (`(array_at tuchar Tsh
            (cVint

@@ -3,52 +3,10 @@ Import ListNotations.
 Require sha.sha.
 Require sha.SHA256.
 Local Open Scope logic.
-Lemma split_offset_array_at_: forall (ty : type) (sh : Share.t) 
-         (z lo hi : Z) (v : val),
-       z <= lo <= hi ->
-       sizeof ty > 0 ->
-       legal_alignas_type ty = true ->
-       array_at_ ty sh z hi v =
-       !! offset_in_range (sizeof ty * z) v &&
-       !! offset_in_range (sizeof ty * hi) v &&
-       array_at_ ty sh z lo v * 
-       array_at_ ty sh 0 (hi - lo) 
-       (offset_val (Int.repr (sizeof ty * lo)) v).
-Proof.
-  intros. unfold array_at_.
-  rewrite <- split_offset_array_at; trivial.
-Qed.
-Lemma offset_val_array_at0:
- forall t sh f lo hi v,
-  sizeof t > 0 -> hi >= 0 ->
-  legal_alignas_type t = true ->
-  array_at t sh (fun i => f (i-lo)%Z) lo (lo + hi) v 
-  |--
-  array_at t sh f 0 hi (offset_val (Int.repr (sizeof t * lo)) v).
-Proof.
-  intros.
-  rewrite (split_offset_array_at t _ _ lo lo); trivial.
-  rewrite array_at_emp.
-  entailer. rewrite Zplus_comm. rewrite Z.add_simpl_r.
-  apply array_at_ext'. intros. rewrite Z.add_simpl_r. trivial.
-  omega.
-Qed.
-
-Lemma offset_val_array_at1:
- forall t sh f g k lo hi ofs v,
-    sizeof t > 0 -> hi >= 0 ->
-    legal_alignas_type t = true ->
-    k = lo + hi ->
-    g = (fun i => f (i-lo)%Z) ->
-    ofs = Int.repr (sizeof t * lo) ->
-  array_at t sh g lo k v |--
-  array_at t sh f 0 hi ((offset_val ofs) v).
-Proof.
-  intros. subst. apply offset_val_array_at0; trivial.
-Qed.
 
 Require Import sha.spec_sha.
 Require Import sha.HMAC_functional_prog.
+Require Import sha.HMAC_refined_fp.
 
 Require Import sha.hmac_sha256.
 
@@ -454,7 +412,7 @@ Parameter HMAC_LE : forall Espec tsh ksh dsh
 (VALS : VALUES)
 (HeqKLENGTH : false = (key_len a >? 64))
 (GT : key_len a <= 64)
-(H0 : sizes)
+(*(H0 : sizes)*)
 (TLrange : 0 <= text_len a <= Int.max_unsigned)
 (isByteKey : Forall isbyteZ (key a))
 (Delta := func_tycontext f_hmac_sha256 Vprog Gtot)
@@ -626,7 +584,7 @@ Parameter HMAC_GT: forall Espec tsh ksh dsh
 (Heqh1 : h1 = HMAC_Refined.snippet1 h0)
 (HeqKLENGTH : true = (key_len a >? 64))
 (GT : key_len a > 64)
-(H0 : sizes)
+(*(H0 : sizes)*)
 (anew : HMAC_Refined.Args)
 (Heqanew : anew = args h1)
 (TLN : text_len anew = text_len a)
@@ -638,7 +596,7 @@ Parameter HMAC_GT: forall Espec tsh ksh dsh
 (TKN : tk (locals h1) = functional_prog.SHA_256' (key a))
 (ZLenSha : Zlength (tk (locals h1)) = 32)
 (isByteKey : Forall isbyteZ (key a))
-(isByteShaKey : Forall isbyteZ (functional_prog.SHA_256' (key a)))
+(*(isByteShaKey : Forall isbyteZ (functional_prog.SHA_256' (key a)))*)
 (Delta := func_tycontext f_hmac_sha256 Vprog Gtot)
 (*(POSTCONDITION := abbreviate : ret_assert)
 (MORE_COMMANDS := abbreviate : statement)*)
