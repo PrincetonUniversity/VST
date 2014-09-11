@@ -38,12 +38,6 @@ data_at_with_mexception * [field_at] = data_at
 
 (*** type level ***)
 
-Lemma isSome_dec: forall {A} (P: option A), isSome P \/ ~ isSome P.
-Proof.
-  intros.
-  destruct P; simpl; auto.
-Defined.
-
 Fixpoint all_fields_except_one (f: fieldlist) (id: ident) : option fieldlist :=
  match f with
  | Fnil => None
@@ -236,41 +230,6 @@ Proof.
       rewrite <- nf_replace2_identical.
       auto.
 Defined.
-
-(*
-Lemma all_fields_replace_one_isSome_lemma: forall f i t0 t1, isSome (all_fields_replace_one f i t0) -> isSome (all_fields_replace_one f i t1).
-Proof.
-  intros.
-  induction f.
-  + auto.
-  + simpl in *.
-    if_tac.
-    auto.
-    destruct (all_fields_replace_one f i t0), (all_fields_replace_one f i t1); auto.
-Defined.
-
-Lemma nf_replace_isSome_lemma: forall t ids t0 t1, isSome (nf_replace t ids t0) -> isSome (nf_replace t ids t1).
-Proof.
-  induction ids; intros.
-  + auto.
-  + simpl in *.
-    destruct (nested_field_type2 t ids); try inversion H.
-    - pose proof all_fields_replace_one_isSome_lemma f a t0 t1.
-      pose proof all_fields_replace_one_isSome_lemma f a t1 t0.
-      destruct (all_fields_replace_one f a t0), (all_fields_replace_one f a t1).
-      * eapply IHids, H.
-      * simpl in H0. tauto.
-      * simpl in H1. tauto.
-      * inversion H.
-    - pose proof all_fields_replace_one_isSome_lemma f a t0 t1.
-      pose proof all_fields_replace_one_isSome_lemma f a t1 t0.
-      destruct (all_fields_replace_one f a t0), (all_fields_replace_one f a t1).
-      * eapply IHids, H.
-      * simpl in H0. tauto.
-      * simpl in H1. tauto.
-      * inversion H.
-Defined.
-*)
 
 Lemma nested_field_type2_nf_replace2_aux:
   forall i f t0,
@@ -565,6 +524,48 @@ Fixpoint proj_reptype_structlist id f ofs (v: reptype_structlist f) :
       else proj_reptype_structlist id flds0 (align ofs (alignof t0) + sizeof t0) (snd v)
   end v.
 
+Fixpoint proj_reptype_unionlist id f (v: reptype_unionlist f) : 
+  reptype (match field_type id f with
+           | Errors.OK t0 => t0
+           | _ => Tvoid
+           end) :=
+  match f as f'
+    return reptype_unionlist f' -> reptype (match field_type id f' with
+                                            | Errors.OK t0 => t0
+                                            | _ => Tvoid
+                                            end) with
+  | Fnil => fun _ => default_val _
+  | Fcons i0 t0 flds0 => 
+    if is_Fnil flds0 as b
+      return ((if b then reptype t0 else reptype t0 + reptype_unionlist flds0) ->
+              reptype (match (if ident_eq id i0 then Errors.OK t0 else field_type id flds0) with
+                       | Errors.OK t0 => t0
+                       | _ => Tvoid
+                       end))
+    then fun v =>
+      if ident_eq id i0 as b0
+        return reptype (match (if b0 then Errors.OK t0 else field_type id flds0) with
+                        | Errors.OK t0 => t0
+                        | _ => Tvoid
+                        end)
+      then v
+      else default_val _
+    else fun v => 
+      if ident_eq id i0 as b0
+        return reptype (match (if b0 then Errors.OK t0 else field_type id flds0) with
+                        | Errors.OK t0 => t0
+                        | _ => Tvoid
+                        end)
+      then match v with
+           | inl v0 => v0
+           | _ => default_val _
+           end
+      else match v with
+           | inr v0 => proj_reptype_unionlist id flds0 v0
+           | _ => default_val _
+           end
+  end v.
+
 Fixpoint proj_reptype (t: type) (ids: list ident) (v: reptype t) : reptype (nested_field_type2 t ids) :=
   let res :=
   match ids as ids'
@@ -601,6 +602,7 @@ Fixpoint proj_reptype (t: type) (ids: list ident) (v: reptype t) : reptype (nest
                                    end)
     with
     | Tstruct i f a => fun v0 => proj_reptype_structlist id f 0 v0
+    | Tunion i f a => fun v0 => proj_reptype_unionlist id f v0
     | _ => fun _ => default_val _
     end (proj_reptype t ids0 v)
   end
@@ -655,7 +657,7 @@ Fixpoint gupd_reptype_structlist f (i0: ident) (t0: type) (v: reptype_structlist
                  (if b1 then reptype t1 else reptype t1 * 
                      reptype_structlist (all_fields_replace_one2 flds0 i0 t0))
         then fun v => v
-        else fun _ => (default_val _, struct_default_val _)
+        else fun _ => (default_val _, struct_default_val _) (* impossible situation *)
       else
         if is_Fnil (all_fields_replace_one2 flds0 i0 t0) as b1
           return reptype t1 * reptype_structlist flds0 ->
@@ -668,6 +670,43 @@ Fixpoint gupd_reptype_structlist f (i0: ident) (t0: type) (v: reptype_structlist
   end v
   in
   eq_rect_r reptype_structlist res (gupd_reptype_structlist_aux f i0 t0).
+
+Fixpoint gupd_reptype_unionlist f (i0: ident) (t0: type) (v0: reptype t0) : reptype_unionlist (all_fields_replace_one2 f i0 t0) :=
+  let res :=
+  match f as f'
+    return reptype_unionlist (match f' with
+                               | Fnil => Fnil
+                               | Fcons i1 t1 flds0 => 
+                                 if ident_eq i0 i1
+                                 then Fcons i1 t0 flds0
+                                 else Fcons i1 t1 (all_fields_replace_one2 flds0 i0 t0)
+                               end)
+  with
+  | Fnil => union_default_val _
+  | Fcons i1 t1 flds0 => 
+   (if ident_eq i0 i1 as b
+      return reptype_unionlist (if b
+                                 then Fcons i1 t0 flds0
+                                 else Fcons i1 t1 (all_fields_replace_one2 flds0 i0 t0))
+    then
+     (if is_Fnil flds0 as b0
+        return (if b0 then reptype t0 else reptype t0 + reptype_unionlist flds0)
+      then v0
+      else inl v0
+     )
+    else
+     (if is_Fnil (all_fields_replace_one2 flds0 i0 t0) as b0
+        return (if b0
+                then reptype t1
+                else reptype t1 + reptype_unionlist (all_fields_replace_one2 flds0 i0 t0))
+      then default_val _
+      else inr (gupd_reptype_unionlist flds0 i0 t0 v0)
+      )
+    )
+  end
+  in
+  eq_rect_r reptype_unionlist res (gupd_reptype_structlist_aux f i0 t0).
+
 
 Fixpoint gupd_reptype (t: type) (ids: list ident) (t0: type) (v: reptype t) (v0: reptype t0): reptype (nf_replace2 t ids t0) := 
   match ids as ids' return reptype (nf_replace2 t ids' t0) with
@@ -684,6 +723,8 @@ Fixpoint gupd_reptype (t: type) (ids: list ident) (t0: type) (v: reptype t) (v0:
     with
     | Tstruct i f a => fun v' => gupd_reptype t ids0 (Tstruct i (all_fields_replace_one2 f id t0) a) v 
                                  (gupd_reptype_structlist f id t0 v' v0)
+    | Tunion i f a => fun _ => gupd_reptype t ids0 (Tunion i (all_fields_replace_one2 f id t0) a) v 
+                                 (gupd_reptype_unionlist f id t0 v0)
     | _ => fun _ => default_val _
     end (proj_reptype t ids0 v)
   end.
@@ -1362,28 +1403,28 @@ Definition nested_sfieldlist_at_sub: forall sh t id ids i f a0 p t0,
   nested_legal_fieldlist t = true ->
   nested_field_type2 t ids = Tstruct i f a0 ->
   field_type id f = Errors.OK t0 ->
-  exists P, forall v v1,
+  sigT (fun P => forall v v1,
   JMeq (proj_reptype t ids v) v1 ->  
   field_at sh t ids (proj_reptype t ids v) p = 
-  field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p * P (proj_except_reptype_structlist f id v1).
+  field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p * P (proj_except_reptype_structlist f id v1)).
 Proof.
   cut (forall sh t id ids i f a0 p t0,
   nested_legal_fieldlist t = true ->
   nested_field_type2 t ids = Tstruct i f a0 ->
   field_type id f = Errors.OK t0 ->
-  exists P, forall v v0 v1,  
+  sigT (fun P => forall v v0 v1,  
   JMeq (proj_reptype t ids v) v1 ->
   JMeq v0 v1 ->
   nested_sfieldlist_at sh t ids f v0 p = 
   field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p * 
-    P (proj_except_reptype_structlist f id v1)).
+    P (proj_except_reptype_structlist f id v1))).
   Focus 1. {
-    intros.
+    intro H; intros.
     assert (nested_reptype_structlist t ids f = reptype_structlist f).
       erewrite <- nested_reptype_structlist_lemma2; eauto.
       rewrite H2.
       reflexivity.
-    destruct (H sh t id ids i f a0 p t0 H1 H2 H3) as [PH ?]; clear H.
+    destruct (H sh t id ids i f a0 p t0 H1 H2 H3) as [PH H5]; clear H.
     eexists; intros.
     pose (eq_rect_r (fun T => T) v1 H4) as v0.
     erewrite field_at_Tstruct; eauto.
@@ -1395,24 +1436,22 @@ Proof.
   } Unfocus.
   intros.
   change f with (fieldlist_app Fnil f) in H0.
-  cut (exists P : reptype_structlist (all_fields_except_one2 f id) -> mpred,
-     forall (v : reptype t) (v0 : nested_reptype_structlist t ids f)
+  cut (sigT (fun P => forall (v : reptype t) (v0 : nested_reptype_structlist t ids f)
        (v1 : reptype_structlist f) (vs: reptype_structlist (fieldlist_app Fnil f)),
      JMeq (proj_reptype t ids v) vs ->
      reptype_suf vs v1 ->
      JMeq v0 v1 ->
      nested_sfieldlist_at sh t ids f v0 p =
      field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p *
-     P (proj_except_reptype_structlist f id v1)).
+     P (proj_except_reptype_structlist f id v1))).
   Focus 1. {
+    intro H2.
+    destruct H2 as [P H3]; exists P.
     intros.
-    destruct H2 as [P ?]; exists P.
-    intros.
-    destruct (reptype_suf_Fnil v1).
-    destruct H5.
-    eapply H2 with (vs := x); eauto.
+    destruct (reptype_suf_Fnil v1) as [x [? ?]].
+    eapply H3 with (vs := x); eauto.
     rewrite H6.
-    exact H3.
+    exact H2.
   } Unfocus.
   revert H0.
   generalize Fnil.
@@ -1482,11 +1521,11 @@ Transparent field_at proj_reptype spacer nested_sfieldlist_at.
     - destruct f; try (solve [inversion H1]).
       rewrite fieldlist_app_Fcons in H0.
       destruct (IHf H1 (fieldlist_app f0 (Fcons i0 t1 Fnil)) H0) as [PH IH]; clear IHf.
-      cut (exists P : 
+      cut (sigT (fun P :
             (if is_Fnil (all_fields_except_one2 (Fcons i1 t2 f) id) 
              then reptype t1
              else reptype t1 * reptype_structlist (all_fields_except_one2 (Fcons i1 t2 f) id))
-             -> mpred,
+             -> mpred =>
              forall (v : reptype t)
              (v0 : nested_reptype_structlist t ids (Fcons i0 t1 (Fcons i1 t2 f)))
              (v1 : reptype_structlist (Fcons i0 t1 (Fcons i1 t2 f)))
@@ -1503,10 +1542,10 @@ Transparent field_at proj_reptype spacer nested_sfieldlist_at.
                          else reptype t1 * reptype_structlist 
                               (all_fields_except_one2 (Fcons i1 t2 f) id)
                 then fst v1
-                else (fst v1, proj_except_reptype_structlist (Fcons i1 t2 f) id (snd v1)))).
+                else (fst v1, proj_except_reptype_structlist (Fcons i1 t2 f) id (snd v1))))).
       Focus 1. {
-        intros.
-        destruct H6 as [P ?]. 
+        intro H6.
+        destruct H6 as [P H6]. 
         simpl (all_fields_except_one2 (Fcons i0 t1 (Fcons i1 t2 f)) id).
         simpl proj_except_reptype_structlist.
         if_tac; [congruence | exists P; intros].
@@ -1622,6 +1661,29 @@ Proof.
         destruct (all_fields_replace_one f id t0); [auto | inversion H].
 Qed.
 
+Lemma proj_reptype_unionlist_gupd_reptype_unionlist_identical: forall f id t0 v0,
+  isSome (all_fields_replace_one f id t0) ->
+  JMeq (proj_reptype_unionlist id _ (gupd_reptype_unionlist f id t0 v0)) v0.
+Proof.
+  intros.
+  induction f; intros.
+  + simpl in H.
+    inversion H.
+  + simpl in *.
+    destruct (ident_eq id i).
+    - (* id = i *)
+      simpl. if_tac; [| congruence].
+      if_tac; reflexivity.
+    - (* id <> i *)
+      destruct (is_Fnil f) eqn:?.
+      * destruct f; [| inversion Heqb].
+        simpl in H; inversion H.
+      * simpl; if_tac; [congruence |].
+        rewrite (is_Fnil_all_fields_replace_one2 f id t0), Heqb.
+        apply IHf.
+        destruct (all_fields_replace_one f id t0); [auto | inversion H].
+Qed.
+
 Lemma proj_except_reptype_structlist_gupd_reptype_structlist: forall f id t0 v v0,
   JMeq (proj_except_reptype_structlist _ id (gupd_reptype_structlist f id t0 v v0)) (proj_except_reptype_structlist f id v).
 Proof.
@@ -1700,7 +1762,18 @@ Proof.
       apply proj_reptype_structlist_gupd_reptype_structlist_identical.
       apply (iff_sym (all_fields_replace_one_field_type_isSome_lemma _ _ _)), H1.
     - (* Tunion *)
-      admit.
+      rewrite eq_rect_JMeq.
+      generalize (IHids t v (Tunion i (all_fields_replace_one2 f a t0) a0) (gupd_reptype_unionlist f a t0 v0) H0).
+      generalize ((proj_reptype
+        (nf_replace2 t ids (Tunion i (all_fields_replace_one2 f a t0) a0))
+        ids
+        (gupd_reptype t ids (Tunion i (all_fields_replace_one2 f a t0) a0) v
+           (gupd_reptype_unionlist f a t0 v0)))).
+      erewrite nested_field_type2_nf_replace2; eauto; intros.
+      simpl in r0.
+      rewrite H3.
+      apply proj_reptype_unionlist_gupd_reptype_unionlist_identical.
+      apply (iff_sym (all_fields_replace_one_field_type_isSome_lemma _ _ _)), H1.
 Qed.
 
 Lemma gupd_reptype_gupd_reptype: forall t ids t0 t1 v v0 v1,
@@ -1904,8 +1977,7 @@ Definition nested_field_sub_aux: forall sh t id ids p,
   nested_legal_fieldlist t = true ->
   legal_alignas_type t = true ->
   isSome (nested_field_rec t (id :: ids)) ->
-  exists P, forall v, data_at sh t v p = field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p *
-    P (proj_except_reptype t id ids v).
+  sigT (fun P => forall v, data_at sh t v p = field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p * P (proj_except_reptype t id ids v)).
 Proof.
   intros.
   revert id H1.
@@ -1917,7 +1989,7 @@ Opaque proj_reptype.
 Transparent proj_reptype.
       unfold nested_field_type in H1; simpl in H1.
       solve_field_offset_type id f; [clear H1 | inversion H1].
-      destruct (nested_sfieldlist_at_sub sh (Tstruct i f a) id nil i f a p t H0 H eq_refl H3) as [P0 ?].
+      destruct (nested_sfieldlist_at_sub sh (Tstruct i f a) id nil i f a p t H0 H eq_refl H3) as [P0 H1].
       exists P0; intros.
       rewrite data_at_field_at.
       pose proof H1 v v.
@@ -1929,7 +2001,7 @@ Transparent proj_reptype.
     - (* Tstruct *)
       destruct (IHids a H2) as [PH IH]; clear IHids.
       destruct (field_type id f) eqn:?; [|inversion H3].
-      destruct (nested_sfieldlist_at_sub sh t id (a :: ids) i f a0 p t0 H0 H H4 Heqr) as [P0 ?].
+      destruct (nested_sfieldlist_at_sub sh t id (a :: ids) i f a0 p t0 H0 H H4 Heqr) as [P0 H5].
 
       eexists; intros; rewrite IH.
 
@@ -1955,6 +2027,44 @@ Opaque eq_rect_r proj_reptype proj_except_reptype.
 Transparent eq_rect_r proj_reptype proj_except_reptype.
     - (* Tunion *)
       admit.
+Defined.
+
+Definition isSome_dec: forall {A} (P: option A), isSome P + ~ isSome P.
+Proof.
+  intros.
+  destruct P; simpl; auto.
+Defined.
+
+Definition field_except_at (sh: Share.t) t id ids (v: reptype (nf_sub2 t id ids)) (p: val) : mpred.
+  destruct (nested_legal_fieldlist t) eqn:H; [| exact emp].
+  destruct (legal_alignas_type t) eqn:H0; [| exact emp].
+  destruct (isSome_dec (nested_field_rec t (id :: ids))); [| exact emp].
+  destruct (nested_field_sub_aux sh t id ids p H H0 i).
+  exact (x v).
+Defined.
+
+Lemma field_except_at_lemma: forall sh t id ids v p,
+  nested_legal_fieldlist t = true ->
+  legal_alignas_type t = true ->
+  nested_field_type2 t (id :: ids) <> Tvoid ->
+  data_at sh t v p = field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p * 
+    field_except_at sh t id ids (proj_except_reptype t id ids v) p.
+Proof.
+  intros.
+  assert (isSome (nested_field_rec t (id :: ids))).
+    unfold nested_field_type2 in H1.
+    destruct (nested_field_rec t (id :: ids)) as [[? ?]|]; 
+    [simpl; auto | simpl in H1; congruence].
+  unfold field_except_at.
+  generalize (@eq_refl bool (nested_legal_fieldlist t)).
+  generalize (@eq_refl bool (legal_alignas_type t)).
+  pattern (nested_legal_fieldlist t) at 2 3; rewrite H.
+  pattern (legal_alignas_type t) at 2 3; rewrite H0.
+  destruct (isSome_dec (nested_field_rec t (id :: ids))).
+  + intros; destruct (nested_field_sub_aux sh t id ids p e0 e i).
+    apply e1.
+  + pose proof (n H2).
+    inversion H3.
 Qed.
 
 (*

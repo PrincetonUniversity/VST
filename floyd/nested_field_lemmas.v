@@ -616,6 +616,32 @@ Proof.
       destruct (field_offset id f); inversion H.
   + subst.
     solve_field_offset_type id x0. simpl; auto. inversion H0.
+Qed.
+
+Definition iffT A B := ((A -> B) * (B -> A))%type.
+
+Definition nested_field_rec_cons_isSome_lemmaT: forall t id ids, 
+  iffT (isSome (nested_field_rec t (id :: ids)))
+  (isSome (nested_field_rec t ids) * sigT (fun i => sigT (fun f => sigT (fun a => 
+  isOK (field_type id f) * ((nested_field_type2 t ids = Tstruct i f a) + (nested_field_type2 t ids = Tunion i f a)))))%type).
+Proof.
+  intros.
+  simpl (nested_field_rec t (id :: ids)).
+  unfold nested_field_type2.
+  destruct (nested_field_rec t ids) as [[? tt]|]; [destruct tt |];
+  (split; intro H; [try inversion H | destruct H as [? [? [? [? [? [H1 | H1]]]]]]]; try inversion H1).
+  + simpl; split; auto; exists i, f, a.
+    destruct (field_type id f); simpl.
+      auto.
+      destruct (field_offset id f); inversion H.
+  + subst.
+    solve_field_offset_type id x0. simpl; auto. inversion i1.
+  + simpl; split; auto; exists i, f, a.
+    destruct (field_type id f); simpl.
+      auto.
+      destruct (field_offset id f); inversion H.
+  + subst.
+    solve_field_offset_type id x0. simpl; auto. inversion i1.
 Defined.
 
 Lemma nested_field_type2_Tstruct_nested_field_rec_isSome: forall t ids i f a,
@@ -669,14 +695,23 @@ Proof.
 Defined.
 
 Ltac solve_nested_field_rec_cons_isSome H :=
+  let HH := fresh "HH" in
+  let H1 := fresh "H" in
+  let H2 := fresh "H" in
+  let H3 := fresh "H" in
   let i := fresh "i" in
   let f := fresh "f" in
   let a := fresh "a" in
-  let HH := fresh "HH" in
+  let i' := fresh "i" in
+  let f' := fresh "f" in
+  let a' := fresh "a" in
   match type of H with
-  | isSome (nested_field_rec ?T (?A :: ?IDS)) => 
-    destruct (nested_field_rec_cons_isSome_lemma T A IDS) as [HH _];
-    destruct (HH H) as [? [i [f [a [? [? | ?]]]]]]; clear HH
+  | isSome (nested_field_rec ?T (?A :: ?IDS)) =>
+    destruct (nested_field_rec_cons_isSome_lemmaT T A IDS) as [HH _];
+    destruct (HH H) as [H1 [i' [f' [a' [H2 [H3 | H3]]]]]]; clear HH;
+    rename i' into i;
+    rename f' into f;
+    rename a' into a
   end.
 
 Lemma nested_field_rec_divide: forall t ids pos t', nested_field_rec t ids = Some (pos, t') -> legal_alignas_type t = true -> Z.divide (alignof t') pos.
