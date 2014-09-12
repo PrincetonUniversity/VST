@@ -1,3 +1,4 @@
+Require Import MirrorCore.Lambda.Expr.
 Require Import floyd.proofauto.
 Require Import sep.
 Require Import msl.Axioms.
