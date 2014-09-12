@@ -957,18 +957,6 @@ Qed.
 
 Hint Resolve array_at_array_at_: cancel.
 
-Lemma replace_nth_replace_nth: forall {A: Type} R n {Rn Rn': A},
-  replace_nth n (replace_nth n R Rn) Rn' = replace_nth n R Rn'.
-Proof.
-  intros.
-  revert R; induction n; destruct R; simpl in *.
-  + reflexivity.
-  + reflexivity.
-  + reflexivity.
-  + rewrite IHn.
-    reflexivity.
-Qed.
-
 Lemma replace_nth_commute:
   forall {A} i j R (a b: A),
    i <> j ->

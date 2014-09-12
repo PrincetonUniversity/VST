@@ -8,6 +8,7 @@ Require Import floyd.extcall_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.loadstore_lemmas.
+Require Import floyd.nested_loadstore.
 Require Import floyd.array_lemmas.
 Require Import floyd.unfold_data_at.
 Require Import floyd.entailer.

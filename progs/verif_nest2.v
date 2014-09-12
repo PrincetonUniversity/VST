@@ -35,15 +35,30 @@ Proof.
  start_function.
 name i _i.
 apply (remember_value (eval_var _p t_struct_b)); intro p.
-simpl_data_at.
- fold t_struct_a.
-forward. (* i = p.y2.x2; *)
-unfold at_offset.
+eapply semax_seq'.
+
+ensure_normal_ret_assert;
+ hoist_later_in_pre.
+change (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tint)
+ with (nested_efield (Evar _p t_struct_b) (_x2 :: _y2 :: nil) (tint :: t_struct_a :: nil)).
+eapply semax_nested_efield_load_37'.
+reflexivity.
+reflexivity.
+instantiate (1 := Struct_env). reflexivity.
+reflexivity.
+reflexivity.
+reflexivity.
+reflexivity.
 entailer!.
-apply I.
-forward. (* return i; *)
-simpl_data_at.
-unfold at_offset; entailer!.
+simpl; auto.
+
+unfold replace_nth; cbv beta;
+               try (apply extract_exists_pre; intro_old_var (Sset _i (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tint)));
+               abbreviate_semax.
+
+simpl proj_reptype.
+forward.
+apply derives_refl.
 Qed.
 
 Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
@@ -51,20 +66,31 @@ Proof.
  start_function.
 name i_ _i.
 apply (remember_value (eval_var _p t_struct_b)); intro p.
-simpl_data_at.
-replace_SEP 0 
- (`(mapsto Ews (Tint I32 Signed noattr) p (Vint (fst v))) *
-  `(mapsto Ews (Tfloat F64 noattr) (offset_val (Int.repr 4) p) (Vfloat (fst (snd v)))) *
-  `(mapsto Ews (Tint I32 Signed noattr) (offset_val (Int.repr 12) p) (Vint (snd (snd v))))).
-simpl_data_at; unfold at_offset; entailer!.
-(*
-forward. (*   p.y2.x2 = i; *)
-forward. (* return; *)
-unfold at_offset, id; simpl.
-forget (eval_var _p t_struct_b rho) as p.
-simpl_data_at.
-fold t_struct_a.
-cancel.
+
+eapply semax_seq'.
+
+ensure_normal_ret_assert;
+ hoist_later_in_pre.
+change (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tint)
+ with (nested_efield (Evar _p t_struct_b) (_x2 :: _y2 :: nil) (tint :: t_struct_a :: nil)).
+
+eapply semax_nested_efield_store_nth with (n := 0%nat).
+reflexivity.
+reflexivity.
+instantiate (1 := Struct_env). reflexivity.
+reflexivity.
+reflexivity.
+reflexivity.
+reflexivity.
+entailer!.
+auto.
+entailer!.
+
+unfold replace_nth; cbv beta;
+               try (apply extract_exists_pre; intro_old_var (Sassign (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tint)
+        (Etempvar _i tint)));
+               abbreviate_semax.
+
+forward.
+entailer!.
 Qed.
-*)
-Admitted.
