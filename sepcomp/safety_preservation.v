@@ -102,7 +102,7 @@ Qed.
 Lemma safe_corestepN_forward:
   corestep_fun -> 
   forall c m c' m' n n0,
-    corestepN Hcore ge n0 c m c' m' -> safeN (n + S n0) c m -> safeN n c' m'.
+    corestepN Hcore ge n0 c m c' m' -> safeN (n + n0) c m -> safeN n c' m'.
 Proof.
   intros.
   revert c m c' m' n H0 H1.
@@ -111,7 +111,7 @@ Proof.
   eapply safe_downward in H1; eauto. omega.
   simpl in H0. destruct H0 as [c2 [m2 [STEP STEPN]]].
   apply (IHn0 _ _ _ _ n STEPN). 
-  assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.
+  assert (Heq: ((n + (S n0)) = S (n + n0))%nat) by omega.
   rewrite Heq in H1.
   eapply safe_corestep_forward in H1; eauto.
 Qed.
@@ -336,10 +336,10 @@ exists rv, rv'.
 split; auto.
 split; auto.
 assert (H: forall n, safeN source geS P n c' m').
-  intro n. 
+{ intro n. 
   destruct STEPN as [n0 STEPN].
-  specialize (source_safe (n + S (S n0))). 
-  solve[eapply safe_corestepN_forward in source_safe; eauto].
+  specialize (source_safe (n + (S n0))). 
+  eapply safe_corestepN_forward in source_safe; eauto. }
 specialize (H (S O)).
 simpl in H.
 rewrite HALT' in H.
@@ -492,7 +492,7 @@ apply H. omega.
 apply (IHn _ _ _ _ _ _ MATCH').
 intros n1.
 destruct STEPN as [n2 STEPN].
-specialize (source_safe (n1 + S (S n2))).
+specialize (source_safe (n1 + (S n2))).
 generalize @safe_corestepN_forward. intro FORW.
 solve[apply (FORW _ _ _ _ _ SRC_DET _ _ _ _ _ _ STEPN source_safe)].
 simpl in TSTEPN.
