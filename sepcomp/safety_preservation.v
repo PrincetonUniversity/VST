@@ -163,7 +163,8 @@ Context  {F V TF TV C D Z data : Type}
   (tm: mem)
 
   (P : val -> mem -> Prop)
-  (P_good : forall j v tv m tm, val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
+  (P_good : forall j v tv m tm, meminj_preserves_globals geS j -> 
+                                val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
 
   (SRC_DET : corestep_fun source)
 
@@ -343,6 +344,8 @@ specialize (H (S O)).
 simpl in H.
 rewrite HALT' in H.
 split; auto.
+assert (meminj_preserves_globals geS j').
+  eapply match_genv0; eauto.
 eapply P_good; eauto.
 }
 Qed.
@@ -368,7 +371,8 @@ Context  {F V TF TV C D Z data : Type}
   (tm: mem)
 
   (P : val -> mem -> Prop)
-  (P_good : forall j v tv m tm, val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
+  (P_good : forall j v tv m tm, meminj_preserves_globals geS j -> 
+                                val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
 
   (SRC_DET : corestep_fun source)
 
@@ -454,7 +458,8 @@ Lemma safety_preservation:
   (tm: mem)
 
   (P : val -> mem -> Prop)
-  (P_good : forall j v tv m tm, val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
+  (P_good : forall j v tv m tm, meminj_preserves_globals geS j -> 
+                                val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm)
   (MATCH : exists (cd: data) (j: meminj), match_state cd j c m d tm)
   (source_safe : forall n, safeN source geS P n c m),
 
@@ -560,7 +565,8 @@ Qed.
 Lemma semantics_preservation:
   forall c m d tm c' m' rv (P: val -> mem -> Prop) cd j,
   Forward_simulation_inject source target geS geT entry_points data match_state ord -> 
-  (forall j v tv m tm, val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm) -> 
+  (forall j v tv m tm, meminj_preserves_globals geS j -> 
+                       val_inject j v tv -> Mem.inject j m tm -> P v m -> P tv tm) -> 
   corestep_star source geS c m c' m' -> 
   halted source c' = Some rv -> 
   P rv m' -> 
