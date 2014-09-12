@@ -64,7 +64,7 @@ set (ddlen :=  Zlength dd).
 assert (Hddlen: (0 <= ddlen < 64)%Z).
 unfold ddlen. split; auto. rewrite Zlength_correct; omega.
 repeat rewrite  initial_world.Zlength_map.
-forward_if   (invariant_after_if1 hashed dd c md shmd  hi lo).
+forward_if   (invariant_after_if1 hashed dd c md shmd hi lo kv).
 * (* then-clause *)
  change Delta with Delta_final_if1.
 match goal with |- semax _ _ ?c _ => change c with Body_final_if1 end.
@@ -72,7 +72,7 @@ match goal with |- semax _ _ ?c _ => change c with Body_final_if1 end.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
  make_sequential. rewrite overridePost_normal'.
 unfold ddlen in *; clear ddlen.
-eapply semax_pre0; [|apply (ifbody_final_if1 Espec hashed md c shmd hi lo dd H4 H7 H3 DDbytes)].
+eapply semax_pre0; [|apply (ifbody_final_if1 Espec hashed md c shmd hi lo dd kv H4 H7 H3 DDbytes)].
 entailer!.
 * (* else-clause *)
 forward. (* skip; *)
@@ -114,7 +114,7 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
   (Tsh,
      offset_val (Int.repr (Zlength dd')) (offset_val (Int.repr 40) c)%Z, 
      (Z.of_nat CBLOCK - 8 - Zlength dd')%Z,
-     Int.zero).
+     Int.zero). {
 change 40%Z with data_offset.
 entailer!.
 Omega1.
@@ -154,14 +154,16 @@ entailer!.
 
   change (sizeof tuchar) with 1%Z; rewrite Z.mul_1_l.
   rewrite offset_offset_val. rewrite add_repr; auto.
-
-  (* after_call matually *)
+}
+  (* after_call manually *)
   cbv beta iota. autorewrite with subst.
 replace_SEP 0%Z (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
           (Z.of_nat CBLOCK - 8 - Zlength dd')
-          (offset_val (Int.repr (Zlength dd')) (offset_val (Int.repr 40) c)))).
-
-entailer!.
+          (offset_val (Int.repr (Zlength dd')) (offset_val (Int.repr 40) c)))). {
+ entailer!.
+}
+replace_SEP 7%Z (`(K_vector kv)).
+  entailer!.
  forward.  (* p += SHA_CBLOCK-8; *)
  entailer!.
  simpl eval_binop. normalize.

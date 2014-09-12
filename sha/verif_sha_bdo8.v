@@ -26,14 +26,15 @@ Definition load8 id ofs :=
 
 Lemma sha256_block_load8:
   forall (Espec : OracleKind) 
-     (data: val) (r_h: list int) (ctx: val)
+     (data: val) (r_h: list int) (ctx: val) kv
    (H5 : length r_h = 8%nat),
      semax  
       (initialized _data
          (func_tycontext f_sha256_block_data_order Vprog Gtot))
   (PROP  ()
    LOCAL  (`eq (eval_id _data) (eval_expr (Etempvar _in (tptr tvoid)));
-   `(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
+   `(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
    SEP  (`(array_at tuint Tsh (tuints r_h) 0 (Zlength r_h) ctx)))
    (Ssequence (load8 _a 0)
      (Ssequence (load8 _b 1)
@@ -55,7 +56,8 @@ Lemma sha256_block_load8:
                 `(eq (Vint (nthi r_h 6))) (eval_id _g);
                 `(eq (Vint (nthi r_h 7))) (eval_id _h);
    `eq (eval_id _data) (eval_expr (Etempvar _in (tptr tvoid)));
-   `(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
+   `(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
    SEP  (`(array_at tuint Tsh (tuints r_h) 0 (Zlength r_h) ctx)))).
 Proof.
 intros.
@@ -86,13 +88,13 @@ do 8 (forward;
          [ entailer!; [|apply ZnthV_map_Vint_is_int]; omega | ]).
 forward.  (* skip; *)
 entailer. apply prop_right.
-revert H H0 H1 H2 H3 H4 H6 H7.
+revert H0 H1 H2 H3 H4 H6 H7 H8.
 clear - H5.
 unfold nthi, tuints, ZnthV.
 repeat rewrite if_false by (apply Zle_not_lt; computable).
 simpl.
 repeat (rewrite nth_map' with (d':=Int.zero); [ | omega]).
-intros. inv H; inv H0; inv H1; inv H2; inv H3; inv H4; inv H6; inv H7.
+intros. inv H0; inv H1; inv H2; inv H3; inv H4; inv H6; inv H7; inv H8.
 repeat split; auto.
 Qed.
 
@@ -135,7 +137,7 @@ Fixpoint add_upto (k: nat) (u v: list int) {struct k} :=
  end.
 
 Lemma add_one_back:
- forall Espec Delta Post atoh regs ctx (i: nat) more i'
+ forall Espec Delta Post atoh regs ctx kv (i: nat) more i'
   (i'EQ: i' = (nth i [_a,_b,_c,_d,_e,_f,_g,_h] 1%positive)),
   length atoh = 8%nat ->
   length regs = 8%nat ->
@@ -153,7 +155,8 @@ Lemma add_one_back:
     `(eq (Vint (nthi atoh 4))) (eval_id _e);
     `(eq (Vint (nthi atoh 5))) (eval_id _f);
     `(eq (Vint (nthi atoh 6))) (eval_id _g);
-    `(eq (Vint (nthi atoh 7))) (eval_id _h))
+    `(eq (Vint (nthi atoh 7))) (eval_id _h);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
    SEP  (`(array_at tuint Tsh (tuints (add_upto (S i) regs atoh)) 0 8 ctx)))
     more
    Post ->
@@ -167,7 +170,8 @@ Lemma add_one_back:
     `(eq (Vint (nthi atoh 4))) (eval_id _e);
     `(eq (Vint (nthi atoh 5))) (eval_id _f);
     `(eq (Vint (nthi atoh 6))) (eval_id _g);
-    `(eq (Vint (nthi atoh 7))) (eval_id _h))
+    `(eq (Vint (nthi atoh 7))) (eval_id _h);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
    SEP  (`(array_at tuint Tsh (tuints (add_upto i regs atoh)) 0 8 ctx)))
    (Ssequence (get_h (Z.of_nat i)) (Ssequence (add_h (Z.of_nat i) i') more))
    Post.
@@ -413,7 +417,7 @@ Qed.
 
 Lemma add_them_back_proof:
   forall (Espec : OracleKind)
-     (regs regs': list int) (ctx: val),
+     (regs regs': list int) (ctx: val) kv,
      length regs = 8%nat ->
      length regs' = 8%nat ->
      semax  Delta_loop1
@@ -427,12 +431,14 @@ Lemma add_them_back_proof:
     `(eq (Vint (nthi regs' 4))) (eval_id _e);
     `(eq (Vint (nthi regs' 5))) (eval_id _f);
     `(eq (Vint (nthi regs' 6))) (eval_id _g);
-    `(eq (Vint (nthi regs' 7))) (eval_id _h))
+    `(eq (Vint (nthi regs' 7))) (eval_id _h);
+    `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
    SEP 
    (`(array_at tuint Tsh (tuints regs) 0 8 ctx)))
    (sequence add_them_back Sskip)
   (normal_ret_assert
-   (PROP() LOCAL(`(eq ctx) (eval_id _ctx)) 
+   (PROP() LOCAL(`(eq ctx) (eval_id _ctx);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz))) 
     SEP (`(array_at tuint Tsh (tuints (map2 Int.add regs regs')) 0 8 ctx)))).
 Proof.
 intros.

@@ -62,7 +62,7 @@ Definition sha_update_loop_body :=
 
 Lemma update_loop_body_proof:
  forall (Espec : OracleKind) (sh: share) (hashed : list int) (r_data data : list Z) (c d : val)
-  (len : nat) (r_h : list int) (r_Nl r_Nh : int)
+  (len : nat) kv (r_h : list int) (r_Nl r_Nh : int)
    (Delta : tycontext) (blocks bl : list int)
  (HDelta: Delta = initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot))))
@@ -97,9 +97,10 @@ semax Delta
    `(eq
        (Vint
           (Int.repr (Z.of_nat (len - (length blocks * 4 - length r_data))))))
-     (eval_id _len))
+     (eval_id _len);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
    SEP 
-   (`K_vector (eval_var _K256 (tarray tuint 64));
+   (`(K_vector kv);
     `(array_at tuint Tsh
         (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
    `(sha256_length (hilo r_Nh r_Nl + (Z.of_nat len)*8) c);
@@ -108,9 +109,9 @@ semax Delta
    `(data_block sh data d)))
    sha_update_loop_body
   (loop1_ret_assert
-     (sha_update_inv sh hashed len c d r_data data r_Nh r_Nl false)
+     (sha_update_inv sh hashed len c d r_data data kv r_Nh r_Nl false)
      (normal_ret_assert
-        (sha_update_inv sh hashed len c d r_data data r_Nh r_Nl true))).
+        (sha_update_inv sh hashed len c d r_data data kv r_Nh r_Nl true))).
 Proof.
 intros.
 name c' _c.
@@ -124,7 +125,7 @@ subst Delta; abbreviate_semax.
 forward_call (* sha256_block_data_order (c,data); *)
  (hashed++ blocks,  bl, c, 
   offset_val (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d,
-  sh).
+  sh, kv).
 
 entailer!.
 
@@ -142,8 +143,9 @@ simpl.
 after_call.
 
  rename H2 into H99.
-replace_SEP 2%Z (`K_vector (eval_var _K256 (tarray tuint 64))); 
+(*replace_SEP 2%Z (`K_vector (eval_var _K256 (tarray tuint 64))); 
   [entailer | ].
+*)
  forward. (* data += SHA_CBLOCK; *)
  entailer.
  forward. (* len  -= SHA_CBLOCK; *)
@@ -235,7 +237,7 @@ Definition update_outer_if :=
 
 Lemma update_outer_if_proof:
  forall  (Espec : OracleKind) (hashed : list int) 
-           (dd data : list Z) (c d : val) (sh : share) (len : nat)
+           (dd data : list Z) (c d : val) (sh : share) (len : nat) kv
    (H : len <= length data)
    (HBOUND : (s256a_len (S256abs hashed dd) + Z.of_nat len * 8 < two_p 64)%Z)
    (c' : name _c)
@@ -264,7 +266,8 @@ semax
    `(eq (Vint (Int.repr (Zlength dd)))) (eval_id _n);
    `(eq d) (eval_id _data); `(eq c) (eval_id _c);
    `(eq d) (eval_id _data_);
-   `((eq (Z.of_nat len) oo Int.unsigned) oo force_int) (eval_id _len))
+   `((eq (Z.of_nat len) oo Int.unsigned) oo force_int) (eval_id _len);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
    SEP  (`(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
    `(array_at tuint Tsh
        (ZnthV tuint (map Vint (hash_blocks init_registers hashed))) 0 8 c);
@@ -273,14 +276,14 @@ semax
        c);
    `(field_at Tsh t_struct_SHA256state_st [_num] (Vint (Int.repr (Zlength dd)))
        c);
-   `K_vector (eval_var _K256 (tarray tuint 64));
+   `(K_vector kv);
    `(data_block sh data d))) update_outer_if
-  (overridePost (sha_update_inv sh hashed len c d dd data hi lo false)
+  (overridePost (sha_update_inv sh hashed len c d dd data kv hi lo false)
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
          LOCAL ()
-         SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+         SEP  (`(K_vector kv);
                 `(sha256state_ a' c); `(data_block sh data d))))).
 Proof.
 intros.
@@ -288,25 +291,25 @@ unfold update_outer_if.
 simplify_Delta; abbreviate_semax.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 
-forward_if (sha_update_inv sh hashed len c d dd data hi lo false).
+forward_if (sha_update_inv sh hashed len c d dd data kv hi lo false).
 (* * entailer!.   (* cond-expression typechecks *) *)
 * (* then clause *)
 forward.  (* fragment = SHA_CBLOCK-n; *)
 rewrite semax_seq_skip.
 
-apply semax_pre with (inv_at_inner_if sh hashed len c d dd data hi lo).
+apply semax_pre with (inv_at_inner_if sh hashed len c d dd data kv hi lo).
 unfold inv_at_inner_if; entailer!.
 rewrite H2.
 destruct (Int.unsigned_range_2 len'); auto.
 apply Int.repr_unsigned.
-fold (inv_at_inner_if sh hashed len c d dd data hi lo).
-apply semax_seq with (sha_update_inv sh hashed len c d dd data hi lo false).
+fold (inv_at_inner_if sh hashed len c d dd data kv hi lo).
+apply semax_seq with (sha_update_inv sh hashed len c d dd data kv hi lo false).
 replace Delta with (initialized _fragment (initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot)))))
  by (simplify_Delta; reflexivity).
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION Delta.
 autorewrite with norm.
-simple apply (update_inner_if_proof Espec hashed dd data c d sh len hi lo); 
+simple apply (update_inner_if_proof Espec hashed dd data c d sh len kv hi lo); 
   try assumption.
 forward. 
 rewrite overridePost_normal'. apply andp_left2; auto.
@@ -330,7 +333,7 @@ rewrite Zlength_correct in H6; destruct dd; inv H6.
 Qed.
 
 Lemma update_while_proof:
- forall (Espec : OracleKind) (hashed : list int) (dd data: list Z)
+ forall (Espec : OracleKind) (hashed : list int) (dd data: list Z) kv
     (c d : val) (sh : share) (len : nat) 
   (H : len <= length data)
   (HBOUND : (s256a_len (S256abs hashed dd) + Z.of_nat len * 8 < two_p 64)%Z)
@@ -347,12 +350,12 @@ Lemma update_while_proof:
      (initialized _p
         (initialized _n
            (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))
-     update_outer_if) (sha_update_inv sh hashed len c d dd data hi lo false)
+     update_outer_if) (sha_update_inv sh hashed len c d dd data kv hi lo false)
   (Swhile
      (Ebinop Oge (Etempvar _len tuint)
         (Ebinop Omul (Econst_int (Int.repr 16) tint)
            (Econst_int (Int.repr 4) tint) tint) tint) sha_update_loop_body)
-  (normal_ret_assert (sha_update_inv sh hashed len c d dd data hi lo true)).
+  (normal_ret_assert (sha_update_inv sh hashed len c d dd data kv hi lo true)).
 Proof.
 intros.
 simplify_Delta; abbreviate_semax.
@@ -425,7 +428,7 @@ apply Forall_firstn.
 apply Forall_skipn; auto.
 }
 clearbody bl; clear H97.
- simple apply (update_loop_body_proof Espec sh hashed dd data c d len (hash_blocks init_registers hashed) lo hi Delta blocks bl); 
+ simple apply (update_loop_body_proof Espec sh hashed dd data c d len kv (hash_blocks init_registers hashed) lo hi Delta blocks bl); 
    try assumption.
 simplify_Delta; reflexivity.
 reflexivity.

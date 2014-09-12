@@ -3,11 +3,26 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha.
 Require Export sha.common_lemmas.
+Require Psatz.
 
 Global Opaque K256 CBLOCKz LBLOCKz.
 
-Definition data_offset := 40%Z. (* offset  of _data field in the struct *)
-Global Opaque data_offset.
+Transparent peq.
+
+Definition field_offset' (i: ident) (t: type) : Z :=
+match t with
+| Tstruct _ f _ => 
+    match field_offset i f with Errors.OK n => n | _ => -1 end
+| _ => -1
+end.
+
+Definition data_offset : Z.  (* offset, in bytes, of _data field in struct SHA256_state *)
+pose (n := field_offset' _data t_struct_SHA256state_st); subst; compute in n.
+match goal with n := ?N |- _ => apply N end.
+Defined.
+
+(* Definition data_offset := 40%Z. (* offset  of _data field in the struct *) *)
+(*Global Opaque data_offset. *)
 
 Lemma elim_globals_only'':
   forall i t rho,  
@@ -39,13 +54,6 @@ Proof.
 Qed.
 
 Hint Rewrite elim_make_args using (eexists; split3; [eassumption | reflexivity | apply I]) : norm.
-
-(*
-Lemma K_vector_closed:
-  forall S, closed_wrt_vars S K_vector.
-Proof. unfold K_vector; auto with closed. Qed.
-Hint Resolve K_vector_closed : closed.
-*)
 
 Fixpoint loops (s: statement) : list statement :=
  match s with 
@@ -128,7 +136,7 @@ simpl. reflexivity. simpl. omega.
 Qed.
 
 Lemma Zlength_intlist_to_Zlist: forall l,
-  Zlength (intlist_to_Zlist l) = 4*Zlength l.
+  Zlength (intlist_to_Zlist l) = WORD*Zlength l.
 Proof.
 intros. repeat rewrite Zlength_correct. rewrite length_intlist_to_Zlist.
 rewrite Nat2Z.inj_mul. reflexivity.
@@ -176,7 +184,7 @@ Qed.
 
 Lemma Zlist_to_intlist_to_Zlist:
   forall nl: list Z, 
-  NPeano.divide 4 (length nl) ->
+  NPeano.divide (Z.to_nat WORD) (length nl) ->
   Forall isbyteZ nl ->
   intlist_to_Zlist (Zlist_to_intlist nl) = nl.
 Proof.
@@ -211,7 +219,9 @@ if_tac; autorewrite with testbit; [ | f_equal; omega].
 auto.
 Qed.
 
-Lemma length_Zlist_to_intlist: forall n l, length l = (4*n)%nat -> length (Zlist_to_intlist l) = n.
+Lemma length_Zlist_to_intlist: forall n l, 
+       length l = (Z.to_nat WORD * n)%nat -> 
+       length (Zlist_to_intlist l) = n.
 Proof.
 induction n; intros.
 destruct l; inv H; reflexivity.
@@ -221,16 +231,16 @@ destruct l as [|i0 l]; [ inv H |].
 destruct l as [|i1 l]; [ inv H |].
 destruct l as [|i2 l]; [ inv H |].
 destruct l as [|i3 l]; [ inv H |].
-simpl. f_equal. apply IHn. forget (4*n)%nat as A. inv H; auto.
+simpl. f_equal. apply IHn. forget (Z.to_nat WORD * n)%nat as A. inv H; auto.
 Qed.
 
 Lemma big_endian_integer_ext:
- forall f f', (forall z, (0 <= z < 4)%Z -> f z = f' z) ->
+ forall f f', (forall z, (0 <= z < WORD)%Z -> f z = f' z) ->
     big_endian_integer f = big_endian_integer f'.
 Proof.
 unfold big_endian_integer;
 intros.
-repeat f_equal; intros; apply H; omega.
+repeat f_equal; intros; apply H; repeat split; computable.
 Qed.
 
 Lemma nth_big_endian_integer:
@@ -240,7 +250,7 @@ Lemma nth_big_endian_integer:
                  (fun z : Z =>
                   force_int
                     (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist bl)))
-                       (z + Z.of_nat i * 4))).
+                       (z + Z.of_nat i * WORD))).
 Proof.
 induction i; destruct bl; intros; inv H.
 *
@@ -270,16 +280,14 @@ assert (i < length bl)%nat.
 revert w bl H1; induction i; destruct bl; intros; inv H1; simpl; try omega.
 apply IHi in H2. omega.
 clear w H1.
-if_tac; [rewrite if_true by omega | rewrite if_false by omega]; auto.
+if_tac; [rewrite if_true by (unfold WORD in *; omega) | rewrite if_false by (unfold WORD in *; omega)]; auto.
 simpl default_val.
 rewrite Z.mul_add_distr_r.
-change (1*4)%Z with 4%Z.
+rewrite Z.mul_1_l.
 simpl.
-assert (Z.to_nat (j + (Z.of_nat i * 4 + 4)) = 4 + Z.to_nat (j + Z.of_nat i * 4))%nat.
-repeat rewrite (Z2Nat.inj_add j) by omega.
-rewrite Z2Nat.inj_add by omega.
-change (Z.to_nat 4) with 4%nat.
-omega.
+assert (Z.to_nat (j + (Z.of_nat i * WORD + WORD)) = (Z.to_nat WORD) + Z.to_nat (j + Z.of_nat i * WORD))%nat.
+repeat rewrite Z2Nat.inj_add by (unfold WORD in *; omega).
+simpl Z.to_nat; unfold WORD in *. omega.
 rewrite H2. simpl.
 auto.
 Qed.
@@ -296,11 +304,19 @@ Proof. reflexivity. Qed.
 Lemma CBLOCK_zeq: (Z.of_nat CBLOCK = 64%Z).
 Proof. reflexivity. Qed.
 
-Lemma LBLOCKz_pos: (0 <= LBLOCKz)%Z.
+Lemma LBLOCKz_nonneg: (0 <= LBLOCKz)%Z.
+Proof. change LBLOCKz with 16%Z; omega. Qed.
+Hint Resolve LBLOCKz_nonneg.
+
+Lemma LBLOCKz_pos: (0 < LBLOCKz)%Z.
 Proof. change LBLOCKz with 16%Z; omega. Qed.
 Hint Resolve LBLOCKz_pos.
 
-Lemma CBLOCKz_pos: (0 <= CBLOCKz)%Z.
+Lemma CBLOCKz_nonneg: (0 <= CBLOCKz)%Z.
+Proof. change CBLOCKz with 64%Z; omega. Qed.
+Hint Resolve CBLOCKz_nonneg.
+
+Lemma CBLOCKz_pos: (0 < CBLOCKz)%Z.
 Proof. change CBLOCKz with 64%Z; omega. Qed.
 Hint Resolve CBLOCKz_pos.
 
@@ -928,21 +944,29 @@ Qed.
 Lemma divide_hashed:
  forall (bb: list int), 
     NPeano.divide LBLOCK (length bb) <->
-    (16 | Zlength bb).
+    (LBLOCKz | Zlength bb).
 Proof.
 intros; split; intros [n ?].
 exists (Z.of_nat n). rewrite Zlength_correct, H.
-change 16%Z with (Z.of_nat 16).
-rewrite <- Nat2Z.inj_mul; auto.
+rewrite Nat2Z.inj_mul; auto.
 exists (Z.to_nat n).
 rewrite Zlength_correct in H.
 assert (0 <= n).
-rewrite Z.mul_comm in H; omega.
-rewrite <- (Z2Nat.id (n*16)%Z) in H by omega.
+assert (0 <= n * LBLOCKz) by omega.
+apply Z.mul_nonneg_cancel_r in H0; auto.
+rewrite <- (Z2Nat.id (n*LBLOCKz)%Z) in H by omega.
 apply Nat2Z.inj in H. rewrite H.
-change LBLOCK with (Z.to_nat 16).
-rewrite Z2Nat.inj_mul; try omega.
+change LBLOCK with (Z.to_nat LBLOCKz).
+rewrite Z2Nat.inj_mul; auto.
 Qed.
+
+Lemma hash_blocks_equation' : forall (r : registers) (msg : list int),
+       hash_blocks r msg =
+       match msg with
+       | [] => r
+       | _ :: _ => hash_blocks (hash_block r (firstn LBLOCK msg)) (skipn LBLOCK msg)
+       end.
+Proof. exact hash_blocks_equation. Qed.
 
 Lemma hash_blocks_last:
  forall a bl c, 
@@ -952,75 +976,85 @@ Lemma hash_blocks_last:
    hash_block (hash_blocks a bl) c = hash_blocks a (bl++ c).
 Proof.
 intros.
+assert (POS: (0 < LBLOCK)%nat) by (rewrite LBLOCK_eq; omega).
 apply divide_hashed in H0.
 destruct H0 as [n ?].
-change LBLOCK with 16%nat in H0.
 rewrite Zlength_correct in H,H1.
 change 8 with (Z.of_nat 8) in H.
-change LBLOCKz with (Z.of_nat 16) in H1.
+(*change LBLOCK with 16%nat in H0.*)
+change LBLOCKz with (Z.of_nat LBLOCK) in H1.
 apply Nat2Z.inj in H. 
 apply Nat2Z.inj in H1.
 revert a bl H H0; induction n; intros.
 destruct bl; inv H0.
-rewrite hash_blocks_equation. simpl. 
-rewrite hash_blocks_equation.
+rewrite hash_blocks_equation'. 
+simpl. rewrite hash_blocks_equation'.
 destruct c eqn:?. inv H1.
 rewrite <- Heql in *; clear i l Heql.
 rewrite firstn_same by omega.
-replace (skipn 16 c) with (@nil int).
-rewrite hash_blocks_equation; reflexivity.
-pose proof (skipn_length 16 c).
+replace (skipn LBLOCK c) with (@nil int).
+rewrite hash_blocks_equation'; reflexivity.
+pose proof (skipn_length LBLOCK c).
 spec H0; [omega |]. rewrite H1 in H0.
-destruct (skipn 16 c); try reflexivity; inv H0.
-replace (S n * 16)%nat with (n * 16 + 16)%nat  in H0 by omega.
-rewrite hash_blocks_equation.
+destruct (skipn LBLOCK c); try reflexivity; inv H0.
+replace (S n * LBLOCK)%nat with (n * LBLOCK + LBLOCK)%nat  in H0 by
+  (simpl; omega).
+rewrite hash_blocks_equation'.
 destruct bl.
-simpl in H0. omega.
+simpl in H0.
+Psatz.lia.
 forget (i::bl) as bl'; clear i bl. rename bl' into bl.
 rewrite IHn.
 symmetry.
 rewrite hash_blocks_equation.
 destruct bl.
-simpl in H0; omega.
+simpl in H0; Psatz.lia.
 unfold app at 1; fold app.
 forget (i::bl) as bl'; clear i bl. rename bl' into bl.
 f_equal.
 f_equal.
 apply firstn_app1.
-omega.
+Psatz.nia.
 apply skipn_app1.
-omega.
-apply length_hash_block; auto.
+Psatz.nia.
+apply length_hash_block; auto. (* fixme *) change 16%nat with LBLOCK.
 rewrite firstn_length. apply min_l.
+Psatz.nia.
+rewrite skipn_length.
+apply plus_reg_l with LBLOCK.
+rewrite plus_comm. 
+rewrite NPeano.Nat.sub_add by Psatz.lia.
 omega.
-rewrite skipn_length; omega.
+Psatz.lia.
 Qed.
 
 Lemma length_hash_blocks: forall regs blocks,
   length regs = 8%nat ->
-  (16 | Zlength blocks) ->
+  (LBLOCKz | Zlength blocks) ->
   length (hash_blocks regs blocks) = 8%nat.
 Proof.
 intros.
 destruct H0 as [n ?].
 rewrite Zlength_correct in H0.
-rewrite <- (Z2Nat.id n) in H0.
-change 16 with (Z.of_nat 16) in H0.
+assert (POS := LBLOCKz_pos).
+change LBLOCKz with (Z.of_nat LBLOCK) in *.
+rewrite <- (Z2Nat.id n) in H0 
+ by (apply -> Z.mul_nonneg_cancel_r ; [ | apply POS]; omega).
 rewrite <- Nat2Z.inj_mul in H0.
 apply Nat2Z.inj in H0.
 revert regs blocks H H0; induction (Z.to_nat n); intros.
-destruct blocks; inv H0.
-rewrite hash_blocks_equation. auto.
-rewrite hash_blocks_equation.
-destruct blocks. inv H0.
+  destruct blocks; inv H0.
+rewrite hash_blocks_equation'; auto.
+destruct blocks.
+destruct LBLOCK; inv POS; inv H0.
+rewrite hash_blocks_equation'; auto.
 forget (i::blocks) as bb.
 apply IHn0; auto.
-apply length_hash_block; auto.
-rewrite firstn_length. apply min_l; omega.
-rewrite skipn_length by omega.
-rewrite H0; omega.
-rewrite Z.mul_comm in H0.
-omega.
+apply length_hash_block; auto. (* fixme *) change 16%nat with LBLOCK.
+rewrite firstn_length. apply min_l. simpl in H0. Psatz.nia.
+rewrite skipn_length. rewrite H0; clear - POS.  simpl.
+rewrite plus_comm. rewrite NPeano.Nat.add_sub. auto.
+simpl in H0. rewrite H0; clear - POS. Psatz.lia.
 Qed.
 
 Lemma nth_list_repeat: forall A i n (x :A),

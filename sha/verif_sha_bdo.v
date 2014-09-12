@@ -48,45 +48,42 @@ assert (Lregs: length regs = 8%nat)
 assert (Zregs: Zlength regs = 8%Z)
  by (rewrite Zlength_correct; rewrite Lregs; reflexivity).
 forward. (* data = in; *)
-apply (assert_PROP (isptr data)).
-entailer. intro.
-normalize.
-match goal with |- semax _ _ ?c _ =>
- eapply seq_assocN with (cs := sequenceN 8 c)
-end.
-eapply semax_frame1.
-eapply sha256_block_load8 with (ctx:=ctx); eassumption.
-simplify_Delta; reflexivity.
-rewrite Zregs.
-entailer!.
-instantiate (1:=[`K_vector (eval_var _K256 (tarray tuint 64))]); simpl; (* this line shouldn't be needed? *)
- cancel.
-+
-auto 50 with closed.
-+
+apply (assert_PROP (isptr data)); [  entailer | intro ].
+ normalize. 
+ match goal with |- semax _ _ ?c _ =>
+  eapply seq_assocN with (cs := sequenceN 8 c)
+ end.
+*
+ eapply semax_frame1.
+ + eapply sha256_block_load8 with (ctx:=ctx); eassumption.
+ + simplify_Delta; reflexivity.
+ + rewrite Zregs.
+    instantiate (1:=[`(data_at_ Tsh (tarray tuint 16)) (eval_var _X (tarray tuint 16)),
+                         `(data_block sh (intlist_to_Zlist b) data),
+                         `(K_vector kv)]).
+    instantiate (1:=kv).
+   entailer!.
+ + auto 50 with closed.
+*
 abbreviate_semax.
 simpl.
 forward.  (* i = 0; *)
 eapply semax_frame_seq
  with (Frame:= [`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8) (eval_id _ctx) ]).
-replace Delta with Delta_loop1
- by (simplify_Delta; reflexivity).
-simple apply (sha256_block_data_order_loop1_proof
-  _ sh b ctx data regs); auto.
-apply Zlength_length in H; auto.
-rewrite Zregs.
-
-unfold data_at_.
-unfold tarray.
-erewrite data_at_array_at; [| reflexivity | omega | reflexivity].
-(* unfold_data_at 1%nat. (* this line should be like this *)*)
-entailer!.
-
-auto 50 with closed.
-
-simpl; abbreviate_semax.
-
-eapply semax_frame_seq
++ replace Delta with Delta_loop1
+    by (simplify_Delta; reflexivity).
+    simple apply (sha256_block_data_order_loop1_proof
+     _ sh b ctx data regs); auto.
+    apply Zlength_length in H; auto.
+ + rewrite Zregs.
+    unfold data_at_, tarray.
+    erewrite data_at_array_at; [| reflexivity | omega | reflexivity].
+   (* unfold_data_at 1%nat. (* this line should be like this *)*)
+        instantiate (1:=kv).
+   entailer!.
+ + auto 50 with closed.
+ +  simpl; abbreviate_semax.
+ eapply semax_frame_seq
  with (Frame := [`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8) (eval_id _ctx),
                           `(data_block sh (intlist_to_Zlist b) data)]).
 match goal with |- semax _ _ ?c _ =>
@@ -94,19 +91,21 @@ match goal with |- semax _ _ ?c _ =>
 end.
 apply sha256_block_data_order_loop2_proof
               with (regs:=regs)(b:=b); eassumption.
+ instantiate (1:=kv).
 entailer!.
 auto 50 with closed.
 abbreviate_semax.
 eapply seq_assocN with (cs := add_them_back).
 eapply semax_frame1
  with (Frame := [
-   `K_vector (eval_var _K256 (tarray tuint 64)),
+   `(K_vector kv),
   `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16)),
   `(data_block sh (intlist_to_Zlist b) data)]).
 apply (add_them_back_proof _ regs (Round regs (nthi b) 63) ctx); try assumption.
 apply length_Round; auto.
 simplify_Delta; reflexivity.
 rewrite <- Hregs.
+        instantiate (1:=kv).
 entailer!.
 auto 50 with closed.
 simpl; abbreviate_semax.

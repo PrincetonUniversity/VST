@@ -11,7 +11,8 @@ Definition big_endian_integer (contents: Z -> int) : int :=
       (contents 3))).
 
 Definition LBLOCKz : Z := 16. (* length of a block, in 32-bit integers *)
-Definition CBLOCKz : Z := 64. (* length of a block, in characters *)
+Definition WORD : Z := 4.  (* length of a word, in bytes *)
+Definition CBLOCKz : Z := (LBLOCKz * WORD)%Z. (* length of a block, in characters *)
 
 Definition s256state := (list val * (val * (val * (list val * val))))%type.
 Definition s256_h (s: s256state) := fst s.
@@ -32,7 +33,7 @@ Definition s256a_regs (a: s256abs) : list int :=
 
 Definition s256a_len (a: s256abs) : Z := 
   match a with S256abs hashed data => 
-    (Zlength hashed * 4 + Zlength data) * 8 
+    (Zlength hashed * WORD + Zlength data) * 8 
   end%Z.
 
 Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
@@ -42,7 +43,7 @@ Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
      match a with S256abs hashed data =>
          s256_h r = map Vint (hash_blocks init_registers hashed) 
        /\ (exists hi, exists lo, s256_Nh r = Vint hi /\ s256_Nl r = Vint lo /\
-             (Zlength hashed * 4 + Zlength data)*8 = hilo hi lo)%Z
+             (Zlength hashed * WORD + Zlength data)*8 = hilo hi lo)%Z
        /\ s256_data r = map Vint (map Int.repr data)
        /\ (Zlength data < CBLOCKz /\ Forall isbyteZ data)
        /\ (LBLOCKz | Zlength hashed)
@@ -107,7 +108,6 @@ Definition memcpy_spec :=
        PROP (writable_share (snd sh); 0 <= n <= Int.max_unsigned)
        LOCAL (`(eq p) (eval_id 1%positive); `(eq q) (eval_id 2%positive);
                     `(eq (Vint (Int.repr n))) (eval_id 3%positive))
-(*                    `(eq n) (`Int.unsigned (`force_int (eval_id 3%positive))))*)
        SEP (`(array_at tuchar (fst sh) (cVint contents) 0 n q);
               `(memory_block (snd sh) (Int.repr n) p))
     POST [ tptr tvoid ]
@@ -122,7 +122,6 @@ Definition memset_spec :=
        PROP (writable_share sh; 0 <= n <= Int.max_unsigned)
        LOCAL (`(eq p) (eval_id 1%positive); `(eq (Vint c)) (eval_id 2%positive);
                     `(eq (Vint (Int.repr n))) (eval_id 3%positive))
-(*                    `(eq n) (`Int.unsigned (`force_int (eval_id 3%positive))))*)
        SEP (`(memory_block sh (Int.repr n) p))
     POST [ tptr tvoid ]
          local (`(eq p) retval) &&
@@ -133,17 +132,18 @@ Definition K_vector : val -> mpred :=
 
 Definition sha256_block_data_order_spec :=
   DECLARE _sha256_block_data_order
-    WITH hashed: list int, b: list int, ctx : val, data: val, sh: share
+    WITH hashed: list int, b: list int, ctx : val, data: val, sh: share, kv : val
    PRE [ _ctx OF tptr t_struct_SHA256state_st, _in OF tptr tvoid ]
          PROP(Zlength b = LBLOCKz; (LBLOCKz | Zlength hashed)) 
-         LOCAL (`(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in))
+         LOCAL (`(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in);
+                     `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
          SEP (`(array_at tuint Tsh  (tuints (hash_blocks init_registers hashed)) 0 8 ctx);
                 `(data_block sh (intlist_to_Zlist b) data);
-                 `K_vector (eval_var _K256 (tarray tuint 64)))
+                 `(K_vector kv))
    POST [ tvoid ]
           (`(array_at tuint Tsh  (tuints (hash_blocks init_registers (hashed++b))) 0 8 ctx) *
           `(data_block sh (intlist_to_Zlist b) data) *
-          `K_vector (eval_var _K256 (tarray tuint 64))).
+          `(K_vector kv)).
  
 Definition SHA256_addlength_spec :=
  DECLARE _SHA256_addlength
@@ -178,47 +178,50 @@ Inductive update_abs: list Z -> s256abs -> s256abs -> Prop :=
 
 Definition SHA256_Update_spec :=
   DECLARE _SHA256_Update
-   WITH a: s256abs, data: list Z, c : val, d: val, sh: share, len : Z
+   WITH a: s256abs, data: list Z, c : val, d: val, sh: share, len : Z, kv : val
    PRE [ _c OF tptr t_struct_SHA256state_st, _data_ OF tptr tvoid, _len OF tuint ]
          PROP (len <= Zlength data; 0 <= len <= Int.max_unsigned;
                    (s256a_len a + len * 8 < two_p 64)%Z)
          LOCAL (`(eq c) (eval_id _c); `(eq d) (eval_id _data_); 
-                                  `(eq (Vint (Int.repr len))) (eval_id _len))
-         SEP(`K_vector (eval_var _K256 (tarray tuint 64));
+                                  `(eq (Vint (Int.repr len))) (eval_id _len);
+                     `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+         SEP(`(K_vector kv);
                `(sha256state_ a c); `(data_block sh data d))
   POST [ tvoid ] 
          EX a':_, 
           PROP (update_abs (firstn (Z.to_nat len) data) a a') LOCAL ()
-          SEP(`K_vector (eval_var _K256 (tarray tuint 64));
+          SEP(`(K_vector kv);
                 `(sha256state_ a' c); `(data_block sh data d)).
 
 Definition SHA256_Final_spec :=
   DECLARE _SHA256_Final
-   WITH a: s256abs, md: val, c : val,  shmd: share, sh: share
+   WITH a: s256abs, md: val, c : val,  shmd: share, sh: share, kv : val
    PRE [ _md OF tptr tuchar, _c OF tptr t_struct_SHA256state_st ]
          PROP (writable_share shmd) 
-         LOCAL (`(eq md) (eval_id _md); `(eq c) (eval_id _c))
-         SEP(`K_vector (eval_var _K256 (tarray tuint 64));
+         LOCAL (`(eq md) (eval_id _md); `(eq c) (eval_id _c);
+                     `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+         SEP(`(K_vector kv);
                `(sha256state_ a c);
                `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
          PROP () LOCAL ()
-         SEP(`K_vector (eval_var _K256 (tarray tuint 64));
+         SEP(`(K_vector kv);
                `(data_at_ Tsh t_struct_SHA256state_st c);
                `(data_block shmd (sha_finish a) md)).
 
 Definition SHA256_spec :=
   DECLARE _SHA256
-   WITH d: val, len: Z, dsh: share, msh: share, data: list Z, md: val
+   WITH d: val, len: Z, dsh: share, msh: share, data: list Z, md: val, kv : val
    PRE [ _d OF tptr tuchar, _n OF tuint, _md OF tptr tuchar ]
          PROP (writable_share msh; Zlength data * 8 < two_p 64; Zlength data <= Int.max_unsigned) 
          LOCAL (`(eq d) (eval_id _d);
                      `(eq (Vint (Int.repr (Zlength data)))) (eval_id _n);
-                     `(eq md) (eval_id _md))
-         SEP(`K_vector (eval_var _K256 (tarray tuint 64));
+                     `(eq md) (eval_id _md);
+                     `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+         SEP(`(K_vector kv);
                `(data_block dsh data d); `(memory_block msh (Int.repr 32) md))
   POST [ tvoid ] 
-         SEP(`K_vector (eval_var _K256 (tarray tuint 64));
+         SEP(`(K_vector kv);
                `(data_block dsh data d); `(data_block msh (SHA_256 data) md)).
 
 Definition Vprog : varspecs := (_K256, tarray tuint 64)::nil.

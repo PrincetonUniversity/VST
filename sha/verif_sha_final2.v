@@ -35,7 +35,7 @@ Definition Body_final_if1 :=
                   ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
                    (Etempvar _p (tptr tuchar)) :: nil)))).
 
-Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo:= 
+Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo kv:= 
    (EX hashed':list int, EX dd': list Z, EX pad:Z,
    PROP  (Forall isbyteZ dd';
               pad=0%Z \/ dd'=nil;
@@ -49,19 +49,20 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo:=
    (`(eq (Vint (Int.repr (Zlength dd')))) (eval_id _n);
    `eq (eval_id _p)
      (`(offset_val (Int.repr 40)) (`force_ptr (eval_id _c)));
-   `(eq md) (eval_id _md); `(eq c) (eval_id _c))
+   `(eq md) (eval_id _md); `(eq c) (eval_id _c);
+                     `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
    SEP  (`(array_at tuint Tsh (ZnthV tuint (map Vint (hash_blocks init_registers hashed'))) 0 8 c);
    `(field_at Tsh t_struct_SHA256state_st [_Nl] (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st [_Nh] (Vint hi) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 64 
                           (offset_val (Int.repr 40) c));
    `(field_at_ Tsh t_struct_SHA256state_st [_num] c);
-     `K_vector (eval_var _K256 (tarray tuint 64));
+   `(K_vector kv);
    `(memory_block shmd (Int.repr 32) md))).
 
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
-  (hi lo : int) (dd : list Z)
+  (hi lo : int) (dd : list Z) (kv: val)
  (H4: (LBLOCKz  | Zlength hashed))
  (H7: ((Zlength hashed * 4 + Zlength dd)*8 = hilo hi lo)%Z)
  (H3: Zlength dd < CBLOCKz)
@@ -78,7 +79,8 @@ Lemma ifbody_final_if1:
                (Econst_int (Int.repr 8) tint) tint) tint));
    `(eq (Vint (Int.repr (Zlength dd + 1)))) (eval_id _n);
    `(eq (offset_val (Int.repr 40) (force_ptr c))) (eval_id _p);
-   `(eq md) (eval_id _md); `(eq c) (eval_id _c))
+   `(eq md) (eval_id _md); `(eq c) (eval_id _c);
+                     `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
    SEP 
    (`(array_at tuint Tsh
         (ZnthV tuint (map Vint (hash_blocks init_registers hashed))) 0 8 c);
@@ -88,10 +90,10 @@ Lemma ifbody_final_if1:
        (ZnthV tuchar (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)])) 0 64
        (offset_val (Int.repr 40) c));
    `(field_at Tsh t_struct_SHA256state_st [_num] (Vint (Int.repr (Zlength dd))) c);
-   `K_vector (eval_var _K256 (tarray tuint 64));
+   `(K_vector kv);
    `(memory_block shmd (Int.repr 32) md)))
   Body_final_if1
-  (normal_ret_assert (invariant_after_if1 hashed dd c md shmd hi lo)).
+  (normal_ret_assert (invariant_after_if1 hashed dd c md shmd hi lo kv)).
 Proof.
 assert (H:=True).
 name md_ _md.
@@ -153,10 +155,10 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
  replace (Int.repr (data_offset + (ddlen+1))) with (Int.add (Int.repr data_offset) (Int.repr (ddlen+1)))
   by apply add_repr.
  entailer!.
- normalize in H1.
+ normalize in H2.
  change CBLOCKz with 64 in Hddlen.
- apply ltu_repr in H1; [ | Omega1 | Omega1].
- change (16*4)%Z with (CBLOCKz) in H1.
+ apply ltu_repr in H2; [ | Omega1 | Omega1].
+ change (16*4)%Z with (CBLOCKz) in H2.
  rewrite (split_offset_array_at tuchar) with (lo := ddlen+1) (hi := 64); [| omega | simpl; omega | reflexivity].
  apply sepcon_derives.
  + entailer!. apply derives_refl'; apply equal_f; apply array_at_ext; intros.
@@ -166,7 +168,7 @@ replace_SEP 0%Z (  `(array_at tuchar Tsh
    set (dd1 :=  map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)%Z]).
    rewrite app_nth1. auto. 
    unfold dd1; rewrite app_length. 
-   clear - H2 H7 H0; unfold ddlen in *; rewrite Zlength_correct in *;
+   unfold ddlen in *; rewrite Zlength_correct in *;
    rewrite map_length in *. simpl.
     apply Nat2Z.inj_lt. rewrite Z2Nat.id by Omega1.
   rewrite map_length; rewrite Nat2Z.inj_add; Omega1.
@@ -230,7 +232,7 @@ clear H0'.
 clearbody ddzw.
  forward.  (* n=0; *)
  forward_call (* sha256_block_data_order (c,p); *)
-  (hashed, ddzw, c, offset_val (Int.repr data_offset) c, Tsh).
+  (hashed, ddzw, c, offset_val (Int.repr data_offset) c, Tsh, kv).
  {rewrite Zlength_correct, H1.
   entailer!.
  repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
@@ -381,7 +383,7 @@ intros.
 Qed.
 
 Lemma final_part4:
- forall (Espec: OracleKind) md c shmd hashedmsg,
+ forall (Espec: OracleKind) md c shmd hashedmsg kv,
  length hashedmsg = 8%nat ->
  writable_share shmd ->
 semax
@@ -392,7 +394,7 @@ semax
    (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
         (offset_val (Int.repr data_offset) c));
    `(array_at tuint Tsh (tuints hashedmsg) 0 8 c);
-   `K_vector (eval_var _K256 (tarray tuint 64));
+   `(K_vector kv);
    `(field_at_ Tsh t_struct_SHA256state_st [_Nl] c);
    `(field_at_ Tsh t_struct_SHA256state_st [_Nh] c);
    `(field_at Tsh t_struct_SHA256state_st [_num] (Vint (Int.repr 0)) c);
@@ -401,7 +403,7 @@ semax
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+      SEP  (`(K_vector kv);
       `(data_at_ Tsh t_struct_SHA256state_st c);
       `(data_block shmd (intlist_to_Zlist hashedmsg) md)))).
 Proof.
@@ -411,7 +413,7 @@ rewrite memory_block_isptr.
 normalize. rename H1 into Hmd.
 forward.  (* xn=0; *)
 
-Definition part4_inv  c shmd hashedmsg md delta (i: nat) :=
+Definition part4_inv  c shmd hashedmsg md kv delta (i: nat) :=
    (PROP  ((i <= 8)%nat)
    LOCAL  (`(eq (Vint (Int.repr (Z.of_nat i - delta)))) (eval_id _xn);
       `(eq (offset_val (Int.repr (Z.of_nat i * 4)) md)) (eval_id _md);
@@ -420,7 +422,7 @@ Definition part4_inv  c shmd hashedmsg md delta (i: nat) :=
    (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
         (offset_val (Int.repr data_offset) c));
    `(array_at tuint Tsh (tuints hashedmsg) 0 8 c);
-   `K_vector (eval_var _K256 (tarray tuint 64));
+   `(K_vector kv);
    `(field_at_ Tsh t_struct_SHA256state_st [_Nl] c);
    `(field_at_ Tsh t_struct_SHA256state_st [_Nh] c);
    `(field_at Tsh t_struct_SHA256state_st [_num] (Vint (Int.repr 0)) c);
@@ -428,9 +430,9 @@ Definition part4_inv  c shmd hashedmsg md delta (i: nat) :=
               0 32 md))).
 
 forward_for 
-   (EX i:_, part4_inv c shmd hashedmsg md 0 i) 
-   (EX i:_, part4_inv c shmd hashedmsg md 1 i) 
-   (part4_inv c shmd hashedmsg md 0 8).
+   (EX i:_, part4_inv c shmd hashedmsg md kv 0 i) 
+   (EX i:_, part4_inv c shmd hashedmsg md kv 1 i) 
+   (part4_inv c shmd hashedmsg md kv 0 8).
 * apply exp_right with 0%nat. unfold part4_inv; rewrite Z.sub_0_r.
   entailer!.
   change 32%Z with (sizeof (tarray tuchar 32)).
@@ -464,8 +466,8 @@ forward_for
   end.
  rewrite Z.sub_0_r.
  entailer!.
- change (Int.divs (Int.repr 32) (Int.repr 4)) with (Int.repr 8) in H3.
- apply ltu_repr in H3; try repable_signed; try omega.
+ change (Int.divs (Int.repr 32) (Int.repr 4)) with (Int.repr 8) in H2.
+ apply ltu_repr in H2; try repable_signed; try omega.
  normalize.
  rewrite Z.sub_0_r.
  forward. (* ll=(c)->h[xn]; *)
@@ -579,7 +581,7 @@ forward_for
     ( apply prop_right; unfold offset_in_range; destruct md; auto;
     pose proof Int.unsigned_range i0; omega).
  normalize.
- rename H4 into H98; rename H5 into H97.
+ rename H3 into H98; rename H4 into H97.
  repeat apply sepcon_derives; auto.
  + 
  apply derives_refl'; apply equal_f; apply array_at_ext; intros.
@@ -588,13 +590,13 @@ forward_for
  rewrite map_map. rewrite map_map.
  rewrite (nth_map' _ _ 0%Z).
 Focus 2.
- clear - H4 H H1. rewrite length_intlist_to_Zlist. rewrite firstn_length.
-  rewrite min_l by omega. destruct H4.
+ clear - H3 H H1. rewrite length_intlist_to_Zlist. rewrite firstn_length.
+  rewrite min_l by omega. destruct H3.
   apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
   rewrite Nat2Z.inj_mul; rewrite Z.mul_comm; auto.
  rewrite (nth_map' _ _ 0%Z).
-Focus 2. clear - H4 H H1. rewrite length_intlist_to_Zlist. rewrite firstn_length.
-  rewrite min_l by omega. destruct H4.
+Focus 2. clear - H3 H H1. rewrite length_intlist_to_Zlist. rewrite firstn_length.
+  rewrite min_l by omega. destruct H3.
   apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
   rewrite Nat2Z.inj_mul. 
  rewrite Z.mul_comm; rewrite inj_S.
@@ -602,10 +604,10 @@ Focus 2. clear - H4 H H1. rewrite length_intlist_to_Zlist. rewrite firstn_length
  change (1 * Z.of_nat 4) with 4.  change (Z.of_nat 4) with 4; omega.
  do 2 f_equal.
 apply (nth_intlist_to_Zlist_eq _ (S (Z.to_nat i0))); try omega.
- apply Nat2Z.inj_lt. rewrite Z2Nat.id by (clear - H4; omega).
-  rewrite Nat2Z.inj_mul; apply H4.
- apply Nat2Z.inj_lt. rewrite Z2Nat.id by (clear - H4; omega).
- clear - H4; rewrite Nat2Z.inj_mul; rewrite inj_S;
+ apply Nat2Z.inj_lt. rewrite Z2Nat.id by (clear - H3; omega).
+  rewrite Nat2Z.inj_mul; apply H3.
+ apply Nat2Z.inj_lt. rewrite Z2Nat.id by (clear - H3; omega).
+ clear - H3; rewrite Nat2Z.inj_mul; rewrite inj_S;
   unfold Z.succ; rewrite Z.mul_add_distr_r.
   change (Z.of_nat 4) with 4; omega.
 + rewrite H99.
@@ -619,14 +621,14 @@ Focus 2.
  simpl. apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
  change (Z.of_nat 4) with 4; omega.
  rewrite (nth_map' _ _ 0).
-Focus 2. clear - H99 H4 H H1. rewrite length_intlist_to_Zlist. 
- rewrite firstn_length;  rewrite min_l by omega. destruct H4.
+Focus 2. clear - H99 H3 H H1. rewrite length_intlist_to_Zlist. 
+ rewrite firstn_length;  rewrite min_l by omega. destruct H3.
   apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
   rewrite Nat2Z.inj_mul. 
  rewrite Z.mul_comm; rewrite inj_S.
  unfold Z.succ. change (Z.of_nat 3 + 1) with 4. omega.
  unfold force_int. f_equal. f_equal.
- clear - H4.
+ clear - H3.
 
 
 
@@ -648,8 +650,8 @@ Focus 2. clear - H99 H4 H H1. rewrite length_intlist_to_Zlist.
 Focus 2. {
   rewrite map_length, length_intlist_to_Zlist, firstn_length.
    rewrite min_l by omega.
-  unfold Z.succ in H4.
-  destruct H4 as [H4 _].
+  unfold Z.succ in H3.
+  destruct H3 as [H4 _].
  apply Z2Nat.inj_le in H4; try omega.
  rewrite Z.mul_add_distr_r in H4.
  rewrite Z2Nat.inj_add in H4 by omega.
@@ -662,8 +664,8 @@ Focus 2. {
  rewrite nth_overflow; [reflexivity | ]. {
  rewrite map_length, length_intlist_to_Zlist, firstn_length.
   rewrite min_l by omega.
- clear - H4 H H1.
- destruct H4 as [H4 _].
+ clear - H3 H H1.
+ destruct H3 as [H4 _].
  apply Z2Nat.inj_le in H4; try omega.
  unfold Z.succ in H4.
  rewrite Z.mul_add_distr_r in H4.

@@ -16,7 +16,7 @@ Qed.
 
 Lemma update_inner_if_else_proof:
  forall (Espec : OracleKind) (hashed : list int)
-          (dd data : list Z) (c d: val) (sh: share) (len: nat)
+          (dd data : list Z) (c d: val) (sh: share) (len: nat) kv
           (hi lo: int) Post
    (H : (Z.of_nat len <= Zlength data)%Z)
    (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
@@ -42,14 +42,15 @@ Lemma update_inner_if_else_proof:
    `(eq (offset_val (Int.repr 40) c)) (eval_id _p);
    `(eq (Vint (Int.repr (Zlength dd)))) (eval_id _n); `(eq c) (eval_id _c);
    `(eq d) (eval_id _data);
-   `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len))
+   `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
    SEP 
    (`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8 c);
    `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64
        (offset_val (Int.repr 40) c));
    `(field_at Tsh t_struct_SHA256state_st [_num] (Vint (Int.repr (Zlength dd)))
-       c); `K_vector (eval_var _K256 (tarray tuint 64));
+       c); `(K_vector kv);
    `(array_at tuchar sh (tuchars (map Int.repr data)) 0 (Zlength data) d)))
   update_inner_if_else
   (overridePost Post
@@ -57,7 +58,7 @@ Lemma update_inner_if_else_proof:
         (EX  a' : s256abs,
          PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
          LOCAL ()
-         SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+         SEP  (`(K_vector kv);
                  `(sha256state_ a' c); `(data_block sh data d))))).
 Proof.
   intros.
@@ -114,7 +115,6 @@ Proof.
   apply exp_right with (S256abs hashed (dd ++ firstn len data)).
   unfold id.
   unfold data_block.
-  (* unfold K_vector. *)
   repeat rewrite TT_andp.
   rewrite cVint_force_int_ZnthV by (rewrite initial_world.Zlength_map; omega).
   rewrite array_at_tuchar_isbyteZ. 
@@ -283,7 +283,7 @@ Qed.
 
 Lemma update_inner_if_proof:
  forall (Espec: OracleKind) (hashed: list int) (dd data: list Z)
-            (c d: val) (sh: share) (len: nat) (hi lo: int)
+            (c d: val) (sh: share) (len: nat) kv (hi lo: int)
  (H: len <= length data)
  (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
  (H3 : (Zlength dd < CBLOCKz)%Z)
@@ -291,14 +291,14 @@ Lemma update_inner_if_proof:
  (H4 : (LBLOCKz | Zlength hashed))
  (Hlen : (Z.of_nat len <= Int.max_unsigned)%Z),
 semax Delta_update_inner_if
-  (inv_at_inner_if sh hashed len c d dd data hi lo)
+  (inv_at_inner_if sh hashed len c d dd data kv hi lo)
   update_inner_if
-  (overridePost (sha_update_inv sh hashed len c d dd data hi lo false)
+  (overridePost (sha_update_inv sh hashed len c d dd data kv hi lo false)
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
          LOCAL ()
-         SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+         SEP  (`(K_vector kv);
                  `(sha256state_ a' c); `(data_block sh data d))))).
 Proof.
 intros.
@@ -324,7 +324,7 @@ assert (0 < k <= 64)%Z.
 apply Nat2Z.inj_le in H; rewrite <- Zlength_correct in H.
 unfold data_block; simpl. normalize.
 rename H2 into DBYTES.
-forward_if (sha_update_inv sh hashed len c d dd data hi lo false).
+forward_if (sha_update_inv sh hashed len c d dd data kv hi lo false).
  + replace Delta with (initialized _fragment (initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot)))))
  by (simplify_Delta; reflexivity).

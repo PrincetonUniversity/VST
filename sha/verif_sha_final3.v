@@ -38,7 +38,7 @@ Definition sha_final_epilog :=
 
 Lemma sha_final_part3:
 forall (Espec : OracleKind) (md c : val) (shmd : share)
-  (hashed lastblock: list int) msg
+  (hashed lastblock: list int) msg kv
  (Hshmd: writable_share shmd),
  (LBLOCKz | Zlength hashed) ->
  Zlength lastblock = LBLOCKz ->
@@ -47,7 +47,8 @@ semax
   (initialized _cNl (initialized _cNh Delta_final_if1))
   (PROP  ()
    LOCAL  (`(eq (offset_val (Int.repr 40) c)) (eval_id _p);
-   `(eq md) (eval_id _md); `(eq c) (eval_id _c))
+   `(eq md) (eval_id _md); `(eq c) (eval_id _c);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
    SEP 
    (`(data_block Tsh (intlist_to_Zlist lastblock)
                  (offset_val (Int.repr 40) c));
@@ -56,13 +57,13 @@ semax
    `(field_at_ Tsh t_struct_SHA256state_st [_Nl] c);
    `(field_at_ Tsh t_struct_SHA256state_st [_Nh] c);
    `(field_at_ Tsh t_struct_SHA256state_st [_num] c);
-   `K_vector (eval_var _K256 (tarray tuint 64));
+   `(K_vector kv);
    `(memory_block shmd (Int.repr 32) md)))
   sha_final_epilog
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+      SEP  (`(K_vector kv);
       `(data_at_ Tsh t_struct_SHA256state_st c);
       `(data_block shmd (SHA_256 msg) md)))).
 Proof.
@@ -70,11 +71,9 @@ intros.
 unfold sha_final_epilog.
 abbreviate_semax.
 forward_call (* sha256_block_data_order (c,p); *)
-  (hashed, lastblock, c, (offset_val (Int.repr 40) c), Tsh).
+  (hashed, lastblock, c, (offset_val (Int.repr 40) c), Tsh, kv).
 entailer!.
 after_call.
-replace_SEP 2%Z  (`K_vector (eval_var _K256 (tarray tuint 64))).
-entailer!.
 unfold data_block.
 simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
 rewrite <- H1.
@@ -259,7 +258,7 @@ Proof. intros.
 Qed.
 
 Lemma final_part2:
-forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share),
+forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share) kv,
 writable_share shmd ->
 name _md ->
 name _c ->
@@ -288,7 +287,8 @@ semax Delta_final_if1
    (`(eq (force_val (sem_add_pi tuchar p0 (Vint (Int.repr (16 * 4 - 8))))))
       (eval_id _p); `(eq (Vint (Int.repr (Zlength dd')))) (eval_id _n);
    `(eq p0) (`(offset_val (Int.repr 40)) (`force_ptr (eval_id _c)));
-   `(eq md) (eval_id _md); `(eq c) (eval_id _c))
+   `(eq md) (eval_id _md); `(eq c) (eval_id _c);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
    SEP 
    (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
         (Z.of_nat CBLOCK - 8 - Zlength dd')
@@ -305,7 +305,7 @@ semax Delta_final_if1
           (i + (Z.of_nat CBLOCK - 8))) 0 8
        (offset_val (Int.repr 96) c));
    `(field_at_ Tsh t_struct_SHA256state_st [_num] c);
-   `K_vector (eval_var _K256 (tarray tuint 64));
+   `(K_vector kv);
    `(memory_block shmd (Int.repr 32) md)))
   (Ssequence
      (Sset _cNh
@@ -375,7 +375,7 @@ semax Delta_final_if1
   (function_body_ret_assert tvoid
      (PROP  ()
       LOCAL ()
-      SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+      SEP  (`(K_vector kv);
       `(data_at_ Tsh t_struct_SHA256state_st c);
       `(data_block shmd
           (intlist_to_Zlist
@@ -384,7 +384,7 @@ semax Delta_final_if1
                    (intlist_to_Zlist hashed ++ dd))))
           md)))).
 Proof.
- intros Espec hashed md c shmd H md_ c_ p n cNl cNh
+ intros Espec hashed md c shmd kv H md_ c_ p n cNl cNh
  hi lo dd H4 H7 H3 DDbytes hashed' dd' pad
  DDbytes' PAD H0 H1 H2 H5 p0 Pofs.
  abbreviate_semax.
@@ -403,7 +403,7 @@ Proof.
    symmetry; rewrite (nth_big_endian_integer 0 [hi] hi) at 1 by reflexivity.
    f_equal; extensionality z; unfold Basics.compose.
    f_equal; f_equal.
-   change (Z.of_nat 0 * 4)%Z with 0%Z. clear; omega.
+   rewrite Z.mul_0_l. omega.
    pull_left (array_at tuchar Tsh
      (fun i : Z =>
       ZnthV tuchar (map Vint (map Int.repr dd')) (i + (Z.of_nat CBLOCK - 8)))
@@ -428,7 +428,7 @@ Proof.
   symmetry; rewrite (nth_big_endian_integer 0 [lo] lo) at 1 by reflexivity.
   f_equal; extensionality z; unfold Basics.compose.
   f_equal; f_equal.
-  change (Z.of_nat 0 * 4)%Z with 0%Z. clear; omega.
+  rewrite Z.mul_0_l; omega.
   pull_left (array_at tuchar Tsh
      (fun i : Z =>
       ZnthV tuchar (map Vint (map Int.repr dd'))
@@ -576,7 +576,7 @@ f_equal. {
  rewrite Z.mod_small; try omega.
 }
  rewrite initial_world.Zlength_app, Zlength_intlist_to_Zlist.
- rewrite <- (Z.mul_comm 4) in H7; rewrite H7.
+ rewrite <- (Z.mul_comm 4) in H7; change 4 with WORD in H7; rewrite H7.
  f_equal; apply hilo_lemma.
 
  repeat rewrite app_length. rewrite length_list_repeat.
@@ -616,6 +616,7 @@ f_equal. {
  reflexivity.
  pose proof (Z.mod_pos_bound e 4). spec H; [omega |].
  omega.
+ change WORD with 4. 
  forget (- (4 * Zlength hashed + Zlength dd + 9)) as n.
  assert (0 <= n mod 64) by (apply Z.mod_pos_bound; omega).
  destruct H. exists (Z.to_nat x).
@@ -624,9 +625,9 @@ f_equal. {
  rewrite <- H.
  clear H. 
  rewrite Zlength_correct at 1. omega.
- transitivity (Z.to_nat (x * 4)); [ | rewrite Z2Nat.inj_mul by omega; reflexivity].
+  rewrite <- Z2Nat.inj_mul by omega.
  rewrite <- H. clear H.
- rewrite Zlength_correct.
+ rewrite Zlength_correct. 
  rewrite Z2Nat.inj_add; try  omega.
  rewrite Nat2Z.id. f_equal.
  simpl length.

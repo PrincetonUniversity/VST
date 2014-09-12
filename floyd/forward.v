@@ -141,7 +141,10 @@ Inductive local2ptree0 (j: ident) :
 | local2ptree0_cons: forall i v Q P Q',
        i <> j ->
        local2ptree0 j Q P Q' ->
-       local2ptree0 j (`(eq v) (eval_id i) :: Q) (PTree.set i v P) (`(eq v) (eval_id i):: Q').
+       local2ptree0 j (`(eq v) (eval_id i) :: Q) (PTree.set i v P) (`(eq v) (eval_id i):: Q')
+| local2ptree0_var: forall i t v Q P Q',
+       local2ptree0 j Q P Q' ->
+       local2ptree0 j (`(eq v) (eval_var i t) :: Q) P (`(eq v) (eval_var i t):: Q').
 
 Inductive local2ptree (j: ident):
      list (environ -> Prop) -> PTree.t val -> list (environ -> Prop) -> Prop :=
@@ -153,7 +156,10 @@ Inductive local2ptree (j: ident):
 | local2ptree_other: forall i v Q P Q',
        i <> j ->
        local2ptree j Q P Q' ->
-       local2ptree j (`(eq v) (eval_id i) :: Q) (PTree.set i v P) (`(eq v) (eval_id i):: Q').
+       local2ptree j (`(eq v) (eval_id i) :: Q) (PTree.set i v P) (`(eq v) (eval_id i):: Q')
+| local2ptree_var: forall i t v Q P Q',
+       local2ptree j Q P Q' ->
+       local2ptree j (`(eq v) (eval_var i t) :: Q) P (`(eq v) (eval_var i t):: Q').
 
 Lemma ptree_empty_some:
   forall {A i x}, 
@@ -182,48 +188,64 @@ revert H0; induction H; simpl; intros.
      apply H0.
  + rewrite PTree.gso in H1 by auto. destruct H2.
    auto.
+ + destruct H1; apply IHlocal2ptree; auto.
 }
 revert H0 H1; induction H; simpl; intros.
-contradiction (ptree_empty_some H0).
-f_equal. rewrite PTree.gss in H0; inv H0.
-auto.
-clear - H; induction H; auto.
-simpl; f_equal; auto.
-rewrite PTree.gso in H1 by auto.
-unfold_lift. apply prop_ext; intuition.
-apply H2; auto.
-unfold_lift. split; auto.
-spec H3. intro; apply H2. unfold_lift. split; auto.
-unfold_lift in H3. simpl in H3.
-rewrite H3 in H6. destruct H6; auto.
-unfold_lift in H6; simpl in H6; rewrite H6.
-split; auto.
++ contradiction (ptree_empty_some H0).
++ f_equal. rewrite PTree.gss in H0; inv H0.
+   auto.
+   clear - H; induction H; auto.
+   - simpl; f_equal; auto.
+   - simpl; f_equal ; auto.
++ rewrite PTree.gso in H1 by auto.
+   unfold_lift. apply prop_ext; intuition.
+   apply H2; auto.
+   unfold_lift. split; auto.
+  spec H3. intro; apply H2. unfold_lift. split; auto.
+  unfold_lift in H3. simpl in H3.
+  rewrite H3 in H6. destruct H6; auto.
+  unfold_lift in H6; simpl in H6; rewrite H6.
+  split; auto.
++ specialize (IHlocal2ptree H0).
+   unfold_lift. apply prop_ext; intuition.
+   apply H1; auto.
+   unfold_lift. split; auto.
+   unfold_lift in IHlocal2ptree; rewrite IHlocal2ptree in H4.
+   destruct H4; auto. intros; apply H1.
+   unfold_lift; auto.
+   unfold_lift in H4; rewrite H4; auto.
+   split; auto.
 *
 intros.
 clear H0.
 revert H1 H2; induction H; simpl; intros.
-contradiction (ptree_empty_some H2).
-destruct (ident_eq i j).
-subst. rewrite PTree.gss in H2. inv H2.
-destruct H1.
-unfold_lift in H0. auto.
-rewrite PTree.gso in H2 by auto.
-destruct H1.
- unfold_lift in H1.
-clear - n H1 H2 H.
-revert n H1 H2; induction H; simpl; intros.
-contradiction (ptree_empty_some H2).
-destruct H1.
-destruct (ident_eq i0 j). subst.
-rewrite PTree.gss in H2. inv H2.
-unfold_lift in H1; auto.
-rewrite PTree.gso in H2 by auto.
-apply IHlocal2ptree0; auto.
-destruct H1.
-destruct (ident_eq i0 j). subst.
-rewrite PTree.gss in H2. inv H2. unfold_lift in H1; auto.
-rewrite PTree.gso in H2 by auto.
-apply IHlocal2ptree; auto.
++ contradiction (ptree_empty_some H2).
++ destruct (ident_eq i j).
+  subst. rewrite PTree.gss in H2. inv H2.
+  destruct H1.
+  unfold_lift in H0. auto.
+  rewrite PTree.gso in H2 by auto.
+  destruct H1.
+  unfold_lift in H1. 
+  clear - n H1 H2 H.
+  revert n H1 H2; induction H; simpl; intros.
+  - contradiction (ptree_empty_some H2).
+  - destruct H1.
+     destruct (ident_eq i0 j). subst.
+     rewrite PTree.gss in H2. inv H2.
+     unfold_lift in H1; auto.
+     rewrite PTree.gso in H2 by auto.
+     apply IHlocal2ptree0; auto.
+   -  apply IHlocal2ptree0; auto.
+       destruct H1; auto.
++
+   destruct H1. 
+   destruct (ident_eq i0 j). subst.
+   rewrite PTree.gss in H2. inv H2. unfold_lift in H1; auto.
+   rewrite PTree.gso in H2 by auto.
+   apply IHlocal2ptree; auto.
++ 
+   apply IHlocal2ptree; auto.  destruct H1; auto.
 *
 clear H0.
 induction H; auto with closed.
@@ -243,34 +265,37 @@ intros.
 split3.
 *
 revert H0; induction H; simpl; intros; auto.
-rewrite PTree.gss in H0; inv H0.
-rewrite PTree.gso in H1 by auto. f_equal; auto.
+ + rewrite PTree.gss in H0; inv H0.
+ + rewrite PTree.gso in H1 by auto. f_equal; auto.
+ + f_equal; auto.
 *
 intros.
 clear H0.
 revert H1 H2; induction H; simpl; intros.
-contradiction (ptree_empty_some H2).
-destruct (ident_eq i j).
-subst. rewrite PTree.gss in H2. inv H2.
-destruct H1.
-unfold_lift in H0. auto.
-rewrite PTree.gso in H2 by auto.
-destruct H1.
- unfold_lift in H1.
-clear - n H1 H2 H.
-revert n H1 H2; induction H; simpl; intros.
-contradiction (ptree_empty_some H2).
-destruct H1.
-destruct (ident_eq i0 j). subst.
-rewrite PTree.gss in H2. inv H2.
-unfold_lift in H1; auto.
-rewrite PTree.gso in H2 by auto.
-apply IHlocal2ptree0; auto.
-destruct H1.
-destruct (ident_eq i0 j). subst.
-rewrite PTree.gss in H2. inv H2. unfold_lift in H1; auto.
-rewrite PTree.gso in H2 by auto.
-apply IHlocal2ptree; auto.
+ + contradiction (ptree_empty_some H2).
+ + destruct (ident_eq i j).
+    subst. rewrite PTree.gss in H2. inv H2.
+    destruct H1.
+    unfold_lift in H0. auto.
+    rewrite PTree.gso in H2 by auto.
+    destruct H1.
+    unfold_lift in H1.
+    clear - n H1 H2 H.
+    revert n H1 H2; induction H; simpl; intros.
+   - contradiction (ptree_empty_some H2).
+   - destruct H1.
+      destruct (ident_eq i0 j). subst. 
+      rewrite PTree.gss in H2. inv H2.
+      unfold_lift in H1; auto.
+     rewrite PTree.gso in H2 by auto.
+     apply IHlocal2ptree0; auto.
+   - destruct H1; auto.
+ + destruct H1.
+   destruct (ident_eq i0 j). subst.
+   rewrite PTree.gss in H2. inv H2. unfold_lift in H1; auto.
+   rewrite PTree.gso in H2 by auto.
+   apply IHlocal2ptree; auto.
+ + destruct H1; auto.
 *
 clear H0.
 induction H; auto with closed.

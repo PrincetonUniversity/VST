@@ -23,7 +23,7 @@ entailer!.
 normalize.
 after_call.
 forward_call (* SHA256_Update(&c,d,n); *)
-  (init_s256abs,data,c,d,dsh, Zlength data).
+  (init_s256abs,data,c,d,dsh, Zlength data, kv).
 entailer!.
 pose proof (Zlength_nonneg data); omega.
 after_call.
@@ -31,7 +31,7 @@ replace_SEP 0 (
  EX  x : s256abs,
       (PROP  (update_abs (firstn (length data) data) init_s256abs x)
        LOCAL ()
-       SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+       SEP  (`(K_vector kv);
                `(sha256state_ x c); `(data_block dsh data d)))).
 entailer.
 apply exp_right with x.
@@ -40,12 +40,10 @@ normalize. intro a.
 simpl.
 
 forward_call (* SHA256_Final(md,&c); *)
-    (a,md,c,msh,dsh).
+    (a,md,c,msh,dsh,kv).
 entailer!.
 after_call.
 simpl.
-replace_SEP 0 (`K_vector (eval_var _K256 (tarray tuint 64))).
-entailer.
 forward. (* return; *)
 unfold frame_ret_assert; simpl.
 entailer!.

@@ -211,7 +211,7 @@ Definition block_data_order_loop2 :=
 
 Lemma bdo_loop2_body_proof:
  forall (Espec : OracleKind)
-   (b : list int) (ctx : val) ( regs : list int) (i : nat)
+   (b : list int) (ctx : val) ( regs : list int) (i : nat) kv
    (Hregs: length regs = 8%nat)
    (H : Zlength b = LBLOCKz)
    (H0 : (LBLOCK <= i < c64)%nat),
@@ -226,8 +226,9 @@ semax Delta_loop1
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h))
-   SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   SEP  (`(K_vector kv);
    `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
      (eval_var _X (tarray tuint LBLOCKz))))
   bdo_loop2_body
@@ -243,8 +244,9 @@ semax Delta_loop1
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 4))) (eval_id _e);
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 5))) (eval_id _f);
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 6))) (eval_id _g);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 7))) (eval_id _h))
-      SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 7))) (eval_id _h);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+      SEP  (`(K_vector kv);
       `(array_at tuint Tsh (Xarray b (Z.of_nat i0)) 0 LBLOCKz)
         (eval_var _X (tarray tuint LBLOCKz))))).
 Proof.
@@ -471,7 +473,7 @@ Qed.
 
 Lemma sha256_block_data_order_loop2_proof:
   forall (Espec : OracleKind)
-     (b: list int) ctx (regs: list int)
+     (b: list int) ctx (regs: list int) kv
      (Hregs: length regs = 8%nat),
      Zlength b = LBLOCKz ->
      semax  Delta_loop1
@@ -485,8 +487,9 @@ Lemma sha256_block_data_order_loop2_proof:
         `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 4))) (eval_id _e);
         `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 5))) (eval_id _f);
         `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 6))) (eval_id _g);
-        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 7))) (eval_id _h))
-   SEP ( `K_vector (eval_var _K256 (tarray tuint 64));
+        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 7))) (eval_id _h);
+        `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   SEP ( `(K_vector kv);
            `(array_at tuint Tsh (tuints b) 0 16) (eval_var _X (tarray tuint 16))))
   block_data_order_loop2
   (normal_ret_assert
@@ -499,8 +502,9 @@ Lemma sha256_block_data_order_loop2_proof:
                 `(eq (Vint (nthi (Round regs (nthi b) 63) 4))) (eval_id _e);
                 `(eq (Vint (nthi (Round regs (nthi b) 63) 5))) (eval_id _f);
                 `(eq (Vint (nthi (Round regs (nthi b) 63) 6))) (eval_id _g);
-                `(eq (Vint (nthi (Round regs (nthi b) 63) 7))) (eval_id _h))
-     SEP (`K_vector (eval_var _K256 (tarray tuint 64));
+                `(eq (Vint (nthi (Round regs (nthi b) 63) 7))) (eval_id _h);
+                `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+     SEP (`(K_vector kv);
            `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16))))).
 Proof.
 intros.
@@ -523,7 +527,7 @@ name ctx_ _ctx.
 name i_ _i.
 change 16%nat with LBLOCK.
 
-Definition loop2_inv (rg0: list int) (b: list int) ctx  (delta: Z) (i: nat) :=
+Definition loop2_inv (rg0: list int) (b: list int) ctx kv (delta: Z) (i: nat) :=
     PROP ( (LBLOCK <= i <= c64)%nat )
     LOCAL  (`(eq ctx) (eval_id _ctx); 
                  `(eq (Vint (Int.repr (Z.of_nat i - delta)))) (eval_id _i);
@@ -534,12 +538,13 @@ Definition loop2_inv (rg0: list int) (b: list int) ctx  (delta: Z) (i: nat) :=
      `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
      `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
      `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
-     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h))
-     SEP (`K_vector (eval_var _K256 (tarray tuint 64));
+     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h);
+     `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+     SEP (`(K_vector kv);
     `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
            (eval_var _X (tarray tuint LBLOCKz))).
 
-apply semax_pre with (EX i:nat, loop2_inv regs b ctx 0 i).
+apply semax_pre with (EX i:nat, loop2_inv regs b ctx kv 0 i).
 clear -H.
 abstract (
  unfold loop2_inv;  apply exp_right with LBLOCK;
@@ -551,11 +556,11 @@ abstract (
   change LBLOCK with 16%nat; change c64 with 64%nat; clear; omega
 ).
 
-apply semax_post' with (loop2_inv regs b ctx 0 c64). 
+apply semax_post' with (loop2_inv regs b ctx kv 0 c64). 
 clear POSTCONDITION;
 abstract (unfold loop2_inv;  entailer!).
 
-apply (semax_loop _ _ (EX i:nat, loop2_inv regs b ctx 1 i)).
+apply (semax_loop _ _ (EX i:nat, loop2_inv regs b ctx kv 1 i)).
 2: abstract (
 apply extract_exists_pre; intro i;
 forward;  (*  i += 1; *)
@@ -577,8 +582,9 @@ forward_if (
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
    `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h))
-   SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   SEP  (`(K_vector kv);
    `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
      (eval_var _X (tarray tuint LBLOCKz)))).
  forward; (* skip *)

@@ -36,7 +36,7 @@ Qed.
 
 Lemma update_last_if_proof:
  forall  (Espec : OracleKind) (hashed : list int) 
-           (dd data : list Z) (c d : val) (sh : share) (len : nat)
+           (dd data : list Z) (c d : val) (sh : share) (len : nat) kv
    (H : len <= length data)
    (HBOUND : (s256a_len (S256abs hashed dd) + Z.of_nat len * 8 < two_p 64)%Z)
    (c' : name _c)
@@ -70,8 +70,9 @@ semax
    `(eq (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length dd))) d))
      (eval_id _data);
    `(eq (Vint (Int.repr (Z.of_nat (len - (length blocks * 4 - length dd))))))
-     (eval_id _len))
-   SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+        (eval_id _len);
+   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   SEP  (`(K_vector kv);
    `(array_at tuint Tsh
        (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
    `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
@@ -87,8 +88,8 @@ semax
   (normal_ret_assert
      (EX  a' : s256abs,
       PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
-      LOCAL ()
-      SEP  (`K_vector (eval_var _K256 (tarray tuint 64));
+      LOCAL (`(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+      SEP  (`(K_vector kv);
              `(sha256state_ a' c); `(data_block sh data d)))).
 Proof.
   intros.
@@ -158,8 +159,7 @@ Proof.
       rewrite (nth_map' (fun x => Vint (Int.repr x)) _ 0%Z); auto.
       apply Nat2Z.inj_lt.  rewrite Z2Nat.id by (clear - H6; omega).
       apply Z.lt_le_trans with (Z.of_nat len); [ destruct H2; auto | ].
-      clear - H8.  
-      omega.
+      clear - H6;       omega.
       apply Nat2Z.inj_le. auto.
     - split; [clear; omega | ].
       apply Z.le_trans with (Z.of_nat len); [clear - H1; omega | ].
@@ -345,7 +345,7 @@ unfold b4d.
 rewrite Nat2Z.inj_sub by omega.
 rewrite Nat2Z.inj_mul.
 repeat rewrite <- Zlength_correct.
-change (Z.of_nat 4) with 4%Z;
+change (Z.of_nat 4) with 4%Z; change WORD with 4%Z;
 omega.
 rewrite Zlength_correct in H5.
 apply Nat2Z.inj in H5.
@@ -375,7 +375,6 @@ apply divide_length_app; auto.
  apply andp_right.
  apply prop_right.
  constructor; auto.
- rewrite Zlength_nil; change CBLOCKz with 64%Z; clear; omega.
  rewrite <- app_nil_end.
  rewrite Hblocks.
  rewrite <- H7'.
@@ -405,7 +404,7 @@ unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
  rewrite Nat2Z.inj_sub by omega.
  rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4%Z.
  rewrite (Zlength_correct blocks), (Zlength_correct dd).
- clear; omega.
+ change WORD with 4%Z; clear; omega.
  apply divide_length_app; auto.
  rewrite H2'.
  
@@ -484,7 +483,7 @@ replace Delta with (initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot))))
  by (simplify_Delta; reflexivity).
 fold update_outer_if.
-apply semax_seq with (sha_update_inv sh hashed (Z.to_nat len) c d dd data hi lo false).
+apply semax_seq with (sha_update_inv sh hashed (Z.to_nat len) c d dd data kv hi lo false).
 unfold POSTCONDITION, abbreviate.
 eapply semax_pre; [ | simple apply update_outer_if_proof; try assumption].
 entailer!. apply Z2Nat.id. omega. rewrite Z2Nat.id by omega; auto.
@@ -493,7 +492,7 @@ rewrite Z2Nat.id by omega; auto.
 rewrite Z2Nat.id by omega; omega.
 (* after if (n!=0) *)
 eapply semax_seq' with
-     (sha_update_inv sh hashed (Z.to_nat len) c d dd data hi lo true).
+     (sha_update_inv sh hashed (Z.to_nat len) c d dd data kv hi lo true).
 clear POSTCONDITION MORE_COMMANDS Delta.
 simple apply update_while_proof; try assumption.
 rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; auto; omega.
@@ -506,9 +505,9 @@ forward.    (* c->num=len; *)
 
 apply semax_seq with (EX  a' : s256abs,
                     PROP  (update_abs (firstn (Z.to_nat len) data) (S256abs hashed dd) a')
-                    LOCAL ()
+                    LOCAL (`(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
                     SEP 
-                    (`K_vector (eval_var _K256 (tarray tuint 64));
+                    (`(K_vector kv);
                      `(sha256state_ a' c); `(data_block sh data d))).
 
 replace Delta with (initialized _p (initialized _n (initialized _data

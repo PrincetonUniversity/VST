@@ -98,7 +98,8 @@ Inductive computable: forall {A}(x: A), Prop :=
 | computable_Intunsigned: forall x, computable x -> computable (Int.unsigned x)
 | computable_two_power_nat: forall x, computable x -> computable (two_power_nat x)
 | computable_max_unsigned: computable (Int.max_unsigned)
-| computable_align: forall x y, computable x -> computable y -> computable (align x y).
+| computable_align: forall x y, computable x -> computable y -> computable (align x y)
+| computable_and: forall x y, computable x -> computable y -> computable (x /\ y).
 
 Hint Constructors computable : computable. 
 Hint Extern 1 (computable ?A) => (unfold A) : computable.
@@ -107,7 +108,7 @@ Ltac computable := match goal with |- ?x =>
  no_evars x;
  let H := fresh in assert (H: computable x) by auto 80 with computable; 
  clear H;
- compute; clear; auto; congruence
+ compute; clear; repeat split; auto; congruence
 end.
 
 Lemma prop_and_same_derives {A}{NA: NatDed A}:
