@@ -36,8 +36,11 @@ Inductive typ :=
 | tyN
 | tyoption : typ -> typ
 | typrop
-| tympred.
-
+| tympred
+| tysum : typ -> typ -> typ
+| typrod : typ -> typ -> typ
+| tyunit
+| tylistspec : type -> ident -> typ.
 
 Fixpoint typD (ts : list Type) (t : typ) : Type :=
     match t with
@@ -71,11 +74,32 @@ Fixpoint typD (ts : list Type) (t : typ) : Type :=
         | tyoption t => option (typD ts t)
         | typrop => Prop
         | tympred => mpred
+        | tysum t1 t2 => sum (typD ts t1) (typD ts t2)
+        | typrod t1 t2 => prod (typD ts t1) (typD ts t2)
+        | tyunit => unit
+        | tylistspec t i => listspec t i  
     end.
+
+Lemma listspec_ext : forall t i (a b: listspec t i), a = b.
+intros. destruct a,b.
+subst. inversion list_struct_eq0.
+subst. f_equal.
+apply proof_irr.
+apply proof_irr.
+apply proof_irr.
+Qed.
 
 Definition typ_eq_dec : forall a b : typ, {a = b} + {a <> b}.
   decide equality.
-Defined.
+  consider (eqb_ident i i0); intros;
+  try rewrite eqb_ident_spec in H. auto.
+  destruct (eqb_ident_spec i i0). right. intro. intuition. subst.
+  congruence.
+  consider (eqb_type t t0); intros.
+  rewrite eqb_type_spec in H. auto.
+  destruct (eqb_type_spec t t0).
+  right; intuition; subst; congruence.
+ Defined.
 
 Instance RelDec_eq_typ : RelDec (@eq typ) :=
 { rel_dec := fun a b =>
@@ -325,7 +349,10 @@ Inductive eval :=
 | fderef_noload
 | feval_field
 | feval_binop
-| feval_unop.
+| feval_unop
+| feval_id.
+
+Check expr.eval_id.
 
 Definition typeof_eval (e : eval) :=
  match e with
@@ -334,10 +361,12 @@ Definition typeof_eval (e : eval) :=
 | feval_field => tyArr tyc_type (tyArr tyident (tyArr tyval tyval))
 | feval_binop => tyArr tybinary_operation (tyArr tyc_type (tyArr tyc_type (tyArr tyval (tyArr tyval tyval))))
 | feval_unop => tyArr tyunary_operation (tyArr tyc_type (tyArr tyval tyval))
+| feval_id => tyArr tyident (tyArr tyenviron tyval)
 end.
 
 Definition evalD (ts : list Type) (e : eval) : typD ts (typeof_eval e) :=
 match e with
+| feval_id => eval_id
 | feval_cast => eval_cast
 | fderef_noload => deref_noload
 | feval_field => eval_field
@@ -377,61 +406,147 @@ match o with
 | ftyped_true => typed_true
 end.
 
-Lemma listspec_ext : forall t i (a b: listspec t i), a = b.
-intros. destruct a,b.
-subst. inversion list_struct_eq0.
-subst. f_equal.
-apply proof_irr.
-apply proof_irr.
-apply proof_irr.
-Qed.
-
 Inductive sep :=
 | fstar
 | fandp
 | forp
 | flocal
 | fprop
+| fderives
+| femp
 | fdata_at : type -> sep
-| ffield_at : type -> ident -> sep
+| ffield_at : type -> list ident -> sep
 | flseg : forall (t: type) (i : ident), listspec t i -> sep
 . 
 
-Locate reptype.
 
-Fixpoint reptype (ty: type) : Type :=
+Fixpoint reptyp (ty: type) : typ :=
   match ty with
-  | Tvoid => unit
-  | Tint _ _ _ => val
-  | Tlong _ _ => val
-  | Tfloat _ _ => val
-  | Tpointer t1 a => val
-  | Tarray t1 sz a => list (reptype t1)
-  | Tfunction t1 t2 _ => unit
-  | Tstruct id fld a => reptype_structlist fld
-  | Tunion id fld a => reptype_unionlist fld
-  | Tcomp_ptr id a => val
+  | Tvoid => tyunit
+  | Tint _ _ _ => tyval
+  | Tlong _ _ => tyval
+  | Tfloat _ _ => tyval
+  | Tpointer t1 a => tyval
+  | Tarray t1 sz a => tylist (reptyp t1)
+  | Tfunction t1 t2 _ => tyunit
+  | Tstruct id fld a => reptyp_structlist fld
+  | Tunion id fld a => reptyp_unionlist fld
+  | Tcomp_ptr id a => tyval
   end
-with reptype_structlist (fld: fieldlist) : Type :=
+with reptyp_structlist (fld: fieldlist) : typ :=
   match fld with
-  | Fnil => unit
+  | Fnil => tyunit
   | Fcons id ty fld' => 
     if is_Fnil fld' 
-      then reptype ty
-      else prod (reptype ty) (reptype_structlist fld')
+      then reptyp ty
+      else typrod (reptyp ty) (reptyp_structlist fld')
   end
-with reptype_unionlist (fld: fieldlist) : Type :=
+with reptyp_unionlist (fld: fieldlist) : typ :=
   match fld with
-  | Fnil => unit
+  | Fnil => tyunit
   | Fcons id ty fld' => 
     if is_Fnil fld' 
-      then reptype ty
-      else sum (reptype ty) (reptype_unionlist fld')
+      then reptyp ty
+      else tysum (reptyp ty) (reptyp_unionlist fld')
   end.
 
 Definition typeof_sep (s : sep) : typ :=
 match s with
-| fdata_at t => tyArr tyshare (tyArr  
+| fdata_at t => tyArr tyshare (tyArr (reptyp t) (tyArr tyval tympred))
+| ffield_at t ids => tyArr tyshare (tyArr (reptyp (nested_field_type2 t ids)) (tyArr tyval tympred))
+| flseg t i l => tyArr tyshare (tyArr (tylist (reptyp_structlist (@all_but_link i (list_fields)))) 
+                                      (tyArr tyval (tyArr tyval tympred)))
+| fstar 
+| fandp
+| forp => tyArr tympred (tyArr tympred tympred)
+| flocal => tyArr (tyArr tyenviron typrop) (tyArr tyenviron tympred) 
+| fprop => tyArr typrop tympred
+| fderives => tyArr tympred (tyArr tympred typrop)
+| femp => tympred
+end.
+
+Fixpoint reptyp_reptype (ts : list Type) ty {struct ty} : typD ts (reptyp ty) -> reptype ty :=
+  match ty as ty0 return (typD ts (reptyp ty0) -> reptype ty0) with
+    | Tvoid => fun x : unit => x
+    | Tint i s a => fun x : val => x
+    | Tlong s a => fun x : val => x
+    | Tfloat f a => fun x : val => x
+    | Tpointer t a => fun x : val => x
+    | Tarray t z a => map (reptyp_reptype ts t)
+    | Tfunction t t0 c => fun x : unit => x
+    | Tstruct i f a => reptyp_structlist_reptype ts f
+    | Tunion i f a => reptyp_unionlist_reptype ts f
+    | Tcomp_ptr i a => fun x : val => x
+  end
+with reptyp_structlist_reptype (ts : list Type) fl {struct fl} : typD ts (reptyp_structlist fl) -> reptype_structlist fl :=
+  match
+    fl as fl0
+    return (typD ts (reptyp_structlist fl0) -> reptype_structlist fl0)
+  with
+    | Fnil => fun x : typD ts (reptyp_structlist Fnil) => x
+    | Fcons i t fl0 =>
+      let b := is_Fnil fl0 in
+      if b as b0
+         return
+         (typD ts
+               (if b0
+                then reptyp t
+                else typrod (reptyp t) (reptyp_structlist fl0)) ->
+          if b0
+          then reptype t
+          else (reptype t * reptype_structlist fl0)%type)
+      then reptyp_reptype ts t
+      else
+        fun x : typD ts (reptyp t) * typD ts (reptyp_structlist fl0) =>
+          (reptyp_reptype ts t (fst x),
+           reptyp_structlist_reptype ts fl0 (snd x))
+  end
+with reptyp_unionlist_reptype (ts : list Type) fl {struct fl} : typD ts (reptyp_unionlist fl) -> reptype_unionlist fl :=
+match
+     fl as fl0
+     return (typD ts (reptyp_unionlist fl0) -> reptype_unionlist fl0)
+   with
+   | Fnil => fun x : typD ts (reptyp_unionlist Fnil) => x
+   | Fcons i t fl0 =>
+       let b := is_Fnil fl0 in
+       if b as b0
+        return
+          (typD ts
+             (if b0
+              then reptyp t
+              else tysum (reptyp t) (reptyp_unionlist fl0)) ->
+           if b0 then reptype t else (reptype t + reptype_unionlist fl0)%type)
+       then reptyp_reptype ts t
+       else
+        fun x : typD ts (reptyp t) + typD ts (reptyp_unionlist fl0) =>
+        match x with
+        | inl y => inl (reptyp_reptype ts t y)
+        | inr y => inr (reptyp_unionlist_reptype ts fl0 y)
+        end
+   end.
+
+Definition sepD (ts : list Type) (s : sep) : typD ts (typeof_sep s).
+refine
+match s with
+| fstar => sepcon
+| fandp => andp
+| forp => orp
+| flocal => local
+| fprop => prop
+| fderives => derives
+| femp => emp
+| fdata_at ty => _ (* fun sh (t : reptype ty) v => data_at sh ty t v *)
+| ffield_at t ids => _
+| flseg t id ls => _
+end. 
+{ simpl. intros sh rt v.
+  exact (data_at sh ty (reptyp_reptype ts _ rt) v). }
+{ simpl. intros sh ty v.
+  exact (field_at sh t ids (reptyp_reptype ts _ ty) v). }
+{ simpl.
+  intros sh lf v1 v2.
+  exact (@lseg t id ls sh (List.map (reptyp_structlist_reptype ts _) lf) v1 v2). }
+Defined.
 
 
 Inductive func :=
@@ -440,7 +555,8 @@ Inductive func :=
 | Intop : int_op -> func
 | Value : values -> func
 | Eval_f : eval -> func
-| Other : other -> func.
+| Other : other -> func
+| Sep : sep -> func.
 
 Definition typeof_func (f: func) : typ :=
 match f with
@@ -450,6 +566,7 @@ match f with
 | Value v => typeof_value v
 | Eval_f e => typeof_eval e
 | Other o => typeof_other o
+| Sep s => typeof_sep s
 end.
 
 Definition funcD (ts : list Type) (f : func) : typD ts (typeof_func f) :=
@@ -460,5 +577,7 @@ match f with
 | Value v => valueD ts v
 | Eval_f e => evalD ts e
 | Other o => otherD ts o
+| Sep s => sepD ts s
 end.
 
+ 
