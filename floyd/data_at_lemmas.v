@@ -1660,6 +1660,7 @@ Proof. intros. rewrite <- local_facts_offset_zero. reflexivity. apply data_at'_l
 
 Lemma data_at_local_facts: forall sh t v p, data_at sh t v p |-- !!(isptr p).
 Proof. intros. unfold data_at. simpl. apply andp_left2. apply data_at'_local_facts. Qed.
+Hint Resolve data_at_local_facts : saturate_local.
 
 Lemma data_at_isptr: forall sh t v p, data_at sh t v p = !!(isptr p) && data_at sh t v p.
 Proof. intros. rewrite <- local_facts_isptr. reflexivity. apply data_at_local_facts. Qed.
@@ -1669,12 +1670,18 @@ Proof. intros. rewrite <- local_facts_offset_zero. reflexivity. apply data_at_lo
 
 Lemma data_at__local_facts: forall sh t p, data_at_ sh t p |-- !!(isptr p).
 Proof. intros. unfold data_at_. apply data_at_local_facts. Qed.
+Hint Resolve data_at__local_facts : saturate_local.
 
 Lemma data_at__isptr: forall sh t p, data_at_ sh t p = !!(isptr p) && data_at_ sh t p.
 Proof. intros. unfold data_at_. apply data_at_isptr. Qed.
 
 Lemma data_at__offset_zero: forall sh t p, data_at_ sh t p = data_at_ sh t (offset_val (Int.repr 0) p).
 Proof. intros. unfold data_at_. apply data_at_offset_zero. Qed.
+
+Hint Rewrite <- data_at__offset_zero: norm.
+Hint Rewrite <- data_at_offset_zero: norm.
+Hint Rewrite <- data_at__offset_zero: cancel.
+Hint Rewrite <- data_at_offset_zero: cancel.
 
 (************************************************
 
@@ -2042,7 +2049,7 @@ Proof.
   + exact H1.
 Qed.
 
-Hint Resolve data_at_data_at_.
+Hint Resolve data_at_data_at_: cancel.
 
 (************************************************
 
@@ -2427,8 +2434,11 @@ Proof.
   apply data_at'_local_facts.
 Qed.
 
+Hint Resolve field_at_local_facts : saturate_local.
+(*
 Hint Extern 2 (@derives _ _ _ _) => 
    simple eapply field_at_local_facts; reflexivity : saturate_local.
+*)
 
 Lemma field_at_isptr: forall sh t ids v p,
   field_at sh t ids v p = (!! isptr p) && field_at sh t ids v p.
@@ -2446,8 +2456,11 @@ Proof.
   apply field_at_local_facts.
 Qed.
 
+Hint Resolve field_at__local_facts : saturate_local.
+(*
 Hint Extern 2 (@derives _ _ _ _) => 
    simple eapply field_at__local_facts; reflexivity : saturate_local.
+*)
 
 Lemma field_at__isptr: forall sh t ids p,
   field_at_ sh t ids p = (!! isptr p) && field_at_ sh t ids p.

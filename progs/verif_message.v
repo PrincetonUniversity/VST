@@ -842,10 +842,7 @@ change (field_at Tsh t_struct_intpair (_y :: nil) Vundef
   (field_at_ Tsh t_struct_intpair (_y :: nil)
           (eval_var _q t_struct_intpair rho)).
 cancel.
-rewrite !sepcon_assoc.
-apply sepcon_derives; [cancel|].
-rewrite sepcon_comm.
-apply sepcon_derives; [apply data_at_data_at_; reflexivity |].
+apply sepcon_derives; [cancel |].
 eapply derives_trans; [apply data_at_data_at_; reflexivity | exact H1].
 Qed.
 

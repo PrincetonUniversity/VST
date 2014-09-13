@@ -53,8 +53,7 @@ Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
 Definition fifo (contents: list val) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
       !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
-      field_at Tsh t_struct_fifo (_head::nil) hd p *
-      field_at Tsh t_struct_fifo (_tail::nil) tl p *
+      data_at Tsh t_struct_fifo (hd, tl) p *
       if isnil contents
       then (!!(hd=nullval) && emp)
       else (EX prefix: list val, 
@@ -113,9 +112,7 @@ Definition Gprog : funspecs :=
 Lemma memory_block_fifo:
  forall e, 
   `prop (`(align_compatible t_struct_fifo) e) &&
-  `(memory_block Tsh (Int.repr 8)) e =
-  `(field_at_ Tsh t_struct_fifo (queue._head::nil)) e *
-  `(field_at_ Tsh t_struct_fifo (queue._tail::nil)) e.
+  `(memory_block Tsh (Int.repr 8)) e = `(data_at_ Tsh t_struct_fifo) e.
 Proof.
  intros.
  extensionality rho. unfold_lift. simpl.
@@ -125,8 +122,6 @@ Proof.
   (((fun p : val => !!align_compatible t_struct_fifo p) &&
                  memory_block Tsh (Int.repr (sizeof t_struct_fifo))) (e rho)) by reflexivity.
  rewrite memory_block_data_at_ by reflexivity.
- unfold data_at_.
- unfold_data_at 1%nat.
  reflexivity.
 Qed.
 
@@ -144,8 +139,9 @@ name h _h.
 unfold fifo.
 normalize. intros [hd tl]. normalize.
 forward. (* h = Q->head;*)
-forward.  (* return (h == NULL); *)
-(* goal_1 *)
+simpl proj_reptype.
+forward.
+
 unfold fifo.
 entailer.
 apply exp_right with (h,tl).
@@ -155,6 +151,15 @@ destruct (isnil contents).
 * normalize.
  destruct prefix; entailer; elim_hyps; simpl; apply prop_right; auto.
 Qed.
+
+(*
+Lemma A: forall v, is_int v \/ isptr v -> force_val (sem_cast tint tint v) = v.
+intros.
+simpl sem_cast.
+unfold sem_cast_neutral.
+destruct v; simpl in H; try tauto.
+Qed.
+*)
 
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
@@ -200,6 +205,7 @@ normalize. intros [hd tl]. normalize.
 forward. (* p->next = NULL; *)
 normalize.
 forward. (*   h = Q->head; *)
+simpl proj_reptype.
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
 * (* then clause *)
@@ -245,7 +251,6 @@ Qed.
 
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.
 Proof.
-pose proof list_struct_alignas_legal as H99.
 start_function.
 name Q _Q.
 name h _h.
@@ -280,7 +285,6 @@ destruct prefix; inversion H1; clear H1.
 Qed.
 
 Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.
-
 Proof.
 start_function. rename a into a0; rename b into b0.
 name a _a.

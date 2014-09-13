@@ -1572,6 +1572,22 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  | |- semax _ _ (Sset _ (Ecast (Ederef (Ebinop Oadd ?e1 ?e2 _) _) _)) _ =>
     eapply semax_cast_load_array with (lo:=0)(v1:=eval_expr e1)(v2:=eval_expr e2);
       [ reflexivity | simpl; auto | entailer ]
+ | SE := @abbreviate type_id_env _ |- semax _ _ (Sset _ ?e) _ =>
+   let pp := fresh "pp" in
+   match e with
+   | Ecast ?e' => pose (compute_nested_efield e') as pp;
+            change e' with (nested_efield (fst (fst pp)) (snd (fst pp)) (snd pp));
+            simpl in pp; subst pp; unfold fst, snd;
+            eapply (semax_nested_efield_cast_load_37' _ _  SE); [reflexivity 
+             | reflexivity | reflexivity | reflexivity  | reflexivity | reflexivity 
+             | reflexivity | solve [(entailer!; simpl; auto)]]
+   | ?e' => pose (compute_nested_efield e') as pp;
+            change e' with (nested_efield (fst (fst pp)) (snd (fst pp)) (snd pp));
+            simpl in pp; subst pp; unfold fst, snd ;
+            eapply (semax_nested_efield_load_37' _ _  SE); [reflexivity | reflexivity
+             | reflexivity | reflexivity  | reflexivity | reflexivity | reflexivity 
+             | solve [(entailer!; simpl; auto)]]
+   end
  | |- _ => eapply semax_cast_load_37';
    [reflexivity 
    |entailer;
@@ -1700,6 +1716,29 @@ match goal with
   clear n sh contents lo hi ;
   [reflexivity | solve [auto] | reflexivity | auto | reflexivity |
    solve [(entailer!; try apply I; try tauto; reflexivity)]| entailer]
+| SE := @abbreviate type_id_env _ 
+    |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e _) _ =>
+       let pp := fresh "pp" in
+            pose (compute_nested_efield e) as pp;
+            change e with (nested_efield (fst (fst pp)) (snd (fst pp)) (snd pp));
+            simpl in pp; 
+  let n := fresh "n" in evar (n: nat); 
+  let sh := fresh "sh" in evar (sh: share);
+  let v0 := fresh "v" in evar (v0: reptype (typeof (fst (fst pp))));
+  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
+     |-- (`(numbd n (data_at sh (typeof (fst (fst pp))) v0)) (eval_lvalue (fst (fst pp)))) * TT) as _;
+  [unfold number_list, n, sh, v0; 
+   repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
+   unfold at_offset; solve [entailer; cancel]
+  | ];
+  apply (semax_pre_later (PROPx P (LOCALx Q 
+    (SEPx (replace_nth n R (`(data_at sh (typeof (fst (fst pp))) v0) (eval_lvalue (fst (fst pp)))))))));
+  [ eapply (fast_entail n); [reflexivity | entailer; unfold at_offset; simpl; cancel] | ];
+  subst pp; unfold fst, snd;
+  eapply (semax_nested_efield_store_nth _ _ SE n); [
+  reflexivity | reflexivity | reflexivity | reflexivity |
+  reflexivity | reflexivity | reflexivity | solve [entailer!] |
+  solve [auto] | solve [entailer!]]
 | SE := @abbreviate type_id_env _ 
     |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
   let n := fresh "n" in evar (n: nat); 
