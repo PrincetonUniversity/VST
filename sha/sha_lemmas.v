@@ -1025,7 +1025,10 @@ apply plus_reg_l with LBLOCK.
 rewrite plus_comm. 
 rewrite NPeano.Nat.sub_add by Psatz.lia.
 omega.
-Psatz.lia.
+(*Psatz.lia.*)
+rewrite H0. assert (Hn: (n*LBLOCK >= 0)%nat).
+  remember ((n * LBLOCK)%nat). clear. omega.
+  omega. 
 Qed.
 
 Lemma length_hash_blocks: forall regs blocks,
