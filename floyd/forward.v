@@ -550,6 +550,31 @@ induction P; simpl; auto. destruct H; split; auto.
 Qed.
 Hint Rewrite SEP_PROP: norm.
 
+Ltac clean_up_app_carefully := (* useful after rewriting by SEP_PROP *)
+ repeat
+  match goal with
+  | |- context [@app Prop (?a :: ?b) ?c] =>
+    change (app (a::b) c) with (a :: app b c)
+  | |- context [@app (environ->Prop) (?a :: ?b) ?c] =>
+    change (app (a::b) c) with (a :: app b c)
+  | |- context [@app (lifted (LiftEnviron Prop)) (?a :: ?b) ?c] =>
+    change (app (a::b) c) with (a :: app b c)
+  | |- context [@app (environ->mpred) (?a :: ?b) ?c] =>
+    change (app (a::b) c) with (a :: app b c)
+  | |- context [@app (lifted (LiftEnviron mpred)) (?a :: ?b) ?c] =>
+    change (app (a::b) c) with (a :: app b c)
+  | |- context [@app Prop nil ?c] => 
+     change (app nil c) with c
+  | |- context [@app (environ->Prop) nil ?c] => 
+     change (app nil c) with c
+  | |- context [@app (lifted (LiftEnviron Prop)) nil ?c] => 
+     change (app nil c) with c
+  | |- context [@app (lifted (environ->mpred)) nil ?c] => 
+     change (app nil c) with c
+  | |- context [@app (lifted (LiftEnviron mpred)) nil ?c] => 
+     change (app nil c) with c
+ end.
+
 Lemma simpl_get_result1:
  forall (f: val -> Prop) i, @liftx (Tarrow environ (LiftEnviron Prop)) (@liftx (Tarrow val (LiftEnviron Prop))f retval) (get_result1 i) = `f (eval_id i).
 Proof.
@@ -1296,6 +1321,7 @@ Ltac after_call :=
    | _ => idtac
    end;
    autorewrite with subst; normalize;
+   clean_up_app_carefully;
    match goal with 
    | |- forall x:val, _ => intros ?retval0; normalize
    | _ => idtac

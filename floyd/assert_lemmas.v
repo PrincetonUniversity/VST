@@ -233,6 +233,13 @@ Hint Rewrite subst_eval_id_neq using safe_auto_with_closed : subst.
 
 Hint Rewrite Int.add_zero  Int.add_zero_l Int.sub_zero_l : norm.
 
+Lemma liftx_id:
+    forall {T} e, @liftx (Tarrow T (LiftEnviron T)) (fun v => v) e = e.
+Proof.
+ intros. extensionality rho; simpl; auto.
+Qed.
+Hint Rewrite @liftx_id : norm.
+
 Lemma liftx3_liftx2:
  forall {A1 A2 A3 B} f (x: A1),
   @liftx (Tarrow A1 (Tarrow A2 (Tarrow A3 (LiftEnviron B)))) f (@liftx (LiftEnviron A1) x) =

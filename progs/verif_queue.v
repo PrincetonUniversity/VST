@@ -12,7 +12,10 @@ Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
 
 Definition natural_alignment := 8.
 
-Lemma natural_alignment_enough: forall t, type_is_by_value t -> legal_alignas_type t = true -> (alignof t | 8).
+Lemma natural_alignment_enough: forall t,
+     type_is_by_value t ->
+     legal_alignas_type t = true -> 
+     (alignof t | 8).
 Proof.
   intros.
   assert (1 | 8). exists 8. reflexivity.
@@ -27,22 +30,28 @@ Qed.
 Definition natural_align_compatible p :=
   match p with
   | Vptr b ofs => (natural_alignment | Int.unsigned ofs)
-  | _ => True
+  | _ => False
   end.
 
 Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: int
   PRE [ 1%positive OF tint]
-     PROP (4 <= Int.unsigned n) LOCAL (`(eq (Vint n)) (eval_id 1%positive)) SEP ()
+     PROP (4 <= Int.unsigned n) 
+     LOCAL (`(eq (Vint n)) (eval_id 1%positive)) 
+     SEP ()
   POST [ tptr tvoid ] 
-     PROP () LOCAL (`natural_align_compatible retval) SEP (`(memory_block Tsh n) retval).
+     PROP () 
+     LOCAL (`natural_align_compatible retval) 
+     SEP (`(memory_block Tsh n) retval).
 
 Definition freeN_spec :=
  DECLARE _freeN
   WITH u: unit
   PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]  
-      PROP() LOCAL () SEP (`(memory_block Tsh) (`force_int (eval_id 2%positive)) (eval_id 1%positive))
+     (* we should also require natural_align_compatible (eval_id 1) *)
+      PROP() LOCAL ()
+      SEP (`(memory_block Tsh) (`force_int (eval_id 2%positive)) (eval_id 1%positive))
   POST [ tvoid ]  emp.
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
@@ -109,20 +118,26 @@ Definition Gprog : funspecs :=
          :: fifo_empty_spec :: fifo_get_spec 
          :: make_elem_spec :: main_spec::nil.
 
+Lemma memory_block_data_at_: forall (sh : share) (t : type) (p: val),
+  legal_alignas_type t = true ->
+  nested_non_volatile_type t = true ->
+  align_compatible t p ->
+  memory_block sh (Int.repr (sizeof t)) p = data_at_ sh t p.
+Proof.
+intros.
+ rewrite <- (memory_block_data_at_ sh t); auto.
+ normalize. simpl. rewrite prop_true_andp by auto.
+ auto.
+Qed.
+ 
 Lemma memory_block_fifo:
- forall e, 
-  `prop (`(align_compatible t_struct_fifo) e) &&
-  `(memory_block Tsh (Int.repr 8)) e = `(data_at_ Tsh t_struct_fifo) e.
+ forall p, 
+  align_compatible t_struct_fifo p ->
+  memory_block Tsh (Int.repr 8) p = data_at_ Tsh t_struct_fifo p.
 Proof.
  intros.
- extensionality rho. unfold_lift. simpl.
  change 8 with (sizeof t_struct_fifo).
- replace (!!align_compatible t_struct_fifo (e rho) &&
-   memory_block Tsh (Int.repr (sizeof t_struct_fifo)) (e rho)) with
-  (((fun p : val => !!align_compatible t_struct_fifo p) &&
-                 memory_block Tsh (Int.repr (sizeof t_struct_fifo))) (e rho)) by reflexivity.
- rewrite memory_block_data_at_ by reflexivity.
- reflexivity.
+ apply memory_block_data_at_; auto.
 Qed.
 
 Lemma list_cell_eq: forall sh elem,
@@ -161,6 +176,18 @@ destruct v; simpl in H; try tauto.
 Qed.
 *)
 
+Lemma natural_align_compatible_t_struct_fifo:
+  forall q, natural_align_compatible q -> align_compatible t_struct_fifo q.
+Proof.
+intros; hnf in H|-*.
+destruct q; auto. hnf in H|-*.
+unfold natural_alignment in *.
+simpl in *.
+destruct H as [z ?]. exists (z*2)%Z; simpl. rewrite <- Z.mul_assoc.
+auto.
+Qed.
+Hint Resolve natural_align_compatible_t_struct_fifo.
+
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
 start_function.
@@ -169,17 +196,16 @@ name Q' _Q'.
 forward_call (* Q' = mallocN(sizeof ( *Q)); *) 
       (Int.repr 8).
   (* goal_2 *) entailer!.
-after_call. (* This expression is strange *)
-simpl.
-forward. (* Q = (struct fifo * )Q'; *)
-apply semax_pre 
-  with (PROP  () LOCAL ()
-   SEP  (`prop (`(align_compatible t_struct_fifo) (eval_id _Q)) && `(memory_block Tsh (Int.repr 8)) (eval_id _Q))).
-  (* goal_3 *) entailer!.
-               destruct Q'; auto.
-               eapply Zdivides_trans; [exists 2; reflexivity|exact H].
-rewrite memory_block_fifo. (* we don't even need it now *) 
+after_call. (* This expression was strange; better now with clean_up_app_carefully called from after_call *)
+clear Q'0.
+apply (remember_value  (eval_id _Q')); intro q.
+apply semax_pre with
+  (PROP (natural_align_compatible q; isptr q) LOCAL (`(eq q) (eval_id _Q')) 
+   SEP (`(memory_block Tsh (Int.repr 8) q))); [entailer! | ].
 normalize.
+forward. (* Q = (struct fifo * )Q'; *)
+normalize.
+rewrite memory_block_fifo by auto.  (* we don't even need it now *)  (* ? *)
 forward. (* Q->head = NULL; *)
 (* goal_4 *)
 forward.  (*  Q->tail = NULL;  *)
@@ -208,6 +234,7 @@ forward. (*   h = Q->head; *)
 simpl proj_reptype.
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
+ simpl typeof.
 * (* then clause *)
   (* goal 9 *)
   forward. (*  Q->head=p; *)
@@ -249,6 +276,13 @@ forward_if
     forward. (* return ; *)
 Qed.
 
+(* 
+Lemma compose_id:
+ forall {A B} F, @Basics.compose A A B F (fun v => v) = F.
+Proof. intros; extensionality x; reflexivity. Qed.
+Hint Resolve @compose_id : norm.
+*)
+
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.
 Proof.
 start_function.
@@ -263,9 +297,12 @@ forward. (*   p = Q->head; *)
 destruct prefix; inversion H1; clear H1.
 + subst_any.
    rewrite links_nil_eq.
-   normalize. apply ptr_eq_e in H1. subst_any.
+   normalize. simpl proj_reptype.
+   apply ptr_eq_e in H1. subst_any.
    forward. (*  n=h->next; *)
    forward. (* Q->head=n; *)
+  simpl valinject; simpl reptype.  normalize.
+   replace_SEP 0%Z (`(data_at Tsh t_struct_fifo (nullval,p) q)); [ entailer! | ]. (* can we do this automatically? *)
    forward. (* return p; *)
    entailer!.
    unfold fifo. apply exp_right with (nullval, h).
@@ -273,7 +310,9 @@ destruct prefix; inversion H1; clear H1.
    entailer!.
 + rewrite links_cons_eq.
     normalize. intro.
-    normalize. subst_any.
+    normalize.
+    simpl valinject; simpl proj_reptype. (* can we make this automatic? *)
+    subst_any.
     forward. (*  n=h->next; *)
     forward. (* Q->head=n; *)
     forward. (* return p; *)
@@ -298,17 +337,17 @@ auto 50 with closed.
 after_call.
 simpl.
 change 12 with (sizeof (t_struct_elem)).
-eapply semax_pre0 with (PROP  ()
+clear p0.
+apply (remember_value (eval_id _p)); intro p0.
+eapply semax_pre0 with (PROP  (natural_align_compatible p0)
       LOCAL  (`(eq (Vint a0)) (eval_id _a); `(eq (Vint b0)) (eval_id _b);
-      `natural_align_compatible (eval_id _p))
+      `(eq p0) (eval_id _p))
       SEP 
-      (`(data_at_ Tsh t_struct_elem) (eval_id _p))).
-  rewrite <- memory_block_data_at_ by reflexivity.
-  entailer.
-  apply prop_right.
-  unfold align_compatible; unfold natural_align_compatible in H1.
-  destruct (eval_id _p rho); auto.
-  eapply Zdivides_trans; [exists 2; reflexivity|exact H1].
+      (`(data_at_ Tsh t_struct_elem p0))).
+  entailer!.
+  rewrite <- memory_block_data_at_;
+   [auto | reflexivity  | reflexivity 
+   | apply natural_align_compatible_t_struct_fifo; auto].
 unfold data_at_.
 unfold_data_at 1%nat.
 forward.  (*  p->a=a; *)
@@ -375,7 +414,17 @@ forward_call (*  freeN(p, sizeof( *p)); *)
   unfold_data_at 1%nat; cancel.
   apply sepcon_derives; apply field_at_field_at_; reflexivity.
   
-  erewrite <- memory_block_data_at_ by reflexivity. simpl; normalize.
+
+Lemma data_at__memory_block: forall (sh : share) (t : type) (p: val),
+ legal_alignas_type t = true ->
+ nested_non_volatile_type t = true ->
+   data_at_ sh t p |-- memory_block sh (Int.repr (sizeof t)) p.
+Proof.
+intros.
+ rewrite <- (data_at_lemmas.memory_block_data_at_ sh t); auto.
+ simpl; apply andp_left2; auto.
+Qed.
+  apply data_at__memory_block; auto.
 } after_call.
 forward. (* return i+j; *)
 unfold main_post.
