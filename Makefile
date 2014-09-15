@@ -144,7 +144,7 @@ FLOYD_FILES= \
 
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
-  insertionsort.v reverse.v queue.v sumarray.v message.v \
+  insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
    entail_examples.v \
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
   verif_float.v verif_dotprod.v \
@@ -169,7 +169,7 @@ HMAC_FILES= \
   HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \
   HMAC_proofLE.v HMAC_proof.v
 
-C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c
+C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.v
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
