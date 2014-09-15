@@ -1,7 +1,22 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
-Require Import floyd.data_at_lemmas.
+
+Definition type_id_env: Type := PTree.t type.
+Definition empty_ti: type_id_env := @PTree.empty type.
+
+Definition singleton_ti t: type_id_env :=
+  match t with
+  | Tstruct i _ _ => PTree.set i t empty_ti
+  | Tunion i _ _ => PTree.set i t empty_ti
+  | _ => empty_ti
+  end.
+
+Definition look_up_ident_default (i: ident) (e: type_id_env) : type :=
+  match PTree.get i e with
+  | Some res => res
+  | None => Tvoid
+  end.
 
 Fixpoint add_type (t: type) (e: type_id_env): type_id_env :=
   match t with

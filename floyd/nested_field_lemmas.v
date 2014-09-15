@@ -182,7 +182,7 @@ not included.
 
 Fixpoint nested_pred (atom_pred: type -> bool) (t: type) : bool :=
   match t with
-  | Tarray t0 n _ => (atom_pred t && (Z.leb n 0 || nested_pred atom_pred t0))%bool
+  | Tarray t0 n _ => (atom_pred t && (nested_pred atom_pred t0 || Z.leb n 0))%bool
   | Tstruct _ flds _ => (atom_pred t && nested_fields_pred atom_pred flds)%bool
   | Tunion _ flds _ => (atom_pred t && nested_fields_pred atom_pred flds)%bool
   | _ => atom_pred t
@@ -197,7 +197,7 @@ Lemma nested_pred_atom_pred: forall {atom_pred: type -> bool} (t: type),
   nested_pred atom_pred t = true -> atom_pred t = true.
 Proof.
   intros.
-  destruct t; simpl in *; try apply andb_true_iff in H; tauto.
+  destruct t; simpl in *; try apply andb_true_iff in H; try tauto.
 Defined.
 
 Lemma nested_pred_Tarray: forall {atom_pred: type -> bool} t n a,
@@ -209,9 +209,9 @@ Proof.
   destruct H.
   apply orb_true_iff in H1.
   destruct H1.
+  + exact H1.
   + apply Zle_is_le_bool in H1.
     omega.
-  + exact H1.
 Defined.
 
 Lemma nested_pred_Tstruct: forall {atom_pred: type -> bool} i f a, nested_pred atom_pred (Tstruct i f a) = true -> nested_fields_pred atom_pred f = true.
@@ -629,14 +629,33 @@ Proof.
     solve_field_offset_type id x0. simpl; auto. inversion e.
 Defined.
 
+Ltac solve_nested_field_rec_cons_isSome H :=
+  let HH := fresh "HH" in
+  let H1 := fresh "H" in
+  let H2 := fresh "H" in
+  let H3 := fresh "H" in
+  let i := fresh "i" in
+  let f := fresh "f" in
+  let a := fresh "a" in
+  let i' := fresh "i" in
+  let f' := fresh "f" in
+  let a' := fresh "a" in
+  match type of H with
+  | isSome (nested_field_rec ?T (?A :: ?IDS)) =>
+    destruct (nested_field_rec_cons_isSome_lemmaT T A IDS) as [HH _];
+    destruct (HH H) as [H1 [i' [f' [a' [H2 [H3 | H3]]]]]]; clear HH;
+    rename i' into i;
+    rename f' into f;
+    rename a' into a
+  end.
+
 Lemma nested_field_type2_Tstruct_nested_field_rec_isSome: forall t ids i f a,
   nested_field_type2 t ids = Tstruct i f a -> isSome (nested_field_rec t ids).
 Proof.
   intros.
   unfold nested_field_type2 in H.
-  destruct (nested_field_rec t ids).
-  + simpl; auto.
-  + inversion H.
+  valid_nested_field_rec t ids H.
+  simpl; auto.
 Defined.
 
 Lemma nested_field_type2_Tunion_nested_field_rec_isSome: forall t ids i f a,
@@ -644,15 +663,13 @@ Lemma nested_field_type2_Tunion_nested_field_rec_isSome: forall t ids i f a,
 Proof.
   intros.
   unfold nested_field_type2 in H.
-  destruct (nested_field_rec t ids).
-  + simpl; auto.
-  + inversion H.
+  valid_nested_field_rec t ids H.
+  simpl; auto.
 Defined.
 
 Lemma nested_field_type2_nil: forall t, nested_field_type2 t nil = t.
 Proof.
   intros.
-  unfold nested_field_type2.
   reflexivity.
 Defined.
 
@@ -678,26 +695,6 @@ Proof.
   destruct t0; try reflexivity;
   destruct (field_offset id f), (field_type id f); reflexivity.
 Defined.
-
-Ltac solve_nested_field_rec_cons_isSome H :=
-  let HH := fresh "HH" in
-  let H1 := fresh "H" in
-  let H2 := fresh "H" in
-  let H3 := fresh "H" in
-  let i := fresh "i" in
-  let f := fresh "f" in
-  let a := fresh "a" in
-  let i' := fresh "i" in
-  let f' := fresh "f" in
-  let a' := fresh "a" in
-  match type of H with
-  | isSome (nested_field_rec ?T (?A :: ?IDS)) =>
-    destruct (nested_field_rec_cons_isSome_lemmaT T A IDS) as [HH _];
-    destruct (HH H) as [H1 [i' [f' [a' [H2 [H3 | H3]]]]]]; clear HH;
-    rename i' into i;
-    rename f' into f;
-    rename a' into a
-  end.
 
 Lemma nested_field_rec_divide: forall t ids pos t', nested_field_rec t ids = Some (pos, t') -> legal_alignas_type t = true -> Z.divide (alignof t') pos.
 Proof.
@@ -741,14 +738,16 @@ Defined.
 
 (************************************************
 
-nested_field_offset2_hd
-nested_field_offset2_mid
-nested_field_type2_hd
-nested_field_type2_mid
+nested_field_rec_Tstruct_hd
+nested_field_rec_Tstruct_mid
+nested_field_rec_Tunion_hd
+nested_field_rec_Tunion_mid
 
 ************************************************)
 
-Lemma nested_field_rec_hd: forall i0 t0 ids t i f a ofs, nested_field_rec t ids = Some (ofs, Tstruct i (Fcons i0 t0 f) a) -> nested_field_rec t (i0 :: ids) = Some (ofs, t0).
+Lemma nested_field_rec_Tstruct_hd: forall i0 t0 ids t i f a ofs,
+  nested_field_rec t ids = Some (ofs, Tstruct i (Fcons i0 t0 f) a) ->
+  nested_field_rec t (i0 :: ids) = Some (ofs, t0).
 Proof.
   intros.
   simpl.
@@ -757,7 +756,26 @@ Proof.
   replace (ofs + 0) with ofs; [reflexivity | omega].
 Qed.
 
-Lemma nested_field_rec_mid: forall i1 t1 i0 t0 t ids i f' f a ofs ofs0, legal_alignas_type t = true -> nested_legal_fieldlist t = true -> nested_field_rec t ids = Some (ofs, Tstruct i (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) a) -> nested_field_rec t (i1 :: ids) = Some (ofs0, t1) -> nested_field_rec t (i0 :: ids) = Some (align (ofs0 + sizeof t1) (alignof t0), t0).
+Lemma nested_field_rec_Tunion_hd: forall i0 t0 ids t i f a ofs,
+  nested_field_rec t ids = Some (ofs, Tunion i (Fcons i0 t0 f) a) ->
+  nested_field_rec t (i0 :: ids) = Some (ofs, t0).
+Proof.
+  intros.
+  simpl.
+  rewrite H.
+  rewrite field_type_hd.
+  reflexivity.
+Qed.
+
+Lemma nested_field_rec_Tstruct_mid:
+  forall i1 t1 t1' i0 t0 t ids i f' f a ofs ofs0,
+  legal_alignas_type t = true -> 
+  nested_legal_fieldlist t = true ->
+  nested_field_rec t ids = Some (ofs, Tstruct i 
+    (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) a) -> 
+  nested_field_rec t (i1 :: ids) = Some (ofs0, t1') ->
+  nested_field_rec t (i0 :: ids) = 
+    Some (align (ofs0 + sizeof t1) (alignof t0), t0).
 Proof.
   intros.
   simpl in H2; rewrite H1 in H2; simpl; rewrite H1.
@@ -778,68 +796,28 @@ Proof.
   apply (alignof_type_divide_whole_fl i0 _ _ HH).
 Qed.
 
-Lemma nested_field_offset2_mid: forall i0 t0 i1 t1 t ids i f a f', 
-  legal_alignas_type t = true -> 
-  nested_field_type2 t ids = Tstruct i (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) a -> 
-  fieldlist_no_replicate (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) = true -> 
-  nested_field_offset2 t (i0 :: ids) = 
-  align (nested_field_offset2 t (i1 :: ids) + sizeof t1) (alignof t0).
+Lemma nested_field_rec_Tunion_mid:
+  forall i0 t0 t ids i f' f a ofs,
+  legal_alignas_type t = true ->
+  nested_legal_fieldlist t = true ->
+  nested_field_rec t ids = Some (ofs,
+    Tunion i (fieldlist_app f' (Fcons i0 t0 f)) a) ->
+  nested_field_rec t (i0 :: ids) = Some (ofs, t0).
 Proof.
-  intros ? ? ? ? ? ? ? ? ? ? Hnoalignas H H0.
-(* SearchAbout fieldlist_no_replicate. nested_legal_fieldlist *)
-  unfold nested_field_offset2. simpl. unfold nested_field_type2 in H.
-  destruct (nested_field_rec t ids) as [(pos, t')|] eqn:HH; [subst t' |inversion H].
-  assert (HHH: nested_field_type2 t ids = Tstruct i (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) a). unfold nested_field_type2. rewrite HH. reflexivity.
-  pose proof nested_field_type2_nest_pred eq_refl _ ids Hnoalignas as HHHH.
-  rewrite HHH in HHHH; clear HHH.
-  apply nested_field_rec_divide in HH; [|exact Hnoalignas].
-  pose proof Zdivides_trans _ _ _ (legal_alignas_type_Tstruct _ _ _ HHHH) HH.
-  clear HHHH HH; rename H into HH.
-  pose proof field_offset_field_type_match i0 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) as HH1.
-  pose proof field_offset_field_type_match i1 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) as HH2.
-  destruct (field_offset i0 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f)))) eqn:H1;
-  destruct (field_type i0 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f)))) eqn:H2;
-  try inversion HH1;
-  destruct (field_offset i1 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f)))) eqn:H3;
-  destruct (field_type i1 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f)))) eqn:H4;
-  try inversion HH2;
-  rewrite (field_type_mid _ _ _ _ H0)in H4; inversion H4;
-  rewrite fieldlist_app_Fcons in H2, H0; 
-  rewrite (field_type_mid _ _ _ _ H0) in H2; inversion H2.
-  subst t2 t3.
-  rewrite <- fieldlist_app_Fcons in H0.
-  unfold field_offset in *.
-  remember 0 as pos'; clear Heqpos'.
-  revert pos' H1 H3; induction f'; intros; simpl in H0, H1, H3.
-  + if_tac in H0; simpl in H0; try inversion H0.
-    if_tac in H1; try congruence.
-    if_tac in H1; try congruence.
-    if_tac in H3; try congruence.
-    inversion H1.
-    inversion H3.
-    rewrite <- Zplus_assoc.
-    apply divide_add_align.
-    eapply Zdivide_trans; [|exact HH].
-    eapply Zdivide_trans; [apply alignof_fields_hd_divide | apply alignof_fields_tl_divide].
-  + destruct (isOK (field_type i2 (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))))) eqn:H;
-      simpl in H0; try inversion H0.
-    rewrite fieldlist_app_field_type_isOK in H.
-    destruct (isOK (field_type i2 f')), (isOK (field_type i2 (Fcons i1 t1 (Fcons i0 t0 f)))) eqn:HH0; inversion H.
-    simpl in HH0.
-    if_tac in HH0; [inversion HH0|].
-    if_tac in HH0; [inversion HH0|].
-    if_tac in H1; try congruence.
-    if_tac in H3; try congruence.
-    eapply IHf'.
-    - assumption.
-    - eapply Zdivide_trans; [|exact HH].
-      simpl fieldlist_app.
-      apply alignof_fields_tl_divide.
-    - exact H1.
-    - exact H3.
+  intros.
+  pose proof (nested_field_rec_nest_pred t ids ofs _ H0 H1).
+  apply nested_pred_atom_pred in H2.
+  simpl.
+  rewrite H1.
+  rewrite (field_type_mid i0 t0 _ _ H2).
+  reflexivity.
 Qed.
 
-Lemma nested_field_offset2_hd: forall i0 t0 t ids i f a, nested_field_type2 t ids = Tstruct i (Fcons i0 t0 f) a -> nested_field_offset2 t (i0 :: ids) = nested_field_offset2 t ids.
+(* These four lemmas are not used for now. But it is good to put them into *)
+(* a proof system and open to users. If in that case, 4 more lemmas about  *)
+(* Tunion should be added.                                                 *)
+
+Lemma nested_field_offset2_Tstruct_hd: forall i0 t0 t ids i f a, nested_field_type2 t ids = Tstruct i (Fcons i0 t0 f) a -> nested_field_offset2 t (i0 :: ids) = nested_field_offset2 t ids.
 Proof.
   intros.
   unfold nested_field_offset2. simpl. unfold nested_field_type2 in H.
@@ -851,7 +829,7 @@ Proof.
   unfold field_offset. simpl. if_tac; [|congruence]. rewrite (align_0 _ (alignof_pos _)). reflexivity.
 Qed.
 
-Lemma nested_field_type2_hd: forall i0 t0 t ids i f a, nested_field_type2 t ids = Tstruct i (Fcons i0 t0 f) a -> nested_field_type2 t (i0 :: ids) = t0.
+Lemma nested_field_type2_Tstruct_hd: forall i0 t0 t ids i f a, nested_field_type2 t ids = Tstruct i (Fcons i0 t0 f) a -> nested_field_type2 t (i0 :: ids) = t0.
 Proof.
   intros.
   unfold nested_field_type2 in *. simpl.
@@ -863,15 +841,49 @@ Proof.
   unfold field_offset. simpl. if_tac; [|congruence]. rewrite (align_0 _ (alignof_pos _)). reflexivity.
 Qed.
 
-Lemma nested_field_type2_mid: forall i0 t0 t ids i f' f a,
+Lemma nested_field_offset2_Tstruct_mid: forall i0 t0 i1 t1 t ids i f a f', 
+  legal_alignas_type t = true -> 
+  nested_legal_fieldlist t = true ->
+  nested_field_type2 t ids = Tstruct i (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))) a -> 
+  nested_field_offset2 t (i0 :: ids) = 
+  align (nested_field_offset2 t (i1 :: ids) + sizeof t1) (alignof t0).
+Proof.
+  intros.
+  unfold nested_field_type2, nested_field_offset2 in *.
+  valid_nested_field_rec t ids H0.
+  subst t2.
+  cut (isSome (nested_field_rec t (i1 :: ids))); intros.
+  + destruct (nested_field_rec t (i1 :: ids)) as [[? ?]|] eqn:?; inversion H1.
+    erewrite nested_field_rec_Tstruct_mid; eauto.
+  + apply nested_field_rec_cons_isSome_lemma.
+    unfold nested_field_type2.
+    rewrite H2.
+    simpl.
+    split; [exact I | exists i, (fieldlist_app f' (Fcons i1 t1 (Fcons i0 t0 f))), a ].
+    rewrite field_type_mid.
+    simpl; eauto.
+    unfold nested_legal_fieldlist in H0.
+    eapply nested_field_type2_nest_pred with (ids0 := ids) in H0; [| reflexivity].
+    apply nested_pred_atom_pred in H0.
+    unfold nested_field_type2 in H0.
+    rewrite H2 in H0.
+    exact H0.
+  + inversion H1.
+Qed.
+
+Lemma nested_field_type2_Tstruct_mid: forall i0 t0 t ids i f' f a,
   nested_field_type2 t ids = Tstruct i (fieldlist_app f' (Fcons i0 t0 f)) a ->
-  fieldlist_no_replicate (fieldlist_app f' (Fcons i0 t0 f)) = true ->
+  nested_legal_fieldlist t = true ->
   nested_field_type2 t (i0 :: ids) = t0.
 Proof.
   intros.
   unfold nested_field_type2 in *. simpl.
   valid_nested_field_rec t ids H.
-  destruct t1; inversion H; clear H.
+  eapply nested_field_type2_nest_pred with (ids0 := ids) in H0; [| reflexivity].
+  apply nested_pred_atom_pred in H0.
+  unfold nested_field_type2 in H0.
+  rewrite H1 in H0.
+  subst t1.
   solve_field_offset_type i0 (fieldlist_app f' (Fcons i0 t0 f)).
   + rewrite field_type_mid in H2; [|exact H0].
     inversion H2.

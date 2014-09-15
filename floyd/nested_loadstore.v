@@ -1441,7 +1441,7 @@ Proof.
       tauto.
     } Unfocus.
     assert (reptype (nested_field_type2 t (i0 :: ids)) = reptype t1)
-      by (erewrite nested_field_type2_mid; eauto).
+      by (erewrite nested_field_type2_Tstruct_mid; eauto).
     assert (nested_reptype_structlist t ids f = reptype_structlist f).
     Focus 1. {
       unfold nested_field_type2 in H0.
@@ -1610,12 +1610,225 @@ Definition nested_ufieldlist_at_sub: forall sh t id ids i f a0 p t0,
   field_at sh t ids (proj_reptype t ids v) p = 
   field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p * P).
 Proof.
+  Admitted.
+(*
+  cut (forall sh t id ids i f a0 p t0,
+  nested_legal_fieldlist t = true ->
+  nested_field_type2 t ids = Tunion i f a0 ->
+  field_type id f = Errors.OK t0 ->
+  sigT (fun P => forall v v0 v1,  
+  JMeq (proj_reptype t ids v) v1 ->
+  JMeq v0 v1 ->
+  nested_ufieldlist_at sh t ids f v0 p = 
+  field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p * P)).
+  Focus 1. {
+    intro H; intros.
+    assert (nested_reptype_structlist t ids f = reptype_structlist f).
+      erewrite <- nested_reptype_structlist_lemma2; eauto.
+      rewrite H2.
+      reflexivity.
+    destruct (H sh t id ids i f a0 p t0 H1 H2 H3) as [PH H5]; clear H.
+    eexists; intros.
+    pose (eq_rect_r (fun T => T) v1 H4) as v0.
+    erewrite field_at_Tstruct; eauto.
+    instantiate (2 :=  v0).
+    eapply (H5 v v0 v1); eauto.
+    + subst v0. apply eq_rect_r_JMeq with (F:=fun T => T).
+    + destruct f; [inversion H3 | reflexivity].
+    + rewrite H; subst v0. apply JMeq_sym, eq_rect_r_JMeq with (F:=fun T => T).
+  } Unfocus.
   intros.
-  change f with (fieldlist_app Fnil f) in H1.
-  revert H1.
+  change f with (fieldlist_app Fnil f) in H0.
+  cut (sigT (fun P => forall (v : reptype t) (v0 : nested_reptype_structlist t ids f)
+       (v1 : reptype_structlist f) (vs: reptype_structlist (fieldlist_app Fnil f)),
+     JMeq (proj_reptype t ids v) vs ->
+     reptype_suf vs v1 ->
+     JMeq v0 v1 ->
+     nested_sfieldlist_at sh t ids f v0 p =
+     field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p *
+     P (proj_except_reptype_structlist f id v1))).
+  Focus 1. {
+    intro H2.
+    destruct H2 as [P H3]; exists P.
+    intros.
+    destruct (reptype_suf_Fnil v1) as [x [? ?]].
+    eapply H3 with (vs := x); eauto.
+    rewrite H6.
+    exact H2.
+  } Unfocus.
+  revert H0.
   generalize Fnil.
   induction f; intros.
-Admitted.
+  + inversion H1.
+  + assert (fieldlist_no_replicate (fieldlist_app f0 (Fcons i0 t1 f)) = true).
+    Focus 1. {
+      pose proof nested_field_type2_nest_pred eq_refl _ ids H.
+      rewrite H0 in H2.
+      simpl in H2.
+      apply andb_true_iff in H2.
+      tauto.
+    } Unfocus.
+    assert (reptype (nested_field_type2 t (i0 :: ids)) = reptype t1)
+      by (erewrite nested_field_type2_mid; eauto).
+    assert (nested_reptype_structlist t ids f = reptype_structlist f).
+    Focus 1. {
+      unfold nested_field_type2 in H0.
+      destruct (nested_field_rec t ids) as [[? t3]|] eqn:Heqo; try inversion H0.
+      subst t3.
+      rewrite fieldlist_app_Fcons in Heqo.
+      eapply eq_sym, nested_reptype_structlist_lemma; eauto.
+    } Unfocus.
+    simpl in H1.
+    if_tac in H1. (* whether id = the ident of head field *)
+    - clear IHf. 
+      simpl nested_sfieldlist_at.
+Opaque field_at proj_reptype spacer nested_sfieldlist_at.
+      destruct f; simpl;
+      (if_tac; [| congruence]);
+      eexists; intros;
+      rewrite withspacer_spacer; simpl.
+Transparent field_at proj_reptype spacer nested_sfieldlist_at.
+      * pose proof proj_reptype_cons_hd_Fnil i f0 i0 t1 a0 t id ids v vs v1 H H5 H0 H7 H8.
+        subst.
+        simpl in H10, H9.
+        rewrite <- H10 in H9.
+        apply JMeq_eq in H9.
+        rewrite H9.
+        rewrite sepcon_comm.
+        match goal with
+        | |- _ * ?T = _ => instantiate (1:= fun _ => T)
+        end.
+        eauto.
+      * rewrite sepcon_comm with (Q := field_at sh t (i0 :: ids) (fst v0) p).
+        rewrite sepcon_assoc.
+        
+        f_equal.
+        Focus 1. {
+          pose proof proj_reptype_cons_hd_Fcons i f0 i0 t1 i1 t2 f a0 t id ids v vs v1 H H5 H0 H7 H8.
+          subst; f_equal.
+          apply JMeq_eq.
+          rewrite H10.
+          apply JMeq_fst; eauto.
+        } Unfocus.
+        Focus 1. {
+          match goal with
+          | |- ?T * (?R _ _) = _ => instantiate (1:= fun v => T * R (eq_rect_r (fun T => T) v H4) p)
+          end.
+          simpl.
+          f_equal. f_equal.
+          apply JMeq_snd in H9; eauto.
+          apply eq_sym, JMeq_eq.
+          simpl in *; rewrite H9.
+          apply (eq_rect_JMeq _ _ _ (fun y => y) (snd v1) (eq_sym H4)).
+        } Unfocus.
+    - destruct f; try (solve [inversion H1]).
+      rewrite fieldlist_app_Fcons in H0.
+      destruct (IHf H1 (fieldlist_app f0 (Fcons i0 t1 Fnil)) H0) as [PH IH]; clear IHf.
+      cut (sigT (fun P :
+            (if is_Fnil (all_fields_except_one2 (Fcons i1 t2 f) id) 
+             then reptype t1
+             else reptype t1 * reptype_structlist (all_fields_except_one2 (Fcons i1 t2 f) id))
+             -> mpred =>
+             forall (v : reptype t)
+             (v0 : nested_reptype_structlist t ids (Fcons i0 t1 (Fcons i1 t2 f)))
+             (v1 : reptype_structlist (Fcons i0 t1 (Fcons i1 t2 f)))
+             (vs : reptype_structlist
+                     (fieldlist_app f0 (Fcons i0 t1 (Fcons i1 t2 f)))),
+             JMeq (proj_reptype t ids v) vs ->
+             reptype_suf vs v1 ->
+             JMeq v0 v1 ->
+             nested_sfieldlist_at sh t ids (Fcons i0 t1 (Fcons i1 t2 f)) v0 p =
+             field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p *
+             P (if is_Fnil (all_fields_except_one2 (Fcons i1 t2 f) id) as b
+                  return if b 
+                         then reptype t1
+                         else reptype t1 * reptype_structlist 
+                              (all_fields_except_one2 (Fcons i1 t2 f) id)
+                then fst v1
+                else (fst v1, proj_except_reptype_structlist (Fcons i1 t2 f) id (snd v1))))).
+      Focus 1. {
+        intro H6.
+        destruct H6 as [P H6]. 
+        simpl (all_fields_except_one2 (Fcons i0 t1 (Fcons i1 t2 f)) id).
+        simpl proj_except_reptype_structlist.
+        if_tac; [congruence | exists P; intros].
+        eapply H6; eauto.
+      } Unfocus.
+      assert (forall (v0 : nested_reptype_structlist t ids (Fcons i0 t1 (Fcons i1 t2 f)))
+       (v1 : reptype_structlist (Fcons i0 t1 (Fcons i1 t2 f))),
+        JMeq v0 v1 -> (JMeq (fst v0) (fst v1) /\ JMeq (snd v0) (snd v1))) by
+        (intros; split; [apply JMeq_fst | apply JMeq_snd]; eauto).
+      
+Opaque field_at proj_reptype spacer nested_sfieldlist_at proj_except_reptype_structlist.
+      destruct (is_Fnil (all_fields_except_one2 (Fcons i1 t2 f) id)) eqn:HH; eexists; intros;
+      replace (nested_sfieldlist_at sh t ids (Fcons i0 t1 (Fcons i1 t2 f)) v0 p) with
+             ((withspacer sh
+          (nested_field_offset2 t (i0 :: ids) +
+           sizeof (nested_field_type2 t (i0 :: ids)))
+          (align
+             (nested_field_offset2 t (i0 :: ids) +
+              sizeof (nested_field_type2 t (i0 :: ids))) 
+             (alignof_hd (Fcons i1 t2 f))) (field_at sh t (i0 :: ids) (fst v0)) p *
+          nested_sfieldlist_at sh t ids (Fcons i1 t2 f) (snd v0) p)) by reflexivity;
+      rewrite withspacer_spacer; simpl.
+Transparent field_at proj_reptype spacer nested_sfieldlist_at proj_except_reptype_structlist.
+      * destruct (reptype_suf_Fcons f0 i0 t1 i1 t2 f vs v1 H8) as [v2 [? ?]].
+        assert (nested_sfieldlist_at sh t ids (Fcons i1 t2 f) (snd v0) p =
+                field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p *
+                PH (proj_except_reptype_structlist (Fcons i1 t2 f) id (snd v1))).
+        Focus 1. {
+          apply (IH v (snd v0) (snd v1) v2); eauto.
+          + rewrite <- H10. exact H7.
+          + apply JMeq_snd; eauto.
+        } Unfocus.
+        rewrite H12; clear H12 IH.
+        destruct (H6 v0 v1 H9).
+        match goal with
+        | |- ?A2 * (?A1 _ _) * (_ * _) = _ => 
+          instantiate (1:= fun v => A2 * A1 (eq_rect_r (fun T => T) v H3) p * (PH (struct_default_val _)))
+        end.
+        assert (all_fields_except_one2 (Fcons i1 t2 f) id = Fnil) by
+          (destruct (all_fields_except_one2 (Fcons i1 t2 f) id); [trivial | inversion HH]).
+        forget (proj_except_reptype_structlist (Fcons i1 t2 f) id (snd v1)) as tt'.
+        forget (struct_default_val (all_fields_except_one2 (Fcons i1 t2 f) id)) as tt''.
+        revert tt' tt'' PH.
+        rewrite H14; intros.
+        normalize.
+        destruct tt', tt''.
+        f_equal.
+        rewrite sepcon_comm, <- sepcon_assoc.
+        f_equal.
+        f_equal.
+        apply eq_sym, JMeq_eq.
+        simpl in *; rewrite H12.
+        erewrite eq_rect_JMeq with (F := fun T => T).
+        reflexivity.
+      * destruct (reptype_suf_Fcons f0 i0 t1 i1 t2 f vs v1 H8) as [v2 [? ?]].
+        assert (nested_sfieldlist_at sh t ids (Fcons i1 t2 f) (snd v0) p =
+                field_at sh t (id :: ids) (proj_reptype t (id :: ids) v) p *
+                PH (proj_except_reptype_structlist (Fcons i1 t2 f) id (snd v1))).
+        Focus 1. {
+          apply (IH v (snd v0) (snd v1) v2); eauto.
+          + rewrite <- H10. exact H7.
+          + apply JMeq_snd; eauto.
+        } Unfocus.
+        rewrite H12; clear H12 IH.
+        destruct (H6 v0 v1 H9).
+        match goal with
+        | |- ?A2 * (?A1 _ _) * (_ * _) = _ => 
+          instantiate (1:= fun v => A2 * A1 (eq_rect_r (fun T => T) (fst v) H3) p * PH (snd v))
+        end.
+        normalize.
+        f_equal.
+        rewrite sepcon_comm, <- sepcon_assoc.
+        f_equal.
+        f_equal.
+        apply eq_sym, JMeq_eq.
+        simpl in *; rewrite H12.
+        erewrite eq_rect_JMeq with (F := fun T => T).
+        reflexivity.
+Qed.
+*)
 
 Lemma is_Fnil_all_fields_replace_one2: forall f id t,
   is_Fnil (all_fields_replace_one2 f id t) = is_Fnil f.

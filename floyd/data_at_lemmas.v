@@ -3,6 +3,7 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
+Require Import floyd.type_id_env.
 Require Import Coq.Logic.JMeq.
 Opaque alignof.
 
@@ -1233,22 +1234,6 @@ Proof.
     omega.
 Qed.
 
-Definition type_id_env: Type := PTree.t type.
-Definition empty_ti: type_id_env := @PTree.empty type.
-
-Definition singleton_ti t: type_id_env :=
-  match t with
-  | Tstruct i _ _ => PTree.set i t empty_ti
-  | Tunion i _ _ => PTree.set i t empty_ti
-  | _ => empty_ti
-  end.
-
-Definition look_up_ident_default (i: ident) (e: type_id_env) : type :=
-  match PTree.get i e with
-  | Some res => res
-  | None => Tvoid
-  end.
-
 Definition ZnthV t (lis: list (reptype t)) (i: Z) : reptype t := 
        if zlt i 0 then default_val t else nth (Z.to_nat i) lis (default_val t).
 
@@ -2241,22 +2226,51 @@ Fixpoint nested_sfieldlist_at (sh: Share.t) (t1: type) (ids: list ident) (flds: 
     fun (v : nested_reptype_structlist t1 ids (Fcons i t flds0)) =>
       (if is_Fnil flds0 as b
         return
-          (is_Fnil flds0 = b ->
-           (if b
+          ((if b
             then reptype (nested_field_type2 t1 (i :: ids))
             else ((reptype (nested_field_type2 t1 (i :: ids)) *
         nested_reptype_structlist t1 ids flds0)%type)) -> val -> mpred)
        then
-        fun (_ : is_Fnil flds0 = true) (v0: reptype (nested_field_type2 t1 (i :: ids))) =>
+        fun (v0: reptype (nested_field_type2 t1 (i :: ids))) =>
           withspacer sh (nested_field_offset2 t1 (i :: ids) + sizeof (nested_field_type2 t1 (i :: ids))) 
 (align (nested_field_offset2 t1 (i :: ids) + sizeof (nested_field_type2 t1 (i :: ids))) (alignof (nested_field_type2 t1 ids))) (field_at sh t1 (i :: ids) v0)
        else
-        fun (_ : is_Fnil flds0 = false) (v0: ((reptype (nested_field_type2 t1 (i :: ids)) *
+        fun (v0: ((reptype (nested_field_type2 t1 (i :: ids)) *
         nested_reptype_structlist t1 ids flds0)%type)) =>
           withspacer sh (nested_field_offset2 t1 (i :: ids) + sizeof (nested_field_type2 t1 (i :: ids)))
 (align (nested_field_offset2 t1 (i :: ids) + sizeof (nested_field_type2 t1 (i :: ids))) (alignof_hd flds0) ) (field_at sh t1 (i :: ids) (fst v0)) *
           (nested_sfieldlist_at sh t1 ids flds0 (snd v0)))
-   eq_refl v
+    v
+  end v.
+
+Fixpoint nested_ufieldlist_at (sh: Share.t) (t1: type) (ids: list ident) (flds: fieldlist) (v: nested_reptype_unionlist t1 ids flds) : val -> mpred := 
+  match flds as f return (nested_reptype_unionlist t1 ids f -> val -> mpred) with
+  | Fnil => fun _ p => (!! isptr p) && emp
+  | Fcons i t flds0 =>
+    fun (v : nested_reptype_unionlist t1 ids (Fcons i t flds0)) =>
+      (if is_Fnil flds0 as b
+        return
+          ((if b
+            then reptype (nested_field_type2 t1 (i :: ids))
+            else ((reptype (nested_field_type2 t1 (i :: ids)) +
+        nested_reptype_unionlist t1 ids flds0)%type)) -> val -> mpred)
+       then
+         fun (v0: reptype (nested_field_type2 t1 (i :: ids))) =>
+           withspacer sh (nested_field_offset2 t1 (i :: ids) + 
+             sizeof (nested_field_type2 t1 (i :: ids)))  
+             (nested_field_offset2 t1 ids + sizeof (nested_field_type2 t1 ids)) 
+             (field_at sh t1 (i :: ids) v0)
+       else
+        fun (v0: ((reptype (nested_field_type2 t1 (i :: ids)) +
+          nested_reptype_unionlist t1 ids flds0)%type)) =>
+        match v0 with
+        | inl v0' => withspacer sh (nested_field_offset2 t1 (i :: ids) + 
+            sizeof (nested_field_type2 t1 (i :: ids))) 
+            (nested_field_offset2 t1 ids + sizeof (nested_field_type2 t1 ids))
+            (field_at sh t1 (i :: ids) v0')
+        | inr v0' => nested_ufieldlist_at sh t1 ids flds0 v0'
+        end)
+    v
   end v.
 
 Lemma eqb_fieldlist_true: forall f1 f2, eqb_fieldlist f1 f2 = true -> f1 = f2.
@@ -2291,7 +2305,7 @@ Proof.
   revert v1 H2; simpl (reptype (Tstruct i f a)); simpl data_at'; intros.
 
   destruct f; [inversion H|].
-  pose proof nested_field_rec_hd _ _ _ _ _ _ _ _ H4.
+  pose proof nested_field_rec_Tstruct_hd _ _ _ _ _ _ _ _ H4.
   change (Tstruct i (Fcons i0 t0 f) a) with (Tstruct i (fieldlist_app Fnil (Fcons i0 t0 f)) a).
   change (Fcons i0 t0 f) with (fieldlist_app Fnil (Fcons i0 t0 f)) in H, H4.
   remember ofs as ofs0. rewrite Heqofs0 in H4. clear Heqofs0.
@@ -2341,7 +2355,7 @@ Proof.
     repeat rewrite lower_sepcon_val'.
     subst f''.
     assert (nested_field_rec t (i0 :: ids) = 
-      Some (align (ofs0 + sizeof t1) (alignof_hd (Fcons i0 t0 f)), t0)); [simpl alignof_hd; apply (nested_field_rec_mid i1 t1 i0 t0 t ids i f' f a ofs ofs0); assumption|].
+      Some (align (ofs0 + sizeof t1) (alignof_hd (Fcons i0 t0 f)), t0)); [simpl alignof_hd; apply (nested_field_rec_Tstruct_mid i1 t1 t1 i0 t0 t ids i f' f a ofs ofs0); assumption|].
     rewrite fieldlist_app_Fcons in *.
     erewrite <- IHf; [| | exact H2 | exact H_snd |exact H4].
     apply pred_ext; simpl; normalize.
@@ -2350,7 +2364,117 @@ Proof.
      (fieldlist_app (fieldlist_app f' (Fcons i1 t1 Fnil)) (Fcons i0 t0 f))
      (fieldlist_app f' (Fcons i1 t1 Fnil))) eqn:HH; [|reflexivity].
     apply eqb_fieldlist_true in HH.
-    admit. (* subtle proofs about fieldlist_app. Target is to inversion HH *)
+    clear -HH.
+    induction (fieldlist_app f' (Fcons i1 t1 Fnil)).
+    - inversion HH.
+    - inversion HH. tauto.  
+Qed.
+
+Lemma JMeq_sumtype_ll: forall A B C D x y, A = C -> B = D -> 
+  (@JMeq (A + B) (inl x) (C + D) (inl y)) ->
+  JMeq x y.
+Proof.
+  unfold not.
+  intros.
+  subst.
+  apply JMeq_eq in H1.
+  inversion H1.
+  reflexivity.
+Qed.
+
+Lemma JMeq_sumtype_rr: forall A B C D x y, A = C -> B = D -> 
+  (@JMeq (A + B) (inr x) (C + D) (inr y)) ->
+  JMeq x y.
+Proof.
+  unfold not.
+  intros.
+  subst.
+  apply JMeq_eq in H1.
+  inversion H1.
+  reflexivity.
+Qed.
+
+Lemma JMeq_sumtype_lr: forall A B C D x y, A = C -> B = D -> ~ (@JMeq (A + B) (inl x) (C + D) (inr y)).
+Proof.
+  unfold not.
+  intros.
+  subst.
+  apply JMeq_eq in H1.
+  inversion H1.
+Qed.
+
+Lemma JMeq_sumtype_rl: forall A B C D x y, A = C -> B = D -> ~ (@JMeq (A + B) (inr x) (C + D) (inl y)).
+Proof.
+  unfold not.
+  intros.
+  subst.
+  apply JMeq_eq in H1.
+  inversion H1.
+Qed.
+
+Lemma field_at_Tunion: forall sh t ids i f a v1 v2,
+  eqb_fieldlist f Fnil = false ->
+  nested_field_type2 t ids = Tunion i f a ->
+  nested_legal_fieldlist t = true ->
+  JMeq v1 v2 ->
+  legal_alignas_type t = true ->
+  field_at sh t ids v1 = nested_ufieldlist_at sh t ids f v2.
+Proof.
+Opaque sizeof.
+  intros.
+  unfold field_at.
+  unfold nested_field_type2, nested_field_offset2 in *.
+  valid_nested_field_rec t ids H1; inversion H0; clear H5. subst t0.
+  revert v1 H2 H4.
+  simpl reptype; simpl data_at'.
+  change f with (fieldlist_app Fnil f) at 4 7.
+  generalize Fnil as f';  intros.
+(*
+  replace (sizeof (Tunion i (fieldlist_app f' f) a)) with (sizeof (nested_field_type2 t ids)).
+  Focus 2. {
+    unfold nested_field_type2.
+    rewrite H4.
+    reflexivity.
+  } Unfocus.
+*)
+  revert f' H4;
+  induction f; intros.
+  + inversion H.
+  + pose proof nested_field_rec_Tunion_mid i0 t0 t ids i f' f a ofs H3 H1 H4.
+    revert v1 v2 H2.
+    simpl.
+    destruct (is_Fnil f) eqn:?; intros.
+    - unfold field_at.
+      repeat rewrite withspacer_spacer.
+      revert v2 H2.
+      simpl nested_reptype_unionlist.
+      unfold nested_field_type2, nested_field_offset2 in *.
+      rewrite H4, H0; intros. 
+      rewrite H2.
+      extensionality p.
+      apply pred_ext; simpl; normalize.
+    - unfold field_at.
+      revert v2 H2.
+      simpl nested_reptype_unionlist.
+      unfold nested_field_type2, nested_field_offset2.
+      assert (reptype_unionlist f = nested_reptype_unionlist t ids f).
+        apply (nested_reptype_unionlist_lemma t ids i (fieldlist_app f' (Fcons i0 t0 Fnil)) f a ofs).
+        rewrite <- fieldlist_app_Fcons; auto.
+        auto.
+      rewrite H0, H4; intros. 
+      destruct v1; destruct v2.
+      * apply JMeq_sumtype_ll in H5; auto.
+        rewrite H5.
+        repeat rewrite withspacer_spacer.
+        extensionality p.
+        apply pred_ext; simpl; normalize.
+      * apply JMeq_sumtype_lr in H5; auto; inversion H5.
+      * apply JMeq_sumtype_rl in H5; auto; inversion H5.
+      * apply JMeq_sumtype_rr in H5; auto.
+        simpl in IHf. rewrite <- IHf with (v1 := r) (f' := (fieldlist_app f' (Fcons i0 t0 Fnil))); auto.
+        rewrite <- fieldlist_app_Fcons. auto.
+        destruct f; [inversion Heqb | simpl; auto].
+        rewrite <- fieldlist_app_Fcons. auto.
 Qed.
 
 Lemma data_at_field_at: forall sh t, data_at sh t = field_at sh t nil.
