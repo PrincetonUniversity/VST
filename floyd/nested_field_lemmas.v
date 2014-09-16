@@ -891,3 +891,24 @@ Proof.
   + rewrite field_type_mid in H2; [|exact H0].
     inversion H2.
 Qed.
+
+Lemma nested_field_type2_Tunion_mid: forall i0 t0 t ids i f' f a,
+  nested_field_type2 t ids = Tunion i (fieldlist_app f' (Fcons i0 t0 f)) a ->
+  nested_legal_fieldlist t = true ->
+  nested_field_type2 t (i0 :: ids) = t0.
+Proof.
+  intros.
+  unfold nested_field_type2 in *. simpl.
+  valid_nested_field_rec t ids H.
+  eapply nested_field_type2_nest_pred with (ids0 := ids) in H0; [| reflexivity].
+  apply nested_pred_atom_pred in H0.
+  unfold nested_field_type2 in H0.
+  rewrite H1 in H0.
+  subst t1.
+  solve_field_offset_type i0 (fieldlist_app f' (Fcons i0 t0 f)).
+  + rewrite field_type_mid in H2; [|exact H0].
+    inversion H2.
+    reflexivity.
+  + rewrite field_type_mid in H2; [|exact H0].
+    inversion H2.
+Qed.

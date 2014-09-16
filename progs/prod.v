@@ -47,7 +47,7 @@ Definition f_product := {|
   fn_params := ((_out, (tptr tlong)) :: (_a, (tptr tlong)) ::
                 (_b, (tptr tlong)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_t1, tint) :: (_t2, tint) :: (_t3, tint) :: nil);
+  fn_temps := ((_t1, tint) :: (_t2, tint) :: (_t3, tlong) :: nil);
   fn_body :=
 (Ssequence
   (Sset _t1
@@ -62,13 +62,15 @@ Definition f_product := {|
           (Ebinop Oadd (Etempvar _b (tptr tlong))
             (Econst_int (Int.repr 0) tint) (tptr tlong)) tlong) tint))
     (Ssequence
-      (Sset _t3 (Ebinop Omul (Etempvar _t1 tint) (Etempvar _t2 tint) tint))
+      (Sset _t3
+        (Ecast (Ebinop Omul (Etempvar _t1 tint) (Etempvar _t2 tint) tint)
+          tlong))
       (Ssequence
         (Sassign
           (Ederef
             (Ebinop Oadd (Etempvar _out (tptr tlong))
               (Econst_int (Int.repr 0) tint) (tptr tlong)) tlong)
-          (Etempvar _t3 tint))
+          (Etempvar _t3 tlong))
         (Sreturn None)))))
 |}.
 

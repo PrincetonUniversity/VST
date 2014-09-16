@@ -2412,6 +2412,17 @@ Proof.
   inversion H1.
 Qed.
 
+Ltac solve_JMeq_sumtype H :=
+  match type of H with
+  | JMeq ?x ?y =>
+    destruct x; destruct y;
+     [apply JMeq_sumtype_ll in H; auto
+     |apply JMeq_sumtype_lr in H; auto; inversion H
+     |apply JMeq_sumtype_rl in H; auto; inversion H
+     |apply JMeq_sumtype_rr in H; auto]
+  end.
+
+
 Lemma field_at_Tunion: forall sh t ids i f a v1 v2,
   eqb_fieldlist f Fnil = false ->
   nested_field_type2 t ids = Tunion i f a ->
@@ -2462,16 +2473,12 @@ Opaque sizeof.
         rewrite <- fieldlist_app_Fcons; auto.
         auto.
       rewrite H0, H4; intros. 
-      destruct v1; destruct v2.
-      * apply JMeq_sumtype_ll in H5; auto.
-        rewrite H5.
+      solve_JMeq_sumtype H5.
+      * rewrite H5.
         repeat rewrite withspacer_spacer.
         extensionality p.
         apply pred_ext; simpl; normalize.
-      * apply JMeq_sumtype_lr in H5; auto; inversion H5.
-      * apply JMeq_sumtype_rl in H5; auto; inversion H5.
-      * apply JMeq_sumtype_rr in H5; auto.
-        simpl in IHf. rewrite <- IHf with (v1 := r) (f' := (fieldlist_app f' (Fcons i0 t0 Fnil))); auto.
+      * simpl in IHf. rewrite <- IHf with (v1 := r) (f' := (fieldlist_app f' (Fcons i0 t0 Fnil))); auto.
         rewrite <- fieldlist_app_Fcons. auto.
         destruct f; [inversion Heqb | simpl; auto].
         rewrite <- fieldlist_app_Fcons. auto.
