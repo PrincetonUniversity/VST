@@ -50,37 +50,166 @@ Proof.
   apply Z.divide_1_l.
 Qed.
 
-Lemma size_compatible_nested_field_aux: forall t ids,
+Lemma field_offset_in_range': forall sid fld a fid ty,
+  field_type fid fld = Errors.OK ty ->
+  sizeof ty <= sizeof (Tunion sid fld a).
+Proof.
+  intros.
+  simpl.
+  pose proof alignof_pos (Tunion sid fld a).
+  assert (sizeof_union fld <= align (sizeof_union fld) (alignof (Tunion sid fld a)))
+    by (apply align_le; omega).
+  cut (sizeof ty <= sizeof_union fld); [omega |].
+  clear -H.
+  induction fld.
+  + inversion H.
+  + simpl in *. if_tac in H.
+    - inversion H.
+      apply Z.le_max_l.
+    - apply Zmax_bound_r, IHfld, H.
+Qed.
+
+Lemma nested_field_offset2_in_range: forall t ids,
   isSome (nested_field_rec t ids) ->
+  0 <= nested_field_offset2 t ids /\
   (nested_field_offset2 t ids) + sizeof (nested_field_type2 t ids) <= sizeof t.
 Proof.
   intros.
-  admit.
-Qed.
-
-Lemma nested_field_offset2_pos: forall t ids, nested_field_offset2 t ids >= 0.
-Proof.
-  admit.
+  induction ids.
+  + unfold nested_field_type2, nested_field_offset2; simpl.
+    omega.
+  + solve_nested_field_rec_cons_isSome H;
+    unfold nested_field_type2, nested_field_offset2 in *; simpl;
+    valid_nested_field_rec t ids H2; subst t0;
+    solve_field_offset_type a f; try solve [inversion H1];
+    simpl IHids; pose proof IHids I.
+    - (* Tstruct *)
+      pose proof field_offset_in_range i f a0 a ofs0 t0 H5 H4.
+      omega.
+    - (* Tunion *)
+      pose proof field_offset_in_range' i f a0 a t0 H4.
+      omega.
 Qed.
   
+Lemma alignof_nested_field_type2_divide: forall t ids,
+  legal_alignas_type t = true ->
+  isSome (nested_field_rec t ids) ->
+  (alignof (nested_field_type2 t ids) | alignof t).
+Proof.
+  intros.
+  induction ids.
+  + unfold nested_field_type2; simpl.
+    apply Z.divide_refl.
+  + assert (legal_alignas_type (nested_field_type2 t ids) = true)
+      by (apply nested_field_type2_nest_pred; auto).
+    solve_nested_field_rec_cons_isSome H0;
+    unfold nested_field_type2 in *; simpl;
+    valid_nested_field_rec t ids H4; subst t0;
+    solve_field_offset_type a f; try solve [inversion H3];
+    simpl IHids; pose proof IHids I;
+    pose proof alignof_type_divide_whole_fl a t0 f H6.
+    - (* Tstruct *)
+      pose proof legal_alignas_type_Tstruct i f a0 H1.
+      repeat (eapply Z.divide_trans; [eassumption|]).
+      apply Z.divide_refl.
+    - (* Tunion *)
+      pose proof legal_alignas_type_Tunion i f a0 H1.
+      repeat (eapply Z.divide_trans; [eassumption|]).
+      apply Z.divide_refl.
+Qed.
+
 Lemma size_compatible_nested_field: forall t ids p,
   size_compatible t p ->
   size_compatible (nested_field_type2 t ids) (offset_val (Int.repr (nested_field_offset2 t ids)) p).
 Proof.
   intros.
-  destruct p; simpl; try tauto.
-  repeat rewrite Int.Z_mod_modulus_eq.
-  assert (0 < Int.modulus) by (cbv; reflexivity).
-  assert (0 <= nested_field_offset2 t ids) by (pose proof nested_field_offset2_pos t ids; omega).
-  pose proof Zmod_le (nested_field_offset2 t ids) (Int.modulus) H0 H1.
-  admit.
+  destruct (isSome_dec (nested_field_rec t ids)).
+  + destruct p; simpl; try tauto.
+    repeat rewrite Int.Z_mod_modulus_eq.
+    simpl in H.
+    rewrite Zplus_mod_idemp_r.
+    assert (0 < Int.modulus) by (cbv; reflexivity).
+    assert (0 <= Int.unsigned i0 + nested_field_offset2 t ids) by (pose proof nested_field_offset2_in_range t ids i; pose proof Int.unsigned_range i0; omega).
+    pose proof Zmod_le (Int.unsigned i0 + nested_field_offset2 t ids) (Int.modulus) H0 H1.
+    pose proof nested_field_offset2_in_range t ids i.
+    omega.
+  + unfold nested_field_type2, nested_field_offset2.
+    destruct (nested_field_rec t ids); [simpl in n; tauto|].
+    destruct p; simpl; try tauto.
+    repeat rewrite Int.Z_mod_modulus_eq.
+    rewrite Zplus_0_r.
+    assert (0 < Int.modulus) by (cbv; reflexivity).
+    pose proof Int.unsigned_range i.
+    assert (0 <= Int.unsigned i) by omega.
+    pose proof Zmod_le (Int.unsigned i) (Int.modulus) H0 H2.
+    omega.
+Qed.
+
+Lemma power_nat_one_divede_other: forall n m : nat,
+  (two_power_nat n | two_power_nat m) \/ (two_power_nat m | two_power_nat n).
+Proof.
+  intros.
+  pose proof Zle_0_nat n.
+  pose proof Zle_0_nat m.
+  rewrite !two_power_nat_two_p.
+  destruct (zle (Z.of_nat n) (Z.of_nat m)).
+  + left.
+    exists (two_p (Z.of_nat m - Z.of_nat n)).
+    rewrite <- two_p_is_exp by omega.
+    f_equal.
+    omega.
+  + right.
+    exists (two_p (Z.of_nat n - Z.of_nat m)).
+    rewrite <- two_p_is_exp by omega.
+    f_equal.
+    omega.
+Qed.
+
+Lemma multiple_divide_mod: forall a b c, b > 0 -> ((a | b) \/ (b | a)) -> (a | (c * a mod b)).
+Proof.
+  intros.
+  destruct H0.
+  + apply Z.divide_add_cancel_r with (b * (c * a / b))%Z.
+    apply Z.divide_mul_l; auto.
+    rewrite <- Z_div_mod_eq; auto.
+    apply Z.divide_mul_r, Z.divide_refl.
+  + destruct H0.
+    subst.
+    rewrite Z.mul_assoc, Z_mod_mult.
+    apply Z.divide_0_r.
 Qed.
 
 Lemma align_compatible_nested_field: forall t ids p,
+  legal_alignas_type t = true ->
   align_compatible t p ->
   align_compatible (nested_field_type2 t ids) (offset_val (Int.repr (nested_field_offset2 t ids)) p).
 Proof.
-  admit.
+  intros.
+  destruct (isSome_dec (nested_field_rec t ids)).
+  + destruct p; simpl in *; try tauto.
+    repeat rewrite Int.Z_mod_modulus_eq.
+    rewrite Zplus_mod_idemp_r.
+    assert (alignof (nested_field_type2 t ids) | Int.unsigned i0 + nested_field_offset2 t ids).
+    - apply Z.divide_add_r; auto.
+      eapply Z.divide_trans; [| eauto].
+      apply alignof_nested_field_type2_divide; auto.
+      apply nested_field_offset2_type2_divide; auto.
+    - unfold Int.modulus.
+      destruct (alignof_two_p (nested_field_type2 t ids)).
+      rewrite H2 in *.
+      destruct H1.
+      rewrite H1.
+      rewrite !two_power_nat_two_p in *.
+      apply multiple_divide_mod.
+      * apply two_p_gt_ZERO, Zle_0_nat.
+      * rewrite <- !two_power_nat_two_p in *. apply power_nat_one_divede_other.
+  + unfold nested_field_type2, nested_field_offset2.
+    destruct (nested_field_rec t ids); [simpl in n; tauto|].
+    destruct p; simpl; try tauto.
+Transparent alignof.
+    simpl alignof.
+Opaque alignof.
+    apply Z.divide_1_l.
 Qed.
 
 (******************************************
@@ -2422,7 +2551,6 @@ Ltac solve_JMeq_sumtype H :=
      |apply JMeq_sumtype_rr in H; auto]
   end.
 
-
 Lemma field_at_Tunion: forall sh t ids i f a v1 v2,
   eqb_fieldlist f Fnil = false ->
   nested_field_type2 t ids = Tunion i f a ->
@@ -2440,14 +2568,6 @@ Opaque sizeof.
   simpl reptype; simpl data_at'.
   change f with (fieldlist_app Fnil f) at 4 7.
   generalize Fnil as f';  intros.
-(*
-  replace (sizeof (Tunion i (fieldlist_app f' f) a)) with (sizeof (nested_field_type2 t ids)).
-  Focus 2. {
-    unfold nested_field_type2.
-    rewrite H4.
-    reflexivity.
-  } Unfocus.
-*)
   revert f' H4;
   induction f; intros.
   + inversion H.
@@ -2510,8 +2630,8 @@ Proof.
   apply prop_right.
   repeat split; try assumption.
   apply size_compatible_nested_field; exact H0.
-  apply align_compatible_nested_field; exact H1.
-  apply derives_refl.  
+  apply align_compatible_nested_field; auto.
+  apply derives_refl.
 Qed.
 
 Lemma field_at__data_at_: forall sh t ids p,
@@ -2612,11 +2732,11 @@ Proof.
   normalize.
   apply data_at'_data_at'_.
   + apply nested_field_type2_nest_pred; [reflexivity|exact H].
-  + pose proof size_compatible_nested_field_aux t ids H2.
+  + pose proof nested_field_offset2_in_range t ids H2.
     omega.
   + apply nested_field_offset2_type2_divide, H.
   + eapply Zdivides_trans; [|exact H1].
-    admit.
+    apply alignof_nested_field_type2_divide; auto.
 Qed.
 
 Hint Rewrite <- field_at_offset_zero: norm.
@@ -2661,6 +2781,7 @@ Proof.
   apply andp_right; [|normalize].
   unfold mapsto. simpl.
   destruct v1; normalize.
+  unfold address_mapsto, res_predicates.address_mapsto, size_compatible, align_compatible.
   admit.
 Qed.
 
