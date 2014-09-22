@@ -815,19 +815,23 @@ match op with
   end.
 
 
-Definition isCastResultType tfrom tto ty a : tc_assert :=
+Definition isCastResultType tfrom tto a : tc_assert :=
 match Cop.classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF (invalid_cast tfrom tto)
 | Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
 | Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
-| Cop.cast_case_neutral  => if eqb_type tfrom ty then tc_TT else 
-                            (if orb  (andb (is_pointer_type ty) (is_pointer_type tfrom)) (andb (is_int_type ty) (is_int_type tfrom)) then tc_TT
+| Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
+| Cop.cast_case_neutral  => if eqb_type tfrom tto then tc_TT else 
+                            (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom)) (andb (is_int_type tto) (is_int_type tfrom)) then tc_TT
                                 else tc_iszero a)
-| Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto ty)
+| Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_void => tc_noproof
+| Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
+| Cop.cast_case_p2bool => tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto)
+| Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)
 | _ => match tto with 
-      | Tint _ _ _  => tc_bool (is_int_type ty) (invalid_cast_result tto ty) 
-      | Tfloat _ _  => tc_bool (is_float_type ty) (invalid_cast_result tto ty)
+      | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto) 
+      | Tfloat _ _  => tc_bool (is_float_type tfrom) (invalid_cast_result tto tto)
       | _ => tc_FF (invalid_cast tfrom tto)
       end
 end.
@@ -939,7 +943,7 @@ match e with
                                                       (op_result_type e))
  | Eunop op a ty => tc_andp (tc_bool (isUnOpResultType op a ty) (op_result_type e)) (tcr a)
  | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType op a1 a2 ty)  (tcr a1)) (tcr a2)
- | Ecast a ty => tc_andp (tcr a) (isCastResultType (typeof a) ty ty a)
+ | Ecast a ty => tc_andp (tcr a) (isCastResultType (typeof a) ty a)
  | Evar id ty => match access_mode ty with
                          | By_reference => 
                             match get_var_type Delta id with 
@@ -1001,7 +1005,7 @@ Definition typecheck_temp_id id ty Delta a : tc_assert :=
   match (temp_types Delta)!id with
   | Some (t,_) => 
       tc_andp (tc_bool (is_neutral_cast (implicit_deref ty) t) (invalid_cast ty t)) 
-                  (isCastResultType (implicit_deref ty) t t a)
+                  (isCastResultType (implicit_deref ty) t a)
   | None => tc_FF (var_not_in_tycontext Delta id)
  end.
 
@@ -1548,7 +1552,7 @@ Qed.
 Lemma neutral_isCastResultType:
   forall t t' v rho,
    is_neutral_cast t' t = true ->
-   denote_tc_assert (isCastResultType t' t t v) rho.
+   denote_tc_assert (isCastResultType t' t v) rho.
 Proof.
 intros.
   unfold isCastResultType;

@@ -1,0 +1,8 @@
+-R ../msl msl
+-R ../sepcomp sepcomp
+-R ../veric veric
+-R ../floyd floyd
+-R ../progs progs
+-R ../compcert compcert
+-R ../mc_reify/mirror-core/coq-ext-lib/theories ExtLib
+-R ../mc_reify/mirror-core/src/ MirrorCore

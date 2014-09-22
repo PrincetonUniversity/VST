@@ -493,14 +493,12 @@ f_equal.
 destruct (is_neutral_cast (implicit_deref t) t0) eqn:?; simpl; auto with closed.
 rewrite expr_lemmas.isCastR.
 destruct (classify_cast (implicit_deref t) t0) eqn:?; simpl; auto with closed;
- try solve [destruct t0; simpl; auto with closed].
-if_tac; simpl; auto with closed.
-if_tac; simpl; auto with closed.
-unfold_lift. f_equal; auto.
-destruct si2; simpl; auto with closed.
+ try solve [destruct t0; simpl; unfold tc_bool; repeat if_tac; auto with closed; try reflexivity].
+repeat if_tac; try reflexivity. simpl.
 unfold_lift. rewrite <- H; auto.
+destruct si2. simpl.
 unfold_lift. rewrite <- H; auto.
-destruct (is_long_type (implicit_deref t) && is_long_type t0)%bool; simpl; auto with closed.
+simpl. unfold_lift. rewrite <- H. auto.
 Qed.
 
 Lemma closed_wrtl_tc_temp_id :
@@ -523,14 +521,13 @@ f_equal.
 destruct (is_neutral_cast (implicit_deref t) t0) eqn:?; simpl; auto with closed.
 rewrite expr_lemmas.isCastR.
 destruct (classify_cast (implicit_deref t) t0) eqn:?; simpl; auto with closed;
- try solve [destruct t0; simpl; auto with closed].
+ try solve [destruct t0; simpl; unfold tc_bool; repeat if_tac; auto with closed; try reflexivity].
 if_tac; simpl; auto with closed.
 if_tac; simpl; auto with closed.
 unfold_lift. f_equal; auto.
 destruct si2; simpl; auto with closed.
 unfold_lift. rewrite <- H; auto.
 unfold_lift. rewrite <- H; auto.
-destruct (is_long_type (implicit_deref t) && is_long_type t0)%bool; simpl; auto with closed.
 Qed.
 Hint Resolve closed_wrt_tc_temp_id closed_wrtl_tc_temp_id : closed.
 

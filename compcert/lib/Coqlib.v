@@ -23,7 +23,6 @@ Require Export List.
 Require Export Bool.
 
 (** * Useful tactics *)
-
 Ltac inv H := inversion H; clear H; subst.
 
 Ltac predSpec pred predspec x y :=
@@ -1269,7 +1268,7 @@ Lemma proj_sumbool_is_true:
 Proof.
   intros. unfold proj_sumbool. destruct a. auto. contradiction. 
 Qed.
-
+Print Bool.
 Ltac InvBooleans :=
   match goal with
   | [ H: _ && _ = true |- _ ] =>

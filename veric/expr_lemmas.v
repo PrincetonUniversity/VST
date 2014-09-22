@@ -45,29 +45,32 @@ Transparent Float.intoffloat.
 Transparent Float.intuoffloat.
 
 
-Lemma isCastR: forall tfrom tto ty a, 
-  denote_tc_assert (isCastResultType tfrom tto ty a) =
+Lemma isCastR: forall tfrom tto a, 
+  denote_tc_assert (isCastResultType tfrom tto a) =
  denote_tc_assert
 match Cop.classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF  (invalid_cast tfrom tto)
 | Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
 | Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
-| Cop.cast_case_neutral  => if eqb_type tfrom ty then tc_TT else 
-                            (if orb  (andb (is_pointer_type ty) (is_pointer_type tfrom)) (andb (is_int_type ty) (is_int_type tfrom)) then tc_TT
+| Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
+| Cop.cast_case_neutral  => if eqb_type tfrom tto then tc_TT else 
+                            (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom)) (andb (is_int_type tto) (is_int_type tfrom)) then tc_TT
                                 else tc_iszero' a)
-| Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto ty)
+| Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
+| Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
+| Cop.cast_case_p2bool => tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto)
+| Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_void => tc_noproof
 | _ => match tto with 
-      | Tint _ _ _  => tc_bool (is_int_type ty) (invalid_cast_result tto ty) 
-      | Tfloat _ _  => tc_bool (is_float_type ty) (invalid_cast_result tto ty) 
+      | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto) 
+      | Tfloat _ _  => tc_bool (is_float_type tfrom) (invalid_cast_result tto tto) 
       | _ => tc_FF (invalid_cast tfrom tto)
       end
 end.
 Proof. intros; extensionality rho.
  unfold isCastResultType.
- destruct (classify_cast tfrom tto); auto.
- destruct (eqb_type tfrom ty); auto.
- if_tac; auto. apply denote_tc_assert_iszero.
+ destruct (classify_cast tfrom tto); auto; repeat if_tac; auto;
+ try apply denote_tc_assert_iszero. 
 Qed.
 
 Lemma typecheck_cast_sound: 
@@ -1163,7 +1166,7 @@ Qed.
 Lemma cast_exists : forall Delta e2 t rho 
 (TC: typecheck_environ Delta rho), 
 denote_tc_assert (typecheck_expr Delta e2) rho ->
-denote_tc_assert (isCastResultType (typeof e2) t t e2)
+denote_tc_assert (isCastResultType (typeof e2) t e2)
   rho ->
 sem_cast (typeof e2) t (eval_expr e2 rho)  =
 Some (force_val (sem_cast (typeof e2) t (eval_expr e2 rho))).
@@ -1389,7 +1392,7 @@ Qed.
 
 Lemma neutral_cast_typecheck_val : forall e t rho Delta,
 true = is_neutral_cast (implicit_deref (typeof e)) t ->
-denote_tc_assert (isCastResultType (implicit_deref (typeof e)) t t e) rho ->
+denote_tc_assert (isCastResultType (implicit_deref (typeof e)) t  e) rho ->
 denote_tc_assert (typecheck_expr Delta e) rho ->
 typecheck_environ Delta rho ->
 typecheck_val (eval_expr e rho) t = true. 
@@ -1636,7 +1639,7 @@ Lemma typecheck_val_sem_cast:
   forall t2 e2 rho Delta,
       typecheck_environ Delta rho ->
       denote_tc_assert (typecheck_expr Delta e2) rho ->
-      denote_tc_assert (isCastResultType (typeof e2) t2 t2 e2) rho ->
+      denote_tc_assert (isCastResultType (typeof e2) t2  e2) rho ->
       typecheck_val (force_val (sem_cast (typeof e2) t2 (eval_expr e2 rho))) t2 = true.
 Proof. intros ? ? ? ? H2 H5 H6.
 assert (H7 := cast_exists _ _ _ _ H2 H5 H6).

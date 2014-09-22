@@ -6,5 +6,5 @@
 -R ../compcert compcert
 -R ../../mirror-shard/src MirrorShard
 -R ../../mirror-shard/src/provers provers
--R ../../mirror-shard/coq-ext-lib/theories ExtLib
+-R ../../mirror-core/coq-ext-lib/theories ExtLib
 -R ../../mirror-core/src/ MirrorCore

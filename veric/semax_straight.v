@@ -1086,7 +1086,7 @@ end.
 Lemma load_cast : 
  forall (e1 : expr) (e2 : expr) (ch : memory_chunk) rho,
    tc_val (typeof e2) (eval_expr e2 rho) ->
-   denote_tc_assert (isCastResultType (typeof e2) (typeof e1) (typeof e1) e2)
+   denote_tc_assert (isCastResultType (typeof e2) (typeof e1) e2)
      rho ->
    access_mode (typeof e1) = By_value ch ->
    Val.load_result ch

@@ -789,8 +789,7 @@ apply semax_ifthenelse_PQR.
          apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
         simpl. super_unfold_lift. split. auto. 
-        unfold isCastResultType. destruct (typeof e2); 
-                                        inv H0; simpl; apply I.
+        destruct (typeof e2) eqn:?; inv H0; try apply I.
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
           rewrite (@closed_wrt_subst _ tid _ (eval_expr (Ecast e2 tbool)))
     by (simpl; auto with closed).
