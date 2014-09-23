@@ -912,3 +912,116 @@ Proof.
   + rewrite field_type_mid in H2; [|exact H0].
     inversion H2.
 Qed.
+
+(************************************************
+
+nested_field_offset_app
+
+************************************************)
+
+Lemma nested_field_rec_app: forall t ids0 ids1 t0 t1 ofs0 ofs1,
+  nested_field_rec t ids0 = Some (ofs0, t0) ->
+  nested_field_rec t0 ids1 = Some (ofs1, t1) ->
+  nested_field_rec t (ids1 ++ ids0) = Some (ofs0 + ofs1, t1).
+Proof.
+  intros.
+  revert ofs1 t1 H0.
+  induction ids1; intros.
+  + simpl in *.
+    inversion H0.
+    subst.
+    rewrite H.
+    rewrite Z.add_0_r.
+    reflexivity.
+  + assert (isSome (nested_field_rec t0 (a :: ids1))) by (rewrite H0; simpl; auto).
+    solve_nested_field_rec_cons_isSome H1;
+    unfold nested_field_type2 in H4;
+    valid_nested_field_rec t0 ids1 H4.
+    - (* Tstruct *)
+      subst.
+      simpl.
+      rewrite (IHids1 ofs (Tstruct i f a0) eq_refl).
+      simpl in H0; rewrite H5 in H0.
+      solve_field_offset_type a f.
+      * inversion H0.
+        f_equal.
+        f_equal.
+        omega.
+      * inversion H0.
+    - (* Tstruct *)
+      subst.
+      simpl.
+      rewrite (IHids1 ofs (Tunion i f a0) eq_refl).
+      simpl in H0; rewrite H5 in H0.
+      solve_field_offset_type a f.
+      * inversion H0.
+        reflexivity.
+      * inversion H0.
+Qed.
+
+Lemma nested_field_rec_app_isSome: forall t ids0 ids1,
+  isSome (nested_field_rec t (ids1 ++ ids0)) -> isSome (nested_field_rec t ids0).
+Proof.
+  intros.
+  induction ids1.
+  + simpl in *; auto.
+  + simpl app in H.
+    solve_nested_field_rec_cons_isSome H;
+    unfold nested_field_type2 in H2;
+    valid_nested_field_rec t (ids1 ++ ids0) H2.
+    - subst.
+      simpl in IHids1.
+      auto.
+    - subst.
+      simpl in IHids1.
+      auto.
+Qed.
+
+Lemma nested_field_rec_app_isSome': forall t ids0 ids1,
+  isSome (nested_field_rec t (ids1 ++ ids0)) -> isSome (nested_field_rec (nested_field_type2 t ids0) ids1).
+Proof.
+  intros.
+  pose proof nested_field_rec_app_isSome _ _ _ H.
+  unfold nested_field_type2.
+  valid_nested_field_rec t ids0 H0.
+  valid_nested_field_rec t (ids1 ++ ids0) H.
+  clear H H0.
+  revert ofs ofs0 t0 t1 H1 H2.
+  induction ids1; intros.
+  + simpl in *; auto.
+  + simpl app in H2.
+    assert (isSome (nested_field_rec t (a :: ids1 ++ ids0))) by (rewrite H2; simpl; auto).
+    solve_nested_field_rec_cons_isSome H;
+    valid_nested_field_rec t (ids1 ++ ids0) H0;
+    pose proof IHids1 _ _ _ _ H1 eq_refl;
+    valid_nested_field_rec t0 ids1 H6;
+    pose proof nested_field_rec_app _ _ _ _ _ _ _ H1 H7;
+    unfold nested_field_type2 in H4; rewrite H8 in H4.
+    - subst.
+      simpl.
+      rewrite H7.
+      solve_field_offset_type a f; simpl; [auto | inversion H3].
+    - subst.
+      simpl.
+      rewrite H7.
+      solve_field_offset_type a f; simpl; [auto | inversion H3].
+Qed.
+
+Lemma nested_field_offset2_app: forall t ids0 ids1,
+  isSome (nested_field_rec t (ids1 ++ ids0)) ->
+  nested_field_offset2 t (ids1 ++ ids0) = nested_field_offset2 t ids0 +
+    nested_field_offset2 (nested_field_type2 t ids0) ids1.
+Proof.
+  intros.
+  pose proof nested_field_rec_app_isSome _ _ _ H.
+  pose proof nested_field_rec_app_isSome' _ _ _ H.
+  unfold nested_field_offset2, nested_field_type2 in *.
+  valid_nested_field_rec t (ids1 ++ ids0) H.
+  valid_nested_field_rec t ids0 H0.
+  valid_nested_field_rec t1 ids1 H1.
+  pose proof nested_field_rec_app t ids0 ids1 _ _ _ _ H3 H4.
+  rewrite H2 in H5.
+  inversion H5.
+  reflexivity.
+Qed.
+

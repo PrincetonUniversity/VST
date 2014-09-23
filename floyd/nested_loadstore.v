@@ -2519,7 +2519,6 @@ Lemma semax_nested_efield_load_37':
       (v : val) (v' : reptype (typeof e1)),
       nested_legal_fieldlist (typeof e1) = true ->
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
       is_neutral_cast (typeof (nested_efield e1 ids tts)) t = true ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) ids tts = true ->
@@ -2539,14 +2538,13 @@ Proof.
   intros.
   destruct ids.
   + simpl (nested_efield e1 nil tts) in *.
-    rewrite nested_field_type2_nil in H1.
     eapply semax_data_load_37'; eauto.
   + assert (type_is_by_value (uncompomize e (nested_field_type2 (typeof e1) (i :: ids)))).
       eapply is_neutral_cast_by_value; eauto.
       erewrite typeof_nested_efield; eauto.
-    erewrite NF.field_except_at_lemma with (id := i) (ids := ids) in H6; eauto.
+    erewrite NF.field_except_at_lemma with (id := i) (ids := ids) in H5; eauto.
     eapply semax_max_path_field_load_37'; eauto.
-    eapply derives_trans; [exact H6 |].
+    eapply derives_trans; [exact H5 |].
     normalize.
     apply andp_derives; [apply derives_refl |].
     unfold_lift. simpl; intros. rewrite sepcon_assoc.
@@ -2561,7 +2559,6 @@ Lemma semax_nested_efield_cast_load_37':
       (v : val) (v' : reptype (typeof e1)),
       nested_legal_fieldlist (typeof e1) = true ->
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
       type_is_by_value (typeof (nested_efield e1 ids tts)) ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) ids tts = true ->
@@ -2581,13 +2578,12 @@ Proof.
   intros.
   destruct ids.
   + simpl (nested_efield e1 nil tts) in *.
-    rewrite nested_field_type2_nil in H1.
     eapply semax_data_cast_load_37'; eauto.
   + assert (type_is_by_value (uncompomize e (nested_field_type2 (typeof e1) (i :: ids)))).
       erewrite typeof_nested_efield; eauto.
-    erewrite NF.field_except_at_lemma with (id := i) (ids := ids) in H6; eauto.
+    erewrite NF.field_except_at_lemma with (id := i) (ids := ids) in H5; eauto.
     eapply semax_max_path_field_cast_load_37'; eauto.
-    eapply derives_trans; [exact H6 |].
+    eapply derives_trans; [exact H5 |].
     normalize.
     apply andp_derives; [apply derives_refl |].
     unfold_lift. simpl; intros. rewrite sepcon_assoc.
@@ -2601,7 +2597,6 @@ Lemma semax_nested_efield_store_nth:
       (t : type) (ids: list ident) (tts: list type) (v: reptype (typeof e1)),
       nested_legal_fieldlist (typeof e1) = true ->
       typeof (nested_efield e1 ids tts) = t ->
-      uncompomize e (nested_field_type2 (typeof e1) ids) = t ->
       type_is_by_value t ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) ids tts = true ->
@@ -2627,7 +2622,6 @@ Proof.
   intros.
   destruct ids.
   + simpl (nested_efield e1 nil tts) in *.
-    rewrite nested_field_type2_nil in H1.
     change (`(upd_reptype (typeof e1) nil v)
                           (`(valinject (nested_field_type2 (typeof e1) nil))
                              (eval_expr (Ecast e2 t)))) with
@@ -2635,22 +2629,22 @@ Proof.
                              (eval_expr (Ecast e2 t))).
     rewrite H0.
     eapply semax_data_store_nth; eauto.
-    eapply derives_trans; [exact H6 |].
+    eapply derives_trans; [exact H5 |].
     unfold_lift; simpl; intros.
     rewrite <- H0.
-    apply data_at_data_at_, H3.
+    apply data_at_data_at_, H2.
   + apply semax_pre_simple with (P' := |> PROPx P (LOCALx (tc_lvalue Delta (nested_efield e1 (i :: ids) tts) :: tc_expr Delta (Ecast e2 t) :: Q) (SEPx R))).
     Focus 1. {
       eapply derives_trans; [ apply andp_derives; [apply now_later | apply derives_refl] |].
       rewrite <- later_andp.
       apply later_derives.
       eapply derives_trans with (Q0 := PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))); [normalize|].
-      rewrite (add_andp _ _ H8).
+      rewrite (add_andp _ _ H7).
       entailer!.
     } Unfocus.
     assert (type_is_by_value (uncompomize e (nested_field_type2 (typeof e1) (i :: ids)))).
-      rewrite <- H1 in H2; auto.    
-    erewrite NF.field_except_at_lemma with (id := i) (ids := ids) in H6; eauto.
+      rewrite <- H0 in H1. erewrite <- (typeof_nested_efield) in H1 by eauto. auto.
+    erewrite NF.field_except_at_lemma with (id := i) (ids := ids) in H5; eauto.
     match goal with
     | |- appcontext [replace_nth n R ?M] =>
          replace M with ((`(field_at sh (typeof e1) (i :: ids)) 
@@ -2666,10 +2660,10 @@ Proof.
       erewrite NF.proj_reptype_upd_reptype; eauto.
       erewrite NF.proj_except_reptype_upd_reptype; eauto.
     } Unfocus.
-    rewrite (replace_nth_nth_error _ _ _ H5).
-    eapply semax_pre0; [apply later_derives, replace_nth_SEP, H6|].
+    rewrite (replace_nth_nth_error _ _ _ H4).
+    eapply semax_pre0; [apply later_derives, replace_nth_SEP, H5|].
     rewrite replace_nth_replace_nth.
-    clear H6.
+    clear H5.
     erewrite !SEP_replace_nth_isolate; eauto.
     replace (SEPx ((`(field_at sh (typeof e1) (i :: ids) (proj_reptype (typeof e1) (i :: ids) v) *
                     field_except_at sh (typeof e1) i ids (proj_except_reptype (typeof e1) i ids v))
@@ -2714,7 +2708,307 @@ Proof.
     - unfold_lift. simpl; intros. apply field_at_field_at_; auto.
     - entailer!.
 Qed.
-                   
+
+Lemma nested_efield_app: forall t ids0 ids1 tts0 tts1,
+  length ids1 = length tts1 ->
+  nested_efield (nested_efield t ids0 tts0) ids1 tts1 = 
+    nested_efield t (ids1 ++ ids0) (tts1 ++ tts0).
+Proof.
+  intros.
+  revert tts1 H.
+  induction ids1; intros; destruct tts1; try solve [inversion H].
+  + reflexivity.
+  + inversion H.
+    simpl.
+    rewrite (IHids1 tts1 H1).
+    reflexivity.
+Qed.
+
+Lemma legal_nested_efield_app: forall e t ids0 ids1 tts0 tts1,
+  length ids1 = length tts1 ->
+  legal_nested_efield e t (ids1 ++ ids0) (tts1 ++ tts0) = true ->
+  legal_nested_efield e t ids0 tts0 = true.
+Proof.
+  intros.
+  revert tts1 H H0.
+  induction ids1; intros; destruct tts1; try solve [inversion H].
+  + auto.
+  + inversion H.
+    simpl in H0.
+    match type of H0 with
+    |  (match ?M with | Some _ => _ | _ => _ end = true) => destruct M as [[? ?]|]; [|inversion H0]
+    end.
+    apply andb_true_iff in H0.
+    destruct H0.
+    eapply IHids1; eauto.
+Qed.
+
+Lemma nested_field_rec_uncompomize_cons: forall e t id ids,
+  nested_field_rec (uncompomize e t) (id :: ids) = nested_field_rec t (id :: ids).
+Proof.
+  intros.
+  destruct t; auto.
+  revert id;
+  induction ids; intros.
+  reflexivity.
+  simpl in *.
+  rewrite (IHids a0).
+  reflexivity.
+Qed.
+
+Lemma nested_field_type2_uncompomize: forall e t ids,
+  uncompomize e (nested_field_type2 (uncompomize e t) ids) = uncompomize e (nested_field_type2 t ids).
+Proof.
+  intros.
+  destruct t; try reflexivity.
+  destruct ids; try reflexivity.
+  unfold nested_field_type2.
+  rewrite nested_field_rec_uncompomize_cons.
+  reflexivity.
+Qed.
+
+Lemma uncompomize_uncompomize: forall e t, uncompomize e (uncompomize e t) = uncompomize e t.
+Proof.
+  intros.
+  destruct t; reflexivity.
+Qed.
+
+Lemma legal_nested_efield_app': forall e t ids0 ids1 tts0 tts1,
+  length ids1 = length tts1 ->
+  legal_nested_efield e t (ids1 ++ ids0) (tts1 ++ tts0) = true ->
+  legal_nested_efield e (uncompomize e (nested_field_type2 t ids0)) ids1 tts1 = true.
+Proof.
+Opaque uncompomize nested_field_rec.
+  intros.
+  revert tts1 H H0.
+  induction ids1; intros; destruct tts1; try solve [inversion H].
+  + simpl in *. rewrite uncompomize_uncompomize. apply eqb_type_refl.
+  + simpl in *.
+    rewrite nested_field_rec_uncompomize_cons.
+    valid_nested_field_rec t (a :: ids1 ++ ids0) H0.
+    rewrite andb_true_iff in H0.
+    assert (isSome (nested_field_rec t ((a :: ids1) ++ ids0))) by (simpl; rewrite H1; simpl; auto).
+    pose proof nested_field_rec_app_isSome _ _ _ H2.
+    pose proof nested_field_rec_app_isSome' _ _ _ H2.
+    valid_nested_field_rec (nested_field_type2 t ids0) (a :: ids1) H4.
+    destruct H0.
+    rewrite IHids1 by auto.
+    unfold nested_field_type2 in H5.
+    valid_nested_field_rec t ids0 H3.
+    pose proof nested_field_rec_app _ _ _ _ _ _ _ H7 H5.
+    simpl in H8.
+    rewrite H1 in H8.
+    inversion H8.
+    subst.
+    rewrite H6.
+    reflexivity.
+Transparent uncompomize nested_field_rec. 
+Qed.
+
+Lemma nested_legal_fieldlist_uncompomize: forall e t,
+  nested_legal_fieldlist (uncompomize e t) = nested_legal_fieldlist t.
+Proof.
+  intros.
+  destruct t; reflexivity.
+Qed.
+
+Lemma legal_alignas_type_uncompomize: forall e t,
+  legal_alignas_type (uncompomize e t) = legal_alignas_type t.
+Proof.
+  intros.
+  destruct t; reflexivity.
+Qed.
+
+Lemma proj_reptype_uncompomize: forall e t ids v v',
+  JMeq v v' -> JMeq (proj_reptype t ids v) (proj_reptype (uncompomize e t) ids v').
+Proof.
+Transparent proj_reptype.
+  intros.
+  destruct t; revert v' H; simpl; intros; rewrite H; try reflexivity.
+  destruct ids.
+  + reflexivity.
+  + match goal with
+    | |- @JMeq (reptype ?A) ?x (reptype ?B) ?y => cut (A = Tvoid /\ B = Tvoid); 
+        [intros; forget x as X; forget y as Y|]
+    end.
+    revert X Y.
+    destruct H0.
+    rewrite H0, H1.
+    intros.
+    destruct X, Y.
+    reflexivity.
+    cut (nested_field_rec (Tcomp_ptr i a) (i0 :: ids) = None /\
+      nested_field_rec (Tpointer (type_id_env.look_up_ident_default i e) a)
+      (i0 :: ids) = None).
+    intros.
+    destruct H0.
+    unfold nested_field_type2; rewrite H0, H1; simpl. auto.
+    revert i0.
+    induction ids; intros.
+    - split; reflexivity.
+    - destruct (IHids a0).
+      split; simpl in *; [rewrite H0 | rewrite H1];
+      reflexivity.
+Qed.
+
+Lemma semax_nested_efield_field_load_37':
+  forall {Espec: OracleKind},
+    forall Delta sh e id P Q R (e1: expr)
+      (t : type) (ids0 ids1: list ident) (tts0 tts1: list type)
+      (v : val) (v' : reptype (nested_field_type2 (typeof e1) ids0)),
+      nested_legal_fieldlist (typeof e1) = true ->
+      typeof_temp Delta id = Some t ->
+      is_neutral_cast (typeof (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0))) t = true ->
+      legal_alignas_type (typeof e1) = true ->
+      length ids1 = length tts1 ->
+      legal_nested_efield e (typeof e1) (ids1 ++ ids0) (tts1 ++ tts0) = true ->
+      JMeq (proj_reptype (nested_field_type2 (typeof e1) ids0) ids1 v') v ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+        local (tc_lvalue Delta (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0))) &&
+        local `(tc_val (typeof (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0))) v) &&
+        (`(field_at sh (typeof e1) ids0 v') (eval_lvalue e1) * TT) ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sset id (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0)))
+          (normal_ret_assert
+            (EX old : val,
+              PROPx P
+                (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q)
+                  (SEPx (map (subst id `old) R))))).
+Proof.
+  intros.
+  remember v' as v''.
+  assert (JMeq v' v'') by (subst; reflexivity).
+  clear Heqv''.
+  revert v' H7.
+  pattern (reptype (nested_field_type2 (typeof e1) ids0)) at 1 2.
+  rewrite <- (uncompomize_reptype e (nested_field_type2 (typeof e1) ids0)).
+  intros.
+  rewrite (proj_reptype_uncompomize _ _ ids1 _ _ (JMeq_sym H7)) in H5.
+
+  assert (legal_nested_efield e (typeof e1) ids0 tts0 = true)
+    by (eapply legal_nested_efield_app; eauto).
+
+  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+           local (tc_lvalue Delta (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0))) &&
+           local `(tc_val (typeof (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0))) v) &&
+           (`(data_at sh (uncompomize e (nested_field_type2 (typeof e1) ids0)) v')
+           (eval_lvalue (nested_efield e1 ids0 tts0)) * TT)).
+  {
+    eapply derives_trans; [exact H6 | apply andp_derives; [apply derives_refl |]].
+    simpl; intro rho.
+    unfold_lift.
+    rewrite field_at_data_at by auto.
+    rewrite !at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
+    erewrite <- uncompomize_data_at by eauto.
+    erewrite eval_lvalue_nested_efield by eauto.
+    entailer!.
+  }
+  clear H6.
+  clear H7 v''.
+
+  revert v' H5 H9.
+  erewrite typeof_nested_efield by eauto.
+  intros.
+  rewrite <- nested_efield_app by auto.
+
+  eapply semax_nested_efield_load_37'.
+  + erewrite <- typeof_nested_efield by eauto.
+    rewrite nested_legal_fieldlist_uncompomize.
+    apply nested_field_type2_nest_pred; auto.
+  + exact H0.
+  + rewrite nested_efield_app by auto.
+    exact H1.
+  + erewrite <- typeof_nested_efield by eauto.
+    rewrite legal_alignas_type_uncompomize.
+    apply nested_field_type2_nest_pred; auto.
+  + erewrite <- typeof_nested_efield by eauto.
+    erewrite legal_nested_efield_app'; eauto.
+  + exact H5.
+  + rewrite nested_efield_app by auto.
+    exact H9.
+Qed.
+
+Lemma semax_nested_efield_field_cast_load_37':
+  forall {Espec: OracleKind},
+    forall Delta sh e id P Q R (e1: expr)
+      (t : type) (ids0 ids1: list ident) (tts0 tts1: list type)
+      (v : val) (v' : reptype (nested_field_type2 (typeof e1) ids0)),
+      nested_legal_fieldlist (typeof e1) = true ->
+      typeof_temp Delta id = Some t ->
+      type_is_by_value (typeof (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0))) ->
+      legal_alignas_type (typeof e1) = true ->
+      length ids1 = length tts1 ->
+      legal_nested_efield e (typeof e1) (ids1 ++ ids0) (tts1 ++ tts0) = true ->
+      JMeq (proj_reptype (nested_field_type2 (typeof e1) ids0) ids1 v') v ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+        local (tc_lvalue Delta (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0))) &&
+        local (`(tc_val t (eval_cast (typeof (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0))) t v))) &&
+        (`(field_at sh (typeof e1) ids0 v') (eval_lvalue e1) * TT) ->
+      semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
+        (Sset id (Ecast (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0)) t))
+          (normal_ret_assert
+            (EX old:val,
+              PROPx P
+                (LOCALx (`(eq (eval_cast (typeof (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0))) t v)) (eval_id id) :: map (subst id (`old)) Q)
+                  (SEPx (map (subst id (`old)) R))))).
+Proof.
+  intros.
+  remember v' as v''.
+  assert (JMeq v' v'') by (subst; reflexivity).
+  clear Heqv''.
+  revert v' H7.
+  pattern (reptype (nested_field_type2 (typeof e1) ids0)) at 1 2.
+  rewrite <- (uncompomize_reptype e (nested_field_type2 (typeof e1) ids0)).
+  intros.
+  rewrite (proj_reptype_uncompomize _ _ ids1 _ _ (JMeq_sym H7)) in H5.
+
+  assert (legal_nested_efield e (typeof e1) ids0 tts0 = true)
+    by (eapply legal_nested_efield_app; eauto).
+
+  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+           local (tc_lvalue Delta (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0))) &&
+           local `(tc_val t (eval_cast
+                    (typeof (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0)))
+                    t v)) &&
+           (`(data_at sh (uncompomize e (nested_field_type2 (typeof e1) ids0)) v')
+           (eval_lvalue (nested_efield e1 ids0 tts0)) * TT)).
+  {
+    eapply derives_trans; [exact H6 | apply andp_derives; [apply derives_refl |]].
+    simpl; intro rho.
+    unfold_lift.
+    rewrite field_at_data_at by auto.
+    rewrite !at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
+    erewrite <- uncompomize_data_at by eauto.
+    erewrite eval_lvalue_nested_efield by eauto.
+    entailer!.
+  }
+  clear H6.
+  clear H7 v''.
+
+  revert v' H5 H9.
+  erewrite typeof_nested_efield by eauto.
+  intros.
+  rewrite <- nested_efield_app by auto.
+
+  eapply semax_nested_efield_cast_load_37'.
+  + erewrite <- typeof_nested_efield by eauto.
+    rewrite nested_legal_fieldlist_uncompomize.
+    apply nested_field_type2_nest_pred; auto.
+  + exact H0.
+  + rewrite nested_efield_app by auto.
+    exact H1.
+  + erewrite <- typeof_nested_efield by eauto.
+    rewrite legal_alignas_type_uncompomize.
+    apply nested_field_type2_nest_pred; auto.
+  + erewrite <- typeof_nested_efield by eauto.
+    erewrite legal_nested_efield_app'; eauto.
+  + exact H5.
+  + rewrite nested_efield_app by auto.
+    exact H9.
+Qed.
+
+
+
 (*
 
 (* Here is potentially another way of defining proj_reptype. This definition *)

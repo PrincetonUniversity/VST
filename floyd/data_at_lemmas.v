@@ -1949,20 +1949,14 @@ Lemma lower_sepcon_val':
   ((P*Q) v) = (P v * Q v).
 Proof. reflexivity. Qed.
 
-Lemma data_at'_data_at: forall sh t v pos,
+Lemma data_at'_at_offset': forall sh t v pos,
   (legal_alignas_type t = true) ->
   (alignof t | pos) ->
-  (fun p => !! (size_compatible t (offset_val (Int.repr pos) p)
-             /\ align_compatible t (offset_val (Int.repr pos) p))) &&
-  data_at' sh empty_ti t pos v = at_offset' (data_at sh t v) pos.
+  data_at' sh empty_ti t pos v = at_offset' (data_at' sh empty_ti t 0 v) pos.
 Proof.
   intros.
   extensionality p.
-  rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
-  unfold data_at.
-  simpl.
-  assert (HH : data_at' sh empty_ti t pos v p = 
-          data_at' sh empty_ti t 0 v (offset_val (Int.repr pos) p)); [|rewrite HH; reflexivity].
+  rewrite at_offset'_eq; [| rewrite <- data_at'_offset_zero; reflexivity].
   replace (data_at' sh empty_ti t pos) with (data_at' sh empty_ti t (pos + 0)) by
     (replace (pos + 0) with pos by omega; reflexivity).
   apply (data_at'_mut sh empty_ti (0 + sizeof t) 
@@ -2033,6 +2027,23 @@ Proof.
   + assumption.
   + apply Z.divide_0_r.
   + exact H0.
+Qed.
+
+Lemma data_at'_data_at: forall sh t v pos,
+  (legal_alignas_type t = true) ->
+  (alignof t | pos) ->
+  (fun p => !! (size_compatible t (offset_val (Int.repr pos) p)
+             /\ align_compatible t (offset_val (Int.repr pos) p))) &&
+  data_at' sh empty_ti t pos v = at_offset' (data_at sh t v) pos.
+Proof.
+  intros.
+  extensionality p.
+  rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
+  unfold data_at.
+  simpl.
+  rewrite data_at'_at_offset'; auto.
+  rewrite at_offset'_eq; [| rewrite <- data_at'_offset_zero; reflexivity].
+  reflexivity.
 Qed.
 
 Definition nested_non_volatile_type := nested_pred (fun t => negb (type_is_volatile t)).
@@ -2677,6 +2688,34 @@ Proof.
   apply field_at__data_at_, H.
 Qed.
 
+Lemma nested_field_type2_nested_field_type2: forall t ids0 ids1,
+  nested_field_type2 (nested_field_type2 t ids0) ids1 = nested_field_type2 t (ids1 ++ ids0).
+Proof.
+  intros.
+  destruct (isSome_dec (nested_field_rec t (ids1 ++ ids0))).
+  + pose proof nested_field_rec_app_isSome _ _ _ i.
+    pose proof nested_field_rec_app_isSome' _ _ _ i.
+    unfold nested_field_type2 in *.
+    valid_nested_field_rec t (ids1 ++ ids0) i.
+    valid_nested_field_rec t ids0 H.
+    valid_nested_field_rec t1 ids1 H0.
+    pose proof nested_field_rec_app _ _ _ _ _ _ _ H2 H3.
+    rewrite H1 in H4.
+    inversion H4.
+    reflexivity.
+  + unfold nested_field_type2.
+    destruct (nested_field_rec t ids0) as [[? ?]|] eqn:?H.
+    - destruct (nested_field_rec t0 ids1) as [[? ?]|] eqn:?H.
+      * rewrite (nested_field_rec_app _ _ _ _ _ _ _ H H0). reflexivity.
+      * destruct (nested_field_rec t (ids1 ++ ids0)); [simpl in n; tauto |].
+        reflexivity.
+    - destruct (nested_field_rec t (ids1 ++ ids0)); [simpl in n; tauto |].
+      induction ids1.
+      * reflexivity.
+      * simpl.
+        destruct (nested_field_rec Tvoid ids1) as [[? ?]|]; inversion IHids1; reflexivity.
+Qed.
+
 Lemma field_at_local_facts: forall sh t ids v p,
   field_at sh t ids v p |-- !! isptr p.
 Proof.
@@ -2745,6 +2784,41 @@ Hint Rewrite <- field_at_offset_zero: cancel.
 Hint Rewrite <- field_at__offset_zero: cancel.
 
 Hint Resolve field_at_field_at_: cancel.
+
+Lemma field_at_field_at: forall sh t ids0 ids1 v v' p,
+  legal_alignas_type t = true ->
+  JMeq v v' ->
+  field_at sh t (ids1 ++ ids0) v p =
+  (!! (size_compatible t p)) &&  
+  (!! (align_compatible t p)) &&
+  (!! (isSome (nested_field_rec t (ids1 ++ ids0)))) && 
+  at_offset' (field_at sh (nested_field_type2 t ids0) ids1 v') (nested_field_offset2 t ids0) p.
+Proof.
+  intros.
+  rewrite at_offset'_eq; [| rewrite <- field_at_offset_zero; reflexivity].
+  unfold field_at.
+  simpl.
+  revert v' H0.
+  rewrite nested_field_type2_nested_field_type2.
+  intros.
+  rewrite <- H0.
+  clear H0 v'.
+  rewrite data_at'_at_offset'; 
+   [ rewrite at_offset'_eq; [| rewrite <- data_at'_offset_zero; reflexivity]
+   | apply nested_field_type2_nest_pred; simpl; auto
+   | apply nested_field_offset2_type2_divide; auto].
+  rewrite data_at'_at_offset' with (pos := (nested_field_offset2 (nested_field_type2 t ids0) ids1)); 
+   [ rewrite at_offset'_eq; [| rewrite <- data_at'_offset_zero; reflexivity]
+   | apply nested_field_type2_nest_pred; simpl; auto
+   | rewrite <- nested_field_type2_nested_field_type2;
+     apply nested_field_offset2_type2_divide; apply nested_field_type2_nest_pred; simpl; auto].
+  apply pred_ext; normalize; rewrite <- nested_field_offset2_app; normalize.
+  apply andp_right; [apply prop_right | apply derives_refl].
+  repeat split; auto.
+  + apply size_compatible_nested_field, H0.
+  + apply align_compatible_nested_field, H1; auto.
+  + apply nested_field_rec_app_isSome', H2.
+Qed.
 
 (**********************************************
 

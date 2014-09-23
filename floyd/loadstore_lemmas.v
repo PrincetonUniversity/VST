@@ -1071,7 +1071,6 @@ Lemma semax_max_path_field_load_37':
       (t : type) (ids: list ident) (tts: list type)
       (v : val) (v' : reptype (nested_field_type2 (typeof e1) ids)),
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
       is_neutral_cast (typeof (nested_efield e1 ids tts)) t = true ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) ids tts = true ->
@@ -1091,18 +1090,18 @@ Proof.
   intros.
   eapply semax_ucdata_load_37'.
   + exact H.
+  + apply typeof_nested_efield. exact H2.
   + exact H0.
-  + exact H1.
-  + exact H4.
-  + eapply derives_trans; [exact H5|].
+  + exact H3.
+  + eapply derives_trans; [exact H4|].
     instantiate (1:=sh).
     apply andp_derives; [normalize |].
     remember eval_lvalue as el.
     go_lower.
     subst el.
-    rewrite field_at_data_at; [|exact H2].
+    rewrite field_at_data_at; [|exact H1].
     rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
-    rewrite (eval_lvalue_nested_efield e _ _ tts); [| exact H3].
+    rewrite (eval_lvalue_nested_efield e _ _ tts); [| exact H2].
     rewrite <- data_at_offset_zero.
     normalize.
 Qed.
@@ -1113,7 +1112,6 @@ Lemma semax_max_path_field_cast_load_37':
       (t : type) (ids: list ident) (tts: list type)
       (v : val) (v' : reptype (nested_field_type2 (typeof e1) ids)),
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
       type_is_by_value (typeof (nested_efield e1 ids tts)) ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) ids tts = true ->
@@ -1132,16 +1130,16 @@ Lemma semax_max_path_field_cast_load_37':
 Proof.
   intros.
   eapply semax_ucdata_cast_load_37'; try assumption.
-  + exact H0.
-  + exact H4.
-  + eapply derives_trans; [exact H5|].
+  + apply typeof_nested_efield. exact H2.
+  + exact H3.
+  + eapply derives_trans; [exact H4|].
     apply andp_derives; [apply derives_refl|].
     remember eval_lvalue as el.
     go_lower.
     subst el.
-    rewrite field_at_data_at; [|exact H2].
+    rewrite field_at_data_at; [|exact H1].
     rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
-    rewrite (eval_lvalue_nested_efield e _ _ tts); [| exact H3].
+    rewrite (eval_lvalue_nested_efield e _ _ tts); [| exact H2].
     rewrite <- data_at_offset_zero.
     normalize.
 Qed.
@@ -1154,7 +1152,6 @@ Lemma semax_max_path_field_load_38:
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
       is_neutral_cast (typeof (nested_efield e1 ids tts)) t = true ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) ids tts = true ->
@@ -1183,7 +1180,6 @@ Lemma semax_max_path_field_cast_load_38:
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 (typeof e1) ids) = typeof (nested_efield e1 ids tts) ->
       type_is_by_value (typeof (nested_efield e1 ids tts)) ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) ids tts = true ->
@@ -1212,7 +1208,6 @@ Lemma semax_max_path_field_load_40:
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 t_str ids) = typeof (nested_efield (Ederef e1 t_str) ids tts) ->
       is_neutral_cast (typeof (nested_efield (Ederef e1 t_str) ids tts)) t = true ->
       legal_alignas_type t_str = true ->
       legal_nested_efield e t_str ids tts = true ->
@@ -1240,7 +1235,6 @@ Lemma semax_max_path_field_cast_load_40:
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 t_str ids) = typeof (nested_efield (Ederef e1 t_str) ids tts) ->
       type_is_by_value (typeof (nested_efield (Ederef e1 t_str) ids tts)) ->
       legal_alignas_type t_str = true ->
       legal_nested_efield e t_str ids tts = true ->
@@ -1270,7 +1264,6 @@ Lemma semax_max_path_field_store_nth:
     forall Delta sh e n P Q R Rn (e1 e2 : expr)
       (t : type) (ids: list ident) (tts: list type),
       typeof (nested_efield e1 ids tts) = t ->
-      uncompomize e (nested_field_type2 (typeof e1) ids) = t ->
       type_is_by_value t ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) ids tts = true ->
@@ -1293,52 +1286,52 @@ Lemma semax_max_path_field_store_nth:
                           )))))).
 Proof.
   intros.
-  rewrite lifted_field_at_data_at in *; [|exact H2].
-  rewrite lifted_field_at__data_at_ in *; [|exact H2].
+  rewrite lifted_field_at_data_at in *; [|exact H1].
+  rewrite lifted_field_at__data_at_ in *; [|exact H1].
   assert (Rn |-- 
            `prop (`(size_compatible (typeof e1)) (eval_lvalue e1)) &&
            `prop (`(align_compatible (typeof e1)) (eval_lvalue e1)) &&
            `prop (`(isSome (nested_field_rec (typeof e1) ids))) && Rn).
-    apply andp_right; [apply (derives_trans _ _ _ H5) | apply derives_refl].
+    apply andp_right; [apply (derives_trans _ _ _ H4) | apply derives_refl].
     apply andp_left1; apply derives_refl.
-  rewrite (replace_nth_nth_error _ _ _ H4) at 1.
-  eapply semax_pre0; [apply later_derives, replace_nth_SEP, H8|].
+  rewrite (replace_nth_nth_error _ _ _ H3) at 1.
+  eapply semax_pre0; [apply later_derives, replace_nth_SEP, H7|].
 
   rewrite andp_assoc.
   rewrite andp_assoc.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) by exact H4).
-  rewrite <- replace_nth_nth_error by exact H4.
+  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) by exact H3).
+  rewrite <- replace_nth_nth_error by exact H3.
 
   rewrite andp_assoc.
   rewrite andp_assoc.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) by exact H4).
+  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) by exact H3).
 
-  rewrite andp_assoc in H8.
-  rewrite andp_assoc in H8.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) in H8 by exact H4).
+  rewrite andp_assoc in H7.
+  rewrite andp_assoc in H7.
+  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) in H7 by exact H3).
 
   eapply semax_post0; [| eapply semax_ucdata_store_nth].
   Focus 2. exact H.
+  Focus 2. rewrite <- H. apply typeof_nested_efield. exact H2.
   Focus 2. exact H0.
-  Focus 2. exact H1.
-  Focus 2. exact H4.
-  Focus 2. eapply derives_trans; [exact H5|].
+  Focus 2. exact H3.
+  Focus 2. eapply derives_trans; [exact H4 |].
            apply andp_left2.
            unfold_lift; simpl; intros.
            rewrite at_offset'_eq; [| rewrite <- data_at__offset_zero; reflexivity].
-           erewrite eval_lvalue_nested_efield; [|exact H3].
+           erewrite eval_lvalue_nested_efield; [| exact H2].
            rewrite <- data_at__offset_zero.
            apply derives_refl.
-  Focus 2. exact H6.
+  Focus 2. exact H5.
   
   + apply normal_ret_assert_derives'.
     apply replace_nth_SEP.
     unfold liftx, lift; simpl; intros.
     rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
-    erewrite eval_lvalue_nested_efield; [|exact H3].
+    erewrite eval_lvalue_nested_efield; [|exact H2].
     rewrite <- data_at_offset_zero.
     apply derives_refl.
-  + eapply derives_trans; [|exact H7].
+  + eapply derives_trans; [|exact H6].
     go_lower; normalize.
 Qed.
 
@@ -1354,7 +1347,6 @@ Lemma semax_field_load_37':
       (t: type) (fld: ident) (t1: type)
       (v: val) (v': reptype (nested_field_type2 (typeof e1) (fld::nil))),
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
       is_neutral_cast t1 t = true ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) (fld::nil) (t1::nil) = true ->
@@ -1385,7 +1377,6 @@ Lemma semax_field_cast_load_37':
       (t: type) (fld: ident) (t1: type)
       (v: val) (v' : reptype (nested_field_type2 (typeof e1) (fld::nil))),
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
       type_is_by_value t1 ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) (fld::nil) (t1::nil) = true ->
@@ -1418,7 +1409,6 @@ Lemma semax_load_field_38:
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
       is_neutral_cast t1 t = true ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) (fld::nil) (t1::nil) = true ->
@@ -1447,7 +1437,6 @@ Lemma semax_cast_load_field_38:
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 (typeof e1) (fld::nil)) = t1 ->
       type_is_by_value t1 ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) (fld::nil) (t1::nil) = true ->
@@ -1464,7 +1453,7 @@ Lemma semax_cast_load_field_38:
 Proof.
   intros until t1.
   change (Efield e1 fld t1) with (nested_efield e1 (fld::nil) (t1::nil)).
-  change t1 with (typeof (nested_efield e1 (fld::nil) (t1::nil))) at 1 2 5 7.
+  change t1 with (typeof (nested_efield e1 (fld::nil) (t1::nil))) at 1 2 4 6.
   apply semax_max_path_field_cast_load_38.
 Qed.
 
@@ -1476,7 +1465,6 @@ Lemma semax_load_field_40:
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 t_str (fld::nil)) = t1 ->
       is_neutral_cast t1 t = true ->
       legal_alignas_type t_str = true ->
       legal_nested_efield e t_str (fld::nil) (t1::nil) = true ->
@@ -1493,7 +1481,7 @@ Lemma semax_load_field_40:
 Proof.
   intros until t1.
   change (Efield e1 fld t1) with (nested_efield (Ederef e1 t_str) (fld::nil) (t1::nil)).
-  change t1 with (typeof (nested_efield (Ederef e1 t_str) (fld::nil) (t1::nil))) at 1 2 5.
+  change t1 with (typeof (nested_efield (Ederef e1 t_str) (fld::nil) (t1::nil))) at 1 2 4.
   apply semax_max_path_field_load_40.
 Qed.
 
@@ -1505,7 +1493,6 @@ Lemma semax_cast_load_field_40:
       Forall (closed_wrt_vars (eq id)) Q ->
       Forall (closed_wrt_vars (eq id)) R ->
       typeof_temp Delta id = Some t ->
-      uncompomize e (nested_field_type2 t_str (fld::nil)) = t1 ->
       type_is_by_value t1 ->
       legal_alignas_type t_str = true ->
       legal_nested_efield e t_str (fld::nil) (t1::nil) = true ->
@@ -1522,7 +1509,7 @@ Lemma semax_cast_load_field_40:
 Proof.
   intros until t1.
   change (Efield e1 fld t1) with (nested_efield (Ederef e1 t_str) (fld::nil) (t1::nil)).
-  change t1 with (typeof (nested_efield (Ederef e1 t_str) (fld::nil) (t1::nil))) at 1 2 5.
+  change t1 with (typeof (nested_efield (Ederef e1 t_str) (fld::nil) (t1::nil))) at 1 2 4.
   apply semax_max_path_field_cast_load_40.
 Qed.
 
@@ -1531,7 +1518,6 @@ Lemma semax_store_field_nth:
     forall Delta sh e n P Q R Rn (e1 e2 : expr)
       (t: type) (fld: ident) (t1: type),
       t1 = t ->
-      uncompomize e (nested_field_type2 (typeof e1) (fld::nil)) = t ->
       type_is_by_value t ->
       legal_alignas_type (typeof e1) = true ->
       legal_nested_efield e (typeof e1) (fld::nil) (t1::nil) = true ->
@@ -1558,343 +1544,3 @@ Proof.
   change t1 with (typeof (nested_efield e1 (fld::nil) (t1::nil))) at 1.
   apply semax_max_path_field_store_nth.
 Qed.
-
-(*
-(* Original lemma and original proof *)
-Lemma semax_store_field_nth:
-forall Espec (Delta: tycontext) n sh t1 fld P Q R e1 e2 t2 R1 sid fields, 
-    nth_error R n = Some R1 ->
-    writable_share sh ->
-    t1 = Tstruct sid fields noattr ->
-    typeof e1 = t1 ->
-    t2 = type_of_field (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-    R1 |-- `(field_at_ sh t1 fld) (eval_lvalue e1) ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--  
-              local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t2)) ->
-    @semax Espec Delta 
-       (|> PROPx P (LOCALx Q (SEPx R)))
-       (Sassign (Efield e1 fld t2) e2) 
-       (normal_ret_assert
-          (PROPx P (LOCALx Q
-              (SEPx (replace_nth n R
-                    (`(field_at sh (typeof e1) fld)
-                       (`force_val (`(sem_cast (typeof e2) t2) (eval_expr e2)))
-                         (eval_lvalue e1) )))))).
-Proof.
-intros.
-subst t1.
-eapply semax_pre_post ; [ | |
- apply (semax_store_field Espec Delta sh e1 fld
-       (PROPx P (LOCALx Q (SEPx (replace_nth n R emp))))
-    t2 e2 sid fields H0); auto].
-*
-apply later_left2.
-repeat rewrite insert_local.
-apply andp_right; auto.
-rewrite insert_SEP.
-rewrite H2.
-match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
-eapply derives_trans; [apply andp_derives; [| apply derives_refl ] | ].
-apply H5.
-rewrite (SEP_nth_isolate _ _ _ H).
-go_lowerx.  apply sepcon_derives; auto.
-apply H4.
-*
-intros ek vl; unfold normal_ret_assert.
-normalize. rewrite insert_SEP.
-apply andp_left2.
-rewrite (SEP_replace_nth_isolate _ _ _ _ H).
-unfold exit_tycon.
-auto.
-Qed.
-
-Lemma semax_load_field'':
-forall  (sh: share) (v: val)
-       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 t3 sid fields ,
-    typeof e1 = Tstruct sid fields noattr ->
-    typeof_temp Delta id = Some t3 ->
-   t1 = typeof e1 ->
-   t2 = type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-   is_neutral_cast t2 t3 = true ->
-   PROPx P (LOCALx (tc_environ Delta :: `isptr (eval_lvalue e1) :: Q) (SEPx R)) 
-                           |-- local (tc_lvalue Delta e1) ->
-   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) 
-        |--  `(field_at sh t1 fld v) (eval_lvalue e1) * TT ->
-   tc_val t2 v ->
-    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
-       (Sset id (Efield e1 fld t2))
-       (normal_ret_assert (
-         EX old:val, PROPx P 
-                     (LOCALx (`(eq v) (eval_id id) :: map (subst id (`old)) Q)
-                     (SEPx (map (subst id (`old)) R))))).
-Proof.
-pose proof I.
-pose proof I.
-intros until fields; intros H1 H2 TE1 TC2 CLASSIFY TC3 H6 TC4.
-subst t1.
-repeat rewrite <- insert_local in H6.
-repeat rewrite <- insert_local in TC3.
-replace  (EX  old : val,
-      PROPx P
-        (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q)
-           (SEPx (map (subst id `old) R))))
-  with  (EX  old : val, local (`(eq v) (eval_id id)) && 
-                   subst id `old (PROPx P (LOCALx Q (SEPx R))))
-  by (f_equal; extensionality old; autorewrite with subst; rewrite insert_local; auto).
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-eapply semax_pre_post; [ | | apply (semax_load Delta sh id PQR _ t3 (`v)); auto].
-* (* PRECONDITION *)
-apply later_left2.
-apply andp_right; [ | apply andp_left2; auto].
-apply derives_trans with 
- (local (tc_lvalue Delta e1)  && (`(field_at sh (typeof e1) fld v) (eval_lvalue e1) * TT)).
-apply andp_right.
-eapply derives_trans; [ | apply TC3].
-apply andp_right. apply andp_left1; auto. apply andp_right; [ |  apply andp_left2; auto].
-eapply derives_trans; [apply H6 | ].
-go_lowerx. rewrite field_at_isptr. clear; normalize.
-auto.
-go_lowerx.
-apply andp_right; [ | apply prop_right; auto].
-unfold field_at, tc_lvalue.
-simpl. rewrite H1. rewrite field_offset_unroll.
-destruct (field_offset fld fields);   try (rewrite FF_sepcon; apply FF_left).
-rewrite <- TC2.
-normalize.
-apply prop_right; repeat split; auto.
-rewrite denote_tc_assert_andp; split.
-apply H3. rewrite H4. apply I.
-* (* POSTCONDITION *)
-intros ek vl.
-apply andp_left2. apply normal_ret_assert_derives'.
-apply exp_derives; intro old.
-apply andp_derives; auto.
-clear; intro; unfold_lift; apply prop_derives; auto.
-*
- eapply derives_trans; [ apply H6 | ].
-apply sepcon_derives; auto.
-unfold field_at.
-go_lowerx.
-unfold_lift.
-rewrite H1.
-rewrite field_offset_unroll.
-simpl.
-destruct (field_offset fld fields);   try apply FF_left.
-rewrite <- TC2.
-normalize.
-Qed.
-
-Lemma semax_cast_load_field'':
-forall  (sh: share) (v: val)
-       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 t3 sid fields ,
-    typeof_temp Delta id = Some t3 ->
-    typeof e1 = Tstruct sid fields noattr ->
-   t1 = typeof e1 ->
-   t2 = type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-   PROPx P (LOCALx (tc_environ Delta :: `isptr (eval_lvalue e1) :: Q) (SEPx R)) 
-                           |-- local (tc_lvalue Delta e1) ->
-   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) 
-        |--  `(field_at sh t1 fld v) (eval_lvalue e1) * TT ->
-   tc_val t3 (eval_cast t2 t3 v) ->
-    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
-       (Sset id (Ecast (Efield e1 fld t2) t3))
-       (normal_ret_assert (
-         EX old:val, PROPx P 
-                     (LOCALx (`(eq (eval_cast t2 t3 v)) (eval_id id) :: map (subst id (`old)) Q)
-                     (SEPx (map (subst id (`old)) R))))).
-Proof.
-intros until fields; intros H H1 TE1 TC2 TC3 H6 TC4.
-pose proof I.
-subst t1.
-repeat rewrite <- insert_local in H6.
-repeat rewrite <- insert_local in TC3.
-replace  (EX  old : val,
-      PROPx P
-        (LOCALx (`(eq (eval_cast t2 t3 v)) (eval_id id) :: map (subst id `old) Q)
-           (SEPx (map (subst id `old) R))))
-  with  (EX  old : val, local (`(eq (eval_cast t2 t3 v)) (eval_id id)) && 
-                   subst id `old (PROPx P (LOCALx Q (SEPx R))))
-  by (f_equal; extensionality old; autorewrite with subst; rewrite insert_local; auto).
-forget (PROPx P (LOCALx Q (SEPx R))) as PQR.
-eapply semax_pre_post; [ | | 
-   apply (semax_cast_load Delta sh id PQR _ _ `v); auto].
-* (* PRECONDITION *)
-apply later_left2.
-apply andp_right; [ | apply andp_left2; auto].
-apply derives_trans with 
- (local (tc_lvalue Delta e1)  && (`(field_at sh (typeof e1) fld v) (eval_lvalue e1) * TT)).
-apply andp_right.
-eapply derives_trans; [ | apply TC3].
-apply andp_right. apply andp_left1; auto. apply andp_right; [ |  apply andp_left2; auto].
-eapply derives_trans; [apply H6 | ].
-go_lowerx. rewrite field_at_isptr. clear; normalize.
-auto.
-go_lowerx.
-unfold field_at, tc_lvalue.
-simpl. rewrite H1. rewrite field_offset_unroll.
-destruct (field_offset fld fields);   try (rewrite FF_sepcon; apply FF_left).
-rewrite <- TC2.
-normalize.
-apply prop_right; repeat split; auto.
-rewrite denote_tc_assert_andp; split.
-apply H2. rewrite H3. apply I.
-* (* POSTCONDITION *)
-intros ek vl.
-apply andp_left2. apply normal_ret_assert_derives'.
-apply exp_derives; intro old.
-apply andp_derives; auto.
-clear; intro; unfold_lift; apply prop_derives; auto.
-*
- eapply derives_trans; [ apply H6 | ].
-apply sepcon_derives; auto.
-unfold field_at.
-go_lowerx.
-unfold_lift.
-rewrite H1.
-rewrite field_offset_unroll.
-simpl.
-destruct (field_offset fld fields);   try apply FF_left.
-rewrite <- TC2.
-normalize.
-Qed.
-
-Lemma semax_load_field_38:
-forall  (sh: share) (v: val)
-       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 t3 sid fields ,
-  Forall (closed_wrt_vars (eq id)) Q ->
-  Forall (closed_wrt_vars (eq id)) R ->
-    typeof e1 = Tstruct sid fields noattr ->
-    typeof_temp Delta id = Some t3 ->
-   t1 = typeof e1 ->
-   t2 = type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-   is_neutral_cast t2 t3 = true ->
-   PROPx P (LOCALx (tc_environ Delta :: `isptr (eval_lvalue e1) :: Q) (SEPx R)) 
-                     |-- local (tc_lvalue Delta e1) ->
-   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) 
-                     |--  `(field_at sh t1 fld v) (eval_lvalue e1) * TT ->
-   tc_val t2 v ->
-    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
-       (Sset id (Efield e1 fld t2))
-       (normal_ret_assert (PROPx P (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)))).
-Proof.
-intros.
-eapply semax_post';[ | eapply semax_load_field''; eauto].
-apply exp_left; intro old.
-autorewrite with subst. auto.
-Qed.
-
-Lemma semax_cast_load_field_38:
-forall  (sh: share) (v: val)
-       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 t3 sid fields ,
-  Forall (closed_wrt_vars (eq id)) Q ->
-  Forall (closed_wrt_vars (eq id)) R ->
-    typeof e1 = Tstruct sid fields noattr ->
-    typeof_temp Delta id = Some t3 ->
-   t1 = typeof e1 ->
-   t2 = type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-   PROPx P (LOCALx (tc_environ Delta :: `isptr (eval_lvalue e1) :: Q) (SEPx R)) 
-                     |-- local (tc_lvalue Delta e1) ->
-   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) 
-                     |--  `(field_at sh t1 fld v) (eval_lvalue e1) * TT ->
-   tc_val t3 (eval_cast t2 t3 v) ->
-    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
-       (Sset id (Ecast (Efield e1 fld t2) t3))
-       (normal_ret_assert (PROPx P (LOCALx (`(eq (eval_cast t2 t3 v)) (eval_id id) :: Q) (SEPx R)))).
-Proof.
-intros.
-eapply semax_post';[ | eapply semax_cast_load_field''; eauto].
-apply exp_left; intro old.
-autorewrite with subst. auto.
-Qed.
-
-Lemma semax_load_field_40:
-forall  (sh: share) (v: val)
-       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 t3 sid fields ,
-  Forall (closed_wrt_vars (eq id)) Q ->
-  Forall (closed_wrt_vars (eq id)) R ->
-    t1 = Tstruct sid fields noattr ->
-   typeof_temp Delta id = Some t3 ->
-   t2 = type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-   typeof e1 = tptr t1 ->
-   is_neutral_cast t2 t3 = true ->
-   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) 
-         |--  local (tc_expr Delta e1) && (`(field_at sh t1 fld v) (eval_expr e1) * TT) ->
-   tc_val t2 v ->
-    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
-       (Sset id (Efield (Ederef e1 t1) fld t2))
-       (normal_ret_assert (PROPx P (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)))).
-Proof.
-intros. rename H7 into TC4.
-eapply semax_load_field_38; eauto.
-do 2 rewrite <- insert_local. rewrite <- andp_assoc.
-rewrite (andp_comm (local _)).
-rewrite andp_assoc. apply andp_left2. rewrite insert_local.
-apply derives_trans with (local (tc_expr Delta e1) && local (`isptr (eval_expr e1))).
-apply andp_right; auto.
-eapply derives_trans; [ apply H6 | ].
-apply andp_left1; auto.
-eapply derives_trans; [ apply H6 | ].
-apply andp_left2.
-clear; go_lowerx. rewrite field_at_isptr; normalize.
-go_lowerx. intro. apply prop_right.
-unfold tc_lvalue; simpl denote_tc_assert.
-repeat rewrite denote_tc_assert_andp.
-repeat split; auto.
-rewrite H4. apply I.
-rewrite H1; apply I.
-eapply derives_trans; [ apply H6 | ].
-apply andp_left2.
-apply sepcon_derives; auto.
-go_lowerx.
-unfold_lift. rewrite field_at_force_ptr.
-apply derives_refl.
-Qed.
-
-Lemma semax_cast_load_field_40:
-forall  (sh: share) (v: val)
-       Espec (Delta: tycontext) id t1 fld P Q R e1 t2 t3 sid fields ,
-  Forall (closed_wrt_vars (eq id)) Q ->
-  Forall (closed_wrt_vars (eq id)) R ->
-    t1 = Tstruct sid fields noattr ->
-   typeof_temp Delta id = Some t3 ->
-   t2 = type_of_field
-             (unroll_composite_fields sid (Tstruct sid fields noattr) fields) fld ->
-   typeof e1 = tptr t1 ->
-   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) 
-         |--  local (tc_expr Delta e1) && (`(field_at sh t1 fld v) (eval_expr e1) * TT) ->
-   tc_val t3 (eval_cast t2 t3 v) ->
-    @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
-       (Sset id (Ecast (Efield (Ederef e1 t1) fld t2) t3))
-       (normal_ret_assert (PROPx P (LOCALx (`(eq (eval_cast t2 t3 v)) (eval_id id) :: Q) (SEPx R)))).
-Proof.
-intros until 6. pose proof I; intros; rename H7 into TC4.
-eapply semax_cast_load_field_38; eauto.
-do 2 rewrite <- insert_local. rewrite <- andp_assoc.
-rewrite (andp_comm (local _)).
-rewrite andp_assoc. apply andp_left2. rewrite insert_local.
-apply derives_trans with (local (tc_expr Delta e1) && local (`isptr (eval_expr e1))).
-apply andp_right; auto.
-eapply derives_trans; [ apply H6 | ].
-apply andp_left1; auto.
-eapply derives_trans; [ apply H6 | ].
-apply andp_left2.
-clear; go_lowerx. rewrite field_at_isptr; normalize.
-go_lowerx. intro. apply prop_right.
-unfold tc_lvalue; simpl denote_tc_assert.
-repeat rewrite denote_tc_assert_andp.
-repeat split; auto.
-rewrite H4. apply I.
-rewrite H1; apply I.
-eapply derives_trans; [ apply H6 | ].
-apply andp_left2.
-apply sepcon_derives; auto.
-go_lowerx.
-unfold_lift. rewrite field_at_force_ptr.
-apply derives_refl.
-Qed.
-*)

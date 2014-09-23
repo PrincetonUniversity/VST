@@ -1549,12 +1549,12 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  | Ederef _ _ => 
    (eapply (semax_load_field_40) with (e := Struct_env);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
-   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [(entailer!; try apply I; try assumption; reflexivity)]] ) || fail 1
  | _ =>
    eapply (semax_load_field_38) with (e := Struct_env);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
-   | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   | reflexivity | reflexivity | reflexivity | reflexivity 
    | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
    | solve [entailer; unfold at_offset; cancel]
    | try apply I; try assumption; reflexivity
@@ -1566,12 +1566,12 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  | Ederef _ _ => 
    (eapply (semax_cast_load_field_40) with (e := SE);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
-   | reflexivity | reflexivity | simpl; auto | reflexivity | reflexivity | reflexivity 
+   | reflexivity | simpl; auto | reflexivity | reflexivity | reflexivity 
    | solve [(entailer!; try apply I; try assumption; reflexivity)]] ) || fail 1
  | _ =>
    eapply (semax_cast_load_field_38) with (e := SE);
    [ solve [auto 50 with closed] | solve [auto 50 with closed]
-   | reflexivity | reflexivity | reflexivity | reflexivity 
+   | reflexivity | reflexivity | reflexivity 
    | solve [go_lower; apply prop_right; try rewrite <- isptr_force_ptr'; auto]
    | solve [entailer; unfold at_offset; cancel]
    | try apply I; try assumption; reflexivity
@@ -1580,14 +1580,14 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  | SE := @abbreviate type_id_env _ 
     |- semax ?Delta _ (Sset _ (Efield _ _ _)) _ =>
   eapply (semax_load_field'') with (e := SE);
-   [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity 
+   [reflexivity | reflexivity | reflexivity | reflexivity 
    | reflexivity
    |solve [(entailer!; try apply I; try assumption; reflexivity)]
    ]
  | SE := @abbreviate type_id_env _ 
     |- semax ?Delta _ (Sset _ (Ecast (Efield _ _ _) _)) _ =>
   eapply (semax_cast_load_field'') with (e := SE);
-   [reflexivity | reflexivity | reflexivity | reflexivity 
+   [reflexivity | reflexivity | reflexivity 
    | try solve [entailer]
    | solve [entailer; simpl_data_at; unfold at_offset; simpl; cancel]
    | try apply I; try assumption; reflexivity
@@ -1605,14 +1605,14 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
             change e' with (nested_efield (fst (fst pp)) (snd (fst pp)) (snd pp));
             simpl in pp; subst pp; unfold fst, snd;
             eapply (semax_nested_efield_cast_load_37' _ _  SE); [reflexivity 
-             | reflexivity | reflexivity | reflexivity  | reflexivity | reflexivity 
+             | reflexivity | reflexivity | reflexivity | reflexivity 
              | reflexivity | solve [(entailer!; simpl; auto)]]
    | ?e' => pose (compute_nested_efield e') as pp;
             change e' with (nested_efield (fst (fst pp)) (snd (fst pp)) (snd pp));
             simpl in pp; subst pp; unfold fst, snd ;
-            eapply (semax_nested_efield_load_37' _ _  SE); [reflexivity | reflexivity
-             | reflexivity | reflexivity  | reflexivity | reflexivity | reflexivity 
-             | solve [(entailer!; simpl; auto)]]
+            eapply (semax_nested_efield_load_37' _ _  SE); [reflexivity
+             | reflexivity | reflexivity | reflexivity | reflexivity 
+             | reflexivity | solve [(entailer!; simpl; auto)]]
    end
  | |- _ => eapply semax_cast_load_37';
    [reflexivity 
@@ -1763,7 +1763,7 @@ match goal with
   subst pp; unfold fst, snd;
   eapply (semax_nested_efield_store_nth _ _ SE n); [
   reflexivity | reflexivity | reflexivity | reflexivity |
-  reflexivity | reflexivity | reflexivity | solve [entailer!] |
+  reflexivity | reflexivity | solve [entailer!] |
   solve [auto] | solve [entailer!]]
 | SE := @abbreviate type_id_env _ 
     |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (Efield ?e ?fld _) _) _ =>
@@ -1781,7 +1781,7 @@ match goal with
  [ eapply (fast_entail n); [reflexivity | entailer; unfold at_offset; simpl; cancel] | ] ;
 (**** 14.2 seconds to here  *)
  eapply (semax_store_field_nth _ sh SE n);
-   [reflexivity | reflexivity | simpl; auto | reflexivity | reflexivity | reflexivity
+   [reflexivity | simpl; auto | reflexivity | reflexivity | reflexivity
    | solve [entailer!] | auto | try solve [entailer!]];
   unfold n,sh; clear n sh (**** 21.1 seconds to here *****)
   | |- @semax ?Espec ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
