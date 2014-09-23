@@ -39,6 +39,30 @@ Proof.
  f_equal. rewrite sepcon_comm; reflexivity.
 Qed.
 
+Lemma nth_error_SEP_sepcon_TT: forall P Q R n Rn S,
+  PROPx P (LOCALx Q (SEPx (Rn :: nil))) |-- S ->
+  nth_error R n = Some Rn ->
+  PROPx P (LOCALx Q (SEPx R)) |-- S * TT.
+Proof.
+  intros.
+  erewrite SEP_nth_isolate by eauto.
+  unfold PROPx, LOCALx, SEPx in *.
+  unfold local, lift1 in H |- *.
+  unfold_lift in H.
+  unfold_lift.
+  simpl in H |- *.
+  intros rho.
+  specialize (H rho).
+  rewrite <- !andp_assoc in H |- *.
+  rewrite <- !prop_and in H |- *.
+  rewrite sepcon_emp in H.
+  rewrite <- sepcon_andp_prop'.
+  apply sepcon_derives.
+  exact H.
+  apply prop_right.
+  auto.
+Qed.
+
 Lemma SEP_replace_nth_isolate:
   forall n R Rn Rn', 
        nth_error R n = Some Rn ->

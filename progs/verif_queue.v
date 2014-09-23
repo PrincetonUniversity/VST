@@ -227,9 +227,10 @@ name t _t.
 unfold fifo at 1.
 normalize. intros [hd tl]. normalize.
 (* goal_7 *)
-
 forward. (* p->next = NULL; *)
 normalize.
+
+rewrite data_at_field_at.
 forward. (*   h = Q->head; *)
 simpl proj_reptype.
 forward_if 
@@ -237,6 +238,7 @@ forward_if
  simpl typeof.
 * (* then clause *)
   (* goal 9 *)
+  rewrite <- data_at_field_at.
   forward. (*  Q->head=p; *)
   forward. (* Q->tail=p; *)
   (* goal 10 *)
@@ -252,6 +254,7 @@ forward_if
   +  normalize.
       destruct prefix; normalize; entailer!; elim_hyps; inv H1.
 * (* else clause *)
+  rewrite <- data_at_field_at.
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
   + apply semax_pre with FF; [ | apply semax_ff].
