@@ -12,9 +12,6 @@ Require Import sha.hmac091c.
 
 Require Import sha.spec_hmac.
 
-Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.
-Proof. intros. destruct v; try contradiction. exists b, i; trivial. Qed.
-
 Lemma body_hmac_sha256: semax_body Vprog Gtot 
        f_HMAC HMAC_Simple_spec.
 Proof.
@@ -59,8 +56,8 @@ forward_if POSTCOND.
 subst POSTCOND.
 apply extract_exists_pre. intros c. normalize. rename H into isPtrC.
 eapply semax_seq'. 
-frame_SEP 0 1.
-remember (c, k, kl, key) as WITNESS.
+frame_SEP 0 1 3.
+remember (c, k, kl, key, KV) as WITNESS.
 forward_call WITNESS.
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
@@ -82,8 +79,62 @@ forward_call WITNESS.
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
   subst WITNESS. entailer.
-  apply andp_right. 
-    admit. (*need "AxiomK" from HMAC_proof*)
+  apply andp_right. 2: cancel.
+    unfold hmacstate_. normalize. apply prop_right.
+    assert (HH: s256a_len (absCtxt h0) = 512).
+    Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
+             rewrite HH.  
+    2: rewrite HH; assumption. 
+    destruct h0; simpl in *. 
+    destruct H1 as [reprMD [reprI [reprO [iShaLen [oShaLen [K [i [KL1 [KL2 KL3]]]]]]]]].
+    inversion HmacInit; clear HmacInit.
+    destruct H1 as [oS [InnSHA [OntSHA [XX _]]]]. inversion XX; clear XX.
+    subst.
+      unfold innerShaInit in InnSHA. inversion InnSHA; clear InnSHA.
+      simpl in *. subst. unfold HMAC_FUN.mkArgZ, HMAC_FUN.mkArg in H10.
+      assert (Zlength (map Byte.unsigned
+        (map (fun p : byte * byte => Byte.xor (fst p) (snd p))
+           (combine (map Byte.repr (HMAC_FUN.mkKey key)) (sixtyfour Ipad))))
+        = Zlength (SHA256.intlist_to_Zlist blocks ++ newfrag)).
+        rewrite H10; reflexivity.
+     clear H10.
+     rewrite Zlength_correct in *. rewrite map_length in H1. 
+     rewrite Zlength_correct in *. rewrite map_length, combine_length in H1.
+     rewrite app_length in H1. SearchAbout HMAC_FUN.mkKey. 
+     rewrite map_length, HMAC_FUN.mkKey_length in H1.
+     unfold SHA256_BlockSize, sixtyfour in H1.
+     rewrite length_Nlist, length_intlist_to_Zlist in H1. unfold WORD.
+     rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z.mul_comm in H1. simpl in H1.
+     rewrite <- H1. simpl. 
+     rewrite Z.of_nat_plus in H1. simpl in H1. simpl.
+     rewrite
+
+ clear - InnSHA reprI DL.
+    unfold s256_relate in reprI. destruct x; simpl in *.
+    destruct reprI as [A [[hi [lo [HI [LO LL]]]] [INN [X1 [X2 X3]]]]].
+    red. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
+    assert (Zlength hashed * WORD + Zlength data0 = 8). 
+      specialize (length_hash_blocks SHA256.init_registers _ (eq_refl _) X2).
+      simpl; intros. SearchAbout SHA256.hash_blocks.
+      unfold innerShaInit in InnSHA. inversion InnSHA; clear InnSHA.
+      simpl in *. subst. unfold HMAC_FUN.mkArgZ, HMAC_FUN.mkArg in H9.
+ 
+          SearchAbout HMAC_FUN.mkArg. in InnSHA.
+simpl.
+      unfold s256_Nh in HI.
+      specialize length_hash_blocks.
+    rewrite H. assumption. 
+    rewrite LL; clear LL. unfold hilo.
+    unfold innerShaInit in InnSHA. inversion InnSHA; clear InnSHA.
+    simpl in *. subst. in InnSHA.
+    inversion HmacInit; clear HmacInit.
+    
+    simpl in HmacInit.
+    destruct ctx; simpl in *. 
+    unfold s256_relate in reprMD.  unfold hmac_relate in H1. 256a_len
+    SearchAbut 
+    simpl.
+    admit. (*need "AxiomK" from HMAC_proof*) 
     cancel. 
 after_call.
 subst WITNESS. normalize.
@@ -117,8 +168,6 @@ forward_call WITNESS.
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
   subst WITNESS. entailer.
-  apply andp_right. 
-    admit.  (*need "AxiomK" from HMAC_proof*)
     cancel. 
 after_call.
 subst WITNESS. normalize.

@@ -1,19 +1,44 @@
 Require Import floyd.proofauto.
 Import ListNotations.
-Require sha.sha.
-Require sha.SHA256.
+(*Require sha.sha.
+Require sha.SHA256.*)
 Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
-
+(*when generating hmac091c.v using clightgen modify the generated file to have this:
+Require Import sha.sha.
+Definition t_struct_SHA256state_st := sha.t_struct_SHA256state_st.
+BEFORE the definition of all identifiers
+*)
 Require Import sha.hmac091c.
+
+Record TREP := mkTrep { t: type; v: reptype t}.
+Definition tp_of (T:TREP) : type.
+  destruct T. apply t0. 
+Defined.
+Definition v_of (T:TREP) : reptype (tp_of T).
+  destruct T. apply v0. 
+Defined.
+
+Definition memcpy_spec_data_at :=
+  DECLARE _memcpy
+   WITH sh : share*share, p: val, q: val, T:TREP
+   PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
+       PROP (writable_share (snd sh); 0 <= sizeof  (tp_of T) <= Int.max_unsigned)
+       LOCAL (`(eq p) (eval_id 1%positive); `(eq q) (eval_id 2%positive);
+                    `(eq (Vint (Int.repr (sizeof (tp_of T))))) (eval_id 3%positive))
+       SEP (`(data_at (fst sh)  (tp_of T) (v_of T) q);
+              `(memory_block (snd sh) (Int.repr (sizeof  (tp_of T))) p))
+    POST [ tptr tvoid ]
+         local (`(eq p) retval) &&
+       (`(data_at (snd sh) (tp_of T) (v_of T) p) *`(data_at (fst sh) (tp_of T) (v_of T) q)).
 
 Lemma isbyte_sha x: Forall isbyteZ (functional_prog.SHA_256' x).
 Proof. apply isbyte_intlist_to_Zlist. Qed.
 
-Inductive hmacabs :=  (* SHA-256 abstract state *)
+Inductive hmacabs :=  (* HMAC abstract state *)
  HMACabs: forall (ctx iSha oSha: s256abs) (*sha structures for md_ctx, i_ctx, o_ctx*)
                  (keylen: Z) 
                  (key: list Z), 
@@ -133,8 +158,11 @@ Proof.
  rewrite hmac_hmacSimple. exists h; eassumption. 
 Qed.
 
-Definition hmacstate: Type := (reptype t_struct_hmac_ctx_st).
+(*Definition hmacstate: Type := (reptype t_struct_hmac_ctx_st).*)
+Definition hmacstate: Type := 
+  (s256state * (s256state * (s256state * (val * list val))))%type.
 
+(*
 Definition mdCtx (h: hmacstate): s256state.
 Proof. 
   destruct h as [MDCTX _]. simpl in *.   
@@ -153,6 +181,19 @@ destruct h as [_ [_ [OCTX _]]]. simpl in *.
   destruct OCTX as [h_ [Nl_ [Nh_ [data_ [num_ _]]]]].
   apply (h_ ,(Nl_ ,(Nh_ ,(data_, num_)))).
 Defined.
+*)
+Definition mdCtx (h: hmacstate): s256state.
+Proof. 
+  destruct h as [MDCTX _]. apply MDCTX. 
+Defined.
+
+Definition iCtx (h: hmacstate): s256state.
+destruct h as [_ [ICTX _]]. apply ICTX.
+Defined.
+
+Definition oCtx (h: hmacstate): s256state.
+destruct h as [_ [_ [OCTX _]]]. apply OCTX. 
+Defined.
 
 Definition Keylen (h: hmacstate): val.
 destruct h as [_ [_ [_ [KL _]]]]. apply KL.
@@ -167,6 +208,7 @@ Definition hmac_relate (h: hmacabs) (r: hmacstate) : Prop :=
     s256_relate ctx (mdCtx r) /\
     s256_relate iS (iCtx r) /\
     s256_relate oS (oCtx r) /\
+    s256a_len iS = 64 /\ s256a_len oS = 64 /\ 
     Key r = map Vint (map Int.repr k) /\ 
     exists i, Keylen r = Vint i /\ klen=Int.unsigned i /\ 
               Zlength k=klen (*maybe also require klen=64?*)
@@ -182,32 +224,37 @@ Definition has_lengthK (l:Z) (key:list Z) :=
 
 Definition HMAC_Init_spec :=
   DECLARE _HMAC_Init
-   WITH c : val, k:val, l:Z, key:list Z
+   WITH c : val, k:val, l:Z, key:list Z, KV:val
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
          PROP (has_lengthK l key) 
          LOCAL (`(eq c) (eval_id _ctx);
                 `(eq k) (eval_id _key);
-                `(eq (Vint (Int.repr l))) (eval_id _len))
+                `(eq (Vint (Int.repr l))) (eval_id _len);
+                `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
          SEP(`(data_at_ Tsh t_struct_hmac_ctx_st c);
-             `(data_block Tsh key k))
+             `(data_block Tsh key k); `(K_vector KV))
   POST [ tvoid ] 
            `(EX h:hmacabs, !!hmacInit key (Zlength key) h &&
-                             (hmacstate_ h c) * (data_block Tsh key k)).
+                             (hmacstate_ h c) * 
+                             (data_block Tsh key k) * (K_vector KV)).
 
 
-Definition has_lengthD (l:Z) (data:list Z) :=
-            l = Zlength data /\ 0 <= l <= Int.max_signed /\
-            l * 8 + 64 < two_p 64.
+Definition has_lengthD (k l:Z) (data:list Z) :=
+            l = Zlength data /\ 0 <= l <= Int.max_unsigned /\
+            l * 8 + k < two_p 64.
 
 Definition HMAC_Update_spec :=
   DECLARE _HMAC_Update
    WITH h1: hmacabs, c : val, d:val, len:Z, data:list Z, KV:val
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
+   PRE [ (*WAS:_ctx OF tptr t_struct_hmac_ctx_st,
          _data OF tptr tuchar,
-         _len OF tint ]
-         PROP (has_lengthD len data) 
+         _len OF tint*)
+         _ctx OF tptr t_struct_hmac_ctx_st, 
+         _data OF tptr tvoid, 
+         _len OF tuint ]
+         PROP (has_lengthD (s256a_len (absCtxt h1)) len data) 
          LOCAL (`(eq c) (eval_id _ctx);
                 `(eq d) (eval_id _data);
                 `(eq (Vint (Int.repr len))) (eval_id _len);
@@ -239,6 +286,42 @@ Definition HMAC_FinalSimple_spec :=
           LOCAL ()
           SEP(`(K_vector KV);
               `(hmacstate_ h2 c);
+              `(data_block shmd digest md)).
+
+Definition hmac_relateWK (h:hmacabs ) (r: hmacstate) : Prop :=
+  match h with HMACabs ctx iS oS klen k =>
+    (*no clause for ctx*)
+    s256_relate iS (iCtx r) /\
+    s256_relate oS (oCtx r) /\
+    Key r = map Vint (map Int.repr k) /\ 
+    exists i, Keylen r = Vint i /\ klen=Int.unsigned i /\ 
+              Zlength k=klen (*maybe also require klen=64?*)
+  end.
+
+Definition hmacstateWK_ (h: hmacabs) (c: val) : mpred :=
+   EX r:hmacstate, 
+    !!  hmac_relateWK h r && 
+    data_at Tsh t_struct_hmac_ctx_st 
+       (upd_reptype t_struct_hmac_ctx_st [_md_ctx] r  (default_val t_struct_SHA256state_st)) c.
+
+Definition HMAC_FinalWK_spec :=
+  DECLARE _HMAC_Final
+   WITH h1: hmacabs, c : val, md:val, shmd: share, KV:val
+   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
+         _md OF tptr tuchar ]
+         PROP (writable_share shmd) 
+         LOCAL (`(eq md) (eval_id _md); 
+                `(eq c) (eval_id _ctx);
+                `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+         SEP(`(hmacstate_ h1 c);
+             `(K_vector KV);
+             `(memory_block shmd (Int.repr 32) md))
+  POST [ tvoid ] 
+         EX digest: list Z, EX h2:hmacabs,  
+          PROP (hmacFinalSimple h1 digest) 
+          LOCAL ()
+          SEP(`(K_vector KV);
+              `(hmacstateWK_ h2 c);
               `(data_block shmd digest md)).
 
 Definition HMAC_Final_spec :=
@@ -285,7 +368,7 @@ Definition HMAC_Simple_spec :=
          _md OF tptr tuchar ]
          PROP (writable_share shmd; 
                has_lengthK (fst(snd KeyStruct)) (snd (snd KeyStruct));
-               has_lengthD (fst(snd DataStruct)) (snd (snd DataStruct)))
+               has_lengthD 64 (fst(snd DataStruct)) (snd (snd DataStruct)))
          LOCAL (`(eq md) (eval_id _md); 
                 `(eq (fst KeyStruct)) (eval_id _key);
                 `(eq (Vint (Int.repr (fst(snd KeyStruct))))) (eval_id _key_len);
@@ -350,10 +433,10 @@ Definition memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec).
 Definition Vprog : varspecs := (*(_K256, tarray tuint 64)::*) nil.
 
 Definition Gprog : funspecs := 
-  memcpy_spec:: memset_spec::
+  memcpy_spec_data_at(*memcpy_spec*):: memset_spec::
   sha256init_spec::sha256update_spec::sha256final_spec::(*SHA256_spec::*)
   HMAC_Init_spec:: HMAC_Update_spec::HMAC_Cleanup_spec::
-  HMAC_FinalSimple_spec (*alternative: HMAC_Final_spec*)::
+  HMAC_FinalWK_spec (*alternative: HMAC_FinalSimple_spec or HMAC_Final_spec*)::
   HMAC_Simple_spec (*alternative:HMAC_spec*)::nil.
 
 Fixpoint do_builtins (n: nat) (defs : list (ident * globdef fundef type)) : funspecs :=
@@ -366,3 +449,6 @@ Fixpoint do_builtins (n: nat) (defs : list (ident * globdef fundef type)) : funs
 
 (*Definition Gtot := do_builtins 3 (prog_defs prog) ++ Gprog.*)
 Definition Gtot := Gprog.
+
+Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.
+Proof. intros. destruct v; try contradiction. exists b, i; trivial. Qed.

@@ -12,9 +12,6 @@ Require Import sha.hmac091c.
 
 Require Import sha.spec_hmac.
 
-Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.
-Proof. intros. destruct v; try contradiction. exists b, i; trivial. Qed.
-
 Lemma isbyte_Nlist i n: isbyteZ i -> Forall isbyteZ (Nlist i n).
   intros. apply Forall_forall. intros.
   induction n; simpl in *. contradiction.
@@ -41,7 +38,7 @@ forward_call (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
 after_call. subst retval0.
 forward.
 assert (isByte0:  isbyteZ 0). unfold isbyteZ. omega.
-specialize (isbyte_Nlist 0 404 isByte0). 
+specialize (isbyte_Nlist 0 (Z.to_nat (sizeof t_struct_hmac_ctx_st)) isByte0). 
 unfold data_block. rewrite Zlength_correct; simpl. intros.
-entailer.
+entailer. 
 Qed.

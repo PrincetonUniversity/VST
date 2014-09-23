@@ -2,74 +2,79 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _c : ident := 65%positive.
-Definition _SHA256_Update : ident := 40%positive.
+Definition _main : ident := 65%positive.
+Definition _SHA256_Final : ident := 40%positive.
 Definition ___compcert_va_int64 : ident := 16%positive.
-Definition _struct_SHA256state_st : ident := 38%positive.
-Definition _md_ctx : ident := 46%positive.
-Definition _key_len : ident := 62%positive.
-Definition _sha_ctx : ident := 54%positive.
+Definition _SHA256_Init : ident := 38%positive.
+Definition _struct_hmac_ctx_st : ident := 46%positive.
+Definition _n : ident := 62%positive.
+Definition _HMAC_Update : ident := 54%positive.
 Definition ___builtin_fmax : ident := 22%positive.
 Definition ___builtin_va_arg : ident := 12%positive.
-Definition _d : ident := 63%positive.
+Definition _c : ident := 63%positive.
 Definition ___builtin_annot_intval : ident := 10%positive.
-Definition _o_ctx : ident := 44%positive.
+Definition _i_ctx : ident := 44%positive.
 Definition ___builtin_negl : ident := 3%positive.
 Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
 Definition _memset : ident := 31%positive.
-Definition _len : ident := 49%positive.
-Definition _HMAC : ident := 66%positive.
-Definition _HMAC_Final : ident := 59%positive.
+Definition _i : ident := 49%positive.
+Definition _m : ident := 59%positive.
 Definition ___builtin_addl : ident := 4%positive.
-Definition _buf : ident := 58%positive.
+Definition _HMAC_cleanup : ident := 58%positive.
 Definition ___builtin_read16_reversed : ident := 28%positive.
 Definition ___builtin_fabs : ident := 7%positive.
 Definition ___builtin_fsqrt : ident := 21%positive.
 Definition ___builtin_bswap : ident := 18%positive.
-Definition _i_ctx : ident := 45%positive.
+Definition _md_ctx : ident := 45%positive.
 Definition ___builtin_va_copy : ident := 13%positive.
 Definition ___builtin_fnmsub : ident := 27%positive.
-Definition _num : ident := 33%positive.
-Definition _HMAC_Update : ident := 56%positive.
+Definition _data : ident := 33%positive.
+Definition _buf : ident := 56%positive.
 Definition ___builtin_fmsub : ident := 25%positive.
 Definition ___compcert_va_int32 : ident := 15%positive.
-Definition _HMAC_cleanup : ident := 60%positive.
+Definition _key_len : ident := 60%positive.
 Definition ___builtin_bswap16 : ident := 20%positive.
-Definition _md_len : ident := 32%positive.
+Definition _num : ident := 32%positive.
 Definition ___builtin_fmadd : ident := 24%positive.
-Definition _main : ident := 67%positive.
 Definition ___compcert_va_float64 : ident := 17%positive.
 Definition ___builtin_memcpy_aligned : ident := 8%positive.
 Definition ___builtin_subl : ident := 5%positive.
-Definition _i : ident := 50%positive.
-Definition _key_length : ident := 43%positive.
-Definition _pad : ident := 53%positive.
-Definition _struct_hmac_ctx_st : ident := 47%positive.
-Definition _md : ident := 57%positive.
-Definition _Nl : ident := 36%positive.
+Definition _j : ident := 50%positive.
+Definition _o_ctx : ident := 43%positive.
+Definition _HMAC_Init : ident := 53%positive.
+Definition _ctx : ident := 47%positive.
+Definition _HMAC_Final : ident := 57%positive.
+Definition _h : ident := 36%positive.
 Definition ___builtin_va_end : ident := 14%positive.
 Definition ___builtin_mull : ident := 6%positive.
 Definition ___builtin_fnmadd : ident := 26%positive.
 Definition ___builtin_bswap32 : ident := 19%positive.
-Definition _SHA256_Init : ident := 39%positive.
-Definition _m : ident := 61%positive.
+Definition _SHA256_Update : ident := 39%positive.
+Definition _d : ident := 61%positive.
 Definition ___builtin_va_start : ident := 11%positive.
-Definition _h : ident := 37%positive.
-Definition _key : ident := 42%positive.
+Definition _struct_SHA256state_st : ident := 37%positive.
+Definition _key_length : ident := 42%positive.
 Definition ___builtin_annot : ident := 9%positive.
-Definition _n : ident := 64%positive.
-Definition _reset : ident := 52%positive.
-Definition _SHA256_Final : ident := 41%positive.
-Definition _data : ident := 34%positive.
+Definition _HMAC : ident := 64%positive.
+Definition _pad : ident := 52%positive.
+Definition _key : ident := 41%positive.
+Definition _Nh : ident := 34%positive.
 Definition ___builtin_read32_reversed : ident := 29%positive.
-Definition _HMAC_Init : ident := 55%positive.
-Definition _Nh : ident := 35%positive.
+Definition _md : ident := 55%positive.
+Definition _Nl : ident := 35%positive.
 Definition _memcpy : ident := 30%positive.
 Definition ___builtin_fmin : ident := 23%positive.
-Definition _j : ident := 51%positive.
-Definition _ctx : ident := 48%positive.
+Definition _reset : ident := 51%positive.
+Definition _len : ident := 48%positive.
 
+Definition t_struct_SHA256state_st :=
+   (Tstruct _struct_SHA256state_st
+     (Fcons _h (tarray tuint 8)
+       (Fcons _Nl tuint
+         (Fcons _Nh tuint
+           (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
+     noattr).
 Definition t_struct_hmac_ctx_st :=
    (Tstruct _struct_hmac_ctx_st
      (Fcons _md_ctx
@@ -77,40 +82,31 @@ Definition t_struct_hmac_ctx_st :=
          (Fcons _h (tarray tuint 8)
            (Fcons _Nl tuint
              (Fcons _Nh tuint
-               (Fcons _data (tarray tuint 16)
-                 (Fcons _num tuint (Fcons _md_len tuint Fnil)))))) noattr)
+               (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
+         noattr)
        (Fcons _i_ctx
          (Tstruct _struct_SHA256state_st
            (Fcons _h (tarray tuint 8)
              (Fcons _Nl tuint
                (Fcons _Nh tuint
-                 (Fcons _data (tarray tuint 16)
-                   (Fcons _num tuint (Fcons _md_len tuint Fnil)))))) noattr)
+                 (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
+           noattr)
          (Fcons _o_ctx
            (Tstruct _struct_SHA256state_st
              (Fcons _h (tarray tuint 8)
                (Fcons _Nl tuint
                  (Fcons _Nh tuint
-                   (Fcons _data (tarray tuint 16)
-                     (Fcons _num tuint (Fcons _md_len tuint Fnil))))))
+                   (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
              noattr)
            (Fcons _key_length tuint (Fcons _key (tarray tuchar 64) Fnil)))))
      noattr).
-Definition t_struct_SHA256state_st :=
-   (Tstruct _struct_SHA256state_st
-     (Fcons _h (tarray tuint 8)
-       (Fcons _Nl tuint
-         (Fcons _Nh tuint
-           (Fcons _data (tarray tuint 16)
-             (Fcons _num tuint (Fcons _md_len tuint Fnil)))))) noattr).
 
 Definition f_HMAC_Init := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
   fn_params := ((_ctx, (tptr t_struct_hmac_ctx_st)) ::
                 (_key, (tptr tuchar)) :: (_len, tint) :: nil);
-  fn_vars := ((_pad, (tarray tuchar 64)) ::
-              (_sha_ctx, t_struct_SHA256state_st) :: nil);
+  fn_vars := ((_pad, (tarray tuchar 64)) :: nil);
   fn_temps := ((_i, tint) :: (_j, tint) :: (_reset, tint) :: nil);
   fn_body :=
 (Ssequence
@@ -128,7 +124,7 @@ Definition f_HMAC_Init := {|
               (Scall None
                 (Evar _SHA256_Init (Tfunction
                                      (Tcons (tptr t_struct_SHA256state_st)
-                                       Tnil) tint cc_default))
+                                       Tnil) tvoid cc_default))
                 ((Eaddrof
                    (Efield
                      (Ederef (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
@@ -140,7 +136,7 @@ Definition f_HMAC_Init := {|
                                          (Tcons
                                            (tptr t_struct_SHA256state_st)
                                            (Tcons (tptr tvoid)
-                                             (Tcons tuint Tnil))) tint
+                                             (Tcons tuint Tnil))) tvoid
                                          cc_default))
                   ((Eaddrof
                      (Efield
@@ -156,7 +152,7 @@ Definition f_HMAC_Init := {|
                                           (Tcons (tptr tuchar)
                                             (Tcons
                                               (tptr t_struct_SHA256state_st)
-                                              Tnil)) tint cc_default))
+                                              Tnil)) tvoid cc_default))
                     ((Efield
                        (Ederef (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
                          t_struct_hmac_ctx_st) _key (tarray tuchar 64)) ::
@@ -252,7 +248,7 @@ Definition f_HMAC_Init := {|
             (Scall None
               (Evar _SHA256_Init (Tfunction
                                    (Tcons (tptr t_struct_SHA256state_st)
-                                     Tnil) tint cc_default))
+                                     Tnil) tvoid cc_default))
               ((Eaddrof
                  (Efield
                    (Ederef (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
@@ -263,7 +259,7 @@ Definition f_HMAC_Init := {|
                 (Evar _SHA256_Update (Tfunction
                                        (Tcons (tptr t_struct_SHA256state_st)
                                          (Tcons (tptr tvoid)
-                                           (Tcons tuint Tnil))) tint
+                                           (Tcons tuint Tnil))) tvoid
                                        cc_default))
                 ((Eaddrof
                    (Efield
@@ -302,7 +298,7 @@ Definition f_HMAC_Init := {|
                     (Evar _SHA256_Init (Tfunction
                                          (Tcons
                                            (tptr t_struct_SHA256state_st)
-                                           Tnil) tint cc_default))
+                                           Tnil) tvoid cc_default))
                     ((Eaddrof
                        (Efield
                          (Ederef (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
@@ -314,7 +310,7 @@ Definition f_HMAC_Init := {|
                                            (Tcons
                                              (tptr t_struct_SHA256state_st)
                                              (Tcons (tptr tvoid)
-                                               (Tcons tuint Tnil))) tint
+                                               (Tcons tuint Tnil))) tvoid
                                            cc_default))
                     ((Eaddrof
                        (Efield
@@ -340,28 +336,28 @@ Definition f_HMAC_Init := {|
              (Ederef (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
                t_struct_hmac_ctx_st) _i_ctx t_struct_SHA256state_st)
            (tptr t_struct_SHA256state_st)) ::
-         (Econst_int (Int.repr 112) tuint) :: nil)))))
+         (Econst_int (Int.repr 108) tuint) :: nil)))))
 |}.
 
 Definition f_HMAC_Update := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
   fn_params := ((_ctx, (tptr t_struct_hmac_ctx_st)) ::
-                (_data, (tptr tuchar)) :: (_len, tint) :: nil);
+                (_data, (tptr tvoid)) :: (_len, tuint) :: nil);
   fn_vars := nil;
   fn_temps := nil;
   fn_body :=
 (Scall None
   (Evar _SHA256_Update (Tfunction
                          (Tcons (tptr t_struct_SHA256state_st)
-                           (Tcons (tptr tvoid) (Tcons tuint Tnil))) tint
+                           (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid
                          cc_default))
   ((Eaddrof
      (Efield
        (Ederef (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
          t_struct_hmac_ctx_st) _md_ctx t_struct_SHA256state_st)
-     (tptr t_struct_SHA256state_st)) :: (Etempvar _data (tptr tuchar)) ::
-   (Etempvar _len tint) :: nil))
+     (tptr t_struct_SHA256state_st)) :: (Etempvar _data (tptr tvoid)) ::
+   (Etempvar _len tuint) :: nil))
 |}.
 
 Definition f_HMAC_Final := {|
@@ -376,8 +372,8 @@ Definition f_HMAC_Final := {|
   (Scall None
     (Evar _SHA256_Final (Tfunction
                           (Tcons (tptr tuchar)
-                            (Tcons (tptr t_struct_SHA256state_st) Tnil)) tint
-                          cc_default))
+                            (Tcons (tptr t_struct_SHA256state_st) Tnil))
+                          tvoid cc_default))
     ((Evar _buf (tarray tuchar 32)) ::
      (Eaddrof
        (Efield
@@ -400,13 +396,13 @@ Definition f_HMAC_Final := {|
            (Ederef (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
              t_struct_hmac_ctx_st) _o_ctx t_struct_SHA256state_st)
          (tptr t_struct_SHA256state_st)) ::
-       (Econst_int (Int.repr 112) tuint) :: nil))
+       (Econst_int (Int.repr 108) tuint) :: nil))
     (Ssequence
       (Scall None
         (Evar _SHA256_Update (Tfunction
                                (Tcons (tptr t_struct_SHA256state_st)
                                  (Tcons (tptr tvoid) (Tcons tuint Tnil)))
-                               tint cc_default))
+                               tvoid cc_default))
         ((Eaddrof
            (Efield
              (Ederef (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
@@ -418,7 +414,7 @@ Definition f_HMAC_Final := {|
         (Evar _SHA256_Final (Tfunction
                               (Tcons (tptr tuchar)
                                 (Tcons (tptr t_struct_SHA256state_st) Tnil))
-                              tint cc_default))
+                              tvoid cc_default))
         ((Etempvar _md (tptr tuchar)) ::
          (Eaddrof
            (Efield
@@ -439,7 +435,7 @@ Definition f_HMAC_cleanup := {|
                   (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
                   (tptr tvoid) cc_default))
   ((Etempvar _ctx (tptr t_struct_hmac_ctx_st)) ::
-   (Econst_int (Int.repr 0) tint) :: (Econst_int (Int.repr 404) tuint) ::
+   (Econst_int (Int.repr 0) tint) :: (Econst_int (Int.repr 392) tuint) ::
    nil))
 |}.
 
@@ -476,7 +472,7 @@ Definition f_HMAC := {|
       (Scall None
         (Evar _HMAC_Update (Tfunction
                              (Tcons (tptr t_struct_hmac_ctx_st)
-                               (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid
+                               (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid
                              cc_default))
         ((Eaddrof (Evar _c t_struct_hmac_ctx_st) (tptr t_struct_hmac_ctx_st)) ::
          (Etempvar _d (tptr tuchar)) :: (Etempvar _n tint) :: nil))
@@ -641,19 +637,19 @@ prog_defs :=
      cc_default)) ::
  (_SHA256_Init,
    Gfun(External (EF_external _SHA256_Init
-                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
-     (Tcons (tptr t_struct_SHA256state_st) Tnil) tint cc_default)) ::
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr t_struct_SHA256state_st) Tnil) tvoid cc_default)) ::
  (_SHA256_Update,
    Gfun(External (EF_external _SHA256_Update
                    (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
-                     (Some AST.Tint) cc_default))
+                     None cc_default))
      (Tcons (tptr t_struct_SHA256state_st)
-       (Tcons (tptr tvoid) (Tcons tuint Tnil))) tint cc_default)) ::
+       (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid cc_default)) ::
  (_SHA256_Final,
    Gfun(External (EF_external _SHA256_Final
-                   (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
+                   (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default))
-     (Tcons (tptr tuchar) (Tcons (tptr t_struct_SHA256state_st) Tnil)) tint
+     (Tcons (tptr tuchar) (Tcons (tptr t_struct_SHA256state_st) Tnil)) tvoid
      cc_default)) :: (_HMAC_Init, Gfun(Internal f_HMAC_Init)) ::
  (_HMAC_Update, Gfun(Internal f_HMAC_Update)) ::
  (_HMAC_Final, Gfun(Internal f_HMAC_Final)) ::

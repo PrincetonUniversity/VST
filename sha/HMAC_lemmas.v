@@ -47,6 +47,142 @@ Proof. intros f n.
     exists x; eauto.
 Qed.
 
+Lemma sepcon_fold: forall Frame P rho, 
+Frame = cons `(P) nil ->
+P |-- fold_right
+      (fun (P Q : environ -> mpred) (rho0 : environ) => P rho0 * Q rho0) 
+      `emp Frame rho.
+Proof. intros. subst. simpl. entailer. Qed.
+
+Lemma nth_mapVint: forall i (l:list Z) (Hi: (0 <= i < length l)%nat),
+  exists n, nth i (map Vint (map Int.repr l)) Vundef = Vint n.
+Proof. intros i. 
+  induction i; simpl; intros.
+    destruct l; simpl in *. omega. eexists; reflexivity.
+    destruct l; simpl in *. omega.
+      destruct (IHi l). omega. rewrite H. eexists; reflexivity.
+Qed.
+
+Lemma nth_mapVint' {z}: forall i (l:list Z)
+  (Hi: (0 <= i < length l)%nat),
+  nth i (map Vint (map Int.repr l)) Vundef = 
+  Vint (Int.repr (nth i l z)).
+Proof. intros i. 
+  induction i; simpl; intros.
+    destruct l; simpl in *. omega. trivial.
+    destruct l; simpl in *. omega.
+      rewrite (IHi l). trivial. omega.
+Qed.
+
+Lemma nth_mapVintZ: forall i (l:list Z) (Hi: 0 <= i < Zlength l),
+  exists n, nth (Z.to_nat i) (map Vint (map Int.repr l)) Vundef = Vint n.
+Proof. intros.
+  eapply nth_mapVint. rewrite Zlength_correct in Hi.
+  destruct Hi; split.   omega. 
+unfold Z.of_nat in H0. unfold Z.to_nat.
+destruct l; simpl in *. omega.
+destruct i; try omega.
+rewrite <- SuccNat2Pos.id_succ.
+apply Pos2Nat.inj_lt.
+apply H0.
+Qed.
+
+Lemma nth_Nlist {A}: forall (a d:A) k i (Hik: (i <k)%nat),
+      nth i (Nlist a k) d = a.
+Proof. intros a d k.
+  induction k; simpl. 
+    intros. omega.
+  intros. destruct i; simpl. trivial. 
+   apply IHk. omega.
+Qed. 
+
+Lemma map_Nlist: forall {A B} a (f:A -> B) n,
+                 map f (Nlist a n) = Nlist (f a) n.
+Proof. intros. induction n; simpl; trivial. rewrite IHn. trivial. Qed.
+
+Lemma minus_lt_compat_r: forall n m p : nat,
+      (n < m)%nat -> (p <= n)%nat -> (n - p < m - p)%nat.
+Proof. intros. unfold lt in *. omega. Qed.
+
+  Lemma map_nth_error_inv {A B}: forall n (l:list A) (f: A -> B) fd,
+    nth_error (map f l) n = Some fd -> exists d, nth_error l n = Some d /\ fd = f d.
+  Proof. intros n.
+    induction n; intros l.
+     destruct l; simpl; intros. inversion H.
+       inversion H. exists a. split; trivial.
+     destruct l; simpl; intros. inversion H.
+       eapply IHn. apply H.
+  Qed.
+  Lemma nth_error_app {A}: forall n (l:list A) d,
+    nth_error l n = Some d -> forall ll, nth_error (l ++ ll) n = Some d.
+  Proof. intros n.
+    induction n; intros l.
+     destruct l; simpl; intros. inversion H. trivial.
+     destruct l; simpl; intros. inversion H.
+       eapply IHn. apply H.
+  Qed.
+
+Lemma isByte_ByteUnsigned b: isbyteZ (Byte.unsigned b).
+Proof.
+  unfold Byte.unsigned, Byte.intval. destruct b.
+  unfold Byte.modulus, Byte.wordsize, Wordsize_8.wordsize in intrange.
+  rewrite two_power_nat_correct in intrange.
+  unfold Zpower_nat in intrange. simpl in intrange. unfold isbyteZ. omega.
+Qed.
+
+Lemma nth_zeropad_left {d d'}: forall l i (I: 0<= i < Zlength l),
+      nth (Z.to_nat i) (HMAC_FUN.zeroPad l) d = nth (Z.to_nat i) l d'.
+Proof. unfold HMAC_FUN.zeroPad. intros.
+  destruct I.
+  apply Z2Nat.inj_lt in H0; try omega.
+  rewrite Zlength_correct, Nat2Z.id in H0.
+  rewrite app_nth1; trivial.
+  apply nth_indep; trivial. 
+Qed.
+
+Lemma mkKey_left {d d'}: forall l (L: false = (Zlength l >? 64)) 
+        i (I: 0<= i < Zlength l),
+      nth (Z.to_nat i) (HMAC_FUN.mkKey l) d = nth (Z.to_nat i) l d'.
+Proof.
+  unfold HMAC_FUN.mkKey. intros. simpl. rewrite <- L.
+  apply nth_zeropad_left; trivial.
+Qed.
+Lemma nth_zeropad_right {d}: forall l i (I: Zlength l <= i < 64),
+      nth (Z.to_nat i) (HMAC_FUN.zeroPad l) d = Z0.
+Proof. unfold HMAC_FUN.zeroPad. intros.
+  rewrite app_nth2. rewrite nth_Nlist. trivial.
+  apply minus_lt_compat_r. destruct I. apply Z2Nat.inj_lt in H0. apply H0.
+  specialize (initial_world.zlength_nonneg _ l). omega.
+  omega.
+  destruct I. apply Z2Nat.inj_le in H. rewrite Zlength_correct, Nat2Z.id in H. apply H.
+  apply(initial_world.zlength_nonneg _ l).
+  specialize (initial_world.zlength_nonneg _ l). omega. 
+  destruct I. apply Z2Nat.inj_le in H. rewrite Zlength_correct, Nat2Z.id in H. apply H.
+  apply(initial_world.zlength_nonneg _ l). 
+  specialize (initial_world.zlength_nonneg _ l). omega.  
+Qed.
+Lemma mkKey_right {d}: forall l (L: false = (Zlength l >? 64)) 
+        i (I: Zlength l <= i < 64),
+      nth (Z.to_nat i) (HMAC_FUN.mkKey l) d = Z0.
+Proof.
+  unfold HMAC_FUN.mkKey. intros. simpl. rewrite <- L.
+  apply nth_zeropad_right; trivial.
+Qed.
+
+Lemma Forall_app {A} p (l1 l2: list A): Forall p (l1 ++ l2) <-> (Forall p l1 /\ Forall p l2).
+Proof. intros. repeat  rewrite Forall_forall. 
+  split; intros.
+    split; intros; apply H; apply in_or_app. left; trivial. right; trivial.
+  apply in_app_or in H0. destruct H. destruct H0; eauto.
+Qed. 
+
+Lemma isbyte_map_ByteUnsigned l: Forall isbyteZ (map Byte.unsigned l).
+Proof. 
+  rewrite Forall_forall. intros. 
+  apply list_in_map_inv in H. destruct H as [b [B1 _]]. subst x.
+  apply isByte_ByteUnsigned.
+Qed.
+
 (*Same proof as semax_loadstore_array*)
 Lemma NEWsemax_loadstore_array:
   forall {Espec: OracleKind},
