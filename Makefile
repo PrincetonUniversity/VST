@@ -221,6 +221,8 @@ clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
+sha/mac091c.v: sha/hmac091c.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
 sha/sha.v: sha/sha.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 # Is there a way to generate the next 5 rules automatically from C_FILES? 
