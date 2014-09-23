@@ -35,9 +35,6 @@ Definition memcpy_spec_data_at :=
          local (`(eq p) retval) &&
        (`(data_at (snd sh) (tp_of T) (v_of T) p) *`(data_at (fst sh) (tp_of T) (v_of T) q)).
 
-Lemma isbyte_sha x: Forall isbyteZ (functional_prog.SHA_256' x).
-Proof. apply isbyte_intlist_to_Zlist. Qed.
-
 Inductive hmacabs :=  (* HMAC abstract state *)
  HMACabs: forall (ctx iSha oSha: s256abs) (*sha structures for md_ctx, i_ctx, o_ctx*)
                  (keylen: Z) 
@@ -52,11 +49,11 @@ Definition innerShaInit (k: list byte) (s:s256abs):Prop :=
 Definition outerShaInit (k: list byte) (s:s256abs):Prop :=
   update_abs (HMAC_FUN.mkArgZ k Opad) init_s256abs s.
 
-Definition hmacInit (k:list Z) (kl:Z) (h:hmacabs):Prop :=  
+Definition hmacInit (k:list Z) (*(kl:Z)*) (h:hmacabs):Prop :=  
   let key := HMAC_FUN.mkKey k in
   let keyB := map Byte.repr key in
   exists iS oS, innerShaInit keyB iS /\ outerShaInit keyB oS /\
-  h = HMACabs iS iS oS 64 key /\ kl=Zlength k.
+  h = HMACabs iS iS oS (if zlt 64 (Zlength k) then 32 else Zlength k) k (*/\ kl=Zlength k*).
 
 Definition hmacUpdate (data: list Z) (len:Z) (h1 h2:hmacabs):Prop :=
   match h1 with
@@ -90,18 +87,18 @@ Definition hmacFinal h (digest: list Z) h2 :=
 
 (*hmac cleanup not modelled for the time being*)
 
-Definition hmacSimple (k:list Z) (kl:Z) (data:list Z) (dl:Z) (dig:list Z) :=
+Definition hmacSimple (k:list Z) (*(kl:Z)*) (data:list Z) (dl:Z) (dig:list Z) :=
   exists hInit hUpd,
-  hmacInit k kl hInit /\
+  hmacInit k (*kl*) hInit /\
   hmacUpdate data dl hInit hUpd /\
   hmacFinalSimple hUpd dig.
 
-Lemma hmacSimple_sound k kl data dl dig: 
-      hmacSimple k kl data dl dig ->
+Lemma hmacSimple_sound k (*kl*) data dl dig: 
+      hmacSimple k (*kl*) data dl dig ->
       dig = HMAC_FUN.HMAC data k.
 Proof.
  unfold hmacSimple; intros [hInit [hUpd [HH1 [HH2 HH3]]]].
- unfold hmacInit in HH1. destruct HH1 as [iInit [oInit [HiInit [HoInit [HINIT KL]]]]]. subst.
+ unfold hmacInit in HH1. destruct HH1 as [iInit [oInit [HiInit [HoInit HINIT (*KL*)]]]]. subst.
  unfold innerShaInit in HiInit. inversion HiInit; clear HiInit.
    rewrite Zlength_correct in *; simpl in *. subst.
  unfold outerShaInit in HoInit. inversion HoInit; clear HoInit.
@@ -120,9 +117,9 @@ rewrite <- app_assoc. rewrite <- H22; clear H22.
 repeat rewrite <- app_assoc. rewrite H17. reflexivity. 
 Qed.
 
-Definition hmac (k:list Z) (kl:Z) (data:list Z) (dl:Z) (dig:list Z) h :=
+Definition hmac (k:list Z) (*(kl:Z)*) (data:list Z) (dl:Z) (dig:list Z) h :=
   exists hInit hUpd,
-  hmacInit k kl hInit /\
+  hmacInit k (*kl*) hInit /\
   hmacUpdate data dl hInit hUpd /\
   hmacFinal hUpd dig h.
 
@@ -136,8 +133,8 @@ Proof. destruct h. simpl. apply prop_ext.
     exists oS1; eauto.
 Qed.
 
-Lemma hmac_hmacSimple (k:list Z) (kl:Z) (data:list Z) (dl:Z) (dig:list Z) :
-  hmacSimple k kl data dl dig = exists h, hmac k kl data dl dig h .
+Lemma hmac_hmacSimple (k:list Z) (*(kl:Z)*) (data:list Z) (dl:Z) (dig:list Z) :
+  hmacSimple k (*kl*) data dl dig = exists h, hmac k (*kl*) data dl dig h .
 Proof. intros. unfold hmacSimple, hmac.
   apply prop_ext. split; intros.
     destruct H as [hInit [hUpd [HInit [HUpd HFinalSimple]]]].
@@ -149,8 +146,8 @@ Proof. intros. unfold hmacSimple, hmac.
     rewrite hmacFinal_hmacFinalSimple. exists h'; trivial.
 Qed.
 
-Lemma hmac_sound k kl data dl dig h: 
-      hmac k kl data dl dig h ->
+Lemma hmac_sound k (*kl*) data dl dig h: 
+      hmac k (*kl*) data dl dig h ->
       dig = HMAC_FUN.HMAC data k.
 Proof.
  intros.
@@ -208,10 +205,10 @@ Definition hmac_relate (h: hmacabs) (r: hmacstate) : Prop :=
     s256_relate ctx (mdCtx r) /\
     s256_relate iS (iCtx r) /\
     s256_relate oS (oCtx r) /\
-    s256a_len iS = 64 /\ s256a_len oS = 64 /\ 
-    Key r = map Vint (map Int.repr k) /\ 
+    s256a_len iS = 512 /\ s256a_len oS = 512 /\ 
+    Key r = map Vint (map Int.repr (HMAC_FUN.mkKey k)) /\ 
     exists i, Keylen r = Vint i /\ klen=Int.unsigned i /\ 
-              Zlength k=klen (*maybe also require klen=64?*)
+              (if zlt 64 (Zlength k) then 32 else Zlength k)=klen
   end.
 
 Definition hmacstate_ (h: hmacabs) (c: val) : mpred :=
@@ -236,7 +233,7 @@ Definition HMAC_Init_spec :=
          SEP(`(data_at_ Tsh t_struct_hmac_ctx_st c);
              `(data_block Tsh key k); `(K_vector KV))
   POST [ tvoid ] 
-           `(EX h:hmacabs, !!hmacInit key (Zlength key) h &&
+           `(EX h:hmacabs, !!hmacInit key (*(Zlength key)*) h &&
                              (hmacstate_ h c) * 
                              (data_block Tsh key k) * (K_vector KV)).
 
@@ -293,9 +290,10 @@ Definition hmac_relateWK (h:hmacabs ) (r: hmacstate) : Prop :=
     (*no clause for ctx*)
     s256_relate iS (iCtx r) /\
     s256_relate oS (oCtx r) /\
-    Key r = map Vint (map Int.repr k) /\ 
+    s256a_len iS = 512 /\ s256a_len oS = 512 /\ 
+    Key r = map Vint (map Int.repr (HMAC_FUN.mkKey k)) /\ 
     exists i, Keylen r = Vint i /\ klen=Int.unsigned i /\ 
-              Zlength k=klen (*maybe also require klen=64?*)
+              (if zlt 64 (Zlength k) then 32 else Zlength k)=klen
   end.
 
 Definition hmacstateWK_ (h: hmacabs) (c: val) : mpred :=
@@ -381,7 +379,7 @@ Definition HMAC_Simple_spec :=
              `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
          EX digest:_, EX c:val,
-          PROP (hmacSimple (snd (snd KeyStruct)) (fst(snd KeyStruct))
+          PROP (hmacSimple (snd (snd KeyStruct)) (*(fst(snd KeyStruct))*)
                            (snd (snd DataStruct)) (fst(snd DataStruct))
                            digest)
           LOCAL ()
@@ -413,7 +411,7 @@ Definition HMAC_spec :=
              `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
          EX digest:_, EX c:val, EX h:hmacabs,
-          PROP (hmac (snd (snd KeyStruct)) (fst(snd KeyStruct))
+          PROP (hmac (snd (snd KeyStruct)) (*(fst(snd KeyStruct))*)
                      (snd (snd DataStruct)) (fst(snd DataStruct))
                      digest h)
           LOCAL ()
@@ -452,3 +450,25 @@ Definition Gtot := Gprog.
 
 Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.
 Proof. intros. destruct v; try contradiction. exists b, i; trivial. Qed.
+
+
+Lemma isbyte_sha x: Forall isbyteZ (functional_prog.SHA_256' x).
+Proof. apply isbyte_intlist_to_Zlist. Qed.
+
+Require Import sha_lemmas.
+Lemma updAbs_len: forall L s t, update_abs L s t -> s256a_len t = s256a_len s + Zlength L * 8.
+Proof. intros. inversion H; clear H.
+  unfold s256a_len. simpl.
+  rewrite Zlength_app. subst. 
+  repeat rewrite Z.mul_add_distr_r.
+  repeat rewrite <- Z.add_assoc.
+  assert (Zlength blocks * WORD * 8 + Zlength newfrag * 8 =
+          Zlength oldfrag * 8 + Zlength L * 8).
+    assert (Zlength (oldfrag ++ L) = Zlength (SHA256.intlist_to_Zlist blocks ++ newfrag)).
+      rewrite H4; trivial.
+    clear H4. rewrite Zlength_app in H.
+              rewrite <- (Z.mul_add_distr_r (Zlength oldfrag)), H. clear H.
+              rewrite Zlength_app, Zlength_intlist_to_Zlist.
+              rewrite (Z.mul_comm WORD). rewrite Z.mul_add_distr_r. trivial. 
+  rewrite H; trivial.
+Qed.

@@ -5,6 +5,13 @@ Local Open Scope logic.
 Require Import sha.spec_sha.
 Require Import sha.HMAC_functional_prog.
 
+Lemma Zlength_mkArgZ k pad: Zlength (HMAC_FUN.mkArgZ k pad) = Z.of_nat (min (length k) 64).
+Proof. intros. repeat rewrite Zlength_correct.
+   unfold HMAC_FUN.mkArgZ, HMAC_FUN.mkArg, sixtyfour.
+   repeat rewrite map_length. 
+   rewrite combine_length, length_Nlist. trivial.
+Qed. 
+
 Lemma In_Nlist {A:Type}: forall (n:A) l x, In x (Nlist n l) -> x=n.
 Proof. intros n l.
   induction l; simpl; intros. contradiction.
