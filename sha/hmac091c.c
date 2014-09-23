@@ -64,9 +64,13 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+
+#include <stddef.h>
+
+void * memcpy(void * __restrict, const void * __restrict, size_t);
+void * memset(void *, int, size_t);
+
+
 //#include "hmac.h"
 
 /**************************From vst/sha/sha.c **************************/
