@@ -2417,19 +2417,19 @@ Proof.
 Qed.
 *)
 
-Lemma extract_local_in_SEP:
+Lemma extract_local_in_SEP :
   forall n Q1 Rn P Q R, 
-   nth n R emp = local Q1 && Rn -> 
+   nth_error R n = Some (local Q1 && Rn) -> 
    PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx (Q1::Q) (SEPx (replace_nth n R Rn))).
 Proof.
 intros.
 f_equal.
 extensionality rho.
-apply equal_f with rho in H.
 unfold PROPx,LOCALx,SEPx,local,lift1 in *.
 unfold_lift; simpl in *.
 revert R H; induction n; destruct R; simpl; intros;
-try solve [apply pred_ext; rewrite H; normalize; repeat rewrite prop_and; normalize].
+inversion H.
+apply pred_ext; subst; normalize.
 specialize (IHn _ H).
 do 2 rewrite <- sepcon_andp_prop.
 rewrite IHn.

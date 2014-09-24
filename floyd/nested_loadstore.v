@@ -2819,6 +2819,26 @@ Proof.
   destruct t; reflexivity.
 Qed.
 
+Lemma nested_field_rec_Tcomp_ptr_cons: forall i a id ids,
+  nested_field_rec (Tcomp_ptr i a) (id :: ids) = None.
+Proof.
+  intros.
+  revert id.
+  induction ids; intros.
+  - reflexivity.
+  - simpl in *; rewrite (IHids a0); reflexivity.
+Qed.
+
+Lemma nested_field_rec_Tpointer_cons: forall t a id ids,
+  nested_field_rec (Tpointer t a) (id :: ids) = None.
+Proof.
+  intros.
+  revert id.
+  induction ids; intros.
+  - reflexivity.
+  - simpl in *; rewrite (IHids a0); reflexivity.
+Qed.
+
 Lemma proj_reptype_uncompomize: forall e t ids v v',
   JMeq v v' -> JMeq (proj_reptype t ids v) (proj_reptype (uncompomize e t) ids v').
 Proof.
@@ -2837,17 +2857,40 @@ Transparent proj_reptype.
     intros.
     destruct X, Y.
     reflexivity.
-    cut (nested_field_rec (Tcomp_ptr i a) (i0 :: ids) = None /\
-      nested_field_rec (Tpointer (type_id_env.look_up_ident_default i e) a)
-      (i0 :: ids) = None).
-    intros.
-    destruct H0.
-    unfold nested_field_type2; rewrite H0, H1; simpl. auto.
-    revert i0.
-    induction ids; intros.
-    - split; reflexivity.
-    - destruct (IHids a0).
-      split; simpl in *; [rewrite H0 | rewrite H1];
+    unfold nested_field_type2.
+    rewrite nested_field_rec_Tpointer_cons, nested_field_rec_Tcomp_ptr_cons.
+    split; reflexivity.
+Opaque proj_reptype.
+Qed.
+
+Lemma upd_reptype_uncompomize: forall e t ids v v' v0 v0',
+  JMeq v v' -> JMeq v0 v0' -> JMeq (upd_reptype t ids v v0) (upd_reptype (uncompomize e t) ids v' v0').
+Proof.
+Transparent upd_reptype.
+Opaque reptype.
+  intros.
+  destruct t; revert v' v0' H H0; simpl; intros; rewrite H; try rewrite H0; try reflexivity.
+  erewrite eq_rect_JMeq with (F := (fun y : type => reptype y)).
+  erewrite eq_rect_JMeq with (F := (fun y : type => reptype y)).
+Transparent reptype.
+  destruct ids.
+  + simpl. exact H0.
+  + destruct ids.
+    - simpl. reflexivity.
+    - pose proof nested_field_rec_Tpointer_cons (type_id_env.look_up_ident_default i e) a i1 ids.
+      pose proof nested_field_rec_Tcomp_ptr_cons i a i1 ids.
+Opaque nested_field_type2.
+      forget (i1 :: ids) as ids'.
+      clear ids.
+      simpl.
+      generalize ((proj_reptype (Tcomp_ptr i a) ids' v')).
+      generalize ((proj_reptype (Tpointer (type_id_env.look_up_ident_default i e) a)
+                ids' v')).
+Transparent nested_field_type2.
+      unfold nested_field_type2.
+      rewrite H1.
+      rewrite H2.
+      intros.
       reflexivity.
 Qed.
 
@@ -3007,7 +3050,173 @@ Proof.
     exact H9.
 Qed.
 
+(*
+Lemma lifted_field_at_data_at
+     : forall (sh : Share.t) (t : type) (ids : list ident)
+         (v : lift_S (Tarrow val (LiftEnviron mpred)) ->
+              reptype (nested_field_type2 t ids))
+         (p : lift_S (LiftEnviron mpred) -> val),
+       legal_alignas_type t = true ->
+       `(field_at sh t ids) v p =
+       local (`(size_compatible t) p) && local (`(align_compatible t) p) &&
+       local `(isSome (nested_field_rec t ids)) &&
+       `(at_offset')
+         ((data_at sh (nested_field_type2 t ids)) oo v)
+         `(nested_field_offset2 t ids) p.
+Proof.
+  exact lifted_field_at_data_at.
+Qed.
 
+Local Open Scope logic.
+*)
+
+Lemma semax_nested_efield_field_store_nth:
+  forall {Espec: OracleKind},
+    forall Delta sh e n P Q R Rn (e1 e2 : expr)
+      (t : type) (ids0 ids1: list ident) (tts0 tts1: list type)
+      (v: reptype (nested_field_type2 (typeof e1) ids0)),
+      nested_legal_fieldlist (typeof e1) = true ->
+      typeof (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0)) = t ->
+      type_is_by_value t ->
+      legal_alignas_type (typeof e1) = true ->
+      length ids1 = length tts1 ->
+      legal_nested_efield e (typeof e1) (ids1 ++ ids0) (tts1 ++ tts0) = true ->
+      nth_error R n = Some Rn ->
+      Rn |-- `(field_at sh (typeof e1) ids0 v) (eval_lvalue e1) ->
+      writable_share sh ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+        local (tc_lvalue Delta (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0))) && 
+        local (tc_expr Delta (Ecast e2 t)) ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sassign (nested_efield e1 (ids1 ++ ids0) (tts1 ++ tts0)) e2)
+          (normal_ret_assert
+            (PROPx P
+              (LOCALx Q
+                (SEPx
+                  (replace_nth n R
+                    (`(field_at sh (typeof e1) ids0)
+                      (`(upd_reptype (nested_field_type2 (typeof e1) ids0) ids1 v)
+                        (`(valinject (nested_field_type2 (nested_field_type2 (typeof e1) ids0) ids1)) (eval_expr (Ecast e2 t))))
+                          (eval_lvalue e1)
+                            )))))).
+Proof.
+  intros.
+  remember v as v''.
+  assert (JMeq v v'') by (subst; reflexivity).
+  clear Heqv''.
+  revert v H9.
+  pattern (reptype (nested_field_type2 (typeof e1) ids0)) at 1 2.
+  rewrite <- (uncompomize_reptype e (nested_field_type2 (typeof e1) ids0)).
+  intros.
+
+  rewrite <- nested_efield_app by auto.
+  assert (legal_nested_efield e (typeof e1) ids0 tts0 = true)
+    by (eapply legal_nested_efield_app; eauto).
+
+  match goal with
+  | |- appcontext [replace_nth ?n _ ?Rnn] =>
+    replace Rnn with
+      (local (`(size_compatible (typeof e1)) (eval_lvalue e1)) && 
+       local (`(align_compatible (typeof e1)) (eval_lvalue e1)) &&
+       local `(isSome (nested_field_rec (typeof e1) ids0)) &&
+       `(data_at sh (uncompomize e (nested_field_type2 (typeof e1) ids0))) 
+            (`(upd_reptype (uncompomize e (nested_field_type2 (typeof e1) ids0))
+                            ids1 v)
+                          (`(valinject
+                               (nested_field_type2
+                                  (uncompomize e (nested_field_type2 (typeof e1) ids0)) ids1))
+                             (eval_expr (Ecast e2 t)))) (eval_lvalue (nested_efield e1 ids0 tts0)))
+  end.
+  Focus 2. {
+    extensionality rho.
+    unfold local, lift1. unfold_lift.
+Opaque upd_reptype.
+    simpl.
+Transparent upd_reptype.
+    rewrite field_at_data_at by auto.
+    rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
+    erewrite eval_lvalue_nested_efield by eauto.
+    rewrite <- data_at_offset_zero.
+    erewrite <- uncompomize_data_at. reflexivity.
+    apply upd_reptype_uncompomize.
+    auto.
+    erewrite <- uncompomize_valinject with (e := e) by eauto.
+    rewrite <- nested_field_type2_uncompomize.
+    erewrite uncompomize_valinject with (e := e) by eauto.
+    reflexivity.
+  } Unfocus.
+  assert (Rn |-- 
+          local (`(size_compatible (typeof e1)) (eval_lvalue e1)) && 
+          local (`(align_compatible (typeof e1)) (eval_lvalue e1)) &&
+          local `(isSome (nested_field_rec (typeof e1) ids0)) &&
+          `(data_at sh (uncompomize e (nested_field_type2 (typeof e1) ids0)) v)
+          (eval_lvalue (nested_efield e1 ids0 tts0))).
+  {
+    eapply derives_trans; [exact H6 |].
+    simpl; intros rho.
+    unfold local, lift1. unfold_lift.
+    simpl.
+    rewrite field_at_data_at by auto.
+    rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
+    erewrite eval_lvalue_nested_efield by eauto.
+    rewrite <- data_at_offset_zero.
+    apply derives_refl'.
+    erewrite <- uncompomize_data_at by eauto.
+    reflexivity.
+  }
+  clear H6.
+  clear v'' H9.
+  erewrite (replace_nth_nth_error R) at 1 by eauto.
+  eapply semax_pre0.
+  {
+    apply later_derives.
+    apply replace_nth_SEP.
+    apply andp_right; [| apply derives_refl].
+    eapply derives_trans; [exact H11 |].
+    apply andp_left1.
+    apply derives_refl.
+  }
+
+(*  clear H11. *)
+  repeat rewrite !andp_assoc.
+  repeat
+    match goal with
+    | |- appcontext [replace_nth _ ?RR (local ?Q1 && ?Q2)] =>
+       erewrite (extract_local_in_SEP n Q1) with (R := replace_nth n RR (local Q1 && Q2))
+         by (erewrite nth_error_replace_nth by eauto; reflexivity);
+       rewrite replace_nth_replace_nth
+    end.
+  revert v H11.
+  erewrite typeof_nested_efield by eauto.
+  intros.
+  match goal with
+  | |- semax _ ?p _  _ =>
+      let Pre := fresh "Pre" in
+      remember p as Pre;
+      erewrite <- replace_nth_replace_nth;
+      subst Pre
+  end.
+  eapply semax_nested_efield_store_nth.
+  + erewrite <- typeof_nested_efield by eauto.
+    rewrite nested_legal_fieldlist_uncompomize.
+    apply nested_field_type2_nest_pred; auto.
+  + rewrite nested_efield_app by auto.
+    exact H0.
+  + exact H1.
+  + erewrite <- typeof_nested_efield by eauto.
+    rewrite legal_alignas_type_uncompomize.
+    apply nested_field_type2_nest_pred; auto.
+  + erewrite <- typeof_nested_efield by eauto.
+    erewrite legal_nested_efield_app'; eauto.
+  + erewrite nth_error_replace_nth by eauto.
+    reflexivity.
+  + eapply derives_trans; [exact H11 | apply andp_left2; apply derives_refl].
+  + exact H7.
+  + rewrite nested_efield_app by auto.
+    eapply derives_trans; [| exact H8].
+    rewrite <- replace_nth_nth_error by auto.
+    entailer!.
+Qed.
 
 (*
 
