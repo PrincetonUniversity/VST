@@ -188,7 +188,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
   | Init_int32 i => mapsto sh (Tint I32 Unsigned noattr) a (Vint i)
   | Init_int64 i => mapsto sh (Tlong Unsigned noattr) a (Vlong i)
-  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
+  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vsingle r)
   | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
@@ -283,7 +283,7 @@ Definition load_store_init_data1 (ge: Genv.t fundef type) (m: mem) (b: block) (p
   | Init_int64 n =>
       Mem.load Mint64 m b p = Some(Vlong n)
   | Init_float32 n =>
-      Mem.load Mfloat32 m b p = Some(Vfloat(Float.singleoffloat n))
+      Mem.load Mfloat32 m b p = Some(Vsingle n)
   | Init_float64 n =>
       Mem.load Mfloat64 m b p = Some(Vfloat n)
   | Init_addrof symb ofs =>
@@ -341,7 +341,7 @@ Proof.
   rewrite <- H1.
   clear - H. apply R_store_zeros_complete in H.
  symmetry.
- symmetry in H; symmetry; eapply Genv.store_zeros_outside; eauto.
+ symmetry in H; symmetry; eapply Genv.store_zeros_load_outside; eauto.
   right. simpl; omega.
   inv Heqm1.
 Qed.
@@ -354,22 +354,27 @@ Lemma load_store_init_data_lem1:
    load_store_init_data1 ge m3 b (Genv.init_data_list_size dl') a.
 Proof.
   intros.
-  pose proof (Genv.store_init_data_list_charact _ _ _ _ _ H0).
+  pose proof (Genv.store_init_data_list_charact _ _ H0).
   subst D.
   change (Genv.init_data_list_size dl') with (0 + Genv.init_data_list_size dl'). 
   forget 0 as z.
   assert (forall z', z <= z' < z + Genv.init_data_list_size (dl' ++ a :: dl) ->
-               Mem.load Mint8unsigned m2 b z' = Some (Vint Int.zero)).
-  eapply load_store_zeros; eauto.
+               Mem.load Mint8unsigned m2 b z' = Some (Vint Int.zero))
+    by (eapply load_store_zeros; eauto).
   clear H m1.
   revert z m2 H0 H1 H2; induction dl'; intros.
   simpl app in *. simpl Genv.init_data_list_size in *.
   replace (z+0) with z by omega.
-  destruct a; simpl in H2|-*; try solve [destruct H2; auto]; intros.
   simpl in H0.
-  rewrite (Genv.store_init_data_list_outside ge dl m2  H0) by (right; simpl; omega).
-  apply H1.
-  simpl.
+  invSome.
+  spec H2. {
+    clear - H1.
+    admit. (* need a proof about read_as_zero *)
+  }
+  destruct a; simpl in H2|-*; try solve [destruct H2; auto]; intros.
+  rewrite (Genv.store_init_data_list_outside ge dl _ H4) by (right; simpl; omega).
+  simpl in H0. inv H0. apply H1.
+  simpl. 
   pose proof (init_data_list_size_pos dl).
   omega.
   destruct H2 as [[b' [? ?]] ?].
@@ -400,11 +405,14 @@ Proof.
   simpl.
   pose proof (Genv.init_data_size_pos a0). 
   omega.
-  clear - H2.
   simpl app in H2.
+  spec H2. {
+     clear - H1.
+     admit.  (* read_as_zero, seems fine. *)
+  }
+  clear - H2.
   forget (dl'++a::dl) as D.
   simpl in H2. destruct a0; simpl in *; try solve [destruct H2; auto]; intros.
-  auto.
 Qed.
 
 Lemma read_sh_readonly:
@@ -487,20 +495,17 @@ Proof.
  unfold decode_val in H.
  revert H; case_eq (getN 4 i b); intros. inv H.
  unfold getN in H. destruct l; inv H.
- simpl proj_bytes in H1.
- destruct (ZMap.get i b); [inv H1 | | ].
-2: simpl in H1;
-(destruct (eq_block b0 b0); [ | congruence]);
-(destruct (Int.eq_dec i0 i0); [ | congruence]);
-simpl in H1;
-(destruct n; simpl in H1; try congruence);
-(destruct n; simpl in H1; try congruence);
-(destruct n; simpl in H1; try congruence);
-(destruct n; simpl in H1; try congruence);
-if_tac in H1; inv H1.
- destruct (ZMap.get (i+1) b); [inv H1 | |  inv H1].
- destruct (ZMap.get (i+1+1) b); [inv H1 | |  inv H1].
- destruct (ZMap.get (i+1+1+1) b); [inv H1 | |  inv H1].
+ destruct (proj_bytes
+         (ZMap.get i b
+          :: ZMap.get (i + 1) b
+             :: ZMap.get (i + 1 + 1) b :: ZMap.get (i + 1 + 1 + 1) b :: nil))
+    eqn:PB.
+*
+ simpl proj_bytes in PB.
+ destruct (ZMap.get i b); inv PB.
+ destruct (ZMap.get (i+1) b); inv H2.
+ destruct (ZMap.get (i+1+1) b); inv H3.
+ destruct (ZMap.get (i+1+1+1) b); inv H2.
  unfold decode_int in H1.
  assert (Int.repr (int_of_bytes (rev_if_be (i0 :: i1 :: i2 :: i3 :: nil))) = Int.repr 0) by
     (forget (Int.repr (int_of_bytes (rev_if_be (i0 :: i1 :: i2 :: i3 :: nil)))) as foo; inv H1; auto).
@@ -531,7 +536,34 @@ if_tac in H1; inv H1.
  subst.
  assert (j-i=0 \/ j-i=1 \/ j-i=2 \/ j-i=3) by omega.
  destruct H1 as [? | [?|[?|?]]]; rewrite H1; simpl; auto.
-Qed.
+*
+ unfold proj_value in H1.
+ unfold Val.load_result in H1.
+ clear PB.
+ destruct (ZMap.get i b); inv H1.
+ rewrite proj_sumbool_is_true in H2 by auto.
+ destruct (quantity_eq Q32 q); simpl in H2; [ | inv H2].
+ subst q.
+ destruct n; inv H2. destruct n; inv H1.
+ destruct n; inv H2. destruct n; inv H1.
+ destruct (ZMap.get (i+1) b); inv H2.
+ destruct (Val.eq v v0); inv H1.
+ destruct (quantity_eq Q32 q); simpl in H2; [ | inv H2].
+ destruct n; inv H2. destruct n; inv H1.
+ destruct n; inv H2.
+ destruct (ZMap.get (i+1+1) b); inv H1.
+ destruct (Val.eq v0 v); inv H2.
+ destruct (quantity_eq Q32 q); simpl in H1; [ | inv H1].
+ destruct n; inv H1. destruct n; inv H2.
+ destruct (ZMap.get (i+1+1+1) b); inv H1.
+ destruct (Val.eq v v0); inv H2.
+ destruct (quantity_eq Q32 q); simpl in H1; [ | inv H1].
+ destruct n; inv H1.
+ destruct v0; inv H2.
+ assert (j-i=0 \/ j-i=1 \/ j-i=2 \/ j-i=3) by omega.
+ destruct H as [? | [?|[?|?]]]; rewrite H; simpl; auto.
+(* Not true *)
+Abort.
 
 Lemma Zmax_Z_of_nat:
  forall n, Zmax (Z_of_nat n) 0 = Z_of_nat n.

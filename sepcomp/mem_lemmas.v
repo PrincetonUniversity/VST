@@ -95,12 +95,15 @@ Proof. intros.
   destruct v. inv MV1. apply MV2.
   inv MV1. apply MV2.
   inv MV2. constructor.
-  inv MV1. inv MV2. inv H3. inv H4. 
-  rewrite Int.add_zero. rewrite Int.add_zero.  
+  inv MV1.
+ * (* Fragment case *)
+  inv MV2.
+  constructor. inv H3; inv H2; try constructor.
+  inv H1; inv H7.
   econstructor. reflexivity. 
-  rewrite Int.add_zero. trivial.
-  inv MV2. inv H3. rewrite Int.add_zero. 
-  rewrite Int.add_zero in H5. econstructor.
+  repeat rewrite Int.add_zero. auto. 
+ * (* Undef case *)
+   inv MV2. constructor.
 Qed.
 
 Lemma extends_trans: forall m1 m2 
@@ -111,7 +114,9 @@ Qed.
 
 Lemma memval_inject_id_refl: forall v, memval_inject inject_id v v. 
 Proof.  
-destruct v. constructor. constructor. econstructor. reflexivity. 
+destruct v. constructor. constructor. econstructor.
+destruct v; try constructor.
+econstructor. reflexivity.
 rewrite Int.add_zero. trivial. 
 Qed.
 
@@ -346,6 +351,7 @@ Proof. intros.
      exists (Vint i). split; constructor.
      exists (Vlong i); split; constructor.
      exists (Vfloat f). split; constructor. 
+     exists (Vsingle f). split; constructor. 
      apply compose_meminjD_Some in H. rename b2 into b3.
        destruct H as [b2 [ofs2 [ofs3 [J12 [J23 DD]]]]]; subst. 
        eexists. split. econstructor. apply J12. reflexivity. 

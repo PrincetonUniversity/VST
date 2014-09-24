@@ -59,14 +59,14 @@ Ltac instantiate_Vptr :=
         let b := fresh "b_" A in
         let z := fresh "z_" A in
         let J := fresh "H_" A in
-        destruct (eval_id i rho) as [| | | | b z] eqn:J; try contradiction H;
+        destruct (eval_id i rho) as [| | | | | b z] eqn:J; try contradiction H;
          clear H; symmetry in J; rename J into H
   | H:isptr (eval_id ?i ?rho)
     |- _ =>
         let b := fresh "b_"  in
         let z := fresh "z_"  in
         let J := fresh "H_"  in
-        destruct (eval_id i rho) as [| | | | b z] eqn:J; try contradiction H;
+        destruct (eval_id i rho) as [| | | | | b z] eqn:J; try contradiction H;
          clear H; symmetry in J; rename J into H
   end.
 
@@ -93,6 +93,7 @@ first [
  | simple eapply rel_expr_binop; [rel_expr | rel_expr | try (simpl; rewrite_eval_id; reflexivity) ]
  | simple apply rel_expr_const_int
  | simple apply rel_expr_const_float
+ | simple apply rel_expr_const_single
  | simple apply rel_expr_const_long
  | simple apply rel_lvalue_var; [ eassumption | assumption]
 (*

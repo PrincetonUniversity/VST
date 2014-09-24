@@ -15,16 +15,15 @@
 
 include Makefile.config
 
-DIRS=lib common $(ARCH)/$(VARIANT) $(ARCH) backend cfrontend driver \
-  flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight cparser cparser/validator
+DIRS=lib common $(ARCH) backend cfrontend driver \
+  flocq/Core flocq/Prop flocq/Calc flocq/Appli exportclight \
+  cparser cparser/validator
 
-RECDIRS=lib common backend cfrontend driver flocq exportclight cparser
+RECDIRS=lib common $(ARCH) backend cfrontend driver flocq exportclight cparser
 
-COQINCLUDES=$(foreach d, $(RECDIRS), -R $(d) -as compcert.$(d)) \
-  -I $(ARCH)/$(VARIANT) -as compcert.$(ARCH).$(VARIANT) \
-  -I $(ARCH) -as compcert.$(ARCH)
+COQINCLUDES=$(foreach d, $(RECDIRS), -R $(d) -as compcert.$(d))
 
-CAMLINCLUDES=$(patsubst %,-I %, $(DIRS)) -I extraction -I cparser
+CAMLINCLUDES=$(patsubst %,-I %, $(DIRS)) -I extraction
 
 MENHIR=menhir
 COQC="$(COQBIN)coqc" -q $(COQINCLUDES)
@@ -66,7 +65,8 @@ FLOCQ=\
 # General-purpose libraries (in lib/)
 
 LIB=Axioms.v Coqlib.v Intv.v Maps.v Heaps.v Lattice.v Ordered.v \
-  Iteration.v Integers.v Archi.v Floats.v Parmov.v UnionFind.v Wfsimpl.v \
+  Iteration.v Integers.v Archi.v Fappli_IEEE_extra.v Floats.v \
+  Parmov.v UnionFind.v Wfsimpl.v \
   Postorder.v FSetAVLplus.v IntvSets.v
 
 # Parts common to the front-ends and the back-end (in common/)
@@ -226,7 +226,8 @@ driver/Configuration.ml: Makefile.config VERSION
          echo let asm = "\"$(CASM)\""; \
          echo let linker = "\"$(CLINKER)\""; \
          echo let arch = "\"$(ARCH)\""; \
-         echo let variant = "\"$(VARIANT)\""; \
+         echo let model = "\"$(MODEL)\""; \
+         echo let abi = "\"$(ABI)\""; \
          echo let system = "\"$(SYSTEM)\""; \
          echo let has_runtime_lib = $(HAS_RUNTIME_LIB); \
          echo let asm_supports_cfi = $(ASM_SUPPORTS_CFI); \
@@ -239,8 +240,7 @@ cparser/Parser.v: cparser/Parser.vy
 
 depend: $(FILES) exportclight/Clightdefs.v
 	$(COQDEP) $^ \
-        | sed -e 's|$(ARCH)/$(VARIANT)/|$$(ARCH)/$$(VARIANT)/|g' \
-              -e 's|$(ARCH)/|$$(ARCH)/|g' \
+        | sed -e 's|$(ARCH)/|$$(ARCH)/|g' \
         > .depend
 
 install:

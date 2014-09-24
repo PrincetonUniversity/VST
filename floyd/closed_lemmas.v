@@ -490,15 +490,25 @@ destruct ( (temp_types Delta) ! id) eqn:?; simpl; auto with closed.
 destruct p.
 repeat rewrite denote_tc_assert_andp.
 f_equal.
-destruct (is_neutral_cast (implicit_deref t) t0) eqn:?; simpl; auto with closed.
+destruct (is_neutral_cast (implicit_deref t) t0) eqn:?; 
+  simpl; auto with closed.
 rewrite expr_lemmas.isCastR.
-destruct (classify_cast (implicit_deref t) t0) eqn:?; simpl; auto with closed;
- try solve [destruct t0; simpl; unfold tc_bool; repeat if_tac; auto with closed; try reflexivity].
-repeat if_tac; try reflexivity. simpl.
-unfold_lift. rewrite <- H; auto.
-destruct si2. simpl.
-unfold_lift. rewrite <- H; auto.
-simpl. unfold_lift. rewrite <- H. auto.
+(* <<<<<<< .mine *)
+destruct (classify_cast (implicit_deref t) t0) eqn:?;
+  simpl; auto with closed;
+ try solve [destruct t0 as [ | | | [ | ] |  | | | | | ]; simpl; unfold tc_bool; repeat if_tac; auto with closed; try reflexivity].
+*
+ if_tac; simpl; auto with closed.
+ if_tac; simpl; auto with closed.
+ unfold_lift. f_equal; auto.
+*
+ destruct si2; simpl; auto with closed.
+ unfold_lift. rewrite <- H; auto.
+ unfold_lift. rewrite <- H; auto.
+*
+ destruct si2; simpl; auto with closed.
+ unfold_lift. rewrite <- H; auto.
+ unfold_lift. rewrite <- H; auto.
 Qed.
 
 Lemma closed_wrtl_tc_temp_id :
@@ -521,10 +531,16 @@ f_equal.
 destruct (is_neutral_cast (implicit_deref t) t0) eqn:?; simpl; auto with closed.
 rewrite expr_lemmas.isCastR.
 destruct (classify_cast (implicit_deref t) t0) eqn:?; simpl; auto with closed;
- try solve [destruct t0; simpl; unfold tc_bool; repeat if_tac; auto with closed; try reflexivity].
+ try solve [destruct t0 as [ | | | [ | ] |  | | | | | ]; simpl; unfold tc_bool; repeat if_tac; auto with closed; try reflexivity].
+*
 if_tac; simpl; auto with closed.
 if_tac; simpl; auto with closed.
 unfold_lift. f_equal; auto.
+*
+destruct si2; simpl; auto with closed.
+unfold_lift. rewrite <- H; auto.
+unfold_lift. rewrite <- H; auto.
+*
 destruct si2; simpl; auto with closed.
 unfold_lift. rewrite <- H; auto.
 unfold_lift. rewrite <- H; auto.
@@ -792,6 +808,7 @@ Fixpoint closed_eval_expr (j: ident) (e: expr) : bool :=
  | Econst_int i ty => true
  | Econst_long i ty => true
  | Econst_float f ty => true
+ | Econst_single f ty => true
  | Etempvar id ty => negb (eqb_ident j id)
  | Eaddrof a ty => closed_eval_lvalue j a 
  | Eunop op a ty =>  closed_eval_expr j a
@@ -1038,7 +1055,7 @@ Proof.
 * clear closed_wrt_tc_expr.
 unfold tc_expr.
 induction e; simpl; intros;
-try solve [destruct t; simpl; auto with closed].
+try solve [destruct t as [ | | | [ | ] |  | | | | | ]; simpl; auto with closed].
 +
   destruct (access_mode t);  simpl; auto with closed.
   destruct (get_var_type Delta i); simpl; auto with closed.
@@ -1079,9 +1096,10 @@ try solve [destruct t; simpl; auto with closed].
  apply closed_eval_expr_e in H.
  unfold isCastResultType.
  destruct (classify_cast (typeof e) t); auto with closed;
-   try solve [ destruct t; auto with closed].
+   try solve [ destruct t as [ | | | [ | ] |  | | | | | ]; auto with closed].
  if_tac; auto with closed.
  if_tac; auto with closed.
+ destruct si2; auto with closed.
  destruct si2; auto with closed.
  hnf; intros; reflexivity.
 +

@@ -41,8 +41,10 @@ Qed.
 
 (** Typechecking soundness **)
 
-Transparent Float.intoffloat.
-Transparent Float.intuoffloat.
+Transparent Float.to_int.
+Transparent Float.to_intu.
+Transparent Float32.to_int.
+Transparent Float32.to_intu.
 
 
 Lemma isCastR: forall tfrom tto a, 
@@ -51,27 +53,60 @@ Lemma isCastR: forall tfrom tto a,
 match Cop.classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF  (invalid_cast tfrom tto)
 | Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
+| Cop.cast_case_s2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
 | Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
-| Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
+| Cop.cast_case_s2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
 | Cop.cast_case_neutral  => if eqb_type tfrom tto then tc_TT else 
                             (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom)) (andb (is_int_type tto) (is_int_type tfrom)) then tc_TT
                                 else tc_iszero' a)
+| Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
+| Cop.cast_case_s2bool => tc_bool (is_single_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_p2bool => tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto)
 | Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_void => tc_noproof
 | _ => match tto with 
       | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto) 
-      | Tfloat _ _  => tc_bool (is_float_type tfrom) (invalid_cast_result tto tto) 
+      | Tfloat F64 _  => tc_bool (is_float_type tfrom) (invalid_cast_result tto tto) 
+      | Tfloat F32 _  => tc_bool (is_single_type tfrom) (invalid_cast_result tto tto) 
       | _ => tc_FF (invalid_cast tfrom tto)
       end
 end.
 Proof. intros; extensionality rho.
  unfold isCastResultType.
- destruct (classify_cast tfrom tto); auto; repeat if_tac; auto;
- try apply denote_tc_assert_iszero. 
+ destruct (classify_cast tfrom tto) eqn:?; auto.
+ destruct (eqb_type tfrom tto); auto.
+ if_tac; auto. apply denote_tc_assert_iszero.
 Qed.
+
+Lemma float_to_int_ok:
+  forall f z, 
+    Zoffloat f = Some z ->
+    Int.min_signed <= z <= Int.max_signed ->
+    Float.to_int f = Some (Int.repr z).
+Admitted.
+
+Lemma float_to_intu_ok:
+  forall f z, 
+    Zoffloat f = Some z ->
+    0 <= z <= Int.max_unsigned ->
+    Float.to_intu f = Some (Int.repr z).
+Admitted.
+
+Lemma single_to_int_ok:
+  forall f z, 
+    Zofsingle f = Some z ->
+    Int.min_signed <= z <= Int.max_signed ->
+    Float32.to_int f = Some (Int.repr z).
+Admitted.
+
+Lemma single_to_intu_ok:
+  forall f z, 
+    Zofsingle f = Some z ->
+    0 <= z <= Int.max_unsigned ->
+    Float32.to_intu f = Some (Int.repr z).
+Admitted.
 
 Lemma typecheck_cast_sound: 
  forall Delta rho e t,
@@ -93,32 +128,90 @@ specialize (H1 H0).
 unfold  sem_cast, force_val1.
 rewrite isCastR in H2.
 revert H2; case_eq (classify_cast (typeof e) t); intros;
-try solve [destruct t; try contradiction;
-    destruct (eval_expr e rho), (typeof e); inv H2; inv  H1; simpl; auto; destruct i; inv H5].
+try solve [destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+            try contradiction;
+    destruct (eval_expr e rho);
+    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+    inv H2; inv  H1; simpl; auto; destruct i; inv H5].
+*
 remember (eval_expr e rho) as v.
-destruct (typeof e), v, t; inv H1; inv H2; auto;
+destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+  destruct v;
+ destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+  inv H1; inv H2; auto;
 simpl in H3; unfold_lift in H3; try reflexivity;
 try solve [hnf in H3; rewrite <- Heqv in H3;  apply (is_true_e _ H3)];
-try solve [destruct i,s; inv H4];
-try solve [destruct i0; inv H4];
+try solve [inv H4];
 try solve [rewrite <- Heqv in H3; inv H3].
+*
+
 destruct si2.
-rewrite denote_tc_assert_andp in H3. destruct H3.
-hnf in H3,H4. unfold_lift in H3; unfold_lift in H4; hnf in H3,H4.
-destruct (eval_expr e rho); try contradiction.
-simpl. unfold Float.intoffloat. destruct (Float.Zoffloat f); try contradiction.
-rewrite (is_true_e _ H3).
-simpl. rewrite Zle_bool_rev. rewrite (is_true_e _ H4). simpl.
-destruct (typeof e); inv H1.
- destruct t; inv H2; auto.
-rewrite denote_tc_assert_andp in H3. destruct H3.
-hnf in H3,H4. unfold_lift in H3; unfold_lift in H4; hnf in H3,H4.
-destruct (eval_expr e rho); try contradiction.
-simpl. unfold Float.intuoffloat. destruct (Float.Zoffloat f); try contradiction.
-rewrite (is_true_e _ H3).
-simpl. rewrite Zle_bool_rev. rewrite (is_true_e _ H4). simpl.
-destruct (typeof e); inv H1.
- destruct t; inv H2; auto.
++ rewrite denote_tc_assert_andp in H3. destruct H3.
+    hnf in H3,H4. unfold_lift in H3; unfold_lift in H4; hnf in H3,H4.
+    destruct (eval_expr e rho); try contradiction.
+    simpl.
+    destruct (Zoffloat f) eqn:?; try contradiction.
+    apply is_true_e in H3; apply is_true_e in H4.
+    apply Z.leb_le in H3; apply Z.geb_le in H4.
+    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H1.
+    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H2;
+    rewrite (float_to_int_ok _ _ Heqo); auto.
+    destruct (Zofsingle f) eqn:?; try contradiction.
+    apply is_true_e in H3; apply is_true_e in H4.
+    apply Z.leb_le in H3; apply Z.geb_le in H4.
+    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H1.
+    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H2;
+    rewrite (float_to_int_ok _ _ Heqo); auto.
++ rewrite denote_tc_assert_andp in H3. destruct H3.
+    hnf in H3,H4. unfold_lift in H3; unfold_lift in H4; hnf in H3,H4.
+    destruct (eval_expr e rho); try contradiction.
+    simpl.
+    destruct (Zoffloat f) eqn:?; try contradiction.
+    apply is_true_e in H3; apply is_true_e in H4.
+    apply Z.leb_le in H3; apply Z.geb_le in H4.
+    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H1.
+    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H2;
+    rewrite (float_to_intu_ok _ _ Heqo); auto.
+    destruct (Zofsingle f) eqn:?; try contradiction.
+    apply is_true_e in H3; apply is_true_e in H4.
+    apply Z.leb_le in H3; apply Z.geb_le in H4.
+    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H1.
+    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H2;
+    rewrite (float_to_intu_ok _ _ Heqo); auto.
+*
+destruct si2.
++ rewrite denote_tc_assert_andp in H3. destruct H3.
+    hnf in H3,H4. unfold_lift in H3; unfold_lift in H4; hnf in H3,H4.
+    destruct (eval_expr e rho); try contradiction.
+    simpl.
+    destruct (Zoffloat f) eqn:?; try contradiction.
+    apply is_true_e in H3; apply is_true_e in H4.
+    apply Z.leb_le in H3; apply Z.geb_le in H4.
+    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H1.
+    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H2;
+    rewrite (float_to_int_ok _ _ Heqo); auto.
+    destruct (Zofsingle f) eqn:?; try contradiction.
+    apply is_true_e in H3; apply is_true_e in H4.
+    apply Z.leb_le in H3; apply Z.geb_le in H4.
+    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H1.
+    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H2;
+    simpl; rewrite (single_to_int_ok _ _ Heqo); auto.
++ rewrite denote_tc_assert_andp in H3. destruct H3.
+    hnf in H3,H4. unfold_lift in H3; unfold_lift in H4; hnf in H3,H4.
+    destruct (eval_expr e rho); try contradiction.
+    simpl.
+    destruct (Zoffloat f) eqn:?; try contradiction.
+    apply is_true_e in H3; apply is_true_e in H4.
+    apply Z.leb_le in H3; apply Z.geb_le in H4.
+    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H1.
+    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H2;
+    rewrite (float_to_intu_ok _ _ Heqo); auto.
+    destruct (Zofsingle f) eqn:?; try contradiction.
+    apply is_true_e in H3; apply is_true_e in H4.
+    apply Z.leb_le in H3; apply Z.geb_le in H4.
+    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H1.
+    simpl; destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H2;
+    rewrite (single_to_intu_ok _ _ Heqo); auto.
 Qed.
 
 (** Main soundness result for the typechecker **)
@@ -135,31 +228,34 @@ Lemma typecheck_both_sound:
 Proof.
 intros. induction e; split; intros; try solve[subst; auto].
 
-(*Const int*)
+* (*Const int*)
 simpl. subst; destruct t; auto; simpl in H0; inv H0; intuition.
 
-(*Const float*)
-simpl in *. subst; destruct t; intuition. 
+* (*Const float*)
+destruct f; simpl in *; subst; destruct t; try destruct f; intuition.
+* (* Const single *)
+destruct f; simpl in *; subst; destruct t; try destruct f; intuition. 
 
-(*Var*)
+* (*Var*)
 eapply typecheck_expr_sound_Evar; eauto.
-eapply typecheck_lvalue_Evar; eauto.
 
-(*Temp*)
+*eapply typecheck_lvalue_Evar; eauto.
+
+* (*Temp*)
 eapply typecheck_temp_sound; eauto.
 
-(*deref*)  
+* (*deref*)  
 eapply typecheck_deref_sound; eauto.
-(*addrof*)
+* (*addrof*)
 intuition.
 simpl in *. 
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 destruct H0. 
 destruct t; auto.
 
-(*Unop*)
+* (*Unop*)
 eapply typecheck_unop_sound; eauto.
-(*binop*)
+* (*binop*)
 repeat rewrite andb_true_iff in *; intuition.
 clear H4. clear H2. clear H.
 simpl in H0.
@@ -167,11 +263,12 @@ repeat rewrite denote_tc_assert_andp in H0.
 destruct H0 as [[H0 E1] E2].
 apply (typecheck_binop_sound b Delta rho e1 e2 t H0 (H3 E2) (H1 E1)).
 
-(* cast *)
+* (* cast *)
 eapply typecheck_cast_sound; eauto.
 
-(*EField*)
+* (*EField*)
 eapply typecheck_expr_sound_Efield; eauto.
+*
 eapply typecheck_lvalue_sound_Efield; eauto.
 Qed. 
 
@@ -233,22 +330,27 @@ Ltac unfold_cop2_sem_cmp :=
 unfold Cop2.sem_cmp, Cop2.sem_cmp_pp, Cop2.sem_cmp_pl, Cop2.sem_cmp_lp.
 
 Lemma bin_arith_relate :
-forall a b c v1 v2 t1 t2, 
-Cop.sem_binarith a b c v1 t1 v2 t2 =
-sem_binarith a b c t1 t2 v1 v2.
+forall a b c d v1 v2 t1 t2, 
+Cop.sem_binarith a b c d v1 t1 v2 t2 =
+sem_binarith a b c d t1 t2 v1 v2.
 Proof.
 intros. 
-unfold Cop.sem_binarith, sem_binarith, Cop.sem_cast, sem_cast, both_int,both_long,both_float.
-destruct (classify_binarith t1 t2); destruct t1; simpl; auto;
-destruct v1; auto; destruct t2; simpl; auto;
+unfold Cop.sem_binarith, sem_binarith, Cop.sem_cast, sem_cast, both_int,both_long,both_float,both_single.
+destruct (classify_binarith t1 t2); 
+ destruct t1 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; simpl; auto;
+ destruct v1; auto; 
+ destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; 
+ simpl; auto;
 repeat match goal with 
-| |- context [match ?v with| Vundef => None| Vint _ => None| Vlong _ => None| Vfloat _ => None| Vptr _ _ => None end] =>
+| |- context [match ?v with| Vundef => None| Vint _ => None| Vlong _ => None| Vfloat _ => None| Vsingle _ => None| Vptr _ _ => None end] =>
        destruct v; simpl
 | |- context [match ?A with Some _ => None | None => None end] =>
  destruct A; simpl
  end;
- try (destruct (cast_float_int s f0); reflexivity);
- try (destruct (cast_float_long s f0); reflexivity);
+ try (destruct (cast_float_int s _); reflexivity);
+ try (destruct (cast_float_long s _); reflexivity);
+ try (destruct (cast_single_int s _); reflexivity);
+ try (destruct (cast_single_long s _); reflexivity);
  auto.
 Qed.
 
@@ -505,7 +607,7 @@ intuition.
 constructor. unfold eval_id in *. remember (Map.get (te_of rho)  i);
 destruct o;  auto. destruct rho; inv H; unfold make_tenv in *.
 unfold Map.get in *. auto. 
-simpl in *. destruct t; contradiction H3.
+simpl in *. destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; contradiction H3.
 
 * (*deref*)
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).
@@ -536,37 +638,15 @@ simpl in *.
 repeat( rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
 unfold eval_unop in *. intuition. unfold force_val1, force_val. 
 remember (sem_unary_operation u (typeof e) (eval_expr e rho)).
-destruct o. eapply Clight.eval_Eunop. eapply IHe; eauto. rewrite Heqo.
+eapply Clight.eval_Eunop. eapply IHe; eauto. rewrite Heqo.
 
-unfold sem_unary_operation. unfold Cop.sem_unary_operation. destruct u; auto.
-unfold sem_notbool. unfold Cop.sem_notbool. unfold sem_notbool_i, sem_notbool_f,
-sem_notbool_p, sem_notbool_l. 
-destruct (classify_bool (typeof e)); auto. unfold sem_notint, Cop.sem_notint.
-destruct (classify_notint (typeof e)); reflexivity.
-unfold sem_neg, Cop.sem_neg. 
-destruct (classify_neg (typeof e)); reflexivity.
-unfold sem_absfloat, Cop.sem_absfloat.
-destruct (classify_neg (typeof e)); try reflexivity.
-
-apply typecheck_expr_sound in H3; auto. unfold sem_unary_operation in *.
-destruct u. simpl in *. remember (typeof e); destruct t0; try inv H2;
-try destruct i;try destruct s; try inv H2; simpl in *; destruct t; intuition;
-destruct (eval_expr e rho); intuition; unfold sem_notbool in *;
-simpl in *; inv Heqo. 
-
-simpl in *. remember (typeof e). destruct t0;
-try destruct i; try destruct s; try inversion H3; simpl in *; destruct t; intuition;
-destruct (eval_expr e rho); intuition; unfold sem_notint in *;
-simpl in *; inv Heqo. 
-
-simpl in *. remember (typeof e). destruct t0;
-try destruct i; try destruct s; try inversion H3; simpl in *; destruct t; intuition;
-destruct (eval_expr e rho); intuition; unfold sem_neg in *;
-simpl in *; inv Heqo.
-simpl in *. remember (typeof e). destruct t0;
-try destruct i; try destruct s; try inversion H3; simpl in *; destruct t; intuition;
-destruct (eval_expr e rho); intuition; unfold sem_neg in *;
-simpl in *; inv Heqo.
+unfold sem_unary_operation. unfold Cop.sem_unary_operation.
+apply typecheck_expr_sound in H3; auto.
+destruct u; auto;
+  simpl in H2;
+  destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; simpl;
+  hnf in H3; try contradiction; destruct (eval_expr e rho); try contradiction;
+  try reflexivity.
 
 * (*binop*)
 simpl in *. 
@@ -1144,11 +1224,13 @@ rewrite update_tycon_same_ve in *. eauto.
 Qed. 
 
 Lemma typecheck_bool_val:
-  forall v t, typecheck_val v t = true -> bool_type t = true ->
+  forall v t, 
+       typecheck_val v t = true -> 
+       bool_type t = true ->
       exists b, strict_bool_val v t = Some b.
 Proof.
 intros.
-destruct t; inv H0;
+destruct t; try destruct f; inv H0;
 destruct v; inv H; simpl; try rewrite H1; eauto. 
 Qed.
 
@@ -1160,7 +1242,8 @@ Lemma cop_2_sem_cast : forall t1 t2 e,
 Cop.sem_cast (e) t1 t2 = Cop2.sem_cast t1 t2 e.
 Proof.
 intros. unfold Cop.sem_cast, sem_cast.
-destruct t1; destruct t2; destruct e; simpl; try destruct i; try destruct i0; auto.   
+destruct t1 as [ | [ | | | ] | [ | ] | [ | ] | | | | | | ]; 
+  destruct t2 as [ | [  | | | ] | [ | ] | [ | ] | | | | | | ]; destruct e; simpl; auto.   
 Qed.
 
 Lemma cast_exists : forall Delta e2 t rho 
@@ -1174,29 +1257,30 @@ Proof.
 intros. 
 assert (exists v, sem_cast (typeof e2) t (eval_expr e2 rho) = Some v). 
 {
-apply typecheck_expr_sound in H.
+apply typecheck_expr_sound in H; [ | auto ].
 rename t into t0.
 remember (typeof e2); remember (eval_expr e2 rho). 
 unfold sem_cast. unfold classify_cast.
-Transparent Float.intoffloat.
-Transparent Float.intuoffloat.
 Transparent liftx.
-destruct t as [ | [ | | | ] [ | ] a | i a | i a | | | | | | ]; destruct v;
-destruct t0 as [ | [ | | | ] [ | ] ? | i1 ? | i1 ? | | | | | | ]; simpl in *;
+destruct t as [ | [ | | | ] [ | ] a | i a | [ | ] a | | | | | | ]; destruct v;
+destruct t0 as [ | [ | | | ] [ | ] ? | i1 ? | [ | ] ? | | | | | | ]; simpl in *;
 try congruence; try contradiction; eauto;
-unfold Float.intoffloat, Float.intuoffloat, isCastResultType in *;
+unfold isCastResultType in *;
 simpl in *;
-solve [
- rewrite denote_tc_assert_andp in H0; simpl in H0;
+rewrite denote_tc_assert_andp in H0; simpl in H0;
  unfold_lift in H0; rewrite <- Heqv in H0; simpl in H0;
- destruct (Float.Zoffloat f); destruct H0; try contradiction;
- rewrite <- Zle_bool_rev in H1;
- rewrite (is_true_e _ H0), (is_true_e _ H1);
- econstructor; simpl; reflexivity].
-auto.
+match type of H0 with (match ?ZZ with Some _ => _ | None => _ end /\ _) =>
+    destruct ZZ eqn:H5
+ end;
+ destruct H0; try contradiction;
+ (first [rewrite (float_to_int_ok _ _ H5)
+        | rewrite (float_to_intu_ok _ _ H5)
+        | rewrite (single_to_int_ok _ _ H5)
+        | rewrite (single_to_intu_ok _ _ H5)
+        ] ;
+    [ eexists; reflexivity
+    | split; [apply Z.leb_le | apply Z.geb_le]; apply is_true_e; assumption ]).
 }
-Opaque Float.intoffloat.
-Opaque Float.intuoffloat.
 Opaque liftx.
 destruct H1. rewrite H1. auto.
 Qed.
@@ -1365,7 +1449,8 @@ Qed.
 match from, to with
 | Tint _ _ _, Tint I32 _ _ => true
 | Tpointer _ _, Tpointer _ _ => true
-| Tfloat _ _ , Tfloat F64 _ => true
+| Tfloat F64 _ , Tfloat F64 _ => true
+| Tfloat F32 _ , Tfloat F32 _ => true
 | _, _ => false
 end. 
 
@@ -1375,8 +1460,9 @@ is_true (cast_no_val_change from to) ->
 Cop.sem_cast v from to = Some v. 
 Proof. 
 intros. apply is_true_e in H. apply is_true_e in H0.
-destruct v; destruct from; simpl in *; try congruence; destruct to; simpl in *; try congruence; auto; 
-try destruct i1; try destruct f1; simpl in *; try congruence; auto.
+destruct v; destruct from as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; 
+  simpl in *; try congruence; 
+ destruct to as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; simpl in *; try congruence; auto.
 Qed. 
 
 Lemma tc_exprlist_length : forall Delta tl el rho, 
@@ -1400,10 +1486,10 @@ Proof.
 intros.
 rewrite isCastR in H0.
 apply typecheck_expr_sound in H1; auto. rewrite tc_val_eq in H1.
-destruct (typeof e); destruct t; simpl in H; simpl in H0;
+destruct (typeof e)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; simpl in H; simpl in H0;
 try congruence; remember (eval_expr e rho); destruct v;
 simpl in H0; try congruence; auto; 
-destruct i; destruct s; try destruct i0; try destruct s0;
 unfold is_neutral_cast in *;
 simpl in *; try congruence; super_unfold_lift; 
 try rewrite <- Heqv in *;  unfold denote_tc_iszero in *;
@@ -1650,16 +1736,17 @@ revert H7; case_eq (sem_cast (typeof e2) t2 (eval_expr e2 rho) ); intros; inv H7
 simpl.
 rewrite isCastR in H6.
 case_eq (eval_expr e2 rho); intros; rename H0 into H99;
- destruct t2; inv H8; inv H; simpl; auto;
+ destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; inv H8; inv H; simpl; auto;
 hnf in H6; try contradiction; rewrite H99 in *;
-destruct (typeof e2); inv H2; inv H1; auto;
-try (unfold sem_cast in H0; simpl in H0;
-      destruct i0; simpl in*; destruct s; inv H0; simpl; auto);
- try solve [super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in *; contradiction].
-simpl in *. super_unfold_lift. rewrite H99 in *. apply is_true_e in H6. auto.
-simpl in *. super_unfold_lift. rewrite H99 in *. apply is_true_e in H6. auto.
-simpl in *. 
-unfold sem_cast in H0. simpl in H0.
-destruct i; simpl in*; destruct s; try destruct f; inv H0; simpl; auto;
-invSome; simpl; auto.
+destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; 
+inv H2; inv H1; auto;
+simpl in H6;
+try (unfold sem_cast in H0;
+      simpl in*; inv H0; simpl; auto);
+ try (super_unfold_lift; unfold denote_tc_iszero in H6; rewrite H99 in H6;
+       try contradiction H6; apply is_true_e in H6; auto);
+ try match type of H1 with 
+   match ?ZZ with Some _ => _ | None => _ end = _ => 
+  destruct ZZ eqn:H5; inv H1; simpl; auto
+end.
 Qed.

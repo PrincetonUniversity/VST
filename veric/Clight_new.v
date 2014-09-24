@@ -132,6 +132,7 @@ with find_label_ls (lbl: label) (sl: labeled_statements) (k: cont)
 
 
 (** Transition relation *)
+Locate select_switch.
 
 Inductive cl_step (ge: Clight.genv): forall (q: corestate) (m: mem) (q': corestate) (m': mem), Prop :=
 
@@ -208,8 +209,9 @@ le' ->
       end ->
       cl_step ge (State ve te (Kseq (Sreturn optexp) :: k)) m (State ve' te'' k') m'
 
-  | step_switch: forall ve te k m a sl n,
-      Clight.eval_expr ge ve te m a (Vint n) ->
+  | step_switch: forall ve te k m a sl v n,
+      Clight.eval_expr ge ve te m a v ->
+      Cop.sem_switch_arg v (typeof a) = Some n ->
       cl_step ge (State ve te (Kseq (Sswitch a sl) :: k)) m
               (State ve te (Kseq (seq_of_labeled_statement (select_switch n sl)) :: Kswitch :: k)) m
 
@@ -308,7 +310,6 @@ inversion2 H H7.
 destruct optid. destruct H2,H13. subst. auto. destruct H13,H2; subst; auto.
  inversion2 H H7. 
  destruct optid. destruct H2,H13; congruence. destruct H2,H13. subst. auto.
-inv H; auto.
 Qed.
 
 (* NO LONGER NEEDED? *)

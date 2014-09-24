@@ -1596,8 +1596,15 @@ Proof.
  destruct (typeof a); inv H0; simpl.
  destruct (Int64.eq i Int64.zero); reflexivity.
  destruct (typeof a); inv H0; simpl.
+ destruct f0; inv H2.
+ simpl.
  destruct ((Float.cmp Ceq f Float.zero)); reflexivity.
- destruct (typeof a); inv H0; simpl; rewrite Int.eq_true; reflexivity.
+ destruct (typeof a); inv H0; simpl.
+ destruct f0; inv H2.
+ simpl.
+ destruct ((Float32.cmp Ceq f Float32.zero)); reflexivity.
+ destruct (typeof a); inv H0; simpl;
+ rewrite Int.eq_true; reflexivity.
 Qed.
 
 Lemma guard_environ_sub:

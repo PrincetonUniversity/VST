@@ -86,7 +86,7 @@ rewrite mul_repr, sub_repr in H1; apply ltu_repr_false in H1.
 2: split; computable.
 2: assert (64 < Int.max_unsigned)%Z by computable; unfold ddlen in *;
    split; try omega.
-clear TC1.
+clear TC0.
 change (16*4)%Z with (Z.of_nat CBLOCK) in H1.
 apply andp_right; [apply prop_right; repeat split | cancel].
 rewrite Forall_app; split; auto.
@@ -142,8 +142,10 @@ repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
 replace (offset_val (Int.repr (data_offset + Zlength dd')) c)%Z
     with (offset_val (Int.repr (sizeof tuchar * Zlength dd')) (offset_val (Int.repr 40) c))%Z.
 eapply derives_trans; [apply array_at_array_at_; reflexivity |].
-erewrite <- data_at__array_at_ with (a:= noattr); [|rewrite Zlength_correct; omega| unfold legal_alignas_type; simpl; rewrite orb_true_iff; auto].
-rewrite <- memory_block_data_at_; [| unfold legal_alignas_type; simpl; rewrite orb_true_iff; auto | unfold nested_non_volatile_type; simpl; rewrite orb_true_iff; auto].
+erewrite <- data_at__array_at_ with (a:= noattr);
+   [|rewrite Zlength_correct; omega
+   | reflexivity ].
+ rewrite <- memory_block_data_at_; [ | reflexivity ..].
 replace (sizeof (Tarray tuchar (Z.of_nat CBLOCK - 8 - Zlength dd') noattr)) with
   (Z.of_nat CBLOCK - 8 - Zlength dd') by
   (simpl sizeof;
@@ -184,7 +186,6 @@ replace (`(array_at tuchar Tsh
            ZnthV tuchar (map Vint (map Int.repr dd'))
              (i + (Z.of_nat CBLOCK - 8)))
               0 8 (offset_val (Int.repr 96) c))).
-
 simple apply final_part2 with pad; assumption.
 + change ((40 + (Z.of_nat CBLOCK - 8))) with 96.
   change ((64 - (Z.of_nat CBLOCK - 8))) with 8.

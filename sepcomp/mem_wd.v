@@ -38,9 +38,8 @@ Qed.
 Lemma inject_valvalid: forall j m1 m2 (Inj: Mem.inject j m1 m2) v2 (V:val_valid v2 m2) v1,
              val_inject j v1 v2 -> val_valid v1 m1.
 Proof. intros.
-  inv H. constructor. constructor. constructor.
+  inv H; repeat constructor.
      simpl in *. eapply Mem.valid_block_inject_1; eassumption. 
-     constructor. 
 Qed.
 
 (*Preservation of val_valid along an injection only holds 
@@ -54,11 +53,8 @@ Lemma inject_valvalid_1:
       | _ => val_valid v2 m2
   end.
 Proof. intros.
-  destruct v1; trivial.
-  inv H1; trivial.
-  inv H1; trivial.
-  inv H1; trivial.
-  inv H1. simpl in *.
+  destruct v1; auto; inv H1; auto.
+  simpl in *.
   eapply Mem.valid_block_inject_2; eassumption.
 Qed.
 
@@ -212,11 +208,16 @@ Proof.
   destruct H. specialize (mi_memval0 b ofs b 0 H2 H0). 
   rewrite Zplus_0_r in mi_memval0. 
   remember (ZMap.get ofs (PMap.get b (Mem.mem_contents m1))) as v.
-  destruct v. constructor. constructor.
+  destruct v. repeat econstructor.
   econstructor.
-    eapply flatinj_I. inv mi_memval. inv H4. rewrite Int.add_zero in H6. 
-      rewrite <- H6 in mi_memval0. simpl in mi_memval0. inversion mi_memval0.
-      apply flatinj_E in H4. apply H4. 
+  econstructor.
+  destruct v; try constructor.
+  econstructor.
+    eapply flatinj_I. inv mi_memval.
+    inv H3. inv H5. rewrite Int.add_zero in H6. 
+      rewrite <- H6 in mi_memval0. simpl in mi_memval0.
+     inv mi_memval0. inversion H3.       
+      apply flatinj_E in H7. apply H7. 
    rewrite Int.add_zero. reflexivity.
 Qed. 
 
@@ -430,6 +431,16 @@ eapply (IHl  _ _  H2).
     apply (valid_genv_alloc_global _ _ _ _ Heqd H0).
 Qed.
 
+
+Lemma decode_val_pointer_inv:
+  forall chunk mvl b ofs,
+  decode_val chunk mvl = Vptr b ofs ->
+  chunk = Mint32 /\ mvl = inj_value Q32 (Vptr b ofs).
+Admitted. (* A version of this lemma is in 
+  CompCert 2.3, Memdata.v,
+ but missing from CompCert 2.4.  I'm not even sure
+ it's true in CompCert 2.4.  -A.W.A. *)
+
 Lemma mem_wd_load: forall m ch b ofs v
   (LD: Mem.load ch m b ofs = Some v)
   (WD : mem_wd m), val_valid v m.
@@ -437,7 +448,8 @@ Proof. intros.
   destruct v; simpl; trivial.
   destruct (Mem.load_valid_access _ _ _ _ _ LD) as [Perms Align].
   apply Mem.load_result in LD.
-  apply eq_sym in LD. apply decode_val_pointer_inv in LD.
+  apply eq_sym in LD.
+  apply decode_val_pointer_inv in LD.
   destruct LD.
   destruct ch; inv H; simpl in *.
   unfold mem_wd in WD. unfold Mem.inject_neutral in WD.
@@ -448,9 +460,18 @@ Proof. intros.
   assert (Z:= flatinj_I (Mem.nextblock m) b VB).
   specialize (mi_memval _ _ _ _ Z Perms).
   inv H0. rewrite Zplus_0_r in mi_memval. rewrite H1 in mi_memval.
-  inversion mi_memval. clear H9. subst.
-  apply flatinj_E in H5. apply H5.
+  inversion mi_memval. clear H6. subst.
+  inversion H0.
+  apply flatinj_E in H7. apply H7.
 Qed.
+
+Lemma setN_property:
+  forall (P: memval -> Prop) vl p q c,
+  (forall v, In v vl -> P v) ->
+  p <= q < p + Z_of_nat (length vl) ->
+  P(ZMap.get q (Mem.setN vl p c)).
+Admitted.  (* This Lemma is in CompCert 2.3, Memory.v,
+  not sure if it's true in CompCert 2.4.  - A.W.A. *)
 
 Lemma mem_wd_storebytes: forall m b ofs bytes m' (WDm: mem_wd m)
   (ST: Mem.storebytes m b ofs bytes = Some m')
@@ -482,7 +503,7 @@ Proof. intros. apply mem_wdI. intros.
       remember (zlt ofs0 (ofs + (Z.of_nat (length bytes)))) as d.
       destruct d; clear Heqd.
       (*case <*) 
-        eapply Mem.setN_property. 
+        eapply setN_property. 
           apply BytesValid.
           split. omega. apply l. 
       (*case >= *)

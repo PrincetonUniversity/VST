@@ -1008,7 +1008,7 @@ Ltac findvars :=
   let H := fresh in
     assert (H := reflect_temps_valid _ _ DD);
     try (unfold Delta in H);
-   cbv beta iota zeta delta [abbreviate PTree.fold PTree.append PTree.xfold temp_types fst snd
+   cbv beta iota zeta delta [abbreviate PTree.fold PTree.prev PTree.prev_append PTree.xfold temp_types fst snd
              reflect_temps reflect_temps_f] in H;
    simpl in H;
    repeat match goal with
@@ -1077,9 +1077,9 @@ intros.
  rewrite tc_val_eq in H2.
  destruct (eval_id id  rho); inv H2.
  pose proof (Int.eq_spec i Int.zero). rewrite H4 in H2. subst. clear H4.
- destruct t1; destruct t3; inv H0; 
-  try (destruct i; inv H3); try (destruct i0; inv H2); try reflexivity.
- destruct t1; destruct t3; inv H0; 
+ destruct t1 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | | ]; 
+ destruct t3 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | | ]; inv H0; try reflexivity.
+ destruct t1 as [ | | | [ | ] |  | | | | | ]; destruct t3 as [ | | | [ | ] |  | | | | | ]; inv H0; 
   try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
 Qed.
 
@@ -1122,11 +1122,9 @@ tc_environ Delta rho ->
 tc_lvalue Delta (Evar i t) rho -> 
           force_val
             match eval_var i t rho with
-            | Vundef => None
             | Vint _ => Some (eval_var i t rho)
-            | Vlong _ => None
-            | Vfloat _ => None
             | Vptr _ _ => Some (eval_var i t rho)
+            | _ => None
             end = eval_var i t rho.
 Proof.
 intros.
@@ -1142,11 +1140,9 @@ Lemma force_eval_var_int_ptr':
     tc_environ Delta rho /\  tc_lvalue Delta (Evar i t) rho) ->
   force_val
             match eval_var i t rho with
-            | Vundef => None
             | Vint _ => Some (eval_var i t rho)
-            | Vlong _ => None
-            | Vfloat _ => None
             | Vptr _ _ => Some (eval_var i t rho)
+            | _ => None
             end = eval_var i t rho.
 Proof.
 intros.
@@ -1162,11 +1158,10 @@ Hint Rewrite force_eval_var_int_ptr' using
 Lemma is_pointer_or_null_force_int_ptr:
    forall v, is_pointer_or_null v -> (force_val
         match v with
-        | Vundef => None
         | Vint _ => Some v
-        | Vlong _ => None
-        | Vfloat _ => None
-        | Vptr _ _ => Some v end) = v.
+        | Vptr _ _ => Some v
+        | _ => None
+        end) = v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
@@ -1176,11 +1171,10 @@ Hint Rewrite is_pointer_or_null_force_int_ptr using assumption : norm.
 Lemma is_pointer_force_int_ptr:
    forall v, isptr v -> (force_val
         match v with
-        | Vundef => None
         | Vint _ => Some v
-        | Vlong _ => None
-        | Vfloat _ => None
-        | Vptr _ _ => Some v end) = v.
+        | Vptr _ _ => Some v 
+        | _ => None
+        end) = v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
@@ -1190,11 +1184,10 @@ Hint Rewrite is_pointer_force_int_ptr using assumption : norm.
 Lemma is_pointer_or_null_match :
    forall v, is_pointer_or_null v -> 
         (match v with
-        | Vundef => None
         | Vint _ => Some v
-        | Vlong _ => None
-        | Vfloat _ => None
-        | Vptr _ _ => Some v end) = Some v.
+        | Vptr _ _ => Some v
+        | _ => None
+         end) = Some v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
@@ -1203,11 +1196,10 @@ Hint Rewrite is_pointer_or_null_match using assumption : norm.
 Lemma is_pointer_force_int_ptr2:
    forall v, isptr v -> 
         match v with
-        | Vundef => None
         | Vint _ => Some v
-        | Vlong _ => None
-        | Vfloat _ => None
-        | Vptr _ _ => Some v end = Some v.
+        | Vptr _ _ => Some v
+        | _ => None
+         end = Some v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
@@ -1216,17 +1208,15 @@ Hint Rewrite is_pointer_force_int_ptr2 using assumption : norm.
 Lemma is_pointer_or_null_force_int_ptr2:
    forall v, is_pointer_or_null (force_val
         match v with
-        | Vundef => None
         | Vint _ => Some v
-        | Vlong _ => None
-        | Vfloat _ => None
-        | Vptr _ _ => Some v end) -> (force_val
+        | Vptr _ _ => Some v
+        | _ => None
+         end) -> (force_val
         match v with
-        | Vundef => None
         | Vint _ => Some v
-        | Vlong _ => None
-        | Vfloat _ => None
-        | Vptr _ _ => Some v end) = v.
+        | Vptr _ _ => Some v
+        | _ => None
+         end) = v.
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
@@ -1237,11 +1227,9 @@ Lemma isptr_match : forall w0,
 is_pointer_or_null
          match
            match w0 with
-           | Vundef => None
            | Vint _ => Some w0
-           | Vlong _ => None
-           | Vfloat _ => None
            | Vptr _ _ => Some w0
+           | _ => None
            end
          with
          | Some v' => v'

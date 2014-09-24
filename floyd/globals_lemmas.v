@@ -106,7 +106,7 @@ Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: 
   | Init_int16 i => `(mapsto sh tushort) v ` (Vint (Int.zero_ext 16 i))
   | Init_int32 i => `(mapsto sh tuint) v ` (Vint i)
   | Init_int64 i => `(mapsto sh tulong) v ` (Vlong i)
-  | Init_float32 r =>  `(mapsto sh tfloat) v ` (Vfloat ((Float.singleoffloat r)))
+  | Init_float32 r =>  `(mapsto sh tfloat) v ` (Vsingle r)
   | Init_float64 r =>  `(mapsto sh tdouble) v ` (Vfloat r)
   | Init_space n => if zeq n (sizeof ty)
                                    then `(data_at_ sh ty) v

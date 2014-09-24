@@ -83,6 +83,13 @@ Proof.
    destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
    destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
    reflexivity.
+ +destruct (eval_expr e2 any_environ) eqn:?; simpl in *;
+  [ elimtype False; apply H0; clear 
+  | rewrite (IHe2 _ (eq_refl _)) by congruence; auto .. ].
+   destruct b;
+   destruct (typeof e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+   reflexivity.
 * 
    destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
    destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
@@ -489,7 +496,8 @@ match op with
                                                         (tc_bool (is_int_type ty) reterr)
                     | Cop.bin_case_l Signed => tc_andp' (tc_andp' (tc_nonzero' a2) (tc_nodivover' a1 a2)) 
                                                         (tc_bool (is_long_type ty) reterr)
-                    | Cop.bin_case_f _  =>  tc_bool (is_float_type ty) reterr 
+                    | Cop.bin_case_f  =>  tc_bool (is_float_type ty) reterr 
+                    | Cop.bin_case_s  =>  tc_bool (is_single_type ty) reterr 
                     | Cop.bin_default => tc_FF deferr
             end
   | Cop.Oshl | Cop.Oshr => match classify_shift' (typeof a1) (typeof a2) with
@@ -587,7 +595,7 @@ Definition typecheck_numeric_val (v: val) (t: type) : Prop :=
  match v,t with
  | Vint _, Tint _ _ _ => True
  | Vlong _, Tlong _ _ => True
- | Vfloat _, Tfloat _ _ => True
+ | Vfloat _, Tfloat F64 _ => True
  | _, _ => False
  end.
 
@@ -603,19 +611,18 @@ typecheck_val
   (Tint i3 s3 a3) = true.
 Proof.
 destruct op; intros;
-unfold Cop2.sem_cmp, classify_cmp, typeconv,
-  Cop2.sem_binarith, Cop2.sem_cast, classify_cast;
 destruct v1; 
-  destruct t1 as [ | i1 s1 ? | i1 ? | i1 ? | | | | | | ];
+  destruct t1 as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | | ];
  try contradiction H;
 destruct v2; 
-  destruct t2 as [ | i2 s2 ? | i2 ? | i2 ? | | | | | | ];
+  destruct t2 as  [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | | ];
  try contradiction H0;
- try destruct i1; try destruct s1; try destruct i2; try destruct s2;
- simpl; 
+ unfold Cop2.sem_cmp, classify_cmp, typeconv,
+  Cop2.sem_binarith, Cop2.sem_cast, classify_cast;
+ simpl;
  try match goal with |- typecheck_val (Val.of_bool ?A) _ = _ =>
   destruct A; reflexivity
- end. 
+ end.
 Qed.
 
 Lemma typecheck_val_cmp_eqne_ip:
@@ -674,17 +681,18 @@ unfold Cop2.sem_cmp, classify_cmp, typeconv,
  end.
 Qed.
 
+
 Ltac sem_cmp_solver t1 t2 := 
 match t1 with 
   | Tint ?i ?s _ => destruct i,s
   | Tlong ?s _ => destruct s
-  | Tfloat ?i _ => destruct i
+  | Tfloat ?i _ => try (is_var i; destruct i)
   | _ => idtac
   end;
   match t2 with 
   | Tint ?i ?s _ => destruct i,s
-  | Tlong ?s _ => destruct s
-  | Tfloat ?i _ => destruct i
+  | Tlong ?s _ => destruct s  
+  | Tfloat ?i _ => try (is_var i; destruct i)
   | _ => idtac
   end;
   unfold Cop2.sem_cmp, sem_cmp_pp, sem_cmp_pl, sem_cmp_lp; simpl;
@@ -766,6 +774,7 @@ repeat (
   | H: is_int_type ?t = true |- _ => destruct t; inv H 
   | H: is_long_type ?t = true |- _ => destruct t; inv H 
   | H: is_float_type ?t = true |- _ => destruct t; inv H
+  | H: is_single_type ?t = true |- _ => destruct t; inv H
   | H: is_pointer_type ?t = true |- _ => destruct t; inv H  
 (*  | H: is_true ?A |- _ => rewrite (is_true_e _ H) *)
   | H: andb _ _ = true |- _ => apply -> andb_true_iff in H; destruct H
@@ -787,8 +796,7 @@ forall op (Delta : tycontext) (rho : environ) (e1 e2 : expr) (t : type)
         (eval_expr e2 rho)) t = true.
 Proof.
 intros; destruct op;
-try
-abstract(
+try abstract(
 rewrite den_isBinOpR in IBR; simpl in IBR;
  let E1 := fresh "E1" in let E2 := fresh "E2" in 
  destruct (typeof e1) as [ | i1 s1 ? | s1 ? | i1 ? | | | | | | ];

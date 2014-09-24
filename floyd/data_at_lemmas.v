@@ -271,7 +271,8 @@ Proof.
   intros.
   unfold mapsto_, mapsto.
   rewrite H.
-  assert (!!(tc_val t Vundef) = @FF mpred Nveric) by (destruct t; reflexivity).
+  assert (!!(tc_val t Vundef) = @FF mpred Nveric)
+    by (destruct t as [ | | | [ | ] |  | | | | | ]; reflexivity).
   rewrite H1.
   rewrite FF_andp, FF_orp.
   assert (!!(Vundef = Vundef) = @TT mpred Nveric) by (apply pred_ext; normalize).
@@ -602,6 +603,7 @@ Proof.
   + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
   + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
   + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
+  + unfold mapsto_, mapsto; destruct (access_mode t), (type_is_volatile t); reflexivity.
   + apply memory_block_mapsto__aux; try assumption.
     simpl in H3.
     omega.
@@ -739,6 +741,8 @@ Proof.
   pose proof (H p).
   pose proof (H Vundef).
   destruct p; simpl in *; apply pred_ext; normalize.
+  + eapply derives_trans. exact H0. normalize.
+  + eapply derives_trans. exact H1. normalize.
   + eapply derives_trans. exact H0. normalize.
   + eapply derives_trans. exact H1. normalize.
   + eapply derives_trans. exact H0. normalize.

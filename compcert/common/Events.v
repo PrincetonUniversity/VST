@@ -57,7 +57,7 @@ Inductive eventval: Type :=
   | EVint: int -> eventval
   | EVlong: int64 -> eventval
   | EVfloat: float -> eventval
-  | EVfloatsingle: float -> eventval
+  | EVsingle: float32 -> eventval
   | EVptr_global: ident -> int -> eventval.
 
 Inductive event: Type :=
@@ -274,8 +274,7 @@ Inductive eventval_match: eventval -> typ -> val -> Prop :=
   | ev_match_float: forall f,
       eventval_match (EVfloat f) Tfloat (Vfloat f)
   | ev_match_single: forall f,
-      Float.is_single f ->
-      eventval_match (EVfloatsingle f) Tsingle (Vfloat f)
+      eventval_match (EVsingle f) Tsingle (Vsingle f)
   | ev_match_ptr: forall id b ofs,
       Genv.find_symbol ge id = Some b ->
       eventval_match (EVptr_global id ofs) Tint (Vptr b ofs).
@@ -388,7 +387,7 @@ Definition eventval_valid (ev: eventval) : Prop :=
   | EVint _ => True
   | EVlong _ => True
   | EVfloat _ => True
-  | EVfloatsingle f => Float.is_single f
+  | EVsingle _ => True
   | EVptr_global id ofs => exists b, Genv.find_symbol ge id = Some b
   end.
 
@@ -397,7 +396,7 @@ Definition eventval_type (ev: eventval) : typ :=
   | EVint _ => Tint
   | EVlong _ => Tlong
   | EVfloat _ => Tfloat
-  | EVfloatsingle _ => Tsingle
+  | EVsingle _ => Tsingle
   | EVptr_global id ofs => Tint
   end.
 
@@ -412,7 +411,7 @@ Proof.
   destruct H1 as [b EQ]. exists (Vptr b i1); constructor; auto.
   exists (Vlong i0); constructor.
   exists (Vfloat f1); constructor.
-  exists (Vfloat f1); constructor; auto.
+  exists (Vsingle f1); constructor; auto.
   exists (Vint i); constructor.
   destruct H1 as [b' EQ]. exists (Vptr b' i0); constructor; auto.
 Qed.
@@ -967,7 +966,7 @@ Qed.
 Lemma volatile_store_ok:
   forall chunk,
   extcall_properties (volatile_store_sem chunk) 
-                     (mksignature (Tint :: type_of_chunk_use chunk :: nil) None cc_default).
+                     (mksignature (Tint :: type_of_chunk chunk :: nil) None cc_default).
 Proof.
   intros; constructor; intros.
 (* well typed *)
@@ -1022,7 +1021,7 @@ Qed.
 Lemma volatile_store_global_ok:
   forall chunk id ofs,
   extcall_properties (volatile_store_global_sem chunk id ofs) 
-                     (mksignature (type_of_chunk_use chunk :: nil) None cc_default).
+                     (mksignature (type_of_chunk chunk :: nil) None cc_default).
 Proof.
   intros; constructor; intros.
 (* well typed *)
@@ -1175,47 +1174,27 @@ Proof.
   tauto.
 (* mem inject *)
   inv H0. inv H2. inv H7. inv H9.
-  exploit Mem.load_inject; eauto. intros [vsz [A B]]. inv B. 
+  exploit Mem.load_inject; eauto. intros [vsz [A B]]. inv B.
   assert (Mem.range_perm m1 b (Int.unsigned lo - 4) (Int.unsigned lo + Int.unsigned sz) Cur Freeable).
     eapply Mem.free_range_perm; eauto.
   exploit Mem.address_inject; eauto. 
     apply Mem.perm_implies with Freeable; auto with mem.
     apply H0. instantiate (1 := lo). omega. 
   intro EQ.
-  assert (Mem.range_perm m1' b2 (Int.unsigned lo + delta - 4) (Int.unsigned lo + delta + Int.unsigned sz) Cur Freeable).
-    red; intros. 
-    replace ofs with ((ofs - delta) + delta) by omega.
-    eapply Mem.perm_inject; eauto. apply H0. omega. 
-  destruct (Mem.range_perm_free _ _ _ _ H2) as [m2' FREE].
-  exists f; exists Vundef; exists m2'; intuition.
-
-  econstructor.
-  rewrite EQ. replace (Int.unsigned lo + delta - 4) with (Int.unsigned lo - 4 + delta) by omega.
-  eauto. auto. 
-  rewrite EQ. auto.
-  
-  assert (Mem.free_list m1 ((b, Int.unsigned lo - 4, Int.unsigned lo + Int.unsigned sz) :: nil) = Some m2).
-    simpl. rewrite H5. auto.
-  eapply Mem.free_inject; eauto. 
-  intros. destruct (eq_block b b1).
-  subst b. assert (delta0 = delta) by congruence. subst delta0. 
-  exists (Int.unsigned lo - 4); exists (Int.unsigned lo + Int.unsigned sz); split.
-  simpl; auto. omega.
-  elimtype False. exploit Mem.inject_no_overlap. eauto. eauto. eauto. eauto. 
-  instantiate (1 := ofs + delta0 - delta).
-  apply Mem.perm_cur_max. apply Mem.perm_implies with Freeable; auto with mem.
-  apply H0. omega.
-  eapply Mem.perm_max. eauto with mem.
-  intuition. 
-
-  eapply Mem.free_unchanged_on; eauto. 
-  unfold loc_unmapped; intros. congruence.
-
-  eapply Mem.free_unchanged_on; eauto. 
-  unfold loc_out_of_reach; intros. red; intros. eelim H8; eauto. 
-  apply Mem.perm_cur_max. apply Mem.perm_implies with Freeable; auto with mem.
-  apply H0. omega.
-
+  exploit Mem.free_parallel_inject; eauto. intros (m2' & C & D).
+  exists f, Vundef, m2'; split.
+  apply extcall_free_sem_intro with (sz := sz) (m' := m2'). 
+    rewrite EQ. rewrite <- A. f_equal. omega. 
+    auto.
+    rewrite ! EQ. rewrite <- C. f_equal; omega.
+  split. auto. 
+  split. auto.
+  split. eapply Mem.free_unchanged_on; eauto. unfold loc_unmapped. intros; congruence.
+  split. eapply Mem.free_unchanged_on; eauto. unfold loc_out_of_reach. 
+    intros. red; intros. eelim H7; eauto.
+    apply Mem.perm_cur_max. apply Mem.perm_implies with Freeable; auto with mem. 
+    apply H0. omega.
+  split. auto. 
   red; intros. congruence.
 (* trace length *)
   inv H; simpl; omega.

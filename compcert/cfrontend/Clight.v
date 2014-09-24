@@ -47,7 +47,8 @@ Require Import Cop.
 
 Inductive expr : Type :=
   | Econst_int: int -> type -> expr       (**r integer literal *)
-  | Econst_float: float -> type -> expr   (**r float literal *)
+  | Econst_float: float -> type -> expr   (**r double float literal *)
+  | Econst_single: float32 -> type -> expr (**r single float literal *)
   | Econst_long: int64 -> type -> expr    (**r long integer literal *)
   | Evar: ident -> type -> expr           (**r variable *)
   | Etempvar: ident -> type -> expr       (**r temporary variable *)
@@ -69,6 +70,7 @@ Definition typeof (e: expr) : type :=
   match e with
   | Econst_int _ ty => ty
   | Econst_float _ ty => ty
+  | Econst_single _ ty => ty
   | Econst_long _ ty => ty
   | Evar _ ty => ty
   | Etempvar _ ty => ty
@@ -109,7 +111,7 @@ Inductive statement : Type :=
 
 with labeled_statements : Type :=            (**r cases of a [switch] *)
   | LSnil: labeled_statements
-  | LScons: option int -> statement -> labeled_statements -> labeled_statements.
+  | LScons: option Z -> statement -> labeled_statements -> labeled_statements.
                       (**r [None] is [default], [Some x] is [case x] *)
 
 (** The C loops are derived forms. *)
@@ -310,14 +312,14 @@ Fixpoint select_switch_default (sl: labeled_statements): labeled_statements :=
   | LScons (Some i) s sl' => select_switch_default sl'
   end.
 
-Fixpoint select_switch_case (n: int) (sl: labeled_statements): option labeled_statements :=
+Fixpoint select_switch_case (n: Z) (sl: labeled_statements): option labeled_statements :=
   match sl with
   | LSnil => None
   | LScons None s sl' => select_switch_case n sl'
-  | LScons (Some c) s sl' => if Int.eq c n then Some sl else select_switch_case n sl'
+  | LScons (Some c) s sl' => if zeq c n then Some sl else select_switch_case n sl'
   end.
 
-Definition select_switch (n: int) (sl: labeled_statements): labeled_statements :=
+Definition select_switch (n: Z) (sl: labeled_statements): labeled_statements :=
   match select_switch_case n sl with
   | Some sl' => sl'
   | None => select_switch_default sl
@@ -352,6 +354,8 @@ Inductive eval_expr: expr -> val -> Prop :=
       eval_expr (Econst_int i ty) (Vint i)
   | eval_Econst_float:   forall f ty,
       eval_expr (Econst_float f ty) (Vfloat f)
+  | eval_Econst_single:   forall f ty,
+      eval_expr (Econst_single f ty) (Vsingle f)
   | eval_Econst_long:   forall i ty,
       eval_expr (Econst_long i ty) (Vlong i)
   | eval_Etempvar:  forall id ty v,
@@ -610,8 +614,9 @@ Inductive step: state -> trace -> state -> Prop :=
       step (State f Sskip k e le m)
         E0 (Returnstate Vundef k m')
 
-  | step_switch: forall f a sl k e le m n,
-      eval_expr e le m a (Vint n) ->
+  | step_switch: forall f a sl k e le m v n,
+      eval_expr e le m a v ->
+      sem_switch_arg v (typeof a) = Some n ->
       step (State f (Sswitch a sl) k e le m)
         E0 (State f (seq_of_labeled_statement (select_switch n sl)) (Kswitch k) e le m)
   | step_skip_break_switch: forall f x k e le m,

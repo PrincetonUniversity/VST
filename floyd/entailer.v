@@ -271,7 +271,7 @@ Ltac elim_hyps :=
  repeat match goal with
  | H: isptr ?x |- _ =>
      let x1 := fresh x "_b" in let x2 := fresh x "_ofs" in
-     destruct x as [ | | | | x1 x2]; inv H
+     destruct x as [ | | | | | x1 x2]; inv H
  | H: ptr_eq _ _ |- _ => apply ptr_eq_e in H; subst_any
  end.
 

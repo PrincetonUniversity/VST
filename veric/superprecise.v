@@ -170,14 +170,14 @@ omega.
 congruence.
 Qed.
 
-Transparent Float.single_of_bits.
-Transparent Float.double_of_bits.
+Transparent Float.of_bits.
+Transparent Float32.of_bits.
 
 Lemma double_of_bits_inj:
-  forall i j, Float.double_of_bits i = Float.double_of_bits j -> i=j.
+  forall i j, Float.of_bits i = Float.of_bits j -> i=j.
 Proof.
 intros.
-unfold Float.double_of_bits in H.
+unfold Float.of_bits in H.
 rewrite <- (Int64.repr_unsigned i).
 rewrite <- (Int64.repr_unsigned j).
 f_equal.
@@ -267,11 +267,11 @@ Qed.
 
 Lemma float32_preserves_payload:
  forall s pl, 
-    let '(s1,pl1) := Float.floatofbinary32_pl s pl in
+    let '(s1,pl1) := Float.of_single_pl s pl in
       (s=s1 /\ (536870912 * (Pos.lor (proj1_sig pl) 4194304))%positive = proj1_sig pl1).
 Proof.
  intros.
- unfold Float.floatofbinary32_pl.
+ unfold Float.of_single_pl.
  split; auto.
 Qed.
 
@@ -323,14 +323,14 @@ Inductive wishes_eq_horses := .
 Lemma float32_payload_inj:
   wishes_eq_horses -> 
   forall s1 pl1 s2 pl2,
-    Float.floatofbinary32_pl s1 pl1= Float.floatofbinary32_pl s2 pl2 ->
+    Float.of_single_pl s1 pl1= Float.of_single_pl s2 pl2 ->
     (s1,pl1) = (s2,pl2).
 Proof.
 intro WH; intros.
  pose proof (float32_preserves_payload s1 pl1).
  pose proof (float32_preserves_payload s2 pl2).
  rewrite H in H0. clear H.
- destruct (Float.floatofbinary32_pl s2 pl2).
+ destruct (Float.of_single_pl s2 pl2).
  destruct H0,H1. subst.
  f_equal.
  rewrite <- H2 in H0; clear - WH H0.
@@ -339,11 +339,10 @@ intro WH; intros.
 Qed.
 
 Lemma single_of_bits_inj:
-  wishes_eq_horses -> 
-  forall i j : Int.int, Float.single_of_bits i = Float.single_of_bits j -> i=j.
+  forall i j : Int.int, Float32.of_bits i = Float32.of_bits j -> i=j.
 Proof.
-intro WH; intros.
-unfold Float.single_of_bits in H.
+intros.
+unfold Float32.of_bits in H.
 rewrite <- (Int.repr_unsigned i).
 rewrite <- (Int.repr_unsigned j).
 f_equal.
@@ -352,38 +351,19 @@ rewrite <- (Fappli_IEEE_bits.bits_of_binary_float_of_bits 23 8 (refl_equal _) (r
 rewrite <- (Fappli_IEEE_bits.bits_of_binary_float_of_bits 23 8 (refl_equal _) (refl_equal _) (refl_equal _) (Int.unsigned j))
   by (apply Int.unsigned_range).
 f_equal.
-unfold Float.floatofbinary32 in H.
 unfold Fappli_IEEE_bits.b32_of_bits in H.
 match goal with |- ?A = ?B => remember A as u eqn:H9; remember B as v eqn:H10;
    clear H9 H10 end.
 clear i j.
 
-destruct u,v; auto; try congruence;
-try solve [
- try destruct (Float.floatofbinary32_pl b0 n);
- try destruct (Float.floatofbinary32_pl b n);
- try destruct (Float.floatofbinary32_pl b0 n0);
- try congruence;
- unfold Float.binary_normalize64 in *;
- try (pose proof (binary_normalize_finite b0 m e e0);
-       rewrite <- H in H0; contradiction);
- try (pose proof (binary_normalize_finite b m e e0);
-       rewrite H in H0; contradiction);
-  eapply binary_normalize_inj in H; eauto
- ].
-destruct (Float.floatofbinary32_pl b n) eqn:H2.
-destruct (Float.floatofbinary32_pl b0 n0) eqn:H3.
-inversion H; clear H; subst b2 n2.
-rewrite <- H3 in H2; clear H3.
-apply float32_payload_inj in H2. inversion H2; auto.
-apply WH.
+destruct u,v; auto; try congruence.
 Qed.
 
 Lemma Vint_inj: forall i j, Vint i = Vint j -> i=j. 
 Proof. congruence. Qed.
 
 Lemma decode_val_uniq: 
- wishes_eq_horses -> 
+   (* Just not true any more, with Fragments *)
   forall ch b1 b2 v, 
     v <> Vundef ->
     length b1 = size_chunk_nat ch ->
@@ -392,15 +372,12 @@ Lemma decode_val_uniq:
     decode_val ch b2 = v ->
     b1=b2.
 Proof.
- intro WH;
  intros.
  unfold size_chunk_nat in *.
  unfold decode_val in *.
  destruct (proj_bytes b1) eqn:B1.
-Focus 2.
-{ destruct ch; try congruence.
- destruct (proj_bytes b2) eqn:B2.
 subst v.
+(*
 unfold proj_pointer in H3.
 destruct b1; try congruence.
 destruct m; try congruence.
@@ -486,6 +463,8 @@ try (apply decode_int_uniq; [ congruence | ];
   apply repr_decode_int64_inj in H2; auto.
   congruence.
 Qed.
+*)
+Abort.
 
 
 Lemma superprecise_ewand_lem1:
@@ -518,6 +497,8 @@ intros.
 hnf; intros.
 unfold address_mapsto in *.
 destruct H0 as [b1 [[? [? ?]] ?]]; destruct H1 as [b2 [[? [? ?]] ?]].
+(* just not true anymore, with Fragments *)
+(*
 assert (b1=b2) by (eapply decode_val_uniq; eauto).
 subst b2.
 assert (level w1 = level w2).
@@ -576,4 +557,6 @@ destruct H as [[_ H]|[Hz [u1 H]]]; try congruence.
 destruct H0 as [[_ H0]|[Hz [u2 H0]]]; try congruence.
 eapply WH'; eauto.
 Qed.
+*)
+Abort.
 

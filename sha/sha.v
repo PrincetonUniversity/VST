@@ -2,80 +2,83 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _n : ident := 65%positive.
-Definition _in : ident := 40%positive.
-Definition ___compcert_va_int64 : ident := 16%positive.
-Definition _K256 : ident := 38%positive.
-Definition _f : ident := 46%positive.
-Definition _ll : ident := 69%positive.
-Definition _SHA256_addlength : ident := 62%positive.
-Definition _l : ident := 54%positive.
-Definition ___builtin_fmax : ident := 22%positive.
-Definition ___builtin_va_arg : ident := 12%positive.
-Definition _data_ : ident := 63%positive.
+Definition _SHA256_addlength : ident := 65%positive.
+Definition _struct_SHA256state_st : ident := 40%positive.
+Definition ___compcert_va_int32 : ident := 16%positive.
+Definition _Nl : ident := 38%positive.
+Definition _c : ident := 46%positive.
+Definition _fragment : ident := 69%positive.
+Definition _len : ident := 62%positive.
+Definition _T2 : ident := 54%positive.
+Definition ___builtin_clz : ident := 22%positive.
+Definition ___builtin_va_start : ident := 12%positive.
+Definition _cNl : ident := 63%positive.
 Definition ___builtin_annot_intval : ident := 10%positive.
-Definition _d : ident := 44%positive.
+Definition _a : ident := 44%positive.
 Definition ___builtin_negl : ident := 3%positive.
 Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
-Definition _memset : ident := 31%positive.
-Definition _SHA256 : ident := 72%positive.
-Definition _s1 : ident := 49%positive.
-Definition _fragment : ident := 66%positive.
-Definition _len : ident := 59%positive.
+Definition ___builtin_read16_reversed : ident := 31%positive.
+Definition _ll : ident := 72%positive.
+Definition _f : ident := 49%positive.
+Definition _data_ : ident := 66%positive.
+Definition _i : ident := 59%positive.
 Definition ___builtin_addl : ident := 4%positive.
-Definition _md : ident := 68%positive.
-Definition _SHA256_Init : ident := 58%positive.
-Definition ___builtin_read16_reversed : ident := 28%positive.
+Definition _n : ident := 68%positive.
+Definition _Ki : ident := 58%positive.
+Definition ___builtin_fmsub : ident := 28%positive.
 Definition ___builtin_fabs : ident := 7%positive.
-Definition ___builtin_fsqrt : ident := 21%positive.
-Definition ___builtin_bswap : ident := 18%positive.
-Definition _e : ident := 45%positive.
-Definition ___builtin_va_copy : ident := 13%positive.
-Definition ___builtin_fnmsub : ident := 27%positive.
-Definition _data : ident := 33%positive.
-Definition _i : ident := 56%positive.
-Definition ___builtin_fmsub : ident := 25%positive.
-Definition ___compcert_va_int32 : ident := 15%positive.
-Definition _cNl : ident := 60%positive.
-Definition ___builtin_bswap16 : ident := 20%positive.
-Definition _num : ident := 32%positive.
-Definition _xn : ident := 70%positive.
-Definition ___builtin_fmadd : ident := 24%positive.
-Definition _SHA256_Update : ident := 67%positive.
-Definition ___compcert_va_float64 : ident := 17%positive.
+Definition ___builtin_bswap16 : ident := 21%positive.
+Definition ___compcert_va_float64 : ident := 18%positive.
+Definition _b : ident := 45%positive.
+Definition ___builtin_va_arg : ident := 13%positive.
+Definition ___builtin_fmadd : ident := 27%positive.
+Definition _memcpy : ident := 33%positive.
+Definition _X : ident := 56%positive.
+Definition ___builtin_fmax : ident := 25%positive.
+Definition ___builtin_va_end : ident := 15%positive.
+Definition _sha256_block_data_order : ident := 60%positive.
+Definition ___builtin_bswap32 : ident := 20%positive.
+Definition ___builtin_read32_reversed : ident := 32%positive.
+Definition _SHA256_Update : ident := 70%positive.
+Definition ___builtin_fsqrt : ident := 24%positive.
+Definition _p : ident := 67%positive.
+Definition ___compcert_va_int64 : ident := 17%positive.
 Definition ___builtin_memcpy_aligned : ident := 8%positive.
 Definition ___builtin_subl : ident := 5%positive.
-Definition _main : ident := 73%positive.
-Definition _T1 : ident := 50%positive.
-Definition _c : ident := 43%positive.
-Definition _X : ident := 53%positive.
-Definition _g : ident := 47%positive.
-Definition _sha256_block_data_order : ident := 57%positive.
-Definition _h : ident := 36%positive.
-Definition ___builtin_va_end : ident := 14%positive.
+Definition _xn : ident := 73%positive.
+Definition _g : ident := 50%positive.
+Definition _in : ident := 43%positive.
+Definition _SHA256_Final : ident := 74%positive.
+Definition _T1 : ident := 53%positive.
+Definition _d : ident := 47%positive.
+Definition _l : ident := 57%positive.
+Definition _data : ident := 36%positive.
+Definition ___builtin_va_copy : ident := 14%positive.
 Definition ___builtin_mull : ident := 6%positive.
-Definition ___builtin_fnmadd : ident := 26%positive.
-Definition ___builtin_bswap32 : ident := 19%positive.
-Definition _ctx : ident := 39%positive.
-Definition _cNh : ident := 61%positive.
-Definition ___builtin_va_start : ident := 11%positive.
-Definition _struct_SHA256state_st : ident := 37%positive.
-Definition _b : ident := 42%positive.
+Definition ___builtin_fmin : ident := 26%positive.
+Definition ___builtin_bswap : ident := 19%positive.
+Definition _h : ident := 39%positive.
+Definition _SHA256_Init : ident := 61%positive.
+Definition ___builtin_membar : ident := 11%positive.
+Definition _Nh : ident := 37%positive.
+Definition _main : ident := 76%positive.
+Definition _ctx : ident := 42%positive.
 Definition ___builtin_annot : ident := 9%positive.
-Definition _p : ident := 64%positive.
-Definition _t : ident := 52%positive.
-Definition _a : ident := 41%positive.
-Definition _SHA256_Final : ident := 71%positive.
-Definition _Nh : ident := 34%positive.
-Definition ___builtin_read32_reversed : ident := 29%positive.
-Definition _Ki : ident := 55%positive.
-Definition _Nl : ident := 35%positive.
-Definition _memcpy : ident := 30%positive.
-Definition ___builtin_fmin : ident := 23%positive.
-Definition _T2 : ident := 51%positive.
-Definition _s0 : ident := 48%positive.
-Definition _l' : ident := 74%positive.
+Definition _cNh : ident := 64%positive.
+Definition _s1 : ident := 52%positive.
+Definition _K256 : ident := 41%positive.
+Definition _md : ident := 71%positive.
+Definition _SHA256 : ident := 75%positive.
+Definition _memset : ident := 34%positive.
+Definition ___builtin_fnmadd : ident := 29%positive.
+Definition _t : ident := 55%positive.
+Definition _num : ident := 35%positive.
+Definition ___builtin_fnmsub : ident := 30%positive.
+Definition ___builtin_ctz : ident := 23%positive.
+Definition _s0 : ident := 51%positive.
+Definition _e : ident := 48%positive.
+Definition _l' : ident := 77%positive.
 
 Definition t_struct_SHA256state_st :=
    (Tstruct _struct_SHA256state_st
@@ -1014,14 +1017,11 @@ Definition f_SHA256_Init := {|
                         (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
                           t_struct_SHA256state_st) _Nh tuint)
                       (Econst_int (Int.repr 0) tint))
-                    (Ssequence
-                      (Sassign
-                        (Efield
-                          (Ederef
-                            (Etempvar _c (tptr t_struct_SHA256state_st))
-                            t_struct_SHA256state_st) _num tuint)
-                        (Econst_int (Int.repr 0) tint))
-                      (Sreturn None))))))))))))
+                    (Sassign
+                      (Efield
+                        (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
+                          t_struct_SHA256state_st) _num tuint)
+                      (Econst_int (Int.repr 0) tint))))))))))))
 |}.
 
 Definition f_SHA256_addlength := {|
@@ -1065,13 +1065,10 @@ Definition f_SHA256_addlength := {|
               (Efield
                 (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
                   t_struct_SHA256state_st) _Nl tuint) (Etempvar _l tuint))
-            (Ssequence
-              (Sassign
-                (Efield
-                  (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
-                    t_struct_SHA256state_st) _Nh tuint)
-                (Etempvar _cNh tuint))
-              (Sreturn None))))))))
+            (Sassign
+              (Efield
+                (Ederef (Etempvar _c (tptr t_struct_SHA256state_st))
+                  t_struct_SHA256state_st) _Nh tuint) (Etempvar _cNh tuint))))))))
 |}.
 
 Definition f_SHA256_Update := {|
@@ -1436,16 +1433,14 @@ Definition f_SHA256 := {|
       ((Eaddrof (Evar _c t_struct_SHA256state_st)
          (tptr t_struct_SHA256state_st)) :: (Etempvar _d (tptr tuchar)) ::
        (Etempvar _n tuint) :: nil))
-    (Ssequence
-      (Scall None
-        (Evar _SHA256_Final (Tfunction
-                              (Tcons (tptr tuchar)
-                                (Tcons (tptr t_struct_SHA256state_st) Tnil))
-                              tvoid cc_default))
-        ((Etempvar _md (tptr tuchar)) ::
-         (Eaddrof (Evar _c t_struct_SHA256state_st)
-           (tptr t_struct_SHA256state_st)) :: nil))
-      (Sreturn None))))
+    (Scall None
+      (Evar _SHA256_Final (Tfunction
+                            (Tcons (tptr tuchar)
+                              (Tcons (tptr t_struct_SHA256state_st) Tnil))
+                            tvoid cc_default))
+      ((Etempvar _md (tptr tuchar)) ::
+       (Eaddrof (Evar _c t_struct_SHA256state_st)
+         (tptr t_struct_SHA256state_st)) :: nil))))
 |}.
 
 Definition prog : Clight.program := {|
@@ -1473,6 +1468,9 @@ prog_defs :=
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
                      cc_default)) (Tcons (tptr tschar) (Tcons tint Tnil))
      tint cc_default)) ::
+ (___builtin_membar,
+   Gfun(External (EF_builtin ___builtin_membar
+                   (mksignature nil None cc_default)) Tnil tvoid cc_default)) ::
  (___builtin_va_start,
    Gfun(External (EF_builtin ___builtin_va_start
                    (mksignature (AST.Tint :: nil) None cc_default))
@@ -1517,6 +1515,14 @@ prog_defs :=
    Gfun(External (EF_builtin ___builtin_bswap16
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons tushort Tnil) tushort cc_default)) ::
+ (___builtin_clz,
+   Gfun(External (EF_builtin ___builtin_clz
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) tuint cc_default)) ::
+ (___builtin_ctz,
+   Gfun(External (EF_builtin ___builtin_ctz
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) tuint cc_default)) ::
  (___builtin_fsqrt,
    Gfun(External (EF_builtin ___builtin_fsqrt
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tfloat)

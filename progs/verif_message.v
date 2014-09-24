@@ -129,7 +129,7 @@ name buf0 _buf.
 name x _x.
 name y _y.
 destruct H0 as [Dx Dy].
-destruct data as [[|x1 | | | ] [|y1 | | | ]]; try contradiction. clear Dx Dy.
+destruct data as [[|x1 | | | | ] [|y1 | | | | ]]; try contradiction. clear Dx Dy.
 
 unfold_data_at 1%nat.
 unfold data_at_.
@@ -175,8 +175,8 @@ name y _y.
 name len0 _length.
 destruct data as (x1,y1); simpl in *.
 normalize.
-destruct x1 as [|x1| | |]; try contradiction.
-destruct y1 as [|y1| | |]; try contradiction.
+destruct x1 as [|x1| | | |]; try contradiction.
+destruct y1 as [|y1| | | |]; try contradiction.
 clear H4 H3.
 apply semax_pre with
  (PROP  (isptr buf)

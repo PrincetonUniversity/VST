@@ -27,9 +27,9 @@ apply semax_pre with  (PROP() LOCAL ()
   SEP(`(mapsto Ews tuint) (`(offset_val (Int.repr 0)) (eval_var _s t_struct_foo))
         `(Vint (Int.repr 5));
       `(mapsto Ews tfloat) (`(offset_val (Int.repr 4)) (eval_var _s t_struct_foo))
-        `(Vfloat (Float.singleoffloat (Float.double_of_bits (Int64.repr 4614861056357957632))));
+        `(Vsingle (Float32.of_bits (Int.repr 14302577)));
      `(mapsto Ews tdouble) (`(offset_val (Int.repr 8)) (eval_var _s t_struct_foo))
-         `(Vfloat (Float.double_of_bits (Int64.repr 0))))).
+         `(Vfloat (Float.of_bits (Int64.repr 0))))).
 go_lower. apply andp_derives; auto. apply andp_derives; auto.
 cancel.
 

@@ -15,6 +15,8 @@ Inductive rel_expr' (rho: environ) (phi: rmap): expr -> val -> Prop :=
                  rel_expr' rho phi (Econst_int i ty) (Vint i)
  | rel_expr'_const_float: forall f ty, 
                  rel_expr' rho phi (Econst_float f ty) (Vfloat f)
+ | rel_expr'_const_single: forall f ty, 
+                 rel_expr' rho phi (Econst_single f ty) (Vsingle f)
  | rel_expr'_const_long: forall i ty, 
                  rel_expr' rho phi (Econst_long i ty) (Vlong i)
  | rel_expr'_tempvar: forall id ty v,
@@ -177,10 +179,12 @@ eapply Clight.eval_Efield_struct; eauto.
 eapply rel_expr_relate; eauto.
 Qed.
 
+(*
 Transparent Float.singleoffloat.
 Transparent Float.singleofint.
 Transparent Float.singleofintu.
 Transparent Float.single_of_bits.
+*)
 
 Lemma sem_cast_load_result:
  forall v1 t1 t2 v2 ch,
@@ -197,12 +201,7 @@ destruct t2 as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | | ];
 inv H; try reflexivity;
  simpl in H0; try discriminate;
  destruct v1; inv H0;
- try match type of H1 with
-      | context [Float.intoffloat ?f] => destruct (Float.intoffloat f); inv H1
-      | context [Float.intuoffloat ?f] => destruct (Float.intuoffloat f); inv H1
-      | context [Float.longoffloat ?f] => destruct (Float.longoffloat f); inv H1
-      | context [Float.longuoffloat ?f] => destruct (Float.longuoffloat f); inv H1
-      end;
+  try invSome;
  simpl;
  try  rewrite Int.sign_ext_idem by omega;
  try  rewrite Int.zero_ext_idem by omega;
@@ -214,9 +213,9 @@ inv H; try reflexivity;
   destruct (Int64.eq i Int64.zero) eqn:?; try reflexivity
  | |- context [Float.cmp Ceq ?f Float.zero] =>
      destruct (Float.cmp Ceq f Float.zero) eqn:?; try reflexivity
- end;
- unfold Float.singleoffloat, Float.singleofint, Float.singleofintu, Float.singleoflong, Float.singleoflongu;
- try rewrite Float.floatofbinary32offloatofbinary32; auto.
+ | |- context [Float32.cmp Ceq ?f Float32.zero] =>
+     destruct (Float32.cmp Ceq f Float32.zero) eqn:?; try reflexivity
+ end.
 Qed.
 
 Lemma deref_loc_load_result:
@@ -256,18 +255,9 @@ destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | | ];
     destruct f; try solve [unfold decode_val in Heqv; inv Heqv];
     destruct g; try solve [unfold decode_val in Heqv; inv Heqv];
     destruct h; try solve [unfold decode_val in Heqv; inv Heqv]
- end.
-
- unfold Float.singleoffloat, Float.singleofint, Float.singleofintu, Float.singleoflong, Float.singleoflongu,
-   Float.single_of_bits.
- rewrite Float.floatofbinary32offloatofbinary32.
- auto.
+ end;
+ try solve [destruct v; inv H1; auto].
 Qed.
-
-Opaque Float.singleoffloat.
-Opaque Float.singleofint.
-Opaque Float.singleofintu.
-Opaque Float.single_of_bits.
 
 Lemma rel_expr'_fun:
  forall rho phi e v v', rel_expr' rho phi e v -> rel_expr' rho phi e v' -> v=v'.

@@ -800,6 +800,16 @@ Proof.
  rewrite IHrho1. simpl. rewrite IHrho2; auto.
 Qed.
 
+(*
+Lemma elements_increasing:
+  forall {A} (m: PTree.t A) n1 n2 i1 i2 v1 v2,
+   (n1 < n2)%nat ->
+   nth_error (PTree.elements m) n1 = Some (i1,v1) ->
+   nth_error (PTree.elements m) n2 = Some (i2,v2) ->
+   (i1 < i2)%positive.
+Proof.
+Admitted.
+
 Lemma elements_remove:
   forall {A} (id: positive) (v: A) (rho: PTree.t A),
        PTree.get id rho = Some v ->
@@ -807,88 +817,158 @@ Lemma elements_remove:
                              PTree.elements (PTree.remove id rho) = l1++l2.
 Proof.
 intros.
+exists (filter (fun iv => Pos.ltb (fst iv) id) (PTree.elements rho)).
+exists (filter (fun iv => Pos.ltb id (fst iv)) (PTree.elements rho)).
+split.
+*
+pose proof (PTree.elements_correct _ _ H).
+pose proof (elements_increasing rho).
+forget (PTree.elements rho) as al.
+clear - H0 H1.
+induction al as [ | [j w]]; simpl.
+inv H0.
+simpl.
+destruct H0.
++
+ inv H. clear IHal.
+ destruct (Pos.ltb_spec id id).
+ xomega.
+ clear H.
+ assert (forall n i v, nth_error al n = Some (i,v) -> (id < i)%positive). {
+  intros.
+  apply (H1 O (S n) id i v v0).
+  omega. reflexivity. simpl. auto.
+ }
+replace (filter (fun iv : positive * A => (fst iv <? id)%positive) al)
+  with (@nil (ident * A)).
+ -
+  simpl.
+  f_equal.
+  clear - H.
+  induction al as [ | [? ?]]; simpl; auto.
+  destruct (Pos.ltb_spec id p).
+  f_equal; auto.
+  apply IHal.
+  intros; auto. apply (H (S n) i v); auto.
+  assert (id < p)%positive; [ | xomega].
+  apply (H O p a); auto.
+ -
+  clear - H.
+  induction al as [ | [j w]]; simpl; auto.
+  destruct (Pos.ltb_spec j id).
+  assert (id < j)%positive;  [ | xomega].
+  apply (H O j w); auto.
+  apply IHal; auto.
+  intros.
+  apply (H (S n) i v); auto.
++
+ assert (j < id)%positive.
+Lemma In_nth_error:
+  forall {A} (v: A) al, In v al -> exists n, nth_error al n = Some v.
+Proof.
+ induction al; intros. inv H.
+ destruct H. subst. exists O; auto.
+ destruct IHal as [n ?]; auto.
+ exists (S n); auto.
+Qed.
+ destruct (In_nth_error _ _ H) as [k ?].
+ apply (H1 O (S k) j id w v); auto. omega.
+ destruct (Pos.ltb_spec j id); try xomega.
+ destruct (Pos.ltb_spec id j); try xomega.
+ simpl. f_equal.
+ apply IHal; auto.
+ intros.
+ apply (H1 (S n1) (S n2) i1 i2 v1 v2); auto.
+ omega.
+*
+ transitivity (filter (fun iv : positive * A => (fst iv <? id)%positive)
+  (PTree.elements (PTree.remove id rho)) ++
+filter (fun iv : positive * A => (id <? fst iv)%positive)
+  (PTree.elements (PTree.remove id rho))); [ | f_equal ].
+ + 
+   admit.
+ +
+  remember (PTree.elements rho) as al.
+  remember (PTree.elements (PTree.remove id rho)) as bl.
+  revert Heqbl al Heqal; induction bl as [ | [j w]]; intros.
+  admit.  (* OK *)
+  simpl.
+  destruct (Pos.ltb_spec j id).
+  destruct al as [ | [k u]].
+  elimtype False; clear - Heqal H; admit.
+  simpl.
+   revert (PTree.elements rho); 
+   
+   admit.
+ +
+    admit.
+  SearchAbout PTree.elements.
+  SearchAbout PTree.remove.
+ destruct (Pos.ltb_spec id j).
+ clear H0.
+ 
+
+ replace (filter (fun iv : positive * A => (fst iv <? id)%positive) al) with (@nil (ident*A)).
+ simpl.
+
+ auto.
+; [ xomega | ].
+
+
+
+simpl.
+f_equal.
+assert
+
+
+ eapply H; eauto.
+
+rewrite if_true.
+hnf.
+simpl in H1.
+specialize
+specialize (H1 O).
+simpl in H1.
+
+transitivity (
+destruct (Pos.ltb_spe
+
+f_equal.
+simpl.
+inv H.
+
+Print BoolSpec.
+inv H.
+
+
+hnf in H.
+
+destruct H0. subst.
+simpl.
+SearchAbout (Pos.ltb).
+rewrite if_false.
+
+SearchAbout (list _).
+
+intros.
+SearchAbout PTree.elements.
 unfold PTree.elements.
 unfold PTree.t in *.
 forget (@nil (positive * A)) as rest.
-pattern id at 1;
-rewrite <- (PTree.append_neutral_l id).
-forget 1%positive as k.
-revert id H k rest; induction rho; simpl; intros.
-rewrite PTree.gleaf in H. inv H.
-destruct o, id; simpl in H; try discriminate H.
-*
- clear IHrho1.
- replace (PTree.remove id~1 (PTree.Node rho1 (Some a) rho2))
-   with (PTree.Node rho1 (Some a) (PTree.remove id rho2))
-  by (destruct rho1; auto).
- simpl.
- rewrite (PTree.append_assoc_1 k id).
- destruct (IHrho2 _ H (PTree.append k 3) rest) as [al [bl [? ?]]]; clear IHrho2.
- rewrite H0.
-do 2 eexists; split.
-rewrite app_comm_cons.
-rewrite <- xelements_app. reflexivity.
- change ((k,a)::al) with (((k,a)::nil)++al). 
- rewrite xelements_app.
- rewrite app_ass.
- rewrite <- H1.
- rewrite <- xelements_app. 
- simpl.
- rewrite xelements_app.
- reflexivity.
-* 
- clear IHrho2.
- simpl.
- rewrite (PTree.append_assoc_0 k id).
- apply IHrho1; auto.
-*
- inv H. clear.
- evar (al: list (positive * A)).
- evar (bl: list (positive * A)).
- exists al,bl.
- rewrite PTree.append_neutral_r.
- change ( ((k, v) :: PTree.xelements rho2 (PTree.append k 3) rest))
-   with  ((nil ++ (k, v) :: nil) ++  (PTree.xelements rho2 (PTree.append k 3) rest)).
- repeat rewrite <- xelements_app.
- split.
- rewrite app_ass.
- unfold al, bl; reflexivity.
- unfold al, bl; clear al bl.
- rewrite xelements_app. simpl app.
- destruct rho1.
- destruct rho2; reflexivity.
- destruct o; try reflexivity.
-* 
- clear IHrho1.
- rewrite (PTree.append_assoc_1 k id).
- destruct (IHrho2 _ H (PTree.append k 3) rest) as [al [bl [? ?]]]; clear IHrho2.
- rewrite H0.
- evar (al': list (positive * A)).
- evar (bl': list (positive * A)).
- exists al',bl'; split.
- rewrite <- xelements_app.
- unfold al', bl'; reflexivity.
- unfold al', bl'; clear al' bl'.
- change (al) with (nil++al).
- rewrite <- xelements_app.
- rewrite app_ass.
- rewrite <- H1.
- rewrite xelements_app.
- simpl.
- destruct rho1; try reflexivity.
- destruct (PTree.remove id rho2); try reflexivity.
-*
- clear IHrho2.
- rewrite (PTree.append_assoc_0 k id).
- destruct (IHrho1 _ H (PTree.append k 2) (PTree.xelements rho2 (PTree.append k 3) rest))
-   as [al [bl [? ?]]]; clear IHrho1.
- exists al, bl; split; auto.
- rewrite <- H1.
- clear.
- simpl.
- destruct rho2; try reflexivity.
- destruct (PTree.remove id rho1); try reflexivity.
-Qed.
+SearchAbout PTree.elements.
+*)
+
+
+Lemma elements_remove:
+  forall {A} (id: positive) (v: A) (rho: PTree.t A),
+       PTree.get id rho = Some v ->
+       exists l1, exists l2, PTree.elements rho = l1 ++ (id,v) :: l2 /\ 
+                             PTree.elements (PTree.remove id rho) = l1++l2.
+Proof.
+Admitted.  (* This was proved up to revision 6972 for CompCert 2.3,
+  but changes in CompCert 2.4 lib/Maps.v broke the proof.
+  Xavier said he'll prove it for us (e-mail of 22 September 2014) ... *)
+
 
 Lemma stackframe_of_freeable_blocks:
   forall Delta f rho ve,

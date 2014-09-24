@@ -42,7 +42,7 @@ Hint Extern 2 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
 
 Lemma tc_val_Vundef:
   forall t, ~ tc_val t Vundef.
-Proof. destruct t; intro H; inv H.
+Proof. destruct t as [ | | | [ | ] |  | | | | | ]; intro H; inv H.
 Qed.
 
 Lemma mapsto_null_mapsto_pointer:

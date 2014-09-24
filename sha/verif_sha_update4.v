@@ -153,7 +153,7 @@ after_call.
  unfold sha_update_inv.
  apply exp_right with (blocks++ bl).
  entailer.
- clear TC0 TC1.
+ clear TC1 TC.
  rewrite negb_true_iff in H8.
  unfold Int.ltu in H8.
  if_tac in H8; inv H8.

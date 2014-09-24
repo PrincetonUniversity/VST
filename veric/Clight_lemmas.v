@@ -13,6 +13,7 @@ match v with
   | Vint i => Some (negb (Int.eq i Int.zero))
   | Vlong i => Some (negb (Int64.eq i Int64.zero))
   | Vfloat _ => None
+  | Vsingle _ => None
   | Vptr _ _ => Some true
   | Vundef => None
 end.

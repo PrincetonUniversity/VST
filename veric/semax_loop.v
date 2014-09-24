@@ -45,6 +45,8 @@ Proof.
   f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
   f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
   f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
+  destruct f0; inv  H; auto.
+  destruct f0; inv  H; auto.
 Qed.
 
 
@@ -212,6 +214,8 @@ assert (TCS := typecheck_expr_sound _ _ _ (guard_environ_e1 _ _ _ TC) TC2).
 rewrite tc_val_eq in TCS.
 remember (eval_expr b rho). destruct v;
 simpl; destruct (typeof b); intuition; simpl in *; try rewrite TCS; eauto.
+destruct f0; inv TCS; eauto.
+destruct f0; inv TCS; eauto.
 (* typechecking proof *)
 destruct H9 as [b' ?].
 apply wlog_safeN_gt0; intro.

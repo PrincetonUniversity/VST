@@ -143,7 +143,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
   | Init_int16 i => mapsto sh (Tint I16 Unsigned noattr) a (Vint (Int.zero_ext 16 i))
   | Init_int32 i => mapsto sh (Tint I32 Unsigned noattr) a (Vint i)
   | Init_int64 i => mapsto sh (Tlong Unsigned noattr) a (Vlong i)
-  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vfloat ((Float.singleoffloat r)))
+  | Init_float32 r =>  mapsto sh (Tfloat F32 noattr) a (Vsingle r)
   | Init_float64 r =>  mapsto sh (Tfloat F64 noattr) a (Vfloat r)
   | Init_space n => mapsto_zeros n sh a
   | Init_addrof symb ofs =>
@@ -566,6 +566,10 @@ Proof. intros. intros ? ?; constructor. Qed.
 
 Lemma rel_expr_const_float: forall f ty P rho, 
               P |-- rel_expr (Econst_float f ty) (Vfloat f) rho.
+Proof. intros. intros ? ?; constructor. Qed.
+
+Lemma rel_expr_const_single: forall f ty P rho, 
+              P |-- rel_expr (Econst_single f ty) (Vsingle f) rho.
 Proof. intros. intros ? ?; constructor. Qed.
 
 Lemma rel_expr_const_long: forall i ty P rho, 

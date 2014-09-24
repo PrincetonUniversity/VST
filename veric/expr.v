@@ -410,7 +410,8 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) =>
              if Int.eq n Int.zero then Some false else None
    | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) => Some true
-   | Vfloat f, Tfloat sz _ => Some (negb(Float.cmp Ceq f Float.zero))
+   | Vfloat f, Tfloat F64 _ => Some (negb(Float.cmp Ceq f Float.zero))
+   | Vsingle f, Tfloat F32 _ => Some (negb(Float32.cmp Ceq f Float32.zero))
    | _, _ => None
    end.
 
@@ -488,6 +489,7 @@ Fixpoint eval_expr (e: expr) : environ -> val :=
  | Econst_int i ty => `(Vint i)
  | Econst_long i ty => `(Vlong i)
  | Econst_float f ty => `(Vfloat f)
+ | Econst_single f ty => `(Vsingle f)
  | Etempvar id ty => eval_id id 
  | Eaddrof a ty => eval_lvalue a 
  | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr a) 
@@ -591,7 +593,14 @@ end.
 
 Definition is_float_type ty := 
 match ty with
-| Tfloat _ _ => true
+| Tfloat F64 _ => true
+| _ => false
+end.
+
+
+Definition is_single_type ty := 
+match ty with
+| Tfloat F32 _ => true
 | _ => false
 end.
 
@@ -616,13 +625,15 @@ match op with
                         end
   | Cop.Oneg => match Cop.classify_neg (typeof a) with
                     | Cop.neg_case_i sg => is_int_type ty
-                    | Cop.neg_case_f _ => is_float_type ty
+                    | Cop.neg_case_f => is_float_type ty
+                    | Cop.neg_case_s => is_single_type ty
                     | _ => false
                     end
   | Cop.Oabsfloat =>match Cop.classify_neg (typeof a) with
                     | Cop.neg_case_i sg => is_float_type ty
                     | Cop.neg_case_l _ => is_float_type ty
-                    | Cop.neg_case_f _ => is_float_type ty
+                    | Cop.neg_case_f => is_float_type ty
+                    | Cop.neg_case_s => is_float_type ty
                     | _ => false
                     end
 end.
@@ -728,7 +739,8 @@ Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
  match Cop.classify_binarith t1 t2 with
   | Cop.bin_case_i sg =>  tc_bool (is_int_type ty) reterr 
   | Cop.bin_case_l sg => tc_bool (is_long_type ty) reterr 
-  | Cop.bin_case_f _   => tc_bool (is_float_type ty) reterr
+  | Cop.bin_case_f   => tc_bool (is_float_type ty) reterr
+  | Cop.bin_case_s   => tc_bool (is_single_type ty) reterr
  | Cop.bin_default => tc_FF deferr
  end.
 
@@ -786,7 +798,8 @@ match op with
                                                         (tc_bool (is_int_type ty) reterr)
                     | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) 
                                                         (tc_bool (is_long_type ty) reterr)
-                    | Cop.bin_case_f _  =>  tc_bool (is_float_type ty) reterr 
+                    | Cop.bin_case_f  =>  tc_bool (is_float_type ty) reterr 
+                    | Cop.bin_case_s  =>  tc_bool (is_single_type ty) reterr 
                     | Cop.bin_default => tc_FF deferr
             end
   | Cop.Oshl | Cop.Oshr => match Cop.classify_shift (typeof a1) (typeof a2) with
@@ -816,10 +829,13 @@ match op with
 
 
 Definition isCastResultType tfrom tto a : tc_assert :=
+  (* missing casts from f2s and s2f *)
 match Cop.classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF (invalid_cast tfrom tto)
-| Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
-| Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
+| Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed)
+| Cop.cast_case_s2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed)  
+| Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned) 
+| Cop.cast_case_s2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
 | Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_neutral  => if eqb_type tfrom tto then tc_TT else 
                             (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom)) (andb (is_int_type tto) (is_int_type tfrom)) then tc_TT
@@ -827,11 +843,13 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_void => tc_noproof
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
+| Cop.cast_case_s2bool => tc_bool (is_single_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_p2bool => tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto)
 | Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)
 | _ => match tto with 
       | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto) 
-      | Tfloat _ _  => tc_bool (is_float_type tfrom) (invalid_cast_result tto tto)
+      | Tfloat F64 _  => tc_bool (is_float_type tfrom) (invalid_cast_result tto tto)
+      | Tfloat F32 _  => tc_bool (is_single_type tfrom) (invalid_cast_result tto tto)
       | _ => tc_FF (invalid_cast tfrom tto)
       end
 end.
@@ -842,6 +860,8 @@ Definition is_long (v: val) :=
  match v with Vlong i => True | _ => False end.
 Definition is_float (v: val) := 
  match v with Vfloat i => True | _ => False end.
+Definition is_single (v: val) := 
+ match v with Vsingle i => True | _ => False end.
 Definition is_pointer_or_null (v: val) := 
  match v with 
  | Vint i => i = Int.zero
@@ -856,7 +876,8 @@ Definition tc_val (ty: type) : val -> Prop :=
  match ty with 
  | Tint _ _ _ => is_int
  | Tlong _ _ => is_long 
- | Tfloat _ _ => is_float
+ | Tfloat F64 _ => is_float
+ | Tfloat F32 _ => is_single
  | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _ => is_pointer_or_null
  | Tstruct _ _ _ => isptr
  | Tunion _ _ _ => isptr
@@ -870,7 +891,8 @@ Definition is_neutral_cast t1 t2 :=
  match t1, t2 with
  | Tint _ _ _, Tint I32 _ _ => true
  | Tlong _ _, Tlong _ _ => true
- | Tfloat _ _, Tfloat F64 _ => true
+ | Tfloat F64 _, Tfloat F64 _ => true
+ | Tfloat F32 _, Tfloat F32 _ => true
  | Tpointer _ _, Tpointer _ _ => true
  | _, _ => false
  end.
@@ -882,10 +904,11 @@ Proof.
 intros.
  destruct t1, t2;
  inv H;
- try solve [destruct i; inv H2].
+ try solve [destruct i; inv H2];
+ try solve [destruct f; inv H2].
  * destruct i,i0; inv H2; destruct v; inv H0; reflexivity.
  * destruct v; inv H0; reflexivity.
- * destruct f0; inv H2; destruct v; inv H0; reflexivity.
+ * destruct f,f0; inv H2; destruct v; inv H0; reflexivity.
  * destruct v; inv H0; reflexivity.
 Qed. 
 
@@ -917,7 +940,8 @@ Definition same_base_type t1 t2 : bool :=
 match t1, t2 with
   Tint _ _ _, Tint _ _ _ 
 | Tlong _ _, Tlong _ _
-| Tfloat _ _, Tfloat _ _  => true
+| Tfloat F64 _, Tfloat F64 _  => true
+| Tfloat F32 _, Tfloat F32 _  => true
 | (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _), 
    (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => true
 | (Tstruct _ _ _ | Tunion _ _ _), (Tstruct _ _ _ | Tunion _ _ _ ) => true
@@ -931,7 +955,8 @@ Fixpoint typecheck_expr (Delta : tycontext) (e: expr) : tc_assert :=
 let tcr := typecheck_expr Delta in
 match e with
  | Econst_int _ (Tint _ _ _) => tc_TT 
- | Econst_float _ (Tfloat _ _) => tc_TT
+ | Econst_float _ (Tfloat F64 _) => tc_TT
+ | Econst_single _ (Tfloat F32 _) => tc_TT
  | Etempvar id ty => 
                        match (temp_types Delta)!id with 
                          | Some ty' => if same_base_type ty (fst ty') then 
@@ -1047,7 +1072,8 @@ Definition typecheck_val (v: val) (ty: type) : bool :=
  match v, ty with
  | Vint i, Tint _ _ _ => true  
  | Vlong i, Tlong _ _ => true
- | Vfloat v, Tfloat _ _ => true  
+ | Vfloat v, Tfloat F64 _ => true  
+ | Vsingle v, Tfloat F32 _ => true  
  | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) => 
                     (Int.eq i Int.zero) 
 (* | Vlong i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) => 
@@ -1130,9 +1156,34 @@ Definition denote_tc_igt i v :=
                      | _ => False
                   end.
 
+Definition Zoffloat (f:float): option Z := (**r conversion to Z *)
+  match f with
+    | Fappli_IEEE.B754_finite s m (Zpos e) _ => 
+       Some (Fcore_Zaux.cond_Zopp s (Zpos m) * Zpower_pos 2 e)
+    | Fappli_IEEE.B754_finite s m 0 _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m))
+    | Fappli_IEEE.B754_finite s m (Zneg e) _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m / Zpower_pos 2 e))
+    | Fappli_IEEE.B754_zero _ => Some 0
+    | _ => None
+  end.  (* copied from CompCert 2.3, because it's missing in CompCert 2.4 *)
+
+Definition Zofsingle (f: float32): option Z := (**r conversion to Z *)
+  match f with
+    | Fappli_IEEE.B754_finite s m (Zpos e) _ => 
+       Some (Fcore_Zaux.cond_Zopp s (Zpos m) * Zpower_pos 2 e)
+    | Fappli_IEEE.B754_finite s m 0 _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m))
+    | Fappli_IEEE.B754_finite s m (Zneg e) _ => Some (Fcore_Zaux.cond_Zopp s (Zpos m / Zpower_pos 2 e))
+    | Fappli_IEEE.B754_zero _ => Some 0
+    | _ => None
+  end.  (* copied from CompCert 2.3, because it's missing in CompCert 2.4 *)
+
+
 Definition denote_tc_Zge z v := 
           match v with
-                     | Vfloat f => match Float.Zoffloat f with
+                     | Vfloat f => match Zoffloat f with
+                                    | Some n => is_true (Zge_bool z n)
+                                    | None => False
+                                   end
+                     | Vsingle f => match Zofsingle f with
                                     | Some n => is_true (Zge_bool z n)
                                     | None => False
                                    end
@@ -1141,7 +1192,11 @@ Definition denote_tc_Zge z v :=
 
 Definition denote_tc_Zle z v := 
           match v with
-                     | Vfloat f => match Float.Zoffloat f with
+                     | Vfloat f => match Zoffloat f with
+                                    | Some n => is_true (Zle_bool z n)
+                                    | None => False
+                                   end
+                     | Vsingle f => match Zofsingle f with
                                     | Some n => is_true (Zle_bool z n)
                                     | None => False
                                    end
@@ -1541,7 +1596,7 @@ Lemma tc_val_eq: tc_val = fun t v => typecheck_val v t = true.
 Proof.
 extensionality t v.
 unfold tc_val.
-destruct t,v; try reflexivity;
+destruct t,v; try destruct f; try reflexivity;
 apply prop_ext; intuition; try apply I;
 simpl in *; subst;
 try apply Int.eq_true;
@@ -1556,9 +1611,10 @@ Lemma neutral_isCastResultType:
 Proof.
 intros.
   unfold isCastResultType;
-  destruct t',t; inv H; try apply I.
+  destruct t',t; inv H; try solve [destruct f; try destruct f0; inv H1]; try apply I.
 * destruct i,i0; inv H1; simpl; try apply I; if_tac; apply I.
-* simpl. if_tac; apply I.
+* simpl. destruct f, f0; inv H1; apply I.
+*  simpl. if_tac; apply I.
 Qed.
 
 (*A boolean denote_tc_assert *)
@@ -1580,7 +1636,11 @@ Definition denote_tc_igt_b i v :=
 
 Definition denote_tc_Zge_b z v := 
           match v with
-                     | Vfloat f => match Float.Zoffloat f with
+                     | Vfloat f => match Zoffloat f with
+                                    | Some n => (Zge_bool z n)
+                                    | None => false
+                                   end
+                     | Vsingle f => match Zofsingle f with
                                     | Some n => (Zge_bool z n)
                                     | None => false
                                    end
@@ -1589,7 +1649,11 @@ Definition denote_tc_Zge_b z v :=
 
 Definition denote_tc_Zle_b z v := 
           match v with
-                     | Vfloat f => match Float.Zoffloat f with
+                     | Vfloat f => match Zoffloat f with
+                                    | Some n => (Zle_bool z n)
+                                    | None => false
+                                   end
+                     | Vsingle f => match Zofsingle f with
                                     | Some n => (Zle_bool z n)
                                     | None => false
                                    end
@@ -1696,9 +1760,13 @@ end; auto; try congruence;
 unfold denote_tc_initialized, denote_tc_initialized_b in *.
 destruct (denote_tc_assert_b a1 rho); try contradiction; apply I.
 destruct (denote_tc_assert_b a1 rho); try contradiction; apply I.
-destruct (Float.Zoffloat f); try contradiction.
+destruct (Zoffloat f); try contradiction.
 destruct (z >=? z0); try contradiction; auto.
-destruct (Float.Zoffloat f); try contradiction.
+destruct (Zofsingle f); try contradiction.
+destruct (z >=? z0); try contradiction; auto.
+destruct (Zoffloat f); try contradiction.
+destruct (z <=? z0); try contradiction; auto.
+destruct (Zofsingle f); try contradiction.
 destruct (z <=? z0); try contradiction; auto.
 destruct (eval_expr e0 rho); try contradiction.
 destruct (peq b b0); try contradiction; auto.
@@ -1718,9 +1786,13 @@ destruct (denote_tc_assert_b a1 rho); try contradiction; auto.
 destruct (denote_tc_assert_b a1 rho); try contradiction; auto.
 destruct (denote_tc_assert_b a1 rho); try contradiction; auto.
 destruct (negb (Int.eq i Int.zero)); try contradiction; auto.
-destruct (Float.Zoffloat f); try contradiction.
+destruct (Zoffloat f); try contradiction.
 destruct (z >=? z0); try contradiction; auto.
-destruct (Float.Zoffloat f); try contradiction.
+destruct (Zofsingle f); try contradiction.
+destruct (z >=? z0); try contradiction; auto.
+destruct (Zoffloat f); try contradiction.
+destruct (z <=? z0); try contradiction; auto.
+destruct (Zofsingle f); try contradiction.
 destruct (z <=? z0); try contradiction; auto.
 destruct (eval_expr e0 rho); try contradiction.
 destruct (peq b b0); try contradiction; auto.

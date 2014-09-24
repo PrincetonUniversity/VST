@@ -54,6 +54,12 @@ destruct (typeof e); try congruence; auto;
 try destruct (field_offset i f); eauto.
 destruct (field_offset i f0); eauto.
 unfold offset_val; right; eauto.
+
+destruct (field_offset i f0); try contradiction.
+destruct H4 as [? [? H4]]; inv H4.
+right. destruct H4 as [? [? ?]].
+symmetry in H4; inv H4.
+unfold offset_val; eauto.
 Qed. 
  
 Ltac unfold_tc_denote :=
@@ -247,39 +253,43 @@ unfold isUnOpResultType in H.
 unfold eval_unop, sem_unary_operation, force_val1.
 unfold classify_bool in H.
 destruct u; try solve [inv H]; simpl.
-(* notbool case *)
+* (* notbool case *)
 assert (is_int_type t = true) 
-  by (destruct (typeof e); try destruct i,s; inv H; auto).
+  by (destruct (typeof e); try destruct i,s; try destruct f; inv H; auto).
 destruct t;  inv H0.
 unfold sem_notbool.
 destruct (typeof e), v; inv H2; try destruct i0,s0; simpl; inv H; try rewrite H1; auto.
-(* notint case *)
+destruct f; inv H1.
+simpl. destruct (Float.cmp Ceq f0 Float.zero); reflexivity.
+destruct f; inv H1.
+simpl. destruct (Float32.cmp Ceq f0 Float32.zero); reflexivity.
+* (* notint case *)
 unfold sem_notint.
 destruct (typeof e), v; inv H; inv H2; simpl; auto.
 destruct i,s; destruct t; inv H1; simpl; auto.
-(* neg case *)
+* (* neg case *)
 unfold sem_neg; simpl.
 destruct (typeof e); inv H.
 destruct v; inv H2.
 destruct i,s; inv H1; simpl; destruct t; try inv H0; auto.
-destruct v; inv H2.
-destruct f; inv H1; simpl; destruct t; try inv H0; auto.
-(* absfloat case *)
+destruct f,v; inv H1; inv H2; simpl; destruct t; try destruct f0;  try inv H0; auto.
+* (* absfloat case *)
 unfold sem_absfloat.
 destruct (classify_neg (typeof e)) eqn:H3; try discriminate;
-destruct t; inv H.
-destruct (typeof e); inv H3; destruct v; inv H2; reflexivity.
-destruct (typeof e); inv H3; destruct v; inv H2; try reflexivity.
-destruct i; try destruct s; inv H0.
-destruct (typeof e); inv H3; destruct v; inv H2; try reflexivity.
-destruct i; try destruct s0; inv H0.
+destruct t; try destruct f; inv H.
+destruct (typeof e); try destruct f; inv H3; destruct v; inv H2; reflexivity.
+destruct (typeof e); try destruct f; try destruct i; try destruct s; inv H3; destruct v; inv H2; try reflexivity.
+destruct (typeof e); try destruct f; try destruct i; try destruct s; inv H3; destruct v; inv H2; try reflexivity.
+destruct (typeof e); try destruct f; try destruct i; try destruct s0; inv H3; destruct v; inv H2; try reflexivity.
 Qed.
 
 Lemma same_base_tc_val : forall v t1 t2,
 same_base_type t1 t2 = true ->
 typecheck_val v t1 = typecheck_val v t2.
 Proof.
-intros. destruct v; destruct t1; destruct t2; try solve [inv H]; auto.
+intros. destruct v; destruct t1; destruct t2; 
+    try destruct f; try destruct f0; try destruct f1;
+   try solve [inv H]; auto.
 Qed.
 
 Lemma typecheck_temp_sound:

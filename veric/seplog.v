@@ -808,7 +808,8 @@ match Cop.classify_cast tfrom tto with
                                then true else false
 | Cop.cast_case_i2i _ _ => true
 | Cop.cast_case_l2l => true
-| Cop.cast_case_f2f _ => true
+| Cop.cast_case_f2f => true
+| Cop.cast_case_s2s => true
 | _  => false
 end. 
 
@@ -817,8 +818,10 @@ allowedValCast v tfrom tto = true ->
 typecheck_val v tfrom = true ->
 typecheck_val v tto = true. 
 Proof. 
-intros. destruct tfrom; destruct tto; destruct v; intuition; 
- try destruct i; try destruct i0; destruct s; inv H.
+intros. 
+ destruct tfrom as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | | ];
+ destruct tto as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | | ];
+ destruct v; intuition; inv H.
 Qed. 
 
 Definition tc_temp_id (id : positive) (ty : type) 

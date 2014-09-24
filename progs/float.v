@@ -2,44 +2,47 @@ Require Import Clightdefs.
 
 Local Open Scope Z_scope.
 
-Definition _x : ident := 32%positive.
-Definition ___compcert_va_int64 : ident := 16%positive.
-Definition _main : ident := 38%positive.
-Definition ___builtin_fmadd : ident := 24%positive.
-Definition ___builtin_fmax : ident := 22%positive.
-Definition ___compcert_va_float64 : ident := 17%positive.
+Definition _y2 : ident := 40%positive.
+Definition ___builtin_read32_reversed : ident := 32%positive.
+Definition ___compcert_va_int32 : ident := 16%positive.
+Definition _y1 : ident := 38%positive.
+Definition ___builtin_fsqrt : ident := 24%positive.
+Definition ___builtin_clz : ident := 22%positive.
+Definition ___compcert_va_int64 : ident := 17%positive.
 Definition ___builtin_memcpy_aligned : ident := 8%positive.
 Definition ___builtin_subl : ident := 5%positive.
-Definition ___builtin_va_arg : ident := 12%positive.
+Definition ___builtin_va_start : ident := 12%positive.
 Definition ___builtin_annot_intval : ident := 10%positive.
 Definition ___builtin_negl : ident := 3%positive.
 Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
-Definition _x1 : ident := 36%positive.
-Definition _y : ident := 31%positive.
-Definition ___builtin_va_end : ident := 14%positive.
+Definition _struct_foo : ident := 36%positive.
+Definition ___builtin_read16_reversed : ident := 31%positive.
+Definition ___builtin_va_copy : ident := 14%positive.
 Definition ___builtin_mull : ident := 6%positive.
-Definition ___builtin_fnmadd : ident := 26%positive.
-Definition ___builtin_bswap32 : ident := 19%positive.
-Definition ___builtin_va_start : ident := 11%positive.
-Definition _y2 : ident := 37%positive.
+Definition ___builtin_fmin : ident := 26%positive.
+Definition ___builtin_bswap : ident := 19%positive.
+Definition _x1 : ident := 39%positive.
+Definition ___builtin_membar : ident := 11%positive.
+Definition _s : ident := 37%positive.
 Definition ___builtin_addl : ident := 4%positive.
-Definition ___builtin_read16_reversed : ident := 28%positive.
+Definition ___builtin_fmsub : ident := 28%positive.
 Definition ___builtin_fabs : ident := 7%positive.
-Definition ___builtin_fsqrt : ident := 21%positive.
-Definition ___builtin_bswap : ident := 18%positive.
+Definition ___builtin_bswap16 : ident := 21%positive.
+Definition ___compcert_va_float64 : ident := 18%positive.
 Definition ___builtin_annot : ident := 9%positive.
-Definition ___builtin_va_copy : ident := 13%positive.
-Definition ___builtin_fnmsub : ident := 27%positive.
-Definition _struct_foo : ident := 33%positive.
-Definition ___builtin_fmsub : ident := 25%positive.
-Definition ___compcert_va_int32 : ident := 15%positive.
-Definition _s : ident := 34%positive.
-Definition ___builtin_read32_reversed : ident := 29%positive.
-Definition _y1 : ident := 35%positive.
-Definition _z : ident := 30%positive.
-Definition ___builtin_fmin : ident := 23%positive.
-Definition ___builtin_bswap16 : ident := 20%positive.
+Definition _main : ident := 41%positive.
+Definition ___builtin_va_arg : ident := 13%positive.
+Definition ___builtin_fmadd : ident := 27%positive.
+Definition _z : ident := 33%positive.
+Definition ___builtin_fmax : ident := 25%positive.
+Definition ___builtin_va_end : ident := 15%positive.
+Definition _y : ident := 34%positive.
+Definition ___builtin_fnmadd : ident := 29%positive.
+Definition _x : ident := 35%positive.
+Definition ___builtin_fnmsub : ident := 30%positive.
+Definition ___builtin_ctz : ident := 23%positive.
+Definition ___builtin_bswap32 : ident := 20%positive.
 
 Definition t_struct_foo :=
    (Tstruct _struct_foo
@@ -48,8 +51,8 @@ Definition t_struct_foo :=
 Definition v_s := {|
   gvar_info := t_struct_foo;
   gvar_init := (Init_int32 (Int.repr 5) ::
-                Init_float32 (Float.double_of_bits (Int64.repr 4614861056357957632)) ::
-                Init_float64 (Float.double_of_bits (Int64.repr 0)) :: nil);
+                Init_float32 (Float32.of_bits (Int.repr 14302577)) ::
+                Init_float64 (Float.of_bits (Int64.repr 0)) :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
@@ -62,7 +65,7 @@ Definition f_main := {|
   fn_temps := ((_y1, tdouble) :: (_x1, tint) :: (_y2, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _y1 (Efield (Evar _s t_struct_foo) _y tfloat))
+  (Sset _y1 (Ecast (Efield (Evar _s t_struct_foo) _y tfloat) tdouble))
   (Ssequence
     (Sset _x1 (Efield (Evar _s t_struct_foo) _x tint))
     (Ssequence
@@ -97,6 +100,9 @@ prog_defs :=
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
                      cc_default)) (Tcons (tptr tschar) (Tcons tint Tnil))
      tint cc_default)) ::
+ (___builtin_membar,
+   Gfun(External (EF_builtin ___builtin_membar
+                   (mksignature nil None cc_default)) Tnil tvoid cc_default)) ::
  (___builtin_va_start,
    Gfun(External (EF_builtin ___builtin_va_start
                    (mksignature (AST.Tint :: nil) None cc_default))
@@ -141,6 +147,14 @@ prog_defs :=
    Gfun(External (EF_builtin ___builtin_bswap16
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons tushort Tnil) tushort cc_default)) ::
+ (___builtin_clz,
+   Gfun(External (EF_builtin ___builtin_clz
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) tuint cc_default)) ::
+ (___builtin_ctz,
+   Gfun(External (EF_builtin ___builtin_ctz
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) tuint cc_default)) ::
  (___builtin_fsqrt,
    Gfun(External (EF_builtin ___builtin_fsqrt
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tfloat)

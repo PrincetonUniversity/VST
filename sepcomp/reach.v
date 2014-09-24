@@ -19,11 +19,11 @@ Definition visTgt mu := fun b => locBlocksTgt mu b || frgnBlocksTgt mu b.
 
 Inductive reach (m:mem) (B:block -> Prop): list (block * Z) -> block -> Prop :=
   reach_nil: forall b, B b -> reach m B nil b
-| reach_cons: forall b L b' z off n,
+| reach_cons: forall b L b' z off q n,
                      reach m B L b' ->
                      Mem.perm m b' z Cur Readable ->
                      ZMap.get z (PMap.get b' (Mem.mem_contents m)) = 
-                        Pointer b off n ->
+                        Fragment (Vptr b off) q n ->
               reach m B ((b',z)::L) b.
 
 Fixpoint reach' (m:mem) (B:block -> Prop) (L:list (block * Z)): block -> Prop:=
@@ -31,7 +31,7 @@ Fixpoint reach' (m:mem) (B:block -> Prop) (L:list (block * Z)): block -> Prop:=
     nil => B
   | l::L => match l with 
              (b',z) => match ZMap.get z (PMap.get b' (Mem.mem_contents m))
-                       with Pointer b off n => fun bb => bb = b /\
+                       with Fragment (Vptr b off) q n => fun bb => bb = b /\
                                                Mem.perm m b' z Cur Readable /\
                                                reach' m B L b'
                            | _ => fun bb => False
@@ -50,6 +50,7 @@ Proof. intros m B L.
   destruct a as [b' z]. 
     remember (ZMap.get z (Mem.mem_contents m) !! b') as v.
     destruct v; try inv H. apply eq_sym in Heqv.
+    destruct v; try inv H.
     destruct H1. apply IHL in H0.
       econstructor; try eassumption.
 Qed.
@@ -59,7 +60,7 @@ Fixpoint reach'' (m:mem) (B:block -> bool) (L:list (block * Z)): block -> bool:=
     nil => B
   | l::L => match l with 
              (b',z) => match ZMap.get z (PMap.get b' (Mem.mem_contents m))
-                       with Pointer b off n => fun bb => eq_block bb b &&
+                       with Fragment (Vptr b off) q n => fun bb => eq_block bb b &&
                                                Mem.perm_dec m b' z Cur Readable  &&
                                                reach'' m B L b'
                            | _ => fun bb => false
@@ -80,8 +81,11 @@ Proof.
   destruct a as [b' z]. 
     remember (ZMap.get z (Mem.mem_contents m) !! b') as v.
     destruct v; try solve[inv H]. apply eq_sym in Heqv.
-    rewrite !andb_true_iff in H. destruct H as [[H1 X] H0]. 
-    apply IHL in H0. econstructor; try eassumption.
+    destruct v; inv H.
+    rewrite !andb_true_iff in H1. destruct H1 as [[H1 X] H0]. 
+    rewrite H1. simpl. rewrite X. simpl. rewrite H0.
+    apply IHL in H0.
+    econstructor; try eassumption.
     revert X.
     case_eq (Mem.perm_dec m b' z Cur Readable); auto.
     simpl. intros. congruence.
@@ -103,7 +107,7 @@ Proof. intros.
     clear R HB.         
     specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ J) _ _ _ _ J' H).
     intros. rewrite H0 in H1.
-    inv H1.
+    inv H1. inv H3.
     exists b2, ((b2',(z + d2'))::L2'), delta.
     split. assumption.
     eapply reach_cons. apply R2'.
@@ -131,11 +135,11 @@ Proof. intros. apply REACHAX.
  exists nil. constructor. assumption.
 Qed.
 
-Lemma REACH_cons: forall m B b b' z off n,
+Lemma REACH_cons: forall m B b b' z off q n,
                      REACH m B b' = true ->
                      Mem.perm m b' z Cur Readable ->
                      ZMap.get z (PMap.get b' (Mem.mem_contents m)) = 
-                        Pointer b off n ->
+                        Fragment (Vptr b off) q n ->
                   REACH m B b = true.
 Proof. intros.
   apply REACHAX in H. destruct H as [L HL].
@@ -531,6 +535,7 @@ Proof. intros.
         | Vint _ => L
         | Vlong _ => L
         | Vfloat _ => L
+        | Vsingle _ => L
         | Vptr b' _ => b' :: L
         end) nil V)). trivial. trivial.  
 Qed.
@@ -547,15 +552,10 @@ Proof.
   intros V. induction V; simpl; intros.
      unfold getBlocks; simpl. split; intros. inv H. destruct H. contradiction.
   rewrite getBlocksD.
-  destruct a; simpl in *; destruct (IHV b); clear IHV.
-      split; intros. destruct (H H1). exists x; right; trivial.
-         apply H0. destruct H1 as [n [X | X]]. inv X. exists n; trivial.
-      split; intros. destruct (H H1). exists x; right; trivial.
-         apply H0. destruct H1 as [n [X | X]]. inv X. exists n; trivial.
-      split; intros. destruct (H H1). exists x; right; trivial.
-         apply H0. destruct H1 as [n [X | X]]. inv X. exists n; trivial.
-      split; intros. destruct (H H1). exists x; right; trivial.
-         apply H0. destruct H1 as [n [X | X]]. inv X. exists n; trivial.
+  destruct a; simpl in *; destruct (IHV b); clear IHV;
+   try solve [split; intros; [destruct (H H1);exists x; right; trivial 
+                     | apply H0; destruct H1 as [n [X | X]];
+                                 [inv X | exists n; trivial]]].
       split; intros. 
          apply orb_true_iff in H1. 
            destruct H1. exists i; left. clear H H0.
@@ -630,14 +630,14 @@ split; intros.
      specialize (Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ Inj12) b1).
         rewrite (INC _ _ _ H). intros.
         specialize (H1 _ _ _ (eq_refl _) H0).
-        inv H1; try constructor.
+        inv H1; try constructor. inv H4; try constructor.
         assert (R: REACH m1 (mapped k) b0 = true).
            apply eq_sym in H2.
            eapply REACH_cons; try eassumption.
            apply REACH_nil. eapply mappedI_true; eassumption.
         specialize (RC _ R). 
           destruct (mappedD_true _ _ RC) as [[bb dd] RR]; clear RC.
-          rewrite (INC _ _ _ RR) in H4; inv H4. 
+          rewrite (INC _ _ _ RR) in H1; inv H1. 
         econstructor; try eassumption. trivial.
    remember (k b) as d.
      destruct d; apply eq_sym in Heqd; trivial.
@@ -1667,13 +1667,9 @@ Proof. intros.
   induction INJ; simpl; intros.
      rewrite getBlocksD_nil in GB. inv GB.
   rewrite getBlocksD in GB.
-  inv H; simpl in *. 
-    destruct IHINJ as [b1 [d [J GB1]]]; trivial.
-      exists b1, d; split; trivial.
-    destruct IHINJ as [b1 [d [J GB1]]]; trivial.
-      exists b1, d; split; trivial.
-    destruct IHINJ as [b1 [d [J GB1]]]; trivial.
-      exists b1, d; split; trivial.
+  inv H; simpl in *;
+    try solve [ 
+    destruct IHINJ as [b1 [d [J GB1]]]; trivial; exists b1, d; split; trivial].
     destruct (eq_block b0 b2); subst; simpl in *.
       exists b1, delta; split; trivial.
         rewrite getBlocks_char. exists ofs1; left; trivial.
@@ -1722,16 +1718,17 @@ Lemma inject_shared_replace_locals m1 m2 mu vals1 vals2:
       Mem.inject (shared_of nu) m1 m2.
 Proof. intros.
    eapply inject_mapped; try eassumption.
-                intros. subst nu. rewrite replace_locals_shared. intros b Hb.
+   *            intros. subst nu. rewrite replace_locals_shared. intros b Hb.
                 apply REACHAX in Hb. destruct Hb as [L HL].
                 generalize dependent b.
                 induction L; intros; inv HL; trivial.
                 specialize (IHL _ H1); clear H1.
                 apply mappedD_true in IHL. destruct IHL as [[b1 delta] IHL].
+                rename q into qq.
 
                apply inject_REACH_closed in MINJ.
                   exploit (MINJ b). 
-                    eapply REACH_cons; try eassumption.
+                 + eapply REACH_cons; try eassumption.
                     eapply REACH_nil.
                       destruct (joinD_Some _ _ _ _ _ IHL); clear IHL.
                         eapply mappedI_true. apply foreign_in_all; eassumption.
@@ -1739,7 +1736,7 @@ Proof. intros.
                         remember (locBlocksSrc mu b' && REACH m1 (exportedSrc mu vals1) b') as q.
                         destruct q; inv H.
                         eapply mappedI_true. apply local_in_all; eassumption.
-                  intros. apply mappedD_true in H. destruct H as [[b2 dd] AIb].
+                + intros. apply mappedD_true in H. destruct H as [[b2 dd] AIb].
                   exploit (RC b). eapply REACH_cons; try eassumption.
                      eapply REACH_nil. unfold vis.
                      destruct (joinD_Some _ _ _ _ _ IHL); clear IHL.
@@ -1764,6 +1761,7 @@ Proof. intros.
                            remember (locBlocksSrc mu b' && REACH m1 (exportedSrc mu vals1) b') as q.
                            destruct q; inv H6. apply eq_sym in Heqq. apply andb_true_iff in Heqq. apply Heqq.
                     eapply mappedI_true. unfold join. rewrite H0, H, RR; simpl. eassumption.
+ *
                assert (AI: as_inj mu = as_inj nu). 
                   subst nu. rewrite replace_locals_as_inj; trivial.
                subst. rewrite AI. apply shared_in_all; eassumption.

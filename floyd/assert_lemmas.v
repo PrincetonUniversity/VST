@@ -1329,6 +1329,7 @@ Fixpoint subst_eval_expr (j: ident) (v: environ -> val) (e: expr) : environ -> v
  | Econst_int i ty => `(Vint i)
  | Econst_long i ty => `(Vlong i)
  | Econst_float f ty => `(Vfloat f)
+ | Econst_single f ty => `(Vsingle f)
  | Etempvar id ty => if eqb_ident j id then v else eval_id id 
  | Eaddrof a ty => subst_eval_lvalue j v a 
  | Eunop op a ty =>  `(eval_unop op (typeof a)) (subst_eval_expr j v a) 

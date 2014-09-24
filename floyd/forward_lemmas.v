@@ -151,14 +151,18 @@ Proof.
 intros.
 rewrite tc_val_eq in H.
  simpl. unfold Cop2.sem_cast.
-remember (eval_expr e rho). destruct v. inv H. simpl.
-remember (typeof e); destruct t; inv H; simpl;
-remember (Int.eq i Int.zero); if_tac; auto; try congruence.
-remember (typeof e); destruct t; inv H; simpl;
-remember (Int64.eq i Int64.zero); if_tac; auto; try congruence.
-remember (typeof e); destruct t; inv H. simpl.
-if_tac; auto.
-destruct (typeof e); inv H; auto.
+remember (eval_expr e rho).
+destruct v.
+* inv H.
+* destruct (typeof e) as [ | | | [ | ] |  | | | | | ]; inv H; simpl;
+  remember (Int.eq i Int.zero); if_tac; auto; try congruence.
+* destruct (typeof e) as [ | | | [ | ] |  | | | | | ]; inv H; simpl;
+  remember (Int64.eq i Int64.zero); if_tac; auto; try congruence.
+* destruct (typeof e) as [ | | | [ | ] |  | | | | | ]; inv H; simpl;
+    if_tac; auto.
+*destruct (typeof e) as [ | | | [ | ] |  | | | | | ]; inv H; simpl;
+    if_tac; auto.
+*destruct (typeof e) as [ | | | [ | ] |  | | | | | ]; inv H; auto.
 Qed.
 
 Lemma tycontext_eqv_sub:
@@ -780,7 +784,7 @@ apply semax_ifthenelse_PQR.
    go_lowerx. subst. apply andp_right; auto. apply prop_right; split; auto.
    rewrite H6.
    unfold logical_or_result.
- destruct (typeof e1), (eval_expr e1 rho); inv H; inv H8; simpl;
+ destruct (typeof e1) as [ | | | [ | ] |  | | | | | ], (eval_expr e1 rho); inv H; inv H8; simpl;
    try rewrite H3; auto.
   - eapply semax_seq'. 
       + eapply forward_setx_weak.
@@ -789,7 +793,20 @@ apply semax_ifthenelse_PQR.
          apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
         simpl. super_unfold_lift. split. auto. 
+         destruct (typeof e2) as [ | | | [ | ] |  | | | | | ] eqn:?;
+                                        inv H0; try  apply I.
+(*
+     unfold isCastResultType.
+    simpl classify_cast.
+      clear H6.
+       destruct ( (temp_types Delta) ! tid) as [ [? ?] | ] eqn:?; 
+       simpl in H6; [ | inv H6].
+       destruct t; try solve [inv H6]. destruct i; try solve [inv H6].
+        simpl in H6.
+=======
         destruct (typeof e2) eqn:?; inv H0; try apply I.
+>>>>>>> .r6799
+*)
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
           rewrite (@closed_wrt_subst _ tid _ (eval_expr (Ecast e2 tbool)))
     by (simpl; auto with closed).
@@ -857,7 +874,7 @@ apply semax_ifthenelse_PQR.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
         simpl. super_unfold_lift. split.
         destruct H5; auto; congruence.         
-        unfold isCastResultType. destruct (typeof e2); 
+        unfold isCastResultType. destruct (typeof e2) as [ | | | [ | ] |  | | | | | ]; 
                                         inv H0; simpl; apply I.
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
           rewrite (@closed_wrt_subst _ tid _ (eval_expr (Ecast e2 tbool)))

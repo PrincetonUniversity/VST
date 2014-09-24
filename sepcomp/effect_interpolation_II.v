@@ -833,12 +833,14 @@ assert (Inj12': Mem.inject j12' m1' m2').
                              apply inc12. eassumption. apply (inc23 _ _ _ AsInj23). 
                   assert (MV:= Mem.mi_memval _ _ _
                                  (Mem.mi_inj _ _ _ MemInjNu') _ _ _ _ Nu'b1 H0).
-                  inv MV; try constructor. 
-                           simpl. 
-                           rewrite ID in H4.
-                           destruct (compose_meminjD_Some _ _ _ _ _ H4)
+                  inv MV; try constructor.
+                           simpl.
+                           destruct v1; repeat constructor.
+                           inv H4.
+                           rewrite ID in H7.
+                           destruct (compose_meminjD_Some _ _ _ _ _ H7)
                               as [bb2 [dd1 [dd2 [JJ1 [JJ2 Delta]]]]].
-                           rewrite JJ1. econstructor. 
+                           rewrite JJ1. constructor; econstructor. 
                              apply JJ1. reflexivity.
                (*case pubBlocksSrc nu12 b1 = false*)
                   assert (PK: Mem.perm m1 b1 ofs Cur Readable).
@@ -880,11 +882,13 @@ assert (Inj12': Mem.inject j12' m1' m2').
                   assert (MV:= Mem.mi_memval _ _ _
                                  (Mem.mi_inj _ _ _ MemInjNu') _ _ _ _ Nu'b1 H0).
                   inv MV; try constructor. 
-                           simpl. 
-                           rewrite ID in H4.
-                           destruct (compose_meminjD_Some _ _ _ _ _ H4)
+                           simpl.
+                            destruct v1; repeat constructor.
+                           inv H4.
+                           rewrite ID in H7.
+                           destruct (compose_meminjD_Some _ _ _ _ _ H7)
                               as [bb2 [dd1 [dd2 [JJ1 [JJ2 Delta]]]]].
-                           rewrite JJ1. econstructor. 
+                           rewrite JJ1. constructor; econstructor. 
                              apply JJ1. reflexivity.
          (*case ~ Mem.valid_block m2 b2*)
             specialize (H2 (ofs + delta)).
@@ -908,12 +912,13 @@ assert (Inj12': Mem.inject j12' m1' m2').
                        assert (MV:= Mem.mi_memval _ _ _ 
                            (Mem.mi_inj _ _ _ MemInjNu') _ _  _ _ COMP' H0).
                        subst.
-                       inv MV; try constructor. 
-                       simpl. rewrite ID in H5. 
-                       apply compose_meminjD_Some in H5.
-                       destruct H5 as [bb1 [off1 [off [JJ1 [JJ2 Delta]]]]].
+                       inv MV; repeat constructor.
+                       destruct v1; inv H5; repeat constructor. 
+                       simpl. rewrite ID in H8. 
+                       apply compose_meminjD_Some in H8.
+                       destruct H8 as [bb1 [off1 [off [JJ1 [JJ2 Delta]]]]].
                        subst. 
-                       rewrite JJ1. econstructor. apply JJ1. trivial.
+                       rewrite JJ1. constructor; econstructor. apply JJ1. trivial.
                    (*j23' b2 = None - we do a slightly different proof than in interp6 mem_interpolationII etc*)
                        subst.
                        unfold removeUndefs in H. rewrite J12 in H.
@@ -1356,10 +1361,11 @@ assert (Inj23':Mem.inject j23' m2' m3').
                      intros MemVal13'. 
                      rewrite <- Zplus_assoc.
                      inv MemVal13'; simpl in *; try econstructor.
-                        rewrite ID in H3.        
-                        destruct (compose_meminjD_Some _ _ _ _ _ H3) 
-                           as [bb2 [dd2 [dd3 [RR [JJ23  DD]]]]]; subst; clear H3.
-                        rewrite RR. econstructor. eassumption.
+                        destruct v1; inv H3; repeat constructor.
+                        rewrite ID in H6.        
+                        destruct (compose_meminjD_Some _ _ _ _ _ H6) 
+                           as [bb2 [dd2 [dd3 [RR [JJ23  DD]]]]]; subst; clear H6.
+                        rewrite RR. constructor; econstructor. eassumption.
                           rewrite Int.add_assoc. decEq. unfold Int.add. 
                           apply Int.eqm_samerepr. auto with ints.
                    (*case pubBlocksSrc nu12 b1 = false*)
@@ -1478,10 +1484,11 @@ assert (Inj23':Mem.inject j23' m2' m3').
                    intros MemVal13'. 
                    rewrite <- Zplus_assoc.
                    inv MemVal13'; simpl in *; try econstructor.
-                      rewrite ID in H3.        
-                        destruct (compose_meminjD_Some _ _ _ _ _ H3) 
-                           as [bb2 [dd2 [dd3 [RR [JJ23  DD]]]]]; subst; clear H3.
-                        rewrite RR. econstructor. eassumption.
+                   destruct v1; inv H3; repeat constructor.
+                      rewrite ID in H6.        
+                        destruct (compose_meminjD_Some _ _ _ _ _ H6) 
+                           as [bb2 [dd2 [dd3 [RR [JJ23  DD]]]]]; subst; clear H6.
+                        rewrite RR. constructor; econstructor. eassumption.
                           rewrite Int.add_assoc. decEq. unfold Int.add. 
                           apply Int.eqm_samerepr. auto with ints.
                  (*case source  j12 m1 b2 ofs2  = None *)
@@ -1515,10 +1522,11 @@ assert (Inj23':Mem.inject j23' m2' m3').
                  intros MemVal13'.                    
                  rewrite <- Zplus_assoc. 
                  inv MemVal13'; simpl in *; try econstructor.
-                 rewrite ID in H3.                     
-                 destruct (compose_meminjD_Some _ _ _ _ _ H3)
+                 destruct v1; inv H3; repeat constructor.
+                 rewrite ID in H6.                     
+                 destruct (compose_meminjD_Some _ _ _ _ _ H6)
                        as [bb2 [dd2 [ddd3 [RRR [JJJ23  DD]]]]]; subst.
-                    rewrite RRR. econstructor. apply JJJ23.
+                    rewrite RRR. constructor; econstructor. apply JJJ23.
                     rewrite Int.add_assoc. decEq. unfold Int.add. 
                        apply Int.eqm_samerepr. auto with ints.  
              (*source  j12' m1' b1 ofs  = None *) 

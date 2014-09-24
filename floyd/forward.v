@@ -23,7 +23,7 @@ Local Open Scope logic.
 Definition tc_option_val' (t: type) : option val -> Prop :=
  match t with Tvoid => fun v => match v with None => True | _ => False end | _ => fun v => tc_val t (force_val v) end.
 Lemma tc_option_val'_eq: tc_option_val = tc_option_val'.
-Proof. extensionality t v. destruct t eqn:?,v eqn:?; simpl; try reflexivity.
+Proof. extensionality t v. destruct t as [ | | | [ | ] |  | | | | | ] eqn:?,v eqn:?; simpl; try reflexivity.
 Qed.
 Hint Rewrite tc_option_val'_eq : norm.
 
@@ -85,6 +85,7 @@ Fixpoint msubst_eval_expr (P: PTree.t val) (e: expr) : environ -> val :=
  | Econst_int i ty => `(Vint i)
  | Econst_long i ty => `(Vlong i)
  | Econst_float f ty => `(Vfloat f)
+ | Econst_single f ty => `(Vsingle f)
  | Etempvar id ty => match PTree.get id P with
                                  | Some v => `v
                                  | None => eval_id id 
@@ -748,7 +749,6 @@ PROP  ()
            | intros ?ek ?vl; apply after_set_special1 ].
  apply andp_right.
  intro rho; unfold tc_expr; simpl.
-(* rewrite NONVOL. simpl. *)
  replace ( (temp_types (initialized ret' Delta)) ! ret' ) 
      with (Some (retty', true))
    by (unfold initialized;  simpl; rewrite H4;
@@ -757,7 +757,8 @@ PROP  ()
  unfold local; apply prop_right.
  simpl.
  clear - H5.
-  destruct retty,retty'; simpl; try inv H5; try apply I.
+  destruct retty as [ | | | [ | ] |  | | | | | ], retty' as [ | | | [ | ] |  | | | | | ];
+     simpl; try inv H5; try apply I.
  intro rho; apply prop_right; unfold tc_temp_id; simpl.
  unfold typecheck_temp_id.
  destruct (eq_dec ret' ret).

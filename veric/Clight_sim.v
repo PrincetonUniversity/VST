@@ -965,16 +965,16 @@ Focus 1. (* case x of y *)
 } Unfocus.
  
  Focus 1. (* step_switch *)
- inv H0. simpl strip_skip in H5.
+ inv H1. simpl strip_skip in H6.
  remember (CC.Kseq s k') as k0'.
- inv H5.
+ inv H6.
  evar (c2': CC_core).
  exists c2'; split.
      Focus 2. constructor; eauto. apply match_cont_strip. simpl.
                     instantiate (1:= CC.Kswitch k'0). constructor. auto.
-     generalize (exec_skips' ge f _ _ _ _ ve te m (@eq_sym _ _ _ H3)); intro H99.
+     generalize (exec_skips' ge f _ _ _ _ ve te m (@eq_sym _ _ _ H4)); intro H99.
         eapply star_plus_trans; try apply H99.
-        unfold c2'. apply Smallstep.plus_one. simpl. constructor; auto.
+        unfold c2'. apply Smallstep.plus_one. simpl. econstructor; eauto.
 
  Focus 1. (* step_label *)
  inv H0.  remember (CC.Kseq s0 k') as k0'. inv H5.
@@ -1797,6 +1797,7 @@ Focus 1.
      econstructor; eauto.
  
  Focus 1. (* step_switch *)
+ rename H0 into Hn. rename H1 into H0.
  inv H0. simpl strip_skip in H5.
  remember (CC.Kseq s k') as k0'.
  inv H5.
@@ -1806,7 +1807,7 @@ Focus 1.
                     instantiate (1:= CC.Kswitch k'0). constructor. auto.
      generalize (exec_skips'_CC ge f _ _ _ _ ve te m (@eq_sym _ _ _ H3)); intro H99.
         eapply corestep_star_plus_trans; try apply H99.
-        unfold c2'. apply corestep_plus_one. simpl. constructor; auto.
+        unfold c2'. apply corestep_plus_one. simpl. econstructor; eauto.
 
  Focus 1. (* step_label *)
  inv H0.  remember (CC.Kseq s0 k') as k0'. inv H5.

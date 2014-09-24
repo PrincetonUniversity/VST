@@ -266,8 +266,8 @@ rewrite tc_val_eq' in *.
 rewrite H0 in *. 
 rewrite H1 in *. 
 unfold sem_binary_operation'.
-destruct (typeof e1); try solve[simpl in *; try contradiction; try congruence]; 
-destruct (typeof e2); try solve[simpl in *; try contradiction; try congruence].
+destruct (typeof e1) as [ | | | [ | ] | | | | | | ]; try solve[simpl in *; try contradiction; try congruence]; 
+destruct (typeof e2) as [ | | | [ | ] | | | | | | ]; try solve[simpl in *; try contradiction; try congruence].
 unfold sem_cmp. unfold sem_cmp_pp.
 destruct cmp; inv H;
 unfold sem_cmp; simpl;
@@ -685,7 +685,8 @@ Lemma neutral_cast_lemma2: forall t1 t2 v,
   tc_val t1 v -> tc_val t2 v.
 Proof.
 intros.
-destruct t1,t2; inv H;
+destruct t1  as [ | | | [ | ] | | | | | | ];
+destruct t2  as [ | | | [ | ] | | | | | | ]; inv H;
 try solve [destruct i; discriminate];
  try solve [destruct v; apply H0].
 Qed.
@@ -1094,26 +1095,25 @@ Lemma load_cast :
    force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)). 
 Proof.
 intros. 
-destruct ch; destruct (typeof  e1); try solve [inv H1]; 
-simpl in *; try destruct i; try destruct s; try destruct f; try solve [inv H1]; clear H1; destruct (eval_expr e2 rho); destruct (typeof e2); try solve [inv H]; 
+destruct ch; 
+ destruct (typeof  e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; try solve [inv H1]; 
+simpl in *; (*try destruct i; try destruct s; try destruct f;*)
+ try solve [inv H1]; clear H1; destruct (eval_expr e2 rho);
+ destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; 
+ try solve [inv H]; 
 unfold Cop.sem_cast; simpl;
-try destruct (Float.intoffloat f); 
-try destruct (Float.intuoffloat f);
-try destruct (Float.longoffloat f);
-try destruct (Float.longuoffloat f);
+try destruct (Float.to_int f); 
+try destruct (Float.to_intu f);
+try destruct (Float.to_long f);
+try destruct (Float.to_longu f);
+try destruct (Float32.to_int f); 
+try destruct (Float32.to_intu f);
+try destruct (Float32.to_long f);
+try destruct (Float32.to_longu f);
  auto; simpl;
 try solve [try rewrite Int.sign_ext_idem; auto; simpl; omega];
 try rewrite Int.zero_ext_idem; auto; simpl; try omega;
-try solve [if_tac; auto];
-try solve [try rewrite Float.singleofint_floatofint; rewrite Float.singleoffloat_idem; auto].
-unfold Cop.cast_int_float. destruct s. 
-rewrite Float.singleofint_floatofint.
-rewrite Float.singleoffloat_idem. auto.
-rewrite Float.singleofintu_floatofintu.
-rewrite Float.singleoffloat_idem. auto.
-destruct s.
-simpl. rewrite Float.singleoflong_idem. auto. 
-rewrite Float.singleoflongu_idem. auto.
+try solve [if_tac; auto].
 Qed. 
 
 Lemma semax_store:

@@ -137,6 +137,7 @@ void sha256_block_data_order (SHA256_CTX *ctx, const void *in)
 	t=ctx->h[5]; ctx->h[5]=t+f;
 	t=ctx->h[6]; ctx->h[6]=t+g;
 	t=ctx->h[7]; ctx->h[7]=t+h;
+	return;
 }
 
 void SHA256_Init (SHA256_CTX *c)
@@ -194,6 +195,7 @@ void SHA256_Update (SHA256_CTX *c, const void *data_, size_t len) {
 	if (len != 0) {
 		memcpy (p,data,len);
         }
+	return;
 }
 
 
@@ -225,6 +227,7 @@ void SHA256_Final (unsigned char *md, SHA256_CTX *c)  {
 		for (xn=0;xn<SHA256_DIGEST_LENGTH/4;xn++)	
 		{   ll=(c)->h[xn]; HOST_l2c(ll,md);   }
  	 }
+	return;
 }
 
 void SHA256(const unsigned char *d, size_t n, unsigned char *md) {

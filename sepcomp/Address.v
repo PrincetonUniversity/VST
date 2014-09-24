@@ -29,6 +29,7 @@ Proof.
  apply Int.eq_dec.
  apply Int64.eq_dec.
  apply Float.eq_dec.
+ apply Float32.eq_dec.
  apply Int.eq_dec.
  apply eq_block.
 Qed.

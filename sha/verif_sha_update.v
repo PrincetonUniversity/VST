@@ -178,7 +178,7 @@ Proof.
            (skipn (length blocks * 4 - length dd) data))).
 entailer.
 rename H2 into H98; rename H5 into H99.
-clear TC1 TC0.
+clear TC1 TC.
  rewrite prop_true_andp. 
 Focus 2. {
  apply Update_abs; auto.
