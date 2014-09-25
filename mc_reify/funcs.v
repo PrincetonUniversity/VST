@@ -7,6 +7,8 @@ Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.Fun.
 Require Import progs.list_dt.
 Require Import types.
+Require Import MirrorCharge.ModularFunc.ILogicFunc.
+Require Import MirrorCharge.ModularFunc.BILogicFunc.
 
 Inductive const :=
 | N : nat -> const
@@ -261,20 +263,11 @@ match l with
 end.
 
 Inductive sep :=
-| fstar
-| fandp
-| forp
 | flocal
 | fprop
-| fderives
-| femp
 | fdata_at : type -> sep
 | ffield_at : type -> list ident -> sep
 | flseg : forall (t: type) (i : ident), listspec t i -> sep
-| ftt
-| fff
-| fexp : typ -> sep
-| fallp : typ -> sep
 . 
 
 
@@ -307,7 +300,6 @@ with reptyp_unionlist (fld: fieldlist) : typ :=
       then reptyp ty
       else tysum (reptyp ty) (reptyp_unionlist fld')
   end.
-
  
 Definition typeof_sep (s : sep) : typ :=
 match s with
@@ -315,15 +307,8 @@ match s with
 | ffield_at t ids => tyArr tyshare (tyArr (reptyp (nested_field_type2 t ids)) (tyArr tyval tympred))
 | flseg t i l => tyArr tyshare (tyArr (tylist (reptyp_structlist (@all_but_link i (list_fields)))) 
                                       (tyArr tyval (tyArr tyval tympred)))
-| fstar 
-| fandp
-| forp => tyArr tympred (tyArr tympred tympred)
 | flocal => tyArr (tyArr tyenviron typrop) (tyArr tyenviron tympred) 
 | fprop => tyArr typrop tympred
-| fderives => tyArr tympred (tyArr tympred typrop)
-| femp | ftt | fff => tympred
-| fexp t => tyArr (tyArr t tympred) tympred 
-| fallp t => tyArr (tyArr t tympred) tympred
 end.
 
 Fixpoint reptyp_reptype  ty {struct ty} : typD  (reptyp ty) -> reptype ty :=
@@ -389,17 +374,8 @@ match
 Definition sepD  (s : sep) : typD  (typeof_sep s).
 refine
 match s with
-| fstar => sepcon
-| fandp => andp
-| forp => orp
-| flocal => local
+| flocal => (local : typD (typeof_sep flocal))
 | fprop => prop
-| fderives => derives
-| femp => emp
-| ftt => TT
-| fff => FF
-| fexp t => (@exp mpred Nveric (typD t))
-| fallp t => (@allp mpred Nveric (typD t))
 | fdata_at ty => _ (* fun sh (t : reptype ty) v => data_at sh ty t v *)
 | ffield_at t ids => _
 | flseg t id ls => _
@@ -422,12 +398,10 @@ Inductive triple :=
 | fPROPx
 | fLOCALx
 | fSEPx
+| fnormal_ret_assert
 .
 
-Check PROPx.
-Check LOCALx.
-Check SEPx.
-
+Check normal_ret_assert.
 Definition typeof_triple (t : triple) :=
 match t with
 | fsemax => tyArr tyOracleKind (tyArr tytycontext (tyArr (tyArr tyenviron tympred) (tyArr tystatement (tyArr tyret_assert typrop))))
@@ -437,6 +411,7 @@ match t with
 | fPROPx => tyArr (tylist typrop) (tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred))
 | fLOCALx => tyArr (tylist (tyArr tyenviron typrop)) (tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred))
 | fSEPx => tyArr (tylist (tyArr tyenviron tympred)) (tyArr tyenviron tympred)
+| fnormal_ret_assert => tyArr (tyArr tyenviron tympred) (tyret_assert)
 end.
 
 Definition tripleD (t : triple) : typD (typeof_triple t) :=
@@ -445,7 +420,8 @@ match t with
 | fstatement s | fretassert s | ftycontext s => s
 | fPROPx => PROPx
 | fLOCALx => LOCALx
-| FSEPx => SEPx
+| fSEPx => SEPx
+| fnormal_ret_assert => normal_ret_assert
 end.
 
 Inductive func' :=
@@ -459,7 +435,7 @@ Inductive func' :=
 | Lst : lst -> func'
 | Triple : triple -> func'.
 
-Definition func := sum SymEnv.func func'.
+Definition func := (SymEnv.func + @ilfunc typ + @bilfunc typ + func')%type.
 
 Definition typeof_func (f: func') : typ :=
 match f with

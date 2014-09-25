@@ -62,7 +62,7 @@ semax Delta2
       `(eq p) (eval_id _p))  SEP  (`(lseg LS sh contents p nullval)))).
 intros.
 replace_lift.
-reify_expr_tac.
+reify_expr_tac. 
 Abort.
 
 Goal
@@ -79,7 +79,8 @@ Goal
   SEP  (TT; `(lseg LS sh (map Vint cts)) (eval_id _t) `nullval).
 Proof.
 intros. 
-replace_lift.
+replace_lift. 
+idtac 4.
 reify_expr_tac.
 go_lower0.
 reify_expr_tac.

@@ -5,4 +5,8 @@
 -R ../progs progs
 -R ../compcert compcert
 -R ../mc_reify/mirror-core/coq-ext-lib/theories ExtLib
--R ../mc_reify/mirror-core/src/ MirrorCore
+-R ../mc_reify/mirror-core/src ExtLib
+-R ../mc_reify/mirror-core/theories MirrorCore
+-R ../../MirrorCharge/MirrorCharge!/bin/MirrorCharge MirrorCharge
+-R ../../Charge/Charge!/bin/Charge Charge
+

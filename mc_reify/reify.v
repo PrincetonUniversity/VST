@@ -3,6 +3,9 @@ Require Import MirrorCore.Reify.Reify.
 Require Import MirrorCore.Lambda.ExprCore.
 Require Import types.
 Require Import funcs.
+Require Import MirrorCharge.ModularFunc.ILogicFunc.
+Require Import MirrorCharge.ModularFunc.BILogicFunc.
+
 
 Local Notation "x @ y" := (@RApp x y) (only parsing, at level 30).
 Local Notation "'!!' x" := (@RExact _ x) (only parsing, at level 25).
@@ -18,7 +21,7 @@ Reify Declare Syntax reify_vst_typ :=
 
 Reify Declare Typed Table term_table : BinNums.positive => reify_vst_typ.
 
-Let Ext x := @ExprCore.Inj typ func (inl x).
+Let Ext x := @ExprCore.Inj typ func (inl (inl (inl x))).
 
 Reify Declare Syntax reify_vst :=
   { (@Patterns.CVar (expr typ func) (@ExprCore.Var typ func)
@@ -131,20 +134,20 @@ Reify Pattern patterns_vst +=
                        => @Inj typ func (inr (Other (feq a)))).
 
 Reify Pattern patterns_vst += 
-      (!!seplog.derives) => (@Inj typ func (inr (Sep fderives))).
+      (!!seplog.derives) => (fEntails (func := expr typ func) tympred).
 Reify Pattern patterns_vst += 
-      (!!seplog.sepcon) => (@Inj typ func (inr (Sep fstar))).
+      (!!seplog.sepcon) => (fStar (func := expr typ func) tympred).
 Reify Pattern patterns_vst += 
-      (!!seplog.emp) => (@Inj typ func (inr (Sep femp))).
+      (!!seplog.emp) => (mkEmp (func := func) tympred).
 Reify Pattern patterns_vst +=
       (!!@list_dt.lseg @ ?0 @ ?1 @ ?2) => 
          (fun  (a : id Ctypes.type) (b : id AST.ident) 
                (c : id (list_dt.listspec a b)) =>
               (@Inj typ func (inr (Sep (flseg a b c))))).
-Reify Pattern patterns_vst += (!!seplog.TT) => (@Inj typ func (inr (Sep ftt))).
-Reify Pattern patterns_vst += (!!seplog.FF) => (@Inj typ func (inr (Sep ftt))).
-Reify Pattern patterns_vst += (!!seplog.andp) => (@Inj typ func (inr (Sep fandp))).
-Reify Pattern patterns_vst += (!!seplog.orp) => (@Inj typ func (inr (Sep forp))).
+Reify Pattern patterns_vst += (!!seplog.TT) => (mkTrue (func := func) tympred).
+Reify Pattern patterns_vst += (!!seplog.FF) => (mkFalse (func := func) tympred).
+Reify Pattern patterns_vst += (!!seplog.andp) => (fAnd (func := expr typ func) tympred).
+Reify Pattern patterns_vst += (!!seplog.orp) => (fOr (func := expr typ func) tympred).
 Reify Pattern patterns_vst += (!!SeparationLogic.local) => (@Inj typ func (inr (Sep flocal))).
 Reify Pattern patterns_vst += (!!seplog.prop) => (@Inj typ func (inr (Sep fprop))).
 
@@ -152,12 +155,20 @@ Reify Pattern patterns_vst += (!!client_lemmas.PROPx) => (@Inj typ func (inr (Tr
 Reify Pattern patterns_vst += (!!client_lemmas.LOCALx) => (@Inj typ func (inr (Triple fLOCALx))).
 Reify Pattern patterns_vst += (!!client_lemmas.SEPx) => (@Inj typ func (inr (Triple fSEPx))).
 
+Reify Pattern patterns_vst += (!!SeparationLogic.normal_ret_assert) => (@Inj typ func (inr (Triple fnormal_ret_assert))).
+Reify Pattern patterns_vst += (!!seplog.normal_ret_assert) => (@Inj typ func (inr (Triple fnormal_ret_assert))).
+
+
+Reify Pattern patterns_vst += (!!@SeparationLogicSoundness.SoundSeparationLogic.CSL.semax) => (@Inj typ func (inr (Triple fsemax))).
+
+Reify Pattern patterns_vst += (!!semax.semax) => (@Inj typ func (inr (Triple fsemax))).
+
 
 Reify Pattern patterns_vst += (!!(@seplog.exp expr.mpred SeparationLogic.Nveric) @ ?0) => 
-     (fun (a : function reify_vst_typ) => (@Inj typ func (inr (Sep (fexp a))))).
+     (fun (a : function reify_vst_typ) => (fExists (func := expr typ func) a tympred)).
 
 Reify Pattern patterns_vst += (!!(@seplog.allp expr.mpred SeparationLogic.Nveric) @ ?0) => 
-     (fun (a : function reify_vst_typ) => (@Inj typ func (inr (Sep (fallp a))))).
+     (fun (a : function reify_vst_typ) => (fForall (func := expr typ func) a tympred)).
 
 
 
@@ -213,6 +224,11 @@ Reify Pattern patterns_vst +=
                                        => (@Inj typ func (inr (Triple (ftycontext a))))).
 
 
+Reify Pattern patterns_vst += (RPi (?0) (?1)) => (fun (x : function reify_vst_typ) (y : function reify_vst) => 
+  ExprCore.App (fForall (func := expr typ func) x typrop)
+               (Abs x y)).
+
+
 
 Ltac reify_typ trm :=
   let k e :=
@@ -239,3 +255,4 @@ Ltac reify_vst e :=
   reify_expr reify_vst k
              [ (fun (y : @mk_dvar_map_abs _ _ _ (list Type) _ term_table elem_ctor) => True) ]
              [ e ].
+
