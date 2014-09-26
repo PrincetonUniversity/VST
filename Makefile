@@ -162,12 +162,13 @@ SHA_FILES= \
   verif_addlength.v verif_SHA256.v
 
 HMAC_FILES= \
-  HMAC_functional_prog.v \
-  hmac091c.v spec_hmac.v verif_hmac_cleanup.v verif_hmac_simple.v \
-  HMAC_refined_fp.v hmac_sha256.v HMAC_definitions.v HMAC_lemmas.v \
-  HMAC_part2GT.v HMAC_part2LE.v \
-  HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \
-  HMAC_proofLE.v HMAC_proof.v
+  HMAC_functional_prog.v HMAC_lemmas.v \
+  hmac091c.v spec_hmac.v verif_hmac_cleanup.v verif_hmac_init.v \
+  verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v 
+#  HMAC_refined_fp.v hmac_sha256.v HMAC_definitions.v \
+#  HMAC_part2GT.v HMAC_part2LE.v \
+#  HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \
+#  HMAC_proofLE.v HMAC_proof.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.v
 
