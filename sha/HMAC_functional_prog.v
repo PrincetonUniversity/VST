@@ -9,54 +9,10 @@ Require Import sha.functional_prog.
 Notation "[ ]" := nil.
 Notation "[ x , .. , y ]" := (cons x .. (cons y []) ..).
 
-(*SHA256: blocksize = 64bytes=512bits; 
+(*SHA256: blocksize = 64bytes 
     corresponds to 
     #define SHA_LBLOCK	16
     #define SHA256_CBLOCK	(SHA_LBLOCK*4) *)
-
-Lemma firstn_app1: forall {A} n (p l: list A),
-  (n <= Datatypes.length p)%nat ->
-   firstn n (p ++ l) = firstn n p.
-Proof. intros A n.
-induction n; simpl; intros. trivial.
-  destruct p; simpl in H. omega.
-  apply le_S_n in H. simpl. f_equal. auto. 
-Qed.  
-
-Lemma firstn_app2: forall {A} n (p l: list A),
-  (n > Datatypes.length p)%nat ->
-   firstn n (p ++ l) = p ++ (firstn (n-Datatypes.length p) l).
-Proof. intros A n.
-induction n; simpl; intros. 
-  destruct p; simpl in *. trivial. omega.
-  destruct p; simpl in *. trivial.
-  rewrite IHn. trivial. omega. 
-Qed.  
-
-Lemma firstn_map {A B} (f:A -> B): forall n l, 
-      firstn n (map f l) = map f (firstn n l).
-Proof. intros n.
-induction n; simpl; intros. trivial.
-  destruct l; simpl. trivial.
-  rewrite IHn. trivial.
-Qed.
-
-Lemma firstn_combine {A}: forall n (l k: list A), 
-      firstn n (combine l k) = combine (firstn n l) (firstn n k).
-Proof. intros n.
-induction n; simpl; intros. trivial.
-  destruct l; simpl. trivial.
-  destruct k; simpl. trivial.
-  rewrite IHn. trivial.
-Qed.
-
-Lemma firstn_precise {A}: forall n (l:list A), length l = n -> 
-      firstn n l = l.
-Proof. intros n. 
-  induction n; intros; destruct l; simpl in *; trivial.
-    inversion H.
-    rewrite IHn; trivial. inversion H; trivial.
-Qed. 
 
 Fixpoint Nlist {A} (i:A) n: list A:=
   match n with O => nil
@@ -65,24 +21,8 @@ Fixpoint Nlist {A} (i:A) n: list A:=
 
 Definition sixtyfour {A} (i:A): list A:= Nlist i 64%nat.
 
-
-Lemma first64_sixtyfour {A} (a:A): 
-      firstn 64 (sixtyfour a) = sixtyfour a.
-Proof. apply firstn_precise. simpl. reflexivity. Qed. 
-
-Lemma length_Nlist {A} (i:A): forall n, length (Nlist i n) = n.
-Proof. induction n; simpl; auto. Qed.
-
-Lemma str_to_Z_length: forall k, 
-      String.length k = length (str_to_Z k).
-Proof. intros. induction k; simpl; auto. Qed.
-  
-
 Definition SHA256_DIGEST_LENGTH := 32.
 Definition SHA256_BlockSize := 64%nat.
-
-Axiom length_SHA256': forall l, 
-  length (SHA_256' l) = Z.to_nat SHA256_DIGEST_LENGTH.
 
 Definition Ipad := Byte.repr 54. (*0x36*)
 Definition Opad := Byte.repr 92. (*0x5c*)
@@ -119,38 +59,11 @@ Definition HMAC txt password: list Z :=
   let key := map Byte.repr (mkKey password) in
   OUTER key (INNER key txt).
 
-(*Definition mkKey (s:string) : list Z := mkKeyZ (str_to_Z s).*)
-
 Definition HMACString (txt passwd:string): list Z :=
   HMAC (str_to_Z txt) (str_to_Z passwd).
 
 Definition HMACHex (text password:string): list Z := 
   HMAC (hexstring_to_Zlist text) (hexstring_to_Zlist password).
-
-Lemma zeroPad_BlockSize: forall k, (length k <= SHA256_BlockSize)%nat ->
-  length (zeroPad k) = SHA256_BlockSize%nat.
-Proof. unfold zeroPad. intros. rewrite app_length, length_Nlist. omega. 
-Qed. 
-
-Lemma mkKey_length l: length (mkKey l) = SHA256_BlockSize.
-Proof. intros. unfold mkKey.
-  remember (Zlength l >? Z.of_nat SHA256_BlockSize) as z. 
-  destruct z. apply zeroPad_BlockSize.
-    rewrite length_SHA256'.  
-    apply Nat2Z.inj_le. simpl. omega. 
-  apply zeroPad_BlockSize.
-    rewrite Zlength_correct in Heqz. 
-    apply Nat2Z.inj_le. 
-    specialize (Zgt_cases (Z.of_nat (Datatypes.length l)) (Z.of_nat SHA256_BlockSize)). rewrite <- Heqz. trivial.
-Qed.
-
-Lemma mkKey_atBlockSize s: length s = SHA256_BlockSize%nat ->
-      mkKey s = s.
-Proof. unfold mkKey. rewrite Zlength_correct.
-  intros. rewrite H.
-  simpl. unfold zeroPad. rewrite H. simpl.
-  apply app_nil_r.  
-Qed.
 
 Definition check password text digest := 
   listZ_eq (HMACString text password) (hexstring_to_Zlist digest) = true.

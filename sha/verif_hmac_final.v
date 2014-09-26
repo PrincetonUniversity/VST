@@ -10,6 +10,7 @@ Require Import sha.HMAC_functional_prog.
 
 Require Import sha.hmac091c.
 Require Import sha.spec_hmac.
+Require Import HMAC_lemmas.
 
 Lemma withspacer_refl: forall sh a P, withspacer sh a a P = P.
 Proof. intros. unfold withspacer. 

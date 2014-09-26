@@ -11,6 +11,7 @@ Require Import sha.HMAC_functional_prog.
 Require Import sha.hmac091c.
 
 Require Import sha.spec_hmac.
+Require Import HMAC_lemmas.
 
 Lemma body_hmac_simple: semax_body Vprog Gtot 
        f_HMAC HMAC_Simple_spec.
@@ -101,7 +102,7 @@ forward_call WITNESS.
      rewrite Zlength_correct in *. rewrite map_length in H1. 
      rewrite Zlength_correct in *. rewrite map_length, combine_length in H1.
      rewrite app_length in H1.
-     rewrite map_length, HMAC_FUN.mkKey_length in H1.
+     rewrite map_length, mkKey_length in H1.
      unfold SHA256_BlockSize, sixtyfour in H1.
      rewrite length_Nlist, length_intlist_to_Zlist in H1. unfold WORD.
      rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z.mul_comm in H1. simpl in H1.
@@ -109,9 +110,9 @@ forward_call WITNESS.
 after_call.
 subst WITNESS. normalize.
 unfold update_tycon. simpl. normalize.
-rewrite firstn_same.
+(*rewrite firstn_same.
 Focus 2. destruct DL as [DL1 [DL2 DL3]]; subst. 
-         rewrite Zlength_correct, Nat2Z.id. omega.
+         rewrite Zlength_correct, Nat2Z.id. omega.*)
 
 (**** It's not quite clear to me why we need to use semax_pre here - 
   ie why normalize can't figure this out (at least partially).

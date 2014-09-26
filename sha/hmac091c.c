@@ -196,7 +196,7 @@ void HMAC_Init(HMAC_CTX *ctx, unsigned char *key, int len)
      memcpy(&ctx->md_ctx,&ctx->i_ctx,sizeof(ctx->i_ctx));
 }
 
-//Chenged to match type of sha256update
+//Changed to match type of sha256update
 //void HMAC_Update(HMAC_CTX *ctx, unsigned char *data, int len)
 void HMAC_Update(HMAC_CTX *ctx, const void *data, size_t len)
 {

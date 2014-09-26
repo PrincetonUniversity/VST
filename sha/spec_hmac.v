@@ -1,12 +1,11 @@
 Require Import floyd.proofauto.
 Import ListNotations.
-(*Require sha.sha.
-Require sha.SHA256.*)
 Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
+
 (*when generating hmac091c.v using clightgen modify the generated file to have this:
 Require Import sha.sha.
 Definition t_struct_SHA256state_st := sha.t_struct_SHA256state_st.
@@ -262,7 +261,7 @@ Definition HMAC_Update_spec :=
              `(hmacstate_ h1 c); `(data_block Tsh data d))
   POST [ tvoid ] 
          EX h2:hmacabs, 
-          PROP (hmacUpdate (firstn (Z.to_nat len) data) (*len*) h1 h2) 
+          PROP (hmacUpdate data (*i.e (firstn (Z.to_nat len) data)*) (*len*) h1 h2) 
           LOCAL ()
           SEP(`(K_vector KV);
               `(hmacstate_ h2 c); `(data_block Tsh data d)).
@@ -359,19 +358,7 @@ Definition HMAC_Cleanup_spec :=
                 align_compatible t_struct_hmac_ctx_st c) 
           LOCAL ()
           SEP(`(data_block Tsh (Nlist 0 (Z.to_nat(sizeof t_struct_hmac_ctx_st))) c)).
-(*
-Definition HMAC_Cleanup_spec :=
-  DECLARE _HMAC_cleanup
-   WITH h: hmacabs, c : val
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
-         PROP () 
-         LOCAL (`(eq c) (eval_id _ctx))
-         SEP(`(hmacstate_ h c))
-  POST [ tvoid ]  
-          PROP () 
-          LOCAL ()
-          SEP(`(data_block Tsh (Nlist 0 (Z.to_nat(sizeof t_struct_hmac_ctx_st))) c)).
-*)
+
 Definition HMAC_Simple_spec :=
   DECLARE _HMAC
    WITH KeyStruct : (val * (Z * list Z))%type, 
@@ -467,28 +454,3 @@ Fixpoint do_builtins (n: nat) (defs : list (ident * globdef fundef type)) : funs
 
 (*Definition Gtot := do_builtins 3 (prog_defs prog) ++ Gprog.*)
 Definition Gtot := Gprog.
-
-Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.
-Proof. intros. destruct v; try contradiction. exists b, i; trivial. Qed.
-
-
-Lemma isbyte_sha x: Forall isbyteZ (functional_prog.SHA_256' x).
-Proof. apply isbyte_intlist_to_Zlist. Qed.
-
-Require Import sha_lemmas.
-Lemma updAbs_len: forall L s t, update_abs L s t -> s256a_len t = s256a_len s + Zlength L * 8.
-Proof. intros. inversion H; clear H.
-  unfold s256a_len. simpl.
-  rewrite Zlength_app. subst. 
-  repeat rewrite Z.mul_add_distr_r.
-  repeat rewrite <- Z.add_assoc.
-  assert (Zlength blocks * WORD * 8 + Zlength newfrag * 8 =
-          Zlength oldfrag * 8 + Zlength L * 8).
-    assert (Zlength (oldfrag ++ L) = Zlength (SHA256.intlist_to_Zlist blocks ++ newfrag)).
-      rewrite H4; trivial.
-    clear H4. rewrite Zlength_app in H.
-              rewrite <- (Z.mul_add_distr_r (Zlength oldfrag)), H. clear H.
-              rewrite Zlength_app, Zlength_intlist_to_Zlist.
-              rewrite (Z.mul_comm WORD). rewrite Z.mul_add_distr_r. trivial. 
-  rewrite H; trivial.
-Qed.

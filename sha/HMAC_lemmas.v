@@ -2,9 +2,68 @@ Require Import floyd.proofauto.
 
 Import ListNotations.
 Local Open Scope logic.
+Require Import sha.SHA256.
 Require Import sha.spec_sha.
+Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 
+Lemma firstn_app1: forall {A} n (p l: list A),
+  (n <= Datatypes.length p)%nat ->
+   firstn n (p ++ l) = firstn n p.
+Proof. intros A n.
+induction n; simpl; intros. trivial.
+  destruct p; simpl in H. omega.
+  apply le_S_n in H. simpl. f_equal. auto. 
+Qed.  
+
+Lemma firstn_app2: forall {A} n (p l: list A),
+  (n > Datatypes.length p)%nat ->
+   firstn n (p ++ l) = p ++ (firstn (n-Datatypes.length p) l).
+Proof. intros A n.
+induction n; simpl; intros. 
+  destruct p; simpl in *. trivial. omega.
+  destruct p; simpl in *. trivial.
+  rewrite IHn. trivial. omega. 
+Qed.  
+
+Lemma firstn_map {A B} (f:A -> B): forall n l, 
+      firstn n (map f l) = map f (firstn n l).
+Proof. intros n.
+induction n; simpl; intros. trivial.
+  destruct l; simpl. trivial.
+  rewrite IHn. trivial.
+Qed.
+
+Lemma firstn_combine {A}: forall n (l k: list A), 
+      firstn n (combine l k) = combine (firstn n l) (firstn n k).
+Proof. intros n.
+induction n; simpl; intros. trivial.
+  destruct l; simpl. trivial.
+  destruct k; simpl. trivial.
+  rewrite IHn. trivial.
+Qed.
+
+Lemma firstn_precise {A}: forall n (l:list A), length l = n -> 
+      firstn n l = l.
+Proof. intros n. 
+  induction n; intros; destruct l; simpl in *; trivial.
+    inversion H.
+    rewrite IHn; trivial. inversion H; trivial.
+Qed. 
+
+
+
+Lemma first64_sixtyfour {A} (a:A): 
+      firstn 64 (sixtyfour a) = sixtyfour a.
+Proof. apply firstn_precise. simpl. reflexivity. Qed. 
+
+Lemma length_Nlist {A} (i:A): forall n, length (Nlist i n) = n.
+Proof. induction n; simpl; auto. Qed.
+
+Lemma str_to_Z_length: forall k, 
+      String.length k = length (str_to_Z k).
+Proof. intros. induction k; simpl; auto. Qed.
+  
 Lemma Zlength_mkArgZ k pad: Zlength (HMAC_FUN.mkArgZ k pad) = Z.of_nat (min (length k) 64).
 Proof. intros. repeat rewrite Zlength_correct.
    unfold HMAC_FUN.mkArgZ, HMAC_FUN.mkArg, sixtyfour.
@@ -275,7 +334,7 @@ Proof.
   rewrite (split_offset_array_at t _ _ lo lo); trivial.
   rewrite array_at_emp.
   entailer. rewrite Zplus_comm. rewrite Z.add_simpl_r.
-  apply array_at_ext'. intros. rewrite Z.add_simpl_r. trivial.
+  apply array_lemmas.array_at_ext'. intros. rewrite Z.add_simpl_r. trivial.
   omega.
 Qed.
 
@@ -290,4 +349,60 @@ Lemma offset_val_array_at1:
   array_at t sh f 0 hi ((offset_val ofs) v).
 Proof.
   intros. subst. apply offset_val_array_at0; trivial.
+Qed.
+
+Lemma zeroPad_BlockSize: forall k, (length k <= SHA256_BlockSize)%nat ->
+  length (HMAC_FUN.zeroPad k) = SHA256_BlockSize%nat.
+Proof. unfold HMAC_FUN.zeroPad. intros. rewrite app_length, length_Nlist. omega. 
+Qed. 
+
+Lemma length_SHA256': forall l, 
+  length (functional_prog.SHA_256' l) = Z.to_nat SHA256_DIGEST_LENGTH.
+Proof. intros. unfold functional_prog.SHA_256'. simpl.
+  rewrite length_intlist_to_Zlist, functional_prog.length_process_msg. reflexivity.
+Qed.
+ 
+Lemma mkKey_length l: length (HMAC_FUN.mkKey l) = SHA256_BlockSize.
+Proof. intros. unfold HMAC_FUN.mkKey.
+  remember (Zlength l >? Z.of_nat SHA256_BlockSize) as z. 
+  destruct z. apply zeroPad_BlockSize.
+    rewrite length_SHA256'.  
+    apply Nat2Z.inj_le. simpl. omega. 
+  apply zeroPad_BlockSize.
+    rewrite Zlength_correct in Heqz. 
+    apply Nat2Z.inj_le. 
+    specialize (Zgt_cases (Z.of_nat (Datatypes.length l)) (Z.of_nat SHA256_BlockSize)). rewrite <- Heqz. trivial.
+Qed.
+
+Lemma mkKey_atBlockSize s: length s = SHA256_BlockSize%nat ->
+      HMAC_FUN.mkKey s = s.
+Proof. unfold HMAC_FUN.mkKey. rewrite Zlength_correct.
+  intros. rewrite H.
+  simpl. unfold HMAC_FUN.zeroPad. rewrite H. simpl.
+  apply app_nil_r.  
+Qed.
+
+Lemma isptrD v: isptr v -> exists b ofs, v = Vptr b ofs.
+Proof. intros. destruct v; try contradiction. exists b, i; trivial. Qed.
+
+
+Lemma isbyte_sha x: Forall isbyteZ (functional_prog.SHA_256' x).
+Proof. apply isbyte_intlist_to_Zlist. Qed.
+
+
+Lemma updAbs_len: forall L s t, update_abs L s t -> s256a_len t = s256a_len s + Zlength L * 8.
+Proof. intros. inversion H; clear H.
+  unfold s256a_len. simpl.
+  rewrite Zlength_app. subst. 
+  repeat rewrite Z.mul_add_distr_r.
+  repeat rewrite <- Z.add_assoc.
+  assert (Zlength blocks * WORD * 8 + Zlength newfrag * 8 =
+          Zlength oldfrag * 8 + Zlength L * 8).
+    assert (Zlength (oldfrag ++ L) = Zlength (SHA256.intlist_to_Zlist blocks ++ newfrag)).
+      rewrite H4; trivial.
+    clear H4. rewrite Zlength_app in H.
+              rewrite <- (Z.mul_add_distr_r (Zlength oldfrag)), H. clear H.
+              rewrite Zlength_app, Zlength_intlist_to_Zlist.
+              rewrite (Z.mul_comm WORD). rewrite Z.mul_add_distr_r. trivial. 
+  rewrite H; trivial.
 Qed.

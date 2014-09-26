@@ -377,8 +377,8 @@ forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
                       rewrite <- H17. rewrite firstn_precise. trivial.
                       rewrite Zlength_correct, Nat2Z.id; trivial.
               rewrite length_SHA256'; trivial.
-              rewrite HMAC_FUN.mkKey_length; unfold SHA256_BlockSize; simpl. omega.
-              rewrite map_length, HMAC_FUN.mkKey_length; unfold SHA256_BlockSize; simpl. omega.
+              rewrite mkKey_length; unfold SHA256_BlockSize; simpl. omega.
+              rewrite map_length, mkKey_length; unfold SHA256_BlockSize; simpl. omega.
               rewrite <- functional_prog.SHA_256'_eq, length_SHA256'. trivial.
               rewrite map_length, <- functional_prog.SHA_256'_eq, length_SHA256'. trivial. 
      cancel.
@@ -546,7 +546,7 @@ forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
                   rewrite Nat2Z.id in YY; trivial. trivial. omega. 
          apply eq_sym.
          assert (L1: (Z.to_nat i < length (HMAC_FUN.mkKey key))%nat).
-           rewrite HMAC_FUN.mkKey_length; unfold SHA256_BlockSize.
+           rewrite mkKey_length; unfold SHA256_BlockSize.
            assert (Zlength key <= 64) by omega.  apply Z2Nat.inj_le in H3. simpl in H3.
            rewrite Zlength_correct, Nat2Z.id in H3. omega.
            omega. omega.
@@ -559,7 +559,7 @@ forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
        apply array_lemmas.array_at_ext'.
          unfold tuchars, cVint, ZnthV; intros. if_tac. omega.
          assert (L1: (Z.to_nat (i + Zlength key) < length (HMAC_FUN.mkKey key))%nat).
-           rewrite HMAC_FUN.mkKey_length; unfold SHA256_BlockSize.
+           rewrite mkKey_length; unfold SHA256_BlockSize.
            destruct H0. 
            apply (Z2Nat.inj_lt (i+ Zlength key) 64). omega. omega. omega.
          rewrite nth_map' with (d':=Int.zero).
@@ -613,11 +613,11 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
               (map Byte.unsigned (HMAC_FUN.mkArg (map Byte.repr (HMAC_FUN.mkKey key)) Opad)))))) as OPADcont.
     assert (ZLI: Zlength (HMAC_FUN.mkArgZ (map Byte.repr (HMAC_FUN.mkKey key)) Ipad) = 64).
             rewrite Zlength_mkArgZ.
-            repeat rewrite map_length. rewrite HMAC_FUN.mkKey_length.
+            repeat rewrite map_length. rewrite mkKey_length.
             unfold SHA256_BlockSize; simpl. trivial. 
     assert (ZLO: Zlength (HMAC_FUN.mkArgZ (map Byte.repr (HMAC_FUN.mkKey key)) Opad) = 64).
             rewrite Zlength_mkArgZ.
-            repeat rewrite map_length. rewrite HMAC_FUN.mkKey_length.
+            repeat rewrite map_length. rewrite mkKey_length.
             unfold SHA256_BlockSize; simpl. trivial. 
     remember (ZnthV tuchar (default_val (Tarray tuchar 64 noattr))) as DEFAULTcont.
     unfold data_at_, tuchars, tarray.
@@ -785,7 +785,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     }
     after_call. simpl. intros rho. subst WITNESS. rewrite firstn_precise. normalize.
       unfold HMAC_FUN.mkArgZ, HMAC_FUN.mkArg. repeat rewrite map_length.
-      unfold sixtyfour. rewrite combine_length, map_length, length_Nlist, HMAC_FUN.mkKey_length.
+      unfold sixtyfour. rewrite combine_length, map_length, length_Nlist, mkKey_length.
       unfold SHA256_BlockSize; simpl. trivial.
 
     simpl.
@@ -975,7 +975,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
           unfold tuchar; simpl. apply ZnthV_map_Vint_is_int.
             specialize (Zlength_mkArgZ (map Byte.repr (HMAC_FUN.mkKey key)) Opad).
             repeat rewrite Zlength_correct; repeat rewrite map_length.
-            intros. rewrite H, HMAC_FUN.mkKey_length. unfold SHA256_BlockSize; simpl. assumption.
+            intros. rewrite H, mkKey_length. unfold SHA256_BlockSize; simpl. assumption.
           red. omega.
         }
         { entailer. cancel.
@@ -1064,7 +1064,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     cancel.
 
       unfold HMAC_FUN.mkArgZ, HMAC_FUN.mkArg. repeat rewrite map_length.
-      unfold sixtyfour. rewrite combine_length, map_length, length_Nlist, HMAC_FUN.mkKey_length.
+      unfold sixtyfour. rewrite combine_length, map_length, length_Nlist, mkKey_length.
       unfold SHA256_BlockSize; simpl. trivial.
   }
   { (*ELSE*) 
@@ -1169,10 +1169,10 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
   apply andp_right. apply prop_right.
     split.
       rewrite (updAbs_len _ _ _ INNER), Zlength_mkArgZ,
-           map_length, HMAC_FUN.mkKey_length; reflexivity.
+           map_length, mkKey_length; reflexivity.
     split.
       rewrite (updAbs_len _ _ _ OUTER), Zlength_mkArgZ,
-           map_length, HMAC_FUN.mkKey_length; reflexivity.
+           map_length, mkKey_length; reflexivity.
     exists (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)).
     rewrite Int.unsigned_repr. 
      split. destruct (zlt 64 (Zlength key)); trivial.

@@ -47,6 +47,11 @@ forward_call WITNESS.
   }
 after_call. subst WITNESS. normalize. simpl. (* normalize.*)
 
+assert (FF: firstn (Z.to_nat len) data = data). 
+    rewrite DL1 in *. 
+    apply firstn_same. rewrite Zlength_correct, Nat2Z.id. omega.
+rewrite FF in *. 
+
 
 (**** Again, distribute EX over lift*)
 apply semax_pre with (P' :=EX  x : s256abs,
@@ -57,7 +62,7 @@ apply semax_pre with (P' :=EX  x : s256abs,
      (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
    SEP 
    (`(fun a : environ =>
-      (PROP  (update_abs (firstn (Z.to_nat len) data) ctx x)
+      (PROP  (update_abs data (*(firstn (Z.to_nat len) data)*) ctx x)
        LOCAL ()
        SEP  (`(K_vector KV); `(sha256state_ x c); `(data_block Tsh data d)))
         a) globals_only;
@@ -66,14 +71,10 @@ apply semax_pre with (P' :=EX  x : s256abs,
 apply extract_exists_pre. intros s. normalize. simpl. normalize.
 (********************************************************)
 rename H into HmacUpdate.
-assert (FF: firstn (Z.to_nat len) data = data). 
-    rewrite DL1 in *. 
-    apply firstn_same. rewrite Zlength_correct, Nat2Z.id. omega.
-rewrite FF in *. 
 
 (*WHY IS THIS NEEDED?*) unfold MORE_COMMANDS, abbreviate.
 forward.
-rewrite Zlength_correct, Nat2Z.id in FF. rewrite FF.
+(*rewrite Zlength_correct, Nat2Z.id in FF. rewrite FF.*)
 apply exp_right with (x:= HMACabs s iSha oSha (Int.unsigned l) key). entailer.
 apply andp_right. apply prop_right. exists s; eauto.
 cancel. 
