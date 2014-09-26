@@ -19,17 +19,28 @@ Lemma isbyte_Nlist i n: isbyteZ i -> Forall isbyteZ (Nlist i n).
   apply (IHn H0).
 Qed.
 
-Lemma body_hmac_sha256: semax_body Vprog Gtot 
+Lemma body_hmac_cleanup: semax_body Vprog Gtot 
        f_HMAC_cleanup HMAC_Cleanup_spec.
 Proof.
 start_function.
 name ctx' _ctx.
+unfold hmacstateWK_, hmac_relateWK. normalize. intros hst. normalize. 
+apply semax_pre with (P':=
+  PROP (size_compatible t_struct_hmac_ctx_st c /\
+        align_compatible t_struct_hmac_ctx_st c)
+   LOCAL  (`(eq c) (eval_id _ctx))
+   SEP 
+   (`(data_at Tsh t_struct_hmac_ctx_st
+        (upd_reptype t_struct_hmac_ctx_st [_md_ctx] hst
+           (default_val t_struct_SHA256state_st)) c))).
+  entailer. unfold data_at. simpl. normalize.
+normalize.
+
 forward_call (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
   { assert (FR: Frame = nil).  
       subst Frame. reflexivity.
     rewrite FR. clear FR Frame.
     entailer.
-    unfold hmacstate_. entailer.
     eapply derives_trans. apply data_at_data_at_.
        reflexivity.
     rewrite <- memory_block_data_at_; try reflexivity.

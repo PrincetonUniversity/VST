@@ -16,7 +16,7 @@ Proof. intros. unfold withspacer.
   rewrite <- Zminus_diag_reverse. trivial.
 Qed.
 
-Lemma body_hmac_sha256: semax_body Vprog Gtot
+Lemma body_hmac_final: semax_body Vprog Gtot
        f_HMAC_Final HMAC_FinalWK_spec.
 Proof.
 start_function.
@@ -25,7 +25,8 @@ name md' _md.
 simpl_stackframe_of. normalize.
 eapply semax_pre with (P':=PROP  ()
    LOCAL  (`(eq md) (eval_id _md); `(eq c) (eval_id _ctx);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
+     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
    SEP 
    ((EX b:_, local (`(eq b) (eval_var _buf (tarray tuchar 32)))
              && `(data_at_ Tsh (tarray tuchar 32) b));
@@ -67,7 +68,9 @@ after_call. subst WITNESS. normalize. simpl.
 eapply semax_pre with (P':=(PROP  ()
    LOCAL  (`(eq b) (eval_var _buf (tarray tuchar 32));
    `(eq md) (eval_id _md); `(eq c) (eval_id _ctx);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
+     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+
    SEP  (`(K_vector KV); 
    `(data_at Tsh t_struct_hmac_ctx_st (default_val sha.t_struct_SHA256state_st, snd ST) c);
    `(data_block Tsh (sha_finish ctx) b);
@@ -86,7 +89,8 @@ eapply semax_pre with (P':=
   (PROP  ()
    LOCAL  (`(eq b) (eval_var _buf (tarray tuchar 32));
    `(eq md) (eval_id _md); `(eq c) (eval_id _ctx);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
+     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
    SEP 
    (`(field_at Tsh t_struct_hmac_ctx_st [_key_length]
         (fst (snd (snd (snd ST)))) c);
@@ -156,7 +160,8 @@ apply semax_pre with (P':=EX  x : s256abs,
   (PROP  ()
    LOCAL  (`(eq b) (eval_var _buf (tarray tuchar 32));
    `(eq md) (eval_id _md); `(eq c) (eval_id _ctx);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
+     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
    SEP 
    (`(fun a : environ =>
       (PROP  (update_abs (firstn (Z.to_nat SHA256_DIGEST_LENGTH) SF) oSha x)

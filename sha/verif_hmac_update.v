@@ -11,7 +11,7 @@ Require Import sha.HMAC_functional_prog.
 Require Import sha.hmac091c.
 Require Import sha.spec_hmac.
 
-Lemma body_hmac_sha256: semax_body Vprog Gtot 
+Lemma body_hmac_update: semax_body Vprog Gtot 
        f_HMAC_Update HMAC_Update_spec.
 Proof.
 start_function.
@@ -53,7 +53,8 @@ apply semax_pre with (P' :=EX  x : s256abs,
   (PROP  ()
    LOCAL  (tc_environ Delta; `(eq c) (eval_id _ctx); `(eq d) (eval_id _data);
    `(eq (Vint (Int.repr len))) (eval_id _len);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
+     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
    SEP 
    (`(fun a : environ =>
       (PROP  (update_abs (firstn (Z.to_nat len) data) ctx x)

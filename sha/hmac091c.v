@@ -1,5 +1,8 @@
 Require Import Clightdefs.
 
+Require Import sha.sha.
+Definition t_struct_SHA256state_st := sha.t_struct_SHA256state_st.
+
 Local Open Scope Z_scope.
 
 Definition _main : ident := 65%positive.
@@ -68,13 +71,14 @@ Definition ___builtin_fmin : ident := 23%positive.
 Definition _reset : ident := 51%positive.
 Definition _len : ident := 48%positive.
 
-Definition t_struct_SHA256state_st :=
+(*Definition t_struct_SHA256state_st := 
    (Tstruct _struct_SHA256state_st
      (Fcons _h (tarray tuint 8)
        (Fcons _Nl tuint
          (Fcons _Nh tuint
            (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
-     noattr).
+     noattr).*)
+
 Definition t_struct_hmac_ctx_st :=
    (Tstruct _struct_hmac_ctx_st
      (Fcons _md_ctx

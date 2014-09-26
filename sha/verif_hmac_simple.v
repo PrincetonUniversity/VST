@@ -12,7 +12,7 @@ Require Import sha.hmac091c.
 
 Require Import sha.spec_hmac.
 
-Lemma body_hmac_sha256: semax_body Vprog Gtot 
+Lemma body_hmac_simple: semax_body Vprog Gtot 
        f_HMAC HMAC_Simple_spec.
 Proof.
 start_function.
@@ -34,7 +34,8 @@ PROP  (isptr c)
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
+     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
    SEP 
    (`(data_at_ Tsh t_struct_hmac_ctx_st c);
    `(data_block Tsh key k); `(data_block Tsh data d); `(K_vector KV);
@@ -80,15 +81,14 @@ forward_call WITNESS.
      rewrite FR. clear FR Frame. 
   subst WITNESS. entailer.
   apply andp_right. 2: cancel.
-    unfold hmacstate_. normalize. apply prop_right.
+    unfold hmacstate_. normalize. apply prop_right. 
     assert (HH: s256a_len (absCtxt h0) = 512).
     Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
-             rewrite HH.  
-    2: rewrite HH; assumption. 
+             rewrite HH; assumption. 
     destruct h0; simpl in *. 
     destruct H1 as [reprMD [reprI [reprO [iShaLen [oShaLen [K [i [KL1 [KL2 KL3]]]]]]]]].
     inversion HmacInit; clear HmacInit.
-    destruct H1 as [oS [InnSHA [OntSHA [XX _]]]]. inversion XX; clear XX.
+    destruct H1 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst.
       unfold innerShaInit in InnSHA. inversion InnSHA; clear InnSHA.
       simpl in *. subst. unfold HMAC_FUN.mkArgZ, HMAC_FUN.mkArg in H10.
@@ -100,45 +100,18 @@ forward_call WITNESS.
      clear H10.
      rewrite Zlength_correct in *. rewrite map_length in H1. 
      rewrite Zlength_correct in *. rewrite map_length, combine_length in H1.
-     rewrite app_length in H1. SearchAbout HMAC_FUN.mkKey. 
+     rewrite app_length in H1.
      rewrite map_length, HMAC_FUN.mkKey_length in H1.
      unfold SHA256_BlockSize, sixtyfour in H1.
      rewrite length_Nlist, length_intlist_to_Zlist in H1. unfold WORD.
      rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z.mul_comm in H1. simpl in H1.
-     rewrite <- H1. simpl. 
-     rewrite Z.of_nat_plus in H1. simpl in H1. simpl.
-     rewrite
-
- clear - InnSHA reprI DL.
-    unfold s256_relate in reprI. destruct x; simpl in *.
-    destruct reprI as [A [[hi [lo [HI [LO LL]]]] [INN [X1 [X2 X3]]]]].
-    red. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
-    assert (Zlength hashed * WORD + Zlength data0 = 8). 
-      specialize (length_hash_blocks SHA256.init_registers _ (eq_refl _) X2).
-      simpl; intros. SearchAbout SHA256.hash_blocks.
-      unfold innerShaInit in InnSHA. inversion InnSHA; clear InnSHA.
-      simpl in *. subst. unfold HMAC_FUN.mkArgZ, HMAC_FUN.mkArg in H9.
- 
-          SearchAbout HMAC_FUN.mkArg. in InnSHA.
-simpl.
-      unfold s256_Nh in HI.
-      specialize length_hash_blocks.
-    rewrite H. assumption. 
-    rewrite LL; clear LL. unfold hilo.
-    unfold innerShaInit in InnSHA. inversion InnSHA; clear InnSHA.
-    simpl in *. subst. in InnSHA.
-    inversion HmacInit; clear HmacInit.
-    
-    simpl in HmacInit.
-    destruct ctx; simpl in *. 
-    unfold s256_relate in reprMD.  unfold hmac_relate in H1. 256a_len
-    SearchAbut 
-    simpl.
-    admit. (*need "AxiomK" from HMAC_proof*) 
-    cancel. 
+     rewrite <- H1. simpl. trivial. 
 after_call.
 subst WITNESS. normalize.
 unfold update_tycon. simpl. normalize.
+rewrite firstn_same.
+Focus 2. destruct DL as [DL1 [DL2 DL3]]; subst. 
+         rewrite Zlength_correct, Nat2Z.id. omega.
 
 (**** It's not quite clear to me why we need to use semax_pre here - 
   ie why normalize can't figure this out (at least partially).
@@ -149,8 +122,9 @@ eapply semax_pre with (P':=EX  x : hmacabs,
    `(eq k) (eval_id _key); `(eq (Vint (Int.repr kl))) (eval_id _key_len);
    `(eq d) (eval_id _d); `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP (`(fun a : environ =>(PROP  (hmacUpdate (firstn (Z.to_nat dl) data) dl h0 x)
+(*   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))*)
+     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+   SEP (`(fun a : environ =>(PROP  (hmacUpdate data (*dl*) h0 x)
        LOCAL ()
        SEP  (`(K_vector KV); `(hmacstate_ x c); `(data_block Tsh data d))) a)
       globals_only; `(data_block Tsh key k); `(memory_block shmd (Int.repr 32) md))).
@@ -171,7 +145,7 @@ forward_call WITNESS.
     cancel. 
 after_call.
 subst WITNESS. normalize.
-unfold update_tycon. simpl. normalize.
+unfold update_tycon. simpl. normalize. 
 
 (**** Again, distribute EX over lift*)
 eapply semax_pre with (P':=EX  x : list Z,
@@ -182,16 +156,17 @@ eapply semax_pre with (P':=EX  x : list Z,
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+(*   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))*)
+     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
    SEP 
    (`(fun a : environ =>
      (PROP (hmacFinalSimple h1 x)
         LOCAL ()
-        SEP  (`(K_vector KV); `(hmacstate_ x0 c); `(data_block shmd x md))) a) globals_only; 
+        SEP  (`(K_vector KV); `(hmacstateWK_ x0 c); `(data_block shmd x md))) a) globals_only; 
       `(data_block Tsh data d); `(data_block Tsh key k))))).
   entailer. rename x into dig. apply exp_right with (x:=dig).
   rename x0 into h2. apply exp_right with (x:=h2).
-  entailer.
+  entailer. 
 apply extract_exists_pre. intros dig.
 apply extract_exists_pre. intros h2. normalize. simpl. normalize.
 (********************************************************)
@@ -207,31 +182,23 @@ forward_call WITNESS.
   subst WITNESS. entailer.
 after_call.
 subst WITNESS. normalize.
-unfold update_tycon. simpl. normalize. simpl.
+unfold update_tycon. simpl. normalize. simpl. normalize.
+  rename H into SCc. rename H0 into ACc.
 
 forward.
 apply exp_right with (x:=dig).
 simpl_stackframe_of. normalize. clear H0. 
-assert (HS: hmacSimple key kl data dl dig).
+assert (HS: hmacSimple key (*kl*) data dl dig).
     exists h0, h1. 
     split. destruct KL as [KL1 [KLb KLc]].
-           rewrite KL1. assumption.
-    split. destruct DL as [DL1 [DLb DLc]]. rewrite DL1 in *; clear DL1. 
-           assert (FF: firstn (Z.to_nat (Zlength data)) data = data). 
-             apply firstn_same. rewrite Zlength_correct, Nat2Z.id. omega. 
-           rewrite FF in *. assumption. 
-    assumption.
+           (*rewrite KL1.*) assumption.
+    split; assumption.
 assert (Size: sizeof t_struct_hmac_ctx_st <= Int.max_unsigned).
   rewrite int_max_unsigned_eq; simpl. omega.
 entailer. clear H0. cancel. 
-  unfold data_block. 
-  rewrite Zlength_correct; simpl. 
-  rewrite <- memory_block_data_at_; try reflexivity. 
-  entailer. clear H0.
-  apply andp_right. 
-     rewrite (split_array_at 0). rewrite array_at_emp. entailer.
-     apply isptrD in isPtrC. destruct isPtrC as [b [i Bi]].
-          rewrite Bi in *. unfold align_compatible in *. simpl in *. admit. (*ADMIT3: aligment*)
-  omega. 
-  rewrite memory_block_array_tuchar. cancel. simpl. omega.
+unfold data_block. 
+  rewrite Zlength_correct; simpl.
+rewrite <- memory_block_data_at_; try reflexivity. 
+rewrite memory_block_array_tuchar. 
+entailer. clear H0. cancel. simpl. omega.
 Qed.
