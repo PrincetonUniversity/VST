@@ -189,7 +189,8 @@ FILES = \
 %.vo: %.v
 	@echo COQC $*.v
 ifeq ($(TIMINGS), true)
-	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQFLAGS) $*.v; date +'%s.%N after' >>timings" 2>>timings
+#	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQFLAGS) $*.v; date +'%s.%N after' >>timings" 2>>timings
+	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQFLAGS) $*.v"
 else
 	@$(COQC) $(COQFLAGS) $*.v
 endif

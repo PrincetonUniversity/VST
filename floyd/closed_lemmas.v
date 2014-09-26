@@ -492,8 +492,7 @@ repeat rewrite denote_tc_assert_andp.
 f_equal.
 destruct (is_neutral_cast (implicit_deref t) t0) eqn:?; 
   simpl; auto with closed.
-rewrite expr_lemmas.isCastR.
-(* <<<<<<< .mine *)
+rewrite expr_lemmas3.isCastR.
 destruct (classify_cast (implicit_deref t) t0) eqn:?;
   simpl; auto with closed;
  try solve [destruct t0 as [ | | | [ | ] |  | | | | | ]; simpl; unfold tc_bool; repeat if_tac; auto with closed; try reflexivity].
@@ -529,7 +528,7 @@ destruct p.
 repeat rewrite denote_tc_assert_andp.
 f_equal.
 destruct (is_neutral_cast (implicit_deref t) t0) eqn:?; simpl; auto with closed.
-rewrite expr_lemmas.isCastR.
+rewrite expr_lemmas3.isCastR.
 destruct (classify_cast (implicit_deref t) t0) eqn:?; simpl; auto with closed;
  try solve [destruct t0 as [ | | | [ | ] |  | | | | | ]; simpl; unfold tc_bool; repeat if_tac; auto with closed; try reflexivity].
 *
