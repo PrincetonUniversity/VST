@@ -17,17 +17,16 @@ Proof. intros. unfold withspacer.
   rewrite <- Zminus_diag_reverse. trivial.
 Qed.
 
-Lemma body_hmac_final: semax_body Vprog Gtot
-       f_HMAC_Final HMAC_FinalWK_spec.
+Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs 
+       f_HMAC_Final HMAC_FinalSimple_spec.
 Proof.
 start_function.
 name ctx' _ctx.
 name md' _md.
-simpl_stackframe_of. normalize.
+simpl_stackframe_of. normalize. rename H into WrshMD. 
 eapply semax_pre with (P':=PROP  ()
    LOCAL  (`(eq md) (eval_id _md); `(eq c) (eval_id _ctx);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+     `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
    ((EX b:_, local (`(eq b) (eval_var _buf (tarray tuchar 32)))
              && `(data_at_ Tsh (tarray tuchar 32) b));
@@ -36,8 +35,7 @@ eapply semax_pre with (P':=PROP  ()
   entailer.
 normalize. intros b. normalize.
 rewrite memory_block_isptr. unfold hmacstate_. normalize.
-rename H into WrshMD. 
-rename H0 into isPtrMD. 
+rename H into isptrMD.
 intros ST. normalize.
 destruct h1; simpl in *.
 destruct H as [reprMD [reprI [reprO [iShaLen [oShaLen [KeyST [l [KeylenST [KL ZLen]]]]]]]]].
@@ -69,8 +67,7 @@ after_call. subst WITNESS. normalize. simpl.
 eapply semax_pre with (P':=(PROP  ()
    LOCAL  (`(eq b) (eval_var _buf (tarray tuchar 32));
    `(eq md) (eval_id _md); `(eq c) (eval_id _ctx);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
 
    SEP  (`(K_vector KV); 
    `(data_at Tsh t_struct_hmac_ctx_st (default_val sha.t_struct_SHA256state_st, snd ST) c);
@@ -90,8 +87,7 @@ eapply semax_pre with (P':=
   (PROP  ()
    LOCAL  (`(eq b) (eval_var _buf (tarray tuchar 32));
    `(eq md) (eval_id _md); `(eq c) (eval_id _ctx);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
    (`(field_at Tsh t_struct_hmac_ctx_st [_key_length]
         (fst (snd (snd (snd ST)))) c);
@@ -161,8 +157,7 @@ apply semax_pre with (P':=EX  x : s256abs,
   (PROP  ()
    LOCAL  (`(eq b) (eval_var _buf (tarray tuchar 32));
    `(eq md) (eval_id _md); `(eq c) (eval_id _ctx);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
    (`(fun a : environ =>
       (PROP  (update_abs (firstn (Z.to_nat SHA256_DIGEST_LENGTH) SF) oSha x)
@@ -217,7 +212,7 @@ cancel.
 rewrite SFL in *.
 erewrite (data_at__array_at_ Tsh tuchar 32 noattr). cancel.
   2: omega. 2: reflexivity. 
-unfold hmacstateWK_, hmac_relateWK. normalize.
+unfold hmacstate_simple, hmac_relate_simple. normalize.
 apply exp_right with (x:=(updShaST, 
                          (iCTX, (oCTX, (Vint l,map Vint (map Int.repr (HMAC_FUN.mkKey key))))))).
 simpl. normalize.

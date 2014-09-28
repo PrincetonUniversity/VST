@@ -65,46 +65,9 @@
  * [including the GNU Public Licence.]
  */
 
-#include <stddef.h>
+#include "sha.h"
 
-void * memcpy(void * __restrict, const void * __restrict, size_t);
-void * memset(void *, int, size_t);
-
-
-//#include "hmac.h"
-
-/**************************From vst/sha/sha.c **************************/
-
-#define SHA_LONG unsigned int
-
-#define SHA_LBLOCK	16
-#define SHA_CBLOCK	(SHA_LBLOCK*4)	/* SHA treats input data as a
-					 * contiguous array of 32 bit
-					 * wide big-endian values. */
-#define SHA_LAST_BLOCK  (SHA_CBLOCK-8)
-#define SHA_DIGEST_LENGTH 20
-
-#define SHA256_DIGEST_LENGTH	32
-
-typedef struct SHA256state_st
-	{
-	SHA_LONG h[8];
-	SHA_LONG Nl,Nh;
-	unsigned char data[SHA_CBLOCK];
-	unsigned int num;
-	} SHA256_CTX;
-
-void SHA256_Init (SHA256_CTX *c);
-void SHA256_Update (SHA256_CTX *c, const void *data_, size_t len);
-void SHA256_Final (unsigned char *md, SHA256_CTX *c);
-
-//not actually used:
-void SHA256(const unsigned char *d, size_t n, unsigned char *md);
-
-/***************************************************************/
-
-
-/****From hmac.h, and sepcialised to use of sha256 *************/
+/****From hmac.h, and specialized to use of sha256 *************/
 #define HMAC_MAX_MD_CBLOCK	64 //i.e. SHA256_BLOCK_SIZE
 
 typedef struct hmac_ctx_st

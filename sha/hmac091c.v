@@ -3,6 +3,9 @@ Require Import Clightdefs.
 Require Import sha.sha.
 Definition t_struct_SHA256state_st := sha.t_struct_SHA256state_st.
 
+(*Definition _key : ident := 41%positive.*)
+Definition _key : ident := 141%positive.
+
 Local Open Scope Z_scope.
 
 Definition _main : ident := 65%positive.
@@ -61,7 +64,7 @@ Definition _key_length : ident := 42%positive.
 Definition ___builtin_annot : ident := 9%positive.
 Definition _HMAC : ident := 64%positive.
 Definition _pad : ident := 52%positive.
-Definition _key : ident := 41%positive.
+(*Definition _key : ident := 41%positive.*)
 Definition _Nh : ident := 34%positive.
 Definition ___builtin_read32_reversed : ident := 29%positive.
 Definition _md : ident := 55%positive.

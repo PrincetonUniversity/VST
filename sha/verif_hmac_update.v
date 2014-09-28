@@ -11,11 +11,10 @@ Require Import sha.HMAC_functional_prog.
 Require Import sha.hmac091c.
 Require Import sha.spec_hmac.
 
-Lemma body_hmac_update: semax_body Vprog Gtot 
+Lemma body_hmac_update: semax_body HmacVarSpecs HmacFunSpecs 
        f_HMAC_Update HMAC_Update_spec.
 Proof.
 start_function.
-(*rewrite <- SHACTX in *.*)
 name ctx' _ctx.
 name data' _data.
 name len' _len.
@@ -40,8 +39,8 @@ forward_call WITNESS.
   { assert (FR: Frame =nil).
        subst Frame. reflexivity.
     rewrite FR. clear FR Frame. 
-    subst WITNESS. entailer. 
-    cancel.
+    subst WITNESS. entailer.
+    cancel. 
     unfold sha256state_. apply exp_right with (x:= mdCtx ST). entailer.
     (*rewrite field_at_data_at; try reflexivity. simpl. entailer.*)
   }
@@ -52,29 +51,26 @@ assert (FF: firstn (Z.to_nat len) data = data).
     apply firstn_same. rewrite Zlength_correct, Nat2Z.id. omega.
 rewrite FF in *. 
 
-
 (**** Again, distribute EX over lift*)
 apply semax_pre with (P' :=EX  x : s256abs,
   (PROP  ()
    LOCAL  (tc_environ Delta; `(eq c) (eval_id _ctx); `(eq d) (eval_id _data);
    `(eq (Vint (Int.repr len))) (eval_id _len);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
    (`(fun a : environ =>
-      (PROP  (update_abs data (*(firstn (Z.to_nat len) data)*) ctx x)
+      (PROP  (update_abs data ctx x)
        LOCAL ()
        SEP  (`(K_vector KV); `(sha256state_ x c); `(data_block Tsh data d)))
         a) globals_only;
-   `(field_except_at Tsh t_struct_hmac_ctx_st _md_ctx [] (snd ST) c)))
-). entailer. rename x into s. apply exp_right with (x:=s). entailer.
+   `(field_except_at Tsh t_struct_hmac_ctx_st _md_ctx [] (snd ST) c)))).
+  entailer. rename x into s. apply exp_right with (x:=s). entailer.
 apply extract_exists_pre. intros s. normalize. simpl. normalize.
 (********************************************************)
 rename H into HmacUpdate.
 
 (*WHY IS THIS NEEDED?*) unfold MORE_COMMANDS, abbreviate.
 forward.
-(*rewrite Zlength_correct, Nat2Z.id in FF. rewrite FF.*)
 apply exp_right with (x:= HMACabs s iSha oSha (Int.unsigned l) key). entailer.
 apply andp_right. apply prop_right. exists s; eauto.
 cancel. 

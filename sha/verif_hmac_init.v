@@ -30,7 +30,7 @@ Definition keyedHMS key: hmacstate :=
    (if zlt 64 (Zlength key) then Vint (Int.repr 32) else Vint (Int.repr (Zlength key)), 
    map Vint (map Int.repr (HMAC_FUN.mkKey key)))))).
 
-Lemma body_hmac_init: semax_body Vprog Gtot 
+Lemma body_hmac_init: semax_body HmacVarSpecs HmacFunSpecs 
        f_HMAC_Init HMAC_Init_spec.
 Proof.
 start_function.
@@ -42,8 +42,7 @@ destruct H as [KL1 [KL2 KL3]]. normalize.
 eapply semax_pre with (P':=PROP  (isptr k /\ Forall isbyteZ key /\ isptr c)
    LOCAL  (`(eq c) (eval_id _ctx); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr l))) (eval_id _len);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
    ((EX pad:_, 
             local (`(eq pad) (eval_var _pad (tarray tuchar 64))) && 
@@ -72,8 +71,7 @@ remember
    `(eq pad) (eval_var _pad (tarray tuchar 64));
    `(eq (Vptr cb cofs)) (eval_id _ctx); `(eq (Vptr kb kofs)) (eval_id _key);
    `(eq (Vint (Int.repr l))) (eval_id _len);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
    `(data_at Tsh t_struct_hmac_ctx_st (keyedHMS key) (Vptr cb cofs));
    `(array_at tuchar Tsh (tuchars (map Int.repr key)) 0 (Zlength key)
@@ -89,8 +87,7 @@ forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
          (`(eq (Vint (Int.repr 0))) (eval_id _reset);
           `(eq pad) (eval_var _pad (tarray tuchar 64)); `(eq c) (eval_id _ctx);
           `(eq k) (eval_id _key); `(eq (Vint (Int.repr l))) (eval_id _len);
-(*          `(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+          `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
       SEP  (
           `(data_at_ Tsh (tarray tuchar 64) pad);
           `(data_at_ Tsh t_struct_hmac_ctx_st (Vptr cb cofs));
@@ -108,8 +105,7 @@ forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
        `(eq (Vint (Int.repr 1))) (eval_id _reset);
        `(eq pad) (eval_var _pad (tarray tuchar 64)); `(eq c) (eval_id _ctx);
        `(eq k) (eval_id _key); `(eq (Vint (Int.repr l))) (eval_id _len);
-       (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
-(*       `(eq KV) (eval_var sha._K256 (tarray tuint 64)))*)
+       `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
       SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
             `(data_at Tsh t_struct_hmac_ctx_st (keyedHMS key) (Vptr cb cofs));
            `(array_at tuchar Tsh (tuchars (map Int.repr key)) 0 (Zlength key)
@@ -125,8 +121,7 @@ forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
           `eq (eval_id _reset) `(Vint (Int.repr 1));
           `(eq pad) (eval_var _pad (tarray tuchar 64)); `(eq c) (eval_id _ctx);
           `(eq k) (eval_id _key); `(eq (Vint (Int.repr l))) (eval_id _len);
-(*          `(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-       (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+          `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
         SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
               `(data_at_ Tsh t_struct_hmac_ctx_st c);
               `(K_vector KV);
@@ -193,8 +188,7 @@ forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
    `(eq pad) (eval_var _pad (tarray tuchar 64));
    `(eq (Vptr cb cofs)) (eval_id _ctx); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr l))) (eval_id _len);
-(*   `(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-       (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
    (`(fun a : environ =>
       (PROP  (update_abs (firstn (Z.to_nat l) key) init_s256abs xx)
@@ -210,7 +204,7 @@ forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
    `(field_at Tsh t_struct_hmac_ctx_st [_i_ctx]
        ([], (Vundef, (Vundef, ([], Vundef)))) (Vptr cb cofs));
    `(data_at_ Tsh (tarray tuchar 64) pad)))).
-       entailer. clear x x0 x1. rename x2 into a. apply exp_right with (x:=a).
+       entailer. rename x into a. apply exp_right with (x:=a).
        entailer.
    apply extract_exists_pre. intros ctxSha. simpl. normalize. simpl.
 
@@ -264,7 +258,6 @@ forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
        rewrite memory_block_array_tuchar'. cancel. trivial. omega.
      } 
      after_call. subst WITNESS. normalize. subst retval0. 
-  clear x.
    (*swap fun a=> with EX
    apply semax_pre with (P':=
     EX  x : val,
@@ -399,15 +392,13 @@ forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
           `eq (eval_id _reset) `(Vint (Int.repr 1));
           `(eq pad) (eval_var _pad (tarray tuchar 64)); `(eq c) (eval_id _ctx);
           `(eq k) (eval_id _key); `(eq (Vint (Int.repr l))) (eval_id _len);
-(*          `(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-       (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+          `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
         SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
-              (*`(data_at_ Tsh t_struct_hmac_ctx_st c);*)
               `(data_at Tsh t_struct_hmac_ctx_st (default_val t_struct_hmac_ctx_st) c);
               `(K_vector KV);
               `(array_at tuchar Tsh (tuchars (map Int.repr key)) 0 (Zlength key) k)))).
         entailer. 
-     normalize. rename H into ge_64_l. clear x0 x1 x. 
+     normalize. rename H into ge_64_l. 
 
      (*call to memcpy*)
      (*eapply semax_seq'.*)
@@ -592,8 +583,7 @@ remember (EX iSA:_, EX iS:_, EX oSA:_, EX oS:_,
                  `(eq (Vptr cb cofs)) (eval_id _ctx);
                  `(eq (Vptr kb kofs)) (eval_id _key);
                  `(eq (Vint (Int.repr l))) (eval_id _len);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+                 `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
 
                  SEP  (
                  `(array_at_ tuchar Tsh 0 64 pad);
@@ -632,8 +622,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
         `(eq (Vptr pb pofs)) (eval_var _pad (Tarray tuchar 64 noattr));
         `(eq (Vptr cb cofs)) (eval_id _ctx); `(eq (Vptr kb kofs)) (eval_id _key);
         `(eq (Vint (Int.repr l))) (eval_id _len);
-    (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-        (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+        `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
        SEP 
         (`(array_at tuchar Tsh IPADcont 0 64 (Vptr pb pofs));
          `(data_at Tsh t_struct_hmac_ctx_st (keyedHMS key) (Vptr cb cofs));
@@ -649,15 +638,13 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
                  `(eq (Vptr cb cofs)) (eval_id _ctx);
                  `(eq (Vptr kb kofs)) (eval_id _key);
                  `(eq (Vint (Int.repr l))) (eval_id _len);
-    (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-        (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+                 `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
          SEP  (
           `(array_at tuchar Tsh IPADcont 0 i (Vptr pb pofs));
           `(array_at tuchar Tsh DEFAULTcont i 64 (Vptr pb pofs));
           `(data_at Tsh t_struct_hmac_ctx_st (keyedHMS key) (Vptr cb cofs));
           `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr key))) 0
                (Zlength key) (Vptr kb kofs)); `(K_vector KV)))).
-      { admit. (*K256 closed*) }
       { (*precondition implies "invariant"*) 
         rewrite array_at_emp. normalize. entailer.
         unfold array_at. normalize. destruct H4. abstract entailer.
@@ -683,8 +670,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
             `(eq (Vptr cb cofs)) (eval_id _ctx);
             `(eq (Vptr kb kofs)) (eval_id _key);
             `(eq (Vint (Int.repr l))) (eval_id _len);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho)))])
+            `(eq KV) (eval_var sha._K256 (tarray tuint 64))])
           (R:= [`(field_at Tsh t_struct_hmac_ctx_st [_key_length]
                (if zlt 64 (Zlength key)
                 then Vint (Int.repr 32)
@@ -797,8 +783,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
        `(eq (Vptr pb pofs)) (eval_var _pad (Tarray tuchar 64 noattr));
        `(eq (Vptr cb cofs)) (eval_id _ctx); `(eq (Vptr kb kofs)) (eval_id _key);
        `(eq (Vint (Int.repr l))) (eval_id _len);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-        (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+       `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
      SEP 
       (`(fun a : environ =>
       (PROP 
@@ -821,7 +806,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
       `(field_at Tsh t_struct_hmac_ctx_st [_md_ctx] emptySha (Vptr cb cofs));
       `(array_at tuchar Tsh (tuchars (map Int.repr key)) 0 (Zlength key)
          (Vptr kb kofs))))).
-    entailer. rename x0 into a. eapply exp_right with (x0:=a). entailer.
+    entailer. rename x into a. eapply exp_right with (x:=a). entailer.
     apply extract_exists_pre. intros ipadSHAabs.
     rename H into SCc.
     rename H0 into ACc.
@@ -841,8 +826,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
    `(eq (Vptr pb pofs)) (eval_var _pad (Tarray tuchar 64 noattr));
    `(eq (Vptr cb cofs)) (eval_id _ctx); `(eq (Vptr kb kofs)) (eval_id _key);
    `(eq (Vint (Int.repr l))) (eval_id _len);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP  (`(K_vector KV);
    `(sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108))));
    `(data_block Tsh
@@ -871,8 +855,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
                  `(eq (Vptr cb cofs)) (eval_id _ctx);
                  `(eq (Vptr kb kofs)) (eval_id _key);
                  `(eq (Vint (Int.repr l))) (eval_id _len);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-                 (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+                 `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP  (`(K_vector KV);
    `(sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108))));
    `(array_at tuchar Tsh OPADcont 0 i (Vptr pb pofs));
@@ -890,7 +873,6 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
    `(field_at Tsh t_struct_hmac_ctx_st [_md_ctx] emptySha (Vptr cb cofs));
    `(array_at tuchar Tsh (tuchars (map Int.repr key)) 0 (Zlength key)
        (Vptr kb kofs))))).
-      { admit. (*_K256 closed*) }
       { (*precondition implies "invariant"*)
         rewrite array_at_emp. unfold data_block. entailer.
         apply andp_right.
@@ -932,8 +914,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
             `(eq (Vptr cb cofs)) (eval_id _ctx);
             `(eq (Vptr kb kofs)) (eval_id _key);
             `(eq (Vint (Int.repr l))) (eval_id _len);
-(*            `(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-              (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho)))])
+            `(eq KV) (eval_var sha._K256 (tarray tuint 64))])
           (R:= [`(K_vector KV);
      `(sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108))));
      `(array_at tuchar Tsh OPADcont 0 i (Vptr pb pofs));
@@ -1042,8 +1023,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     }
     after_call. simpl. intros rho. subst WITNESS PostResetBranch.
         rewrite firstn_precise. entailer.
-        rename x into x'.
-        rename x0 into opadSHAabs.
+        rename x into opadSHAabs.
         unfold sha256state_; normalize. rename r into iUpd. rename x into oUpd.
         apply exp_right with (x:=ipadSHAabs). entailer.
         apply exp_right with (x:=iUpd). entailer.
@@ -1093,8 +1073,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      LOCAL  (`(eq pad) (eval_var _pad (tarray tuchar 64));
        `(eq (Vptr cb cofs)) (eval_id _ctx); `(eq (Vptr kb kofs)) (eval_id _key);
        `(eq (Vint (Int.repr l))) (eval_id _len);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+       `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
      SEP  (`(field_at Tsh t_struct_hmac_ctx_st [_key_length]
             (if zlt 64 (Zlength key)
             then Vint (Int.repr 32)
@@ -1150,8 +1129,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
   forward. (*return*)
 
   remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
-  rename x into x'.
-  apply exp_right with (x:=HMACabs iSA iSA oSA KL key). (*(HMAC_FUN.mkKey key)).*)
+  apply exp_right with (x:=HMACabs iSA iSA oSA KL key). 
   entailer.
   apply andp_right. 
     apply prop_right. unfold hmacInit. exists iSA, oSA.

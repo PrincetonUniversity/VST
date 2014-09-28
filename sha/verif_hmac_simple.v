@@ -13,8 +13,8 @@ Require Import sha.hmac091c.
 Require Import sha.spec_hmac.
 Require Import HMAC_lemmas.
 
-Lemma body_hmac_simple: semax_body Vprog Gtot 
-       f_HMAC HMAC_Simple_spec.
+Lemma body_hmac_simple: semax_body HmacVarSpecs HmacFunSpecs 
+      f_HMAC HMAC_Simple_spec.
 Proof.
 start_function.
 name key' _key.
@@ -23,8 +23,9 @@ name d' _d.
 name n' _n.
 name md' _md.
 simpl_stackframe_of.
-destruct KeyStruct as [k [kl key]].
-destruct DataStruct as [d [dl data]]. simpl in *.
+rename keyVal into k. rename msgVal into d.
+destruct KEY as [kl key].
+destruct MSG as [dl data]. simpl in *.
 rename H into WrshMD. 
 rewrite memory_block_isptr. normalize.
 rename H into isPtrMD. rename H0 into KL. rename H1 into DL. 
@@ -35,8 +36,7 @@ PROP  (isptr c)
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
-   (*`(eq KV) (eval_var sha._K256 (tarray tuint 64))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
    (`(data_at_ Tsh t_struct_hmac_ctx_st c);
    `(data_block Tsh key k); `(data_block Tsh data d); `(K_vector KV);
@@ -123,9 +123,8 @@ eapply semax_pre with (P':=EX  x : hmacabs,
    `(eq k) (eval_id _key); `(eq (Vint (Int.repr kl))) (eval_id _key_len);
    `(eq d) (eval_id _d); `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
-(*   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
-   SEP (`(fun a : environ =>(PROP  (hmacUpdate data (*dl*) h0 x)
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   SEP (`(fun a : environ =>(PROP  (hmacUpdate data h0 x)
        LOCAL ()
        SEP  (`(K_vector KV); `(hmacstate_ x c); `(data_block Tsh data d))) a)
       globals_only; `(data_block Tsh key k); `(memory_block shmd (Int.repr 32) md))).
@@ -157,13 +156,12 @@ eapply semax_pre with (P':=EX  x : list Z,
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
-(*   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))*)
-     (fun rho => (eq KV) (eval_var sha._K256 (tarray tuint 64) (globals_only rho))))
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
    (`(fun a : environ =>
      (PROP (hmacFinalSimple h1 x)
         LOCAL ()
-        SEP  (`(K_vector KV); `(hmacstateWK_ x0 c); `(data_block shmd x md))) a) globals_only; 
+        SEP  (`(K_vector KV); `(hmacstate_simple x0 c); `(data_block shmd x md))) a) globals_only; 
       `(data_block Tsh data d); `(data_block Tsh key k))))).
   entailer. rename x into dig. apply exp_right with (x:=dig).
   rename x0 into h2. apply exp_right with (x:=h2).

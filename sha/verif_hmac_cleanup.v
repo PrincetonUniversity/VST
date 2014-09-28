@@ -19,12 +19,12 @@ Lemma isbyte_Nlist i n: isbyteZ i -> Forall isbyteZ (Nlist i n).
   apply (IHn H0).
 Qed.
 
-Lemma body_hmac_cleanup: semax_body Vprog Gtot 
+Lemma body_hmac_cleanup: semax_body HmacVarSpecs HmacFunSpecs 
        f_HMAC_cleanup HMAC_Cleanup_spec.
 Proof.
 start_function.
 name ctx' _ctx.
-unfold hmacstateWK_, hmac_relateWK. normalize. intros hst. normalize. 
+unfold hmacstate_simple, hmac_relate_simple. normalize. intros hst. normalize. 
 apply semax_pre with (P':=
   PROP (size_compatible t_struct_hmac_ctx_st c /\
         align_compatible t_struct_hmac_ctx_st c)
