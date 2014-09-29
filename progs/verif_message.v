@@ -497,9 +497,18 @@ destruct H3 as [H3 [H3x H3id]]; unfold temp_type_is in H3;
 revert H3; case_eq ((temp_types Delta) ! ser); intros; try contradiction.
 destruct p0.
 subst t0.
+
+
 eapply semax_seq'.
 {
-  apply semax_load_field_38
+  change (Efield e_obj _serialize
+           (tptr
+              (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint
+                 cc_default))) with 
+  (nested_efield e_obj (_serialize :: nil) ((tptr
+              (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint
+                 cc_default)) :: nil)).
+  apply semax_max_path_field_load_38
    with (t0 := (tptr
           (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint
              cc_default)))
@@ -800,6 +809,7 @@ replace_SEP 0
     ).
 unfold_data_at 1%nat.
 entailer!.
+normalize.
 forward. (* x = q.x; *)
 forward. (* y = q.y; *)
 forward. (* return x+y; *)

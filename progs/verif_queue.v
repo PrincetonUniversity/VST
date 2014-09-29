@@ -4,6 +4,23 @@ Require Import progs.queue.
 
 Local Open Scope logic.
 
+
+(*
+
+Currently, store rule about mapsto is like:
+  {`mapsto_ (eval_lvalue e1)} e1 = e2 {`mapsto (eval_lvalue e1) (eval_expr e2)}
+
+or in a data_at form:
+  {`data_at_ (eval_lvalue e1)} e1 = e2 {`data_at (`valinject (eval_expr e2)) (eval_lvalue e1)}
+
+However, in nested store rule, the postcondition will contain complicated lifted expressions.
+  {`(data_at v) (eval_lvalue e1)} e1 = e2.ids {`data_at (`(upd_reptype v) (`valinject (eval_expr e2))) (eval_lvalue e1)}
+
+
+
+*)
+
+
 Instance QS: listspec t_struct_elem _next. 
 Proof. eapply mk_listspec; reflexivity. Defined.
 
@@ -62,7 +79,7 @@ Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
 Definition fifo (contents: list val) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
       !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
-      data_at Tsh t_struct_fifo (hd, tl) p *
+      field_at Tsh t_struct_fifo nil (hd, tl) p *
       if isnil contents
       then (!!(hd=nullval) && emp)
       else (EX prefix: list val, 
@@ -133,11 +150,14 @@ Qed.
 Lemma memory_block_fifo:
  forall p, 
   align_compatible t_struct_fifo p ->
-  memory_block Tsh (Int.repr 8) p = data_at_ Tsh t_struct_fifo p.
+  memory_block Tsh (Int.repr 8) p = field_at_ Tsh t_struct_fifo nil p.
 Proof.
  intros.
  change 8 with (sizeof t_struct_fifo).
- apply memory_block_data_at_; auto.
+ rewrite memory_block_data_at_; auto.
+ unfold data_at_, field_at_.
+ rewrite data_at_field_at.
+  reflexivity.
 Qed.
 
 Lemma list_cell_eq: forall sh elem,
@@ -153,9 +173,9 @@ name Q _Q.
 name h _h.
 unfold fifo.
 normalize. intros [hd tl]. normalize.
-forward. (* h = Q->head;*)
+forward. (* h = Q->head; *)
 simpl proj_reptype.
-forward.
+forward. (* return (h == NULL); *)
 
 unfold fifo.
 entailer.
@@ -190,27 +210,42 @@ Hint Resolve natural_align_compatible_t_struct_fifo.
 
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
-start_function.
-name Q _Q.
-name Q' _Q'.
-forward_call (* Q' = mallocN(sizeof ( *Q)); *) 
-      (Int.repr 8).
-  (* goal_2 *) entailer!.
-after_call. (* This expression was strange; better now with clean_up_app_carefully called from after_call *)
-clear Q'0.
-apply (remember_value  (eval_id _Q')); intro q.
-apply semax_pre with
-  (PROP (natural_align_compatible q; isptr q) LOCAL (`(eq q) (eval_id _Q')) 
-   SEP (`(memory_block Tsh (Int.repr 8) q))); [entailer! | ].
-normalize.
-forward. (* Q = (struct fifo * )Q'; *)
-normalize.
-rewrite memory_block_fifo by auto.  (* we don't even need it now *)  (* ? *)
-forward. (* Q->head = NULL; *)
-(* goal_4 *)
-forward.  (*  Q->tail = NULL;  *)
-forward. (* return Q; *)
-(* goal_5 *)
+  start_function.
+  name Q _Q.
+  name Q' _Q'.
+  forward_call (* Q' = mallocN(sizeof ( *Q)); *) 
+    (Int.repr 8).
+  (* goal_2 *)
+  entailer!.
+  after_call. (* This expression was strange; better now with clean_up_app_carefully called from after_call *)
+  clear Q'0.
+  apply (remember_value  (eval_id _Q')); intro q.
+  apply semax_pre with
+    (PROP (natural_align_compatible q; isptr q) LOCAL (`(eq q) (eval_id _Q')) 
+    SEP (`(memory_block Tsh (Int.repr 8) q))); [entailer! | ].
+  normalize.
+  forward. (* Q = (struct fifo * )Q'; *)
+  normalize.
+  rewrite memory_block_fifo by auto.  (* we don't even need it now *)  (* ? *)
+  forward. (* Q->head = NULL; *)
+(*
+  simpl eval_expr.
+  unfold force_val1.
+  normalize.
+  simpl force_val. simpl valinject. simpl upd_reptype.
+*)
+  (* goal_4 *)
+
+  forward. (* Q->tail = NULL; *)
+(*
+  simpl eval_expr.
+  unfold force_val1.
+  normalize.
+  simpl force_val. simpl valinject. simpl upd_reptype.
+*)
+
+  forward. (* return Q; *)
+  (* goal_5 *)
   unfold fifo.
   apply exp_right with (nullval,nullval).
   rewrite if_true by auto.
@@ -227,10 +262,14 @@ name t _t.
 unfold fifo at 1.
 normalize. intros [hd tl]. normalize.
 (* goal_7 *)
-forward. (* p->next = NULL; *)
-normalize.
 
-rewrite data_at_field_at.
+forward. (* p->next = NULL; *)
+  normalize.
+  simpl eval_expr.
+  unfold force_val1.
+  normalize.
+  simpl force_val. simpl valinject. simpl upd_reptype.
+
 forward. (*   h = Q->head; *)
 simpl proj_reptype.
 forward_if 
@@ -238,8 +277,7 @@ forward_if
  simpl typeof.
 * (* then clause *)
   (* goal 9 *)
-  rewrite <- data_at_field_at.
-  forward. (*  Q->head=p; *)
+  forward. (* Q->head=p; *)
   forward. (* Q->tail=p; *)
   (* goal 10 *)
   entailer.
@@ -254,7 +292,6 @@ forward_if
   +  normalize.
       destruct prefix; normalize; entailer!; elim_hyps; inv H1.
 * (* else clause *)
-  rewrite <- data_at_field_at.
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
   + apply semax_pre with FF; [ | apply semax_ff].
@@ -304,8 +341,8 @@ destruct prefix; inversion H1; clear H1.
    apply ptr_eq_e in H1. subst_any.
    forward. (*  n=h->next; *)
    forward. (* Q->head=n; *)
-  simpl valinject; simpl reptype.  normalize.
-   replace_SEP 0%Z (`(data_at Tsh t_struct_fifo (nullval,p) q)); [ entailer! | ]. (* can we do this automatically? *)
+(*  simpl valinject; simpl reptype.  normalize. *)
+(*   replace_SEP 0%Z (`(data_at Tsh t_struct_fifo (nullval,p) q)); [ entailer! | ]. (* can we do this automatically? *) *)
    forward. (* return p; *)
    entailer!.
    unfold fifo. apply exp_right with (nullval, h).
@@ -352,11 +389,12 @@ eapply semax_pre0 with (PROP  (natural_align_compatible p0)
    [auto | reflexivity  | reflexivity 
    | apply natural_align_compatible_t_struct_fifo; auto].
 unfold data_at_.
-unfold_data_at 1%nat.
+rewrite data_at_field_at.
 forward.  (*  p->a=a; *)
 forward.  (*  p->b=b; *)
 forward.  (* return p; *)
 unfold elemrep.
+unfold_field_at 1%nat.
 entailer!.
 Qed.
 

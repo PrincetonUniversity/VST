@@ -1769,6 +1769,14 @@ eapply semax_pre_simple; try apply H0.
  rewrite insert_local. auto.
 Qed.
 
+Ltac hoist_later_left :=
+   match goal with
+  | |- (?P |-- _) =>
+        let P' := strip1_later P in
+        apply derives_trans with (|>P');
+         [ solve [ auto 50 with derives ] | ]
+  end. 
+
 Ltac hoist_later_in_pre :=
      match goal with |- semax _ ?P _ _ =>
        let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]

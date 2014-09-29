@@ -257,6 +257,9 @@ ensure_normal_ret_assert;
  hoist_later_in_pre.
  eapply(@semax_store_array Espec (initialized _t Delta) Tsh 0) with (t := tuint) (contents := (tuints (add_upto i regs atoh))) (lo := 0) (hi := 8);
   try reflexivity.
+instantiate (1:= `ctx).
+simpl; intros; normalize.
+
  apply writable_share_top.
 
 {
@@ -327,12 +330,11 @@ ensure_normal_ret_assert;
  normalize.
  saturate_local.
  apply prop_right; simpl.
- destruct (eval_id _ctx rho) eqn:?; try (contradiction H15).
+ destruct (eval_id _ctx rho) eqn:?; try (contradiction H16).
  simpl.
  repeat split; auto.
- + 
- f_equal.
-  f_equal. rewrite Int.add_zero. reflexivity.
+ + f_equal.
+   f_equal. rewrite Int.add_zero. reflexivity.
  + omega.
  + omega.
 }

@@ -34,8 +34,23 @@ Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
 Proof.
  start_function.
 name i _i.
+
+rewrite data_at_field_at.
 forward.
 forward.
+rewrite data_at_field_at.
+cancel.
+Qed.
+
+Lemma body_get':  semax_body Vprog Gprog f_get get_spec.
+Proof.
+ start_function.
+name i _i.
+
+unfold_data_at 1%nat.
+forward.
+forward.
+unfold_data_at 1%nat.
 cancel.
 Qed.
 
@@ -43,7 +58,9 @@ Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
 Proof.
 start_function.
 name i_ _i.
+rewrite data_at_field_at.
 forward.
 forward.
+rewrite data_at_field_at.
 cancel.
 Qed.
