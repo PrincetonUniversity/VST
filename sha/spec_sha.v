@@ -4,16 +4,6 @@ Require Import sha.sha.
 Require Import sha.SHA256.
 Local Open Scope logic.
 
-Definition big_endian_integer (contents: Z -> int) : int :=
-  Int.or (Int.shl (contents 0) (Int.repr 24))
-  (Int.or (Int.shl (contents 1) (Int.repr 16))
-   (Int.or (Int.shl (contents 2) (Int.repr 8))
-      (contents 3))).
-
-Definition LBLOCKz : Z := 16. (* length of a block, in 32-bit integers *)
-Definition WORD : Z := 4.  (* length of a word, in bytes *)
-Definition CBLOCKz : Z := (LBLOCKz * WORD)%Z. (* length of a block, in characters *)
-
 Definition s256state := (list val * (val * (val * (list val * val))))%type.
 Definition s256_h (s: s256state) := fst s.
 Definition s256_Nl (s: s256state) := fst (snd s).
@@ -35,9 +25,6 @@ Definition s256a_len (a: s256abs) : Z :=
   match a with S256abs hashed data => 
     (Zlength hashed * WORD + Zlength data) * 8 
   end%Z.
-
-Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
-Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.
 
 Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
      match a with S256abs hashed data =>

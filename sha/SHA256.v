@@ -8,6 +8,20 @@ Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import List. 
 
+(* THIS BLOCK OF STUFF is not needed to define SHA256,
+  but is useful for reasoning about it *)
+Definition LBLOCKz : Z := 16. (* length of a block, in 32-bit integers *)
+Definition WORD : Z := 4.  (* length of a word, in bytes *)
+Definition CBLOCKz : Z := (LBLOCKz * WORD)%Z. (* length of a block, in characters *)
+Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
+Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.
+Definition big_endian_integer (contents: Z -> int) : int :=
+  Int.or (Int.shl (contents 0) (Int.repr 24))
+  (Int.or (Int.shl (contents 1) (Int.repr 16))
+   (Int.or (Int.shl (contents 2) (Int.repr 8))
+      (contents 3))).
+(* END OF "THIS BLOCK OF STUFF" *)
+
 Notation "[ ]" := nil.
 Notation "[ x , .. , y ]" := (cons x .. (cons y []) ..).
 

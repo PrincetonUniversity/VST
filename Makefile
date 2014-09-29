@@ -153,7 +153,7 @@ PROGS_FILES= \
   even.v verif_even.v odd.v verif_odd.v
 
 SHA_FILES= \
-  SHA256.v common_lemmas.v sha_lemmas.v functional_prog.v \
+  SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
   sha.v spec_sha.v verif_sha_init.v \
   verif_sha_update.v verif_sha_update2.v verif_sha_update3.v verif_sha_update4.v \
   bdo_lemmas.v verif_sha_bdo.v verif_sha_bdo2.v \

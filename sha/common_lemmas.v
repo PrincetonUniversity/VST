@@ -1,3 +1,10 @@
+(* This file is for lemmas that
+  (a) are used in the proof that the functional prog = functional spec
+  AND (b) are used in the proof about the C program.
+This file DOES NOT IMPORT anything about C or CompCert
+  (except the CompCert Integers module)
+*)
+
 Require Recdef.
 Require Import Integers.
 Require Coq.Strings.String.
