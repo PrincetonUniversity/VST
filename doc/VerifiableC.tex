@@ -148,7 +148,8 @@ More recent VST versions differ in the following ways
 from what the PLCC book describes:
 \begin{itemize}
 \item \lstinline{field_mapsto} is now called
-\lstinline{field_at}, and its last two arguments are swapped.
+\lstinline{field_at}, and it is dependently
+typed; see \autoref{refcard:structured} of this manual.
 \item \lstinline{typed_mapsto} is renamed to \lstinline{data_at}, and
    last two arguments are swapped.
 \item \lstinline{umapsto} (``untyped mapsto'') no
@@ -301,12 +302,18 @@ space to hold a value of type $t$
 at address $v$, with permission-share $\pi$.
 
 \noindent
-\lstinline{field_at ($\pi$: share) (t: type) (fld: ident) (w v: val) : mpred}
+\lstinline{field_at ($\pi$: share) (t: type) (f: list ident) (w: reptype (nested\_field\_type2 f) (v: val) : mpred}
 \newline  describes a heap
 that holds just field \lstinline{fld} 
 of \lstinline{struct}-value $v$,
 belonging to \lstinline{struct}-type $t$, 
 containing value $w$.
+If type $t$ describes a nested \lstinline{struct} type,
+then $f$ can actually be a path of field selections
+that descends into the nested structures.
+If $f$ is the empty path, then the field is equivalent to
+\lstinline{data_at}.
+The type of $w$ is a dependent type.
 \emph{Note: arguments $w,v$ are swapped compared to the PLCC book.}
 
 \lstinline{field_at_ ($\pi$: share) (t: type) (fld: ident) (v: val) : mpred}
@@ -1972,15 +1979,18 @@ Then these assertions are all equivalent:
 
 \begin{lstlisting}
 mapsto $\pi$ tint p h * 
-    mapsto $\pi$ (tptr t_struct_list) (offset_val p (Vint.repr 4)) t
+    mapsto $\pi$ (tptr t_struct_list) (offset_val p (Vint (Int.repr 4))) t
 
-field_at $\pi$ t_struct_list _head h p * field_at $\pi$ t_struct_list _tail t p
+field_at $\pi$ t_struct_list (_head::nil) h p * field_at $\pi$ t_struct_list (_tail::nil) t p
 
 data_at $\pi$ t_struct_list (h,t) p
+
+field_at $\pi$ t_struct_list nil (h,t) p
 \end{lstlisting}
 The version using \lstinline{mapsto} is correct (assuming a 32-bit 
 configuration of CompCert) but rather ugly;
-the second version is useful when loading or storing a
+the second version is useful when
+you want to ``frame out'' a 
 particular field; the third version describes the contents
 of all structure-fields at once.
 
@@ -2000,18 +2010,22 @@ and $t$ may be \lstinline{Vpointer b z},
 The \lstinline{Vundef} values represent uninitialized
 data fields.
 
-The tactic \lstinline{simpl_data_at} converts 
-\lstinline{data_at} predicates to their 
-expanded form as \lstinline{field_at}.
-One would use \lstinline{simpl_data_at}
-before \lstinline{forward} through a load or store
-that accesses one of the \lstinline{field_at}
-predicates.  A future version of the proof automation
-rules for Verifiable C may permit field access without
-expanding \lstinline{data_at}.
+When $\tau$ is a struct type and $n$ is a \lstinline{nat},
+the tactic \lstinline{unfold_data_at $n$}
+unfolds the $n$th occurrence of \lstinline{data_at $\pi$ $\tau$}
+to a series of \lstinline{field_at $\pi$ $\tau$ ($f$::nil)},
+where the $f$ are the various fields of the struct $\tau$.
+For example, it would unfold the third assertion above
+to look like the second one.
+
+The \lstinline{forward} tactic, when the next command is a load
+or store command, can operate directly on \lstinline{data_at}
+assertions; it is not necessary to unfold them to individual
+\lstinline{field_at} conjuncts.  This is a new feature
+of VST 1.5.
 
 \newthought{Why are the arguments backwards?}
-We write\newline \lstinline{field_at $\pi$ t_struct_list _head h p}
+We write\newline \lstinline{field_at $\pi$ t_struct_list (_head::nil) h p}
 \ \ \ where Reynolds would have written $p.\mathrm{head}\mapsto h$,
 and we write 
 \lstinline{data_at $\pi$ t_struct_list (h,t) p}
@@ -2025,7 +2039,7 @@ separation logic.  That is, we commonly have formulas such as
 \vspace{-\baselineskip}
 which simplify to 
 \begin{lstlisting}
-`(field_at $\pi$ t_struct_list _head h * field_at $\pi$ t_struct_list _tail t)
+`(field_at $\pi$ t_struct_list (_head::nil) h * field_at $\pi$ t_struct_list (_tail::nil) t)
    (eval_id _p (tptr t_struct_list))
 \end{lstlisting}
 \vspace{-\baselineskip}
@@ -2047,9 +2061,9 @@ We do not want to assume that malloc returns initialized memory,
 so at point 1 the contents of head and tail are \lstinline{Vundef}.
 We can write this as any of the following:
 \begin{lstlisting}
-field_at Tsh t_struct_list _head Vundef p 
-        * field_at Tsh t_struct_list _tail Vundef p
-field_at_ Tsh t_struct_list _head p * field_at_ Tsh t_struct_list _tail p
+field_at Tsh t_struct_list (_head::nil) Vundef p 
+        * field_at Tsh t_struct_list (_tail::nil) Vundef p
+field_at_ Tsh t_struct_list (_head::nil) p * field_at_ Tsh t_struct_list (_tail::nil) p
 data_at Tsh t_struct_list (Vundef,Vundef) p
 data_at_ Tsh t_struct_list p
 \end{lstlisting}
@@ -2061,17 +2075,17 @@ At point 2, all the assertions above are still true, but
 they are weaker than the ``appropriate'' assertion, which
 may be written as any of,
 \begin{lstlisting}
-field_at Tsh t_struct_list _head (Vint(Int.repr 3)) p
-        * field_at Tsh t_struct_list _tail Vundef p
-field_at Tsh t_struct_list _head (Vint(Int.repr 3)) 
-        * field_at_ Tsh t_struct_list _tail p
+field_at Tsh t_struct_list (_head::nil) (Vint(Int.repr 3)) p
+        * field_at Tsh t_struct_list (_tail::nil) Vundef p
+field_at Tsh t_struct_list (_head::nil) (Vint(Int.repr 3)) 
+        * field_at_ Tsh t_struct_list (_tail::nil) p
 data_at Tsh t_struct_list (Vint(Int.repr 3), Vundef) p
 \end{lstlisting}
 
 At point 3, we can write either of,
 \begin{lstlisting}
-field_at Tsh t_struct_list _head (Vint(Int.repr 3)) p 
-        * field_at Tsh t_struct_list _tail (Vint Int.zero) p
+field_at Tsh t_struct_list (_head::nil) (Vint(Int.repr 3)) p 
+        * field_at Tsh t_struct_list (_tail::nil) (Vint Int.zero) p
 data_at Tsh t_struct_list (Vint(Int.repr 3), Vint Int.zero) p
 \end{lstlisting}
 
