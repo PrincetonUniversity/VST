@@ -163,7 +163,8 @@ SHA_FILES= \
 
 HMAC_FILES= \
   HMAC_functional_prog.v HMAC_lemmas.v \
-  hmac091c.v spec_hmac.v verif_hmac_cleanup.v verif_hmac_init.v \
+  hmac091c.v spec_hmac.v verif_hmac_cleanup.v \
+  verif_hmac_init_part1.v verif_hmac_init.v \
   verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v 
 #  HMAC_refined_fp.v hmac_sha256.v HMAC_definitions.v \
 #  HMAC_part2GT.v HMAC_part2LE.v \
