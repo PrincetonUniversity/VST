@@ -51,14 +51,15 @@ Proof. intros n.
     rewrite IHn; trivial. inversion H; trivial.
 Qed. 
 
-
-
 Lemma first64_sixtyfour {A} (a:A): 
       firstn 64 (sixtyfour a) = sixtyfour a.
 Proof. apply firstn_precise. simpl. reflexivity. Qed. 
 
 Lemma length_Nlist {A} (i:A): forall n, length (Nlist i n) = n.
 Proof. induction n; simpl; auto. Qed.
+
+Lemma length_SF {A} (x:A): length (sixtyfour x) = 64%nat.
+Proof. unfold sixtyfour. rewrite length_Nlist; trivial. Qed.
 
 Lemma str_to_Z_length: forall k, 
       String.length k = length (str_to_Z k).
@@ -86,16 +87,23 @@ Qed.
 Lemma mapnth': forall {A B : Type} (f : A -> B) (l : list A) (d : A) (n : nat) fd,
       fd = f d -> nth n (map f l) fd = f (nth n l d).
 Proof. intros; subst. apply map_nth. Qed.
+
+Lemma unsigned_Brepr_isbyte z: isbyteZ z -> Byte.unsigned (Byte.repr z) = z.
+Proof. intros. 
+      unfold isbyteZ in H. apply Byte.unsigned_repr.
+      unfold Byte.max_unsigned, Byte.modulus. simpl. omega.
+Qed.  
+
 Lemma map_unsigned_Brepr_isbyte: forall l, Forall isbyteZ l ->
       map Byte.unsigned (map Byte.repr l) = l.
 Proof. intros. induction l; simpl in *. trivial.
-   rewrite IHl. rewrite Byte.unsigned_repr. trivial. 
-   rewrite Forall_forall in H. 
+   rewrite IHl. rewrite Forall_forall in H. 
    assert (In a (a::l)). left. trivial. 
    specialize (H _ H0); clear H0.
-      unfold isbyteZ in H. unfold Byte.max_unsigned, Byte.modulus. simpl. omega.
+   rewrite unsigned_Brepr_isbyte; trivial.
    rewrite Forall_forall in *. intros. apply H. right; trivial.
 Qed.
+
 Lemma Ztest_Bytetest:
  forall a, Z.testbit (Byte.unsigned a) = Byte.testbit a.
 Proof. reflexivity. Qed.

@@ -1,7 +1,7 @@
 Require Import floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
-Require sha.SHA256.
+Require Import sha.SHA256.
 Local Open Scope logic.
 
 Require Import sha.spec_sha.

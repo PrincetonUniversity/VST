@@ -219,3 +219,28 @@ unsigned char *HMAC(//fixed to SHA256: EVP_MD *evp_md,
 	return(md);
 	}
 
+unsigned char *HMAC2(//fixed to SHA256: EVP_MD *evp_md,
+                    unsigned char *key, int key_len, 
+                    unsigned char *d, int n, 
+                    unsigned char *md)
+                    //always 64, unsigned int *md_len)
+	{
+	HMAC_CTX c;
+	//static unsigned char m[EVP_MAX_MD_SIZE];
+	static unsigned char m[2*SHA256_DIGEST_LENGTH];
+
+	if (md == NULL) md=m;
+
+	//first round 
+        HMAC_Init(&c, key, key_len);
+	HMAC_Update(&c,d,n);
+	HMAC_Final(&c,md); 
+
+	//second round 
+        HMAC_Init(&c, key, key_len); //only performs memcpy
+	HMAC_Update(&c,d,n);
+	HMAC_Final(&c,md+SHA256_DIGEST_LENGTH); 
+	HMAC_cleanup(&c);
+	return(md);
+	}
+
