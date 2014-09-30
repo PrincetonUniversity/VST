@@ -195,14 +195,20 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
+COQVERSION=8.4pl3 or-else 8.4pl4
+COQV=$(shell $(COQC) -v)
+ifeq ("$(filter $(COQVERSION),$(COQV))","")
+$(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+endif
+
 #compcert/%.vo: compcert/%.v
 #	()
 
 default_target: msl veric floyd progs
 
-all:     .loadpath $(FILES:.v=.vo) version.vo
+all:     .loadpath version.vo $(FILES:.v=.vo)
 
-msl:     .loadpath $(MSL_FILES:%.v=msl/%.vo)
+msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 linking: .loadpath linking/linking_proof.vo $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
