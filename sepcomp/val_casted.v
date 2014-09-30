@@ -28,9 +28,10 @@ Inductive val_casted: val -> type -> Prop :=
   | val_casted_int: forall sz si attr n,
       cast_int_int sz si n = n ->
       val_casted (Vint n) (Tint sz si attr)
-  | val_casted_float: forall sz attr n,
-      cast_float_float sz n = n ->
-      val_casted (Vfloat n) (Tfloat sz attr)
+  | val_casted_float: forall attr n,
+      val_casted (Vfloat n) (Tfloat F64 attr)
+  | val_casted_single: forall attr n,
+      val_casted (Vsingle n) (Tfloat F32 attr)
   | val_casted_long: forall si attr n,
       val_casted (Vlong n) (Tlong si attr)
   | val_casted_ptr_ptr: forall b ofs ty attr,
@@ -55,9 +56,8 @@ Definition val_casted_func (v : val) (t : type) : bool :=
     | Vint n, Tint sz si attr => 
       if Int.eq_dec (cast_int_int sz si n) n then true
       else false
-    | Vfloat n, Tfloat sz attr => 
-      if Float.eq_dec (cast_float_float sz n) n then true
-      else false
+    | Vfloat n, Tfloat F64 attr =>  true
+    | Vsingle n, Tfloat F32 attr =>  true
     | Vlong n, Tlong si attr => true
     | Vptr b ofs, Tpointer ty attr => true
     | Vint n, Tpointer ty attr => true
@@ -76,7 +76,6 @@ Lemma val_casted_funcI v t :
 Proof.
 destruct 1; simpl; auto.
 rewrite H. case_eq (Int.eq_dec n n); auto.
-rewrite H. case_eq (Float.eq_dec n n); auto.
 destruct v; auto.
 Qed.
 
@@ -87,8 +86,8 @@ Proof.
 destruct v; destruct t; simpl; try solve[inversion 1;econstructor; eauto].
 case_eq (Int.eq_dec (cast_int_int i0 s i) i). intros e _ _.
 constructor; auto. intros n _; inversion 1.
-case_eq (Float.eq_dec (cast_float_float f0 f) f). intros e _ _.
-constructor; auto. intros n _; inversion 1.
+destruct f0; intros; try discriminate; constructor.
+destruct f0; intros; try discriminate; constructor.
 destruct i0; try inversion 1. constructor.
 Qed.
 
@@ -107,6 +106,7 @@ Proof.
   destruct (Int.eq i Int.zero); auto.
 Qed.
 
+(*
 Remark cast_float_float_idem:
   forall sz f, cast_float_float sz (cast_float_float sz f) = cast_float_float sz f.
 Proof.
@@ -114,25 +114,30 @@ Proof.
   apply Float.singleoffloat_idem; auto.
   auto.
 Qed.
+*)
 
 Lemma cast_val_is_casted:
   forall v ty ty' v', sem_cast v ty ty' = Some v' -> val_casted v' ty'.
 Proof.
   unfold sem_cast; intros. destruct ty'; simpl in *.
-(* void *)
+* (* void *)
   constructor.
-(* int *)
-  destruct i; destruct ty; simpl in H; try discriminate; destruct v; inv H.
+* (* int *)
+  destruct i; destruct ty as [ | | | [ | ] | | | | | | ]; 
+   simpl in H; try discriminate; destruct v; inv H.
   constructor. apply (cast_int_int_idem I8 s).
   constructor. apply (cast_int_int_idem I8 s).
-  destruct (cast_float_int s f0); inv H1.   constructor. apply (cast_int_int_idem I8 s). 
+  destruct (cast_single_int s f); inv H1.   constructor. apply (cast_int_int_idem I8 s).
+  destruct (cast_float_int s f); inv H1.   constructor. apply (cast_int_int_idem I8 s). 
   constructor. apply (cast_int_int_idem I16 s).
   constructor. apply (cast_int_int_idem I16 s).
-  destruct (cast_float_int s f0); inv H1.   constructor. apply (cast_int_int_idem I16 s). 
+  destruct (cast_single_int s f); inv H1.   constructor. apply (cast_int_int_idem I16 s). 
+  destruct (cast_float_int s f); inv H1.   constructor. apply (cast_int_int_idem I16 s). 
   constructor. auto.
   constructor.
-  constructor. auto. 
-  destruct (cast_float_int s f0); inv H1. constructor. auto.
+  constructor. auto.
+   destruct (cast_single_int s f); inv H1. constructor. auto.
+  destruct (cast_float_int s f); inv H1. constructor. auto.
   constructor. auto.
   constructor.
   constructor; auto.
@@ -143,7 +148,8 @@ Proof.
   constructor; auto.
   constructor. simpl. destruct (Int.eq i0 Int.zero); auto.
   constructor. simpl. destruct (Int64.eq i Int64.zero); auto.
-  constructor. simpl. destruct (Float.cmp Ceq f0 Float.zero); auto.
+  constructor. simpl. destruct (Float32.cmp Ceq f Float32.zero); auto.
+  constructor. simpl. destruct (Float.cmp Ceq f Float.zero); auto.
   constructor. simpl. destruct (Int.eq i Int.zero); auto.
   constructor; auto.
   constructor. simpl. destruct (Int.eq i Int.zero); auto.
@@ -152,36 +158,35 @@ Proof.
   constructor; auto.
   constructor. simpl. destruct (Int.eq i0 Int.zero); auto.
   constructor; auto.
-(* long *)
-  destruct ty; try discriminate.
+* (* long *)
+  destruct ty as [ | | | [ | ] | | | | | | ]; try discriminate.
   destruct v; inv H. constructor.
   destruct v; inv H. constructor.
-  destruct v; try discriminate. destruct (cast_float_long s f0); inv H. constructor.
+  destruct v; try discriminate. destruct (cast_single_long s f); inv H. constructor.
+  destruct v; try discriminate. destruct (cast_float_long s f); inv H. constructor.
   destruct v; inv H. constructor.
   destruct v; inv H. constructor.
   destruct v; inv H. constructor.
   destruct v; inv H. constructor.
-(* float *)
-  destruct ty; simpl in H; try discriminate; destruct v; inv H.
-  constructor. unfold cast_float_float, cast_int_float.
-  destruct f; destruct s; auto.
-  rewrite Float.singleofint_floatofint. apply Float.singleoffloat_idem.
-  rewrite Float.singleofintu_floatofintu. apply Float.singleoffloat_idem.
-  constructor. unfold cast_float_float, cast_long_float.
-  destruct f; destruct s; auto. apply Float.singleoflong_idem. apply Float.singleoflongu_idem.
-  constructor. apply cast_float_float_idem.
-(* pointer *)
+* (* float *)
+  destruct f.
+  destruct ty as [ | | | [ | ] | | | | | | ]; simpl in H; try discriminate; destruct v; inv H;
+   try solve [constructor].
+  destruct ty as [ | | | [ | ] | | | | | | ]; simpl in H; try discriminate; destruct v; inv H;
+   try solve [constructor].
+* (* pointer *)
   destruct ty; simpl in H; try discriminate; destruct v; inv H; try constructor.
-(* impossible cases *)
+* (* impossible cases *)
   discriminate.
+* 
   discriminate.
-(* structs *)
+* (* structs *)
   destruct ty; try discriminate; destruct v; try discriminate.
   destruct (ident_eq i0 i && fieldlist_eq f0 f); inv H; constructor.
-(* unions *)
+* (* unions *)
   destruct ty; try discriminate; destruct v; try discriminate.
   destruct (ident_eq i0 i && fieldlist_eq f0 f); inv H; constructor.
-(* comp_ptr *)
+* (* comp_ptr *)
   destruct ty; simpl in H; try discriminate; destruct v; inv H; constructor.
 Qed.
 
@@ -197,7 +202,8 @@ Proof.
   clear H1. inv H0. auto.
   inversion H0; clear H0; subst chunk. simpl in *. 
   destruct (Int.eq n Int.zero); subst n; reflexivity.
-  destruct sz; inversion H0; clear H0; subst chunk; simpl in *; congruence.
+  inversion H0; clear H0; subst chunk; simpl in *; congruence.
+  inversion H0; clear H0; subst chunk; simpl in *; congruence.
   inv H0; auto.
   inv H0; auto.
   inv H0; auto.
@@ -214,7 +220,6 @@ Lemma cast_val_casted:
 Proof.
   intros. inversion H; clear H; subst v ty; unfold sem_cast; simpl; auto.
   destruct sz; congruence.
-  congruence.
   unfold proj_sumbool; repeat rewrite dec_eq_true; auto.
   unfold proj_sumbool; repeat rewrite dec_eq_true; auto.
 Qed.
@@ -293,19 +298,30 @@ Definition val_has_type_func (v : val) (t : typ) : bool :=
     | Vundef => true
     | Vint _ => match t with
                   | AST.Tint => true
+                  | AST.Tany32 => true
+                  | AST.Tany64 => true
                   | _ => false
                 end
     | Vlong _ => match t with 
                  | AST.Tlong => true
+                 | AST.Tany64 => true
                  | _ => false
                end
     | Vfloat f => match t with 
                     | AST.Tfloat => true
-                    | Tsingle => if Float.is_single_dec f then true else false
+                    | AST.Tany64 => true
+                    | _ => false
+                  end
+    | Vsingle f => match t with 
+                    | AST.Tsingle => true
+                    | AST.Tany32 => true
+                    | AST.Tany64 => true
                     | _ => false
                   end
     | Vptr _ _ => match t with
                     | AST.Tint => true
+                    | AST.Tany32 => true
+                    | AST.Tany64 => true
                     | _ => false
                   end
   end.
@@ -317,13 +333,14 @@ split.
 induction v; auto.
 simpl. destruct t; auto.
 simpl. destruct t; auto.
-simpl. destruct t; auto. destruct (Float.is_single_dec f); auto.
+simpl. destruct t; auto. 
+simpl. destruct t; auto.
 simpl. destruct t; auto.
 induction v; simpl; auto.
 destruct t; auto; try inversion 1.
 destruct t; auto; try inversion 1.
 destruct t; auto; try solve[inversion 1].
-destruct (Float.is_single_dec f); try solve[inversion 1|auto].
+destruct t; auto. inversion 1. inversion 1. inversion 1.
 destruct t; auto. inversion 1. inversion 1. inversion 1.
 Qed.
 
@@ -372,6 +389,7 @@ Lemma vals_inject_defined (vl1 vl2 : list val) (j : meminj) :
 Proof.
 revert vl2; induction vl1; simpl. destruct vl2; try solve[inversion 1|auto].
 intros vl2; inversion 1; subst. destruct a; try solve[inversion 1].
+inv H. inv H5. simpl. intros X. rewrite (IHvl1 vl'); auto.
 inv H. inv H5. simpl. intros X. rewrite (IHvl1 vl'); auto.
 inv H. inv H5. simpl. intros X. rewrite (IHvl1 vl'); auto.
 inv H. inv H5. simpl. intros X. rewrite (IHvl1 vl'); auto.
@@ -485,8 +503,10 @@ destruct tyl; simpl; [solve[constructor]|]. solve[destruct t; auto].
 destruct tyl; simpl; [solve[constructor]|]. destruct t.
 solve[constructor; auto]. 
 solve[constructor; auto].
-inv H. solve[auto]. constructor; auto. solve[auto]. solve[auto].
+inv H. solve[auto]. constructor; auto. solve[auto]. solve[auto]. solve[auto].
 destruct v'; solve[auto|constructor; auto].
+solve[constructor; auto].
+solve[constructor; auto].
 solve[constructor; auto].
 Qed.
 
@@ -512,6 +532,7 @@ destruct (
            | Vint _ => L
            | Vlong _ => L
            | Vfloat _ => L
+           | Vsingle _ => L
            | Vptr b' _ => b' :: L
            end) nil vl)
 ); auto.
@@ -533,6 +554,10 @@ Proof.
   rewrite orb_true_iff. right. solve[eapply IHvals; eauto].
   rewrite orb_true_iff in H. destruct H. rewrite H; auto. 
     rewrite orb_true_iff. right. solve[eapply IHvals; eauto].
+  rewrite orb_true_iff in H. destruct H. rewrite H; auto. 
+    rewrite orb_true_iff. right. solve[eapply IHvals; eauto].
+  rewrite orb_true_iff in H. destruct H. rewrite H; auto. 
+    rewrite orb_true_iff. right. solve[eapply IHvals; eauto].
 Qed.
 
 Lemma val_casted_has_type a t :
@@ -543,9 +568,6 @@ Proof.
 intros H0 H.
 apply val_casted_funcE in H.
 induction H; try solve[auto].
-destruct H. destruct sz. simpl. 
-generalize (Float.singleoffloat_is_single n0).
-destruct (Float.is_single_dec (Float.singleoffloat n0)); auto. auto.
 simpl in H0. congruence.
 Qed.
 

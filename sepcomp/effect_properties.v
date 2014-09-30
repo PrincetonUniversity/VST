@@ -907,7 +907,7 @@ Proof. intros. eexists; eexists; eexists.
             destruct (eq_block b1 b1); trivial. exfalso. apply n; trivial.              
           rewrite R. trivial.
     split. rewrite replace_locals_shared.
-         (*goal Mem.mem_inj*) 
+    *     (*goal Mem.mem_inj*) 
            split; intros. 
            (*subgoal mi_perm*) apply halted_loc_check_aux in H; trivial. 
              eapply MInj; try eassumption.
@@ -916,8 +916,12 @@ Proof. intros. eexists; eexists; eexists.
            (*subgoal mi_memval*)
              assert (X:= halted_loc_check_aux _ _ _ _ _ _ WD H); trivial.
              assert (MV:= Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ MInj) _ _ _ _ X H0). clear X.
-             inv MV; try econstructor; try reflexivity.
-                   apply joinI.
+             inv MV.
+             + econstructor; try reflexivity.
+             + econstructor.
+                inv H3; econstructor; try reflexivity.
+                admit. (*
+                  auto. apply joinI.
                    destruct (joinD_Some _ _ _ _ _ H3) as [FRG | [FRG LOC]]; clear H3; rewrite FRG.
                      left; reflexivity.
                      right; split; trivial.
@@ -939,20 +943,22 @@ Proof. intros. eexists; eexists; eexists.
                           eexists. eapply reach_cons. apply RL. 
                           eassumption. rewrite <- H1. reflexivity.
                           rewrite H11. trivial.
-    intros. rewrite replace_locals_shared.
+               *)
+             + constructor.
+ * intros. rewrite replace_locals_shared.
             assert (LV:= Mem.mi_freeblocks _ _ _ MInj _ H).
             apply joinD_None in LV. destruct LV as [FRG LOC].
             apply joinI_None. trivial.
             rewrite LOC.
             destruct (locBlocksSrc mu b && REACH m1 (exportedSrc mu (v1 :: nil)) b); trivial.
-    intros. rewrite replace_locals_shared in H.
+ *  intros. rewrite replace_locals_shared in H.
             eapply (Mem.mi_mappedblocks _ _ _ MInj b b' delta).
             apply halted_loc_check_aux in H; trivial.
-    rewrite replace_locals_shared. intros b1; intros. 
+ *  rewrite replace_locals_shared. intros b1; intros. 
             apply halted_loc_check_aux in H0; trivial.
             apply halted_loc_check_aux in H1; trivial.
             eapply MInj; eassumption.
-    rewrite replace_locals_shared; intros.
+ *  rewrite replace_locals_shared; intros.
             apply halted_loc_check_aux in H; trivial.
             eapply MInj; eassumption. 
 Qed.
@@ -1147,13 +1153,47 @@ Proof. intros m R L.
       subst. apply (Hzz3 _ _ H H1).
 Qed. 
 
+
+Lemma inj_value_lem27:
+  forall q v bl bl' v' q' n,
+   inj_value q v = bl ++ Fragment v' q' n :: bl' ->
+   v = v'.
+Proof.
+intros.
+unfold inj_value, inj_value_rec in H; destruct q; simpl in H.
+destruct bl; inv H; auto.
+destruct bl; inv H2; auto.
+destruct bl; inv H1; auto.
+destruct bl; inv H2; auto.
+destruct bl; inv H1.
+destruct bl; inv H; auto.
+destruct bl; inv H2; auto.
+destruct bl; inv H1; auto.
+destruct bl; inv H2; auto.
+destruct bl; inv H1; auto.
+destruct bl; inv H2; auto.
+destruct bl; inv H1; auto.
+destruct bl; inv H2; auto.
+destruct bl; inv H1.
+Qed. 
+
+Lemma inj_bytes_lem27:
+  forall b bl b' ofs' q n bl',
+   inj_bytes b = bl ++ Fragment (Vptr b' ofs') q n :: bl' -> False.
+Proof.
+intros.
+revert b H; induction bl; destruct b; intros; inv H.
+apply IHbl in H2. auto.
+Qed.
+
 Lemma encode_val_pointer_inv':
-  forall chunk v b ofs n B1 mvl,
-  encode_val chunk v = B1++Pointer b ofs n :: mvl ->
-  chunk = Mint32 /\ v = Vptr b ofs.
+  forall chunk v b ofs q n B1 mvl,
+  encode_val chunk v = B1 ++ Fragment (Vptr b ofs) q n :: mvl ->
+  (chunk = Mint32 \/ chunk=Many32 \/ chunk=Many64) /\ v = Vptr b ofs.
 Proof.
   intros until B1.
-  assert (A: forall mvl, list_repeat (size_chunk_nat chunk) Undef = B1++Pointer b ofs n :: mvl ->
+  assert (A: forall mvl, list_repeat (size_chunk_nat chunk) Undef =
+            B1++ Fragment (Vptr b ofs) q n :: mvl ->
             chunk = Mint32 /\ v = Vptr b ofs).
     intros. destruct (size_chunk_nat_pos chunk) as [sz SZ]. rewrite SZ in H. simpl in H.
          clear SZ. generalize dependent sz. 
@@ -1162,7 +1202,7 @@ Proof.
            destruct sz; simpl in *. destruct B1; inv H2.
          apply (IHB1 _ H2).
   intros mvl.
-  assert (B: forall bl, inj_bytes bl = B1++Pointer b ofs n :: mvl ->
+  assert (B: forall bl, inj_bytes bl = B1++ Fragment (Vptr b ofs) q n :: mvl ->
             chunk = Mint32 /\ v = Vptr b ofs).
     clear A. intros bl. generalize dependent B1.
        induction bl. simpl; intros. destruct B1; inv H.
@@ -1171,32 +1211,10 @@ Proof.
        inv H. eapply IHbl. eassumption.  
   intros.
   specialize (A mvl).
-  unfold encode_val; destruct v; destruct chunk; 
-  (apply A; assumption) ||
-  (eapply B; rewrite encode_int_length; congruence) || idtac.
-
-  eapply B. simpl in H. eassumption.
-  eapply B. simpl in H. eassumption.
-  eapply B. simpl in H. eassumption.
-  eapply B. simpl in H. eassumption.
-  eapply B. simpl in H. eassumption.
-  eapply B. simpl in H. eassumption.
-  eapply B. simpl in H. eassumption.
-  eapply B. simpl in H. eassumption.
-  simpl in H. clear -H.
-  assert (forall L, (forall mv, In mv L -> exists n, mv = Pointer b0 i n) ->
-          forall  mv, In mv L -> exists n, mv = Pointer b0 i n).
-    intros. apply H0. trivial.
-  assert (exists k, Pointer b ofs n = Pointer b0 i k).
-    apply (H0 (B1 ++ Pointer b ofs n :: mvl)).
-    intros. rewrite <- H in H1. clear -H1.
-    destruct H1. subst. eexists; reflexivity.
-    destruct H. subst. eexists; reflexivity.
-    destruct H. subst. eexists; reflexivity.
-    destruct H. subst. eexists; reflexivity.
-    inv H.
-  apply in_or_app. right. left. trivial.
-  destruct H1. inv H1. split; trivial.
+  unfold encode_val; destruct v; destruct chunk;
+  try solve [destruct A; auto];
+  try solve [apply inj_value_lem27 in H; inv H; auto];
+  try (contradiction (inj_bytes_lem27 _ _ _ _ _ _ _ H)).
 Qed.
 
 Lemma list_split: forall {A} n (L:list A) (Hn : (n < length L)%nat),
@@ -1231,7 +1249,7 @@ destruct Hbb as [L HL].
 destruct (reachD'' _ _ _ _ HL) as [r [M [Rr [RCH HM]]]]; clear HL L.
 destruct (eq_block r b); subst. 
 (*we stored into the root of the access path to bb*)
-  clear VISb.
+* clear VISb.
   generalize dependent bb.
   induction M; simpl in *; intros.
   inv RCH. congruence. 
@@ -1284,14 +1302,14 @@ destruct (eq_block r b); subst.
           rewrite EE in *. rewrite <- LL in H4.
           intros. apply H1 in H0. clear H1.
           rewrite <- H0 in H4. clear H0. subst u.
-          destruct (encode_val_pointer_inv' _ _ _ _ _ _ _ EE).
+          destruct (encode_val_pointer_inv' _ _ _ _ _ _ _ _ EE).
           subst.
           rewrite VISv in HeqRb. discriminate.
              rewrite getBlocks_char. exists off; left. trivial.
   destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
     subst.
-    remember (Roots b') as q.
-    destruct q; apply eq_sym in Heqq.
+    remember (Roots b') as qq eqn:Heqq.
+    destruct qq; apply eq_sym in Heqq.
       assert (b' = b). apply (Hzz3 _ z Heqq). left; trivial.
       subst. elim (Hzz2 z). apply in_or_app. right. left. trivial.
     destruct (eq_block b' b); try congruence.
@@ -1306,6 +1324,7 @@ destruct (eq_block r b); subst.
         destruct Hb' as [L HL].
           eexists. eapply reach_cons; try eassumption.  
 (*we stored elsewhere*)
+*
 generalize dependent bb.
 induction M; simpl in *; intros.
   inv RCH. congruence. 
@@ -1320,8 +1339,8 @@ induction M; simpl in *; intros.
            apply reach_nil. assumption.
   destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
     subst.
-    remember (Roots b') as q.
-    destruct q; apply eq_sym in Heqq.
+    remember (Roots b') as qq eqn:Heqq.
+    destruct qq; apply eq_sym in Heqq.
       assert (b' = r). apply (Hzz3 _ z Heqq). left; trivial.
       subst. 
         rewrite PMap.gso in H4; trivial.
@@ -1343,7 +1362,7 @@ Qed.
 Lemma REACH_Storebytes: forall m b i bytes m'
      (ST: Mem.storebytes m b i bytes = Some m')
      Roots (VISb: Roots b = true)
-     (VISv : forall b' z n, In (Pointer b' z n) bytes -> 
+     (VISv : forall b' z q n, In (Fragment (Vptr b' z) q n) bytes -> 
              Roots b' = true)
      (R: REACH_closed m Roots),
      REACH_closed m' Roots.
@@ -1408,12 +1427,12 @@ destruct (eq_block r b); subst.
           intros. apply H1 in H0. clear H1.
           rewrite <- H0 in H4. clear H0. subst u.
           subst.
-          rewrite (VISv bb off n) in HeqRb. discriminate.
+          rewrite (VISv bb off q n) in HeqRb. discriminate.
              eapply in_or_app. right. left. trivial.
   destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
     subst.
-    remember (Roots b') as q.
-    destruct q; apply eq_sym in Heqq.
+    remember (Roots b') as qq eqn:Heqq.
+    destruct qq; apply eq_sym in Heqq.
       assert (b' = b). apply (Hzz3 _ z Heqq). left; trivial.
       subst. elim (Hzz2 z). apply in_or_app. right. left. trivial.
     destruct (eq_block b' b); try congruence.
@@ -1442,8 +1461,8 @@ induction M; simpl in *; intros.
            apply reach_nil. assumption.
   destruct HM as [zz [Hzz1 [Hzz2 Hzz3]]].
     subst.
-    remember (Roots b') as q.
-    destruct q; apply eq_sym in Heqq.
+    remember (Roots b') as qq eqn:Heqq.
+    destruct qq; apply eq_sym in Heqq.
       assert (b' = r). apply (Hzz3 _ z Heqq). left; trivial.
       subst. 
         rewrite PMap.gso in H4; trivial.
@@ -1473,6 +1492,7 @@ Proof.
     split. omega. destruct chunk; simpl; omega.
     apply Mem.load_result in LD. 
     apply eq_sym in LD. 
+Require Import sepcomp.mem_wd.
     destruct (decode_val_pointer_inv _ _ _ _ LD); clear LD; subst.
     simpl in *.
     inv H0. eassumption. 

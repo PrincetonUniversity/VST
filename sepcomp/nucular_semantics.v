@@ -46,9 +46,10 @@ assert (A: Mem.flat_inj (Mem.nextblock m) b' = Some (b',0)).
   elimtype False; apply p; apply IHL. }
 destruct H; specialize (mi_memval _ _ _ _ A H4).
 rewrite H6 in mi_memval; inversion mi_memval; subst.
-revert H1; unfold Mem.flat_inj.
-case_eq (plt b (Mem.nextblock m)); auto.
-intros p _; inversion 1.
+unfold Mem.flat_inj in H0.
+inv H0.
+destruct (plt b (Mem.nextblock m)) eqn:?; auto.
+inv H5.
 Qed.
 
 Lemma mem_wd_reach_globargs F V (ge : Genv.t F V) vs m : 
@@ -85,10 +86,10 @@ assert (A: Mem.flat_inj (Mem.nextblock m) b' = Some (b',0)).
 specialize (mi_memval _ _ _ _ A H6).
 rewrite H8 in mi_memval.
 inversion mi_memval; subst.
-unfold Mem.flat_inj in H4.
-generalize H4.
-case_eq (plt b (Mem.nextblock m)); auto.
-intros p _; inversion 1.
+inv H0.
+unfold Mem.flat_inj in H7.
+destruct (plt b (Mem.nextblock m)) eqn:?; auto.
+inv H7.
 Qed.
 
 Module Nuke_sem. Section nucular_semantics.
