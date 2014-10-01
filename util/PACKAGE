@@ -9,13 +9,14 @@
 svn co https://svn.princeton.edu/appel/vst --depth files
 (cd vst; svn co https://svn.princeton.edu/appel/vst/compcert)
 (cd vst; svn co https://svn.princeton.edu/appel/vst/msl)
-(cd vst; svn co https://svn.princeton.edu/appel/vst/sepcomp)
+(cd vst; svn co https://svn.princeton.edu/appel/vst/sepcomp --depth files)
 (cd vst; svn co https://svn.princeton.edu/appel/vst/veric)
 (cd vst; svn co https://svn.princeton.edu/appel/vst/floyd)
 (cd vst; svn co https://svn.princeton.edu/appel/vst/progs)
 (cd vst; svn co https://svn.princeton.edu/appel/vst/examples)
 (cd vst; svn co https://svn.princeton.edu/appel/vst/util)
-(cd vst; svn co https://svn.princeton.edu/appel/vst/doc/VerifiableC.pdf)
+(cd vst; svn co https://svn.princeton.edu/appel/vst/doc --depth empty)
+(cd vst/doc; svn update VerifiableC.pdf)
 (cd vst; sh util/make_version)
 rm -rf util vst/.svn vst/*/.svn
 echo "COMPRESSING: tar cfz vst"-`cat vst/VERSION`".tgz vst"
