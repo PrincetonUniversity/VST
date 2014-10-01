@@ -34,9 +34,6 @@ Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
 Proof.
 start_function.
 name i _i.
-destruct v as [x1 [y1 y2]].
-(*unfold_data_at 1%nat. unfold_field_at 2%nat. *)
-rewrite data_at_field_at.
 forward.
 forward.
 entailer!.
@@ -46,7 +43,6 @@ Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
 Proof.
  start_function.
 name i_ _i.
-rewrite data_at_field_at.
 forward.
 forward.
 entailer!.

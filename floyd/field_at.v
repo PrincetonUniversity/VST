@@ -419,6 +419,14 @@ Proof.
   apply pred_ext; normalize.
 Qed.
 
+Lemma data_at__field_at_: forall sh t, data_at_ sh t = field_at_ sh t nil.
+Proof.
+  intros.
+  unfold data_at_, field_at_.
+  rewrite data_at_field_at.
+  reflexivity.
+Qed.
+
 Lemma data_at_field_at_cancel:
   forall sh t v p, data_at sh t v p |-- field_at sh t nil v p.
 Proof. intros; rewrite data_at_field_at; auto. Qed.

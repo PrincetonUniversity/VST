@@ -1490,6 +1490,7 @@ Ltac try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS V:=
       assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (R0 :: nil))) 
          |-- (`(field_at sh (typeof e) ids0 v) (eval_lvalue e))) as H;
       [unfold sh, ids0, v;
+       try rewrite !(data_at_field_at SH);
        instantiate (2 := IDS);
        assert (IDS = skipn (length ids - length IDS) ids) as _ by reflexivity;
        simpl skipn; subst e ids tts;
@@ -1505,6 +1506,16 @@ Ltac new_instantiate_load P Q R Rnow Delta e ids tts sh ids0 v n N H:=
   match Rnow with
   | ?R0 :: ?Rnow' => 
     match R0 with
+    | `(data_at ?SH _ ?V _) => 
+      try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH (@nil ident) V
+    | `(data_at ?SH _ ?V) _ => 
+      try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH (@nil ident) V
+    | `(data_at_ ?SH ?TY _) => 
+      try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH (@nil ident)
+      (default_val (nested_field_type2 TY nil))
+    | `(data_at_ ?SH ?TY) _ => 
+      try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH (@nil ident)
+      (default_val (nested_field_type2 TY nil))
     | `(field_at ?SH _ ?IDS ?V _) =>
       try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS V
     | `(field_at ?SH _ ?IDS ?V) _ => 
@@ -1523,6 +1534,7 @@ Ltac try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS V:=
       assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (R0 :: nil))) 
          |-- (`(field_at sh (typeof e) ids0) v (eval_lvalue e))) as H;
       [unfold sh, ids0, v;
+       try rewrite !data_at_field_at; (* move to somewhere later? *)
        instantiate (2 := IDS);
        assert (IDS = skipn (length ids - length IDS) ids) as _ by reflexivity;
        simpl skipn; subst e ids tts;
@@ -1542,6 +1554,18 @@ Ltac new_instantiate_store P Q R Rnow Delta e ids tts sh ids0 v n N H:=
   match Rnow with
   | ?R0 :: ?Rnow' => 
     match R0 with
+    | `(data_at ?SH ?TY ?V _) => 
+      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident) (` V)
+    | `(data_at ?SH ?TY ?V) _ => 
+      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident) (` V)
+    | `(data_at ?SH ?TY) ?V _ => 
+      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident) V
+    | `(data_at_ ?SH ?TY _) => 
+      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident)
+      (`(default_val (nested_field_type2 TY nil)))
+    | `(data_at_ ?SH ?TY) _ => 
+      try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY (@nil ident)
+      (`(default_val (nested_field_type2 TY nil)))
     | `(field_at ?SH ?TY ?IDS ?V _) =>
       try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS (` V)
     | `(field_at ?SH ?TY ?IDS ?V) _ => 
@@ -1936,9 +1960,34 @@ match goal with
     | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
            |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
     end;
-    eapply (semax_nested_efield_field_store_nth Delta sh SE n);
-    [reflexivity | reflexivity | simpl; auto | reflexivity
-    | reflexivity | reflexivity | exact Heq | exact H | auto | solve[entailer!] ]
+    match type of H with
+    | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) |-- _) =>
+      match R0 with
+      | appcontext [field_at] =>
+        eapply (semax_nested_efield_field_store_nth Delta sh SE n);
+        [reflexivity | reflexivity | simpl; auto | reflexivity
+        | reflexivity | reflexivity | exact Heq | exact H | auto | solve[entailer!] ]
+      | appcontext [field_at_] =>
+        eapply (semax_nested_efield_field_store_nth Delta sh SE n);
+        [reflexivity | reflexivity | simpl; auto | reflexivity
+        | reflexivity | reflexivity | exact Heq | exact H | auto | solve[entailer!] ]
+      | _ => 
+        eapply semax_post'; [ | eapply (semax_nested_efield_field_store_nth Delta sh SE n);
+        [reflexivity | reflexivity | simpl; auto | reflexivity
+        | reflexivity | reflexivity | exact Heq | exact H | auto | solve[entailer!] ]];
+        match goal with
+        | |- appcontext [replace_nth _ _ ?M] => 
+          let EQ := fresh "EQ" in
+          let MM := fresh "MM" in
+             remember M as MM eqn:EQ;
+             try rewrite <- data_at__field_at_ in EQ;
+             try rewrite <- data_at_field_at in EQ;
+             subst MM
+        end
+      end
+    end
+
+  
 (*
 
 
