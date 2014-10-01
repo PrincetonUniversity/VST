@@ -1,9 +1,10 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
+Require Import floyd.fieldlist.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.data_at_lemmas.
-Require Import floyd.field_mapsto.
+Require Import floyd.field_at.
 Require Import floyd.entailer.
 Require Import floyd.closed_lemmas.
 Require Import floyd.loadstore_lemmas.
@@ -1062,7 +1063,7 @@ Module Test.
     reflexivity.
   Qed.
 End Test.
-
+(*
 Definition precise : mpred -> Prop := msl.predicates_sl.precise.
 
 Lemma mapsto_precise: forall sh t v p, precise (mapsto sh t p v).
@@ -1229,7 +1230,7 @@ Proof.
   simpl.
   apply precise_prop_andp, data_at'_precise.
 Qed.
-
+*)
 Lemma is_Fnil_fieldlist_app:
   forall f1 f2, is_Fnil (fieldlist_app f1 f2) = true -> is_Fnil f1 = true /\ is_Fnil f2 = true.
 Proof.

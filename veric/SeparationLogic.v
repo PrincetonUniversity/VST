@@ -254,6 +254,12 @@ Definition align_compatible t p :=
   | _ => True
   end.
 
+Definition size_compatible t p :=
+  match p with
+  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof t <= Int.modulus
+  | _ => True
+  end.
+
 Definition var_block (sh: Share.t) (idt: ident * type) : environ->mpred :=
       !! (sizeof  (snd idt) <= Int.max_unsigned) &&
   local (` (align_compatible (snd idt)) (eval_var (fst idt) (snd idt))) &&

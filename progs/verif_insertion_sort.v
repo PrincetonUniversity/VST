@@ -1,7 +1,6 @@
 Require Import floyd.proofauto.
 Require Import progs.list_dt.
 Require Import progs.insertionsort.
-Import ListNotations.
 Require Import Sorted.
 Require Import Omega.
 Require Import Permutation.

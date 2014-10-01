@@ -1,14 +1,20 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
-Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.compare_lemmas.
 Require Import floyd.nested_field_lemmas.
+Require Import floyd.mapsto_memory_block.
 Require Import floyd.data_at_lemmas.
+Require Import floyd.field_at.
 Require Import floyd.loadstore_lemmas.
 Require Import Coq.Logic.JMeq.
 Local Open Scope logic.
+
+Lemma tc_val_Vundef:
+  forall t, ~ tc_val t Vundef.
+Proof. destruct t as [ | | | [ | ] |  | | | | | ]; intro H; inv H.
+Qed.
 
 Lemma ZnthV_map_Vint_is_int:
   forall l i, 0 <= i < Zlength l -> is_int (ZnthV tint (map Vint l) i).
@@ -1482,7 +1488,6 @@ intros until 2. intros BYVAL LAT H1 TCV RANGE H2.
  destruct f; reflexivity.
  reflexivity.
 Qed.
-
 
 Lemma semax_loadstore_array:
   forall {Espec: OracleKind},

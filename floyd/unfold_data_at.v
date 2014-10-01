@@ -1,9 +1,9 @@
-Require Import msl.is_prop_lemma.
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.data_at_lemmas.
+Require Import floyd.field_at.
 Require Import floyd.array_lemmas.
 Require Import Coq.Logic.JMeq.
 Opaque alignof.

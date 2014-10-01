@@ -4,6 +4,14 @@ Local Open Scope logic.
 
 Arguments sem_cmp c !t1 !t2 valid_pointer / v1 v2.  
 
+Lemma add_andp: forall {A: Type} `{NatDed A} (P Q: A), P |-- Q -> P = P && Q.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply andp_right; normalize.
+  + apply andp_left1; apply derives_refl.
+Qed.
+
 Lemma prop_and {A} {NA: NatDed A}: 
     forall P Q: Prop, prop (P /\ Q) = (prop P && prop Q).
 Proof. intros. apply pred_ext. apply prop_left. intros [? ?]; normalize.
@@ -2782,24 +2790,6 @@ simple eapply saturate_aux21;
  | simple apply derives_extract_prop; intro_if_new
  ].
 
-Lemma mapsto_local_facts:
-  forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! (isptr v1).
-  (* could make this slightly stronger by adding the fact
-     (tc_val t v2 \/ v2=Vundef)  *)
-Proof.
-intros; unfold mapsto.
-destruct (access_mode t); try apply FF_left.
-destruct (type_is_volatile t); try apply FF_left.
-destruct v1; try apply FF_left.
-apply prop_right; split; auto; apply I.
-Qed.
-
-Lemma mapsto__local_facts:
-  forall sh t v1, mapsto_ sh t v1 |-- !! (isptr v1).
-Proof.
-intros; apply mapsto_local_facts.
-Qed.
-Hint Resolve mapsto_local_facts mapsto__local_facts : saturate_local.
 (*********************************************************)
 
 Lemma prop_right_emp {A} {NA: NatDed A}:
@@ -2917,4 +2907,15 @@ Lemma subst_ewand: forall i v (P Q: environ->mpred),
   subst i v (ewand P Q) = ewand (subst i v P) (subst i v Q).
 Proof. reflexivity. Qed.
 Hint Rewrite subst_ewand : subst.
+
+Definition type_is_by_value t :=
+  match t with
+  | Tint _ _ a => True
+  | Tlong _ a => True
+  | Tfloat _ a => True
+  | Tpointer _ a => True
+  | _ => False
+  end.
+
+
 

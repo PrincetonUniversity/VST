@@ -1,7 +1,6 @@
 Require Import floyd.proofauto.
 Require Import progs.list_dt.
 Require Import progs.queue.
-Import ListNotations.
 Local Open Scope logic.
 
 Instance QS: listspec t_struct_elem _next. 

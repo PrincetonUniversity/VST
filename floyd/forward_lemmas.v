@@ -3,7 +3,7 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.data_at_lemmas.
-Require Import floyd.field_mapsto.
+Require Import floyd.field_at.
 Require Import floyd.closed_lemmas.
 Import Cop.
 Local Open Scope logic.

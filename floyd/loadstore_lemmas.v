@@ -3,8 +3,9 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.type_id_env.
+Require Import floyd.mapsto_memory_block.
 Require Import floyd.data_at_lemmas.
-Require Import floyd.field_mapsto.
+Require Import floyd.field_at.
 Require Import floyd.closed_lemmas.
 Require Import Coq.Logic.JMeq.
 
@@ -1108,7 +1109,7 @@ Proof.
       unfold liftx, lift; simpl.
       apply andb_true_iff in H.
       destruct H.
-      rewrite <- field_mapsto.offset_val_force_ptr.
+      rewrite <- offset_val_force_ptr.
       rewrite offset_offset_val, int_add_repr_0_l.
       apply (IHids _ _ H).
 Qed.

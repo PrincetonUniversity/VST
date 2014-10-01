@@ -1,7 +1,7 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
-Require Import floyd.field_mapsto.
 Require Import floyd.assert_lemmas.
+Require Import floyd.mapsto_memory_block.
 Local Open Scope logic.
 
 Fixpoint argtypes (al: list (ident * type)) : list type :=
