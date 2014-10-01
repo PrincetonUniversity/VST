@@ -419,6 +419,16 @@ Proof.
   apply pred_ext; normalize.
 Qed.
 
+Lemma data_at_field_at_cancel:
+  forall sh t v p, data_at sh t v p |-- field_at sh t nil v p.
+Proof. intros; rewrite data_at_field_at; auto. Qed.
+
+Lemma field_at_data_at_cancel:
+  forall sh t v p, field_at sh t nil v p |-- data_at sh t v p.
+Proof. intros; rewrite data_at_field_at; auto. Qed.
+
+Hint Resolve data_at_field_at_cancel field_at_data_at_cancel : cancel.
+
 Lemma field_at_data_at: forall sh t ids v p,
   legal_alignas_type t = true ->
   field_at sh t ids v p = 

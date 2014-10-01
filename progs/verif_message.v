@@ -182,8 +182,8 @@ apply semax_pre with
  (PROP  (isptr buf)
    LOCAL  (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf); `(eq (Vint (Int.repr len))) (eval_id _length))
    SEP 
-   (`(field_at_ sh t_struct_intpair (_x::nil)) (eval_id _p);
-    `(field_at_ sh t_struct_intpair (_y::nil)) (eval_id _p);
+   (`(field_at_ sh t_struct_intpair [_x]) (eval_id _p);
+    `(field_at_ sh t_struct_intpair [_y]) (eval_id _p);
     `prop (`(size_compatible (tarray tint 2)) (eval_id _buf)) &&
     `(array_at tint sh' (ZnthV tint (Vint x1 :: Vint y1:: nil)) 0 2) (eval_id _buf))). Focus 1.
 + unfold_data_at 1%nat.
@@ -482,14 +482,14 @@ apply semax_pre with
                      `(eq buf) (eval_lvalue e_buf);
                      (tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil) (e_p :: e_buf :: nil)))
       SEP
-  (`(field_at sh_obj t_struct_message (_serialize::nil) f) (eval_lvalue e_obj);
+  (`(field_at sh_obj t_struct_message [_serialize] f) (eval_lvalue e_obj);
       `(func_ptr' (serialize_spec msg)) `f;
-    `(field_at sh_obj t_struct_message (_bufsize::nil) (Vint (Int.repr (mf_size msg))))
+    `(field_at sh_obj t_struct_message [_bufsize] (Vint (Int.repr (mf_size msg))))
                             (eval_lvalue e_obj);
      `(serialize_pre msg (v,p,buf,sh_p,sh_buf))
        (make_args' (serialize_fsig msg)
          (eval_exprlist (snd (split (fst (serialize_fsig msg)))) (e_p :: e_buf :: nil)));
-      `(field_at sh_obj t_struct_message (_deserialize::nil) g) (eval_lvalue e_obj)))).
+      `(field_at sh_obj t_struct_message [_deserialize] g) (eval_lvalue e_obj)))).
 admit.  (* might work *)
 apply extract_exists_pre; intro p.
 apply extract_exists_pre; intro buf.
@@ -545,11 +545,11 @@ focus_SEP 3 1.
                                (Tfunction
                                   (Tcons (tptr tvoid)
                                      (Tcons (tptr tuchar) Tnil)) tint cc_default))));
-             `(field_at sh_obj t_struct_message (_serialize::nil))  (eval_id ser)
+             `(field_at sh_obj t_struct_message [_serialize])  (eval_id ser)
                             (eval_lvalue e_obj);
-              `(field_at sh_obj t_struct_message (_bufsize::nil) (Vint (Int.repr (mf_size msg))))
+              `(field_at sh_obj t_struct_message [_bufsize] (Vint (Int.repr (mf_size msg))))
                        (eval_lvalue e_obj);
-               `(field_at sh_obj t_struct_message (_deserialize::nil) g)
+               `(field_at sh_obj t_struct_message [_deserialize] g)
                             (eval_lvalue e_obj)))).
 go_lowerx. subst.
 apply andp_right; auto.
@@ -620,13 +620,13 @@ apply derives_trans with
 ((!!(0 <= len <= mf_size msg) && 
   mf_assert msg sh_buf (eval_lvalue e_buf rho) len v ) *
 mf_restbuf msg sh_buf (eval_lvalue e_buf rho) len *
-field_at sh_obj t_struct_message (_serialize ::nil)
+field_at sh_obj t_struct_message [_serialize]
     (eval_id ser rho) (eval_lvalue e_obj rho)
   *
-field_at sh_obj t_struct_message (_bufsize::nil)
+field_at sh_obj t_struct_message [_bufsize]
     (Vint (Int.repr (mf_size msg))) (eval_lvalue e_obj rho)
   *
-field_at sh_obj t_struct_message (_deserialize::nil) g (eval_lvalue e_obj rho)).
+field_at sh_obj t_struct_message [_deserialize] g (eval_lvalue e_obj rho)).
 repeat apply sepcon_derives; auto.
 apply andp_right; auto.
 eapply derives_trans; [ apply mf_bufprop | ].
@@ -804,8 +804,8 @@ assert (CLY: closed_wrt_vars (eq _des)
 auto 50 with closed.
 focus_SEP 1.
 replace_SEP 0
-  ((`( field_at Tsh t_struct_intpair (_x :: nil) (Vint (Int.repr 1))) (eval_var _q t_struct_intpair) *
-   `( field_at Tsh t_struct_intpair (_y :: nil) (Vint (Int.repr 2))) (eval_var _q t_struct_intpair))
+  ((`( field_at Tsh t_struct_intpair [_x] (Vint (Int.repr 1))) (eval_var _q t_struct_intpair) *
+   `( field_at Tsh t_struct_intpair [_y] (Vint (Int.repr 2))) (eval_var _q t_struct_intpair))
     ).
 unfold_data_at 1%nat.
 entailer!.
@@ -843,13 +843,13 @@ assert (data_at_ Tsh t_struct_intpair (eval_var _buf (tarray tuchar 8) rho) |--
 rename H into HYP. (*remove when simpl_data_at is fixed (explanation in verif_queue)*)
 unfold data_at_ at 2.
 unfold_data_at 3%nat.
-change (field_at Tsh t_struct_intpair (_x :: nil) Vundef
+change (field_at Tsh t_struct_intpair [_x] Vundef
           (eval_var _q t_struct_intpair rho)) with 
-  (field_at_ Tsh t_struct_intpair (_x :: nil)
+  (field_at_ Tsh t_struct_intpair [_x]
           (eval_var _q t_struct_intpair rho)).
-change (field_at Tsh t_struct_intpair (_y :: nil) Vundef
+change (field_at Tsh t_struct_intpair [_y] Vundef
           (eval_var _q t_struct_intpair rho)) with 
-  (field_at_ Tsh t_struct_intpair (_y :: nil)
+  (field_at_ Tsh t_struct_intpair [_y]
           (eval_var _q t_struct_intpair rho)).
 cancel.
 apply sepcon_derives; [cancel |].

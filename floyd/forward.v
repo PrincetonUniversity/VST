@@ -2202,6 +2202,7 @@ Ltac forward_with F1 :=
        ((eapply semax_seq'; 
              [ftac; derives_after_forward
              | unfold replace_nth; cbv beta;
+               simpl proj_reptype; 
                try (apply extract_exists_pre; intro_old_var c);
                abbreviate_semax
              ]) 
@@ -2213,7 +2214,7 @@ Ltac forward_with F1 :=
       normalize_postcondition;
        eapply semax_post_flipped3;
              [ftac; derives_after_forward
-             | try rewrite exp_andp2;
+             | simpl proj_reptype; try rewrite exp_andp2;
                try (apply exp_left; intro_old_var c);
                try rewrite insert_local
              ] 

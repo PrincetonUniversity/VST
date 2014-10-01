@@ -162,8 +162,8 @@ Qed.
 
 Lemma list_cell_eq: forall sh elem,
   list_cell QS sh elem = 
-   field_at sh t_struct_elem (_a::nil) (fst elem) * 
-   field_at sh t_struct_elem (_b::nil) (snd elem). 
+   field_at sh t_struct_elem [_a] (fst elem) * 
+   field_at sh t_struct_elem [_b] (snd elem). 
 Proof. admit. Qed.
 
 Lemma body_fifo_empty: semax_body Vprog Gprog f_fifo_empty fifo_empty_spec.
@@ -308,7 +308,7 @@ forward_if
      normalize.
      apply exp_right with (prefix ++ t :: nil).
      entailer.
-     remember (field_at Tsh t_struct_elem (_next::nil) nullval p') as A. (* prevent it from canceling! *)
+     remember (field_at Tsh t_struct_elem [_next] nullval p') as A. (* prevent it from canceling! *)
      cancel. subst A. 
      eapply derives_trans; [ | apply links_cons_right ].
      cancel.
@@ -447,9 +447,9 @@ forward_call (*  freeN(p, sizeof( *p)); *)
   change 12 with (sizeof t_struct_elem).
   eapply derives_trans; [ | apply sepcon_derives; [| apply derives_refl]].
 
-  instantiate (1:= field_at_ Tsh t_struct_elem (_next :: nil) p' *
-   field_at Tsh t_struct_elem (_a :: nil) (Vint (Int.repr 1)) p' *
-   field_at Tsh t_struct_elem (_b :: nil) (Vint (Int.repr 10)) p'). cancel.
+  instantiate (1:= field_at_ Tsh t_struct_elem [_next] p' *
+   field_at Tsh t_struct_elem [_a] (Vint (Int.repr 1)) p' *
+   field_at Tsh t_struct_elem [_b] (Vint (Int.repr 10)) p'). cancel.
 
   apply derives_trans with (data_at_ Tsh t_struct_elem p'). unfold data_at_. 
   unfold_data_at 1%nat; cancel.

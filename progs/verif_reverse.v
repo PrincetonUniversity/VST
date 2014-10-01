@@ -86,7 +86,7 @@ Definition Gprog : funspecs :=
 
 (** Two little equations about the list_cell predicate *)
 Lemma list_cell_eq: forall sh i,
-   list_cell LS sh (Vint i) = field_at sh t_struct_list (_head::nil) (Vint i).
+   list_cell LS sh (Vint i) = field_at sh t_struct_list [_head] (Vint i).
 Proof.
   intros.
   unfold list_cell; extensionality p; simpl.
@@ -199,8 +199,9 @@ focus_SEP 1; apply semax_lseg_nonnull;
 subst cts2.
 forward.  (* t = v->tail; *)
 forward. (*  v->tail = w; *)
-simpl eval_lvalue.
-replace_SEP 1 (`(field_at sh t_struct_list (_tail::nil) w v)).
+simpl eval_lvalue. simpl proj_reptype.
+normalize.
+replace_SEP 1 (`(field_at sh t_struct_list [_tail] w v)).
 entailer.
 forward.  (*  w = v; *)
 forward.  (* v = t; *)
