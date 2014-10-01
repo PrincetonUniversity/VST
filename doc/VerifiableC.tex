@@ -1981,7 +1981,7 @@ Then these assertions are all equivalent:
 mapsto $\pi$ tint p h * 
     mapsto $\pi$ (tptr t_struct_list) (offset_val p (Vint (Int.repr 4))) t
 
-field_at $\pi$ t_struct_list (_head::nil) h p * field_at $\pi$ t_struct_list (_tail::nil) t p
+field_at $\pi$ t_struct_list [head] h p * field_at $\pi$ t_struct_list [_tail] t p
 
 data_at $\pi$ t_struct_list (h,t) p
 
@@ -2025,7 +2025,7 @@ assertions; it is not necessary to unfold them to individual
 of VST 1.5.
 
 \newthought{Why are the arguments backwards?}
-We write\newline \lstinline{field_at $\pi$ t_struct_list (_head::nil) h p}
+We write\newline \lstinline{field_at $\pi$ t_struct_list [head] h p}
 \ \ \ where Reynolds would have written $p.\mathrm{head}\mapsto h$,
 and we write 
 \lstinline{data_at $\pi$ t_struct_list (h,t) p}
@@ -2039,7 +2039,7 @@ separation logic.  That is, we commonly have formulas such as
 \vspace{-\baselineskip}
 which simplify to 
 \begin{lstlisting}
-`(field_at $\pi$ t_struct_list (_head::nil) h * field_at $\pi$ t_struct_list (_tail::nil) t)
+`(field_at $\pi$ t_struct_list [head] h * field_at $\pi$ t_struct_list [_tail] t)
    (eval_id _p (tptr t_struct_list))
 \end{lstlisting}
 \vspace{-\baselineskip}
@@ -2061,9 +2061,9 @@ We do not want to assume that malloc returns initialized memory,
 so at point 1 the contents of head and tail are \lstinline{Vundef}.
 We can write this as any of the following:
 \begin{lstlisting}
-field_at Tsh t_struct_list (_head::nil) Vundef p 
-        * field_at Tsh t_struct_list (_tail::nil) Vundef p
-field_at_ Tsh t_struct_list (_head::nil) p * field_at_ Tsh t_struct_list (_tail::nil) p
+field_at Tsh t_struct_list [head] Vundef p 
+        * field_at Tsh t_struct_list [_tail] Vundef p
+field_at_ Tsh t_struct_list [head] p * field_at_ Tsh t_struct_list [_tail] p
 data_at Tsh t_struct_list (Vundef,Vundef) p
 data_at_ Tsh t_struct_list p
 \end{lstlisting}
@@ -2075,17 +2075,17 @@ At point 2, all the assertions above are still true, but
 they are weaker than the ``appropriate'' assertion, which
 may be written as any of,
 \begin{lstlisting}
-field_at Tsh t_struct_list (_head::nil) (Vint(Int.repr 3)) p
-        * field_at Tsh t_struct_list (_tail::nil) Vundef p
-field_at Tsh t_struct_list (_head::nil) (Vint(Int.repr 3)) 
-        * field_at_ Tsh t_struct_list (_tail::nil) p
+field_at Tsh t_struct_list [head] (Vint(Int.repr 3)) p
+        * field_at Tsh t_struct_list [_tail] Vundef p
+field_at Tsh t_struct_list [head] (Vint(Int.repr 3)) 
+        * field_at_ Tsh t_struct_list [_tail] p
 data_at Tsh t_struct_list (Vint(Int.repr 3), Vundef) p
 \end{lstlisting}
 
 At point 3, we can write either of,
 \begin{lstlisting}
-field_at Tsh t_struct_list (_head::nil) (Vint(Int.repr 3)) p 
-        * field_at Tsh t_struct_list (_tail::nil) (Vint Int.zero) p
+field_at Tsh t_struct_list [head] (Vint(Int.repr 3)) p 
+        * field_at Tsh t_struct_list [_tail] (Vint Int.zero) p
 data_at Tsh t_struct_list (Vint(Int.repr 3), Vint Int.zero) p
 \end{lstlisting}
 
@@ -2134,6 +2134,47 @@ we use \lstinline{val} to represent them, and the Coq type alone
 does not express the refinement.  One could imagine 
 a version of \lstinline{reptype'} that uses a refinement type
 to accomplish this, but it might be unwieldy.
+
+\ychapter{Nested structs}{}
+Consider a nested \lstinline{struct}; shown here is exactly the
+example in \lstinline{progs/nest2.c}, so you can examine the proofs in
+\lstinline{progs/verif_nest2.c}.
+\begin{lstlisting}
+struct a {double x1; int x2;};
+struct b {int y1; struct a y2;};
+
+struct b pb;  struct a pa;  int i;
+\end{lstlisting}
+The command  \lstinline{i = p.y2.x2;} does a nested field load.
+We call \lstinline{y2.x2} the \emph{field path}.
+The precondition for this command might include the assertion,
+\begin{lstlisting}
+LOCAL (`(eq pb) (eval_var _pb)) 
+SEP( `(data_at $\pi$ t_struct_b (y1,(x1,x2)) pb); Frame)
+\end{lstlisting}
+where \lstinline{Frame} has some unrelated spatial conjuncts.
+The postcondition (after the load) would include the new \LOCAL fact,
+\lstinline{`(eq x2) (eval_id i)}.
+
+The tactic \lstinline{(unfold_data_at 1%nat)}
+changes the SEP part of the assertion as follows:
+\begin{lstlisting}
+SEP(`(field_at Ews t_struct_b [_y1] (Vint y1) pb);
+    `(field_at Ews t_struct_b [_y2] (Vfloat x1, Vint x2) pb);
+    Frame)
+\end{lstlisting}
+ and then doing \lstinline{(unfold_field_at 2%nat)}
+unfolds the second \lstinline{field_at} as follows,
+\begin{lstlisting}
+SEP(`(field_at Ews t_struct_b [_y1] (Vint y1) pb);
+    `(field_at Ews t_struct_b [_x1;_y2] (Vfloat x1) pb);
+    `(field_at Ews t_struct_b [_x2;_y2] (Vint x2) pb);
+    Frame)
+\end{lstlisting}
+The third argument of \lstinline{field_at} represents
+the \emph{path} of structure-fields that leads to a given
+substructure.  The empty path \lstinline{(nil)} 
+works too; it ``leads'' to the entire structure.
 
 \ychapter{Signed and unsigned integers}{}
 
