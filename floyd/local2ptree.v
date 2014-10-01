@@ -38,8 +38,7 @@ assert (local2ptree  ((`(eq Vundef) (eval_id 1%positive)) :: (`(eq (Vint (Int.re
   T1 T2 Q').
 subst T1 T2 Q'.
 repeat constructor; repeat simpl; auto.
-Admitted.
-
+Abort.
 
 Goal False.
 evar (T1: PTree.t val).
@@ -48,7 +47,7 @@ evar (Q' : list (environ -> Prop)).
 assert (local2ptree ((`(eq Vundef) (eval_id 1%positive))::nil) T1 T2 Q').
 subst T1 T2 Q'.
 repeat constructor; repeat simpl; auto.
-Admitted.
+Abort.
 End TEST.
 
 Definition LocalD (T1: PTree.t val) (T2: PTree.t (type * val)) (Q: list (environ -> Prop)) :=
