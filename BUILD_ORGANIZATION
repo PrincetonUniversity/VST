@@ -1,5 +1,11 @@
 HOW TO BUILD:
-[recommended: with external CompCert build; see also EXTERNAL COMPCERT below]
+
+0.  Make sure you have the right version of Coq.
+  grep ^COQVERSION Makefile
+  will tell you which versions are compatible.
+
+METHOD A [recommended] with external CompCert build;
+    see also EXTERNAL COMPCERT below.
 1. Examine the file vst/compcert/VERSION, download that version
  of CompCert from compcert.inria.fr into the same parent directory
  next to your unpack of vst, then in the compcert install do: 
@@ -10,10 +16,10 @@ HOW TO BUILD:
     COMPCERT=../compcert
 3. In the vst directory,  
     make
-[alternate: with internal CompCert]
+METHOD B [alternate] with internal CompCert
 1. Remove (if present) the file CONFIGURE
 2. In the vst/compcert directory,
-    make
+    ./make
 3. In the vst directory,
     make
 [Note: this alternate method will not build compcert/clightgen,
@@ -30,8 +36,6 @@ sepcomp - the theory and practice of how to specify shared-memory interaction
 veric -  program logic (and soundness proof) for Verifiable C
 floyd -  tactics for applying the separation logic
 progs -  sample programs, with their verifications
-veristar - decision procedure for entailments in separation logic,
-           proved sound w.r.t. veric  (needs maintenance to bring it up to date)
 
 The dependencies are:
 

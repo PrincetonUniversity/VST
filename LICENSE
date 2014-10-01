@@ -9,7 +9,8 @@ and licensed according to the terms in "compcert/LICENSE".
 
 3.  All other subdirectories are Copyright (c) 2007-2013 by Andrew W. Appel, 
 Lennart Beringer, Robert Dockins, Josiah Dodds, Aquinas Hobor, 
-and Gordon Stewart, and open-source licensed as follows:
+Gordon Stewart, and Qinxiang Cao,
+and open-source licensed as follows:
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
