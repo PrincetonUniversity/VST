@@ -247,9 +247,10 @@ Fixpoint list_init_rep (i: ident) (ofs: Z) (l: list int) :=
  **  an initializer sequence like that is equivalent to a list-segment
  **  terminating in nullval.
 **)
+
 Lemma linked_list_in_array:
  forall Delta sh i data idata n,
-  (length data > 0)%nat ->
+  (length data > 0)%nat -> 
   (var_types Delta) ! i = None ->
   (glob_types Delta) ! i = Some (Global_var (tarray t_struct_list n)) ->
   idata =  list_init_rep i 0 data ->
@@ -266,7 +267,8 @@ Proof.
  match goal with |- ?A |-- ?B =>
    assert (A |-- !! isptr (eval_var i (tarray t_struct_list n) rho) && A)
  end.
-   destruct data; [simpl in H0; omega | ].
+   destruct data.
+   clear - H0; simpl in H0; omega.
    destruct data; simpl list_init_rep; unfold id2pred_star; fold id2pred_star;
    apply andp_right; auto;
    match goal with |- (_ * ?A) rho |-- _ => forget A as JJ end;
@@ -293,27 +295,25 @@ Proof.
            (mapsto sh (tptr t_struct_list) v1 nullval)
       by (symmetry; apply mapsto_null_mapsto_pointer)
      end.
-Admitted.
-(*
      apply sepcon_derives.
      rewrite mapsto_size_compatible by reflexivity.
-rewrite mapsto_align_compatible by reflexivity.
-normalize; eapply mapsto_field_at'; try reflexivity; try apply I;
+    rewrite mapsto_align_compatible by reflexivity.
+    normalize. eapply mapsto_field_at'; try reflexivity; try apply I;
    unfold offset_val; repeat rewrite Int.add_assoc.
-unfold size_compatible.
-
- [normalize; eapply mapsto_field_at'; try reflexivity; try apply I;
-   unfold offset_val; repeat rewrite Int.add_assoc
- | ].
-apply sepcon_derives;
- [eapply mapsto_field_at'; try reflexivity; try apply I;
-   unfold offset_val; repeat rewrite Int.add_assoc
- | ].
-f_equal. f_equal. unfold Int.zero. repeat rewrite add_repr.
- simpl. rewrite <- Z.add_assoc.
-reflexivity.
+   simpl in *. forget (Int.unsigned (Int.add i0 (Int.repr ofs))) as j.
+   admit.  (* Need a proof that the list cell does not cross the end of memory *)
+   simpl in *; auto.
  rewrite @lseg_nil_eq; auto.
  entailer!. compute; auto.
+ unfold t_struct_list at 2.
+  eapply mapsto_field_at'; try reflexivity; try apply I;
+  unfold offset_val; repeat rewrite Int.add_assoc.
+  simpl.  admit. (* need to adjust mapsto_field_at' for Tcomp_ptr *)
+  normalize.
+  simpl. admit.  (* Need a proof that the list cell does not cross the end of memory *)
+  simpl. admit.  (* Need to keep track of alignment constraint *)
+ -
+  unfold offset_val; repeat rewrite Int.add_assoc.
  spec IHdata. simpl length in H0|-*. repeat rewrite inj_S in H0|-*. omega.
  specialize (IHdata (ofs+8)).
  forget (list_init_rep i (ofs+8)(i0::data)) as rep'.
@@ -326,20 +326,29 @@ reflexivity.
   destruct (eval_var i (tarray t_struct_list n) rho); inv H; clear; compute; auto.
  rewrite mapsto_tuint_tint.
  rewrite list_cell_eq.
-apply sepcon_derives;
- [eapply mapsto_field_at'; try reflexivity; apply I
- | ].
-apply sepcon_derives;
+ destruct (eval_var i (tarray t_struct_list n) rho) eqn:H8; inv H.
+ unfold_lift;
+ apply sepcon_derives;
  [eapply mapsto_field_at'; try reflexivity; try apply I
+ | ]; simpl; try rewrite H8; simpl.
+ unfold nested_field_offset2; simpl; reflexivity.
+ admit.  (* Need a proof that the list cell does not cross the end of memory *)
+ admit.  (* Need to keep track of alignment constraint *)
+ fold (tarray t_struct_list n).
+ rewrite H8.
+ apply sepcon_derives;
+  [eapply mapsto_field_at'; try reflexivity; try apply I
  | ].
- normalize. destruct (eval_var i (tarray t_struct_list n) rho); inv H; hnf; auto.
- replace (ofs + init_data_size (Init_int32 a) +
-   init_data_size (Init_addrof i (Int.repr (ofs + 8))))
-   with (ofs+8).
+ simpl.   admit. (* need to adjust mapsto_field_at' for Tcomp_ptr *)
+ simpl. unfold nested_field_offset2; simpl. 
+ f_equal. rewrite Int.add_assoc. rewrite Int.add_zero.
+ rewrite Int.add_assoc. rewrite add_repr. reflexivity.
+ simpl. admit.  (* Need a proof that the list cell does not cross the end of memory *)
+ simpl.  admit.  (* Need to keep track of alignment constraint *)
+ replace (ofs + 4 + 4)
+   with (ofs+8) by omega.
  apply IHdata.
- simpl. omega.
 Qed.
-*)
 
 (**  Third, we specialize it to the precondition of our main function: **)
 Lemma setup_globals:
