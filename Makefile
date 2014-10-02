@@ -270,10 +270,10 @@ floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 .depend:
-	$(COQDEP) $(DEPFLAGS) $(FILES) > .depend
+	$(COQDEP) $(DEPFLAGS) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 
-depend:
-	$(COQDEP) $(DEPFLAGS) $(FILES) > .depend
+depend:	
+	$(COQDEP) $(DEPFLAGS) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 
 depend-linking:
 	$(COQDEP) $(DEPFLAGS) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
