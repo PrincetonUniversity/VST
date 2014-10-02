@@ -260,7 +260,7 @@ progs/dotprod.v: progs/dotprod.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
-version.v: $(FILES) util/make_version
+version.v:  $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
 .loadpath: Makefile
