@@ -393,7 +393,7 @@ Fixpoint msubst_eval_expr (T1: PTree.t val) (T2: PTree.t (type * val)) (e: expr)
                    `(eval_binop op (typeof a1) (typeof a2)) 
                    (msubst_eval_expr T1 T2 a1) 
                    (msubst_eval_expr T1 T2 a2)
-  | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr a)
+  | Ecast a ty => `(eval_cast (typeof a) ty) (msubst_eval_expr T1 T2 a)
   | Evar id ty => `(deref_noload ty)
                     match PTree.get id T2 with
                     | Some (ty', v) =>
@@ -467,25 +467,6 @@ Proof.
     try erewrite msubst_eval_expr_eq_aux by eauto;
     reflexivity.
 Qed.
-
-(*
-Lemma msubst_eval_eq_aux: forall P T1 T2 Q R,
-  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    local `(forall i v, T1 ! i = Some v -> eval_id i = `v) &&
-    local `(forall i t v, T2 ! i = Some (t, v) -> eval_var i t = `v).
-Proof.
-  intros.  
-  apply andp_right.
-  + apply andp_left2.
-    apply andp_left1.
-    simpl; normalize; intros.
-
-    assert (In (`(eq v) (eval_id i)) (LocalD T1 T2 Q)).
-      apply LocalD_sound.
-      left.
-      exists i, v.
-      split; auto.
-*)
 
 Lemma local_ext: forall Q0 Q rho, In Q0 Q -> fold_right `and `True Q rho -> Q0 rho.
 Proof.

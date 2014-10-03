@@ -150,7 +150,7 @@ PROGS_FILES= \
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
   verif_float.v verif_dotprod.v \
   verif_nest3.v verif_nest2.v \
-  logical_compare.v verif_logical_compare.v \
+  logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v
 
 SHA_FILES= \
@@ -172,7 +172,7 @@ HMAC_FILES= \
 #  HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \
 #  HMAC_proofLE.v HMAC_proof.v
 
-C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.v
+C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \

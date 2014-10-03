@@ -10,6 +10,8 @@ Require Import floyd.field_at.
 Require Import floyd.loadstore_lemmas.
 Require Import floyd.nested_loadstore.
 Require Import floyd.array_lemmas.
+Require Import floyd.sc_set_load_store.
+Require Import floyd.local2ptree.
 Require Import floyd.unfold_data_at.
 Require Import floyd.entailer.
 Require Import floyd.globals_lemmas.
@@ -77,6 +79,7 @@ Ltac forward_seq :=
   first [eapply semax_seq'; [  | abbreviate_semax ]
          | eapply semax_post_flipped' ].
 
+(*
 Definition denote_local_ptree (P: PTree.t val) rho :=
   forall i v, PTree.get i P = Some v -> eval_id i rho = v.
 
@@ -328,7 +331,8 @@ induction e; intros; simpl; try auto.
 unfold_lift. rewrite <- (msubst_expr S); auto.
 unfold_lift. rewrite <- IHe; auto.
 Qed.
-
+*)
+(*
 Lemma forward_setx_wow:
   forall S (v: val) Q' Espec Delta P Q R i e,
   Forall (closed_wrt_vars (eq i)) R ->
@@ -470,7 +474,7 @@ Ltac simpl_lift :=
                                                          (@liftx (LiftEnviron val) v2))
    with (`(f v1 v2)); simpl force_val2; simpl eval_binop
  end.
-
+*)
 Lemma refold_andp:  (* MOVE elsewhere? *)
   forall (P Q: environ -> mpred),
      (fun rho: environ => P rho && Q rho) = (P && Q).
@@ -1121,7 +1125,7 @@ Lemma forward_setx_aux1:
 Proof.
 intros; intro rho; rewrite andp_unfold; apply andp_right; apply prop_right; auto.
 Qed.
-
+(*
 Ltac forward_setx_wow :=
  eapply forward_setx_wow;
  [ solve [auto 50 with closed]
@@ -1141,17 +1145,7 @@ eapply forward_setx_wow_seq;
  | quick_typecheck
  | abbreviate_semax
  ].
-
-
-Ltac forward_setx :=
-first [forward_setx_wow
-       | apply forward_setx_closed_now;
-            [solve [auto 50 with closed] | solve [auto 50 with closed] | solve [auto 50 with closed]
-            | try apply local_True_right
-            | try apply local_True_right
-            |  ]
-        | apply forward_setx; quick_typecheck
-        ].
+*)
 
 Ltac intro_old_var' id :=
   match goal with 
@@ -1480,11 +1474,64 @@ first [eapply forward_ptr_compare_closed_now;
                                 | solve [subst;cancel]])]
           | reflexivity ]
        | eapply forward_ptr_compare'; try reflexivity; auto].
- 
+
+Ltac forward_setx :=
+first [(*forward_setx_wow
+       |*) 
+         ensure_normal_ret_assert;
+         hoist_later_in_pre;
+         eapply semax_SC_set; [reflexivity | reflexivity
+         | eapply derives_trans; [| apply msubst_eval_expr_eq];
+         [apply local2ptree_soundness; repeat constructor | reflexivity] | solve [entailer!]]
+       | apply forward_setx_closed_now;
+            [solve [auto 50 with closed] | solve [auto 50 with closed] | solve [auto 50 with closed]
+            | try apply local_True_right
+            | try apply local_True_right
+            |  ]
+        | apply forward_setx; quick_typecheck
+        ].
+
 Ltac forward_setx_with_pcmp e :=
 tac_if (ptr_compare e) ltac:forward_ptr_cmp ltac:forward_setx.
 
 (* BEGIN new semax_load and semax_store tactics *************************)
+
+Ltac sc_try_instantiate_load P Q R0 Delta e ids tts p sh ids0 v n N H SH IDS V:=
+      assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (R0 :: nil))) 
+         |-- `(field_at sh (typeof e) ids0 v p)) as H;
+      [unfold sh, ids0, v, p;
+       try rewrite !(data_at_field_at SH);
+       instantiate (2 := IDS);
+       assert (IDS = skipn (length ids - length IDS) ids) as _ by reflexivity;
+       simpl skipn; subst e ids tts;
+       instantiate (2 := SH);
+       instantiate (1 := V);
+       try unfold field_at_;
+       generalize V;
+       intro;
+       solve [
+         first [apply remove_PROP_LOCAL_left'; apply derives_refl
+               | entailer!; cancel]
+       ]
+      | pose N as n ].
+
+Ltac sc_new_instantiate_load P Q R Rnow Delta e ids tts p sh ids0 v n N H:=
+  match Rnow with
+  | ?R0 :: ?Rnow' => 
+    match R0 with
+    | `(data_at ?SH _ ?V _) => 
+      sc_try_instantiate_load P Q R0 Delta e ids tts p sh ids0 v n N H SH (@nil ident) V
+    | `(data_at_ ?SH ?TY _) => 
+      sc_try_instantiate_load P Q R0 Delta e ids tts p sh ids0 v n N H SH (@nil ident)
+      (default_val (nested_field_type2 TY nil))
+    | `(field_at ?SH _ ?IDS ?V _) =>
+      sc_try_instantiate_load P Q R0 Delta e ids tts p sh ids0 v n N H SH IDS V
+    | `(field_at_ ?SH ?TY ?IDS _) =>
+      sc_try_instantiate_load P Q R0 Delta e ids tts p sh ids0 v n N H SH IDS 
+      (default_val (nested_field_type2 TY IDS))
+    | _ => sc_new_instantiate_load P Q R Rnow' Delta e ids tts p sh ids0 v n (S N) H
+    end
+  end.
 
 Ltac try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS V:=
       assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (R0 :: nil))) 
@@ -1675,6 +1722,57 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
 *)
 | SE := @abbreviate type_id_env _ 
     |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
+ (* Super canonical cast load *)
+    let pp := fresh "pp" in
+    let e1 := fresh "e" in
+    let ids := fresh "ids" in
+    let tts := fresh "tts" in
+              pose (compute_nested_efield e) as pp;
+              simpl in pp;
+              pose (fst (fst pp)) as e1;
+              pose (snd (fst pp)) as ids;
+              pose (snd pp) as tts;
+              simpl in e1, ids, tts;
+              change e with (nested_efield e1 ids tts);
+              clear pp;
+
+    let HLE := fresh "H" in (* `(eq p) (eval_lvalue ?) *)
+    let p := fresh "p" in evar (p: val);
+      assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+        local (`(eq p) (eval_lvalue e1))) as HLE by
+      (first [ assumption |
+        eapply derives_trans; [| apply msubst_eval_lvalue_eq];
+        [apply local2ptree_soundness; repeat constructor | unfold p; reflexivity]
+      ]);
+
+    let sh := fresh "sh" in evar (sh: share);
+    let ids0 := fresh "ids" in evar (ids0: list ident);
+    let v := fresh "v" in evar (v: reptype (nested_field_type2 (typeof e1) ids0));
+    let n := fresh "n" in
+    let H := fresh "H" in
+
+    sc_new_instantiate_load P Q R R Delta e1 ids tts p sh ids0 v n (0%nat) H;
+    let ids1 := fresh "ids" in
+    let tts0 := fresh "tts" in
+    let tts1 := fresh "tts" in
+    pose (firstn (length ids - length ids0) ids) as ids1;
+    pose (skipn (length ids - length ids0) tts) as tts0;
+    pose (firstn (length ids - length ids0) tts) as tts1;
+    simpl in ids1, tts0, tts1;
+    change ids with (ids1 ++ ids0);
+    change tts with (tts1 ++ tts0);
+    subst ids tts p;
+    let Heq := fresh "H" in
+    match type of H with
+    | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
+           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
+    end;
+    eapply (semax_SC_field_cast_load Delta sh SE n);
+    [reflexivity | reflexivity | simpl; auto | reflexivity | reflexivity
+    | reflexivity | exact Heq | exact HLE | exact H | reflexivity | solve [entailer!] ]
+
+| SE := @abbreviate type_id_env _ 
+    |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
     let pp := fresh "pp" in
     let e1 := fresh "e" in
     let ids := fresh "ids" in
@@ -1714,6 +1812,57 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       | reflexivity | reflexivity | reflexivity
       | apply andp_right; [|apply (nth_error_SEP_sepcon_TT _ _ _ _ _ _ H Heq)]];
     unfold e1, ids0, ids1, tts0, tts1; solve [entailer!]
+| SE := @abbreviate type_id_env.type_id_env _ 
+    |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+ (* Super canonical load *)
+    let pp := fresh "pp" in
+    let e1 := fresh "e" in
+    let ids := fresh "ids" in
+    let tts := fresh "tts" in
+              pose (compute_nested_efield e) as pp;
+              simpl in pp;
+              pose (fst (fst pp)) as e1;
+              pose (snd (fst pp)) as ids;
+              pose (snd pp) as tts;
+              simpl in e1, ids, tts;
+              change e with (nested_efield e1 ids tts);
+              clear pp;
+
+    let HLE := fresh "H" in (* `(eq p) (eval_lvalue ?) *)
+    let p := fresh "p" in evar (p: val);
+      assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+        local (`(eq p) (eval_lvalue e1))) as HLE by
+      (first [ assumption |
+        eapply derives_trans; [| apply msubst_eval_lvalue_eq];
+        [apply local2ptree_soundness; repeat constructor | unfold p; reflexivity]
+      ]);
+
+    let sh := fresh "sh" in evar (sh: share);
+    let ids0 := fresh "ids" in evar (ids0: list ident);
+    let v := fresh "v" in evar (v: reptype (nested_field_type2 (typeof e1) ids0));
+    let n := fresh "n" in
+    let H := fresh "H" in
+
+    sc_new_instantiate_load P Q R R Delta e1 ids tts p sh ids0 v n (0%nat) H;
+    let ids1 := fresh "ids" in
+    let tts0 := fresh "tts" in
+    let tts1 := fresh "tts" in
+    pose (firstn (length ids - length ids0) ids) as ids1;
+    pose (skipn (length ids - length ids0) tts) as tts0;
+    pose (firstn (length ids - length ids0) tts) as tts1;
+    simpl in ids1, tts0, tts1;
+    change ids with (ids1 ++ ids0);
+    change tts with (tts1 ++ tts0);
+    subst ids tts p;
+    let Heq := fresh "H" in
+    match type of H with
+    | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
+           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
+    end;
+    eapply (semax_SC_field_load Delta sh SE n);
+    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    | reflexivity | exact Heq | exact HLE | exact H | reflexivity | solve [entailer!] ]
+
 | SE := @abbreviate type_id_env _ 
     |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
     let pp := fresh "pp" in
@@ -1924,6 +2073,93 @@ match goal with
   clear n sh contents lo hi ;
   [reflexivity | solve [auto] | reflexivity | auto | reflexivity |
    solve [(entailer!; try apply I; try tauto; reflexivity)]| entailer]
+
+| SE := @abbreviate type_id_env.type_id_env _ 
+    |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e ?e2) _ =>
+  (* Super canonical field store *)
+    let pp := fresh "pp" in
+    let e1 := fresh "e" in
+    let ids := fresh "ids" in
+    let tts := fresh "tts" in
+              pose (compute_nested_efield e) as pp;
+              simpl in pp;
+              pose (fst (fst pp)) as e1;
+              pose (snd (fst pp)) as ids;
+              pose (snd pp) as tts;
+              simpl in e1, ids, tts;
+              change e with (nested_efield e1 ids tts);
+              clear pp;
+
+    let HLE := fresh "H" in (* `(eq p) (eval_lvalue ?) *)
+    let p := fresh "p" in evar (p: val);
+      assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+        local (`(eq p) (eval_lvalue e1))) as HLE by
+      (first [ assumption |
+        eapply derives_trans; [| apply msubst_eval_lvalue_eq];
+        [apply local2ptree_soundness; repeat constructor | unfold p; reflexivity]
+      ]);
+
+    let HRE := fresh "H" in (* `(eq p) (eval_expr ?) *)
+    let v0 := fresh "v" in evar (v0: val);
+      assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+        local (`(eq v0) (eval_expr (Ecast e2 (typeof (nested_efield e1 ids tts)))))) as HRE by
+      (first [ assumption |
+        eapply derives_trans; [| apply msubst_eval_expr_eq];
+        [apply local2ptree_soundness; repeat constructor | unfold v0; reflexivity]
+      ]);
+
+    let sh := fresh "sh" in evar (sh: share);
+    let ids0 := fresh "ids" in evar (ids0: list ident);
+    let v := fresh "v" in evar (v: reptype (nested_field_type2 (typeof e1) ids0));
+    let n := fresh "n" in
+    let H := fresh "H" in
+   
+    sc_new_instantiate_load P Q R R Delta e1 ids tts p sh ids0 v n (0%nat) H;
+    let ids1 := fresh "ids" in
+    let tts0 := fresh "tts" in
+    let tts1 := fresh "tts" in
+    pose (firstn (length ids - length ids0) ids) as ids1;
+    pose (skipn (length ids - length ids0) tts) as tts0;
+    pose (firstn (length ids - length ids0) tts) as tts1;
+    simpl in ids1, tts0, tts1;
+    change ids with (ids1 ++ ids0);
+    change tts with (tts1 ++ tts0);
+    subst ids tts;
+    let Heq := fresh "H" in
+    match type of H with
+    | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
+           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
+    end;
+    match type of H with
+    | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) |-- _) =>
+      match R0 with
+      | appcontext [field_at] =>
+        eapply (semax_SC_field_store Delta sh SE n);
+        [reflexivity | reflexivity | simpl; auto | reflexivity
+        | reflexivity | reflexivity | exact Heq | exact HLE
+        | exact HRE | exact H | auto | solve[entailer!] ]
+      | appcontext [field_at_] =>
+        eapply (semax_SC_field_store Delta sh SE n);
+        [reflexivity | reflexivity | simpl; auto | reflexivity
+        | reflexivity | reflexivity | exact Heq | exact HLE
+        | exact HRE | exact H | auto | solve[entailer!] ]
+      | _ =>
+        eapply semax_post'; [ | eapply (semax_SC_field_store Delta sh SE n);
+          [reflexivity | reflexivity | simpl; auto | reflexivity
+          | reflexivity | reflexivity | exact Heq | exact HLE 
+          | exact HRE | exact H | auto | solve[entailer!] ]];
+        match goal with
+        | |- appcontext [replace_nth _ _ ?M] => 
+          let EQ := fresh "EQ" in
+          let MM := fresh "MM" in
+             remember M as MM eqn:EQ;
+             try rewrite <- data_at__field_at_ in EQ;
+             try rewrite <- data_at_field_at in EQ;
+             subst MM
+        end
+      end
+    end
+
 | SE := @abbreviate type_id_env.type_id_env _ 
     |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e _) _ =>
     let pp := fresh "pp" in
@@ -2235,9 +2471,9 @@ eapply semax_pre; [ | apply semax_break ];
 
 Ltac forward_with F1 :=
  match goal with 
-  | |- semax _ _ (Ssequence (Sset _ ?e) _) _ =>
+(*  | |- semax _ _ (Ssequence (Sset _ ?e) _) _ =>
          no_loads_expr e false true;
-         forward_setx_wow_seq
+         forward_setx_wow_seq*)
   | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
             apply semax_seq with FF; [ | apply semax_ff];
             forward_return

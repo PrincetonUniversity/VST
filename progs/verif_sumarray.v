@@ -36,10 +36,11 @@ Definition Gprog : funspecs :=
 Definition sumarray_Inv a0 sh contents size := 
  EX i: Z,
   (PROP  (0 <= i <= size)
-   LOCAL  (`(eq a0) (eval_id _a);   `(eq (Vint (Int.repr i))) (eval_id _i);
-                `(eq (Vint (Int.repr size))) (eval_id _n);
-           `isptr (eval_id _a); 
-    `(eq (Vint (fold_range (add_elem contents) Int.zero 0 i))) (eval_id _s))
+   LOCAL (`(eq a0) (eval_id _a);
+          `(eq (Vint (Int.repr i))) (eval_id _i);
+          `(eq (Vint (Int.repr size))) (eval_id _n);
+          `(eq (Vint (fold_range (add_elem contents) Int.zero 0 i))) (eval_id _s);
+           `isptr (eval_id _a))
    SEP (`(array_at tint sh contents 0 size) (eval_id _a))).
 
 Lemma fold_range_split:
@@ -128,19 +129,19 @@ entailer!.
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
 entailer!. f_equal. omega.
-forward.
+(* Prove postcondition of loop body implies loop invariant *)
+forward. (* x = a[i] *)
 entailer!.
 omega.
 forward. (* s += x; *)
 forward. (* i++; *)
-(* Prove postcondition of loop body implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
 entailer.
  apply prop_right.
- simpl in H5. rewrite Int.signed_repr in H5 by repable_signed.
+ simpl in H4. rewrite Int.signed_repr in H4 by repable_signed.
  rewrite fold_range_fact1 by omega.
- destruct (contents i0); inv H5. simpl. auto. 
+ destruct (contents i0); inv H4. simpl. auto. 
 (* After the loop *)
 forward.  (* return s; *)
 Qed.

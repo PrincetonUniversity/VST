@@ -420,7 +420,7 @@ instantiate (1:= Vint (big_endian_integer
  apply prop_right; repeat split.
 
 Focus 1. {
-  rewrite <- H4.
+  rewrite <- H5.
   rewrite sem_add_pi_ptr by assumption.
   simpl force_val.
   unfold Int.mul.
@@ -435,7 +435,7 @@ omega.
 change LBLOCKz with (Z.of_nat LBLOCK); apply Nat2Z.inj_lt; apply H0.
 
 Focus 1. {
-  rewrite <- H2.
+  rewrite <- H3.
   unfold sem_cast_neutral, force_val.
   reflexivity.
 } Unfocus.
@@ -511,7 +511,7 @@ omega.
 (*clear - H0; change 16 with (Z.of_nat 16); apply Nat2Z.inj_lt; auto.
 
 *)
-clear - H0 H3. rename H3 into H2.
+clear - H0 H4. rename H4 into H2.
 unfold tuints, ZnthV in H2.
 rewrite Int.signed_repr in H2 by 
  (pose proof LBLOCK_eq; repable_signed).

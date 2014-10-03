@@ -395,7 +395,7 @@ forward. (* X[i&0xf] = T1; *)
     change (Int.repr 15) with (Int.repr (Z.ones 4)).
     change (16)%Z with (2 ^ 4)%Z.
     rewrite <- Z.land_ones by (clear; omega).
-    rewrite <- H3.
+    rewrite <- H4.
     unfold sem_and.
     simpl.
     unfold Int.and.
@@ -421,10 +421,10 @@ unfold tuints, ZnthV; rewrite if_false by (clear; omega);
 (* I am wondering whether this is because I changed the order or assumptions *)
 
 apply (assert_LOCAL (`(eq (Vint (nth i K256 Int.zero))) (eval_id _Ki))).
-drop_LOCAL 5%nat. drop_LOCAL 3%nat. drop_LOCAL 2%nat.
+drop_LOCAL 4%nat. drop_LOCAL 3%nat. drop_LOCAL 2%nat.
 abstract (
    entailer; apply prop_right;
-   rewrite Int.signed_repr in H3 by repable_signed;
+   try rewrite Int.signed_repr in H3 by repable_signed;
    unfold tuints, ZnthV in H3; 
    rewrite if_false in H3 by omega; 
    rewrite Nat2Z.id in H3; 

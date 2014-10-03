@@ -81,11 +81,12 @@ forward_if (
  f_equal.
  f_equal.
  unfold carry.
- unfold Int.ltu in H2.
- rewrite <- add_repr in H2.
- rewrite Int.repr_unsigned in H2.
- if_tac in H2; [clear H2 | discriminate].
- clear - MN H1 H. rename H1 into H0.
+ unfold Int.ltu in H1.
+ rewrite <- add_repr in H1.
+ rewrite Int.repr_unsigned in H1.
+ if_tac in H1; [clear H1 | discriminate].
+  
+ clear - MN H2 H. rename H2 into H0.
  destruct (Int.unsigned_add_either lo (Int.repr (len*8))) as [H9|H9].
  elimtype False; rewrite H9 in H0; clear H9.
  destruct (Int.unsigned_range (Int.repr (len*8))) as [? _]; omega.

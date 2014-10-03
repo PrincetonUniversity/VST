@@ -5,11 +5,11 @@ Require Import sha.SHA256.
 Local Open Scope logic.
 
 Require Import sha.spec_sha.
-Require Import sha_lemmas.
+Require Import sha.sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 
 Require Import sha.hmac091c.
-Require Import HMAC_lemmas.
+Require Import sha.HMAC_lemmas.
 Require Import sha.spec_hmac.
 
 Definition emptySha:s256state := (nil, (Vundef, (Vundef, (nil, Vundef)))).
@@ -311,7 +311,7 @@ forward_if PostKeyNull.
    `(field_at Tsh t_struct_hmac_ctx_st [_i_ctx]
        ([], (Vundef, (Vundef, ([], Vundef)))) (Vptr cb cofs));
    `(data_at_ Tsh (tarray tuchar 64) pad)))).
-       entailer. rename x into a. apply exp_right with (x:=a).
+       entailer. rename x0 into a. apply (exp_right a).
        entailer.
    apply extract_exists_pre. intros ctxSha. simpl. normalize. simpl.
 

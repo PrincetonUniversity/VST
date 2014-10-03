@@ -201,10 +201,10 @@ unfold reverse_Inv.
 apply exp_right with (Zsucc j).
 entailer.
 repeat rewrite (Int.signed_repr)  by repable_signed.
- simpl in H6,H8. rewrite Int.sub_signed in H6,H8.
- rewrite (Int.signed_repr 1) in H6,H8 by repable_signed.
- rewrite (Int.signed_repr (size-j)) in H6,H8 by repable_signed.
- rewrite (Int.signed_repr) in H6 by repable_signed.
+ simpl in H4,H6. rewrite Int.sub_signed in H4,H6.
+ rewrite (Int.signed_repr 1) in H4,H6 by repable_signed.
+ rewrite (Int.signed_repr (size-j)) in H4,H6 by repable_signed.
+ rewrite (Int.signed_repr) in H4 by repable_signed.
  simpl_compare.
  apply andp_right.
  + apply prop_right.

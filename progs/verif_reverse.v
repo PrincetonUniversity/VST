@@ -217,10 +217,10 @@ entailer!.
    unfold lseg_cons.
    apply andp_right.
    + apply prop_right.
-      destruct w_; try contradiction; intro Hx; inv Hx.
+      destruct v_0; try contradiction; intro Hx; inv Hx.
    + apply exp_right with h.
       apply exp_right with cts1.
-      apply exp_right with w.
+      apply exp_right with w_0.
       entailer!.
 * (* after the loop *)
 apply extract_exists_pre; intro w.

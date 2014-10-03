@@ -154,9 +154,9 @@ after_call.
  apply exp_right with (blocks++ bl).
  entailer.
  clear TC1 TC.
- rewrite negb_true_iff in H8.
- unfold Int.ltu in H8.
- if_tac in H8; inv H8.
+ rewrite negb_true_iff in H5.
+ unfold Int.ltu in H5.
+ if_tac in H5; inv H5.
  rewrite mul_repr in H0.
  change (Int.unsigned (Int.repr (16 * 4)))%Z with 64%Z in H0.
  rewrite Int.unsigned_repr in H0

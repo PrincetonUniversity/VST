@@ -15,6 +15,8 @@ Require Export floyd.data_at_lemmas.
 Require Export floyd.field_at.
 Require Export floyd.loadstore_lemmas.
 Require Export floyd.nested_loadstore.
+Require Export floyd.local2ptree.
+Require Export floyd.sc_set_load_store.
 Require Export floyd.array_lemmas.
 Require Export floyd.unfold_data_at.
 Require Export floyd.entailer.

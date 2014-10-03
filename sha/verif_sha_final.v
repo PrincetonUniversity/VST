@@ -40,7 +40,7 @@ unfold at_offset.  (* maybe this line should not be necessary *)
 forward. (* p[n] = 0x80; *)
   instantiate (2:= Zlength dd).
   entailer!; [| rewrite Zlength_correct in H3'|-*; omega].
-  rewrite <- H2, <- H1.
+  rewrite H2, <- H1.
   rewrite <- offset_val_force_ptr by omega.
   destruct (eval_id _c rho); inversion H5.
   rewrite sem_add_pi_ptr by auto.
@@ -74,6 +74,8 @@ unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 unfold ddlen in *; clear ddlen.
 eapply semax_pre0; [|apply (ifbody_final_if1 Espec hashed md c shmd hi lo dd kv H4 H7 H3 DDbytes)].
 entailer!.
+rewrite H5.
+rewrite offset_offset_val. f_equal.
 * (* else-clause *)
 forward. (* skip; *)
 unfold invariant_after_if1.
@@ -82,17 +84,17 @@ apply exp_right with hashed.
 apply exp_right with (dd ++ [128]).
 apply exp_right with 0%Z.
 entailer.
-rewrite mul_repr, sub_repr in H1; apply ltu_repr_false in H1.
+rewrite mul_repr, sub_repr in H2; apply ltu_repr_false in H2.
 2: split; computable.
 2: assert (64 < Int.max_unsigned)%Z by computable; unfold ddlen in *;
    split; try omega.
 clear TC0.
-change (16*4)%Z with (Z.of_nat CBLOCK) in H1.
+change (16*4)%Z with (Z.of_nat CBLOCK) in H2.
 apply andp_right; [apply prop_right; repeat split | cancel].
 rewrite Forall_app; split; auto.
 repeat constructor; omega.
 rewrite app_length; simpl. apply Nat2Z.inj_ge.
-repeat rewrite Nat2Z.inj_add; unfold ddlen in H1; rewrite Zlength_correct in H1.
+repeat rewrite Nat2Z.inj_add; unfold ddlen in H2; rewrite Zlength_correct in H2.
 change (Z.of_nat 1) with 1%Z; change (Z.of_nat 8) with 8%Z.
 omega.
 f_equal. unfold ddlen; repeat rewrite Zlength_correct; f_equal.
