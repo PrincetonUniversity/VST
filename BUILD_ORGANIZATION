@@ -58,10 +58,30 @@ USING PROOF GENERAL AND COQIDE:
 To use either of these interactive development environments you will
 need to have the right load path.  This can be done by command-line
 arguments to coqide or coqtop.  The precise command-line arguments
-to use are in the file .loadpath, which is constructed automatically
-when you do "make".  For example:    
-coqide `cat .loadpath`  # will run coqide with the right options.
-coqc `cat .loadpath`    # will run coqc with the right options.
+to use when running CoqIDE or coqc are in the file .loadpath, which 
+is constructed automatically when you do "make".  For example:    
+  coqide `cat .loadpath`  # will run coqide with the right options.
+  coqc `cat .loadpath`    # will run coqc with the right options.
+
+There are three methods in which to configure Proof General. 
+1) On Linux systems, use the provided vst/pg script, as follows:
+     ./pg
+   This script is adapted from the CompCert project. It starts 
+   emacs+Proof General with the load path arguments specified in 
+   the generated .loadpath file.
+2) On other systems, such as Windows, it may be necessary to specify the
+   load path by hand in your .emacs file, as follows:
+     (setq coq-prog-args 
+       '("-I" "<your-vst-path>/msl" "-as" "msl"
+         "-I" "<your-vst-path>/sepcomp" "-as" "sepcomp"
+         "-I" "<your-vst-path>/veric" "-as" "veric"
+         "-I" "<your-vst-path>/floyd" "-as" "floyd"
+         "-I" "<your-vst-path>/progs" "-as" "progs"
+         "-R" "<your-vst-path>/compcert" "-as" "compcert"))
+3) Newer versions of Proof General (Joey, which ones?) can be configured 
+   automatically using the _CoqProject file in the base of the VST directory.
+   (Joey, maybe you can comment on exactly how this works? I haven't 
+   tried it myself.)
 
 NEW DIRECTORIES:
 If you add a new directory, you will probably want to augment the loadpath
