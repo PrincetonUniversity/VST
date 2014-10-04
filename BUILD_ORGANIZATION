@@ -78,10 +78,11 @@ There are three methods in which to configure Proof General.
          "-I" "<your-vst-path>/floyd" "-as" "floyd"
          "-I" "<your-vst-path>/progs" "-as" "progs"
          "-R" "<your-vst-path>/compcert" "-as" "compcert"))
-3) Newer versions of Proof General (Joey, which ones?) can be configured 
-   automatically using the _CoqProject file in the base of the VST directory.
-   (Joey, maybe you can comment on exactly how this works? I haven't 
-   tried it myself.)
+3) The (stable) development prerelease of ProofGeneral v4.3pre131011
+   read the _CoqProject file in the base of the VST directory. To
+   enable the feature set the emacs variable coq-use-project-file.
+   You should now be able to open emacs normally and step into any
+   file in VST.
 
 NEW DIRECTORIES:
 If you add a new directory, you will probably want to augment the loadpath
