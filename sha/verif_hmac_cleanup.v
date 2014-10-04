@@ -24,7 +24,7 @@ Lemma body_hmac_cleanup: semax_body HmacVarSpecs HmacFunSpecs
 Proof.
 start_function.
 name ctx' _ctx.
-unfold hmacstate_simple, hmac_relate_simple. normalize. intros hst. normalize. 
+unfold hmacstate_PostFinal, hmac_relate_PostFinal. normalize. intros hst. normalize. 
 apply semax_pre with (P':=
   PROP (size_compatible t_struct_hmac_ctx_st c /\
         align_compatible t_struct_hmac_ctx_st c)

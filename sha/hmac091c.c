@@ -237,7 +237,7 @@ unsigned char *HMAC2(//fixed to SHA256: EVP_MD *evp_md,
 	HMAC_Final(&c,md); 
 
 	//second round 
-        HMAC_Init(&c, key, key_len); //only performs memcpy
+        HMAC_Init(&c, NULL, key_len); //only performs memcpy
 	HMAC_Update(&c,d,n);
 	HMAC_Final(&c,md+SHA256_DIGEST_LENGTH); 
 	HMAC_cleanup(&c);

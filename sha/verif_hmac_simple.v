@@ -59,12 +59,15 @@ subst POSTCOND.
 apply extract_exists_pre. intros c. normalize. rename H into isPtrC.
 eapply semax_seq'. 
 frame_SEP 0 1 3.
-remember (c, k, kl, key, KV) as WITNESS.
+remember (HMACabs init_s256abs init_s256abs init_s256abs Z0 nil) as dummyHMA.
+remember (c, k, kl, key, KV, dummyHMA) as WITNESS.
 forward_call WITNESS.
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
-  subst WITNESS. entailer.
+  subst WITNESS. entailer. cancel. unfold initPre. 
+   apply isptrD in Pkey'. destruct Pkey' as [kb [kofs HK]]. subst key'.
+   cancel.
 after_call.
 subst WITNESS. normalize. simpl. rewrite elim_globals_only'. normalize.
 intros h0. normalize. rename H into HmacInit.
@@ -127,13 +130,13 @@ eapply semax_pre with (P':=EX  x : hmacabs,
    SEP (`(fun a : environ =>(PROP  (hmacUpdate data h0 x)
        LOCAL ()
        SEP  (`(K_vector KV); `(hmacstate_ x c); `(data_block Tsh data d))) a)
-      globals_only; `(data_block Tsh key k); `(memory_block shmd (Int.repr 32) md))).
+      globals_only; `(initPostKey k key); `(memory_block shmd (Int.repr 32) md))).
   entailer. rename x into h1. apply exp_right with (x:=h1).
-  entailer.
-apply extract_exists_pre. intros h1. normalize. simpl. normalize.
+  entailer. 
 (********************************************************)
-
+apply extract_exists_pre. intros h1. normalize. simpl. normalize.
 rename H into HmacUpdate.
+
 eapply semax_seq'. 
 frame_SEP 0 1 4.
 remember (h1, c, md, shmd, KV) as WITNESS.
@@ -145,12 +148,12 @@ forward_call WITNESS.
     cancel. 
 after_call.
 subst WITNESS. normalize.
-unfold update_tycon. simpl. normalize. 
+unfold update_tycon. simpl. normalize.
 
 (**** Again, distribute EX over lift*)
-eapply semax_pre with (P':=EX  x : list Z,
-      (EX  x0 : hmacabs,
-   (PROP  ()
+eapply semax_pre with (P':=
+      EX  x : list Z,
+  (PROP  ()
    LOCAL  (tc_environ Delta; tc_environ Delta; tc_environ Delta;
    `(eq md) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
@@ -159,14 +162,32 @@ eapply semax_pre with (P':=EX  x : list Z,
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
    (`(fun a : environ =>
-     (PROP (hmacFinalSimple h1 x)
+      (EX  x0 : hmacabs,
+       (PROP  (hmacFinal h1 x x0)
         LOCAL ()
-        SEP  (`(K_vector KV); `(hmacstate_simple x0 c); `(data_block shmd x md))) a) globals_only; 
-      `(data_block Tsh data d); `(data_block Tsh key k))))).
-  entailer. rename x into dig. apply exp_right with (x:=dig).
-  rename x0 into h2. apply exp_right with (x:=h2).
-  entailer. 
-apply extract_exists_pre. intros dig.
+        SEP  (`(K_vector KV); `(hmacstate_PostFinal x0 c);
+        `(data_block shmd x md))) a)) globals_only; `(data_block Tsh data d);
+   `(initPostKey k key)))).
+   entailer. rename x into dig. rename x0 into h2.
+   apply exp_right with (x:=dig). entailer. 
+   apply exp_right with (x:=h2). entailer. 
+apply extract_exists_pre. intros dig. normalize.
+eapply semax_pre with (P':=EX  x0 : hmacabs,
+  (PROP  ()
+   LOCAL  (tc_environ Delta; tc_environ Delta; tc_environ Delta;
+   `(eq md) (eval_id _md); `(eq k) (eval_id _key);
+   `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
+   `(eq (Vint (Int.repr dl))) (eval_id _n);
+   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   SEP 
+   (`(fun a : environ =>
+      (PROP  (hmacFinal h1 dig x0)
+       LOCAL ()
+       SEP  (`(K_vector KV); `(hmacstate_PostFinal x0 c);
+       `(data_block shmd dig md))) a) globals_only; `(data_block Tsh data d);
+   `(initPostKey k key)))).
+   entailer. rename x into h2. apply exp_right with (x:=h2). entailer.
 apply extract_exists_pre. intros h2. normalize. simpl. normalize.
 (********************************************************)
 
@@ -187,17 +208,22 @@ unfold update_tycon. simpl. normalize. simpl. normalize.
 forward.
 apply exp_right with (x:=dig).
 simpl_stackframe_of. normalize. clear H0. 
-assert (HS: hmacSimple key (*kl*) data dl dig).
+assert (HS: hmacSimple key data dig).
     exists h0, h1. 
     split. destruct KL as [KL1 [KLb KLc]].
            (*rewrite KL1.*) assumption.
-    split; assumption.
+    split; try assumption.
+    rewrite hmacFinal_hmacFinalSimple. exists h2; trivial.
 assert (Size: sizeof t_struct_hmac_ctx_st <= Int.max_unsigned).
   rewrite int_max_unsigned_eq; simpl. omega.
-entailer. clear H0. cancel. 
-unfold data_block. 
+apply andp_right. apply prop_right. split; trivial.
+apply andp_right. apply prop_right. trivial. cancel.
+unfold data_block.
   rewrite Zlength_correct; simpl.
 rewrite <- memory_block_data_at_; try reflexivity. 
 rewrite memory_block_array_tuchar. 
-entailer. clear H0. cancel. simpl. omega.
+normalize. clear H0. 
+  apply andp_right.
+    apply prop_right. trivial. cancel.
+simpl; omega.
 Qed.

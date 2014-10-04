@@ -8,7 +8,7 @@ Definition _key : ident := 141%positive.
 
 Local Open Scope Z_scope.
 
-Definition _main : ident := 65%positive.
+Definition _m__1 : ident := 65%positive.
 Definition _SHA256_Final : ident := 40%positive.
 Definition ___compcert_va_int64 : ident := 16%positive.
 Definition _SHA256_Init : ident := 38%positive.
@@ -25,6 +25,7 @@ Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
 Definition _memset : ident := 31%positive.
 Definition _i : ident := 49%positive.
+Definition _HMAC2 : ident := 66%positive.
 Definition _m : ident := 59%positive.
 Definition ___builtin_addl : ident := 4%positive.
 Definition _HMAC_cleanup : ident := 58%positive.
@@ -43,6 +44,7 @@ Definition _key_len : ident := 60%positive.
 Definition ___builtin_bswap16 : ident := 20%positive.
 Definition _num : ident := 32%positive.
 Definition ___builtin_fmadd : ident := 24%positive.
+Definition _main : ident := 67%positive.
 Definition ___compcert_va_float64 : ident := 17%positive.
 Definition ___builtin_memcpy_aligned : ident := 8%positive.
 Definition ___builtin_subl : ident := 5%positive.
@@ -73,15 +75,15 @@ Definition _memcpy : ident := 30%positive.
 Definition ___builtin_fmin : ident := 23%positive.
 Definition _reset : ident := 51%positive.
 Definition _len : ident := 48%positive.
-
-(*Definition t_struct_SHA256state_st := 
+(*
+Definition t_struct_SHA256state_st :=
    (Tstruct _struct_SHA256state_st
      (Fcons _h (tarray tuint 8)
        (Fcons _Nl tuint
          (Fcons _Nh tuint
            (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
-     noattr).*)
-
+     noattr).
+*)
 Definition t_struct_hmac_ctx_st :=
    (Tstruct _struct_hmac_ctx_st
      (Fcons _md_ctx
@@ -501,6 +503,90 @@ Definition f_HMAC := {|
           (Sreturn (Some (Etempvar _md (tptr tuchar)))))))))
 |}.
 
+Definition v_m__1 := {|
+  gvar_info := (tarray tuchar 64);
+  gvar_init := (Init_space 64 :: nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
+Definition f_HMAC2 := {|
+  fn_return := (tptr tuchar);
+  fn_callconv := cc_default;
+  fn_params := ((_key, (tptr tuchar)) :: (_key_len, tint) ::
+                (_d, (tptr tuchar)) :: (_n, tint) :: (_md, (tptr tuchar)) ::
+                nil);
+  fn_vars := ((_c, t_struct_hmac_ctx_st) :: nil);
+  fn_temps := nil;
+  fn_body :=
+(Ssequence
+  (Sifthenelse (Ebinop Oeq (Etempvar _md (tptr tuchar))
+                 (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
+    (Sset _md (Evar _m__1 (tarray tuchar 64)))
+    Sskip)
+  (Ssequence
+    (Scall None
+      (Evar _HMAC_Init (Tfunction
+                         (Tcons (tptr t_struct_hmac_ctx_st)
+                           (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid
+                         cc_default))
+      ((Eaddrof (Evar _c t_struct_hmac_ctx_st) (tptr t_struct_hmac_ctx_st)) ::
+       (Etempvar _key (tptr tuchar)) :: (Etempvar _key_len tint) :: nil))
+    (Ssequence
+      (Scall None
+        (Evar _HMAC_Update (Tfunction
+                             (Tcons (tptr t_struct_hmac_ctx_st)
+                               (Tcons (tptr tvoid) (Tcons tuint Tnil))) tvoid
+                             cc_default))
+        ((Eaddrof (Evar _c t_struct_hmac_ctx_st) (tptr t_struct_hmac_ctx_st)) ::
+         (Etempvar _d (tptr tuchar)) :: (Etempvar _n tint) :: nil))
+      (Ssequence
+        (Scall None
+          (Evar _HMAC_Final (Tfunction
+                              (Tcons (tptr t_struct_hmac_ctx_st)
+                                (Tcons (tptr tuchar) Tnil)) tvoid cc_default))
+          ((Eaddrof (Evar _c t_struct_hmac_ctx_st)
+             (tptr t_struct_hmac_ctx_st)) :: (Etempvar _md (tptr tuchar)) ::
+           nil))
+        (Ssequence
+          (Scall None
+            (Evar _HMAC_Init (Tfunction
+                               (Tcons (tptr t_struct_hmac_ctx_st)
+                                 (Tcons (tptr tuchar) (Tcons tint Tnil)))
+                               tvoid cc_default))
+            ((Eaddrof (Evar _c t_struct_hmac_ctx_st)
+               (tptr t_struct_hmac_ctx_st)) ::
+             (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
+             (Etempvar _key_len tint) :: nil))
+          (Ssequence
+            (Scall None
+              (Evar _HMAC_Update (Tfunction
+                                   (Tcons (tptr t_struct_hmac_ctx_st)
+                                     (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                                   tvoid cc_default))
+              ((Eaddrof (Evar _c t_struct_hmac_ctx_st)
+                 (tptr t_struct_hmac_ctx_st)) ::
+               (Etempvar _d (tptr tuchar)) :: (Etempvar _n tint) :: nil))
+            (Ssequence
+              (Scall None
+                (Evar _HMAC_Final (Tfunction
+                                    (Tcons (tptr t_struct_hmac_ctx_st)
+                                      (Tcons (tptr tuchar) Tnil)) tvoid
+                                    cc_default))
+                ((Eaddrof (Evar _c t_struct_hmac_ctx_st)
+                   (tptr t_struct_hmac_ctx_st)) ::
+                 (Ebinop Oadd (Etempvar _md (tptr tuchar))
+                   (Econst_int (Int.repr 32) tint) (tptr tuchar)) :: nil))
+              (Ssequence
+                (Scall None
+                  (Evar _HMAC_cleanup (Tfunction
+                                        (Tcons (tptr t_struct_hmac_ctx_st)
+                                          Tnil) tvoid cc_default))
+                  ((Eaddrof (Evar _c t_struct_hmac_ctx_st)
+                     (tptr t_struct_hmac_ctx_st)) :: nil))
+                (Sreturn (Some (Etempvar _md (tptr tuchar))))))))))))
+|}.
+
 Definition prog : Clight.program := {|
 prog_defs :=
 ((___builtin_fabs,
@@ -661,7 +747,8 @@ prog_defs :=
  (_HMAC_Update, Gfun(Internal f_HMAC_Update)) ::
  (_HMAC_Final, Gfun(Internal f_HMAC_Final)) ::
  (_HMAC_cleanup, Gfun(Internal f_HMAC_cleanup)) :: (_m, Gvar v_m) ::
- (_HMAC, Gfun(Internal f_HMAC)) :: nil);
+ (_HMAC, Gfun(Internal f_HMAC)) :: (_m__1, Gvar v_m__1) ::
+ (_HMAC2, Gfun(Internal f_HMAC2)) :: nil);
 prog_main := _main
 |}.
 

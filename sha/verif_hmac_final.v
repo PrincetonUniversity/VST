@@ -18,7 +18,7 @@ Proof. intros. unfold withspacer.
 Qed.
 
 Lemma body_hmac_final: semax_body HmacVarSpecs HmacFunSpecs 
-       f_HMAC_Final HMAC_FinalSimple_spec.
+       f_HMAC_Final HMAC_Final_spec.
 Proof.
 start_function.
 name ctx' _ctx.
@@ -212,7 +212,7 @@ cancel.
 rewrite SFL in *.
 erewrite (data_at__array_at_ Tsh tuchar 32 noattr). cancel.
   2: omega. 2: reflexivity. 
-unfold hmacstate_simple, hmac_relate_simple. normalize.
+unfold hmacstate_PostFinal, hmac_relate_PostFinal.
 apply exp_right with (x:=(updShaST, 
                          (iCTX, (oCTX, (Vint l,map Vint (map Int.repr (HMAC_FUN.mkKey key))))))).
 simpl. normalize.

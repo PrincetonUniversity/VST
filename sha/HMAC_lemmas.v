@@ -7,6 +7,16 @@ Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 
+Lemma skipn_app2:
+ forall A n (al bl: list A),
+  (n >= length al)%nat ->
+  skipn n (al++bl) = skipn (n-length al) bl.
+Proof.
+intros. revert al H;
+induction n; destruct al; intros; simpl in *; try omega; auto.
+apply IHn; omega.
+Qed. 
+
 Lemma firstn_app1: forall {A} n (p l: list A),
   (n <= Datatypes.length p)%nat ->
    firstn n (p ++ l) = firstn n p.
@@ -359,6 +369,24 @@ Proof.
   intros. subst. apply offset_val_array_at0; trivial.
 Qed.
 
+Lemma split_memory_block p hi v sh:
+      0 <= p <= hi -> isptr v ->
+      memory_block sh (Int.repr hi) v =
+      !!offset_in_range (sizeof tuchar * 0) v &&
+      !!offset_in_range (sizeof tuchar * hi) v &&
+      memory_block sh (Int.repr p) v * memory_block sh (Int.repr (hi-p)) (offset_val (Int.repr p) v).
+Proof. intros.
+rewrite memory_block_array_tuchar'; try omega; trivial. 
+rewrite memory_block_array_tuchar'; try omega; trivial. 
+rewrite memory_block_array_tuchar'; try omega.   
+rewrite (split_offset_array_at_ _ _ _ p).
+   assert (K: (sizeof tuchar * p = p)%Z).
+      assert (sizeof tuchar =1 ). reflexivity.
+  rewrite H1. omega.
+  rewrite K; trivial.
+ assumption. simpl; omega. reflexivity. apply isptr_offset_val'; trivial.
+Qed.
+
 Lemma zeroPad_BlockSize: forall k, (length k <= SHA256_BlockSize)%nat ->
   length (HMAC_FUN.zeroPad k) = SHA256_BlockSize%nat.
 Proof. unfold HMAC_FUN.zeroPad. intros. rewrite app_length, length_Nlist. omega. 
@@ -413,4 +441,20 @@ Proof. intros. inversion H; clear H.
               rewrite Zlength_app, Zlength_intlist_to_Zlist.
               rewrite (Z.mul_comm WORD). rewrite Z.mul_add_distr_r. trivial. 
   rewrite H; trivial.
+Qed.
+
+Lemma Zlength_max_zero: forall {A:Type} (l:list A), Z.max 0 (Zlength l) = Zlength l.
+Proof. intros.
+       rewrite Z.max_r. trivial.  
+       apply (initial_world.zlength_nonneg _ l).
+Qed.
+
+Lemma HMAC_length d k: length (HMAC_FUN.HMAC d k) = 32%nat.
+Proof.
+  unfold HMAC_FUN.HMAC, HMAC_FUN.OUTER.
+  apply length_SHA256'.
+Qed.
+Lemma HMAC_Zlength d k: Zlength (HMAC_FUN.HMAC d k) = 32.
+Proof.
+  rewrite Zlength_correct, HMAC_length. reflexivity.
 Qed.
