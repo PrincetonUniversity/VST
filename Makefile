@@ -167,7 +167,11 @@ HMAC_FILES= \
   hmac091c.v spec_hmac.v verif_hmac_cleanup.v \
   verif_hmac_init_part1.v verif_hmac_init.v \
   verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
-  verif_hmac_double.v
+  verif_hmac_double.v \
+  hmac_NK.v spec_hmacNK.v verif_hmacNK_cleanup.v \
+  verif_hmacNK_init_part1.v verif_hmacNK_init.v \
+  verif_hmacNK_update.v verif_hmacNK_final.v verif_hmacNK_simple.v \
+  verif_hmacNK_double.v
 #  HMAC_refined_fp.v hmac_sha256.v HMAC_definitions.v \
 #  HMAC_part2GT.v HMAC_part2LE.v \
 #  HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \
@@ -232,7 +236,9 @@ clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
-sha/mac091c.v: sha/hmac091c.c
+sha/hmac091c.v: sha/hmac091c.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+sha/hmac_NK.v: sha/hmac_NK.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 sha/sha.v: sha/sha.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
