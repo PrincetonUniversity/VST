@@ -21,7 +21,7 @@ name len' _len.
 unfold hmacstate_. normalize. intros ST. normalize.
 destruct H as [DL1 [DL2 DL3]].
 destruct h1; simpl in *.
-destruct H0 as [reprMD [reprI [reprO [iShaLen [oShaLen ZLen]]]]].
+destruct H0 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
 (*rewrite KL in *.*)
 erewrite (field_except_at_lemma _ _ _md_ctx nil); try reflexivity.
 simpl. 
@@ -71,7 +71,7 @@ rename H into HmacUpdate.
 
 (*WHY IS THIS NEEDED?*) unfold MORE_COMMANDS, abbreviate.
 forward.
-apply exp_right with (x:= HMACabs s iSha oSha (if zlt 64 (Zlength key) then 32 else Zlength key) key). entailer.
+apply exp_right with (x:= HMACabs s iSha oSha). entailer.
 apply andp_right. apply prop_right. exists s; eauto.
 cancel. 
 unfold hmacstate_, sha256state_, hmac_relate. normalize.

@@ -59,7 +59,7 @@ subst POSTCOND.
 apply extract_exists_pre. intros c. normalize. rename H into isPtrC.
 eapply semax_seq'. 
 frame_SEP 0 1 3.
-remember (HMACabs init_s256abs init_s256abs init_s256abs Z0 nil) as dummyHMA.
+remember (HMACabs init_s256abs init_s256abs init_s256abs) as dummyHMA.
 remember (c, k, kl, key, KV, dummyHMA) as WITNESS.
 forward_call WITNESS.
   assert (FR: Frame =nil).
@@ -90,7 +90,7 @@ forward_call WITNESS.
     Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
              rewrite HH; assumption. 
     destruct h0; simpl in *. 
-    destruct H1 as [reprMD [reprI [reprO [iShaLen [oShaLen KL1]]]]].
+    destruct H1 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion HmacInit; clear HmacInit.
     destruct H1 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst. assumption.
@@ -236,7 +236,7 @@ forward_call WITNESS.
     Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
              rewrite HH; assumption. 
     destruct h3; simpl in *. 
-    destruct H1 as [reprMD [reprI [reprO [iShaLen [oShaLen KL1]]]]].
+    destruct H1 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion h3_init; clear h3_init.
     destruct H1 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst. assumption.

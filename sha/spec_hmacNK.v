@@ -44,13 +44,11 @@ Definition memcpy_spec_data_at :=
        (`(data_at (snd sh) (tp_of T) (v_of T) p) *`(data_at (fst sh) (tp_of T) (v_of T) q)).
 
 Inductive hmacabs :=  (* HMAC abstract state *)
- HMACabs: forall (ctx iSha oSha: s256abs) (*sha structures for md_ctx, i_ctx, o_ctx*)
-                 (keylen: Z) 
-                 (key: list Z), 
+ HMACabs: forall (ctx iSha oSha: s256abs) (*sha structures for md_ctx, i_ctx, o_ctx*), 
                  hmacabs.
 
 Definition absCtxt (h:hmacabs): s256abs :=
-  match h with HMACabs ctx _ _ _ _ => ctx end.
+  match h with HMACabs ctx _ _ => ctx end.
 
 Definition innerShaInit (k: list byte) (s:s256abs):Prop :=
   update_abs (HMAC_FUN.mkArgZ k Ipad) init_s256abs s.
@@ -61,18 +59,18 @@ Definition hmacInit (k:list Z) (h:hmacabs):Prop :=
   let key := HMAC_FUN.mkKey k in
   let keyB := map Byte.repr key in
   exists iS oS, innerShaInit keyB iS /\ outerShaInit keyB oS /\
-  h = HMACabs iS iS oS (if zlt 64 (Zlength k) then 32 else Zlength k) k.
+  h = HMACabs iS iS oS.
 
 Definition hmacUpdate (data: list Z) (h1 h2:hmacabs):Prop :=
   match h1 with
-    HMACabs ctx1 iS oS klen k
+    HMACabs ctx1 iS oS
   => exists ctx2, update_abs data ctx1 ctx2
-     /\ h2 = HMACabs ctx2 iS oS klen k
+     /\ h2 = HMACabs ctx2 iS oS
   end.
 
 Definition hmacFinalSimple h (digest: list Z) :=
   match h with
-    HMACabs ctx iS oS klen k
+    HMACabs ctx iS oS
   => exists oS1, 
        update_abs (sha_finish ctx) oS oS1 /\
        sha_finish oS1 = digest
@@ -81,10 +79,10 @@ Definition hmacFinalSimple h (digest: list Z) :=
 
 Definition hmacFinal h (digest: list Z) h2 :=
   match h with
-    HMACabs ctx iS oS klen k
+    HMACabs ctx iS oS
   => let buf := sha_finish ctx in
      exists oS1, update_abs buf oS oS1 /\
-       h2 = HMACabs oS1 iS oS klen k /\
+       h2 = HMACabs oS1 iS oS /\
        sha_finish oS1 = digest
   end.
 (*copying oS to ctx is modelled here by h2, but it's slightly out of order:
@@ -179,12 +177,11 @@ destruct h as [_ [_ OCTX]]. apply OCTX.
 Defined.
 
 Definition hmac_relate (h: hmacabs) (r: hmacstate) : Prop :=
-  match h with HMACabs ctx iS oS klen k =>
+  match h with HMACabs ctx iS oS =>
     s256_relate ctx (mdCtx r) /\
     s256_relate iS (iCtx r) /\
     s256_relate oS (oCtx r) /\
-    s256a_len iS = 512 /\ s256a_len oS = 512 /\ 
-    (if zlt 64 (Zlength k) then 32 else Zlength k)=klen
+    s256a_len iS = 512 /\ s256a_len oS = 512
   end.
 
 Definition hmacstate_ (h: hmacabs) (c: val) : mpred :=
@@ -196,13 +193,11 @@ Definition has_lengthK (l:Z) (key:list Z) :=
   l * 8 < two_p 64.
 
 Definition hmac_relate_PreInitNull (key:list Z) (h:hmacabs ) (r: hmacstate) : Prop :=
-  match h with HMACabs ctx iS oS klen k =>
+  match h with HMACabs ctx iS oS =>
     (*no clause for ctx*)
-    k=key /\
     s256_relate iS (iCtx r) /\
     s256_relate oS (oCtx r) /\
     s256a_len iS = 512 /\ s256a_len oS = 512 /\ 
-              (if zlt 64 (Zlength k) then 32 else Zlength k)=klen /\
     let keyB := map Byte.repr (HMAC_FUN.mkKey key) in
     innerShaInit keyB iS /\ outerShaInit keyB oS
   end.
@@ -276,12 +271,11 @@ Definition HMAC_Update_spec :=
               `(hmacstate_ h2 c); `(data_block Tsh data d)).
 
 Definition hmac_relate_PostFinal (h:hmacabs ) (r: hmacstate) : Prop :=
-  match h with HMACabs ctx iS oS klen k =>
+  match h with HMACabs ctx iS oS =>
     (*no clause for ctx*)
     s256_relate iS (iCtx r) /\
     s256_relate oS (oCtx r) /\
-    s256a_len iS = 512 /\ s256a_len oS = 512 /\ 
-              (if zlt 64 (Zlength k) then 32 else Zlength k)=klen
+    s256a_len iS = 512 /\ s256a_len oS = 512
   end.
 
 Definition hmacstate_PostFinal (h: hmacabs) (c: val) : mpred :=

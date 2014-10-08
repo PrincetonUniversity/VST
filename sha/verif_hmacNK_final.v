@@ -38,7 +38,7 @@ rewrite memory_block_isptr. unfold hmacstate_. normalize.
 rename H into isptrMD.
 intros ST. normalize.
 destruct h1; simpl in *.
-destruct H as [reprMD [reprI [reprO [iShaLen [oShaLen ZLen]]]]].
+destruct H as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
 (*rewrite KL in *.*)
 erewrite (field_except_at_lemma _ _ _md_ctx nil); try reflexivity.
 simpl. 
@@ -191,8 +191,7 @@ forward.
 unfold data_at_.
 apply exp_right with (x:=sha_finish updSha).
 simpl_stackframe_of. simpl. normalize.
-apply exp_right with (x:=HMACabs updSha iSha oSha 
-        (if zlt 64 (Zlength key) then 32 else Zlength key) key).
+apply exp_right with (x:=HMACabs updSha iSha oSha).
 unfold data_block.
 normalize.
 apply andp_right. apply prop_right. split; trivial.

@@ -666,8 +666,8 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
      unfold hmac_relate_PreInitNull in Hs. 
      clear INNER InnerRelate OUTER OuterRelate iSA iS oSA oS.
      destruct h1.
-     destruct Hs as [XX [IREL [OREL [ILEN [OLEN [KK [ii KLii]]]]]]].
-     subst key0. destruct s as [mdS [iS oS]]. simpl in *.
+     destruct Hs as [IREL [OREL [ILEN [OLEN [ISHA OSHA]]]]].
+     destruct s as [mdS [iS oS]]. simpl in *.
      unfold_data_at 1%nat.
      (* eapply semax_seq'.
      frame_SEP 3 4.*)
@@ -701,29 +701,29 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
      after_call. subst WITNESS. normalize. subst retval0. simpl. 
 
      forward. (*return*)
-     unfold hmacInit. 
+     unfold hmacInit. (**)
      remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
-     apply exp_right with (x:=HMACabs iSha iSha oSha KL key).   
+     apply exp_right with (x:=HMACabs iSha iSha oSha).   
      entailer.
      apply andp_right. 
-       apply prop_right. exists iSha, oSha.
+       apply prop_right. exists iSha, oSha. auto. (*
        rewrite Int.unsigned_repr. auto.
        rewrite int_max_signed_eq  in KL2. rewrite int_max_unsigned_eq.
-       destruct (zlt 64 (Zlength key)); omega.     
+       destruct (zlt 64 (Zlength key)); omega.     *)
      simpl_stackframe_of. unfold tarray. 
      rewrite <- data_at__array_at_ with (a:=noattr).
      2: omega. 2: reflexivity.
      cancel.
      unfold hmacstate_, hmac_relate.
-      remember (if zlt 64 (Zlength key) then Vint (Int.repr 32)
-            else Vint (Int.repr (Zlength key))) as kl.
+(*      remember (if zlt 64 (Zlength key) then Vint (Int.repr 32)
+            else Vint (Int.repr (Zlength key))) as kl.*)
       normalize.
       apply exp_right with (x:=(iS, (iS, oS))).
       simpl. entailer.
-      apply andp_right. apply prop_right.
+(*      apply andp_right. apply prop_right.
       destruct (zlt 64 (Zlength key)); simpl in *. trivial.
           rewrite Int.unsigned_repr. trivial. 
-           rewrite int_max_unsigned_eq. rewrite int_max_signed_eq in KL2. omega.
+           rewrite int_max_unsigned_eq. rewrite int_max_signed_eq in KL2. omega.*)
 
       unfold_data_at 3%nat. cancel.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [_i_ctx]); try reflexivity.
@@ -793,31 +793,19 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
     after_call. subst WITNESS. normalize.  subst retval0. simpl. 
 
     forward. (*return*)
-    remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
-    apply exp_right with (x:=HMACabs iSA iSA oSA KL key). 
+    apply exp_right with (x:=HMACabs iSA iSA oSA). 
     entailer.
     apply andp_right. 
-      apply prop_right. unfold hmacInit. exists iSA, oSA.
-      rewrite Int.unsigned_repr. auto.
-      rewrite int_max_signed_eq  in KL2. rewrite int_max_unsigned_eq.
-      destruct (zlt 64 (Zlength key)); omega.    
+      apply prop_right. unfold hmacInit. exists iSA, oSA. auto.
     unfold data_block. simpl_stackframe_of. entailer. cancel.
     unfold hmacstate_, hmac_relate.
-    remember (if zlt 64 (Zlength key) then Vint (Int.repr 32)
-              else Vint (Int.repr (Zlength key))) as kl.
-    normalize.
     apply exp_right with (x:=(iS, (iS, oS))).
     simpl. entailer.
     apply andp_right. apply prop_right.
       split. rewrite (updAbs_len _ _ _ INNER), Zlength_mkArgZ,
            map_length, mkKey_length; reflexivity.
-      split. rewrite (updAbs_len _ _ _ OUTER), Zlength_mkArgZ,
+      rewrite (updAbs_len _ _ _ OUTER), Zlength_mkArgZ,
            map_length, mkKey_length; reflexivity.
-      rewrite Int.unsigned_repr. 
-      split. destruct (zlt 64 (Zlength key)); trivial.
-      split; trivial.
-      rewrite int_max_signed_eq  in KL2. rewrite int_max_unsigned_eq.
-      destruct (zlt 64 (Zlength key)); omega.
 
     unfold_data_at 3%nat. cancel.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [_i_ctx]); try reflexivity.
