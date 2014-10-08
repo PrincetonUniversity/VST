@@ -9,6 +9,8 @@ Require Import progs.list_dt.
 Require Import types.
 Require Import MirrorCharge.ModularFunc.ILogicFunc.
 Require Import MirrorCharge.ModularFunc.BILogicFunc.
+Require Import floyd.local2ptree.
+
 
 Inductive const :=
 | N : nat -> const
@@ -35,10 +37,9 @@ match c with
                                           => c
 end.
 
-Require Import ExtLib.Data.Positive.
-Require Import ExtLib.Data.Z.
 
-(*Instance RelDec_type_eq : RelDec (@eq type) :=
+(*
+Instance RelDec_type_eq : RelDec (@eq type) :=
 { rel_dec := eqb_type }.
 
 Instance RelDec_const_eq : RelDec (@eq const) :=
@@ -47,7 +48,7 @@ Instance RelDec_const_eq : RelDec (@eq const) :=
 | N c1,  N c2 | Z c1,  Z c2 | Pos c1,  Pos c2 | Ctype c1,  Ctype c2
 | Cexpr c1,  Cexpr c2 | Comparison c1,  Comparison c2 => c1 ?[ eq ] c2
 | _, _ => false
-end}. Set Printing All.*)
+end}.*)
 
 
 
@@ -389,8 +390,8 @@ end.
   exact (@lseg t id ls sh (List.map (reptyp_structlist_reptype  _) lf) v1 v2). }
 Defined.
 
-
 Inductive triple :=
+| fenviron : environ -> triple
 | fsemax
 | fstatement : statement -> triple
 | fretassert : ret_assert -> triple
@@ -399,9 +400,9 @@ Inductive triple :=
 | fLOCALx
 | fSEPx
 | fnormal_ret_assert
+| flocalD : PTree.t val -> PTree.t (type * val) -> list (environ -> Prop) -> triple
 .
 
-Check normal_ret_assert.
 Definition typeof_triple (t : triple) :=
 match t with
 | fsemax => tyArr tyOracleKind (tyArr tytycontext (tyArr (tyArr tyenviron tympred) (tyArr tystatement (tyArr tyret_assert typrop))))
@@ -412,6 +413,8 @@ match t with
 | fLOCALx => tyArr (tylist (tyArr tyenviron typrop)) (tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred))
 | fSEPx => tyArr (tylist (tyArr tyenviron tympred)) (tyArr tyenviron tympred)
 | fnormal_ret_assert => tyArr (tyArr tyenviron tympred) (tyret_assert)
+| fenviron e => tyenviron
+| flocalD _ _ _ => tylist (tyArr tyenviron typrop)
 end.
 
 Definition tripleD (t : triple) : typD (typeof_triple t) :=
@@ -422,6 +425,8 @@ match t with
 | fLOCALx => LOCALx
 | fSEPx => SEPx
 | fnormal_ret_assert => normal_ret_assert
+| fenviron e => e
+| flocalD ids vars other => LocalD ids vars other
 end.
 
 Inductive func' :=

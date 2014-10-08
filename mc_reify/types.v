@@ -5,6 +5,7 @@ Require Import MirrorCore.TypesI.
 Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.Fun.
 Require Import progs.list_dt.
+Require Import Coq.FSets.FMapPositive.
 
 
 Inductive typ :=
@@ -45,11 +46,11 @@ Inductive typ :=
 | tyOracleKind
 | tystatement
 | tyret_assert
+(*| tyother : positive -> typ*)
 .
-
-Fixpoint typD (t : typ) : Type :=
+Fixpoint typD (t : typ) (*(m : PositiveMap.t Type)*): Type :=
     match t with
-        | tyArr a b => typD  a -> typD  b
+        | tyArr a b => typD a  -> typD b 
         | tytycontext => tycontext
         | tyc_expr => expr
         | tyc_type => type
@@ -57,7 +58,7 @@ Fixpoint typD (t : typ) : Type :=
         | tyval => val
         | tyshare => share
         | tyident => ident
-        | tylist t => list (typD  t)
+        | tylist t => list (typD t )
         | tyint => int
         | tyZ => Z
         | tynat => nat
@@ -76,16 +77,17 @@ Fixpoint typD (t : typ) : Type :=
         | tybinary_operation => Cop.binary_operation
         | tyunary_operation => Cop.unary_operation
         | tyN => N
-        | tyoption t => option (typD  t)
+        | tyoption t => option (typD t )
         | typrop => Prop
         | tympred => mpred
-        | tysum t1 t2 => sum (typD  t1) (typD  t2)
-        | typrod t1 t2 => prod (typD  t1) (typD  t2)
+        | tysum t1 t2 => sum (typD  t1 ) (typD  t2 )
+        | typrod t1 t2 => prod (typD  t1 ) (typD  t2 )
         | tyunit => unit
         | tylistspec t i => listspec t i  
         | tyOracleKind => OracleKind
         | tystatement => statement
         | tyret_assert => ret_assert
+(*        | tyother p => PositiveMap.find p m *)
     end.
 
 Lemma listspec_ext : forall t i (a b: listspec t i), a = b.

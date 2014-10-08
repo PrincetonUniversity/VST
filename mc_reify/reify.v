@@ -5,7 +5,7 @@ Require Import types.
 Require Import funcs.
 Require Import MirrorCharge.ModularFunc.ILogicFunc.
 Require Import MirrorCharge.ModularFunc.BILogicFunc.
-
+Require Import floyd.local2ptree.
 
 Local Notation "x @ y" := (@RApp x y) (only parsing, at level 30).
 Local Notation "'!!' x" := (@RExact _ x) (only parsing, at level 25).
@@ -82,6 +82,9 @@ Reify Pattern patterns_vst_typ += (!!(lift.lifted (expr.LiftEnviron expr.mpred))
 Reify Pattern patterns_vst_typ += (!!@list_dt.elemtype @ ?0 @ ?1 @ ?2) =>
 (fun (a : id Ctypes.type) (b : id AST.ident) (c : id (list_dt.listspec a b)) => 
   reptyp_structlist (@list_dt.all_but_link b (@list_dt.list_fields a b c))).
+
+
+
 
 (*Zop*)
 
@@ -176,8 +179,9 @@ Reify Pattern patterns_vst +=
       (!!@data_at_lemmas.data_at @ ?0) => 
          (fun  (a : id Ctypes.type)  =>
               (@Inj typ func (inr (Sep (fdata_at a ))))).
+
 Reify Pattern patterns_vst +=
-      (!!@data_at_lemmas.field_at @ ?0 @ ?1) => 
+      (!!@field_at.field_at @ ?0 @ ?1) => 
          (fun  (a : id Ctypes.type) (b : id (list AST.ident)) =>
               (@Inj typ func (inr (Sep (ffield_at a b))))).
 
@@ -209,6 +213,10 @@ Reify Pattern patterns_vst +=
 Reify Pattern patterns_vst += 
       (RHasType AST.ident (?0)) => (fun (a : id AST.ident) 
                                        => (@Inj typ func (inr (Const (Pos a))))).
+Reify Pattern patterns_vst += 
+      (RHasType expr.environ (?0)) => (fun (a : id expr.environ) 
+                                       => (@Inj typ func (inr (Triple (fenviron a))))).
+
 
 Reify Pattern patterns_vst += 
       (RHasType Clight.statement (?0)) => (fun (a : id Clight.statement) 
@@ -227,7 +235,15 @@ Reify Pattern patterns_vst +=
 Reify Pattern patterns_vst += (RPi (?0) (?1)) => (fun (x : function reify_vst_typ) (y : function reify_vst) => 
   ExprCore.App (fForall (func := expr typ func) x typrop)
                (Abs x y)).
+Locate PTree.t.
+Reify Pattern patterns_vst += (!!LocalD @ (?0) @ (?1) @ (?2)) => 
+(fun (a : id (Maps.PTree.t Values.val)) (b : id (Maps.PTree.t (Ctypes.type * Values.val))) (c :id (list (expr.environ -> Prop)))
+=> (@Inj typ func (inr (Triple (flocalD a b c))))).
 
+(*Impl*)
+
+Reify Pattern patterns_vst += (@RImpl (?0) (?1)) => 
+       (fun (a b : Patterns.function reify_vst) => ((App (App (fImpl (func := expr typ func) typrop) a) b))). 
 
 
 Ltac reify_typ trm :=
@@ -253,6 +269,13 @@ Ltac reify_vst e :=
   let k fs e :=
       pose e in
   reify_expr reify_vst k
-             [ (fun (y : @mk_dvar_map_abs _ _ _ (list Type) _ term_table elem_ctor) => True) ]
+             [ (fun (y : @mk_dvar_map _ _ _  _ term_table elem_ctor) => True) ]
+             [ e ].
+
+Ltac do_reify e :=
+  let k fs e :=
+     (apply e) in
+  reify_expr reify_vst k
+             [ (fun (y : @mk_dvar_map _ _ _ _ term_table elem_ctor) => True) ]
              [ e ].
 
