@@ -97,7 +97,7 @@ void HMAC_Init(HMAC_CTX *ctx, unsigned char *key, int len)
      int i,j,reset=0;
      unsigned char pad[HMAC_MAX_MD_CBLOCK];
    
-     unsigned int ctx_key_length;
+     //unsigned int ctx_key_length;
      unsigned char ctx_key[HMAC_MAX_MD_CBLOCK];
 
 
@@ -126,13 +126,13 @@ void HMAC_Init(HMAC_CTX *ctx, unsigned char *key, int len)
 	     SHA256_Update(&ctx->md_ctx,key,len);
 	     SHA256_Final(ctx_key,&(ctx->md_ctx));
 	     memset(&(ctx_key[32]),0,32);
-	     ctx_key_length=32; //in analogy to what's 6 lines below
+	     //ctx_key_length=32; //in analogy to what's 6 lines below
 	   }
 	 else
 	   {
 	     memcpy(ctx_key,key,len);
 	     memset(&(ctx_key[len]),0,sizeof(ctx_key)-len);
-	     ctx_key_length=len; 
+	     //ctx_key_length=len; 
            }
        }
      

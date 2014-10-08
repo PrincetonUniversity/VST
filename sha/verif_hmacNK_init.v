@@ -108,11 +108,10 @@ remember (EX  cb : block,
                     `(initPostKeyNullConditional r c k h1 key ctxkey);
                     `(K_vector KV)))))) as PostKeyNull. 
 forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
-{ assert (DD: Delta = initialized _i (initialized _j (initialized _reset 
-               (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs)))).
+{ eapply semax_extensionality_Delta. 
+     2: eapply hmac_init_part1; eassumption. 
      admit. (*TODO: Andrew*)
-  rewrite DD. clear DD.
-  eapply hmac_init_part1; eassumption.
+  (*apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_refl.*)
 }
 subst PostKeyNull. normalize.
 apply extract_exists_pre; intros cb. 

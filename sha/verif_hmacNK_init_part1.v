@@ -40,16 +40,9 @@ Lemma hmac_init_part1: forall
 (KL1 : l = Zlength key)
 (KL2 : 0 <= l <= Int.max_signed)
 (KL3 : l * 8 < two_p 64)
-(*(Struct_env := abbreviate : type_id_env.type_id_env)*)
 (ctx' : name _ctx)
 (key' : name _key)
 (len' : name _len)
-(*(kb : block)
-(kofs : int)*)
-(*(isbyte_key : Forall isbyteZ key)*)
-(*(cb : block)
-(cofs : int)*)
-(*(pad : val)*)
 (Delta := 
   (initialized _i (initialized _j (initialized _reset 
        (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs)))))
@@ -79,7 +72,8 @@ Lemma hmac_init_part1: forall
    (`(data_at_ Tsh (tarray tuchar 64)) (eval_var _pad (tarray tuchar 64));
    `(data_at_ Tsh (tarray tuchar 64)) (eval_var _ctx_key (tarray tuchar 64));
    `(K_vector KV); `(initPre c k h1 key)))
-   (Sifthenelse
+   
+     (Sifthenelse
         (Ebinop One (Etempvar _key (tptr tuchar))
            (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
         (Ssequence (Sset _reset (Econst_int (Int.repr 1) tint))
@@ -130,23 +124,20 @@ Lemma hmac_init_part1: forall
                                      t_struct_hmac_ctx_st) _md_ctx
                                   t_struct_SHA256state_st)
                                (tptr t_struct_SHA256state_st)])
-                          (Ssequence
-                             (Scall None
-                                (Evar _memset
-                                   (Tfunction
-                                      (Tcons (tptr tvoid)
-                                         (Tcons tint (Tcons tuint Tnil)))
-                                      (tptr tvoid) cc_default))
-                                [Eaddrof
-                                   (Ederef
-                                      (Ebinop Oadd
-                                         (Evar _ctx_key (tarray tuchar 64))
-                                         (Econst_int (Int.repr 32) tint)
-                                         (tptr tuchar)) tuchar) (tptr tuchar),
-                                Econst_int (Int.repr 0) tint,
-                                Econst_int (Int.repr 32) tint])
-                             (Sset _ctx_key_length
-                                (Econst_int (Int.repr 32) tint))))))
+                          (Scall None
+                             (Evar _memset
+                                (Tfunction
+                                   (Tcons (tptr tvoid)
+                                      (Tcons tint (Tcons tuint Tnil)))
+                                   (tptr tvoid) cc_default))
+                             [Eaddrof
+                                (Ederef
+                                   (Ebinop Oadd
+                                      (Evar _ctx_key (tarray tuchar 64))
+                                      (Econst_int (Int.repr 32) tint)
+                                      (tptr tuchar)) tuchar) (tptr tuchar),
+                             Econst_int (Int.repr 0) tint,
+                             Econst_int (Int.repr 32) tint]))))
                  (Ssequence
                     (Scall None
                        (Evar _memcpy
@@ -156,22 +147,19 @@ Lemma hmac_init_part1: forall
                              (tptr tvoid) cc_default))
                        [Evar _ctx_key (tarray tuchar 64),
                        Etempvar _key (tptr tuchar), Etempvar _len tint])
-                    (Ssequence
-                       (Scall None
-                          (Evar _memset
-                             (Tfunction
-                                (Tcons (tptr tvoid)
-                                   (Tcons tint (Tcons tuint Tnil)))
-                                (tptr tvoid) cc_default))
-                          [Eaddrof
-                             (Ederef
-                                (Ebinop Oadd
-                                   (Evar _ctx_key (tarray tuchar 64))
-                                   (Etempvar _len tint) (tptr tuchar)) tuchar)
-                             (tptr tuchar), Econst_int (Int.repr 0) tint,
-                          Ebinop Osub (Econst_int (Int.repr 64) tuint)
-                            (Etempvar _len tint) tuint])
-                       (Sset _ctx_key_length (Etempvar _len tint))))))) Sskip)
+                    (Scall None
+                       (Evar _memset
+                          (Tfunction
+                             (Tcons (tptr tvoid)
+                                (Tcons tint (Tcons tuint Tnil))) (tptr tvoid)
+                             cc_default))
+                       [Eaddrof
+                          (Ederef
+                             (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
+                                (Etempvar _len tint) (tptr tuchar)) tuchar)
+                          (tptr tuchar), Econst_int (Int.repr 0) tint,
+                       Ebinop Osub (Econst_int (Int.repr 64) tuint)
+                         (Etempvar _len tint) tuint]))))) Sskip)
   (normal_ret_assert PostKeyNull).
 Proof. intros.
 forward_if PostKeyNull.
@@ -388,47 +376,7 @@ forward_if PostKeyNull.
        apply andp_right. apply prop_right; auto. 
        cancel. trivial. omega.
      } 
-     after_call. subst WITNESS. normalize. subst retval0. 
-   (*swap fun a=> with EX
-   apply semax_pre with (P':=
-    EX  x : val,
-  (PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta; tc_environ Delta;
-   tc_environ Delta; `(eq (Vint (Int.repr 1))) (eval_id _reset);
-   `(eq sha) (eval_var _sha_ctx t_struct_SHA256state_st);
-   `(eq pad) (eval_var _pad (Tarray tuchar 64 noattr));
-   `(eq (Vptr cb cofs)) (eval_id _ctx); `(eq k) (eval_id _key);
-   `(eq (Vint (Int.repr l))) (eval_id _len);
-   `(eq KV) (eval_var sha._K256 (Tarray tuint 64 noattr)))
-   SEP 
-   (fun a : environ =>
-    `(fun x0 : environ =>
-      local (`(eq (Vptr cb (Int.add cofs (Int.repr 360)))) retval) x0 &&
-      `(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 32
-          (Vptr cb (Int.add cofs (Int.repr 360)))) x0)
-      (fun rho : environ => env_set (globals_only rho) ret_temp x) a;
-   `(K_vector KV);
-   `(data_at_ Tsh sha.t_struct_SHA256state_st (Vptr cb cofs));
-   `(data_block Tsh (sha_finish mdSha)
-       (Vptr cb (Int.add cofs (Int.repr 328))));
-   `(data_block Tsh key (Vptr kb kofs));
-   `(array_at tuchar Tsh (fun i : Z => tuchars (map Int.repr key) (i + l)) 0
-       (Zlength key - l) (offset_val (Int.repr l) k));
-   `(field_at Tsh t_struct_hmac_ctx_st [_key_length] Vundef (Vptr cb cofs));
-   `(field_at Tsh t_struct_hmac_ctx_st [_o_ctx]
-       ([], (Vundef, (Vundef, ([], Vundef)))) (Vptr cb cofs));
-   `(field_at Tsh t_struct_hmac_ctx_st [_i_ctx]
-       ([], (Vundef, (Vundef, ([], Vundef)))) (Vptr cb cofs));
-   `(data_at_ Tsh t_struct_SHA256state_st sha);
-   `(data_at_ Tsh (Tarray tuchar 64 noattr) pad)))).
-    entailer.
-    apply exp_right with (x:=Vptr cb (Int.add cofs (Int.repr 360))).
-    entailer.
-   apply extract_exists_pre. intros x. simpl. normalize.
-     unfold local. simpl. red. normalize.*)
-
-   forward. (*ctx_key_length=32*)
-
+     after_call. subst WITNESS. 
    subst PostIf_j_Len.
    entailer. 
    rewrite Z.sub_diag, array_at_emp. 
@@ -499,7 +447,7 @@ forward_if PostKeyNull.
               unfold HMAC_FUN.zeroPad.
               rewrite <- functional_prog.SHA_256'_eq.
               rewrite app_nth1. inversion H. subst. clear H. simpl in *.
-                      rewrite <- H18. rewrite firstn_precise. trivial.
+                      rewrite <- H17. rewrite firstn_precise. trivial.
                       rewrite Zlength_correct, Nat2Z.id; trivial.
               rewrite length_SHA256'; trivial.
               rewrite mkKey_length; unfold SHA256_BlockSize; simpl. omega.
@@ -605,9 +553,8 @@ forward_if PostKeyNull.
        cancel. 
        rewrite memory_block_array_tuchar'. cancel. trivial. omega.
      } 
-     after_call. subst WITNESS. normalize. subst retval0. 
+     after_call. subst WITNESS. normalize. 
 
-   forward. (*ctx->key_length=len*)
    subst PostIf_j_Len. entailer. cancel.
    unfold_data_at 3%nat. entailer.
    cancel.
