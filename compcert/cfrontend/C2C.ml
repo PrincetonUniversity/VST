@@ -36,9 +36,8 @@ type atom_info =
     a_alignment: int option;           (* alignment *)
     a_sections: Sections.section_name list; (* in which section to put it *)
       (* 1 section for data, 3 sections (code/lit/jumptbl) for functions *)
-    a_access: Sections.access_mode;    (* access mode, e.g. small data area *)
-    a_inline: bool;                    (* function declared inline? *)
-    a_loc: location                    (* source location *)
+    a_small_data: bool;                (* data in a small data area? *)
+    a_inline: bool                     (* function declared inline? *)
 }
 
 let decl_atom : (AST.ident, atom_info) Hashtbl.t = Hashtbl.create 103
@@ -70,7 +69,10 @@ let warning msg =
 (** ** The builtin environment *)
 
 let builtins_generic = {
-  typedefs = [];
+  typedefs = [
+    (* keeps GCC-specific headers happy, harmless for others *)
+    "__builtin_va_list", C.TPtr(C.TVoid [], [])
+  ];
   functions = [
     (* Floating-point absolute value *)
     "__builtin_fabs",
@@ -91,46 +93,6 @@ let builtins_generic = {
     "__builtin_annot_intval",
         (TInt(IInt, []),
           [TPtr(TInt(IChar, [AConst]), []); TInt(IInt, [])],
-          false);
-    (* Software memory barrier *)
-    "__builtin_membar",
-        (TVoid [],
-          [],
-          false);
-    (* Variable arguments *)
-(* va_start(ap,n)
-      (preprocessing) --> __builtin_va_start(ap, arg)
-      (elaboration)   --> __builtin_va_start(ap) *)
-    "__builtin_va_start",
-        (TVoid [],
-          [TPtr(TVoid [], [])],
-          false);
-(* va_arg(ap, ty)
-      (preprocessing) --> __builtin_va_arg(ap, ty)
-      (parsing)       --> __builtin_va_arg(ap, sizeof(ty)) *)
-    "__builtin_va_arg",
-        (TVoid [],
-          [TPtr(TVoid [], []); TInt(IUInt, [])],
-          false);
-    "__builtin_va_copy",
-        (TVoid [],
-          [TPtr(TVoid [], []); TPtr(TVoid [], [])],
-          false);
-    "__builtin_va_end",
-        (TVoid [],
-          [TPtr(TVoid [], [])],
-          false);
-    "__compcert_va_int32",
-        (TInt(IUInt, []),
-          [TPtr(TVoid [], [])],
-          false);
-    "__compcert_va_int64",
-        (TInt(IULongLong, []),
-          [TPtr(TVoid [], [])],
-          false);
-    "__compcert_va_float64",
-        (TFloat(FDouble, []),
-          [TPtr(TVoid [], [])],
           false)
   ]
 }
@@ -157,19 +119,22 @@ let name_for_string_literal env s =
       { a_storage = C.Storage_static;
         a_alignment = Some 1;
         a_sections = [Sections.for_stringlit()];
-        a_access = Sections.Access_default;
-        a_inline = false;
-        a_loc = Cutil.no_loc };
+        a_small_data = false;
+        a_inline = false };
     Hashtbl.add stringTable s id;
     id
 
 let typeStringLiteral s =
-  Tarray(Tint(I8, Unsigned, noattr), Z.of_uint (String.length s + 1), noattr)
+  Tarray(Tint(I8, Unsigned, noattr),
+         z_of_camlint(Int32.of_int(String.length s + 1)),
+         noattr)
 
 let global_for_string s id =
   let init = ref [] in
   let add_char c =
-    init := AST.Init_int8(Z.of_uint(Char.code c)) :: !init in
+    init :=
+       AST.Init_int8(coqint_of_camlint(Int32.of_int(Char.code c)))
+       :: !init in
   add_char '\000';
   for i = String.length s - 1 downto 0 do add_char s.[i] done;
   (id, Gvar {gvar_info = typeStringLiteral s; gvar_init = !init;
@@ -179,6 +144,37 @@ let globals_for_strings globs =
   Hashtbl.fold
     (fun s id l -> global_for_string s id :: l)
     stringTable globs
+
+(** ** Declaration of special external functions *)
+
+let special_externals_table : (string, fundef) Hashtbl.t = Hashtbl.create 47
+
+let register_special_external name ef targs tres =
+  if not (Hashtbl.mem special_externals_table name) then
+    Hashtbl.add special_externals_table name (External(ef, targs, tres))
+
+let declare_special_externals k =
+  Hashtbl.fold
+    (fun name fd k -> (intern_string name, Gfun fd) :: k)
+    special_externals_table k
+
+(** ** Handling of stubs for variadic functions *)
+
+let register_stub_function name tres targs =
+  let rec letters_of_type = function
+    | Tnil -> []
+    | Tcons(Tfloat _, tl) -> "f" :: letters_of_type tl
+    | Tcons(_, tl) -> "i" :: letters_of_type tl in
+  let rec types_of_types = function
+    | Tnil -> Tnil
+    | Tcons(Tfloat _, tl) -> Tcons(Tfloat(F64, noattr), types_of_types tl)
+    | Tcons(_, tl) -> Tcons(Tpointer(Tvoid, noattr), types_of_types tl) in
+  let stub_name =
+    name ^ "$" ^ String.concat "" (letters_of_type targs) in
+  let targs = types_of_types targs in
+  let ef = EF_external(intern_string stub_name, signature_of_type targs tres) in
+  register_special_external stub_name ef targs tres;
+  (stub_name, Tfunction (targs, tres))
 
 (** ** Handling of inlined memcpy functions *)
 
@@ -202,34 +198,6 @@ a constant)"; Integers.Int.one in
   | _ ->
     assert false
 
-(** ** Translation of [va_arg] for variadic functions. *)
-
-let va_list_ptr e =
-  if not CBuiltins.va_list_scalar then e else
-    match e with
-    | Evalof(e', _) -> Eaddrof(e', Tpointer(typeof e, noattr))
-    | _             -> error "bad use of a va_list object"; e
-
-let make_builtin_va_arg env ty e =
-  let (helper, ty_ret) =
-    match ty with
-    | Tint _ | Tpointer _ | Tcomp_ptr _ ->
-        ("__compcert_va_int32", Tint(I32, Unsigned, noattr))
-    | Tlong _ ->
-        ("__compcert_va_int64", Tlong(Unsigned, noattr))
-    | Tfloat _ ->
-        ("__compcert_va_float64", Tfloat(F64, noattr))
-    | _ ->
-        unsupported "va_arg at this type";
-        ("", Tvoid) in
-  let ty_fun =
-    Tfunction(Tcons(Tpointer(Tvoid, noattr), Tnil), ty_ret, cc_default) in
-  Ecast 
-    (Ecall(Evalof(Evar(intern_string helper, ty_fun), ty_fun),
-           Econs(va_list_ptr e, Enil),
-           ty_ret),
-     ty)
-
 (** ** Translation functions *)
 
 (** Constants *)
@@ -238,39 +206,7 @@ let convertInt n = coqint_of_camlint(Int64.to_int32 n)
 
 (** Attributes *)
 
-let rec log2 n = if n = 1 then 0 else 1 + log2 (n lsr 1)
-
-let convertAttr a =
-  { attr_volatile = List.mem AVolatile a;
-    attr_alignas = 
-      let n = Cutil.alignas_attribute a in
-      if n > 0 then Some (N.of_int (log2 n)) else None }
-
-let mergeAttr a1 a2 =
-  { attr_volatile = a1.attr_volatile || a2.attr_volatile;
-    attr_alignas =
-      match a1.attr_alignas, a2.attr_alignas with
-      | None, aa -> aa
-      | aa, None -> aa
-      | Some n1, Some n2 -> Some (if N.le n1 n2 then n1 else n2) }
-
-let mergeTypAttr ty a2 =
-  match ty with
-  | Tvoid -> ty
-  | Tint(sz, sg, a1) -> Tint(sz, sg, mergeAttr a1 a2)
-  | Tfloat(sz, a1) -> Tfloat(sz, mergeAttr a1 a2)
-  | Tlong(sg, a1) -> Tlong(sg, mergeAttr a1 a2)
-  | Tpointer(ty', a1) -> Tpointer(ty', mergeAttr a1 a2)
-  | Tarray(ty', sz, a1) -> Tarray(ty', sz, mergeAttr a1 a2)
-  | Tfunction(targs, tres, cc) -> ty
-  | Tstruct(id, fld, a1) -> Tstruct(id, fld, mergeAttr a1 a2)
-  | Tunion(id, fld, a1) -> Tunion(id, fld, mergeAttr a1 a2)
-  | Tcomp_ptr(id, a1) -> Tcomp_ptr(id, mergeAttr a1 a2)
-
-let convertCallconv va attr =
-  let sr =
-    Cutil.find_custom_attributes ["structreturn"; "__structreturn"] attr in
-  { cc_vararg = va; cc_structret = sr <> [] }
+let convertAttr a = List.mem AVolatile a
 
 (** Types *)
 
@@ -287,7 +223,8 @@ let convertIkind = function
   | C.ILong -> (Signed, I32)
   | C.IULong -> (Unsigned, I32)
   (* Special-cased in convertTyp below *)
-  | C.ILongLong | C.IULongLong -> assert false
+  | C.ILongLong -> unsupported "'long long' type"; (Signed, I32)
+  | C.IULongLong -> unsupported "'unsigned long long' type"; (Unsigned, I32)
 
 let convertFkind = function
   | C.FFloat -> F32
@@ -296,19 +233,21 @@ let convertFkind = function
       if not !Clflags.option_flongdouble then unsupported "'long double' type"; 
       F64
 
-(** A cache for structs and unions already converted *)
-
-let compositeCache : (C.ident, coq_type) Hashtbl.t = Hashtbl.create 77
+let int64_struct a =
+  let ty = Tint(I32,Unsigned,noattr) in
+  Tstruct(intern_string "struct __int64",
+    (if Memdataaux.big_endian
+     then Fcons(intern_string "hi", ty, Fcons(intern_string "lo", ty, Fnil))
+     else Fcons(intern_string "lo", ty, Fcons(intern_string "hi", ty, Fnil))),
+    a)
 
 let convertTyp env t =
 
   let rec convertTyp seen t =
     match Cutil.unroll env t with
     | C.TVoid a -> Tvoid
-    | C.TInt(C.ILongLong, a) ->
-        Tlong(Signed, convertAttr a)
-    | C.TInt(C.IULongLong, a) ->
-        Tlong(Unsigned, convertAttr a)
+    | C.TInt((C.ILongLong|C.IULongLong), a) when !Clflags.option_flonglong ->
+        int64_struct (convertAttr a)
     | C.TInt(ik, a) ->
         let (sg, sz) = convertIkind ik in Tint(sz, sg, convertAttr a)
     | C.TFloat(fk, a) ->
@@ -330,40 +269,30 @@ let convertTyp env t =
     | C.TArray(ty, Some sz, a) ->
         Tarray(convertTyp seen ty, convertInt sz, convertAttr a)
     | C.TFun(tres, targs, va, a) ->
+        if va then unsupported "variadic function type";
         if Cutil.is_composite_type env tres then
-          unsupported "return type is a struct or union (consider adding option -fstruct-return)";
+          unsupported "return type is a struct or union";
         Tfunction(begin match targs with
-                  | None -> Tnil
+                  | None -> warning "un-prototyped function type"; Tnil
                   | Some tl -> convertParams seen tl
                   end,
-                  convertTyp seen tres,
-                  convertCallconv va a)
+                  convertTyp seen tres)
     | C.TNamed _ ->
         assert false
     | C.TStruct(id, a) ->
-        let a' = convertAttr a in
-        begin try
-          merge_attributes (Hashtbl.find compositeCache id) a'
-        with Not_found ->
-          let flds =
-            try
-              convertFields (id :: seen) (Env.find_struct env id)
-            with Env.Error e ->
-              error (Env.error_message e); Fnil in
-          Tstruct(intern_string("struct " ^ id.name), flds, a')
-        end
+        let flds =
+          try
+            convertFields (id :: seen) (Env.find_struct env id)
+          with Env.Error e ->
+            error (Env.error_message e); Fnil in
+        Tstruct(intern_string("struct " ^ id.name), flds, convertAttr a)
     | C.TUnion(id, a) ->
-        let a' = convertAttr a in
-        begin try
-          merge_attributes (Hashtbl.find compositeCache id) a'
-        with Not_found ->
-          let flds =
-            try
-              convertFields (id :: seen) (Env.find_union env id)
-            with Env.Error e ->
-              error (Env.error_message e); Fnil in
-          Tunion(intern_string("union " ^ id.name), flds, a')
-        end
+        let flds =
+          try
+            convertFields (id :: seen) (Env.find_union env id)
+          with Env.Error e ->
+            error (Env.error_message e); Fnil in
+        Tunion(intern_string("union " ^ id.name), flds, convertAttr a)
     | C.TEnum(id, a) ->
         let (sg, sz) = convertIkind Cutil.enum_ikind in
         Tint(sz, sg, convertAttr a)
@@ -384,25 +313,13 @@ let convertTyp env t =
 
   in convertTyp [] t
 
-let rec convertTypArgs env tl el =
-  match tl, el with
-  | _, [] -> Tnil
-  | [], e1 :: el ->
-      Tcons(convertTyp env (Cutil.default_argument_conversion env e1.etyp),
-            convertTypArgs env [] el)
-  | (id, t1) :: tl, e1 :: el ->
-      Tcons(convertTyp env t1, convertTypArgs env tl el)
-
-let cacheCompositeDef env su id attr flds =
-  let ty =
-    match su with
-    | C.Struct -> C.TStruct(id, attr)
-    | C.Union  -> C.TUnion(id, attr) in
-  Hashtbl.add compositeCache id (convertTyp env ty)
+let rec convertTypList env = function
+  | [] -> Tnil
+  | t1 :: tl -> Tcons(convertTyp env t1, convertTypList env tl)
 
 let rec projFunType env ty =
   match Cutil.unroll env ty with
-  | TFun(res, args, vararg, attr) -> Some(res, args, vararg)
+  | TFun(res, args, vararg, attr) -> Some(res, vararg)
   | TPtr(ty', attr) -> projFunType env ty'
   | _ -> None
 
@@ -413,21 +330,22 @@ let string_of_type ty =
   Format.pp_print_flush fb ();
   Buffer.contents b
 
-let supported_return_type env ty =
+let first_class_value env ty =
   match Cutil.unroll env ty with
-  | C.TStruct _  | C.TUnion _ -> false
+  | C.TInt((C.ILongLong|C.IULongLong), _) -> false
   | _ -> true
 
-let is_longlong env ty =
+let supported_return_type env ty =
   match Cutil.unroll env ty with
-  | C.TInt((C.ILongLong|C.IULongLong), _) -> true
-  | _ -> false
+  | C.TInt((C.ILongLong|C.IULongLong), _) -> false
+  | C.TStruct _  | C.TUnion _ -> false
+  | _ -> true
 
 (** Floating point constants *)
 
 let z_of_str hex str fst =
-  let res = ref Z.Z0 in
-  let base = if hex then 16 else 10 in
+  let res = ref BinInt.Z0 in
+  let base = if hex then 16l else 10l in
   for i = fst to String.length str - 1 do
     let d = int_of_char str.[i] in
     let d =
@@ -438,44 +356,43 @@ let z_of_str hex str fst =
       else
 	d - int_of_char '0'
     in
-    assert (d >= 0 && d < base);
-    res := Z.add (Z.mul (Z.of_uint base) !res) (Z.of_uint d)
+    let d = Int32.of_int d in
+    assert (d >= 0l && d < base);
+    res := BinInt.coq_Zplus
+      (BinInt.coq_Zmult (z_of_camlint base) !res) (z_of_camlint d)
   done;
   !res
 
 let convertFloat f kind =
   let mant = z_of_str f.C.hex (f.C.intPart ^ f.C.fracPart) 0 in
   match mant with
-    | Z.Z0 ->
-      begin match kind with
-      | FFloat ->
-	  Vsingle (Float.to_single Float.zero)
-      | FDouble | FLongDouble ->
-	  Vfloat Float.zero
-      end
-    | Z.Zpos mant ->
+    | BinInt.Z0 -> Float.zero
+    | BinInt.Zpos mant ->
 
       let sgExp = match f.C.exp.[0] with '+' | '-' -> true | _ -> false in
       let exp = z_of_str false f.C.exp (if sgExp then 1 else 0) in
-      let exp = if f.C.exp.[0] = '-' then Z.neg exp else exp in
+      let exp = if f.C.exp.[0] = '-' then BinInt.coq_Zopp exp else exp in
       let shift_exp =
-	(if f.C.hex then 4 else 1) * String.length f.C.fracPart in
-      let exp = Z.sub exp (Z.of_uint shift_exp) in
+	Int32.of_int ((if f.C.hex then 4 else 1) * String.length f.C.fracPart) in
+      let exp = BinInt.coq_Zminus exp (z_of_camlint shift_exp) in
 
-      let base = P.of_int (if f.C.hex then 2 else 10) in
+      let base = positive_of_camlint (if f.C.hex then 16l else 10l) in
 
       begin match kind with
-      | FFloat ->
-	  Vsingle (Float32.from_parsed base mant exp)
-      | FDouble | FLongDouble ->
-	  Vfloat (Float.from_parsed base mant exp)
+	| FFloat ->
+	  Float.build_from_parsed32 base mant exp
+	| FDouble | FLongDouble ->
+	  Float.build_from_parsed64 base mant exp
       end
-
-    | Z.Zneg _ -> assert false
+    | BinInt.Zneg _ -> assert false
 
 (** Expressions *)
 
 let ezero = Eval(Vint(coqint_of_camlint 0l), type_int32s)
+
+let check_assignop msg env e =
+  if not (first_class_value env e.etyp) then
+    unsupported (msg ^ " on a l-value of type " ^ string_of_type e.etyp)
 
 let rec convertExpr env e =
   let ty = convertTyp env e.etyp in
@@ -484,16 +401,18 @@ let rec convertExpr env e =
   | C.EUnop((C.Oderef|C.Odot _|C.Oarrow _), _)
   | C.EBinop(C.Oindex, _, _, _) ->
       let l = convertLvalue env e in
+      if not (first_class_value env e.etyp) then
+        unsupported ("r-value of type " ^ string_of_type e.etyp);
       Evalof(l, ty)
 
-  | C.EConst(C.CInt(i, (ILongLong|IULongLong), _)) ->
-      Eval(Vlong(coqint_of_camlint64 i), ty)
   | C.EConst(C.CInt(i, k, _)) ->
+      if k = C.ILongLong || k = C.IULongLong then
+        unsupported "'long long' integer literal";
       Eval(Vint(convertInt i), ty)
   | C.EConst(C.CFloat(f, k)) ->
       if k = C.FLongDouble && not !Clflags.option_flongdouble then
         unsupported "'long double' floating-point literal";
-      Eval(convertFloat f k, ty)
+      Eval(Vfloat(convertFloat f k), ty)
   | C.EConst(C.CStr s) ->
       let ty = typeStringLiteral s in
       Evalof(Evar(name_for_string_literal env s, ty), ty)
@@ -517,17 +436,21 @@ let rec convertExpr env e =
   | C.EUnop(C.Oaddrof, e1) ->
       Eaddrof(convertLvalue env e1, ty)
   | C.EUnop(C.Opreincr, e1) ->
+      check_assignop "pre-increment" env e1;
       coq_Epreincr Incr (convertLvalue env e1) ty
   | C.EUnop(C.Opredecr, e1) ->
+      check_assignop "pre-decrement" env e1;
       coq_Epreincr Decr (convertLvalue env e1) ty
   | C.EUnop(C.Opostincr, e1) ->
+      check_assignop "post-increment" env e1;
       Epostincr(Incr, convertLvalue env e1, ty)
   | C.EUnop(C.Opostdecr, e1) ->
+      check_assignop "post-decrement" env e1;
       Epostincr(Decr, convertLvalue env e1, ty)
 
   | C.EBinop((C.Oadd|C.Osub|C.Omul|C.Odiv|C.Omod|C.Oand|C.Oor|C.Oxor|
               C.Oshl|C.Oshr|C.Oeq|C.One|C.Olt|C.Ogt|C.Ole|C.Oge) as op,
-             e1, e2, tyres) ->
+             e1, e2, _) ->
       let op' =
         match op with
         | C.Oadd -> Oadd
@@ -551,10 +474,7 @@ let rec convertExpr env e =
   | C.EBinop(C.Oassign, e1, e2, _) ->
       let e1' = convertLvalue env e1 in
       let e2' = convertExpr env e2 in
-      if Cutil.is_composite_type env e1.etyp
-      && List.mem AVolatile (Cutil.attributes_of_type env e1.etyp) then
-        warning "assignment to a l-value of volatile composite type. \
-                 The 'volatile' qualifier is ignored.";
+      check_assignop "assignment" env e1;
       Eassign(e1', e2', ty)
   | C.EBinop((C.Oadd_assign|C.Osub_assign|C.Omul_assign|C.Odiv_assign|
               C.Omod_assign|C.Oand_assign|C.Oor_assign|C.Oxor_assign|
@@ -576,6 +496,7 @@ let rec convertExpr env e =
         | _ -> assert false in
       let e1' = convertLvalue env e1 in
       let e2' = convertExpr env e2 in
+      check_assignop "assignment-operation" env e1;
       Eassignop(op', e1', e2', tyres, ty)
   | C.EBinop(C.Ocomma, e1, e2, _) ->
       Ecomma(convertExpr env e1, convertExpr env e2, ty)
@@ -587,18 +508,16 @@ let rec convertExpr env e =
   | C.EConditional(e1, e2, e3) ->
       Econdition(convertExpr env e1, convertExpr env e2, convertExpr env e3, ty)
   | C.ECast(ty1, e1) ->
+      if not (first_class_value env ty1) then
+        unsupported ("cast to type " ^ string_of_type ty1);
       Ecast(convertExpr env e1, convertTyp env ty1)
-  | C.ECompound(ty1, ie) ->
-      unsupported "compound literals"; ezero
 
   | C.ECall({edesc = C.EVar {name = "__builtin_annot"}}, args) ->
       begin match args with
       | {edesc = C.EConst(CStr txt)} :: args1 ->
-          let targs1 = convertTypArgs env [] args1 in
-          Ebuiltin(
-            EF_annot(intern_string txt,
-                     List.map (fun t -> AA_arg t) (typlist_of_typelist targs1)),
-            targs1, convertExprList env args1, ty)
+          let targs1 = convertTypList env (List.map (fun e -> e.etyp) args1) in
+          Ebuiltin(EF_annot(intern_string txt, typlist_of_typelist targs1),
+                   targs1, convertExprList env args1, ty)
       | _ ->
           error "ill-formed __builtin_annot (first argument must be string literal)";
           ezero
@@ -607,8 +526,7 @@ let rec convertExpr env e =
   | C.ECall({edesc = C.EVar {name = "__builtin_annot_intval"}}, args) ->
       begin match args with
       | [ {edesc = C.EConst(CStr txt)}; arg ] ->
-          let targ = convertTyp env
-                         (Cutil.default_argument_conversion env arg.etyp) in
+          let targ = convertTyp env arg.etyp in
           Ebuiltin(EF_annot_val(intern_string txt, typ_of_type targ),
                    Tcons(targ, Tnil), convertExprList env [arg], ty)
       | _ ->
@@ -619,51 +537,34 @@ let rec convertExpr env e =
  | C.ECall({edesc = C.EVar {name = "__builtin_memcpy_aligned"}}, args) ->
       make_builtin_memcpy (convertExprList env args)
 
-  | C.ECall({edesc = C.EVar {name = "__builtin_fabs"}}, [arg]) ->
-      Eunop(Oabsfloat, convertExpr env arg, ty)
-
-  | C.ECall({edesc = C.EVar {name = "__builtin_va_start"}} as fn, [arg]) ->
-      Ecall(convertExpr env fn,
-            Econs(va_list_ptr(convertExpr env arg), Enil),
-            ty)
-
-  | C.ECall({edesc = C.EVar {name = "__builtin_va_arg"}}, [arg1; arg2]) ->
-      make_builtin_va_arg env ty (convertExpr env arg1)
-
-  | C.ECall({edesc = C.EVar {name = "__builtin_va_end"}}, _) ->
-      Ecast (ezero, Tvoid)
-
-  | C.ECall({edesc = C.EVar {name = "__builtin_va_copy"}}, [arg1; arg2]) ->
-      let dst = convertExpr env arg1 in
-      let src = convertExpr env arg2 in
-      Ebuiltin(EF_memcpy(Z.of_uint CBuiltins.size_va_list, Z.of_uint 4),
-               Tcons(Tpointer(Tvoid, noattr),
-                 Tcons(Tpointer(Tvoid, noattr), Tnil)),
-               Econs(va_list_ptr dst, Econs(va_list_ptr src, Enil)),
-               Tvoid)
-
-  | C.ECall({edesc = C.EVar {name = "printf"}}, args)
-    when !Clflags.option_interp ->
-      let targs =
-        convertTypArgs env [] args in
-      let sg =
-        signature_of_type targs ty {cc_vararg = true; cc_structret = false} in
-      Ebuiltin(EF_external(intern_string "printf", sg), 
-               targs, convertExprList env args, ty)
- 
   | C.ECall(fn, args) ->
       if not (supported_return_type env e.etyp) then
-        unsupported ("function returning a result of type " ^ string_of_type e.etyp ^ " (consider adding option -fstruct-return)");
-      begin match projFunType env fn.etyp with
+        unsupported ("function returning a result of type " ^ string_of_type e.etyp);
+      match projFunType env fn.etyp with
       | None ->
-          error "wrong type for function part of a call"
-      | Some(tres, targs, va) ->
-          if targs = None && not !Clflags.option_funprototyped then
-            unsupported "call to unprototyped function (consider adding option -funprototyped)";
-          if va && not !Clflags.option_fvararg_calls then
-            unsupported "call to variable-argument function (consider adding option -fvararg-calls)"
-      end;
-      Ecall(convertExpr env fn, convertExprList env args, ty)
+          error "wrong type for function part of a call"; ezero
+      | Some(res, false) ->
+          (* Non-variadic function *)
+          Ecall(convertExpr env fn, convertExprList env args, ty)
+      | Some(res, true) ->
+          (* Variadic function: generate a call to a stub function with
+             the appropriate number and types of arguments.  Works only if
+             the function expression e is a global variable. *)
+          let fun_name =
+            match fn with
+            | {edesc = C.EVar id} when !Clflags.option_fvararg_calls ->
+                (*warning "emulating call to variadic function"; *)
+                id.name
+            | _ ->
+                unsupported "call to variadic function";
+                "<error>" in
+          let targs = convertTypList env (List.map (fun e -> e.etyp) args) in
+          let tres = convertTyp env res in
+          let (stub_fun_name, stub_fun_typ) =
+            register_stub_function fun_name tres targs in
+          Ecall(Evalof(Evar(intern_string stub_fun_name, stub_fun_typ),
+                       stub_fun_typ),
+                convertExprList env args, ty)
 
 and convertLvalue env e =
   let ty = convertTyp env e.etyp in
@@ -678,7 +579,7 @@ and convertLvalue env e =
       let e1' = convertExpr env e1 in
       let ty1 =
         match typeof e1' with
-        | Tpointer(t, _) | Tarray(t, _, _) -> t
+        | Tpointer(t, _) -> t
         | _ -> error ("wrong type for ->" ^ id ^ " access"); Tvoid in
       Efield(Evalof(Ederef(e1', ty1), ty1), intern_string id, ty)
   | C.EBinop(C.Oindex, e1, e2, _) ->
@@ -708,9 +609,6 @@ let rec flattenSwitch = function
       Label(Case e) :: flattenSwitch s1
   | {sdesc = C.Slabeled(C.Sdefault, s1)} ->
       Label Default :: flattenSwitch s1
-  | {sdesc = C.Slabeled(C.Slabel lbl, s1); sloc = loc} ->
-      Stmt {sdesc = C.Slabeled(C.Slabel lbl, Cutil.sskip); sloc = loc}
-      :: flattenSwitch s1
   | s ->
       [Stmt s]
 
@@ -724,44 +622,29 @@ let rec groupSwitch = function
       let (fst, cases) = groupSwitch rem in
       (Cutil.sseq s.sloc s fst, cases)
 
-(** Annotations for line numbers *)
+(* Statement *)
 
-let add_lineno prev_loc this_loc s =
-  if !Clflags.option_g && prev_loc <> this_loc && this_loc <> Cutil.no_loc
-  then begin
-    let txt = sprintf "#line:%s:%d" (fst this_loc) (snd this_loc) in
-     Ssequence(Sdo(Ebuiltin(EF_annot(intern_string txt, []),
-                            Tnil, Enil, Tvoid)),
-               s)
-  end else
-    s
-
-(** Statements *)
-
-let rec convertStmt ploc env s =
+let rec convertStmt env s =
   updateLoc s.sloc;
   match s.sdesc with
   | C.Sskip ->
       Sskip
   | C.Sdo e ->
-      add_lineno ploc s.sloc (Sdo(convertExpr env e))
+      Sdo(convertExpr env e)
   | C.Sseq(s1, s2) ->
-      Ssequence(convertStmt ploc env s1, convertStmt s1.sloc env s2)
+      Ssequence(convertStmt env s1, convertStmt env s2)
   | C.Sif(e, s1, s2) ->
       let te = convertExpr env e in
-      add_lineno ploc s.sloc 
-        (Sifthenelse(te, convertStmt s.sloc env s1, convertStmt s.sloc env s2))
+      Sifthenelse(te, convertStmt env s1, convertStmt env s2)
   | C.Swhile(e, s1) ->
       let te = convertExpr env e in
-      add_lineno ploc s.sloc (Swhile(te, convertStmt s.sloc env s1))
+      Swhile(te, convertStmt env s1)
   | C.Sdowhile(s1, e) ->
       let te = convertExpr env e in
-      add_lineno ploc s.sloc (Sdowhile(te, convertStmt s.sloc env s1))
+      Sdowhile(te, convertStmt env s1)
   | C.Sfor(s1, e, s2, s3) ->
       let te = convertExpr env e in
-      add_lineno ploc s.sloc
-        (Sfor(convertStmt s.sloc env s1, te,
-              convertStmt s.sloc env s2, convertStmt s.sloc env s3))
+      Sfor(convertStmt env s1, te, convertStmt env s2, convertStmt env s3)
   | C.Sbreak ->
       Sbreak
   | C.Scontinue ->
@@ -773,21 +656,19 @@ let rec convertStmt ploc env s =
       if init.sdesc <> C.Sskip then
         warning "ignored code at beginning of 'switch'";
       let te = convertExpr env e in
-      add_lineno ploc s.sloc
-        (Sswitch(te, convertSwitch s.sloc env (is_longlong env e.etyp) cases))
+      Sswitch(te, convertSwitch env cases)
   | C.Slabeled(C.Slabel lbl, s1) ->
-      add_lineno ploc s.sloc
-        (Slabel(intern_string lbl, convertStmt s.sloc env s1))
+      Slabel(intern_string lbl, convertStmt env s1)
   | C.Slabeled(C.Scase _, _) ->
       unsupported "'case' outside of 'switch'"; Sskip
   | C.Slabeled(C.Sdefault, _) ->
       unsupported "'default' outside of 'switch'"; Sskip
   | C.Sgoto lbl ->
-      add_lineno ploc s.sloc (Sgoto(intern_string lbl))
+      Sgoto(intern_string lbl)
   | C.Sreturn None ->
-      add_lineno ploc s.sloc (Sreturn None)
+      Sreturn None
   | C.Sreturn(Some e) ->
-      add_lineno ploc s.sloc (Sreturn(Some(convertExpr env e)))
+      Sreturn(Some(convertExpr env e))
   | C.Sblock _ ->
       unsupported "nested blocks"; Sskip
   | C.Sdecl _ ->
@@ -795,35 +676,32 @@ let rec convertStmt ploc env s =
   | C.Sasm txt ->
       if not !Clflags.option_finline_asm then
         unsupported "inline 'asm' statement (consider adding option -finline-asm)";
-      add_lineno ploc s.sloc
-        (Sdo (Ebuiltin (EF_inline_asm (intern_string txt), Tnil, Enil, Tvoid)))
+      Sdo (Ebuiltin (EF_inline_asm (intern_string txt), Tnil, Enil, Tvoid))
 
-and convertSwitch ploc env is_64 = function
+and convertSwitch env = function
   | [] ->
-      LSnil
-  | (lbl, s) :: rem ->
+      LSdefault Sskip
+  | [Default, s] ->
+      LSdefault (convertStmt env s)
+  | (Default, s) :: _ ->
       updateLoc s.sloc;
-      let lbl' =
-        match lbl with
-        | Default ->
-            None
-        | Case e ->    
-            match Ceval.integer_expr env e with
-            | None -> unsupported "'case' label is not a compile-time integer";
-                      None
-            | Some v -> Some (if is_64
-                              then Z.of_uint64 v
-                              else Z.of_uint32 (Int64.to_int32 v))
-      in
-      LScons(lbl', convertStmt ploc env s, convertSwitch s.sloc env is_64 rem)
+      unsupported "'default' case must occur last";
+      LSdefault Sskip
+  | (Case e, s) :: rem ->
+      updateLoc s.sloc;
+      let v =
+        match Ceval.integer_expr env e with
+        | None -> unsupported "'case' label is not a compile-time integer"; 0L
+        | Some v -> v in
+      LScase(convertInt v,
+             convertStmt env s,
+             convertSwitch env rem)
 
 (** Function definitions *)
 
-let convertFundef loc env fd =
+let convertFundef env fd =
   if Cutil.is_composite_type env fd.fd_ret then
-    unsupported "function returning a struct or union (consider adding option -fstruct-return)";
-  if fd.fd_vararg && not !Clflags.option_fvararg_calls then
-    unsupported "variable-argument function (consider adding option -fvararg-calls)";
+    unsupported "function returning a struct or union";
   let ret =
     convertTyp env fd.fd_ret in
   let params =
@@ -840,40 +718,33 @@ let convertFundef loc env fd =
           unsupported "initialized local variable";
         (intern_string id.name, convertTyp env ty))
       fd.fd_locals in
-  let body' = convertStmt loc env fd.fd_body in
+  let body' = convertStmt env fd.fd_body in
   let id' = intern_string fd.fd_name.name in
   Hashtbl.add decl_atom id'
     { a_storage = fd.fd_storage;
       a_alignment = None;
       a_sections = Sections.for_function env id' fd.fd_ret;
-      a_access = Sections.Access_default;
-      a_inline = fd.fd_inline;
-      a_loc = loc };
-  (id', Gfun(Internal {fn_return = ret;
-                       fn_callconv = convertCallconv fd.fd_vararg fd.fd_attrib;
-                       fn_params = params;
-                       fn_vars = vars;
-                       fn_body = body'}))
+      a_small_data = false;
+      a_inline = fd.fd_inline };
+  (id', Gfun(Internal {fn_return = ret; fn_params = params;
+                       fn_vars = vars; fn_body = body'}))
 
 (** External function declaration *)
 
-let re_builtin = Str.regexp "__builtin_"
-
 let convertFundecl env (sto, id, ty, optinit) =
-  let (args, res, cconv) =
+  let (args, res) =
     match convertTyp env ty with
-    | Tfunction(args, res, cconv) -> (args, res, cconv)
+    | Tfunction(args, res) -> (args, res)
     | _ -> assert false in
   let id' = intern_string id.name in
-  let sg = signature_of_type args res cconv in
+  let sg = signature_of_type args res in
   let ef =
     if id.name = "malloc" then EF_malloc else
     if id.name = "free" then EF_free else
-    if Str.string_match re_builtin id.name 0
-    && List.mem_assoc id.name builtins.functions
+    if List.mem_assoc id.name builtins.functions
     then EF_builtin(id', sg)
     else EF_external(id', sg) in
-  (id', Gfun(External(ef, args, res, cconv)))
+  (id', Gfun(External(ef, args, res)))
 
 (** Initializers *)
 
@@ -881,7 +752,7 @@ let string_of_errmsg msg =
   let string_of_err = function
   | Errors.MSG s -> camlstring_of_coqstring s
   | Errors.CTX i -> extern_atom i
-  | Errors.POS i -> Z.to_string (Z.Zpos i)
+  | Errors.POS i -> sprintf "%ld" (camlint_of_positive i)
   in String.concat "" (List.map string_of_err msg)
 
 let rec convertInit env init =
@@ -889,11 +760,11 @@ let rec convertInit env init =
   | C.Init_single e ->
       Init_single (convertExpr env e)
   | C.Init_array il ->
-      Init_array (convertInitList env il)
+      Init_compound (convertInitList env il)
   | C.Init_struct(_, flds) ->
-      Init_struct (convertInitList env (List.map snd flds))
+      Init_compound (convertInitList env (List.map snd flds))
   | C.Init_union(_, fld, i) ->
-      Init_union (intern_string fld.fld_name, convertInit env i)
+      Init_compound (Init_cons(convertInit env i, Init_nil))
 
 and convertInitList env il =
   match il with
@@ -910,32 +781,28 @@ let convertInitializer env ty i =
 
 (** Global variable *)
 
-let convertGlobvar loc env (sto, id, ty, optinit) =
+let convertGlobvar env (sto, id, ty, optinit) =
   let id' = intern_string id.name in
   let ty' = convertTyp env ty in 
-  let sz = Ctypes.sizeof ty' in
-  let al = Ctypes.alignof ty' in
   let attr = Cutil.attributes_of_type env ty in
   let init' =
     match optinit with
     | None ->
-        if sto = C.Storage_extern then [] else [Init_space sz]
+        if sto = C.Storage_extern then [] else [Init_space(Ctypes.sizeof ty')]
     | Some i ->
         convertInitializer env ty i in
-  let (section, access) =
+  let align =
+    match Cutil.find_custom_attributes ["aligned"; "__aligned__"] attr with
+    | [[C.AInt n]] -> Some(Int64.to_int n)
+    | _            -> Cutil.alignof env ty in
+  let (section, near_access) =
     Sections.for_variable env id' ty (optinit <> None) in
-  if Z.gt sz (Z.of_uint64 0xFFFF_FFFFL) then
-    error (sprintf "'%s' is too big (%s bytes)"
-                   id.name (Z.to_string sz));
-  if sto <> C.Storage_extern && Cutil.incomplete_type env ty then
-    error (sprintf "'%s' has incomplete type" id.name);
   Hashtbl.add decl_atom id'
     { a_storage = sto;
-      a_alignment = Some (Z.to_int al);
+      a_alignment = align;
       a_sections = [section];
-      a_access = access;
-      a_inline = false;
-      a_loc = loc };
+      a_small_data = near_access;
+      a_inline = false };
   let volatile = List.mem C.AVolatile attr in
   let readonly = List.mem C.AConst attr && not volatile in
   (id', Gvar {gvar_info = ty'; gvar_init = init';
@@ -946,10 +813,11 @@ let convertGlobvar loc env (sto, id, ty, optinit) =
 let checkComposite env si id attr flds =
   let checkField f =
     if f.fld_bitfield <> None then
-      unsupported "bit field in struct or union (consider adding option -fbitfields)" in
-  List.iter checkField flds;
-  if Cutil.find_custom_attributes ["packed";"__packed__"] attr <> [] then
-    unsupported "packed struct (consider adding option -fpacked-struct)"
+      unsupported "bit field in struct or union";
+    if Cutil.find_custom_attributes ["aligned"; "__aligned__"] 
+          (Cutil.attributes_of_type env f.fld_typ) <> [] then
+      warning ("ignoring 'aligned' attribute on field " ^ f.fld_name)
+  in List.iter checkField flds
 
 (** Convert a list of global declarations.
   Result is a list of CompCert C global declarations (functions +
@@ -962,18 +830,22 @@ let rec convertGlobdecls env res gl =
       updateLoc g.gloc;
       match g.gdesc with
       | C.Gdecl((sto, id, ty, optinit) as d) ->
-          (* Functions become external declarations.
+          (* Prototyped functions become external declarations.
+             Variadic functions are skipped.
              Other types become variable declarations. *)
           begin match Cutil.unroll env ty with
-          | TFun(tres, targs, va, a) ->
-              if targs = None then
-                warning ("'" ^ id.name ^ "' is declared without a function prototype");
+          | TFun(_, Some _, false, _) ->
               convertGlobdecls env (convertFundecl env d :: res) gl'
+          | TFun(_, None, false, _) ->
+              error ("'" ^ id.name ^ "' is declared without a function prototype");
+              convertGlobdecls env res gl'
+          | TFun(_, _, true, _) ->
+              convertGlobdecls env res gl'
           | _ ->
-              convertGlobdecls env (convertGlobvar g.gloc env d :: res) gl'
+              convertGlobdecls env (convertGlobvar env d :: res) gl'
           end
       | C.Gfundef fd ->
-          convertGlobdecls env (convertFundef g.gloc env fd :: res) gl'
+          convertGlobdecls env (convertFundef env fd :: res) gl'
       | C.Gcompositedecl _ | C.Gtypedef _ | C.Genumdef _ ->
           (* typedefs are unrolled, structs are expanded inline, and
              enum tags are folded.  So we just skip their declarations. *)
@@ -981,8 +853,6 @@ let rec convertGlobdecls env res gl =
       | C.Gcompositedef(su, id, attr, flds) ->
           (* sanity checks on fields *)
           checkComposite env su id attr flds;
-          (* convert it to a CompCert C type and cache this type *)
-          cacheCompositeDef env su id attr flds;
           convertGlobdecls env res gl'
       | C.Gpragma s ->
           if not (!process_pragma_hook s) then
@@ -1066,16 +936,16 @@ let convertProgram p =
   stringNum := 0;
   Hashtbl.clear decl_atom;
   Hashtbl.clear stringTable;
-  Hashtbl.clear compositeCache;
+  Hashtbl.clear special_externals_table;
   let p = Builtins.declarations() @ p in
   try
     let gl1 = convertGlobdecls (translEnv Env.empty p) [] (cleanupGlobals p) in
-    let gl2 = globals_for_strings gl1 in
-    let p' = { AST.prog_defs = gl2;
-                AST.prog_main = intern_string "main" } in
+    let gl2 = declare_special_externals gl1 in
+    let gl3 = globals_for_strings gl2 in
     if !numErrors > 0
     then None
-    else Some p'
+    else Some { AST.prog_defs = gl3;
+                AST.prog_main = intern_string "main" }
   with Env.Error msg ->
     error (Env.error_message msg); None
 
@@ -1084,13 +954,9 @@ let convertProgram p =
 let atom_is_static a =
   try
     let i = Hashtbl.find decl_atom a in
-    (* inline functions can remain in generated code, but should not
-       be global, unless explicitly marked "extern" *)
-    match i.a_storage with
-    | C.Storage_default -> i.a_inline
-    | C.Storage_extern -> false
-    | C.Storage_static -> true
-    | C.Storage_register -> false (* should not happen *)
+    i.a_storage = C.Storage_static || i.a_inline
+    (* inline functions can remain in generated code, but at least
+       let's not make them global *)
   with Not_found ->
     false
 
@@ -1114,13 +980,7 @@ let atom_sections a =
 
 let atom_is_small_data a ofs =
   try
-    (Hashtbl.find decl_atom a).a_access = Sections.Access_near
-  with Not_found ->
-    false
-
-let atom_is_rel_data a ofs =
-  try
-    (Hashtbl.find decl_atom a).a_access = Sections.Access_far
+    (Hashtbl.find decl_atom a).a_small_data
   with Not_found ->
     false
 
@@ -1129,9 +989,3 @@ let atom_is_inline a =
     (Hashtbl.find decl_atom a).a_inline
   with Not_found ->
     false
-
-let atom_location a =
-  try
-    (Hashtbl.find decl_atom a).a_loc
-  with Not_found ->
-    Cutil.no_loc

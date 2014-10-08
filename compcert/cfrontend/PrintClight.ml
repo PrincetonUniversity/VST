@@ -26,9 +26,22 @@ open Cop
 open PrintCsyntax
 open Clight
 
+(* Collecting the names and fields of structs and unions *)
+
+module StructUnionSet = Set.Make(struct
+  type t = string * fieldlist
+  let compare (n1, _ : t) (n2, _ : t) = compare n1 n2
+end)
+
+let struct_unions = ref StructUnionSet.empty
+
+let register_struct_union id fld =
+  struct_unions := StructUnionSet.add (extern_atom id, fld) !struct_unions
+
 (* Naming temporaries *)
 
-let temp_name (id: ident) = "$" ^ Z.to_string (Z.Zpos id)
+let temp_name (id: ident) =
+  Printf.sprintf "$%ld" (camlint_of_positive id)
 
 (* Declarator (identifier + type) -- reuse from PrintCsyntax *)
 
@@ -43,8 +56,6 @@ let rec precedence = function
   | Efield _ -> (16, LtoR)
   | Econst_int _ -> (16, NA)
   | Econst_float _ -> (16, NA)
-  | Econst_single _ -> (16, NA)
-  | Econst_long _ -> (16, NA)
   | Eunop _ -> (15, RtoL)
   | Eaddrof _ -> (15, RtoL)
   | Ecast _ -> (14, RtoL)
@@ -77,20 +88,10 @@ let rec expr p (prec, e) =
       fprintf p "*%a" expr (prec', a1)
   | Efield(a1, f, _) ->
       fprintf p "%a.%s" expr (prec', a1) (extern_atom f)
-  | Econst_int(n, Tint(I32, Unsigned, _)) ->
-      fprintf p "%luU" (camlint_of_coqint n)
   | Econst_int(n, _) ->
       fprintf p "%ld" (camlint_of_coqint n)
   | Econst_float(f, _) ->
       fprintf p "%F" (camlfloat_of_coqfloat f)
-  | Econst_single(f, _) ->
-      fprintf p "%Ff" (camlfloat_of_coqfloat32 f)
-  | Econst_long(n, Tlong(Unsigned, _)) ->
-      fprintf p "%LuLLU" (camlint64_of_coqint n)
-  | Econst_long(n, _) ->
-      fprintf p "%LdLL" (camlint64_of_coqint n)
-  | Eunop(Oabsfloat, a1, _) ->
-      fprintf p "__builtin_fabs(%a)" expr (2, a1)
   | Eunop(op, a1, _) ->
       fprintf p "%s%a" (name_unop op) expr (prec', a1)
   | Eaddrof(a1, _) ->
@@ -186,21 +187,19 @@ let rec print_stmt p s =
 
 and print_cases p cases =
   match cases with
-  | LSnil ->
+  | LSdefault Sskip ->
       ()
-  | LScons(lbl, Sskip, rem) ->
-      fprintf p "%a:@ %a"
-              print_case_label lbl
+  | LSdefault s ->
+      fprintf p "@[<v 2>default:@ %a@]" print_stmt s
+  | LScase(lbl, Sskip, rem) ->
+      fprintf p "case %ld:@ %a"
+              (camlint_of_coqint lbl)
               print_cases rem
-  | LScons(lbl, s, rem) ->
-      fprintf p "@[<v 2>%a:@ %a@]@ %a"
-              print_case_label lbl
+  | LScase(lbl, s, rem) ->
+      fprintf p "@[<v 2>case %ld:@ %a@]@ %a"
+              (camlint_of_coqint lbl)
               print_stmt s
               print_cases rem
-
-and print_case_label p = function
-  | None -> fprintf p "default"
-  | Some lbl -> fprintf p "case %ld" (camlint_of_coqint lbl)
 
 and print_stmt_for p s =
   match s with
@@ -236,7 +235,7 @@ and print_stmt_for p s =
 let print_function p id f =
   fprintf p "%s@ "
             (name_cdecl (name_function_parameters (extern_atom id)
-                                                  f.fn_params f.fn_callconv)
+                                                  f.fn_params)
                         f.fn_return);
   fprintf p "@[<v 2>{@ ";
   List.iter
@@ -252,10 +251,10 @@ let print_function p id f =
 
 let print_fundef p id fd =
   match fd with
-  | External(EF_external(_,_), args, res, cconv) ->
+  | External(EF_external(_,_), args, res) ->
       fprintf p "extern %s;@ @ "
-                (name_cdecl (extern_atom id) (Tfunction(args, res, cconv)))
-  | External(_, _, _, _) ->
+                (name_cdecl (extern_atom id) (Tfunction(args, res)))
+  | External(_, _, _) ->
       ()
   | Internal f ->
       print_function p id f
@@ -272,8 +271,6 @@ let rec collect_expr e =
   match e with
   | Econst_int _ -> ()
   | Econst_float _ -> ()
-  | Econst_single _ -> ()
-  | Econst_long _ -> ()
   | Evar _ -> ()
   | Etempvar _ -> ()
   | Ederef(r, _) -> collect_expr r
@@ -305,8 +302,8 @@ let rec collect_stmt = function
   | Sgoto lbl -> ()
 
 and collect_cases = function
-  | LSnil -> ()
-  | LScons(lbl, s, rem) -> collect_stmt s; collect_cases rem
+  | LSdefault s -> collect_stmt s
+  | LScase(lbl, s, rem) -> collect_stmt s; collect_cases rem
 
 let collect_function f =
   collect_type f.fn_return;
@@ -317,19 +314,32 @@ let collect_function f =
 
 let collect_globdef (id, gd) =
   match gd with
-  | Gfun(External(_, args, res, _)) -> collect_type_list args; collect_type res
+  | Gfun(External(_, args, res)) -> collect_type_list args; collect_type res
   | Gfun(Internal f) -> collect_function f
   | Gvar v -> collect_type v.gvar_info
 
 let collect_program p =
   List.iter collect_globdef p.prog_defs
 
+let declare_struct_or_union p (name, fld) =
+  fprintf p "%s;@ @ " name
+
+let print_struct_or_union p (name, fld) =
+  fprintf p "@[<v 2>%s {" name;
+  let rec print_fields = function
+  | Fnil -> ()
+  | Fcons(id, ty, rem) ->
+      fprintf p "@ %s;" (name_cdecl (extern_atom id) ty);
+      print_fields rem in
+  print_fields fld;
+  fprintf p "@;<0 -2>};@]@ @ "
+
 let print_program p prog =
-  struct_unions := StructUnion.empty;
+  struct_unions := StructUnionSet.empty;
   collect_program prog;
   fprintf p "@[<v 0>";
-  StructUnion.iter (declare_struct_or_union p) !struct_unions;
-  StructUnion.iter (print_struct_or_union p) !struct_unions;
+  StructUnionSet.iter (declare_struct_or_union p) !struct_unions;
+  StructUnionSet.iter (print_struct_or_union p) !struct_unions;
   List.iter (print_globdef p) prog.prog_defs;
   fprintf p "@]@."
 
