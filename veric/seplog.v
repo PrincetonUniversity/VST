@@ -477,7 +477,7 @@ Definition memory_block'_alt (sh: share) (n: nat) (b: block) (ofs: Z) : mpred :=
 Lemma memory_block'_eq: 
  forall sh n b i,
   0 <= i ->
-  Z_of_nat n + i <= Int.max_unsigned ->
+  Z_of_nat n + i <= Int.modulus ->
   memory_block' sh n b i = memory_block'_alt sh n b i.
 Proof.
 intros.
@@ -495,7 +495,9 @@ rewrite VALspec1.
 unfold mapsto_.
 unfold mapsto.
 simpl access_mode. cbv beta iota.
-rewrite Int.unsigned_repr by (pose proof (Zle_0_nat (S n)); omega).
+assert (i < Int.modulus)
+  by (rewrite Nat2Z.inj_succ in H0; omega).
+rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega); clear H1.
 forget (Share.unrel Share.Lsh sh) as rsh.
 forget (Share.unrel Share.Rsh sh) as sh'.
 clear.

@@ -1034,6 +1034,7 @@ Proof.
  rewrite Int.unsigned_zero. rewrite Zplus_0_r.
  rewrite Int.unsigned_repr.
  rewrite Coqlib.nat_of_Z_eq; auto.
+ unfold Int.max_unsigned in H5; omega.
  pose proof (sizeof_pos ty); omega.
  pose proof (sizeof_pos ty); omega.
  rewrite Int.unsigned_zero.
@@ -1292,6 +1293,7 @@ destruct H2; auto.
 inv NOREPe; auto.
 rewrite H8.
 exists m4; auto.
+change (Int.unsigned Int.zero) with 0 in H3. omega.
 Qed.
 
 Lemma necR_m_dry':

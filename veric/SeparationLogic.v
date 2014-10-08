@@ -233,7 +233,7 @@ Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
 Lemma memory_block'_split:
   forall sh b ofs i j,
    0 <= i <= j ->
-    j <= j+ofs <= Int.max_unsigned ->
+    j <= j+ofs <= Int.modulus ->
    memory_block' sh (nat_of_Z j) b ofs = 
       memory_block' sh (nat_of_Z i) b ofs * memory_block' sh (nat_of_Z (j-i)) b (ofs+i).
 Proof.
@@ -246,6 +246,52 @@ repeat (rewrite nat_of_Z_eq; try omega).
 etransitivity ; [ | eapply res_predicates.VALspec_range_split2].
 reflexivity.
 omega. omega. omega.
+Qed.
+
+Lemma memory_block_split:
+  forall (sh : share) (b : block) (ofs n m : Z),
+  0 <= n ->
+  0 <= m ->
+  n + m < Int.modulus ->
+  n + m <= n + m + ofs <= Int.modulus ->
+  memory_block sh (Int.repr (n + m)) (Vptr b (Int.repr ofs)) =
+  memory_block sh (Int.repr n) (Vptr b (Int.repr ofs)) *
+  memory_block sh (Int.repr m) (Vptr b (Int.repr (ofs + n))).
+Proof.
+  intros.
+  unfold memory_block.
+  rewrite (Int.unsigned_repr (n + m)) by (unfold Int.max_unsigned; omega).
+  rewrite (Int.unsigned_repr n) by (unfold Int.max_unsigned; omega).
+  rewrite (Int.unsigned_repr m) by (unfold Int.max_unsigned; omega).
+  rewrite memory_block'_split with (i := n); [| omega |].
+  Focus 2. {
+    pose proof Int.unsigned_range (Int.repr ofs).
+    pose proof Int.unsigned_repr_eq ofs.
+    assert (ofs mod Int.modulus <= ofs) by (apply Z.mod_le; omega).
+    omega.
+  } Unfocus.
+  replace (n + m - n) with m by omega.
+  replace (memory_block' sh (nat_of_Z m) b (Int.unsigned (Int.repr ofs) + n)) with
+    (memory_block' sh (nat_of_Z m) b (Int.unsigned (Int.repr (ofs + n)))).
+  Focus 2. {
+    destruct (zeq m 0).
+    + subst. reflexivity.
+    + assert (ofs + n < Int.modulus) by omega.
+      rewrite !Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+      reflexivity.
+  } Unfocus.
+  apply pred_ext.
+  + apply derives_extract_prop; intros.
+    apply sepcon_derives; (apply andp_right; [apply prop_right | apply derives_refl]).
+    - omega.
+    - rewrite Int.unsigned_repr_eq.
+      assert ((ofs + n) mod Int.modulus <= ofs + n) by (apply Z.mod_le; omega).
+      omega.
+  + apply andp_right; [apply prop_right |].
+    - rewrite Int.unsigned_repr_eq.
+      assert (ofs mod Int.modulus <= ofs) by (apply Z.mod_le; omega).
+      omega.
+    - apply sepcon_derives; apply andp_left2; apply derives_refl.
 Qed.
 
 Definition align_compatible t p :=
