@@ -50,45 +50,45 @@ Variable main_id : ident.
 
 Definition main_ef := EF_external main_id LinkerSem.main_sig.
 
-(* ASSUMPTIONS                                                            *)
-(* We make the following assumptions on plt, spec, and ge:                *)
-(*                                                                        *)
-(* 1) For at_external cores, [ef_sig ef = sig]. This assumption will      *)
-(* be made redundant if we change the type of at_external to              *)
-(*   C -> option (external_function*seq val).                             *)
+(** ASSUMPTIONS
+We make the following assumptions on plt, spec, and ge: *)
+
+(** 1) For at_external cores, [ef_sig ef = sig]. This assumption will
+be made redundant if we change the type of at_external to
+  C -> option (external_function*seq val). *)
 
 Variable sigs_match : 
   forall (idx : 'I_N) c ef sig args,
   at_external (sems idx).(Modsem.sem) c = Some (ef, sig, args) ->
   sig = ef_sig ef.
 
-(* 2) The postconditions of each external function at least imply         *)
-(* that the function return values are well-typed with respect to         *)
-(* the function signatures. This is a property required for compiler      *)
-(* correctness -- e.g., in the register allocation phase that determines  *)
-(* in which class of registers to stick return values. It shows up        *)
-(* here because we enforce the property by building it into the           *)
-(* linking operational semantics.                                         *)
+(** 2) The postconditions of each external function at least imply
+that the function return values are well-typed with respect to
+the function signatures. This is a property required for compiler
+correctness -- e.g., in the register allocation phase that determines
+in which class of registers to stick return values. It shows up
+here because we enforce the property by building it into the
+linking operational semantics. *)
 
 Variable rets_welltyped : 
   forall ef x ge rv z m,
   ext_spec_post spec ef x ge (sig_res (ef_sig ef)) (Some rv) z m -> 
   val_casted.val_has_type_func rv (proj_sig_res (ef_sig ef)).
 
-(* 3) Whenever [plt fid = Some idx] (that is, the PLT claims that [fid]   *)
-(* is implemented by module [idx], then that module's global env.         *)
-(* maps [fid] to some address [bf]. Property 4) below ensures that        *)
-(* initializing the module at [bf] succeeds.                              *)
+(** 3) Whenever [plt fid = Some idx] (that is, the PLT claims that [fid]
+is implemented by module [idx], then that module's global env.
+maps [fid] to some address [bf]. Property 4) below ensures that
+initializing the module at [bf] succeeds. *)
 
 Variable entry_points_exist :
   forall fid idx, 
   plt fid = Some idx -> 
   exists bf, Genv.find_symbol (Modsem.ge (sems idx)) fid = Some bf.
 
-(* 4) Initializing module [idx] to run a function [fid] we claim module   *)
-(* [idx] defines results in a new state, [c], that is safe. Safety is     *)
-(* w/r/t the [spec'] that results from overwriting the exit condition     *)
-(* of [spec] with the postcondition of function [fid].                    *)
+(** 4) Initializing module [idx] to run a function [fid] we claim module
+[idx] defines results in a new state, [c], that is safe. Safety is
+w/r/t the [spec'] that results from overwriting the exit condition
+of [spec] with the postcondition of function [fid]. *)
 
 Variable entry_points_safe : 
   forall ef fid idx bf args z m,
@@ -108,12 +108,15 @@ Variable entry_points_safe :
 (** 5) Because we've added [genv_symb] to [ext_spec], we now appear to require a 
 stronger assumption, that the symbol tables are equal. *)
 
+(** The other alternative here is to require that specifications be monotonic
+in some way. *)
+
 Variable genv_symbols_eq :
   forall idx, Genv.genv_symb ge = Genv.genv_symb (Modsem.ge (sems idx)).
 
-(* 5a) The overall [ge] is a superset of each per-module [ge].  In         *)
-(* particular, this implies that the module [ge]s agree with *each other* *)
-(* whenever their domains overlap.                                        *)
+(** 5a) The overall [ge] is a superset of each per-module [ge].  In
+particular, this implies that the module [ge]s agree with *each other*
+whenever their domains overlap. *)
 
 Lemma genvs_consistent idx id bf :
   Genv.find_symbol (Modsem.ge (sems idx)) id = Some bf -> 
@@ -121,6 +124,13 @@ Lemma genvs_consistent idx id bf :
 Proof.
 by rewrite /Genv.find_symbol -genv_symbols_eq.
 Qed.
+
+(** 6) Coresteps of the underlying semantics imply [Hrel]. *)
+
+Variable corestep_hrel: 
+  forall idx c m c' m', 
+  corestep (Modsem.sem (sems idx)) (Modsem.ge (sems idx)) c m c' m' ->
+  Hrel m m'.
 
 Notation linked_sem := (LinkerSem.coresem N sems plt).
 
@@ -130,7 +140,7 @@ Require Import stack.
 
 Fixpoint tail_safe (n : nat)
     (ef : external_function) (x : ext_spec_type spec ef)
-    (efs : seq external_function) (s : Stack.t (Core.t sems)) : Prop :=
+    (efs : seq external_function) (s : Stack.t (Core.t sems)) m : Prop :=
   match efs, s with 
     | nil, nil => True
     | ef_top :: efs', c :: s' => 
@@ -140,28 +150,55 @@ Fixpoint tail_safe (n : nat)
         let: c_ge := Modsem.ge (sems c_idx) in
         let: c_sem := Modsem.sem (sems c_idx) in
           c_sig = ef_sig ef_top /\
-          exists sig args z m (x_top : ext_spec_type spec ef_top), 
-          [/\ at_external c_sem c_c = Some (ef, sig, args) 
-            , ext_spec_pre spec ef x (Genv.genv_symb ge) (sig_args sig) args z m 
+          exists sig args z m0 (x_top : ext_spec_type spec ef_top), 
+          [/\ Hrel m0 m
+            , at_external c_sem c_c = Some (ef, sig, args) 
+            , ext_spec_pre spec ef x (Genv.genv_symb ge) (sig_args sig) args z m0 
             , (forall ret m' z',
-               Hrel m m' -> 
+               Hrel m0 m' -> 
                ext_spec_post spec ef x (Genv.genv_symb ge) (sig_res sig) ret z' m' ->
                let: spec' := @upd_exit _ spec ef_top x_top in
                exists c', 
                [/\ after_external c_sem ret c_c = Some c'
                  & safeN c_sem (spec' (Genv.genv_symb c_ge)) c_ge n z' c' m'])
-           & @tail_safe n ef_top x_top efs' s']
+           & @tail_safe n ef_top x_top efs' s' m]
     | _, _ => False
   end.
 
-Lemma tail_safe_downward1 ef n Hx efs l :
-  tail_safe n.+1 (ef:=ef) Hx efs l -> 
-  tail_safe n (ef:=ef) Hx efs l.
+Lemma Hrel_refl m : Hrel m m.
+Proof.
+split=> // loc; move: (compcert_rmaps.RML.necR_PURE (m_phi m) (m_phi m) loc).
+by case: (compcert_rmaps.RML.R.resource_at _ _)=> // k p; move/(_ k p)=> ->.
+Qed.
+
+Lemma Hrel_trans m0 m m' : Hrel m0 m -> Hrel m m' -> Hrel m0 m'.
+Proof.
+rewrite /Hrel; case=> H1 H2; case=> H3 H4; split; first by omega.
+move=> loc; move: (H2 loc) (H4 loc); rewrite /pures_sub.
+case: (compcert_rmaps.RML.R.resource_at (m_phi m0) _)=> // k p -> ->.
+by rewrite compcert_rmaps.RML.preds_fmap_fmap compcert_rmaps.RML.approx_oo_approx'.
+Qed.
+
+Lemma tail_safe_downward1 ef n Hx efs l m m' (Hr: Hrel m m') :
+  tail_safe n.+1 (ef:=ef) Hx efs l m -> 
+  tail_safe n (ef:=ef) Hx efs l m'.
 Proof.
 elim: efs ef Hx l=> // ef' efs' IH ef Hx; case=> // a1 l1.
-move=> /= []Hsg []sig []args []z []m []x_top []Hat Hpre Hpost Htl; split=> //.
-exists sig, args, z, m, x_top; split=> //.
-move=> ret m' z' Hrel' Hpost'; case: (Hpost _ _ _ Hrel' Hpost')=> c' []Haft Hsafe.
+move=> /= []Hsg []sig []args []z []m0 []x_top []Hr' Hat Hpre Hpost Htl; split=> //.
+exists sig, args, z, m0, x_top; split=> //; first by move: Hr' Hr; apply: Hrel_trans.
+move=> ret m'' z' Hrel' Hpost'; case: (Hpost _ _ _ Hrel' Hpost')=> c' []Haft Hsafe.
+exists c'; split=> //; first by apply: safe_downward1.
+by move {Hpost}; apply: IH.
+Qed.
+
+Lemma tail_safe_downward1' ef n Hx efs l m :
+  tail_safe n.+1 (ef:=ef) Hx efs l m -> 
+  tail_safe n (ef:=ef) Hx efs l m.
+Proof.
+elim: efs ef Hx l=> // ef' efs' IH ef Hx; case=> // a1 l1.
+move=> /= []Hsg []sig []args []z []m0 []x_top []Hr' Hat Hpre Hpost Htl; split=> //.
+exists sig, args, z, m0, x_top; split=> //. 
+move=> ret m'' z' Hrel' Hpost'; case: (Hpost _ _ _ Hrel' Hpost')=> c' []Haft Hsafe.
 exists c'; split=> //; first by apply: safe_downward1.
 by move {Hpost}; apply: IH.
 Qed.
@@ -181,7 +218,7 @@ Definition stack_safe (n : nat)
     | nil, nil => True
     | ef :: efs', c :: s' => 
       exists x : ext_spec_type spec ef,
-      [/\ @head_safe n ef x c z m & @tail_safe n ef x efs' s']
+      [/\ @head_safe n ef x c z m & @tail_safe n ef x efs' s' m]
     | _, _ => False
   end.
 
@@ -196,6 +233,17 @@ Definition all_safe n z (l : linked_st) m :=
   exists efs : list external_function, 
   [/\ last_frame_main efs
     & stack_safe n efs (CallStack.callStack (Linker.stack l)) z m].
+
+Lemma age1_Hrel m m' : ageable.age1 m = Some m' -> Hrel m m'.
+Proof.
+move=> Hag; split. 
+by apply ageable.age_level in Hag; rewrite Hag; omega.
+apply age1_juicy_mem_Some in Hag=> loc.
+move: (compcert_rmaps.RML.age1_resource_at _ _ Hag loc).
+case Hres: (compcert_rmaps.RML.R.resource_at _ _)=> //= Heq.
+eapply compcert_rmaps.RML.necR_PURE in Hres; eauto.
+by constructor.
+Qed.
 
 Lemma all_safe_inv n z l m (Hplt : Linker.fn_tbl l = plt) :
   all_safe (S n) z l m -> 
@@ -249,7 +297,7 @@ rewrite /LinkerSem.after_external Haft /l /l' /updCore /updStack /=.
 by f_equal; f_equal; f_equal; apply: proof_irr.
 exists [:: ef & efs']; split=> //. 
 exists Hx; split=> //; first by split=> //; rewrite -genv_symbols_eq.
-by apply: tail_safe_downward1.
+by move: Htl; apply: tail_safe_downward1.
 
 case=> <- <- <-; exists ef', sig', args'; split=> //; exists Hx'; split=> //.
 by rewrite -genv_symbols_eq in Hpre.
@@ -262,7 +310,7 @@ rewrite /LinkerSem.after_external Haft /l /l' /updCore /updStack /=.
 by f_equal; f_equal; f_equal; apply: proof_irr.
 exists [:: ef & efs']; split=> //. 
 exists Hx; split=> //; first by split=> //; rewrite -genv_symbols_eq.
-by apply: tail_safe_downward1.
+by move: Htl; apply: tail_safe_downward1.
 
 + (* at_external linker = None *)
 move: Hat'; rewrite /LinkerSem.at_external /LinkerSem.at_external0 Hat.
@@ -298,10 +346,11 @@ by rewrite Hhdl.
 
 { (* all_safe *)
 exists [:: ef', ef & efs']; split=> //; exists Hx'; split=> //; split=> //.
-by rewrite -genv_symbols_eq.
-exists sig', args', z, m, Hx; split=> //; first by rewrite Hsg'.
+by move: (Hsafe n); rewrite -genv_symbols_eq.
+exists sig', args', z, m, Hx; split=> //; first by apply: Hrel_refl.
+by rewrite Hsg'.
 by rewrite -!genv_symbols_eq in Hpost|-*; apply: Hpost.
-by apply: tail_safe_downward1.
+by move: Htl; apply: tail_safe_downward1; apply: Hrel_refl.
 }
 }
 
@@ -320,11 +369,10 @@ by rewrite Hsg Hty.
 
 + (* l1 = [a2 :: l2] *)
 move=> a2 l2 Hwf; case: efs' LFM=> // ef' efs'' LFM []Hsg' Htl.
-move: Htl; case=> sig []args []z0 []m0 []x0 []Hat0 Hpre0.
+move: Htl; case=> sig []args []z0 []m0 []x0 []Hrel []Hat0 Hpre0.
 have ->: sig_res sig = sig_res (ef_sig ef) by rewrite (sigs_match Hat0).
 rewrite -!genv_symbols_eq in Hexit|-*.
-have Hrel': Hrel m0 m by admit. (*FIXME*)
-case/(_ (Some rv) m z Hrel' Hexit)=> c' []Haft0 Hsafe Htl; apply: Or31.
+case/(_ (Some rv) m z Hrel Hexit)=> c' []Haft0 Hsafe Htl; apply: Or31.
 have Hwf': wf_callStack [:: a2 & l2].
 { clear -Hwf; move: Hwf; rewrite /wf_callStack; case/andP=> /=.
   by case/andP=> ? ? ?; apply/andP; split. }
@@ -350,7 +398,7 @@ exists [:: ef' & efs'']; split=> //; exists x0; split.
 split=> //; clear -genv_symbols_eq Hsafe; move: Hsafe; case: a2 c'=> i c sg c'.
 rewrite -genv_symbols_eq.
 by rewrite /Core.upd /Core.i /Core.c; apply: safe_downward1.
-by rewrite -/tail_safe in Htl; apply: tail_safe_downward1.
+by rewrite -/tail_safe in Htl; move: Htl; apply: tail_safe_downward1; apply: Hrel_refl.
 }
 }
 
@@ -363,7 +411,8 @@ by left; rewrite /LinkerSem.corestep0 /peekCore; exists c'.
 
 { (* all_safe *)
 exists [:: ef & efs']; split=> //. 
-by exists Hx; split=> //; apply: tail_safe_downward1.
+exists Hx; split=> //; move: Htl; apply: tail_safe_downward1=> //.
+by move: Hstep; apply: corestep_hrel.
 }
 }
 Qed.
@@ -456,3 +505,18 @@ by apply: (IH _ _ _ Hplt Hall).
 Qed.
 
 End safety.  
+
+Lemma jstep_hrel G C (sem : CoreSemantics G C mem) (ge : G) c m c' m' :
+  jstep sem ge c m c' m' -> 
+  Hrel m m'.
+Proof.
+case=> _ []Hres Hag; split; first by rewrite Hag; omega.
+move=> loc; case: Hres=> _; case/(_ loc)=> _.
+Require Import compcert_rmaps.
+case Hres: (compcert_rmaps.RML.R.resource_at _ _)=> //; case; first by move=> <-.
+case; first by case=> ? []? []? /= []; discriminate. 
+case.
+case=> H; case=> ?; case: m Hag Hres H=> /= m phi ??? Hal ? Hres Hnb. 
+by rewrite Hal in Hres.
+by case=> ? []?; case; discriminate.
+Qed.

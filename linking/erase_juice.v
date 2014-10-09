@@ -12,18 +12,18 @@ Require Import linking.
 Require Import compcert_linking.
 Require Import wholeprog_simulations. Import Wholeprog_sim.
 
-(* This file proves that the machine                                      *)
-(*                                                                        *)
-(*   J1 >< J2 >< ... >< Jn                                                *)
-(*                                                                        *)
-(* is simulated by                                                        *)
-(*                                                                        *)
-(*   D1 >< D2 >< ... >< Dn                                                *)
-(*                                                                        *)
-(* where the Di are module semantics operating on CompCert memories. The  *)
-(* Ji are the `juicified' module semantics that result from lifting the   *)
-(* Di to operate on juicy memories. The lifting itself is done using      *)
-(* `jstep' and `juicy_core_sem', as defined in veric/juicy_extspec.       *)
+(** This file proves that the machine
+
+  J1 >< J2 >< ... >< Jn
+
+is simulated by
+
+  D1 >< D2 >< ... >< Dn
+
+where the Di are module semantics operating on CompCert memories. The
+Ji are the `juicified' module semantics that result from lifting the
+Di to operate on juicy memories. The lifting itself is done using
+`jstep' and `juicy_core_sem', as defined in veric/juicy_extspec. *)
 
 Section erasure.
 
