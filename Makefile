@@ -16,10 +16,17 @@ COMPCERT=compcert
 # are inactive.  To activate them, do something like
 #  make CLIGHTGEN=clightgen
 
+#Configure a custom Ssreflect installation (used to build the linking/ subdirectory):
+#SSREFLECT=""
+#MATHCOMP=""
+
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 DIRS= msl sepcomp veric floyd progs sha linking
-INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert
+INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert 
+#Replace the INCLUDE above with the following in order to build the linking target:
+#INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
+#  -R $(MATHCOMP)/theories -as MathComp
 # $(foreach a,$(CC_DIRS), -R $(COMPCERT)/$(a) -as compcert.$(a)) -I $(COMPCERT)/flocq -as compcert.flocq
 
 CV1=$(shell cat compcert/VERSION)
@@ -98,28 +105,14 @@ LINKING_FILES= \
   sepcomp.v \
   pos.v \
   stack.v \
-  cast.v \
-  seq_lemmas.v \
-  wf_lemmas.v \
-  reestablish.v \
   pred_lemmas.v \
-  inj_lemmas.v \
-  join_sm.v \
-  disjointness.v \
   rc_semantics.v \
   rc_semantics_lemmas.v \
-  reach_lemmas.v \
   linking.v \
   compcert_linking.v \
   compcert_linking_lemmas.v \
   core_semantics_tcs.v \
-  linking_inv.v \
-  call_lemmas.v \
-  ret_lemmas.v \
   linking_spec.v \
-  linking_proof.v \
-  stacking.v \
-  context_equiv.v \
   erase_juice.v \
   safety.v
 
@@ -217,7 +210,7 @@ all:     .loadpath version.vo $(FILES:.v=.vo)
 
 msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
-linking: .loadpath linking/linking_proof.vo $(LINKING_FILES:%.v=linking/%.vo) 
+linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)

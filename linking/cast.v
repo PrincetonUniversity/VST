@@ -17,19 +17,6 @@ Proof. by rewrite/cast_ty. Qed.
 Lemma cast_ty_JMeq T1 T2 (pf : T1=T2) (x : T1) : JMeq (cast_ty pf x) x.
 Proof. by rewrite <-pf; rewrite -(cast_ty_erefl x). Qed.
 
-Section ind0.
-
-Variables A B : Type.
-Variable P : forall A : Type, A -> Type.
-
-Lemma cast_ind0 (x : A) (eq : A=B) (pf : P x) : P (cast_ty eq x).
-Proof. by rewrite <-eq; rewrite (cast_ty_erefl x). Qed.
-
-Lemma cast_ind0' (x : A) (eq : A=B) (pf : P (cast_ty eq x)) : P x.
-Proof. by move: pf; rewrite <-eq; rewrite (cast_ty_erefl x). Qed.
-
-End ind0.
-
 Section lift.
 
 Variable A : Type.
