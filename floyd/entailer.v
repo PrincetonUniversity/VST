@@ -3,11 +3,34 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Local Open Scope logic.
 
-(* move this lemma elsewhere *)
+(* move these lemma elsewhere *)
 Lemma force_signed_int_e:
   forall i, force_signed_int (Vint i) = Int.signed i.
 Proof. reflexivity. Qed.
 Hint Rewrite force_signed_int_e : norm.
+
+Lemma sign_ext_range2:
+   forall lo n i hi,
+      0 < n < Int.zwordsize ->
+      lo = - two_p (n-1) ->
+      hi = two_p (n-1) - 1 ->
+      lo <= Int.signed (Int.sign_ext n i) <= hi.
+Proof.
+intros.
+subst. apply expr_lemmas3.sign_ext_range'; auto.
+Qed.
+
+Lemma zero_ext_range2:
+  forall n i lo hi,
+      0 <= n < Int.zwordsize ->
+      lo = 0 ->
+      hi = two_p n - 1 ->
+      lo <= Int.unsigned (Int.zero_ext n i) <= hi.
+Proof.
+intros; subst; apply expr_lemmas3.zero_ext_range'; auto.
+Qed.
+
+(* END of move these lemmas elsewhere *)
 
 Ltac simpl_compare :=
  match goal with
@@ -105,7 +128,8 @@ Inductive computable: forall {A}(x: A), Prop :=
 | computable_two_power_nat: forall x, computable x -> computable (two_power_nat x)
 | computable_max_unsigned: computable (Int.max_unsigned)
 | computable_align: forall x y, computable x -> computable y -> computable (align x y)
-| computable_and: forall x y, computable x -> computable y -> computable (x /\ y).
+| computable_and: forall x y, computable x -> computable y -> computable (x /\ y)
+| computable_zwordsize: computable Int.zwordsize.
 
 Hint Constructors computable : computable. 
 Hint Extern 1 (computable ?A) => (unfold A) : computable.
@@ -116,6 +140,17 @@ Ltac computable := match goal with |- ?x =>
  clear H;
  compute; clear; repeat split; auto; congruence
 end.
+
+(* move these elsewhere? *)
+Hint Extern 3 (_ <= Int.signed (Int.sign_ext _ _) <= _) =>
+    (apply sign_ext_range2; [computable | reflexivity | reflexivity]).
+
+Hint Extern 3 (_ <= Int.unsigned (Int.zero_ext _ _) <= _) =>
+    (apply zero_ext_range2; [computable | reflexivity | reflexivity]).
+
+Hint Rewrite sign_ext_inrange using assumption : norm.
+Hint Rewrite zero_ext_inrange using assumption : norm.
+(* END move these elsewhere? *)
 
 Lemma prop_and_same_derives {A}{NA: NatDed A}:
   forall P Q, Q |-- !! P   ->   Q |-- !!P && Q.

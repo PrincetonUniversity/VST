@@ -58,7 +58,9 @@ name b_ _b.
 forward.
 entailer!.
 apply orp_right2. auto.
-forward. rewrite <- H. 
+forward. rewrite <- H.
+split.
+if_tac; auto.
 eapply or_one_zero; eauto.
 Qed.
 
@@ -70,7 +72,9 @@ name b_ _b.
 forward.
 entailer!.
 apply orp_right2. auto.
-forward. rewrite <- H. 
+forward. rewrite <- H.
+split.
+if_tac; auto. 
 eapply and_one_zero; eauto.
 Qed.
 

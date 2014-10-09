@@ -72,7 +72,7 @@ Lemma read32_reversed_in_bytearray:
  (TE: typeof e = tptr tuint)
  (TCi:  tc_fn_return Delta (Some i) tuint)
  (CLOQ: Forall (closed_wrt_vars (eq i)) Q)
- (Hcontents: forall i, (lo <= i < hi)%Z -> is_int (contents i)),
+ (Hcontents: forall i, (lo <= i < hi)%Z -> is_int I32 Unsigned (contents i)),
  PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (TT))) |-- PROP ((lo <= Int.unsigned ofs <= hi-4 )%Z)
          LOCAL (tc_expr Delta e; `(eq (offset_val ofs base)) (eval_expr e))
          SEP  (TT) ->
@@ -453,7 +453,7 @@ change LBLOCKz with (Z.of_nat LBLOCK); rewrite loop1_aux_lemma1; auto.
 (* 1,506,948 1,110,852 *)
 (* 1,506,948 1,134,576 *)
 
-assert (is_int (tuints K256 (Z.of_nat i)))
+assert (is_int I32 Unsigned (tuints K256 (Z.of_nat i)))
  by (clear - H0; apply ZnthV_map_Vint_is_int;
        split; [ omega | ];
        apply Z.lt_trans with (Z.of_nat LBLOCK);

@@ -271,7 +271,7 @@ apply Z.mod_small; omega.
 Qed. 
 
 Lemma is_int_Xarray:
- forall b i j, is_int (Xarray b i j).
+ forall b i j, is_int I32 Unsigned (Xarray b i j).
 Proof.
 intros. apply I.
 Qed.

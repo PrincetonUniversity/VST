@@ -7,7 +7,7 @@ Definition sub_spec (sub_id: ident) :=
  DECLARE sub_id
   WITH v : reptype' t_struct_b, p: val
   PRE  [] 
-        PROP  (Int.sign_ext 8 (snd (snd v)) = snd (snd v))
+        PROP  (is_int I8 Signed (Vint (snd (snd v))))
         LOCAL (`(eq p) (eval_var _p t_struct_b))
         SEP   (`(data_at Ews t_struct_b (repinj _ v) p))
   POST [ tint ]
@@ -34,9 +34,6 @@ Proof.
   forward.
   forward.
   forward.
-  simpl in v, H.
-  rewrite H.
-  cancel.
 Qed.
 
 Lemma body_sub3:  semax_body Vprog Gprog f_sub3 (sub_spec _sub3).
@@ -47,9 +44,6 @@ Proof.
   forward.
   forward.
   forward.
-  simpl in v, H.
-  rewrite H.
-  cancel.
 Qed.
 
 Lemma body_sub4:  semax_body Vprog Gprog f_sub4 (sub_spec _sub4).
@@ -58,5 +52,7 @@ Proof.
   start_function.
   forward.
   forward.
-Abort.
-(* Need cast set here *)
+  forward.
+  forward.
+  forward.
+Qed.

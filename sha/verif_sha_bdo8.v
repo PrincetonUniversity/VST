@@ -83,9 +83,8 @@ name data_ _data.
 abbreviate_semax.
 assert (H5': Zlength r_h = 8%Z).
 rewrite Zlength_correct; rewrite H5; reflexivity.
-
 do 8 (forward;
-         [ entailer!; [|apply ZnthV_map_Vint_is_int]; omega | ]).
+         [ entailer!; apply ZnthV_map_Vint_is_int; omega | ]).
 forward.  (* skip; *)
 entailer. apply prop_right.
 revert H0 H1 H2 H3 H4 H6 H7 H8.
@@ -342,23 +341,9 @@ simpl; intros; normalize.
  unfold replace_nth. 
  eapply semax_pre; try apply H5.
  apply (drop_LOCAL' 0); unfold delete_nth.
-(* apply (drop_LOCAL' 0); unfold delete_nth. *)
  intros rho.
  normalize.
- replace (array_at tuint Tsh
-     (upd (tuints (add_upto i regs atoh))
-        (force_signed_int (Vint (Int.repr (Z.of_nat i))))
-        (valinject tuint
-           (eval_expr
-              (Ecast
-                 (Ebinop Oadd (Etempvar _t tuint)
-                    (Etempvar
-                       (nth i [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive)
-                       tuint) tuint) tuint) rho))) 0 8) 
-  with (array_at tuint Tsh (tuints (add_upto (S i) regs atoh)) 0 8).
-  apply derives_refl.
-  replace (force_signed_int (Vint (Int.repr (Z.of_nat i)))) with (Z.of_nat i) by 
-    (simpl; rewrite Int.signed_repr by repable_signed; reflexivity).
+ apply derives_refl'. symmetry.
   replace (valinject tuint (eval_expr
               (Ecast
                  (Ebinop Oadd (Etempvar _t tuint)
@@ -366,7 +351,7 @@ simpl; intros; normalize.
                        (nth i [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive)
                        tuint) tuint) tuint) rho)) with (Vint (Int.add (nth i regs Int.zero) (nth i atoh Int.zero))).
   + clear - H H0 H4 LENADD.
-apply array_at_ext; intros j ?.
+apply equal_f; apply array_at_ext; intros j ?.
 unfold upd, tuints, ZnthV.
  rewrite if_false by omega.
  rewrite (if_false (j<0)) by omega.

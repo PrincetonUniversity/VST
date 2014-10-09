@@ -472,7 +472,6 @@ forward_for
  rewrite Z.sub_0_r.
  forward. (* ll=(c)->h[xn]; *)
   entailer!.
-  omega.
   unfold tuints, ZnthV. rewrite if_false by omega.
   rewrite Nat2Z.id.
   rewrite (nth_map' Vint _ Int.zero).

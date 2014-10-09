@@ -103,11 +103,25 @@ Definition logical_or tid e1 e2 :=
              (Sset tid (Econst_int (Int.repr 1) tint))
              (Ssequence
                 (Sset tid (Ecast e2 tbool))
+                (Sset tid (Ecast (Etempvar tid tbool) tint)))).
+
+Definition logical_or' tid e1 e2 :=
+(Sifthenelse e1
+             (Sset tid (Econst_int (Int.repr 1) tint))
+             (Ssequence
+                (Sset tid (Ecast e2 tbool))
                 (Sset tid (Ecast (Etempvar tid tint (*tbool*)) tint)))).
 
 
 
 Definition logical_and tid e1 e2 :=
+(Sifthenelse e1
+            (Ssequence
+              (Sset tid (Ecast e2 tbool))
+              (Sset tid (Ecast (Etempvar tid tbool) tint)))
+            (Sset tid (Econst_int (Int.repr 0) tint))).
+
+Definition logical_and' tid e1 e2 :=
 (Sifthenelse e1
             (Ssequence
               (Sset tid (Ecast e2 tbool))
@@ -772,6 +786,10 @@ Lemma semax_logical_or:
           `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R))))). 
 Proof.
 intros.
+replace logical_or with logical_or'
+  by admit.  (* This is a complete hack, a temporary expedient.
+                     See the e-mail, Appel to Leroy, October 9, 2014,
+                     entitled "types in shortcircuit or, and" *)
 assert (CLOSE1' := closed_eval_expr_e _ _ CLOSE1).
 assert (CLOSE2' := closed_eval_expr_e _ _ CLOSE2).
 apply semax_ifthenelse_PQR. 
@@ -859,6 +877,10 @@ Lemma semax_logical_and:
   . 
 Proof.
 intros.
+replace logical_and with logical_and'
+  by admit.  (* This is a complete hack, a temporary expedient.
+                     See the e-mail, Appel to Leroy, October 9, 2014,
+                     entitled "types in shortcircuit or, and" *)
 assert (CLOSE1' := closed_eval_expr_e _ _ CLOSE1).
 assert (CLOSE2' := closed_eval_expr_e _ _ CLOSE2).
 apply semax_ifthenelse_PQR. 
