@@ -22,8 +22,7 @@ Definition big_endian_integer (contents: Z -> int) : int :=
       (contents 3))).
 (* END OF "THIS BLOCK OF STUFF" *)
 
-Notation "[ ]" := nil.
-Notation "[ x , .. , y ]" := (cons x .. (cons y []) ..).
+Import ListNotations.
 
 Lemma skipn_length:
   forall {A} n (al: list A), 
@@ -68,28 +67,28 @@ Definition generate_and_pad msg :=
   let n := Zlength msg in
    Zlist_to_intlist (msg ++ [128%Z] 
                 ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) 0)
-           ++ [Int.repr (n * 8 / Int.modulus), Int.repr (n * 8)].
+           ++ [Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)].
 
 (*ROUND FUNCTION*)
 
 (*hardcoding the constants, first 32 bits of the fractional parts of the cube roots of the first 64 prime numbers*)
 Definition K256 := map Int.repr
-  [1116352408 , 1899447441, 3049323471, 3921009573,
-   961987163   , 1508970993, 2453635748, 2870763221,
-   3624381080, 310598401  , 607225278  , 1426881987,
-   1925078388, 2162078206, 2614888103, 3248222580,
-   3835390401, 4022224774, 264347078  , 604807628,
-   770255983  , 1249150122, 1555081692, 1996064986,
-   2554220882, 2821834349, 2952996808, 3210313671,
-   3336571891, 3584528711, 113926993  , 338241895,
-   666307205  , 773529912  , 1294757372, 1396182291,
-   1695183700, 1986661051, 2177026350, 2456956037,
-   2730485921, 2820302411, 3259730800, 3345764771,
-   3516065817, 3600352804, 4094571909, 275423344,
-   430227734  , 506948616  , 659060556  , 883997877,
-   958139571  , 1322822218, 1537002063, 1747873779,
-   1955562222, 2024104815, 2227730452, 2361852424,
-   2428436474, 2756734187, 3204031479, 3329325298].
+  [1116352408 ; 1899447441; 3049323471; 3921009573;
+   961987163   ; 1508970993; 2453635748; 2870763221;
+   3624381080; 310598401  ; 607225278  ; 1426881987;
+   1925078388; 2162078206; 2614888103; 3248222580;
+   3835390401; 4022224774; 264347078  ; 604807628;
+   770255983  ; 1249150122; 1555081692; 1996064986;
+   2554220882; 2821834349; 2952996808; 3210313671;
+   3336571891; 3584528711; 113926993  ; 338241895;
+   666307205  ; 773529912  ; 1294757372; 1396182291;
+   1695183700; 1986661051; 2177026350; 2456956037;
+   2730485921; 2820302411; 3259730800; 3345764771;
+   3516065817; 3600352804; 4094571909; 275423344;
+   430227734  ; 506948616  ; 659060556  ; 883997877;
+   958139571  ; 1322822218; 1537002063; 1747873779;
+   1955562222; 2024104815; 2227730452; 2361852424;
+   2428436474; 2756734187; 3204031479; 3329325298].
 
 (*functions used for round function*)
 Definition Ch (x y z : int) : int :=
@@ -135,17 +134,17 @@ Fixpoint map2 {A B C: Type} (f: A -> B -> C) (al: list A) (bl: list B) : list C 
 (*initializing the values of registers, first thirty-two bits of the fractional
     parts of the square roots of the first eight prime numbers*)
 Definition init_registers : registers := 
-  map Int.repr  [1779033703, 3144134277, 1013904242, 2773480762,
-                        1359893119, 2600822924, 528734635, 1541459225].
+  map Int.repr  [1779033703; 3144134277; 1013904242; 2773480762;
+                        1359893119; 2600822924; 528734635; 1541459225].
 
 Definition nthi (il: list int) (t: Z) := nth (Z.to_nat t) il Int.zero.
 
 Definition rnd_function (x : registers) (k : int) (w : int) : registers:=
   match x with 
-  |  [a, b, c, d, e, f, g, h] => 
+  |  [a; b; c; d; e; f; g; h] => 
      let T1 := Int.add (Int.add (Int.add (Int.add h (Sigma_1 e)) (Ch e f g)) k) w in
      let T2 := Int.add (Sigma_0 a) (Maj a b c) in
-       [Int.add T1 T2, a, b, c, Int.add d T1, e, f, g]
+       [Int.add T1 T2; a; b; c; Int.add d T1; e; f; g]
   | _ => nil  (* impossible *)
   end.
 

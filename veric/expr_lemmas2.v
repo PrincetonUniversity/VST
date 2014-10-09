@@ -223,9 +223,35 @@ rewrite H4. auto. destruct H3; congruence.
 inv H0. inv H0. 
 Qed.
 
+Definition unOp_result_type op t := 
+match op with 
+  | Cop.Onotbool =>match t with
+                                | Tint _ _ _ => Tint IBool Signed noattr
+                                | Tlong _ _ => Tint IBool Signed noattr
+                                | Tpointer _ _ => Tint I32 Signed noattr
+                                | Tfloat _ _ => Tint IBool Signed noattr
+                                | Tarray _ _ _ => Tint IBool Signed noattr
+                                | Tfunction _ _ _ => Tint IBool Signed noattr
+                                | _ => Tvoid
+                                end 
+  | Cop.Onotint => match t with
+                                | Tint _ _ _ => Tint I32 Signed noattr
+                                | Tlong _ _ => Tlong Signed noattr
+                                | _ => Tvoid
+                                end
+  | Cop.Oneg => match t with
+                           | Tint _ _ _ => Tint I32 Signed noattr
+                           | Tlong _ _ => Tlong Signed noattr
+                           | Tfloat _ _ => t
+                           | _ => Tvoid
+                           end
+  | Cop.Oabsfloat => t
+end.
+
 Lemma typecheck_unop_sound:
  forall Delta rho u e t
  (H: typecheck_environ Delta rho)
+(* (Ht: t =unOp_result_type u (typeof e)) *)
  (IHe: (denote_tc_assert (typecheck_expr Delta e) rho ->
           typecheck_val (eval_expr e rho) (typeof e) = true) /\
           (forall pt : type,
@@ -233,7 +259,7 @@ Lemma typecheck_unop_sound:
            is_pointer_type pt = true -> 
            typecheck_val (eval_lvalue e rho) pt = true))
   (H0: denote_tc_assert (typecheck_expr Delta (Eunop u e t)) rho),
-  typecheck_val (eval_expr (Eunop u e t) rho) (typeof (Eunop u e t)) = true.
+  typecheck_val (eval_expr (Eunop u e t) rho) t = true.
 Proof.
 intros.
 simpl in H0. rewrite denote_tc_assert_andp in H0. destruct H0.
@@ -241,55 +267,68 @@ destruct IHe as [? _].
 specialize (H2 H1).
 simpl eval_expr.
 unfold_lift.
+(*subst t. *)
 clear - H2 H0.
-revert H0; case_eq (isUnOpResultType u e t); intros; [ | inv H0].
-clear H0.
+destruct (isUnOpResultType u e t) eqn:H1; inv H0.
+unfold isUnOpResultType in H1.
 simpl.
 forget (eval_expr e rho) as v.
-clear - H2 H.
 assert (TV: forall b i s a, typecheck_val (Val.of_bool b) (Tint i s a) = true)
-  by (destruct b; reflexivity).
-unfold isUnOpResultType in H.
+  by (destruct b, i, s; reflexivity).
+(*unfold isUnOpResultType in H. *)
 unfold eval_unop, sem_unary_operation, force_val1.
-unfold classify_bool in H.
-destruct u; try solve [inv H]; simpl.
+(*unfold classify_bool in H.*)
+destruct u; (*try solve [inv H];*) simpl.
 * (* notbool case *)
-assert (is_int_type t = true) 
+(*assert (is_int_type t = true) 
   by (destruct (typeof e); try destruct i,s; try destruct f; inv H; auto).
 destruct t;  inv H0.
+*)
 unfold sem_notbool.
-destruct (typeof e), v; inv H2; try destruct i0,s0; simpl; inv H; try rewrite H1; auto.
-destruct f; inv H1.
-simpl. destruct (Float.cmp Ceq f0 Float.zero); reflexivity.
-destruct f; inv H1.
-simpl. destruct (Float32.cmp Ceq f0 Float32.zero); reflexivity.
+destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ], v; 
+  inversion H1; inv H2;
+ try reflexivity; try (simpl; rewrite H0; auto);
+ simpl force_val;
+ try match goal with |- typecheck_val (Val.of_bool ?A) _ = _ =>
+    destruct A; auto
+ end;
+ destruct t as  [ | [ | | | ] [ | ] | | [ | ] | | | | | | ]; inv H1;
+    try reflexivity.
 * (* notint case *)
 unfold sem_notint.
-destruct (typeof e), v; inv H; inv H2; simpl; auto.
-destruct i,s; destruct t; inv H1; simpl; auto.
+destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ], v;
+   inversion H1; inversion H2; auto;
+  simpl force_val;
+ destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ]; 
+     inv H1; auto.
 * (* neg case *)
 unfold sem_neg; simpl.
-destruct (typeof e); inv H.
-destruct v; inv H2.
-destruct i,s; inv H1; simpl; destruct t; try inv H0; auto.
-destruct f,v; inv H1; inv H2; simpl; destruct t; try destruct f0;  try inv H0; auto.
+destruct (typeof e) as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ], v;
+   inversion H1; inversion H2; auto;
+  simpl force_val;
+ destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ]; 
+     inv H1; auto.
 * (* absfloat case *)
 unfold sem_absfloat.
 destruct (classify_neg (typeof e)) eqn:H3; try discriminate;
-destruct t; try destruct f; inv H.
-destruct (typeof e); try destruct f; inv H3; destruct v; inv H2; reflexivity.
+destruct t  as [ | | | [ | ] | | | | | | ];  inv H1.
+destruct (typeof e)  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ]; inv H3;
+ simpl;
+destruct v; inv H2; simpl; auto.
 destruct (typeof e); try destruct f; try destruct i; try destruct s; inv H3; destruct v; inv H2; try reflexivity.
 destruct (typeof e); try destruct f; try destruct i; try destruct s; inv H3; destruct v; inv H2; try reflexivity.
 destruct (typeof e); try destruct f; try destruct i; try destruct s0; inv H3; destruct v; inv H2; try reflexivity.
 Qed.
 
+
 Lemma same_base_tc_val : forall v t1 t2,
 same_base_type t1 t2 = true ->
-typecheck_val v t1 = typecheck_val v t2.
+typecheck_val v t1 = true ->
+ typecheck_val v t2 = true.
 Proof.
-intros. destruct v; destruct t1; destruct t2; 
+intros. destruct t1; destruct t2; 
     try destruct f; try destruct f0; try destruct f1;
-   try solve [inv H]; auto.
+   try solve [inv H]; destruct v; auto.
 Qed.
 
 Lemma typecheck_temp_sound:
@@ -312,16 +351,21 @@ destruct (t0 ! i); try (contradiction H0).
 destruct p. destruct (H1 _ _ (eq_refl _)) as [v [? ?]]. clear H1.
 rewrite H.
 simpl in H0.
-remember (same_base_type t t4).
-destruct b0; [ | inv H0].
-
+destruct (is_neutral_cast t4 t) eqn:?.
+rewrite tc_val_eq' in *.
+destruct b; inv H0;
+intuition;
+try solve [symmetry in Heqb0; eapply neutral_cast_subsumption; eauto].
+simpl in H0. rewrite H in H0. inv H0.
+rewrite <- tc_val_eq'.
+ destruct (typecheck_val x t); auto; inv H3.
+destruct (same_base_type t4 t) eqn:?; [ | inv H0].
 simpl in H0.
 destruct b; inv H0;
 intuition;
-erewrite same_base_tc_val; eauto.
+try solve [eapply same_base_tc_val; eauto].
 simpl in H0. rewrite H in H0. inv H0.
-erewrite <- same_base_tc_val; eauto.
-destruct (typecheck_val x t); try contradiction; auto.
+ destruct (typecheck_val x t); auto; inv H3.
 Qed.
 
 Lemma typecheck_deref_sound:

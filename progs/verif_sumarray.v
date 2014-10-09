@@ -13,7 +13,7 @@ Definition sumarray_spec :=
   WITH a0: val, sh : share, contents : Z -> val, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP (0 <= size <= Int.max_signed;
-                    forall i, 0 <= i < size -> is_int (contents i))
+                    forall i, 0 <= i < size -> is_int I32 Signed (contents i))
           LOCAL (`(eq a0) (eval_id _a);
                       `(eq (Vint (Int.repr size))) (eval_id _n);
                       `isptr (eval_id _a))
@@ -128,18 +128,21 @@ entailer!.
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
-entailer!. f_equal. omega.
+entailer!. f_equal. f_equal. omega.
 (* Prove postcondition of loop body implies loop invariant *)
 forward. (* x = a[i] *)
 entailer!.
-omega.
 forward. (* s += x; *)
 forward. (* i++; *)
 unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
+go_lower.
+
+
+
 entailer.
  apply prop_right.
- simpl in H4. rewrite Int.signed_repr in H4 by repable_signed.
+ simpl in *. rewrite (Int.signed_repr i0) in * by  repable_signed.
  rewrite fold_range_fact1 by omega.
  destruct (contents i0); inv H4. simpl. auto. 
 (* After the loop *)

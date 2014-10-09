@@ -570,20 +570,17 @@ match ty with
 | _ => false
 end.
 
-Definition unOp_result_type op a := 
-match op with 
-  | Cop.Onotbool => (Tint IBool Signed noattr) 
-  | Cop.Onotint => (Tint I32 Signed noattr) 
-  | Cop.Oneg => (typeof a)
-  | Cop.Oabsfloat => (typeof a)
-end.
-
 Definition is_int_type ty := 
 match ty with
 | Tint _ _ _ => true
 | _ => false
 end.
 
+Definition is_int32_type ty := 
+match ty with
+| Tint I32 _ _ => true
+| _ => false
+end.
 
 Definition is_long_type ty := 
 match ty with
@@ -620,11 +617,11 @@ match op with
                         end
   | Cop.Onotint => match Cop.classify_notint (typeof a) with
                         | Cop.notint_default => false
-                        | Cop.notint_case_i _ => is_int_type ty 
+                        | Cop.notint_case_i _ => is_int32_type ty
                         | Cop.notint_case_l _ => is_long_type ty 
                         end
   | Cop.Oneg => match Cop.classify_neg (typeof a) with
-                    | Cop.neg_case_i sg => is_int_type ty
+                    | Cop.neg_case_i sg => is_int32_type ty
                     | Cop.neg_case_f => is_float_type ty
                     | Cop.neg_case_s => is_single_type ty
                     | _ => false
@@ -737,7 +734,7 @@ end.
 
 Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
  match Cop.classify_binarith t1 t2 with
-  | Cop.bin_case_i sg =>  tc_bool (is_int_type ty) reterr 
+  | Cop.bin_case_i sg =>  tc_bool (is_int32_type ty) reterr 
   | Cop.bin_case_l sg => tc_bool (is_long_type ty) reterr 
   | Cop.bin_case_f   => tc_bool (is_float_type ty) reterr
   | Cop.bin_case_s   => tc_bool (is_single_type ty) reterr
@@ -770,7 +767,7 @@ match op with
                     | Cop.sub_case_pl _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
                              tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
-                             (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int_type ty) reterr))
+                             (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int32_type ty) reterr))
 			     (tc_bool (negb (Int.eq (Int.repr (sizeof ty2)) Int.zero)) 
                                       (pp_compare_size_0 ty2) )
                     | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
@@ -779,23 +776,23 @@ match op with
   | Cop.Omod => match Cop.classify_binarith (typeof a1) (typeof a2) with
                     | Cop.bin_case_i Unsigned => 
                            tc_andp (tc_nonzero a2) 
-                           (tc_bool (is_int_type ty) reterr)
+                           (tc_bool (is_int32_type ty) reterr)
                     | Cop.bin_case_l Unsigned => 
                            tc_andp (tc_nonzero a2) 
                            (tc_bool (is_long_type ty) reterr)
                     | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero a2) 
                                                       (tc_nodivover a1 a2))
-                                                     (tc_bool (is_int_type ty) reterr)
+                                                     (tc_bool (is_int32_type ty) reterr)
                     | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero a2) 
                                                       (tc_nodivover a1 a2))
                                                      (tc_bool (is_long_type ty) reterr)
                     | _ => tc_FF deferr
             end
   | Cop.Odiv => match Cop.classify_binarith (typeof a1) (typeof a2) with
-                    | Cop.bin_case_i Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int_type ty) reterr)
+                    | Cop.bin_case_i Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int32_type ty) reterr)
                     | Cop.bin_case_l Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_long_type ty) reterr)
                     | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) 
-                                                        (tc_bool (is_int_type ty) reterr)
+                                                        (tc_bool (is_int32_type ty) reterr)
                     | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) 
                                                         (tc_bool (is_long_type ty) reterr)
                     | Cop.bin_case_f  =>  tc_bool (is_float_type ty) reterr 
@@ -803,14 +800,14 @@ match op with
                     | Cop.bin_default => tc_FF deferr
             end
   | Cop.Oshl | Cop.Oshr => match Cop.classify_shift (typeof a1) (typeof a2) with
-                    | Cop.shift_case_ii _ =>  tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int_type ty) 
+                    | Cop.shift_case_ii _ =>  tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int32_type ty) 
                                                                                          reterr)
                     (* NEED TO HANDLE OTHER SHIFT CASES *)
                     | _ => tc_FF deferr
                    end
   | Cop.Oand | Cop.Oor | Cop.Oxor => 
                    match Cop.classify_binarith (typeof a1) (typeof a2) with
-                    | Cop.bin_case_i _ =>tc_bool (is_int_type ty) reterr
+                    | Cop.bin_case_i _ =>tc_bool (is_int32_type ty) reterr
                     (* NEED TO HANDLE OTHER BIN CASES *)
                     | _ => tc_FF deferr
                    end   
@@ -854,8 +851,20 @@ match Cop.classify_cast tfrom tto with
       end
 end.
 
-Definition is_int (v: val) := 
- match v with Vint i => True | _ => False end.
+Definition is_int (sz: intsize) (sg: signedness) (v: val) := 
+  match v with
+  | Vint i => 
+    match sz, sg with
+    | I8, Signed => Byte.min_signed <= Int.signed i <= Byte.max_signed
+    | I8, Unsigned => Int.unsigned i <= Byte.max_unsigned
+    | I16, Signed => -two_p (16-1) <= Int.signed i <= two_p (16-1) -1
+    | I16, Unsigned => Int.unsigned i <= two_p 16 - 1
+    | I32, _ => True
+    | IBool, _ => i = Int.zero \/ i = Int.one
+    end
+  | _ => False
+  end.
+
 Definition is_long (v: val) := 
  match v with Vlong i => True | _ => False end.
 Definition is_float (v: val) := 
@@ -874,7 +883,7 @@ Definition isptr v :=
 
 Definition tc_val (ty: type) : val -> Prop :=
  match ty with 
- | Tint _ _ _ => is_int
+ | Tint sz sg _ => is_int sz sg
  | Tlong _ _ => is_long 
  | Tfloat F64 _ => is_float
  | Tfloat F32 _ => is_single
@@ -889,6 +898,13 @@ Definition tc_val (ty: type) : val -> Prop :=
   then it will not be modified by casting to t2. *)
 Definition is_neutral_cast t1 t2 :=
  match t1, t2 with
+ | Tint IBool _ _, Tint _ _ _ => true
+ | Tint I8 Signed _, Tint I8 Signed _ => true
+ | Tint I8 Signed _, Tint I16 Signed _ => true
+ | Tint I16 Signed _, Tint I16 Signed _ => true
+ | Tint I8 Unsigned _, Tint I8 Unsigned _ => true
+ | Tint I8 Unsigned _, Tint I16 Unsigned _ => true
+ | Tint I16 Unsigned _, Tint I16 Unsigned _ => true
  | Tint _ _ _, Tint I32 _ _ => true
  | Tlong _ _, Tlong _ _ => true
  | Tfloat F64 _, Tfloat F64 _ => true
@@ -897,20 +913,112 @@ Definition is_neutral_cast t1 t2 :=
  | _, _ => false
  end.
 
+Lemma two_p_neg:
+ forall n, n<0 -> two_p n = 0.
+Proof.
+destruct n; intros; simpl; auto; try omega.
+pose proof (Zgt_pos_0 p); omega.
+Qed.
+
+Lemma sign_ext_inrange:
+  forall n i, - two_p (n-1) <= Int.signed i <= two_p (n-1) - 1 ->
+       Int.sign_ext n i = i.
+Proof.
+intros.
+destruct (zlt n Int.zwordsize);
+  [ | apply Int.sign_ext_above; auto].
+destruct (zlt n 0).
+assert (n-1 < 0) by omega.
+repeat rewrite two_p_neg in H by omega.
+omega.
+destruct (zeq n 0).
+subst n. simpl in H.
+assert (Int.signed i = 0) by omega.
+clear - H0.
+rewrite <- (Int.repr_signed i).
+rewrite H0. reflexivity.
+assert (0 < n < Int.zwordsize) by omega.
+clear - H H0.
+Admitted.  (* tedious... *)
+
+Lemma zero_ext_inrange:
+  forall n i, Int.unsigned i <= two_p n - 1 ->
+       Int.zero_ext n i = i.
+Proof.
+intros.
+destruct (zlt n Int.zwordsize);
+  [ | apply Int.zero_ext_above; auto].
+destruct (zlt n 0).
+assert (n-1 < 0) by omega.
+repeat rewrite two_p_neg in H by omega.
+pose proof (Int.unsigned_range i).
+omega.
+destruct (zeq n 0).
+subst n. simpl in H.
+assert (Int.unsigned i = 0) by (pose proof (Int.unsigned_range i); omega).
+clear - H0.
+rewrite <- (Int.repr_unsigned i).
+rewrite H0. reflexivity.
+assert (0 < n < Int.zwordsize) by omega.
+clear - H H0.
+Admitted.  (* tedious... *)
+
 Lemma neutral_cast_lemma: forall t1 t2 v,
   is_neutral_cast t1 t2 = true -> 
   tc_val t1 v -> eval_cast t1 t2 v = v.
 Proof.
 intros.
- destruct t1, t2;
- inv H;
- try solve [destruct i; inv H2];
- try solve [destruct f; inv H2].
- * destruct i,i0; inv H2; destruct v; inv H0; reflexivity.
- * destruct v; inv H0; reflexivity.
- * destruct f,f0; inv H2; destruct v; inv H0; reflexivity.
- * destruct v; inv H0; reflexivity.
-Qed. 
+assert (- two_p (16-1) < Byte.min_signed) by (compute; congruence).
+assert (two_p (16-1) > Byte.max_signed) by (compute; congruence).
+assert (two_p 16 > Byte.max_unsigned) by (compute; congruence).
+assert (- two_p (8-1) = Byte.min_signed) by reflexivity.
+assert (two_p (8-1) - 1 = Byte.max_signed) by reflexivity.
+assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
+ destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ],
+ t2 as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ];
+ inversion H; clear H; try reflexivity;
+ destruct v; unfold tc_val, is_int in H0; try contradiction;
+ simpl; f_equal;
+ try (first [apply sign_ext_inrange| apply zero_ext_inrange];
+       try omega;
+    match type of H0 with _ \/ _ =>
+       destruct H0; subst i; simpl;
+       try  rewrite Int.signed_zero;
+       try  rewrite Int.unsigned_zero;
+       try change (Int.signed Int.one) with 1;
+       try change (Int.unsigned Int.one) with 1;
+       clear; compute; split; congruence
+    end);
+ try (destruct H0; subst i; try rewrite Int.eq_true; auto).
+Qed.
+
+Lemma neutral_cast_subsumption: forall t1 t2 v,
+  is_neutral_cast t1 t2 = true -> 
+  tc_val t1 v -> tc_val t2 v.
+Proof.
+intros.
+assert (- two_p (16-1) < Byte.min_signed) by (compute; congruence).
+assert (two_p (16-1) > Byte.max_signed) by (compute; congruence).
+assert (two_p 16 > Byte.max_unsigned) by (compute; congruence).
+assert (- two_p (8-1) = Byte.min_signed) by reflexivity.
+assert (two_p (8-1) - 1 = Byte.max_signed) by reflexivity.
+assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
+destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ],
+ t2   as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ]; inv H;
+ destruct v; try solve [contradiction H0]; try apply I;
+ unfold tc_val, is_int in *;
+  auto;
+ try omega;
+ try
+    match type of H0 with _ \/ _ =>
+       destruct H0; subst i; simpl;
+       try  rewrite Int.signed_zero;
+       try  rewrite Int.unsigned_zero;
+       try change (Int.signed Int.one) with 1;
+       try change (Int.unsigned Int.one) with 1;
+       clear; compute; try split; congruence
+    end.
+Qed.
 
 Definition globtype (g: global_spec) : type :=
 match g with 
@@ -938,10 +1046,6 @@ end.
 
 Definition same_base_type t1 t2 : bool :=
 match t1, t2 with
-  Tint _ _ _, Tint _ _ _ 
-| Tlong _ _, Tlong _ _
-| Tfloat F64 _, Tfloat F64 _  => true
-| Tfloat F32 _, Tfloat F32 _  => true
 | (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _), 
    (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => true
 | (Tstruct _ _ _ | Tunion _ _ _), (Tstruct _ _ _ | Tunion _ _ _ ) => true
@@ -954,12 +1058,12 @@ and non-pure expressions, for now mostly just works with pure expressions **)
 Fixpoint typecheck_expr (Delta : tycontext) (e: expr) : tc_assert :=
 let tcr := typecheck_expr Delta in
 match e with
- | Econst_int _ (Tint _ _ _) => tc_TT 
+ | Econst_int _ (Tint I32 _ _) => tc_TT 
  | Econst_float _ (Tfloat F64 _) => tc_TT
  | Econst_single _ (Tfloat F32 _) => tc_TT
  | Etempvar id ty => 
                        match (temp_types Delta)!id with 
-                         | Some ty' => if same_base_type ty (fst ty') then 
+                         | Some ty' => if is_neutral_cast (fst ty') ty || same_base_type (fst ty') ty then 
                                          if (snd ty') then tc_TT else (tc_initialized id ty)
                                        else tc_FF (mismatch_context_type ty (fst ty'))
 		         | None => tc_FF (var_not_in_tycontext Delta id)
@@ -1067,10 +1171,23 @@ match tl,el with
 | _, _ => tc_FF wrong_signature
 end.
 
-
 Definition typecheck_val (v: val) (ty: type) : bool :=
  match v, ty with
- | Vint i, Tint _ _ _ => true  
+ | Vint i, Tint sz sg _ => 
+  match v with
+  | Vint i => 
+    match sz, sg with
+    | I8, Signed => andb (Z.leb Byte.min_signed (Int.signed i))
+                                      (Z.leb (Int.signed i) Byte.max_signed)
+    | I8, Unsigned => Z.leb (Int.unsigned i) Byte.max_unsigned
+    | I16, Signed => andb (Z.leb (-two_p (16-1)) (Int.signed i))
+                                        (Z.leb (Int.signed i) (two_p (16-1) -1))
+    | I16, Unsigned => Z.leb (Int.unsigned i) (two_p 16 - 1)
+    | I32, _ => true
+    | IBool, _ => orb (Int.eq i Int.zero) (Int.eq i Int.one)
+    end
+  | _ => false
+  end
  | Vlong i, Tlong _ _ => true
  | Vfloat v, Tfloat F64 _ => true  
  | Vsingle v, Tfloat F32 _ => true  
@@ -1596,13 +1713,21 @@ Lemma tc_val_eq: tc_val = fun t v => typecheck_val v t = true.
 Proof.
 extensionality t v.
 unfold tc_val.
-destruct t,v; try destruct f; try reflexivity;
+destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ] , v; try reflexivity;
 apply prop_ext; intuition; try apply I;
 simpl in *; subst;
 try apply Int.eq_true;
-try solve [apply int_eq_e; auto].
+try solve [apply int_eq_e; auto];
+try solve [try (rewrite andb_true_iff; split); rewrite <- Zle_is_le_bool; omega];
+try solve [try (rewrite andb_true_iff in H; destruct H; split);
+               rewrite -> Zle_is_le_bool; auto];
+try solve [rewrite orb_true_iff; destruct H; [left | right]; subst; apply Int.eq_true];
+try solve [rewrite orb_true_iff in H; destruct H; [left | right];  apply int_eq_e; auto].
 Qed.
 
+Lemma tc_val_eq':
+  forall t v, (typecheck_val v t = true) =  tc_val t v.
+Proof. intros. rewrite tc_val_eq. auto. Qed.
 
 Lemma neutral_isCastResultType:
   forall t t' v rho,
@@ -1611,10 +1736,9 @@ Lemma neutral_isCastResultType:
 Proof.
 intros.
   unfold isCastResultType;
-  destruct t',t; inv H; try solve [destruct f; try destruct f0; inv H1]; try apply I.
-* destruct i,i0; inv H1; simpl; try apply I; if_tac; apply I.
-* simpl. destruct f, f0; inv H1; apply I.
-*  simpl. if_tac; apply I.
+  destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ];
+     inv H; try apply I;
+    simpl; if_tac; apply I.
 Qed.
 
 (*A boolean denote_tc_assert *)

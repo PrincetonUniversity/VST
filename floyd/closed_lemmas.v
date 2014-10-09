@@ -1054,13 +1054,13 @@ Proof.
 * clear closed_wrt_tc_expr.
 unfold tc_expr.
 induction e; simpl; intros;
-try solve [destruct t as [ | | | [ | ] |  | | | | | ]; simpl; auto with closed].
+try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] |  | | | | | ]; simpl; auto with closed].
 +
-  destruct (access_mode t);  simpl; auto with closed.
+  destruct (access_mode t);  simpl; auto with closed;
   destruct (get_var_type Delta i); simpl; auto with closed.
 +
   destruct ((temp_types Delta) ! i); simpl; auto with closed.
-  destruct (same_base_type t (fst p)); simpl; auto with closed.
+  destruct (is_neutral_cast (fst p) t || same_base_type (fst p) t)%bool; simpl; auto with closed.
   destruct (snd p);  simpl; auto with closed.
   clear -  H.
   hnf; intros.

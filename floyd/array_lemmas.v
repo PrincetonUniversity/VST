@@ -17,7 +17,7 @@ Proof. destruct t as [ | | | [ | ] |  | | | | | ]; intro H; inv H.
 Qed.
 
 Lemma ZnthV_map_Vint_is_int:
-  forall l i, 0 <= i < Zlength l -> is_int (ZnthV tint (map Vint l) i).
+  forall l i sg, 0 <= i < Zlength l -> is_int I32 sg (ZnthV tint (map Vint l) i).
 Proof.
 intros.
 unfold ZnthV.
@@ -378,17 +378,16 @@ match t as t0 return (reptype t0 -> Prop) with
 | Tcomp_ptr i a => fun _ : reptype (Tcomp_ptr i a) => False
 end.
 
-Lemma sem_add_pi_ptr': forall (t : type) p ofs,
+Lemma sem_add_pi_ptr': forall (t : type) sz sg p ofs,
   isptr p ->
-  is_int ofs ->
+  is_int sz sg ofs ->
   isptr (force_val (sem_add_pi t p ofs)).
 Proof.
   intros.
-  destruct ofs; inversion H0.
-  rewrite sem_add_pi_ptr; [|exact H].
-  destruct p; inversion H.
-  simpl.
-  tauto.
+  destruct ofs,sg,sz; try inversion H0;
+  simpl;
+  (rewrite sem_add_pi_ptr; [|exact H];
+   destruct p; inversion H; apply I).
 Qed.
 
 Lemma array_at_non_volatile: forall t sh contents lo hi v,
@@ -993,16 +992,17 @@ induction i; destruct j,R; intros; simpl; auto.
 contradiction H; auto.
 Qed.
 
-Lemma add_ptr_int_unfold: forall t1 v1 v2,
-  is_int v2 ->
+Lemma add_ptr_int_unfold: forall t1 sz sg v1 v2,
+  is_int sz sg v2 ->
   force_val (sem_add_pi t1 v1 v2) = add_ptr_int t1 v1 (force_signed_int v2).
 Proof.
   intros.
-  destruct v2; inversion H.
-  unfold add_ptr_int.
-  simpl.
-  rewrite Int.repr_signed.
-  reflexivity.
+  destruct v2,sz,sg; try inversion H;
+  try (
+  unfold add_ptr_int;
+  simpl;
+  rewrite Int.repr_signed;
+  reflexivity).
 Qed.
 
 Lemma size_compatible_array_left: forall t n a i b ofs ofs',
@@ -1274,7 +1274,7 @@ Proof.
     rewrite <- H12.
     erewrite split3_array_at at 1; [|exact H11].
     unfold Basics.compose, force_val2.
-    rewrite add_ptr_int_unfold by exact H10.
+    rewrite add_ptr_int_unfold with (sz:=I32)(sg:=Signed)by exact H10.
     apply derives_refl.
   + intros; apply andp_left2; apply normal_ret_assert_derives'.
     pose proof nth_error_replace_nth R n _ 
@@ -1302,7 +1302,7 @@ Proof.
     - instantiate (1:= t).
       rewrite <- H13.
       unfold Basics.compose, force_val2, force_val1.
-      rewrite add_ptr_int_unfold. subst t1. 
+      rewrite add_ptr_int_unfold with (sz:=I32)(sg:=Signed). subst t1. 
       simpl.
       rewrite upd_eq.
       apply derives_refl.

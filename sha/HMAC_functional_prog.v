@@ -2,12 +2,10 @@ Require Import Integers.
 Require Import Coqlib.
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
-Require Import List. 
+Require Import List. Import ListNotations.
 
 Require Import sha.SHA256.
 Require Import sha.functional_prog.
-Notation "[ ]" := nil.
-Notation "[ x , .. , y ]" := (cons x .. (cons y []) ..).
 
 (*SHA256: blocksize = 64bytes 
     corresponds to 

@@ -4,7 +4,7 @@ Require Coq.Strings.String.
 Require Coq.Strings.Ascii.
 Require Import Coqlib.
 Require Import msl.Coqlib2.
-Require Import List.
+Require Import List. Import ListNotations.
 Require Import sha.SHA256.
 
 (* FAST FUNCTIONAL VERSION OF SHA256 *)
@@ -21,14 +21,14 @@ Definition padlen (n: Z) : list Int.int :=
     let p := n/4+3 (* number of words with trailing 128-byte, 
                                                       up to 3 zero bytes, and 2 length words *)
     in let q := (p+15)/16*16 - p   (* number of zero-pad words *)
-      in zeros q ++ [Int.repr (n * 8 / Int.modulus), Int.repr (n * 8)].
+      in zeros q ++ [Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)].
 
 Fixpoint generate_and_pad' (n: list Z) len : list Int.int :=
   match n with
   | nil => Z_to_Int 128 0 0 0 :: padlen len
   | [h1]=> Z_to_Int h1 128 0 0 :: padlen (len+1)
-  | [h1, h2] => Z_to_Int h1 h2 128 0 :: padlen (len+2)
-  | [h1, h2, h3] => Z_to_Int h1 h2 h3 128 :: padlen (len+3)
+  | [h1; h2] => Z_to_Int h1 h2 128 0 :: padlen (len+2)
+  | [h1; h2; h3] => Z_to_Int h1 h2 h3 128 :: padlen (len+3)
   | h1::h2::h3::h4::t => Z_to_Int h1 h2 h3 h4 :: generate_and_pad' t (len+4)
   end.
 
@@ -403,7 +403,7 @@ Qed.
 
 Definition padlen' (n: Z) : list Int.int :=
      let q := (n+8)/64*16 + 15 - (n+8)/4   (* number of zero-pad words *)
-      in zeros q ++ [Int.repr (n * 8 / Int.modulus), Int.repr (n * 8)].
+      in zeros q ++ [Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)].
 
 Lemma padlen_eq: padlen=padlen'.
 Proof.

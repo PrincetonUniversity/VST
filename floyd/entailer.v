@@ -3,6 +3,12 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Local Open Scope logic.
 
+(* move this lemma elsewhere *)
+Lemma force_signed_int_e:
+  forall i, force_signed_int (Vint i) = Int.signed i.
+Proof. reflexivity. Qed.
+Hint Rewrite force_signed_int_e : norm.
+
 Ltac simpl_compare :=
  match goal with
  | H: Vint _ = _ |- _ => 
@@ -260,7 +266,8 @@ Ltac entbang :=
  ent_iter;
  first [ simple apply prop_right; my_auto
         | simple apply prop_and_same_derives'; my_auto
-        | simple apply andp_right; [apply prop_right; my_auto | normalize; cancel ]
+        | simple apply andp_right;
+            [apply prop_right; my_auto | normalize; cancel ]; my_auto
         | normalize; cancel
         | my_auto
         ].

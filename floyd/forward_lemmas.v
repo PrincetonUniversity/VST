@@ -91,19 +91,27 @@ match (strict_bool_val t1 v1) with
 | None => Vundef
 end.
 
+(* NOTE: In both logical_or and logical_and,
+  compcert (up to 2.4) has (Etempvar tid tbool)
+  where I conjecture that it should have (Etempvar tid tint).
+  That means our lemmas here are incompatible with
+  compcert, at the moment.
+*)
+
 Definition logical_or tid e1 e2 :=
 (Sifthenelse e1
              (Sset tid (Econst_int (Int.repr 1) tint))
              (Ssequence
                 (Sset tid (Ecast e2 tbool))
-                (Sset tid (Ecast (Etempvar tid tbool) tint)))).
+                (Sset tid (Ecast (Etempvar tid tint (*tbool*)) tint)))).
+
 
 
 Definition logical_and tid e1 e2 :=
 (Sifthenelse e1
             (Ssequence
               (Sset tid (Ecast e2 tbool))
-              (Sset tid (Ecast (Etempvar tid tbool) tint)))
+              (Sset tid (Ecast (Etempvar tid tint (*tbool*)) tint)))
             (Sset tid (Econst_int (Int.repr 0) tint))).
 
 Lemma semax_pre_flipped : 
@@ -754,7 +762,8 @@ Lemma semax_logical_or:
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
   @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::
-              (`or (`(typed_true (typeof e1)) (eval_expr e1))  (tc_expr Delta e2))::tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
+              (`or (`(typed_true (typeof e1)) (eval_expr e1))  (tc_expr Delta e2))::
+              tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
    Q) (SEPx (R))))
     (logical_or tid e1 e2)
   (normal_ret_assert (PROPx P (LOCALx 
@@ -795,18 +804,6 @@ apply semax_ifthenelse_PQR.
         simpl. super_unfold_lift. split. auto. 
          destruct (typeof e2) as [ | | | [ | ] |  | | | | | ] eqn:?;
                                         inv H0; try  apply I.
-(*
-     unfold isCastResultType.
-    simpl classify_cast.
-      clear H6.
-       destruct ( (temp_types Delta) ! tid) as [ [? ?] | ] eqn:?; 
-       simpl in H6; [ | inv H6].
-       destruct t; try solve [inv H6]. destruct i; try solve [inv H6].
-        simpl in H6.
-=======
-        destruct (typeof e2) eqn:?; inv H0; try apply I.
->>>>>>> .r6799
-*)
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
           rewrite (@closed_wrt_subst _ tid _ (eval_expr (Ecast e2 tbool)))
     by (simpl; auto with closed).

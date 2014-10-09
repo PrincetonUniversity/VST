@@ -10,7 +10,7 @@ Require Import Integers.
 Require Coq.Strings.String.
 Require Coq.Strings.Ascii.
 Require Import Coqlib.
-Require Import List.
+Require Import List. Import ListNotations.
 Require Import sha.SHA256.
 Require Import msl.Coqlib2.
 

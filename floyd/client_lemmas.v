@@ -964,9 +964,10 @@ destruct H2. inv H2. auto.
 Qed.
 
 Lemma is_int_e:
- forall v , is_int v -> exists n, v = Vint n.
+ forall v i s , is_int i s v -> exists n, v = Vint n /\ is_int i s v.
 Proof.
-intros. destruct v; inv H; eauto.
+intros.
+ destruct i,s,v; try inv H; simpl; eauto.
 Qed.
 
 Definition name (id: ident) := True.
@@ -1032,39 +1033,15 @@ Ltac findvars :=
      end;
     repeat match type of H with
                 | _ (eval_id _ _) /\ _ =>  destruct H as [_ H]
-                | is_int ?i /\ _ => let TC := fresh "TC" in destruct H as [TC H]; 
+                | is_int _ _ ?i /\ _ => let TC := fresh "TC" in destruct H as [TC H]; 
                                 let i' := fresh "id" in rename i into i';
-                               apply is_int_e in TC; destruct TC as [i TC]; subst i'
+                               apply is_int_e in TC; destruct TC as [i [? TC]]; subst i';
+                                simpl in TC;
+                               match type of TC with True => clear TC | _ => idtac end
                 | _ /\ _ => destruct H as [?TC H]
                 end;
     clear H
  end.
-
-Ltac findvar := 
-match goal with
-    | H: tc_environ ?Delta ?RHO, Name: name ?J |- _ =>
-            clear Name; 
-     match goal with
-     | |- context [ J ] => 
-     let Hty := fresh in let t := fresh "t" in evar (t : type);
-         assert (Hty: (temp_types Delta) ! J = Some (t, true))
-              by (unfold t; simpl; reflexivity);
-       let TC := fresh "TC" in
-       assert (TC: tc_val t (eval_id J RHO)) 
-            by (exact  (tc_eval_id_i Delta _ _ _ H Hty));
-       unfold t in *; clear t Hty;
-       simpl tc_val in TC; 
-       first [let Htc' := fresh in
-                destruct (is_int_e _ TC) as [Name Htc'];
-                rewrite Htc' in *;
-                clear TC Htc'
-              | forget (eval_id J RHO) as Name
-              ]
-     | _ => idtac
-    end
-   | H: tc_environ ?Delta ?RHO |- context [eval_id ?J ?RHO] =>
-            let Name := fresh "_id" in name Name J; findvar
-end.
 
 Lemma Vint_inj: forall x y, Vint x = Vint y -> x=y.
 Proof. congruence. Qed.

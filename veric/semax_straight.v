@@ -235,12 +235,17 @@ unfold Cop.sem_cmp, sem_cmp_pp; simpl; try rewrite MT_1; try rewrite MT_2; simpl
 try solve[if_tac; subst; eauto]; try repeat rewrite peq_true; eauto.
 Qed.
 
-Lemma tc_val_eq':
-  forall t v, (typecheck_val v t = true) =  tc_val t v.
-Proof. intros. rewrite tc_val_eq. auto. Qed.
+Lemma is_int_of_bool:
+  forall i s b, is_int i s (Val.of_bool b).
+Proof.
+Transparent Int.repr.
+destruct i,s,b; simpl; auto;
+compute; try split; congruence.
+Opaque Int.repr.
+Qed.
 
 Lemma pointer_cmp_no_mem_bool_type : 
-   forall (Delta : tycontext) cmp (e1 e2 : expr) sh1 sh2 x1 x b1 o1 b2 o2,
+   forall (Delta : tycontext) cmp (e1 e2 : expr) sh1 sh2 x1 x b1 o1 b2 o2 i3 s3,
    is_comparison cmp = true->
    forall (rho : environ),
    eval_expr e1 rho = Vptr b1 o1 ->
@@ -253,7 +258,7 @@ Lemma pointer_cmp_no_mem_bool_type :
    (mapsto_ sh2 (typeof e2)
       (eval_expr e2 rho)) x1 ->
    typecheck_environ Delta rho ->
-    is_int 
+    is_int i3 s3
      (force_val
         (sem_binary_operation' cmp (typeof e1) (typeof e2) true2
            (eval_expr e1 rho)
@@ -271,7 +276,15 @@ destruct (typeof e2) as [ | | | [ | ] | | | | | | ]; try solve[simpl in *; try c
 unfold sem_cmp. unfold sem_cmp_pp.
 destruct cmp; inv H;
 unfold sem_cmp; simpl;
-if_tac; auto; simpl; try of_bool_destruct; auto.
+if_tac; auto; simpl; try of_bool_destruct; auto;
+try apply is_int_of_bool.
+
+Transparent Int.repr.
+destruct i3,s3; simpl; auto;
+compute; try split; congruence.
+destruct i3,s3; simpl; auto;
+compute; try split; congruence.
+Opaque Int.repr.
 Qed.
  
 Definition weak_mapsto_ sh e rho :=
@@ -372,7 +385,6 @@ destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]].
 
 destruct t; inv TC2.  
 simpl. super_unfold_lift.
-unfold eval_binop. 
 simpl.
 rewrite tc_val_eq'.
 eapply  pointer_cmp_no_mem_bool_type; eauto. 
@@ -915,16 +927,32 @@ destruct t1,t2;
  reflexivity.
 Qed.
 
+Transparent Int.repr.
+
 Lemma neutral_cast_lemma2: forall t1 t2 v,
   is_neutral_cast t1 t2 = true -> 
   tc_val t1 v -> tc_val t2 v.
 Proof.
 intros.
-destruct t1  as [ | | | [ | ] | | | | | | ];
-destruct t2  as [ | | | [ | ] | | | | | | ]; inv H;
+destruct t1  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ];
+destruct t2  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ]; inv H;
 try solve [destruct i; discriminate];
- try solve [destruct v; apply H0].
+ try solve [destruct v; apply H0];
+ hnf in H0|-*; destruct v; auto;
+try match goal with 
+| H: ?lo <= _ <= ?hi |- ?lo' <= _ <= ?hi' =>
+   assert (lo' <= lo) by (compute; congruence);
+   assert (hi <= hi') by (compute; congruence);
+   try omega
+| H:  _ <= ?hi |-  _ <= ?hi' =>
+   assert (hi <= hi') by (compute; congruence);
+   try omega
+| H: _ \/ _ |- _  => destruct H; subst; try solve [compute; congruence]
+end;
+ try solve [compute; try split; congruence].
 Qed.
+
+Opaque Int.repr.
 
 Lemma semax_load : 
 forall (Delta: tycontext) sh id P e1 t2 v2,

@@ -402,12 +402,23 @@ Proof.
  intros.
  unfold mapsto.
  unfold address_mapsto, res_predicates.address_mapsto.
- destruct sz; simpl; auto;
- destruct sign1, sign2; simpl; auto;
- destruct v; auto;
+ simpl.
+ destruct sz; auto;
+ destruct sign1, sign2; auto;
+ destruct v; auto; simpl cast_int_int;
+ repeat rewrite (prop_true_andp (_ <= _ <= _)) by
+  first [ apply (expr_lemmas3.sign_ext_range' 8 i); compute; split; congruence
+          | apply (expr_lemmas3.sign_ext_range' 16 i); compute; split; congruence
+          ];
+ repeat rewrite (prop_true_andp (_ <= _)) by
+  first [ apply (expr_lemmas3.zero_ext_range' 8 i); compute; split; congruence
+          | apply (expr_lemmas3.zero_ext_range' 16 i); compute; split; congruence
+          ];
+ simpl;
  repeat rewrite (prop_true_andp True) by auto;
  repeat rewrite (prop_false_andp  (Vint _ = Vundef) ) by (intro; discriminate);
- repeat rewrite @FF_orp, @orp_FF.
+ cbv beta;
+ repeat first [rewrite @FF_orp | rewrite @orp_FF].
 *
  f_equal. f_equal; extensionality bl.
  f_equal. f_equal.

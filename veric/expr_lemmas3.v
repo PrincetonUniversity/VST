@@ -116,6 +116,31 @@ intros.
 rewrite denote_tc_assert_andp in H; auto.
 Qed.
 
+Lemma andb_zleb:
+ forall i j k : Z,  i <= j <= k ->
+      (i <=? j) && (j <=? k) = true.
+Proof.
+intros ? ? ? [? ?]; rewrite andb_true_iff; split;
+ apply Z.leb_le; auto.
+Qed.
+
+Lemma sign_ext_range':
+    forall n x, 0 < n < Int.zwordsize ->
+      - two_p (n - 1) <= Int.signed (Int.sign_ext n x) <= two_p (n - 1) -1.
+Proof.
+intros.
+pose proof (Int.sign_ext_range n x H).
+omega.
+Qed.
+
+Lemma zero_ext_range':
+  forall n x, 0 <= n < Int.zwordsize ->
+     0 <= Int.unsigned (Int.zero_ext n x) <= two_p n - 1.
+Proof.
+intros.
+ pose proof (Int.zero_ext_range n x H); omega.
+Qed.
+
 Lemma typecheck_cast_sound: 
  forall Delta rho e t,
  typecheck_environ Delta rho ->
@@ -150,15 +175,31 @@ destruct (classify_cast (typeof e) t)
   try contradiction H2;
   try reflexivity; try assumption;
   try (apply (is_true_e _ H2));
-  clear H H0 H1; injection H3; clear H3; intros; subst;
+  try (injection H3; clear H3; intros; subst);
   simpl;
-  match type of H2a with match ?A with Some _ => _ | None => _ end =>
-     destruct A eqn:H7; try contradiction;
-     apply is_true_e in H2a; apply is_true_e in H2b
-  end;
-  (first [ erewrite float_to_int_ok | erewrite float_to_intu_ok
+  try solve [destruct (Int.eq i Int.zero); reflexivity];
+  try (rewrite andb_true_iff in H1; destruct H1 as [H1 H1']);
+  try rewrite Z.leb_le in H1; 
+  try rewrite Z.leb_le in H1'; 
+  try (match type of H2a with match ?A with Some _ => _ | None => _ end =>
+       destruct A eqn:H7; try contradiction;
+       apply is_true_e in H2a; apply is_true_e in H2b;
+       rewrite Z.leb_le in H2a; rewrite Z.geb_le in H2b
+    end);
+  try (first [ erewrite float_to_int_ok | erewrite float_to_intu_ok
           | erewrite single_to_int_ok | erewrite single_to_intu_ok];
-          [ | eassumption | ]; [reflexivity | ];
-   apply Z.leb_le in H2a; apply Z.geb_le in H2b;
-   split; assumption).
+          [ | eassumption | split; assumption]);
+  try (
+    simpl;
+    try reflexivity;
+    try apply andb_zleb; try rewrite Z.leb_le;
+    match goal with
+     | |- appcontext [Int.sign_ext ?n ?x] =>
+      apply (sign_ext_range' n x); compute; split; congruence
+     | |- appcontext [Int.zero_ext ?n ?x] =>
+      apply (zero_ext_range' n x); compute; try split; congruence
+   end);
+  match goal with |- Int.eq (if ?A then _ else _) _ || _ = _ =>
+      destruct A; try reflexivity
+  end.
 Qed.

@@ -9,7 +9,7 @@ Require Import Integers.
 Require Coq.Strings.String.
 Require Coq.Strings.Ascii.
 Require Import Coqlib.
-Require Import List.
+Require Import List. Import ListNotations.
 Require Import sha.SHA256.
 Require Import msl.Coqlib2.
 Require Export sha.common_lemmas.
@@ -505,7 +505,7 @@ apply Int.eqmod_mod; compute; congruence.
 Qed.
 
 Lemma hilo_lemma:
-  forall hi lo, [Int.repr (hilo hi lo / Int.modulus), Int.repr (hilo hi lo)] = [hi, lo].
+  forall hi lo, [Int.repr (hilo hi lo / Int.modulus); Int.repr (hilo hi lo)] = [hi; lo].
 Proof.
 unfold hilo; intros.
 rewrite Z.div_add_l by (compute; congruence).

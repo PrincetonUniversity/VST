@@ -58,8 +58,8 @@ apply (assert_PROP (isptr data)); [  entailer | intro ].
  + eapply sha256_block_load8 with (ctx:=ctx); eassumption.
  + simplify_Delta; reflexivity.
  + rewrite Zregs.
-    instantiate (1:=[`(data_at_ Tsh (tarray tuint 16)) (eval_var _X (tarray tuint 16)),
-                         `(data_block sh (intlist_to_Zlist b) data),
+    instantiate (1:=[`(data_at_ Tsh (tarray tuint 16)) (eval_var _X (tarray tuint 16));
+                         `(data_block sh (intlist_to_Zlist b) data);
                          `(K_vector kv)]).
     instantiate (1:=kv).
    entailer!.
@@ -84,7 +84,7 @@ eapply semax_frame_seq
  + auto 50 with closed.
  +  simpl; abbreviate_semax.
  eapply semax_frame_seq
- with (Frame := [`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8) (eval_id _ctx),
+ with (Frame := [`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8) (eval_id _ctx);
                           `(data_block sh (intlist_to_Zlist b) data)]).
 match goal with |- semax _ _ ?c _ =>
   change c with block_data_order_loop2
@@ -98,8 +98,8 @@ abbreviate_semax.
 eapply seq_assocN with (cs := add_them_back).
 eapply semax_frame1
  with (Frame := [
-   `(K_vector kv),
-  `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16)),
+   `(K_vector kv);
+  `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16));
   `(data_block sh (intlist_to_Zlist b) data)]).
 apply (add_them_back_proof _ regs (Round regs (nthi b) 63) ctx); try assumption.
 apply length_Round; auto.

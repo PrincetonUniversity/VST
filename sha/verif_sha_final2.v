@@ -337,7 +337,7 @@ Definition final_loop :=
                                       (Tcons (tptr tuint) (Tcons tuint Tnil))
                                       tvoid cc_default))
                                 [Ecast (Etempvar _md (tptr tuchar))
-                                   (tptr tuint), Etempvar _ll tuint])
+                                   (tptr tuint); Etempvar _ll tuint])
                              (Sset _md
                                 (Ebinop Oadd (Etempvar _md (tptr tuchar))
                                    (Econst_int (Int.repr 4) tint)

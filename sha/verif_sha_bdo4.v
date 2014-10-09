@@ -117,7 +117,7 @@ match goal with |- semax _ _ _ (normal_ret_assert (PROPx _ (LOCALx _ ?A))) =>
              (fun i0 : Z => contents (i0 + Int.unsigned ofs)) 0
              (Int.unsigned ofs + 4 - Int.unsigned ofs)
              (offset_val (Int.repr (Int.unsigned ofs)) base))] ++
-               [`(array_at tuchar sh contents lo (Int.unsigned ofs) base),
+               [`(array_at tuchar sh contents lo (Int.unsigned ofs) base);
          `(array_at tuchar sh contents (Int.unsigned ofs + 4) hi base)]))
  by (simpl app; apply pred_ext; go_lowerx; normalize; cancel)
 end.
@@ -128,7 +128,7 @@ match goal with |- semax _ (PROPx _ (LOCALx _ ?A)) _ _ =>
              (fun i0 : Z => contents (i0 + Int.unsigned ofs)) 0
              (Int.unsigned ofs + 4 - Int.unsigned ofs)
              (offset_val (Int.repr (Int.unsigned ofs)) base))] ++
-               [`(array_at tuchar sh contents lo (Int.unsigned ofs) base),
+               [`(array_at tuchar sh contents lo (Int.unsigned ofs) base);
          `(array_at tuchar sh contents (Int.unsigned ofs + 4) hi base)]))
  by (simpl app; apply pred_ext; go_lowerx; normalize; cancel)
 end.
@@ -354,19 +354,19 @@ normalize.
 do 2 apply -> seq_assoc.
 eapply semax_frame_seq
  with (P1 := [])
-         (Q1 :=  [ `(eq ctx) (eval_id _ctx),
-`(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i),
-`(eq (offset_val (Int.repr (Z.of_nat i * 4)) data)) (eval_id _data),
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a),
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b),
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c),
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d),
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e),
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f),
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g),
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h),
+         (Q1 :=  [ `(eq ctx) (eval_id _ctx);
+`(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
+`(eq (offset_val (Int.repr (Z.of_nat i * 4)) data)) (eval_id _data);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
+   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h);
     `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz))])
-         (Frame := [`(K_vector kv),
+         (Frame := [`(K_vector kv);
    `(array_at tuint Tsh (f_upto (tuints b) (Z.of_nat i)) 0 LBLOCKz) (eval_var _X (tarray tuint LBLOCKz))]); 
    [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) 0 (Zlength (intlist_to_Zlist b)) data _ sh 
                      (tuchars (map Int.repr (intlist_to_Zlist b))));

@@ -14,7 +14,7 @@ Definition update_inner_if_then :=
                  (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil)))
                  (tptr tvoid) cc_default))
            [Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _n tuint)
-              (tptr tuchar), Etempvar _data (tptr tuchar),
+              (tptr tuchar); Etempvar _data (tptr tuchar);
            Etempvar _fragment tuint])
      (Ssequence
         (Scall None
@@ -22,7 +22,7 @@ Definition update_inner_if_then :=
               (Tfunction
                  (Tcons (tptr t_struct_SHA256state_st)
                     (Tcons (tptr tvoid) Tnil)) tvoid cc_default))
-           [Etempvar _c (tptr t_struct_SHA256state_st),
+           [Etempvar _c (tptr t_struct_SHA256state_st);
            Etempvar _p (tptr tuchar)])
         (Ssequence
            (Sset _data
@@ -37,7 +37,7 @@ Definition update_inner_if_then :=
                        (Tfunction
                           (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
                           (tptr tvoid) cc_default))
-                    [Etempvar _p (tptr tuchar), Econst_int (Int.repr 0) tint,
+                    [Etempvar _p (tptr tuchar); Econst_int (Int.repr 0) tint;
                     Ebinop Omul (Econst_int (Int.repr 16) tint)
                       (Econst_int (Int.repr 4) tint) tint]))))).
 

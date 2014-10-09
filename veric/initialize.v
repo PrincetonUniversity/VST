@@ -618,7 +618,11 @@ Proof.
   repeat rewrite Share.unrel_splice_L.
   unfold mapsto, tc_val, is_int, is_long, is_float. 
   destruct a; 
-  repeat rewrite prop_true_andp by apply I;
+  repeat rewrite prop_true_andp by 
+    first [apply I 
+            | apply sign_ext_range'; compute; split; congruence
+            | apply zero_ext_range'; compute; split; congruence
+            ];
   try left; simpl in H; unfold load in H;
   try (if_tac in H; [ | discriminate H]);
   repeat rewrite prop_true_andp by apply I;
@@ -1554,8 +1558,11 @@ induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
 
 unfold init_data2pred in *;
 destruct a; simpl in *;
-try (destruct H1 as [[_ H1]|[H1x _]]; [|solve[inv H1x]];
-      left; split; [apply I | ]);
+try (destruct H1 as [[H1' H1]|[H1x _]]; [|solve[inv H1x]];
+      left; split; [first [apply I 
+            | apply sign_ext_range'; compute; split; congruence
+            | apply zero_ext_range'; compute; split; congruence
+            ] | ]);
  try solve [
  destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc);
  if_tac; [destruct H8 as [p H8]; exists p; rewrite <- H4'; destruct (H4 loc) as [_ H5]; 

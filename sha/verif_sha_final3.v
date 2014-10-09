@@ -317,7 +317,7 @@ semax Delta_final_if1
            (Scall None
               (Evar ___builtin_write32_reversed
                  (Tfunction (Tcons (tptr tuint) (Tcons tuint Tnil)) tvoid cc_default))
-              [Ecast (Etempvar _p (tptr tuchar)) (tptr tuint),
+              [Ecast (Etempvar _p (tptr tuchar)) (tptr tuint);
               Etempvar _cNh tuint])
            (Sset _p
               (Ebinop Oadd (Etempvar _p (tptr tuchar))
@@ -333,7 +333,7 @@ semax Delta_final_if1
                     (Evar ___builtin_write32_reversed
                        (Tfunction (Tcons (tptr tuint) (Tcons tuint Tnil))
                           tvoid cc_default))
-                    [Ecast (Etempvar _p (tptr tuchar)) (tptr tuint),
+                    [Ecast (Etempvar _p (tptr tuchar)) (tptr tuint);
                     Etempvar _cNl tuint])
                  (Sset _p
                     (Ebinop Oadd (Etempvar _p (tptr tuchar))
@@ -349,7 +349,7 @@ semax Delta_final_if1
                           (Tfunction
                              (Tcons (tptr t_struct_SHA256state_st)
                                 (Tcons (tptr tvoid) Tnil)) tvoid cc_default))
-                       [Etempvar _c (tptr t_struct_SHA256state_st),
+                       [Etempvar _c (tptr t_struct_SHA256state_st);
                        Etempvar _p (tptr tuchar)])
                     (Ssequence
                        (Sassign
@@ -365,8 +365,8 @@ semax Delta_final_if1
                                       (Tcons (tptr tvoid)
                                          (Tcons tint (Tcons tuint Tnil)))
                                       (tptr tvoid) cc_default))
-                                [Etempvar _p (tptr tuchar),
-                                Econst_int (Int.repr 0) tint,
+                                [Etempvar _p (tptr tuchar);
+                                Econst_int (Int.repr 0) tint;
                                 Ebinop Omul (Econst_int (Int.repr 16) tint)
                                   (Econst_int (Int.repr 4) tint) tint])
                           (Ssequence
@@ -469,7 +469,7 @@ clear lobytes hibytes.
 normalize.
 pose (lastblock := (
          (map Int.repr dd' ++ list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd')) Int.zero
-          ++  map Int.repr (intlist_to_Zlist [hi,lo])))).
+          ++  map Int.repr (intlist_to_Zlist [hi;lo])))).
 assert (H10: length lastblock = CBLOCK).
 unfold lastblock; repeat rewrite app_length.
 rewrite length_list_repeat; simpl.
@@ -502,7 +502,7 @@ rewrite Zlist_to_intlist_to_Zlist; [ |rewrite map_length; rewrite H10; exists LB
 rewrite Forall_isbyte_repr_unsigned.
 rewrite (Zlength_correct (map _ lastblock)). try rewrite map_length; rewrite H10.
 change (Z.of_nat CBLOCK) with 64%Z at 2.
-change (intlist_to_Zlist [hi, lo])
+change (intlist_to_Zlist [hi; lo])
   with (intlist_to_Zlist [hi] ++intlist_to_Zlist [lo]).
 apply (final_part5 hashed dd hashed' dd' pad (intlist_to_Zlist [hi]) (intlist_to_Zlist [lo]) hi lo);
   auto.

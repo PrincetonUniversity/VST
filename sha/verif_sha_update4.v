@@ -48,7 +48,7 @@ Definition sha_update_loop_body :=
            (Tfunction
               (Tcons (tptr t_struct_SHA256state_st) (Tcons (tptr tvoid) Tnil))
               tvoid cc_default))
-        [Etempvar _c (tptr t_struct_SHA256state_st),
+        [Etempvar _c (tptr t_struct_SHA256state_st);
         Etempvar _data (tptr tuchar)])
      (Ssequence
         (Sset _data

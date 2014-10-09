@@ -118,14 +118,14 @@ Definition add_h (n: Z) (i: ident) :=
        (Ebinop Oadd (Etempvar _t tuint) (Etempvar i tuint) tuint).
 
 Definition add_them_back :=
- [get_h 0, add_h 0 _a,
-  get_h 1, add_h 1 _b,
-  get_h 2, add_h 2 _c,
-  get_h 3, add_h 3 _d,
-  get_h 4, add_h 4 _e,
-  get_h 5, add_h 5 _f,
-  get_h 6, add_h 6 _g,
-  get_h 7, add_h 7 _h].
+ [get_h 0; add_h 0 _a;
+  get_h 1; add_h 1 _b;
+  get_h 2; add_h 2 _c;
+  get_h 3; add_h 3 _d;
+  get_h 4; add_h 4 _e;
+  get_h 5; add_h 5 _f;
+  get_h 6; add_h 6 _g;
+  get_h 7; add_h 7 _h].
 
 Fixpoint add_upto (k: nat) (u v: list int) {struct k} :=
  match k with
@@ -138,10 +138,10 @@ Fixpoint add_upto (k: nat) (u v: list int) {struct k} :=
 
 Lemma add_one_back:
  forall Espec Delta Post atoh regs ctx kv (i: nat) more i'
-  (i'EQ: i' = (nth i [_a,_b,_c,_d,_e,_f,_g,_h] 1%positive)),
+  (i'EQ: i' = (nth i [_a;_b;_c;_d;_e;_f;_g;_h] 1%positive)),
   length atoh = 8%nat ->
   length regs = 8%nat ->
-  (forall j, (j<8)%nat -> (temp_types Delta) ! ( nth j [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive) = Some (tuint, true)) ->
+  (forall j, (j<8)%nat -> (temp_types Delta) ! ( nth j [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive) = Some (tuint, true)) ->
   (temp_types Delta) ! _ctx = Some (tptr t_struct_SHA256state_st, true) ->
   (typeof_temp Delta _t) = Some tuint ->
   (i < 8)%nat ->
@@ -264,7 +264,7 @@ simpl; intros; normalize.
 
 {
   intro rho.
-  set (i' := nth i [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive).
+  set (i' := nth i [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive).
   unfold PROPx, LOCALx, SEPx.
   unfold local; super_unfold_lift.
   simpl.
@@ -323,7 +323,7 @@ simpl; intros; normalize.
 {
  instantiate (1:= `(Vint (Int.repr (Z.of_nat i)))).
  intro rho.
- set (i' := nth i [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive).
+ set (i' := nth i [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive).
  unfold PROPx, LOCALx, SEPx.
  unfold local; super_unfold_lift.
  simpl.
@@ -353,7 +353,7 @@ simpl; intros; normalize.
               (Ecast
                  (Ebinop Oadd (Etempvar _t tuint)
                     (Etempvar
-                       (nth i [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive)
+                       (nth i [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive)
                        tuint) tuint) tuint) rho))) 0 8) 
   with (array_at tuint Tsh (tuints (add_upto (S i) regs atoh)) 0 8).
   apply derives_refl.
@@ -363,7 +363,7 @@ simpl; intros; normalize.
               (Ecast
                  (Ebinop Oadd (Etempvar _t tuint)
                     (Etempvar
-                       (nth i [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive)
+                       (nth i [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive)
                        tuint) tuint) tuint) rho)) with (Vint (Int.add (nth i regs Int.zero) (nth i atoh Int.zero))).
   + clear - H H0 H4 LENADD.
 apply array_at_ext; intros j ?.
@@ -393,7 +393,7 @@ unfold upd, tuints, ZnthV.
  unfold map; fold map. simpl. 
  apply (IHn _ k); auto; try omega.
   + 
- set (i' := nth i [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive).
+ set (i' := nth i [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive).
  unfold PROPx, LOCALx, SEPx.
  simpl.
  unfold_lift.
@@ -459,13 +459,13 @@ rename regs' into atoh.
 assert (forall j : nat,
    (j < 8)%nat ->
    (temp_types Delta_loop1)
-    ! (nth j [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive) = Some (tuint, true)).
+    ! (nth j [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive) = Some (tuint, true)).
  intros; destruct j as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try reflexivity; omega.
 
 assert (forall j : nat,
    (j < 8)%nat ->
    (temp_types (initialized _t Delta_loop1))
-    ! (nth j [_a, _b, _c, _d, _e, _f, _g, _h] 1%positive) = Some (tuint, true)).
+    ! (nth j [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive) = Some (tuint, true)).
  intros; destruct j as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try reflexivity; omega.
 
 unfold sequence, add_them_back.

@@ -761,7 +761,7 @@ PROP  ()
  unfold local; apply prop_right.
  simpl.
  clear - H5.
-  destruct retty as [ | | | [ | ] |  | | | | | ], retty' as [ | | | [ | ] |  | | | | | ];
+  destruct retty as [ | [ | | | ] [ | ] | | [ | ] |  | | | | | ], retty' as [ |  [ | | | ] [ | ] | | [ | ] |  | | | | | ];
      simpl; try inv H5; try apply I.
  intro rho; apply prop_right; unfold tc_temp_id; simpl.
  unfold typecheck_temp_id.

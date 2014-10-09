@@ -51,8 +51,8 @@ Implicit Arguments mf_restbuf [[t]].
      representation of a  buf implies the data_at_ of the bufsize array *)
 
 Program Definition intpair_message: message_format t_struct_intpair :=
-  mf_build 8 (fun data => is_int (fst data) /\ is_int (snd data))
-             (fun sh buf len data => !!(len=8/\ is_int (fst data) /\ is_int (snd data)) 
+  mf_build 8 (fun data => is_int I32 Signed (fst data) /\ is_int I32 Signed (snd data))
+             (fun sh buf len data => !!(len=8/\ is_int I32 Signed (fst data) /\ is_int I32 Signed (snd data)) 
                            && data_at sh t_struct_intpair data buf)
       _ _.
 Next Obligation.
@@ -224,9 +224,9 @@ apply semax_pre with
     try omega.
 
 forward. (* x = ((int * )buf)[0]; *)
-entailer!. omega. apply I.
+entailer!.
 forward. (* y = ((int * )buf)[1]; *)
-entailer!. omega. apply I.
+entailer!.
 forward. (* p->x = x; *)
 forward. (*  p->y = y; *)
 forward.  (* return; *)

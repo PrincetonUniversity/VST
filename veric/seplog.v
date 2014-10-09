@@ -125,54 +125,26 @@ left; auto.
 apply pred_ext; [ | apply andp_left2; auto].
 assert (MAX: Int.max_signed = 2147483648 - 1) by reflexivity.
 assert (MIN: Int.min_signed = -2147483648) by reflexivity.
+assert (Byte.min_signed = -128) by reflexivity.
+assert (Byte.max_signed = 128-1) by reflexivity.
+assert (Byte.max_unsigned = 256-1) by reflexivity.
+destruct (Int.unsigned_range i).
+assert (Int.modulus = Int.max_unsigned + 1) by reflexivity.
+assert (Int.modulus = 4294967296) by reflexivity.
 apply andp_right; auto.
 unfold mapsto; intros.
 replace (type_is_volatile (Tint sz sgn noattr)) with false
   by (destruct sz,sgn; reflexivity).
 simpl. 
 destruct sz, sgn, v; (try rewrite FF_and; auto);
-change (!!True) with TT; rewrite TT_and; repeat rewrite GG;
-unfold address_mapsto; apply exp_left; intro bl;
-apply prop_andp_left; intros [? [? ?]] ? ?; hnf; clear - MIN MAX H0;
-unfold decode_val in H0; destruct bl; simpl in H0.
-unfold decode_int, rev_if_be in H0.
-destruct Archi.big_endian; inv H0.
-apply (Int.sign_ext_range 8); compute; auto.
-apply (Int.sign_ext_range 8); compute; auto.
-destruct m; try discriminate.
-destruct (proj_bytes bl); inv H0.
-apply (Int.sign_ext_range 8);  compute; auto.
-unfold decode_int, rev_if_be in H0.
-destruct Archi.big_endian; inv H0.
-apply (Int.zero_ext_range 8); compute; split; congruence.
-apply (Int.zero_ext_range 8); compute; split; congruence.
-destruct m; try discriminate.
-destruct (proj_bytes bl); inv H0.
-apply (Int.zero_ext_range 8); compute; split; congruence.
-unfold decode_int, rev_if_be in H0.
-destruct Archi.big_endian; inv H0.
-apply (Int.sign_ext_range 16);  compute; auto.
-apply (Int.sign_ext_range 16);  compute; auto.
-destruct m; try discriminate.
-destruct (proj_bytes bl); inv H0.
-apply (Int.sign_ext_range 16);  compute; auto.
-inv H0.
-apply (Int.zero_ext_range 16); compute; split; congruence.
-destruct m; try discriminate.
-destruct (proj_bytes bl); inv H0.
-apply (Int.zero_ext_range 16); compute; split; congruence.
-pose proof (Int.signed_range i);omega.
-pose proof (Int.signed_range i);omega.
-apply (Int.unsigned_range i).
-apply (Int.unsigned_range i).
-inv H0; apply (Int.zero_ext_range 8); compute; split; congruence.
-destruct m; try discriminate.
-destruct (proj_bytes bl); inv H0.
-apply (Int.zero_ext_range 8); compute; split; congruence.
-inv H0; apply (Int.zero_ext_range 8); compute; split; congruence.
-destruct m; try discriminate.
-destruct (proj_bytes bl); inv H0.
-apply (Int.zero_ext_range 8); compute; split; congruence.
+ repeat rewrite GG;
+ apply prop_andp_left; intros ? ? _; hnf; try omega.
+ destruct H6; split; try assumption; omega.
+ pose proof (Int.signed_range i); omega.
+ destruct H6; subst; 
+  try rewrite Int.unsigned_zero; try rewrite Int.unsigned_one; omega.
+ destruct H6; subst; 
+  try rewrite Int.unsigned_zero; try rewrite Int.unsigned_one; omega.
 Qed.
 
 Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
@@ -814,17 +786,6 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_s2s => true
 | _  => false
 end. 
-
-Lemma allowed_val_cast_sound : forall v tfrom tto,
-allowedValCast v tfrom tto = true -> 
-typecheck_val v tfrom = true ->
-typecheck_val v tto = true. 
-Proof. 
-intros. 
- destruct tfrom as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | | ];
- destruct tto as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | | ];
- destruct v; intuition; inv H.
-Qed. 
 
 Definition tc_temp_id (id : positive) (ty : type) 
   (Delta : tycontext) (e : expr) : assert  :=

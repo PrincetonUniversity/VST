@@ -14,7 +14,7 @@ Definition reverse_spec :=
   WITH a0: val, sh : share, contents : Z -> val, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP (0 <= size <= Int.max_signed; writable_share sh;
-                    forall i, 0 <= i < size -> is_int (contents i))
+                    forall i, 0 <= i < size -> is_int I32 Signed (contents i))
           LOCAL (`(eq a0) (eval_id _a);
                       `(eq (Vint (Int.repr size))) (eval_id _n);
                       `isptr (eval_id _a))
@@ -100,7 +100,6 @@ rewrite Int.sub_signed in H3.
 normalize in H3.
 simpl_compare.
 entailer!.
-omega.
 unfold flip_between.
 apply POP.
 rewrite if_false by omega.
@@ -110,7 +109,6 @@ rewrite Int.sub_signed in H4.
 normalize in H4.
 simpl_compare.
 entailer!.
-omega. 
 apply POP.
 rewrite if_false by omega. rewrite if_true by omega.
 omega.

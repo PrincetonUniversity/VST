@@ -435,7 +435,7 @@ drop_LOCAL 1%nat.
 
 rename b into bb.
 remember (Round regs (nthi bb) (Z.of_nat i - 1)) as regs' eqn:?.
-assert (exists a b c d e f g h, regs' = [a,b,c,d,e,f,g,h]).
+assert (exists a b c d e f g h, regs' = [a;b;c;d;e;f;g;h]).
 assert (length regs' = 8%nat) by (subst; apply length_Round; auto).
 do 8 (destruct regs' as [ | ? regs']; [inv H2 | ]).
 destruct regs'; [ | inv H2].

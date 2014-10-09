@@ -298,7 +298,7 @@ tc_environ Delta rho ->
        field_at Tsh t_struct_elem [_next] nullval tl)) * (emp * emp)))))
 |-- !!(denote_tc_iszero (eval_id _h rho) \/
        is_true (Int.eq (Int.repr 0) Int.zero)) &&
-    (!!is_int
+    (!!is_int I32 Signed
          (force_val
             (sem_cast_neutral
                (force_val
