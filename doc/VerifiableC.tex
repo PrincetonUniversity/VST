@@ -147,6 +147,8 @@ The book \emph{Program Logics for Certified Compilers}
 More recent VST versions differ in the following ways
 from what the PLCC book describes:
 \begin{itemize}
+\item The type-checker now has a more refined view of char and short types
+     (see Chapter~\ref{refcard:tcval} of this manual).
 \item \lstinline{field_mapsto} is now called
 \lstinline{field_at}, and it is dependently
 typed; see \autoref{refcard:structured} of this manual.
@@ -899,11 +901,11 @@ Fixpoint eval_expr (e: expr) : environ -> val :=
 Ideally, you will never notice the typechecker, but it may occasionally
 generate side conditions that can not be solved automatically.
 If you get a proof goal from the typechecker, it will be an entailment 
-\lstinline!P |-- denote_tc_assert ($\ldots$)!. PLCC Chapter
+\lstinline!P |-- denote_tc_assert ($\ldots$)!. PLCC
 \autoref{ch:clight-auto} discusses what you can do to solve these goals. 
 
 If you are asked to prove an entailment where the typechecking condition
-evaluates to \lstinline|False|, this is because your program is not written in
+evaluates to \lstinline|False|, this may be because your program is not written in
 Verifiable C. You may need to perform some local transformations on your C
 program in order to proceed. We listed these transformations on
 \autopageref{refcard:verifiable-c}. 
@@ -913,11 +915,10 @@ The type-context will always be visible in your proof in a line that looks like
 hides the implementation of the type context (which is generally large
 and uninteresting). The
 \lstinline|query_context| tactic shows the result of looking up a variable in
-a typecontext. Applying \lstinline|query_context Delta _p.| will add hypothesis
+a typecontext. The tactic \lstinline|query_context Delta _p.| will add hypothesis
 \lstinline|QUERY : (temp_types Delta) ! _p = Some (tptr t_struct_list, true)|.
 This means that in \lstinline|Delta|, \lstinline|_p| is a temporary variable
 with type \lstinline|tptr t_struct_list| and that it is known to be initialized.
-
 
 \ychapter{Lifted separation logic}{(See PLCC \autoref{ch:lifted})}
 Assertions in our Hoare triple of separation 
@@ -1164,7 +1165,108 @@ form \lstinline{(tc_environ $\Delta$)},
 and (2) there is a hypothesis \lstinline{name x _x} ``above the line.''
 (See PLCC \autoref{go-lower-findvars}).
 In addition, a typechecking hypothesis for \lstinline{x}
-will be introduced above the line.
+will be introduced above the line (see \autoref{refcard:tcval}).
+
+\ychapter{Welltypedness of variables}{}
+\label{refcard:tcval}
+
+The typechecker ensures some invariants about the values
+of C-program variables: if a variable is initialized, it contains
+a value of its declared type.
+
+Function parameters (accessed by
+\lstinline{Etempvar} expressions)
+are always initialized.
+Nonaddressable local variables (accessed by
+\lstinline{Etempvar} expressions) and address-taken local variables
+(accessed by \lstinline{Evar})
+may be uninitialized or initialized. 
+Global variables (accessed by \lstinline{Evar}) are always
+initialized.
+
+The typechecker keeps track of the
+initialization status of local nonaddressable 
+variables, \emph{conservatively:}
+if on all paths from function entry to the current
+point---assuming that the conditions on if-expressions
+and while-expressions are uninterpreted/nondeterministic---there
+is an assignment to variable $x$, then $x$ is known to
+be initialized.
+
+The initialization status of addressable local variables
+is tracked in the separation logic,
+by assertions such as $v \mapsto \_$
+or $v \mapsto i$ for uninitialized and initialized variables,
+respectively.
+
+Proofs using the \lstinline{forward} tactic will typically
+generate proof obligations (for the user to solve)
+of the form,
+\[
+\PROP(\vec{P})~
+\LOCAL(\mathsf{tc\_environ}\,\Delta; \vec{Q})~
+\SEP(\vec{R})
+~\vdash
+\PROP(\vec{P'})~
+\LOCAL(\vec{Q'})~
+\SEP(\vec{R'})
+\]
+
+The conjunct (\lstinline{tc_environ $\Delta$})
+keeps track of which nonaddressable local variables are initialized;
+says that all references to local variables
+contain values of the right type;
+and says that all addressable locals and globals point
+to an appropriate block of memory.
+
+The \lstinline{go_lower} tactic
+(usually) deletes the assertion 
+\lstinline{tc_environ $\Delta$ $\rho$}
+after deriving type-checking assertions of the form
+\lstinline{tc_val $\tau$ v}
+for each variable $v$ of type $\tau$;
+it puts these assertions above the line.
+\pagebreak
+\begin{lstlisting}
+Definition tc_val ($\tau$: type) : val -> Prop :=
+ match $\tau$ with 
+ | Tint sz sg _ $$ => is_int sz sg
+ | Tlong _ $$ _ $$ => is_long 
+ | Tfloat F64 _ $$ => is_float
+ | Tfloat F32 _ $$ => is_single
+ | Tpointer _ $$ _ $$ | Tarray _ $$ _ $$ _ $$ 
+   | Tfunction _ $$ _ $$ _ $$ | Tcomp_ptr _ $$ _ $$ => is_pointer_or_null
+ | Tstruct _ $$ _ $$ _ $$ => isptr
+ | Tunion _ $$ _ $$ _ $$ => isptr
+ | _ $$ => (fun _ $$ => False)
+ end.
+\end{lstlisting}
+Since $\tau$ is concrete, \lstinline{tc_val $\tau$ v}
+immediately unfolds
+to something like,
+\begin{lstlisting}
+TC0: is_int I32 Signed (Vint i)
+TC1: is_int I8 Unsigned (Vint c)
+TC2: is_int I8 Signed (Vint d)
+TC3: is_pointer_or_null p
+TC4: isptr q
+\end{lstlisting}
+
+\lstinline{TC0} says that $i$ is a 32-bit signed integer;
+this is a tautology, so it will be automatically deleted by
+\lstinline{go_lower}.
+
+\lstinline{TC1} says that $c$ is a 32-bit signed integer
+whose value is in the range of unsigned 8-bit integers
+(unsigned char).
+\lstinline{TC2} says that $d$ is a 32-bit signed integer
+whose value is in the range of signed 8-bit integers
+(signed char).
+These hypotheses simplify to,
+\begin{lstlisting}
+TC1: 0 <= Int.unsigned c <= Byte.max_unsigned
+TC2: Byte.min_signed <= Int.signed c <= Byte.max_signed
+\end{lstlisting}
 
 \chapter{Normalize}
 The \lstinline{normalize} tactic performs
