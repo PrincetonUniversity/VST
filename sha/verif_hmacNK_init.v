@@ -14,6 +14,33 @@ Require Import sha.hmac_NK.
 
 Require Import sha.verif_hmacNK_init_part1.
 
+Lemma ZnthV_map_Vint_is_int_I8: forall l (i : Z) ,
+       0 <= i < Zlength l -> 
+is_int I8 Unsigned
+  (ZnthV (Tint I8 Unsigned noattr)
+     (map Vint (map Int.repr (map Byte.unsigned l))) i).
+Proof.
+intros.
+unfold ZnthV.
+if_tac; [omega | ].
+assert (Z.to_nat i < length l)%nat.
+destruct H.
+rewrite Zlength_correct in H1.
+apply Z2Nat.inj_lt in H1; try omega.
+rewrite Nat2Z.id in H1. auto.
+unfold is_int. simpl.
+clear - H1.
+revert l H1; induction (Z.to_nat i); destruct l; intros; simpl in *.
+omega. rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. 
+  destruct (Byte.unsigned_range_2 i0). split. omega.
+  assert ( Byte.max_unsigned <= Int.max_unsigned).
+    unfold Byte.max_unsigned, Int.max_unsigned. 
+    unfold Byte.modulus, Int.modulus, Byte.wordsize, Int.wordsize. simpl. omega.
+   omega.
+  omega.
+ apply IHn; omega.
+Qed.
+
 Lemma array_at_local_facts'':
   forall (t : type) (sh : Share.t) (f : Z -> reptype t) (lo hi : Z) (v : val),
   array_at t sh f lo hi v
@@ -108,10 +135,9 @@ remember (EX  cb : block,
                     `(initPostKeyNullConditional r c k h1 key ctxkey);
                     `(K_vector KV)))))) as PostKeyNull. 
 forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
-{ eapply semax_extensionality_Delta. 
-     2: eapply hmac_init_part1; eassumption. 
-     admit. (*TODO: Andrew*)
-  (*apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_refl.*)
+{  assert (DD: Delta= initialized _reset Delta) by reflexivity.
+   rewrite DD.
+   eapply hmac_init_part1; eassumption. 
 }
 subst PostKeyNull. normalize.
 apply extract_exists_pre; intros cb. 
@@ -266,82 +292,55 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
             unfold tarray. 
             erewrite data_at_array_at with (v:= map Vint (map Int.repr (HMAC_FUN.mkKey key))); try reflexivity.
               2: omega. 
-(*erewrite (data_at_array_at Tsh tuchar 64 noattr (map Vint (map Int.repr (HMAC_FUN.mkKey key))) ). with (v:=Vptr ckb ckofs).*)
-          eapply NEWsemax_loadstore_array
-          with (* (P:= nil)
-          (Q:= [`(eq (Vint (Int.repr i))) (eval_id _i);
-            `(eq (Vint (Int.repr 64))) (eval_expr (Econst_int (Int.repr 64) tint));
-            `(eq (Vint (Int.repr 1))) (eval_id _reset);
-            `(eq (Vptr pb pofs)) (eval_var _pad (tarray tuchar 64));
-            `(eq (Vptr cb cofs)) (eval_id _ctx);
-            `(eq (Vptr kb kofs)) (eval_id _key);
-            `(eq ctxkey) (eval_var _ctx_key (Tarray tuchar 64 noattr));
-            `(eq (Vint (Int.repr l))) (eval_id _len);
-            `(eq KV) (eval_var sha._K256 (tarray tuint 64))])
-          (R:= [`(data_at Tsh t_struct_hmac_ctx_st keyedHMS (Vptr cb cofs));
-
-            `(array_at tuchar Tsh IPADcont 0 i (Vptr pb pofs));
-            `(array_at tuchar Tsh DEFAULTcont i 64 (Vptr pb pofs));
-            `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr key))) 0
-                (Zlength key) (Vptr kb kofs)); `(K_vector KV)])*)
-(*
-`(field_at Tsh t_struct_hmac_ctx_st [_key_length]
-               (if zlt 64 (Zlength key)
-                then Vint (Int.repr 32)
-                else Vint (Int.repr (Zlength key))) (Vptr cb cofs));
-            `(data_at Tsh (nested_field_type2 t_struct_hmac_ctx_st [_key])
-                (map Vint (map Int.repr (HMAC_FUN.mkKey key)))
-               (offset_val
-                 (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [_key]))
-                 (Vptr cb cofs)));
-            `(field_at Tsh t_struct_hmac_ctx_st [_o_ctx] emptySha (Vptr cb cofs));
-            `(field_at Tsh t_struct_hmac_ctx_st [_i_ctx] emptySha (Vptr cb cofs));
-            `(field_at Tsh t_struct_hmac_ctx_st [_md_ctx] emptySha (Vptr cb cofs))*)
-          (n:=1%nat)
-          (v2:=(ZnthV tuchar (map Vint(map Int.repr (HMAC_FUN.mkArgZ (map Byte.repr (HMAC_FUN.mkKey key)) Ipad))) i)).
-          simpl; try reflexivity.
-          simpl; try reflexivity.
-          simpl; try reflexivity.
-          simpl; try reflexivity.
-          simpl; try reflexivity.
-          instantiate (1:=i). instantiate (1:=Vptr pb pofs).
-            entailer. normalize. 
-            apply andp_right. apply andp_right; rel_expr. 
-            rewrite Hres. 
-            erewrite (split3_array_at' i _ _ _ 0 64); try reflexivity. 2: trivial.
-            {  rel_expr. 
-               unfold ZnthV in *. if_tac. omega. simpl; rewrite HN. discriminate.
-               simpl; intros.
+            eapply NEWsemax_loadstore_array with 
+              (n:=1%nat)
+              (v2:=(ZnthV tuchar (map Vint(map Int.repr (HMAC_FUN.mkArgZ (map Byte.repr (HMAC_FUN.mkKey key)) Ipad))) i)).
+             simpl; try reflexivity.
+             simpl; try reflexivity.
+             simpl; try reflexivity.
+             simpl; try reflexivity.
+             simpl; try reflexivity.
+             { instantiate (1:=i). instantiate (1:=Vptr pb pofs).
+               entailer. normalize. 
+               apply andp_right. apply andp_right; rel_expr. 
+               rewrite Hres. 
+               erewrite (split3_array_at' i _ _ _ 0 64); try reflexivity. 2: trivial.
+               { rel_expr. 
+                 unfold ZnthV in *. if_tac. omega. simpl; rewrite HN. discriminate.
+                 simpl; intros.
                  unfold ZnthV in *. if_tac. omega. simpl; rewrite HN. reflexivity.
-               reflexivity. 
-            } 
-          simpl. reflexivity.
-          trivial.   
-          unfold tuchar; simpl. apply ZnthV_map_Vint_is_int. rewrite Zlength_correct in ZLI.
-            rewrite Zlength_correct, map_length, ZLI. assumption.
-          red. omega.
-        }
-        { entailer. cancel.
-          rewrite (split_array_at (i+1) tuchar Tsh _ i 64); try omega. cancel.
-          unfold tarray. erewrite data_at_array_at; try reflexivity.
+                 reflexivity.
+               } 
+             } 
+             simpl. reflexivity.
+             trivial.
+             { unfold HMAC_FUN.mkArgZ. simpl. apply ZnthV_map_Vint_is_int_I8.
+               unfold HMAC_FUN.mkArgZ in ZLI. rewrite Zlength_correct, map_length in ZLI. 
+               rewrite Zlength_correct, ZLI. omega.
+             }
+             red; omega.   
+          }
+          { entailer. cancel.
+            rewrite (split_array_at (i+1) tuchar Tsh _ i 64); try omega. cancel.
+            unfold tarray. erewrite data_at_array_at; try reflexivity.
               2: omega.
-          cancel. 
-          apply sepcon_derives.
-            rewrite (split_array_at i tuchar Tsh _ 0 (i+1)); try omega.
-            cancel.
+            cancel. 
+            apply sepcon_derives.
+              rewrite (split_array_at i tuchar Tsh _ 0 (i+1)); try omega.
+              cancel.
+              apply array_lemmas.array_at_ext'.
+              unfold cVint, ZnthV; simpl; intros.
+              assert (i0=i). omega. subst i0. simpl.
+              destruct (zlt i 0). omega. simpl. rewrite upd_eq.
+              destruct (nth_mapVintZ i 
+               (HMAC_FUN.mkArgZ (map Byte.repr (HMAC_FUN.mkKey key)) Ipad)) as [n Hn].
+              rewrite ZLI; assumption.
+              rewrite Hn. unfold HMAC_FUN.mkArgZ in Hn; rewrite Hn. trivial.
             apply array_lemmas.array_at_ext'.
-            unfold cVint, ZnthV; simpl; intros.
-            assert (i0=i). omega. subst i0. simpl.
-            destruct (zlt i 0). omega. simpl. rewrite upd_eq.
-            destruct (nth_mapVintZ i 
-             (HMAC_FUN.mkArgZ (map Byte.repr (HMAC_FUN.mkKey key)) Ipad)) as [n Hn].
-             rewrite ZLI; assumption.
-            rewrite Hn. unfold HMAC_FUN.mkArgZ in Hn; rewrite Hn. trivial.
-          apply array_lemmas.array_at_ext'.
-            unfold cVint, ZnthV; simpl; intros. rewrite upd_neq; trivial. omega.
-        } 
+              unfold cVint, ZnthV; simpl; intros. rewrite upd_neq; trivial. omega.
+          } 
+        }
       }
-    }
 
     (*continuation after ipad-loop*)   
     unfold_data_at 1%nat. normalize.
@@ -519,23 +518,26 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
           simpl; try reflexivity.
           simpl; try reflexivity.
           simpl; try reflexivity.
-          instantiate (1:=i). instantiate (1:=Vptr pb pofs).
+          { instantiate (1:=i). instantiate (1:=Vptr pb pofs).
             entailer. normalize. 
             apply andp_right. apply andp_right; rel_expr. 
             rewrite Hres. 
             erewrite (split3_array_at' i _ _ _ 0 64); try reflexivity. 2: trivial.
-            {  rel_expr. 
-               unfold ZnthV in *. if_tac. omega. simpl; rewrite HN. discriminate.
-               simpl; intros.
-                 unfold ZnthV in *. if_tac. omega. simpl; rewrite HN. reflexivity.
-               reflexivity. 
-            } 
+            { rel_expr. 
+              unfold ZnthV in *. if_tac. omega. simpl; rewrite HN. discriminate.
+              simpl; intros.
+                unfold ZnthV in *. if_tac. omega. simpl; rewrite HN. reflexivity.
+              reflexivity. 
+            }
+          }
           simpl. reflexivity.
-          trivial.   
-          unfold tuchar; simpl. apply ZnthV_map_Vint_is_int. rewrite Zlength_correct in ZLO.
-            rewrite Zlength_correct, map_length, ZLO. assumption.
-          red. omega.
-        }
+          trivial.
+          { unfold HMAC_FUN.mkArgZ. simpl. apply ZnthV_map_Vint_is_int_I8.
+            unfold HMAC_FUN.mkArgZ in ZLO. rewrite Zlength_correct, map_length in ZLO. 
+            rewrite Zlength_correct, ZLO. omega.
+          }
+          red; omega.   
+          }
         { entailer. cancel.
           rewrite (split_array_at (i+1) tuchar Tsh _ i 64); try omega. cancel.
           unfold tarray. erewrite data_at_array_at; try reflexivity.

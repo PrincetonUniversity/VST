@@ -43,9 +43,10 @@ Lemma hmac_init_part1: forall
 (ctx' : name _ctx)
 (key' : name _key)
 (len' : name _len)
-(Delta := 
-  (initialized _i (initialized _j (initialized _reset 
-       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs)))))
+(Delta := initialized _reset 
+       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))
+(*  (initialized _i (initialized _j (initialized _reset 
+       (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs)))))*)
 (PostKeyNull : environ -> mpred)
 (HeqPostKeyNull : PostKeyNull =
                  EX  cb : block,
@@ -106,8 +107,8 @@ Lemma hmac_init_part1: forall
                                    (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
                                    t_struct_hmac_ctx_st) _md_ctx
                                 t_struct_SHA256state_st)
-                             (tptr t_struct_SHA256state_st),
-                          Etempvar _key (tptr tuchar), Etempvar _len tint])
+                             (tptr t_struct_SHA256state_st);
+                          Etempvar _key (tptr tuchar); Etempvar _len tint])
                        (Ssequence
                           (Scall None
                              (Evar _SHA256_Final
@@ -115,7 +116,7 @@ Lemma hmac_init_part1: forall
                                    (Tcons (tptr tuchar)
                                       (Tcons (tptr t_struct_SHA256state_st)
                                          Tnil)) tvoid cc_default))
-                             [Evar _ctx_key (tarray tuchar 64),
+                             [Evar _ctx_key (tarray tuchar 64);
                              Eaddrof
                                (Efield
                                   (Ederef
@@ -135,8 +136,8 @@ Lemma hmac_init_part1: forall
                                    (Ebinop Oadd
                                       (Evar _ctx_key (tarray tuchar 64))
                                       (Econst_int (Int.repr 32) tint)
-                                      (tptr tuchar)) tuchar) (tptr tuchar),
-                             Econst_int (Int.repr 0) tint,
+                                      (tptr tuchar)) tuchar) (tptr tuchar);
+                             Econst_int (Int.repr 0) tint;
                              Econst_int (Int.repr 32) tint]))))
                  (Ssequence
                     (Scall None
@@ -145,8 +146,8 @@ Lemma hmac_init_part1: forall
                              (Tcons (tptr tvoid)
                                 (Tcons (tptr tvoid) (Tcons tuint Tnil)))
                              (tptr tvoid) cc_default))
-                       [Evar _ctx_key (tarray tuchar 64),
-                       Etempvar _key (tptr tuchar), Etempvar _len tint])
+                       [Evar _ctx_key (tarray tuchar 64);
+                       Etempvar _key (tptr tuchar); Etempvar _len tint])
                     (Scall None
                        (Evar _memset
                           (Tfunction
@@ -157,14 +158,14 @@ Lemma hmac_init_part1: forall
                           (Ederef
                              (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
                                 (Etempvar _len tint) (tptr tuchar)) tuchar)
-                          (tptr tuchar), Econst_int (Int.repr 0) tint,
+                          (tptr tuchar); Econst_int (Int.repr 0) tint;
                        Ebinop Osub (Econst_int (Int.repr 64) tuint)
                          (Etempvar _len tint) tuint]))))) Sskip)
   (normal_ret_assert PostKeyNull).
-Proof. intros.
+Proof. intros. subst Delta. abbreviate_semax.
 forward_if PostKeyNull.
   { (* THEN*)
-    simpl. 
+    simpl.  
     unfold force_val2, force_val1; simpl. 
     eapply semax_pre with (P':= EX cb:_, EX cofs:_, EX kb:_, EX kofs:_, EX pad:_, EX ctxkey:_,
       (PROP  (c=Vptr cb cofs /\ k=Vptr kb kofs /\ Forall isbyteZ key)
@@ -187,7 +188,7 @@ forward_if PostKeyNull.
         unfold Vfalse in H0. inversion H0.
       (*key' is ptr*)
         simpl in *. rewrite (data_at__isptr _ t_struct_hmac_ctx_st). 
-        entailer. apply isptrD in Pctx'. destruct Pctx' as [cb [cofs CB]]. subst.
+        entailer. apply isptrD in Pctx'. destruct Pctx' as [cb [cofs CB]]. subst ctx'.
         apply exp_right with (x:=cb).
         apply exp_right with (x:=cofs).
         apply exp_right with (x:=b).
@@ -202,7 +203,7 @@ forward_if PostKeyNull.
     apply extract_exists_pre. intros kofs.  
     apply extract_exists_pre. intros pad.  
     apply extract_exists_pre. intros ctxkey.  
-    normalize. subst c k. rename H1 into isbyte_key. subst PostKeyNull.
+    normalize. subst c k. rename H1 into isbyte_key. (*subst PostKeyNull.*)
 
     forward. (*reset =1 *) (*qinxiang: here, forward now intoduces an essentially 
       unnecessary x:val, together with a term `(eq (Vint (Int.repr 0))) `x; in LOCAL*) 
@@ -226,7 +227,7 @@ forward_if PostKeyNull.
           `(K_vector KV))) as PostIf_j_Len.
 
     forward_if PostIf_j_Len. 
-    { (* j < len*)
+    { (* j < len*) 
       eapply semax_pre with (P':=
        (PROP  (64 < l)
         LOCAL 
@@ -300,7 +301,7 @@ forward_if PostKeyNull.
      apply semax_pre with (P':=
       EX  xx : s256abs,
   (PROP  ()
-   LOCAL  (tc_environ Delta0; tc_environ Delta0;
+   LOCAL  (tc_environ Delta;
    `(eq (Vint (Int.repr 64))) (eval_id _j);
    `(eq (Vint (Int.repr 1))) (eval_id _reset);
    `(eq pad) (eval_var _pad (tarray tuchar 64));
@@ -446,7 +447,7 @@ forward_if PostKeyNull.
               apply Zgt_is_gt_bool in Z6; rewrite Z6.
               unfold HMAC_FUN.zeroPad.
               rewrite <- functional_prog.SHA_256'_eq.
-              rewrite app_nth1. inversion H. subst. clear H. simpl in *.
+              rewrite app_nth1. inversion H. clear H. simpl in *.
                       rewrite <- H17. rewrite firstn_precise. trivial.
                       rewrite Zlength_correct, Nat2Z.id; trivial.
               rewrite length_SHA256'; trivial.
@@ -608,20 +609,24 @@ forward_if PostKeyNull.
 
   intros. clear x. (*again, clear spurious x here*)
    entailer. unfold POSTCONDITION, abbreviate; simpl. entailer.
-   unfold overridePost. 
-   if_tac; subst; entailer.
+   unfold overridePost, initPostKeyNullConditional. 
+   if_tac; trivial.
+   entailer.
      apply exp_right with (x:=cb). apply andp_right. entailer.
+   entailer.
      apply exp_right with (x:=cofs). 
      rewrite data_at__isptr. normalize.
      apply isptrD in H4. destruct H4 as [pb [pofs PAD]].
-     apply isptrD in H5. destruct H5 as [ckb [ckofs C]].
      apply exp_right with (x:=Vptr pb pofs).
-     apply exp_right with (x:=1).
-     apply exp_right with (x:=Vptr ckb ckofs). entailer. cancel.
-     if_tac; try omega. rewrite PAD, C; cancel.
+   entailer. 
+     apply exp_right with (x:=1). entailer.
+     apply isptrD in H5. destruct H5 as [ckb [ckofs CK]].
+     apply exp_right with (x:=Vptr ckb ckofs).
+     entailer. cancel.
+     if_tac; try omega. rewrite PAD, CK; cancel.
   }
   { (*key == NULL*)
-     forward. subst.
+     forward. normalize. rewrite HeqPostKeyNull. clear  HeqPostKeyNull. normalize.
      entailer.
      unfold initPre, initPostKeyNullConditional.
      destruct key'; try contradiction; simpl in *; subst; simpl in *.
@@ -630,19 +635,21 @@ forward_if PostKeyNull.
         normalize. apply isptrD in Pctx'. destruct Pctx' as [cb [cofs CTX']].
         subst; simpl in *. 
         apply isptrD in H1. destruct H1 as [pb [pofs PAD]].
-        apply isptrD in H2. destruct H2 as [ckb [ckofs C]].
         apply exp_right with (x:=cb). apply andp_right. entailer.
         apply exp_right with (x:=cofs).
         apply exp_right with (x:=Vptr pb pofs).
-        apply exp_right with (x:=0).
-        apply exp_right with (x:=Vptr ckb ckofs). entailer. rewrite PAD, C. cancel.
+        apply exp_right with (x:=0). entailer. rewrite PAD. cancel.
+        apply isptrD in H2. destruct H2 as [ckb [ckofs CK]].
+        apply exp_right with (x:=Vptr ckb ckofs). entailer. cancel. 
         if_tac; try omega.
-          apply exp_right with (x:=r). cancel. apply exp_right with (x:=v). entailer.
+          apply exp_right with (x:=r). rewrite CK; cancel. 
+          apply exp_right with (x:=v). entailer.
      inversion H0.
   }
   { (*side condition of forward_if key != NULL*)
     intros. entailer. unfold overridePost, normal_ret_assert; simpl. 
-    if_tac. simpl. apply andp_right. entailer. trivial. trivial.
+    if_tac. simpl. unfold POSTCONDITION, abbreviate, normal_ret_assert.
+       entailer. trivial.
   }
 Qed.
 

@@ -14,6 +14,33 @@ Require Import sha.hmac091c.
 
 Require Import sha.verif_hmac_init_part1.
 
+Lemma ZnthV_map_Vint_is_int_I8: forall l (i : Z) ,
+       0 <= i < Zlength l -> 
+is_int I8 Unsigned
+  (ZnthV (Tint I8 Unsigned noattr)
+     (map Vint (map Int.repr (map Byte.unsigned l))) i).
+Proof.
+intros.
+unfold ZnthV.
+if_tac; [omega | ].
+assert (Z.to_nat i < length l)%nat.
+destruct H.
+rewrite Zlength_correct in H1.
+apply Z2Nat.inj_lt in H1; try omega.
+rewrite Nat2Z.id in H1. auto.
+unfold is_int. simpl.
+clear - H1.
+revert l H1; induction (Z.to_nat i); destruct l; intros; simpl in *.
+omega. rewrite Int.unsigned_repr. apply Byte.unsigned_range_2. 
+  destruct (Byte.unsigned_range_2 i0). split. omega.
+  assert ( Byte.max_unsigned <= Int.max_unsigned).
+    unfold Byte.max_unsigned, Int.max_unsigned. 
+    unfold Byte.modulus, Int.modulus, Byte.wordsize, Int.wordsize. simpl. omega.
+   omega.
+  omega.
+ apply IHn; omega.
+Qed.
+
 Lemma array_at_local_facts'':
   forall (t : type) (sh : Share.t) (f : Z -> reptype t) (lo hi : Z) (v : val),
   array_at t sh f lo hi v
@@ -128,10 +155,9 @@ remember (EX  cb : block,
                     `(initPostKeyNullConditional r c k h1 key);
                     `(K_vector KV)))))) as PostKeyNull. 
 forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
-{ assert (DD: Delta = initialized _i (initialized _j (initialized _reset 
-               (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs)))).
-     admit. (*TODO: Andrew*)
-  rewrite DD. clear DD.
+{ assert (DD: Delta = initialized _reset 
+               (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs)) by reflexivity.
+  rewrite DD; clear DD.
   eapply hmac_init_part1; eassumption.
 }
 subst PostKeyNull. normalize.
@@ -325,10 +351,12 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
              simpl; intros.
                 unfold ZnthV in *. if_tac. omega. simpl; rewrite HN. reflexivity.
              reflexivity.
-           } 
-          unfold tuchar; simpl. apply ZnthV_map_Vint_is_int. rewrite Zlength_correct in ZLI.
-            rewrite Zlength_correct, map_length, ZLI. assumption.
-          red. omega.
+           }
+           { unfold HMAC_FUN.mkArgZ. simpl. apply ZnthV_map_Vint_is_int_I8.
+             unfold HMAC_FUN.mkArgZ in ZLI. rewrite Zlength_correct, map_length in ZLI. 
+             rewrite Zlength_correct, ZLI. omega.
+           }
+           red; omega.
         }
         { entailer. cancel.
           rewrite (split_array_at (i+1) tuchar Tsh _ i 64); try omega. cancel.
@@ -580,7 +608,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
            erewrite data_at_array_at; try reflexivity.
            erewrite (split3_array_at' i _ _ _ 0 64); try reflexivity. 2: trivial. 2: omega.
            { rel_expr. 
-              instantiate (1:=cofs). instantiate (1:=cb). admit. (*relexpr*)
+              instantiate (1:=cofs). instantiate (1:=cb). admit. (* rel_expr.*)
              unfold nested_field_offset2, _struct_SHA256state_st; simpl.
               instantiate (2:=Tsh). unfold add_ptr_int. simpl.
               instantiate (1:=(ZnthV tuchar (map Vint (map Int.repr (HMAC_FUN.mkKey key))) i)).
@@ -589,10 +617,12 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
              simpl; intros.
                 unfold ZnthV in *. if_tac. omega. simpl; rewrite HN. reflexivity.
              reflexivity.
-           } 
-          unfold tuchar; simpl. apply ZnthV_map_Vint_is_int. rewrite Zlength_correct in ZLO.
-            rewrite Zlength_correct, map_length, ZLO. assumption.
-          red. omega.
+           }
+           { unfold HMAC_FUN.mkArgZ. simpl. apply ZnthV_map_Vint_is_int_I8.
+             unfold HMAC_FUN.mkArgZ in ZLO. rewrite Zlength_correct, map_length in ZLO. 
+             rewrite Zlength_correct, ZLO. omega.
+           }
+           red; omega. 
         }
         { entailer. cancel.
           rewrite (split_array_at (i+1) tuchar Tsh _ i 64); try omega. cancel.
