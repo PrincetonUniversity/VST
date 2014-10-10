@@ -87,8 +87,7 @@ but (at present) CompCert's \iref{clightgen} utility is not buildable
 from just the front-end distributed with VST.  You'll need \iref{clightgen}
 to translate .c files into .v files containing C light abstract syntax.
 Thus it's recommended to download
-and build CompCert.\footnote{Microsoft Windows / Cygwin users: 
-See Chapter~\ref{refcard:cygwin} of this manual.}
+and build CompCert.
 
 \item Get CompCert from \textsf{compcert.inria.fr/download.html}
 and run \textsf{./configure} to list configurations. Select the correct option
@@ -2532,26 +2531,23 @@ in the form of the \lstinline{forward_nl} (for ``forward nested loads'')
 tactic.  For example, with this proof goal,
 \begin{lstlisting}
 semax Delta
-  (PROP  ()
-   LOCAL  (`(eq (Vint (Int.repr i))) (eval_id _i); `(eq x) (eval_id _x);
-   `(eq y) (eval_id _y); `(eq z) (eval_id _z))
-   SEP  (`(array_at tdouble Tsh (Vfloat oo fx) 0 n x);
-   `(array_at tdouble Tsh (Vfloat oo fy) 0 n y);
-   `(array_at tdouble Tsh (Vfloat oo fz) 0 n z)))
-  (Ssequence
-     (Sassign  (* x[i] = y[i] + z[i]; *)
-        (Ederef
-           (Ebinop Oadd (Etempvar _x (tptr tdouble)) (Etempvar _i tint)
-              (tptr tdouble)) tdouble)
-        (Ebinop Oadd
-           (Ederef
-              (Ebinop Oadd (Etempvar _y (tptr tdouble)) (Etempvar _i tint)
-                 (tptr tdouble)) tdouble)
-           (Ederef
-              (Ebinop Oadd (Etempvar _z (tptr tdouble)) (Etempvar _i tint)
-                 (tptr tdouble)) tdouble) tdouble)) 
-      MORE_COMMANDS)
-  POSTCONDITION
+ (PROP  ()
+  LOCAL  (`(eq (Vint (Int.repr i))) (eval_id _i); `(eq x) (eval_id _x);
+  `(eq y) (eval_id _y); `(eq z) (eval_id _z))
+  SEP  (`(array_at tdouble Tsh (Vfloat oo fx) 0 n x);
+  `(array_at tdouble Tsh (Vfloat oo fy) 0 n y);
+  `(array_at tdouble Tsh (Vfloat oo fz) 0 n z)))
+ (Ssequence
+  (Sassign  (* x[i] = y[i] + z[i]; *)
+   (Ederef (Ebinop Oadd (Etempvar _x (tptr tdouble)) (Etempvar _i tint)
+             (tptr tdouble)) tdouble)
+    (Ebinop Oadd
+     (Ederef (Ebinop Oadd (Etempvar _y (tptr tdouble)) (Etempvar _i tint)
+                (tptr tdouble)) tdouble)
+     (Ederef (Ebinop Oadd (Etempvar _z (tptr tdouble)) (Etempvar _i tint)
+                (tptr tdouble)) tdouble) tdouble)) 
+   MORE_COMMANDS)
+ POSTCONDITION
 \end{lstlisting}
 the tactic-application \lstinline{forward_nl} yields the new proof goal,
 \begin{lstlisting}
@@ -2567,22 +2563,5 @@ semax Delta
   MORE_COMMANDS
   POSTCONDITION
 \end{lstlisting}
-
-\ychapter{Cygwin}{}
-\label{refcard:cygwin}
-Users of Microsoft Windows should install VST under Cygwin.
-Unfortunately, CompCert 2.3 does not (completely) build under Cygwin.
-That is, CompCert's Coq development builds fine;
-the subset of CompCert imported into VST (which is mirrored
-in vst/compcert) has no problems.   The problem is with
-the Ocaml build of the extracted code.  CompCert uses
-the Menhir parser generator, which does not build in Cygwin
-(as of July 2014).
-
-This means that you cannot use CompCert's \textsf{clightgen}
-front-end to translate .c files into .v files, on cygwin.
-You will have to use a CompCert installation on a Mac or 
-Linux machine (or virtual machine) to do this.
-
 
 \end{document}
