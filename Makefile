@@ -114,7 +114,7 @@ LINKING_FILES= \
   core_semantics_tcs.v \
   linking_spec.v \
   erase_juice.v \
-  safety.v
+  safety.v 
 
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
@@ -125,7 +125,7 @@ VERIC_FILES= \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
-  NullExtension.v SequentialClight.v superprecise.v
+  NullExtension.v SequentialClight.v superprecise.v jstep.v
 
 FLOYD_FILES= \
    base.v proofauto.v \
