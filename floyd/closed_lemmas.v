@@ -1071,6 +1071,10 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] |  | | | | | ]; simpl; a
   unfold denote_tc_initialized;  simpl.
   apply exists_ext; intro v.
   f_equal. rewrite H; auto.
++ destruct (access_mode t) eqn:?H; simpl; auto with closed.
+  apply closed_wrt_tc_andp; auto with closed.
+  apply closed_wrt_tc_isptr; auto with closed.
+  apply closed_eval_expr_e; auto.
 +
  apply closed_wrt_tc_andp; auto with closed.
  apply closed_wrt_tc_lvalue; auto.

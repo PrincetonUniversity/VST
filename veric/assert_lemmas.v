@@ -419,6 +419,14 @@ induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
   destruct b; simpl in H0; subst; auto.
   if_tac; intros; try contradiction.
   destruct b0; auto. apply I.
+* destruct (access_mode t) eqn:?H; intro HH; try inversion HH.
+  rewrite !denote_tc_assert_andp in HH |- *.
+  repeat split; try tauto.
+  destruct IHe as [? _].
+  unfold tc_expr in H1.
+  apply (H1 w).
+  simpl.
+  tauto.
 * destruct IHe.
   repeat rewrite denote_tc_assert_andp.
   intros [[? ?] ?]; repeat split; auto.

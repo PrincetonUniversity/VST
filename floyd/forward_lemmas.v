@@ -103,25 +103,11 @@ Definition logical_or tid e1 e2 :=
              (Sset tid (Econst_int (Int.repr 1) tint))
              (Ssequence
                 (Sset tid (Ecast e2 tbool))
-                (Sset tid (Ecast (Etempvar tid tbool) tint)))).
-
-Definition logical_or' tid e1 e2 :=
-(Sifthenelse e1
-             (Sset tid (Econst_int (Int.repr 1) tint))
-             (Ssequence
-                (Sset tid (Ecast e2 tbool))
                 (Sset tid (Ecast (Etempvar tid tint (*tbool*)) tint)))).
 
 
 
 Definition logical_and tid e1 e2 :=
-(Sifthenelse e1
-            (Ssequence
-              (Sset tid (Ecast e2 tbool))
-              (Sset tid (Ecast (Etempvar tid tbool) tint)))
-            (Sset tid (Econst_int (Int.repr 0) tint))).
-
-Definition logical_and' tid e1 e2 :=
 (Sifthenelse e1
             (Ssequence
               (Sset tid (Ecast e2 tbool))
@@ -722,47 +708,49 @@ with tc_lvalue_init:
   forall i Delta rho e, tc_lvalue Delta e rho ->
                  tc_lvalue (initialized i Delta) e rho.
 Proof.
-clear tc_expr_init; induction e; intros; auto;
- unfold tc_expr in *; simpl in *.
- destruct (access_mode t) eqn:?; auto.
-  unfold get_var_type in *.
- rewrite expr_lemmas.set_temp_ve.
- destruct ((var_types Delta) ! i0); auto.
- rewrite expr_lemmas.set_temp_ge.
- destruct ((glob_types Delta) ! i0); auto.
-(* destruct (negb (type_is_volatile t)); auto.*)
- destruct ( (temp_types Delta) ! i0) eqn:?; [ | contradiction].
- destruct p.  
- destruct (eq_dec i i0). subst. 
-  apply temp_types_init_same in Heqo. rewrite Heqo.
-  destruct b; [apply H | ]. simpl in *.
-  if_tac; auto. apply I.
-  rewrite <- expr_lemmas.initialized_ne by auto.  rewrite Heqo.
-  auto.
-  rewrite denote_tc_assert_andp in H|-*.
-  destruct H; split; auto. apply tc_lvalue_init; auto.
-  rewrite denote_tc_assert_andp in H|-*.
- destruct H; split; auto.
-  repeat rewrite denote_tc_assert_andp in H|-*.
-  destruct H as [[? ?] ?]. split; auto.
-    rewrite denote_tc_assert_andp in H|-*.
-  destruct H; split; auto.
- destruct (access_mode t); auto.
-  repeat rewrite denote_tc_assert_andp in H|-*.
-  destruct H. split; auto.
- apply tc_lvalue_init; auto.
-
- clear tc_lvalue_init.
- unfold tc_lvalue; induction e; simpl; auto; intro.
- unfold get_var_type in *.  rewrite expr_lemmas.set_temp_ve.
- destruct ((var_types Delta) ! i0); auto.
-rewrite expr_lemmas.set_temp_ge.
- destruct ((glob_types Delta) ! i0); auto.
-   repeat rewrite denote_tc_assert_andp in H|-*.
- decompose [and] H; repeat split; auto.
- apply tc_expr_init; auto.
-   repeat rewrite denote_tc_assert_andp in H|-*.
- decompose [and] H; clear H; repeat split; auto.
+  clear tc_expr_init; induction e; intros; auto;
+  unfold tc_expr in *; simpl in *.
+  + destruct (access_mode t) eqn:?; auto.
+    unfold get_var_type in *.
+    rewrite expr_lemmas.set_temp_ve.
+    destruct ((var_types Delta) ! i0); auto.
+    rewrite expr_lemmas.set_temp_ge.
+    destruct ((glob_types Delta) ! i0); auto.
+  + (* destruct (negb (type_is_volatile t)); auto.*)
+    destruct ( (temp_types Delta) ! i0) eqn:?; [ | contradiction].
+    destruct p.  
+    destruct (eq_dec i i0). subst. 
+    - apply temp_types_init_same in Heqo. rewrite Heqo.
+      destruct b; [apply H | ]. simpl in *.
+      if_tac; auto. apply I.
+    - rewrite <- expr_lemmas.initialized_ne by auto.  rewrite Heqo.
+      auto.
+  + destruct (access_mode t) eqn:?H; try inversion H.
+    rewrite !denote_tc_assert_andp in H|-*.
+    destruct H as [[? ?] ?]; repeat split; auto.
+  + rewrite denote_tc_assert_andp in H|-*.
+    destruct H; split; auto. apply tc_lvalue_init; auto.
+  + rewrite denote_tc_assert_andp in H|-*.
+    destruct H; split; auto.
+  + repeat rewrite denote_tc_assert_andp in H|-*.
+    destruct H as [[? ?] ?]. split; auto.
+  + rewrite denote_tc_assert_andp in H|-*.
+    destruct H; split; auto.
+  + destruct (access_mode t); auto.
+    repeat rewrite denote_tc_assert_andp in H|-*.
+    destruct H. split; auto.
+    apply tc_lvalue_init; auto.
+  + clear tc_lvalue_init.
+    unfold tc_lvalue; induction e; simpl; auto; intro.
+    unfold get_var_type in *.  rewrite expr_lemmas.set_temp_ve.
+    destruct ((var_types Delta) ! i0); auto.
+    rewrite expr_lemmas.set_temp_ge.
+    destruct ((glob_types Delta) ! i0); auto.
+    repeat rewrite denote_tc_assert_andp in H|-*.
+    decompose [and] H; repeat split; auto.
+    apply tc_expr_init; auto.
+    repeat rewrite denote_tc_assert_andp in H|-*.
+    decompose [and] H; clear H; repeat split; auto.
 Qed.
 Transparent tc_andp.  (* ? should leave it opaque, maybe? *)
 
@@ -786,10 +774,6 @@ Lemma semax_logical_or:
           `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R))))). 
 Proof.
 intros.
-replace logical_or with logical_or'
-  by admit.  (* This is a complete hack, a temporary expedient.
-                     See the e-mail, Appel to Leroy, October 9, 2014,
-                     entitled "types in shortcircuit or, and" *)
 assert (CLOSE1' := closed_eval_expr_e _ _ CLOSE1).
 assert (CLOSE2' := closed_eval_expr_e _ _ CLOSE2).
 apply semax_ifthenelse_PQR. 
@@ -877,10 +861,6 @@ Lemma semax_logical_and:
   . 
 Proof.
 intros.
-replace logical_and with logical_and'
-  by admit.  (* This is a complete hack, a temporary expedient.
-                     See the e-mail, Appel to Leroy, October 9, 2014,
-                     entitled "types in shortcircuit or, and" *)
 assert (CLOSE1' := closed_eval_expr_e _ _ CLOSE1).
 assert (CLOSE2' := closed_eval_expr_e _ _ CLOSE2).
 apply semax_ifthenelse_PQR. 

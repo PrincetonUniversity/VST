@@ -43,8 +43,38 @@ eapply typecheck_expr_sound_Evar; eauto.
 * (*Temp*)
 eapply typecheck_temp_sound; eauto.
 
-* (*deref*)  
-eapply typecheck_deref_sound; eauto.
+* (*deref*)
+
+simpl in H0 |- *.
+unfold deref_noload.
+destruct (access_mode t) eqn:?H; try inversion H0.
+unfold Datatypes.id.
+unfold_lift.
+simpl.
+rewrite !denote_tc_assert_andp in H0.
+simpl in H0.
+destruct H0.
+unfold_lift in H2.
+destruct (eval_expr e rho); inversion H2.
+simpl.
+destruct t; try reflexivity; try inversion H1.
+- destruct i0, s; inversion H4.
+- destruct f; inversion H4.
+
+*
+
+simpl in H0 |- *.
+rewrite !denote_tc_assert_andp in H0.
+simpl in H0.
+destruct H0 as [[? ?] ?].
+unfold tc_bool in H2; simpl in H2.
+destruct (is_pointer_type (typeof e)) eqn:?H; [|inversion H2].
+unfold_lift.
+unfold_lift in H3.
+destruct (eval_expr e rho); inversion H3.
+simpl.
+destruct pt; try reflexivity; try inversion H1.
+
 * (*addrof*)
 intuition.
 simpl in *. 
@@ -377,6 +407,29 @@ constructor. unfold eval_id in *. remember (Map.get (te_of rho)  i);
 destruct o;  auto. destruct rho; inv H; unfold make_tenv in *.
 unfold Map.get in *. auto. 
 simpl in *. destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; contradiction H3.
+
+* (*deref*)
+assert (TC:= typecheck_expr_sound).
+specialize (TC Delta rho (Ederef e t)). simpl in *. 
+intuition.  
+destruct (access_mode t) eqn:?H; try inversion H1.
+rewrite !denote_tc_assert_andp in H1.
+destruct H1 as [[? ?] ?].
+simpl in H5.
+unfold_lift in H5.
+destruct (eval_expr e rho) eqn:?H; try inversion H5.
+eapply eval_Elvalue.
++ instantiate (1 := i).
+  instantiate (1 := b).
+  constructor.
+  apply IHe; auto.
++ unfold_lift.
+  rewrite H6.
+  unfold deref_noload.
+  rewrite H2.
+  unfold Datatypes.id.
+  simpl.
+  constructor; auto.
 
 * (*deref*)
 assert (TC:= typecheck_lvalue_sound _ _ _ H0 H1).

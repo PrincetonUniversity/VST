@@ -1095,6 +1095,14 @@ match e with
                             end)
                          | _ => tc_FF (deref_byvalue ty)
                         end
+ | Ederef a ty => match access_mode ty with
+                  | By_reference => tc_andp 
+                       (tc_andp 
+                          (typecheck_expr Delta a) 
+                          (tc_bool (is_pointer_type (typeof a))(op_result_type e)))
+                       (tc_isptr a)
+                  | _ => tc_FF (deref_byvalue ty)
+                  end
  | _ => tc_FF (invalid_expression e)
 end
 
