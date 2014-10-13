@@ -1583,6 +1583,7 @@ pose (tx' := match ret,ret0 with
                    | Some id, Some v => PTree.set id v tx 
                    | _, _ => tx
                    end).
+
 specialize (H1 EK_normal None tx' vx (m_phi m')).
 spec H1. 
 { clear - H0 H9.
@@ -1594,6 +1595,21 @@ rewrite HR in H1; clear R HR.
 simpl exit_cont in H1.
 do 3 red in H5.
 specialize (H1 _ (necR_refl _)).
+
+assert (Htc: tc_option_val retty ret0).
+{clear - TCret TC3 H6 TC5 H15 Hretty H8 H9 H0.
+ destruct H15 as [phi1 [phi2 [Ha [Hb Hc]]]].
+ specialize (Hretty x ret0 phi1).
+ spec Hretty. 
+ { apply join_level in Ha. destruct Ha as [? ?].
+   rewrite H. cut ((level jm > level jm')%nat). intros. 
+   simpl. unfold natLevel. do 2 rewrite <-level_juice_level_phi. omega. 
+   apply age_level in H0. omega. 
+ }
+ spec Hretty phi1. 
+ spec Hretty. apply rt_refl. spec Hretty Hb. simpl in Hretty. auto.
+}
+
 spec H1. { clear H1.
 split.
 * split; auto.
@@ -1698,8 +1714,10 @@ omega.
 apply H; auto.
 }
 clear H15.
+revert Htc.
 normalize in H15'.
 do 2 red in H1.
+intros Htc.
 rewrite (sepcon_comm (Q _ _)) in H15'.
 rewrite <- exp_sepcon1.
 eapply sepcon_derives; [apply sepcon_derives | | apply H15']; clear H15'.
@@ -1793,12 +1811,29 @@ match ret0 with
 end.
 split.
 unfold cl_after_external.
-destruct ret0, ret; auto.
-hnf in TCret.
-admit. (* hoist the proof about Hretty higher up *)
-admit. (* hoist the proof about Hretty higher up? *)
-admit.  (* use H1? *)
-Admitted. (* still needs some work *)
+revert Htc TC5.
+destruct (type_eq retty Tvoid).
++ subst retty. simpl. destruct ret0; try solve[inversion 1]. 
+  intros _. intros X; spec X; auto. rewrite X; auto.
++ intros Hret0.
+  assert (Hv: exists v, ret0 = Some v).
+  { revert Hret0. 
+    destruct retty; destruct ret0; simpl; 
+      try solve[intros _; eexists; eauto]; try inversion 1.
+    exfalso; auto. }
+  revert TCret. 
+  unfold tc_fn_return.
+  destruct Hv as [v Hv]. rewrite Hv. 
+  destruct ret; auto.
++ 
+simpl in H1.
+specialize (H1 z' m').
+spec H1; auto.
+spec H1; auto.
+revert H1.
+unfold jsafeN, safeN, tx'.
+admit. (* still needs some work *)
+Qed.
 
 Lemma alloc_juicy_variables_age:
   forall {rho jm jm1 vl rho' jm' jm1'},

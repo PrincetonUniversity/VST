@@ -1203,7 +1203,10 @@ Focus 1.
   (*destruct ret.*) destruct optid.
   exists (State ve (PTree.set i ret te) (l ++ ctl2)); split; auto.
   inv H6.
-  apply H4; auto. congruence.
+  apply H4; auto. 
+  exists (State ve te (l ++ ctl2)); split; auto.
+  inv H6.
+  apply H4; auto.
   exists (State ve te (l ++ ctl2)); split; auto.
   destruct optid; auto. congruence.
   apply H4; auto.
