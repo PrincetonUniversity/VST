@@ -9,8 +9,16 @@ Require Import MirrorCore.RTac.RTac.
 Require Import funcs.
 Import MirrorCore.Lambda.Expr.*)
 Require Import MirrorCore.Lemma.
-Require Import MirrorCharge.ModularFunc.ReifyLemma.
+Require Import MirrorCharge.RTac.ReifyLemma.
+Require Import MirrorCharge.RTac.Apply.
+Require Import MirrorCharge.RTac.EApply.
+Require Import MirrorCharge.RTac.Instantiate.
 Require Import MirrorCore.Lambda.ExprUnify_simul.
+Require Import MirrorCharge.RTac.Intro.
+Import MirrorCore.RTac.Repeat.
+Import MirrorCore.RTac.Then.
+Import MirrorCore.RTac.Try.
+Import MirrorCore.RTac.First.
 
 Local Open Scope logic.
 
@@ -41,46 +49,103 @@ Require Import floyd.local2ptree.
 Ltac do_local2ptree := eapply semax_pre0; [ eapply local2ptree_soundness; repeat constructor | ].
 
 Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
+
+Check update_tycon.
+
+Lemma semax_seq_reif c1 c2 : forall (Espec : OracleKind) 
+         (P : environ -> mpred)  (P' : environ -> mpred)
+          (Q : ret_assert) (Delta : tycontext),
+       @semax Espec Delta P c1 (normal_ret_assert P') ->
+       @semax Espec (update_tycon Delta c1) P' c2 Q ->
+       @semax Espec Delta P (Ssequence c1 c2) Q.
+intros. 
+reify_vst(@semax Espec (update_tycon Delta c1) P' c2 Q).
+intros.
+eapply semax_seq'; eauto.
+Qed.
+
+
 Definition skip_lemma : my_lemma.
 reify_lemma reify_vst 
-@SeparationLogicSoundness.SoundSeparationLogic.CSL.semax_skip.
+@semax_skip.
+Defined. 
+
+
+Definition seq_lemma (s1 s2: statement)  : my_lemma.
+reify_lemma reify_vst (semax_seq_reif s1 s2).
 Defined.
 
-Let EAPPLY :=
-  @EApply.EAPPLY typ (ExprCore.expr typ func) subst _ _ SS SU ExprLift.vars_to_uvars
-                (fun tus tvs n e1 e2 t s =>
-                   @exprUnify subst typ func _ _ _ SS SU 3
-                              tus tvs n s e1 e2 t)
-                (@ExprSubst.instantiate typ func)
-(*                lem (apply_to_all tac)*).
+Definition APPLY_SKIP := (THEN (REPEAT 10 (INTRO typ func subst)) (APPLY typ func subst skip_lemma)).
 
-  Let APPLY :=
-    @Apply.APPLY typ (ExprCore.expr typ func) subst _ _ SS SU
-           ExprLift.vars_to_uvars
-           (fun tus tvs n e1 e2 t s =>
-              @exprUnify subst typ func _ _ _ SS SU 3
-                         tus tvs n s e1 e2 t)
-           (@ExprSubst.instantiate typ func)
-          (* lem (apply_to_all tac)*).
+Definition run_tac (t: rtac typ (ExprCore.expr typ func) subst) e := t CTop (SubstI.empty (expr := ExprCore.expr typ func)) e.
+
+Definition APPLY_SEQ' s1 s2 := THEN  (REPEAT 10 (INTRO typ func subst)) (EAPPLY typ func subst (seq_lemma s1 s2)).
 
 
-Definition seq_lemma : my_lemma.
-reify_lemma reify_vst 
-semax_seq'.
-Defined.
-Check semax_seq.
-Goal forall (Delta : tycontext) (R : ret_assert) 
-         (P Q : environ -> mpred) (h t : statement),
-       semax Delta P h (overridePost Q R) ->
-       semax (update_tycon Delta h) Q t R -> semax Delta P (Ssequence h t) R.
+Definition APPLY_SEQ_SKIP s1 s2:= THEN (REPEAT 10 (INTRO typ func subst)) (THEN  (EAPPLY typ func subst (seq_lemma s1 s2)) (THEN (INSTANTIATE typ func subst) (TRY APPLY_SKIP))).
+
+Definition APPLY_SEQ s1 s2 k := THEN (REPEAT 10 (INTRO typ func subst)) (THEN  (EAPPLY typ func subst (seq_lemma s1 s2)) k).
+
+Fixpoint get_first_statement (s : expr typ func) := 
+match s with
+| (Inj (inr (Triple (fstatement stmt)))) => stmt
+| App e1 e2 => match (get_first_statement e1)  with
+                   | Sskip => (get_first_statement e2)
+                   | stmt => stmt
+               end
+| Abs _ e => get_first_statement e
+| _ => Sskip
+end.
+
+Fixpoint symexe' s :=
+match s with 
+| Sskip => APPLY_SKIP
+| Ssequence s1 s2 => APPLY_SEQ s1 s2 (FIRST ((symexe' s1) :: (symexe' s2) :: nil)) 
+| _ => APPLY_SKIP
+end.
+
+Definition symexe_tac (e : expr typ func) :=
+symexe' (get_first_statement e).
+
+Definition symexe e:=
+run_tac (symexe_tac e) e.
+
+Lemma skip_triple : forall p e,
+@semax e empty_tycontext
+     p
+      Sskip 
+     (normal_ret_assert p).
+Proof. 
+Time reify_expr_tac.
+(*do_local2ptree.
+replace_lift.
+*)
+(*apply semax_skip*)
+Time Eval vm_compute in  run_tac (symexe_tac e) e.
+Abort.
+
+Fixpoint lots_of_skips n :=
+match n with 
+| O => Sskip
+| S n' => Ssequence Sskip (lots_of_skips n')
+end.
+
+Lemma seq_triple : forall p es,
+@semax es empty_tycontext p (Ssequence Sskip Sskip) (normal_ret_assert p).
 Proof.
-intros until t. Check semax.
-reify_vst (semax Delta P h (overridePost Q R)).
 reify_expr_tac.
+Time Eval vm_compute in run_tac (APPLY_SEQ_SKIP Sskip  Sskip) e.
+Time Eval vm_compute in  run_tac (symexe_tac e) e.
+Abort.
 
-Definition forward_setx_closed_now_lemma : lemma typ (expr typ func) (expr typ func).
-reify_lemma reify_vst forward_setx_closed_now.
-Defined.
+Lemma seq_triple_lots : forall p es,
+@semax es empty_tycontext p (lots_of_skips 50) (normal_ret_assert p).
+Proof.
+reify_expr_tac.
+Time Eval vm_compute in  run_tac (symexe_tac e) e.
+(*not great, I'd hope this would scale linearly or close *)
+Abort.
+
 
 
 Lemma triple : forall p contents sh,

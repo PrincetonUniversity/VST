@@ -46,6 +46,7 @@ Inductive typ :=
 | tyOracleKind
 | tystatement
 | tyret_assert
+| tyexitkind
 (*| tyother : positive -> typ*)
 .
 Fixpoint typD (t : typ) (*(m : PositiveMap.t Type)*): Type :=
@@ -88,6 +89,7 @@ Fixpoint typD (t : typ) (*(m : PositiveMap.t Type)*): Type :=
         | tystatement => statement
         | tyret_assert => ret_assert
 (*        | tyother p => PositiveMap.find p m *)
+        | tyexitkind => exitkind
     end.
 
 Lemma listspec_ext : forall t i (a b: listspec t i), a = b.

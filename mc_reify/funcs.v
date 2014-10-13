@@ -396,13 +396,14 @@ Inductive triple :=
 | fstatement : statement -> triple
 | fretassert : ret_assert -> triple
 | ftycontext : tycontext -> triple
+| fupdate_tycon 
 | fPROPx
 | fLOCALx
 | fSEPx
 | fnormal_ret_assert
 | flocalD : PTree.t val -> PTree.t (type * val) -> list (environ -> Prop) -> triple
 .
-
+Check update_tycon.
 Definition typeof_triple (t : triple) :=
 match t with
 | fsemax => tyArr tyOracleKind (tyArr tytycontext (tyArr (tyArr tyenviron tympred) (tyArr tystatement (tyArr tyret_assert typrop))))
@@ -415,6 +416,7 @@ match t with
 | fnormal_ret_assert => tyArr (tyArr tyenviron tympred) (tyret_assert)
 | fenviron e => tyenviron
 | flocalD _ _ _ => tylist (tyArr tyenviron typrop)
+| fupdate_tycon => tyArr tytycontext (tyArr tystatement tytycontext)
 end.
 
 Definition tripleD (t : triple) : typD (typeof_triple t) :=
@@ -427,6 +429,7 @@ match t with
 | fnormal_ret_assert => normal_ret_assert
 | fenviron e => e
 | flocalD ids vars other => LocalD ids vars other
+| fupdate_tycon => update_tycon
 end.
 
 Inductive func' :=
