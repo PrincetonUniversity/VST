@@ -8,9 +8,9 @@ Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 
-Require Import sha.hmac091c.
+Require Import sha.hmac_NK.
 
-Require Import sha.spec_hmac.
+Require Import sha.spec_hmacADT.
 
 Lemma isbyte_Nlist i n: isbyteZ i -> Forall isbyteZ (HMAC_SHA256.Nlist i n).
   intros. apply Forall_forall. intros.
@@ -28,7 +28,8 @@ unfold hmacstate_PostFinal, hmac_relate_PostFinal. normalize. intros hst. normal
 apply semax_pre with (P':=
   PROP (size_compatible t_struct_hmac_ctx_st c /\
         align_compatible t_struct_hmac_ctx_st c)
-   LOCAL  (`(eq c) (eval_id _ctx))
+   LOCAL  (`(eq c) (eval_id _ctx);
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
    (`(data_at Tsh t_struct_hmac_ctx_st
         (upd_reptype t_struct_hmac_ctx_st [_md_ctx] hst

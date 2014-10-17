@@ -8,9 +8,9 @@ Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 
-Require Import sha.hmac091c.
+Require Import sha.hmac_NK.
 
-Require Import sha.spec_hmac.
+Require Import sha.spec_hmacADT.
 Require Import HMAC_lemmas.
 
 Lemma body_hmac_double: semax_body HmacVarSpecs HmacFunSpecs 
@@ -59,18 +59,35 @@ subst POSTCOND.
 apply extract_exists_pre. intros c. normalize. rename H into isPtrC.
 eapply semax_seq'. 
 frame_SEP 0 1 3.
-remember (HMACabs init_s256abs init_s256abs init_s256abs Z0 nil) as dummyHMA.
-remember (c, k, kl, key, KV, dummyHMA) as WITNESS.
+remember (HMACabs init_s256abs init_s256abs init_s256abs) as initHMA.
+remember (c, k, Vint (Int.repr kl), key, KV, initHMA) as WITNESS.
 forward_call WITNESS.
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
   subst WITNESS. entailer. cancel. unfold initPre. 
    apply isptrD in Pkey'. destruct Pkey' as [kb [kofs HK]]. subst key'.
-   cancel.
+   apply exp_right with (x:=kl). entailer.
 after_call.
-subst WITNESS. normalize. simpl. rewrite elim_globals_only'. normalize.
-intros h0. normalize. rename H into HmacInit.
+subst WITNESS. normalize. simpl. (*rewrite elim_globals_only'. normalize.*)
+apply semax_pre with (P':=
+      EX  x : hmacabs,
+  (PROP  ()
+   LOCAL  (tc_environ Delta; `(eq md) (eval_id _md); `(eq k) (eval_id _key);
+   `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
+   `(eq (Vint (Int.repr dl))) (eval_id _n);
+   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   SEP 
+   (`(fun a : environ =>
+      (PROP  (hmacInit key x)
+       LOCAL  (`(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+       SEP  (`(hmacstate_ x c); `(initPostKey k key); `(K_vector KV))) a)
+      globals_only; `(data_block Tsh data d);
+   `(memory_block shmd (Int.repr 64) md)))).
+  entailer. rename x into h0. 
+     apply exp_right with (x:=h0). entailer.
+apply extract_exists_pre. intros h0. normalize. simpl. normalize. rename H into HmacInit.
 
 eapply semax_seq'. 
 frame_SEP 0 2 3.
@@ -90,9 +107,9 @@ forward_call WITNESS.
     Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
              rewrite HH; assumption. 
     destruct h0; simpl in *. 
-    destruct H1 as [reprMD [reprI [reprO [iShaLen [oShaLen [K [i [KL1 [KL2 KL3]]]]]]]]].
+    destruct H2 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion HmacInit; clear HmacInit.
-    destruct H1 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
+    destruct H2 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst. assumption.
 after_call.
 subst WITNESS. normalize.
@@ -189,7 +206,7 @@ eapply semax_pre with (P':=
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP  (`(K_vector KV);
-   `(initPre c nullval h2 key);
+   `(initPre (Vint (Int.repr kl)) c nullval h2 key);
    `(data_block shmd dig md);
    `(memory_block shmd (Int.repr 32) (offset_val (Int.repr 32) md));
    `(data_block Tsh data d); `(initPostKey k key)))).
@@ -205,25 +222,42 @@ eapply semax_pre with (P':=
     unfold  hmacInit in HmacInit. simpl in *. 
     destruct HmacInit as [IS [OS [ISHA [OSHA XX]]]].  inversion XX; subst; clear XX. 
     apply prop_right; intuition.     
-    destruct H8 as [i [I1 [I2 I3]]]. exists i; intuition.
+(*    destruct H8 as [i [I1 [I2 I3]]]. exists i; intuition.*)
   }
   cancel.
 }
 
 eapply semax_seq'. 
 frame_SEP 0 1.
-remember (c, nullval, kl, key, KV, h2) as WITNESS.
+remember (c, nullval, Vint (Int.repr kl), key, KV, h2) as WITNESS.
 forward_call WITNESS.
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
   subst WITNESS. entailer. 
 after_call.
-subst WITNESS. normalize. simpl. rewrite elim_globals_only'. normalize.
-intros h3. normalize. rename H into h3_init.
+subst WITNESS. normalize. simpl. (*rewrite elim_globals_only'. normalize.*)
+apply semax_pre with (P':=
+      EX  x : hmacabs,
+  (PROP  ()
+   LOCAL  (tc_environ Delta; tc_environ Delta; `(eq md) (eval_id _md);
+   `(eq k) (eval_id _key); `(eq (Vint (Int.repr kl))) (eval_id _key_len);
+   `(eq d) (eval_id _d); `(eq (Vint (Int.repr dl))) (eval_id _n);
+   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   SEP 
+   (`(fun a : environ =>
+      (PROP  (hmacInit key x)
+       LOCAL  (`(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+       SEP  (`(hmacstate_ x c); `(!!(Int.zero = Int.zero) && emp);
+       `(K_vector KV))) a) globals_only; `(data_block shmd dig md);
+   `(memory_block shmd (Int.repr 32) (offset_val (Int.repr 32) md));
+   `(data_block Tsh data d); `(initPostKey k key)))).
+  entailer. rename x into h3. apply exp_right with (x:=h3). entailer.
+apply extract_exists_pre. intros h3. normalize. simpl. normalize. rename H into h3_init.
 
 eapply semax_seq'. 
-frame_SEP 0 1 4.
+frame_SEP 0 2 5.
 remember (h3, c, d, dl, data, KV) as WITNESS.
 forward_call WITNESS.
   assert (FR: Frame =nil).
@@ -236,9 +270,9 @@ forward_call WITNESS.
     Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
              rewrite HH; assumption. 
     destruct h3; simpl in *. 
-    destruct H1 as [reprMD [reprI [reprO [iShaLen [oShaLen [K [i [KL1 [KL2 KL3]]]]]]]]].
+    destruct H2 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion h3_init; clear h3_init.
-    destruct H1 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
+    destruct H2 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst. assumption.
 after_call.
 subst WITNESS. normalize.
@@ -324,7 +358,7 @@ rename H into Round2Final.
 
 eapply semax_seq'.
 frame_SEP 1.
-remember (h5,c) as WITNESS.
+remember (h5,c, KV) as WITNESS.
 forward_call WITNESS.
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
@@ -374,7 +408,7 @@ unfold data_block.
   rewrite Zlength_correct; simpl.
 rewrite <- memory_block_data_at_; try reflexivity. 
 rewrite memory_block_array_tuchar. 
-normalize. clear H0. 
+normalize. clear H1. 
   apply andp_right.
     apply prop_right. trivial. cancel.
 simpl; omega.

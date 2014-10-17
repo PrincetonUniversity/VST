@@ -8,8 +8,8 @@ Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 
-Require Import sha.hmac091c.
-Require Import sha.spec_hmac.
+Require Import sha.hmac_NK.
+Require Import sha.spec_hmacADT.
 Require Import HMAC_lemmas.
 
 Lemma withspacer_refl: forall sh a P, withspacer sh a a P = P.
@@ -38,8 +38,8 @@ rewrite memory_block_isptr. unfold hmacstate_. normalize.
 rename H into isptrMD.
 intros ST. normalize.
 destruct h1; simpl in *.
-destruct H as [reprMD [reprI [reprO [iShaLen [oShaLen [KeyST [l [KeylenST [KL ZLen]]]]]]]]].
-rewrite KL in *.
+destruct H as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
+(*rewrite KL in *.*)
 erewrite (field_except_at_lemma _ _ _md_ctx nil); try reflexivity.
 simpl. 
 
@@ -89,11 +89,8 @@ eapply semax_pre with (P':=
    `(eq md) (eval_id _md); `(eq c) (eval_id _ctx);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
-   (`(field_at Tsh t_struct_hmac_ctx_st [_key_length]
-        (fst (snd (snd (snd ST)))) c);
-   `(field_at Tsh t_struct_hmac_ctx_st [_key] (snd (snd (snd (snd ST)))) c);
-   `(data_at Tsh (nested_field_type2 t_struct_hmac_ctx_st [_o_ctx])
-       (fst (snd (snd ST)))
+   (`(data_at Tsh (nested_field_type2 t_struct_hmac_ctx_st [_o_ctx])
+       (snd (snd ST))
        (offset_val
           (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [_o_ctx])) c));
    `(field_at Tsh t_struct_hmac_ctx_st [_i_ctx] (fst (snd ST)) c);
@@ -106,14 +103,12 @@ eapply semax_pre with (P':=
   rewrite <- (memory_block_data_at_ Tsh (nested_field_type2 t_struct_hmac_ctx_st [_md_ctx]) (eq_refl _) (eq_refl _)).
   entailer.
 
-destruct ST as [MD [iCTX [oCTX [KEYLENST KEYST]]]]. simpl in *.
+destruct ST as [MD [iCTX oCTX]]. simpl in *.
 remember (Tsh, Tsh, c, offset_val
           (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [_o_ctx])) c, 
           (mkTrep t_struct_SHA256state_st oCTX)) as WITNESS.
 forward_call WITNESS.
   { assert (FR: Frame = [
-      `(field_at Tsh t_struct_hmac_ctx_st [_key_length] KEYLENST c);
-      `(field_at Tsh t_struct_hmac_ctx_st [_key] KEYST c);
       `(field_at Tsh t_struct_hmac_ctx_st [_i_ctx] iCTX c);
       `(K_vector KV); `(data_block Tsh (sha_finish ctx) b);
       `(memory_block shmd (Int.repr 32) md)]).
@@ -126,6 +121,7 @@ after_call. subst WITNESS. normalize. subst retval0. simpl.
 assert (SFL: Zlength (sha_finish ctx) = 32). 
   unfold sha_finish. destruct ctx. 
   rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. trivial.
+  (*unfold SHA256_DIGEST_LENGTH; omega.*)
 
 (*Call sha256Update*)
 (*apply seq_assoc.*)
@@ -137,10 +133,7 @@ forward_call WITNESS.
   { assert (FR: Frame = [
        `(data_at Tsh t_struct_SHA256state_st oCTX
            (offset_val (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [_o_ctx])) c));
-       `(field_at Tsh t_struct_hmac_ctx_st [_key_length] KEYLENST c);
-       `(field_at Tsh t_struct_hmac_ctx_st [_key] KEYST c);
        `(field_at Tsh t_struct_hmac_ctx_st [_i_ctx] iCTX c);
-        (*`(data_block Tsh (sha_finish ctx) b);*)
        `(memory_block shmd (Int.repr 32) md)]).
        subst Frame. reflexivity.
     rewrite FR. clear FR Frame. 
@@ -159,15 +152,13 @@ apply semax_pre with (P':=EX  x : s256abs,
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
    (`(fun a : environ =>
-      (PROP  (update_abs (firstn (SHA256.DigestLength) SF) oSha x)
+      (PROP  (update_abs (firstn SHA256.DigestLength SF) oSha x)
        LOCAL ()
        SEP  (`(K_vector KV); `(sha256state_ x c); `(data_block Tsh SF b))) a)
       globals_only;
    `(data_at Tsh t_struct_SHA256state_st oCTX
        (offset_val
           (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [_o_ctx])) c));
-   `(field_at Tsh t_struct_hmac_ctx_st [_key_length] KEYLENST c);
-   `(field_at Tsh t_struct_hmac_ctx_st [_key] KEYST c);
    `(field_at Tsh t_struct_hmac_ctx_st [_i_ctx] iCTX c);
    `(memory_block shmd (Int.repr 32) md)))).
    entailer. rename x into a. apply exp_right with (x:=a).
@@ -186,8 +177,6 @@ forward_call WITNESS.
   { assert (FR: Frame = [ `(data_block Tsh SF b);
       `(data_at Tsh t_struct_SHA256state_st oCTX
          (offset_val (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [_o_ctx])) c));
-      `(field_at Tsh t_struct_hmac_ctx_st [_key_length] KEYLENST c);
-      `(field_at Tsh t_struct_hmac_ctx_st [_key] KEYST c);
       `(field_at Tsh t_struct_hmac_ctx_st [_i_ctx] iCTX c)]).
        subst Frame. reflexivity.
     rewrite FR. clear FR Frame. 
@@ -202,7 +191,7 @@ forward.
 unfold data_at_.
 apply exp_right with (x:=sha_finish updSha).
 simpl_stackframe_of. simpl. normalize.
-apply exp_right with (x:=HMACabs updSha iSha oSha (Int.unsigned l) key).
+apply exp_right with (x:=HMACabs updSha iSha oSha).
 unfold data_block.
 normalize.
 apply andp_right. apply prop_right. split; trivial.
@@ -212,11 +201,10 @@ rewrite SFL in *.
 erewrite (data_at__array_at_ Tsh tuchar 32 noattr). cancel.
   2: omega. 2: reflexivity. 
 unfold hmacstate_PostFinal, hmac_relate_PostFinal.
-apply exp_right with (x:=(updShaST, 
-                         (iCTX, (oCTX, (Vint l,map Vint (map Int.repr (HMAC_SHA256.mkKey key))))))).
+apply exp_right with (x:=(updShaST, (iCTX, oCTX))).
 simpl. normalize.
-apply andp_right.
-  apply prop_right. exists l; auto.
+(*apply andp_right.
+  apply prop_right. exists l; auto.*)
 unfold_data_at 3%nat.
 cancel.
 rewrite (field_at_data_at _ _ [_o_ctx]); try reflexivity.

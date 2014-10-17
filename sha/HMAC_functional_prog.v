@@ -4,36 +4,37 @@ Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import List. Import ListNotations.
 
-Require Import sha.SHA256.
-Require Import sha.functional_prog.
-
 (*SHA256: blocksize = 64bytes 
     corresponds to 
     #define SHA_LBLOCK	16
     #define SHA256_CBLOCK	(SHA_LBLOCK*4) *)
 
+Module Type HASH_FUNCTION.
+  Parameter BlockSize:nat. (*measured in bytes; 64 in SHA256*)
+  Parameter DigestLength: nat. (*measured in bytes; 32 in SHA256*)
+  Parameter Hash : list Z -> list Z.
+End HASH_FUNCTION.
+
+
+Module Type HMAC_Module.
+  Parameter HMAC: list Z -> list Z -> list Z.
+End HMAC_Module.
+
+Module HMAC_FUN (HF:HASH_FUNCTION) <: HMAC_Module.
 Fixpoint Nlist {A} (i:A) n: list A:=
   match n with O => nil
   | S m => i :: Nlist i m
   end.
 
-Definition sixtyfour {A} (i:A): list A:= Nlist i 64%nat.
-
-Definition SHA256_DIGEST_LENGTH := 32.
-Definition SHA256_BlockSize := 64%nat.
-
-Definition Ipad := Byte.repr 54. (*0x36*)
-Definition Opad := Byte.repr 92. (*0x5c*)
-
-Module HMAC_FUN.
+Definition sixtyfour {A} (i:A): list A:= Nlist i HF.BlockSize.
 
 (*Reading rfc4231 reveals that padding happens on the right*)
 Definition zeroPad (k: list Z) : list Z :=
-  k ++ Nlist Z0 (SHA256_BlockSize-length k).
+  k ++ Nlist Z0 (HF.BlockSize-length k).
 
 Definition mkKey (l:list Z) : list Z :=
-  if Z.gtb (Zlength l) (Z.of_nat SHA256_BlockSize)
-  then (zeroPad (SHA_256' l)) 
+  if Z.gtb (Zlength l) (Z.of_nat HF.BlockSize)
+  then (zeroPad (HF.Hash l)) 
   else zeroPad l.
 
 Definition mkArg (key:list byte) (pad:byte): list byte := 
@@ -42,26 +43,42 @@ Definition mkArg (key:list byte) (pad:byte): list byte :=
 Definition mkArgZ key (pad:byte): list Z := 
      map Byte.unsigned (mkArg key pad).
 
+Definition Ipad := Byte.repr 54. (*0x36*)
+Definition Opad := Byte.repr 92. (*0x5c*)
+
 (*innerArg to be applied to message, (map Byte.repr (mkKey password)))*)
 Definition innerArg (text: list Z) key : list Z :=
   (mkArgZ key Ipad) ++ text.
 
-Definition INNER k text := SHA_256' (innerArg text k).
+Definition INNER k text := HF.Hash (innerArg text k).
 
 Definition outerArg (innerRes: list Z) key: list Z :=
   (mkArgZ key Opad) ++ innerRes.
 
-Definition OUTER k innerRes := SHA_256' (outerArg innerRes k).
+Definition OUTER k innerRes := HF.Hash (outerArg innerRes k).
 
 Definition HMAC txt password: list Z := 
   let key := map Byte.repr (mkKey password) in
   OUTER key (INNER key txt).
 
+End HMAC_FUN.
+
+Require Import sha.SHA256.
+Require Import sha.functional_prog.
+
+Module SHA256 <: HASH_FUNCTION.
+  Definition BlockSize:= 64%nat.
+  Definition DigestLength:= 32%nat.
+  Definition Hash : list Z -> list Z := SHA_256'.
+End SHA256.
+
+Module HMAC_SHA256 := HMAC_FUN SHA256.
+
 Definition HMACString (txt passwd:string): list Z :=
-  HMAC (str_to_Z txt) (str_to_Z passwd).
+  HMAC_SHA256.HMAC (str_to_Z txt) (str_to_Z passwd).
 
 Definition HMACHex (text password:string): list Z := 
-  HMAC (hexstring_to_Zlist text) (hexstring_to_Zlist password).
+  HMAC_SHA256.HMAC (hexstring_to_Zlist text) (hexstring_to_Zlist password).
 
 Definition check password text digest := 
   listZ_eq (HMACString text password) (hexstring_to_Zlist digest) = true.
@@ -99,5 +116,3 @@ Lemma RFC6868_exampleAUTH256_2:
   "7768617420646f2079612077616e7420666f72206e6f7468696e673f"
   "167f928588c5cc2eef8e3093caa0e87c9ff566a14794aa61648d81621a2a40c6".
 vm_compute. reflexivity. Qed.
-
-End HMAC_FUN.

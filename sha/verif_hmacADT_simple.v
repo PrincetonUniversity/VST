@@ -8,9 +8,9 @@ Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 
-Require Import sha.hmac091c.
+Require Import sha.hmac_NK.
 
-Require Import sha.spec_hmac.
+Require Import sha.spec_hmacADT.
 Require Import HMAC_lemmas.
 
 Lemma body_hmac_simple: semax_body HmacVarSpecs HmacFunSpecs 
@@ -57,20 +57,39 @@ forward_if POSTCOND.
 
 subst POSTCOND.
 apply extract_exists_pre. intros c. normalize. rename H into isPtrC.
-eapply semax_seq'. 
-frame_SEP 0 1 3.
-remember (HMACabs init_s256abs init_s256abs init_s256abs Z0 nil) as dummyHMA.
-remember (c, k, kl, key, KV, dummyHMA) as WITNESS.
+(*eapply semax_seq'. 
+frame_SEP 0 1 3.*)
+remember (HMACabs init_s256abs init_s256abs init_s256abs) as initHMA.
+remember (c, k, Vint (Int.repr kl), key, KV, initHMA) as WITNESS.
 forward_call WITNESS.
-  assert (FR: Frame =nil).
+  assert (FR: Frame =[`(data_block Tsh data d);
+                      `(memory_block shmd (Int.repr 32) md)]).
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
   subst WITNESS. entailer. cancel. unfold initPre. 
    apply isptrD in Pkey'. destruct Pkey' as [kb [kofs HK]]. subst key'.
-   cancel.
+   apply exp_right with (x:=kl). entailer. 
 after_call.
-subst WITNESS. normalize. simpl. rewrite elim_globals_only'. normalize.
-intros h0. normalize. rename H into HmacInit.
+subst WITNESS. normalize. simpl. (* rewrite elim_globals_only'. normalize.
+simpl. *)
+apply semax_pre with (P':=EX  x : hmacabs, 
+  (PROP  ()
+   LOCAL  (`(eq md) (eval_id _md); `(eq k) (eval_id _key);
+   `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
+   `(eq (Vint (Int.repr dl))) (eval_id _n);
+   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
+   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+   SEP 
+   (`(fun a : environ =>
+      (PROP  (hmacInit key x)
+       LOCAL  (`(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+       SEP  (`(hmacstate_ x c); `(initPostKey k key); `(K_vector KV))) a)
+      globals_only; `(data_block Tsh data d);
+   `(memory_block shmd (Int.repr 32) md)))).
+   simpl. intros rho. normalize. rename x into h.
+     apply exp_right with (x:=h). entailer.
+apply extract_exists_pre. intros h0. normalize. simpl.
+  normalize. rename H into HmacInit. simpl.
 
 eapply semax_seq'. 
 frame_SEP 0 2 3.
@@ -90,9 +109,9 @@ forward_call WITNESS.
     Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
              rewrite HH; assumption. 
     destruct h0; simpl in *. 
-    destruct H1 as [reprMD [reprI [reprO [iShaLen [oShaLen [K [i [KL1 [KL2 KL3]]]]]]]]].
+    destruct H2 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion HmacInit; clear HmacInit.
-    destruct H1 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
+    destruct H2 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst.
       unfold innerShaInit in InnSHA. inversion InnSHA; clear InnSHA.
       simpl in *. subst. unfold HMAC_SHA256.mkArgZ, HMAC_SHA256.mkArg in H10.
@@ -102,14 +121,14 @@ forward_call WITNESS.
         = Zlength (SHA256.intlist_to_Zlist blocks ++ newfrag)).
         rewrite H10; reflexivity.
      clear H10.
-     rewrite Zlength_correct in *. rewrite map_length in H1. 
-     rewrite Zlength_correct in *. rewrite map_length, combine_length in H1.
-     rewrite app_length in H1.
-     rewrite map_length, mkKey_length in H1.
-     unfold SHA256.BlockSize, HMAC_SHA256.sixtyfour in H1.
-     rewrite length_Nlist, length_intlist_to_Zlist in H1. unfold WORD.
-     rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z.mul_comm in H1. simpl in H1.
-     rewrite <- H1. simpl. trivial. 
+     rewrite Zlength_correct in *. rewrite map_length in H2. 
+     rewrite Zlength_correct in *. rewrite map_length, combine_length in H2.
+     rewrite app_length in H2.
+     rewrite map_length, mkKey_length in H2.
+     unfold SHA256.BlockSize, HMAC_SHA256.sixtyfour in H2.
+     rewrite length_Nlist, length_intlist_to_Zlist in H2. unfold WORD.
+     rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z.mul_comm in H2. simpl in H2.
+     rewrite <- H2. simpl. trivial. 
 after_call.
 subst WITNESS. normalize.
 unfold update_tycon. simpl. normalize.
@@ -194,7 +213,7 @@ apply extract_exists_pre. intros h2. normalize. simpl. normalize.
 rename H into HmacFinalSimple.
 eapply semax_seq'. 
 frame_SEP 1.
-remember (h2,c) as WITNESS.
+remember (h2,c, KV) as WITNESS.
 forward_call WITNESS.
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
@@ -222,7 +241,7 @@ unfold data_block.
   rewrite Zlength_correct; simpl.
 rewrite <- memory_block_data_at_; try reflexivity. 
 rewrite memory_block_array_tuchar. 
-normalize. clear H0. 
+normalize. clear H1. 
   apply andp_right.
     apply prop_right. trivial. cancel.
 simpl; omega.
