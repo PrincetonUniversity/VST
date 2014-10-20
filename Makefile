@@ -165,7 +165,7 @@ HMAC_FILES= \
   verif_hmacNK_init_part1.v verif_hmacNK_init.v \
   verif_hmacNK_update.v verif_hmacNK_final.v verif_hmacNK_simple.v \
   verif_hmacNK_double.v \
-  verif_hmacADT_cleanup.v \
+  spec_hmacADT.v verif_hmacADT_cleanup.v \
   verif_hmacADT_init_part1.v verif_hmacADT_init.v \
   verif_hmacADT_update.v verif_hmacADT_final.v verif_hmacADT_simple.v \
   verif_hmacADT_double.v
