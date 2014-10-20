@@ -281,7 +281,8 @@ forward_if PostKeyNull.
              ([], (Vundef, (Vundef, ([], Vundef)))) (Vptr cb cofs))]).
          subst Frame. reflexivity.
        rewrite FR. clear FR Frame.   
-       entailer. cancel. 
+       entailer. (*apply (exp_right ([], (Vundef, (Vundef, ([], Vundef))))).
+       apply andp_right. trivial.*) cancel. 
       } 
       after_call.
       normalize. simpl. normalize.
@@ -356,7 +357,7 @@ forward_if PostKeyNull.
    eapply semax_seq'.
    frame_SEP 2 3 0.
    remember (ctxSha, Vptr cb (Int.add cofs (Int.repr 328)),
-             Vptr cb cofs, Tsh, Tsh, KV) as WITNESS.
+             Vptr cb cofs, Tsh, KV) as WITNESS.
    forward_call WITNESS.
      { assert (FR: Frame = []).
          subst Frame. reflexivity.

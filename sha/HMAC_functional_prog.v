@@ -17,10 +17,10 @@ End HASH_FUNCTION.
 
 
 Module Type HMAC_Module.
-  Parameter HMAC: list Z -> list Z -> list Z.
+  Parameter HMAC: byte -> byte -> list Z -> list Z -> list Z.
 End HMAC_Module.
 
-Module HMAC_FUN (HF:HASH_FUNCTION) <: HMAC_Module.
+Module HMAC_FUN (HF:HASH_FUNCTION)  <: HMAC_Module.
 Fixpoint Nlist {A} (i:A) n: list A:=
   match n with O => nil
   | S m => i :: Nlist i m
@@ -42,24 +42,24 @@ Definition mkArg (key:list byte) (pad:byte): list byte :=
           (combine key (sixtyfour pad))).
 Definition mkArgZ key (pad:byte): list Z := 
      map Byte.unsigned (mkArg key pad).
-
-Definition Ipad := Byte.repr 54. (*0x36*)
-Definition Opad := Byte.repr 92. (*0x5c*)
-
+(*
+Definition Ipad := P.Ipad.  
+Definition Opad := P.Opad.
+*)
 (*innerArg to be applied to message, (map Byte.repr (mkKey password)))*)
-Definition innerArg (text: list Z) key : list Z :=
-  (mkArgZ key Ipad) ++ text.
+Definition innerArg IP (text: list Z) key : list Z :=
+  (mkArgZ key IP) ++ text.
 
-Definition INNER k text := HF.Hash (innerArg text k).
+Definition INNER IP k text := HF.Hash (innerArg IP text k).
 
-Definition outerArg (innerRes: list Z) key: list Z :=
-  (mkArgZ key Opad) ++ innerRes.
+Definition outerArg OP (innerRes: list Z) key: list Z :=
+  (mkArgZ key OP) ++ innerRes.
 
-Definition OUTER k innerRes := HF.Hash (outerArg innerRes k).
+Definition OUTER OP k innerRes := HF.Hash (outerArg OP innerRes k).
 
-Definition HMAC txt password: list Z := 
+Definition HMAC IP OP txt password: list Z := 
   let key := map Byte.repr (mkKey password) in
-  OUTER key (INNER key txt).
+  OUTER OP key (INNER IP key txt).
 
 End HMAC_FUN.
 
@@ -74,11 +74,16 @@ End SHA256.
 
 Module HMAC_SHA256 := HMAC_FUN SHA256.
 
+Definition Ipad := Byte.repr 54. (*0x36*) 
+Definition Opad := Byte.repr 92. (*0x5c*)
+
+Definition HMAC256 := HMAC_SHA256.HMAC Ipad Opad.
+
 Definition HMACString (txt passwd:string): list Z :=
-  HMAC_SHA256.HMAC (str_to_Z txt) (str_to_Z passwd).
+  HMAC256 (str_to_Z txt) (str_to_Z passwd).
 
 Definition HMACHex (text password:string): list Z := 
-  HMAC_SHA256.HMAC (hexstring_to_Zlist text) (hexstring_to_Zlist password).
+  HMAC256 (hexstring_to_Zlist text) (hexstring_to_Zlist password).
 
 Definition check password text digest := 
   listZ_eq (HMACString text password) (hexstring_to_Zlist digest) = true.
@@ -116,3 +121,4 @@ Lemma RFC6868_exampleAUTH256_2:
   "7768617420646f2079612077616e7420666f72206e6f7468696e673f"
   "167f928588c5cc2eef8e3093caa0e87c9ff566a14794aa61648d81621a2a40c6".
 vm_compute. reflexivity. Qed.
+

@@ -51,7 +51,7 @@ rename H into SCc. rename H0 into ACc.
 
 rewrite <- memory_block_data_at_ ; try reflexivity. normalize.
 rename H into ACb.
-remember (ctx, b, c, Tsh, Tsh, KV) as WITNESS.
+remember (ctx, b, c, Tsh, KV) as WITNESS.
 forward_call WITNESS.
   { assert (FR: Frame = [
       `(field_except_at Tsh t_struct_hmac_ctx_st _md_ctx [] (snd ST) c);
@@ -172,7 +172,7 @@ apply semax_pre with (P':=EX  x : s256abs,
   simpl.
   unfold sha256state_. normalize. intros updShaST. normalize.
   
-remember (updSha, md, c, shmd, Tsh, KV) as WITNESS.
+remember (updSha, md, c, shmd, KV) as WITNESS.
 forward_call WITNESS.
   { assert (FR: Frame = [ `(data_block Tsh SF b);
       `(data_at Tsh t_struct_SHA256state_st oCTX

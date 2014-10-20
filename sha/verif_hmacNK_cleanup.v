@@ -12,7 +12,7 @@ Require Import sha.hmac_NK.
 
 Require Import sha.spec_hmacNK.
 
-Lemma isbyte_Nlist i n: isbyteZ i -> Forall isbyteZ (Nlist i n).
+Lemma isbyte_Nlist i n: isbyteZ i -> Forall isbyteZ (HMAC_SHA256.Nlist i n).
   intros. apply Forall_forall. intros.
   induction n; simpl in *. contradiction.
   destruct H0. subst. trivial.

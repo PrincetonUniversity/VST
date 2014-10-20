@@ -98,7 +98,7 @@ forward_call WITNESS.
       simpl in *. subst. unfold HMAC_SHA256.mkArgZ, HMAC_SHA256.mkArg in H10.
       assert (Zlength (map Byte.unsigned
         (map (fun p : byte * byte => Byte.xor (fst p) (snd p))
-           (combine (map Byte.repr (HMAC_SHA256.mkKey key)) (HMAC_SHA256.sixtyfour HMAC_SHA256.Ipad))))
+           (combine (map Byte.repr (HMAC_SHA256.mkKey key)) (HMAC_SHA256.sixtyfour Ipad))))
         = Zlength (SHA256.intlist_to_Zlist blocks ++ newfrag)).
         rewrite H10; reflexivity.
      clear H10.

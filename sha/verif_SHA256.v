@@ -19,8 +19,8 @@ normalize.
 apply (remember_value (eval_var _c t_struct_SHA256state_st)); intro c.
 forward_call (* SHA256_Init(&c); *)
    (c).
-entailer!.
-normalize.
+entailer!. 
+
 after_call.
 forward_call (* SHA256_Update(&c,d,n); *)
   (init_s256abs,data,c,d,dsh, Zlength data, kv).
@@ -40,7 +40,7 @@ normalize. intro a.
 simpl.
 
 forward_call (* SHA256_Final(md,&c); *)
-    (a,md,c,msh,dsh,kv).
+    (a,md,c,msh,kv).
 entailer!.
 after_call.
 simpl.

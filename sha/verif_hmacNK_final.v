@@ -51,7 +51,7 @@ rename H into SCc. rename H0 into ACc.
 
 rewrite <- memory_block_data_at_ ; try reflexivity. normalize.
 rename H into ACb.
-remember (ctx, b, c, Tsh, Tsh, KV) as WITNESS.
+remember (ctx, b, c, Tsh, KV) as WITNESS.
 forward_call WITNESS.
   { assert (FR: Frame = [
       `(field_except_at Tsh t_struct_hmac_ctx_st _md_ctx [] (snd ST) c);
@@ -120,15 +120,15 @@ after_call. subst WITNESS. normalize. subst retval0. simpl.
 
 assert (SFL: Zlength (sha_finish ctx) = 32). 
   unfold sha_finish. destruct ctx. 
-  rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256', Z2Nat.id. trivial.
-  unfold SHA256_DIGEST_LENGTH; omega.
+  rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256' (*, Z2Nat.id*). trivial.
+  (*unfold SHA256_DIGEST_LENGTH; omega.*)
 
 (*Call sha256Update*)
 (*apply seq_assoc.*)
 (*eapply semax_seq'.
 frame_SEP 0 5 6.
 *)
-remember (oSha, sha_finish ctx, c, b, Tsh, SHA256_DIGEST_LENGTH, KV) as WITNESS.
+remember (oSha, sha_finish ctx, c, b, Tsh, Z.of_nat SHA256.DigestLength, KV) as WITNESS.
 forward_call WITNESS.
   { assert (FR: Frame = [
        `(data_at Tsh t_struct_SHA256state_st oCTX
@@ -138,7 +138,7 @@ forward_call WITNESS.
        subst Frame. reflexivity.
     rewrite FR. clear FR Frame. 
     subst WITNESS. entailer. 
-    apply andp_right. rewrite SFL. unfold SHA256_DIGEST_LENGTH. entailer.
+    apply andp_right. (*rewrite SFL.*) unfold SHA256.DigestLength. entailer.
      rewrite oShaLen. simpl. entailer.
     cancel.
     unfold sha256state_. apply exp_right with (x:=oCTX).
@@ -152,7 +152,7 @@ apply semax_pre with (P':=EX  x : s256abs,
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
    (`(fun a : environ =>
-      (PROP  (update_abs (firstn (Z.to_nat SHA256_DIGEST_LENGTH) SF) oSha x)
+      (PROP  (update_abs (firstn SHA256.DigestLength SF) oSha x)
        LOCAL ()
        SEP  (`(K_vector KV); `(sha256state_ x c); `(data_block Tsh SF b))) a)
       globals_only;
@@ -166,13 +166,13 @@ apply semax_pre with (P':=EX  x : s256abs,
   normalize.
   apply extract_exists_pre. intros updSha. normalize.
   rewrite firstn_precise. 
-  Focus 2. unfold  SHA256_DIGEST_LENGTH. simpl. subst SF. 
+  Focus 2. unfold  SHA256.DigestLength. simpl. subst SF. 
         unfold sha_finish. destruct ctx.
         rewrite <- functional_prog.SHA_256'_eq,length_SHA256'. trivial.
   simpl.
   unfold sha256state_. normalize. intros updShaST. normalize.
   
-remember (updSha, md, c, shmd, Tsh, KV) as WITNESS.
+remember (updSha, md, c, shmd, KV) as WITNESS.
 forward_call WITNESS.
   { assert (FR: Frame = [ `(data_block Tsh SF b);
       `(data_at Tsh t_struct_SHA256state_st oCTX

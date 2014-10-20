@@ -449,12 +449,12 @@ Proof. intros.
        apply (initial_world.zlength_nonneg _ l).
 Qed.
 
-Lemma HMAC_length d k: length (HMAC_SHA256.HMAC d k) = 32%nat.
+Lemma HMAC_length d k: length (HMAC256 d k) = 32%nat.
 Proof.
   unfold HMAC_SHA256.HMAC, HMAC_SHA256.OUTER.
   apply length_SHA256'.
 Qed.
-Lemma HMAC_Zlength d k: Zlength (HMAC_SHA256.HMAC d k) = 32.
+Lemma HMAC_Zlength d k: Zlength (HMAC256 d k) = 32.
 Proof.
   rewrite Zlength_correct, HMAC_length. reflexivity.
 Qed.

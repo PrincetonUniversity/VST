@@ -183,7 +183,7 @@ Definition SHA256_Update_spec :=
 
 Definition SHA256_Final_spec :=
   DECLARE _SHA256_Final
-   WITH a: s256abs, md: val, c : val,  shmd: share, sh: share, kv : val
+   WITH a: s256abs, md: val, c : val,  shmd: share, kv : val
    PRE [ _md OF tptr tuchar, _c OF tptr t_struct_SHA256state_st ]
          PROP (writable_share shmd) 
          LOCAL (`(eq md) (eval_id _md); `(eq c) (eval_id _c);

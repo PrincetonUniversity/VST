@@ -67,7 +67,9 @@ forward_call WITNESS.
      rewrite FR. clear FR Frame. 
   subst WITNESS. entailer. cancel. unfold initPre. 
    apply isptrD in Pkey'. destruct Pkey' as [kb [kofs HK]]. subst key'.
-   apply exp_right with (x:=kl). entailer.
+   apply exp_right with (x:=kl). unfold data_at_. 
+   apply (exp_right (default_val t_struct_hmac_ctx_st)); entailer.
+   
 after_call.
 subst WITNESS. normalize. simpl. (*rewrite elim_globals_only'. normalize.*)
 apply semax_pre with (P':=
@@ -384,10 +386,10 @@ apply andp_right. apply prop_right. split; trivial.
 apply andp_right. apply prop_right. trivial. cancel.
 rewrite sepcon_assoc. rewrite sepcon_comm.
 apply sepcon_derives.
-  assert (D1: dig = HMAC_SHA256.HMAC data key).
+  assert (D1: dig = HMAC256 data key).
      apply hmac_sound with (h:=h2).
      exists h0, h1. auto.
-  assert (D2: dig2 = HMAC_SHA256.HMAC data key).
+  assert (D2: dig2 = HMAC256 data key).
      eapply hmac_sound with (h:=h5).
      exists h3, h4. auto.
 

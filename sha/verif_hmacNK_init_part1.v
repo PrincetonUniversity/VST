@@ -22,7 +22,7 @@ Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
   | Vptr b ofs => if zeq r 0 then FF 
                   else !!(Forall isbyteZ key) &&
                     ((data_at Tsh t_struct_hmac_ctx_st keyedHMS c) *
-                     (data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_FUN.mkKey key)))
+                     (data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_SHA256.mkKey key)))
                       ctxkey) *
                     (array_at tuchar Tsh (tuchars (map Int.repr key)) 0 (Zlength key)
                       (Vptr b ofs)))
@@ -222,7 +222,7 @@ forward_if PostKeyNull.
             `(data_at Tsh t_struct_hmac_ctx_st keyedHMS (Vptr cb cofs));
            `(array_at tuchar Tsh (tuchars (map Int.repr key)) 0 (Zlength key)
              (Vptr kb kofs));
-           `(data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_FUN.mkKey key)))
+           `(data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_SHA256.mkKey key)))
                 ctxkey);
           `(K_vector KV))) as PostIf_j_Len.
 
@@ -269,6 +269,8 @@ forward_if PostKeyNull.
          subst Frame. reflexivity.
        rewrite FR. clear FR Frame.   
        entailer. cancel. 
+       (*apply (exp_right ([], (Vundef, (Vundef, ([], Vundef))))).
+       apply andp_right. trivial. cancel.*)
       } 
       after_call.
       normalize. simpl. normalize.
@@ -344,7 +346,7 @@ forward_if PostKeyNull.
    eapply semax_seq'.
    frame_SEP 2 3 0.
    remember (ctxSha, Vptr ckb ckofs,
-             Vptr cb cofs, Tsh, Tsh, KV) as WITNESS.
+             Vptr cb cofs, Tsh, KV) as WITNESS.
    forward_call WITNESS.
      { assert (FR: Frame = []).
          subst Frame. reflexivity.
@@ -406,24 +408,24 @@ forward_if PostKeyNull.
                  unfold sha_finish. destruct ctxSha.
         rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. reflexivity.
      rewrite array_at_ext with (f':= fun i : Z =>
-         ZnthV tuchar (map Vint (map Int.repr (HMAC_FUN.mkKey key))) (i + 32)).
+         ZnthV tuchar (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (i + 32)).
      Focus 2. intros i XX. unfold ZnthV. if_tac. omega.
               assert (Z32: (Z.to_nat i < 32)%nat).
                   clear - XX; destruct XX as [XX YY]. rewrite Z2Nat.inj_lt in YY.
                   apply YY. omega. omega.
-               unfold HMAC_FUN.mkKey. simpl.
+               unfold HMAC_SHA256.mkKey. simpl.
                assert (Kgt: Zlength key > 64) by omega.
                apply Zgt_is_gt_bool in Kgt.
-               rewrite Kgt. unfold HMAC_FUN.zeroPad. repeat rewrite map_app.
+               rewrite Kgt. unfold HMAC_SHA256.zeroPad. repeat rewrite map_app.
                rewrite app_nth2; repeat rewrite map_length; rewrite length_SHA256'.
-                 remember (Nlist 0 (SHA256_BlockSize - Z.to_nat SHA256_DIGEST_LENGTH)) as NL.
+                 remember (HMAC_SHA256.Nlist 0 (SHA256.BlockSize - SHA256.DigestLength)) as NL.
                  simpl.
                  assert (I: (Z.to_nat (i + 32) - 32)%nat = Z.to_nat i).
                              destruct XX. specialize (Z2Nat.inj_sub (i+32) 32).
                              simpl; intros HH. rewrite <- HH, Zplus_comm, Zminus_plus. trivial.
                              omega. 
-                 rewrite I. subst NL. 
-                 assert (SHA32: (SHA256_BlockSize - Z.to_nat SHA256_DIGEST_LENGTH)%nat = 32%nat) by reflexivity.
+                 unfold SHA256.DigestLength. rewrite I. subst NL. 
+                 assert (SHA32: (SHA256.BlockSize - SHA256.DigestLength)%nat = 32%nat) by reflexivity.
                  rewrite SHA32.
                  rewrite nth_map' with (d':=Int.zero).
                    rewrite nth_map' with (d':=Z0).
@@ -434,7 +436,7 @@ forward_if PostKeyNull.
 
      cancel.
      rewrite LengthShaFinish.
-     rewrite array_at_ext with (f':=ZnthV tuchar (map Vint (map Int.repr (HMAC_FUN.mkKey key)))).
+     rewrite array_at_ext with (f':=ZnthV tuchar (map Vint (map Int.repr (HMAC_SHA256.mkKey key)))).
      Focus 2. unfold tuchars, sha_finish; intros i XX. destruct ctxSha. simpl.
               assert (Z32: (Z.to_nat i < 32)%nat).
                   clear - XX; destruct XX as [XX YY]. rewrite Z2Nat.inj_lt in YY.
@@ -442,17 +444,17 @@ forward_if PostKeyNull.
               unfold ZnthV. destruct (zlt i 0). omega.   
               rewrite nth_map' with (d':=Int.zero). rewrite nth_map' with (d':=Z0). 
               rewrite nth_map' with (d':=Int.zero). rewrite nth_map' with (d':=Z0). 
-              f_equal. f_equal. unfold HMAC_FUN.mkKey. simpl. 
+              f_equal. f_equal. unfold HMAC_SHA256.mkKey. simpl. 
               assert (Z6: Zlength key > 64) by omega. 
               apply Zgt_is_gt_bool in Z6; rewrite Z6.
-              unfold HMAC_FUN.zeroPad.
+              unfold HMAC_SHA256.zeroPad.
               rewrite <- functional_prog.SHA_256'_eq.
               rewrite app_nth1. inversion H. clear H. simpl in *.
                       rewrite <- H17. rewrite firstn_precise. trivial.
                       rewrite Zlength_correct, Nat2Z.id; trivial.
               rewrite length_SHA256'; trivial.
-              rewrite mkKey_length; unfold SHA256_BlockSize; simpl. omega.
-              rewrite map_length, mkKey_length; unfold SHA256_BlockSize; simpl. omega.
+              rewrite mkKey_length; unfold SHA256.BlockSize; simpl. omega.
+              rewrite map_length, mkKey_length; unfold SHA256.BlockSize; simpl. omega.
               rewrite <- functional_prog.SHA_256'_eq, length_SHA256'. trivial.
               rewrite map_length, <- functional_prog.SHA_256'_eq, length_SHA256'. trivial. 
      cancel.
@@ -584,8 +586,8 @@ forward_if PostKeyNull.
                   clear - XX; destruct XX as [XX YY]. rewrite Zlength_correct, Z2Nat.inj_lt in YY.
                   rewrite Nat2Z.id in YY; trivial. trivial. omega. 
          apply eq_sym.
-         assert (L1: (Z.to_nat i < length (HMAC_FUN.mkKey key))%nat).
-           rewrite mkKey_length; unfold SHA256_BlockSize.
+         assert (L1: (Z.to_nat i < length (HMAC_SHA256.mkKey key))%nat).
+           rewrite mkKey_length; unfold SHA256.BlockSize.
            assert (Zlength key <= 64) by omega.  apply Z2Nat.inj_le in H3. simpl in H3.
            rewrite Zlength_correct, Nat2Z.id in H3. omega.
            omega. omega.
@@ -597,8 +599,8 @@ forward_if PostKeyNull.
          rewrite map_length; trivial. rewrite map_length; trivial. 
        apply array_lemmas.array_at_ext'.
          unfold tuchars, cVint, ZnthV; intros i XX. if_tac. omega.
-         assert (L1: (Z.to_nat (i + Zlength key) < length (HMAC_FUN.mkKey key))%nat).
-           rewrite mkKey_length; unfold SHA256_BlockSize.
+         assert (L1: (Z.to_nat (i + Zlength key) < length (HMAC_SHA256.mkKey key))%nat).
+           rewrite mkKey_length; unfold SHA256.BlockSize.
            destruct XX as [XX YY]. 
            apply (Z2Nat.inj_lt (i+ Zlength key) 64). omega. omega. omega.
          rewrite nth_map' with (d':=Int.zero).
