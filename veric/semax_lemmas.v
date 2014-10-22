@@ -348,13 +348,7 @@ Focus 2. {
   rewrite (sepcon_comm (F (construct_rho (filter_genv gx) ve te))
     (|>!!PP && |>P (construct_rho (filter_genv gx) ve te))).
 
-change sepcon with (@seplog.sepcon _ (alg_seplog.algNatDed rmap) _).
-change andp with (@seplog.andp _ (alg_seplog.algNatDed rmap)).
-
  rewrite is_prop_andp_sepcon by (apply is_prop_later; apply prop_is_prop).
-
-change (@seplog.sepcon _ (alg_seplog.algNatDed rmap) _) with sepcon.
-change (@seplog.andp _ (alg_seplog.algNatDed rmap)) with (@andp rmap compcert_rmaps.R.ag_rmap).
 
  rewrite sepcon_comm.
  reflexivity.

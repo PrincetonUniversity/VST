@@ -1,11 +1,9 @@
 Require Import msl.base.
 Require Import msl.ageable.
-Require Import msl.seplog.
 Require Import msl.sepalg.
-Require Import msl.alg_seplog.
 Require Import msl.age_sepalg.
 Require Import msl.predicates_hered.
-Local Open Scope logic.
+Require Import msl.predicates_sl.
 
 Definition is_prop {A:Type} {agA:ageable A} (P: pred A): Prop := forall x y:A, (level x = level y) -> P x -> P y.
 
@@ -163,9 +161,7 @@ Qed.
 Lemma is_prop_wand: forall {A:Type} {agA:ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} (P Q: pred A), is_prop P -> is_prop Q -> is_prop (wand P Q).
 Proof.
   intros.
-  assert (@wand (@pred A agA) (@algNatDed A agA) (@algSepLog A agA JA PA SaA XA) = predicates_sl.wand).
-  auto.
-  rewrite -> H1.
+  pose proof I.
   unfold is_prop in *.
   unfold wand in *.
   simpl in *.
@@ -189,9 +185,7 @@ Qed.
 Lemma is_prop_ewand: forall {A:Type} {agA:ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} (P Q: pred A), is_prop P -> is_prop Q -> is_prop (ewand P Q).
 Proof.
   intros.
-  assert (@ewand (@pred A agA) (@algNatDed A agA) (@algSepLog A agA JA PA SaA XA) = predicates_sl.ewand).
-  auto.
-  rewrite -> H1.
+  pose proof I.
   unfold is_prop in *.
   unfold ewand in *.
   simpl in *.
@@ -213,7 +207,7 @@ Lemma is_prop_later: forall {A:Type} {agA:ageable A} P, is_prop P -> is_prop (|>
 Proof.
   unfold is_prop.
   intros.
-  unfold later in *.
+  unfold box in *.
   simpl in *.
   intros.
   remember (laterR_same_level y x a') as HH; clear HeqHH.
@@ -244,7 +238,7 @@ Lemma is_prop_allp: forall {A:Type} {agA:ageable A}{JA: Join A}{PA: Perm_alg A}{
   apply (H b x y H0 (H1 b)).
 Qed.
 
-Lemma is_prop_andp_sepcon: forall {A:Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} (P Q R: pred A), is_prop P ->(P && Q) * R = P && (Q * R).
+Lemma is_prop_andp_sepcon: forall {A:Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} (P Q R: pred A), is_prop P -> ((P && Q) * R = P && (Q * R))%pred.
 Proof.
   intros.
   unfold is_prop in H.
@@ -266,7 +260,7 @@ Proof.
     apply H with a; [apply eq_sym|]; auto.
 Qed.
 
-Lemma is_prop_sepcon_is_prop: forall {A:Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} (P Q R: pred A), is_prop P -> P * Q = (P && Q) * TT.
+Lemma is_prop_sepcon_is_prop: forall {A:Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} (P Q R: pred A), is_prop P -> (P * Q = (P && Q) * TT)%pred.
 Proof.
   intros.
   unfold is_prop in H.
@@ -287,7 +281,7 @@ Proof.
     apply H with y; [exact H3 | exact H1].
 Qed.
 
-Lemma is_prop_andp_eq: forall {A:Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} {CaA: Canc_alg A} (P Q R: pred A), is_prop P -> P && Q = (P && emp) * Q.
+Lemma is_prop_andp_eq: forall {A:Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A} {CaA: Canc_alg A} (P Q R: pred A), is_prop P -> (P && Q = (P && emp) * Q)%pred.
 (* In fact, this can be proved by is_prop_andp_sepcon *)
 Proof.
   intros.
@@ -325,7 +319,7 @@ Proof.
 Qed.
 
 Lemma later_prop_andp_sepcon: forall {A: Type} {agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SaA: Sep_alg A}{XA: Age_alg A}(P: Prop) (Q R: pred A), 
-((|> !! P) && Q) * R = (|> !! P) && (Q * R).
+(((|> !! P) && Q) * R = (|> !! P) && (Q * R))%pred.
 Proof.
   intros.
   assert (@is_prop A agA (|> !! P)).

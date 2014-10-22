@@ -13,6 +13,7 @@ Require Export msl.shares.
 Require Export msl.seplog.
 Require Export msl.alg_seplog.
 Require Export msl.log_normalize.
+Require Export msl.is_prop_lemma.
 Require Export veric.expr.
 Require Export veric.expr_rel.
 Require veric.seplog.
