@@ -7,33 +7,45 @@ Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.Fun.
 Require Import progs.list_dt.
 Require Import types.
+Require Import bool_funcs.
 Require Import MirrorCharge.ModularFunc.ILogicFunc.
 Require Import MirrorCharge.ModularFunc.BILogicFunc.
 Require Import floyd.local2ptree.
-
+Require Import local2list.
 
 Inductive const :=
-| N : nat -> const
-| Z : Z -> const
-| Pos : positive -> const
-| Ctype : type -> const
-| Cexpr : expr -> const
-| Comparison : comparison -> const.
+| fN : nat -> const
+| fZ : Z -> const
+| fint : int -> const
+| fint64 : int64 -> const
+| fPos : positive -> const
+| fCtype : type -> const
+| fCexpr : expr -> const
+| fComparison : comparison -> const
+| fbool : bool -> const
+| ffloat : float -> const
+| ffloat32 : float32 -> const.
 
 Definition typeof_const (c : const) : typ :=
  match c with
-| N _ => tynat
-| Z _ => tyZ
-| Pos _ => typositive
-| Ctype _ => tyc_type
-| Cexpr _ => tyc_expr
-| Comparison _ => tycomparison
+| fN _ => tynat
+| fZ _ => tyZ
+| fPos _ => typositive
+| fCtype _ => tyc_type
+| fCexpr _ => tyc_expr
+| fComparison _ => tycomparison
+| fbool _ => tybool
+| fint _ => tyint
+| fint64 _ => tyint64
+| ffloat _ => tyfloat
+| ffloat32 _ => tyfloat32
 end.
 
 Definition constD (c : const)
 : typD (typeof_const c) :=
 match c with
-| N c | Z c | Pos c | Ctype c | Cexpr c | Comparison c
+| fN c | fZ c | fPos c | fCtype c | fCexpr c | fComparison c | fbool c | fint c 
+| fint64 c | ffloat c | ffloat32 c 
                                           => c
 end.
 
@@ -155,7 +167,8 @@ Inductive values :=
 | fVfloat
 | fVlong
 | fVptr
-| fVundef.
+| fVundef
+| fVsingle.
 
 Definition typeof_value (v : values) :=
 match v with
@@ -163,6 +176,7 @@ match v with
 | fVfloat => tyArr tyfloat tyval
 | fVlong => tyArr tyint64 tyval
 | fVptr => tyArr typositive (tyArr tyint tyval)
+| fVsingle => tyArr tyfloat32 tyval
 | fVundef => tyval
 end.
 
@@ -172,36 +186,37 @@ match v with
 | fVfloat => Vfloat
 | fVlong => Vlong
 | fVptr => Vptr
+| fVsingle => Vsingle
 | fVundef => Vundef
 end.
 
 
 Inductive eval :=
-| feval_cast
-| fderef_noload
-| feval_field
-| feval_binop
-| feval_unop
-| feval_id.
+| feval_cast : type -> type -> eval
+| fderef_noload : type -> eval
+| feval_field : type -> ident -> eval
+| feval_binop : binary_operation -> type -> type -> eval
+| feval_unop : unary_operation -> type -> eval
+| feval_id : ident -> eval.
 
 Definition typeof_eval (e : eval) :=
  match e with
-| feval_cast => tyArr tyc_type (tyArr tyc_type (tyArr tyval tyval))
-| fderef_noload => tyArr tyc_type (tyArr tyval tyval)
-| feval_field => tyArr tyc_type (tyArr tyident (tyArr tyval tyval))
-| feval_binop => tyArr tybinary_operation (tyArr tyc_type (tyArr tyc_type (tyArr tyval (tyArr tyval tyval))))
-| feval_unop => tyArr tyunary_operation (tyArr tyc_type (tyArr tyval tyval))
-| feval_id => tyArr tyident (tyArr tyenviron tyval)
+| feval_cast _ _ => (tyArr tyval tyval)
+| fderef_noload _ => (tyArr tyval tyval)
+| feval_field _ _ => (tyArr tyval tyval)
+| feval_binop _ _ _=> (tyArr tyval (tyArr tyval tyval))
+| feval_unop _ _ => (tyArr tyval tyval)
+| feval_id _  => (tyArr tyenviron tyval)
 end.
 
 Definition evalD  (e : eval) : typD  (typeof_eval e) :=
 match e with
-| feval_id => eval_id
-| feval_cast => eval_cast
-| fderef_noload => deref_noload
-| feval_field => eval_field
-| feval_binop => eval_binop
-| feval_unop => eval_unop
+| feval_id id => eval_id id
+| feval_cast t1 t2 => eval_cast t1 t2
+| fderef_noload t => deref_noload t
+| feval_field t id => eval_field t id
+| feval_binop op t1 t2 => eval_binop op t1 t2
+| feval_unop op t => eval_unop op t
 end.
 
 
@@ -213,6 +228,11 @@ Inductive other :=
 | falign
 | ftyped_true
 | feq : typ -> other
+| fnone : typ -> other
+| fsome : typ -> other
+| ftypeof
+| fTrue
+| fFalse 
 .
 
 Definition typeof_other (o : other) :=
@@ -223,6 +243,10 @@ match o with
 | falign => tyArr tyZ (tyArr tyZ tyZ)
 | ftyped_true => tyArr tyc_type (tyArr tyval typrop)
 | feq t => tyArr t (tyArr t typrop) 
+| fnone t => tyoption t
+| fsome t => tyArr t (tyoption t)
+| ftypeof => tyArr tyc_expr tyc_type
+| fTrue | fFalse => typrop
 end.
 
 Definition otherD  (o : other) : typD  (typeof_other o) :=
@@ -233,6 +257,11 @@ match o with
 | falign => align
 | ftyped_true => typed_true
 | feq t => @eq (typD t) 
+| fsome t => @Some (typD t)
+| fnone t => @None (typD t)
+| ftypeof => typeof
+| fTrue => True
+| fFalse => False
 end.
 
 Inductive lst :=
@@ -241,7 +270,8 @@ Inductive lst :=
 | ffold_right : typ -> typ -> lst
 | ffold_left : typ -> typ -> lst
 | fcons : typ -> lst
-| fappend : typ -> lst.
+| fappend : typ -> lst
+| fpair : typ -> typ -> lst.
 
 Definition typeof_lst (l : lst) :=
 match l with
@@ -251,6 +281,7 @@ match l with
 | ffold_left a b => tyArr (tyArr a (tyArr b a)) (tyArr (tylist b) (tyArr a a))
 | fcons a => tyArr a (tyArr (tylist a) (tylist a))
 | fappend a => tyArr (tylist a) (tyArr (tylist a) (tylist a))
+| fpair t1 t2 => tyArr t1 (tyArr t2 (typrod t1 t2))
 end.
 
 Definition lstD (l : lst) : typD (typeof_lst l) :=
@@ -261,6 +292,7 @@ match l with
 | ffold_left a b => @fold_left (typD a) (typD b)
 | fcons a => @cons (typD a)
 | fappend a => @app (typD a)
+| fpair a b => ((@pair (typD a) (typD b)) : typD (typeof_lst (fpair a b)))
 end.
 
 Inductive sep :=
@@ -390,46 +422,80 @@ end.
   exact (@lseg t id ls sh (List.map (reptyp_structlist_reptype  _) lf) v1 v2). }
 Defined.
 
-Inductive triple :=
-| fenviron : environ -> triple
+
+Definition localD (temps : PTree.t val) (locals : PTree.t (type * val)) :=
+LocalD temps locals nil.
+
+Definition assertD (P : list Prop) (Q : list (environ -> Prop)) (sep : list mpred) := 
+PROPx P (LOCALx Q (SEPx (map (liftx) sep))).
+
+Definition locallistD a b := LocallistD a b nil. 
+
+Inductive smx :=
+| fenviron : environ -> smx
 | fsemax
-| fstatement : statement -> triple
-| fretassert : ret_assert -> triple
-| ftycontext : tycontext -> triple
+| fstatement : statement -> smx
+| fretassert : ret_assert -> smx
+| ftycontext : tycontext -> smx
 | fupdate_tycon 
-| fPROPx
+(*| fPROPx
 | fLOCALx
-| fSEPx
+| fSEPx *)
 | fnormal_ret_assert
-| flocalD : PTree.t val -> PTree.t (type * val) -> list (environ -> Prop) -> triple
+(*| flocalD : PTree.t val -> PTree.t (type * val) -> list (environ -> Prop) -> smx *)
+| fassertD
+| flocalD : PTree.t val -> PTree.t (type * val) -> smx
+| flocallistD
+| fvaltree : PTree.t val -> smx
+| fdenote_tc_assert_b_norho
+| ftc_expr_b_norho
+| ftc_temp_id_b_norho
+| fmsubst_eval_expr_norho
+| fmsubst_eval_lvalue_norho
 .
-Check update_tycon.
-Definition typeof_triple (t : triple) :=
+
+Definition typeof_smx (t : smx) :=
 match t with
 | fsemax => tyArr tyOracleKind (tyArr tytycontext (tyArr (tyArr tyenviron tympred) (tyArr tystatement (tyArr tyret_assert typrop))))
 | fstatement s => tystatement
 | fretassert r => tyret_assert
 | ftycontext d => tytycontext
-| fPROPx => tyArr (tylist typrop) (tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred))
+(*| fPROPx => tyArr (tylist typrop) (tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred))
 | fLOCALx => tyArr (tylist (tyArr tyenviron typrop)) (tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred))
-| fSEPx => tyArr (tylist (tyArr tyenviron tympred)) (tyArr tyenviron tympred)
+| fSEPx => tyArr (tylist (tyArr tyenviron tympred)) (tyArr tyenviron tympred)*)
 | fnormal_ret_assert => tyArr (tyArr tyenviron tympred) (tyret_assert)
 | fenviron e => tyenviron
-| flocalD _ _ _ => tylist (tyArr tyenviron typrop)
+| flocalD _ _  => tylist (tyArr tyenviron typrop)
 | fupdate_tycon => tyArr tytycontext (tyArr tystatement tytycontext)
+| fvaltree t => typtree tyval
+| fassertD => tyArr  (tylist typrop) (tyArr (tylist (tyArr tyenviron typrop)) (tyArr (tylist tympred) (tyArr tyenviron tympred)))
+| fdenote_tc_assert_b_norho => tyArr tytc_assert tybool
+| ftc_expr_b_norho => tyArr tytycontext (tyArr tyc_expr tybool)
+| ftc_temp_id_b_norho => tyArr typositive (tyArr tyc_type (tyArr tytycontext (tyArr tyc_expr tybool)))
+| fmsubst_eval_expr_norho => tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))
+| fmsubst_eval_lvalue_norho =>  tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))
+| flocallistD => tyArr (tylist (typrod tyident tyval)) (tyArr (tylist (typrod tyident (typrod tyc_type tyval))) (tylist (tyArr tyenviron typrop)))
 end.
 
-Definition tripleD (t : triple) : typD (typeof_triple t) :=
+Definition smxD (t : smx) : typD (typeof_smx t) :=
 match t with
-| fsemax => (@semax : typD (typeof_triple fsemax))
+| fsemax => (@semax : typD (typeof_smx fsemax))
 | fstatement s | fretassert s | ftycontext s => s
-| fPROPx => PROPx
+(*| fPROPx => PROPx
 | fLOCALx => LOCALx
-| fSEPx => SEPx
+| fSEPx => SEPx*)
 | fnormal_ret_assert => normal_ret_assert
-| fenviron e => e
-| flocalD ids vars other => LocalD ids vars other
+| fenviron e => (e : typD (typeof_smx (fenviron e)))
+| flocalD ids vars => localD ids vars
 | fupdate_tycon => update_tycon
+| fvaltree t => t
+| fassertD => assertD
+| fdenote_tc_assert_b_norho => (denote_tc_assert_b_norho : typD (typeof_smx fdenote_tc_assert_b_norho))
+| ftc_expr_b_norho => tc_expr_b_norho
+| ftc_temp_id_b_norho => tc_temp_id_b_norho
+| fmsubst_eval_expr_norho => msubst_eval_expr_norho
+| fmsubst_eval_lvalue_norho => msubst_eval_lvalue_norho
+| flocallistD => locallistD
 end.
 
 Inductive func' :=
@@ -441,7 +507,7 @@ Inductive func' :=
 | Other : other -> func'
 | Sep : sep -> func'
 | Lst : lst -> func'
-| Triple : triple -> func'.
+| Smx : smx -> func'.
 
 Definition func := (SymEnv.func + @ilfunc typ + @bilfunc typ + func')%type.
 
@@ -455,7 +521,7 @@ match f with
 | Other o => typeof_other o
 | Sep s => typeof_sep s
 | Lst l => typeof_lst l
-| Triple t => typeof_triple t
+| Smx t => typeof_smx t
 end.
 
 
@@ -469,5 +535,6 @@ match f with
 | Other o => otherD  o
 | Sep s => sepD  s
 | Lst l => lstD l
-| Triple t => tripleD t
+| Smx t => smxD t
 end.
+

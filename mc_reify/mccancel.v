@@ -22,6 +22,7 @@ Require Import floyd.proofauto.
 Require Export types.
 Require Export funcs.
 Require Export reify.
+Require Export bool_funcs.
 Require Import MirrorCore.Lambda.Expr.
 Require Import func_eq.
 

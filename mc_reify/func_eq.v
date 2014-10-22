@@ -10,11 +10,11 @@ Require Import ExtLib.Core.RelDec.
 
 Definition const_beq a b :=
 match a, b with
-| N c1, N c2 => beq_nat c1 c2
-| Z c1, Z c2 => Zbool.Zeq_bool c1 c2
-| Pos c1, Pos c2 =>  BinPos.Pos.eqb c1 c2
-| Ctype c1, Ctype c2 => expr.eqb_type c1 c2
-| Cexpr c1, Cexpr c2 => expr_beq c1 c2
+| fN c1, fN c2 => beq_nat c1 c2
+| fZ c1, fZ c2 => Zbool.Zeq_bool c1 c2
+| fPos c1, fPos c2 =>  BinPos.Pos.eqb c1 c2
+| fCtype c1, fCtype c2 => expr.eqb_type c1 c2
+| fCexpr c1, fCexpr c2 => expr_beq c1 c2
 | _, _ => false
 end.
 
@@ -109,12 +109,19 @@ Hint Resolve values_beq_sound : expr_beq.
 
 Definition eval_beq a b :=
 match a,b with 
-| feval_cast, feval_cast 
-| fderef_noload, fderef_noload 
-| feval_field, feval_field 
-| feval_binop, feval_binop 
-| feval_unop, feval_unop 
-| feval_id, feval_id => true
+| feval_cast t1_1 t2_1 , feval_cast t1_2 t2_2 => andb (expr.eqb_type t1_1 t1_2)
+                                                      (expr.eqb_type t2_1 t2_2)
+| fderef_noload t1, fderef_noload t2 => expr.eqb_type t1 t2 
+| feval_field t1 id1 , feval_field t2 id2 =>  andb (expr.eqb_type t1 t2)
+                                                   (BinPos.Pos.eqb id1 id2)
+| feval_binop op1 t1_1 t2_1, feval_binop op2 t1_2 t2_2 => 
+              andb (andb (binary_op_beq op1 op2)
+                   (expr.eqb_type t1_1 t1_2))
+                   (expr.eqb_type t2_1 t2_2)
+| feval_unop op1 t1 , feval_unop op2 t2 =>
+              andb (unary_op_beq op1 op2)
+                   (expr.eqb_type t1 t2)
+| feval_id id1, feval_id id2 => BinPos.Pos.eqb id1 id2
 | _, _ => false
 end. 
 
@@ -183,7 +190,7 @@ end
 Lemma sep_beq_sound : forall a b, sep_beq a b = true -> a = b.
 Proof.
 intros.
-destruct a, b; auto; solve_expr_beq_sound. SearchAbout rel_dec.
+destruct a, b; auto; solve_expr_beq_sound. 
 rewrite (rel_dec_correct) in H0. auto.
 assert (t = t0) by auto with expr_beq.
 assert (i = i0) by auto with expr_beq.
@@ -194,16 +201,12 @@ Qed.
 
 Hint Resolve sep_beq_sound : expr_beq.
 
-
-
-Definition triple_beq a b :=
+Definition smx_beq a b :=
 match a, b with
 | fsemax, fsemax
-| fPROPx, fPROPx
-| fLOCALx, fLOCALx
-| fSEPx, fSEPx
-| fnormal_ret_assert, fnormal_ret_assert => true
-| flocalD _ _ _ , _=> false (*TODO*)
+| fnormal_ret_assert, fnormal_ret_assert 
+| fassertD, fassertD => true
+| flocalD _ _  , _=> false (*TODO*)
 | fstatement s1, fstatement s2 => statement_beq s1 s2
 | ftycontext _, ftycontext _ => false
 | _, _ => false
@@ -211,13 +214,13 @@ end.
 
 Hint Resolve statement_beq_sound : expr_beq.
 
-Lemma triple_beq_sound : forall a b, triple_beq a b = true -> a = b.
+Lemma smx_beq_sound : forall a b, smx_beq a b = true -> a = b.
 Proof.
 intros.
 destruct a, b; auto; solve_expr_beq_sound. 
 Qed.
 
-Hint Resolve triple_beq_sound : expr_beq.
+Hint Resolve smx_beq_sound : expr_beq.
 
 Definition func_beq a b :=
 match a, b with
@@ -229,7 +232,7 @@ match a, b with
 | Other f1, Other f2 => other_beq f1 f2
 | Sep f1, Sep f2 => sep_beq f1 f2
 | Lst f1, Lst f2 => lst_beq f1 f2
-| Triple f1, Triple f2 => triple_beq f1 f2
+| Smx f1, Smx f2 => smx_beq f1 f2
 | _, _ => false
 end.
 

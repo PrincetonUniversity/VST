@@ -3,6 +3,7 @@ Require Import floyd.proofauto.
 Require Import progs.list_dt.
 Require Import reverse_defs.
 Require Import mccancel.
+Require Import set_reif.
 (*Require Import MirrorCore.STac.STac.
 Require Import MirrorCore.RTac.Core.
 Require Import MirrorCore.RTac.RTac.
@@ -19,6 +20,7 @@ Import MirrorCore.RTac.Repeat.
 Import MirrorCore.RTac.Then.
 Import MirrorCore.RTac.Try.
 Import MirrorCore.RTac.First.
+Require Import local2list.
 
 Local Open Scope logic.
 
@@ -46,20 +48,32 @@ end.
 
 Require Import floyd.local2ptree.
 
-Ltac do_local2ptree := eapply semax_pre0; [ eapply local2ptree_soundness; repeat constructor | ].
+
+Lemma LocalD_to_localD : forall P R t l X,
+PROPx (P) (LOCALx (LocalD t l X) (SEPx (R))) |--
+PROPx (P) (LOCALx (localD t l) (SEPx (R))).
+Proof.
+intros. entailer.
+apply prop_right.
+unfold localD. 
+repeat rewrite LocalD_app_eq in *.
+unfold LocalD_app in *.
+repeat rewrite fold_right_conj in *.
+intuition. simpl. apply I.
+Qed.
+
+Ltac do_local2ptree := eapply semax_pre0; [ eapply local2ptree_soundness; repeat constructor | ]; eapply semax_pre0; [ apply LocalD_to_localD | ].
 
 Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
 
 Check update_tycon.
 
-Lemma semax_seq_reif c1 c2 : forall (Espec : OracleKind) 
+Lemma semax_seq_reif c1 c2 : forall  (Espec : OracleKind) 
          (P : environ -> mpred)  (P' : environ -> mpred)
-          (Q : ret_assert) (Delta : tycontext),
+          (Q : ret_assert) (Delta : tycontext) ,
        @semax Espec Delta P c1 (normal_ret_assert P') ->
        @semax Espec (update_tycon Delta c1) P' c2 Q ->
        @semax Espec Delta P (Ssequence c1 c2) Q.
-intros. 
-reify_vst(@semax Espec (update_tycon Delta c1) P' c2 Q).
 intros.
 eapply semax_seq'; eauto.
 Qed.
@@ -75,20 +89,35 @@ Definition seq_lemma (s1 s2: statement)  : my_lemma.
 reify_lemma reify_vst (semax_seq_reif s1 s2).
 Defined.
 
-Definition APPLY_SKIP := (THEN (REPEAT 10 (INTRO typ func subst)) (APPLY typ func subst skip_lemma)).
+Definition set_lemma (id : positive) (e : Clight.expr) (v : val) 
+         (ls : PTree.t val) (vs : PTree.t (type * val))  : my_lemma.
+reify_lemma reify_vst (semax_set_localD id e v ls vs).
+Defined.
 
-Definition run_tac (t: rtac typ (ExprCore.expr typ func) subst) e := t CTop (SubstI.empty (expr := ExprCore.expr typ func)) e.
 
-Definition APPLY_SEQ' s1 s2 := THEN  (REPEAT 10 (INTRO typ func subst)) (EAPPLY typ func subst (seq_lemma s1 s2)).
+Definition INTROS := (REPEAT 10 (INTRO typ func subst)).
+
+Definition APPLY_SKIP :=  (APPLY typ func subst skip_lemma).
+
+Definition run_tac (t: rtac typ (ExprCore.expr typ func) subst) e := 
+  t CTop (SubstI.empty (expr := ExprCore.expr typ func)) e.
+
+Definition APPLY_SEQ' s1 s2 := (EAPPLY typ func subst (seq_lemma s1 s2)).
+
+Definition APPLY_SEQ_SKIP s1 s2:= (THEN  (EAPPLY typ func subst (seq_lemma s1 s2)) (THEN (INSTANTIATE typ func subst) (TRY APPLY_SKIP))).
+
+Definition APPLY_SEQ s1 s2 k := (THEN  (EAPPLY typ func subst (seq_lemma s1 s2)) k).
+
+Definition APPLY_SET' id e v ls vs :=
+EAPPLY typ func subst (set_lemma id e v ls vs).
 
 
-Definition APPLY_SEQ_SKIP s1 s2:= THEN (REPEAT 10 (INTRO typ func subst)) (THEN  (EAPPLY typ func subst (seq_lemma s1 s2)) (THEN (INSTANTIATE typ func subst) (TRY APPLY_SKIP))).
-
-Definition APPLY_SEQ s1 s2 k := THEN (REPEAT 10 (INTRO typ func subst)) (THEN  (EAPPLY typ func subst (seq_lemma s1 s2)) k).
+(*Definition get_comp e :=
+match e with*)
 
 Fixpoint get_first_statement (s : expr typ func) := 
 match s with
-| (Inj (inr (Triple (fstatement stmt)))) => stmt
+| (Inj (inr (Smx (fstatement stmt)))) => stmt
 | App e1 e2 => match (get_first_statement e1)  with
                    | Sskip => (get_first_statement e2)
                    | stmt => stmt
@@ -105,7 +134,7 @@ match s with
 end.
 
 Definition symexe_tac (e : expr typ func) :=
-symexe' (get_first_statement e).
+THEN INTROS (symexe' (get_first_statement e)).
 
 Definition symexe e:=
 run_tac (symexe_tac e) e.
@@ -117,10 +146,6 @@ Lemma skip_triple : forall p e,
      (normal_ret_assert p).
 Proof. 
 Time reify_expr_tac.
-(*do_local2ptree.
-replace_lift.
-*)
-(*apply semax_skip*)
 Time Eval vm_compute in  run_tac (symexe_tac e) e.
 Abort.
 
@@ -134,19 +159,184 @@ Lemma seq_triple : forall p es,
 @semax es empty_tycontext p (Ssequence Sskip Sskip) (normal_ret_assert p).
 Proof.
 reify_expr_tac.
-Time Eval vm_compute in run_tac (APPLY_SEQ_SKIP Sskip  Sskip) e.
 Time Eval vm_compute in  run_tac (symexe_tac e) e.
 Abort.
 
 Lemma seq_triple_lots : forall p es,
-@semax es empty_tycontext p (lots_of_skips 50) (normal_ret_assert p).
+@semax es empty_tycontext p (lots_of_skips 10) (normal_ret_assert p).
 Proof.
 reify_expr_tac.
 Time Eval vm_compute in  run_tac (symexe_tac e) e.
-(*not great, I'd hope this would scale linearly or close *)
 Abort.
 
+Ltac pull_sep_lift R :=
+match R with
+| ((`?H) :: ?T) => let rest := pull_sep_lift T in constr:(cons H rest)
+| (@nil _) => constr:(@nil mpred)
+end.
 
+Ltac extract_sep_lift_semax :=
+  match goal with
+      [ |- semax _ (*(PROP (?P1) (LOCALx ?Q1 SEP (?R1)))*) 
+                 (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _ 
+                 (normal_ret_assert (PROPx ?P2 (LOCALx ?Q2 (SEPx ?R2))))] =>
+      let R1' := pull_sep_lift R1 in
+      let R2' := pull_sep_lift R2 in
+      try (change (PROPx (P1) (LOCALx Q1 (SEPx (R1)))) 
+      with (assertD nil Q1 R1'));
+      try  (change (PROPx (P2) (LOCALx Q2 (SEPx (R2)))) 
+      with (assertD nil Q2 R2'))
+end.
+
+Ltac do_local2list := erewrite local2list_soundness; [ | repeat constructor].
+
+
+Fixpoint extract_semax (e : expr typ func) : expr typ func :=
+match e with
+| App (App (App (App (App (Inj (inr (Smx fsemax))) _) _) _) _) _ => e
+| App _ e 
+| Abs _ e => extract_semax e
+| _ => Inj (inr (Value fVundef))
+end.
+Goal forall n (p : ident) (e1 e2: val), n = [(_p, (Tvoid, e1)); (_p, (Tvoid, e2))].
+intros. reify_vst [(_p, (Tvoid, e1))(*; (_p, (Tvoid, e2))*)].
+
+Goal forall n (p : ident) (e1 e2: val), n = [(_p, e1); (_p,  e2)].
+intros. 
+ reify_vst [(_p, e1); (_p, e2)].
+
+Goal forall n, n = [_p].
+reify_vst [(_p, _p); (_p, _p)].
+
+ 
+Definition and_eq (v1 v2 p: expr typ func) t  : expr typ func :=
+App (App (Inj (inr (Other fand))) (App (App (Inj (inr (Other (feq t)))) v1) v2)) p.
+
+Fixpoint local2ptree_reif' (e : expr typ func) (v :(PTree.t (expr typ func))) (prp : (expr typ func)) :
+  option ((PTree.t (expr typ func)) * ((expr typ func))) :=
+match e with
+| App (App (Inj (inr (Lst (fcons (typrod tyident tyval)))))
+             (App
+                (App (Inj (inr (Lst (fpair tyident tyval))))
+                     (Inj (inr (Const (fPos p))))) (val))) tl =>
+  (*  (p, val)::tl *) 
+  match PTree.get p v with 
+      | Some ex => local2ptree_reif' tl v (and_eq ex val prp tyval)
+      | None => local2ptree_reif' tl ((PTree.set p val v)) prp
+  end
+| Inj (inr (Lst (fnil (typrod tyident tyval)))) (*nil*) => Some (v, prp)
+| _ => None
+end.                                               
+
+Definition ctyp t : expr typ func:= Inj (inr (Const (fCtype t))). 
+
+Fixpoint vars2ptree_reif' (e : expr typ func) (v : PTree.t (type * (expr typ func))) (prp : (expr typ func)) : option ((PTree.t (type * (expr typ func))) * (expr typ func)) :=
+match e with
+| App
+    (App
+       (Inj (inr (Lst (fcons (typrod tyident (typrod tyc_type tyval))))))
+       (App
+          (App (Inj (inr (Lst (fpair tyident (typrod tyc_type tyval)))))
+               (Inj (inr (Const (fPos p)))))
+          (App
+             (App (Inj (inr (Lst (fpair tyc_type tyval))))
+                  (Inj (inr (Const (fCtype typ))))) (val)))) tl =>
+  (*  (p, (typ, val))::tl *) 
+  match PTree.get p v with 
+      | Some (typ2, ex) => vars2ptree_reif' tl v (and_eq (ctyp typ) (ctyp typ2) 
+                                                          (and_eq ex val prp tyval) tyc_type)
+      | None => vars2ptree_reif' tl ((PTree.set p (typ, val) v)) prp
+  end
+| Inj (inr (Lst (fnil (typrod tyident tyval)))) (*nil*) => Some (v, prp)
+| _ => None
+end.
+  
+Definition local2ptree_reif e := local2ptree_reif' e (PTree.empty (expr typ func)) (Inj (inr (Other fTrue))).
+
+Definition vars2ptree_reif e := vars2ptree_reif' e (PTree.empty (type * (expr typ func))) (Inj (inr (Other fTrue))).
+
+
+Lemma set_triple :
+forall sh p (contents : list val),
+semax Delta2
+     (PROP  ()
+      LOCAL  (`(eq p) (eval_id _p))  SEP  (`(lseg LS sh contents p nullval)))
+     (Ssequence (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        Sskip) 
+(normal_ret_assert (PROP  ()
+      LOCAL  (`(eq (Vint (Int.repr 0))) (eval_id _w); 
+      `(eq p) (eval_id _p))  SEP  (`(lseg LS sh contents p nullval)))).
+Proof.
+intros.
+do_local2list.
+extract_sep_lift_semax.
+revert sh.
+reify_expr_tac.
+reify_vst (forall s1 s2 n, Ssequence s1 s2 = n).
+extract_sep_lift_semax.
+replace_lift.
+revert sh contents.
+reify_expr_tac.
+
+
+
+
+
+ 
+Lemma skip_triple_2 :forall p contents sh,
+semax Delta2
+     (PROP  ()
+      LOCAL  (`(eq p) (eval_id _p))  SEP  (`(lseg LS sh contents p nullval)))
+     Sskip 
+     (normal_ret_assert (PROP  ()
+      LOCAL  (`(eq p) (eval_id _p))  SEP  (`(lseg LS sh contents p nullval)))).
+Proof.
+intros.
+do_local2ptree.
+extract_sep_lift_semax.
+replace_lift.
+reify_expr_tac.
+Time Eval vm_compute in run_tac (symexe_tac e) e.
+revert p contents sh. intro p.
+reify_vst (
+forall  (contents : list (elemtype LS)) (sh : share),
+   semax Delta2
+     (PROP  ()
+      (LOCALx
+         (LocalD (PTree.set _p p (PTree.empty val))
+            (PTree.empty (type * val)) [])
+         SEP  (sp (lseg LS sh contents p nullval))))
+     (Ssequence (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        Sskip)
+     (normal_ret_assert
+        (PROP  ()
+         LOCAL  (lift_eq_val p (eval_id _p))
+         SEP  (sp (lseg LS sh contents p nullval))))).
+reify_expr_tac.
+reify_vst ((PROP  ()
+      (LOCALx
+         (LocalD (PTree.set _p p (PTree.empty val))
+            (PTree.empty (type * val)) [])
+         SEP  (sp (lseg LS sh contents p nullval))))).
+reify_vst (LocalD (PTree.set _p p (PTree.empty val))
+            (PTree.empty (type * val)) []).
+
+reify_vst (forall n , n = (PTree.empty val)).
+PTree.set _p p (PTree.empty val)).
+         (LocalD (PTree.set _p p (PTree.empty val))
+            (PTree.empty (type * val)) [])).
+reify_vst (forall (p : val) (contents : list (elemtype LS)) (sh : share),
+   semax Delta2
+             (PROP  ()
+         LOCAL  (lift_eq_val p (eval_id _p))
+         SEP  (sp (lseg LS sh contents p nullval)))
+     (Ssequence (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        Sskip)
+     (normal_ret_assert
+        (PROP  ()
+         LOCAL  (lift_eq_val p (eval_id _p))
+         SEP  (sp (lseg LS sh contents p nullval))))).
+reify_expr_tac.
 
 Lemma triple : forall p contents sh,
 semax Delta2

@@ -27,6 +27,7 @@ Inductive typ :=
 | tytc_assert
 | tyint64
 | tyfloat
+| tyfloat32
 | tyattr
 | tysignedness
 | tyintsize
@@ -47,8 +48,10 @@ Inductive typ :=
 | tystatement
 | tyret_assert
 | tyexitkind
+| typtree : typ -> typ
 (*| tyother : positive -> typ*)
 .
+
 Fixpoint typD (t : typ) (*(m : PositiveMap.t Type)*): Type :=
     match t with
         | tyArr a b => typD a  -> typD b 
@@ -69,6 +72,7 @@ Fixpoint typD (t : typ) (*(m : PositiveMap.t Type)*): Type :=
         | tytc_assert => tc_assert
         | tyint64 => int64
         | tyfloat => float
+        | tyfloat32 => float32
         | tyattr => attr
         | tysignedness => signedness
         | tyintsize => intsize
@@ -90,6 +94,7 @@ Fixpoint typD (t : typ) (*(m : PositiveMap.t Type)*): Type :=
         | tyret_assert => ret_assert
 (*        | tyother p => PositiveMap.find p m *)
         | tyexitkind => exitkind
+        | typtree t => PTree.t (typD t)
     end.
 
 Lemma listspec_ext : forall t i (a b: listspec t i), a = b.
