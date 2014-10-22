@@ -10,8 +10,8 @@ Definition get_spec :=
          PROP () LOCAL()
         SEP(`(data_at Ews t_struct_b (repinj _ v)) (eval_var _p t_struct_b))
   POST [ tint ]
-         PROP() (LOCAL (`(eq (Vint (snd (snd v)))) (eval_id 1%positive))
-         SEP (`(data_at Ews t_struct_b (repinj _ v)) (eval_var _p t_struct_b))).
+         PROP() LOCAL (temp 1%positive (Vint (snd (snd v))))
+         SEP (`(data_at Ews t_struct_b (repinj _ v)) (eval_var _p t_struct_b)).
 
 Definition update22 (i: int) (v: reptype' t_struct_b) : reptype' t_struct_b :=
    (fst v, (fst (snd v), i)).
@@ -20,7 +20,7 @@ Definition set_spec :=
  DECLARE _set
   WITH i : int, v : reptype' t_struct_b
   PRE  [ _i OF tint ] 
-         PROP () LOCAL(`(eq (Vint i)) (eval_id _i))
+         PROP () LOCAL(temp _i (Vint i))
         SEP(`(data_at Ews t_struct_b (repinj _ v)) (eval_var _p t_struct_b))
   POST [ tvoid ]
         `(data_at Ews t_struct_b (repinj _ (update22 i v))) (eval_var _p t_struct_b).

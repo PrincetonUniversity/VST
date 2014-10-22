@@ -16,10 +16,10 @@ Inductive local2ptree:
       local2ptree nil (PTree.empty _) (PTree.empty _) nil
   | local2ptree_temp_var: forall v i Q T1 T2 Q',
       local2ptree Q T1 T2 Q'->
-      local2ptree (`(eq v) (eval_id i) :: Q) (PTree.set i v T1) T2 Q'
+      local2ptree (temp i v :: Q) (PTree.set i v T1) T2 Q'
   | local2ptree_gl_var: forall v i t Q T1 T2 Q',
       local2ptree Q T1 T2 Q'->
-      local2ptree (`(eq v) (eval_var i t) :: Q) T1 (PTree.set i (t, v) T2) Q'
+      local2ptree (var i t v :: Q) T1 (PTree.set i (t, v) T2) Q'
   | local2ptree_unknown: forall Q0 Q T1 T2 Q',
       local2ptree Q T1 T2 Q'->
       local2ptree (Q0 :: Q) T1 T2 (Q0 :: Q').
@@ -51,8 +51,8 @@ Abort.
 End TEST.
 
 Definition LocalD (T1: PTree.t val) (T2: PTree.t (type * val)) (Q: list (environ -> Prop)) :=
-  PTree.fold (fun Q i v => `(eq v) (eval_id i) :: Q) T1
-  (PTree.fold (fun Q i tv => `(eq (snd tv)) (eval_var i (fst tv)) :: Q) T2 Q).
+  PTree.fold (fun Q i v => temp i v :: Q) T1
+  (PTree.fold (fun Q i tv => var i (fst tv) (snd tv) :: Q) T2 Q).
 
 Lemma PTree_elements_set: forall {A} i (v: A) elm T,
   In elm (PTree.elements (PTree.set i v T)) ->
@@ -74,8 +74,8 @@ Proof.
 Qed.
 
 Lemma LocalD_sound: forall Q0 T1 T2 Q,
-  (exists i v, PTree.get i T1 = Some v /\ (Q0 = `(eq v) (eval_id i))) \/ 
-  (exists i t v, PTree.get i T2 = Some (t, v) /\ (Q0 = `(eq v) (eval_var i t))) \/
+  (exists i v, PTree.get i T1 = Some v /\ (Q0 = temp i v)) \/ 
+  (exists i t v, PTree.get i T2 = Some (t, v) /\ (Q0 = var i t v)) \/
   In Q0 Q ->
   In Q0 (LocalD T1 T2 Q).
 Proof.
@@ -83,9 +83,9 @@ Proof.
   unfold LocalD.
   rewrite !PTree.fold_spec.
   assert ((exists (i : positive) (v : val),
-             In (i, v) (PTree.elements T1) /\ Q0 = `(eq v) (eval_id i)) \/
+             In (i, v) (PTree.elements T1) /\ Q0 = temp i v) \/
           (exists (i : positive) (t : type) (v : val),
-             In (i, (t, v)) (PTree.elements T2) /\ Q0 = `(eq v) (eval_var i t)) \/ 
+             In (i, (t, v)) (PTree.elements T2) /\ Q0 = var i t v) \/ 
           In Q0 Q).
   {
     destruct H; [left | right; destruct H; [left | right]].
@@ -103,7 +103,7 @@ Proof.
   match goal with
   | |- In _ (fold_left _ _ ?QR) =>
        assert ((exists (i : positive) (v : val), 
-       In (i, v) (PTree.elements T1) /\ Q0 = `(eq v) (eval_id i)) \/ (In Q0 QR))
+       In (i, v) (PTree.elements T1) /\ Q0 = temp i v) \/ (In Q0 QR))
   end.
   {
     destruct H0 as [H | H]; [left; exact H | right].
@@ -164,15 +164,15 @@ Qed.
 
 Lemma LocalD_complete: forall Q0 T1 T2 Q,
   In Q0 (LocalD T1 T2 Q) ->
-  (exists i v, PTree.get i T1 = Some v /\ (Q0 = `(eq v) (eval_id i))) \/ 
-  (exists i t v, PTree.get i T2 = Some (t, v) /\ (Q0 = `(eq v) (eval_var i t))) \/
+  (exists i v, PTree.get i T1 = Some v /\ (Q0 = temp i v)) \/ 
+  (exists i t v, PTree.get i T2 = Some (t, v) /\ (Q0 = var i t v)) \/
   In Q0 Q.
 Proof.
   intros.
   cut ((exists (i : positive) (v : val),
-          In (i, v) (PTree.elements T1) /\ Q0 = `(eq v) (eval_id i)) \/
+          In (i, v) (PTree.elements T1) /\ Q0 = temp i v) \/
        (exists (i : positive) (t : type) (v : val),
-          In (i, (t, v)) (PTree.elements T2) /\ Q0 = `(eq v) (eval_var i t)) \/ 
+          In (i, (t, v)) (PTree.elements T2) /\ Q0 = var i t v) \/ 
        In Q0 Q).
   {
     intros.
@@ -193,7 +193,7 @@ Proof.
   match type of H with
   | In _ (fold_left _ _ ?QR) =>
        cut ((exists (i : positive) (v : val), 
-       In (i, v) (PTree.elements T1) /\ Q0 = `(eq v) (eval_id i)) \/ (In Q0 QR))
+       In (i, v) (PTree.elements T1) /\ Q0 = temp i v) \/ (In Q0 QR))
   end.
   {
     intros.
@@ -249,7 +249,7 @@ Qed.
 
 Lemma LOCALx_expand_temp_var: forall i v T1 T2 Q Q0,
   In Q0 (LocalD (PTree.set i v T1) T2 Q) -> 
-  In Q0 (`(eq v) (eval_id i) :: LocalD T1 T2 Q).
+  In Q0 (temp i v :: LocalD T1 T2 Q).
 Proof.
   intros.
   simpl.
@@ -275,7 +275,7 @@ Qed.
 
 Lemma LOCALx_expand_gl_var: forall i t v T1 T2 Q Q0,
   In Q0 (LocalD T1 (PTree.set i (t, v) T2) Q) -> 
-  In Q0 (`(eq v) (eval_var i t) :: LocalD T1 T2 Q).
+  In Q0 (var i t v :: LocalD T1 T2 Q).
 Proof.
   intros.
   simpl.
@@ -490,7 +490,7 @@ Lemma msubst_eval_eq_aux: forall T1 T2 Q rho,
 Proof.
   intros; split; intros.
   + intros.
-    assert (In (`(eq v) (eval_id i)) (LocalD T1 T2 Q)).
+    assert (In (temp i v) (LocalD T1 T2 Q)).
       apply LocalD_sound.
       left.
       eauto.
@@ -498,7 +498,7 @@ Proof.
     unfold_lift in H2.
     auto.
   + intros.
-    assert (In (`(eq v) (eval_var i t)) (LocalD T1 T2 Q)).
+    assert (In (var i t v) (LocalD T1 T2 Q)).
       apply LocalD_sound.
       right; left.
       eauto.

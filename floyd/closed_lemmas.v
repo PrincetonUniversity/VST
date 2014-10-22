@@ -4,6 +4,189 @@ Require Import floyd.client_lemmas.
 
 Local Open Scope logic.
 
+Ltac safe_auto_with_closed := 
+   (* won't instantiate evars by accident *)
+ match goal with |- ?A => 
+          solve [first [has_evar A | auto 50 with closed]]
+ end.
+
+Lemma closed_env_set:
+ forall {B} i v (P: environ -> B) rho, 
+     closed_wrt_vars (eq i) P -> 
+     P (env_set rho i v) = P rho.
+Proof.
+ intros. hnf in H.
+ symmetry; destruct rho; apply H.
+ intros; simpl; destruct (ident_eq i i0). left; auto.
+ right; rewrite Map.gso; auto.
+Qed.
+Hint Rewrite @closed_env_set using safe_auto_with_closed : norm.
+
+Lemma subst_eval_id_eq:
+ forall id v, subst id v (eval_id id) = v.
+Proof. unfold subst, eval_id; intros. extensionality rho.
+    unfold force_val, env_set; simpl. rewrite Map.gss; auto.
+Qed.
+
+Lemma subst_eval_id_neq:
+  forall id v j, id<>j -> subst id v (eval_id j) = eval_id j.
+Proof.
+    unfold subst, eval_id; intros. extensionality rho.
+    unfold force_val, env_set; simpl. rewrite Map.gso; auto.
+Qed.
+
+Hint Rewrite subst_eval_id_eq : subst.
+Hint Rewrite subst_eval_id_neq using safe_auto_with_closed : subst.
+
+Lemma subst_temp_eq:
+  forall i v w, subst i `v (temp i w) = `(eq w v).
+Proof.
+unfold temp; intros; autorewrite with subst.
+extensionality rho; unfold_lift. reflexivity.
+Qed.
+
+Lemma subst_temp_neq:
+  forall i j v w, i<>j -> subst i v (temp j w) = temp j w.
+Proof.
+unfold temp; intros. autorewrite with subst.
+f_equal. apply subst_eval_id_neq; auto.
+Qed.
+
+Lemma subst_var:
+   forall i j v t w,  subst i v (var j t w) = var j t w.
+Proof.
+unfold var; intros; autorewrite with subst; auto.
+Qed.
+
+Hint Rewrite subst_var : subst.
+Hint Rewrite subst_temp_eq : subst.
+Hint Rewrite subst_temp_neq using safe_auto_with_closed : subst.
+
+Fixpoint subst_eval_expr (j: ident) (v: environ -> val) (e: expr) : environ -> val :=
+ match e with
+ | Econst_int i ty => `(Vint i)
+ | Econst_long i ty => `(Vlong i)
+ | Econst_float f ty => `(Vfloat f)
+ | Econst_single f ty => `(Vsingle f)
+ | Etempvar id ty => if eqb_ident j id then v else eval_id id 
+ | Eaddrof a ty => subst_eval_lvalue j v a 
+ | Eunop op a ty =>  `(eval_unop op (typeof a)) (subst_eval_expr j v a) 
+ | Ebinop op a1 a2 ty =>  
+                  `(eval_binop op (typeof a1) (typeof a2)) (subst_eval_expr j v a1) (subst_eval_expr j v a2)
+ | Ecast a ty => `(eval_cast (typeof a) ty) (subst_eval_expr j v a)
+ | Evar id ty => `(deref_noload ty) (eval_var id ty)
+ | Ederef a ty => `(deref_noload ty) (`force_ptr (subst_eval_expr j v a))
+ | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (subst_eval_lvalue j v a))
+ end
+
+ with subst_eval_lvalue (j: ident) (v: environ -> val) (e: expr) : environ -> val := 
+ match e with 
+ | Evar id ty => eval_var id ty
+ | Ederef a ty => `force_ptr (subst_eval_expr j v a)
+ | Efield a i ty => `(eval_field (typeof a) i) (subst_eval_lvalue j v a)
+ | _  => `Vundef
+ end.
+
+Lemma subst_eval_expr_eq:
+    forall j v e, subst j v (eval_expr e) = subst_eval_expr j v e
+with subst_eval_lvalue_eq: 
+    forall j v e, subst j v (eval_lvalue e) = subst_eval_lvalue j v e.
+Proof.
+intros j v; clear subst_eval_expr_eq; induction e; intros; simpl; try auto.
+unfold eqb_ident.
+unfold subst, eval_id, env_set, te_of. extensionality rho. 
+pose proof (Pos.eqb_spec j i).
+destruct H. subst. rewrite Map.gss. reflexivity.
+rewrite Map.gso; auto.
+rewrite <- IHe; clear IHe.
+unfold_lift.
+extensionality rho; unfold subst.
+reflexivity.
+unfold_lift.
+extensionality rho; unfold subst.
+rewrite <- IHe; reflexivity.
+unfold_lift.
+extensionality rho; unfold subst.
+rewrite <- IHe1, <- IHe2; reflexivity.
+unfold_lift.
+extensionality rho; unfold subst.
+rewrite <- IHe; reflexivity.
+unfold_lift.
+rewrite <- subst_eval_lvalue_eq.
+extensionality rho; unfold subst.
+f_equal. f_equal.
+
+intros j v; clear subst_eval_lvalue_eq; induction e; intros; simpl; try auto.
+unfold_lift.
+rewrite <- subst_eval_expr_eq.
+extensionality rho; unfold subst.
+f_equal.
+unfold_lift.
+extensionality rho; unfold subst.
+rewrite <- IHe.
+f_equal.
+Qed.
+
+Hint Rewrite subst_eval_expr_eq subst_eval_lvalue_eq : subst.
+
+
+Lemma closed_wrt_subst:
+  forall {A} id e (P: environ -> A), closed_wrt_vars (eq id) P -> subst id e P = P.
+Proof.
+intros.
+unfold subst, closed_wrt_vars in *.
+extensionality rho.
+symmetry.
+apply H.
+intros.
+destruct (eq_dec id i); auto.
+right.
+rewrite Map.gso; auto.
+Qed.
+
+Lemma closed_wrt_map_subst:
+   forall {A: Type} id e (Q: list (environ -> A)),
+         Forall (closed_wrt_vars (eq id)) Q ->
+         map (subst id e) Q = Q.
+Proof.
+induction Q; intros.
+simpl; auto.
+inv H.
+simpl; f_equal; auto.
+apply closed_wrt_subst; auto.
+Qed.
+Hint Rewrite @closed_wrt_map_subst using safe_auto_with_closed : subst.
+Hint Rewrite @closed_wrt_subst using safe_auto_with_closed : subst.
+
+Lemma closed_wrt_map_subst':
+   forall {A: Type} id e (Q: list (environ -> A)),
+         Forall (closed_wrt_vars (eq id)) Q ->
+         @map (LiftEnviron A) _ (subst id e) Q = Q.
+Proof.
+apply @closed_wrt_map_subst.
+Qed.
+
+Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : norm.
+Hint Rewrite @closed_wrt_map_subst' using safe_auto_with_closed : subst.
+Lemma closed_wrt_subst_eval_expr:
+  forall j v e, 
+   closed_wrt_vars (eq j) (eval_expr e) ->
+   subst_eval_expr j v e = eval_expr e.
+Proof.
+intros; rewrite <- subst_eval_expr_eq.
+apply closed_wrt_subst; auto.
+Qed.
+Lemma closed_wrt_subst_eval_lvalue:
+  forall j v e, 
+   closed_wrt_vars (eq j) (eval_lvalue e) ->
+   subst_eval_lvalue j v e = eval_lvalue e.
+Proof.
+intros; rewrite <- subst_eval_lvalue_eq.
+apply closed_wrt_subst; auto.
+Qed.
+Hint Rewrite closed_wrt_subst_eval_expr using solve [auto 50 with closed] : subst.
+Hint Rewrite closed_wrt_subst_eval_lvalue using solve [auto 50 with closed] : subst.
+
 Hint Unfold closed_wrt_modvars : closed.
 
 Lemma closed_wrt_local: forall S P, closed_wrt_vars S P -> closed_wrt_vars S (local P).
@@ -295,6 +478,21 @@ rewrite <- H1; auto.
 Qed.
 Hint Resolve closed_wrtl_eval_var : closed.
 
+Lemma closed_wrt_var:
+  forall S id t v, closed_wrt_vars S (var id t v).
+Proof.
+unfold var; intros.
+auto with closed.
+Qed.
+Hint Resolve closed_wrt_var : closed.
+
+Lemma closed_wrtl_var:
+ forall S id t v, ~ S id -> closed_wrt_lvars S (var id t v).
+Proof.
+unfold var; intros; auto with closed.
+Qed.
+Hint Resolve closed_wrtl_var : closed.
+
 Definition expr_closed_wrt_lvars (S: ident -> Prop) (e: expr) : Prop := 
   forall rho ve',  
      (forall i, S i \/ Map.get (ve_of rho) i = Map.get ve' i) ->
@@ -357,6 +555,18 @@ unfold eval_id, force_val.
 simpl. auto.
 Qed.
 Hint Resolve closed_wrt_eval_id closed_wrtl_eval_id : closed.
+
+Lemma closed_wrt_temp: forall S i v,
+    ~ S i -> closed_wrt_vars S (temp i v).
+Proof.
+unfold temp; intros; auto with closed.
+Qed.
+Lemma closed_wrtl_temp: forall S i v,
+    closed_wrt_lvars S (temp i v).
+Proof.
+unfold temp; auto with closed.
+Qed.
+Hint Resolve closed_wrt_temp closed_wrtl_temp : closed.
 
 Lemma closed_wrt_get_result1 :
   forall (S: ident -> Prop) i , ~ S i -> closed_wrt_vars S (get_result1 i).

@@ -15,10 +15,8 @@ Definition reverse_spec :=
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP (0 <= size <= Int.max_signed; writable_share sh;
                     forall i, 0 <= i < size -> is_int I32 Signed (contents i))
-          LOCAL (`(eq a0) (eval_id _a);
-                      `(eq (Vint (Int.repr size))) (eval_id _n);
-                      `isptr (eval_id _a))
-          SEP (`(array_at tint sh contents 0 size) (eval_id _a))
+          LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
+          SEP (`(array_at tint sh contents 0 size a0))
   POST [ tvoid ]  `(array_at tint sh (flip size contents) 0 size a0).
 
 Definition main_spec :=
@@ -40,9 +38,7 @@ Definition flip_between {T} (n: Z)(lo hi: Z) (f: Z -> T) (i: Z) :=
 Definition reverse_Inv a0 sh contents size := 
  EX j:Z,
   (PROP  (0 <= j; j <= size-j; isptr a0)
-   LOCAL  (`(eq a0) (eval_id _a);
-                `(eq (Vint (Int.repr j))) (eval_id _lo);
-                `(eq (Vint (Int.repr (size-j)))) (eval_id _hi))
+   LOCAL  (temp _a a0; temp _lo (Vint (Int.repr j)); temp _hi (Vint (Int.repr (size-j))))
    SEP (`(array_at tint sh (flip_between size j (size-j) contents) 0 size a0))).
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
@@ -57,9 +53,9 @@ name t _t.
 forward.  (* lo = 0; *) 
 forward.  (* hi = n; *)
 rename H1 into POP.
+assert_PROP (isptr a0). entailer!. rename H1 into TCa0.
 forward_while (reverse_Inv a0 sh contents size)
-    (PROP  (isptr a0)
-   LOCAL  (`(eq a0) (eval_id _a))
+    (PROP  () LOCAL  (temp _a a0)
    SEP (`(array_at tint sh (flip size contents) 0 size a0))).
 (* Prove that current precondition implies loop invariant *)
 unfold reverse_Inv.
@@ -115,11 +111,11 @@ omega.
 normalize. simpl typeof.
 forward. (*  a[hi-1] = t ; *)
 entailer; apply prop_right.
+rewrite <- H6 in *.
 rewrite <- H7 in *.
-rewrite <- H8 in *.
-simpl in H4, H6.
-rewrite Int.sub_signed in H4, H6.
-normalize in H4. normalize in H6.
+simpl in H3, H5.
+rewrite Int.sub_signed in H3, H5.
+normalize in H3. normalize in H5.
 simpl_compare.
 split.
 simpl force_val.
@@ -132,7 +128,7 @@ reflexivity.
 assert (size <= Int.max_unsigned).
   unfold Int.max_signed, Int.half_modulus, Int.max_unsigned in *.
   assert (0 < 2) by omega.
-  pose proof Z.mul_div_le Int.modulus 2 H9.
+  pose proof Z.mul_div_le Int.modulus 2 H8.
   omega.
 
 unfold Int.sub. rewrite (Int.unsigned_repr (size - j)) by omega. 
@@ -140,7 +136,7 @@ rewrite (Int.unsigned_repr 1) by omega.
 rewrite (Int.unsigned_repr (size - j - 1)) by omega.
 
 repeat split; try omega. 
-rewrite <- H5.
+rewrite <- H4.
 simpl.
 unfold flip_between.
 assert (Int.min_signed < 0) by
@@ -149,16 +145,16 @@ rewrite !Int.signed_repr by omega.
 rewrite if_false by omega. rewrite if_true by omega.
 instantiate (1:= contents j).
 assert (0 <= j < size) by omega.
-pose proof POP j H11; destruct (contents j); inversion H12.
+pose proof POP j H10; destruct (contents j); inversion H11.
 reflexivity.
 normalize. 
 forward. (*  a[lo] = s; *) 
 entailer. apply prop_right.
+rewrite <- H6 in *.
 rewrite <- H7 in *.
-rewrite <- H8 in *.
-simpl in H4, H6.
-rewrite Int.sub_signed in H4, H6.
-normalize in H4. normalize in H6.
+simpl in  H3, H5.
+rewrite Int.sub_signed in H3, H5.
+normalize in H3. normalize in H5.
 simpl_compare.
 split.
 simpl force_val.
@@ -171,13 +167,13 @@ reflexivity.
 assert (size <= Int.max_unsigned).
   unfold Int.max_signed, Int.half_modulus, Int.max_unsigned in *.
   assert (0 < 2) by omega.
-  pose proof Z.mul_div_le Int.modulus 2 H9.
+  pose proof Z.mul_div_le Int.modulus 2 H8.
   omega.
 
 repeat split.
 rewrite (Int.unsigned_repr j) by omega. omega.
 rewrite (Int.unsigned_repr j) by omega. omega.
-rewrite <- H4.
+rewrite <- H3.
 
 unfold flip_between.
 assert (Int.min_signed < 0) by
@@ -188,7 +184,7 @@ rewrite (Int.signed_repr (size - j - 1)) by omega.
 rewrite if_false by omega. rewrite if_true by omega.
 instantiate (1:= contents (size - j - 1)).
 assert (0 <= size - j - 1 < size) by omega.
-pose proof POP (size - j - 1) H11; destruct (contents (size - j - 1)); inversion H12.
+pose proof POP (size - j - 1) H10; destruct (contents (size - j - 1)); inversion H11.
 reflexivity.
 
 normalize.
@@ -199,10 +195,10 @@ unfold reverse_Inv.
 apply exp_right with (Zsucc j).
 entailer.
 repeat rewrite (Int.signed_repr)  by repable_signed.
- simpl in H4,H6. rewrite Int.sub_signed in H4,H6.
- rewrite (Int.signed_repr 1) in H4,H6 by repable_signed.
- rewrite (Int.signed_repr (size-j)) in H4,H6 by repable_signed.
- rewrite (Int.signed_repr) in H4 by repable_signed.
+ simpl in H3,H5. rewrite Int.sub_signed in H3,H5.
+ rewrite (Int.signed_repr 1) in H3,H5 by repable_signed.
+ rewrite (Int.signed_repr (size-j)) in H3,H5 by repable_signed.
+ rewrite (Int.signed_repr) in H3 by repable_signed.
  simpl_compare.
  apply andp_right.
  + apply prop_right.

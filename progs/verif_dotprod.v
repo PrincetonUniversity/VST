@@ -8,9 +8,7 @@ Definition add_spec :=
   WITH x: val, y : val, z: val, fy : Z -> float, fz: Z -> float
   PRE  [_x OF tptr tdouble, _y OF tptr tdouble, _z OF tptr tdouble] 
       PROP ()
-      LOCAL (`(eq x) (eval_id _x);
-                  `(eq y) (eval_id _y);
-                  `(eq z) (eval_id _z))
+      LOCAL (temp _x x; temp _y y; temp _z z)
       SEP (`(array_at_ tdouble Tsh 0 3 x) ;
              `(array_at tdouble Tsh (Vfloat oo fy) 0 3 y);
              `(array_at tdouble Tsh (Vfloat oo fz) 0 3 z))
@@ -30,9 +28,7 @@ Definition dotprod_spec :=
   WITH n: Z, x: val, y : val, fx : Z -> float, fy: Z -> float, sh: share
   PRE  [_n OF tint, _x OF tptr tdouble, _y OF tptr tdouble] 
       PROP (0 <= n <= Int.max_signed)
-      LOCAL (`(eq (Vint (Int.repr n))) (eval_id _n);
-                  `(eq x) (eval_id _x);
-                  `(eq y) (eval_id _y))
+      LOCAL (temp _n (Vint (Int.repr n)); temp _x x; temp _y y)
       SEP (`(array_at tdouble sh (Vfloat oo fx) 0 n x);
              `(array_at tdouble sh (Vfloat oo fy) 0 n y))
   POST [ tdouble ] 
@@ -62,9 +58,7 @@ forward. (* sum = 0.0; *)
 forward_for_simple_bound n
    (EX i:Z,
       PROP ()
-      LOCAL (`(eq (Vfloat (dotprod i fx fy))) (eval_id _sum);
-                  `(eq x) (eval_id _x);
-                  `(eq y) (eval_id _y))
+      LOCAL (temp _sum (Vfloat (dotprod i fx fy)); temp _x x; temp _y y)
       SEP (`(array_at tdouble sh (Vfloat oo fx) 0 n x);
              `(array_at tdouble sh (Vfloat oo fy) 0 n y))).
 * (* initializer *)
@@ -89,9 +83,7 @@ name z_ _z.
 forward_for_simple_bound 3
    (EX i:Z,
       PROP ()
-      LOCAL (`(eq x) (eval_id _x);
-                  `(eq y) (eval_id _y);
-                  `(eq z) (eval_id _z))
+      LOCAL (temp _x x; temp _y y; temp _z z)
       SEP (`(array_at tdouble Tsh
                    (fun j => if zlt j i then Vfloat (Float.add (fy j) (fz j)) else Vundef)
                   0 3 x) ;

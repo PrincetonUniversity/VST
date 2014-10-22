@@ -129,7 +129,7 @@ VERIC_FILES= \
 
 FLOYD_FILES= \
    base.v proofauto.v \
-   client_lemmas.v canonicalize.v assert_lemmas.v closed_lemmas.v \
+   client_lemmas.v canon.v canonicalize.v assert_lemmas.v closed_lemmas.v \
    compare_lemmas.v array_lemmas.v sc_set_load_store.v \
    call_lemmas.v extcall_lemmas.v loadstore_lemmas.v type_id_env.v forward_lemmas.v forward.v \
    entailer.v globals_lemmas.v local2ptree.v fieldlist.v mapsto_memory_block.v\

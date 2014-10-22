@@ -892,20 +892,20 @@ Qed.
 
 Lemma semax_lseg_nonnull (ls: listspec list_struct list_link):
   forall (Espec: OracleKind)
-      Delta P Q sh s e R c Post,
+      Delta P Q sh s v R c Post,
    PROPx P (LOCALx (tc_environ Delta :: Q)
-            (SEPx (`(lseg ls sh s) e (`nullval) :: R))) |-- 
-                        local (`(typed_true (tptr list_struct)) e)  ->
+            (SEPx (`(lseg ls sh s v nullval) :: R))) |-- 
+                        !!(typed_true (tptr list_struct) v)  ->
   (forall (h: elemtype ls) (r: list (elemtype ls)) (y: val), 
     s=h::r -> is_pointer_or_null y -> 
     semax Delta 
         (PROPx P (LOCALx Q 
-        (SEPx (`(list_cell ls sh h) e ::
-                  `(field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y)) e ::
-                  |> `(lseg ls sh r) (`y) `nullval ::
+        (SEPx (`(list_cell ls sh h v) ::
+                  `(field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y) v) ::
+                  |> `(lseg ls sh r y nullval) ::
                   R)))) c Post) ->
    semax Delta 
-       (PROPx P (LOCALx Q (SEPx (`(lseg ls sh s) e `nullval :: R)))) 
+       (PROPx P (LOCALx Q (SEPx (`(lseg ls sh s v nullval) :: R)))) 
        c Post.
 Proof.
 intros.
@@ -914,7 +914,7 @@ apply H. unfold local. super_unfold_lift.
 intro rho. normalize.
 unfold nullval.
 intro.
-destruct (e rho); inv H1; auto; congruence.
+destruct v; inv H1; auto; congruence.
 auto.
 Qed.
 

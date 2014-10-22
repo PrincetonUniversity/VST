@@ -73,7 +73,7 @@ Definition serialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, sh: share, sh': share
   PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar) ] 
           PROP (writable_share sh'; mf_data_assert format data)
-          LOCAL (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf))
+          LOCAL (temp _p p; temp _buf buf)
           SEP (`(data_at sh t data p); 
                  `(data_at_ sh' (tarray tint 2) buf))
   POST [ tint ]  
@@ -85,10 +85,10 @@ Definition serialize_spec {t: type} (format: message_format t) :=
 Definition deserialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, shs: share*share, len: Z
   PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar), _length OF tint ] 
-          PROP (writable_share (fst shs); 0 <= len <= mf_size format)
-          LOCAL (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf);
-                        `(eq (Vint (Int.repr len))) (eval_id _length);
-                   `(natural_align_compatible p))
+          PROP (writable_share (fst shs); 0 <= len <= mf_size format;
+                    natural_align_compatible p)
+          LOCAL (temp _p p; temp _buf buf;
+                      temp _length (Vint (Int.repr len)))
           SEP (`(mf_assert format (snd shs) buf len data);
                  `(memory_block (fst shs) (Int.repr (mf_size format)) p))
   POST [ tvoid ]
@@ -180,7 +180,7 @@ destruct y1 as [|y1| | | |]; try contradiction.
 clear H4 H3.
 apply semax_pre with
  (PROP  (isptr buf)
-   LOCAL  (`(eq p) (eval_id _p); `(eq buf) (eval_id _buf); `(eq (Vint (Int.repr len))) (eval_id _length))
+   LOCAL  (temp _p p; temp _buf buf; temp _length (Vint (Int.repr len)))
    SEP 
    (`(field_at_ sh t_struct_intpair [_x]) (eval_id _p);
     `(field_at_ sh t_struct_intpair [_y]) (eval_id _p);

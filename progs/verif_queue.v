@@ -55,7 +55,7 @@ Definition mallocN_spec :=
   WITH n: int
   PRE [ 1%positive OF tint]
      PROP (4 <= Int.unsigned n) 
-     LOCAL (`(eq (Vint n)) (eval_id 1%positive)) 
+     LOCAL (temp 1%positive (Vint n))
      SEP ()
   POST [ tptr tvoid ] 
      PROP () 
@@ -96,7 +96,7 @@ Definition fifo_put_spec :=
  DECLARE _fifo_put
   WITH q: val, contents: list val, p: val
   PRE  [ _Q OF (tptr t_struct_fifo) , _p OF (tptr t_struct_elem) ]
-          PROP () LOCAL (`(eq q) (eval_id _Q); `(eq p) (eval_id _p)) 
+          PROP () LOCAL (temp _Q q; temp _p p) 
           SEP (`(fifo contents q); `(field_at_ Tsh t_struct_elem (_next::nil) p))
   POST [ tvoid ] `(fifo (contents++(p :: nil)) q).
 
@@ -104,14 +104,14 @@ Definition fifo_empty_spec :=
  DECLARE _fifo_empty
   WITH q: val, contents: list val
   PRE  [ _Q OF (tptr t_struct_fifo) ]
-     PROP() LOCAL (`(eq q) (eval_id _Q)) SEP(`(fifo contents q))
+     PROP() LOCAL (temp _Q q) SEP(`(fifo contents q))
   POST [ tint ] local (`(eq (if isnil contents then Vtrue else Vfalse)) retval) && `(fifo (contents) q).
 
 Definition fifo_get_spec :=
  DECLARE _fifo_get
   WITH q: val, contents: list val, p: val
   PRE  [ _Q OF (tptr t_struct_fifo) ]
-       PROP() LOCAL (`(eq q) (eval_id _Q)) SEP (`(fifo (p :: contents) q)) 
+       PROP() LOCAL (temp _Q q) SEP (`(fifo (p :: contents) q)) 
   POST [ (tptr t_struct_elem) ] 
         local (`(eq p) retval) && `(fifo contents q) * `(field_at_ Tsh t_struct_elem (_next::nil)) retval.
 
@@ -119,7 +119,7 @@ Definition make_elem_spec :=
  DECLARE _make_elem
   WITH a: int, b: int
   PRE  [ _a OF tint, _b OF tint ] 
-        PROP() LOCAL(`(eq (Vint a)) (eval_id _a); `(eq (Vint b)) (eval_id _b)) SEP()
+        PROP() LOCAL(temp _a (Vint a); temp _b (Vint b)) SEP()
   POST [ (tptr t_struct_elem) ] `(elemrep (Vint a, Vint b)) retval.
 
 Definition main_spec := 
@@ -228,22 +228,9 @@ Proof.
   normalize.
   rewrite memory_block_fifo by auto.  (* we don't even need it now *)  (* ? *)
   forward. (* Q->head = NULL; *)
-(*
-  simpl eval_expr.
-  unfold force_val1.
-  normalize.
-  simpl force_val. simpl valinject. simpl upd_reptype.
-*)
   (* goal_4 *)
 
   forward. (* Q->tail = NULL; *)
-(*
-  simpl eval_expr.
-  unfold force_val1.
-  normalize.
-  simpl force_val. simpl valinject. simpl upd_reptype.
-*)
-
   forward. (* return Q; *)
   (* goal_5 *)
   unfold fifo.
@@ -316,13 +303,6 @@ forward_if
     forward. (* return ; *)
 Qed.
 
-(* 
-Lemma compose_id:
- forall {A B} F, @Basics.compose A A B F (fun v => v) = F.
-Proof. intros; extensionality x; reflexivity. Qed.
-Hint Resolve @compose_id : norm.
-*)
-
 Lemma body_fifo_get: semax_body Vprog Gprog f_fifo_get fifo_get_spec.
 Proof.
 start_function.
@@ -380,8 +360,7 @@ change 12 with (sizeof (t_struct_elem)).
 clear p0.
 apply (remember_value (eval_id _p)); intro p0.
 eapply semax_pre0 with (PROP  (natural_align_compatible p0)
-      LOCAL  (`(eq (Vint a0)) (eval_id _a); `(eq (Vint b0)) (eval_id _b);
-      `(eq p0) (eval_id _p))
+      LOCAL  (temp _a (Vint a0); temp _b (Vint b0); temp _p p0)
       SEP 
       (`(data_at_ Tsh t_struct_elem p0))).
   entailer!.

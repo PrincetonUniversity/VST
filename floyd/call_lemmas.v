@@ -1,6 +1,7 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
+Require Import floyd.closed_lemmas.
 Require Import floyd.mapsto_memory_block.
 Local Open Scope logic.
 

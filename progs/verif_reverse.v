@@ -44,7 +44,7 @@ Definition sumlist_spec :=
  DECLARE _sumlist
   WITH sh : share, contents : list int, p: val
   PRE [ _p OF (tptr t_struct_list)] 
-     PROP() LOCAL (`(eq p) (eval_id _p))
+     PROP() LOCAL (temp _p p)
      SEP (`(lseg LS sh (map Vint contents) p nullval))
   POST [ tint ]  local (`(eq (Vint (sum_int contents))) retval).
 (** This specification has an imprecise and leaky postcondition:
@@ -61,7 +61,7 @@ Definition reverse_spec :=
   WITH sh : share, contents : list val, p: val
   PRE  [ _p OF (tptr t_struct_list) ]
      PROP (writable_share sh)
-     LOCAL (`(eq p) (eval_id _p))
+     LOCAL (temp _p p)
      SEP (`(lseg LS sh contents p nullval))
   POST [ (tptr t_struct_list) ]
             `(lseg LS sh (rev contents)) retval `nullval.
@@ -99,8 +99,8 @@ Qed.
 Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
           (EX cts: list int, EX t: val, 
             PROP () 
-            LOCAL (`(eq t) (eval_id _t); 
-                       `(eq (Vint (Int.sub (sum_int contents) (sum_int cts)))) (eval_id _s)) 
+            LOCAL (temp _t t; 
+                        temp _s (Vint (Int.sub (sum_int contents) (sum_int cts))))
             SEP ( TT ; `(lseg LS sh (map Vint cts) t nullval))).
 
 (** For every function definition in the C program, prove that the
@@ -130,7 +130,7 @@ apply exp_right with contents.
 apply exp_right with p.
 entailer!.
 (* Prove that loop invariant implies typechecking condition *)
-quick_typecheck.
+entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
 entailer!.
 destruct H0 as [H0 _]; specialize (H0 (eq_refl _)).
@@ -140,6 +140,7 @@ assert_PROP (isptr t0); [entailer | ].
 drop_LOCAL 0%nat.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
+simpl valinject.
 unfold POSTCONDITION, abbreviate.
 destruct cts; inv H0.
 rewrite list_cell_eq.
@@ -161,7 +162,7 @@ Qed.
 Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
           (EX cts1: list val, EX cts2 : list val, EX w: val, EX v: val,
             PROP (contents = rev cts1 ++ cts2) 
-            LOCAL (`(eq w) (eval_id _w); `(eq v) (eval_id _v))
+            LOCAL (temp _w w; temp _v v)
             SEP (`(lseg LS sh cts1 w nullval);
                    `(lseg LS sh cts2 v nullval))).
 
@@ -176,7 +177,7 @@ forward.  (* w = NULL; *)
 forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents)
      (EX w: val, 
-      PROP() LOCAL (`(eq w) (eval_id _w))
+      PROP() LOCAL (temp _w w)
       SEP( `(lseg LS sh (rev contents) w nullval))).
 (* precondition implies loop invariant *)
 unfold reverse_Inv.
@@ -186,7 +187,7 @@ apply exp_right with (Vint (Int.repr 0)).
 apply exp_right with p.
 entailer!.
 (* loop invariant implies typechecking of loop condition *)
-quick_typecheck.
+entailer!.
 (* loop invariant (and not loop condition) implies loop postcondition *)
 apply exp_right with w.
 entailer!. 
@@ -196,6 +197,7 @@ assert_PROP (isptr v). entailer. drop_LOCAL 0%nat.
 normalize.
 focus_SEP 1; apply semax_lseg_nonnull;
         [entailer | intros h r y ? ?].
+simpl valinject.
 subst cts2.
 forward.  (* t = v->tail; *)
 forward. (*  v->tail = w; *)

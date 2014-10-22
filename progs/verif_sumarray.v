@@ -14,10 +14,8 @@ Definition sumarray_spec :=
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP (0 <= size <= Int.max_signed;
                     forall i, 0 <= i < size -> is_int I32 Signed (contents i))
-          LOCAL (`(eq a0) (eval_id _a);
-                      `(eq (Vint (Int.repr size))) (eval_id _n);
-                      `isptr (eval_id _a))
-          SEP (`(array_at tint sh contents 0 size) (eval_id _a))
+          LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
+          SEP (`(array_at tint sh contents 0 size a0))
   POST [ tint ]  
         local (`(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) retval)
                  && `(array_at tint sh contents 0 size a0).
@@ -35,13 +33,11 @@ Definition Gprog : funspecs :=
 
 Definition sumarray_Inv a0 sh contents size := 
  EX i: Z,
-  (PROP  (0 <= i <= size)
-   LOCAL (`(eq a0) (eval_id _a);
-          `(eq (Vint (Int.repr i))) (eval_id _i);
-          `(eq (Vint (Int.repr size))) (eval_id _n);
-          `(eq (Vint (fold_range (add_elem contents) Int.zero 0 i))) (eval_id _s);
-           `isptr (eval_id _a))
-   SEP (`(array_at tint sh contents 0 size) (eval_id _a))).
+   PROP  (0 <= i <= size)
+   LOCAL (temp _a a0; 
+               temp _i (Vint (Int.repr i)); temp _n (Vint (Int.repr size));
+               temp _s (Vint (fold_range (add_elem contents) Int.zero 0 i)))
+   SEP (`(array_at tint sh contents 0 size a0)).
 
 Lemma fold_range_split:
   forall A f (z: A) lo hi delta,
@@ -118,9 +114,10 @@ forward.  (* s = 0; *)
 unfold MORE_COMMANDS, abbreviate.
 repeat apply -> seq_assoc.  (* delete me *)
 forward_while (sumarray_Inv a0 sh contents size)
-    (PROP() LOCAL (`(eq a0) (eval_id _a);   
-     `(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) (eval_id _s))
-     SEP (`(array_at tint sh contents 0 size) (eval_id _a))).
+    (PROP() 
+     LOCAL (temp _a a0;
+                 temp _s  (Vint (fold_range (add_elem contents) Int.zero 0 size)))
+     SEP (`(array_at tint sh contents 0 size a0))).
 (* Prove that current precondition implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with 0.
@@ -136,12 +133,7 @@ forward. (* s += x; *)
 forward. (* i++; *)
 unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
-go_lower.
-
-
-
-entailer.
- apply prop_right.
+entailer!.
  simpl in *. rewrite (Int.signed_repr i0) in * by  repable_signed.
  rewrite fold_range_fact1 by omega.
  destruct (contents i0); inv H4. simpl. auto. 
