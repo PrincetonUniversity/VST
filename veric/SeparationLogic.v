@@ -1026,6 +1026,12 @@ Axiom semax_extract_prop:
            (PP -> @semax Espec Delta P c Q) -> 
            @semax Espec Delta (!!PP && P) c Q.
 
+Axiom semax_extract_later_prop:
+  forall {Espec: OracleKind},
+  forall Delta (PP: Prop) P c Q, 
+           (PP -> @semax Espec Delta (|> P) c Q) -> 
+           @semax Espec Delta (|> (!!PP && P)) c Q.
+
 (* THESE RULES FROM semax_ext *)
 
 Require veric.semax_ext.

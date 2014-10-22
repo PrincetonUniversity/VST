@@ -1,6 +1,7 @@
 Require Import veric.base.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
+Require Import msl.is_prop_lemma.
 Require Import veric.compcert_rmaps.
 Import Mem.
 Require Import msl.msl_standard.
@@ -106,6 +107,12 @@ Proof.
  repeat intro.
  apply H; auto.
 Qed.
+
+Lemma age_laterR {A} `{ageable A}: forall {x y}, age x y -> laterR x y.
+Proof.
+intros. constructor 1; auto.
+Qed.
+Hint Resolve @age_laterR.
 
 Lemma tycontext_sub_update_c:
  forall c (Delta Delta' : tycontext),
@@ -250,7 +257,6 @@ apply semax'_pre; eauto.
 apply semax'_post; auto.
 Qed.
 
-
 Lemma cl_corestep_fun': corestep_fun cl_core_sem.
 Proof.  intro; intros. eapply cl_corestep_fun; eauto. Qed.
 Hint Resolve cl_corestep_fun'.
@@ -317,6 +323,58 @@ eapply H; try apply TS.
 apply necR_refl.
 apply H0. auto. apply H2. apply H3. apply H4. auto.
 split; auto. split; auto.
+Qed.
+
+Lemma semax_extract_later_prop:
+  forall Delta (PP: Prop) P c Q, 
+           (PP -> semax Espec Delta (fun rho => |> (P rho)) c Q) -> 
+           semax Espec Delta (fun rho => (|> (!!PP && P rho))) c Q.
+Proof.
+intros.
+intro w.
+rewrite semax_fold_unfold.
+intros gx Delta'.
+apply prop_imp_i; intro TS.
+intros w' ? ? k F w'' ? ?.
+intros te ve w''' ? w4 ? [[? ?] ?].
+
+rewrite later_andp in H7.
+
+replace ((F (construct_rho (filter_genv gx) ve te) *
+        (|>(!!PP) && (|> P (construct_rho (filter_genv gx) ve te))))%pred) with
+        (|>!!PP && (F (construct_rho (filter_genv gx) ve te) *
+         (|> P (construct_rho (filter_genv gx) ve te)))%pred) in H7.
+Focus 2. {
+  rewrite (sepcon_comm (F (construct_rho (filter_genv gx) ve te))
+    (|>!!PP && |>P (construct_rho (filter_genv gx) ve te))).
+
+change sepcon with (@seplog.sepcon _ (alg_seplog.algNatDed rmap) _).
+change andp with (@seplog.andp _ (alg_seplog.algNatDed rmap)).
+
+ rewrite is_prop_andp_sepcon by (apply is_prop_later; apply prop_is_prop).
+
+change (@seplog.sepcon _ (alg_seplog.algNatDed rmap) _) with sepcon.
+change (@seplog.andp _ (alg_seplog.algNatDed rmap)) with (@andp rmap compcert_rmaps.R.ag_rmap).
+
+ rewrite sepcon_comm.
+ reflexivity.
+} Unfocus.
+destruct H7.
+simpl in H7.
+destruct (age1 w4) eqn:?H.
++ assert (age w4 r) by auto.
+  apply age_laterR in H11.
+  specialize (H7 r H11).
+  specialize (H H7); clear PP H7.
+  hnf in H. rewrite semax_fold_unfold in H.
+  eapply H; try apply TS.
+  apply necR_refl.
+  apply H0. auto. apply H2. apply H3. apply H4. auto.
+  split; auto. split; auto.
++ simpl.
+  apply af_level1 in H10; [| apply compcert_rmaps.R.ag_rmap].
+  rewrite H10.
+  simpl; intros; auto.
 Qed.
 
 Lemma semax_unfold:
@@ -763,12 +821,6 @@ rewrite (af_level1 age_facts) in H.
 rewrite H. simpl.
 hnf. auto.
 Qed.
-
-Lemma age_laterR {A} `{ageable A}: forall {x y}, age x y -> laterR x y.
-Proof.
-intros. constructor 1; auto.
-Qed.
-Hint Resolve @age_laterR.
 
 Lemma pred_sub_later' {A} `{H: ageable A}:
   forall (P Q: pred A),  
