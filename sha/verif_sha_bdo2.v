@@ -14,8 +14,7 @@ Lemma sha256_block_data_order_return:
   regs = hash_blocks init_registers hashed ->
   semax (initialized _t Delta_loop1)
   (PROP  ()
-   LOCAL  (`(eq ctx) (eval_id _ctx);
-                `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   LOCAL  (temp _ctx ctx; var _K256 (tarray tuint CBLOCKz) kv)
    SEP 
    (`(array_at tuint Tsh (tuints (hash_block regs b)) 0 8 ctx);
     `(K_vector kv);

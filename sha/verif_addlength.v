@@ -47,11 +47,9 @@ forward. (* l=(cNl+(((SHA_LONG)len)<<3))&0xffffffffUL; *)
 apply semax_pre with 
   (PROP  (0 <= len < Int.modulus)
    LOCAL 
-   (`(eq (Vint (Int.repr (Int.unsigned lo+len*8)))) (eval_id _l);
-   `(eq (Vint hi)) (eval_id _cNh);
-   `(eq (Vint lo)) (eval_id _cNl);
-   `(eq (Vint (Int.repr len))) (eval_id _len);
-   `(eq c) (eval_id _c))
+   (temp _l (Vint (Int.repr (Int.unsigned lo+len*8)));
+    temp _cNh (Vint hi); temp _cNl (Vint lo);
+    temp _len (Vint (Int.repr len)); temp _c c)
    SEP  (`(field_at Tsh t_struct_SHA256state_st [_Nl] (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st [_Nh] (Vint hi) c))).
 entailer!.
@@ -67,10 +65,10 @@ pose (carry := ((Int.unsigned lo + (len * 8) mod Int.modulus)
                         -  (Int.unsigned lo + len * 8) mod Int.modulus)/Int.modulus).
 forward_if (
    PROP  ()
-   LOCAL  (`(eq (Vint (Int.repr (Int.unsigned lo + len * 8)))) (eval_id _l);
-   `(eq (Vint (Int.repr (Int.unsigned hi + carry)))) (eval_id _cNh);
-   `(eq (Vint lo)) (eval_id _cNl);
-   `(eq (Vint (Int.repr len))) (eval_id _len); `(eq c) (eval_id _c))
+   LOCAL  (temp _l (Vint (Int.repr (Int.unsigned lo + len * 8)));
+     temp _cNh (Vint (Int.repr (Int.unsigned hi + carry)));
+     temp _cNl (Vint lo); temp _len (Vint (Int.repr len));
+     temp _c c)
    SEP  (`(field_at Tsh t_struct_SHA256state_st [_Nl] (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st [_Nh] (Vint hi) c))).
 * (* then-clause *)

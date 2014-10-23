@@ -170,16 +170,18 @@ replace_SEP 7%Z (`(K_vector kv)).
   entailer!.
  forward.  (* p += SHA_CBLOCK-8; *)
  entailer!.
- simpl eval_binop. normalize.
- unfold force_val2. simpl force_val. rewrite mul_repr, sub_repr.
-
- replace Delta with Delta_final_if1
-  by (simplify_Delta; reflexivity).
-unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-replace (`(eq p0 oo offset_val (Int.repr 40) oo offset_val Int.zero)
-        (eval_id _c)) with (`(eq p0) (`(offset_val (Int.repr 40)) (`force_ptr (eval_id _c)))).
+ extract_prop_from_LOCAL.
+apply semax_extract_PROP; intro. subst p0.
+ replace (`eq (eval_id _p)
+      (`(eval_binop Oadd (tptr tuchar) tint) `(offset_val (Int.repr 40) c)
+         (`(eval_binop Osub tint tint)
+            (`(eval_binop Omul tint tint) `(Vint (Int.repr 16))
+               `(Vint (Int.repr 4))) `(Vint (Int.repr 8)))))
+  with (temp _p (eval_binop Oadd (tptr tuchar) tint (offset_val (Int.repr 40) c)
+                          (Vint (Int.repr (16*4-8)))))
+  by normalize.
 change data_offset with 40.
-replace (`(array_at tuchar Tsh
+change (`(array_at tuchar Tsh
           (fun i : Z =>
            ZnthV tuchar (map Vint (map Int.repr dd'))
              (i + (Z.of_nat CBLOCK - 8))) 0 (64 - (Z.of_nat CBLOCK - 8))
@@ -188,13 +190,10 @@ replace (`(array_at tuchar Tsh
            ZnthV tuchar (map Vint (map Int.repr dd'))
              (i + (Z.of_nat CBLOCK - 8)))
               0 8 (offset_val (Int.repr 96) c))).
-simple apply final_part2 with pad; assumption.
-+ change ((40 + (Z.of_nat CBLOCK - 8))) with 96.
-  change ((64 - (Z.of_nat CBLOCK - 8))) with 8.
-reflexivity.
-+ extensionality rho.
-  unfold_lift.
-  simpl.
-  rewrite offset_val_force_ptr.
-  reflexivity.
+replace Delta with Delta_final_if1 by reflexivity.
+simpl eval_binop.
+change 56 with (16 * 4 - 8).
+rewrite offset_offset_val. rewrite add_repr.
+normalize.
+apply final_part2 with pad; assumption.
 Qed.

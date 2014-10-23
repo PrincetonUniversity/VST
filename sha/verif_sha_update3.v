@@ -38,12 +38,12 @@ Lemma update_inner_if_else_proof:
    (`(typed_false tint)
       (eval_expr
          (Ebinop Oge (Etempvar _len tuint) (Etempvar _fragment tuint) tint));
-   `(eq (Vint (Int.repr k))) (eval_id _fragment);
-   `(eq (offset_val (Int.repr 40) c)) (eval_id _p);
-   `(eq (Vint (Int.repr (Zlength dd)))) (eval_id _n); `(eq c) (eval_id _c);
-   `(eq d) (eval_id _data);
-   `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+     temp _fragment (Vint (Int.repr k)); 
+     temp _p (offset_val (Int.repr 40) c);
+     temp _n (Vint (Int.repr (Zlength dd)));
+     temp _c c; temp _data d;
+     temp _len (Vint (Int.repr (Z.of_nat len)));
+     var _K256 (tarray tuint CBLOCKz) kv)
    SEP 
    (`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8 c);
    `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);

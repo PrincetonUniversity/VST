@@ -46,9 +46,8 @@ forall (Espec : OracleKind) (md c : val) (shmd : share)
 semax
   (initialized _cNl (initialized _cNh Delta_final_if1))
   (PROP  ()
-   LOCAL  (`(eq (offset_val (Int.repr 40) c)) (eval_id _p);
-   `(eq md) (eval_id _md); `(eq c) (eval_id _c);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   LOCAL  (temp _p (offset_val (Int.repr 40) c); temp _md md; temp _c c;
+                 var _K256 (tarray tuint CBLOCKz) kv)
    SEP 
    (`(data_block Tsh (intlist_to_Zlist lastblock)
                  (offset_val (Int.repr 40) c));
@@ -279,16 +278,14 @@ forall (hashed': list int) (dd' : list Z) (pad : Z),
 (LBLOCKz | Zlength hashed') ->
 intlist_to_Zlist hashed' ++ dd' =
 intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ list_repeat (Z.to_nat pad) 0 ->
-forall p0 : val,
 offset_in_range 64 (offset_val (Int.repr 40) c) ->
 semax Delta_final_if1
   (PROP  ()
    LOCAL 
-   (`(eq (force_val (sem_add_pi tuchar p0 (Vint (Int.repr (16 * 4 - 8))))))
-      (eval_id _p); `(eq (Vint (Int.repr (Zlength dd')))) (eval_id _n);
-   `(eq p0) (`(offset_val (Int.repr 40)) (`force_ptr (eval_id _c)));
-   `(eq md) (eval_id _md); `(eq c) (eval_id _c);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   (temp _p (force_val (sem_add_pi tuchar (offset_val (Int.repr 40) c) (Vint (Int.repr (16 * 4 - 8)))));
+    temp _n (Vint (Int.repr (Zlength dd')));
+    temp _md md; temp _c c; 
+    var _K256 (tarray tuint CBLOCKz) kv)
    SEP 
    (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
         (Z.of_nat CBLOCK - 8 - Zlength dd')
@@ -386,7 +383,7 @@ semax Delta_final_if1
 Proof.
  intros Espec hashed md c shmd kv H md_ c_ p n cNl cNh
  hi lo dd H4 H7 H3 DDbytes hashed' dd' pad
- DDbytes' PAD H0 H1 H2 H5 p0 Pofs.
+ DDbytes' PAD H0 H1 H2 H5 Pofs.
  abbreviate_semax.
  pose (hibytes := Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist [hi]))))).
  pose (lobytes := Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr (intlist_to_Zlist [lo]))))).
@@ -422,8 +419,8 @@ Proof.
  forward_call (* (void)HOST_l2c(cNl,p); *)
   (offset_val (Int.repr 60) (offset_val (Int.repr 40) c), Tsh, lobytes). {
   entailer!.
-  destruct c; try (contradiction Pc); simpl.
-  f_equal; repeat rewrite Int.add_assoc; f_equal.
+  subst p0; destruct c; try (contradiction Pc); simpl.
+  f_equal; repeat rewrite Int.add_assoc; reflexivity.
   unfold lobytes.
   symmetry; rewrite (nth_big_endian_integer 0 [lo] lo) at 1 by reflexivity.
   f_equal; extensionality z; unfold Basics.compose.
@@ -470,7 +467,7 @@ normalize.
 pose (lastblock := (
          (map Int.repr dd' ++ list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd')) Int.zero
           ++  map Int.repr (intlist_to_Zlist [hi;lo])))).
-assert (H10: length lastblock = CBLOCK).
+assert (H99: length lastblock = CBLOCK).
 unfold lastblock; repeat rewrite app_length.
 rewrite length_list_repeat; simpl.
 clear - H0.
@@ -498,9 +495,10 @@ eapply semax_pre; [ | simple apply (sha_final_part3 Espec md c shmd hashed' last
 unfold lastblock', data_block.
 simpl.
 rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
-rewrite Zlist_to_intlist_to_Zlist; [ |rewrite map_length; rewrite H10; exists LBLOCK; reflexivity | assumption].
+rewrite Zlist_to_intlist_to_Zlist; [ |rewrite map_length; rewrite H99; exists LBLOCK; reflexivity | assumption].
 rewrite Forall_isbyte_repr_unsigned.
-rewrite (Zlength_correct (map _ lastblock)). try rewrite map_length; rewrite H10.
+rewrite (Zlength_correct (map _ lastblock)).
+rewrite map_length; rewrite H99.
 change (Z.of_nat CBLOCK) with 64%Z at 2.
 change (intlist_to_Zlist [hi; lo])
   with (intlist_to_Zlist [hi] ++intlist_to_Zlist [lo]).
@@ -514,7 +512,7 @@ apply intlist_to_Zlist_inj.
 rewrite intlist_to_Zlist_app.
 unfold lastblock'.
 rewrite Zlist_to_intlist_to_Zlist; auto.
-2: rewrite map_length,H10; exists LBLOCK; reflexivity.
+2: rewrite map_length,H99; exists LBLOCK; reflexivity.
 unfold lastblock.
 rewrite map_app.
 rewrite map_unsigned_repr_isbyte by auto.

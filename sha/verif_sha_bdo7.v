@@ -217,17 +217,16 @@ Lemma bdo_loop2_body_proof:
    (H0 : (LBLOCK <= i < c64)%nat),
 semax Delta_loop1
   (PROP  ()
-   LOCAL  (`(eq ctx) (eval_id _ctx);
-   `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   LOCAL  (temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i)));
+                 temp _a  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0));
+                 temp _b  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1));
+                 temp _c  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2));
+                 temp _d  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3));
+                 temp _e  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4));
+                 temp _f  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5));
+                 temp _g  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6));
+                 temp _h  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7));
+                 var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(K_vector kv);
    `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
      (eval_var _X (tarray tuint LBLOCKz))))
@@ -235,17 +234,16 @@ semax Delta_loop1
   (normal_ret_assert
      (EX  i0 : nat,
       PROP  (LBLOCK <= i0 <= c64)
-      LOCAL  (`(eq ctx) (eval_id _ctx);
-      `(eq (Vint (Int.repr (Z.of_nat i0 - 1)))) (eval_id _i);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 0))) (eval_id _a);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 1))) (eval_id _b);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 2))) (eval_id _c);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 3))) (eval_id _d);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 4))) (eval_id _e);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 5))) (eval_id _f);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 6))) (eval_id _g);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 7))) (eval_id _h);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+      LOCAL  (temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i0 - 1)));
+                 temp _a  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 0));
+                 temp _b  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 1));
+                 temp _c  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 2));
+                 temp _d  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 3));
+                 temp _e  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 4));
+                 temp _f  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 5));
+                 temp _g  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 6));
+                 temp _h  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 7));
+                 var  _K256 (tarray tuint CBLOCKz) kv)
       SEP  (`(K_vector kv);
       `(array_at tuint Tsh (Xarray b (Z.of_nat i0)) 0 LBLOCKz)
         (eval_var _X (tarray tuint LBLOCKz))))).
@@ -280,8 +278,8 @@ apply prop_right; repeat split; try apply and_mod_15_lem.
 forward. (* s0 = sigma0(s0); *)
 rename x into s0'.
 
-apply (assert_LOCAL (`(eq (Vint (sigma_0 (W (nthi b) (Z.of_nat i - 16 + 1))
-   ))) (eval_id _s0))). {
+apply (assert_LOCAL (temp _s0 (Vint (sigma_0 (W (nthi b) (Z.of_nat i - 16 + 1))
+   )))). {
 clear POSTCONDITION MORE_COMMANDS.
 drop_LOCAL 5.
 abstract (
@@ -304,7 +302,7 @@ clear;  (entailer; apply andp_right; [| cancel]; apply prop_right; repeat split;
 forward. (* s1 = sigma1(s1); *)
 rename x into s1'.
 
-apply (assert_LOCAL (`(eq (Vint (sigma_1 (W (nthi b) (Z.of_nat i - 16 + 14))))) (eval_id _s1))).
+apply (assert_LOCAL (temp _s1 (Vint (sigma_1 (W (nthi b) (Z.of_nat i - 16 + 14)))))).
 clear POSTCONDITION MORE_COMMANDS.
 drop_LOCAL 6.
 abstract (
@@ -324,7 +322,7 @@ forward. (* T1 = X[i&0xf]; *)
 clear - H H1 LBE.
 clear; (entailer; apply andp_right; [| cancel]; apply prop_right; repeat split; apply and_mod_15_lem).
 
-apply (assert_LOCAL (`(eq (Vint (W (nthi b) (Z.of_nat i - 16 + 0)))) (eval_id _T1))). 
+apply (assert_LOCAL (temp _T1 (Vint (W (nthi b) (Z.of_nat i - 16 + 0))))).
 drop_LOCAL 6%nat.
 clear - H H0 H1 LBE.
 abstract (
@@ -342,7 +340,7 @@ drop_LOCAL 1%nat.
 forward. (* t = X[(i+9)&0xf]; *)
 clear;  (entailer; apply andp_right; [| cancel]; apply prop_right; repeat split; apply and_mod_15_lem).
 
-apply (assert_LOCAL (`(eq (Vint (W (nthi b) (Z.of_nat i - 16 + 9)))) (eval_id _t))).
+apply (assert_LOCAL (temp _t (Vint (W (nthi b) (Z.of_nat i - 16 + 9))))).
 clear - H H0 H1 LBE.
 abstract (
  entailer; apply prop_right;
@@ -420,7 +418,7 @@ unfold tuints, ZnthV; rewrite if_false by (clear; omega);
 
 (* I am wondering whether this is because I changed the order or assumptions *)
 
-apply (assert_LOCAL (`(eq (Vint (nth i K256 Int.zero))) (eval_id _Ki))).
+apply (assert_LOCAL (temp _Ki (Vint (nth i K256 Int.zero)))).
 drop_LOCAL 4%nat. drop_LOCAL 3%nat. drop_LOCAL 2%nat.
 abstract (
    entailer; apply prop_right;
@@ -478,32 +476,31 @@ Lemma sha256_block_data_order_loop2_proof:
      Zlength b = LBLOCKz ->
      semax  Delta_loop1
  (PROP ()
-   LOCAL (`(eq ctx) (eval_id _ctx);
-               `(eq (Vint (Int.repr 16))) (eval_id _i);
-        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 0))) (eval_id _a);
-        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 1))) (eval_id _b);
-        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 2))) (eval_id _c);
-        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 3))) (eval_id _d);
-        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 4))) (eval_id _e);
-        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 5))) (eval_id _f);
-        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 6))) (eval_id _g);
-        `(eq (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 7))) (eval_id _h);
-        `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   LOCAL (temp _ctx ctx; temp _i (Vint (Int.repr 16));
+               temp _a (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 0));
+               temp _b (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 1));
+               temp _c (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 2));
+               temp _d (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 3));
+               temp _e (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 4));
+               temp _f (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 5));
+               temp _g (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 6));
+               temp _h (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 7));
+                var  _K256 (tarray tuint CBLOCKz) kv)
    SEP ( `(K_vector kv);
            `(array_at tuint Tsh (tuints b) 0 16) (eval_var _X (tarray tuint 16))))
   block_data_order_loop2
   (normal_ret_assert
     (PROP () 
-     LOCAL(`(eq ctx) (eval_id _ctx);
-                `(eq (Vint (nthi (Round regs (nthi b) 63) 0))) (eval_id _a);
-                `(eq (Vint (nthi (Round regs (nthi b) 63) 1))) (eval_id _b);
-                `(eq (Vint (nthi (Round regs (nthi b) 63) 2))) (eval_id _c);
-                `(eq (Vint (nthi (Round regs (nthi b) 63) 3))) (eval_id _d);
-                `(eq (Vint (nthi (Round regs (nthi b) 63) 4))) (eval_id _e);
-                `(eq (Vint (nthi (Round regs (nthi b) 63) 5))) (eval_id _f);
-                `(eq (Vint (nthi (Round regs (nthi b) 63) 6))) (eval_id _g);
-                `(eq (Vint (nthi (Round regs (nthi b) 63) 7))) (eval_id _h);
-                `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+     LOCAL(temp _ctx ctx; 
+                temp _a (Vint (nthi (Round regs (nthi b) 63) 0));
+                temp _b (Vint (nthi (Round regs (nthi b) 63) 1));
+                temp _c (Vint (nthi (Round regs (nthi b) 63) 2));
+                temp _d (Vint (nthi (Round regs (nthi b) 63) 3));
+                temp _e (Vint (nthi (Round regs (nthi b) 63) 4));
+                temp _f (Vint (nthi (Round regs (nthi b) 63) 5));
+                temp _g (Vint (nthi (Round regs (nthi b) 63) 6));
+                temp _h (Vint (nthi (Round regs (nthi b) 63) 7));
+                var  _K256 (tarray tuint CBLOCKz) kv)
      SEP (`(K_vector kv);
            `(array_at_ tuint Tsh 0 16) (eval_var _X (tarray tuint 16))))).
 Proof.
@@ -529,17 +526,16 @@ change 16%nat with LBLOCK.
 
 Definition loop2_inv (rg0: list int) (b: list int) ctx kv (delta: Z) (i: nat) :=
     PROP ( (LBLOCK <= i <= c64)%nat )
-    LOCAL  (`(eq ctx) (eval_id _ctx); 
-                 `(eq (Vint (Int.repr (Z.of_nat i - delta)))) (eval_id _i);
-     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a);
-     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b);
-     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c);
-     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d);
-     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
-     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
-     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
-     `(eq (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h);
-     `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+    LOCAL  (temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i - delta)));
+                  temp _a (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 0));
+                  temp _b (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 1));
+                  temp _c (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 2));
+                  temp _d (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 3));
+                  temp _e (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 4));
+                  temp _f (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 5));
+                  temp _g (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 6));
+                  temp _h (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 7));
+                var  _K256 (tarray tuint CBLOCKz) kv)
      SEP (`(K_vector kv);
     `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
            (eval_var _X (tarray tuint LBLOCKz))).
@@ -573,17 +569,16 @@ repeat rewrite Z.sub_0_r.
 
 forward_if (
    PROP  ((LBLOCK <= i < c64)%nat)
-   LOCAL  (`(eq ctx) (eval_id _ctx);
-   `(eq (Vint (Int.repr (Z.of_nat i)))) (eval_id _i);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0))) (eval_id _a);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1))) (eval_id _b);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2))) (eval_id _c);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3))) (eval_id _d);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4))) (eval_id _e);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5))) (eval_id _f);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6))) (eval_id _g);
-   `(eq (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7))) (eval_id _h);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   LOCAL  (temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i)));
+               temp _a (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0));
+               temp _b (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1));
+               temp _c (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2));
+               temp _d (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3));
+               temp _e (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4));
+               temp _f (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5));
+               temp _g (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6));
+               temp _h (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7));
+                var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(K_vector kv);
    `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
      (eval_var _X (tarray tuint LBLOCKz)))).

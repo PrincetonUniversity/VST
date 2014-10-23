@@ -90,15 +90,11 @@ semax Delta
          (Ebinop Oge (Etempvar _len tuint)
             (Ebinop Omul (Econst_int (Int.repr 16) tint)
                (Econst_int (Int.repr 4) tint) tint) tint));
-   `(eq (offset_val (Int.repr 40) c)) (eval_id _p); `(eq c) (eval_id _c);
-   `(eq
-       (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length r_data)))
-          d)) (eval_id _data);
-   `(eq
-       (Vint
-          (Int.repr (Z.of_nat (len - (length blocks * 4 - length r_data))))))
-     (eval_id _len);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+    temp _p (offset_val (Int.repr 40) c); temp _c c;
+    temp _data (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length r_data))) d);
+    temp _len (Vint
+          (Int.repr (Z.of_nat (len - (length blocks * 4 - length r_data)))));
+    var _K256 (tarray tuint CBLOCKz) kv)
    SEP 
    (`(K_vector kv);
     `(array_at tuint Tsh
@@ -143,9 +139,6 @@ simpl.
 after_call.
 
  rename H2 into H99.
-(*replace_SEP 2%Z (`K_vector (eval_var _K256 (tarray tuint 64))); 
-  [entailer | ].
-*)
  forward. (* data += SHA_CBLOCK; *)
  entailer.
  forward. (* len  -= SHA_CBLOCK; *)
@@ -260,14 +253,13 @@ semax
         (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))
   (PROP  ()
    LOCAL 
-   (`(eq
-        (deref_noload (tarray tuchar 64)
-           (offset_val (Int.repr 40) (force_ptr c)))) (eval_id _p);
-   `(eq (Vint (Int.repr (Zlength dd)))) (eval_id _n);
-   `(eq d) (eval_id _data); `(eq c) (eval_id _c);
-   `(eq d) (eval_id _data_);
-   `((eq (Z.of_nat len) oo Int.unsigned) oo force_int) (eval_id _len);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   (temp _p (deref_noload (tarray tuchar 64)
+           (offset_val (Int.repr 40) (force_ptr c)));
+    temp _n (Vint (Int.repr (Zlength dd)));
+    temp _data d; temp _c c; temp _data_ d;
+(*   `((eq (Z.of_nat len) oo Int.unsigned) oo force_int) (eval_id _len); *)
+    temp _len (Vint (Int.repr (Z.of_nat len)));
+   var _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
    `(array_at tuint Tsh
        (ZnthV tuint (map Vint (hash_blocks init_registers hashed))) 0 8 c);
@@ -299,17 +291,12 @@ rewrite semax_seq_skip.
 
 apply semax_pre with (inv_at_inner_if sh hashed len c d dd data kv hi lo).
 unfold inv_at_inner_if; entailer!.
-rewrite H2.
-destruct (Int.unsigned_range_2 len'); auto.
-apply Int.repr_unsigned.
-fold (inv_at_inner_if sh hashed len c d dd data kv hi lo).
 apply semax_seq with (sha_update_inv sh hashed len c d dd data kv hi lo false).
-replace Delta with (initialized _fragment (initialized _p (initialized _n (initialized _data
-                     (func_tycontext f_SHA256_Update Vprog Gtot)))))
- by (simplify_Delta; reflexivity).
+replace Delta with Delta_update_inner_if
+ by (unfold Delta_update_inner_if; simplify_Delta; reflexivity).
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION Delta.
 autorewrite with norm.
-simple apply (update_inner_if_proof Espec hashed dd data c d sh len kv hi lo); 
+simple apply (update_inner_if_proof Espec hashed dd data c d sh len kv hi lo);
   try assumption.
 forward. 
 rewrite overridePost_normal'. apply andp_left2; auto.
@@ -320,15 +307,14 @@ apply exp_right with nil. rewrite <- app_nil_end.
 entailer.
  rewrite negb_false_iff in H1;  apply int_eq_e in H1.
 assert (Int.unsigned (Int.repr (Zlength dd)) = Int.unsigned (Int.repr 0)) by (f_equal; auto).
-rewrite (Int.unsigned_repr 0) in H6 by repable_signed.
-rewrite Int.unsigned_repr in H6
+rewrite (Int.unsigned_repr 0) in H5 by repable_signed.
+rewrite Int.unsigned_repr in H5
  by (clear - H3; change CBLOCKz with 64%Z in H3;
   rewrite Zlength_correct in *; repable_signed).
-rewrite Zlength_correct in H6; destruct dd; inv H6.
+rewrite Zlength_correct in H5; destruct dd; inv H5.
  apply andp_right; [apply prop_right; repeat split | ].
  + exists 0%Z; reflexivity.
- +  rewrite NPeano.Nat.sub_0_r, H2.
-   apply Int.repr_unsigned.
+ +  rewrite NPeano.Nat.sub_0_r; auto.
  + rewrite <- app_nil_end. cancel.
 Qed.
 

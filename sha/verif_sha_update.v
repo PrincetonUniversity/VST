@@ -65,13 +65,10 @@ semax
      (initialized _n
         (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))
   (PROP  ()
-   LOCAL  (`(eq (offset_val (Int.repr 40) c)) (eval_id _p);
-   `(eq c) (eval_id _c);
-   `(eq (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length dd))) d))
-     (eval_id _data);
-   `(eq (Vint (Int.repr (Z.of_nat (len - (length blocks * 4 - length dd))))))
-        (eval_id _len);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   LOCAL  (temp _p (offset_val (Int.repr 40) c); temp _c c;
+                temp _data (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length dd))) d);
+                temp _len (Vint (Int.repr (Z.of_nat (len - (length blocks * 4 - length dd)))));
+                var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(K_vector kv);
    `(array_at tuint Tsh
        (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
@@ -88,7 +85,7 @@ semax
   (normal_ret_assert
      (EX  a' : s256abs,
       PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
-      LOCAL (`(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+      LOCAL (var  _K256 (tarray tuint CBLOCKz) kv)
       SEP  (`(K_vector kv);
              `(sha256state_ a' c); `(data_block sh data d)))).
 Proof.
@@ -486,7 +483,7 @@ fold update_outer_if.
 apply semax_seq with (sha_update_inv sh hashed (Z.to_nat len) c d dd data kv hi lo false).
 unfold POSTCONDITION, abbreviate.
 eapply semax_pre; [ | simple apply update_outer_if_proof; try assumption].
-entailer!. apply Z2Nat.id. omega. rewrite Z2Nat.id by omega; auto.
+entailer!. f_equal. apply Z2Nat.id. omega. rewrite Z2Nat.id by omega; auto.
 rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; auto; omega.
 rewrite Z2Nat.id by omega; auto.
 rewrite Z2Nat.id by omega; omega.
@@ -505,7 +502,7 @@ forward.    (* c->num=len; *)
 
 apply semax_seq with (EX  a' : s256abs,
                     PROP  (update_abs (firstn (Z.to_nat len) data) (S256abs hashed dd) a')
-                    LOCAL (`(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+                    LOCAL (var  _K256 (tarray tuint CBLOCKz) kv)
                     SEP 
                     (`(K_vector kv);
                      `(sha256state_ a' c); `(data_block sh data d))).
@@ -519,7 +516,8 @@ make_sequential.
 rewrite overridePost_normal'.
 fold update_last_if.
 
-simple apply update_last_if_proof; try assumption.
+eapply semax_pre0; [ | simple apply update_last_if_proof];
+  [entailer! | try assumption .. ].
 rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; auto; omega.
 rewrite Z2Nat.id by omega; auto.
 rewrite Z2Nat.id by omega; omega.

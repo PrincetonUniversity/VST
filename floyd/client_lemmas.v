@@ -185,6 +185,8 @@ Ltac fancy_intro :=
                     simple apply typed_false_of_bool in H
  | typed_true _ (Val.of_bool _) =>  
                     simple apply typed_true_of_bool in H
+ | temp _ _ _ => hnf in H
+ | var _ _ _ _ => hnf in H
  | _ => try solve [discriminate H]
  end.
 

@@ -46,11 +46,10 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo kv:=
               intlist_to_Zlist hashed ++  dd 
                   ++ [128%Z] ++ list_repeat (Z.to_nat pad) 0)
    LOCAL 
-   (`(eq (Vint (Int.repr (Zlength dd')))) (eval_id _n);
-   `eq (eval_id _p)
-     (`(offset_val (Int.repr 40)) (`force_ptr (eval_id _c)));
-   `(eq md) (eval_id _md); `(eq c) (eval_id _c);
-                     `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   (temp _n (Vint (Int.repr (Zlength dd')));
+    temp _p (offset_val (Int.repr 40) (force_ptr c));
+    temp _md md; temp _c c;
+    var _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(array_at tuint Tsh (ZnthV tuint (map Vint (hash_blocks init_registers hashed'))) 0 8 c);
    `(field_at Tsh t_struct_SHA256state_st [_Nl] (Vint lo) c);
    `(field_at Tsh t_struct_SHA256state_st [_Nh] (Vint hi) c);
@@ -77,10 +76,10 @@ Lemma ifbody_final_if1:
                (Ebinop Omul (Econst_int (Int.repr 16) tint)
                   (Econst_int (Int.repr 4) tint) tint)
                (Econst_int (Int.repr 8) tint) tint) tint));
-   `(eq (Vint (Int.repr (Zlength dd + 1)))) (eval_id _n);
-   `(eq (offset_val (Int.repr 40) (force_ptr c))) (eval_id _p);
-   `(eq md) (eval_id _md); `(eq c) (eval_id _c);
-                     `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+    temp _n (Vint (Int.repr (Zlength dd + 1)));
+    temp _p (offset_val (Int.repr 40) (force_ptr c));
+    temp _md md; temp _c c;
+    var _K256 (tarray tuint CBLOCKz) kv)
    SEP 
    (`(array_at tuint Tsh
         (ZnthV tuint (map Vint (hash_blocks init_registers hashed))) 0 8 c);
@@ -389,7 +388,7 @@ Lemma final_part4:
 semax
   (initialized _cNl (initialized _cNh Delta_final_if1))
   (PROP  ()
-   LOCAL  (`(eq md) (eval_id _md); `(eq c) (eval_id _c))
+   LOCAL  (temp _md md; temp _c c)
    SEP 
    (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
         (offset_val (Int.repr data_offset) c));
@@ -415,9 +414,9 @@ forward.  (* xn=0; *)
 
 Definition part4_inv  c shmd hashedmsg md kv delta (i: nat) :=
    (PROP  ((i <= 8)%nat)
-   LOCAL  (`(eq (Vint (Int.repr (Z.of_nat i - delta)))) (eval_id _xn);
-      `(eq (offset_val (Int.repr (Z.of_nat i * 4)) md)) (eval_id _md);
-   `(eq c) (eval_id _c))
+   LOCAL  (temp _xn (Vint (Int.repr (Z.of_nat i - delta)));
+                temp _md (offset_val (Int.repr (Z.of_nat i * 4)) md);
+                temp _c c)
    SEP 
    (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0 64
         (offset_val (Int.repr data_offset) c));

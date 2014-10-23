@@ -70,12 +70,12 @@ Definition update_inner_if :=
 Definition inv_at_inner_if sh hashed len c d dd data kv hi lo:=
  (PROP ()
    (LOCAL 
-   (`(eq (Vint (Int.repr (64- Zlength dd)))) (eval_id _fragment);
-   `(eq  (offset_val (Int.repr 40) c)) (eval_id _p);
-   `(eq (Vint (Int.repr (Zlength dd)))) (eval_id _n);
-   `(eq c) (eval_id _c); `(eq d) (eval_id _data);
-   `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+      (temp _fragment (Vint (Int.repr (64- Zlength dd)));
+       temp _p (offset_val (Int.repr 40) c);
+       temp _n (Vint (Int.repr (Zlength dd)));
+       temp _c c; temp _data d;
+       temp _len (Vint (Int.repr (Z.of_nat len)));
+       var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8 c);
     `(sha256_length (hilo hi lo + (Z.of_nat len)*8) c);
    `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64 (offset_val (Int.repr 40) c));
@@ -89,10 +89,10 @@ Definition sha_update_inv sh hashed len c d (frag: list Z) (data: list Z) kv r_N
               (LBLOCKz | Zlength blocks) /\ 
               intlist_to_Zlist blocks = frag ++ firstn (length blocks * 4 - length frag) data /\
              if done then len-(length blocks*4 - length frag) < CBLOCK else True)
-   LOCAL  (`(eq (offset_val (Int.repr 40) c)) (eval_id _p);
-   `(eq c) (eval_id _c); `(eq (offset_val (Int.repr (Z.of_nat (length blocks*4-length frag))) d)) (eval_id _data);
-   `(eq (Vint (Int.repr (Z.of_nat (len- (length blocks*4 - length frag)))))) (eval_id _len);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   LOCAL  (temp _p (offset_val (Int.repr 40) c); temp _c c; 
+                temp _data (offset_val (Int.repr (Z.of_nat (length blocks*4-length frag))) d);
+                temp _len (Vint (Int.repr (Z.of_nat (len- (length blocks*4 - length frag)))));
+                var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(K_vector kv);
     `(array_at tuint Tsh (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
     `(sha256_length (hilo r_Nh r_Nl + (Z.of_nat len)*8) c);
@@ -152,12 +152,11 @@ semax Delta_update_inner_if
    (`(typed_true tint)
       (eval_expr
          (Ebinop Oge (Etempvar _len tuint) (Etempvar _fragment tuint) tint));
-   `(eq (Vint (Int.repr k))) (eval_id _fragment);
-   `(eq (offset_val (Int.repr 40) c)) (eval_id _p);
-   `(eq (Vint (Int.repr (Zlength dd)))) (eval_id _n); `(eq c) (eval_id _c);
-   `(eq d) (eval_id _data);
-   `(eq (Vint (Int.repr (Z.of_nat len)))) (eval_id _len);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+    temp _fragment (Vint (Int.repr k));
+    temp _p (offset_val (Int.repr 40) c);
+    temp _n (Vint (Int.repr (Zlength dd)));
+    temp _c c; temp _data d; temp _len (Vint (Int.repr (Z.of_nat len)));
+    var  _K256 (tarray tuint CBLOCKz) kv)
    SEP 
    (`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8 c);
    `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);

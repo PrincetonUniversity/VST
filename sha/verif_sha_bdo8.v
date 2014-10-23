@@ -32,9 +32,8 @@ Lemma sha256_block_load8:
       (initialized _data
          (func_tycontext f_sha256_block_data_order Vprog Gtot))
   (PROP  ()
-   LOCAL  (`eq (eval_id _data) (eval_expr (Etempvar _in (tptr tvoid)));
-   `(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   LOCAL  (temp _data data; temp _ctx ctx; temp _in data; 
+                var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(array_at tuint Tsh (tuints r_h) 0 (Zlength r_h) ctx)))
    (Ssequence (load8 _a 0)
      (Ssequence (load8 _b 1)
@@ -47,17 +46,16 @@ Lemma sha256_block_load8:
          Sskip))))))))
   (normal_ret_assert 
   (PROP  ()
-   LOCAL  (`(eq (Vint (nthi r_h 0))) (eval_id _a);
-                `(eq (Vint (nthi r_h 1))) (eval_id _b);
-                `(eq (Vint (nthi r_h 2))) (eval_id _c);
-                `(eq (Vint (nthi r_h 3))) (eval_id _d);
-                `(eq (Vint (nthi r_h 4))) (eval_id _e);
-                `(eq (Vint (nthi r_h 5))) (eval_id _f);
-                `(eq (Vint (nthi r_h 6))) (eval_id _g);
-                `(eq (Vint (nthi r_h 7))) (eval_id _h);
-   `eq (eval_id _data) (eval_expr (Etempvar _in (tptr tvoid)));
-   `(eq ctx) (eval_id _ctx); `(eq data) (eval_id _in);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   LOCAL  (temp _a (Vint (nthi r_h 0));
+                temp _b (Vint (nthi r_h 1));
+                temp _c (Vint (nthi r_h 2));
+                temp _d (Vint (nthi r_h 3));
+                temp _e (Vint (nthi r_h 4));
+                temp _f (Vint (nthi r_h 5));
+                temp _g (Vint (nthi r_h 6));
+                temp _h (Vint (nthi r_h 7));
+                temp _data data; temp _ctx ctx; temp _in data; 
+                var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(array_at tuint Tsh (tuints r_h) 0 (Zlength r_h) ctx)))).
 Proof.
 intros.
@@ -146,31 +144,31 @@ Lemma add_one_back:
   (i < 8)%nat ->
   @semax Espec (initialized _t Delta)
    (PROP ()
-   LOCAL  (`(eq ctx) (eval_id _ctx);
-    `(eq (Vint (nthi atoh 0))) (eval_id _a);
-    `(eq (Vint (nthi atoh 1))) (eval_id _b);
-    `(eq (Vint (nthi atoh 2))) (eval_id _c);
-    `(eq (Vint (nthi atoh 3))) (eval_id _d);
-    `(eq (Vint (nthi atoh 4))) (eval_id _e);
-    `(eq (Vint (nthi atoh 5))) (eval_id _f);
-    `(eq (Vint (nthi atoh 6))) (eval_id _g);
-    `(eq (Vint (nthi atoh 7))) (eval_id _h);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   LOCAL  (temp _ctx ctx;
+                temp _a  (Vint (nthi atoh 0));
+                temp _b  (Vint (nthi atoh 1));
+                temp _c  (Vint (nthi atoh 2));
+                temp _d  (Vint (nthi atoh 3));
+                temp _e  (Vint (nthi atoh 4));
+                temp _f  (Vint (nthi atoh 5));
+                temp _g  (Vint (nthi atoh 6));
+                temp _h  (Vint (nthi atoh 7));
+                var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(array_at tuint Tsh (tuints (add_upto (S i) regs atoh)) 0 8 ctx)))
     more
    Post ->
   @semax Espec Delta
    (PROP ()
-   LOCAL  (`(eq ctx) (eval_id _ctx);
-    `(eq (Vint (nthi atoh 0))) (eval_id _a);
-    `(eq (Vint (nthi atoh 1))) (eval_id _b);
-    `(eq (Vint (nthi atoh 2))) (eval_id _c);
-    `(eq (Vint (nthi atoh 3))) (eval_id _d);
-    `(eq (Vint (nthi atoh 4))) (eval_id _e);
-    `(eq (Vint (nthi atoh 5))) (eval_id _f);
-    `(eq (Vint (nthi atoh 6))) (eval_id _g);
-    `(eq (Vint (nthi atoh 7))) (eval_id _h);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   LOCAL  (temp _ctx ctx;
+                temp _a  (Vint (nthi atoh 0));
+                temp _b  (Vint (nthi atoh 1));
+                temp _c  (Vint (nthi atoh 2));
+                temp _d  (Vint (nthi atoh 3));
+                temp _e  (Vint (nthi atoh 4));
+                temp _f  (Vint (nthi atoh 5));
+                temp _g  (Vint (nthi atoh 6));
+                temp _h  (Vint (nthi atoh 7));
+                var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(array_at tuint Tsh (tuints (add_upto i regs atoh)) 0 8 ctx)))
    (Ssequence (get_h (Z.of_nat i)) (Ssequence (add_h (Z.of_nat i) i') more))
    Post.
@@ -205,6 +203,15 @@ eapply semax_load_array with (lo:=0)
      clear H5.
     intro rho.
     unfold local; super_unfold_lift.
+
+Lemma temp_unfold: forall i v rho, temp i v rho = (v = eval_id i rho).
+Proof. reflexivity. Qed.
+Hint Rewrite temp_unfold : norm.
+
+Lemma var_unfold: forall i t v rho, var i t v rho = (v = eval_var i t rho).
+Proof. reflexivity. Qed.
+Hint Rewrite var_unfold : norm.
+
     normalize.
    saturate_local.
   entailer!.
@@ -221,7 +228,7 @@ eapply semax_load_array with (lo:=0)
     repeat split; auto.
     unfold_lift.
     unfold tuint, tarray, deref_noload.
-    simpl.
+    simpl. 
     destruct (eval_id _ctx rho); try inversion H14; simpl; auto.
     unfold tuint, tarray, deref_noload.
     simpl.
@@ -267,7 +274,7 @@ simpl; intros; normalize.
   unfold PROPx, LOCALx, SEPx.
   unfold local; super_unfold_lift.
   simpl.
-  normalize.
+  normalize. subst ctx.
   saturate_local.
   apply prop_right; simpl.
   replace (eval_id i' rho) with (Vint (nth i atoh Int.zero)). 
@@ -316,7 +323,7 @@ simpl; intros; normalize.
     unfold i'.
     rewrite H1. 
     repeat split; auto.
-    cbv. intros.  destruct i as [ | [ | [ | [ | [ | [ | [ | [ | [ | ] ]]]]]]]]; inv H17.
+    cbv. intros.  destruct i as [ | [ | [ | [ | [ | [ | [ | [ | [ | ] ]]]]]]]]; inv H18.
 }
 
 {
@@ -328,8 +335,8 @@ simpl; intros; normalize.
  simpl.
  normalize.
  saturate_local.
- apply prop_right; simpl.
- destruct (eval_id _ctx rho) eqn:?; try (contradiction H16).
+ apply prop_right; simpl. subst ctx.
+ destruct (eval_id _ctx rho) eqn:?; try (contradiction Pctx).
  simpl.
  repeat split; auto.
  + f_equal.
@@ -409,23 +416,21 @@ Lemma add_them_back_proof:
      length regs' = 8%nat ->
      semax  Delta_loop1
    (PROP  ()
-   LOCAL 
-   (`(eq ctx) (eval_id _ctx);
-    `(eq (Vint (nthi regs' 0))) (eval_id _a);
-    `(eq (Vint (nthi regs' 1))) (eval_id _b);
-    `(eq (Vint (nthi regs' 2))) (eval_id _c);
-    `(eq (Vint (nthi regs' 3))) (eval_id _d);
-    `(eq (Vint (nthi regs' 4))) (eval_id _e);
-    `(eq (Vint (nthi regs' 5))) (eval_id _f);
-    `(eq (Vint (nthi regs' 6))) (eval_id _g);
-    `(eq (Vint (nthi regs' 7))) (eval_id _h);
-    `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz)))
+   LOCAL  (temp _ctx ctx;
+                temp _a  (Vint (nthi regs' 0));
+                temp _b  (Vint (nthi regs' 1));
+                temp _c  (Vint (nthi regs' 2));
+                temp _d  (Vint (nthi regs' 3));
+                temp _e  (Vint (nthi regs' 4));
+                temp _f  (Vint (nthi regs' 5));
+                temp _g  (Vint (nthi regs' 6));
+                temp _h  (Vint (nthi regs' 7));
+                var  _K256 (tarray tuint CBLOCKz) kv)
    SEP 
    (`(array_at tuint Tsh (tuints regs) 0 8 ctx)))
    (sequence add_them_back Sskip)
   (normal_ret_assert
-   (PROP() LOCAL(`(eq ctx) (eval_id _ctx);
-   `(eq kv) (eval_var _K256 (tarray tuint CBLOCKz))) 
+   (PROP() LOCAL(temp _ctx ctx; var _K256 (tarray tuint CBLOCKz) kv)
     SEP (`(array_at tuint Tsh (tuints (map2 Int.add regs regs')) 0 8 ctx)))).
 Proof.
 intros.
