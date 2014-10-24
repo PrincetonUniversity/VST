@@ -36,7 +36,7 @@ Applying the Verified Software Toolchain\\
 to C programs}%
 
 \vskip50pt
-  \fontsize{14}{16}\selectfont\par\noindent{\itshape Version 1.5 \\ \today}
+  \fontsize{14}{16}\selectfont\par\noindent{\itshape Version 1.5+ \\ \today}
 \vskip100pt
 \par
 \vskip10pt
@@ -44,7 +44,7 @@ to C programs}%
 {\itshape Andrew W. Appel}}\par
 \vskip10pt
 {\fontsize{16}{19}\selectfont\par\noindent%\textcolor{darkgray}
-{\centering \itshape with Josiah Dodds\\}}
+{\centering \itshape with Josiah Dodds and Qinxiang Cao\\}}
 }
 
 ~\vfill
@@ -126,6 +126,11 @@ command-line arguments.  Running \textsf{make} in
 the right arguments.  You can then do (for example),
 \newline
 \lstinline{coqide `cat .loadpath` $$ progs/verif_reverse.v}
+\newline
+\emph{See the heading} 
+\textsc{using proof general and coqide}
+\emph{in the file} \textsc{build\_organization}
+\emph{for more information.}
 
 The \lstinline{verif_reverse.v} example is described
 in PLCC \autoref{ch:clight-program}.
@@ -146,8 +151,15 @@ The book \emph{Program Logics for Certified Compilers}
 More recent VST versions differ in the following ways
 from what the PLCC book describes:
 \begin{itemize}
+\item In the $\LOCAL$ component of an assertion, \newline
+\lstinline{temp $i$ $v$}~ is the recommended
+way to write ~\lstinline{`(eq $v$) (eval_id $i$)}, 
+and \newline
+\lstinline{var $i$ $t$ $v$}~ is the recommended
+way to write ~\lstinline{`(eq $v$) (eval_var $i$ $t$)}.
+See \autoref{refcard:supercanonical} of this manual.
 \item The type-checker now has a more refined view of char and short types
-     (see Chapter~\ref{refcard:tcval} of this manual).
+     (see \autoref{refcard:tcval} of this manual).
 \item \lstinline{field_mapsto} is now called
 \lstinline{field_at}, and it is dependently
 typed; see \autoref{refcard:structured} of this manual.
@@ -160,12 +172,12 @@ longer exists.
 or the value $w$ belongs to type $t$.  
 This permits describing uninitialized locations,
 i.e., \lstinline{mapsto_ $\pi$ $t$ $v$ = mapsto_ $\pi$ $t$ $v$ Vundef}.
-See Chapter~\ref{refcard:structured} of this manual.
+See \autoref{refcard:structured} of this manual.
 \item Supercanonical form is now suggested; see 
-Chapter~\ref{refcard:supercanonical} of this manual.
+\autoref{refcard:supercanonical} of this manual.
 \item For function calls, do not use \lstinline{forward}
 (except to get advice about the witness type);
-instead, use \lstinline{forward_call}.  See page~\pageref{forward-call}.
+instead, use \lstinline{forward_call}.  See \autopageref{forward-call}.
 \item C functions may now fall through the end of the function body,
 and this is (per the C semantics) equivalent to a \lstinline{return;}
 statement.
@@ -705,17 +717,18 @@ Lemma sizeof_unroll_composite:
 
 \begin{lstlisting}
 Inductive expr : Type :=
-(* 1$~$   *)    | Econst_int: int -> type -> expr      
-(* 1.0 *)    | Econst_float: float -> type -> expr  
-(* 1L  *)    | Econst_long: int64 -> type -> expr
-(* x$~$   *)    | Evar: ident -> type -> expr         
-(* x$~$   *)    | Etempvar: ident -> type -> expr     
-(* *e  *)    | Ederef: expr -> type -> expr        
-(* &e  *)    | Eaddrof: expr -> type -> expr       
-(* ~e  *)    | Eunop: unary_operation -> expr -> type -> expr
-(* e+e *)    | Ebinop: binary_operation -> expr -> expr -> type -> expr 
+(* 1$~$  *) $~~~$   | Econst_int: int -> type -> expr      
+(* 1.0 *)   $~$ | Econst_float: float -> type -> expr  (* double precision *)
+(* 1.0f0 *)    | Econst_single: float -> type -> expr (* single precision *)
+(* 1L  *)  $~~$  | Econst_long: int64 -> type -> expr
+(* x   *) $~~~~$   | Evar: ident -> type -> expr         
+(* x   *) $~~~~$   | Etempvar: ident -> type -> expr     
+(* *e  *) $~~~$   | Ederef: expr -> type -> expr        
+(* &e  *) $~~$   | Eaddrof: expr -> type -> expr       
+(* ~e  *) $~~$   | Eunop: unary_operation -> expr -> type -> expr
+(* e+e *) $~$   | Ebinop: binary_operation -> expr -> expr -> type -> expr 
 (* (int)e *) | Ecast: expr -> type -> expr  
-(* e.f *)  | Efield: expr -> ident -> type -> expr. 
+(* e.f *) $~~$ | Efield: expr -> ident -> type -> expr. 
 
 Definition typeof (e: expr) : type :=
   match e with
@@ -1045,31 +1058,34 @@ $\mathsf{prop}\,P_0\wedge \mathsf{prop}\,P_1 \andp
 \label{refcard:supercanonical}
 
 A canonical form \(\PROP (\vec{P})\,\LOCAL(\vec{Q})\,\SEP\,(\vec{R})\)
-is \emph{supercanonical} if,
+is \emph{supercanonical} if:
 \begin{itemize}
-\item every element of $\vec{Q}$ has the form
-\lstinline{`(eq $V$) (eval_id $i$)}, 
-where $V$ is any Coq expression of type \lstinline{val}
+\item Every element of $\vec{Q}$ has the form
+~~\lstinline{temp $i$ $V$}~
+or ~~\lstinline{var $i$ $t$ $V$},\newline
+where $V$ is a Coq expression of type \lstinline{val}
 and $i$ is $\beta\eta$-equivalent to 
 a constant (a ground term of type \lstinline{ident}).
-\item every element of $R$ is either 
-\begin{trivlist}
-\item \lstinline{`($E$)} where $E$ is a Coq expression of type \lstinline{mpred}, or
-\item \lstinline{`($F$) (evalvar $i$ $t$)}
-where $F$ is a Coq expression of type \lstinline{val->mpred}
-and $i$ is $\beta\eta$-equivalent to a constant.
-\end{trivlist}
+The term ~\lstinline{temp $i$ $V$}
+(of type \lstinline{environ->Prop})
+is equivalent to 
+\lstinline{`(eq $V$) (eval_id $i$)}.
+The term ~\lstinline{var $i$ $t$ $V$}
+(of type \lstinline{environ->Prop})
+is equivalent to 
+\lstinline{`(eq $V$) (eval_var $i$ $t$)}.
+
+\item Every element of $R$ is
+~\lstinline{`($E$)} where $E$ is a Coq expression of type \lstinline{mpred}.
 \end{itemize}
 
 When assertions (preconditions of \lstinline{semax}) are kept
 in supercanonical form, the \lstinline{forward} tactic
 for symbolic execution runs \emph{much} faster.  That is,
 \begin{itemize}
-\item In VST 1.3, \lstinline{forward} through ordinary assignment statements
-(not loads/stores) is up to 10 times faster for supercanonical
+\item \lstinline{forward} through assignment statements
+(including loads/stores) is up to 10 times faster for supercanonical
 preconditions than for ordinary (canonical) preconditions.
-\item In future versions of VST, \lstinline{forward} through other kinds of 
-statements will be faster supercanonical preconditions.
 \item Future versions of the forward tactic may \emph{require}
 the precondition to be in supercanonical form.
 \end{itemize}
@@ -1715,7 +1731,7 @@ Definition sumlist_spec :=
 
 At present, postconditions may not use \PROP/\LOCAL/\SEP{} form.
 
-\ychapter{Specifying all functions}{(See PLCC \autoref{ch:clight-program})}
+\ychapter{Specifying all functions}{\hspace{-.4in}(PLCC \autoref{ch:clight-program})}
 
 We give each function a \emph{specification},
 typically using the \textsc{declare/\linebreak[1]with/\linebreak[1]pre/\linebreak[1]post} notation.
