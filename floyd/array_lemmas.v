@@ -153,7 +153,8 @@ Proof.
 Opaque skipn.
   simpl.
 Transparent skipn.
-  replace hi with (hi - 1 + 1) at 3 by omega.
+ pattern hi at 3;  (* do it this way for compatibility with Coq 8.4pl3 *)
+  replace hi with (hi - 1 + 1) by omega.
   rewrite array_at'_len_1.
   rewrite Znth_skipn by omega.
   apply pred_ext; normalize; cancel.
@@ -1604,7 +1605,7 @@ rewrite (SEP_replace_nth_isolate _ _ _ `(array_at t1 sh (upd contents vi (valinj
 rewrite insert_SEP.
 auto.
 Qed. 
- 
+
 Lemma rel_expr_array_load:
   forall ty sh (contents: Z -> reptype ty) lo hi v1 (i: Z) e1 e2 P  rho,
   typeof e1 = tptr ty ->

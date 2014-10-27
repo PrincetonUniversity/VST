@@ -406,7 +406,8 @@ Proof.
   + rewrite at_offset'_eq by (rewrite <- memory_block_offset_zero; reflexivity).
     destruct p; try solve [(simpl; apply FF_sepcon)].
     unfold offset_val, Int.add.
-    replace i with (Int.repr (Int.unsigned i)) at 2 3 by apply Int.repr_unsigned.
+    pattern i at 2 3;  (* do it this way for compatibility with Coq 8.4pl3 *)
+    replace i with (Int.repr (Int.unsigned i)) by apply Int.repr_unsigned.
     rewrite !Int.unsigned_repr by (unfold Int.max_unsigned; omega).
     simpl in H1.
     rewrite sepcon_comm.

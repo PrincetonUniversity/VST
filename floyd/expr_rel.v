@@ -6,7 +6,6 @@ Require Import floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
-Require Import floyd.loadstore_lemmas.
 Require Import floyd.array_lemmas.
 Require Import floyd.unfold_data_at.
 Require Import floyd.entailer.
