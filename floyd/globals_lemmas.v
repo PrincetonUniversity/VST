@@ -5,7 +5,6 @@ Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
-Require Import floyd.loadstore_lemmas.
 Require Import floyd.array_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.unfold_data_at.
@@ -196,8 +195,8 @@ intros H1 H1' H6' H6 H7 H8 H1''.
  destruct idata; super_unfold_lift; try apply derives_refl.
 *  repeat if_tac; try rewrite H8. 
    + subst z; rewrite init_data_size_space in H6.
-     rewrite <- memory_block_data_at_ by auto.
-     rewrite lower_andp_val; apply andp_right.
+     rewrite memory_block_data_at_ by (auto; unfold Int.max_unsigned in H6; omega).
+     apply andp_right.
      - apply prop_right.
        unfold align_compatible.
        exact H1''.
@@ -367,7 +366,7 @@ intros until 1. intros ? Hno; intros.
 normalize.
 eapply derives_trans; [eapply tc_globalvar_sound; eassumption | ].
 simpl.
-rewrite <- memory_block_data_at_ by tauto.
+rewrite memory_block_data_at_ by (try tauto; unfold Int.max_unsigned in H5; omega).
 destruct (tc_eval_gvar_zero _ _ _ _ H6 H H0) as [b ?].
 rewrite H8 in H7 |- *.
 unfold mapsto_zeros. rewrite sepcon_emp.
@@ -376,7 +375,6 @@ pose proof (mapsto_zeros_memory_block
   (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) (sizeof t) b 0).
 unfold mapsto_zeros in H9. change (Int.repr 0) with Int.zero in H9.
 rewrite Int.unsigned_zero in H9.
-rewrite lower_andp_val.
 apply andp_right.
 + normalize.
 + apply H9.
@@ -510,6 +508,7 @@ Proof.
  f_equal; auto.
 Qed.
 
+(*
 Lemma id2pred_star_ZnthV_Tint:
  forall Delta sh n v (data: list int) sz sign mdata
   (NBS: notboolsize sz),
@@ -691,7 +690,7 @@ Transparent sizeof.
   normalize.
 rewrite <- H5; auto.
 Qed.
-
+*)
 Lemma map_instantiate:
   forall {A B} (f: A -> B) (x: A) (y: list B) z,
     y = map f z ->  f x :: y = map f (x :: z).
@@ -751,11 +750,11 @@ first [
     eapply unpack_globvar;
       [reflexivity | reflexivity | split; reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence ]
- | eapply unpack_globvar_array;
+(* | eapply unpack_globvar_array;
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply I 
       | compute; clear; congruence 
       | repeat eapply map_instantiate; symmetry; apply map_nil
-      | compute; split; clear; congruence ]
+      | compute; split; clear; congruence ]*)
  | eapply derives_trans;
     [ apply unpack_globvar_star; 
         [reflexivity | reflexivity | split; reflexivity

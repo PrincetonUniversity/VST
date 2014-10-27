@@ -6,7 +6,6 @@ Definition _i : ident := 40%positive.
 Definition ___builtin_read32_reversed : ident := 32%positive.
 Definition ___compcert_va_int32 : ident := 16%positive.
 Definition _struct_b : ident := 38%positive.
-Definition _i2 : ident := 46%positive.
 Definition ___builtin_fsqrt : ident := 24%positive.
 Definition ___builtin_clz : ident := 22%positive.
 Definition ___compcert_va_int64 : ident := 17%positive.
@@ -14,7 +13,6 @@ Definition ___builtin_memcpy_aligned : ident := 8%positive.
 Definition ___builtin_subl : ident := 5%positive.
 Definition _j : ident := 43%positive.
 Definition ___builtin_va_start : ident := 12%positive.
-Definition _sub4 : ident := 47%positive.
 Definition ___builtin_annot_intval : ident := 10%positive.
 Definition _sub3 : ident := 44%positive.
 Definition ___builtin_negl : ident := 3%positive.
@@ -36,7 +34,7 @@ Definition _sub2 : ident := 42%positive.
 Definition ___builtin_bswap16 : ident := 21%positive.
 Definition ___compcert_va_float64 : ident := 18%positive.
 Definition ___builtin_annot : ident := 9%positive.
-Definition _i1 : ident := 45%positive.
+Definition _main : ident := 45%positive.
 Definition _sub1 : ident := 41%positive.
 Definition ___builtin_va_arg : ident := 13%positive.
 Definition ___builtin_fmadd : ident := 27%positive.
@@ -48,7 +46,6 @@ Definition ___builtin_fnmadd : ident := 29%positive.
 Definition _struct_a : ident := 35%positive.
 Definition ___builtin_fnmsub : ident := 30%positive.
 Definition ___builtin_ctz : ident := 23%positive.
-Definition _main : ident := 48%positive.
 Definition ___builtin_bswap32 : ident := 20%positive.
 
 Definition t_struct_a :=
@@ -57,12 +54,13 @@ Definition t_struct_b :=
    (Tstruct _struct_b
      (Fcons _y1 tint
        (Fcons _y2
-         (Tstruct _struct_a (Fcons _x1 tdouble (Fcons _x2 tschar Fnil))
-           noattr) Fnil)) noattr).
+         (tarray (Tstruct _struct_a
+                   (Fcons _x1 tdouble (Fcons _x2 tschar Fnil)) noattr) 3)
+         Fnil)) noattr).
 
 Definition v_p := {|
   gvar_info := t_struct_b;
-  gvar_init := (Init_space 16 :: nil);
+  gvar_init := (Init_space 40 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
@@ -75,7 +73,12 @@ Definition f_sub1 := {|
   fn_temps := ((_i, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _i (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tschar))
+  (Sset _i
+    (Efield
+      (Ederef
+        (Ebinop Oadd (Efield (Evar _p t_struct_b) _y2 (tarray t_struct_a 3))
+          (Econst_int (Int.repr 1) tint) (tptr t_struct_a)) t_struct_a) _x2
+      tschar))
   (Sassign (Efield (Evar _p t_struct_b) _y1 tint) (Etempvar _i tint)))
 |}.
 
@@ -88,8 +91,13 @@ Definition f_sub2 := {|
   fn_body :=
 (Ssequence
   (Sset _i
-    (Ecast (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tschar)
-      tschar))
+    (Ecast
+      (Efield
+        (Ederef
+          (Ebinop Oadd
+            (Efield (Evar _p t_struct_b) _y2 (tarray t_struct_a 3))
+            (Econst_int (Int.repr 1) tint) (tptr t_struct_a)) t_struct_a) _x2
+        tschar) tschar))
   (Sassign (Efield (Evar _p t_struct_b) _y1 tint) (Etempvar _i tschar)))
 |}.
 
@@ -102,29 +110,16 @@ Definition f_sub3 := {|
   fn_body :=
 (Ssequence
   (Sset _i
-    (Ecast (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tschar)
-      tschar))
+    (Ecast
+      (Efield
+        (Ederef
+          (Ebinop Oadd
+            (Efield (Evar _p t_struct_b) _y2 (tarray t_struct_a 3))
+            (Econst_int (Int.repr 1) tint) (tptr t_struct_a)) t_struct_a) _x2
+        tschar) tschar))
   (Ssequence
     (Sset _j (Etempvar _i tschar))
     (Sassign (Efield (Evar _p t_struct_b) _y1 tint) (Etempvar _j tint))))
-|}.
-
-Definition f_sub4 := {|
-  fn_return := tvoid;
-  fn_callconv := cc_default;
-  fn_params := nil;
-  fn_vars := nil;
-  fn_temps := ((_i1, tschar) :: (_i2, tschar) :: (_j, tint) :: nil);
-  fn_body :=
-(Ssequence
-  (Sset _i1
-    (Ecast (Efield (Efield (Evar _p t_struct_b) _y2 t_struct_a) _x2 tschar)
-      tschar))
-  (Ssequence
-    (Sset _i2 (Ecast (Etempvar _i1 tschar) tschar))
-    (Ssequence
-      (Sset _j (Etempvar _i2 tschar))
-      (Sassign (Efield (Evar _p t_struct_b) _y1 tint) (Etempvar _j tint)))))
 |}.
 
 Definition f_main := {|
@@ -278,8 +273,7 @@ prog_defs :=
                      cc_default)) (Tcons (tptr tuint) (Tcons tuint Tnil))
      tvoid cc_default)) :: (_p, Gvar v_p) ::
  (_sub1, Gfun(Internal f_sub1)) :: (_sub2, Gfun(Internal f_sub2)) ::
- (_sub3, Gfun(Internal f_sub3)) :: (_sub4, Gfun(Internal f_sub4)) ::
- (_main, Gfun(Internal f_main)) :: nil);
+ (_sub3, Gfun(Internal f_sub3)) :: (_main, Gfun(Internal f_main)) :: nil);
 prog_main := _main
 |}.
 

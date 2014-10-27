@@ -247,7 +247,7 @@ Lemmas about memory_block
 
 ******************************************)
 
-Lemma memory_block_zero: forall sh b z, memory_block sh (Int.repr 0) (Vptr b z) = emp.
+Lemma memory_block_zero_Vptr: forall sh b z, memory_block sh (Int.repr 0) (Vptr b z) = emp.
 Proof.
   intros. unfold memory_block.
   change (Int.repr 0) with Int.zero.
@@ -258,7 +258,7 @@ Proof.
   assert (Int.unsigned z <= Int.modulus) by omega.
   apply pred_ext; normalize.
 Qed.
-Hint Rewrite memory_block_zero: norm.
+Hint Rewrite memory_block_zero_Vptr: norm.
 
 Lemma memory_block_local_facts: forall sh n p, memory_block sh n p |-- !! (isptr p).
 Proof.
@@ -282,6 +282,18 @@ Proof.
   rewrite <- local_facts_isptr.
   reflexivity.
   apply memory_block_local_facts.
+Qed.
+
+Lemma memory_block_zero: forall sh p, memory_block sh (Int.repr 0) p = !! isptr p && emp.
+Proof.
+  intros.
+  rewrite memory_block_isptr.
+  destruct p;
+  try rewrite memory_block_zero_Vptr;
+  simpl;
+  change (!!False) with FF;
+  repeat rewrite FF_andp;
+  auto.
 Qed.
 
 (******************************************

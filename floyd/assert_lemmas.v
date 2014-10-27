@@ -22,6 +22,17 @@ Lemma sem_add_pi_ptr:
 Proof. intros. destruct p; try contradiction. reflexivity. Qed.
 Hint Rewrite sem_add_pi_ptr using (solve [auto with norm]) : norm.
 
+Lemma sem_cast_i2i_correct_range: forall sz s v,
+  is_int sz s v -> sem_cast_i2i sz s v = Some v.
+Proof.
+  intros.
+  destruct sz, s, v; try solve [inversion H]; simpl;
+  f_equal; f_equal; try apply sign_ext_inrange; try apply zero_ext_inrange; eauto.
+  + simpl in H; destruct H; subst; reflexivity.
+  + simpl in H; destruct H; subst; reflexivity.
+Qed.
+Hint Rewrite sem_cast_i2i_correct_range using (solve [auto with norm]) : norm.
+
 Lemma force_val_e:
  forall v, force_val (Some v) = v. 
 Proof. reflexivity. Qed.
@@ -31,6 +42,16 @@ Lemma sem_cast_neutral_ptr:
   forall p, isptr p -> sem_cast_neutral p = Some p.
 Proof. intros. destruct p; try contradiction; reflexivity. Qed.
 Hint Rewrite sem_cast_neutral_ptr using (solve [auto with norm]): norm.
+
+Lemma sem_cast_neutral_int: forall v,
+  (exists sz s, is_int sz s v) -> sem_cast_neutral v = Some v.
+Proof.
+  intros.
+  destruct H as [? [? ?]].
+  destruct v; try inversion H.
+  reflexivity.
+Qed.
+Hint Rewrite sem_cast_neutral_int using (solve [eauto with norm]) : norm.
 
 Lemma sizeof_tuchar: sizeof tuchar = 1%Z.
 Proof. reflexivity. Qed.

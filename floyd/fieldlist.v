@@ -194,3 +194,47 @@ Proof.
     - apply Zmax_bound_r, IHfld, H.
 Qed.
 
+Lemma eqb_fieldlist_true: forall f1 f2, eqb_fieldlist f1 f2 = true -> f1 = f2.
+Proof.
+  intros.
+  revert f2 H; induction f1; intros; destruct f2; simpl in *.
+  + reflexivity.
+  + inversion H.
+  + inversion H.
+  + apply andb_true_iff in H.
+    destruct H.
+    apply andb_true_iff in H0.
+    destruct H0.
+    apply IHf1 in H1.
+    apply eqb_type_true in H0.
+    apply eqb_ident_spec in H.
+    subst; reflexivity.
+Qed.
+
+Lemma field_offset_field_type_match: forall i f,
+  match field_offset i f, field_type i f with
+  | Errors.OK _, Errors.OK _ => True
+  | Errors.Error _, Errors.Error _ => True
+  | _, _ => False
+  end.
+Proof.
+  intros.
+  unfold field_offset.
+  remember 0 as pos; clear Heqpos.
+  revert pos; induction f; intros.
+  + simpl. auto.
+  + simpl. destruct (ident_eq i i0) eqn:HH.
+    - auto.
+    - apply IHf.
+Defined.
+
+Ltac solve_field_offset_type i f :=
+  let H := fresh "H" in 
+  let Hty := fresh "H" in 
+  let Hofs := fresh "H" in 
+  let t := fresh "t" in
+  let ofs := fresh "ofs" in
+  pose proof field_offset_field_type_match i f;
+  destruct (field_offset i f) as [ofs|?] eqn:Hofs, (field_type i f) as [t|?] eqn:Hty;
+    [clear H | inversion H | inversion H | clear H].
+

@@ -5,6 +5,7 @@ Require Import floyd.client_lemmas.
 Require Import floyd.fieldlist.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
+Require Import floyd.rangespec_lemmas.
 Require Import floyd.type_id_env.
 Require Import Coq.Logic.JMeq.
 Opaque alignof.
@@ -272,6 +273,18 @@ Proof.
   unfold at_offset', at_offset. destruct pos; apply H.
 Qed.
 
+Definition offset_in_range ofs p :=
+  match p with
+  | Vptr b iofs => 0 <= Int.unsigned iofs + ofs <= Int.modulus
+  | _ => True
+  end.
+
+Definition offset_strict_in_range ofs p :=
+  match p with
+  | Vptr b iofs => 0 <= Int.unsigned iofs + ofs < Int.modulus
+  | _ => True
+  end.
+
 (******************************************
 
 Definitions of spacer and withspacer
@@ -299,11 +312,11 @@ Lemma withspacer_spacer: forall sh be ed P,
    withspacer sh be ed P = spacer sh be ed * P.
 Proof.
   intros.
- extensionality v.
- unfold withspacer, spacer.
- destruct (ed - be); auto.
- rewrite if_true by auto.
- simpl. rewrite emp_sepcon. auto.
+  extensionality v.
+  unfold withspacer, spacer.
+  destruct (ed - be); auto.
+  rewrite if_true by auto.
+  simpl. rewrite emp_sepcon. auto.
 Qed.
 
 Lemma spacer_offset_zero:
@@ -362,6 +375,46 @@ Proof.
   apply (right_is_prop (!!isptr p) (P p) _); [apply prop_is_prop|].
   apply H.
 Qed.
+
+Transparent memory_block.
+
+Lemma spacer_memory_block:
+  forall sh be ed v, isptr v -> 
+ spacer sh be ed v = memory_block sh (Int.repr (ed - be)) (offset_val (Int.repr be) v).
+Proof.
+  intros.
+  destruct v; inv H.
+  unfold spacer.
+  destruct (Z.eq_dec (ed - be) 0);
+  try solve [rewrite e; simpl offset_val; rewrite memory_block_zero_Vptr; auto].
+  unfold at_offset'.
+  destruct be; auto.
+  unfold offset_val; rewrite Int.add_zero; auto.
+Qed.
+
+Lemma withspacer_memory_block: forall sh be ed p,
+  0 <= be <= ed ->
+  ed < Int.modulus ->
+  offset_in_range ed p ->
+  withspacer sh be ed (memory_block sh (Int.repr be)) p = memory_block sh (Int.repr ed) p.
+Proof.
+  intros.
+  rewrite withspacer_spacer; simpl.
+  if_tac.
+  + assert (ed = be) by omega; subst.
+    apply emp_sepcon.
+  + rewrite at_offset'_eq by (rewrite <- memory_block_offset_zero; reflexivity).
+    destruct p; try solve [(simpl; apply FF_sepcon)].
+    unfold offset_val, Int.add.
+    replace i with (Int.repr (Int.unsigned i)) at 2 3 by apply Int.repr_unsigned.
+    rewrite !Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+    simpl in H1.
+    rewrite sepcon_comm.
+    pose proof Int.unsigned_range i.
+    rewrite <- memory_block_split by omega.
+    f_equal; f_equal; omega.
+Qed.
+Opaque memory_block.
 
 (************************************************
 
@@ -503,35 +556,13 @@ Proof.
     omega.
 Qed.
 
-Definition ZnthV t (lis: list (reptype t)) (i: Z) : reptype t := 
-       if zlt i 0 then default_val t else nth (Z.to_nat i) lis (default_val t).
-
-Fixpoint rangespec' (lo: Z) (n: nat) (P: Z -> mpred): mpred :=
-  match n with
-  | O => emp
-  | S n' => P lo * rangespec' (Zsucc lo) n' P
- end.
-
-Definition rangespec (lo hi: Z) (P: Z -> mpred) : mpred :=
-  rangespec' lo (nat_of_Z (hi-lo)) P.
-
-Definition array_at' (t: type) (sh: Share.t) (tmaps: reptype t -> val -> mpred)
-                 (f: Z -> reptype t) (lo hi: Z) (v: val) : mpred :=
-           !! isptr v && rangespec lo hi (fun i => tmaps (f i) (add_ptr_int t v i)).
-
-(*
-Fixpoint array_at' (sh: Share.t) (t: type) (length: Z) (P: Z -> reptype t -> val -> mpred) (pos: Z) (v: list (reptype t)) : val -> mpred :=
-match v with
-| nil => if (Zeq_bool length 0) then fun _ => emp else FF
-| hd :: tl => (P pos hd) * (array_at' sh t (length - 1) P (pos + sizeof t) tl)
-end.
-*)
+Definition array_at' (sh: Share.t) (t: type) (lo hi: Z) (P: Z -> reptype t -> val -> mpred) (pos: Z) (v: list (reptype t)) (p: val): mpred :=
+  !! isptr p && rangespec lo hi (fun i => P (pos + sizeof t * i) (Znth (i - lo) v (default_val _))) p.
 
 Fixpoint data_at' (sh: Share.t) (e: type_id_env) (t1: type): Z -> reptype t1 -> val -> mpred :=
   match t1 as t return (Z -> reptype t -> val -> mpred) with
   | Tvoid => at_offset2 (fun v _ => memory_block sh (Int.repr (sizeof t1)) v)
-  | Tarray t z a => at_offset2 (fun p (v: list (reptype t)) => array_at' t sh (data_at' sh e t 0) (ZnthV _ v) 0 z p)
-                    (* array_at' sh t z (data_at' sh e t) *)
+  | Tarray t z a => array_at' sh t 0 z (data_at' sh e t)
   | Tfunction t t0 _ => at_offset2 (fun v _ => memory_block sh (Int.repr (sizeof t1)) v)
   | Tstruct i f a => sfieldlist_at' sh e f (alignof t1)
   | Tunion i f a => ufieldlist_at' sh e f (sizeof t1)
@@ -596,69 +627,68 @@ Lemma data_at'_mut: forall sh e (bound: Z)
   (P4: forall {fld: fieldlist}, (Z -> Z -> reptype_unionlist fld -> val -> mpred) -> Z -> Z -> Prop),
   (forall pos, (legal_alignas_type Tvoid = true) -> 
     (alignof Tvoid | pos) -> 
-    (pos + sizeof Tvoid <= bound) -> 
+    (0 <= pos /\ pos + sizeof Tvoid <= bound) -> 
     P1 (data_at' sh e Tvoid) pos) ->
   (forall pos i s a, 
     (legal_alignas_type (Tint i s a) = true) -> 
     (alignof (Tint i s a) | pos) -> 
-    (pos + sizeof (Tint i s a) <= bound) -> 
+    (0 <= pos /\ pos + sizeof (Tint i s a) <= bound) -> 
     P1 (data_at' sh e (Tint i s a)) pos) ->
   (forall pos s a,
     (legal_alignas_type (Tlong s a) = true) -> 
     (alignof (Tlong s a) | pos) -> 
-    (pos + sizeof (Tlong s a) <= bound) -> 
+    (0 <= pos /\ pos + sizeof (Tlong s a) <= bound) -> 
     P1 (data_at' sh e (Tlong s a)) pos) ->
   (forall pos f a, 
     (legal_alignas_type (Tfloat f a) = true) -> 
     (alignof (Tfloat f a) | pos) -> 
-    (pos + sizeof (Tfloat f a) <= bound) -> 
+    (0 <= pos /\ pos + sizeof (Tfloat f a) <= bound) -> 
     P1 (data_at' sh e (Tfloat f a)) pos) ->
   (forall pos t a, 
     (legal_alignas_type (Tpointer t a) = true) -> 
     (alignof (Tpointer t a) | pos) -> 
-    (pos + sizeof (Tpointer t a) <= bound) -> 
+    (0 <= pos /\ pos + sizeof (Tpointer t a) <= bound) -> 
     P1 (data_at' sh e (Tpointer t a)) pos) ->
-  (forall pos t z a, 
-    (legal_alignas_type (Tarray t z a) = true) -> 
-    (alignof (Tarray t z a) | pos) -> 
-    (pos + sizeof (Tarray t z a) <= bound) -> 
+  (forall pos t z a,
+    (legal_alignas_type (Tarray t z a) = true) ->
+    (alignof (Tarray t z a) | pos) ->
+    (0 <= pos /\ pos + sizeof (Tarray t z a) <= bound) -> 
     (forall n, 0 <= n < z -> P1 (data_at' sh e t) (pos + (sizeof t) * n)) ->
     P1 (data_at' sh e (Tarray t z a)) pos) ->
   (forall pos t t0 c, 
     (legal_alignas_type (Tfunction t t0 c) = true) -> 
     (alignof (Tfunction t t0 c) | pos) -> 
-    (pos + sizeof (Tfunction t t0 c) <= bound) -> 
+    (0 <= pos /\ pos + sizeof (Tfunction t t0 c) <= bound) -> 
     P1 (data_at' sh e (Tfunction t t0 c)) pos) ->
   (forall pos i f a, 
     (legal_alignas_type (Tstruct i f a) = true) -> 
     (alignof (Tstruct i f a) | pos) -> 
-    (pos + sizeof (Tstruct i f a) <= bound) -> 
+    (0 <= pos /\ pos + sizeof (Tstruct i f a) <= bound) -> 
     P3 (sfieldlist_at' sh e f) (alignof (Tstruct i f a)) pos ->
     P1 (data_at' sh e (Tstruct i f a)) pos) ->
   (forall pos i f a, 
     (legal_alignas_type (Tunion i f a) = true) -> 
     (alignof (Tunion i f a) | pos) -> 
-    (pos + sizeof (Tunion i f a) <= bound) -> 
+    (0 <= pos /\ pos + sizeof (Tunion i f a) <= bound) -> 
     P4 (ufieldlist_at' sh e f) (sizeof (Tunion i f a)) pos ->
     P1 (data_at' sh e (Tunion i f a)) pos) ->
   (forall pos i a, 
     (legal_alignas_type (Tcomp_ptr i a) = true) -> 
     (alignof (Tcomp_ptr i a) | pos) -> 
-    (pos + sizeof (Tcomp_ptr i a) <= bound) -> 
+    (0 <= pos /\ pos + sizeof (Tcomp_ptr i a) <= bound) -> 
     P1 (data_at' sh e (Tcomp_ptr i a)) pos) ->
   (forall pos alignment, 
     (nested_fields_pred local_legal_alignas_type Fnil = true) -> 
     (alignment > 0) ->
-    (alignof_hd Fnil | pos) -> 
-    (alignof_fields Fnil | alignment) ->
-    (tl_ofs pos alignment Fnil <= bound) -> 
+    (alignment | pos) ->
+    (0 <= pos /\ pos <= bound) -> 
     P3 (sfieldlist_at' sh e Fnil) alignment pos) ->
   (forall pos alignment i t, 
     (nested_fields_pred local_legal_alignas_type (Fcons i t Fnil) = true) -> 
     (alignment > 0) ->
     (alignof_hd (Fcons i t Fnil) | pos) -> 
     (alignof_fields (Fcons i t Fnil) | alignment) -> 
-    (tl_ofs pos alignment (Fcons i t Fnil) <= bound) -> 
+    (0 <= pos /\ tl_ofs pos alignment (Fcons i t Fnil) <= bound) -> 
     P1 (data_at' sh e t) pos ->
     P3 (sfieldlist_at' sh e (Fcons i t Fnil)) alignment pos) ->
   (forall pos alignment i t f, 
@@ -666,29 +696,27 @@ Lemma data_at'_mut: forall sh e (bound: Z)
     (alignment > 0) ->
     (alignof_hd (Fcons i t f) | pos) -> 
     (alignof_fields (Fcons i t f) | alignment) -> 
-    (tl_ofs pos alignment (Fcons i t f) <= bound) -> 
+    (0 <= pos /\ tl_ofs pos alignment (Fcons i t f) <= bound) -> 
     is_Fnil f = false -> 
     P1 (data_at' sh e t) pos ->
     P3 (sfieldlist_at' sh e f) alignment (align (pos + sizeof t) (alignof_hd f)) ->
     P3 (sfieldlist_at' sh e (Fcons i t f)) alignment pos) ->
-  (forall pos size, 
+  (forall pos, 
     (nested_fields_pred local_legal_alignas_type Fnil = true) -> 
-    (alignof_fields Fnil | pos) ->
-    (sizeof_union Fnil <= size) ->
-    (pos + size <= bound) -> 
-    P4 (ufieldlist_at' sh e Fnil) size pos) ->
+    (0 <= pos /\ pos <= bound) -> 
+    P4 (ufieldlist_at' sh e Fnil) 0 pos) ->
   (forall pos size i t, 
     (nested_fields_pred local_legal_alignas_type (Fcons i t Fnil) = true) -> 
     (alignof_fields (Fcons i t Fnil) | pos) ->
     (sizeof_union (Fcons i t Fnil) <= size) ->
-    (pos + size <= bound) ->
+    (0 <= pos /\ pos + size <= bound) ->
     P1 (data_at' sh e t) pos ->
     P4 (ufieldlist_at' sh e (Fcons i t Fnil)) size pos) ->
   (forall pos size i t f, 
     (nested_fields_pred local_legal_alignas_type (Fcons i t f) = true) -> 
     (alignof_fields (Fcons i t f) | pos) ->
     (sizeof_union (Fcons i t f) <= size) ->
-    (pos + size <= bound) ->
+    (0 <= pos /\ pos + size <= bound) ->
     is_Fnil f = false -> 
     P1 (data_at' sh e t) pos ->
     P4 (ufieldlist_at' sh e f) size pos ->
@@ -696,23 +724,27 @@ Lemma data_at'_mut: forall sh e (bound: Z)
   forall pos t, 
     (legal_alignas_type t = true) -> 
     (alignof t | pos) -> 
-    (pos + sizeof t <= bound) -> 
+    (0 <= pos /\ pos + sizeof t <= bound) -> 
     P1 (data_at' sh e t) pos.
 Proof.
   intros.
   apply (type_mut (fun t => forall pos, (legal_alignas_type t = true) -> (alignof t | pos) -> 
-                  (pos + sizeof t <= bound) -> 
+                  (0 <= pos /\ pos + sizeof t <= bound) -> 
                   @P1 t (data_at' sh e t) pos)
                   (fun _ => True)
                   (fun f => 
                   (forall pos alignment, (nested_fields_pred local_legal_alignas_type f = true) -> 
+                  (f = Fnil -> (alignment | pos)) ->
                   (alignment > 0) ->
                   (alignof_hd f | pos) -> 
-                  (alignof_fields f | alignment) -> (tl_ofs pos alignment f <= bound) -> 
+                  (alignof_fields f | alignment) ->
+                  (0 <= pos /\ tl_ofs pos alignment f <= bound) -> 
                   @P3 f (sfieldlist_at' sh e f) alignment pos) /\
                   (forall pos size,  (nested_fields_pred local_legal_alignas_type f = true) -> 
+                  (f = Fnil -> size = 0) ->
                   (alignof_fields f | pos) ->
-                  (sizeof_union f <= size) -> (pos + size <= bound) ->
+                  (sizeof_union f <= size) ->
+                  (0 <= pos /\ pos + size <= bound) ->
                   @P4 f (ufieldlist_at' sh e f) size pos))); intros.
   + apply H; assumption.
   + apply H0; assumption.
@@ -729,9 +761,13 @@ Proof.
     - simpl in H21.
       destruct H22.
       replace (Z.max 0 z) with z in H21 by (apply eq_sym; apply Z.max_r; omega).
-      assert (sizeof t0 * n <= sizeof t0 * (z - 1)).
-        apply Zmult_le_compat_l; [| pose proof sizeof_pos t0; omega].
-        omega.
+      assert (0 <= sizeof t0 * n <= sizeof t0 * (z - 1)).
+      Focus 1. {
+        pose proof sizeof_pos t0.
+        split.
+        + apply Z.mul_nonneg_nonneg; omega.
+        + apply Zmult_le_compat_l; omega.
+      } Unfocus.
       rewrite Zmult_minus_distr_l in H24.
       rewrite <- Zred_factor0 in H24.
       omega.
@@ -741,6 +777,7 @@ Proof.
       (apply legal_alignas_type_Tstruct; exact H19).
     destruct H18 as [? _]; apply H18.
     - eapply nested_pred_Tstruct. exact H19.
+    - intros; auto.
     - apply alignof_pos.
     - eapply Zdivides_trans; [apply alignof_hd_divide |].
       eapply Zdivides_trans; [exact H22 | exact H20].
@@ -749,6 +786,8 @@ Proof.
   + apply H7; try assumption. (* union case *)
     destruct H18 as [_ ?]; apply H18.
     - eapply nested_pred_Tunion. exact H19.
+    - intros; subst; simpl.
+      apply align_0, alignof_pos.
     - eapply Zdivides_trans; [apply legal_alignas_type_Tunion; exact H19|exact H20].
     - simpl.
       apply align_le.
@@ -758,33 +797,42 @@ Proof.
   + tauto.
   + tauto.
   + split; intros.
-    - apply H9; assumption.
-    - apply H12; assumption.
+    - specialize (H19 eq_refl).
+      simpl in H23. rewrite divide_align in H23 by assumption.
+      apply H9; try assumption.
+    - rewrite (H19 eq_refl) in H22 |- *.
+      apply H12. assumption. omega.
   + split; intros; destruct f.
     - apply H10; try assumption.
-      apply H18; [eapply nested_fields_pred_hd; exact H20 | exact H22|].
-      pose proof tl_ofs_cons_le pos0 alignment i t0 Fnil H21.
+      apply H18; [eapply nested_fields_pred_hd; exact H20 | exact H23|].
+      pose proof tl_ofs_cons_le pos0 alignment i t0 Fnil H22.
       omega.
     - assert (is_Fnil (Fcons i0 t1 f) = false) by reflexivity.
       forget (Fcons i0 t1 f) as ff.
       apply H11; try assumption.
-      * apply H18; [eapply nested_fields_pred_hd; exact H20 | exact H22|].
-        pose proof tl_ofs_cons_le pos0 alignment i t0 ff H21.
+      * apply H18; [eapply nested_fields_pred_hd; exact H20 | exact H23|].
+        pose proof tl_ofs_cons_le pos0 alignment i t0 ff H22.
         omega.
       * destruct H19 as [? _].
         apply H19; [
           eapply nested_fields_pred_tl; exact H20 |
-          exact H21 |
+          intro; rewrite H27 in H26; inversion H26 |
+          exact H22 |
           apply align_divides; apply alignof_hd_pos|
-          eapply Zdivides_trans; [apply alignof_fields_tl_divide | exact H23] |].
-        simpl in H24; rewrite H25 in H24.
-        exact H24.
+          eapply Zdivides_trans; [apply alignof_fields_tl_divide | exact H24] |].
+        split; destruct H25. {
+          pose proof sizeof_pos t0.
+          eapply Z.le_trans; [| apply align_le]; [omega | apply alignof_hd_pos].
+        } {
+          simpl in H27; rewrite H26 in H27.
+          exact H27.
+        }
     - apply H13; try assumption.
       apply H18; [
         eapply nested_fields_pred_hd; exact H20 |
-        eapply Zdivides_trans; [apply alignof_fields_hd_divide | exact H21]
+        eapply Zdivides_trans; [apply alignof_fields_hd_divide | exact H22]
       |].
-      simpl in H22.
+      simpl in H23.
       pose proof Z.le_max_l (sizeof t0) 0.
       omega.
     - assert (is_Fnil (Fcons i0 t1 f) = false) by reflexivity.
@@ -792,17 +840,18 @@ Proof.
       apply H14; try assumption.
       * apply H18; [
           eapply nested_fields_pred_hd; exact H20 |
-          eapply Zdivides_trans; [apply alignof_fields_hd_divide | exact H21]
+          eapply Zdivides_trans; [apply alignof_fields_hd_divide | exact H22]
         |].
-        simpl in H22.
+        simpl in H23.
         pose proof Z.le_max_l (sizeof t0) (sizeof_union ff).
         omega.
       * destruct H19 as [_ ?].
         apply H19; [
           eapply nested_fields_pred_tl; exact H20 |
-          eapply Zdivides_trans; [apply alignof_fields_tl_divide | exact H21]|
-          | exact H23].
-        simpl in H22.
+          intro; rewrite H26 in H25; inversion H25 |
+          eapply Zdivides_trans; [apply alignof_fields_tl_divide | exact H22]|
+          | exact H24].
+        simpl in H23.
         pose proof Z.le_max_r (sizeof t0) (sizeof_union ff).
         omega.
   + assumption.
@@ -861,8 +910,8 @@ and data_at_.
 
 ************************************************)
 
-Lemma array_at'_local_facts: forall t sh tmap f lo hi p,
-  array_at' t sh tmap f lo hi p |-- !! (isptr p).
+Lemma array_at'_local_facts: forall sh t lo hi P pos v p,
+  array_at' sh t lo hi P pos v p |-- !! (isptr p).
 Proof.
   intros.
   unfold array_at'.
@@ -877,8 +926,7 @@ Proof.
   apply (type_mut (fun (t: type) => forall pos v p, (data_at' sh e t pos v p |-- !!(isptr p))) (fun _ => True) (fun flds => (forall alignment pos v p, sfieldlist_at' sh e flds alignment pos v p |-- !!(isptr p)) /\ (forall alignment pos v p, ufieldlist_at' sh e flds alignment pos v p |-- !!(isptr p)))); intros; auto; simpl; 
   try (unfold at_offset2; apply (@at_offset'_preserve_local_facts val); intros; apply mapsto_local_facts);
   try (unfold at_offset2; apply (@at_offset'_preserve_local_facts val); intros; apply memory_block_local_facts).
-  + unfold at_offset2; apply (@at_offset'_preserve_local_facts val). intros. (* Array case *)
-    apply array_at'_local_facts.
+  + apply array_at'_local_facts.
   + destruct H. apply H. (* struct case *)
   + destruct H. apply H0. (* union case *)
   + split; intros. (* Fnil case of fieldlist induction *)
@@ -896,12 +944,12 @@ Proof.
       * destruct v0; [apply withspacer_preserve_local_facts; intros; apply H | apply H1].
 Qed.
 
-Lemma array_at'_isptr: forall t sh tmap f lo hi p,
-  array_at' t sh tmap f lo hi p = !! (isptr p) && array_at' t sh tmap f lo hi p.
+Lemma array_at'_isptr: forall sh t lo hi P pos v p,
+  array_at' sh t lo hi P pos v p = !! (isptr p) && array_at' sh t lo hi P pos v p.
 Proof. intros. rewrite <- local_facts_isptr. reflexivity. apply array_at'_local_facts. Qed.
 
-Lemma array_at'_offset_zero: forall t sh tmap f lo hi p,
-  array_at' t sh tmap f lo hi p = array_at' t sh tmap f lo hi (offset_val Int.zero p).
+Lemma array_at'_offset_zero: forall sh t lo hi P pos v p,
+  array_at' sh t lo hi P pos v p = array_at' sh t lo hi P pos v (offset_val Int.zero p).
 Proof. intros. rewrite <- local_facts_offset_zero. reflexivity. apply array_at'_local_facts. Qed.
 
 Lemma data_at'_isptr:
@@ -1089,6 +1137,52 @@ Lemma lower_sepcon_val':
   ((P*Q) v) = (P v * Q v).
 Proof. reflexivity. Qed.
 
+Lemma array_at'_at_offset': forall sh t lo hi P pos pos0 v p,
+  lo < hi ->
+  (legal_alignas_type t = true) ->
+  (alignof t | pos) ->
+  (alignof t | pos0) ->
+  (forall v n, lo <= n < hi -> 
+    P (pos + (pos0 + sizeof t * n)) v p = P (pos0 + sizeof t * n) v (offset_val (Int.repr pos) p)) ->
+  (forall v pos, P pos v p = P pos v (offset_val Int.zero p)) ->
+  array_at' sh t lo hi P (pos + pos0) v p = array_at' sh t lo hi P pos0 v (offset_val (Int.repr pos) p).
+Proof.
+  intros.
+  unfold array_at'.
+  unfold rangespec.
+  assert (lo <= hi) by omega; clear H.
+  f_equal; [| remember (nat_of_Z (hi - lo)) as n eqn:HH; revert v lo H5 H3 HH; induction n; intros].
+  + rewrite isptr_offset_val.
+    reflexivity.
+  + reflexivity.
+  + simpl.
+    assert (nat_of_Z (hi - lo) >= 1)%nat by omega.
+    destruct (zlt 0 (hi - lo)); [| rewrite nat_of_Z_neg in H; omega].
+    f_equal.
+    - rewrite <- Z.add_assoc.
+      apply H3.
+      omega.
+    - erewrite rangespec'_ext.
+      Focus 2. {
+        intros. rewrite Znth_succ by omega.
+        instantiate (1 := fun i => P (pos + pos0 + sizeof t * i)
+          (Znth (i - Z.succ lo) (skipn 1 v) (default_val t))).
+        reflexivity.
+      } Unfocus.
+      rewrite IHn; [
+        | omega
+        | intros; apply H3; omega
+        | rewrite (juicy_mem_lemmas.nat_of_Z_lem1 _ _ HH);
+          f_equal; omega].
+      erewrite rangespec'_ext.
+      Focus 2. {
+        intros. rewrite <- Znth_succ by omega.
+        instantiate (1 := fun i => P (pos0 + sizeof t * i) (Znth (i - lo) v (default_val t))).
+        reflexivity.
+      } Unfocus.
+      reflexivity.
+Qed.
+
 Lemma data_at'_at_offset': forall sh t v pos,
   (legal_alignas_type t = true) ->
   (alignof t | pos) ->
@@ -1119,8 +1213,17 @@ Proof.
          try (intros; rewrite <- memory_block_offset_zero; reflexivity);
          try (intros; rewrite <- mapsto_offset_zero; reflexivity)).
   + intros. (* Tarray case *)
-    rewrite <- array_at'_offset_zero.
-    reflexivity.
+    destruct (zlt 0 z).
+    - simpl.
+      rewrite legal_alignas_type_Tarray in * by auto.
+      apply array_at'_at_offset'; auto.
+      * eapply nested_pred_Tarray; eauto. omega.
+      * intros. rewrite <- data_at'_offset_zero; reflexivity.
+    - simpl.
+      unfold array_at', rangespec.
+      rewrite nat_of_Z_neg by omega.
+      rewrite isptr_offset_val.
+      reflexivity.
   + simpl. (* Tstruct case *)
     apply H4, H5.
   + simpl. (* Tunion case *)
@@ -1186,62 +1289,383 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma memory_block_data_at_: forall (sh : share) (t : type),
+Lemma unsigned_add: forall i pos, 0 <= pos -> Int.unsigned (Int.add i (Int.repr pos)) = (Int.unsigned i + pos) mod Int.modulus.
+Proof.
+  intros.
+  unfold Int.add.
+  pose proof Int.modulus_pos.
+  pose proof Int.unsigned_range i.
+  pose proof Int.unsigned_range (Int.repr pos).
+  rewrite !Int.unsigned_repr_eq in *.
+  rewrite Z.add_mod by omega.
+  rewrite Z.mod_mod by omega.
+  rewrite <- Z.add_mod by omega.
+  reflexivity.
+Qed.
+
+Lemma memory_block_data_at__aux1: forall i pos t,
+  0 <= pos /\ pos + sizeof t <= Int.modulus - Int.unsigned i ->
+  Int.unsigned (Int.add i (Int.repr pos)) + sizeof t <= Int.modulus.
+Proof.
+  intros.
+  destruct H.
+  rewrite (unsigned_add i pos H).
+  cut ((Int.unsigned i + pos) mod Int.modulus <= Int.unsigned i + pos).
+    { intros. omega. }
+  pose proof Int.modulus_pos.
+  pose proof Int.unsigned_range i.
+  apply Z.mod_le; omega.
+Qed.
+
+Lemma memory_block_data_at__aux2: forall i pos t,
+  0 <= pos /\ pos + sizeof t <= Int.modulus - Int.unsigned i ->
+  (alignof t | Int.unsigned i) ->
+  (alignof t | pos) ->
+  (alignof t | Int.unsigned (Int.add i (Int.repr pos))).
+Proof.
+  intros.
+  destruct H.
+  rewrite (unsigned_add i pos H).
+  destruct (zlt (Int.unsigned i + pos) Int.modulus).
+  + pose proof Int.unsigned_range i.
+    rewrite Z.mod_small by omega.
+    apply Z.divide_add_r; assumption.
+  + pose proof sizeof_pos t.
+    assert (Int.unsigned i + pos = Int.modulus) by omega.
+    rewrite H4.
+    rewrite Z_mod_same_full.
+    apply Z.divide_0_r.
+Qed.
+
+Lemma memory_block_array_at'_nil: forall sh t b i lo hi pos P,
+  lo < hi ->
+  0 <= pos + sizeof t * lo /\ pos + sizeof t * hi <= Int.modulus - Int.unsigned i ->
+  legal_alignas_type t = true ->
+  (alignof t | pos) ->
+  (alignof t | Int.unsigned i) ->
+  sizeof t * (hi -lo) < Int.modulus ->
+  nested_non_volatile_type t = true ->
+  (forall n : Z,
+       lo <= n < hi ->
+       P (pos + sizeof t * n) (default_val t) (Vptr b i) =
+       memory_block sh (Int.repr (sizeof t))
+         (offset_val (Int.repr (pos + sizeof t * n)) (Vptr b i))) ->
+  array_at' sh t lo hi P pos nil (Vptr b i) =
+  memory_block sh (Int.repr (sizeof t * (hi - lo)))
+    (offset_val (Int.repr (sizeof t * lo)) (offset_val (Int.repr pos) (Vptr b i))).
+Proof.
+  intros.
+  unfold array_at'.
+  unfold rangespec.
+  assert (lo <= hi) by omega; clear H.
+  rewrite memory_block_isptr.
+  rewrite !isptr_offset_val.
+  f_equal.
+  remember (nat_of_Z (hi - lo)) as n eqn:HH; revert lo H0 H4 H6 H7 HH; induction n; intros.
+  + simpl.
+    destruct (zlt hi (Z.succ lo)).
+    - assert (hi - lo = 0) by omega.
+      rewrite H, Z.mul_0_r, memory_block_zero_Vptr.
+      reflexivity.
+    - replace (hi - lo) with ((hi - Z.succ lo) + 1) in HH by omega.
+      rewrite nat_of_Z_plus in HH by omega.
+      change (nat_of_Z 1) with (1 % nat) in HH.
+      rewrite plus_comm in HH.
+      simpl in HH.
+      inversion HH.
+  + simpl.
+    assert (nat_of_Z (hi - lo) >= 1)%nat by omega.
+    destruct (zlt 0 (hi - lo)); [| rewrite nat_of_Z_neg in H; omega].
+    replace (sizeof t * (hi - lo))%Z with (sizeof t + sizeof t * (hi - Z.succ lo)).
+    Focus 2. {
+      rewrite Zred_factor2.
+      f_equal.
+      omega.
+    } Unfocus.
+    rewrite int_add_assoc1.
+    unfold Int.add.
+    pose proof sizeof_pos t.
+    assert (sizeof t * Z.succ lo = sizeof t * lo + sizeof t)%Z.
+    {
+      rewrite Zred_factor3.
+      f_equal; omega.
+    }
+    rewrite memory_block_split.
+    f_equal.
+    - rewrite Z.sub_diag.
+      unfold Znth.
+      if_tac; [omega |].
+      change (Z.to_nat 0) with 0%nat.
+      simpl nth.
+      rewrite H6 by omega.
+      reflexivity.
+    - erewrite rangespec'_ext.
+      Focus 2. {
+        intros.
+        rewrite Znth_succ by omega.
+        instantiate (1 := fun i0 => P (pos + sizeof t * i0)
+          (Znth (i0 - Z.succ lo) (skipn 1 nil) (default_val t))).
+        reflexivity.
+      } Unfocus.
+      rewrite IHn.
+      {
+        destruct (zle (hi - Z.succ lo) 0); [| destruct (zle (sizeof t) 0)].
+        + assert (hi - Z.succ lo = 0) by omega.
+          unfold offset_val.
+          rewrite H10, Z.mul_0_r, !memory_block_zero_Vptr.
+          reflexivity.
+        + assert (sizeof t = 0) by (pose proof sizeof_pos t; omega).
+          unfold offset_val.
+          rewrite H10, Z.mul_0_l, !memory_block_zero_Vptr.
+          reflexivity.
+        + f_equal.
+          rewrite offset_offset_val.
+          unfold offset_val.
+          rewrite <- Int.add_assoc, int_add_assoc1.
+          unfold Int.add; f_equal; f_equal.
+          assert (0 <= pos + sizeof t * Z.succ lo <= Int.max_unsigned).
+          {
+            split.
+            + rewrite H9; omega.
+            + replace (Z.succ lo) with (hi - (hi - Z.succ lo)) by omega.
+              rewrite Z.mul_sub_distr_l.
+              assert (sizeof t * (hi - Z.succ lo) > 0) by (apply Zmult_gt_0_compat; assumption).
+              unfold Int.max_unsigned.
+              pose proof Int.unsigned_range i.
+              omega.
+          }
+          rewrite !Int.unsigned_repr; omega.
+        }
+        * omega.
+        * rewrite Z.mul_sub_distr_l, H9.
+          rewrite Z.mul_sub_distr_l in H4.
+          omega.
+        * intros; apply H6; auto; omega.
+        * omega.
+        * rewrite (juicy_mem_lemmas.nat_of_Z_lem1 _ _ HH).
+          f_equal; omega.
+      - omega.
+      - apply Z.mul_nonneg_nonneg; omega.
+      - rewrite Zred_factor2.
+        replace (1 + (hi - Z.succ lo)) with (hi - lo) by omega.
+        exact H4.
+      - split.
+        * pose proof Int.unsigned_range i.
+          pose proof Int.unsigned_range (Int.repr (pos + sizeof t * lo)).
+          omega.
+        * assert (Int.unsigned (Int.repr (pos + sizeof t * lo)) <= pos + sizeof t * lo).
+            rewrite Int.unsigned_repr_eq.
+            pose Int.modulus_pos.
+            apply Z.mod_le; omega.
+          rewrite Z.mul_sub_distr_l.
+          omega.
+Qed.
+
+Lemma memory_block_data_at'_default_val: forall sh t b i pos,
+  legal_alignas_type t = true ->
+  0 <= pos /\ pos + sizeof t <= Int.modulus - Int.unsigned i ->
+  nested_non_volatile_type t = true ->
+  sizeof t < Int.modulus ->
+  Int.unsigned i + sizeof t <= Int.modulus ->
+  (alignof t | pos) ->
+  (alignof t | Int.unsigned i) ->
+  data_at' sh empty_ti t pos (default_val t) (Vptr b i) =
+    memory_block sh (Int.repr (sizeof t)) (offset_val (Int.repr pos) (Vptr b i)).
+Proof.
+  intros.
+  apply (data_at'_mut sh empty_ti (Int.modulus - Int.unsigned i)
+    (fun t data_at'_pred pos =>
+    sizeof t < Int.modulus ->
+    (alignof t | Int.unsigned i) ->
+    nested_non_volatile_type t = true ->
+    data_at'_pred pos (default_val t) (Vptr b i) =
+    memory_block sh (Int.repr (sizeof t)) (offset_val (Int.repr pos) (Vptr b i)))
+    (fun f sfieldlist_at'_pred alignment pos =>
+    tl_ofs pos alignment f - pos < Int.modulus ->
+    (alignof_fields f | Int.unsigned i) ->
+    nested_fields_pred uncompomize_non_volatile f = true ->
+    sfieldlist_at'_pred alignment pos (struct_default_val f) (Vptr b i) =
+    memory_block sh (Int.repr (tl_ofs pos alignment f - pos)) (offset_val (Int.repr pos) (Vptr b i)))
+    (fun f ufieldlist_at'_pred size pos =>
+    sizeof_union f < Int.modulus ->
+    (alignof_fields f | Int.unsigned i) ->
+    nested_fields_pred uncompomize_non_volatile f = true ->
+    ufieldlist_at'_pred size pos (union_default_val f) (Vptr b i) =
+    memory_block sh (Int.repr size) (offset_val (Int.repr pos) (Vptr b i))));
+    intros;
+    try (simpl data_at'; unfold at_offset2; 
+         try (rewrite at_offset'_eq; [|rewrite <- memory_block_offset_zero; reflexivity]);
+         try (rewrite at_offset'_eq; [|rewrite <- mapsto_offset_zero; reflexivity]);
+         try (match goal with
+              | |- mapsto _ ?T _ _ = _ => 
+                pose proof sizeof_pos T;
+                rewrite memory_block_mapsto_ with (t := T); [
+                  | simpl; auto
+                  | apply (nested_non_volatile_type_fact T); auto
+                  | assumption 
+                  | apply Int.unsigned_repr; unfold Int.max_unsigned; omega
+                  | apply memory_block_data_at__aux1; assumption
+                  | apply memory_block_data_at__aux2; assumption]
+              end);
+         try reflexivity).
+  + (* Tarray *)
+    destruct (zlt 0 z).
+    - assert (sizeof (Tarray t0 z a) = sizeof t0 * z)%Z.
+      {
+        simpl; f_equal.
+        apply Z.max_r_iff.
+        omega.
+      }
+      assert (nested_non_volatile_type t0 = true)
+        by (eapply nested_pred_Tarray; eauto; omega).
+      rewrite legal_alignas_type_Tarray in * by auto.
+      rewrite memory_block_array_at'_nil; auto.
+      * rewrite Z.sub_0_r, Z.mul_0_r.
+        rewrite <- memory_block_offset_zero.
+        f_equal; f_equal.
+        apply eq_sym, H13.
+      * rewrite Z.mul_0_r. omega.
+      * eapply nested_pred_Tarray; eauto. omega.
+      * rewrite Z.sub_0_r. omega.
+      * intros.
+        apply H9; auto.
+        rewrite H13 in H10.
+        replace z with ((z - 1) + 1) in H10 by omega.
+        rewrite Z.mul_add_distr_l in H10.
+        pose proof sizeof_pos t0.
+        assert (0 <= sizeof t0 * (z - 1))
+          by (apply Z.mul_nonneg_nonneg; omega).
+        omega.
+    - unfold array_at', rangespec.
+      rewrite nat_of_Z_neg by omega.
+      simpl.
+      rewrite Z.max_l, Z.mul_0_r by omega.
+      rewrite memory_block_zero.
+      reflexivity.
+  + (* Tstruct *)
+    rewrite H9, <- sizeof_Tstruct_tl_ofs; auto.
+    - f_equal; f_equal. omega.
+    - assert (sizeof_struct f pos <= align (sizeof_struct f pos) (alignof (Tstruct i0 f a))).
+        apply align_le.
+        apply alignof_pos.
+      rewrite <- sizeof_Tstruct_tl_ofs by auto.
+      omega.
+    - eapply Z.divide_trans; [apply legal_alignas_type_Tstruct, H6 | exact H11].
+  + (* Tunion *)
+    simpl in H9; rewrite H9; auto.
+    - assert (sizeof_union f <= align (sizeof_union f) (alignof (Tunion i0 f a))).
+        apply align_le.
+        apply alignof_pos.
+      simpl in H10; omega.
+    - eapply Z.divide_trans; [apply legal_alignas_type_Tunion, H6 | exact H11].
+  + rewrite memory_block_mapsto_ with (t := (Tpointer (look_up_ident_default i0 empty_ti) a)).
+    - simpl; auto.
+    - simpl; auto.
+    - apply (nested_non_volatile_type_fact (Tcomp_ptr i0 a)); auto.
+    - unfold legal_alignas_type in *.
+      exact H6.
+    - apply Int.unsigned_repr; unfold Int.max_unsigned; simpl; omega.
+    - apply memory_block_data_at__aux1; assumption.
+    - apply memory_block_data_at__aux2; assumption.
+  + simpl.
+    rewrite divide_align by auto.
+    rewrite Z.sub_diag, memory_block_zero.
+    reflexivity.
+  + simpl.
+    assert (pos0 + sizeof t0 <= align (pos0 + sizeof t0) alignment)
+      by (apply align_le; omega).
+    pose proof sizeof_pos t0.
+    rewrite <- withspacer_memory_block
+      with (be := sizeof t0) (ed := align (pos0 + sizeof t0) alignment - pos0);
+      [| omega | assumption | ].
+    Focus 2. {
+      unfold offset_in_range, Int.add.
+      simpl tl_ofs in H10, H12.
+      split.
+      + pose proof Int.unsigned_range (Int.repr (Int.unsigned i + Int.unsigned (Int.repr pos0))).
+        omega.
+      + rewrite !Int.unsigned_repr_eq.
+        assert (pos0 mod Int.modulus <= pos0) by (apply Z.mod_le; omega).
+        assert (0 <= pos0 mod Int.modulus < Int.modulus) by (apply Z.mod_pos_bound; omega).
+        pose proof Int.unsigned_range i.
+        assert ((Int.unsigned i + pos0 mod Int.modulus) mod Int.modulus <= 
+          Int.unsigned i + pos0 mod Int.modulus)
+          by (apply Z.mod_le; omega).
+        omega.
+    } Unfocus.
+Opaque spacer.
+    rewrite !withspacer_spacer; simpl.
+Transparent spacer.
+    rewrite H11. f_equal.
+    - admit. (* spacer shifting *)
+    - simpl in H12; omega.
+    - simpl in H13.
+      rewrite Z.max_l in H13 by (pose proof alignof_pos t0; omega).
+      exact H13.
+    - simpl in H14.
+      rewrite andb_comm in H14; simpl in H14.
+      exact H14.
+  + simpl; rewrite H11; simpl.
+    rewrite H13.
+    admit.
+    admit.
+    admit.
+    admit.
+  + admit.
+  + admit.
+  + admit.
+  + assumption.
+  + assumption.
+  + assumption.
+  + assumption.
+  + assumption.
+  + assumption.
+Qed.
+
+Lemma memory_block_data_at_: forall (sh : share) (t : type) (p: val),
   legal_alignas_type t = true ->
   nested_non_volatile_type t = true ->
-  (fun p => !! (align_compatible t p)) &&
-  memory_block sh (Int.repr (sizeof t)) = data_at_ sh t.
+  sizeof t < Int.modulus ->
+  data_at_ sh t p = !! (align_compatible t p) && memory_block sh (Int.repr (sizeof t)) p.
 Proof.
   intros.
   simpl.
-  extensionality p.
   destruct p;
     try (rewrite memory_block_isptr;
      rewrite data_at__isptr;
      apply pred_ext; normalize; reflexivity).
   unfold data_at_, data_at.
   simpl.
-  admit.
-  (* To prove this lemma, we need non-volatility *)
-(*
-  apply (data_at'_mut sh empty_ti (Int.modulus - Int.unsigned i)
-    (fun t data_at'_pred pos =>
-    memory_block sh (Int.repr (sizeof t)) (offset_val (Int.repr pos) (Vptr b i)) =
-    data_at'_pred pos (default_val t) (Vptr b i))
-    (fun f sfieldlist_at'_pred alignment pos =>
-    memory_block sh (Int.repr (tl_ofs pos alignment f - pos)) (offset_val (Int.repr pos) (Vptr b i)) =
-    sfieldlist_at'_pred alignment pos (struct_default_val f) (Vptr b i))
-    (fun f ufieldlist_at'_pred size pos =>
-    memory_block sh (Int.repr size) (offset_val (Int.repr pos) (Vptr b i)) =
-    ufieldlist_at'_pred size pos (union_default_val f) (Vptr b i)));
-    intros;
-    try (unfold data_at', at_offset2; 
-         try (rewrite at_offset'_eq; [|apply memory_block_offset_zero]);
-         try (rewrite at_offset'_eq; [|apply mapsto_offset_zero]);
-         try (rewrite mapsto_mapsto_; rewrite <- memory_block_mapsto_);
-          reflexivity).
-    unfold data_at', at_offset2.
-         try (rewrite at_offset'_eq; [|apply mapsto_offset_zero]).
-         simpl default_val. 
-         erewrite memory_block_mapsto_; [unfold mapsto_; reflexivity | | exact H0 | simpl;destruct i0;reflexivity | simpl offset_val;unfold size_compatible |].
-       *)  
+  rewrite memory_block_size_compatible by auto.
+  unfold size_compatible.
+  cut (Int.unsigned i + sizeof t <= Int.modulus ->
+      (alignof t | Int.unsigned i) -> 
+       data_at' sh empty_ti t 0 (default_val t) (Vptr b i) =
+       memory_block sh (Int.repr (sizeof t)) (Vptr b i));
+    [intros; apply pred_ext; normalize; rewrite H2 by auto; cancel|].
+  intros.
+  rewrite memory_block_offset_zero.
+  apply memory_block_data_at'_default_val; auto.
+  + omega.
+  + apply Z.divide_0_r.
 Qed.
 
 Lemma align_1_memory_block_data_at_: forall (sh : share) (t : type),
   legal_alignas_type t = true ->
   nested_non_volatile_type t = true ->
   alignof t = 1 ->
+  sizeof t < Int.modulus ->
   memory_block sh (Int.repr (sizeof t)) = data_at_ sh t.
 Proof.
   intros.
-  rewrite <- memory_block_data_at_ by auto.
+  extensionality p.
+  rewrite memory_block_data_at_ by auto.
   rewrite andp_comm.
   apply add_andp.
-  go_lower.
   apply prop_right.
   unfold align_compatible.
   rewrite H1.
-  destruct rho; auto.
+  destruct p; auto.
   apply Z.divide_1_l.
 Qed.
 
@@ -1251,15 +1675,68 @@ Proof.
   admit.
 Qed.
 
+Lemma array_at'_array_at'_: forall sh t lo hi P v pos p,
+  lo < hi ->
+  (legal_alignas_type t = true) ->
+  (alignof t | pos) ->
+  (forall n : Z,
+       lo <= n < hi ->
+       forall v p,
+       P (pos + sizeof t * n) v p
+       |-- P (pos + sizeof t * n) (default_val t) p) ->
+  array_at' sh t lo hi P pos v p |-- array_at' sh t lo hi P pos nil p.
+Proof.
+  intros.
+  unfold array_at'.
+  unfold rangespec.
+  assert (lo <= hi) by omega; clear H.
+  apply andp_derives; [apply derives_refl |].
+  remember (nat_of_Z (hi - lo)) as n eqn:HH; revert lo v H3 H2 HH; induction n; intros.
+  + simpl.
+    apply derives_refl.
+  + simpl.
+    assert (nat_of_Z (hi - lo) >= 1)%nat by omega.
+    destruct (zlt 0 (hi - lo)); [| rewrite nat_of_Z_neg in H; omega].
+    apply sepcon_derives.
+    - unfold Znth. if_tac; [omega | rewrite Z.sub_diag].
+      simpl.
+      apply H2.
+      omega.
+    - erewrite rangespec'_ext.
+      Focus 2. {
+        intros.
+        rewrite Znth_succ by omega.
+        instantiate (1 := fun i => P (pos + sizeof t * i) (Znth (i - Z.succ lo)
+                     (skipn 1 v) (default_val t))).
+        reflexivity.
+      } Unfocus.
+      eapply derives_trans.
+      Focus 1. {
+        apply IHn; [omega | |].
+        + intros. apply H2. omega.
+        + rewrite (juicy_mem_lemmas.nat_of_Z_lem1 _ _ HH).
+          f_equal; omega.
+      } Unfocus.
+      erewrite rangespec'_ext.
+      Focus 2. {
+        intros.
+        change (@nil (reptype t)) with (skipn 1 (@nil (reptype t))).
+        rewrite <- Znth_succ by omega.
+        instantiate (1 := fun i => P (pos + sizeof t * i) (Znth (i - lo) nil (default_val t))).
+        reflexivity.
+      } Unfocus.
+      apply derives_refl.
+Qed.
+
 Lemma data_at'_data_at'_ : forall sh e t v pos b i, 
   legal_alignas_type t = true ->
-  Int.unsigned i + pos + sizeof t <= Int.modulus ->
+  0 <= pos /\ Int.unsigned i + pos + sizeof t <= Int.modulus ->
   (alignof t | pos) ->
   (alignof t | Int.unsigned i) ->
   data_at' sh e t pos v (Vptr b i) |-- data_at' sh e t pos (default_val t) (Vptr b i).
 Proof.
   intros.
-  assert (pos + sizeof t <= Int.modulus - Int.unsigned i) by omega; clear H0.
+  assert (0 <= pos /\ pos + sizeof t <= Int.modulus - Int.unsigned i) by omega; clear H0.
 
   apply (data_at'_mut sh e (Int.modulus - Int.unsigned i)
     (fun t data_at'_pred pos => forall v p, data_at'_pred pos v p |-- data_at'_pred pos (default_val t) p)
@@ -1271,8 +1748,18 @@ Proof.
     [apply at_offset_derives; go_lower; apply mapsto_mapsto_; reflexivity |
     unfold mapsto_; apply derives_refl; reflexivity]);
   try tauto.
-  + admit. (* Tarray case *)
-    (* Need to figure out whether the current definition in default value is correct. *)
+  + destruct (zlt 0 z). (* Tarray case *)
+    - apply array_at'_array_at'_.
+      * omega.
+      * eapply nested_pred_Tarray; eauto. omega.
+      * rewrite legal_alignas_type_Tarray in * by auto.
+        exact H4.
+      * intros.
+        apply H6, H7.
+    - simpl.
+      unfold array_at', rangespec.
+      rewrite nat_of_Z_neg by omega.
+      apply derives_refl.
   + apply H6. (* Tstruct case *)
   + apply H6. (* Tunion case *)
   + repeat rewrite withspacer_spacer.
@@ -1314,30 +1801,60 @@ Qed.
 
 Hint Resolve data_at_data_at_: cancel.
 
-(**********************************************
+Lemma data_at_Tarray_ext_derives: forall sh t n a v v',
+  legal_alignas_type (Tarray t n a) = true ->
+  (forall i, 0 <= i < n ->
+     data_at sh t (Znth i v (default_val _)) |-- data_at sh t (Znth i v' (default_val _))) ->
+  data_at sh (Tarray t n a) v |-- data_at sh (Tarray t n a) v'.
+Proof.
+  intros.
+  unfold data_at.
+  simpl; intro p.
+  unfold array_at'.
+  normalize.
+  apply rangespec_ext_derives.
+  intros.
+  rewrite !Z.add_0_l.
+  rewrite !Z.sub_0_r.
+  assert (legal_alignas_type t = true).
+  Focus 1. {
+    unfold legal_alignas_type in H.
+    simpl in H.
+    rewrite andb_true_iff, orb_true_iff in H.
+    destruct H as [? [? | ?]].
+    + auto.
+    + apply Zle_is_le_bool in H4; omega.
+  } Unfocus.  
+  assert (alignof t | sizeof t * i).
+  Focus 1. {
+    apply Z.divide_mul_l.
+    apply legal_alignas_sizeof_alignof_compat, H4.
+  } Unfocus.
+  rewrite !data_at'_at_offset' with (pos := (sizeof t * i)%Z) by auto.
+  rewrite !at_offset'_eq by (rewrite <- data_at'_offset_zero; reflexivity).
+  pose proof size_compatible_nested_field _ (ArraySubsc i :: nil) _ H1.
+  unfold nested_field_type2, nested_field_offset2 in H6; simpl in H6.
+  pose proof align_compatible_nested_field _ (ArraySubsc i :: nil) _ H H2.
+  unfold nested_field_type2, nested_field_offset2 in H7; simpl in H7.
+  solve_array_subsc_range H3.
+  simpl in H6, H7.
+  specialize (H0 i H3 (offset_val (Int.repr (sizeof t * i)) p)).
+  unfold data_at in H0.
+  simpl in H0.
+  normalize in H0.
+Qed.
 
-Here, we need to think about how to use array in examples.
-
-**********************************************)
-
-Definition offset_in_range ofs p :=
-  match p with
-  | Vptr b iofs => 0 <= Int.unsigned iofs + ofs <= Int.modulus
-  | _ => True
-  end.
-
-Definition offset_strict_in_range ofs p :=
-  match p with
-  | Vptr b iofs => 0 <= Int.unsigned iofs + ofs < Int.modulus
-  | _ => True
-  end.
-
-Definition array_at (t: type) (sh: Share.t) (f: Z -> reptype t) (lo hi: Z)
-                                   (v: val) : mpred :=
-  !! isptr v && !! offset_in_range (sizeof t * lo) v && !! offset_in_range (sizeof t * hi) v
-  && !! align_compatible t v && rangespec lo hi (fun i => data_at sh t (f i) (add_ptr_int t v i)).
-
-Definition array_at_ t sh lo hi := array_at t sh (fun _ => default_val t) lo hi.
+Lemma data_at_Tarray_ext: forall sh t n a v v',
+  legal_alignas_type (Tarray t n a) = true ->
+  (forall i, 0 <= i < n ->
+    data_at sh t (Znth i v (default_val _)) =
+      data_at sh t (Znth i v' (default_val _))) ->
+  data_at sh (Tarray t n a) v = data_at sh (Tarray t n a) v'.
+Proof.
+  intros.
+  apply pred_ext; apply data_at_Tarray_ext_derives; auto;
+  intros; rewrite H0 by auto; auto.
+Qed.
 
 Lemma data_at_tint: forall sh v2 v1,
   data_at sh tint v2 v1 = mapsto sh tint v1 v2.
@@ -1353,6 +1870,7 @@ Proof.
   admit.
 Qed.
 
+(*
 Fixpoint typecount (t: type) : nat :=
   match t with
   | Tstruct _ f _ => S (typecount_fields f)
@@ -1374,20 +1892,6 @@ Qed.
 Lemma typecount_pos: forall t, (typecount t > 0)%nat.
 Proof.
   destruct t; simpl; auto; omega.
-Qed.
-
-Lemma spacer_memory_block:
-  forall sh be ed v, isptr v -> 
- spacer sh be ed v = memory_block sh (Int.repr (ed - be)) (offset_val (Int.repr be) v).
-Proof.
-  intros.
-  destruct v; inv H.
-  unfold spacer.
-  destruct (Z.eq_dec (ed - be) 0);
-  try solve [rewrite e; simpl offset_val; rewrite memory_block_zero; auto].
-  unfold at_offset'.
-  destruct be; auto.
-  unfold offset_val; rewrite Int.add_zero; auto.
 Qed.
 
 Definition no_attr (a: attr) :=
@@ -1424,6 +1928,7 @@ Proof.
   intros. destruct t; simpl in *; try apply no_attr_e in H; subst; simpl; try reflexivity.
   destruct i,s; reflexivity. destruct f; reflexivity.
 Qed.
+*)
 
 (*
 Lemma memory_block_typed': forall sh e pos ty b ofs, 
@@ -1462,13 +1967,16 @@ Lemma var_block_data_at_:
   forall  sh id t, 
   legal_alignas_type t = true ->
   nested_non_volatile_type t = true ->
+  Z.ltb (sizeof t) Int.modulus = true ->
   var_block sh (id, t) = 
    !!(sizeof t <= Int.max_unsigned) &&
             `(data_at_ sh t) (eval_var id t).
 Proof.
   intros; extensionality rho.
   unfold_lift.
-  rewrite <- memory_block_data_at_ by auto.
+  simpl.
+  apply Zlt_is_lt_bool in H1.
+  rewrite memory_block_data_at_ by auto.
   unfold var_block.
   simpl. unfold local, lift1. unfold_lift.
   rewrite memory_block_isptr.
@@ -1477,6 +1985,7 @@ Proof.
   apply pred_ext; normalize.
 Qed.
 
+(*
 Lemma array_at_local_facts:
  forall t sh f lo hi v,
     array_at t sh f lo hi v |-- !! isptr v.
@@ -1505,7 +2014,7 @@ Proof.
 Qed.
 
 Hint Resolve array_at__local_facts : saturate_local.
-
+*)
 (************************************************
 
 reptype is not defined in a quite beautiful way because of the if operation 

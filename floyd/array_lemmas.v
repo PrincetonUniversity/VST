@@ -5,9 +5,8 @@ Require Import floyd.closed_lemmas.
 Require Import floyd.compare_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
+Require Import floyd.rangespec_lemmas.
 Require Import floyd.data_at_lemmas.
-Require Import floyd.field_at.
-Require Import floyd.loadstore_lemmas.
 Require Import Coq.Logic.JMeq.
 Local Open Scope logic.
 
@@ -16,81 +15,174 @@ Lemma tc_val_Vundef:
 Proof. destruct t as [ | | | [ | ] |  | | | | | ]; intro H; inv H.
 Qed.
 
-Lemma ZnthV_map_Vint_is_int:
-  forall l i sg, 0 <= i < Zlength l -> is_int I32 sg (ZnthV tint (map Vint l) i).
-Proof.
-intros.
-unfold ZnthV.
-if_tac; [omega | ].
-assert (Z.to_nat i < length l)%nat.
-destruct H.
-rewrite Zlength_correct in H1.
-apply Z2Nat.inj_lt in H1; try omega.
-rewrite Nat2Z.id in H1. auto.
-clear - H1.
-revert l H1; induction (Z.to_nat i); destruct l; intros; simpl in *.
-omega. auto. omega. apply IHn; omega.
-Qed.
-
-Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :=
- match n with
-  | O => zero
-  | S n' => f lo (fold_range' f  zero (Zsucc lo) n')
- end.
-
-Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
-  fold_range' f zero lo (nat_of_Z (hi-lo)).
-
-Lemma rangespec'_ext: forall f f' lo len,
-  (forall i, lo <= i < lo + Z_of_nat len -> f i = f' i) -> 
-  rangespec' lo len f = rangespec' lo len f'.
-Proof.
-  intros; revert lo H; 
-  induction len; intros.
-  + simpl. auto.
-  + simpl. f_equal.
-    - apply H.
-      rewrite Nat2Z.inj_succ.
-      rewrite <- Z.add_1_r.
-      pose proof Zle_0_nat (S len).
-      omega.
-    - apply IHlen. intros. apply H.
-      rewrite Nat2Z.inj_succ.
-      rewrite <- Z.add_1_r.
-      pose proof Zle_0_nat (S len).
-      omega.
-Qed.
-
-Lemma rangespec'_elim: forall f lo len i,
-  lo <= i < lo + Z_of_nat len -> rangespec' lo len f |-- f i * TT.
-Proof.
-  intros. revert lo i H; induction len; intros.
-  + simpl in H. omega.
-  + simpl. destruct (Z.eq_dec i lo).
-    - subst. cancel.
-    - replace (f i * TT) with (TT * (f i * TT)) by (apply pred_ext; cancel).
-      apply sepcon_derives; [cancel |].
-      apply IHlen.
-      rewrite Nat2Z.inj_succ in H.
-      rewrite <- Z.add_1_l in *.
-      omega.
-Qed.      
-
 Lemma prop_false_andp {A}{NA :NatDed A}:
  forall P Q, ~P -> !! P && Q = FF.
 Proof.
 intros.
 apply pred_ext; normalize.
 Qed.
+
 Lemma orp_FF {A}{NA: NatDed A}:
  forall Q, Q || FF = Q.
 Proof.
 intros. apply pred_ext. apply orp_left; normalize. apply orp_right1; auto.
 Qed.
+
 Lemma FF_orp {A}{NA: NatDed A}:
  forall Q, FF || Q = Q.
 Proof.
 intros. apply pred_ext. apply orp_left; normalize. apply orp_right2; auto.
+Qed.
+
+Lemma Z2Nat_inj_0: forall z, z >= 0 -> Z.to_nat z = 0%nat -> z = 0.
+Proof.
+  intros.
+  destruct (zlt 0 z).
+  + replace z with (1 + (z - 1)) in H0 by omega.
+    rewrite Z2Nat.inj_add in H0 by omega.
+    change (Z.to_nat 1) with (1%nat) in H0.
+    inversion H0.
+  + omega.
+Qed.
+
+(************************************************
+
+split lemmas of array_at'
+
+************************************************)
+
+Lemma split2_array_at': forall sh t lo mid hi P pos v,
+  lo <= mid <= hi ->
+  array_at' sh t lo hi P pos v =
+    array_at' sh t lo mid P pos v *
+      array_at' sh t mid hi P pos (skipn (nat_of_Z (mid - lo)) v).
+Proof.
+  intros.
+  unfold array_at', rangespec, nat_of_Z.
+  extensionality p.
+  simpl.
+  replace (hi - lo) with ((mid - lo) + (hi - mid)) by omega.
+  rewrite Z2Nat.inj_add by omega.
+  remember (Z.to_nat (mid - lo)) as n eqn:?H.
+  revert v P lo H H0; induction n; intros.
+  + simpl.
+    assert (mid - lo = 0) by (apply Z2Nat_inj_0; omega).
+    assert (mid = lo) by omega.
+    subst.
+    apply pred_ext; normalize.
+Opaque skipn.
+  + simpl.
+Transparent skipn.
+    rewrite <- !sepcon_andp_prop, sepcon_assoc.
+    f_equal.
+    assert (Z.succ lo <= mid <= hi).
+    Focus 1. {
+      split; [|omega].
+      destruct (zlt lo mid).
+      + omega.
+      + replace (mid - lo) with 0 in H0 by omega.
+        inversion H0.
+    } Unfocus.
+    assert (n = Z.to_nat (mid - Z.succ lo)).
+    Focus 1. {
+      replace (mid - lo) with (1 + (mid - Z.succ lo)) in H0 by omega.
+      rewrite Z2Nat.inj_add in H0 by omega.
+      change (Z.to_nat 1) with 1%nat in H0.
+      inversion H0.
+      reflexivity.
+    } Unfocus.
+    eapply eq_trans; [| eapply eq_trans];
+      [| exact (IHn (skipn 1 v) P (Z.succ lo) H1 H2) |].
+    - f_equal.
+      apply rangespec'_ext; intros.
+      f_equal.
+      rewrite <- Znth_succ by omega.
+      reflexivity.
+    - f_equal; f_equal.
+      * apply rangespec'_ext; intros.
+        f_equal.
+        rewrite <- Znth_succ by omega.
+        reflexivity.
+      * apply rangespec'_ext; intros.
+        f_equal.
+        rewrite skipn_skipn.
+        reflexivity.
+Qed.
+
+Lemma array_at'_len_1: forall sh t lo P pos v p,
+  array_at' sh t lo (lo + 1) P pos v p =
+    !! (isptr p) && P (pos + sizeof t * lo) (Znth 0 v (default_val _)) p.
+Proof.
+  intros.
+  unfold array_at', rangespec, nat_of_Z.
+  replace (lo + 1 - lo) with 1 by omega.
+  simpl.
+  rewrite sepcon_emp.
+  rewrite Z.sub_diag.
+  reflexivity.
+Qed.
+
+Lemma split_array_at'_hd: forall sh t lo hi P pos v,
+  lo < hi ->
+  array_at' sh t lo hi P pos v =
+    P (pos + sizeof t * lo) (Znth 0 v (default_val _)) *
+      array_at' sh t (lo + 1) hi P pos (skipn 1 v).
+Proof.
+  intros.
+  rewrite split2_array_at' with (mid := lo + 1) by omega.
+  extensionality p.
+Opaque skipn.
+  simpl.
+Transparent skipn.
+  rewrite array_at'_len_1.
+  replace (lo + 1 - lo) with 1 by omega.
+  apply pred_ext; normalize.
+  rewrite array_at'_isptr.
+  normalize.
+Qed.
+
+Lemma split_array_at'_tl: forall sh t lo hi P pos v,
+  lo < hi ->
+  array_at' sh t lo hi P pos v =
+    P (pos + sizeof t * (hi - 1)) (Znth (hi - 1 - lo) v (default_val _)) *
+      array_at' sh t lo (hi - 1) P pos v.
+Proof.
+  intros.
+  rewrite split2_array_at' with (mid := hi - 1) by omega.
+  extensionality p.
+Opaque skipn.
+  simpl.
+Transparent skipn.
+  replace hi with (hi - 1 + 1) at 3 by omega.
+  rewrite array_at'_len_1.
+  rewrite Znth_skipn by omega.
+  apply pred_ext; normalize; cancel.
+  rewrite array_at'_isptr.
+  normalize.
+Qed.
+
+Lemma split3_array_at': forall sh t lo mid hi P pos v,
+  lo <= mid < hi ->
+  array_at' sh t lo hi P pos v =
+    array_at' sh t lo mid P pos v *
+      P (pos + sizeof t * mid) (Znth (mid - lo) v (default_val _)) *
+        array_at' sh t (mid + 1) hi P pos (skipn (nat_of_Z (mid - lo + 1)) v).
+Proof.
+  intros.
+  rewrite split2_array_at' with (mid := mid) by omega.
+  rewrite split2_array_at' with (lo := mid) (mid := mid + 1) by omega.
+  extensionality p.
+Opaque skipn.
+  simpl.
+Transparent skipn.
+  rewrite array_at'_len_1.
+  rewrite Znth_skipn by omega.
+  rewrite skipn_skipn.
+  rewrite Z2Nat.inj_add by omega.
+  replace (mid + 1 - mid) with 1 by omega.
+  apply pred_ext; normalize; cancel.
+  rewrite array_at'_isptr.
+  normalize.
 Qed.
 
 Lemma offset_in_range_mid: forall lo hi i t p,
@@ -108,55 +200,6 @@ Proof.
   omega.
 Qed.
 
-Lemma split3_array_at:
-  forall i ty sh contents lo hi v,
-       lo <= i < hi ->
-     array_at ty sh contents lo hi v =
-     array_at ty sh contents lo i v *
-     data_at sh ty  (contents i) (add_ptr_int ty v i)*
-     array_at ty sh contents (Zsucc i) hi v.
-Proof.
-  intros.
-  unfold array_at, rangespec.
-  remember (nat_of_Z (i - lo)) as n.
-  replace (nat_of_Z (hi - lo)) with (n + nat_of_Z (hi - i))%nat.
-  Focus 2. {subst; unfold nat_of_Z; rewrite <- Z2Nat.inj_add by omega.
-    f_equal.  omega.
-  } Unfocus.
-  unfold nat_of_Z in *.
-  replace (Z.to_nat (hi - i)) with (S (Z.to_nat (hi-Z.succ i))).
-Focus 2. {
- unfold Z.succ. 
- replace (hi-i) with (1 + (hi-(i+1))) by omega.
- rewrite Z2Nat.inj_add by omega.
- simpl. auto.
- } Unfocus.
- normalize.
- f_equal; [f_equal; apply prop_ext; intuition| revert lo Heqn H; induction n; simpl; intros].
-* eapply offset_in_range_mid with lo hi; try omega; assumption.
-* eapply offset_in_range_mid with lo hi; try omega; assumption.
-* destruct (zlt 0 (i-lo)).
-  destruct (i-lo); try omega.
-  rewrite Z2Nat.inj_pos in Heqn.
-  generalize (Pos2Nat.is_pos p); omega.
-  generalize (Pos2Z.neg_is_neg p); omega.
-  assert (i=lo) by omega. subst i.
-   rewrite emp_sepcon.
-  simpl. f_equal; auto.
-* repeat rewrite sepcon_assoc.
-  f_equal; auto.
-  assert (i<>lo).
-  intro. subst. replace (lo-lo) with 0 in Heqn by omega. 
-  inv Heqn.
-  assert (n = Z.to_nat (i - Z.succ lo)).
-    replace (i - Z.succ lo) with ((i-lo)- 1) by omega.
-    rewrite Z2Nat.inj_sub by omega.  
-   rewrite <- Heqn. simpl. omega.
-  rewrite (IHn (Z.succ lo)); clear IHn; auto.
-  rewrite sepcon_assoc. auto.
-  omega.
-Qed.
-
 Lemma prop_andp_ext':
  forall {A} {ND: NatDed A}
     P1 Q1 P2 Q2, 
@@ -168,6 +211,7 @@ apply pred_ext; intros; normalize; rewrite H0; auto; intuition;
  apply andp_right; auto; apply prop_right; intuition.
 Qed.
 
+(*
 Lemma split3_array_at':
   forall i ty sh contents lo hi v (c: val),
      type_is_by_value ty  ->
@@ -287,7 +331,7 @@ Lemma lift_split3_array_at:
 Proof.
  intros. extensionality v. simpl. apply split3_array_at; auto.
 Qed.
-
+*)
 (*
 Lemma at_offset_array: forall v t1 sh contents lo hi ofs,
      `(at_offset ofs (array_at t1 sh contents lo hi)) v =
@@ -390,6 +434,15 @@ Proof.
    destruct p; inversion H; apply I).
 Qed.
 
+Lemma valinject_repinject: forall t v,
+  type_is_by_value t ->
+  (valinject t (repinject t v)) = v.
+Proof.
+  intros.
+  destruct t; inversion H; reflexivity.
+Qed.
+
+(*
 Lemma array_at_non_volatile: forall t sh contents lo hi v,
   lo < hi ->
   array_at t sh contents lo hi v |-- !! (nested_non_volatile_type t = true).
@@ -456,14 +509,6 @@ Proof.
     change Int.zero with (Int.repr 0).
     rewrite <- data_at_offset_zero.
     exact (H1 x).
-Qed.
-
-Lemma valinject_repinject: forall t v,
-  type_is_by_value t ->
-  (valinject t (repinject t v)) = v.
-Proof.
-  intros.
-  destruct t; inversion H; reflexivity.
 Qed.
 
 Lemma semax_load_array:
@@ -791,7 +836,9 @@ rewrite Int.repr_signed.
 auto.
 Qed.
 *)
+*)
 
+(*
 Lemma array_at_ext:
   forall t sh f  f' lo hi,
    (forall i, lo <= i < hi -> f i = f' i) ->
@@ -913,7 +960,7 @@ Proof.
   + exact H3.
   + exact H4.
 Qed.
-
+*)
 Ltac Z_and_int :=
   repeat
   match goal with
@@ -936,7 +983,7 @@ Ltac Z_and_int :=
   | H: appcontext [Int.unsigned (Int.repr _)] |- _ => rewrite Int.unsigned_repr in H by (unfold Int.max_unsigned; omega)
   | H: appcontext [Int.Z_mod_modulus ?Z] |- _ => change (Int.Z_mod_modulus Z) with (Int.unsigned (Int.repr Z)) in H
   end.
-
+(*
 Lemma array_at_array_at_: forall t sh contents lo hi p,
   legal_alignas_type t = true ->
   array_at t sh contents lo hi p |-- array_at_ t sh lo hi p.
@@ -962,7 +1009,7 @@ Proof.
 Qed.
 
 Hint Resolve array_at_array_at_: cancel.
-
+*)
 Lemma replace_nth_commute:
   forall {A} i j R (a b: A),
    i <> j ->
@@ -1005,6 +1052,25 @@ Proof.
   reflexivity).
 Qed.
 
+Lemma repinject_default_val:
+ forall t, repinject t (default_val t) = Vundef.
+Proof.
+destruct t; reflexivity.
+Qed.
+
+Lemma False_andp:
+  forall {A}{NA: NatDed A} (P: A), !! False && P = FF.
+Proof. intros. apply pred_ext; normalize. Qed.
+
+Lemma pick_prop_from_eq: forall (P: Prop) (Q R: mpred), (P -> Q = R) -> ((!! P) && Q = (!! P) && R).
+Proof.
+  intros.
+  apply pred_ext; normalize.
+  rewrite (H H0); apply derives_refl.
+  rewrite (H H0); apply derives_refl.
+Qed.
+
+(*
 Lemma size_compatible_array_left: forall t n a i b ofs ofs',
   size_compatible (Tarray t n a) (Vptr b ofs) ->
   0 <= i < n ->
@@ -1582,12 +1648,6 @@ eapply derives_trans; [eassumption | clear H2].
   apply tc_val_Vundef in H2; auto.
 Qed.
 
-Lemma repinject_default_val:
- forall t, repinject t (default_val t) = Vundef.
-Proof.
-destruct t; reflexivity.
-Qed.
-
 (*
 Lemma array_at_array_at_:
  forall t sh f lo hi v, 
@@ -1647,10 +1707,6 @@ unfold array_at_.
 apply split_array_at.
 auto.
 Qed.
-
-Lemma False_andp:
-  forall {A}{NA: NatDed A} (P: A), !! False && P = FF.
-Proof. intros. apply pred_ext; normalize. Qed.
 
 Lemma offset_val_array_at:
  forall ofs t sh f lo hi v,
@@ -1730,14 +1786,6 @@ Proof. intros. unfold array_at, rangespec.
 replace (lo-lo) with 0 by omega.
 simpl.
 apply pred_ext; normalize.
-Qed.
-
-Lemma pick_prop_from_eq: forall (P: Prop) (Q R: mpred), (P -> Q = R) -> ((!! P) && Q = (!! P) && R).
-Proof.
-  intros.
-  apply pred_ext; normalize.
-  rewrite (H H0); apply derives_refl.
-  rewrite (H H0); apply derives_refl.
 Qed.
 
 Lemma split_offset_array_at: forall (ty : type) (sh : Share.t) (contents : Z -> reptype ty)
@@ -1882,4 +1930,4 @@ unfold array_at_.
 etransitivity; [ | apply offset_val_array_at; try assumption].
 f_equal.
 Qed.
-
+*)
