@@ -1,0 +1,123 @@
+VST trunk as of 28 October 2014, compatible with CompCert 2.4.
+
+SPATIAL PREDICATES: Added new definitions "temp" and "var" to use
+in LOCAL part of predicates in supercanonical form. 
+
+TYPECHECKER AND EXPRESSIONS: New, refined typechecking of integer
+types.  Now, local variables of type "Tint I8 Signed" are known to
+have values -128 <= x <= 127, and similarly for all the other integer
+types.  Consequently, is_neutral_cast is more generous: cast from
+tchar->tchar is now a neutral cast, same for tuchar->tuchar,
+short->short, bool->bool, etc.
+
+*************************************************************
+VST 1.5, released October 2014, compatible with CompCert 2.4.
+
+SPATIAL PREDICATES: Better treatment of structure-field alignment.
+PROJ_reptype, proj_reptype, upd_reptype are now purely computational.
+Handle unions as well as structs.  Supercanonical forms now
+treat "var" as well as "temp" efficiently.
+
+TYPECHECKER AND EXPRESSIONS: Typechecker no longer cares about
+type_is_volatile.  Single-precision floating-point values, and
+adjusted rules for floating-point coercions and casts, as per 
+CompCert 2.4.
+
+SYMBOLIC EXECUTION: Substantial improvement to treatment of nested
+structs (load/store rules, data_at, field_at).  "rel_expr" rules for
+assignment statements that have multiple memory dereferences.  New
+tactics for for-loops.  Better support for modular verification of
+external functions; demonstration of mutual recursion through external
+functions in progs/even.c, progs/odd.c.  Now forward_call (introduced
+in VST 1.3) is the required way to do function calls. Improved the
+tactics for applying semax_func_cons_ext.  No longer necessary for a
+void-returning C function to have a return statement.
+
+DOCUMENTATION:  Created "vst/doc" directory with copy of
+VerifiableC.pdf reference manual as part of the open-source distro.
+Improvements to the manual.  Improved BUILD_ORGANIZATION documentation.
+
+SOUNDNESS:  Filled several holes in proofs.
+
+*************************************************************
+
+VST 1.4, released May 2014, compatible with CompCert 2.3
+Changes since release 1.3:
+
+SYMBOLIC EXECUTION:  Proof theory for closed_wrt_lvars,
+that is, closedness regarding the addressable-variable environment.
+New load and store rules for data_at, allowing access to 
+structure fields without expanding data_at into a bunch
+of spatial conjunctions (much more efficient).
+Improved semax_cast_load (and all its versions) so it's more useful.
+Add semax_cast_load_array.
+
+SOUNDNESS:  Filled several holes in the veric and floyd soundness proofs.
+
+*************************************************************
+VST 1.3, released April 2014, compatible with CompCert 2.1
+Changes since release 1.2:
+
+ENTAILER: Minor fix to fancy_intro tactic; new elim_globals_only and
+elim_globals_only' lemmas; more things marked "computable" (so
+entailer computes them automatically); little tweak to
+prop_right_solve.  Entailer proves more subgoals.  Clean up all easily
+provable right-hand-side pure conjuncts. Don't unfold
+force_val,sem_cast_neutral as part of go_lower.
+Make saturate_local and entailer much more efficient,
+with more use of computational reflection, less use of normalize.
+Make "align" and "Z.max" simplify, using Arguments command.
+Rewrite "refold_andp" in the norm Hint database.
+
+GLOBALS: Better handling of extern initialized arrays.  Handled the
+setup_globals better, by adding the list_in_array lemma describing
+extern global array-of-struct that really contains a linked list.
+
+SPATIAL PREDICATES: Refactor umapsto so that the two disjuncts are
+disjoint, by requiring type-checking in the first (non-Vundef)
+disjoint.  Refactor field_mapsto and field_mapsto_ to use umapsto.
+New version of typed_mapsto, that permits any of the fields to be
+uninitialized.  This means that now "reptype" has to permit options
+(for numeric types) or Vundef (for pointer types).  Adjust array_at so
+it always implies isptr, even when empty.  Improve simpl_data_at
+(previously called simpl_typed_mapsto) to avoid Coq bug 2997 -- now it
+works even if there's an evar in the context.  New concept, reptype',
+for describing definitely initialized fields.
+Improved the data_at predicate.
+
+TYPECHECKER AND EXPRESSIONS: Modified Cop2.v for better
+simplification.  Adjust the simplify rules ("Arguments" directive) for
+operators in Cop2.  Improved neutral casts for long longs.  Modified
+is_neutral_cast to allow all assignments into full-sized ints.  Make
+typechecking of shift instructions more computational (faster).
+Typechecker can do constant folding on divide-by-zero tests.
+
+TACTICS: Improved the move_prop_from_LOCAL tactic.  Improve the way
+that expand_main_pre interacts with simpl_stackframe_of.
+
+SYMBOLIC EXECUTION: Added new rule semax_cast_load to primitive
+separation logic for C, for load commands that do a cast.  Generalize
+and clean up the treatment of implicit and explicit casts at load
+instructions.  Automatically unfold at_offset in some places in the
+forward tactics Improve some lemmas and tactics for reasoning about
+frame inference after function calls, and for arrays.  Fix
+new_store_tac so that nested structs work better.  New computational
+method to calculate whether an eval_expr is closed w.r.t. a single
+variable.  Efficiency improvements in forward tactic.
+Generalize the semax_call rule (and all rules derived from it)
+so that one can call a non-void function but still discard the result.
+New forward_call rule that takes the witness as
+an argument, rather than having the "instantiate" command afterward.
+Improve the forward_if tactic.
+New "entailer_for_return" used by forward_return.
+New "after_call" tactic, that cleans things up after a forward_call.
+Substitution is more efficient.
+Forward through assignment statements MUCH faster if the
+precondition is in supercanonical form.
+
+BUILD:  Better handling of optional directories when missing.
+
+SOUNDNESS:  Filled several holes in the veric and floyd soundness proofs.
+*************************************************************
+VST 1.2, released November 2013, compatible with CompCert 2.1
+VST 1.1, released September 2013, compatible with CompCert 2.0
