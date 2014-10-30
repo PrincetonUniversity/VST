@@ -216,7 +216,7 @@ Proof.
 Defined.
 
 Definition field_at (sh: Share.t) (t: type) (gfs: list gfield) (v: reptype (nested_field_type2 t gfs)) : val -> mpred := 
-  (fun p => (!! (size_compatible t p /\ align_compatible t p /\ isSome (nested_field_rec t gfs)))) 
+  (fun p => (!! (size_compatible t p /\ align_compatible t p /\ legal_nested_field t gfs))) 
   && data_at' sh empty_ti (nested_field_type2 t gfs) (nested_field_offset2 t gfs) v.
 Arguments field_at sh t gfs v p : simpl never.
 
@@ -297,9 +297,7 @@ Proof.
   destruct (nested_field_rec t (ArraySubsc j :: gfs)) as [[? ?]|] eqn:?H; auto.
   solve_nested_field_rec_cons_eq_Some H.
   solve_nested_field_rec_cons_eq_Some H0.
-  rewrite H1 in H4.
-  inversion H4.
-  reflexivity.
+  inversion Heq0; subst. auto.
 Qed.
 
 Definition nested_Znth {t: type} {gfs: list gfield} (lo n: Z)
@@ -330,9 +328,9 @@ Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
   (v: list (reptype (nested_field_type2 t (ArraySubsc 0 :: gfs)))) : val -> mpred :=
   (fun p : val =>
     !!(isptr p /\ size_compatible t p /\ align_compatible t p /\
-       isSome (nested_field_rec t gfs) (* /\ isSome (nested_field_rec t (ArraySubsc 0 :: gfs)) *) )) &&
+       legal_nested_field t gfs)) &&
   rangespec lo hi 
-    (fun i => !! isSome (nested_field_rec t (ArraySubsc i :: gfs)) &&
+    (fun i => !! legal_nested_field t (ArraySubsc i :: gfs) &&
     field_at sh t (ArraySubsc i :: gfs) (nested_Znth lo i v)).
 
 Opaque alignof.
@@ -352,7 +350,7 @@ Opaque nested_field_rec.
   simpl.
   unfold array_at', field_at.
 Transparent nested_field_rec.
-  assert (forall i, 0 <= i < n -> nested_field_rec t (ArraySubsc i :: gfs) =
+  assert (forall i, nested_field_rec t (ArraySubsc i :: gfs) =
     Some (nested_field_offset2 t gfs + sizeof t0 * i, t0)).
   Focus 1. {
     unfold nested_field_type2 in H.
@@ -360,21 +358,16 @@ Transparent nested_field_rec.
     valid_nested_field_rec t gfs H.
     intros; simpl.
     rewrite H2; subst.
-    destruct H3.
-    apply Zle_is_le_bool in H.
-    apply Zlt_is_lt_bool in H3.
-    rewrite H, H3.
-    simpl; auto.
+    reflexivity.
   } Unfocus.
-  assert (forall i, 0 <= i < n -> JMeq (Znth i v1 (default_val t0)) (nested_Znth 0 i v2)).
+  assert (forall i, JMeq (Znth i v1 (default_val t0)) (nested_Znth 0 i v2)).
   Focus 1. {
     intros.
     unfold nested_Znth.
     generalize (nested_field_type2_ArraySubsc t gfs i 0).
-    assert (0 <= 0 < n) by omega.
     revert v2 H0.   
     unfold nested_field_type2.
-    rewrite (H2 i H3), (H2 0 H4).
+    rewrite (H2 i), (H2 0).
     intros.
     rewrite Z.sub_0_r.
     apply JMeq_sym.
@@ -383,23 +376,28 @@ Transparent nested_field_rec.
   } Unfocus.
 Opaque nested_field_rec.
   apply pred_ext; normalize; apply rangespec_ext_derives; intros.
-  + rewrite (H2 i H7). simpl.
+  + assert (legal_nested_field t (ArraySubsc i :: gfs)).
+    Focus 1. {
+      apply legal_nested_field_cons_lemma.
+      rewrite H.
+      auto.
+    } Unfocus.
     normalize.
-    specialize (H3 i H7).
+    specialize (H3 i).
     revert H3; generalize (nested_Znth 0 i v2).
     unfold nested_field_type2.
     unfold nested_field_offset2 at 2.
-    rewrite (H2 i H7); intros.
+    rewrite (H2 i); intros.
     rewrite <- H3.
     rewrite Z.sub_0_r.
     apply derives_refl.
   + simpl.
     normalize.
-    specialize (H3 i H7).
+    specialize (H3 i).
     revert H3; generalize (nested_Znth 0 i v2).
     unfold nested_field_type2.
     unfold nested_field_offset2 at 1.
-    rewrite (H2 i H7); intros.
+    rewrite (H2 i); intros.
     rewrite <- H3.
     rewrite Z.sub_0_r.
     apply derives_refl.
@@ -436,6 +434,21 @@ Proof.
     intros.
     rewrite H2. extensionality p.
     repeat rewrite withspacer_spacer.
+    assert (legal_nested_field t gfs <-> legal_nested_field t (StructField i0 :: gfs)).
+    Focus. {
+      eapply iff_trans; [| apply iff_sym, legal_nested_field_cons_lemma].
+      simpl.
+      unfold nested_field_type2; rewrite H4.
+      split; [| tauto].
+      intros; split; [tauto |].
+      rewrite fieldlist_app_field_type_isOK.
+      destruct (isOK (field_type i0 f')); simpl; try if_tac; try congruence; reflexivity.
+    } Unfocus.
+    match goal with
+    | |- (?P (?A /\ ?B /\ ?C)) && _ = _ =>
+      replace (P (A /\ B /\ C)) with (P (A /\ B /\ legal_nested_field t (StructField i0 :: gfs)))
+        by (apply pred_ext; normalize; tauto)
+    end.
     apply pred_ext; simpl; normalize.
   + assert (is_Fnil (Fcons i0 t0 f) = false) by reflexivity.
     remember (Fcons i0 t0 f) as f''.
@@ -474,6 +487,23 @@ Proof.
       Some (align (ofs0 + sizeof t1) (alignof_hd (Fcons i0 t0 f)), t0)); [simpl alignof_hd; apply (nested_field_rec_Tstruct_mid i1 t1 t1 i0 t0 t gfs i f' f a ofs ofs0); assumption|].
     rewrite fieldlist_app_Fcons in *.
     erewrite <- IHf; [| | exact H2 | exact H_snd |exact H4].
+    assert (legal_nested_field t gfs <-> legal_nested_field t (StructField i1 :: gfs)).
+    Focus. {
+      eapply iff_trans; [| apply iff_sym, legal_nested_field_cons_lemma].
+      simpl.
+      unfold nested_field_type2; rewrite H4.
+      split; [| tauto].
+      intros; split; [tauto |].
+      rewrite fieldlist_app_field_type_isOK.
+      rewrite fieldlist_app_field_type_isOK.
+      rewrite !orb_true_iff; left; right; simpl.
+      if_tac; [reflexivity |congruence].
+    } Unfocus.
+    match goal with
+    | |- (?P (?A /\ ?B /\ ?C)) && _ = _ =>
+      replace (P (A /\ B /\ C)) with (P (A /\ B /\ C /\ legal_nested_field t (StructField i1 :: gfs)))
+        by (apply pred_ext; normalize; tauto)
+    end.
     apply pred_ext; simpl; normalize.
 
     destruct (eqb_fieldlist
@@ -501,7 +531,7 @@ Opaque sizeof.
   valid_nested_field_rec t gfs H1; inversion H0; clear H5. subst t0.
   revert v1 H2 H4.
   simpl reptype; simpl data_at'.
-  change f with (fieldlist_app Fnil f) at 4 7.
+  change f with (fieldlist_app Fnil f) at 4 6.
   generalize Fnil as f';  intros.
   revert f' H4;
   induction f; intros.
@@ -518,6 +548,21 @@ Opaque sizeof.
       rewrite H4, H0; intros. 
       rewrite H2.
       extensionality p.
+      assert (legal_nested_field t gfs <-> legal_nested_field t (UnionField i0 :: gfs)).
+      Focus. {
+        eapply iff_trans; [| apply iff_sym, legal_nested_field_cons_lemma].
+        simpl.
+        unfold nested_field_type2; rewrite H4.
+        split; [| tauto].
+        intros; split; [tauto |].
+        rewrite fieldlist_app_field_type_isOK.
+        destruct (isOK (field_type i0 f')); simpl; try if_tac; try congruence; reflexivity.
+      } Unfocus.
+      match goal with
+      | |- (?P (?A /\ ?B /\ ?C)) && _ = _ =>
+        replace (P (A /\ B /\ C)) with (P (A /\ B /\ legal_nested_field t (UnionField i0 :: gfs)))
+          by (apply pred_ext; normalize; tauto)
+      end.
       apply pred_ext; simpl; normalize.
     - unfold field_at.
       revert v2 H2.
@@ -532,6 +577,21 @@ Opaque sizeof.
       * rewrite H5.
         repeat rewrite withspacer_spacer.
         extensionality p.
+        assert (legal_nested_field t gfs <-> legal_nested_field t (UnionField i0 :: gfs)).
+        Focus. {
+          eapply iff_trans; [| apply iff_sym, legal_nested_field_cons_lemma].
+          simpl.
+          unfold nested_field_type2; rewrite H4.
+          split; [| tauto].
+          intros; split; [tauto |].
+          rewrite fieldlist_app_field_type_isOK.
+          destruct (isOK (field_type i0 f')); simpl; try if_tac; try congruence; reflexivity.
+        } Unfocus.
+        match goal with
+        | |- (?P (?A /\ ?B /\ ?C)) && _ = _ =>
+          replace (P (A /\ B /\ C)) with (P (A /\ B /\ legal_nested_field t (UnionField i0 :: gfs)))
+            by (apply pred_ext; normalize; tauto)
+        end.
         apply pred_ext; simpl; normalize.
       * simpl in IHf. rewrite <- IHf with (v1 := r) (f' := (fieldlist_app f' (Fcons i0 t0 Fnil))); auto.
         rewrite <- fieldlist_app_Fcons. auto.
@@ -545,6 +605,7 @@ Proof.
   intros.
   unfold data_at, field_at.
   extensionality v p; simpl.
+  pose proof legal_nested_field_nil_lemma t.
   apply pred_ext; normalize.
 Qed.
 
@@ -571,7 +632,7 @@ Lemma field_at_data_at: forall sh t gfs v p,
   field_at sh t gfs v p = 
   (!! (size_compatible t p)) &&  
   (!! (align_compatible t p)) &&
-  (!! (isSome (nested_field_rec t gfs))) && 
+  (!! (legal_nested_field t gfs)) && 
   at_offset' (data_at sh (nested_field_type2 t gfs) v) (nested_field_offset2 t gfs) p.
 Proof.
   intros.
@@ -583,8 +644,8 @@ Proof.
   apply andp_right.
   apply prop_right.
   repeat split; try assumption.
-  apply size_compatible_nested_field; exact H0.
-  apply align_compatible_nested_field; auto.
+  apply size_compatible_nested_field; assumption.
+  apply align_compatible_nested_field; assumption.
   apply derives_refl.
 Qed.
 
@@ -593,7 +654,7 @@ Lemma field_at__data_at_: forall sh t gfs p,
   field_at_ sh t gfs p = 
   (!! (size_compatible t p)) &&  
   (!! (align_compatible t p)) &&
-  (!! (isSome (nested_field_rec t gfs))) && 
+  (!! (legal_nested_field t gfs)) &&
   at_offset' (data_at_ sh (nested_field_type2 t gfs)) (nested_field_offset2 t gfs) p.
 Proof.
   intros.
@@ -606,7 +667,7 @@ Lemma lifted_field_at_data_at: forall sh t gfs v p,
        `(field_at sh t gfs) v p =
        `prop (`(size_compatible t) p) && 
        `prop (`(align_compatible t) p) && 
-       `prop (`(isSome (nested_field_rec t gfs))) &&
+       `prop (`(legal_nested_field t gfs)) &&
        `(at_offset') (fun rho => (data_at sh (nested_field_type2 t gfs)) (v rho))
          `(nested_field_offset2 t gfs) p.
 Proof.
@@ -621,7 +682,7 @@ Lemma lifted_field_at__data_at_: forall sh t gfs p,
        `(field_at_ sh t gfs) p =
        `prop (`(size_compatible t) p) && 
        `prop (`(align_compatible t) p) && 
-       `prop (`(isSome (nested_field_rec t gfs))) &&
+       `prop (`(legal_nested_field t gfs)) &&
        `(at_offset' (data_at_ sh (nested_field_type2 t gfs))
          (nested_field_offset2 t gfs)) p.
 Proof.
@@ -704,9 +765,9 @@ Lemma field_at_field_at: forall sh t gfs0 gfs1 v v' p,
   legal_alignas_type t = true ->
   JMeq v v' ->
   field_at sh t (gfs1 ++ gfs0) v p =
-  (!! (size_compatible t p)) &&  
+  (!! (size_compatible t p)) &&
   (!! (align_compatible t p)) &&
-  (!! (isSome (nested_field_rec t (gfs1 ++ gfs0)))) && 
+  (!! (legal_nested_field t (gfs1 ++ gfs0))) &&
   at_offset' (field_at sh (nested_field_type2 t gfs0) gfs1 v') (nested_field_offset2 t gfs0) p.
 Proof.
   intros.
@@ -729,10 +790,12 @@ Proof.
      apply nested_field_offset2_type2_divide; apply nested_field_type2_nest_pred; simpl; auto].
   apply pred_ext; normalize; rewrite <- nested_field_offset2_app; normalize.
   apply andp_right; [apply prop_right | apply derives_refl].
-  repeat split; auto.
+  split; [| split; split]; auto.
   + apply size_compatible_nested_field, H0.
+    eapply legal_nested_field_app, H2.
   + apply align_compatible_nested_field, H1; auto.
-  + apply nested_field_rec_app_isSome', H2.
+    eapply legal_nested_field_app, H2.
+  + apply legal_nested_field_app', H2.
 Qed.
 
 (************************************************
@@ -757,7 +820,7 @@ Lemma mapsto_field_at:
   type_is_volatile t = false -> 
   JMeq v' v ->
   legal_alignas_type (Tstruct structid fields noattr) = true ->
-  (!! (size_compatible (Tstruct structid fields noattr) p)) && (!! (align_compatible (Tstruct structid fields noattr) p)) && (!! (isSome (nested_field_rec (Tstruct structid fields noattr) fld))) 
+  (!! (size_compatible (Tstruct structid fields noattr) p)) && (!! (align_compatible (Tstruct structid fields noattr) p)) && (!! (legal_nested_field (Tstruct structid fields noattr) fld))
   && mapsto sh t p' v' = field_at sh (Tstruct structid fields noattr) fld v p.
 Proof.
   intros.
@@ -789,7 +852,7 @@ Lemma mapsto__field_at_:
   offset_val Int.zero p' = offset_val (Int.repr ofs) p ->
   type_is_volatile t = false -> 
   legal_alignas_type (Tstruct structid fields noattr) = true ->
-  (!! (size_compatible (Tstruct structid fields noattr) p)) && (!! (align_compatible (Tstruct structid fields noattr) p)) && (!! (isSome (nested_field_rec (Tstruct structid fields noattr) fld))) 
+  (!! (size_compatible (Tstruct structid fields noattr) p)) && (!! (align_compatible (Tstruct structid fields noattr) p)) && (!! legal_nested_field (Tstruct structid fields noattr) fld)
   && mapsto_ sh t p'  = field_at_ sh (Tstruct structid fields noattr) fld p.
 Proof.
   intros.
@@ -832,7 +895,7 @@ Lemma mapsto_field_at'':
   type_is_volatile (nested_field_type2 (Tstruct structid fields noattr) fld) = false ->
   JMeq v' v ->
   legal_alignas_type (Tstruct structid fields noattr) = true ->
-  (!! (size_compatible (Tstruct structid fields noattr) p /\  align_compatible (Tstruct structid fields noattr) p /\ isSome (nested_field_rec (Tstruct structid fields noattr) fld))) 
+  (!! (size_compatible (Tstruct structid fields noattr) p /\  align_compatible (Tstruct structid fields noattr) p /\ legal_nested_field (Tstruct structid fields noattr) fld)) 
   && mapsto sh t p' v' |-- field_at sh (Tstruct structid fields noattr) fld v p.
 Proof.
   intros.
@@ -863,7 +926,7 @@ Lemma mapsto_field_at':
   legal_alignas_type (Tstruct structid fields noattr) = true ->
   size_compatible (Tstruct structid fields noattr) p ->
   align_compatible (Tstruct structid fields noattr) p ->
-  isSome (nested_field_rec (Tstruct structid fields noattr) fld) -> 
+  legal_nested_field (Tstruct structid fields noattr) fld -> 
   mapsto sh t p' v' |-- field_at sh (Tstruct structid fields noattr) fld v p.
 Proof.
   intros.

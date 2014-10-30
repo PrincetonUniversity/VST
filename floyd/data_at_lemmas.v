@@ -754,11 +754,11 @@ Proof.
   + apply H3; assumption.
   + apply H4; try assumption. (* array case *)
     intros; apply H18.
-    - eapply nested_pred_Tarray; [exact H19|destruct H22; omega].
+    - eapply nested_pred_Tarray; exact H19.
     - apply Z.divide_add_r. 
       * rewrite legal_alignas_type_Tarray in H20; [exact H20 | exact H19].
       * apply Z.divide_mul_l, legal_alignas_sizeof_alignof_compat.
-        eapply nested_pred_Tarray; [exact H19|destruct H22; omega].
+        eapply nested_pred_Tarray; exact H19.
     - simpl in H21.
       destruct H22.
       replace (Z.max 0 z) with z in H21 by (apply eq_sym; apply Z.max_r; omega).
@@ -1218,7 +1218,7 @@ Proof.
     - simpl.
       rewrite legal_alignas_type_Tarray in * by auto.
       apply array_at'_at_offset'; auto.
-      * eapply nested_pred_Tarray; eauto. omega.
+      * eapply nested_pred_Tarray; eauto.
       * intros. rewrite <- data_at'_offset_zero; reflexivity.
     - simpl.
       unfold array_at', rangespec.
@@ -1526,7 +1526,7 @@ Proof.
         f_equal; f_equal.
         apply eq_sym, H13.
       * rewrite Z.mul_0_r. omega.
-      * eapply nested_pred_Tarray; eauto. omega.
+      * eapply nested_pred_Tarray; eauto.
       * rewrite Z.sub_0_r. omega.
       * intros.
         apply H9; auto.
@@ -1752,7 +1752,7 @@ Proof.
   + destruct (zlt 0 z). (* Tarray case *)
     - apply array_at'_array_at'_.
       * omega.
-      * eapply nested_pred_Tarray; eauto. omega.
+      * eapply nested_pred_Tarray; eauto.
       * rewrite legal_alignas_type_Tarray in * by auto.
         exact H4.
       * intros.
@@ -1821,10 +1821,8 @@ Proof.
   Focus 1. {
     unfold legal_alignas_type in H.
     simpl in H.
-    rewrite andb_true_iff, orb_true_iff in H.
-    destruct H as [? [? | ?]].
-    + auto.
-    + apply Zle_is_le_bool in H4; omega.
+    rewrite andb_true_iff in H.
+    tauto.
   } Unfocus.  
   assert (alignof t | sizeof t * i).
   Focus 1. {
@@ -1833,12 +1831,18 @@ Proof.
   } Unfocus.
   rewrite !data_at'_at_offset' with (pos := (sizeof t * i)%Z) by auto.
   rewrite !at_offset'_eq by (rewrite <- data_at'_offset_zero; reflexivity).
-  pose proof size_compatible_nested_field _ (ArraySubsc i :: nil) _ H1.
-  unfold nested_field_type2, nested_field_offset2 in H6; simpl in H6.
-  pose proof align_compatible_nested_field _ (ArraySubsc i :: nil) _ H H2.
+  assert (legal_nested_field (Tarray t n a) (ArraySubsc i :: nil)).
+  Focus 1. {
+    apply legal_nested_field_cons_lemma.
+    split; [apply legal_nested_field_nil_lemma |].
+    rewrite nested_field_type2_nil.
+    eauto.
+  } Unfocus.
+  pose proof size_compatible_nested_field _ (ArraySubsc i :: nil) _ H6 H1.
   unfold nested_field_type2, nested_field_offset2 in H7; simpl in H7.
-  solve_array_subsc_range H3.
-  simpl in H6, H7.
+  pose proof align_compatible_nested_field _ (ArraySubsc i :: nil) _ H6 H H2.
+  unfold nested_field_type2, nested_field_offset2 in H8; simpl in H8.
+  simpl in H7, H8.
   specialize (H0 i H3 (offset_val (Int.repr (sizeof t * i)) p)).
   unfold data_at in H0.
   simpl in H0.
@@ -1870,99 +1874,6 @@ Proof.
   unfold address_mapsto, res_predicates.address_mapsto, size_compatible, align_compatible.
   admit.
 Qed.
-
-(*
-Fixpoint typecount (t: type) : nat :=
-  match t with
-  | Tstruct _ f _ => S (typecount_fields f)
-  | Tarray t' _ _ => S (typecount t')
-  | _ => 1%nat
-  end
-with typecount_fields (f: fieldlist) : nat :=
-  match f with
-  | Fnil => 1%nat
-  | Fcons _ t f' => (typecount t + typecount_fields f')%nat
-  end.
-
-Lemma  typecount_fields_pos: forall f, (typecount_fields f > 0)%nat.
-Proof.
-  induction f; simpl; intros. auto.
-  omega.
-Qed.
-
-Lemma typecount_pos: forall t, (typecount t > 0)%nat.
-Proof.
-  destruct t; simpl; auto; omega.
-Qed.
-
-Definition no_attr (a: attr) :=
-  andb (negb (attr_volatile a))
-  match attr_alignas a with  None => true | _ => false end.
-
-Definition no_attr_e: forall a, no_attr a = true -> a=noattr.
-Proof.
-  intros. destruct a. destruct attr_volatile; inv H.
-  destruct attr_alignas; inv H1.
-  reflexivity.
-Qed.
-
-Fixpoint no_attr_type (t: type) : bool :=
-  match t with 
-  | Tint _ _ a => no_attr a
-  | Tlong _ a => no_attr a
-  | Tfloat _ a => no_attr a
-  | Tpointer _ a => no_attr a
-  | Tarray t _ a => andb (no_attr_type t) (no_attr a)
-  | Tstruct _ flds a => andb (no_attr_fields flds)  (no_attr a)
-  | Tunion _ flds a => andb (no_attr_fields flds)  (no_attr a)
-  | Tcomp_ptr _ a =>  no_attr a
-  | _ => true
-  end
-with no_attr_fields (f: fieldlist) : bool :=
-  match f with 
-  | Fnil => true 
-  | Fcons _ t f' => andb (no_attr_type t) (no_attr_fields f')
-  end.
-
-Lemma no_attr_type_nonvol: forall t, no_attr_type t = true -> type_is_volatile t = false.
-Proof.
-  intros. destruct t; simpl in *; try apply no_attr_e in H; subst; simpl; try reflexivity.
-  destruct i,s; reflexivity. destruct f; reflexivity.
-Qed.
-*)
-
-(*
-Lemma memory_block_typed': forall sh e pos ty b ofs, 
-  no_attr_type ty = true ->
-  spacer sh pos (align pos (alignof ty)) (Vptr b ofs) *
-  memory_block sh (Int.repr (sizeof ty)) (offset_val (Int.repr (align pos (alignof ty))) (Vptr b ofs) )
-  = data_at' sh e ty pos (default_val ty) (Vptr b ofs).
-(*with memory_block_fields: forall sh pos t fld b ofs,
- no_attr_fields fld = true ->
-  spacer sh (sizeof_struct fld pos) (alignof_fields fld) (Vptr b ofs) 
-  * memory_block sh (Int.repr (sizeof_struct fld pos)) (Vptr b ofs)
-  =   memory_block sh (Int.repr pos) (Vptr b ofs) * fields_mapto_ sh pos t fld (Vptr b ofs).
-*)
-Proof.
-  Admitted.
-
-Lemma memory_block_typed: 
- forall sh ty, 
-  no_attr_type ty = true ->
-   memory_block sh (Int.repr (sizeof ty)) = data_at_ sh ty.
-Proof.
-intros.
-extensionality v.
-rewrite memory_block_isptr.
-rewrite data_at__isptr.
-destruct v; simpl; normalize.
-unfold data_at_, data_at; simpl; rewrite <- memory_block_typed'; auto.
-unfold spacer.
-rewrite align_0 by (apply alignof_pos).
-simpl. rewrite emp_sepcon.
-rewrite Int.add_zero. auto.
-Qed.
-*)
 
 Lemma var_block_data_at_:
   forall  sh id t, 

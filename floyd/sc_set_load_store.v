@@ -77,25 +77,27 @@ Qed.
 Lemma semax_SC_field_load:
   forall {Espec: OracleKind},
     forall Delta sh e n id P Q R Rn (e1: expr)
-      (t : type) (efs0 efs1: list efield) (gfs0 gfs1: list gfield) (tts0 tts1: list type)
-      (p: val) (v : val) (v' : reptype (nested_field_type2 (typeof e1) gfs0)),
-      nested_legal_fieldlist (typeof e1) = true ->
+      (t t_root: type) (efs0 efs1: list efield) (gfs0 gfs1: list gfield) (tts0 tts1: list type)
+      (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
+      nested_legal_fieldlist t_root = true ->
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) t = true ->
-      legal_alignas_type (typeof e1) = true ->
+      legal_alignas_type t_root = true ->
       length efs1 = length tts1 ->
       length gfs1 = length tts1 ->
-      legal_nested_efield e (typeof e1) (gfs1 ++ gfs0) (tts1 ++ tts0) = true ->
+      legal_nested_efield e t_root e1 (gfs1 ++ gfs0) (tts1 ++ tts0) lr = true ->
       nth_error R n = Some Rn ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_lvalue e1)) ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         efield_denote Delta (efs1 ++ efs0) (gfs1 ++ gfs0) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
-        `(field_at sh (typeof e1) gfs0 v' p) ->
-      JMeq (proj_reptype (nested_field_type2 (typeof e1) gfs0) gfs1 v') v ->
+        `(field_at sh t_root gfs0 v' p) ->
+      JMeq (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        local (tc_lvalue Delta e1) &&
+        local (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) v) ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+        (!! legal_nested_field t_root (gfs1 ++ gfs0)) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sset id (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0)))
           (normal_ret_assert
@@ -105,6 +107,7 @@ Lemma semax_SC_field_load:
                   (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
+  eapply semax_extract_later_prop'; [exact H12 | clear H12; intro H12].
   eapply semax_nested_efield_field_load_37'; eauto.
   apply andp_right; [apply andp_right; [exact H11 | exact H8] |].
   rewrite (add_andp _ _ H7).
@@ -116,25 +119,27 @@ Qed.
 Lemma semax_SC_field_cast_load:
   forall {Espec: OracleKind},
     forall Delta sh e n id P Q R Rn (e1: expr)
-      (t : type) (efs0 efs1: list efield) (gfs0 gfs1: list gfield) (tts0 tts1: list type)
-      (p: val) (v : val) (v' : reptype (nested_field_type2 (typeof e1) gfs0)),
-      nested_legal_fieldlist (typeof e1) = true ->
+      (t t_root: type) (efs0 efs1: list efield) (gfs0 gfs1: list gfield) (tts0 tts1: list type)
+      (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
+      nested_legal_fieldlist t_root = true ->
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) ->
-      legal_alignas_type (typeof e1) = true ->
+      legal_alignas_type t_root = true ->
       length efs1 = length tts1 ->
       length gfs1 = length tts1 ->
-      legal_nested_efield e (typeof e1) (gfs1 ++ gfs0) (tts1 ++ tts0) = true ->
+      legal_nested_efield e t_root e1 (gfs1 ++ gfs0) (tts1 ++ tts0) lr = true ->
       nth_error R n = Some Rn ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_lvalue e1)) ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         efield_denote Delta (efs1 ++ efs0) (gfs1 ++ gfs0) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
-        `(field_at sh (typeof e1) gfs0 v' p) ->
-      JMeq (proj_reptype (nested_field_type2 (typeof e1) gfs0) gfs1 v') v ->
+        `(field_at sh t_root gfs0 v' p) ->
+      JMeq (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-        local (tc_lvalue Delta e1) &&
+        local (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) t v))) ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+        (!! legal_nested_field t_root (gfs1 ++ gfs0)) ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0)) t))
           (normal_ret_assert
@@ -144,6 +149,7 @@ Lemma semax_SC_field_cast_load:
                   (SEPx (map (subst id (`old)) R))))).
 Proof.
   intros.
+  eapply semax_extract_later_prop'; [exact H12 | clear H12; intro H12].
   eapply semax_nested_efield_field_cast_load_37'; eauto.
   apply andp_right; [apply andp_right; [exact H11 | exact H8] |].
   rewrite (add_andp _ _ H7).
@@ -155,26 +161,28 @@ Qed.
 Lemma semax_SC_field_store:
   forall {Espec: OracleKind},
     forall Delta sh e n P Q R Rn (e1 e2 : expr)
-      (t : type) (efs0 efs1: list efield) (gfs0 gfs1: list gfield) (tts0 tts1: list type)
-      (p: val) (v0: val) (v: reptype (nested_field_type2 (typeof e1) gfs0)),
-      nested_legal_fieldlist (typeof e1) = true ->
+      (t t_root: type) (efs0 efs1: list efield) (gfs0 gfs1: list gfield) (tts0 tts1: list type)
+      (p: val) (v0: val) (v: reptype (nested_field_type2 t_root gfs0)) lr,
+      nested_legal_fieldlist t_root = true ->
       typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0)) = t ->
       type_is_by_value t ->
-      legal_alignas_type (typeof e1) = true ->
+      legal_alignas_type t_root = true ->
       length efs1 = length tts1 ->
       length gfs1 = length tts1 ->
-      legal_nested_efield e (typeof e1) (gfs1 ++ gfs0) (tts1 ++ tts0) = true ->
+      legal_nested_efield e t_root e1 (gfs1 ++ gfs0) (tts1 ++ tts0) lr = true ->
       nth_error R n = Some Rn ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_lvalue e1)) ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v0) (eval_expr (Ecast e2 t))) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         efield_denote Delta (efs1 ++ efs0) (gfs1 ++ gfs0) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
-        `(field_at sh (typeof e1) gfs0 v p) ->
+        `(field_at sh t_root gfs0 v p) ->
       writable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        local (tc_lvalue Delta (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) && 
+        local (tc_LR Delta e1 lr) && 
         local (tc_expr Delta (Ecast e2 t)) ->
+      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+        (!! legal_nested_field t_root (gfs1 ++ gfs0)) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sassign (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0)) e2)
           (normal_ret_assert
@@ -182,11 +190,12 @@ Lemma semax_SC_field_store:
               (LOCALx Q
                 (SEPx
                   (replace_nth n R
-                    (`(field_at sh (typeof e1) gfs0
-                      (upd_reptype (nested_field_type2 (typeof e1) gfs0) gfs1 v (valinject _ v0)) p)))
+                    (`(field_at sh t_root gfs0
+                      (upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0)) p)))
                             )))).
 Proof.
   intros.
+  eapply semax_extract_later_prop'; [exact H13 | clear H13; intro H13].
   eapply semax_pre_simple.
   {
     hoist_later_left.
@@ -213,10 +222,12 @@ Proof.
     rewrite <- !andp_assoc.
     eapply derives_trans; [apply andp_derives; [apply derives_refl | exact H10] |].
     entailer!.
-  + apply andp_right.
-    - eapply derives_trans; [| exact H12].
-      entailer!.
+  + rewrite (andp_comm _ (efield_denote Delta (efs1 ++ efs0) (gfs1 ++ gfs0))).
+    rewrite andp_assoc.
+    apply andp_right.
     - eapply derives_trans; [| exact H9].
+      entailer!.
+    - eapply derives_trans; [| exact H12].
       entailer!.
 Qed.
 

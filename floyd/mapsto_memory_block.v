@@ -37,31 +37,22 @@ Proof.
   apply Z.divide_1_l.
 Qed.
 
-Lemma size_compatible_nested_field: forall t ids p,
+Lemma size_compatible_nested_field: forall t gfs p,
+  legal_nested_field t gfs ->
   size_compatible t p ->
-  size_compatible (nested_field_type2 t ids) (offset_val (Int.repr (nested_field_offset2 t ids)) p).
+  size_compatible (nested_field_type2 t gfs) (offset_val (Int.repr (nested_field_offset2 t gfs)) p).
 Proof.
   intros.
-  destruct (isSome_dec (nested_field_rec t ids)).
-  + destruct p; simpl; try tauto.
-    repeat rewrite Int.Z_mod_modulus_eq.
-    simpl in H.
-    rewrite Zplus_mod_idemp_r.
-    assert (0 < Int.modulus) by (cbv; reflexivity).
-    assert (0 <= Int.unsigned i0 + nested_field_offset2 t ids) by (pose proof nested_field_offset2_in_range t ids i; pose proof Int.unsigned_range i0; omega).
-    pose proof Zmod_le (Int.unsigned i0 + nested_field_offset2 t ids) (Int.modulus) H0 H1.
-    pose proof nested_field_offset2_in_range t ids i.
-    omega.
-  + unfold nested_field_type2, nested_field_offset2.
-    destruct (nested_field_rec t ids); [simpl in n; tauto|].
-    destruct p; simpl; try tauto.
-    repeat rewrite Int.Z_mod_modulus_eq.
-    rewrite Zplus_0_r.
-    assert (0 < Int.modulus) by (cbv; reflexivity).
-    pose proof Int.unsigned_range i.
-    assert (0 <= Int.unsigned i) by omega.
-    pose proof Zmod_le (Int.unsigned i) (Int.modulus) H0 H2.
-    omega.
+  destruct p; simpl; try tauto.
+  repeat rewrite Int.Z_mod_modulus_eq.
+  simpl in H.
+  rewrite Zplus_mod_idemp_r.
+  assert (0 < Int.modulus) by (cbv; reflexivity).
+  assert (0 <= Int.unsigned i + nested_field_offset2 t gfs) by (pose proof nested_field_offset2_in_range t gfs H; pose proof Int.unsigned_range i; omega).
+  pose proof Zmod_le (Int.unsigned i + nested_field_offset2 t gfs) (Int.modulus) H1 H2.
+  pose proof nested_field_offset2_in_range t gfs H.
+  unfold size_compatible in H0.
+  omega.
 Qed.
 
 Lemma power_nat_one_divede_other: forall n m : nat,
@@ -98,37 +89,30 @@ Proof.
     apply Z.divide_0_r.
 Qed.
 
-Lemma align_compatible_nested_field: forall t ids p,
+Lemma align_compatible_nested_field: forall t gfs p,
+  legal_nested_field t gfs ->
   legal_alignas_type t = true ->
   align_compatible t p ->
-  align_compatible (nested_field_type2 t ids) (offset_val (Int.repr (nested_field_offset2 t ids)) p).
+  align_compatible (nested_field_type2 t gfs) (offset_val (Int.repr (nested_field_offset2 t gfs)) p).
 Proof.
   intros.
-  destruct (isSome_dec (nested_field_rec t ids)).
-  + destruct p; simpl in *; try tauto.
-    repeat rewrite Int.Z_mod_modulus_eq.
-    rewrite Zplus_mod_idemp_r.
-    assert (alignof (nested_field_type2 t ids) | Int.unsigned i0 + nested_field_offset2 t ids).
-    - apply Z.divide_add_r; auto.
-      eapply Z.divide_trans; [| eauto].
-      apply alignof_nested_field_type2_divide; auto.
-      apply nested_field_offset2_type2_divide; auto.
-    - unfold Int.modulus.
-      destruct (alignof_two_p (nested_field_type2 t ids)).
-      rewrite H2 in *.
-      destruct H1.
-      rewrite H1.
-      rewrite !two_power_nat_two_p in *.
-      apply multiple_divide_mod.
-      * apply two_p_gt_ZERO, Zle_0_nat.
-      * rewrite <- !two_power_nat_two_p in *. apply power_nat_one_divede_other.
-  + unfold nested_field_type2, nested_field_offset2.
-    destruct (nested_field_rec t ids); [simpl in n; tauto|].
-    destruct p; simpl; try tauto.
-Transparent alignof.
-    simpl alignof.
-Opaque alignof.
-    apply Z.divide_1_l.
+  destruct p; simpl in *; try tauto.
+  repeat rewrite Int.Z_mod_modulus_eq.
+  rewrite Zplus_mod_idemp_r.
+  assert (alignof (nested_field_type2 t gfs) | Int.unsigned i + nested_field_offset2 t gfs).
+  - apply Z.divide_add_r; auto.
+    eapply Z.divide_trans; [| eauto].
+    apply alignof_nested_field_type2_divide; auto.
+    apply nested_field_offset2_type2_divide; auto.
+  - unfold Int.modulus.
+    destruct (alignof_two_p (nested_field_type2 t gfs)).
+    rewrite H3 in *.
+    destruct H2.
+    rewrite H2.
+    rewrite !two_power_nat_two_p in *.
+    apply multiple_divide_mod.
+    * apply two_p_gt_ZERO, Zle_0_nat.
+    * rewrite <- !two_power_nat_two_p in *. apply power_nat_one_divede_other.
 Qed.
 
 (******************************************

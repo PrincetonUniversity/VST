@@ -9,7 +9,7 @@ Class listspec (list_struct: type) (list_link: ident) :=
    list_structid: ident;
    list_struct_eq: list_struct= Tstruct list_structid list_fields noattr;
    list_struct_alignas_legal: legal_alignas_type list_struct = true;
-   list_link_type: nested_field_type2 list_struct (list_link :: nil) = Tcomp_ptr list_structid noattr
+   list_link_type: nested_field_type2 list_struct (StructField list_link :: nil) = Tcomp_ptr list_structid noattr
 }.
 
 Section LIST.
@@ -22,7 +22,7 @@ Definition links' (ls: listspec list_struct list_link) (sh: share) :=
                 (!! (h=first /\ ~ (ptr_eq first last)) && 
                         EX tail:val, 
                            !! (is_pointer_or_null tail) &&
-                           field_at sh list_struct (list_link::nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) tail) first
+                           field_at sh list_struct (StructField list_link::nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) tail) first
                            * |> R (hs, (tail, last)))
         | (nil, (first,last)) =>
                  !! (ptr_eq first last) && emp
@@ -36,7 +36,7 @@ Lemma links_unfold (ls: listspec list_struct list_link): forall sh contents v1 v
   match contents with
   | h::t => !!(h=v1 /\ ~ptr_eq v1 v2) && EX tail: val, 
                            !! (is_pointer_or_null tail) &&
-                           field_at sh list_struct (list_link::nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) tail) v1
+                           field_at sh list_struct (StructField list_link::nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) tail) v1
                            * |> links ls sh t tail v2
   | nil => !! (ptr_eq v1 v2) && emp
  end.
@@ -72,7 +72,7 @@ Definition links_cons (ls: listspec list_struct list_link) sh (l: list val) (x z
         !! (~ ptr_eq x z) && 
        EX r:list val, EX y:val, 
              !!(l=x::r  /\ is_pointer_or_null y) && 
-             field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y) x * 
+             field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) y) x * 
              |> links ls sh r y z.
 
 Lemma links_neq (ls: listspec list_struct list_link):  forall sh l x z , 
@@ -198,7 +198,7 @@ Lemma links_cons_eq (ls: listspec list_struct list_link):
         !!(h=x /\ ~ ptr_eq x z) &&
          (EX  y : val,
           !!(is_pointer_or_null y) &&
-   field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y) x *
+   field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) y) x *
    |>links ls sh r y z).
 Proof.
  intros. rewrite links_unroll.
@@ -290,13 +290,13 @@ f_equal. extensionality x. rewrite andp_comm; auto.
 Qed.
 
 Lemma links_cons_right_null (ls: listspec list_struct list_link): forall sh l x y, 
-             field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) y * 
+             field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) nullval) y * 
              links ls sh l x y
    |--   links ls sh (l++y::nil) x nullval.
 Proof.
 intros.
 assert (TT |-- ALL l: list val, ALL x: val,
-                   (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) y * links ls sh l x y)  
+                   (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) nullval) y * links ls sh l x y)  
                      >=> links ls sh (l++y::nil) x nullval).
 Focus 2.
 apply subp_e; eapply derives_trans; [apply H | apply allp_left with l; apply allp_left with x; auto].
@@ -323,7 +323,7 @@ apply exp_right with nullval.
 rewrite prop_true_andp by (simpl; auto).
 rewrite links_nil_eq.
 rewrite prop_true_andp. 
-apply derives_trans with (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) x * emp).
+apply derives_trans with (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) nullval) x * emp).
 rewrite sepcon_emp; auto.
 apply sepcon_derives; auto.
 apply now_later.
@@ -388,8 +388,8 @@ eapply derives_trans.
 apply andp_derives; [apply unfash_fash | apply derives_refl].
 rewrite andp_comm.
 apply derives_trans
- with ((field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) y *  links ls sh (v::l) z y ) &&
-   (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) y *  links ls sh (v::l) z y 
+ with ((field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) nullval) y *  links ls sh (v::l) z y ) &&
+   (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) nullval) y *  links ls sh (v::l) z y 
      --> links ls sh ((v::l) ++ y :: nil) z nullval)).
 2: apply modus_ponens.
 apply andp_derives; auto.
@@ -419,11 +419,12 @@ Lemma another_ewand_TT_lemma:
  forall A B C: mpred, A && ewand C TT >=> B && ewand C TT |-- A*C >=> B*C.
 Admitted.
 
-Lemma list_link_size_pos (ls: listspec list_struct list_link):  
-  sizeof (nested_field_type2 list_struct (list_link :: nil)) > 0.
+Lemma list_link_size_in_range (ls: listspec list_struct list_link):  
+  0 < sizeof (nested_field_type2 list_struct (StructField list_link :: nil)) < Int.modulus.
 Proof.
   rewrite list_link_type.
-  reflexivity.
+  cbv.
+  split; reflexivity.
 Qed.
 
 Lemma uncompomized_valinject_repinject: forall e t (v : reptype t),
@@ -435,38 +436,38 @@ Qed.
 
 Lemma links_cons_right (ls: listspec list_struct list_link): forall (sh : Share.t) 
          (l : list val) (x y z: val) w,
-       field_at sh list_struct (list_link :: nil)
-         (valinject (nested_field_type2 list_struct (list_link :: nil)) z) y *
-       field_at sh list_struct (list_link :: nil)
+       field_at sh list_struct (StructField list_link :: nil)
+         (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) z) y *
+       field_at sh list_struct (StructField list_link :: nil)
          w z *
        links ls sh l x y
        |-- links ls sh (l ++ y :: nil) x z *
-           field_at sh list_struct (list_link :: nil)
+           field_at sh list_struct (StructField list_link :: nil)
              w z.
 Proof.
 intros.
 assert (type_is_by_value
         (uncompomize (PTree.empty type)
-           (nested_field_type2 list_struct (list_link :: nil)))).
+           (nested_field_type2 list_struct (StructField list_link :: nil)))).
   rewrite list_link_type; simpl; auto.
-pose proof uncompomized_valinject_repinject (PTree.empty _) (nested_field_type2 list_struct (list_link :: nil)) w H.
-remember (repinject (nested_field_type2 list_struct (list_link :: nil)) w) as w'.
+pose proof uncompomized_valinject_repinject (PTree.empty _) (nested_field_type2 list_struct (StructField list_link :: nil)) w H.
+remember (repinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) as w'.
 subst w.
 clear H Heqw'.
 rename w' into w.
 rewrite (field_at_isptr _ _ _ _ z).
 normalize.
 assert (TT |-- ALL l: list val, ALL x: val,
-                   (((field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) y) * links ls sh l x y)  
-                          && (ewand (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z) TT))
+                   (((field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) z) y) * links ls sh l x y)  
+                          && (ewand (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) z) TT))
                      >=> (links ls sh (l++y::nil) x z 
-                                 && (ewand (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z) TT))).
+                                 && (ewand (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) z) TT))).
 Focus 2.
 apply subp_e; eapply derives_trans;
    [apply H | apply allp_left with l; apply allp_left with x; auto].
-forget (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) y) as A.
+forget (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) z) y) as A.
 forget (links ls sh (l ++ y :: nil) x z) as B.
-forget (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z) as C.
+forget (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) z) as C.
 forget (links ls sh l x y) as D.
 rewrite (sepcon_assoc). rewrite (sepcon_comm C). rewrite <- sepcon_assoc.
 apply another_ewand_TT_lemma.
@@ -494,15 +495,17 @@ apply andp_right.
 rewrite prop_and; rewrite prop_true_andp by auto.
 apply not_prop_right; intro. apply ptr_eq_e in H0; subst z.
 apply ewand_conflict.
+Check field_at__conflict.
+Locate data_at_conflict.
 eapply derives_trans; [apply sepcon_derives | apply field_at__conflict];
   try apply field_at_field_at_;try apply list_struct_alignas_legal;
-  try apply (list_link_size_pos ls).
+  try apply (list_link_size_in_range ls).
 apply exp_right with z.
 normalize.
 rewrite links_nil_eq.
 rewrite prop_true_andp by (destruct z; try contradiction; simpl; auto).
 apply andp_left1.
-apply derives_trans with (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) x * emp).
+apply derives_trans with (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) z) x * emp).
 rewrite sepcon_emp; auto.
 apply sepcon_derives; auto.
 rewrite prop_true_andp.
@@ -544,7 +547,7 @@ eapply derives_trans; [ apply sepcon_derives ; [ | apply derives_refl ]| ].
 apply sepcon_derives ; [ | apply derives_refl ].
 eapply derives_trans; [apply sepcon_derives | apply field_at__conflict]; 
   try apply field_at_field_at_; try apply list_struct_alignas_legal;
-  try apply (list_link_size_pos ls).
+  try apply (list_link_size_in_range ls).
 repeat rewrite FF_sepcon; auto.
 normalize in H1.
 apply andp_right.
@@ -628,7 +631,7 @@ Definition list_data {ls: listspec list_struct list_link} (v: elemtype ls): rept
 Defined.
 
 Definition list_cell (ls: listspec list_struct list_link) sh v p :=
-  (field_at_ sh list_struct (list_link :: nil) p) -* (data_at sh list_struct (list_data v) p).
+  (field_at_ sh list_struct (StructField list_link :: nil) p) -* (data_at sh list_struct (list_data v) p).
 
 Definition lseg' (ls: listspec list_struct list_link) (sh: share) := 
   HORec (fun (R: (list (elemtype ls))*(val*val) -> mpred) (lp: (list (elemtype ls))*(val*val)) =>
@@ -638,7 +641,7 @@ Definition lseg' (ls: listspec list_struct list_link) (sh: share) :=
                         EX tail:val, 
                            !! is_pointer_or_null tail &&
                            list_cell ls sh h first
-                           * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) tail) first
+                           * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) tail) first
                            * |> R (hs, (tail, last)))
         | (nil, (first,last)) =>
                  !! (ptr_eq first last) && emp
@@ -653,7 +656,7 @@ Lemma lseg_unfold (ls: listspec list_struct list_link): forall sh contents v1 v2
      | h::t => !! (~ ptr_eq v1 v2) && EX tail: val,
                       !! is_pointer_or_null tail &&
                       list_cell ls sh h v1
-                      * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) tail) v1
+                      * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) tail) v1
                       * |> lseg ls sh t tail v2
      | nil => !! (ptr_eq v1 v2) && emp
      end.
@@ -692,7 +695,7 @@ Definition lseg_cons (ls: listspec list_struct list_link) sh (l: list (elemtype 
        EX h:(elemtype ls), EX r:list (elemtype ls), EX y:val, 
              !!(l=h::r  /\ is_pointer_or_null y) && 
              list_cell ls sh h x *
-             field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y) x * 
+             field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) y) x * 
              |> lseg ls sh r y z.
 
 Lemma lseg_unroll (ls: listspec list_struct list_link): forall sh l x z , 
@@ -752,7 +755,7 @@ Lemma lseg_unroll_nonempty1 (ls: listspec list_struct list_link):
     ~ ptr_eq v1 v2 ->
     is_pointer_or_null p ->
     P |-- list_cell ls sh h v1 *
-             (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) p) v1 *
+             (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) p) v1 *
                lseg ls sh tail p v2) ->
     P |-- lseg ls sh (h::tail) v1 v2.
 Proof. intros. rewrite lseg_unroll. apply orp_right2. unfold lseg_cons.
@@ -802,7 +805,7 @@ Lemma unfold_lseg_neq (ls: listspec list_struct list_link):
        !! (s=h::r /\ is_pointer_or_null y) &&
       PROPx P (LOCALx Q 
         (SEPx (`(list_cell ls sh h) v::
-                  `(field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y)) v ::
+                  `(field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) y)) v ::
                   |> `(lseg ls sh r) (`y) (v2) ::
                   R)))
         end.
@@ -849,7 +852,7 @@ Lemma unfold_lseg_cons (ls: listspec list_struct list_link):
        !! (s=h::r /\ is_pointer_or_null y) &&
       PROPx P (LOCALx Q 
         (SEPx (`(list_cell ls sh h) e ::
-                  `(field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y)) e ::
+                  `(field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) y)) e ::
                   |> `(lseg ls sh r) (`y) (`nullval) ::
                   R)))
         end.
@@ -876,7 +879,7 @@ Lemma semax_lseg_neq (ls: listspec list_struct list_link):
     semax Delta 
         (PROPx P (LOCALx Q 
         (SEPx (`(list_cell ls sh h) v ::
-                  `(field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y)) v ::
+                  `(field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) y)) v ::
                   |> `(lseg ls sh r) (`y) v2 ::
                   R)))) c Post) ->
    semax Delta 
@@ -901,7 +904,7 @@ Lemma semax_lseg_nonnull (ls: listspec list_struct list_link):
     semax Delta 
         (PROPx P (LOCALx Q 
         (SEPx (`(list_cell ls sh h v) ::
-                  `(field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y) v) ::
+                  `(field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) y) v) ::
                   |> `(lseg ls sh r y nullval) ::
                   R)))) c Post) ->
    semax Delta 
@@ -938,7 +941,7 @@ Lemma lseg_cons_eq (ls: listspec list_struct list_link):
         !!(~ ptr_eq x z) &&
          (EX  y : val,
           !!(is_pointer_or_null y) &&
-   list_cell ls sh h x * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y) x *
+   list_cell ls sh h x * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) y) x *
    |>lseg ls sh r y z).
 Proof.
  intros. rewrite lseg_unroll.
@@ -973,28 +976,28 @@ Definition lseg_cons_right (ls: listspec list_struct list_link) sh (l: list (ele
        EX h:(elemtype ls), EX r:list (elemtype ls), EX y:val, 
              !!(l=r++h::nil /\ is_pointer_or_null y)  && 
                        list_cell ls sh h y *
-             field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) y * 
+             field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) z) y * 
              |> lseg ls sh r x y.
 
 Lemma lseg_cons_right_neq (ls: listspec list_struct list_link): forall sh l x h y w z, 
-             list_cell ls sh h y * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) y * 
-             lseg ls sh l x y * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z
-   |--   lseg ls sh (l++h::nil) x z * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z.
+             list_cell ls sh h y * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) z) y * 
+             lseg ls sh l x y * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) z
+   |--   lseg ls sh (l++h::nil) x z * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) z.
 Proof.
 intros.
 rewrite (field_at_isptr _ _ _ _ z).
 normalize.
 assert (TT |-- ALL l: _, ALL x: val,
-                   (((list_cell ls sh h y * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) y) * lseg ls sh l x y)  
-                          && (ewand (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z) TT))
+                   (((list_cell ls sh h y * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) z) y) * lseg ls sh l x y)  
+                          && (ewand (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) z) TT))
                      >=> (lseg ls sh (l++h::nil) x z 
-                                 && (ewand (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z) TT))).
+                                 && (ewand (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) z) TT))).
 Focus 2.
 apply subp_e; eapply derives_trans;
    [apply H | apply allp_left with l; apply allp_left with x; auto].
-forget (list_cell ls sh h y * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) y) as A.
+forget (list_cell ls sh h y * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) z) y) as A.
 forget (lseg ls sh (l ++ h :: nil) x z) as B.
-forget (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) z) as C.
+forget (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) z) as C.
 forget (lseg ls sh l x y) as D.
 apply another_ewand_TT_lemma.
 clear x l.
@@ -1021,7 +1024,7 @@ apply not_prop_right; intro. apply ptr_eq_e in H; subst z.
 apply ewand_conflict.
 rewrite sepcon_assoc.
 eapply derives_trans; [apply sepcon_derives; [apply derives_refl | ] | ].
-apply field_at_conflict; [apply (list_link_size_pos ls) |apply list_struct_alignas_legal].
+apply field_at_conflict; [apply (list_link_size_in_range ls) |apply list_struct_alignas_legal].
 normalize.
 apply exp_right with z.
 rewrite prop_true_andp by normalize.
@@ -1061,11 +1064,11 @@ rewrite <- andp_assoc.
 apply andp_left1.
 apply not_prop_right. intro. apply ptr_eq_e in H2. subst z.
 apply ewand_conflict.
-pull_left (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z') x).
-pull_left (field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) w) x).
+pull_left (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) z') x).
+pull_left (field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) x).
 do 3 rewrite sepcon_assoc.
 eapply derives_trans; [ apply sepcon_derives ; [ | apply derives_refl ]| ].
-apply field_at_conflict; [apply (list_link_size_pos ls) |apply list_struct_alignas_legal].
+apply field_at_conflict; [apply (list_link_size_in_range ls) |apply list_struct_alignas_legal].
 normalize.
 rename H into H'; rename H1 into H; rename H0 into H1; rename H' into H0.
 apply andp_right.
@@ -1099,14 +1102,14 @@ apply andp_left1; auto.
 Qed.
 
 Lemma lseg_cons_right_null (ls: listspec list_struct list_link): forall sh l x h y, 
-             list_cell ls sh h y * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) y * 
+             list_cell ls sh h y * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) nullval) y * 
              lseg ls sh l x y
    |--   lseg ls sh (l++h::nil) x nullval.
 Proof.
 intros.
 rewrite field_at_isptr; normalize.
 assert (TT |-- ALL l: list (elemtype ls), ALL x: val,
-                   (list_cell ls sh h y * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) y * lseg ls sh l x y)  
+                   (list_cell ls sh h y * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) nullval) y * lseg ls sh l x y)  
                      >=> lseg ls sh (l++h::nil) x nullval).
 Focus 2.
 apply subp_e; eapply derives_trans; [apply H | apply allp_left with l; apply allp_left with x; auto].
@@ -1151,7 +1154,7 @@ normalize.
 apply andp_right. apply prop_right; auto.
 repeat split; auto.
 intro. apply ptr_eq_e in H1. subst; inv Px.
-forget (list_cell ls sh e x * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) z) x) as A.
+forget (list_cell ls sh e x * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) z) x) as A.
 rewrite andp_comm.
 repeat rewrite sepcon_assoc.
 rewrite unfash_sepcon_distrib.
@@ -1188,8 +1191,8 @@ eapply derives_trans.
 apply andp_derives; [apply unfash_fash | apply derives_refl].
 rewrite andp_comm. 
 apply derives_trans
- with ((list_cell ls sh h y * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) y *  lseg ls sh (e0::l) z y ) &&
-   (list_cell ls sh h y * field_at sh list_struct (list_link :: nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) nullval) y *  lseg ls sh (e0::l) z y 
+ with ((list_cell ls sh h y * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) nullval) y *  lseg ls sh (e0::l) z y ) &&
+   (list_cell ls sh h y * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) nullval) y *  lseg ls sh (e0::l) z y 
      --> lseg ls sh ((e0::l) ++ h :: nil) z nullval)).
 2: apply modus_ponens.
 apply andp_derives; auto.
@@ -1448,7 +1451,7 @@ Qed.
 *)
 
 Lemma field_at_ptr_neq: forall sh t fld p1 p2 v1 v2,
- sizeof (nested_field_type2 t (fld :: nil)) > 0 ->
+ 0 < sizeof (nested_field_type2 t (fld :: nil)) < Int.modulus ->
  legal_alignas_type t = true ->
    field_at sh t (fld::nil) v1 p1 *
    field_at sh t (fld::nil) v2 p2
@@ -1462,7 +1465,7 @@ Proof.
 Qed.
 
 Lemma field_at_ptr_neq_andp_emp: forall sh t fld p1 p2 v1 v2,
- sizeof (nested_field_type2 t (fld :: nil)) > 0 ->
+ 0 < sizeof (nested_field_type2 t (fld :: nil)) < Int.modulus ->
  legal_alignas_type t = true ->
    field_at sh t (fld::nil) v1 p1 *
    field_at sh t (fld::nil) v2 p2
@@ -1595,7 +1598,7 @@ Proof.
   exact (prop_is_prop P).
 Qed.
 
-Definition lseg_cell {list_struct : type} {list_link : ident} (ls : listspec list_struct list_link) (sh : share) (v: elemtype ls) (x y: val) := !!is_pointer_or_null y && list_cell ls sh v x * field_at sh list_struct (list_link::nil) (valinject (nested_field_type2 list_struct (list_link :: nil)) y) x.
+Definition lseg_cell {list_struct : type} {list_link : ident} (ls : listspec list_struct list_link) (sh : share) (v: elemtype ls) (x y: val) := !!is_pointer_or_null y && list_cell ls sh v x * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) y) x.
 
 Lemma lseg_cons_eq2: forall {list_struct : type} {list_link : ident}
   (ls : listspec list_struct list_link) (sh : share) (h : elemtype ls) (r : list (elemtype ls)) 
