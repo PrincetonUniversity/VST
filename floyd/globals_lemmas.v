@@ -3,6 +3,7 @@ Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
+Require Import floyd.rangespec_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.array_lemmas.
@@ -508,7 +509,6 @@ Proof.
  f_equal; auto.
 Qed.
 
-(*
 Lemma id2pred_star_ZnthV_Tint:
  forall Delta sh n v (data: list int) sz sign mdata
   (NBS: notboolsize sz),
@@ -517,8 +517,8 @@ Lemma id2pred_star_ZnthV_Tint:
   local (`isptr v) && local (`(align_compatible (Tint sz sign noattr)) v) &&
   local (`(offset_in_range (sizeof (Tint sz sign noattr) * n)) v) &&
   id2pred_star Delta sh (tarray (Tint sz sign noattr) n) v 0 mdata |--
-  `(array_at (Tint sz sign noattr) sh (ZnthV (Tint sz sign noattr) 
-           (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data)) 0 n) v.
+  `(data_at sh (tarray (Tint sz sign noattr) n) 
+           (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data)) v.
 Proof.
   intros. subst n mdata.
   replace (Zlength (map  (inttype2init_data sz) data)) with (Zlength data)
@@ -532,9 +532,11 @@ Proof.
   change 0 with (ofs* sizeof (Tint sz sign noattr))%Z.
   set (N := Zlength data). unfold N at 2. clearbody N.
   replace (Zlength data) with (ofs + Zlength data) in * by (unfold ofs; omega).
-  replace (ZnthV (Tint sz sign noattr) (map (Basics.compose Vint (cast_int_int sz sign)) data))
-    with (fun i => ZnthV (Tint sz sign noattr) (map (Basics.compose Vint (cast_int_int sz sign)) data) (i-ofs))
-    by (extensionality i; unfold ofs; rewrite Z.sub_0_r; auto).
+Admitted.
+(*
+  replace (map (Basics.compose Vint (cast_int_int sz sign)) data)
+    with (skipn (Z.to_nat ofs) (map (Basics.compose Vint (cast_int_int sz sign)) data))
+    by (unfold ofs; reflexivity).
   
   clearbody ofs.
   rename H into H'.
@@ -542,7 +544,8 @@ Proof.
 revert ofs H1 H2;
 induction data; intros; simpl; auto.
 Focus 1. {
-  rewrite Zlength_nil. unfold array_at, rangespec; simpl.
+  rewrite Zlength_nil. unfold data_at; simpl.
+  unfold array_at', rangespec; simpl.
   replace (ofs+0-ofs) with 0 by omega. simpl. normalize.
 } Unfocus.
 rewrite Zlength_cons.
@@ -616,6 +619,7 @@ apply sepcon_derives; auto.
     rewrite H4. simpl. auto.
 + rewrite Zlength_correct; clear; omega.
 Qed.
+*)
 
 Lemma id2pred_star_ZnthV_tint:
  forall Delta sh n v (data: list int) mdata,
@@ -624,7 +628,7 @@ Lemma id2pred_star_ZnthV_tint:
   local (`isptr v) && local (`(align_compatible tint) v) &&
   local (`(offset_in_range (sizeof tint * n)) v) &&
   id2pred_star Delta sh (tarray tint n) v 0 mdata |--
-  `(array_at tint sh (ZnthV tint (map Vint data)) 0 n) v.
+  `(data_at sh (tarray tint n) (map Vint data)) v.
 Proof. intros; apply id2pred_star_ZnthV_Tint; auto; apply I.
 Qed.
 
@@ -640,8 +644,9 @@ Lemma unpack_globvar_array:
    gvar_init gv = map (inttype2init_data sz) data ->
    init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Int.max_unsigned ->
    local (tc_environ Delta) && globvar2pred(i, gv) |-- 
-      `(array_at (Tint sz sign noattr) (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
-    (ZnthV (Tint sz sign noattr) (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data)) 0 n) (eval_var i (tarray t n)).
+      `(data_at (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
+       (tarray (Tint sz sign noattr) n)
+    (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data)) (eval_var i (tarray t n)).
 Proof.
   intros. subst t.
   match goal with |- ?A |-- _ =>
@@ -690,7 +695,7 @@ Transparent sizeof.
   normalize.
 rewrite <- H5; auto.
 Qed.
-*)
+
 Lemma map_instantiate:
   forall {A B} (f: A -> B) (x: A) (y: list B) z,
     y = map f z ->  f x :: y = map f (x :: z).
@@ -750,11 +755,11 @@ first [
     eapply unpack_globvar;
       [reflexivity | reflexivity | split; reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence ]
-(* | eapply unpack_globvar_array;
+ | eapply unpack_globvar_array;
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply I 
       | compute; clear; congruence 
       | repeat eapply map_instantiate; symmetry; apply map_nil
-      | compute; split; clear; congruence ]*)
+      | compute; split; clear; congruence ]
  | eapply derives_trans;
     [ apply unpack_globvar_star; 
         [reflexivity | reflexivity | split; reflexivity

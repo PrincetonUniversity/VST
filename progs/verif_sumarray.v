@@ -6,19 +6,20 @@ Local Open Scope logic.
 Definition force_option {A} (x:A) (i: option A) := 
   match i with Some y => y | None => x end.
 
-Definition add_elem (f: Z -> val) (i: Z) := Int.add (force_int (f i)).
+Definition sum_int := fold_right Int.add Int.zero.
 
 Definition sumarray_spec :=
  DECLARE _sumarray
-  WITH a0: val, sh : share, contents : Z -> val, size: Z
+  WITH a0: val, sh : share, contents : list int, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
-          PROP (0 <= size <= Int.max_signed;
-                    forall i, 0 <= i < size -> is_int I32 Signed (contents i))
+          PROP  (0 <= size <= Int.max_signed;
+                 Zlength contents = size;
+                 forall i, 0 <= i < size -> is_int I32 Signed (Znth i (map Vint contents) Vundef))
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
-          SEP (`(array_at tint sh contents 0 size a0))
+          SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))
   POST [ tint ]  
-        local (`(eq (Vint (fold_range (add_elem contents) Int.zero 0 size))) retval)
-                 && `(array_at tint sh contents 0 size a0).
+        (local (`(eq (Vint (sum_int contents))) retval)
+                 && (`(data_at sh (tarray tint size) (map Vint contents) a0))).
 
 Definition main_spec :=
  DECLARE _main
@@ -33,12 +34,15 @@ Definition Gprog : funspecs :=
 
 Definition sumarray_Inv a0 sh contents size := 
  EX i: Z,
-   PROP  (0 <= i <= size)
+   PROP  (0 <= i <= size;
+          forall j, 0 <= j < size -> is_int I32 Signed (Znth j (map Vint contents) Vundef))
    LOCAL (temp _a a0; 
-               temp _i (Vint (Int.repr i)); temp _n (Vint (Int.repr size));
-               temp _s (Vint (fold_range (add_elem contents) Int.zero 0 i)))
-   SEP (`(array_at tint sh contents 0 size a0)).
+          temp _i (Vint (Int.repr i));
+          temp _n (Vint (Int.repr size));
+          temp _s (Vint (sum_int (firstn (Z.to_nat i) contents))))
+   SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0)).
 
+(*
 Lemma fold_range_split:
   forall A f (z: A) lo hi delta,
    lo <= hi -> delta >= 0 ->
@@ -100,6 +104,63 @@ unfold add_elem.
 rewrite Int.add_assoc.
 auto.
 Qed.
+*)
+
+Lemma derives_extract_PROP:
+  forall (PP : Prop) (P : list Prop) Q R Post,
+  (PP -> (PROPx P (LOCALx Q (SEPx R))) |-- Post) -> (PROPx (PP :: P) (LOCALx Q (SEPx R))) |-- Post.
+Proof.
+  intros.
+  rewrite <- move_prop_from_LOCAL, <- insert_local.
+  unfold local, lift1, lift0.
+  intro rho.
+  simpl.
+  apply derives_extract_prop.
+  intro.
+  apply (H H0).
+Qed.
+
+Lemma firstn_exact_length: forall {A} (xs: list A), firstn (length xs) xs = xs.
+Proof.
+  intros.
+  induction xs.
+  + reflexivity.
+  + simpl.
+    rewrite IHxs.
+    reflexivity.
+Qed.
+
+Lemma add_one_more_to_sum: forall contents i x,
+  Znth i (map Vint contents) Vundef = Vint x ->
+  0 <= i ->
+  sum_int (firstn (Z.to_nat (Z.succ i)) contents) =
+   Int.add (sum_int (firstn (Z.to_nat i) contents)) x.
+Proof.
+  intros.
+  rewrite Int.add_commut.
+  rewrite Z2Nat.inj_succ by eauto.
+  unfold Znth in H.
+  if_tac in H; [omega |].
+  forget (Z.to_nat i) as ii.
+  clear i H0 H1.
+  revert contents H.
+  induction ii; intros.
+  + simpl in *.
+    destruct contents.
+    - inversion H.
+    - simpl in H; inversion H.
+      reflexivity.
+  + destruct contents; [inversion H |].
+    remember (S ii).
+    rewrite Heqn at 2.
+    simpl firstn.
+    simpl sum_int.
+    subst n.
+    rewrite IHii by exact H.
+    rewrite <- !Int.add_assoc.
+    f_equal.
+    apply Int.add_commut.
+Qed.
 
 Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
@@ -112,12 +173,11 @@ name x _x.
 forward.  (* i = 0; *) 
 forward.  (* s = 0; *)
 unfold MORE_COMMANDS, abbreviate.
-repeat apply -> seq_assoc.  (* delete me *)
 forward_while (sumarray_Inv a0 sh contents size)
-    (PROP() 
+    (PROP  () 
      LOCAL (temp _a a0;
-                 temp _s  (Vint (fold_range (add_elem contents) Int.zero 0 size)))
-     SEP (`(array_at tint sh contents 0 size a0))).
+            temp _s (Vint (sum_int contents)))
+     SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))).
 (* Prove that current precondition implies loop invariant *)
 unfold sumarray_Inv.
 apply exp_right with 0.
@@ -125,24 +185,53 @@ entailer!.
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
-entailer!. f_equal. f_equal. omega.
+entailer!. f_equal.
+assert (i0 = Zlength contents) by omega; subst.
+rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
+reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
 forward. (* x = a[i] *)
-entailer!.
 forward. (* s += x; *)
 forward. (* i++; *)
 unfold sumarray_Inv.
 apply exp_right with (Zsucc i0).
 entailer!.
- simpl in *. rewrite (Int.signed_repr i0) in * by  repable_signed.
- rewrite fold_range_fact1 by omega.
- destruct (contents i0); inv H4. simpl. auto. 
+apply add_one_more_to_sum; assumption.
 (* After the loop *)
 forward.  (* return s; *)
 Qed.
 
-Definition four_contents := (ZnthV tint
-           (map Vint (map Int.repr (1::2::3::4:: nil)))).
+Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
+
+Lemma forall_Forall: forall A (P: A -> Prop) xs d,
+  (forall x, In x xs -> P x) ->
+  forall i, 0 <= i < Zlength xs -> P (Znth i xs d).
+Proof.
+  intros.
+  unfold Znth.
+  if_tac; [omega |].
+  assert (Z.to_nat i < length xs)%nat.
+  Focus 1. {
+    rewrite Zlength_correct in H0.
+    destruct H0 as [_ ?].
+    apply Z2Nat.inj_lt in H0; [| omega | omega].
+    rewrite Nat2Z.id in H0.
+    exact H0.
+  } Unfocus.
+  forget (Z.to_nat i) as n.
+  clear i H0 H1.
+  revert n H2; induction xs; intros.
+  + destruct n; simpl in H2; omega.
+  + destruct n.
+    - specialize (H a (or_introl eq_refl)).
+      simpl.
+      tauto.
+    - simpl in *.
+      apply IHxs; [| omega].
+      intros.
+      apply H.
+      tauto.
+Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
@@ -152,8 +241,10 @@ apply (remember_value (eval_var _four (tarray tint 4))); intro a0.
 forward_call (*  r = sumarray(four,4); *)
   (a0,Ews,four_contents,4).
  entailer!.
-   intros. unfold four_contents. apply ZnthV_map_Vint_is_int.
- split; auto.
+   intros. unfold four_contents.
+   apply forall_Forall; [| auto].
+   intros.
+   repeat (destruct H4; [subst; simpl; auto|]); inversion H4.
  auto with closed.
  after_call.
  forward. (* return s; *)
