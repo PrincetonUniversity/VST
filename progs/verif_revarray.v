@@ -3,21 +3,22 @@ Require Import progs.revarray.
 
 Local Open Scope logic.
 
+(*
 Definition flip {T} (n: Z) (f: Z -> T) (i: Z) := f (n-1-i).
 
 Lemma flip_flip:  forall {T} n (f: Z -> T), flip n (flip n f) = f.
 Proof. intros; extensionality i; unfold flip; f_equal; omega.
 Qed.
-
+*)
 Definition reverse_spec :=
  DECLARE _reverse
-  WITH a0: val, sh : share, contents : Z -> val, size: Z
+  WITH a0: val, sh : share, contents : list val, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP (0 <= size <= Int.max_signed; writable_share sh;
-                    forall i, 0 <= i < size -> is_int I32 Signed (contents i))
+                    forall i, 0 <= i < size -> is_int I32 (Znth i contents Vundef))
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
-          SEP (`(array_at tint sh contents 0 size a0))
-  POST [ tvoid ]  `(array_at tint sh (flip size contents) 0 size a0).
+          SEP (`(data_at sh (tarray tint size) contents a0))
+  POST [ tvoid ]  `(array_at sh (tarray tint size) (rev contents) a0).
 
 Definition main_spec :=
  DECLARE _main

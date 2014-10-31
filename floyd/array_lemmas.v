@@ -7,6 +7,7 @@ Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.rangespec_lemmas.
 Require Import floyd.data_at_lemmas.
+Require Import floyd.field_at.
 Require Import Coq.Logic.JMeq.
 Local Open Scope logic.
 
@@ -43,6 +44,63 @@ Proof.
     change (Z.to_nat 1) with (1%nat) in H0.
     inversion H0.
   + omega.
+Qed.
+
+(************************************************
+
+split lemmas of rangespec
+
+************************************************)
+
+Lemma split2_rangespec: forall lo mid hi P,
+  lo <= mid <= hi ->
+  rangespec lo hi P = rangespec lo mid P * rangespec mid hi P.
+Proof.
+  intros.
+  unfold rangespec, nat_of_Z.
+  extensionality p.
+  simpl.
+  replace (hi - lo) with ((mid - lo) + (hi - mid)) by omega.
+  rewrite Z2Nat.inj_add by omega.
+  remember (Z.to_nat (mid - lo)) as n eqn:?H.
+  revert P lo H H0; induction n; intros.
+  + simpl.
+    assert (mid - lo = 0) by (apply Z2Nat_inj_0; omega).
+    assert (mid = lo) by omega.
+    subst.
+    rewrite emp_sepcon; reflexivity.
+  + simpl.
+    rewrite sepcon_assoc.
+    f_equal.
+    assert (Z.succ lo <= mid <= hi).
+    Focus 1. {
+      split; [|omega].
+      destruct (zlt lo mid).
+      + omega.
+      + replace (mid - lo) with 0 in H0 by omega.
+        inversion H0.
+    } Unfocus.
+    assert (n = Z.to_nat (mid - Z.succ lo)).
+    Focus 1. {
+      replace (mid - lo) with (1 + (mid - Z.succ lo)) in H0 by omega.
+      rewrite Z2Nat.inj_add in H0 by omega.
+      change (Z.to_nat 1) with 1%nat in H0.
+      inversion H0.
+      reflexivity.
+    } Unfocus.
+    apply IHn; auto.
+Qed.
+
+Lemma rangespec_len_1: forall lo P,
+  rangespec lo (lo + 1) P = P lo.
+Proof.
+  intros.
+  unfold rangespec, nat_of_Z.
+  replace (lo + 1 - lo) with 1 by omega.
+  simpl.
+  extensionality p; simpl.
+  rewrite sepcon_emp.
+  reflexivity.
 Qed.
 
 (************************************************
@@ -183,6 +241,103 @@ Transparent skipn.
   replace (mid + 1 - mid) with 1 by omega.
   apply pred_ext; normalize; cancel.
   rewrite array_at'_isptr.
+  normalize.
+Qed.
+
+(************************************************
+
+split lemmas of array_at
+
+************************************************)
+
+Lemma split2_array_at: forall sh t gfs t0 n a lo mid hi ct1 ct2,
+  lo <= mid <= hi ->
+  Zlength ct1 = mid - lo ->
+  nested_field_type2 t gfs = Tarray t0 n a ->
+  array_at sh t gfs lo hi (ct1 ++ ct2) =
+    array_at sh t gfs lo mid ct1 * array_at sh t gfs mid hi ct2.
+Proof.
+  intros.
+  unfold array_at.
+  extensionality p; simpl.
+  erewrite split2_rangespec with (lo := lo) (mid := mid) (hi := hi) by assumption.
+  simpl.
+  replace (rangespec lo mid
+      (fun (i : Z) (x : val) =>
+       !!legal_nested_field t (ArraySubsc i :: gfs) &&
+       field_at sh t (ArraySubsc i :: gfs) (nested_Znth lo i (ct1 ++ ct2)) x)
+      p) with (rangespec lo mid
+     (fun (i : Z) (x : val) =>
+      !!legal_nested_field t (ArraySubsc i :: gfs) &&
+      field_at sh t (ArraySubsc i :: gfs) (nested_Znth lo i ct1) x) p).
+  Focus 2. {
+    apply rangespec_ext.
+    intros.
+    f_equal.
+    f_equal.
+    admit.
+  } Unfocus.
+  replace (rangespec mid hi
+      (fun (i : Z) (x : val) =>
+       !!legal_nested_field t (ArraySubsc i :: gfs) &&
+       field_at sh t (ArraySubsc i :: gfs) (nested_Znth lo i (ct1 ++ ct2)) x)
+      p) with (rangespec mid hi
+      (fun (i : Z) (x : val) =>
+       !!legal_nested_field t (ArraySubsc i :: gfs) &&
+       field_at sh t (ArraySubsc i :: gfs) (nested_Znth mid i ct2) x) p).
+  Focus 2. {
+    apply rangespec_ext.
+    intros.
+    f_equal.
+    f_equal.
+    admit.
+  } Unfocus.
+  apply pred_ext; normalize.
+Qed.
+
+Lemma split3_array_at: forall sh t gfs t0 n a lo ml mr hi ct1 ct2 ct3,
+  lo <= ml ->
+  ml <= mr ->
+  mr <= hi ->
+  Zlength ct1 = ml - lo ->
+  Zlength ct2 = mr - ml ->
+  nested_field_type2 t gfs = Tarray t0 n a ->
+  array_at sh t gfs lo hi (ct1 ++ ct2 ++ ct3) =
+    array_at sh t gfs lo ml ct1 * array_at sh t gfs ml mr ct2 * array_at sh t gfs mr hi ct3.
+Proof.
+  intros.
+  rewrite sepcon_assoc.
+  assert (ml <= hi) by omega.
+  erewrite <- split2_array_at by eauto.
+  erewrite <- split2_array_at by eauto.
+  reflexivity.
+Qed.
+
+Lemma data_at_array_at: forall sh t gfs t0 n a lo hi v v' p,
+  0 <= lo ->
+  lo <= hi ->
+  hi <= n ->
+  nested_field_type2 t gfs = Tarray t0 n a ->
+  JMeq v v' ->
+  data_at sh (Tarray t0 (hi - lo) a) v'
+    (offset_val (Int.repr (nested_field_offset2 t (ArraySubsc lo :: gfs))) p) = 
+    !!(size_compatible t p) && !!(align_compatible t p) && array_at sh t gfs lo hi v p.
+Admitted.
+
+Lemma array_at_data_at: forall sh t gfs t0 n a lo hi v v' p,
+  0 <= lo ->
+  lo <= hi ->
+  hi <= n ->
+  nested_field_type2 t gfs = Tarray t0 n a ->
+  JMeq v v' ->
+  size_compatible t p ->
+  align_compatible t p ->
+  array_at sh t gfs lo hi v p =
+    data_at sh (Tarray t0 (hi - lo) a) v'
+      (offset_val (Int.repr (nested_field_offset2 t (ArraySubsc lo :: gfs))) p).
+Proof.
+  intros.
+  erewrite data_at_array_at by eauto.
   normalize.
 Qed.
 

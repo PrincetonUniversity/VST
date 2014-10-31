@@ -171,3 +171,23 @@ Proof.
   rewrite nth_skipn.
   reflexivity.
 Qed.
+
+Lemma firstn_exact_length: forall {A} (xs: list A), firstn (length xs) xs = xs.
+Proof.
+  intros.
+  induction xs.
+  + reflexivity.
+  + simpl.
+    rewrite IHxs.
+    reflexivity.
+Qed.
+
+Lemma skipn_exact_length: forall {A} (xs: list A), skipn (length xs) xs = nil.
+Proof.
+  intros.
+  induction xs.
+  + reflexivity.
+  + simpl.
+    rewrite IHxs.
+    reflexivity.
+Qed.

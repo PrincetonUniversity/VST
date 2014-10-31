@@ -120,16 +120,6 @@ Proof.
   apply (H H0).
 Qed.
 
-Lemma firstn_exact_length: forall {A} (xs: list A), firstn (length xs) xs = xs.
-Proof.
-  intros.
-  induction xs.
-  + reflexivity.
-  + simpl.
-    rewrite IHxs.
-    reflexivity.
-Qed.
-
 Lemma add_one_more_to_sum: forall contents i x,
   Znth i (map Vint contents) Vundef = Vint x ->
   0 <= i ->
