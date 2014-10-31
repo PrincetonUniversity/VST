@@ -1831,13 +1831,7 @@ Proof.
   } Unfocus.
   rewrite !data_at'_at_offset' with (pos := (sizeof t * i)%Z) by auto.
   rewrite !at_offset'_eq by (rewrite <- data_at'_offset_zero; reflexivity).
-  assert (legal_nested_field (Tarray t n a) (ArraySubsc i :: nil)).
-  Focus 1. {
-    apply legal_nested_field_cons_lemma.
-    split; [apply legal_nested_field_nil_lemma |].
-    rewrite nested_field_type2_nil.
-    eauto.
-  } Unfocus.
+  assert (legal_nested_field (Tarray t n a) (ArraySubsc i :: nil)) by solve_legal_nested_field.
   pose proof size_compatible_nested_field _ (ArraySubsc i :: nil) _ H6 H1.
   unfold nested_field_type2, nested_field_offset2 in H7; simpl in H7.
   pose proof align_compatible_nested_field _ (ArraySubsc i :: nil) _ H6 H H2.

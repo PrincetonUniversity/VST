@@ -86,7 +86,7 @@ Definition Gprog : funspecs :=
 
 (** Two little equations about the list_cell predicate *)
 Lemma list_cell_eq: forall sh i,
-   list_cell LS sh (Vint i) = field_at sh t_struct_list [_head] (Vint i).
+   list_cell LS sh (Vint i) = field_at sh t_struct_list [StructField _head] (Vint i).
 Proof.
   intros.
   unfold list_cell; extensionality p; simpl.
@@ -203,7 +203,7 @@ forward.  (* t = v->tail; *)
 forward. (*  v->tail = w; *)
 simpl eval_lvalue. simpl proj_reptype.
 normalize.
-replace_SEP 1 (`(field_at sh t_struct_list [_tail] w v)).
+replace_SEP 1 (`(field_at sh t_struct_list [StructField _tail] w v)).
 entailer.
 forward.  (*  w = v; *)
 forward.  (* v = t; *)
@@ -305,6 +305,9 @@ Proof.
    simpl in *. forget (Int.unsigned (Int.add i0 (Int.repr ofs))) as j.
    admit.  (* Need a proof that the list cell does not cross the end of memory *)
    simpl in *; auto.
+   apply legal_nested_field_cons_lemma; simpl.
+   split; [|auto].
+   apply legal_nested_field_nil_lemma.
  rewrite @lseg_nil_eq; auto.
  entailer!. compute; auto.
  unfold t_struct_list at 2.
@@ -314,6 +317,7 @@ Proof.
   normalize.
   simpl. admit.  (* Need a proof that the list cell does not cross the end of memory *)
   simpl. admit.  (* Need to keep track of alignment constraint *)
+  solve_legal_nested_field.
  -
   unfold offset_val; repeat rewrite Int.add_assoc.
  spec IHdata. simpl length in H0|-*. repeat rewrite inj_S in H0|-*. omega.
@@ -336,6 +340,8 @@ Proof.
  unfold nested_field_offset2; simpl; reflexivity.
  admit.  (* Need a proof that the list cell does not cross the end of memory *)
  admit.  (* Need to keep track of alignment constraint *)
+  solve_legal_nested_field.
+
  fold (tarray t_struct_list n).
  rewrite H8.
  apply sepcon_derives;
@@ -347,6 +353,8 @@ Proof.
  rewrite Int.add_assoc. rewrite add_repr. reflexivity.
  simpl. admit.  (* Need a proof that the list cell does not cross the end of memory *)
  simpl.  admit.  (* Need to keep track of alignment constraint *)
+  solve_legal_nested_field.
+
  replace (ofs + 4 + 4)
    with (ofs+8) by omega.
  apply IHdata.

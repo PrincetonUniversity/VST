@@ -51,7 +51,7 @@ Definition Vprog : varspecs := nil.
 Definition Gprog : funspecs := insert_spec :: insertionsort_spec ::  nil.
 
 Lemma list_cell_eq: forall sh,
-   list_cell LS sh = field_at sh t_struct_list [_head].
+   list_cell LS sh = field_at sh t_struct_list [StructField _head].
 Proof. admit. Qed.
 
 Definition isptrb v := 
@@ -106,17 +106,17 @@ SEP (
      (if(isptrb index_ptr)
       then
        (`(list_cell LS sh (index_ptr) (Vint (sorted_val))) *
-        `(field_at sh t_struct_list [_tail] next_ptr index_ptr))
+        `(field_at sh t_struct_list [StructField _tail] next_ptr index_ptr))
       else
          emp);
       (if(isptrb prev_ptr)
        then  `(lseg LS sh (map Vint (contents_lt))) (eval_id _sorted) `(prev_ptr) *
              `(list_cell LS sh (prev_ptr) (Vint (prev_val))) *
-             `(field_at sh t_struct_list [_tail] index_ptr prev_ptr)
+             `(field_at sh t_struct_list [StructField _tail] index_ptr prev_ptr)
        else emp);
      `(lseg LS sh (map Vint (contents_rest))) `(next_ptr) `nullval;
-     `(field_at sh t_struct_list [_head] (Vint insert_val)) (eval_id _insert_node);
-     `(field_at sh t_struct_list [_tail] nullval) (eval_id _insert_node) ).
+     `(field_at sh t_struct_list [StructField _head] (Vint insert_val)) (eval_id _insert_node);
+     `(field_at sh t_struct_list [StructField _tail] nullval) (eval_id _insert_node) ).
 
 Definition insert_post sh insert_val contents :=
 EX prev_ptr : val, 
@@ -166,17 +166,17 @@ SEP (
       then
         (*NOTE:: Can't use (eval_expr _index) here or it will be missed by go_lower *)
        (`(list_cell LS sh (index_ptr) (Vint sorted_val)) *
-        `(field_at sh t_struct_list [_tail] next_ptr index_ptr))
+        `(field_at sh t_struct_list [StructField _tail] next_ptr index_ptr))
       else
          emp);
       (if(isptrb prev_ptr)
        then  `(lseg LS sh (map Vint (contents_lt))) (eval_id _sorted) `(prev_ptr) *
              `(list_cell LS sh (prev_ptr) (Vint prev_val)) *
-             `(field_at sh t_struct_list [_tail] index_ptr prev_ptr)
+             `(field_at sh t_struct_list [StructField _tail] index_ptr prev_ptr)
        else emp);
      `(lseg LS sh (map Vint contents_rest)) `(next_ptr) `nullval;
-     `(field_at sh t_struct_list [_head] (Vint insert_val)) (eval_id _insert_node);
-     `(field_at sh t_struct_list [_tail] nullval) (eval_id _insert_node)).
+     `(field_at sh t_struct_list [StructField _head] (Vint insert_val)) (eval_id _insert_node);
+     `(field_at sh t_struct_list [StructField _tail] nullval) (eval_id _insert_node)).
 
 Lemma lseg_cons_non_nill : forall {ls ll} LS sh h r v1 v2 , @lseg ls ll LS sh (h::r) v1 v2 = 
 !!isptr v1 && @lseg ls ll LS sh (h::r) v1 v2.

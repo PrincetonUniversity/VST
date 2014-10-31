@@ -568,6 +568,12 @@ Ltac solve_nested_field_rec_cons_eq_Some H :=
   |try solve [inversion HeqA]; destruct HH as [H1 H2]
   |try solve [inversion HeqA]; destruct HH as [H1 H2]].
 
+Ltac solve_legal_nested_field :=
+  first [
+   solve [apply legal_nested_field_nil_lemma]
+  | apply legal_nested_field_cons_lemma; simpl;
+    split; [solve_legal_nested_field | auto]].
+
 Global Opaque legal_nested_field.
 
 Lemma sumbool_dec_iff: forall A B, {A} + {~A} -> (A <-> B) -> {B} + {~B}.

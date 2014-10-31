@@ -4,23 +4,6 @@ Require Import progs.queue.
 
 Local Open Scope logic.
 
-
-(*
-
-Currently, store rule about mapsto is like:
-  {`mapsto_ (eval_lvalue e1)} e1 = e2 {`mapsto (eval_lvalue e1) (eval_expr e2)}
-
-or in a data_at form:
-  {`data_at_ (eval_lvalue e1)} e1 = e2 {`data_at (`valinject (eval_expr e2)) (eval_lvalue e1)}
-
-However, in nested store rule, the postcondition will contain complicated lifted expressions.
-  {`(data_at v) (eval_lvalue e1)} e1 = e2.ids {`data_at (`(upd_reptype v) (`valinject (eval_expr e2))) (eval_lvalue e1)}
-
-
-
-*)
-
-
 Instance QS: listspec t_struct_elem _next. 
 Proof. eapply mk_listspec; reflexivity. Defined.
 
@@ -72,9 +55,9 @@ Definition freeN_spec :=
   POST [ tvoid ]  emp.
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
-  field_at Tsh t_struct_elem (_a::nil) (fst rep) p * 
-  (field_at Tsh t_struct_elem (_b::nil) (snd rep) p *
-   (field_at_ Tsh t_struct_elem (_next::nil)) p).
+  field_at Tsh t_struct_elem [StructField _a] (fst rep) p * 
+  (field_at Tsh t_struct_elem [StructField _b] (snd rep) p *
+   (field_at_ Tsh t_struct_elem [StructField _next]) p).
 
 Definition fifo (contents: list val) (p: val) : mpred:=
   EX ht: (val*val), let (hd,tl) := ht in
@@ -84,7 +67,7 @@ Definition fifo (contents: list val) (p: val) : mpred:=
       then (!!(hd=nullval) && emp)
       else (EX prefix: list val, 
               !!(contents = prefix++tl::nil)
-            &&  (links QS Tsh prefix hd tl * field_at Tsh t_struct_elem (_next::nil) nullval tl)).
+            &&  (links QS Tsh prefix hd tl * field_at Tsh t_struct_elem [StructField _next] nullval tl)).
 
 Definition fifo_new_spec :=
  DECLARE _fifo_new
@@ -97,7 +80,7 @@ Definition fifo_put_spec :=
   WITH q: val, contents: list val, p: val
   PRE  [ _Q OF (tptr t_struct_fifo) , _p OF (tptr t_struct_elem) ]
           PROP () LOCAL (temp _Q q; temp _p p) 
-          SEP (`(fifo contents q); `(field_at_ Tsh t_struct_elem (_next::nil) p))
+          SEP (`(fifo contents q); `(field_at_ Tsh t_struct_elem [StructField _next] p))
   POST [ tvoid ] `(fifo (contents++(p :: nil)) q).
 
 Definition fifo_empty_spec :=
@@ -113,7 +96,7 @@ Definition fifo_get_spec :=
   PRE  [ _Q OF (tptr t_struct_fifo) ]
        PROP() LOCAL (temp _Q q) SEP (`(fifo (p :: contents) q)) 
   POST [ (tptr t_struct_elem) ] 
-        local (`(eq p) retval) && `(fifo contents q) * `(field_at_ Tsh t_struct_elem (_next::nil)) retval.
+        local (`(eq p) retval) && `(fifo contents q) * `(field_at_ Tsh t_struct_elem [StructField _next]) retval.
 
 Definition make_elem_spec :=
  DECLARE _make_elem
@@ -139,12 +122,12 @@ Lemma memory_block_data_at_: forall (sh : share) (t : type) (p: val),
   legal_alignas_type t = true ->
   nested_non_volatile_type t = true ->
   align_compatible t p ->
+  sizeof t < Int.modulus ->
   memory_block sh (Int.repr (sizeof t)) p = data_at_ sh t p.
 Proof.
 intros.
- rewrite <- (memory_block_data_at_ sh t); auto.
- normalize. simpl. rewrite prop_true_andp by auto.
- auto.
+ rewrite (memory_block_data_at_ sh t); auto.
+ normalize.
 Qed.
  
 Lemma memory_block_fifo:
@@ -158,12 +141,13 @@ Proof.
  unfold data_at_, field_at_.
  rewrite data_at_field_at.
   reflexivity.
+ cbv; reflexivity.
 Qed.
 
 Lemma list_cell_eq: forall sh elem,
   list_cell QS sh elem = 
-   field_at sh t_struct_elem [_a] (fst elem) * 
-   field_at sh t_struct_elem [_b] (snd elem). 
+   field_at sh t_struct_elem [StructField _a] (fst elem) * 
+   field_at sh t_struct_elem [StructField _b] (snd elem). 
 Proof. admit. Qed.
 
 Lemma body_fifo_empty: semax_body Vprog Gprog f_fifo_empty fifo_empty_spec.
@@ -226,7 +210,7 @@ Proof.
   normalize.
   forward. (* Q = (struct fifo * )Q'; *)
   normalize.
-  rewrite memory_block_fifo by auto.  (* we don't even need it now *)  (* ? *)
+  rewrite memory_block_fifo by auto.
   forward. (* Q->head = NULL; *)
   (* goal_4 *)
 
@@ -295,7 +279,7 @@ forward_if
      normalize.
      apply exp_right with (prefix ++ t :: nil).
      entailer.
-     remember (field_at Tsh t_struct_elem [_next] nullval p') as A. (* prevent it from canceling! *)
+     remember (field_at Tsh t_struct_elem [StructField _next] nullval p') as A. (* prevent it from canceling! *)
      cancel. subst A. 
      eapply derives_trans; [ | apply links_cons_right ].
      cancel.
@@ -366,7 +350,7 @@ eapply semax_pre0 with (PROP  (natural_align_compatible p0)
   entailer!.
   rewrite <- memory_block_data_at_;
    [auto | reflexivity  | reflexivity 
-   | apply natural_align_compatible_t_struct_fifo; auto].
+   | apply natural_align_compatible_t_struct_fifo; auto | compute; reflexivity].
 unfold data_at_.
 rewrite data_at_field_at.
 forward.  (*  p->a=a; *)
@@ -426,9 +410,9 @@ forward_call (*  freeN(p, sizeof( *p)); *)
   change 12 with (sizeof t_struct_elem).
   eapply derives_trans; [ | apply sepcon_derives; [| apply derives_refl]].
 
-  instantiate (1:= field_at_ Tsh t_struct_elem [_next] p' *
-   field_at Tsh t_struct_elem [_a] (Vint (Int.repr 1)) p' *
-   field_at Tsh t_struct_elem [_b] (Vint (Int.repr 10)) p'). cancel.
+  instantiate (1:= field_at_ Tsh t_struct_elem [StructField _next] p' *
+   field_at Tsh t_struct_elem [StructField _a] (Vint (Int.repr 1)) p' *
+   field_at Tsh t_struct_elem [StructField _b] (Vint (Int.repr 10)) p'). cancel.
 
   apply derives_trans with (data_at_ Tsh t_struct_elem p'). unfold data_at_. 
   unfold_data_at 1%nat; cancel.
@@ -438,13 +422,15 @@ forward_call (*  freeN(p, sizeof( *p)); *)
 Lemma data_at__memory_block: forall (sh : share) (t : type) (p: val),
  legal_alignas_type t = true ->
  nested_non_volatile_type t = true ->
+ sizeof t < Int.modulus ->
    data_at_ sh t p |-- memory_block sh (Int.repr (sizeof t)) p.
 Proof.
 intros.
- rewrite <- (data_at_lemmas.memory_block_data_at_ sh t); auto.
+ rewrite (data_at_lemmas.memory_block_data_at_ sh t); auto.
  simpl; apply andp_left2; auto.
 Qed.
   apply data_at__memory_block; auto.
+  compute. reflexivity.
 } after_call.
 forward. (* return i+j; *)
 unfold main_post.

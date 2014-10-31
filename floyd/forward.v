@@ -1477,62 +1477,6 @@ first [eapply forward_ptr_compare_closed_now;
           | reflexivity ]
        | eapply forward_ptr_compare'; try reflexivity; auto].
 
-Ltac forward_setx :=
-first [(*forward_setx_wow
-       |*) 
-         ensure_normal_ret_assert;
-         hoist_later_in_pre;
-         eapply semax_SC_set; [reflexivity | reflexivity
-         | eapply derives_trans; [| apply msubst_eval_expr_eq];
-         [apply local2ptree_soundness; repeat constructor | reflexivity] | solve [entailer!]]
-       | apply forward_setx_closed_now;
-            [solve [auto 50 with closed] | solve [auto 50 with closed] | solve [auto 50 with closed]
-            | try apply local_True_right
-            | try apply local_True_right
-            |  ]
-        | apply forward_setx; quick_typecheck
-        ].
-
-Ltac forward_setx_with_pcmp e :=
-tac_if (ptr_compare e) ltac:forward_ptr_cmp ltac:forward_setx.
-
-(* BEGIN new semax_load and semax_store tactics *************************)
-
-Lemma solve_legal_nested_field_aux: forall (P: environ -> mpred) Q R, (Q <-> R) -> P |-- !!R -> P |-- !!Q.
-Proof.
-  intros.
-  eapply derives_trans; eauto.
-  normalize.
-  tauto.
-Qed.
-
-Ltac solve_legal_nested_field' :=
-  first
-  [ solve [(apply prop_right; apply legal_nested_field_nil_lemma)]
-  | eapply solve_legal_nested_field_aux; [apply legal_nested_field_cons_lemma |];
-    rewrite prop_and; apply andp_right; [solve_legal_nested_field' | try solve [entailer!]]].
-
-Ltac solve_legal_nested_field :=
-match goal with
-| |- _ |-- !! legal_nested_field ?t_root (?gfs1 ++ ?gfs0) =>
-  unfold t_root, gfs0, gfs1
-end;
-match goal with 
-| |- _ |-- !! ?M => simpl M
-end;
-solve_legal_nested_field'.
-
-Ltac construct_nested_efield e e1 efs tts :=
-  let pp := fresh "pp" in
-    pose (compute_nested_efield e) as pp;
-    simpl in pp;
-    pose (fst (fst pp)) as e1;
-    pose (snd (fst pp)) as efs;
-    pose (snd pp) as tts;
-    simpl in e1, efs, tts;
-    change e with (nested_efield e1 efs tts);
-    clear pp.
-
 Ltac do_compute_lvalue Delta P Q R e v H :=
   let rho := fresh "rho" in
   assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
@@ -1560,6 +1504,66 @@ Ltac do_compute_expr Delta P Q R e v H :=
      simpl;
      reflexivity]
   ]).
+
+Ltac forward_setx :=
+first [(*forward_setx_wow
+       |*) 
+         ensure_normal_ret_assert;
+         hoist_later_in_pre;
+         match goal with
+         | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+                let v := fresh "v" in evar (v : val);
+                let HRE := fresh "H" in
+                do_compute_expr Delta P Q R e v HRE;
+                eapply semax_SC_set; [reflexivity | reflexivity | exact HRE | solve [entailer!]]
+         end
+       | apply forward_setx_closed_now;
+            [solve [auto 50 with closed] | solve [auto 50 with closed] | solve [auto 50 with closed]
+            | try apply local_True_right
+            | try apply local_True_right
+            |  ]
+        | apply forward_setx; quick_typecheck
+        ].
+
+Ltac forward_setx_with_pcmp e :=
+tac_if (ptr_compare e) ltac:forward_ptr_cmp ltac:forward_setx.
+
+(* BEGIN new semax_load and semax_store tactics *************************)
+
+Lemma solve_legal_nested_field_in_entailment_aux: forall (P: environ -> mpred) Q R, (Q <-> R) -> P |-- !!R -> P |-- !!Q.
+Proof.
+  intros.
+  eapply derives_trans; eauto.
+  normalize.
+  tauto.
+Qed.
+
+Ltac solve_legal_nested_field_in_entailment' :=
+  first
+  [ solve [(apply prop_right; apply legal_nested_field_nil_lemma)]
+  | eapply solve_legal_nested_field_in_entailment_aux; [apply legal_nested_field_cons_lemma |];
+    rewrite prop_and; apply andp_right; [solve_legal_nested_field_in_entailment' | try solve [entailer!]]].
+
+Ltac solve_legal_nested_field_in_entailment :=
+match goal with
+| |- _ |-- !! legal_nested_field ?t_root (?gfs1 ++ ?gfs0) =>
+  unfold t_root, gfs0, gfs1
+end;
+match goal with 
+| |- _ |-- !! ?M => simpl M
+end;
+solve_legal_nested_field_in_entailment'.
+
+Ltac construct_nested_efield e e1 efs tts :=
+  let pp := fresh "pp" in
+    pose (compute_nested_efield e) as pp;
+    simpl in pp;
+    pose (fst (fst pp)) as e1;
+    pose (snd (fst pp)) as efs;
+    pose (snd pp) as tts;
+    simpl in e1, efs, tts;
+    change e with (nested_efield e1 efs tts);
+    clear pp.
 
 Lemma efield_denote_cons_array: forall P Delta efs gfs ei i,
   P |-- efield_denote Delta efs gfs ->
@@ -1885,7 +1889,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       pose (firstn len' tts) as tts1
     end;
     clear len;
-    simpl in gfs1, efs0, efs1, tts0, tts1;
+    vm_compute in gfs0, gfs1, efs0, efs1, tts0, tts1;
 
     change gfs with (gfs1 ++ gfs0) in *;
     change efs with (efs1 ++ efs0) in *;
@@ -1900,7 +1904,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_cast_load Delta sh SE n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | reflexivity | reflexivity | exact Heq | exact HLE | exact H_Denote 
-    | exact H | reflexivity | solve [entailer!] | solve_legal_nested_field]
+    | exact H | reflexivity | solve [entailer!] | solve_legal_nested_field_in_entailment]
 
 | SE := @abbreviate type_id_env _ 
     |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
@@ -1991,7 +1995,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       pose (firstn len' tts) as tts1
     end;
     clear len;
-    simpl in gfs1, efs0, efs1, tts0, tts1;
+    vm_compute in gfs0, gfs1, efs0, efs1, tts0, tts1;
 
     change gfs with (gfs1 ++ gfs0) in *;
     change efs with (efs1 ++ efs0) in *;
@@ -2006,7 +2010,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_load Delta sh SE n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | reflexivity | reflexivity | exact Heq | exact HLE | exact H_Denote 
-    | exact H | reflexivity | try solve [entailer!] | solve_legal_nested_field]
+    | exact H | reflexivity | try solve [entailer!] | solve_legal_nested_field_in_entailment]
 
 | SE := @abbreviate type_id_env _ 
     |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
@@ -2209,7 +2213,7 @@ match goal with
       pose (firstn len' tts) as tts1
     end;
     clear len;
-    simpl in gfs1, efs0, efs1, tts0, tts1;
+    vm_compute in gfs0, gfs1, efs0, efs1, tts0, tts1;
 
     change gfs with (gfs1 ++ gfs0) in *;
     change efs with (efs1 ++ efs0) in *;
@@ -2230,14 +2234,14 @@ match goal with
         [reflexivity | reflexivity | simpl; auto | reflexivity
         | reflexivity | reflexivity | reflexivity | exact Heq | exact HLE
         | exact HRE | exact H_Denote | exact H | auto | solve[entailer!]
-        | solve_legal_nested_field ]
+        | solve_legal_nested_field_in_entailment ]
       | appcontext [field_at_] =>
         eapply (semax_SC_field_store Delta sh SE n)
           with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
         [reflexivity | reflexivity | simpl; auto | reflexivity
         | reflexivity | reflexivity | reflexivity | exact Heq | exact HLE
         | exact HRE | exact H_Denote | exact H | auto | solve[entailer!]
-        | solve_legal_nested_field ]
+        | solve_legal_nested_field_in_entailment ]
       | _ =>
         eapply semax_post'; [ |
           eapply (semax_SC_field_store Delta sh SE n)
@@ -2245,7 +2249,7 @@ match goal with
             [reflexivity | reflexivity | simpl; auto | reflexivity
             | reflexivity | reflexivity | reflexivity | exact Heq | exact HLE 
             | exact HRE | exact H_Denote | exact H | auto | solve[entailer!] 
-            | solve_legal_nested_field]];
+            | solve_legal_nested_field_in_entailment]];
         match goal with
         | |- appcontext [replace_nth _ _ ?M] => 
           let EQ := fresh "EQ" in
