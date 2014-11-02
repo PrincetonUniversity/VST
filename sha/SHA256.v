@@ -15,11 +15,20 @@ Definition WORD : Z := 4.  (* length of a word, in bytes *)
 Definition CBLOCKz : Z := (LBLOCKz * WORD)%Z. (* length of a block, in characters *)
 Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
 Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.
-Definition big_endian_integer (contents: Z -> int) : int :=
-  Int.or (Int.shl (contents 0) (Int.repr 24))
-  (Int.or (Int.shl (contents 1) (Int.repr 16))
-   (Int.or (Int.shl (contents 2) (Int.repr 8))
-      (contents 3))).
+
+Fixpoint little_endian_integer (contents: list int) : int :=
+ match contents with 
+ | nil => Int.zero
+ | c::cr => Int.or (Int.shl (little_endian_integer cr) (Int.repr 8)) c
+ end.
+Definition big_endian_integer (contents: list int) : int :=
+   little_endian_integer (rev contents).
+(* match contents with c0::c1::c2::c3::nil => 
+  Int.or (Int.shl c0 (Int.repr 24)) (Int.or (Int.shl c1 (Int.repr 16))
+   (Int.or (Int.shl c2 (Int.repr 8)) c3))
+ | _ => Int.zero
+ end.
+*)
 (* END OF "THIS BLOCK OF STUFF" *)
 
 Import ListNotations.
@@ -35,7 +44,7 @@ Qed.
 
 Lemma skipn_length_short:
   forall {A} n (al: list A), 
-    (length al < n)%nat -> 
+    (length al <= n)%nat -> 
     (length (skipn n al) = 0)%nat.
 Proof.
  induction n; destruct al; simpl; intros; auto.
@@ -165,8 +174,9 @@ Function hash_blocks (r: registers) (msg: list int) {measure length msg} : regis
   end.
 Proof. intros.
  destruct (lt_dec (length msg) 16).
- rewrite skipn_length_short. simpl; omega. rewrite <- teq; auto.
- rewrite skipn_length. simpl; omega. rewrite <- teq; omega.
+ rewrite skipn_length_short. simpl; omega. subst; simpl in *; omega.
+ rewrite <- teq; auto.
+ rewrite skipn_length. simpl; omega. omega.
 Qed.
 
 Fixpoint intlist_to_Zlist (l: list int) : list Z :=

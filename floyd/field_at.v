@@ -333,6 +333,9 @@ Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
     (fun i => !! legal_nested_field t (ArraySubsc i :: gfs) &&
     field_at sh t (ArraySubsc i :: gfs) (nested_Znth lo i v)).
 
+Definition array_at_ (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z) :=
+  array_at sh t gfs lo hi (list_repeat (Z.to_nat (hi-lo)) (default_val (nested_field_type2 t (ArraySubsc 0 :: gfs)))).
+
 Opaque alignof.
 
 Lemma field_at_Tarray: forall sh t gfs t0 n a v1 v2,

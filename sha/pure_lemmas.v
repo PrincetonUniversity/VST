@@ -206,6 +206,7 @@ destruct l as [|i3 l]; [ inv H |].
 simpl. f_equal. apply IHn. forget (Z.to_nat WORD * n)%nat as A. inv H; auto.
 Qed.
 
+(*
 Lemma big_endian_integer_ext:
  forall f f', (forall z, (0 <= z < WORD)%Z -> f z = f' z) ->
     big_endian_integer f = big_endian_integer f'.
@@ -214,7 +215,36 @@ unfold big_endian_integer;
 intros.
 repeat f_equal; intros; apply H; repeat split; compute; auto; congruence.
 Qed.
+*)
 
+Lemma big_endian_integer4:
+ forall c0 c1 c2 c3,
+  big_endian_integer (c0::c1::c2::c3::nil) =
+  Int.or (Int.shl c0 (Int.repr 24)) (Int.or (Int.shl c1 (Int.repr 16))
+   (Int.or (Int.shl c2 (Int.repr 8)) c3)).
+Proof.
+intros.
+unfold big_endian_integer.
+simpl.
+apply Int.same_bits_eq; intros.
+assert (Int.zwordsize=32) by reflexivity.
+assert (32 < Int.max_unsigned) by (compute; auto).
+autorewrite with testbit.
+if_tac; simpl; auto;  try omega.
+if_tac; simpl; auto; try omega.
+if_tac; simpl; auto; try omega.
+if_tac; simpl; auto; try omega.
+if_tac; simpl; auto; try omega.
+autorewrite with testbit; auto.
+autorewrite with testbit; auto.
+replace (i - 8 - 8) with (i-16) by omega.
+rewrite orb_assoc. auto.
+if_tac; simpl; auto; try omega.
+autorewrite with testbit; auto.
+replace (i - 8 - 8) with (i-16) by omega.
+replace (i - 16 - 8) with (i-24) by omega.
+repeat rewrite orb_assoc. auto.
+Qed.
 
 Local Open Scope nat.
 

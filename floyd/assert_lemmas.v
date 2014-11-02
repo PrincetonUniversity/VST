@@ -901,10 +901,24 @@ match goal with |- ?P |-- fold_right _ _ ?F ?rho  =>
        change ( P' rho |-- fold_right sepcon emp F rho);
    fixup_lifts; cbv beta;
     repeat rewrite sepcon_assoc;
-    repeat apply cancel_frame2; 
+   repeat match goal with |- (_ * _) _ |-- _ =>
+                   apply cancel_frame2
+                    end; 
     try (unfold F; apply cancel_frame1);
     try (instantiate (1:=nil) in (Value of F); unfold F; apply cancel_frame0)
  end.
+
+Ltac pull_left A :=
+ (* For some reason in Coq 8.4pl3 and perhaps other versions,
+  this works better than the version in log_normalize
+  which is simply,
+   repeat rewrite <- (pull_right A) || rewrite <- (pull_right0 A)
+  and which sometimes fails when the terms get complicated.
+ *)
+  repeat match goal with
+  | |- context [?Q * ?R * A] => rewrite <- (pull_right A Q R)
+  | |- context [?Q * A] => rewrite <- (pull_right0 A Q)
+  end.
 
 Ltac cancel :=
 repeat first [rewrite emp_sepcon | rewrite sepcon_emp];

@@ -719,13 +719,21 @@ simpl. rewrite sepcon_assoc. auto.
 Qed.
 
 Ltac flatten_sepcon_in_SEP :=
-  match goal with |- @semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
+  match goal with
+  | |- @semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
    match R with context [ (sepcon ?x  ?y) :: ?R'] =>
   let n := length_of R in let n' := length_of R' in 
          rewrite (grab_nth_SEP (n-S n')); simpl minus; unfold nth, delete_nth; 
          rewrite flatten_sepcon_in_SEP
-end
+    end
+  | |-  (PROPx _ (LOCALx _ (SEPx ?R))) |-- _ =>
+   match R with context [ (sepcon ?x  ?y) :: ?R'] =>
+  let n := length_of R in let n' := length_of R' in 
+         rewrite (grab_nth_SEP (n-S n')); simpl minus; unfold nth, delete_nth; 
+         rewrite flatten_sepcon_in_SEP
+  end
 end.
+
 Lemma semax_ff:
   forall Espec Delta c R,  
    @semax Espec Delta FF c R.

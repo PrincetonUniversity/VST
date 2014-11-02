@@ -67,7 +67,7 @@ Definition update_inner_if :=
          update_inner_if_then
          update_inner_if_else.
 
-Definition inv_at_inner_if sh hashed len c d dd data kv hi lo:=
+Definition inv_at_inner_if sh hashed len c d dd data kv bitlen :=
  (PROP ()
    (LOCAL 
       (temp _fragment (Vint (Int.repr (64- Zlength dd)));
@@ -76,14 +76,17 @@ Definition inv_at_inner_if sh hashed len c d dd data kv hi lo:=
        temp _c c; temp _data d;
        temp _len (Vint (Int.repr (Z.of_nat len)));
        var  _K256 (tarray tuint CBLOCKz) kv)
-   SEP  (`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8 c);
-    `(sha256_length (hilo hi lo + (Z.of_nat len)*8) c);
-   `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64 (offset_val (Int.repr 40) c));
-   `(field_at Tsh t_struct_SHA256state_st [_num] (Vint (Int.repr (Zlength dd))) c);
+   SEP  (`(data_at Tsh t_struct_SHA256state_st
+                 (map Vint (hash_blocks init_registers hashed),
+                  (Vint (lo_part (bitlen + (Z.of_nat len)*8)),
+                   (Vint (hi_part (bitlen + (Z.of_nat len)*8)),
+                    (map Vint (map Int.repr dd),
+                     Vint (Int.repr (Zlength dd))))))
+               c);
    `(K_vector kv);
    `(data_block sh data d)))).
 
-Definition sha_update_inv sh hashed len c d (frag: list Z) (data: list Z) kv r_Nh r_Nl (done: bool) :=
+Definition sha_update_inv sh hashed len c d (frag: list Z) (data: list Z) kv bitlen (done: bool) :=
    (EX blocks:list int,
    PROP  (len >= length blocks*4 - length frag /\
               (LBLOCKz | Zlength blocks) /\ 
@@ -94,31 +97,14 @@ Definition sha_update_inv sh hashed len c d (frag: list Z) (data: list Z) kv r_N
                 temp _len (Vint (Int.repr (Z.of_nat (len- (length blocks*4 - length frag)))));
                 var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(K_vector kv);
-    `(array_at tuint Tsh (tuints (hash_blocks init_registers (hashed ++ blocks))) 0 8 c);
-    `(sha256_length (hilo r_Nh r_Nl + (Z.of_nat len)*8) c);
-   `(array_at_ tuchar Tsh 0 64 (offset_val (Int.repr 40) c));
-   `(field_at_ Tsh t_struct_SHA256state_st [_num] c);
+           `(data_at Tsh t_struct_SHA256state_st
+                 (map Vint (hash_blocks init_registers (hashed++blocks)),
+                  (Vint (lo_part (bitlen + (Z.of_nat len)*8)),
+                   (Vint (hi_part (bitlen + (Z.of_nat len)*8)),
+                    (list_repeat CBLOCK Vundef,
+                     Vundef))))
+                c);
    `(data_block sh data d))).
-
-Lemma closed_make_args:
-  forall (Q: environ -> mpred) funsig el,
-     closed_wrt_vars (fun _ => True) Q ->
-  `Q (make_args' funsig el) = Q.
-Proof.
-intros.
-extensionality rho.
-unfold_lift.
-hnf in H.
-unfold make_args'.
-specialize (H rho (te_of (make_args (map fst (fst funsig)) (el rho) rho))).
-rewrite H.
-f_equal.
-destruct rho; simpl.
-forget (el (mkEnviron ge ve te)) as vl.
-forget (map fst (fst funsig)) as il.
-induction il; destruct vl; simpl.
-unfold globals_only. simpl.
-Abort.  (* need to be closed for addressable locals, too *)
 
 Definition Delta_update_inner_if : tycontext.
 simplify_Delta_from
@@ -128,12 +114,200 @@ simplify_Delta_from
            (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))).
 Defined.
 
+Require Import JMeq.
+
+Definition splice_into_list (lo hi: Z) (source target : list val) : list val :=
+   firstn (Z.to_nat lo) (target ++ list_repeat (Z.to_nat (lo - Zlength target)) Vundef)
+   ++ firstn (Z.to_nat (hi-lo)) (source ++ list_repeat (Z.to_nat (hi-lo)) Vundef)
+   ++ skipn (Z.to_nat hi) target.
+
+Lemma skipn_short:
+   forall {A} n (al: list A), n >= length al -> skipn n al = nil.
+Proof.
+intros.
+pose proof (skipn_length_short n al).
+spec H0; [auto | ].
+destruct (skipn n al); inv H0; auto.
+Qed.
+
+Lemma splice_into_list_simplify0:
+  forall n src dst, 
+    Zlength src = n ->
+    Zlength dst = n ->
+    splice_into_list 0 n src dst = src.
+Proof.
+ intros.
+ unfold splice_into_list.
+ rewrite Z.sub_0_r. change (Z.of_nat 0) with 0%nat.
+ simpl firstn. unfold app at 1.
+ rewrite firstn_app1.
+ rewrite firstn_same.
+ rewrite skipn_short.
+ rewrite <- app_nil_end; auto.
+ rewrite <- H0. rewrite Zlength_correct. rewrite Nat2Z.id; auto.
+ rewrite <- H. rewrite Zlength_correct. rewrite Nat2Z.id; auto.
+ rewrite <- H. rewrite Zlength_correct. rewrite Nat2Z.id; auto.
+Qed.
+
+Lemma splice_into_list_simplify1:
+  forall lo hi src tgt,
+    lo = Zlength tgt ->
+    (hi-lo = Zlength src)%Z ->
+    splice_into_list lo hi src tgt = tgt++src.
+Proof.
+intros; subst; unfold splice_into_list.
+rewrite H0.
+rewrite Z.sub_diag.
+change (Z.to_nat 0) with 0.
+unfold list_repeat at 1.
+repeat rewrite ZtoNat_Zlength.
+rewrite <- app_nil_end.
+rewrite firstn_same by omega.
+f_equal.
+rewrite firstn_app1 by omega.
+rewrite firstn_same by omega.
+pose proof (Zlength_nonneg src).
+pose proof (Zlength_nonneg tgt).
+pose proof (skipn_length_short (Z.to_nat hi) tgt).
+spec H2.
+apply Nat2Z.inj_le.
+rewrite <- Zlength_correct.
+rewrite Z2Nat.id by omega.
+omega.
+destruct (skipn (Z.to_nat hi) tgt); inv H2.
+rewrite <- app_nil_end.
+auto.
+Qed.
+
+Lemma splice_into_list_simplify2:
+  forall lo hi src tgt,
+    lo = Zlength tgt ->
+    (lo <= hi)%Z ->
+    (hi-lo <= Zlength src)%Z ->
+    splice_into_list lo hi src tgt = tgt++ firstn (Z.to_nat (hi-lo)) src.
+Proof.
+intros; subst; unfold splice_into_list.
+rewrite Z.sub_diag.
+change (Z.to_nat 0) with 0.
+unfold list_repeat at 1.
+repeat rewrite ZtoNat_Zlength.
+rewrite <- app_nil_end.
+rewrite firstn_same by omega.
+f_equal.
+pose proof (Zlength_nonneg src).
+pose proof (Zlength_nonneg tgt).
+rewrite skipn_short
+ by (apply Nat2Z.inj_le;
+      rewrite <- Zlength_correct;
+      rewrite Z2Nat.id by omega; omega).
+rewrite <- app_nil_end.
+rewrite firstn_app1; auto.
+apply Nat2Z.inj_le.
+rewrite <- Zlength_correct.
+rewrite Z2Nat.id by omega.
+auto.
+Qed.
+
+Lemma call_memcpy_tuchar:
+  forall (shp : share) (tp: type) (pathp: list gfield) (lop: Z) (vp': list val) (p: val)
+           (shq: share) (tq: type) (pathq: list gfield) (loq: Z) (contents: list int) (q: val)
+           (len : Z)
+           (R': list (environ -> mpred))
+           (np nq : Z)
+           (vp vp'': reptype (nested_field_type2 tp pathp))
+           (vq : reptype (nested_field_type2 tq pathq))
+           (e_p e_q e_n : expr)
+           Espec Delta P Q R,
+     writable_share shp ->
+     nested_field_type2 tp pathp = tarray tuchar np ->
+     nested_field_type2 tq pathq = tarray tuchar nq ->
+     JMeq vq (map Vint contents) ->
+     JMeq vp vp' ->
+     JMeq vp'' (splice_into_list lop (lop+len) (map Vint contents) vp') ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+         PROP () LOCAL (`(eq (offset_val (Int.repr lop) 
+                                      (offset_val (Int.repr (nested_field_offset2 tp pathp)) p))) (eval_expr e_p);
+                  `(eq (offset_val (Int.repr loq) q)) (eval_expr e_q);
+                  `(eq (Vint (Int.repr len))) (eval_expr e_n))
+         (SEPx (`(field_at shp tp pathp vp p) :: 
+                   `(field_at shq tq pathq vq q) :: R')) ->
+   @semax Espec Delta 
+    (PROPx P (LOCALx Q (SEPx R)))
+    (Scall None
+             (Evar _memcpy 
+               (Tfunction
+                (Tcons (tptr tvoid) (Tcons (tptr tvoid) (Tcons tuint Tnil)))
+                  (tptr tvoid) cc_default))
+              [e_p; e_q; e_n])
+    (normal_ret_assert (PROPx P (LOCALx Q 
+     (SEPx (`(field_at shp tp pathp vp'' p) :: 
+               `(field_at shq tq pathq vq q) :: R'))))).
+Admitted.
+
+Lemma data_block_data_field:
+ forall sh dd dd' c, 
+  Forall isbyteZ dd ->
+  (Zlength dd = CBLOCKz)%Z ->
+  size_compatible t_struct_SHA256state_st c ->
+  align_compatible t_struct_SHA256state_st c ->
+  JMeq (map Vint (map Int.repr dd)) dd' ->
+  data_block sh dd (offset_val (Int.repr 40) c) =
+  field_at sh t_struct_SHA256state_st [StructField _data] dd' c.
+Proof.
+intros.
+unfold data_block.
+erewrite field_at_data_at by reflexivity.
+repeat rewrite prop_true_andp by auto.
+rewrite prop_true_andp by (split; simpl; auto).
+unfold at_offset', at_offset; simpl.
+apply equal_f.
+apply data_at_type_changable; auto.
+rewrite H0; reflexivity.
+Qed.
+
+Lemma call_memset_tuchar:
+  forall (shp : share) (tp: type) (pathp: list gfield) (lop: Z) (vp': list val) (p: val)
+           (c: int) (len : Z)
+           (R': list (environ -> mpred))
+           (np : Z)
+           (vp vp'': reptype (nested_field_type2 tp pathp))
+           (e_p e_c e_n : expr)
+           Espec Delta P Q R,
+     writable_share shp ->
+     (0 <= len <= Int.max_signed)%Z ->
+     nested_field_type2 tp pathp = tarray tuchar np ->
+     JMeq vp vp' ->
+     JMeq vp'' (splice_into_list lop (lop+len) (list_repeat (Z.to_nat len) (Vint c)) vp') ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+         PROP () LOCAL (`(eq (offset_val (Int.repr lop) 
+                                      (offset_val (Int.repr (nested_field_offset2 tp pathp)) p))) (eval_expr e_p);
+                  `(eq (Vint c)) (eval_expr e_c);
+                  `(eq (Vint (Int.repr len))) (eval_expr e_n))
+         (SEPx (`(field_at shp tp pathp vp p) :: R')) ->
+   @semax Espec Delta 
+    (PROPx P (LOCALx Q (SEPx R)))
+    (Scall None
+             (Evar _memset 
+               (Tfunction
+                (Tcons (tptr tvoid) (Tcons tint (Tcons tuint Tnil)))
+                  (tptr tvoid) cc_default))
+              [e_p; e_c; e_n])
+    (normal_ret_assert (PROPx P (LOCALx Q 
+     (SEPx (`(field_at shp tp pathp vp'' p) :: R'))))).
+Admitted.
+
+Lemma field_at_cancel_undef_example:
+  forall  d c, 
+  field_at Tsh t_struct_SHA256state_st [StructField _data] d c |--
+  field_at Tsh t_struct_SHA256state_st [StructField _data] (list_repeat 64 Vundef) c.
+Admitted.
+
 Lemma update_inner_if_then_proof:
  forall (Espec : OracleKind) (hashed : list int)
           (dd data : list Z) (c d: val) (sh: share) (len: nat) kv
-          (hi lo: int) 
+          (bitlen: Z) 
    (H : (Z.of_nat len <= Zlength data)%Z)
-   (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = hilo hi lo)
+   (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = bitlen)
    (H3 : (Zlength dd < CBLOCKz)%Z)
    (H3' : Forall isbyteZ dd)
    (H4 : (LBLOCKz | Zlength hashed))
@@ -158,15 +332,17 @@ semax Delta_update_inner_if
     temp _c c; temp _data d; temp _len (Vint (Int.repr (Z.of_nat len)));
     var  _K256 (tarray tuint CBLOCKz) kv)
    SEP 
-   (`(array_at tuint Tsh (tuints (hash_blocks init_registers hashed)) 0 8 c);
-   `(sha256_length (hilo hi lo + Z.of_nat len * 8) c);
-   `(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd))) 0 64
-       (offset_val (Int.repr 40) c));
-   `(field_at Tsh t_struct_SHA256state_st [_num] (Vint (Int.repr (Zlength dd)))
-       c); `(K_vector kv);
-   `(array_at tuchar sh (tuchars (map Int.repr data)) 0 (Zlength data) d)))
+   (`(data_at Tsh t_struct_SHA256state_st
+                 (map Vint (hash_blocks init_registers hashed),
+                  (Vint (lo_part (bitlen + (Z.of_nat len)*8)),
+                   (Vint (hi_part (bitlen + (Z.of_nat len)*8)),
+                    (map Vint (map Int.repr dd),
+                     Vint (Int.repr (Zlength dd))))))
+               c);
+   `(K_vector kv);
+   `(data_at sh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data)) d)))
   update_inner_if_then
-  (overridePost (sha_update_inv sh hashed len c d dd data kv hi lo false)
+  (overridePost (sha_update_inv sh hashed len c d dd data kv bitlen false)
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
@@ -177,69 +353,73 @@ Proof.
  simplify_Delta; abbreviate_semax.
   unfold update_inner_if_then.
   apply (remember_value (eval_id _fragment)); intro fragment.
-  forward_call (* memcpy (p+n,data,fragment); *)
-   ((sh,Tsh), 
-    offset_val (Int.repr (Zlength dd)) (offset_val (Int.repr 40) c),
-    d, 
-    Int.unsigned (force_int fragment),
-    Basics.compose force_int (ZnthV tuchar (map Vint (map Int.repr data)))).
- fold j; fold k.
- entailer!.
- clear fragment H5.
- rewrite negb_true_iff in H6. 
- apply ltu_repr_false in H6; [ | repable_signed | omega].
- clear TC.
- unfold j,k in *; clear j k.
-rewrite cVint_force_int_ZnthV
- by (rewrite initial_world.Zlength_map; omega).
- rewrite memory_block_array_tuchar by omega.
- rewrite split_offset_array_at with (contents :=ZnthV tuchar (map Vint (map Int.repr dd))) (lo := Zlength dd); [| omega | simpl; omega | reflexivity].
- rewrite (split_array_at (64-Zlength dd) _ _ (tuchars (map Int.repr data)))
-    by omega.
+assert_PROP (fragment = Vint (Int.repr k)).
+  entailer!.
+drop_LOCAL 0. subst fragment.
+assert_PROP ((Z.of_nat len >= k)%Z). {
+  entailer!.
+  rewrite negb_true_iff in H5. 
+  apply ltu_repr_false in H5; [ | repable_signed | omega].
+  auto.
+}
+drop_LOCAL 0.
+match goal with |- semax ?D (PROP() (LOCALx ?Q (SEPx _))) _ _ =>
+ apply semax_seq'
+ with (PROP() (LOCALx Q 
+        (SEP (`(data_at Tsh t_struct_SHA256state_st 
+                 (map Vint (hash_blocks init_registers hashed),
+                  (Vint (lo_part (bitlen + (Z.of_nat len)*8)),
+                   (Vint (hi_part (bitlen + (Z.of_nat len)*8)),
+                    (map Vint (map Int.repr dd) ++
+                      firstn (Z.to_nat k) (map Vint (map Int.repr data)),
+                     Vint (Int.repr (Zlength dd))))))
+               c);
+      `(K_vector kv);
+      `(data_at sh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data)) d)))))
+end.
+eapply semax_post_flipped'.
 
- replace (offset_val (Int.repr (40 + Zlength dd)) c)
-          with (offset_val (Int.repr (sizeof tuchar * Zlength dd)) (offset_val (Int.repr 40) c))
-  by (change (sizeof tuchar) with 1%Z; rewrite Z.mul_1_l; rewrite offset_offset_val, add_repr; auto).
- cancel.
- 
- after_call.
- fold j k.
- rename H5 into H2'.
- gather_SEP 4%Z 1%Z.
- replace_SEP 0%Z (`(array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr (dd ++ data) ))) 0
-        64 (offset_val (Int.repr 40) c))).
- entailer!.
- rewrite negb_true_iff in H8; 
- apply ltu_repr_false in H8; [ | omega..].
- unfold j,k in *.
- rename c' into c.
- rewrite cVint_force_int_ZnthV
- by (rewrite initial_world.Zlength_map; omega).
- replace (offset_val (Int.repr (40 + Zlength dd)) c)
-          with (offset_val (Int.repr (sizeof tuchar * Zlength dd)) (offset_val (Int.repr 40) c))
-  by (change (sizeof tuchar) with 1%Z; rewrite Z.mul_1_l; rewrite offset_offset_val, add_repr; auto).
- rewrite split_offset_array_at with (lo := Zlength dd) (contents := (ZnthV tuchar (map Vint (map Int.repr (dd ++ data))))); [| omega | simpl; omega | reflexivity].
-  normalize.
- apply sepcon_derives; apply derives_refl'; apply equal_f; apply array_at_ext; intros.
- unfold ZnthV. repeat rewrite if_false by omega.
- repeat rewrite map_app.
- rewrite app_nth1; auto. repeat rewrite map_length. apply Nat2Z.inj_lt.
- rewrite Z2Nat.id by omega. rewrite <- Zlength_correct; omega.
- repeat rewrite map_app.
- unfold ZnthV. repeat rewrite if_false by omega.
- rewrite app_nth2; auto. f_equal.
- rewrite !map_length. rewrite Zlength_correct. 
- rewrite Z2Nat.inj_add by omega.
- rewrite Nat2Z.id. omega.
- rewrite map_length; auto.
- repeat rewrite map_length. apply Nat2Z.inj_ge.
- rewrite Z2Nat.id by omega. rewrite <- Zlength_correct; omega.
+evar (Frame: list (LiftEnviron mpred)).
+  eapply(call_memcpy_tuchar
+   (*dst*) Tsh t_struct_SHA256state_st [StructField _data] (Zlength dd) (map Vint (map Int.repr dd)) c
+   (*src*) sh (tarray tuchar (Zlength data)) [ ] 0 (map Int.repr data)  d
+   (*len*) k
+        Frame);
+   [ auto | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | ].
+rewrite (data_at_field_at sh).
+unfold_data_at 1%nat.
+entailer!.
+rewrite splice_into_list_simplify2
+  by (repeat rewrite Zlength_map; omega).
+replace (Zlength dd + k - Zlength dd)%Z with k by omega.
+unfold_data_at 1%nat.
+entailer!.
+abbreviate_semax.
+
+unfold_data_at 1%nat.
+assert_PROP (size_compatible t_struct_SHA256state_st c /\
+           align_compatible t_struct_SHA256state_st c). {
+  rewrite (field_at_data_at _ _ [StructField _data]) by reflexivity.
+  entailer.
+}
+destruct H5.
+
+ repeat rewrite firstn_map. repeat rewrite <- map_app.
+ rewrite <- (data_block_data_field _ (dd ++ firstn (Z.to_nat k) data));
+   auto; 
+ [
+ | rewrite Forall_app; split; auto; apply Forall_firstn; auto
+ | rewrite Zlength_app, (Zlength_correct (firstn _ _)),
+   firstn_length, min_l;
+   [ rewrite Z2Nat.id by omega; unfold k; change CBLOCKz with 64%Z; omega
+   | apply Nat2Z.inj_le;
+     rewrite Z2Nat.id; [rewrite <- Zlength_correct; omega | omega ]]
+ ].
 
  forward_call (* sha256_block_data_order (c,p); *)
-   (hashed, Zlist_to_intlist (dd++(firstn (Z.to_nat k) data)), c, (offset_val (Int.repr 40) c), Tsh, kv).
+   (hashed, Zlist_to_intlist (dd++(firstn (Z.to_nat k) data)), c, (offset_val (Int.repr 40) c), Tsh, kv). {
  entailer.
  unfold j,k in *|-.
- rewrite negb_true_iff in H9; apply ltu_repr_false in H9; [ | omega..].
  assert (length (dd ++ firstn (Z.to_nat k) data) = 64). {
   unfold k.
   rewrite app_length.
@@ -251,110 +431,59 @@ rewrite cVint_force_int_ZnthV
   omega.
   apply Nat2Z.inj_le.  rewrite Z2Nat.id.  rewrite <- Zlength_correct; omega.
   omega.
-}
+ }
  assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK). {
   apply length_Zlist_to_intlist. assumption.
-}
+ }
  apply andp_right; [apply prop_right |].
  rewrite Zlength_correct, H12. reflexivity.
- replace (data_block Tsh
-      (intlist_to_Zlist (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)))
-      (offset_val (Int.repr 40) c))
-    with (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr (dd ++ data)))) 0
-  64 (offset_val (Int.repr 40) c)).
+ repeat rewrite firstn_map. repeat rewrite <- map_app.
+rewrite Zlist_to_intlist_to_Zlist;
+  [ 
+  | rewrite H11; exists LBLOCK; reflexivity
+  | rewrite Forall_app; split; auto; apply Forall_firstn; auto].
  cancel.
- unfold data_block.
- rewrite prop_true_andp.
- replace (Zlength
-     (intlist_to_Zlist (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data))))
-  with 64%Z
- by (rewrite Zlength_correct;
-      change 64%Z with (Z.of_nat 64); symmetry; f_equal;
-       rewrite length_intlist_to_Zlist, H12; reflexivity).
-  apply equal_f; apply array_at_ext; intros.
- unfold tuchars, ZnthV. repeat rewrite if_false by omega.
- rewrite Zlist_to_intlist_to_Zlist.
-  repeat rewrite map_map. 
-  repeat rewrite (@nth_map' Z val _ _ 0%Z).
-  f_equal. f_equal.
- destruct (zlt i (Zlength dd)).
- assert (Z.to_nat i < length dd)
-  by (apply Nat2Z.inj_lt; rewrite Z2Nat.id by omega; rewrite <- Zlength_correct; auto).
-  repeat rewrite app_nth1 by auto; auto.
- assert (Z.to_nat i >= length dd)
-  by (apply Nat2Z.inj_ge; rewrite Z2Nat.id by omega; rewrite <- Zlength_correct; auto).
-  repeat rewrite app_nth2 by auto; auto.
-  symmetry; apply nth_firstn_low.
-  unfold k.
-  split. apply Nat2Z.inj_lt. rewrite Nat2Z.inj_sub by omega. 
-  repeat rewrite Z2Nat.id by omega. rewrite <- Zlength_correct;omega.
- apply Nat2Z.inj_ge.  
-  repeat rewrite Z2Nat.id by omega. rewrite <- Zlength_correct;omega.
-  rewrite app_length. rewrite firstn_length. rewrite min_l.
-  unfold k; apply Nat2Z.inj_lt.
- rewrite Z2Nat.id by omega; rewrite Nat2Z.inj_add; 
- rewrite Z2Nat.id by omega; rewrite <- Zlength_correct.
- omega.
- unfold k.
- apply Nat2Z.inj_le; rewrite Z2Nat.id by omega.
-  rewrite <- Zlength_correct; omega.
-  apply Nat2Z.inj_lt; rewrite  Z2Nat.id by omega.
-  rewrite app_length, Nat2Z.inj_add.
- repeat rewrite <- Zlength_correct.
-  omega.
- rewrite H11; exists LBLOCK; reflexivity.
- rewrite Forall_app; split; auto.
- apply Forall_firstn; auto.
- apply isbyte_intlist_to_Zlist.
- after_call.
- forward. (* data  += fragment; *)
-entailer!.
- forward. (* len -= fragment; *)
-      normalize_postcondition.
- forward_call (* memset (p,0,SHA_CBLOCK); *)
-    (Tsh, offset_val (Int.repr 40) c, 64%Z, Int.zero). {
- fold k. fold j.
- unfold data_block.
- entailer!.
- simpl.
- rewrite <- H12 in H8, H10; clear len'0 H12.
- simpl in H8.
- inversion H8; clear H8; subst len'.
- simpl in H10.
- rewrite memory_block_array_tuchar by omega.
- replace  (Zlength
-     (intlist_to_Zlist (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data))))
-    with 64%Z.
- cancel.
- rewrite Zlength_intlist_to_Zlist.
- rewrite Zlength_correct.
- change 64%Z with (4*16)%Z; f_equal.
- rewrite length_Zlist_to_intlist with (n:=16).
- reflexivity.
- simpl.
- rewrite app_length, firstn_length.
- rewrite min_l.
- unfold k in *. 
- apply Nat2Z.inj.
- rewrite Nat2Z.inj_add.
- rewrite Z2Nat.id by omega.
- rewrite <- Zlength_correct.
- change (Z.of_nat 64) with 64%Z; omega.
- unfold k in *.
- apply Nat2Z.inj_le; rewrite Z2Nat.id by omega.
- rewrite <- Zlength_correct.
- fold k in H10;  simpl in H10.
- unfold Int.ltu in H10; if_tac in H10; try inv H10.
- unfold k in H8; repeat rewrite Int.unsigned_repr in H8 by omega.
- omega.
 }
-
  after_call.
+ rewrite Zlist_to_intlist_to_Zlist;
+ [
+ | rewrite app_length, firstn_length;
+   rewrite min_l 
+    by (apply Nat2Z.inj_le; rewrite Z2Nat.id by omega; rewrite <- Zlength_correct; omega);
+   exists LBLOCK; unfold k;
+   apply Nat2Z.inj; transitivity 64%Z; [ | reflexivity];
+   rewrite Nat2Z.inj_add; rewrite Z2Nat.id by (fold k; omega);
+   rewrite <- Zlength_correct; omega
+ |  rewrite Forall_app; split; auto; apply Forall_firstn; auto
+].
+ erewrite data_block_data_field;
+   auto; 
+ [
+ | rewrite Forall_app; split; auto; apply Forall_firstn; auto
+ | rewrite Zlength_app, (Zlength_correct (firstn _ _)),
+   firstn_length, min_l;
+   [ rewrite Z2Nat.id by omega; unfold k; change CBLOCKz with 64%Z; omega
+   | apply Nat2Z.inj_le;
+     rewrite Z2Nat.id; [rewrite <- Zlength_correct; omega | omega ]]
+ ].
+forward. (* data  += fragment; *)
+ entailer!.
+forward. (* len -= fragment; *)
+  normalize_postcondition.
+
+eapply semax_post_flipped3.
+evar (Frame: list (LiftEnviron mpred)).
+  eapply(call_memset_tuchar
+   (*dst*) Tsh t_struct_SHA256state_st [StructField _data] 0 
+                (map Vint (map Int.repr (dd ++ firstn (Z.to_nat k) data))) c
+   (*src*) Int.zero
+   (*len*) 64
+        Frame);
+   [ auto | repable_signed | reflexivity | reflexivity | reflexivity | ].
+unfold_data_at 1%nat.
+entailer!.
+ rewrite overridePost_normal'.
  unfold sha_update_inv.
- entailer.
- rewrite negb_true_iff in H9.
- apply ltu_repr_false in H9; [ | omega..].
- clear TC  TC1.
  apply exp_right with (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)).
  assert (LL: length (dd ++ firstn (Z.to_nat k) data) = CBLOCK). {
  rewrite app_length. rewrite firstn_length. rewrite min_l.
@@ -378,9 +507,30 @@ assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK). {
  rewrite <- Zlength_correct.
  omega.
 }
- entailer!.
+
+ rewrite (Zlength_correct (Zlist_to_intlist _)).
+ rewrite H8.
+ rewrite Zlist_to_intlist_to_Zlist;
+ [
+ | rewrite app_length, firstn_length;
+   rewrite min_l 
+    by (apply Nat2Z.inj_le; rewrite Z2Nat.id by omega; rewrite <- Zlength_correct; omega);
+   exists LBLOCK; unfold k;
+   apply Nat2Z.inj; transitivity 64%Z; [ | reflexivity];
+   rewrite Nat2Z.inj_add; rewrite Z2Nat.id by (fold k; omega);
+   rewrite <- Zlength_correct; omega
+ |  rewrite Forall_app; split; auto; apply Forall_firstn; auto
+].
+
+ simpl update_tycon; rewrite insert_local.
+ rewrite splice_into_list_simplify0;
+ [ 
+ | rewrite Zlength_correct, length_list_repeat; reflexivity
+ | rewrite Zlength_correct, map_length, map_length, LL; reflexivity].
+unfold_data_at 1%nat.
+change (Z.to_nat 64) with CBLOCK.
+entailer!.
  *
-  rewrite H6. 
   apply Nat2Z.inj_ge.
   rewrite Nat2Z.inj_sub.
   change (Z.of_nat (LBLOCK*4)) with 64%Z.
@@ -388,31 +538,30 @@ assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK). {
   clear - H3. apply Nat2Z.inj_le. rewrite <- Zlength_correct.
   change (Z.of_nat (LBLOCK*4)%nat) with CBLOCKz; clear - H3; omega.
  * 
-  apply Zlength_length in H6; auto.
-  rewrite H6. exists 1%Z; reflexivity.
- *
-  rewrite H6. rewrite Zlist_to_intlist_to_Zlist.
-  f_equal. f_equal. clear - H0.
-  rewrite Z2Nat.inj_sub by omega.
+  f_equal. f_equal. rewrite Z2Nat.inj_sub by omega.
   rewrite Zlength_correct, Nat2Z.id.
   reflexivity.
-  rewrite LL. exists 16; reflexivity.
-  rewrite Forall_app; split; auto.
-  apply Forall_firstn; auto.
+*
+ rewrite <- KK. auto.
+*
+ rewrite KK.
+ rewrite Nat2Z.inj_sub; auto.
+ apply Nat2Z.inj_le.
+ rewrite Nat2Z.inj_sub.
+ rewrite <- Zlength_correct.
+ change (Z.of_nat (LBLOCK * 4)) with 64%Z.
+ omega.
+ apply Nat2Z.inj_le.
+ rewrite <- Zlength_correct.
+ change (Z.of_nat (LBLOCK * 4)) with 64%Z.
+ omega.
  *
-  rewrite H6. f_equal.
-  f_equal.
-  auto.
- *
-  rewrite H6. do 2 f_equal.
-  rewrite Nat2Z.inj_sub. f_equal; auto.
-  apply Nat2Z.inj_le.
-  rewrite <- KK. omega.
- *
-  unfold data_block.
-  rewrite prop_true_andp by auto. 
-  rewrite cVint_force_int_ZnthV.
-  rewrite <- split_array_at.
- auto.
- omega. rewrite initial_world.Zlength_map. omega.
+ repeat apply sepcon_derives.
+ apply field_at_cancel_undef_example.
+ change (field_at Tsh t_struct_SHA256state_st [StructField _num] Vundef c')
+        with (field_at_ Tsh t_struct_SHA256state_st [StructField _num] c').
+ cancel.
+ unfold data_block.
+ rewrite prop_true_andp by auto.
+ cancel.
 Qed.
