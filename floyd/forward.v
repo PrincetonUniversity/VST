@@ -1667,6 +1667,13 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
           do_compute_expr Delta P Q R ei vi HA;
 
           match goal with
+          | vi := Vint (Int.sub _ _) |- _ => unfold Int.sub in vi
+          | vi := Vint (Int.add _ _) |- _ => unfold Int.add in vi
+          | vi := Vint (Int.mul _ _) |- _ => unfold Int.mul in vi
+          | _ => idtac
+          end;
+
+          match goal with
           | vi := Vint (Int.repr ?i) |- _ => instantiate (1 := ArraySubsc i :: gfs0')
           end;
           
@@ -1889,7 +1896,9 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       pose (firstn len' tts) as tts1
     end;
     clear len;
-    vm_compute in gfs0, gfs1, efs0, efs1, tts0, tts1;
+    unfold gfs, efs, tts in gfs0, gfs1, efs0, efs1, tts0, tts1;
+    simpl firstn in gfs1, efs1, tts1;
+    simpl skipn in gfs0, efs0, tts0;
 
     change gfs with (gfs1 ++ gfs0) in *;
     change efs with (efs1 ++ efs0) in *;
@@ -1995,7 +2004,9 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
       pose (firstn len' tts) as tts1
     end;
     clear len;
-    vm_compute in gfs0, gfs1, efs0, efs1, tts0, tts1;
+    unfold gfs, efs, tts in gfs0, gfs1, efs0, efs1, tts0, tts1;
+    simpl firstn in gfs1, efs1, tts1;
+    simpl skipn in gfs0, efs0, tts0;
 
     change gfs with (gfs1 ++ gfs0) in *;
     change efs with (efs1 ++ efs0) in *;
@@ -2213,7 +2224,9 @@ match goal with
       pose (firstn len' tts) as tts1
     end;
     clear len;
-    vm_compute in gfs0, gfs1, efs0, efs1, tts0, tts1;
+    unfold gfs, efs, tts in gfs0, gfs1, efs0, efs1, tts0, tts1;
+    simpl firstn in gfs1, efs1, tts1;
+    simpl skipn in gfs0, efs0, tts0;
 
     change gfs with (gfs1 ++ gfs0) in *;
     change efs with (efs1 ++ efs0) in *;
@@ -2233,14 +2246,14 @@ match goal with
           with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
         [reflexivity | reflexivity | simpl; auto | reflexivity
         | reflexivity | reflexivity | reflexivity | exact Heq | exact HLE
-        | exact HRE | exact H_Denote | exact H | auto | solve[entailer!]
+        | exact HRE | exact H_Denote | exact H | auto | try solve[entailer!]
         | solve_legal_nested_field_in_entailment ]
       | appcontext [field_at_] =>
         eapply (semax_SC_field_store Delta sh SE n)
           with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
         [reflexivity | reflexivity | simpl; auto | reflexivity
         | reflexivity | reflexivity | reflexivity | exact Heq | exact HLE
-        | exact HRE | exact H_Denote | exact H | auto | solve[entailer!]
+        | exact HRE | exact H_Denote | exact H | auto | try solve[entailer!]
         | solve_legal_nested_field_in_entailment ]
       | _ =>
         eapply semax_post'; [ |
@@ -2248,18 +2261,19 @@ match goal with
             with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
             [reflexivity | reflexivity | simpl; auto | reflexivity
             | reflexivity | reflexivity | reflexivity | exact Heq | exact HLE 
-            | exact HRE | exact H_Denote | exact H | auto | solve[entailer!] 
-            | solve_legal_nested_field_in_entailment]];
-        match goal with
-        | |- appcontext [replace_nth _ _ ?M] => 
-          let EQ := fresh "EQ" in
-          let MM := fresh "MM" in
-             remember M as MM eqn:EQ;
-             try rewrite <- data_at__field_at_ in EQ;
-             try rewrite <- data_at_field_at in EQ;
-             subst MM;
-             apply derives_refl
-        end
+            | exact HRE | exact H_Denote | exact H | auto | | ]];
+        [ match goal with
+          | |- appcontext [replace_nth _ _ ?M] => 
+            let EQ := fresh "EQ" in
+            let MM := fresh "MM" in
+               remember M as MM eqn:EQ;
+               try rewrite <- data_at__field_at_ in EQ;
+               try rewrite <- data_at_field_at in EQ;
+               subst MM;
+               apply derives_refl
+          end
+        | try solve[entailer!]
+        | solve_legal_nested_field_in_entailment]
       end
     end
 

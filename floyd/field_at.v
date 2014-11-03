@@ -285,44 +285,25 @@ Fixpoint nested_ufieldlist_at (sh: Share.t) (t1: type) (gfs: list gfield) (flds:
   end v.
 
 Lemma nested_field_type2_ArraySubsc: forall t gfs i j,
-  match nested_field_rec t (ArraySubsc i :: gfs), nested_field_rec t (ArraySubsc j :: gfs) with
-  | Some _, Some _ => nested_field_type2 t (ArraySubsc i :: gfs) =
-                      nested_field_type2 t (ArraySubsc j :: gfs)
-  | _, _ => True
-  end.
+  nested_field_type2 t (ArraySubsc i :: gfs) = nested_field_type2 t (ArraySubsc j :: gfs).
 Proof.
   intros.
   unfold nested_field_type2.
   destruct (nested_field_rec t (ArraySubsc i :: gfs)) as [[? ?]|] eqn:?H;
   destruct (nested_field_rec t (ArraySubsc j :: gfs)) as [[? ?]|] eqn:?H; auto.
-  solve_nested_field_rec_cons_eq_Some H.
-  solve_nested_field_rec_cons_eq_Some H0.
-  inversion Heq0; subst. auto.
-Qed.
+  + simpl in H, H0.
+    destruct (nested_field_rec t gfs) as [[? tt]| ]; destruct tt; inversion H; inversion H0; subst.
+    auto.
+  + simpl in H, H0.
+    destruct (nested_field_rec t gfs) as [[? tt]| ]; destruct tt; inversion H; inversion H0; subst.
+  + simpl in H, H0.
+    destruct (nested_field_rec t gfs) as [[? tt]| ]; destruct tt; inversion H; inversion H0; subst.
+Qed.    
 
 Definition nested_Znth {t: type} {gfs: list gfield} (lo n: Z)
   (v: list (reptype (nested_field_type2 t (ArraySubsc 0 :: gfs)))) :
   reptype (nested_field_type2 t (ArraySubsc n :: gfs)) :=
-  match nested_field_rec t (ArraySubsc n :: gfs) as Tn return
-    match Tn, nested_field_rec t (ArraySubsc 0 :: gfs) with
-    | Some _, Some _ => nested_field_type2 t (ArraySubsc n :: gfs) =
-                        nested_field_type2 t (ArraySubsc 0 :: gfs)
-    | _, _ => True
-    end -> reptype (nested_field_type2 t (ArraySubsc n :: gfs))
-  with
-  | Some _ =>
-    match nested_field_rec t (ArraySubsc 0 :: gfs) as T0 return
-      match T0 with
-      | Some _ => nested_field_type2 t (ArraySubsc n :: gfs) =
-                  nested_field_type2 t (ArraySubsc 0 :: gfs)
-      | _ => True
-      end -> reptype (nested_field_type2 t (ArraySubsc n :: gfs))
-    with
-    | Some _ => fun H => eq_rect_r reptype (Znth (n - lo) v (default_val _)) H
-    | _ => fun _ => default_val _
-    end
-  | _ => fun _ => default_val _
-  end (nested_field_type2_ArraySubsc t gfs n 0).
+  eq_rect_r reptype (Znth (n - lo) v (default_val _)) (nested_field_type2_ArraySubsc t gfs n 0).
 
 Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
   (v: list (reptype (nested_field_type2 t (ArraySubsc 0 :: gfs)))) : val -> mpred :=
@@ -337,6 +318,51 @@ Definition array_at_ (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z) :=
   array_at sh t gfs lo hi (list_repeat (Z.to_nat (hi-lo)) (default_val (nested_field_type2 t (ArraySubsc 0 :: gfs)))).
 
 Opaque alignof.
+
+Lemma nested_Znth_app_l: forall {t gfs} lo i (ct1 ct2: list (reptype (nested_field_type2 t (ArraySubsc 0 :: gfs)))),
+  0 <= i - lo < Zlength ct1 ->
+  nested_Znth lo i ct1 = nested_Znth lo i (ct1 ++ ct2).
+Proof.
+  intros.
+  unfold nested_Znth.
+  f_equal.
+  unfold Znth.
+  if_tac; [omega |].
+  rewrite app_nth1; [reflexivity |].
+  destruct H as [_ ?].
+  apply Z2Nat.inj_lt in H; [| omega | omega].
+  rewrite Zlength_correct in H.
+  rewrite Nat2Z.id in H.
+  exact H.
+Qed.
+
+Lemma nested_Znth_app_r: forall {t gfs} lo i (ct1 ct2: list (reptype (nested_field_type2 t (ArraySubsc 0 :: gfs)))),
+  i - lo >= Zlength ct1 ->
+  nested_Znth (lo + Zlength ct1) i ct2 = nested_Znth lo i (ct1 ++ ct2).
+Proof.
+  intros.
+  unfold nested_Znth.
+  f_equal.
+  unfold Znth.
+  assert (Zlength ct1 >= 0).
+  Focus 1. {
+    rewrite Zlength_correct.
+    pose proof Zle_0_nat (length ct1).
+    omega.
+  } Unfocus.
+  if_tac; [omega |].
+  if_tac; [omega |].
+  rewrite app_nth2.
+  + f_equal.
+    replace (i - (lo + Zlength ct1)) with (i - lo - Zlength ct1) by omega.
+    rewrite Z2Nat.inj_sub by omega.
+    rewrite Zlength_correct.
+    rewrite Nat2Z.id.
+    reflexivity.
+  + rewrite <- (Nat2Z.id (length ct1)).
+    rewrite <- Zlength_correct.
+    apply Z2Nat.inj_le; omega.
+Qed.
 
 Lemma field_at_Tarray: forall sh t gfs t0 n a v1 v2,
   nested_field_type2 t gfs = Tarray t0 n a ->

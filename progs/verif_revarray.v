@@ -3,22 +3,17 @@ Require Import progs.revarray.
 
 Local Open Scope logic.
 
-(*
-Definition flip {T} (n: Z) (f: Z -> T) (i: Z) := f (n-1-i).
-
-Lemma flip_flip:  forall {T} n (f: Z -> T), flip n (flip n f) = f.
-Proof. intros; extensionality i; unfold flip; f_equal; omega.
-Qed.
-*)
 Definition reverse_spec :=
  DECLARE _reverse
   WITH a0: val, sh : share, contents : list val, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
-          PROP (0 <= size <= Int.max_signed; writable_share sh;
-                    forall i, 0 <= i < size -> is_int I32 (Znth i contents Vundef))
+          PROP (0 <= size <= Int.max_signed;
+                writable_share sh;
+                size = Zlength contents;
+                forall i, 0 <= i < size -> is_int I32 Signed (Znth i contents Vundef))
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
           SEP (`(data_at sh (tarray tint size) contents a0))
-  POST [ tvoid ]  `(array_at sh (tarray tint size) (rev contents) a0).
+  POST [ tvoid ]  `(data_at sh (tarray tint size) (rev contents) a0).
 
 Definition main_spec :=
  DECLARE _main
@@ -30,17 +25,199 @@ Definition Vprog : varspecs := (_four, Tarray tint 4 noattr)::nil.
 
 Definition Gprog : funspecs := 
     reverse_spec :: main_spec::nil.
- 
-Definition flip_between {T} (n: Z)(lo hi: Z) (f: Z -> T) (i: Z) := 
-   f (if zlt i lo then n-1-i
-      else if zlt i hi then i
-             else n-1-i).
+
+Definition flip_between {A} lo hi (contents: list A) :=
+  rev (skipn (Z.to_nat hi) contents) ++
+  skipn (Z.to_nat lo) (firstn (Z.to_nat hi) contents) ++
+  rev (firstn (Z.to_nat lo) contents).
 
 Definition reverse_Inv a0 sh contents size := 
  EX j:Z,
-  (PROP  (0 <= j; j <= size-j; isptr a0)
+  (PROP  (0 <= j; j <= size-j; isptr a0;
+                size = Zlength contents;
+           forall i, 0 <= i < size -> is_int I32 Signed (Znth i contents Vundef))
    LOCAL  (temp _a a0; temp _lo (Vint (Int.repr j)); temp _hi (Vint (Int.repr (size-j))))
-   SEP (`(array_at tint sh (flip_between size j (size-j) contents) 0 size a0))).
+   SEP (`(data_at sh (tarray tint size) (flip_between j (size-j) contents) a0))).
+
+Lemma flip_fact_0: forall {A} (contents: list A),
+  contents = flip_between 0 (Zlength contents - 0) contents.
+Proof.
+  intros.
+  unfold flip_between.
+  rewrite Z.sub_0_r.
+  rewrite Zlength_correct.
+  rewrite Nat2Z.id.
+  rewrite skipn_exact_length.
+  change (Z.to_nat 0) with 0%nat.
+  simpl.
+  rewrite app_nil_r.
+  rewrite firstn_exact_length.
+  reflexivity.
+Qed.
+
+Lemma len_le_1_rev: forall {A} (contents: list A),
+  (length contents <= 1)%nat ->
+  contents = rev contents.
+Proof.
+  intros.
+  destruct contents.
+  + reflexivity.
+  + destruct contents.
+    - reflexivity.
+    - simpl in H. omega.
+Qed.
+
+Lemma skipn_length: forall {A} (contents: list A) n,
+  length (skipn n contents) = (length contents - n)%nat.
+Proof.
+  intros.
+  revert n;
+  induction contents;
+  intros.
+  + destruct n; reflexivity.
+  + destruct n; simpl.
+    - reflexivity.
+    - apply IHcontents.
+Qed.
+
+Lemma firstn_firstn: forall {A} (contents: list A) n m,
+  (n <= m)%nat ->
+  firstn n (firstn m contents) = firstn n contents.
+Proof.
+  intros.
+  revert n m H;
+  induction contents;
+  intros.
+  + destruct n, m; reflexivity.
+  + destruct n, m; try solve [omega].
+    - simpl; reflexivity.
+    - simpl; reflexivity.
+    - simpl.
+      rewrite IHcontents by omega.
+      reflexivity.
+Qed.
+
+Lemma flip_fact_1: forall {A} (contents: list A) j,
+  0 <= j ->
+  Zlength contents - j - 1 <= j <= Zlength contents - j ->
+  flip_between j (Zlength contents - j) contents = rev contents.
+Proof.
+  intros.
+  assert (Zlength contents - j - 1 = j \/ Zlength contents - j = j)
+    by (destruct (zle (Zlength contents - j) j); omega).
+  assert (skipn (Z.to_nat j) (firstn (Z.to_nat (Zlength contents - j)) contents) = 
+    rev (skipn (Z.to_nat j) (firstn (Z.to_nat (Zlength contents - j)) contents))).
+  Focus 1. {
+    apply len_le_1_rev.
+    rewrite skipn_length.
+    rewrite firstn_length.
+    rewrite min_l.
+    + rewrite <- Z2Nat.inj_sub by omega.
+      change 1%nat with (Z.to_nat 1).
+      apply Z2Nat.inj_le; omega.
+    + rewrite Z2Nat.inj_sub by omega.
+      rewrite Zlength_correct.
+      rewrite Nat2Z.id.
+      omega.
+  } Unfocus.
+  unfold flip_between.
+  rewrite H2.
+  rewrite <- !rev_app_distr.
+  f_equal.
+  rewrite <- firstn_firstn with (n := Z.to_nat j) (m := Z.to_nat (Zlength contents - j))
+    by (apply Z2Nat.inj_le; omega).
+  rewrite !firstn_skipn.
+  reflexivity.
+Qed.
+
+Lemma nth_firstn: forall {A} (contents: list A) n m d,
+  (n < m)%nat ->
+  nth n (firstn m contents) d = nth n contents d.
+Proof.
+  intros.
+  revert n m H;
+  induction contents;
+  intros.
+  + destruct n, m; reflexivity.
+  + destruct n, m; try omega.
+    - simpl. reflexivity.
+    - simpl. apply IHcontents. omega.
+Qed.
+
+Lemma firstn_1_skipn: forall {A} n (ct: list A) d,
+  (n < length ct)%nat ->
+  [nth n ct d] = firstn 1 (skipn n ct).
+Proof.
+  intros.
+  revert ct H; induction n; intros; destruct ct.
+  + simpl in H; omega.
+  + simpl. reflexivity.
+  + simpl in H; omega.
+  + simpl in H |- *.
+    rewrite IHn by omega.
+    reflexivity.
+Qed.
+
+Lemma split3_full_length_list: forall {A} lo mid hi (ct: list A) d,
+  lo <= mid < hi ->
+  Zlength ct = hi - lo ->
+  ct = firstn (Z.to_nat (mid - lo)) ct ++
+       [Znth (mid - lo) ct d] ++
+       skipn (Z.to_nat (mid - lo + 1)) ct.
+Proof.
+  intros.
+  rewrite <- firstn_skipn with (l := ct) (n := Z.to_nat (mid - lo)) at 1.
+  f_equal.
+  rewrite Z2Nat.inj_add by omega.
+  rewrite <- skipn_skipn.
+  replace ([Znth (mid - lo) ct d]) with (firstn (Z.to_nat 1) (skipn (Z.to_nat (mid - lo)) ct)).
+  + rewrite firstn_skipn; reflexivity.
+  + unfold Znth.
+    if_tac; [omega |].
+    rewrite firstn_1_skipn; [reflexivity |].
+    rewrite <- (Nat2Z.id (length ct)).
+    apply Z2Nat.inj_lt.
+    - omega.
+    - omega.
+    - rewrite Zlength_correct in H0.
+      omega.
+Qed.
+
+Lemma flip_fact_2: forall {A} (contents: list A) j k d,
+  0 <= j <= Zlength contents - j - 1 ->
+  j <= k < Zlength contents - j ->
+  Znth k (flip_between j (Zlength contents - j) contents) d = Znth k contents d.
+Proof.
+  intros.
+  assert (Z.to_nat (Zlength contents) = length contents)
+    by (rewrite Zlength_correct, Nat2Z.id; reflexivity).
+  assert (Z.to_nat j <= length contents)%nat
+    by (rewrite <- H1; apply Z2Nat.inj_le; omega).
+  assert (Z.to_nat j <= Z.to_nat k)%nat by (apply Z2Nat.inj_le; omega).
+  unfold flip_between.
+  unfold Znth.
+  if_tac; [omega |].
+  rewrite app_nth2; rewrite rev_length, skipn_length; rewrite Z2Nat.inj_sub by omega; [| omega].
+  replace (Z.to_nat k - (length contents - (Z.to_nat (Zlength contents) - Z.to_nat j)))%nat
+    with (Z.to_nat k - Z.to_nat j)%nat by omega.
+  rewrite app_nth1.
+  Focus 2. {
+    rewrite skipn_length, firstn_length.
+    rewrite min_l by omega.
+    rewrite <- !Z2Nat.inj_sub by omega.
+    apply Z2Nat.inj_lt; omega.
+  } Unfocus.
+  rewrite nth_skipn.
+  simpl.
+  rewrite nth_firstn.
+  Focus 2. {
+    rewrite <- !Z2Nat.inj_sub by omega.
+    rewrite <- Z2Nat.inj_add by omega.
+    apply Z2Nat.inj_lt; omega.
+  } Unfocus.
+  f_equal.
+  omega.
+Qed.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
@@ -53,207 +230,169 @@ name s _s.
 name t _t.
 forward.  (* lo = 0; *) 
 forward.  (* hi = n; *)
-rename H1 into POP.
-assert_PROP (isptr a0). entailer!. rename H1 into TCa0.
+rename H2 into POP.
+assert_PROP (isptr a0). entailer!. rename H2 into TCa0.
 forward_while (reverse_Inv a0 sh contents size)
     (PROP  () LOCAL  (temp _a a0)
-   SEP (`(array_at tint sh (flip size contents) 0 size a0))).
+   SEP (`(data_at sh (tarray tint size) (rev contents) a0))).
 (* Prove that current precondition implies loop invariant *)
 unfold reverse_Inv.
 apply exp_right with 0.
 entailer!; try omega.
 f_equal; omega.
 apply derives_refl'.
-apply equal_f.
-apply array_at_ext.
-intros.
-unfold flip_between.
-rewrite if_false by omega.
-rewrite if_true by omega.
-auto.
+f_equal.
+apply flip_fact_0; auto.
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
 entailer!.
-rename H3 into H5.
-rewrite Int.sub_signed in H5.
-normalize in H5.
-simpl_compare.
-apply derives_refl'.
-apply equal_f.
-apply array_at_ext.
-intros. unfold flip_between, flip.
-f_equal.
-if_tac; auto.
-if_tac; auto.
-f_equal.
-assert (j+j >= size-1) by omega; clear H3.
-assert (j+j <= size) by omega; clear H1.
-assert (j+j=size \/ j+j=size-1) by omega.
-destruct H1; try omega.
-(* Prove that loop body preserves invariant *)
-forward.  (* t = a[lo]; *)
-rewrite Int.sub_signed in H3.
-normalize in H3.
-simpl_compare.
-entailer!.
-unfold flip_between.
-apply POP.
-rewrite if_false by omega.
-rewrite if_true by omega. omega.
-forward.  (* s = a[hi]; *)
 rewrite Int.sub_signed in H4.
 normalize in H4.
 simpl_compare.
-entailer!.
-apply POP.
-rewrite if_false by omega. rewrite if_true by omega.
-omega.
-normalize. simpl typeof.
+apply derives_refl'.
+f_equal.
+apply flip_fact_1; omega.
+(* Prove that loop body preserves invariant *)
+forward.  (* t = a[lo]; *)
+{
+  subst e efs1 efs0 tts1 tts0 t_root gfs0 gfs1 v. entailer.
+  rewrite Int.sub_signed in H8.
+  rewrite Int.signed_repr in H8 by repable_signed.
+  rewrite Int.signed_repr in H8 by repable_signed.
+  simpl_compare.
+  entailer!.
+  rewrite flip_fact_2 by omega.
+  apply POP.
+  omega.
+}
+{
+  entailer!.
+  rewrite Int.sub_signed in H8.
+  rewrite Int.signed_repr in H8 by repable_signed.
+  rewrite Int.signed_repr in H8 by repable_signed.
+  simpl_compare.
+  omega.
+}
+forward.  (* s = a[hi-1]; *)
+{
+  subst e efs1 efs0 tts1 tts0 t_root gfs0 gfs1 v. entailer.
+  rewrite Int.sub_signed in H9.
+  rewrite Int.signed_repr in H9 by repable_signed.
+  rewrite Int.signed_repr in H9 by repable_signed.
+  simpl_compare.
+  entailer!.
+  rewrite flip_fact_2 by omega.
+  apply POP.
+  omega.
+}
+{
+  entailer!.
+  rewrite Int.sub_signed in H9.
+  rewrite Int.signed_repr in H9 by repable_signed.
+  rewrite Int.signed_repr in H9 by repable_signed.
+  simpl_compare.
+  omega.
+}
+normalize.
 forward. (*  a[hi-1] = t ; *)
-entailer; apply prop_right.
-rewrite <- H6 in *.
-rewrite <- H7 in *.
-simpl in H3, H5.
-rewrite Int.sub_signed in H3, H5.
-normalize in H3. normalize in H5.
-simpl_compare.
-split.
-simpl force_val.
-rewrite sem_add_pi_ptr by assumption.
-simpl force_val.
-unfold Int.mul.
-simpl.
-reflexivity.
-
-assert (size <= Int.max_unsigned).
-  unfold Int.max_signed, Int.half_modulus, Int.max_unsigned in *.
-  assert (0 < 2) by omega.
-  pose proof Z.mul_div_le Int.modulus 2 H8.
+{
+  entailer!.
+  rewrite Int.sub_signed in H11.
+  rewrite Int.signed_repr in H11 by repable_signed.
+  rewrite Int.signed_repr in H11 by repable_signed.
+  simpl_compare.
   omega.
-
-unfold Int.sub. rewrite (Int.unsigned_repr (size - j)) by omega. 
-rewrite (Int.unsigned_repr 1) by omega.
-rewrite (Int.unsigned_repr (size - j - 1)) by omega.
-
-repeat split; try omega. 
-rewrite <- H4.
-simpl.
-unfold flip_between.
-assert (Int.min_signed < 0) by
-  (unfold Int.min_signed; unfold Int.max_signed in H; omega).
-rewrite !Int.signed_repr by omega.
-rewrite if_false by omega. rewrite if_true by omega.
-instantiate (1:= contents j).
-assert (0 <= j < size) by omega.
-pose proof POP j H10; destruct (contents j); inversion H11.
-reflexivity.
-normalize. 
+}
+normalize.
 forward. (*  a[lo] = s; *) 
-entailer. apply prop_right.
-rewrite <- H6 in *.
-rewrite <- H7 in *.
-simpl in  H3, H5.
-rewrite Int.sub_signed in H3, H5.
-normalize in H3. normalize in H5.
-simpl_compare.
-split.
-simpl force_val.
-rewrite sem_add_pi_ptr by assumption.
-simpl force_val.
-unfold Int.mul.
-simpl.
-reflexivity.
-
-assert (size <= Int.max_unsigned).
-  unfold Int.max_signed, Int.half_modulus, Int.max_unsigned in *.
-  assert (0 < 2) by omega.
-  pose proof Z.mul_div_le Int.modulus 2 H8.
+{
+  entailer!.
+  rewrite Int.sub_signed in H11.
+  rewrite Int.signed_repr in H11 by repable_signed.
+  rewrite Int.signed_repr in H11 by repable_signed.
+  simpl_compare.
   omega.
-
-repeat split.
-rewrite (Int.unsigned_repr j) by omega. omega.
-rewrite (Int.unsigned_repr j) by omega. omega.
-rewrite <- H3.
-
-unfold flip_between.
-assert (Int.min_signed < 0) by
-  (unfold Int.min_signed; unfold Int.max_signed in H; omega).
-rewrite (Int.signed_repr (size - j)) by omega.
-rewrite (Int.signed_repr 1) by omega.
-rewrite (Int.signed_repr (size - j - 1)) by omega.
-rewrite if_false by omega. rewrite if_true by omega.
-instantiate (1:= contents (size - j - 1)).
-assert (0 <= size - j - 1 < size) by omega.
-pose proof POP (size - j - 1) H10; destruct (contents (size - j - 1)); inversion H11.
-reflexivity.
-
+}
 normalize.
 forward. (* lo++; *)
 forward. (* hi--; *)
 (* Prove postcondition of loop body implies loop invariant *)
-unfold reverse_Inv.
-apply exp_right with (Zsucc j).
-entailer.
-repeat rewrite (Int.signed_repr)  by repable_signed.
- simpl in H3,H5. rewrite Int.sub_signed in H3,H5.
- rewrite (Int.signed_repr 1) in H3,H5 by repable_signed.
- rewrite (Int.signed_repr (size-j)) in H3,H5 by repable_signed.
- rewrite (Int.signed_repr) in H3 by repable_signed.
- simpl_compare.
- apply andp_right.
- + apply prop_right.
-   normalize. repeat split; try omega.
-   f_equal; omega.
- + apply derives_refl'.
-   apply equal_f.
-   apply array_at_ext; intros.
-   unfold upd. 
-   rewrite (Int.unsigned_repr j) by repable_signed.
-   if_tac. subst.
-   - normalize.
-     unfold flip_between.
-     rewrite if_true by omega.
-     replace (size-i-1) with (size-1-i) by omega.
-     reflexivity.
-   - unfold flip_between.
-     rewrite (Int.unsigned_repr (size-j-1)) by repable_signed.
-     
-     if_tac.
-     * subst.
-       rewrite if_false by omega.
-       rewrite if_false by omega.
-       replace (size - 1 - (size - j - 1)) with j by omega.
-       reflexivity.
-     * assert (i < j <-> i < (Z.succ j)) by (split; intros; try omega).
-       assert (i < size - j <-> i < size - (Z.succ j)) by (split; intros; try omega).
-  if_tac; [|if_tac];  (if_tac; [|if_tac]); try congruence; try omega.
- + forward. (* return; *)
+{
+  unfold reverse_Inv.
+  apply exp_right with (Zsucc j).
+  entailer.
+  rewrite Int.sub_signed in H6.
+  rewrite Int.signed_repr in H6 by repable_signed.
+  rewrite Int.signed_repr in H6 by repable_signed.
+  simpl_compare.
+  rewrite !flip_fact_2 by omega.
+  rewrite !sem_cast_neutral_int by (exists I32, Signed; apply POP; omega).
+  simpl force_val.
+  apply andp_right.
+  + apply prop_right.
+    split; [omega |].
+    f_equal; omega.
+  + admit.
+}
+forward. (* return; *)
 Qed.
 
-Definition four_contents := (ZnthV tint
-           (map Vint (map Int.repr (1::2::3::4::nil)))).
+Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
+
+Lemma forall_Forall: forall A (P: A -> Prop) xs d,
+  (forall x, In x xs -> P x) ->
+  forall i, 0 <= i < Zlength xs -> P (Znth i xs d).
+Proof.
+  intros.
+  unfold Znth.
+  if_tac; [omega |].
+  assert (Z.to_nat i < length xs)%nat.
+  Focus 1. {
+    rewrite Zlength_correct in H0.
+    destruct H0 as [_ ?].
+    apply Z2Nat.inj_lt in H0; [| omega | omega].
+    rewrite Nat2Z.id in H0.
+    exact H0.
+  } Unfocus.
+  forget (Z.to_nat i) as n.
+  clear i H0 H1.
+  revert n H2; induction xs; intros.
+  + destruct n; simpl in H2; omega.
+  + destruct n.
+    - specialize (H a (or_introl eq_refl)).
+      simpl.
+      tauto.
+    - simpl in *.
+      apply IHxs; [| omega].
+      intros.
+      apply H.
+      tauto.
+Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
 eapply (remember_value (eval_var _four (tarray tint 4))); intro a.
 forward_call  (*  revarray(four,4); *)
-  (a,Ews,four_contents,4).
+  (a, Ews, map Vint four_contents, 4).
 entailer!.
-intros. apply ZnthV_map_Vint_is_int.
-rewrite Zlength_correct; simpl; auto.
+intros. unfold four_contents.
+   apply forall_Forall; [| auto].
+   intros.
+   repeat (destruct H4; [subst; simpl; auto|]); inversion H4.
 after_call.
 forward_call  (*  revarray(four,4); *)
-    (a,Ews, flip 4 four_contents,4).
+    (a,Ews, rev (map Vint four_contents),4).
 entailer!.
-intros. unfold flip, four_contents.
-apply ZnthV_map_Vint_is_int.
- rewrite Zlength_correct; simpl length. change (Z.of_nat 4) with 4. omega.
+intros. unfold four_contents.
+   apply forall_Forall; [| auto].
+   intros.
+   repeat (destruct H4; [subst; simpl; auto|]); inversion H4.
 after_call.
-rewrite flip_flip.
- forward. (* return s; *)
- unfold main_post. entailer.
+rewrite rev_involutive.
+forward. (* return s; *)
+unfold main_post. entailer.
 Qed.
 
 Existing Instance NullExtension.Espec.

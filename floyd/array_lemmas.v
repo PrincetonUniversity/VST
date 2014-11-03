@@ -116,55 +116,32 @@ Lemma split2_array_at': forall sh t lo mid hi P pos v,
       array_at' sh t mid hi P pos (skipn (nat_of_Z (mid - lo)) v).
 Proof.
   intros.
-  unfold array_at', rangespec, nat_of_Z.
+  unfold array_at'.
   extensionality p.
   simpl.
-  replace (hi - lo) with ((mid - lo) + (hi - mid)) by omega.
-  rewrite Z2Nat.inj_add by omega.
-  remember (Z.to_nat (mid - lo)) as n eqn:?H.
-  revert v P lo H H0; induction n; intros.
-  + simpl.
-    assert (mid - lo = 0) by (apply Z2Nat_inj_0; omega).
-    assert (mid = lo) by omega.
-    subst.
-    apply pred_ext; normalize.
-Opaque skipn.
-  + simpl.
-Transparent skipn.
-    rewrite <- !sepcon_andp_prop, sepcon_assoc.
+  rewrite split2_rangespec with (mid := mid) by assumption.
+  simpl.
+  replace (rangespec mid hi
+      (fun i : Z => P (pos + sizeof t * i) (Znth (i - lo) v (default_val t)))
+      p) with  (rangespec mid hi
+      (fun i : Z =>
+       P (pos + sizeof t * i)
+         (Znth (i - mid) (skipn (nat_of_Z (mid - lo)) v) (default_val t))) p).
+  Focus 2. {
+    apply rangespec_ext.
+    intros.
     f_equal.
-    assert (Z.succ lo <= mid <= hi).
-    Focus 1. {
-      split; [|omega].
-      destruct (zlt lo mid).
-      + omega.
-      + replace (mid - lo) with 0 in H0 by omega.
-        inversion H0.
-    } Unfocus.
-    assert (n = Z.to_nat (mid - Z.succ lo)).
-    Focus 1. {
-      replace (mid - lo) with (1 + (mid - Z.succ lo)) in H0 by omega.
-      rewrite Z2Nat.inj_add in H0 by omega.
-      change (Z.to_nat 1) with 1%nat in H0.
-      inversion H0.
-      reflexivity.
-    } Unfocus.
-    eapply eq_trans; [| eapply eq_trans];
-      [| exact (IHn (skipn 1 v) P (Z.succ lo) H1 H2) |].
-    - f_equal.
-      apply rangespec'_ext; intros.
-      f_equal.
-      rewrite <- Znth_succ by omega.
-      reflexivity.
-    - f_equal; f_equal.
-      * apply rangespec'_ext; intros.
-        f_equal.
-        rewrite <- Znth_succ by omega.
-        reflexivity.
-      * apply rangespec'_ext; intros.
-        f_equal.
-        rewrite skipn_skipn.
-        reflexivity.
+    unfold Znth.
+    if_tac; [omega |].
+    if_tac; [omega |].
+    rewrite nth_skipn.
+    f_equal.
+    unfold nat_of_Z.
+    rewrite <- Z2Nat.inj_add by omega.
+    f_equal.
+    omega.
+  } Unfocus.
+  apply pred_ext; normalize.
 Qed.
 
 Lemma array_at'_len_1: forall sh t lo P pos v p,
@@ -172,10 +149,8 @@ Lemma array_at'_len_1: forall sh t lo P pos v p,
     !! (isptr p) && P (pos + sizeof t * lo) (Znth 0 v (default_val _)) p.
 Proof.
   intros.
-  unfold array_at', rangespec, nat_of_Z.
-  replace (lo + 1 - lo) with 1 by omega.
-  simpl.
-  rewrite sepcon_emp.
+  unfold array_at'.
+  rewrite rangespec_len_1.
   rewrite Z.sub_diag.
   reflexivity.
 Qed.
@@ -275,7 +250,8 @@ Proof.
     intros.
     f_equal.
     f_equal.
-    admit.
+    apply nested_Znth_app_l.
+    omega.
   } Unfocus.
   replace (rangespec mid hi
       (fun (i : Z) (x : val) =>
@@ -290,7 +266,9 @@ Proof.
     intros.
     f_equal.
     f_equal.
-    admit.
+    replace mid with (lo + Zlength ct1) by omega.
+    apply nested_Znth_app_r.
+    omega.
   } Unfocus.
   apply pred_ext; normalize.
 Qed.
