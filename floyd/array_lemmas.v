@@ -240,11 +240,16 @@ Proof.
   replace (rangespec lo mid
       (fun (i : Z) (x : val) =>
        !!legal_nested_field t (ArraySubsc i :: gfs) &&
-       field_at sh t (ArraySubsc i :: gfs) (nested_Znth lo i (ct1 ++ ct2)) x)
-      p) with (rangespec lo mid
+       data_at' sh type_id_env.empty_ti
+         (nested_field_type2 t (ArraySubsc i :: gfs))
+         (nested_field_offset2 t (ArraySubsc i :: gfs))
+         (nested_Znth lo i (ct1 ++ ct2)) x) p) with (rangespec lo mid
      (fun (i : Z) (x : val) =>
       !!legal_nested_field t (ArraySubsc i :: gfs) &&
-      field_at sh t (ArraySubsc i :: gfs) (nested_Znth lo i ct1) x) p).
+      data_at' sh type_id_env.empty_ti
+        (nested_field_type2 t (ArraySubsc i :: gfs))
+        (nested_field_offset2 t (ArraySubsc i :: gfs)) 
+        (nested_Znth lo i ct1) x) p).
   Focus 2. {
     apply rangespec_ext.
     intros.
@@ -256,11 +261,16 @@ Proof.
   replace (rangespec mid hi
       (fun (i : Z) (x : val) =>
        !!legal_nested_field t (ArraySubsc i :: gfs) &&
-       field_at sh t (ArraySubsc i :: gfs) (nested_Znth lo i (ct1 ++ ct2)) x)
-      p) with (rangespec mid hi
+       data_at' sh type_id_env.empty_ti
+         (nested_field_type2 t (ArraySubsc i :: gfs))
+         (nested_field_offset2 t (ArraySubsc i :: gfs))
+         (nested_Znth lo i (ct1 ++ ct2)) x) p) with (rangespec mid hi
       (fun (i : Z) (x : val) =>
        !!legal_nested_field t (ArraySubsc i :: gfs) &&
-       field_at sh t (ArraySubsc i :: gfs) (nested_Znth mid i ct2) x) p).
+       data_at' sh type_id_env.empty_ti
+         (nested_field_type2 t (ArraySubsc i :: gfs))
+         (nested_field_offset2 t (ArraySubsc i :: gfs))
+         (nested_Znth mid i ct2) x) p).
   Focus 2. {
     apply rangespec_ext.
     intros.
@@ -291,7 +301,8 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma data_at_array_at: forall sh t gfs t0 n a lo hi v v' p,
+(*
+Lemma array_at_data_at: forall sh t gfs t0 n a lo hi v v' p,
   0 <= lo ->
   lo <= hi ->
   hi <= n ->
@@ -301,6 +312,14 @@ Lemma data_at_array_at: forall sh t gfs t0 n a lo hi v v' p,
     (offset_val (Int.repr (nested_field_offset2 t (ArraySubsc lo :: gfs))) p) = 
     !!(size_compatible t p) && !!(align_compatible t p) && array_at sh t gfs lo hi v p.
 Admitted.
+*)
+
+Lemma extract_prop_from_equal: forall (P: Prop) (Q R: mpred), (P -> Q = R) -> (!! P && Q = !! P && R)%logic.
+Proof.
+  intros.
+  apply pred_ext; normalize;
+  rewrite H; auto.
+Qed.
 
 Lemma array_at_data_at: forall sh t gfs t0 n a lo hi v v' p,
   0 <= lo ->
@@ -308,15 +327,156 @@ Lemma array_at_data_at: forall sh t gfs t0 n a lo hi v v' p,
   hi <= n ->
   nested_field_type2 t gfs = Tarray t0 n a ->
   JMeq v v' ->
-  size_compatible t p ->
-  align_compatible t p ->
+  legal_alignas_type t = true ->
   array_at sh t gfs lo hi v p =
-    data_at sh (Tarray t0 (hi - lo) a) v'
-      (offset_val (Int.repr (nested_field_offset2 t (ArraySubsc lo :: gfs))) p).
+    (!! size_compatible t p) && (!! align_compatible t p) && (!! legal_nested_field t gfs) &&
+      data_at sh (Tarray t0 (hi - lo) a) v'
+        (offset_val (Int.repr (nested_field_offset2 t (ArraySubsc lo :: gfs))) p).
 Proof.
   intros.
-  erewrite data_at_array_at by eauto.
+  unfold data_at, array_at.
+  simpl.
+  match goal with
+  | |- ?A && _ = ?B && _ =>
+         replace A with (B && !!isptr p) by (apply pred_ext; normalize)
+  end.
+  rewrite !andp_assoc.
+  repeat (apply extract_prop_from_equal; intros).
+  unfold array_at'.
+  unfold rangespec.
+  assert (size_compatible (Tarray t0 n a) (offset_val (Int.repr (nested_field_offset2 t gfs)) p)).
+  Focus 1. {
+    rewrite <- H2.
+    apply size_compatible_nested_field; auto.
+  } Unfocus.
+  assert (size_compatible (Tarray t0 (hi - lo) a)
+    (offset_val (Int.repr (nested_field_offset2 t (ArraySubsc lo :: gfs))) p)).
+  Focus 1. {
+    erewrite nested_field_offset2_Tarray by eauto.
+    unfold size_compatible in H8 |- *.
+    destruct p; simpl in H8 |- *; auto.
+    rewrite !Int.Z_mod_modulus_eq in H8 |- *.
+    pose proof Zmod_le (nested_field_offset2 t gfs + sizeof t0 * lo) Int.modulus.
+    admit. (* omega issue *)
+  } Unfocus.
+  assert (align_compatible (Tarray t0 n a) (offset_val (Int.repr (nested_field_offset2 t gfs)) p)).
+  Focus 1. {
+    rewrite <- H2.
+    apply align_compatible_nested_field; auto.
+  } Unfocus.
+  assert (align_compatible (Tarray t0 (hi - lo) a)
+        (offset_val
+           (Int.repr (nested_field_offset2 t (ArraySubsc lo :: gfs))) p)).
+  Focus 1. {
+    erewrite nested_field_offset2_Tarray by eauto.
+    unfold align_compatible in H10 |- *.
+    rewrite legal_alignas_type_Tarray by admit.
+    rewrite legal_alignas_type_Tarray in H10 by admit.    
+    destruct p; simpl in H10 |- *; auto.
+    admit. (* omega issue *)
+  } Unfocus.
+  destruct p; try solve [apply pred_ext; normalize].
+  simpl.
   normalize.
+  rewrite Z.sub_0_r.
+  apply rangespec'_shift.
+  intros.
+  assert (legal_nested_field t (ArraySubsc i0 :: gfs)).
+  Focus 1. {
+    apply legal_nested_field_cons_lemma.
+    rewrite H2.
+    unfold nat_of_Z in H12.
+    rewrite Z2Nat.id in H12 by omega.
+    split; [auto | omega].
+  } Unfocus.
+  normalize.
+  assert (nested_field_type2 t (ArraySubsc lo :: gfs) = t0).
+  Focus 1. {
+    erewrite nested_field_type2_Tarray by eauto.
+    reflexivity.
+  } Unfocus.
+  rewrite data_at'_at_offset'.
+  Focus 2. {
+    apply nested_field_type2_nest_pred; auto.
+  } Unfocus.
+  Focus 2. {
+    apply nested_field_offset2_type2_divide; auto.
+  } Unfocus.
+  rewrite data_at'_at_offset' with (t := t0).
+  Focus 2. {
+    rewrite <- H15.
+    apply nested_field_type2_nest_pred; auto.
+  } Unfocus.
+  Focus 2. {
+    apply Z.divide_mul_l.
+    apply legal_alignas_sizeof_alignof_compat.
+    rewrite <- H15.
+    apply nested_field_type2_nest_pred; auto.
+  } Unfocus.
+  rewrite !at_offset'_eq by (rewrite <- data_at'_offset_zero; reflexivity).
+
+  assert (nested_field_type2 t (ArraySubsc 0 :: gfs) = t0).
+  Focus 1. {
+    erewrite nested_field_type2_Tarray by eauto.
+    reflexivity.
+  } Unfocus.
+  assert (nested_field_type2 t (ArraySubsc i0 :: gfs) = t0).
+  Focus 1. {
+    erewrite nested_field_type2_Tarray by eauto.
+    reflexivity.
+  } Unfocus.
+  unfold nested_Znth.
+  generalize (nested_field_type2_ArraySubsc t gfs i0 0).
+  intros.
+  remember (default_val (nested_field_type2 t (ArraySubsc 0 :: gfs))) eqn:HH0.
+  remember (eq_rect_r reptype (Znth (i0 - lo) v r) e) eqn:HH1.
+  revert v H3 r r0 e HH0 HH1.
+  rewrite H17, H16.
+  intros.
+  subst.
+  f_equal.
+  + unfold eq_rect_r.
+    rewrite <- eq_rect_eq.
+    f_equal.
+    auto.
+  + simpl.
+    f_equal.
+    admit. (* omega issue *)
+Qed.
+
+Lemma field_at_array_at: forall sh t gfs t0 n a v v',
+  legal_alignas_type t = true ->
+  legal_nested_field t gfs ->
+  nested_field_type2 t gfs = Tarray t0 n a ->
+  0 <= n ->
+  JMeq v v' ->
+  field_at sh t gfs v = array_at sh t gfs 0 n v'.
+Proof.
+  intros.
+  extensionality p.
+  rewrite field_at_data_at by auto.
+  rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
+  remember v as v''.
+  assert (JMeq v' v) by (subst; auto).
+  clear Heqv''.
+  revert v H4.
+  pattern (nested_field_type2 t gfs) at 1 2.
+  replace (nested_field_type2 t gfs) with (Tarray t0 (n - 0) a)
+    by (rewrite H1, Z.sub_0_r; reflexivity).
+  intros.
+  erewrite array_at_data_at; [| omega | | | eauto | | eauto]; [| omega | omega | eauto].
+  rewrite !andp_assoc.
+  repeat (apply extract_prop_from_equal; intros).
+  assert (JMeq v v'') by (rewrite H3, H4; reflexivity).
+  clear v' H3 H4.
+  revert v v'' H8.
+  rewrite Z.sub_0_r.
+  rewrite H1.
+  intros.
+  rewrite H8.
+  erewrite nested_field_offset2_Tarray by eauto.
+  rewrite Z.mul_0_r, Z.add_0_r.
+  reflexivity.
 Qed.
 
 Lemma offset_in_range_mid: forall lo hi i t p,
@@ -332,6 +492,34 @@ Proof.
   assert (sizeof t * i <= sizeof t * hi) by (apply Zmult_le_compat_l; omega).
   assert (sizeof t * lo <= sizeof t * i) by (apply Zmult_le_compat_l; omega).
   omega.
+Qed.
+
+Ltac solve_andp_left :=
+  try apply derives_refl;
+  try (apply andp_left1; solve_andp_left);
+  apply andp_left2; solve_andp_left.
+
+Lemma extract_prop_from_equal': forall (P: Prop) (Q R: mpred), (P -> Q = R) -> (Q |-- !!P) -> (R |-- !!P) -> Q = R.
+Proof.
+  intros.
+  rewrite (add_andp _ _ H0).
+  rewrite (add_andp _ _ H1).
+  rewrite !(andp_comm _ (!! P)).
+  apply extract_prop_from_equal, H.
+Qed.
+
+Lemma nth_firstn: forall {A} (contents: list A) n m d,
+  (n < m)%nat ->
+  nth n (firstn m contents) d = nth n contents d.
+Proof.
+  intros.
+  revert n m H;
+  induction contents;
+  intros.
+  + destruct n, m; reflexivity.
+  + destruct n, m; try omega.
+    - simpl. reflexivity.
+    - simpl. apply IHcontents. omega.
 Qed.
 
 Lemma prop_andp_ext':

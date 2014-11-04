@@ -130,20 +130,6 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma nth_firstn: forall {A} (contents: list A) n m d,
-  (n < m)%nat ->
-  nth n (firstn m contents) d = nth n contents d.
-Proof.
-  intros.
-  revert n m H;
-  induction contents;
-  intros.
-  + destruct n, m; reflexivity.
-  + destruct n, m; try omega.
-    - simpl. reflexivity.
-    - simpl. apply IHcontents. omega.
-Qed.
-
 Lemma firstn_1_skipn: forall {A} n (ct: list A) d,
   (n < length ct)%nat ->
   [nth n ct d] = firstn 1 (skipn n ct).

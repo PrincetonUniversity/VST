@@ -3267,11 +3267,6 @@ Proof.
     auto.
 Qed.
 
-Ltac solve_andp_left :=
-  try apply derives_refl;
-  try (apply andp_left1; solve_andp_left);
-  apply andp_left2; solve_andp_left.
-
 Lemma efield_denote_is_prop: forall Delta efs gfs rho, is_prop (efield_denote Delta efs gfs rho).
 Proof.
   intros.

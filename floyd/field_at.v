@@ -312,7 +312,8 @@ Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
        legal_nested_field t gfs)) &&
   rangespec lo hi 
     (fun i => !! legal_nested_field t (ArraySubsc i :: gfs) &&
-    field_at sh t (ArraySubsc i :: gfs) (nested_Znth lo i v)).
+    data_at' sh empty_ti (nested_field_type2 t (ArraySubsc i :: gfs))
+      (nested_field_offset2 t (ArraySubsc i :: gfs)) (nested_Znth lo i v)).
 
 Definition array_at_ (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z) :=
   array_at sh t gfs lo hi (list_repeat (Z.to_nat (hi-lo)) (default_val (nested_field_type2 t (ArraySubsc 0 :: gfs)))).

@@ -25,25 +25,50 @@ Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :
 Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
   fold_range' f zero lo (nat_of_Z (hi-lo)).
 
+Lemma rangespec'_shift_derives: forall lo lo' len P P' p p',
+  (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p |-- P' i' p') -> 
+  rangespec' lo len P p |-- rangespec' lo' len P' p'.
+Proof.
+  intros.
+  revert lo lo' H; 
+  induction len; intros.
+  + simpl. auto.
+  + simpl.
+    apply sepcon_derives.
+    - apply H; [| omega].
+      rewrite Nat2Z.inj_succ.
+      rewrite <- Z.add_1_r.
+      omega.
+    - apply IHlen. intros.
+      apply H; [| omega].
+      rewrite Nat2Z.inj_succ.
+      rewrite <- Z.add_1_r.
+      pose proof Zle_0_nat (S len).
+      omega.
+Qed.
+
 Lemma rangespec'_ext_derives: forall lo len P P' p,
   (forall i, lo <= i < lo + Z_of_nat len -> P i p |-- P' i p) -> 
   rangespec' lo len P p |-- rangespec' lo len P' p.
 Proof.
   intros.
-  revert lo H; 
-  induction len; intros.
-  + simpl. auto.
-  + simpl.
-    apply sepcon_derives.
-    - apply H.
-      rewrite Nat2Z.inj_succ.
-      rewrite <- Z.add_1_r.
-      omega.
-    - apply IHlen. intros. apply H.
-      rewrite Nat2Z.inj_succ.
-      rewrite <- Z.add_1_r.
-      pose proof Zle_0_nat (S len).
-      omega.
+  apply rangespec'_shift_derives.
+  intros.
+  assert (i = i') by omega.
+  subst.
+  apply H.
+  auto.
+Qed.
+
+Lemma rangespec'_shift: forall lo lo' len P P' p p',
+  (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p = P' i' p') -> 
+  rangespec' lo len P p = rangespec' lo' len P' p'.
+Proof.
+  intros; apply pred_ext; apply rangespec'_shift_derives;
+  intros.
+  + erewrite H; eauto.
+  + erewrite H; eauto.
+    omega.
 Qed.
 
 Lemma rangespec'_ext: forall lo len P P' p,

@@ -191,29 +191,26 @@ Qed.
 
 Lemma data_at_array_at0: forall sh t gfs t0 n a hi v v' p,
   (0 <= hi <= n)%Z ->
+  legal_alignas_type t = true ->
+  legal_nested_field t gfs ->
   nested_field_type2 t gfs = Tarray t0 n a ->
   nested_field_offset2 t (ArraySubsc 0 :: gfs) = 0 ->
+  size_compatible t p ->
+  align_compatible t p ->
   JMeq v v' ->
-  data_at sh (Tarray t0 hi a) v' p =
-    (!!(size_compatible t p) && !!(align_compatible t p) && array_at sh t gfs 0 hi v p)%logic.
+  data_at sh (Tarray t0 hi a) v' (offset_val (Int.repr (nested_field_offset2 t gfs)) p) =
+    array_at sh t gfs 0 hi v p.
 Proof.
-intros.
-rewrite data_at_isptr.
-rewrite array_at_isptr.
-repeat rewrite <- andp_assoc.
-rewrite <- (andp_comm (!! isptr p)%logic).
-repeat rewrite andp_assoc.
-apply prop_andp_ext'; [ intuition | intro].
-pattern p at 1; replace p with (offset_val (Int.repr (nested_field_offset2 t (ArraySubsc 0 :: gfs))) p).
-pattern hi at 1; rewrite <- Z.sub_0_r.
-destruct H.
-rewrite data_at_array_at with (n:=n) (v:=v); auto.
-normalize. 
-omega.
-destruct p; try contradiction; simpl.
-rewrite H1. 
-f_equal.
-apply Int.add_zero.
+  intros.
+  revert v' H6.
+  pattern hi at 1 2 3.
+  replace hi with (hi - 0) by omega.
+  intros.
+  erewrite array_at_data_at; [| omega | | | eauto..]; [| omega ..].
+  normalize.
+  erewrite nested_field_offset2_Tarray by eauto.
+  rewrite Z.mul_0_r, Z.add_0_r.
+  reflexivity.
 Qed.
 
 Local Open Scope nat.
@@ -228,37 +225,97 @@ Lemma split_offset_array_at:
   (data_at sh (tarray t (Z.of_nat n)) (firstn n contents) v * 
     data_at sh (tarray t (len- Z.of_nat n)) (skipn n contents) (offset_val (Int.repr (sizeof t * Z.of_nat n)) v)))%logic.
 Proof.
-intros.
-unfold tarray.
-rewrite (data_at_array_at0 sh (Tarray t len noattr) nil t len noattr len contents);
- [ | omega | reflexivity | unfold nested_field_offset2; simpl; omega | reflexivity].
-rewrite (data_at_array_at0 sh (Tarray t len noattr) nil t len noattr (Z.of_nat n) (firstn n contents));
- [ | omega | reflexivity | unfold nested_field_offset2; simpl; omega | reflexivity].
-rewrite (data_at_array_at sh (Tarray t len noattr) nil t len noattr (Z.of_nat n) len
-  (skipn n contents)); try omega; try reflexivity.
-pattern contents at 1; rewrite <- (firstn_skipn n).
-erewrite split2_array_at with (mid:= Z.of_nat n); try reflexivity.
-2: omega.
-2: rewrite Zlength_correct in *; rewrite firstn_length, Z.sub_0_r, min_l; auto; apply Nat2Z.inj_le; auto.
-normalize.
-f_equal.
-f_equal.
-apply prop_ext; intuition.
-destruct v; simpl; auto.
-unfold size_compatible in H3. simpl sizeof in H3.
-rewrite Z.max_r in H3 by omega.
-pose proof (Int.unsigned_range i).
-omega.
-destruct v; simpl; auto.
-unfold size_compatible in H3. simpl sizeof in H3.
-rewrite Z.max_r in H3 by omega.
-pose proof (Int.unsigned_range i).
-pose proof (sizeof_pos t).
-split; try omega.
-pose proof (Z.mul_nonneg_nonneg (sizeof t) len).
-spec H6; [omega | ].
-spec H6; [omega | ].
-omega.
+  intros.
+  apply extract_prop_from_equal' with (isptr v);
+    [| rewrite data_at_isptr; normalize | rewrite data_at_isptr; normalize].
+  intros.
+  unfold data_at.
+  simpl.
+  match goal with
+  | |- _ = ?A && _ => replace A with 
+    (!!(size_compatible (tarray t len) v))%logic
+  end.
+  Focus 2. {
+    unfold size_compatible, offset_in_range.
+    destruct v; try solve [apply pred_ext; normalize].
+    simpl.
+    rewrite Z.max_r by omega.
+    rewrite Z.mul_0_r, Z.add_0_r.
+    pose proof Int.unsigned_range i.
+    pose proof (sizeof_pos t).
+    pose proof (Z.mul_nonneg_nonneg (sizeof t) len).
+    spec H5; [omega |].
+    spec H5; [omega |].
+    apply pred_ext; normalize; omega.
+  } Unfocus.
+  destruct v; try inversion H2.
+  unfold align_compatible, offset_val.
+  unfold tarray.
+  rewrite !legal_alignas_type_Tarray by (unfold legal_alignas_type; simpl; auto).
+  normalize.
+  rewrite !prop_and, !andp_assoc.
+  apply extract_prop_from_equal. intros.
+  rewrite (andp_comm ( !!size_compatible (Tarray t (Z.of_nat n) noattr) (Vptr b i))).
+  rewrite !andp_assoc.
+  apply extract_prop_from_equal. intros.
+  assert (size_compatible (Tarray t (len - Z.of_nat n) noattr)
+       (Vptr b (Int.add i (Int.repr (sizeof t * Z.of_nat n))))).
+  Focus 1. {
+    unfold size_compatible in *.
+    simpl in H3 |- *.
+    rewrite !Z.max_r in H3 |- * by omega.
+    rewrite !Int.Z_mod_modulus_eq.
+    pose proof (sizeof_pos t).
+    pose proof (Z.mul_nonneg_nonneg (sizeof t) (Z.of_nat n)).
+    spec H6; [omega | ].
+    spec H6; [omega | ].
+    pose proof Zmod_le (sizeof t * Z.of_nat n) Int.modulus.
+    spec H7; [cbv; reflexivity |].
+    spec H7; [omega |].
+    pose proof Z_mod_lt (sizeof t * Z.of_nat n) Int.modulus.
+    spec H8; [cbv; reflexivity |].
+    pose proof Int.unsigned_range i.
+    pose proof Zmod_le (Int.unsigned i + (sizeof t * Z.of_nat n) mod Int.modulus) Int.modulus.
+    spec H10; [cbv; reflexivity |].
+    spec H10; [omega |].
+    assert (sizeof t * Z.of_nat n + sizeof t * (len - Z.of_nat n) = sizeof t * len)%Z
+      by (rewrite <- Z.mul_add_distr_l; f_equal; omega).
+    omega.
+  } Unfocus.
+  assert (alignof t | Int.unsigned (Int.add i (Int.repr (sizeof t * Z.of_nat n)))).
+  Focus 1. {
+    unfold align_compatible in *.
+    simpl in H4 |- *.
+    rewrite !Int.Z_mod_modulus_eq.
+    admit. (* omega issure *)
+  } Unfocus.
+  assert (size_compatible (Tarray t (Z.of_nat n) noattr) (Vptr b i)).
+  Focus 1. {
+    simpl in H3 |- *.
+    rewrite !Z.max_r in H3 |- * by omega.
+    pose proof (sizeof_pos t).
+    assert (sizeof t * Z.of_nat n <= sizeof t * len)%Z by (apply Zmult_le_compat_l; omega).
+    omega.
+  } Unfocus.
+  normalize.
+  rewrite split2_array_at' with (mid := Z.of_nat n) by omega.
+  simpl.
+  f_equal.
+  + unfold array_at'; f_equal.
+    apply rangespec_ext; intros.
+    f_equal.
+    unfold Znth; if_tac; [omega |].
+    rewrite nth_firstn; [reflexivity |].
+    destruct H8.
+    rewrite Z.sub_0_r.
+    apply Z2Nat.inj_lt in H10; try omega.
+    rewrite Nat2Z.id in H10.
+    exact H10.
+  + unfold array_at', rangespec.
+    simpl; f_equal.
+    rewrite !Z.sub_0_r.
+    apply rangespec'_shift; intros.
+    admit.
 Qed.
 
 Lemma firstn_map {A B} (f:A -> B): forall n l, 
