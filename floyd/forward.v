@@ -1602,11 +1602,15 @@ Proof.
   normalize.
 Qed.
 
+Ltac test_legal_nested_efield SE TY e gfs tts lr H_LEGAL :=
+  assert (legal_nested_efield SE TY e gfs tts lr = true) as H_LEGAL by reflexivity.
+
 Ltac sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS TY V:=
       assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (R0 :: nil))) 
          |-- `(field_at sh t_root gfs0 v p)) as H;
       [unfold sh, t_root, gfs0, v, p;
        try rewrite !(data_at_field_at SH);
+       try rewrite !(data_at__field_at_ SH);
        instantiate (2 := GFS);
        instantiate (2 := TY);
        assert (GFS = skipn (length gfs - length GFS) gfs) as _ by reflexivity;
@@ -1622,21 +1626,25 @@ Ltac sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS T
        ]
       | pose N as n ].
 
-Ltac sc_new_instantiate P Q R Rnow Delta e gfs tts p sh t_root gfs0 v n N H:=
+Ltac sc_new_instantiate SE P Q R Rnow Delta e gfs tts lr p sh t_root gfs0 v n N H H_LEGAL:=
   match Rnow with
   | ?R0 :: ?Rnow' => 
     match R0 with
     | `(data_at ?SH ?TY ?V _) => 
+      test_legal_nested_efield SE TY e gfs tts lr H_LEGAL;
       sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH (@nil gfield) TY V
     | `(data_at_ ?SH ?TY _) => 
+      test_legal_nested_efield SE TY e gfs tts lr H_LEGAL;
       sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH (@nil gfield) TY
       (default_val (nested_field_type2 TY nil))
     | `(field_at ?SH ?TY ?GFS ?V _) =>
+      test_legal_nested_efield SE TY e gfs tts lr H_LEGAL;
       sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS TY V
     | `(field_at_ ?SH ?TY ?GFS _) =>
+      test_legal_nested_efield SE TY e gfs tts lr H_LEGAL;
       sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS TY
       (default_val (nested_field_type2 TY GFS))
-    | _ => sc_new_instantiate P Q R Rnow' Delta e gfs tts p sh t_root gfs0 v n (S N) H
+    | _ => sc_new_instantiate SE P Q R Rnow' Delta e gfs tts lr p sh t_root gfs0 v n (S N) H H_LEGAL
     end
   end.
 
@@ -1877,7 +1885,8 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     let v := fresh "v" in evar (v: reptype (nested_field_type2 t_root gfs0));
     let n := fresh "n" in
     let H := fresh "H" in
-    sc_new_instantiate P Q R R Delta e1 gfs tts p sh t_root gfs0 v n (0%nat) H;
+    let H_LEGAL := fresh "H" in
+    sc_new_instantiate SE P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H H_LEGAL;
     
     let gfs1 := fresh "gfs" in
     let efs0 := fresh "efs" in
@@ -1985,7 +1994,8 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     let v := fresh "v" in evar (v: reptype (nested_field_type2 t_root gfs0));
     let n := fresh "n" in
     let H := fresh "H" in
-    sc_new_instantiate P Q R R Delta e1 gfs tts p sh t_root gfs0 v n (0%nat) H;
+    let H_LEGAL := fresh "H" in
+    sc_new_instantiate SE P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H H_LEGAL;
     
     let gfs1 := fresh "gfs" in
     let efs0 := fresh "efs" in
@@ -2205,7 +2215,8 @@ match goal with
     let v := fresh "v" in evar (v: reptype (nested_field_type2 t_root gfs0));
     let n := fresh "n" in
     let H := fresh "H" in
-    sc_new_instantiate P Q R R Delta e1 gfs tts p sh t_root gfs0 v n (0%nat) H;
+    let H_LEGAL := fresh "H" in
+    sc_new_instantiate SE P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H H_LEGAL;
 
     let gfs1 := fresh "gfs" in
     let efs0 := fresh "efs" in

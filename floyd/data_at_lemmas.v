@@ -1623,7 +1623,7 @@ Transparent spacer.
   + assumption.
 Qed.
 
-Lemma memory_block_data_at_: forall (sh : share) (t : type) (p: val),
+Lemma data_at__memory_block: forall (sh : share) (t : type) (p: val),
   legal_alignas_type t = true ->
   nested_non_volatile_type t = true ->
   sizeof t < Int.modulus ->
@@ -1651,6 +1651,19 @@ Proof.
   + apply Z.divide_0_r.
 Qed.
 
+Lemma memory_block_data_at_:
+  forall (sh : share) (t : type) (p : val),
+  legal_alignas_type t = true ->
+  nested_non_volatile_type t = true ->
+  align_compatible t p ->
+  sizeof t < Int.modulus ->
+  memory_block sh (Int.repr (sizeof t)) p = data_at_ sh t p.
+Proof.
+  intros.
+  rewrite data_at__memory_block by eauto.
+  normalize.
+Qed.
+
 Lemma align_1_memory_block_data_at_: forall (sh : share) (t : type) n,
   legal_alignas_type t = true ->
   nested_non_volatile_type t = true ->
@@ -1661,7 +1674,7 @@ Lemma align_1_memory_block_data_at_: forall (sh : share) (t : type) n,
 Proof.
   intros. subst n.
   extensionality p.
-  rewrite memory_block_data_at_ by auto.
+  rewrite data_at__memory_block by auto.
   rewrite andp_comm.
   apply add_andp.
   apply prop_right.
@@ -1883,7 +1896,7 @@ Proof.
   unfold_lift.
   simpl.
   apply Zlt_is_lt_bool in H1.
-  rewrite memory_block_data_at_ by auto.
+  rewrite data_at__memory_block by auto.
   unfold var_block.
   simpl. unfold local, lift1. unfold_lift.
   rewrite memory_block_isptr.

@@ -196,7 +196,7 @@ intros H1 H1' H6' H6 H7 H8 H1''.
  destruct idata; super_unfold_lift; try apply derives_refl.
 *  repeat if_tac; try rewrite H8. 
    + subst z; rewrite init_data_size_space in H6.
-     rewrite memory_block_data_at_ by (auto; unfold Int.max_unsigned in H6; omega).
+     rewrite data_at__memory_block by (auto; unfold Int.max_unsigned in H6; omega).
      apply andp_right.
      - apply prop_right.
        unfold align_compatible.
@@ -367,7 +367,7 @@ intros until 1. intros ? Hno; intros.
 normalize.
 eapply derives_trans; [eapply tc_globalvar_sound; eassumption | ].
 simpl.
-rewrite memory_block_data_at_ by (try tauto; unfold Int.max_unsigned in H5; omega).
+rewrite data_at__memory_block by (try tauto; unfold Int.max_unsigned in H5; omega).
 destruct (tc_eval_gvar_zero _ _ _ _ H6 H H0) as [b ?].
 rewrite H8 in H7 |- *.
 unfold mapsto_zeros. rewrite sepcon_emp.

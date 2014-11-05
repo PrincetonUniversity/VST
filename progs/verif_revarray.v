@@ -67,19 +67,6 @@ Proof.
     - simpl in H. omega.
 Qed.
 
-Lemma skipn_length: forall {A} (contents: list A) n,
-  length (skipn n contents) = (length contents - n)%nat.
-Proof.
-  intros.
-  revert n;
-  induction contents;
-  intros.
-  + destruct n; reflexivity.
-  + destruct n; simpl.
-    - reflexivity.
-    - apply IHcontents.
-Qed.
-
 Lemma firstn_firstn: forall {A} (contents: list A) n m,
   (n <= m)%nat ->
   firstn n (firstn m contents) = firstn n contents.
@@ -243,9 +230,9 @@ apply flip_fact_1; omega.
 forward.  (* t = a[lo]; *)
 {
   subst e efs1 efs0 tts1 tts0 t_root gfs0 gfs1 v. entailer.
-  rewrite Int.sub_signed in H8.
-  rewrite Int.signed_repr in H8 by repable_signed.
-  rewrite Int.signed_repr in H8 by repable_signed.
+  rewrite Int.sub_signed in H9.
+  rewrite Int.signed_repr in H9 by repable_signed.
+  rewrite Int.signed_repr in H9 by repable_signed.
   simpl_compare.
   entailer!.
   rewrite flip_fact_2 by omega.
@@ -254,18 +241,18 @@ forward.  (* t = a[lo]; *)
 }
 {
   entailer!.
-  rewrite Int.sub_signed in H8.
-  rewrite Int.signed_repr in H8 by repable_signed.
-  rewrite Int.signed_repr in H8 by repable_signed.
+  rewrite Int.sub_signed in H9.
+  rewrite Int.signed_repr in H9 by repable_signed.
+  rewrite Int.signed_repr in H9 by repable_signed.
   simpl_compare.
   omega.
 }
 forward.  (* s = a[hi-1]; *)
 {
   subst e efs1 efs0 tts1 tts0 t_root gfs0 gfs1 v. entailer.
-  rewrite Int.sub_signed in H9.
-  rewrite Int.signed_repr in H9 by repable_signed.
-  rewrite Int.signed_repr in H9 by repable_signed.
+  rewrite Int.sub_signed in H10.
+  rewrite Int.signed_repr in H10 by repable_signed.
+  rewrite Int.signed_repr in H10 by repable_signed.
   simpl_compare.
   entailer!.
   rewrite flip_fact_2 by omega.
@@ -274,9 +261,9 @@ forward.  (* s = a[hi-1]; *)
 }
 {
   entailer!.
-  rewrite Int.sub_signed in H9.
-  rewrite Int.signed_repr in H9 by repable_signed.
-  rewrite Int.signed_repr in H9 by repable_signed.
+  rewrite Int.sub_signed in H10.
+  rewrite Int.signed_repr in H10 by repable_signed.
+  rewrite Int.signed_repr in H10 by repable_signed.
   simpl_compare.
   omega.
 }
@@ -284,9 +271,9 @@ normalize.
 forward. (*  a[hi-1] = t ; *)
 {
   entailer!.
-  rewrite Int.sub_signed in H11.
-  rewrite Int.signed_repr in H11 by repable_signed.
-  rewrite Int.signed_repr in H11 by repable_signed.
+  rewrite Int.sub_signed in H12.
+  rewrite Int.signed_repr in H12 by repable_signed.
+  rewrite Int.signed_repr in H12 by repable_signed.
   simpl_compare.
   omega.
 }
@@ -294,9 +281,9 @@ normalize.
 forward. (*  a[lo] = s; *) 
 {
   entailer!.
-  rewrite Int.sub_signed in H11.
-  rewrite Int.signed_repr in H11 by repable_signed.
-  rewrite Int.signed_repr in H11 by repable_signed.
+  rewrite Int.sub_signed in H12.
+  rewrite Int.signed_repr in H12 by repable_signed.
+  rewrite Int.signed_repr in H12 by repable_signed.
   simpl_compare.
   omega.
 }

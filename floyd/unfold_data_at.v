@@ -78,13 +78,9 @@ Ltac unfold_nested_field H :=
   end.
 
 Ltac unfold_field_at' H := 
-  first [(*
-    rewrite field_at_data_at in H by reflexivity;
-    rewrite at_offset'_eq in H by (rewrite <- data_at_offset_zero; reflexivity);
-    unfold_nested_field H;
-    try unfold tarray in H;
-    erewrite data_at_array_at in H; [| reflexivity | omega | reflexivity]
-  |*)
+  first [
+    erewrite field_at_Tarray in H; [| try unfold tarray; reflexivity  | reflexivity | eauto]
+  |
     erewrite field_at_Tstruct in H; try reflexivity; try reflexivity;
    unfold nested_sfieldlist_at, withspacer in H].
 

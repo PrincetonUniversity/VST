@@ -1062,7 +1062,7 @@ Proof.
     apply data_at_data_at_; assumption.
     apply data_at_data_at_; assumption.
   + destruct (nested_non_volatile_type t) eqn:HH.
-    - rewrite memory_block_data_at_ by (auto; omega).
+    - rewrite data_at__memory_block by (auto; omega).
       normalize.
       apply memory_block_conflict; (unfold Int.max_unsigned; omega).
     - unfold data_at_.

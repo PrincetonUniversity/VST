@@ -46,6 +46,19 @@ Proof.
   + omega.
 Qed.
 
+Lemma skipn_length: forall {A} (contents: list A) n,
+  length (skipn n contents) = (length contents - n)%nat.
+Proof.
+  intros.
+  revert n;
+  induction contents;
+  intros.
+  + destruct n; reflexivity.
+  + destruct n; simpl.
+    - reflexivity.
+    - apply IHcontents.
+Qed.
+
 (************************************************
 
 split lemmas of rangespec
@@ -225,10 +238,9 @@ split lemmas of array_at
 
 ************************************************)
 
-Lemma split2_array_at: forall sh t gfs t0 n a lo mid hi ct1 ct2,
+Lemma split2_array_at0: forall sh t gfs lo mid hi ct1 ct2,
   lo <= mid <= hi ->
   Zlength ct1 = mid - lo ->
-  nested_field_type2 t gfs = Tarray t0 n a ->
   array_at sh t gfs lo hi (ct1 ++ ct2) =
     array_at sh t gfs lo mid ct1 * array_at sh t gfs mid hi ct2.
 Proof.
@@ -283,22 +295,155 @@ Proof.
   apply pred_ext; normalize.
 Qed.
 
-Lemma split3_array_at: forall sh t gfs t0 n a lo ml mr hi ct1 ct2 ct3,
+Lemma split2_array_at: forall sh t gfs lo mid hi ct,
+  lo <= mid <= hi ->
+  array_at sh t gfs lo hi ct =
+    array_at sh t gfs lo mid ct *
+      array_at sh t gfs mid hi (skipn (Z.to_nat (mid - lo)) ct).
+Proof.
+  intros.
+  unfold array_at.
+  extensionality p.
+  simpl.
+  rewrite split2_rangespec with (mid := mid) by assumption.
+  simpl.
+  replace (rangespec mid hi
+      (fun (i : Z) (x : val) =>
+       !!legal_nested_field t (ArraySubsc i :: gfs) &&
+       data_at' sh type_id_env.empty_ti
+         (nested_field_type2 t (ArraySubsc i :: gfs))
+         (nested_field_offset2 t (ArraySubsc i :: gfs)) 
+         (nested_Znth lo i ct) x) p) with (rangespec mid hi
+      (fun (i : Z) (x : val) =>
+       !!legal_nested_field t (ArraySubsc i :: gfs) &&
+       data_at' sh type_id_env.empty_ti
+         (nested_field_type2 t (ArraySubsc i :: gfs))
+         (nested_field_offset2 t (ArraySubsc i :: gfs))
+         (nested_Znth mid i (skipn (Z.to_nat (mid - lo)) ct)) x) p).
+  Focus 2. {
+    apply rangespec_ext.
+    intros.
+    f_equal.
+    f_equal.
+    pattern mid at 1.
+    replace mid with (lo + (mid - lo)) by omega.
+    rewrite <- firstn_skipn with (l := ct) (n := (Z.to_nat (mid - lo))) at 2.
+    rewrite <- nested_Znth_app_r; rewrite Zlength_correct, firstn_length.
+    Focus 2. {
+      rewrite Nat2Z.inj_min, Z2Nat.id by omega.
+      pose proof Z.le_min_l (mid - lo) (Z.of_nat (length ct)).
+      omega.
+    } Unfocus.
+    destruct (le_gt_dec (Z.to_nat (mid - lo)) (length ct)).
+    + rewrite min_l by omega.
+      rewrite Z2Nat.id by omega.
+      reflexivity.
+    + assert (length ((skipn (Z.to_nat (mid - lo)) ct)) = 0%nat) by (rewrite skipn_length; omega).
+      destruct (skipn (Z.to_nat (mid - lo)) ct); [| inversion H1].
+      unfold nested_Znth.
+      f_equal.
+      unfold Znth.
+      simpl.
+      repeat if_tac; reflexivity.
+  } Unfocus.
+  apply pred_ext; normalize.
+Qed.
+
+Lemma split3seg_array_at: forall sh t gfs lo ml mr hi ct1 ct2 ct3,
   lo <= ml ->
   ml <= mr ->
   mr <= hi ->
   Zlength ct1 = ml - lo ->
   Zlength ct2 = mr - ml ->
-  nested_field_type2 t gfs = Tarray t0 n a ->
   array_at sh t gfs lo hi (ct1 ++ ct2 ++ ct3) =
     array_at sh t gfs lo ml ct1 * array_at sh t gfs ml mr ct2 * array_at sh t gfs mr hi ct3.
 Proof.
   intros.
   rewrite sepcon_assoc.
   assert (ml <= hi) by omega.
-  erewrite <- split2_array_at by eauto.
-  erewrite <- split2_array_at by eauto.
+  erewrite <- split2_array_at0 by eauto.
+  erewrite <- split2_array_at0 by eauto.
   reflexivity.
+Qed.
+
+Lemma array_at_len_1: forall sh t gfs lo v,
+  array_at sh t gfs lo (lo + 1) v =
+    field_at sh t (ArraySubsc lo :: gfs) (nested_Znth lo lo v).
+Proof.
+  intros.
+  extensionality p.
+  unfold array_at.
+  rewrite rangespec_len_1.
+  rewrite field_at_isptr.
+  unfold field_at.
+  simpl.
+  apply pred_ext; normalize.
+  pose proof H1.
+  apply legal_nested_field_cons_lemma in H2.
+  destruct H2.
+  normalize.
+Qed.
+
+Lemma split_array_at_hd: forall sh t gfs lo hi v,
+  lo < hi ->
+  array_at sh t gfs lo hi v =
+    field_at sh t (ArraySubsc lo :: gfs) (nested_Znth lo lo v) *
+      array_at sh t gfs (lo + 1) hi (skipn 1 v).
+Proof.
+  intros.
+  erewrite split2_array_at with (mid := lo + 1) by omega.
+  extensionality p.
+Opaque skipn.
+  simpl.
+Transparent skipn.
+  rewrite array_at_len_1.
+  replace (lo + 1 - lo) with 1 by omega.
+  apply pred_ext; normalize.
+Qed.
+
+Lemma split_array_at_tl: forall sh t gfs lo hi v,
+  lo < hi ->
+  array_at sh t gfs lo hi v =
+    field_at sh t (ArraySubsc (hi - 1) :: gfs) (nested_Znth lo (hi - 1) v) *
+      array_at sh t gfs lo (hi - 1) v.
+Proof.
+  intros.
+  rewrite split2_array_at with (mid := hi - 1) by omega.
+  extensionality p.
+Opaque skipn.
+  simpl.
+Transparent skipn.
+  pattern hi at 3;  (* do it this way for compatibility with Coq 8.4pl3 *)
+  replace hi with (hi - 1 + 1) by omega.
+  rewrite array_at_len_1.
+  unfold nested_Znth.
+  rewrite Z.sub_diag.
+  rewrite Znth_skipn by omega.
+  apply pred_ext; normalize; cancel.
+Qed.
+
+Lemma split3_array_at: forall sh t gfs lo mid hi v,
+  lo <= mid < hi ->
+  array_at sh t gfs lo hi v =
+    array_at sh t gfs lo mid v *
+      field_at sh t (ArraySubsc mid :: gfs) (nested_Znth lo mid v) *
+        array_at sh t gfs (mid + 1) hi (skipn (nat_of_Z (mid - lo + 1)) v).
+Proof.
+  intros.
+  rewrite split2_array_at with (mid := mid) by omega.
+  rewrite split2_array_at with (lo := mid) (mid := mid + 1) by omega.
+  extensionality p.
+Opaque skipn.
+  simpl.
+Transparent skipn.
+  rewrite array_at_len_1.
+  unfold nested_Znth.
+  rewrite Z.sub_diag.
+  rewrite Znth_skipn by omega.
+  rewrite skipn_skipn.
+  rewrite Z2Nat.inj_add by omega.
+  replace (mid + 1 - mid) with 1 by omega.
+  apply pred_ext; normalize; cancel.
 Qed.
 
 (*
@@ -444,6 +589,7 @@ Proof.
     admit. (* omega issue *)
 Qed.
 
+(*  (* Already have it as field_at_Tarray *)
 Lemma field_at_array_at: forall sh t gfs t0 n a v v',
   legal_alignas_type t = true ->
   legal_nested_field t gfs ->
@@ -478,7 +624,7 @@ Proof.
   rewrite Z.mul_0_r, Z.add_0_r.
   reflexivity.
 Qed.
-
+*)
 Lemma offset_in_range_mid: forall lo hi i t p,
   lo <= i <= hi ->
   offset_in_range (sizeof t * lo) p ->

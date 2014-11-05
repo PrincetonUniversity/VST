@@ -118,18 +118,6 @@ Definition Gprog : funspecs :=
          :: fifo_empty_spec :: fifo_get_spec 
          :: make_elem_spec :: main_spec::nil.
 
-Lemma memory_block_data_at_: forall (sh : share) (t : type) (p: val),
-  legal_alignas_type t = true ->
-  nested_non_volatile_type t = true ->
-  align_compatible t p ->
-  sizeof t < Int.modulus ->
-  memory_block sh (Int.repr (sizeof t)) p = data_at_ sh t p.
-Proof.
-intros.
- rewrite (memory_block_data_at_ sh t); auto.
- normalize.
-Qed.
- 
 Lemma memory_block_fifo:
  forall p, 
   align_compatible t_struct_fifo p ->
@@ -417,20 +405,8 @@ forward_call (*  freeN(p, sizeof( *p)); *)
   apply derives_trans with (data_at_ Tsh t_struct_elem p'). unfold data_at_. 
   unfold_data_at 1%nat; cancel.
   apply sepcon_derives; apply field_at_field_at_; reflexivity.
-  
-
-Lemma data_at__memory_block: forall (sh : share) (t : type) (p: val),
- legal_alignas_type t = true ->
- nested_non_volatile_type t = true ->
- sizeof t < Int.modulus ->
-   data_at_ sh t p |-- memory_block sh (Int.repr (sizeof t)) p.
-Proof.
-intros.
- rewrite (data_at_lemmas.memory_block_data_at_ sh t); auto.
- simpl; apply andp_left2; auto.
-Qed.
-  apply data_at__memory_block; auto.
-  compute. reflexivity.
+  rewrite data_at__memory_block; [| reflexivity | reflexivity | cbv; reflexivity].
+  apply andp_left2; apply derives_refl.
 } after_call.
 forward. (* return i+j; *)
 unfold main_post.
