@@ -146,7 +146,6 @@ name h _h.
 unfold fifo.
 normalize. intros [hd tl]. normalize.
 forward. (* h = Q->head; *)
-simpl proj_reptype.
 forward. (* return (h == NULL); *)
 
 unfold fifo.
@@ -223,14 +222,7 @@ normalize. intros [hd tl]. normalize.
 (* goal_7 *)
 
 forward. (* p->next = NULL; *)
-  normalize.
-  simpl eval_expr.
-  unfold force_val1.
-  normalize.
-  simpl force_val. simpl valinject. simpl upd_reptype.
-
 forward. (*   h = Q->head; *)
-simpl proj_reptype.
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
  simpl typeof.
@@ -289,12 +281,11 @@ forward. (*   p = Q->head; *)
 destruct prefix; inversion H1; clear H1.
 + subst_any.
    rewrite links_nil_eq.
-   normalize. simpl proj_reptype.
+   normalize.
    apply ptr_eq_e in H1. subst_any.
    forward. (*  n=h->next; *)
    forward. (* Q->head=n; *)
-(*  simpl valinject; simpl reptype.  normalize. *)
-(*   replace_SEP 0%Z (`(data_at Tsh t_struct_fifo (nullval,p) q)); [ entailer! | ]. (* can we do this automatically? *) *)
+   replace_SEP 0%Z (`(data_at Tsh t_struct_fifo (nullval,p) q)); [ entailer! | ]. (* can we do this automatically? *)
    forward. (* return p; *)
    entailer!.
    unfold fifo. apply exp_right with (nullval, h).
@@ -303,10 +294,11 @@ destruct prefix; inversion H1; clear H1.
 + rewrite links_cons_eq.
     normalize. intro.
     normalize.
-    simpl valinject; simpl proj_reptype. (* can we make this automatic? *)
+    simpl valinject. (* can we make this automatic? *)
     subst_any.
     forward. (*  n=h->next; *)
     forward. (* Q->head=n; *)
+    replace_SEP 2%Z (`(data_at Tsh t_struct_fifo (x, tl) q)); [ entailer! | ]. (* can we do this automatically? *)
     forward. (* return p; *)
     entailer.
     unfold fifo. normalize. apply exp_right with (n, tl).

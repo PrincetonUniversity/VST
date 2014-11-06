@@ -16,6 +16,7 @@ Require Export floyd.field_at.
 Require Export floyd.loadstore_mapsto.
 Require Export floyd.loadstore_data_at.
 Require Export floyd.loadstore_field_at.
+Require Export floyd.nested_field_re_lemmas.
 Require Export floyd.nested_loadstore.
 Require Export floyd.local2ptree.
 Require Export floyd.sc_set_load_store.

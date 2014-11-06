@@ -1516,7 +1516,7 @@ first [(*forward_setx_wow
                 let v := fresh "v" in evar (v : val);
                 let HRE := fresh "H" in
                 do_compute_expr Delta P Q R e v HRE;
-                eapply semax_SC_set; [reflexivity | reflexivity | exact HRE | solve [entailer!]]
+                eapply semax_SC_set; [reflexivity | reflexivity | exact HRE | try solve [entailer!]]
          end
        | apply forward_setx_closed_now;
             [solve [auto 50 with closed] | solve [auto 50 with closed] | solve [auto 50 with closed]
@@ -1923,7 +1923,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_cast_load Delta sh SE n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | reflexivity | reflexivity | exact Heq | exact HLE | exact H_Denote 
-    | exact H | reflexivity | solve [entailer!] | solve_legal_nested_field_in_entailment]
+    | exact H | reflexivity | try solve [entailer!] | solve_legal_nested_field_in_entailment]
 
 | SE := @abbreviate type_id_env _ 
     |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>

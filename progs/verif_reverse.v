@@ -201,8 +201,6 @@ simpl valinject.
 subst cts2.
 forward.  (* t = v->tail; *)
 forward. (*  v->tail = w; *)
-simpl eval_lvalue. simpl proj_reptype.
-normalize.
 replace_SEP 1 (`(field_at sh t_struct_list [StructField _tail] w v)).
 entailer.
 forward.  (*  w = v; *)
