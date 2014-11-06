@@ -9,6 +9,7 @@ Require Import floyd.entailer.
 Require Import floyd.closed_lemmas.
 Require Import floyd.loadstore_mapsto.
 Require Import floyd.loadstore_field_at.
+Require Import floyd.nested_field_re_lemmas.
 Require Import floyd.nested_loadstore.
 Require Import Coq.Logic.JMeq.
 

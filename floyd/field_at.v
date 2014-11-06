@@ -7,77 +7,10 @@ Require Import floyd.mapsto_memory_block.
 Require Import floyd.rangespec_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.type_id_env.
+Require Import floyd.jmeq_lemmas.
 Require Import Coq.Logic.JMeq.
 
 Local Open Scope logic.
-
-Lemma eq_rect_JMeq: forall (A:Type) (x y: A) F (v: F x) (H: x = y), JMeq (eq_rect x F v y H) v.
-Proof.
-  intros.
-  subst.
-  rewrite <- eq_rect_eq.
-  reflexivity.
-Qed.
-
-Lemma eq_rect_r_JMeq: forall (A:Type) (x y: A) F (v: F x) (H: y = x), JMeq (eq_rect_r F v H) v.
-Proof.
-  intros.
-  subst.
-  unfold eq_rect_r; rewrite <- eq_rect_eq.
-  reflexivity.
-Qed.
-
-Lemma JMeq_sumtype_ll: forall A B C D x y, A = C -> B = D -> 
-  (@JMeq (A + B) (inl x) (C + D) (inl y)) ->
-  JMeq x y.
-Proof.
-  unfold not.
-  intros.
-  subst.
-  apply JMeq_eq in H1.
-  inversion H1.
-  reflexivity.
-Qed.
-
-Lemma JMeq_sumtype_rr: forall A B C D x y, A = C -> B = D -> 
-  (@JMeq (A + B) (inr x) (C + D) (inr y)) ->
-  JMeq x y.
-Proof.
-  unfold not.
-  intros.
-  subst.
-  apply JMeq_eq in H1.
-  inversion H1.
-  reflexivity.
-Qed.
-
-Lemma JMeq_sumtype_lr: forall A B C D x y, A = C -> B = D -> ~ (@JMeq (A + B) (inl x) (C + D) (inr y)).
-Proof.
-  unfold not.
-  intros.
-  subst.
-  apply JMeq_eq in H1.
-  inversion H1.
-Qed.
-
-Lemma JMeq_sumtype_rl: forall A B C D x y, A = C -> B = D -> ~ (@JMeq (A + B) (inr x) (C + D) (inl y)).
-Proof.
-  unfold not.
-  intros.
-  subst.
-  apply JMeq_eq in H1.
-  inversion H1.
-Qed.
-
-Ltac solve_JMeq_sumtype H :=
-  match type of H with
-  | JMeq ?x ?y =>
-    destruct x; destruct y;
-     [apply JMeq_sumtype_ll in H; auto
-     |apply JMeq_sumtype_lr in H; auto; inversion H
-     |apply JMeq_sumtype_rl in H; auto; inversion H
-     |apply JMeq_sumtype_rr in H; auto]
-  end.
 
 (************************************************
 
