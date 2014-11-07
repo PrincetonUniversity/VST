@@ -213,7 +213,7 @@ Proof.
   reflexivity.
 Qed.
 
-Local Open Scope nat.
+(*  Don't need this lemma?  *)
 Lemma split_offset_array_at:
   forall n sh t len (contents: list (reptype t)) v,
   legal_alignas_type t = true ->
@@ -231,73 +231,65 @@ Proof.
   intros.
   unfold data_at.
   simpl.
-  match goal with
-  | |- _ = ?A && _ => replace A with 
-    (!!(size_compatible (tarray t len) v))%logic
-  end.
-  Focus 2. {
-    unfold size_compatible, offset_in_range.
-    destruct v; try solve [apply pred_ext; normalize].
-    simpl.
-    rewrite Z.max_r by omega.
-    rewrite Z.mul_0_r, Z.add_0_r.
-    pose proof Int.unsigned_range i.
-    pose proof (sizeof_pos t).
-    pose proof (Z.mul_nonneg_nonneg (sizeof t) len).
-    spec H5; [omega |].
-    spec H5; [omega |].
-    apply pred_ext; normalize; omega.
-  } Unfocus.
-  destruct v; try inversion H2.
-  unfold align_compatible, offset_val.
-  unfold tarray.
-  rewrite !legal_alignas_type_Tarray by (unfold legal_alignas_type; simpl; auto).
   normalize.
-  rewrite !prop_and, !andp_assoc.
-  apply extract_prop_from_equal. intros.
-  rewrite (andp_comm ( !!size_compatible (Tarray t (Z.of_nat n) noattr) (Vptr b i))).
-  rewrite !andp_assoc.
-  apply extract_prop_from_equal. intros.
-  assert (size_compatible (Tarray t (len - Z.of_nat n) noattr)
-       (Vptr b (Int.add i (Int.repr (sizeof t * Z.of_nat n))))).
-  Focus 1. {
-    unfold size_compatible in *.
-    simpl in H3 |- *.
-    rewrite !Z.max_r in H3 |- * by omega.
-    rewrite !Int.Z_mod_modulus_eq.
-    pose proof (sizeof_pos t).
-    pose proof (Z.mul_nonneg_nonneg (sizeof t) (Z.of_nat n)).
-    spec H6; [omega | ].
-    spec H6; [omega | ].
-    pose proof Zmod_le (sizeof t * Z.of_nat n) Int.modulus.
-    spec H7; [cbv; reflexivity |].
-    spec H7; [omega |].
-    pose proof Z_mod_lt (sizeof t * Z.of_nat n) Int.modulus.
-    spec H8; [cbv; reflexivity |].
-    pose proof Int.unsigned_range i.
-    pose proof Zmod_le (Int.unsigned i + (sizeof t * Z.of_nat n) mod Int.modulus) Int.modulus.
-    spec H10; [cbv; reflexivity |].
-    spec H10; [omega |].
-    assert (sizeof t * Z.of_nat n + sizeof t * (len - Z.of_nat n) = sizeof t * len)%Z
-      by (rewrite <- Z.mul_add_distr_l; f_equal; omega).
-    omega.
-  } Unfocus.
-  assert (alignof t | Int.unsigned (Int.add i (Int.repr (sizeof t * Z.of_nat n)))).
-  Focus 1. {
-    unfold align_compatible in *.
-    simpl in H4 |- *.
-    rewrite !Int.Z_mod_modulus_eq.
-    admit. (* omega issure *)
-  } Unfocus.
-  assert (size_compatible (Tarray t (Z.of_nat n) noattr) (Vptr b i)).
-  Focus 1. {
-    simpl in H3 |- *.
-    rewrite !Z.max_r in H3 |- * by omega.
-    pose proof (sizeof_pos t).
-    assert (sizeof t * Z.of_nat n <= sizeof t * len)%Z by (apply Zmult_le_compat_l; omega).
-    omega.
-  } Unfocus.
-  normalize.
+  apply prop_andp_ext'.
+*
+  unfold size_compatible, offset_in_range.
+  destruct v; try contradiction H2.
+  simpl.
+  clear b H2.
+  rewrite Z.max_r by omega.
+  rewrite Z.max_r by omega.
+  rewrite Z.max_r by omega.
+  replace (Int.add i) with (Int.add (Int.repr (Int.unsigned i))) by (rewrite Int.repr_unsigned; auto).
+  rewrite add_repr.
+  pose proof (Int.unsigned_range i).
+  forget (Int.unsigned i) as z; clear i.
+  assert (0 <= Z.of_nat n)%Z by omega.
+  forget (Z.of_nat n) as N. clear n.
+  pose proof (sizeof_pos t).
+  pose proof (Z.mul_nonneg_nonneg (sizeof t) N).
+  spec H5; [omega |].
+  spec H5; [omega |].
+  assert (Int.max_unsigned + 1 = Int.modulus) by computable.
+  assert (N = len \/ N < len) by omega.
+  destruct H7.
++
+   subst N. clear H1.
+  intuition.
+  rewrite Z.sub_diag.
+  rewrite Z.mul_0_r. rewrite Z.add_0_r.
+  pose proof (Int.unsigned_range (Int.repr (z + sizeof t * len))); omega.
+  assert (z + sizeof t * len < Int.modulus \/ z + sizeof t * len = Int.modulus) by omega.
+  destruct H2.
+  rewrite Int.unsigned_repr; try omega.
+  apply Z.divide_add_r; auto.
+  rewrite Z.mul_comm.
+  apply Z.divide_mul_r; auto.
+  apply legal_alignas_sizeof_alignof_compat; auto.
+  rewrite H2.
+  apply Z.divide_0_r.
++
+  assert (sizeof t = 0 \/ 0 < sizeof t) by omega.
+  destruct H8.
+  - rewrite H8 in *.
+     repeat rewrite Z.mul_0_l. repeat rewrite Z.add_0_r.
+     intuition.
+     pose proof (Int.unsigned_range (Int.repr z)); omega.
+     rewrite Int.unsigned_repr; auto; omega.
+ -
+   assert (sizeof t * N < sizeof t * len)%Z
+    by (   apply Zmult_lt_compat_l; omega).
+  rewrite Z.mul_sub_distr_l.
+  intuition.
+  rewrite Int.unsigned_repr; try omega.
+  rewrite Int.unsigned_repr; try omega.
+  apply Z.divide_add_r; auto.
+  rewrite Z.mul_comm.
+  apply Z.divide_mul_r; auto.
+  apply legal_alignas_sizeof_alignof_compat; auto.
+*
+  intros [? ?].
   rewrite split2_array_at' with (mid := Z.of_nat n) by omega.
   simpl.
   f_equal.
@@ -306,16 +298,40 @@ Proof.
     f_equal.
     unfold Znth; if_tac; [omega |].
     rewrite nth_firstn; [reflexivity |].
-    destruct H8.
     rewrite Z.sub_0_r.
-    apply Z2Nat.inj_lt in H10; try omega.
-    rewrite Nat2Z.id in H10.
-    exact H10.
+    destruct H5.
+    apply Z2Nat.inj_lt in H7; try omega.
+    rewrite Nat2Z.id in H7.
+    exact H7.
   + unfold array_at', rangespec.
-    simpl; f_equal.
+      normalize.
     rewrite !Z.sub_0_r.
     apply rangespec'_shift; intros.
-    admit.
+    rewrite Z.sub_0_r in H6. subst i'.
+    change nat_of_Z with Z.to_nat in H5.
+    rewrite Z2Nat.id in H5 by omega.
+    rewrite Z.sub_0_r.
+    repeat rewrite Z.add_0_l.
+    rewrite Nat2Z.id.
+    forget (Znth (i - Z.of_nat n) (skipn n contents) (default_val t)) as c.
+    rewrite data_at'_at_offset'; auto.
+    symmetry.
+    rewrite data_at'_at_offset'; auto.
+    repeat rewrite at_offset'_eq.
+    f_equal. rewrite offset_offset_val.
+    f_equal.
+    rewrite add_repr.
+    f_equal.
+    rewrite <- Z.mul_add_distr_l.
+    f_equal. omega.
+    normalize.
+    normalize.
+  rewrite Z.mul_comm.
+  apply Z.divide_mul_r; auto.
+  apply legal_alignas_sizeof_alignof_compat; auto.
+  rewrite Z.mul_comm.
+  apply Z.divide_mul_r; auto.
+  apply legal_alignas_sizeof_alignof_compat; auto.
 Qed.
 
 Lemma firstn_map {A B} (f:A -> B): forall n l, 
@@ -333,6 +349,8 @@ induction n; simpl; intros. trivial.
   destruct l; simpl. trivial.
   rewrite IHn. trivial.
 Qed.
+
+Local Open Scope nat.
 
 Lemma split2_data_block:
   forall n sh data d,
