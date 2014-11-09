@@ -314,11 +314,6 @@ rewrite Zlength_correct in H5; destruct dd; inv H5.
  + exists 0%Z; reflexivity.
  +  rewrite NPeano.Nat.sub_0_r; auto.
  + rewrite <- app_nil_end.
-
-(* move this to floyd/field_at.v *)
-Hint Extern 2 (field_at _ _ _ _ _ |-- _) => 
-   (apply field_at_field_at_; solve [auto]) : cancel.
-
  cancel.
    unfold_data_at 1.
    unfold_data_at 1.
