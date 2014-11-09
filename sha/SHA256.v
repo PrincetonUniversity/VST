@@ -14,6 +14,8 @@ Definition LBLOCKz : Z := 16. (* length of a block, in 32-bit integers *)
 Definition WORD : Z := 4.  (* length of a word, in bytes *)
 Definition CBLOCKz : Z := (LBLOCKz * WORD)%Z. (* length of a block, in characters *)
 Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
+Definition hi_part (z: Z) := Int.repr (z / Int.modulus).
+Definition lo_part (z: Z) := Int.repr z.
 Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.
 
 Fixpoint little_endian_integer (contents: list int) : int :=
@@ -23,12 +25,6 @@ Fixpoint little_endian_integer (contents: list int) : int :=
  end.
 Definition big_endian_integer (contents: list int) : int :=
    little_endian_integer (rev contents).
-(* match contents with c0::c1::c2::c3::nil => 
-  Int.or (Int.shl c0 (Int.repr 24)) (Int.or (Int.shl c1 (Int.repr 16))
-   (Int.or (Int.shl c2 (Int.repr 8)) c3))
- | _ => Int.zero
- end.
-*)
 (* END OF "THIS BLOCK OF STUFF" *)
 
 Import ListNotations.

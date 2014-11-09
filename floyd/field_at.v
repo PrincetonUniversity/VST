@@ -722,7 +722,8 @@ Hint Rewrite <- field_at__offset_zero: norm.
 Hint Rewrite <- field_at_offset_zero: cancel.
 Hint Rewrite <- field_at__offset_zero: cancel.
 
-Hint Resolve field_at_field_at_: cancel.
+Hint Extern 2 (field_at _ _ _ _ _ |-- _) => 
+   (apply field_at_field_at_; solve [auto]) : cancel.
 
 Lemma field_at_field_at: forall sh t gfs0 gfs1 v v' p,
   legal_alignas_type t = true ->

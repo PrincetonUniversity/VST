@@ -16,17 +16,18 @@ Lemma sha256_block_data_order_return:
   (PROP  ()
    LOCAL  (temp _ctx ctx; var _K256 (tarray tuint CBLOCKz) kv)
    SEP 
-   (`(array_at tuint Tsh (tuints (hash_block regs b)) 0 8 ctx);
+   (`(field_at Tsh t_struct_SHA256state_st [StructField _h]
+           (map Vint (hash_block regs b)) ctx);
     `(K_vector kv);
-   `(array_at_ tuint Tsh 0 LBLOCKz) (eval_var _X (tarray tuint LBLOCKz));
+   `(data_at_ Tsh (tarray tuint LBLOCKz)) (eval_var _X (tarray tuint LBLOCKz));
    `(data_block sh (intlist_to_Zlist b) data)))
   (Sreturn None)
   (frame_ret_assert
      (function_body_ret_assert tvoid
-        (`(array_at tuint Tsh
-             (tuints (hash_blocks init_registers (hashed ++ b))) 0 8 ctx) *
-         `(data_block sh (intlist_to_Zlist b) data) *
-         `(K_vector kv)))
+          (`(field_at Tsh t_struct_SHA256state_st  [StructField _h] 
+                 (map Vint (hash_blocks init_registers (hashed++b))) ctx) *
+          `(data_block sh (intlist_to_Zlist b) data) *
+          `(K_vector kv)))
      (stackframe_of f_sha256_block_data_order)).
 Proof.
 intros.
@@ -39,11 +40,7 @@ unfold_lift.
 simpl_stackframe_of.
 unfold data_at_.
 unfold tarray.
-erewrite data_at_array_at; [| reflexivity | omega | reflexivity].
-unfold id.
-entailer!.
-apply derives_refl'; f_equal.
-f_equal.
-unfold regs.
-apply hash_blocks_last; auto.
+unfold regs; clear regs.
+rewrite hash_blocks_last; auto.
+cancel.
 Qed.

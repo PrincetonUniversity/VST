@@ -299,6 +299,22 @@ rewrite IHn.
 replace (i + S n) with (S (i + n)) by omega; auto.
 Qed.
 
+Lemma skipn_short:
+   forall {A} n (al: list A), n >= length al -> skipn n al = nil.
+Proof.
+intros.
+pose proof (skipn_length_short n al).
+spec H0; [auto | ].
+destruct (skipn n al); inv H0; auto.
+Qed.
+
+Lemma map_firstn: forall A B (f: A -> B) len data,
+    map f (firstn len data) = firstn len (map f data).
+Proof.
+induction len; destruct data; simpl; auto.
+f_equal; auto.
+Qed.
+
 Lemma Forall_app :
 forall {A} P (l1 l2 :list A),
 Forall P (l1 ++ l2) <->
@@ -554,6 +570,33 @@ change 0 with (Int.modulus mod Int.modulus).
 apply Int.eqmod_sym.
 apply Int.eqmod_mod.
 compute; congruence.
+Qed.
+
+Lemma hilo_lemma2:
+  forall z, 0 <= z < two_p 64   ->  hilo (hi_part z) (lo_part z) = z.
+Proof.
+intros.
+unfold hilo.
+unfold hi_part, lo_part.
+rewrite Int.unsigned_repr.
+rewrite Int.unsigned_repr_eq.
+rewrite Z.mul_comm.
+symmetry; apply Z_div_mod_eq.
+compute; auto.
+split.
+apply Z.div_pos. omega. compute; auto.
+assert (Int.max_unsigned + 1 = Int.modulus) by (compute; auto).
+assert (z / Int.modulus < Int.modulus); [ | omega].
+clear H0.
+apply Zmult_lt_reg_r with Int.modulus.
+compute; auto.
+pose proof (Z_div_mod_eq z Int.modulus).
+spec H0; [ compute; auto | ].
+change (Int.modulus * Int.modulus) with (two_p 64).
+rewrite Z.mul_comm.
+pose proof (Z.mod_pos_bound z Int.modulus).
+spec H1; [ compute; auto | ].
+omega.
 Qed.
 
 Lemma Forall_isbyteZ_unsigned_repr:
