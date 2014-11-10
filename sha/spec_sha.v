@@ -141,7 +141,7 @@ Definition SHA256_addlength_spec :=
  DECLARE _SHA256_addlength
  WITH len : Z, c: val, n: Z
  PRE [ _c OF tptr t_struct_SHA256state_st , _len OF tuint ]
-   PROP ( 0 <= n+len*8 < two_p 64; 0 <= len <= Int.max_unsigned) 
+   PROP ( 0 <= n+len*8 < two_p 64; 0 <= len <= Int.max_unsigned; 0 <= n) 
    LOCAL (temp _len (Vint (Int.repr len)); temp _c c)
    SEP (`(field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part n)) c);
           `(field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part n)) c))

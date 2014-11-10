@@ -213,7 +213,7 @@ Lemma call_memcpy_tuchar:
      nested_field_type2 tq pathq = tarray tuchar nq ->
      JMeq vq (map Vint contents) ->
      JMeq vp vp' ->
-     JMeq vp'' (splice_into_list lop (lop+len) (map Vint contents) vp') ->
+     JMeq vp'' (splice_into_list lop (lop+len) (skipn (Z.to_nat loq) (map Vint contents)) vp') ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
          PROP () LOCAL (`(eq (offset_val (Int.repr lop) 
                                       (offset_val (Int.repr (nested_field_offset2 tp pathp)) p))) (eval_expr e_p);
@@ -404,9 +404,10 @@ evar (Frame: list (LiftEnviron mpred)).
    (*len*) k
         Frame);
    [ auto | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | ].
-rewrite (data_at_field_at sh).
 unfold_data_at 1%nat.
 entailer!.
+rewrite skipn_0.
+rewrite (data_at_field_at sh).
 rewrite splice_into_list_simplify2
   by (repeat rewrite Zlength_map; omega).
 replace (Zlength dd + k - Zlength dd)%Z with k by omega.

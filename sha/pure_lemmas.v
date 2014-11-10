@@ -308,6 +308,12 @@ spec H0; [auto | ].
 destruct (skipn n al); inv H0; auto.
 Qed.
 
+Lemma skipn_0:
+  forall A (l: list A), skipn 0 l = l.
+Proof.
+reflexivity.
+Qed.
+
 Lemma map_firstn: forall A B (f: A -> B) len data,
     map f (firstn len data) = firstn len (map f data).
 Proof.

@@ -81,6 +81,7 @@ drop_LOCAL 0.
  entailer!.
 abbreviate_semax.
 repeat rewrite firstn_map. repeat rewrite <- map_app.
+rewrite skipn_0.
 rewrite splice_into_list_simplify2
   by (repeat rewrite Zlength_map; omega).
 rewrite Z.add_sub_swap, Z.sub_diag, Z.add_0_l, Nat2Z.id.

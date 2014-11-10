@@ -121,7 +121,7 @@ name l_ _l.
 name Nl _cNl.
 name Nh _cNh.
 rename H into BOUND.
-assert (Hn: 0 <= n) by admit.  (* add this to spec *)
+rename H1 into Hn.
 assert (MN: Int.modulus <> 0) by (intro Hx; inv Hx).
 forward.
 forward.
