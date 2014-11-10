@@ -22,8 +22,7 @@ Lemma semax_SC_set:
       is_neutral_cast (typeof e2) t = true ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr e2)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        local (tc_expr Delta e2) &&
-        local `(tc_val (typeof e2) v) ->
+        local (tc_expr Delta e2) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sset id e2)
           (normal_ret_assert
@@ -37,7 +36,7 @@ Proof.
     local (tc_expr Delta e2) && local (tc_temp_id id (typeof e2) Delta e2)).
   {
     apply andp_right.
-    + eapply derives_trans; [exact H2 | apply andp_left1; apply derives_refl].
+    + eapply derives_trans; [exact H2 | apply derives_refl].
     + unfold tc_temp_id.
       unfold typecheck_temp_id.
       unfold typeof_temp in H.

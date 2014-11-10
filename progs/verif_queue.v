@@ -396,7 +396,6 @@ forward_call (*  freeN(p, sizeof( *p)); *)
 
   apply derives_trans with (data_at_ Tsh t_struct_elem p'). unfold data_at_. 
   unfold_data_at 1%nat; cancel.
-  apply sepcon_derives; apply field_at_field_at_; reflexivity.
   rewrite data_at__memory_block; [| reflexivity | reflexivity | cbv; reflexivity].
   apply andp_left2; apply derives_refl.
 } after_call.

@@ -183,10 +183,14 @@ reflexivity.
 forward. (* x = a[i] *)
 forward. (* s += x; *)
 forward. (* i++; *)
-unfold sumarray_Inv.
-apply exp_right with (Zsucc i0).
-entailer!.
-apply add_one_more_to_sum; assumption.
+  unfold sumarray_Inv.
+  apply exp_right with (Zsucc i0).
+  entailer!.
+  rewrite H5 in H4.
+  simpl in H4.
+  erewrite add_one_more_to_sum by eauto.
+  inversion H4.
+  reflexivity.
 (* After the loop *)
 forward.  (* return s; *)
 Qed.

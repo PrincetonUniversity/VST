@@ -478,9 +478,6 @@ rewrite Zlist_to_intlist_to_Zlist;
      rewrite Z2Nat.id; [rewrite <- Zlength_correct; omega | omega ]]
  ].
 forward. (* data  += fragment; *)
-simpl typeof.
- entailer!.
-unfold v; destruct d; try contradiction ; apply I.
 forward. (* len -= fragment; *)
   normalize_postcondition.
 

@@ -139,11 +139,6 @@ after_call.
   Forward introduces the abbreviation v and fails to clear it;
   and introduces the assumption H2 that should not be there.
 *)
- clear H2.  (* This should not be necessary!  Consult Qinxiang *)
- entailer!.
-{ (* This proof should not be necessary? *)
- unfold v; clear - Pd; destruct d; try contradiction; simpl; auto.
-}
  forward. (* len  -= SHA_CBLOCK; *)
  unfold loop1_ret_assert.
  unfold sha_update_inv.
