@@ -68,6 +68,19 @@ simpl.
 apply normalize.corable_andp_sepcon1.
 apply corable_fun_assert.
 Qed.
+
+Lemma func_ptr_isptr:
+  forall spec f, (func_ptr spec f |-- !! isptr f)%logic.
+Proof.
+  intros.
+  unfold func_ptr.
+  destruct spec.
+  unfold res_predicates.fun_assert.
+  change (@predicates_hered.exp rmap compcert_rmaps.R.ag_rmap) with (@exp mpred Nveric).
+  change (@predicates_hered.andp rmap compcert_rmaps.R.ag_rmap) with (@andp mpred Nveric).
+  change (@predicates_hered.prop rmap compcert_rmaps.R.ag_rmap) with (@prop mpred Nveric).
+  normalize.
+Qed.
 Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
 Definition semax := @semax.

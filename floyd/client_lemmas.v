@@ -1761,5 +1761,3 @@ Definition type_is_by_value t :=
   | _ => False
   end.
 
-
-

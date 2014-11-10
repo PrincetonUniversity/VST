@@ -863,6 +863,7 @@ forall Delta Q Q' incr body R,
 (* THESE RULES FROM semax_call *)
 Parameter func_ptr : funspec -> val ->mpred.
 Axiom corable_func_ptr: forall f v, corable (func_ptr f v).
+Axiom func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
 
 Axiom semax_call : 
   forall {Espec: OracleKind},

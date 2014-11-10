@@ -569,10 +569,6 @@ entailer!.
  omega.
  *
  repeat apply sepcon_derives.
- apply field_at_cancel_undef_example.
- change (field_at Tsh t_struct_SHA256state_st [StructField _num] Vundef c')
-        with (field_at_ Tsh t_struct_SHA256state_st [StructField _num] c').
- cancel.
  unfold data_block.
- entailer!.
+ normalize.
 Qed.

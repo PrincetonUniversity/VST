@@ -1664,15 +1664,14 @@ Proof.
   normalize.
 Qed.
 
-Lemma align_1_memory_block_data_at_: forall (sh : share) (t : type) n,
+Lemma align_1_memory_block_data_at_: forall (sh : share) (t : type),
   legal_alignas_type t = true ->
   nested_non_volatile_type t = true ->
   alignof t = 1%Z ->
   (sizeof t < Int.modulus)%Z ->
-  n = Int.repr (sizeof t) ->
-  memory_block sh n = data_at_ sh t.
+  memory_block sh (Int.repr (sizeof t)) = data_at_ sh t.
 Proof.
-  intros. subst n.
+  intros.
   extensionality p.
   rewrite data_at__memory_block by auto.
   rewrite andp_comm.
