@@ -24,6 +24,94 @@ rewrite H0 at 2.
 rewrite Z.mul_comm; omega.
 Qed.
 
+Lemma eqm_mod1:
+  forall a b, Int.eqm a b <-> Int.eqm (a mod Int.modulus) b.
+Proof.
+intros.
+split; intros [x ?]; hnf.
+rewrite H; clear H.
+rewrite Z.add_mod by (compute; congruence).
+rewrite Z.mod_mul by  (compute; congruence).
+rewrite Z.add_0_l.
+rewrite Z.mod_mod by (compute; congruence).
+rewrite Zmod_eq by (compute; congruence).
+exists (- (b / Int.modulus)).
+rewrite Z.mul_opp_l. omega.
+rewrite (Zmod_eq a) in H by (compute; congruence).
+replace a with (a / Int.modulus * Int.modulus + x * Int.modulus + b) by omega.
+rewrite <- Z.mul_add_distr_r.
+econstructor; reflexivity.
+Qed.
+
+Lemma eqm_mod2:
+  forall a b, Int.eqm a b <-> Int.eqm a (b mod Int.modulus).
+Proof.
+intros.
+split; intro; apply Int.eqm_sym.
+apply -> eqm_mod1. apply Int.eqm_sym; auto.
+apply <- eqm_mod1. apply Int.eqm_sym; auto.
+Qed.
+
+Lemma addlength_assist:
+ forall (a b : Z),
+Int.eqm
+  (((a / Int.modulus) mod Int.modulus +
+    (a mod Int.modulus + b mod Int.modulus -
+     (a mod Int.modulus + b) mod Int.modulus) / Int.modulus) mod Int.modulus +
+   (b / Int.modulus) mod Int.modulus) ((a + b) / Int.modulus).
+Proof.
+intros.
+assert (HM' : 0 < Int.modulus) by (compute; congruence).
+assert  (MN : Int.modulus <> 0) by omega.
+Local Notation "'N'" := Int.modulus (at level 0).
+apply <- eqm_mod1.
+rewrite <- Z.add_mod by auto.
+eapply Int.eqm_trans.
+rewrite <- eqm_mod1.
+eapply Int.eqm_add; [ | apply Int.eqm_refl].
+eapply Int.eqm_add; [ | apply Int.eqm_refl].
+rewrite <- eqm_mod1. 
+apply Int.eqm_refl.
+rewrite <- (Z.add_comm (b/_)).
+rewrite Z.add_assoc.
+rewrite (Z.add_comm (b/_)).
+rewrite (Z.add_mod (a mod N)) by auto.
+rewrite Z.mod_mod by auto.
+rewrite <- Z.add_mod by auto.
+apply Int.eqm_trans with ((a/N*N + a mod N + b/N*N + b mod N)/N);
+ [ |
+   repeat rewrite <- (Z.mul_comm N);
+   rewrite <- (Z.div_mod a N) by auto;
+   rewrite <- Z.add_assoc; 
+   rewrite <- (Z.div_mod b N) by auto;
+   apply Int.eqm_refl].
+apply Int.eqm_trans with
+   ((a/N*N + (b/N*N + (a mod N + b mod N))) / N);
+  [ | apply Int.eqm_refl2; f_equal; clear; omega].
+ rewrite Z.div_add_l by auto.
+ rewrite Z.div_add_l by auto.
+ rewrite Z.add_assoc.
+ apply Int.eqm_add. apply Int.eqm_refl.
+ apply Int.eqm_refl2.
+assert (N | a mod N + b mod N - (a + b) mod N). {
+ assert (Int.eqm (a mod N + b mod N) ((a+b) mod N)).
+ apply -> eqm_mod2.
+ apply Int.eqm_add. apply -> eqm_mod1; apply Int.eqm_refl.
+ apply -> eqm_mod1; apply Int.eqm_refl.
+ destruct H.
+ rewrite H. exists x; omega.
+}
+destruct H as [x ?].
+ rewrite H.
+ rewrite Z.div_mul by auto.
+ assert (a mod N + b mod N = x * N + (a+b) mod N) by omega.
+ rewrite H0.
+ rewrite Z.div_add_l by auto.
+ rewrite Z.div_small.
+ omega.
+ apply Z.mod_pos_bound; auto.
+Qed.
+
 Lemma body_SHA256_addlength: semax_body Vprog Gtot f_SHA256_addlength SHA256_addlength_spec.
 Proof.
 start_function.
@@ -34,7 +122,6 @@ name Nl _cNl.
 name Nh _cNh.
 rename H into BOUND.
 assert (Hn: 0 <= n) by admit.  (* add this to spec *)
-(*revert POSTCONDITION; subst n; intro.*)
 assert (MN: Int.modulus <> 0) by (intro Hx; inv Hx).
 forward.
 forward.
@@ -141,11 +228,6 @@ forward_if (
  repeat rewrite Int.unsigned_repr_eq.
  rewrite (Z.add_mod _ (len*8)) by auto; 
  repeat rewrite int_unsigned_mod in *.
-(* rewrite <- (Int.repr_unsigned hi).
- rewrite <- (Int.repr_unsigned lo).
- pose proof (Int.unsigned_repr_eq (Int.unsigned hi)).
- pose proof (Int.unsigned_repr_eq (Int.unsigned lo)).
-*)
  repeat rewrite <- Z.add_mod by auto.
  change 8 with (two_p 3) in *.
  change Int.modulus with (two_p 32) in *.
@@ -158,88 +240,13 @@ replace (len/two_p 29) with (len * two_p 3 / two_p 32)
  apply Z.mul_nonneg_nonneg; [omega  | ]. compute; congruence.
  change (two_p 35) with (two_p 32 * two_p 3).
  apply Zmult_lt_compat_r; [compute; congruence | omega].
- f_equal.
  clear H.
- forget (len * two_p 3) as N.
+ forget (len * two_p 3) as b.
  change (two_p 64) with (two_p 32 * two_p 32) in BOUND, Hn.
  change (two_p 35) with (two_p 32 * two_p 3) in H1.
- assert (Hzz: 0 <= N < two_p 32 * two_p 32). {
-   destruct H1; split; auto.
-   eapply Z.lt_trans; try apply H1.
-   compute; auto.
- }   
- remember (two_p 32) as M.
- assert (HM': 0 < M) by (subst M; compute; congruence). 
-(*
- assert (0 <= n/M < M)
- by (split; [apply Z.div_pos; omega 
-         | apply Zmult_gt_0_lt_reg_r with M; try omega;
-           rewrite Z_div_mul by auto;
-           pose proof (Z.mod_pos_bound n M HM'); omega]).
- rewrite (Z.mod_small (n/M)) by omega.
- set (hi := n/M).
- set (lo := n mod M).
- 
-
-(hi + (lo + N mod M - (lo + N mod M) mod M) / M + N / M) mod M * M +
-(lo + N mod M) mod M = hi * M + lo + N
-*)
-
-
- rename n into a. rename N into b.
- clear len.
- clear - MN HM' Hn BOUND Hzz Hn.
- rewrite (Z.add_mod (a mod M) b) by auto.
- repeat rewrite Z.mod_mod by auto.
- rewrite <- Z.add_mod by auto.
- assert (0 <= a/M < M)
- by (split; [apply Z.div_pos; omega 
-         | apply Zmult_gt_0_lt_reg_r with M; try omega;
-           rewrite Z_div_mul by auto;
-           pose proof (Z.mod_pos_bound a M HM'); omega]).
- assert (0 <= b/M < M)
- by (split; [apply Z.div_pos; omega 
-         | apply Zmult_gt_0_lt_reg_r with M; try omega;
-           rewrite Z_div_mul by auto;
-           pose proof (Z.mod_pos_bound b M HM'); omega]).
- assert (0 <= (a+b)/M < M)
- by (split; [apply Z.div_pos; omega 
-         | apply Zmult_gt_0_lt_reg_r with M; try omega;
-           rewrite Z_div_mul by auto;
-           pose proof (Z.mod_pos_bound (a+b) M HM'); omega]).
- rewrite (Z.mod_small (a/M)) by omega.
- rewrite (Z.mod_small (b/M)) by omega.
- symmetry.
- pattern a at 1; rewrite (Z.div_mod a M MN).
- pattern b at 1; rewrite (Z.div_mod b M MN).
- transitivity ((M * (a/M) + M * (b/M) + (a mod M + b mod M)) / M);
-    [ f_equal; omega | ].
- rewrite <- Z.mul_add_distr_l.
- rewrite (Z.div_mod (a mod M + b mod M) M MN).
- rewrite Z.add_assoc.
- rewrite <- Z.mul_add_distr_l.
- rewrite (Z.mul_comm M).
-rewrite Z.div_add_l by omega.
- rewrite <- Z.add_mod by auto.
-rewrite Z.add_simpl_r.
- rewrite (Z.mul_comm M).
- rewrite Z_div_mult_full by auto.
- rewrite (Z.mod_small (_ + _/M)).
- rewrite (Z.div_small (_ mod M) M)
-  by (apply Z.mod_pos_bound; auto).
- omega.
- split.
- apply Z.add_nonneg_nonneg; apply Z.div_pos; auto; try omega.
- apply Z.add_nonneg_nonneg; apply Z.mod_pos_bound; auto.
-(*
-assert (a mod M + b mod M = (a+b) mod M + (a mod M + b mod M)/M*M).
- rewrite (Z.add_mod); auto.
- pattern (a mod M + b mod M) at 1;
- rewrite (Z.div_mod _ M) by auto.
- rewrite Z.mul_comm. omega.
- rewrite H2. clear H2.
- *)
- admit.
+ change (two_p 32) with Int.modulus in *.
+ clear H0.
+ rename n into a.
+ apply Int.eqm_samerepr.
+apply addlength_assist; auto.
 Qed.
-
-
