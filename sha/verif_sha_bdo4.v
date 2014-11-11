@@ -459,25 +459,18 @@ assert (is_int I32 Unsigned (nthi K256 (Z.of_nat i)))
        apply Z.lt_trans with (Z.of_nat LBLOCK);
       [omega | compute; auto]).
 *)
-
-
 assert (Z.of_nat i < Zlength K256) 
   by (change (Zlength K256) with (Z.of_nat (LBLOCK + 48));
        apply Nat2Z.inj_lt; omega).
-  change (Zlength K256) with 64.
-  change (tarray tuint (Zlength K256)) with (tarray tuint 64).
+  change (Zlength K256) with 64 in *.
+  change (Z.of_nat LBLOCK) with 16. change CBLOCKz with 64.
+(*   change (tarray tuint (Zlength K256)) with (tarray tuint 64).*) 
 forward.  (* Ki=K256[i]; *)
 (* 1,689,280 1,212,872 *)
-instantiate (2:=Tsh).
-instantiate (2:= (Vint (nthi b (Z.of_nat i)))).
 entailer!.
-
-STOP.  
-instantiate (1:= Zlength K256).
-instantiate (1:= tuints K256).
-instantiate (1:= Tsh).
-assert (Zlength K256 = 64%Z) by reflexivity;
-  entailer!; omega.
+unfold Znth. rewrite if_false by omega. rewrite Nat2Z.id.
+rewrite (nth_map' Vint Vundef Int.zero). apply I.
+change (length K256) with (LBLOCK  + 48)%nat; omega.
 (* 1,811,028 1,406,332 *)
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 
@@ -487,11 +480,16 @@ match goal with
  => apply semax_post' with (PROPx P (LOCALx Q (SEPx R)));
   [ | change R with (nil++R); apply semax_frame_PQR with (R2:=R)]
 end.
-apply andp_derives; auto;
-apply andp_derives; auto;
-unfold Z.succ; rewrite inj_S;
-go_lower0; cancel.
-auto 50 with closed.
+
+ apply andp_derives; auto.
+ apply andp_derives; auto.
+ replace (S i) with (i+1)%nat by omega.
+ go_lower0; cancel.
+ unfold data_block.
+ rewrite prop_true_andp by (apply isbyte_intlist_to_Zlist).
+ rewrite Zlength_map. auto.
+
+ auto 50 with closed.
 (* 1,811,028 1,429,048 *)
 forget (nthi b) as M.
 apply semax_pre with
@@ -508,6 +506,7 @@ apply semax_pre with
                  temp _f (Vint (nthi (Round regs M (Z.of_nat i - 1)) 5));
                  temp _g (Vint (nthi (Round regs M (Z.of_nat i - 1)) 6));
                  temp _h (Vint (nthi (Round regs M (Z.of_nat i - 1)) 7));
+                 var _X (tarray tuint 16) Xv; 
                  var _K256 (tarray tuint CBLOCKz) kv)
    SEP()).
 { 
@@ -516,13 +515,10 @@ f_equal. f_equal. unfold Z.succ; rewrite Z.mul_add_distr_r; reflexivity.
 rewrite W_equation.
 rewrite if_true; auto.
 omega.
-(*clear - H0; change 16 with (Z.of_nat 16); apply Nat2Z.inj_lt; auto.
 
-*)
 clear - H0 H4. rename H4 into H2.
-unfold tuints, ZnthV in H2.
-rewrite Int.signed_repr in H2 by 
- (pose proof LBLOCK_eq; repable_signed).
+unfold Znth in H2.
+
 rewrite if_false in H2 by omega.
 unfold nthi.
 rewrite Nat2Z.id in *.
@@ -541,7 +537,7 @@ forget (W M (Z.of_nat i)) as w.
 assert (length (Round regs M (Z.of_nat i - 1)) = 8)%nat.
 apply length_Round; auto.
 forget (Round regs M (Z.of_nat i - 1)) as regs'.
-change 16 with LBLOCK.
+change 16%nat with LBLOCK.
 destruct regs' as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; inv H.
 unfold rearrange_regs.
 abbreviate_semax.
