@@ -318,7 +318,19 @@ Lemma field_at_cancel_undef_example:
   forall  d c, 
   field_at Tsh t_struct_SHA256state_st [StructField _data] d c |--
   field_at Tsh t_struct_SHA256state_st [StructField _data] (list_repeat 64 Vundef) c.
-Admitted.
+Proof.
+  intros.
+  apply field_at_stronger; [reflexivity |].
+  change (nested_field_type2 t_struct_SHA256state_st [StructField _data]) with (tarray tuchar 64).
+  apply stronger_array_ext; [reflexivity |].
+  intros.
+  unfold Znth.
+  if_tac; [omega |].
+  rewrite nth_list_repeat.
+  intros sh p.
+  apply data_at_data_at_.
+  reflexivity.
+Qed.
 
 Lemma update_inner_if_then_proof:
  forall (Espec : OracleKind) (hashed : list int)

@@ -511,6 +511,12 @@ Definition stronger {t: type} (v v': reptype t) : Prop :=
 
 Notation "X '>>>' Y" := (stronger X Y) (at level 60, no associativity).
 
+Lemma stronger_refl: forall t (v: reptype t), v >>> v.
+Proof.
+  intros t v sh p.
+  auto.
+Qed.
+
 Lemma eq_rect_r_stronger: forall {t1 t2} v0 v1 (H: t1 = t2),
   v0 >>> v1 ->
   eq_rect_r reptype v0 H >>> eq_rect_r reptype v1 H.

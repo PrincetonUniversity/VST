@@ -216,3 +216,72 @@ Proof.
     rewrite IHxs.
     reflexivity.
 Qed.
+
+Lemma len_le_1_rev: forall {A} (contents: list A),
+  (length contents <= 1)%nat ->
+  contents = rev contents.
+Proof.
+  intros.
+  destruct contents.
+  + reflexivity.
+  + destruct contents.
+    - reflexivity.
+    - simpl in H. omega.
+Qed.
+
+Lemma firstn_firstn: forall {A} (contents: list A) n m,
+  (n <= m)%nat ->
+  firstn n (firstn m contents) = firstn n contents.
+Proof.
+  intros.
+  revert n m H;
+  induction contents;
+  intros.
+  + destruct n, m; reflexivity.
+  + destruct n, m; try solve [omega].
+    - simpl; reflexivity.
+    - simpl; reflexivity.
+    - simpl.
+      rewrite IHcontents by omega.
+      reflexivity.
+Qed.
+
+Lemma firstn_1_skipn: forall {A} n (ct: list A) d,
+  (n < length ct)%nat ->
+  nth n ct d :: nil = firstn 1 (skipn n ct).
+Proof.
+  intros.
+  revert ct H; induction n; intros; destruct ct.
+  + simpl in H; omega.
+  + simpl. reflexivity.
+  + simpl in H; omega.
+  + simpl in H |- *.
+    rewrite IHn by omega.
+    reflexivity.
+Qed.
+
+Lemma split3_full_length_list: forall {A} lo mid hi (ct: list A) d,
+  lo <= mid < hi ->
+  Zlength ct = hi - lo ->
+  ct = firstn (Z.to_nat (mid - lo)) ct ++
+       (Znth (mid - lo) ct d :: nil) ++
+       skipn (Z.to_nat (mid - lo + 1)) ct.
+Proof.
+  intros.
+  rewrite <- firstn_skipn with (l := ct) (n := Z.to_nat (mid - lo)) at 1.
+  f_equal.
+  rewrite Z2Nat.inj_add by omega.
+  rewrite <- skipn_skipn.
+  replace (Znth (mid - lo) ct d :: nil) with (firstn (Z.to_nat 1) (skipn (Z.to_nat (mid - lo)) ct)).
+  + rewrite firstn_skipn; reflexivity.
+  + unfold Znth.
+    if_tac; [omega |].
+    rewrite firstn_1_skipn; [reflexivity |].
+    rewrite <- (Nat2Z.id (length ct)).
+    apply Z2Nat.inj_lt.
+    - omega.
+    - omega.
+    - rewrite Zlength_correct in H0.
+      omega.
+Qed.
+
