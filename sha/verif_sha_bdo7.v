@@ -270,9 +270,15 @@ assert (16 <= Z.of_nat i < 64)%Z. {
  change (Z.of_nat c64) with 64%Z in H1.
  omega.
 }
-
-STOP.  (* Qinxiang, please look at this one *)
+change (tarray tuint LBLOCKz) with (tarray tuint 16).
+change LBLOCKz with 16%Z in H.
 forward.	(*s0 = X[(i+1)&0x0f]; *)
+instantiate (3 := Vint (nthi b 
+    (Int.unsigned
+    (Int.mul (Int.repr (sizeof tuint))
+             (Int.and (Int.repr (Z.of_nat i + 1)) (Int.repr 15)))))).
+instantiate (1:=Tsh).
+
 clear; entailer; apply andp_right; [| cancel].
 apply prop_right; repeat split; try apply and_mod_15_lem.
 

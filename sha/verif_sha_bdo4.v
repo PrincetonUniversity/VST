@@ -35,7 +35,7 @@ Lemma loop1_aux_lemma1:
   v = nthi b (Z.of_nat i) ->
   upd_reptype_array tuint (Z.of_nat i) (map Vint (firstn i b))
           (Vint v)
-  =  map Vint (firstn (S i) b).
+  =  map Vint (firstn (i+1) b).
 Proof.
 intros.
 unfold upd_reptype_array.
@@ -464,10 +464,15 @@ assert (is_int I32 Unsigned (nthi K256 (Z.of_nat i)))
 assert (Z.of_nat i < Zlength K256) 
   by (change (Zlength K256) with (Z.of_nat (LBLOCK + 48));
        apply Nat2Z.inj_lt; omega).
-STOP.  (* Qinxiang: look at the next "forward", Ki=K256[i];  *)
+  change (Zlength K256) with 64.
+  change (tarray tuint (Zlength K256)) with (tarray tuint 64).
 forward.  (* Ki=K256[i]; *)
 (* 1,689,280 1,212,872 *)
+instantiate (2:=Tsh).
+instantiate (2:= (Vint (nthi b (Z.of_nat i)))).
+entailer!.
 
+STOP.  
 instantiate (1:= Zlength K256).
 instantiate (1:= tuints K256).
 instantiate (1:= Tsh).
