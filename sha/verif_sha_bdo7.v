@@ -211,7 +211,7 @@ Definition block_data_order_loop2 :=
 
 Lemma bdo_loop2_body_proof:
  forall (Espec : OracleKind)
-   (b : list int) (ctx : val) ( regs : list int) (i : nat) kv
+   (b : list int) (ctx : val) ( regs : list int) (i : nat) kv Xv
    (Hregs: length regs = 8%nat)
    (H : Zlength b = LBLOCKz)
    (H0 : (LBLOCK <= i < c64)%nat),
@@ -226,10 +226,10 @@ semax Delta_loop1
                  temp _f  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5));
                  temp _g  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6));
                  temp _h  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7));
+                 var _X (tarray tuint LBLOCKz) Xv;
                  var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(K_vector kv);
-   `(array_at tuint Tsh (Xarray b (Z.of_nat i)) 0 LBLOCKz)
-     (eval_var _X (tarray tuint LBLOCKz))))
+   `(data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv)))
   bdo_loop2_body
   (normal_ret_assert
      (EX  i0 : nat,
@@ -243,10 +243,10 @@ semax Delta_loop1
                  temp _f  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 5));
                  temp _g  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 6));
                  temp _h  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 7));
+                 var _X (tarray tuint LBLOCKz) Xv;
                  var  _K256 (tarray tuint CBLOCKz) kv)
       SEP  (`(K_vector kv);
-      `(array_at tuint Tsh (Xarray b (Z.of_nat i0)) 0 LBLOCKz)
-        (eval_var _X (tarray tuint LBLOCKz))))).
+      `(data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv)))).
 Proof.
 intros.
 unfold bdo_loop2_body; abbreviate_semax.
@@ -271,6 +271,7 @@ assert (16 <= Z.of_nat i < 64)%Z. {
  omega.
 }
 
+STOP.  (* Qinxiang, please look at this one *)
 forward.	(*s0 = X[(i+1)&0x0f]; *)
 clear; entailer; apply andp_right; [| cancel].
 apply prop_right; repeat split; try apply and_mod_15_lem.
