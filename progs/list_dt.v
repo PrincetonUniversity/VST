@@ -495,8 +495,6 @@ apply andp_right.
 rewrite prop_and; rewrite prop_true_andp by auto.
 apply not_prop_right; intro. apply ptr_eq_e in H0; subst z.
 apply ewand_conflict.
-Check field_at__conflict.
-Locate data_at_conflict.
 eapply derives_trans; [apply sepcon_derives | apply field_at__conflict];
   try apply field_at_field_at_;try apply list_struct_alignas_legal;
   try apply (list_link_size_in_range ls).

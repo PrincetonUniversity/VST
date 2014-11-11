@@ -161,10 +161,10 @@ apply flip_fact_1; omega.
 (* Prove that loop body preserves invariant *)
 forward.  (* t = a[lo]; *)
 {
-  subst e efs1 efs0 tts1 tts0 t_root gfs0 gfs1 v. entailer.
-  rewrite Int.sub_signed in H9.
-  rewrite Int.signed_repr in H9 by repable_signed.
-  rewrite Int.signed_repr in H9 by repable_signed.
+  entailer.
+  rewrite Int.sub_signed in H4.
+  rewrite Int.signed_repr in H4 by repable_signed.
+  rewrite Int.signed_repr in H4 by repable_signed.
   simpl_compare.
   entailer!.
   rewrite flip_fact_2 by omega.
@@ -173,18 +173,18 @@ forward.  (* t = a[lo]; *)
 }
 {
   entailer!.
-  rewrite Int.sub_signed in H9.
-  rewrite Int.signed_repr in H9 by repable_signed.
-  rewrite Int.signed_repr in H9 by repable_signed.
+  rewrite Int.sub_signed in H4.
+  rewrite Int.signed_repr in H4 by repable_signed.
+  rewrite Int.signed_repr in H4 by repable_signed.
   simpl_compare.
   omega.
 }
 forward.  (* s = a[hi-1]; *)
 {
-  subst e efs1 efs0 tts1 tts0 t_root gfs0 gfs1 v. entailer.
-  rewrite Int.sub_signed in H10.
-  rewrite Int.signed_repr in H10 by repable_signed.
-  rewrite Int.signed_repr in H10 by repable_signed.
+  entailer.
+  rewrite Int.sub_signed in H5.
+  rewrite Int.signed_repr in H5 by repable_signed.
+  rewrite Int.signed_repr in H5 by repable_signed.
   simpl_compare.
   entailer!.
   rewrite flip_fact_2 by omega.
@@ -193,9 +193,9 @@ forward.  (* s = a[hi-1]; *)
 }
 {
   entailer!.
-  rewrite Int.sub_signed in H10.
-  rewrite Int.signed_repr in H10 by repable_signed.
-  rewrite Int.signed_repr in H10 by repable_signed.
+  rewrite Int.sub_signed in H5.
+  rewrite Int.signed_repr in H5 by repable_signed.
+  rewrite Int.signed_repr in H5 by repable_signed.
   simpl_compare.
   omega.
 }
@@ -203,9 +203,9 @@ normalize.
 forward. (*  a[hi-1] = t ; *)
 {
   entailer!.
-  rewrite Int.sub_signed in H12.
-  rewrite Int.signed_repr in H12 by repable_signed.
-  rewrite Int.signed_repr in H12 by repable_signed.
+  rewrite Int.sub_signed in H6.
+  rewrite Int.signed_repr in H6 by repable_signed.
+  rewrite Int.signed_repr in H6 by repable_signed.
   simpl_compare.
   omega.
 }
@@ -213,9 +213,9 @@ normalize.
 forward. (*  a[lo] = s; *) 
 {
   entailer!.
-  rewrite Int.sub_signed in H12.
-  rewrite Int.signed_repr in H12 by repable_signed.
-  rewrite Int.signed_repr in H12 by repable_signed.
+  rewrite Int.sub_signed in H6.
+  rewrite Int.signed_repr in H6 by repable_signed.
+  rewrite Int.signed_repr in H6 by repable_signed.
   simpl_compare.
   omega.
 }

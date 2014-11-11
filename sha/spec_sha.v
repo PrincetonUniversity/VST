@@ -77,8 +77,9 @@ Definition __builtin_read32_reversed_spec :=
  DECLARE ___builtin_read32_reversed
   WITH p: val, sh: share, contents: list int
   PRE [ _ptr OF tptr tuint ] 
-        PROP() LOCAL (temp _ptr p)
-        SEP (`(data_at sh (tarray tuchar 4) (map Vint (rev contents)) p))
+        PROP  (Zlength contents >= 4)
+        LOCAL (temp _ptr p)
+        SEP   (`(data_at sh (tarray tuchar 4) (map Vint (rev contents)) p))
   POST [ tuint ] 
      local (`(eq (Vint (big_endian_integer contents))) retval) &&
      `(data_at sh (tarray tuchar 4) (map Vint contents) p).
@@ -87,10 +88,11 @@ Definition __builtin_write32_reversed_spec :=
  DECLARE ___builtin_write32_reversed
   WITH p: val, sh: share, contents: list int
   PRE [ _ptr OF tptr tuint, _x OF tuint ] 
-        PROP(writable_share sh)
+        PROP  (writable_share sh;
+               Zlength contents >= 4)
         LOCAL (temp _ptr p;
                temp _x (Vint(big_endian_integer contents)))
-        SEP (`(memory_block sh (Int.repr 4) p))
+        SEP   (`(memory_block sh (Int.repr 4) p))
   POST [ tvoid ] 
      `(data_at sh (tarray tuchar 4) (map Vint contents)  p).
 

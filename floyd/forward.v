@@ -1516,7 +1516,9 @@ first [(*forward_setx_wow
                 let v := fresh "v" in evar (v : val);
                 let HRE := fresh "H" in
                 do_compute_expr Delta P Q R e v HRE;
-                eapply semax_SC_set; [reflexivity | reflexivity | exact HRE | try solve [entailer!]]
+                eapply semax_SC_set;
+                  [reflexivity | reflexivity | exact HRE 
+                  | try solve [entailer!]; try (clear HRE; subst v)]
          end
        | apply forward_setx_closed_now;
             [solve [auto 50 with closed] | solve [auto 50 with closed] | solve [auto 50 with closed]
@@ -1679,11 +1681,19 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
           | vi := Vint (Int.sub _ _) |- _ => unfold Int.sub in vi
           | vi := Vint (Int.add _ _) |- _ => unfold Int.add in vi
           | vi := Vint (Int.mul _ _) |- _ => unfold Int.mul in vi
-          | _ => idtac
+          | vi := Vint (Int.and _ _) |- _ => unfold Int.and in vi
+          | vi := Vint (Int.or _ _) |- _ => unfold Int.or in vi
+          | vi := Vint (Int.repr _) |- _ => idtac
+          | vi := Vint ?V |- _ =>
+            subst vi;
+            replace V with (Int.repr (Int.unsigned V)) in HA
+              by (rewrite (Int.repr_unsigned V); reflexivity);
+            pose (Vint (Int.repr (Int.unsigned V))) as vi
           end;
 
           match goal with
           | vi := Vint (Int.repr ?i) |- _ => instantiate (1 := ArraySubsc i :: gfs0')
+          | vi := Vint ?i |- _ => instantiate (1 := ArraySubsc (Int.unsigned i) :: gfs0')
           end;
           
           let HB := fresh "H" in
@@ -1923,7 +1933,11 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_cast_load Delta sh SE n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | reflexivity | reflexivity | exact Heq | exact HLE | exact H_Denote 
-    | exact H | reflexivity | try solve [entailer!] | solve_legal_nested_field_in_entailment]
+    | exact H | reflexivity
+    | try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
+      subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root v sh lr n; simpl app; simpl typeof)
+    | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;
+      subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root v sh lr n]
 
 | SE := @abbreviate type_id_env _ 
     |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
@@ -2032,7 +2046,11 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_load Delta sh SE n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | reflexivity | reflexivity | exact Heq | exact HLE | exact H_Denote 
-    | exact H | reflexivity | try solve [entailer!] | solve_legal_nested_field_in_entailment]
+    | exact H | reflexivity
+    | try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
+      subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root v sh lr n; simpl app; simpl typeof)
+    | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;
+      subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root v sh lr n]
 
 | SE := @abbreviate type_id_env _ 
     |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
@@ -2258,15 +2276,21 @@ match goal with
           with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
         [reflexivity | reflexivity | simpl; auto | reflexivity
         | reflexivity | reflexivity | reflexivity | exact Heq | exact HLE
-        | exact HRE | exact H_Denote | exact H | auto | try solve[entailer!]
-        | solve_legal_nested_field_in_entailment ]
+        | exact HRE | exact H_Denote | exact H | auto
+        | try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
+          subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n; simpl app; simpl typeof)
+        | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
+          subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n ]
       | appcontext [field_at_] =>
         eapply (semax_SC_field_store Delta sh SE n)
           with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
         [reflexivity | reflexivity | simpl; auto | reflexivity
         | reflexivity | reflexivity | reflexivity | exact Heq | exact HLE
-        | exact HRE | exact H_Denote | exact H | auto | try solve[entailer!]
-        | solve_legal_nested_field_in_entailment ]
+        | exact HRE | exact H_Denote | exact H | auto 
+        | try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
+          subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n; simpl app; simpl typeof)
+        | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
+          subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n ]
       | _ =>
         eapply semax_post'; [ |
           eapply (semax_SC_field_store Delta sh SE n)
@@ -2284,8 +2308,10 @@ match goal with
                subst MM;
                apply derives_refl
           end
-        | try solve[entailer!]
-        | solve_legal_nested_field_in_entailment]
+        | try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
+          subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n; simpl app; simpl typeof)
+        | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
+          subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n ]
       end
     end
 
