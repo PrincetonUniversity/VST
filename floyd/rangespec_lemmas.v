@@ -137,27 +137,6 @@ Proof.
 intros. apply pred_ext. apply orp_left; normalize. apply orp_right2; auto.
 Qed.
 
-Lemma firstn_app:
- forall {A} n m (al: list A), firstn n al ++ firstn m (skipn n al) =
-  firstn (n+m) al.
-Proof. induction n; destruct al; intros; simpl; auto.
-destruct m; reflexivity.
-f_equal; auto.
-Qed.
-
-Lemma nth_skipn:
-  forall {A} i n data (d:A),
-       nth i (skipn n data) d = nth (i+n) data d.
-Proof.
-intros.
-revert i data; induction n; simpl; intros.
-f_equal; omega.
-destruct data; auto.
-destruct i; simpl; auto.
-rewrite IHn.
-replace (i + S n)%nat with (S (i + n))%nat by omega; auto.
-Qed.
-
 Lemma Znth_succ: forall {A} i lo (v: list A), Z.succ lo <= i -> Znth (i - lo) v = Znth (i - (Z.succ lo)) (skipn 1 v).
 Proof.
   intros.
@@ -173,18 +152,6 @@ Proof.
   omega.
 Qed.
 
-Lemma skipn_skipn: forall {A} n m (xs: list A),
-  skipn n (skipn m xs) = skipn (m + n) xs.
-Proof.
-  intros.
-  revert xs; induction m; intros.
-  + reflexivity.
-  + simpl.
-    destruct xs.
-    - destruct n; reflexivity.
-    - apply IHm.
-Qed.
-
 Lemma Znth_skipn: forall {A} n xs (default: A),
   0 <= n ->
   Znth 0 (skipn (nat_of_Z n) xs) default = Znth n xs default.
@@ -195,69 +162,6 @@ Proof.
   if_tac; [omega |].
   rewrite nth_skipn.
   reflexivity.
-Qed.
-
-Lemma firstn_exact_length: forall {A} (xs: list A), firstn (length xs) xs = xs.
-Proof.
-  intros.
-  induction xs.
-  + reflexivity.
-  + simpl.
-    rewrite IHxs.
-    reflexivity.
-Qed.
-
-Lemma skipn_exact_length: forall {A} (xs: list A), skipn (length xs) xs = nil.
-Proof.
-  intros.
-  induction xs.
-  + reflexivity.
-  + simpl.
-    rewrite IHxs.
-    reflexivity.
-Qed.
-
-Lemma len_le_1_rev: forall {A} (contents: list A),
-  (length contents <= 1)%nat ->
-  contents = rev contents.
-Proof.
-  intros.
-  destruct contents.
-  + reflexivity.
-  + destruct contents.
-    - reflexivity.
-    - simpl in H. omega.
-Qed.
-
-Lemma firstn_firstn: forall {A} (contents: list A) n m,
-  (n <= m)%nat ->
-  firstn n (firstn m contents) = firstn n contents.
-Proof.
-  intros.
-  revert n m H;
-  induction contents;
-  intros.
-  + destruct n, m; reflexivity.
-  + destruct n, m; try solve [omega].
-    - simpl; reflexivity.
-    - simpl; reflexivity.
-    - simpl.
-      rewrite IHcontents by omega.
-      reflexivity.
-Qed.
-
-Lemma firstn_1_skipn: forall {A} n (ct: list A) d,
-  (n < length ct)%nat ->
-  nth n ct d :: nil = firstn 1 (skipn n ct).
-Proof.
-  intros.
-  revert ct H; induction n; intros; destruct ct.
-  + simpl in H; omega.
-  + simpl. reflexivity.
-  + simpl in H; omega.
-  + simpl in H |- *.
-    rewrite IHn by omega.
-    reflexivity.
 Qed.
 
 Lemma split3_full_length_list: forall {A} lo mid hi (ct: list A) d,

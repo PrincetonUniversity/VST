@@ -46,19 +46,6 @@ Proof.
   + omega.
 Qed.
 
-Lemma skipn_length: forall {A} (contents: list A) n,
-  length (skipn n contents) = (length contents - n)%nat.
-Proof.
-  intros.
-  revert n;
-  induction contents;
-  intros.
-  + destruct n; reflexivity.
-  + destruct n; simpl.
-    - reflexivity.
-    - apply IHcontents.
-Qed.
-
 (************************************************
 
 split lemmas of rangespec
@@ -652,20 +639,6 @@ Proof.
   rewrite (add_andp _ _ H1).
   rewrite !(andp_comm _ (!! P)).
   apply extract_prop_from_equal, H.
-Qed.
-
-Lemma nth_firstn: forall {A} (contents: list A) n m d,
-  (n < m)%nat ->
-  nth n (firstn m contents) d = nth n contents d.
-Proof.
-  intros.
-  revert n m H;
-  induction contents;
-  intros.
-  + destruct n, m; reflexivity.
-  + destruct n, m; try omega.
-    - simpl. reflexivity.
-    - simpl. apply IHcontents. omega.
 Qed.
 
 Lemma prop_andp_ext':

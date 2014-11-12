@@ -191,7 +191,7 @@ Definition data_equal {t} v1 v2 := forall sh, data_at sh t v1 = data_at sh t v2.
 
 Notation "X '===' Y" := (data_equal X Y) (at level 60, no associativity).
 
-Lemma data_equal_stroner: forall {t} (v1 v2: reptype t), (v1 === v2) <-> (v1 >>> v2) /\ (v2 >>> v1).
+Lemma data_equal_stronger: forall {t} (v1 v2: reptype t), (v1 === v2) <-> (v1 >>> v2) /\ (v2 >>> v1).
 Proof.
   intros.
   split; intro.
@@ -222,19 +222,36 @@ Proof.
   reflexivity.
 Qed.
 
-(*
-Lemma data_equal_data_at'_derives: forall sh t v0 v1 pos p,
+Lemma field_at_data_equal: forall sh t gfs v0 v1,
   legal_alignas_type t = true ->
-  (alignof t | pos) ->
   v0 === v1 ->
-  size_compatible t (offset_val (Int.repr pos) p) ->
-  align_compatible t (offset_val (Int.repr pos) p) ->
-  data_at' sh type_id_env.empty_ti t pos v0 p = data_at' sh type_id_env.empty_ti t pos v1 p.
+  field_at sh t gfs v0 = field_at sh t gfs v1.
 Proof.
   intros.
-*)
+  destruct (data_equal_stronger v0 v1) as [? _].
+  spec H1; [auto |].
+  apply pred_ext; apply field_at_stronger; tauto.
+Qed.
 
-
-
-
-  
+Lemma data_equal_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
+  legal_alignas_type (Tarray t0 n a) = true ->
+  (forall i, 0 <= i < n -> Znth i v0 (default_val _) === Znth i v1 (default_val _)) ->
+  v0 === v1.
+Proof.
+  intros.
+  assert (forall i : Z, 0 <= i < n -> Znth i v0 (default_val t0) >>> Znth i v1 (default_val t0)).
+  Focus 1. {
+    intros.
+    specialize (H0 i H1).
+    destruct (data_equal_stronger (Znth i v0 (default_val t0)) (Znth i v1 (default_val t0))) as [? _].
+    tauto.
+  } Unfocus.
+  assert (forall i : Z, 0 <= i < n -> Znth i v1 (default_val t0) >>> Znth i v0 (default_val t0)).
+  Focus 1. {
+    intros.
+    specialize (H0 i H2).
+    destruct (data_equal_stronger (Znth i v0 (default_val t0)) (Znth i v1 (default_val t0))) as [? _].
+    tauto.
+  } Unfocus.
+  apply data_equal_stronger; split; apply stronger_array_ext; auto.
+Qed.

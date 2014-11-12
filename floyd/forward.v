@@ -1677,29 +1677,29 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
           let vi := fresh "vi" in evar (vi: val);
           do_compute_expr Delta P Q R ei vi HA;
 
-          (* This code is damn ugly. Is there any counterpart of "type of", *)
-          (* something like "value of".                                     *)
+          revert vi HA;
+          let vvvv := fresh "vvvv" in
           let HHHH := fresh "HHHH" in
-            assert (vi = vi) as HHHH by reflexivity;
-          unfold vi in HHHH;
+            match goal with
+            | |- let vi := ?V in _ => remember V as vvvv eqn:HHHH
+            end;
+          autorewrite with norm in HHHH;
+      
           match type of HHHH with
-          | _ = Vint (Int.sub _ _) => unfold Int.sub in vi
-          | _ = Vint (Int.add _ _) => unfold Int.add in vi
-          | _ = Vint (Int.mul _ _) => unfold Int.mul in vi
-          | _ = Vint (Int.and _ _) => unfold Int.and in vi
-          | _ = Vint (Int.or _ _) => unfold Int.or in vi
           | _ = Vint (Int.repr _) => idtac
+          | _ = Vint (Int.sub _ _) => unfold Int.sub in HHHH
+          | _ = Vint (Int.add _ _) => unfold Int.add in HHHH
+          | _ = Vint (Int.mul _ _) => unfold Int.mul in HHHH
+          | _ = Vint (Int.and _ _) => unfold Int.and in HHHH
+          | _ = Vint (Int.or _ _) => unfold Int.or in HHHH
           | _ = Vint ?V =>
-            subst vi;
-            replace V with (Int.repr (Int.unsigned V)) in HA
-              by (rewrite (Int.repr_unsigned V); reflexivity);
-            pose (Vint (Int.repr (Int.unsigned V))) as vi
+            replace V with (Int.repr (Int.unsigned V)) in HHHH
+              by (rewrite (Int.repr_unsigned V); reflexivity)
           end;
-          clear HHHH;
+          subst vvvv; intros vi HA;
 
           match goal with
           | vi := Vint (Int.repr ?i) |- _ => instantiate (1 := ArraySubsc i :: gfs0')
-          | vi := Vint ?i |- _ => instantiate (1 := ArraySubsc (Int.unsigned i) :: gfs0')
           end;
           
           let HB := fresh "H" in

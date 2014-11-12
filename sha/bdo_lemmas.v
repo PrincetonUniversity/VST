@@ -1,4 +1,4 @@
-Require Import proofauto.
+Require Import floyd.proofauto.
 Require Import sha.SHA256.
 Require Import sha.sha.
 Require Import sha.spec_sha.
@@ -285,8 +285,7 @@ assert (H1: firstn 1 (skipn (16 - S n) b) =
   [ | rewrite H1; reflexivity].
 unfold firstn.
 destruct (skipn (16 - S n) b) eqn:?.
-pose proof (skipn_length (16 - S n) b).
-spec H1; [omega | ].
+pose proof (skipn_length b (16 - S n)).
 rewrite Heql in H1.
 simpl length in H1.
 omega.

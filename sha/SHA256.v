@@ -2,6 +2,7 @@
     May 2013, October 2013, March 2014 *)
 
 Require Recdef.
+Require Import floyd.coqlib3.
 Require Import Integers.
 Require Import Coqlib.
 Require Import Coq.Strings.String.
@@ -29,6 +30,7 @@ Definition big_endian_integer (contents: list int) : int :=
 
 Import ListNotations.
 
+(*
 Lemma skipn_length:
   forall {A} n (al: list A), 
     (length al >= n)%nat -> 
@@ -37,6 +39,7 @@ Proof.
  induction n; destruct al; simpl; intros; auto.
  apply IHn. omega.
 Qed.
+*)
 
 Lemma skipn_length_short:
   forall {A} n (al: list A), 
@@ -172,7 +175,7 @@ Proof. intros.
  destruct (lt_dec (length msg) 16).
  rewrite skipn_length_short. simpl; omega. subst; simpl in *; omega.
  rewrite <- teq; auto.
- rewrite skipn_length. simpl; omega. omega.
+ rewrite skipn_length. simpl; omega.
 Qed.
 
 Fixpoint intlist_to_Zlist (l: list int) : list Z :=

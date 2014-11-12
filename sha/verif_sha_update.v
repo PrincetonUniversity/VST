@@ -118,7 +118,7 @@ Proof.
      reflexivity.
      rewrite skipn_length.
      apply minus_le_compat_r.
-     omega. omega.
+     omega.
     }
 eapply semax_post_flipped3.
 evar (Frame: list (LiftEnviron mpred)).

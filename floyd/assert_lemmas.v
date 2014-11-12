@@ -629,36 +629,11 @@ Proof. intros; unfold offset_val.
 Qed.
 Hint Rewrite offset_offset_val: norm.
 
-Lemma add_repr: forall i j, Int.add (Int.repr i) (Int.repr j) = Int.repr (i+j).
-Proof. intros.
-  rewrite Int.add_unsigned.
- apply Int.eqm_samerepr.
- unfold Int.eqm.
- apply Int.eqm_add; apply Int.eqm_sym; apply Int.eqm_unsigned_repr.
-Qed.
 Hint Rewrite add_repr : norm.
-
-Lemma mul_repr:
- forall x y, Int.mul (Int.repr x) (Int.repr y) = Int.repr (x * y).
-Proof.
-intros. unfold Int.mul.
-apply Int.eqm_samerepr.
-repeat rewrite Int.unsigned_repr_eq.
-apply Int.eqm_mult; unfold Int.eqm; apply Int.eqmod_sym;
-apply Int.eqmod_mod; compute; congruence.
-Qed.
 Hint Rewrite mul_repr : norm.
-
-Lemma sub_repr: forall i j,
-  Int.sub (Int.repr i) (Int.repr j) = Int.repr (i-j).
-Proof.
-  intros.
- unfold Int.sub.
- apply Int.eqm_samerepr.
- unfold Int.eqm.
- apply Int.eqm_sub; apply Int.eqm_sym; apply Int.eqm_unsigned_repr.
-Qed.
 Hint Rewrite sub_repr : norm.
+Hint Rewrite and_repr : norm.
+Hint Rewrite or_repr : norm.
 
 Lemma ltu_repr: forall i j, 
  (0 <= i <= Int.max_unsigned -> 

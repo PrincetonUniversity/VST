@@ -5,13 +5,15 @@
 *)
 
 Require Recdef.
+Require Import Coqlib.
 Require Import Integers.
 Require Coq.Strings.String.
 Require Coq.Strings.Ascii.
-Require Import Coqlib.
 Require Import List. Import ListNotations.
+Require Import compcert.lib.Coqlib.
 Require Import sha.SHA256.
 Require Import msl.Coqlib2.
+Require Import floyd.coqlib3.
 Require Export sha.common_lemmas.
 Require Psatz.
 
@@ -189,7 +191,6 @@ if_tac; autorewrite with testbit; [ | f_equal; omega].
 if_tac; autorewrite with testbit; [ | f_equal; omega].
 auto.
 Qed.
-
 
 Lemma length_Zlist_to_intlist: forall n l, 
        length l = (Z.to_nat WORD * n)%nat -> 
@@ -538,24 +539,6 @@ Qed.
 
 Local Open Scope Z.
 
-Lemma add_repr: forall i j, Int.add (Int.repr i) (Int.repr j) = Int.repr (i+j).
-Proof. intros.
-  rewrite Int.add_unsigned.
- apply Int.eqm_samerepr.
- unfold Int.eqm.
- apply Int.eqm_add; apply Int.eqm_sym; apply Int.eqm_unsigned_repr.
-Qed.
-
-Lemma mul_repr:
- forall x y, Int.mul (Int.repr x) (Int.repr y) = Int.repr (x * y).
-Proof.
-intros. unfold Int.mul.
-apply Int.eqm_samerepr.
-repeat rewrite Int.unsigned_repr_eq.
-apply Int.eqm_mult; unfold Int.eqm; apply Int.eqmod_sym;
-apply Int.eqmod_mod; compute; congruence.
-Qed.
-
 Lemma hilo_lemma:
   forall hi lo, [Int.repr (hilo hi lo / Int.modulus); Int.repr (hilo hi lo)] = [hi; lo].
 Proof.
@@ -671,8 +654,8 @@ rewrite <- Heql in *; clear i l Heql.
 rewrite firstn_same by omega.
 replace (skipn LBLOCK c) with (@nil int).
 rewrite hash_blocks_equation'; reflexivity.
-pose proof (skipn_length LBLOCK c).
-spec H0; [omega |]. rewrite H1 in H0.
+pose proof (skipn_length c LBLOCK).
+rewrite H1 in H0.
 destruct (skipn LBLOCK c); try reflexivity; inv H0.
 replace (S n * LBLOCK)%nat with (n * LBLOCK + LBLOCK)%nat  in H0 by
   (simpl; omega).
@@ -703,9 +686,11 @@ rewrite plus_comm.
 rewrite NPeano.Nat.sub_add by Psatz.lia.
 omega.
 (*Psatz.lia.*)
+(*
 rewrite H0. assert (Hn: (n*LBLOCK >= 0)%nat).
   remember ((n * LBLOCK)%nat). clear. omega.
   omega. 
+*)
 Qed.
 
 Lemma length_hash_blocks: forall regs blocks,
@@ -734,7 +719,7 @@ apply length_hash_block; auto. (* fixme *) change 16%nat with LBLOCK.
 rewrite firstn_length. apply min_l. simpl in H0. Psatz.nia.
 rewrite skipn_length. rewrite H0; clear - POS.  simpl.
 rewrite plus_comm. rewrite NPeano.Nat.add_sub. auto.
-simpl in H0. rewrite H0; clear - POS. Psatz.lia.
+(*simpl in H0. rewrite H0; clear - POS. Psatz.lia.*)
 Qed.
 
 Lemma nth_list_repeat: forall A i n (x :A),

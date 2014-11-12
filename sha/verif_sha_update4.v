@@ -388,8 +388,7 @@ apply semax_while.
 }
 pose (bl := Zlist_to_intlist (firstn CBLOCK (skipn (length blocks * 4 - length dd) data) )).
 assert (H97: CBLOCK <= length (skipn (length blocks * 4 - length dd) data)). {
-rewrite skipn_length
- by (clear - H Hblocks' Hblocks_len; omega).
+rewrite skipn_length.
 change (4*LBLOCK)%nat with CBLOCK.
 clear - Hlen_ge Hblocks' H Hblocks_len; omega.
 }
