@@ -332,8 +332,6 @@ after_call.
 cbv beta iota. normalize.
 forward. (* n = c->num; *)
 forward. (* p=c->data; *)
-entailer. 
-simpl.
 replace Delta with (initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot))))
  by (simplify_Delta; reflexivity).

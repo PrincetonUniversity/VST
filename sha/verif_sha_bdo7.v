@@ -271,6 +271,191 @@ Qed.
 
 Hint Resolve Znth_land_is_int Zland_in_range.
 
+Lemma bdo_loop2_body_part2:
+forall (Espec : OracleKind)
+  (b : list int) (ctx : val) (regs : list int) 
+  (i : nat) (kv Xv : val) 
+  (Hregs : length regs = 8)
+  (H : Zlength b = 16%Z)
+  (H0 : LBLOCK <= i < c64)
+  (H1 : (16 <= Z.of_nat i < 64)%Z),
+semax
+  (initialized _t
+     (initialized _T1 (initialized _s1 (initialized _s0 Delta_loop1))))
+  (PROP  ()
+   LOCAL 
+   (`(eq
+        (Vint
+           (Int.add (W (nthi b) (Z.of_nat i - 16))
+              (Int.add
+                 (Int.add (sigma_0 (W (nthi b) (Z.of_nat i - 16 + 1)))
+                    (sigma_1 (W (nthi b) (Z.of_nat i - 16 + 14))))
+                 (W (nthi b) (Z.of_nat i - 16 + 9)))))) (eval_id _T1);
+   temp _s0 (Vint (sigma_0 (W (nthi b) (Z.of_nat i - 16 + 1))));
+   temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i)));
+   temp _a (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0));
+   temp _b (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1));
+   temp _c (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2));
+   temp _d (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3));
+   temp _e (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4));
+   temp _f (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5));
+   temp _g (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6));
+   temp _h (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7));
+   var _X (tarray tuint 16) Xv; var _K256 (tarray tuint CBLOCKz) kv)
+   SEP  (`(K_vector kv);
+   `(data_at Tsh (tarray tuint 16) (map Vint (Xarray b (Z.of_nat i) 0)) Xv)))
+  (Ssequence
+     (Sassign
+        (Ederef
+           (Ebinop Oadd (Evar _X (tarray tuint 16))
+              (Ebinop Oand (Etempvar _i tint) (Econst_int (Int.repr 15) tint)
+                 tint) (tptr tuint)) tuint) (Etempvar _T1 tuint))
+     (Ssequence
+        (Sset _Ki
+           (Ederef
+              (Ebinop Oadd (Evar _K256 (tarray tuint 64)) (Etempvar _i tint)
+                 (tptr tuint)) tuint)) rearrange_regs2b))
+  (normal_ret_assert
+     (EX  i0 : nat,
+      PROP  (LBLOCK <= i0 <= c64)
+      LOCAL  (temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i0 - 1)));
+      temp _a (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 0));
+      temp _b (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 1));
+      temp _c (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 2));
+      temp _d (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 3));
+      temp _e (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 4));
+      temp _f (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 5));
+      temp _g (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 6));
+      temp _h (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 7));
+      var _X (tarray tuint LBLOCKz) Xv; var _K256 (tarray tuint CBLOCKz) kv)
+      SEP  (`(K_vector kv);
+      `(data_at Tsh (tarray tuint LBLOCKz)
+          (map Vint (Xarray b (Z.of_nat i0) 0)) Xv)))).
+Proof.
+intros.
+abbreviate_semax.
+name a_ _a.
+name b_ _b.
+name c_ _c.
+name d_ _d.
+name e_ _e.
+name f_ _f.
+name g_ _g.
+name h_ _h.
+name t_ _t.
+name Ki _Ki.
+name ctx_ _ctx.
+name i_ _i.
+assert (H': length b = 16). {
+  rewrite Zlength_correct in H.
+  change 16%Z with (Z.of_nat 16) in H.
+  apply Nat2Z.inj; auto.
+}
+assert (LBE := LBLOCK_zeq).
+
+STOP.  (* Qinxiang:  the next "forward" crashes Coq! *)
+
+forward. (* X[i&0xf] = T1; *)
+{
+  instantiate (2:= (Z.of_nat i  mod 16)).
+  instantiate (1:=  (Vint  (W (nthi b) (Z.of_nat i)))).
+   
+  apply prop_right; split.
+   
+  change (tarray tuint 16) with (tarray tuint LBLOCKz).
+  replace (force_val (sem_and tint tint (eval_id _i rho) (Vint (Int.repr 15))))
+    with (Vint (Int.repr (Z.of_nat i mod 16))).
+  rewrite sem_add_pi_ptr by assumption.
+  simpl force_val.
+  unfold Int.mul.
+  rewrite Int.unsigned_repr by repable_signed. 
+  rewrite Int.unsigned_repr.
+  simpl sizeof.
+  reflexivity.
+   
+  assert (0 <= Z.of_nat i mod 16 < 16)%Z by (apply Z_mod_lt; omega).
+  repable_signed.
+   
+    change (Int.repr 15) with (Int.repr (Z.ones 4)).
+    change (16)%Z with (2 ^ 4)%Z.
+    rewrite <- Z.land_ones by (clear; omega).
+    rewrite <- H4.
+    unfold sem_and.
+    simpl.
+    unfold Int.and.
+    rewrite Int.unsigned_repr by repable_signed; auto.
+   
+  rewrite <- and_assoc. split.
+   
+  change LBLOCKz with 16%Z; apply Z.mod_bound_pos; omega.
+   
+  rewrite <- H2.
+  reflexivity.
+}
+rewrite Xarray_update by (apply Zlength_length in H; auto).
+
+unfold K_vector.
+forward.  (* Ki=K256[i]; *)
+ entailer!.
+ change (Zlength K256) with 64%Z; clear - H1; omega.
+unfold tuints, ZnthV; rewrite if_false by (clear; omega);
+ rewrite (@nth_map' int val _ _ Int.zero); [apply I | ];
+ change (length K256) with 64%nat; rewrite Nat2Z.id; destruct H0 as [_ H0]; apply H0.
+
+(* I am wondering whether this is because I changed the order or assumptions *)
+
+apply (assert_LOCAL (temp _Ki (Vint (nth i K256 Int.zero)))).
+drop_LOCAL 4%nat. drop_LOCAL 3%nat. drop_LOCAL 2%nat.
+abstract (
+   entailer; apply prop_right;
+   try rewrite Int.signed_repr in H3 by repable_signed;
+   unfold tuints, ZnthV in H3; 
+   rewrite if_false in H3 by omega; 
+   rewrite Nat2Z.id in H3; 
+   rewrite (@nth_map' int val _ _ Int.zero) in H3 by apply H0; 
+   injection H3; clear; auto;
+   clear - H0; apply H0).
+drop_LOCAL 1%nat.
+
+rename b into bb.
+remember (Round regs (nthi bb) (Z.of_nat i - 1)) as regs' eqn:?.
+assert (exists a b c d e f g h, regs' = [a;b;c;d;e;f;g;h]).
+assert (length regs' = 8%nat) by (subst; apply length_Round; auto).
+do 8 (destruct regs' as [ | ? regs']; [inv H2 | ]).
+destruct regs'; [ | inv H2].
+do 8 eexists; reflexivity.
+destruct H2 as [a [b [c [d [e [f [g [h H2]]]]]]]].
+rewrite Heqregs' in *. clear Heqregs'.
+rewrite H2.
+unfold nthi at 2 3 4 5 6 7 8 9. simpl.
+unfold rearrange_regs2b.
+forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
+rewrite <- Sigma_1_eq, <- Ch_eq.
+forward. 	(* T2 = Sigma0(a) + Maj(a,b,c); *)
+rewrite <- Sigma_0_eq, <- Maj_eq.
+unfold rearrange_regs2c.
+repeat forward.
+apply exp_right with (i+1)%nat.
+entailer.
+clear Delta H3.
+replace (Z.of_nat (i + 1) - 1)%Z with (Z.of_nat i)
+ by (clear; rewrite Nat2Z.inj_add; change (Z.of_nat 1) with 1%Z; omega).
+apply prop_right.
+clear - H H0 H1 H2.
+rewrite Round_equation.
+rewrite if_false by omega.
+rewrite H2.
+unfold rnd_function.
+repeat split; try reflexivity.
+unfold nthi at 1; simpl.
+f_equal. rewrite Int.add_commut.
+f_equal. f_equal. unfold nthi. rewrite Nat2Z.id; auto.
+unfold nthi at 1; simpl.
+f_equal. rewrite Int.add_commut. f_equal.
+f_equal. unfold nthi. rewrite Nat2Z.id; auto.
+Qed.
+
+
 Lemma bdo_loop2_body_proof:
  forall (Espec : OracleKind)
    (b : list int) (ctx : val) ( regs : list int) (i : nat) kv Xv
@@ -414,108 +599,11 @@ replace (Int.add (W (nthi b) (Z.of_nat i - 16 + 0))
 
 do 3 drop_LOCAL 1%nat.
 
-RUNS OUT OF MEMORY HERE.
-
-
-forward. (* X[i&0xf] = T1; *)
-{
-  instantiate (2:= (Z.of_nat i  mod 16)).
-  instantiate (1:=  (Vint  (W (nthi b) (Z.of_nat i)))).
-   
-  apply prop_right; split.
-   
-  change (tarray tuint 16) with (tarray tuint LBLOCKz).
-  replace (force_val (sem_and tint tint (eval_id _i rho) (Vint (Int.repr 15))))
-    with (Vint (Int.repr (Z.of_nat i mod 16))).
-  rewrite sem_add_pi_ptr by assumption.
-  simpl force_val.
-  unfold Int.mul.
-  rewrite Int.unsigned_repr by repable_signed. 
-  rewrite Int.unsigned_repr.
-  simpl sizeof.
-  reflexivity.
-   
-  assert (0 <= Z.of_nat i mod 16 < 16)%Z by (apply Z_mod_lt; omega).
-  repable_signed.
-   
-    change (Int.repr 15) with (Int.repr (Z.ones 4)).
-    change (16)%Z with (2 ^ 4)%Z.
-    rewrite <- Z.land_ones by (clear; omega).
-    rewrite <- H4.
-    unfold sem_and.
-    simpl.
-    unfold Int.and.
-    rewrite Int.unsigned_repr by repable_signed; auto.
-   
-  rewrite <- and_assoc. split.
-   
-  change LBLOCKz with 16%Z; apply Z.mod_bound_pos; omega.
-   
-  rewrite <- H2.
-  reflexivity.
-}
-rewrite Xarray_update by (apply Zlength_length in H; auto).
-
-unfold K_vector.
-forward.  (* Ki=K256[i]; *)
- entailer!.
- change (Zlength K256) with 64%Z; clear - H1; omega.
-unfold tuints, ZnthV; rewrite if_false by (clear; omega);
- rewrite (@nth_map' int val _ _ Int.zero); [apply I | ];
- change (length K256) with 64%nat; rewrite Nat2Z.id; destruct H0 as [_ H0]; apply H0.
-
-(* I am wondering whether this is because I changed the order or assumptions *)
-
-apply (assert_LOCAL (temp _Ki (Vint (nth i K256 Int.zero)))).
-drop_LOCAL 4%nat. drop_LOCAL 3%nat. drop_LOCAL 2%nat.
-abstract (
-   entailer; apply prop_right;
-   try rewrite Int.signed_repr in H3 by repable_signed;
-   unfold tuints, ZnthV in H3; 
-   rewrite if_false in H3 by omega; 
-   rewrite Nat2Z.id in H3; 
-   rewrite (@nth_map' int val _ _ Int.zero) in H3 by apply H0; 
-   injection H3; clear; auto;
-   clear - H0; apply H0).
-drop_LOCAL 1%nat.
-
-rename b into bb.
-remember (Round regs (nthi bb) (Z.of_nat i - 1)) as regs' eqn:?.
-assert (exists a b c d e f g h, regs' = [a;b;c;d;e;f;g;h]).
-assert (length regs' = 8%nat) by (subst; apply length_Round; auto).
-do 8 (destruct regs' as [ | ? regs']; [inv H2 | ]).
-destruct regs'; [ | inv H2].
-do 8 eexists; reflexivity.
-destruct H2 as [a [b [c [d [e [f [g [h H2]]]]]]]].
-rewrite Heqregs' in *. clear Heqregs'.
-rewrite H2.
-unfold nthi at 2 3 4 5 6 7 8 9. simpl.
-unfold rearrange_regs2b.
-forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
-rewrite <- Sigma_1_eq, <- Ch_eq.
-forward. 	(* T2 = Sigma0(a) + Maj(a,b,c); *)
-rewrite <- Sigma_0_eq, <- Maj_eq.
-unfold rearrange_regs2c.
-repeat forward.
-apply exp_right with (i+1)%nat.
-entailer.
-clear Delta H3.
-replace (Z.of_nat (i + 1) - 1)%Z with (Z.of_nat i)
- by (clear; rewrite Nat2Z.inj_add; change (Z.of_nat 1) with 1%Z; omega).
-apply prop_right.
-clear - H H0 H1 H2.
-rewrite Round_equation.
-rewrite if_false by omega.
-rewrite H2.
-unfold rnd_function.
-repeat split; try reflexivity.
-unfold nthi at 1; simpl.
-f_equal. rewrite Int.add_commut.
-f_equal. f_equal. unfold nthi. rewrite Nat2Z.id; auto.
-unfold nthi at 1; simpl.
-f_equal. rewrite Int.add_commut. f_equal.
-f_equal. unfold nthi. rewrite Nat2Z.id; auto.
-Qed.
+replace Delta with
+ (initialized _t (initialized _T1 (initialized _s1 (initialized _s0 Delta_loop1))))
+  by (simplify_Delta; reflexivity).
+unfold MORE_COMMANDS, POSTCONDITION, abbreviate.
+clear - Hregs H H0 Struct_env LBE H1.
 
 Lemma sha256_block_data_order_loop2_proof:
   forall (Espec : OracleKind)
