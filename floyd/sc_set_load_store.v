@@ -19,7 +19,7 @@ Lemma semax_SC_set:
   forall {Espec: OracleKind},
     forall Delta id P Q R (e2: expr) t v,
       typeof_temp Delta id = Some t ->
-      is_neutral_cast (typeof e2) t = true ->
+      is_neutral_cast (implicit_deref (typeof e2)) t = true ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr e2)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_expr Delta e2) ->
@@ -42,13 +42,11 @@ Proof.
       unfold typeof_temp in H.
       destruct ((temp_types Delta) ! id) as [[? ?]|]; [| inversion H].
       inversion H; clear H; subst.
-      assert (is_neutral_cast (implicit_deref (typeof e2)) t = true).
-        destruct (typeof e2), t; try inversion H0; simpl implicit_deref; try reflexivity.
-      rewrite H.
+      rewrite H0.
       simpl denote_tc_assert; simpl; intros.
       unfold local, lift1.
       apply prop_right.
-      apply neutral_isCastResultType, H.
+      apply neutral_isCastResultType, H0.
   }
   eapply semax_pre_simple.
   {

@@ -4,7 +4,7 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.verif_sha_final2.
-Require Import sha.verif_sha_final3.
+(*Require Import sha.verif_sha_final3.*)
 Local Open Scope logic.
 
 Lemma body_SHA256_Final: semax_body Vprog Gtot f_SHA256_Final SHA256_Final_spec.
@@ -19,11 +19,7 @@ name cNh _cNh.
 unfold sha256state_; normalize.
 intros [r_h [r_Nl [r_Nh [r_data r_num]]]].
 unfold_data_at 1%nat.
-unfold_field_at 1%nat.
-unfold_field_at 3%nat.
 normalize.
-rename H1 into H99.
-rename H2 into H98.
 unfold s256_relate in H0.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
 destruct a as [hashed data].
@@ -31,29 +27,22 @@ destruct H0 as [H0 [H1 [H2 [[H3 DDbytes] [H4 H5]]]]].
 destruct H1 as [hi [lo [? [? ?]]]].
 subst r_Nh r_Nl r_num r_data. rename data into dd.
 assert (H3': (Zlength dd < 64)%Z) by assumption.
-unfold at_offset.
 forward. (* p = c->data;  *)
-entailer!.
 forward. (* n = c->num; *)
-simpl.
-unfold at_offset.  (* maybe this line should not be necessary *)
+rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
+rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
+normalize.
+change 40 with (nested_field_offset2 t_struct_SHA256state_st [StructField _data]).
 forward. (* p[n] = 0x80; *)
-  instantiate (2:= Zlength dd).
-  entailer!; [| rewrite Zlength_correct in H3'|-*; omega].
-  rewrite H2, <- H1.
-  rewrite <- offset_val_force_ptr by omega.
-  destruct (eval_id _c rho); inversion H5.
-  rewrite sem_add_pi_ptr by auto.
-  simpl force_val. unfold offset_val.
-  unfold Int.mul; change (Int.unsigned (Int.repr 1)) with 1.
-  rewrite Z.mul_1_l.
-  unfold Int.add at 3 4.
-  change (Int.unsigned Int.zero) with 0.
-  rewrite Z.add_0_r.
-  rewrite !Int.repr_unsigned.
-  rewrite <- int_add_assoc1.
-  reflexivity.
+{
+  change (nested_field_type2
+    (nested_field_type2 t_struct_SHA256state_st [StructField _data]) []) with (tarray tuchar 64).
+  entailer!.
+  rewrite Zlength_correct in H3' |- *.
+  omega.
+}
 forward. (* n++; *)
+STOP.
 rewrite upd_Znth_next
   by (repeat rewrite initial_world.Zlength_map; auto).
 simpl. normalize. 

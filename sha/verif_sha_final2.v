@@ -558,6 +558,9 @@ forward_for
               [ArraySubsc (Z.of_nat i * 4)])) md, shmd, bytes).
   {
     entailer!.
+    + rewrite Zlength_correct; subst bytes.
+      simpl.
+      omega.
     + destruct md; inversion Hmd.
       simpl.
       erewrite nested_field_offset2_Tarray by reflexivity.
