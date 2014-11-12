@@ -26,109 +26,11 @@ Require Export bool_funcs.
 Require Import MirrorCore.Lambda.Expr.
 Require Import func_eq.
 
-Definition typeof_func_opt t := Some (typeof_func t).
-
-Global Instance RSym_Func' : SymI.RSym func' := {
-   typeof_sym := typeof_func_opt;
-   symD := funcD;
-   sym_eqb := fun a b => (Some (func_beq a b)) 
-}.
-
-Global Instance RSymOk_Func' : SymI.RSymOk RSym_Func'.
-constructor.
-Admitted. (*guess we need complete equality??*)
 
 
-Instance ILogicOps_mpred : ILogicOps mpred := {
-lentails := derives;
-ltrue := TT;
-lfalse := FF;
-land := andp;
-lor := orp;
-limpl := imp;
-lforall := @allp mpred _;
-lexists := @exp mpred _
-}.
-
-Instance ILogic_mpred : ILogic mpred.
-Proof.
-split; intros.
-+ split.
-  * intro x; apply derives_refl.
-  * intros x y z Hxy Hyz; apply derives_trans with y; assumption.
-+ apply prop_right. apply I.
-+ apply prop_left. intro H; destruct H.
-+ apply allp_left with x; assumption.
-+ apply allp_right; apply H.
-+ apply exp_left; apply H.
-+ apply exp_right with x; apply H.
-+ apply andp_left1; apply H.
-+ apply andp_left2; apply H.
-+ apply orp_right1; apply H.
-+ apply orp_right2; apply H.
-+ apply andp_right; [apply H | apply H0].
-+ apply orp_left; [apply H | apply H0].
-+ apply imp_andp_adjoint. apply H.
-+ apply imp_andp_adjoint. apply H.
-Qed.
-
-Instance BILOperators_mpred : BILOperators mpred := {
-  empSP := emp;
-  sepSP := sepcon;
-  wandSP := wand
-}.
-
-Instance BILogic_mpred : BILogic mpred.
-Proof.
-split; intros.
-+ apply _.
-+ unfold sepSP; simpl; rewrite sepcon_comm; apply derives_refl.
-+ unfold sepSP; simpl; rewrite sepcon_assoc; apply derives_refl.
-+ apply wand_sepcon_adjoint.
-+ apply sepcon_derives; [apply H | apply derives_refl].
-+ unfold sepSP; simpl; rewrite sepcon_emp; reflexivity.
-Qed.
 
 
-Definition ilops : @logic_ops _ RType_typ :=
-fun t =>
-  match t
-          return option (ILogic.ILogicOps (typD t))
-  with
-  | tympred => Some _
-  | typrop => Some _
-  | _ => None  
-end.
 
-Definition bilops : @bilogic_ops _ RType_typ :=
-fun t =>
-  match t
-          return option (BILogic.BILOperators (typD t))
-  with
-  | tympred => Some _
-  | _ => None  
-end.
-
-Definition fs : @SymEnv.functions typ _ := SymEnv.from_list nil.
-Instance RSym_env : RSym SymEnv.func := SymEnv.RSym_func fs.
-Instance RSym_ilfunc : RSym (@ilfunc typ) := 
-	RSym_ilfunc _ _ ilops.
-Instance RSym_bilfunc : RSym (@bilfunc typ) := 
-	RSym_bilfunc _ bilops.
-
-Existing Instance SymSum.RSym_sum.
-Existing Instance SymSum.RSymOk_sum.
-Instance Expr_expr : ExprI.Expr _ (expr typ func) := @Expr_expr typ func _ _ _.
-Instance Expr_ok : @ExprI.ExprOk typ RType_typ (expr typ func) Expr_expr := ExprOk_expr.
-
-Definition subst : Type :=
-  FMapSubst.SUBST.raw (expr typ func).
-Instance SS : SubstI.Subst subst (expr typ func) :=
-  @FMapSubst.SUBST.Subst_subst _.
-Instance SU : SubstI.SubstUpdate subst (expr typ func) :=
-  FMapSubst.SUBST.SubstUpdate_subst (@instantiate typ func).
-Instance SO : SubstI.SubstOk SS := 
-  @FMapSubst.SUBST.SubstOk_subst typ RType_typ (expr typ func) _ _.
 
 Definition test_lemma :=
   @lemmaD typ RType_typ (expr typ func) Expr_expr (expr typ func)

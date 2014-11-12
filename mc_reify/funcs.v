@@ -5,7 +5,7 @@ Require Import ExtLib.Core.RelDec.
 Require Import MirrorCore.TypesI.
 Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.Fun.
-Require Import progs.list_dt.
+(*Require Import progs.list_dt.*)
 Require Import types.
 Require Import bool_funcs.
 Require Import MirrorCharge.ModularFunc.ILogicFunc.
@@ -264,16 +264,24 @@ match o with
 | fFalse => False
 end.
 
-Inductive lst :=
-| fnil : typ -> lst
-| fmap : typ -> typ -> lst
-| ffold_right : typ -> typ -> lst
-| ffold_left : typ -> typ -> lst
-| fcons : typ -> lst
-| fappend : typ -> lst
-| fpair : typ -> typ -> lst.
+Inductive data :=
+| fnil : typ -> data
+| fmap : typ -> typ -> data
+| ffold_right : typ -> typ -> data
+| ffold_left : typ -> typ -> data
+| fcons : typ -> data
+| fappend : typ -> data
+| fpair : typ -> typ -> data
+| fget : typ -> positive -> data
+| fset : typ -> positive -> data
+| fleaf : typ -> data
+| fnode : typ -> data
+| fempty : typ -> data
+.
 
-Definition typeof_lst (l : lst) :=
+
+
+Definition typeof_data (l : data) :=
 match l with
 | fmap a b => tyArr (tyArr a b) (tyArr (tylist a) (tylist b))
 | fnil a => (tylist a)
@@ -282,25 +290,35 @@ match l with
 | fcons a => tyArr a (tyArr (tylist a) (tylist a))
 | fappend a => tyArr (tylist a) (tyArr (tylist a) (tylist a))
 | fpair t1 t2 => tyArr t1 (tyArr t2 (typrod t1 t2))
+| fleaf t => typtree t
+| fnode t => tyArr (typtree t) (tyArr (tyoption t) (tyArr (typtree t) (typtree t)))
+| fset t _ => tyArr t (tyArr (typtree t) (typtree t))
+| fget t _ => (tyArr (typtree t) (tyoption t))
+| fempty t => typtree t
 end.
 
-Definition lstD (l : lst) : typD (typeof_lst l) :=
+Definition dataD (l : data) : typD (typeof_data l) :=
 match l with
 | fmap t1 t2 => @map (typD  t1) (typD  t2)
-| fnil t => (@nil (typD t) : typD (typeof_lst (fnil t)))
+| fnil t => (@nil (typD t) : typD (typeof_data (fnil t)))
 | ffold_right a b => @fold_right (typD a) (typD b)
 | ffold_left a b => @fold_left (typD a) (typD b)
 | fcons a => @cons (typD a)
 | fappend a => @app (typD a)
-| fpair a b => ((@pair (typD a) (typD b)) : typD (typeof_lst (fpair a b)))
+| fpair a b => ((@pair (typD a) (typD b)) : typD (typeof_data (fpair a b)))
+| fleaf t => @PTree.Leaf (typD t)
+| fnode t => @PTree.Node (typD t)
+| fset t p => @PTree.set (typD t) p
+| fget t p => @PTree.get (typD t) p
+| fempty t => @PTree.empty (typD t)
 end.
 
 Inductive sep :=
 | flocal
 | fprop
 | fdata_at : type -> sep
-| ffield_at : type -> list ident -> sep
-| flseg : forall (t: type) (i : ident), listspec t i -> sep
+(*| ffield_at : type -> list ident -> sep*)
+(*| flseg : forall (t: type) (i : ident), listspec t i -> sep*)
 . 
 
 
@@ -337,9 +355,9 @@ with reptyp_unionlist (fld: fieldlist) : typ :=
 Definition typeof_sep (s : sep) : typ :=
 match s with
 | fdata_at t => tyArr tyshare (tyArr (reptyp t) (tyArr tyval tympred))
-| ffield_at t ids => tyArr tyshare (tyArr (reptyp (nested_field_type2 t ids)) (tyArr tyval tympred))
-| flseg t i l => tyArr tyshare (tyArr (tylist (reptyp_structlist (@all_but_link i (list_fields)))) 
-                                      (tyArr tyval (tyArr tyval tympred)))
+(*| ffield_at t ids => tyArr tyshare (tyArr (reptyp (nested_field_type2 t ids)) (tyArr tyval tympred))*)
+(*| flseg t i l => tyArr tyshare (tyArr (tylist (reptyp_structlist (@all_but_link i (list_fields)))) 
+                                      (tyArr tyval (tyArr tyval tympred)))*)
 | flocal => tyArr (tyArr tyenviron typrop) (tyArr tyenviron tympred) 
 | fprop => tyArr typrop tympred
 end.
@@ -410,17 +428,20 @@ match s with
 | flocal => (local : typD (typeof_sep flocal))
 | fprop => prop
 | fdata_at ty => _ (* fun sh (t : reptype ty) v => data_at sh ty t v *)
-| ffield_at t ids => _
-| flseg t id ls => _
+(*| ffield_at t ids => _
+| flseg t id ls => _ *)
 end. 
 { simpl. intros sh rt v.
   exact (data_at sh ty (reptyp_reptype  _ rt) v). }
+
+Defined. 
+(*
 { simpl. intros sh ty v.
   exact (field_at sh t ids (reptyp_reptype  _ ty) v). }
 { simpl.
   intros sh lf v1 v2.
   exact (@lseg t id ls sh (List.map (reptyp_structlist_reptype  _) lf) v1 v2). }
-Defined.
+Defined.*)
 
 
 Definition localD (temps : PTree.t val) (locals : PTree.t (type * val)) :=
@@ -431,12 +452,13 @@ PROPx P (LOCALx Q (SEPx (map (liftx) sep))).
 
 Definition locallistD a b := LocallistD a b nil. 
 
+
 Inductive smx :=
 | fenviron : environ -> smx
 | fsemax
 | fstatement : statement -> smx
 | fretassert : ret_assert -> smx
-| ftycontext : tycontext -> smx
+| ftycontext : PTree.t (type * bool) -> PTree.t type -> type ->  smx
 | fupdate_tycon 
 (*| fPROPx
 | fLOCALx
@@ -444,12 +466,12 @@ Inductive smx :=
 | fnormal_ret_assert
 (*| flocalD : PTree.t val -> PTree.t (type * val) -> list (environ -> Prop) -> smx *)
 | fassertD
-| flocalD : PTree.t val -> PTree.t (type * val) -> smx
+| flocalD 
 | flocallistD
 | fvaltree : PTree.t val -> smx
 | fdenote_tc_assert_b_norho
 | ftc_expr_b_norho
-| ftc_temp_id_b_norho
+| ftc_temp_id_b_norho : positive -> type ->  smx
 | fmsubst_eval_expr_norho
 | fmsubst_eval_lvalue_norho
 .
@@ -459,19 +481,20 @@ match t with
 | fsemax => tyArr tyOracleKind (tyArr tytycontext (tyArr (tyArr tyenviron tympred) (tyArr tystatement (tyArr tyret_assert typrop))))
 | fstatement s => tystatement
 | fretassert r => tyret_assert
-| ftycontext d => tytycontext
+| ftycontext _ _ _  => tyArr (typtree tyglobal_spec) tytycontext
 (*| fPROPx => tyArr (tylist typrop) (tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred))
 | fLOCALx => tyArr (tylist (tyArr tyenviron typrop)) (tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred))
 | fSEPx => tyArr (tylist (tyArr tyenviron tympred)) (tyArr tyenviron tympred)*)
 | fnormal_ret_assert => tyArr (tyArr tyenviron tympred) (tyret_assert)
 | fenviron e => tyenviron
-| flocalD _ _  => tylist (tyArr tyenviron typrop)
+| flocalD  => tyArr (typtree tyval) 
+                    (tyArr (typtree (typrod tyc_type tyval)) (tylist (tyArr tyenviron typrop)))
 | fupdate_tycon => tyArr tytycontext (tyArr tystatement tytycontext)
 | fvaltree t => typtree tyval
 | fassertD => tyArr  (tylist typrop) (tyArr (tylist (tyArr tyenviron typrop)) (tyArr (tylist tympred) (tyArr tyenviron tympred)))
 | fdenote_tc_assert_b_norho => tyArr tytc_assert tybool
 | ftc_expr_b_norho => tyArr tytycontext (tyArr tyc_expr tybool)
-| ftc_temp_id_b_norho => tyArr typositive (tyArr tyc_type (tyArr tytycontext (tyArr tyc_expr tybool)))
+| ftc_temp_id_b_norho _ _  => tyArr tytycontext (tyArr tyc_expr tybool)
 | fmsubst_eval_expr_norho => tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))
 | fmsubst_eval_lvalue_norho =>  tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))
 | flocallistD => tyArr (tylist (typrod tyident tyval)) (tyArr (tylist (typrod tyident (typrod tyc_type tyval))) (tylist (tyArr tyenviron typrop)))
@@ -480,19 +503,20 @@ end.
 Definition smxD (t : smx) : typD (typeof_smx t) :=
 match t with
 | fsemax => (@semax : typD (typeof_smx fsemax))
-| fstatement s | fretassert s | ftycontext s => s
+| fstatement s | fretassert s  => s
+| ftycontext t v r => fun g => (t, v, r, g)
 (*| fPROPx => PROPx
 | fLOCALx => LOCALx
 | fSEPx => SEPx*)
 | fnormal_ret_assert => normal_ret_assert
 | fenviron e => (e : typD (typeof_smx (fenviron e)))
-| flocalD ids vars => localD ids vars
+| flocalD => localD 
 | fupdate_tycon => update_tycon
 | fvaltree t => t
 | fassertD => assertD
 | fdenote_tc_assert_b_norho => (denote_tc_assert_b_norho : typD (typeof_smx fdenote_tc_assert_b_norho))
 | ftc_expr_b_norho => tc_expr_b_norho
-| ftc_temp_id_b_norho => tc_temp_id_b_norho
+| ftc_temp_id_b_norho id ty  => tc_temp_id_b_norho id ty 
 | fmsubst_eval_expr_norho => msubst_eval_expr_norho
 | fmsubst_eval_lvalue_norho => msubst_eval_lvalue_norho
 | flocallistD => locallistD
@@ -506,7 +530,7 @@ Inductive func' :=
 | Eval_f : eval -> func'
 | Other : other -> func'
 | Sep : sep -> func'
-| Lst : lst -> func'
+| Data : data -> func'
 | Smx : smx -> func'.
 
 Definition func := (SymEnv.func + @ilfunc typ + @bilfunc typ + func')%type.
@@ -520,7 +544,7 @@ match f with
 | Eval_f e => typeof_eval e
 | Other o => typeof_other o
 | Sep s => typeof_sep s
-| Lst l => typeof_lst l
+| Data l => typeof_data l
 | Smx t => typeof_smx t
 end.
 
@@ -534,7 +558,7 @@ match f with
 | Eval_f e => evalD  e
 | Other o => otherD  o
 | Sep s => sepD  s
-| Lst l => lstD l
+| Data l => dataD l
 | Smx t => smxD t
 end.
 

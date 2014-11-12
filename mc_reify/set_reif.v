@@ -1,58 +1,100 @@
 Require Import floyd.proofauto. 
 Require Import funcs.
+Require Import types.
 Require Import bool_funcs.
 Require Import MirrorCore.Lambda.ExprCore.
+Require Import get_set_reif.
+Require Import func_defs.
 
 
+Definition match_reif_option {B: Type} (e: expr typ func) (somef : typ -> expr typ func -> B)
+           (nonef : typ -> B) (d : B) := 
+match e with 
+| (App (Inj (inr (Other (fsome t)))) e) => somef t e
+| (Inj (inr (Other (fnone t)))) => nonef t
+| _ => d
+end.
 
-Definition appR (e1 : func') e2 := App (@Inj typ func (inr e1)) (e2). 
-Definition injR (e1 : func') := @Inj typ func (inr e1).
+Check eval_field.
+Inductive val_e :=
+    Vundef : val_e
+  | Vint : int -> val_e
+  | Vlong : int64 -> val_e
+  | Vfloat : float -> val_e
+  | Vsingle : float32 -> val_e
+  | Vexpr : expr typ func -> val_e
+  | Vunop : Cop.unary_operation -> type ->  val_e -> val_e
+  | Vbinop : Cop.binary_operation -> type -> type -> val_e -> val_e -> val_e
+  | Veval_cast : type -> type -> val_e -> val_e
+  | Vderef_noload : type -> val_e -> val_e
+  | Vforce_ptr : val_e -> val_e
+  | Veval_field : type -> ident -> val_e -> val_e.
 
-Fixpoint msubst_eval_expr_reif (T1: PTree.t (ExprCore.expr typ func)) (T2: PTree.t (type * (ExprCore.expr typ func))) (e: Clight.expr) : option (ExprCore.expr typ func) :=
+Fixpoint val_e_to_expr (v : val_e) : (expr typ func) :=
+match v with
+  | Vundef => injR (Value fVundef)
+  | Vlong l => (appR (Value fVlong) (injR (Const (fint64 l))))
+  | Vint i => (appR (Value fVfloat) (injR (Const (fint i))))
+  | Vfloat f => (appR (Value fVfloat) (injR (Const (ffloat f))))
+  | Vsingle f => (appR (Value fVsingle) (injR (Const (ffloat32 f))))
+  | Vexpr e => e
+  | Vunop op ty e => appR (Eval_f (feval_unop op ty)) (val_e_to_expr e)
+  | Vbinop op ty1 ty2 e1 e2 => (App (appR (Eval_f (feval_binop op 
+                                         ty1 ty2)) (val_e_to_expr e1)) (val_e_to_expr e2))
+  | Veval_cast ty1 ty2 v => (appR (Eval_f (feval_cast ty1 ty2))) (val_e_to_expr v) 
+  | Vderef_noload t v => (appR (Eval_f (fderef_noload t))) (val_e_to_expr v)
+  | Vforce_ptr v => (appR (Other (fforce_ptr))) (val_e_to_expr v)
+  | Veval_field t id v => (appR (Eval_f (feval_field t id))) (val_e_to_expr v)
+end.
+
+Definition msubst_var id T2 ty :=
+match get_reif id T2 with
+  | App (Inj (inr (Other (fsome t)))) 
+        (App (App (Inj (inr (Data (fpair t1 t2))))
+                  (Inj (inr (Const (fCtype ty')))))
+             v) =>
+    if eqb_type ty ty'
+    then Some (Vexpr v)
+    else None
+  | _ => None
+end.
+
+
+Fixpoint msubst_eval_expr_reif (T1: ExprCore.expr typ func) (T2: ExprCore.expr typ func) (e: Clight.expr) : option (val_e) :=
   match e with
-  | Econst_int i ty => Some (appR (Value fVfloat) (injR (Const (fint i))))
-  | Econst_long i ty => Some (appR (Value fVlong) (injR (Const (fint64 i))))
-  | Econst_float f ty => Some (appR (Value fVfloat) (injR (Const (ffloat f))))
-  | Econst_single f ty => Some (appR (Value fVsingle) (injR (Const (ffloat32 f))))
-  | Etempvar id ty => PTree.get id T1
+  | Econst_int i ty => Some (Vint i)
+  | Econst_long i ty => Some (Vlong i)
+  | Econst_float f ty => Some (Vfloat f)
+  | Econst_single f ty => Some (Vsingle f)
+  | Etempvar id ty => match get_reif id T1 with
+                        | (App (Inj (inr (Other (fsome t)))) v) => Some (Vexpr v)
+                        | _ => None
+                      end
   | Eaddrof a ty => msubst_eval_lvalue_reif T1 T2 a 
-  | Eunop op a ty =>  option_map (appR (Eval_f (feval_unop op (typeof a))))
-                                       (msubst_eval_expr_reif T1 T2 a) 
+  | Eunop op a ty =>  option_map (Vunop op (typeof a)) (msubst_eval_expr_reif T1 T2 a) 
   | Ebinop op a1 a2 ty => match (msubst_eval_expr_reif T1 T2 a1), (msubst_eval_expr_reif T1 T2 a2) with
-                            | Some v1, Some v2 => Some 
-                                (App (appR (Eval_f (feval_binop op 
-                                         (typeof a1) (typeof a2))) v1) v2) 
+                            | Some v1, Some v2 => Some (Vbinop op (typeof a1) (typeof a2) v1 v2) 
                             | _, _ => None
                           end
-  | Ecast a ty => option_map (appR (Eval_f (feval_cast (typeof a) ty))) (msubst_eval_expr_reif T1 T2 a)
-  | Evar id ty => option_map (appR (Eval_f (fderef_noload ty)))
-                    match PTree.get id T2 with
-                    | Some (ty', v) =>
-                      if eqb_type ty ty'
-                      then Some v
-                      else None
-                    | None => None
-                    end
-  | Ederef a ty => 
-      option_map (appR (Eval_f (fderef_noload ty))) 
-                 (option_map (appR (Other (fforce_ptr)))
-                             (msubst_eval_expr_reif T1 T2 a))
-  | Efield a i ty => option_map (appR (Eval_f (fderef_noload ty))) 
-                                (option_map (appR (Eval_f (feval_field (typeof a) i))) (msubst_eval_lvalue_reif T1 T2 a))
+  | Ecast a ty => option_map (Veval_cast (typeof a) ty) (msubst_eval_expr_reif T1 T2 a)
+  | Evar id ty => option_map (Vderef_noload ty) (msubst_var id T2 ty)
+  | Ederef a ty => option_map (Vderef_noload ty) (option_map Vforce_ptr (msubst_eval_expr_reif T1 T2 a))
+  | Efield a i ty => option_map (Vderef_noload ty) (option_map (Veval_field (typeof a) i) (msubst_eval_lvalue_reif T1 T2 a))
   end
-  with msubst_eval_lvalue_reif (T1: PTree.t (ExprCore.expr typ func)) (T2: PTree.t (type * (ExprCore.expr typ func))) (e: Clight.expr) : option (ExprCore.expr typ func) := 
+with
+msubst_eval_lvalue_reif (T1: ExprCore.expr typ func) (T2: ExprCore.expr typ func) (e: Clight.expr) : option val_e := 
   match e with 
-  | Evar id ty => match PTree.get id T2 with
-                  | Some (ty', v) =>
-                    if eqb_type ty ty'
-                    then Some v
-                    else None
-                  | None => None
-                  end
-  | Ederef a ty => option_map (appR (Other fforce_ptr)) (msubst_eval_expr_reif T1 T2 a)
-  | Efield a i ty => option_map (appR (Eval_f (feval_field (typeof a) i))) (msubst_eval_lvalue_reif T1 T2 a)
-  | _  => Some (injR (Value fVundef))
+  | Evar id ty => (msubst_var id T2 ty)
+  | Ederef a ty => option_map Vforce_ptr (msubst_eval_expr_reif T1 T2 a)
+  | Efield a i ty => option_map (Veval_field (typeof a) i) (msubst_eval_lvalue_reif T1 T2 a)
+  | _  => Some Vundef
   end.
+  
+Definition rmsubst_eval_expr (T1: (ExprCore.expr typ func)) (T2: ExprCore.expr typ func) (e: Clight.expr) := 
+match msubst_eval_expr_reif T1 T2 e with
+| Some e => some_reif (val_e_to_expr e) tyval
+| None => none_reif tyval
+end.
 
 Lemma Forall_reverse :
 forall A P (l: list A),
@@ -156,14 +198,14 @@ split; intros; induction a; simpl in *; intuition.
 Qed.
 
 
-Lemma semax_set_localD id e v ls vs:
-forall Espec Delta R ,
-tc_expr_b_norho Delta e= true ->
-tc_temp_id_b_norho id (typeof e) Delta e = true ->
-msubst_eval_expr_norho ls vs e = Some v ->
-@semax Espec Delta (assertD nil (localD ls vs) R)
+Lemma semax_set_localD id e t v r:
+forall vl ls vs Espec R g,
+tc_expr_b_norho (t, v, r, g) e= true ->
+tc_temp_id_b_norho id (typeof e) (t, v, r, g) e = true ->
+msubst_eval_expr_norho ls vs e = Some vl ->
+@semax Espec (t, v, r, g) (assertD nil (localD ls vs) R)
       (Sset id e)
-(normal_ret_assert (assertD nil (localD (PTree.set id v ls) vs) R)).
+(normal_ret_assert (assertD nil (localD (PTree.set id vl ls) vs) R)).
 Proof.
 (*intros.
 eapply semax_pre_simple; [ | apply forward_setx_closed_now].

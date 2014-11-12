@@ -34,7 +34,7 @@ match a, b with
 | tyOracleKind, tyOracleKind 
 | tystatement, tystatement 
 | tyret_assert, tyret_assert => true
-| tylistspec ty1 id1, tylistspec ty2 id2 => andb (expr.eqb_type ty1 ty2) (BinPos.Pos.eqb id1 id2)
+(*| tylistspec ty1 id1, tylistspec ty2 id2 => andb (expr.eqb_type ty1 ty2) (BinPos.Pos.eqb id1 id2)*)
 | tysum tl1 tr1, tysum tl2 tr2 
 | typrod tl1 tr1, typrod tl2 tr2 
 | tyArr tl1 tr1, tyArr tl2 tr2 => andb (typ_beq tl1 tl2) (typ_beq tr1 tr2)

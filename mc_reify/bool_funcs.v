@@ -1,9 +1,13 @@
 Require Import veric.expr.
 Require Import veric.SeparationLogic.
+Require Import Coq.Bool.Bool.
 
-Definition denote_tc_assert_b_norho a:=
+
+Fixpoint denote_tc_assert_b_norho a:=
 match a with 
 | tc_TT => true
+| tc_andp' a b => andb (denote_tc_assert_b_norho a) (denote_tc_assert_b_norho b)
+| tc_orp' a b => orb (denote_tc_assert_b_norho a) (denote_tc_assert_b_norho b)
 | _ => false
 end.
 
@@ -20,7 +24,9 @@ tc_expr Delta e rho .
 Proof.
 intros.
 unfold tc_expr, tc_expr_b_norho in *. 
-destruct (typecheck_expr Delta e); simpl in *; unfold_lift; simpl; auto; try congruence. 
+induction (typecheck_expr Delta e); simpl in *; unfold_lift; simpl; auto; try congruence. 
+rewrite andb_true_iff in *. intuition.
+rewrite orb_true_iff in *. intuition.
 Qed.
 
 Lemma tc_temp_id_b_sound : 
@@ -30,7 +36,9 @@ tc_temp_id id t Delta e rho .
 Proof.
 intros. 
 unfold tc_temp_id, tc_temp_id_b_norho in *.
-destruct (typecheck_temp_id id t Delta e); simpl in *; unfold_lift; simpl; auto; try congruence.
+induction (typecheck_temp_id id t Delta e); simpl in *; unfold_lift; simpl; auto; try congruence.
+rewrite andb_true_iff in *. intuition.
+rewrite orb_true_iff in *. intuition.
 Qed.
 
 Fixpoint msubst_eval_expr_norho (T1: PTree.t val) (T2: PTree.t (type * val)) (e: Clight.expr) : option val :=
