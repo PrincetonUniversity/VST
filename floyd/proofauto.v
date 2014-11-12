@@ -13,6 +13,8 @@ Require Export floyd.mapsto_memory_block.
 Require Export floyd.rangespec_lemmas.
 Require Export floyd.data_at_lemmas.
 Require Export floyd.field_at.
+Require Export floyd.array_lemmas.
+Require Export floyd.stronger.
 Require Export floyd.loadstore_mapsto.
 Require Export floyd.loadstore_data_at.
 Require Export floyd.loadstore_field_at.

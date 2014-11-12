@@ -9,6 +9,7 @@ Require Import floyd.rangespec_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.array_lemmas.
+Require Import floyd.stronger.
 Require Import floyd.entailer.
 Require Import floyd.closed_lemmas.
 Require Import floyd.loadstore_data_at.
@@ -506,71 +507,6 @@ Admitted.
   + solve_legal_nested_field_cons H1.    
 *)
 
-Definition stronger {t: type} (v v': reptype t) : Prop :=
-  forall sh, data_at sh t v |-- data_at sh t v'.
-
-Notation "X '>>>' Y" := (stronger X Y) (at level 60, no associativity).
-
-Lemma stronger_refl: forall t (v: reptype t), v >>> v.
-Proof.
-  intros t v sh p.
-  auto.
-Qed.
-
-Lemma eq_rect_r_stronger: forall {t1 t2} v0 v1 (H: t1 = t2),
-  v0 >>> v1 ->
-  eq_rect_r reptype v0 H >>> eq_rect_r reptype v1 H.
-Proof.
-  intros.
-  generalize H.
-  subst.
-  intros.
-  unfold eq_rect_r.
-  rewrite <- !eq_rect_eq.
-  auto.
-Qed.
-
-Lemma stronger_data_at'_derives: forall sh t v0 v1 pos p,
-  legal_alignas_type t = true ->
-  (alignof t | pos) ->
-  v0 >>> v1 ->
-  size_compatible t (offset_val (Int.repr pos) p) ->
-  align_compatible t (offset_val (Int.repr pos) p) ->
-  data_at' sh type_id_env.empty_ti t pos v0 p |--
-    data_at' sh type_id_env.empty_ti t pos v1 p.
-Proof.
-  intros.
-  specialize (H1 sh (offset_val (Int.repr pos) p)).
-  unfold data_at in H1.
-  simpl in H1.
-  normalize in H1.
-  rewrite !data_at'_at_offset' with (pos := pos) by auto.
-  rewrite !at_offset'_eq by (rewrite <- data_at'_offset_zero; reflexivity).
-  exact H1.
-Qed.
-
-Lemma stronger_data_at'_nested_field_derives: forall sh t gfs t0 v0 v1 p,
-  legal_alignas_type t = true ->
-  nested_field_type2 t gfs = t0 ->
-  legal_nested_field t gfs ->
-  v0 >>> v1 ->
-  size_compatible t p ->
-  align_compatible t p ->
-  data_at' sh type_id_env.empty_ti t0 (nested_field_offset2 t gfs) v0 p |--
-    data_at' sh type_id_env.empty_ti t0 (nested_field_offset2 t gfs) v1 p.
-Proof.
-  intros.
-  apply stronger_data_at'_derives; auto.
-  + rewrite <- H0.
-    apply nested_field_type2_nest_pred; auto.
-  + rewrite <- H0.
-    apply nested_field_offset2_type2_divide; auto.
-  + rewrite <- H0.
-    apply size_compatible_nested_field; auto.
-  + rewrite <- H0.
-    apply align_compatible_nested_field; auto.
-Qed.
-
 (*
 Lemma upd_array_stronger: forall t n a i v v0 v1,
   legal_alignas_type (Tarray t n a) = true ->
@@ -654,30 +590,6 @@ Proof.
     apply H2.
 Qed.
 
-Lemma stronger_trans: forall t (v0 v1 v2: reptype t),
-  v0 >>> v1 -> v1 >>> v2 -> v0 >>> v2.
-Proof.
-  intros.
-  intro sh.
-  eapply derives_trans.
-  apply H.
-  apply H0.
-Qed.
-
-Lemma field_at_stronger: forall sh t gfs v0 v1,
-  legal_alignas_type t = true ->
-  v0 >>> v1 ->
-  field_at sh t gfs v0 |-- field_at sh t gfs v1.
-Proof.
-  intros.
-  intros p.
-  rewrite !field_at_data_at by exact H.
-  simpl.
-  rewrite !at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
-  normalize.
-  apply H0.
-Qed.
-
 Lemma Z2Nat_nonpos_0: forall z, z <= 0 -> Z.to_nat z = 0%nat.
 Proof.
   intros.
@@ -699,47 +611,6 @@ Proof.
   + simpl. apply pred_ext; normalize.
   + rewrite Z2Nat_nonpos_0 by omega.
     reflexivity.
-Qed.
-
-Lemma stronger_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
-  legal_alignas_type (Tarray t0 n a) = true ->
-  (forall i, 0 <= i < n -> Znth i v0 (default_val _) >>> Znth i v1 (default_val _)) ->
-  v0 >>> v1.
-Proof.
-  intros.
-  unfold stronger.
-  cut (forall sh : Share.t,
-    array_at sh (Tarray t0 n a) nil 0 n v0 |-- array_at sh (Tarray t0 n a) nil 0 n v1).
-  Focus 1. {
-    intros H1 sh; specialize (H1 sh); rewrite data_at_field_at in *;
-    erewrite !field_at_Tarray in * by (try reflexivity; eauto);
-    auto.
-  } Unfocus.
-  intro sh; destruct (zle n 0).
-  - intros p; rewrite !array_at_emp by omega; auto.
-  - revert H0; pattern n at 1 3 5.
-    replace n with (Z.of_nat (Z.to_nat n)) by (rewrite Z2Nat.id by omega; reflexivity).
-    induction (Z.to_nat n); intros.
-    * intros p; rewrite !array_at_emp by (simpl; omega); auto.
-    * rewrite !split_array_at_tl with (hi := (Z.of_nat (S n0))) by (rewrite Nat2Z.inj_succ; omega).
-      apply sepcon_derives.
-      {
-        apply field_at_stronger; auto.
-        unfold nested_Znth.
-        apply eq_rect_r_stronger.
-        rewrite !Nat2Z.inj_succ in H0 |- *.
-        replace (Z.succ (Z.of_nat n0) - 1 - 0) with (Z.of_nat n0) by omega.
-        unfold stronger.
-        apply H0.
-        omega.
-      }
-      {
-        rewrite !Nat2Z.inj_succ in H0 |- *.
-        replace (Z.succ (Z.of_nat n0) - 1) with (Z.of_nat n0) by omega.
-        apply IHn0.
-        intros; apply H0.
-        omega.
-      }
 Qed.
 
 Lemma data_at_Tarray_split3: forall sh t n a i v,

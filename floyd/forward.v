@@ -1677,19 +1677,25 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
           let vi := fresh "vi" in evar (vi: val);
           do_compute_expr Delta P Q R ei vi HA;
 
-          match goal with
-          | vi := Vint (Int.sub _ _) |- _ => unfold Int.sub in vi
-          | vi := Vint (Int.add _ _) |- _ => unfold Int.add in vi
-          | vi := Vint (Int.mul _ _) |- _ => unfold Int.mul in vi
-          | vi := Vint (Int.and _ _) |- _ => unfold Int.and in vi
-          | vi := Vint (Int.or _ _) |- _ => unfold Int.or in vi
-          | vi := Vint (Int.repr _) |- _ => idtac
-          | vi := Vint ?V |- _ =>
+          (* This code is damn ugly. Is there any counterpart of "type of", *)
+          (* something like "value of".                                     *)
+          let HHHH := fresh "HHHH" in
+            assert (vi = vi) as HHHH by reflexivity;
+          unfold vi in HHHH;
+          match type of HHHH with
+          | _ = Vint (Int.sub _ _) => unfold Int.sub in vi
+          | _ = Vint (Int.add _ _) => unfold Int.add in vi
+          | _ = Vint (Int.mul _ _) => unfold Int.mul in vi
+          | _ = Vint (Int.and _ _) => unfold Int.and in vi
+          | _ = Vint (Int.or _ _) => unfold Int.or in vi
+          | _ = Vint (Int.repr _) => idtac
+          | _ = Vint ?V =>
             subst vi;
             replace V with (Int.repr (Int.unsigned V)) in HA
               by (rewrite (Int.repr_unsigned V); reflexivity);
             pose (Vint (Int.repr (Int.unsigned V))) as vi
           end;
+          clear HHHH;
 
           match goal with
           | vi := Vint (Int.repr ?i) |- _ => instantiate (1 := ArraySubsc i :: gfs0')
