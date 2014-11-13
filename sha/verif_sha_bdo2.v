@@ -8,18 +8,19 @@ Local Open Scope logic.
 
 Lemma sha256_block_data_order_return:
    forall (Espec : OracleKind) (hashed b : list int) (ctx data : val)
-            (sh : share) (regs : registers) kv,
+            (sh : share) (regs : registers) kv Xv,
   Zlength b = LBLOCKz ->
   (LBLOCKz | Zlength hashed) ->
   regs = hash_blocks init_registers hashed ->
   semax (initialized _t Delta_loop1)
   (PROP  ()
-   LOCAL  (temp _ctx ctx; var _K256 (tarray tuint CBLOCKz) kv)
+   LOCAL  (temp _ctx ctx; var _K256 (tarray tuint CBLOCKz) kv;
+                var _X (tarray tuint 16) Xv)
    SEP 
    (`(field_at Tsh t_struct_SHA256state_st [StructField _h]
            (map Vint (hash_block regs b)) ctx);
     `(K_vector kv);
-   `(data_at_ Tsh (tarray tuint LBLOCKz)) (eval_var _X (tarray tuint LBLOCKz));
+   `(data_at_ Tsh (tarray tuint LBLOCKz) Xv);
    `(data_block sh (intlist_to_Zlist b) data)))
   (Sreturn None)
   (frame_ret_assert

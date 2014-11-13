@@ -4,6 +4,7 @@ Require Coq.Strings.String.
 Require Coq.Strings.Ascii.
 Require Import Coqlib.
 Require Import msl.Coqlib2.
+Require Import floyd.coqlib3.
 Require Import List. Import ListNotations.
 Require Import sha.SHA256.
 
@@ -634,7 +635,6 @@ rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4.
 rewrite Z2Nat.id by auto.
 destruct (Z.mod_pos_bound (Zlength msg) 4); omega.
 omega.
-omega.
 rewrite HP.
 rewrite skipn_app1 by omega.
 remember (skipn (Z.to_nat (Zlength msg / 4) * 4) msg) as ccc.
@@ -657,12 +657,6 @@ assert (- (Zlength msg + 9) mod 64 =
 assert (LL: length ccc = length (skipn (Z.to_nat (Zlength msg / 4) * 4) msg))
  by congruence.
 rewrite skipn_length in LL.
-Focus 2.
-apply Nat2Z.inj_ge; rewrite <- Zlength_correct. 
- rewrite Nat2Z.inj_mul. rewrite Z2Nat.id by auto. change (Z.of_nat 4) with 4.
-assert (0 <= Zlength msg mod 4) 
- by (apply Z.mod_pos_bound; omega).
-omega.
 assert (LL': Zlength msg = Zlength ccc + (Zlength msg/4)*4).
 rewrite Zlength_correct at 1.
 rewrite Zlength_correct at 1.

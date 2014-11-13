@@ -4,6 +4,59 @@ Require Import sha.sha.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 
+Lemma force_lengthn_firstn:
+  forall {A} n b (v:A), (n <= length b)%nat -> 
+         force_lengthn n b v = firstn n b.
+Proof.
+induction n; intros; simpl.
+reflexivity.
+destruct b. inv H.
+simpl in H. f_equal. apply IHn. omega.
+Qed.
+
+Lemma Zland_15:
+ forall i, Z.land i 15 = i mod 16.
+Proof.
+intros.
+change 15%Z with (Z.ones 4).
+rewrite Z.land_ones by (compute; congruence).
+reflexivity.
+Qed.
+
+Lemma Znth_nthi:
+  forall i b,
+  (0 <= i < Zlength b)%Z -> Znth i (map Vint b) Vundef = Vint (nthi b i).
+Proof.
+intros; unfold Znth.
+rewrite if_false by omega.
+rewrite (@nth_map' int val _ _ Int.zero).
+reflexivity.
+rewrite Zlength_correct in H.
+apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega. omega.
+Qed.
+
+Lemma Znth_nthi':
+ forall i b,
+  Zlength b = 16%Z ->
+  Znth (Z.land i 15) (map Vint b) Vundef = Vint (nthi b (i mod 16)).
+Proof.
+ intros.
+ rewrite Zland_15.
+ apply Znth_nthi.
+ rewrite H.
+ apply Z.mod_pos_bound.
+ computable.
+Qed.
+
+Lemma Zland_in_range:
+  forall i, (0 <= Z.land i 15 < 16)%Z.
+Proof.
+intros.
+rewrite Zland_15. apply Z_mod_lt. compute; congruence.
+Qed.
+Hint Resolve Zland_in_range.
+
+
 Lemma and_mone':
  forall x, Int.and x (Int.repr (-1)) = x.
 Proof.
@@ -250,10 +303,25 @@ intros.
 apply Z2Nat.inj_lt; omega.
 Defined. 
 
+
 (*Definition Xarray (b: list int) (i j: Z) :=
     Vint (W (nthi b) (i-16+(j-i) mod 16)).
 *)
 
+Lemma Znth_land_is_int:
+  forall i b j, 
+  is_int I32 Unsigned (Znth (Z.land i 15) (map Vint (Xarray b j 0)) Vundef).
+Proof.
+intros.
+rewrite Zland_15.
+rewrite Znth_nthi.
+apply I.
+apply Z.mod_pos_bound.
+change (Zlength (Xarray b j 0)) with (16%Z).
+compute; auto.
+Qed.
+
+Hint Resolve Znth_land_is_int.
 Lemma Xarray_simpl:
    forall b, length b = 16%nat -> Xarray b 16 0 = b.
 Proof.
@@ -313,35 +381,6 @@ omega.
 Qed.
 
 (*
-Lemma array_at_Xarray:
- forall b, 
-    length b = 16%nat ->
-    array_at Tsh (tarray tuint 16) nil 0 16 (Xarray b 16 0) = array_at Tsh (tarray tuint 16) nil 0 16 (map Vint b).
-Proof.
-intros.
-apply array_at_ext; intros j ?.
-unfold Xarray, tuints, ZnthV.
-change (16-16)%Z with 0%Z.
-rewrite Z.add_0_l.
-assert (0 <= (j-16)mod 16 < 16)%Z by (apply Z.mod_pos_bound; omega).
-rewrite if_false by omega.
-assert (Z.to_nat j < length b)%nat 
- by (apply Nat2Z.inj_lt; rewrite Z2Nat.id by omega; rewrite H; apply H0).
-rewrite (@nth_map' int val _ _ Int.zero); auto.
-f_equal.
-rewrite W_equation.
-rewrite if_true by omega.
-unfold nthi.
-f_equal.
-f_equal.
-rewrite Zminus_mod.
-rewrite Z.mod_same by omega. rewrite Z.sub_0_r. 
-rewrite Z.mod_mod by omega.
-apply Z.mod_small; omega.
-Qed. 
-*)
-
-(*
 Lemma is_int_Xarray:
  forall b i j, is_int I32 Unsigned (Xarray b i j).
 Proof.
@@ -356,6 +395,7 @@ Fixpoint Xarray' (b: list int) (i: Z) (k: nat) : list int :=
  | S k' => W (nthi b) (i - 16 + (16-(Z.of_nat k)-i) mod 16) :: 
                  Xarray' b i k'
  end.
+
 Lemma Xarray_eq:
     forall b i j, 0 <= j < 16 -> Xarray b i j = Xarray' b i (Z.to_nat (16-j)).
 Proof.
@@ -380,6 +420,25 @@ f_equal.
 rewrite <- IHk by omega.
 f_equal.
 rewrite inj_S.
+omega.
+Qed.
+
+Lemma length_Xarray:
+  forall b i, length (Xarray b i 0) = 16%nat.
+Proof.
+intros. rewrite Xarray_eq by computable. reflexivity.
+Qed.
+
+Lemma Xarray_0: forall b,
+    length b = 16%nat -> Xarray b 16 0 = b.
+Proof.
+intros.
+rewrite Xarray_eq. simpl.
+do 16 (destruct b; [discriminate | ]).
+destruct b; [ | discriminate].
+simpl.
+repeat (rewrite W_equation; rewrite if_true by (compute; congruence)).
+reflexivity.
 omega.
 Qed.
 
@@ -429,66 +488,43 @@ repeat rewrite Zmod_mod.
 apply Zmod_small; omega.
 Qed.
 
-(*
+Global Opaque Xarray.
+
 Lemma Xarray_update:
- forall i bb,
-  length bb = LBLOCK ->
+ forall i b,
+  length b = LBLOCK ->
   (16 <= i < 64)%nat ->
-   data_at Tsh (tarray tuint 16)
-   (upd (Xarray bb (Z.of_nat i)) (Z.of_nat i mod 16)
-          (Vint (W (nthi bb) (Z.of_nat i)))) =
-   data_at Tsh  (tarray tuint 16) (Xarray bb (Z.of_nat (i + 1))) .
+ upd_reptype_array tuint (Z.of_nat i mod 16)
+          (map Vint (Xarray b (Z.of_nat i) 0))
+          (Vint (W (nthi b) (Z.of_nat i)))
+  = map Vint (Xarray b (Z.of_nat (i+1)) 0).
 Proof.
 intros.
-change LBLOCKz with 16. change LBLOCK with 16%nat.
-apply array_at_ext; intros j ?.
-unfold upd, Xarray, tuints, ZnthV.
-
-assert ((Z.of_nat (i + 1) - 16 + (Z.of_nat i mod 16 - Z.of_nat (i + 1)) mod 16)
-            = Z.of_nat i). {
-rewrite Nat2Z.inj_add. change (Z.of_nat 1) with 1%Z.
-rewrite Zminus_mod. rewrite Z.mod_mod by computable.
-rewrite <- Zminus_mod.
-replace (Z.of_nat i - (Z.of_nat i + 1)) with (-1)%Z by omega.
-change (-1 mod 16) with 15%Z.
-replace (Z.of_nat i + 1 - 16 + 15) with (Z.of_nat i) by omega.
-auto.
-}
-if_tac.
-subst j.
-rewrite H2.
-auto.
+unfold upd_reptype_array.
+assert (0 <= Z.of_nat i mod 16 < 16)%Z
+         by (apply Z_mod_lt; compute; congruence).
+rewrite force_lengthn_firstn
+  by (change (length (map Vint (Xarray b (Z.of_nat i) 0))) with 
+        (nat_of_Z 16);
+        apply Z2Nat.inj_le; omega).
+rewrite firstn_map. 
+rewrite skipn_map.
+rewrite <- map_cons.
+rewrite <- map_app.
 f_equal.
-f_equal.
-rewrite Nat2Z.inj_add. change (Z.of_nat 1) with 1.
-replace ((j - Z.of_nat i) mod 16) with ((j - (Z.of_nat i + 1)) mod 16 + 1); [omega|].
-replace (j - (Z.of_nat i + 1)) with (j-Z.of_nat i - 1) by (clear; omega).
-rewrite Zminus_mod.
-rewrite (Zminus_mod j).
-rewrite (Z.mod_small _ _ H1).
-clear - H1 H3.
-assert (0 <= Z.of_nat i mod 16 < 16) by (apply Z.mod_pos_bound; omega).
-forget (Z.of_nat i mod 16) as k.
-clear i.
-assert ((j-k) mod 16 <> 0).
-intro.
-assert (-16 < j-k < 16) by omega.
-destruct (zlt (j-k) 0).
-apply Z.mod_opp_l_z in H0; try computable.
-replace (-(j-k)) with (k-j) in H0 by omega.
-rewrite Z.mod_small in H0 by omega. omega.
-rewrite Z.mod_small in H0 by omega. omega.
-forget (j-k) as n.
-clear - H0.
-rewrite Z.mod_small.
-change (1 mod 16) with 1; omega.
-change (1 mod 16) with 1.
-assert (0 <= n mod 16 < 16)  by (apply Z.mod_pos_bound; omega).
-omega.
+change nat_of_Z with Z.to_nat.
+rewrite Z2Nat.inj_add by omega.
+change (Z.to_nat 1) with 1%nat.
+repeat rewrite Xarray_eq by omega.
+repeat match type of H0 with
+| (64 <= _ < _)%nat => elimtype False; omega
+| (?A <= _ < _)%nat =>
+ assert (H9: i=A \/ (A+1 <= i < 64)%nat) by omega;
+ clear H0; destruct H9 as [H0|H0];
+ [subst i; reflexivity
+ | simpl in H0 ]
+end.
 Qed.
-*)
-
-Global Opaque Xarray.
 
 Lemma X_subscript_aux2:
   forall n, 0 <= n < Int.max_unsigned -> 
