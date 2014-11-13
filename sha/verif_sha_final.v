@@ -42,13 +42,27 @@ forward. (* p[n] = 0x80; *)
   omega.
 }
 forward. (* n++; *)
-STOP.
-rewrite upd_Znth_next
-  by (repeat rewrite initial_world.Zlength_map; auto).
+change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
+
+replace (data_at Tsh
+           (nested_field_type2 t_struct_SHA256state_st [StructField _data])
+           (upd_reptype_array tuchar (Zlength dd)
+              (map Vint (map Int.repr dd)) (Vint (Int.repr 128)))) with
+  (data_at Tsh
+           (nested_field_type2 t_struct_SHA256state_st [StructField _data])
+              (map Vint (map Int.repr (dd ++ [128])))).
+Focus 2.
+{
+  rewrite !map_app.
+  simpl (map Vint (map Int.repr [128])).
+  apply eq_sym.
+  apply equal_data_one_more_on_list.
+  + reflexivity.
+  + omega.
+  + rewrite !Zlength_map. reflexivity.
+} Unfocus.
 simpl. normalize. 
 subst r_h. simpl.
-change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
-change (align 40 1)%Z with 40%Z.
 set (ddlen :=  Zlength dd).
 assert (Hddlen: (0 <= ddlen < 64)%Z).
 unfold ddlen. split; auto. rewrite Zlength_correct; omega.
@@ -63,8 +77,11 @@ unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 unfold ddlen in *; clear ddlen.
 eapply semax_pre0; [|apply (ifbody_final_if1 Espec hashed md c shmd hi lo dd kv H4 H7 H3 DDbytes)].
 entailer!.
-rewrite H5.
-rewrite offset_offset_val. f_equal.
+unfold_data_at 2%nat.
+rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
+rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
+rewrite !map_app.
+entailer!.
 * (* else-clause *)
 forward. (* skip; *)
 unfold invariant_after_if1.
@@ -73,22 +90,26 @@ apply exp_right with hashed.
 apply exp_right with (dd ++ [128]).
 apply exp_right with 0%Z.
 entailer.
-rewrite mul_repr, sub_repr in H2; apply ltu_repr_false in H2.
+rewrite mul_repr, sub_repr in H8; apply ltu_repr_false in H8.
 2: split; computable.
 2: assert (64 < Int.max_unsigned)%Z by computable; unfold ddlen in *;
    split; try omega.
 clear TC0.
-change (16*4)%Z with (Z.of_nat CBLOCK) in H2.
+change (16*4)%Z with (Z.of_nat CBLOCK) in H8.
 apply andp_right; [apply prop_right; repeat split | cancel].
 rewrite Forall_app; split; auto.
 repeat constructor; omega.
 rewrite app_length; simpl. apply Nat2Z.inj_ge.
-repeat rewrite Nat2Z.inj_add; unfold ddlen in H2; rewrite Zlength_correct in H2.
+repeat rewrite Nat2Z.inj_add; unfold ddlen in H8; rewrite Zlength_correct in H8.
 change (Z.of_nat 1) with 1%Z; change (Z.of_nat 8) with 8%Z.
 omega.
 f_equal. unfold ddlen; repeat rewrite Zlength_correct; f_equal.
 rewrite app_length; simpl. rewrite Nat2Z.inj_add; reflexivity.
-repeat rewrite map_app; apply derives_refl.
+unfold_data_at 2%nat.
+rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
+rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
+rewrite !map_app.
+entailer!.
 * unfold invariant_after_if1.
 apply extract_exists_pre; intro hashed'.
 apply extract_exists_pre; intro dd'.
@@ -100,6 +121,9 @@ unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 unfold sha_finish.
 unfold SHA_256.
 clear ddlen Hddlen.
+
+STOP.
+
 
 forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
   (Tsh,

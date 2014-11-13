@@ -227,6 +227,38 @@ Proof.
       omega.
 Qed.
 
+Lemma force_lengthn_id: forall {A} n ct (d: A), length ct = n -> force_lengthn n ct d = ct.
+Proof.
+  intros.
+  revert ct H; induction n; intros.
+  + destruct ct; try solve [inversion H].
+    reflexivity.
+  + destruct ct; try solve [inversion H].
+    simpl.
+    rewrite IHn by auto.
+    reflexivity.
+Qed.
+
+Lemma equal_data_one_more_on_list: forall t n a (ct: list (reptype t)) i v,
+  legal_alignas_type (Tarray t n a) = true ->
+  i < n ->
+  Zlength ct = i ->
+  (upd_reptype (Tarray t n a) (ArraySubsc i :: nil) ct v) === (ct ++ (v::nil)).
+Proof.
+  intros.
+  apply data_equal_array_ext; [auto |].
+  intros.
+  unfold Znth.
+  if_tac; [omega |].
+  simpl.
+  unfold upd_reptype_array, eq_rect_r; simpl.
+  assert (i >= 0) by (rewrite Zlength_correct in H1; omega).
+  apply Zlength_length in H1; [| omega].
+  rewrite force_lengthn_id by auto.
+  rewrite skipn_short by (rewrite Z2Nat.inj_add by omega; omega).
+  apply data_equal_refl.
+Qed.
+
 Definition array_aux_field_except: forall sh t gfs t0 n a i,
   legal_alignas_type t = true ->
   nested_field_type2 t gfs = Tarray t0 n a ->

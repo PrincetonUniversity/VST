@@ -1324,36 +1324,6 @@ Qed.
 Hint Extern 2 (array_at _ _ _ _ _ _ |-- array_at _ _ _ _ _ _) =>
   (apply array_at_ext'; intros; solve [normalize]) : cancel.
 
-Lemma upd_Znth_next:
- forall t jl i v,
-  Zlength jl = i ->
-  upd (ZnthV t jl) i v = ZnthV t (jl++ (v::nil)).
-Proof.
-intros;
-extensionality n.
-unfold ZnthV, upd.
-if_tac.
-subst n.
-if_tac. subst. rewrite Zlength_correct in H0. omega.
-rewrite <- H.
-subst i.
-rewrite Zlength_correct.
-rewrite Nat2Z.id.
-induction jl; simpl; auto.
-apply IHjl.
-rewrite Zlength_correct; omega.
-if_tac; auto.
-subst i.
-assert (Z.to_nat n <> length jl).
-rewrite <- (Z2Nat.id n) in H0 by omega.
-contradict H0. rewrite Zlength_correct; rewrite <- H0. auto.
-clear - H.
-revert jl H; induction (Z.to_nat n); destruct jl; intros; simpl; auto.
-contradiction H; reflexivity.
-destruct n0; reflexivity.
-apply IHn0. simpl in H. contradict H; f_equal; auto. 
-Qed.
-
 Lemma array_at__array_at_None:
   forall t sh,  array_at_ t sh = array_at t sh (fun _ => default_val t).
 Proof.
@@ -2357,7 +2327,7 @@ Proof.
     apply Z.divide_1_l.
   + apply equal_f; 
     apply memory_block_array_tuchar; auto.
-Qed.
+updQed.
 
 Lemma offset_val_array_at_:
  forall ofs t sh lo hi v,

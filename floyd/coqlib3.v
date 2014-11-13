@@ -208,3 +208,36 @@ Proof.
   rewrite <- Z.land_lor_distr_l.
   reflexivity.
 Qed.
+
+Lemma Zlength_length:
+  forall A (al: list A) (n: Z),
+    0 <= n ->
+    (Zlength al = n <-> length al = Z.to_nat n).
+Proof.
+intros. rewrite Zlength_correct.
+split; intro.
+rewrite <- (Z2Nat.id n) in H0 by omega.
+apply Nat2Z.inj in H0; auto.
+rewrite H0.
+apply Z2Nat.inj; try omega.
+rewrite Nat2Z.id; auto.
+Qed.
+
+Lemma skipn_length_short:
+  forall {A} n (al: list A), 
+    (length al <= n)%nat -> 
+    (length (skipn n al) = 0)%nat.
+Proof.
+ induction n; destruct al; simpl; intros; auto.
+ omega.
+ apply IHn. omega.
+Qed.
+
+Lemma skipn_short:
+   forall {A} n (al: list A), (n >= length al)%nat -> skipn n al = nil.
+Proof.
+intros.
+pose proof (skipn_length_short n al).
+spec H0; [auto | ].
+destruct (skipn n al); inv H0; auto.
+Qed.

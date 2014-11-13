@@ -41,16 +41,6 @@ Proof.
 Qed.
 *)
 
-Lemma skipn_length_short:
-  forall {A} n (al: list A), 
-    (length al <= n)%nat -> 
-    (length (skipn n al) = 0)%nat.
-Proof.
- induction n; destruct al; simpl; intros; auto.
- omega.
- apply IHn. omega.
-Qed.
-
 (* PREPROCESSING: CONVERTING STRINGS TO PADDED MESSAGE BLOCKS *)
 
 (*converting a string to a list of Z *)
