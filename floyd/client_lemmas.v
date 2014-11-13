@@ -1398,17 +1398,6 @@ Qed.
 Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : norm.
 Hint Rewrite @and_assoc'' using solve [auto with typeclass_instances] : gather_prop.
 
-
-Lemma semax_seq': 
- forall Espec Delta P c1 P' c2 Q, 
-         @semax Espec Delta P c1 (normal_ret_assert P') ->
-         @semax Espec(update_tycon Delta c1) P' c2 Q ->
-         @semax Espec Delta P (Ssequence c1 c2) Q.
-Proof.
- intros. apply semax_seq with P'; auto.
- apply sequential'. auto. 
-Qed.
-
 Ltac hoist_later_left :=
    match goal with
   | |- (?P |-- _) =>

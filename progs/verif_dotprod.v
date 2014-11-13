@@ -3,48 +3,55 @@ Require Import progs.dotprod.
 
 Local Open Scope logic.
 
+Fixpoint map2 {A B C: Type} (f: A -> B -> C) (al: list A) (bl: list B) : list C :=
+ match al, bl with
+  | a::al', b::bl' => f a b :: map2 f al' bl'
+  | _, _ => nil
+  end.
+
 Definition add_spec :=
  DECLARE _add
-  WITH x: val, y : val, z: val, fy : Z -> float, fz: Z -> float
+  WITH x: val, y : val, z: val, fy : list float, fz: list float
   PRE  [_x OF tptr tdouble, _y OF tptr tdouble, _z OF tptr tdouble] 
-      PROP ()
+      PROP (length fy = 3%nat; length fz = 3%nat)
       LOCAL (temp _x x; temp _y y; temp _z z)
-      SEP (`(array_at_ tdouble Tsh 0 3 x) ;
-             `(array_at tdouble Tsh (Vfloat oo fy) 0 3 y);
-             `(array_at tdouble Tsh (Vfloat oo fz) 0 3 z))
+      SEP (`(data_at_ Tsh (tarray tdouble 3)  x) ;
+             `(data_at Tsh (tarray tdouble 3) (map Vfloat fy) y);
+             `(data_at Tsh (tarray tdouble 3) (map Vfloat fz) z))
   POST [ tvoid ] 
       PROP ()
       LOCAL ()
-      SEP (`(array_at tdouble Tsh (Vfloat oo (fun i => Float.add (fy i) (fz i))) 0 3 x);
-             `(array_at tdouble Tsh (Vfloat oo fy) 0 3 y);
-             `(array_at tdouble Tsh (Vfloat oo fz) 0 3 z) ).
+      SEP (`(data_at Tsh (tarray tdouble 3) (map Vfloat (map2 Float.add fy fz)) x);
+             `(data_at Tsh (tarray tdouble 3) (map Vfloat fy) y);
+             `(data_at Tsh (tarray tdouble 3) (map Vfloat fz) z)).
 
-Definition dotprod (n: Z) (fx fy : Z -> float) : float :=
-  fold_range (fun i sum => Float.add sum (Float.mul (fx i) (fy i)))
-            Float.zero 0 n.
+Definition dotprod (fx fy : list float) : float :=
+  fold_right Float.add Float.zero (map2 Float.mul fx fy).
 
 Definition dotprod_spec :=
  DECLARE _dotprod
-  WITH n: Z, x: val, y : val, fx : Z -> float, fy: Z -> float, sh: share
+  WITH n: Z, x: val, y : val, fx : list float, fy: list float, sh: share
   PRE  [_n OF tint, _x OF tptr tdouble, _y OF tptr tdouble] 
-      PROP (0 <= n <= Int.max_signed)
+      PROP (n <= Int.max_signed; Zlength fx = n; Zlength fy = n)
       LOCAL (temp _n (Vint (Int.repr n)); temp _x x; temp _y y)
-      SEP (`(array_at tdouble sh (Vfloat oo fx) 0 n x);
-             `(array_at tdouble sh (Vfloat oo fy) 0 n y))
+      SEP (`(data_at Tsh (tarray tdouble n) (map Vfloat fx) x);
+             `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y))
   POST [ tdouble ] 
       PROP ()
-      LOCAL (`(eq (Vfloat (dotprod n fx fy))) retval)
-      SEP (`(array_at tdouble sh (Vfloat oo fx) 0 n x);
-             `(array_at tdouble sh (Vfloat oo fy) 0 n y) ).
+      LOCAL (`(eq (Vfloat (dotprod fx fy))) retval)
+      SEP (`(data_at Tsh (tarray tdouble n) (map Vfloat fx) x);
+             `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y)).
 
 Definition Vprog : varspecs := nil.
 
 Definition Gprog : funspecs := 
      add_spec::dotprod_spec::nil.
 
+(*
 Lemma dotprod_one_more:
   forall i f g, dotprod (i+1) f g = Float.add (dotprod i f g) (Float.mul (f i) (g i)).
 Admitted.
+*)
 
 Lemma body_dotprod:  semax_body Vprog Gprog f_dotprod dotprod_spec.
 Proof.
@@ -55,12 +62,15 @@ name x_ _x.
 name y_ _y.
 
 forward. (* sum = 0.0; *)
+
 forward_for_simple_bound n
    (EX i:Z,
       PROP ()
-      LOCAL (temp _sum (Vfloat (dotprod i fx fy)); temp _x x; temp _y y)
-      SEP (`(array_at tdouble sh (Vfloat oo fx) 0 n x);
-             `(array_at tdouble sh (Vfloat oo fy) 0 n y))).
+      LOCAL (temp _sum (Vfloat (dotprod (firstn (Z.to_nat i) fx) (firstn (Z.to_nat i) fy))); temp _x x; temp _y y)
+      SEP (`(data_at Tsh (tarray tdouble n) (map Vfloat fx) x);
+             `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y))).
+* (* bound range *)
+ rewrite Zlength_correct in H0. subst n. repable_signed.
 * (* initializer *)
 entailer!.
 * (* body *)

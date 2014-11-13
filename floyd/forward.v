@@ -620,24 +620,6 @@ apply pred_ext; apply andp_derives; auto;
 Qed.
 Hint Rewrite split_first_PROP using not_conj_notation : norm.
 
-Lemma semax_frame1:
- forall {Espec: OracleKind} Frame Delta Delta1
-     P Q c R P1 Q1 R1 P2 Q2 R2,
-    semax Delta1 (PROPx P1 (LOCALx Q1 (SEPx R1))) c 
-                      (normal_ret_assert (PROPx P2 (LOCALx Q2 (SEPx R2)))) ->
-    Delta1 = Delta ->
-    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-    PROPx P1 (LOCALx Q1 (SEPx (R1 ++ Frame))) ->
-    closed_wrt_modvars c (SEPx Frame) ->
-    semax Delta (PROPx P (LOCALx Q (SEPx R))) c 
-                      (normal_ret_assert (PROPx P2 (LOCALx Q2 (SEPx (R2++Frame))))).
-Proof.
-intros. subst.
-eapply semax_pre.
-apply H1.
-apply semax_frame_PQR; auto.
-Qed.
-
 (* end of "stuff to move elsewhere" *)
 
 Definition query_context Delta id :=

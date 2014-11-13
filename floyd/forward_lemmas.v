@@ -30,27 +30,6 @@ apply semax_func_nil.
 apply semax_func_skip; auto.
 Qed.
 
-Lemma semax_frame_seq:
- forall {Espec: OracleKind} Frame Delta 
-     P Q c1 c2 R P1 Q1 R1 P2 Q2 R2 R3,
-    semax Delta (PROPx P1 (LOCALx Q1 (SEPx R1))) c1 
-                      (normal_ret_assert (PROPx P2 (LOCALx Q2 (SEPx R2)))) ->
-    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-    PROPx P1 (LOCALx Q1 (SEPx (R1 ++ Frame))) ->
-    closed_wrt_modvars c1 (SEPx Frame) ->
-    semax (update_tycon Delta c1) 
-         (PROPx P2 (LOCALx Q2 (SEPx (R2 ++ Frame)))) c2 R3 ->
-    semax Delta (PROPx P (LOCALx Q (SEPx R))) (Ssequence c1 c2) R3.
-Proof.
-intros.
-eapply semax_seq'.
-eapply semax_pre.
-apply H0.
-apply semax_frame_PQR; auto.
-apply H.
-apply H2.
-Qed.
-
 Lemma semax_ifthenelse_PQR : 
    forall Espec Delta P Q R (b: expr) c d Post,
       bool_type (typeof b) = true ->

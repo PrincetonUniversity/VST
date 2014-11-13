@@ -357,7 +357,7 @@ normalize.
 (* 945,760 834,556 *)
 do 2 apply -> seq_assoc.
 unfold data_block.
-eapply semax_frame_seq
+eapply (semax_frame_seq nil)
  with (P1 := [])
          (Q1 :=  [temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i)));
                       temp _data (offset_val (Int.repr (Z.of_nat i * 4)) data);
@@ -477,19 +477,18 @@ unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 match goal with 
   |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ 
        (normal_ret_assert (PROPx ?P (LOCALx ?Q _)))
- => apply semax_post' with (PROPx P (LOCALx Q (SEPx R)));
-  [ | change R with (nil++R); apply semax_frame_PQR with (R2:=R)]
+ => eapply semax_post';
+  [ | eapply (semax_frame1 nil R) with (P2:=P) (Q2:=Q) (R1:=nil)(R2:=nil);
+    try reflexivity; auto 50 with closed;
+   [ | rewrite <- app_nil_end; apply derives_refl]
+   ]
 end.
-
- apply andp_derives; auto.
- apply andp_derives; auto.
  replace (S i) with (i+1)%nat by omega.
- go_lower0; cancel.
+ entailer!.
  unfold data_block.
  rewrite prop_true_andp by (apply isbyte_intlist_to_Zlist).
  rewrite Zlength_map. auto.
 
- auto 50 with closed.
 (* 1,811,028 1,429,048 *)
 forget (nthi b) as M.
 apply semax_pre with

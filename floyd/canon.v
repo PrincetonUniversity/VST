@@ -1,6 +1,16 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+(* is this lemma useful? *)
+Lemma exp_prop: forall A P, exp (fun x: A => prop (P x)) = prop (exists x: A, P x).
+Proof.
+  intros.
+  apply pred_ext; normalize; intros.
+  + apply prop_right; exists x; auto.
+  + destruct H as [x ?].
+    apply (exp_right x).
+    normalize.
+Qed.
 
 Definition PROPx (P: list Prop): forall (Q: environ->mpred), environ->mpred := 
      andp (prop (fold_right and True P)).
@@ -205,6 +215,21 @@ Proof. reflexivity. Qed.
 Hint Rewrite @fold_right_cons : norm.
 Hint Rewrite @fold_right_cons : subst.
 
+Lemma fold_right_and_app:
+  forall (Q1 Q2: list (environ -> Prop)) rho,
+   fold_right `and `True (Q1 ++ Q2) rho = 
+   (fold_right `and `True Q1 rho /\  fold_right `and `True Q2 rho).
+Proof.
+intros.
+induction Q1; simpl; auto.
+apply prop_ext; intuition.
+normalize. 
+apply I.
+unfold_lift in IHQ1. unfold_lift.
+rewrite IHQ1.
+clear; apply prop_ext; intuition.
+Qed.
+
 Lemma fold_right_sepcon_app {A} {NA: NatDed A} {SL: SepLog A}{CA: ClassicalSep A}:
  forall P Q : list A, fold_right (@sepcon A NA SL) (@emp A NA SL) (P++Q) = 
         fold_right sepcon emp P * fold_right sepcon emp Q.
@@ -343,28 +368,169 @@ intros. reflexivity.
 Qed.
 Hint Rewrite exp_unfold: norm.
 
-Lemma semax_frame_PQR:
-  forall Espec Delta R1 R2 P Q P' Q' R1' c,
-     closed_wrt_modvars c (SEPx R2) ->
-     @semax Espec Delta (PROPx P (LOCALx Q (SEPx R1))) c 
-                     (normal_ret_assert (PROPx P' (LOCALx Q' (SEPx R1')))) ->
-     @semax Espec Delta (PROPx P (LOCALx Q (SEPx (R1++R2)))) c 
-                     (normal_ret_assert (PROPx P' (LOCALx Q' (SEPx (R1'++R2))))).
+Lemma semax_pre_simple:
+ forall P' Espec Delta P c R,
+     (local (tc_environ Delta) && P |-- P') ->
+     @semax Espec Delta P' c R  -> @semax Espec Delta P c R.
+Proof.
+intros; eapply semax_pre_post; eauto.
+intros; apply andp_left2; auto.
+Qed.
+
+Lemma semax_pre0:
+ forall P' Espec Delta P c R,
+     P |-- P' ->
+     @semax Espec Delta P' c R  -> 
+     @semax Espec Delta P c R.
 Proof.
 intros.
-replace (PROPx P (LOCALx Q (SEPx (R1 ++ R2))))
-   with (PROPx P (LOCALx Q (SEPx (R1))) * SEPx R2).
-eapply semax_post0; [ | apply semax_frame; eassumption].
+eapply semax_pre_simple; try apply H0.
+ apply andp_left2; auto.
+Qed.
+
+Lemma semax_pre:
+ forall P' Espec Delta P1 P2 P3 c R,
+     (PROPx P1 (LOCALx (tc_environ Delta :: P2) (SEPx P3))) |-- P' ->
+     @semax Espec Delta P' c R  -> 
+     @semax Espec Delta (PROPx P1 (LOCALx P2 (SEPx P3))) c R.
+Proof.
+intros.
+eapply semax_pre_simple; try apply H0.
+ rewrite insert_local. auto.
+Qed.
+
+Lemma semax_frame_PQR:
+  forall Q2 R2 Espec Delta R1 P Q P' Q' R1' c,
+     closed_wrt_modvars c (LOCALx Q2 (SEPx R2)) ->
+     @semax Espec Delta (PROPx P (LOCALx Q (SEPx R1))) c 
+                     (normal_ret_assert (PROPx P' (LOCALx Q' (SEPx R1')))) ->
+     @semax Espec Delta (PROPx P (LOCALx (Q++Q2) (SEPx (R1++R2)))) c 
+                     (normal_ret_assert (PROPx P' (LOCALx (Q'++Q2) (SEPx (R1'++R2))))).
+Proof.
+intros.
+replace (PROPx P (LOCALx (Q++Q2) (SEPx (R1 ++ R2))))
+   with (PROPx P (LOCALx Q (SEPx (R1))) * (LOCALx Q2 (SEPx R2))).
+eapply semax_post0; [ | apply semax_frame; try eassumption].
 intros ek vl rho.
-unfold frame_ret_assert, normal_ret_assert; 
- destruct ek; simpl; normalize; try congruence.
-match goal with |- ?A |-- ?B => replace B with A; auto end.
-f_equal.
-unfold PROPx,LOCALx,SEPx.
+unfold frame_ret_assert, normal_ret_assert.
 normalize.
-rewrite fold_right_sepcon_app; normalize.
-extensionality rho; unfold PROPx,LOCALx,SEPx.
-rewrite fold_right_sepcon_app; normalize.
+ unfold PROPx, SEPx, LOCALx, local, lift1.
+normalize.
+rewrite fold_right_sepcon_app.
+normalize.
+rewrite prop_true_andp; auto.
+rewrite fold_right_and_app; split; auto.
+clear.
+extensionality rho.
+simpl.
+unfold PROPx, LOCALx, local, lift1, SEPx.
+rewrite fold_right_sepcon_app.
+simpl. normalize.
+f_equal.
+rewrite <- andp_assoc.
+f_equal.
+rewrite fold_right_and_app.
+apply pred_ext; normalize. destruct H; normalize.
+Qed.
+
+Lemma semax_frame1:
+ forall {Espec: OracleKind} QFrame Frame Delta Delta1
+     P Q c R P1 Q1 R1 P2 Q2 R2,
+    semax Delta1 (PROPx P1 (LOCALx Q1 (SEPx R1))) c 
+                      (normal_ret_assert (PROPx P2 (LOCALx Q2 (SEPx R2)))) ->
+    Delta1 = Delta ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+    PROPx P1 (LOCALx (Q1++QFrame) (SEPx (R1 ++ Frame))) ->
+    closed_wrt_modvars c (LOCALx QFrame (SEPx Frame)) ->
+    semax Delta (PROPx P (LOCALx Q (SEPx R))) c 
+                      (normal_ret_assert (PROPx P2 (LOCALx (Q2++QFrame) (SEPx (R2++Frame))))).
+Proof.
+intros. subst.
+eapply semax_pre.
+apply H1.
+apply semax_frame_PQR; auto.
+Qed.
+
+Lemma semax_post:
+ forall (R': ret_assert) Espec Delta (R: ret_assert) P c,
+   (forall ek vl, local (tc_environ (exit_tycon c Delta ek)) &&  R' ek vl |-- R ek vl) ->
+   @semax Espec Delta P c R' ->  @semax Espec Delta P c R.
+Proof.
+intros; eapply semax_pre_post; try eassumption.
+apply andp_left2; auto.
+Qed.
+
+Lemma semax_post_flipped:
+  forall (R' : ret_assert) Espec (Delta : tycontext) (R : ret_assert)
+         (P : environ->mpred) (c : statement),
+        @semax Espec Delta P c R' -> 
+       (forall (ek : exitkind) (vl : option val),
+        local (tc_environ (exit_tycon c Delta ek)) && R' ek vl |-- R ek vl) ->
+       @semax Espec Delta P c R.
+Proof. intros; eapply semax_post; eassumption. Qed.
+
+
+Lemma semax_post': forall R' Espec Delta R P c,
+           R' |-- R ->
+      @semax Espec Delta P c (normal_ret_assert R') ->
+      @semax Espec Delta P c (normal_ret_assert R).
+Proof. intros. eapply semax_post; eauto. intros. apply andp_left2.
+  intro rho; unfold normal_ret_assert; normalize.
+Qed.
+
+Lemma sequential:
+  forall Espec Delta P c Q,
+        @semax Espec Delta P c (normal_ret_assert (Q EK_normal None)) ->
+          @semax Espec Delta P c Q.
+intros. eapply semax_post; eauto.
+ intros. intro rho. unfold local,lift1; simpl.
+ unfold normal_ret_assert; simpl.
+ normalize.
+Qed.
+
+Lemma sequential': 
+    forall Q Espec Delta P c R,
+               @semax Espec Delta P c (normal_ret_assert Q) -> 
+               @semax Espec Delta P c (overridePost Q R).
+Proof.
+intros.
+apply semax_post with (normal_ret_assert Q); auto.
+intros.
+unfold normal_ret_assert, overridePost.
+normalize.
+rewrite if_true; auto.
+apply andp_left2; auto.
+Qed.
+
+Lemma semax_seq': 
+ forall Espec Delta P c1 P' c2 Q, 
+         @semax Espec Delta P c1 (normal_ret_assert P') ->
+         @semax Espec(update_tycon Delta c1) P' c2 Q ->
+         @semax Espec Delta P (Ssequence c1 c2) Q.
+Proof.
+ intros. apply semax_seq with P'; auto.
+ apply sequential'. auto. 
+Qed.
+
+Lemma semax_frame_seq:
+ forall {Espec: OracleKind} QFrame Frame Delta 
+     P Q c1 c2 R P1 Q1 R1 P2 Q2 R2 R3,
+    semax Delta (PROPx P1 (LOCALx Q1 (SEPx R1))) c1 
+                      (normal_ret_assert (PROPx P2 (LOCALx Q2 (SEPx R2)))) ->
+    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
+    PROPx P1 (LOCALx (Q1++QFrame) (SEPx (R1 ++ Frame))) ->
+    closed_wrt_modvars c1 (LOCALx QFrame (SEPx Frame)) ->
+    semax (update_tycon Delta c1) 
+         (PROPx P2 (LOCALx (Q2++QFrame) (SEPx (R2 ++ Frame)))) c2 R3 ->
+    semax Delta (PROPx P (LOCALx Q (SEPx R))) (Ssequence c1 c2) R3.
+Proof.
+intros.
+eapply semax_seq'.
+eapply semax_pre.
+apply H0.
+apply semax_frame_PQR; auto.
+apply H.
+apply H2.
 Qed.
 
 Lemma derives_frame_PQR:
@@ -384,13 +550,13 @@ rewrite fold_right_sepcon_app.
 intro rho; simpl; normalize.
 Qed.
 
-Ltac frame_SEP' L :=
-  grab_indexes_SEP L;
+Ltac frame_SEP' L :=  (* this should be generalized to permit framing on LOCAL part too *)
+ grab_indexes_SEP L;
  match goal with
  | |- @semax _ _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ => 
   rewrite <- (firstn_skipn (length L) R); 
     simpl length; unfold firstn, skipn;
-    eapply semax_frame_PQR;
+    eapply (semax_frame_PQR nil);
       [ unfold closed_wrt_modvars;  auto 50 with closed
      | ]
  | |- (PROPx _ (LOCALx _ (SEPx ?R))) |-- _ => 
@@ -453,37 +619,6 @@ match n, al with
 | S n', a::al' => my_nth n' al' default
 | _, nil => default
 end.
-
-Lemma semax_pre_simple:
- forall P' Espec Delta P c R,
-     (local (tc_environ Delta) && P |-- P') ->
-     @semax Espec Delta P' c R  -> @semax Espec Delta P c R.
-Proof.
-intros; eapply semax_pre_post; eauto.
-intros; apply andp_left2; auto.
-Qed.
-
-Lemma semax_pre0:
- forall P' Espec Delta P c R,
-     P |-- P' ->
-     @semax Espec Delta P' c R  -> 
-     @semax Espec Delta P c R.
-Proof.
-intros.
-eapply semax_pre_simple; try apply H0.
- apply andp_left2; auto.
-Qed.
-
-Lemma semax_pre:
- forall P' Espec Delta P1 P2 P3 c R,
-     (PROPx P1 (LOCALx (tc_environ Delta :: P2) (SEPx P3))) |-- P' ->
-     @semax Espec Delta P' c R  -> 
-     @semax Espec Delta (PROPx P1 (LOCALx P2 (SEPx P3))) c R.
-Proof.
-intros.
-eapply semax_pre_simple; try apply H0.
- rewrite insert_local. auto.
-Qed.
 
 Lemma replace_SEP':
  forall n R' Espec Delta P Q Rs c Post,
@@ -618,32 +753,6 @@ Ltac extract_prop_from_LOCAL :=
              rewrite move_prop_from_LOCAL
   end
 end.
-Lemma semax_post:
- forall (R': ret_assert) Espec Delta (R: ret_assert) P c,
-   (forall ek vl, local (tc_environ (exit_tycon c Delta ek)) &&  R' ek vl |-- R ek vl) ->
-   @semax Espec Delta P c R' ->  @semax Espec Delta P c R.
-Proof.
-intros; eapply semax_pre_post; try eassumption.
-apply andp_left2; auto.
-Qed.
-
-Lemma semax_post_flipped:
-  forall (R' : ret_assert) Espec (Delta : tycontext) (R : ret_assert)
-         (P : environ->mpred) (c : statement),
-        @semax Espec Delta P c R' -> 
-       (forall (ek : exitkind) (vl : option val),
-        local (tc_environ (exit_tycon c Delta ek)) && R' ek vl |-- R ek vl) ->
-       @semax Espec Delta P c R.
-Proof. intros; eapply semax_post; eassumption. Qed.
-
-
-Lemma semax_post': forall R' Espec Delta R P c,
-           R' |-- R ->
-      @semax Espec Delta P c (normal_ret_assert R') ->
-      @semax Espec Delta P c (normal_ret_assert R).
-Proof. intros. eapply semax_post; eauto. intros. apply andp_left2.
-  intro rho; unfold normal_ret_assert; normalize.
-Qed.
 
 Lemma extract_exists_pre:
       forall
@@ -743,30 +852,6 @@ apply semax_pre_post with (FF && FF) R.
 apply andp_left2. apply andp_right; auto.
 intros; apply andp_left2; auto.
 apply semax_extract_prop. intros; contradiction.
-Qed.
-
-Lemma sequential:
-  forall Espec Delta P c Q,
-        @semax Espec Delta P c (normal_ret_assert (Q EK_normal None)) ->
-          @semax Espec Delta P c Q.
-intros. eapply semax_post; eauto.
- intros. intro rho. unfold local,lift1; simpl.
- unfold normal_ret_assert; simpl.
- normalize.
-Qed.
-
-Lemma sequential': 
-    forall Q Espec Delta P c R,
-               @semax Espec Delta P c (normal_ret_assert Q) -> 
-               @semax Espec Delta P c (overridePost Q R).
-Proof.
-intros.
-apply semax_post with (normal_ret_assert Q); auto.
-intros.
-unfold normal_ret_assert, overridePost.
-normalize.
-rewrite if_true; auto.
-apply andp_left2; auto.
 Qed.
 
 Lemma extract_prop_in_SEP:
