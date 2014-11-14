@@ -576,42 +576,38 @@ Proof.
     admit. (* omega issue *)
 Qed.
 
-(*  (* Already have it as field_at_Tarray *)
-Lemma field_at_array_at: forall sh t gfs t0 n a v v',
-  legal_alignas_type t = true ->
-  legal_nested_field t gfs ->
+Lemma array_seg_reroot_lemma: forall sh t gfs t0 n a lo hi v0 v1 v2 v1' v' p,
+  0 <= lo ->
+  lo <= hi ->
   nested_field_type2 t gfs = Tarray t0 n a ->
-  0 <= n ->
-  JMeq v v' ->
-  field_at sh t gfs v = array_at sh t gfs 0 n v'.
+  hi <= n ->
+  JMeq v1 v1' ->
+  JMeq (v0 ++ v1 ++ v2) v' ->
+  Zlength v0 = lo ->
+  Zlength v1 = hi - lo ->
+  legal_alignas_type t = true ->
+  field_at sh t gfs v' p =
+    array_at sh t gfs 0 lo v0 p *
+    data_at sh (Tarray t0 (hi - lo) a) v1'
+      (offset_val (Int.repr (nested_field_offset2 t (ArraySubsc lo :: gfs))) p) *
+    array_at sh t gfs hi n v2 p.
 Proof.
   intros.
-  extensionality p.
-  rewrite field_at_data_at by auto.
-  rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
-  remember v as v''.
-  assert (JMeq v' v) by (subst; auto).
-  clear Heqv''.
-  revert v H4.
-  pattern (nested_field_type2 t gfs) at 1 2.
-  replace (nested_field_type2 t gfs) with (Tarray t0 (n - 0) a)
-    by (rewrite H1, Z.sub_0_r; reflexivity).
+  erewrite field_at_Tarray by eauto.
+  rewrite split3seg_array_at with (ml := lo) (mr := hi) by (try auto; omega).
+  normalize.
+  erewrite array_at_data_at with (lo := lo) (hi := hi) by eauto.
+  pose v0 as v0'.
+  assert (JMeq v0 v0') by reflexivity.
+  clearbody v0'.
+  revert v0' H8.
+  pattern (nested_field_type2 t (ArraySubsc 0 :: gfs)) at 1 3.
+  rewrite (nested_field_type2_Tarray t0 n a gfs t 0 H1).
   intros.
-  erewrite array_at_data_at; [| omega | | | eauto | | eauto]; [| omega | omega | eauto].
-  rewrite !andp_assoc.
-  repeat (apply extract_prop_from_equal; intros).
-  assert (JMeq v v'') by (rewrite H3, H4; reflexivity).
-  clear v' H3 H4.
-  revert v v'' H8.
-  rewrite Z.sub_0_r.
-  rewrite H1.
-  intros.
-  rewrite H8.
-  erewrite nested_field_offset2_Tarray by eauto.
-  rewrite Z.mul_0_r, Z.add_0_r.
-  reflexivity.
+  erewrite array_at_data_at with (lo := 0) (hi := lo); [| omega | omega | | eauto..]; [| omega].
+  apply pred_ext; normalize.
 Qed.
-*)
+
 Lemma offset_in_range_mid: forall lo hi i t p,
   lo <= i <= hi ->
   offset_in_range (sizeof t * lo) p ->

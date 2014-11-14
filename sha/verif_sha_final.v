@@ -43,7 +43,6 @@ forward. (* p[n] = 0x80; *)
 }
 forward. (* n++; *)
 change (Int.zero_ext 8 (Int.repr 128)) with (Int.repr 128).
-
 replace (data_at Tsh
            (nested_field_type2 t_struct_SHA256state_st [StructField _data])
            (upd_reptype_array tuchar (Zlength dd)
@@ -122,56 +121,90 @@ unfold sha_finish.
 unfold SHA_256.
 clear ddlen Hddlen.
 
-STOP.
-
+    unfold_data_at 1%nat.
+    replace (field_at Tsh t_struct_SHA256state_st [StructField _data]
+        (map Vint (map Int.repr dd')) c) with
+      (field_at Tsh t_struct_SHA256state_st [StructField _data]
+        (map Vint (map Int.repr dd') ++ 
+         list_repeat (CBLOCK - 8 - length dd')%nat Vundef ++ []) c).
+    Focus 2. {
+      erewrite field_at_data_equal; [reflexivity | reflexivity |].
+      rewrite app_nil_r.
+      apply data_equal_sym, data_equal_list_repeat_default.
+      reflexivity.
+    } Unfocus.
+    erewrite array_seg_reroot_lemma
+      with (gfs := [StructField _data]) (lo := Zlength dd') (hi := Z.of_nat CBLOCK - 8);
+      [| | | reflexivity | | reflexivity | reflexivity | | | reflexivity].
+    2: rewrite Zlength_correct; omega.
+    Focus 2. {
+      apply Nat2Z.inj_le in H0.
+      rewrite Nat2Z.inj_add in H0.
+      rewrite Zlength_correct.
+      change 8 with (Z.of_nat 8).
+      omega.
+    } Unfocus.
+    2: change (Z.of_nat CBLOCK) with 64; omega.
+    2: rewrite !Zlength_map; reflexivity.
+    Focus 2. {
+      rewrite !Zlength_correct.
+      rewrite length_list_repeat.
+      rewrite !Nat2Z.inj_sub by omega.
+      reflexivity.
+    } Unfocus.
+    normalize.
 
 forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
   (Tsh,
-     offset_val (Int.repr (Zlength dd')) (offset_val (Int.repr 40) c)%Z, 
+     offset_val (Int.repr
+       (nested_field_offset2 t_struct_SHA256state_st
+         [ArraySubsc (Zlength dd'); StructField _data])) c, 
      (Z.of_nat CBLOCK - 8 - Zlength dd')%Z,
-     Int.zero). {
-change 40%Z with data_offset.
-entailer!.
-Omega1.
-rewrite split_offset_array_at with (z := 0) (lo := (Z.of_nat CBLOCK - 8)%Z) (hi := 64%Z); [| change CBLOCK with (64%nat); simpl; omega | simpl; omega | reflexivity].
-rewrite split_offset_array_at with (z := 0) (lo := Zlength dd') (hi := Z.of_nat CBLOCK - 8); [| | simpl; omega | reflexivity].
-Focus 2.
-  { 
-    change CBLOCK with (64%nat) in *.
-    rewrite Zlength_correct.
-    simpl.
-    omega.
-  } Unfocus.
-repeat rewrite <- sepcon_assoc.
-normalize.
-replace (memory_block shmd (Int.repr 32) md) with 
-  (memory_block shmd (Int.repr 32) md && !! (offset_in_range (sizeof tuchar * 64)
-         (offset_val (Int.repr data_offset) c))) by
-  (rewrite <- add_andp; [reflexivity | normalize]).
-pull_left (array_at tuchar Tsh
-     (fun i : Z =>
-      ZnthV tuchar (map Vint (map Int.repr dd')) (i + Zlength dd')) 0
-     (Z.of_nat CBLOCK - 8 - Zlength dd')
-     (offset_val (Int.repr (data_offset + Zlength dd')) c)).
-repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
-replace (offset_val (Int.repr (data_offset + Zlength dd')) c)%Z
-    with (offset_val (Int.repr (sizeof tuchar * Zlength dd')) (offset_val (Int.repr 40) c))%Z.
-eapply derives_trans; [apply array_at_array_at_; reflexivity |].
-erewrite <- data_at__array_at_ with (a:= noattr);
-   [|rewrite Zlength_correct; omega
-   | reflexivity ].
- rewrite <- memory_block_data_at_; [ | reflexivity ..].
-replace (sizeof (Tarray tuchar (Z.of_nat CBLOCK - 8 - Zlength dd') noattr)) with
-  (Z.of_nat CBLOCK - 8 - Zlength dd') by
-  (simpl sizeof;
-   rewrite Z.max_r by (rewrite Zlength_correct; omega);
-   destruct (Z.of_nat CBLOCK - 8 - Zlength dd'); reflexivity).
-entailer!.
-
-
-  change (sizeof tuchar) with 1%Z; rewrite Z.mul_1_l.
-  rewrite offset_offset_val. rewrite add_repr; auto.
+     Int.zero).
+{
+  entailer!.
+  + Omega1.
+  + erewrite nested_field_offset2_Tarray by reflexivity.
+    change (sizeof tuchar) with 1.
+    rewrite Z.mul_1_l.
+    reflexivity.
+  + pull_left (data_at Tsh (Tarray tuchar (Z.of_nat CBLOCK - 8 - Zlength dd') noattr)
+     (list_repeat (CBLOCK - 8 - length dd') Vundef)
+     (offset_val
+        (Int.repr
+           (nested_field_offset2 t_struct_SHA256state_st
+              [ArraySubsc (Zlength dd'); StructField _data])) c)).
+    repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
+    eapply derives_trans; [apply data_at_data_at_; reflexivity |].
+    assert (sizeof (Tarray tuchar (Z.of_nat CBLOCK - 8 - Zlength dd') noattr) =
+              Z.of_nat CBLOCK - 8 - Zlength dd').
+    Focus 1. {
+Opaque tuchar.
+      simpl.
+Transparent tuchar.
+      change (sizeof tuchar) with 1.
+      rewrite Z.mul_1_l.
+      rewrite Z.max_r; [reflexivity |].
+      apply Nat2Z.inj_le in H0.
+      rewrite Nat2Z.inj_add in H0.
+      rewrite Zlength_correct.
+      change 8 with (Z.of_nat 8).
+      omega.
+    } Unfocus.
+    rewrite data_at__memory_block; [| reflexivity | reflexivity |].
+    Focus 2. {
+       change Int.modulus with 4294967296.
+       assert (Z.of_nat CBLOCK = 64) by reflexivity.
+       pose proof Zlength_correct dd'.
+       omega.
+    } Unfocus.
+    rewrite H13.
+    entailer!.
 }
+after_call.
+normalize.
+clear retval0 H11.
+(*
   (* after_call manually *)
   cbv beta iota. autorewrite with subst.
 replace_SEP 0%Z (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
@@ -181,7 +214,112 @@ replace_SEP 0%Z (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
 }
 replace_SEP 7%Z (`(K_vector kv)).
   entailer!.
- forward.  (* p += SHA_CBLOCK-8; *)
+*)
+forward.  (* p += SHA_CBLOCK-8; *)
+
+gather_SEP 0 1 2.
+replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
+  (map Vint (map Int.repr dd') ++ (list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd'))
+   (Vint Int.zero)) ++ []) c)).
+  {
+    erewrite array_seg_reroot_lemma
+      with (gfs := [StructField _data]) (lo := Zlength dd') (hi := Z.of_nat CBLOCK - 8);
+      [| | | reflexivity | | reflexivity | reflexivity | | | reflexivity].
+    2: rewrite Zlength_correct; omega.
+    Focus 2. {
+      apply Nat2Z.inj_le in H0.
+      rewrite Nat2Z.inj_add in H0.
+      rewrite Zlength_correct.
+      change 8 with (Z.of_nat 8).
+      omega.
+    } Unfocus.
+    2: change (Z.of_nat CBLOCK) with 64; omega.
+    2: rewrite !Zlength_map; reflexivity.
+    Focus 2. {
+      rewrite !Zlength_correct.
+      rewrite length_list_repeat.
+      rewrite !Z2Nat.id by omega.
+      reflexivity.
+    } Unfocus.
+    entailer!.
+  }
+
+  match goal with
+  | |- semax _ (PROPx nil (LOCALx (_ :: ?L) (SEPx ?S))) _ _ =>
+         eapply semax_pre0 with (PROPx nil (LOCALx
+          ((`(eq (offset_val (Int.repr
+          (nested_field_offset2 t_struct_SHA256state_st
+          [ArraySubsc (Z.of_nat CBLOCK - 8); StructField _data])) c)) (eval_id _p))
+            :: L) (SEPx S)))
+  end.
+  Focus 1. {
+    entailer!.
+    rewrite <- H11.
+    destruct (eval_id _c rho); try solve [inversion H13].
+    simpl.
+    f_equal.
+    change (Int.mul (Int.repr 1)
+        (Int.sub (Int.mul (Int.repr 16) (Int.repr 4)) (Int.repr 8))) with (Int.repr 56).
+    rewrite Int.add_assoc.
+    f_equal.
+  } Unfocus.
+  subst n0.
+  drop_LOCAL 2%nat; clear p0.
+
+    
+
+
+ pose (hibytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [hi])))).
+ pose (lobytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [lo])))).
+
+
+
+STOP.
+
+(**
+
+
+   semax Delta
+     (PROP  ()
+      LOCAL 
+      (`(eq
+           (force_val
+              (sem_add_pi tuchar
+                 (offset_val
+                    (Int.repr
+                       (nested_field_offset2 t_struct_SHA256state_st
+                          [StructField _data])) c)
+                 (Vint
+                    (Int.sub (Int.mul (Int.repr 16) (Int.repr 4))
+                       (Int.repr 8)))))) (eval_id _p);
+      temp _n (Vint (Int.repr (Zlength dd')));
+      `(offset_val
+          (Int.repr
+             (nested_field_offset2 t_struct_SHA256state_st
+                [StructField _data])) c = p0); temp _md md; 
+      temp _c c; var _K256 (tarray tuint CBLOCKz) kv)
+      SEP 
+      (`(data_at Tsh (tarray tuchar (Z.of_nat CBLOCK - 8 - Zlength dd'))
+           (list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd'))
+              (Vint Int.zero))
+           (offset_val
+              (Int.repr
+                 (nested_field_offset2 t_struct_SHA256state_st
+                    [ArraySubsc (Zlength dd'); StructField _data])) c));
+      `(array_at Tsh t_struct_SHA256state_st [StructField _data] 0
+          (Zlength dd') (map Vint (map Int.repr dd')) c);
+      `(array_at Tsh t_struct_SHA256state_st [StructField _data]
+          (Z.of_nat CBLOCK - 8) 64 [] c);
+      `(field_at Tsh t_struct_SHA256state_st [StructField _num] Vundef c);
+      `(field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint hi) c);
+      `(field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint lo) c);
+      `(field_at Tsh t_struct_SHA256state_st [StructField _h]
+          (map Vint (hash_blocks init_registers hashed')) c);
+      `K_vector (eval_var _K256 (tarray tuint CBLOCKz));
+      `(memory_block shmd (Int.repr 32) md)))
+
+**)
+
  entailer!.
  extract_prop_from_LOCAL.
 apply semax_extract_PROP; intro. subst p0.

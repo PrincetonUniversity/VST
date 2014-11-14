@@ -560,3 +560,23 @@ unfold f_upto; if_tac; auto. omega.
 Qed.
 *)
 
+Lemma data_equal_list_repeat_default: forall t n a (v: list (reptype t)) m,
+  legal_alignas_type (Tarray t n a) = true ->
+  @data_equal (Tarray t n a) v (v ++ list_repeat m (default_val t)).
+Proof.
+  intros.
+  apply data_equal_array_ext; [auto |].
+  intros.
+  unfold Znth; if_tac; [omega |].
+  pattern v at 1.
+  replace v with (v ++ []) by (rewrite <- app_nil_r; reflexivity).
+  destruct (lt_dec (Z.to_nat i) (length v)).
+  + rewrite !app_nth1 by auto.
+    apply data_equal_refl.
+  + rewrite !app_nth2 by omega.
+    rewrite nth_list_repeat.
+    destruct (Z.to_nat i - length v)%nat; apply data_equal_refl.
+Qed.
+
+
+
