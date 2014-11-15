@@ -164,19 +164,6 @@ entailer.
 Qed.
 Hint Resolve datablock_local_facts : saturate_local.
 
-(*
-Lemma array_at_ext':
-  forall t sh (f f': Z -> reptype t) lo lo' hi hi',
-    (forall i : Z, (lo <= i < hi)%Z -> f i = f' i) ->
-   lo=lo' -> hi=hi' ->
-   array_at t sh f lo hi = array_at t sh f' lo' hi'.
-Proof.
-intros.
-rewrite (array_at_ext t sh f f' lo hi); auto.
-f_equal; auto.
-Qed.
-*)
-
 Require Import JMeq.
 
 Lemma array_at_isptr:
@@ -189,31 +176,6 @@ admit. (*  apply array_at_local_facts. *)
 normalize.
 Qed.
 
-Lemma data_at_array_at0: forall sh t gfs t0 n a hi v v' p,
-  (0 <= hi <= n)%Z ->
-  legal_alignas_type t = true ->
-  legal_nested_field t gfs ->
-  nested_field_type2 t gfs = Tarray t0 n a ->
-  nested_field_offset2 t (ArraySubsc 0 :: gfs) = 0 ->
-  size_compatible t p ->
-  align_compatible t p ->
-  JMeq v v' ->
-  data_at sh (Tarray t0 hi a) v' (offset_val (Int.repr (nested_field_offset2 t gfs)) p) =
-    array_at sh t gfs 0 hi v p.
-Proof.
-  intros.
-  revert v' H6.
-  pattern hi at 1 2 3.
-  replace hi with (hi - 0) by omega.
-  intros.
-  erewrite array_at_data_at; [| omega | | | eauto..]; [| omega ..].
-  normalize.
-  erewrite nested_field_offset2_Tarray by eauto.
-  rewrite Z.mul_0_r, Z.add_0_r.
-  reflexivity.
-Qed.
-
-(*  Don't need this lemma?  *)
 Lemma split_offset_array_at:
   forall n sh t len (contents: list (reptype t)) v,
   legal_alignas_type t = true ->
@@ -525,41 +487,6 @@ normalize.
 f_equal. f_equal. apply prop_ext. intuition.
 Qed.
 
-(*
-Lemma cVint_force_int_ZnthV:
- forall sh contents hi, 
-  (hi <= Zlength contents)%Z ->
-  array_at tuchar sh (cVint (force_int oo ZnthV tuchar (map Vint contents))) 0 hi = 
-  array_at tuchar sh (ZnthV tuchar (map Vint contents)) 0 hi.
-Proof.
-unfold ZnthV; simpl.
-intros.
-apply array_at_ext; intros.
-unfold cVint,Basics.compose.
-if_tac. omega.
-assert (Z.to_nat i < length contents)%nat.
-apply Nat2Z.inj_lt.
-rewrite <- Zlength_correct; rewrite Z2Nat.id by omega.
-omega.
-clear - H2; revert contents H2; induction (Z.to_nat i); intros; destruct contents; 
-simpl in *; try omega; auto.
-apply IHn. omega.
-Qed.
-*)
-
-Definition f_upto {t} (f: Z -> reptype t) (bound: Z) (i: Z) : reptype t :=
- if zlt i bound then f i else default_val t.
-
-(*
-Lemma array_at_f_upto_lo:
-  forall t sh contents lo hi, 
-  array_at t sh (f_upto contents lo) lo hi = array_at_ t sh lo hi.
-Proof.
-intros; apply array_at_ext; intros.
-unfold f_upto; if_tac; auto. omega.
-Qed.
-*)
-
 Lemma data_equal_list_repeat_default: forall t n a (v: list (reptype t)) m,
   legal_alignas_type (Tarray t n a) = true ->
   @data_equal (Tarray t n a) v (v ++ list_repeat m (default_val t)).
@@ -577,6 +504,4 @@ Proof.
     rewrite nth_list_repeat.
     destruct (Z.to_nat i - length v)%nat; apply data_equal_refl.
 Qed.
-
-
 

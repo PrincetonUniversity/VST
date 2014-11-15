@@ -286,7 +286,6 @@ apply semax_pre with (EX i:nat, loop1_inv regs sh b ctx data kv Xv 0 i).
 (* 345,184   326,392*) {
  apply exp_right with 0%nat.
  unfold loop1_inv.
-(* rewrite array_at_f_upto_lo. *)
  replace (Round regs (nthi b) (Z.of_nat 0 - 1)) with regs.
  entailer!.
  rewrite Round_equation. rewrite if_true by (compute; auto). auto.
