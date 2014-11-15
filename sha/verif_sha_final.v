@@ -24,7 +24,7 @@ unfold s256_relate in H0.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
 destruct a as [hashed data].
 destruct H0 as [H0 [H1 [H2 [[H3 DDbytes] [H4 H5]]]]].
-destruct H1 as [hi [lo [? [? ?]]]].
+destruct H1.
 subst r_Nh r_Nl r_num r_data. rename data into dd.
 assert (H3': (Zlength dd < 64)%Z) by assumption.
 forward. (* p = c->data;  *)
@@ -66,7 +66,9 @@ set (ddlen :=  Zlength dd).
 assert (Hddlen: (0 <= ddlen < 64)%Z).
 unfold ddlen. split; auto. rewrite Zlength_correct; omega.
 repeat rewrite  initial_world.Zlength_map.
-forward_if   (invariant_after_if1 hashed dd c md shmd hi lo kv).
+forward_if   (invariant_after_if1 hashed dd c md shmd 
+    ((Zlength hashed * WORD + ddlen) * 8)
+    kv).
 * (* then-clause *)
  change Delta with Delta_final_if1.
 match goal with |- semax _ _ ?c _ => change c with Body_final_if1 end.
@@ -74,7 +76,8 @@ match goal with |- semax _ _ ?c _ => change c with Body_final_if1 end.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
  make_sequential. rewrite overridePost_normal'.
 unfold ddlen in *; clear ddlen.
-eapply semax_pre0; [|apply (ifbody_final_if1 Espec hashed md c shmd hi lo dd kv H4 H7 H3 DDbytes)].
+eapply semax_pre0; 
+  [|apply (ifbody_final_if1 Espec hashed md c shmd dd kv H4 H3 DDbytes)].
 entailer!.
 unfold_data_at 2%nat.
 rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
@@ -89,17 +92,17 @@ apply exp_right with hashed.
 apply exp_right with (dd ++ [128]).
 apply exp_right with 0%Z.
 entailer.
-rewrite mul_repr, sub_repr in H8; apply ltu_repr_false in H8.
+rewrite mul_repr, sub_repr in H7; apply ltu_repr_false in H7.
 2: split; computable.
 2: assert (64 < Int.max_unsigned)%Z by computable; unfold ddlen in *;
    split; try omega.
 clear TC0.
-change (16*4)%Z with (Z.of_nat CBLOCK) in H8.
+change (16*4)%Z with (Z.of_nat CBLOCK) in H7.
 apply andp_right; [apply prop_right; repeat split | cancel].
 rewrite Forall_app; split; auto.
 repeat constructor; omega.
 rewrite app_length; simpl. apply Nat2Z.inj_ge.
-repeat rewrite Nat2Z.inj_add; unfold ddlen in H8; rewrite Zlength_correct in H8.
+repeat rewrite Nat2Z.inj_add; unfold ddlen in H7; rewrite Zlength_correct in H7.
 change (Z.of_nat 1) with 1%Z; change (Z.of_nat 8) with 8%Z.
 omega.
 f_equal. unfold ddlen; repeat rewrite Zlength_correct; f_equal.
@@ -119,7 +122,7 @@ normalize.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 unfold sha_finish.
 unfold SHA_256.
-clear ddlen Hddlen.
+(* clear ddlen Hddlen. *)
 
     unfold_data_at 1%nat.
     replace (field_at Tsh t_struct_SHA256state_st [StructField _data]
@@ -198,23 +201,12 @@ Transparent tuchar.
        pose proof Zlength_correct dd'.
        omega.
     } Unfocus.
-    rewrite H13.
+    rewrite H12.
     entailer!.
 }
 after_call.
 normalize.
-clear retval0 H11.
-(*
-  (* after_call manually *)
-  cbv beta iota. autorewrite with subst.
-replace_SEP 0%Z (`(array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
-          (Z.of_nat CBLOCK - 8 - Zlength dd')
-          (offset_val (Int.repr (Zlength dd')) (offset_val (Int.repr 40) c)))). {
- entailer!.
-}
-replace_SEP 7%Z (`(K_vector kv)).
-  entailer!.
-*)
+clear retval0 H10.
 forward.  (* p += SHA_CBLOCK-8; *)
 
 gather_SEP 0 1 2.
@@ -254,8 +246,8 @@ replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
   end.
   Focus 1. {
     entailer!.
-    rewrite <- H11.
-    destruct (eval_id _c rho); try solve [inversion H13].
+    rewrite <- H10.
+    destruct (eval_id _c rho); try solve [inversion H12].
     simpl.
     f_equal.
     change (Int.mul (Int.repr 1)
@@ -265,5 +257,6 @@ replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
   } Unfocus.
   subst n0.
   drop_LOCAL 2%nat; clear p0.
-  apply final_part2 with pad; assumption.
+  apply final_part2 with pad; try assumption.
+ reflexivity.
 Qed.

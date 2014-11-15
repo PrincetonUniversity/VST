@@ -36,7 +36,7 @@ Definition Body_final_if1 :=
                   ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
                    (Etempvar _p (tptr tuchar)) :: nil)))).
 
-Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo kv:= 
+Definition invariant_after_if1 hashed (dd: list Z) c md shmd bitlen kv:= 
    (EX hashed':list int, EX dd': list Z, EX pad:Z,
    PROP  (Forall isbyteZ dd';
               pad=0%Z \/ dd'=nil;
@@ -53,8 +53,8 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo kv:=
     var _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(data_at Tsh t_struct_SHA256state_st 
            (map Vint (hash_blocks init_registers hashed'),
-            (Vint lo,
-             (Vint hi,
+            (Vint (lo_part bitlen),
+             (Vint (hi_part bitlen),
               (map Vint (map Int.repr dd'),
                Vundef))))
            c);
@@ -63,9 +63,8 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd  hi lo kv:=
 
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
-  (hi lo : int) (dd : list Z) (kv: val)
+  (dd : list Z) (kv: val)
  (H4: (LBLOCKz  | Zlength hashed))
- (H7: ((Zlength hashed * 4 + Zlength dd)*8 = hilo hi lo)%Z)
  (H3: Zlength dd < CBLOCKz)
  (DDbytes: Forall isbyteZ dd),
   semax Delta_final_if1
@@ -85,15 +84,15 @@ Lemma ifbody_final_if1:
    SEP 
    (`(data_at Tsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers hashed),
-        (Vint lo, 
-         (Vint hi,
+        (Vint (lo_part ((Zlength hashed * 4 + Zlength dd)*8)), 
+         (Vint (hi_part ((Zlength hashed * 4 + Zlength dd)*8)),
           (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)],
            Vint (Int.repr (Zlength dd))))))
       c);
     `(K_vector kv);
     `(memory_block shmd (Int.repr 32) md)))
   Body_final_if1
-  (normal_ret_assert (invariant_after_if1 hashed dd c md shmd hi lo kv)).
+  (normal_ret_assert (invariant_after_if1 hashed dd c md shmd ((Zlength hashed * 4 + Zlength dd)*8) kv)).
 Proof.
 assert (H:=True).
 name md_ _md.
@@ -248,8 +247,8 @@ forward_call (* sha256_block_data_order (c,p); *)
   (hashed, ddzw, c, offset_val (Int.repr (nested_field_offset2 t_struct_SHA256state_st
               [ArraySubsc 0; StructField _data])) c, Tsh, kv).
 {
-  rewrite Zlength_correct, H1'.
   entailer!.
+  apply Zlength_length; auto.
   repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
   unfold data_block.
   simpl. apply andp_right.

@@ -14,7 +14,6 @@ Require Import List.
 Definition LBLOCKz : Z := 16. (* length of a block, in 32-bit integers *)
 Definition WORD : Z := 4.  (* length of a word, in bytes *)
 Definition CBLOCKz : Z := (LBLOCKz * WORD)%Z. (* length of a block, in characters *)
-Definition hilo hi lo := (Int.unsigned hi * Int.modulus + Int.unsigned lo)%Z.
 Definition hi_part (z: Z) := Int.repr (z / Int.modulus).
 Definition lo_part (z: Z) := Int.repr z.
 Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.

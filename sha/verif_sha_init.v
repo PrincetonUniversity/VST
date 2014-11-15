@@ -19,7 +19,6 @@ apply exp_right with (map Vint init_registers,
 entailer!.
 repeat split; auto.
 rewrite hash_blocks_equation. reflexivity.
-exists Int.zero, Int.zero; repeat split; reflexivity.
 exists 0%Z; simpl; reflexivity.
 apply derives_refl'; f_equal.
 f_equal.

@@ -515,55 +515,6 @@ Qed.
 
 Local Open Scope Z.
 
-Lemma hilo_lemma:
-  forall hi lo, [Int.repr (hilo hi lo / Int.modulus); Int.repr (hilo hi lo)] = [hi; lo].
-Proof.
-unfold hilo; intros.
-rewrite Z.div_add_l by (compute; congruence).
-rewrite Zdiv_small by apply Int.unsigned_range.
-rewrite Z.add_0_r.
-rewrite Int.repr_unsigned.
-f_equal.
-f_equal.
-rewrite <- add_repr.
-rewrite <- mul_repr.
-replace (Int.repr Int.modulus) with (Int.repr 0).
-rewrite Int.mul_zero. rewrite Int.add_zero_l. apply Int.repr_unsigned.
-apply Int.eqm_samerepr.
-unfold Int.eqm.
-change 0 with (Int.modulus mod Int.modulus).
-apply Int.eqmod_sym.
-apply Int.eqmod_mod.
-compute; congruence.
-Qed.
-
-Lemma hilo_lemma2:
-  forall z, 0 <= z < two_p 64   ->  hilo (hi_part z) (lo_part z) = z.
-Proof.
-intros.
-unfold hilo.
-unfold hi_part, lo_part.
-rewrite Int.unsigned_repr.
-rewrite Int.unsigned_repr_eq.
-rewrite Z.mul_comm.
-symmetry; apply Z_div_mod_eq.
-compute; auto.
-split.
-apply Z.div_pos. omega. compute; auto.
-assert (Int.max_unsigned + 1 = Int.modulus) by (compute; auto).
-assert (z / Int.modulus < Int.modulus); [ | omega].
-clear H0.
-apply Zmult_lt_reg_r with Int.modulus.
-compute; auto.
-pose proof (Z_div_mod_eq z Int.modulus).
-spec H0; [ compute; auto | ].
-change (Int.modulus * Int.modulus) with (two_p 64).
-rewrite Z.mul_comm.
-pose proof (Z.mod_pos_bound z Int.modulus).
-spec H1; [ compute; auto | ].
-omega.
-Qed.
-
 Lemma Forall_isbyteZ_unsigned_repr:
  forall l, Forall isbyteZ l -> Forall isbyteZ (map Int.unsigned (map Int.repr l)).
 Proof. induction 1. constructor.

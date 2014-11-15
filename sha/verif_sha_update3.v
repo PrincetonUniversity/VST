@@ -135,25 +135,19 @@ apply semax_pre with
   cancel.
  eapply exp_right; apply andp_right; [ | apply derives_refl].
  apply prop_right.
- repeat split.
+ repeat split; auto.
 *
- exists 
-    (hi_part ((Zlength hashed * 4 + Zlength dd) * 8 + Z.of_nat len * 8)),
-    (lo_part ((Zlength hashed * 4 + Zlength dd) * 8 + Z.of_nat len * 8)).
- repeat split; try reflexivity.
- symmetry.
- change WORD with 4%Z.
- rewrite Zlength_app, Z.add_assoc.
- rewrite <- Z.mul_add_distr_r in LEN64|-*.
- replace (Zlength (firstn len data)) with (Z.of_nat len)
-  by (rewrite Zlength_correct, firstn_length, min_l; [auto | ];
-       apply Nat2Z.inj_le; rewrite <- Zlength_correct; assumption).
- apply hilo_lemma2.
- split; auto.
- repeat first [apply Z.mul_nonneg_nonneg; [ | computable]
-                   | apply Z.add_nonneg_nonneg
-                   | apply Zlength_nonneg 
-                   | omega].
+ unfold s256_Nh; simpl.
+ rewrite <- Z.mul_add_distr_r, Zlength_app, Z.add_assoc,
+     (Zlength_correct (firstn _ _)), firstn_length, min_l;
+   auto.
+ apply Nat2Z.inj_le; rewrite <- Zlength_correct; auto.
+*
+ unfold s256_Nl; simpl.
+ rewrite <- Z.mul_add_distr_r, Zlength_app, Z.add_assoc,
+     (Zlength_correct (firstn _ _)), firstn_length, min_l;
+   auto.
+ apply Nat2Z.inj_le; rewrite <- Zlength_correct; auto.
 *
     change CBLOCKz with (Z.of_nat CBLOCK).
     rewrite Zlength_correct. apply Nat2Z.inj_lt.
@@ -167,8 +161,6 @@ apply semax_pre with
 *
     rewrite Forall_app; split; auto.
     apply Forall_firstn; auto.
-*
-    auto.
 *
     unfold s256_num.
     simpl.

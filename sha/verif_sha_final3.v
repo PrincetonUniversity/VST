@@ -147,154 +147,6 @@ Proof.
  apply IHi; omega.
 Qed.
 
-(*
-Lemma final_part5:
-forall (hashed: list int) (dd:list Z) (hashed': list int) (dd' : list Z) (pad : Z) (hi' lo' : list Z)
-  (hi lo : int) c_,
- (LBLOCKz | Zlength hashed) ->
-(Zlength dd < CBLOCKz) ->
-(length dd' + 8 <= CBLOCK)%nat ->
-(0 <= pad < 8)%Z ->
-(LBLOCKz | Zlength hashed') ->
-intlist_to_Zlist hashed' ++ dd' =
-intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ list_repeat (Z.to_nat pad) 0 ->
-length hi' = 4%nat ->
-length lo' = 4%nat ->
-isptr c_ ->
-hi' = intlist_to_Zlist [hi] /\ lo' = intlist_to_Zlist [lo] ->
-offset_in_range 64 (offset_val (Int.repr 40) c_) ->
-array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr lo'))) 0 4
-  (offset_val (Int.repr 100) c_) *
-array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr hi'))) 0 4
-  (offset_val (Int.repr 96) c_) *
-array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
-  (Z.of_nat CBLOCK - 8 - Zlength dd')
-  (offset_val (Int.repr (Zlength dd' + 40)) c_) *
-array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 (Zlength dd')
-  (offset_val (Int.repr 40) c_)
-|-- array_at tuchar Tsh
-      (ZnthV tuchar
-         (map Vint
-            (map Int.repr dd' ++
-             list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd')) Int.zero ++
-             map Int.repr (hi' ++ lo')))) 0 64 (offset_val (Int.repr 40) c_).
-Proof.
-intros until c_.
-intros H4 H3 H0 H1 H2 H5 Lhi Llo Pc_ Hhilo Hofs.
- rewrite split_offset_array_at with (lo := 60) (hi := 64); [| omega | simpl; omega | reflexivity].
- rewrite split_offset_array_at with (lo := 56) (hi := 60); [| omega | simpl; omega | reflexivity].
- rewrite split_offset_array_at with (lo := Zlength dd') (hi := 56);
-  [| change CBLOCK with 64%nat in H0; rewrite Zlength_correct in *; omega | simpl; omega | reflexivity].
-
- replace (offset_val (Int.repr 100) c_) with
-            (offset_val (Int.repr (sizeof tuchar * 60)) (offset_val (Int.repr 40) c_))
-  by (rewrite offset_offset_val; destruct c_; reflexivity).
- replace (offset_val (Int.repr 96) c_) with
-            (offset_val (Int.repr (sizeof tuchar * 56)) (offset_val (Int.repr 40) c_))
-  by (rewrite offset_offset_val; destruct c_; reflexivity).
- replace (offset_val (Int.repr (Zlength dd' + 40)) c_) with
-            (offset_val (Int.repr (sizeof tuchar * Zlength dd')) (offset_val (Int.repr 40) c_))
-  by (change (sizeof tuchar) with 1%Z; rewrite Z.mul_1_l; rewrite offset_offset_val; rewrite Int.add_commut, add_repr; reflexivity).
- forget (offset_val (Int.repr 40) c_) as cc.
- apply derives_trans with
-  (array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr dd'))) 0 (Zlength dd') cc *
-   array_at tuchar Tsh (fun _ : Z => Vint Int.zero) 0
-     (Z.of_nat CBLOCK - 8 - Zlength dd')
-     (offset_val (Int.repr (sizeof tuchar * Zlength dd')) cc) *
-   array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr hi'))) 0 4
-     (offset_val (Int.repr (sizeof tuchar * 56)) cc) *
-  array_at tuchar Tsh (ZnthV tuchar (map Vint (map Int.repr lo'))) 0 4
-     (offset_val (Int.repr (sizeof tuchar * 60)) cc));
-  [solve [cancel] | ].
-  change (64 - 60) with 4.
-  change (60 - 56) with 4.
- assert (Zlength dd' >= 0)%Z by (rewrite Zlength_correct; omega).
- assert (Zlength dd' = Z.of_nat (length (map Vint (map Int.repr dd')))).
- rewrite Zlength_correct; repeat rewrite map_length; reflexivity.
- assert (Z.of_nat CBLOCK - 8 - Z.of_nat (length dd') >= 0)%Z.
- clear - H0. apply Nat2Z.inj_le in H0. rewrite Nat2Z.inj_add in H0.
-  change (Z.of_nat 8) with 8 in H0. omega.
- assert (Hofs0: offset_in_range (sizeof tuchar * 0) cc).
-   unfold offset_in_range; destruct cc; auto.
-   pose proof Int.unsigned_range i.
-   omega.
- assert (Hofs1: offset_in_range (sizeof tuchar * 56) cc) by
-   (apply offset_in_range_mid with (lo := 0) (hi := 64); auto; omega).
- assert (Hofs2: offset_in_range (sizeof tuchar * 60) cc) by
-   (apply offset_in_range_mid with (lo := 0) (hi := 64); auto; omega).
- normalize.
- repeat rewrite sepcon_assoc;
- repeat apply sepcon_derives; apply derives_refl';
- apply equal_f; try apply array_at_ext; intros;
- unfold ZnthV; repeat rewrite if_false by omega.
-+ repeat rewrite map_app.
-   rewrite app_nth1; [reflexivity | ].
- apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega; omega.
-+ repeat rewrite map_app.
-   rewrite map_list_repeat.
- change (Z.of_nat CBLOCK - 8) with 56.
-   rewrite app_nth2. rewrite app_nth1.
- rewrite nth_list_repeat'; auto.
- repeat rewrite map_length.
- rewrite <- (Nat2Z.id (length dd')).
- rewrite <- Zlength_correct.
- rewrite <- Z2Nat.inj_sub by omega.
- apply Z2Nat.inj_lt; omega.
- repeat rewrite map_length.
- rewrite <- (Nat2Z.id (length dd')).
- rewrite <- Zlength_correct.
- rewrite <- Z2Nat.inj_sub by omega.
-  rewrite length_list_repeat.
- apply Z2Nat.inj_lt; omega.
-  repeat rewrite map_length.
- rewrite <- (Nat2Z.id (length dd')).
- rewrite <- Zlength_correct.
- apply Z2Nat.inj_le; omega.
-+ repeat rewrite map_app.
-   rewrite <- app_ass.
-   rewrite app_nth2. rewrite app_nth1.
-   f_equal.    rewrite app_length.  
-   repeat rewrite map_length; rewrite map_length in H6.
-   rewrite length_list_repeat.
-   rewrite H6. Omega1.
-  rewrite app_length; rewrite (map_list_repeat); rewrite length_list_repeat.
-  rewrite H6. repeat rewrite map_length.
-  rewrite Lhi.
-    change (Z.of_nat CBLOCK - 8)%Z with 56%Z. 
-  apply Nat2Z.inj_lt; try omega.
-  rewrite Nat2Z.inj_sub; try Omega1.
-  rewrite H6; repeat rewrite app_length; repeat rewrite map_length;
-   rewrite length_list_repeat.
-  Omega1.
-+
-assert (length
-  (map Vint
-     ((map Int.repr dd' ++ list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd')) Int.zero) ++
-      map Int.repr hi')) = 60%nat).
-  rewrite map_length.
- repeat rewrite app_length.
- repeat rewrite map_length.
- rewrite length_list_repeat.
- change (Z.of_nat CBLOCK - 8) with 56.
- rewrite Lhi, Zlength_correct.
- rewrite Z2Nat.inj_sub by omega.
- rewrite Nat2Z.id.
- change (Z.to_nat 56) with 56%nat.
- clear- H0; change CBLOCK with 64%nat in H0; omega.
-  rewrite (map_app Int.repr).
-  repeat rewrite <- app_ass.
-  rewrite map_app.
-  rewrite app_nth2.
- rewrite H9.
-  
-  rewrite Z2Nat.inj_add by omega; auto.
-  replace (Z.to_nat i + Z.to_nat 60 - 60)%nat with (Z.to_nat i) by (simpl; omega).
- reflexivity.
- rewrite H9.
- clear - H8. change 60%nat with (Z.to_nat 60).
- apply Z2Nat.inj_le; omega.
-Qed.
-*)
 
 Lemma NPeano_divide_add:
   forall a b c, NPeano.divide a b -> NPeano.divide a c -> NPeano.divide a (b+c).
@@ -311,9 +163,9 @@ name _p ->
 name _n ->
 name _cNl ->
 name _cNh ->
-forall (hi lo : int) (dd : list Z),
+forall bitlen (dd : list Z),
 (LBLOCKz | Zlength hashed) ->
-((Zlength hashed * 4 + Zlength dd)*8)%Z = hilo hi lo ->
+((Zlength hashed * 4 + Zlength dd)*8)%Z = bitlen ->
 (Zlength dd < CBLOCKz) ->
  (Forall isbyteZ dd) ->
 forall (hashed': list int) (dd' : list Z) (pad : Z),
@@ -341,8 +193,8 @@ semax Delta_final_if1
             list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd'))
               (Vint Int.zero) ++ []) c);
       `(field_at Tsh t_struct_SHA256state_st [StructField _num] Vundef c);
-      `(field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint hi) c);
-      `(field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint lo) c);
+      `(field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part bitlen)) c);
+      `(field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part bitlen)) c);
       `(field_at Tsh t_struct_SHA256state_st [StructField _h]
           (map Vint (hash_blocks init_registers hashed')) c);
       `K_vector (eval_var _K256 (tarray tuint CBLOCKz));
@@ -425,11 +277,11 @@ semax Delta_final_if1
           md)))).
 Proof.
   intros Espec hashed md c shmd kv H md_ c_ p n cNl cNh
-  hi lo dd H4 H7 H3 DDbytes hashed' dd' pad
+  bitlen dd H4 H7 H3 DDbytes hashed' dd' pad
   DDbytes' PAD H0 H1 H2 H5(* Pofs*).
   abbreviate_semax.
-  pose (hibytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [hi])))).
-  pose (lobytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [lo])))).
+  pose (hibytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [hi_part bitlen])))).
+  pose (lobytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [lo_part bitlen])))).
   forward. (* cNh=c->Nh; *)
   
   replace (field_at Tsh t_struct_SHA256state_st [StructField _data]
@@ -476,12 +328,12 @@ Proof.
     + unfold hibytes.
       rewrite !Zlength_map.
       rewrite Zlength_intlist_to_Zlist.
-      change (WORD * Zlength [hi])%Z with 4.
+      change (WORD * Zlength [hi_part bitlen])%Z with 4.
       omega.
     + destruct c; try solve [inversion Pc].
       simpl. f_equal; rewrite Int.add_assoc; rewrite mul_repr; rewrite add_repr; reflexivity.
     + unfold hibytes.
-      symmetry; rewrite (nth_big_endian_integer 0 [hi] hi) at 1 by reflexivity.
+      symmetry; rewrite (nth_big_endian_integer 0 [hi_part bitlen] (hi_part bitlen)) at 1 by reflexivity.
       f_equal.
     + pull_left
        (data_at Tsh (Tarray tuchar 4 noattr) [Vundef; Vundef; Vundef; Vundef]
@@ -547,7 +399,7 @@ Proof.
     + destruct c; try (contradiction Pc); simpl.
       f_equal; repeat rewrite Int.add_assoc; reflexivity.
     + unfold lobytes.
-      symmetry; rewrite (nth_big_endian_integer 0 [lo] lo) at 1 by reflexivity.
+      symmetry; rewrite (nth_big_endian_integer 0 [lo_part bitlen] (lo_part bitlen)) at 1 by reflexivity.
       f_equal.
     + pull_left
         (data_at Tsh (Tarray tuchar 4 noattr) [Vundef; Vundef; Vundef; Vundef]
@@ -618,18 +470,18 @@ Proof.
     rewrite !Int.add_assoc.
     f_equal.
   } Unfocus.
-  change (map Vint hibytes) with (map Vint (map Int.repr (intlist_to_Zlist [hi]))).
-  change (map Vint lobytes) with (map Vint (map Int.repr (intlist_to_Zlist [lo]))).
+  change (map Vint hibytes) with (map Vint (map Int.repr (intlist_to_Zlist [hi_part bitlen]))).
+  change (map Vint lobytes) with (map Vint (map Int.repr (intlist_to_Zlist [lo_part bitlen]))).
   clear lobytes hibytes.
   change (Vint Int.zero) with (Vint (Int.repr 0)).
   rewrite <- !map_list_repeat.
   rewrite <- !map_app.
   rewrite <- !app_assoc.
   rewrite <- intlist_to_Zlist_app.
-  simpl ([hi] ++ [lo]).
+  simpl ([hi_part bitlen] ++ [lo_part bitlen]).
   set (lastblock := map Int.repr
           (dd' ++ list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd')) 0
-              ++ intlist_to_Zlist [hi; lo])).
+              ++ intlist_to_Zlist [hi_part bitlen; lo_part bitlen])).
   assert (H99: length lastblock = CBLOCK).
   Focus 1. {
     unfold lastblock.
@@ -744,7 +596,7 @@ f_equal. {
 }
  rewrite initial_world.Zlength_app, Zlength_intlist_to_Zlist.
  rewrite <- (Z.mul_comm 4) in H7; change 4 with WORD in H7; rewrite H7.
- f_equal; apply hilo_lemma.
+ reflexivity.
 
  repeat rewrite app_length. rewrite length_list_repeat.
  rewrite length_intlist_to_Zlist.

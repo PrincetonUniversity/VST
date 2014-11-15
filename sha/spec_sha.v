@@ -29,8 +29,8 @@ Definition s256a_len (a: s256abs) : Z :=
 Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
      match a with S256abs hashed data =>
          s256_h r = map Vint (hash_blocks init_registers hashed) 
-       /\ (exists hi, exists lo, s256_Nh r = Vint hi /\ s256_Nl r = Vint lo /\
-             (Zlength hashed * WORD + Zlength data)*8 = hilo hi lo)%Z
+       /\ (s256_Nh r = Vint (hi_part ((Zlength hashed * WORD + Zlength data)*8)) /\
+            s256_Nl r = Vint (lo_part ((Zlength hashed * WORD + Zlength data)*8)))
        /\ s256_data r = map Vint (map Int.repr data)
        /\ (Zlength data < CBLOCKz /\ Forall isbyteZ data)
        /\ (LBLOCKz | Zlength hashed)
@@ -47,24 +47,9 @@ Definition sha_finish (a: s256abs) : list Z :=
 
 Definition cVint (f: Z -> int) (i: Z) := Vint (f i).
 
-(*
-Definition sha256_length (len: Z)  (c: val) : mpred :=
-   EX lo:int, EX hi:int, 
-     !! (hilo hi lo = len) &&
-     (field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint lo) c *
-      field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint hi) c).
-*)
-
-Definition hi_part (z: Z) := Int.repr (z / Int.modulus).
-Definition lo_part (z: Z) := Int.repr z.
-
 Definition sha256state_ (a: s256abs) (c: val) : mpred :=
    EX r:s256state, 
     !!  s256_relate a r  &&  data_at Tsh t_struct_SHA256state_st r c.
-(*
-Definition tuints (vl: list int) := ZnthV tuint (map Vint vl).
-Definition tuchars (vl: list int) :=  ZnthV tuchar (map Vint vl).
-*)
 
 Definition data_block (sh: share) (contents: list Z) :=
   !! Forall isbyteZ contents &&
