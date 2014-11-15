@@ -36,7 +36,6 @@ Definition sha_final_epilog :=
                                  nil))
            (Ssequence final_loop (Sreturn None))))).
 
-(*
 Lemma sha_final_part3:
 forall (Espec : OracleKind) (md c : val) (shmd : share)
   (hashed lastblock: list int) msg kv
@@ -64,45 +63,81 @@ semax
       `(data_at_ Tsh t_struct_SHA256state_st c);
       `(data_block shmd (SHA_256 msg) md)))).
 Proof.
-intros.
-unfold sha_final_epilog.
-abbreviate_semax.
+  intros.
+  unfold sha_final_epilog.
+  abbreviate_semax.
 
   unfold data_block.
   unfold_data_at 1%nat.
-  rewrite field_at_data_at.
-  rewrite at_offset
+  rewrite field_at_data_at by reflexivity.
+  rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
 
-forward_call (* sha256_block_data_order (c,p); *)
-  (hashed, lastblock, c,
-    offset_val (Int.repr (nested_field_offset2 t_struct_SHA256state_st [StructField _data])) c,
-      Tsh, kv).
-{
-  entailer!.
-}
- after_call.
-unfold data_block.
-simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
-rewrite <- H1.
-forward. (* c->num=0; *)
-forward_call (* memset (p,0,SHA_CBLOCK); *) 
-  (Tsh, (offset_val (Int.repr 40) c), 64%Z, Int.zero).
-entailer!. 
- rewrite (memory_block_array_tuchar _ 64%Z) by Omega1.
- rewrite Zlength_intlist_to_Zlist, H0. change (4*LBLOCKz) with 64.
- cancel.
-after_call.
-replace Delta with
-   (initialized _cNl (initialized _cNh Delta_final_if1))
- by (simplify_Delta; reflexivity).
-eapply semax_pre; [ | apply final_part4; auto].
-entailer!.
-apply length_hash_blocks; auto.
-rewrite H1.
-apply divide_length_app; auto.
-exists 1; apply H0.
+  normalize.
+  set (X := map Vint (map Int.repr (intlist_to_Zlist lastblock))).
+  assert (JMeq.JMeq X (map Vint (map Int.repr (intlist_to_Zlist lastblock)))) by reflexivity.
+  clearbody X.
+  revert X H6.
+
+  change (list val) with (reptype (nested_field_type2 t_struct_SHA256state_st [StructField _data])).
+  pattern (nested_field_type2 t_struct_SHA256state_st [StructField _data]) at 1 2 4.
+  replace (nested_field_type2 t_struct_SHA256state_st [StructField _data])
+    with (tarray tuchar (Zlength (intlist_to_Zlist lastblock))).
+  Focus 2. {
+    rewrite Zlength_correct, length_intlist_to_Zlist.
+    apply Zlength_length in H0; [| rewrite Zlength_correct in H0; omega].
+    rewrite H0.
+    reflexivity.
+  } Unfocus.
+  intros; subst X.
+  
+  forward_call (* sha256_block_data_order (c,p); *)
+    (hashed, lastblock, c,
+      offset_val (Int.repr (nested_field_offset2 t_struct_SHA256state_st [StructField _data])) c,
+        Tsh, kv).
+  {
+    unfold data_block.
+    entailer!.
+  }
+  after_call.
+  unfold data_block.
+  simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
+  rewrite <- H1.
+  forward. (* c->num=0; *)
+  forward_call (* memset (p,0,SHA_CBLOCK); *) 
+    (Tsh, (offset_val (Int.repr (nested_field_offset2 t_struct_SHA256state_st
+                   [StructField _data])) c), 64%Z, Int.zero).
+  {
+    entailer!.
+    pull_left (data_at Tsh (tarray tuchar (Zlength (intlist_to_Zlist lastblock)))
+     (map Vint (map Int.repr (intlist_to_Zlist lastblock)))
+     (offset_val
+        (Int.repr
+           (nested_field_offset2 t_struct_SHA256state_st [StructField _data])) c)).
+    rewrite !sepcon_assoc.
+    apply sepcon_derives; [ | cancel_frame].
+    eapply derives_trans; [apply data_at_data_at_; reflexivity |].
+    replace (Zlength (intlist_to_Zlist lastblock)) with 64.
+    Focus 2. {
+      rewrite Zlength_intlist_to_Zlist, H0.
+      reflexivity.
+    } Unfocus.
+    rewrite data_at__memory_block;
+      [| reflexivity | reflexivity | change Int.modulus with 4294967296; simpl; omega].
+    entailer!.
+  }
+  after_call.
+  replace Delta with
+    (initialized _cNl (initialized _cNh Delta_final_if1))
+    by (simplify_Delta; reflexivity).
+  eapply semax_pre; [ | apply final_part4; auto].
+  + unfold_data_at 2%nat.
+    rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
+    entailer!.
+  + apply length_hash_blocks; auto.
+    rewrite H1.
+    apply divide_length_app; auto.
+    exists 1; apply H0.
 Qed.
-*)
 
 Lemma nth_list_repeat':
   forall A i n (a d: A),
@@ -289,7 +324,7 @@ forall (hashed': list int) (dd' : list Z) (pad : Z),
 (LBLOCKz | Zlength hashed') ->
 intlist_to_Zlist hashed' ++ dd' =
 intlist_to_Zlist hashed ++ dd ++ [128%Z] ++ list_repeat (Z.to_nat pad) 0 ->
-offset_in_range 64 (offset_val (Int.repr 40) c) ->
+(*offset_in_range 64 (offset_val (Int.repr 40) c) ->*)
 semax Delta_final_if1
   (PROP  ()
       LOCAL 
@@ -391,7 +426,7 @@ semax Delta_final_if1
 Proof.
   intros Espec hashed md c shmd kv H md_ c_ p n cNl cNh
   hi lo dd H4 H7 H3 DDbytes hashed' dd' pad
-  DDbytes' PAD H0 H1 H2 H5 Pofs.
+  DDbytes' PAD H0 H1 H2 H5(* Pofs*).
   abbreviate_semax.
   pose (hibytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [hi])))).
   pose (lobytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [lo])))).
@@ -459,12 +494,10 @@ Proof.
       change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).
       eapply derives_trans; [apply data_at_data_at_; reflexivity |].
       erewrite data_at__memory_block;
-        [| reflexivity | reflexivity | change Int.modulus with  4294967296; simpl; omega].
+        [| reflexivity | reflexivity | change Int.modulus with 4294967296; simpl; omega].
       entailer.
   }
   after_call.
-  forward. (* p += 4; *)
-  forward. (* cNl=c->Nl; *)
   gather_SEP 0 1 2.
   replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
     ((map Vint (map Int.repr dd') ++
@@ -475,7 +508,7 @@ Proof.
     rewrite app_assoc with (n := map Vint hibytes).
     rewrite <- app_assoc with (m := map Vint hibytes).
     erewrite array_seg_reroot_lemma with (lo := 56) (hi := 60%Z);
-      [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | | reflexivity].
+      [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | reflexivity | reflexivity].
     Focus 2. {
       rewrite Zlength_app, !Zlength_map.
       rewrite !Zlength_correct.
@@ -484,13 +517,10 @@ Proof.
       change (Z.of_nat CBLOCK) with 64.
       omega.
     } Unfocus.
-    Focus 2. {
-      unfold hibytes.
-      rewrite !Zlength_map, Zlength_intlist_to_Zlist.
-      reflexivity.
-    } Unfocus.
     entailer!.
   } Unfocus.
+  forward. (* p += 4; *)
+  forward. (* cNl=c->Nl; *)
   erewrite array_seg_reroot_lemma with (lo := 60) (hi := 64);
     [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | reflexivity | reflexivity].
   Focus 2. {
@@ -534,92 +564,131 @@ Proof.
       entailer.
   }
   after_call.
+  gather_SEP 0 1 2.
+  replace_SEP 0
+    (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
+         ((map Vint (map Int.repr dd') ++
+             list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd'))
+               (Vint Int.zero) ++ (map Vint hibytes)) ++ (map Vint lobytes) ++ []) c)).
+  {
+    erewrite array_seg_reroot_lemma with (lo := 60) (hi := 64);
+      [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | reflexivity | reflexivity].
+    Focus 2. {
+      rewrite Zlength_app, !Zlength_map.
+      rewrite !Zlength_correct.
+      rewrite app_length.
+      rewrite map_length.
+      rewrite length_list_repeat.
+      change (length hibytes) with 4%nat.
+      rewrite Nat2Z.inj_add by omega.
+      rewrite Z2Nat.id by omega.
+      change (Z.of_nat CBLOCK) with 64.
+      change (Z.of_nat 4) with 4.
+      omega.
+    } Unfocus.
+    entailer!.
+  }
+  rewrite app_nil_r.
   forward. (* p += 4; *)
   forward. (* p -= SHA_CBLOCK; *)
   {
     entailer!.
     destruct c_; try (contradiction Pc_); apply I.
   }
-STOP.
-
- simpl. normalize.
- simpl force_val2. normalize.
- replace (array_at tuchar Tsh (cVint lobytes) 0 4) with 
-     (array_at tuchar Tsh  (ZnthV tuchar
-                (map Vint (map Int.repr (intlist_to_Zlist [lo])))) 0 4).
-Focus 2. apply array_at_ext; intros; unfold cVint, lobytes, ZnthV, Basics.compose; if_tac; try reflexivity.
-omega.
-rewrite (nth_map' Vint Vundef Int.zero)
- by (simpl length; apply Nat2Z.inj_lt;
-       rewrite Z2Nat.id; change (Z.of_nat 4) with 4%Z; omega).
- reflexivity.
- replace (array_at tuchar Tsh (cVint hibytes) 0 4) with 
-     (array_at tuchar Tsh  (ZnthV tuchar
-                (map Vint (map Int.repr (intlist_to_Zlist [hi])))) 0 4).
-Focus 2. apply array_at_ext; intros; unfold cVint, hibytes, ZnthV, Basics.compose; if_tac; try reflexivity.
-omega.
-rewrite (nth_map' Vint Vundef Int.zero)
- by (simpl length; apply Nat2Z.inj_lt;
-       rewrite Z2Nat.id; change (Z.of_nat 4) with 4%Z; omega).
- reflexivity.
-clear lobytes hibytes.
-normalize.
-pose (lastblock := (
-         (map Int.repr dd' ++ list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd')) Int.zero
-          ++  map Int.repr (intlist_to_Zlist [hi;lo])))).
-assert (H99: length lastblock = CBLOCK).
-unfold lastblock; repeat rewrite app_length.
-rewrite length_list_repeat; simpl.
-clear - H0.
-rewrite Zlength_correct. repeat rewrite Z2Nat.inj_sub by omega.
-repeat rewrite Nat2Z.id. simpl Z.to_nat. rewrite map_length; omega.
-assert (BYTESlastblock: Forall isbyteZ (map Int.unsigned lastblock)). {
- unfold lastblock.
- repeat rewrite map_app.
- repeat rewrite Forall_app.
- repeat split; auto.
- apply Forall_isbyteZ_unsigned_repr; auto.
- rewrite map_list_repeat.
- apply Forall_list_repeat. rewrite Int.unsigned_zero; clear; split; omega.
- apply isbyte_intlist_to_Zlist'.
-}
-unfold POSTCONDITION, abbreviate.
-fold (SHA_256 (intlist_to_Zlist hashed ++ dd)).
-pose (lastblock' := Zlist_to_intlist (map Int.unsigned lastblock)).
-eapply semax_pre; [ | simple apply (sha_final_part3 Espec md c shmd hashed' lastblock'); auto].
-* entailer!.
- + destruct c_; try (contradiction Pc_); simpl;
-     f_equal; rewrite Int.sub_add_opp;
-     repeat rewrite Int.add_assoc; f_equal; reflexivity.
- + 
-unfold lastblock', data_block.
-simpl.
-rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
-rewrite Zlist_to_intlist_to_Zlist; [ |rewrite map_length; rewrite H99; exists LBLOCK; reflexivity | assumption].
-rewrite Forall_isbyte_repr_unsigned.
-rewrite (Zlength_correct (map _ lastblock)).
-rewrite map_length; rewrite H99.
-change (Z.of_nat CBLOCK) with 64%Z at 2.
-change (intlist_to_Zlist [hi; lo])
-  with (intlist_to_Zlist [hi] ++intlist_to_Zlist [lo]).
-apply (final_part5 hashed dd hashed' dd' pad (intlist_to_Zlist [hi]) (intlist_to_Zlist [lo]) hi lo);
-  auto.
-* unfold lastblock'.
-apply Zlength_length; auto; apply length_Zlist_to_intlist.
-rewrite map_length; assumption.
-*
+  drop_LOCAL 1%nat; clear p2. (* drop p2 *)
+  drop_LOCAL 2%nat; clear p1. (* drop p1 *)
+  drop_LOCAL 1%nat. (* drop cNl *)
+  drop_LOCAL 1%nat. (* drop cNh *)
+  match goal with
+  | |- semax _ (PROPx nil (LOCALx (_ :: ?L) (SEPx ?S))) _ _ =>
+         apply semax_pre0 with (PROPx nil (LOCALx (
+           (`(eq (offset_val (Int.repr
+             (nested_field_offset2 t_struct_SHA256state_st [StructField _data])) c)) (eval_id _p))
+           :: L) (SEPx S)))
+  end.
+  Focus 1. {
+    entailer!.
+    rewrite <- H8.
+    destruct (eval_id _c rho); try solve [inversion H10].
+    simpl.
+    f_equal.
+    erewrite nested_field_offset2_Tarray by reflexivity.
+    rewrite Int.sub_add_opp.
+    rewrite <- add_repr.
+    rewrite !Int.add_assoc.
+    f_equal.
+  } Unfocus.
+  change (map Vint hibytes) with (map Vint (map Int.repr (intlist_to_Zlist [hi]))).
+  change (map Vint lobytes) with (map Vint (map Int.repr (intlist_to_Zlist [lo]))).
+  clear lobytes hibytes.
+  change (Vint Int.zero) with (Vint (Int.repr 0)).
+  rewrite <- !map_list_repeat.
+  rewrite <- !map_app.
+  rewrite <- !app_assoc.
+  rewrite <- intlist_to_Zlist_app.
+  simpl ([hi] ++ [lo]).
+  set (lastblock := map Int.repr
+          (dd' ++ list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd')) 0
+              ++ intlist_to_Zlist [hi; lo])).
+  assert (H99: length lastblock = CBLOCK).
+  Focus 1. {
+    unfold lastblock.
+    rewrite map_length, !app_length.
+    rewrite length_list_repeat; simpl.
+    clear - H0.
+    rewrite Zlength_correct. repeat rewrite Z2Nat.inj_sub by omega.
+    repeat rewrite Nat2Z.id. simpl Z.to_nat.
+    omega.
+  } Unfocus.
+  assert (BYTESlastblock: Forall isbyteZ (map Int.unsigned lastblock)). {
+    unfold lastblock.
+    repeat rewrite map_app.
+    repeat rewrite Forall_app.
+    repeat split; auto.
+    apply Forall_isbyteZ_unsigned_repr; auto.
+    rewrite !map_list_repeat.
+    apply Forall_list_repeat.
+    change (Int.unsigned (Int.repr 0)) with 0; split; omega.
+    apply isbyte_intlist_to_Zlist'.
+  }
+  unfold POSTCONDITION, abbreviate.
+  fold (SHA_256 (intlist_to_Zlist hashed ++ dd)).
+  pose (lastblock' := Zlist_to_intlist (map Int.unsigned lastblock)).
+  eapply semax_pre; [ | simple apply (sha_final_part3 Espec md c shmd hashed' lastblock'); auto].
+  * entailer!.
+    + apply isbyte_intlist_to_Zlist.
+    + unfold_data_at 1%nat.
+      unfold lastblock'.
+      rewrite Zlist_to_intlist_to_Zlist; auto.
+      Focus 2. {
+        rewrite map_length,H99.
+        exists LBLOCK; reflexivity.
+      } Unfocus.
+      rewrite map_map with (g := Int.repr).
+      replace ((fun x : int => Int.repr (Int.unsigned x))) with (@id int).
+      Focus 2.
+      {
+        extensionality i.
+        rewrite Int.repr_unsigned.
+        reflexivity.
+      } Unfocus.
+      rewrite map_id.
+      cancel.
+  * unfold lastblock'.
+    apply Zlength_length; auto; apply length_Zlist_to_intlist.
+    rewrite map_length; assumption.
+  *
 apply intlist_to_Zlist_inj.
 rewrite intlist_to_Zlist_app.
 unfold lastblock'.
 rewrite Zlist_to_intlist_to_Zlist; auto.
 2: rewrite map_length,H99; exists LBLOCK; reflexivity.
 unfold lastblock.
-rewrite map_app.
+rewrite !map_app.
 rewrite map_unsigned_repr_isbyte by auto.
 rewrite <- app_ass. rewrite H5.
-rewrite map_app.
-rewrite map_list_repeat.
-rewrite Int.unsigned_zero.
+rewrite !map_list_repeat.
+change (Int.unsigned (Int.repr 0)) with 0.
 rewrite map_unsigned_repr_isbyte by apply isbyte_intlist_to_Zlist.
 unfold generate_and_pad.
 rewrite intlist_to_Zlist_app.

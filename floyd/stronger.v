@@ -16,7 +16,14 @@ Local Open Scope logic.
 Definition stronger {t: type} (v v': reptype t) : Prop :=
   forall sh, data_at sh t v |-- data_at sh t v'.
 
-Notation "X '>>>' Y" := (stronger X Y) (at level 60, no associativity).
+Definition data_equal {t} v1 v2 := forall sh, data_at sh t v1 = data_at sh t v2.
+
+Module DataCmpNotations.
+  Notation "X '>>>' Y" := (stronger X Y) (at level 60, no associativity).
+  Notation "X '===' Y" := (data_equal X Y) (at level 60, no associativity).
+End DataCmpNotations.
+
+Import DataCmpNotations.
 
 Lemma stronger_refl: forall t (v: reptype t), v >>> v.
 Proof.
@@ -186,10 +193,6 @@ Proof.
   apply data_at_data_at_.
   auto.
 Qed.
-
-Definition data_equal {t} v1 v2 := forall sh, data_at sh t v1 = data_at sh t v2.
-
-Notation "X '===' Y" := (data_equal X Y) (at level 60, no associativity).
 
 Lemma data_equal_stronger: forall {t} (v1 v2: reptype t), (v1 === v2) <-> (v1 >>> v2) /\ (v2 >>> v1).
 Proof.

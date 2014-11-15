@@ -16,6 +16,7 @@ Require Import floyd.loadstore_data_at.
 Require Import floyd.loadstore_field_at.
 Require Import floyd.nested_field_re_lemmas.
 Require Import Coq.Logic.JMeq.
+Import DataCmpNotations.
 
 Local Open Scope logic.
 

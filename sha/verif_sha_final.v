@@ -4,7 +4,7 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.verif_sha_final2.
-(*Require Import sha.verif_sha_final3.*)
+Require Import sha.verif_sha_final3.
 Local Open Scope logic.
 
 Lemma body_SHA256_Final: semax_body Vprog Gtot f_SHA256_Final SHA256_Final_spec.
@@ -265,86 +265,5 @@ replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
   } Unfocus.
   subst n0.
   drop_LOCAL 2%nat; clear p0.
-
-    
-
-
- pose (hibytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [hi])))).
- pose (lobytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [lo])))).
-
-
-
-STOP.
-
-(**
-
-
-   semax Delta
-     (PROP  ()
-      LOCAL 
-      (`(eq
-           (force_val
-              (sem_add_pi tuchar
-                 (offset_val
-                    (Int.repr
-                       (nested_field_offset2 t_struct_SHA256state_st
-                          [StructField _data])) c)
-                 (Vint
-                    (Int.sub (Int.mul (Int.repr 16) (Int.repr 4))
-                       (Int.repr 8)))))) (eval_id _p);
-      temp _n (Vint (Int.repr (Zlength dd')));
-      `(offset_val
-          (Int.repr
-             (nested_field_offset2 t_struct_SHA256state_st
-                [StructField _data])) c = p0); temp _md md; 
-      temp _c c; var _K256 (tarray tuint CBLOCKz) kv)
-      SEP 
-      (`(data_at Tsh (tarray tuchar (Z.of_nat CBLOCK - 8 - Zlength dd'))
-           (list_repeat (Z.to_nat (Z.of_nat CBLOCK - 8 - Zlength dd'))
-              (Vint Int.zero))
-           (offset_val
-              (Int.repr
-                 (nested_field_offset2 t_struct_SHA256state_st
-                    [ArraySubsc (Zlength dd'); StructField _data])) c));
-      `(array_at Tsh t_struct_SHA256state_st [StructField _data] 0
-          (Zlength dd') (map Vint (map Int.repr dd')) c);
-      `(array_at Tsh t_struct_SHA256state_st [StructField _data]
-          (Z.of_nat CBLOCK - 8) 64 [] c);
-      `(field_at Tsh t_struct_SHA256state_st [StructField _num] Vundef c);
-      `(field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint hi) c);
-      `(field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint lo) c);
-      `(field_at Tsh t_struct_SHA256state_st [StructField _h]
-          (map Vint (hash_blocks init_registers hashed')) c);
-      `K_vector (eval_var _K256 (tarray tuint CBLOCKz));
-      `(memory_block shmd (Int.repr 32) md)))
-
-**)
-
- entailer!.
- extract_prop_from_LOCAL.
-apply semax_extract_PROP; intro. subst p0.
- replace (`eq (eval_id _p)
-      (`(eval_binop Oadd (tptr tuchar) tint) `(offset_val (Int.repr 40) c)
-         (`(eval_binop Osub tint tint)
-            (`(eval_binop Omul tint tint) `(Vint (Int.repr 16))
-               `(Vint (Int.repr 4))) `(Vint (Int.repr 8)))))
-  with (temp _p (eval_binop Oadd (tptr tuchar) tint (offset_val (Int.repr 40) c)
-                          (Vint (Int.repr (16*4-8)))))
-  by normalize.
-change data_offset with 40.
-change (`(array_at tuchar Tsh
-          (fun i : Z =>
-           ZnthV tuchar (map Vint (map Int.repr dd'))
-             (i + (Z.of_nat CBLOCK - 8))) 0 (64 - (Z.of_nat CBLOCK - 8))
-          (offset_val (Int.repr (40 + (Z.of_nat CBLOCK - 8))) c))) with 
-   (`(array_at tuchar Tsh (fun i : Z =>
-           ZnthV tuchar (map Vint (map Int.repr dd'))
-             (i + (Z.of_nat CBLOCK - 8)))
-              0 8 (offset_val (Int.repr 96) c))).
-replace Delta with Delta_final_if1 by reflexivity.
-simpl eval_binop.
-change 56 with (16 * 4 - 8).
-rewrite offset_offset_val. rewrite add_repr.
-normalize.
-apply final_part2 with pad; assumption.
+  apply final_part2 with pad; assumption.
 Qed.
