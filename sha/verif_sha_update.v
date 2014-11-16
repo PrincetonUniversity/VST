@@ -22,38 +22,11 @@ Definition update_last_if :=
                      (Etempvar _len tuint) :: nil))
                   Sskip).
 
-
-Lemma replace_SEP'':
- forall n R' P Q Rs Post,
- (PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil)))) |-- R' ->
- PROPx P (LOCALx Q (SEPx (replace_nth n Rs R'))) |-- Post ->
- PROPx P (LOCALx Q (SEPx Rs)) |-- Post.
-Proof.
-intros.
-eapply derives_trans; [ | apply H0].
-clear - H.
-unfold PROPx, LOCALx, SEPx in *; intro rho; specialize (H rho).
-unfold local, lift1 in *.
-simpl in *; unfold_lift; unfold_lift in H.
-normalize.
-rewrite prop_true_andp in H by auto.
-rewrite prop_true_andp in H by auto.
-clear - H.
-rewrite sepcon_emp in H.
-revert Rs H; induction n; destruct Rs; simpl ; intros; auto;
-apply sepcon_derives; auto.
-Qed.
-
-Ltac replace_SEP n R :=
-  first [apply (replace_SEP' (nat_of_Z n) R) | apply (replace_SEP'' (nat_of_Z n) R)];
-  unfold my_nth,replace_nth; simpl nat_of_Z;
-   repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
-
 Lemma update_last_if_proof:
  forall  (Espec : OracleKind) (hashed : list int) 
            (dd data : list Z) (c d : val) (sh : share) (len : nat) kv
    (H : len <= length data)
-   (HBOUND : (s256a_len (S256abs hashed dd) + Z.of_nat len * 8 < two_p 64)%Z)
+   (HBOUND : (bitlength hashed dd + Z.of_nat len * 8 < two_p 64)%Z)
    (c' : name _c)
    (data_ : name _data_)
    (len' : name _len)
@@ -61,8 +34,6 @@ Lemma update_last_if_proof:
    (p : name _p)
    (n : name _n)
    (fragment : name _fragment)
-   (bitlen : Z)
-   (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = bitlen)
    (H3 : (Zlength dd < CBLOCKz)%Z)
    (H3' : Forall isbyteZ dd) 
    (H4 : (LBLOCKz | Zlength hashed)%Z)
@@ -86,8 +57,8 @@ semax
    SEP  (`(K_vector kv);
            `(data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers (hashed++blocks)),
-                  (Vint (lo_part (bitlen + (Z.of_nat len)*8)),
-                   (Vint (hi_part (bitlen + (Z.of_nat len)*8)),
+                  (Vint (lo_part (bitlength hashed dd + (Z.of_nat len)*8)),
+                   (Vint (hi_part (bitlength hashed dd + (Z.of_nat len)*8)),
                     (nil, 
                      Vint (Int.repr (Z.of_nat (len - (length blocks * 4 - length dd))))))))
                 c);
@@ -150,9 +121,7 @@ evar (Frame: list (LiftEnviron mpred)).
  unfold data_block.
  rewrite prop_true_andp by auto.
  clear POSTCONDITION H0 rho.
- (***)
  unfold sha256state_.
- normalize.
  rewrite splice_into_list_simplify2;
   [
   | reflexivity | omega
@@ -161,59 +130,37 @@ evar (Frame: list (LiftEnviron mpred)).
     repeat rewrite map_length; rewrite Z.sub_0_r; apply Nat2Z.inj_le; omega
   ].
  simpl app at 1. rewrite Z.sub_0_r, Nat2Z.id, Nat2Z.id.
+ normalize.
  apply exp_right with 
               (map Vint (hash_blocks init_registers (hashed ++ blocks)),
-                (Vint (lo_part ((Zlength hashed * 4 + Zlength dd) * 8 + Z.of_nat len * 8)),
-                 (Vint (hi_part ((Zlength hashed * 4 + Zlength dd) * 8 + Z.of_nat len * 8)),
+                (Vint (lo_part (bitlength hashed dd + Z.of_nat len * 8)),
+                 (Vint (hi_part (bitlength hashed dd + Z.of_nat len * 8)),
                   (map Vint (map Int.repr dd'), Vint (Int.repr (Zlength dd')))))).
  entailer!.
  -
-    unfold s256_relate; repeat split; auto.
-    unfold s256_Nh; simpl.
+    unfold s256_relate, s256_Nh, s256_Nl, bitlength; simpl.
     rewrite Zlength_app.
-    repeat rewrite <- Z.mul_add_distr_r.
-    f_equal; f_equal; f_equal.
-    rewrite Z.mul_add_distr_r.
-    repeat rewrite <- Z.add_assoc. f_equal.
-    unfold dd'; rewrite (Zlength_correct (firstn _ _)).
+    unfold dd' at 1 2; rewrite (Zlength_correct (firstn _ _)).
     rewrite firstn_length.
     rewrite skipn_length by omega.
     rewrite min_l  by omega.
     rewrite Nat2Z.inj_sub by omega.
     unfold b4d.
-   rewrite Nat2Z.inj_sub by omega.
-   rewrite Nat2Z.inj_mul. 
-   repeat rewrite <- Zlength_correct. change (Z.of_nat 4) with WORD.
-   clear; omega.
-
-    unfold s256_relate; repeat split; auto.
-    unfold s256_Nl; simpl.
-    rewrite Zlength_app.
-    repeat rewrite <- Z.mul_add_distr_r.
-    f_equal; f_equal; f_equal.
-    rewrite Z.mul_add_distr_r.
-    repeat rewrite <- Z.add_assoc. f_equal.
-    unfold dd'; rewrite (Zlength_correct (firstn _ _)).
-    rewrite firstn_length.
-    rewrite skipn_length by omega.
-    rewrite min_l  by omega.
     rewrite Nat2Z.inj_sub by omega.
-    unfold b4d.
-   rewrite Nat2Z.inj_sub by omega.
-   rewrite Nat2Z.inj_mul. 
-   repeat rewrite <- Zlength_correct. change (Z.of_nat 4) with WORD.
-   clear; omega.
-
-   rewrite <- H2. 
-   change CBLOCKz with (Z.of_nat CBLOCK);
-   apply Nat2Z.inj_lt; auto.
-
-  unfold dd'; apply Forall_firstn; apply Forall_skipn; auto.
-  apply divide_length_app; auto.
+    repeat rewrite <- Z.mul_add_distr_r.
+    rewrite Nat2Z.inj_mul. 
+    repeat rewrite <- Zlength_correct.
+    change (Z.of_nat 4) with WORD.
+    rewrite (Z.mul_add_distr_r _ _ WORD).
+    repeat split; auto.
+    f_equal; f_equal; clear; omega.
+    f_equal; f_equal; clear; omega.
+   rewrite <- H2; change CBLOCKz with (Z.of_nat CBLOCK); apply Nat2Z.inj_lt; auto.
+   unfold dd'; apply Forall_firstn; apply Forall_skipn; auto.
+   apply Z.divide_add_r; auto.
  -
    rewrite <- H2.
    unfold_data_at 1. entailer!.
-   apply derives_refl'; f_equal.
    unfold dd'.
    repeat rewrite skipn_map. repeat rewrite firstn_map. auto.
 + (* else-clause *)
@@ -235,7 +182,7 @@ evar (Frame: list (LiftEnviron mpred)).
  rewrite <- app_nil_end.
  rewrite Hblocks. f_equal. f_equal. clear - Hblocks_len H7'; omega.
  unfold sha256state_.
- set (bitlen := ((Zlength hashed * 4 + Zlength dd) * 8 + Z.of_nat len * 8)%Z).
+ set (bitlen := (bitlength hashed dd + Z.of_nat len * 8)%Z).
  
  apply exp_right with 
               (map Vint (hash_blocks init_registers (hashed ++ blocks)),
@@ -243,35 +190,22 @@ evar (Frame: list (LiftEnviron mpred)).
                  (Vint (hi_part bitlen),
                   (nil, Vint Int.zero)))).
  entailer!.
- unfold s256_relate.
- unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
- repeat split; simpl; auto.
- unfold bitlen; do 2 f_equal.
+ unfold s256_relate, s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd.
+ simpl.
+ unfold bitlen, bitlength.
  rewrite Zlength_nil, Z.add_0_r.
- unfold bitlen; clear bitlen.
  rewrite Zlength_app.
- rewrite <- (Z.mul_add_distr_r _ _ 8). f_equal.
- rewrite Z.mul_add_distr_r.
- rewrite <- Z.add_assoc. f_equal.
+ rewrite <- (Z.mul_add_distr_r _ _ 8).
+ rewrite (Z.mul_add_distr_r _ _ WORD).
+ rewrite <- Z.add_assoc.
  replace len with (length blocks * 4 - length dd) by (clear - Hblocks_len H7'; omega).
   rewrite Nat2Z.inj_sub by (clear - Hblocks'; omega).
- rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4%Z.
+ rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with WORD.
  rewrite (Zlength_correct blocks), (Zlength_correct dd).
- change WORD with 4%Z; clear; omega.
- unfold bitlen; do 2 f_equal.
- rewrite Zlength_nil, Z.add_0_r.
- unfold bitlen; clear bitlen.
- rewrite Zlength_app.
- rewrite <- (Z.mul_add_distr_r _ _ 8). f_equal.
- rewrite Z.mul_add_distr_r.
- rewrite <- Z.add_assoc. f_equal.
- replace len with (length blocks * 4 - length dd) by (clear - Hblocks_len H7'; omega).
-  rewrite Nat2Z.inj_sub by (clear - Hblocks'; omega).
- rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4%Z.
- rewrite (Zlength_correct blocks), (Zlength_correct dd).
- change WORD with 4%Z; clear; omega.
-
- apply divide_length_app; auto.
+ repeat split; auto. 
+ f_equal; f_equal. clear; omega.
+ f_equal; f_equal. clear; omega.
+ rewrite <- Zlength_correct;  apply Z.divide_add_r; auto.
 Qed.
 
 Lemma body_SHA256_Update: semax_body Vprog Gtot f_SHA256_Update SHA256_Update_spec.
@@ -292,7 +226,6 @@ fold update_inner_if_else in *.
 fold update_inner_if in *.
 fold sha_update_loop_body in *.
 forward.  (* data=data_; *)
-fold (temp _data d).  (* shouldn't be necessary *)
 assert (LEN: (0 <= s256a_len a)%Z). {
  destruct a; simpl.
  apply Z.mul_nonneg_nonneg; try computable.
@@ -322,7 +255,7 @@ cbv beta iota. normalize.
 forward. (* n = c->num; *)
 forward. (* p=c->data; *)
 fold update_outer_if.
-apply semax_seq with (sha_update_inv sh hashed (Z.to_nat len) c d dd data kv (s256a_len (S256abs hashed dd)) false).
+apply semax_seq with (sha_update_inv sh hashed (Z.to_nat len) c d dd data kv false).
 * unfold POSTCONDITION, abbreviate.
  eapply semax_pre; [ | simple apply update_outer_if_proof; try assumption].
  - unfold_data_at 1%nat. entailer!.
@@ -330,11 +263,10 @@ apply semax_seq with (sha_update_inv sh hashed (Z.to_nat len) c d dd data kv (s2
     rewrite Z2Nat.id by omega; auto.
  - rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; auto; omega.
  - rewrite Z2Nat.id by omega; auto.
- - reflexivity.
  - rewrite Z2Nat.id by omega; omega.
 * (* after if (n!=0) *)
 eapply semax_seq' with
-     (sha_update_inv sh hashed (Z.to_nat len) c d dd data kv (s256a_len (S256abs hashed dd)) true).
+     (sha_update_inv sh hashed (Z.to_nat len) c d dd data kv true).
 replace (update_tycon Delta update_outer_if)
    with (initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot))))
@@ -343,7 +275,6 @@ clear POSTCONDITION MORE_COMMANDS Delta.
 simple apply update_while_proof; try assumption.
 rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; auto; omega.
 rewrite Z2Nat.id by omega; auto.
-reflexivity.
 rewrite Z2Nat.id by omega; omega.
 
 simplify_Delta; abbreviate_semax.
@@ -366,29 +297,10 @@ replace Delta with (initialized _p (initialized _n (initialized _data
 make_sequential.
 rewrite overridePost_normal'.
 fold update_last_if.
-
-apply semax_pre0 with  (* should be able to do "eapply" *)
-       (PROP  ()
-        LOCAL  (temp _p (offset_val (Int.repr 40) c); temp _c c;
-        temp _data
-          (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length dd))) d);
-        temp _len
-          (Vint (Int.repr (Z.of_nat (Z.to_nat len - (length blocks * 4 - length dd)))));
-        var _K256 (tarray tuint CBLOCKz) kv)
-        SEP  (`(K_vector kv);
-        `(data_at Tsh t_struct_SHA256state_st
-            (map Vint (hash_blocks init_registers (hashed ++ blocks)),
-            (Vint (lo_part (s256a_len (S256abs hashed dd) + Z.of_nat (Z.to_nat len) * 8)),
-            (Vint (hi_part (s256a_len (S256abs hashed dd) + Z.of_nat (Z.to_nat len) * 8)),
-            ([],
-            Vint
-              (Int.repr (Z.of_nat (Z.to_nat len - (length blocks * 4 - length dd))))))))
-            c); `(data_block sh data d)));
- [ | simple apply update_last_if_proof];
-  [entailer! | try assumption .. ].
+rewrite <- data_at_offset_zero.
+simple apply update_last_if_proof; try assumption.
 rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; auto; omega.
 rewrite Z2Nat.id by omega; auto.
-reflexivity.
 rewrite Z2Nat.id by omega; omega.
 abbreviate_semax.
 (* after the last if *)

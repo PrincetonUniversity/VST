@@ -394,11 +394,6 @@ Proof.
       f_equal; [do 2 f_equal; omega | f_equal; omega].
 Qed.
 
-Ltac fold_temps :=
- repeat match goal with |- context [`(eq ?v) (eval_id ?i)] =>
-    fold (temp i v)
- end.
-
 Lemma bdo_loop2_body_proof:
  forall (Espec : OracleKind)
    (b : list int) (ctx : val) ( regs : list int) (i : nat) kv Xv
@@ -465,29 +460,24 @@ change (tarray tuint LBLOCKz) with (tarray tuint 16).
 change LBLOCKz with 16%Z in H.
 forward.	(*s0 = X[(i+1)&0x0f]; *)
   entailer!.
-fold_temps.
 rewrite Znth_nthi' by reflexivity.
 
 forward. (* s0 = sigma0(s0); *)
 rename x into s0'.
-fold_temps.
 rewrite extract_from_b by auto; rewrite Int.and_mone; rewrite <- sigma_0_eq.
 drop_LOCAL 1. clear s0'.
 
 forward. (* s1 = X[(i+14)&0x0f]; *)
  entailer!.
-fold_temps.
 rewrite Znth_nthi' by reflexivity.
 
 forward. (* s1 = sigma1(s1); *)
-fold_temps.
 rename x into s1'.
 rewrite extract_from_b by auto; rewrite Int.and_mone; rewrite <- sigma_1_eq.
 drop_LOCAL 1. clear s1'.
 
 forward. (* T1 = X[i&0xf]; *)
  entailer!.
-fold_temps.
 rewrite Znth_nthi' by reflexivity.
 replace (nthi (Xarray b i) (Z.of_nat i mod 16))
   with (W (nthi b) (Z.of_nat i - 16 + 0))
@@ -497,12 +487,10 @@ replace (nthi (Xarray b i) (Z.of_nat i mod 16))
 
 forward. (* t = X[(i+9)&0xf]; *)
   entailer!.
-fold_temps.
 rewrite Znth_nthi' by reflexivity.
 rewrite extract_from_b by (try assumption; try omega).
 
 forward.  (* T1 += s0 + s1 + t; *)
-fold_temps.
 rewrite <- (Z.add_0_r (Z.of_nat i - 16)) at 1.
 rewrite <- (W_unfold i b) by auto.
 do 3 drop_LOCAL 1%nat.
@@ -519,7 +507,6 @@ forward.  (* Ki=K256[i]; *)
   rewrite Znth_nthi by (change (Zlength K256) with 64%Z; omega).
   apply I.
  }
-fold_temps.
 rewrite Znth_nthi by (change (Zlength K256) with 64%Z; omega).
 rename b into bb.
 remember (Round regs (nthi bb) (Z.of_nat i - 1)) as regs' eqn:?.
@@ -534,15 +521,12 @@ rewrite H2.
 unfold nthi at 4 5 6 7 8 9 10 11; simpl.
 unfold rearrange_regs2b.
 forward. (* T1 += h + Sigma1(e) + Ch(e,f,g) + Ki; *)
-fold_temps.
 rewrite <- Sigma_1_eq, <- Ch_eq.
 drop_LOCAL 2. clear x.
 forward. 	(* T2 = Sigma0(a) + Maj(a,b,c); *)
-fold_temps.
 rewrite <- Sigma_0_eq, <- Maj_eq.
 unfold rearrange_regs2c.
 repeat forward.
-fold_temps.
 simpl update_tycon.
 apply exp_right with (i+1)%nat.
 entailer; apply prop_right.

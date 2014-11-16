@@ -188,7 +188,7 @@ Lemma semax_data_load_37':
         (normal_ret_assert
           (EX  old : val,
             PROPx P
-              (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q)
+              (LOCALx (temp id v :: map (subst id `old) Q)
                  (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
@@ -219,7 +219,7 @@ Lemma semax_data_cast_load_37':
       (Sset id (Ecast e1 t))
         (normal_ret_assert (EX old:val, 
           PROPx P 
-            (LOCALx (`(eq (eval_cast (typeof e1) t v)) (eval_id id) :: map (subst id (`old)) Q)
+            (LOCALx (temp id (eval_cast (typeof e1) t v) :: map (subst id (`old)) Q)
               (SEPx (map (subst id (`old)) R))))).
 Proof.
   intros.
@@ -394,7 +394,7 @@ Lemma semax_ucdata_load_37':
           (normal_ret_assert
             (EX  old : val,
               PROPx P
-                (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q)
+                (LOCALx (temp id v :: map (subst id `old) Q)
                   (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
@@ -427,7 +427,7 @@ Lemma semax_ucdata_cast_load_37':
           (normal_ret_assert
             (EX old:val, 
               PROPx P 
-                (LOCALx (`(eq (eval_cast (typeof e1) t1 v)) (eval_id id) :: map (subst id (`old)) Q)
+                (LOCALx (temp id (eval_cast (typeof e1) t1 v) :: map (subst id (`old)) Q)
                   (SEPx (map (subst id (`old)) R))))).
 Proof.
   intros.

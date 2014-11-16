@@ -67,7 +67,7 @@ Definition update_inner_if :=
          update_inner_if_then
          update_inner_if_else.
 
-Definition inv_at_inner_if sh hashed len c d dd data kv bitlen :=
+Definition inv_at_inner_if sh hashed len c d dd data kv :=
  (PROP ()
    (LOCAL 
       (temp _fragment (Vint (Int.repr (64- Zlength dd)));
@@ -78,29 +78,29 @@ Definition inv_at_inner_if sh hashed len c d dd data kv bitlen :=
        var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
-                  (Vint (lo_part (bitlen + (Z.of_nat len)*8)),
-                   (Vint (hi_part (bitlen + (Z.of_nat len)*8)),
+                  (Vint (lo_part (bitlength hashed dd + (Z.of_nat len)*8)),
+                   (Vint (hi_part (bitlength hashed dd + (Z.of_nat len)*8)),
                     (map Vint (map Int.repr dd),
                      Vint (Int.repr (Zlength dd))))))
                c);
    `(K_vector kv);
    `(data_block sh data d)))).
 
-Definition sha_update_inv sh hashed len c d (frag: list Z) (data: list Z) kv bitlen (done: bool) :=
+Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done: bool) :=
    (EX blocks:list int,
-   PROP  (len >= length blocks*4 - length frag /\
+   PROP  (len >= length blocks*4 - length dd /\
               (LBLOCKz | Zlength blocks) /\ 
-              intlist_to_Zlist blocks = frag ++ firstn (length blocks * 4 - length frag) data /\
-             if done then len-(length blocks*4 - length frag) < CBLOCK else True)
+              intlist_to_Zlist blocks = dd ++ firstn (length blocks * 4 - length dd) data /\
+             if done then len-(length blocks*4 - length dd) < CBLOCK else True)
    LOCAL  (temp _p (offset_val (Int.repr 40) c); temp _c c; 
-                temp _data (offset_val (Int.repr (Z.of_nat (length blocks*4-length frag))) d);
-                temp _len (Vint (Int.repr (Z.of_nat (len- (length blocks*4 - length frag)))));
+                temp _data (offset_val (Int.repr (Z.of_nat (length blocks*4-length dd))) d);
+                temp _len (Vint (Int.repr (Z.of_nat (len- (length blocks*4 - length dd)))));
                 var  _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(K_vector kv);
            `(data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers (hashed++blocks)),
-                  (Vint (lo_part (bitlen + (Z.of_nat len)*8)),
-                   (Vint (hi_part (bitlen + (Z.of_nat len)*8)),
+                  (Vint (lo_part (bitlength hashed dd + (Z.of_nat len)*8)),
+                   (Vint (hi_part (bitlength hashed dd + (Z.of_nat len)*8)),
                     (nil, Vundef))))
                 c);
    `(data_block sh data d))).
@@ -335,9 +335,7 @@ Qed.
 Lemma update_inner_if_then_proof:
  forall (Espec : OracleKind) (hashed : list int)
           (dd data : list Z) (c d: val) (sh: share) (len: nat) kv
-          (bitlen: Z) 
    (H : (Z.of_nat len <= Zlength data)%Z)
-   (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = bitlen)
    (H3 : (Zlength dd < CBLOCKz)%Z)
    (H3' : Forall isbyteZ dd)
    (H4 : (LBLOCKz | Zlength hashed))
@@ -364,15 +362,15 @@ semax Delta_update_inner_if
    SEP 
    (`(data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
-                  (Vint (lo_part (bitlen + (Z.of_nat len)*8)),
-                   (Vint (hi_part (bitlen + (Z.of_nat len)*8)),
+                  (Vint (lo_part (bitlength hashed dd + (Z.of_nat len)*8)),
+                   (Vint (hi_part (bitlength hashed dd + (Z.of_nat len)*8)),
                     (map Vint (map Int.repr dd),
                      Vint (Int.repr (Zlength dd))))))
                c);
    `(K_vector kv);
    `(data_at sh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data)) d)))
   update_inner_if_then
-  (overridePost (sha_update_inv sh hashed len c d dd data kv bitlen false)
+  (overridePost (sha_update_inv sh hashed len c d dd data kv false)
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
@@ -398,8 +396,8 @@ match goal with |- semax ?D (PROP() (LOCALx ?Q (SEPx _))) _ _ =>
  with (PROP() (LOCALx Q 
         (SEP (`(data_at Tsh t_struct_SHA256state_st 
                  (map Vint (hash_blocks init_registers hashed),
-                  (Vint (lo_part (bitlen + (Z.of_nat len)*8)),
-                   (Vint (hi_part (bitlen + (Z.of_nat len)*8)),
+                  (Vint (lo_part (bitlength hashed dd + (Z.of_nat len)*8)),
+                   (Vint (hi_part (bitlength hashed dd + (Z.of_nat len)*8)),
                     (map Vint (map Int.repr dd) ++
                       firstn (Z.to_nat k) (map Vint (map Int.repr data)),
                      Vint (Int.repr (Zlength dd))))))
@@ -422,7 +420,7 @@ rewrite skipn_0.
 rewrite (data_at_field_at sh).
 rewrite splice_into_list_simplify2
   by (repeat rewrite Zlength_map; omega).
-replace (Zlength dd + k - Zlength dd)%Z with k by omega.
+replace (Zlength dd + k - Zlength dd)%Z with k by (clear; omega).
 unfold_data_at 1%nat.
 entailer!.
 abbreviate_semax.
@@ -460,11 +458,11 @@ normalize.
   apply length_Zlist_to_intlist. assumption.
  }
  apply andp_right; [apply prop_right |].
- rewrite Zlength_correct, H12. reflexivity.
+ rewrite Zlength_correct, H11. reflexivity.
  repeat rewrite firstn_map. repeat rewrite <- map_app.
 rewrite Zlist_to_intlist_to_Zlist;
   [ 
-  | rewrite H11; exists LBLOCK; reflexivity
+  | rewrite H10; exists LBLOCK; reflexivity
   | rewrite Forall_app; split; auto; apply Forall_firstn; auto].
  cancel.
 }
@@ -531,7 +529,7 @@ assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK). {
 }
 
  rewrite (Zlength_correct (Zlist_to_intlist _)).
- rewrite H8.
+ rewrite H7.
  rewrite Zlist_to_intlist_to_Zlist;
  [
  | rewrite app_length, firstn_length;

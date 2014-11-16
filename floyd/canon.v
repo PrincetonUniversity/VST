@@ -643,8 +643,29 @@ revert Rs H; induction n; destruct Rs; simpl ; intros; auto;
 apply sepcon_derives; auto.
 Qed.
 
+Lemma replace_SEP'':
+ forall n R' P Q Rs Post,
+ (PROPx P (LOCALx Q (SEPx (my_nth n Rs TT ::  nil)))) |-- R' ->
+ PROPx P (LOCALx Q (SEPx (replace_nth n Rs R'))) |-- Post ->
+ PROPx P (LOCALx Q (SEPx Rs)) |-- Post.
+Proof.
+intros.
+eapply derives_trans; [ | apply H0].
+clear - H.
+unfold PROPx, LOCALx, SEPx in *; intro rho; specialize (H rho).
+unfold local, lift1 in *.
+simpl in *; unfold_lift; unfold_lift in H.
+normalize.
+rewrite prop_true_andp in H by auto.
+rewrite prop_true_andp in H by auto.
+clear - H.
+rewrite sepcon_emp in H.
+revert Rs H; induction n; destruct Rs; simpl ; intros; auto;
+apply sepcon_derives; auto.
+Qed.
+
 Ltac replace_SEP n R :=
-  apply (replace_SEP' (nat_of_Z n) R);
+  first [apply (replace_SEP' (nat_of_Z n) R) | apply (replace_SEP'' (nat_of_Z n) R)];
   unfold my_nth,replace_nth; simpl nat_of_Z;
    repeat simpl_nat_of_P; cbv beta iota; cbv beta iota.
 

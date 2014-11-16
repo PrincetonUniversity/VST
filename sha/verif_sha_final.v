@@ -66,9 +66,7 @@ set (ddlen :=  Zlength dd).
 assert (Hddlen: (0 <= ddlen < 64)%Z).
 unfold ddlen. split; auto. rewrite Zlength_correct; omega.
 repeat rewrite  initial_world.Zlength_map.
-forward_if   (invariant_after_if1 hashed dd c md shmd 
-    ((Zlength hashed * WORD + ddlen) * 8)
-    kv).
+forward_if   (invariant_after_if1 hashed dd c md shmd kv).
 * (* then-clause *)
  change Delta with Delta_final_if1.
 match goal with |- semax _ _ ?c _ => change c with Body_final_if1 end.

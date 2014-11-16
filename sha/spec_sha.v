@@ -21,16 +21,17 @@ Definition s256a_regs (a: s256abs) : list int :=
           hash_blocks init_registers hashed 
  end.
 
+Definition bitlength (hashed: list int) (data: list Z) := 
+     ((Zlength hashed * WORD + Zlength data) * 8)%Z. 
+
 Definition s256a_len (a: s256abs) : Z := 
-  match a with S256abs hashed data => 
-    (Zlength hashed * WORD + Zlength data) * 8 
-  end%Z.
+  match a with S256abs hashed data => bitlength hashed data  end.
 
 Definition s256_relate (a: s256abs) (r: s256state) : Prop :=
      match a with S256abs hashed data =>
          s256_h r = map Vint (hash_blocks init_registers hashed) 
-       /\ (s256_Nh r = Vint (hi_part ((Zlength hashed * WORD + Zlength data)*8)) /\
-            s256_Nl r = Vint (lo_part ((Zlength hashed * WORD + Zlength data)*8)))
+       /\ (s256_Nh r = Vint (hi_part (bitlength hashed data)) /\
+            s256_Nl r = Vint (lo_part (bitlength hashed data)))
        /\ s256_data r = map Vint (map Int.repr data)
        /\ (Zlength data < CBLOCKz /\ Forall isbyteZ data)
        /\ (LBLOCKz | Zlength hashed)

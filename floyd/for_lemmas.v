@@ -24,24 +24,25 @@ Lemma semax_for_simple :
      (CLOR: forall i, Forall (closed_wrt_vars (eq _i)) (R i)),
      @semax Espec Delta Pre init
       (normal_ret_assert 
-        (EX i:Z, PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i)  (LOCALx (`(eq (Vint (Int.repr i))) (eval_id _i) :: Q i) (SEPx (R i))))) ->
+        (EX i:Z, PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i)
+              (LOCALx (temp _i (Vint (Int.repr i)) :: Q i) (SEPx (R i))))) ->
      (forall i, PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i) 
-       (LOCALx (tc_environ (update_tycon Delta init) :: `(eq (Vint (Int.repr i))) (eval_id _i) :: Q i)
+       (LOCALx (tc_environ (update_tycon Delta init) :: temp _i (Vint (Int.repr i))  :: Q i)
        (SEPx (R i))) |-- 
            local (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tint) hi tint))) ->
      (EX i:Z, PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i) (LOCALx (tc_environ (update_tycon Delta init)
                                    :: `(op_Z_int Z.ge i) (eval_expr hi)
-                                   :: `(eq (Vint (Int.repr i))) (eval_id _i)
+                                   :: temp _i (Vint (Int.repr i)) 
                                   :: (Q i)) (SEPx (R i)))
             |-- Post EK_normal None)    ->
      (forall i,
      @semax Espec (update_tycon Delta init)
         (PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i)
          (LOCALx (`(op_Z_int Z.lt i) (eval_expr hi)
-                        :: `(eq (Vint (Int.repr i))) (eval_id _i) :: (Q i))
+                        :: temp _i (Vint (Int.repr i))  :: (Q i))
          (SEPx (R i))))
         body
-        (normal_ret_assert (PROPx ((Int.min_signed <= i+1 <= Int.max_signed) :: P (i+1))  (LOCALx (`(eq (Vint (Int.repr i))) (eval_id _i) :: Q (i+1)) (SEPx (R (i+1))))))) ->
+        (normal_ret_assert (PROPx ((Int.min_signed <= i+1 <= Int.max_signed) :: P (i+1))  (LOCALx (temp _i (Vint (Int.repr i))  :: Q (i+1)) (SEPx (R (i+1))))))) ->
      @semax Espec Delta Pre 
        (Sfor init
                 (Ebinop Olt (Etempvar _i tint) hi tint)
@@ -55,19 +56,19 @@ simpl.
 clear Pre H.
 apply (@semax_loop Espec _ _
             (EX i:Z, PROPx ((Int.min_signed <= i+1 <= Int.max_signed) :: P (i+1)) 
-                (LOCALx (`(eq (Vint (Int.repr i))) (eval_id _i) :: Q (i+1))
+                (LOCALx (temp _i (Vint (Int.repr i))  :: Q (i+1))
                 (SEPx (R (i+1))))));
  [apply semax_pre_simple with (local (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tint) hi tint))
                                       && 
-                          (EX i:Z, PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i)  (LOCALx (`(eq (Vint (Int.repr i))) (eval_id _i) :: Q i) (SEPx (R i)))))
+                          (EX i:Z, PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i)  (LOCALx (temp _i (Vint (Int.repr i))  :: Q i) (SEPx (R i)))))
  | ].
 *
 replace (fun a : environ =>
  EX  x : Z,
  PROPx ((Int.min_signed <= x <= Int.max_signed) :: P x)
-   (LOCALx (`(eq (Vint (Int.repr x))) (eval_id _i) :: Q x) (SEPx (R x))) a)
+   (LOCALx (temp _i (Vint (Int.repr x)) :: Q x) (SEPx (R x))) a)
    with (EX  x : Z, PROPx ((Int.min_signed <= x <= Int.max_signed) :: P x)
-   (LOCALx (`(eq (Vint (Int.repr x))) (eval_id _i) :: Q x) (SEPx (R x))))
+   (LOCALx (temp _i (Vint (Int.repr x)) :: Q x) (SEPx (R x))))
  by (extensionality; reflexivity).
 apply andp_right; [ | apply andp_left2; auto].
 repeat rewrite exp_andp2. apply exp_left; intro i; rewrite insert_local; apply H0.
@@ -78,7 +79,7 @@ rewrite insert_local.
 apply semax_seq with (PROPx ((Int.min_signed <= i <= Int.max_signed) :: P i)
           (LOCALx (`(typed_true (typeof (Ebinop Olt (Etempvar _i tint) hi tint)))
                              (eval_expr (Ebinop Olt (Etempvar _i tint) hi tint)) 
-                          :: `(eq (Vint (Int.repr i))) (eval_id _i)
+                          :: temp _i (Vint (Int.repr i))
                           :: (Q i))
              (SEPx (R i)))).
 rewrite <- insert_local.
@@ -138,9 +139,9 @@ normalize.
 replace (fun a : environ =>
  EX  x : Z,
  PROPx (P x)
-   (LOCALx (`(eq (Vint (Int.repr x))) (eval_id _i) :: Q x) (SEPx (R x))) a)
+   (LOCALx (temp _i (Vint (Int.repr x)) :: Q x) (SEPx (R x))) a)
    with (EX  x : Z, PROPx (P x)
-   (LOCALx (`(eq (Vint (Int.repr x))) (eval_id _i) :: Q x) (SEPx (R x))))
+   (LOCALx (temp _i (Vint (Int.repr x)) :: Q x) (SEPx (R x))))
  by (extensionality; reflexivity).
 apply sequential.
 eapply semax_pre_simple; [ | apply semax_set].
@@ -175,6 +176,7 @@ simpl.
 apply andp_right.
 apply andp_left2. apply andp_left1.
 normalize. rewrite <- H. simpl. rewrite add_repr; auto.
+hnf; normalize.
 apply andp_left2. apply andp_left2.
 specialize (CLOQ (i+1)). specialize (CLOR (i+1)).
 clear - CLOQ CLOR.
@@ -206,10 +208,10 @@ Lemma semax_for_simple_bound :
      @semax Espec Delta Pre init
       (normal_ret_assert 
         (EX i:Z, PROPx ((Int.min_signed <= i <= n) :: P i)
-         (LOCALx (`(eq (Vint (Int.repr i))) (eval_id _i) :: `(eq (Vint (Int.repr n))) (eval_expr hi) :: Q i)
+         (LOCALx (temp _i (Vint (Int.repr i)) :: `(eq (Vint (Int.repr n))) (eval_expr hi) :: Q i)
          (SEPx (R i))))) ->
      (forall i, PROPx ((Int.min_signed <= i <= n) :: P i) 
-       (LOCALx (tc_environ (update_tycon Delta init) :: `(eq (Vint (Int.repr i))) (eval_id _i) 
+       (LOCALx (tc_environ (update_tycon Delta init) :: temp _i (Vint (Int.repr i)) 
                       :: `(eq (Vint (Int.repr n))) (eval_expr hi) :: Q i)
        (SEPx (R i))) |-- 
            local (tc_expr (update_tycon Delta init) (Ebinop Olt (Etempvar _i tint) hi tint))) ->
@@ -221,11 +223,11 @@ Lemma semax_for_simple_bound :
      (forall i,
      @semax Espec (update_tycon Delta init)
         (PROPx ((Int.min_signed <= i < n) :: P i)
-         (LOCALx (`(eq (Vint (Int.repr i))) (eval_id _i) :: `(eq (Vint (Int.repr n))) (eval_expr hi) :: (Q i))
+         (LOCALx (temp _i (Vint (Int.repr i)) :: `(eq (Vint (Int.repr n))) (eval_expr hi) :: (Q i))
          (SEPx (R i))))
         body
         (normal_ret_assert (PROPx ((Int.min_signed <= i+1 <= n) :: P (i+1)) 
-                             (LOCALx (`(eq (Vint (Int.repr i))) (eval_id _i) :: `(eq (Vint (Int.repr n))) (eval_expr hi) :: Q (i+1))
+                             (LOCALx (temp _i (Vint (Int.repr i)) :: `(eq (Vint (Int.repr n))) (eval_expr hi) :: Q (i+1))
                              (SEPx (R (i+1))))))) ->
      @semax Espec Delta Pre 
        (Sfor init
@@ -293,7 +295,7 @@ Lemma semax_for_simple_bound_const_init :
          (LOCALx (`(eq (Vint (Int.repr n))) (eval_expr hi) :: Q lo)
          (SEPx (R lo)))) ->
      (forall i, PROPx ((lo <= i <= n) :: P i) 
-       (LOCALx (tc_environ (initialized _i Delta) :: `(eq (Vint (Int.repr i))) (eval_id _i) 
+       (LOCALx (tc_environ (initialized _i Delta) :: temp _i (Vint (Int.repr i)) 
                       :: `(eq (Vint (Int.repr n))) (eval_expr hi) :: Q i)
        (SEPx (R i))) |-- 
            local (tc_expr (initialized _i Delta) (Ebinop Olt (Etempvar _i tint) hi tint))) ->
@@ -305,11 +307,11 @@ Lemma semax_for_simple_bound_const_init :
      (forall i,
      @semax Espec (initialized _i Delta)
         (PROPx ((lo <= i < n) :: P i)
-         (LOCALx (`(eq (Vint (Int.repr i))) (eval_id _i) :: `(eq (Vint (Int.repr n))) (eval_expr hi) :: (Q i))
+         (LOCALx (temp _i (Vint (Int.repr i)) :: `(eq (Vint (Int.repr n))) (eval_expr hi) :: (Q i))
          (SEPx (R i))))
         body
         (normal_ret_assert (PROPx ((lo <= i+1 <= n) :: P (i+1)) 
-                             (LOCALx (`(eq (Vint (Int.repr i))) (eval_id _i) :: `(eq (Vint (Int.repr n))) (eval_expr hi) :: Q (i+1))
+                             (LOCALx (temp _i (Vint (Int.repr i)) :: `(eq (Vint (Int.repr n))) (eval_expr hi) :: Q (i+1))
                              (SEPx (R (i+1))))))) ->
      @semax Espec Delta Pre 
        (Sfor (Sset _i (Econst_int (Int.repr lo) tint))
@@ -354,6 +356,7 @@ split; [omega  |].
 split.
 split. omega. split; auto. omega.
 split; auto.
+hnf; rewrite H5; reflexivity.
 *
 intro.
 eapply derives_trans; [ | solve [eauto]].

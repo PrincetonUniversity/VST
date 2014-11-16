@@ -62,14 +62,13 @@ Definition sha_update_loop_body :=
 
 Lemma update_loop_body_proof:
  forall (Espec : OracleKind) (sh: share) (hashed : list int) (frag data : list Z) (c d : val)
-  (len : nat) kv (r_h : list int) (bitlen : Z)
+  (len : nat) kv (r_h : list int)
    (Delta : tycontext) (blocks bl : list int)
  (HDelta: Delta = initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot))))
  (H: len <= length data)
  (Hdiv: (LBLOCKz | Zlength blocks))
  (H0: r_h = hash_blocks init_registers hashed)
- (H1: (Zlength (intlist_to_Zlist hashed ++ frag)*8 = bitlen)%Z)
  (H4: (LBLOCKz | Zlength hashed))
  (Hblocks: intlist_to_Zlist blocks =  frag ++ firstn (length blocks * 4 - length frag) data)
  (H3 : (Zlength frag < CBLOCKz)%Z)
@@ -78,7 +77,7 @@ Lemma update_loop_body_proof:
  (H6: firstn CBLOCK (skipn (length blocks * 4 - length frag) data) =
      intlist_to_Zlist bl)
  (H7: Zlength bl = LBLOCKz)
- (LEN64: (bitlen  + Z.of_nat len * 8 < two_p 64)%Z),
+ (LEN64: (bitlength hashed frag  + Z.of_nat len * 8 < two_p 64)%Z),
  semax Delta
   (PROP  ()
    LOCAL 
@@ -96,16 +95,16 @@ Lemma update_loop_body_proof:
    (`(K_vector kv);
     `(data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers (hashed++blocks)),
-                  (Vint (lo_part (bitlen + (Z.of_nat len)*8)),
-                   (Vint (hi_part (bitlen + (Z.of_nat len)*8)),
+                  (Vint (lo_part (bitlength hashed frag + (Z.of_nat len)*8)),
+                   (Vint (hi_part (bitlength hashed frag + (Z.of_nat len)*8)),
                     (nil, Vundef))))
                c);
    `(data_block sh data d)))
    sha_update_loop_body
   (loop1_ret_assert
-     (sha_update_inv sh hashed len c d frag data kv bitlen false)
+     (sha_update_inv sh hashed len c d frag data kv false)
      (normal_ret_assert
-        (sha_update_inv sh hashed len c d frag data kv bitlen true))).
+        (sha_update_inv sh hashed len c d frag data kv true))).
 Proof.
 intros.
 name c' _c.
@@ -122,7 +121,7 @@ normalize.
  rewrite Zlength_correct in H3; change CBLOCKz with (Z.of_nat CBLOCK) in H3;
   apply Nat2Z.inj_lt in H3.
  rewrite H6.
-rename H2 into H98; rename H5 into H99.
+rename H2 into H98; rename H4 into H99.
 
 forward_call (* sha256_block_data_order (c,data); *)
  (hashed++ blocks,  bl, c, 
@@ -134,22 +133,17 @@ apply divide_length_app; auto.
 after_call.
 
  forward. (* data += SHA_CBLOCK; *)
-(* Note to Qinxiang:
-  Bugs in the forward tactic?
-  Forward introduces the abbreviation v and fails to clear it;
-  and introduces the assumption H2 that should not be there.
-*)
  forward. (* len  -= SHA_CBLOCK; *)
  unfold loop1_ret_assert.
  unfold sha_update_inv.
  apply exp_right with (blocks++ bl).
  entailer.
  clear TC1 TC.
- rewrite negb_true_iff in H5.
- unfold Int.ltu in H5.
- if_tac in H5; inv H5.
- rewrite mul_repr in H0.
- change (Int.unsigned (Int.repr (16 * 4)))%Z with 64%Z in H0.
+ rewrite negb_true_iff in H4.
+ unfold Int.ltu in H4.
+ if_tac in H4; inv H4.
+ change (Int.unsigned (Int.mul (Int.repr 16) (Int.repr 4)))
+     with 64%Z in H0.
  rewrite Int.unsigned_repr in H0
   by (clear - Hlen; split; [omega | ];
         rewrite Nat2Z.inj_sub_max;
@@ -228,7 +222,7 @@ Lemma update_outer_if_proof:
  forall  (Espec : OracleKind) (hashed : list int) 
            (dd data : list Z) (c d : val) (sh : share) (len : nat) kv
    (H : len <= length data)
-   (HBOUND : (s256a_len (S256abs hashed dd) + Z.of_nat len * 8 < two_p 64)%Z)
+   (HBOUND : (bitlength hashed dd + Z.of_nat len * 8 < two_p 64)%Z)
    (c' : name _c)
    (data_ : name _data_)
    (len' : name _len)
@@ -236,8 +230,6 @@ Lemma update_outer_if_proof:
    (p : name _p)
    (n : name _n)
    (fragment : name _fragment)
-   (bitlen: Z)
-   (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = bitlen)
    (H3 : (Zlength dd < CBLOCKz)%Z)
    (H3' : Forall isbyteZ dd) 
    (H4 : (LBLOCKz | Zlength hashed))
@@ -256,14 +248,14 @@ semax
    var _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
-                  (Vint (lo_part (bitlen + (Z.of_nat len)*8)),
-                   (Vint (hi_part (bitlen + (Z.of_nat len)*8)),
+                  (Vint (lo_part (bitlength hashed dd + (Z.of_nat len)*8)),
+                   (Vint (hi_part (bitlength hashed dd + (Z.of_nat len)*8)),
                     (map Vint (map Int.repr dd), 
                      Vint (Int.repr (Zlength dd))))))
                c);
    `(K_vector kv);
    `(data_block sh data d))) update_outer_if
-  (overridePost (sha_update_inv sh hashed len c d dd data kv bitlen false)
+  (overridePost (sha_update_inv sh hashed len c d dd data kv false)
      (function_body_ret_assert tvoid
         (EX  a' : s256abs,
          PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
@@ -276,21 +268,20 @@ unfold update_outer_if.
 simplify_Delta; abbreviate_semax.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 
-forward_if (sha_update_inv sh hashed len c d dd data kv bitlen false).
+forward_if (sha_update_inv sh hashed len c d dd data kv false).
 * (* then clause *)
 forward.  (* fragment = SHA_CBLOCK-n; *)
 rewrite semax_seq_skip.
 
-apply semax_pre with (inv_at_inner_if sh hashed len c d dd data kv bitlen).
+apply semax_pre with (inv_at_inner_if sh hashed len c d dd data kv).
 unfold inv_at_inner_if; entailer!.
-apply semax_seq with (sha_update_inv sh hashed len c d dd data kv bitlen false).
+apply semax_seq with (sha_update_inv sh hashed len c d dd data kv false).
 replace Delta with Delta_update_inner_if
  by (unfold Delta_update_inner_if; simplify_Delta; reflexivity).
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION Delta.
 autorewrite with norm.
-simple apply (update_inner_if_proof Espec hashed dd data c d sh len kv bitlen);
+simple apply (update_inner_if_proof Espec hashed dd data c d sh len kv);
   try assumption.
-subst bitlen; assumption.
 forward. 
 rewrite overridePost_normal'. apply andp_left2; auto.
 * (* else clause *)
@@ -319,11 +310,9 @@ Lemma update_while_proof:
  forall (Espec : OracleKind) (hashed : list int) (dd data: list Z) kv
     (c d : val) (sh : share) (len : nat) 
   (H : len <= length data)
-  (HBOUND : (s256a_len (S256abs hashed dd) + Z.of_nat len * 8 < two_p 64)%Z)
+  (HBOUND : (bitlength hashed dd + Z.of_nat len * 8 < two_p 64)%Z)
   (c' : name _c) (data_ : name _data_) (len' : name _len)  
   (data' : name _data) (p : name _p) (n : name _n)  (fragment : name _fragment)
-  (bitlen : Z)
-  (H7 : ((Zlength hashed * 4 + Zlength dd) * 8)%Z = bitlen)
   (H3 : (Zlength dd < CBLOCKz)%Z)
   (H3' : Forall isbyteZ dd) 
   (H4 : (LBLOCKz | Zlength hashed)) 
@@ -333,12 +322,12 @@ Lemma update_while_proof:
      (initialized _p
         (initialized _n
            (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))
-     update_outer_if) (sha_update_inv sh hashed len c d dd data kv bitlen false)
+     update_outer_if) (sha_update_inv sh hashed len c d dd data kv false)
   (Swhile
      (Ebinop Oge (Etempvar _len tuint)
         (Ebinop Omul (Econst_int (Int.repr 16) tint)
            (Econst_int (Int.repr 4) tint) tint) tint) sha_update_loop_body)
-  (normal_ret_assert (sha_update_inv sh hashed len c d dd data kv bitlen true)).
+  (normal_ret_assert (sha_update_inv sh hashed len c d dd data kv true)).
 Proof.
 intros.
 simplify_Delta; abbreviate_semax.
@@ -410,14 +399,9 @@ apply Forall_firstn.
 apply Forall_skipn; auto.
 }
 clearbody bl; clear H97.
- simple apply (update_loop_body_proof Espec sh hashed dd data c d len kv (hash_blocks init_registers hashed) bitlen Delta blocks bl); 
+ simple apply (update_loop_body_proof Espec sh hashed dd data c d len kv (hash_blocks init_registers hashed) Delta blocks bl); 
    try assumption.
 simplify_Delta; reflexivity.
 reflexivity.
-rewrite initial_world.Zlength_app.
-rewrite <- H7; f_equal.
-rewrite Zlength_intlist_to_Zlist.
-f_equal. apply Z.mul_comm.
 apply Zlength_length; auto.
-subst bitlen; apply HBOUND.
 Qed.

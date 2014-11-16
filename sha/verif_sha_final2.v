@@ -36,7 +36,7 @@ Definition Body_final_if1 :=
                   ((Etempvar _c (tptr t_struct_SHA256state_st)) ::
                    (Etempvar _p (tptr tuchar)) :: nil)))).
 
-Definition invariant_after_if1 hashed (dd: list Z) c md shmd bitlen kv:= 
+Definition invariant_after_if1 hashed (dd: list Z) c md shmd kv:= 
    (EX hashed':list int, EX dd': list Z, EX pad:Z,
    PROP  (Forall isbyteZ dd';
               pad=0%Z \/ dd'=nil;
@@ -53,8 +53,8 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd bitlen kv:=
     var _K256 (tarray tuint CBLOCKz) kv)
    SEP  (`(data_at Tsh t_struct_SHA256state_st 
            (map Vint (hash_blocks init_registers hashed'),
-            (Vint (lo_part bitlen),
-             (Vint (hi_part bitlen),
+            (Vint (lo_part (bitlength hashed dd)),
+             (Vint (hi_part (bitlength hashed dd)),
               (map Vint (map Int.repr dd'),
                Vundef))))
            c);
@@ -84,15 +84,15 @@ Lemma ifbody_final_if1:
    SEP 
    (`(data_at Tsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers hashed),
-        (Vint (lo_part ((Zlength hashed * 4 + Zlength dd)*8)), 
-         (Vint (hi_part ((Zlength hashed * 4 + Zlength dd)*8)),
+        (Vint (lo_part (bitlength hashed dd)), 
+         (Vint (hi_part (bitlength hashed dd)),
           (map Vint (map Int.repr dd) ++ [Vint (Int.repr 128)],
            Vint (Int.repr (Zlength dd))))))
       c);
     `(K_vector kv);
     `(memory_block shmd (Int.repr 32) md)))
   Body_final_if1
-  (normal_ret_assert (invariant_after_if1 hashed dd c md shmd ((Zlength hashed * 4 + Zlength dd)*8) kv)).
+  (normal_ret_assert (invariant_after_if1 hashed dd c md shmd kv)).
 Proof.
 assert (H:=True).
 name md_ _md.

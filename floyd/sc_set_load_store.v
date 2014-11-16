@@ -28,7 +28,7 @@ Lemma semax_SC_set:
           (normal_ret_assert
             (EX old : val,
               PROPx P
-                (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q)
+                (LOCALx (temp id v :: map (subst id `old) Q)
                   (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
@@ -101,7 +101,7 @@ Lemma semax_SC_field_load:
           (normal_ret_assert
             (EX old : val,
               PROPx P
-                (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q)
+                (LOCALx (temp id v :: map (subst id `old) Q)
                   (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
@@ -143,7 +143,7 @@ Lemma semax_SC_field_cast_load:
           (normal_ret_assert
             (EX old:val,
               PROPx P
-                (LOCALx (`(eq (eval_cast (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) t v)) (eval_id id) :: map (subst id (`old)) Q)
+                (LOCALx (temp id (eval_cast (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) t v) :: map (subst id (`old)) Q)
                   (SEPx (map (subst id (`old)) R))))).
 Proof.
   intros.
