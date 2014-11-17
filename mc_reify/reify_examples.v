@@ -96,8 +96,6 @@ Definition set_lemma (id : positive) (e : Clight.expr) (t : PTree.t (type * bool
 reify_lemma reify_vst (semax_set_localD id e t v r).
 Defined.
 
-Print set_lemma.
-
 Definition initialized_temp (id : positive) (t : PTree.t (type * bool)) :=
 match (t ! id) with
 | Some (ty, _) =>
@@ -189,11 +187,6 @@ Definition APPLY_SET' id e t v r:=
 EAPPLY typ func subst (set_lemma id e t v r ).
 
 
-Goal forall n (Delta : statement), n = Delta.
-intros. reify_expr_tac.
-
-(*TODO Fix this*)
-
 Fixpoint get_delta_statement (e : expr typ func)  :=
 match e with
 | App (App (App (App (App (Inj (inr (Smx fsemax))) _) 
@@ -215,8 +208,7 @@ Definition Expr_ok_fs fs: @ExprI.ExprOk typ RType_typ (ExprCore.expr typ func) (
 Definition reflect ft (tus tvs : env) e (ty : typ)
  := @exprD _ _ _ (Expr_expr_fs ft) tus tvs e ty.
 
-Check exprUnify.
-Locate stac.
+
 Definition REFLEXIVITYSTAC : Core.stac typ (expr typ func) subst :=
 fun tus tvs s lst e => 
 match e with 
@@ -236,7 +228,7 @@ STAC_no_hyps (@ExprSubst.instantiate typ func) REFLEXIVITYSTAC.
 Definition REFLEXIVITY_BOOL tbl : rtac typ (expr typ func) subst := 
 fun c s e => (
 match e with
-| (App (App (Inj (inr (Other (feq ty)))) l) r) =>
+| (App (App (Inj (inr (Other (feq tybool)))) l) r) =>
   match reflect tbl nil nil l tybool, reflect tbl nil nil r tybool with
   | Some v1, Some v2 => if @RelDec.rel_dec _ eq _ v1 v2 then Solved s else Fail
   | _, _ => Fail
@@ -292,7 +284,8 @@ Abort.
 Lemma seq_triple_lots : forall p es,
 @semax es empty_tycontext p (lots_of_skips 10) (normal_ret_assert p).
 Proof.
-reify_expr_tac.
+unfold empty_tycontext.
+reify_expr_tac. 
 Time Eval vm_compute in (symexe e tbl).
 Abort.
 
@@ -361,7 +354,35 @@ Definition and_eq (v1 v2 p: expr typ func) t  : expr typ func :=
 App (App (Inj (inr (Other fand))) (App (App (Inj (inr (Other (feq t)))) v1) v2)) p.
 
 Definition _w : ident := 16%positive.
-Definition reflect_prop tbl e := reflect tbl nil nil e (typrop).
+
+Fixpoint lots_of_sets n :=
+match n with 
+| O => (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+| S n' => Ssequence (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))) (lots_of_sets n')
+end.
+
+
+
+Goal
+forall  (contents : list val), exists PO, 
+   (semax
+     Delta2
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
+     (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
+     (normal_ret_assert PO)).
+intros. unfold Delta2. change PTree.tree with PTree.t.
+Time reify_expr_tac.
+Time Eval vm_compute in symexe e tbl.
+eexists.
+Time repeat forward; eauto.
+Time Qed.
+
+
+Definition reflect_prop' tbl e:= match
+reflect_prop tbl e with 
+| Some p => p
+| None => False
+end.
 
 Goal
 forall  (contents : list val), exists PO, 
@@ -373,15 +394,66 @@ forall  (contents : list val), exists PO,
                 Sskip)
      (normal_ret_assert PO)).
 intros.
-reify_expr_tac.
+Time reify_expr_tac.
 Time Eval vm_compute in symexe e tbl.
 eexists.
 Time repeat forward; eauto.
 Time Qed.
 
 
+Goal exists n, n = Delta.
+Proof.
+unfold Delta.
+Check (WITH x : share * list val PRE 
+                          [(_p, tptr t_struct_list)]
+                          (let (sh0, contents0) := x in
+                           fun x0 : environ =>
+                           !!writable_share sh0 &&
+                           `(lseg LS sh0 contents0) (eval_id _p) `nullval x0)
+                          POST  [tptr t_struct_list]
+                          (let (sh0, contents0) := x in
+                           `(lseg LS sh0 (rev contents0)) retval `nullval)).
+reify_vst ((0,1)).
+reify_vst (fun (x : share * list val) => match  x with | (a, b) => x end).
+reify_vst (WITH x : share * list val PRE 
+                          [(_p, tptr t_struct_list)]
+                          (let (sh0, contents0) := x in
+                           fun x0 : environ =>
+                           !!writable_share sh0 &&
+                           `(lseg LS sh0 contents0) (eval_id _p) `nullval x0)
+                          POST  [tptr t_struct_list]
+                          (let (sh0, contents0) := x in
+                           `(lseg LS sh0 (rev contents0)) retval `nullval)).
+unfold Delta.
+match goal with [ |- _ ?D] => reify_vst D
+end.
+reify_vst Delta.
+
+Goal
+forall  (contents : list val), exists PO, 
+   (semax
+ Delta
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
+     (lots_of_sets 1)
+     (normal_ret_assert PO)).
+intros.
+unfold Delta.
+Time reify_expr_tac.
+
+
+Time Eval vm_compute in symexe e tbl.
+clear e.
+eexists. 
+unfold assertD. unfold localD, LocalD, PTree.fold, PTree.xfold. simpl.
+simplify_Delta.
+forward. forward.
+Time repeat forward; eauto.
+Qed.
+
+
+
 Lemma set_triple :
-forall (contents : list val) E,
+forall (contents : list val) E ,
 @semax E empty_tycontext (*Delta2*) 
      (PROP  ()
       LOCAL  ((*`(eq p) (eval_id _p)*))  SEP  ((*`(lseg LS sh contents p nullval)))*)))

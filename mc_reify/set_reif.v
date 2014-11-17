@@ -197,15 +197,19 @@ intros.
 split; intros; induction a; simpl in *; intuition.
 Qed.
 
+Check PTree.set.
 
-Lemma semax_set_localD id e t v r:
-forall vl ls vs Espec R g,
+Definition my_set {T} := @PTree.set T.
+
+Lemma semax_set_localD id e (t: PTree.t (type * bool)) (v : PTree.t type) 
+      (r : type) :
+forall vl ls vs Espec R (g : PTree.t global_spec),
 tc_expr_b_norho (t, v, r, g) e= true ->
 tc_temp_id_b_norho id (typeof e) (t, v, r, g) e = true ->
 msubst_eval_expr_norho ls vs e = Some vl ->
 @semax Espec (t, v, r, g) (assertD nil (localD ls vs) R)
       (Sset id e)
-(normal_ret_assert (assertD nil (localD (PTree.set id vl ls) vs) R)).
+(normal_ret_assert (assertD nil (localD (my_set id vl ls) vs) R)).
 Proof.
 (*intros.
 eapply semax_pre_simple; [ | apply forward_setx_closed_now].

@@ -18,6 +18,11 @@ match a, b with
 | _, _ => false
 end.
 
+Instance const_rel_dec : RelDec (@eq const) := { rel_dec := const_beq }.
+
+Print RelDec.
+Print SymEnv.
+
 
 Definition beq_z_true : forall a b, Zbool.Zeq_bool a b = true -> a = b.
 Proof.

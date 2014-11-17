@@ -5,7 +5,7 @@ Require Import ExtLib.Core.RelDec.
 Require Import MirrorCore.TypesI.
 Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.Fun.
-(*Require Import progs.list_dt.*)
+Require Import progs.list_dt.
 Require Import types.
 Require Import bool_funcs.
 Require Import MirrorCharge.ModularFunc.ILogicFunc.
@@ -317,7 +317,7 @@ Inductive sep :=
 | flocal
 | fprop
 | fdata_at : type -> sep
-(*| ffield_at : type -> list ident -> sep*)
+| ffield_at : type -> list gfield -> sep
 (*| flseg : forall (t: type) (i : ident), listspec t i -> sep*)
 . 
 
@@ -352,10 +352,11 @@ with reptyp_unionlist (fld: fieldlist) : typ :=
       else tysum (reptyp ty) (reptyp_unionlist fld')
   end.
  
+Check field_at.
 Definition typeof_sep (s : sep) : typ :=
 match s with
 | fdata_at t => tyArr tyshare (tyArr (reptyp t) (tyArr tyval tympred))
-(*| ffield_at t ids => tyArr tyshare (tyArr (reptyp (nested_field_type2 t ids)) (tyArr tyval tympred))*)
+| ffield_at t gfs => tyArr tyshare (tyArr (reptyp (nested_field_type2 t gfs)) (tyArr tyval tympred))
 (*| flseg t i l => tyArr tyshare (tyArr (tylist (reptyp_structlist (@all_but_link i (list_fields)))) 
                                       (tyArr tyval (tyArr tyval tympred)))*)
 | flocal => tyArr (tyArr tyenviron typrop) (tyArr tyenviron tympred) 
@@ -422,26 +423,25 @@ match
         end
    end.
 
+
 Definition sepD  (s : sep) : typD  (typeof_sep s).
+Check data_at.
 refine
 match s with
 | flocal => (local : typD (typeof_sep flocal))
 | fprop => prop
-| fdata_at ty => _ (* fun sh (t : reptype ty) v => data_at sh ty t v *)
-(*| ffield_at t ids => _
-| flseg t id ls => _ *)
-end. 
+| fdata_at ty =>  _ (*fun sh (t : reptype ty) v => data_at sh ty t v *)
+| ffield_at t ids => _
+(*| flseg t id ls => _*) 
+end.
 { simpl. intros sh rt v.
   exact (data_at sh ty (reptyp_reptype  _ rt) v). }
-
-Defined. 
-(*
 { simpl. intros sh ty v.
   exact (field_at sh t ids (reptyp_reptype  _ ty) v). }
-{ simpl.
+(*{ simpl.
   intros sh lf v1 v2.
-  exact (@lseg t id ls sh (List.map (reptyp_structlist_reptype  _) lf) v1 v2). }
-Defined.*)
+  exact (@lseg t id ls sh (List.map (reptyp_structlist_reptype  _) lf) v1 v2). }*)
+Defined.
 
 
 Definition localD (temps : PTree.t val) (locals : PTree.t (type * val)) :=

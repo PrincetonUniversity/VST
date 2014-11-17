@@ -81,6 +81,7 @@ Reify Pattern patterns_vst_typ += (!!unit) => tyunit.
 Reify Pattern patterns_vst_typ += (!!Clight.statement) => tystatement.
 Reify Pattern patterns_vst_typ += (!!seplog.ret_assert) => tyret_assert.
 Reify Pattern patterns_vst_typ += (!!SeparationLogic.ret_assert) => tyret_assert.
+Reify Pattern patterns_vst_typ += (!!expr.funspec) => tyfunspec.
 
 Reify Pattern patterns_vst_typ += (!!(lift.lifted (expr.LiftEnviron Prop))) => 
 (tyArr tyenviron typrop).
@@ -230,6 +231,11 @@ Reify Pattern patterns_vst +=
 Reify Pattern patterns_vst +=
       (!!@Maps.PTree.get @ ?0 @ ?1) => (fun (a : function reify_vst_typ) (b : id positive) =>
                                          (@Inj typ func (inr (Data (fget a b))))).
+Check @get_set_reif.set_reif.
+
+
+Reify Pattern patterns_vst += (!!@my_set @ ?0 @ ?1 @ ?2 @ ?3) =>
+   (fun (a : function reify_vst_typ) (b : id positive) (c d : function reify_vst) => get_set_reif.set_reif b c d). 
 
 Reify Pattern patterns_vst +=
       (!!@Maps.PTree.set @ ?0 @ ?1) => (fun (a : function reify_vst_typ) (b : id positive) =>
@@ -308,10 +314,11 @@ Reify Pattern patterns_vst +=
      (prod (Maps.PTree.t (prod Ctypes.type bool)) (Maps.PTree.t Ctypes.type))
      Ctypes.type) @
     (!!(@pair (Maps.PTree.t (prod Ctypes.type bool)) 
-        (Maps.PTree.t Ctypes.type)) @ (?0) @ (?1)) @ (?2)) ) => (fun (a : id (Maps.PTree.t (Ctypes.type * bool))) 
+        (Maps.PTree.t Ctypes.type)) @ (?0) @ (?1)) @ (?2)) @ ?3) => (fun (a : id (Maps.PTree.t (Ctypes.type * bool))) 
                                      (b : id (Maps.PTree.t Ctypes.type))
-                                     (c : id Ctypes.type) =>
-                              (@Inj typ func (inr (Smx (ftycontext a b c))))).
+                                     (c : id Ctypes.type) 
+                                     (d : function reify_vst) =>
+                             App (@Inj typ func (inr (Smx (ftycontext a b c)))) d).
 
 (*
 Reify Pattern patterns_vst_hastype += 
@@ -381,6 +388,28 @@ Ltac reify_vst e :=
              [ (fun (y : @mk_dvar_map _ _ _  _ term_table elem_ctor) => True) ]
              [ e ].
 
+Ltac get_tbl :=
+match goal with
+[ t := ?V : FMapPositive.PositiveMap.tree (SymEnv.function RType_typ) |- _ ] => V
+end.
+
+Definition reflect_prop' tbl e:= match
+func_defs.reflect_prop tbl e with 
+| Some p => p
+| None => False
+end.
+(*
+Ltac reify_goal :=
+let tbl := get_tbl in
+match goal with 
+| [ |- ?X] =>
+  let k fs e :=
+      change X with (reflect_prop' tbl e) in
+          reify_expr reify_vst k
+             [ (fun (y : @mk_dvar_map _ _ _ _ term_table elem_ctor) => True) ]
+             [ e ]
+end.
+*)
 Ltac do_reify e :=
   let k fs e :=
      (apply e) in
