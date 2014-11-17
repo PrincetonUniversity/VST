@@ -70,7 +70,6 @@ forward.
   apply H3.
   omega.
 forward.
-  entailer!.
-  admit.
+forward.
 forward.
 Abort.
