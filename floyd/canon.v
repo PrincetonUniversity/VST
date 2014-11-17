@@ -361,6 +361,12 @@ Lemma andp_unfold: forall (P Q: environ->mpred) rho,
 Proof. reflexivity. Qed.
 Hint Rewrite andp_unfold: norm.
 
+Lemma refold_andp:
+  forall (P Q: environ -> mpred),
+     (fun rho: environ => P rho && Q rho) = (P && Q).
+Proof. reflexivity. Qed.
+Hint Rewrite refold_andp : norm.
+
 Lemma exp_unfold : forall A P rho,
  @exp (environ->mpred) _ A P rho = @exp mpred Nveric A (fun x => P x rho).
 Proof.
@@ -1136,6 +1142,99 @@ Definition temp (i: ident) (v: val) : environ -> Prop :=
 Definition var (i: ident) (t: type) (v: val) : environ -> Prop :=
    `(eq v) (eval_var i t).
 
+Lemma PROP_LOCAL_SEP_f:
+  forall P Q R f, `(PROPx P (LOCALx Q (SEPx R))) f =
+     PROPx P (LOCALx (map (fun q : environ -> Prop => `q f) Q)
+            (SEPx (map (fun r : environ -> mpred => `r f) R))).
+Proof. intros. extensionality rho.
+cbv delta [PROPx LOCALx SEPx local lift lift1 liftx]; simpl.
+f_equal. f_equal.
+f_equal.
+induction Q; simpl; auto. f_equal; auto.
+induction R; simpl; auto. f_equal; auto.
+Qed.
+Hint Rewrite PROP_LOCAL_SEP_f: norm.
+
+Lemma SEP_PROP:
+ forall P Q R P' Q' R', 
+     PROPx P (LOCALx Q (SEPx (PROPx P' (LOCALx Q' (SEPx R')) :: R))) =
+    PROPx (P++P') (LOCALx (Q++Q') (SEPx (R'++R))).
+Proof.
+intros.
+extensionality rho.
+cbv delta [PROPx LOCALx SEPx local lift lift1 liftx]; simpl.
+apply pred_ext; normalize.
+rewrite prop_true_andp.
+rewrite prop_true_andp; auto.
+clear; induction R'; simpl; normalize.
+rewrite sepcon_assoc; apply sepcon_derives; auto.
+revert H0; induction Q; simpl; intros; auto.
+destruct H0; split; auto.
+induction P; simpl; auto. destruct H; split; auto.
+rewrite prop_true_andp.
+rewrite prop_true_andp.
+rewrite prop_true_andp.
+rewrite prop_true_andp.
+induction R'; simpl. normalize.
+rewrite sepcon_assoc; apply sepcon_derives; auto.
+induction Q; simpl; auto. destruct H0. auto.
+induction P; simpl; auto. destruct H; auto.
+induction Q; simpl; auto.
+destruct H0; split; auto.
+induction P; simpl; auto. destruct H; split; auto.
+Qed.
+Hint Rewrite SEP_PROP: norm.
+
+Ltac clean_up_app_carefully := (* useful after rewriting by SEP_PROP *)
+ repeat
+  match goal with
+  | |- context [@app Prop (?a :: ?b) ?c] =>
+    change (app (a::b) c) with (a :: app b c)
+  | |- context [@app (environ->Prop) (?a :: ?b) ?c] =>
+    change (app (a::b) c) with (a :: app b c)
+  | |- context [@app (lifted (LiftEnviron Prop)) (?a :: ?b) ?c] =>
+    change (app (a::b) c) with (a :: app b c)
+  | |- context [@app (environ->mpred) (?a :: ?b) ?c] =>
+    change (app (a::b) c) with (a :: app b c)
+  | |- context [@app (lifted (LiftEnviron mpred)) (?a :: ?b) ?c] =>
+    change (app (a::b) c) with (a :: app b c)
+  | |- context [@app Prop nil ?c] => 
+     change (app nil c) with c
+  | |- context [@app (environ->Prop) nil ?c] => 
+     change (app nil c) with c
+  | |- context [@app (lifted (LiftEnviron Prop)) nil ?c] => 
+     change (app nil c) with c
+  | |- context [@app (lifted (environ->mpred)) nil ?c] => 
+     change (app nil c) with c
+  | |- context [@app (lifted (LiftEnviron mpred)) nil ?c] => 
+     change (app nil c) with c
+ end.
+
+
+Definition not_conj_notation (P: Prop) := True.
+
+Ltac not_conj_notation :=
+ match goal with 
+ | |- not_conj_notation (_ <= _ <= _)%Z => fail 1
+ | |- not_conj_notation (_ <= _ < _)%Z => fail 1
+ | |- not_conj_notation (_ < _ <= _)%Z => fail 1
+ | |- not_conj_notation (_ <= _ <= _)%nat => fail 1
+ | |- not_conj_notation (_ <= _ < _)%nat => fail 1
+ | |- not_conj_notation (_ < _ <= _)%nat => fail 1
+ | |- _ => apply I
+ end.
+
+Lemma split_first_PROP:
+  forall P Q R S, 
+  not_conj_notation (P/\Q) ->
+  PROPx ((P/\Q)::R) S = PROPx (P::Q::R) S.
+Proof.
+intros. unfold PROPx; simpl.
+extensionality rho.
+apply pred_ext; apply andp_derives; auto;
+  apply prop_derives; intuition.
+Qed.
+Hint Rewrite split_first_PROP using not_conj_notation : norm.
 
 
 

@@ -44,14 +44,16 @@ Lemma size_compatible_nested_field: forall t gfs p,
 Proof.
   intros.
   destruct p; simpl; try tauto.
+  unfold Int.unsigned; simpl.
+  unfold Int.unsigned; simpl.
   repeat rewrite Int.Z_mod_modulus_eq.
-  simpl in H.
   rewrite Zplus_mod_idemp_r.
   assert (0 < Int.modulus) by (cbv; reflexivity).
   assert (0 <= Int.unsigned i + nested_field_offset2 t gfs) by (pose proof nested_field_offset2_in_range t gfs H; pose proof Int.unsigned_range i; omega).
   pose proof Zmod_le (Int.unsigned i + nested_field_offset2 t gfs) (Int.modulus) H1 H2.
-  pose proof nested_field_offset2_in_range t gfs H.
+  destruct (nested_field_offset2_in_range t gfs H).
   unfold size_compatible in H0.
+  unfold Int.unsigned in *.
   omega.
 Qed.
 
@@ -97,6 +99,8 @@ Lemma align_compatible_nested_field: forall t gfs p,
 Proof.
   intros.
   destruct p; simpl in *; try tauto.
+  unfold Int.unsigned; simpl. 
+  unfold Int.unsigned; simpl.
   repeat rewrite Int.Z_mod_modulus_eq.
   rewrite Zplus_mod_idemp_r.
   assert (alignof (nested_field_type2 t gfs) | Int.unsigned i + nested_field_offset2 t gfs).
@@ -108,7 +112,7 @@ Proof.
     destruct (alignof_two_p (nested_field_type2 t gfs)).
     rewrite H3 in *.
     destruct H2.
-    rewrite H2.
+    unfold Int.unsigned in H2; rewrite H2.
     rewrite !two_power_nat_two_p in *.
     apply multiple_divide_mod.
     * apply two_p_gt_ZERO, Zle_0_nat.
@@ -566,14 +570,14 @@ Proof.
       apply (exp_right (x :: v)).
       normalize.
       simpl.
-      rewrite H; apply derives_refl.
+      unfold Int.unsigned; simpl; rewrite H; apply derives_refl.
     - normalize.
       destruct vs; inversion H0.
       apply (exp_right vs).
       normalize.
       apply (exp_right v).
       simpl.
-      rewrite H; apply derives_refl.
+      unfold Int.unsigned; simpl; rewrite H; apply derives_refl.
 Qed.
 
 Lemma align_chunk_alignof: forall t ch, access_mode t = By_value ch -> legal_alignas_type t = true -> alignof t = Memdata.align_chunk ch.

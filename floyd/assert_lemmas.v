@@ -549,6 +549,12 @@ Qed.
 
 Hint Rewrite elim_globals_only using (split3; [eassumption | reflexivity.. ]) : norm.
 
+Lemma eval_var_env_set:
+  forall i t j v (rho: environ), eval_var i t (env_set rho j v) = eval_var i t rho.
+Proof. reflexivity. Qed.
+
+Hint Rewrite eval_var_env_set : norm. (* MOVE elsewhere? *)
+
 Lemma elim_globals_only': 
  forall a: mpred, 
  (@liftx (Tarrow environ (LiftEnviron mpred)) (`a) globals_only) = `a.

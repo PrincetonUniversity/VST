@@ -478,147 +478,11 @@ Ltac simpl_lift :=
    with (`(f v1 v2)); simpl force_val2; simpl eval_binop
  end.
 *)
-Lemma refold_andp:  (* MOVE elsewhere? *)
-  forall (P Q: environ -> mpred),
-     (fun rho: environ => P rho && Q rho) = (P && Q).
-Proof. reflexivity. Qed.
-Hint Rewrite refold_andp : norm.
-
-Lemma eval_var_env_set:
-  forall i t j v (rho: environ), eval_var i t (env_set rho j v) = eval_var i t rho.
-Proof. reflexivity. Qed.
-
-Lemma elim_globals_only:
-  forall Delta g i t rho,
-  tc_environ Delta rho /\ (var_types Delta) ! i = None /\ (glob_types Delta) ! i = Some g ->
-  eval_var i t (globals_only rho) = eval_var i t rho.
-Proof.
-intros. 
-destruct H as [H [H8 H0]].
-unfold eval_var, globals_only.
-simpl. 
-destruct H as [_ [? [? ?]]].
-destruct (H2 i g H0).
-unfold Map.get; rewrite H3; auto.
-destruct H3.
-congruence.
-Qed.
-
-Hint Rewrite eval_var_env_set : norm. (* MOVE elsewhere? *)
-
-Arguments Int.unsigned n : simpl never.
-
-(* Move these elsewhere *)
-Arguments Pos.to_nat !x / .
 
 Ltac simpl_stackframe_of := 
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
   repeat rewrite var_block_data_at_ by reflexivity;
   repeat rewrite prop_true_andp by (simpl sizeof; computable).
-
-Lemma PROP_LOCAL_SEP_f:
-  forall P Q R f, `(PROPx P (LOCALx Q (SEPx R))) f =
-     PROPx P (LOCALx (map (fun q : environ -> Prop => `q f) Q)
-            (SEPx (map (fun r : environ -> mpred => `r f) R))).
-Proof. intros. extensionality rho.
-unfold_for_go_lower.
-simpl. f_equal. f_equal.
-f_equal.
-induction Q; simpl; auto. f_equal; auto.
-induction R; simpl; auto. f_equal; auto.
-Qed.
-Hint Rewrite PROP_LOCAL_SEP_f: norm.
-
-Lemma SEP_PROP:
- forall P Q R P' Q' R', 
-     PROPx P (LOCALx Q (SEPx (PROPx P' (LOCALx Q' (SEPx R')) :: R))) =
-    PROPx (P++P') (LOCALx (Q++Q') (SEPx (R'++R))).
-Proof.
-intros.
-unfold_for_go_lower; extensionality rho.
-apply pred_ext; normalize.
-rewrite prop_true_andp.
-rewrite prop_true_andp; auto.
-clear; induction R'; simpl; normalize.
-rewrite sepcon_assoc; apply sepcon_derives; auto.
-revert H0; induction Q; simpl; intros; auto.
-destruct H0; split; auto.
-induction P; simpl; auto. destruct H; split; auto.
-rewrite prop_true_andp.
-rewrite prop_true_andp.
-rewrite prop_true_andp.
-rewrite prop_true_andp.
-induction R'; simpl. normalize.
-rewrite sepcon_assoc; apply sepcon_derives; auto.
-induction Q; simpl; auto. destruct H0. auto.
-induction P; simpl; auto. destruct H; auto.
-induction Q; simpl; auto.
-destruct H0; split; auto.
-induction P; simpl; auto. destruct H; split; auto.
-Qed.
-Hint Rewrite SEP_PROP: norm.
-
-Ltac clean_up_app_carefully := (* useful after rewriting by SEP_PROP *)
- repeat
-  match goal with
-  | |- context [@app Prop (?a :: ?b) ?c] =>
-    change (app (a::b) c) with (a :: app b c)
-  | |- context [@app (environ->Prop) (?a :: ?b) ?c] =>
-    change (app (a::b) c) with (a :: app b c)
-  | |- context [@app (lifted (LiftEnviron Prop)) (?a :: ?b) ?c] =>
-    change (app (a::b) c) with (a :: app b c)
-  | |- context [@app (environ->mpred) (?a :: ?b) ?c] =>
-    change (app (a::b) c) with (a :: app b c)
-  | |- context [@app (lifted (LiftEnviron mpred)) (?a :: ?b) ?c] =>
-    change (app (a::b) c) with (a :: app b c)
-  | |- context [@app Prop nil ?c] => 
-     change (app nil c) with c
-  | |- context [@app (environ->Prop) nil ?c] => 
-     change (app nil c) with c
-  | |- context [@app (lifted (LiftEnviron Prop)) nil ?c] => 
-     change (app nil c) with c
-  | |- context [@app (lifted (environ->mpred)) nil ?c] => 
-     change (app nil c) with c
-  | |- context [@app (lifted (LiftEnviron mpred)) nil ?c] => 
-     change (app nil c) with c
- end.
-
-Lemma simpl_get_result1:
- forall (f: val -> Prop) i, @liftx (Tarrow environ (LiftEnviron Prop)) (@liftx (Tarrow val (LiftEnviron Prop))f retval) (get_result1 i) = `f (eval_id i).
-Proof.
-intros; extensionality rho.
-unfold_lift; unfold retval, get_result1.
-f_equal.
-Qed.
-Hint Rewrite simpl_get_result1: norm.
-
-Hint Rewrite @subst_lift0' : subst.
-Hint Rewrite @subst_lift0' : norm.
-
-Definition not_conj_notation (P: Prop) := True.
-
-Ltac not_conj_notation :=
- match goal with 
- | |- not_conj_notation (_ <= _ <= _)%Z => fail 1
- | |- not_conj_notation (_ <= _ < _)%Z => fail 1
- | |- not_conj_notation (_ < _ <= _)%Z => fail 1
- | |- not_conj_notation (_ <= _ <= _)%nat => fail 1
- | |- not_conj_notation (_ <= _ < _)%nat => fail 1
- | |- not_conj_notation (_ < _ <= _)%nat => fail 1
- | |- _ => apply I
- end.
-
-Lemma split_first_PROP:
-  forall P Q R S, 
-  not_conj_notation (P/\Q) ->
-  PROPx ((P/\Q)::R) S = PROPx (P::Q::R) S.
-Proof.
-intros. unfold PROPx; simpl.
-extensionality rho.
-apply pred_ext; apply andp_derives; auto;
-  apply prop_derives; intuition.
-Qed.
-Hint Rewrite split_first_PROP using not_conj_notation : norm.
 
 (* end of "stuff to move elsewhere" *)
 
@@ -682,7 +546,6 @@ Lemma semax_call_id1_x:
   forall
    (CLOSQ: Forall (closed_wrt_vars (eq ret')) Q)
    (CLOSR: Forall (closed_wrt_vars (eq ret')) R),
-(*   type_is_volatile retty' = false -> *)
    (temp_types Delta) ! ret' = Some (retty', false) ->
    is_neutral_cast retty' retty = true ->
    match (temp_types Delta) ! ret with Some (t,_) => eqb_type t retty | None => false end = true ->
@@ -824,7 +687,6 @@ Lemma semax_call_id1_x_alt:
    typeof_temp Delta ret = Some retty -> 
    match retty with Tvoid => False | Tcomp_ptr _ _ => False | Tarray _ _ _ => False | _ => True end ->
    paramty = type_of_params argsig ->
-(*   type_is_volatile retty' = false ->  *)
    (temp_types Delta) ! ret' = Some (retty', false) ->
    is_neutral_cast retty' retty = true ->
    forall (CLOSQ: Forall (closed_wrt_vars (eq ret')) Q),

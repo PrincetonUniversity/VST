@@ -241,3 +241,6 @@ pose proof (skipn_length_short n al).
 spec H0; [auto | ].
 destruct (skipn n al); inv H0; auto.
 Qed.
+
+Arguments Int.unsigned n : simpl never.
+Arguments Pos.to_nat !x / .

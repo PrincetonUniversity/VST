@@ -323,6 +323,9 @@ Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 
+Hint Rewrite @subst_lift0' : subst.
+Hint Rewrite @subst_lift0' : norm.
+
 Lemma subst_lift0C:
   forall {B} id (v: environ -> val) (f: B) , 
           subst id v (`f) = `f.
@@ -456,6 +459,15 @@ Definition retval : environ -> val := eval_id ret_temp.
 
 Hint Rewrite eval_id_same : norm.
 Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : norm.
+
+Lemma simpl_get_result1:
+ forall (f: val -> Prop) i, @liftx (Tarrow environ (LiftEnviron Prop)) (@liftx (Tarrow val (LiftEnviron Prop))f retval) (get_result1 i) = `f (eval_id i).
+Proof.
+intros; extensionality rho.
+unfold_lift; unfold retval, get_result1.
+f_equal.
+Qed.
+Hint Rewrite simpl_get_result1: norm.
 
 Lemma retval_get_result1: 
    forall i rho, retval (get_result1 i rho) = (eval_id i rho).

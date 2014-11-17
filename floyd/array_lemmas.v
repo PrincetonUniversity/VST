@@ -487,8 +487,15 @@ Proof.
     erewrite nested_field_offset2_Tarray by eauto.
     unfold size_compatible in H8 |- *.
     destruct p; simpl in H8 |- *; auto.
-    rewrite !Int.Z_mod_modulus_eq in H8 |- *.
-    pose proof Zmod_le (nested_field_offset2 t gfs + sizeof t0 * lo) Int.modulus.
+    rewrite Z.max_r in H8|-* by omega.
+    rewrite <- (Int.repr_unsigned i) in H8|-*.
+    rewrite add_repr in H8|-*.
+    assert (Int.modulus = Int.max_unsigned + 1 ) by (compute; auto).
+    pose proof (sizeof_pos t0).
+    assert (0 <= sizeof t0 * n) by (apply Z.mul_nonneg_nonneg; omega).
+    rewrite Int.unsigned_repr in H8|-*; try omega.
+    admit. (* omega issue *)
+    admit. (* omega issue *)
     admit. (* omega issue *)
   } Unfocus.
   assert (align_compatible (Tarray t0 n a) (offset_val (Int.repr (nested_field_offset2 t gfs)) p)).

@@ -12,16 +12,17 @@ start_function.
 name c_ _c.
 unfold data_at_.
 repeat forward.
-unfold upd_reptype_array; simpl.  (* FIXME why need unfold upd_reptype_array? *)
+Arguments upd_reptype_array t0 i v v0 / .  (* move this to floyd? *)
+simpl.
 unfold sha256state_.
 apply exp_right with (map Vint init_registers, 
       (Vint Int.zero, (Vint Int.zero, (nil, Vint Int.zero)))).
 entailer!.
 repeat split; auto.
 rewrite hash_blocks_equation. reflexivity.
-exists 0%Z; simpl; reflexivity.
+apply Z.divide_0_r.
 apply derives_refl'; f_equal.
 f_equal.
-unfold init_registers. simpl.
+simpl.
 repeat (apply f_equal2; [f_equal; apply int_eq_e; compute; reflexivity | ]); auto.
 Qed.
