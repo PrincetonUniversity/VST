@@ -71,6 +71,7 @@ Ltac do_local2ptree := eapply semax_pre0; [ eapply local2ptree_soundness; repeat
 
 Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
 
+
 Lemma semax_seq_reif c1 c2 : forall  (Espec : OracleKind) 
          (P : environ -> mpred)  (P' : environ -> mpred)
           (Q : ret_assert) (Delta : tycontext) ,
@@ -355,11 +356,13 @@ App (App (Inj (inr (Other fand))) (App (App (Inj (inr (Other (feq t)))) v1) v2))
 
 Definition _w : ident := 16%positive.
 
-Fixpoint lots_of_sets n :=
+Fixpoint lots_of_sets' n p :=
 match n with 
-| O => (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
-| S n' => Ssequence (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))) (lots_of_sets n')
+| O => (Sset p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+| S n' => Ssequence (Sset p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))) (lots_of_sets' n' (Psucc p))
 end.
+
+Definition lots_of_sets n := lots_of_sets' n 1%positive.
 
 
 
@@ -394,59 +397,36 @@ forall  (contents : list val), exists PO,
                 Sskip)
      (normal_ret_assert PO)).
 intros.
+
 Time reify_expr_tac.
 Time Eval vm_compute in symexe e tbl.
 eexists.
 Time repeat forward; eauto.
 Time Qed.
 
-
-Goal exists n, n = Delta.
-Proof.
-unfold Delta.
-Check (WITH x : share * list val PRE 
-                          [(_p, tptr t_struct_list)]
-                          (let (sh0, contents0) := x in
-                           fun x0 : environ =>
-                           !!writable_share sh0 &&
-                           `(lseg LS sh0 contents0) (eval_id _p) `nullval x0)
-                          POST  [tptr t_struct_list]
-                          (let (sh0, contents0) := x in
-                           `(lseg LS sh0 (rev contents0)) retval `nullval)).
-reify_vst ((0,1)).
-reify_vst (fun (x : share * list val) => match  x with | (a, b) => x end).
-reify_vst (WITH x : share * list val PRE 
-                          [(_p, tptr t_struct_list)]
-                          (let (sh0, contents0) := x in
-                           fun x0 : environ =>
-                           !!writable_share sh0 &&
-                           `(lseg LS sh0 contents0) (eval_id _p) `nullval x0)
-                          POST  [tptr t_struct_list]
-                          (let (sh0, contents0) := x in
-                           `(lseg LS sh0 (rev contents0)) retval `nullval)).
-unfold Delta.
-match goal with [ |- _ ?D] => reify_vst D
+Fixpoint lots_temps' n p :=
+match n with 
+| O => PTree.set p (tptr t_struct_list, true) (PTree.empty _)
+| S n' =>  PTree.set p (tptr t_struct_list, true) (lots_temps' n' (Psucc p))
 end.
-reify_vst Delta.
+
+Definition lots_temps (n : nat) : PTree.t (type * bool) := lots_temps' (S n) (1%positive).
 
 Goal
 forall  (contents : list val), exists PO, 
    (semax
- Delta
+      (lots_temps 50, PTree.empty type, Tvoid,
+     PTree.empty global_spec)
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
-     (lots_of_sets 1)
+     (lots_of_sets 50)
      (normal_ret_assert PO)).
 intros.
-unfold Delta.
 Time reify_expr_tac.
-
-
 Time Eval vm_compute in symexe e tbl.
 clear e.
 eexists. 
-unfold assertD. unfold localD, LocalD, PTree.fold, PTree.xfold. simpl.
+unfold assertD. unfold localD, LocalD, PTree.fold, PTree.xfold, lots_temps, lots_of_sets. simpl.
 simplify_Delta.
-forward. forward.
 Time repeat forward; eauto.
 Qed.
 
