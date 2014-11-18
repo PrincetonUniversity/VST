@@ -208,27 +208,27 @@ rewrite emp_sepcon; auto.
 Qed.
 
 Ltac get_global_function' id :=
-  eapply (call_lemmas.semax_fun_id' id); [ reflexivity | simpl; reflexivity | rewrite slide_func_ptr ].
+  eapply (call_lemmas.semax_fun_id' id); [ reflexivity | reflexivity | simpl; reflexivity | rewrite slide_func_ptr ].
 
 Lemma  create_message_object:
  forall t (msg: message_format t) objid serid desid
  (Vobj: (var_types (func_tycontext f_main Vprog Gprog)) ! objid = None)
- (Gobj: (glob_types (func_tycontext f_main Vprog Gprog)) ! objid = Some (Global_var t_struct_message))
+ (Gobj: (glob_types (func_tycontext f_main Vprog Gprog)) ! objid = Some (t_struct_message))
  (Vser: (var_types (func_tycontext f_main Vprog Gprog)) ! serid = None)
  (Gser: (glob_types (func_tycontext f_main Vprog Gprog)) ! serid =
-                                   Some (Global_func (serialize_spec msg)))
+                                   Some (type_of_funspec (serialize_spec msg)))
  (Vdes: (var_types (func_tycontext f_main Vprog Gprog)) ! desid = None)
  (Gdes: (glob_types (func_tycontext f_main Vprog Gprog)) ! desid =
-                                   Some (Global_func (deserialize_spec msg))),
+                                   Some (type_of_funspec (deserialize_spec msg))),
 PROP  ()
 LOCAL (tc_environ (func_tycontext f_main Vprog Gprog))
 SEP
    (`(func_ptr (serialize_spec msg))
       (eval_var serid
-         (globtype (Global_func (serialize_spec msg)))) &&
+         (type_of_funspec (serialize_spec msg))) &&
     (`(func_ptr (deserialize_spec msg))
        (eval_var desid
-          (globtype (Global_func (deserialize_spec msg)))) &&
+          (type_of_funspec  (deserialize_spec msg))) &&
   (id2pred_star (func_tycontext f_main Vprog Gprog) Ews t_struct_message
     (eval_var objid t_struct_message) 0
     (Init_int32 (Int.repr (mf_size msg))
@@ -257,9 +257,9 @@ apply andp_derives; auto.
     rewrite mapsto_tuint_tint.
  destruct (globvar_eval_var _ _ objid _ H Vobj Gobj) as [b1 [Eobj _]].
  simpl in Eobj; rewrite Eobj. clear dependent objid.
- destruct (globfun_eval_var _ _ serid _ H Vser Gser) as [b2 [Eser _]].
+ destruct (globvar_eval_var _ _ serid _ H Vser Gser) as [b2 [Eser _]].
  simpl in Eser; rewrite Eser; clear dependent serid.
- destruct (globfun_eval_var _ _ desid _ H Vdes Gdes) as [b3 [Edes _]].
+ destruct (globvar_eval_var _ _ desid _ H Vdes Gdes) as [b3 [Edes _]].
  simpl in Edes; rewrite Edes; clear dependent desid.
  apply andp_right.
  + apply prop_right.

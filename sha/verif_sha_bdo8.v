@@ -177,10 +177,10 @@ Lemma temp_types_init_any:
   (temp_types (initialized i Delta)) ! j = Some (t, true).
 Proof.
 intros.
-destruct Delta as [[[? ?] ?] ?]; 
+destruct Delta. 
 unfold temp_types, initialized in *; simpl in *.
 unfold temp_types; simpl. 
-destruct (t0!i) eqn:?; simpl; auto.
+destruct (tyc_temps!i) eqn:?; simpl; auto.
 destruct p. simpl.
 destruct (ident_eq i j). subst. 
 rewrite PTree.gss. congruence.
@@ -373,7 +373,7 @@ eapply (semax_SC_field_store (initialized _t Delta) Tsh type_id_env.empty_ti
     unfold initialized.
     destruct ((temp_types Delta) ! _t) eqn:?; inversion H3.
     destruct p; inv H0. unfold temp_types.
-    destruct Delta. destruct p. destruct p.
+    destruct Delta.
     unfold fst, snd. rewrite PTree.gso. auto.
     cbv. intros. inversion H.
   } Unfocus.

@@ -72,7 +72,7 @@ Qed.
 Lemma tc_globalvar_sound:
   forall Delta i t gv idata rho, 
    (var_types Delta) ! i = None ->
-   (glob_types Delta) ! i = Some (Global_var t) ->
+   (glob_types Delta) ! i = Some t ->
    gvar_volatile gv = false ->
    gvar_init gv = idata ->
    tc_environ Delta rho ->
@@ -115,15 +115,12 @@ Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: 
                                    else`(memory_block sh (Int.repr n)) v
   | Init_addrof symb ofs => 
       match (var_types Delta) ! symb, (glob_types Delta) ! symb with
-      | None, Some (Global_var (Tarray t n' att)) =>`(mapsto sh (Tpointer t noattr)) v (`(offset_val ofs) (eval_var symb (Tarray t n' att)))
-      | None, Some (Global_var Tvoid) => TT
-      | None, Some (Global_var t) => `(mapsto sh (Tpointer t noattr)) v (`(offset_val ofs) (eval_var symb t))
-      | None, Some (Global_func f) => 
-                 `(mapsto sh (Tpointer (type_of_funspec f) noattr)) v (`(offset_val ofs) (eval_var symb (type_of_funspec f)))
-      | Some _, Some (Global_var (Tarray t _ att)) => `(memory_block sh (Int.repr 4)) v
-      | Some _, Some (Global_var Tvoid) => TT
-      | Some _, Some (Global_var t) => `(memory_block sh (Int.repr 4)) v 
-      | Some _, Some (Global_func f) => `(memory_block sh (Int.repr 4)) v 
+      | None, Some (Tarray t n' att) =>`(mapsto sh (Tpointer t noattr)) v (`(offset_val ofs) (eval_var symb (Tarray t n' att)))
+      | None, Some Tvoid => TT
+      | None, Some t => `(mapsto sh (Tpointer t noattr)) v (`(offset_val ofs) (eval_var symb t))
+      | Some _, Some (Tarray t _ att) => `(memory_block sh (Int.repr 4)) v
+      | Some _, Some Tvoid => TT
+      | Some _, Some (Tpointer (Tfunction _ _ _) _) => `(memory_block sh (Int.repr 4)) v 
       | _, _ => TT
       end
  end.
@@ -211,37 +208,24 @@ intros H1 H1' H6' H6 H7 H8 H1''.
    destruct ((glob_types Delta) ! i) eqn:Hg; 
     try destruct g; try solve [simpl; apply TT_right].
  +   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
-     simpl. destruct fs; simpl.
+     simpl.
      rewrite H8.
+     eapply derives_trans.     
      apply unpack_globvar_aux1.
      pose proof unsigned_repr_le ofs.
      rewrite sizeof_Tpointer; simpl in H6; omega.
+    destruct t1; try (apply prop_right; auto).
+    destruct t1; try (apply prop_right; auto).
+    rewrite H8; auto.
+    rewrite H8; auto.
  +
-    destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
-    rewrite H8. (*clear dependent i. *)
-    destruct gv; simpl; try apply TT_right; try rewrite H8;
-     try  apply unpack_globvar_aux1;
-     pose proof unsigned_repr_le ofs H6';
-     rewrite sizeof_Tpointer; simpl in H6; omega.
- +  destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
-     simpl. destruct fs; simpl.
-     rewrite H8. 
-    assert (eval_var i (Tfunction (type_of_params (fst f)) (snd f) cc_default) rho = Vptr b' Int.zero).
-    { destruct (globfun_eval_var _ _ _ _ H7 Hv Hg) as [bx [? ?]].
-      rewrite H15 in H0. symmetry in H0; inv H0.
-      rewrite <- H. reflexivity.
-    }
-    rewrite H. 
-   rewrite (mapsto_pointer_void _ (Tfunction _ _ _)).
-   unfold offset_val; simpl. rewrite Int.add_zero_l.
-   apply derives_refl.
-+  destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
-    assert (eval_var i gv rho = Vptr b' Int.zero).
+   destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
+    assert (eval_var i t0 rho = Vptr b' Int.zero).
     {destruct (globvar_eval_var _ _ _ _ H7 Hv Hg) as [bx [? ?]].
       rewrite H15 in H0. symmetry in H0; inv H0.
       rewrite <- H. reflexivity.
      }
-    destruct gv; simpl; try apply TT_right; try rewrite H8; try rewrite H;
+    destruct t0; simpl; try apply TT_right; try rewrite H8; try rewrite H;
      unfold offset_val; simpl; rewrite Int.add_zero_l;
     apply derives_refl.
 Qed.
@@ -249,7 +233,7 @@ Qed.
 Lemma unpack_globvar:
   forall Delta i t gv idata, 
    (var_types Delta) ! i = None ->
-   (glob_types Delta) ! i = Some (Global_var t) ->
+   (glob_types Delta) ! i = Some t ->
    (legal_alignas_type t = true /\
     nested_non_volatile_type t = true) ->
    gvar_volatile gv = false ->
@@ -280,6 +264,12 @@ destruct (tc_eval_gvar_zero _ _ _ _ H7 H H0) as [b ?].
  destruct ((var_types Delta)!i0); auto;
  destruct ( (glob_types Delta) ! i0); try destruct g;try destruct gv0; try apply derives_refl;
    try (rewrite H8; simpl; rewrite Int.add_zero_l; auto).
+ destruct t1; auto.
+ destruct t1; auto.
+ rewrite H8; simpl; rewrite Int.add_zero_l; auto.
+ rewrite H8; simpl; rewrite Int.add_zero_l; auto.
+ destruct t0; auto;
+  try (rewrite H8; simpl; rewrite Int.add_zero_l; auto).
 Qed.
 
 Fixpoint id2pred_star (Delta: tycontext) (sh: share) (t: type) (v: environ->val) (ofs: Z) (dl: list init_data) : environ->mpred :=
@@ -308,7 +298,7 @@ Qed.
 Lemma unpack_globvar_star:
   forall Delta i gv, 
    (var_types Delta) ! i = None ->
-   (glob_types Delta) ! i = Some (Global_var (gvar_info gv)) ->
+   (glob_types Delta) ! i = Some (gvar_info gv) ->
    (legal_alignas_type (gvar_info gv) = true /\
     nested_non_volatile_type (gvar_info gv) = true) -> 
    gvar_volatile gv = false ->
@@ -351,7 +341,7 @@ Qed.
 Lemma tc_globalvar_sound_space:
   forall Delta i t gv rho, 
    (var_types Delta) ! i = None ->
-   (glob_types Delta) ! i = Some (Global_var t) ->
+   (glob_types Delta) ! i = Some t ->
    (legal_alignas_type t = true /\
     nested_non_volatile_type t = true) ->
    gvar_volatile gv = false ->
@@ -635,7 +625,7 @@ Qed.
 Lemma unpack_globvar_array:
   forall t sz sign (data: list int)  n Delta i gv,
    (var_types Delta) ! i = None ->
-   (glob_types Delta) ! i = Some (Global_var (gvar_info gv)) ->
+   (glob_types Delta) ! i = Some (gvar_info gv) ->
    gvar_info gv = tarray t n ->
    gvar_volatile gv = false ->
    t = Tint sz sign noattr -> 

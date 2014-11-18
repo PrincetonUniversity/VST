@@ -893,8 +893,9 @@ Axiom semax_fun_id:
   forall {Espec: OracleKind},
       forall id f Delta P Q c,
     (var_types Delta) ! id = None ->
-    (glob_types Delta) ! id = Some (Global_func f) ->
-    @semax Espec Delta (P && `(func_ptr f) (eval_var id (globtype (Global_func f))))
+    (glob_specs Delta) ! id = Some f ->
+    (glob_types Delta) ! id = Some (type_of_funspec f) ->
+    @semax Espec Delta (P && `(func_ptr f) (eval_var id (type_of_funspec f)))
                   c Q ->
     @semax Espec Delta P c Q.
 

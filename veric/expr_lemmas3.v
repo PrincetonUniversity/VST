@@ -25,10 +25,10 @@ Definition empty_tenv := PTree.empty val.
 Definition empty_environ : environ :=
 mkEnviron (filter_genv empty_genv) (Map.empty _) (Map.empty _).
 
-Definition Delta1 : tycontext := (PTree.set 1%positive (type_int32s, false) 
-                                 (PTree.empty (type * bool)),
-                                 PTree.empty type, Tvoid,PTree.empty _).
-
+Definition Delta1 : tycontext := 
+ mk_tycontext (PTree.set 1%positive (type_int32s, false) 
+                                 (PTree.empty (type * bool)))
+    (PTree.empty _) Tvoid (PTree.empty _) (PTree.empty _).
 
 Lemma Zle_bool_rev: forall x y, Zle_bool x y = Zge_bool y x.
 Proof.

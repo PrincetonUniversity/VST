@@ -252,7 +252,7 @@ Lemma linked_list_in_array:
  forall Delta sh i data idata n,
   (length data > 0)%nat -> 
   (var_types Delta) ! i = None ->
-  (glob_types Delta) ! i = Some (Global_var (tarray t_struct_list n)) ->
+  (glob_types Delta) ! i = Some (tarray t_struct_list n) ->
   idata =  list_init_rep i 0 data ->
    id2pred_star Delta sh (tarray t_struct_list n)
       (eval_var i (tarray t_struct_list n)) 0 idata

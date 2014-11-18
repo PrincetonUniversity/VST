@@ -396,7 +396,7 @@ induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
  simpl; auto.
 * destruct (access_mode t) eqn:?; auto.
   destruct (get_var_type Delta i) eqn:?; [ | contradiction].
-  destruct H as [_ [? [_ ?]]].
+  destruct H as [_ [? [_ [? _]]]].
   assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; auto].
   unfold get_var_type in *. rewrite <- H.
   destruct ((var_types Delta)!i); auto.
@@ -404,7 +404,7 @@ induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
   specialize (H0 i). hnf in H0. rewrite Heqo0 in H0. rewrite H0.
   auto.
 * destruct (get_var_type Delta i) eqn:?; [ | contradiction].
-  destruct H as [_ [? [_ ?]]].
+  destruct H as [_ [? [_ [? _]]]].
   assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; auto].
   unfold get_var_type in *. rewrite <- H.
   destruct ((var_types Delta)!i); auto.

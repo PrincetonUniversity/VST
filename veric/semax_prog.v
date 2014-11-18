@@ -97,15 +97,8 @@ intros.
 intros b fsig ty P Q w ? ?.
 hnf in H1.
 destruct H1 as [b' [? ?]].
-simpl in H1. 
-elimtype False; clear - H1.
-revert H1; induction V; simpl; intros.
-rewrite PTree.gempty in H1. inv H1.
-destruct a.
-simpl in *.
-destruct (eq_dec i b'). subst. rewrite PTree.gss in H1. inv H1.
-rewrite PTree.gso in H1 by auto.
-apply IHV. auto.
+simpl in H1.
+rewrite PTree.gempty in H1. inv H1. 
 Qed.
 
 Program Definition HO_pred_eq {T}{agT: ageable T}
@@ -224,10 +217,9 @@ symmetry in H2; inv H2.
 assert (In id' (map (@fst _ _) G')).
 clear - H0.
 revert H0; induction G'; simpl; intros; auto.
-revert H0; induction  V; simpl; intros; auto.
 rewrite PTree.gempty in H0; inv H0.
 destruct (eq_dec id' (fst a)). subst. rewrite PTree.gss in H0 by auto. inv  H0.
-rewrite PTree.gso in H0 by auto. auto.
+auto.
 destruct a; simpl in *.
 destruct (eq_dec i id'). subst. rewrite PTree.gss in H0. auto.
 rewrite PTree.gso in H0 by auto.
@@ -503,10 +495,7 @@ Proof.
 clear - H1 H0.
 revert G H1 H0; induction g; destruct G; intros; simpl in *.
 elimtype False.
-revert H1; induction V; simpl; intros.
 rewrite PTree.gempty in H1; inv H1.
-destruct (eq_dec (fst a) id). subst. rewrite PTree.gss in H1. inv H1.
-rewrite PTree.gso in H1 by auto; auto. 
 inv H0.
 destruct a; simpl in *; subst.
 destruct (eq_dec i id). subst; eauto.
@@ -541,13 +530,10 @@ eauto. destruct a. destruct p.
    clear - H1.
    simpl in H1. unfold make_tycontext_g in H1; simpl in H1.
    revert H1;  induction G; simpl in *; intros.
-   revert H1; induction V; simpl in *; intros.
    rewrite PTree.gempty in H1; inv H1.
    destruct a. simpl in *.
    destruct (ident_eq i id). subst. 
-   rewrite PTree.gss in H1. inv H1.
-   rewrite PTree.gso in H1 by auto. auto.
-  destruct a.
+   rewrite PTree.gss in H1. inv H1. auto.
    destruct (ident_eq i id). subst.
    rewrite PTree.gss in H1. inv H1. auto.
   right. rewrite PTree.gso in H1 by auto; auto.
@@ -563,10 +549,7 @@ eauto. destruct a. destruct p.
    clear - H1.
     simpl in H1. unfold make_tycontext_g in H1; simpl in H1.
     induction G; simpl in *.
-    induction V; simpl in *. rewrite PTree.gempty in H1; inv H1.
-    destruct (ident_eq (fst a1) id); subst. 
-    rewrite PTree.gss in H1; inv H1.
-    rewrite PTree.gso in H1; auto.
+    rewrite PTree.gempty in H1; inv H1.
     destruct (ident_eq (fst a1) id); subst.
     rewrite PTree.gss in H1; inv H1. destruct a1; left; auto.
     rewrite PTree.gso in H1; auto.
@@ -711,7 +694,7 @@ Lemma match_globvars_in':
   forall i t vl vs,
   match_globvars vl vs = true ->
   In (i,t) vs ->
-  exists g, In (i,g) vl /\ gvar_info g = globtype (Global_var t) /\ is_pointer_type t = true.
+  exists g, In (i,g) vl /\ gvar_info g = t /\ is_pointer_type t = true.
 Proof.
  induction vl; destruct vs; intros. inv H0.
  destruct p; inv H.
@@ -777,7 +760,7 @@ Lemma make_tycontext_g_denote:
     match_globvars (prog_vars' l) vs = true ->
     match_fdecs (prog_funct' l) G ->
    ((make_tycontext_g vs G) ! id = Some t <->
-    ((exists f, In (id,f) G /\ t = Global_func f) \/ (exists v, In (id,v) vs /\ t = Global_var v))).
+    ((exists f, In (id,f) G /\ t = type_of_funspec f) \/ In (id,t) vs)).
 Proof.
   intros.
   assert (list_norepet (map (@fst _ _) (prog_funct' l) ++  (map (@fst _ _) (prog_vars' l)))). {
@@ -809,39 +792,36 @@ Proof.
 * (* fl = nil *)
  destruct G; inv H1.
  simpl in H2.
- apply iff_trans with (exists v : type, In (id, v) vs /\ t = Global_var v);
+ apply iff_trans with (In (id, t) vs );
   [ | clear; intuition; destruct H0 as [? [? ?]]; contradiction].
  revert vs H0; induction vl; destruct vs; simpl in *; intros.
 +(* fl = nil /\ vl = nil /\ vs = nil*)
  rewrite PTree.gempty.
- split; intros. discriminate.
- destruct H as [? [? ?]]; contradiction.
+ split; intros. discriminate. contradiction.
 + (* fl = nil /\ vl = nil /\ vs<>nil *)
  clear H2.
  destruct p. inv H0.
 + (* fl = nil /\ vl inductive case /\ vs = nil  *)
  clear H0. rewrite PTree.gempty.
-   clear. split; intro; [discriminate | destruct H as [? [? ? ]]; contradiction].
+   clear. intuition congruence.
  + (* fl = nil /\ vl inductive case /\ vs <> nil *)
    destruct p. destruct a. simpl in *. inv H2.
   specialize (IHvl H4).
   destruct (ident_eq id i).
  - subst id.
   rewrite PTree.gss. split; intro. inv H.
-  exists t0; auto.
- destruct H as [v [? ? ]].
- subst t. f_equal. f_equal.
+  auto.
  destruct H. inv H. auto.
  pose proof (eqb_ident_spec i i0); destruct (eqb_ident i i0).
  assert (i=i0) by (rewrite <- H1; auto). subst i0; clear H1.
   apply andb_true_iff in H0; destruct H0 as [_ H0].
   apply andb_true_iff in H0; destruct H0.
  contradiction H3.
- eapply match_globvars_in; eauto. apply in_map_fst with v. auto.
+ eapply match_globvars_in; eauto. apply in_map_fst with t. auto.
  assert (i<>i0). intro; subst. clear - H1. destruct H1. specialize (H0 (eq_refl _)); inv H0.
  clear H1.
  pose proof (match_globvars_norepet _ _ H4 H0).
- inv H1. contradiction H7. apply in_map_fst with v; auto.
+ inv H1. contradiction H7. apply in_map_fst with t; auto.
  - (* id <> i *)
  rewrite PTree.gso by auto.
  pose proof (eqb_ident_spec i i0). 
@@ -852,8 +832,7 @@ Proof.
  apply eqb_type_true in H0. subst t0.
  clear H H1.
  rewrite IHvl; auto.
- clear - n; intuition. destruct H as [v [? ?]]; exists v; auto.
- destruct H as [v [? ?]]; exists v; auto. destruct H; auto. inv H; congruence.
+ clear - n; intuition. inv H0; congruence.
  destruct (eqb_ident i i0). contradict n0; apply H; auto.
  eapply iff_trans; [ | apply (IHvl ((i,t0)::vs))]; clear IHvl.
  simpl;  rewrite PTree.gso by auto. apply iff_refl.
@@ -868,7 +847,7 @@ Proof.
   split; intro.
   left; exists fspec.  inv H; auto.
   f_equal.
-  destruct H as [[f [? ?]]|[v [? ?]]].
+  destruct H as [[f [? ?]]| ?].
   destruct H. inv H. auto.
   elimtype False; clear - H3 H H6.
   apply H3; apply in_app_iff. left; eapply match_fdecs_in; eauto.
@@ -879,11 +858,11 @@ Proof.
   apply in_map_fst in H; auto.
   simpl; rewrite PTree.gso; auto.
   rewrite IHfl. clear IHfl.
-  split; intros [[f [? ?]]|[v [? ?]]]; subst.
+  split; intros [[f [? ?]]| ?]; subst.
   left; eauto. right; eauto.
   left; eauto. destruct H. congruence.
   exists f; eauto.
-  right; exists v; eauto.
+  right; eauto.
 +
   simpl in H2; inv H2.
   apply (IHfl G); auto.
@@ -899,8 +878,9 @@ Proof.
 intros.
 hnf; intros.
 rewrite make_tycontext_g_denote in H2; eauto.
-destruct H2 as [[f [? ?]]|[v [? ?]]]; subst t.
+destruct H2 as [[f [? ?]]|?].
 *
+subst t.
 unfold filter_genv.
 destruct (match_fdecs_exists_Gfun prog G id f) as [fd [? H20]]; auto.
 apply find_id_i; auto.
@@ -935,7 +915,7 @@ destruct f; simpl. auto.
  exists b. rewrite H5.
  unfold type_of_global.
  split; auto.
- simpl. destruct v; inv TC; auto.
+ simpl. subst t. destruct (gvar_info g); inv TC; auto.
 Qed.
 
 Lemma semax_prog_typecheck_aux:

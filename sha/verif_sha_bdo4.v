@@ -66,8 +66,10 @@ Qed.
 Lemma read32_reversed_in_bytearray:
  forall {Espec: OracleKind} Delta (ofs: int) base e sh (contents: list int) i P Q
  (VS:  (var_types Delta) ! ___builtin_read32_reversed = None) 
- (GS: (glob_types Delta) ! ___builtin_read32_reversed =
-    Some (Global_func (snd __builtin_read32_reversed_spec)))
+ (GS: (glob_specs Delta) ! ___builtin_read32_reversed =
+    Some (snd __builtin_read32_reversed_spec))
+ (GT: (glob_types Delta) ! ___builtin_read32_reversed =
+    Some (type_of_funspec (snd __builtin_read32_reversed_spec)))
  (TE: typeof e = tptr tuint)
  (TCi:  tc_fn_return Delta (Some i) tuint)
  (CLOQ: Forall (closed_wrt_vars (eq i)) Q),
@@ -378,7 +380,7 @@ apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) data _ sh
 *)
    [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) data _ sh 
                      (map Int.repr (intlist_to_Zlist b)));
-    [ reflexivity | reflexivity | reflexivity | reflexivity
+    [ reflexivity |  reflexivity | reflexivity | reflexivity | reflexivity
     | auto 50 with closed 
       (* intros; apply ZnthV_map_Vint_is_int; rewrite Zlength_correct, map_length;
           rewrite Zlength_correct in H1; apply H1 *)

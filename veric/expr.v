@@ -537,23 +537,28 @@ Definition funspecs := list (ident * funspec).
 Definition type_of_funspec (fs: funspec) : type :=  
   match fs with mk_funspec fsig _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default end.
 
-Inductive global_spec :=
-| Global_func : forall fs: funspec, global_spec
-| Global_var:  forall gv: type, global_spec.
-
 (** Declaration of type context for typechecking **)
+Inductive tycontext : Type := 
+  mk_tycontext : forall (tyc_temps: PTree.t (type * bool))
+                                    (tyc_vars: PTree.t type)
+                                    (tyc_ret: type)
+                                    (tyc_globty: PTree.t type)
+                                    (tyc_globsp: PTree.t funspec),
+                             tycontext.
 
-(*Temps, vars, function return, list of variables that are not vars
- (meaning they can be looked up as globals)*)
-Definition tycontext: Type := (PTree.t (type * bool) * (PTree.t type) * type 
-                                  * (PTree.t global_spec))%type.
+Definition empty_tycontext : tycontext :=
+  mk_tycontext (PTree.empty _) (PTree.empty _) Tvoid  (PTree.empty _)  (PTree.empty _).
 
-Definition empty_tycontext : tycontext := (PTree.empty (type * bool), PTree.empty type, Tvoid, PTree.empty _).
-
-Definition temp_types (Delta: tycontext): PTree.t (type*bool) := fst (fst (fst Delta)).
-Definition var_types (Delta: tycontext) : PTree.t type := snd (fst (fst Delta)).
-Definition ret_type (Delta: tycontext) : type := snd (fst Delta).
-Definition glob_types (Delta: tycontext) : PTree.t global_spec := snd Delta.
+Definition temp_types (Delta: tycontext): PTree.t (type*bool) := 
+  match Delta with mk_tycontext a _ _ _ _ => a end.
+Definition var_types (Delta: tycontext) : PTree.t type := 
+  match Delta with mk_tycontext _ a _ _ _ => a end.
+Definition ret_type (Delta: tycontext) : type := 
+  match Delta with mk_tycontext _ _ a _ _ => a end.
+Definition glob_types (Delta: tycontext) : PTree.t type := 
+  match Delta with mk_tycontext _ _ _ a _ => a end.
+Definition glob_specs (Delta: tycontext) : PTree.t funspec := 
+  match Delta with mk_tycontext _ _ _ _ a => a end.
 
 (** Beginning of typechecking **)
 
@@ -1020,16 +1025,11 @@ destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ],
     end.
 Qed.
 
-Definition globtype (g: global_spec) : type :=
-match g with 
- | Global_func fs => type_of_funspec fs
- | Global_var gv => gv end.
-
 Definition get_var_type (Delta : tycontext) id : option type :=
 match (var_types Delta) ! id with
 | Some ty => Some ty
 | None => match (glob_types Delta) ! id with
-         | Some g => Some (globtype g)
+         | Some g => Some g
          | None => None
            end
 end.
@@ -1230,15 +1230,21 @@ forall id ty, tc ! id = Some (ty) ->
 exists v, Map.get ve id = Some(v,ty).
 
 Definition typecheck_glob_environ 
-(ge: genviron) (tc: PTree.t global_spec) :=
+(ge: genviron) (tc: PTree.t type) :=
 forall id  t,  tc ! id = Some t -> 
 ((exists b, 
-(ge id = Some b /\ typecheck_val (Vptr b Int.zero) (globtype t) = true))).
+(ge id = Some b /\ typecheck_val (Vptr b Int.zero) t = true))).
 
 Definition same_env (rho:environ) (Delta:tycontext)  :=
 forall id t, (glob_types Delta) ! id = Some t ->
-(ve_of rho) id = None \/ exists t,  (var_types Delta) ! id = Some t. 
+  (ve_of rho) id = None 
+  \/ exists t,  (var_types Delta) ! id = Some t. 
 
+(*
+Definition specs_types (Delta: tycontext) :=
+  forall id s, (glob_specs Delta) ! id = Some s ->
+                (glob_types Delta) ! id = Some (type_of_funspec s).
+*)
 (*
 Definition same_mode (ge: genviron) (ve:venviron) 
                      (gt : PTree.t global_spec) (vt : PTree.t type) id  :=
@@ -1262,7 +1268,6 @@ typecheck_temp_environ (te_of rho) (temp_types Delta) /\
 typecheck_var_environ  (ve_of rho) (var_types Delta) /\
 typecheck_glob_environ (ge_of rho) (glob_types Delta) /\
 same_env rho Delta.
- 
 
 (** Denotation functions for each of the assertions that can be produced by the typechecker **)
 
@@ -1408,8 +1413,8 @@ Qed.
 (** Functions that modify type environments **)
 Definition initialized id (Delta: tycontext) : tycontext :=
 match (temp_types Delta) ! id with
-| Some (ty, _) => ( PTree.set id (ty,true) (temp_types Delta)  
-                    , var_types Delta, ret_type Delta, glob_types Delta)
+| Some (ty, _) => mk_tycontext (PTree.set id (ty,true) (temp_types Delta))
+                       (var_types Delta) (ret_type Delta) (glob_types Delta) (glob_specs Delta)
 | None => Delta (*Shouldn't happen *)
 end.
 
@@ -1425,9 +1430,9 @@ Definition join_te te1 te2 : PTree.t (type * bool):=
 PTree.fold (join_te' te2) te1 (PTree.empty (type * bool)).
 
 Definition join_tycon (tycon1: tycontext) (tycon2 : tycontext) : tycontext :=
-match tycon1 with  (te1, ve1, r, vl1)  =>
-match tycon2 with  (te2, _, _, _)  =>
-  ((join_te te1 te2), ve1, r, vl1)
+match tycon1 with  mk_tycontext te1 ve1 r vl1 g1  =>
+match tycon2 with  mk_tycontext te2 _ _ _ _ =>
+  mk_tycontext (join_te te1 te2) ve1 r vl1 g1
 end end.              
 
 
@@ -1469,16 +1474,24 @@ Definition make_tycontext_v (vars : list (ident * type)) :=
    (PTree.empty type) vars. 
 
 Definition make_tycontext_g (V: varspecs) (G: funspecs) :=
-(fold_right (fun (var : ident * funspec) => PTree.set (fst var) (Global_func (snd var))) 
-      (fold_right (fun (v: ident * type) => PTree.set (fst v) (Global_var (snd v)))
+ (fold_right (fun (var : ident * funspec) => PTree.set (fst var) (type_of_funspec (snd var))) 
+      (fold_right (fun (v: ident * type) => PTree.set (fst v) (snd v))
          (PTree.empty _) V)
-            G). 
+            G).
+
+Definition make_tycontext_s (G: funspecs) :=
+ (fold_right (fun (var : ident * funspec) => PTree.set (fst var) (snd var)) 
+            (PTree.empty _) G).
 
 Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type)) (vars: list (ident*type))
                        (return_ty: type)
                        (V: varspecs) (G: funspecs) :  tycontext :=
-(make_tycontext_t params temps, (make_tycontext_v vars), return_ty,
-   make_tycontext_g V G). 
+ mk_tycontext 
+   (make_tycontext_t params temps)
+   (make_tycontext_v vars)
+   return_ty
+   (make_tycontext_g V G)
+   (make_tycontext_s G).
 
 Definition func_tycontext (func: function) (V: varspecs) (G: funspecs) : tycontext :=
   make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G.
@@ -1656,31 +1669,33 @@ Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
                 end)
  /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
  /\ ret_type Delta = ret_type Delta'
- /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id)).               
+ /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id))
+ /\ (forall id, sub_option ((glob_specs Delta) ! id) ((glob_specs Delta') ! id)).               
 
 Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
  (forall id, (temp_types Delta) ! id = (temp_types Delta') ! id)
  /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
  /\ ret_type Delta = ret_type Delta'
- /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id).
+ /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id)
+ /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id).
                 
 Lemma join_tycon_same: forall Delta, tycontext_eqv (join_tycon Delta Delta) Delta.
 Proof.
  intros.
- destruct Delta as [[[? ?] ?] ?].
+ destruct Delta.
  unfold join_tycon.
  repeat split; auto.
  intros. unfold temp_types. simpl.
  unfold join_te.
  rewrite PTree.fold_spec.
  rewrite <- fold_left_rev_right.
- case_eq (t ! id); intros.
+ case_eq (tyc_temps ! id); intros.
  pose proof (PTree.elements_correct _ _ H).
- pose proof (PTree.elements_keys_norepet t).
+ pose proof (PTree.elements_keys_norepet tyc_temps).
  rewrite in_rev in H0.
  rewrite <- list_norepet_rev in H1. rewrite <- map_rev in H1.
  change PTree.elt with positive in *.
- revert H0 H1; induction (rev (PTree.elements t)); intros.
+ revert H0 H1; induction (rev (PTree.elements tyc_temps)); intros.
  inv H0.
  inv H1.
  simpl in H0. destruct H0. subst a.
@@ -1688,19 +1703,19 @@ Proof.
  rewrite PTree.gss.
  destruct b; simpl ;auto.
  simpl. unfold join_te' at 1. destruct a. simpl. destruct p1. simpl in H4.
- case_eq (t ! p0);intros. destruct p1.
+ case_eq (tyc_temps ! p0);intros. destruct p1.
  rewrite PTree.gso. auto.
  intro; subst p0. apply H4. change id with (fst (id,p)). apply in_map; auto.
  auto.
- assert (~ In id (map fst (PTree.elements t))).
+ assert (~ In id (map fst (PTree.elements tyc_temps))).
  intro. apply in_map_iff in H0. destruct H0 as [[id' v] [? ?]]. simpl in *; subst id'.
  apply PTree.elements_complete in H1. congruence.
  rewrite in_rev in H0. rewrite <- map_rev in H0.
- revert H0; induction (rev (PTree.elements t)); intros. simpl. rewrite PTree.gempty; auto.
+ revert H0; induction (rev (PTree.elements tyc_temps)); intros. simpl. rewrite PTree.gempty; auto.
  simpl. destruct a. simpl. unfold join_te' at 1. destruct p0.
  destruct (eq_dec p id). subst p. rewrite  H. apply IHl; auto.
  contradict H0; simpl; auto.
- case_eq (t ! p); intros. destruct p0. 
+ case_eq (tyc_temps ! p); intros. destruct p0. 
  rewrite PTree.gso.
  apply IHl. contradict H0;simpl; auto.
  intro; subst p; congruence.
@@ -1711,7 +1726,7 @@ Lemma tycontext_eqv_symm:
   forall Delta Delta', tycontext_eqv Delta Delta' ->  tycontext_eqv Delta' Delta.
 Proof.
 intros.
-destruct H as [? [? [? ?]]]; repeat split; auto.
+destruct H as [? [? [? [? ?]]]]; repeat split; auto.
 Qed.
 
 Lemma int_eq_e: forall i j, Int.eq i j = true -> i=j.

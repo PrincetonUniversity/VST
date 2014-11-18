@@ -136,23 +136,29 @@ Lemma semax_fun_id:
       forall id fsig (A : Type) (P' Q' : A -> assert)
               Delta P Q c
       (GLBL: (var_types Delta) ! id = None),
-    (glob_types Delta) ! id = Some (Global_func (mk_funspec fsig A P' Q')) ->
+    (glob_specs Delta) ! id = Some (mk_funspec fsig A P' Q') ->
+    (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec fsig A P' Q')) ->
        semax Espec Delta (fun rho => P rho 
                                 && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default)) rho))
                               c Q ->
        semax Espec Delta P c Q.
 Proof.
-intros.
+intros until 1; intro HT; intros.
 rewrite semax_unfold in H0|-*.
 rename H0 into H1; pose proof I.
 intros.
 specialize (H1 psi Delta' w TS Prog_OK k F H2 H3).
 replace ((var_types Delta) ! id) with ((var_types Delta')!id) in GLBL 
   by (destruct TS as [_ [? _]]; symmetry; auto).
-assert (H': (glob_types Delta') ! id = Some (Global_func (mk_funspec fsig A P' Q'))).
-clear - H TS.
-destruct TS as [_ [_ [_ SUB]]]; specialize (SUB id); hnf in SUB; rewrite H in SUB; auto.
-clear H Delta TS. rename H' into H. rename Delta' into Delta.
+assert (H': (glob_specs Delta') ! id = Some (mk_funspec fsig A P' Q')).
+clear - H HT TS.
+destruct TS as [_ [_ [_ [SUB SUBsp]]]].
+specialize (SUBsp id); hnf in SUBsp.  rewrite HT in SUBsp; auto.
+assert (H'': (glob_types Delta') ! id = Some (type_of_funspec (mk_funspec fsig A P' Q'))).
+clear - H HT TS.
+destruct TS as [_ [_ [_ [SUB SUBsp]]]]. specialize (SUB id).
+ hnf in SUB; rewrite H in SUB; auto.
+clear H HT TS Delta. rename H'' into H. rename Delta' into Delta.
 intros te ve w' ? w'' ? ?.
 apply (H1 te ve w' H4 w'' H5); clear H1.
 destruct H6; split; auto.
@@ -170,9 +176,9 @@ rename GLBL into GL1.
 specialize (H1 _ _ H).
 specialize (SAME _ _ H).
 destruct SAME as [SAME | [t SAME]]; [ | congruence].
-clear - H6 H8 H SAME H1.
+clear - H6 H8 H SAME H1 H'.
 destruct H6 as [H6 H6'].
-specialize (H6 _ _  _(necR_refl _) H).
+specialize (H6 _ _  _(necR_refl _) H').
 destruct H6 as [b [? ?]].
 simpl in H0, H1, H2.
 specialize (H8 (Vptr b Int.zero) fsig A P' Q' _ (necR_refl _)).
@@ -185,12 +191,7 @@ split.
 unfold eval_lvalue, eval_var.
 simpl ve_of. unfold Map.get. rewrite SAME.
 simpl. unfold filter_genv. rewrite H0. auto.
-(* replace (eqb_typelist (type_of_params (fst fsig)) (type_of_params (fst fsig))) with true. *)
 simpl; auto.
-(* clear; induction (type_of_params (fst fsig)); simpl; auto. 
-rewrite <- IHt; simpl; auto.
-rewrite eqb_type_refl; auto.
-hnf; auto.*)
 intro loc.
 hnf.
 if_tac; auto.
@@ -204,9 +205,10 @@ Definition func_ptr (f: funspec) : val -> mpred :=
 Lemma semax_fun_id_alt:
       forall id f    Delta (P: assert) Q c
       (GLBL: (var_types Delta) ! id = None),
-    (glob_types Delta) ! id = Some (Global_func f) ->
+    (glob_specs Delta) ! id = Some f ->
+    (glob_types Delta) ! id = Some (type_of_funspec f) ->
        semax Espec Delta (fun rho => P rho && 
-                    (func_ptr f (eval_var id (globtype (Global_func f)) rho)))
+                    (func_ptr f (eval_var id (type_of_funspec f) rho)))
                   c Q ->
        semax Espec Delta P c Q.
 Proof. 
@@ -540,7 +542,8 @@ Lemma semax_call_typecheck_environ:
     (TC5 : typecheck_glob_environ (filter_genv psi) (glob_types Delta))
    (H : forall (b : ident) (b0 : funspec) (a' : rmap),
     necR (m_phi jm') a' ->
-    (glob_types Delta) ! b = Some (Global_func b0) ->
+    (glob_specs Delta) ! b = Some b0 ->
+(*    (glob_types Delta) ! b = Some (type_of_funspec b0) -> *)
     exists b1 : block,
         filter_genv psi b = Some b1 /\ 
         func_at b0 (b1,0) a')
@@ -549,7 +552,7 @@ Lemma semax_call_typecheck_environ:
      (func_at' b0 (b, 0)) a' ->
      exists (b1 : ident),
        filter_genv psi b1 = Some b /\
-       (exists fs : funspec, (glob_types Delta) ! b1 = Some (Global_func fs)))
+       (exists fs : funspec, (glob_specs Delta) ! b1 = Some fs))
    (l : list ident) (l0 : list type) 
     (Heqp : (l, l0) = split (fn_params f))
    (TC2 : denote_tc_assert (typecheck_exprlist Delta l0 bl)
@@ -561,8 +564,11 @@ Lemma semax_call_typecheck_environ:
    (TE : typecheck_environ
         Delta (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx))),
    typecheck_environ
-     (make_tycontext_t (fn_params f) (fn_temps f), make_tycontext_v (fn_vars f),
-     fn_return f, glob_types Delta) (mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
+    (mk_tycontext
+      (make_tycontext_t (fn_params f) (fn_temps f))
+      (make_tycontext_v (fn_vars f))
+      (fn_return f)  (glob_types Delta) (glob_specs Delta))
+     (mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
 Proof.
  intros.
  pose (rho3 := mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
@@ -1407,12 +1413,12 @@ Qed.
 
 Lemma same_glob_funassert':
   forall Delta1 Delta2 rho rho',
-     (forall id, (glob_types Delta1) ! id = (glob_types Delta2) ! id) ->
+     (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
       ge_of rho = ge_of rho' ->
               funassert Delta1 rho = funassert Delta2 rho'.
 Proof.
 assert (forall Delta Delta' rho rho',  
-             (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id) ->
+             (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id) ->
              ge_of rho = ge_of rho' ->
              funassert Delta rho |-- funassert Delta' rho').
 intros.
@@ -2168,7 +2174,7 @@ Lemma semax_call_aux:
     (funassert Delta rho) (m_phi jm) ->
     (rguard Espec psi (exit_tycon (Scall ret a bl) Delta) (frame_ret_assert R F0) k) (level (m_phi jm)) ->
     (believe Espec Delta psi Delta) (level (m_phi jm)) ->
-    (glob_types Delta)!id = Some (Global_func (mk_funspec fsig A P Q')) ->
+    (glob_specs Delta)!id = Some (mk_funspec fsig A P Q') ->
     Genv.find_symbol psi id = Some b ->
     (forall vl : environ, (!|>(Q' x vl <=> Q x vl)) (m_phi jm)) ->
     (|>(F0 rho * F rho *
@@ -2379,7 +2385,7 @@ apply sepcon_derives.
  rewrite free_juicy_mem_core; auto.
  intros. unfold exit_tycon; simpl.
  destruct ret; simpl; auto.
- rewrite set_temp_ge; auto.
+ rewrite set_temp_gs; auto.
 }
 specialize (H1 ora' jm2).
 specialize (H1 (eq_refl _) (eq_refl _)).
@@ -2503,7 +2509,7 @@ Focus 2. simpl.
 split; [ | reflexivity].
 apply MATCH.
 rewrite (age_jm_dry H20x) in H15.
-hnf. unfold func_tycontext'.
+unfold func_tycontext'.
 unfold construct_rho.  
 
 clear - H0 TC2 TC3 H18 H16 H21 H15 H23 H17 H17'. 

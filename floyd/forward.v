@@ -541,7 +541,8 @@ The lemma goes here, because it imports from both forward_lemmas and call_lemmas
 Lemma semax_call_id1_x:
  forall Espec Delta P Q R ret ret' id retty retty' bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
-   (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty') A Pre Post)) ->
+   (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') A Pre Post) ->
+   (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') A Pre Post)) ->
    match retty' with Tvoid => False | Tcomp_ptr _ _ => False | Tarray _ _ _ => False | _ => True end ->
   forall
    (CLOSQ: Forall (closed_wrt_vars (eq ret')) Q)
@@ -560,13 +561,13 @@ Lemma semax_call_id1_x:
           PROPx P (LOCALx (map (subst ret (`old)) Q) 
              (SEPx (`(Post x) (get_result1 ret) :: map (subst ret (`old)) R))))).
 Proof.
+ intros until 1. intro Hspecs.
  pose (H1:=True); pose (H2:=True).
-
- intros until 4. pose proof I. intros.  clear H3. (* rename H3 into NONVOL. *)
+ intros ? ? ?. pose proof I. intros.  clear H3. (* rename H3 into NONVOL. *)
  eapply semax_seq';
  [assert (H0':    match retty' with Tvoid => False | _ => True end)
   by (clear - H0; destruct retty'; try contradiction; auto);
-   apply (semax_call_id1' _ _ P Q R _ _ _ bl _ _ x _ _ GLBL H H0'); auto
+   apply (semax_call_id1' _ _ P Q R _ _ _ bl _ _ x _ _ GLBL Hspecs H H0'); auto
  | ].
 simpl. rewrite H4; auto.
 match goal with |- semax ?D (PROPx ?P ?QR) ?c ?Post =>
@@ -683,7 +684,8 @@ Lemma semax_call_id1_x_alt:
                   (argsig: list (ident * type)) A (Pre Post: A -> environ -> mpred)
              (witness: A) (Frame: list (LiftEnviron mpred))
    (GLBL: (var_types Delta) ! id = None),
-   (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty') A Pre Post)) ->
+   (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') A Pre Post) ->
+   (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') A Pre Post)) ->
    typeof_temp Delta ret = Some retty -> 
    match retty with Tvoid => False | Tcomp_ptr _ _ => False | Tarray _ _ _ => False | _ => True end ->
    paramty = type_of_params argsig ->
@@ -706,7 +708,8 @@ Lemma semax_call_id1_x_alt:
           PROPx P (LOCALx (map (subst ret (`old)) Q) 
              (SEPx (`(Post witness) (get_result1 ret) :: map (subst ret (`old)) Frame))))).
 Proof.
-intros until 5. pose proof I. intros.
+ intros until 1. intro Hspec. intros ? ? ? ?.
+ pose proof I. intros.
 subst paramty.
 eapply semax_pre; [ | apply semax_call_id1_x with retty; try eassumption].
 rewrite <- (insert_local (tc_exprlist Delta (argtypes argsig) bl)).
@@ -1043,10 +1046,10 @@ Ltac ensure_open_normal_ret_assert :=
  | |- semax _ _ _ (normal_ret_assert ?X) => is_evar X
  end.
 Ltac get_global_fun_def Delta f fsig A Pre Post :=
-    let VT := fresh "VT" in let GT := fresh "GT" in  
+    let VT := fresh "VT" in let GT := fresh "GT" in
       assert (VT: (var_types Delta) ! f = None) by 
                (reflexivity || fail 1 "Variable " f " is not a function, it is an addressable local variable");
-      assert (GT: (glob_types Delta) ! f = Some (Global_func (mk_funspec fsig A Pre Post)))
+      assert (GT: (glob_specs Delta) ! f = Some (mk_funspec fsig A Pre Post))
                     by ((unfold fsig, Pre, Post; try unfold A; simpl; reflexivity) || 
                           fail 1 "Function " f " has no specification in the type context");
      clear VT GT.
@@ -1108,8 +1111,8 @@ Ltac forward_call_complain' Delta id :=
      assert (H1: (var_types Delta) ! id = None) 
         by (reflexivity || fail 4 "The function-identifier " id " is not a global variable");
      clear H1;
-    assert (match (glob_types Delta) ! id with
-               | Some (Global_func (mk_funspec _ t _ _)) => Some t
+    assert (match (glob_specs Delta) ! id with
+               | Some (mk_funspec _ t _ _) => Some t
                | _ => None
                end = None);
      simpl; 
@@ -1208,7 +1211,7 @@ match goal with
    let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
    eapply semax_seq';
     [eapply (semax_call_id1_x_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-      [reflexivity | reflexivity | reflexivity | apply I | reflexivity | reflexivity 
+      [reflexivity | reflexivity | reflexivity | reflexivity | apply I | reflexivity | reflexivity 
       | (*reflexivity |*) reflexivity | auto 50 with closed | | unfold Frame; clear Frame ]
     | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; 
       intro_old_var' i; autorewrite with subst; unfold Frame; clear Frame;
@@ -1219,7 +1222,7 @@ match goal with
    let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
    eapply semax_post_flipped3;
     [eapply (semax_call_id1_x_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-      [reflexivity | reflexivity | reflexivity | apply I | reflexivity | reflexivity 
+      [reflexivity | reflexivity | reflexivity | reflexivity | apply I | reflexivity | reflexivity 
       | (*reflexivity |*) reflexivity | auto 50 with closed | | unfold Frame; clear Frame ]
     | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; 
       intro_old_var' i; autorewrite with subst; unfold Frame; clear Frame;
@@ -1230,7 +1233,7 @@ match goal with
   let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
   eapply semax_seq';
   [eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-         [reflexivity | reflexivity | reflexivity | normalize_make_args ]
+         [reflexivity | reflexivity | reflexivity | reflexivity | normalize_make_args ]
   | cbv beta iota; try simple apply elim_useless_retval;
     simpl update_tycon; abbreviate_semax; unfold Frame; clear Frame;
     say_after_call ]
@@ -1239,7 +1242,7 @@ match goal with
   let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
    eapply semax_post_flipped3;
   [eapply (semax_call_id0_alt _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-         [reflexivity | reflexivity | reflexivity | normalize_make_args ]
+         [reflexivity | reflexivity | reflexivity | reflexivity | normalize_make_args ]
   | cbv beta iota; try simple apply elim_useless_retval;
     try rewrite exp_andp2;
     try rewrite insert_local; unfold Frame; clear Frame;
@@ -1248,7 +1251,7 @@ match goal with
    let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
    eapply semax_seq';
     [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-            [reflexivity | reflexivity | apply I 
+            [reflexivity | reflexivity | reflexivity | apply I 
             | simpl; first [apply I | reflexivity]
             |reflexivity | normalize_make_args ]
     | simpl update_tycon; abbreviate_semax; apply extract_exists_pre; 
@@ -1259,7 +1262,7 @@ match goal with
    let Frame := fresh "Frame" in evar (Frame: list (environ->mpred));
    eapply semax_post_flipped3;
     [eapply (semax_call_id1_alt _ _ _ _ _ _ _ _ _ _ _ _ _ _ witness Frame);
-            [reflexivity | reflexivity | apply I 
+            [reflexivity | reflexivity | reflexivity | apply I 
             | simpl; first [apply I | reflexivity]
             | reflexivity | normalize_make_args ]
     | try rewrite exp_andp2;

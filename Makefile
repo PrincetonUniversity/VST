@@ -141,7 +141,6 @@ FLOYD_FILES= \
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
-   entail_examples.v \
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
   verif_float.v verif_dotprod.v \
   verif_nest3.v verif_nest2.v prod.v \

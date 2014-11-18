@@ -150,7 +150,7 @@ Lemma typecheck_environ_sub:
    forall rho,
    typecheck_environ Delta' rho -> typecheck_environ Delta rho.
 Proof.
-intros ? ? [? [? [? ?]]] ?  [? [? [? ?]]].
+intros ? ? [? [? [? [? Hs]]]] ?  [? [? [? ?]]].
 split; [ | split; [ | split]].
 * clear - H H3.
  hnf; intros.
@@ -508,7 +508,7 @@ Definition empty_genv : Clight.genv :=
   Genv.globalenv (AST.mkprogram (F:=Clight.fundef)(V:=type) nil ( 1%positive)).
 
 Lemma empty_program_ok: forall Delta ge w, 
-    glob_types Delta = PTree.empty _ -> 
+    glob_specs Delta = PTree.empty _ -> 
     believe Espec Delta ge Delta w.
 Proof.
 intros Delta ge w ?. 
@@ -560,11 +560,11 @@ Qed.
 
 Lemma same_glob_funassert:
   forall Delta1 Delta2,
-     (forall id, (glob_types Delta1) ! id = (glob_types Delta2) ! id) ->
+     (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
               funassert Delta1 = funassert Delta2.
 Proof.
 assert (forall Delta Delta' rho, 
-             (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id) ->
+             (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id) ->
              funassert Delta rho |-- funassert Delta' rho).
 intros.
 unfold funassert.
@@ -583,7 +583,7 @@ Lemma initialized_tycontext_eqv:
     tycontext_eqv (initialized i Delta) (initialized i Delta').
 Proof.
 intros. unfold tycontext_eqv, initialized in *.
-destruct H as [? [? [? ?]]].
+destruct H as [? [? [? [? ?]]]].
 rewrite (H i).
 destruct ((temp_types Delta') ! i); auto.
 destruct p.
@@ -600,25 +600,22 @@ Lemma join_tycontext_eqv:
     tycontext_eqv (join_tycon Delta1 Delta2)  (join_tycon Delta1' Delta2').
 Proof.
 intros.
-destruct H as [? [? [? ?]]].
-destruct H0 as [? [? [? ?]]].
-destruct Delta1 as [[[? ?] ?] ?].
-destruct Delta2 as [[[? ?] ?] ?].
-destruct Delta1' as [[[? ?] ?] ?].
-destruct Delta2' as [[[? ?] ?] ?].
+destruct H as [? [? [? [? ?]]]].
+destruct H0 as [? [? [? [? ?]]]].
+destruct Delta1, Delta2, Delta1', Delta2'.
 unfold join_tycon; simpl in *; repeat split; auto.
 unfold temp_types in *; simpl in *.
 clear - H H0.
 intro id.
 unfold join_te.
 repeat rewrite PTree.fold_spec.
-replace (PTree.elements t7) with (PTree.elements t) by (apply PTree.elements_extensional; auto).
+replace (PTree.elements tyc_temps1) with (PTree.elements tyc_temps) by (apply PTree.elements_extensional; auto).
 repeat rewrite <- fold_left_rev_right.
-induction (rev (PTree.elements t)); simpl; intros; auto.
+induction (rev (PTree.elements tyc_temps)); simpl; intros; auto.
 unfold join_te' at 1 3. destruct a. simpl.
 destruct p0.
 rewrite <- (H0 p).
-destruct (t3 ! p); auto.
+destruct (tyc_temps0 ! p); auto.
 destruct p0.
 destruct (eq_dec p id). subst. repeat rewrite PTree.gss; auto.
 repeat rewrite (PTree.gso); auto.
@@ -665,7 +662,7 @@ unfold guard_environ; intros.
  unfold typecheck_environ in *.
 unfold tycontext_eqv in *. 
 destruct H0 as [? [? [? ?]]].
- destruct H as [? [? [? ?]]].
+ destruct H as [? [? [? [? Hs]]]].
 intuition; auto. unfold typecheck_temp_environ in *. 
 intros. 
 rewrite <- H in *. eauto. 
@@ -682,8 +679,8 @@ Lemma tycontext_sub_trans:
   tycontext_sub Delta1 Delta2 -> tycontext_sub Delta2 Delta3 ->
   tycontext_sub Delta1 Delta3.
 Proof.
-intros ? ? ? [G1 [G2 [G3 G4]]] [H1 [H2 [H3 H4]]].
-split; [ | split3].
+intros ? ? ? [G1 [G2 [G3 [G4 G5]]]] [H1 [H2 [H3 [H4 H5]]]].
+repeat split.
 * intros. specialize (G1 id); specialize (H1 id).
  destruct ((temp_types Delta1) ! id); auto.
  destruct p. destruct ((temp_types Delta2) ! id); 
@@ -698,6 +695,10 @@ split; [ | split3].
   clear - G4 H4. hnf in G4, H4 |- *.
   destruct ( (glob_types Delta1) ! id); auto.
   rewrite G4 in H4. auto.
+* intros. specialize (G5 id); specialize (H5 id).
+  clear - G5 H5. hnf in G5, H5 |- *.
+  destruct ( (glob_specs Delta1) ! id); auto.
+  rewrite G5 in H5. auto.
 Qed.
 
 Lemma semax_extensionality0:

@@ -267,7 +267,7 @@ Hint Rewrite lift_identity : norm.
 Lemma tc_eval_gvar_zero:
   forall Delta t i rho, tc_environ Delta rho ->
             (var_types Delta) ! i = None ->
-            (glob_types Delta) ! i = Some (Global_var t) ->
+            (glob_types Delta) ! i = Some t ->
             exists b, eval_var i t rho = Vptr b Int.zero.
 Proof.
  intros. unfold eval_var; simpl.
@@ -287,7 +287,7 @@ Qed.
 Lemma tc_eval_gvar_i:
   forall Delta t i rho, tc_environ Delta rho ->
             (var_types Delta) ! i = None ->
-            (glob_types Delta) ! i = Some (Global_var t) ->
+            (glob_types Delta) ! i = Some t ->
              tc_val (Tpointer t noattr) (eval_var i t rho).
 Proof.
  intros.
@@ -569,33 +569,11 @@ Hint Rewrite eval_expropt_Some eval_expropt_None : eval.
 
 Definition Ews (* extern_write_share *) := Share.splice extern_retainer Tsh.
 
-Lemma globfun_eval_var:
-  forall Delta rho id f,
-      tc_environ Delta rho ->
-     (var_types Delta) ! id = None ->
-     (glob_types Delta) ! id = Some  (Global_func f) ->
-     exists b, eval_var id (type_of_funspec f) rho = Vptr b Int.zero /\
-             ge_of rho id = Some b.
-Proof.
-intros.
-unfold tc_environ, typecheck_environ in H.
-repeat rewrite andb_true_iff in H.
-destruct H as [Ha [Hb [Hc Hd]]].
-hnf in Hc.
-specialize (Hc _ _ H1). destruct Hc as [b [Hc Hc']].
-exists b.
-unfold eval_var; simpl.
-apply Hd in H1. 
-destruct H1 as [? | [? ?]]; [ | congruence].
-unfold Map.get; rewrite H. rewrite Hc.
-auto.
-Qed.
-
 Lemma globvar_eval_var:
   forall Delta rho id t,
       tc_environ Delta rho ->
      (var_types Delta) ! id = None ->
-     (glob_types Delta) ! id = Some  (Global_var t) ->
+     (glob_types Delta) ! id = Some  t ->
      exists b,  eval_var id t rho = Vptr b Int.zero
             /\ ge_of rho id = Some b.
 Proof.
@@ -1024,7 +1002,7 @@ Lemma eval_var_isptr:
             tc_environ Delta rho ->
             ((var_types Delta) ! i = Some t \/ 
              (var_types Delta)!i = None /\
-            (glob_types Delta) ! i = Some (Global_var t)) ->
+            (glob_types Delta) ! i = Some t) ->
             isptr (eval_var i t rho).
 Proof.
  intros.

@@ -189,10 +189,12 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
 Definition func_tycontext' (func: function) (Delta: tycontext) : tycontext :=
-(make_tycontext_t (fn_params func) (fn_temps func),
-make_tycontext_v (fn_vars func) ,
-fn_return func,
- glob_types Delta).
+ mk_tycontext
+   (make_tycontext_t (fn_params func) (fn_temps func))
+   (make_tycontext_v (fn_vars func))
+   (fn_return func)
+   (glob_types Delta)
+   (glob_specs Delta).
 
 Definition var_sizes_ok (vars: list (ident*type)) := 
    Forall (fun var : ident * type => sizeof (snd var) <= Int.max_unsigned)%Z vars.
@@ -214,7 +216,7 @@ Definition believe_internal_
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
 Definition claims (ge: genv) (Delta: tycontext) v fsig A P Q : Prop :=
-  exists id, (glob_types Delta)!id = Some (Global_func (mk_funspec fsig A P Q)) /\
+  exists id, (glob_specs Delta)!id = Some (mk_funspec fsig A P Q) /\
     exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Int.zero.
 
 Definition believepred (Espec: OracleKind) (semax: semaxArg -> pred nat)

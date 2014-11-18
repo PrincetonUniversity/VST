@@ -85,7 +85,8 @@ rewrite prop_true_andp by auto.
 rewrite prop_true_andp by auto.
 rewrite sepcon_comm; auto.
 replace (funassert (exit_tycon c Delta' EK_normal)) with (funassert Delta'); auto.
-apply same_glob_funassert; simpl; auto. rewrite glob_types_update_tycon; auto.
+apply same_glob_funassert; simpl; auto.
+rewrite glob_specs_update_tycon; auto.
 subst rho'. 
 hnf in Hsafe.
 change R.rmap with rmap in *.

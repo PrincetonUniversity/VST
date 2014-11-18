@@ -135,16 +135,17 @@ Lemma semax_fun_id':
       forall id f
               Espec Delta P Q R PostCond c
             (GLBL: (var_types Delta) ! id = None),
-            (glob_types Delta) ! id = Some (Global_func f) ->
+       (glob_specs Delta) ! id = Some f ->
+       (glob_types Delta) ! id = Some (type_of_funspec f) ->
        @semax Espec Delta 
         (PROPx P (LOCALx Q 
-        (SEPx (`(func_ptr' f) (eval_var id (globtype (Global_func f))) :: R))))
+        (SEPx (`(func_ptr' f) (eval_var id (type_of_funspec f)) :: R))))
                               c PostCond ->
        @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) c PostCond.
 Proof.
 intros. 
 apply (semax_fun_id id f Delta); auto.
-eapply semax_pre0; [ | apply H0].
+eapply semax_pre0; [ | apply H1].
 unfold PROPx,LOCALx,SEPx,local, lift1; unfold_lift; simpl;
 intro rho; normalize.
 rewrite andp_comm.
@@ -164,7 +165,8 @@ Qed.
 Lemma semax_call_id0:
  forall Espec Delta P Q R id bl argsig retty A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
-   (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig, retty) A Pre Post)) ->
+       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) A Pre Post) ->
+       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) A Pre Post)) ->
   @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: Q)
                  (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) :: R))))
     (Scall None (Evar id (Tfunction (type_of_params argsig) retty cc_default)) bl)
@@ -180,7 +182,7 @@ simpl. subst. reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,retty) A Pre Post); auto.
 subst. 
 
-eapply semax_pre_simple; [ | apply (@semax_call0 Espec Delta A Pre Post x argsig _ _ bl P Q R H0)].
+eapply semax_pre_simple; [ | apply (@semax_call0 Espec Delta A Pre Post x argsig _ _ bl P Q R H1)].
 apply andp_left2.
 apply andp_derives; auto.
 apply andp_derives; auto.
@@ -190,7 +192,7 @@ norm_rewrite. repeat rewrite prop_and.
 apply andp_right.
 apply prop_right. hnf.
 simpl.
-unfold get_var_type. rewrite GLBL. rewrite H.
+unfold get_var_type. rewrite GLBL. rewrite H0.
 simpl.
 rewrite eqb_typelist_refl.
 simpl. auto.
@@ -211,7 +213,8 @@ Qed.
 Lemma semax_call_id1:
  forall Espec Delta P Q R ret id retty bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
-   (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty) A Pre Post)) ->
+       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) A Pre Post) ->
+       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) A Pre Post)) ->
    match retty with
    | Tvoid => False
    | _ => True
@@ -227,7 +230,8 @@ Lemma semax_call_id1:
           PROPx P (LOCALx (map (subst ret (`old)) Q) 
              (SEPx (`(Post x) (get_result1 ret) :: map (subst ret (`old)) R))))).
 Proof.
-intros. rename H1 into Hret.
+intros. rename H0 into Ht. rename H1 into H0.
+ rename H2 into Hret.
 assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty cc_default)))=
                Cop.fun_case_f (type_of_params argsig) retty cc_default).
 subst; reflexivity.
@@ -243,7 +247,7 @@ norm_rewrite. repeat rewrite prop_and.
 apply andp_right.
 apply prop_right. hnf.
 simpl.
-unfold get_var_type. rewrite GLBL. rewrite H.
+unfold get_var_type. rewrite GLBL. rewrite Ht.
 simpl.
 rewrite eqb_typelist_refl.
 rewrite eqb_type_refl.
@@ -263,7 +267,8 @@ Qed.
 Lemma semax_call_id0_alt:
  forall Espec Delta P Q R id bl argsig paramty retty A witness Frame Pre Post
    (GLBL: (var_types Delta) ! id = None),
-   (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig, retty) A Pre Post)) ->
+       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) A Pre Post) ->
+       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) A Pre Post)) ->
    paramty = type_of_params argsig ->
   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
   PROPx nil (LOCALx (tc_exprlist Delta (argtypes argsig) bl ::nil) 
@@ -295,7 +300,8 @@ Qed.
 Lemma semax_call_id1_alt:
  forall Espec Delta P Q R ret id paramty retty bl argsig A Pre Post witness Frame
    (GLBL: (var_types Delta) ! id = None),
-   (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty) A Pre Post)) ->
+       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) A Pre Post) ->
+       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) A Pre Post)) ->
    match retty with
    | Tvoid => False
    | _ => True
@@ -314,7 +320,7 @@ Lemma semax_call_id1_alt:
 Proof.
 intros. subst paramty.
 eapply semax_pre;  [ | apply semax_call_id1; eauto].
-clear H GLBL H0.
+clear H GLBL H0 H1.
 rewrite <- (insert_local (tc_exprlist _ _ _)).
 apply andp_right.
 eapply derives_trans; [ eassumption | ].
@@ -334,7 +340,8 @@ Qed.
 Lemma semax_call_id1':
  forall Espec Delta P Q R ret id retty bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
-   (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty) A Pre Post)) ->
+       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) A Pre Post) ->
+       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) A Pre Post)) ->
    match retty with
    | Tvoid => False
    | _ => True
@@ -351,10 +358,10 @@ Lemma semax_call_id1':
     (normal_ret_assert 
        (PROPx P (LOCALx Q   (SEPx (`(Post x) (get_result1 ret) ::  R))))).
 Proof.
-intros. rename H1 into Hret.
+intros. rename H2 into Hret.
 eapply semax_post;
   [ | apply (semax_call_id1 Espec Delta P Q R ret id retty bl argsig A x Pre Post 
-     GLBL H H0 Hret)].
+     GLBL H H0 H1 Hret)].
 intros ek vl.
 apply andp_left2.
 unfold normal_ret_assert.
@@ -387,7 +394,8 @@ Qed.
 Lemma semax_call_id1_Eaddrof:
  forall Espec Delta P Q R ret id retty bl argsig A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
-   (glob_types Delta) ! id = Some (Global_func (mk_funspec (argsig,retty) A Pre Post)) ->
+       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) A Pre Post) ->
+       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) A Pre Post)) ->
    match retty with
    | Tvoid => False
    | _ => True
@@ -403,13 +411,13 @@ Lemma semax_call_id1_Eaddrof:
           PROPx P (LOCALx (map (subst ret (`old)) Q) 
              (SEPx (`(Post x) (get_result1 ret) :: map (subst ret (`old)) R))))).
 Proof.
-intros. rename H1 into Hret.
+intros. rename H2 into Hret.
 assert (Cop.classify_fun (typeof (Eaddrof (Evar id (Tfunction (type_of_params argsig) retty cc_default)) (Tpointer (Tfunction (type_of_params argsig) retty cc_default) noattr)))=
                Cop.fun_case_f (type_of_params argsig) retty cc_default).
 subst; reflexivity.
 apply semax_fun_id' with id (mk_funspec (argsig,retty) A Pre Post); auto.
 subst. 
-eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post x ret argsig retty _ bl P Q R H1 H0 Hret)].
+eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post x ret argsig retty _ bl P Q R H2 H1 Hret)].
 apply andp_left2.
 apply andp_derives; auto.
 apply andp_derives; auto.
@@ -419,7 +427,7 @@ norm_rewrite. repeat rewrite prop_and.
 apply andp_right.
 apply prop_right. hnf.
 simpl.
-unfold get_var_type. rewrite GLBL. rewrite H.
+unfold get_var_type. rewrite GLBL. rewrite H0.
 simpl.
 rewrite eqb_typelist_refl.
 rewrite eqb_type_refl.

@@ -31,7 +31,7 @@ intros.
 apply same_glob_funassert.
 intro.
 unfold exit_tycon; simpl. destruct ek; auto.
-rewrite glob_types_update_tycon. auto.
+rewrite glob_specs_update_tycon. auto.
 Qed.
 
 Lemma strict_bool_val_sub : forall v t b, 
@@ -53,7 +53,7 @@ Qed.
 Lemma ret_type_join_tycon:
   forall Delta Delta', ret_type (join_tycon Delta Delta') = ret_type Delta.
 Proof.
- intros; destruct Delta as [[[?  ?] ? ] ?]; destruct Delta' as [[[?  ?] ? ] ?]; reflexivity.
+ intros; destruct Delta, Delta'; reflexivity.
 Qed.
 
 Lemma ret_type_update_tycon:
@@ -77,7 +77,7 @@ Qed.
 
 Lemma funassert_update_tycon:
   forall Delta h, funassert (update_tycon Delta h) = funassert Delta.
-intros; apply same_glob_funassert. rewrite glob_types_update_tycon. auto.
+intros; apply same_glob_funassert. rewrite glob_specs_update_tycon. auto.
 Qed.
 
 
@@ -96,17 +96,17 @@ Lemma tycontext_evolve_join:
    tycontext_evolve Delta Delta2 ->
    tycontext_evolve Delta (join_tycon Delta1 Delta2).
 Proof.
-intros [[[A B] C] D] [[[A1 B1] C1] D1] [[[A2 B2] C2] D2]
-  [? [? [? ?]]] [? [? [? ?]]];
+intros [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
+  [? [? [? [? ?]]]] [? [? [? [? ?]]]];
 simpl in *;
  repeat split; auto.
- clear - H H3.
-intro id; specialize (H id); specialize (H3 id).
+ clear - H H4.
+intro id; specialize (H id); specialize (H4 id).
  unfold temp_types in *; simpl in *.
  destruct (A ! id) as [[? ?]|].
  destruct (A1 ! id) as [[? ?]|] eqn:?; [ | contradiction].
  destruct (A2 ! id) as [[? ?]|] eqn:?; [ | contradiction].
- destruct H,H3; subst t1 t0.
+ destruct H,H4; subst t1 t0.
  rewrite (join_te_eqv _ _ _ _ _ _ Heqo Heqo0).
  split; auto. destruct b,b0; inv H0; auto.
  rewrite join_te_denote2.
@@ -376,15 +376,16 @@ intros v fsig A P Q; specialize (Prog_OK v fsig A P Q).
 intros ? ? ?. specialize (Prog_OK a' H).
 spec Prog_OK.
 destruct H0 as [id [? ?]]. exists id; split; auto.
-rewrite glob_types_update_tycon in H0. auto.
+rewrite glob_specs_update_tycon in H0. auto.
 destruct Prog_OK; [ left; auto | right].
 destruct H1 as [b [f ?]]; exists b,f.
 destruct H1; split; auto.
 intro x; specialize (H2 x).
 replace (func_tycontext' f (update_tycon Delta' h)) with (func_tycontext' f Delta'); auto.
 unfold func_tycontext'.
-f_equal; try reflexivity. apply eq_refl.
+f_equal; try reflexivity.
 rewrite glob_types_update_tycon; auto.
+rewrite glob_specs_update_tycon; auto.
 assert ((guard Espec psi Delta' (fun rho : environ => F rho * P rho)%pred
    (Kseq h :: Kseq t :: k)) w).
 Focus 2.

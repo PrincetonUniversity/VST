@@ -110,14 +110,14 @@ Lemma tc_environ_init: forall Delta id rho,
                          tc_environ Delta rho.
 Proof.  
 intros.
-unfold tc_environ in *. destruct Delta. destruct p. destruct p.
+unfold tc_environ in *. destruct Delta.
 unfold initialized in *. simpl in *. unfold temp_types in *.
 unfold var_types in *. unfold ret_type in *. simpl in *.
-remember (t1 ! id). destruct o; auto.
+remember (tyc_temps ! id). destruct o; auto.
 destruct p. unfold typecheck_environ in *. intuition.
 clear - H0 Heqo. unfold typecheck_temp_environ in *.
 intros. destruct (eq_dec id id0). subst.
-specialize (H0 id0 true t3). spec H0.
+specialize (H0 id0 true t). spec H0.
 unfold temp_types in *. simpl in *. rewrite PTree.gss. auto.
 destruct H0. exists x. intuition. unfold temp_types in *.
 simpl in H. rewrite H in *. inv Heqo. auto.
@@ -157,13 +157,13 @@ Lemma tycontext_eqv_sub:
          tycontext_sub Delta Delta'.
 Proof.
 intros.
-destruct H as [? [? [? ?]]].
+destruct H as [? [? [? [? ?]]]].
 repeat split; intros; auto.
 rewrite H; auto.
 destruct ((temp_types Delta') ! id); auto.
 destruct p. split; auto. destruct b; reflexivity.
-rewrite H2.
-destruct ((glob_types Delta') ! id); simpl; auto.
+rewrite H2. destruct ((glob_types Delta') ! id); simpl; auto.
+rewrite H3. destruct ((glob_specs Delta') ! id); simpl; auto.
 Qed.
 
 Lemma semax_while : 
