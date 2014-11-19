@@ -9,6 +9,8 @@ Require Import MirrorCore.RTac.RTac.
 *)
 Require Import func_defs.
 Import MirrorCore.Lambda.Expr.
+Require Import MirrorCore.RTac.RTac.
+Check ExprUVar.
 Require Import MirrorCore.Lemma.
 Require Import MirrorCharge.RTac.ReifyLemma.
 Require Import MirrorCharge.RTac.Apply.
@@ -171,8 +173,10 @@ Definition SIMPL_DELTA : rtac typ (ExprCore.expr typ func) subst:=
 SIMPLIFY (fun _ _ =>beta_all update_tycon_tac nil nil).
 
 Definition INTROS := (REPEAT 10 (INTRO typ func subst)).
-
-Definition APPLY_SKIP :=  (APPLY typ func subst skip_lemma).
+Locate APPLY.
+Print MirrorCore.RTac.Apply.APPLY.
+Print APPLY.
+Definition APPLY_SKIP :=  (APPLY typ func  skip_lemma).
 
 
 Definition run_tac (t: rtac typ (ExprCore.expr typ func) subst) e := 

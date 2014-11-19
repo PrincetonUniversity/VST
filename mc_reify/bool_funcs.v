@@ -1,7 +1,9 @@
 Require Import veric.expr.
 Require Import veric.SeparationLogic.
+Require Import floyd.local2ptree.
+Require Import floyd.client_lemmas.
 Require Import Coq.Bool.Bool.
-
+Require Import Coq.Lists.List.
 
 Fixpoint denote_tc_assert_b_norho a:=
 match a with 
@@ -79,3 +81,9 @@ Fixpoint msubst_eval_expr_norho (T1: PTree.t val) (T2: PTree.t (type * val)) (e:
   | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue_norho T1 T2 a)
   | _  => Some Vundef
   end.
+
+Definition localD (temps : PTree.t val) (locals : PTree.t (type * val)) :=
+LocalD temps locals nil.
+
+Definition assertD (P : list Prop) (Q : list (environ -> Prop)) (sep : list mpred) := 
+PROPx P (LOCALx Q (SEPx (map (liftx) sep))).
