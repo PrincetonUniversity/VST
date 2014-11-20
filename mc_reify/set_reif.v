@@ -202,12 +202,12 @@ Check PTree.set.
 Definition my_set {T} := @PTree.set T.
 
 Lemma semax_set_localD id e (t: PTree.t (type * bool)) (v : PTree.t type) 
-      (r : type) :
-forall vl ls vs Espec R (g : PTree.t global_spec),
-tc_expr_b_norho (t, v, r, g) e= true ->
-tc_temp_id_b_norho id (typeof e) (t, v, r, g) e = true ->
+      (r : type) (gt : PTree.t type):
+forall vl ls vs Espec R gs,
+tc_expr_b_norho (mk_tycontext t v r gt gs) e= true ->
+tc_temp_id_b_norho id (typeof e) (mk_tycontext t v r gt gs) e = true ->
 msubst_eval_expr_norho ls vs e = Some vl ->
-@semax Espec (t, v, r, g) (assertD nil (localD ls vs) R)
+@semax Espec (mk_tycontext t v r gt gs) (assertD nil (localD ls vs) R)
       (Sset id e)
 (normal_ret_assert (assertD nil (localD (my_set id vl ls) vs) R)).
 Proof.

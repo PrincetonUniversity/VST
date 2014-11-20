@@ -169,22 +169,23 @@ match e with
     | _ => AppN.apps e args
 end.
 
-Definition SIMPL_DELTA : rtac typ (ExprCore.expr typ func) subst:=
-SIMPLIFY (fun _ _ =>beta_all update_tycon_tac nil nil).
+Instance MA : MentionsAny (expr typ func) := {
+  mentionsAny := ExprCore.mentionsAny
+}.
 
-Definition INTROS := (REPEAT 10 (INTRO typ func subst)).
-Locate APPLY.
-Print MirrorCore.RTac.Apply.APPLY.
-Print APPLY.
+Definition SIMPL_DELTA : rtac typ (ExprCore.expr typ func) :=
+SIMPLIFY (fun _ _ _ _=>beta_all update_tycon_tac nil nil).
+
+Definition INTROS := (REPEAT 10 (INTRO typ func)).
+
 Definition APPLY_SKIP :=  (APPLY typ func  skip_lemma).
 
+Definition run_tac (t: rtac typ (ExprCore.expr typ func)) e := 
+  t nil nil 0%nat 0%nat (CTop nil nil) (ctx_empty (expr := expr typ func)) e.
 
-Definition run_tac (t: rtac typ (ExprCore.expr typ func) subst) e := 
-  t CTop (SubstI.empty (expr := ExprCore.expr typ func)) e.
+Definition APPLY_SEQ' s1 s2 := (EAPPLY typ func (seq_lemma s1 s2)).
 
-Definition APPLY_SEQ' s1 s2 := (EAPPLY typ func subst (seq_lemma s1 s2)).
-
-Definition APPLY_SEQ_SKIP s1 s2:= (THEN  (EAPPLY typ func subst (seq_lemma s1 s2)) (THEN (INSTANTIATE typ func subst) (TRY APPLY_SKIP))).
+Definition APPLY_SEQ_SKIP s1 s2:= (THEN  (EAPPLY typ func (seq_lemma s1 s2)) (THEN (INSTANTIATE typ func) (runOnGoals (TRY APPLY_SKIP)))).
 
 Definition APPLY_SEQ s1 s2 := (THEN (APPLY_SEQ' s1 s2) SIMPL_DELTA).
 

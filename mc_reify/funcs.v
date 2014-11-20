@@ -443,22 +443,13 @@ end.
   exact (@lseg t id ls sh (List.map (reptyp_structlist_reptype  _) lf) v1 v2). }*)
 Defined.
 
-
-Definition localD (temps : PTree.t val) (locals : PTree.t (type * val)) :=
-LocalD temps locals nil.
-
-Definition assertD (P : list Prop) (Q : list (environ -> Prop)) (sep : list mpred) := 
-PROPx P (LOCALx Q (SEPx (map (liftx) sep))).
-
-Definition locallistD a b := LocallistD a b nil. 
-
-
+Print tycontext.
 Inductive smx :=
 | fenviron : environ -> smx
 | fsemax
 | fstatement : statement -> smx
 | fretassert : ret_assert -> smx
-| ftycontext : PTree.t (type * bool) -> PTree.t type -> type ->  smx
+| ftycontext : PTree.t (type * bool) -> PTree.t type -> type -> PTree.t type ->  smx
 | fupdate_tycon 
 (*| fPROPx
 | fLOCALx
@@ -467,7 +458,6 @@ Inductive smx :=
 (*| flocalD : PTree.t val -> PTree.t (type * val) -> list (environ -> Prop) -> smx *)
 | fassertD
 | flocalD 
-| flocallistD
 | fvaltree : PTree.t val -> smx
 | fdenote_tc_assert_b_norho
 | ftc_expr_b_norho
@@ -481,7 +471,7 @@ match t with
 | fsemax => tyArr tyOracleKind (tyArr tytycontext (tyArr (tyArr tyenviron tympred) (tyArr tystatement (tyArr tyret_assert typrop))))
 | fstatement s => tystatement
 | fretassert r => tyret_assert
-| ftycontext _ _ _  => tyArr (typtree tyglobal_spec) tytycontext
+| ftycontext _ _ _ _ => tyArr (typtree tyfunspec) tytycontext
 (*| fPROPx => tyArr (tylist typrop) (tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred))
 | fLOCALx => tyArr (tylist (tyArr tyenviron typrop)) (tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred))
 | fSEPx => tyArr (tylist (tyArr tyenviron tympred)) (tyArr tyenviron tympred)*)
@@ -497,14 +487,13 @@ match t with
 | ftc_temp_id_b_norho _ _  => tyArr tytycontext (tyArr tyc_expr tybool)
 | fmsubst_eval_expr_norho => tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))
 | fmsubst_eval_lvalue_norho =>  tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))
-| flocallistD => tyArr (tylist (typrod tyident tyval)) (tyArr (tylist (typrod tyident (typrod tyc_type tyval))) (tylist (tyArr tyenviron typrop)))
 end.
 
 Definition smxD (t : smx) : typD (typeof_smx t) :=
 match t with
 | fsemax => (@semax : typD (typeof_smx fsemax))
 | fstatement s | fretassert s  => s
-| ftycontext t v r => fun g => (t, v, r, g)
+| ftycontext t v r gt => fun gf => mk_tycontext t v r gt gf
 (*| fPROPx => PROPx
 | fLOCALx => LOCALx
 | fSEPx => SEPx*)
@@ -519,7 +508,6 @@ match t with
 | ftc_temp_id_b_norho id ty  => tc_temp_id_b_norho id ty 
 | fmsubst_eval_expr_norho => msubst_eval_expr_norho
 | fmsubst_eval_lvalue_norho => msubst_eval_lvalue_norho
-| flocallistD => locallistD
 end.
 
 Inductive func' :=

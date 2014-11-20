@@ -174,7 +174,7 @@ Hint Rewrite BinPos.Pos.eqb_refl : expr_beq.
 Hint Resolve BinPos.Pos.eqb_refl : expr_beq.
 Hint Resolve eqb_type_refl : expr_beq.
 Hint Rewrite eqb_type_refl : expr_beq.
-Locate RelDec_eq_func.
+
 Ltac solve_expr_beq_sound := 
 try solve [simpl in *; try congruence]; try reflexivity;
 simpl in *; autorewrite with expr_beq in *; 

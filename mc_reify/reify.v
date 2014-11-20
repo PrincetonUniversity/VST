@@ -70,7 +70,6 @@ Reify Pattern patterns_vst_typ += (!!Ctypes.fieldlist) => tyfieldlist.
 Reify Pattern patterns_vst_typ += (!!Cop.binary_operation) => tybinary_operation.
 Reify Pattern patterns_vst_typ += (!!Cop.unary_operation) => tyunary_operation.
 Reify Pattern patterns_vst_typ += (!!BinNums.N ) => tyN. 
-Reify Pattern patterns_vst_typ += (!!expr.global_spec) => tyglobal_spec.
 Reify Pattern patterns_vst_typ += (!!option @ ?0) => 
     (fun (a : function reify_vst_typ) => tyoption a).
 Reify Pattern patterns_vst_typ += (!!sum @ ?0 @ ?1) => 
@@ -177,7 +176,7 @@ Reify Pattern patterns_vst += (!!seplog.prop) => (@Inj typ func (inr (Sep fprop)
 (*Reify Pattern patterns_vst += (!!client_lemmas.PROPx) => (@Inj typ func (inr (Smx fPROPx))).
 Reify Pattern patterns_vst += (!!client_lemmas.LOCALx) => (@Inj typ func (inr (Smx fLOCALx))).
 Reify Pattern patterns_vst += (!!client_lemmas.SEPx) => (@Inj typ func (inr (Smx fSEPx))).*)
-Reify Pattern patterns_vst += (!!locallistD) => (@Inj typ func (inr (Smx flocallistD))).
+(*Reify Pattern patterns_vst += (!!locallistD) => (@Inj typ func (inr (Smx flocallistD))).*)
 Reify Pattern patterns_vst += (!!denote_tc_assert_b_norho) => (@Inj typ func (inr (Smx fdenote_tc_assert_b_norho))).
 Reify Pattern patterns_vst += (!!tc_expr_b_norho) => (@Inj typ func (inr (Smx ftc_expr_b_norho))).
 
@@ -303,9 +302,16 @@ Reify Pattern patterns_vst +=
 
 Reify Pattern patterns_vst +=
       (!!expr.update_tycon) => (@Inj typ func (inr (Smx (fupdate_tycon)))).
-
-
+Print expr.mk_tycontext.
 Reify Pattern patterns_vst += 
+(!!expr.mk_tycontext @ ?0 @ ?1 @ ?2 @ ?3 @ ?4) =>
+(fun (a : id (Maps.PTree.t (Ctypes.type * bool))) 
+                                     (b : id (Maps.PTree.t Ctypes.type))
+                                     (c : id Ctypes.type) 
+                                     (d : id (Maps.PTree.t Ctypes.type))
+                                     (e : function reify_vst) =>
+                             App (@Inj typ func (inr (Smx (ftycontext a b c d)))) e).
+(*Reify Pattern patterns_vst += 
 (!!(@pair 
   (prod
      (prod (Maps.PTree.t (prod Ctypes.type bool)) (Maps.PTree.t Ctypes.type))
@@ -318,7 +324,7 @@ Reify Pattern patterns_vst +=
                                      (b : id (Maps.PTree.t Ctypes.type))
                                      (c : id Ctypes.type) 
                                      (d : function reify_vst) =>
-                             App (@Inj typ func (inr (Smx (ftycontext a b c)))) d).
+                             App (@Inj typ func (inr (Smx (ftycontext a b c)))) d).*)
 
 (*
 Reify Pattern patterns_vst_hastype += 

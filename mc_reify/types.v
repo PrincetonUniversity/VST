@@ -51,7 +51,6 @@ Inductive typ :=
 | tyret_assert
 | tyexitkind
 | typtree : typ -> typ
-| tyglobal_spec
 | tygfield
 | tyfunspec
 (*| tyother : positive -> typ*)
@@ -100,7 +99,6 @@ Fixpoint typD (t : typ) (*(m : PositiveMap.t Type)*): Type :=
 (*        | tyother p => PositiveMap.find p m *)
         | tyexitkind => exitkind
         | typtree t => PTree.t (typD t)
-        | tyglobal_spec => global_spec
         | tygfield => gfield
         | tyfunspec => funspec
     end.
