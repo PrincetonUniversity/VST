@@ -95,8 +95,8 @@ reify_lemma reify_vst (semax_seq_reif s1 s2).
 Defined.
 
 Definition set_lemma (id : positive) (e : Clight.expr) (t : PTree.t (type * bool))
-         (v : PTree.t type) (r : type) : my_lemma.
-reify_lemma reify_vst (semax_set_localD id e t v r).
+         (v : PTree.t type) (gt : PTree.t type)(r : type) : my_lemma.
+reify_lemma reify_vst (semax_set_localD id e t v r gt).
 Defined.
 
 Definition initialized_temp (id : positive) (t : PTree.t (type * bool)) :=
@@ -126,21 +126,20 @@ with update_temp_labeled (t : PTree.t (type * bool)) (ls : labeled_statements) :
          | LScons _ s ls' =>
            join_te (update_temp t s) (update_temp_labeled t ls')
        end.
- Check update_tycon.
 
-Lemma initialized_temp_eq : forall t v r g i,
-initialized i (t, v, r, g) = (initialized_temp i t, v, r, g).
+Lemma initialized_temp_eq : forall t v r gt gs i,
+initialized i (mk_tycontext t v r gt gs) = mk_tycontext (initialized_temp i t) v r gt gs.
 Proof.
 intros.
 unfold initialized, temp_types, initialized_temp. simpl. destruct (t ! i); auto.
 destruct p; auto.
 Qed.
 
-Lemma update_temp_eq : forall t v r g s,
-update_tycon (t, v, r, g) s = ((update_temp t s), v, r, g)
+Lemma update_temp_eq : forall t v r gt gs s,
+update_tycon (mk_tycontext t v r gt gs) s = (mk_tycontext (update_temp t s) v r gt gs)
 with
-update_temp_labeled_eq : forall t v r g s,
-join_tycon_labeled s (t, v, r, g) = ((update_temp_labeled t s), v, r, g).
+update_temp_labeled_eq : forall t v r gt gs s,
+join_tycon_labeled s (mk_tycontext t v r gt gs) = (mk_tycontext (update_temp_labeled t s) v r gt gs).
 Proof.
 intros. 
 destruct s; intros;
@@ -162,8 +161,8 @@ Definition update_tycon_tac (e : expr typ func) (args : list (expr typ func))
 match e with
     | (Inj (inr (Smx (fupdate_tycon)))) => 
       match args with
-          | [App (Inj (inr (Smx (ftycontext t v r)))) g; (Inj (inr (Smx (fstatement s))))] => 
-            App (Inj (inr (Smx (ftycontext (update_temp t s) v r)))) g
+          | [App (Inj (inr (Smx (ftycontext t v r gt)))) gs; (Inj (inr (Smx (fstatement s))))] => 
+            App (Inj (inr (Smx (ftycontext (update_temp t s) v r gt)))) gs
           | _ =>  AppN.apps e args
       end
     | _ => AppN.apps e args
