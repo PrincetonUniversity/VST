@@ -95,7 +95,7 @@ reify_lemma reify_vst (semax_seq_reif s1 s2).
 Defined.
 
 Definition set_lemma (id : positive) (e : Clight.expr) (t : PTree.t (type * bool))
-         (v : PTree.t type) (gt : PTree.t type)(r : type) : my_lemma.
+         (v : PTree.t type) (r : type) (gt : PTree.t type): my_lemma.
 reify_lemma reify_vst (semax_set_localD id e t v r gt).
 Defined.
 
@@ -172,6 +172,8 @@ Instance MA : MentionsAny (expr typ func) := {
   mentionsAny := ExprCore.mentionsAny
 }.
 
+Definition THEN (r1 r2 : rtac typ (expr typ func)) := THEN r1 (runOnGoals r2).
+
 Definition SIMPL_DELTA : rtac typ (ExprCore.expr typ func) :=
 SIMPLIFY (fun _ _ _ _=>beta_all update_tycon_tac nil nil).
 
@@ -184,19 +186,21 @@ Definition run_tac (t: rtac typ (ExprCore.expr typ func)) e :=
 
 Definition APPLY_SEQ' s1 s2 := (EAPPLY typ func (seq_lemma s1 s2)).
 
-Definition APPLY_SEQ_SKIP s1 s2:= (THEN  (EAPPLY typ func (seq_lemma s1 s2)) (THEN (INSTANTIATE typ func) (runOnGoals (TRY APPLY_SKIP)))).
+(*
+Definition APPLY_SEQ_SKIP s1 s2:= (THEN  (EAPPLY typ func (seq_lemma s1 s2)) (THEN (INSTANTIATE typ func) (runOnGoals (TRY APPLY_SKIP)))).*)
 
-Definition APPLY_SEQ s1 s2 := (THEN (APPLY_SEQ' s1 s2) SIMPL_DELTA).
+Definition APPLY_SEQ s1 s2 := (THEN (THEN (APPLY_SEQ' s1 s2) (INSTANTIATE typ func)) (SIMPL_DELTA)).
 
-Definition APPLY_SET' id e t v r:=
-EAPPLY typ func subst (set_lemma id e t v r ).
+
+Definition APPLY_SET' id e t v r gt:=
+EAPPLY typ func  (set_lemma id e t v r gt).
 
 
 Fixpoint get_delta_statement (e : expr typ func)  :=
 match e with
 | App (App (App (App (App (Inj (inr (Smx fsemax))) _) 
-                     (App (Inj (inr (Smx (ftycontext t v r)))) g)) _) 
-           (Inj (inr (Smx (fstatement s))))) _ => Some ((t,v,r), s)
+                     (App (Inj (inr (Smx (ftycontext t v r gt)))) gs)) _) 
+           (Inj (inr (Smx (fstatement s))))) _ => Some ((t,v,r,gt), s)
 | App _ e 
 | Abs _ e => get_delta_statement e
 | _ => None
@@ -214,24 +218,27 @@ Definition reflect ft (tus tvs : env) e (ty : typ)
  := @exprD _ _ _ (Expr_expr_fs ft) tus tvs e ty.
 
 
-Definition REFLEXIVITYSTAC : Core.stac typ (expr typ func) subst :=
-fun tus tvs s lst e => 
+Definition REFLEXIVITYSTAC : rtac typ (expr typ func) :=
+fun tus tvs n m c s e => 
 match e with 
 | (App (App (Inj (inr (Other (feq ty)))) l) r) =>
-  match @exprUnify subst typ func _ _ _ SS SU 10 
-                   tus tvs 0 s l r ty with
-    | Some s => STac.Core.Solved nil nil s 
-    | None =>  STac.Core.Fail
+  match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
+                                 tus tvs 0 s l r ty
+(*@exprUnify subst typ func _ _ _ SS SU 10 
+                   tus tvs 0 s l r ty *) with
+    | Some s => RTac.Core.Solved s 
+    | None =>  RTac.Core.Fail
   end
-| _ => STac.Core.Fail
+| _ => RTac.Core.Fail
 end.
 
-Definition REFLEXIVITY :=
-STAC_no_hyps (@ExprSubst.instantiate typ func) REFLEXIVITYSTAC. 
+Definition REFLEXIVITY := REFLEXIVITYSTAC.
+(*
+STAC_no_hyps (@ExprSubst.instantiate typ func) REFLEXIVITYSTAC. *)
   
 
-Definition REFLEXIVITY_BOOL tbl : rtac typ (expr typ func) subst := 
-fun c s e => (
+Definition REFLEXIVITY_BOOL tbl : rtac typ (expr typ func) := 
+   fun tus tvs lus lvs c s e =>(
 match e with
 | (App (App (Inj (inr (Other (feq tybool)))) l) r) =>
   match reflect tbl nil nil l tybool, reflect tbl nil nil r tybool with
@@ -241,26 +248,32 @@ match e with
 | _ => Fail
 end).
 
-Definition SYMEXE_STEP tbl : rtac typ (expr typ func) subst := 
-fun c s e => (
+Definition SYMEXE_STEP tbl : rtac typ (expr typ func)  := 
+   fun tus tvs lus lvs c s e =>
+  (
 match (get_delta_statement e) with
-| Some ((t, v, r) , st) =>  
+| Some ((t, v, r, gt) , st) =>  
     match st with 
-      | Sskip => APPLY_SKIP c s e
-      | Ssequence s1 s2 => APPLY_SEQ s1 s2 c s e
-      | Sset id exp => THEN (APPLY_SET' id exp t v r ) 
-                            (TRY (FIRST [REFLEXIVITY_BOOL tbl;
-                                    REFLEXIVITY])) c s e
+      | Sskip => APPLY_SKIP tus tvs lus lvs c s e
+      | Ssequence s1 s2 => APPLY_SEQ s1 s2 tus tvs lus lvs c s e
+      | Sset id exp => THEN (APPLY_SET' id exp t v r gt) 
+                             (TRY (FIRST [REFLEXIVITY_BOOL tbl;
+                                    REFLEXIVITY])) tus tvs lus lvs c s e
       | _ => Fail
     end
-| None => FIRST [(REFLEXIVITY_BOOL tbl)] c s e 
+| None => (FIRST [(REFLEXIVITY_BOOL tbl)]) tus tvs lus lvs c s e 
 end).
 
 
-Definition SYMEXE_TAC tbl := THEN INTROS (REPEAT 1000 (SYMEXE_STEP tbl)).
+Definition SYMEXE_TAC tbl := THEN INTROS (REPEAT 1000 (THEN (SYMEXE_STEP tbl) (INSTANTIATE typ func))).
+
+Definition SYMEXE1_TAC tbl := THEN INTROS (SYMEXE_STEP tbl).
 
 Definition symexe e tbl:=
 run_tac (SYMEXE_TAC tbl) e .
+
+Definition symexe1 e tbl :=
+run_tac (SYMEXE1_TAC tbl) e.
 
 Lemma skip_triple : forall p e,
 @semax e empty_tycontext
@@ -277,13 +290,13 @@ match n with
 | O => Sskip
 | S n' => Ssequence Sskip (lots_of_skips n')
 end.
-
+Print seq_lemma.
 Lemma seq_triple : forall p es,
 @semax es empty_tycontext p (Ssequence Sskip Sskip) (normal_ret_assert p).
 Proof.
 unfold empty_tycontext.
 reify_expr_tac.
-Time Eval vm_compute in  (symexe e tbl).
+Time Eval vm_compute in symexe e tbl.
 Abort.
 
 Lemma seq_triple_lots : forall p es,
@@ -313,7 +326,7 @@ Ltac extract_sep_lift_semax :=
       with (assertD nil Q2 R2'))
 end.
 
-
+(*
 Lemma local2list_soundness' : forall (P : list Prop) (Q : list (environ -> Prop))
          (R : list (environ -> mpred)) (T1 : list (ident * val))
          (T2 : list (ident * (type * val))),
@@ -325,7 +338,7 @@ intros. apply local2list_soundness; auto.
 Qed.
 
 Ltac do_local2list := erewrite local2list_soundness'; [ | repeat constructor].
-
+*)
 
 
 Fixpoint extract_semax (e : expr typ func) : expr typ func :=
@@ -368,18 +381,23 @@ end.
 
 Definition lots_of_sets n := lots_of_sets' n 1%positive.
 
-
+Definition remove_global_spec (t : tycontext) := 
+match t with
+| mk_tycontext t v r gt gs => mk_tycontext t v r gt (PTree.empty _)
+end.
 
 Goal
 forall  (contents : list val), exists PO, 
    (semax
-     Delta2
+     (remove_global_spec Delta)
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
-     (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
+     (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
      (normal_ret_assert PO)).
-intros. unfold Delta2. change PTree.tree with PTree.t.
+intros.   
+unfold Delta, remove_global_spec. change PTree.tree with PTree.t.
 Time reify_expr_tac.
 Time Eval vm_compute in symexe e tbl.
+Print set_lemma.
 eexists.
 Time repeat forward; eauto.
 Time Qed.
