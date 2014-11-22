@@ -17,8 +17,8 @@ The [LICENSE](LICENSE) file has information about copyright, licensing, and perm
 [Our webpage](http://vst.cs.princeton.edu) describes the goals of the project 
 and has links to many related publications.
 
-Program Logics for Certified Compilers, by Andrew W. Appel et al.,
-Cambridge University Press, 2014.
+Program Logics for Certified Compilers, by Andrew W. Appel et al.,  
+Cambridge University Press, 2014.  
 Available in [hardcover](http://www.barnesandnoble.com/w/program-logics-for-certified-compilers-andrew-w-appel/1117300694) or [e-book PDF](http://www.ebooks.com/1642304/program-logics-for-certified-compilers/appel-andrew-w-dockins-robert-hobor-aquinas-bering/).
 
 ##Build:
