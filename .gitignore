@@ -1,0 +1,6 @@
+*.vo
+*.glob
+*.v.d
+.depend
+.loadpath
+version.v
