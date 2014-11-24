@@ -6,19 +6,18 @@
 #   sh  .../vst/util/PACKAGE
 # the result will be in vst.tgz
 
-svn co https://svn.princeton.edu/appel/vst --depth files
-(cd vst; svn co https://svn.princeton.edu/appel/vst/compcert)
-(cd vst; svn co https://svn.princeton.edu/appel/vst/msl)
-(cd vst; svn co https://svn.princeton.edu/appel/vst/sepcomp --depth files)
-(cd vst; svn co https://svn.princeton.edu/appel/vst/veric)
-(cd vst; svn co https://svn.princeton.edu/appel/vst/floyd)
-(cd vst; svn co https://svn.princeton.edu/appel/vst/progs)
-(cd vst; svn co https://svn.princeton.edu/appel/vst/examples)
-(cd vst; svn co https://svn.princeton.edu/appel/vst/util)
-(cd vst; svn co https://svn.princeton.edu/appel/vst/doc --depth empty)
-(cd vst/doc; svn update VerifiableC.pdf)
+
+mkdir vst
+mkdir vst/doc
+git clone https://github.com/PrincetonUniversity/VST.git vst-temp
+cd vst-temp
+rm -r sepcomp/submit*
+mv _CoqProject BUILD_ORGANIZATION HISTORY LICENSE Makefile pg README.md VERSION ../vst
+mv compcert msl sepcomp veric floyd progs examples util ../vst
+mv doc/VerifiableC.pdf ../vst/doc
+cd ..
+rm -rf vst-temp
 (cd vst; sh util/make_version)
-rm -rf util vst/.svn vst/*/.svn
 echo "COMPRESSING: tar cfz vst"-`cat vst/VERSION`".tgz vst"
 tar cfz vst-`cat vst/VERSION`.tgz vst
 rm -rf vst
