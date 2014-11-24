@@ -184,6 +184,9 @@ Definition APPLY_SKIP :=  (APPLY typ func  skip_lemma).
 Definition run_tac (t: rtac typ (ExprCore.expr typ func)) e := 
   t nil nil 0%nat 0%nat (CTop nil nil) (ctx_empty (expr := expr typ func)) e.
 
+Definition run_tac_intros e :=
+run_tac (THEN INTROS e).
+
 Definition APPLY_SEQ' s1 s2 := (EAPPLY typ func (seq_lemma s1 s2)).
 
 (*
@@ -218,7 +221,7 @@ Definition reflect ft (tus tvs : env) e (ty : typ)
  := @exprD _ _ _ (Expr_expr_fs ft) tus tvs e ty.
 
 
-Definition REFLEXIVITYSTAC : rtac typ (expr typ func) :=
+Definition REFLEXIVITYTAC : rtac typ (expr typ func) :=
 fun tus tvs n m c s e => 
 match e with 
 | (App (App (Inj (inr (Other (feq ty)))) l) r) =>
@@ -232,7 +235,7 @@ match e with
 | _ => RTac.Core.Fail
 end.
 
-Definition REFLEXIVITY := REFLEXIVITYSTAC.
+Definition REFLEXIVITY := REFLEXIVITYTAC.
 (*
 STAC_no_hyps (@ExprSubst.instantiate typ func) REFLEXIVITYSTAC. *)
   
@@ -248,7 +251,8 @@ match e with
 | _ => Fail
 end).
 
-Definition SYMEXE_STEP tbl : rtac typ (expr typ func)  := 
+Definition SYMEXE_STEP (tbl: SymEnv.functions RType_typ)
+: rtac typ (expr typ func)  := 
    fun tus tvs lus lvs c s e =>
   (
 match (get_delta_statement e) with
@@ -256,18 +260,21 @@ match (get_delta_statement e) with
     match st with 
       | Sskip => APPLY_SKIP tus tvs lus lvs c s e
       | Ssequence s1 s2 => APPLY_SEQ s1 s2 tus tvs lus lvs c s e
-      | Sset id exp => THEN (APPLY_SET' id exp t v r gt) 
-                             (TRY (FIRST [REFLEXIVITY_BOOL tbl;
-                                    REFLEXIVITY])) tus tvs lus lvs c s e
+      | Sset id exp => (*THEN*) (APPLY_SET' id exp t v r gt) 
+                             (*(TRY (FIRST [REFLEXIVITY_BOOL tbl;
+                                    REFLEXIVITY]))*) tus tvs lus lvs c s e
       | _ => Fail
     end
-| None => (FIRST [(REFLEXIVITY_BOOL tbl)]) tus tvs lus lvs c s e 
+| None => Fail
 end).
 
 
 Definition SYMEXE_TAC tbl := THEN INTROS (REPEAT 1000 (THEN (SYMEXE_STEP tbl) (INSTANTIATE typ func))).
 
 Definition SYMEXE1_TAC tbl := THEN INTROS (SYMEXE_STEP tbl).
+
+Definition rreflexivity e :=
+run_tac (REFLEXIVITY) e.
 
 Definition symexe e tbl:=
 run_tac (SYMEXE_TAC tbl) e .
@@ -386,21 +393,61 @@ match t with
 | mk_tycontext t v r gt gs => mk_tycontext t v r gt (PTree.empty _)
 end.
 
+Check semax_set_localD.
+
+Axiom simple_set_d : forall id e t v r gt gs E R ls vs vl,
+ @semax E (mk_tycontext t v r gt gs) (assertD [] (localD ls vs) R)
+         (Sset id e)
+         (normal_ret_assert (assertD [] (localD (my_set id vl ls) vs) [])).
+
+
+Definition set_lemma_simple (id : positive) (e : Clight.expr) (t : PTree.t (type * bool))
+         (v : PTree.t type) (r : type) (gt : PTree.t type): my_lemma.
+reify_lemma reify_vst (simple_set_d id e t v r gt).
+Defined.
+Print set_lemma_simple.
+Goal False.
+reify_vst (fun X Y Z => (assertD X Y Z)).
+Check reflect.
+Eval vm_compute in typeof_expr nil nil e.
+
+Definition test_lemma :=
+  @lemmaD typ (expr typ func) RType_typ Expr_expr (expr typ func)
+          (fun tus tvs e => exprD' tus tvs typrop e)
+          _
+          nil nil.
+
+Goal forall (id : positive) (e : Clight.expr) (t : PTree.t (type * bool))
+  (v : PTree.t type) (r : type) (gt : PTree.t type), False.
+intros.
+Eval vm_compute in test_lemma (set_lemma_simple id e t v r gt).
+
+Definition EAPPLY_SET_simple id e t v r gt:=
+EAPPLY typ func  (set_lemma_simple id e t v r gt).
+
+
+
 Goal
-forall  (contents : list val), exists PO, 
+forall  (contents : list val), exists (PO : environ -> mpred), 
    (semax
-     (remove_global_spec Delta)
+     (*(remove_global_spec Delta)*) empty_tycontext
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
-     (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
+     (Sset _p (*(Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))*)
+              (Econst_int (Int.repr 0) tint))         
      (normal_ret_assert PO)).
-intros.   
-unfold Delta, remove_global_spec. change PTree.tree with PTree.t.
+intros.
+unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
 Time reify_expr_tac.
-Time Eval vm_compute in symexe e tbl.
+Time Eval vm_compute in run_tac_intros ((EAPPLY_SET_simple _p 
+              (Econst_int (Int.repr 0) tint)
+              (PTree.empty (type * bool))
+              (PTree.empty type)
+              Tvoid
+              (PTree.empty type))) e .
 Print set_lemma.
-eexists.
-Time repeat forward; eauto.
-Time Qed.
+(*Time Eval vm_compute in rreflexivity e. *)
+Time Eval vm_compute in symexe e tbl. 
+Abort.
 
 
 Definition reflect_prop' tbl e:= match

@@ -33,6 +33,8 @@ match a, b with
 | tyunit, tyunit 
 | tyOracleKind, tyOracleKind 
 | tystatement, tystatement 
+| tygfield, tygfield
+| tyfunspec, tyfunspec
 | tyret_assert, tyret_assert => true
 (*| tylistspec ty1 id1, tylistspec ty2 id2 => andb (expr.eqb_type ty1 ty2) (BinPos.Pos.eqb id1 id2)*)
 | tysum tl1 tr1, tysum tl2 tr2 
