@@ -1655,11 +1655,12 @@ Transparent spacer.
 Qed.
 
 Lemma data_at__memory_block: forall (sh : share) (t : type) (p: val),
-  legal_alignas_type t = true ->
-  nested_legal_fieldlist t = true ->
   nested_non_volatile_type t = true ->
   sizeof t < Int.modulus ->
-  data_at_ sh t p = !! (align_compatible t p) && memory_block sh (Int.repr (sizeof t)) p.
+  data_at_ sh t p =
+  !! (legal_alignas_type t = true) &&
+  !! (nested_legal_fieldlist t = true) &&
+  !! (align_compatible t p) && memory_block sh (Int.repr (sizeof t)) p.
 Proof.
   intros.
   simpl.
@@ -1671,11 +1672,18 @@ Proof.
   simpl.
   rewrite memory_block_size_compatible by auto.
   unfold size_compatible.
-  cut (Int.unsigned i + sizeof t <= Int.modulus ->
+  cut (legal_alignas_type t = true ->
+       Int.unsigned i + sizeof t <= Int.modulus ->
       (alignof t | Int.unsigned i) -> 
        data_at' sh empty_ti t 0 (default_val t) (Vptr b i) =
-       memory_block sh (Int.repr (sizeof t)) (Vptr b i));
-    [intros; apply pred_ext; normalize; rewrite H3 by auto; cancel|].
+       memory_block sh (Int.repr (sizeof t)) (Vptr b i)).
+  Focus 1. {
+    intros; apply pred_ext; normalize.
+    + rewrite H1 by auto.
+      cancel.
+    + rewrite H1 by auto.
+      cancel.
+  } Unfocus.
   intros.
   rewrite memory_block_offset_zero.
   apply memory_block_data_at'_default_val; auto.
@@ -1710,7 +1718,9 @@ Proof.
   rewrite data_at__memory_block by auto.
   rewrite andp_comm.
   apply add_andp.
+  normalize.
   apply prop_right.
+  split; try auto.
   unfold align_compatible.
   rewrite H2.
   destruct p; auto.
