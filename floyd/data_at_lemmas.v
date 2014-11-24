@@ -617,6 +617,7 @@ with ufieldlist_at' (sh: Share.t) (e: type_id_env) (flds: fieldlist) (size: Z) (
   end.
 
 Definition data_at (sh: Share.t) (t: type) :=
+  (!! (legal_alignas_type t = true)) && (!! (nested_legal_fieldlist t = true)) &&
   (fun (_:reptype t) p => (!! (size_compatible t p /\ align_compatible t p))) 
   && data_at' sh empty_ti t 0.
 
@@ -1016,6 +1017,20 @@ Proof.
   destruct t; reflexivity.
 Qed.
 
+Lemma nested_legal_fieldlist_uncompomize: forall e t,
+  nested_legal_fieldlist (uncompomize e t) = nested_legal_fieldlist t.
+Proof.
+  intros.
+  destruct t; reflexivity.
+Qed.
+
+Lemma legal_alignas_type_uncompomize: forall e t,
+  legal_alignas_type (uncompomize e t) = legal_alignas_type t.
+Proof.
+  intros.
+  destruct t; reflexivity.
+Qed.
+
 Lemma uncompomize_data_at: forall sh e t v v' p,
   JMeq v v' ->
   data_at sh t v p = data_at sh (uncompomize e t) v' p.
@@ -1033,7 +1048,11 @@ Qed.
 Lemma by_value_data_at: forall sh t v v' p,
   type_is_by_value t ->
   JMeq v v' ->
-  data_at sh t v p = (!! size_compatible t p) && (!! align_compatible t p) && mapsto sh t p v'.
+  data_at sh t v p =
+  (!!(legal_alignas_type t = true)) &&
+  (!! size_compatible t p) &&
+  (!! align_compatible t p) &&
+  mapsto sh t p v'.
 Proof.
   intros.
   destruct t; simpl in H; try tauto; simpl in v;
@@ -1044,6 +1063,7 @@ Lemma uncompomize_by_value_data_at: forall sh e t v v' p,
   type_is_by_value (uncompomize e t) ->
   JMeq v v' ->
   data_at sh t v p = 
+  (!!(legal_alignas_type (uncompomize e t) = true)) &&
   (!! size_compatible (uncompomize e t) p) &&
   (!! align_compatible (uncompomize e t) p) &&
   mapsto sh (uncompomize e t) p v'.
@@ -1053,7 +1073,7 @@ Proof.
   assert (JMeq v'' v) by (subst; reflexivity); clear HH.
   revert v H1.
   pattern (reptype t) at 1 3. rewrite <- (uncompomize_reptype e t).
-  intros.  
+  intros.
   erewrite <- by_value_data_at; [|exact H | rewrite <- H0; rewrite H1; reflexivity].
   apply uncompomize_data_at.
   exact H1.
@@ -1061,7 +1081,11 @@ Qed.
 
 Lemma by_value_data_at_: forall sh t p,
   type_is_by_value t ->
-  data_at_ sh t p = (!! size_compatible t p) && (!! align_compatible t p) && mapsto_ sh t p.
+  data_at_ sh t p =
+  (!!(legal_alignas_type t = true)) &&
+  (!! size_compatible t p) &&
+  (!! align_compatible t p) &&
+  mapsto_ sh t p.
 Proof.
   intros.
   destruct t; simpl in H; try tauto;
@@ -1071,6 +1095,7 @@ Qed.
 Lemma uncompomize_by_value_data_at_: forall sh e t p,
   type_is_by_value (uncompomize e t) ->
   data_at_ sh t p = 
+  (!!(legal_alignas_type (uncompomize e t) = true)) &&
   (!! size_compatible (uncompomize e t) p) &&
   (!! align_compatible (uncompomize e t) p) &&
   mapsto_ sh (uncompomize e t) p.
@@ -1086,8 +1111,9 @@ Qed.
 Lemma lifted_by_value_data_at: forall sh t v p,
   type_is_by_value t ->
   `(data_at sh t) (`(valinject t) v) p =
-  `prop (`(size_compatible t) p) &&
-  `prop (`(align_compatible t) p) && `(mapsto sh t) p v.
+  (!!(legal_alignas_type t = true)) &&
+  local (`(size_compatible t) p) &&
+  local (`(align_compatible t) p) && `(mapsto sh t) p v.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
   apply by_value_data_at; [|apply valinject_JMeq]; assumption.
@@ -1096,8 +1122,9 @@ Qed.
 Lemma lifted_uncompomize_by_value_data_at: forall sh e t v p,
   type_is_by_value (uncompomize e t) ->
   `(data_at sh t) (`(valinject t) v) p =
-  `prop (`(size_compatible (uncompomize e t)) p) &&
-  `prop (`(align_compatible (uncompomize e t)) p) &&
+  (!!(legal_alignas_type (uncompomize e t) = true)) &&
+  local (`(size_compatible (uncompomize e t)) p) &&
+  local (`(align_compatible (uncompomize e t)) p) &&
   `(mapsto sh (uncompomize e t)) p v.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
@@ -1108,8 +1135,9 @@ Qed.
 Lemma lifted_by_value_data_at_: forall sh t p,
   type_is_by_value t ->
   `(data_at_ sh t) p =
-  `prop (`(size_compatible t) p) &&
-  `prop (`(align_compatible t) p) && `(mapsto_ sh t) p.
+  (!!(legal_alignas_type t = true)) &&
+  local (`(size_compatible t) p) &&
+  local (`(align_compatible t) p) && `(mapsto_ sh t) p.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
   apply by_value_data_at_; assumption.
@@ -1118,8 +1146,9 @@ Qed.
 Lemma lifted_uncompomize_by_value_data_at_: forall sh e t p,
   type_is_by_value (uncompomize e t) ->
   `(data_at_ sh t) p =
-  `prop (`(size_compatible (uncompomize e t)) p) &&
-  `prop (`(align_compatible (uncompomize e t)) p) &&
+  (!!(legal_alignas_type (uncompomize e t) = true)) &&
+  local (`(size_compatible (uncompomize e t)) p) &&
+  local (`(align_compatible (uncompomize e t)) p) &&
   `(mapsto_ sh (uncompomize e t)) p.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
@@ -1275,6 +1304,7 @@ Qed.
 
 Lemma data_at'_data_at: forall sh t v pos,
   (legal_alignas_type t = true) ->
+  (nested_legal_fieldlist t = true) ->
   (alignof t | pos) ->
   (fun p => !! (size_compatible t (offset_val (Int.repr pos) p)
              /\ align_compatible t (offset_val (Int.repr pos) p))) &&
@@ -1287,7 +1317,8 @@ Proof.
   simpl.
   rewrite data_at'_at_offset'; auto.
   rewrite at_offset'_eq; [| rewrite <- data_at'_offset_zero; reflexivity].
-  reflexivity.
+  apply pred_ext;
+  normalize.
 Qed.
 
 Lemma unsigned_add: forall i pos, 0 <= pos -> Int.unsigned (Int.add i (Int.repr pos)) = (Int.unsigned i + pos) mod Int.modulus.
@@ -1625,6 +1656,7 @@ Qed.
 
 Lemma data_at__memory_block: forall (sh : share) (t : type) (p: val),
   legal_alignas_type t = true ->
+  nested_legal_fieldlist t = true ->
   nested_non_volatile_type t = true ->
   sizeof t < Int.modulus ->
   data_at_ sh t p = !! (align_compatible t p) && memory_block sh (Int.repr (sizeof t)) p.
@@ -1643,7 +1675,7 @@ Proof.
       (alignof t | Int.unsigned i) -> 
        data_at' sh empty_ti t 0 (default_val t) (Vptr b i) =
        memory_block sh (Int.repr (sizeof t)) (Vptr b i));
-    [intros; apply pred_ext; normalize; rewrite H2 by auto; cancel|].
+    [intros; apply pred_ext; normalize; rewrite H3 by auto; cancel|].
   intros.
   rewrite memory_block_offset_zero.
   apply memory_block_data_at'_default_val; auto.
@@ -1654,6 +1686,7 @@ Qed.
 Lemma memory_block_data_at_:
   forall (sh : share) (t : type) (p : val),
   legal_alignas_type t = true ->
+  nested_legal_fieldlist t = true ->
   nested_non_volatile_type t = true ->
   align_compatible t p ->
   sizeof t < Int.modulus ->
@@ -1666,6 +1699,7 @@ Qed.
 
 Lemma align_1_memory_block_data_at_: forall (sh : share) (t : type),
   legal_alignas_type t = true ->
+  nested_legal_fieldlist t = true ->
   nested_non_volatile_type t = true ->
   alignof t = 1%Z ->
   (sizeof t < Int.modulus)%Z ->
@@ -1678,7 +1712,7 @@ Proof.
   apply add_andp.
   apply prop_right.
   unfold align_compatible.
-  rewrite H1.
+  rewrite H2.
   destruct p; auto.
   apply Z.divide_1_l.
 Qed.
@@ -1795,7 +1829,6 @@ Proof.
 Qed.
 
 Lemma data_at_data_at_ : forall sh t v p, 
-  legal_alignas_type t = true ->
   data_at sh t v p |-- data_at_ sh t p.
 Proof.
   intros.
@@ -1807,16 +1840,15 @@ Proof.
   simpl.
   normalize.
   apply data_at'_data_at'_.
-  + exact H.
+  + exact H1.
   + omega.
   + apply Z.divide_0_r.
-  + exact H1.
+  + exact H0.
 Qed.
 
 Hint Resolve data_at_data_at_: cancel.
 
 Lemma data_at_Tarray_ext_derives: forall sh t n a v v',
-  legal_alignas_type (Tarray t n a) = true ->
   (forall i, 0 <= i < n ->
      data_at sh t (Znth i v (default_val _)) |-- data_at sh t (Znth i v' (default_val _))) ->
   data_at sh (Tarray t n a) v |-- data_at sh (Tarray t n a) v'.
@@ -1832,32 +1864,31 @@ Proof.
   rewrite !Z.sub_0_r.
   assert (legal_alignas_type t = true).
   Focus 1. {
-    unfold legal_alignas_type in H.
-    simpl in H.
-    rewrite andb_true_iff in H.
+    unfold legal_alignas_type in H2.
+    simpl in H2.
+    rewrite andb_true_iff in H2.
     tauto.
-  } Unfocus.  
+  } Unfocus.
   assert (alignof t | sizeof t * i).
   Focus 1. {
     apply Z.divide_mul_l.
-    apply legal_alignas_sizeof_alignof_compat, H4.
+    apply legal_alignas_sizeof_alignof_compat, H5.
   } Unfocus.
   rewrite !data_at'_at_offset' with (pos := (sizeof t * i)%Z) by auto.
   rewrite !at_offset'_eq by (rewrite <- data_at'_offset_zero; reflexivity).
   assert (legal_nested_field (Tarray t n a) (ArraySubsc i :: nil)) by solve_legal_nested_field.
-  pose proof size_compatible_nested_field _ (ArraySubsc i :: nil) _ H6 H1.
-  unfold nested_field_type2, nested_field_offset2 in H7; simpl in H7.
-  pose proof align_compatible_nested_field _ (ArraySubsc i :: nil) _ H6 H H2.
+  pose proof size_compatible_nested_field _ (ArraySubsc i :: nil) _ H7 H0.
   unfold nested_field_type2, nested_field_offset2 in H8; simpl in H8.
-  simpl in H7, H8.
-  specialize (H0 i H3 (offset_val (Int.repr (sizeof t * i)) p)).
-  unfold data_at in H0.
-  simpl in H0.
-  normalize in H0.
+  pose proof align_compatible_nested_field _ (ArraySubsc i :: nil) _ H7 H2 H1.
+  unfold nested_field_type2, nested_field_offset2 in H9; simpl in H9.
+  simpl in H8, H9.
+  specialize (H i H4 (offset_val (Int.repr (sizeof t * i)) p)).
+  unfold data_at in H.
+  simpl in H.
+  normalize in H.
 Qed.
 
 Lemma data_at_Tarray_ext: forall sh t n a v v',
-  legal_alignas_type (Tarray t n a) = true ->
   (forall i, 0 <= i < n ->
     data_at sh t (Znth i v (default_val _)) =
       data_at sh t (Znth i v' (default_val _))) ->
@@ -1865,7 +1896,7 @@ Lemma data_at_Tarray_ext: forall sh t n a v v',
 Proof.
   intros.
   apply pred_ext; apply data_at_Tarray_ext_derives; auto;
-  intros; rewrite H0 by auto; auto.
+  intros; rewrite H by auto; auto.
 Qed.
 
 Lemma data_at_tint: forall sh v2 v1,
@@ -1876,15 +1907,45 @@ Proof.
   simpl.
   apply pred_ext; normalize.
   apply andp_right; [|normalize].
+  rewrite mapsto_isptr.
   unfold mapsto. simpl.
-  destruct v1; normalize.
   unfold address_mapsto, res_predicates.address_mapsto, size_compatible, align_compatible.
-  admit.
+  assert (legal_alignas_type tint = true) by reflexivity.
+  assert (nested_legal_fieldlist tint = true) by reflexivity.
+  destruct v1; normalize.
+  eapply derives_trans with (!!(Int.unsigned i + sizeof tint <= Int.modulus /\
+          (alignof tint | Int.unsigned i))); [| normalize].
+  change (@predicates_hered.exp compcert_rmaps.RML.R.rmap
+      compcert_rmaps.R.ag_rmap) with (@exp mpred Nveric).
+  change (@predicates_hered.andp compcert_rmaps.RML.R.rmap
+      compcert_rmaps.R.ag_rmap) with (@andp mpred Nveric).
+  change (@predicates_hered.prop compcert_rmaps.RML.R.rmap
+      compcert_rmaps.R.ag_rmap) with (@prop mpred Nveric).
+  change (sizeof tint) with 4.
+  change (alignof tint) with 4.
+  change (Memdata.align_chunk Mint32) with 4.
+  assert ((4 | Int.unsigned i) -> Int.unsigned i + 4 <= Int.modulus).
+  Focus 1. {
+    intros.
+    destruct H2.
+    pose proof Int.unsigned_range i.
+    rewrite H2 in *.
+    change Int.modulus with (1073741824 * 4)%Z in *.
+    destruct H3 as [_ ?].
+    rewrite Zmult_succ_l_reverse.
+    apply Zmult_le_compat_r; [| omega].
+    destruct (zle (Z.succ x) 1073741824); auto.
+    assert (1073741824 <= x) by omega.
+    apply Zmult_le_compat_r with (p := 4) in H4; [| omega].
+    omega.
+  } Unfocus.
+  eapply orp_left; normalize; apply prop_right.
 Qed.
 
 Lemma var_block_data_at_:
   forall  sh id t, 
   legal_alignas_type t = true ->
+  nested_legal_fieldlist t = true ->
   nested_non_volatile_type t = true ->
   Z.ltb (sizeof t) Int.modulus = true ->
   var_block sh (id, t) = 
@@ -1894,7 +1955,7 @@ Proof.
   intros; extensionality rho.
   unfold_lift.
   simpl.
-  apply Zlt_is_lt_bool in H1.
+  apply Zlt_is_lt_bool in H2.
   rewrite data_at__memory_block by auto.
   unfold var_block.
   simpl. unfold local, lift1. unfold_lift.
