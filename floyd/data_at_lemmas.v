@@ -1048,13 +1048,11 @@ Qed.
 Lemma by_value_data_at: forall sh t v v' p,
   type_is_by_value t ->
   JMeq v v' ->
-  data_at sh t v p =
-  (!!(legal_alignas_type t = true)) &&
-  (!! size_compatible t p) &&
-  (!! align_compatible t p) &&
-  mapsto sh t p v'.
+  data_at sh t v p = !! field_compatible t nil p && mapsto sh t p v'.
 Proof.
   intros.
+  unfold field_compatible.
+  pose proof legal_nested_field_nil_lemma t.
   destruct t; simpl in H; try tauto; simpl in v;
   try (unfold data_at; simpl; rewrite H0; apply pred_ext; normalize).
 Qed.
@@ -1062,11 +1060,8 @@ Qed.
 Lemma uncompomize_by_value_data_at: forall sh e t v v' p,
   type_is_by_value (uncompomize e t) ->
   JMeq v v' ->
-  data_at sh t v p = 
-  (!!(legal_alignas_type (uncompomize e t) = true)) &&
-  (!! size_compatible (uncompomize e t) p) &&
-  (!! align_compatible (uncompomize e t) p) &&
-  mapsto sh (uncompomize e t) p v'.
+  data_at sh t v p =
+  !! field_compatible (uncompomize e t) nil p && mapsto sh (uncompomize e t) p v'.
 Proof.
   intros.
   remember v as v'' eqn:HH. 
@@ -1081,24 +1076,18 @@ Qed.
 
 Lemma by_value_data_at_: forall sh t p,
   type_is_by_value t ->
-  data_at_ sh t p =
-  (!!(legal_alignas_type t = true)) &&
-  (!! size_compatible t p) &&
-  (!! align_compatible t p) &&
-  mapsto_ sh t p.
+  data_at_ sh t p = !! field_compatible t nil p && mapsto_ sh t p.
 Proof.
   intros.
-  destruct t; simpl in H; try tauto;
-  try (unfold data_at_, data_at; simpl; apply pred_ext; normalize).
+  unfold data_at_, mapsto_.
+  destruct t; simpl in H; try tauto; simpl default_val;
+  apply by_value_data_at; reflexivity.
 Qed.
 
 Lemma uncompomize_by_value_data_at_: forall sh e t p,
   type_is_by_value (uncompomize e t) ->
-  data_at_ sh t p = 
-  (!!(legal_alignas_type (uncompomize e t) = true)) &&
-  (!! size_compatible (uncompomize e t) p) &&
-  (!! align_compatible (uncompomize e t) p) &&
-  mapsto_ sh (uncompomize e t) p.
+  data_at_ sh t p =
+  !! field_compatible (uncompomize e t) nil p && mapsto_ sh (uncompomize e t) p.
 Proof.
   intros.
   unfold data_at_, mapsto_.
@@ -1111,9 +1100,7 @@ Qed.
 Lemma lifted_by_value_data_at: forall sh t v p,
   type_is_by_value t ->
   `(data_at sh t) (`(valinject t) v) p =
-  (!!(legal_alignas_type t = true)) &&
-  local (`(size_compatible t) p) &&
-  local (`(align_compatible t) p) && `(mapsto sh t) p v.
+  local (`(field_compatible t nil) p) && `(mapsto sh t) p v.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
   apply by_value_data_at; [|apply valinject_JMeq]; assumption.
@@ -1122,9 +1109,7 @@ Qed.
 Lemma lifted_uncompomize_by_value_data_at: forall sh e t v p,
   type_is_by_value (uncompomize e t) ->
   `(data_at sh t) (`(valinject t) v) p =
-  (!!(legal_alignas_type (uncompomize e t) = true)) &&
-  local (`(size_compatible (uncompomize e t)) p) &&
-  local (`(align_compatible (uncompomize e t)) p) &&
+  local (`(field_compatible (uncompomize e t) nil) p) &&
   `(mapsto sh (uncompomize e t)) p v.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
@@ -1134,10 +1119,7 @@ Qed.
 
 Lemma lifted_by_value_data_at_: forall sh t p,
   type_is_by_value t ->
-  `(data_at_ sh t) p =
-  (!!(legal_alignas_type t = true)) &&
-  local (`(size_compatible t) p) &&
-  local (`(align_compatible t) p) && `(mapsto_ sh t) p.
+  `(data_at_ sh t) p = local (`(field_compatible t nil) p) && `(mapsto_ sh t) p.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
   apply by_value_data_at_; assumption.
@@ -1146,9 +1128,7 @@ Qed.
 Lemma lifted_uncompomize_by_value_data_at_: forall sh e t p,
   type_is_by_value (uncompomize e t) ->
   `(data_at_ sh t) p =
-  (!!(legal_alignas_type (uncompomize e t) = true)) &&
-  local (`(size_compatible (uncompomize e t)) p) &&
-  local (`(align_compatible (uncompomize e t)) p) &&
+  local (`(field_compatible (uncompomize e t) nil) p) &&
   `(mapsto_ sh (uncompomize e t)) p.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
@@ -1720,10 +1700,10 @@ Proof.
   apply add_andp.
   normalize.
   apply prop_right.
-  split; try auto.
   unfold align_compatible.
   rewrite H2.
   destruct p; auto.
+  split; [| auto].
   apply Z.divide_1_l.
 Qed.
 

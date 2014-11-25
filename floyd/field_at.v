@@ -855,6 +855,7 @@ Lemma lower_andp_val:
   ((P && Q) v) = (P v && Q v).
 Proof. reflexivity. Qed.
 
+(*
 Lemma mapsto_field_at:
   forall p p'  v' sh t structid fld fields (v: reptype
     (nested_field_lemmas.nested_field_type2 (Tstruct structid fields noattr)
@@ -981,7 +982,7 @@ Proof.
   eapply derives_trans; [ | eapply mapsto_field_at''; eassumption].
   normalize.
 Qed.
-
+*)
 (*
 Lemma field_at_nonvolatile:
   forall sh t fld v v', field_at sh t fld v' v = !!(type_is_volatile t = false) && field_at sh t fld v' v.
