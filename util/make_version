@@ -1,7 +1,7 @@
 #!/bin/sh
 echo >version.v 'Require Import Coq.Strings.String. Open Scope string.'
-echo -n >>version.v 'Definition svn_rev := "'
-svnversion -n >>version.v
+echo -n >>version.v 'Definition git_rev := "'
+git log -n 1 --pretty=format:"%H" >>version.v
 echo >>version.v '".'
 echo -n >>version.v 'Definition release := "'
 tr -d '[:cntrl:]' <VERSION >>version.v
