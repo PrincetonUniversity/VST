@@ -203,13 +203,14 @@ Definition my_set {T} := @PTree.set T.
 
 Lemma semax_set_localD id e (t: PTree.t (type * bool)) (v : PTree.t type) 
       (r : type) (gt : PTree.t type):
-forall vl ls vs Espec R gs,
+forall vl ls vs Espec R gs P,
 tc_expr_b_norho (mk_tycontext t v r gt gs) e= true ->
 tc_temp_id_b_norho id (typeof e) (mk_tycontext t v r gt gs) e = true ->
 msubst_eval_expr_norho ls vs e = Some vl ->
+(assertD nil (localD (my_set id vl ls) vs) R) = P -> 
 @semax Espec (mk_tycontext t v r gt gs) (assertD nil (localD ls vs) R)
       (Sset id e)
-(normal_ret_assert (assertD nil (localD (my_set id vl ls) vs) R)).
+(normal_ret_assert P).
 Proof.
 (*intros.
 eapply semax_pre_simple; [ | apply forward_setx_closed_now].

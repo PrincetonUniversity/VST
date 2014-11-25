@@ -172,7 +172,10 @@ Instance MA : MentionsAny (expr typ func) := {
   mentionsAny := ExprCore.mentionsAny
 }.
 
-Definition THEN (r1 r2 : rtac typ (expr typ func)) := THEN r1 (runOnGoals r2).
+Definition THEN' (r1 r2 : rtac typ (expr typ func)) := THEN r1 (runOnGoals r2).
+
+Definition THEN (r1 r2 : rtac typ (expr typ func)) := 
+  THEN' r1 (THEN' (INSTANTIATE typ func) r2).
 
 Definition SIMPL_DELTA : rtac typ (ExprCore.expr typ func) :=
 SIMPLIFY (fun _ _ _ _=>beta_all update_tycon_tac nil nil).
@@ -192,7 +195,7 @@ Definition APPLY_SEQ' s1 s2 := (EAPPLY typ func (seq_lemma s1 s2)).
 (*
 Definition APPLY_SEQ_SKIP s1 s2:= (THEN  (EAPPLY typ func (seq_lemma s1 s2)) (THEN (INSTANTIATE typ func) (runOnGoals (TRY APPLY_SKIP)))).*)
 
-Definition APPLY_SEQ s1 s2 := (THEN (THEN (APPLY_SEQ' s1 s2) (INSTANTIATE typ func)) (SIMPL_DELTA)).
+Definition APPLY_SEQ s1 s2 := THEN (APPLY_SEQ' s1 s2) (SIMPL_DELTA).
 
 
 Definition APPLY_SET' id e t v r gt:=
@@ -260,16 +263,16 @@ match (get_delta_statement e) with
     match st with 
       | Sskip => APPLY_SKIP tus tvs lus lvs c s e
       | Ssequence s1 s2 => APPLY_SEQ s1 s2 tus tvs lus lvs c s e
-      | Sset id exp => (*THEN*) (APPLY_SET' id exp t v r gt) 
-                             (*(TRY (FIRST [REFLEXIVITY_BOOL tbl;
-                                    REFLEXIVITY]))*) tus tvs lus lvs c s e
+      | Sset id exp => THEN (APPLY_SET' id exp t v r gt) 
+                             (TRY (FIRST [REFLEXIVITY_BOOL tbl;
+                                    REFLEXIVITY])) tus tvs lus lvs c s e
       | _ => Fail
     end
 | None => Fail
 end).
 
 
-Definition SYMEXE_TAC tbl := THEN INTROS (REPEAT 1000 (THEN (SYMEXE_STEP tbl) (INSTANTIATE typ func))).
+Definition SYMEXE_TAC tbl := THEN INTROS (REPEAT 1000 (SYMEXE_STEP tbl)).
 
 Definition SYMEXE1_TAC tbl := THEN INTROS (SYMEXE_STEP tbl).
 
@@ -395,21 +398,19 @@ end.
 
 Check semax_set_localD.
 
-Axiom simple_set_d : forall id e t v r gt gs E R ls vs vl,
+Axiom simple_set_d : forall id e t v r gt gs E R ls  vs P,
+(assertD [] (*(localD (my_set id vl ls) vs)*) [] R) = P ->
  @semax E (mk_tycontext t v r gt gs) (assertD [] (localD ls vs) R)
          (Sset id e)
-         (normal_ret_assert (assertD [] (localD (my_set id vl ls) vs) [])).
+         (normal_ret_assert P).
 
 
 Definition set_lemma_simple (id : positive) (e : Clight.expr) (t : PTree.t (type * bool))
          (v : PTree.t type) (r : type) (gt : PTree.t type): my_lemma.
 reify_lemma reify_vst (simple_set_d id e t v r gt).
 Defined.
+
 Print set_lemma_simple.
-Goal False.
-reify_vst (fun X Y Z => (assertD X Y Z)).
-Check reflect.
-Eval vm_compute in typeof_expr nil nil e.
 
 Definition test_lemma :=
   @lemmaD typ (expr typ func) RType_typ Expr_expr (expr typ func)
@@ -417,10 +418,10 @@ Definition test_lemma :=
           _
           nil nil.
 
-Goal forall (id : positive) (e : Clight.expr) (t : PTree.t (type * bool))
+(*Goal forall (id : positive) (e : Clight.expr) (t : PTree.t (type * bool))
   (v : PTree.t type) (r : type) (gt : PTree.t type), False.
 intros.
-Eval vm_compute in test_lemma (set_lemma_simple id e t v r gt).
+Eval vm_compute in test_lemma (set_lemma_simple id e t v r gt).*)
 
 Definition EAPPLY_SET_simple id e t v r gt:=
 EAPPLY typ func  (set_lemma_simple id e t v r gt).
@@ -430,14 +431,39 @@ EAPPLY typ func  (set_lemma_simple id e t v r gt).
 Goal
 forall  (contents : list val), exists (PO : environ -> mpred), 
    (semax
-     (*(remove_global_spec Delta)*) empty_tycontext
+     (remove_global_spec Delta) (*empty_tycontext*)
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
-     (Sset _p (*(Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))*)
-              (Econst_int (Int.repr 0) tint))         
+     (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
      (normal_ret_assert PO)).
 intros.
 unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
-Time reify_expr_tac.
+reify_expr_tac.
+Time Eval vm_compute in symexe e tbl.
+Time Eval vm_compute in run_tac_intros (THEN (THEN (APPLY_SET' _p 
+              (Econst_int (Int.repr 0) tint)
+              (PTree.empty (type * bool))
+              (PTree.empty type)
+              Tvoid
+              (PTree.empty type)) (INSTANTIATE typ func)) (TRY REFLEXIVITYTAC)) e .
+
+Lemma bad_ax : forall A: Prop, A -> A /\ (True /\ A).
+auto.
+Qed.
+
+Definition bad_ax_lemma : my_lemma.
+reify_lemma reify_vst bad_ax.
+Defined.
+
+Definition EAPPLY_bad_ax :=
+EAPPLY typ func bad_ax_lemma.
+
+
+Goal exists A, True /\ A.
+reify_expr_tac.
+Eval vm_compute in run_tac (THEN INTROS (EAPPLY_bad_ax)) e.
+
+eapply bad_ax.
+
 Time Eval vm_compute in run_tac_intros ((EAPPLY_SET_simple _p 
               (Econst_int (Int.repr 0) tint)
               (PTree.empty (type * bool))
