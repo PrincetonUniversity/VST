@@ -208,11 +208,10 @@ Reify Pattern patterns_vst += (!!(@seplog.allp expr.mpred SeparationLogic.Nveric
      (fun (a : function reify_vst_typ) => (fForall (func := expr typ func) a tympred)).
 
 
-
 Reify Pattern patterns_vst +=
-      (!!@data_at_lemmas.data_at @ ?0) => 
-         (fun  (a : id Ctypes.type)  =>
-              (@Inj typ func (inr (Sep (fdata_at a ))))).
+      (!!data_at_lemmas.data_at @ ?0 @ ?1) => 
+         (fun (a : function reify_vst) (b : id Ctypes.type)  =>
+              App (@Inj typ func (inr (Sep (fdata_at b )))) a).
 (*
 Reify Pattern patterns_vst +=
       (!!@field_at.field_at @ ?0 @ ?1) => 
@@ -420,11 +419,10 @@ Ltac do_reify e :=
   reify_expr reify_vst k
              [ (fun (y : @mk_dvar_map _ _ _ _ term_table elem_ctor) => True) ]
              [ e ].
-
-
+Locate share.
+SearchAbout shares.share.
 Goal forall (Delta: expr.tycontext), False.
 intros.
-reify_vst (expr.update_tycon Delta Clight.Sskip).
-reify_vst (exists (n : nat), n=n).
+reify_vst (data_at_lemmas.data_at SeparationLogic.Tsh Clightdefs.tint).
 Abort.
 
