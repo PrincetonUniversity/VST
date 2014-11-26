@@ -159,3 +159,7 @@ Definition some_reif e t : expr typ func :=
 Definition none_reif t : expr typ func :=
 (Inj (inr (Other (fnone t)))).
 
+Instance MA : MentionsAny (expr typ func) := {
+  mentionsAny := ExprCore.mentionsAny
+}.
+

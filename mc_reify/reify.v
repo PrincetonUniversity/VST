@@ -230,8 +230,6 @@ Reify Pattern patterns_vst +=
 Reify Pattern patterns_vst +=
       (!!@Maps.PTree.get @ ?0 @ ?1) => (fun (a : function reify_vst_typ) (b : id positive) =>
                                          (@Inj typ func (inr (Data (fget a b))))).
-Check @get_set_reif.set_reif.
-
 
 Reify Pattern patterns_vst += (!!@my_set @ ?0 @ ?1 @ ?2 @ ?3) =>
    (fun (a : function reify_vst_typ) (b : id positive) (c d : function reify_vst) => get_set_reif.set_reif b c d). 
@@ -302,7 +300,7 @@ Reify Pattern patterns_vst +=
 
 Reify Pattern patterns_vst +=
       (!!expr.update_tycon) => (@Inj typ func (inr (Smx (fupdate_tycon)))).
-Print expr.mk_tycontext.
+
 Reify Pattern patterns_vst += 
 (!!expr.mk_tycontext @ ?0 @ ?1 @ ?2 @ ?3 @ ?4) =>
 (fun (a : id (Maps.PTree.t (Ctypes.type * bool))) 

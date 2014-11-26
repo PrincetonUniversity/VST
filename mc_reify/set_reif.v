@@ -197,7 +197,19 @@ intros.
 split; intros; induction a; simpl in *; intuition.
 Qed.
 
-Check PTree.set.
+Lemma LocalD_to_localD : forall P R t l X,
+PROPx (P) (LOCALx (LocalD t l X) (SEPx (R))) |--
+PROPx (P) (LOCALx (localD t l) (SEPx (R))).
+Proof.
+intros. entailer.
+apply prop_right.
+unfold localD. 
+repeat rewrite LocalD_app_eq in *.
+unfold LocalD_app in *.
+repeat rewrite fold_right_conj in *.
+intuition. simpl. apply I.
+Qed.
+
 
 Definition my_set {T} := @PTree.set T.
 
@@ -294,3 +306,4 @@ apply PTree.elements_compete in Heql.
 unfold LocalD. simpl.
 *)
 Admitted.
+
