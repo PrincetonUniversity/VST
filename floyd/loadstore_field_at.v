@@ -436,7 +436,7 @@ Lemma eval_lvalue_nested_efield_aux: forall Delta env t_root e efs gfs tts lr,
     local (`isptr (eval_lvalue (nested_efield e efs tts))) &&
     local (tc_lvalue Delta (nested_efield e efs tts)) &&
     local (`eq (eval_lvalue (nested_efield e efs tts))
-      (`(offset_val (Int.repr (nested_field_offset2 t_root gfs))) (eval_LR e lr))).
+      (`(field_address t_root gfs) (eval_LR e lr))).
 Proof.
 Admitted.
 (*
@@ -565,9 +565,8 @@ Qed.
 
 Lemma eval_lvalue_nested_efield: forall Delta env t_root e efs gfs tts lr,
   legal_nested_efield env t_root e gfs tts lr = true ->
-  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) && efield_denote Delta efs gfs |--
-    local (`eq (eval_lvalue (nested_efield e efs tts))
-      (`(offset_val (Int.repr (nested_field_offset2 t_root gfs))) (eval_LR e lr))).
+  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) && efield_denote Delta efs gfs |-- local (`eq (eval_lvalue (nested_efield e efs tts))
+      (`(field_address t_root gfs) (eval_LR e lr))).
 Proof.
   intros.
   eapply derives_trans; [eapply eval_lvalue_nested_efield_aux; eauto |].
@@ -619,17 +618,16 @@ Proof.
     rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H2)).
     simpl; intro rho; normalize.
     rewrite field_at_isptr.
-    rewrite field_at_data_at; [|exact H1].
-    rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
+    rewrite field_at_data_at.
     normalize.
     pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H2 rho).
     pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H2 rho).
-    normalize in H12.
-    normalize in H13.
-    rewrite (add_andp _ _ H12).
-    rewrite (add_andp _ _ H13).
+    normalize in H9.
+    normalize in H10.
+    rewrite (add_andp _ _ H9).
+    rewrite (add_andp _ _ H10).
     normalize.
-    rewrite H14.
+    rewrite H11.
     apply andp_left2.
     apply derives_refl.
 Qed.
@@ -665,17 +663,16 @@ Proof.
     rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H2)).
     simpl; intro rho; normalize.
     rewrite field_at_isptr.
-    rewrite field_at_data_at; [|exact H1].
-    rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
+    rewrite field_at_data_at.
     normalize.
     pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H2 rho).
     pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H2 rho).
-    normalize in H12.
-    normalize in H13.
-    rewrite (add_andp _ _ H12).
-    rewrite (add_andp _ _ H13).
+    normalize in H9.
+    normalize in H10.
+    rewrite (add_andp _ _ H9).
+    rewrite (add_andp _ _ H10).
     normalize.
-    rewrite H14.
+    rewrite H11.
     apply andp_left2.
     apply derives_refl.
 Qed.
@@ -732,13 +729,10 @@ Proof.
     rewrite insert_local.
     instantiate (1 := 
       PROPx P
-      (LOCALx (`(size_compatible t_root) (eval_LR e1 lr) ::
-               `(align_compatible t_root) (eval_LR e1 lr) ::
-               `(legal_nested_field t_root gfs) ::
-               tc_expr Delta (Ecast e2 t) ::
+      (LOCALx (tc_expr Delta (Ecast e2 t) ::
                tc_lvalue Delta (nested_efield e1 efs tts) ::
-               `eq (eval_lvalue (nested_efield e1 efs tts)) 
-                 (`(offset_val (Int.repr (nested_field_offset2 t_root gfs))) (eval_LR e1 lr)) ::
+               `eq (eval_lvalue (nested_efield e1 efs tts))
+                 (`(field_address t_root gfs) (eval_LR e1 lr)) ::
                `((uncompomize e (nested_field_type2 t_root gfs) =
                  typeof (nested_efield e1 efs tts))) ::
                Q) (SEPx R))).
@@ -754,23 +748,13 @@ Proof.
         normalize.
     } Unfocus.
     assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-      local (`(size_compatible t_root) (eval_LR e1 lr)) &&
-      local (`(align_compatible t_root) (eval_LR e1 lr)) &&
-      !! (legal_nested_field t_root gfs) &&
       local (tc_expr Delta (Ecast e2 t)) &&
       (local (tc_lvalue Delta (nested_efield e1 efs tts)) &&
        local (`eq (eval_lvalue (nested_efield e1 efs tts)) 
-         (`(offset_val (Int.repr (nested_field_offset2 t_root gfs))) (eval_LR e1 lr))) &&
+         (`(field_address t_root gfs) (eval_LR e1 lr))) &&
        !! (uncompomize e (nested_field_type2 t_root gfs) = typeof (nested_efield e1 efs tts)))).
     Focus 1. {
-      apply andp_right; [apply andp_right |].
-      + erewrite SEP_nth_isolate with (R := R) by exact H3.
-        apply derives_trans with ((PROPx P (LOCALx (tc_environ Delta :: Q) SEP (Rn)) * TT)).
-        - simpl; intros; normalize; cancel.
-        - rewrite (add_andp _ _ H4).
-          simpl; intros; normalize.
-          rewrite field_at__data_at_ by exact H1.
-          normalize.
+      apply andp_right.
       + eapply derives_trans; [exact H6 |].
         apply andp_left2.
         apply derives_refl.
@@ -800,9 +784,8 @@ Proof.
     + repeat rewrite LOCAL_2_hd, <- insert_local.
       rewrite (add_andp _ _ H4).
       simpl; intro rho; normalize.
-      rewrite field_at__data_at_ by exact H1.
-      rewrite at_offset'_eq by (rewrite <- data_at__offset_zero; reflexivity).
-      rewrite H12.
+      rewrite field_at__data_at_.
+      rewrite H9.
       apply andp_left2.
       normalize.
     + exact H5.
@@ -820,8 +803,7 @@ Proof.
   end.
   simpl; intro rho; normalize.
   apply sepcon_derives; [| apply derives_refl].
-  rewrite field_at_data_at by exact H1.
-  rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
-  rewrite H13.
+  rewrite field_at_data_at.
+  rewrite H10.
   normalize.
 Qed.
