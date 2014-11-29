@@ -689,22 +689,23 @@ Proof.
   unfold field_address.
   if_tac.
   + unfold field_compatible in H.
-    destruct H as [? [? [? [? ?]]]].
+    destruct H as [? [? [? [? [? ?]]]]].
     unfold data_at.
     simpl.
     rewrite <- at_offset'_eq by (rewrite <- data_at'_offset_zero; reflexivity).
     rewrite <- data_at'_at_offset'; [ |
-      apply (nested_field_type2_nest_pred eq_refl), H |
-      apply nested_field_offset2_type2_divide, H].
+      apply (nested_field_type2_nest_pred eq_refl), H0 |
+      apply nested_field_offset2_type2_divide, H0].
     apply pred_ext; normalize.
     apply andp_right; [| apply derives_refl].
     apply prop_right.
     repeat (try assumption; split).
-    - apply (nested_field_type2_nest_pred eq_refl), H0.
+    - apply (nested_field_type2_nest_pred eq_refl), H1.
     - apply size_compatible_nested_field; assumption.
     - apply align_compatible_nested_field; assumption.
-    - apply (nested_field_type2_nest_pred eq_refl), H.
+    - apply (nested_field_type2_nest_pred eq_refl), H0.
   + simpl.
+    rewrite data_at'_isptr.
     normalize.
     unfold field_compatible in H.
     match goal with

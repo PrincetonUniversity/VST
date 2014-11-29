@@ -1053,6 +1053,7 @@ Proof.
   intros.
   unfold field_compatible.
   pose proof legal_nested_field_nil_lemma t.
+  rewrite data_at_isptr.
   destruct t; simpl in H; try tauto; simpl in v;
   try (unfold data_at; simpl; rewrite H0; apply pred_ext; normalize).
 Qed.

@@ -1337,3 +1337,370 @@ Module Test.
   Qed.
 End Test.
 *)
+
+Lemma upd_reptype_nil: forall t v v0, upd_reptype t nil v v0 = v0.
+Proof.
+  intros.
+  reflexivity.
+Qed.
+
+Lemma upd_reptype_cons: forall t gf gfs v v0 v0',
+  nested_legal_fieldlist t = true ->
+  legal_alignas_type t = true ->
+  legal_nested_field t (gf :: gfs) ->
+  JMeq v0 v0' ->
+  upd_reptype t (gf :: gfs) v v0 =
+    upd_reptype t gfs v (upd_reptype _ (gf :: nil) (proj_reptype t gfs v) v0').
+Proof.
+  intros.
+  simpl.
+  f_equal.
+  generalize (nested_field_type2_cons t gf gfs).
+  generalize (nested_field_type2_nil (nested_field_type2 t gfs)).
+  generalize (eq_sym (nested_field_type2_cons (nested_field_type2 t gfs) gf nil)).
+  generalize (proj_reptype t gfs v).
+  revert v0' H2.
+  solve_legal_nested_field_cons H1.
+Opaque reptype.
+  + simpl.
+    simpl.
+Transparent reptype.
+    intros.
+    f_equal.
+    - apply JMeq_eq.
+      rewrite eq_rect_r_JMeq.
+      reflexivity.
+    - apply JMeq_eq.
+      rewrite !eq_rect_r_JMeq.
+      rewrite H4.
+      reflexivity.
+Opaque reptype.
+  + simpl.
+Transparent reptype.
+    intros.
+    f_equal.
+    - apply JMeq_eq.
+      rewrite eq_rect_r_JMeq.
+      reflexivity.
+    - apply JMeq_eq.
+      rewrite !eq_rect_r_JMeq.
+      rewrite H4.
+      reflexivity.
+Opaque reptype.
+  + simpl.
+Transparent reptype.
+    intros.
+    f_equal.
+    - apply JMeq_eq.
+      rewrite !eq_rect_r_JMeq.
+      rewrite H4.
+      reflexivity.
+Qed.
+
+Definition gupd_reptype_array_is_pair: forall t n a i t0,
+  0 <= i < n ->
+  sigT (fun F => sigT (fun G =>
+    forall v v0,
+      F (gupd_reptype_array t n a i t0 v v0) =
+        (proj_except_reptype_array t n a i v, v0) /\
+      gupd_reptype_array t n a i t0 v v0 =
+        G (proj_except_reptype_array t n a i v, v0)
+  )).
+Proof.
+  intros.
+  unfold gupd_reptype_array, proj_except_reptype_array, ArrayField.
+  destruct (i =? 0) eqn:?H; [| destruct (i =? n - 1) eqn:?H].
+  + exists (fun v => (snd v, fst v)).
+    exists (fun v => (snd v, fst v)).
+    intros.
+    split; reflexivity.
+  + exists (fun v => v).
+    exists (fun v => v).
+    intros.
+    split; reflexivity.
+  + exists (fun v => ((fst v, snd (snd v)), (fst (snd v)))).
+    exists (fun v => (fst (fst v), (snd v, snd (fst v)))).
+    intros.
+    split; reflexivity.
+Defined.
+
+Definition gupd_reptype_structlist_is_pair: forall f i t0,
+  isOK (field_type i f) = true ->
+  sigT (fun F => sigT (fun G =>
+    forall v v0,
+      F (gupd_reptype_structlist f i t0 v v0) =
+        (proj_except_reptype_structlist f i v, v0) /\
+      gupd_reptype_structlist f i t0 v v0 =
+        G (proj_except_reptype_structlist f i v, v0)
+  )).
+Proof.
+  intros.
+  induction f.
+  + inversion H.
+  + simpl in H |- *.
+    if_tac in H.
+    - unfold eq_rect_r, eq_rect; simpl.
+      if_tac.
+      * exists (fun v => (struct_default_val f, v)).
+        exists (fun v => snd v).
+        intros.
+        split; reflexivity.
+      * exists (fun v => (snd v, fst v)).
+        exists (fun v => (snd v, fst v)).
+        intros.
+        split; reflexivity.
+    - unfold eq_rect_r, eq_rect; simpl.
+      destruct (is_Fnil f) eqn:?H;
+        [destruct f; [inversion H | inversion H1] |].
+      pose proof is_Fnil_all_fields_replace_one2 f i t0.
+      rewrite H1 in H2.
+      rewrite H2.
+      specialize (IHf H).
+      destruct (is_Fnil (all_fields_except_one2 f i)) eqn:?H.
+      * destruct IHf as [F0 [G0 ?H]].
+        exists (fun v => (fst v, snd (F0 (snd v)))).
+        exists (fun v => (fst v, G0 (struct_default_val _, snd v))).
+        intros.
+        assert (proj_except_reptype_structlist f i (snd v) = 
+          struct_default_val (all_fields_except_one2 f i)).
+        Focus 1. {
+          match goal with 
+          | |- ?A = ?B => generalize A B; intros
+          end.
+          clear - H3.
+          destruct (all_fields_except_one2 f i); [| inversion H3].
+          simpl in *; destruct r, r0; reflexivity.
+        } Unfocus.
+        destruct (H4 (snd v) v0).
+        rewrite H5 in H6, H7.
+        simpl; rewrite H6, <- H7.
+        split; reflexivity.
+      * destruct IHf as [F0 [G0 ?H]].
+        exists (fun v => (fst v, fst (F0 (snd v)), snd (F0 (snd v)))).
+        exists (fun v => (fst (fst v), G0 (snd (fst v), snd v))).
+        intros.
+        destruct (H4 (snd v) v0).
+        simpl; rewrite H5, <- H6.
+        split; reflexivity.
+Defined.
+
+Definition gupd_reptype_unionlist_is_pair: forall f i t0,
+  sigT (fun F => sigT (fun G =>
+    forall (v: reptype_unionlist f) v0,
+      F (gupd_reptype_unionlist i t0 v0) = (proj_except_reptype_unionlist, v0) /\
+      gupd_reptype_unionlist i t0 v0 = G (proj_except_reptype_unionlist, v0))).
+Proof.
+  intros.
+  unfold gupd_reptype_unionlist, proj_except_reptype_unionlist.
+  simpl.
+  exists (fun v => (tt, v)).
+  exists (fun v => snd v).
+  intros.
+  split; reflexivity.
+Defined.
+
+Lemma nf_sub2_is_nf_sub2_1_nf_replace2: forall t gf gfs,
+  legal_nested_field t (gf :: gfs) ->
+  nf_replace2 t gfs (nf_sub2 (nested_field_type2 t gfs) gf nil) = nf_sub2 t gf gfs.
+Proof.
+  intros.
+  unfold nf_sub2.
+  solve_legal_nested_field_cons H.
+  + reflexivity.
+  + reflexivity.
+  + reflexivity.
+Qed.
+
+Lemma nf_replace2_is_nf_replace2_1_nf_replace2: forall t gf gfs t0,
+  legal_nested_field t (gf :: gfs) ->
+  nf_replace2 t gfs (nf_replace2 (nested_field_type2 t gfs) (gf :: nil) t0) =
+  nf_replace2 t (gf :: gfs) t0.
+Proof.
+  intros.
+  unfold nf_replace2 at 2 3.
+  solve_legal_nested_field_cons H.
+  + reflexivity.
+  + reflexivity.
+  + reflexivity.
+Qed.
+
+Lemma proj_except_reptype_is_proj_except_reptye1_gupd_reptype: forall t gf gfs v,
+  legal_nested_field t (gf :: gfs) ->
+  JMeq (proj_except_reptype t gf gfs v)
+    (gupd_reptype t gfs _ v
+      (proj_except_reptype _ gf nil (proj_reptype t gfs v))).
+Proof.
+  intros.
+  apply legal_nested_field_cons_lemma in H.
+  destruct H.
+  unfold proj_except_reptype, nf_sub2.
+  generalize (proj_reptype t gfs v).
+  destruct gf, (nested_field_type2 t gfs) eqn:?H; try solve [inversion H0]; intro proj_v.
+  + simpl.
+    unfold eq_rect_r, eq_rect, nested_field_type2_nil.
+    simpl.
+    reflexivity.
+  + simpl.
+    unfold eq_rect_r, eq_rect, nested_field_type2_nil.
+    simpl.
+    reflexivity.
+  + simpl.
+    unfold eq_rect_r, eq_rect, nested_field_type2_nil.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma gupd_reptype_is_gupd_reptye1_gupd_reptype: forall t gf gfs t0 v v0,
+  legal_nested_field t (gf :: gfs) ->
+  JMeq (gupd_reptype t (gf :: gfs) t0 v v0)
+    (gupd_reptype t gfs _ v
+      (gupd_reptype _ (gf :: nil) _ (proj_reptype t gfs v) v0)).
+Proof.
+  intros.
+  apply legal_nested_field_cons_lemma in H.
+  destruct H.
+  simpl.
+  generalize (proj_reptype t gfs v).
+  destruct gf, (nested_field_type2 t gfs) eqn:?H; try solve [inversion H0]; intro proj_v.
+  + simpl.
+    unfold eq_rect_r, eq_rect, nested_field_type2_nil.
+    simpl.
+    reflexivity.
+  + simpl.
+    unfold eq_rect_r, eq_rect, nested_field_type2_nil.
+    simpl.
+    reflexivity.
+  + simpl.
+    unfold eq_rect_r, eq_rect, nested_field_type2_nil.
+    simpl.
+    reflexivity.
+Qed.
+
+Definition gupd_reptype1_is_pair: forall t gf t0,
+  legal_nested_field t (gf :: nil) ->
+  sigT (fun F => sigT (fun G =>
+    forall v v0,
+      F (gupd_reptype t (gf :: nil) t0 v v0) = (proj_except_reptype t gf nil v, v0) /\
+      gupd_reptype t (gf :: nil) t0 v v0 = G (proj_except_reptype t gf nil v, v0))).
+Proof.
+  intros.
+  solve_legal_nested_field_cons H; simpl;
+  change (nested_field_type2 t nil) with t in Heq0 |- *;
+  subst.
+  + unfold eq_rect_r, eq_rect, nested_field_type2_nil.
+    simpl.
+    apply gupd_reptype_array_is_pair; auto.
+  + unfold eq_rect_r, eq_rect, nested_field_type2_nil.
+    simpl.
+    apply gupd_reptype_structlist_is_pair; auto.
+  + unfold eq_rect_r, eq_rect, nested_field_type2_nil.
+    simpl.
+    apply gupd_reptype_unionlist_is_pair.
+Defined.
+
+Definition gupd_reptype_cons_is_pair: forall t gf gfs t0,
+  legal_nested_field t (gf :: gfs) ->
+  sigT (fun F => sigT (fun G =>
+    forall v v0,
+      F (gupd_reptype t (gf :: gfs) t0 v v0) = (proj_except_reptype t gf gfs v, v0) /\
+      gupd_reptype t (gf :: gfs) t0 v v0 = G (proj_except_reptype t gf gfs v, v0))).
+Proof.
+  intros.
+  revert gf t0 H; induction gfs; intros.
+  + apply gupd_reptype1_is_pair; auto.
+  + remember (a :: gfs) as gfs'.
+    cut (sigT (fun F => sigT (fun G =>
+          forall (v : reptype t) (v0 : reptype t0),
+          F (gupd_reptype t gfs' _ v
+              (gupd_reptype _ (gf :: nil) t0 (proj_reptype t gfs' v) v0)) =
+          (gupd_reptype t gfs' _ v
+            (proj_except_reptype _ gf nil (proj_reptype t gfs' v)), v0) /\
+          gupd_reptype t gfs' _ v
+              (gupd_reptype _ (gf :: nil) t0 (proj_reptype t gfs' v) v0) =
+          G (gupd_reptype t gfs' _ v
+              (proj_except_reptype _ gf nil (proj_reptype t gfs' v)), v0)))).
+    Focus 1. {
+      intros ?H.
+      destruct H0 as [F0 [G0 ?H]].
+      exists (fun v => 
+             let r := F0 (eq_rect_r reptype v
+               (nf_replace2_is_nf_replace2_1_nf_replace2 t gf gfs' t0 H))
+             in
+             (eq_rect_r reptype (fst r) 
+               (eq_sym (nf_sub2_is_nf_sub2_1_nf_replace2 t gf gfs' H)), snd r))
+             .
+      exists (fun v => 
+             let l := G0 (eq_rect_r reptype (fst v)
+               (nf_sub2_is_nf_sub2_1_nf_replace2 t gf gfs' H), snd v)
+             in
+             eq_rect_r reptype l
+               (eq_sym (nf_replace2_is_nf_replace2_1_nf_replace2 t gf gfs' t0 H)))
+             .
+      intros.
+      replace (proj_except_reptype t gf gfs' v) with
+        (eq_rect_r reptype
+          (gupd_reptype t gfs' (nf_sub2 (nested_field_type2 t gfs') gf nil) v
+            (proj_except_reptype (nested_field_type2 t gfs') gf nil
+            (proj_reptype t gfs' v)))
+          (eq_sym (nf_sub2_is_nf_sub2_1_nf_replace2 t gf gfs' H))).
+      Focus 2. {
+        apply JMeq_eq.
+        eapply JMeq_trans; [apply eq_rect_r_JMeq |].
+        apply JMeq_sym, proj_except_reptype_is_proj_except_reptye1_gupd_reptype; auto.
+      } Unfocus.
+      replace (gupd_reptype t (gf :: gfs') t0 v v0) with
+        (eq_rect_r reptype
+          (gupd_reptype t gfs'
+            (nf_replace2 (nested_field_type2 t gfs') (gf :: nil) t0) v
+            (gupd_reptype (nested_field_type2 t gfs') 
+               (gf :: nil) t0 (proj_reptype t gfs' v) v0))
+          (eq_sym (nf_replace2_is_nf_replace2_1_nf_replace2 t gf gfs' t0 H))).
+      Focus 2. {
+        apply JMeq_eq.
+        eapply JMeq_trans; [apply eq_rect_r_JMeq |].
+        apply JMeq_sym, gupd_reptype_is_gupd_reptye1_gupd_reptype; auto.
+      } Unfocus.
+      unfold fst at 2.
+      unfold snd at 2.
+      rewrite !eq_rect_r_eq_rect_r_eq_sym'.
+      specialize (H0 v v0).
+      destruct H0.
+      split.
+      + rewrite H0.
+        reflexivity.
+      + rewrite H1.
+        reflexivity.
+    } Unfocus.
+    pose proof (IHgfs a (nf_replace2 (nested_field_type2 t gfs') (gf :: nil) t0)) as HH0.
+    spec HH0; [subst gfs'; solve_legal_nested_field_cons H; auto|].
+    pose proof (IHgfs a (nf_sub2 (nested_field_type2 t gfs') gf nil)) as HH1.
+    spec HH1; [subst gfs'; solve_legal_nested_field_cons H; auto|].    
+    destruct HH0 as [F0 [G0 ?H]].
+    destruct HH1 as [F1 [G1 ?H]].
+    destruct (gupd_reptype1_is_pair (nested_field_type2 t gfs') gf t0) as [F2 [G2 ?H]].
+    Focus 1. {
+      apply legal_nested_field_app'. auto.
+    } Unfocus.
+    subst gfs'.
+    exists (fun v =>
+              let r1 := F0 v in
+              let r2 := F2 (snd r1) in
+              let r3 := G1 (fst r1, fst r2) in
+              (r3, snd r2)).
+    exists (fun v =>
+              let r1 := F1 (fst v) in
+              let r2 := G2 (snd r1, snd v) in
+              let r3 := G0 (fst r1, r2) in
+              r3).
+    intros.
+Opaque gupd_reptype proj_except_reptype nested_field_type2 nf_replace2 nf_sub2 proj_reptype.
+    simpl. (* Pretty slow *)
+Transparent gupd_reptype proj_except_reptype nested_field_type2 nf_replace2 nf_sub2 proj_reptype.
+    rewrite !(proj1 (H0 _ _)).
+    unfold fst at 3; rewrite !(proj1 (H1 _ _)).
+    unfold snd at 1 3; rewrite !(proj1 (H2 _ _)).
+    unfold snd at 2; rewrite <- !(proj2 (H2 _ _)).
+    unfold fst at 1; rewrite <- (proj2 (H1 _ _)).
+    rewrite <- (proj2 (H0 _ _)).
+    split; reflexivity.
+Qed.

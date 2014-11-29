@@ -484,44 +484,41 @@ Proof.
       with (@FF mpred Nveric) by (apply pred_ext; normalize; tauto).
     normalize.
   } Unfocus.
-  destruct H4 as [? [? [? [? ?]]]].
+  destruct H4 as [? [? [? [? [? ?]]]]].
   unfold array_at'.
   normalize.
-  apply legal_nested_field_cons_lemma in H8.
-  rewrite H2 in H8; destruct H8 as [? _].
+  apply legal_nested_field_cons_lemma in H9.
+  rewrite H2 in H9; destruct H9 as [? _].
   match goal with
-  | |- _ && ?A = _ && ?B => cut (isptr p -> A = B)
+  | |- _ && ?A = _ && ?B => cut (A = B)
   end.
   Focus 1. {
     intros.
-    rewrite !(prop_and (isptr p)).
-    rewrite !andp_assoc.
-    apply extract_prop_from_equal.
-    intro HH; specialize (H9 HH).
-    rewrite H9.
+    rewrite H10.
     f_equal.
-    clear H9.
+    clear H10.
+    normalize.
     apply pred_ext; normalize.
     repeat split.
-    + apply (nested_field_type2_nest_pred eq_refl) with (gfs0 := gfs) in H5.
-      rewrite H2 in H5.
-      exact H5.
+    + apply (nested_field_type2_nest_pred eq_refl) with (gfs0 := gfs) in H6.
+      rewrite H2 in H6.
+      exact H6.
     + assert (size_compatible (Tarray t0 n a) (offset_val (Int.repr (nested_field_offset2 t gfs)) p)).
       Focus 1. {
         rewrite <- H2.
         apply size_compatible_nested_field; auto.
       } Unfocus.
-      clear H8; rename H9 into H8.
+      clear H9; rename H10 into H9.
       erewrite nested_field_offset2_Tarray by eauto.
-      unfold size_compatible in H8 |- *.
-      destruct p; simpl in H8 |- *; auto.
-      rewrite Z.max_r in H8|-* by omega.
-      rewrite <- (Int.repr_unsigned i) in H8|-*.
-      rewrite add_repr in H8|-*.
+      unfold size_compatible in H9 |- *.
+      destruct p; simpl in H9 |- *; auto.
+      rewrite Z.max_r in H9 |-* by omega.
+      rewrite <- (Int.repr_unsigned i) in H9 |-*.
+      rewrite add_repr in H9 |-*.
       assert (Int.modulus = Int.max_unsigned + 1 ) by (compute; auto).
       pose proof (sizeof_pos t0).
       assert (0 <= sizeof t0 * n) by (apply Z.mul_nonneg_nonneg; omega).
-      rewrite Int.unsigned_repr in H8|-*; try omega.
+      rewrite Int.unsigned_repr in H9|-*; try omega.
       admit. (* omega issue *)
       admit. (* omega issue *)
       admit. (* omega issue *)
@@ -531,14 +528,14 @@ Proof.
         apply align_compatible_nested_field; auto.
       } Unfocus.
       erewrite nested_field_offset2_Tarray by eauto.
-      unfold align_compatible in H9 |- *.
+      unfold align_compatible in H10 |- *.
       rewrite legal_alignas_type_Tarray by admit.
-      rewrite legal_alignas_type_Tarray in H9 by admit.    
-      destruct p; simpl in H9 |- *; auto.
+      rewrite legal_alignas_type_Tarray in H10 by admit.    
+      destruct p; simpl in H10 |- *; auto.
       admit. (* omega issue *)
-    + apply (nested_field_type2_nest_pred eq_refl) with (gfs0 := gfs) in H4.
-      rewrite H2 in H4.
-      exact H4.
+    + apply (nested_field_type2_nest_pred eq_refl) with (gfs0 := gfs) in H5.
+      rewrite H2 in H5.
+      exact H5.
   } Unfocus.
   intros.
   unfold rangespec.

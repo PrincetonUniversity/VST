@@ -784,8 +784,6 @@ intros. hnf; intros.
 auto.
 Qed.
 
-Check unpack_globvar_star.
-
 Ltac expand_one_globvar :=
  (* given a proof goal of the form   local (tc_environ Delta) && globvar2pred (_,_) |-- ?33 *)
 first [

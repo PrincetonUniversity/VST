@@ -611,6 +611,7 @@ Proof.
 Qed.
 
 Definition field_compatible t gfs p :=
+  isptr p /\
   legal_alignas_type t = true /\
   nested_legal_fieldlist t = true /\
   size_compatible t p /\
@@ -623,6 +624,7 @@ Proof.
   unfold field_compatible.
   intros.
   repeat apply sumbool_dec_and.
+  + destruct p; simpl; try (left; tauto); try (right; tauto).
   + destruct legal_alignas_type; [left | right]; congruence.
   + destruct nested_legal_fieldlist; [left | right]; congruence.
   + destruct p; simpl; try solve [left; auto].

@@ -57,7 +57,7 @@ Proof.
   unfold data_at in H1.
   simpl in H1.
   unfold field_compatible in H2.
-  destruct H2 as [? [? [? [? ?]]]].
+  destruct H2 as [? [? [? [? [? ?]]]]].
   normalize in H1.
   rewrite !data_at'_at_offset' with (pos := pos) by auto.
   rewrite !at_offset'_eq by (rewrite <- data_at'_offset_zero; reflexivity).
@@ -162,12 +162,14 @@ Proof.
         omega.
       } Unfocus.
       apply stronger_data_at'_derives;
-        [| | | unfold field_compatible; split; [|split; [| split; [| split]]]]; auto.
+        [| | | unfold field_compatible; split; [|split; [| split; [| split; [| split]]]]]; auto.
       * apply Z.divide_mul_l.
         apply legal_alignas_sizeof_alignof_compat; auto.
       * apply H.
         rewrite Nat2Z.inj_succ in H5.
         omega.
+      * autorewrite with norm.
+        auto.
       * change (sizeof t0 * z)%Z with (nested_field_offset2 (Tarray t0 n a) (ArraySubsc z :: nil)).
         change t0 with (nested_field_type2 (Tarray t0 n a) (ArraySubsc z :: nil)) at 1.
         apply size_compatible_nested_field; auto.
