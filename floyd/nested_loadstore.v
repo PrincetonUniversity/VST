@@ -189,6 +189,12 @@ Proof.
 Qed.
 *)
 
+(******************************************
+
+Lemmas about force_lengthn
+
+******************************************)
+
 Lemma force_lengthn_length_n: forall {A} n (xs : list A) (default: A),
   length (force_lengthn n xs default) = n.
 Proof.
@@ -247,7 +253,7 @@ Lemma equal_data_one_more_on_list: forall t n a (ct: list (reptype t)) i v,
   (upd_reptype (Tarray t n a) (ArraySubsc i :: nil) ct v) === (ct ++ (v::nil)).
 Proof.
   intros.
-  apply data_equal_array_ext; [auto |].
+  apply data_equal_array_ext.
   intros.
   unfold Znth.
   if_tac; [omega |].
@@ -259,6 +265,12 @@ Proof.
   rewrite skipn_short by (rewrite Z2Nat.inj_add by omega; omega).
   apply data_equal_refl.
 Qed.
+
+(******************************************
+
+Proof of field_except lemma
+
+******************************************)
 
 Definition array_aux_field_except: forall sh t gfs t0 n a i,
   legal_alignas_type t = true ->
@@ -430,115 +442,212 @@ Proof.
   admit.
 Defined.
 
-Lemma upd_reptype_nil: forall t v v0, upd_reptype t nil v v0 = v0.
+Definition field_except_at_1_lemma: forall sh t gf gfs,
+  legal_nested_field t (gf :: gfs) ->
+  sigT (fun P => forall v v0 v0',
+    JMeq v0 v0' ->
+    field_at sh t gfs (upd_reptype _ (gf :: nil) v v0) =
+      field_at sh t (gf :: gfs) v0' *
+        P (proj_except_reptype _ gf nil v)).
 Proof.
   intros.
+  unfold field_at.
+  cut (legal_alignas_type t = true ->
+       sigT (fun P => forall v v0 v0',
+         JMeq v0 v0' ->
+         data_at' sh type_id_env.empty_ti (nested_field_type2 t gfs)
+           (nested_field_offset2 t gfs)
+           (upd_reptype (nested_field_type2 t gfs) (gf :: nil) v v0) =
+         data_at' sh type_id_env.empty_ti (nested_field_type2 t (gf :: gfs))
+           (nested_field_offset2 t (gf :: gfs)) v0' *
+         P (proj_except_reptype (nested_field_type2 t gfs) gf nil v))).
+  Focus 1. {
+    intros ?H.
+    destruct (legal_alignas_type t) eqn:?H.
+    + destruct H0 as [P ?H]; [reflexivity |].
+      exists P.
+      intros.
+      specialize (H0 v v0 v0' H2).
+      rewrite H0.
+      assert (legal_nested_field t gfs) by (solve_legal_nested_field_cons H; auto).
+      extensionality p.
+      apply pred_ext; simpl; normalize.
+    + exists (fun _ => TT).
+      intros.
+      extensionality p.
+      simpl.
+      replace (@prop mpred Nveric (false = true)) with (@FF mpred Nveric)
+        by (apply pred_ext; normalize; congruence).
+      normalize.
+  } Unfocus.
+  intros.
+  solve_legal_nested_field_cons H.
+Opaque data_at'.
+  + unfold upd_reptype, proj_except_reptype_array; simpl.
+    unfold eq_rect_r, eq_rect, nested_field_type2_nil; simpl.
+Transparent data_at'.
+    rewrite (nested_field_type2_Tarray t0 z a gfs t i Heq0).
+    destruct (array_aux_field_except sh t gfs t0 z a i) as [P ?H]; auto.
+    exists P.
+    change (nested_field_type2 (Tarray t0 z a) (ArraySubsc i :: nil)) with t0.
+    intros.
+    subst v0.
+    apply H3.
+  + admit.
+  + admit.
+Defined.
+
+Definition field_except_at_lemma_aux: forall sh t gf gfs0 gfs1,
+  legal_nested_field t (gf :: gfs1 ++ gfs0) ->
+  sigT (fun P => forall v v0 v0',
+    JMeq v0 v0' ->
+    field_at sh t gfs0 (upd_reptype _ (gf :: gfs1) v v0) =
+      field_at sh t (gf :: gfs1 ++ gfs0) v0' *
+        P (proj_except_reptype _ gf gfs1 v)).
+Proof.
+  intros.
+  revert gf H; induction gfs1; intros.
+  + simpl app in H |- *.
+    apply field_except_at_1_lemma; auto.
+  + destruct (IHgfs1 a) as [P0 ?H];
+      [simpl app in H; clear - H; solve_legal_nested_field_cons H; auto |].
+    destruct (field_except_at_1_lemma sh t gf (a :: gfs1 ++ gfs0))
+       as [P1 ?H]; [exact H |].
+    destruct (proj_except_reptype_cons_is_pair (nested_field_type2 t gfs0)
+                gf a gfs1) as [F [G ?H]];
+      [apply legal_nested_field_app', H |].
+    exists (fun v => P0 (fst (F v)) *
+      P1 (eq_rect_r (fun t => reptype (nf_sub2 t gf nil)) (snd (F v))
+        (eq_sym (nested_field_type2_nested_field_type2 _ _ _)))).
+    intros.
+
+    erewrite upd_reptype_cons;
+      [| apply legal_nested_field_app', H |].
+    Focus 2. {
+      instantiate (1 := eq_rect_r reptype v0
+                          (nested_field_type2_nested_field_type2
+                            (nested_field_type2 t gfs0) (a :: gfs1) (gf :: nil))).
+      apply JMeq_sym, eq_rect_r_JMeq.
+    } Unfocus.
+    (* Step 1 finish. *)
+
+    rewrite !(proj1 (H2 _)); clear F G H2.
+    unfold fst, snd.
+    (* Step 2 finish. *)
+
+    erewrite H0.
+    Focus 2. {
+      apply JMeq_sym.
+      apply eq_rect_r_JMeq with
+        (F := reptype)
+        (H := eq_sym (nested_field_type2_nested_field_type2 t gfs0 (a :: gfs1))).
+    } Unfocus.
+    rewrite (sepcon_comm (P0 _)), <- sepcon_assoc.
+    f_equal.
+    clear P0 H0.
+    (* Step 3 finish *)
+
+    match goal with
+    | |- appcontext [upd_reptype _ _ ?V ?V0] =>
+           replace (eq_rect_r reptype (upd_reptype _ _ V V0)
+                     (eq_sym (nested_field_type2_nested_field_type2 t gfs0 (a :: gfs1))))
+           with (upd_reptype (nested_field_type2 t (a :: gfs1 ++ gfs0)) (gf :: nil)
+             (eq_rect_r reptype V
+                 (eq_sym (nested_field_type2_nested_field_type2 t gfs0 (a :: gfs1))))
+             (eq_rect_r (fun t0 : type => reptype (nested_field_type2 t0 (gf :: nil))) V0
+                 (eq_sym (nested_field_type2_nested_field_type2 t gfs0 (a :: gfs1)))));
+             [| forget V as r; forget V0 as r0]
+    end.
+    Focus 2. {
+      apply JMeq_eq, JMeq_sym.
+      eapply JMeq_trans; [apply eq_rect_r_JMeq |].
+      forget (eq_sym (nested_field_type2_nested_field_type2 t gfs0 (a :: gfs1))) as HH.
+      revert r r0 HH.
+      rewrite nested_field_type2_nested_field_type2.
+      intros.
+      unfold eq_rect_r; rewrite <- !eq_rect_eq.
+      reflexivity.
+    } Unfocus.
+    erewrite H1.
+    Focus 2. {
+      eapply JMeq_trans; [apply eq_rect_r_JMeq with (F := (fun t0 : type => reptype (nested_field_type2 t0 (gf :: nil))))|].
+      eapply JMeq_trans; [apply eq_rect_r_JMeq |].
+      apply JMeq_sym.
+      instantiate (1 := eq_rect_r reptype v0 (eq_sym (nested_field_type2_nested_field_type2 _ _ _))).
+      apply eq_rect_r_JMeq.
+    } Unfocus.
+    f_equal.
+    (* Step 4 finish *)
+
+    - f_equal.
+      apply JMeq_eq.
+      eapply JMeq_trans; [apply eq_rect_r_JMeq |].
+      exact H3.
+    - f_equal.
+      forget (eq_sym (nested_field_type2_nested_field_type2 t gfs0 (a :: gfs1))) as HH.
+      forget (proj_reptype (nested_field_type2 t gfs0) (a :: gfs1) v) as r.
+      revert r HH.
+      rewrite nested_field_type2_nested_field_type2.
+      intros.
+      unfold eq_rect_r; rewrite <- !eq_rect_eq.
+      reflexivity.
+Defined.
+
+Definition field_except_at (sh: Share.t) t gf gfs0 gfs1 (v: reptype (nf_sub2 (nested_field_type2 t gfs0) gf gfs1)) (p: val) : mpred.
+  destruct (legal_nested_field_dec t (gf :: gfs1 ++ gfs0)); [| exact emp].
+  destruct (field_except_at_lemma_aux sh t gf gfs0 gfs1 l).
+  exact (x v p).
+Defined.
+
+Opaque proj_reptype upd_reptype proj_except_reptype.
+
+Lemma field_except_at_lemma: forall sh t gf gfs0 gfs1 v v0 v0',
+  legal_nested_field t (gf :: gfs1 ++ gfs0) ->
+  JMeq v0 v0' ->
+  field_at sh t gfs0 (upd_reptype _ (gf :: gfs1) v v0) =
+    field_at sh t (gf :: gfs1 ++ gfs0) v0' * 
+      field_except_at sh t gf gfs0 gfs1 (proj_except_reptype _ gf gfs1 v).
+Proof.
+  intros.
+  unfold field_except_at.
+  destruct (legal_nested_field_dec t (gf :: gfs1 ++ gfs0)).
+  + intros. simpl. destruct (field_except_at_lemma_aux sh t gf gfs0 gfs1 l).
+    apply e; auto.
+  + pose proof (n H).
+    inversion H1.
+Qed.
+
+Lemma field_except_at_data_at: forall sh t gf gfs v v0,
+  legal_nested_field t (gf :: gfs) ->
+  data_at sh t (upd_reptype _ (gf :: gfs) v v0) =
+    field_at sh t (gf :: gfs) v0 * 
+      field_except_at sh t gf nil gfs (proj_except_reptype _ gf gfs v).
+Proof.
+  intros.
+  rewrite data_at_field_at.
+  change t with (nested_field_type2 t nil) in v0.
+  pose v0 as v0'.
+  assert (JMeq v0 v0') by reflexivity.
+  clearbody v0'.
+  revert v0' H0.
+  pattern (nested_field_type2 (nested_field_type2 t nil) (gf :: gfs)) at 1 3.
+  rewrite nested_field_type2_nested_field_type2.
+  intros.
+  change t with (nested_field_type2 t nil) at 2.
+  pose proof field_except_at_lemma sh t gf nil gfs v v0 v0'.
+  spec H1; [rewrite app_nil_r; exact H |].
+  spec H1; [exact H0 |].
+  rewrite H1; clear H1.
+  f_equal.
+  revert v0' H0.
+  change (gf :: gfs ++ nil) with ((gf :: gfs) ++ nil).
+  rewrite app_nil_r.
+  intros.
+  rewrite H0.
   reflexivity.
 Qed.
 
-Lemma upd_reptype_cons: forall t gf gfs v v0 v0',
-  nested_legal_fieldlist t = true ->
-  legal_alignas_type t = true ->
-  legal_nested_field t (gf :: gfs) ->
-  JMeq v0 v0' ->
-  upd_reptype t (gf :: gfs) v v0 =
-    upd_reptype t gfs v (upd_reptype _ (gf :: nil) (proj_reptype t gfs v) v0').
-Proof.
-  intros.
-  simpl.
-  f_equal.
-  generalize (nested_field_type2_cons t gf gfs).
-  generalize (nested_field_type2_nil (nested_field_type2 t gfs)).
-  generalize (eq_sym (nested_field_type2_cons (nested_field_type2 t gfs) gf nil)).
-  generalize (proj_reptype t gfs v).
-  revert v0' H2.
-  solve_legal_nested_field_cons H1.
-Opaque reptype.
-  + simpl.
-    simpl.
-Transparent reptype.
-    intros.
-    f_equal.
-    - apply JMeq_eq.
-      rewrite eq_rect_r_JMeq.
-      reflexivity.
-    - apply JMeq_eq.
-      rewrite !eq_rect_r_JMeq.
-      rewrite H4.
-      reflexivity.
-Opaque reptype.
-  + simpl.
-Transparent reptype.
-    intros.
-    f_equal.
-    - apply JMeq_eq.
-      rewrite eq_rect_r_JMeq.
-      reflexivity.
-    - apply JMeq_eq.
-      rewrite !eq_rect_r_JMeq.
-      rewrite H4.
-      reflexivity.
-Opaque reptype.
-  + simpl.
-Transparent reptype.
-    intros.
-    f_equal.
-    - apply JMeq_eq.
-      rewrite !eq_rect_r_JMeq.
-      rewrite H4.
-      reflexivity.
-Qed.
-
-Definition proj_except_reptype_cons_is_pair: forall t gf gf0 gfs,
-  legal_nested_field t (gf :: gf0 :: gfs) ->
-  sigT (fun F => forall v,
-    F (proj_except_reptype t gf (gf0 :: gfs) v) =
-      (proj_except_reptype t gf0 gfs v,
-        proj_except_reptype _ gf nil (proj_reptype t (gf0 :: gfs) v))).
-Proof.
-  intros.
-  remember (gf0 :: gfs) as gfs'.
-  unfold proj_except_reptype, nf_sub2.
-  simpl; subst gfs'.
-  generalize (nested_field_type2_nil (nested_field_type2 t (gf0 :: gfs))).
-  admit.
-Defined.
-
-Definition nested_field_sub_aux: forall sh t gf gfs, 
-  nested_legal_fieldlist t = true ->
-  legal_alignas_type t = true ->
-  legal_nested_field t (gf :: gfs) ->
-  sigT (fun P => forall v v0,
-    data_at sh t (upd_reptype t (gf :: gfs) v v0) =
-      field_at sh t (gf :: gfs) v0 *
-        P (proj_except_reptype t gf gfs v)).
-Proof.
-  intros.
-  unfold data_at, field_at.
-  cut ({P : reptype (nf_sub2 t gf gfs) -> val -> mpred &
-   forall (v : reptype t) (v0 : reptype (nested_field_type2 t (gf :: gfs))),
-     data_at' sh type_id_env.empty_ti t 0 (upd_reptype t (gf :: gfs) v v0) =
-       data_at' sh type_id_env.empty_ti (nested_field_type2 t (gf :: gfs))
-        (nested_field_offset2 t (gf :: gfs)) v0 *
-          P (proj_except_reptype t gf gfs v)}).
-  Focus 1. {
-    intros.
-    destruct X as [P HH].
-    exists P.
-    intros.
-    extensionality p.
-Opaque upd_reptype nested_field_rec proj_except_reptype.
-    simpl.
-Transparent upd_reptype nested_field_rec proj_except_reptype.
-    rewrite HH.
-    apply pred_ext; normalize.
-  } Unfocus.
-Admitted.
-(*
-  revert gf H1.
-  induction gfs; intros.
-  + solve_legal_nested_field_cons H1.    
-*)
+Transparent proj_reptype upd_reptype proj_except_reptype.
 
 (*
 Lemma upd_array_stronger: forall t n a i v v0 v1,
@@ -602,8 +711,6 @@ Qed.
 *)
 
 Lemma upd_stronger: forall t gfs v v0 v1,
-  nested_legal_fieldlist t = true ->
-  legal_alignas_type t = true ->
   legal_nested_field t gfs ->
   v0 >>> v1 ->
   upd_reptype t gfs v v0 >>> upd_reptype t gfs v v1.
@@ -612,15 +719,12 @@ Proof.
   intros sh p.
   destruct gfs.
   + simpl.
-    apply H2.
-  + destruct (nested_field_sub_aux sh t g gfs H H0 H1) as [P HH].
-    rewrite !HH.
+    apply H0.
+  + rewrite !field_except_at_data_at by auto.
     simpl.
-    rewrite !field_at_data_at by exact H0.
-    rewrite !at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
-    normalize.
     cancel.
-    apply H2.
+    rewrite !field_at_data_at.
+    apply H0.
 Qed.
 
 Lemma Z2Nat_nonpos_0: forall z, z <= 0 -> Z.to_nat z = 0%nat.
@@ -635,11 +739,9 @@ Qed.
 
 Lemma array_at_emp:
   forall sh t gfs lo hi v p, lo >= hi ->
-    array_at sh t gfs lo hi v p =
-     !!isptr p && !! size_compatible t p && !!align_compatible t p &&
-       !! legal_nested_field t gfs && emp.
+    array_at sh t gfs lo hi v p = !! field_compatible t gfs p && emp.
 Proof.
-  intros. unfold array_at, rangespec.
+  intros. unfold array_at, rangespec, field_compatible.
   replace (nat_of_Z (hi - lo)) with 0%nat.
   + simpl. apply pred_ext; normalize.
   + rewrite Z2Nat_nonpos_0 by omega.
@@ -648,13 +750,12 @@ Qed.
 
 Lemma data_at_Tarray_split3: forall sh t n a i v,
   0 <= i < n ->
-  legal_alignas_type (Tarray t n a) = true ->
   data_at sh (Tarray t n a) v = 
     data_at sh (Tarray t n a) (force_lengthn (nat_of_Z i) v (default_val _) ++
       (Znth i v (default_val _)) :: skipn (nat_of_Z (i + 1)) v).
 Proof.
   intros.
-  apply data_at_Tarray_ext; [exact H0 |].
+  apply data_at_Tarray_ext.
   intros j ?H.
   unfold Znth.
   if_tac; [omega |].
@@ -685,29 +786,25 @@ Proof.
 Qed.
 
 Lemma stronger_upd_self: forall t gfs v,
-  nested_legal_fieldlist t = true ->
-  legal_alignas_type t = true ->
   legal_nested_field t gfs ->
   v >>> (upd_reptype t gfs v (proj_reptype t gfs v)).
 Proof.
   intros.
   induction gfs as [| gf gfs].
   + intros sh p. simpl. auto.
-  + assert (legal_nested_field t gfs) by (solve_legal_nested_field_cons H1; auto).
+  + assert (legal_nested_field t gfs) by (solve_legal_nested_field_cons H; auto).
 Opaque eq_rect_r.
-    simpl upd_reptype; simpl proj_reptype.    
-    eapply stronger_trans; [apply IHgfs, H2 |].
+    simpl upd_reptype; simpl proj_reptype.
+    eapply stronger_trans; [apply IHgfs, H0 |].
     apply upd_stronger; auto.
     generalize (proj_reptype t gfs v).
     generalize ((nested_field_type2_cons t gf gfs)).
-    solve_legal_nested_field_cons H1.
+    solve_legal_nested_field_cons H.
     - simpl; intros.
       unfold upd_reptype_array.
       rewrite eq_rect_r_eq_rect_r_eq_sym.
       intros sh p.
       rewrite <- data_at_Tarray_split3; auto.
-      rewrite <- Heq0.
-      apply nested_field_type2_nest_pred; auto.
     - simpl; intros.
       unfold upd_reptype_array.
       rewrite eq_rect_r_eq_rect_r_eq_sym.
@@ -720,7 +817,8 @@ Opaque eq_rect_r.
       admit.
 Qed.
 
-      
+Opaque proj_reptype upd_reptype proj_except_reptype.
+
 
     
 
@@ -1838,36 +1936,6 @@ Transparent eq_rect_r proj_reptype proj_except_reptype.
 Defined.
 *)
 
-Definition field_except_at (sh: Share.t) t gf gfs (v: reptype (nf_sub2 t gf gfs)) (p: val) : mpred.
-  destruct (nested_legal_fieldlist t) eqn:H; [| exact emp].
-  destruct (legal_alignas_type t) eqn:H0; [| exact emp].
-  destruct (legal_nested_field_dec t (gf :: gfs)); [| exact emp].
-  destruct (nested_field_sub_aux sh t gf gfs H H0 l).
-  exact (x v p).
-Defined.
-
-Opaque proj_reptype upd_reptype proj_except_reptype.
-
-Lemma field_except_at_lemma: forall sh t gf gfs v v0,
-  nested_legal_fieldlist t = true ->
-  legal_alignas_type t = true ->
-  legal_nested_field t (gf :: gfs) ->
-  data_at sh t (upd_reptype t (gf :: gfs) v v0) = field_at sh t (gf :: gfs) v0 * 
-    field_except_at sh t gf gfs (proj_except_reptype t gf gfs v).
-Proof.
-  intros.
-  unfold field_except_at.
-  generalize (@eq_refl bool (nested_legal_fieldlist t)).
-  generalize (@eq_refl bool (legal_alignas_type t)).
-  pattern (nested_legal_fieldlist t) at 2 3; rewrite H.
-  pattern (legal_alignas_type t) at 2 3; rewrite H0.
-  destruct (legal_nested_field_dec t (gf :: gfs)).
-  + intros. simpl. destruct (nested_field_sub_aux sh t gf gfs e0 e l).
-    apply e1.
-  + pose proof (n H1).
-    inversion H2.
-Qed.
-
 Lemma semax_extract_later_prop': 
   forall {Espec: OracleKind},
     forall (Delta : tycontext) (PP : Prop) P Q R c post,
@@ -2140,8 +2208,6 @@ Transparent upd_reptype.
   + admit.
 Qed.
 
-Module NF.
-
 Lemma NF_aux: forall e t gfs, type_is_by_value (uncompomize e (nested_field_type2 t gfs)) ->
   isSome (nested_field_rec t gfs).
 Proof.
@@ -2151,69 +2217,31 @@ Proof.
   [simpl; auto | inversion H].
 Qed.
 
-Lemma field_except_at_lemma: forall sh t gf gfs v v0,
-  nested_legal_fieldlist t = true ->
-  legal_alignas_type t = true ->
-  legal_nested_field t (gf :: gfs) ->
-  data_at sh t (upd_reptype t (gf :: gfs) v v0) =
-    field_at sh t (gf :: gfs) v0 * 
-      field_except_at sh t gf gfs (proj_except_reptype t gf gfs v).
-Proof.
-  intros.
-  apply field_except_at_lemma; auto.
-Qed.
+Check field_except_at_lemma.
 
-Lemma field_except_at_field_lemma: forall sh t gf gfs0 gfs1 v v0 v0' p,
-  nested_legal_fieldlist t = true ->
-  legal_alignas_type t = true ->
+Lemma lifted_field_except_at_lemma: forall sh t gf gfs0 gfs1 v v0 v0',
   legal_nested_field t ((gf :: gfs1) ++ gfs0) ->
   JMeq v0' v0 ->
-  field_at sh t gfs0 (upd_reptype _ (gf :: gfs1) v v0) p =
-    field_at sh t ((gf :: gfs1) ++ gfs0) v0' p * 
-      field_except_at sh _ gf gfs1 (proj_except_reptype _ gf gfs1 v)
-        (offset_val (Int.repr (nested_field_offset2 t gfs0)) p).
+  `(field_at sh t gfs0)
+     (`(upd_reptype (nested_field_type2 t gfs0) (gf :: gfs1)) v v0) =
+       `(field_at sh t (gf :: gfs1 ++ gfs0)) v0' *
+       (`(field_except_at sh t gf gfs0 gfs1)
+         (`(proj_except_reptype (nested_field_type2 t gfs0) gf gfs1) v)).
 Proof.
   intros.
-  Admitted.
-(*
-  erewrite field_at_field_at by eauto.
-  rewrite field_at_data_at by auto.
-  rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
-  rewrite at_offset'_eq by (rewrite <- field_at_offset_zero; reflexivity).
-  pose proof legal_nested_field_app _ _ _ H1.
-  erewrite field_except_at_lemma.
-  + apply pred_ext; normalize.
-  + apply nested_field_type2_nest_pred; auto.
-  + apply nested_field_type2_nest_pred; auto.
-  + apply legal_nested_field_app', H1.
-Qed.
-*)
-
-Lemma lifted_field_except_at_field_lemma: forall sh t gf gfs0 gfs1 v v0 v0' p,
-  nested_legal_fieldlist t = true ->
-  legal_alignas_type t = true ->
-  legal_nested_field t ((gf :: gfs1) ++ gfs0) ->
-  JMeq v0' v0 ->
-  `(field_at sh t gfs0) (`(upd_reptype _ (gf :: gfs1)) v v0) p =
-    `(field_at sh t ((gf :: gfs1) ++ gfs0)) v0' p * 
-      `(field_except_at sh _ gf gfs1) (`(proj_except_reptype _ gf gfs1) v)
-        (`(offset_val (Int.repr (nested_field_offset2 t gfs0))) p).
-Proof.
-  intros.
-  extensionality rho.
+  extensionality p rho.
   unfold_lift.
 Opaque upd_reptype.
   simpl.
 Transparent upd_reptype.
-  erewrite field_except_at_field_lemma; eauto.
-  clear - H2.
-  revert v0 v0' H2.
+  erewrite field_except_at_lemma with (v0' := v0' rho); eauto.
+  clear - H0.
+  revert v0 v0' H0.
   rewrite nested_field_type2_nested_field_type2.
   intros.
-  rewrite H2.
+  rewrite H0.
   reflexivity.
 Qed.
-End NF.
 
 Lemma semax_nested_efield_field_load_37':
   forall {Espec: OracleKind},

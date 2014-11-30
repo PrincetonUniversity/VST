@@ -1345,8 +1345,6 @@ Proof.
 Qed.
 
 Lemma upd_reptype_cons: forall t gf gfs v v0 v0',
-  nested_legal_fieldlist t = true ->
-  legal_alignas_type t = true ->
   legal_nested_field t (gf :: gfs) ->
   JMeq v0 v0' ->
   upd_reptype t (gf :: gfs) v v0 =
@@ -1359,8 +1357,8 @@ Proof.
   generalize (nested_field_type2_nil (nested_field_type2 t gfs)).
   generalize (eq_sym (nested_field_type2_cons (nested_field_type2 t gfs) gf nil)).
   generalize (proj_reptype t gfs v).
-  revert v0' H2.
-  solve_legal_nested_field_cons H1.
+  revert v0' H0.
+  solve_legal_nested_field_cons H.
 Opaque reptype.
   + simpl.
     simpl.
@@ -1372,7 +1370,7 @@ Transparent reptype.
       reflexivity.
     - apply JMeq_eq.
       rewrite !eq_rect_r_JMeq.
-      rewrite H4.
+      rewrite H2.
       reflexivity.
 Opaque reptype.
   + simpl.
@@ -1384,7 +1382,7 @@ Transparent reptype.
       reflexivity.
     - apply JMeq_eq.
       rewrite !eq_rect_r_JMeq.
-      rewrite H4.
+      rewrite H2.
       reflexivity.
 Opaque reptype.
   + simpl.
@@ -1393,7 +1391,7 @@ Transparent reptype.
     f_equal.
     - apply JMeq_eq.
       rewrite !eq_rect_r_JMeq.
-      rewrite H4.
+      rewrite H2.
       reflexivity.
 Qed.
 
@@ -1704,3 +1702,54 @@ Transparent gupd_reptype proj_except_reptype nested_field_type2 nf_replace2 nf_s
     rewrite <- (proj2 (H0 _ _)).
     split; reflexivity.
 Qed.
+
+Definition proj_except_reptype_cons_is_pair: forall t gf gf0 gfs,
+  legal_nested_field t (gf :: gf0 :: gfs) ->
+  sigT (fun F => sigT (fun G => 
+    forall v,
+    F (proj_except_reptype t gf (gf0 :: gfs) v) =
+      (proj_except_reptype t gf0 gfs v,
+        proj_except_reptype _ gf nil (proj_reptype t (gf0 :: gfs) v)) /\
+    proj_except_reptype t gf (gf0 :: gfs) v =
+      G (proj_except_reptype t gf0 gfs v,
+        proj_except_reptype _ gf nil (proj_reptype t (gf0 :: gfs) v)))).
+Proof.
+  intros.
+  cut (sigT (fun F => sigT (fun G => 
+         forall v,
+         F (gupd_reptype t (gf0 :: gfs) _ v
+             (proj_except_reptype _ gf nil (proj_reptype t (gf0 :: gfs) v))) =
+           (proj_except_reptype t gf0 gfs v,
+             proj_except_reptype _ gf nil (proj_reptype t (gf0 :: gfs) v)) /\
+         gupd_reptype t (gf0 :: gfs) _ v
+             (proj_except_reptype _ gf nil (proj_reptype t (gf0 :: gfs) v)) =
+           G (proj_except_reptype t gf0 gfs v,
+             proj_except_reptype _ gf nil (proj_reptype t (gf0 :: gfs) v))))).
+  Focus 1. {
+    intros ?H.
+    destruct H0 as [F0 [G0 ?H]].
+    exists (fun v => F0 (eq_rect_r reptype v
+             (nf_sub2_is_nf_sub2_1_nf_replace2 t gf (gf0 :: gfs) H))).
+    exists (fun v => eq_rect_r reptype (G0 v)
+             (eq_sym (nf_sub2_is_nf_sub2_1_nf_replace2 t gf (gf0 :: gfs) H))).
+    intros.
+    split.
+    + rewrite <- (proj1 (H0 _)).
+      f_equal.
+      apply JMeq_eq.
+      eapply JMeq_trans; [apply eq_rect_r_JMeq |].
+      apply proj_except_reptype_is_proj_except_reptye1_gupd_reptype.
+      auto.
+    + rewrite <- (proj2 (H0 _)).
+      apply JMeq_eq, JMeq_sym.
+      eapply JMeq_trans; [apply eq_rect_r_JMeq |].
+      apply JMeq_sym, proj_except_reptype_is_proj_except_reptye1_gupd_reptype.
+      auto.
+  } Unfocus.
+  destruct (gupd_reptype_cons_is_pair t gf0 gfs
+             (nf_sub2 (nested_field_type2 t (gf0 :: gfs)) gf nil)) as [F0 [G0 ?H]];
+    [solve_legal_nested_field_cons H; auto |].
+  exists F0, G0.
+  intros.
+  apply H0.
+Defined.
