@@ -295,27 +295,53 @@ Proof.
            (mapsto sh (tptr t_struct_list) v1 nullval)
       by (symmetry; apply mapsto_null_mapsto_pointer)
      end.
+     rewrite mapsto_size_compatible with (p := (Vptr b (Int.add i0 (Int.repr (ofs + 4)))))
+       by reflexivity.
+     rewrite mapsto_align_compatible by reflexivity.
+     normalize.
+     assert (size_compatible t_struct_list (Vptr b (Int.add i0 (Int.repr ofs)))).
+     Focus 1. {
+       unfold size_compatible in *.
+       admit. (* omega issure *)
+     } Unfocus.
+     assert (align_compatible t_struct_list (Vptr b (Int.add i0 (Int.repr ofs)))).
+     Focus 1. {
+       unfold align_compatible in *.
+       exact H.
+     } Unfocus.
      apply sepcon_derives.
-     rewrite mapsto_size_compatible by reflexivity.
-    rewrite mapsto_align_compatible by reflexivity.
-    normalize. eapply mapsto_field_at'; try reflexivity; try apply I;
-   unfold offset_val; repeat rewrite Int.add_assoc.
-   simpl in *. forget (Int.unsigned (Int.add i0 (Int.repr ofs))) as j.
-   admit.  (* Need a proof that the list cell does not cross the end of memory *)
-   simpl in *; auto.
-   apply legal_nested_field_cons_lemma; simpl.
-   split; [|auto].
-   apply legal_nested_field_nil_lemma.
- rewrite @lseg_nil_eq; auto.
- entailer!. compute; auto.
- unfold t_struct_list at 2.
-  eapply mapsto_field_at'; try reflexivity; try apply I;
-  unfold offset_val; repeat rewrite Int.add_assoc.
-  simpl.  admit. (* need to adjust mapsto_field_at' for Tcomp_ptr *)
-  normalize.
-  simpl. admit.  (* Need a proof that the list cell does not cross the end of memory *)
-  simpl. admit.  (* Need to keep track of alignment constraint *)
-  solve_legal_nested_field.
+     * rewrite field_at_data_at.
+       unfold field_address.
+       if_tac.
+       Focus 2. {
+         unfold field_compatible in H3.
+         assert (legal_nested_field t_struct_list [StructField _head])
+           by solve_legal_nested_field.
+         assert (isptr (Vptr b (Int.add i0 (Int.repr ofs))) /\
+           legal_alignas_type t_struct_list = true /\
+           nested_legal_fieldlist t_struct_list = true) by (repeat split; reflexivity).
+         tauto.
+       } Unfocus.
+       erewrite by_value_data_at by reflexivity.
+       entailer!.
+       admit. (* for field_compatible. should be easy to proof. *)
+     * rewrite field_at_data_at.
+       unfold field_address.
+       if_tac.
+       Focus 2. {
+         unfold field_compatible in H3.
+         assert (legal_nested_field t_struct_list [StructField _head])
+           by solve_legal_nested_field.
+         assert (isptr (Vptr b (Int.add i0 (Int.repr ofs))) /\
+           legal_alignas_type t_struct_list = true /\
+           nested_legal_fieldlist t_struct_list = true) by (repeat split; reflexivity).
+         tauto.
+       } Unfocus.
+       erewrite uncompomize_by_value_data_at with (e := type_id_env.empty_ti)
+         by reflexivity.
+       entailer!.
+       admit. (* for field_compatible. should be easy to proof. *)
+       admit.
  -
   unfold offset_val; repeat rewrite Int.add_assoc.
  spec IHdata. simpl length in H0|-*. repeat rewrite inj_S in H0|-*. omega.
@@ -331,7 +357,9 @@ Proof.
  rewrite mapsto_tuint_tint.
  rewrite list_cell_eq.
  destruct (eval_var i (tarray t_struct_list n) rho) eqn:H8; inv H.
- unfold_lift;
+ unfold_lift.
+  admit. (* Temperarily admit it now. -- Qinxiang *)
+(*
  apply sepcon_derives;
  [eapply mapsto_field_at'; try reflexivity; try apply I
  | ]; simpl; try rewrite H8; simpl.
@@ -356,6 +384,7 @@ Proof.
  replace (ofs + 4 + 4)
    with (ofs+8) by omega.
  apply IHdata.
+*)
 Qed.
 
 (**  Third, we specialize it to the precondition of our main function: **)

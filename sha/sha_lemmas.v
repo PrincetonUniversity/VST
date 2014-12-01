@@ -223,14 +223,14 @@ Proof.
   rewrite Z.mul_0_r. rewrite Z.add_0_r.
   pose proof (Int.unsigned_range (Int.repr (z + sizeof t * len))); omega.
   assert (z + sizeof t * len < Int.modulus \/ z + sizeof t * len = Int.modulus) by omega.
-  destruct H2.
-  rewrite Int.unsigned_repr; try omega.
-  apply Z.divide_add_r; auto.
-  rewrite Z.mul_comm.
-  apply Z.divide_mul_r; auto.
-  apply legal_alignas_sizeof_alignof_compat; auto.
-  rewrite H2.
-  apply Z.divide_0_r.
+  destruct H10.
+  - rewrite Int.unsigned_repr; try (unfold Int.max_unsigned; omega).
+    apply Z.divide_add_r; auto.
+    rewrite Z.mul_comm.
+    apply Z.divide_mul_r; auto.
+    apply legal_alignas_sizeof_alignof_compat; auto.
+  - rewrite H10.
+    apply Z.divide_0_r.
 +
   assert (sizeof t = 0 \/ 0 < sizeof t) by omega.
   destruct H8.
@@ -488,11 +488,10 @@ f_equal. f_equal. apply prop_ext. intuition.
 Qed.
 
 Lemma data_equal_list_repeat_default: forall t n a (v: list (reptype t)) m,
-  legal_alignas_type (Tarray t n a) = true ->
   @data_equal (Tarray t n a) v (v ++ list_repeat m (default_val t)).
 Proof.
   intros.
-  apply data_equal_array_ext; [auto |].
+  apply data_equal_array_ext.
   intros.
   unfold Znth; if_tac; [omega |].
   pattern v at 1.
