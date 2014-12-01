@@ -6,7 +6,7 @@ Require Import Coq.Arith.EqNat.
 Require Import mc_reify.clight_expr_eq.
 Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.List.
-Require Import ExtLib.Core.RelDec.x
+Require Import ExtLib.Core.RelDec.
 
 Definition const_beq a b :=
 match a, b with
