@@ -73,6 +73,3 @@ match e with
     | _ => AppN.apps e args
 end.
 
-Instance MA : MentionsAny (expr typ func) := {
-  mentionsAny := ExprCore.mentionsAny
-}.

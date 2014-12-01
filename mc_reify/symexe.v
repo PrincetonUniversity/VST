@@ -131,8 +131,66 @@ Definition test_lemma :=
           nil nil.
 
 
+Require Import MirrorCharge.RTac.Cancellation.
 
 
 
+Fixpoint is_pure (e : expr typ func) := 
+match e with 
+| App e1 e2 => is_pure e1
+| (Inj (inr (Sep fprop))) => true
+| _ => false
+end.
 
+Definition CANCEL e := run_tac (THEN INTROS (CANCELLATION typ func tympred is_pure)) e.
+Locate data_at.
+
+Parameter f : nat -> nat.
+
+Goal f = f.
+reify_expr_tac.
+(* App(App (Inj (inr (Other (feq (tyArr tynat tynat))))) (Ext 1%positive))
+         (Ext 1%positive) *)
+Eval vm_compute in run_tac (THEN INTROS REFLEXIVITY) e.
+(*     = Solved (TopSubst (expr typ func) [] []) *)
+Abort.
+
+Goal forall n, f n = f n.
+reify_expr_tac.
+(*App (ILogicFunc.fForall tynat typrop)
+         (Abs tynat
+            (App
+               (App (Inj (inr (Other (feq tynat))))
+                  (App (Ext 1%positive) (ExprCore.Var 0%nat)))
+               (App (Ext 1%positive) (ExprCore.Var 0%nat)))) *)
+Eval vm_compute in run_tac (THEN INTROS REFLEXIVITY) e.
+(*    = Fail *)
+Abort.
+
+Goal forall (sh : share) (v1 v2 : val), False.
+intros.
+reify_vst (data_at sh tint v1 v2).
+Abort.
+
+Goal forall sh v1 v2, (data_at sh tint v1 v2) |-- (data_at sh tint v1 v2).
+intros. simpl reptype in *.
+reify_expr_tac.
+Eval vm_compute in CANCEL e.
+Abort.
+
+Goal forall P Q b,  !!b && P * Q |-- !!b && Q * P .
+reify_expr_tac.
+Abort.
+
+Goal forall (sh : share), sh = sh.
+reify_expr_tac.
+Eval vm_compute in run_tac (THEN INTROS REFLEXIVITYTAC) e.
+Abort.
+
+
+Goal forall sh ty v1 v2, mapsto sh ty v1 v2 = mapsto sh ty v1 v2.
+reify_expr_tac.
+Eval vm_compute in run_tac (THEN INTROS REFLEXIVITYTAC) e.
+Eval vm_compute in run_tac (THEN INTROS (CANCELLATION typ func tympred is_pure)) e.
+Abort.
 

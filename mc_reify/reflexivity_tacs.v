@@ -20,9 +20,7 @@ fun tus tvs n m c s e =>
 match e with 
 | (App (App (Inj (inr (Other (feq ty)))) l) r) =>
   match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
-                                 tus tvs 0 s l r ty
-(*@exprUnify subst typ func _ _ _ SS SU 10 
-                   tus tvs 0 s l r ty *) with
+                                 tus tvs 0 s l r ty with
     | Some s => RTac.Core.Solved s 
     | None =>  RTac.Core.Fail
   end
