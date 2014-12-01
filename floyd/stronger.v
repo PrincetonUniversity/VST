@@ -48,8 +48,7 @@ Lemma stronger_data_at'_derives: forall sh t v0 v1 pos p,
   legal_alignas_type t = true ->
   (alignof t | pos) ->
   v0 >>> v1 ->
-  size_compatible t (offset_val (Int.repr pos) p) ->
-  align_compatible t (offset_val (Int.repr pos) p) ->
+  field_compatible t nil (offset_val (Int.repr pos) p) ->
   data_at' sh type_id_env.empty_ti t pos v0 p |--
     data_at' sh type_id_env.empty_ti t pos v1 p.
 Proof.
@@ -57,6 +56,8 @@ Proof.
   specialize (H1 sh (offset_val (Int.repr pos) p)).
   unfold data_at in H1.
   simpl in H1.
+  unfold field_compatible in H2.
+  destruct H2 as [? [? [? [? [? ?]]]]].
   normalize in H1.
   rewrite !data_at'_at_offset' with (pos := pos) by auto.
   rewrite !at_offset'_eq by (rewrite <- data_at'_offset_zero; reflexivity).
@@ -98,7 +99,6 @@ Proof.
 Qed.
 
 Lemma field_at_stronger: forall sh t gfs v0 v1,
-  legal_alignas_type t = true ->
   v0 >>> v1 ->
   field_at sh t gfs v0 |-- field_at sh t gfs v1.
 Proof.
@@ -106,9 +106,8 @@ Proof.
   intros p.
   rewrite !field_at_data_at by exact H.
   simpl.
-  rewrite !at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
   normalize.
-  apply H0.
+  apply H.
 Qed.
 
 Lemma Z2Nat_neg: forall i, i < 0 -> Z.to_nat i = 0%nat.
@@ -119,7 +118,6 @@ Proof.
 Qed.
 
 Lemma stronger_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
-  legal_alignas_type (Tarray t0 n a) = true ->
   (forall i, 0 <= i < n -> Znth i v0 (default_val _) >>> Znth i v1 (default_val _)) ->
   v0 >>> v1.
 Proof.
@@ -139,15 +137,14 @@ Proof.
     Znth i v0 (default_val t0) >>> Znth i v1 (default_val t0)).
   Focus 1. {
     intros.
-    apply H0.
-    rewrite Z.sub_0_r in H3.
-    rewrite Z2Nat.id in H3 by omega.
+    apply H.
+    rewrite Z.sub_0_r in H4.
+    rewrite Z2Nat.id in H4 by omega.
     omega.
   } Unfocus.
-  clear H0.
   assert (n - Z.of_nat (nat_of_Z (n - 0)) = 0) by (rewrite Z2Nat.id by omega; omega).
   assert (0 <= 0) by omega.
-  revert H0 H4.
+  revert H5 H6.
   generalize 0 at 2 4 5 9.
   induction (nat_of_Z (n - 0)); intros.
   + simpl. auto.
@@ -161,37 +158,40 @@ Proof.
       assert (legal_nested_field (Tarray t0 n a) (ArraySubsc z :: nil)).
       Focus 1. {
         solve_legal_nested_field.
-        rewrite Nat2Z.inj_succ in H0.
+        rewrite Nat2Z.inj_succ in H5.
         omega.
       } Unfocus.
-      apply stronger_data_at'_derives; auto.
+      apply stronger_data_at'_derives;
+        [| | | unfold field_compatible; split; [|split; [| split; [| split; [| split]]]]]; auto.
       * apply Z.divide_mul_l.
         apply legal_alignas_sizeof_alignof_compat; auto.
-      * apply H3.
-        rewrite Nat2Z.inj_succ in H0 |- *.
+      * apply H.
+        rewrite Nat2Z.inj_succ in H5.
         omega.
+      * autorewrite with norm.
+        auto.
       * change (sizeof t0 * z)%Z with (nested_field_offset2 (Tarray t0 n a) (ArraySubsc z :: nil)).
         change t0 with (nested_field_type2 (Tarray t0 n a) (ArraySubsc z :: nil)) at 1.
         apply size_compatible_nested_field; auto.
       * change (sizeof t0 * z)%Z with (nested_field_offset2 (Tarray t0 n a) (ArraySubsc z :: nil)).
         change t0 with (nested_field_type2 (Tarray t0 n a) (ArraySubsc z :: nil)) at 1.
         apply align_compatible_nested_field; auto.
+      * apply legal_nested_field_nil_lemma.
     - apply IHn0.
       * intros.
-        apply H3.
+        apply H4.
         rewrite Nat2Z.inj_succ.
         omega.
-      * rewrite Nat2Z.inj_succ in H0.
+      * rewrite Nat2Z.inj_succ in H5.
         omega.
       * omega.
 Qed.
 
-Lemma stronger_default_val: forall t v, legal_alignas_type t = true -> v >>> default_val t.
+Lemma stronger_default_val: forall t v, v >>> default_val t.
 Proof.
   intros.
   intros sh p.
   apply data_at_data_at_.
-  auto.
 Qed.
 
 Lemma data_equal_stronger: forall {t} (v1 v2: reptype t), (v1 === v2) <-> (v1 >>> v2) /\ (v2 >>> v1).
@@ -226,18 +226,16 @@ Proof.
 Qed.
 
 Lemma field_at_data_equal: forall sh t gfs v0 v1,
-  legal_alignas_type t = true ->
   v0 === v1 ->
   field_at sh t gfs v0 = field_at sh t gfs v1.
 Proof.
   intros.
   destruct (data_equal_stronger v0 v1) as [? _].
-  spec H1; [auto |].
+  spec H0; [auto |].
   apply pred_ext; apply field_at_stronger; tauto.
 Qed.
 
 Lemma data_equal_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
-  legal_alignas_type (Tarray t0 n a) = true ->
   (forall i, 0 <= i < n -> Znth i v0 (default_val _) === Znth i v1 (default_val _)) ->
   v0 === v1.
 Proof.
@@ -245,14 +243,14 @@ Proof.
   assert (forall i : Z, 0 <= i < n -> Znth i v0 (default_val t0) >>> Znth i v1 (default_val t0)).
   Focus 1. {
     intros.
-    specialize (H0 i H1).
+    specialize (H i H0).
     destruct (data_equal_stronger (Znth i v0 (default_val t0)) (Znth i v1 (default_val t0))) as [? _].
     tauto.
   } Unfocus.
   assert (forall i : Z, 0 <= i < n -> Znth i v1 (default_val t0) >>> Znth i v0 (default_val t0)).
   Focus 1. {
     intros.
-    specialize (H0 i H2).
+    specialize (H i H1).
     destruct (data_equal_stronger (Znth i v0 (default_val t0)) (Znth i v1 (default_val t0))) as [? _].
     tauto.
   } Unfocus.
