@@ -167,25 +167,30 @@ Eval vm_compute in run_tac (THEN INTROS REFLEXIVITY) e.
 (*    = Fail *)
 Abort.
 
-
-Goal forall sh, data_at T tint |-- data_at sh tint.
+Goal forall (sh : share) (v1 v2 : val), False.
 intros.
+reify_vst (data_at sh tint v1 v2).
+Abort.
+
+Goal forall sh v1 v2, (data_at sh tint v1 v2) |-- (data_at sh tint v1 v2).
+intros. simpl reptype in *.
 reify_expr_tac.
 Eval vm_compute in CANCEL e.
 Abort.
 
 Goal forall P Q b,  !!b && P * Q |-- !!b && Q * P .
 reify_expr_tac.
-Eval vm_compute in .
+Abort.
 
 Goal forall (sh : share), sh = sh.
 reify_expr_tac.
 Eval vm_compute in run_tac (THEN INTROS REFLEXIVITYTAC) e.
+Abort.
 
 
 Goal forall sh ty v1 v2, mapsto sh ty v1 v2 = mapsto sh ty v1 v2.
 reify_expr_tac.
 Eval vm_compute in run_tac (THEN INTROS REFLEXIVITYTAC) e.
 Eval vm_compute in run_tac (THEN INTROS (CANCELLATION typ func tympred is_pure)) e.
-
+Abort.
 
