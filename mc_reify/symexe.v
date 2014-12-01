@@ -1,10 +1,10 @@
-Require Export reify.
+Require Export mc_reify.reify.
 Import floyd.proofauto.
-Require Export bool_funcs.
-Require Import set_reif.
+Require Export mc_reify.bool_funcs.
+Require Import mc_reify.set_reif.
 Require Import MirrorCore.Lemma.
 Require Import MirrorCharge.RTac.ReifyLemma.
-Require Import update_tycon.
+Require Import mc_reify.update_tycon.
 Require Export MirrorCore.RTac.Repeat.
 Require Import MirrorCore.RTac.Then.
 Require Export MirrorCore.RTac.Try.
@@ -18,9 +18,9 @@ Require Import MirrorCharge.RTac.Instantiate.
 Require Import MirrorCharge.RTac.Intro.
 Require Import MirrorCharge.RTac.Apply.
 Require Import MirrorCharge.RTac.EApply.
-Require Export funcs.
-Require Import types.
-Require Export reflexivity_tacs.
+Require Export mc_reify.funcs.
+Require Import mc_reify.types.
+Require Export mc_reify.reflexivity_tacs.
 
 Local Open Scope logic.
 
@@ -190,6 +190,7 @@ Abort.
 
 Goal forall sh ty v1 v2, mapsto sh ty v1 v2 = mapsto sh ty v1 v2.
 reify_expr_tac.
+Print LoadPath.
 Eval vm_compute in run_tac (THEN INTROS REFLEXIVITYTAC) e.
 Eval vm_compute in run_tac (THEN INTROS (CANCELLATION typ func tympred is_pure)) e.
 Abort.

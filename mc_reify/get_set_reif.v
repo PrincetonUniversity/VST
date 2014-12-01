@@ -1,6 +1,6 @@
 Require Import  Coq.Numbers.BinNums.
 Require Import compcert.lib.Maps.
-Require Import func_defs.
+Require Import mc_reify.func_defs.
 
 Fixpoint set_reif (i : positive) (v : expr typ func) (m : expr typ func) :  expr typ func :=
 match m with

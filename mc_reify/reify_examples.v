@@ -1,9 +1,9 @@
-Require Import reify.
-Require Import floyd.proofauto.
-Require Import reverse_defs.
-Require Import set_reif.
-Require Import func_defs.
-Require Import symexe.
+Require Import mc_reify.reify.
+Require Import mc_reify.floyd.proofauto.
+Require Import mc_reify.reverse_defs.
+Require Import mc_reify.set_reif.
+Require Import mc_reify.func_defs.
+Require Import mc_reify.symexe.
 
 
 Local Open Scope logic.

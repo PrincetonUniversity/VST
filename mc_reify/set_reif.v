@@ -1,10 +1,10 @@
 Require Import floyd.proofauto. 
-Require Import funcs.
-Require Import types.
-Require Import bool_funcs.
+Require Import mc_reify.funcs.
+Require Import mc_reify.types.
+Require Import mc_reify.bool_funcs.
 Require Import MirrorCore.Lambda.ExprCore.
-Require Import get_set_reif.
-Require Import func_defs.
+Require Import mc_reify.get_set_reif.
+Require Import mc_reify.func_defs.
 
 
 Definition match_reif_option {B: Type} (e: expr typ func) (somef : typ -> expr typ func -> B)

@@ -1,7 +1,7 @@
 Require Import floyd.proofauto.
-Require Import funcs.
-Require Import types.
-Require Import reify.
+Require Import mc_reify.funcs.
+Require Import mc_reify.types.
+Require Import mc_reify.reify.
 Require Import MirrorCore.Lambda.ExprCore.
 
 Definition initialized_temp (id : positive) (t : PTree.t (type * bool)) :=

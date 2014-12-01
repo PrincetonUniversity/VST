@@ -1,10 +1,10 @@
-Require Import func_defs.
+Require Import mc_reify.func_defs.
 Require Import MirrorCore.Lambda.ExprUnify_simul.
 Require Import MirrorCore.RTac.RTac.
 Require Import MirrorCore.Lemma.
 Require Import MirrorCore.RTac.Core.
 Require Import MirrorCharge.RTac.ReifyLemma.
-Require Import update_tycon.
+Require Import mc_reify.update_tycon.
 
 
 Locate SubstUpdate_ctx_subst .

@@ -5,16 +5,16 @@ Require Import MirrorCharge.SepLogFold.
 Require Export MirrorCore.RTac.RTac.
 Require Export MirrorCore.RTac.Core.
 (*Require Import MirrorCore.STac.STac.*)
-Require Export bool_funcs.
+Require Export mc_reify.bool_funcs.
 Require MirrorCore.syms.SymEnv.
 Require MirrorCore.syms.SymSum.
 Require Import MirrorCore.Subst.FMapSubst.
 Require Import MirrorCharge.RTac.ReifyLemma.
 Require Import floyd.proofauto.
 Require Export MirrorCore.Lambda.Expr.
-Require Export types.
-Require Export func_eq.
-Require Export funcs.
+Require Export mc_reify.types.
+Require Export mc_reify.func_eq.
+Require Export mc_reify.funcs.
 
 Definition typeof_func_opt t := Some (typeof_func t).
 
