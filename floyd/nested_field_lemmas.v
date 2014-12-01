@@ -610,6 +610,36 @@ Proof.
       destruct (isOK (field_type i f)) eqn:?H; [left; eauto | right; congruence].
 Qed.
 
+Definition field_compatible t gfs p :=
+  isptr p /\
+  legal_alignas_type t = true /\
+  nested_legal_fieldlist t = true /\
+  size_compatible t p /\
+  align_compatible t p /\
+  legal_nested_field t gfs.
+
+Lemma field_compatible_dec: forall t gfs p,
+  {field_compatible t gfs p} + {~ field_compatible t gfs p}.
+Proof.
+  unfold field_compatible.
+  intros.
+  repeat apply sumbool_dec_and.
+  + destruct p; simpl; try (left; tauto); try (right; tauto).
+  + destruct legal_alignas_type; [left | right]; congruence.
+  + destruct nested_legal_fieldlist; [left | right]; congruence.
+  + destruct p; simpl; try solve [left; auto].
+    destruct (zle (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
+  + destruct p; simpl; try solve [left; auto].
+    apply Zdivide_dec.
+    apply alignof_pos.
+  + apply legal_nested_field_dec.
+Qed.  
+
+Definition field_address t gfs p :=
+  if (field_compatible_dec t gfs p)
+  then offset_val (Int.repr (nested_field_offset2 t gfs)) p
+  else Vundef.
+
 Lemma nested_field_rec_nest_pred: forall {atom_pred: type -> bool} (t: type) (gfs: list gfield) pos t', nested_pred atom_pred t = true -> nested_field_rec t gfs = Some (pos, t') -> nested_pred atom_pred t' = true.
 Proof.
   intros.

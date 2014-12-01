@@ -35,38 +35,68 @@ apply orp_left; apply derives_refl.
 apply orp_right1; apply derives_refl.
 Qed.
 
-Lemma mapsto_zeros_memory_block:
- forall sh n b ofs,
-  0 <= n ->
-  0 <= ofs ->
-  ofs+n <= Int.max_unsigned ->
-  mapsto_zeros n sh (Vptr b (Int.repr ofs)) |--
-  memory_block sh (Int.repr n) (Vptr b (Int.repr ofs)).
+Lemma unsigned_repr_range: forall i, 0 <= i -> 0 <= Int.unsigned (Int.repr i) <= i.
 Proof.
- unfold mapsto_zeros.
-intros.
- rename H0 into H'. rename H1 into H2.
+  intros.
+  rewrite Int.unsigned_repr_eq.
+  pose proof Z.mod_le i Int.modulus H.
+  spec H0; [change Int.modulus with 4294967296; omega |].
+  pose proof Z.mod_bound_pos i Int.modulus H.
+  spec H1; [change Int.modulus with 4294967296; omega |].
+  omega.
+Qed.
+
+Lemma mapsto_zeros_memory_block: forall sh n b ofs,
+  0 <= n < Int.modulus ->
+  Int.unsigned ofs+n <= Int.modulus ->
+  mapsto_zeros n sh (Vptr b ofs) |--
+  memory_block sh (Int.repr n) (Vptr b ofs).
+Proof.
+  unfold mapsto_zeros.
+  intros.
+  rename H0 into H'.
 Transparent memory_block.
- unfold memory_block.
+  unfold memory_block.
 Opaque memory_block.
-repeat rewrite Int.unsigned_repr by omega.
- apply andp_right; [apply prop_right; unfold Int.max_unsigned in H2; omega|].
- rewrite <- (Z2Nat.id n) in H2 by omega.
- rewrite <- (Z2Nat.id n) in H by omega.
- change nat_of_Z with Z.to_nat.
- forget (Z.to_nat n) as n'.
- revert ofs H H' H2;  induction n'; intros.
- simpl; auto.
- rewrite inj_S in H2. unfold Z.succ in H2.
- apply sepcon_derives; auto.
- unfold mapsto_, mapsto.
- apply orp_right2.
- rewrite prop_true_andp by auto.
- apply exp_right with (Vint Int.zero).
- rewrite Int.unsigned_repr by omega. 
- auto.
- fold address_mapsto_zeros. fold memory_block'.
- apply IHn'. omega. omega. omega.
+  rewrite (Int.unsigned_repr n) by (unfold Int.max_unsigned; omega).
+  repeat rewrite Int.unsigned_repr by omega.
+  apply andp_right.
+  + apply prop_right; auto.
+  + rewrite <- (Z2Nat.id n) in H' by omega.
+    rewrite <- (Z2Nat.id n) in H by omega.
+    change nat_of_Z with Z.to_nat.
+    forget (Z.to_nat n) as n'.
+    clear n.
+    remember (Int.unsigned ofs) as ofs'.
+    assert (Int.unsigned (Int.repr ofs') = ofs')
+      by (subst; rewrite Int.repr_unsigned; reflexivity).
+    assert (0 <= ofs' /\ ofs' + Z.of_nat n' <= Int.modulus).
+    Focus 1. {
+      pose proof Int.unsigned_range ofs.
+      omega.
+    } Unfocus.
+    clear Heqofs' H'.
+    assert (Int.unsigned (Int.repr ofs') = ofs' \/ n' = 0%nat) by tauto.
+    clear H0; rename H2 into H0.
+    revert ofs' H H1 H0; induction n'; intros.
+    - simpl; auto.
+    - destruct H1.
+      rewrite inj_S in H2. unfold Z.succ in H2.
+      apply sepcon_derives; auto.
+      * unfold mapsto_, mapsto.
+        apply orp_right2.
+        rewrite prop_true_andp by auto.
+        apply exp_right with (Vint Int.zero).
+        destruct H0; [| omega].
+        rewrite H0.
+        auto.
+      * fold address_mapsto_zeros. fold memory_block'.
+        apply IHn'. omega. omega.
+        destruct (zlt (ofs' + 1) Int.modulus).
+        1: rewrite Int.unsigned_repr; [left; reflexivity | unfold Int.max_unsigned; omega].
+        1: right.
+           destruct H0; [| inversion H0].
+           omega.
 Qed.
 
 Lemma tc_globalvar_sound:
@@ -90,8 +120,6 @@ rewrite H11. rewrite H1.
 rewrite H3; simpl.
 unfold eval_var.
 unfold Map.get. rewrite H10. rewrite H11.
-simpl.
-change (Share.splice extern_retainer Tsh) with Ews.
 auto.
 Qed.
 
@@ -160,7 +188,6 @@ Proof. intros.
  unfold init_data_size. rewrite Z.max_l; auto. omega.
 Qed.
 
-
 Lemma mapsto_pointer_void:
   forall sh t a, mapsto sh (Tpointer t a) = mapsto sh (Tpointer Tvoid a).
 Proof.
@@ -174,6 +201,7 @@ Lemma init_data2pred_rejigger:
   forall (Delta : tycontext) (t : type) (idata : init_data) (rho : environ)
      (sh : Share.t) (b : block) ofs (v : environ -> val),
   legal_alignas_type t = true -> 
+  nested_legal_fieldlist t = true -> 
   nested_non_volatile_type t = true ->
   0 <= ofs ->
   ofs + init_data_size idata <= Int.max_unsigned ->
@@ -184,7 +212,7 @@ Lemma init_data2pred_rejigger:
     |-- init_data2pred' Delta idata sh t (`(offset_val (Int.repr ofs)) v) rho.
 Proof.
 intros until v.
-intros H1 H1' H6' H6 H7 H8 H1''.
+intros H1 HH H1' H6' H6 H7 H8 H1''.
  unfold init_data2pred', init_data2pred.
  rename H8 into H8'.
  assert (H8: offset_val (Int.repr ofs) (v rho) = Vptr b (Int.repr ofs)).
@@ -194,16 +222,22 @@ intros H1 H1' H6' H6 H7 H8 H1''.
 *  repeat if_tac; try rewrite H8. 
    + subst z; rewrite init_data_size_space in H6.
      rewrite data_at__memory_block by (auto; unfold Int.max_unsigned in H6; omega).
-     apply andp_right.
+     repeat apply andp_right.
+     - apply prop_right. auto.
+     - apply prop_right. auto.
      - apply prop_right.
        unfold align_compatible.
        exact H1''.
-     - apply mapsto_zeros_memory_block; auto;
-       pose proof (sizeof_pos t); omega.
+     - unfold Int.max_unsigned in H6.
+       apply mapsto_zeros_memory_block; auto.
+       1: pose proof (sizeof_pos t); omega.
+       1: pose proof unsigned_repr_range ofs H6'; omega.
    + simpl; apply TT_right.
    + unfold init_data_size in H6. rewrite Z.max_l in H6 by omega.
+     unfold Int.max_unsigned in H6.
      apply mapsto_zeros_memory_block; auto.
-     omega.
+     - pose proof (sizeof_pos t); omega.
+     - pose proof unsigned_repr_range ofs H6'; omega.
 *  destruct ((var_types Delta) ! i) eqn:Hv;
    destruct ((glob_types Delta) ! i) eqn:Hg; 
     try destruct g; try solve [simpl; apply TT_right].
@@ -234,7 +268,7 @@ Lemma unpack_globvar:
   forall Delta i t gv idata, 
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some t ->
-   (legal_alignas_type t = true /\
+   (legal_alignas_type t = true /\ nested_legal_fieldlist t = true /\
     nested_non_volatile_type t = true) ->
    gvar_volatile gv = false ->
    gvar_info gv = t ->
@@ -253,8 +287,14 @@ simpl.
 rewrite sepcon_emp.
 destruct (tc_eval_gvar_zero _ _ _ _ H7 H H0) as [b ?].
  replace (eval_var i t rho) with (offset_val Int.zero (eval_var i t rho)) by (rewrite H8; reflexivity).
- eapply derives_trans; [eapply init_data2pred_rejigger; destruct H1; eauto; try omega | ].
- simpl. apply Z.divide_0_r.
+ eapply derives_trans.
+ + eapply init_data2pred_rejigger; destruct H1; eauto.
+   - tauto.
+   - tauto.
+   - omega.
+   - omega.
+   - simpl. apply Z.divide_0_r.
+ + 
  unfold init_data2pred'.
  destruct idata; unfold_lift;
    try (rewrite H8; simpl; rewrite Int.add_zero_l; auto);
@@ -300,6 +340,7 @@ Lemma unpack_globvar_star:
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (gvar_info gv) ->
    (legal_alignas_type (gvar_info gv) = true /\
+    nested_legal_fieldlist (gvar_info gv) = true /\
     nested_non_volatile_type (gvar_info gv) = true) -> 
    gvar_volatile gv = false ->
    init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Int.max_unsigned ->
@@ -327,7 +368,7 @@ revert ofs H9 H10 H11 H12.
 clear dependent gv. clear H H0 H6.
 induction idata; simpl; auto; intros.
 apply sepcon_derives.
-* eapply init_data2pred_rejigger; destruct H1; eauto.
+* eapply init_data2pred_rejigger; destruct H1; eauto; try tauto.
  pose proof (init_data_list_size_pos idata); omega.
 * specialize (IHidata (ofs + init_data_size a)).
 rewrite offset_offset_val.
@@ -342,7 +383,7 @@ Lemma tc_globalvar_sound_space:
   forall Delta i t gv rho, 
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some t ->
-   (legal_alignas_type t = true /\
+   (legal_alignas_type t = true /\ nested_legal_fieldlist t = true /\
     nested_non_volatile_type t = true) ->
    gvar_volatile gv = false ->
    gvar_info gv = t ->
@@ -363,13 +404,17 @@ rewrite H8 in H7 |- *.
 unfold mapsto_zeros. rewrite sepcon_emp.
 rewrite Int.unsigned_zero.
 pose proof (mapsto_zeros_memory_block
-  (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) (sizeof t) b 0).
+  (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) (sizeof t) b Int.zero).
 unfold mapsto_zeros in H9. change (Int.repr 0) with Int.zero in H9.
 rewrite Int.unsigned_zero in H9.
 apply andp_right.
 + normalize.
+  apply prop_right.
+  tauto.
 + apply H9.
-pose (sizeof_pos t). omega. omega. omega.
+  pose (sizeof_pos t).
+  - unfold Int.max_unsigned in H5. omega.
+  - unfold Int.max_unsigned in H5. omega.
 Qed.
 
 Definition inttype2init_data (sz: intsize) : (int -> init_data) :=
@@ -653,7 +698,7 @@ Proof.
     right; split; auto. rewrite <- H1; auto.
    } Unfocus.
   eapply derives_trans;[ apply andp_derives; [ apply andp_derives; [ eapply unpack_globvar_star; try eassumption; try reflexivity | apply derives_refl]  | apply derives_refl] |].
-  split; rewrite H1. cbv; destruct n; reflexivity. cbv; destruct n, sz, sign; reflexivity.
+  split; rewrite H1. cbv; destruct n; reflexivity. split; cbv; destruct n, sz, sign; reflexivity.
   rewrite H1. (* rewrite H3.*)  rewrite H5.
 (* change (Share.splice extern_retainer (readonly2share false)) with Ews. *)
   eapply derives_trans; [| apply id2pred_star_ZnthV_Tint; auto].
@@ -743,7 +788,7 @@ Ltac expand_one_globvar :=
  (* given a proof goal of the form   local (tc_environ Delta) && globvar2pred (_,_) |-- ?33 *)
 first [
     eapply unpack_globvar;
-      [reflexivity | reflexivity | split; reflexivity | reflexivity | reflexivity | reflexivity
+      [reflexivity | reflexivity | split; [| split]; reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence ]
  | eapply unpack_globvar_array;
       [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | apply I 
@@ -752,7 +797,7 @@ first [
       | compute; split; clear; congruence ]
  | eapply derives_trans;
     [ apply unpack_globvar_star; 
-        [reflexivity | reflexivity | split; reflexivity
+        [reflexivity | reflexivity | split; [| split]; reflexivity
         | reflexivity | compute; split; clear; congruence ]
     |  cbv beta; simpl gvar_info; simpl gvar_readonly; simpl readonly2share;
       change (Share.splice extern_retainer Tsh) with Ews

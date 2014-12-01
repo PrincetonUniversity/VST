@@ -98,4 +98,14 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma eq_rect_r_eq_rect_r_eq_sym': forall {T} {A B: T} F x (H: B = A),
+  eq_rect_r F (eq_rect_r F x (eq_sym H)) H = x.
+Proof.
+  intros.
+  apply JMeq_eq.
+  apply JMeq_sym.
+  rewrite eq_rect_r_JMeq.
+  rewrite eq_rect_r_JMeq.
+  reflexivity.
+Qed.
 

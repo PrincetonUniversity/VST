@@ -1784,7 +1784,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
            |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
     end;
     eapply (semax_SC_field_cast_load Delta sh SE n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    [reflexivity | reflexivity | reflexivity
     | reflexivity | reflexivity | exact Heq | exact HLE | exact H_Denote 
     | exact H | reflexivity
     | try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
@@ -1897,7 +1897,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
            |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
     end;
     eapply (semax_SC_field_load Delta sh SE n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    [reflexivity | reflexivity | reflexivity
     | reflexivity | reflexivity | exact Heq | exact HLE | exact H_Denote 
     | exact H | reflexivity
     | try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
@@ -2127,8 +2127,8 @@ match goal with
       | appcontext [field_at] =>
         eapply (semax_SC_field_store Delta sh SE n) 
           with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-        [reflexivity | reflexivity | simpl; auto | reflexivity
-        | reflexivity | reflexivity | reflexivity | exact Heq | exact HLE
+        [reflexivity | simpl; auto | reflexivity
+        | reflexivity | reflexivity | exact Heq | exact HLE
         | exact HRE | exact H_Denote | exact H | auto
         | try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n; simpl app; simpl typeof)
@@ -2137,8 +2137,8 @@ match goal with
       | appcontext [field_at_] =>
         eapply (semax_SC_field_store Delta sh SE n)
           with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-        [reflexivity | reflexivity | simpl; auto | reflexivity
-        | reflexivity | reflexivity | reflexivity | exact Heq | exact HLE
+        [reflexivity | simpl; auto | reflexivity
+        | reflexivity | reflexivity | exact Heq | exact HLE
         | exact HRE | exact H_Denote | exact H | auto 
         | try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n; simpl app; simpl typeof)
@@ -2148,8 +2148,8 @@ match goal with
         eapply semax_post'; [ |
           eapply (semax_SC_field_store Delta sh SE n)
             with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-            [reflexivity | reflexivity | simpl; auto | reflexivity
-            | reflexivity | reflexivity | reflexivity | exact Heq | exact HLE 
+            [reflexivity | simpl; auto | reflexivity
+            | reflexivity | reflexivity | exact Heq | exact HLE 
             | exact HRE | exact H_Denote | exact H | auto | | ]];
         [ match goal with
           | |- appcontext [replace_nth _ _ ?M] => 
@@ -2168,68 +2168,6 @@ match goal with
       end
     end
 
-| SE := @abbreviate type_id_env.type_id_env _ 
-    |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e _) _ =>
-    let pp := fresh "pp" in
-    let e1 := fresh "e" in
-    let ids := fresh "ids" in
-    let tts := fresh "tts" in
-              pose (compute_nested_efield e) as pp;
-              simpl in pp;
-              pose (fst (fst pp)) as e1;
-              pose (snd (fst pp)) as ids;
-              pose (snd pp) as tts;
-              simpl in e1, ids, tts;
-              change e with (nested_efield e1 ids tts);
-              clear pp;
-    let sh := fresh "sh" in evar (sh: share);
-    let ids0 := fresh "ids" in evar (ids0: list ident);
-    let v := fresh "v" in evar (v: environ -> reptype (nested_field_type2 (typeof e1) ids0));
-    let n := fresh "n" in
-    let H := fresh "H" in
-   
-    new_instantiate_store P Q R R Delta e1 ids tts sh ids0 v n (0%nat) H;
-    let ids1 := fresh "ids" in
-    let tts0 := fresh "tts" in
-    let tts1 := fresh "tts" in
-    pose (firstn (length ids - length ids0) ids) as ids1;
-    pose (skipn (length ids - length ids0) tts) as tts0;
-    pose (firstn (length ids - length ids0) tts) as tts1;
-    simpl in ids1, tts0, tts1;
-    change ids with (ids1 ++ ids0);
-    change tts with (tts1 ++ tts0);
-    subst ids tts;
-    let Heq := fresh "H" in
-    match type of H with
-    | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
-           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
-    end;
-    match type of H with
-    | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) |-- _) =>
-      match R0 with
-      | appcontext [field_at] =>
-        eapply (semax_nested_efield_field_store_nth Delta sh SE n);
-        [reflexivity | reflexivity | simpl; auto | reflexivity
-        | reflexivity | reflexivity | exact Heq | exact H | auto | solve[entailer!] ]
-      | appcontext [field_at_] =>
-        eapply (semax_nested_efield_field_store_nth Delta sh SE n);
-        [reflexivity | reflexivity | simpl; auto | reflexivity
-        | reflexivity | reflexivity | exact Heq | exact H | auto | solve[entailer!] ]
-      | _ => 
-        eapply semax_post'; [ | eapply (semax_nested_efield_field_store_nth Delta sh SE n);
-        [reflexivity | reflexivity | simpl; auto | reflexivity
-        | reflexivity | reflexivity | exact Heq | exact H | auto | solve[entailer!] ]];
-        match goal with
-        | |- appcontext [replace_nth _ _ ?M] => 
-          let EQ := fresh "EQ" in
-          let MM := fresh "MM" in
-             remember M as MM eqn:EQ;
-             try rewrite <- data_at__field_at_ in EQ;
-             try rewrite <- data_at_field_at in EQ;
-             subst MM
-        end
-      end
-    end
   | |- @semax ?Espec ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign ?e ?e2) _ =>
 

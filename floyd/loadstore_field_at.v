@@ -436,7 +436,7 @@ Lemma eval_lvalue_nested_efield_aux: forall Delta env t_root e efs gfs tts lr,
     local (`isptr (eval_lvalue (nested_efield e efs tts))) &&
     local (tc_lvalue Delta (nested_efield e efs tts)) &&
     local (`eq (eval_lvalue (nested_efield e efs tts))
-      (`(offset_val (Int.repr (nested_field_offset2 t_root gfs))) (eval_LR e lr))).
+      (`(field_address t_root gfs) (eval_LR e lr))).
 Proof.
 Admitted.
 (*
@@ -565,9 +565,8 @@ Qed.
 
 Lemma eval_lvalue_nested_efield: forall Delta env t_root e efs gfs tts lr,
   legal_nested_efield env t_root e gfs tts lr = true ->
-  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) && efield_denote Delta efs gfs |--
-    local (`eq (eval_lvalue (nested_efield e efs tts))
-      (`(offset_val (Int.repr (nested_field_offset2 t_root gfs))) (eval_LR e lr))).
+  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) && efield_denote Delta efs gfs |-- local (`eq (eval_lvalue (nested_efield e efs tts))
+      (`(field_address t_root gfs) (eval_LR e lr))).
 Proof.
   intros.
   eapply derives_trans; [eapply eval_lvalue_nested_efield_aux; eauto |].
@@ -592,7 +591,6 @@ Lemma semax_max_path_field_load_37':
       (v : val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
-      legal_alignas_type t_root = true ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
@@ -612,24 +610,23 @@ Proof.
   eapply semax_ucdata_load_37'.
   + exact H.
   + exact H0.
-  + exact H3.
-  + eapply derives_trans; [exact H4|].
+  + exact H2.
+  + eapply derives_trans; [exact H3|].
     instantiate (1:=sh).
     instantiate (1:=e).
-    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H2)).
+    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H1)).
     simpl; intro rho; normalize.
     rewrite field_at_isptr.
-    rewrite field_at_data_at; [|exact H1].
-    rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
+    rewrite field_at_data_at.
     normalize.
-    pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H2 rho).
-    pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H2 rho).
-    normalize in H12.
-    normalize in H13.
-    rewrite (add_andp _ _ H12).
-    rewrite (add_andp _ _ H13).
+    pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
+    pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
+    normalize in H8.
+    normalize in H9.
+    rewrite (add_andp _ _ H8).
+    rewrite (add_andp _ _ H9).
     normalize.
-    rewrite H14.
+    rewrite H10.
     apply andp_left2.
     apply derives_refl.
 Qed.
@@ -641,7 +638,6 @@ Lemma semax_max_path_field_cast_load_37':
       (v : val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) ->
-      legal_alignas_type t_root = true ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
       JMeq v' v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -659,23 +655,22 @@ Lemma semax_max_path_field_cast_load_37':
 Proof.
   intros.
   eapply semax_ucdata_cast_load_37'; try eassumption.
-  + eapply derives_trans; [exact H4|].
+  + eapply derives_trans; [exact H3|].
     instantiate (1:=sh).
     instantiate (1:=e).
-    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H2)).
+    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H1)).
     simpl; intro rho; normalize.
     rewrite field_at_isptr.
-    rewrite field_at_data_at; [|exact H1].
-    rewrite at_offset'_eq; [| rewrite <- data_at_offset_zero; reflexivity].
+    rewrite field_at_data_at.
     normalize.
-    pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H2 rho).
-    pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H2 rho).
-    normalize in H12.
-    normalize in H13.
-    rewrite (add_andp _ _ H12).
-    rewrite (add_andp _ _ H13).
+    pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
+    pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
+    normalize in H8.
+    normalize in H9.
+    rewrite (add_andp _ _ H8).
+    rewrite (add_andp _ _ H9).
     normalize.
-    rewrite H14.
+    rewrite H10.
     apply andp_left2.
     apply derives_refl.
 Qed.
@@ -702,7 +697,6 @@ Lemma semax_max_path_field_store_nth:
       (t t_root: type) (efs: list efield) (gfs: list gfield) (tts: list type) lr,
       typeof (nested_efield e1 efs tts) = t ->
       type_is_by_value t ->
-      legal_alignas_type t_root = true ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
@@ -732,80 +726,66 @@ Proof.
     rewrite insert_local.
     instantiate (1 := 
       PROPx P
-      (LOCALx (`(size_compatible t_root) (eval_LR e1 lr) ::
-               `(align_compatible t_root) (eval_LR e1 lr) ::
-               `(legal_nested_field t_root gfs) ::
-               tc_expr Delta (Ecast e2 t) ::
+      (LOCALx (tc_expr Delta (Ecast e2 t) ::
                tc_lvalue Delta (nested_efield e1 efs tts) ::
-               `eq (eval_lvalue (nested_efield e1 efs tts)) 
-                 (`(offset_val (Int.repr (nested_field_offset2 t_root gfs))) (eval_LR e1 lr)) ::
+               `eq (eval_lvalue (nested_efield e1 efs tts))
+                 (`(field_address t_root gfs) (eval_LR e1 lr)) ::
                `((uncompomize e (nested_field_type2 t_root gfs) =
                  typeof (nested_efield e1 efs tts))) ::
                Q) (SEPx R))).
     assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`isptr (eval_LR e1 lr))).
     Focus 1. {
-      erewrite SEP_nth_isolate with (R := R) by exact H3.
+      erewrite SEP_nth_isolate with (R := R) by exact H2.
       apply derives_trans with ((PROPx P (LOCALx (tc_environ Delta :: Q) SEP (Rn)) * TT)).
       - simpl; intros; normalize; cancel.
-      - rewrite (add_andp _ _ H4).
+      - rewrite (add_andp _ _ H3).
         simpl; intro rho.
         unfold_lift.
         rewrite field_at__isptr.
         normalize.
     } Unfocus.
     assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-      local (`(size_compatible t_root) (eval_LR e1 lr)) &&
-      local (`(align_compatible t_root) (eval_LR e1 lr)) &&
-      !! (legal_nested_field t_root gfs) &&
       local (tc_expr Delta (Ecast e2 t)) &&
       (local (tc_lvalue Delta (nested_efield e1 efs tts)) &&
        local (`eq (eval_lvalue (nested_efield e1 efs tts)) 
-         (`(offset_val (Int.repr (nested_field_offset2 t_root gfs))) (eval_LR e1 lr))) &&
+         (`(field_address t_root gfs) (eval_LR e1 lr))) &&
        !! (uncompomize e (nested_field_type2 t_root gfs) = typeof (nested_efield e1 efs tts)))).
     Focus 1. {
-      apply andp_right; [apply andp_right |].
-      + erewrite SEP_nth_isolate with (R := R) by exact H3.
-        apply derives_trans with ((PROPx P (LOCALx (tc_environ Delta :: Q) SEP (Rn)) * TT)).
-        - simpl; intros; normalize; cancel.
-        - rewrite (add_andp _ _ H4).
-          simpl; intros; normalize.
-          rewrite field_at__data_at_ by exact H1.
-          normalize.
-      + eapply derives_trans; [exact H6 |].
+      apply andp_right.
+      + eapply derives_trans; [exact H5 |].
         apply andp_left2.
         apply derives_refl.
-      + rewrite (add_andp _ _ H6).
-        rewrite (add_andp _ _ H7).
+      + rewrite (add_andp _ _ H5).
+        rewrite (add_andp _ _ H6).
         simpl; intro rho; normalize.
         normalize.
-        pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H2 rho).
-        pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H2 rho).
-        pose proof (typeof_nested_efield _ Delta t_root _ efs _ _ lr H2 rho).
+        pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
+        pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
+        pose proof (typeof_nested_efield _ Delta t_root _ efs _ _ lr H1 rho).
+        normalize in H13.
         normalize in H14.
-        normalize in H15.
+        rewrite (add_andp _ _ H13).
         rewrite (add_andp _ _ H14).
         rewrite (add_andp _ _ H15).
-        rewrite (add_andp _ _ H16).
         normalize.
         normalize.
     } Unfocus.
-    rewrite (add_andp _ _ H8).
+    rewrite (add_andp _ _ H7).
     simpl; intros; normalize.
   } Unfocus.
   Focus 2. {
     eapply semax_ucdata_store_nth.
     + exact H.
     + exact H0.
-    + exact H3.
+    + exact H2.
     + repeat rewrite LOCAL_2_hd, <- insert_local.
-      rewrite (add_andp _ _ H4).
+      rewrite (add_andp _ _ H3).
       simpl; intro rho; normalize.
-      rewrite field_at__data_at_ by exact H1.
-      rewrite at_offset'_eq by (rewrite <- data_at__offset_zero; reflexivity).
-      rewrite H12.
+      rewrite field_at__data_at_.
+      rewrite H8.
       apply andp_left2.
       normalize.
-    + exact H5.
+    + exact H4.
     + instantiate (1 := e).
       rewrite <- H.
       simpl; intro rho; normalize.
@@ -814,14 +794,13 @@ Proof.
   | |- ?L |-- ?R =>
       remember L as LL eqn:HL;
       remember R as RR eqn:HR;
-      erewrite SEP_replace_nth_isolate in HL by exact H3;
-      erewrite SEP_replace_nth_isolate in HR by exact H3;
+      erewrite SEP_replace_nth_isolate in HL by exact H2;
+      erewrite SEP_replace_nth_isolate in HR by exact H2;
       subst LL RR
   end.
   simpl; intro rho; normalize.
   apply sepcon_derives; [| apply derives_refl].
-  rewrite field_at_data_at by exact H1.
-  rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).
-  rewrite H13.
+  rewrite field_at_data_at.
+  rewrite H9.
   normalize.
 Qed.

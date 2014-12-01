@@ -44,7 +44,7 @@ Qed.
 Lemma is_neutral_data_at: forall sh t t' v v' p,
   is_neutral_cast t t' = true ->
   JMeq v v' ->
-  data_at sh t v p = (!! size_compatible t p) && (!! align_compatible t p) && mapsto sh t p v'.
+  data_at sh t v p = !! field_compatible t nil p && mapsto sh t p v'.
 Proof.
   intros.
   apply by_value_data_at; try assumption.
@@ -54,7 +54,7 @@ Qed.
 Lemma is_neutral_lifted_data_at: forall sh t t' v (v':val) (p: environ -> val),
   is_neutral_cast t t' = true ->
   JMeq v v' ->
-  `(data_at sh t v) p = `prop (`(size_compatible t) p) && `prop (`(align_compatible t) p) && `(mapsto sh t) p `(v').
+  `(data_at sh t v) p = local (`(field_compatible t nil) p) && `(mapsto sh t) p `(v').
 Proof.
   intros.
   unfold liftx, lift. simpl.
@@ -65,7 +65,7 @@ Qed.
 
 Lemma is_neutral_data_at_: forall sh t t' p, 
   is_neutral_cast t t' = true ->
-  data_at_ sh t p = (!! size_compatible t p) && (!! align_compatible t p) && mapsto_ sh t p.
+  data_at_ sh t p = !! field_compatible t nil p && mapsto_ sh t p.
 Proof.
   intros.
   apply by_value_data_at_; try assumption.
@@ -74,8 +74,7 @@ Qed.
 
 Lemma is_neutral_lifted_data_at_: forall sh t t' p,
   is_neutral_cast t t' = true ->
-  `(data_at_ sh t) p = `prop (`(size_compatible t) p) &&
-  `prop (`(align_compatible t) p) && `(mapsto_ sh t) p.
+  `(data_at_ sh t) p = local (`(field_compatible t nil) p) && `(mapsto_ sh t) p.
 Proof.
   intros.
   unfold liftx, lift. simpl.
@@ -258,8 +257,7 @@ Proof.
   erewrite lifted_by_value_data_at_ in H2; [|exact H0].
   
   assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (Rn :: nil))) |-- 
-    `prop (`(size_compatible t) (eval_lvalue e1)) &&
-    `prop (`(align_compatible t) (eval_lvalue e1)) && Rn).
+    local (`(field_compatible t nil) (eval_lvalue e1)) && Rn).
   {
     apply andp_right; [| apply remove_PROP_LOCAL_left'; apply derives_refl].
     eapply derives_trans; [exact H2|apply andp_left1; apply derives_refl].
@@ -269,21 +267,18 @@ Proof.
     hoist_later_left.
     apply later_derives.
     rewrite insert_local.
-    instantiate (1:= PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (replace_nth n R (`prop (`(size_compatible t) (eval_lvalue e1)) && `prop (`(align_compatible t) (eval_lvalue e1)) && Rn))))).
+    instantiate (1:= PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (replace_nth n R (local (`(field_compatible t nil) (eval_lvalue e1)) && Rn))))).
     rewrite (replace_nth_nth_error R _ _ H1) at 1.
 
     apply replace_nth_SEP', H5.
   }
     
-  rewrite andp_assoc.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) by (exact H1)).
+  rewrite (replace_nth_SEP_andp_local P _ R n Rn) by (exact H1).
   rewrite <- replace_nth_nth_error by exact H1.
 
-  rewrite andp_assoc.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) by (exact H1)).
+  rewrite (replace_nth_SEP_andp_local P _ R n Rn) by (exact H1).
 
-  rewrite andp_assoc in H5.
-  repeat (rewrite (replace_nth_SEP_andp_local P _ R n Rn) in H5 by (exact H1)).
+  (*rewrite (replace_nth_SEP_andp_local P _ R n Rn) in H5 by (exact H1).*)
 
   eapply semax_post0; [| eapply semax_store_nth].
   + apply normal_ret_assert_derives'.
@@ -327,8 +322,7 @@ Lemma is_neutral_data_at': forall sh e t t' t'' v v' p,
   is_neutral_cast t' t'' = true ->
   JMeq v v' ->
   data_at sh t v p =
-  (!! size_compatible (uncompomize e t) p) &&
-  (!! align_compatible (uncompomize e t) p) && mapsto sh t' p v'.
+  (!! field_compatible (uncompomize e t) nil p) && mapsto sh t' p v'.
 Proof.
   intros.
   subst t'.
@@ -340,9 +334,8 @@ Lemma is_neutral_lifted_data_at': forall sh e t t' t'' v (v': val) p,
   uncompomize e t = t' ->
   is_neutral_cast t' t'' = true ->
   JMeq v v' ->
-  `(data_at sh t v) p = 
-  `prop (`(size_compatible (uncompomize e t)) p) &&
-  `prop (`(align_compatible (uncompomize e t)) p) && `(mapsto sh t') p `v'.
+  `(data_at sh t v) p =
+  local (`(field_compatible (uncompomize e t) nil) p) && `(mapsto sh t') p `v'.
 Proof.
   intros.
   unfold liftx, lift. simpl.
@@ -355,8 +348,7 @@ Lemma is_neutral_data_at_': forall sh e t t' t'' p,
   uncompomize e t = t' ->
   is_neutral_cast t' t'' = true ->
   data_at_ sh t p =
-  (!! size_compatible (uncompomize e t) p) &&
-  (!! align_compatible (uncompomize e t) p) && mapsto_ sh t' p.
+  (!! field_compatible (uncompomize e t) nil p) && mapsto_ sh t' p.
 Proof.
   intros.
   subst t'.
@@ -368,8 +360,7 @@ Lemma is_neutral_lifted_data_at_': forall sh e t t' t'' p,
   uncompomize e t = t' ->
   is_neutral_cast t' t'' = true ->
   `(data_at_ sh t) p =
-  `prop (`(size_compatible (uncompomize e t)) p) &&
-  `prop (`(align_compatible (uncompomize e t)) p) && `(mapsto_ sh t') p.
+  local (`(field_compatible (uncompomize e t) nil) p) && `(mapsto_ sh t') p.
 Proof.
   intros.
   unfold liftx, lift. simpl.
@@ -522,12 +513,11 @@ Proof.
     rewrite insert_local.
     rewrite (add_andp _ _ H4).
     instantiate (1 := PROPx ((uncompomize e t2 = t1) :: P)
-                      (LOCALx (`(size_compatible (uncompomize e t2)) (eval_lvalue e1) ::
-                               `(align_compatible (uncompomize e t2)) (eval_lvalue e1) ::
+                      (LOCALx ((`(field_compatible (uncompomize e t2) nil)
+                                 (eval_lvalue e1)) ::
                                Q) (SEPx R))).
     assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-      local (`(size_compatible (uncompomize e t2)) (eval_lvalue e1)) &&
-      local (`(align_compatible (uncompomize e t2)) (eval_lvalue e1))).
+      local (`(field_compatible (uncompomize e t2) nil) (eval_lvalue e1))).
     Focus 1. {
       rewrite (add_andp _ _ H4).
       erewrite SEP_nth_isolate with (R := R) by exact H1.
