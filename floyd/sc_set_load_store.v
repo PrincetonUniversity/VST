@@ -77,10 +77,8 @@ Lemma semax_SC_field_load:
     forall Delta sh e n id P Q R Rn (e1: expr)
       (t t_root: type) (efs0 efs1: list efield) (gfs0 gfs1: list gfield) (tts0 tts1: list type)
       (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
-      nested_legal_fieldlist t_root = true ->
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) t = true ->
-      legal_alignas_type t_root = true ->
       length efs1 = length tts1 ->
       length gfs1 = length tts1 ->
       legal_nested_efield e t_root e1 (gfs1 ++ gfs0) (tts1 ++ tts0) lr = true ->
@@ -105,10 +103,10 @@ Lemma semax_SC_field_load:
                   (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
-  eapply semax_extract_later_prop'; [exact H12 | clear H12; intro H12].
+  eapply semax_extract_later_prop'; [exact H10 | clear H10; intro H10].
   eapply semax_nested_efield_field_load_37'; eauto.
-  apply andp_right; [apply andp_right; [exact H11 | exact H8] |].
-  rewrite (add_andp _ _ H7).
+  apply andp_right; [apply andp_right; [exact H9 | exact H6] |].
+  rewrite (add_andp _ _ H5).
   eapply derives_trans; [apply andp_derives; [| apply derives_refl] |].
   eapply nth_error_SEP_sepcon_TT; eauto.
   entailer!.
@@ -119,10 +117,8 @@ Lemma semax_SC_field_cast_load:
     forall Delta sh e n id P Q R Rn (e1: expr)
       (t t_root: type) (efs0 efs1: list efield) (gfs0 gfs1: list gfield) (tts0 tts1: list type)
       (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
-      nested_legal_fieldlist t_root = true ->
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) ->
-      legal_alignas_type t_root = true ->
       length efs1 = length tts1 ->
       length gfs1 = length tts1 ->
       legal_nested_efield e t_root e1 (gfs1 ++ gfs0) (tts1 ++ tts0) lr = true ->
@@ -147,10 +143,10 @@ Lemma semax_SC_field_cast_load:
                   (SEPx (map (subst id (`old)) R))))).
 Proof.
   intros.
-  eapply semax_extract_later_prop'; [exact H12 | clear H12; intro H12].
+  eapply semax_extract_later_prop'; [exact H10 | clear H10; intro H10].
   eapply semax_nested_efield_field_cast_load_37'; eauto.
-  apply andp_right; [apply andp_right; [exact H11 | exact H8] |].
-  rewrite (add_andp _ _ H7).
+  apply andp_right; [apply andp_right; [exact H9 | exact H6] |].
+  rewrite (add_andp _ _ H5).
   eapply derives_trans; [apply andp_derives; [| apply derives_refl] |].
   eapply nth_error_SEP_sepcon_TT; eauto.
   entailer!.
@@ -161,10 +157,8 @@ Lemma semax_SC_field_store:
     forall Delta sh e n P Q R Rn (e1 e2 : expr)
       (t t_root: type) (efs0 efs1: list efield) (gfs0 gfs1: list gfield) (tts0 tts1: list type)
       (p: val) (v0: val) (v: reptype (nested_field_type2 t_root gfs0)) lr,
-      nested_legal_fieldlist t_root = true ->
       typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0)) = t ->
       type_is_by_value t ->
-      legal_alignas_type t_root = true ->
       length efs1 = length tts1 ->
       length gfs1 = length tts1 ->
       legal_nested_efield e t_root e1 (gfs1 ++ gfs0) (tts1 ++ tts0) lr = true ->
@@ -193,14 +187,14 @@ Lemma semax_SC_field_store:
                             )))).
 Proof.
   intros.
-  eapply semax_extract_later_prop'; [exact H13 | clear H13; intro H13].
+  eapply semax_extract_later_prop'; [exact H11 | clear H11; intro H11].
   eapply semax_pre_simple.
   {
     hoist_later_left.
     rewrite insert_local.
-    rewrite (add_andp _ _ H7).
+    rewrite (add_andp _ _ H5).
     rewrite andp_comm.
-    rewrite (add_andp _ _ H8).
+    rewrite (add_andp _ _ H6).
     rewrite <- andp_assoc.
     rewrite insert_local.
     rewrite andp_comm.
@@ -218,14 +212,14 @@ Proof.
     entailer!.
   + do 3 rewrite <- insert_local.
     rewrite <- !andp_assoc.
-    eapply derives_trans; [apply andp_derives; [apply derives_refl | exact H10] |].
+    eapply derives_trans; [apply andp_derives; [apply derives_refl | exact H8] |].
     entailer!.
   + rewrite (andp_comm _ (efield_denote Delta (efs1 ++ efs0) (gfs1 ++ gfs0))).
     rewrite andp_assoc.
     apply andp_right.
-    - eapply derives_trans; [| exact H9].
+    - eapply derives_trans; [| exact H7].
       entailer!.
-    - eapply derives_trans; [| exact H12].
+    - eapply derives_trans; [| exact H10].
       entailer!.
 Qed.
 

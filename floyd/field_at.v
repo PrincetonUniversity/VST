@@ -781,7 +781,6 @@ Lemma field_at__offset_zero: forall sh t gfs p,
 Proof. intros. apply local_facts_offset_zero. apply field_at__local_facts. Qed.
 
 Lemma field_at_field_at_: forall sh t gfs v p, 
-  legal_alignas_type t = true -> 
   field_at sh t gfs v p |-- field_at_ sh t gfs p.
 Proof.
   intros.
@@ -790,11 +789,11 @@ Proof.
   simpl; fold size_compatible.
   normalize.
   apply data_at'_data_at'_.
-  + apply nested_field_type2_nest_pred; [reflexivity|exact H].
-  + pose proof nested_field_offset2_in_range t gfs H2.
+  + apply nested_field_type2_nest_pred; [reflexivity|exact H2].
+  + pose proof nested_field_offset2_in_range t gfs H1.
     omega.
-  + apply nested_field_offset2_type2_divide, H.
-  + eapply Zdivides_trans; [|exact H1].
+  + apply nested_field_offset2_type2_divide, H2.
+  + eapply Zdivides_trans; [|exact H0].
     apply alignof_nested_field_type2_divide; auto.
 Qed.
 
