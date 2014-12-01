@@ -4,6 +4,7 @@
 -R ../floyd floyd
 -R ../progs progs
 -R ../compcert compcert
+-R . mc_reify
 -R ../mc_reify/mirror-core/coq-ext-lib/theories ExtLib
 -R ../mc_reify/mirror-core/src ExtLib
 -R ../mc_reify/mirror-core/theories MirrorCore

@@ -39,11 +39,12 @@ $(call includecmdwithout@,$(COQBIN)coqtop -config)
 #                        #
 ##########################
 
-COQLIBS?=-I . -R ../../Charge/Charge!/bin/Charge Charge\
+COQLIBS?= -R ../../Charge/Charge!/bin/Charge Charge\
   -R ../../MirrorCharge/MirrorCharge!/bin/MirrorCharge MirrorCharge\
   -R ../mc_reify/mirror-core/theories MirrorCore\
   -R ../mc_reify/mirror-core/src ExtLib\
   -R ../mc_reify/mirror-core/coq-ext-lib/theories ExtLib\
+  -R . mc_reify\
   -R ../compcert compcert\
   -R ../progs progs\
   -R ../floyd floyd\
@@ -55,6 +56,7 @@ COQDOCLIBS?=-R ../../Charge/Charge!/bin/Charge Charge\
   -R ../mc_reify/mirror-core/theories MirrorCore\
   -R ../mc_reify/mirror-core/src ExtLib\
   -R ../mc_reify/mirror-core/coq-ext-lib/theories ExtLib\
+  -R . mc_reify\
   -R ../compcert compcert\
   -R ../progs progs\
   -R ../floyd floyd\
@@ -122,7 +124,6 @@ VFILES:=bool_funcs.v\
 .SECONDARY: $(addsuffix .d,$(VFILES))
 
 VOFILES:=$(VFILES:.v=.vo)
-VOFILESINC=$(filter $(wildcard ./*),$(VOFILES)) 
 GLOBFILES:=$(VFILES:.v=.glob)
 VIFILES:=$(VFILES:.v=.vi)
 GFILES:=$(VFILES:.v=.g)
@@ -192,49 +193,9 @@ userinstall:
 	+$(MAKE) USERINSTALL=true install
 
 install:
-	install -d $(DSTROOT)$(COQLIBINSTALL)/Charge; \
-	for i in $(VOFILESINC); do \
-	 install -m 0644 $$i $(DSTROOT)$(COQLIBINSTALL)/Charge/`basename $$i`; \
-	done
-	install -d $(DSTROOT)$(COQLIBINSTALL)/MirrorCharge; \
-	for i in $(VOFILESINC); do \
-	 install -m 0644 $$i $(DSTROOT)$(COQLIBINSTALL)/MirrorCharge/`basename $$i`; \
-	done
-	install -d $(DSTROOT)$(COQLIBINSTALL)/MirrorCore; \
-	for i in $(VOFILESINC); do \
-	 install -m 0644 $$i $(DSTROOT)$(COQLIBINSTALL)/MirrorCore/`basename $$i`; \
-	done
-	install -d $(DSTROOT)$(COQLIBINSTALL)/ExtLib; \
-	for i in $(VOFILESINC); do \
-	 install -m 0644 $$i $(DSTROOT)$(COQLIBINSTALL)/ExtLib/`basename $$i`; \
-	done
-	install -d $(DSTROOT)$(COQLIBINSTALL)/ExtLib; \
-	for i in $(VOFILESINC); do \
-	 install -m 0644 $$i $(DSTROOT)$(COQLIBINSTALL)/ExtLib/`basename $$i`; \
-	done
-	install -d $(DSTROOT)$(COQLIBINSTALL)/compcert; \
-	for i in $(VOFILESINC); do \
-	 install -m 0644 $$i $(DSTROOT)$(COQLIBINSTALL)/compcert/`basename $$i`; \
-	done
-	install -d $(DSTROOT)$(COQLIBINSTALL)/progs; \
-	for i in $(VOFILESINC); do \
-	 install -m 0644 $$i $(DSTROOT)$(COQLIBINSTALL)/progs/`basename $$i`; \
-	done
-	install -d $(DSTROOT)$(COQLIBINSTALL)/floyd; \
-	for i in $(VOFILESINC); do \
-	 install -m 0644 $$i $(DSTROOT)$(COQLIBINSTALL)/floyd/`basename $$i`; \
-	done
-	install -d $(DSTROOT)$(COQLIBINSTALL)/veric; \
-	for i in $(VOFILESINC); do \
-	 install -m 0644 $$i $(DSTROOT)$(COQLIBINSTALL)/veric/`basename $$i`; \
-	done
-	install -d $(DSTROOT)$(COQLIBINSTALL)/sepcomp; \
-	for i in $(VOFILESINC); do \
-	 install -m 0644 $$i $(DSTROOT)$(COQLIBINSTALL)/sepcomp/`basename $$i`; \
-	done
-	install -d $(DSTROOT)$(COQLIBINSTALL)/msl; \
-	for i in $(VOFILESINC); do \
-	 install -m 0644 $$i $(DSTROOT)$(COQLIBINSTALL)/msl/`basename $$i`; \
+	for i in $(VOFILES); do \
+	 install -d `dirname $(DSTROOT)$(COQLIBINSTALL)/mc_reify/$$i`; \
+	 install -m 0644 $$i $(DSTROOT)$(COQLIBINSTALL)/mc_reify/$$i; \
 	done
 
 install-doc:

@@ -1,13 +1,13 @@
 Require Import MirrorCore.syms.SymEnv.
 Require Import MirrorCore.Reify.Reify.
 Require Import MirrorCore.Lambda.ExprCore.
-Require Import types.
-Require Import funcs.
+Require Import mc_reify.types.
+Require Import mc_reify.funcs.
 Require Import MirrorCharge.ModularFunc.ILogicFunc.
 Require Import MirrorCharge.ModularFunc.BILogicFunc.
 Require Import floyd.local2ptree.
-Require Import bool_funcs.
-Require Import set_reif.
+Require Import mc_reify.bool_funcs.
+Require Import mc_reify.set_reif.
 
 Local Notation "x @ y" := (@RApp x y) (only parsing, at level 30).
 Local Notation "'!!' x" := (@RExact _ x) (only parsing, at level 25).
@@ -419,8 +419,7 @@ Ltac do_reify e :=
   reify_expr reify_vst k
              [ (fun (y : @mk_dvar_map _ _ _ _ term_table elem_ctor) => True) ]
              [ e ].
-Locate share.
-SearchAbout shares.share.
+
 Goal forall (Delta: expr.tycontext), False.
 intros.
 reify_vst (data_at_lemmas.data_at SeparationLogic.Tsh Clightdefs.tint).

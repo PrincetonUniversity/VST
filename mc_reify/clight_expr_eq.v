@@ -1,6 +1,6 @@
 Require Import Clight.
 Require Import Ctypes.
-Require Import expr.
+Require Import veric.expr.
 Require Import Integers.
 Require Import Floats.
 Require Import Zbool.

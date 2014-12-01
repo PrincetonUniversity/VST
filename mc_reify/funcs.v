@@ -6,12 +6,12 @@ Require Import MirrorCore.TypesI.
 Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.Fun.
 Require Import progs.list_dt.
-Require Import types.
-Require Import bool_funcs.
+Require Import mc_reify.types.
+Require Import mc_reify.bool_funcs.
 Require Import MirrorCharge.ModularFunc.ILogicFunc.
 Require Import MirrorCharge.ModularFunc.BILogicFunc.
 Require Import floyd.local2ptree.
-Require Import local2list.
+Require Import mc_reify.local2list.
 
 Inductive const :=
 | fN : nat -> const

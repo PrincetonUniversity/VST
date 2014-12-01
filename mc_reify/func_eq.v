@@ -1,12 +1,12 @@
 Require Import ExtLib.Data.Positive.
-Require Import funcs.
-Require Import typ_eq.
-Require Import statement_eq.
+Require Import mc_reify.funcs.
+Require Import mc_reify.typ_eq.
+Require Import mc_reify.statement_eq.
 Require Import Coq.Arith.EqNat.
-Require Import clight_expr_eq.
+Require Import mc_reify.clight_expr_eq.
 Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.List.
-Require Import ExtLib.Core.RelDec.
+Require Import ExtLib.Core.RelDec.x
 
 Definition const_beq a b :=
 match a, b with
