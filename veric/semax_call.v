@@ -975,6 +975,26 @@ Admitted.  (* This was proved up to revision 6972 for CompCert 2.3,
   but changes in CompCert 2.4 lib/Maps.v broke the proof.
   Xavier said he'll prove it for us (e-mail of 22 September 2014) ... *)
 
+(* The following lemma is proved. And at the same time,
+I am wondering whether elements_remove is necessary to be that strong.
+ -- Qinxiang *)
+
+Lemma PTree_elements_remove: forall {A} (T: PTree.tree A) i e,
+  In e (PTree.elements (PTree.remove i T)) ->
+  In e (PTree.elements T) /\ fst e <> i.
+Proof.
+  intros.
+  destruct e as [i0 v0].
+  apply PTree.elements_complete in H.
+  destruct (peq i0 i).
+  + subst.
+    rewrite PTree.grs in H.
+    inversion H.
+  + rewrite PTree.gro in H by auto.
+    split; [| simpl; auto].
+    apply PTree.elements_correct.
+    auto.
+Qed.
 
 Lemma stackframe_of_freeable_blocks:
   forall Delta f rho ve,

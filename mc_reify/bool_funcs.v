@@ -43,45 +43,6 @@ rewrite andb_true_iff in *. intuition.
 rewrite orb_true_iff in *. intuition.
 Qed.
 
-Fixpoint msubst_eval_expr_norho (T1: PTree.t val) (T2: PTree.t (type * val)) (e: Clight.expr) : option val :=
-  match e with
-  | Econst_int i ty => Some (Vint i)
-  | Econst_long i ty => Some (Vlong i)
-  | Econst_float f ty => Some (Vfloat f)
-  | Econst_single f ty => Some (Vsingle f)
-  | Etempvar id ty => PTree.get id T1
-  | Eaddrof a ty => msubst_eval_lvalue_norho T1 T2 a 
-  | Eunop op a ty =>  option_map (eval_unop op (typeof a)) (msubst_eval_expr_norho T1 T2 a) 
-  | Ebinop op a1 a2 ty => match (msubst_eval_expr_norho T1 T2 a1), (msubst_eval_expr_norho T1 T2 a2) with
-                            | Some v1, Some v2 => Some (eval_binop op (typeof a1) (typeof a2) v1 v2) 
-                            | _, _ => None
-                          end
-  | Ecast a ty => option_map (eval_cast (typeof a) ty) (msubst_eval_expr_norho T1 T2 a)
-  | Evar id ty => option_map (deref_noload ty)
-                    match PTree.get id T2 with
-                    | Some (ty', v) =>
-                      if eqb_type ty ty'
-                      then Some v
-                      else None
-                    | None => None
-                    end
-  | Ederef a ty => option_map (deref_noload ty) (option_map force_ptr (msubst_eval_expr_norho T1 T2 a))
-  | Efield a i ty => option_map (deref_noload ty) (option_map (eval_field (typeof a) i) (msubst_eval_lvalue_norho T1 T2 a))
-  end
-  with msubst_eval_lvalue_norho (T1: PTree.t val) (T2: PTree.t (type * val)) (e: Clight.expr) : option val := 
-  match e with 
-  | Evar id ty => match PTree.get id T2 with
-                  | Some (ty', v) =>
-                    if eqb_type ty ty'
-                    then Some v
-                    else None
-                  | None => None
-                  end
-  | Ederef a ty => option_map force_ptr (msubst_eval_expr_norho T1 T2 a)
-  | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue_norho T1 T2 a)
-  | _  => Some Vundef
-  end.
-
 Definition localD (temps : PTree.t val) (locals : PTree.t (type * val)) :=
 LocalD temps locals nil.
 

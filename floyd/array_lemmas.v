@@ -902,27 +902,6 @@ intros.
  f_equal; auto.
 Qed.
 
-Lemma fold_right_sepcon_subst:
- forall i e R, fold_right sepcon emp (map (subst i e) R) = subst i e (fold_right sepcon emp R).
-Proof.
- intros. induction R; auto.
- autorewrite with subst. f_equal; auto.
-Qed.
-
-Lemma resubst: forall {A} i (v: val) (e: environ -> A), subst i (`v) (subst i `v e) = subst i `v e.
-Proof.
- intros. extensionality rho. unfold subst.
- f_equal.
- unfold env_set. 
- f_equal.
- apply Map.ext. intro j.
- destruct (eq_dec i j). subst. repeat rewrite Map.gss. f_equal.
- simpl.
- repeat rewrite Map.gso by auto. auto.
-Qed.
-
-Hint Rewrite @resubst : subst.
-
 Lemma Zsucc_sub_self:
  forall x: Z, nat_of_Z (Z.succ x - x) = 1%nat.
 Proof.

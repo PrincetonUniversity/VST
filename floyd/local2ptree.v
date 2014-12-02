@@ -350,6 +350,96 @@ Proof.
     apply H1.
 Qed.
 
+Lemma LOCALx_expand_temp_var': forall i v T1 T2 Q Q0,
+  In Q0 (LocalD (PTree.set i v T1) T2 Q) -> 
+  Q0 = temp i v \/ In Q0 (LocalD (PTree.remove i T1) T2 Q).
+Proof.
+  intros.
+  simpl.
+  apply LocalD_complete in H.
+  destruct H.
+  + destruct H as [i0 [v0 [? ?]]].
+    destruct (ident_eq i0 i).
+    - subst.
+      rewrite PTree.gss in H.
+      inversion H; subst.
+      left; reflexivity.
+    - rewrite PTree.gso in H by auto.
+      right.
+      apply LocalD_sound.
+      left.
+      exists i0, v0.
+      rewrite PTree.gro by auto.
+      exact (conj H H0).
+  + right.
+    apply LocalD_sound.
+    right.
+    exact H.
+Qed.
+
+Lemma LocalD_subst: forall id v Q0 T1 T2 Q,
+  In Q0 (LocalD (PTree.remove id T1) T2 (map (subst id v) Q)) ->
+  In Q0 (map (subst id v) (LocalD T1 T2 Q)). 
+Proof.
+  intros.
+  apply in_map_iff.
+  apply LocalD_complete in H.
+  destruct H; [| destruct H]; [exists Q0 | exists Q0 | ].
+  + destruct H as [i0 [v0 [?H ?H]]].
+    destruct (peq id i0).
+    - subst.
+      rewrite PTree.grs in H.
+      inversion H.
+    - split.
+      * subst.
+        unfold temp.
+        autorewrite with subst.
+        reflexivity.
+      * apply LocalD_sound.
+        left.
+        exists i0, v0.
+        rewrite PTree.gro in H by auto.
+        auto.
+  + destruct H as [i0 [t [v0 [?H ?H]]]].
+    split.
+    - subst.
+      unfold var.
+      autorewrite with subst.
+      reflexivity.
+    - apply LocalD_sound.
+      right; left.
+      exists i0, t, v0.
+      auto.
+  + apply in_map_iff in H.
+    destruct H as [x [?H ?H]].
+    exists x.
+    split; [auto |].
+    apply LocalD_sound.
+    right; right.
+    auto.
+Qed.
+
+Lemma SC_remove_subst: forall P T1 T2 R id v old,
+   PROPx P
+     (LOCALx (temp id v :: map (subst id `old) (LocalD T1 T2 nil))
+        (SEPx (map (subst id `old) (map liftx R))))
+   |-- PROPx P
+         (LOCALx (LocalD (PTree.set id v T1) T2 nil) (SEPx (map liftx R))).
+Proof.
+  intros.
+  replace (SEPx (map (subst id `old) (map liftx R))) with (SEPx (map liftx R)).
+  Focus 2. {
+    f_equal.
+    f_equal.
+    rewrite map_map.
+    f_equal.
+  } Unfocus.
+  apply LOCALx_shuffle; intros.
+  apply LOCALx_expand_temp_var' in H.
+  destruct H; [left; auto | right].
+  apply LocalD_subst, H.
+Qed.
+
 Lemma local2ptree_soundness: forall P Q R T1 T2 Q',
   local2ptree Q T1 T2 Q' ->
   PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx (LocalD T1 T2 Q') (SEPx R)).
@@ -416,50 +506,6 @@ Fixpoint msubst_eval_expr (T1: PTree.t val) (T2: PTree.t (type * val)) (e: Cligh
   | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a)
   | _  => Some Vundef
   end.
-
-(*
-Fixpoint msubst_eval_expr (T1: PTree.t val) (T2: PTree.t (type * val)) (e: expr) : environ -> val :=
-  match e with
-  | Econst_int i ty => `(Vint i)
-  | Econst_long i ty => `(Vlong i)
-  | Econst_float f ty => `(Vfloat f)
-  | Econst_single f ty => `(Vsingle f)
-  | Etempvar id ty => match PTree.get id T1 with
-                      | Some v => `v
-                      | None => eval_id id 
-                      end
-  | Eaddrof a ty => msubst_eval_lvalue T1 T2 a 
-  | Eunop op a ty =>  `(eval_unop op (typeof a)) (msubst_eval_expr T1 T2 a) 
-  | Ebinop op a1 a2 ty =>  
-                   `(eval_binop op (typeof a1) (typeof a2)) 
-                   (msubst_eval_expr T1 T2 a1) 
-                   (msubst_eval_expr T1 T2 a2)
-  | Ecast a ty => `(eval_cast (typeof a) ty) (msubst_eval_expr T1 T2 a)
-  | Evar id ty => `(deref_noload ty)
-                    match PTree.get id T2 with
-                    | Some (ty', v) =>
-                      if eqb_type ty ty'
-                      then `v
-                      else eval_var id ty
-                    | None => eval_var id ty
-                    end
-  | Ederef a ty => `(deref_noload ty) (`force_ptr (msubst_eval_expr T1 T2 a))
-  | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a))
-  end
-  with msubst_eval_lvalue (T1: PTree.t val) (T2: PTree.t (type * val)) (e: expr) : environ -> val := 
-  match e with 
-  | Evar id ty => match PTree.get id T2 with
-                  | Some (ty', v) =>
-                    if eqb_type ty ty'
-                    then `v
-                    else eval_var id ty
-                  | None => eval_var id ty
-                  end
-  | Ederef a ty => `force_ptr (msubst_eval_expr T1 T2 a)
-  | Efield a i ty => `(eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a)
-  | _  => `Vundef
-  end.
-*)
 
 Lemma msubst_eval_expr_eq_aux:
   forall (T1: PTree.t val) (T2: PTree.t (type * val)) e rho v,
