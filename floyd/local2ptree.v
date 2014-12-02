@@ -377,6 +377,47 @@ Proof.
       apply LOCALx_shuffle, LOCALx_expand_res.
 Qed.
 
+Fixpoint msubst_eval_expr (T1: PTree.t val) (T2: PTree.t (type * val)) (e: Clight.expr) : option val :=
+  match e with
+  | Econst_int i ty => Some (Vint i)
+  | Econst_long i ty => Some (Vlong i)
+  | Econst_float f ty => Some (Vfloat f)
+  | Econst_single f ty => Some (Vsingle f)
+  | Etempvar id ty => PTree.get id T1
+  | Eaddrof a ty => msubst_eval_lvalue T1 T2 a 
+  | Eunop op a ty => option_map (eval_unop op (typeof a)) (msubst_eval_expr T1 T2 a) 
+  | Ebinop op a1 a2 ty =>
+      match (msubst_eval_expr T1 T2 a1), (msubst_eval_expr T1 T2 a2) with
+      | Some v1, Some v2 => Some (eval_binop op (typeof a1) (typeof a2) v1 v2) 
+      | _, _ => None
+      end
+  | Ecast a ty => option_map (eval_cast (typeof a) ty) (msubst_eval_expr T1 T2 a)
+  | Evar id ty => option_map (deref_noload ty)
+                    match PTree.get id T2 with
+                    | Some (ty', v) =>
+                      if eqb_type ty ty'
+                      then Some v
+                      else None
+                    | None => None
+                    end
+  | Ederef a ty => option_map (deref_noload ty) (option_map force_ptr (msubst_eval_expr T1 T2 a))
+  | Efield a i ty => option_map (deref_noload ty) (option_map (eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a))
+  end
+  with msubst_eval_lvalue (T1: PTree.t val) (T2: PTree.t (type * val)) (e: Clight.expr) : option val := 
+  match e with 
+  | Evar id ty => match PTree.get id T2 with
+                  | Some (ty', v) =>
+                    if eqb_type ty ty'
+                    then Some v
+                    else None
+                  | None => None
+                  end
+  | Ederef a ty => option_map force_ptr (msubst_eval_expr T1 T2 a)
+  | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a)
+  | _  => Some Vundef
+  end.
+
+(*
 Fixpoint msubst_eval_expr (T1: PTree.t val) (T2: PTree.t (type * val)) (e: expr) : environ -> val :=
   match e with
   | Econst_int i ty => `(Vint i)
@@ -418,54 +459,79 @@ Fixpoint msubst_eval_expr (T1: PTree.t val) (T2: PTree.t (type * val)) (e: expr)
   | Efield a i ty => `(eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a)
   | _  => `Vundef
   end.
+*)
 
 Lemma msubst_eval_expr_eq_aux:
-  forall (T1: PTree.t val) (T2: PTree.t (type * val)) e rho,
+  forall (T1: PTree.t val) (T2: PTree.t (type * val)) e rho v,
     (forall i v, T1 ! i = Some v -> eval_id i rho = v) ->
     (forall i t v, T2 ! i = Some (t, v) -> eval_var i t rho = v) ->
-    msubst_eval_expr T1 T2 e rho = eval_expr e rho
+    msubst_eval_expr T1 T2 e = Some v ->
+    eval_expr e rho = v
 with msubst_eval_lvalue_eq_aux: 
-  forall (T1: PTree.t val) (T2: PTree.t (type * val)) e rho,
+  forall (T1: PTree.t val) (T2: PTree.t (type * val)) e rho v,
     (forall i v, T1 ! i = Some v -> eval_id i rho = v) ->
     (forall i t v, T2 ! i = Some (t, v) -> eval_var i t rho = v) ->
-    msubst_eval_lvalue T1 T2 e rho = eval_lvalue e rho.
+    msubst_eval_lvalue T1 T2 e = Some v ->
+    eval_lvalue e rho = v.
 Proof.
   + clear msubst_eval_expr_eq_aux.
-    induction e; intros; simpl; auto;
-    try match goal with
-    | |- appcontext [(?T2 ! ?i)] => destruct (T2 ! i) as [[t0 ?]|] eqn:?; auto;
-                                  destruct (eqb_type t t0) eqn:HH; auto;
-                                  apply eqb_type_true in HH; subst
-    end;
-    try match goal with
-    | |- appcontext [(?T1 ! ?i)] => destruct (T1 ! i) eqn:?; auto
-    end;
-    unfold_lift; simpl;
-    try erewrite H by eauto;
-    try erewrite H0 by eauto;
-    try rewrite IHe by auto;
-    try rewrite IHe1 by auto;
-    try rewrite IHe2 by auto;
-    try erewrite msubst_eval_lvalue_eq_aux by eauto;
-    reflexivity.
+    induction e; intros; simpl in H1 |- *; try solve [inversion H1; auto].
+    - destruct (T2 ! i) as [[t0 ?]|] eqn:?; [| inversion H1].
+      destruct (eqb_type t t0) eqn:HH; [| inversion H1].
+      apply eqb_type_true in HH; subst.
+      inversion H1.
+      unfold_lift; simpl.
+      erewrite H0 by eauto.
+      reflexivity.
+    - unfold_lift; simpl.
+      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
+      inversion H1.
+      rewrite IHe with (v := v0) by auto.
+      reflexivity.
+    - erewrite msubst_eval_lvalue_eq_aux by eauto.
+      reflexivity.
+    - unfold_lift; simpl.
+      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
+      inversion H1.
+      rewrite IHe with (v := v0) by auto.
+      reflexivity.
+    - unfold_lift; simpl.
+      destruct (msubst_eval_expr T1 T2 e1) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr T1 T2 e2) eqn:?; [| inversion H1].
+      inversion H1.
+      rewrite IHe1 with (v := v0) by auto.
+      rewrite IHe2 with (v := v1) by auto.
+      reflexivity.
+    - unfold_lift; simpl.
+      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
+      inversion H1.
+      rewrite IHe with (v := v0) by auto.
+      reflexivity.
+    - unfold_lift; simpl.
+      destruct (msubst_eval_lvalue T1 T2 e) eqn:?; [| inversion H1].
+      inversion H1.
+      erewrite msubst_eval_lvalue_eq_aux by eauto.
+      reflexivity.
   + clear msubst_eval_lvalue_eq_aux.
-    induction e; intros; simpl; auto;
-    try match goal with
-    | |- appcontext [(?T2 ! ?i)] => destruct (T2 ! i) as [[t0 ?]|] eqn:?; auto;
-                                  destruct (eqb_type t t0) eqn:HH; auto;
-                                  apply eqb_type_true in HH; subst
-    end;
-    try match goal with
-    | |- appcontext [(?T1 ! ?i)] => destruct (T1 ! i) eqn:?; auto
-    end;
-    unfold_lift; simpl;
-    try erewrite H by eauto;
-    try erewrite H0 by eauto;
-    try rewrite IHe by auto;
-    try rewrite IHe1 by auto;
-    try rewrite IHe2 by auto;
-    try erewrite msubst_eval_expr_eq_aux by eauto;
-    reflexivity.
+    induction e; intros; simpl in H1 |- *; try solve [inversion H1; auto].
+    - destruct (T2 ! i) as [[t0 ?]|] eqn:?; [| inversion H1].
+      destruct (eqb_type t t0) eqn:HH; [| inversion H1].
+      apply eqb_type_true in HH; subst.
+      inversion H1.
+      unfold_lift; simpl.
+      erewrite H0 by eauto.
+      subst.
+      reflexivity.
+    - unfold_lift; simpl.
+      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
+      inversion H1.
+      erewrite msubst_eval_expr_eq_aux by eauto;
+      reflexivity.
+    - unfold_lift; simpl.
+      destruct (msubst_eval_lvalue T1 T2 e) eqn:?; [| inversion H1].
+      inversion H1.
+      rewrite IHe with (v := v0) by auto.
+      reflexivity.
 Qed.
 
 Lemma local_ext: forall Q0 Q rho, In Q0 Q -> fold_right `and `True Q rho -> Q0 rho.
@@ -508,7 +574,7 @@ Proof.
 Qed.
 
 Lemma msubst_eval_expr_eq: forall P T1 T2 Q R e v,
-  msubst_eval_expr T1 T2 e = `v ->
+  msubst_eval_expr T1 T2 e = Some v ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
     local (`(eq v) (eval_expr e)).
 Proof.
@@ -519,13 +585,11 @@ Proof.
   simpl in H.
   normalize; intros.
   destruct (msubst_eval_eq_aux _ _ _ _ H0).
-  erewrite <- msubst_eval_expr_eq_aux by eauto.
-  rewrite H.
-  reflexivity.
+  apply eq_sym, msubst_eval_expr_eq_aux with (T1 := T1) (T2 := T2); auto.
 Qed.
 
 Lemma msubst_eval_lvalue_eq: forall P T1 T2 Q R e v,
-  msubst_eval_lvalue T1 T2 e = `v ->
+  msubst_eval_lvalue T1 T2 e = Some v ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
     local (`(eq v) (eval_lvalue e)).
 Proof.
@@ -536,9 +600,7 @@ Proof.
   simpl in H.
   normalize; intros.
   destruct (msubst_eval_eq_aux _ _ _ _ H0).
-  erewrite <- msubst_eval_lvalue_eq_aux by eauto.
-  rewrite H.
-  reflexivity.
+  apply eq_sym, msubst_eval_lvalue_eq_aux with (T1 := T1) (T2 := T2); auto.
 Qed.
 
 

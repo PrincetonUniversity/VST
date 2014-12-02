@@ -1332,7 +1332,8 @@ Ltac do_compute_lvalue Delta P Q R e v H :=
   (first [ assumption |
     eapply derives_trans; [| apply msubst_eval_lvalue_eq];
     [apply local2ptree_soundness; try assumption; repeat constructor |
-     unfold v; extensionality rho; simpl; unfold_lift;
+     unfold v;
+     simpl;
      try unfold force_val2; try unfold force_val1;
      autorewrite with norm;
      simpl;
@@ -1346,7 +1347,8 @@ Ltac do_compute_expr Delta P Q R e v H :=
   (first [ assumption |
     eapply derives_trans; [| apply msubst_eval_expr_eq];
     [apply local2ptree_soundness; try assumption; repeat constructor |
-     unfold v; extensionality rho; simpl; unfold_lift;
+     unfold v;
+     simpl;
      try unfold force_val2; try unfold force_val1;
      autorewrite with norm;
      simpl;
