@@ -1,5 +1,5 @@
 Require Import mc_reify.reify.
-Require Import mc_reify.floyd.proofauto.
+Require Import floyd.proofauto.
 Require Import mc_reify.reverse_defs.
 Require Import mc_reify.set_reif.
 Require Import mc_reify.func_defs.

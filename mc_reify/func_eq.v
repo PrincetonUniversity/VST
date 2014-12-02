@@ -210,6 +210,62 @@ Qed. *)
 
 Hint Resolve sep_beq_sound : expr_beq.
 
+Fixpoint ptree_cmp {T : Type} (p1 p2: Maps.PTree.tree T) 
+         (e : T -> T -> bool) :=
+match p1, p2 with
+| Maps.PTree.Leaf, Maps.PTree.Leaf => true
+| Maps.PTree.Node l1 i1 r1, Maps.PTree.Node l2 i2 r2 =>
+  match i1, i2 with
+    | Some v1, Some v2 => andb (e v1 v2) 
+                               (andb (ptree_cmp l1 l2 e) 
+                                     (ptree_cmp r1 r2 e)) 
+    | None, None => (andb (ptree_cmp l1 l2 e) 
+                          (ptree_cmp r1 r2 e))
+    | _, _ => false
+  end
+| _, _ => false
+end.
+
+Lemma ptree_cmp_sound : forall T p1 p2 e, 
+(forall (i1 i2 : T), e i1 i2 = true -> i1 = i2) ->
+ptree_cmp p1 p2 e = true ->
+p1 = p2.
+Proof.
+intros.
+generalize dependent p2. induction p1; intros; destruct p2; auto; 
+simpl in *; try congruence.
+destruct o, o0. simpl in *.
+consider (e t t0); intros. specialize (H _ _ H0).
+ subst.
+consider (ptree_cmp p1_1 p2_1 e); intros.
+apply IHp1_1 in H. apply IHp1_2 in H1. subst. 
+auto.
+simpl in *; congruence.
+simpl in *; congruence.
+congruence. congruence.
+consider (ptree_cmp p1_1 p2_1 e); intros.
+apply IHp1_1 in H0. apply IHp1_2 in H1.
+subst; auto.
+simpl in *; congruence.
+Qed.
+
+
+Definition type_bool_eq (a b : Ctypes.type * bool) := 
+match a, b with
+| (t1, b1), (t2, b2) => andb (expr.eqb_type t1 t2) 
+                             match b1, b2 with
+                               | true, true | false, false => true
+                               | _, _ => false
+                             end
+end.
+
+Definition type_bool_eq_sound : forall a b,
+type_bool_eq a b = true-> a = b.
+intros. destruct a, b.
+solve_expr_beq_sound.
+destruct b, b0; simpl in H0; congruence.
+Qed.
+Check ftycontext.
 Definition smx_beq a b :=
 match a, b with
 | fsemax, fsemax
@@ -217,7 +273,11 @@ match a, b with
 | fassertD, fassertD => true
 | flocalD , flocalD => true 
 | fstatement s1, fstatement s2 => statement_beq s1 s2
-| ftycontext _ _ _ _ , ftycontext _ _ _ _  => true (*TODO*)
+| ftycontext t1 l1 r1 gt1, ftycontext t2 l2 r2 gt2  => 
+  andb (ptree_cmp t1 t2 type_bool_eq) 
+       (andb (ptree_cmp l1 l2 expr.eqb_type)
+             (andb (expr.eqb_type r1 r2)
+                   (ptree_cmp gt1 gt2 expr.eqb_type))) 
 | _, _ => false
 end.
 
@@ -227,7 +287,13 @@ Lemma smx_beq_sound : forall a b, smx_beq a b = true -> a = b.
 Proof.
 intros.
 destruct a, b; auto; solve_expr_beq_sound. 
-Admitted.
+apply ptree_cmp_sound in H; auto. 
+intros. apply type_bool_eq_sound in H3. auto.
+apply ptree_cmp_sound in H0; 
+solve_expr_beq_sound.
+apply ptree_cmp_sound in H2; 
+solve_expr_beq_sound.
+Qed.
 
 Hint Resolve smx_beq_sound : expr_beq.
 
