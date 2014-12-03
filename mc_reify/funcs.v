@@ -506,8 +506,8 @@ match t with
 | fdenote_tc_assert_b_norho => (denote_tc_assert_b_norho : typD (typeof_smx fdenote_tc_assert_b_norho))
 | ftc_expr_b_norho => tc_expr_b_norho
 | ftc_temp_id_b_norho id ty  => tc_temp_id_b_norho id ty 
-| fmsubst_eval_expr_norho => msubst_eval_expr_norho
-| fmsubst_eval_lvalue_norho => msubst_eval_lvalue_norho
+| fmsubst_eval_expr_norho => msubst_eval_expr
+| fmsubst_eval_lvalue_norho => msubst_eval_lvalue
 end.
 
 Inductive func' :=

@@ -1958,7 +1958,7 @@ Proof.
     auto.
 Qed.
 
-Lemma efield_denote_is_prop: forall Delta efs gfs rho, is_prop (efield_denote Delta efs gfs rho).
+Lemma efield_denote_is_prop: forall efs gfs rho, is_prop (efield_denote efs gfs rho).
 Proof.
   intros.
   revert gfs; induction efs; destruct gfs; simpl; intros.
@@ -1969,7 +1969,6 @@ Proof.
     - unfold local, lift1.
       unfold_lift.
       repeat apply is_prop_andp.
-      apply prop_is_prop.
       apply prop_is_prop.
       apply prop_is_prop.
       apply IHefs.
@@ -2254,7 +2253,8 @@ Lemma semax_nested_efield_field_load_37':
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) v) &&
-        efield_denote Delta (efs1 ++ efs0) (gfs1 ++ gfs0) &&
+        local (tc_efield Delta (efs1 ++ efs0)) &&
+        efield_denote (efs1 ++ efs0) (gfs1 ++ gfs0) &&
         (`(field_at sh t_root gfs0 v') (eval_LR e1 lr) * TT) ->
       legal_nested_field t_root (gfs1 ++ gfs0) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
@@ -2275,6 +2275,8 @@ Proof.
         typeof (nested_efield e1 ((ef :: efs1) ++ efs0) ((ttt :: tts1) ++ tts0))).
     Focus 1. {
       eapply derives_trans; [exact H4 |].
+      rewrite (andp_comm _ (_ * _)).
+      rewrite !andp_assoc.
       rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H2)).
       solve_andp_left.
     } Unfocus.
@@ -2316,7 +2318,8 @@ Lemma semax_nested_efield_field_cast_load_37':
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) t v))) &&
-        efield_denote Delta (efs1 ++ efs0) (gfs1 ++ gfs0) &&
+        local (tc_efield Delta (efs1 ++ efs0)) &&
+        efield_denote (efs1 ++ efs0) (gfs1 ++ gfs0) &&
         (`(field_at sh t_root gfs0 v') (eval_LR e1 lr) * TT) ->
       legal_nested_field t_root (gfs1 ++ gfs0) ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
@@ -2337,6 +2340,8 @@ Proof.
         typeof (nested_efield e1 ((ef :: efs1) ++ efs0) ((ttt :: tts1) ++ tts0))).
     Focus 1. {
       eapply derives_trans; [exact H4 |].
+      rewrite (andp_comm _ (_ * _)).
+      rewrite !andp_assoc.
       rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H2)).
       solve_andp_left.
     } Unfocus.
@@ -2379,7 +2384,8 @@ Lemma semax_nested_efield_field_store_nth:
       writable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_LR Delta e1 lr) && 
-        efield_denote Delta (efs1 ++ efs0) (gfs1 ++ gfs0) &&
+        local (tc_efield Delta (efs1 ++ efs0)) &&
+        efield_denote (efs1 ++ efs0) (gfs1 ++ gfs0) &&
         local (tc_expr Delta (Ecast e2 t)) ->
       legal_nested_field t_root (gfs1 ++ gfs0) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
@@ -2411,27 +2417,33 @@ Proof.
         typeof (nested_efield e1 ((ef :: efs1) ++ efs0) ((ttt :: tts1) ++ tts0))).
     Focus 1. {
       eapply derives_trans; [exact H6 |].
+      rewrite (andp_comm _ (local (tc_expr _ _))).
+      rewrite !andp_assoc.
       rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H2)).
       solve_andp_left.
     } Unfocus.
     intros.
     assert (forall rho : environ, is_prop
       ((local (tc_LR Delta e1 lr) && local (tc_expr Delta (Ecast e2 t)) &&
-        efield_denote Delta ((ef :: efs1) ++ efs0) ((gf :: gfs1) ++ gfs0)) rho)).
+        local (tc_efield Delta ((ef :: efs1) ++ efs0)) &&
+        efield_denote ((ef :: efs1) ++ efs0) ((gf :: gfs1) ++ gfs0)) rho)).
     Focus 1. {
       intros.
       unfold local, lift1.
 Opaque efield_denote.
       simpl.
 Transparent efield_denote.
-      apply is_prop_andp; [apply is_prop_andp |].
+      apply is_prop_andp; [apply is_prop_andp; [apply is_prop_andp |] |].
+            (* I dont know why this line takes pretty long time. Though it works. *)
+      apply prop_is_prop.
       apply prop_is_prop.
       apply prop_is_prop.
       apply efield_denote_is_prop.
     } Unfocus.
     apply semax_pre_simple with (P' := |> PROPx P (LOCALx Q (SEPx 
       (local (tc_LR Delta e1 lr) && local (tc_expr Delta (Ecast e2 t)) &&
-           efield_denote Delta ((ef :: efs1) ++ efs0) ((gf :: gfs1) ++ gfs0) && emp :: R)))).
+       local (tc_efield Delta ((ef :: efs1) ++ efs0)) &&
+       efield_denote ((ef :: efs1) ++ efs0) ((gf :: gfs1) ++ gfs0) && emp :: R)))).
     Focus 1. {
       hoist_later_left.
       apply later_derives.
@@ -2457,8 +2469,9 @@ Transparent efield_denote.
     clear H4.
     assert (nth_error (local (tc_LR Delta e1 lr) &&
                  local (tc_expr Delta (Ecast e2 t)) &&
-                 efield_denote Delta ((ef :: efs1) ++ efs0)
-                   ((gf :: gfs1) ++ gfs0) && emp :: R) (1 + n) = Some Rn)
+                 local (tc_efield Delta ((ef :: efs1) ++ efs0)) &&
+                 efield_denote ((ef :: efs1) ++ efs0) ((gf :: gfs1) ++ gfs0) &&
+                 emp :: R) (1 + n) = Some Rn)
       by (exact H3).
     clear H3.
     assert (type_is_by_value (uncompomize e (nested_field_type2 t_root ((gf :: gfs1) ++ gfs0)))).
@@ -2469,7 +2482,7 @@ Transparent efield_denote.
     erewrite lifted_field_except_at_lemma
       with (v0' := `(valinject _) (`(repinject _) (`(proj_reptype (nested_field_type2 t_root gfs0)
                       (gf :: gfs1)) v))) in H10; eauto.
-    Focus 2. { admit. } Unfocus.
+    Focus 2. { admit. } Unfocus. (* JMeq about valinject and repinject *)
     match goal with
     | |- appcontext [replace_nth n R ?M] =>
          replace M with
@@ -2486,7 +2499,7 @@ Opaque upd_reptype.
       simpl.
 Transparent upd_reptype.
       erewrite field_except_at_lemma; simpl; eauto.
-      admit.
+      admit. (* JMeq about valinject and repinject *)
     } Unfocus.
     rewrite (loadstore_mapsto.replace_nth_nth_error _ _ _ H4) by exact H3.
     eapply semax_pre_simple.

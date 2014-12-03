@@ -85,13 +85,14 @@ Lemma semax_SC_field_load:
       nth_error R n = Some Rn ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        efield_denote Delta (efs1 ++ efs0) (gfs1 ++ gfs0) ->
+        efield_denote (efs1 ++ efs0) (gfs1 ++ gfs0) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
       JMeq (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_LR Delta e1 lr) &&
-        local `(tc_val (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) v) ->
+        local `(tc_val (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) v) &&
+        local (tc_efield Delta (efs1 ++ efs0)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         (!! legal_nested_field t_root (gfs1 ++ gfs0)) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
@@ -125,13 +126,14 @@ Lemma semax_SC_field_cast_load:
       nth_error R n = Some Rn ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        efield_denote Delta (efs1 ++ efs0) (gfs1 ++ gfs0) ->
+        efield_denote (efs1 ++ efs0) (gfs1 ++ gfs0) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
       JMeq (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_LR Delta e1 lr) &&
-        local (`(tc_val t (eval_cast (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) t v))) ->
+        local (`(tc_val t (eval_cast (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) t v))) &&
+        local (tc_efield Delta (efs1 ++ efs0)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         (!! legal_nested_field t_root (gfs1 ++ gfs0)) ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
@@ -166,13 +168,14 @@ Lemma semax_SC_field_store:
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v0) (eval_expr (Ecast e2 t))) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-        efield_denote Delta (efs1 ++ efs0) (gfs1 ++ gfs0) ->
+        efield_denote (efs1 ++ efs0) (gfs1 ++ gfs0) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v p) ->
       writable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_LR Delta e1 lr) && 
-        local (tc_expr Delta (Ecast e2 t)) ->
+        local (tc_expr Delta (Ecast e2 t)) &&
+        local (tc_efield Delta (efs1 ++ efs0)) ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         (!! legal_nested_field t_root (gfs1 ++ gfs0)) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
@@ -214,12 +217,15 @@ Proof.
     rewrite <- !andp_assoc.
     eapply derives_trans; [apply andp_derives; [apply derives_refl | exact H8] |].
     entailer!.
-  + rewrite (andp_comm _ (efield_denote Delta (efs1 ++ efs0) (gfs1 ++ gfs0))).
+  + rewrite (andp_comm _ (efield_denote (efs1 ++ efs0) (gfs1 ++ gfs0))).
     rewrite andp_assoc.
     apply andp_right.
     - eapply derives_trans; [| exact H7].
       entailer!.
-    - eapply derives_trans; [| exact H10].
+    - rewrite andp_assoc.
+      rewrite (andp_comm (local (tc_efield _ _))).
+      rewrite <- andp_assoc.
+      eapply derives_trans; [| exact H10].
       entailer!.
 Qed.
 
