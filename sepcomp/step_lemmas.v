@@ -14,28 +14,29 @@ Section safety.
 
   Variable ge : Genv.t F V.
 
-  Fixpoint safeN_ (n:nat) (z:Z) (c:C) (m:M) : Prop :=
-    match n with
-    | O => True
-    | S n' => 
-       match at_external Hcore c, halted Hcore c with
-       | None, None =>
-           exists c', exists m',
-             corestep Hcore ge c m c' m' /\
-             safeN_ n' z c' m'
-       | Some (e,sig,args), None =>
-           exists x:ext_spec_type Hspec e,
-             ext_spec_pre Hspec e x (Genv.genv_symb ge) (sig_args sig) args z m /\
-             (forall ret m' z',
-               Hrel m m' -> 
-               ext_spec_post Hspec e x (Genv.genv_symb ge) (sig_res sig) ret z' m' ->
-               exists c',
-                 after_external Hcore ret c = Some c' /\
-                 safeN_ n' z' c' m')
-       | None, Some i => ext_spec_exit Hspec (Some i) z m
-       | Some _, Some _ => False
-       end
-    end.
+  Inductive safeN_ : nat -> Z -> C -> M -> Prop :=
+  | safeN_0: forall z c m, safeN_ O z c m
+  | safeN_step:
+      forall n z c m c' m',
+      corestep Hcore ge c m c' m' ->
+      safeN_ n z c' m' -> 
+      safeN_ (S n) z c m
+  | safeN_external:
+      forall n z c m e sig args x,
+      at_external Hcore c = Some (e,sig,args) ->
+      ext_spec_pre Hspec e x (Genv.genv_symb ge) (sig_args sig) args z m ->
+      (forall ret m' z',
+         Hrel m m' -> 
+         ext_spec_post Hspec e x (Genv.genv_symb ge) (sig_res sig) ret z' m' ->
+         exists c',
+           after_external Hcore ret c = Some c' /\
+           safeN_ n z' c' m') -> 
+      safeN_ (S n) z c m
+  | safeN_halted:
+      forall n z c m i,
+      halted Hcore c = Some i -> 
+      ext_spec_exit Hspec (Some i) z m ->
+      safeN_ n z c m.
 
   Definition corestep_fun  :=
        forall ge m q m1 q1 m2 q2 ,
@@ -48,42 +49,31 @@ Section safety.
     forall c m c' m' n z,
     corestep Hcore ge c m c' m' -> safeN_ (S n) z c m -> safeN_ n z c' m'.
   Proof.
-    simpl; intros.
-    erewrite corestep_not_at_external in H1; eauto.
-    erewrite corestep_not_halted in H1; eauto.
-    destruct H1 as [c'' [m'' [? ?]]].
-    assert ((c',m') = (c'',m'')).
-    eapply H; eauto.
-   inv H3; auto.
+    simpl; intros; inv H1.
+    assert ((c',m') = (c'0,m'0)) by (eapply H; eauto).
+    inv H1; auto.
+    erewrite corestep_not_at_external in H3; eauto; congruence.
+    erewrite corestep_not_halted in H2; eauto; congruence.
   Qed.
 
   Lemma safe_corestep_backward:
     forall c m c' m' n z,
     corestep Hcore ge c m c' m' -> safeN_ n z c' m' -> safeN_ (S n) z c m.
   Proof.
-    simpl; intros.
-    erewrite corestep_not_at_external; eauto.
-    erewrite corestep_not_halted; eauto.
+    intros; eapply safeN_step; eauto.
   Qed.
 
   Lemma safe_downward1 :
     forall n c m z,
       safeN_ (S n) z c m -> safeN_ n z c m.
   Proof.
-    induction n; simpl; intros; auto.
-    destruct (at_external Hcore c);
-      destruct (halted Hcore c).
-    destruct p; auto.
-    destruct p. destruct p.
-    destruct H as [x ?].
-    exists x. 
-    destruct H. split; auto.
-    intros. specialize (H0 ret m' z' H1 H2).
-    destruct H0 as [c' [? ?]].
-    exists c'; split; auto.
-    auto.
-    destruct H as [c' [m' [? ?]]].
-    exists c'. exists m'; split; auto.
+    induction n. econstructor; eauto.
+    intros c m z H. inv H.
+    + econstructor; eauto. 
+    + eapply safeN_external; eauto. intros.
+      specialize (H3 _ _ _ H H0). destruct H3 as [c' [? ?]].
+      exists c'; split; auto. 
+    + eapply safeN_halted; eauto.
   Qed.
 
   Lemma safe_downward : 
@@ -123,10 +113,9 @@ Section safety.
   Proof.
     intros.
     destruct n.
-    hnf. auto.
-    simpl in H0.
-    replace (n-0)%nat with n in H0.
-    eapply safe_corestep_backward; eauto.
+    constructor.
+    simpl in H0. replace (n-0)%nat with n in H0.
+    eapply safe_corestep_backward; eauto. 
     omega.
   Qed.
 
@@ -154,22 +143,21 @@ Section safety.
       (forall ret q', after_external Hcore ret q1 = Some q' ->
                       after_external Hcore ret q2 = Some q') ->
       (halted Hcore q1 = halted Hcore q2) ->
-      (forall q' m', corestep Hcore ge q1 m q' m' -> corestep Hcore ge q2 m q' m') ->
+      (forall q' m', corestep Hcore ge q1 m q' m' -> 
+                     corestep Hcore ge q2 m q' m') ->
       (forall n z, safeN_ n z q1 m -> safeN_ n z q2 m).
   Proof.
-    intros. destruct n; simpl in *; auto.
-    rewrite H in H3. rewrite H1 in H3.
-    destruct (at_external Hcore q2);
-      destruct (halted Hcore q2); auto.
-    destruct p. destruct p.
-    destruct H3 as [x ?].
-    exists x. 
-    destruct H3; split; auto.
-    intros. specialize (H4 ret m' z' H5 H6).
-    destruct H4 as [c' [? ?]].
-    exists c'; split; auto.
-    destruct H3 as [c' [m' [? ?]]].
-    exists c'. exists m'; split; auto.
+    intros. destruct n; simpl in *; try constructor.
+    inv H3. 
+    + econstructor; eauto.
+    + eapply safeN_external; eauto.
+      rewrite <-H; auto.
+      intros ??? H8 H9.
+      specialize (H7 _ _ _ H8 H9).
+      destruct H7 as [c' [? ?]].
+      exists c'; split; auto.
+    + eapply safeN_halted; eauto.
+      rewrite <-H1; auto.
   Qed.
 
   Lemma wlog_safeN_gt0 : forall
@@ -177,8 +165,7 @@ Section safety.
     (lt 0 n -> safeN_ n z q m) -> 
     safeN_ n z q m.
   Proof.
-    intros. destruct n.
-    hnf. auto.
+    intros. destruct n. constructor.
     apply H. omega.
   Qed.
 

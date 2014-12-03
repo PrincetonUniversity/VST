@@ -275,12 +275,13 @@ specialize (H te ve y H0 a' H1 H2).
 clear - H.
 intros ora jm _ H2; specialize (H ora jm (eq_refl _) H2).
 clear - H.
-destruct (@level rmap ag_rmap a'); simpl in *; auto.
-destruct H as [st' [m' [? ?]]].
-destruct (corestep_preservation_lemma Espec psi 
+destruct (@level rmap ag_rmap a'); simpl in *; auto. 
+constructor.
+inv H.
+{ destruct (corestep_preservation_lemma Espec psi 
                      (Kseq (Ssequence s2 s3) :: k)
                      (Kseq s2 :: Kseq s3 :: k)
-                     ora ve te jm n (Kseq s1) nil st' m')
+                     ora ve te jm n (Kseq s1) nil c' m')
        as [c2 [m2 [? ?]]]; simpl; auto.
 intros. apply control_suffix_safe; simpl; auto.
 clear.
@@ -292,12 +293,26 @@ clear.
 hnf; intros.
 eapply convergent_controls_safe; try apply H0; simpl; auto.
 clear; intros.
-destruct H as [H1 [H1a H1b]]; split3; auto.  inv H1; auto.
-destruct H as [H1 [H1a H1b]]; split3; auto.  inv H1; auto.
-do 2 econstructor; split; try apply H2.
-destruct H1 as [H1 [H1a H1b]]; split3; auto.
-constructor; constructor; auto.
+destruct H as [H1 [H1a H1b]]; split3; auto.  inv H1; auto. 
+destruct H1 as (?&?&?). constructor; eauto. 
+simpl in H|-*. inv H. auto.
+destruct H as [H1' [H1a H1b]]. 
+econstructor; eauto.
+split3; auto.  inv H1; auto.
+do 2 econstructor. auto.
+}
+simpl in H1. congruence.
+simpl in H0. unfold cl_halted in H0. congruence.
 Qed.
+
+Ltac inv_safe H := 
+  inv H;
+  try solve[match goal with 
+    | H : core_semantics.at_external _ _ = _ |- _ => 
+      simpl in H; congruence
+    | H : core_semantics.halted _ _ = _ |- _ => 
+      simpl in H; unfold cl_halted in H; congruence
+  end].
 
 Lemma seq_assoc2:  
    forall Delta P s1 s2 s3 R,
@@ -317,12 +332,12 @@ specialize (H te ve y H0 a' H1 H2).
 clear - H.
 intros ora jm _ H2; specialize (H ora jm (eq_refl _) H2).
 clear - H.
-destruct (@level rmap ag_rmap a'); simpl in *; auto.
-destruct H as [st' [m' [? ?]]].
+destruct (@level rmap ag_rmap a'); simpl in *. constructor.
+inv_safe H.
 destruct (corestep_preservation_lemma Espec psi 
                      (Kseq s2 :: Kseq s3 :: k)
                      (Kseq (Ssequence s2 s3) :: k)
-                     ora ve te jm n (Kseq s1) nil st' m')
+                     ora ve te jm n (Kseq s1) nil c' m')
        as [c2 [m2 [? ?]]]; simpl; auto.
 intros. apply control_suffix_safe; simpl; auto.
 clear.
@@ -337,17 +352,17 @@ eapply convergent_controls_safe; try apply H0; simpl; auto.
 clear; intros.
 destruct H as [H1 [H1a H1b]]; split3; auto.
 constructor; auto.
-destruct H as [H1 [H1a H1b]]; split3; auto.
-inv H1. inv H9; auto.
-do 2 econstructor; split; try apply H2.
-destruct H1 as [H1 [H1a H1b]]; split3; auto.
-constructor. auto.
+destruct H1 as (?&?&?). constructor; eauto. 
+simpl in H|-*. inv H. inv H11. auto.
+econstructor; eauto.
+destruct H as [H1' [H1a H1b]]; split3; auto.
+inv H1. inv H; auto. constructor. auto.
 Qed. 
 
-Lemma seq_assoc:  
-   forall Delta P s1 s2 s3 R,
-        semax Espec Delta P (Ssequence s1 (Ssequence s2 s3)) R <->
-        semax Espec Delta P (Ssequence (Ssequence s1 s2) s3) R.
+Lemma seq_assoc:
+  forall Delta P s1 s2 s3 R,
+  semax Espec Delta P (Ssequence s1 (Ssequence s2 s3)) R <->
+  semax Espec Delta P (Ssequence (Ssequence s1 s2) s3) R.
 Proof.
 intros.
 split; intro.
@@ -355,12 +370,11 @@ apply seq_assoc1; auto.
 apply seq_assoc2; auto.
 Qed.
 
-
 Lemma semax_seq:
-forall Delta (R: ret_assert) P Q h t, 
-    semax Espec Delta P h (overridePost Q R) -> 
-    semax Espec (update_tycon Delta h) Q t R -> 
-    semax Espec Delta P (Clight.Ssequence h t) R.
+  forall Delta (R: ret_assert) P Q h t,
+  semax Espec Delta P h (overridePost Q R) ->
+  semax Espec (update_tycon Delta h) Q t R ->
+  semax Espec Delta P (Clight.Ssequence h t) R.
 Proof.
 intros.
 rewrite semax_unfold in H,H0|-*.
@@ -387,20 +401,19 @@ f_equal; try reflexivity.
 rewrite glob_types_update_tycon; auto.
 rewrite glob_specs_update_tycon; auto.
 assert ((guard Espec psi Delta' (fun rho : environ => F rho * P rho)%pred
-   (Kseq h :: Kseq t :: k)) w).
+(Kseq h :: Kseq t :: k)) w).
 Focus 2.
-   eapply guard_safe_adj; try apply H3; try reflexivity;
-   intros until n; apply convergent_controls_safe; simpl; auto;
-   intros; destruct q'.
-   destruct H4 as [? [? ?]]; split3; auto. constructor; auto.
-   destruct H4 as [? [? ?]]; split3; auto. constructor; auto.
+eapply guard_safe_adj; try apply H3; try reflexivity;
+intros until n; apply convergent_controls_safe; simpl; auto;
+intros; destruct q'.
+destruct H4 as [? [? ?]]; split3; auto. constructor; auto.
+destruct H4 as [? [? ?]]; split3; auto. constructor; auto.
 (* End Focus 2 *)
-
 eapply H; eauto.
 repeat intro; apply H1.
 clear - H3. intro i; destruct (H3 i); [left | right]; auto.
- unfold modifiedvars in H|-*. simpl. apply modifiedvars'_union.
- left; auto.
+unfold modifiedvars in H|-*. simpl. apply modifiedvars'_union.
+left; auto.
 clear - H0 H1 H2.
 intros ek vl.
 intros tx vx.
@@ -412,17 +425,17 @@ unfold guard in H0.
 rewrite <- andp_assoc.
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 assert (app_pred
-  (!!guard_environ (update_tycon Delta' h) (current_function k) rho &&
-   (F rho * (Q rho)) && funassert Delta' rho >=>
-   assert_safe Espec psi vx tx (Kseq t :: k) rho) w).
+(!!guard_environ (update_tycon Delta' h) (current_function k) rho &&
+(F rho * (Q rho)) && funassert Delta' rho >=>
+assert_safe Espec psi vx tx (Kseq t :: k) rho) w).
 subst.
 specialize (H0 k F).
 spec H0.
 clear - H1;
 repeat intro; apply H1. simpl.
- intro i; destruct (H i); [left | right]; auto.
-  unfold modifiedvars in H0|-*. simpl. apply modifiedvars'_union.
- auto.
+intro i; destruct (H i); [left | right]; auto.
+unfold modifiedvars in H0|-*. simpl. apply modifiedvars'_union.
+auto.
 spec H0.
 clear - H2.
 intros ek vl te ve; specialize (H2 ek vl te ve).
@@ -433,9 +446,9 @@ intros ? [? ?]; hnf in H,H0|-*; split; auto.
 clear - H.
 destruct ek; simpl in *; auto; try solve [eapply typecheck_environ_update; eauto].
 destruct (current_function k); destruct H0; split; auto.
- rewrite ret_type_exit_tycon in H1|-*; rewrite ret_type_update_tycon in H1; auto.
+rewrite ret_type_exit_tycon in H1|-*; rewrite ret_type_update_tycon in H1; auto.
 cbv beta in H2.
-repeat rewrite funassert_exit_tycon. 
+repeat rewrite funassert_exit_tycon.
 rewrite funassert_update_tycon; auto.
 specialize (H0 tx vx). cbv beta in H0.
 rewrite funassert_update_tycon in H0.
@@ -447,7 +460,7 @@ apply sepcon_derives; auto.
 apply andp_left2; auto.
 rewrite funassert_exit_tycon. auto.
 replace (exit_cont ek vl (Kseq t :: k)) with (exit_cont ek vl k)
-  by (destruct ek; simpl; congruence).
+by (destruct ek; simpl; congruence).
 unfold rguard in H2.
 specialize (H2 ek vl tx vx).
 replace (exit_tycon h Delta' ek) with Delta'.
@@ -460,67 +473,65 @@ destruct ek; try congruence; auto.
 destruct ek; try congruence; auto.
 Qed.
 
-Lemma control_as_safe_refl:
-  forall psi n k, control_as_safe Espec psi n k k.
+Lemma control_as_safe_refl psi n k : control_as_safe Espec psi n k k.
 Proof.
- intros. repeat intro. auto.
+intros ????? H; inversion 1; subst. constructor. 
+econstructor; eauto.
+simpl in *. congruence. 
+simpl in H1. unfold cl_halted in H1. congruence.
 Qed.
 
 Lemma semax_seq_skip:
   forall Delta P s Q,
-    semax Espec Delta P s Q <-> semax Espec Delta P (Ssequence s Sskip) Q.
+  semax Espec Delta P s Q <-> semax Espec Delta P (Ssequence s Sskip) Q.
 Proof.
 split; intro.
 *
 rewrite semax_unfold in H|-*.
 intros.
 specialize (H psi _ _ TS Prog_OK (Kseq Sskip :: k) F H0). clear TS Prog_OK H0.
- +
-    spec H; [clear - H1 | ].
-    revert w H1; apply rguard_adj; [reflexivity | ].
-    intros.
-    destruct ek; simpl; try apply control_as_safe_refl.
-    repeat intro.
-    eapply convergent_controls_safe; try apply H0; try reflexivity.
-    intros. simpl. destruct ret; simpl in *; auto.
-    intros. simpl in *.
-    destruct H1 as [? [? ?]]. split3; auto.
-    constructor. auto.
-    eapply guard_safe_adj; try apply H; try reflexivity.
-   intros until n; apply convergent_controls_safe; simpl; auto;
-   intros; destruct q'.
-   destruct H0 as [? [? ?]]; split3; auto. constructor; auto.
-   destruct H0 as [? [? ?]]; split3; auto. constructor; auto.
-* 
++
+spec H; [clear - H1 | ].
+revert w H1; apply rguard_adj; [reflexivity | ].
+intros.
+destruct ek; simpl; try apply control_as_safe_refl.
+repeat intro.
+eapply convergent_controls_safe; try apply H0; try reflexivity.
+intros. simpl. destruct ret; simpl in *; auto.
+intros. simpl in *.
+destruct H1 as [? [? ?]]. split3; auto.
+constructor. auto.
+eapply guard_safe_adj; try apply H; try reflexivity.
+intros until n; apply convergent_controls_safe; simpl; auto;
+intros; destruct q'.
+destruct H0 as [? [? ?]]; split3; auto. constructor; auto.
+destruct H0 as [? [? ?]]; split3; auto. constructor; auto.
+*
 rewrite semax_unfold in H|-*.
 intros.
 specialize (H psi _ _ TS Prog_OK k F H0 H1). clear TS Prog_OK H0 H1.
 eapply guard_safe_adj; try apply H; try reflexivity. clear H.
 intros.
-destruct n; simpl in *; auto.
-destruct H as [st' [m' [? ?]]].
-destruct (corestep_preservation_lemma Espec psi 
-                     (Kseq Sskip :: k)
-                     k
-                     ora ve te m n (Kseq s) nil st' m')
-       as [c2 [m2 [? ?]]]; simpl; auto.
-intros.  apply control_suffix_safe; simpl; auto.
+destruct n; simpl in *. constructor.
+inv_safe H.
+destruct (corestep_preservation_lemma Espec psi
+          (Kseq Sskip :: k) k ora ve te m n (Kseq s) nil c' m')
+  as [c2 [m2 [? ?]]]; simpl; auto.
+{ intros. apply control_suffix_safe; simpl; auto.
 clear.
 intro; intros.
 eapply convergent_controls_safe; try apply H0; simpl; auto.
 intros.
 destruct H1 as [H1 [H1a H1b]]; split3; auto.
-inv H1; auto.
-clear.
+inv H1; auto. }
+{ clear.
 hnf; intros.
 eapply convergent_controls_safe; try apply H0; simpl; auto.
 clear; intros.
 destruct H as [H1 [H1a H1b]]; split3; auto.
-inv H1; auto.
-destruct H as [H1 [H1a H1b]]; split3; auto.
-inv H1.
-auto.
-eauto.
+solve[inv H1; auto]. }
+{ destruct H1 as (?&?&?). econstructor; eauto. inv H. auto. }
+econstructor; eauto.
 Qed. 
 
 Lemma semax_skip_seq:
@@ -536,7 +547,7 @@ spec H. clear H.
 revert w H1; apply rguard_adj; [reflexivity | ].
 destruct ek; intros; try apply control_as_safe_refl.
 clear H1.
-revert w H; apply guard_safe_adj; [reflexivity | ].
+revert w H. apply guard_safe_adj; [reflexivity | ].
    intros until n; apply convergent_controls_safe; simpl; auto;
    intros; destruct q'.
    destruct H as [? [? ?]]; split3; auto.
@@ -771,8 +782,7 @@ rewrite sepcon_comm.
 eapply andp_derives; try apply H0; auto.
 repeat intro.
 specialize (H0 ora jm H1 H2).
-destruct (@level rmap _ a).
-simpl; auto. 
+destruct (@level rmap _ a). constructor.
 apply convergent_controls_safe with (State ve te (break_cont k)); auto.
 simpl.
 
@@ -803,8 +813,7 @@ rewrite sepcon_comm.
 eapply andp_derives; try apply H0; auto.
 repeat intro.
 specialize (H0 ora jm H1 H2).
-destruct (@level rmap _ a).
-simpl; auto. 
+destruct (@level rmap _ a). constructor.
 apply convergent_controls_safe with (State ve te (continue_cont k)); auto.
 simpl.
 

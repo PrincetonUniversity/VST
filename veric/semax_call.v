@@ -1562,9 +1562,9 @@ apply age1_resource_decay; auto.
 apply age_level; auto.
 hnf.
 destruct n as [ | n ].
-apply I.
-simpl.
-exists x'; split; auto.
+constructor.
+eapply safeN_external with (x0 := x'); eauto.
+split; eauto.
 rewrite Hty; assumption.
 intros.
 specialize (H15 ret0 z').
@@ -1641,7 +1641,7 @@ split.
    simpl; eauto.
    spec TC5; [auto | congruence]. 
  }
- destruct Hu as [u Hu]. rewrite Hu in *. clear TC5.
+ destruct Hu as [u Hu]. (*rewrite Hu in *.*) clear TC5.
  destruct H15 as [phi1 [phi2 [Ha [Hb Hc]]]].
  specialize (Hretty x ret0 phi1).
  spec Hretty. 
@@ -2192,7 +2192,7 @@ pose (H12:=True); pose (H10 := True); pose (H5:=True).
 assert (Prog_OK' := Prog_OK).
 specialize (Prog_OK' (Vptr b Int.zero) fsig A P Q' _ (necR_refl _)).
 (*************************************************)
-case_eq (level (m_phi jm)); [solve [simpl; auto] | intros n H2].
+case_eq (level (m_phi jm)); [solve [simpl; constructor] | intros n H2].
 simpl.
 destruct (levelS_age1 _ _ H2) as [phi' H13].
 assert (LATER: laterR (level (m_phi jm)) n) by (constructor 1; rewrite H2; reflexivity).
@@ -2211,7 +2211,11 @@ clear LATER.
 clear id H7.
 clear phi' H13.
 clear Prog_OK.
-eapply semax_call_external; eauto.
+edestruct semax_call_external; eauto.
+destruct H5 as [? [? ?]].
+inv H5.
+econstructor; eauto.
+simpl. constructor; auto.
 }
 specialize (H14 _ (age_laterR H13)).
 destruct H15 as [b' [f [[? [? [? ?]]] ?]]].
@@ -2389,20 +2393,19 @@ apply sepcon_derives.
 }
 specialize (H1 ora' jm2).
 specialize (H1 (eq_refl _) (eq_refl _)).
-case_eq (@level rmap ag_rmap (m_phi jm')); intros; [solve [auto] |].
+case_eq (@level rmap ag_rmap (m_phi jm')); intros; [solve [constructor] |].
 rewrite <- level_juice_level_phi in H21.
 destruct (levelS_age1 jm' _ H21) as [jm'' ?].
 rewrite -> level_juice_level_phi in H21.
 destruct (age_twin' jm' jm2 jm'') as [jm2'' [? ?]]; auto.
 pose proof (age_safe _ _ _ _ H26 _ _ _ H1).
-exists  (State (vx)(te2) k); exists jm2''.
+apply safeN_step with (c' := State (vx)(te2) k) (m' := jm2'').
 replace n0 with (level jm2'')
  by (rewrite <- H25; 
       apply age_level in H24; 
       try rewrite <- level_juice_level_phi in H21;
       clear - H21 H24; omega).
 split; auto.
-split.
 simpl.
 rewrite (age_jm_dry H26) in FL2.
 destruct vl. 
@@ -2445,6 +2448,12 @@ split; [ | rewrite <- H25; apply age_level; auto]. {
  rewrite <- (IHl _ H0).
  apply nextblock_free in Heqo; auto.
 }
+replace n0 with (level jm2'')
+ by (rewrite <- H25; 
+      apply age_level in H24; 
+      try rewrite <- level_juice_level_phi in H21;
+      clear - H21 H24; omega).
+auto.
 }
 (* END OF  "spec H19" *)
 
@@ -2465,11 +2474,11 @@ simpl in TC2. destruct a. destruct (split l). inv TC2.
 simpl in *.  
 destruct a. simpl.
 destruct (split l); simpl in *. unfold_lift; simpl. f_equal; auto.  
-exists (State ve' te' (Kseq f.(fn_body) :: Kseq (Sreturn None) 
-                                     :: Kcall ret f (vx) (tx) :: k)).
 destruct (levelS_age1 jm' n) as [jm'' H20x]. rewrite <- H20'; assumption.
-exists  jm''.
-split.
+apply safeN_step 
+  with (c' := State ve' te' (Kseq f.(fn_body) :: Kseq (Sreturn None) 
+                                              :: Kcall ret f (vx) (tx) :: k))
+       (m' := jm''); auto.
 split; auto.
 eapply step_call_internal with (vargs:=eval_exprlist (snd (split (fst fsig))) bl rho); eauto. 
 rewrite <- H3.  
@@ -2610,11 +2619,10 @@ replace n with (level (m_phi jm'')); auto.
 repeat (spec H19; [auto | ]). {
 clear - H19.
 hnf in H19|-*.
-destruct (level (m_phi jm'')); simpl in *; auto.
-destruct H19 as [c' [m' [? ?]]].
-exists c', m'; split; auto.
-inv H; split; auto.
-inv H1; auto.
+destruct (level (m_phi jm'')); simpl in *. constructor.
+inv H19. econstructor; eauto. inv H0. inv H. split; auto.
+simpl in *. congruence.
+simpl in *. unfold cl_halted in H. congruence.
 }
 clear - H20x H20' H2.
 change (level jm = S n) in H2.
