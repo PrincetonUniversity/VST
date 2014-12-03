@@ -1596,14 +1596,14 @@ change ((ext_spec_post' Espec e x' (Genv.genv_symb psi) (opttyp_of_type retty) r
 assert (level jm' >= level m')%nat. 
 {
  do 2 rewrite level_juice_level_phi.
- destruct H6.
+ destruct H8 as (?&?&?).
  auto.
 }
 apply (pred_nec_hereditary _ _ (level m')) in H15;
  [ | apply nec_nat; omega].
 clear H6.
 rename H7 into H6.
-specialize (H15 m' (le_refl _) _ (necR_refl _) H8).
+specialize (H15 m' (le_refl _) _ (necR_refl _) H9).
 
 pose (tx' := match ret,ret0 with 
                    | Some id, Some v => PTree.set id v tx 
@@ -1612,7 +1612,7 @@ pose (tx' := match ret,ret0 with
 
 specialize (H1 EK_normal None tx' vx (m_phi m')).
 spec H1. 
-{ clear - H0 H9.
+{ clear - H0 H10.
   change (level jm >= level m')%nat. 
   apply age_level in H0. omega.
 }
@@ -1623,7 +1623,7 @@ do 3 red in H5.
 specialize (H1 _ (necR_refl _)).
 
 assert (Htc: tc_option_val retty ret0).
-{clear - TCret TC3 H6 TC5 H15 Hretty H8 H9 H0.
+{clear - TCret TC3 H6 TC5 H15 Hretty H8 H10 H0.
  destruct H15 as [phi1 [phi2 [Ha [Hb Hc]]]].
  specialize (Hretty x ret0 phi1).
  spec Hretty. 
@@ -1651,7 +1651,7 @@ split.
  simpl. 
  destruct TC3 as [TC3 _].
  destruct ret; try apply TC3. {
- clear - TCret TC3 H6 TC5 H15 Hretty H8 H9 H0.
+ clear - TCret TC3 H6 TC5 H15 Hretty H8 H10 H0.
  simpl in TCret.
  destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?; try contradiction.
  subst retty.
@@ -1717,7 +1717,7 @@ assert (H15': ((!!tc_option_val retty ret0 && Q x (make_ext_rval (filter_genv ps
        F0 (construct_rho (filter_genv psi) vx tx))%pred (m_phi m')). {
 rewrite sepcon_assoc in H15|-*.
 destruct H15 as [w1 [w2 [? [? ?]]]]; exists w1; exists w2; split3; auto.
-clear - H7 H1 H9 H11 H0 Hretty.
+clear - H7 H1 H10 H11 H0 Hretty.
 specialize (H11 (make_ext_rval (filter_genv psi) ret0) (level (m_phi jm'))).
 specialize (Hretty x ret0 w1).
 spec H11.
@@ -1858,7 +1858,10 @@ spec H1; auto.
 spec H1; auto.
 revert H1.
 unfold jsafeN, safeN, tx'.
-admit. (* still needs some work *)
+destruct H8 as (?&?&?).
+subst n'.
+rewrite level_juice_level_phi.
+destruct ret; destruct ret0; auto.
 Qed.
 
 Lemma alloc_juicy_variables_age:
@@ -2720,14 +2723,6 @@ clear H6; pose (H6:=True).
 clear H9; pose (H9:=True).
 
 unfold filter_genv in H7.
-(* destruct (type_of_global psi b); split; auto.
- rewrite Int.signed_zero in H12. *)
-(* pose proof (Int.repr_unsigned i).  *)
-(* rewrite <- H12 in H0. subst; reflexivity. *)
-(* destruct H0; subst b0 i.*)
-(*clear H11. pose (H16:=True).
-clear H12; pose (H12:=True).
-*)
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 set (args := eval_exprlist (snd (split argsig)) bl rho).
 fold args in H5.
