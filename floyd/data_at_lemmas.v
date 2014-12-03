@@ -993,12 +993,6 @@ Transformation between data_at/data_at_ and mapsto.
 
 ************************************************)
 
-Definition uncompomize (e: type_id_env) (t: type) : type :=
-  match t with
-  | Tcomp_ptr i a => Tpointer (look_up_ident_default i e) a
-  | _ => t
-  end.
-
 Lemma uncompomize_reptype: forall e t, reptype (uncompomize e t) = reptype t.
 Proof.
   intros.
