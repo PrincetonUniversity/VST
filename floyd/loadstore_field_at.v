@@ -62,6 +62,7 @@ Inductive efield : Type :=
   | eArraySubsc: forall i: expr, efield
   | eStructField: forall i: ident, efield
   | eUnionField: forall i: ident, efield.
+(* Maybe it should be moved to nested_field_lemmas. But maybe not. *)
 
 Fixpoint nested_efield (e: expr) (efs: list efield) (tts: list type) : expr :=
   match efs, tts with
@@ -98,19 +99,29 @@ Definition compute_lr e (efs: list efield) :=
   | _, _ => LLLL
   end.
 
-Fixpoint efield_denote (Delta: tycontext) (efs: list efield) (gfs: list gfield) : environ -> mpred :=
+Fixpoint efield_denote (efs: list efield) (gfs: list gfield) : environ -> mpred :=
   match efs, gfs with
   | nil, nil => TT
   | eArraySubsc ei :: efs', ArraySubsc i :: gfs' => 
     local (`(eq (Vint (Int.repr i))) (eval_expr ei)) &&
     !! (match typeof ei with | Tint _ _ _ => True | _ => False end) &&
-    local (tc_expr Delta ei) &&
-    efield_denote Delta efs' gfs'
+    efield_denote efs' gfs'
   | eStructField i :: efs', StructField i0 :: gfs' =>
-    !! (i = i0) && efield_denote Delta efs' gfs'
+    !! (i = i0) && efield_denote efs' gfs'
   | eUnionField i :: efs', UnionField i0 :: gfs' =>
-    !! (i = i0) && efield_denote Delta efs' gfs'
+    !! (i = i0) && efield_denote efs' gfs'
   | _, _ => FF
+  end.
+
+Fixpoint tc_efield (Delta: tycontext) (efs: list efield) rho : Prop :=
+  match efs with
+  | nil => True
+  | eArraySubsc ei :: efs' => 
+    tc_expr Delta ei rho /\ tc_efield Delta efs' rho
+  | eStructField i :: efs' =>
+    tc_efield Delta efs' rho
+  | eUnionField i :: efs' =>
+    tc_efield Delta efs' rho
   end.
 
 (*
@@ -193,7 +204,7 @@ Qed.
 
 Lemma typeof_nested_efield: forall env Delta t_root e efs gfs tts lr,
   legal_nested_efield env t_root e gfs tts lr = true ->
-  efield_denote Delta efs gfs |--
+  local (tc_efield Delta efs) && efield_denote efs gfs |--
     !! (uncompomize env (nested_field_type2 t_root gfs) = typeof (nested_efield e efs tts)).
 Proof.
 Admitted.
@@ -432,8 +443,9 @@ Definition tc_LR Delta e lr :=
 
 Lemma eval_lvalue_nested_efield_aux: forall Delta env t_root e efs gfs tts lr,
   legal_nested_efield env t_root e gfs tts lr = true ->
-  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) && efield_denote Delta efs gfs |--
-    local (`isptr (eval_lvalue (nested_efield e efs tts))) &&
+  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) &&
+    local (tc_efield Delta efs) && efield_denote efs gfs |--
+  local (`isptr (eval_lvalue (nested_efield e efs tts))) &&
     local (tc_lvalue Delta (nested_efield e efs tts)) &&
     local (`eq (eval_lvalue (nested_efield e efs tts))
       (`(field_address t_root gfs) (eval_LR e lr))).
@@ -565,7 +577,8 @@ Qed.
 
 Lemma eval_lvalue_nested_efield: forall Delta env t_root e efs gfs tts lr,
   legal_nested_efield env t_root e gfs tts lr = true ->
-  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) && efield_denote Delta efs gfs |-- local (`eq (eval_lvalue (nested_efield e efs tts))
+  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) &&
+  local (tc_efield Delta efs) && efield_denote efs gfs |-- local (`eq (eval_lvalue (nested_efield e efs tts))
       (`(field_address t_root gfs) (eval_LR e lr))).
 Proof.
   intros.
@@ -575,7 +588,8 @@ Qed.
 
 Lemma tc_lvalue_nested_efield: forall Delta env t_root e efs gfs tts lr,
   legal_nested_efield env t_root e gfs tts lr = true ->
-  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) && efield_denote Delta efs gfs |--
+  local (`isptr (eval_LR e lr)) && local (tc_LR Delta e lr) &&
+  local (tc_efield Delta efs) && efield_denote efs gfs |--
     local (`isptr (eval_lvalue (nested_efield e efs tts))) &&
     local (tc_lvalue Delta (nested_efield e efs tts)).
 Proof.
@@ -596,7 +610,8 @@ Lemma semax_max_path_field_load_37':
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
-        efield_denote Delta efs gfs &&
+        local (tc_efield Delta efs) &&
+        efield_denote efs gfs &&
         (`(field_at sh t_root gfs v') (eval_LR e1 lr) * TT) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sset id (nested_efield e1 efs tts))
@@ -614,6 +629,8 @@ Proof.
   + eapply derives_trans; [exact H3|].
     instantiate (1:=sh).
     instantiate (1:=e).
+    rewrite (andp_comm _ (_ * _)).
+    rewrite !andp_assoc.
     rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H1)).
     simpl; intro rho; normalize.
     rewrite field_at_isptr.
@@ -621,13 +638,13 @@ Proof.
     normalize.
     pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
     pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
-    normalize in H8.
     normalize in H9.
-    rewrite (add_andp _ _ H8).
+    normalize in H10.
     rewrite (add_andp _ _ H9).
+    rewrite (add_andp _ _ H10).
     normalize.
-    rewrite H10.
-    apply andp_left2.
+    rewrite H11.
+    apply andp_left1.
     apply derives_refl.
 Qed.
 
@@ -643,7 +660,8 @@ Lemma semax_max_path_field_cast_load_37':
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
-        efield_denote Delta efs gfs &&
+        local (tc_efield Delta efs) &&
+        efield_denote efs gfs &&
         (`(field_at sh t_root gfs v') (eval_LR e1 lr) * TT) ->
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast (nested_efield e1 efs tts) t))
@@ -658,6 +676,8 @@ Proof.
   + eapply derives_trans; [exact H3|].
     instantiate (1:=sh).
     instantiate (1:=e).
+    rewrite (andp_comm _ (_ * _)).
+    rewrite !andp_assoc.
     rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ _ lr H1)).
     simpl; intro rho; normalize.
     rewrite field_at_isptr.
@@ -665,13 +685,13 @@ Proof.
     normalize.
     pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
     pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
-    normalize in H8.
     normalize in H9.
-    rewrite (add_andp _ _ H8).
+    normalize in H10.
     rewrite (add_andp _ _ H9).
+    rewrite (add_andp _ _ H10).
     normalize.
-    rewrite H10.
-    apply andp_left2.
+    rewrite H11.
+    apply andp_left1.
     apply derives_refl.
 Qed.
 
@@ -704,8 +724,9 @@ Lemma semax_max_path_field_store_nth:
       writable_share sh ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_LR Delta e1 lr) && 
-        efield_denote Delta efs gfs &&
-        local (tc_expr Delta (Ecast e2 t)) ->
+        local (tc_efield Delta efs) &&
+        efield_denote efs gfs &&
+                local (tc_expr Delta (Ecast e2 t)) ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sassign (nested_efield e1 efs tts) e2)
           (normal_ret_assert
@@ -762,12 +783,12 @@ Proof.
         pose proof (eval_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
         pose proof (tc_lvalue_nested_efield Delta e t_root e1 efs gfs tts lr H1 rho).
         pose proof (typeof_nested_efield _ Delta t_root _ efs _ _ lr H1 rho).
-        normalize in H13.
         normalize in H14.
-        rewrite (add_andp _ _ H13).
+        normalize in H15.
+        normalize in H16.
         rewrite (add_andp _ _ H14).
         rewrite (add_andp _ _ H15).
-        normalize.
+        rewrite (add_andp _ _ H16).
         normalize.
     } Unfocus.
     rewrite (add_andp _ _ H7).
