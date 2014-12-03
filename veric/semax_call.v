@@ -1701,8 +1701,33 @@ split.
  split.
 Focus 2. {
 assert (H4': (funassert Delta (construct_rho (filter_genv psi) vx tx)) (m_phi m')).
-clear - H0 H8 H4.
-admit.  (* need juicy_ext_spec to guarantee that the PURE part stays the same *)
+{ clear - H0 H8 H4.
+destruct H8 as (?&?&?).
+destruct H4. 
+assert (Hnec: necR (m_phi jm) (m_phi jm')). {
+  cut (age jm jm'). intro Hx. 
+  constructor. apply age_jm_phi in Hx; auto. eauto.
+}
+split.
+* intros id fs ???.
+specialize (H3 id fs (m_phi jm')). 
+specialize (H3 Hnec); spec H3; auto.
+destruct H3 as [b [? ?]].
+specialize (H2 (b,0)).
+unfold func_at in H7. destruct fs; simpl in *.
+rewrite H7 in H2.
+apply (necR_PURE (m_phi m') a') in H2; eauto.
+exists b. split; auto. rewrite H2. simpl. 
+f_equal. f_equal. 
+assert (Hlev1: (level (m_phi m') >= level a')%nat).
+{ apply necR_level in H5; auto. }
+rewrite <-compose_assoc, approx_oo_approx'; auto.
+rewrite <-compose_assoc, approx_oo_approx'; auto. omega.
+* intros b fs ???.
+specialize (H4 b fs (m_phi jm')). 
+specialize (H4 Hnec); spec H4; auto.
+admit. (*pures_sub must go both ways*)
+}
 match type of H4' with ?A => match goal with |- ?B => replace B with A; auto end end.
 f_equal.
 apply same_glob_funassert'; auto.
