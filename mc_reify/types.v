@@ -112,43 +112,92 @@ apply proof_irr.
 apply proof_irr.
 Qed.
 *)
-Definition typ_eq_dec : forall a b : typ, {a = b} + {a <> b}.
-  decide equality.
-  consider (eqb_ident i i0); intros;
-  try rewrite eqb_ident_spec in H. auto.
-  destruct (eqb_ident_spec i i0). right. intro. intuition. subst.
-  congruence.
-  consider (eqb_type t t0); intros.
-  rewrite eqb_type_spec in H. auto.
-  destruct (eqb_type_spec t t0).
-  right; intuition; subst; congruence.
- Defined.
+
+Fixpoint typ_eq a b : Option (a = b) :=
+match a, b with
+| tyArr t11 t21, tyArr t12 t22 => andb (typ_eq t11 t12) (typ_eq t21 t22)
+| tytycontext, tytycontext => true
+| tyc_expr, tyc_expr => true
+| tyc_type, tyc_type => true
+| tyenviron, tyenviron => true
+| tyval, tyval => true
+| tyshare, tyshare => true
+| tyident, tyident => true
+| tylist t1, tylist t2 => typ_eq t1 t2
+| tyint, tyint => true
+| tyZ, tyZ => true
+| tynat, tynat => true
+| typositive, typositive => true
+| tybool, tybool => true
+| tycomparison, tycomparison => true
+| tytc_assert, tytc_assert => true
+| tyint64, tyint64 => true
+| tyfloat, tyfloat => true
+| tyfloat32, tyfloat32 => true
+| tyattr, tyattr => true
+| tysignedness, tysignedness => true
+| tyintsize, tyintsize => true
+| tyfloatsize, tyfloatsize => true
+| tytypelist, tytypelist => true
+| tyfieldlist, tyfieldlist => true
+| tybinary_operation, tybinary_operation => true
+| tyunary_operation, tyunary_operation => true
+| tyN, tyN => true
+| tyoption t1, tyoption t2 => typ_eq t1 t2
+| typrop, typrop => true
+| tympred, tympred => true
+| tysum t11 t21, tysum t12 t22 => andb (typ_eq t11 t12) (typ_eq t21 t22)
+| typrod t11 t21, typrod t12 t22 => andb (typ_eq t11 t12) (typ_eq t21 t22)
+| tyunit, tyunit => true
+| tylistspec t1 id1, tylistspec t2 id2 => andb (eqb_type t1 t2) (Peqb id1 id2)
+| tyOracleKind, tyOracleKind => true
+| tystatement, tystatement => true
+| tyret_assert, tyret_assert => true
+| tyexitkind, tyexitkind => true
+| typtree t1, typtree t2 => typ_eq t1 t2
+| tygfield, tygfield => true
+| tyfunspec, tyfunspec => true
+| _, _ => false
+end.
 
 
 Instance RelDec_eq_typ : RelDec (@eq typ) :=
-{ rel_dec := fun a b =>
-               match typ_eq_dec a b with
-                 | left _ => true
-                 | right _ => false
-               end }.
+{ rel_dec := typ_eq
+                }.
 
 Instance RelDec_Correct_eq_typ : RelDec_Correct RelDec_eq_typ.
 Proof.
   constructor.
   intros.
   unfold rel_dec; simpl.
-  destruct (typ_eq_dec x y); intuition.
+  split; intros.
+    + generalize dependent y. induction x; intros; destruct y; simpl in *; try congruence; auto;
+                            try solve [
+          rewrite andb_true_iff in *;
+          destruct H; apply IHx1 in H;
+          apply IHx2 in H0; subst;  auto |
+          
+          apply IHx in H; subst; auto] .
+      rewrite andb_true_iff in *. destruct H.
+      apply eqb_type_true in H. subst.
+      apply Peqb_true_eq in H0. subst. auto.
+    + generalize dependent y. induction x; intros; destruct y; simpl in *; try congruence; auto;
+        try solve[
+           inversion H; subst; auto; try rewrite andb_true_iff; auto].
+      inversion H; subst; clear H.
+      rewrite andb_true_iff. split. apply eqb_type_spec. auto.
+      apply Pos.eqb_eq. auto.
 Qed.
 
 Inductive tyAcc' : typ -> typ -> Prop :=
 | tyArrL : forall a b, tyAcc' a (tyArr a b)
 | tyArrR : forall a b, tyAcc' b (tyArr a b).
-
+Print RType.
 Instance RType_typ : RType typ :=
 { typD := typD
 ; tyAcc := tyAcc'
-; type_cast := fun a b => match typ_eq_dec a b with
-                              | left pf => Some pf
+; type_cast := fun a b => Some (typ_eq a b) with
+                              | true => Some pf
                               | _ => None
                             end
 }.
