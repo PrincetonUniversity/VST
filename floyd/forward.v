@@ -5,13 +5,15 @@ Require Import floyd.closed_lemmas.
 Require Import floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
 Require Import floyd.extcall_lemmas.
 Require Import floyd.nested_field_lemmas.
+Require Import floyd.efield_lemmas.
+Require Import floyd.nested_field_re_lemmas.
+Require Import floyd.mapsto_memory_block.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.array_lemmas.
 Require Import floyd.loadstore_mapsto.
 Require Import floyd.loadstore_data_at.
 Require Import floyd.loadstore_field_at.
-Require Import floyd.nested_field_re_lemmas.
 Require Import floyd.nested_loadstore.
 Require Import floyd.sc_set_load_store.
 Require Import floyd.local2ptree.

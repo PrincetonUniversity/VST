@@ -2,7 +2,7 @@ Require Import veric.expr.
 Require Import veric.SeparationLogic.
 Require Import floyd.local2ptree.
 Require Import floyd.client_lemmas.
-Require Import floyd.loadstore_field_at.
+Require Import floyd.efield_lemmas.
 Require Import Coq.Bool.Bool.
 Require Import Coq.Lists.List.
 
@@ -68,8 +68,3 @@ Proof.
     - tauto.
 Qed.
 
-Definition localD (temps : PTree.t val) (locals : PTree.t (type * val)) :=
-LocalD temps locals nil.
-
-Definition assertD (P : list Prop) (Q : list (environ -> Prop)) (sep : list mpred) := 
-PROPx P (LOCALx Q (SEPx (map (liftx) sep))).

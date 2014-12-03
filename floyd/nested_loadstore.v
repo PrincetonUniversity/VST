@@ -4,6 +4,8 @@ Require Import floyd.client_lemmas.
 Require Import floyd.jmeq_lemmas.
 Require Import floyd.fieldlist.
 Require Import floyd.nested_field_lemmas.
+Require Import floyd.type_id_env.
+Require Import floyd.efield_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.rangespec_lemmas.
 Require Import floyd.data_at_lemmas.
@@ -2501,17 +2503,17 @@ Transparent upd_reptype.
       erewrite field_except_at_lemma; simpl; eauto.
       admit. (* JMeq about valinject and repinject *)
     } Unfocus.
-    rewrite (loadstore_mapsto.replace_nth_nth_error _ _ _ H4) by exact H3.
+    rewrite (replace_nth_nth_error _ _ _ H4) by exact H3.
     eapply semax_pre_simple.
     {
       hoist_later_left.
       apply later_derives.
       rewrite insert_local.
-      apply loadstore_mapsto.replace_nth_SEP'.
+      apply replace_nth_SEP'.
       eapply derives_trans; [| exact H10].
       simpl; intro; normalize.
     }
-    erewrite !loadstore_mapsto.SEP_replace_nth_isolate; eauto.
+    erewrite !SEP_replace_nth_isolate; eauto.
     match goal with
     | |- appcontext [SEPx ((?A * ?B) ?p :: replace_nth (1 + n) (?C :: R) emp)] =>
            replace (SEPx ((A * B) p :: replace_nth (1 + n) (C :: R) emp)) with
