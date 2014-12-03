@@ -14,11 +14,26 @@ match a with
 | _ => false
 end.
 
+Definition tc_lvalue_b_norho Delta e :=
+denote_tc_assert_b_norho (typecheck_lvalue Delta e).
+
 Definition tc_expr_b_norho Delta e :=
 denote_tc_assert_b_norho (typecheck_expr Delta e).
 
 Definition tc_temp_id_b_norho id t Delta e:=
 denote_tc_assert_b_norho (typecheck_temp_id id t Delta e).
+
+Lemma tc_lvalue_b_sound : 
+forall e Delta rho,
+tc_lvalue_b_norho Delta e = true ->
+tc_lvalue Delta e rho .
+Proof.
+intros.
+unfold tc_lvalue, tc_lvalue_b_norho in *. 
+induction (typecheck_lvalue Delta e); simpl in *; unfold_lift; simpl; auto; try congruence. 
+rewrite andb_true_iff in *. intuition.
+rewrite orb_true_iff in *. intuition.
+Qed.
 
 Lemma tc_expr_b_sound : 
 forall e Delta rho,
