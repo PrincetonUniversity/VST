@@ -41,25 +41,6 @@ reify_expr_tac.
 Time Eval vm_compute in (symexe e tbl).
 Abort.
 
-Ltac pull_sep_lift R :=
-match R with
-| ((`?H) :: ?T) => let rest := pull_sep_lift T in constr:(cons H rest)
-| (@nil _) => constr:(@nil mpred)
-end.
-
-Ltac extract_sep_lift_semax :=
-  match goal with
-      [ |- semax _ (*(PROP (?P1) (LOCALx ?Q1 SEP (?R1)))*) 
-                 (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _ 
-                 (normal_ret_assert (PROPx ?P2 (LOCALx ?Q2 (SEPx ?R2))))] =>
-      let R1' := pull_sep_lift R1 in
-      let R2' := pull_sep_lift R2 in
-      try (change (PROPx (P1) (LOCALx Q1 (SEPx (R1)))) 
-      with (assertD nil Q1 R1'));
-      try  (change (PROPx (P2) (LOCALx Q2 (SEPx (R2)))) 
-      with (assertD nil Q2 R2'))
-end.
-
 (*
 Lemma local2list_soundness' : forall (P : list Prop) (Q : list (environ -> Prop))
          (R : list (environ -> mpred)) (T1 : list (ident * val))
@@ -117,10 +98,6 @@ end.
 
 Definition lots_of_sets n := lots_of_sets' n 1%positive.
 
-Definition remove_global_spec (t : tycontext) := 
-match t with
-| mk_tycontext t v r gt gs => mk_tycontext t v r gt (PTree.empty _)
-end.
 
 Goal
 forall  (contents : list val), exists (PO : environ -> mpred), 
@@ -186,3 +163,22 @@ Qed.*)
 Abort.
 
 
+
+Lemma set_triple :		
+forall (contents : list val) E p sh,
+exists PO,		
+@semax E      (remove_global_spec Delta)
+     (PROP  ()		
+      LOCAL  (`(eq p) (eval_id _p))  SEP  (`(lseg LS sh contents p nullval)))		
+     (Ssequence (Sset _w (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))) Sskip) 		
+(normal_ret_assert PO).		
+Proof.
+intros.		
+prepare_reify.
+reify_expr_tac.		
+Check reflect_prop.
+Locate reflect_prop.
+match goal with [ |- ?X ] =>  (change X with (reflect_prop' tbl e))
+end.
+Eval vm_compute in symexe e.		
+Abort.
