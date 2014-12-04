@@ -24,45 +24,99 @@ Proof.
   normalize.
 Qed.
 
-Definition tc_LR_b_norho Delta e lr :=
-  match lr with
-  | LLLL => tc_lvalue_b_norho Delta e
-  | RRRR => tc_expr_b_norho Delta e
-  end.
+Require Export mc_reify.reify.
+Import floyd.proofauto.
+Require Export mc_reify.bool_funcs.
+Require Import mc_reify.set_reif.
+Require Import MirrorCore.Lemma.
+Require Import MirrorCharge.RTac.ReifyLemma.
+Require Import mc_reify.update_tycon.
+Require Export MirrorCore.RTac.Repeat.
+Require Import MirrorCore.RTac.Then.
+Require Export MirrorCore.RTac.Try.
+Require Export MirrorCore.RTac.First.
+Require Import MirrorCore.RTac.Fail.
+Require Import MirrorCore.RTac.Simplify.
+Require Import MirrorCore.Lambda.RedAll.
+Require Import MirrorCore.Lambda.ExprUnify_simul.
+Require Import MirrorCore.RTac.RTac.
+Require Import MirrorCharge.RTac.Instantiate.
+Require Import MirrorCharge.RTac.Intro.
+Require Import MirrorCharge.RTac.Apply.
+Require Import MirrorCharge.RTac.EApply.
+Require Export mc_reify.funcs.
+Require Import mc_reify.types.
+Require Export mc_reify.reflexivity_tacs.
+
+Locate type.
+Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
+
+Check field_at.
+
+
 
 Lemma semax_load_localD:
-  forall {Espec: OracleKind},
-    forall temp var ret gt gs (* Delta *)
-      sh e n id P T1 T2 R Rn (e1: expr)
-      (t t_root: type) (efs0 efs1: list efield) (gfs0 gfs1: list gfield) (tts0 tts1: list type)
-      (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
-      match PTree.get id temp with | Some (ty0, _) => Some ty0 | None => None end = Some t ->
-      is_neutral_cast (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) t = true ->
-      length efs1 = length tts1 ->
-      length gfs1 = length tts1 ->
-      legal_nested_efield e t_root e1 (gfs1 ++ gfs0) (tts1 ++ tts0) lr = true ->
-      nth_error R n = Some Rn ->
-      msubst_eval_LR T1 T2 e1 lr = Some p ->
-      msubst_efield_denote T1 T2 (efs1 ++ efs0) = Some (gfs1 ++ gfs0) ->
-      (local (tc_environ (mk_tycontext temp var ret gt gs))) && (assertD P (localD T1 T2) (Rn :: nil)) |--
-        `(field_at sh t_root gfs0 v' p) ->
-      JMeq (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') v ->
-      tc_LR_b_norho (mk_tycontext temp var ret gt gs) e1 lr = true ->
-      tc_efield_b_norho (mk_tycontext temp var ret gt gs) (efs1 ++ efs0) = true ->
-      (local (tc_environ (mk_tycontext temp var ret gt gs))) && (assertD P (localD T1 T2) R) |--
-        local `(tc_val (typeof (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0))) v) &&
-        (!! legal_nested_field t_root (gfs1 ++ gfs0)) ->
-      semax (mk_tycontext temp var ret gt gs) (|>assertD P (localD T1 T2) R) 
-        (Sset id (nested_efield e1 (efs1 ++ efs0) (tts1 ++ tts0)))
-          (normal_ret_assert
-            (assertD P (localD (PTree.set id v T1) T2) R)).
-Proof.
-Abort.
+(*    forall temp var ret gt (* Delta without gs *) id
+      (e: type_id_env) gs sh P T1 T2 R Post (e1: Clight.expr) (t t_root: type)
+      (efs: list efield) (gfs: list gfield) (tts: list type)
+      (p: val) (v : val) (v' : reptype t_root) lr,
+  forall {Espec: OracleKind},*)
 
-(*
-Require Import mc_reify.funcs.
-Require Import mc_reify.types.
-Require Import MirrorCore.Lambda.ExprCore.
-Require Import mc_reify.get_set_reif.
-Require Import mc_reify.func_defs.
-*)
+
+forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
+     (ret : type) (gt : PTree.t type) (id : ident) (t_root : type)
+     (e : type_id_env) (gs : PTree.t funspec) (sh : Share.t) 
+     (P : list Prop) (T1 : PTree.t val) (T2 : PTree.t (type * val))
+     (R : list mpred) (Post : environ -> mpred) (e1 : Clight.expr)
+     (t : type) (efs : list efield) (gfs : list gfield)
+     (tts : list type) (p v : val) (v' : reptype t_root) 
+     (lr : LLRR) (Espec : OracleKind),
+  typeof_temp (mk_tycontext temp var ret gt gs) id = Some t ->
+  id = id /\ e = e /\ sh = sh /\ P = P /\ T1 = T1 /\
+  T2 = T2 /\ R = R /\ Post = Post /\ e1 = e1 /\ t = t /\ t_root = t_root /\
+  efs = efs /\
+  gfs = gfs /\
+  tts = tts /\ p = p /\
+  v = v /\ v' = v' /\ lr = lr /\ Espec = Espec. (*/\
+
+
+      typeof_temp (mk_tycontext temp var ret gt gs) id = Some t ->
+      is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
+      msubst_efield_denote T1 T2 efs = Some gfs ->
+      legal_nested_efield e t_root e1 gfs tts lr = true ->
+      tc_efield_b_norho (mk_tycontext temp var ret gt gs) efs = true ->
+
+      msubst_eval_LR T1 T2 e1 lr = Some p ->
+      tc_LR_b_norho (mk_tycontext temp var ret gt gs) e1 lr = true ->
+
+      (local (tc_environ (mk_tycontext temp var ret gt gs))) && (assertD P (localD T1 T2) R) |--
+        `(data_at sh t_root v' p) * TT ->
+
+      repinject _ (proj_reptype t_root gfs v') = v ->
+
+      assertD P (localD (PTree.set id v T1) T2) R = Post ->
+
+      (local (tc_environ (mk_tycontext temp var ret gt gs))) && (assertD P (localD T1 T2) R) |--
+        local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
+        (!! legal_nested_field t_root gfs) ->
+      semax (mk_tycontext temp var ret gt gs) (|> assertD P (localD T1 T2) R) 
+        (Sset id (nested_efield e1 efs tts))
+          (normal_ret_assert Post).*)
+
+Proof.
+Admitted.
+
+Goal False.
+Locate LLRR.
+
+reify_vst (fun x: type_id_env => x).
+
+Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
+     (ret : type) (gt : PTree.t type) (id : ident) (t_root : type) : my_lemma.
+reify_lemma reify_vst (semax_load_localD temp var ret gt id t_root).
+Defined.
+
+
+
+Print load_lemma.
+

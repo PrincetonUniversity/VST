@@ -218,6 +218,15 @@ match a, b with
 | flocalD , flocalD => true 
 | fstatement s1, fstatement s2 => statement_beq s1 s2
 | ftycontext _ _ _ _ , ftycontext _ _ _ _  => true (*TODO*)
+| flater, flater => true
+| fnested_field_type2, fnested_field_type2 => true
+| fis_neutral_cast, fis_neutral_cast => true
+| fmsubst_efield_denote, fmsubst_efield_denote => true
+| flegal_nested_efield, flegal_nested_efield => true
+| fmsubst_eval_LR, fmsubst_eval_LR => true
+| ftc_LR_b_norho, ftc_LR_b_norho => true
+| ftc_environ, ftc_environ => true
+| ftc_efield_b_norho, ftc_efield_b_norho => true
 | _, _ => false
 end.
 

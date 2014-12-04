@@ -464,7 +464,18 @@ Inductive smx :=
 | ftc_temp_id_b_norho : positive -> type ->  smx
 | fmsubst_eval_expr_norho
 | fmsubst_eval_lvalue_norho
+| flater
+| fnested_field_type2
+| fis_neutral_cast
+| fmsubst_efield_denote
+| flegal_nested_efield
+| fmsubst_eval_LR
+| ftc_LR_b_norho
+| ftc_environ
+| ftc_efield_b_norho
 .
+
+Check tc_environ.
 
 Definition typeof_smx (t : smx) :=
 match t with
@@ -487,6 +498,25 @@ match t with
 | ftc_temp_id_b_norho _ _  => tyArr tytycontext (tyArr tyc_expr tybool)
 | fmsubst_eval_expr_norho => tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))
 | fmsubst_eval_lvalue_norho =>  tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))
+| flater => tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred)
+| fnested_field_type2 => tyArr tyc_type (tyArr (tylist tygfield) tyc_type)
+| fis_neutral_cast => tyArr tyc_type (tyArr tyc_type tybool)
+| fmsubst_efield_denote => tyArr (typtree tyval) 
+                           (tyArr (typtree (typrod tyc_type tyval))
+                            (tyArr (tylist tyefield) (tyoption (tylist tygfield))))
+| flegal_nested_efield => tyArr tytype_id_env
+                          (tyArr tyc_type
+                           (tyArr tyc_expr
+                            (tyArr (tylist tygfield)
+                             (tyArr (tylist tyc_type)
+                              (tyArr tyllrr tybool)))))
+| fmsubst_eval_LR => tyArr (typtree tyval) 
+                     (tyArr (typtree (typrod tyc_type tyval))
+                      (tyArr tyc_expr
+                       (tyArr tyllrr (tyoption tyval))))
+| ftc_LR_b_norho => tyArr tytycontext (tyArr tyc_expr (tyArr tyllrr tybool))
+| ftc_environ => tyArr tytycontext (tyArr tyenviron typrop)
+| ftc_efield_b_norho => tyArr tytycontext (tyArr (tylist tyefield) tybool)
 end.
 
 Definition smxD (t : smx) : typD (typeof_smx t) :=
@@ -508,6 +538,15 @@ match t with
 | ftc_temp_id_b_norho id ty  => tc_temp_id_b_norho id ty 
 | fmsubst_eval_expr_norho => msubst_eval_expr
 | fmsubst_eval_lvalue_norho => msubst_eval_lvalue
+| flater => later
+| fnested_field_type2 => nested_field_type2
+| fis_neutral_cast => is_neutral_cast
+| fmsubst_efield_denote => msubst_efield_denote
+| flegal_nested_efield => legal_nested_efield
+| fmsubst_eval_LR => msubst_eval_LR
+| ftc_LR_b_norho => tc_LR_b_norho
+| ftc_environ => tc_environ
+| ftc_efield_b_norho => tc_efield_b_norho
 end.
 
 Inductive func' :=

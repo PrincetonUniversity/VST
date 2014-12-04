@@ -83,3 +83,8 @@ Proof.
     - tauto.
 Qed.
 
+Definition tc_LR_b_norho Delta e lr :=
+  match lr with
+  | LLLL => tc_lvalue_b_norho Delta e
+  | RRRR => tc_expr_b_norho Delta e
+  end.
