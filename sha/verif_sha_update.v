@@ -50,7 +50,8 @@ semax
      (initialized _n
         (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))
   (PROP  ()
-   LOCAL  (temp _p (offset_val (Int.repr 40) c); temp _c c;
+   LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
+                temp _c c;
                 temp _data (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length dd))) d);
                 temp _len (Vint (Int.repr (Z.of_nat (len - (length blocks * 4 - length dd)))));
                 var  _K256 (tarray tuint CBLOCKz) kv)
@@ -102,6 +103,7 @@ evar (Frame: list (LiftEnviron mpred)).
         Frame);
    [ auto | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | ].
   unfold_data_at 1. entailer!.
+  symmetry; apply field_address_clarify; auto.
   simpl update_tycon; rewrite insert_local.
   replace_SEP 6%Z (`(K_vector kv)). entailer!.  (* Shouldn't need this *)
   
@@ -258,7 +260,12 @@ fold update_outer_if.
 apply semax_seq with (sha_update_inv sh hashed (Z.to_nat len) c d dd data kv false).
 * unfold POSTCONDITION, abbreviate.
  eapply semax_pre; [ | simple apply update_outer_if_proof; try assumption].
- - unfold_data_at 1%nat. entailer!.
+ - unfold_data_at 1%nat.
+   rewrite (field_at_compatible' _ _ [StructField _data]) at 1.
+  entailer!.
+      apply field_address_clarify; auto.
+      unfold field_address; rewrite if_true by auto.
+      normalize.
       f_equal. apply Z2Nat.id. omega.
     rewrite Z2Nat.id by omega; auto.
  - rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; auto; omega.

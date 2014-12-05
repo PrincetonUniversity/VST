@@ -31,7 +31,7 @@ Lemma update_inner_if_else_proof:
       (eval_expr
          (Ebinop Oge (Etempvar _len tuint) (Etempvar _fragment tuint) tint));
      temp _fragment (Vint (Int.repr k)); 
-     temp _p (offset_val (Int.repr 40) c);
+     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
      temp _n (Vint (Int.repr (Zlength dd)));
      temp _c c; temp _data d;
      temp _len (Vint (Int.repr (Z.of_nat len)));
@@ -77,6 +77,8 @@ drop_LOCAL 0.
  rewrite (data_at_field_at sh).
  unfold_data_at 1%nat.
  entailer!.
+ rewrite field_address_clarify; auto.
+ normalize.
 abbreviate_semax.
 repeat rewrite firstn_map. repeat rewrite <- map_app.
 rewrite skipn_0.
@@ -88,7 +90,7 @@ repeat rewrite firstn_map, <- map_app.
 apply semax_pre with
   (PROP  ()
    LOCAL  (temp _fragment (Vint (Int.repr k));
-   temp _p (offset_val (Int.repr 40) c);
+   temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
    temp _n (Vint (Int.repr (Zlength dd))); temp _c c; temp _data d;
    temp _len (Vint (Int.repr (Z.of_nat len)));
    var _K256 (tarray tuint CBLOCKz) kv)
@@ -195,6 +197,9 @@ forward_if (sha_update_inv sh hashed len c d dd data kv false).
  unfold POSTCONDITION, abbreviate.
  rewrite overridePost_overridePost.
  unfold k. 
+ match goal with |- semax ?D _ _ _ =>
+  change D with Delta_update_inner_if
+ end.
  simple eapply update_inner_if_then_proof; eassumption.
  + (* else clause: len < fragment *)
  replace Delta with (initialized _fragment (initialized _p (initialized _n (initialized _data
