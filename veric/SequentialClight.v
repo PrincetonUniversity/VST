@@ -38,25 +38,23 @@ Definition dryspec : ext_spec unit :=
        forall n, 
         dry_safeN cl_core_sem dryspec (Genv.globalenv prog) n tt q m.
 Proof.
-  assert (H0:=True).
-  intros.
-  destruct (@semax_prog_rule NullExtension.Espec tt _ _ _ _ H H1) as [b [q [? [? ?]]]].
-  exists b, q.
+ intros.
+ destruct (@semax_prog_rule NullExtension.Espec tt _ _ _ _ H H0) as [b [q [? [? ?]]]].
+ exists b, q.
  split3; auto.
  intro n.
- specialize (H4 n).
- destruct H4 as [jm [? [? ?]]].
- unfold semax.jsafeN in H6.
+ specialize (H3 n).
+ destruct H3 as [jm [? [? ?]]].
+ unfold semax.jsafeN in H5.
  subst m.
- clear - H6 H5.
- revert jm q H5 H6; induction n; simpl; intros; auto.
- revert H6; case_eq (cl_at_external q); intros; auto.
- destruct p. destruct p. destruct H6. contradiction.
- destruct H6 as [c' [m' [? ?]]].
- exists c'; exists (m_dry m'); split; auto.
- destruct H0; auto.
- destruct H0.
- destruct H2.
- apply IHn; auto.
- change (level (m_phi jm)) with (level jm) in H5. rewrite H5 in H3; inv H3; auto.
+ clear - H4 H5.
+ revert jm q H4 H5; induction n; simpl; intros. constructor.
+ inv H5.
+ destruct H0 as (?&?&?).
+ econstructor; eauto. 
+ apply IHn; auto. 
+ change (level (m_phi jm)) with (level jm) in H4. 
+   rewrite H4 in H2; inv H2; auto.
+ exfalso; auto.
+ eapply safeN_halted; eauto.
 Qed.

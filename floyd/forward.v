@@ -5,13 +5,15 @@ Require Import floyd.closed_lemmas.
 Require Import floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
 Require Import floyd.extcall_lemmas.
 Require Import floyd.nested_field_lemmas.
+Require Import floyd.efield_lemmas.
+Require Import floyd.nested_field_re_lemmas.
+Require Import floyd.mapsto_memory_block.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.array_lemmas.
 Require Import floyd.loadstore_mapsto.
 Require Import floyd.loadstore_data_at.
 Require Import floyd.loadstore_field_at.
-Require Import floyd.nested_field_re_lemmas.
 Require Import floyd.nested_loadstore.
 Require Import floyd.sc_set_load_store.
 Require Import floyd.local2ptree.
@@ -1417,15 +1419,14 @@ Ltac construct_nested_efield e e1 efs tts :=
     change e with (nested_efield e1 efs tts);
     clear pp.
 
-Lemma efield_denote_cons_array: forall P Delta efs gfs ei i,
-  P |-- efield_denote Delta efs gfs ->
+Lemma efield_denote_cons_array: forall P efs gfs ei i,
+  P |-- efield_denote efs gfs ->
   P |-- local (`(eq (Vint (Int.repr i))) (eval_expr ei)) ->
   match typeof ei with
   | Tint _ _ _ => True
   | _ => False
   end ->
-  P |-- local (tc_expr Delta ei) ->
-  P |-- efield_denote Delta (eArraySubsc ei :: efs) (ArraySubsc i :: gfs).
+  P |-- efield_denote (eArraySubsc ei :: efs) (ArraySubsc i :: gfs).
 Proof.
   intros.
   simpl efield_denote.
@@ -1434,9 +1435,9 @@ Proof.
   apply prop_right, H1.
 Qed.
 
-Lemma efield_denote_cons_struct: forall P Delta efs gfs i,
-  P |-- efield_denote Delta efs gfs ->
-  P |-- efield_denote Delta (eStructField i :: efs) (StructField i :: gfs).
+Lemma efield_denote_cons_struct: forall P efs gfs i,
+  P |-- efield_denote efs gfs ->
+  P |-- efield_denote (eStructField i :: efs) (StructField i :: gfs).
 Proof.
   intros.
   simpl efield_denote.
@@ -1444,9 +1445,9 @@ Proof.
   normalize.
 Qed.
 
-Lemma efield_denote_cons_union: forall P Delta efs gfs i,
-  P |-- efield_denote Delta efs gfs ->
-  P |-- efield_denote Delta (eUnionField i :: efs) (UnionField i :: gfs).
+Lemma efield_denote_cons_union: forall P efs gfs i,
+  P |-- efield_denote efs gfs ->
+  P |-- efield_denote (eUnionField i :: efs) (UnionField i :: gfs).
 Proof.
   intros.
   simpl efield_denote.
@@ -1502,7 +1503,7 @@ Ltac sc_new_instantiate SE P Q R Rnow Delta e gfs tts lr p sh t_root gfs0 v n N 
 
 Ltac solve_efield_denote Delta P Q R efs gfs H :=
   evar (gfs : list gfield);
-  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- efield_denote Delta efs gfs) as H; 
+  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- efield_denote efs gfs) as H; 
   [
     unfold efs, gfs;
     match goal with
@@ -1554,11 +1555,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
           let HB := fresh "H" in
           assert (match typeof ei with | Tint _ _ _ => True | _ => False end) as HB by (simpl; auto);
           
-          let HC := fresh "H" in
-          assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta ei)) as HC
-          by (entailer!);
-          
-          apply (efield_denote_cons_array _ _ _ _ _ _ H0 HA HB HC)
+          apply (efield_denote_cons_array _ _ _ _ _ H0 HA HB)
 
         | eStructField ?i =>
           instantiate (1 := StructField i :: gfs0');
@@ -1789,7 +1786,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     [reflexivity | reflexivity | reflexivity
     | reflexivity | reflexivity | exact Heq | exact HLE | exact H_Denote 
     | exact H | reflexivity
-    | try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
+    | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root v sh lr n]
@@ -1902,7 +1899,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     [reflexivity | reflexivity | reflexivity
     | reflexivity | reflexivity | exact Heq | exact HLE | exact H_Denote 
     | exact H | reflexivity
-    | try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
+    | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root v sh lr n]
@@ -2132,7 +2129,7 @@ match goal with
         [reflexivity | simpl; auto | reflexivity
         | reflexivity | reflexivity | exact Heq | exact HLE
         | exact HRE | exact H_Denote | exact H | auto
-        | try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
+        | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n; simpl app; simpl typeof)
         | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n ]
@@ -2142,7 +2139,7 @@ match goal with
         [reflexivity | simpl; auto | reflexivity
         | reflexivity | reflexivity | exact Heq | exact HLE
         | exact HRE | exact H_Denote | exact H | auto 
-        | try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
+        | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n; simpl app; simpl typeof)
         | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n ]
@@ -2163,7 +2160,7 @@ match goal with
                subst MM;
                apply derives_refl
           end
-        | try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
+        | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n; simpl app; simpl typeof)
         | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs1 efs0 tts1 tts0 t_root sh v0 lr n ]

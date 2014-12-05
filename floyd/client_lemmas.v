@@ -1783,3 +1783,22 @@ Definition type_is_by_value t :=
   | _ => False
   end.
 
+Lemma unsigned_eq_eq: forall i j, Int.unsigned i = Int.unsigned j -> i = j.
+Proof.
+  intros.
+  rewrite <- (Int.repr_unsigned i), <- (Int.repr_unsigned j).
+  rewrite H.
+  reflexivity.
+Qed.
+
+Ltac solve_mod_eq :=
+  unfold Int.add, Int.mul;
+  repeat rewrite Int.unsigned_repr_eq;
+  repeat
+  (repeat rewrite Zmod_mod;
+  repeat rewrite Zmult_mod_idemp_l;
+  repeat rewrite Zmult_mod_idemp_r;
+  repeat rewrite Zplus_mod_idemp_l;
+  repeat rewrite Zplus_mod_idemp_r).
+
+
