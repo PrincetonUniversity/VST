@@ -130,7 +130,7 @@ Qed.
 Variable corestep_hrel: 
   forall idx c m c' m', 
   corestep (Modsem.sem (sems idx)) (Modsem.ge (sems idx)) c m c' m' ->
-  Hrel m m'.
+  Hrel (ageable.level m') m m'.
 
 Notation linked_sem := (LinkerSem.coresem N sems plt).
 
@@ -138,7 +138,7 @@ Notation linked_st := (Linker.t N sems).
 
 Require Import stack.
 
-Fixpoint tail_safe (n : nat)
+Fixpoint tail_safe 
     (ef : external_function) (x : ext_spec_type spec ef)
     (efs : seq external_function) (s : Stack.t (Core.t sems)) m : Prop :=
   match efs, s with 
@@ -151,74 +151,64 @@ Fixpoint tail_safe (n : nat)
         let: c_sem := Modsem.sem (sems c_idx) in
           c_sig = ef_sig ef_top /\
           exists sig args z m0 (x_top : ext_spec_type spec ef_top), 
-          [/\ Hrel m0 m
+          [/\ Hrel (ageable.level m) m0 m
             , at_external c_sem c_c = Some (ef, sig, args) 
             , ext_spec_pre spec ef x (Genv.genv_symb ge) (sig_args sig) args z m0 
             , (forall ret m' z',
-               Hrel m0 m' -> 
+               Hrel (ageable.level m') m0 m' -> 
                ext_spec_post spec ef x (Genv.genv_symb ge) (sig_res sig) ret z' m' ->
                let: spec' := @upd_exit _ spec ef_top x_top in
                exists c', 
                [/\ after_external c_sem ret c_c = Some c'
-                 & safeN c_sem (spec' (Genv.genv_symb c_ge)) c_ge n z' c' m'])
-           & @tail_safe n ef_top x_top efs' s' m]
+                 & safeN c_sem (spec' (Genv.genv_symb c_ge)) c_ge (ageable.level m') z' c' m'])
+           & @tail_safe ef_top x_top efs' s' m]
     | _, _ => False
   end.
 
-Lemma Hrel_refl m : Hrel m m.
+Lemma Hrel_refl m : Hrel (ageable.level m) m m.
 Proof.
-split=> // loc; move: (compcert_rmaps.RML.necR_PURE (m_phi m) (m_phi m) loc).
+split=> //; split=> // loc; move: (compcert_rmaps.RML.necR_PURE (m_phi m) (m_phi m) loc).
 by case: (compcert_rmaps.RML.R.resource_at _ _)=> // k p; move/(_ k p)=> ->.
 Qed.
 
-Lemma Hrel_trans m0 m m' : Hrel m0 m -> Hrel m m' -> Hrel m0 m'.
+Lemma Hrel_trans m0 m m' : 
+  Hrel (ageable.level m) m0 m -> 
+  Hrel (ageable.level m') m m' -> 
+  Hrel (ageable.level m') m0 m'.
 Proof.
-rewrite /Hrel; case=> H1 H2; case=> H3 H4; split; first by omega.
-move=> loc; move: (H2 loc) (H4 loc); rewrite /pures_sub.
+rewrite /Hrel; case=> H1 []H2 H2a; case=> H3 []H4 H4a; split; first by omega.
+split; first by omega.
+move=> loc; move: (H2a loc) (H4a loc); rewrite /pures_sub.
 case: (compcert_rmaps.RML.R.resource_at (m_phi m0) _)=> // k p -> ->.
 by rewrite compcert_rmaps.RML.preds_fmap_fmap compcert_rmaps.RML.approx_oo_approx'.
 Qed.
 
-Lemma tail_safe_downward1 ef n Hx efs l m m' (Hr: Hrel m m') :
-  tail_safe n.+1 (ef:=ef) Hx efs l m -> 
-  tail_safe n (ef:=ef) Hx efs l m'.
+Lemma tail_safe_Hrel ef Hx efs l m m' (Hr: Hrel (ageable.level m') m m') :
+  tail_safe (ef:=ef) Hx efs l m -> 
+  tail_safe (ef:=ef) Hx efs l m'.
 Proof.
 elim: efs ef Hx l=> // ef' efs' IH ef Hx; case=> // a1 l1.
 move=> /= []Hsg []sig []args []z []m0 []x_top []Hr' Hat Hpre Hpost Htl; split=> //.
 exists sig, args, z, m0, x_top; split=> //; first by move: Hr' Hr; apply: Hrel_trans.
-move=> ret m'' z' Hrel' Hpost'; case: (Hpost _ _ _ Hrel' Hpost')=> c' []Haft Hsafe.
-exists c'; split=> //; first by apply: safe_downward1.
-by move {Hpost}; apply: IH.
+by apply: IH.
 Qed.
 
-Lemma tail_safe_downward1' ef n Hx efs l m :
-  tail_safe n.+1 (ef:=ef) Hx efs l m -> 
-  tail_safe n (ef:=ef) Hx efs l m.
-Proof.
-elim: efs ef Hx l=> // ef' efs' IH ef Hx; case=> // a1 l1.
-move=> /= []Hsg []sig []args []z []m0 []x_top []Hr' Hat Hpre Hpost Htl; split=> //.
-exists sig, args, z, m0, x_top; split=> //. 
-move=> ret m'' z' Hrel' Hpost'; case: (Hpost _ _ _ Hrel' Hpost')=> c' []Haft Hsafe.
-exists c'; split=> //; first by apply: safe_downward1.
-by move {Hpost}; apply: IH.
-Qed.
-
-Definition head_safe n ef (x : ext_spec_type spec ef) (c : Core.t sems) z m :=
+Definition head_safe ef (x : ext_spec_type spec ef) (c : Core.t sems) z m :=
   let: c_idx := Core.i c in
   let: c_c := Core.c c in 
   let: c_sig := Core.sg c in 
   let: c_ge := Modsem.ge (sems c_idx) in
   let: c_sem := Modsem.sem (sems c_idx) in
   [/\ c_sig = ef_sig ef 
-    & safeN c_sem (@upd_exit _ spec ef x (Genv.genv_symb c_ge)) c_ge n z c_c m].
+    & safeN c_sem (@upd_exit _ spec ef x (Genv.genv_symb c_ge)) c_ge (ageable.level m) z c_c m].
 
-Definition stack_safe (n : nat)
+Definition stack_safe 
     (efs : seq external_function) (s : Stack.t (Core.t sems)) z m : Prop :=
   match efs, s with
     | nil, nil => True
     | ef :: efs', c :: s' => 
       exists x : ext_spec_type spec ef,
-      [/\ @head_safe n ef x c z m & @tail_safe n ef x efs' s' m]
+      [/\ @head_safe ef x c z m & @tail_safe ef x efs' s' m]
     | _, _ => False
   end.
 
@@ -229,14 +219,14 @@ Fixpoint last_frame_main (efs : seq external_function) :=
     | [:: _ & efs'] => last_frame_main efs'
   end.
 
-Definition all_safe n z (l : linked_st) m :=
+Definition all_safe z (l : linked_st) m :=
   exists efs : list external_function, 
   [/\ last_frame_main efs
-    & stack_safe n efs (CallStack.callStack (Linker.stack l)) z m].
+    & stack_safe efs (CallStack.callStack (Linker.stack l)) z m].
 
-Lemma age1_Hrel m m' : ageable.age1 m = Some m' -> Hrel m m'.
+Lemma age1_Hrel m m' : ageable.age1 m = Some m' -> Hrel (ageable.level m') m m'.
 Proof.
-move=> Hag; split. 
+move=> Hag; split=> //; split=> //.
 by apply ageable.age_level in Hag; rewrite Hag; omega.
 apply age1_juicy_mem_Some in Hag=> loc.
 move: (compcert_rmaps.RML.age1_resource_at _ _ Hag loc).
@@ -245,36 +235,41 @@ eapply compcert_rmaps.RML.necR_PURE in Hres; eauto.
 by constructor.
 Qed.
 
-Lemma all_safe_inv n z l m (Hplt : Linker.fn_tbl l = plt) :
-  all_safe (S n) z l m -> 
+Lemma all_safe_inv z l m 
+      (Hplt : Linker.fn_tbl l = plt) 
+      (Hag : (ageable.level m > 0)%coq_nat) :
+  all_safe z l m -> 
   [\/ exists l' m', 
       [/\ Linker.fn_tbl l' = plt
         , corestep linked_sem ge l m l' m' 
-        & all_safe n z l' m']
+        & all_safe z l' m']
     , exists rv, halted linked_sem l = Some rv
     | exists ef sig args, 
         LinkerSem.at_external l = Some (ef, sig, args) 
         /\ exists x : ext_spec_type spec ef,
              ext_spec_pre spec ef x (Genv.genv_symb ge) (sig_args sig) args z m
-             /\ forall ret m' z',
-                Hrel m m' -> 
+             /\ forall ret m' z' n'',
+                (n'' <= ageable.level m')%nat ->
+                Hrel (ageable.level m') m m' -> 
                 ext_spec_post spec ef x (Genv.genv_symb ge) (sig_res sig) ret z' m' ->
                 exists l', 
                   [/\ Linker.fn_tbl l' = plt
                     , LinkerSem.after_external ret l = Some l' 
-                    & all_safe n z' l' m']].
+                    & all_safe z' l' m']].
 Proof.
 case=> efs; case: l Hplt=> fn_tbl; case. 
 case=> //= a1 l1 Hwf Hplt; subst; case=> LFM.
 case: efs LFM=> // ef efs' LFM; case=> Hx []Hhd Htl. 
-move: Hhd; rewrite /head_safe /=.
-case Hat: (at_external _ _)=> [[[ef' sig'] args']|].
+move: Hhd; rewrite /head_safe; case=> Hsig. 
+case Hat: (at_external (Modsem.sem (sems (Core.i a1))) (Core.c a1))=> [[[ef' sig'] args']|].
+inversion 1; subst; first by rewrite H0 level_juice_level_phi in Hag; omega.
+by apply corestep_not_at_external in H0; rewrite H0 in Hat.
 
 { (* at_external topmost core = Some *)
-have ->: halted (Modsem.sem (sems (Core.i a1))) (Core.c a1) = None.
+rewrite Hat in H0; inversion H0; subst; move {H0}; move: H1 H2=> Hpre Hpost.
+have Hhlt: halted (Modsem.sem (sems (Core.i a1))) (Core.c a1) = None.
 { case: (at_external_halted_excl (Modsem.sem (sems (Core.i a1))) (Core.c a1))=> //.
   by rewrite Hat. }
-case=> Hsg []Hx' []Hpre Hpost.
 set l := {| Linker.fn_tbl := plt
           ; Linker.stack := CallStack.mk (a1 :: l1) Hwf |}.
 
@@ -286,31 +281,45 @@ rewrite /LinkerSem.at_external /LinkerSem.at_external0 Hat.
 case Hfid: (LinkerSem.fun_id _)=> // [fid|].
 
 case Hidx: (Linker.fn_tbl _ _)=> //; case=> Ha Hb Hc; subst.
-exists ef'', sig'', args''; split=> //; exists Hx'; split=> //.
+exists ef'', sig'', args''; split=> //; exists x; split=> //.
 by rewrite -genv_symbols_eq in Hpre.
 rewrite -genv_symbols_eq in Hpost.
-move=> ret m' z' Hrel' Hpost'; case: (Hpost _ _ _ Hrel' Hpost')=> c' []Haft Hsafe.
+move=> ret m' z' n'' Hlev' Hrel' Hpost'. 
+have Hlev: ((ageable.level (m_phi m') <= n.+1)%coq_nat).
+{ 
+ case: Hrel'=> ->; case=> X _; rewrite -level_juice_level_phi in H.
+ rewrite -H in X; omega.
+}
+case: (Hpost _ _ _ _ Hlev Hrel' Hpost')=> c' []Haft Hsafe.
 set l' := {| Linker.fn_tbl := plt
            ; Linker.stack := CallStack.mk ((Core.upd a1 c') :: l1) Hwf |}.
 exists l'; split=> //.
 rewrite /LinkerSem.after_external Haft /l /l' /updCore /updStack /=.
 by f_equal; f_equal; f_equal; apply: proof_irr.
 exists [:: ef & efs']; split=> //. 
-exists Hx; split=> //; first by split=> //; rewrite -genv_symbols_eq.
-by move: Htl; apply: tail_safe_downward1.
+exists Hx; split=> //. 
+split=> //; rewrite -genv_symbols_eq //.
+by apply: (tail_safe_Hrel Hrel').
 
-case=> <- <- <-; exists ef', sig', args'; split=> //; exists Hx'; split=> //.
+case=> <- <- <-; exists e, sig, args; split=> //; exists x; split=> //.
 by rewrite -genv_symbols_eq in Hpre.
 rewrite -genv_symbols_eq in Hpost.
-move=> ret z' m' Hrel' Hpost'; case: (Hpost _ _ _ Hrel' Hpost')=> c' []Haft Hsafe.
+move=> ret m' z' n'' Hlev' Hrel' Hpost'. 
+have Hlev: ((ageable.level (m_phi m') <= n.+1)%coq_nat).
+{ 
+ case: Hrel'=> ->; case=> X _; rewrite -level_juice_level_phi in H.
+ rewrite -H in X; omega.
+}
+case: (Hpost _ _ _ _ Hlev Hrel' Hpost')=> c' []Haft Hsafe.
 set l' := {| Linker.fn_tbl := plt
            ; Linker.stack := CallStack.mk ((Core.upd a1 c') :: l1) Hwf |}.
 exists l'; split=> //.
 rewrite /LinkerSem.after_external Haft /l /l' /updCore /updStack /=.
 by f_equal; f_equal; f_equal; apply: proof_irr.
 exists [:: ef & efs']; split=> //. 
-exists Hx; split=> //; first by split=> //; rewrite -genv_symbols_eq.
-by move: Htl; apply: tail_safe_downward1.
+exists Hx; split=> //. 
+split=> //; rewrite -genv_symbols_eq //.
+by apply: (tail_safe_Hrel Hrel').
 
 + (* at_external linker = None *)
 move: Hat'; rewrite /LinkerSem.at_external /LinkerSem.at_external0 Hat.
@@ -319,19 +328,19 @@ case Hidx: (Linker.fn_tbl _ _)=> // [idx] _.
 apply: Or31.
 have Hall: all (atExternal sems) (CallStack.callStack (Linker.stack l)).
 { rewrite /l /=; apply /andP; split.
-  by rewrite /atExternal; case: a1 Hwf l Hidx Hat Hsg Hpre Hpost=> ?????? ->.
+  by rewrite /atExternal; case: a1 Hwf l Hidx Hat Hsig b x Hhlt Hpre Hpost=> ?????? ->.
   by move {l Hidx}; move: Hwf; rewrite /wf_callStack; case/andP. }
 move: (entry_points_safe).
 have [bf Hfind]: 
   exists bf, Genv.find_symbol (sems idx).(Modsem.ge) fid = Some bf.
 { by apply: entry_points_exist. }
-have Hsg': sig_args sig' = sig_args (ef_sig ef').
+have Hsg': sig_args sig = sig_args (ef_sig e).
   by rewrite (sigs_match Hat).
 rewrite Hsg' in Hpre.
-move: (@entry_points_safe ef' fid idx bf args' z m Hfid Hidx Hfind).
+move: (@entry_points_safe e fid idx bf args z m Hfid Hidx Hfind).
 rewrite -!genv_symbols_eq in Hpre|-*.
-case/(_ Hx' Hpre)=> c0 []Hinit Hsafe Hpost'.
-set c := (Core.mk _ _ _ c0 (ef_sig ef')); set l' := pushCore l c Hall. 
+case/(_ x Hpre)=> c0 []Hinit Hsafe Hpost'.
+set c := (Core.mk _ _ _ c0 (ef_sig e)); set l' := pushCore l c Hall. 
 exists l', m; split=> //. right; split=> //; split.
 { (* no corestep *)
   move=> Hstep; move: (LinkerSem.corestep_not_at_external0 Hstep).
@@ -339,55 +348,68 @@ exists l', m; split=> //. right; split=> //; split.
 }
 rewrite /LinkerSem.at_external0 Hat Hfid.
 have [l'' [Hleq Hhdl]]: exists l'', 
-  [/\ l'=l'' & LinkerSem.handle (ef_sig ef') fid l args' = Some l''].
+  [/\ l'=l'' & LinkerSem.handle (ef_sig e) fid l args = Some l''].
 { exists l'; rewrite LinkerSem.handleP; split=> //.
   by exists Hall, idx, bf, c; split=> //; rewrite /initCore Hinit /c. }
 by rewrite Hhdl.
 
 { (* all_safe *)
-exists [:: ef', ef & efs']; split=> //; exists Hx'; split=> //; split=> //.
+exists [:: e, ef & efs']; split=> //; exists x; split=> //; split=> //.
 by move: (Hsafe n); rewrite -genv_symbols_eq.
-exists sig', args', z, m, Hx; split=> //; first by apply: Hrel_refl.
+exists sig, args, z, m, Hx; split=> //; first by apply: Hrel_refl.
 by rewrite Hsg'.
-by rewrite -!genv_symbols_eq in Hpost|-*; apply: Hpost.
-by move: Htl; apply: tail_safe_downward1; apply: Hrel_refl.
+rewrite -!genv_symbols_eq in Hpost|-* => ret m' z' Hrel' Hq'.
+have Hlev': (((ageable.level m') <= n.+1)%coq_nat). 
+{ by case: Hrel'=> _ []? _; rewrite -level_juice_level_phi in H; omega. }
+case: (Hpost ret m' z' _ Hlev' Hrel' Hq')=> c' []Haft Hsafe'.
+by exists c'; split=> //; eapply safe_downward; eauto.
 }
 }
 
-case Hhlt: (halted _ _)=> [rv|].
+{ 
+case: (at_external_halted_excl (Modsem.sem (sems (Core.i a1))) (Core.c a1)).
+by rewrite Hat. by rewrite H.
+}
+
+case Hhlt: (halted (Modsem.sem (sems (Core.i a1))) (Core.c a1))=> [rv|].
+inversion 1; subst; first by rewrite H0 level_juice_level_phi in Hag; omega.
+by apply corestep_not_halted in H0; rewrite H0 in Hhlt.
+by rewrite H0 in Hat.
+rewrite Hhlt in H; inversion H; subst; move {H}.
 
 { (* halted *)
-case=> Hsg Hexit; case: l1 Hwf Htl.
+move: H0=> Hexit; case: l1 Hwf Htl.
 
 + (* l1 = [::] *) 
-move=> Hwf; case: efs' LFM=> // LFM _; apply: Or32; exists rv.
+move=> Hwf; case: efs' LFM=> // LFM _; apply: Or32; exists i.
 rewrite /LinkerSem.halted /inContext /= /LinkerSem.halted0 /peekCore /= Hhlt.
-have Hty: val_casted.val_has_type_func rv (proj_sig_res (ef_sig ef)).
+have Hty: val_casted.val_has_type_func i (proj_sig_res (ef_sig ef)).
 { apply: rets_welltyped=> //; first by apply: (Genv.genv_symb ge).
   by rewrite -genv_symbols_eq in Hexit. }
-by rewrite Hsg Hty.
+by rewrite Hsig Hty. 
 
 + (* l1 = [a2 :: l2] *)
 move=> a2 l2 Hwf; case: efs' LFM=> // ef' efs'' LFM []Hsg' Htl.
 move: Htl; case=> sig []args []z0 []m0 []x0 []Hrel []Hat0 Hpre0.
 have ->: sig_res sig = sig_res (ef_sig ef) by rewrite (sigs_match Hat0).
 rewrite -!genv_symbols_eq in Hexit|-*.
-case/(_ (Some rv) m z Hrel Hexit)=> c' []Haft0 Hsafe Htl; apply: Or31.
+case/(_ (Some i) m z Hrel Hexit)=> c' []Haft0 Hsafe Htl; apply: Or31.
 have Hwf': wf_callStack [:: a2 & l2].
 { clear -Hwf; move: Hwf; rewrite /wf_callStack; case/andP=> /=.
   by case/andP=> ? ? ?; apply/andP; split. }
 set l' := {| Linker.fn_tbl := plt
            ; Linker.stack := CallStack.mk [:: a2 & l2] Hwf' |}.
-exists (updCore l' (Core.upd a2 c')), m; split=> //. right; split=> //.
-have Hty: val_casted.val_has_type_func rv (proj_sig_res (ef_sig ef)) 
-  by eapply rets_welltyped; eauto.
+exists (updCore l' (Core.upd a2 c')), m; split=> //. 
+right; split=> //. 
+have Hty: val_casted.val_has_type_func i (proj_sig_res (ef_sig ef))
+  by eapply rets_welltyped; eapply Hexit; eauto.
 split.
 { (* no corestep *)
   move=> Hstep; move: (LinkerSem.corestep_not_halted0' Hstep).
-  by rewrite /LinkerSem.halted0 /= Hhlt Hsg Hty.
+  by rewrite /LinkerSem.halted0 /= Hhlt Hsig Hty.
 }
 rewrite /LinkerSem.at_external0 /peekCore /= Hat /inContext /=.
-rewrite /LinkerSem.halted0 /peekCore /= Hhlt Hsg Hty.
+rewrite /LinkerSem.halted0 /peekCore /= Hhlt Hsig Hty.
 rewrite /LinkerSem.after_external /peekCore /= Haft0. 
 by f_equal; f_equal; apply: proof_irr.
 
@@ -396,14 +418,15 @@ exists [:: ef' & efs'']; split=> //; exists x0; split.
 
 + (* head_safe *)
 split=> //; clear -genv_symbols_eq Hsafe; move: Hsafe; case: a2 c'=> i c sg c'.
-rewrite -genv_symbols_eq.
-by rewrite /Core.upd /Core.i /Core.c; apply: safe_downward1.
-by rewrite -/tail_safe in Htl; move: Htl; apply: tail_safe_downward1; apply: Hrel_refl.
+by rewrite -genv_symbols_eq /Core.upd /Core.i /Core.c.
+by rewrite -/tail_safe in Htl; move: Htl; apply: tail_safe_Hrel; apply: Hrel_refl.
 }
 }
 
+inversion 1; subst; first by rewrite H0 level_juice_level_phi in Hag; omega.
+
 { (* corestep *)
-case=> Hsg; case=> c' []m' []Hstep Hsafe; apply: Or31.
+move: H0 H1=> Hstep Hsafe; apply: Or31.
 set l := {| Linker.fn_tbl := plt
           ; Linker.stack := CallStack.mk (a1 :: l1) Hwf |}.
 exists (updCore l (Core.upd a1 c')), m'; split=> //.
@@ -411,10 +434,18 @@ by left; rewrite /LinkerSem.corestep0 /peekCore; exists c'.
 
 { (* all_safe *)
 exists [:: ef & efs']; split=> //. 
-exists Hx; split=> //; move: Htl; apply: tail_safe_downward1=> //.
+exists Hx; split=> //.
+split=> //; apply: safe_downward1=> /=; move: Hsafe. 
+have ->: (n = (ageable.level (m_phi m')).+1). 
+{ admit. }
+by [].
+move: Htl; apply: tail_safe_Hrel=> //.
 by move: Hstep; apply: corestep_hrel.
 }
 }
+
+by rewrite H0 in Hat.
+by rewrite H in Hhlt.
 Qed.
 
 Lemma linker_safe n x z m main_idx main_b args 
