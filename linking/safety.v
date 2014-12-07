@@ -125,12 +125,14 @@ Proof.
 by rewrite /Genv.find_symbol -genv_symbols_eq.
 Qed.
 
-(** 6) Coresteps of the underlying semantics imply [Hrel]. *)
+(** 6) Coresteps of the underlying semantics imply [Hrel] and that 
+       [level m' = level m + 1]. *)
 
 Variable corestep_hrel: 
   forall idx c m c' m', 
   corestep (Modsem.sem (sems idx)) (Modsem.ge (sems idx)) c m c' m' ->
-  Hrel (ageable.level m') m m'.
+  [/\ Hrel (ageable.level m') m m' 
+    & ageable.level m = (ageable.level m').+1].
 
 Notation linked_sem := (LinkerSem.coresem N sems plt).
 
@@ -435,12 +437,15 @@ by left; rewrite /LinkerSem.corestep0 /peekCore; exists c'.
 { (* all_safe *)
 exists [:: ef & efs']; split=> //. 
 exists Hx; split=> //.
-split=> //; apply: safe_downward1=> /=; move: Hsafe. 
-have ->: (n = (ageable.level (m_phi m')).+1). 
-{ admit. }
+split=> //; move: Hsafe.
+have ->: (n = (ageable.level (m_phi m'))). 
+{ 
+ move: H; rewrite -!level_juice_level_phi.
+ case: (corestep_hrel Hstep)=> _ -> ?; omega.
+}
 by [].
 move: Htl; apply: tail_safe_Hrel=> //.
-by move: Hstep; apply: corestep_hrel.
+by case: (corestep_hrel Hstep).
 }
 }
 
@@ -449,7 +454,8 @@ by rewrite H in Hhlt.
 Qed.
 
 Lemma linker_safe n x z m main_idx main_b args 
-                  (Hunit : ext_spec_type spec main_ef = unit) :
+                  (Hunit : ext_spec_type spec main_ef = unit) 
+                  (Hag : (n <= ageable.level m)%coq_nat) :
   LinkerSem.fun_id main_ef = Some main_id -> 
   plt main_id = Some main_idx -> 
   Genv.find_symbol (sems main_idx).(Modsem.ge) main_id = Some main_b -> 
@@ -473,7 +479,7 @@ have [l Hinit]:
 exists l; split=> //.
 
 have [fn_tbl_plt init_all_safe]: 
-  [/\ Linker.fn_tbl l = plt & all_safe n z l m].
+  [/\ Linker.fn_tbl l = plt & all_safe z l m].
 { case: l Hinit=> fn_tbl; case; case=> // a1 l1 Hwf Hinit.
   rewrite (genv_symbols_eq main_idx) in Hpre.
   case: (entry_points_safe Hfid Hplt Hfind Hpre)=> c []Hinit' Hsafe.  
@@ -485,53 +491,74 @@ have [fn_tbl_plt init_all_safe]:
   by rewrite -Hl1.
 }
 
-clear -fn_tbl_plt init_all_safe Hunit genv_symbols_eq.
-elim: n z m l fn_tbl_plt init_all_safe=> // n IH z m l fn_tbl all_safe.
-case: (all_safe_inv fn_tbl all_safe).
+clear -fn_tbl_plt init_all_safe Hunit genv_symbols_eq Hag corestep_hrel.
+move: z m l fn_tbl_plt init_all_safe Hag.
+Require Import Arith.
+induction n using (well_founded_induction lt_wf).
+move: H=> IH; case: n IH; first by constructor.
+move=> n IH z m l fn_tbl all_safe Hag.
+have Hag': ((ageable.level m) > 0)%coq_nat. 
+  admit.
+case: (all_safe_inv fn_tbl Hag' all_safe).
 
 { (* corestep0 *)
-case=> l' []m' []Hplt Hstep Hall_safe /=.
-rewrite (LinkerSem.corestep_not_at_external ge Hstep).
-rewrite (LinkerSem.corestep_not_halted ge Hstep).
-by exists l', m'; split=> //; apply: (IH z m' l' Hplt Hall_safe).
+case=> l' []m' []Hplt Hstep Hall_safe; econstructor; eauto.
+have Hlt: (n < n.+1)%coq_nat by omega.
+apply: (IH n Hlt z m' l' Hplt Hall_safe). 
+have [->|->]: (ageable.level m' = ageable.level m 
+            \/ ageable.level m' = (ageable.level m).+1).
+  admit.
+by omega.
+by omega.
 }
 
 { (* halted *)
-case=> rv Hhlt /=. 
-have ->: LinkerSem.at_external l = None.
+case=> rv Hhlt; eapply safeN_halted; eauto.
+have Hat: at_external linked_sem l = None.
 { case: (LinkerSem.at_external_halted_excl l)=> //.
   by move: Hhlt=> /= ->. }
-move: (Hhlt)=> /= ->; move: Hhlt; rewrite /= /LinkerSem.halted.
-case Hctx: (~~ inContext l)=> //.
-case Hhlt: (LinkerSem.halted0 l)=> // [rv']; case=> <-.
-move: Hhlt; rewrite /LinkerSem.halted0.
-case Hhlt: (halted _ _)=> // [rv''].
-case: (val_casted.val_has_type_func _ _)=> //; case=> <-.
 move: all_safe; rewrite /all_safe=> [][]; case.
-case=> _; move {fn_tbl}; case: l Hhlt Hctx=> ?; case; case=> //.
-move=> ef efs'; move {fn_tbl}; case: l Hhlt Hctx=> ?; case. 
-case=> // a1 l1 /= Hwf Hhlt Hctx []LFM []x' []Hhd Htl.
-case: Hhd=> _ /=; rewrite Hhlt.
+case=> _; move {fn_tbl}; case: l Hhlt Hat=> ?; case; case=> //.
+move=> ef efs'; move {fn_tbl}; case: l Hhlt Hat=> ?; case. 
+case=> // a1 l1 /= Hwf Hhlt Hat []LFM []x' []Hhd Htl.
+move: Hhlt; rewrite /LinkerSem.halted.
+
+case Hctx: (~~ inContext _)=> //.
+case Hhlt: (LinkerSem.halted0 _)=> // [rv']; case=> <-.
+move: Hhlt; rewrite /LinkerSem.halted0.
+case Hhlt: (halted _ _)=> //= [rv''].
+case: (val_casted.val_has_type_func _ _)=> //; case=> <-.
+case: Hhd=> _; inversion 1; subst.
+by rewrite level_juice_level_phi -H0 in Hag'; omega.
+by apply corestep_not_halted in H0; rewrite H0 in Hhlt.
 case: (at_external_halted_excl (Modsem.sem (sems (Core.i a1))) (Core.c a1)).
-move=> -> //; move: LFM.
-have ->: efs' = [::].
+by rewrite H0.
+by rewrite Hhlt.
+move: LFM; have ->: efs' = [::].
 { clear -Htl Hctx; move: Htl Hctx; rewrite /inContext /=.
   by case: efs'=> // ef' efs'; case: l1 Hwf=> //. }
-move=> Heq; clear -Heq Hunit genv_symbols_eq; move: x x'; rewrite Heq; move {ef Heq}=> x x'.
+move=> Heq; clear -Heq Hunit genv_symbols_eq Hhlt H H0. 
+move: x x' H0; rewrite Heq; move {ef Heq}=> x x' /=.
 have Eqxx': JMeq x x'.
-{ by clear -Hunit; move: x x'; rewrite Hunit; case; case. }
+{ by clear -Hunit; move: x x'; rewrite !Hunit; case; case. }
 rewrite -genv_symbols_eq.
-by move: (JMeq_eq Eqxx')=> ->.
-by rewrite Hhlt; discriminate.
+by move: (JMeq_eq Eqxx')=> ->; rewrite H in Hhlt; case: Hhlt=> <-.
 }
 
 { (* at_external *)
-case=> ef []sig []args []Hat []x' []Hpre Hpost /=; rewrite Hat.
-case: (LinkerSem.at_external_halted_excl l); first rewrite Hat. 
-discriminate. 
-move=> ->; exists x'; split=> // ret m' z' Hrel' Hpost'.
-case: (Hpost ret m' z' Hrel' Hpost')=> l' []Hplt Haft Hall; exists l'; split=> //.
-by apply: (IH _ _ _ Hplt Hall).
+case=> ef []sig []args []Hat []x' []Hpre Hpost. 
+eapply safeN_external; eauto=> ret m' z' n' Hlev' Hrel' Hpost'.
+case: Hrel'=> Hag'' []Hx Hy.
+have Hag''': (n' <= ageable.level m') by rewrite Hag''.
+have Hrel'': Hrel (ageable.level m') m m' by split.
+case: (Hpost ret m' z' _  Hag''' Hrel'' Hpost')=> l' []Hplt Haft Hall; exists l'; split=> //.
+move: (IH _ Hlev' _ _ _ Hplt Hall).
+Require Import Arith.
+case: (lt_dec n' n).
+move=> Hlt.
+case: Hrel''=> _ [] Hlt'' _.
+have Hlt': ((n <= ageable.level m')%coq_nat). 
+
 }
 Qed.
 
