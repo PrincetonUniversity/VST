@@ -41,7 +41,7 @@ Definition sems_S (ix : 'I_N) :=
     @linking.Modsem.mk juicy_mem F V genv C (juicy_core_sem s) 
   end.
 
-Notation source := (linking.LinkerSem.coresem N sems_S plt).
+Notation source := (linking.LinkerSem.coresem juicy_mem_ageable N sems_S plt).
 
 Notation target := (LinkerSem.coresem N sems_T plt).
 
@@ -434,7 +434,7 @@ move/corestep0_match.
 case/(_ _ H)=> st2' []STEP' MTCH; exists st2', (m_dry m1'), tt, mu.
 split=> //; left; exists O=> /=; exists st2', (m_dry m1'); split=> //.
 by left.
-case=> <-; case=> NSTEP.
+case=> Hag; case=> NSTEP; rewrite -(age_jm_dry Hag).
 case Hat: (linking.LinkerSem.at_external0 st1)=> // [[[ef1 sg1] vals1]|].
 case Hfun: (linking.LinkerSem.fun_id ef1)=> // [id].
 case Hhdl: (linking.LinkerSem.handle _ _ _ _)=> // [st1''] ->.
