@@ -134,7 +134,7 @@ Variable corestep_hrel:
   [/\ Hrel (ageable.level m') m m' 
     & ageable.level m = (ageable.level m').+1].
 
-Notation linked_sem := (LinkerSem.coresem N sems plt).
+Notation linked_sem := (LinkerSem.coresem _ N sems plt).
 
 Notation linked_st := (Linker.t N sems).
 
@@ -167,11 +167,11 @@ Fixpoint tail_safe
     | _, _ => False
   end.
 
-Lemma Hrel_refl m : Hrel (ageable.level m) m m.
+(*Lemma Hrel_refl m : Hrel (ageable.level m) m m.
 Proof.
 split=> //; split=> // loc; move: (compcert_rmaps.RML.necR_PURE (m_phi m) (m_phi m) loc).
 by case: (compcert_rmaps.RML.R.resource_at _ _)=> // k p; move/(_ k p)=> ->.
-Qed.
+Qed.*)
 
 Lemma Hrel_trans m0 m m' : 
   Hrel (ageable.level m) m0 m -> 
@@ -182,7 +182,8 @@ rewrite /Hrel; case=> H1 []H2 H2a; case=> H3 []H4 H4a; split; first by omega.
 split; first by omega.
 move=> loc; move: (H2a loc) (H4a loc); rewrite /pures_sub.
 case: (compcert_rmaps.RML.R.resource_at (m_phi m0) _)=> // k p -> ->.
-by rewrite compcert_rmaps.RML.preds_fmap_fmap compcert_rmaps.RML.approx_oo_approx'.
+rewrite compcert_rmaps.RML.preds_fmap_fmap compcert_rmaps.RML.approx_oo_approx' //.
+omega.
 Qed.
 
 Lemma tail_safe_Hrel ef Hx efs l m m' (Hr: Hrel (ageable.level m') m m') :
@@ -287,7 +288,7 @@ exists ef'', sig'', args''; split=> //; exists x; split=> //.
 by rewrite -genv_symbols_eq in Hpre.
 rewrite -genv_symbols_eq in Hpost.
 move=> ret m' z' n'' Hlev' Hrel' Hpost'. 
-have Hlev: ((ageable.level (m_phi m') <= n.+1)%coq_nat).
+have Hlev: ((ageable.level (m_phi m') <= n)%coq_nat).
 { 
  case: Hrel'=> ->; case=> X _; rewrite -level_juice_level_phi in H.
  rewrite -H in X; omega.
@@ -307,7 +308,7 @@ case=> <- <- <-; exists e, sig, args; split=> //; exists x; split=> //.
 by rewrite -genv_symbols_eq in Hpre.
 rewrite -genv_symbols_eq in Hpost.
 move=> ret m' z' n'' Hlev' Hrel' Hpost'. 
-have Hlev: ((ageable.level (m_phi m') <= n.+1)%coq_nat).
+have Hlev: ((ageable.level (m_phi m') <= n)%coq_nat).
 { 
  case: Hrel'=> ->; case=> X _; rewrite -level_juice_level_phi in H.
  rewrite -H in X; omega.
@@ -343,7 +344,8 @@ move: (@entry_points_safe e fid idx bf args z m Hfid Hidx Hfind).
 rewrite -!genv_symbols_eq in Hpre|-*.
 case/(_ x Hpre)=> c0 []Hinit Hsafe Hpost'.
 set c := (Core.mk _ _ _ c0 (ef_sig e)); set l' := pushCore l c Hall. 
-exists l', m; split=> //. right; split=> //; split.
+case Hag': (ageable.age1 m)=> [m'|].
+exists l', m'; split=> //. right; split=> //; split.
 { (* no corestep *)
   move=> Hstep; move: (LinkerSem.corestep_not_at_external0 Hstep).
   by rewrite /LinkerSem.at_external0 Hat. 
@@ -357,15 +359,21 @@ by rewrite Hhdl.
 
 { (* all_safe *)
 exists [:: e, ef & efs']; split=> //; exists x; split=> //; split=> //.
-by move: (Hsafe n); rewrite -genv_symbols_eq.
-exists sig, args, z, m, Hx; split=> //; first by apply: Hrel_refl.
+admit. (*by age_safe*)
+(*move: (Hsafe (ageable.level m')); rewrite -genv_symbols_eq.*)
+exists sig, args, z, m, Hx; split=> //. 
+admit. (*by age_pures_sub*)
 by rewrite Hsg'.
-rewrite -!genv_symbols_eq in Hpost|-* => ret m' z' Hrel' Hq'.
-have Hlev': (((ageable.level m') <= n.+1)%coq_nat). 
-{ by case: Hrel'=> _ []? _; rewrite -level_juice_level_phi in H; omega. }
-case: (Hpost ret m' z' _ Hlev' Hrel' Hq')=> c' []Haft Hsafe'.
+rewrite -!genv_symbols_eq in Hpost|-* => ret m'' z' Hrel' Hq'.
+have Hlev'': (((ageable.level m'') <= n)%coq_nat). 
+{ case: Hrel'=> _ []Hag'' _. 
+  by rewrite -level_juice_level_phi in H; omega. }
+case: (Hpost ret m'' z' _ Hlev'' Hrel' Hq')=> c' []Haft Hsafe'.
 by exists c'; split=> //; eapply safe_downward; eauto.
+by admit. (*age_tail_safe*)
 }
+
+by move: Hag; move: Hag'; move/ageable.age1_level0=> -> ?; omega.
 }
 
 { 
@@ -401,7 +409,8 @@ have Hwf': wf_callStack [:: a2 & l2].
   by case/andP=> ? ? ?; apply/andP; split. }
 set l' := {| Linker.fn_tbl := plt
            ; Linker.stack := CallStack.mk [:: a2 & l2] Hwf' |}.
-exists (updCore l' (Core.upd a2 c')), m; split=> //. 
+case Hag': (ageable.age1 m)=> [m'|].
+exists (updCore l' (Core.upd a2 c')), m'; split=> //. 
 right; split=> //. 
 have Hty: val_casted.val_has_type_func i (proj_sig_res (ef_sig ef))
   by eapply rets_welltyped; eapply Hexit; eauto.
@@ -410,9 +419,9 @@ split.
   move=> Hstep; move: (LinkerSem.corestep_not_halted0' Hstep).
   by rewrite /LinkerSem.halted0 /= Hhlt Hsig Hty.
 }
-rewrite /LinkerSem.at_external0 /peekCore /= Hat /inContext /=.
-rewrite /LinkerSem.halted0 /peekCore /= Hhlt Hsig Hty.
-rewrite /LinkerSem.after_external /peekCore /= Haft0. 
+rewrite /LinkerSem.at_external0 /peekCore /= Hat /inContext /=
+        /LinkerSem.halted0 /peekCore /= Hhlt Hsig Hty
+        /LinkerSem.after_external /peekCore /= Haft0. 
 by f_equal; f_equal; apply: proof_irr.
 
 { (* all_safe *)
@@ -420,9 +429,13 @@ exists [:: ef' & efs'']; split=> //; exists x0; split.
 
 + (* head_safe *)
 split=> //; clear -genv_symbols_eq Hsafe; move: Hsafe; case: a2 c'=> i c sg c'.
-by rewrite -genv_symbols_eq /Core.upd /Core.i /Core.c.
-by rewrite -/tail_safe in Htl; move: Htl; apply: tail_safe_Hrel; apply: Hrel_refl.
+rewrite -genv_symbols_eq /Core.upd /Core.i /Core.c.
+by admit. (*age_safe*)
+rewrite -/tail_safe in Htl; move: Htl; apply: tail_safe_Hrel.
+by admit. (*age_hrel*)
 }
+
+by move: Hag; move: Hag'; move/ageable.age1_level0=> -> ?; omega.
 }
 
 inversion 1; subst; first by rewrite H0 level_juice_level_phi in Hag; omega.
@@ -455,7 +468,7 @@ Qed.
 
 Lemma linker_safe n x z m main_idx main_b args 
                   (Hunit : ext_spec_type spec main_ef = unit) 
-                  (Hag : (n <= ageable.level m)%coq_nat) :
+                  (Hag : n = ageable.level m) :
   LinkerSem.fun_id main_ef = Some main_id -> 
   plt main_id = Some main_idx -> 
   Genv.find_symbol (sems main_idx).(Modsem.ge) main_id = Some main_b -> 
@@ -505,10 +518,8 @@ case: (all_safe_inv fn_tbl Hag' all_safe).
 case=> l' []m' []Hplt Hstep Hall_safe; econstructor; eauto.
 have Hlt: (n < n.+1)%coq_nat by omega.
 apply: (IH n Hlt z m' l' Hplt Hall_safe). 
-have [->|->]: (ageable.level m' = ageable.level m 
-            \/ ageable.level m' = (ageable.level m).+1).
+have Heq: ((ageable.level m').+1 = ageable.level m).
   admit.
-by omega.
 by omega.
 }
 
@@ -550,15 +561,14 @@ case=> ef []sig []args []Hat []x' []Hpre Hpost.
 eapply safeN_external; eauto=> ret m' z' n' Hlev' Hrel' Hpost'.
 case: Hrel'=> Hag'' []Hx Hy.
 have Hag''': (n' <= ageable.level m') by rewrite Hag''.
+have Hag'''': (n' <= ageable.level m')%coq_nat by rewrite Hag''.
 have Hrel'': Hrel (ageable.level m') m m' by split.
-case: (Hpost ret m' z' _  Hag''' Hrel'' Hpost')=> l' []Hplt Haft Hall; exists l'; split=> //.
-move: (IH _ Hlev' _ _ _ Hplt Hall).
-Require Import Arith.
-case: (lt_dec n' n).
-move=> Hlt.
-case: Hrel''=> _ [] Hlt'' _.
-have Hlt': ((n <= ageable.level m')%coq_nat). 
-
+case: (Hpost ret m' z' _  Hag''' Hrel'' Hpost')=> l' []Hplt Haft Hall. 
+exists l'; split=> //.
+case: Hrel''=> _ []Hz _.
+have Hlev'': (ageable.level m' < n.+1)%coq_nat by omega.
+move: (IH _ Hlev'' _ _ _ Hplt Hall erefl).
+by apply: safe_downward.
 }
 Qed.
 
