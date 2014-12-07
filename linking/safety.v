@@ -19,7 +19,7 @@ Section upd_exit.
 
 Variable Z : Type.
 
-Variable spec : external_specification juicy_mem external_function Z.
+Variable spec : juicy_ext_spec Z.
 
 Definition upd_exit' (Q_exit : option val -> Z -> juicy_mem -> Prop) :=
   {| ext_spec_type := ext_spec_type spec
@@ -27,8 +27,14 @@ Definition upd_exit' (Q_exit : option val -> Z -> juicy_mem -> Prop) :=
    ; ext_spec_post := ext_spec_post spec
    ; ext_spec_exit := Q_exit |}.
 
-Definition upd_exit (ef : external_function) (x : ext_spec_type spec ef) ge := 
+Definition upd_exit'' (ef : external_function) (x : ext_spec_type spec ef) ge := 
   upd_exit' (ext_spec_post spec ef x ge (sig_res (ef_sig ef))).
+
+Program Definition upd_exit (ef : external_function) (x : ext_spec_type spec ef) ge :=
+  Build_juicy_ext_spec _ (upd_exit'' x ge) _ _ _.
+Next Obligation. destruct spec=> //. Qed.
+Next Obligation. destruct spec=> //. Qed.
+Next Obligation. destruct spec=> //. Qed.
 
 End upd_exit.
 
@@ -42,7 +48,7 @@ Variable sems : 'I_N -> Modsem.t juicy_mem.
 
 Variable Z : Type.
 
-Variable spec : external_specification juicy_mem external_function Z.
+Variable spec : juicy_ext_spec Z.
 
 Variable ge : ge_ty.
 
@@ -137,7 +143,7 @@ Variable corestep_hrel:
 (** 7) *)
 
 Variable age_safe:
-  forall Z Hspec idx (z : Z) ge m m' c,
+  forall Z (Hspec : juicy_ext_spec Z) idx (z : Z) ge m m' c,
   ageable.age m m' -> 
   safeN (Modsem.sem (sems idx)) Hspec ge (ageable.level m) z c m ->
   safeN (Modsem.sem (sems idx)) Hspec ge (ageable.level m') z c m'.
@@ -613,65 +619,79 @@ by rewrite Hal in Hres.
 by case=> ? []?; case; discriminate.
 Qed.
 
-Lemma linker_safeN
-     : forall (N : pos) (plt : ident -> option 'I_N)
-         (sems : 'I_N -> Modsem.t juicy_mem) (Z : Type)
-         (spec : external_specification juicy_mem external_function Z)
-         (ge : ge_ty) (main_id : ident),
+Definition mk_modsem F V C 
+    (sem : CoreSemantics (Genv.t F V) C juicy_mem) (ge : Genv.t F V) :=
+  Modsem.mk ge sem.
 
-       (forall (idx : 'I_N) (c : Modsem.C (sems idx))
+Lemma linker_preserves_safety :
+  forall
+  (N : pos) (plt : ident -> option 'I_N) 
+  (Fs : 'I_N -> Type) (Vs : 'I_N -> Type) (Cs : 'I_N -> Type) 
+  (ges : forall idx : 'I_N, Genv.t (Fs idx) (Vs idx))
+  (sems0 : forall idx : 'I_N, CoreSemantics (Genv.t (Fs idx) (Vs idx)) (Cs idx) mem)
+  (Ora : Type)
+  (spec : juicy_ext_spec Ora)
+  (ge : ge_ty) (main_id : ident),
+
+  let: sems := [fun idx : 'I_N => mk_modsem (juicy_core_sem (sems0 idx)) (ges idx)] in 
+
+  (forall (idx : 'I_N) (c : Modsem.C (sems idx))
           (ef : external_function) (sig : signature) 
           (args : list val),
-        at_external (Modsem.sem (sems idx)) c = Some (ef, sig, args) ->
-        sig = ef_sig ef) ->
+     at_external (Modsem.sem (sems idx)) c = Some (ef, sig, args) ->
+     sig = ef_sig ef) ->
 
-       (forall (ef : external_function) (x : ext_spec_type spec ef)
-          (ge0 : Maps.PTree.t block) (rv : val) (z : Z) 
+  (forall (ef : external_function) (x : ext_spec_type spec ef)
+          (ge0 : Maps.PTree.t block) (rv : val) (z : Ora) 
           (m : juicy_mem),
-        ext_spec_post spec ef x ge0 (sig_res (ef_sig ef)) (Some rv) z m ->
-        val_casted.val_has_type_func rv (proj_sig_res (ef_sig ef))) ->
+     ext_spec_post spec ef x ge0 (sig_res (ef_sig ef)) (Some rv) z m ->
+     val_casted.val_has_type_func rv (proj_sig_res (ef_sig ef))) ->
 
-       (forall (fid : ident) (idx : 'I_N),
-        plt fid = Some idx ->
-        exists bf : block,
-          Genv.find_symbol (Modsem.ge (sems idx)) fid = Some bf) ->
+  (forall (fid : ident) (idx : 'I_N),
+     plt fid = Some idx ->
+     exists bf : block,
+       Genv.find_symbol (Modsem.ge (sems idx)) fid = Some bf) ->
 
-       (forall (ef : external_function) (fid : ident) 
+  (forall (ef : external_function) (fid : ident) 
           (idx : 'I_N) (bf : block) (args : list val) 
-          (z : Z) (m : juicy_mem),
-        LinkerSem.fun_id ef = Some fid ->
-        plt fid = Some idx ->
-        Genv.find_symbol (Modsem.ge (sems idx)) fid = Some bf ->
-        forall x : ext_spec_type spec ef,
-        ext_spec_pre spec ef x (Genv.genv_symb (Modsem.ge (sems idx)))
-          (sig_args (ef_sig ef)) args z m ->
-        exists c : Modsem.C (sems idx),
-          initial_core (Modsem.sem (sems idx)) (Modsem.ge (sems idx))
-            (Vptr bf Int.zero) args = Some c /\
-          (forall n : nat,
-           safeN (Modsem.sem (sems idx))
-             (upd_exit (spec:=spec) (ef:=ef) x
-                (Genv.genv_symb (Modsem.ge (sems idx))))
-             (Modsem.ge (sems idx)) n z c m)) ->
+          (z : Ora) (m : juicy_mem),
+     LinkerSem.fun_id ef = Some fid ->
+     plt fid = Some idx ->
+     Genv.find_symbol (Modsem.ge (sems idx)) fid = Some bf ->
+     forall x : ext_spec_type spec ef,
+       ext_spec_pre spec ef x (Genv.genv_symb (Modsem.ge (sems idx)))
+                    (sig_args (ef_sig ef)) args z m ->
+       exists c : Modsem.C (sems idx),
+         initial_core (Modsem.sem (sems idx)) (Modsem.ge (sems idx))
+                      (Vptr bf Int.zero) args = Some c /\
+         (forall n : nat,
+            safeN (Modsem.sem (sems idx))
+                  (upd_exit (spec:=spec) (ef:=ef) x
+                            (Genv.genv_symb (Modsem.ge (sems idx))))
+                  (Modsem.ge (sems idx)) n z c m)) ->
+  
+  (forall idx : 'I_N,
+     Genv.genv_symb ge = Genv.genv_symb (Modsem.ge (sems idx))) ->
 
-       (forall idx : 'I_N,
-        Genv.genv_symb ge = Genv.genv_symb (Modsem.ge (sems idx))) ->
-
-       forall (n0 : nat) (x : ext_spec_type spec (main_ef main_id)) 
-         (z : Z) (m : juicy_mem) (main_idx : 'I_N) 
+  forall (n0 : nat) (x : ext_spec_type spec (main_ef main_id)) 
+         (z : Ora) (m : juicy_mem) (main_idx : 'I_N) 
          (main_b : block) (args : list val),
-       ext_spec_type spec (main_ef main_id) = unit ->
-       n0 = ageable.level m ->
-       LinkerSem.fun_id (main_ef main_id) = Some main_id ->
-       plt main_id = Some main_idx ->
-       Genv.find_symbol (Modsem.ge (sems main_idx)) main_id = Some main_b ->
-       ext_spec_pre spec (main_ef main_id) x (Genv.genv_symb ge)
-         (sig_args (ef_sig (main_ef main_id))) args z m ->
-       exists l : linker N sems,
-         initial_core (LinkerSem.coresem juicy_mem_ageable N sems plt) ge
-           (Vptr main_b Int.zero) args = Some l /\
-         safeN (LinkerSem.coresem juicy_mem_ageable N sems plt)
-           (upd_exit (spec:=spec) (ef:=main_ef main_id) x (Genv.genv_symb ge))
-           ge n0 z l m.
+    ext_spec_type spec (main_ef main_id) = unit ->
+    n0 = ageable.level m ->
+    LinkerSem.fun_id (main_ef main_id) = Some main_id ->
+    plt main_id = Some main_idx ->
+    Genv.find_symbol (Modsem.ge (sems main_idx)) main_id = Some main_b ->
+    ext_spec_pre spec (main_ef main_id) x (Genv.genv_symb ge)
+                 (sig_args (ef_sig (main_ef main_id))) args z m ->
+    exists l : linker N sems,
+      initial_core (LinkerSem.coresem juicy_mem_ageable N sems plt) ge
+                   (Vptr main_b Int.zero) args = Some l /\
+      safeN (LinkerSem.coresem juicy_mem_ageable N sems plt)
+            (upd_exit (spec:=spec) (ef:=main_ef main_id) x (Genv.genv_symb ge))
+            ge n0 z l m.
 Proof.
-Abort.
+move=> N plt Fs Vs Cs ges sems0 *; apply: linker_safe=> //=.
+by move=> ????? Hstep; apply: (jstep_hrel Hstep).
+move=> Z Hspec idx ?? m m' ?; rewrite -!level_juice_level_phi=> Hag Hsafe.
+by move: (@age_safe (Fs idx) (Vs idx) (Cs idx) (sems0 idx) Z Hspec m' m Hag); apply.
+Qed.
