@@ -26,7 +26,7 @@ Section safety.
       at_external Hcore c = Some (e,sig,args) ->
       ext_spec_pre Hspec e x (Genv.genv_symb ge) (sig_args sig) args z m ->
       (forall ret m' z' n',
-         (n' <= S n)%nat -> 
+         (n' <= n)%nat -> 
          Hrel n' m m' -> 
          ext_spec_post Hspec e x (Genv.genv_symb ge) (sig_res sig) ret z' m' ->
          exists c',
