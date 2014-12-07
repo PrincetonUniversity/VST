@@ -2,6 +2,8 @@ Require Import compcert.lib.Axioms.
 
 Require Import sepcomp. Import SepComp.
 
+Require Import msl.ageable.
+
 Require Import pos.
 Require Import stack. 
 Require Import core_semantics_tcs.
@@ -296,6 +298,7 @@ Qed.
 Module LinkerSem. Section linkerSem.
 
 Variable M : Type.
+Variable Hage : ageable M.
 Variable N : pos.  (* Number of (compile-time) modules *)
 Variable my_cores : 'I_N  -> Modsem.t M.
 Variable my_fn_tbl: ident -> option 'I_N.
@@ -464,10 +467,9 @@ Definition corestep
   corestep0 l m l' m' \/
 
   (** 2- We're in a function call context. In this case, the running core is either *)
-  (m=m' 
+  (age m m' 
    /\ ~corestep0 l m l' m' 
-   /\ 
-      (** 3- at_external, in which case we push a core onto the stack to handle 
+   /\ (** 3- at_external, in which case we push a core onto the stack to handle 
          the external function call (or this is not possible because no module 
          handles the external function id, in which case the entire linker is 
          at_external) *)
@@ -500,7 +502,7 @@ Inductive Corestep : linker N my_cores -> M
     Corestep l m (updCore l (Core.upd (peekCore l) c')) m'
 
 | Corestep_call :
-  forall (l : linker N my_cores) m ef dep_sig args id bf d_ix d
+  forall (l : linker N my_cores) m m' ef dep_sig args id bf d_ix d
          (pf : all (atExternal my_cores) (CallStack.callStack l)),
 
   let: c := peekCore l in
@@ -517,10 +519,11 @@ Inductive Corestep : linker N my_cores -> M
   let: d_sem := Modsem.sem (my_cores d_ix) in
 
   core_semantics.initial_core d_sem d_ge (Vptr bf Int.zero) args = Some d -> 
-  Corestep l m (pushCore l (Core.mk _ _ _ d (ef_sig ef)) pf) m
+  age m m' -> 
+  Corestep l m (pushCore l (Core.mk _ _ _ d (ef_sig ef)) pf) m'
 
 | Corestep_return : 
-  forall (l : linker N my_cores) l'' m rv d',
+  forall (l : linker N my_cores) l'' m m' rv d',
 
   1 < CallStack.callStackSize (stack l) -> 
 
@@ -540,7 +543,8 @@ Inductive Corestep : linker N my_cores -> M
   core_semantics.halted c_sem (Core.c c) = Some rv -> 
   val_has_type_func rv (proj_sig_res c_sg)=true -> 
   core_semantics.after_external d_sem (Some rv) (Core.c d) = Some d' -> 
-  Corestep l m (updCore l'' (Core.upd d d')) m.
+  age m m' ->
+  Corestep l m (updCore l'' (Core.upd d d')) m'.
 
 Lemma CorestepE l m l' m' : 
   Corestep l m l' m' -> 
@@ -590,7 +594,7 @@ Proof.
 case.
 case=> c []step ->.
 by apply: Corestep_step.
-case=> <-.
+case=> Hag.
 case=> nstep.
 case atext: (at_external0 _)=> [[[ef dep_sig] args]|//].
 case funid: (fun_id ef)=> [id|//].
@@ -598,7 +602,7 @@ case hdl:   (handle (ef_sig ef) id l args)=> [l''|//] ->.
 move: hdl; case/handleP=> pf []ix []bf []c []fntbl genv init ->.
 move: init; rewrite /initCore.
 case init: (core_semantics.initial_core _ _ _)=> [c'|//]; case=> <-. 
-by apply: (@Corestep_call _ _ ef dep_sig args id bf).
+by apply: (@Corestep_call _ _ _ ef dep_sig args id bf).
 case inCtx: (inContext _)=> //.
 case hlt: (halted0 _)=> [rv|//].
 case pop: (popCore _)=> [c|//].
@@ -608,7 +612,7 @@ case aft: (core_semantics.after_external _ _)=> [c''|//].
 rewrite /halted0 in hlt; move: hlt.
 case hlt: (core_semantics.halted _)=> //. 
 case oval: (val_has_type_func _ _)=> //; case=> Heq. subst. case=> <-.
-by apply: (@Corestep_return _ _ _ rv c'').
+by apply: (@Corestep_return _ _ _ _ rv c'').
 Qed.
 
 Lemma CorestepP l m l' m' : 
