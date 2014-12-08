@@ -6,10 +6,19 @@ Require Import MirrorCore.RTac.Core.
 (*Require Import MirrorCharge.RTac.ReifyLemma.*)
 Require Import mc_reify.update_tycon.
 
+Section tbled.
+
 Existing Instance SubstUpdate_ctx_subst.
-Locate subst.
+
+Parameter tbl : SymEnv.functions RType_typ.
+
 Instance SS : SubstI.Subst subst (expr typ func) :=
   @FMapSubst.SUBST.Subst_subst _.
+
+Let RSym_sym := RSym_sym tbl.
+Existing Instance RSym_sym.
+
+
 
 Definition REFLEXIVITYTAC : rtac typ (expr typ func) :=
 fun tus tvs n m c s e => 
@@ -23,7 +32,7 @@ fun tus tvs n m c s e =>
 | _ => RTac.Core.Fail
 end.
 
-Lemma REFLEXIVITYTAC_sound tbl :
+Lemma REFLEXIVITYTAC_sound  :
 rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) REFLEXIVITYTAC.
 unfold rtac_sound.
 intros.
@@ -33,7 +42,7 @@ Admitted.
 
 Definition REFLEXIVITY := REFLEXIVITYTAC.
 
-Definition REFLEXIVITY_BOOL tbl : rtac typ (expr typ func) := 
+Definition REFLEXIVITY_BOOL : rtac typ (expr typ func) := 
    fun tus tvs lus lvs c s e =>(
 match e with
 | (App (App (Inj (inr (Other (feq tybool)))) l) r) =>
@@ -44,3 +53,4 @@ match e with
 | _ => Fail
 end).
 
+End tbled.

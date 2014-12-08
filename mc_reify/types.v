@@ -7,9 +7,6 @@ Require Import ExtLib.Data.Fun.
 Require Import progs.list_dt. 
 Require Import Coq.FSets.FMapPositive.
 
-
-
-
 Inductive typ :=
 | tyArr : typ -> typ -> typ
 | tytycontext

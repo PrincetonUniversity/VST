@@ -64,7 +64,53 @@ reflect tbl nil nil (set_reif i vr tr) (typtree typ) = Some pt ->
 PTree.set i v t = pt.
 intros. induction i; simpl in *.
   + destruct (as_tree tr) eqn : atr;  destruct_as_tree. 
-     - unfold reflect in *. cbv_denote in H1. 
+     - unfold reflect in *. 
+
+Require MirrorCore.syms.SymSum.
+
+Existing Instance SymSum.RSymOk_sum.
+Instance RSym_env : RSym SymEnv.func := SymEnv.RSym_func fs.
+
+Lemma ptree_node : forall e0 e1 e2 typ t0 p,
+exprD nil nil (node e1 e0 e2 t0) (typtree typ) =
+       Some p ->
+t0 = typ.
+intros.
+assert (typeof_expr nil nil (node e1 e0 e2 t0) = Some (typtree typ)).
+unfold exprD in H.  simpl in H.
+destruct (exprD' nil nil (typtree typ) (node e1 e0 e2 t0)) eqn:?; simpl in H; try congruence.
+eapply ExprTac.exprD_typeof_Some; auto with typeclass_instances.
+admit. 
+apply Heqo.
+unfold node in H0. Check AppN.apps.
+ change (App (App (App (Inj (inr (Data (fnode t0)))) e1) e0) e2) 
+with (AppN.apps (Inj (inr (Data (fnode t0)))) (e1 :: e0 :: e2 :: nil)) in H0.
+erewrite AppN.type_of_applys_typeof in H0. 
+simpl in H0.
+unfold node in *.
+simpl in *. unfold AppN.apps in *. simpl in *.
+SearchAbout typeof_expr.
+rewrite Heqo.
+reflexivity.
+simpl in H.
+repeat apply SymSum.RSymOk_sum. 
+apply RSym_sum_OK.
+Check @ExprTac.exprD_typeof_Some.
+pose (ExprTac.exprD_typeof_Some). eapply e; auto with typeclass_instances.
+
+apply (@ExprTac.exprD_typeof_Some (expr typ func) _ _ _ _ _ _ _) in H; auto with typeclass_instances.
+simpl.
+SearchAbout exprD'. 
+unfold exprD in H. simpl in H.
+destruct (exprD' nil nil (typtree typ) (node e1 e0 e2 t0)) eqn:?; intros; try congruence. 
+eapply ExprTac.exprD_typeof_eq; eauto with typeclass_instances.
+apply Heqo.
+SearchAbout exprD'. Locate later. Check @seplog.later.
+Print fstatement.
+ unfold node in H. simpl in H.
+unfold exprD in H. sc
+
+       unfold exprD, split_env, ExprI.exprD' in H1. simpl in H1. unfold exprD' in H1. destruct t0; compute in H1.
 Locate exprD'.
 Admitted.
 

@@ -109,7 +109,8 @@ forall  (contents : list val), exists (PO : environ -> mpred),
 intros.
 unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
 reify_expr_tac.
-Time Eval vm_compute in symexe e tbl.
+Time Eval vm_compute in (run_tac  e tbl)
+symexe e tbl.
 Abort.
 
 

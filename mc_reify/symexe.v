@@ -21,8 +21,16 @@ Require Import MirrorCharge.RTac.EApply.
 Require Export mc_reify.funcs.
 Require Import mc_reify.types.
 Require Export mc_reify.reflexivity_tacs.
+Require Import mc_reify.func_defs.
 
 Local Open Scope logic.
+
+Section tbled.
+
+Parameter tbl : SymEnv.functions RType_typ.
+Locate RSym_sym.
+Let RSym_sym := RSym_sym tbl.
+Existing Instance RSym_sym.
 
 Ltac reify_expr_tac :=
 match goal with
@@ -153,9 +161,7 @@ Definition APPLY_SEQ s1 s2 := THEN (APPLY_SEQ' s1 s2) (SIMPL_DELTA).
 Definition APPLY_SET' id e t v r gt:=
 EAPPLY typ func  (set_lemma id e t v r gt).
 
-Check AT_GOAL.
-
-Definition SYMEXE_STEP (tbl: SymEnv.functions RType_typ)
+Definition SYMEXE_STEP
 : rtac typ (expr typ func)  :=
   AT_GOAL  
     (fun c s e => 
@@ -165,7 +171,7 @@ Definition SYMEXE_STEP (tbl: SymEnv.functions RType_typ)
                | Sskip => APPLY_SKIP 
                | Ssequence s1 s2 => APPLY_SEQ s1 s2  
                | Sset id exp => THEN (APPLY_SET' id exp t v r gt) 
-                                     (TRY (FIRST [REFLEXIVITY_BOOL tbl;
+                                     (TRY (FIRST [REFLEXIVITY_BOOL;
                                                    REFLEXIVITY])) 
                | _ => FAIL
              end
@@ -175,18 +181,18 @@ Definition SYMEXE_STEP (tbl: SymEnv.functions RType_typ)
 Existing Instance func_defs.Expr_ok_fs.
 
 
-Definition SYMEXE_TAC tbl := THEN INTROS (REPEAT 1000 (SYMEXE_STEP tbl)).
+Definition SYMEXE_TAC := THEN INTROS (REPEAT 1000 (SYMEXE_STEP)).
 
-Definition SYMEXE1_TAC tbl := THEN INTROS (SYMEXE_STEP tbl).
+Definition SYMEXE1_TAC := THEN INTROS (SYMEXE_STEP).
 
 Definition rreflexivity e :=
 run_tac (REFLEXIVITY) e.
 
-Definition symexe e tbl:=
-run_tac (SYMEXE_TAC tbl) e .
+Definition symexe e :=
+run_tac (SYMEXE_TAC ) e .
 
-Definition symexe1 e tbl :=
-run_tac (SYMEXE1_TAC tbl) e.
+Definition symexe1 e  :=
+run_tac (SYMEXE1_TAC ) e.
 
 Definition test_lemma :=
   @lemmaD typ (expr typ func) RType_typ ExprD.Expr_expr (expr typ func)
@@ -258,4 +264,6 @@ Print LoadPath.
 Eval vm_compute in run_tac (THEN INTROS REFLEXIVITYTAC) e.
 Eval vm_compute in run_tac (THEN INTROS (CANCELLATION typ func tympred is_pure)) e.
 Abort.
+
+End tbled.
 

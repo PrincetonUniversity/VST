@@ -111,9 +111,6 @@ fun t =>
   | _ => None  
 end.
 
-Definition fs : @SymEnv.functions typ _ := SymEnv.from_list nil.
-Instance RSym_env : RSym SymEnv.func := SymEnv.RSym_func fs.
-
 Instance RSym_ilfunc : RSym (@ilfunc typ) := 
 	RSym_ilfunc _ _ ilops.
 Instance RSym_bilfunc : RSym (@bilfunc typ) := 
@@ -121,9 +118,6 @@ Instance RSym_bilfunc : RSym (@bilfunc typ) :=
 
 Existing Instance SymSum.RSym_sum.
 Existing Instance SymSum.RSymOk_sum.
-
-Instance Expr_expr : ExprI.Expr _ (expr typ func) := @Expr_expr typ func _ _ _.
-Instance Expr_ok : @ExprI.ExprOk typ RType_typ (expr typ func) Expr_expr := ExprOk_expr.
 
 Definition subst : Type :=
   FMapSubst.SUBST.raw (expr typ func).

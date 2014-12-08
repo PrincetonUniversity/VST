@@ -61,15 +61,4 @@ unfold join_tycon. repeat rewrite update_temp_eq.
 rewrite update_temp_labeled_eq. reflexivity.
 Qed.
 
-Definition update_tycon_tac (e : expr typ func) (args : list (expr typ func))
-	: expr typ func :=
-match e with
-    | (Inj (inr (Smx (fupdate_tycon)))) => 
-      match args with
-          | [App (Inj (inr (Smx (ftycontext t v r gt)))) gs; (Inj (inr (Smx (fstatement s))))] => 
-            App (Inj (inr (Smx (ftycontext (update_temp t s) v r gt)))) gs
-          | _ =>  AppN.apps e args
-      end
-    | _ => AppN.apps e args
-end.
 
