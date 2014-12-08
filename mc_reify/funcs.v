@@ -318,6 +318,8 @@ Inductive sep :=
 | fprop
 | fdata_at : type -> sep
 | ffield_at : type -> list gfield -> sep
+| fproj_val : type -> sep
+| fupd_val : type -> sep
 (*| flseg : forall (t: type) (i : ident), listspec t i -> sep*)
 . 
 
@@ -352,7 +354,6 @@ with reptyp_unionlist (fld: fieldlist) : typ :=
       else tysum (reptyp ty) (reptyp_unionlist fld')
   end.
  
-Check field_at.
 Definition typeof_sep (s : sep) : typ :=
 match s with
 | fdata_at t => tyArr tyshare (tyArr (reptyp t) (tyArr tyval tympred))
@@ -361,6 +362,11 @@ match s with
                                       (tyArr tyval (tyArr tyval tympred)))*)
 | flocal => tyArr (tyArr tyenviron typrop) (tyArr tyenviron tympred) 
 | fprop => tyArr typrop tympred
+| fproj_val t => tyArr (tylist tygfield)
+                 (tyArr (reptyp t) tyval)
+| fupd_val t => tyArr (tylist tygfield)
+                 (tyArr (reptyp t)
+                  (tyArr tyval (reptyp t)))
 end.
 
 Fixpoint reptyp_reptype  ty {struct ty} : typD  (reptyp ty) -> reptype ty :=
@@ -423,6 +429,65 @@ match
         end
    end.
 
+Fixpoint reptype_reptyp ty {struct ty} : reptype ty -> typD (reptyp ty) :=
+  match ty as ty0 return (reptype ty0 -> typD  (reptyp ty0)) with
+    | Tvoid => fun x : unit => x
+    | Tint i s a => fun x : val => x
+    | Tlong s a => fun x : val => x
+    | Tfloat f a => fun x : val => x
+    | Tpointer t a => fun x : val => x
+    | Tarray t z a => map (reptype_reptyp  t)
+    | Tfunction t t0 c => fun x : unit => x
+    | Tstruct i f a => reptype_structlist_reptyp  f
+    | Tunion i f a => reptype_unionlist_reptyp  f
+    | Tcomp_ptr i a => fun x : val => x
+  end
+with reptype_structlist_reptyp fl {struct fl} : reptype_structlist fl -> typD (reptyp_structlist fl) :=
+  match
+    fl as fl0
+    return (reptype_structlist fl0 -> typD  (reptyp_structlist fl0))
+  with
+    | Fnil => fun x : reptype_structlist Fnil => x
+    | Fcons i t fl0 =>
+      let b := is_Fnil fl0 in
+      if b as b0
+         return
+         ((if b0
+          then reptype t
+          else (reptype t * reptype_structlist fl0)%type) ->
+          typD 
+               (if b0
+                then reptyp t
+                else typrod (reptyp t) (reptyp_structlist fl0)))
+      then reptype_reptyp t
+      else
+        fun x : (reptype t * reptype_structlist fl0)%type =>
+          (reptype_reptyp t (fst x),
+           reptype_structlist_reptyp fl0 (snd x))
+  end
+with reptype_unionlist_reptyp  fl {struct fl} : reptype_unionlist fl -> typD  (reptyp_unionlist fl) :=
+match
+     fl as fl0
+     return (reptype_unionlist fl0 -> typD  (reptyp_unionlist fl0))
+   with
+   | Fnil => fun x : reptype_unionlist Fnil => x
+   | Fcons i t fl0 =>
+       let b := is_Fnil fl0 in
+       if b as b0
+        return
+          ((if b0 then reptype t else (reptype t + reptype_unionlist fl0)%type) ->
+           typD 
+             (if b0
+              then reptyp t
+              else tysum (reptyp t) (reptyp_unionlist fl0)))
+       then reptype_reptyp t
+       else
+        fun x : (reptype t + reptype_unionlist fl0)%type =>
+        match x with
+        | inl y => inl (reptype_reptyp t y)
+        | inr y => inr (reptype_unionlist_reptyp fl0 y)
+        end
+   end.
 
 Definition sepD  (s : sep) : typD  (typeof_sep s).
 Check data_at.
@@ -432,12 +497,18 @@ match s with
 | fprop => prop
 | fdata_at ty =>  _ (*fun sh (t : reptype ty) v => data_at sh ty t v *)
 | ffield_at t ids => _
+| fproj_val ty => _
+| fupd_val ty => _
 (*| flseg t id ls => _*) 
 end.
 { simpl. intros sh rt v.
   exact (data_at sh ty (reptyp_reptype  _ rt) v). }
 { simpl. intros sh ty v.
   exact (field_at sh t ids (reptyp_reptype  _ ty) v). }
+{ simpl. intros gfs v.
+  exact (proj_val ty gfs (reptyp_reptype  _ v)). }
+{ simpl. intros gfs v v0.
+  exact (reptype_reptyp _ (upd_val ty gfs (reptyp_reptype _ v) v0)). }
 (*{ simpl.
   intros sh lf v1 v2.
   exact (@lseg t id ls sh (List.map (reptyp_structlist_reptype  _) lf) v1 v2). }*)
@@ -473,9 +544,11 @@ Inductive smx :=
 | ftc_LR_b_norho
 | ftc_environ
 | ftc_efield_b_norho
+| fnested_efield
+| ftypeof_temp
+| ftc_val
+| flegal_nested_field
 .
-
-Check tc_environ.
 
 Definition typeof_smx (t : smx) :=
 match t with
@@ -517,6 +590,12 @@ match t with
 | ftc_LR_b_norho => tyArr tytycontext (tyArr tyc_expr (tyArr tyllrr tybool))
 | ftc_environ => tyArr tytycontext (tyArr tyenviron typrop)
 | ftc_efield_b_norho => tyArr tytycontext (tyArr (tylist tyefield) tybool)
+| fnested_efield => tyArr tyc_expr
+                    (tyArr (tylist tyefield)
+                     (tyArr (tylist tyc_type) tyc_expr))
+| ftypeof_temp => tyArr tytycontext (tyArr tyident (tyoption tyc_type))
+| ftc_val => tyArr tyc_type (tyArr tyval typrop)
+| flegal_nested_field => tyArr tyc_type (tyArr (tylist tygfield) typrop)
 end.
 
 Definition smxD (t : smx) : typD (typeof_smx t) :=
@@ -547,6 +626,10 @@ match t with
 | ftc_LR_b_norho => tc_LR_b_norho
 | ftc_environ => tc_environ
 | ftc_efield_b_norho => tc_efield_b_norho
+| fnested_efield => nested_efield
+| ftypeof_temp => typeof_temp
+| ftc_val => tc_val
+| flegal_nested_field => legal_nested_field
 end.
 
 Inductive func' :=

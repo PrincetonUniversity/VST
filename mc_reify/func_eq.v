@@ -188,6 +188,8 @@ match a, b with
 | flocal, flocal 
 | fprop, fprop => true
 | fdata_at ty1, fdata_at ty2 => expr.eqb_type ty1 ty2
+| fproj_val ty1, fproj_val ty2 => expr.eqb_type ty1 ty2
+| fupd_val ty1, fupd_val ty2 => expr.eqb_type ty1 ty2
 (*| ffield_at ty1 li1, ffield_at ty2 li2 => andb (expr.eqb_type ty1 ty2) 
                                                (li1 ?[eq] li2)
 | flseg t1 i1 _, flseg t2 i2 _ => andb (expr.eqb_type t1 t2) (BinPos.Pos.eqb i1 i2)*)
@@ -227,6 +229,10 @@ match a, b with
 | ftc_LR_b_norho, ftc_LR_b_norho => true
 | ftc_environ, ftc_environ => true
 | ftc_efield_b_norho, ftc_efield_b_norho => true
+| fnested_efield, fnested_efield => true
+| ftypeof_temp, ftypeof_temp => true
+| ftc_val, ftc_val => true
+| flegal_nested_field, flegal_nested_field => true
 | _, _ => false
 end.
 

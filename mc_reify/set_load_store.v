@@ -48,12 +48,7 @@ Require Export mc_reify.funcs.
 Require Import mc_reify.types.
 Require Export mc_reify.reflexivity_tacs.
 
-Locate type.
 Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
-
-Check field_at.
-
-
 
 Lemma semax_load_localD:
 (*    forall temp var ret gt (* Delta without gs *) id
@@ -70,14 +65,33 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
      (R : list mpred) (Post : environ -> mpred) (e1 : Clight.expr)
      (t : type) (efs : list efield) (gfs : list gfield)
      (tts : list type) (p v : val) (v' : reptype t_root) 
-     (lr : LLRR) (Espec : OracleKind),
-  typeof_temp (mk_tycontext temp var ret gt gs) id = Some t ->
+     (lr : LLRR) (Espec : OracleKind), 
+  typeof_temp (mk_tycontext temp var ret gt gs) id = Some t -> 
+  is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
+  msubst_efield_denote T1 T2 efs = Some gfs ->
+  legal_nested_efield e t_root e1 gfs tts lr = true ->
+  tc_efield_b_norho (mk_tycontext temp var ret gt gs) efs = true ->
+
+  msubst_eval_LR T1 T2 e1 lr = Some p ->
+  tc_LR_b_norho (mk_tycontext temp var ret gt gs) e1 lr = true ->
+  (forall rho, 
+      !!(tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |--
+        (data_at sh t_root v' p) * TT) ->
+      proj_val t_root gfs v' = v ->
+  assertD P (localD (my_set id v T1) T2) R = Post ->
+
+  (forall rho, 
+      !! (tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |--
+        !! (tc_val (typeof (nested_efield e1 efs tts)) v) &&
+        !! (legal_nested_field t_root gfs)) ->
+
   id = id /\ e = e /\ sh = sh /\ P = P /\ T1 = T1 /\
   T2 = T2 /\ R = R /\ Post = Post /\ e1 = e1 /\ t = t /\ t_root = t_root /\
   efs = efs /\
   gfs = gfs /\
   tts = tts /\ p = p /\
-  v = v /\ v' = v' /\ lr = lr /\ Espec = Espec. (*/\
+  v = v /\ v' = v' /\ lr = lr /\ Espec = Espec
+. (* /\
 
 
       typeof_temp (mk_tycontext temp var ret gt gs) id = Some t ->
@@ -92,7 +106,7 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
       (local (tc_environ (mk_tycontext temp var ret gt gs))) && (assertD P (localD T1 T2) R) |--
         `(data_at sh t_root v' p) * TT ->
 
-      repinject _ (proj_reptype t_root gfs v') = v ->
+      proj_val t_root gfs v' = v ->
 
       assertD P (localD (PTree.set id v T1) T2) R = Post ->
 
@@ -102,21 +116,13 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
       semax (mk_tycontext temp var ret gt gs) (|> assertD P (localD T1 T2) R) 
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert Post).*)
-
 Proof.
 Admitted.
-
-Goal False.
-Locate LLRR.
-
-reify_vst (fun x: type_id_env => x).
 
 Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
      (ret : type) (gt : PTree.t type) (id : ident) (t_root : type) : my_lemma.
 reify_lemma reify_vst (semax_load_localD temp var ret gt id t_root).
 Defined.
-
-
 
 Print load_lemma.
 

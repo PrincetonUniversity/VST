@@ -431,5 +431,10 @@ Proof.
   auto.
 Qed.
 
+Definition proj_val t_root gfs v :=
+   repinject (nested_field_type2 t_root gfs) (proj_reptype t_root gfs v).
+
+Definition upd_val t_root gfs v v0 :=
+   upd_reptype t_root gfs v (valinject (nested_field_type2 t_root gfs) v0).
 
 

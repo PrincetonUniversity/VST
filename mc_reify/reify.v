@@ -220,6 +220,11 @@ Reify Pattern patterns_vst +=
       (!!data_at_lemmas.data_at @ ?0 @ ?1) => 
          (fun (a : function reify_vst) (b : id Ctypes.type)  =>
               App (@Inj typ func (inr (Sep (fdata_at b )))) a).
+
+Reify Pattern patterns_vst +=
+      (!!sc_set_load_store.proj_val @ ?0) => 
+         ((fun (a : id Ctypes.type)  =>
+             @Inj typ func (inr (Sep (fproj_val a ))))).
 (*
 Reify Pattern patterns_vst +=
       (!!@field_at.field_at @ ?0 @ ?1) => 
@@ -300,7 +305,7 @@ Reify Pattern patterns_vst +=
       (RHasType Clight.statement (?0)) => (fun (a : id Clight.statement) 
                                        => (@Inj typ func (inr (Smx (fstatement a))))).
 
-Reify Pattern patterns_vst += 
+Reify Pattern patterns_vst_hastype += 
       (RHasType Clight.expr (?0)) => (fun (a : id Clight.expr) 
                                        => (@Inj typ func (inr (Const (fCexpr a))))).
 
@@ -382,10 +387,14 @@ Reify Pattern patterns_vst += (!!sc_set_load_store.msubst_eval_LR) => (@Inj typ 
 Reify Pattern patterns_vst += (!!tc_LR_b_norho) => (@Inj typ func (inr (Smx (ftc_LR_b_norho)))).
 Reify Pattern patterns_vst += (!!SeparationLogic.tc_environ) => (@Inj typ func (inr (Smx (ftc_environ)))).
 Reify Pattern patterns_vst += (!!tc_efield_b_norho) => (@Inj typ func (inr (Smx (ftc_efield_b_norho)))).
+Reify Pattern patterns_vst += (!!efield_lemmas.nested_efield) => (@Inj typ func (inr (Smx (fnested_efield)))).
+Reify Pattern patterns_vst += (!!SeparationLogic.typeof_temp) => (@Inj typ func (inr (Smx (ftypeof_temp)))).
+Reify Pattern patterns_vst += (!!veric.expr.tc_val) => (@Inj typ func (inr (Smx (ftc_val)))).
+Reify Pattern patterns_vst += (!!nested_field_lemmas.legal_nested_field) => (@Inj typ func (inr (Smx (flegal_nested_field)))).
 
 Ltac reify_typ trm :=
-  let k e :=
-      pose e
+  let k ee :=
+      pose ee
   in
   reify_expr reify_vst_typ k [ True ] [ trm ].
 
@@ -402,12 +411,12 @@ Ltac reify_typ trm :=
 Let elem_ctor : forall x : typ, typD x -> @SymEnv.function _ _ :=
   @SymEnv.F _ _.
 
-Ltac reify_vst e :=
-  let k fs e :=
-      pose e in
+Ltac reify_vst eee :=
+  let k fs eee :=
+      pose eee in
   reify_expr reify_vst k
              [ (fun (y : @mk_dvar_map _ _ _  _ term_table elem_ctor) => True) ]
-             [ e ].
+             [ eee ].
 
 Ltac get_tbl :=
 match goal with
