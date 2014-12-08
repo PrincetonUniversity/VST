@@ -1593,17 +1593,15 @@ change ((ext_spec_post' Espec e x' (Genv.genv_symb psi) (opttyp_of_type retty) r
           (Q' x (make_ext_rval  (filter_genv psi) ret0) *
               (F0 (construct_rho (filter_genv psi) vx tx) *
                F (construct_rho (filter_genv psi) vx tx)))) (level jm')) in H15.
-assert (level jm' >= level m')%nat. 
+assert (level jm' > level m')%nat. 
 {
- do 2 rewrite level_juice_level_phi.
- destruct H6.
- auto.
+ destruct H8 as (?&?&?); auto.
 }
 apply (pred_nec_hereditary _ _ (level m')) in H15;
  [ | apply nec_nat; omega].
 clear H6.
 rename H7 into H6.
-specialize (H15 m' (le_refl _) _ (necR_refl _) H8).
+specialize (H15 m' (le_refl _) _ (necR_refl _) H9).
 
 pose (tx' := match ret,ret0 with 
                    | Some id, Some v => PTree.set id v tx 
@@ -1612,7 +1610,7 @@ pose (tx' := match ret,ret0 with
 
 specialize (H1 EK_normal None tx' vx (m_phi m')).
 spec H1. 
-{ clear - H0 H9.
+{ clear - H0 H10.
   change (level jm >= level m')%nat. 
   apply age_level in H0. omega.
 }
@@ -1623,7 +1621,7 @@ do 3 red in H5.
 specialize (H1 _ (necR_refl _)).
 
 assert (Htc: tc_option_val retty ret0).
-{clear - TCret TC3 H6 TC5 H15 Hretty H8 H9 H0.
+{clear - TCret TC3 H6 TC5 H15 Hretty H8 H10 H0.
  destruct H15 as [phi1 [phi2 [Ha [Hb Hc]]]].
  specialize (Hretty x ret0 phi1).
  spec Hretty. 
@@ -1651,7 +1649,7 @@ split.
  simpl. 
  destruct TC3 as [TC3 _].
  destruct ret; try apply TC3. {
- clear - TCret TC3 H6 TC5 H15 Hretty H8 H9 H0.
+ clear - TCret TC3 H6 TC5 H15 Hretty H8 H10 H0.
  simpl in TCret.
  destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?; try contradiction.
  subst retty.
@@ -1701,8 +1699,33 @@ split.
  split.
 Focus 2. {
 assert (H4': (funassert Delta (construct_rho (filter_genv psi) vx tx)) (m_phi m')).
-clear - H0 H8 H4.
-admit.  (* need juicy_ext_spec to guarantee that the PURE part stays the same *)
+{ clear - H0 H8 H4.
+destruct H8 as (?&?&?).
+destruct H4. 
+assert (Hnec: necR (m_phi jm) (m_phi jm')). {
+  cut (age jm jm'). intro Hx. 
+  constructor. apply age_jm_phi in Hx; auto. eauto.
+}
+split.
+* intros id fs ???.
+specialize (H3 id fs (m_phi jm')). 
+specialize (H3 Hnec); spec H3; auto.
+destruct H3 as [b [? ?]].
+specialize (H2 (b,0)).
+unfold func_at in H7. destruct fs; simpl in *.
+rewrite H7 in H2.
+apply (necR_PURE (m_phi m') a') in H2; eauto.
+exists b. split; auto. rewrite H2. simpl. 
+f_equal. f_equal. 
+assert (Hlev1: (level (m_phi m') >= level a')%nat).
+{ apply necR_level in H5; auto. }
+rewrite <-compose_assoc, approx_oo_approx'; auto.
+rewrite <-compose_assoc, approx_oo_approx'; auto. omega.
+* intros b fs ???.
+specialize (H4 b fs (m_phi jm')). 
+specialize (H4 Hnec); spec H4; auto.
+admit. (*pures_sub must go both ways*)
+}
 match type of H4' with ?A => match goal with |- ?B => replace B with A; auto end end.
 f_equal.
 apply same_glob_funassert'; auto.
@@ -1717,7 +1740,7 @@ assert (H15': ((!!tc_option_val retty ret0 && Q x (make_ext_rval (filter_genv ps
        F0 (construct_rho (filter_genv psi) vx tx))%pred (m_phi m')). {
 rewrite sepcon_assoc in H15|-*.
 destruct H15 as [w1 [w2 [? [? ?]]]]; exists w1; exists w2; split3; auto.
-clear - H7 H1 H9 H11 H0 Hretty.
+clear - H7 H1 H10 H11 H0 Hretty.
 specialize (H11 (make_ext_rval (filter_genv psi) ret0) (level (m_phi jm'))).
 specialize (Hretty x ret0 w1).
 spec H11.
@@ -1858,7 +1881,10 @@ spec H1; auto.
 spec H1; auto.
 revert H1.
 unfold jsafeN, safeN, tx'.
-admit. (* still needs some work *)
+destruct H8 as (?&?&?).
+subst n'.
+rewrite level_juice_level_phi.
+destruct ret; destruct ret0; auto.
 Qed.
 
 Lemma alloc_juicy_variables_age:
@@ -2720,14 +2746,6 @@ clear H6; pose (H6:=True).
 clear H9; pose (H9:=True).
 
 unfold filter_genv in H7.
-(* destruct (type_of_global psi b); split; auto.
- rewrite Int.signed_zero in H12. *)
-(* pose proof (Int.repr_unsigned i).  *)
-(* rewrite <- H12 in H0. subst; reflexivity. *)
-(* destruct H0; subst b0 i.*)
-(*clear H11. pose (H16:=True).
-clear H12; pose (H12:=True).
-*)
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 set (args := eval_exprlist (snd (split argsig)) bl rho).
 fold args in H5.

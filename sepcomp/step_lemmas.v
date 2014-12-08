@@ -8,7 +8,7 @@ Require Import core_semantics_lemmas.
 
 Section safety.
   Context {F V C M Z:Type}.
-  Context {Hrel: M -> M -> Prop}.
+  Context {Hrel: nat -> M -> M -> Prop}.
   Context (Hcore:CoreSemantics (Genv.t F V) C M).
   Variable (Hspec:external_specification M external_function Z).
 
@@ -25,12 +25,13 @@ Section safety.
       forall n z c m e sig args x,
       at_external Hcore c = Some (e,sig,args) ->
       ext_spec_pre Hspec e x (Genv.genv_symb ge) (sig_args sig) args z m ->
-      (forall ret m' z',
-         Hrel m m' -> 
+      (forall ret m' z' n',
+         (n' <= n)%nat -> 
+         Hrel n' m m' -> 
          ext_spec_post Hspec e x (Genv.genv_symb ge) (sig_res sig) ret z' m' ->
          exists c',
            after_external Hcore ret c = Some c' /\
-           safeN_ n z' c' m') -> 
+           safeN_ n' z' c' m') -> 
       safeN_ (S n) z c m
   | safeN_halted:
       forall n z c m i,
@@ -70,9 +71,7 @@ Section safety.
     induction n. econstructor; eauto.
     intros c m z H. inv H.
     + econstructor; eauto. 
-    + eapply safeN_external; eauto. intros.
-      specialize (H3 _ _ _ H H0). destruct H3 as [c' [? ?]].
-      exists c'; split; auto. 
+    + eapply safeN_external; eauto. 
     + eapply safeN_halted; eauto.
   Qed.
 
@@ -152,8 +151,8 @@ Section safety.
     + econstructor; eauto.
     + eapply safeN_external; eauto.
       rewrite <-H; auto.
-      intros ??? H8 H9.
-      specialize (H7 _ _ _ H8 H9).
+      intros ????? H8 H9.
+      specialize (H7 _ _ _ _ H3 H8 H9).
       destruct H7 as [c' [? ?]].
       exists c'; split; auto.
     + eapply safeN_halted; eauto.
@@ -175,5 +174,5 @@ Section dry_safety.
   Context {F V C M Z:Type}.
   Context (Hcore:CoreSemantics (Genv.t F V) C M).
   Variable (Hspec:external_specification M external_function Z).
-  Definition dry_safeN := @safeN_ F V C M Z (fun m m' => True) Hcore Hspec.
+  Definition dry_safeN := @safeN_ F V C M Z (fun n' m m' => True) Hcore Hspec.
 End dry_safety.

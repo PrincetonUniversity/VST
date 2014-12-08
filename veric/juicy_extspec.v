@@ -215,35 +215,28 @@ Proof.
   + eapply safeN_external; eauto.
     eapply JE_pre_hered; eauto. 
     intros.
-    destruct (H4 ret m' z') as [c' [? ?]].
+    destruct (H4 ret m' z' n') as [c' [? ?]]; auto.
     assert (level (m_phi jm) < level (m_phi jm0)).
     { apply age_level in H2.
       do 2 rewrite <-level_juice_level_phi.
+      destruct H0.
       rewrite H2; omega. }
-    destruct H.
-    split; auto.
-    do 2 rewrite <-level_juice_level_phi in H5. omega.
-    unfold pures_sub in H6. intros adr. specialize (H6 adr).
+    destruct H0 as (?&?&?). split3; auto. 
+    do 2 rewrite <-level_juice_level_phi in H6. omega.
+    unfold pures_sub in H8. intros adr. specialize (H8 adr).
     assert (Hage: age (m_phi jm0) (m_phi jm)).
     { apply age_jm_phi; auto. }
     case_eq (m_phi jm0 @ adr); auto.
     intros k p Hphi.
     apply age1_resource_at with (loc := adr) (r := PURE k p) in Hage; auto.
-    rewrite Hage in H6; rewrite  H6; simpl.
+    rewrite Hage in H8; rewrite  H8; simpl.
     f_equal. unfold preds_fmap. destruct p. f_equal.
-    generalize (approx'_oo_approx (level jm) (level m')); intros H7.
-    spec H7. omega.
+    generalize (approx'_oo_approx (level jm) (level m')); intros H9.
+    spec H9. omega.
     do 2 rewrite <-level_juice_level_phi.
-    rewrite <-compose_assoc.
-    rewrite H7.
-    auto.
-    rewrite <-resource_at_approx.
-    rewrite Hphi.
-    auto.
-     auto.
+    rewrite <-compose_assoc, H9; auto.
+    rewrite <-resource_at_approx, Hphi; auto.
     exists c'; split; auto.
-    eapply safe_downward; try eassumption. 
-    omega.
   + unfold j_halted in *.
     eapply safeN_halted; eauto.
     eapply JE_exit_hered; eauto.

@@ -1263,16 +1263,15 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
   inv H5.
   { destruct H7 as (?&?&?). inv H5. }
   { eapply safeN_external; eauto. 
-    intros ret m'0 z'' H10 H11; specialize (H9 ret m'0 z'' H10 H11).
+    intros ret m'0 z'' n'' Hle H10 H11; specialize (H9 ret m'0 z'' n'' Hle H10 H11).
     destruct H9 as [c' [? ?]]. simpl in H5. unfold cl_after_external in *.
     destruct ret as [ret|]. destruct optid.
     exists (State ve (PTree.set i ret te) (l ++ ctl2)); split; auto.
-    inv H5. apply H4; auto.
+    inv H5. apply H4; auto. 
+    destruct H10 as (?&?&?). inv H5. 
+    exists (State ve te (l ++ ctl2)); split; auto. apply H4; auto.
     exists (State ve te (l ++ ctl2)); split; auto.
-    inv H5. apply H4; auto.
-    exists (State ve te (l ++ ctl2)); split; auto.
-    destruct optid; auto. congruence.
-    apply H4; auto.
+    destruct optid; auto. congruence. apply H4; auto.
     destruct optid; auto. inv H5. inv H5; auto. }
   { simpl in H6. unfold cl_halted in H6. congruence. } }
   (* sequence  *)
