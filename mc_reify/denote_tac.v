@@ -39,7 +39,7 @@ Ltac cbv_denote :=
           ExprDsimul.ExprDenote.exprD'
           (* RSym *)
           
-          SymSum.RSym_sum Rcast Relim Rsym eq_sym symD RSym_env
+          SymSum.RSym_sum Rcast Relim Rsym eq_sym symD (*RSym_env*)
           Rcast_val eq_rect_r eq_rect Datatypes.id
           
           (* Monad *)

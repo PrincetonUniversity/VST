@@ -14,7 +14,6 @@ match e with
 | _ => d
 end.
 
-Check eval_field.
 Inductive val_e :=
     Vundef : val_e
   | Vint : int -> val_e
@@ -47,7 +46,7 @@ match v with
 end.
 
 Definition msubst_var id T2 ty :=
-match get_reif id T2 with
+match get_reif id T2 tyval with
   | App (Inj (inr (Other (fsome t)))) 
         (App (App (Inj (inr (Data (fpair t1 t2))))
                   (Inj (inr (Const (fCtype ty')))))
@@ -65,7 +64,7 @@ Fixpoint msubst_eval_expr_reif (T1: ExprCore.expr typ func) (T2: ExprCore.expr t
   | Econst_long i ty => Some (Vlong i)
   | Econst_float f ty => Some (Vfloat f)
   | Econst_single f ty => Some (Vsingle f)
-  | Etempvar id ty => match get_reif id T1 with
+  | Etempvar id ty => match get_reif id T1 tyval with
                         | (App (Inj (inr (Other (fsome t)))) v) => Some (Vexpr v)
                         | _ => None
                       end
