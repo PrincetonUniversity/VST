@@ -140,7 +140,7 @@ Variable corestep_hrel:
   [/\ Hrel (ageable.level m') m m' 
     & ageable.level m = (ageable.level m').+1].
 
-(** 7) *)
+(** 7) safeN is closed under aging. *)
 
 Variable age_safe:
   forall Z (Hspec : juicy_ext_spec Z) idx (z : Z) ge m m' c,
