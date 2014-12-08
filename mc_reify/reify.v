@@ -409,7 +409,7 @@ Ltac reify_typ trm :=
   reify_expr reify_vst k [ True ] [ trm ]
 (*end*).*)
 
-Let elem_ctor : forall x : typ, typD x -> @SymEnv.function _ _ :=
+Let elem_ctor : forall x : typ, typD x -> @SymEnv.function typ _ :=
   @SymEnv.F _ _.
 
 Ltac reify_vst eee :=

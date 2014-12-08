@@ -7,9 +7,6 @@ Require Import ExtLib.Data.Fun.
 Require Import progs.list_dt. 
 Require Import Coq.FSets.FMapPositive.
 
-
-
-
 Inductive typ :=
 | tyArr : typ -> typ -> typ
 | tytycontext
@@ -45,7 +42,7 @@ Inductive typ :=
 | tysum : typ -> typ -> typ
 | typrod : typ -> typ -> typ
 | tyunit
-| tylistspec : type -> ident -> typ
+(*| tylistspec : type -> ident -> typ*)
 | tyOracleKind
 | tystatement
 | tyret_assert
@@ -95,7 +92,7 @@ Fixpoint typD (t : typ) (*(m : PositiveMap.t Type)*): Type :=
         | tysum t1 t2 => sum (typD  t1 ) (typD  t2 )
         | typrod t1 t2 => prod (typD  t1 ) (typD  t2 )
         | tyunit => unit
-        | tylistspec t i => listspec t i 
+        (*| tylistspec t i => listspec t i *)
         | tyOracleKind => OracleKind
         | tystatement => statement
         | tyret_assert => ret_assert
@@ -118,8 +115,11 @@ apply proof_irr.
 apply proof_irr.
 Qed.
 *)
+
 Definition typ_eq_dec : forall a b : typ, {a = b} + {a <> b}.
   decide equality.
+Defined.
+(*
   consider (eqb_ident i i0); intros;
   try rewrite eqb_ident_spec in H. auto.
   destruct (eqb_ident_spec i i0). right. intro. intuition. subst.
@@ -129,7 +129,7 @@ Definition typ_eq_dec : forall a b : typ, {a = b} + {a <> b}.
   destruct (eqb_type_spec t t0).
   right; intuition; subst; congruence.
  Defined.
-
+*)
 
 Instance RelDec_eq_typ : RelDec (@eq typ) :=
 { rel_dec := fun a b =>
@@ -208,5 +208,4 @@ Instance Typ0_tyProp : Typ0 _ Prop :=
                      | _ => fun _ fa => fa
                    end
  |}.
-
 

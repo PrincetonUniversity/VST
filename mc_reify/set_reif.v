@@ -6,7 +6,6 @@ Require Import MirrorCore.Lambda.ExprCore.
 Require Import mc_reify.get_set_reif.
 Require Import mc_reify.func_defs.
 
-
 Definition match_reif_option {B: Type} (e: expr typ func) (somef : typ -> expr typ func -> B)
            (nonef : typ -> B) (d : B) := 
 match e with 
@@ -197,17 +196,13 @@ intros.
 split; intros; induction a; simpl in *; intuition.
 Qed.
 
-Lemma LocalD_to_localD : forall P R t l X,
-PROPx (P) (LOCALx (LocalD t l X) (SEPx (R))) |--
+Lemma LocalD_to_localD : forall P R t l,
+PROPx (P) (LOCALx (LocalD t l []) (SEPx (R))) =
 PROPx (P) (LOCALx (localD t l) (SEPx (R))).
 Proof.
-intros. entailer.
-apply prop_right.
-unfold localD. 
-repeat rewrite LocalD_app_eq in *.
-unfold LocalD_app in *.
-repeat rewrite fold_right_conj in *.
-intuition. simpl. apply I.
+intros. apply pred_ext.
+ entailer.
+entailer.
 Qed.
 
 

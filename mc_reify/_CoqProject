@@ -10,4 +10,4 @@
 -R ../mc_reify/mirror-core/theories MirrorCore
 -R ../../MirrorCharge/MirrorCharge!/bin/MirrorCharge MirrorCharge
 -R ../../Charge/Charge!/bin/Charge Charge
-
+-R ../../Java/Java/bin/Java Java

@@ -9,7 +9,7 @@ Require Export mc_reify.bool_funcs.
 Require MirrorCore.syms.SymEnv.
 Require MirrorCore.syms.SymSum.
 Require Import MirrorCore.Subst.FMapSubst.
-Require Import MirrorCharge.RTac.ReifyLemma.
+(*Require Import MirrorCharge.RTac.ReifyLemma.*)
 Require Import floyd.proofauto.
 Require Export MirrorCore.Lambda.Expr.
 Require Export mc_reify.types.
@@ -111,9 +111,6 @@ fun t =>
   | _ => None  
 end.
 
-Definition fs : @SymEnv.functions typ _ := SymEnv.from_list nil.
-Instance RSym_env : RSym SymEnv.func := SymEnv.RSym_func fs.
-
 Instance RSym_ilfunc : RSym (@ilfunc typ) := 
 	RSym_ilfunc _ _ ilops.
 Instance RSym_bilfunc : RSym (@bilfunc typ) := 
@@ -121,9 +118,6 @@ Instance RSym_bilfunc : RSym (@bilfunc typ) :=
 
 Existing Instance SymSum.RSym_sum.
 Existing Instance SymSum.RSymOk_sum.
-
-Instance Expr_expr : ExprI.Expr _ (expr typ func) := @Expr_expr typ func _ _ _.
-Instance Expr_ok : @ExprI.ExprOk typ RType_typ (expr typ func) Expr_expr := ExprOk_expr.
 
 Definition subst : Type :=
   FMapSubst.SUBST.raw (expr typ func).
@@ -146,6 +140,11 @@ Definition reflect ft tus tvs e (ty : typ)
  := @exprD _ _ _ (Expr_expr_fs ft) tus tvs e ty.
 
 Definition reflect_prop tbl e := reflect tbl nil nil e (typrop).
+
+Definition reflect_prop' tbl e := match (reflect tbl nil nil e typrop) with
+| Some p => p
+| None => False
+end.
 
 Definition node l o r t : expr typ func := 
 (App (App (App (Inj (inr (Data (fnode t)))) l) o) r).
