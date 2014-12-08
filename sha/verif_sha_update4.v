@@ -86,7 +86,8 @@ Lemma update_loop_body_proof:
          (Ebinop Oge (Etempvar _len tuint)
             (Ebinop Omul (Econst_int (Int.repr 16) tint)
                (Econst_int (Int.repr 4) tint) tint) tint));
-    temp _p (offset_val (Int.repr 40) c); temp _c c;
+    temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
+    temp _c c;
     temp _data (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length frag))) d);
     temp _len (Vint
           (Int.repr (Z.of_nat (len - (length blocks * 4 - length frag)))));
@@ -191,13 +192,20 @@ rewrite NPeano.Nat.add_sub_swap by auto.
  f_equal.
  rewrite app_length. rewrite mult_plus_distr_r. 
  apply Zlength_length in H7; auto. rewrite H7.
- change (16*4)%Z with  (Z.of_nat (LBLOCK*4)).
- symmetry.  rewrite <- Nat2Z.inj_sub by auto.
- f_equal.
+ clear - Hblocks' H0 Hlen_ge Hlen .
+ change (Z.to_nat LBLOCKz * 4)%nat with (Z.to_nat 64).
+ assert (length blocks * 4 - length frag + 64 <= len).
+  { 
+   change 64%Z with (Z.of_nat 64) in H0.
+   apply Nat2Z.inj_ge in H0. clear - H0; omega.
+ }
+ change (Z.to_nat 64) with 64.
+ rewrite <- (Nat2Z.inj_sub _ 64) by omega.
+ rewrite Nat2Z.inj_sub by omega. 
  rewrite <- NPeano.Nat.sub_add_distr by auto.
- f_equal.
+ rewrite (Nat2Z.inj_sub len) by omega.
  rewrite NPeano.Nat.add_sub_swap by auto.
- auto.
+ reflexivity.
 *
  rewrite app_ass.
  rewrite (split3_data_block (length blocks * 4 - length frag) CBLOCK sh data)
@@ -241,7 +249,7 @@ semax
   (PROP  ()
    LOCAL 
    (temp _p (deref_noload (tarray tuchar 64)
-           (offset_val (Int.repr 40) (force_ptr c)));
+           (field_address t_struct_SHA256state_st [StructField _data]  (force_ptr c)));
     temp _n (Vint (Int.repr (Zlength dd)));
     temp _data d; temp _c c; temp _data_ d;
     temp _len (Vint (Int.repr (Z.of_nat len)));

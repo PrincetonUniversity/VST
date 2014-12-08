@@ -122,6 +122,7 @@ VFILES:=bool_funcs.v\
   symexe_soundness.v\
   symexe.v\
   typ_eq.v\
+  set_load_store.v\
   types.v\
   update_tycon.v
 

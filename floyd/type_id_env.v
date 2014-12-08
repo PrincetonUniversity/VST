@@ -61,3 +61,10 @@ Definition compute_type_id_env (Delta: tycontext): type_id_env :=
        let e4 := PTree.fold1 (fun e X => add_type X e) D e3 in
        e4
   end.
+
+Definition uncompomize (e: type_id_env) (t: type) : type :=
+  match t with
+  | Tcomp_ptr i a => Tpointer (look_up_ident_default i e) a
+  | _ => t
+  end.
+

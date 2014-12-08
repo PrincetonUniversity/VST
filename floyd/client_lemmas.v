@@ -1753,6 +1753,27 @@ Lemma subst_ewand: forall i v (P Q: environ->mpred),
 Proof. reflexivity. Qed.
 Hint Rewrite subst_ewand : subst.
 
+Lemma fold_right_sepcon_subst:
+ forall i e R, fold_right sepcon emp (map (subst i e) R) = subst i e (fold_right sepcon emp R).
+Proof.
+ intros. induction R; auto.
+ autorewrite with subst. f_equal; auto.
+Qed.
+
+Lemma resubst: forall {A} i (v: val) (e: environ -> A), subst i (`v) (subst i `v e) = subst i `v e.
+Proof.
+ intros. extensionality rho. unfold subst.
+ f_equal.
+ unfold env_set. 
+ f_equal.
+ apply Map.ext. intro j.
+ destruct (eq_dec i j). subst. repeat rewrite Map.gss. f_equal.
+ simpl.
+ repeat rewrite Map.gso by auto. auto.
+Qed.
+
+Hint Rewrite @resubst : subst.
+
 Definition type_is_by_value t :=
   match t with
   | Tint _ _ a => True
@@ -1761,4 +1782,23 @@ Definition type_is_by_value t :=
   | Tpointer _ a => True
   | _ => False
   end.
+
+Lemma unsigned_eq_eq: forall i j, Int.unsigned i = Int.unsigned j -> i = j.
+Proof.
+  intros.
+  rewrite <- (Int.repr_unsigned i), <- (Int.repr_unsigned j).
+  rewrite H.
+  reflexivity.
+Qed.
+
+Ltac solve_mod_eq :=
+  unfold Int.add, Int.mul;
+  repeat rewrite Int.unsigned_repr_eq;
+  repeat
+  (repeat rewrite Zmod_mod;
+  repeat rewrite Zmult_mod_idemp_l;
+  repeat rewrite Zmult_mod_idemp_r;
+  repeat rewrite Zplus_mod_idemp_l;
+  repeat rewrite Zplus_mod_idemp_r).
+
 

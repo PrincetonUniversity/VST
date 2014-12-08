@@ -22,8 +22,9 @@ Section juicy_safety.
   Context {F V C Z:Type}.
   Context (Hcore:CoreSemantics (Genv.t F V) C juicy_mem).
   Variable (Hspec:external_specification juicy_mem external_function Z).
-  Definition Hrel m m' :=
-    (level m' <= level m)%nat /\ 
+  Definition Hrel n' m m' :=
+    n' = level m' /\
+    (level m' < level m)%nat /\ 
     pures_sub m m'.
   Definition safeN := @safeN_ F V C juicy_mem Z Hrel Hcore Hspec.
 End juicy_safety.

@@ -213,7 +213,7 @@ Lemma semax_set_localD id e (t: PTree.t (type * bool)) (v : PTree.t type)
 forall vl ls vs Espec R gs P,
 tc_expr_b_norho (mk_tycontext t v r gt gs) e= true ->
 tc_temp_id_b_norho id (typeof e) (mk_tycontext t v r gt gs) e = true ->
-msubst_eval_expr_norho ls vs e = Some vl ->
+msubst_eval_expr ls vs e = Some vl ->
 (assertD nil (localD (my_set id vl ls) vs) R) = P -> 
 @semax Espec (mk_tycontext t v r gt gs) (assertD nil (localD ls vs) R)
       (Sset id e)

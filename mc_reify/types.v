@@ -50,6 +50,9 @@ Inductive typ :=
 | typtree : typ -> typ
 | tygfield
 | tyfunspec
+| tyefield
+| tytype_id_env
+| tyllrr
 (*| tyother : positive -> typ*)
 .
 
@@ -98,6 +101,9 @@ Fixpoint typD (t : typ) (*(m : PositiveMap.t Type)*): Type :=
         | typtree t => PTree.t (typD t)
         | tygfield => gfield
         | tyfunspec => funspec
+        | tyefield => efield
+        | tytype_id_env => type_id_env
+        | tyllrr => LLRR
     end.
 (*
 Lemma listspec_ext : forall t i (a b: listspec t i), a = b.

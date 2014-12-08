@@ -188,6 +188,8 @@ match a, b with
 | flocal, flocal 
 | fprop, fprop => true
 | fdata_at ty1, fdata_at ty2 => expr.eqb_type ty1 ty2
+| fproj_val ty1, fproj_val ty2 => expr.eqb_type ty1 ty2
+| fupd_val ty1, fupd_val ty2 => expr.eqb_type ty1 ty2
 (*| ffield_at ty1 li1, ffield_at ty2 li2 => andb (expr.eqb_type ty1 ty2) 
                                                (li1 ?[eq] li2)
 | flseg t1 i1 _, flseg t2 i2 _ => andb (expr.eqb_type t1 t2) (BinPos.Pos.eqb i1 i2)*)
@@ -265,7 +267,7 @@ intros. destruct a, b.
 solve_expr_beq_sound.
 destruct b, b0; simpl in H0; congruence.
 Qed.
-Check ftycontext.
+
 Definition smx_beq a b :=
 match a, b with
 | fsemax, fsemax
@@ -278,6 +280,20 @@ match a, b with
        (andb (ptree_cmp l1 l2 expr.eqb_type)
              (andb (expr.eqb_type r1 r2)
                    (ptree_cmp gt1 gt2 expr.eqb_type))) 
+| flater, flater => true
+| fnested_field_type2, fnested_field_type2 => true
+| fis_neutral_cast, fis_neutral_cast => true
+| fmsubst_efield_denote, fmsubst_efield_denote => true
+| flegal_nested_efield, flegal_nested_efield => true
+| fmsubst_eval_LR, fmsubst_eval_LR => true
+| ftc_LR_b_norho, ftc_LR_b_norho => true
+| ftc_environ, ftc_environ => true
+| ftc_efield_b_norho, ftc_efield_b_norho => true
+| fnested_efield, fnested_efield => true
+| ftypeof_temp, ftypeof_temp => true
+| ftc_val, ftc_val => true
+| flegal_nested_field, flegal_nested_field => true
+| fnested_efield_rel, fnested_efield_rel => true
 | _, _ => false
 end.
 

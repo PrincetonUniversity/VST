@@ -844,3 +844,315 @@ destruct v; simpl; auto.
 Qed.
 
 Hint Rewrite mapsto_force_ptr: norm.
+
+(***************************************
+
+Auxilliary Lemmas
+
+***************************************)
+
+Lemma remove_PROP_LOCAL_left: forall P Q R S, R |-- S -> PROPx P (LOCALx Q R) |-- S.
+Proof.
+  intros.
+  go_lower.
+  normalize.
+Qed.
+
+Lemma remove_PROP_LOCAL_left': forall P Q R S, R |-- S -> PROPx P (LOCALx Q SEP (R)) |-- S.
+Proof.
+  intros.
+  go_lower.
+  normalize.
+Qed.
+
+Lemma SEP_nth_isolate:
+  forall n R Rn, nth_error R n = Some Rn ->
+      SEPx R = SEPx (Rn :: replace_nth n R emp).
+Proof.
+ unfold SEPx.
+ induction n; destruct R; intros; inv H; extensionality rho.
+ simpl; rewrite emp_sepcon; auto.
+ unfold replace_nth; fold @replace_nth.
+ transitivity (m rho * fold_right sepcon emp R rho).
+ reflexivity.
+ rewrite (IHn R Rn H1).
+ simpl.
+ rewrite <- sepcon_assoc.
+ rewrite (sepcon_comm (Rn rho)).
+ simpl.
+ repeat rewrite sepcon_assoc.
+ f_equal. rewrite sepcon_comm; reflexivity.
+Qed.
+
+Lemma nth_error_SEP_sepcon_TT: forall P Q R n Rn S,
+  PROPx P (LOCALx Q (SEPx (Rn :: nil))) |-- S ->
+  nth_error R n = Some Rn ->
+  PROPx P (LOCALx Q (SEPx R)) |-- S * TT.
+Proof.
+  intros.
+  erewrite SEP_nth_isolate by eauto.
+  unfold PROPx, LOCALx, SEPx in *.
+  unfold local, lift1 in H |- *.
+  unfold_lift in H.
+  unfold_lift.
+  simpl in H |- *.
+  intros rho.
+  specialize (H rho).
+  rewrite <- !andp_assoc in H |- *.
+  rewrite <- !prop_and in H |- *.
+  rewrite sepcon_emp in H.
+  rewrite <- sepcon_andp_prop'.
+  apply sepcon_derives.
+  exact H.
+  apply prop_right.
+  auto.
+Qed.
+
+Lemma SEP_replace_nth_isolate:
+  forall n R Rn Rn', 
+       nth_error R n = Some Rn ->
+      SEPx (replace_nth n R Rn') = SEPx (Rn' :: replace_nth n R emp).
+Proof.
+ unfold SEPx.
+ intros.
+ revert R H.
+ induction n; destruct R; intros; inv H; intros; extensionality rho.
+ simpl; rewrite emp_sepcon; auto.
+ unfold replace_nth; fold @replace_nth.
+ transitivity (m rho * fold_right sepcon emp (replace_nth n R Rn') rho).
+ reflexivity.
+ rewrite (IHn R H1). clear IHn.
+ simpl.
+ repeat rewrite <- sepcon_assoc.
+ rewrite (sepcon_comm (Rn' rho)).
+ rewrite sepcon_assoc.
+ reflexivity.
+Qed.
+
+Lemma replace_nth_replace_nth: forall {A: Type} R n {Rn Rn': A},
+  replace_nth n (replace_nth n R Rn) Rn' = replace_nth n R Rn'.
+Proof.
+  intros.
+  revert R; induction n; destruct R; simpl in *.
+  + reflexivity.
+  + reflexivity.
+  + reflexivity.
+  + rewrite IHn.
+    reflexivity.
+Qed.
+
+Lemma local_andp_lemma:
+  forall P Q, P |-- local Q -> P = local Q && P.
+Proof.
+intros.
+apply pred_ext.
+apply andp_right; auto.
+apply andp_left2; auto.
+Qed.
+
+Lemma SEP_TT_right:
+  forall R, R |-- SEP(TT).
+Proof. intros. go_lowerx. rewrite sepcon_emp. apply TT_right.
+Qed.
+
+Lemma replace_nth_SEP: forall P Q R n Rn Rn', Rn |-- Rn' -> PROPx P (LOCALx Q (SEPx (replace_nth n R Rn))) |-- PROPx P (LOCALx Q (SEPx (replace_nth n R Rn'))).
+Proof.
+  simpl.
+  intros.
+  specialize (H x).
+  normalize.
+  revert R.
+  induction n.
+  + destruct R.
+    - simpl. cancel.
+    - simpl. cancel.
+  + destruct R.
+    - simpl. cancel.
+    - intros. simpl in *. cancel.
+Qed.
+
+Lemma replace_nth_SEP': forall P Q R n Rn Rn', PROPx P (LOCALx Q (SEP (Rn))) |-- Rn' -> (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn)))) |-- (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn')))).
+Proof.
+  simpl.
+  intros.
+  specialize (H x).
+  normalize.
+  normalize in H.
+  revert R.
+  induction n.
+  + destruct R.
+    - simpl. cancel.
+    - simpl. cancel.
+  + destruct R.
+    - simpl. cancel.
+    - intros. simpl in *. cancel.
+Qed.
+
+Lemma replace_nth_SEP_andp_local': forall P Q R n Rn (Rn': environ -> mpred) Rn'' x,
+  nth_error R n = Some Rn ->
+  (PROPx P (LOCALx Q (SEPx (replace_nth n R ((`prop Rn'') && Rn'))))) x
+  = (PROPx P (LOCALx (Rn'' :: Q) (SEPx (replace_nth n R Rn')))) x.
+Proof.
+  intros.
+  normalize.
+  assert ((@fold_right (environ -> mpred) (environ -> mpred)
+              (@sepcon (environ -> mpred) (@LiftNatDed' mpred Nveric)
+                 (@LiftSepLog' mpred Nveric Sveric))
+              (@emp (environ -> mpred) (@LiftNatDed' mpred Nveric)
+                 (@LiftSepLog' mpred Nveric Sveric))
+              (@replace_nth (lifted (LiftEnviron mpred)) n R
+                 (@andp (lifted (LiftEnviron mpred))
+                    (@LiftNatDed' mpred Nveric)
+                    (@liftx (Tarrow Prop (LiftEnviron mpred))
+                       (@prop (lift_T (LiftEnviron mpred)) Nveric) Rn'') Rn'))
+              x) =
+   (@andp mpred Nveric
+           (@prop mpred Nveric
+              (Rn'' x))
+           (@fold_right (environ -> mpred) (environ -> mpred)
+              (@sepcon (environ -> mpred) (@LiftNatDed' mpred Nveric)
+                 (@LiftSepLog' mpred Nveric Sveric))
+              (@emp (environ -> mpred) (@LiftNatDed' mpred Nveric)
+                 (@LiftSepLog' mpred Nveric Sveric))
+              (@replace_nth (lifted (LiftEnviron mpred)) n R Rn') x))); 
+  [| rewrite H0; apply pred_ext; normalize].
+
+  revert R H.
+  induction n; intros.
+  + destruct R; inversion H.
+    subst l.
+    simpl. normalize.
+  + destruct R; inversion H.
+    pose proof IHn R H1.
+    unfold replace_nth in *.
+    fold (@replace_nth (LiftEnviron mpred)) in *.
+    simpl fold_right in *.
+    rewrite <- sepcon_andp_prop, H0.
+    reflexivity.
+Qed.
+
+Lemma replace_nth_SEP_andp_local: forall P Q R n Rn (Rn': environ -> mpred) Rn'',
+  nth_error R n = Some Rn ->
+  (PROPx P (LOCALx Q (SEPx (replace_nth n R ((`prop Rn'') && Rn')))))
+  = (PROPx P (LOCALx (Rn'' :: Q) (SEPx (replace_nth n R Rn')))).
+Proof.
+  intros.
+  extensionality.
+  eapply replace_nth_SEP_andp_local'.
+  exact H.
+Qed.
+
+Lemma replace_nth_nth_error: forall {A:Type} R n (Rn:A), 
+  nth_error R n = Some Rn ->
+  R = replace_nth n R Rn.
+Proof.
+  intros.
+  revert R H; induction n; intros; destruct R.
+  + reflexivity.
+  + simpl. inversion H. reflexivity.
+  + inversion H.
+  + inversion H. simpl.
+    rewrite (IHn R) at 1; simpl; [reflexivity|exact H1].
+Qed.
+
+Lemma nth_error_replace_nth: forall {A:Type} R n (Rn Rn':A), 
+  nth_error R n = Some Rn ->
+  nth_error (replace_nth n R Rn') n = Some Rn'.
+Proof.
+  intros.
+  revert R H; induction n; intros; destruct R; simpl.
+  + inversion H.
+  + inversion H.
+    reflexivity.
+  + inversion H.
+  + inversion H.
+    apply IHn, H1.
+Qed.
+
+Lemma LOCAL_2_hd: forall P Q R Q1 Q2,
+  (PROPx P (LOCALx (Q1 :: Q2 :: Q) (SEPx R))) = 
+  (PROPx P (LOCALx (Q2 :: Q1 :: Q) (SEPx R))).
+Proof.
+  intros.
+  extensionality.
+  apply pred_ext; normalize.
+Qed.
+
+Lemma eq_sym_LOCAL: forall P Q R id v, 
+  PROPx P (LOCALx (`eq v (eval_id id) :: Q) (SEPx R)) = 
+  PROPx P (LOCALx (`eq (eval_id id) v:: Q) (SEPx R)).
+Proof.
+  intros.
+  extensionality; apply pred_ext; normalize.
+Qed.
+
+Lemma eq_sym_LOCAL': forall P Q R id v, 
+  PROPx P (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)) = 
+  PROPx P (LOCALx (`eq (eval_id id) `v:: Q) (SEPx R)).
+Proof.
+  intros.
+  normalize.
+Qed.
+
+(* This lemma is for load_37 *)
+Lemma eq_sym_post_LOCAL: forall P Q R id v,
+  (EX  old : val, PROPx P
+  (LOCALx (`eq (subst id `old v) (eval_id id)::map (subst id `old) Q) (SEPx (map (subst id `old) R)))) = 
+  (EX  old : val, PROPx P
+  (LOCALx (`eq (eval_id id) (subst id `old v)::map (subst id `old) Q) (SEPx (map (subst id `old) R)))).
+Proof.
+  intros.
+  apply pred_ext; normalize; apply (exp_right old);
+  rewrite eq_sym_LOCAL; apply derives_refl.
+Qed.
+
+(* This lemma is for load_37' *)
+Lemma eq_sym_post_LOCAL': forall P Q R id v,
+  (EX  old : val, PROPx P
+  (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q) (SEPx (map (subst id `old) R)))) = 
+  (EX  old : val, PROPx P
+  (LOCALx (`eq (eval_id id) `v ::  map (subst id `old) Q) (SEPx (map (subst id `old) R)))).
+Proof.
+  intros.
+  apply pred_ext; normalize; apply (exp_right old);
+  rewrite eq_sym_LOCAL'; apply derives_refl.
+Qed.
+
+Lemma map_replace_nth:
+  forall {A B} (f: A -> B) n R X, map f (replace_nth n R X) = 
+       replace_nth n (map f R) (f X).
+Proof.
+intros.
+ revert R; induction n; destruct R; simpl; auto.
+ f_equal; auto.
+Qed.
+
+Lemma replace_nth_commute:
+  forall {A} i j R (a b: A),
+   i <> j ->
+   replace_nth i (replace_nth j R b) a =
+   replace_nth j (replace_nth i R a) b.
+Proof.
+intros.
+rename i into i'. rename j into j'. rename R into R'.
+assert (forall i j R (a b: A),
+             (i<j)%nat -> 
+              replace_nth i (replace_nth j R b) a = replace_nth j (replace_nth i R a) b). {
+induction i; destruct j, R; simpl; intros; auto; try omega.
+f_equal. apply IHi. omega.
+}
+assert (i'<j' \/ i'>j')%nat by omega.
+clear H.
+destruct H1.
+apply H0; auto.
+symmetry; apply H0; auto.
+Qed.
+
+Lemma nth_error_replace_nth':
+  forall {A} i j R (a:A),
+  (i <> j)%nat -> nth_error (replace_nth i R a) j = nth_error R j.
+Proof.
+induction i; destruct j,R; intros; simpl; auto.
+contradiction H; auto.
+Qed.
+

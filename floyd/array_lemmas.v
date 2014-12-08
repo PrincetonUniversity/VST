@@ -893,36 +893,6 @@ Qed.
 Definition in_range (lo hi: Z) (x: Z) := lo <= x < hi.
 Arguments in_range lo hi x /.
 
-Lemma map_replace_nth:
-  forall {A B} (f: A -> B) n R X, map f (replace_nth n R X) = 
-       replace_nth n (map f R) (f X).
-Proof.
-intros.
- revert R; induction n; destruct R; simpl; auto.
- f_equal; auto.
-Qed.
-
-Lemma fold_right_sepcon_subst:
- forall i e R, fold_right sepcon emp (map (subst i e) R) = subst i e (fold_right sepcon emp R).
-Proof.
- intros. induction R; auto.
- autorewrite with subst. f_equal; auto.
-Qed.
-
-Lemma resubst: forall {A} i (v: val) (e: environ -> A), subst i (`v) (subst i `v e) = subst i `v e.
-Proof.
- intros. extensionality rho. unfold subst.
- f_equal.
- unfold env_set. 
- f_equal.
- apply Map.ext. intro j.
- destruct (eq_dec i j). subst. repeat rewrite Map.gss. f_equal.
- simpl.
- repeat rewrite Map.gso by auto. auto.
-Qed.
-
-Hint Rewrite @resubst : subst.
-
 Lemma Zsucc_sub_self:
  forall x: Z, nat_of_Z (Z.succ x - x) = 1%nat.
 Proof.
@@ -1504,34 +1474,6 @@ Qed.
 
 Hint Resolve array_at_array_at_: cancel.
 *)
-Lemma replace_nth_commute:
-  forall {A} i j R (a b: A),
-   i <> j ->
-   replace_nth i (replace_nth j R b) a =
-   replace_nth j (replace_nth i R a) b.
-Proof.
-intros.
-rename i into i'. rename j into j'. rename R into R'.
-assert (forall i j R (a b: A),
-             (i<j)%nat -> 
-              replace_nth i (replace_nth j R b) a = replace_nth j (replace_nth i R a) b). {
-induction i; destruct j, R; simpl; intros; auto; try omega.
-f_equal. apply IHi. omega.
-}
-assert (i'<j' \/ i'>j')%nat by omega.
-clear H.
-destruct H1.
-apply H0; auto.
-symmetry; apply H0; auto.
-Qed.
-
-Lemma nth_error_replace_nth':
-  forall {A} i j R (a:A),
-  (i <> j)%nat -> nth_error (replace_nth i R a) j = nth_error R j.
-Proof.
-induction i; destruct j,R; intros; simpl; auto.
-contradiction H; auto.
-Qed.
 
 Lemma add_ptr_int_unfold: forall t1 sz sg v1 v2,
   is_int sz sg v2 ->
