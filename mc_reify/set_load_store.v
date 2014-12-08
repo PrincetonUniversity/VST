@@ -98,32 +98,6 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
 (* Similar solutions include hiding type Clight.expr in function return type
  like nested_efield_rel. *)
 .
-
- (* /\
-
-
-      typeof_temp (mk_tycontext temp var ret gt gs) id = Some t ->
-      is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
-      msubst_efield_denote T1 T2 efs = Some gfs ->
-      legal_nested_efield e t_root e1 gfs tts lr = true ->
-      tc_efield_b_norho (mk_tycontext temp var ret gt gs) efs = true ->
-
-      msubst_eval_LR T1 T2 e1 lr = Some p ->
-      tc_LR_b_norho (mk_tycontext temp var ret gt gs) e1 lr = true ->
-
-      (local (tc_environ (mk_tycontext temp var ret gt gs))) && (assertD P (localD T1 T2) R) |--
-        `(data_at sh t_root v' p) * TT ->
-
-      proj_val t_root gfs v' = v ->
-
-      assertD P (localD (PTree.set id v T1) T2) R = Post ->
-
-      (local (tc_environ (mk_tycontext temp var ret gt gs))) && (assertD P (localD T1 T2) R) |--
-        local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
-        (!! legal_nested_field t_root gfs) ->
-      semax (mk_tycontext temp var ret gt gs) (|> assertD P (localD T1 T2) R) 
-        (Sset id (nested_efield e1 efs tts))
-          (normal_ret_assert Post).*)
 Proof.
 Admitted.
 
