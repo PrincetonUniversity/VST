@@ -29,14 +29,29 @@ end.
 
 Definition REFLEXIVITY := REFLEXIVITYTAC.
 
-Definition REFLEXIVITY_BOOL tbl : rtac typ (expr typ func) := 
-   fun tus tvs lus lvs c s e =>(
+Definition REFLEXIVITY_DENOTE (rtype : typ) (H: @RelDec.RelDec (typD rtype) eq) tbl : rtac typ (expr typ func) := 
+   fun tus tvs lus lvs c s e => (
 match e with
-| (App (App (Inj (inr (Other (feq tybool)))) l) r) =>
-  match reflect tbl nil nil l tybool, reflect tbl nil nil r tybool with
-  | Some v1, Some v2 => if @RelDec.rel_dec _ eq _ v1 v2 then Solved s else Fail
+| (App (App (Inj (inr (Other (feq _)))) l) r) =>
+  match reflect tbl nil nil l rtype, reflect tbl nil nil r rtype with
+  | Some v1, Some v2 => if @RelDec.rel_dec _ eq H v1 v2 then Solved s else Fail
   | _, _ => Fail
   end
 | _ => Fail
 end).
+
+Definition REFLEXIVITY_BOOL := REFLEXIVITY_DENOTE tybool _.
+
+Instance eq_dec : @RelDec.RelDec (option Ctypes.type) eq.
+  constructor.
+  intros x y.
+  destruct x eqn:?, y eqn:?.
+  + exact (expr.eqb_type t t0).
+  + exact false.
+  + exact false.
+  + exact true.
+Defined.
+
+Definition REFLEXIVITY_OP_CTYPE := REFLEXIVITY_DENOTE (tyoption tyc_type) _.
+
 

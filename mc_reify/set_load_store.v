@@ -58,11 +58,11 @@ Lemma semax_load_localD:
   forall {Espec: OracleKind},*)
 
 forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
-     (ret : type) (gt : PTree.t type) (id : ident) (t_root : type) (e0 e1 : Clight.expr)
+     (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
      (e : type_id_env) (gs : PTree.t funspec) (sh : Share.t) 
      (P : list Prop) (T1 : PTree.t val) (T2 : PTree.t (type * val))
      (R : list mpred) (Post : environ -> mpred)
-     (t : type) (efs : list efield) (gfs : list gfield)
+     (efs : list efield) (gfs : list gfield)
      (tts : list type) (p v : val) (v' : reptype t_root) 
      (lr : LLRR) (Espec : OracleKind),
   typeof_temp (mk_tycontext temp var ret gt gs) id = Some t -> 
@@ -101,14 +101,53 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
 Proof.
 Admitted.
 
-Goal forall (x: Clight.expr) (y: list efield) (z: list type), False.
-intros.
-reify_vst (nested_efield x y z).
-
 Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
-     (ret : type) (gt : PTree.t type) (id : ident) (t_root : type) (e0 e1 : Clight.expr): my_lemma.
-reify_lemma reify_vst (semax_load_localD temp var ret gt id t_root e0 e1).
+     (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr): my_lemma.
+reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1).
 Defined.
 
 Print load_lemma.
 
+Definition APPLY_load temp var ret gt id t t_root e0 e1:=
+EAPPLY typ func (load_lemma temp var ret gt id t t_root e0 e1).
+
+Require Import mc_reify.reverse_defs.
+Require Import symexe.
+
+Definition remove_global_spec (t : tycontext) := 
+match t with
+| mk_tycontext t v r gt gs => mk_tycontext t v r gt (PTree.empty _)
+end.
+
+Goal
+forall {Espec : OracleKind} (contents : list val) , exists (PO : environ -> mpred), 
+   (semax
+     (remove_global_spec Delta) (*empty_tycontext*)
+     (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
+     (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
+     (normal_ret_assert PO)).
+intros.
+simpl (remove_global_spec Delta).
+reify_expr_tac.
+
+Print  typeof_temp.
+
+
+Eval vm_compute in
+match (get_delta_statement e) with
+| Some ((t, v, r, gt) , st) => 
+  run_tac (THEN INTROS (THEN (APPLY_load t v r gt _p
+ (match t ! _p with
+ | Some (ty, _) => ty
+ | None => Tvoid
+ end) tint (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))) (TRY REFLEXIVITY)))
+| _ => run_tac FAIL
+end e.
+
+Print load_lemma.
+
+Print  typeof_temp.
+Print load_lemma.
+
+Print legal_nested_efield.
+Print uncompomize.
