@@ -305,7 +305,7 @@ Reify Pattern patterns_vst +=
       (RHasType Clight.statement (?0)) => (fun (a : id Clight.statement) 
                                        => (@Inj typ func (inr (Smx (fstatement a))))).
 
-Reify Pattern patterns_vst_hastype += 
+Reify Pattern patterns_vst += 
       (RHasType Clight.expr (?0)) => (fun (a : id Clight.expr) 
                                        => (@Inj typ func (inr (Const (fCexpr a))))).
 
@@ -391,6 +391,7 @@ Reify Pattern patterns_vst += (!!efield_lemmas.nested_efield) => (@Inj typ func 
 Reify Pattern patterns_vst += (!!SeparationLogic.typeof_temp) => (@Inj typ func (inr (Smx (ftypeof_temp)))).
 Reify Pattern patterns_vst += (!!veric.expr.tc_val) => (@Inj typ func (inr (Smx (ftc_val)))).
 Reify Pattern patterns_vst += (!!nested_field_lemmas.legal_nested_field) => (@Inj typ func (inr (Smx (flegal_nested_field)))).
+Reify Pattern patterns_vst += (!!sc_set_load_store.nested_efield_rel) => (@Inj typ func (inr (Smx (fnested_efield)))).
 
 Ltac reify_typ trm :=
   let k ee :=

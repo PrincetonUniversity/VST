@@ -233,6 +233,7 @@ match a, b with
 | ftypeof_temp, ftypeof_temp => true
 | ftc_val, ftc_val => true
 | flegal_nested_field, flegal_nested_field => true
+| fnested_efield_rel, fnested_efield_rel => true
 | _, _ => false
 end.
 

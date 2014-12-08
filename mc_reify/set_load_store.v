@@ -57,17 +57,16 @@ Lemma semax_load_localD:
       (p: val) (v : val) (v' : reptype t_root) lr,
   forall {Espec: OracleKind},*)
 
-
 forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
-     (ret : type) (gt : PTree.t type) (id : ident) (t_root : type)
+     (ret : type) (gt : PTree.t type) (id : ident) (t_root : type) (e0 e1 : Clight.expr)
      (e : type_id_env) (gs : PTree.t funspec) (sh : Share.t) 
      (P : list Prop) (T1 : PTree.t val) (T2 : PTree.t (type * val))
-     (R : list mpred) (Post : environ -> mpred) (e1 : Clight.expr)
+     (R : list mpred) (Post : environ -> mpred)
      (t : type) (efs : list efield) (gfs : list gfield)
      (tts : list type) (p v : val) (v' : reptype t_root) 
-     (lr : LLRR) (Espec : OracleKind), 
+     (lr : LLRR) (Espec : OracleKind),
   typeof_temp (mk_tycontext temp var ret gt gs) id = Some t -> 
-  is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
+  is_neutral_cast (typeof e0) t = true ->
   msubst_efield_denote T1 T2 efs = Some gfs ->
   legal_nested_efield e t_root e1 gfs tts lr = true ->
   tc_efield_b_norho (mk_tycontext temp var ret gt gs) efs = true ->
@@ -77,21 +76,30 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
   (forall rho, 
       !!(tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |--
         (data_at sh t_root v' p) * TT) ->
-      proj_val t_root gfs v' = v ->
+  proj_val t_root gfs v' = v ->
   assertD P (localD (my_set id v T1) T2) R = Post ->
+  nested_efield_rel e1 efs tts e0 ->
 
   (forall rho, 
       !! (tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |--
-        !! (tc_val (typeof (nested_efield e1 efs tts)) v) &&
+        !! (tc_val (typeof e0) v) &&
         !! (legal_nested_field t_root gfs)) ->
-
+(*
   id = id /\ e = e /\ sh = sh /\ P = P /\ T1 = T1 /\
   T2 = T2 /\ R = R /\ Post = Post /\ e1 = e1 /\ t = t /\ t_root = t_root /\
   efs = efs /\
   gfs = gfs /\
   tts = tts /\ p = p /\
   v = v /\ v' = v' /\ lr = lr /\ Espec = Espec
-. (* /\
+/\*)
+ semax (mk_tycontext temp var ret gt gs) (|> assertD P (localD T1 T2) R) 
+        (Sset id e0)
+          (normal_ret_assert Post)
+(* Similar solutions include hiding type Clight.expr in function return type
+ like nested_efield_rel. *)
+.
+
+ (* /\
 
 
       typeof_temp (mk_tycontext temp var ret gt gs) id = Some t ->
@@ -119,9 +127,13 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
 Proof.
 Admitted.
 
+Goal forall (x: Clight.expr) (y: list efield) (z: list type), False.
+intros.
+reify_vst (nested_efield x y z).
+
 Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
-     (ret : type) (gt : PTree.t type) (id : ident) (t_root : type) : my_lemma.
-reify_lemma reify_vst (semax_load_localD temp var ret gt id t_root).
+     (ret : type) (gt : PTree.t type) (id : ident) (t_root : type) (e0 e1 : Clight.expr): my_lemma.
+reify_lemma reify_vst (semax_load_localD temp var ret gt id t_root e0 e1).
 Defined.
 
 Print load_lemma.

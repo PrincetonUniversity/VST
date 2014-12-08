@@ -548,6 +548,7 @@ Inductive smx :=
 | ftypeof_temp
 | ftc_val
 | flegal_nested_field
+| fnested_efield_rel
 .
 
 Definition typeof_smx (t : smx) :=
@@ -596,6 +597,10 @@ match t with
 | ftypeof_temp => tyArr tytycontext (tyArr tyident (tyoption tyc_type))
 | ftc_val => tyArr tyc_type (tyArr tyval typrop)
 | flegal_nested_field => tyArr tyc_type (tyArr (tylist tygfield) typrop)
+| fnested_efield_rel => tyArr tyc_expr
+                    (tyArr (tylist tyefield)
+                     (tyArr (tylist tyc_type)
+                      (tyArr tyc_expr typrop)))
 end.
 
 Definition smxD (t : smx) : typD (typeof_smx t) :=
@@ -630,6 +635,7 @@ match t with
 | ftypeof_temp => typeof_temp
 | ftc_val => tc_val
 | flegal_nested_field => legal_nested_field
+| fnested_efield_rel => nested_efield_rel
 end.
 
 Inductive func' :=
