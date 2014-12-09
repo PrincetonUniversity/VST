@@ -32,7 +32,8 @@ unfold as_tree in H.
 repeat
 match goal with 
 | [ H : match ?x with _ => _  end = _ |- _ ] => destruct x; simpl in H; try congruence end. 
-inversion H. subst. auto.
+inversion H. subst. clear H.
+auto.
 Admitted. (*WHATEVER*)
 
 Lemma as_tree_r : forall e t,
@@ -90,6 +91,11 @@ match goal with
 destruct d eqn:?, x eqn:?
 end; auto.
 f_equal.
+destruct (as_tree tr) eqn:?; destruct_as_tree; auto.
+erewrite exprD'_App_L_rw in Heqo. Focus 3.
+erewrite exprD'_App_L_rw; eauto. simpl. unfold typeof_func_opt. reflexivity.
+simpl. unfold exprD'. unfold funcAs. simpl.
+Focus 2. simpl.
 
 Admitted.
 
