@@ -2,6 +2,27 @@ Require Import  Coq.Numbers.BinNums.
 Require Import compcert.lib.Maps.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.get_set_reif.
+Require Import mc_reify.app_lemmas.
+
+Section tbled.
+
+Parameter tbl : SymEnv.functions RType_typ.
+
+Let RSym_sym := RSym_sym tbl.
+Existing Instance RSym_sym.
+
+
+Let Expr_expr_fs := Expr_expr_fs tbl.
+Existing Instance Expr_expr_fs.
+
+Let Expr_ok_fs := Expr_ok_fs tbl.
+Existing Instance Expr_ok_fs.
+
+Existing Instance MA.
+
+Definition reflect tus tvs e (ty : typ)
+ := @exprD _ _ _ Expr_expr_fs tus tvs e ty.
+
 
 Lemma as_tree_l : forall e t l o r,
 as_tree e = Some (inl (t, l, o, r)) ->
@@ -24,23 +45,23 @@ match goal with
 | [ H : match ?x with _ => _  end = _ |- _ ] => destruct x; simpl in H; try congruence end. 
 inversion H. subst. auto.
 Admitted.
-Locate DEAD.
-Lemma set_reif_eta : forall i v m,
-  set_reif i v m =
+
+Lemma set_reif_eta : forall i v m ty,
+  set_reif i v m ty=
 match (as_tree m) with
   | Some (inl (t,l,o,r)) (* Node l o r *)=>
     match i with 
       | xH => node l (some_reif v t) r t
-      | xO ii => node (set_reif ii v l) o r t
-      | xI ii => node l o (set_reif ii v r) t
+      | xO ii => node (set_reif ii v l ty) o r t
+      | xI ii => node l o (set_reif ii v r ty) t
     end
   | Some (inr t) => 
     match i with
       | xH => node (leaf t) (some_reif v t) (leaf t) t
-      | xO ii => node (set_reif ii v (leaf t)) (none_reif t) (leaf t) t
-      | xI ii => node (leaf t) (none_reif t) (set_reif ii v (leaf t)) t
+      | xO ii => node (set_reif ii v (leaf t) ty) (none_reif t) (leaf t) t
+      | xI ii => node (leaf t) (none_reif t) (set_reif ii v (leaf t) ty) t
     end
-  | _ => DEAD
+  | _ => (App (App (Inj (inr (Data (fset ty i)))) v) m)
 end.
 destruct i; reflexivity.
 Qed.
@@ -55,6 +76,24 @@ match goal with
 | [ H : as_tree _ = Some (inl ?p) |- _ ] => destruct p
 | [ H : as_tree _ = Some ?p |- _ ] => destruct p
 end.
+
+Lemma set_reif_eq2 :
+forall typ i vr tr,
+reflect nil nil (App (App (Inj (inr (Data (fset typ i)))) vr) tr) (typtree typ) =
+reflect nil nil (set_reif i vr tr typ) (typtree typ).
+Proof.
+intros. 
+unfold reflect. unfold exprD. cbv [split_env]. simpl.
+induction i. simpl.
+match goal with 
+[ |-  match ?d with _ => _ end = match ?x with _ => _ end ] => 
+destruct d eqn:?, x eqn:?
+end; auto.
+f_equal.
+
+Admitted.
+
+
 
 Lemma set_reif_eq :
 forall typ i v vr t tr tbl pt, 

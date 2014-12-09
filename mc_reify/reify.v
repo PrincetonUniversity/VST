@@ -244,7 +244,7 @@ Reify Pattern patterns_vst +=
                                          (@Inj typ func (inr (Data (fget a b))))).
 
 Reify Pattern patterns_vst += (!!@my_set @ ?0 @ ?1 @ ?2 @ ?3) =>
-   (fun (a : function reify_vst_typ) (b : id positive) (c d : function reify_vst) => get_set_reif.set_reif b c d). 
+   (fun (a : function reify_vst_typ) (b : id positive) (c d : function reify_vst) => get_set_reif.set_reif b c d a). 
 
 Reify Pattern patterns_vst +=
       (!!@Maps.PTree.set @ ?0 @ ?1) => (fun (a : function reify_vst_typ) (b : id positive) =>
