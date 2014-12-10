@@ -10,6 +10,8 @@ Require Import MirrorCore.RTac.RTac.
 Require Import mc_reify.types.
 Require Import mc_reify.funcs.
 Require Import mc_reify.func_defs.
+Require Import mc_reify.app_lemmas.
+
 Locate THEN.
 
 
@@ -90,33 +92,19 @@ repeat match goal with
   - unfold APPLY_SET'.
     apply EAPPLY_sound; eauto with typeclass_instances.
       * admit.
-      * Print set_lemma. unfold Lemma.lemmaD, set_lemma. unfold split_env.
+      * unfold Lemma.lemmaD, set_lemma. unfold split_env.
         unfold Lemma.lemmaD'.
         Require Import MirrorCore.Util.ListMapT.
         unfold Lemma.vars, Lemma.premises, Lemma.concl.
         do 3 rewrite list_mapT_cons.
         simpl exprD'_typ0. simpl.
-        Lemma exprD'_App_R_rw
-        : forall tus tvs td t e1 e2 e1D e2D,
-            typeof_expr tus tvs e2 = Some td ->
-            exprD' tus tvs td e2 = Some e2D ->
-            exprD' tus tvs (typ2 td t) e1 = Some e1D ->
-            exprD' tus tvs t (App e1 e2) = Some (exprT_App e1D e2D).
-        Proof.
-          admit.
-        Qed.
         unfold exprD'_typ0, ExprI.exprD'. simpl. erewrite exprD'_App_R_rw.
         2: reflexivity. 2: reflexivity.
-        Lemma exprD'_App_L_rw
-        : forall tus tvs td t e1 e2 e1D e2D,
-            typeof_expr tus tvs e1 = Some (typ2 td t) ->
-            exprD' tus tvs (typ2 td t) e1 = Some e1D ->
-            exprD' tus tvs td e2 = Some e2D ->
-            exprD' tus tvs t (App e1 e2) = Some (exprT_App e1D e2D).
-        Proof.
-          admit.
-        Qed.
         Require Import get_set_reif_soundness.
+        Focus 2. eapply exprD'_App_L_rw; try reflexivity. 
+Admitted.
+(*
+        rewrite set_reif_eq2.
         2: eapply exprD'_App_L_rw; [ reflexivity | reflexivity | eapply set_reif_eq2 ].
 
 
@@ -174,8 +162,12 @@ destruct (exprD'_typ0 []
                                   (Var 4%nat))) (Var 2%nat))) 
                       (Var 0%nat))).
   - 
-        
+*)        
 
 
 Lemma THEN'_sound : forall t1 t2, rtac_sound t1 -> rtac_sound t2 -> rtac_sound (THEN' t1 t2).
+intros. unfold THEN'. apply Then.THEN_sound. auto.
+apply runOnGoals_sound. auto.
+Qed.
 
+End tbled.

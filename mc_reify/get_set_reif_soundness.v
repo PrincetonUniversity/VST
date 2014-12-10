@@ -11,6 +11,9 @@ Parameter tbl : SymEnv.functions RType_typ.
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.
 
+Let RSym_sym_ok :  RSymOk RSym_sym := _.
+Existing Instance RSym_sym_ok.
+
 
 Let Expr_expr_fs := Expr_expr_fs tbl.
 Existing Instance Expr_expr_fs.
@@ -78,6 +81,63 @@ match goal with
 | [ H : as_tree _ = Some ?p |- _ ] => destruct p
 end.
 
+
+Lemma set_denote : forall i typ tus tvs,
+exists v,
+exprD' tus tvs (tyArr typ (tyArr (typtree typ) (typtree typ)))
+     (Inj (inr (Data (fset typ i)))) = Some v.
+Proof.
+Admitted. (*works but takes foooreeverrr
+intros.
+simpl. induction typ; 
+cbv [exprD' funcAs typeof_sym RSym_sym func_defs.RSym_sym  SymSum.RSym_sum RSym_Func' typeof_func_opt type_cast typeof_func typeof_data RType_typ];
+match goal with 
+| [ |- exists v,
+         match 
+           match 
+             match typ_eq_dec ?a ?b 
+             with _ => _ end
+           with _ => _ end
+         with _ => _ end = _]
+                                   => destruct (typ_eq_dec a b); try congruence
+end;
+assert (e = eq_refl) by apply msl.Axioms.proof_irr; subst; 
+try solve [eexists; reflexivity].
+Qed. *)
+
+Lemma exprD'_App  e1 e2 tus tvs ty1 ty2 v:
+exprD' tus tvs ty2 (App e1 e2) = Some v ->
+typeof_expr tus tvs e2 = Some ty1 ->
+(exists v1 , exprD' tus tvs (tyArr ty1 ty2) e1 = Some v1) /\ 
+(exists v2, exprD' tus tvs ty1 e2 = Some v2).
+Proof.
+intros.
+assert (X := @exprD'_typeof_expr typ _ _ _ _ _ _ _ tus (App e1 e2) tvs
+ty2 v). assert (H2 : typeof_expr tus tvs (App e1 e2) = Some ty2).
+apply X. intuition. clear X.
+change (App e1 e2) with (AppN.apps e1 (e2 :: nil)) in *.
+rewrite AppN.typeof_expr_apps in H2; auto with typeclass_instances.
+unfold AppN.typeof_apps in H2. 
+destruct (typeof_expr tus tvs e1) eqn:?; try congruence.
+simpl in H2. destruct (typeof_expr tus tvs e2) eqn:?; try congruence.
+simpl. destruct t; simpl in H2; try congruence.
+destruct (typ_eq_dec t0 t1) eqn : ?; try congruence. 
+inversion H2; subst; clear H2. 
+inversion H0; subst; clear H0.
+simpl in H.
+change (App e1 e2) with (AppN.apps e1 (e2 :: nil)) in *.
+clear Heqs. 
+rewrite AppN.exprD'_apps in H; auto with typeclass_instances.
+unfold AppN.apps_sem' in H. 
+destruct (typeof_expr tus tvs e1) eqn:?; try congruence.
+destruct (exprD' tus tvs t e1) eqn :?; try congruence.
+inversion Heqo; subst; clear Heqo. split. eexists. apply Heqo2.
+simpl in H. 
+destruct (exprD' tus tvs ty1 e2) eqn:?; try congruence.
+eexists; eauto.
+Qed.
+
+
 Lemma set_reif_eq2 :
 forall typ i vr tr,
 reflect nil nil (App (App (Inj (inr (Data (fset typ i)))) vr) tr) (typtree typ) =
@@ -94,27 +154,20 @@ f_equal.
 destruct (as_tree tr) eqn:?; destruct_as_tree; auto.
 erewrite exprD'_App_L_rw in Heqo. Focus 3.
 erewrite exprD'_App_L_rw; eauto. simpl. unfold typeof_func_opt. reflexivity.
-simpl. unfold exprD'. unfold funcAs. simpl.
-Focus 2. simpl.
+
+
+simpl. unfold exprD'. 
+(* unfold funcAs. destruct typ eqn:?. Focus 2. simpl. reflexivity.
+ simpl.
+unfold typeof_sym. unfold func_defs.RSym_sym.
+
+Focus 2. simpl.*)
 
 Admitted.
 
 
-
-Lemma set_reif_eq :
-forall typ i v vr t tr tbl pt, 
-Some v = reflect tbl nil nil vr typ ->
-Some t = reflect tbl nil nil tr (typtree typ) ->
-reflect tbl nil nil (set_reif i vr tr) (typtree typ) = Some pt ->
-PTree.set i v t = pt.
-intros. induction i; simpl in *.
-  + destruct (as_tree tr) eqn : atr;  destruct_as_tree. 
-     - unfold reflect in *. 
-
-Require MirrorCore.syms.SymSum.
-
 Existing Instance SymSum.RSymOk_sum.
-Instance RSym_env : RSym SymEnv.func := SymEnv.RSym_func fs.
+(*Instance RSym_env : RSym SymEnv.func := SymEnv.RSym_func fs.
 
 Lemma ptree_node : forall e0 e1 e2 typ t0 p,
 exprD nil nil (node e1 e0 e2 t0) (typtree typ) =
@@ -177,4 +230,6 @@ forall typ i tr tbl,
 reflect tbl nil nil (App (Inj (inr (Data (fget typ i)))) tr) (tyoption typ) =
 reflect tbl nil nil (get_reif i tr) (tyoption typ).
 Proof.
-Admitted.
+Admitted. *)
+
+End tbled.

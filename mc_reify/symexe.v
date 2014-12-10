@@ -28,7 +28,7 @@ Local Open Scope logic.
 Section tbled.
 
 Parameter tbl : SymEnv.functions RType_typ.
-Locate RSym_sym.
+
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.
 
