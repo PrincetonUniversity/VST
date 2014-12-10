@@ -3,6 +3,8 @@ Require Import compcert.lib.Maps.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.get_set_reif.
 Require Import mc_reify.app_lemmas.
+Require Import ExtLib.Tactics.
+
 
 Section tbled.
 
@@ -81,29 +83,52 @@ match goal with
 | [ H : as_tree _ = Some ?p |- _ ] => destruct p
 end.
 
+Section TypeOfFunc.
+  Context {typ func : Type}.
+  Context {RType_typ : RType typ}.
+  Context {RTypeOk_typ : RTypeOk}.
+  Context {RSym_func : RSym func}.
 
-Lemma set_denote : forall i typ tus tvs,
-exists v,
-exprD' tus tvs (tyArr typ (tyArr (typtree typ) (typtree typ)))
-     (Inj (inr (Data (fset typ i)))) = Some v.
+    Lemma typeof_funcAs f t e (H : funcAs f t = Some e) : typeof_sym f = Some t.
+    Proof.
+      unfold funcAs in H.
+      generalize dependent (symD f).
+      destruct (typeof_sym f); intros; [|congruence].
+      destruct (type_cast t0 t); [|congruence].
+      destruct r; reflexivity.
+    Qed.
+   
+   Lemma funcAs_Some f t (pf : typeof_sym f = Some t) :
+        funcAs f t =
+        Some (match pf in (_ = z)
+          return match z with
+                   | Some z' => TypesI.typD z'
+                   | None => unit
+                 end
+          with
+          | eq_refl => symD f
+          end).
+      Proof.
+        unfold funcAs.
+        generalize (symD f).
+        rewrite pf. intros.
+        rewrite type_cast_refl. reflexivity. apply _.
+      Qed.
+
+End TypeOfFunc.
+
+Lemma set_denote : forall i ty tus tvs,
+exprD' tus tvs (tyArr ty (tyArr (typtree ty) (typtree ty)))
+     (Inj (inr (Data (fset ty i)))) = 
+(Some ( fun _ _ => @PTree.set (typD ty ) i)).
 Proof.
-Admitted. (*works but takes foooreeverrr
 intros.
-simpl. induction typ; 
-cbv [exprD' funcAs typeof_sym RSym_sym func_defs.RSym_sym  SymSum.RSym_sum RSym_Func' typeof_func_opt type_cast typeof_func typeof_data RType_typ];
-match goal with 
-| [ |- exists v,
-         match 
-           match 
-             match typ_eq_dec ?a ?b 
-             with _ => _ end
-           with _ => _ end
-         with _ => _ end = _]
-                                   => destruct (typ_eq_dec a b); try congruence
-end;
-assert (e = eq_refl) by apply msl.Axioms.proof_irr; subst; 
-try solve [eexists; reflexivity].
-Qed. *)
+autorewrite with exprD_rw. simpl.
+unfold funcAs.
+simpl (typeof_sym (inr (Data (fset ty i)))).
+unfold typeof_func_opt. rewrite type_cast_refl. simpl. reflexivity.
+apply _.
+Qed.
 
 Lemma exprD'_App_R_typ  e1 e2 tus tvs ty1 ty2 v:
 exprD' tus tvs ty2 (App e1 e2) = Some v ->
@@ -204,33 +229,31 @@ apply X. intuition. clear X.
 apply typeof_app; eauto.
 Qed.
 
-intros.
-destruct (exprD_ex_L_typ _ _ _ _ _ _ H).
-destruct (exprD_ex_R_typ _ _ _ _ _ _ H).
-eexists; split; eauto.
+Ltac inv H := inversion H; subst; clear H.
 
+Ltac inv_some :=
+repeat 
+match goal with
+[ H : Some _ = Some _ |- _] => inv H
+end. 
 
-exists 
-Proof.
-intros.
-assert (X := @exprD'_typeof_expr typ _ _ _ _ _ _ _ tus (App e1 e2) tvs
-ty2 v). 
-assert (H2 : typeof_expr tus tvs (App e1 e2) = Some ty2).
-apply X. intuition. clear X.
-apply typeof_app in H2. destruct H2. destruct H0. eexists; eauto.
-Qed.
+Ltac p_exprD H1 :=
+autorewrite with exprD_rw in H1;
+simpl in H1; forward; inv_some.
+
 
 
 Lemma set_reif_eq2 :
-forall tus tvs typ i vr tr,
+forall i tus tvs typ vr tr,
 exprD' tus tvs (typtree typ) (App (App (Inj (inr (Data (fset typ i)))) vr) tr)  =
 exprD' tus tvs (typtree typ) (set_reif i vr tr typ).
 Proof.
-intros. 
+
 induction i;
-simpl;
-destruct (as_tree tr) eqn:?; destruct_as_tree; auto.
-apply as_tree_l in Heqo. subst.
+intros;
+simpl.
+forward. destruct_as_tree.
+apply as_tree_l in H. subst.
 unfold node in *.
 unfold func in *.  
 destruct (exprD' tus tvs (typtree typ)
@@ -239,7 +262,65 @@ destruct (exprD' tus tvs (typtree typ)
 (exprD' tus tvs (typtree typ)
      (App (App (App (Inj (inr (Data (fnode t)))) e1) e0)
         (set_reif i vr e typ))) eqn :Eqr; auto.
-destruct (exprD_ex_L_typ _ _ _ _ _ _ Eql).
+autorewrite with exprD_rw in *; simpl in *;
+forward; inv_some.
+autorewrite with exprD_rw in H3. simpl in H3.
+forward. 
+clear e13 e9 e11.
+autorewrite with exprD_rw in H4. simpl in H4. forward.
+assert (X := ExprTac.exprD_typeof_Some _ _ _ _ _ H8).
+eapply ExprTac.exprD_typeof_eq in X; auto with typeclass_instances.
+Focus 2. apply H0. inv X. 
+rewrite H0 in H8. inv H8.
+ fold OpenT in H3. fold exprT in H3. 
+assert (t = t1). apply ExprTac.exprD_typeof_Some in H3; try apply _.
+simpl in H3. unfold typeof_func_opt in H3. simpl in H3. inv H3. auto.
+subst.
+unfold exprT in e2. simpl in e2.
+assert (X := set_denote i~1 t1 tus tvs). fold func in *.
+rewrite X in H3. inv H3. clear X.
+unfold exprT_App. simpl.
+autorewrite with exprD_rw in H0.
+simpl in H0. forward. inv H7.
+autorewrite with exprD_rw in H3.
+simpl in H3. forward.
+autorewrite with exprD_rw in H7.
+simpl in H7.
+unfold funcAs in H7. simpl (typeof_sym (inr (Data (fnode t1)))) in H7.
+unfold typeof_func_opt in H7. simpl (typeof_func (Data (fnode t1))) in H7.
+inv_some.
+rewrite type_cast_refl in H7. simpl in H7. inv_some. 
+unfold exprT_App. simpl.  
+specialize (IHi tus tvs t1 vr e). rewrite <- IHi in H1.
+f_equal.
+p_exprD H1.
+unfold exprT_App. simpl.
+p_exprD H5. p_exprD H5. simpl in *.
+unfold funcAs in H4. simpl (typeof_sym (inr (Data (fset t1 i)))) in H4.
+unfold typeof_func_opt in H4.
+unfold typeof_func in H4. unfold typeof_data in H4.
+rewrite type_cast_refl in H4. unfold Rcast in H4.
+simpl in H4. inv_some.
+unfold exprT_App. simpl.
+rewrite H6 in H9.
+rewrite H7 in H11.
+inv_some. auto. apply _. apply _.
+
+ auto.
+inv_some.
+autorewrite 
+
+
+
+
+assert (e4 = e8).
+destruct (exprD_ex_typs  _ _ _ _ _ _ Eql).
+destruct H.
+destruct (exprD_ex_typs  _ _ _ _ _ _ Eqr).
+destruct H1.
+wforward.
+autorewrite with expr_rw.
+
 
 destruct (exprD'_ex_L_typ in Eql.
 
