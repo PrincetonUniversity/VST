@@ -7,6 +7,50 @@ Require Import sha.verif_sha_update2.
 Local Open Scope nat.
 Local Open Scope logic.
 
+
+Lemma firstn_app2: forall {A} n (p l: list A), (* duplicate *)
+  (n > Datatypes.length p)%nat ->
+   firstn n (p ++ l) = p ++ (firstn (n-Datatypes.length p) l).
+Proof. intros A n.
+induction n; simpl; intros. 
+  destruct p; simpl in *. trivial. omega.
+  destruct p; simpl in *. trivial.
+  rewrite IHn. trivial. omega. 
+Qed.  
+
+  Lemma skipn_list_repeat:
+   forall A k n (a: A),
+     (k <= n)%nat -> skipn k (list_repeat n a) = list_repeat (n-k) a.
+Proof.
+ induction k; destruct n; simpl; intros; auto.
+ apply IHk; auto. omega.
+Qed.
+
+Lemma data_equal_firstn: forall t n a (v v': list (reptype t)),
+  firstn (Z.to_nat n) v = firstn (Z.to_nat n) v' ->
+  @data_equal (Tarray t n a) v v'.
+Proof.
+  intros.
+  apply data_equal_array_ext.
+ fold reptype.
+   intros.
+ replace  (@Znth (reptype t) i v' (default_val t))
+   with    (@Znth (reptype t) i v (default_val t)).
+ apply data_equal_refl.
+ unfold Znth.
+ if_tac; auto.
+ assert (Z.to_nat i < Z.to_nat n).
+ apply Z2Nat.inj_lt; omega.
+ forget (Z.to_nat n) as nn.
+ forget (Z.to_nat i) as j.
+ clear - H H2.
+ revert nn v v' H H2; induction j; destruct nn, v,v'; simpl; intros; auto;
+    try omega; inv H.
+ auto.
+ apply (IHj _ _ _ H3).
+ omega.
+Qed.
+
 Lemma update_inner_if_else_proof:
  forall (Espec : OracleKind) (hashed : list int)
           (dd data : list Z) (c d: val) (sh: share) (len: nat) kv
@@ -66,6 +110,16 @@ assert_PROP (Z.of_nat len < k)%Z. {
 }
 drop_LOCAL 0.
 
+ assert_PROP (field_address (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d). {
+  entailer.
+  rewrite (data_at_field_at sh  (tarray tuchar (Zlength data))).
+    rewrite (field_at_compatible' sh).
+    entailer!.
+    unfold field_address; rewrite if_true.
+    unfold nested_field_offset2; simpl. normalize.
+    admit.  (* field_compatible_cons *)
+  }
+ rename H5 into Hd.
  eapply semax_seq'.
  evar (Frame: list (LiftEnviron mpred)).
   eapply(call_memcpy_tuchar
@@ -73,19 +127,97 @@ drop_LOCAL 0.
    (*src*) sh (tarray tuchar (Zlength data)) [ ] 0 (map Int.repr data)  d
    (*len*) (Z.of_nat len)
         Frame);
-   [ auto | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | ].
+   try reflexivity; auto; try omega.
+  apply Zlength_nonneg.
+  repeat rewrite Zlength_map; unfold k in *; omega.
+  clear - H0 H2; unfold k in *; omega.
+  rewrite Zlength_map; clear - H H0 H2; unfold k in *; omega.
  rewrite (data_at_field_at sh).
  unfold_data_at 1%nat.
  entailer!.
+Lemma field_address_isptr:
+  forall t path c, isptr c -> field_compatible t path c -> isptr (field_address t path c).
+Proof.
+ intros.
+ unfold field_address. rewrite if_true by auto.
+ normalize.
+Qed.
+
+Lemma is_pointer_or_null_field_compatible:
+  forall t path c, 
+     is_pointer_or_null (field_address t path c) ->
+      field_compatible t path c.
+Proof.
+ intros.
+ unfold field_address in H.
+ if_tac in H; auto. inv H.
+Qed.
+Hint Resolve field_address_isptr.
+Hint Resolve is_pointer_or_null_field_compatible.
+auto.
  rewrite field_address_clarify; auto.
  normalize.
-abbreviate_semax.
-repeat rewrite firstn_map. repeat rewrite <- map_app.
-rewrite skipn_0.
-rewrite splice_into_list_simplify2
-  by (repeat rewrite Zlength_map; omega).
-rewrite Z.add_sub_swap, Z.sub_diag, Z.add_0_l, Nat2Z.id.
-repeat rewrite firstn_map, <- map_app.
+ rewrite field_address_clarify; auto.
+ normalize.
+ f_equal.
+ erewrite nested_field_offset2_Tarray; try reflexivity.
+ normalize. 
+ unfold field_address in TC; destruct c; try contradiction;
+  if_tac in TC; try contradiction.
+ unfold field_address; rewrite if_true; auto.
+ clear - H7 H0; unfold k in *.
+ admit.  (* field_compatible_cons *)
+
+rewrite (field_at_data_equal Tsh t_struct_SHA256state_st [StructField _data] 
+                 _ (map Vint (map Int.repr dd)++ firstn len (map Vint (map Int.repr data)))).
+Focus 2. {
+ assert (Z.to_nat (Zlength dd) = length (map Vint (map Int.repr dd))).
+   repeat rewrite map_length. rewrite Zlength_correct, Nat2Z.id; auto.
+ unfold splice_into_list.
+ rewrite firstn_app1 by omega.
+ rewrite firstn_same by omega.
+ replace (Zlength dd + Z.of_nat len - Zlength dd)%Z with (Z.of_nat len) by omega.
+ rewrite Nat2Z.id. rewrite !Zlength_map.
+ change (Z.to_nat 0) with 0. simpl skipn at 1.
+ rewrite firstn_app1
+   by (rewrite !map_length; apply Nat2Z.inj_le; rewrite <- Zlength_correct; auto).
+ rewrite <- skipn_firstn.
+ replace (Z.to_nat (Zlength dd + Z.of_nat len) +
+         Z.to_nat (64 - (Zlength dd + Z.of_nat len)))
+   with 64.
+  rewrite firstn_app2.
+  rewrite (firstn_same _ (64 - _)%nat).
+2: rewrite length_list_repeat, !map_length;
+    rewrite Z2Nat.inj_sub by (try omega; apply Zlength_nonneg).
+  rewrite skipn_app2.
+  rewrite !map_length.
+  replace (Z.to_nat (Zlength dd + Z.of_nat len) - length dd) 
+    with len.
+ rewrite skipn_list_repeat.
+ rewrite <- app_ass.
+ apply data_equal_sym.
+ apply data_equal_list_repeat_default.
+ fold k. rewrite <- (Nat2Z.id len).
+ apply Z2Nat.inj_le; try omega.
+ rewrite <- (Nat2Z.id (length dd)), <- Zlength_correct.
+ rewrite <- Z2Nat.inj_sub; try omega.
+ rewrite <- (Nat2Z.id len) at 1.
+ f_equal. omega.
+ apply Zlength_nonneg.
+ repeat rewrite map_length.
+ rewrite Z2Nat.inj_add; try omega.
+ rewrite Zlength_correct, Nat2Z.id. omega.
+ apply Zlength_nonneg.
+ rewrite Zlength_correct, Nat2Z.id. change (Z.to_nat 64) with 64; omega.
+ rewrite !map_length. apply Nat2Z.inj_gt.
+  change (Z.of_nat 64) with 64%Z. rewrite <- Zlength_correct.
+  unfold k in *; omega.
+  pose proof (Zlength_nonneg dd).
+ change 64%nat with (Z.to_nat 64).
+  rewrite <- Z2Nat.inj_add; try omega.
+  f_equal. omega.  
+  unfold k in *; omega.
+} Unfocus.
 
 apply semax_pre with
   (PROP  ()
@@ -107,8 +239,10 @@ apply semax_pre with
      `(K_vector kv))). {
   unfold_data_at 1%nat.
   entailer!.
+  repeat rewrite firstn_map. repeat rewrite <- map_app.
+ apply derives_refl.
 }
-
+  abbreviate_semax.
   forward. (* c->num = n+(unsigned int)len; *)
   forward. (* return; *)
   apply exp_right with (S256abs hashed (dd ++ firstn len data)).
