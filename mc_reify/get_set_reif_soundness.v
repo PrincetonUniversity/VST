@@ -237,12 +237,126 @@ match goal with
 [ H : Some _ = Some _ |- _] => inv H
 end. 
 
+
 Ltac p_exprD H1 :=
 autorewrite with exprD_rw in H1;
 simpl in H1; forward; inv_some.
 
+Ltac cleanup_dups :=             
+  repeat
+    match goal with 
+      | [ H: exprD' _ _ _ ?x = Some _, 
+             H1 : exprD' _ _ _ ?x = Some _ |- _] => try rewrite H in *; inv_some
+    end.
+
+Ltac remove_no_cast :=
+repeat
+match goal with
+[ H : type_cast ?x ?x = Some _ |- _] => clear H
+end.
+
+Ltac subst_rty :=
+repeat
+match goal with
+| [ H : Rty _ _ |- _ ] => unfold Rty in H; inversion H; subst; remove_no_cast; 
+                          try clear H
+end.
+
+Ltac p_exprD_app :=
+  repeat
+    match goal with
+        [ H : exprD' _ _ _ (App _ _ ) = Some _ |- _ ] => p_exprD H
+    end;
+  cleanup_dups; subst_rty.
+
+Ltac solve_funcAs H :=
+  unfold funcAs in H; simpl in H;  rewrite type_cast_refl in H.
+
+Ltac solve_funcAs_f H :=
+  p_exprD H;
+  solve_funcAs H; 
+  match type of H with
+    | match ?f with _ => _ end = _ => 
+      let eqn := fresh "eqn" in 
+      let v := fresh "v" in 
+      (destruct f as [v | ]; try congruence); 
+        clear H; unfold Rty in v; inversion v; subst; try clear v
+  end.
 
 
+Ltac p_exprD_inj :=
+repeat (
+match goal with
+[ H : exprD' _ _ _ (Inj  _ ) = Some _ |- _ ] => p_exprD H; solve_funcAs H
+end; unfold Rcast in *; simpl in *; inv_some; subst_rty);
+cleanup_dups.
+
+
+Ltac copy H :=
+                  match type of H with 
+                      | ?x => assert x by exact H
+                  end.
+
+(*Lemma set_reif_safe : forall i tus tvs t v e  er  vr,
+exprD' tus tvs t vr = Some v ->
+exprD' tus tvs (typtree t) er = Some e ->
+exists res, exprD' tus tvs (typtree t)
+             (set_reif i vr er t) = Some res.
+induction i; intros.
+  + simpl.
+    destruct (as_tree er) eqn:?.
+      - destruct_as_tree.
+          * simpl in *. 
+            unfold node. autorewrite with exprD_rw.
+            simpl. 
+            { repeat match goal with
+                     | [ |- exists _, match ?x with _ => _ end = _ ] => destruct x eqn:?
+                   end; eauto; try congruence.
+              + rewrite ExprFacts.exprD'_typeof_expr in Heqo0.
+                 destruct Heqo0. congruence.
+              + apply as_tree_l in Heqo. subst.
+                rewrite ExprFacts.exprD'_typeof_expr in Heqo0.
+                destruct Heqo0.
+                
+                app
+                p_exprD H0.
+                
+                copy H1. Definition exprD'_hide := exprD'. fold exprD'_hide in H3.
+                p_exprD_app.
+                p_exprD H6.
+                solve_funcAs_f H6.
+                unfold exprD'_hide in H3. fold func in *. 
+                unfold exprT_App in H3. simpl in H3.
+                rewrite Heqo1 in H3.
+                congruence.
+                
+                c
+               
+            
+            p_exprD_app.
+            p_exprD H8.
+             
+solve_funcAs_f H6. 
+clear t5.
+p_exprD H5. solve_funcAs_f H5. clear t0.
+            
+            
+            edestruct IHi. apply H. eauto. 
+            clear - Heqo2 H5.
+            Set Printing All. fold fund i
+ rewrite H5 in Heqo2.
+            
+            inv r.
+            p_exprD H4.
+            p_exprD H3.
+            p_exprD H4.
+            p_exprD H6.
+
+            rewrite H8 in H10. rewrite H5 in H7. inv_some.
+
+*)
+
+Opaque type_cast.
 Lemma set_reif_eq2 :
 forall i tus tvs typ vr tr,
 exprD' tus tvs (typtree typ) (App (App (Inj (inr (Data (fset typ i)))) vr) tr)  =
@@ -252,23 +366,88 @@ Proof.
 induction i;
 intros;
 simpl.
-forward. destruct_as_tree.
-apply as_tree_l in H. subst.
-unfold node in *.
-unfold func in *.  
+  + forward. destruct_as_tree.
+     - apply as_tree_l in H. subst.
+       unfold node in *.
+       unfold func in *.  
 destruct (exprD' tus tvs (typtree typ)
      (App (App (Inj (inr (Data (fset typ i~1)))) vr)
         (App (App (App (Inj (inr (Data (fnode t)))) e1) e0) e))) eqn:Eql,
 (exprD' tus tvs (typtree typ)
      (App (App (App (Inj (inr (Data (fnode t)))) e1) e0)
-        (set_reif i vr e typ))) eqn :Eqr; auto.
+          (set_reif i vr e typ))) eqn :Eqr; auto.
+            *(* specialize (IHi tus tvs typ vr e).              
+              p_exprD_app. unfold exprT_App in *. simpl in *. 
+              p_exprD_inj. 
+              assert (X := set_denote i~1 typ tus tvs). fold func in *.
+              rewrite <- X in *.
+
+              rewrite <- set_denote in H8.
+              p_exprD H4.
+              unfold funcAs in H4. simpl in H4.
+              clear H15 H16.
+           Check set_denote.
+              rewrite <- IHi in H1.
+              p_exprD_app. 
+              unfold exprT_App in *. simpl in *.
+              p_exprD_inj. 
+              unfold Relim, Rsym in H17.
+inversion r0. subst.
+              rewrite type_cast_refl in H6. inv H6.
+              unfold Relim in H13. simpl in H13. rewrite <- H8.
+              p_exprD_app.
+              p_exprD H9.
+              solve_funcAs H7.
+              unfold Rcast in H7. simpl in H7. inv_some.
+              unfold exprT_App in *.
+              simpl in *. 
+              copy H8.
+              solve_funcAs_f H7.
+              p_exprD H8.
+              solve_funcAs H7.
+              unfold Rcast in H7.
+              simpl in H7. inv H7.
+              inv H12.
+              
+              
+              solve
+              simpl in H8.
+              
+              p_exprD H6.
+              solve_funcAs_f H6. 
+              
+              solve_funcAs_f H4. 
+              solve_funcAs_f H9.
+              unfold funcAs in *. simpl in *. 
+              unfold Rty in *. subst
+              
+              rewrite <- IHi in H1. clear IHi.
+              p_exprD_app.
+              p_exprD H6.
+              solve_funcAs_f H6.
+              unfold exprT_App; simpl in *. 
+              cleanup_dups.
+              
+end.
+              
+              rewrite H3 in H12.
+              cleanup_dups.
+              rewrite <- IHi in H1.
+              p_exprD_inj.
+              p_exprD_inj.
+              unfold exprT_App in *. simpl.
+              p_exprD H9.
+              solve_funcAs_f H4.
+              p_exprD_inj.
+              unfold exprT_App. simpl.
+              p_exprD H8. *)
 autorewrite with exprD_rw in *; simpl in *;
 forward; inv_some.
 autorewrite with exprD_rw in H3. simpl in H3.
 forward. 
-clear e13 e9 e11.
-autorewrite with exprD_rw in H4. simpl in H4. forward.
-assert (X := ExprTac.exprD_typeof_Some _ _ _ _ _ H8).
+autorewrite with exprD_rw in H4. simpl in H4. forward. 
+Admitted.
+(*assert (X := ExprTac.exprD_typeof_Some _ _ _ _ _ H8).
 eapply ExprTac.exprD_typeof_eq in X; auto with typeclass_instances.
 Focus 2. apply H0. inv X. 
 rewrite H0 in H8. inv H8.
@@ -306,10 +485,46 @@ rewrite H6 in H9.
 rewrite H7 in H11.
 inv_some. auto. apply _. apply _.
 
- auto.
-inv_some.
-autorewrite 
 
+assert (exists v, exprD' tus tvs (typtree typ)
+          (App (App (App (Inj (inr (Data (fnode t)))) e1) e0)
+             (set_reif i vr e typ)) = Some v ).
+p_exprD Eql.
+p_exprD H1. 
+p_exprD H1.
+p_exprD H2.
+p_exprD H0.
+eexists.
+autorewrite with exprD_rw. simpl.
+match goal with
+[ |- match ?x with _ => _ end = _ ] => destruct x eqn:?
+end.
+autorewrite with exprD_rw. simpl. forward.
+autorewrite with exprD_rw. simpl. forward.
+autorewrite with exprD_rw. simpl. forward.
+Opaque type_cast.
+(*unfold funcAs.
+simpl. inv_some. simpl.
+p_exprD H7. unfold funcAs in H7; simpl in H7.
+specialize (IHi tus tvs t vr e).
+rewrite <- IHi in *.*)
+Print set_reif.
+
+            
+            solve_funcAs H6.
+            destruct (type_cast
+           (tyArr (typtree t0)
+              (tyArr (tyoption t0) (tyArr (typtree t0) (typtree t0))))
+           (tyArr t4 (tyArr t3 (tyArr t1 (typtree t))))); inv H6.
+            solve_funcAs H4.
+                                                                              
+            unfold funcAs in H4.
+            simpl in H4. 
+            edestruct IHi. eauto. 
+            autorewrite with exprD_rw in *. simpl in *.
+destruct (
+            destruct (exprD' tus tvs (typtree t) (node e2 e1 (set_reif i vr e0 t) t0)) eqn : ?.  eauto. assert False; [ | contradiction].
+            
 
 
 
@@ -414,7 +629,7 @@ unfold exprD in H. sc
 
        unfold exprD, split_env, ExprI.exprD' in H1. simpl in H1. unfold exprD' in H1. destruct t0; compute in H1.
 Locate exprD'.
-Admitted.
+Admitted. *)
 
 Lemma set_reif_eq2 :
 forall typ i vr tr tbl,
