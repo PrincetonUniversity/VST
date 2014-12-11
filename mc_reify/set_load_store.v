@@ -83,6 +83,7 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
   (forall rho, 
       !! (tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |--
         !! (tc_val (typeof e0) v) &&
+
         !! (legal_nested_field t_root gfs)) ->
 (*
   id = id /\ e = e /\ sh = sh /\ P = P /\ T1 = T1 /\
@@ -106,17 +107,27 @@ Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
 reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1).
 Defined.
 
-Print load_lemma.
+Require Import mc_reify.reverse_defs.
+Require Import symexe.
+Require Import mc_reify.func_defs.
+
+Section tbled.
+Locate RSym_sym.
+Parameter tbl : SymEnv.functions RType_typ.
+Let RSym_sym := RSym_sym tbl.
+Existing Instance RSym_sym.
 
 Definition APPLY_load temp var ret gt id t t_root e0 e1:=
 EAPPLY typ func (load_lemma temp var ret gt id t t_root e0 e1).
 
-Require Import mc_reify.reverse_defs.
-Require Import symexe.
-
 Definition remove_global_spec (t : tycontext) := 
 match t with
 | mk_tycontext t v r gt gs => mk_tycontext t v r gt (PTree.empty _)
+end.
+
+Ltac reify_expr_tac :=
+match goal with
+| [ |- ?trm] => reify_vst trm
 end.
 
 Goal
@@ -128,26 +139,33 @@ forall {Espec : OracleKind} (contents : list val) , exists (PO : environ -> mpre
      (normal_ret_assert PO)).
 intros.
 simpl (remove_global_spec Delta).
+
 reify_expr_tac.
 
-Print  typeof_temp.
-
-
+Eval vm_compute in (get_delta_statement e).
 Eval vm_compute in
 match (get_delta_statement e) with
 | Some ((t, v, r, gt) , st) => 
-  run_tac (THEN INTROS (THEN (APPLY_load t v r gt _p
- (match t ! _p with
- | Some (ty, _) => ty
- | None => Tvoid
- end) tint (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))) (TRY REFLEXIVITY)))
+  match st with
+  | Sset i e0 => 
+     let ty := match t ! i with
+               | Some (ty, _) => ty
+               | None => Tvoid
+               end in
+     run_tac (THEN INTROS (THEN (APPLY_load t v r gt _p ty tint e0 e0) (TRY (FIRST [(REFLEXIVITY_OP_CTYPE tbl0); (REFLEXIVITY_BOOL tbl0)]))))
+  | _ => run_tac FAIL
+  end
 | _ => run_tac FAIL
 end e.
 
 Print load_lemma.
+(*
+Eval vm_compute in (reflect_prop tbl0 load_lemma).
+Require Import denote_tac.
 
-Print  typeof_temp.
-Print load_lemma.
-
-Print legal_nested_efield.
-Print uncompomize.
+Check reflect_prop.
+assert (exists v, reflect_prop tbl0 e = Some v).
+unfold tbl0, e.
+simpl.
+cbv_denote.
+*)

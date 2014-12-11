@@ -19,6 +19,7 @@ Inductive const :=
 | fint : int -> const
 | fint64 : int64 -> const
 | fPos : positive -> const
+| fident : ident -> const
 | fCtype : type -> const
 | fCexpr : expr -> const
 | fComparison : comparison -> const
@@ -31,6 +32,7 @@ Definition typeof_const (c : const) : typ :=
 | fN _ => tynat
 | fZ _ => tyZ
 | fPos _ => typositive
+| fident _ => tyident
 | fCtype _ => tyc_type
 | fCexpr _ => tyc_expr
 | fComparison _ => tycomparison
@@ -44,7 +46,7 @@ end.
 Definition constD (c : const)
 : typD (typeof_const c) :=
 match c with
-| fN c | fZ c | fPos c | fCtype c | fCexpr c | fComparison c | fbool c | fint c 
+| fN c | fZ c | fPos c | fident c | fCtype c | fCexpr c | fComparison c | fbool c | fint c 
 | fint64 c | ffloat c | ffloat32 c 
                                           => c
 end.

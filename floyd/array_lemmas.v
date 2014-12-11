@@ -612,7 +612,7 @@ Qed.
 
 Lemma array_seg_reroot_lemma: forall sh t gfs t0 n a lo hi v0 v1 v2 v1' v' p,
   0 <= lo ->
-  lo < hi ->
+  lo <= hi ->
   nested_field_type2 t gfs = Tarray t0 n a ->
   hi <= n ->
   JMeq v1 v1' ->
@@ -626,6 +626,9 @@ Lemma array_seg_reroot_lemma: forall sh t gfs t0 n a lo hi v0 v1 v2 v1' v' p,
     array_at sh t gfs hi n v2 p.
 Proof.
   intros.
+  destruct (zlt lo hi).
+ 2:  admit.  (* Need to work on this!   *)
+  clear H0. rename l into H0.
   erewrite field_at_Tarray by eauto.
   rewrite split3seg_array_at with (ml := lo) (mr := hi) by (try auto; omega).
   normalize.

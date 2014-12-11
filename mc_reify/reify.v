@@ -287,7 +287,7 @@ Reify Pattern patterns_vst +=
 
 Reify Pattern patterns_vst += 
       (RHasType AST.ident (?0)) => (fun (a : id AST.ident) 
-                                       => (@Inj typ func (inr (Const (fPos a))))).
+                                       => (@Inj typ func (inr (Const (fident a))))).
 
 Reify Pattern patterns_vst_hastype += 
       (RHasType bool (?0)) => (fun (a : id bool) 
