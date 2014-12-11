@@ -21,16 +21,69 @@ Require Import MirrorCharge.RTac.EApply.
 Require Export mc_reify.funcs.
 Require Import mc_reify.types.
 Require Export mc_reify.reflexivity_tacs.
+Require Import mc_reify.func_defs.
 
 Local Open Scope logic.
+
+Section tbled.
+
+Parameter tbl : SymEnv.functions RType_typ.
+
+Let RSym_sym := RSym_sym tbl.
+Existing Instance RSym_sym.
 
 Ltac reify_expr_tac :=
 match goal with
 | [ |- ?trm] => reify_vst trm
 end.
 
+Lemma local2ptree_eq :
+forall (P : list Prop) (Q : list (environ -> Prop))
+         (R : list (environ -> mpred)) (T1 : PTree.t val)
+         (T2 : PTree.t (type * val)) (Q' : list (environ -> Prop)),
+       local2ptree Q T1 T2 Q' ->
+       PROPx P (LOCALx Q (SEPx R))
+       = PROPx P (LOCALx (LocalD T1 T2 Q') (SEPx R)).
+Admitted.
 
-Ltac do_local2ptree := eapply semax_pre0; [ eapply local2ptree_soundness; repeat constructor | ]; eapply semax_pre0; [ apply LocalD_to_localD | ].
+Ltac do_local2ptree := do 2 (erewrite local2ptree_eq; [ | repeat constructor ]);
+repeat rewrite LocalD_to_localD.
+
+Ltac pull_sep_lift R :=
+match R with
+| ((`?H) :: ?T) => let rest := pull_sep_lift T in constr:(cons H rest)
+| (@nil _) => constr:(@nil mpred)
+end.
+
+Ltac extract_sep_lift_semax :=
+  match goal with
+      [ |- context [semax _ (*(PROP (?P1) (LOCALx ?Q1 SEP (?R1)))*) 
+                 (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _ 
+                 (normal_ret_assert (*(PROPx ?P2 (LOCALx ?Q2 (SEPx ?R2))))*) _)]] =>
+      let R1' := pull_sep_lift R1 in
+      (*let R2' := pull_sep_lift R2 in*)
+      try (change (PROPx (P1) (LOCALx Q1 (SEPx (R1)))) 
+      with (assertD nil Q1 R1'))(*;
+      try  (change (PROPx (P2) (LOCALx Q2 (SEPx (R2)))) 
+      with (assertD nil Q2 R2'))*)
+end.
+
+Ltac hnf_tycontext :=
+match goal with
+[ |- context [semax ?s _ _ _] ] => let ss := eval hnf in s in change s with ss
+end.
+
+Ltac prepare_reify :=
+do_local2ptree;
+extract_sep_lift_semax;
+hnf_tycontext.
+
+Definition remove_global_spec (t : tycontext) := 
+match t with
+| mk_tycontext t v r gt gs => mk_tycontext t v r gt (PTree.empty _)
+end.
+
+
 
 Lemma semax_seq_reif c1 c2 : forall  (Espec : OracleKind) 
          (P : environ -> mpred)  (P' : environ -> mpred)
@@ -74,8 +127,22 @@ Definition THEN' (r1 r2 : rtac typ (expr typ func)) := THEN r1 (runOnGoals r2).
 Definition THEN (r1 r2 : rtac typ (expr typ func)) := 
   THEN' r1 (THEN' (INSTANTIATE typ func) r2).
 
+Definition update_tycon_tac (l : list (option (expr typ func)))
+(e : expr typ func) (args : list (expr typ func))
+	: expr typ func :=
+match e with
+    | (Inj (inr (Smx (fupdate_tycon)))) => 
+      match args with
+          | [App (Inj (inr (Smx (ftycontext t v r gt)))) gs; (Inj (inr (Smx (fstatement s))))] => 
+            App (Inj (inr (Smx (ftycontext (update_temp t s) v r gt)))) gs
+          | _ =>  AppN.apps e args
+      end
+    | _ => AppN.apps e args
+end.
+
+
 Definition SIMPL_DELTA : rtac typ (ExprCore.expr typ func) :=
-SIMPLIFY (fun _ _ _ _=>beta_all update_tycon_tac nil nil).
+SIMPLIFY (fun _ _ _ _=>beta_all update_tycon_tac).
 
 Definition INTROS := (REPEAT 10 (INTRO typ func)).
 
@@ -94,35 +161,38 @@ Definition APPLY_SEQ s1 s2 := THEN (APPLY_SEQ' s1 s2) (SIMPL_DELTA).
 Definition APPLY_SET' id e t v r gt:=
 EAPPLY typ func  (set_lemma id e t v r gt).
 
-Definition SYMEXE_STEP (tbl: SymEnv.functions RType_typ)
-: rtac typ (expr typ func)  := 
-   fun tus tvs lus lvs c s e =>
-  (
-match (get_delta_statement e) with
-| Some ((t, v, r, gt) , st) =>  
-    match st with 
-      | Sskip => APPLY_SKIP tus tvs lus lvs c s e
-      | Ssequence s1 s2 => APPLY_SEQ s1 s2 tus tvs lus lvs c s e
-      | Sset id exp => THEN (APPLY_SET' id exp t v r gt) 
-                             (TRY (FIRST [REFLEXIVITY_BOOL tbl;
-                                    REFLEXIVITY])) tus tvs lus lvs c s e
-      | _ => Fail
-    end
-| None => Fail
-end).
+Definition SYMEXE_STEP
+: rtac typ (expr typ func)  :=
+  AT_GOAL  
+    (fun c s e => 
+         match (get_delta_statement e) with
+           | Some ((t, v, r, gt) , st) =>  
+             match st with 
+               | Sskip => APPLY_SKIP 
+               | Ssequence s1 s2 => APPLY_SEQ s1 s2  
+               | Sset id exp => THEN (APPLY_SET' id exp t v r gt) 
+                                     (TRY (FIRST [(REFLEXIVITY_BOOL tbl);
+                                                   (REFLEXIVITY)])) 
+               | _ => FAIL
+             end
+           | None => FAIL
+         end).
 
-Definition SYMEXE_TAC tbl := THEN INTROS (REPEAT 1000 (SYMEXE_STEP tbl)).
+Existing Instance func_defs.Expr_ok_fs.
 
-Definition SYMEXE1_TAC tbl := THEN INTROS (SYMEXE_STEP tbl).
+
+Definition SYMEXE_TAC := THEN INTROS (REPEAT 1000 (SYMEXE_STEP)).
+
+Definition SYMEXE1_TAC := THEN INTROS (SYMEXE_STEP).
 
 Definition rreflexivity e :=
 run_tac (REFLEXIVITY) e.
 
-Definition symexe e tbl:=
-run_tac (SYMEXE_TAC tbl) e .
+Definition symexe e :=
+run_tac (SYMEXE_TAC ) e .
 
-Definition symexe1 e tbl :=
-run_tac (SYMEXE1_TAC tbl) e.
+Definition symexe1 e  :=
+run_tac (SYMEXE1_TAC ) e.
 
 Definition test_lemma :=
   @lemmaD typ (expr typ func) RType_typ ExprD.Expr_expr (expr typ func)
@@ -194,4 +264,6 @@ Print LoadPath.
 Eval vm_compute in run_tac (THEN INTROS REFLEXIVITYTAC) e.
 Eval vm_compute in run_tac (THEN INTROS (CANCELLATION typ func tympred is_pure)) e.
 Abort.
+
+End tbled.
 

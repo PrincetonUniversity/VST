@@ -5,38 +5,7 @@ Require Import sha.sha.
 Require Export sha.pure_lemmas.
 Export ListNotations.
 
-(* Move this stuff to Floyd *)
 Local Open Scope logic.
-
-Lemma field_at_compatible:
-  forall sh t path v c,
-     field_at sh t path v c |-- !! field_compatible t path c.
-Proof.
-Admitted.
-
-Lemma field_at_compatible':
- forall sh t path v c,
-     field_at sh t path v c =
-     !! field_compatible t path c && field_at sh t path v c.
-Proof.
-intros.
-apply pred_ext.
-apply andp_right.
-apply field_at_compatible.
-auto.
-normalize.
-Qed.
-
-Lemma field_address_clarify:
- forall t path c,
-   is_pointer_or_null (field_address t path c) ->
-   field_address t path c = offset_val (Int.repr (nested_field_offset2 t path)) c.
-Proof.
- intros. unfold field_address in *.
-  if_tac; try contradiction.
-  auto.
-Qed.
-(* END of stuff to move to Floyd *)
 
 Global Opaque K256.
 

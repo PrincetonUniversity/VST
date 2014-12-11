@@ -93,56 +93,77 @@ Proof.
      omega.
     }
 eapply semax_post_flipped3.
-evar (Frame: list (LiftEnviron mpred)).
+*
+ assert_PROP (field_compatible (tarray tuchar (Zlength data)) [ArraySubsc (Z.of_nat b4d)] d). {
+   entailer.
+    rewrite (data_at_field_at sh  (tarray tuchar (Zlength data))).
+    rewrite (field_at_compatible' sh).
+    entailer!.
+    admit.  (* field_compatible_cons *)
+  }   
+ evar (Frame: list (LiftEnviron mpred)).
   eapply(call_memcpy_tuchar
    (*dst*) Tsh t_struct_SHA256state_st [StructField _data] 0 nil c
    (*src*) sh (tarray tuchar (Zlength data)) [] (Z.of_nat b4d)
                    (map Int.repr data)
                    d
    (*len*) (Z.of_nat (len - b4d))
-        Frame);
-   [ auto | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | ].
+        Frame); try reflexivity; auto; try omega.
+ - rewrite Nat2Z.inj_sub; omega.
+ -  rewrite Zlength_nil; omega.
+ - simpl. change 64%Z with (Z.of_nat 64). apply Nat2Z.inj_le. change 64 with CBLOCK. omega.
+ - rewrite Zlength_map. rewrite <- Nat2Z.inj_add.
+  replace (b4d + (len-b4d)) with len by omega.
+  split; try omega. rewrite Zlength_correct; apply Nat2Z.inj_le; try omega.
+ - 
   unfold_data_at 1. entailer!.
-  symmetry; apply field_address_clarify; auto.
-  simpl update_tycon; rewrite insert_local.
-  replace_SEP 6%Z (`(K_vector kv)). entailer!.  (* Shouldn't need this *)
-  
+  destruct c; try contradiction.
+  unfold field_address.
+  rewrite if_true; auto.
+  rewrite if_true; auto.
+  admit.  (* field_compatible_cons *)
+  rewrite field_address_clarify.
+  erewrite nested_field_offset2_Tarray; try reflexivity.
+  normalize.
+  unfold field_address.
+  rewrite if_true. destruct d; try contradiction; apply I.
+  auto.
+* 
+ simpl tc_environ; rewrite insert_local.
+ clear POSTCONDITION.
+replace  (splice_into_list 0 (0 + Z.of_nat (len - b4d)) 64
+        (skipn (Z.to_nat (Z.of_nat b4d)) (map Vint (map Int.repr data))) 
+        [])
+  with (firstn (len - b4d) (skipn b4d (map Vint (map Int.repr data))) ++
+           list_repeat (CBLOCK - (len - b4d)) Vundef ).
+Focus 2. {
+symmetry.
+unfold splice_into_list.
+change (Z.to_nat 0) with 0. 
+rewrite !Z.add_0_l, !Z.sub_0_r, !Nat2Z.id, !app_nil_l.
+rewrite skipn_list_repeat
+  by (change (Z.to_nat 64) with CBLOCK; clear - DONE; omega).
+rewrite (firstn_same _ (Z.to_nat _))
+   by (rewrite length_list_repeat; rewrite Z2Nat.inj_sub by omega; rewrite Nat2Z.id; clear; omega).
+rewrite firstn_app1
+  by (rewrite skipn_length, !map_length; omega).
+reflexivity.
+} Unfocus.
+ unfold data_block.  rewrite prop_true_andp by auto.
  apply exp_right with (S256abs (hashed++blocks) dd').
- entailer!.
-* clear TC1 TC.
- apply Update_abs; auto.
- rewrite <- H2; change CBLOCKz with (Z.of_nat CBLOCK);
-  apply Nat2Z.inj_lt; assumption.
- rewrite Hblocks.
- repeat rewrite app_ass.
- f_equal.
- unfold dd'; rewrite firstn_app.
- f_equal.
- clear - Hblocks_len; omega.
-*
- unfold data_block.
- rewrite prop_true_andp by auto.
- clear POSTCONDITION H0 rho.
  unfold sha256state_.
- rewrite splice_into_list_simplify2;
-  [
-  | reflexivity | omega
-  |  rewrite Nat2Z.id, Zlength_correct;
-     rewrite skipn_length by (repeat rewrite map_length; omega);
-    repeat rewrite map_length; rewrite Z.sub_0_r; apply Nat2Z.inj_le; omega
-  ].
- simpl app at 1. rewrite Z.sub_0_r, Nat2Z.id, Nat2Z.id.
- normalize.
+ entailer.
  apply exp_right with 
               (map Vint (hash_blocks init_registers (hashed ++ blocks)),
                 (Vint (lo_part (bitlength hashed dd + Z.of_nat len * 8)),
                  (Vint (hi_part (bitlength hashed dd + Z.of_nat len * 8)),
                   (map Vint (map Int.repr dd'), Vint (Int.repr (Zlength dd')))))).
- entailer!.
- -
-    unfold s256_relate, s256_Nh, s256_Nl, bitlength; simpl.
+ unfold s256_relate, s256_h, s256_Nh, s256_Nl, s256_data, s256_num.
+ simpl @fst; simpl @snd.
+assert (bitlength hashed dd + Z.of_nat len * 8 =
+            bitlength (hashed ++ blocks) dd')%Z. {
+    unfold bitlength, dd'. rewrite (Zlength_correct (firstn _ _)).
     rewrite Zlength_app.
-    unfold dd' at 1 2; rewrite (Zlength_correct (firstn _ _)).
     rewrite firstn_length.
     rewrite skipn_length by omega.
     rewrite min_l  by omega.
@@ -154,17 +175,33 @@ evar (Frame: list (LiftEnviron mpred)).
     repeat rewrite <- Zlength_correct.
     change (Z.of_nat 4) with WORD.
     rewrite (Z.mul_add_distr_r _ _ WORD).
-    repeat split; auto.
-    f_equal; f_equal; clear; omega.
-    f_equal; f_equal; clear; omega.
-   rewrite <- H2; change CBLOCKz with (Z.of_nat CBLOCK); apply Nat2Z.inj_lt; auto.
-   unfold dd'; apply Forall_firstn; apply Forall_skipn; auto.
-   apply Z.divide_add_r; auto.
+    omega.
+}
+ rewrite H5.
+ entailer!.
  -
+ apply Update_abs; auto.
+ rewrite <- H2; change CBLOCKz with (Z.of_nat CBLOCK);
+  apply Nat2Z.inj_lt; assumption.
+ rewrite Hblocks.
+ repeat rewrite app_ass.
+ f_equal.
+ unfold dd'; rewrite firstn_app.
+ f_equal.
+ clear - Hblocks_len; omega.
+ -
+   rewrite <- H2; change CBLOCKz with (Z.of_nat CBLOCK); apply Nat2Z.inj_lt; auto.
+ -
+   unfold dd'; apply Forall_firstn; apply Forall_skipn; auto.
+-
+  rewrite Zlength_app;   apply Z.divide_add_r; auto.
+-
    rewrite <- H2.
    unfold_data_at 1. entailer!.
    unfold dd'.
-   repeat rewrite skipn_map. repeat rewrite firstn_map. auto.
+   repeat rewrite skipn_map. repeat rewrite firstn_map.
+ apply derives_refl'; apply equal_f; apply field_at_data_equal.
+ apply data_equal_sym; apply data_equal_list_repeat_default.
 + (* else-clause *)
  forward. 
  normalize.
@@ -264,9 +301,7 @@ apply semax_seq with (sha_update_inv sh hashed (Z.to_nat len) c d dd data kv fal
    rewrite (field_at_compatible' _ _ [StructField _data]) at 1.
   entailer!.
       apply field_address_clarify; auto.
-      unfold field_address; rewrite if_true by auto.
-      normalize.
-      f_equal. apply Z2Nat.id. omega.
+      rewrite Z2Nat.id by omega; auto.
     rewrite Z2Nat.id by omega; auto.
  - rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; auto; omega.
  - rewrite Z2Nat.id by omega; auto.

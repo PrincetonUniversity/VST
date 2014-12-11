@@ -4,3 +4,4 @@
 .depend
 .loadpath
 version.v
+coqide
