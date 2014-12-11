@@ -1593,11 +1593,9 @@ change ((ext_spec_post' Espec e x' (Genv.genv_symb psi) (opttyp_of_type retty) r
           (Q' x (make_ext_rval  (filter_genv psi) ret0) *
               (F0 (construct_rho (filter_genv psi) vx tx) *
                F (construct_rho (filter_genv psi) vx tx)))) (level jm')) in H15.
-assert (level jm' >= level m')%nat. 
+assert (level jm' > level m')%nat. 
 {
- do 2 rewrite level_juice_level_phi.
- destruct H8 as (?&?&?).
- auto.
+ destruct H8 as (?&?&?); auto.
 }
 apply (pred_nec_hereditary _ _ (level m')) in H15;
  [ | apply nec_nat; omega].
