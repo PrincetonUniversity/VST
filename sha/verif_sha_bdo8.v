@@ -298,7 +298,9 @@ eapply (semax_SC_field_load Delta Tsh type_id_env.empty_ti
    set (zz :=  (Znth (Z.of_nat i) (map Vint (add_upto i regs atoh)) Vundef)) in *.
    go_lowerx.
    saturate_local.
-   apply andp_right; apply prop_right; auto.
+   normalize.
+   apply prop_right; auto.
+   repeat split; auto.
    hnf. unfold typecheck_lvalue.  rewrite H2.
   simpl. unfold_lift. rewrite <- H9. auto.
 +
@@ -379,8 +381,8 @@ eapply (semax_SC_field_store (initialized _t Delta) Tsh type_id_env.empty_ti
   } Unfocus.
  simpl.
  hnf in H10. unfold_lift. rewrite <- H10. auto.
- apply prop_right.
- hnf.
+ apply andp_right; apply prop_right;
+ hnf; auto.
  unfold typecheck_expr.
 
 rewrite (temp_types_init_same _ _ _ H3).
