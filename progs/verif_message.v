@@ -137,7 +137,7 @@ destruct data as [[|x1 | | | | ] [|y1 | | | | ]]; try contradiction. clear Dx Dy
 
 unfold_data_at 1%nat.
 change (mf_size intpair_message) with (sizeof (tarray tint 2)).
-rewrite memory_block_data_at_; [| reflexivity | reflexivity | | cbv; reflexivity].
+rewrite memory_block_data_at_; try reflexivity.
 Focus 2. {
   unfold natural_align_compatible in H1.
   unfold align_compatible.
@@ -267,7 +267,8 @@ apply andp_derives; auto.
    split; simpl.
    cbv; intros; inversion H0.
    change (Int.unsigned Int.zero) with 0.
-   apply Z.divide_0_r.
+   split3.
+   apply Z.divide_0_r.  reflexivity. reflexivity.
  + repeat apply sepcon_derives.
    normalize.
    simpl offset_val.
