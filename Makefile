@@ -114,7 +114,8 @@ LINKING_FILES= \
   core_semantics_tcs.v \
   linking_spec.v \
   erase_juice.v \
-  safety.v 
+  safety.v \
+  semax_linking.v
 
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
