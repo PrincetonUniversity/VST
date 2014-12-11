@@ -85,6 +85,26 @@ Definition juicy_core_sem
     (jstep_not_halted csem)
     (j_at_external_halted_excl csem).
 
+Section upd_exit.
+  Context {Z : Type}.
+  Variable spec : juicy_ext_spec Z.
+
+  Definition upd_exit' (Q_exit : option val -> Z -> juicy_mem -> Prop) :=
+  {| ext_spec_type := ext_spec_type spec
+   ; ext_spec_pre := ext_spec_pre spec
+   ; ext_spec_post := ext_spec_post spec
+   ; ext_spec_exit := Q_exit |}.
+
+  Definition upd_exit'' (ef : external_function) (x : ext_spec_type spec ef) ge := 
+    upd_exit' (ext_spec_post spec ef x ge (sig_res (ef_sig ef))).
+
+  Program Definition upd_exit {ef : external_function} (x : ext_spec_type spec ef) ge :=
+    Build_juicy_ext_spec _ (upd_exit'' _ x ge) _ _ _.
+  Next Obligation. intros. eapply JE_pre_hered; eauto. Qed.
+  Next Obligation. intros. eapply JE_post_hered; eauto. Qed.
+  Next Obligation. intros. eapply JE_post_hered; eauto. Qed.
+End upd_exit.
+
 Obligation Tactic := Tactics.program_simpl.
 
 Program Definition juicy_mem_op (P : pred rmap) : pred juicy_mem :=
