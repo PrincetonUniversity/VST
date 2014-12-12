@@ -61,6 +61,17 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd kv:=
          `(K_vector kv);
          `(memory_block shmd (Int.repr 32) md))).
 
+Lemma field_compatible_cons_Tarray'
+     : forall (k : Z) (t : type) (n : Z) (a : attr) (gfs : list gfield)
+         (p : val) (t' : type) (ofs : Z),
+       nested_field_rec t gfs = Some (ofs, Tarray t' n a) ->
+       field_compatible t gfs p ->
+       0 <= k <= n -> field_compatible t (ArraySubsc k :: gfs) p.
+Admitted.  (* Temporary, less-strict form of field_compatible_cons_Tarray,
+    until we figure out better treatment of zero-length arrays
+    as members of structures. *)
+
+
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
   (dd : list Z) (kv: val)
@@ -125,38 +136,31 @@ erewrite array_seg_reroot_lemma with (gfs := [StructField _data]) (lo := ddlen +
 normalize.
 forward_call (* memset (p+n,0,SHA_CBLOCK-n); *)
    ((Tsh,
-     offset_val (Int.repr
-       (nested_field_offset2 t_struct_SHA256state_st
-          [ArraySubsc (ddlen + 1); StructField _data])) c,
+     (field_address t_struct_SHA256state_st
+       [ArraySubsc (ddlen + 1); StructField _data] c),
      (CBLOCKz - (ddlen + 1)))%Z,
      Int.zero).
 {
   remember (data_at Tsh (Tarray tuchar (64 - (ddlen + 1)) noattr)
        (list_repeat (Z.to_nat (64 - (ddlen + 1))) Vundef)
-       (offset_val
-          (Int.repr
-             (nested_field_offset2 t_struct_SHA256state_st
-                [ArraySubsc (ddlen + 1); StructField _data])) c))
+       (field_address t_struct_SHA256state_st
+       [ArraySubsc (ddlen + 1); StructField _data] c))
      as A.
   change 64 with CBLOCKz.
   entailer!.
-  + 
-    clear - H5; 
-    unfold field_address in *. 
-   if_tac in H5; try contradiction.
-   rewrite if_true.
-   destruct c; try contradiction; auto.
-   clear - H.
-    unfold field_compatible in *.
-    decompose [and] H; repeat split; auto.
   + change CBLOCKz with 64%Z; assert (Int.max_unsigned > 64%Z) by computable; omega.
-  + f_equal.
-    f_equal.
-    erewrite nested_field_offset2_Tarray by reflexivity.
+  + 
+    repeat rewrite field_address_clarify; auto.
+    normalize.
+    erewrite nested_field_offset2_Tarray; [ |reflexivity].
     change (sizeof tuchar) with 1.
     rewrite Z.mul_1_l.
-   rewrite field_address_clarify by auto. 
    normalize.
+     unfold field_address in *. if_tac in TC0; try solve [inv TC0].
+     rewrite if_true.
+     destruct c; try contradiction; apply I.
+     eapply field_compatible_cons_Tarray'; try reflexivity; auto.
+     omega.
   + change CBLOCKz with 64%Z.
     normalize.
     repeat rewrite <- sepcon_assoc.
@@ -187,8 +191,6 @@ Qed.
     f_equal.
    rewrite sizeof_Tarray by omega.
    apply Z.mul_1_l.
-   rewrite field_address_clarify by auto.
-    auto.
 }
 after_call.
 gather_SEP 1%Z 0%Z 2%Z.
@@ -213,14 +215,6 @@ replace_SEP 0%Z (`(field_at Tsh t_struct_SHA256state_st [StructField _data] (map
   rewrite map_app.
   change 64 with CBLOCKz.
   entailer!.
-  rewrite field_address_clarify; auto.
- clear - TC0 Hddlen.
-  unfold field_address in *.
-  if_tac in TC0; try contradiction.
- rewrite if_true. destruct c_; try contradiction; apply I.
- unfold field_compatible in *; intuition.
- constructor. apply I. simpl.
-admit. (* legal_nested_field too strict? *)
 }
 pose (ddzw := Zlist_to_intlist (map Int.unsigned ddz)).
 assert (H0': length ddz = CBLOCK). {

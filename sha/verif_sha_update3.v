@@ -26,31 +26,6 @@ Proof.
  apply IHk; auto. omega.
 Qed.
 
-Lemma data_equal_firstn: forall t n a (v v': list (reptype t)),
-  firstn (Z.to_nat n) v = firstn (Z.to_nat n) v' ->
-  @data_equal (Tarray t n a) v v'.
-Proof.
-  intros.
-  apply data_equal_array_ext.
- fold reptype.
-   intros.
- replace  (@Znth (reptype t) i v' (default_val t))
-   with    (@Znth (reptype t) i v (default_val t)).
- apply data_equal_refl.
- unfold Znth.
- if_tac; auto.
- assert (Z.to_nat i < Z.to_nat n).
- apply Z2Nat.inj_lt; omega.
- forget (Z.to_nat n) as nn.
- forget (Z.to_nat i) as j.
- clear - H H2.
- revert nn v v' H H2; induction j; destruct nn, v,v'; simpl; intros; auto;
-    try omega; inv H.
- auto.
- apply (IHj _ _ _ H3).
- omega.
-Qed.
-
 Lemma update_inner_if_else_proof:
  forall (Espec : OracleKind) (hashed : list int)
           (dd data : list Z) (c d: val) (sh: share) (len: nat) kv
@@ -135,25 +110,7 @@ drop_LOCAL 0.
  rewrite (data_at_field_at sh).
  unfold_data_at 1%nat.
  entailer!.
-Lemma field_address_isptr:
-  forall t path c, isptr c -> field_compatible t path c -> isptr (field_address t path c).
-Proof.
- intros.
- unfold field_address. rewrite if_true by auto.
- normalize.
-Qed.
 
-Lemma is_pointer_or_null_field_compatible:
-  forall t path c, 
-     is_pointer_or_null (field_address t path c) ->
-      field_compatible t path c.
-Proof.
- intros.
- unfold field_address in H.
- if_tac in H; auto. inv H.
-Qed.
-Hint Resolve field_address_isptr.
-Hint Resolve is_pointer_or_null_field_compatible.
 auto.
  rewrite field_address_clarify; auto.
  normalize.

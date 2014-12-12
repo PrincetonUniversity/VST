@@ -361,8 +361,6 @@ Proof.
     entailer!.
   } Unfocus.
   forward. (* p += 4; *)
-  entailer!. clear - TC0. unfold field_address in *.
-  if_tac; auto. destruct H; normalize.
   forward. (* cNl=c->Nl; *)
   erewrite array_seg_reroot_lemma with (lo := 60) (hi := 64);
     [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | reflexivity].
