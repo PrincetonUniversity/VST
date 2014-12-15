@@ -51,6 +51,16 @@ induction n; destruct al; intros; simpl in *; try omega; auto.
 apply IHn; omega.
 Qed.
 
+Lemma skipn_app2:
+ forall A n (al bl: list A),
+  (n >= length al)%nat ->
+  skipn n (al++bl) = skipn (n-length al) bl.
+Proof.
+intros. revert al H;
+induction n; destruct al; intros; simpl in *; try omega; auto.
+apply IHn; omega.
+Qed. 
+
 Lemma list_repeat_app: forall A a b (x:A),
   list_repeat a x ++ list_repeat b x = list_repeat (a+b) x.
 Proof.

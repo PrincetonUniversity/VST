@@ -635,10 +635,43 @@ Proof.
   + apply legal_nested_field_dec.
 Qed.  
 
+Lemma field_compatible_cons_Tarray:
+  forall k t n a gfs p t' ofs,
+  nested_field_rec t gfs = Some (ofs, Tarray t' n a) ->
+  field_compatible t gfs p ->
+  (0 <= k < n)%Z ->
+  field_compatible t (ArraySubsc k :: gfs) p.
+Proof.
+unfold field_compatible; intros; intuition.
+apply <- (nested_field_rec_cons_legal_eq_Some_lemma).
+rewrite H.
+split; auto.
+Qed.
+
 Definition field_address t gfs p :=
   if (field_compatible_dec t gfs p)
   then offset_val (Int.repr (nested_field_offset2 t gfs)) p
   else Vundef.
+
+Lemma field_address_isptr:
+  forall t path c, isptr c -> field_compatible t path c -> isptr (field_address t path c).
+Proof.
+ intros.
+ unfold field_address. rewrite if_true by auto.
+ normalize.
+Qed.
+
+Lemma is_pointer_or_null_field_compatible:
+  forall t path c, 
+     is_pointer_or_null (field_address t path c) ->
+      field_compatible t path c.
+Proof.
+ intros.
+ unfold field_address in H.
+ if_tac in H; auto. inv H.
+Qed.
+Hint Resolve field_address_isptr.
+Hint Resolve is_pointer_or_null_field_compatible.
 
 Lemma nested_field_rec_nest_pred: forall {atom_pred: type -> bool} (t: type) (gfs: list gfield) pos t', nested_pred atom_pred t = true -> nested_field_rec t gfs = Some (pos, t') -> nested_pred atom_pred t' = true.
 Proof.

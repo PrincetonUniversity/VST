@@ -203,6 +203,19 @@ Proof.
     intro sh; apply pred_ext; [apply H | apply H0].
 Qed.
 
+
+Lemma data_equal_JMeq:
+  forall t t' a a' b b',
+    t=t' ->
+    @JMeq (reptype t) a (reptype t') a' ->
+    @JMeq (reptype t) b (reptype t') b' ->
+    data_equal a b -> data_equal a' b'.
+Proof.
+intros. subst t'.
+apply JMeq_eq in H0. apply JMeq_eq in H1.
+subst; auto.
+Qed.
+
 Lemma data_equal_refl: forall t (v: reptype t), v === v.
 Proof.
   intros.
@@ -255,4 +268,56 @@ Proof.
     tauto.
   } Unfocus.
   apply data_equal_stronger; split; apply stronger_array_ext; auto.
+Qed.
+
+Lemma data_equal_firstn: forall t n a (v v': list (reptype t)),
+  firstn (Z.to_nat n) v = firstn (Z.to_nat n) v' ->
+  @data_equal (Tarray t n a) v v'.
+Proof.
+  intros.
+  apply data_equal_array_ext.
+ fold reptype.
+   intros.
+ replace  (@Znth (reptype t) i v' (default_val t))
+   with    (@Znth (reptype t) i v (default_val t)).
+ apply data_equal_refl.
+ unfold Znth.
+ if_tac; auto.
+ assert (Z.to_nat i < Z.to_nat n)%nat.
+ apply Z2Nat.inj_lt; omega.
+ forget (Z.to_nat n) as nn.
+ forget (Z.to_nat i) as j.
+ clear - H H2.
+ revert nn v v' H H2; induction j; destruct nn, v,v'; simpl; intros; auto;
+    try omega; inv H.
+ auto.
+ apply (IHj _ _ _ H3).
+ omega.
+Qed.
+
+Lemma nth_list_repeat: forall A i n (x :A),
+    nth i (list_repeat n x) x = x.
+Proof.
+ induction i; destruct n; simpl; auto.
+Qed.
+
+Lemma data_equal_list_repeat_default: forall t n a (v: list (reptype t)) m,
+  @data_equal (Tarray t n a) v (v ++ list_repeat m (default_val t)).
+Proof.
+  intros.
+  apply data_equal_array_ext.
+  intros.
+  unfold Znth; if_tac; [omega |].
+  pattern v at 1.
+  replace v with (v ++ nil) by (rewrite <- app_nil_r; reflexivity).
+  destruct (lt_dec (Z.to_nat i) (length v)).
+  + rewrite !app_nth1 by auto.
+    apply data_equal_refl.
+  + rewrite !app_nth2 by omega.
+    rewrite nth_list_repeat.
+    destruct (Z.to_nat i - length v)%nat; apply data_equal_refl.
+Qed.
+
+Lemma eq_JMeq: forall A (x y: A), x=y -> JMeq x y.
+Proof. intros. subst. reflexivity.
 Qed.

@@ -5,3 +5,4 @@
 .loadpath
 version.v
 coqide
+*.cache
