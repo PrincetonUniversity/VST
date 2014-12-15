@@ -75,31 +75,29 @@ MSL_FILES = \
   seplog.v alg_seplog.v log_normalize.v
 
 SEPCOMP_FILES= \
-  Address.v step_lemmas.v extspec.v FiniteMaps.v \
-  mem_lemmas.v mem_wd.v mem_interpolants.v mem_interpolation_defs.v \
-  mem_interpolation_EE.v mem_interpolation_EI.v mem_interpolation_IE.v mem_interpolation_II.v \
-  mem_interpolation_proofs.v compiler_correctness.v \
+  Address.v \
+  step_lemmas.v \
+  extspec.v \
+  FiniteMaps.v \
+  mem_lemmas.v mem_wd.v \
+  compiler_correctness.v \
   core_semantics.v core_semantics_lemmas.v \
-  forward_simulations.v forward_simulations_trans.v \
+  forward_simulations.v \
   forward_simulations_lemmas.v \
-  compiler_correctness_trans.v compiler_correctness_progless_trans.v \
   safety_preservation.v \
-  StructuredInjections.v effect_semantics.v effect_simulations.v rg_lemmas.v \
-  effect_simulations_lemmas.v effect_corediagram_trans.v \
-  effect_properties.v effect_interpolants.v effect_simulations_trans.v \
-  effect_interpolation_II.v effect_interpolation_proofs.v \
+  StructuredInjections.v \
+  effect_semantics.v effect_simulations.v \
+  rg_lemmas.v \
+  effect_properties.v \
   arguments.v closed_safety.v compcert.v \
   val_casted.v \
   reach.v \
   trace_semantics.v \
   arguments.v \
   nucular_semantics.v \
-  effect_simulationsEXP.v \
   wholeprog_simulations.v \
   wholeprog_lemmas.v \
-  barebones_simulations.v \
-  dep_effect_simulationsEXP.v \
-  dep_wholeprog_simulations.v 
+  barebones_simulations.v
 
 LINKING_FILES= \
   sepcomp.v \
