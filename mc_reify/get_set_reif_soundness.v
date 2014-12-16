@@ -356,34 +356,6 @@ induction i; intros.
         simpl in *. unfold none_reif, node in *.
         p_exprD_app; p_exprD_inj. 
 Qed.        
-  
-
-Lemma set_reif_eq2 :
-forall i tus tvs typ vr tr,
-exprD' tus tvs (typtree typ) (App (App (Inj (inr (Data (fset typ i)))) vr) tr)  =
-exprD' tus tvs (typtree typ) (set_reif i vr tr typ).
-Proof.
-(*current starts here *)
-induction i;
-intros;
-simpl.
-  + forward. destruct_as_tree.
-     - apply as_tree_l in H. subst.
-       unfold node in *.
-       unfold func in *.  
-destruct (exprD' tus tvs (typtree typ)
-     (App (App (Inj (inr (Data (fset typ i~1)))) vr)
-        (App (App (App (Inj (inr (Data (fnode t)))) e1) e0) e))) eqn:Eql,
-(exprD' tus tvs (typtree typ)
-     (App (App (App (Inj (inr (Data (fnode t)))) e1) e0)
-          (set_reif i vr e typ))) eqn :Eqr; auto.
-            * specialize (IHi tus tvs typ vr e).              
-              p_exprD_app.
-              unfold exprT_App in *. simpl in *. 
-              p_exprD_inj. 
-              rewrite <- IHi in *. inv_some.
-              auto.
-            * 
 
 Lemma set_reif_exprD :
 forall tus tvs typ i vr v ev e,
@@ -572,33 +544,174 @@ induction i; intros.
         rewrite type_cast_refl. unfold Rcast, Relim. simpl.
         fold func in *.
         rewrite H1. rewrite H0. eauto. apply _.
-  +
-         
-Check ExprTac.exprD_typeof_Some.
-Lemma exprD_typeof_Some : forall tus tvs t e val,
-exprD' tus tvs t e = Some val -> typeof_expr tus tvs e = Some t.
-        pose (ExprTac.exprD_typeof_Some).
-        
-        apply ExprTac.exprD_typeof_Some in H.
-        SearchAbout typeof_expr.
-forward.
-                
+  + simpl in *.
+    destruct (as_tree e) eqn:?; destruct_as_tree.
+      - apply as_tree_l in Heqo. subst. p_exprD_app.
+        p_exprD_inj. unfold node.
+        autorewrite with exprD_rw. simpl.
+        forward.
+        autorewrite with exprD_rw. simpl.
+        forward. copy H0. apply exprD_typeof_Some in H7.
+        forward. inv_some. rewrite type_cast_refl.
+        unfold some_reif.
+        repeat (autorewrite with exprD_rw; simpl; forward; inv_some).
+        inv_some. unfold funcAs. simpl. rewrite type_cast_refl.
+        simpl. forward. rewrite type_cast_refl. 
+        unfold Rcast. simpl. fold func in *. rewrite H0.  eauto.
+        auto with typeclass_instances.
+        apply _.
+        apply _.
+      - apply as_tree_r in Heqo. unfold node, leaf, some_reif in *.
+        subst. p_exprD_inj.
+        copy H0. apply exprD_typeof_Some in H.
+        repeat (autorewrite with exprD_rw; simpl; forward; inv_some; 
+                try (unfold funcAs; simpl; rewrite type_cast_refl; 
+                     unfold Rcast; simpl; forward); fold func in *).
+        eauto.
+        auto with typeclass_instances.                                         
+        apply _.
+        apply _.
+        apply _.
+        apply _.
+     -  copy H0. apply exprD_typeof_Some in H1. fold func in *.
+        assert (X := exprD_typeof_Some _ _ (typtree typ) _ _ H). 
+        repeat (autorewrite with exprD_rw; simpl; forward; inv_some; 
+                try (unfold funcAs; simpl; rewrite type_cast_refl; 
+                     unfold Rcast; simpl; forward); fold func in *); try apply _.
+        eauto. Grab Existential Variables. auto.
+Admitted. (*Qed works, is slow *) 
 
-                     
-                
-                     
-                 
-                 
-                 apply set_reif_istree in H. subst.
-                 solve_funcAs. inversion H6. 
-                 apply _.
-               - edestruct IHi.
-                 apply H2.
-                 eauto.
-                 fold func in *. 
-                 assert (X := ExprFacts.exprD'_typeof_expr tus tvs (set_reif i vr e0 typ) (typtree typ)).
-                 destruct X. rewrite H8 in Heqo0. congruence.
-                 eauto. }
+Lemma set_reif_vr : forall tus tvs typ i e vr e4,
+  exprD' tus tvs (typtree typ) (set_reif i vr e typ) = Some e4 ->
+  exists v, exprD' tus tvs typ vr = Some v.
+Proof.
+induction i; intros.
+  + simpl in *.
+    destruct (as_tree e) eqn:?; destruct_as_tree.
+      - apply as_tree_l in Heqo.
+        subst.
+        unfold node in *.
+        p_exprD_app.
+        p_exprD_inj.
+        edestruct IHi.
+        eauto.
+        eauto.
+     - apply as_tree_r in Heqo.
+        subst.
+        unfold node in *.
+        p_exprD_app.
+        p_exprD_inj.
+        edestruct IHi.
+        eauto.
+        eauto.
+     - p_exprD_app; p_exprD_inj. eauto.
+  +  simpl in *.
+    destruct (as_tree e) eqn:?; destruct_as_tree.
+      - apply as_tree_l in Heqo.
+        subst.
+        unfold node in *.
+        p_exprD_app.
+        p_exprD_inj.
+        eauto; eauto.
+     - apply as_tree_r in Heqo.
+        subst.
+        unfold node in *.
+        p_exprD_app.
+        p_exprD_inj.
+        eauto; eauto.
+     - p_exprD_app; p_exprD_inj.
+       eauto.
+ + simpl in *.
+    destruct (as_tree e) eqn:?; destruct_as_tree.
+      - apply as_tree_l in Heqo.
+        subst.
+        unfold node, some_reif in *.
+        p_exprD_app.
+        p_exprD_inj.
+        eauto. 
+     - apply as_tree_r in Heqo.
+        subst.
+        unfold node, leaf, some_reif in *.
+        p_exprD_app.
+        p_exprD_inj.  
+        eauto. 
+     - p_exprD_app; p_exprD_inj.
+       eauto.
+Admitted (*Qed*).
+  
+
+Lemma set_reif_eq2 :
+forall i tus tvs typ vr tr val,
+exprD' tus tvs (typtree typ) tr = Some val ->
+exprD' tus tvs (typtree typ) (App (App (Inj (inr (Data (fset typ i)))) vr) tr)  =
+exprD' tus tvs (typtree typ) (set_reif i vr tr typ).
+Proof.
+induction i;
+intros;
+simpl. rename H into HX.
+  + forward. destruct_as_tree.
+     - apply as_tree_l in H. subst.
+       unfold node in *.
+       unfold func in *.  
+destruct (exprD' tus tvs (typtree typ)
+     (App (App (Inj (inr (Data (fset typ i~1)))) vr)
+        (App (App (App (Inj (inr (Data (fnode t)))) e1) e0) e))) eqn:Eql,
+(exprD' tus tvs (typtree typ)
+     (App (App (App (Inj (inr (Data (fnode t)))) e1) e0)
+          (set_reif i vr e typ))) eqn :Eqr; auto.
+            * specialize (IHi tus tvs typ vr e).              
+              p_exprD_app.
+              unfold exprT_App in *. simpl in *. 
+              p_exprD_inj. 
+              fold func in *.
+              erewrite <- IHi in H1.
+              p_exprD_app; p_exprD_inj. inv_some.
+              auto.
+              eauto.
+            * p_exprD_app. p_exprD_inj. 
+              fold func in *.
+              edestruct (set_reif_exprD tus tvs t0 i vr).
+              apply H10. eauto.
+              
+              copy H5. fold func in *. apply exprD_typeof_Some in H5.
+              fold func in *. erewrite H5 in Eqr.
+              forward.
+              p_exprD_app. p_exprD H13. solve_funcAs.
+              inversion H12. apply _.
+            * p_exprD_app. p_exprD_inj. 
+              rewrite (type_cast_refl (typtree typ)) in Eql.
+              rewrite (type_cast_refl (tyoption typ)) in Eql.
+              rewrite type_cast_refl in Eql.
+              autorewrite with exprD_rw in Eql.
+              simpl in Eql. forward.
+              destruct (set_reif_vr tus tvs typ _ _ _ _ H1).
+              assert (X := exprD_typeof_Some _ _ _ _ _ H7). 
+              forward.
+              autorewrite with exprD_rw in Eql.
+              simpl in Eql. inv_some.
+              unfold funcAs in *.
+              simpl in *. rewrite type_cast_refl in Eql.
+              unfold Rcast, Relim in Eql.
+              simpl in Eql. forward. fold func in *. rewrite H7 in Eql.
+              autorewrite with exprD_rw in Eql.
+              simpl in Eql. forward.
+              autorewrite with exprD_rw in H14.
+              simpl in H14. forward. inv_some.
+              unfold funcAs in H14. simpl in *.
+              rewrite type_cast_refl in H14.
+              forward. inversion H11. apply _. apply _. apply _.
+     - apply as_tree_r in H. subst.              
+       p_exprD_inj.
+       repeat (autorewrite with exprD_rw; simpl).
+       
+       
+              
+
+              
+
+
+       
+                                                                     
         
          
                 
