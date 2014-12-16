@@ -16,13 +16,13 @@ Fixpoint set_reif (i : positive) (v : expr typ func) (m : expr typ func) (ty : t
 match (as_tree m) with
   | Some (inl (t,l,o,r)) (* Node l o r *)=>
     match i with 
-      | xH => node l (some_reif v t) r t
+      | xH => node l (some_reif v t) r ty
       | xO ii => node (set_reif ii v l ty) o r t
       | xI ii => node l o (set_reif ii v r ty) t
     end
   | Some (inr t) => 
     match i with
-      | xH => node (leaf t) (some_reif v t) (leaf t) t
+      | xH => node (leaf t) (some_reif v t) (leaf t) ty
       | xO ii => node (set_reif ii v (leaf t) ty) (none_reif t) (leaf t) t
       | xI ii => node (leaf t) (none_reif t) (set_reif ii v (leaf t) ty) t
     end
