@@ -1108,28 +1108,34 @@ Proof.
 intros; eapply semax_post3; eauto.
 Qed.
 
-Ltac forward_call_complain' Delta id :=
-  let H1 := fresh in
-     assert (H1: (var_types Delta) ! id = None) 
-        by (reflexivity || fail 4 "The function-identifier " id " is not a global variable");
-     clear H1;
+Ltac forward_call_complain' Delta id ty W :=
+     (assert ((var_types Delta) ! id = None) by reflexivity
+         || fail 4 "The function-identifier " id " is not a global variable");
+    match type of W with ?Wty =>
     assert (match (glob_specs Delta) ! id with
-               | Some (mk_funspec _ t _ _) => Some t
+               | Some (mk_funspec fsig t _ _) => Some (type_of_funsig fsig, t)
                | _ => None
-               end = None);
-     simpl; 
+               end = Some (ty, Wty)); [
+     unfold type_of_funsig; simpl; 
      match goal with
-     | |- Some ?A = _ => fail 4 "Use forward_call W, where W is a witness of type " A "
-"
      | |- None = _ => fail 4 "The function identifier " id " is not a function"
-     end.
-
-Ltac forward_call_complain :=
+     | |- Some (?fsig, ?A) = _ => 
+             (assert (ty=fsig) by reflexivity
+              || fail 5 "The declared parameter/result types in the funspec for " id " are 
+" fsig "which does not match the C program which has" ty);
+            (assert (Wty=A) by reflexivity || fail 5 "Use forward_call W, where W is a witness of type " A ";
+your witness has type " Wty ".
+");
+           fail
+     | |- _ => fail 4 "Undiagnosed error in forward_call"
+     end | ] end.
+ 
+Ltac forward_call_complain W :=
  match goal with 
- | |- semax ?Delta _ (Ssequence (Scall _ (Evar ?id _) _) _) _ =>
-       forward_call_complain' Delta id
- | |- semax ?Delta _ (Scall _ (Evar ?id _) _) _ =>
-       forward_call_complain' Delta id
+ | |- semax ?Delta _ (Ssequence (Scall _ (Evar ?id ?ty) _) _) _ =>
+       forward_call_complain' Delta id ty W
+ | |- semax ?Delta _ (Scall _ (Evar ?id ?ty) _) _ =>
+       forward_call_complain' Delta id ty W
   end.
 
 Ltac normalize_postcondition :=
@@ -1272,7 +1278,7 @@ match goal with
                try rewrite insert_local;
                autorewrite with subst; unfold Frame; clear Frame;
                say_after_call ]
- | |- _ => forward_call_complain
+ | |- _ => forward_call_complain W
 end; 
  unfold witness; try clear witness; simpl argtypes.
 
