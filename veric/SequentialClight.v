@@ -58,3 +58,25 @@ Proof.
  exfalso; auto.
  eapply safeN_halted; eauto.
 Qed.
+
+Require Import juicy_safety.
+
+Definition fun_id (ef: external_function) : option ident :=
+  match ef with EF_external id sig => Some id | _ => None end.
+
+Axiom module_sequential_safety : (*TODO*)
+   forall prog (V: varspecs) (G: funspecs) ora m f f_id f_b f_body args,
+     let ge := Genv.globalenv prog in
+     let spec := add_funspecs NullExtension.Espec G in
+     let tys := sig_args (ef_sig f) in
+     let rty := sig_res (ef_sig f) in
+     let sem := juicy_core_sem cl_core_sem in
+     @semax_prog spec prog V G ->
+     fun_id f = Some f_id ->
+     Genv.find_symbol ge f_id = Some f_b -> 
+     Genv.find_funct  ge (Vptr f_b Int.zero) = Some f_body -> 
+     forall x : ext_spec_type (@OK_spec spec) f,
+     ext_spec_pre (@OK_spec spec) f x (Genv.genv_symb ge) tys args ora m -> 
+     exists q,
+       initial_core sem ge (Vptr f_b Int.zero) args = Some q /\
+       forall n, safeN sem (upd_exit (@OK_spec spec) x (Genv.genv_symb ge)) ge n ora q m.

@@ -15,29 +15,6 @@ Require Import juicy_safety.
 Require Import pos.
 Require Import linking. 
 
-Section upd_exit.
-
-Variable Z : Type.
-
-Variable spec : juicy_ext_spec Z.
-
-Definition upd_exit' (Q_exit : option val -> Z -> juicy_mem -> Prop) :=
-  {| ext_spec_type := ext_spec_type spec
-   ; ext_spec_pre := ext_spec_pre spec
-   ; ext_spec_post := ext_spec_post spec
-   ; ext_spec_exit := Q_exit |}.
-
-Definition upd_exit'' (ef : external_function) (x : ext_spec_type spec ef) ge := 
-  upd_exit' (ext_spec_post spec ef x ge (sig_res (ef_sig ef))).
-
-Program Definition upd_exit (ef : external_function) (x : ext_spec_type spec ef) ge :=
-  Build_juicy_ext_spec _ (upd_exit'' x ge) _ _ _.
-Next Obligation. destruct spec=> //. Qed.
-Next Obligation. destruct spec=> //. Qed.
-Next Obligation. destruct spec=> //. Qed.
-
-End upd_exit.
-
 Section safety.
 
 Variable N : pos.
@@ -109,7 +86,7 @@ Variable entry_points_safe :
   ext_spec_pre spec ef x (Genv.genv_symb ge_idx) tys args z m -> 
   exists c, 
     [/\ initial_core sem_idx ge_idx (Vptr bf Int.zero) args = Some c 
-      & (forall n, safeN sem_idx (upd_exit x (Genv.genv_symb ge_idx)) ge_idx n z c m)].
+      & (forall n, safeN sem_idx (upd_exit spec x (Genv.genv_symb ge_idx)) ge_idx n z c m)].
 
 (** 5) Because we've added [genv_symb] to [ext_spec], we now appear to require a 
 stronger assumption, that the symbol tables are equal. *)
@@ -140,7 +117,7 @@ Variable corestep_hrel:
   [/\ Hrel (ageable.level m') m m' 
     & ageable.level m = (ageable.level m').+1].
 
-(** 7) *)
+(** 7) safeN is closed under aging. *)
 
 Variable age_safe:
   forall Z (Hspec : juicy_ext_spec Z) idx (z : Z) ge m m' c,
@@ -501,7 +478,7 @@ Lemma linker_safe n x z m main_idx main_b args
   ext_spec_pre spec main_ef x (Genv.genv_symb ge) (sig_args (ef_sig main_ef)) args z m ->
   exists l, 
   [/\ initial_core linked_sem ge (Vptr main_b Int.zero) args = Some l  
-    & safeN linked_sem (upd_exit x (Genv.genv_symb ge)) ge n z l m].
+    & safeN linked_sem (upd_exit spec x (Genv.genv_symb ge)) ge n z l m].
 Proof.
 move=> Hfid Hplt Hfind Hpre.
 have Hfind': Genv.find_symbol ge main_id = Some main_b.
@@ -666,8 +643,7 @@ Lemma linker_preserves_safety :
                       (Vptr bf Int.zero) args = Some c /\
          (forall n : nat,
             safeN (Modsem.sem (sems idx))
-                  (upd_exit (spec:=spec) (ef:=ef) x
-                            (Genv.genv_symb (Modsem.ge (sems idx))))
+                  (upd_exit (ef:=ef) spec x (Genv.genv_symb (Modsem.ge (sems idx))))
                   (Modsem.ge (sems idx)) n z c m)) ->
   
   (forall idx : 'I_N,
@@ -687,7 +663,7 @@ Lemma linker_preserves_safety :
       initial_core (LinkerSem.coresem juicy_mem_ageable N sems plt) ge
                    (Vptr main_b Int.zero) args = Some l /\
       safeN (LinkerSem.coresem juicy_mem_ageable N sems plt)
-            (upd_exit (spec:=spec) (ef:=main_ef main_id) x (Genv.genv_symb ge))
+            (upd_exit (ef:=main_ef main_id) spec x (Genv.genv_symb ge))
             ge n0 z l m.
 Proof.
 move=> N plt Fs Vs Cs ges sems0 *; apply: linker_safe=> //=.
@@ -695,3 +671,4 @@ by move=> ????? Hstep; apply: (jstep_hrel Hstep).
 move=> Z Hspec idx ?? m m' ?; rewrite -!level_juice_level_phi=> Hag Hsafe.
 by move: (@age_safe (Fs idx) (Vs idx) (Cs idx) (sems0 idx) Z Hspec m' m Hag); apply.
 Qed.
+

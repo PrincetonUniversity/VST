@@ -489,20 +489,12 @@ normalize.
 f_equal. f_equal. apply prop_ext. intuition.
 Qed.
 
-Lemma data_equal_list_repeat_default: forall t n a (v: list (reptype t)) m,
-  @data_equal (Tarray t n a) v (v ++ list_repeat m (default_val t)).
-Proof.
-  intros.
-  apply data_equal_array_ext.
-  intros.
-  unfold Znth; if_tac; [omega |].
-  pattern v at 1.
-  replace v with (v ++ []) by (rewrite <- app_nil_r; reflexivity).
-  destruct (lt_dec (Z.to_nat i) (length v)).
-  + rewrite !app_nth1 by auto.
-    apply data_equal_refl.
-  + rewrite !app_nth2 by omega.
-    rewrite nth_list_repeat.
-    destruct (Z.to_nat i - length v)%nat; apply data_equal_refl.
+Lemma sizeof_tarray_tuchar:
+ forall (n:Z), (n>=0)%Z -> (sizeof (tarray tuchar n) =  n)%Z.
+Proof. intros.
+ unfold sizeof,tarray; cbv beta iota.
+  rewrite Z.max_r by omega.
+  unfold alignof, tuchar; cbv beta iota.
+  rewrite Z.mul_1_l. auto.
 Qed.
 

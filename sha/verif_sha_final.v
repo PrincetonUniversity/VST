@@ -167,8 +167,6 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
      Int.zero).
 {
   entailer!.
-  + clear - TC0. unfold field_address in *. if_tac; try contradiction.
-      destruct c; try contradiction; apply I.
   + Omega1.
   + rewrite field_address_clarify by auto.
       rewrite field_address_clarify by auto.
@@ -238,55 +236,33 @@ replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
     } Unfocus.
     entailer!.
   }
-  entailer!.
-  clear - TC0; unfold field_address in *; if_tac; try contradiction; destruct c_; try contradiction; apply I.
   match goal with
   | |- semax _ (PROPx nil (LOCALx (_ :: ?L) (SEPx ?S))) _ _ =>
-         eapply semax_pre0 with (PROPx nil (LOCALx
+         eapply semax_pre with (PROPx nil (LOCALx
           ((temp _p (field_address t_struct_SHA256state_st
             [ArraySubsc (Z.of_nat CBLOCK - 8); StructField _data] c))
             :: L) (SEPx S)))
   end.
   Focus 1. {
+    clear POSTCONDITION.
     entailer!.
-    rewrite <- H7.
-    destruct (eval_id _c rho); try contradiction.
-    simpl.
+    clear rho H7.
     (* this proof should be nicer. *)
     rewrite field_address_clarify.
     rewrite field_address_clarify.
     normalize.
-    clear - H9; unfold field_address in *.
-    if_tac in H9; try contradiction. clear H9.
-    rewrite if_true. apply I.
-    unfold field_compatible in *; intuition.
-    repeat constructor. 
-    clear - H9; unfold field_address in *.
-    if_tac in H9; try contradiction. clear H9.
-    rewrite if_true. apply I.
-    unfold field_compatible in *; intuition.
-    repeat constructor.
-    change (Z.of_nat CBLOCK) with 64%Z. omega. 
+    unfold field_address in *.
+    if_tac in TC0; try contradiction.
+    destruct c_; try contradiction; apply I.
+    unfold field_address in *.
+    if_tac in TC0; try contradiction.
+    rewrite if_true.
+    destruct c_; try contradiction. apply I.
+    eapply field_compatible_cons_Tarray; try reflexivity; auto.
   } Unfocus.
   subst n0.
   drop_LOCAL 2%nat; clear p0.
   replace Delta with Delta_final_if1 by (simplify_Delta; reflexivity).
   eapply semax_pre; [ | apply final_part2 with pad; try eassumption; try reflexivity].
   entailer!.
-  erewrite array_seg_reroot_lemma
-      with (gfs := [StructField _data]) (lo := Zlength dd') (hi := Z.of_nat CBLOCK - 8);
-      [| | | reflexivity | | reflexivity | reflexivity | | ].
-   cancel.
-   apply Zlength_nonneg.
-   clear - H0.
-    admit.  (* array_seg_reroot_lemma too strict? *)
-  change (Z.of_nat CBLOCK - 8) with 56%Z; auto.
-  repeat rewrite Zlength_map; auto.
-  rewrite Zlength_correct, length_list_repeat.
-  rewrite Z2Nat.id; auto.
-  clear - H0.
-  apply Nat2Z.inj_le in H0.
-  rewrite Nat2Z.inj_add in H0.
-   rewrite <- Zlength_correct in H0.
- change (Z.of_nat 8) with 8%Z in H0; omega.
 Qed.

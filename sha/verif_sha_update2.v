@@ -241,67 +241,6 @@ Qed.
  Definition fsig_of_funspec (fs: funspec)  :=  
   match fs with mk_funspec fsig _ _ _ => fsig end.
 
-Lemma sizeof_tarray_tuchar:
- forall (n:Z), (n>=0)%Z -> (sizeof (tarray tuchar n) =  n)%Z.
-Proof. intros.
- unfold sizeof,tarray; cbv beta iota.
-  rewrite Z.max_r by omega.
-  unfold alignof, tuchar; cbv beta iota.
-  rewrite Z.mul_1_l. auto.
-Qed.
-
-Lemma eq_JMeq: forall A (x y: A), x=y -> JMeq x y.
-Proof. intros. subst. reflexivity.
-Qed.
-
-Lemma skipn_app2:
- forall A n (al bl: list A),
-  (n >= length al)%nat ->
-  skipn n (al++bl) = skipn (n-length al) bl.
-Proof.
-intros. revert al H;
-induction n; destruct al; intros; simpl in *; try omega; auto.
-apply IHn; omega.
-Qed. 
-
-(*
-Lemma skipn_split_into_list:
-  forall lo hi n al bl, 
-      (0 <= lo <= hi)%Z ->
-      skipn (Z.to_nat hi) (splice_into_list lo hi n al bl) = 
-      skipn( Z.to_nat hi) bl.
-Proof.
- intros.
- unfold splice_into_list.
- rewrite skipn_app2.
- rewrite firstn_length. rewrite min_l.
- rewrite <- Z2Nat.inj_sub by omega.
- rewrite skipn_app2.
- rewrite firstn_length, min_l.
- rewrite <- Z2Nat.inj_sub by omega. rewrite Z.sub_diag.
- rewrite skipn_0. auto.
- rewrite app_length. rewrite length_list_repeat. omega.
- rewrite firstn_length, min_l. omega. rewrite app_length. rewrite length_list_repeat.
-  omega.
- rewrite app_length. rewrite length_list_repeat. 
- rewrite <- (Nat2Z.id (length bl)) at 1. rewrite <- Zlength_correct.
- destruct (zlt lo (Zlength bl)).
- apply Z2Nat.inj_lt in l; omega.
- rewrite <- Z2Nat.inj_add; try omega.
-  apply Z2Nat.inj_le; try omega.
- apply Zlength_nonneg.
- rewrite firstn_length, min_l. 
- apply Z2Nat.inj_le; omega.
- rewrite app_length. rewrite length_list_repeat. 
- rewrite <- (Nat2Z.id (length bl)) at 1. rewrite <- Zlength_correct.
- destruct (zlt lo (Zlength bl)).
- apply Z2Nat.inj_lt in l; omega.
- rewrite <- Z2Nat.inj_add; try omega.
-  apply Z2Nat.inj_le; try omega.
- apply Zlength_nonneg.
-Qed.
-*)
-
 Lemma firstn_splice_into_list:
   forall lo hi n al bl, 
     (0 <= lo <= Zlength bl)%Z ->
@@ -369,18 +308,6 @@ rewrite NPeano.Nat.add_0_r.
 rewrite <- Z2Nat.inj_add; try omega.
    apply Z2Nat.inj_le; omega.
 apply Zlength_nonneg.
-Qed.
-
-Lemma data_equal_JMeq:
-  forall t t' a a' b b',
-    t=t' ->
-    @JMeq (reptype t) a (reptype t') a' ->
-    @JMeq (reptype t) b (reptype t') b' ->
-    data_equal a b -> data_equal a' b'.
-Proof.
-intros. subst t'.
-apply JMeq_eq in H0. apply JMeq_eq in H1.
-subst; auto.
 Qed.
 
 Lemma call_memcpy_tuchar:
@@ -823,7 +750,6 @@ Lemma update_inner_if_then_proof:
    (c' : name _c) (data_ : name _data) (len' : name _len) 
    (data' : name _data) (p : name _p) (n : name _n)
    (fragment_ : name _fragment),
-(*  let j := (40 + Zlength dd)%Z in *)
   let k := (64 - Zlength dd)%Z in
   forall (H0: (0 < k <= 64)%Z)
        (H1: (64 < Int.max_unsigned)%Z)
@@ -894,7 +820,8 @@ end;
     entailer!.
     unfold field_address; rewrite if_true.
     unfold nested_field_offset2; simpl. normalize.
-    admit.  (* field_compatible_cons *)
+  eapply field_compatible_cons_Tarray; try reflexivity; auto.
+ omega.
   }
  rename H5 into Hd.
   evar (Frame: list (LiftEnviron mpred)).
@@ -911,18 +838,14 @@ end;
   entailer!.
   rewrite field_address_clarify; auto.
   normalize.
-  rewrite field_address_clarify; auto.
-  rewrite field_address_clarify; auto.
-  normalize.
-  f_equal. f_equal.
-  erewrite nested_field_offset2_Tarray; eauto.
-  instantiate (1:=tuchar). rewrite sizeof_tuchar, Z.mul_1_l. auto.
-  reflexivity. 
-  destruct c; try contradiction.
-  unfold field_address in TC|-*; if_tac in TC; try inv TC.
-  rewrite if_true; try apply I.
-  clear - H7 H0; unfold k in *.
-  admit.  (* field_compatible_cons *)
+  erewrite nested_field_offset2_Tarray; try reflexivity. 
+  rewrite sizeof_tuchar, Z.mul_1_l.
+  unfold field_address in *.
+  if_tac in TC; try contradiction. normalize.
+  apply isptr_is_pointer_or_null.
+  apply field_address_isptr; auto.
+  eapply field_compatible_cons_Tarray; try reflexivity; auto.
+  unfold k in *; omega.
 *
   rewrite skipn_0.
   rewrite (data_at_field_at sh).

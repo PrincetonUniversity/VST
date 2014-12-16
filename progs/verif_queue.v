@@ -329,7 +329,7 @@ eapply semax_pre0 with (PROP  (natural_align_compatible p0)
       (`(data_at_ Tsh t_struct_elem p0))).
   entailer!.
   rewrite <- memory_block_data_at_;
-   [auto | reflexivity  | reflexivity 
+   [auto | reflexivity  | reflexivity | reflexivity
    | apply natural_align_compatible_t_struct_fifo; auto | compute; reflexivity].
 unfold data_at_.
 rewrite data_at_field_at.
@@ -396,7 +396,7 @@ forward_call (*  freeN(p, sizeof( *p)); *)
 
   apply derives_trans with (data_at_ Tsh t_struct_elem p'). unfold data_at_. 
   unfold_data_at 1%nat; cancel.
-  rewrite data_at__memory_block; [| reflexivity | reflexivity | cbv; reflexivity].
+  rewrite data_at__memory_block by reflexivity.
   apply andp_left2; apply derives_refl.
 } after_call.
 forward. (* return i+j; *)
