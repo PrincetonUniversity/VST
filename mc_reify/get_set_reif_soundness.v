@@ -274,6 +274,7 @@ Ltac solve_funcAs :=
 repeat
 match goal with 
 | [ H : funcAs _ _ = (*Some*) _ |- _ ]  =>  unfold funcAs in H; simpl in H;  rewrite type_cast_refl in H
+| [ |- context [funcAs _ _ ] ]=> unfold funcAs; simpl; try rewrite type_cast_refl
 end.
 
 Ltac solve_funcAs_f H :=
@@ -298,19 +299,22 @@ Qed.
 Ltac p_exprD_inj :=
 repeat (
 match goal with
-[ H : exprD' ?tus ?tvs ?t (Inj ?e ) = Some ?val |- _ ] =>
+| [ H : exprD' ?tus ?tvs ?t (Inj ?e ) = Some ?val |- _ ] =>
 let X := fresh "X" in
      (assert (X := exprD_typeof_Some tus tvs t (Inj e) val);
      simpl in X; specialize (X H); inv X); 
+       p_exprD H; ( solve_funcAs || fail)
+| [ H : exprD' ?tus ?tvs ?t (Inj ?e ) = _ |- _ ] =>
        p_exprD H; ( solve_funcAs || fail)
 end; unfold Rcast in *; simpl in *; inv_some; subst_rty);
 cleanup_dups; try apply _; inv_some.
 
 
+
 Ltac copy H :=
-                  match type of H with 
-                      | ?x => assert x by exact H
-                  end.
+  match type of H with 
+    | ?x => assert x by exact H
+  end.
 
 
 
@@ -358,7 +362,7 @@ induction i; intros.
 Qed.        
 
 Lemma set_reif_exprD :
-forall tus tvs typ i vr v ev e,
+forall tus tvs typ i vr e v ev,
 exprD' tus tvs (typtree typ) e = Some ev ->
 exprD' tus tvs typ vr = Some v ->
 exists r, exprD' tus tvs (typtree typ) (set_reif i vr e typ) = Some r.
@@ -411,9 +415,9 @@ induction i; intros.
                 rewrite ExprFacts.exprD'_typeof_expr in Heqo0.
                  destruct Heqo0.
                  simpl in *.
-                 edestruct (IHi vr v).
+                 edestruct (IHi vr).
                  instantiate (2 := (Inj (inr (Data (fleaf typ))))).
-                 autorewrite with exprD_rw. simpl. forward. auto.
+                 autorewrite with exprD_rw. simpl. forward. eauto.
                  congruence.
                - p_exprD_app.
                  repeat match type of Heqo1 with
@@ -425,16 +429,15 @@ induction i; intros.
                      repeat match type of Heqo with
                     | match ?x with _ => _ end = _ => destruct x eqn:?
                 end; forward; try congruence.
-                     p_exprD_app; p_exprD_inj.
-                     p_exprD Heqo2. solve_funcAs; try apply _; inversion H.
+                     p_exprD_app; p_exprD_inj. congruence.
                      rewrite ExprFacts.exprD'_typeof_expr in Heqo0.
                      destruct Heqo0.
                      p_exprD_inj.
-                     edestruct (IHi vr v).
+                     edestruct (IHi vr).
                      instantiate (2 := (Inj (inr (Data (fleaf typ))))).
                      autorewrite with exprD_rw. simpl. unfold funcAs.
                      simpl. rewrite type_cast_refl. unfold Rcast.
-                     simpl. auto. apply _. auto.
+                     simpl. eauto. apply _. eauto.
                      apply set_reif_istree in H. subst.
                      p_exprD Heqo1. solve_funcAs.
                      inversion H. apply _.
@@ -523,11 +526,11 @@ induction i; intros.
                      p_exprD Heqo1.
                      solve_funcAs. inversion H.
                      apply _.
-                     edestruct (IHi vr v).
+                     edestruct (IHi vr).
                      instantiate (2 := (Inj (inr (Data (fleaf typ))))).
                      autorewrite with exprD_rw. simpl. unfold funcAs.
                      simpl. rewrite type_cast_refl. unfold Rcast.
-                     simpl. auto. apply _. auto. 
+                     simpl. eauto. apply _. eauto. 
                      destruct (ExprFacts.exprD'_typeof_expr tus tvs 
                                 ((set_reif i vr (Inj (inr (Data (fleaf typ)))) typ)) (typtree typ)). fold func in *.
                      rewrite H2 in Heqo0. congruence.
@@ -638,15 +641,168 @@ induction i; intros.
      - p_exprD_app; p_exprD_inj.
        eauto.
 Admitted (*Qed*).
-  
+
+Ltac pose_exprD' :=
+  repeat
+    match goal with
+      | [ H : typeof_expr ?tus ?tvs ?v = Some ?t  |- _ ] =>
+        match goal with
+          | [H' : exprD' tus tvs t v = Some _ |- _ ] => fail 1
+          | _ => match type of H with
+                   | ?x => let X := fresh "H" in 
+                       assert x as X by exact H; 
+                       rewrite (ExprFacts.exprD'_typeof_expr tus tvs v t) in X;
+                       destruct X
+                 end
+        end
+    end.
+
+Ltac pose_types :=
+             repeat
+             match goal with
+               | [ H : exprD' ?tus ?tvs ?ty ?v = Some _  |- _ ] =>
+                   match goal with
+                     | [H' : typeof_expr tus tvs v = Some ty |- _ ] => fail 1
+                     | _ => let X := fresh "H" in 
+                             assert (X := exprD_typeof_Some tus tvs ty _ _ H)
+                   end
+             end.  
+
+
+Ltac solve_exprD :=
+             p_exprD_app; p_exprD_inj;
+             autorewrite with exprD_rw; simpl; solve_funcAs; try solve [auto with typeclass_instances | reflexivity]; try congruence; pose_types; pose_exprD'. 
+
+Ltac extract_set_reif_type :=
+repeat 
+match goal with
+| [ H : exprD' ?tus ?tvs (typtree ?t) (set_reif _ _ _ _) = _ |- _] => fail 1
+| [ H : exprD' ?tus ?tvs ?t (set_reif ?i ?vr ?e ?t0) = Some ?x |- _] =>
+pose proof (set_reif_istree i tus tvs t vr e t0 x H); subst; try congruence
+end.
+
+
+Ltac set_reif_ex :=
+match goal with 
+|  [ H : exprD' ?tus ?tvs (typtree ?t) (set_reif ?i ?vr ?e ?t) = None |- _ ] =>
+      edestruct (set_reif_exprD tus tvs t i vr e); eauto; fold func in *;
+try congruence
+end.
+
+Lemma typeof_set_reif_None_F :
+forall tus tvs i e t ev vr v,
+exprD' tus tvs (typtree t) e = Some ev ->
+exprD' tus tvs t vr = Some v ->
+typeof_expr tus tvs (set_reif i vr e t) = None ->
+False.
+intros.
+edestruct (set_reif_exprD); eauto.
+instantiate (1 := i) in H2.
+pose_types.
+fold func in *. congruence.
+Qed.
+
+Ltac set_typeof_None :=
+  match goal with
+    | [H: typeof_expr ?tus ?tvs (set_reif ?i ?vr ?e ?t) = None |- _ ] =>
+      try solve [eapply typeof_set_reif_None_F in H; first [progress eauto | solve_exprD]; try contradiction]
+end.
+
+Ltac set_reif_tac :=
+repeat (solve_exprD;
+        try set_reif_ex;
+        extract_set_reif_type;
+        try set_typeof_None).
+
 
 Lemma set_reif_eq2 :
 forall i tus tvs typ vr tr val,
 exprD' tus tvs (typtree typ) tr = Some val ->
 exprD' tus tvs (typtree typ) (App (App (Inj (inr (Data (fset typ i)))) vr) tr)  =
 exprD' tus tvs (typtree typ) (set_reif i vr tr typ).
-Proof.
-induction i;
+Proof. 
+induction i; intros.
+   + destruct (exprD' tus tvs (typtree typ)
+     (App (App (Inj (inr (Data (fset typ i~1)))) vr) tr)) eqn:?,
+     (exprD' tus tvs (typtree typ) (set_reif i~1 vr tr typ)) eqn:?; auto; 
+     simpl in *; unfold node, leaf, some_reif, none_reif in *;
+     simpl in *; (destruct (as_tree tr) eqn:?; destruct_as_tree; [apply as_tree_l in Heqo1 | apply as_tree_r in Heqo1 | ]); subst; solve_exprD; unfold exprT_App; simpl.
+         * specialize (IHi tus tvs t0). erewrite <- IHi in *; eauto.
+           solve_exprD.
+         * specialize (IHi tus tvs t0). erewrite <- IHi in *; eauto;
+           solve_exprD.
+         * repeat match type of Heqo0 with
+             | match ?x with _ => _ end = _ => destruct x eqn:?
+           end; try congruence; set_reif_tac. 
+         * repeat (match goal with
+             | [ H : match ?x with _ => _ end = _ |- _] => destruct x eqn:?
+           end; try congruence;  set_reif_tac).
+         * repeat (match goal with
+             | [ H : match ?x with _ => _ end = _ |- _] => destruct x eqn:?
+           end; try congruence;  set_reif_tac).
+           p_exprD Heqo0. (*set_reif_vr*)eapply set_reif_vr in H8.
+repeat match goal with
+             | [ H : match ?x with _ => _ end = _ |- _] => destruct x eqn:?
+           end; try congruence; set_reif_tac'.
+      eapply typeof_set_reif_None_F in Heqo; ; try contradiction. 
+* solve_exprD.
+
+  
+
+
+
+set_typeof_None.
+
+Ltac pose_exprD'' :=
+  repeat
+    match goal with
+      | [ H : typeof_expr ?tus ?tvs ?v = Some ?t  |- _ ] =>
+        match goal with
+          | [H' : exprD' tus tvs t v = Some _ |- _ ] => fail 1
+          | _ => match type of H with
+                   | ?x => let X := fresh "H" in 
+                       assert x as X by exact H; 
+                       rewrite (ExprFacts.exprD'_typeof_expr tus tvs v t) in X;
+                       destruct X
+                 end
+        end
+      | [ H : typeof_expr ?tus ?tvs ?v = None  |- _ ] =>
+        match goal with
+          | [H' : exprD' tus tvs t v = None |- _ ] => fail 1
+          | _ => match type of H with
+                   | ?x => let X := fresh "H" in 
+                       assert x as X by exact H; 
+                       rewrite (ExprFacts.exprD'_typeof_expr tus tvs v t) in X;
+                       destruct X
+                 end
+        end
+    end.
+
+             - 
+set_reif_tac'.
+
+set_reif_tac.
+
+solve_exprD.
+               p_exprD H8.
+               unfold funcAs in H8.
+               simpl in H8.
+
+pose_exprD'. 
+
+
+match goal with
+[ 
+               rewrite ExprFacts.exprD'_typeof_expr in Heqo.
+SearchAbout typeof_expr.
+               rewrite type
+fold func in *. try congruence.
+
+         
+
+
+
+(*old starts here *) induction i;
 intros;
 simpl. rename H into HX.
   + forward. destruct_as_tree.
@@ -702,19 +858,104 @@ destruct (exprD' tus tvs (typtree typ)
               forward. inversion H11. apply _. apply _. apply _.
      - apply as_tree_r in H. subst.              
        p_exprD_inj.
-       repeat (autorewrite with exprD_rw; simpl).
+       destruct (exprD' tus tvs (typtree typ)
+     (App (App (Inj (inr (Data (fset typ i~1)))) vr)
+        (Inj (inr (Data (fleaf typ)))))) eqn :?,
+                (exprD' tus tvs (typtree typ)
+     (node (leaf typ) (none_reif typ) (set_reif i vr (leaf typ) typ) typ)) eqn:?.
+         * unfold node, leaf, none_reif in *.
+           p_exprD_app; p_exprD_inj.
+           unfold exprT_App. simpl.
+           specialize (IHi tus tvs t0). erewrite <- IHi in H1; eauto.
+           p_exprD_app; p_exprD_inj.
+           unfold exprT_App. simpl. auto.
+           autorewrite with exprD_rw. simpl. unfold funcAs. 
+           simpl. rewrite type_cast_refl. simpl. reflexivity.
+           apply _. 
+         * unfold node, leaf, none_reif in *.
+           p_exprD_app; p_exprD_inj.
+           repeat match type of Heqo0 with
+             | match ?x with _ => _ end = _ => destruct x eqn:?
+           end; try congruence. 
+           p_exprD_app. p_exprD_inj.
+           rewrite ExprFacts.exprD'_typeof_expr in Heqo.
+           fold func in *. destruct Heqo. congruence.
+                      rewrite ExprFacts.exprD'_typeof_expr in Heqo.
+           fold func in *. destruct Heqo. 
+           apply set_reif_istree in H0. subst.           
+           p_exprD_app; p_exprD_inj.
+           do 2 (p_exprD Heqo1;
+           unfold funcAs in *; simpl in *;
+           try rewrite type_cast_refl in *).
+           rewrite type_cast_refl in *. simpl in *.
+           congruence.
+           apply _. apply _. apply _. apply _.
+           edestruct (set_reif_exprD tus tvs t).
+           instantiate (2 := (Inj (inr (Data (fleaf t))))).
+           autorewrite with exprD_rw. simpl. 
+           unfold funcAs in *; simpl in *; try rewrite type_cast_refl in *.
+           reflexivity.
+           apply _.
+           eauto.
+           instantiate (1:= i) in H0.
+           assert (X := exprD_typeof_Some tus tvs (typtree t)  _ _ H0).
+           fold func in *. congruence.
+         * unfold node, leaf, none_reif in *.
+           p_exprD_app; p_exprD_inj.
+           Check set_reif_vr.
+           edestruct (set_reif_vr tus tvs typ _ _ _ _ H1).
+           fold func in *.
+           
+          pose_types. 
+          fold func in *. rewrite H2 in *. rewrite H0 in *.
+          p_exprD H5.
+          solve_funcAs. inv H3. apply _.
+        * auto.
+  +
+           
+           
+SearchAbout typeof_expr.
+           eapply AppN.type_of_applys_typeof_None in Heqo.
+           
+SearchAbout typeof_expr.
+
+           simpl in Heqo1.
+           p_exprD Heqo1.
+           
+           
+
+           destruct Heqo.
+           rewrite 
+           edestruct (set_reif_exprD tus tvs t i vr).
+           instantiate (2 := (Inj (inr (Data (fleaf t))))).
+           autorewrite with exprD_rw; forward. simpl.
+           unfold funcAs. simpl. rewrite type_cast_refl.
+           reflexivity. apply _. eauto.
+           fold func in *.
+           congruence.
+           p_exprD_app.
+           p_exprD Heqo1.
+           p_exprD Heqo1.
+           apply 
+           congruence.
+           rewrite exprD
+           repeat (autorewrite with exprD_rw in Heqo0; simpl in Heqo0; forward; inv_some). unfold funcAs in Heqo0. simpl in Heqo0. rewrite type_cast_refl in Heqo0.
+inversion Heqo0.
+           
+           destruct (typeof_expr tus tvs
+              (set_reif i vr (Inj (inr (Data (fleaf t)))) t)).
+           
+           specialize (IHi tus tvs typ vr 
+                           (Inj (inr (Data (fleaf typ)))) _ H0).
+           p_exprD_inj.
+           repeat (autorewrite with exprD_rw in IHi; simpl in IHi;
+           forward; inv_some). unfold funcAs in IHi; simpl in IHi.
+           rewrite type_cast_refl in IHi. simpl in IHi.
+           rewrite type_cast_refl in IHi. simpl in IHi.
+           unfold exprT_App in IHi. simpl in IHi.
+           
        
        
-              
-
-              
-
-
-       
-                                                                     
-        
-         
-                
         
         
  
