@@ -6,3 +6,6 @@
 version.v
 coqide
 *.cache
+*~
+*#
+.#*
