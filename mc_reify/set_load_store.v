@@ -47,6 +47,29 @@ Require Import MirrorCharge.RTac.EApply.
 Require Export mc_reify.funcs.
 Require Import mc_reify.types.
 Require Export mc_reify.reflexivity_tacs.
+Require Import mc_reify.get_set_reif.
+Require Import mc_reify.func_defs.
+
+Fixpoint msubst_efield_denote_reif (T1: ExprCore.expr typ func) (T2: ExprCore.expr typ func) (efs : list efield) :=
+  match efs with
+  | nil => Some (injR (Data (fnil tyefield)))
+  | cons (eStructField i) efs0 => option_map (App
+                                (appR (Data (fcons tyefield))
+                                      (appR (Smx fstruct_field) (injR (Const (fident i))))))
+                                 (msubst_efield_denote_reif T1 T2 efs0)
+  | cons (eUnionField i) efs0 => option_map (App
+                                (appR (Data (fcons tyefield))
+                                      (appR (Smx funion_field) (injR (Const (fident i))))))
+                                 (msubst_efield_denote_reif T1 T2 efs0)
+  | cons (eArraySubsc ei) efs0 =>
+      match typeof ei, msubst_eval_expr_reif T1 T2 ei with
+      | Tint _ _ _, Some e => option_map (App
+                                (appR (Data (fcons tyefield))
+                                      (appR (Smx farray_subsc) (val_e_to_expr e))))
+                                 (msubst_efield_denote_reif T1 T2 efs0)
+      | _, _ => None
+      end
+  end.
 
 Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
 
@@ -59,10 +82,11 @@ Lemma semax_load_localD:
 
 forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
      (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
+     (efs : list efield) 
      (e : type_id_env) (gs : PTree.t funspec) (sh : Share.t) 
      (P : list Prop) (T1 : PTree.t val) (T2 : PTree.t (type * val))
      (R : list mpred) (Post : environ -> mpred)
-     (efs : list efield) (gfs : list gfield)
+     (gfs : list gfield)
      (tts : list type) (p v : val) (v' : reptype t_root) 
      (lr : LLRR) (Espec : OracleKind),
   typeof_temp (mk_tycontext temp var ret gt gs) id = Some t -> 
@@ -103,9 +127,22 @@ Proof.
 Admitted.
 
 Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
-     (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr): my_lemma.
-reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1).
+     (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
+    (*efs: list efield*): my_lemma.
+reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 (*efs*)).
 Defined.
+
+Print load_lemma.
+
+Definition load_lemma' (temp : PTree.t (type * bool)) (var : PTree.t type) 
+     (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
+    (efs: list efield): my_lemma.
+reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 efs).
+Defined.
+
+Print load_lemma'. (* Why does not work. Cannot reify the parameterized efs now. *)
+
+(*
 
 Require Import mc_reify.reverse_defs.
 Require Import symexe.
@@ -168,4 +205,5 @@ assert (exists v, reflect_prop tbl0 e = Some v).
 unfold tbl0, e.
 simpl.
 cbv_denote.
+*)
 *)

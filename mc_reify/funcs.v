@@ -551,6 +551,9 @@ Inductive smx :=
 | ftc_val
 | flegal_nested_field
 | fnested_efield_rel
+| fstruct_field
+| funion_field
+| farray_subsc
 .
 
 Definition typeof_smx (t : smx) :=
@@ -603,6 +606,9 @@ match t with
                     (tyArr (tylist tyefield)
                      (tyArr (tylist tyc_type)
                       (tyArr tyc_expr typrop)))
+| fstruct_field => tyArr tyident tygfield
+| funion_field => tyArr tyident tygfield
+| farray_subsc => tyArr tyZ tygfield
 end.
 
 Definition smxD (t : smx) : typD (typeof_smx t) :=
@@ -638,6 +644,9 @@ match t with
 | ftc_val => tc_val
 | flegal_nested_field => legal_nested_field
 | fnested_efield_rel => nested_efield_rel
+| fstruct_field => StructField
+| funion_field => UnionField
+| farray_subsc => ArraySubsc
 end.
 
 Inductive func' :=
