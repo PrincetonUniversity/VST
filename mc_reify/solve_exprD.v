@@ -12,7 +12,7 @@ end.
 
 Section tbled.
 
-Parameter tbl : SymEnv.functions RType_typ.
+Variable tbl : SymEnv.functions RType_typ.
 
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.
@@ -143,7 +143,7 @@ Qed.
 
 End tbled.
 
-
+ 
 Ltac inv H := inversion H; subst; clear H.
 
 Ltac inv_some :=
@@ -177,22 +177,22 @@ match goal with
                           try clear H
 end.
 
-Ltac inv_same_types :=
+Ltac inv_same_types tbl :=
 repeat
 match goal with
  [ H : exprD' ?tus ?tvs ?t1 ?e = Some ?v1,
    H1 : exprD' ?tus ?tvs ?t2 ?e = Some ?v2 |- _] => 
-let N := fresh "H" in assert (N := exprD'_one_type tus tvs t1 t2 e v1 v2 H H1); subst; try inv N
+let N := fresh "H" in assert (N := exprD'_one_type tbl tus tvs t1 t2 e v1 v2 H H1); subst; try inv N
 end.
 
-Ltac p_exprD_app :=
+Ltac p_exprD_app tbl :=
   repeat
     (match goal with
        | [ H : exprD' _ _ _ (App _ _ ) = (*Some*) _ |- _ ] => p_exprD H
        | [ H : context [match exprD' _ _ _ (App _ _) with _ => _ end] |- _] =>
          p_exprD H
     end; 
-  cleanup_dups; subst_rty; inv_same_types).
+  cleanup_dups; subst_rty; inv_same_types tbl).
 
 Ltac solve_funcAs :=
 repeat
@@ -214,12 +214,12 @@ Ltac solve_funcAs_f H :=
 
 
 
-Ltac p_exprD_inj :=
+Ltac p_exprD_inj tbl :=
 repeat (
 match goal with
 | [ H : exprD' ?tus ?tvs ?t (Inj ?e ) = Some ?val |- _ ] =>
 let X := fresh "X" in
-     (assert (X := exprD_typeof_Some tus tvs t (Inj e) val);
+     (assert (X := exprD_typeof_Some tbl tus tvs t (Inj e) val);
      simpl in X; specialize (X H); inv X); 
        p_exprD H; ( solve_funcAs || fail)
 | [ H : context [match exprD' ?tus ?tvs ?t (Inj ?e ) with _ => _ end] |- _ ] =>
@@ -251,22 +251,20 @@ Ltac pose_exprD' :=
         end
     end.
 
-Ltac pose_types :=
+Ltac pose_types tbl :=
              repeat
              match goal with
                | [ H : exprD' ?tus ?tvs ?ty ?v = Some ?r  |- _ ] =>
                    match goal with
                      | [H' : typeof_expr tus tvs v = Some ty |- _ ] => fail 1
                      | _ => let X := fresh "H" in 
-                             assert (X := exprD_typeof_Some tus tvs ty v r H)
+                             assert (X := exprD_typeof_Some tbl tus tvs ty v r H)
                    end
              end.  
 
-
-Ltac solve_exprD :=
-repeat (
-             p_exprD_app; p_exprD_inj;
-             autorewrite with exprD_rw; simpl; solve_funcAs; try solve [auto with typeclass_instances | reflexivity]; try congruence; pose_types; pose_exprD'; fold func in *; forward; try (rewrite type_cast_refl in *; unfold Rcast, Relim; simpl in *)). 
+Ltac solve_exprD tbl :=
+repeat ( p_exprD_app tbl; p_exprD_inj tbl;
+         autorewrite with exprD_rw; simpl; solve_funcAs; try solve [auto with typeclass_instances | reflexivity]; try congruence; pose_types tbl; pose_exprD'; fold func in *; forward; try (rewrite type_cast_refl in *; unfold Rcast, Relim; simpl in *)). 
 
 Opaque type_cast.
 
