@@ -1,4 +1,5 @@
 Require Import mc_reify.func_defs.
+Require Import mc_reify.list_ctype_eq.
 Require Import MirrorCore.Lambda.ExprUnify_simul.
 Require Import MirrorCore.RTac.RTac.
 Require Import MirrorCore.Lemma.
@@ -42,7 +43,8 @@ Admitted.
 
 Definition REFLEXIVITY := REFLEXIVITYTAC.
 
-Definition REFLEXIVITY_DENOTE (rtype : typ) (H: @RelDec.RelDec (typD rtype) eq) tbl : rtac typ (expr typ func) := 
+Definition REFLEXIVITY_DENOTE (rtype : typ) {H: @RelDec.RelDec (typD rtype) eq}
+{H0: RelDec.RelDec_Correct H} tbl : rtac typ (expr typ func) := 
    fun tus tvs lus lvs c s e => (
 match e with
 | (App (App (Inj (inr (Other (feq _)))) l) r) =>
@@ -53,19 +55,16 @@ match e with
 | _ => Fail
 end).
 
-Definition REFLEXIVITY_BOOL := REFLEXIVITY_DENOTE tybool _.
+Definition REFLEXIVITY_BOOL := REFLEXIVITY_DENOTE tybool.
 
-Instance eq_dec : @RelDec.RelDec (option Ctypes.type) eq.
-  constructor.
-  intros x y.
-  destruct x eqn:?, y eqn:?.
-  + exact (expr.eqb_type t t0).
-  + exact false.
-  + exact false.
-  + exact true.
-Defined.
+Definition REFLEXIVITY_CEXPR := REFLEXIVITY_DENOTE tyc_expr.
 
-Definition REFLEXIVITY_OP_CTYPE := REFLEXIVITY_DENOTE (tyoption tyc_type) _.
+Instance RelDec_op_ctypes_beq : @RelDec.RelDec (option Ctypes.type) eq :=
+  Option.RelDec_eq_option RelDec_ctype_beq.
 
+Instance RelDec_Correct_op_ctypes_beq : RelDec.RelDec_Correct RelDec_op_ctypes_beq :=
+  Option.RelDec_Correct_eq_option RelDec_Correct_ctype_beq.
+
+Definition REFLEXIVITY_OP_CTYPE := REFLEXIVITY_DENOTE (tyoption tyc_type).
 
 End tbled.

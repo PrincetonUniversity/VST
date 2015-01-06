@@ -10,6 +10,45 @@ Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.List.
 Require Import ExtLib.Core.RelDec.
 
+Fixpoint ptree_cmp {T : Type} (p1 p2: Maps.PTree.tree T) 
+         (e : T -> T -> bool) :=
+match p1, p2 with
+| Maps.PTree.Leaf, Maps.PTree.Leaf => true
+| Maps.PTree.Node l1 i1 r1, Maps.PTree.Node l2 i2 r2 =>
+  match i1, i2 with
+    | Some v1, Some v2 => andb (e v1 v2) 
+                               (andb (ptree_cmp l1 l2 e) 
+                                     (ptree_cmp r1 r2 e)) 
+    | None, None => (andb (ptree_cmp l1 l2 e) 
+                          (ptree_cmp r1 r2 e))
+    | _, _ => false
+  end
+| _, _ => false
+end.
+
+Lemma ptree_cmp_sound : forall T p1 p2 e, 
+(forall (i1 i2 : T), e i1 i2 = true -> i1 = i2) ->
+ptree_cmp p1 p2 e = true ->
+p1 = p2.
+Proof.
+intros.
+generalize dependent p2. induction p1; intros; destruct p2; auto; 
+simpl in *; try congruence.
+destruct o, o0. simpl in *.
+consider (e t t0); intros. specialize (H _ _ H0).
+ subst.
+consider (ptree_cmp p1_1 p2_1 e); intros.
+apply IHp1_1 in H. apply IHp1_2 in H1. subst. 
+auto.
+simpl in *; congruence.
+simpl in *; congruence.
+congruence. congruence.
+consider (ptree_cmp p1_1 p2_1 e); intros.
+apply IHp1_1 in H0. apply IHp1_2 in H1.
+subst; auto.
+simpl in *; congruence.
+Qed.
+
 Definition const_beq a b :=
 match a, b with
 | fN c1, fN c2 => beq_nat c1 c2
@@ -17,11 +56,12 @@ match a, b with
 | fPos c1, fPos c2 =>  BinPos.Pos.eqb c1 c2
 | fCtype c1, fCtype c2 => expr.eqb_type c1 c2
 | fCexpr c1, fCexpr c2 => expr_beq c1 c2
+| fenv c1, fenv c2 => ptree_cmp c1 c2 expr.eqb_type
+| fllrr c1, fllrr c2 => match c1, c2 with | efield_lemmas.LLLL, efield_lemmas.LLLL | efield_lemmas.RRRR, efield_lemmas.RRRR => true | _, _ => false end
 | _, _ => false
 end.
 
 Instance const_rel_dec : RelDec (@eq const) := { rel_dec := const_beq }.
-
 
 Definition beq_z_true : forall a b, Zbool.Zeq_bool a b = true -> a = b.
 Proof.
@@ -35,7 +75,10 @@ Hint Resolve beq_z_true : expr_beq.
 Lemma const_beq_sound : forall a b, const_beq a b = true -> a = b.
 Proof.
 intros.
-destruct a, b; auto; solve_expr_beq_sound. 
+destruct a, b; auto; solve_expr_beq_sound.
++ eapply ptree_cmp_sound; [| exact H].
+  intros; solve_expr_beq_sound.
++ destruct l, l0; try inversion H; reflexivity.
 Qed.
 
 Hint Resolve const_beq_sound : expr_beq.
@@ -210,46 +253,6 @@ subst; auto.
 Qed. *)
 
 Hint Resolve sep_beq_sound : expr_beq.
-
-Fixpoint ptree_cmp {T : Type} (p1 p2: Maps.PTree.tree T) 
-         (e : T -> T -> bool) :=
-match p1, p2 with
-| Maps.PTree.Leaf, Maps.PTree.Leaf => true
-| Maps.PTree.Node l1 i1 r1, Maps.PTree.Node l2 i2 r2 =>
-  match i1, i2 with
-    | Some v1, Some v2 => andb (e v1 v2) 
-                               (andb (ptree_cmp l1 l2 e) 
-                                     (ptree_cmp r1 r2 e)) 
-    | None, None => (andb (ptree_cmp l1 l2 e) 
-                          (ptree_cmp r1 r2 e))
-    | _, _ => false
-  end
-| _, _ => false
-end.
-
-Lemma ptree_cmp_sound : forall T p1 p2 e, 
-(forall (i1 i2 : T), e i1 i2 = true -> i1 = i2) ->
-ptree_cmp p1 p2 e = true ->
-p1 = p2.
-Proof.
-intros.
-generalize dependent p2. induction p1; intros; destruct p2; auto; 
-simpl in *; try congruence.
-destruct o, o0. simpl in *.
-consider (e t t0); intros. specialize (H _ _ H0).
- subst.
-consider (ptree_cmp p1_1 p2_1 e); intros.
-apply IHp1_1 in H. apply IHp1_2 in H1. subst. 
-auto.
-simpl in *; congruence.
-simpl in *; congruence.
-congruence. congruence.
-consider (ptree_cmp p1_1 p2_1 e); intros.
-apply IHp1_1 in H0. apply IHp1_2 in H1.
-subst; auto.
-simpl in *; congruence.
-Qed.
-
 
 Definition type_bool_eq (a b : Ctypes.type * bool) := 
 match a, b with

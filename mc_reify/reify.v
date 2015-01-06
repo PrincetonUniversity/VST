@@ -311,6 +311,14 @@ Reify Pattern patterns_vst +=
       (RHasType Clight.expr (?0)) => (fun (a : id Clight.expr) 
                                        => (@Inj typ func (inr (Const (fCexpr a))))).
 
+Reify Pattern patterns_vst += 
+      (RHasType type_id_env.type_id_env (?0)) => (fun (a : id type_id_env.type_id_env) 
+                                       => (@Inj typ func (inr (Const (fenv a))))).
+
+Reify Pattern patterns_vst += 
+      (RHasType efield_lemmas.LLRR (?0)) => (fun (a : id efield_lemmas.LLRR) 
+                                       => (@Inj typ func (inr (Const (fllrr a))))).
+
 Reify Pattern patterns_vst +=
       (!!expr.update_tycon) => (@Inj typ func (inr (Smx (fupdate_tycon)))).
 

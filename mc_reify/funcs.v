@@ -25,7 +25,10 @@ Inductive const :=
 | fComparison : comparison -> const
 | fbool : bool -> const
 | ffloat : float -> const
-| ffloat32 : float32 -> const.
+| ffloat32 : float32 -> const
+| fenv : type_id_env -> const
+| fllrr : LLRR -> const
+.
 
 Definition typeof_const (c : const) : typ :=
  match c with
@@ -41,16 +44,17 @@ Definition typeof_const (c : const) : typ :=
 | fint64 _ => tyint64
 | ffloat _ => tyfloat
 | ffloat32 _ => tyfloat32
+| fenv _ => tytype_id_env
+| fllrr _ => tyllrr
 end.
 
 Definition constD (c : const)
 : typD (typeof_const c) :=
 match c with
 | fN c | fZ c | fPos c | fident c | fCtype c | fCexpr c | fComparison c | fbool c | fint c 
-| fint64 c | ffloat c | ffloat32 c 
+| fint64 c | ffloat c | ffloat32 c | fenv c | fllrr c
                                           => c
 end.
-
 
 (*
 Instance RelDec_type_eq : RelDec (@eq type) :=
