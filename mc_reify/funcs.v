@@ -541,11 +541,11 @@ Inductive smx :=
 | fnested_field_type2
 | fis_neutral_cast
 | fmsubst_efield_denote
-| flegal_nested_efield
+| flegal_nested_efield : list type -> smx
 | fmsubst_eval_LR
 | ftc_LR_b_norho
 | ftc_environ
-| ftc_efield_b_norho
+| ftc_efield_b_norho : list efield -> smx
 | fnested_efield
 | ftypeof_temp
 | ftc_val
@@ -583,19 +583,18 @@ match t with
 | fmsubst_efield_denote => tyArr (typtree tyval) 
                            (tyArr (typtree (typrod tyc_type tyval))
                             (tyArr (tylist tyefield) (tyoption (tylist tygfield))))
-| flegal_nested_efield => tyArr tytype_id_env
+| flegal_nested_efield _ => tyArr tytype_id_env
                           (tyArr tyc_type
                            (tyArr tyc_expr
                             (tyArr (tylist tygfield)
-                             (tyArr (tylist tyc_type)
-                              (tyArr tyllrr tybool)))))
+                              (tyArr tyllrr tybool))))
 | fmsubst_eval_LR => tyArr (typtree tyval) 
                      (tyArr (typtree (typrod tyc_type tyval))
                       (tyArr tyc_expr
                        (tyArr tyllrr (tyoption tyval))))
 | ftc_LR_b_norho => tyArr tytycontext (tyArr tyc_expr (tyArr tyllrr tybool))
 | ftc_environ => tyArr tytycontext (tyArr tyenviron typrop)
-| ftc_efield_b_norho => tyArr tytycontext (tyArr (tylist tyefield) tybool)
+| ftc_efield_b_norho efs => tyArr tytycontext tybool
 | fnested_efield => tyArr tyc_expr
                     (tyArr (tylist tyefield)
                      (tyArr (tylist tyc_type) tyc_expr))
@@ -634,11 +633,11 @@ match t with
 | fnested_field_type2 => nested_field_type2
 | fis_neutral_cast => is_neutral_cast
 | fmsubst_efield_denote => msubst_efield_denote
-| flegal_nested_efield => legal_nested_efield
+| flegal_nested_efield tts => (fun e t_root e1 gfs => legal_nested_efield e t_root e1 gfs tts)
 | fmsubst_eval_LR => msubst_eval_LR
 | ftc_LR_b_norho => tc_LR_b_norho
 | ftc_environ => tc_environ
-| ftc_efield_b_norho => tc_efield_b_norho
+| ftc_efield_b_norho efs => (fun tycon => tc_efield_b_norho tycon efs)
 | fnested_efield => nested_efield
 | ftypeof_temp => typeof_temp
 | ftc_val => tc_val

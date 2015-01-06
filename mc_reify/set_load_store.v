@@ -50,27 +50,6 @@ Require Export mc_reify.reflexivity_tacs.
 Require Import mc_reify.get_set_reif.
 Require Import mc_reify.func_defs.
 
-Fixpoint msubst_efield_denote_reif (T1: ExprCore.expr typ func) (T2: ExprCore.expr typ func) (efs : list efield) :=
-  match efs with
-  | nil => Some (injR (Data (fnil tyefield)))
-  | cons (eStructField i) efs0 => option_map (App
-                                (appR (Data (fcons tyefield))
-                                      (appR (Smx fstruct_field) (injR (Const (fident i))))))
-                                 (msubst_efield_denote_reif T1 T2 efs0)
-  | cons (eUnionField i) efs0 => option_map (App
-                                (appR (Data (fcons tyefield))
-                                      (appR (Smx funion_field) (injR (Const (fident i))))))
-                                 (msubst_efield_denote_reif T1 T2 efs0)
-  | cons (eArraySubsc ei) efs0 =>
-      match typeof ei, msubst_eval_expr_reif T1 T2 ei with
-      | Tint _ _ _, Some e => option_map (App
-                                (appR (Data (fcons tyefield))
-                                      (appR (Smx farray_subsc) (val_e_to_expr e))))
-                                 (msubst_efield_denote_reif T1 T2 efs0)
-      | _, _ => None
-      end
-  end.
-
 Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
 
 Lemma semax_load_localD:
@@ -82,12 +61,12 @@ Lemma semax_load_localD:
 
 forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
      (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
-     (efs : list efield) 
+     (efs : list efield) (tts : list type) 
      (e : type_id_env) (gs : PTree.t funspec) (sh : Share.t) 
      (P : list Prop) (T1 : PTree.t val) (T2 : PTree.t (type * val))
      (R : list mpred) (Post : environ -> mpred)
      (gfs : list gfield)
-     (tts : list type) (p v : val) (v' : reptype t_root) 
+     (p v : val) (v' : reptype t_root) 
      (lr : LLRR) (Espec : OracleKind),
   typeof_temp (mk_tycontext temp var ret gt gs) id = Some t -> 
   is_neutral_cast (typeof e0) t = true ->
@@ -102,7 +81,7 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
         (data_at sh t_root v' p) * TT) ->
   proj_val t_root gfs v' = v ->
   assertD P (localD (my_set id v T1) T2) R = Post ->
-  nested_efield_rel e1 efs tts e0 ->
+  nested_efield e1 efs tts = e0 ->
 
   (forall rho, 
       !! (tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |--
@@ -128,21 +107,17 @@ Admitted.
 
 Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
      (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
-    (*efs: list efield*): my_lemma.
-reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 (*efs*)).
+    (efs: list efield) (tts : list type): my_lemma.
+reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 efs tts).
 Defined.
 
-Print load_lemma.
-
-Definition load_lemma' (temp : PTree.t (type * bool)) (var : PTree.t type) 
-     (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
-    (efs: list efield): my_lemma.
-reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 efs).
-Defined.
-
-Print load_lemma'. (* Why does not work. Cannot reify the parameterized efs now. *)
+Print load_lemma. (* Why does not work. Cannot reify the parameterized efs now. *)
 
 (*
+Goal forall x y z,  msubst_efield_denote x y z = None.
+intros.
+reify_vst(msubst_efield_denote x y z).
+*)
 
 Require Import mc_reify.reverse_defs.
 Require Import symexe.
@@ -154,8 +129,8 @@ Parameter tbl : SymEnv.functions RType_typ.
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.
 
-Definition APPLY_load temp var ret gt id t t_root e0 e1:=
-EAPPLY typ func (load_lemma temp var ret gt id t t_root e0 e1).
+Definition APPLY_load temp var ret gt id t t_root e0 e1 efs tts:=
+EAPPLY typ func (load_lemma temp var ret gt id t t_root e0 e1 efs tts).
 
 Definition remove_global_spec (t : tycontext) := 
 match t with
@@ -179,7 +154,7 @@ simpl (remove_global_spec Delta).
 
 reify_expr_tac.
 
-Eval vm_compute in (get_delta_statement e).
+(*Eval vm_compute in (get_delta_statement e).*)
 Eval vm_compute in
 match (get_delta_statement e) with
 | Some ((t, v, r, gt) , st) => 
@@ -189,7 +164,7 @@ match (get_delta_statement e) with
                | Some (ty, _) => ty
                | None => Tvoid
                end in
-     run_tac (THEN INTROS (THEN (APPLY_load t v r gt _p ty tint e0 e0) (TRY (FIRST [(REFLEXIVITY_OP_CTYPE tbl0); (REFLEXIVITY_BOOL tbl0)]))))
+     run_tac (THEN INTROS (THEN (APPLY_load t v r gt _p ty tint e0 e0 nil nil) (TRY (FIRST [(REFLEXIVITY_OP_CTYPE tbl0); (REFLEXIVITY_BOOL tbl0)]))))
   | _ => run_tac FAIL
   end
 | _ => run_tac FAIL
@@ -205,5 +180,4 @@ assert (exists v, reflect_prop tbl0 e = Some v).
 unfold tbl0, e.
 simpl.
 cbv_denote.
-*)
 *)
