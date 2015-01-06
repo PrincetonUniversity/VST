@@ -94,6 +94,33 @@ match msubst_eval_expr_reif T1 T2 e with
 | None => none_reif tyval
 end.
 
+Fixpoint msubst_efield_denote_reif (T1: ExprCore.expr typ func) (T2: ExprCore.expr typ func) (efs : list efield) :=
+  match efs with
+  | nil => Some (injR (Data (fnil tyefield)))
+  | cons (eStructField i) efs0 => option_map (App
+                                (appR (Data (fcons tyefield))
+                                      (appR (Smx fstruct_field) (injR (Const (fident i))))))
+                                 (msubst_efield_denote_reif T1 T2 efs0)
+  | cons (eUnionField i) efs0 => option_map (App
+                                (appR (Data (fcons tyefield))
+                                      (appR (Smx funion_field) (injR (Const (fident i))))))
+                                 (msubst_efield_denote_reif T1 T2 efs0)
+  | cons (eArraySubsc ei) efs0 =>
+      match typeof ei, msubst_eval_expr_reif T1 T2 ei with
+      | Tint _ _ _, Some e => option_map (App
+                                (appR (Data (fcons tyefield))
+                                      (appR (Smx farray_subsc) (val_e_to_expr e))))
+                                 (msubst_efield_denote_reif T1 T2 efs0)
+      | _, _ => None
+      end
+  end.
+
+Definition rmsubst_efield_denote (T1: ExprCore.expr typ func) (T2: ExprCore.expr typ func) (efs : list efield) :=
+match msubst_efield_denote_reif T1 T2 efs with
+| Some e => some_reif e (tylist tygfield)
+| None => none_reif (tylist tygfield)
+end.
+
 Lemma Forall_reverse :
 forall A P (l: list A),
 Forall P l <->

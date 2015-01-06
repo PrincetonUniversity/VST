@@ -198,7 +198,9 @@ rmsubst_eval_expr a b e).
 (*(@Inj typ func (inr (Smx fmsubst_eval_expr_norho))).*)
 Reify Pattern patterns_vst += (!!msubst_eval_lvalue) => (@Inj typ func (inr (Smx fmsubst_eval_lvalue_norho))).
 
-
+Reify Pattern patterns_vst += (!!msubst_efield_denote @ ?0 @ ?1 @ ?2) =>
+(fun (a b : function reify_vst) (e : id (list floyd.efield_lemmas.efield)) =>
+rmsubst_efield_denote a b e).
 
 Reify Pattern patterns_vst += (!!SeparationLogic.normal_ret_assert) => (@Inj typ func (inr (Smx fnormal_ret_assert))).
 Reify Pattern patterns_vst += (!!seplog.normal_ret_assert) => (@Inj typ func (inr (Smx fnormal_ret_assert))).
@@ -309,7 +311,6 @@ Reify Pattern patterns_vst +=
       (RHasType Clight.expr (?0)) => (fun (a : id Clight.expr) 
                                        => (@Inj typ func (inr (Const (fCexpr a))))).
 
-
 Reify Pattern patterns_vst +=
       (!!expr.update_tycon) => (@Inj typ func (inr (Smx (fupdate_tycon)))).
 
@@ -382,12 +383,21 @@ Reify Pattern patterns_vst += (!!(@msl.seplog.later (veric.expr.environ-> veric.
 Reify Pattern patterns_vst += (!!nested_field_lemmas.nested_field_type2) => (@Inj typ func (inr (Smx (fnested_field_type2)))).
 Reify Pattern patterns_vst += (!!expr.is_neutral_cast) => (@Inj typ func (inr (Smx (fis_neutral_cast)))).
 Reify Pattern patterns_vst += (!!msubst_efield_denote) => (@Inj typ func (inr (Smx (fmsubst_efield_denote)))).
-Reify Pattern patterns_vst += (!!efield_lemmas.legal_nested_efield) => (@Inj typ func (inr (Smx (flegal_nested_efield)))).
+
+Reify Pattern patterns_vst += (!!efield_lemmas.legal_nested_efield @ ?0 @ ?1 @ ?2 @ ?3 @ ?4 @ ?5) =>
+(fun (e t_root e1 gfs: function reify_vst) (tts: id (list Ctypes.type)) (lr: function reify_vst) =>
+ (App (App (App (App (App (@Inj typ func (inr (Smx (flegal_nested_efield tts)))) e) t_root) e1) gfs) lr)).
+
 Reify Pattern patterns_vst += (!!sc_set_load_store.msubst_eval_LR) => (@Inj typ func (inr (Smx (fmsubst_eval_LR)))).
 Reify Pattern patterns_vst += (!!tc_LR_b_norho) => (@Inj typ func (inr (Smx (ftc_LR_b_norho)))).
 Reify Pattern patterns_vst += (!!SeparationLogic.tc_environ) => (@Inj typ func (inr (Smx (ftc_environ)))).
-Reify Pattern patterns_vst += (!!tc_efield_b_norho) => (@Inj typ func (inr (Smx (ftc_efield_b_norho)))).
-Reify Pattern patterns_vst += (!!efield_lemmas.nested_efield) => (@Inj typ func (inr (Smx (fnested_efield)))).
+
+Reify Pattern patterns_vst += (!!tc_efield_b_norho @ ?0 @ ?1) => 
+(fun (a : function reify_vst) (e : id (list floyd.efield_lemmas.efield)) => App (@Inj typ func (inr (Smx (ftc_efield_b_norho e)))) a).
+
+Reify Pattern patterns_vst += (!!efield_lemmas.nested_efield @ ?0 @ ?1 @ ?2) =>
+(fun (e1 : id Clight.expr) (efs : id (list floyd.efield_lemmas.efield)) (tts : id (list Ctypes.type)) => (@Inj typ func (inr (Const (fCexpr (efield_lemmas.nested_efield e1 efs tts)))))).
+
 Reify Pattern patterns_vst += (!!SeparationLogic.typeof_temp) => (@Inj typ func (inr (Smx (ftypeof_temp)))).
 Reify Pattern patterns_vst += (!!veric.expr.tc_val) => (@Inj typ func (inr (Smx (ftc_val)))).
 Reify Pattern patterns_vst += (!!nested_field_lemmas.legal_nested_field) => (@Inj typ func (inr (Smx (flegal_nested_field)))).

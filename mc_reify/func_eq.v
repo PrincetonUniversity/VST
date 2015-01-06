@@ -4,6 +4,8 @@ Require Import mc_reify.typ_eq.
 Require Import mc_reify.statement_eq.
 Require Import Coq.Arith.EqNat.
 Require Import mc_reify.clight_expr_eq.
+Require Import mc_reify.list_ctype_eq.
+Require Import mc_reify.list_efield_eq.
 Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.List.
 Require Import ExtLib.Core.RelDec.
@@ -19,9 +21,6 @@ match a, b with
 end.
 
 Instance const_rel_dec : RelDec (@eq const) := { rel_dec := const_beq }.
-
-Print RelDec.
-Print SymEnv.
 
 
 Definition beq_z_true : forall a b, Zbool.Zeq_bool a b = true -> a = b.
@@ -284,11 +283,11 @@ match a, b with
 | fnested_field_type2, fnested_field_type2 => true
 | fis_neutral_cast, fis_neutral_cast => true
 | fmsubst_efield_denote, fmsubst_efield_denote => true
-| flegal_nested_efield, flegal_nested_efield => true
+| flegal_nested_efield tts1, flegal_nested_efield tts2 => list_eqb RelDec_ctype_beq tts1 tts2
 | fmsubst_eval_LR, fmsubst_eval_LR => true
 | ftc_LR_b_norho, ftc_LR_b_norho => true
 | ftc_environ, ftc_environ => true
-| ftc_efield_b_norho, ftc_efield_b_norho => true
+| ftc_efield_b_norho efs1, ftc_efield_b_norho efs2 => list_eqb RelDec_efield_beq efs1 efs2
 | fnested_efield, fnested_efield => true
 | ftypeof_temp, ftypeof_temp => true
 | ftc_val, ftc_val => true
