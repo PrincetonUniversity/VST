@@ -236,16 +236,37 @@ typeof_smx
 typ_eq_dec typ_rec typ_rect sumbool_rec sumbool_rect eq_rec eq_rect eq_rec_r eq_rect_r False_ind eq_ind expr.eqb_type expr.eqb_intsize expr.eqb_signedness expr.eqb_attr
 expr.eqb_option expr.eqb_floatsize Bool.eqb BinNat.N.eqb expr.eqb_calling_convention expr.eqb_ident
 f_equal False_rect False_rec
-          ].
 
+(*SymEnv*)
+SymEnv.funcD
+SymEnv.fdenote
+SymEnv.RSym_func
+SymEnv.func_typeof_sym
+SymEnv.ftype
+FMapPositive.PositiveMap.find
+elem_ctor
+Tactics.elem_ctor
+
+Ext
+func_defs.reflect
+          ].
 (*Tactic Notation "cbv_denote" "in" ident(H) := cbv_denote_in H.*)
 
 Require Import reify.
+Require Import floyd.proofauto.
 
-Goal False.
-reify_vst (@nil nat).
-assert (forall n, n = reflect tbl nil nil e (tylist tynat)).
-intros. unfold reflect.
- unfold tbl, e.
+Goal forall p e, 
+(@semax e empty_tycontext
+     p
+      Sskip 
+     (normal_ret_assert p)).
+intros.
+reify_vst (semax empty_tycontext p Sskip (normal_ret_assert p)).
+assert (forall n, n = func_defs.reflect tbl nil nil e0 (typrop)).
+intros. 
+ unfold tbl, e0.
 cbv_denote.
+Locate elem_ctor.
+ cbv [elem_ctor].
 Abort.
+
