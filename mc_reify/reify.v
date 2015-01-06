@@ -25,10 +25,6 @@ Reify Declare Syntax reify_vst_typ :=
 
 Reify Declare Typed Table term_table : BinNums.positive => reify_vst_typ.
 
-Let Ext x := @ExprCore.Inj typ func (inl (inl (inl x))).
-
-
-
 Reify Declare Syntax reify_vst :=
   { (@Patterns.CFirst _  
       ((@Patterns.CVar _ (@ExprCore.Var typ func)) ::
@@ -36,7 +32,7 @@ Reify Declare Syntax reify_vst :=
        (@Patterns.CApp _ (@ExprCore.App typ func)) ::
        (@Patterns.CAbs _ reify_vst_typ (@ExprCore.Abs typ func)) ::
        (@Patterns.CPatterns _ patterns_vst_hastype) ::
-       (@Patterns.CTypedTable _ _ _ term_table Ext) :: nil))
+       (@Patterns.CTypedTable _ _ _ term_table func_defs.Ext) :: nil))
   }.
 
 Reify Pattern patterns_vst_typ += (!!Values.val) => tyval.
@@ -427,14 +423,11 @@ Ltac reify_typ trm :=
   reify_expr reify_vst k [ True ] [ trm ]
 (*end*).*)
 
-Let elem_ctor : forall x : typ, typD x -> @SymEnv.function typ _ :=
-  @SymEnv.F _ _.
-
 Ltac reify_vst eee :=
   let k fs eee :=
       pose eee in
   reify_expr reify_vst k
-             [ (fun (y : @mk_dvar_map _ _ _  _ term_table elem_ctor) => True) ]
+             [ (fun (y : @mk_dvar_map _ _ _  _ term_table func_defs.elem_ctor) => True) ]
              [ eee ].
 
 Ltac get_tbl :=
@@ -463,7 +456,7 @@ Ltac do_reify e :=
   let k fs e :=
      (apply e) in
   reify_expr reify_vst k
-             [ (fun (y : @mk_dvar_map _ _ _ _ term_table elem_ctor) => True) ]
+             [ (fun (y : @mk_dvar_map _ _ _ _ term_table func_defs.elem_ctor) => True) ]
              [ e ].
 
 Goal forall (Delta: expr.tycontext), False.

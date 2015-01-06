@@ -6,7 +6,7 @@ Require Import ExtLib.Tactics.
 Require Import solve_exprD.
 
 Section tbled.
-Locate RType_typ.
+
 Parameter tbl : SymEnv.functions RType_typ.
 
 Let RSym_sym := RSym_sym tbl.
@@ -47,7 +47,7 @@ intros.
 unfold as_tree in H.
 repeat
 match goal with 
-| [ H : match ?x with _ => _  end = _ |- _ ] => destruct x; simpl in H; try congruence end. 
+| [ H : match ?x with _ => _  end = _ |- _ ] => destruct x; simpl in H;  try congruence end. 
 inversion H. subst. auto.
 Admitted.
 
@@ -61,16 +61,20 @@ match goal with
 | [ H : as_tree _ = Some (inl ?p) |- _ ] => destruct p
 | [ H : as_tree _ = Some ?p |- _ ] => destruct p
 end.
+
+Ltac solve_exprD := solve_exprD.solve_exprD tbl.
+
 Opaque type_cast.
 Lemma set_reif_istree :
   forall i tus tvs t0 vr e t x,
     exprD' tus tvs t0 (set_reif i vr e t) = Some x ->
     t0 = typtree t.
 Proof.
+
 simpl in *.
 induction i; intros; simpl in *; unfold leaf, node, some_reif, none_reif in *.
   + destruct (as_tree e) eqn:?; destruct_as_tree; 
-      [ apply (as_tree_l) in Heqo | apply as_tree_r in Heqo | ]; subst; 
+      [ apply (as_tree_l) in Heqo | apply as_tree_r in Heqo | ]; subst;
       solve_exprD; specialize (IHi tus tvs (typtree t1));
       eapply IHi in H1; auto.
   + destruct (as_tree e) eqn:?; destruct_as_tree; 
@@ -80,7 +84,8 @@ induction i; intros; simpl in *; unfold leaf, node, some_reif, none_reif in *.
   + destruct (as_tree e) eqn:?; destruct_as_tree; 
       [ apply (as_tree_l) in Heqo | apply as_tree_r in Heqo | ]; subst; 
       solve_exprD.
-Admitted. (*Qed*)
+Time Qed.
+(*Admitted. (*Qed*)*)
      
 
 Lemma set_reif_exprD :
@@ -93,7 +98,13 @@ induction i; intros; simpl in *; unfold leaf, node, some_reif, none_reif in *;
     (destruct (as_tree e) eqn:?; destruct_as_tree; 
       [ apply (as_tree_l) in Heqo | apply as_tree_r in Heqo | ]); subst; 
       solve_exprD; eauto.
-  + edestruct (IHi vr e0); eauto; solve_exprD; eauto.
++ edestruct (IHi vr e0); eauto; solve_exprD; eauto. rewrite H8.
+Unset Ltac Debug.
+fold func in *. 
+Set Printing Implicit.
+Print solve_exprD.tbl.
+assert (X := exprD_typeof_Some tus tvs (typtree typ) ((set_reif i vr e0 typ)) x H5).
+pose_types.
 (*pose_types. *)
 (*Unset Ltac Debug.
 Set Printing Implicit.

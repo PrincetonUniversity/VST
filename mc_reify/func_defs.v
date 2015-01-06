@@ -162,3 +162,7 @@ Instance MA : MentionsAny (expr typ func) := {
   mentionsAny := ExprCore.mentionsAny
 }.
 
+Let elem_ctor : forall x : typ, typD x -> @SymEnv.function typ _ :=
+  @SymEnv.F _ _.
+
+Let Ext x := @ExprCore.Inj typ func (inl (inl (inl x))).
