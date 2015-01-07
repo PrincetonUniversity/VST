@@ -58,7 +58,6 @@ Lemma semax_load_localD:
       (efs: list efield) (gfs: list gfield) (tts: list type)
       (p: val) (v : val) (v' : reptype t_root) lr,
   forall {Espec: OracleKind},*)
-
 forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
      (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
      (efs : list efield) (tts : list type) 
@@ -90,13 +89,13 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
 
         !! (legal_nested_field t_root gfs)) ->
 (*
-  id = id /\ e = e /\ sh = sh /\ P = P /\ T1 = T1 /\
-  T2 = T2 /\ R = R /\ Post = Post /\ e1 = e1 /\ t = t /\ t_root = t_root /\
-  efs = efs /\
+  (*id = id /\ e = e /\ *)sh = sh /\ P = P /\ T1 = T1 /\
+  T2 = T2 /\ R = R /\ Post = Post /\ (*e1 = e1 /\ t = t /\ t_root = t_root /\*)
+  (*efs = efs /\*)
   gfs = gfs /\
-  tts = tts /\ p = p /\
-  v = v /\ v' = v' /\ lr = lr /\ Espec = Espec
-/\*)
+  (*tts = tts /\*) p = p /\
+  v = v /\ v' = v' /\ (*lr = lr /\ *)Espec = Espec ->
+*)
  semax (mk_tycontext temp var ret gt gs) (|> assertD P (localD T1 T2) R) 
         (Sset id e0)
           (normal_ret_assert Post)
@@ -112,23 +111,19 @@ Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
 reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 efs tts e lr).
 Defined.
 
-Print load_lemma. (* Why does not work. Cannot reify the parameterized efs now. *)
-
-(*
-Goal forall x y z,  msubst_efield_denote x y z = None.
-intros.
-reify_vst(msubst_efield_denote x y z).
-*)
+Print load_lemma.
 
 Require Import mc_reify.reverse_defs.
 Require Import symexe.
 Require Import mc_reify.func_defs.
+Require Import mc_reify.denote_tac.
 
 Section tbled.
 Locate RSym_sym.
 Parameter tbl : SymEnv.functions RType_typ.
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.
+
 
 Definition APPLY_load temp var ret gt id t t_root e0 e1 efs tts e lr :=
 EAPPLY typ func (load_lemma temp var ret gt id t t_root e0 e1 efs tts e lr).
@@ -143,11 +138,20 @@ match goal with
 | [ |- ?trm] => reify_vst trm
 end.
 
+Notation "'T1' v" := (PTree.Node PTree.Leaf None
+         (PTree.Node PTree.Leaf None
+            (PTree.Node
+               (PTree.Node PTree.Leaf None
+                  (PTree.Node
+                     (PTree.Node PTree.Leaf
+                        (Some v)
+                        PTree.Leaf) None PTree.Leaf)) None PTree.Leaf))) (at level 50).
+
 Goal
-forall {Espec : OracleKind} (contents : list val) , exists (PO : environ -> mpred), 
+forall {Espec : OracleKind} (contents : list val) (v: val) , exists (PO : environ -> mpred), 
    (semax
      (remove_global_spec Delta) (*empty_tycontext*)
-     (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
+     (|> assertD [] (localD (T1 v) (PTree.empty (type * val))) [])
      (Sset _t
             (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
               _tail (tptr t_struct_list)))         
@@ -157,9 +161,9 @@ simpl (remove_global_spec Delta).
 (*
 intros.
 eexists.
-
+(*
 Eval compute in (compute_nested_efield (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
-           _tail (tptr t_struct_list))).
+           _tail (tptr t_struct_list))).*)
 eapply (semax_load_localD) with (efs := eStructField _tail :: nil) (tts := tptr t_struct_list :: nil)
   (e := Struct_env) (t_root := t_struct_list) (lr := LLLL)
   (e1 := (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)).
@@ -167,14 +171,59 @@ reflexivity.
 reflexivity.
 reflexivity.
 reflexivity.
+reflexivity.
+reflexivity.
+
+unfold tc_LR_b_norho, tc_lvalue_b_norho.
+simpl typecheck_lvalue.
+Print denote_tc_assert_b_norho.
+unfold tc_lvalue_b_norho, tc_LR_b_norho.
+*)
+(*
+intros.
+reify_vst (PTree.empty (type * val)).
+
+Definition TT1 := App
+         (App
+            (App (Inj (inr (Data (fnode tyval))))
+               (Inj (inr (Data (fleaf tyval)))))
+            (Inj (inr (Other (fnone tyval)))))
+         (App
+            (App
+               (App (Inj (inr (Data (fnode tyval))))
+                  (Inj (inr (Data (fleaf tyval)))))
+               (Inj (inr (Other (fnone tyval)))))
+            (App
+               (App
+                  (App (Inj (inr (Data (fnode tyval))))
+                     (App
+                        (App
+                           (App (Inj (inr (Data (fnode tyval))))
+                              (Inj (inr (Data (fleaf tyval)))))
+                           (Inj (inr (Other (fnone tyval)))))
+                        (App
+                           (App
+                              (App (Inj (inr (Data (fnode tyval))))
+                                 (App
+                                    (App
+                                       (App (Inj (inr (Data (fnode tyval))))
+                                          (Inj (inr (Data (fleaf tyval)))))
+                                       (App (Inj (inr (Other (fsome tyval))))
+                                          (Ext 1%positive)))
+                                    (Inj (inr (Data (fleaf tyval))))))
+                              (Inj (inr (Other (fnone tyval)))))
+                           (Inj (inr (Data (fleaf tyval)))))))
+                  (Inj (inr (Other (fnone tyval)))))
+               (Inj (inr (Data (fleaf tyval)))))).
+
+Definition TT2 :=  Inj (inr (Data (fempty (typrod tyc_type tyval)))) : expr typ func.
+
+Eval compute in (rmsubst_eval_LR TT1 TT2 (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list) LLLL).
 *)
 reify_expr_tac.
 
-(*Eval vm_compute in (get_delta_statement e).*)
-
-Check compute_nested_efield.
 Eval vm_compute in
-match (get_delta_statement e) with
+(match (get_delta_statement e) with
 | Some ((t, v, r, gt) , st) => 
   match st with
   | Sset i e0 => 
@@ -183,94 +232,18 @@ match (get_delta_statement e) with
                | None => Tvoid
                end in
      let tmp := compute_nested_efield e0 in
-     let e1 := fst (fst tmp) in
+     let e1 := (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list) in
      let efs := snd (fst tmp) in
      let tts := snd tmp in
-     run_tac (THEN INTROS (THEN (APPLY_load t v r gt i ty t_struct_list e0 e1 efs tts Struct_env LLLL) (TRY (FIRST [(REFLEXIVITY_OP_CTYPE tbl0); (REFLEXIVITY_BOOL tbl0); (REFLEXIVITY_CEXPR tbl0); (REFLEXIVITY)]))))
+     run_tac (THEN INTROS (THEN (APPLY_load t v r gt i ty t_struct_list e0 e1 efs tts Struct_env LLLL) (TRY (FIRST [(REFLEXIVITY_OP_CTYPE tbl0); (REFLEXIVITY_BOOL tbl0); (REFLEXIVITY_CEXPR tbl0); (REFLEXIVITY); REFLEXIVITY_MSUBST]))))
   | _ => run_tac FAIL
   end
 | _ => run_tac FAIL
-end e.
+end e).
 
-Eval compute in (reflect tbl0 nil nil (Inj
-                                             (inr
-                                                (Smx
-                                                  (flegal_nested_efield
-                                                  [
-                                                  Tpointer
-                                                  t_struct_list
-                                                  {|
-                                                  attr_volatile := false;
-                                                  attr_alignas := None |}]))))
-   (tyArr tytype_id_env
-                          (tyArr tyc_type
-                           (tyArr tyc_expr
-                            (tyArr (tylist tygfield)
-                              (tyArr tyllrr tybool)))))).
 
-Eval compute in (reflect tbl0 nil nil
 
-                           (App
-                              (App
-                                 (App
-                                    (App
-                                       (App
-                                          (Inj
-                                             (inr
-                                                (Smx
-                                                  (flegal_nested_efield
-                                                  [
-                                                  Tpointer
-                                                  t_struct_list
-                                                  {|
-                                                  attr_volatile := false;
-                                                  attr_alignas := None |}]))))
-                                          (Inj
-                                             (inr
-                                                (Const
-                                                  (fenv
-                                                  (PTree.Node PTree.Leaf None
-                                                  (PTree.Node
-                                                  (PTree.Node
-                                                  (PTree.Node
-                                                  (PTree.Node
-                                                  (PTree.Node PTree.Leaf
-                                                  (Some
-                                                  t_struct_list) PTree.Leaf)
-                                                  None PTree.Leaf) None
-                                                  PTree.Leaf) None PTree.Leaf)
-                                                  None PTree.Leaf)))))))
-                                       (Inj
-                                          (inr
-                                             (Const
-                                                (fCtype
-                                                  t_struct_list)))))
-                                    (Inj
-                                       (inr
-                                          (Const
-                                             (fCexpr
-                                                (Ederef
-                                                  (Etempvar 43%positive
-                                                  (Tpointer
-                                                  t_struct_list
-                                                  {|
-                                                  attr_volatile := false;
-                                                  attr_alignas := None |}))
-                                                  t_struct_list))))))
-                                 (App
-                                    (App (Inj (inr (Data (fcons tyefield))))
-                                       (App (Inj (inr (Smx fstruct_field)))
-                                          (Inj
-                                             (inr
-                                                (Const (fident 34%positive))))))
-                                    (Inj (inr (Data (fnil tyefield))))))
-                              (Inj (inr (Const (fllrr LLLL))))) tybool).
 
-Locate REFLEXIVITY_BOOL.
-SearchAbout upd_reptype_array.
-
-Print RelDec.RelDec_Correct.
-Print load_lemma.
 (*
 Eval vm_compute in (reflect_prop tbl0 load_lemma).
 Require Import denote_tac.

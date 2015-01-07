@@ -6,6 +6,7 @@ Require Import MirrorCore.Lemma.
 Require Import MirrorCore.RTac.Core.
 (*Require Import MirrorCharge.RTac.ReifyLemma.*)
 Require Import mc_reify.update_tycon.
+Require Import mc_reify.set_reif.
 
 Section tbled.
 
@@ -42,6 +43,30 @@ simpl in *.
 Admitted.
 
 Definition REFLEXIVITY := REFLEXIVITYTAC.
+
+Definition REFLEXIVITYTAC_msubst : rtac typ (expr typ func) :=
+fun tus tvs n m c s e => 
+  match e with 
+| (App (App (Inj (inr (Other (feq ty)))) l) r) =>
+  match l with
+  | App
+      (App
+         (App
+            (App (Inj (inr (Smx fmsubst_eval_LR))) T1) T2) 
+         (Inj (inr (Const (fCexpr e1)))))
+      (Inj (inr (Const (fllrr lr)))) =>
+    let l' := rmsubst_eval_LR T1 T2 e1 lr in
+    match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
+                                 tus tvs 0 l' r ty s with
+    | Some s => RTac.Core.Solved s 
+    | None =>  RTac.Core.Fail
+    end
+  | _ => RTac.Core.Fail
+  end
+| _ => RTac.Core.Fail
+end.
+
+Definition REFLEXIVITY_MSUBST := REFLEXIVITYTAC_msubst.
 
 Definition REFLEXIVITY_DENOTE (rtype : typ) {H: @RelDec.RelDec (typD rtype) eq}
 {H0: RelDec.RelDec_Correct H} tbl : rtac typ (expr typ func) := 

@@ -520,7 +520,6 @@ end.
   exact (@lseg t id ls sh (List.map (reptyp_structlist_reptype  _) lf) v1 v2). }*)
 Defined.
 
-Print tycontext.
 Inductive smx :=
 | fenviron : environ -> smx
 | fsemax
@@ -539,8 +538,8 @@ Inductive smx :=
 | fdenote_tc_assert_b_norho
 | ftc_expr_b_norho
 | ftc_temp_id_b_norho : positive -> type ->  smx
-| fmsubst_eval_expr_norho
-| fmsubst_eval_lvalue_norho
+(*| fmsubst_eval_expr_norho*)
+(*| fmsubst_eval_lvalue_norho*)
 | flater
 | fnested_field_type2
 | fis_neutral_cast
@@ -579,8 +578,8 @@ match t with
 | fdenote_tc_assert_b_norho => tyArr tytc_assert tybool
 | ftc_expr_b_norho => tyArr tytycontext (tyArr tyc_expr tybool)
 | ftc_temp_id_b_norho _ _  => tyArr tytycontext (tyArr tyc_expr tybool)
-| fmsubst_eval_expr_norho => tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))
-| fmsubst_eval_lvalue_norho =>  tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))
+(*| fmsubst_eval_expr_norho => tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))*)
+(*| fmsubst_eval_lvalue_norho =>  tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))*)
 | flater => tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred)
 | fnested_field_type2 => tyArr tyc_type (tyArr (tylist tygfield) tyc_type)
 | fis_neutral_cast => tyArr tyc_type (tyArr tyc_type tybool)
@@ -631,8 +630,8 @@ match t with
 | fdenote_tc_assert_b_norho => (denote_tc_assert_b_norho : typD (typeof_smx fdenote_tc_assert_b_norho))
 | ftc_expr_b_norho => tc_expr_b_norho
 | ftc_temp_id_b_norho id ty  => tc_temp_id_b_norho id ty 
-| fmsubst_eval_expr_norho => msubst_eval_expr
-| fmsubst_eval_lvalue_norho => msubst_eval_lvalue
+(*| fmsubst_eval_expr_norho => msubst_eval_expr*)
+(*| fmsubst_eval_lvalue_norho => msubst_eval_lvalue*)
 | flater => later
 | fnested_field_type2 => nested_field_type2
 | fis_neutral_cast => is_neutral_cast
