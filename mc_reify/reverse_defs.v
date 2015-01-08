@@ -123,6 +123,26 @@ mk_tycontext
                                       (`(eq (Vint (sum_int contents0)))
                                          retval)))) PTree.Leaf) None
                             PTree.Leaf)) None PTree.Leaf) None PTree.Leaf)).
+
+Definition Struct_env := (@PTree.Node type (@PTree.Leaf type) 
+                     (@None type)
+                     (@PTree.Node type
+                        (@PTree.Node type
+                           (@PTree.Node type
+                              (@PTree.Node type
+                                 (@PTree.Node type 
+                                    (@PTree.Leaf type)
+                                    (@Some type
+                                       (Tstruct _struct_list
+                                          (Fcons _head tint
+                                             (Fcons _tail
+                                                (Tcomp_ptr _struct_list
+                                                  noattr) Fnil)) noattr))
+                                    (@PTree.Leaf type)) 
+                                 (@None type) (@PTree.Leaf type))
+                              (@None type) (@PTree.Leaf type)) 
+                           (@None type) (@PTree.Leaf type)) 
+                        (@None type) (@PTree.Leaf type))).
 (*
 Definition Delta2 : tycontext :=
 (PTree.Node

@@ -94,21 +94,33 @@ match msubst_eval_expr_reif T1 T2 e with
 | None => none_reif tyval
 end.
 
+Definition rmsubst_eval_lvalue (T1: (ExprCore.expr typ func)) (T2: ExprCore.expr typ func) (e: Clight.expr) := 
+match msubst_eval_lvalue_reif T1 T2 e with
+| Some e => some_reif (val_e_to_expr e) tyval
+| None => none_reif tyval
+end.
+
+Definition rmsubst_eval_LR (T1: (ExprCore.expr typ func)) (T2: ExprCore.expr typ func) (e: Clight.expr) (lr : LLRR) := 
+match lr with
+| LLLL => rmsubst_eval_lvalue T1 T2 e
+| RRRR => rmsubst_eval_expr T1 T2 e
+end.
+
 Fixpoint msubst_efield_denote_reif (T1: ExprCore.expr typ func) (T2: ExprCore.expr typ func) (efs : list efield) :=
   match efs with
-  | nil => Some (injR (Data (fnil tyefield)))
+  | nil => Some (injR (Data (fnil tygfield)))
   | cons (eStructField i) efs0 => option_map (App
-                                (appR (Data (fcons tyefield))
+                                (appR (Data (fcons tygfield))
                                       (appR (Smx fstruct_field) (injR (Const (fident i))))))
                                  (msubst_efield_denote_reif T1 T2 efs0)
   | cons (eUnionField i) efs0 => option_map (App
-                                (appR (Data (fcons tyefield))
+                                (appR (Data (fcons tygfield))
                                       (appR (Smx funion_field) (injR (Const (fident i))))))
                                  (msubst_efield_denote_reif T1 T2 efs0)
   | cons (eArraySubsc ei) efs0 =>
       match typeof ei, msubst_eval_expr_reif T1 T2 ei with
       | Tint _ _ _, Some e => option_map (App
-                                (appR (Data (fcons tyefield))
+                                (appR (Data (fcons tygfield))
                                       (appR (Smx farray_subsc) (val_e_to_expr e))))
                                  (msubst_efield_denote_reif T1 T2 efs0)
       | _, _ => None

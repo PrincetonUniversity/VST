@@ -188,11 +188,19 @@ Reify Pattern patterns_vst += (!!tc_temp_id_b_norho @ ?0 @ ?1 ) =>
   (fun (a : id positive) (b : id Ctypes.type) =>
      (@Inj typ func (inr (Smx (ftc_temp_id_b_norho a b ))))).
 
+(*
 Reify Pattern patterns_vst += (!!msubst_eval_expr @ ?0 @ ?1 @ ?2) =>
 (fun (a b : function reify_vst) (e : id Clight.expr) =>
 rmsubst_eval_expr a b e).
-(*(@Inj typ func (inr (Smx fmsubst_eval_expr_norho))).*)
-Reify Pattern patterns_vst += (!!msubst_eval_lvalue) => (@Inj typ func (inr (Smx fmsubst_eval_lvalue_norho))).
+
+Reify Pattern patterns_vst += (!!msubst_eval_lvalue @ ?0 @ ?1 @ ?2) =>
+(fun (a b : function reify_vst) (e : id Clight.expr) =>
+rmsubst_eval_lvalue a b e).
+
+Reify Pattern patterns_vst += (!!sc_set_load_store.msubst_eval_LR @ ?0 @ ?1 @ ?2 @ ?3) =>
+(fun (a b : function reify_vst) (e : id Clight.expr) (lr : id efield_lemmas.LLRR) =>
+rmsubst_eval_LR a b e lr).
+*)
 
 Reify Pattern patterns_vst += (!!msubst_efield_denote @ ?0 @ ?1 @ ?2) =>
 (fun (a b : function reify_vst) (e : id (list floyd.efield_lemmas.efield)) =>
@@ -307,6 +315,14 @@ Reify Pattern patterns_vst +=
       (RHasType Clight.expr (?0)) => (fun (a : id Clight.expr) 
                                        => (@Inj typ func (inr (Const (fCexpr a))))).
 
+Reify Pattern patterns_vst += 
+      (RHasType type_id_env.type_id_env (?0)) => (fun (a : id type_id_env.type_id_env) 
+                                       => (@Inj typ func (inr (Const (fenv a))))).
+
+Reify Pattern patterns_vst += 
+      (RHasType efield_lemmas.LLRR (?0)) => (fun (a : id efield_lemmas.LLRR) 
+                                       => (@Inj typ func (inr (Const (fllrr a))))).
+
 Reify Pattern patterns_vst +=
       (!!expr.update_tycon) => (@Inj typ func (inr (Smx (fupdate_tycon)))).
 
@@ -384,7 +400,6 @@ Reify Pattern patterns_vst += (!!efield_lemmas.legal_nested_efield @ ?0 @ ?1 @ ?
 (fun (e t_root e1 gfs: function reify_vst) (tts: id (list Ctypes.type)) (lr: function reify_vst) =>
  (App (App (App (App (App (@Inj typ func (inr (Smx (flegal_nested_efield tts)))) e) t_root) e1) gfs) lr)).
 
-Reify Pattern patterns_vst += (!!sc_set_load_store.msubst_eval_LR) => (@Inj typ func (inr (Smx (fmsubst_eval_LR)))).
 Reify Pattern patterns_vst += (!!tc_LR_b_norho) => (@Inj typ func (inr (Smx (ftc_LR_b_norho)))).
 Reify Pattern patterns_vst += (!!SeparationLogic.tc_environ) => (@Inj typ func (inr (Smx (ftc_environ)))).
 
@@ -398,6 +413,7 @@ Reify Pattern patterns_vst += (!!SeparationLogic.typeof_temp) => (@Inj typ func 
 Reify Pattern patterns_vst += (!!veric.expr.tc_val) => (@Inj typ func (inr (Smx (ftc_val)))).
 Reify Pattern patterns_vst += (!!nested_field_lemmas.legal_nested_field) => (@Inj typ func (inr (Smx (flegal_nested_field)))).
 Reify Pattern patterns_vst += (!!sc_set_load_store.nested_efield_rel) => (@Inj typ func (inr (Smx (fnested_efield)))).
+Reify Pattern patterns_vst += (!!sc_set_load_store.msubst_eval_LR) => (@Inj typ func (inr (Smx (fmsubst_eval_LR)))).
 
 Ltac reify_typ trm :=
   let k ee :=

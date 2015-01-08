@@ -106,6 +106,8 @@ endif
 
 VFILES:=bool_funcs.v\
   clight_expr_eq.v\
+  list_efield_eq.v\
+  list_ctype_eq.v\
   denote_tac.v\
   func_defs.v\
   func_eq.v\

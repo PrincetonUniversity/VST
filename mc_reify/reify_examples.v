@@ -9,14 +9,21 @@ Require Import mc_reify.symexe.
 Local Open Scope logic.
 Existing Instance NullExtension.Espec.
 
+Ltac reify_expr_tac :=
+match goal with
+| [ |- ?trm] => reify_vst trm
+end.
+
+
 Lemma skip_triple : forall p e,
 @semax e empty_tycontext
      p
       Sskip 
      (normal_ret_assert p).
 Proof. unfold empty_tycontext. 
+
 Time reify_expr_tac.
-Time Eval vm_compute in  (symexe e tbl).
+Time Eval vm_compute in  (symexe e).
 Abort.
 
 Fixpoint lots_of_skips n :=
@@ -30,7 +37,7 @@ Lemma seq_triple : forall p es,
 Proof.
 unfold empty_tycontext.
 reify_expr_tac.
-Time Eval vm_compute in symexe e tbl.
+Time Eval vm_compute in symexe e.
 Abort.
 
 Lemma seq_triple_lots : forall p es,
@@ -38,7 +45,7 @@ Lemma seq_triple_lots : forall p es,
 Proof.
 unfold empty_tycontext.
 reify_expr_tac. 
-Time Eval vm_compute in (symexe e tbl).
+Time Eval vm_compute in (symexe e).
 Abort.
 
 (*
