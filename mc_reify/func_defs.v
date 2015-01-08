@@ -166,3 +166,36 @@ Let elem_ctor : forall x : typ, typD x -> @SymEnv.function typ _ :=
   @SymEnv.F _ _.
 
 Let Ext x := @ExprCore.Inj typ func (inl (inl (inl x))).
+
+Section tbled.
+
+Variable tbl : SymEnv.functions RType_typ.
+
+Let RSym_sym := RSym_sym tbl.
+Existing Instance RSym_sym.
+Let Expr_expr := Expr_expr_fs tbl.
+Existing Instance Expr_expr.
+Existing Instance Expr_ok_fs.
+
+Definition exprD_Prop (uvar_env var_env : EnvI.env) (e : expr typ func) :=
+  match exprD uvar_env var_env e typrop with
+    | Some e' => e' 
+    | None => True
+  end.
+
+Definition goalD_Prop (uvar_env var_env : EnvI.env) goal :=
+  let (tus, us) := split_env uvar_env in
+  let (tvs, vs) := split_env var_env in
+  match goalD tus tvs goal with
+    | Some e => e us vs
+    | None => False
+  end.
+
+Definition goalD_aux tus tvs goal (us : HList.hlist typD tus) (vs : HList.hlist typD tvs) :=
+  match goalD tus tvs goal with
+    | Some e => Some (e us vs)
+    | None => None
+  end.
+
+End tbled.
+

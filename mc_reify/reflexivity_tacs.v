@@ -10,7 +10,7 @@ Section tbled.
 
 Existing Instance SubstUpdate_ctx_subst.
 
-Parameter tbl : SymEnv.functions RType_typ.
+Variable tbl : SymEnv.functions RType_typ.
 
 Instance SS : SubstI.Subst subst (expr typ func) :=
   @FMapSubst.SUBST.Subst_subst _.

@@ -415,6 +415,13 @@ Ltac reify_typ trm :=
   reify_expr reify_vst k [ True ] [ trm ]
 (*end*).*)
 
+Ltac reify_aux reify term_table e n :=
+  let k fs e :=
+      pose e as n in
+  reify_expr reify k
+             [ (fun (y : @mk_dvar_map _ _ _ _ term_table func_defs.elem_ctor) => True) ]
+             [ e ].
+
 Ltac reify_vst eee :=
   let k fs eee :=
       pose eee in
@@ -444,6 +451,7 @@ match goal with
              [ e ]
 end.
 *)
+
 Ltac do_reify e :=
   let k fs e :=
      (apply e) in

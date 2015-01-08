@@ -124,8 +124,8 @@ Require Import symexe.
 Require Import mc_reify.func_defs.
 
 Section tbled.
-Locate RSym_sym.
-Parameter tbl : SymEnv.functions RType_typ.
+
+Variable tbl : SymEnv.functions RType_typ.
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.
 
@@ -170,7 +170,6 @@ match (get_delta_statement e) with
 | _ => run_tac FAIL
 end e.
 
-Print load_lemma.
 (*
 Eval vm_compute in (reflect_prop tbl0 load_lemma).
 Require Import denote_tac.
