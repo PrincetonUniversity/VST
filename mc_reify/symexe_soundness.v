@@ -124,6 +124,11 @@ End tbled.
 
 Require Import denote_tac.
 
+Ltac clear_tbl :=
+match goal with
+[ t := ?V : FMapPositive.PositiveMap.tree (SymEnv.function RType_typ) |- _ ] => clear t
+end.
+
 
 Ltac run_rtac reify term_table tac_sound :=
   match type of tac_sound with
@@ -141,13 +146,13 @@ Ltac run_rtac reify term_table tac_sound :=
 	          let result := eval vm_compute in goal_result in
 	          match result with
 	            | More_ ?s ?g => 
-	              cut (goalD_Prop nil nil g); [
+	              cut (goalD_Prop tbl nil nil g); [
 	                let goal_resultV := g in
 	               (* change (goalD_Prop nil nil goal_resultV -> exprD_Prop nil nil name);*)
 	                exact_no_check (@run_rtac_More tbl (tac tbl) _ _ _ (tac_sound tbl)
 	                	(@eq_refl (Result (CTop nil nil)) (More_ s goal_resultV) <:
 	                	   run_tac' (tac tbl) (GGoal goal) = (More_ s goal_resultV)))
-	                | cbv_denote
+	                | cbv_denote; repeat (try eexists; eauto) 
 	              ]
 	            | Solved ?s =>
 	              exact_no_check (@run_rtac_Solved tbl (tac tbl) s name (tac_sound tbl) 
@@ -157,7 +162,7 @@ Ltac run_rtac reify term_table tac_sound :=
 	          end
 	        | None => idtac "expression " goal "is ill typed" t
 	      end
-	  end
+	  end; try (clear name; clear_tbl)
 	| _ => idtac tac_sound "is not a soudness theorem."
   end.
 
@@ -173,7 +178,7 @@ Lemma skip_triple : forall p e,
       Sskip 
      (normal_ret_assert p).
 Proof. 
-intros.
+intros. 
 unfold empty_tycontext.
 Time rforward.
 Qed.
@@ -192,7 +197,7 @@ rforward.
 Qed.
 
 Lemma seq_triple_lots : forall p es,
-@semax es empty_tycontext p (lots_of_skips 100) (normal_ret_assert p).
+@semax es empty_tycontext p (lots_of_skips 10) (normal_ret_assert p).
 Proof.
 unfold empty_tycontext.
 rforward.
@@ -256,8 +261,10 @@ unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.
 rforward.
 Qed.
 
-
-
-
-
-
+Lemma seq_more : forall p es,
+@semax es empty_tycontext p (Ssequence Sskip (Sgoto _p)) (normal_ret_assert p).
+Proof.
+unfold empty_tycontext.
+intros.
+rforward. 
+Abort.

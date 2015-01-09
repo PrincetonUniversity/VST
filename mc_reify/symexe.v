@@ -121,9 +121,7 @@ Definition set_lemma (id : positive) (e : Clight.expr) (t : PTree.t (type * bool
 reify_lemma reify_vst (semax_set_localD id e t v r gt).
 Defined.
 
-Print set_lemma.
-
-
+Check semax_set_localD.
 Definition THEN' (r1 r2 : rtac typ (expr typ func)) := THEN r1 (runOnGoals r2).
 
 Definition THEN (r1 r2 : rtac typ (expr typ func)) := 
@@ -269,26 +267,6 @@ Abort.
 Let Expr_expr := (Expr_expr_fs tbl).
 Existing Instance Expr_expr.
 
-Definition exprD_Prop (uvar_env var_env : env) (e : expr typ func) :=
-  match exprD uvar_env var_env e typrop with
-    | Some e' => e' 
-    | None => True
-  end.
-
-Definition goalD_Prop (uvar_env var_env : env) goal :=
-  let (tus, us) := split_env uvar_env in
-  let (tvs, vs) := split_env var_env in
-  match goalD tus tvs goal with
-    | Some e => e us vs
-    | None => False
-  end.
-
-Definition goalD_aux tus tvs goal (us : HList.hlist typD tus) (vs : HList.hlist typD tvs) :=
-  match goalD tus tvs goal with
-    | Some e => Some (e us vs)
-    | None => None
-  end.
-
 Definition run_tac' tac goal :=
   runOnGoals tac nil nil 0 0 (CTop nil nil) 
     (ctx_empty (typ := typ) (expr := expr typ func)) goal.
@@ -296,7 +274,7 @@ Definition run_tac' tac goal :=
 Lemma run_rtac_More tac s goal e
   (Hsound : rtac_sound tac) 
   (Hres : run_tac' tac (GGoal e) = More_ s goal) :
-  goalD_Prop nil nil goal -> exprD_Prop nil nil e.
+  goalD_Prop tbl nil nil goal -> exprD_Prop tbl nil nil e.
 Proof.
   intros He'.
   apply runOnGoals_sound_ind with (g := GGoal e) (ctx := CTop nil nil) 
@@ -318,13 +296,14 @@ Proof.
   simpl in H0; inv_all; subst.
   unfold pctxD in H0; inv_all; subst.
   apply H5.
-  unfold goalD_Prop in He'. simpl in He'. forward; inv_all; subst.
+  unfold goalD_Prop in He'. simpl in He'. 
+  destruct (goalD [] [] goal); congruence.
 Qed.
 
 Lemma run_rtac_Solved tac s e
   (Hsound : rtac_sound tac) 
   (Hres : run_tac' tac (GGoal e) = Solved s) :
-  exprD_Prop nil nil e.
+  exprD_Prop tbl nil nil e.
 Proof.
   unfold run_tac' in Hres.
   unfold rtac_sound in Hsound.
@@ -339,6 +318,7 @@ Proof.
   simpl in Hsound. unfold exprD. simpl. forward.
   destruct Hsound. 
   inversion Hwfs; subst. simpl in H8. inv_all; subst.
+  simpl in *.
   admit.
 Qed.
 

@@ -257,7 +257,7 @@ Tactics.exprD_Prop
 
 goalD_aux
 Tactics.goalD_aux
-
+Typ0_tyProp
           ].
 (*Tactic Notation "cbv_denote" "in" ident(H) := cbv_denote_in H.*)
 Locate goalD_Prop.
