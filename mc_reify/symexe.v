@@ -171,7 +171,8 @@ Definition SYMEXE_STEP
                | Sskip => APPLY_SKIP 
                | Ssequence s1 s2 => APPLY_SEQ s1 s2  
                | Sset id exp => THEN (APPLY_SET' id exp t v r gt) 
-                                     (TRY (FIRST [(REFLEXIVITY_BOOL tbl);
+                                     (TRY (FIRST [REFLEXIVITY_MSUBST tbl; 
+                                                   (REFLEXIVITY_BOOL tbl);
                                                    (REFLEXIVITY tbl)])) 
                | _ => FAIL
              end
