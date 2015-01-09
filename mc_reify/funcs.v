@@ -1,17 +1,18 @@
 Require Import MirrorCore.syms.SymEnv.
 Require Import MirrorCore.Lambda.ExprCore.
-Require Import floyd.proofauto.
 Require Import ExtLib.Core.RelDec.
 Require Import MirrorCore.TypesI.
 Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.Fun.
-Require Import progs.list_dt.
+(*Require Import progs.list_dt.*)
+Require Import floyd_funcs.
 Require Import mc_reify.types.
 Require Import mc_reify.bool_funcs.
 Require Import MirrorCharge.ModularFunc.ILogicFunc.
 Require Import MirrorCharge.ModularFunc.BILogicFunc.
 Require Import floyd.local2ptree.
 Require Import mc_reify.local2list.
+
 
 Inductive const :=
 | fN : nat -> const
@@ -195,7 +196,7 @@ match v with
 | fVsingle => Vsingle
 | fVundef => Vundef
 end.
-
+Locate binary_operation.
 
 Inductive eval :=
 | feval_cast : type -> type -> eval
@@ -329,6 +330,7 @@ Inductive sep :=
 (*| flseg : forall (t: type) (i : ident), listspec t i -> sep*)
 . 
 
+Locate is_Fnil.
 
 Fixpoint reptyp (ty: type) : typ :=
   match ty with

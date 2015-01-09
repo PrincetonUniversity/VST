@@ -180,7 +180,7 @@ Lemma skip_triple : forall p e,
 Proof. 
 intros. 
 unfold empty_tycontext.
-Time rforward.
+rforward.
 Qed.
 
 Fixpoint lots_of_skips n :=

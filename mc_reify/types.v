@@ -1,10 +1,12 @@
 Require Import MirrorCore.Lambda.ExprCore.
-Require Import floyd.proofauto.
+
+Require Import floyd_funcs.
+
 Require Import ExtLib.Core.RelDec.
 Require Import MirrorCore.TypesI.
 Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.Fun.
-Require Import progs.list_dt. 
+(*Require Import progs.list_dt. *)
 Require Import Coq.FSets.FMapPositive.
 
 Inductive typ :=
