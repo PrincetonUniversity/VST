@@ -18,7 +18,6 @@ Require Export mc_reify.funcs.
 Require Import mc_reify.types.
 Require Import MirrorCharge.RTac.Tactics.
 Import ExprDenote.
-Require Import func_defs.
 Require Import MirrorCharge.ModularFunc.ILogicFunc.
 Require Import MirrorCharge.ModularFunc.BILogicFunc.
 Require Import func_defs.
@@ -249,8 +248,19 @@ Tactics.elem_ctor
 
 Ext
 func_defs.reflect
+
+exprD_Prop
+Tactics.exprD_Prop
+
+goalD_Prop
+Tactics.exprD_Prop
+
+goalD_aux
+Tactics.goalD_aux
+Typ0_tyProp
           ].
 (*Tactic Notation "cbv_denote" "in" ident(H) := cbv_denote_in H.*)
+Locate goalD_Prop.
 
 Require Import reify.
 Require Import floyd.proofauto.

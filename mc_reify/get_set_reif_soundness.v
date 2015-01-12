@@ -7,7 +7,7 @@ Require Import solve_exprD.
 
 Section tbled.
 
-Parameter tbl : SymEnv.functions RType_typ.
+Variable tbl : SymEnv.functions RType_typ.
 
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.

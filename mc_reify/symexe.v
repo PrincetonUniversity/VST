@@ -25,13 +25,6 @@ Require Import mc_reify.func_defs.
 
 Local Open Scope logic.
 
-Section tbled.
-
-Parameter tbl : SymEnv.functions RType_typ.
-
-Let RSym_sym := RSym_sym tbl.
-Existing Instance RSym_sym.
-
 Ltac reify_expr_tac :=
 match goal with
 | [ |- ?trm] => reify_vst trm
@@ -78,11 +71,18 @@ do_local2ptree;
 extract_sep_lift_semax;
 hnf_tycontext.
 
+
 Definition remove_global_spec (t : tycontext) := 
 match t with
 | mk_tycontext t v r gt gs => mk_tycontext t v r gt (PTree.empty _)
 end.
 
+Section tbled.
+
+Variable tbl : SymEnv.functions RType_typ.
+
+Let RSym_sym := RSym_sym tbl.
+Existing Instance RSym_sym.
 
 
 Lemma semax_seq_reif c1 c2 : forall  (Espec : OracleKind) 
@@ -121,7 +121,7 @@ Definition set_lemma (id : positive) (e : Clight.expr) (t : PTree.t (type * bool
 reify_lemma reify_vst (semax_set_localD id e t v r gt).
 Defined.
 
-
+Check semax_set_localD.
 Definition THEN' (r1 r2 : rtac typ (expr typ func)) := THEN r1 (runOnGoals r2).
 
 Definition THEN (r1 r2 : rtac typ (expr typ func)) := 
@@ -169,10 +169,11 @@ Definition SYMEXE_STEP
            | Some ((t, v, r, gt) , st) =>  
              match st with 
                | Sskip => APPLY_SKIP 
-               | Ssequence s1 s2 => APPLY_SEQ s1 s2  
+               | Ssequence s1 s2 => APPLY_SEQ s1 s2 
                | Sset id exp => THEN (APPLY_SET' id exp t v r gt) 
-                                     (TRY (FIRST [(REFLEXIVITY_BOOL tbl);
-                                                   (REFLEXIVITY)])) 
+                                     (TRY (FIRST [REFLEXIVITY_MSUBST tbl; 
+                                                   (REFLEXIVITY_BOOL tbl);
+                                                   (REFLEXIVITY tbl)])) 
                | _ => FAIL
              end
            | None => FAIL
@@ -186,7 +187,7 @@ Definition SYMEXE_TAC := THEN INTROS (REPEAT 1000 (SYMEXE_STEP)).
 Definition SYMEXE1_TAC := THEN INTROS (SYMEXE_STEP).
 
 Definition rreflexivity e :=
-run_tac (REFLEXIVITY) e.
+run_tac (REFLEXIVITY tbl) e.
 
 Definition symexe e :=
 run_tac (SYMEXE_TAC ) e .
@@ -221,7 +222,7 @@ Goal f = f.
 reify_expr_tac.
 (* App(App (Inj (inr (Other (feq (tyArr tynat tynat))))) (Ext 1%positive))
          (Ext 1%positive) *)
-Eval vm_compute in run_tac (THEN INTROS REFLEXIVITY) e.
+Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITY tbl)) e.
 (*     = Solved (TopSubst (expr typ func) [] []) *)
 Abort.
 
@@ -233,7 +234,7 @@ reify_expr_tac.
                (App (Inj (inr (Other (feq tynat))))
                   (App (Ext 1%positive) (ExprCore.Var 0%nat)))
                (App (Ext 1%positive) (ExprCore.Var 0%nat)))) *)
-Eval vm_compute in run_tac (THEN INTROS REFLEXIVITY) e.
+Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITY tbl)) e.
 (*    = Fail *)
 Abort.
 
@@ -254,16 +255,109 @@ Abort.
 
 Goal forall (sh : share), sh = sh.
 reify_expr_tac.
-Eval vm_compute in run_tac (THEN INTROS REFLEXIVITYTAC) e.
+Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITYTAC tbl)) e.
 Abort.
 
 
 Goal forall sh ty v1 v2, mapsto sh ty v1 v2 = mapsto sh ty v1 v2.
 reify_expr_tac.
-Print LoadPath.
-Eval vm_compute in run_tac (THEN INTROS REFLEXIVITYTAC) e.
+Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITYTAC tbl)) e.
 Eval vm_compute in run_tac (THEN INTROS (CANCELLATION typ func tympred is_pure)) e.
 Abort.
 
+Let Expr_expr := (Expr_expr_fs tbl).
+Existing Instance Expr_expr.
+
+Definition run_tac' tac goal :=
+  runOnGoals tac nil nil 0 0 (CTop nil nil) 
+    (ctx_empty (typ := typ) (expr := expr typ func)) goal.
+
+Lemma run_rtac_More tac s goal e
+  (Hsound : rtac_sound tac) 
+  (Hres : run_tac' tac (GGoal e) = More_ s goal) :
+  goalD_Prop tbl nil nil goal -> exprD_Prop tbl nil nil e.
+Proof.
+  intros He'.
+  apply runOnGoals_sound_ind with (g := GGoal e) (ctx := CTop nil nil) 
+  	(s0 := TopSubst (expr typ func) nil nil) in Hsound.
+  unfold rtac_spec in Hsound. simpl in Hsound.
+  unfold run_tac' in Hres. simpl in Hres.
+  rewrite Hres in Hsound.
+  assert (WellFormed_Goal nil nil (GGoal (typ := typ) e)) as H1 by constructor.
+  assert (WellFormed_ctx_subst (TopSubst (expr typ func) nil (@nil typ))) as H2 by constructor.
+  specialize (Hsound H1 H2).
+  destruct Hsound as [Hwfs [Hwfg Hsound]].
+  unfold propD, exprD'_typ0 in Hsound.
+  simpl in Hsound. unfold exprD_Prop, exprD; simpl.
+  Require Import ExtLib.Tactics.
+  forward; inv_all; subst.
+
+  destruct Hsound.
+  inversion Hwfs; subst.
+  simpl in H0; inv_all; subst.
+  unfold pctxD in H0; inv_all; subst.
+  apply H5.
+  unfold goalD_Prop in He'. simpl in He'. 
+  destruct (goalD [] [] goal); congruence.
+Qed.
+
+Lemma run_rtac_Solved tac s e
+  (Hsound : rtac_sound tac) 
+  (Hres : run_tac' tac (GGoal e) = Solved s) :
+  exprD_Prop tbl nil nil e.
+Proof.
+  unfold run_tac' in Hres.
+  unfold rtac_sound in Hsound.
+  assert (WellFormed_Goal nil nil (GGoal (typ := typ) e)) as H1 by constructor.
+  assert (WellFormed_ctx_subst (TopSubst (expr typ func) nil (@nil typ))) as H2 by constructor.
+  specialize (Hsound _ _ _ _ Hres H1 H2).
+  destruct Hsound as [Hwfs Hsound].
+  simpl in Hsound.
+  unfold propD, exprD'_typ0 in Hsound.
+  unfold exprD_Prop.
+  
+  simpl in Hsound. unfold exprD. simpl. forward.
+  destruct Hsound. 
+  inversion Hwfs; subst. simpl in H8. inv_all; subst.
+  simpl in *.
+  admit.
+Qed.
+
 End tbled.
 
+Require Import denote_tac.
+
+Ltac run_rtac reify term_table tac_sound :=
+  match type of tac_sound with
+    | rtac_sound ?tac =>
+	  let name := fresh "e" in
+	  match goal with
+	    | |- ?P => 
+	      reify_aux reify term_table P name;
+	      let t := eval vm_compute in (typeof_expr nil nil name) in
+	      let goal := eval unfold name in name in
+	      match t with
+	        | Some ?t =>
+	          let goal_result := constr:(run_tac' tac (GGoal name)) in 
+	          let result := eval vm_compute in goal_result in
+	          match result with
+	            | More_ ?s ?g => 
+	              cut (goalD_Prop nil nil g); [
+	                let goal_resultV := g in
+	               (* change (goalD_Prop nil nil goal_resultV -> exprD_Prop nil nil name);*)
+	                exact_no_check (@run_rtac_More tac _ _ _ tac_sound
+	                	(@eq_refl (Result (CTop nil nil)) (More_ s goal_resultV) <:
+	                	   run_tac' tac (GGoal goal) = (More_ s goal_resultV)))
+	                | cbv_denote
+	              ]
+	            | Solved ?s =>
+	              exact_no_check (@run_rtac_Solved tac s name tac_sound 
+	                (@eq_refl (Result (CTop nil nil)) (Solved s) <: run_tac' tac (GGoal goal) = Solved s))
+	            | Fail => idtac "Tactic" tac "failed."
+	            | _ => idtac "Error: run_rtac could not resolve the result from the tactic :" tac
+	          end
+	        | None => idtac "expression " goal "is ill typed" t
+	      end
+	  end
+	| _ => idtac tac_sound "is not a soudness theorem."
+  end.

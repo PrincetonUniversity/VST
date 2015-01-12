@@ -1,7 +1,7 @@
 Require Import  Coq.Numbers.BinNums.
 Require Import compcert.lib.Maps.
 Require Import mc_reify.func_defs.
-
+Locate expr.
 Definition as_tree (e : expr typ func) : option
   ((typ * expr typ func * expr typ func * expr typ func) + typ) := 
 match e with
@@ -34,7 +34,7 @@ Fixpoint get_reif (i : positive) (m : expr typ func) ty :  expr typ func :=
 match (as_tree m) with
   | Some (inl (t,l,o,r)) (* Node l o r *)=>
     match i with 
-      | xH => some_reif o t
+      | xH => o t
       | xO ii => get_reif ii l ty 
       | xI ii => get_reif ii r ty 
     end
