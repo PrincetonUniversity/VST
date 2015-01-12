@@ -189,9 +189,9 @@ Reify Pattern patterns_vst += (!!tc_temp_id_b_norho @ ?0 @ ?1 ) =>
      (@Inj typ func (inr (Smx (ftc_temp_id_b_norho a b ))))).
 
 
-Reify Pattern patterns_vst += (!!msubst_eval_expr @ ?0 @ ?1 @ ?2) =>
+(*Reify Pattern patterns_vst += (!!msubst_eval_expr @ ?0 @ ?1 @ ?2) =>
 (fun (a b : function reify_vst) (e : id Clight.expr) =>
-rmsubst_eval_expr a b e).
+rmsubst_eval_expr a b e). *)
 (*
 
 Reify Pattern patterns_vst += (!!msubst_eval_lvalue @ ?0 @ ?1 @ ?2) =>

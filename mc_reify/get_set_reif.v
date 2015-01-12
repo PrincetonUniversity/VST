@@ -1,7 +1,7 @@
 Require Import  Coq.Numbers.BinNums.
 Require Import compcert.lib.Maps.
 Require Import mc_reify.func_defs.
-
+Locate expr.
 Definition as_tree (e : expr typ func) : option
   ((typ * expr typ func * expr typ func * expr typ func) + typ) := 
 match e with

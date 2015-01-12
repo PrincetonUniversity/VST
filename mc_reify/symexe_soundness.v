@@ -11,6 +11,9 @@ Require Import mc_reify.types.
 Require Import mc_reify.funcs.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.app_lemmas.
+Require Import MirrorCore.LemmaApply.
+Require Import ExtLib.Tactics.
+Require Import MirrorCore.Util.ListMapT.
 
 
 Section tbled.
@@ -47,24 +50,36 @@ apply INSTANTIATE_sound.
 apply runOnGoals_sound. auto.
 Qed.
 
-Check @APPLY_sound.
-Definition x: (ExprVar (expr typ func)) := _.
-Print x.
-
-Check APPLY_sound.
-(*Definition APPLY_sound := (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ _ (fun (subst : Type)
+Definition APPLY_sound := (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ ). 
+(*Definition APPLY_sound := 
+  (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ _
+ (fun (subst : Type)
                                  (SS : Subst subst (expr typ func))
                                  (SU : SubstUpdate subst (expr typ func))
                                  (tus tvs : tenv typ) 
                                  (n : nat) (l r : expr typ func) 
                                  (t3 : typ) (s1 : subst) =>
                                @ExprUnify_simul.exprUnify subst typ func
-                                 RType_typ (func_defs.RSym_sym symexe.tbl)
+                                 RType_typ (_)
+                                 Typ2_tyArr SS SU
+                                 (S (S (S (S (S (S (S (S (S (S O))))))))))
+                                 tus tvs n l r t3 s1) _ (ExprLift.vars_to_uvars_exprD')).*)
+(*
+
+ (fun (subst : Type)
+                                 (SS : Subst subst (expr typ func))
+                                 (SU : SubstUpdate subst (expr typ func))
+                                 (tus tvs : tenv typ) 
+                                 (n : nat) (l r : expr typ func) 
+                                 (t3 : typ) (s1 : subst) =>
+                               @ExprUnify_simul.exprUnify subst typ func
+                                 RType_typ (_)
                                  Typ2_tyArr SS SU
                                  (S (S (S (S (S (S (S (S (S (S O))))))))))
                                  tus tvs n l r t3 s1) _ (* (ExprLift.vars_to_uvars_exprD')*)).*)
 
-(*Definition EAPPLY_sound := (@EAPPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ _ (fun (subst : Type)
+Definition EAPPLY_sound := 
+  (@EAPPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _). (*_ _ (fun (subst : Type)
                                  (SS : Subst subst (expr typ func))
                                  (SU : SubstUpdate subst (expr typ func))
                                  (tus tvs : tenv typ) 
@@ -76,19 +91,38 @@ Check APPLY_sound.
                                  (S (S (S (S (S (S (S (S (S (S O))))))))))
                                  tus tvs n l r t3 s1) (ExprLift.vars_to_uvars_exprD')).*)
 
+Axiom set_reif_eq2 :
+forall i tus tvs typ vr tr val,
+exprD' tus tvs (typtree typ) tr = Some val ->
+exprD' tus tvs (typtree typ) (App (App (Inj (inr (Data (fset typ i)))) vr) tr)  =
+exprD' tus tvs (typtree typ) (get_set_reif.set_reif i vr tr typ).
+
+
+Lemma SIMPL_DELTA_sound : rtac_sound SIMPL_DELTA.
+Proof.
+unfold SIMPL_DELTA.
+apply SIMPLIFY_sound.
+intros.
+forward.
+SearchAbout RedAll.beta_all.
+admit.
+Qed.
+
 Lemma SYMEXE_STEP_sound : rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) (SYMEXE_STEP tbl).
-Admitted. (*
-intros. eapply AT_GOAL_sound.
+(*Admitted. *)
+intros. 
+eapply AT_GOAL_sound.
 intros. destruct (get_delta_statement e);
 repeat match goal with
          | |- context [ match ?X with _ => _ end ] =>
            destruct X; try apply FAIL_sound
        end.
 + unfold APPLY_SKIP.
-  apply (@APPLY_sound typ (expr typ func)). 
+  apply APPLY_sound. 
+  admit.
   admit.
   - unfold skip_lemma. 
-    unfold Lemma.lemmaD. simpl. intros. 
+    unfold Lemma.lemmaD, split_env. simpl. intros. 
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
     unfold exprT_Inj. apply semax_skip.
@@ -96,20 +130,56 @@ repeat match goal with
   - unfold APPLY_SET'.
     apply EAPPLY_sound; eauto with typeclass_instances.
       * admit.
+      * admit.
       * unfold Lemma.lemmaD, set_lemma. unfold split_env.
         unfold Lemma.lemmaD'.
-        Require Import MirrorCore.Util.ListMapT.
         unfold Lemma.vars, Lemma.premises, Lemma.concl.
         do 3 rewrite list_mapT_cons.
-        simpl exprD'_typ0. simpl.
-        unfold exprD'_typ0, ExprI.exprD'. simpl. erewrite exprD'_App_R_rw.
-        2: reflexivity. 2: reflexivity.
-(*        Focus 2. eapply exprD'_App_L_rw; try reflexivity.*) 
-Admitted. *)
-
-Lemma THEN'_sound : forall t1 t2, rtac_sound t1 -> rtac_sound t2 -> rtac_sound (THEN' t1 t2).
-intros. unfold THEN'. apply Then.THEN_sound. auto.
-apply runOnGoals_sound. auto.
+        simpl exprD'_typ0. 
+        unfold exprD'_typ0, ExprI.exprD', Expr_expr_fs.
+        unfold func_defs.Expr_expr_fs. 
+        unfold ExprD.Expr_expr. 
+        simpl. 
+Set Printing Depth 100. simpl.
+simpl (exprD' []
+               ([tyArr tyenviron tympred; typtree tyfunspec; 
+                tylist tympred; tyOracleKind;
+                typtree (typrod tyc_type tyval); typtree tyval; tyval] ++ 
+                []) (typ0 (F:=Prop))
+               (App
+                  (App (Inj (inr (Other (feq tybool))))
+                     (App
+                        (App (Inj (inr (Smx ftc_expr_b_norho)))
+                           (App (Inj (inr (Smx (ftycontext t1 t2 t0 t))))
+                              (Var 1%nat))) (Inj (inr (Const (fCexpr e0))))))
+                  (Inj (inr (Const (fbool true)))))).
+        erewrite exprD'_App_R_rw; try reflexivity.
+        Focus 2.
+        erewrite exprD'_App_L_rw; try reflexivity.
+        erewrite exprD'_App_R_rw; try reflexivity.
+        erewrite exprD'_App_L_rw; try reflexivity.
+        erewrite exprD'_App_R_rw; try reflexivity.
+        erewrite exprD'_App_L_rw; try reflexivity.
+        
+        erewrite <- set_reif_eq2. reflexivity. reflexivity. 
+        simpl. unfold exprT_App, exprT_Inj. simpl. intros.
+        eapply set_reif.semax_set_localD; eauto.
+  - apply TRY_sound. apply FIRST_sound. 
+    repeat constructor.
+      * admit (*reflexivity msusbst_sound*).
+      * apply REFLEXIVITY_BOOL_sound.
+      * apply REFLEXIVITYTAC_sound.
++ unfold APPLY_SEQ.
+  apply THEN_sound.
+  unfold APPLY_SEQ'.
+  apply EAPPLY_sound; auto with typeclass_instances.
+  admit. admit.
+  unfold Lemma.lemmaD. unfold split_env. simpl.
+  unfold exprT_App, exprT_Inj. simpl.
+  intros.
+  eapply semax_seq'. eauto. eauto.
+  apply SIMPL_DELTA_sound.
++ apply FAIL_sound.
 Qed.
 
 Theorem SYMEXE_sound : rtac_sound (SYMEXE_TAC tbl).

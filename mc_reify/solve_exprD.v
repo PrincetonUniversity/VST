@@ -156,7 +156,7 @@ end.
 
 Ltac p_exprD H1 :=
 autorewrite with exprD_rw in H1;
-simpl in H1; repeat (forward; inv_some).
+simpl in H1; repeat (forward; inv_some); try apply _.
 
 Ltac cleanup_dups :=             
   repeat
