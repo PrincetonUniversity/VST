@@ -290,6 +290,10 @@ Reify Pattern patterns_vst +=
       (!!@app @ ?0) => (fun (a : function reify_vst_typ) => 
         (@Inj typ func (inr (Data (fappend a))))).
 
+Reify Pattern patterns_vst +=
+      (!!@nth_error @ ?0 @ ?1 @ ?2) =>
+        (fun (a: function reify_vst_typ) (b: function reify_vst) (c: id nat)=> 
+        (App (@Inj typ func (inr (Data (fnth_error a c)))) b)).
 
 Reify Pattern patterns_vst += 
       (RHasType AST.ident (?0)) => (fun (a : id AST.ident) 
@@ -412,7 +416,6 @@ Reify Pattern patterns_vst += (!!efield_lemmas.nested_efield @ ?0 @ ?1 @ ?2) =>
 Reify Pattern patterns_vst += (!!SeparationLogic.typeof_temp) => (@Inj typ func (inr (Smx (ftypeof_temp)))).
 Reify Pattern patterns_vst += (!!veric.expr.tc_val) => (@Inj typ func (inr (Smx (ftc_val)))).
 Reify Pattern patterns_vst += (!!nested_field_lemmas.legal_nested_field) => (@Inj typ func (inr (Smx (flegal_nested_field)))).
-Reify Pattern patterns_vst += (!!sc_set_load_store.nested_efield_rel) => (@Inj typ func (inr (Smx (fnested_efield)))).
 Reify Pattern patterns_vst += (!!sc_set_load_store.msubst_eval_LR) => (@Inj typ func (inr (Smx (fmsubst_eval_LR)))).
 
 Ltac reify_typ trm :=

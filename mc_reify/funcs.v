@@ -277,6 +277,7 @@ Inductive data :=
 | ffold_left : typ -> typ -> data
 | fcons : typ -> data
 | fappend : typ -> data
+| fnth_error : typ -> nat -> data
 | fpair : typ -> typ -> data
 | fget : typ -> positive -> data
 | fset : typ -> positive -> data
@@ -284,8 +285,6 @@ Inductive data :=
 | fnode : typ -> data
 | fempty : typ -> data
 .
-
-
 
 Definition typeof_data (l : data) :=
 match l with
@@ -295,6 +294,7 @@ match l with
 | ffold_left a b => tyArr (tyArr a (tyArr b a)) (tyArr (tylist b) (tyArr a a))
 | fcons a => tyArr a (tyArr (tylist a) (tylist a))
 | fappend a => tyArr (tylist a) (tyArr (tylist a) (tylist a))
+| fnth_error a _ => tyArr (tylist a) (tyoption a)
 | fpair t1 t2 => tyArr t1 (tyArr t2 (typrod t1 t2))
 | fleaf t => typtree t
 | fnode t => tyArr (typtree t) (tyArr (tyoption t) (tyArr (typtree t) (typtree t)))
@@ -311,6 +311,7 @@ match l with
 | ffold_left a b => @fold_left (typD a) (typD b)
 | fcons a => @cons (typD a)
 | fappend a => @app (typD a)
+| fnth_error a n => fun l => @nth_error (typD a) l n
 | fpair a b => ((@pair (typD a) (typD b)) : typD (typeof_data (fpair a b)))
 | fleaf t => @PTree.Leaf (typD t)
 | fnode t => @PTree.Node (typD t)
@@ -553,7 +554,6 @@ Inductive smx :=
 | ftypeof_temp
 | ftc_val
 | flegal_nested_field
-| fnested_efield_rel
 | fstruct_field
 | funion_field
 | farray_subsc
@@ -604,10 +604,6 @@ match t with
 | ftypeof_temp => tyArr tytycontext (tyArr tyident (tyoption tyc_type))
 | ftc_val => tyArr tyc_type (tyArr tyval typrop)
 | flegal_nested_field => tyArr tyc_type (tyArr (tylist tygfield) typrop)
-| fnested_efield_rel => tyArr tyc_expr
-                    (tyArr (tylist tyefield)
-                     (tyArr (tylist tyc_type)
-                      (tyArr tyc_expr typrop)))
 | fstruct_field => tyArr tyident tygfield
 | funion_field => tyArr tyident tygfield
 | farray_subsc => tyArr tyZ tygfield
@@ -645,7 +641,6 @@ match t with
 | ftypeof_temp => typeof_temp
 | ftc_val => tc_val
 | flegal_nested_field => legal_nested_field
-| fnested_efield_rel => nested_efield_rel
 | fstruct_field => StructField
 | funion_field => UnionField
 | farray_subsc => ArraySubsc

@@ -32,7 +32,7 @@ mk_tycontext
                       (PTree.Node PTree.Leaf None
                          (PTree.Node
                             (PTree.Node PTree.Leaf
-                               (Some (tptr t_struct_list, false)) PTree.Leaf)
+                               (Some (tptr t_struct_list, true)) PTree.Leaf)
                             None PTree.Leaf)) None
                       (PTree.Node
                          (PTree.Node

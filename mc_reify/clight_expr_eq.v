@@ -4,7 +4,7 @@ Require Import veric.expr.
 Require Import Integers.
 Require Import Floats.
 Require Import Zbool.
-Require Import  Coq.Numbers.BinNums.
+Require Import Coq.Numbers.BinNums.
 Require Import Cop.
 Require Import ExtLib.Tactics.
 Require Import ExtLib.Data.List.
