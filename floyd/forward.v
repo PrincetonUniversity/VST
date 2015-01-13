@@ -1339,9 +1339,9 @@ Ltac do_compute_lvalue Delta P Q R e v H :=
     local (`(eq v) (eval_lvalue e))) as H by
   (first [ assumption |
     eapply derives_trans; [| apply msubst_eval_lvalue_eq];
-    [apply local2ptree_soundness; try assumption;
+    [apply derives_refl'; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
-     construct_local2ptree Q HH;
+     construct_local2ptree (tc_environ Delta :: Q) HH;
      exact HH |
      unfold v;
      simpl;
@@ -1357,9 +1357,9 @@ Ltac do_compute_expr Delta P Q R e v H :=
     local (`(eq v) (eval_expr e))) as H by
   (first [ assumption |
     eapply derives_trans; [| apply msubst_eval_expr_eq];
-    [apply local2ptree_soundness; try assumption;
+    [apply derives_refl'; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
-     construct_local2ptree Q HH;
+     construct_local2ptree (tc_environ Delta :: Q) HH;
      exact HH |
      unfold v;
      simpl;
