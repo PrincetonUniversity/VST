@@ -145,11 +145,27 @@ match e with
 | _ => (None, None, None)
 end.
 
-Definition sem_eqb_func := @sym_eqb _ _ _ (RSym_sym tbl).
+Instance RSym_SymEnv_fun : RSym SymEnv.func := {
+  typeof_sym := fun _ => None;
+  symD := fun _ => tt;
+  sym_eqb := fun x y => Some (Pos.eqb x y)
+}.
 
-(*
-Definition sem_eqb_func := @sym_eqb _ _ _ (SymSum.RSym_sum (SymSum.RSym_sum RSym_ilfunc RSym_bilfunc) RSym_Func').
-*)
+Instance RSymOk_SymEnv_fun : RSymOk RSym_SymEnv_fun.
+split.
+intros.
+simpl.
+pose proof Pos.eqb_eq a b.
+destruct (a =? b)%positive; intros.
++ apply H; auto.
++ intro.
+  apply H in H0.
+  congruence.
+Defined.
+
+Definition sem_eqb_func := @sym_eqb _ _ _ (SymSum.RSym_sum
+  (SymSum.RSym_sum (SymSum.RSym_sum RSym_SymEnv_fun RSym_ilfunc) RSym_bilfunc)
+  RSym_Func').
 
 Fixpoint expr_beq (e1 e2: expr typ func) : bool :=
   match e1, e2 with
@@ -180,7 +196,7 @@ match R with
 end.
 
 Definition nth_solver R p := nth_solver_rec R p 0.
-
+(*
 Definition compute_load_arg (arg: 
          (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
           expr typ func) *
@@ -194,14 +210,14 @@ Definition compute_load_arg (arg:
       | Some (ty, _), (e1, efs, tts) =>
         let lr := compute_lr e1 efs in
         let p := rmsubst_eval_LR T1 T2 e1 lr in
-        Some (T1, T2, e1)
+        Some (R, p)
       | _, _ => None
       end
     | _ => None
     end
   end.
-
-Definition compute_load_arg' (arg: 
+*)
+Definition compute_load_arg (arg: 
          (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
           expr typ func) *
        (expr typ func * expr typ func * expr typ func * expr typ func) *
@@ -213,10 +229,13 @@ Definition compute_load_arg' (arg:
       match t ! i, compute_nested_efield e0 with
       | Some (ty, _), (e1, efs, tts) =>
         let lr := compute_lr e1 efs in
-        let p := rmsubst_eval_LR T1 T2 e1 lr in
-        match nth_solver R p with
-        | Some (t_root, n) =>
-            Some (t, v, r, gt, i, ty, t_root, e0, e1, efs, tts, lr, n)
+        match rmsubst_eval_LR T1 T2 e1 lr with
+        | App (Inj (inr (Other (fsome tyval)))) p =>
+          match nth_solver R p with
+          | Some (t_root, n) =>
+              Some (t, v, r, gt, i, ty, t_root, e0, e1, efs, tts, lr, n)
+          | _ => None
+          end
         | _ => None
         end
       | _, _ => None
@@ -225,8 +244,6 @@ Definition compute_load_arg' (arg:
     end
   end.
 
-Locate rmsubst_eval_LR.
-
 Require Import mc_reify.reverse_defs.
 Require Import symexe.
 Require Import mc_reify.func_defs.
@@ -234,7 +251,7 @@ Require Import mc_reify.denote_tac.
 
 Section tbled.
 
-Variable tbl : SymEnv.functions RType_typ.
+Parameter tbl : SymEnv.functions RType_typ.
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.
 
@@ -301,89 +318,6 @@ Eval vm_compute in
 | _ => None
 end).
 
-Goal forall n, n = 
-rmsubst_eval_LR (App
-            (App
-               (App (Inj (inr (Data (fnode tyval))))
-                  (Inj (inr (Data (fleaf tyval)))))
-               (Inj (inr (Other (fnone tyval)))))
-            (App
-               (App
-                  (App (Inj (inr (Data (fnode tyval))))
-                     (Inj (inr (Data (fleaf tyval)))))
-                  (Inj (inr (Other (fnone tyval)))))
-               (App
-                  (App
-                     (App (Inj (inr (Data (fnode tyval))))
-                        (App
-                           (App
-                              (App (Inj (inr (Data (fnode tyval))))
-                                 (Inj (inr (Data (fleaf tyval)))))
-                              (Inj (inr (Other (fnone tyval)))))
-                           (App
-                              (App
-                                 (App (Inj (inr (Data (fnode tyval))))
-                                    (App
-                                       (App
-                                          (App
-                                             (Inj (inr (Data (fnode tyval))))
-                                             (Inj (inr (Data (fleaf tyval)))))
-                                          (App
-                                             (Inj (inr (Other (fsome tyval))))
-                                             (Inj
-                                                (inl (inl (inl 2%positive))))))
-                                       (Inj (inr (Data (fleaf tyval))))))
-                                 (Inj (inr (Other (fnone tyval)))))
-                              (Inj (inr (Data (fleaf tyval)))))))
-                     (Inj (inr (Other (fnone tyval)))))
-                  (Inj (inr (Data (fleaf tyval)))))))
-  (Inj (inr (Data (fempty (typrod tyc_type tyval)))))
-  (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
-  LLLL.
-intros.
-unfold rmsubst_eval_LR.
-unfold rmsubst_eval_lvalue.
-simpl (msubst_eval_lvalue_reif
-       (App
-          (App
-             (App (Inj (inr (Data (fnode tyval))))
-                (Inj (inr (Data (fleaf tyval)))))
-             (Inj (inr (Other (fnone tyval)))))
-          (App
-             (App
-                (App (Inj (inr (Data (fnode tyval))))
-                   (Inj (inr (Data (fleaf tyval)))))
-                (Inj (inr (Other (fnone tyval)))))
-             (App
-                (App
-                   (App (Inj (inr (Data (fnode tyval))))
-                      (App
-                         (App
-                            (App (Inj (inr (Data (fnode tyval))))
-                               (Inj (inr (Data (fleaf tyval)))))
-                            (Inj (inr (Other (fnone tyval)))))
-                         (App
-                            (App
-                               (App (Inj (inr (Data (fnode tyval))))
-                                  (App
-                                     (App
-                                        (App (Inj (inr (Data (fnode tyval))))
-                                           (Inj (inr (Data (fleaf tyval)))))
-                                        (App
-                                           (Inj (inr (Other (fsome tyval))))
-                                           (Inj (inl (inl (inl 2%positive))))))
-                                     (Inj (inr (Data (fleaf tyval))))))
-                               (Inj (inr (Other (fnone tyval)))))
-                            (Inj (inr (Data (fleaf tyval)))))))
-                   (Inj (inr (Other (fnone tyval)))))
-                (Inj (inr (Data (fleaf tyval)))))))
-       (Inj (inr (Data (fempty (typrod tyc_type tyval)))))
-       (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)).
-Check force_ptr.
-simpl.
-unfold some_reif.
-
-
 
 Eval vm_compute in
 (match (get_arguments e) with
@@ -391,7 +325,13 @@ Eval vm_compute in
   match compute_load_arg (Delta, Pre, st) with
   | Some (t, v, r, gt, i, ty, t_root, e0, e1, efs, tts, lr, n) =>
           run_tac
-            (THEN INTROS (THEN (APPLY_load t v r gt i ty t_root e0 e1 efs tts Struct_env lr n) (TRY (FIRST [(REFLEXIVITY_OP_CTYPE tbl0); (REFLEXIVITY_BOOL tbl0); (REFLEXIVITY_CEXPR tbl0); (REFLEXIVITY); REFLEXIVITY_MSUBST]))))
+            (THEN INTROS
+            (THEN (APPLY_load t v r gt i ty t_root e0 e1 efs tts Struct_env lr n)
+                  (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl0;
+                               REFLEXIVITY_BOOL tbl0;
+                               REFLEXIVITY_CEXPR tbl0;
+                               REFLEXIVITY tbl0;
+                               REFLEXIVITY_MSUBST tbl0]))))
   | _ => run_tac FAIL
   end
 | _ => run_tac FAIL
