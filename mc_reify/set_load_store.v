@@ -51,7 +51,7 @@ Require Import mc_reify.func_defs.
 Require Import mc_reify.typ_eq.
 
 Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
-Check nth_error.
+
 Lemma semax_load_localD:
 (*    forall temp var ret gt (* Delta without gs *) id
       (e: type_id_env) gs sh P T1 T2 R Post (e1: Clight.expr) (t t_root: type)
@@ -113,6 +113,19 @@ reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 efs t
 Defined.
 
 Print load_lemma.
+
+Lemma lower_prop_right: forall (P: mpred) (Q: Prop), Q -> P |-- !! Q.
+Proof.
+  intros.
+  apply prop_right.
+  auto.
+Qed.
+
+Definition prop_right_lemma: my_lemma.
+reify_lemma reify_vst lower_prop_right.
+Defined.
+
+Print prop_right_lemma.
 
 Definition get_arguments_delta (e : expr typ func) :=
   match e with
@@ -196,27 +209,7 @@ match R with
 end.
 
 Definition nth_solver R p := nth_solver_rec R p 0.
-(*
-Definition compute_load_arg (arg: 
-         (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
-          expr typ func) *
-       (expr typ func * expr typ func * expr typ func * expr typ func) *
-       statement) :=
-  match arg with
-  | ((t, v, r, gt, gf), (P, T1, T2, R), s) =>
-    match s with
-    | Sset i e0 =>
-      match t ! i, compute_nested_efield e0 with
-      | Some (ty, _), (e1, efs, tts) =>
-        let lr := compute_lr e1 efs in
-        let p := rmsubst_eval_LR T1 T2 e1 lr in
-        Some (R, p)
-      | _, _ => None
-      end
-    | _ => None
-    end
-  end.
-*)
+
 Definition compute_load_arg (arg: 
          (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
           expr typ func) *
@@ -257,6 +250,8 @@ Existing Instance RSym_sym.
 
 Definition APPLY_load temp var ret gt id t t_root e0 e1 efs tts e lr n :=
 EAPPLY typ func (load_lemma temp var ret gt id t t_root e0 e1 efs tts e lr n).
+
+Definition APPLY_prop_right := EAPPLY typ func prop_right_lemma.
 
 Definition remove_global_spec (t : tycontext) := 
 match t with
@@ -308,16 +303,9 @@ reflexivity.
 
 reify_expr_tac.
 
-
 (*Set Printing Depth 300.*)
 
-Eval vm_compute in
-(match (get_arguments e) with
-| (Some Delta, Some Pre, Some st) => 
-  compute_load_arg (Delta, Pre, st) 
-| _ => None
-end).
-
+  
 
 Eval vm_compute in
 (match (get_arguments e) with
@@ -331,14 +319,15 @@ Eval vm_compute in
                                REFLEXIVITY_BOOL tbl0;
                                REFLEXIVITY_CEXPR tbl0;
                                REFLEXIVITY tbl0;
-                               REFLEXIVITY_MSUBST tbl0]))))
+                               REFLEXIVITY_MSUBST tbl0;
+                               REFLEXIVITY_NTH_ERROR tbl0;
+                               (THEN INTROS APPLY_prop_right)]))))
   | _ => run_tac FAIL
   end
 | _ => run_tac FAIL
 end e).
 
-
-
+(* Why APPLY_prop_right does not work well here? *)
 
 (*
 Eval vm_compute in (reflect_prop tbl0 load_lemma).
