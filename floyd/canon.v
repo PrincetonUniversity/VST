@@ -1035,6 +1035,14 @@ destruct H0; auto.
 destruct H0. apply (IHn Q); auto.
 Qed.
 
+Lemma in_local: forall Q0 P Q R, In Q0 Q -> PROPx P (LOCALx Q (SEPx R)) |-- local Q0.
+Proof.
+  intros.
+  destruct (in_nth_error _ _ H) as [?n ?H].
+  eapply nth_error_local.
+  eauto.
+Qed.
+
 (* Hint Rewrite move_prop_from_SEP move_local_from_SEP : norm. *)
 
 Lemma lower_PROP_LOCAL_SEP:

@@ -40,8 +40,6 @@ Inductive local2ptree:
 (* var, local2ptree_gl_var will be used whenever is possible before local2ptree_*)
 (* unknown.                                                                     *)
 
-Module TEST.
-
 Ltac construct_local2ptree Q H :=
   let T1 := fresh "T" in evar (T1: PTree.t val);
   let T2 := fresh "T" in evar (T2: PTree.t (type * val));
@@ -83,6 +81,8 @@ Ltac construct_local2ptree Q H :=
         eapply local2ptree_unknown; exact H0
     end|];
   subst T1 T2 P' Q'.
+
+Module TEST.
 
 Goal False.
   construct_local2ptree ((temp 1%positive Vundef) :: (`(eq (Vint (Int.repr 1))) (eval_id 1%positive)) :: 
@@ -578,6 +578,20 @@ Proof.
   apply LocalD_subst, H.
 Qed.
 
+Lemma local2ptree_sound_aux: forall P Q R Q0 Q1 Q2,
+  Q1 && local Q0 = Q2 && local Q0 ->
+  In Q0 Q ->
+  Q1 && PROPx P (LOCALx Q (SEPx R)) = Q2 && PROPx P (LOCALx Q (SEPx R)).
+Proof.
+  intros.
+  pose proof in_local _ P _ R H0.
+  rewrite (add_andp _ _ H1).
+  rewrite (andp_comm _ (local Q0)).
+  rewrite <- !andp_assoc.
+  f_equal.
+  exact H.
+Qed.
+
 Lemma local2ptree_soundness: forall P Q R T1 T2 P' Q',
   local2ptree Q T1 T2 P' Q' ->
   PROPx P (LOCALx Q (SEPx R)) = PROPx (P' ++ P) (LOCALx (LocalD T1 T2 Q') (SEPx R)).
@@ -596,44 +610,43 @@ Proof.
     simpl.
     pose proof LocalD_remove_empty_from_PTree1 i T1 T2 Q' Q0 H0.
     tauto.
-  + 
-  + eapply derives_trans.
-    - rewrite <- insert_local.
-      apply andp_derives; [apply derives_refl | exact IHlocal2ptree].
-    - rewrite insert_local.
-      apply LOCALx_shuffle, LOCALx_expand_gl_var.
-  + eapply derives_trans.
-    - rewrite <- insert_local.
-      apply andp_derives; [apply derives_refl | exact IHlocal2ptree].
-    - rewrite insert_local.
-      apply LOCALx_shuffle, LOCALx_expand_res.
-Qed.
-
-Lemma local2ptree_soundness: forall P Q R T1 T2 Q',
-  local2ptree Q T1 T2 Q' ->
-  PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx (LocalD T1 T2 Q') (SEPx R)).
-Proof.
-  intros.
-  induction H.
-  + unfold LocalD.
-    rewrite !PTree.fold_spec.
+  + simpl app.
+    rewrite <- move_prop_from_LOCAL.
+    rewrite <- !insert_local.
+    rewrite IHlocal2ptree.
+    apply local2ptree_sound_aux with (Q0 := temp i v').
+    - extensionality rho.
+      unfold temp.
+      apply pred_ext; normalize.
+    - apply LocalD_sound.
+      left.
+      exists i, v'.
+      auto.
+  + rewrite <- insert_local.
+    rewrite IHlocal2ptree.
+    rewrite insert_local.
+    apply LOCALx_shuffle'; intros.
+    eapply iff_trans; [apply LOCALx_expand_gl_var |].
     simpl.
-    auto.
-  + eapply derives_trans.
-    - rewrite <- insert_local.
-      apply andp_derives; [apply derives_refl | exact IHlocal2ptree].
-    - rewrite insert_local.
-      apply LOCALx_shuffle, LOCALx_expand_temp_var.
-  + eapply derives_trans.
-    - rewrite <- insert_local.
-      apply andp_derives; [apply derives_refl | exact IHlocal2ptree].
-    - rewrite insert_local.
-      apply LOCALx_shuffle, LOCALx_expand_gl_var.
-  + eapply derives_trans.
-    - rewrite <- insert_local.
-      apply andp_derives; [apply derives_refl | exact IHlocal2ptree].
-    - rewrite insert_local.
-      apply LOCALx_shuffle, LOCALx_expand_res.
+    pose proof LocalD_remove_empty_from_PTree2 i T1 T2 Q' Q0 H0.
+    tauto.
+  + simpl app.
+    rewrite <- move_prop_from_LOCAL.
+    rewrite <- !insert_local.
+    rewrite IHlocal2ptree.
+    apply local2ptree_sound_aux with (Q0 := var i t v').
+    - extensionality rho.
+      unfold var.
+      apply pred_ext; normalize.
+    - apply LocalD_sound.
+      right. left.
+      exists i, t, v'.
+      auto.
+  + rewrite <- insert_local.
+    rewrite IHlocal2ptree.
+    rewrite insert_local.
+    apply LOCALx_shuffle'; intros.
+    apply LOCALx_expand_res.
 Qed.
 
 Fixpoint msubst_eval_expr (T1: PTree.t val) (T2: PTree.t (type * val)) (e: Clight.expr) : option val :=
