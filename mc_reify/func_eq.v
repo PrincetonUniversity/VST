@@ -210,6 +210,7 @@ match a, b with
 | fnil t1, fnil t2
 | fcons t1, fcons t2
 | fappend t1, fappend t2 => typ_beq t1 t2
+| fnth_error t1 n1, fnth_error t2 n2 => andb (beq_nat n1 n2) (typ_beq t1 t2)
 | fmap ta1 tb1, fmap ta2 tb2 
 | ffold_right ta1 tb1, ffold_right ta2 tb2 
 | ffold_left ta1 tb1, ffold_left ta2 tb2 => andb (typ_beq ta1 ta2) (typ_beq tb1 tb2)
@@ -295,7 +296,6 @@ match a, b with
 | ftypeof_temp, ftypeof_temp => true
 | ftc_val, ftc_val => true
 | flegal_nested_field, flegal_nested_field => true
-| fnested_efield_rel, fnested_efield_rel => true
 | fstruct_field, fstruct_field => true
 | funion_field, funion_field => true
 | farray_subsc, farray_subsc => true

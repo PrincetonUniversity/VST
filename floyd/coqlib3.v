@@ -136,6 +136,20 @@ Proof.
     - simpl. apply IHcontents. omega.
 Qed.
 
+Lemma in_nth_error: forall {A} (x: A) xs, In x xs -> exists n, nth_error xs n = Some x.
+Proof.
+  intros.
+  induction xs.
+  + inversion H.
+  + destruct H.
+    - subst; exists 0%nat.
+      reflexivity.
+    - destruct (IHxs H) as [?n ?H].
+      exists (S n).
+      simpl.
+      tauto.
+Qed.
+
 (**************************************************
 
 Int type lemmas

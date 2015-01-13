@@ -13,42 +13,80 @@ Require Import floyd.efield_lemmas.
 Local Open Scope logic.
 
 Inductive local2ptree:
-  list (environ -> Prop) -> PTree.t val -> PTree.t (type * val) -> list (environ -> Prop) -> Prop :=
+  list (environ -> Prop) -> PTree.t val -> PTree.t (type * val)
+    -> list Prop -> list (environ -> Prop) -> Prop :=
   | local2ptree_nil:
-      local2ptree nil (PTree.empty _) (PTree.empty _) nil
-  | local2ptree_temp_var: forall v i Q T1 T2 Q',
-      local2ptree Q T1 T2 Q'->
-      local2ptree (temp i v :: Q) (PTree.set i v T1) T2 Q'
-  | local2ptree_gl_var: forall v i t Q T1 T2 Q',
-      local2ptree Q T1 T2 Q'->
-      local2ptree (var i t v :: Q) T1 (PTree.set i (t, v) T2) Q'
-  | local2ptree_unknown: forall Q0 Q T1 T2 Q',
-      local2ptree Q T1 T2 Q'->
-      local2ptree (Q0 :: Q) T1 T2 (Q0 :: Q').
+      local2ptree nil (PTree.empty _) (PTree.empty _) nil nil
+  | local2ptree_temp_var_first: forall v i Q T1 T2 P' Q',
+      local2ptree Q T1 T2 P' Q' ->
+      T1 ! i = None ->
+      local2ptree (temp i v :: Q) (PTree.set i v T1) T2 P' Q'
+  | local2ptree_temp_var_second: forall v v' i Q T1 T2 P' Q',
+      local2ptree Q T1 T2 P' Q' ->
+      T1 ! i = Some v' ->
+      local2ptree (temp i v :: Q) T1 T2 ((v = v') :: P') Q'
+  | local2ptree_gl_var_first: forall v i t Q T1 T2 P' Q',
+      local2ptree Q T1 T2 P' Q' ->
+      T2 ! i = None ->
+      local2ptree (var i t v :: Q) T1 (PTree.set i (t, v) T2) P' Q'
+  | local2ptree_gl_var_second: forall v v' i t Q T1 T2 P' Q',
+      local2ptree Q T1 T2 P' Q' ->
+      T2 ! i = Some (t, v') ->
+      local2ptree (var i t v :: Q) T1 T2 ((v = v') :: P') Q'
+  | local2ptree_unknown: forall Q0 Q T1 T2 P' Q',
+      local2ptree Q T1 T2 P' Q'->
+      local2ptree (Q0 :: Q) T1 T2 P' (Q0 :: Q').
 (* repeat constructor will try the first succesful tactic. So local2ptree_temp_ *)
 (* var, local2ptree_gl_var will be used whenever is possible before local2ptree_*)
 (* unknown.                                                                     *)
 
+Ltac construct_local2ptree Q H :=
+  let T1 := fresh "T" in evar (T1: PTree.t val);
+  let T2 := fresh "T" in evar (T2: PTree.t (type * val));
+  let P' := fresh "P'" in evar (P' : list Prop);
+  let Q' := fresh "Q'" in evar (Q' : list (environ -> Prop));
+  assert (local2ptree Q T1 T2 P' Q') as H; [
+    subst T1 T2 P' Q';
+    match Q with
+    | @nil _ => exact local2ptree_nil
+    | (`(eq ?v) (eval_id ?i)) :: ?Q0 =>
+        let H0 := fresh "H" in
+        construct_local2ptree Q0 H0;
+        first [
+          eapply local2ptree_temp_var_first; [exact H0 | reflexivity] |
+          eapply local2ptree_temp_var_second; [exact H0 | reflexivity]]
+    | (temp ?i ?v) :: ?Q0 =>
+        let H0 := fresh "H" in
+        construct_local2ptree Q0 H0;
+        first [
+          eapply local2ptree_temp_var_first; [exact H0 | reflexivity] |
+          eapply local2ptree_temp_var_second; [exact H0 | reflexivity]]
+    | (`(eq ?v) (eval_var ?i ?t)) :: ?Q0 =>
+        let H0 := fresh "H" in
+        construct_local2ptree Q0 H0;
+        first [
+          eapply local2ptree_gl_var_first; [exact H0 | reflexivity] |
+          eapply local2ptree_gl_var_second; [exact H0 | reflexivity] |
+          eapply local2ptree_unknown; exact H0]
+    | (var ?i ?t ?v) :: ?Q0 =>
+        let H0 := fresh "H" in
+        construct_local2ptree Q0 H0;
+        first [
+          eapply local2ptree_gl_var_first; [exact H0 | reflexivity] |
+          eapply local2ptree_gl_var_second; [exact H0 | reflexivity] |
+          eapply local2ptree_unknown; exact H0]
+    | ?QQ :: ?Q0 =>
+        let H0 := fresh "H" in
+        construct_local2ptree Q0 H0;
+        eapply local2ptree_unknown; exact H0
+    end|];
+  subst T1 T2 P' Q'.
+
 Module TEST.
-Goal False.
-evar (T1: PTree.t val).
-evar (T2: PTree.t (type * val)).
-evar (Q' : list (environ -> Prop)).
-
-assert (local2ptree  ((`(eq Vundef) (eval_id 1%positive)) :: (`(eq (Vint (Int.repr 1))) (eval_id 1%positive)) :: 
-   (`(eq 1 3)) :: nil)
-  T1 T2 Q').
-subst T1 T2 Q'.
-repeat constructor; repeat simpl; auto.
-Abort.
 
 Goal False.
-evar (T1: PTree.t val).
-evar (T2: PTree.t (type * val)).
-evar (Q' : list (environ -> Prop)).
-assert (local2ptree ((`(eq Vundef) (eval_id 1%positive))::nil) T1 T2 Q').
-subst T1 T2 Q'.
-repeat constructor; repeat simpl; auto.
+  construct_local2ptree ((temp 1%positive Vundef) :: (`(eq (Vint (Int.repr 1))) (eval_id 1%positive)) :: 
+   (`(eq 1 3)) :: nil) H.
 Abort.
 End TEST.
 
@@ -250,80 +288,149 @@ Proof.
 Qed.
 
 Lemma LOCALx_expand_temp_var: forall i v T1 T2 Q Q0,
-  In Q0 (LocalD (PTree.set i v T1) T2 Q) -> 
-  In Q0 (temp i v :: LocalD T1 T2 Q).
+  In Q0 (LocalD (PTree.set i v T1) T2 Q) <-> 
+  In Q0 (temp i v :: LocalD (PTree.remove i T1) T2 Q).
 Proof.
-  intros.
-  simpl.
-  apply LocalD_complete in H.
-  destruct H.
-  + destruct H as [i0 [v0 [? ?]]].
-    destruct (ident_eq i0 i).
-    - subst.
-      rewrite PTree.gss in H.
-      inversion H; subst.
-      left; reflexivity.
-    - rewrite PTree.gso in H by auto.
-      right.
+  intros; split; intros.
+  + simpl.
+    apply LocalD_complete in H.
+    destruct H.
+    - destruct H as [i0 [v0 [? ?]]].
+      subst.
+      destruct (ident_eq i0 i).
+      * subst.
+        rewrite PTree.gss in H.
+        inversion H; subst.
+        left; reflexivity.
+      * rewrite PTree.gso in H by auto.
+        right.
+        apply LocalD_sound.
+        left.
+        exists i0, v0.
+        rewrite PTree.gro by auto.
+        split; [exact H | reflexivity].
+    - right.
       apply LocalD_sound.
-      left.
-      exists i0, v0.
-      exact (conj H H0).
-  + right.
-    apply LocalD_sound.
-    right.
-    exact H.
+      right.
+      exact H.
+  + simpl in H.
+    destruct H; subst; apply LocalD_sound.
+    - left.
+      exists i, v.
+      split; [apply PTree.gss | reflexivity].
+    - apply LocalD_complete in H.
+      destruct H.
+      * left.
+        destruct H as [i0 [v0 [? ?]]].
+        destruct (ident_eq i i0).
+        {
+          subst.
+          rewrite PTree.grs in H.
+          inversion H.
+        }
+        {
+          exists i0, v0.
+          rewrite PTree.gso by auto.
+          rewrite PTree.gro in H by auto.
+          split; [exact H | exact H0].
+        }
+      * right.
+        auto.
 Qed.
 
 Lemma LOCALx_expand_gl_var: forall i t v T1 T2 Q Q0,
-  In Q0 (LocalD T1 (PTree.set i (t, v) T2) Q) -> 
-  In Q0 (var i t v :: LocalD T1 T2 Q).
+  In Q0 (LocalD T1 (PTree.set i (t, v) T2) Q) <-> 
+  In Q0 (var i t v :: LocalD T1 (PTree.remove i T2) Q).
 Proof.
-  intros.
-  simpl.
-  apply LocalD_complete in H.
-  destruct H as [ |[ |]].
-  + right.
-    apply LocalD_sound.
-    left.
-    exact H.
-  + destruct H as [i0 [t0 [v0 [? ?]]]].
-    destruct (ident_eq i0 i).
-    - subst.
-      rewrite PTree.gss in H.
-      inversion H; subst.
-      left; reflexivity.
-    - rewrite PTree.gso in H by auto.
-      right.
-      apply LocalD_sound.
-      right; left.
-      exists i0, t0, v0.
-      exact (conj H H0).
-  + right.
-    apply LocalD_sound.
-    right; right.
-    exact H.
-Qed.
-
-Lemma LOCALx_expand_res: forall Q1 T1 T2 Q Q0,
-  In Q0 (LocalD T1 T2 (Q1 ::Q)) -> 
-  In Q0 (Q1 ::LocalD T1 T2 Q).
-Proof.
-  intros.
-  simpl.
-  apply LocalD_complete in H.
-  destruct H as [ |[ |]].
-  + right.
-    apply LocalD_sound.
-    left; exact H.
-  + right.
-    apply LocalD_sound.
-    right; left; exact H.
-  + simpl in H; destruct H.
-    - subst; left; reflexivity.
+  intros; split; intros.
+  + simpl.
+    apply LocalD_complete in H.
+    destruct H as [ |[ |]].
     - right.
       apply LocalD_sound.
-      right; right; exact H.
+      left.
+      exact H.
+    - destruct H as [i0 [t0 [v0 [? ?]]]]; subst.
+      destruct (ident_eq i0 i).
+      * subst.
+        rewrite PTree.gss in H.
+        inversion H; subst.
+        left; reflexivity.
+      * rewrite PTree.gso in H by auto.
+        right.
+        apply LocalD_sound.
+        right; left.
+        exists i0, t0, v0.
+        rewrite PTree.gro by auto.
+        exact (conj H eq_refl).
+    - right.
+      apply LocalD_sound.
+      right; right.
+      exact H.
+  + simpl in H; destruct H.
+    - subst.
+      apply LocalD_sound.
+      right. left.
+      exists i, t, v.
+      rewrite PTree.gss.
+      split; reflexivity.
+    - apply LocalD_sound.
+      apply LocalD_complete in H.
+      destruct H as [|[|]].
+      * left.
+        exact H.
+      * right. left.
+        destruct H as [i0 [t0 [v0 ?H]]].
+        destruct (ident_eq i0 i).
+        {
+          subst.
+          rewrite PTree.grs in H.
+          destruct H as [?H _].
+          inversion H.
+        }
+        {
+          exists i0, t0, v0.
+          rewrite PTree.gro in H by auto.
+          rewrite PTree.gso by auto.
+          exact H.
+        }
+      * right. right.
+        exact H.
+Qed.
+
+
+Lemma LOCALx_expand_res: forall Q1 T1 T2 Q Q0,
+  In Q0 (LocalD T1 T2 (Q1 ::Q)) <-> 
+  In Q0 (Q1 ::LocalD T1 T2 Q).
+Proof.
+  intros; split; intros.
+  + simpl.
+    apply LocalD_complete in H.
+    destruct H as [ |[ |]].
+    - right.
+      apply LocalD_sound.
+      left; exact H.
+    - right.
+      apply LocalD_sound.
+      right; left; exact H.
+    - simpl in H; destruct H.
+      * subst; left; reflexivity.
+      * right.
+        apply LocalD_sound.
+        right; right; exact H.
+  + simpl.
+    destruct H; [ |apply LocalD_complete in H].
+    - apply LocalD_sound.
+      right. right.
+      subst; simpl; left.
+      reflexivity.
+    - apply LocalD_sound.
+      destruct H as [ |[ |]].
+      * left. auto.
+      * right. left. auto.
+      * right. right.
+        simpl. right.
+        auto.
 Qed.
 
 Lemma LOCALx_shuffle: forall P Q Q' R,
@@ -352,31 +459,60 @@ Proof.
     apply H1.
 Qed.
 
-Lemma LOCALx_expand_temp_var': forall i v T1 T2 Q Q0,
-  In Q0 (LocalD (PTree.set i v T1) T2 Q) -> 
-  Q0 = temp i v \/ In Q0 (LocalD (PTree.remove i T1) T2 Q).
+Lemma LOCALx_shuffle': forall P Q Q' R,
+  (forall Q0, In Q0 Q' <-> In Q0 Q) ->
+  PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q' (SEPx R)).
 Proof.
   intros.
-  simpl.
-  apply LocalD_complete in H.
-  destruct H.
-  + destruct H as [i0 [v0 [? ?]]].
+  apply pred_ext; apply LOCALx_shuffle; intros; apply H; auto.
+Qed.
+
+Lemma LocalD_remove_empty_from_PTree1: forall i T1 T2 Q Q0,
+  T1 ! i = None ->
+  (In Q0 (LocalD (PTree.remove i T1) T2 Q) <-> In Q0 (LocalD T1 T2 Q)).
+Proof.
+  intros; split; intros;
+  apply LocalD_sound; apply LocalD_complete in H0.
+  + destruct H0; [left | right; auto].
+    destruct H0 as [i0 [v0 [?H ?H]]].
     destruct (ident_eq i0 i).
     - subst.
-      rewrite PTree.gss in H.
-      inversion H; subst.
-      left; reflexivity.
-    - rewrite PTree.gso in H by auto.
-      right.
-      apply LocalD_sound.
-      left.
+      rewrite PTree.grs in H0.
+      inversion H0.
+    - rewrite PTree.gro in H0 by auto.
       exists i0, v0.
+      auto.
+  + destruct H0; [left | right; auto].
+    destruct H0 as [i0 [v0 [?H ?H]]].
+    destruct (ident_eq i0 i).
+    - subst; congruence.
+    - exists i0, v0.
       rewrite PTree.gro by auto.
-      exact (conj H H0).
-  + right.
-    apply LocalD_sound.
-    right.
-    exact H.
+      auto.
+Qed.
+
+Lemma LocalD_remove_empty_from_PTree2: forall i T1 T2 Q Q0,
+  T2 ! i = None ->
+  (In Q0 (LocalD T1 (PTree.remove i T2) Q) <-> In Q0 (LocalD T1 T2 Q)).
+Proof.
+  intros; split; intros;
+  apply LocalD_sound; apply LocalD_complete in H0.
+  + destruct H0; [left; auto | right; destruct H0; [left | right; auto]].
+    destruct H0 as [i0 [t0 [v0 [?H ?H]]]].
+    destruct (ident_eq i0 i).
+    - subst.
+      rewrite PTree.grs in H0.
+      inversion H0.
+    - rewrite PTree.gro in H0 by auto.
+      exists i0, t0, v0.
+      auto.
+  + destruct H0; [left; auto | right; destruct H0; [left | right; auto]].
+    destruct H0 as [i0 [t0 [v0 [?H ?H]]]].
+    destruct (ident_eq i0 i).
+    - subst; congruence.
+    - exists i0, t0, v0.
+      rewrite PTree.gro by auto.
+      auto.
 Qed.
 
 Lemma LocalD_subst: forall id v Q0 T1 T2 Q,
@@ -437,36 +573,80 @@ Proof.
     f_equal.
   } Unfocus.
   apply LOCALx_shuffle; intros.
-  apply LOCALx_expand_temp_var' in H.
+  apply LOCALx_expand_temp_var in H.
   destruct H; [left; auto | right].
   apply LocalD_subst, H.
 Qed.
 
-Lemma local2ptree_soundness: forall P Q R T1 T2 Q',
-  local2ptree Q T1 T2 Q' ->
-  PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx (LocalD T1 T2 Q') (SEPx R)).
+Lemma local2ptree_sound_aux: forall P Q R Q0 Q1 Q2,
+  Q1 && local Q0 = Q2 && local Q0 ->
+  In Q0 Q ->
+  Q1 && PROPx P (LOCALx Q (SEPx R)) = Q2 && PROPx P (LOCALx Q (SEPx R)).
+Proof.
+  intros.
+  pose proof in_local _ P _ R H0.
+  rewrite (add_andp _ _ H1).
+  rewrite (andp_comm _ (local Q0)).
+  rewrite <- !andp_assoc.
+  f_equal.
+  exact H.
+Qed.
+
+Lemma local2ptree_soundness: forall P Q R T1 T2 P' Q',
+  local2ptree Q T1 T2 P' Q' ->
+  PROPx P (LOCALx Q (SEPx R)) = PROPx (P' ++ P) (LOCALx (LocalD T1 T2 Q') (SEPx R)).
 Proof.
   intros.
   induction H.
   + unfold LocalD.
     rewrite !PTree.fold_spec.
     simpl.
-    auto.
-  + eapply derives_trans.
-    - rewrite <- insert_local.
-      apply andp_derives; [apply derives_refl | exact IHlocal2ptree].
-    - rewrite insert_local.
-      apply LOCALx_shuffle, LOCALx_expand_temp_var.
-  + eapply derives_trans.
-    - rewrite <- insert_local.
-      apply andp_derives; [apply derives_refl | exact IHlocal2ptree].
-    - rewrite insert_local.
-      apply LOCALx_shuffle, LOCALx_expand_gl_var.
-  + eapply derives_trans.
-    - rewrite <- insert_local.
-      apply andp_derives; [apply derives_refl | exact IHlocal2ptree].
-    - rewrite insert_local.
-      apply LOCALx_shuffle, LOCALx_expand_res.
+    reflexivity.
+  + rewrite <- insert_local.
+    rewrite IHlocal2ptree.
+    rewrite insert_local.
+    apply LOCALx_shuffle'; intros.
+    eapply iff_trans; [apply LOCALx_expand_temp_var |].
+    simpl.
+    pose proof LocalD_remove_empty_from_PTree1 i T1 T2 Q' Q0 H0.
+    tauto.
+  + simpl app.
+    rewrite <- move_prop_from_LOCAL.
+    rewrite <- !insert_local.
+    rewrite IHlocal2ptree.
+    apply local2ptree_sound_aux with (Q0 := temp i v').
+    - extensionality rho.
+      unfold temp.
+      apply pred_ext; normalize.
+    - apply LocalD_sound.
+      left.
+      exists i, v'.
+      auto.
+  + rewrite <- insert_local.
+    rewrite IHlocal2ptree.
+    rewrite insert_local.
+    apply LOCALx_shuffle'; intros.
+    eapply iff_trans; [apply LOCALx_expand_gl_var |].
+    simpl.
+    pose proof LocalD_remove_empty_from_PTree2 i T1 T2 Q' Q0 H0.
+    tauto.
+  + simpl app.
+    rewrite <- move_prop_from_LOCAL.
+    rewrite <- !insert_local.
+    rewrite IHlocal2ptree.
+    apply local2ptree_sound_aux with (Q0 := var i t v').
+    - extensionality rho.
+      unfold var.
+      apply pred_ext; normalize.
+    - apply LocalD_sound.
+      right. left.
+      exists i, t, v'.
+      auto.
+  + rewrite <- insert_local.
+    rewrite IHlocal2ptree.
+    rewrite insert_local.
+    apply LOCALx_shuffle'; intros.
+    apply LOCALx_expand_res.
 Qed.
 
 Fixpoint msubst_eval_expr (T1: PTree.t val) (T2: PTree.t (type * val)) (e: Clight.expr) : option val :=
