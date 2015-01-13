@@ -521,7 +521,7 @@ end.
   intros sh lf v1 v2.
   exact (@lseg t id ls sh (List.map (reptyp_structlist_reptype  _) lf) v1 v2). }*)
 Defined.
-
+Check ret_assert.
 Inductive smx :=
 | fenviron : environ -> smx
 | fsemax
