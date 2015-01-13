@@ -30,16 +30,7 @@ match goal with
 | [ |- ?trm] => reify_vst trm
 end.
 
-Lemma local2ptree_eq :
-forall (P : list Prop) (Q : list (environ -> Prop))
-         (R : list (environ -> mpred)) (T1 : PTree.t val)
-         (T2 : PTree.t (type * val)) (Q' : list (environ -> Prop)),
-       local2ptree Q T1 T2 Q' ->
-       PROPx P (LOCALx Q (SEPx R))
-       = PROPx P (LOCALx (LocalD T1 T2 Q') (SEPx R)).
-Admitted.
-
-Ltac do_local2ptree := do 2 (erewrite local2ptree_eq; [ | repeat constructor ]);
+Ltac do_local2ptree := do 2 (erewrite local2ptree_soundness; [ | repeat constructor ]);
 repeat rewrite LocalD_to_localD.
 
 Ltac pull_sep_lift R :=
