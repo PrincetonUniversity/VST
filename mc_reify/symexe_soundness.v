@@ -17,7 +17,7 @@ Require Import MirrorCore.Util.ListMapT.
 
 
 Section tbled.
-
+Variable n : nat.
 Variable tbl : SymEnv.functions RType_typ.
 
 Let RSym_sym := RSym_sym tbl.
@@ -182,8 +182,7 @@ simpl (exprD' []
 + apply FAIL_sound.
 Qed.
 
-Theorem SYMEXE_sound : rtac_sound (SYMEXE_TAC tbl).
-unfold SYMEXE_TAC.
+Theorem SYMEXE_sound : rtac_sound (SYMEXE_TAC_n n tbl ).
 apply THEN_sound.
 admit. (*jesper*)
 apply REPEAT_sound.
@@ -236,11 +235,7 @@ Ltac run_rtac reify term_table tac_sound :=
 	| _ => idtac tac_sound "is not a soudness theorem."
   end.
 
-Ltac rforward := run_rtac reify_vst term_table SYMEXE_sound.
-
-
-Print Ltac run_rtac.
-Check run_tac'.
+Ltac rforward := run_rtac reify_vst term_table (SYMEXE_sound 1000).
 
 Lemma skip_triple : forall p e,
 @semax e empty_tycontext
