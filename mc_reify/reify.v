@@ -126,7 +126,7 @@ Reify Pattern patterns_vst += (!!Integers.Int.repr) => (@Inj typ func (inr (Into
 Reify Pattern patterns_vst += (!!Integers.Int.signed) => (@Inj typ func (inr (Intop fint_signed))).
 Reify Pattern patterns_vst += (!!Integers.Int.unsigned) => (@Inj typ func (inr (Intop fint_unsigned))).
 Reify Pattern patterns_vst += (!!Integers.Int.max_unsigned) => (@Inj typ func (inr (Intop fint_max_unsigned))).
-Reify Pattern patterns_vst += (!!Integers.Int.repr) => (@Inj typ func (inr (Intop fint64_repr))).
+Reify Pattern patterns_vst += (!!Integers.Int.repr) => (@Inj typ func (inr (Intop fint_repr))).
 
 Reify Pattern patterns_vst += (!!Values.Vint) => (@Inj typ func (inr (Value fVint))).
 Reify Pattern patterns_vst += (!!Values.Vfloat) => (@Inj typ func (inr (Value fVfloat))).
