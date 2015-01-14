@@ -122,6 +122,24 @@ end.
 Check exprD.
 Definition REFLEXIVITY_MSUBST := REFLEXIVITYTAC_msubst.
 
+Definition REFLEXIVITYTAC_nth_error : rtac typ (expr typ func) :=
+fun tus tvs n m c s e => 
+  match e with 
+| (App (App (Inj (inr (Other (feq ty)))) l) r) =>
+  match l with
+  | App (Inj (inr (Data (fnth_error ty n)))) xs =>
+    let l' := rnth_error ty xs n in
+    match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
+                                 tus tvs 0 l' r ty s with
+    | Some s => RTac.Core.Solved s 
+    | None =>  RTac.Core.Fail
+    end
+  | _ => RTac.Core.Fail
+  end
+| _ => RTac.Core.Fail
+end.
+
+Definition REFLEXIVITY_NTH_ERROR := REFLEXIVITYTAC_nth_error.
 
 Definition REFLEXIVITY_DENOTE (rtype : typ) {H: @RelDec.RelDec (typD rtype) eq}
 {H0: RelDec.RelDec_Correct H} tbl : rtac typ (expr typ func) := 

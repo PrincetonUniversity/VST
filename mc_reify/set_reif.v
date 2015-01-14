@@ -133,6 +133,17 @@ match msubst_efield_denote_reif T1 T2 efs with
 | None => none_reif (tylist tygfield)
 end.
 
+Fixpoint rnth_error (ty: typ) (xs: expr typ func) (n: nat) : expr typ func :=
+  match xs with
+  | Inj (inr (Data (fnil _))) => none_reif ty
+  | App (App (Inj (inr (Data (fcons _)))) hd) tl => 
+    match n with
+    | O => some_reif hd ty
+    | S n0 => rnth_error ty tl n0
+    end
+  | _ => none_reif ty
+  end.
+
 Lemma Forall_reverse :
 forall A P (l: list A),
 Forall P l <->
