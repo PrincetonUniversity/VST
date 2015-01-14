@@ -23,6 +23,7 @@ Require Import mc_reify.types.
 Require Import mc_reify.typ_eq.
 Require Export mc_reify.reflexivity_tacs.
 Require Import mc_reify.func_defs.
+Require Import MirrorCharge.RTac.Cancellation.
 
 Local Open Scope logic.
 
@@ -260,6 +261,7 @@ Definition compute_load_arg (arg:
 
 Section tbled.
 
+Variable n : nat.
 Variable tbl : SymEnv.functions RType_typ.
 
 Let RSym_sym := RSym_sym tbl.
@@ -367,29 +369,21 @@ Definition SYMEXE_STEP
 Existing Instance func_defs.Expr_ok_fs.
 
 
-Definition SYMEXE_TAC := THEN INTROS (REPEAT 1000 (SYMEXE_STEP)).
+Definition SYMEXE_TAC_n := THEN INTROS (REPEAT n (SYMEXE_STEP)).
 
-Definition SYMEXE1_TAC := THEN INTROS (SYMEXE_STEP).
+(*Definition SYMEXE_TAC := SYMEXE_TAC_n 1000.
+
+
+Definition SYMEXE1_TAC := SYMEXE_TAC_n 1.*)
 
 Definition rreflexivity e :=
 run_tac (REFLEXIVITY tbl) e.
-
-Definition symexe e :=
-run_tac (SYMEXE_TAC ) e .
-
-Definition symexe1 e  :=
-run_tac (SYMEXE1_TAC ) e.
 
 Definition test_lemma :=
   @lemmaD typ (expr typ func) RType_typ ExprD.Expr_expr (expr typ func)
           (fun tus tvs e => ExprDsimul.ExprDenote.exprD' tus tvs typrop e)
           _
           nil nil.
-
-
-Require Import MirrorCharge.RTac.Cancellation.
-
-
 
 Fixpoint is_pure (e : expr typ func) := 
 match e with 
@@ -399,55 +393,6 @@ match e with
 end.
 
 Definition CANCEL e := run_tac (THEN INTROS (CANCELLATION typ func tympred is_pure)) e.
-
-Parameter f : nat -> nat.
-
-Goal f = f.
-reify_expr_tac.
-(* App(App (Inj (inr (Other (feq (tyArr tynat tynat))))) (Ext 1%positive))
-         (Ext 1%positive) *)
-Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITY tbl)) e.
-(*     = Solved (TopSubst (expr typ func) [] []) *)
-Abort.
-
-Goal forall n, f n = f n.
-reify_expr_tac.
-(*App (ILogicFunc.fForall tynat typrop)
-         (Abs tynat
-            (App
-               (App (Inj (inr (Other (feq tynat))))
-                  (App (Ext 1%positive) (ExprCore.Var 0%nat)))
-               (App (Ext 1%positive) (ExprCore.Var 0%nat)))) *)
-Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITY tbl)) e.
-(*    = Fail *)
-Abort.
-
-Goal forall (sh : share) (v1 v2 : val), False.
-intros.
-reify_vst (data_at sh tint v1 v2).
-Abort.
-
-Goal forall sh v1 v2, (data_at sh tint v1 v2) |-- (data_at sh tint v1 v2).
-intros. simpl reptype in *.
-reify_expr_tac.
-Eval vm_compute in CANCEL e.
-Abort.
-
-Goal forall P Q b,  !!b && P * Q |-- !!b && Q * P .
-reify_expr_tac.
-Abort.
-
-Goal forall (sh : share), sh = sh.
-reify_expr_tac.
-Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITYTAC tbl)) e.
-Abort.
-
-
-Goal forall sh ty v1 v2, mapsto sh ty v1 v2 = mapsto sh ty v1 v2.
-reify_expr_tac.
-Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITYTAC tbl)) e.
-Eval vm_compute in run_tac (THEN INTROS (CANCELLATION typ func tympred is_pure)) e.
-Abort.
 
 Let Expr_expr := (Expr_expr_fs tbl).
 Existing Instance Expr_expr.
@@ -507,7 +452,42 @@ Proof.
   admit.
 Qed.
 
+
 End tbled.
+
+
+Definition symexe tbl e :=
+run_tac (SYMEXE_TAC_n 1000 tbl) e .
+
+Definition symexe1 tbl e  :=
+run_tac (SYMEXE_TAC_n 1 tbl ) e.
+
+
+Goal forall (sh : share) (v1 v2 : val), False.
+intros.
+reify_vst (data_at sh tint v1 v2).
+Abort.
+
+Goal forall sh v1 v2, (data_at sh tint v1 v2) |-- (data_at sh tint v1 v2).
+intros. simpl reptype in *.
+reify_expr_tac.
+Eval vm_compute in CANCEL tbl e.
+Abort.
+
+Goal forall P Q b,  !!b && P * Q |-- !!b && Q * P .
+reify_expr_tac.
+Abort.
+
+Goal forall (sh : share), sh = sh.
+reify_expr_tac.
+Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITYTAC tbl)) e.
+Abort.
+
+
+Goal forall sh ty v1 v2, mapsto sh ty v1 v2 = mapsto sh ty v1 v2.
+reify_expr_tac.
+Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITYTAC tbl)) e.
+Abort.
 
 Require Import denote_tac.
 
