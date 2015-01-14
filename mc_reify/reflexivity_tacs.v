@@ -81,14 +81,14 @@ unfold exprT_App. simpl.
 destruct (pctxD_substD H1 H3).
 destruct H6.
 edestruct H2; eauto. 
-destruct H10.
+forward_reason.
 destruct (substD_pctxD _ H0 H3 H10).
 destruct H12.
 forward. inv_some.
 split. admit. (*what is this*)
 intros. 
 eapply Pure_pctxD. apply H12.
-intros. simpl in *.
+intros. simpl in *. 
 specialize (H11 us0 vs0).
 cut (x0 us0 vs0). intros. specialize (H11 H14).
 destruct H11. specialize (H15 HList.Hnil).
@@ -119,8 +119,9 @@ fun tus tvs n m c s e =>
   end
 | _ => RTac.Core.Fail
 end.
-
+Check exprD.
 Definition REFLEXIVITY_MSUBST := REFLEXIVITYTAC_msubst.
+
 
 Definition REFLEXIVITY_DENOTE (rtype : typ) {H: @RelDec.RelDec (typD rtype) eq}
 {H0: RelDec.RelDec_Correct H} tbl : rtac typ (expr typ func) := 
