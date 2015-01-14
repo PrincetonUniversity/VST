@@ -201,8 +201,6 @@ Definition sem_eqb_func := @sym_eqb _ _ _ (SymSum.RSym_sum
   (SymSum.RSym_sum (SymSum.RSym_sum RSym_SymEnv_fun RSym_ilfunc) RSym_bilfunc)
   RSym_Func').
 
-Locate typ_beq.
-
 Fixpoint expr_beq (e1 e2: expr typ func) : bool :=
   match e1, e2 with
   | Var i1, Var i2 => beq_nat i1 i2
@@ -401,7 +399,6 @@ match e with
 end.
 
 Definition CANCEL e := run_tac (THEN INTROS (CANCELLATION typ func tympred is_pure)) e.
-Locate data_at.
 
 Parameter f : nat -> nat.
 

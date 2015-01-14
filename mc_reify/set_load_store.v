@@ -138,14 +138,6 @@ Definition prop_right_lemma: my_lemma.
 reify_lemma reify_vst lower_prop_right.
 Defined.
 
-Print prop_right_lemma.
-
-
-
-Print eval_lvalue.
-Print deref_noload.
-
-
 Require Import mc_reify.reverse_defs.
 Require Import symexe.
 Require Import mc_reify.func_defs.
@@ -259,7 +251,7 @@ Locate get_delta_statement.
 
   
 
-Time let x := eval vm_compute in
+Eval vm_compute in
 (match (get_arguments e) with
 | (Some Delta, Some Pre, Some st) => 
   match compute_load_arg (Delta, Pre, st) with
@@ -277,9 +269,9 @@ Time let x := eval vm_compute in
   | _ => run_tac FAIL
   end
 | _ => run_tac FAIL
-end e) in idtac.
+end e).
 
-(* Why APPLY_prop_right does not work well here? *)
+
 
 (*
 Eval vm_compute in (reflect_prop tbl0 load_lemma).
