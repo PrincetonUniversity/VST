@@ -114,6 +114,11 @@ Defined.
 
 Print load_lemma.
 
+(*
+Lemma lower_prop_right: forall (P: mpred) (Q: Prop), P |-- !! Q.
+Admitted.
+*)
+
 Lemma lower_prop_right: forall (P: mpred) (Q: Prop), Q -> P |-- !! Q.
 Proof.
   intros.
@@ -121,11 +126,80 @@ Proof.
   auto.
 Qed.
 
+(*
+Lemma lower_prop_right: forall (P: mpred) (p: val), P |-- !! (p = p).
+Proof.
+  intros.
+  apply prop_right.
+  auto.
+Qed.
+*)
 Definition prop_right_lemma: my_lemma.
 reify_lemma reify_vst lower_prop_right.
 Defined.
 
 Print prop_right_lemma.
+
+Inductive ForwardRule : Type :=
+| ForwardSet
+| ForwardLoad
+| ForwardCastLoad
+| ForwardStore
+| ForwardSeq.
+
+Print eval_lvalue.
+Print deref_noload.
+
+Definition is_array_type (t: Ctypes.type) : bool :=
+  match t with
+  | Tarray _ _ _ => true
+  | _ => false
+  end.
+
+Fixpoint no_load_expr_bool (e: Clight.expr) : bool :=
+  match e with
+  | Econst_int _ _ => true
+  | Econst_float _ _ => true
+  | Econst_single _ _ => true
+  | Econst_long _ _ => true
+  | Evar _ t => is_array_type t
+  | Etempvar _ _ => true
+  | Ederef _ _ => false
+  | Eaddrof e0 _ => no_load_lvalue_bool e0
+  | Eunop _ e0 _ => no_load_expr_bool e0
+  | Ebinop _ e0 e1 _ => (no_load_expr_bool e0 && no_load_expr_bool e1)%bool
+  | Ecast e0 _ => no_load_expr_bool e0
+  | Efield e0 _ t => (is_array_type t && no_load_lvalue_bool e0)%bool
+  end
+with no_load_lvalue_bool (e: Clight.expr) : bool :=
+  match e with
+  | Econst_int _ _ => false
+  | Econst_float _ _ => false
+  | Econst_single _ _ => false
+  | Econst_long _ _ => false
+  | Evar _ _ => true
+  | Etempvar _ _ => false
+  | Ederef _ _ => false
+  | Eaddrof _ _ => false
+  | Eunop _ _ _ => false
+  | Ebinop _ _ _ _ => false
+  | Ecast _ _ => false
+  | Efield e0 _ _ => no_load_lvalue_bool e0
+  end.
+  
+Definition compute_forward_rule (s: statement) : option ForwardRule :=
+  match s with
+  | Ssequence _ _ => Some ForwardSeq
+  | Sassign _ _ => Some ForwardStore
+  | Sset _ e =>
+    if no_load_expr_bool e
+    then Some ForwardSet
+    else match e with
+         | Ecast _ _ => Some ForwardCastLoad
+         | _ => Some ForwardLoad
+         end
+  | _ => None
+  end.
 
 Definition get_arguments_delta (e : expr typ func) :=
   match e with
@@ -292,22 +366,65 @@ Eval compute in (compute_nested_efield (Efield (Ederef (Etempvar _v (tptr t_stru
            _tail (tptr t_struct_list))).*)
 eapply (semax_load_localD) with (efs := eStructField _tail :: nil) (tts := tptr t_struct_list :: nil)
   (e := Struct_env) (t_root := t_struct_list) (lr := LLLL)
-  (e1 := (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)).
+  (e1 := (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)) (n := 0%nat).
 reflexivity.
 reflexivity.
 reflexivity.
 reflexivity.
 reflexivity.
 reflexivity.
-*)
+reflexivity.
+reflexivity.
++
+
+Goal forall (P: mpred) (p: val),  P |-- !!(force_ptr p = force_ptr p).
+
+intros.
 
 reify_expr_tac.
 
+Eval vm_compute in
+  run_tac (THEN (APPLY_prop_right) INTROS) e.
+
+Print prop_right_lemma.
+
+Eval vm_compute in e.
+
+(*
+App
+         (App
+            (Inj
+               (inl (inl (inr (ModularFunc.ILogicFunc.ilf_entails tympred)))))
+            (Inj (inl (inl (inl 1%positive)))))
+         (App (Inj (inr (Sep fprop)))
+            (App
+               (App (Inj (inr (Other (feq tyval))))
+                  (App (Inj (inr (Other fforce_ptr)))
+                     (Inj (inl (inl (inl 2%positive))))))
+               (App (Inj (inr (Other fforce_ptr)))
+                  (Inj (inl (inl (inl 2%positive)))))))
+*)
+
+Check lower_prop_right.
+
+*)
+
 (*Set Printing Depth 300.*)
+
+reify_expr_tac.
+
+Eval vm_compute in
+(match (get_arguments e) with
+| (Some Delta, Some Pre, Some st) =>
+    compute_forward_rule st
+| _ => None
+end).
+
+Locate get_delta_statement.
 
   
 
-Eval vm_compute in
+Time let x := eval vm_compute in
 (match (get_arguments e) with
 | (Some Delta, Some Pre, Some st) => 
   match compute_load_arg (Delta, Pre, st) with
@@ -315,17 +432,17 @@ Eval vm_compute in
           run_tac
             (THEN INTROS
             (THEN (APPLY_load t v r gt i ty t_root e0 e1 efs tts Struct_env lr n)
-                  (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl0;
+            (THEN (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl0;
                                REFLEXIVITY_BOOL tbl0;
                                REFLEXIVITY_CEXPR tbl0;
                                REFLEXIVITY tbl0;
                                REFLEXIVITY_MSUBST tbl0;
-                               REFLEXIVITY_NTH_ERROR tbl0;
-                               (THEN INTROS APPLY_prop_right)]))))
+                               REFLEXIVITY_NTH_ERROR tbl0]))
+                  (TRY (THEN (THEN INTROS APPLY_prop_right) (REFLEXIVITY tbl0))))))
   | _ => run_tac FAIL
   end
 | _ => run_tac FAIL
-end e).
+end e) in idtac.
 
 (* Why APPLY_prop_right does not work well here? *)
 
