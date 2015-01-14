@@ -20,6 +20,7 @@ Require Import MirrorCharge.RTac.Apply.
 Require Import MirrorCharge.RTac.EApply.
 Require Export mc_reify.funcs.
 Require Import mc_reify.types.
+Require Import mc_reify.typ_eq.
 Require Export mc_reify.reflexivity_tacs.
 Require Import mc_reify.func_defs.
 
@@ -68,6 +69,197 @@ match t with
 | mk_tycontext t v r gt gs => mk_tycontext t v r gt (PTree.empty _)
 end.
 
+(************************************************
+
+Pre-rtac computations
+
+************************************************)
+
+Definition is_array_type (t: Ctypes.type) : bool :=
+  match t with
+  | Tarray _ _ _ => true
+  | _ => false
+  end.
+
+Fixpoint no_load_expr_bool (e: Clight.expr) : bool :=
+  match e with
+  | Econst_int _ _ => true
+  | Econst_float _ _ => true
+  | Econst_single _ _ => true
+  | Econst_long _ _ => true
+  | Evar _ t => is_array_type t
+  | Etempvar _ _ => true
+  | Ederef _ _ => false
+  | Eaddrof e0 _ => no_load_lvalue_bool e0
+  | Eunop _ e0 _ => no_load_expr_bool e0
+  | Ebinop _ e0 e1 _ => (no_load_expr_bool e0 && no_load_expr_bool e1)%bool
+  | Ecast e0 _ => no_load_expr_bool e0
+  | Efield e0 _ t => (is_array_type t && no_load_lvalue_bool e0)%bool
+  end
+with no_load_lvalue_bool (e: Clight.expr) : bool :=
+  match e with
+  | Econst_int _ _ => false
+  | Econst_float _ _ => false
+  | Econst_single _ _ => false
+  | Econst_long _ _ => false
+  | Evar _ _ => true
+  | Etempvar _ _ => false
+  | Ederef _ _ => false
+  | Eaddrof _ _ => false
+  | Eunop _ _ _ => false
+  | Ebinop _ _ _ _ => false
+  | Ecast _ _ => false
+  | Efield e0 _ _ => no_load_lvalue_bool e0
+  end.
+
+Inductive ForwardRule : Type :=
+| ForwardSet
+| ForwardLoad
+| ForwardCastLoad
+| ForwardStore
+| ForwardSeq: statement -> statement -> ForwardRule
+| ForwardSkip.
+
+Definition compute_forward_rule (s: statement) : option ForwardRule :=
+  match s with
+  | Sskip => Some ForwardSkip
+  | Ssequence s1 s2 => Some (ForwardSeq s1 s2)
+  | Sassign _ _ => Some ForwardStore
+  | Sset _ e =>
+    if no_load_expr_bool e
+    then Some ForwardSet
+    else match e with
+         | Ecast _ _ => Some ForwardCastLoad
+         | _ => Some ForwardLoad
+         end
+  | _ => None
+  end.
+
+Definition get_arguments_delta (e : expr typ func) :=
+  match e with
+  | App (Inj (inr (Smx (ftycontext t v r gt)))) gf => Some (t, v, r, gt, gf)
+  | _ => None
+  end.
+
+Definition get_arguments_pre (e : expr typ func) :=
+  match e with
+  | App (Inj (inr (Smx flater)))
+      (App (App (App (Inj (inr (Smx fassertD))) P)
+        (App (App (Inj (inr (Smx flocalD))) T1) T2)) R) => Some (P, T1, T2, R)
+  | _ => None
+  end.
+
+Definition get_arguments_statement (e : expr typ func) :=
+  match e with
+  | Inj (inr (Smx (fstatement s))) => Some s
+  | _ => None
+  end.
+
+Fixpoint get_arguments (e : expr typ func) :=
+match e with
+| App (App (App (App (App (Inj (inr (Smx fsemax))) _) Delta) Pre) CCmd) _ =>
+  (get_arguments_delta Delta,
+   get_arguments_pre Pre,
+   get_arguments_statement CCmd)
+| App _ e 
+| Abs _ e => get_arguments e
+| _ => (None, None, None)
+end.
+
+Definition compute_set_arg (arg: 
+         (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
+          expr typ func) *
+       (expr typ func * expr typ func * expr typ func * expr typ func) *
+       statement) :=
+  match arg with
+  | ((t, v, r, gt, _), _, s) =>
+    match s with
+    | Sset i e0 => Some (i, e0, t, v, r, gt)
+    | _ => None
+    end
+  end.
+
+Instance RSym_SymEnv_fun : RSym SymEnv.func := {
+  typeof_sym := fun _ => None;
+  symD := fun _ => tt;
+  sym_eqb := fun x y => Some (Pos.eqb x y)
+}.
+
+Instance RSymOk_SymEnv_fun : RSymOk RSym_SymEnv_fun.
+split.
+intros.
+simpl.
+pose proof Pos.eqb_eq a b.
+destruct (a =? b)%positive; intros.
++ apply H; auto.
++ intro.
+  apply H in H0.
+  congruence.
+Defined.
+
+Definition sem_eqb_func := @sym_eqb _ _ _ (SymSum.RSym_sum
+  (SymSum.RSym_sum (SymSum.RSym_sum RSym_SymEnv_fun RSym_ilfunc) RSym_bilfunc)
+  RSym_Func').
+
+Locate typ_beq.
+
+Fixpoint expr_beq (e1 e2: expr typ func) : bool :=
+  match e1, e2 with
+  | Var i1, Var i2 => beq_nat i1 i2
+  | Inj f1, Inj f2 =>
+    match sem_eqb_func f1 f2 with
+    | Some true => true
+    | _ => false
+    end
+  | App e11 e12, App e21 e22 => andb (expr_beq e11 e21) (expr_beq e12 e22)
+  | Abs ty1 e11, Abs ty2 e21 => andb (expr_beq e11 e21) (typ_beq ty1 ty2)
+  | UVar i1, UVar i2 => beq_nat i1 i2
+  | _, _ => false
+  end.
+
+Fixpoint nth_solver_rec (R: expr typ func) (p: expr typ func) (n: nat) :=
+match R with
+| Inj (inr (Data (fnil tympred))) => None
+| App (App (Inj (inr (Data (fcons tympred)))) hd) tl =>
+  match hd with
+  | App (App (App (Inj (inr (Sep (fdata_at t_root)))) sh) v) p' =>
+      if (expr_beq p p')
+      then Some (t_root, n)
+      else nth_solver_rec tl p (S n)
+  | _ => nth_solver_rec tl p (S n)
+  end
+| _ => None
+end.
+
+Definition nth_solver R p := nth_solver_rec R p 0.
+
+Definition compute_load_arg (arg: 
+         (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
+          expr typ func) *
+       (expr typ func * expr typ func * expr typ func * expr typ func) *
+       statement) :=
+  match arg with
+  | ((t, v, r, gt, gf), (_, T1, T2, R), s) =>
+    match s with
+    | Sset i e0 =>
+      match t ! i, compute_nested_efield e0 with
+      | Some (ty, _), (e1, efs, tts) =>
+        let lr := compute_lr e1 efs in
+        match rmsubst_eval_LR T1 T2 e1 lr with
+        | App (Inj (inr (Other (fsome tyval)))) p =>
+          match nth_solver R p with
+          | Some (t_root, n) =>
+              Some (t, v, r, gt, i, ty, t_root, e0, e1, efs, tts, lr, n)
+          | _ => None
+          end
+        | _ => None
+        end
+      | _, _ => None
+      end
+    | _ => None
+    end
+  end.
+
 Section tbled.
 
 Variable tbl : SymEnv.functions RType_typ.
@@ -87,7 +279,7 @@ eapply semax_seq'; eauto.
 Qed.
 
 Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
-
+(*
 Fixpoint get_delta_statement (e : expr typ func)  :=
 match e with
 | App (App (App (App (App (Inj (inr (Smx fsemax))) _) 
@@ -97,7 +289,7 @@ match e with
 | Abs _ e => get_delta_statement e
 | _ => None
 end.
-
+*)
 Definition skip_lemma : my_lemma.
 reify_lemma reify_vst 
 @semax_skip.
@@ -156,18 +348,22 @@ Definition SYMEXE_STEP
 : rtac typ (expr typ func)  :=
   AT_GOAL  
     (fun c s e => 
-         match (get_delta_statement e) with
-           | Some ((t, v, r, gt) , st) =>  
-             match st with 
-               | Sskip => APPLY_SKIP 
-               | Ssequence s1 s2 => APPLY_SEQ s1 s2 
-               | Sset id exp => THEN (APPLY_SET' id exp t v r gt) 
-                                     (TRY (FIRST [REFLEXIVITY_MSUBST tbl; 
-                                                   (REFLEXIVITY_BOOL tbl);
-                                                   (REFLEXIVITY tbl)])) 
-               | _ => FAIL
+         match (get_arguments e) with
+         | (Some Delta, Some Pre, Some s) =>  
+           match compute_forward_rule s with
+           | Some ForwardSkip => APPLY_SKIP
+           | Some (ForwardSeq s1 s2) => APPLY_SEQ s1 s2 
+           | Some ForwardSet =>
+             match compute_set_arg (Delta, Pre, s) with
+             | Some (i, e0, t, v, r, gt) =>  THEN (APPLY_SET' i e0 t v r gt) 
+                                                  (TRY (FIRST [REFLEXIVITY_MSUBST tbl; 
+                                                                (REFLEXIVITY_BOOL tbl);
+                                                                (REFLEXIVITY tbl)]))
+             | _ => FAIL
              end
-           | None => FAIL
+           | _ => FAIL
+           end
+         | _ => FAIL
          end).
 
 Existing Instance func_defs.Expr_ok_fs.
