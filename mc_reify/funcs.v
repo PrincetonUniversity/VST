@@ -544,6 +544,7 @@ Inductive smx :=
 (*| fmsubst_eval_expr_norho*)
 (*| fmsubst_eval_lvalue_norho*)
 | flater
+| flater_lift
 | fnested_field_type2
 | fis_neutral_cast
 | fmsubst_efield_denote
@@ -582,7 +583,8 @@ match t with
 | ftc_temp_id_b_norho _ _  => tyArr tytycontext (tyArr tyc_expr tybool)
 (*| fmsubst_eval_expr_norho => tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))*)
 (*| fmsubst_eval_lvalue_norho =>  tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))*)
-| flater => tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred)
+| flater => tyArr tympred tympred
+| flater_lift => tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred)
 | fnested_field_type2 => tyArr tyc_type (tyArr (tylist tygfield) tyc_type)
 | fis_neutral_cast => tyArr tyc_type (tyArr tyc_type tybool)
 | fmsubst_efield_denote => tyArr (typtree tyval) 
@@ -631,6 +633,7 @@ match t with
 (*| fmsubst_eval_expr_norho => msubst_eval_expr*)
 (*| fmsubst_eval_lvalue_norho => msubst_eval_lvalue*)
 | flater => later
+| flater_lift => later
 | fnested_field_type2 => nested_field_type2
 | fis_neutral_cast => is_neutral_cast
 | fmsubst_efield_denote => msubst_efield_denote

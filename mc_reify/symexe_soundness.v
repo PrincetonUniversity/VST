@@ -273,17 +273,30 @@ unfold empty_tycontext.
 rforward.
 Qed.
 
+Fixpoint MY_REPEAT 
+  (n : nat) tac := 
+  match n with
+  | O => tac
+  | S n0 => THEN tac (MY_REPEAT n0 tac)
+  end.
+
 Lemma seq_triple_lots : forall sh v e,
 @semax e empty_tycontext
      (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])
-      (lots_of_skips 10)
+      (lots_of_skips 100)
      (normal_ret_assert (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof.
 intros.
 unfold empty_tycontext.
-rforward.
+reify_expr_tac.
+
+Time let x := (eval vm_compute in (run_tac (MY_REPEAT 1000 (SYMEXE_STEP tbl)) e0)) in idtac.
+
+Time let x := (eval vm_compute in (run_tac (REPEAT 1000 (SYMEXE_STEP tbl)) e0)) in idtac.
+
+Time rforward.
 Qed.
 
 Require Import reverse_defs.
@@ -298,6 +311,42 @@ forall  (contents : list val), exists (PO : environ -> mpred),
      (normal_ret_assert PO)).
 intros.
 unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
+
+
+reify_expr_tac.
+
+Fixpoint get_arguments (e : expr typ func) :=
+match e with
+| App (App (App (App (App (Inj (inr (Smx fsemax))) _) Delta) Pre) CCmd) _ =>
+  (get_arguments_delta Delta,
+   Some Pre,
+   get_arguments_statement CCmd)
+| App _ e 
+| Abs _ e => get_arguments e
+| _ => (None, None, None)
+end.
+
+Eval vm_compute in (get_arguments e).
+
+Goal forall n, n = (get_arguments_pre (App
+            (App
+               (App (Inj (inr (Smx fassertD)))
+                  (Inj (inr (Data (fnil typrop)))))
+               (App
+                  (App (Inj (inr (Smx flocalD)))
+                     (Inj (inr (Data (fempty tyval)))))
+                  (Inj (inr (Data (fempty (typrod tyc_type tyval)))))))
+            (Inj (inr (Data (fnil tympred)))))).
+intros.
+unfold get_arguments_pre.
+
+Eval vm_compute in match get_arguments e with
+         | (Some Delta, Some Pre, Some s) =>  
+           Some s
+         | _ => None
+         end.
+
+
 rforward.
 Qed.
 

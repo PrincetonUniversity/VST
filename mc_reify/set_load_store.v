@@ -3,27 +3,6 @@ Require Import mc_reify.bool_funcs.
 Require Import Coq.Logic.JMeq.
 Local Open Scope logic.
 
-Lemma semax_set_localD:
-  forall {Espec: OracleKind},
-    forall temp var ret gt gs (* Delta *)
-      id P T1 T2 R Post (e: Clight.expr) ty v,
-      match PTree.get id temp with | Some (ty0, _) => Some ty0 | None => None end = Some ty ->
-      is_neutral_cast (implicit_deref (typeof e)) ty = true ->
-      msubst_eval_expr T1 T2 e = Some v ->
-      tc_expr_b_norho (mk_tycontext temp var ret gt gs) e = true ->
-      assertD P (localD (PTree.set id v T1) T2) R = Post ->
-      semax (mk_tycontext temp var ret gt gs) (|> (assertD P (localD T1 T2) R))
-        (Sset id e)
-          (normal_ret_assert Post).
-Proof.
-  intros.
-  subst Post.
-  eapply semax_PTree_set; eauto.
-  intro rho.
-  apply tc_expr_b_sound with (rho := rho) in H2.
-  normalize.
-Qed.
-
 Require Export mc_reify.reify.
 Require Export mc_reify.bool_funcs.
 Require Import mc_reify.set_reif.
@@ -50,7 +29,36 @@ Require Import mc_reify.get_set_reif.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.typ_eq.
 
+Lemma semax_set_localD:
+    forall temp var ret gt 
+      id (e: Clight.expr) ty gs P T1 T2 R Post v,
+  forall {Espec: OracleKind},
+      typeof_temp (mk_tycontext temp var ret gt gs) id = Some ty -> 
+      is_neutral_cast (implicit_deref (typeof e)) ty = true ->
+      msubst_eval_LR T1 T2 e RRRR = Some v ->
+      tc_expr_b_norho (mk_tycontext temp var ret gt gs) e = true ->
+      assertD P (localD (PTree.set id v T1) T2) R = Post ->
+      semax (mk_tycontext temp var ret gt gs) (|> (assertD P (localD T1 T2) R))
+        (Sset id e)
+          (normal_ret_assert Post).
+Proof.
+  intros.
+  subst Post.
+  eapply semax_PTree_set; eauto.
+  intro rho.
+  apply tc_expr_b_sound with (rho := rho) in H2.
+  normalize.
+Qed.
+
 Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
+
+Definition set_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
+         (ret : type) (gt : PTree.t type) (id : ident) 
+         (e : Clight.expr) (ty : type): my_lemma.
+reify_lemma reify_vst (semax_set_localD temp var ret gt id e ty).
+Defined.
+
+Print set_lemma.
 
 Lemma semax_load_localD:
 (*    forall temp var ret gt (* Delta without gs *) id

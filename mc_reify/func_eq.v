@@ -284,6 +284,7 @@ match a, b with
              (andb (expr.eqb_type r1 r2)
                    (ptree_cmp gt1 gt2 expr.eqb_type))) 
 | flater, flater => true
+| flater_lift, flater_lift => true
 | fnested_field_type2, fnested_field_type2 => true
 | fis_neutral_cast, fis_neutral_cast => true
 | fmsubst_efield_denote, fmsubst_efield_denote => true

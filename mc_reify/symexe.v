@@ -23,6 +23,7 @@ Require Import mc_reify.types.
 Require Import mc_reify.typ_eq.
 Require Export mc_reify.reflexivity_tacs.
 Require Import mc_reify.func_defs.
+Require Import mc_reify.rtac_base.
 Require Import MirrorCharge.RTac.Cancellation.
 
 Local Open Scope logic.
@@ -34,6 +35,7 @@ end.
 
 Ltac do_local2ptree := do 2 (erewrite local2ptree_soundness; [ | repeat constructor ]);
 repeat rewrite LocalD_to_localD.
+(* Should change to new tactic, not constructor here.     -- Qinxiang *)
 
 Ltac pull_sep_lift R :=
 match R with
@@ -278,7 +280,6 @@ intros.
 eapply semax_seq'; eauto.
 Qed.
 
-Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
 (*
 Fixpoint get_delta_statement (e : expr typ func)  :=
 match e with
@@ -303,12 +304,6 @@ Definition set_lemma (id : positive) (e : Clight.expr) (t : PTree.t (type * bool
          (v : PTree.t type) (r : type) (gt : PTree.t type): my_lemma.
 reify_lemma reify_vst (semax_set_localD id e t v r gt).
 Defined.
-
-Check semax_set_localD.
-Definition THEN' (r1 r2 : rtac typ (expr typ func)) := THEN r1 (runOnGoals r2).
-
-Definition THEN (r1 r2 : rtac typ (expr typ func)) := 
-  THEN' r1 (THEN' (INSTANTIATE typ func) r2).
 
 Definition update_tycon_tac (l : list (option (expr typ func)))
 (e : expr typ func) (args : list (expr typ func))
