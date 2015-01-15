@@ -155,8 +155,13 @@ Fixpoint solve_strip_1_later (R: expr typ func) : rtac typ (expr typ func) :=
   | _ => FAIL
   end.
 
+Definition HLIP temp var ret gt R s :=
+  THEN (EAPPLY typ func (reify_hlip_base temp var ret gt s))
+       (TRY (solve_strip_1_later R)).
+
 End tbled.
 
+(*
 Require Import mc_reify.reverse_defs.
 Require Import symexe.
 Require Import mc_reify.func_defs.
@@ -207,3 +212,4 @@ Eval vm_compute in
                                (Ext 5%positive))))
                       (Inj (inr (Data (fnil tympred)))))))) e0).
 
+*)

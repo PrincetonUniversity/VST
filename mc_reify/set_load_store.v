@@ -147,13 +147,15 @@ reify_lemma reify_vst lower_prop_right.
 Defined.
 
 Require Import mc_reify.reverse_defs.
-Require Import symexe.
+Require Import mc_reify.rtac_base.
+Require Import mc_reify.hoist_later_in_pre.
+Require Import mc_reify.symexe.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.denote_tac.
 
 Section tbled.
 
-Parameter tbl : SymEnv.functions RType_typ.
+Variable tbl : SymEnv.functions RType_typ.
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.
 
@@ -171,6 +173,92 @@ Ltac reify_expr_tac :=
 match goal with
 | [ |- ?trm] => reify_vst trm
 end.
+
+Definition compute_hlip_arg (arg: 
+         (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
+          expr typ func) *
+       (expr typ func * expr typ func * expr typ func * expr typ func * expr typ func) *
+       statement) :=
+  match arg with
+  | ((t, v, r, gt, _), (_, _, _, R, _), s) => (t, v, r, gt, s, R)
+  end.
+
+Definition compute_set_arg (arg: 
+         (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
+          expr typ func) *
+       (expr typ func * expr typ func * expr typ func * expr typ func * expr typ func) *
+       statement) :=
+  match arg with
+  | ((t, v, r, gt, _), _, s) =>
+    match s with
+    | Sset i e0 =>
+      match t ! i with
+      | Some (ty, _) => Some (t, v, r, gt, i, e0, ty)
+      | _ => None
+      end
+    | _ => None
+    end
+  end.
+
+Definition FORWARD_SET Delta Pre s :=
+  let _HLIP :=
+  match compute_hlip_arg (Delta, Pre, s) with
+  | (temp, var, ret, gt, s, R) => HLIP tbl temp var ret gt R s
+  end in
+  let _APPLY_SET :=
+  match compute_set_arg (Delta, Pre, s) with
+  | Some (temp, var, ret, gt, i, e0, ty) =>
+      THEN (EAPPLY typ func (set_lemma temp var ret gt i e0 ty))
+           (TRY (FIRST [REFLEXIVITY_MSUBST tbl; 
+                        REFLEXIVITY_BOOL tbl;
+                        REFLEXIVITY tbl]))
+  | _ => FAIL
+  end in
+  THEN _HLIP _APPLY_SET.
+
+Definition SYMEXE_STEP
+: rtac typ (expr typ func)  :=
+  THEN' (INSTANTIATE typ func)   
+  (AT_GOAL
+    (fun c s e => 
+         match (get_arguments e) with
+         | (Some Delta, Some Pre, Some s) =>  
+           match compute_forward_rule s with
+           | Some ForwardSkip => APPLY_SKIP tbl
+           | Some (ForwardSeq s1 s2) => APPLY_SEQ tbl s1 s2 
+           | Some ForwardSet => FORWARD_SET Delta Pre s
+           | _ => FAIL
+           end
+         | _ => FAIL
+         end)).
+
+End tbled.
+
+Goal
+forall {Espec : OracleKind} (contents : list val), exists (PO : environ -> mpred), 
+   (semax
+     (remove_global_spec Delta) (*empty_tycontext*)
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
+     (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
+     (normal_ret_assert PO)).
+intros.
+
+unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
+
+reify_expr_tac.
+
+Eval vm_compute in (get_arguments e).
+
+Eval vm_compute in (run_tac
+ (match (get_arguments e) with
+         | (Some Delta, Some Pre, Some s) =>  
+           match compute_hlip_arg (Delta, Pre, s) with
+           | (temp, var, ret, gt, s, R) => HLIP tbl temp var ret gt R s
+           end
+         | _ => FAIL
+         end) e).
+
+Eval vm_compute in (run_tac (SYMEXE_STEP tbl) e).
 
 Notation "'NOTATION_T1' v" := (PTree.Node PTree.Leaf None
          (PTree.Node PTree.Leaf None
@@ -267,13 +355,14 @@ Eval vm_compute in
           run_tac
             (THEN INTROS
             (THEN (APPLY_load t v r gt i ty t_root e0 e1 efs tts Struct_env lr n)
-            (THEN (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl0;
+                  INTROS
+            (*THEN (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl0;
                                REFLEXIVITY_BOOL tbl0;
                                REFLEXIVITY_CEXPR tbl0;
                                REFLEXIVITY tbl0;
                                REFLEXIVITY_MSUBST tbl0;
                                REFLEXIVITY_NTH_ERROR tbl0]))
-                  (TRY (THEN (THEN INTROS APPLY_prop_right) (REFLEXIVITY tbl0))))))
+                  (*TRY (THEN (THEN INTROS APPLY_prop_right) (REFLEXIVITY tbl0))*)*)))
   | _ => run_tac FAIL
   end
 | _ => run_tac FAIL
@@ -291,3 +380,4 @@ unfold tbl0, e.
 simpl.
 cbv_denote.
 *)
+ 

@@ -24,6 +24,7 @@ Require Import mc_reify.typ_eq.
 Require Export mc_reify.reflexivity_tacs.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.rtac_base.
+Require Import mc_reify.hoist_later_in_pre.
 Require Import MirrorCharge.RTac.Cancellation.
 
 Local Open Scope logic.
@@ -146,9 +147,8 @@ Definition get_arguments_delta (e : expr typ func) :=
 
 Definition get_arguments_pre (e : expr typ func) :=
   match e with
-  | App (Inj (inr (Smx flater)))
-      (App (App (App (Inj (inr (Smx fassertD))) P)
-        (App (App (Inj (inr (Smx flocalD))) T1) T2)) R) => Some (P, T1, T2, R)
+  | App (App (App (Inj (inr (Smx fassertD))) P)
+      (App (App (Inj (inr (Smx flocalD))) T1) T2)) R => Some (P, T1, T2, R, rstrip_1_later_sep R)
   | _ => None
   end.
 
@@ -280,17 +280,6 @@ intros.
 eapply semax_seq'; eauto.
 Qed.
 
-(*
-Fixpoint get_delta_statement (e : expr typ func)  :=
-match e with
-| App (App (App (App (App (Inj (inr (Smx fsemax))) _) 
-                     (App (Inj (inr (Smx (ftycontext t v r gt)))) gs)) _) 
-           (Inj (inr (Smx (fstatement s))))) _ => Some ((t,v,r,gt), s)
-| App _ e 
-| Abs _ e => get_delta_statement e
-| _ => None
-end.
-*)
 Definition skip_lemma : my_lemma.
 reify_lemma reify_vst 
 @semax_skip.
@@ -300,10 +289,12 @@ Definition seq_lemma (s1 s2: statement)  : my_lemma.
 reify_lemma reify_vst (semax_seq_reif s1 s2).
 Defined.
 
+(*
 Definition set_lemma (id : positive) (e : Clight.expr) (t : PTree.t (type * bool))
          (v : PTree.t type) (r : type) (gt : PTree.t type): my_lemma.
 reify_lemma reify_vst (semax_set_localD id e t v r gt).
 Defined.
+*)
 
 Definition update_tycon_tac (l : list (option (expr typ func)))
 (e : expr typ func) (args : list (expr typ func))
@@ -317,7 +308,6 @@ match e with
       end
     | _ => AppN.apps e args
 end.
-
 
 Definition SIMPL_DELTA : rtac typ (ExprCore.expr typ func) :=
 SIMPLIFY (fun _ _ _ _=>beta_all update_tycon_tac).
@@ -335,10 +325,11 @@ run_tac (THEN INTROS e).
 Definition APPLY_SEQ' s1 s2 := (EAPPLY typ func (seq_lemma s1 s2)).
 
 Definition APPLY_SEQ s1 s2 := THEN (APPLY_SEQ' s1 s2) (SIMPL_DELTA).
-
+(*
 Definition APPLY_SET' id e t v r gt:=
 EAPPLY typ func  (set_lemma id e t v r gt).
-
+*)
+(*
 Definition SYMEXE_STEP
 : rtac typ (expr typ func)  :=
   THEN' (INSTANTIATE typ func)   
@@ -446,11 +437,11 @@ Proof.
   simpl in *.
   admit.
 Qed.
-
+*)
 
 End tbled.
 
-
+(*
 Definition symexe tbl e :=
 run_tac (SYMEXE_TAC_n 1000 tbl) e .
 
@@ -520,3 +511,4 @@ Ltac run_rtac reify term_table tac_sound :=
 	  end
 	| _ => idtac tac_sound "is not a soudness theorem."
   end.
+*)

@@ -5,6 +5,7 @@ Require Import MirrorCore.RTac.Try.
 Require Import MirrorCore.RTac.First.
 Require Import MirrorCore.RTac.Fail.
 Require Import MirrorCore.RTac.Simplify.
+Require Import mc_reify.rtac_base.
 Require Import mc_reify.symexe.
 Require Import MirrorCore.RTac.RTac.
 Require Import mc_reify.types.
@@ -14,7 +15,6 @@ Require Import mc_reify.app_lemmas.
 Require Import MirrorCore.LemmaApply.
 Require Import ExtLib.Tactics.
 Require Import MirrorCore.Util.ListMapT.
-
 
 Section tbled.
 Variable n : nat.
@@ -243,10 +243,10 @@ Local Open Scope logic.
 
 Lemma skip_triple : forall sh v e,
 @semax e empty_tycontext
-     (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])
       Sskip 
-     (normal_ret_assert (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof. 
 intros. 
@@ -262,10 +262,10 @@ end.
 
 Lemma seq_triple : forall sh v e,
 @semax e empty_tycontext
-     (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])
        (Ssequence Sskip Sskip)
-     (normal_ret_assert (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof.
 intros.
@@ -282,21 +282,25 @@ Fixpoint MY_REPEAT
 
 Lemma seq_triple_lots : forall sh v e,
 @semax e empty_tycontext
-     (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])
       (lots_of_skips 100)
-     (normal_ret_assert (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof.
 intros.
 unfold empty_tycontext.
+rforward. (* Take about 9 seconds. *)
+
+(*
 reify_expr_tac.
 
-Time let x := (eval vm_compute in (run_tac (MY_REPEAT 1000 (SYMEXE_STEP tbl)) e0)) in idtac.
+Time let x := (eval vm_compute in (run_tac (MY_REPEAT 2000 (SYMEXE_STEP tbl)) e0)) in idtac.
 
-Time let x := (eval vm_compute in (run_tac (REPEAT 1000 (SYMEXE_STEP tbl)) e0)) in idtac.
+Time let x := (eval vm_compute in (run_tac (REPEAT 2000 (SYMEXE_STEP tbl)) e0)) in idtac.
 
-Time rforward.
+(* this comparison shows that they takes almost the same amount of time. *)
+*)
 Qed.
 
 Require Import reverse_defs.
@@ -311,7 +315,7 @@ forall  (contents : list val), exists (PO : environ -> mpred),
      (normal_ret_assert PO)).
 intros.
 unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
-
+rforward.
 
 reify_expr_tac.
 
