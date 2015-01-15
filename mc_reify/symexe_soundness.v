@@ -110,22 +110,17 @@ Qed.
 
 Lemma SYMEXE_STEP_sound : rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) (SYMEXE_STEP tbl).
 (*Admitted. *)
-intros. 
+intros.
+apply Then.THEN_sound.
+Focus 1. { apply INSTANTIATE_sound. } Unfocus.
+apply runOnGoals_sound.
 eapply AT_GOAL_sound.
-intros. destruct (get_delta_statement e);
+intros.
+destruct (get_arguments e);
 repeat match goal with
          | |- context [ match ?X with _ => _ end ] =>
            destruct X; try apply FAIL_sound
        end.
-+ unfold APPLY_SKIP.
-  apply APPLY_sound. 
-  admit.
-  admit.
-  - unfold skip_lemma. 
-    unfold Lemma.lemmaD, split_env. simpl. intros. 
-    unfold ExprDsimul.ExprDenote.exprT_App.
-    simpl.
-    unfold exprT_Inj. apply semax_skip.
 + apply THEN_sound.
   - unfold APPLY_SET'.
     apply EAPPLY_sound; eauto with typeclass_instances.
@@ -150,7 +145,7 @@ simpl (exprD' []
                   (App (Inj (inr (Other (feq tybool))))
                      (App
                         (App (Inj (inr (Smx ftc_expr_b_norho)))
-                           (App (Inj (inr (Smx (ftycontext t1 t2 t0 t))))
+                           (App (Inj (inr (Smx (ftycontext t2 t1 t0 t))))
                               (Var 1%nat))) (Inj (inr (Const (fCexpr e0))))))
                   (Inj (inr (Const (fbool true)))))).
         erewrite exprD'_App_R_rw; try reflexivity.
@@ -179,7 +174,15 @@ simpl (exprD' []
   intros.
   eapply semax_seq'. eauto. eauto.
   apply SIMPL_DELTA_sound.
-+ apply FAIL_sound.
++ unfold APPLY_SKIP.
+  apply APPLY_sound. 
+  admit.
+  admit.
+  - unfold skip_lemma. 
+    unfold Lemma.lemmaD, split_env. simpl. intros. 
+    unfold ExprDsimul.ExprDenote.exprT_App.
+    simpl.
+    unfold exprT_Inj. apply semax_skip.
 Qed.
 
 Theorem SYMEXE_sound : rtac_sound (SYMEXE_TAC_n n tbl ).
@@ -197,7 +200,6 @@ Ltac clear_tbl :=
 match goal with
 [ t := ?V : FMapPositive.PositiveMap.tree (SymEnv.function RType_typ) |- _ ] => clear t
 end.
-
 
 Ltac run_rtac reify term_table tac_sound :=
   match type of tac_sound with
@@ -237,11 +239,15 @@ Ltac run_rtac reify term_table tac_sound :=
 
 Ltac rforward := run_rtac reify_vst term_table (SYMEXE_sound 1000).
 
-Lemma skip_triple : forall p e,
+Local Open Scope logic.
+
+Lemma skip_triple : forall sh v e,
 @semax e empty_tycontext
-     p
+     (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+       [data_at sh (tptr tint) (default_val _) (force_ptr v)])
       Sskip 
-     (normal_ret_assert p).
+     (normal_ret_assert (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+       [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof. 
 intros. 
 unfold empty_tycontext.
@@ -254,16 +260,28 @@ match n with
 | S n' => Ssequence Sskip (lots_of_skips n')
 end.
 
-Lemma seq_triple : forall p es,
-@semax es empty_tycontext p (Ssequence Sskip Sskip) (normal_ret_assert p).
+Lemma seq_triple : forall sh v e,
+@semax e empty_tycontext
+     (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+       [data_at sh (tptr tint) (default_val _) (force_ptr v)])
+       (Ssequence Sskip Sskip)
+     (normal_ret_assert (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+       [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof.
+intros.
 unfold empty_tycontext.
 rforward.
 Qed.
 
-Lemma seq_triple_lots : forall p es,
-@semax es empty_tycontext p (lots_of_skips 10) (normal_ret_assert p).
+Lemma seq_triple_lots : forall sh v e,
+@semax e empty_tycontext
+     (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+       [data_at sh (tptr tint) (default_val _) (force_ptr v)])
+      (lots_of_skips 10)
+     (normal_ret_assert (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+       [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof.
+intros.
 unfold empty_tycontext.
 rforward.
 Qed.

@@ -346,7 +346,8 @@ EAPPLY typ func  (set_lemma id e t v r gt).
 
 Definition SYMEXE_STEP
 : rtac typ (expr typ func)  :=
-  AT_GOAL  
+  THEN' (INSTANTIATE typ func)   
+  (AT_GOAL
     (fun c s e => 
          match (get_arguments e) with
          | (Some Delta, Some Pre, Some s) =>  
@@ -364,10 +365,9 @@ Definition SYMEXE_STEP
            | _ => FAIL
            end
          | _ => FAIL
-         end).
+         end)).
 
 Existing Instance func_defs.Expr_ok_fs.
-
 
 Definition SYMEXE_TAC_n := THEN INTROS (REPEAT n (SYMEXE_STEP)).
 
