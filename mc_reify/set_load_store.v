@@ -148,20 +148,6 @@ end.
 
 End tbled.
 
-(*
-Goal
-forall {Espec : OracleKind} (contents : list val), 
-   (semax
-     (remove_global_spec Delta) (*empty_tycontext*)
-     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
-     (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
-     (normal_ret_assert (assertD [] (localD (PTree.set _p (Values.Vint Int.zero) (PTree.empty val)) (PTree.empty (type * val))) []))).
-intros.
-unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
-
-reify_expr_tac.
-*)
-
 Notation "'NOTATION_T1' v" := (PTree.Node PTree.Leaf None
          (PTree.Node PTree.Leaf None
             (PTree.Node
@@ -202,56 +188,11 @@ reflexivity.
 reflexivity.
 +
 
-Goal forall (P: mpred) (p: val),  P |-- !!(force_ptr p = force_ptr p).
-
-intros.
-
-reify_expr_tac.
-
-Eval vm_compute in
-  run_tac (THEN (APPLY_prop_right) INTROS) e.
-
-Print prop_right_lemma.
-
-Eval vm_compute in e.
-
-(*
-App
-         (App
-            (Inj
-               (inl (inl (inr (ModularFunc.ILogicFunc.ilf_entails tympred)))))
-            (Inj (inl (inl (inl 1%positive)))))
-         (App (Inj (inr (Sep fprop)))
-            (App
-               (App (Inj (inr (Other (feq tyval))))
-                  (App (Inj (inr (Other fforce_ptr)))
-                     (Inj (inl (inl (inl 2%positive))))))
-               (App (Inj (inr (Other fforce_ptr)))
-                  (Inj (inl (inl (inl 2%positive)))))))
-*)
-
-Check lower_prop_right.
-
 *)
 
 (*Set Printing Depth 300.*)
 
 reify_expr_tac.
-
-Eval vm_compute in (get_arguments e).
-Eval vm_compute in (compute_forward_rule (Sset _t
-            (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
-              _tail (tptr t_struct_list)))).
-Eval vm_compute in
-(match (get_arguments e) with
-| (Some Delta, _, Some st) =>
-    compute_forward_rule st
-| _ => None
-end).
-
-Locate get_delta_statement.
-
-  
 
 Eval vm_compute in
 (match (get_arguments e) with

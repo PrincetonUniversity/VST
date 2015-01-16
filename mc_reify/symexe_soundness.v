@@ -109,8 +109,6 @@ SearchAbout RedAll.beta_all.
 admit.
 Qed.
 
-SearchAbout rtac_sound APPLY.
-
 Lemma HLIP_sound: forall temp var ret gt R s,
   rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) (HLIP tbl temp var ret gt R s).
 Proof.
@@ -163,9 +161,14 @@ repeat match goal with
         simpl exprD'_typ0. 
         unfold exprD'_typ0, ExprI.exprD', Expr_expr_fs.
         unfold func_defs.Expr_expr_fs. 
-        unfold ExprD.Expr_expr. 
-        simpl. 
-Set Printing Depth 100. simpl.
+        unfold ExprD.Expr_expr.
+        simpl.
+        unfold exprT_App, exprT_Inj.
+        simpl.
+        unfold Rcast_val, Rcast.
+        simpl.
+(*        
+Set Printing Depth 200.  
 simpl (exprD' []
                ([tyArr tyenviron tympred; typtree tyfunspec; 
                 tylist tympred; tyOracleKind;
@@ -178,7 +181,8 @@ simpl (exprD' []
                            (App (Inj (inr (Smx (ftycontext t t0 t1 t2))))
                               (Var 1%nat))) (Inj (inr (Const (fCexpr e0))))))
                   (Inj (inr (Const (fbool true)))))).
-(*
+        intros.
+*)
         erewrite exprD'_App_R_rw; try reflexivity.
         Focus 2.
         erewrite exprD'_App_L_rw; try reflexivity.
