@@ -100,29 +100,6 @@ Defined.
 
 Print load_lemma.
 
-(*
-Lemma lower_prop_right: forall (P: mpred) (Q: Prop), P |-- !! Q.
-Admitted.
-*)
-
-Lemma lower_prop_right: forall (P: mpred) (Q: Prop), Q -> P |-- !! Q.
-Proof.
-  intros.
-  apply prop_right.
-  auto.
-Qed.
-
-(*
-Lemma lower_prop_right: forall (P: mpred) (p: val), P |-- !! (p = p).
-Proof.
-  intros.
-  apply prop_right.
-  auto.
-Qed.
-*)
-Definition prop_right_lemma: my_lemma.
-reify_lemma reify_vst lower_prop_right.
-Defined.
 
 
 Section tbled.
@@ -146,6 +123,8 @@ match goal with
 | [ |- ?trm] => reify_vst trm
 end.
 
+
+
 End tbled.
 
 Notation "'NOTATION_T1' v" := (PTree.Node PTree.Leaf None
@@ -158,15 +137,17 @@ Notation "'NOTATION_T1' v" := (PTree.Node PTree.Leaf None
                         PTree.Leaf) None PTree.Leaf)) None PTree.Leaf))) (at level 50).
 
 Goal
-forall {Espec : OracleKind} (sh:Share.t) (contents : list val) (v: val) , exists (PO : environ -> mpred), 
+forall {Espec : OracleKind} (sh:Share.t) (contents : list val) (v: val) ,  
    (semax
      (remove_global_spec Delta) (*empty_tycontext*)
-     (|> assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
        [data_at sh t_struct_list (default_val _) (force_ptr v)])
      (Sset _t
             (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
               _tail (tptr t_struct_list)))         
-     (normal_ret_assert PO)).
+     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+       [data_at sh t_struct_list (default_val _) (force_ptr v)])
+)).
 intros.
 simpl (remove_global_spec Delta).
 (*
@@ -194,25 +175,11 @@ reflexivity.
 
 reify_expr_tac.
 
-Eval vm_compute in
-(match (get_arguments e) with
+Eval vm_compute in (run_tac 
+match (get_arguments e) with
 | (Some Delta, Some Pre, Some st) => 
-  match compute_load_arg (Delta, Pre, st) with
-  | Some (t, v, r, gt, i, ty, t_root, e0, e1, efs, tts, lr, n) =>
-          run_tac
-            (THEN INTROS
-            (THEN (APPLY_load t v r gt i ty t_root e0 e1 efs tts Struct_env lr n)
-                  INTROS
-            (*THEN (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl0;
-                               REFLEXIVITY_BOOL tbl0;
-                               REFLEXIVITY_CEXPR tbl0;
-                               REFLEXIVITY tbl0;
-                               REFLEXIVITY_MSUBST tbl0;
-                               REFLEXIVITY_NTH_ERROR tbl0]))
-                  (*TRY (THEN (THEN INTROS APPLY_prop_right) (REFLEXIVITY tbl0))*)*)))
-  | _ => run_tac FAIL
-  end
-| _ => run_tac FAIL
+  FORWARD_LOAD tbl Delta Pre st
+| _ => FAIL
 end e).
 
 

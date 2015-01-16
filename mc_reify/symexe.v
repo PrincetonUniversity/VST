@@ -56,12 +56,81 @@ Proof.
   normalize.
 Qed.
 
-Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
-
 Definition set_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
          (ret : type) (gt : PTree.t type) (id : ident) 
          (e : Clight.expr) (ty : type): my_lemma.
 reify_lemma reify_vst (semax_set_localD temp var ret gt id e ty).
+Defined.
+
+Lemma semax_load_localD:
+(*    forall temp var ret gt (* Delta without gs *) id
+      (e: type_id_env) gs sh P T1 T2 R Post (e1: Clight.expr) (t t_root: type)
+      (efs: list efield) (gfs: list gfield) (tts: list type)
+      (p: val) (v : val) (v' : reptype t_root) lr,
+  forall {Espec: OracleKind},*)
+forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
+     (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
+     (efs : list efield) (tts : list type) 
+     (e : type_id_env) (lr : LLRR) (n: nat)
+     (gs : PTree.t funspec) (sh : Share.t) 
+     (P : list Prop) (T1 : PTree.t val) (T2 : PTree.t (type * val))
+     (R : list mpred) (Post : environ -> mpred)
+     (gfs : list gfield)
+     (p p' v : val) (v' : reptype t_root) 
+     (Espec : OracleKind),
+  typeof_temp (mk_tycontext temp var ret gt gs) id = Some t -> 
+  is_neutral_cast (typeof e0) t = true ->
+  msubst_efield_denote T1 T2 efs = Some gfs ->
+  legal_nested_efield e t_root e1 gfs tts lr = true ->
+  tc_efield_b_norho (mk_tycontext temp var ret gt gs) efs = true ->
+
+  msubst_eval_LR T1 T2 e1 lr = Some p ->
+  tc_LR_b_norho (mk_tycontext temp var ret gt gs) e1 lr = true ->
+  (@eq (option mpred)) (nth_error R n) (Some (data_at sh t_root v' p')) ->
+  (forall rho, 
+      !!(tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |-- !! (p = p')) ->
+  proj_val t_root gfs v' = v ->
+  assertD P (localD (my_set id v T1) T2) R = Post ->
+  nested_efield e1 efs tts = e0 ->
+
+  (forall rho, 
+      !! (tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |--
+        !! (tc_val (typeof e0) v) &&
+
+        !! (legal_nested_field t_root gfs)) ->
+(*
+  (*id = id /\ e = e /\ *)sh = sh /\ P = P /\ T1 = T1 /\
+  T2 = T2 /\ R = R /\ Post = Post /\ (*e1 = e1 /\ t = t /\ t_root = t_root /\*)
+  (*efs = efs /\*)
+  gfs = gfs /\
+  (*tts = tts /\*) p = p /\
+  v = v /\ v' = v' /\ (*lr = lr /\ *)Espec = Espec ->
+*)
+ semax (mk_tycontext temp var ret gt gs) (|> assertD P (localD T1 T2) R) 
+        (Sset id e0)
+          (normal_ret_assert Post)
+(* Similar solutions include hiding type Clight.expr in function return type
+ like nested_efield_rel. *)
+.
+Proof.
+Admitted.
+
+Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
+     (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
+    (efs: list efield) (tts : list type) (e : type_id_env) (lr : LLRR)
+    (n: nat): my_lemma.
+reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 efs tts e lr n).
+Defined.
+
+Lemma lower_prop_right: forall (P: mpred) (Q: Prop), Q -> P |-- !! Q.
+Proof.
+  intros.
+  apply prop_right.
+  auto.
+Qed.
+
+Definition prop_right_lemma: my_lemma.
+reify_lemma reify_vst lower_prop_right.
 Defined.
 
 (************************************************
@@ -291,10 +360,10 @@ Definition nth_solver R p := nth_solver_rec R p 0.
 Definition compute_load_arg (arg: 
          (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
           expr typ func) *
-       (expr typ func * expr typ func * expr typ func * expr typ func) *
+       (expr typ func * expr typ func * expr typ func * expr typ func * expr typ func) *
        statement) :=
   match arg with
-  | ((t, v, r, gt, gf), (_, T1, T2, R), s) =>
+  | ((t, v, r, gt, _), (_, T1, T2, _, R'), s) =>
     match s with
     | Sset i e0 =>
       match t ! i, compute_nested_efield e0 with
@@ -302,7 +371,7 @@ Definition compute_load_arg (arg:
         let lr := compute_lr e1 efs in
         match rmsubst_eval_LR T1 T2 e1 lr with
         | App (Inj (inr (Other (fsome tyval)))) p =>
-          match nth_solver R p with
+          match nth_solver R' p with
           | Some (t_root, n) =>
               Some (t, v, r, gt, i, ty, t_root, e0, e1, efs, tts, lr, n)
           | _ => None
@@ -322,7 +391,6 @@ Variable tbl : SymEnv.functions RType_typ.
 
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.
-
 
 Lemma semax_seq_reif c1 c2 : forall  (Espec : OracleKind) 
          (P : environ -> mpred)  (P' : environ -> mpred)
@@ -401,7 +469,30 @@ Definition FORWARD_SET Delta Pre s :=
   end in
   THEN _HLIP _APPLY_SET.
 
-Definition SYMEXE_STEP
+Definition FORWARD_LOAD Struct_env Delta Pre s :=
+  let _HLIP :=
+  match compute_hlip_arg (Delta, Pre, s) with
+  | (temp, var, ret, gt, s, R) => HLIP tbl temp var ret gt R s
+  end in
+  let _APPLY_LOAD :=
+  match compute_load_arg (Delta, Pre, s) with
+  | Some (t, v, r, gt, i, ty, t_root, e0, e1, efs, tts, lr, n) =>
+            (THEN INTROS
+            (THEN (EAPPLY typ func (load_lemma t v r gt i ty t_root e0 e1 efs tts Struct_env lr n))
+            (THEN (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl;
+                               REFLEXIVITY_BOOL tbl;
+                               REFLEXIVITY_CEXPR tbl;
+                               REFLEXIVITY tbl;
+                               REFLEXIVITY_MSUBST tbl;
+                               REFLEXIVITY_NTH_ERROR tbl]))
+                  (TRY (THEN INTROS
+                       (THEN (EAPPLY typ func prop_right_lemma)
+                             (REFLEXIVITY tbl)))))))
+  | _ => FAIL
+  end in
+  THEN _HLIP _APPLY_LOAD.
+
+Definition SYMEXE_STEP Struct_env
 : rtac typ (expr typ func)  :=
   THEN' (INSTANTIATE typ func)   
   (AT_GOAL
@@ -412,6 +503,7 @@ Definition SYMEXE_STEP
            | Some ForwardSkip => APPLY_SKIP
            | Some (ForwardSeq s1 s2) => APPLY_SEQ s1 s2 
            | Some ForwardSet => FORWARD_SET Delta Pre s
+           | Some ForwardLoad => FORWARD_LOAD Struct_env Delta Pre s
            | _ => FAIL
            end
          | _ => FAIL
@@ -419,10 +511,17 @@ Definition SYMEXE_STEP
 
 Existing Instance func_defs.Expr_ok_fs.
 
-Definition SYMEXE_TAC_n := THEN INTROS (REPEAT n (SYMEXE_STEP)).
+Definition SYMEXE_TAC_n :=
+  THEN INTROS
+  (AT_GOAL
+    (fun c s e =>
+       match (get_arguments e) with
+       | (Some (A, B, C, D, _), _, _) =>
+         (REPEAT n (SYMEXE_STEP (compute_type_id_env (mk_tycontext A B C D (PTree.empty funspec)))))
+       | _ => FAIL
+       end)).
 
 (*Definition SYMEXE_TAC := SYMEXE_TAC_n 1000.
-
 
 Definition SYMEXE1_TAC := SYMEXE_TAC_n 1.*)
 
