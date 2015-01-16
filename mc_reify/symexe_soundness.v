@@ -6,6 +6,7 @@ Require Import MirrorCore.RTac.First.
 Require Import MirrorCore.RTac.Fail.
 Require Import MirrorCore.RTac.Simplify.
 Require Import mc_reify.rtac_base.
+Require Import mc_reify.hoist_later_in_pre.
 Require Import mc_reify.symexe.
 Require Import MirrorCore.RTac.RTac.
 Require Import mc_reify.types.
@@ -108,6 +109,32 @@ SearchAbout RedAll.beta_all.
 admit.
 Qed.
 
+SearchAbout rtac_sound APPLY.
+
+Lemma HLIP_sound: forall temp var ret gt R s,
+  rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) (HLIP tbl temp var ret gt R s).
+Proof.
+Admitted.
+(*
+  intros.
+  unfold HLIP.
+  apply THEN_sound.
+  + apply EAPPLY_sound.
+    - eauto with typeclass_instances.
+    - admit.
+    - admit.
+    - unfold Lemma.lemmaD, set_lemma. unfold split_env.
+      unfold Lemma.lemmaD'.
+      unfold Lemma.vars, Lemma.premises, Lemma.concl.
+      repeat rewrite list_mapT_cons.
+      simpl exprD'_typ0. 
+      unfold exprD'_typ0, ExprI.exprD', Expr_expr_fs.
+      unfold func_defs.Expr_expr_fs. 
+      unfold ExprD.Expr_expr. 
+      simpl.
+*)
+
+
 Lemma SYMEXE_STEP_sound : rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) (SYMEXE_STEP tbl).
 (*Admitted. *)
 intros.
@@ -121,9 +148,12 @@ repeat match goal with
          | |- context [ match ?X with _ => _ end ] =>
            destruct X; try apply FAIL_sound
        end.
-+ apply THEN_sound.
-  - unfold APPLY_SET'.
-    apply EAPPLY_sound; eauto with typeclass_instances.
++ unfold FORWARD_SET.
+  apply THEN_sound;
+    [destruct (compute_hlip_arg (p, p0, s0)) as [[[[[? ?] ?] ?] ?] ?]; apply HLIP_sound|].
+  destruct (compute_set_arg (p, p0, s0)) as [[[[[[[? ?] ?] ?] ?] ?] ?]|]; [| apply FAIL_sound].
+  apply THEN_sound.
+  - apply APPLY_sound; eauto with typeclass_instances.
       * admit.
       * admit.
       * unfold Lemma.lemmaD, set_lemma. unfold split_env.
@@ -145,9 +175,10 @@ simpl (exprD' []
                   (App (Inj (inr (Other (feq tybool))))
                      (App
                         (App (Inj (inr (Smx ftc_expr_b_norho)))
-                           (App (Inj (inr (Smx (ftycontext t2 t1 t0 t))))
+                           (App (Inj (inr (Smx (ftycontext t t0 t1 t2))))
                               (Var 1%nat))) (Inj (inr (Const (fCexpr e0))))))
                   (Inj (inr (Const (fbool true)))))).
+(*
         erewrite exprD'_App_R_rw; try reflexivity.
         Focus 2.
         erewrite exprD'_App_L_rw; try reflexivity.
@@ -159,9 +190,12 @@ simpl (exprD' []
         erewrite <- set_reif_eq2. reflexivity. reflexivity. 
         simpl. unfold exprT_App, exprT_Inj. simpl. intros.
         eapply set_reif.semax_set_localD; eauto.
+*)
+    admit.
   - apply TRY_sound. apply FIRST_sound. 
     repeat constructor.
       * admit (*reflexivity msusbst_sound*).
+      * admit (*apply REFLEXIVITY_OP_CTPYE_sound*).
       * apply REFLEXIVITY_BOOL_sound.
       * apply REFLEXIVITYTAC_sound.
 + unfold APPLY_SEQ.
@@ -307,53 +341,22 @@ Require Import reverse_defs.
 Existing Instance NullExtension.Espec.
 
 Goal
-forall  (contents : list val), exists (PO : environ -> mpred), 
+forall {Espec : OracleKind} (contents : list val), 
    (semax
      (remove_global_spec Delta) (*empty_tycontext*)
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
      (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
-     (normal_ret_assert PO)).
+     (normal_ret_assert (assertD [] (localD (PTree.set _p (Values.Vint Int.zero) (PTree.empty val)) (PTree.empty (type * val))) []))).
 intros.
 unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
-rforward.
 
 reify_expr_tac.
 
-Fixpoint get_arguments (e : expr typ func) :=
-match e with
-| App (App (App (App (App (Inj (inr (Smx fsemax))) _) Delta) Pre) CCmd) _ =>
-  (get_arguments_delta Delta,
-   Some Pre,
-   get_arguments_statement CCmd)
-| App _ e 
-| Abs _ e => get_arguments e
-| _ => (None, None, None)
-end.
+Eval vm_compute in (run_tac (REPEAT 2 (SYMEXE_STEP tbl)) e).
 
-Eval vm_compute in (get_arguments e).
+rforward. (* why rforward fail *)
 
-Goal forall n, n = (get_arguments_pre (App
-            (App
-               (App (Inj (inr (Smx fassertD)))
-                  (Inj (inr (Data (fnil typrop)))))
-               (App
-                  (App (Inj (inr (Smx flocalD)))
-                     (Inj (inr (Data (fempty tyval)))))
-                  (Inj (inr (Data (fempty (typrod tyc_type tyval)))))))
-            (Inj (inr (Data (fnil tympred)))))).
-intros.
-unfold get_arguments_pre.
-
-Eval vm_compute in match get_arguments e with
-         | (Some Delta, Some Pre, Some s) =>  
-           Some s
-         | _ => None
-         end.
-
-
-rforward.
-Qed.
-
+(*
 Goal
 forall  (contents : list val), exists PO, 
    (semax
@@ -405,3 +408,4 @@ intros.
 rforward. 
 Abort.
 
+*)
