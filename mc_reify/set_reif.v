@@ -257,6 +257,8 @@ Qed.
 
 Definition my_set {T} := @PTree.set T.
 
+
+(*
 Lemma semax_set_localD id e (t: PTree.t (type * bool)) (v : PTree.t type) 
       (r : type) (gt : PTree.t type):
 forall vl ls vs Espec R gs P,
@@ -351,3 +353,4 @@ unfold LocalD. simpl.
 *)
 Admitted.
 
+*)

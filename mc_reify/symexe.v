@@ -29,6 +29,47 @@ Require Import MirrorCharge.RTac.Cancellation.
 
 Local Open Scope logic.
 
+(************************************************
+
+Set Load Store
+
+************************************************)
+
+Lemma semax_set_localD:
+    forall temp var ret gt 
+      id (e: Clight.expr) ty gs P T1 T2 R Post v,
+  forall {Espec: OracleKind},
+      typeof_temp (mk_tycontext temp var ret gt gs) id = Some ty -> 
+      is_neutral_cast (implicit_deref (typeof e)) ty = true ->
+      msubst_eval_LR T1 T2 e RRRR = Some v ->
+      tc_expr_b_norho (mk_tycontext temp var ret gt gs) e = true ->
+      assertD P (localD (PTree.set id v T1) T2) R = Post ->
+      semax (mk_tycontext temp var ret gt gs) (|> (assertD P (localD T1 T2) R))
+        (Sset id e)
+          (normal_ret_assert Post).
+Proof.
+  intros.
+  subst Post.
+  eapply semax_PTree_set; eauto.
+  intro rho.
+  apply tc_expr_b_sound with (rho := rho) in H2.
+  normalize.
+Qed.
+
+Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
+
+Definition set_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
+         (ret : type) (gt : PTree.t type) (id : ident) 
+         (e : Clight.expr) (ty : type): my_lemma.
+reify_lemma reify_vst (semax_set_localD temp var ret gt id e ty).
+Defined.
+
+(************************************************
+
+Rtac definition
+
+************************************************)
+
 Ltac reify_expr_tac :=
 match goal with
 | [ |- ?trm] => reify_vst trm
@@ -169,15 +210,28 @@ match e with
 | _ => (None, None, None)
 end.
 
+Definition compute_hlip_arg (arg: 
+         (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
+          expr typ func) *
+       (expr typ func * expr typ func * expr typ func * expr typ func * expr typ func) *
+       statement) :=
+  match arg with
+  | ((t, v, r, gt, _), (_, _, _, R, _), s) => (t, v, r, gt, s, R)
+  end.
+
 Definition compute_set_arg (arg: 
          (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
           expr typ func) *
-       (expr typ func * expr typ func * expr typ func * expr typ func) *
+       (expr typ func * expr typ func * expr typ func * expr typ func * expr typ func) *
        statement) :=
   match arg with
   | ((t, v, r, gt, _), _, s) =>
     match s with
-    | Sset i e0 => Some (i, e0, t, v, r, gt)
+    | Sset i e0 =>
+      match t ! i with
+      | Some (ty, _) => Some (t, v, r, gt, i, e0, ty)
+      | _ => None
+      end
     | _ => None
     end
   end.
@@ -329,7 +383,24 @@ Definition APPLY_SEQ s1 s2 := THEN (APPLY_SEQ' s1 s2) (SIMPL_DELTA).
 Definition APPLY_SET' id e t v r gt:=
 EAPPLY typ func  (set_lemma id e t v r gt).
 *)
-(*
+
+Definition FORWARD_SET Delta Pre s :=
+  let _HLIP :=
+  match compute_hlip_arg (Delta, Pre, s) with
+  | (temp, var, ret, gt, s, R) => HLIP tbl temp var ret gt R s
+  end in
+  let _APPLY_SET :=
+  match compute_set_arg (Delta, Pre, s) with
+  | Some (temp, var, ret, gt, i, e0, ty) =>
+      THEN (EAPPLY typ func (set_lemma temp var ret gt i e0 ty))
+           (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl;
+                        REFLEXIVITY_MSUBST tbl; 
+                        REFLEXIVITY_BOOL tbl;
+                        REFLEXIVITY tbl]))
+  | _ => FAIL
+  end in
+  THEN _HLIP _APPLY_SET.
+
 Definition SYMEXE_STEP
 : rtac typ (expr typ func)  :=
   THEN' (INSTANTIATE typ func)   
@@ -340,14 +411,7 @@ Definition SYMEXE_STEP
            match compute_forward_rule s with
            | Some ForwardSkip => APPLY_SKIP
            | Some (ForwardSeq s1 s2) => APPLY_SEQ s1 s2 
-           | Some ForwardSet =>
-             match compute_set_arg (Delta, Pre, s) with
-             | Some (i, e0, t, v, r, gt) =>  THEN (APPLY_SET' i e0 t v r gt) 
-                                                  (TRY (FIRST [REFLEXIVITY_MSUBST tbl; 
-                                                                (REFLEXIVITY_BOOL tbl);
-                                                                (REFLEXIVITY tbl)]))
-             | _ => FAIL
-             end
+           | Some ForwardSet => FORWARD_SET Delta Pre s
            | _ => FAIL
            end
          | _ => FAIL
@@ -437,11 +501,9 @@ Proof.
   simpl in *.
   admit.
 Qed.
-*)
 
 End tbled.
 
-(*
 Definition symexe tbl e :=
 run_tac (SYMEXE_TAC_n 1000 tbl) e .
 
@@ -511,4 +573,3 @@ Ltac run_rtac reify term_table tac_sound :=
 	  end
 	| _ => idtac tac_sound "is not a soudness theorem."
   end.
-*)

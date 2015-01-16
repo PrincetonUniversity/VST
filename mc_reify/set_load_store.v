@@ -29,36 +29,14 @@ Require Import mc_reify.get_set_reif.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.typ_eq.
 
-Lemma semax_set_localD:
-    forall temp var ret gt 
-      id (e: Clight.expr) ty gs P T1 T2 R Post v,
-  forall {Espec: OracleKind},
-      typeof_temp (mk_tycontext temp var ret gt gs) id = Some ty -> 
-      is_neutral_cast (implicit_deref (typeof e)) ty = true ->
-      msubst_eval_LR T1 T2 e RRRR = Some v ->
-      tc_expr_b_norho (mk_tycontext temp var ret gt gs) e = true ->
-      assertD P (localD (PTree.set id v T1) T2) R = Post ->
-      semax (mk_tycontext temp var ret gt gs) (|> (assertD P (localD T1 T2) R))
-        (Sset id e)
-          (normal_ret_assert Post).
-Proof.
-  intros.
-  subst Post.
-  eapply semax_PTree_set; eauto.
-  intro rho.
-  apply tc_expr_b_sound with (rho := rho) in H2.
-  normalize.
-Qed.
 
-Definition my_lemma := lemma typ (ExprCore.expr typ func) (ExprCore.expr typ func).
+Require Import mc_reify.reverse_defs.
+Require Import mc_reify.rtac_base.
+Require Import mc_reify.hoist_later_in_pre.
+Require Import mc_reify.symexe.
+Require Import mc_reify.func_defs.
+Require Import mc_reify.denote_tac.
 
-Definition set_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
-         (ret : type) (gt : PTree.t type) (id : ident) 
-         (e : Clight.expr) (ty : type): my_lemma.
-reify_lemma reify_vst (semax_set_localD temp var ret gt id e ty).
-Defined.
-
-Print set_lemma.
 
 Lemma semax_load_localD:
 (*    forall temp var ret gt (* Delta without gs *) id
@@ -146,12 +124,6 @@ Definition prop_right_lemma: my_lemma.
 reify_lemma reify_vst lower_prop_right.
 Defined.
 
-Require Import mc_reify.reverse_defs.
-Require Import mc_reify.rtac_base.
-Require Import mc_reify.hoist_later_in_pre.
-Require Import mc_reify.symexe.
-Require Import mc_reify.func_defs.
-Require Import mc_reify.denote_tac.
 
 Section tbled.
 
@@ -174,91 +146,21 @@ match goal with
 | [ |- ?trm] => reify_vst trm
 end.
 
-Definition compute_hlip_arg (arg: 
-         (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
-          expr typ func) *
-       (expr typ func * expr typ func * expr typ func * expr typ func * expr typ func) *
-       statement) :=
-  match arg with
-  | ((t, v, r, gt, _), (_, _, _, R, _), s) => (t, v, r, gt, s, R)
-  end.
-
-Definition compute_set_arg (arg: 
-         (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
-          expr typ func) *
-       (expr typ func * expr typ func * expr typ func * expr typ func * expr typ func) *
-       statement) :=
-  match arg with
-  | ((t, v, r, gt, _), _, s) =>
-    match s with
-    | Sset i e0 =>
-      match t ! i with
-      | Some (ty, _) => Some (t, v, r, gt, i, e0, ty)
-      | _ => None
-      end
-    | _ => None
-    end
-  end.
-
-Definition FORWARD_SET Delta Pre s :=
-  let _HLIP :=
-  match compute_hlip_arg (Delta, Pre, s) with
-  | (temp, var, ret, gt, s, R) => HLIP tbl temp var ret gt R s
-  end in
-  let _APPLY_SET :=
-  match compute_set_arg (Delta, Pre, s) with
-  | Some (temp, var, ret, gt, i, e0, ty) =>
-      THEN (EAPPLY typ func (set_lemma temp var ret gt i e0 ty))
-           (TRY (FIRST [REFLEXIVITY_MSUBST tbl; 
-                        REFLEXIVITY_BOOL tbl;
-                        REFLEXIVITY tbl]))
-  | _ => FAIL
-  end in
-  THEN _HLIP _APPLY_SET.
-
-Definition SYMEXE_STEP
-: rtac typ (expr typ func)  :=
-  THEN' (INSTANTIATE typ func)   
-  (AT_GOAL
-    (fun c s e => 
-         match (get_arguments e) with
-         | (Some Delta, Some Pre, Some s) =>  
-           match compute_forward_rule s with
-           | Some ForwardSkip => APPLY_SKIP tbl
-           | Some (ForwardSeq s1 s2) => APPLY_SEQ tbl s1 s2 
-           | Some ForwardSet => FORWARD_SET Delta Pre s
-           | _ => FAIL
-           end
-         | _ => FAIL
-         end)).
-
 End tbled.
 
+(*
 Goal
-forall {Espec : OracleKind} (contents : list val), exists (PO : environ -> mpred), 
+forall {Espec : OracleKind} (contents : list val), 
    (semax
      (remove_global_spec Delta) (*empty_tycontext*)
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
      (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
-     (normal_ret_assert PO)).
+     (normal_ret_assert (assertD [] (localD (PTree.set _p (Values.Vint Int.zero) (PTree.empty val)) (PTree.empty (type * val))) []))).
 intros.
-
 unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
 
 reify_expr_tac.
-
-Eval vm_compute in (get_arguments e).
-
-Eval vm_compute in (run_tac
- (match (get_arguments e) with
-         | (Some Delta, Some Pre, Some s) =>  
-           match compute_hlip_arg (Delta, Pre, s) with
-           | (temp, var, ret, gt, s, R) => HLIP tbl temp var ret gt R s
-           end
-         | _ => FAIL
-         end) e).
-
-Eval vm_compute in (run_tac (SYMEXE_STEP tbl) e).
+*)
 
 Notation "'NOTATION_T1' v" := (PTree.Node PTree.Leaf None
          (PTree.Node PTree.Leaf None
@@ -336,9 +238,13 @@ Check lower_prop_right.
 
 reify_expr_tac.
 
+Eval vm_compute in (get_arguments e).
+Eval vm_compute in (compute_forward_rule (Sset _t
+            (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
+              _tail (tptr t_struct_list)))).
 Eval vm_compute in
 (match (get_arguments e) with
-| (Some Delta, Some Pre, Some st) =>
+| (Some Delta, _, Some st) =>
     compute_forward_rule st
 | _ => None
 end).
