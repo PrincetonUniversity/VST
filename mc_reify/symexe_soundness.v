@@ -35,21 +35,9 @@ Let ExprVar_expr := @ExprVariables.ExprVar_expr typ func.
 Existing Instance ExprVar_expr.
 
 Existing Instance MA.
-SearchAbout MentionsAnyOk.
 
 Instance MentionsAnyOk : MentionsAnyOk MA _ _.
 Admitted.
-
-Lemma THEN_sound : forall t1 t2,
-rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) t1 -> rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) t2 -> rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) (THEN t1 t2). 
-intros. unfold THEN.
-unfold THEN'. 
-apply THEN_sound; auto.
-apply runOnGoals_sound; auto;
-rtac_derive_soundness.
-apply INSTANTIATE_sound.
-apply runOnGoals_sound. auto.
-Qed.
 
 Definition APPLY_sound := (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ ). 
 (*Definition APPLY_sound := 

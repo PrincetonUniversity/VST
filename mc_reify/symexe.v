@@ -122,17 +122,6 @@ Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
 reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 efs tts e lr n).
 Defined.
 
-Lemma lower_prop_right: forall (P: mpred) (Q: Prop), Q -> P |-- !! Q.
-Proof.
-  intros.
-  apply prop_right.
-  auto.
-Qed.
-
-Definition prop_right_lemma: my_lemma.
-reify_lemma reify_vst lower_prop_right.
-Defined.
-
 (************************************************
 
 Rtac definition

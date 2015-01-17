@@ -29,6 +29,7 @@ Require Import mc_reify.get_set_reif.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.typ_eq.
 Require Import mc_reify.rtac_base.
+Require Import mc_reify.reified_ltac_lemmas.
 
 (************************************************
 
@@ -93,16 +94,6 @@ Proof.
   apply sepcon_derives; auto.
 Qed.
 
-Lemma mpred_now_later: forall (P: mpred), P |-- |> P.
-Proof.
-  apply now_later.
-Qed.
-
-Lemma mpred_derives_refl: forall (P: mpred), P |-- P.
-Proof.
-  apply derives_refl.
-Qed.
-
 (************************************************
 
 Reified Lemmas
@@ -121,18 +112,6 @@ reify_lemma reify_vst (fold_right_sepcon_later_derives).
 Defined.
 
 (* Print reify_hlip_ind. *)
-
-Definition reify_now_later : my_lemma.
-reify_lemma reify_vst mpred_now_later.
-Defined.
-
-(* Print reify_now_later. *)
-
-Definition reify_derives_refl : my_lemma.
-reify_lemma reify_vst mpred_derives_refl.
-Defined.
-
-(* Print reify_derives_refl. *)
 
 Section tbled.
 
@@ -158,6 +137,51 @@ Fixpoint solve_strip_1_later (R: expr typ func) : rtac typ (expr typ func) :=
 Definition HLIP temp var ret gt R s :=
   THEN (EAPPLY typ func (reify_hlip_base temp var ret gt s))
        (TRY (solve_strip_1_later R)).
+
+Let Expr_expr_fs := Expr_expr_fs tbl.
+Existing Instance Expr_expr_fs.
+
+Let Expr_ok_fs := Expr_ok_fs tbl.
+Existing Instance Expr_ok_fs.
+
+Let ExprVar_expr := @ExprVariables.ExprVar_expr typ func.
+Existing Instance ExprVar_expr.
+
+Existing Instance MA.
+
+Existing Instance rtac_base.MentionsAnyOk.
+
+Lemma HLIP_sound_aux0: forall temp var ret gt s, rtac_sound (EAPPLY typ func (reify_hlip_base temp var ret gt s)).
+Proof.
+  intros.
+  apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
+  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+    unfold ExprDsimul.ExprDenote.exprT_App.
+    simpl.
+    unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
+    unfold BILogicFunc.typ2_cast_bin in *. simpl in *.
+    eapply hoist_later_in_pre_aux; eauto.
+Qed.
+
+Lemma HLIP_sound_aux1: rtac_sound (EAPPLY typ func reify_hlip_ind).
+Proof.
+  apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
+  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+    unfold ExprDsimul.ExprDenote.exprT_App.
+    simpl.
+    unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
+    unfold BILogicFunc.typ2_cast_bin in *. simpl in *.
+    eapply fold_right_sepcon_later_derives; eauto.
+Qed.
+
+Lemma solve_strip_1_later_sound: forall (R: expr typ func), rtac_sound (solve_strip_1_later R).
+Proof.
+  intros.
+Admitted.
 
 End tbled.
 

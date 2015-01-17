@@ -120,6 +120,7 @@ VFILES:=bool_funcs.v\
   reflexivity_tacs.v\
   reify_examples.v\
   reify.v\
+  reified_ltac_lemmas.v\
   reverse_defs.v\
   rtac_base.v\
   set_load_store.v\

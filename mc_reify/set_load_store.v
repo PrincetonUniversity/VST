@@ -100,7 +100,16 @@ Defined.
 
 Print load_lemma.
 
+Lemma lower_prop_right: forall (P: mpred) (Q: Prop), Q -> P |-- !! Q.
+Proof.
+  intros.
+  apply prop_right.
+  auto.
+Qed.
 
+Definition prop_right_lemma: my_lemma.
+reify_lemma reify_vst lower_prop_right.
+Defined.
 
 Section tbled.
 
