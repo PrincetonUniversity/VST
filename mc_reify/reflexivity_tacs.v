@@ -119,8 +119,27 @@ fun tus tvs n m c s e =>
   end
 | _ => RTac.Core.Fail
 end.
-Check exprD.
+
 Definition REFLEXIVITY_MSUBST := REFLEXIVITYTAC_msubst.
+
+Definition REFLEXIVITYTAC_msubst_efield : rtac typ (expr typ func) :=
+fun tus tvs n m c s e => 
+  match e with 
+| (App (App (Inj (inr (Other (feq ty)))) l) r) =>
+  match l with
+  | App (App (Inj (inr (Smx (fmsubst_efield_denote e)))) T1) T2 =>
+    let l' := rmsubst_efield_denote T1 T2 e in
+    match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
+                                 tus tvs 0 l' r ty s with
+    | Some s => RTac.Core.Solved s 
+    | None =>  RTac.Core.Fail
+    end
+  | _ => RTac.Core.Fail
+  end
+| _ => RTac.Core.Fail
+end.
+
+Definition REFLEXIVITY_MSUBST_EFIELD := REFLEXIVITYTAC_msubst_efield.
 
 Definition REFLEXIVITYTAC_nth_error : rtac typ (expr typ func) :=
 fun tus tvs n m c s e => 

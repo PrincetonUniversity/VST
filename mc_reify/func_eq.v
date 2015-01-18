@@ -287,7 +287,7 @@ match a, b with
 | flater_lift, flater_lift => true
 | fnested_field_type2, fnested_field_type2 => true
 | fis_neutral_cast, fis_neutral_cast => true
-| fmsubst_efield_denote, fmsubst_efield_denote => true
+| fmsubst_efield_denote efs1, fmsubst_efield_denote efs2 => list_eqb RelDec_efield_beq efs1 efs2
 | flegal_nested_efield tts1, flegal_nested_efield tts2 => list_eqb RelDec_ctype_beq tts1 tts2
 | fmsubst_eval_LR, fmsubst_eval_LR => true
 | ftc_LR_b_norho, ftc_LR_b_norho => true

@@ -23,9 +23,10 @@ Require Import mc_reify.types.
 Require Import mc_reify.typ_eq.
 Require Export mc_reify.reflexivity_tacs.
 Require Import mc_reify.func_defs.
-Require Import mc_reify.rtac_base.
-Require Import mc_reify.hoist_later_in_pre.
 Require Import MirrorCharge.RTac.Cancellation.
+Require Import mc_reify.rtac_base.
+Require Import mc_reify.reified_ltac_lemmas.
+Require Import mc_reify.hoist_later_in_pre.
 
 Local Open Scope logic.
 
@@ -90,7 +91,7 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
   (forall rho, 
       !!(tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |-- !! (p = p')) ->
   proj_val t_root gfs v' = v ->
-  assertD P (localD (my_set id v T1) T2) R = Post ->
+  assertD P (localD (PTree.set id v T1) T2) R = Post ->
   nested_efield e1 efs tts = e0 ->
 
   (forall rho, 
@@ -466,17 +467,17 @@ Definition FORWARD_LOAD Struct_env Delta Pre s :=
   let _APPLY_LOAD :=
   match compute_load_arg (Delta, Pre, s) with
   | Some (t, v, r, gt, i, ty, t_root, e0, e1, efs, tts, lr, n) =>
-            (THEN INTROS
             (THEN (EAPPLY typ func (load_lemma t v r gt i ty t_root e0 e1 efs tts Struct_env lr n))
             (THEN (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl;
                                REFLEXIVITY_BOOL tbl;
                                REFLEXIVITY_CEXPR tbl;
                                REFLEXIVITY tbl;
                                REFLEXIVITY_MSUBST tbl;
+                               REFLEXIVITY_MSUBST_EFIELD tbl;
                                REFLEXIVITY_NTH_ERROR tbl]))
                   (TRY (THEN INTROS
-                       (THEN (EAPPLY typ func prop_right_lemma)
-                             (REFLEXIVITY tbl)))))))
+                       (THEN (EAPPLY typ func reify_prop_right)
+                             (REFLEXIVITY tbl))))))
   | _ => FAIL
   end in
   THEN _HLIP _APPLY_LOAD.

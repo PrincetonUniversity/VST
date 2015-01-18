@@ -5,9 +5,6 @@ Require Import MirrorCore.RTac.Try.
 Require Import MirrorCore.RTac.First.
 Require Import MirrorCore.RTac.Fail.
 Require Import MirrorCore.RTac.Simplify.
-Require Import mc_reify.rtac_base.
-Require Import mc_reify.hoist_later_in_pre.
-Require Import mc_reify.symexe.
 Require Import MirrorCore.RTac.RTac.
 Require Import mc_reify.types.
 Require Import mc_reify.funcs.
@@ -16,6 +13,10 @@ Require Import mc_reify.app_lemmas.
 Require Import MirrorCore.LemmaApply.
 Require Import ExtLib.Tactics.
 Require Import MirrorCore.Util.ListMapT.
+Require Import mc_reify.rtac_base.
+Require Import mc_reify.reified_ltac_lemmas.
+Require Import mc_reify.hoist_later_in_pre.
+Require Import mc_reify.symexe.
 
 Section tbled.
 Variable n : nat.
@@ -36,56 +37,13 @@ Existing Instance ExprVar_expr.
 
 Existing Instance MA.
 
-Instance MentionsAnyOk : MentionsAnyOk MA _ _.
-Admitted.
-
-Definition APPLY_sound := (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ ). 
-(*Definition APPLY_sound := 
-  (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ _
- (fun (subst : Type)
-                                 (SS : Subst subst (expr typ func))
-                                 (SU : SubstUpdate subst (expr typ func))
-                                 (tus tvs : tenv typ) 
-                                 (n : nat) (l r : expr typ func) 
-                                 (t3 : typ) (s1 : subst) =>
-                               @ExprUnify_simul.exprUnify subst typ func
-                                 RType_typ (_)
-                                 Typ2_tyArr SS SU
-                                 (S (S (S (S (S (S (S (S (S (S O))))))))))
-                                 tus tvs n l r t3 s1) _ (ExprLift.vars_to_uvars_exprD')).*)
-(*
-
- (fun (subst : Type)
-                                 (SS : Subst subst (expr typ func))
-                                 (SU : SubstUpdate subst (expr typ func))
-                                 (tus tvs : tenv typ) 
-                                 (n : nat) (l r : expr typ func) 
-                                 (t3 : typ) (s1 : subst) =>
-                               @ExprUnify_simul.exprUnify subst typ func
-                                 RType_typ (_)
-                                 Typ2_tyArr SS SU
-                                 (S (S (S (S (S (S (S (S (S (S O))))))))))
-                                 tus tvs n l r t3 s1) _ (* (ExprLift.vars_to_uvars_exprD')*)).*)
-
-Definition EAPPLY_sound := 
-  (@EAPPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _). (*_ _ (fun (subst : Type)
-                                 (SS : Subst subst (expr typ func))
-                                 (SU : SubstUpdate subst (expr typ func))
-                                 (tus tvs : tenv typ) 
-                                 (n : nat) (l r : expr typ func) 
-                                 (t3 : typ) (s1 : subst) =>
-                               @ExprUnify_simul.exprUnify subst typ func
-                                 RType_typ (func_defs.RSym_sym symexe.tbl)
-                                 Typ2_tyArr SS SU
-                                 (S (S (S (S (S (S (S (S (S (S O))))))))))
-                                 tus tvs n l r t3 s1) (ExprLift.vars_to_uvars_exprD')).*)
+Existing Instance rtac_base.MentionsAnyOk.
 
 Axiom set_reif_eq2 :
 forall i tus tvs typ vr tr val,
 exprD' tus tvs (typtree typ) tr = Some val ->
 exprD' tus tvs (typtree typ) (App (App (Inj (inr (Data (fset typ i)))) vr) tr)  =
 exprD' tus tvs (typtree typ) (get_set_reif.set_reif i vr tr typ).
-
 
 Lemma SIMPL_DELTA_sound : rtac_sound SIMPL_DELTA.
 Proof.
@@ -97,35 +55,63 @@ SearchAbout RedAll.beta_all.
 admit.
 Qed.
 
-Lemma HLIP_sound: forall temp var ret gt R s,
-  rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) (HLIP tbl temp var ret gt R s).
+Lemma FORWARD_SET_sound: forall Delta Pre s, rtac_sound (FORWARD_SET tbl Delta Pre s).
 Proof.
-Admitted.
-(*
   intros.
-  unfold HLIP.
+  unfold FORWARD_SET.
   apply THEN_sound.
-  + apply EAPPLY_sound.
-    - eauto with typeclass_instances.
-    - admit.
-    - admit.
-    - unfold Lemma.lemmaD, set_lemma. unfold split_env.
-      unfold Lemma.lemmaD'.
-      unfold Lemma.vars, Lemma.premises, Lemma.concl.
-      repeat rewrite list_mapT_cons.
-      simpl exprD'_typ0. 
-      unfold exprD'_typ0, ExprI.exprD', Expr_expr_fs.
-      unfold func_defs.Expr_expr_fs. 
-      unfold ExprD.Expr_expr. 
-      simpl.
-*)
+  + destruct (compute_hlip_arg (Delta, Pre, s)) as [[[[[? ?] ?] ?] ?] ?].
+    apply HLIP_sound.
+  + destruct (compute_set_arg (Delta, Pre, s)) as [[[[[[[? ?] ?] ?] ?] ?] ?]|]; [| apply FAIL_sound].
+    apply THEN_sound.
+    - eapply EAPPLY_sound; auto with typeclass_instances.
+      * apply APPLY_condition1.
+      * apply APPLY_condition2.
+      * unfold Lemma.lemmaD, split_env. simpl. intros. 
+        unfold ExprDsimul.ExprDenote.exprT_App.
+        simpl.
+        unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
+        unfold BILogicFunc.typ2_cast_bin in *. simpl in *.
+        eapply semax_set_localD; eauto.
+    - apply TRY_sound.
+      apply FIRST_sound; repeat constructor.
+      * apply REFLEXIVITY_OP_CTYPE_sound.
+      * admit (*reflexivity msusbst_sound*).
+      * apply REFLEXIVITY_BOOL_sound.
+      * apply REFLEXIVITYTAC_sound.
+Qed.
 
-
-Lemma SYMEXE_STEP_sound : rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) (SYMEXE_STEP tbl).
-(*Admitted. *)
+Lemma FORWARD_LOAD_sound: forall Struct_env Delta Pre s, rtac_sound (FORWARD_LOAD tbl Struct_env Delta Pre s).
+Proof.
+  intros.
+  unfold FORWARD_LOAD.
+  apply THEN_sound.
+  + destruct (compute_hlip_arg (Delta, Pre, s)) as [[[[[? ?] ?] ?] ?] ?].
+    apply HLIP_sound.
+  + destruct (compute_load_arg (Delta, Pre, s)) as [[[[[[[[[[[[[? ?] ?] ?] ?] ?] ?] ?] ?] ?] ?] ?] ?]|]; [| apply FAIL_sound].
+    apply THEN_sound.
+    - eapply EAPPLY_sound; auto with typeclass_instances.
+      * apply APPLY_condition1.
+      * apply APPLY_condition2.
+      * admit. (* Problem caused by data_at and reptype. Please check this problem here, Joey.  -- Qinxiang *)
+    - apply THEN_sound; apply TRY_sound; [apply FIRST_sound; repeat constructor | repeat apply THEN_sound].
+      * apply REFLEXIVITY_OP_CTYPE_sound.
+      * apply REFLEXIVITY_BOOL_sound.
+      * apply REFLEXIVITY_CEXPR_sound.
+      * apply REFLEXIVITYTAC_sound.
+      * admit (*reflexivity msusbst_sound*).
+      * admit (*reflexivity msusbst_efield_sound*).
+      * admit (*reflexivity nth_error_sound*).
+      * admit. (* INTROS *)
+      * apply APPLY_sound_prop_right.
+      * apply REFLEXIVITYTAC_sound.
+Qed.
+  
+Lemma SYMEXE_STEP_sound: forall Struct_env, rtac_sound (SYMEXE_STEP tbl Struct_env).
+Proof.
 intros.
-apply Then.THEN_sound.
-Focus 1. { apply INSTANTIATE_sound. } Unfocus.
+unfold SYMEXE_STEP.
+apply Then.THEN_sound; [apply INSTANTIATE_sound |].
 apply runOnGoals_sound.
 eapply AT_GOAL_sound.
 intros.
@@ -134,67 +120,14 @@ repeat match goal with
          | |- context [ match ?X with _ => _ end ] =>
            destruct X; try apply FAIL_sound
        end.
-+ unfold FORWARD_SET.
-  apply THEN_sound;
-    [destruct (compute_hlip_arg (p, p0, s0)) as [[[[[? ?] ?] ?] ?] ?]; apply HLIP_sound|].
-  destruct (compute_set_arg (p, p0, s0)) as [[[[[[[? ?] ?] ?] ?] ?] ?]|]; [| apply FAIL_sound].
-  apply THEN_sound.
-  - apply APPLY_sound; eauto with typeclass_instances.
-      * admit.
-      * admit.
-      * unfold Lemma.lemmaD, set_lemma. unfold split_env.
-        unfold Lemma.lemmaD'.
-        unfold Lemma.vars, Lemma.premises, Lemma.concl.
-        do 3 rewrite list_mapT_cons.
-        simpl exprD'_typ0. 
-        unfold exprD'_typ0, ExprI.exprD', Expr_expr_fs.
-        unfold func_defs.Expr_expr_fs. 
-        unfold ExprD.Expr_expr.
-        simpl.
-        unfold exprT_App, exprT_Inj.
-        simpl.
-        unfold Rcast_val, Rcast.
-        simpl.
-(*        
-Set Printing Depth 200.  
-simpl (exprD' []
-               ([tyArr tyenviron tympred; typtree tyfunspec; 
-                tylist tympred; tyOracleKind;
-                typtree (typrod tyc_type tyval); typtree tyval; tyval] ++ 
-                []) (typ0 (F:=Prop))
-               (App
-                  (App (Inj (inr (Other (feq tybool))))
-                     (App
-                        (App (Inj (inr (Smx ftc_expr_b_norho)))
-                           (App (Inj (inr (Smx (ftycontext t t0 t1 t2))))
-                              (Var 1%nat))) (Inj (inr (Const (fCexpr e0))))))
-                  (Inj (inr (Const (fbool true)))))).
-        intros.
-*)
-        erewrite exprD'_App_R_rw; try reflexivity.
-        Focus 2.
-        erewrite exprD'_App_L_rw; try reflexivity.
-        erewrite exprD'_App_R_rw; try reflexivity.
-        erewrite exprD'_App_L_rw; try reflexivity.
-        erewrite exprD'_App_R_rw; try reflexivity.
-        erewrite exprD'_App_L_rw; try reflexivity.
-        
-        erewrite <- set_reif_eq2. reflexivity. reflexivity. 
-        simpl. unfold exprT_App, exprT_Inj. simpl. intros.
-        eapply set_reif.semax_set_localD; eauto.
-*)
-    admit.
-  - apply TRY_sound. apply FIRST_sound. 
-    repeat constructor.
-      * admit (*reflexivity msusbst_sound*).
-      * admit (*apply REFLEXIVITY_OP_CTPYE_sound*).
-      * apply REFLEXIVITY_BOOL_sound.
-      * apply REFLEXIVITYTAC_sound.
++ apply FORWARD_SET_sound.
++ apply FORWARD_LOAD_sound.
 + unfold APPLY_SEQ.
   apply THEN_sound.
   unfold APPLY_SEQ'.
   apply EAPPLY_sound; auto with typeclass_instances.
-  admit. admit.
+  apply APPLY_condition1.
+  apply APPLY_condition2.
   unfold Lemma.lemmaD. unfold split_env. simpl.
   unfold exprT_App, exprT_Inj. simpl.
   intros.
@@ -202,8 +135,8 @@ simpl (exprD' []
   apply SIMPL_DELTA_sound.
 + unfold APPLY_SKIP.
   apply APPLY_sound. 
-  admit.
-  admit.
+  apply APPLY_condition1.
+  apply APPLY_condition2.
   - unfold skip_lemma. 
     unfold Lemma.lemmaD, split_env. simpl. intros. 
     unfold ExprDsimul.ExprDenote.exprT_App.
@@ -211,11 +144,15 @@ simpl (exprD' []
     unfold exprT_Inj. apply semax_skip.
 Qed.
 
-Theorem SYMEXE_sound : rtac_sound (SYMEXE_TAC_n n tbl ).
-apply THEN_sound.
-admit. (*jesper*)
-apply REPEAT_sound.
-apply SYMEXE_STEP_sound.
+Theorem SYMEXE_sound : rtac_sound (SYMEXE_TAC_n n tbl).
+Proof.
+  apply THEN_sound.
+  + admit. (*jesper*)
+  + eapply AT_GOAL_sound.
+    intros.
+    destruct (get_arguments e) as [[[[[[[? ?] ?] ?] ?]|] ?] ?]; [| apply FAIL_sound].
+    apply REPEAT_sound.
+    apply SYMEXE_STEP_sound.
 Qed.
 
 End tbled.
@@ -342,12 +279,12 @@ forall {Espec : OracleKind} (contents : list val),
 intros.
 unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
 
+(*
 reify_expr_tac.
-
-Eval vm_compute in (run_tac (REPEAT 2 (SYMEXE_STEP tbl)) e).
-
-rforward. (* why rforward fail *)
-
+Eval vm_compute in (run_tac (SYMEXE_TAC_n 1000 tbl) e).
+*)
+rforward. (* why rforward fail, Joey? vm_compute shows More but not fail.   -- Qinxiang*)
+Abort.
 (*
 Goal
 forall  (contents : list val), exists PO, 

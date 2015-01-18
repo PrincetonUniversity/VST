@@ -547,7 +547,7 @@ Inductive smx :=
 | flater_lift
 | fnested_field_type2
 | fis_neutral_cast
-| fmsubst_efield_denote
+| fmsubst_efield_denote : list efield -> smx
 | flegal_nested_efield : list type -> smx
 | fmsubst_eval_LR
 | ftc_LR_b_norho
@@ -587,9 +587,9 @@ match t with
 | flater_lift => tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred)
 | fnested_field_type2 => tyArr tyc_type (tyArr (tylist tygfield) tyc_type)
 | fis_neutral_cast => tyArr tyc_type (tyArr tyc_type tybool)
-| fmsubst_efield_denote => tyArr (typtree tyval) 
+| fmsubst_efield_denote _ => tyArr (typtree tyval) 
                            (tyArr (typtree (typrod tyc_type tyval))
-                            (tyArr (tylist tyefield) (tyoption (tylist tygfield))))
+                                 (tyoption (tylist tygfield)))
 | flegal_nested_efield _ => tyArr tytype_id_env
                           (tyArr tyc_type
                            (tyArr tyc_expr
@@ -636,7 +636,7 @@ match t with
 | flater_lift => later
 | fnested_field_type2 => nested_field_type2
 | fis_neutral_cast => is_neutral_cast
-| fmsubst_efield_denote => msubst_efield_denote
+| fmsubst_efield_denote efs => (fun T1 T2 => msubst_efield_denote T1 T2 efs)
 | flegal_nested_efield tts => (fun e t_root e1 gfs => legal_nested_efield e t_root e1 gfs tts)
 | fmsubst_eval_LR => msubst_eval_LR
 | ftc_LR_b_norho => tc_LR_b_norho

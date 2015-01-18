@@ -178,62 +178,33 @@ Proof.
     eapply fold_right_sepcon_later_derives; eauto.
 Qed.
 
+Definition HLIP_sound_aux2 (hd: expr typ func): rtac_sound
+   (match hd with
+    | App (Inj (inr (Smx flater))) _ => EAPPLY typ func reify_derives_refl
+    | _ => EAPPLY typ func reify_now_later
+    end) :=
+    match hd as hd'
+      return rtac_sound match hd' with
+                        | App (Inj (inr (Smx flater))) _ => EAPPLY typ func reify_derives_refl
+                        | _ => EAPPLY typ func reify_now_later
+                        end
+    with
+    | App (Inj (inr (Smx flater))) _ => APPLY_sound_derives_refl tbl
+    | _ => APPLY_sound_now_later tbl
+    end.
+
 Lemma solve_strip_1_later_sound: forall (R: expr typ func), rtac_sound (solve_strip_1_later R).
 Proof.
-  intros.
 Admitted.
 
+Lemma HLIP_sound: forall temp var ret gt R s, rtac_sound (HLIP temp var ret gt R s).
+Proof.
+  intros.
+  unfold HLIP.
+  apply THEN_sound.
+  + apply HLIP_sound_aux0.
+  + apply TRY_sound.
+    apply solve_strip_1_later_sound.
+Qed.
+
 End tbled.
-
-(*
-Require Import mc_reify.reverse_defs.
-Require Import symexe.
-Require Import mc_reify.func_defs.
-Require Import mc_reify.denote_tac.
-
-Ltac reify_expr_tac :=
-match goal with
-| [ |- ?trm] => reify_vst trm
-end.
-
-Lemma skip_triple : forall sh v e,
-@semax e empty_tycontext
-     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
-       [data_at sh (tptr tint) (default_val _) (force_ptr v)])
-      Sskip 
-     (normal_ret_assert (|> assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
-       [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
-intros.
-unfold empty_tycontext.
-
-(*
-eapply hoist_later_in_pre_aux.
-(*instantiate (1:= [data_at sh (tptr tint) (default_val (tptr tint)) (force_ptr v)]).*)
-reify_expr_tac.
-Eval vm_compute in 
-(run_tac (THEN INTROS (EAPPLY typ func reify_hlip_ind)) e0).
-
-
-eapply fold_right_sepcon_later_derives.
-*)
-reify_expr_tac.
-(*
-Eval vm_compute in
-(run_tac (THEN (EAPPLY typ func (reify_hlip_base PTree.Leaf PTree.Leaf Tvoid PTree.Leaf Sskip))
-         (THEN INTROS (TRY (EAPPLY typ func reify_hlip_ind)))) e0).
-*)
-Eval vm_compute in
-(run_tac (THEN (EAPPLY typ func (reify_hlip_base PTree.Leaf PTree.Leaf Tvoid PTree.Leaf Sskip))
-               (TRY (solve_strip_1_later tbl
-                   (App
-                      (App (Inj (inr (Data (fcons tympred))))
-                         (App
-                            (App
-                               (App (Inj (inr (Sep (fdata_at (tptr tint)))))
-                                  (Ext 3%positive)) 
-                               (Ext 4%positive))
-                            (App (Inj (inr (Other fforce_ptr)))
-                               (Ext 5%positive))))
-                      (Inj (inr (Data (fnil tympred)))))))) e0).
-
-*)
