@@ -214,6 +214,8 @@ match a, b with
 | fmap ta1 tb1, fmap ta2 tb2 
 | ffold_right ta1 tb1, ffold_right ta2 tb2 
 | ffold_left ta1 tb1, ffold_left ta2 tb2 => andb (typ_beq ta1 ta2) (typ_beq tb1 tb2)
+| fleaf t, fleaf t'
+| fnode t, fnode t'
 | fempty t, fempty t' => typ_beq t t' 
 | _ , _ => false
 end.

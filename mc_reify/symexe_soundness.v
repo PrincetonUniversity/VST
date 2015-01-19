@@ -233,15 +233,12 @@ Lemma skip_triple : forall sh v e,
 @semax e empty_tycontext
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])
-      Sskip 
-     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+      Sskip  (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof. 
-Abort.
-(*
-intros.  
-unfold empty_tycontext. unfold PTree.empty.
-rforward. Set Printing Depth 800.
+intros.
+unfold empty_tycontext.
+rforward.
 Qed.
 
 Fixpoint lots_of_skips n :=
@@ -263,13 +260,6 @@ unfold empty_tycontext.
 rforward.
 Qed.
 
-Fixpoint MY_REPEAT 
-  (n : nat) tac := 
-  match n with
-  | O => tac
-  | S n0 => THEN tac (MY_REPEAT n0 tac)
-  end.
-
 Lemma seq_triple_lots : forall sh v e,
 @semax e empty_tycontext
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
@@ -280,17 +270,7 @@ Lemma seq_triple_lots : forall sh v e,
 Proof.
 intros.
 unfold empty_tycontext.
-rforward. (* Take about 9 seconds. *)
-
-(*
-reify_expr_tac.
-
-Time let x := (eval vm_compute in (run_tac (MY_REPEAT 2000 (SYMEXE_STEP tbl)) e0)) in idtac.
-
-Time let x := (eval vm_compute in (run_tac (REPEAT 2000 (SYMEXE_STEP tbl)) e0)) in idtac.
-
-(* this comparison shows that they takes almost the same amount of time. *)
-*)
+rforward.
 Qed.
 
 Require Import reverse_defs.
@@ -304,7 +284,9 @@ forall {Espec : OracleKind} (contents : list val),
      (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
      (normal_ret_assert (assertD [] (localD (PTree.set _p (Values.Vint Int.zero) (PTree.empty val)) (PTree.empty (type * val))) []))).
 intros.
-unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
+unfold empty_tycontext, Delta, remove_global_spec. simpl PTree.set.
+change PTree.tree with PTree.t.
+rforward.
 <<<<<<< HEAD
 rforward.
 reify_expr_tac.
