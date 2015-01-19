@@ -13,6 +13,10 @@ Require Import mc_reify.app_lemmas.
 Require Import MirrorCore.LemmaApply.
 Require Import ExtLib.Tactics.
 Require Import MirrorCore.Util.ListMapT.
+Require Import MirrorCharge.RTac.Instantiate.
+Require Import MirrorCharge.RTac.Intro.
+Require Import MirrorCharge.RTac.Apply.
+Require Import MirrorCharge.RTac.EApply.
 Require Import mc_reify.rtac_base.
 Require Import mc_reify.reified_ltac_lemmas.
 Require Import mc_reify.hoist_later_in_pre.
@@ -106,6 +110,90 @@ Proof.
       * apply REFLEXIVITYTAC_sound.
 Qed.
 
+Lemma APPLY_sound_load_lemma: forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
+  (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type)
+  (e0 e1 : Clight.expr) (efs : list efield) (tts : list type)
+  (e : type_id_env) (lr : LLRR) (n : nat), 
+  rtac_sound (EAPPLY typ func (load_lemma temp var ret gt id t t_root e0 e1 efs tts e lr n)).
+Proof.
+  intros.
+  apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
+  + unfold Lemma.lemmaD, split_env, Lemma.lemmaD'. simpl.
+(* Set Printing Depth 200. *)
+    unfold exprD'_typ0. simpl.
+    unfold exprD'. simpl.
+    assert (@funcAs typ func RType_typ
+              (func_defs.RSym_sym tbl)
+              (@inr
+                 (sum
+                    (sum SymEnv.func
+                       (ModularFunc.ILogicFunc.ilfunc
+                       typ))
+                    (BILogicFunc.bilfunc typ))
+                 func' (Sep (fdata_at t_root)))
+              (tyArr tyshare
+                 (tyArr 
+                    (reptyp t_root)
+                    (tyArr tyval tympred))) =
+            Some
+              (fun (sh : share) (rt : typD (reptyp t_root)) (v : val) =>
+               data_at sh t_root (reptyp_reptype t_root rt) v)).
+    Focus 1. {
+      intros.
+      unfold funcAs; simpl.
+      assert (forall pl: (fun t0 : typ =>
+        {tyArr t0 (tyArr (reptyp t_root) (tyArr tyval tympred)) =
+         tyArr tyshare (tyArr (reptyp t_root) (tyArr tyval tympred))} +
+        {tyArr t0 (tyArr (reptyp t_root) (tyArr tyval tympred)) <>
+         tyArr tyshare (tyArr (reptyp t_root) (tyArr tyval tympred))})
+         tyshare, pl = left eq_refl).
+      Focus 1. {
+        intros.
+        destruct pl; [f_equal; apply proof_irr | congruence].
+      } Unfocus.
+      match goal with 
+      | [ |- context [match (match ?e with _ => _ end) with _ => _ end] ] => rewrite (H e)
+      end.
+      unfold Rcast; simpl.
+      reflexivity.
+    } Unfocus.
+    rewrite H. simpl. clear H.
+    assert (exprT_GetVAs []
+                  [tyOracleKind; 
+                reptyp t_root; tyval; tyval; tyval;
+                tylist tygfield;
+                tyArr tyenviron tympred;
+                tylist tympred;
+                typtree (typrod tyc_type tyval);
+                typtree tyval; 
+                tylist typrop; tyshare;
+                typtree tyfunspec] 1 
+                (reptyp t_root) = Some
+      (fun (_ : HList.hlist typD [])
+         (vs : HList.hlist typD
+                [tyOracleKind; reptyp t_root; tyval; tyval; tyval;
+                tylist tygfield; tyArr tyenviron tympred; 
+                tylist tympred; typtree (typrod tyc_type tyval);
+                typtree tyval; tylist typrop; tyshare; 
+                typtree tyfunspec]) => HList.hlist_hd (HList.hlist_tl vs))).
+    Focus 1. {
+      intros.
+      unfold exprT_GetVAs. simpl.
+      destruct (typ_eq_dec (reptyp t_root) (reptyp t_root)); [ |congruence].
+      assert (e2 = eq_refl) by apply proof_irr.
+      subst.
+      unfold Rcast_val, Rcast; simpl.
+    reflexivity.
+    } Unfocus.
+    rewrite H. simpl; clear H.
+    intros.
+    unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
+    unfold ModularFunc.ILogicFunc.typ2_cast_quant, ModularFunc.ILogicFunc.typ2_cast_bin in *; simpl in *.
+    eapply semax_load_localD; eauto.
+Qed.
+
 Lemma FORWARD_LOAD_sound: forall Struct_env Delta Pre s, rtac_sound (FORWARD_LOAD tbl Struct_env Delta Pre s).
 Proof.
   intros.
@@ -115,10 +203,7 @@ Proof.
     apply HLIP_sound.
   + destruct (compute_load_arg (Delta, Pre, s)) as [[[[[[[[[[[[[? ?] ?] ?] ?] ?] ?] ?] ?] ?] ?] ?] ?]|]; [| apply FAIL_sound].
     apply THEN_sound.
-    - eapply EAPPLY_sound; auto with typeclass_instances.
-      * apply APPLY_condition1.
-      * apply APPLY_condition2.
-      * admit. (* Problem caused by data_at and reptype. Please check this problem here, Joey.  -- Qinxiang *)
+    - apply APPLY_sound_load_lemma.
     - apply THEN_sound; apply TRY_sound; [apply FIRST_sound; repeat constructor | repeat apply THEN_sound].
       * apply REFLEXIVITY_OP_CTYPE_sound.
       * apply REFLEXIVITY_BOOL_sound.
