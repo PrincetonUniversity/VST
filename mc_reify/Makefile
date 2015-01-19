@@ -116,13 +116,16 @@ VFILES:=app_lemmas.v\
   funcs.v\
   get_set_reif_soundness.v\
   get_set_reif.v\
+  hoist_later_in_pre.v\
   list_ctype_eq.v\
   list_efield_eq.v\
   local2list.v\
   reflexivity_tacs.v\
   reify_examples.v\
   reify.v\
+  reified_ltac_lemmas.v\
   reverse_defs.v\
+  rtac_base.v\
   set_load_store.v\
   set_reif.v\
   solve_exprD.v\
