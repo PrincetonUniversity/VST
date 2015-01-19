@@ -15,7 +15,6 @@ Require Import MirrorCore.LemmaApply.
 Require Import ExtLib.Tactics.
 Require Import MirrorCore.Util.ListMapT.
 
-
 Section tbled.
 Variable n : nat.
 Variable tbl : SymEnv.functions RType_typ.
@@ -107,10 +106,37 @@ forward.
 SearchAbout RedAll.beta_all.
 admit.
 Qed.
+Check propD.
+
+Lemma replace_set_sound : forall tus tvs e,
+exprD' tus tvs typrop e = exprD' tus tvs typrop (replace_set e). 
+intros.
+destruct e; auto. simpl.
+repeat
+match goal with 
+| [ |- context [match ?e with _ => _ end] ] => destruct e; auto
+end.
+admit.
+Admitted.
+(* Qed. (* :( *) *)
+
+Lemma SIMPL_SET_sound : rtac_sound SIMPL_SET.
+Proof.
+apply SIMPLIFY_sound. intros.
+forward. subst. 
+unfold propD in *. simpl. unfold exprD'_typ0 in *. simpl. simpl in H3.
+rewrite <- replace_set_sound. forward. fold func in *. inv H3. 
+unfold RSym_sym.
+rewrite H. 
+intros.
+eapply Pure_pctxD. eauto. intros. eauto.
+Qed.
 
 Lemma SYMEXE_STEP_sound : rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) (SYMEXE_STEP tbl).
 (*Admitted. *)
-intros. 
+intros.
+(*apply THEN_sound. 
+apply SIMPL_SET_sound.*)
 eapply AT_GOAL_sound.
 intros. destruct (get_delta_statement e);
 repeat match goal with
@@ -153,15 +179,6 @@ simpl (exprD' []
                            (App (Inj (inr (Smx (ftycontext t1 t2 t0 t))))
                               (Var 1%nat))) (Inj (inr (Const (fCexpr e0))))))
                   (Inj (inr (Const (fbool true)))))).
-        erewrite exprD'_App_R_rw; try reflexivity.
-        Focus 2.
-        erewrite exprD'_App_L_rw; try reflexivity.
-        erewrite exprD'_App_R_rw; try reflexivity.
-        erewrite exprD'_App_L_rw; try reflexivity.
-        erewrite exprD'_App_R_rw; try reflexivity.
-        erewrite exprD'_App_L_rw; try reflexivity.
-        
-        erewrite <- set_reif_eq2. reflexivity. reflexivity. 
         simpl. unfold exprT_App, exprT_Inj. simpl. intros.
         eapply set_reif.semax_set_localD; eauto.
   - apply TRY_sound. apply FIRST_sound. 
@@ -188,6 +205,10 @@ admit. (*jesper*)
 apply REPEAT_sound.
 apply SYMEXE_STEP_sound.
 Qed.
+
+Axiom SYMEXE_SEQ_sound : rtac_sound (SYMEXE_SEQ tbl).
+Axiom SYMEXE_SET_sound : rtac_sound (SYMEXE_SET tbl).
+
 
 End tbled.
 
@@ -237,14 +258,20 @@ Ltac run_rtac reify term_table tac_sound :=
 
 Ltac rforward := run_rtac reify_vst term_table (SYMEXE_sound 1000).
 
+Ltac rforward_seq := run_rtac reify_vst term_table (SYMEXE_SEQ_sound).
+
+Ltac rforward_set := run_rtac reify_vst term_table (SYMEXE_SET_sound).
+
+
 Lemma skip_triple : forall p e,
 @semax e empty_tycontext
      p
       Sskip 
      (normal_ret_assert p).
 Proof. 
-intros. 
-unfold empty_tycontext.
+intros.  
+unfold empty_tycontext. unfold PTree.empty.
+reify_expr_tac.
 rforward.
 Qed.
 
@@ -274,13 +301,42 @@ Existing Instance NullExtension.Espec.
 Goal
 forall  (contents : list val), exists (PO : environ -> mpred), 
    (semax
-     (remove_global_spec Delta) (*empty_tycontext*)
+     (*(remove_global_spec Delta)*)empty_tycontext
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
      (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
      (normal_ret_assert PO)).
 intros.
 unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
 rforward.
+reify_expr_tac.
+Print set_lemma.
+(*App
+                 (App
+                    (App
+                       (App (App (Inj (inr (Smx fsemax))) (Var 3%nat))
+                          (App (Inj (inr (Smx (ftycontext t v r gt))))
+                             (Var 1%nat)))
+                       (App
+                          (App
+                             (App (Inj (inr (Smx fassertD)))
+                                (Inj (inr (Data (fnil typrop)))))
+                             (App (App (Inj (inr (Smx flocalD))) (Var 5%nat))
+                                (Var 4%nat))) (Var 2%nat)))
+                    (Inj (inr (Smx (fstatement (Sset id e))))))
+                 (App (Inj (inr (Smx fnormal_ret_assert)))
+                    (App
+                       (App
+                          (App (Inj (inr (Smx fassertD)))
+                             (Inj (inr (Data (fnil typrop)))))
+                          (App (App (Inj (inr (Smx flocalD))) (Var 0%nat))
+                             (Var 4%nat))) (Var 2%nat)))*)
+Eval vm_compute in run_tac_intros (SYMEXE_SET tbl) e. 
+rforward_set.
+reify_expr_tac.
+Eval vm_compute in symexe tbl e.
+
+rforward. reify_expr_tac.
+eval
 Qed.
 
 Goal
@@ -324,12 +380,20 @@ forall  (contents : list val), exists PO,
 intros.
 unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
 rforward.
+Eval compute in (lots_of_sets 50).
 Qed.
 
-Lemma seq_more : forall p es,
-@semax es empty_tycontext p (Ssequence Sskip (Sgoto _p)) (normal_ret_assert p).
+
+Lemma seq_more :
+forall  (contents : list val), exists PO, 
+   (semax
+     (remove_global_spec Delta)
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
+     (Ssequence Sskip (*(Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))*)
+                (Sgoto _p))
+     (normal_ret_assert PO)).
 Proof.
-unfold empty_tycontext.
+unfold Delta, remove_global_spec.
 intros.
 rforward. 
 Abort.

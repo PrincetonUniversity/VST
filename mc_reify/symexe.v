@@ -71,6 +71,7 @@ end.
 
 Section tbled.
 
+
 Variable n : nat.
 Variable tbl : SymEnv.functions RType_typ.
 
@@ -114,11 +115,39 @@ Definition set_lemma (id : positive) (e : Clight.expr) (t : PTree.t (type * bool
 reify_lemma reify_vst (semax_set_localD id e t v r gt).
 Defined.
 
-Check semax_set_localD.
 Definition THEN' (r1 r2 : rtac typ (expr typ func)) := THEN r1 (runOnGoals r2).
 
 Definition THEN (r1 r2 : rtac typ (expr typ func)) := 
   THEN' r1 (THEN' (INSTANTIATE typ func) r2).
+
+Definition replace_set (e : expr typ func) : expr typ func :=
+match e with
+| App (App (App (App (App (Inj (inr (Smx fsemax))) es) 
+                     Delta) pre) s) post => 
+  let newpre := 
+      match pre with
+        |  App (App (App (Inj (inr (Smx fassertD))) P)
+                    (App (App (Inj (inr (Smx flocalD)))
+                              T1) T2)) R => 
+           let newT1 := match T1 with
+                          | App (App 
+                                    (Inj (inr (Data (fset tyval n))))
+                                    val) T1' =>
+                            get_set_reif.set_reif n val T1' tyval 
+                          | _ => T1
+                        end in
+           App (App (App (Inj (inr (Smx fassertD))) P)
+                    (App (App (Inj (inr (Smx flocalD)))
+                              newT1) T2)) R
+        | _ => pre
+      end in
+  App (App (App (App (App (Inj (inr (Smx fsemax))) es) 
+                     Delta) newpre) s) post
+| _ => e
+end.
+       
+Definition SIMPL_SET : rtac typ (ExprCore.expr typ func) :=
+SIMPLIFY (fun _ _ _ _ => replace_set).
 
 Definition update_tycon_tac (l : list (option (expr typ func)))
 (e : expr typ func) (args : list (expr typ func))
@@ -156,7 +185,8 @@ EAPPLY typ func  (set_lemma id e t v r gt).
 
 Definition SYMEXE_STEP
 : rtac typ (expr typ func)  :=
-  AT_GOAL  
+(*THEN SIMPL_SET *)
+  (AT_GOAL  
     (fun c s e => 
          match (get_delta_statement e) with
            | Some ((t, v, r, gt) , st) =>  
@@ -170,7 +200,37 @@ Definition SYMEXE_STEP
                | _ => FAIL
              end
            | None => FAIL
-         end).
+         end)).
+
+Definition SYMEXE_SEQ : rtac typ (expr typ func) :=
+ THEN INTROS ( AT_GOAL  
+    (fun c s e => 
+         match (get_delta_statement e) with
+           | Some ((t, v, r, gt) , st) =>  
+             match st with 
+               | Ssequence s1 s2 => APPLY_SEQ s1 s2  
+               | _ => FAIL
+             end
+           | None => FAIL
+         end)).
+
+Definition SYMEXE_SET
+: rtac typ (expr typ func)  :=
+ THEN INTROS ( AT_GOAL  
+    (fun c s e => 
+         match (get_delta_statement e) with
+           | Some ((t, v, r, gt) , st) =>  
+             match st with 
+               | Sset id exp => THEN (APPLY_SET' id exp t v r gt) 
+                                     (TRY (FIRST [REFLEXIVITY_MSUBST tbl; 
+                                                   (REFLEXIVITY_BOOL tbl);
+                                                   (REFLEXIVITY tbl)])) 
+               | _ => FAIL
+             end
+           | None => FAIL
+         end)).
+
+
 
 Existing Instance func_defs.Expr_ok_fs.
 
@@ -289,6 +349,33 @@ reify_expr_tac.
 Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITYTAC tbl)) e.
 Abort.
 
+Existing Instance NullExtension.Espec.
+
+Definition replace_set2 (e : expr typ func) : expr typ func :=
+match e with
+| App (App (App (App (App (Inj (inr (Smx fsemax))) es) 
+                     Delta) pre) s) post => 
+  let newpre := 
+      match pre with
+        |  App (App (App (Inj (inr (Smx fassertD))) P)
+                    (App (App (Inj (inr (Smx flocalD)))
+                              T1) T2)) R => 
+           let newT1 := match T1 with
+                          | App (App 
+                                    (Inj (inr (Data (fset tyval n))))
+                                    val) T1' =>
+                            get_set_reif.set_reif n val T1' tyval 
+                          | _ => T1
+                        end in
+           App (App (App (Inj (inr (Smx fassertD))) P)
+                    (App (App (Inj (inr (Smx flocalD)))
+                              newT1) T2)) R
+        | _ => pre
+      end in
+  App (App (App (App (App (Inj (inr (Smx fsemax))) es) 
+                     Delta) newpre) s) post
+| _ => e
+end.
 
 Goal forall sh ty v1 v2, mapsto sh ty v1 v2 = mapsto sh ty v1 v2.
 reify_expr_tac.
@@ -296,7 +383,7 @@ Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITYTAC tbl)) e.
 Abort.
 
 Require Import denote_tac.
-
+(*
 Ltac run_rtac reify term_table tac_sound :=
   match type of tac_sound with
     | rtac_sound ?tac =>
@@ -331,3 +418,4 @@ Ltac run_rtac reify term_table tac_sound :=
 	  end
 	| _ => idtac tac_sound "is not a soudness theorem."
   end.
+*)
