@@ -32,7 +32,7 @@ Fixpoint val_e_to_expr (v : val_e) : (expr typ func) :=
 match v with
   | Vundef => injR (Value fVundef)
   | Vlong l => (appR (Value fVlong) (injR (Const (fint64 l))))
-  | Vint i => (appR (Value fVfloat) (injR (Const (fint i))))
+  | Vint i => (appR (Value fVint) (injR (Const (fint i))))
   | Vfloat f => (appR (Value fVfloat) (injR (Const (ffloat f))))
   | Vsingle f => (appR (Value fVsingle) (injR (Const (ffloat32 f))))
   | Vexpr e => e

@@ -364,67 +364,29 @@ Existing Instance NullExtension.Espec.
 Goal
 forall {Espec : OracleKind} (contents : list val), 
    (semax
-     (*(remove_global_spec Delta)*)empty_tycontext
+     (remove_global_spec Delta) (*empty_tycontext*)
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
-     (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
+       (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
      (normal_ret_assert (assertD [] (localD (PTree.set _p (Values.Vint Int.zero) (PTree.empty val)) (PTree.empty (type * val))) []))).
 intros.
-unfold empty_tycontext, Delta, remove_global_spec. simpl PTree.set.
-change PTree.tree with PTree.t.
+unfold empty_tycontext, Delta, remove_global_spec.
 rforward.
-<<<<<<< HEAD
-rforward.
-reify_expr_tac.
-Print set_lemma.
-(*App
-                 (App
-                    (App
-                       (App (App (Inj (inr (Smx fsemax))) (Var 3%nat))
-                          (App (Inj (inr (Smx (ftycontext t v r gt))))
-                             (Var 1%nat)))
-                       (App
-                          (App
-                             (App (Inj (inr (Smx fassertD)))
-                                (Inj (inr (Data (fnil typrop)))))
-                             (App (App (Inj (inr (Smx flocalD))) (Var 5%nat))
-                                (Var 4%nat))) (Var 2%nat)))
-                    (Inj (inr (Smx (fstatement (Sset id e))))))
-                 (App (Inj (inr (Smx fnormal_ret_assert)))
-                    (App
-                       (App
-                          (App (Inj (inr (Smx fassertD)))
-                             (Inj (inr (Data (fnil typrop)))))
-                          (App (App (Inj (inr (Smx flocalD))) (Var 0%nat))
-                             (Var 4%nat))) (Var 2%nat)))*)
-Eval vm_compute in run_tac_intros (SYMEXE_SET tbl) e. 
-rforward_set.
-reify_expr_tac.
-Eval vm_compute in symexe tbl e.
-
-rforward. reify_expr_tac.
-eval
 Qed.
-=======
->>>>>>> baca6df05356b1aba00cdd0833ed45ea3d1f5c4a
 
-(*
-reify_expr_tac.
-Eval vm_compute in (run_tac (SYMEXE_TAC_n 1000 tbl) e).
-*)
-rforward. (* why rforward fail, Joey? vm_compute shows More but not fail.   -- Qinxiang*)
-Abort.
-(*
 Goal
-forall  (contents : list val), exists PO, 
+forall  (contents : list val),
    (semax
-     (remove_global_spec Delta)
+     (remove_global_spec Delta) (*empty_tycontext*)
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
-     (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
                 Sskip)
-     (normal_ret_assert PO)).
+     (normal_ret_assert (assertD [] (localD (PTree.set _p (Values.Vint Int.zero) (PTree.empty val)) (PTree.empty (type * val))) []))).
+     
 intros.
 unfold remove_global_spec,Delta.
 rforward.
+Abort. (* need to compute set in preconditions *)
+(*
 Qed.
 
 Fixpoint lots_temps' n p :=
