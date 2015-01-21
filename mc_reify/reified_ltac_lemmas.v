@@ -20,6 +20,17 @@ Proof.
   apply derives_refl.
 Qed.
 
+Lemma mpred_semax_post' : forall (R' : environ -> mpred) (Espec : OracleKind)
+         (Delta : tycontext) (R P : environ -> mpred) 
+         (c : statement),
+       (forall rho, R' rho |-- R rho) ->
+       semax Delta P c (normal_ret_assert R') ->
+       semax Delta P c (normal_ret_assert R).
+Proof.
+  intros.
+  apply semax_post' with (R' := R'); eauto.
+Qed.
+
 Require Export mc_reify.reify.
 Require Export mc_reify.bool_funcs.
 Require Import mc_reify.set_reif.
@@ -64,6 +75,12 @@ reify_lemma reify_vst mpred_derives_refl.
 Defined.
 
 (* Print reify_derives_refl. *)
+
+Definition reify_semax_post' : my_lemma.
+reify_lemma reify_vst mpred_semax_post'.
+Defined.
+
+(* Print reify_semax_post'. *)
 
 Section tbled.
 
@@ -119,6 +136,19 @@ Proof.
     simpl.
     unfold exprT_Inj, Rcast_val, Rcast in *. simpl in *.
     apply derives_refl; auto.
+Qed.
+
+Lemma APPLY_sound_semax_post': rtac_sound (EAPPLY typ func reify_semax_post').
+Proof.
+  apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
+  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+    unfold ExprDsimul.ExprDenote.exprT_App.
+    simpl.
+    unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
+    unfold ILogicFunc.typ2_cast_quant in *. simpl in *.
+    apply mpred_semax_post' with (R' := x4); auto.
 Qed.
 
 End tbled.

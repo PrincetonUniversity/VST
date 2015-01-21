@@ -28,15 +28,37 @@ Require Export mc_reify.reflexivity_tacs.
 Require Import mc_reify.get_set_reif.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.typ_eq.
-
-
-Require Import mc_reify.reverse_defs.
-Require Import mc_reify.rtac_base.
-Require Import mc_reify.hoist_later_in_pre.
-Require Import mc_reify.symexe.
 Require Import mc_reify.func_defs.
-Require Import mc_reify.denote_tac.
 
+
+Require Import mc_reify.rtac_base.
+
+Lemma semax_set_localD:
+    forall temp var ret gt 
+      id (e: Clight.expr) ty gs P T1 T2 R Post v,
+  forall {Espec: OracleKind},
+      typeof_temp (mk_tycontext temp var ret gt gs) id = Some ty -> 
+      is_neutral_cast (implicit_deref (typeof e)) ty = true ->
+      msubst_eval_LR T1 T2 e RRRR = Some v ->
+      tc_expr_b_norho (mk_tycontext temp var ret gt gs) e = true ->
+      assertD P (localD (PTree.set id v T1) T2) R = Post ->
+      semax (mk_tycontext temp var ret gt gs) (|> (assertD P (localD T1 T2) R))
+        (Sset id e)
+          (normal_ret_assert Post).
+Proof.
+  intros.
+  subst Post.
+  eapply semax_PTree_set; eauto.
+  intro rho.
+  apply tc_expr_b_sound with (rho := rho) in H2.
+  normalize.
+Qed.
+
+Definition set_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
+         (ret : type) (gt : PTree.t type) (id : ident) 
+         (e : Clight.expr) (ty : type): my_lemma.
+reify_lemma reify_vst (semax_set_localD temp var ret gt id e ty).
+Defined.
 
 Lemma semax_load_localD:
 (*    forall temp var ret gt (* Delta without gs *) id
@@ -66,7 +88,7 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
   (forall rho, 
       !!(tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |-- !! (p = p')) ->
   proj_val t_root gfs v' = v ->
-  assertD P (localD (my_set id v T1) T2) R = Post ->
+  assertD P (localD (PTree.set id v T1) T2) R = Post ->
   nested_efield e1 efs tts = e0 ->
 
   (forall rho, 
@@ -98,44 +120,113 @@ Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
 reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 efs tts e lr n).
 Defined.
 
-Print load_lemma.
-
-Lemma lower_prop_right: forall (P: mpred) (Q: Prop), Q -> P |-- !! Q.
-Proof.
-  intros.
-  apply prop_right.
-  auto.
-Qed.
-
-Definition prop_right_lemma: my_lemma.
-reify_lemma reify_vst lower_prop_right.
-Defined.
-
 Section tbled.
-
+Variable n : nat.
 Variable tbl : SymEnv.functions RType_typ.
+
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.
 
-Definition APPLY_load temp var ret gt id t t_root e0 e1 efs tts e lr n :=
-EAPPLY typ func (load_lemma temp var ret gt id t t_root e0 e1 efs tts e lr n).
 
-Definition APPLY_prop_right := EAPPLY typ func prop_right_lemma.
+Let Expr_expr_fs := Expr_expr_fs tbl.
+Existing Instance Expr_expr_fs.
 
-Definition remove_global_spec (t : tycontext) := 
-match t with
-| mk_tycontext t v r gt gs => mk_tycontext t v r gt (PTree.empty _)
-end.
+Let Expr_ok_fs := Expr_ok_fs tbl.
+Existing Instance Expr_ok_fs.
 
-Ltac reify_expr_tac :=
-match goal with
-| [ |- ?trm] => reify_vst trm
-end.
+Let ExprVar_expr := @ExprVariables.ExprVar_expr typ func.
+Existing Instance ExprVar_expr.
 
+Existing Instance MA.
 
+Existing Instance rtac_base.MentionsAnyOk.
+
+Lemma APPLY_sound_load_lemma: forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
+  (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type)
+  (e0 e1 : Clight.expr) (efs : list efield) (tts : list type)
+  (e : type_id_env) (lr : LLRR) (n : nat), 
+  rtac_sound (EAPPLY typ func (load_lemma temp var ret gt id t t_root e0 e1 efs tts e lr n)).
+Proof.
+  intros.
+  apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
+  + unfold Lemma.lemmaD, split_env, Lemma.lemmaD'. simpl.
+(* Set Printing Depth 200. *)
+    unfold exprD'_typ0. simpl.
+    unfold exprD'. simpl.
+    assert (@funcAs typ func RType_typ
+              (func_defs.RSym_sym tbl)
+              (@inr
+                 (sum
+                    (sum SymEnv.func
+                       (ModularFunc.ILogicFunc.ilfunc
+                       typ))
+                    (BILogicFunc.bilfunc typ))
+                 func' (Sep (fdata_at t_root)))
+              (tyArr tyshare
+                 (tyArr 
+                    (reptyp t_root)
+                    (tyArr tyval tympred))) =
+            Some
+              (fun (sh : share) (rt : typD (reptyp t_root)) (v : val) =>
+               data_at sh t_root (reptyp_reptype t_root rt) v)).
+    Focus 1. {
+      intros.
+      unfold funcAs; simpl.
+      assert (forall pl: (fun t0 : typ =>
+        {tyArr t0 (tyArr (reptyp t_root) (tyArr tyval tympred)) =
+         tyArr tyshare (tyArr (reptyp t_root) (tyArr tyval tympred))} +
+        {tyArr t0 (tyArr (reptyp t_root) (tyArr tyval tympred)) <>
+         tyArr tyshare (tyArr (reptyp t_root) (tyArr tyval tympred))})
+         tyshare, pl = left eq_refl).
+      Focus 1. {
+        intros.
+        destruct pl; [f_equal; apply proof_irr | congruence].
+      } Unfocus.
+      match goal with 
+      | [ |- context [match (match ?e with _ => _ end) with _ => _ end] ] => rewrite (H e)
+      end.
+      unfold Rcast; simpl.
+      reflexivity.
+    } Unfocus.
+    rewrite H. simpl. clear H.
+    assert (exprT_GetVAs []
+                  [tyOracleKind; 
+                reptyp t_root; tyval; tyval; tyval;
+                tylist tygfield;
+                tyArr tyenviron tympred;
+                tylist tympred;
+                typtree (typrod tyc_type tyval);
+                typtree tyval; 
+                tylist typrop; tyshare;
+                typtree tyfunspec] 1 
+                (reptyp t_root) = Some
+      (fun (_ : HList.hlist typD [])
+         (vs : HList.hlist typD
+                [tyOracleKind; reptyp t_root; tyval; tyval; tyval;
+                tylist tygfield; tyArr tyenviron tympred; 
+                tylist tympred; typtree (typrod tyc_type tyval);
+                typtree tyval; tylist typrop; tyshare; 
+                typtree tyfunspec]) => HList.hlist_hd (HList.hlist_tl vs))).
+    Focus 1. {
+      intros.
+      unfold exprT_GetVAs. simpl.
+      destruct (typ_eq_dec (reptyp t_root) (reptyp t_root)); [ |congruence].
+      assert (e2 = eq_refl) by apply proof_irr.
+      subst.
+      unfold Rcast_val, Rcast; simpl.
+    reflexivity.
+    } Unfocus.
+    rewrite H. simpl; clear H.
+    intros.
+    unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
+    unfold ModularFunc.ILogicFunc.typ2_cast_quant, ModularFunc.ILogicFunc.typ2_cast_bin in *; simpl in *.
+    eapply semax_load_localD; eauto.
+Qed.
 
 End tbled.
-
+(*
 Notation "'NOTATION_T1' v" := (PTree.Node PTree.Leaf None
          (PTree.Node PTree.Leaf None
             (PTree.Node
@@ -159,48 +250,4 @@ forall {Espec : OracleKind} (sh:Share.t) (contents : list val) (v: val) ,
 )).
 intros.
 simpl (remove_global_spec Delta).
-(*
-intros.
-eexists.
-(*
-Eval compute in (compute_nested_efield (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
-           _tail (tptr t_struct_list))).*)
-eapply (semax_load_localD) with (efs := eStructField _tail :: nil) (tts := tptr t_struct_list :: nil)
-  (e := Struct_env) (t_root := t_struct_list) (lr := LLLL)
-  (e1 := (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)) (n := 0%nat).
-reflexivity.
-reflexivity.
-reflexivity.
-reflexivity.
-reflexivity.
-reflexivity.
-reflexivity.
-reflexivity.
-+
-
 *)
-
-(*Set Printing Depth 300.*)
-
-reify_expr_tac.
-
-Eval vm_compute in (run_tac 
-match (get_arguments e) with
-| (Some Delta, Some Pre, Some st) => 
-  FORWARD_LOAD tbl Delta Pre st
-| _ => FAIL
-end e).
-
-
-
-(*
-Eval vm_compute in (reflect_prop tbl0 load_lemma).
-Require Import denote_tac.
-
-Check reflect_prop.
-assert (exists v, reflect_prop tbl0 e = Some v).
-unfold tbl0, e.
-simpl.
-cbv_denote.
-*)
- 

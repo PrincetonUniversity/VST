@@ -27,101 +27,9 @@ Require Import MirrorCharge.RTac.Cancellation.
 Require Import mc_reify.rtac_base.
 Require Import mc_reify.reified_ltac_lemmas.
 Require Import mc_reify.hoist_later_in_pre.
+Require Import mc_reify.set_load_store.
 
 Local Open Scope logic.
-
-(************************************************
-
-Set Load Store
-
-************************************************)
-
-Lemma semax_set_localD:
-    forall temp var ret gt 
-      id (e: Clight.expr) ty gs P T1 T2 R Post v,
-  forall {Espec: OracleKind},
-      typeof_temp (mk_tycontext temp var ret gt gs) id = Some ty -> 
-      is_neutral_cast (implicit_deref (typeof e)) ty = true ->
-      msubst_eval_LR T1 T2 e RRRR = Some v ->
-      tc_expr_b_norho (mk_tycontext temp var ret gt gs) e = true ->
-      assertD P (localD (PTree.set id v T1) T2) R = Post ->
-      semax (mk_tycontext temp var ret gt gs) (|> (assertD P (localD T1 T2) R))
-        (Sset id e)
-          (normal_ret_assert Post).
-Proof.
-  intros.
-  subst Post.
-  eapply semax_PTree_set; eauto.
-  intro rho.
-  apply tc_expr_b_sound with (rho := rho) in H2.
-  normalize.
-Qed.
-
-Definition set_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
-         (ret : type) (gt : PTree.t type) (id : ident) 
-         (e : Clight.expr) (ty : type): my_lemma.
-reify_lemma reify_vst (semax_set_localD temp var ret gt id e ty).
-Defined.
-
-Lemma semax_load_localD:
-(*    forall temp var ret gt (* Delta without gs *) id
-      (e: type_id_env) gs sh P T1 T2 R Post (e1: Clight.expr) (t t_root: type)
-      (efs: list efield) (gfs: list gfield) (tts: list type)
-      (p: val) (v : val) (v' : reptype t_root) lr,
-  forall {Espec: OracleKind},*)
-forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
-     (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
-     (efs : list efield) (tts : list type) 
-     (e : type_id_env) (lr : LLRR) (n: nat)
-     (gs : PTree.t funspec) (sh : Share.t) 
-     (P : list Prop) (T1 : PTree.t val) (T2 : PTree.t (type * val))
-     (R : list mpred) (Post : environ -> mpred)
-     (gfs : list gfield)
-     (p p' v : val) (v' : reptype t_root) 
-     (Espec : OracleKind),
-  typeof_temp (mk_tycontext temp var ret gt gs) id = Some t -> 
-  is_neutral_cast (typeof e0) t = true ->
-  msubst_efield_denote T1 T2 efs = Some gfs ->
-  legal_nested_efield e t_root e1 gfs tts lr = true ->
-  tc_efield_b_norho (mk_tycontext temp var ret gt gs) efs = true ->
-
-  msubst_eval_LR T1 T2 e1 lr = Some p ->
-  tc_LR_b_norho (mk_tycontext temp var ret gt gs) e1 lr = true ->
-  (@eq (option mpred)) (nth_error R n) (Some (data_at sh t_root v' p')) ->
-  (forall rho, 
-      !!(tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |-- !! (p = p')) ->
-  proj_val t_root gfs v' = v ->
-  assertD P (localD (PTree.set id v T1) T2) R = Post ->
-  nested_efield e1 efs tts = e0 ->
-
-  (forall rho, 
-      !! (tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |--
-        !! (tc_val (typeof e0) v) &&
-
-        !! (legal_nested_field t_root gfs)) ->
-(*
-  (*id = id /\ e = e /\ *)sh = sh /\ P = P /\ T1 = T1 /\
-  T2 = T2 /\ R = R /\ Post = Post /\ (*e1 = e1 /\ t = t /\ t_root = t_root /\*)
-  (*efs = efs /\*)
-  gfs = gfs /\
-  (*tts = tts /\*) p = p /\
-  v = v /\ v' = v' /\ (*lr = lr /\ *)Espec = Espec ->
-*)
- semax (mk_tycontext temp var ret gt gs) (|> assertD P (localD T1 T2) R) 
-        (Sset id e0)
-          (normal_ret_assert Post)
-(* Similar solutions include hiding type Clight.expr in function return type
- like nested_efield_rel. *)
-.
-Proof.
-Admitted.
-
-Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
-     (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
-    (efs: list efield) (tts : list type) (e : type_id_env) (lr : LLRR)
-    (n: nat): my_lemma.
-reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 efs tts e lr n).
-Defined.
 
 (************************************************
 
@@ -295,6 +203,8 @@ Definition compute_set_arg (arg:
     end
   end.
 
+Section empty_RSym_sym.
+
 Instance RSym_SymEnv_fun : RSym SymEnv.func := {
   typeof_sym := fun _ => None;
   symD := fun _ => tt;
@@ -330,6 +240,8 @@ Fixpoint expr_beq (e1 e2: expr typ func) : bool :=
   | UVar i1, UVar i2 => beq_nat i1 i2
   | _, _ => false
   end.
+
+End empty_RSym_sym.
 
 Fixpoint nth_solver_rec (R: expr typ func) (p: expr typ func) (n: nat) :=
 match R with
@@ -507,8 +419,8 @@ Definition FORWARD_LOAD Struct_env Delta Pre s :=
 
 Definition SYMEXE_STEP Struct_env
 : rtac typ (expr typ func)  :=
-  (*THEN SIMPL_SET *)
-  (THEN' (INSTANTIATE typ func)   
+  THEN' (INSTANTIATE typ func)
+  (THEN SIMPL_SET
   (AT_GOAL
     (fun c s e => 
          match (get_arguments e) with
@@ -526,14 +438,17 @@ Definition SYMEXE_STEP Struct_env
 Existing Instance func_defs.Expr_ok_fs.
 
 Definition SYMEXE_TAC_n :=
-  THEN INTROS
-  (AT_GOAL
-    (fun c s e =>
-       match (get_arguments e) with
-       | (Some (A, B, C, D, _), _, _) =>
-         (REPEAT n (SYMEXE_STEP (compute_type_id_env (mk_tycontext A B C D (PTree.empty funspec)))))
-       | _ => FAIL
-       end)).
+  THEN
+   (THEN INTROS
+   (THEN (EAPPLY typ func reify_semax_post')
+         (TRY (AT_GOAL
+                (fun c s e =>
+                   match (get_arguments e) with
+                   | (Some (A, B, C, D, _), _, _) =>
+                     (REPEAT n (SYMEXE_STEP (compute_type_id_env (mk_tycontext A B C D (PTree.empty funspec)))))
+                   | _ => FAIL
+                   end)))))
+   (TRY (THEN INTROS (EAPPLY typ func reify_derives_refl))).
 
 (*Definition SYMEXE_TAC := SYMEXE_TAC_n 1000.
 

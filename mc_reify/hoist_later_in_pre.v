@@ -119,18 +119,19 @@ Variable tbl : SymEnv.functions RType_typ.
 Let RSym_sym := RSym_sym tbl.
 Existing Instance RSym_sym.
 
+Definition solve_hd_in_hlip (hd: expr typ func) : rtac typ (expr typ func) :=
+  match hd with
+  | App (Inj (inr (Smx flater))) _ => EAPPLY typ func reify_derives_refl
+  | _ => EAPPLY typ func reify_now_later
+  end.
+
 Fixpoint solve_strip_1_later (R: expr typ func) : rtac typ (expr typ func) :=
   match R with
   | Inj (inr (Data (fnil tympred))) => EAPPLY typ func reify_now_later
   | App (App (Inj (inr (Data (fcons tympred)))) hd) tl =>
-    let solve_head :=
-    match hd with
-    | App (Inj (inr (Smx flater))) _ => EAPPLY typ func reify_derives_refl
-    | _ => EAPPLY typ func reify_now_later
-    end in
     THEN (EAPPLY typ func reify_hlip_ind)
      (THEN (TRY (REFLEXIVITY tbl))
-           (FIRST [solve_head; solve_strip_1_later tl]))
+           (FIRST [solve_hd_in_hlip hd; solve_strip_1_later tl]))
   | _ => FAIL
   end.
 
@@ -178,11 +179,7 @@ Proof.
     eapply fold_right_sepcon_later_derives; eauto.
 Qed.
 
-Definition HLIP_sound_aux2 (hd: expr typ func): rtac_sound
-   (match hd with
-    | App (Inj (inr (Smx flater))) _ => EAPPLY typ func reify_derives_refl
-    | _ => EAPPLY typ func reify_now_later
-    end) :=
+Definition HLIP_sound_aux2 (hd: expr typ func): rtac_sound (solve_hd_in_hlip hd) :=
     match hd as hd'
       return rtac_sound match hd' with
                         | App (Inj (inr (Smx flater))) _ => EAPPLY typ func reify_derives_refl
@@ -193,9 +190,53 @@ Definition HLIP_sound_aux2 (hd: expr typ func): rtac_sound
     | _ => APPLY_sound_now_later tbl
     end.
 
-Lemma solve_strip_1_later_sound: forall (R: expr typ func), rtac_sound (solve_strip_1_later R).
+Print Forall_cons.
+Lemma tttt: Forall (fun x => In x [1; 3; 4]) [1; 3; 4].
+constructor; [| constructor; [| constructor; [| constructor]]].
++ left. reflexivity.
++ right. left. reflexivity.
++ right. right. left. reflexivity.
+Qed.
+
+Lemma solve_strip_1_later_def: forall R,
+  match R with
+  | Inj (inr (Data (fnil tympred))) => EAPPLY typ func reify_now_later
+  | App (App (Inj (inr (Data (fcons tympred)))) hd) tl =>
+    THEN (EAPPLY typ func reify_hlip_ind)
+     (THEN (TRY (REFLEXIVITY tbl))
+           (FIRST [solve_hd_in_hlip hd; solve_strip_1_later tl]))
+  | _ => FAIL
+  end =
+  solve_strip_1_later R.
 Proof.
-Admitted.
+  intros.
+  repeat
+  match goal with 
+  | [ |- context [match ?e with _ => _ end] ] => destruct e; auto
+  end.
+Qed. (* 5 seconds *)
+
+Fixpoint solve_strip_1_later_sound (R: expr typ func) : rtac_sound (solve_strip_1_later R) :=
+  let res :=
+  match R as R'
+    return rtac_sound match R' with
+                      | Inj (inr (Data (fnil tympred))) => EAPPLY typ func reify_now_later
+                      | App (App (Inj (inr (Data (fcons tympred)))) hd) tl =>
+                        THEN (EAPPLY typ func reify_hlip_ind)
+                         (THEN (TRY (REFLEXIVITY tbl))
+                               (FIRST [solve_hd_in_hlip hd; solve_strip_1_later tl]))
+                      | _ => FAIL
+                      end
+  with
+  | Inj (inr (Data (fnil tympred))) => APPLY_sound_now_later tbl
+  | App (App (Inj (inr (Data (fcons tympred)))) hd) tl =>
+    THEN_sound tbl _ _ HLIP_sound_aux1
+     (THEN_sound tbl _ _ (TRY_sound (REFLEXIVITYTAC_sound tbl))
+                        (FIRST_sound (Forall_cons _ (HLIP_sound_aux2 hd)
+                                       (Forall_cons _ (solve_strip_1_later_sound tl) (Forall_nil _)))))
+  | _ => FAIL_sound
+  end in
+  eq_rect_r rtac_sound res (eq_sym (solve_strip_1_later_def R)). (*23 seconds *)
 
 Lemma HLIP_sound: forall temp var ret gt R s, rtac_sound (HLIP temp var ret gt R s).
 Proof.

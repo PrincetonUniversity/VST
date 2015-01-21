@@ -20,6 +20,7 @@ Require Import MirrorCharge.RTac.EApply.
 Require Import mc_reify.rtac_base.
 Require Import mc_reify.reified_ltac_lemmas.
 Require Import mc_reify.hoist_later_in_pre.
+Require Import mc_reify.set_load_store.
 Require Import mc_reify.symexe.
 
 Section tbled.
@@ -65,7 +66,7 @@ exprD' tus tvs typrop e = exprD' tus tvs typrop (replace_set e).
 intros.
 destruct e; auto. simpl.
 repeat
-match goal with 
+match goal with
 | [ |- context [match ?e with _ => _ end] ] => destruct e; auto
 end.
 admit.
@@ -110,90 +111,6 @@ Proof.
       * apply REFLEXIVITYTAC_sound.
 Qed.
 
-Lemma APPLY_sound_load_lemma: forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
-  (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type)
-  (e0 e1 : Clight.expr) (efs : list efield) (tts : list type)
-  (e : type_id_env) (lr : LLRR) (n : nat), 
-  rtac_sound (EAPPLY typ func (load_lemma temp var ret gt id t t_root e0 e1 efs tts e lr n)).
-Proof.
-  intros.
-  apply EAPPLY_sound; auto with typeclass_instances.
-  + apply APPLY_condition1.
-  + apply APPLY_condition2.
-  + unfold Lemma.lemmaD, split_env, Lemma.lemmaD'. simpl.
-(* Set Printing Depth 200. *)
-    unfold exprD'_typ0. simpl.
-    unfold exprD'. simpl.
-    assert (@funcAs typ func RType_typ
-              (func_defs.RSym_sym tbl)
-              (@inr
-                 (sum
-                    (sum SymEnv.func
-                       (ModularFunc.ILogicFunc.ilfunc
-                       typ))
-                    (BILogicFunc.bilfunc typ))
-                 func' (Sep (fdata_at t_root)))
-              (tyArr tyshare
-                 (tyArr 
-                    (reptyp t_root)
-                    (tyArr tyval tympred))) =
-            Some
-              (fun (sh : share) (rt : typD (reptyp t_root)) (v : val) =>
-               data_at sh t_root (reptyp_reptype t_root rt) v)).
-    Focus 1. {
-      intros.
-      unfold funcAs; simpl.
-      assert (forall pl: (fun t0 : typ =>
-        {tyArr t0 (tyArr (reptyp t_root) (tyArr tyval tympred)) =
-         tyArr tyshare (tyArr (reptyp t_root) (tyArr tyval tympred))} +
-        {tyArr t0 (tyArr (reptyp t_root) (tyArr tyval tympred)) <>
-         tyArr tyshare (tyArr (reptyp t_root) (tyArr tyval tympred))})
-         tyshare, pl = left eq_refl).
-      Focus 1. {
-        intros.
-        destruct pl; [f_equal; apply proof_irr | congruence].
-      } Unfocus.
-      match goal with 
-      | [ |- context [match (match ?e with _ => _ end) with _ => _ end] ] => rewrite (H e)
-      end.
-      unfold Rcast; simpl.
-      reflexivity.
-    } Unfocus.
-    rewrite H. simpl. clear H.
-    assert (exprT_GetVAs []
-                  [tyOracleKind; 
-                reptyp t_root; tyval; tyval; tyval;
-                tylist tygfield;
-                tyArr tyenviron tympred;
-                tylist tympred;
-                typtree (typrod tyc_type tyval);
-                typtree tyval; 
-                tylist typrop; tyshare;
-                typtree tyfunspec] 1 
-                (reptyp t_root) = Some
-      (fun (_ : HList.hlist typD [])
-         (vs : HList.hlist typD
-                [tyOracleKind; reptyp t_root; tyval; tyval; tyval;
-                tylist tygfield; tyArr tyenviron tympred; 
-                tylist tympred; typtree (typrod tyc_type tyval);
-                typtree tyval; tylist typrop; tyshare; 
-                typtree tyfunspec]) => HList.hlist_hd (HList.hlist_tl vs))).
-    Focus 1. {
-      intros.
-      unfold exprT_GetVAs. simpl.
-      destruct (typ_eq_dec (reptyp t_root) (reptyp t_root)); [ |congruence].
-      assert (e2 = eq_refl) by apply proof_irr.
-      subst.
-      unfold Rcast_val, Rcast; simpl.
-    reflexivity.
-    } Unfocus.
-    rewrite H. simpl; clear H.
-    intros.
-    unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
-    unfold ModularFunc.ILogicFunc.typ2_cast_quant, ModularFunc.ILogicFunc.typ2_cast_bin in *; simpl in *.
-    eapply semax_load_localD; eauto.
-Qed.
-
 Lemma FORWARD_LOAD_sound: forall Struct_env Delta Pre s, rtac_sound (FORWARD_LOAD tbl Struct_env Delta Pre s).
 Proof.
   intros.
@@ -223,6 +140,7 @@ intros.
 unfold SYMEXE_STEP.
 apply Then.THEN_sound; [apply INSTANTIATE_sound |].
 apply runOnGoals_sound.
+apply THEN_sound; [apply SIMPL_SET_sound |].
 eapply AT_GOAL_sound.
 intros.
 destruct (get_arguments e);
@@ -256,13 +174,19 @@ Qed.
 
 Theorem SYMEXE_sound : rtac_sound (SYMEXE_TAC_n n tbl).
 Proof.
-  apply THEN_sound.
+  repeat apply THEN_sound.
   + admit. (*jesper*)
-  + eapply AT_GOAL_sound.
+  + apply APPLY_sound_semax_post'.
+  + apply TRY_sound.
+    eapply AT_GOAL_sound.
     intros.
     destruct (get_arguments e) as [[[[[[[? ?] ?] ?] ?]|] ?] ?]; [| apply FAIL_sound].
     apply REPEAT_sound.
     apply SYMEXE_STEP_sound.
+  + apply TRY_sound.
+    apply THEN_sound.
+    - admit. (* INTROS *)
+    - apply APPLY_sound_derives_refl.
 Qed.
 
 End tbled.
@@ -326,6 +250,152 @@ unfold empty_tycontext.
 rforward.
 Qed.
 
+Lemma skip_triple' : forall sh v e,
+@semax e empty_tycontext
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+       [data_at sh (tptr tint) (default_val _) (force_ptr v)])
+      Sskip  (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+       [])).
+Proof. 
+intros.
+unfold empty_tycontext.
+rforward.
+(*
+1 subgoals, subgoal 1 (ID 1060)
+  
+  sh : Share.t
+  v : val
+  e : OracleKind
+  ============================
+   (let (typeof_sym, symD, _) as RSym
+        return
+          (forall f : ModularFunc.ILogicFunc.ilfunc typ,
+           match (let (typeof_sym, _, _) := RSym in typeof_sym) f with
+           | Some t =>
+               (fix typD (t0 : typ) : Type :=
+                  match t0 with
+                  | tyArr a b => typD a -> typD b
+                  | tytycontext => tycontext
+                  | tyc_expr => Clight.expr
+                  | tyc_type => type
+                  | tyenviron => environ
+                  | tyval => val
+                  | tyshare => share
+                  | tyident => ident
+                  | tylist t1 => list (typD t1)
+                  | tyint => int
+                  | tyZ => Z
+                  | tynat => nat
+                  | typositive => positive
+                  | tybool => bool
+                  | tycomparison => comparison
+                  | tytc_assert => tc_assert
+                  | tyint64 => int64
+                  | tyfloat => float
+                  | tyfloat32 => float32
+                  | tyattr => attr
+                  | tysignedness => signedness
+                  | tyintsize => intsize
+                  | tyfloatsize => floatsize
+                  | tytypelist => typelist
+                  | tyfieldlist => fieldlist
+                  | tybinary_operation => Cop.binary_operation
+                  | tyunary_operation => Cop.unary_operation
+                  | tyN => N
+                  | tyoption t1 => option (typD t1)
+                  | typrop => Prop
+                  | tympred => mpred
+                  | tysum t1 t2 => (typD t1 + typD t2)%type
+                  | typrod t1 t2 => (typD t1 * typD t2)%type
+                  | tyunit => unit
+                  | tyOracleKind => OracleKind
+                  | tystatement => statement
+                  | tyret_assert => ret_assert
+                  | tyexitkind => exitkind
+                  | typtree t1 => PTree.t (typD t1)
+                  | tygfield => gfield
+                  | tyfunspec => funspec
+                  | tyefield => efield
+                  | tytype_id_env => type_id_env
+                  | tyllrr => LLRR
+                  end) t
+           | None => unit
+           end) := RSym_ilfunc in
+    symD) (ModularFunc.ILogicFunc.ilf_forall tyenviron typrop)
+     (fun x : environ =>
+      (let (typeof_sym, symD, _) as RSym
+           return
+             (forall f : ModularFunc.ILogicFunc.ilfunc typ,
+              match (let (typeof_sym, _, _) := RSym in typeof_sym) f with
+              | Some t =>
+                  (fix typD (t0 : typ) : Type :=
+                     match t0 with
+                     | tyArr a b => typD a -> typD b
+                     | tytycontext => tycontext
+                     | tyc_expr => Clight.expr
+                     | tyc_type => type
+                     | tyenviron => environ
+                     | tyval => val
+                     | tyshare => share
+                     | tyident => ident
+                     | tylist t1 => list (typD t1)
+                     | tyint => int
+                     | tyZ => Z
+                     | tynat => nat
+                     | typositive => positive
+                     | tybool => bool
+                     | tycomparison => comparison
+                     | tytc_assert => tc_assert
+                     | tyint64 => int64
+                     | tyfloat => float
+                     | tyfloat32 => float32
+                     | tyattr => attr
+                     | tysignedness => signedness
+                     | tyintsize => intsize
+                     | tyfloatsize => floatsize
+                     | tytypelist => typelist
+                     | tyfieldlist => fieldlist
+                     | tybinary_operation => Cop.binary_operation
+                     | tyunary_operation => Cop.unary_operation
+                     | tyN => N
+                     | tyoption t1 => option (typD t1)
+                     | typrop => Prop
+                     | tympred => mpred
+                     | tysum t1 t2 => (typD t1 + typD t2)%type
+                     | typrod t1 t2 => (typD t1 * typD t2)%type
+                     | tyunit => unit
+                     | tyOracleKind => OracleKind
+                     | tystatement => statement
+                     | tyret_assert => ret_assert
+                     | tyexitkind => exitkind
+                     | typtree t1 => PTree.t (typD t1)
+                     | tygfield => gfield
+                     | tyfunspec => funspec
+                     | tyefield => efield
+                     | tytype_id_env => type_id_env
+                     | tyllrr => LLRR
+                     end) t
+              | None => unit
+              end) := RSym_ilfunc in
+       symD) (ModularFunc.ILogicFunc.ilf_entails tympred)
+        (assertD [] (localD PTree.Leaf PTree.Leaf)
+           [data_at sh
+              (Tpointer
+                 (Tint I32 Signed
+                    {| attr_volatile := false; attr_alignas := None |})
+                 {| attr_volatile := false; attr_alignas := None |})
+              (reptyp_reptype
+                 (Tpointer
+                    (Tint I32 Signed
+                       {| attr_volatile := false; attr_alignas := None |})
+                    {| attr_volatile := false; attr_alignas := None |})
+                 (default_val (tptr tint))) (force_ptr v)] x)
+        (assertD [] (localD PTree.Leaf PTree.Leaf) [] x))
+
+*)
+
+Abort.
+
 Fixpoint lots_of_skips n :=
 match n with 
 | O => Sskip
@@ -371,24 +441,173 @@ forall {Espec : OracleKind} (contents : list val),
 intros.
 unfold empty_tycontext, Delta, remove_global_spec.
 rforward.
+(*
+1 subgoals, subgoal 1 (ID 2205)
+  
+  Espec : OracleKind
+  contents : list val
+  ============================
+   (let (typeof_sym, symD, _) as RSym
+        return
+          (forall f : ModularFunc.ILogicFunc.ilfunc typ,
+           match (let (typeof_sym, _, _) := RSym in typeof_sym) f with
+           | Some t =>
+               (fix typD (t0 : typ) : Type :=
+                  match t0 with
+                  | tyArr a b => typD a -> typD b
+                  | tytycontext => tycontext
+                  | tyc_expr => Clight.expr
+                  | tyc_type => type
+                  | tyenviron => environ
+                  | tyval => val
+                  | tyshare => share
+                  | tyident => ident
+                  | tylist t1 => list (typD t1)
+                  | tyint => int
+                  | tyZ => Z
+                  | tynat => nat
+                  | typositive => positive
+                  | tybool => bool
+                  | tycomparison => comparison
+                  | tytc_assert => tc_assert
+                  | tyint64 => int64
+                  | tyfloat => float
+                  | tyfloat32 => float32
+                  | tyattr => attr
+                  | tysignedness => signedness
+                  | tyintsize => intsize
+                  | tyfloatsize => floatsize
+                  | tytypelist => typelist
+                  | tyfieldlist => fieldlist
+                  | tybinary_operation => Cop.binary_operation
+                  | tyunary_operation => Cop.unary_operation
+                  | tyN => N
+                  | tyoption t1 => option (typD t1)
+                  | typrop => Prop
+                  | tympred => mpred
+                  | tysum t1 t2 => (typD t1 + typD t2)%type
+                  | typrod t1 t2 => (typD t1 * typD t2)%type
+                  | tyunit => unit
+                  | tyOracleKind => OracleKind
+                  | tystatement => statement
+                  | tyret_assert => ret_assert
+                  | tyexitkind => exitkind
+                  | typtree t1 => PTree.t (typD t1)
+                  | tygfield => gfield
+                  | tyfunspec => funspec
+                  | tyefield => efield
+                  | tytype_id_env => type_id_env
+                  | tyllrr => LLRR
+                  end) t
+           | None => unit
+           end) := RSym_ilfunc in
+    symD) (ModularFunc.ILogicFunc.ilf_forall tyenviron typrop)
+     (fun x : environ =>
+      (let (typeof_sym, symD, _) as RSym
+           return
+             (forall f : ModularFunc.ILogicFunc.ilfunc typ,
+              match (let (typeof_sym, _, _) := RSym in typeof_sym) f with
+              | Some t =>
+                  (fix typD (t0 : typ) : Type :=
+                     match t0 with
+                     | tyArr a b => typD a -> typD b
+                     | tytycontext => tycontext
+                     | tyc_expr => Clight.expr
+                     | tyc_type => type
+                     | tyenviron => environ
+                     | tyval => val
+                     | tyshare => share
+                     | tyident => ident
+                     | tylist t1 => list (typD t1)
+                     | tyint => int
+                     | tyZ => Z
+                     | tynat => nat
+                     | typositive => positive
+                     | tybool => bool
+                     | tycomparison => comparison
+                     | tytc_assert => tc_assert
+                     | tyint64 => int64
+                     | tyfloat => float
+                     | tyfloat32 => float32
+                     | tyattr => attr
+                     | tysignedness => signedness
+                     | tyintsize => intsize
+                     | tyfloatsize => floatsize
+                     | tytypelist => typelist
+                     | tyfieldlist => fieldlist
+                     | tybinary_operation => Cop.binary_operation
+                     | tyunary_operation => Cop.unary_operation
+                     | tyN => N
+                     | tyoption t1 => option (typD t1)
+                     | typrop => Prop
+                     | tympred => mpred
+                     | tysum t1 t2 => (typD t1 + typD t2)%type
+                     | typrod t1 t2 => (typD t1 * typD t2)%type
+                     | tyunit => unit
+                     | tyOracleKind => OracleKind
+                     | tystatement => statement
+                     | tyret_assert => ret_assert
+                     | tyexitkind => exitkind
+                     | typtree t1 => PTree.t (typD t1)
+                     | tygfield => gfield
+                     | tyfunspec => funspec
+                     | tyefield => efield
+                     | tytype_id_env => type_id_env
+                     | tyllrr => LLRR
+                     end) t
+              | None => unit
+              end) := RSym_ilfunc in
+       symD) (ModularFunc.ILogicFunc.ilf_entails tympred)
+        (assertD []
+           (localD
+              (PTree.set 37
+                 (eval_cast
+                    (Tint I32 Signed
+                       {| attr_volatile := false; attr_alignas := None |})
+                    (Tpointer Tvoid
+                       {| attr_volatile := false; attr_alignas := None |})
+                    (Vint
+                       {|
+                       Int.intval := 0;
+                       Int.intrange := Int.Z_mod_modulus_range' 0 |}))
+                 PTree.Leaf) PTree.Leaf) [] x)
+        (assertD []
+           (localD (PTree.set 37 (Vint Int.zero) PTree.Leaf) PTree.Leaf) 
+           [] x))
+
+*)
+(* Hey Joey, maybe this proof helps you with the white list. *)
+unfold RSym_ilfunc.
+simpl.
+unfold ModularFunc.ILogicFunc.typ2_cast_quant.
+simpl.
+intros.
+apply derives_refl.
 Qed.
 
-Goal
-forall  (contents : list val),
-   (semax
+(* The reason that derives_refl in Rtac does not solve the goal is that
+(eval_cast _ _ _) is reified one side and remains unreified on the other side. *)
+
+Goal (semax
      (remove_global_spec Delta) (*empty_tycontext*)
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
        (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
-                Sskip)
-     (normal_ret_assert (assertD [] (localD (PTree.set _p (Values.Vint Int.zero) (PTree.empty val)) (PTree.empty (type * val))) []))).
-     
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+                Sskip))
+     (normal_ret_assert (assertD [] (localD (PTree.set _p (Values.Vint Int.zero) ((PTree.empty val))) (PTree.empty (type * val))) []))).
+
 intros.
-unfold remove_global_spec,Delta.
+unfold remove_global_spec,Delta. simpl PTree.set.
 rforward.
-Abort. (* need to compute set in preconditions *)
-(*
+unfold RSym_ilfunc.
+simpl.
+unfold ModularFunc.ILogicFunc.typ2_cast_quant.
+simpl.
+intros.
+apply derives_refl.
 Qed.
 
+(*
 Fixpoint lots_temps' n p :=
 match n with 
 | O => PTree.set p (tptr t_struct_list, true) (PTree.empty _)
