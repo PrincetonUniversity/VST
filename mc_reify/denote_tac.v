@@ -258,6 +258,13 @@ Tactics.exprD_Prop
 goalD_aux
 Tactics.goalD_aux
 Typ0_tyProp
+
+func_defs.RSym_ilfunc
+func_defs.ilops
+ILogic.lforall
+ILogic.ILogicOps_Prop
+ILogic.lentails
+ILogicOps_mpred
           ].
 (*Tactic Notation "cbv_denote" "in" ident(H) := cbv_denote_in H.*)
 Locate goalD_Prop.
