@@ -265,6 +265,34 @@ ILogic.lforall
 ILogic.ILogicOps_Prop
 ILogic.lentails
 ILogicOps_mpred
+
+ILogic.land
+
+reptyp_reptype
+reptyp_structlist_reptype
+reptyp_unionlist_reptype
+data_at_lemmas.is_Fnil
+ModularFunc.ILogicFunc.typeof_func
+reptyp
+reptyp_structlist
+reptyp_unionlist
+
+ exportclight.Clightdefs.tvoid
+ exportclight.Clightdefs.tschar 
+ exportclight.Clightdefs.tuchar 
+ exportclight.Clightdefs.tshort 
+ exportclight.Clightdefs.tushort
+ exportclight.Clightdefs.tint
+ exportclight.Clightdefs.tuint
+ exportclight.Clightdefs.tbool 
+ exportclight.Clightdefs.tlong 
+ exportclight.Clightdefs.tulong 
+ exportclight.Clightdefs.tfloat 
+ exportclight.Clightdefs.tdouble
+ exportclight.Clightdefs.tptr
+ exportclight.Clightdefs.tarray 
+
+
           ].
 (*Tactic Notation "cbv_denote" "in" ident(H) := cbv_denote_in H.*)
 Locate goalD_Prop.

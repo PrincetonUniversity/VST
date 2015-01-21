@@ -438,6 +438,7 @@ Definition SYMEXE_STEP Struct_env
 Existing Instance func_defs.Expr_ok_fs.
 
 Definition SYMEXE_TAC_n :=
+  Then.THEN (
   THEN
    (THEN INTROS
    (THEN (EAPPLY typ func reify_semax_post')
@@ -448,7 +449,7 @@ Definition SYMEXE_TAC_n :=
                      (REPEAT n (SYMEXE_STEP (compute_type_id_env (mk_tycontext A B C D (PTree.empty funspec)))))
                    | _ => FAIL
                    end)))))
-   (TRY (THEN INTROS (EAPPLY typ func reify_derives_refl))).
+   (TRY (THEN INTROS (EAPPLY typ func reify_derives_refl)))) (@RTac.Minify.MINIFY typ (expr typ func) _).
 
 (*Definition SYMEXE_TAC := SYMEXE_TAC_n 1000.
 

@@ -52,6 +52,7 @@ exprD' tus tvs (typtree typ) (get_set_reif.set_reif i vr tr typ).
 
 Lemma SIMPL_DELTA_sound : rtac_sound SIMPL_DELTA.
 Proof.
+
 unfold SIMPL_DELTA.
 apply SIMPLIFY_sound.
 intros.
@@ -174,6 +175,9 @@ Qed.
 
 Theorem SYMEXE_sound : rtac_sound (SYMEXE_TAC_n n tbl).
 Proof.
+
+Admitted.
+(*
   repeat apply THEN_sound.
   + admit. (*jesper*)
   + apply APPLY_sound_semax_post'.
@@ -188,6 +192,7 @@ Proof.
     - admit. (* INTROS *)
     - apply APPLY_sound_derives_refl.
 Qed.
+*)
 
 End tbled.
 
@@ -220,7 +225,7 @@ Ltac run_rtac reify term_table tac_sound :=
 	                exact_no_check (@run_rtac_More tbl (tac tbl) _ _ _ (tac_sound tbl)
 	                	(@eq_refl (Result (CTop nil nil)) (More_ s goal_resultV) <:
 	                	   run_tac' (tac tbl) (GGoal goal) = (More_ s goal_resultV)))
-	                | cbv_denote; repeat (try eexists; eauto) 
+	                | idtac "bla bla"; cbv_denote(*; repeat (eexists; eauto) *)
 	              ]
 	            | Solved ?s =>
 	              exact_no_check (@run_rtac_Solved tbl (tac tbl) s name (tac_sound tbl) 
@@ -269,6 +274,22 @@ unfold empty_tycontext.
 rforward.
 Qed.
 
+Lemma seq_triple' : forall sh v e,
+@semax e empty_tycontext
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+       [data_at sh (tptr tint) (default_val _) (force_ptr v)])
+       (Ssequence Sskip Sskip)
+     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+       [])).
+Proof.
+intros.
+Locate tint.
+unfold empty_tycontext.
+Set Printing Depth 500.
+
+rforward.
+Abort.
+
 Lemma seq_triple_lots : forall sh v e,
 @semax e empty_tycontext
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
@@ -295,22 +316,80 @@ forall {Espec : OracleKind} (contents : list val),
 intros.
 unfold empty_tycontext, Delta, remove_global_spec.
 rforward.
+intros.
+apply derives_refl.
 Qed.
 
-(* The reason that derives_refl in Rtac does not solve the goal is that
-(eval_cast _ _ _) is reified one side and remains unreified on the other side. *)
+Notation "'NOTATION_T1' v" := (PTree.Node PTree.Leaf None
+         (PTree.Node PTree.Leaf None
+            (PTree.Node
+               (PTree.Node PTree.Leaf None
+                  (PTree.Node
+                     (PTree.Node PTree.Leaf
+                        (Some v)
+                        PTree.Leaf) None PTree.Leaf)) None PTree.Leaf))) (at level 50).
+
+
+Goal
+forall {Espec : OracleKind} (sh:Share.t) (contents : list val) (v: val) ,  
+   (semax
+     (remove_global_spec Delta) (*empty_tycontext*)
+     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+       [data_at sh t_struct_list (Vundef, Vint Int.zero) (force_ptr v)])
+     (Sset _t
+            (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
+              _tail (tptr t_struct_list)))         
+     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+       [data_at sh t_struct_list (default_val _) (force_ptr v)])
+)).
+intros.
+unfold empty_tycontext, Delta, remove_global_spec.
+unfold t_struct_list.
+
+rforward.
+split.
++ intros.
+  admit.
++ intros.
+  cbv_denote.
+  simpl typeof.
+  unfold proj_val, proj_reptype.
+  simpl.
+  apply seplog.andp_right; [ apply prop_right; auto |].
+  apply prop_right.
+  solve_legal_nested_field.
+Qed.
 
 Goal (semax
      (remove_global_spec Delta) (*empty_tycontext*)
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
        (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
         (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
-                Sskip))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+                Sskip))))))))))))))))))))
      (normal_ret_assert (assertD [] (localD (PTree.set _p (Values.Vint Int.zero) ((PTree.empty val))) (PTree.empty (type * val))) []))).
-
 intros.
 unfold remove_global_spec,Delta. simpl PTree.set.
 rforward.
+intros.
+apply derives_refl.
 Qed.
 
 (*
