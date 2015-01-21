@@ -29,8 +29,6 @@ Require Import mc_reify.get_set_reif.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.typ_eq.
 Require Import mc_reify.func_defs.
-
-
 Require Import mc_reify.rtac_base.
 
 Lemma semax_set_localD:
@@ -61,11 +59,6 @@ reify_lemma reify_vst (semax_set_localD temp var ret gt id e ty).
 Defined.
 
 Lemma semax_load_localD:
-(*    forall temp var ret gt (* Delta without gs *) id
-      (e: type_id_env) gs sh P T1 T2 R Post (e1: Clight.expr) (t t_root: type)
-      (efs: list efield) (gfs: list gfield) (tts: list type)
-      (p: val) (v : val) (v' : reptype t_root) lr,
-  forall {Espec: OracleKind},*)
 forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
      (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
      (efs : list efield) (tts : list type) 
@@ -94,24 +87,25 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
   (forall rho, 
       !! (tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |--
         !! (tc_val (typeof e0) v) &&
-
         !! (legal_nested_field t_root gfs)) ->
-(*
-  (*id = id /\ e = e /\ *)sh = sh /\ P = P /\ T1 = T1 /\
-  T2 = T2 /\ R = R /\ Post = Post /\ (*e1 = e1 /\ t = t /\ t_root = t_root /\*)
-  (*efs = efs /\*)
-  gfs = gfs /\
-  (*tts = tts /\*) p = p /\
-  v = v /\ v' = v' /\ (*lr = lr /\ *)Espec = Espec ->
-*)
  semax (mk_tycontext temp var ret gt gs) (|> assertD P (localD T1 T2) R) 
         (Sset id e0)
-          (normal_ret_assert Post)
-(* Similar solutions include hiding type Clight.expr in function return type
- like nested_efield_rel. *)
-.
+          (normal_ret_assert Post).
 Proof.
-Admitted.
+  intros.
+  subst Post e0.
+  replace efs with (efs ++ nil) by (rewrite app_nil_r; reflexivity).
+  replace tts with (tts ++ nil) by (rewrite app_nil_r; reflexivity).
+Check semax_PTree_load.
+  eapply semax_PTree_load.
+  + exact H.
+  + rewrite !app_nil_r.
+    exact H0.
+  + admit.
+  + Check field_except_at_lemma.
+SearchAbout (_ -> length _ = length _) msubst_efield_denote.
+
+
 
 Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
      (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
@@ -226,28 +220,3 @@ Proof.
 Qed.
 
 End tbled.
-(*
-Notation "'NOTATION_T1' v" := (PTree.Node PTree.Leaf None
-         (PTree.Node PTree.Leaf None
-            (PTree.Node
-               (PTree.Node PTree.Leaf None
-                  (PTree.Node
-                     (PTree.Node PTree.Leaf
-                        (Some v)
-                        PTree.Leaf) None PTree.Leaf)) None PTree.Leaf))) (at level 50).
-
-Goal
-forall {Espec : OracleKind} (sh:Share.t) (contents : list val) (v: val) ,  
-   (semax
-     (remove_global_spec Delta) (*empty_tycontext*)
-     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
-       [data_at sh t_struct_list (default_val _) (force_ptr v)])
-     (Sset _t
-            (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
-              _tail (tptr t_struct_list)))         
-     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
-       [data_at sh t_struct_list (default_val _) (force_ptr v)])
-)).
-intros.
-simpl (remove_global_spec Delta).
-*)
