@@ -2242,6 +2242,22 @@ Transparent upd_reptype.
   reflexivity.
 Qed.
 
+Lemma repinject_valinject:
+  forall e t v,
+    type_is_by_value (uncompomize e t) -> repinject t (valinject t v) = v.
+Proof.
+  intros.
+  destruct t; try inversion H; reflexivity.
+Qed.
+
+Lemma valinject_repinject:
+  forall e t v,
+    type_is_by_value (uncompomize e t) -> valinject t (repinject t v) = v.
+Proof.
+  intros.
+  destruct t; try inversion H; reflexivity.
+Qed.
+
 Lemma semax_nested_efield_field_load_37':
   forall {Espec: OracleKind},
     forall Delta sh e id P Q R (e1: expr)
@@ -2251,7 +2267,7 @@ Lemma semax_nested_efield_field_load_37':
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
-      JMeq v (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') ->
+      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
@@ -2268,7 +2284,7 @@ Lemma semax_nested_efield_field_load_37':
                   (SEPx (map (subst id `old) R))))).
 Proof.
   intros.
-  destruct gfs1 as [| gf gfs1]; (simpl in H1; subst).
+  destruct gfs1 as [| gf gfs1]; (simpl in H1; subst gfs).
   + eapply semax_max_path_field_load_37'; eauto.
   + destruct efs as [| ef efs].
     Focus 1. {
@@ -2297,8 +2313,8 @@ Proof.
     assert (type_is_by_value (uncompomize e (nested_field_type2 t_root ((gf :: gfs1) ++ gfs0))))
       by (rewrite H6; eapply is_neutral_cast_by_value, H0).
     eapply semax_max_path_field_load_37' with (v'0 := valinject _ v); eauto.
-    - erewrite <- uncompomize_valinject.
-      apply valinject_JMeq, H7.
+    - erewrite repinject_valinject; [reflexivity |].
+      exact H7.
     - eapply derives_trans; [exact H4 |].
       apply andp_derives; [apply derives_refl |].
       simpl; intro rho; unfold_lift.
@@ -2314,8 +2330,12 @@ Proof.
       erewrite field_except_at_lemma; eauto.
       * simpl; rewrite sepcon_assoc.
         eapply sepcon_derives; [apply derives_refl | apply prop_right, I].
-      * erewrite <- uncompomize_valinject.
-        rewrite valinject_JMeq; eauto.
+      * subst.
+        change (gf :: gfs1 ++ gfs0) with ((gf :: gfs1) ++ gfs0).
+        rewrite <- nested_field_type2_nested_field_type2.
+        erewrite valinject_repinject; [reflexivity |].
+        rewrite nested_field_type2_nested_field_type2.
+        exact H7.
 Qed.
 
 Lemma semax_nested_efield_field_cast_load_37':
@@ -2327,7 +2347,7 @@ Lemma semax_nested_efield_field_cast_load_37':
       type_is_by_value (typeof (nested_efield e1 efs tts)) ->
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
-      JMeq (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') v ->
+      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
@@ -2344,7 +2364,7 @@ Lemma semax_nested_efield_field_cast_load_37':
                   (SEPx (map (subst id (`old)) R))))).
 Proof.
   intros.
-  destruct gfs1 as [| gf gfs1]; (simpl in H1; subst).
+  destruct gfs1 as [| gf gfs1]; (simpl in H1; subst gfs).
   + eapply semax_max_path_field_cast_load_37'; eauto.
   + destruct efs as [| ef efs].
     Focus 1. {
@@ -2372,8 +2392,8 @@ Proof.
     intros.
     assert (type_is_by_value (uncompomize e (nested_field_type2 t_root ((gf :: gfs1) ++ gfs0)))) by (rewrite H6; apply H0).
     eapply semax_max_path_field_cast_load_37' with (v'0 := valinject _ v); eauto.
-    - erewrite <- uncompomize_valinject.
-      apply valinject_JMeq, H7.
+    - erewrite repinject_valinject; [reflexivity |].
+      exact H7.
     - eapply derives_trans; [exact H4 |].
       apply andp_derives; [apply derives_refl |].
       simpl; intro rho; unfold_lift.
@@ -2389,8 +2409,12 @@ Proof.
       erewrite field_except_at_lemma; eauto.
       * simpl; rewrite sepcon_assoc.
         eapply sepcon_derives; [apply derives_refl | apply prop_right, I].
-      * erewrite <- uncompomize_valinject.
-        rewrite valinject_JMeq; eauto.
+      * subst.
+        change (gf :: gfs1 ++ gfs0) with ((gf :: gfs1) ++ gfs0).
+        rewrite <- nested_field_type2_nested_field_type2.
+        erewrite valinject_repinject; [reflexivity |].
+        rewrite nested_field_type2_nested_field_type2.
+        exact H7.
 Qed.
 
 Lemma semax_nested_efield_field_store_nth:

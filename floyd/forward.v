@@ -2322,7 +2322,7 @@ end.
   of "fail 1".
 *)
 
-Ltac forward := forward_with forward1.
+Ltac forward := forward_with forward1; try unfold repinject.
 
 Lemma start_function_aux1:
   forall Espec Delta R1 P Q R c Post,

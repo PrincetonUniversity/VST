@@ -83,95 +83,6 @@ Proof.
   exact H.
 Qed.
 
-(*
-Lemma semax_data_load_37:
-  forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1 : expr)
-    (t: type) (v: environ -> val),
-    typeof_temp Delta id = Some t ->
-    is_neutral_cast (typeof e1) t = true ->
-    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-      local (tc_lvalue Delta e1) && local (`(tc_val (typeof e1)) v) &&
-      (`(data_at sh (typeof e1)) (`(valinject (typeof e1)) v) (eval_lvalue e1) * TT) ->
-    semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
-      (Sset id e1)
-        (normal_ret_assert
-          (EX  old : val,
-            PROPx P
-              (LOCALx (`(eq) (subst id `old v) (eval_id id) :: map (subst id `old) Q)
-                 (SEPx (map (subst id `old) R))))).
-Proof.
-  intros.
-  eapply semax_post'; [|eapply semax_pre_simple].
-  + instantiate (1:= 
-       (EX  old : val,
-        (local (`eq (eval_id id) (subst id `old v))) && (subst id `old (PROPx P (LOCALx Q (SEPx R)))))).
-    apply exp_left; intro old; apply (exp_right old).
-    rewrite <- insert_local.
-    rewrite subst_PROP.
-    apply derives_refl.
-  + instantiate (1:= |> (local (tc_lvalue Delta e1) && local (`(tc_val (typeof e1)) v) && 
-      PROPx P (LOCALx Q (SEPx R)) )).
-    rewrite later_andp; apply andp_right; [|apply andp_left2; apply derives_refl].
-    eapply derives_trans; [apply andp_derives; [apply now_later|apply derives_refl]|].
-    rewrite <- later_andp. apply later_derives.
-    rewrite <- insert_local in H1.
-    eapply derives_trans; [exact H1|apply andp_left1; apply derives_refl].
-  + eapply semax_load_37.
-    exact H.
-    exact H0.
-    rewrite <- insert_local in H1.
-    eapply derives_trans; [exact H1|apply andp_left2].
-    rewrite lifted_by_value_data_at; [|eapply is_neutral_cast_by_value, H0].
-    go_lower.
-    normalize.
-Qed.
-
-Lemma semax_data_cast_load_37:
-  forall {Espec: OracleKind},
-    forall Delta sh id P Q R (e1: expr)
-    (t: type) (v: environ -> val),
-    typeof_temp Delta id = Some t ->
-    type_is_by_value (typeof e1) ->
-    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-      local (tc_lvalue Delta e1) &&
-      local (`(tc_val t) (`(eval_cast (typeof e1) t) v)) &&
-      (`(data_at sh (typeof e1)) (`(valinject (typeof e1)) v) (eval_lvalue e1) * TT) ->
-    semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
-      (Sset id (Ecast e1 t))
-        (normal_ret_assert (EX old:val, 
-          PROPx P 
-            (LOCALx (`eq (subst id `old (`(eval_cast (typeof e1) t) v)) (eval_id id) :: map (subst id (`old)) Q)
-              (SEPx (map (subst id (`old)) R))))).
-Proof.
-  intros.
-  rewrite eq_sym_post_LOCAL.
-  eapply semax_post'; [|eapply semax_pre_simple].
-  + instantiate (1:= 
-       (EX  old : val,
-        (local (`eq (eval_id id) (subst id `old (`(eval_cast (typeof e1) t) v)))) && (subst id `old (PROPx P (LOCALx Q (SEPx R)))))).
-    apply exp_left; intro old; apply (exp_right old).
-    rewrite <- insert_local.
-    rewrite subst_PROP.
-    apply derives_refl.
-  + instantiate (1:= |> (local (tc_lvalue Delta e1) && 
-      local (`(tc_val t) (`(eval_cast (typeof e1) t) v)) && 
-      PROPx P (LOCALx Q (SEPx R)) )).
-    rewrite later_andp; apply andp_right; [|apply andp_left2; apply derives_refl].
-    eapply derives_trans; [apply andp_derives; [apply now_later|apply derives_refl]|].
-    rewrite <- later_andp. apply later_derives.
-    rewrite <- insert_local in H1.
-    eapply derives_trans; [exact H1|apply andp_left1; apply derives_refl].
-  + eapply semax_cast_load_37.
-    exact H.
-    rewrite <- insert_local in H1.
-    eapply derives_trans; [exact H1|apply andp_left2].
-    rewrite lifted_by_value_data_at by exact H0.
-    go_lower.
-    normalize.
-Qed.
-*)
-
 Lemma semax_data_load_37':
   forall {Espec: OracleKind},
     forall Delta sh id P Q R (e1 : expr) 
@@ -330,6 +241,26 @@ Proof.
   eapply is_neutral_cast_by_value, H0.
 Qed.
 
+Lemma repinject_JMeq: forall e t v, type_is_by_value (uncompomize e t) -> JMeq v (repinject t v).
+Proof.
+  intros.
+  destruct t; try inversion H; try reflexivity.
+Qed.
+
+Lemma is_neutral_data_at'': forall sh e t t' t'' v v' p,
+  uncompomize e t = t' ->
+  is_neutral_cast t' t'' = true ->
+  repinject _ v = v' ->
+  data_at sh t v p =
+  (!! field_compatible (uncompomize e t) nil p) && mapsto sh t' p v'.
+Proof.
+  intros.
+  eapply is_neutral_data_at'; eauto.
+  subst.
+  eapply repinject_JMeq.
+  eapply is_neutral_cast_by_value, H0.
+Qed.
+
 Lemma is_neutral_lifted_data_at': forall sh e t t' t'' v (v': val) p,
   uncompomize e t = t' ->
   is_neutral_cast t' t'' = true ->
@@ -375,7 +306,7 @@ Lemma semax_ucdata_load_37':
       (t1 t2 : type) (v : val) (v' : reptype t1),
       typeof_temp Delta id = Some t2 ->
       is_neutral_cast (typeof e1) t2 = true ->
-      JMeq v' v ->
+      repinject _ v' = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
       |-- local (tc_lvalue Delta e1) && local `(tc_val (typeof e1) v) &&
         (!! (uncompomize e t1 = typeof e1)) &&
@@ -398,7 +329,7 @@ Proof.
     apply andp_derives; [normalize |].
     forget (eval_lvalue e1) as p.
     go_lower.
-    erewrite is_neutral_data_at'; [normalize| | |]; try eassumption.
+    erewrite is_neutral_data_at''; [normalize| | |]; try eassumption.
 Qed.
 
 Lemma semax_ucdata_cast_load_37':
@@ -407,7 +338,7 @@ Lemma semax_ucdata_cast_load_37':
       (t1 t2: type) (v: val) (v' : reptype t2),
       typeof_temp Delta id = Some t1 ->
       type_is_by_value (typeof e1) ->
-      JMeq v' v ->
+      repinject _ v' = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_lvalue Delta e1) &&
         local (`(tc_val t1 (eval_cast (typeof e1) t1 v))) &&
@@ -428,61 +359,13 @@ Proof.
     normalize.
     apply andp_derives; [apply derives_refl |].
     unfold liftx, lift; simpl; intros.
-    erewrite uncompomize_by_value_data_at with (e := e); [rewrite H3; normalize | rewrite H3; exact H0 | exact H1].
+    erewrite uncompomize_by_value_data_at with (e := e); [rewrite H3; normalize | rewrite H3; exact H0 |].
+    subst.
+    eapply repinject_JMeq.
+    rewrite <- H3 in H0.
+    exact H0.
 Qed.
 
-(*
-Lemma semax_ucdata_load_38:
-  forall {Espec: OracleKind},
-    forall Delta sh e id P Q R (e1 : expr) 
-      (t1 t2 : type) (v : val) (v' : reptype t1),
-      Forall (closed_wrt_vars (eq id)) Q ->
-      Forall (closed_wrt_vars (eq id)) R ->
-      typeof_temp Delta id = Some t2 ->
-      uncompomize e t1 = typeof e1 ->
-      is_neutral_cast (typeof e1) t2 = true ->
-      JMeq v' v ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
-      |-- local (tc_lvalue Delta e1) && local `(tc_val (typeof e1) v) &&
-        (`(data_at sh t1 v') (eval_lvalue e1) * TT) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
-        (Sset id e1)
-          (normal_ret_assert
-            (PROPx P
-                (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)))).
-Proof.
-  intros.
-  eapply semax_post';[ | eapply semax_ucdata_load_37'; eauto].
-  apply exp_left; intro old.
-  autorewrite with subst. apply derives_refl.
-Qed.
-
-Lemma semax_ucdata_cast_load_38:
-  forall {Espec: OracleKind},
-    forall Delta sh e id P Q R (e1: expr)
-      (t1 t2: type) (v: val) (v' : reptype t2),
-      Forall (closed_wrt_vars (eq id)) Q ->
-      Forall (closed_wrt_vars (eq id)) R ->
-      typeof_temp Delta id = Some t1 ->
-      uncompomize e t2 = typeof e1 ->
-      type_is_by_value (typeof e1) ->
-      JMeq v' v ->
-      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-        local (tc_lvalue Delta e1) &&
-        local (`(tc_val t1 (eval_cast (typeof e1) t1 v))) &&
-        (`(data_at sh t2 v') (eval_lvalue e1) * TT) ->
-      semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
-        (Sset id (Ecast e1 t1))
-          (normal_ret_assert
-            (PROPx P 
-              (LOCALx (`(eq (eval_cast (typeof e1) t1 v)) (eval_id id) :: Q) (SEPx R)))).
-Proof.
-  intros.
-  eapply semax_post';[ | eapply semax_ucdata_cast_load_37'; eauto].
-  apply exp_left; intro old.
-  autorewrite with subst. apply derives_refl.
-Qed.
-*)
 Lemma semax_ucdata_store_nth:
   forall {Espec: OracleKind},
     forall Delta sh e n P Q R Rn (e1 e2 : expr)

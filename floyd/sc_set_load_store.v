@@ -96,7 +96,7 @@ Lemma semax_SC_field_load:
         efield_denote efs gfs ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
-      JMeq (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') v ->
+      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
@@ -136,7 +136,7 @@ Lemma semax_SC_field_cast_load:
         efield_denote efs gfs ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v' p) ->
-      JMeq (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') v ->
+      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
@@ -291,7 +291,7 @@ Lemma semax_PTree_load:
       msubst_efield_denote T1 T2 efs = Some gfs ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil)) |--
         `(field_at sh t_root gfs0 v' p) ->
-      JMeq (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') v ->
+      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
         local (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
@@ -338,7 +338,7 @@ Lemma semax_PTree_cast_load:
       msubst_efield_denote T1 T2 efs = Some gfs ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil)) |--
         `(field_at sh t_root gfs0 v' p) ->
-      JMeq (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') v ->
+      repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
         local (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&

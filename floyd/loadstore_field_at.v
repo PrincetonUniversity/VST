@@ -30,7 +30,7 @@ Lemma semax_max_path_field_load_37':
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
-      JMeq v' v ->
+      repinject _ v' = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_LR Delta e1 lr) &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
@@ -80,7 +80,7 @@ Lemma semax_max_path_field_cast_load_37':
       typeof_temp Delta id = Some t ->
       type_is_by_value (typeof (nested_efield e1 efs tts)) ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
-      JMeq v' v ->
+      repinject _ v' = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_LR Delta e1 lr) &&
         local (`(tc_val t (eval_cast (typeof (nested_efield e1 efs tts)) t v))) &&
