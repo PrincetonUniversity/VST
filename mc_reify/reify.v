@@ -420,7 +420,7 @@ Reify Pattern patterns_vst += (!!efield_lemmas.nested_efield @ ?0 @ ?1 @ ?2) =>
 Reify Pattern patterns_vst += (!!SeparationLogic.typeof_temp) => (@Inj typ func (inr (Smx (ftypeof_temp)))).
 Reify Pattern patterns_vst += (!!veric.expr.tc_val) => (@Inj typ func (inr (Smx (ftc_val)))).
 Reify Pattern patterns_vst += (!!nested_field_lemmas.legal_nested_field) => (@Inj typ func (inr (Smx (flegal_nested_field)))).
-Reify Pattern patterns_vst += (!!sc_set_load_store.msubst_eval_LR) => (@Inj typ func (inr (Smx (fmsubst_eval_LR)))).
+Reify Pattern patterns_vst += (!!local2ptree.msubst_eval_LR) => (@Inj typ func (inr (Smx (fmsubst_eval_LR)))).
 
 Ltac reify_typ trm :=
   let k ee :=

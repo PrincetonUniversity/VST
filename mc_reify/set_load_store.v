@@ -58,6 +58,48 @@ Definition set_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
 reify_lemma reify_vst (semax_set_localD temp var ret gt id e ty).
 Defined.
 
+Lemma tc_LR_b_sound: forall Delta P T1 T2 R e1 lr p,
+  msubst_eval_LR T1 T2 e1 lr = Some p ->
+  assertD P (localD T1 T2) R |-- !! (isptr p) ->
+  tc_LR_b_norho Delta e1 lr = true ->
+  assertD P (localD T1 T2) R |-- local (tc_LR Delta e1 lr).
+Proof.
+  intros.
+  pose proof msubst_eval_LR_eq P T1 T2 nil (map liftx R) e1 p _ H.
+  change (PROPx P (LOCALx (LocalD T1 T2 []) (SEPx (map liftx R)))) with
+    (assertD P (localD T1 T2) R) in H2.
+  destruct lr; simpl tc_LR in *; simpl tc_LR_b_norho in *; simpl eval_LR in *.
+  + rewrite (add_andp _ _ H2).
+    rewrite (add_andp _ _ H0).
+    rewrite andp_assoc.
+    apply andp_left2.
+    unfold local, lift1; intro rho; normalize.
+    apply tc_lvalue_b'_sound; auto.
+  + rewrite (add_andp _ _ H2).
+    apply andp_left2.
+    unfold local, lift1; intro rho; normalize.
+    apply tc_expr_b_sound; auto.
+Qed.
+
+Lemma nth_error_prop: 
+  forall P T1 T2 R Rn (n : nat) S,
+  assertD P (localD T1 T2) [Rn] |-- !! S ->
+  nth_error R n = Some Rn ->
+  assertD P (localD T1 T2) R |-- !! S.
+Proof.
+  intros.
+  unfold assertD in *.
+  unfold map in H.
+  eapply derives_trans.
+  + eapply nth_error_SEP_sepcon_TT with (n := n); [exact H |].
+    apply map_nth_error, H0.
+  + unfold TT.
+    intro rho.
+    simpl.
+    rewrite @sepcon_prop_prop.
+    normalize.
+Qed.
+
 Lemma semax_load_localD:
 forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
      (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
@@ -94,18 +136,31 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
 Proof.
   intros.
   subst Post e0.
-  replace efs with (efs ++ nil) by (rewrite app_nil_r; reflexivity).
-  replace tts with (tts ++ nil) by (rewrite app_nil_r; reflexivity).
-Check semax_PTree_load.
-  eapply semax_PTree_load.
-  + exact H.
-  + rewrite !app_nil_r.
-    exact H0.
-  + admit.
-  + Check field_except_at_lemma.
-SearchAbout (_ -> length _ = length _) msubst_efield_denote.
-
-
+  eapply semax_extract_later_prop'.
+  Focus 1. {
+    rewrite <- insert_local.
+    exact H7.
+  } Unfocus.
+  intro; subst; clear H7.
+  eapply semax_PTree_load with (gfs2 := gfs) (gfs0 := nil) (gfs1 := gfs) (t_root0 := t_root) (sh0 := sh);  eauto.
+  + rewrite app_nil_r; reflexivity.
+  + unfold assertD, localD, LocalD; simpl; intros. entailer!.
+  + reflexivity.
+  + repeat apply andp_right.
+    - apply andp_left2. eapply tc_LR_b_sound; [eauto | | eauto].
+      eapply nth_error_prop with (n := n); eauto.
+      rewrite data_at_isptr.
+      unfold assertD; entailer!.
+    - intros rho.
+      apply (derives_trans _ _ _ (H11 rho)).
+      normalize.
+    - intro rho.
+      unfold local, lift1; simpl; apply prop_right.
+      apply tc_efield_b_sound; auto.
+  + intros rho.
+    apply (derives_trans _ _ _ (H11 rho)).
+    normalize.
+Qed.
 
 Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
      (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)

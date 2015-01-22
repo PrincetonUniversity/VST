@@ -831,6 +831,23 @@ Proof.
   apply eq_sym, msubst_eval_lvalue_eq_aux with (T1 := T1) (T2 := T2); auto.
 Qed.
 
+Definition msubst_eval_LR T1 T2 e lr :=
+  match lr with
+  | LLLL => msubst_eval_lvalue T1 T2 e
+  | RRRR => msubst_eval_expr T1 T2 e
+  end.
+
+Lemma msubst_eval_LR_eq: forall P T1 T2 Q R e v lr,
+  msubst_eval_LR T1 T2 e lr = Some v ->
+  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    local (`(eq v) (eval_LR e lr)).
+Proof.
+  intros.
+  destruct lr.
+  + apply msubst_eval_lvalue_eq; auto.
+  + apply msubst_eval_expr_eq; auto.
+Qed.
+
 Fixpoint msubst_efield_denote T1 T2 (efs: list efield) : option (list gfield) :=
   match efs with
   | nil => Some nil

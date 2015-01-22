@@ -243,12 +243,6 @@ The set, load, cast-load and store rules will be used in the future.
 
 Require Import floyd.local2ptree.
 
-Definition msubst_eval_LR T1 T2 e lr :=
-  match lr with
-  | LLLL => msubst_eval_lvalue T1 T2 e
-  | RRRR => msubst_eval_expr T1 T2 e
-  end.
-
 Lemma semax_PTree_set:
   forall {Espec: OracleKind},
     forall Delta id P T1 T2 R (e2: Clight.expr) t v,
