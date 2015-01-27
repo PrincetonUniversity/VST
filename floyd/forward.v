@@ -681,6 +681,108 @@ PROP  ()
   rewrite closed_wrt_subst; auto with closed.
 Qed.
 
+Ltac forward_call_id1_wow witness :=
+let Frame := fresh "Frame" in
+ evar (Frame: list (mpred));
+ eapply (semax_call_id1_wow witness Frame);
+ [ reflexivity | reflexivity | reflexivity | reflexivity
+ | apply I | reflexivity
+ | repeat constructor | repeat constructor 
+ | reflexivity
+ | entailer!
+ | reflexivity
+ | repeat constructor | repeat constructor 
+ | reflexivity | reflexivity
+ | first [solve [apply prop_right; repeat constructor]
+           | solve [entailer!; repeat constructor]
+           | entailer]
+ | first [solve [apply prop_right; repeat constructor]
+           | solve [entailer!; repeat constructor]
+           | entailer]
+ | unfold fold_right at 1 2; cancel
+ | cbv beta; extensionality rho; 
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+   apply exp_congr; intros ?vret; reflexivity
+ | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
+        (has_evar A; fail 1) || (repeat constructor)
+     end
+ | reflexivity
+ | unfold fold_right_and; repeat rewrite and_True; auto
+ ].
+
+Ltac forward_call_id01_wow witness :=
+let Frame := fresh "Frame" in
+ evar (Frame: list (mpred));
+ eapply (semax_call_id01_wow witness Frame);
+ [ reflexivity | reflexivity | reflexivity | apply I | reflexivity
+ | repeat constructor | repeat constructor 
+ | entailer!
+ | reflexivity
+ | repeat constructor | repeat constructor 
+ | reflexivity | reflexivity
+ | first [solve [apply prop_right; repeat constructor]
+           | solve [entailer!; repeat constructor]
+           | entailer]
+ | first [solve [apply prop_right; repeat constructor]
+           | solve [entailer!; repeat constructor]
+           | entailer]
+ | unfold fold_right at 1 2; cancel
+ | cbv beta; extensionality rho; 
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+   apply exp_congr; intros ?vret; reflexivity
+ | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
+        (has_evar A; fail 1) || (repeat constructor)
+     end
+ | reflexivity
+ | unfold fold_right_and; repeat rewrite and_True; auto
+ ].
+
+
+Ltac forward_call_id00_wow witness :=
+let Frame := fresh "Frame" in
+ evar (Frame: list (mpred));
+ eapply (semax_call_id00_wow witness Frame);
+ [ reflexivity | reflexivity | reflexivity | reflexivity
+ | repeat constructor | repeat constructor 
+ | entailer!
+ | reflexivity
+ | repeat constructor | repeat constructor 
+ | reflexivity | reflexivity
+ | first [solve [apply prop_right; repeat constructor]
+           | solve [entailer!; repeat constructor]
+           | entailer]
+ | first [solve [apply prop_right; repeat constructor]
+           | solve [entailer!; repeat constructor]
+           | entailer]
+ | unfold fold_right at 1 2; cancel
+ | reflexivity
+ | try match goal with  |- extract_trivial_liftx ?A _ =>
+        (has_evar A; fail 1) || (repeat constructor)
+     end
+ | reflexivity
+ | unfold fold_right_and; repeat rewrite and_True; auto
+ ].
+
+Ltac forward_call' witness :=
+ first [
+    let Pst := fresh "Pst" in
+    evar (Pst: val -> environ -> mpred);
+    apply semax_seq' with (exp Pst); unfold Pst; clear Pst;
+    [first [forward_call_id1_wow witness
+          | forward_call_id01_wow witness ]
+    | apply extract_exists_pre; intros ?vret;
+      unfold map,app;
+      abbreviate_semax;
+      repeat (apply semax_extract_PROP; intro)
+   ]
+ |  eapply semax_seq';
+    [forward_call_id00_wow witness
+    | unfold map,app;
+      abbreviate_semax;
+      repeat (apply semax_extract_PROP; intro)
+     ]
+ ].
+
 Lemma semax_call_id1_x_alt:
  forall Espec Delta P Q R ret ret' id (paramty: typelist) (retty retty': type) (bl: list expr)
                   (argsig: list (ident * type)) A (Pre Post: A -> environ -> mpred)

@@ -839,10 +839,22 @@ Lemma cancel_frame2: forall (P Q: environ->mpred) F (rho: environ),
 Proof. intros. simpl. apply sepcon_derives; auto.
 Qed.
 
+Lemma cancel_frame2_low: forall (P Q: environ->mpred) F,
+     Q  |-- fold_right sepcon emp F  ->
+    (P * Q) |-- fold_right sepcon emp (P::F).
+Proof. intros. unfold fold_right; fold @fold_right. apply sepcon_derives; auto.
+Qed.
+
 Lemma cancel_frame1: forall P (rho: environ), 
          P rho |-- fold_right sepcon emp (P::nil) rho.
 Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
 Qed.
+
+Lemma cancel_frame1_low: forall P, 
+         P |-- fold_right sepcon emp (P::nil).
+Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
+Qed.
+
 
 Ltac fixup_lifts := 
  repeat 
@@ -855,7 +867,8 @@ Ltac fixup_lifts :=
  end.
 
 Ltac cancel_frame := 
-match goal with |- ?P |-- fold_right _ _ ?F ?rho  =>
+match goal with
+| |- ?P |-- fold_right _ _ ?F ?rho  =>
      let P' := abstract_env rho P in  
        change ( P' rho |-- fold_right sepcon emp F rho);
    fixup_lifts; cbv beta;
@@ -864,6 +877,13 @@ match goal with |- ?P |-- fold_right _ _ ?F ?rho  =>
                    apply cancel_frame2
                     end; 
     try (unfold F; apply cancel_frame1);
+    try (instantiate (1:=nil) in (Value of F); unfold F; apply cancel_frame0)
+| |- ?P |-- fold_right _ _ ?F  =>
+   repeat rewrite sepcon_assoc;
+   repeat match goal with |- (_ * _) _ |-- _ =>
+                   apply cancel_frame2_low
+                    end; 
+    try (unfold F; apply cancel_frame1_low);
     try (instantiate (1:=nil) in (Value of F); unfold F; apply cancel_frame0)
  end.
 
