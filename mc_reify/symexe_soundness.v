@@ -13,9 +13,14 @@ Require Import mc_reify.app_lemmas.
 Require Import MirrorCore.LemmaApply.
 Require Import ExtLib.Tactics.
 Require Import MirrorCore.Util.ListMapT.
+Require Import MirrorCharge.RTac.Instantiate.
+Require Import MirrorCharge.RTac.Intro.
+Require Import MirrorCharge.RTac.Apply.
+Require Import MirrorCharge.RTac.EApply.
 Require Import mc_reify.rtac_base.
 Require Import mc_reify.reified_ltac_lemmas.
 Require Import mc_reify.hoist_later_in_pre.
+Require Import mc_reify.set_load_store.
 Require Import mc_reify.symexe.
 
 Section tbled.
@@ -47,12 +52,38 @@ exprD' tus tvs (typtree typ) (get_set_reif.set_reif i vr tr typ).
 
 Lemma SIMPL_DELTA_sound : rtac_sound SIMPL_DELTA.
 Proof.
+
 unfold SIMPL_DELTA.
 apply SIMPLIFY_sound.
 intros.
 forward.
 SearchAbout RedAll.beta_all.
 admit.
+Qed.
+Check propD.
+
+Lemma replace_set_sound : forall tus tvs e,
+exprD' tus tvs typrop e = exprD' tus tvs typrop (replace_set e). 
+intros.
+destruct e; auto. simpl.
+repeat
+match goal with
+| [ |- context [match ?e with _ => _ end] ] => destruct e; auto
+end.
+admit.
+Admitted.
+(* Qed. (* :( *) *)
+
+Lemma SIMPL_SET_sound : rtac_sound SIMPL_SET.
+Proof.
+apply SIMPLIFY_sound. intros.
+forward. subst. 
+unfold propD in *. simpl. unfold exprD'_typ0 in *. simpl. simpl in H3.
+rewrite <- replace_set_sound. forward. fold func in *. inv H3. 
+unfold RSym_sym.
+rewrite H. 
+intros.
+eapply Pure_pctxD. eauto. intros. eauto.
 Qed.
 
 Lemma FORWARD_SET_sound: forall Delta Pre s, rtac_sound (FORWARD_SET tbl Delta Pre s).
@@ -90,10 +121,7 @@ Proof.
     apply HLIP_sound.
   + destruct (compute_load_arg (Delta, Pre, s)) as [[[[[[[[[[[[[? ?] ?] ?] ?] ?] ?] ?] ?] ?] ?] ?] ?]|]; [| apply FAIL_sound].
     apply THEN_sound.
-    - eapply EAPPLY_sound; auto with typeclass_instances.
-      * apply APPLY_condition1.
-      * apply APPLY_condition2.
-      * admit. (* Problem caused by data_at and reptype. Please check this problem here, Joey.  -- Qinxiang *)
+    - apply APPLY_sound_load_lemma.
     - apply THEN_sound; apply TRY_sound; [apply FIRST_sound; repeat constructor | repeat apply THEN_sound].
       * apply REFLEXIVITY_OP_CTYPE_sound.
       * apply REFLEXIVITY_BOOL_sound.
@@ -113,6 +141,7 @@ intros.
 unfold SYMEXE_STEP.
 apply Then.THEN_sound; [apply INSTANTIATE_sound |].
 apply runOnGoals_sound.
+apply THEN_sound; [apply SIMPL_SET_sound |].
 eapply AT_GOAL_sound.
 intros.
 destruct (get_arguments e);
@@ -146,14 +175,24 @@ Qed.
 
 Theorem SYMEXE_sound : rtac_sound (SYMEXE_TAC_n n tbl).
 Proof.
-  apply THEN_sound.
+
+Admitted.
+(*
+  repeat apply THEN_sound.
   + admit. (*jesper*)
-  + eapply AT_GOAL_sound.
+  + apply APPLY_sound_semax_post'.
+  + apply TRY_sound.
+    eapply AT_GOAL_sound.
     intros.
     destruct (get_arguments e) as [[[[[[[? ?] ?] ?] ?]|] ?] ?]; [| apply FAIL_sound].
     apply REPEAT_sound.
     apply SYMEXE_STEP_sound.
+  + apply TRY_sound.
+    apply THEN_sound.
+    - admit. (* INTROS *)
+    - apply APPLY_sound_derives_refl.
 Qed.
+*)
 
 End tbled.
 
@@ -186,7 +225,7 @@ Ltac run_rtac reify term_table tac_sound :=
 	                exact_no_check (@run_rtac_More tbl (tac tbl) _ _ _ (tac_sound tbl)
 	                	(@eq_refl (Result (CTop nil nil)) (More_ s goal_resultV) <:
 	                	   run_tac' (tac tbl) (GGoal goal) = (More_ s goal_resultV)))
-	                | cbv_denote; repeat (try eexists; eauto) 
+	                | idtac "bla bla"; cbv_denote(*; repeat (eexists; eauto) *)
 	              ]
 	            | Solved ?s =>
 	              exact_no_check (@run_rtac_Solved tbl (tac tbl) s name (tac_sound tbl) 
@@ -208,11 +247,10 @@ Lemma skip_triple : forall sh v e,
 @semax e empty_tycontext
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])
-      Sskip 
-     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+      Sskip  (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof. 
-intros. 
+intros.
 unfold empty_tycontext.
 rforward.
 Qed.
@@ -236,12 +274,21 @@ unfold empty_tycontext.
 rforward.
 Qed.
 
-Fixpoint MY_REPEAT 
-  (n : nat) tac := 
-  match n with
-  | O => tac
-  | S n0 => THEN tac (MY_REPEAT n0 tac)
-  end.
+Lemma seq_triple' : forall sh v e,
+@semax e empty_tycontext
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+       [data_at sh (tptr tint) (default_val _) (force_ptr v)])
+       (Ssequence Sskip Sskip)
+     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+       [])).
+Proof.
+intros.
+Locate tint.
+unfold empty_tycontext.
+Set Printing Depth 500.
+
+rforward.
+Abort.
 
 Lemma seq_triple_lots : forall sh v e,
 @semax e empty_tycontext
@@ -253,17 +300,7 @@ Lemma seq_triple_lots : forall sh v e,
 Proof.
 intros.
 unfold empty_tycontext.
-rforward. (* Take about 9 seconds. *)
-
-(*
-reify_expr_tac.
-
-Time let x := (eval vm_compute in (run_tac (MY_REPEAT 2000 (SYMEXE_STEP tbl)) e0)) in idtac.
-
-Time let x := (eval vm_compute in (run_tac (REPEAT 2000 (SYMEXE_STEP tbl)) e0)) in idtac.
-
-(* this comparison shows that they takes almost the same amount of time. *)
-*)
+rforward.
 Qed.
 
 Require Import reverse_defs.
@@ -274,31 +311,88 @@ forall {Espec : OracleKind} (contents : list val),
    (semax
      (remove_global_spec Delta) (*empty_tycontext*)
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
-     (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
+       (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
      (normal_ret_assert (assertD [] (localD (PTree.set _p (Values.Vint Int.zero) (PTree.empty val)) (PTree.empty (type * val))) []))).
 intros.
-unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
-
-(*
-reify_expr_tac.
-Eval vm_compute in (run_tac (SYMEXE_TAC_n 1000 tbl) e).
-*)
-rforward. (* why rforward fail, Joey? vm_compute shows More but not fail.   -- Qinxiang*)
-Abort.
-(*
-Goal
-forall  (contents : list val), exists PO, 
-   (semax
-     (remove_global_spec Delta)
-     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
-     (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
-                Sskip)
-     (normal_ret_assert PO)).
-intros.
-unfold remove_global_spec,Delta.
+unfold empty_tycontext, Delta, remove_global_spec.
 rforward.
+intros.
+apply derives_refl.
 Qed.
 
+Notation "'NOTATION_T1' v" := (PTree.Node PTree.Leaf None
+         (PTree.Node PTree.Leaf None
+            (PTree.Node
+               (PTree.Node PTree.Leaf None
+                  (PTree.Node
+                     (PTree.Node PTree.Leaf
+                        (Some v)
+                        PTree.Leaf) None PTree.Leaf)) None PTree.Leaf))) (at level 50).
+
+
+Goal
+forall {Espec : OracleKind} (sh:Share.t) (contents : list val) (v: val) ,  
+   (semax
+     (remove_global_spec Delta) (*empty_tycontext*)
+     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+       [data_at sh t_struct_list (Vundef, Vint Int.zero) (force_ptr v)])
+     (Sset _t
+            (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
+              _tail (tptr t_struct_list)))         
+     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+       [data_at sh t_struct_list (default_val _) (force_ptr v)])
+)).
+intros.
+unfold empty_tycontext, Delta, remove_global_spec.
+unfold t_struct_list.
+
+rforward.
+split.
++ intros.
+  admit.
++ intros.
+  cbv_denote.
+  simpl typeof.
+  unfold proj_val, proj_reptype.
+  simpl.
+  apply seplog.andp_right; [ apply prop_right; auto |].
+  apply prop_right.
+  solve_legal_nested_field.
+Qed.
+
+Goal (semax
+     (remove_global_spec Delta) (*empty_tycontext*)
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+       (Ssequence (Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+        (Ssequence (Sset _p (Etempvar _p (tptr tvoid)))
+                Sskip))))))))))))))))))))
+     (normal_ret_assert (assertD [] (localD (PTree.set _p (Values.Vint Int.zero) ((PTree.empty val))) (PTree.empty (type * val))) []))).
+intros.
+unfold remove_global_spec,Delta. simpl PTree.set.
+rforward.
+intros.
+apply derives_refl.
+Qed.
+
+(*
 Fixpoint lots_temps' n p :=
 match n with 
 | O => PTree.set p (tptr t_struct_list, true) (PTree.empty _)
@@ -327,12 +421,20 @@ forall  (contents : list val), exists PO,
 intros.
 unfold empty_tycontext, Delta, remove_global_spec. change PTree.tree with PTree.t.
 rforward.
+Eval compute in (lots_of_sets 50).
 Qed.
 
-Lemma seq_more : forall p es,
-@semax es empty_tycontext p (Ssequence Sskip (Sgoto _p)) (normal_ret_assert p).
+
+Lemma seq_more :
+forall  (contents : list val), exists PO, 
+   (semax
+     (remove_global_spec Delta)
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
+     (Ssequence Sskip (*(Sset _p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))*)
+                (Sgoto _p))
+     (normal_ret_assert PO)).
 Proof.
-unfold empty_tycontext.
+unfold Delta, remove_global_spec.
 intros.
 rforward. 
 Abort.

@@ -244,14 +244,11 @@ Reify Pattern patterns_vst +=
 
 Reify Pattern patterns_vst +=
       (!!@Maps.PTree.empty @ ?0) => (fun (a : function reify_vst_typ) =>
-                                       (@Inj typ func (inr (Data (fempty a))))).
+                                       (@Inj typ func (inr (Data (fleaf a))))).
 
 Reify Pattern patterns_vst +=
       (!!@Maps.PTree.get @ ?0 @ ?1) => (fun (a : function reify_vst_typ) (b : id positive) =>
                                          (@Inj typ func (inr (Data (fget a b))))).
-
-Reify Pattern patterns_vst += (!!@my_set @ ?0 @ ?1 @ ?2 @ ?3) =>
-   (fun (a : function reify_vst_typ) (b : id positive) (c d : function reify_vst) => get_set_reif.set_reif b c d a). 
 
 Reify Pattern patterns_vst +=
       (!!@Maps.PTree.set @ ?0 @ ?1) => (fun (a : function reify_vst_typ) (b : id positive) =>
@@ -423,7 +420,7 @@ Reify Pattern patterns_vst += (!!efield_lemmas.nested_efield @ ?0 @ ?1 @ ?2) =>
 Reify Pattern patterns_vst += (!!SeparationLogic.typeof_temp) => (@Inj typ func (inr (Smx (ftypeof_temp)))).
 Reify Pattern patterns_vst += (!!veric.expr.tc_val) => (@Inj typ func (inr (Smx (ftc_val)))).
 Reify Pattern patterns_vst += (!!nested_field_lemmas.legal_nested_field) => (@Inj typ func (inr (Smx (flegal_nested_field)))).
-Reify Pattern patterns_vst += (!!sc_set_load_store.msubst_eval_LR) => (@Inj typ func (inr (Smx (fmsubst_eval_LR)))).
+Reify Pattern patterns_vst += (!!local2ptree.msubst_eval_LR) => (@Inj typ func (inr (Smx (fmsubst_eval_LR)))).
 
 Ltac reify_typ trm :=
   let k ee :=
