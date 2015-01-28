@@ -14,6 +14,9 @@ Require Import MirrorCore.LemmaApply.
 Require Import ExtLib.Tactics.
 Require Import MirrorCore.Util.ListMapT.
 
+Definition rtacP := sigT (fun tac: rtac typ (expr typ func) =>
+  forall tbl: SymEnv.functions RType_typ, rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) tac).
+
 (************************************************
 
 Rtac Part
@@ -114,3 +117,27 @@ Lemma APPLY_condition2:
 Admitted.
 
 End tbled.
+
+Definition thenP (t1 t2: rtacP) : rtacP :=
+  match t1, t2 with
+  | existT tac1 p1, existT tac2 p2 =>
+      @existT (rtac typ (expr typ func))
+        (fun tac => forall tbl, rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) tac)
+   (THEN tac1 tac2) (fun tbl => THEN_sound tbl _ _ (p1 tbl) (p2 tbl))
+  end.
+
+Definition repeatP (n: nat) (t: rtacP) : rtacP :=
+  match t with
+  | existT tac p =>
+      @existT (rtac typ (expr typ func))
+        (fun tac => forall tbl, rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) tac)
+        (REPEAT n tac)
+        (fun tbl => @REPEAT_sound _ _ _ _ _ (Expr_ok_fs tbl) _ _ _ n _ (p tbl))
+  end.
+
+
+
+
+
+
+

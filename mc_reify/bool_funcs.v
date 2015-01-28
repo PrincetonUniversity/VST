@@ -135,3 +135,9 @@ Definition tc_LR_b_norho Delta e lr :=
   | LLLL => tc_lvalue_b_norho' Delta e
   | RRRR => tc_expr_b_norho Delta e
   end.
+
+Definition type_is_int (e: Clight.expr) : bool :=
+  match typeof e with
+  | Tint _ _ _ => true
+  | _ => false
+  end.

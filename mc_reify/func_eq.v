@@ -112,6 +112,7 @@ Hint Resolve z_op_beq_sound : expr_beq.
 Definition int_op_beq a b : bool :=
 match a, b with
 | fint_add, fint_add 
+| fint_and, fint_and 
 | fint_lt, fint_lt 
 | fint_ltu, fint_ltu 
 | fint_mul, fint_mul 

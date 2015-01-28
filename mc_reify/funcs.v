@@ -121,6 +121,7 @@ end.
 
 Inductive int_op :=
 | fint_add
+| fint_and
 | fint_lt
 | fint_ltu
 | fint_mul
@@ -141,6 +142,7 @@ match i with
 | fint_mul
 | fint_sub
 | fint_add => tyArr tyint (tyArr tyint tyint)
+| fint_and => tyArr tyint (tyArr tyint tyint)
 | fint_neg => tyArr tyint tyint
 | fint_cmp
 | fint_cmpu => tyArr tycomparison (tyArr tyint (tyArr tyint tybool))
@@ -154,6 +156,7 @@ end.
 Definition int_opD (i : int_op): typD  (typeof_int_op i) :=
 match i with
 | fint_add => Int.add
+| fint_and => Int.and
 | fint_lt => Int.lt
 | fint_ltu => Int.ltu
 | fint_mul => Int.mul

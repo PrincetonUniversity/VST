@@ -421,7 +421,11 @@ Reify Pattern patterns_vst += (!!SeparationLogic.typeof_temp) => (@Inj typ func 
 Reify Pattern patterns_vst += (!!veric.expr.tc_val) => (@Inj typ func (inr (Smx (ftc_val)))).
 Reify Pattern patterns_vst += (!!nested_field_lemmas.legal_nested_field) => (@Inj typ func (inr (Smx (flegal_nested_field)))).
 Reify Pattern patterns_vst += (!!local2ptree.msubst_eval_LR) => (@Inj typ func (inr (Smx (fmsubst_eval_LR)))).
-
+Reify Pattern patterns_vst += (!!nested_field_lemmas.StructField) => (@Inj typ func (inr (Smx fstruct_field))).
+Reify Pattern patterns_vst += (!!nested_field_lemmas.UnionField) => (@Inj typ func (inr (Smx funion_field))).
+Reify Pattern patterns_vst += (!!nested_field_lemmas.ArraySubsc) => (@Inj typ func (inr (Smx farray_subsc))).
+Reify Pattern patterns_vst += (!!bool_funcs.type_is_int @ ?0) =>
+  (fun (e: id Clight.expr) => (@Inj typ func (inr (Const (fbool (bool_funcs.type_is_int e)))))).
 Ltac reify_typ trm :=
   let k ee :=
       pose ee
