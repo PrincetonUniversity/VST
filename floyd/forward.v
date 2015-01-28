@@ -828,6 +828,14 @@ let Frame := fresh "Frame" in
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
+Ltac simpl_strong_cast :=
+try match goal with |- context [strong_cast ?t1 ?t2 ?v] =>
+  first [change (strong_cast t1 t2 v) with v
+         | change (strong_cast t1 t2 v) with
+                (force_val (sem_cast t1 t2 v))
+          ]
+end.
+
 Ltac forward_call' witness :=
  first [
     let Pst := fresh "Pst" in
@@ -839,13 +847,15 @@ Ltac forward_call' witness :=
           | forward_call_id01_wow witness ]
     | apply extract_exists_pre; intros ?vret;
       unfold map,app;
-      unfold strong_cast; simpl is_neutral_cast; cbv iota;
+      fold (@map (lift_T (LiftEnviron mpred)) (LiftEnviron mpred) liftx); 
+      simpl_strong_cast;
       abbreviate_semax;
       repeat (apply semax_extract_PROP; intro)
    ]
  |  eapply semax_seq';
     [forward_call_id00_wow witness
     | unfold map,app;
+      fold (@map (lift_T (LiftEnviron mpred)) (LiftEnviron mpred) liftx); 
       abbreviate_semax;
       repeat (apply semax_extract_PROP; intro)
      ]
@@ -2431,6 +2441,16 @@ eapply semax_pre; [ | apply semax_break ];
   unfold_abbrev_ret;
   autorewrite with ret_assert.
 
+Ltac simpl_first_temp :=
+try match goal with
+| |- semax _ (PROPx _ (LOCALx (temp _ ?v :: _) _)) _ _ =>
+  let x := fresh "x" in set (x:=v); 
+         simpl in x; unfold x; clear x
+| |- (PROPx _ (LOCALx (temp _ ?v :: _) _)) |-- _ =>
+  let x := fresh "x" in set (x:=v); 
+         simpl in x; unfold x; clear x
+end.
+
 Ltac forward_with F1 :=
  match goal with 
 (*  | |- semax _ _ (Ssequence (Sset _ ?e) _) _ =>
@@ -2449,10 +2469,8 @@ Ltac forward_with F1 :=
        ((eapply semax_seq'; 
              [ftac; derives_after_forward
              | unfold replace_nth; cbv beta;
-               simpl valinject;
-               simpl proj_reptype;
-               simpl upd_reptype;
                try (apply extract_exists_pre; intro_old_var c);
+               simpl_first_temp;
                abbreviate_semax
              ]) 
         ||  fail 0)  (* see comment FORWARD_FAILOVER below *)
@@ -2463,11 +2481,9 @@ Ltac forward_with F1 :=
       normalize_postcondition;
        eapply semax_post_flipped3;
              [ftac; derives_after_forward
-             | simpl valinject;
-               simpl proj_reptype;
-               simpl upd_reptype;
-               try rewrite exp_andp2;
+             | try rewrite exp_andp2;
                try (apply exp_left; intro_old_var c);
+               simpl_first_temp;
                try rewrite insert_local
              ] 
 end.
