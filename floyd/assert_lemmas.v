@@ -833,16 +833,32 @@ Lemma cancel_frame0{A}{ND: NatDed A}{SL: SepLog A}:
   forall rho: environ, emp rho |-- fold_right sepcon emp nil rho.
 Proof. intro; apply derives_refl. Qed.
 
+Lemma cancel_frame0_low{A}{ND: NatDed A}{SL: SepLog A}:
+  emp |-- fold_right sepcon emp nil.
+Proof.  apply derives_refl. Qed.
+
 Lemma cancel_frame2: forall (P Q: environ->mpred) F (rho: environ),
      Q rho |-- 	fold_right sepcon emp F rho ->
     (P * Q) rho |-- fold_right sepcon emp (P::F) rho.
 Proof. intros. simpl. apply sepcon_derives; auto.
 Qed.
 
-Lemma cancel_frame1: forall P (rho: environ), 
+Lemma cancel_frame2_low: forall (P Q: mpred) F,
+     Q  |-- fold_right sepcon emp F  ->
+    (P * Q) |-- fold_right sepcon emp (P::F).
+Proof. intros. unfold fold_right; fold @fold_right. apply sepcon_derives; auto.
+Qed.
+
+Lemma cancel_frame1: forall (P: environ->mpred) (rho: environ), 
          P rho |-- fold_right sepcon emp (P::nil) rho.
 Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
 Qed.
+
+Lemma cancel_frame1_low: forall (P: mpred), 
+         P |-- fold_right sepcon emp (P::nil).
+Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
+Qed.
+
 
 Ltac fixup_lifts := 
  repeat 
@@ -855,7 +871,8 @@ Ltac fixup_lifts :=
  end.
 
 Ltac cancel_frame := 
-match goal with |- ?P |-- fold_right _ _ ?F ?rho  =>
+match goal with
+| |- ?P |-- fold_right _ _ ?F ?rho  =>
      let P' := abstract_env rho P in  
        change ( P' rho |-- fold_right sepcon emp F rho);
    fixup_lifts; cbv beta;
@@ -865,6 +882,11 @@ match goal with |- ?P |-- fold_right _ _ ?F ?rho  =>
                     end; 
     try (unfold F; apply cancel_frame1);
     try (instantiate (1:=nil) in (Value of F); unfold F; apply cancel_frame0)
+| |- _ |-- fold_right sepcon emp ?F  =>
+   repeat rewrite sepcon_assoc;
+   repeat apply cancel_frame2_low;
+    try (unfold F; apply cancel_frame1_low);
+    try (unfold F; apply cancel_frame0_low)
  end.
 
 Ltac pull_left A :=

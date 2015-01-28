@@ -1,4 +1,26 @@
-Require Import floyd.proofauto.
+(* Require Import floyd.proofauto.
+   TEMPORARILY replace "floyd.proofauto" 
+   with all the imports in the list below.
+   This reduces makefile-based recompilation
+   when changing things in (e.g.) forward.v
+*)
+Require Import floyd.base.
+Require Import floyd.client_lemmas.
+Require Import floyd.assert_lemmas.
+Require Import floyd.closed_lemmas.
+Require Import floyd.nested_field_lemmas.
+Require Import floyd.type_id_env.
+Require Import floyd.efield_lemmas.
+Require Import floyd.mapsto_memory_block.
+Require Import floyd.rangespec_lemmas.
+Require Import floyd.data_at_lemmas.
+Require Import floyd.field_at.
+Require Import floyd.nested_field_re_lemmas.
+Require Import floyd.nested_loadstore.
+Require Import floyd.unfold_data_at.
+Require Import floyd.entailer.
+(*  End TEMPORARILY *)
+
 Require Import msl.is_prop_lemma.
 
 Local Open Scope logic.
