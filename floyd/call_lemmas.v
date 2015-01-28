@@ -489,13 +489,32 @@ Proof.
 intros. f_equal. extensionality v; auto.
 Qed.
 
+(*
+Definition ptrees2local (t1: PTree.t val) (t2: PTree.t (type*val)) : list (environ -> Prop):=
+  PTree.fold (fun Q id v => temp id v :: Q) t1 
+       (PTree.fold (fun Q id vt => var id (fst vt) (snd vt) :: Q) t2 nil).
+*)
+
+Inductive delete_temp_from_locals (id: ident) : list (environ -> Prop) -> list (environ -> Prop) -> Prop :=
+| dtfl_nil: delete_temp_from_locals id nil nil
+| dtfl_here: forall v Q Q',
+                delete_temp_from_locals id Q Q' ->
+                delete_temp_from_locals id (temp id v :: Q) Q'
+| dtfl_cons: forall j v Q Q',
+                j<>id ->
+                delete_temp_from_locals id Q Q' ->
+                delete_temp_from_locals id (temp j v :: Q) (temp j v :: Q').              
+
+Definition strong_cast (t1 t2: type) (v: val) : val :=
+  if is_neutral_cast t1 t2 then v else force_val (sem_cast t1 t2 v).
+
 Lemma semax_call_id1_wow:
  forall  {A} (witness: A) (Frame: list mpred) 
            Espec Delta P Q R ret id (paramty: typelist) (retty: type) (bl: list expr)
                   (argsig: list (ident * type)) (Pre Post: A -> environ -> mpred)
              (Post2: environ -> mpred)
              (Ppre: list Prop)
-             (Qpre: list (environ -> Prop))
+             (Qpre Qnew: list (environ -> Prop))
              (Qtemp Qactuals Qpre_temp : PTree.t _)
              (Qvar Qpre_var: PTree.t (type*val))
              (Ppost: val -> list Prop)
@@ -526,7 +545,8 @@ Lemma semax_call_id1_wow:
                               (LOCALx (temp ret_temp vret :: nil) 
                               (SEPx (Rpost vret))) ->
    (forall vret, extract_trivial_liftx (Rpost vret) (Rpost' vret)) ->
-   Post2 = EX vret:val, PROPx (P++ Ppost vret) (LOCALx (temp ret vret :: Q)
+   delete_temp_from_locals ret Q Qnew ->
+   Post2 = EX vret:val, PROPx (P++ Ppost vret) (LOCALx (temp ret vret :: Qnew)
              (SEPx (map liftx (Rpost' vret ++ Frame)))) ->
    fold_right_and True Ppre ->
    @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
@@ -536,6 +556,108 @@ Lemma semax_call_id1_wow:
     (normal_ret_assert Post2).       
 Admitted.
 
+
+Lemma semax_call_id1_x_wow:
+ forall  {A} (witness: A) (Frame: list mpred) 
+           Espec Delta P Q R ret ret' id (paramty: typelist) (retty retty': type) (bl: list expr)
+                  (argsig: list (ident * type)) (Pre Post: A -> environ -> mpred)
+             (Post2: environ -> mpred)
+             (Ppre: list Prop)
+             (Qpre Qnew: list (environ -> Prop))
+             (Qtemp Qactuals Qpre_temp : PTree.t _)
+             (Qvar Qpre_var: PTree.t (type*val))
+             (Ppost: val -> list Prop)
+             (Rpre: list (environ -> mpred))
+             (Rpost: val -> list (environ -> mpred))
+             (Rpost': val -> list mpred)
+             (R' Rpre' : list mpred)
+             (vl : list val)
+   (GLBL: (var_types Delta) ! id = None),
+   (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') A Pre Post) ->
+   (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') A Pre Post)) ->
+   typeof_temp Delta ret = Some retty -> 
+   (temp_types Delta) ! ret' = Some (retty', false) ->
+   match retty with Tvoid => False | Tcomp_ptr _ _ => False | Tarray _ _ _ => False | _ => True end ->
+   paramty = type_of_params argsig ->
+(*   is_neutral_cast retty' retty = true -> do we need this? try proving it without... *)
+   local2ptree Q Qtemp Qvar nil nil ->
+   extract_trivial_liftx R R' ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_exprlist Delta (argtypes argsig) bl) ->
+   Pre witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)) ->
+   local2ptree Qpre Qpre_temp Qpre_var nil nil ->
+   extract_trivial_liftx Rpre Rpre' ->
+   force_list (map (msubst_eval_expr Qtemp Qvar) (explicit_cast_exprlist (argtypes argsig) bl)) = Some vl ->
+   pTree_from_elements (List.combine (var_names argsig) vl) = Qactuals ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var) ->
+   fold_right sepcon emp R' |-- fold_right sepcon emp Rpre' * fold_right sepcon emp Frame ->
+   Post witness = EX vret:val, PROPx (Ppost vret)
+                              (LOCALx (temp ret_temp vret :: nil) 
+                              (SEPx (Rpost vret))) ->
+   (forall vret, extract_trivial_liftx (Rpost vret) (Rpost' vret)) ->
+   delete_temp_from_locals ret Q Qnew ->
+   Post2 = EX vret:val, PROPx (P++ Ppost vret)
+                   (LOCALx (temp ret (strong_cast retty' retty vret) :: Qnew)
+                    (SEPx (map liftx (Rpost' vret ++ Frame)))) ->
+   fold_right_and True Ppre ->
+   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
+   (Ssequence (Scall (Some ret')
+             (Evar id (Tfunction paramty retty' cc_default))
+             bl)
+      (Sset ret (Ecast (Etempvar ret' retty') retty)))
+    (normal_ret_assert Post2).       
+Admitted.
+
+Lemma semax_call_id1_y_wow:
+ forall  {A} (witness: A) (Frame: list mpred) 
+           Espec Delta P Q R ret ret' id (paramty: typelist) (retty retty': type) (bl: list expr)
+                  (argsig: list (ident * type)) (Pre Post: A -> environ -> mpred)
+             (Post2: environ -> mpred)
+             (Ppre: list Prop)
+             (Qpre Qnew: list (environ -> Prop))
+             (Qtemp Qactuals Qpre_temp : PTree.t _)
+             (Qvar Qpre_var: PTree.t (type*val))
+             (Ppost: val -> list Prop)
+             (Rpre: list (environ -> mpred))
+             (Rpost: val -> list (environ -> mpred))
+             (Rpost': val -> list mpred)
+             (R' Rpre' : list mpred)
+             (vl : list val)
+   (GLBL: (var_types Delta) ! id = None),
+   (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') A Pre Post) ->
+   (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') A Pre Post)) ->
+   typeof_temp Delta ret = Some retty -> 
+   (temp_types Delta) ! ret' = Some (retty', false) ->
+   match retty with Tvoid => False | Tcomp_ptr _ _ => False | Tarray _ _ _ => False | _ => True end ->
+   paramty = type_of_params argsig ->
+(*   is_neutral_cast retty' retty = true -> do we need this? *)
+   local2ptree Q Qtemp Qvar nil nil ->
+   extract_trivial_liftx R R' ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_exprlist Delta (argtypes argsig) bl) ->
+   Pre witness = PROPx Ppre (LOCALx Qpre (SEPx Rpre)) ->
+   local2ptree Qpre Qpre_temp Qpre_var nil nil ->
+   extract_trivial_liftx Rpre Rpre' ->
+   force_list (map (msubst_eval_expr Qtemp Qvar) (explicit_cast_exprlist (argtypes argsig) bl)) = Some vl ->
+   pTree_from_elements (List.combine (var_names argsig) vl) = Qactuals ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp) ->
+   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var) ->
+   fold_right sepcon emp R' |-- fold_right sepcon emp Rpre' * fold_right sepcon emp Frame ->
+   Post witness = EX vret:val, PROPx (Ppost vret)
+                              (LOCALx (temp ret_temp vret :: nil) 
+                              (SEPx (Rpost vret))) ->
+   (forall vret, extract_trivial_liftx (Rpost vret) (Rpost' vret)) ->
+   delete_temp_from_locals ret Q Qnew ->
+   Post2 = EX vret:val, PROPx (P++ Ppost vret)
+               (LOCALx (temp ret (strong_cast retty' retty vret) :: Qnew)
+             (SEPx (map liftx (Rpost' vret ++ Frame)))) ->
+   fold_right_and True Ppre ->
+   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
+   (Ssequence (Scall (Some ret')
+             (Evar id (Tfunction paramty retty' cc_default))
+             bl)
+      (Sset ret (Etempvar ret' retty')))
+    (normal_ret_assert Post2).       
+Admitted.
 
 Lemma semax_call_id01_wow:
  forall  {A} (witness: A) (Frame: list mpred) 

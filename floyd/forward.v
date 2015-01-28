@@ -681,14 +681,19 @@ PROP  ()
   rewrite closed_wrt_subst; auto with closed.
 Qed.
 
-Ltac forward_call_id1_wow witness :=
+Lemma local_True_right:
+ forall (P: environ -> mpred),
+   P |-- local (`True).
+Proof. intros. intro rho; apply TT_right.
+Qed.
+
+Ltac forward_call_id1_x_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
- eapply (semax_call_id1_wow witness Frame);
- [ reflexivity | reflexivity | reflexivity | reflexivity
+ eapply (semax_call_id1_x_wow witness Frame);
+ [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
  | apply I | reflexivity
  | repeat constructor | repeat constructor 
- | reflexivity
  | entailer!
  | reflexivity
  | repeat constructor | repeat constructor 
@@ -706,6 +711,66 @@ let Frame := fresh "Frame" in
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
+ | repeat constructor; auto with closed
+ | reflexivity
+ | unfold fold_right_and; repeat rewrite and_True; auto
+ ].
+
+Ltac forward_call_id1_y_wow witness :=
+let Frame := fresh "Frame" in
+ evar (Frame: list (mpred));
+ eapply (semax_call_id1_y_wow witness Frame);
+ [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+ | apply I | reflexivity
+ | repeat constructor | repeat constructor 
+ | entailer!
+ | reflexivity
+ | repeat constructor | repeat constructor 
+ | reflexivity | reflexivity
+ | first [solve [apply prop_right; repeat constructor]
+           | solve [entailer!; repeat constructor]
+           | entailer]
+ | first [solve [apply prop_right; repeat constructor]
+           | solve [entailer!; repeat constructor]
+           | entailer]
+ | unfold fold_right at 1 2; cancel
+ | cbv beta; extensionality rho; 
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+   apply exp_congr; intros ?vret; reflexivity
+ | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
+        (has_evar A; fail 1) || (repeat constructor)
+     end
+ | repeat constructor; auto with closed
+ | reflexivity
+ | unfold fold_right_and; repeat rewrite and_True; auto
+ ].
+
+Ltac forward_call_id1_wow witness :=
+let Frame := fresh "Frame" in
+ evar (Frame: list (mpred));
+ eapply (semax_call_id1_wow witness Frame);
+ [ reflexivity | reflexivity | reflexivity | reflexivity
+ | apply I | reflexivity
+ | repeat constructor | repeat constructor 
+(* | reflexivity    don't need this? *)
+ | try apply local_True_right; entailer!
+ | reflexivity
+ | repeat constructor | repeat constructor 
+ | reflexivity | reflexivity
+ | first [solve [apply prop_right; repeat constructor]
+           | solve [entailer!; repeat constructor]
+           | entailer]
+ | first [solve [apply prop_right; repeat constructor]
+           | solve [entailer!; repeat constructor]
+           | entailer]
+ | unfold fold_right at 1 2; cancel
+ | cbv beta; extensionality rho; 
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+   apply exp_congr; intros ?vret; reflexivity
+ | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
+        (has_evar A; fail 1) || (repeat constructor)
+     end
+ | repeat constructor; auto with closed
  | reflexivity
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
@@ -716,7 +781,7 @@ let Frame := fresh "Frame" in
  eapply (semax_call_id01_wow witness Frame);
  [ reflexivity | reflexivity | reflexivity | apply I | reflexivity
  | repeat constructor | repeat constructor 
- | entailer!
+ | try apply local_True_right; entailer!
  | reflexivity
  | repeat constructor | repeat constructor 
  | reflexivity | reflexivity
@@ -744,7 +809,7 @@ let Frame := fresh "Frame" in
  eapply (semax_call_id00_wow witness Frame);
  [ reflexivity | reflexivity | reflexivity | reflexivity
  | repeat constructor | repeat constructor 
- | entailer!
+ | try apply local_True_right; entailer!
  | reflexivity
  | repeat constructor | repeat constructor 
  | reflexivity | reflexivity
@@ -769,9 +834,12 @@ Ltac forward_call' witness :=
     evar (Pst: val -> environ -> mpred);
     apply semax_seq' with (exp Pst); unfold Pst; clear Pst;
     [first [forward_call_id1_wow witness
+          | forward_call_id1_x_wow witness
+          | forward_call_id1_y_wow witness
           | forward_call_id01_wow witness ]
     | apply extract_exists_pre; intros ?vret;
       unfold map,app;
+      unfold strong_cast; simpl is_neutral_cast; cbv iota;
       abbreviate_semax;
       repeat (apply semax_extract_PROP; intro)
    ]
@@ -919,12 +987,6 @@ Lemma quick_typecheck2:
 Proof.
 intros; apply andp_right; auto.
  intro rho; apply TT_right.
-Qed.
-
-Lemma local_True_right:
- forall (P: environ -> mpred),
-   P |-- local (`True).
-Proof. intros. intro rho; apply TT_right.
 Qed.
 
 Ltac quick_typecheck :=
@@ -1972,7 +2034,6 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
            do 2 eexists; split; reflexivity)
     ]
  end.
-
 
 Definition numbd {A} (n: nat) (x: A) : A := x.
 

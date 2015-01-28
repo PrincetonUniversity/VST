@@ -833,24 +833,28 @@ Lemma cancel_frame0{A}{ND: NatDed A}{SL: SepLog A}:
   forall rho: environ, emp rho |-- fold_right sepcon emp nil rho.
 Proof. intro; apply derives_refl. Qed.
 
+Lemma cancel_frame0_low{A}{ND: NatDed A}{SL: SepLog A}:
+  emp |-- fold_right sepcon emp nil.
+Proof.  apply derives_refl. Qed.
+
 Lemma cancel_frame2: forall (P Q: environ->mpred) F (rho: environ),
      Q rho |-- 	fold_right sepcon emp F rho ->
     (P * Q) rho |-- fold_right sepcon emp (P::F) rho.
 Proof. intros. simpl. apply sepcon_derives; auto.
 Qed.
 
-Lemma cancel_frame2_low: forall (P Q: environ->mpred) F,
+Lemma cancel_frame2_low: forall (P Q: mpred) F,
      Q  |-- fold_right sepcon emp F  ->
     (P * Q) |-- fold_right sepcon emp (P::F).
 Proof. intros. unfold fold_right; fold @fold_right. apply sepcon_derives; auto.
 Qed.
 
-Lemma cancel_frame1: forall P (rho: environ), 
+Lemma cancel_frame1: forall (P: environ->mpred) (rho: environ), 
          P rho |-- fold_right sepcon emp (P::nil) rho.
 Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
 Qed.
 
-Lemma cancel_frame1_low: forall P, 
+Lemma cancel_frame1_low: forall (P: mpred), 
          P |-- fold_right sepcon emp (P::nil).
 Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
 Qed.
@@ -878,13 +882,11 @@ match goal with
                     end; 
     try (unfold F; apply cancel_frame1);
     try (instantiate (1:=nil) in (Value of F); unfold F; apply cancel_frame0)
-| |- ?P |-- fold_right _ _ ?F  =>
+| |- _ |-- fold_right sepcon emp ?F  =>
    repeat rewrite sepcon_assoc;
-   repeat match goal with |- (_ * _) _ |-- _ =>
-                   apply cancel_frame2_low
-                    end; 
+   repeat apply cancel_frame2_low;
     try (unfold F; apply cancel_frame1_low);
-    try (instantiate (1:=nil) in (Value of F); unfold F; apply cancel_frame0)
+    try (unfold F; apply cancel_frame0_low)
  end.
 
 Ltac pull_left A :=
