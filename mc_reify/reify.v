@@ -232,6 +232,12 @@ Reify Pattern patterns_vst +=
       (!!sc_set_load_store.proj_val @ ?0) => 
          ((fun (a : id Ctypes.type)  =>
              @Inj typ func (inr (Sep (fproj_val a ))))).
+
+Reify Pattern patterns_vst +=
+      (!!sc_set_load_store.upd_val @ ?0) => 
+         ((fun (a : id Ctypes.type)  =>
+             @Inj typ func (inr (Sep (fupd_val a ))))).
+
 (*
 Reify Pattern patterns_vst +=
       (!!@field_at.field_at @ ?0 @ ?1) => 
@@ -292,6 +298,11 @@ Reify Pattern patterns_vst +=
       (!!@nth_error @ ?0 @ ?1 @ ?2) =>
         (fun (a: function reify_vst_typ) (b: function reify_vst) (c: id nat)=> 
         (App (@Inj typ func (inr (Data (fnth_error a c)))) b)).
+
+Reify Pattern patterns_vst +=
+      (!!@canon.replace_nth @ ?0 @ ?1) =>
+        (fun (a: function reify_vst_typ) (b: id nat)=> 
+          (@Inj typ func (inr (Data (freplace_nth a b))))).
 
 Reify Pattern patterns_vst += 
       (RHasType AST.ident (?0)) => (fun (a : id AST.ident) 
@@ -424,6 +435,8 @@ Reify Pattern patterns_vst += (!!local2ptree.msubst_eval_LR) => (@Inj typ func (
 Reify Pattern patterns_vst += (!!nested_field_lemmas.StructField) => (@Inj typ func (inr (Smx fstruct_field))).
 Reify Pattern patterns_vst += (!!nested_field_lemmas.UnionField) => (@Inj typ func (inr (Smx funion_field))).
 Reify Pattern patterns_vst += (!!nested_field_lemmas.ArraySubsc) => (@Inj typ func (inr (Smx farray_subsc))).
+Reify Pattern patterns_vst += (!!bool_funcs.writable_share_b) => (@Inj typ func (inr (Smx fwritable_share_b))).
+Reify Pattern patterns_vst += (!!client_lemmas.type_is_by_value) => (@Inj typ func (inr (Smx ftype_is_by_value))).
 Reify Pattern patterns_vst += (!!bool_funcs.type_is_int @ ?0) =>
   (fun (e: id Clight.expr) => (@Inj typ func (inr (Const (fbool (bool_funcs.type_is_int e)))))).
 Ltac reify_typ trm :=

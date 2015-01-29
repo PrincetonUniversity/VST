@@ -81,6 +81,7 @@ Inductive z_op :=
 | fZ_mul
 | fZ_div
 | fZ_mod
+| fZ_land
 | fZ_max
 | fZ_opp.
 
@@ -95,6 +96,7 @@ match z with
 | fZ_mul
 | fZ_div
 | fZ_mod
+| fZ_land
 | fZ_max => (tyArr tyZ (tyArr tyZ tyZ))
 | fZ_opp => (tyArr tyZ tyZ)
 end.
@@ -110,6 +112,7 @@ match z with
 | fZ_mul => Z.mul
 | fZ_div => Z.div
 | fZ_mod => Zmod
+| fZ_land => Z.land
 | fZ_max => Z.max
 | fZ_opp => Z.opp
 end.
@@ -282,6 +285,7 @@ Inductive data :=
 | fcons : typ -> data
 | fappend : typ -> data
 | fnth_error : typ -> nat -> data
+| freplace_nth : typ -> nat -> data
 | fpair : typ -> typ -> data
 | fget : typ -> positive -> data
 | fset : typ -> positive -> data
@@ -299,6 +303,7 @@ match l with
 | fcons a => tyArr a (tyArr (tylist a) (tylist a))
 | fappend a => tyArr (tylist a) (tyArr (tylist a) (tylist a))
 | fnth_error a _ => tyArr (tylist a) (tyoption a)
+| freplace_nth a _ => tyArr (tylist a) (tyArr a (tylist a))
 | fpair t1 t2 => tyArr t1 (tyArr t2 (typrod t1 t2))
 | fleaf t => typtree t
 | fnode t => tyArr (typtree t) (tyArr (tyoption t) (tyArr (typtree t) (typtree t)))
@@ -316,6 +321,7 @@ match l with
 | fcons a => @cons (typD a)
 | fappend a => @app (typD a)
 | fnth_error a n => fun l => @nth_error (typD a) l n
+| freplace_nth a n => @canon.replace_nth (typD a) n
 | fpair a b => ((@pair (typD a) (typD b)) : typD (typeof_data (fpair a b)))
 | fleaf t => @PTree.Leaf (typD t)
 | fnode t => @PTree.Node (typD t)
@@ -563,6 +569,8 @@ Inductive smx :=
 | fstruct_field
 | funion_field
 | farray_subsc
+| fwritable_share_b
+| ftype_is_by_value
 .
 
 Definition typeof_smx (t : smx) :=
@@ -614,6 +622,8 @@ match t with
 | fstruct_field => tyArr tyident tygfield
 | funion_field => tyArr tyident tygfield
 | farray_subsc => tyArr tyZ tygfield
+| fwritable_share_b => tyArr tyshare tybool
+| ftype_is_by_value => tyArr tyc_type tybool
 end.
 
 Definition smxD (t : smx) : typD (typeof_smx t) :=
@@ -652,6 +662,8 @@ match t with
 | fstruct_field => StructField
 | funion_field => UnionField
 | farray_subsc => ArraySubsc
+| fwritable_share_b => writable_share_b
+| ftype_is_by_value => client_lemmas.type_is_by_value
 end.
 
 Inductive func' :=

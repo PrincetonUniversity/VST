@@ -556,8 +556,10 @@ Ltac canonicalize :=
 
 canonicalize.
 *)
-Set Printing Depth 4.
-Time run_rtac reify_vst term_table (SYMEXE_sound 20). (* 3.29 seconds *)
+(* Set Printing Depth 4. *)
+Time run_rtac reify_vst term_table (SYMEXE_sound 20). (* 3.9 seconds *)
+repeat (split; try eexists).
+Print _s1.
 admit.
 Time Qed.
 repeat split.

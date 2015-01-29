@@ -169,6 +169,89 @@ Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
 reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 efs tts e lr n).
 Defined.
 
+Lemma semax_store_localD:
+    forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
+     (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 e2: Clight.expr)
+     (efs : list efield) (tts : list type) 
+     (e : type_id_env) (lr : LLRR) (n: nat)
+     sh P T1 T2 R gs Post
+      (gfs: list gfield)
+      (p p': val) (v0: val) (v': reptype t_root) lr,
+  forall {Espec: OracleKind},
+      typeof (nested_efield e1 efs tts) = t ->
+      type_is_by_value t = true ->
+      legal_nested_efield e t_root e1 gfs tts lr = true ->
+      msubst_eval_LR T1 T2 e1 lr = Some p ->
+      msubst_eval_LR T1 T2 (Ecast e2 t) RRRR = Some v0 ->
+      msubst_efield_denote T1 T2 efs = Some gfs ->
+      tc_LR_b_norho (mk_tycontext temp var ret gt gs) e1 lr = true ->
+      tc_LR_b_norho (mk_tycontext temp var ret gt gs) (Ecast e2 (typeof (nested_efield e1 efs tts))) RRRR = true ->
+      tc_efield_b_norho (mk_tycontext temp var ret gt gs) efs = true ->
+
+      writable_share_b sh = true ->
+      (@eq (option mpred)) (nth_error R n) (Some (data_at sh t_root v' p')) ->
+  (forall rho, 
+      !!(tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |-- !! (p = p')) ->
+  (forall rho, 
+      !! (tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |--
+        !! (legal_nested_field t_root gfs)) ->
+  (assertD P (localD T1 T2)
+                  (replace_nth n R
+                    (data_at sh t_root
+                      (upd_val t_root gfs v' v0) p))) = Post -> (* need to add replace_nth *)
+  nested_efield e1 efs tts = e0 ->
+
+      semax (mk_tycontext temp var ret gt gs) (|>assertD P (localD T1 T2) R) 
+        (Sassign e0 e2)
+          (normal_ret_assert Post).
+Proof.
+  intros.
+  assert (Post = assertD P (localD T1 T2)
+          (replace_nth n R
+             (field_at sh t_root []
+                (upd_reptype (nested_field_type2 t_root nil) gfs v'
+                   (valinject _ v0)) p))); [| clear H12].
+  Focus 1. {
+    unfold upd_val in H12.
+    rewrite <- data_at_field_at.
+    subst Post.
+    f_equal.
+  } Unfocus.
+  subst Post e0.
+  apply writable_share_b_sound in H8.
+  eapply semax_extract_later_prop'.
+  Focus 1. {
+    rewrite <- insert_local.
+    exact H10.
+  } Unfocus.
+  intro; subst; clear H10.
+  unfold upd_val.
+  eapply semax_PTree_store with (gfs2 := gfs) (gfs0 := nil) (gfs1 := gfs) (t_root0 := t_root) (sh0 := sh);  eauto.
+  + rewrite app_nil_r; reflexivity.
+  + unfold assertD, localD, LocalD; simpl; intros. entailer!.
+  + repeat apply andp_right.
+    - apply andp_left2. eapply tc_LR_b_sound; [eauto | | eauto].
+      eapply nth_error_prop with (n := n); eauto.
+      rewrite data_at_isptr.
+      unfold assertD; entailer!.
+    - intro rho.
+      apply prop_right.
+      eapply tc_expr_b_sound.
+      exact H6.
+    - intro rho.
+      unfold local, lift1; simpl; apply prop_right.
+      apply tc_efield_b_sound; auto.
+Qed.
+
+Definition store_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
+     (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 e2: Clight.expr)
+     (efs : list efield) (tts : list type) 
+     (e : type_id_env) (lr : LLRR) (n: nat): my_lemma.
+reify_lemma reify_vst (semax_store_localD temp var ret gt id t t_root e0 e1 e2 efs tts e lr n).
+Defined.
+
+Print store_lemma.
+
 Section tbled.
 Variable n : nat.
 Variable tbl : SymEnv.functions RType_typ.

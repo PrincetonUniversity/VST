@@ -94,6 +94,7 @@ match a, b with
 | fZ_mul, fZ_mul 
 | fZ_div, fZ_div 
 | fZ_mod, fZ_mod 
+| fZ_land, fZ_land
 | fZ_max, fZ_max 
 | fZ_opp, fZ_opp  => true
 | _, _ => false
@@ -211,7 +212,8 @@ match a, b with
 | fnil t1, fnil t2
 | fcons t1, fcons t2
 | fappend t1, fappend t2 => typ_beq t1 t2
-| fnth_error t1 n1, fnth_error t2 n2 => andb (beq_nat n1 n2) (typ_beq t1 t2)
+| fnth_error t1 n1, fnth_error t2 n2
+| freplace_nth t1 n1, freplace_nth t2 n2 => andb (beq_nat n1 n2) (typ_beq t1 t2)
 | fmap ta1 tb1, fmap ta2 tb2 
 | ffold_right ta1 tb1, ffold_right ta2 tb2 
 | ffold_left ta1 tb1, ffold_left ta2 tb2 => andb (typ_beq ta1 ta2) (typ_beq tb1 tb2)
@@ -303,6 +305,8 @@ match a, b with
 | fstruct_field, fstruct_field => true
 | funion_field, funion_field => true
 | farray_subsc, farray_subsc => true
+| fwritable_share_b, fwritable_share_b => true
+| ftype_is_by_value, ftype_is_by_value => true
 | _, _ => false
 end.
 

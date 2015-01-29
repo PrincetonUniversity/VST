@@ -141,3 +141,16 @@ Definition type_is_int (e: Clight.expr) : bool :=
   | Tint _ _ _ => true
   | _ => false
   end.
+
+Definition writable_share_b (sh: share) : bool :=
+  if (seplog.writable_share_dec sh) then true else false.
+
+Lemma writable_share_b_sound: forall sh,
+  writable_share_b sh = true -> writable_share sh.
+Proof.
+  intros.
+  unfold writable_share_b in H.
+  destruct (seplog.writable_share_dec sh).
+  auto.
+  congruence.
+Qed.

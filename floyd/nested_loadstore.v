@@ -2209,7 +2209,7 @@ Transparent upd_reptype.
   + admit.
 Qed.
 
-Lemma NF_aux: forall e t gfs, type_is_by_value (uncompomize e (nested_field_type2 t gfs)) ->
+Lemma NF_aux: forall e t gfs, type_is_by_value (uncompomize e (nested_field_type2 t gfs)) = true ->
   isSome (nested_field_rec t gfs).
 Proof.
   intros.
@@ -2244,7 +2244,7 @@ Qed.
 
 Lemma repinject_valinject:
   forall e t v,
-    type_is_by_value (uncompomize e t) -> repinject t (valinject t v) = v.
+    type_is_by_value (uncompomize e t) = true -> repinject t (valinject t v) = v.
 Proof.
   intros.
   destruct t; try inversion H; reflexivity.
@@ -2252,7 +2252,7 @@ Qed.
 
 Lemma valinject_repinject:
   forall e t v,
-    type_is_by_value (uncompomize e t) -> valinject t (repinject t v) = v.
+    type_is_by_value (uncompomize e t) = true -> valinject t (repinject t v) = v.
 Proof.
   intros.
   destruct t; try inversion H; reflexivity.
@@ -2310,7 +2310,7 @@ Proof.
     } Unfocus.
     pose proof I as H1.
     intros.
-    assert (type_is_by_value (uncompomize e (nested_field_type2 t_root ((gf :: gfs1) ++ gfs0))))
+    assert (type_is_by_value (uncompomize e (nested_field_type2 t_root ((gf :: gfs1) ++ gfs0))) = true)
       by (rewrite H6; eapply is_neutral_cast_by_value, H0).
     eapply semax_max_path_field_load_37' with (v'0 := valinject _ v); eauto.
     - erewrite repinject_valinject; [reflexivity |].
@@ -2344,7 +2344,7 @@ Lemma semax_nested_efield_field_cast_load_37':
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
       (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
-      type_is_by_value (typeof (nested_efield e1 efs tts)) ->
+      type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
       repinject _ (proj_reptype (nested_field_type2 t_root gfs0) gfs1 v') = v ->
@@ -2390,7 +2390,7 @@ Proof.
     } Unfocus.
     pose proof I as H1.
     intros.
-    assert (type_is_by_value (uncompomize e (nested_field_type2 t_root ((gf :: gfs1) ++ gfs0)))) by (rewrite H6; apply H0).
+    assert (type_is_by_value (uncompomize e (nested_field_type2 t_root ((gf :: gfs1) ++ gfs0))) = true) by (rewrite H6; apply H0).
     eapply semax_max_path_field_cast_load_37' with (v'0 := valinject _ v); eauto.
     - erewrite repinject_valinject; [reflexivity |].
       exact H7.
@@ -2423,7 +2423,7 @@ Lemma semax_nested_efield_field_store_nth:
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
       (v: environ -> reptype (nested_field_type2 t_root gfs0)) lr,
       typeof (nested_efield e1 efs tts) = t ->
-      type_is_by_value t ->
+      type_is_by_value t = true ->
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
@@ -2534,7 +2534,7 @@ Transparent efield_denote.
                  emp :: R) (1 + n) = Some Rn)
       by (exact H3).
     clear H3.
-    assert (type_is_by_value (uncompomize e (nested_field_type2 t_root ((gf :: gfs1) ++ gfs0)))).
+    assert (type_is_by_value (uncompomize e (nested_field_type2 t_root ((gf :: gfs1) ++ gfs0))) = true).
     Focus 1. {
       rewrite H8, H.
       exact H0.

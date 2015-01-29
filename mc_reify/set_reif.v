@@ -1,4 +1,4 @@
-Require Import floyd.proofauto. 
+Require Import floyd.proofauto.
 Require Import mc_reify.funcs.
 Require Import mc_reify.types.
 Require Import mc_reify.bool_funcs.
@@ -33,14 +33,27 @@ Definition Vderef_noload (t: type) (e: val_e) : val_e :=
   | _ => Vundef
   end.
 
+
 Definition val_e_binarith op ty1 ty2 e1 e2 :=
   match op, ty1, ty2, e1, e2 with
   | Oand, Tint _ _ _, Tint _ _ _,
     App (Inj (inr (Value fVint))) e1',
-    App (Inj (inr (Value fVint))) e2' => appR (Value fVint) (App (appR (Intop fint_and) e1') e2')
+    App (Inj (inr (Value fVint))) e2' =>
+      match e1', e2' with
+      | App (Inj (inr (Intop fint_repr))) e1'',
+        App (Inj (inr (Intop fint_repr))) e2'' =>
+                appR (Value fVint) (appR (Intop fint_repr) (App (appR (Zop fZ_land) e1'') e2''))
+      | _, _ => appR (Value fVint) (App (appR (Intop fint_and) e1') e2')
+      end
   | Oadd, Tint _ _ _, Tint _ _ _,
     App (Inj (inr (Value fVint))) e1',
-    App (Inj (inr (Value fVint))) e2' => appR (Value fVint) (App (appR (Intop fint_add) e1') e2')
+    App (Inj (inr (Value fVint))) e2' =>
+      match e1', e2' with
+      | App (Inj (inr (Intop fint_repr))) e1'',
+        App (Inj (inr (Intop fint_repr))) e2'' =>
+                appR (Value fVint) (appR (Intop fint_repr) (App (appR (Zop fZ_add) e1'') e2''))
+      | _, _ => appR (Value fVint) (App (appR (Intop fint_add) e1') e2')
+      end
   | _, _, _, _, _ => App (appR (Eval_f (feval_binop op 
                                          ty1 ty2)) e1) e2
   end.

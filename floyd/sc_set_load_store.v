@@ -127,7 +127,7 @@ Lemma semax_SC_field_cast_load:
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
       (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
-      type_is_by_value (typeof (nested_efield e1 efs tts)) ->
+      type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
@@ -167,7 +167,7 @@ Lemma semax_SC_field_store:
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
       (p: val) (v0: val) (v: reptype (nested_field_type2 t_root gfs0)) lr,
       typeof (nested_efield e1 efs tts) = t ->
-      type_is_by_value t ->
+      type_is_by_value t = true ->
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
@@ -324,7 +324,7 @@ Lemma semax_PTree_cast_load:
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
       (p: val) (v : val) (v' : reptype (nested_field_type2 t_root gfs0)) lr,
       typeof_temp Delta id = Some t ->
-      type_is_by_value (typeof (nested_efield e1 efs tts)) ->
+      type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
@@ -371,7 +371,7 @@ Lemma semax_PTree_store:
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
       (p: val) (v0: val) (v: reptype (nested_field_type2 t_root gfs0)) lr,
       typeof (nested_efield e1 efs tts) = t ->
-      type_is_by_value t ->
+      type_is_by_value t = true ->
       gfs = gfs1 ++ gfs0 ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->

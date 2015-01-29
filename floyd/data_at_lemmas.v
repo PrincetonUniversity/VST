@@ -203,10 +203,10 @@ Definition valinject (t: type) : val -> reptype t :=
   | t => fun _ => default_val t
  end.
 
-Lemma valinject_JMeq: forall t v, type_is_by_value t -> JMeq (valinject t v) v.
+Lemma valinject_JMeq: forall t v, type_is_by_value t = true -> JMeq (valinject t v) v.
 Proof.
   intros.
-  destruct t; simpl in *; try tauto.
+  destruct t; simpl in *; try congruence; try tauto.
 Qed.
 
 (******************************************
@@ -899,10 +899,10 @@ Proof.
 Qed.
 
 Lemma by_value_default_val: forall t:type, 
-  type_is_by_value t -> JMeq (default_val t) Vundef.
+  type_is_by_value t = true -> JMeq (default_val t) Vundef.
 Proof.
   intros.
-  destruct t; try tauto.
+  destruct t; try inversion H; try tauto.
 Qed.
 
 (************************************************
@@ -1033,14 +1033,14 @@ Proof.
   destruct t; simpl in *; rewrite H; reflexivity.
 Qed.
 
-Lemma by_value_reptype: forall t, type_is_by_value t -> reptype t = val.
+Lemma by_value_reptype: forall t, type_is_by_value t = true -> reptype t = val.
 Proof.
   intros.
-  destruct t; simpl in H; tauto.
+  destruct t; simpl in H; try inversion H; tauto.
 Qed.
 
 Lemma by_value_data_at: forall sh t v v' p,
-  type_is_by_value t ->
+  type_is_by_value t = true ->
   JMeq v v' ->
   data_at sh t v p = !! field_compatible t nil p && mapsto sh t p v'.
 Proof.
@@ -1048,12 +1048,12 @@ Proof.
   unfold field_compatible.
   pose proof legal_nested_field_nil_lemma t.
   rewrite data_at_isptr.
-  destruct t; simpl in H; try tauto; simpl in v;
+  destruct t; simpl in H; try inversion H; try tauto; simpl in v;
   try (unfold data_at; simpl; rewrite H0; apply pred_ext; normalize).
 Qed.
 
 Lemma uncompomize_by_value_data_at: forall sh e t v v' p,
-  type_is_by_value (uncompomize e t) ->
+  type_is_by_value (uncompomize e t) = true ->
   JMeq v v' ->
   data_at sh t v p =
   !! field_compatible (uncompomize e t) nil p && mapsto sh (uncompomize e t) p v'.
@@ -1070,17 +1070,17 @@ Proof.
 Qed.
 
 Lemma by_value_data_at_: forall sh t p,
-  type_is_by_value t ->
+  type_is_by_value t = true ->
   data_at_ sh t p = !! field_compatible t nil p && mapsto_ sh t p.
 Proof.
   intros.
   unfold data_at_, mapsto_.
-  destruct t; simpl in H; try tauto; simpl default_val;
+  destruct t; simpl in H; try inversion H; try tauto; simpl default_val;
   apply by_value_data_at; reflexivity.
 Qed.
 
 Lemma uncompomize_by_value_data_at_: forall sh e t p,
-  type_is_by_value (uncompomize e t) ->
+  type_is_by_value (uncompomize e t) = true ->
   data_at_ sh t p =
   !! field_compatible (uncompomize e t) nil p && mapsto_ sh (uncompomize e t) p.
 Proof.
@@ -1093,7 +1093,7 @@ Proof.
 Qed.
 
 Lemma lifted_by_value_data_at: forall sh t v p,
-  type_is_by_value t ->
+  type_is_by_value t = true ->
   `(data_at sh t) (`(valinject t) v) p =
   local (`(field_compatible t nil) p) && `(mapsto sh t) p v.
 Proof.
@@ -1102,7 +1102,7 @@ Proof.
 Qed.
 
 Lemma lifted_uncompomize_by_value_data_at: forall sh e t v p,
-  type_is_by_value (uncompomize e t) ->
+  type_is_by_value (uncompomize e t) = true ->
   `(data_at sh t) (`(valinject t) v) p =
   local (`(field_compatible (uncompomize e t) nil) p) &&
   `(mapsto sh (uncompomize e t)) p v.
@@ -1113,7 +1113,7 @@ Proof.
 Qed.
 
 Lemma lifted_by_value_data_at_: forall sh t p,
-  type_is_by_value t ->
+  type_is_by_value t = true ->
   `(data_at_ sh t) p = local (`(field_compatible t nil) p) && `(mapsto_ sh t) p.
 Proof.
   unfold liftx, lift; simpl; intros; extensionality rho.
@@ -1121,7 +1121,7 @@ Proof.
 Qed.
 
 Lemma lifted_uncompomize_by_value_data_at_: forall sh e t p,
-  type_is_by_value (uncompomize e t) ->
+  type_is_by_value (uncompomize e t) = true ->
   `(data_at_ sh t) p =
   local (`(field_compatible (uncompomize e t) nil) p) &&
   `(mapsto_ sh (uncompomize e t)) p.

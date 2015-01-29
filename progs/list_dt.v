@@ -450,7 +450,7 @@ Proof.
 Qed.
 
 Lemma uncompomized_valinject_repinject: forall e t (v : reptype t),
-  type_is_by_value (uncompomize e t) -> valinject t (repinject t v) = v.
+  type_is_by_value (uncompomize e t) = true -> valinject t (repinject t v) = v.
 Proof.
   intros.
   destruct t; try inversion H; reflexivity.
@@ -470,7 +470,7 @@ Proof.
 intros.
 assert (type_is_by_value
         (uncompomize (PTree.empty type)
-           (nested_field_type2 list_struct (StructField list_link :: nil)))).
+           (nested_field_type2 list_struct (StructField list_link :: nil))) = true).
   rewrite list_link_type; simpl; auto.
 pose proof uncompomized_valinject_repinject (PTree.empty _) (nested_field_type2 list_struct (StructField list_link :: nil)) w H.
 remember (repinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) as w'.
