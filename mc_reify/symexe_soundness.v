@@ -109,7 +109,7 @@ Proof.
       * apply REFLEXIVITY_OP_CTYPE_sound.
       * admit (*reflexivity msusbst_sound*).
       * apply REFLEXIVITY_BOOL_sound.
-      * apply REFLEXIVITYTAC_sound.
+      * admit. (*apply REFLEXIVITYTAC_sound.*)
 Qed.
 
 Lemma FORWARD_LOAD_sound: forall Struct_env Delta Pre s, rtac_sound (FORWARD_LOAD tbl Struct_env Delta Pre s).
@@ -141,7 +141,7 @@ intros.
 unfold SYMEXE_STEP.
 apply Then.THEN_sound; [apply INSTANTIATE_sound |].
 apply runOnGoals_sound.
-apply THEN_sound; [apply SIMPL_SET_sound |].
+(*apply THEN_sound; [apply SIMPL_SET_sound |].*)
 eapply AT_GOAL_sound.
 intros.
 destruct (get_arguments e);
@@ -197,51 +197,161 @@ Qed.
 End tbled.
 
 Require Import denote_tac.
+Require Import Timing.
 
 Ltac clear_tbl :=
 match goal with
 [ t := ?V : FMapPositive.PositiveMap.tree (SymEnv.function RType_typ) |- _ ] => clear t
 end.
 
-Ltac run_rtac reify term_table tac_sound :=
-  match type of tac_sound with
+Require Import Timing.
+Ltac run_rtac reify term_table tac_sound reduce :=
+start_timer "rforward";
+start_timer "match_tactic";
+  lazymatch type of tac_sound with
     | forall t, @rtac_sound _ _ _ _ _ _ (?tac _) =>
-	  let name := fresh "e" in
+	  let namee := fresh "e" in
 	  match goal with
 	    | |- ?P => 
-	      reify_aux reify term_table P name;
+              stop_timer "match_tactic";
+              start_timer "reification";
+	      reify_aux reify term_table P namee;
+              stop_timer "reification";
+              start_timer "match type";
               let tbl := get_tbl in
-	      let t := eval vm_compute in (@typeof_expr _ _ _ _ (RSym_sym tbl) nil nil name) in
-	      let goal := eval unfold name in name in
+	      let t :=  constr:(Some typrop) in
+	      let goal := namee in
 	      match t with
 	        | Some ?t =>
-	          let goal_result := constr:(run_tac' (tac tbl) (GGoal name)) in 
+	          let goal_result := constr:(run_tac' (tac tbl) (GGoal namee)) in
+                  stop_timer"match type";
+                  start_timer "vm_compute";
 	          let result := eval vm_compute in goal_result in
+                  stop_timer "vm_compute";
+                  start_timer "match result";
 	          match result with
-	            | More_ ?s ?g => 
-	              cut (goalD_Prop tbl nil nil g); [
-	                let goal_resultV := g in
-	               (* change (goalD_Prop nil nil goal_resultV -> exprD_Prop nil nil name);*)
-	                exact_no_check (@run_rtac_More tbl (tac tbl) _ _ _ (tac_sound tbl)
-	                	(@eq_refl (Result (CTop nil nil)) (More_ s goal_resultV) <:
-	                	   run_tac' (tac tbl) (GGoal goal) = (More_ s goal_resultV)))
-	                | idtac "bla bla"; cbv_denote(*; repeat (eexists; eauto) *)
-	              ]
+	            | More_ ?s ?g =>
+                      let g' := g in 
+                      set (sv := s);
+                      stop_timer "match result";
+                      start_timer "goalD";
+                      let gd_prop := 
+                          constr:(goalD_Prop tbl nil nil g') in
+                      stop_timer "goalD";
+                      start_timer "reduce";
+                      let gd' := 
+                        reduce hd gd_prop in
+                      stop_timer "reduce";
+                      start_timer "cut1";
+	              cut (gd');  [ stop_timer "cut1";
+                                    start_timer "change";
+                          change (gd_prop -> 
+                                  exprD_Prop tbl nil nil namee);
+                          stop_timer "change";
+                          start_timer "cut2";
+	                  cut (goal_result = More_ sv g');
+                          [ stop_timer "cut2"; 
+                            start_timer "exact"; 
+                            (*set (pf := *)
+                             exact_no_check
+                               (@run_rtac_More tbl (tac tbl) 
+                                 sv g' namee (tac_sound tbl))
+                           (*;
+                            exact pf*)
+                           | stop_timer "exact"; 
+                             start_timer "VM_CAST"; 
+                             vm_cast_no_check 
+                               (@eq_refl _ (More_ sv g'))
+                             ] 
+	                | stop_timer "VM_CAST"; clear (*g'*) sv ]
 	            | Solved ?s =>
-	              exact_no_check (@run_rtac_Solved tbl (tac tbl) s name (tac_sound tbl) 
+	              exact_no_check (@run_rtac_Solved tbl (tac tbl) s namee (tac_sound tbl) 
 	                (@eq_refl (Result (CTop nil nil)) (Solved s) <: run_tac' (tac tbl) (GGoal goal) = Solved s))
 	            | Fail => idtac "Tactic" tac "failed."
 	            | _ => idtac "Error: run_rtac could not resolve the result from the tactic :" tac
 	          end
 	        | None => idtac "expression " goal "is ill typed" t
 	      end
-	  end; try (clear name; clear_tbl)
+	  end; try (clear namee; clear_tbl)
 	| _ => idtac tac_sound "is not a soudness theorem."
-  end.
+  end; stop_timer "rforward".
 
-Ltac rforward := run_rtac reify_vst term_table (SYMEXE_sound 1000).
+Ltac rforward := run_rtac reify_vst term_table (SYMEXE_sound 1000) cbv_denote.
+
+Ltac rforward_admit := run_rtac reify_vst term_table (SYMEXE_sound 1000) admit.
 
 Local Open Scope logic.
+
+
+Require Import reverse_defs.
+Existing Instance NullExtension.Espec.
+
+
+Fixpoint lots_of_sets' n p :=
+match n with 
+| O => (Sset p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+| S n' => Ssequence (Sset p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))) (lots_of_sets' n' (Psucc p))
+end.
+
+Definition lots_of_sets n := lots_of_sets' (pred n) 1%positive.
+
+Fixpoint lots_temps' n p :=
+match n with 
+| O => (PTree.empty _)
+| S n' =>  PTree.set p (tptr t_struct_list, true) (lots_temps' n' (Psucc p))
+end.
+
+Definition lots_temps (n : nat) : PTree.t (type * bool) := lots_temps' (n) (1%positive).
+
+Fixpoint lots_locals' n p :=
+match n with 
+| O => (PTree.empty _)
+| S n' =>  PTree.set p (Vint (Int.repr 0%Z)) (lots_locals' n' (Psucc p))
+end.
+
+Definition lots_locals (n : nat):= lots_locals' (n) (1%positive).
+
+Fixpoint lots_vars' n p :=
+match n with 
+| O => (PTree.empty _)
+| S n' =>  PTree.set p (tptr t_struct_list, Vint (Int.repr 0%Z)) (lots_vars' n' (Psucc p))
+end.
+
+Definition lots_vars (n : nat):= lots_vars' (n) (1%positive).
+
+
+Fixpoint lots_data_at n sh v :=  
+match n with
+| O => nil
+| S n' => data_at sh t_struct_list (Vundef, Vint Int.zero) (force_ptr v) :: 
+                  lots_data_at n' sh v
+end.
+
+
+Definition test_semax sets temps_tycon temps_local vars_local seps := 
+forall post v sh,  (semax
+     (mk_tycontext (lots_temps temps_tycon) (PTree.empty type) Tvoid
+                   (PTree.empty type) (PTree.empty funspec))
+     (assertD [] (localD (lots_locals temps_local) (lots_vars vars_local)) 
+       (lots_data_at seps sh v))
+      (lots_of_sets sets)         
+     (normal_ret_assert  post)).
+
+
+Goal test_semax 8 8 0 300 0.
+cbv [ test_semax lots_temps lots_temps' PTree.empty
+      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
+      lots_locals lots_locals' lots_vars lots_vars' pred]. 
+intros. 
+Clear Timing Profile.
+rforward.
+admit.
+(* 4.9 seconds *)
+Time Qed. (*109 seconds with change for 100 vars
+            123 seconds without change for 100 vars
+            310 seconds without change for 300 vars
+            297 seconds with change for 300 vars
+           *)
 
 Lemma skip_triple : forall sh v e,
 @semax e empty_tycontext
@@ -251,9 +361,10 @@ Lemma skip_triple : forall sh v e,
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof. 
 intros.
+Unset Ltac Debug.
 unfold empty_tycontext.
 rforward.
-Qed.
+Time Qed. (*.8 seconds*)
 
 Fixpoint lots_of_skips n :=
 match n with 
@@ -286,15 +397,14 @@ intros.
 Locate tint.
 unfold empty_tycontext.
 Set Printing Depth 500.
-
-rforward.
+rforward. 
 Abort.
 
 Lemma seq_triple_lots : forall sh v e,
 @semax e empty_tycontext
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])
-      (lots_of_skips 100)
+      (lots_of_skips 20)
      (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof.
@@ -303,8 +413,6 @@ unfold empty_tycontext.
 rforward.
 Qed.
 
-Require Import reverse_defs.
-Existing Instance NullExtension.Espec.
 
 Goal
 forall {Espec : OracleKind} (contents : list val), 
@@ -392,23 +500,6 @@ intros.
 apply derives_refl.
 Qed.
 
-(*
-Fixpoint lots_temps' n p :=
-match n with 
-| O => PTree.set p (tptr t_struct_list, true) (PTree.empty _)
-| S n' =>  PTree.set p (tptr t_struct_list, true) (lots_temps' n' (Psucc p))
-end.
-
-Definition lots_temps (n : nat) : PTree.t (type * bool) := lots_temps' (S n) (1%positive).
-
-Fixpoint lots_of_sets' n p :=
-match n with 
-| O => (Sset p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
-| S n' => Ssequence (Sset p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))) (lots_of_sets' n' (Psucc p))
-end.
-
-Definition lots_of_sets n := lots_of_sets' n 1%positive.
-
 
 Goal
 forall  (contents : list val), exists PO, 
@@ -438,5 +529,3 @@ unfold Delta, remove_global_spec.
 intros.
 rforward. 
 Abort.
-
-*)
