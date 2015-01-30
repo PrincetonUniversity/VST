@@ -389,7 +389,7 @@ Definition FORWARD_SET Delta Pre s :=
            (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl;
                         REFLEXIVITY_MSUBST tbl; 
                         REFLEXIVITY_BOOL tbl;
-                        REFLEXIVITY tbl]))
+                        (THEN SIMPL_SET (REFLEXIVITY tbl))]))
   | _ => FAIL
   end in
   THEN _HLIP _APPLY_SET.
@@ -420,7 +420,7 @@ Definition FORWARD_LOAD Struct_env Delta Pre s :=
 Definition SYMEXE_STEP Struct_env
 : rtac typ (expr typ func)  :=
   THEN' (INSTANTIATE typ func)
-  (THEN SIMPL_SET
+ (* (THEN *) 
   (AT_GOAL
     (fun c s e => 
          match (get_arguments e) with
@@ -433,7 +433,7 @@ Definition SYMEXE_STEP Struct_env
            | _ => FAIL
            end
          | _ => FAIL
-         end))).
+         end)).
 
 Existing Instance func_defs.Expr_ok_fs.
 
@@ -593,40 +593,3 @@ reify_expr_tac.
 Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITYTAC tbl)) e.
 Abort.
 
-Require Import denote_tac.
-(*
-Ltac run_rtac reify term_table tac_sound :=
-  match type of tac_sound with
-    | rtac_sound ?tac =>
-	  let name := fresh "e" in
-	  match goal with
-	    | |- ?P => 
-	      reify_aux reify term_table P name;
-	      let t := eval vm_compute in (typeof_expr nil nil name) in
-	      let goal := eval unfold name in name in
-	      match t with
-	        | Some ?t =>
-	          let goal_result := constr:(run_tac' tac (GGoal name)) in 
-	          let result := eval vm_compute in goal_result in
-	          match result with
-	            | More_ ?s ?g => 
-	              cut (goalD_Prop nil nil g); [
-	                let goal_resultV := g in
-	               (* change (goalD_Prop nil nil goal_resultV -> exprD_Prop nil nil name);*)
-	                exact_no_check (@run_rtac_More tac _ _ _ tac_sound
-	                	(@eq_refl (Result (CTop nil nil)) (More_ s goal_resultV) <:
-	                	   run_tac' tac (GGoal goal) = (More_ s goal_resultV)))
-	                | cbv_denote
-	              ]
-	            | Solved ?s =>
-	              exact_no_check (@run_rtac_Solved tac s name tac_sound 
-	                (@eq_refl (Result (CTop nil nil)) (Solved s) <: run_tac' tac (GGoal goal) = Solved s))
-	            | Fail => idtac "Tactic" tac "failed."
-	            | _ => idtac "Error: run_rtac could not resolve the result from the tactic :" tac
-	          end
-	        | None => idtac "expression " goal "is ill typed" t
-	      end
-	  end
-	| _ => idtac tac_sound "is not a soudness theorem."
-  end.
-*)

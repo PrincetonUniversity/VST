@@ -102,7 +102,8 @@ Definition EAPPLY_sound :=
 
 
 Lemma APPLY_condition1: vars_to_uvars_spec vars_to_uvars.
-Admitted.
+apply vars_to_uvars_exprD'.
+Qed.
 
 Lemma APPLY_condition2:
  forall (subst : Type) (S : Subst subst (expr typ func)) 
@@ -111,6 +112,11 @@ Lemma APPLY_condition2:
  UnifyI.unify_sound
    (fun (tus tvs : tenv typ) (n : nat) (l r : expr typ func) 
       (t : typ) (s : subst) => exprUnify 10 tus tvs n l r t s).
-Admitted.
+intros.
+change (UnifyI.unify_sound (exprUnify 10)).
+unfold UnifyI.unify_sound.
+generalize (exprUnify_sound).
+unfold ExprUnify_common.unify_sound, ExprUnify_common.unify_sound_ind. intros. forward_reason. 
+Admitted. (*new version!*)
 
 End tbled.
