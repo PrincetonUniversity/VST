@@ -151,6 +151,7 @@ repeat match goal with
        end.
 + apply FORWARD_SET_sound.
 + apply FORWARD_LOAD_sound.
++ admit.
 + unfold APPLY_SEQ.
   apply THEN_sound.
   unfold APPLY_SEQ'.
@@ -206,64 +207,65 @@ end.
 
 Require Import Timing.
 Ltac run_rtac reify term_table tac_sound reduce :=
-start_timer "rforward";
-start_timer "match_tactic";
+start_timer "total";
+start_timer "02 match_tactic";
   lazymatch type of tac_sound with
     | forall t, @rtac_sound _ _ _ _ _ _ (?tac _) =>
 	  let namee := fresh "e" in
 	  match goal with
 	    | |- ?P => 
-              stop_timer "match_tactic";
-              start_timer "reification";
+              stop_timer "02 match_tactic";
+              start_timer "03 reification";
 	      reify_aux reify term_table P namee;
-              stop_timer "reification";
-              start_timer "match type";
+              stop_timer "03 reification";
+              start_timer "04 match type";
               let tbl := get_tbl in
 	      let t :=  constr:(Some typrop) in
 	      let goal := namee in
 	      match t with
 	        | Some ?t =>
 	          let goal_result := constr:(run_tac' (tac tbl) (GGoal namee)) in
-                  stop_timer"match type";
-                  start_timer "vm_compute";
+                  stop_timer"04 match type";
+                  start_timer "05 vm_compute";
 	          let result := eval vm_compute in goal_result in
-                  stop_timer "vm_compute";
-                  start_timer "match result";
+                  stop_timer "05 vm_compute";
+                  start_timer "06 match result";
 	          match result with
 	            | More_ ?s ?g =>
                       let g' := g in 
                       set (sv := s);
-                      stop_timer "match result";
-                      start_timer "goalD";
+                      stop_timer "06 match result";
+                      start_timer "07 goalD";
                       let gd_prop := 
                           constr:(goalD_Prop tbl nil nil g') in
-                      stop_timer "goalD";
-                      start_timer "reduce";
+                      stop_timer "07 goalD";
+                      start_timer "08 reduce";
                       let gd' := 
                         reduce hd gd_prop in
-                      stop_timer "reduce";
-                      start_timer "cut1";
-	              cut (gd');  [ stop_timer "cut1";
-                                    start_timer "change";
-                          change (gd_prop -> 
+                      stop_timer "08 reduce";
+                      start_timer "09 cut1";
+	              cut (gd');  [ stop_timer "09 cut1";
+                                    start_timer "10 change";
+(*                          change (gd_prop -> 
                                   exprD_Prop tbl nil nil namee);
-                          stop_timer "change";
-                          start_timer "cut2";
+*)
+                          stop_timer "10 change";
+                          start_timer "11 cut2";
 	                  cut (goal_result = More_ sv g');
-                          [ stop_timer "cut2"; 
-                            start_timer "exact"; 
+                          [ stop_timer "11 cut2"; 
+                            start_timer "12 exact"; 
                             (*set (pf := *)
                              exact_no_check
                                (@run_rtac_More tbl (tac tbl) 
                                  sv g' namee (tac_sound tbl))
                            (*;
                             exact pf*)
-                           | stop_timer "exact"; 
-                             start_timer "VM_CAST"; 
+                           | stop_timer "12 exact"; 
+                             start_timer "13 VM_CAST"; 
                              vm_cast_no_check 
                                (@eq_refl _ (More_ sv g'))
                              ] 
-	                | stop_timer "VM_CAST"; clear (*g'*) sv ]
+	                | stop_timer "13 VM_CAST"; clear (*g'*) sv ]
 	            | Solved ?s =>
 	              exact_no_check (@run_rtac_Solved tbl (tac tbl) s namee (tac_sound tbl) 
 	                (@eq_refl (Result (CTop nil nil)) (Solved s) <: run_tac' (tac tbl) (GGoal goal) = Solved s))
@@ -274,7 +276,7 @@ start_timer "match_tactic";
 	      end
 	  end; try (clear namee; clear_tbl)
 	| _ => idtac tac_sound "is not a soudness theorem."
-  end; stop_timer "rforward".
+  end; stop_timer "total".
 
 Ltac rforward := run_rtac reify_vst term_table (SYMEXE_sound 1000) cbv_denote.
 
@@ -338,15 +340,264 @@ forall post v sh,  (semax
      (normal_ret_assert  post)).
 
 
-Goal test_semax 8 8 0 300 0.
+Goal test_semax 1 1 0 0 0.
 cbv [ test_semax lots_temps lots_temps' PTree.empty
       lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
       lots_locals lots_locals' lots_vars lots_vars' pred]. 
 intros. 
 Clear Timing Profile.
 rforward.
+Print Timing Profile. 
+
+(* 02 match_tactic:	(total:0.003328, mean:0.003328, runs:1, sigma2:0.000000)
+03 reification:	(total:1.787002, mean:1.787002, runs:1, sigma2:0.000000)
+04 match type:	(total:0.007306, mean:0.007306, runs:1, sigma2:0.000000)
+05 vm_compute:	(total:0.690385, mean:0.690385, runs:1, sigma2:0.000000)
+06 match result:	(total:0.015118, mean:0.015118, runs:1, sigma2:0.000000)
+  07 goalD:	(total:0.083754, mean:0.083754, runs:1, sigma2:0.000000)
+ 08 reduce:	(total:0.306093, mean:0.306093, runs:1, sigma2:0.000000)
+   09 cut1:	(total:0.154493, mean:0.154493, runs:1, sigma2:0.000000)
+ 10 change:	(total:0.000002, mean:0.000002, runs:1, sigma2:0.000000)
+   11 cut2:	(total:0.619691, mean:0.619691, runs:1, sigma2:0.000000)
+  12 exact:	(total:0.326034, mean:0.326034, runs:1, sigma2:0.000000)
+13 VM_CAST:	(total:0.255638, mean:0.255638, runs:1, sigma2:0.000000)
+     total:	(total:4.307944, mean:4.307944, runs:1, sigma2:0.000000) *)
+
+Show Proof.
+
+(* for a small goal:
+(fun (post : environ -> mpred) (v : val) (sh : Share.t) =>
+ let tbl :=
+   FMapPositive.PositiveMap.Node
+     (FMapPositive.PositiveMap.Node
+        (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ))
+        (Some (elem_ctor (tyArr tyenviron tympred) post))
+        (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ)))
+     (Some (elem_ctor tyOracleKind NullExtension.Espec))
+     (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ)) in
+ let e :=
+   App
+     (App
+        (App
+           (App (App (Inj (inr (Smx fsemax))) (Ext 1%positive))
+              (App
+                 (Inj
+                    (inr
+                       (Smx
+                          (ftycontext
+                             (PTree.Node PTree.Leaf
+                                (Some (tptr t_struct_list, true)) PTree.Leaf)
+                             PTree.Leaf Tvoid PTree.Leaf))))
+                 (Inj (inr (Data (fleaf tyfunspec))))))
+           (App
+              (App
+                 (App (Inj (inr (Smx fassertD)))
+                    (Inj (inr (Data (fnil typrop)))))
+                 (App
+                    (App (Inj (inr (Smx flocalD)))
+                       (Inj (inr (Data (fleaf tyval)))))
+                    (Inj (inr (Data (fleaf (typrod tyc_type tyval)))))))
+              (Inj (inr (Data (fnil tympred))))))
+        (Inj
+           (inr
+              (Smx
+                 (fstatement
+                    (Sset 1%positive
+                       (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))))))))
+     (App (Inj (inr (Smx fnormal_ret_assert))) (Ext 2%positive)) in
+ let sv := TopSubst (expr typ func) [] [] in
+ (fun
+    H : forall x : environ,
+        assertD []
+          (localD
+             (PTree.set 1
+                (eval_cast
+                   (Tint I32 Signed
+                      {| attr_volatile := false; attr_alignas := None |})
+                   (Tpointer Tvoid
+                      {| attr_volatile := false; attr_alignas := None |})
+                   (Vint
+                      {|
+                      Int.intval := 0;
+                      Int.intrange := Int.Z_mod_modulus_range' 0 |}))
+                PTree.Leaf) PTree.Leaf) [] x |-- post x =>
+  (fun
+     H0 : run_tac'
+            (SYMEXE_TAC_n 1000
+               (FMapPositive.PositiveMap.Node
+                  (FMapPositive.PositiveMap.Node
+                     (FMapPositive.PositiveMap.Leaf
+                        (SymEnv.function RType_typ))
+                     (Some (elem_ctor (tyArr tyenviron tympred) post))
+                     (FMapPositive.PositiveMap.Leaf
+                        (SymEnv.function RType_typ)))
+                  (Some (elem_ctor tyOracleKind NullExtension.Espec))
+                  (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ))))
+            (GGoal e) =
+          More_ sv
+            (GGoal
+               (App
+                  (Inj
+                     (inl
+                        (inl
+                           (inr
+                              (ModularFunc.ILogicFunc.ilf_forall tyenviron
+                                 typrop)))))
+                  (Abs tyenviron
+                     (App
+                        (App
+                           (Inj
+                              (inl
+                                 (inl
+                                    (inr
+                                       (ModularFunc.ILogicFunc.ilf_entails
+                                          tympred)))))
+                           (App
+                              (App
+                                 (App
+                                    (App (Inj (inr (Smx fassertD)))
+                                       (Inj (inr (Data (fnil typrop)))))
+                                    (App
+                                       (App (Inj (inr (Smx flocalD)))
+                                          (App
+                                             (App
+                                                (Inj
+                                                  (inr (Data (fset tyval 1))))
+                                                (App
+                                                  (Inj (inr (Eval_f (..))))
+                                                  (App 
+                                                  (Inj (inr (..)))
+                                                  (Inj (inr (..))))))
+                                             (Inj (inr (Data (fleaf tyval))))))
+                                       (Inj
+                                          (inr
+                                             (Data
+                                                (fleaf
+                                                  (typrod tyc_type tyval)))))))
+                                 (Inj (inr (Data (fnil tympred)))))
+                              (Var 0%nat)))
+                        (App (Inj (inl (inl (inl 2%positive)))) (Var 0%nat)))))) =>
+   run_rtac_More
+     (FMapPositive.PositiveMap.Node
+        (FMapPositive.PositiveMap.Node
+           (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ))
+           (Some (elem_ctor (tyArr tyenviron tympred) post))
+           (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ)))
+        (Some (elem_ctor tyOracleKind NullExtension.Espec))
+        (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ)))
+     (SYMEXE_TAC_n 1000
+        (FMapPositive.PositiveMap.Node
+           (FMapPositive.PositiveMap.Node
+              (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ))
+              (Some (elem_ctor (tyArr tyenviron tympred) post))
+              (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ)))
+           (Some (elem_ctor tyOracleKind NullExtension.Espec))
+           (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ)))) sv
+     (GGoal
+        (App
+           (Inj
+              (inl
+                 (inl
+                    (inr (ModularFunc.ILogicFunc.ilf_forall tyenviron typrop)))))
+           (Abs tyenviron
+              (App
+                 (App
+                    (Inj
+                       (inl
+                          (inl
+                             (inr
+                                (ModularFunc.ILogicFunc.ilf_entails tympred)))))
+                    (App
+                       (App
+                          (App
+                             (App (Inj (inr (Smx fassertD)))
+                                (Inj (inr (Data (fnil typrop)))))
+                             (App
+                                (App (Inj (inr (Smx flocalD)))
+                                   (App
+                                      (App (Inj (inr (Data (fset tyval 1))))
+                                         (App
+                                            (Inj
+                                               (inr
+                                                  (Eval_f
+                                                  (feval_cast
+                                                  (Tint I32 Signed ..)
+                                                  (Tpointer Tvoid ..)))))
+                                            (App (Inj (inr (Value fVint)))
+                                               (Inj (inr (Const (fint ..)))))))
+                                      (Inj (inr (Data (fleaf tyval))))))
+                                (Inj
+                                   (inr
+                                      (Data (fleaf (typrod tyc_type tyval)))))))
+                          (Inj (inr (Data (fnil tympred))))) 
+                       (Var 0%nat)))
+                 (App (Inj (inl (inl (inl 2%positive)))) (Var 0%nat)))))) e
+     (SYMEXE_sound 1000
+        (FMapPositive.PositiveMap.Node
+           (FMapPositive.PositiveMap.Node
+              (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ))
+              (Some (elem_ctor (tyArr tyenviron tympred) post))
+              (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ)))
+           (Some (elem_ctor tyOracleKind NullExtension.Espec))
+           (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ)))) H0)
+    (eq_refl
+     <:run_tac'
+         (SYMEXE_TAC_n 1000
+            (FMapPositive.PositiveMap.Node
+               (FMapPositive.PositiveMap.Node
+                  (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ))
+                  (Some (elem_ctor (tyArr tyenviron tympred) post))
+                  (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ)))
+               (Some (elem_ctor tyOracleKind NullExtension.Espec))
+               (FMapPositive.PositiveMap.Leaf (SymEnv.function RType_typ))))
+         (GGoal e) =
+       More_ sv
+         (GGoal
+            (App
+               (Inj
+                  (inl
+                     (inl
+                        (inr
+                           (ModularFunc.ILogicFunc.ilf_forall tyenviron
+                              typrop)))))
+               (Abs tyenviron
+                  (App
+                     (App
+                        (Inj
+                           (inl
+                              (inl
+                                 (inr
+                                    (ModularFunc.ILogicFunc.ilf_entails
+                                       tympred)))))
+                        (App
+                           (App
+                              (App
+                                 (App (Inj (inr (Smx fassertD)))
+                                    (Inj (inr (Data (fnil typrop)))))
+                                 (App
+                                    (App (Inj (inr (Smx flocalD)))
+                                       (App
+                                          (App
+                                             (Inj (inr (Data (fset tyval 1))))
+                                             (App
+                                                (Inj
+                                                  (inr
+                                                  (Eval_f
+                                                  (feval_cast (..) (..)))))
+                                                (App
+                                                  (Inj (inr (Value fVint)))
+                                                  (Inj (inr (Const (..)))))))
+                                          (Inj (inr (Data (fleaf tyval))))))
+                                    (Inj
+                                       (inr
+                                          (Data
+                                             (fleaf (typrod tyc_type tyval)))))))
+                              (Inj (inr (Data (fnil tympred))))) 
+                           (Var 0%nat)))
+                     (App (Inj (inl (inl (inl 2%positive)))) (Var 0%nat)))))))
+    H) ?139) *)
+
 admit.
-(* 4.9 seconds *)
 Time Qed. (*109 seconds with change for 100 vars
             123 seconds without change for 100 vars
             310 seconds without change for 300 vars
