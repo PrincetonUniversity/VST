@@ -209,6 +209,10 @@ Definition REFLEXIVITY_CEXPR := REFLEXIVITY_DENOTE tyc_expr.
 
 Definition REFLEXIVITY_CEXPR_sound := REFLEXIVITY_DENOTE_sound tyc_expr.
 
+Definition REFLEXIVITY_CTYPE := REFLEXIVITY_DENOTE (tyc_type).
+
+Definition REFLEXIVITY_CTYPE_sound := REFLEXIVITY_DENOTE_sound (tyc_type).
+
 Instance RelDec_op_ctypes_beq : @RelDec.RelDec (option Ctypes.type) eq :=
   Option.RelDec_eq_option RelDec_ctype_beq.
 

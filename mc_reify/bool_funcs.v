@@ -141,7 +141,7 @@ Definition type_is_int (e: Clight.expr) : bool :=
   | Tint _ _ _ => true
   | _ => false
   end.
-
+(*
 Definition writable_share_b (sh: share) : bool :=
   if (seplog.writable_share_dec sh) then true else false.
 
@@ -154,3 +154,4 @@ Proof.
   auto.
   congruence.
 Qed.
+*)

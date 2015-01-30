@@ -435,7 +435,9 @@ Reify Pattern patterns_vst += (!!local2ptree.msubst_eval_LR) => (@Inj typ func (
 Reify Pattern patterns_vst += (!!nested_field_lemmas.StructField) => (@Inj typ func (inr (Smx fstruct_field))).
 Reify Pattern patterns_vst += (!!nested_field_lemmas.UnionField) => (@Inj typ func (inr (Smx funion_field))).
 Reify Pattern patterns_vst += (!!nested_field_lemmas.ArraySubsc) => (@Inj typ func (inr (Smx farray_subsc))).
-Reify Pattern patterns_vst += (!!bool_funcs.writable_share_b) => (@Inj typ func (inr (Smx fwritable_share_b))).
+Reify Pattern patterns_vst += (!!SeparationLogic.writable_share) => (@Inj typ func (inr (Smx fwritable_share))).
+Reify Pattern patterns_vst += (!!SeparationLogic.Tsh) => (@Inj typ func (inr (Smx fTsh))).
+Reify Pattern patterns_vst += (!!assert_lemmas.Ews) => (@Inj typ func (inr (Smx fEws))).
 Reify Pattern patterns_vst += (!!client_lemmas.type_is_by_value) => (@Inj typ func (inr (Smx ftype_is_by_value))).
 Reify Pattern patterns_vst += (!!bool_funcs.type_is_int @ ?0) =>
   (fun (e: id Clight.expr) => (@Inj typ func (inr (Const (fbool (bool_funcs.type_is_int e)))))).

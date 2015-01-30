@@ -305,7 +305,9 @@ match a, b with
 | fstruct_field, fstruct_field => true
 | funion_field, funion_field => true
 | farray_subsc, farray_subsc => true
-| fwritable_share_b, fwritable_share_b => true
+| fwritable_share, fwritable_share => true
+| fTsh, fTsh => true
+| fEws, fEws => true
 | ftype_is_by_value, ftype_is_by_value => true
 | _, _ => false
 end.
