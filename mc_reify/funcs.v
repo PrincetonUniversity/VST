@@ -81,6 +81,7 @@ Inductive z_op :=
 | fZ_mul
 | fZ_div
 | fZ_mod
+| fZ_land
 | fZ_max
 | fZ_opp.
 
@@ -95,6 +96,7 @@ match z with
 | fZ_mul
 | fZ_div
 | fZ_mod
+| fZ_land
 | fZ_max => (tyArr tyZ (tyArr tyZ tyZ))
 | fZ_opp => (tyArr tyZ tyZ)
 end.
@@ -110,6 +112,7 @@ match z with
 | fZ_mul => Z.mul
 | fZ_div => Z.div
 | fZ_mod => Zmod
+| fZ_land => Z.land
 | fZ_max => Z.max
 | fZ_opp => Z.opp
 end.
@@ -121,6 +124,7 @@ end.
 
 Inductive int_op :=
 | fint_add
+| fint_and
 | fint_lt
 | fint_ltu
 | fint_mul
@@ -141,6 +145,7 @@ match i with
 | fint_mul
 | fint_sub
 | fint_add => tyArr tyint (tyArr tyint tyint)
+| fint_and => tyArr tyint (tyArr tyint tyint)
 | fint_neg => tyArr tyint tyint
 | fint_cmp
 | fint_cmpu => tyArr tycomparison (tyArr tyint (tyArr tyint tybool))
@@ -154,6 +159,7 @@ end.
 Definition int_opD (i : int_op): typD  (typeof_int_op i) :=
 match i with
 | fint_add => Int.add
+| fint_and => Int.and
 | fint_lt => Int.lt
 | fint_ltu => Int.ltu
 | fint_mul => Int.mul
@@ -196,7 +202,6 @@ match v with
 | fVsingle => Vsingle
 | fVundef => Vundef
 end.
-Locate binary_operation.
 
 Inductive eval :=
 | feval_cast : type -> type -> eval
@@ -279,6 +284,7 @@ Inductive data :=
 | fcons : typ -> data
 | fappend : typ -> data
 | fnth_error : typ -> nat -> data
+| freplace_nth : typ -> nat -> data
 | fpair : typ -> typ -> data
 | fget : typ -> positive -> data
 | fset : typ -> positive -> data
@@ -296,6 +302,7 @@ match l with
 | fcons a => tyArr a (tyArr (tylist a) (tylist a))
 | fappend a => tyArr (tylist a) (tyArr (tylist a) (tylist a))
 | fnth_error a _ => tyArr (tylist a) (tyoption a)
+| freplace_nth a _ => tyArr (tylist a) (tyArr a (tylist a))
 | fpair t1 t2 => tyArr t1 (tyArr t2 (typrod t1 t2))
 | fleaf t => typtree t
 | fnode t => tyArr (typtree t) (tyArr (tyoption t) (tyArr (typtree t) (typtree t)))
@@ -313,6 +320,7 @@ match l with
 | fcons a => @cons (typD a)
 | fappend a => @app (typD a)
 | fnth_error a n => fun l => @nth_error (typD a) l n
+| freplace_nth a n => @canon.replace_nth (typD a) n
 | fpair a b => ((@pair (typD a) (typD b)) : typD (typeof_data (fpair a b)))
 | fleaf t => @PTree.Leaf (typD t)
 | fnode t => @PTree.Node (typD t)
@@ -330,8 +338,6 @@ Inductive sep :=
 | fupd_val : type -> sep
 (*| flseg : forall (t: type) (i : ident), listspec t i -> sep*)
 . 
-
-Locate is_Fnil.
 
 Fixpoint reptyp (ty: type) : typ :=
   match ty with
@@ -498,8 +504,35 @@ match
         end
    end.
 
+Lemma reptyp_reptype_reptype_reptyp: forall t v, reptyp_reptype t (reptype_reptyp t v) = v.
+Proof.
+  intros.
+  eapply (type_mut
+    (fun t => forall v, reptyp_reptype t (reptype_reptyp t v) = v)
+    (fun tl => True)
+    (fun fld => (forall v, reptyp_structlist_reptype fld (reptype_structlist_reptyp fld v) = v) /\
+                (forall v, reptyp_unionlist_reptype fld (reptype_unionlist_reptyp fld v) = v)));
+  intros; simpl; auto.
+  + rewrite map_map.
+    induction v0; simpl; auto.
+    rewrite H, IHv0.
+    reflexivity.
+  + apply (proj1 H).
+  + apply (proj2 H).
+  + split.
+    - if_tac; [apply H |].
+      intros.
+      unfold fst, snd.
+      rewrite H, (proj1 H0).
+      destruct v0; reflexivity.
+    - if_tac; [apply H |].
+      intros.
+      destruct v0; [rewrite H; auto |].
+      rewrite (proj2 H0).
+      reflexivity.
+Qed.
+
 Definition sepD  (s : sep) : typD  (typeof_sep s).
-Check data_at.
 refine
 match s with
 | flocal => (local : typD (typeof_sep flocal))
@@ -560,6 +593,10 @@ Inductive smx :=
 | fstruct_field
 | funion_field
 | farray_subsc
+| fwritable_share
+| fTsh
+| fEws
+| ftype_is_by_value
 .
 
 Definition typeof_smx (t : smx) :=
@@ -611,6 +648,10 @@ match t with
 | fstruct_field => tyArr tyident tygfield
 | funion_field => tyArr tyident tygfield
 | farray_subsc => tyArr tyZ tygfield
+| fwritable_share => tyArr tyshare typrop
+| fTsh => tyshare
+| fEws => tyshare
+| ftype_is_by_value => tyArr tyc_type tybool
 end.
 
 Definition smxD (t : smx) : typD (typeof_smx t) :=
@@ -649,6 +690,10 @@ match t with
 | fstruct_field => StructField
 | funion_field => UnionField
 | farray_subsc => ArraySubsc
+| fwritable_share => writable_share
+| fTsh => SeparationLogic.Tsh
+| fEws => assert_lemmas.Ews
+| ftype_is_by_value => client_lemmas.type_is_by_value
 end.
 
 Inductive func' :=

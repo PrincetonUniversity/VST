@@ -135,3 +135,23 @@ Definition tc_LR_b_norho Delta e lr :=
   | LLLL => tc_lvalue_b_norho' Delta e
   | RRRR => tc_expr_b_norho Delta e
   end.
+
+Definition type_is_int (e: Clight.expr) : bool :=
+  match typeof e with
+  | Tint _ _ _ => true
+  | _ => false
+  end.
+(*
+Definition writable_share_b (sh: share) : bool :=
+  if (seplog.writable_share_dec sh) then true else false.
+
+Lemma writable_share_b_sound: forall sh,
+  writable_share_b sh = true -> writable_share sh.
+Proof.
+  intros.
+  unfold writable_share_b in H.
+  destruct (seplog.writable_share_dec sh).
+  auto.
+  congruence.
+Qed.
+*)

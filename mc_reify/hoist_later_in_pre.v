@@ -45,7 +45,7 @@ Fixpoint rstrip_1_later_sep (R: expr typ func) : expr typ func :=
     | App (Inj (inr (Smx flater))) hd0 => App (App (Inj (inr (Data (fcons tympred)))) hd0) (rstrip_1_later_sep tl)
     | _ => App (App (Inj (inr (Data (fcons tympred)))) hd) (rstrip_1_later_sep tl)
     end
-  | _ => Inj (inr (Data (fnil tympred)))
+  | _ => R
   end.
 
 Lemma SEPx_map_liftx: forall R, SEPx (map liftx R) = liftx (fold_right sepcon emp R).

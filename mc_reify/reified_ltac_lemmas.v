@@ -32,7 +32,6 @@ Proof.
 Qed.
 
 Require Export mc_reify.reify.
-Require Export mc_reify.bool_funcs.
 Require Import mc_reify.set_reif.
 Require Import MirrorCore.Lemma.
 Require Import MirrorCharge.RTac.ReifyLemma.
@@ -81,6 +80,18 @@ reify_lemma reify_vst mpred_semax_post'.
 Defined.
 
 (* Print reify_semax_post'. *)
+
+Definition writable_Tsh_lemma: my_lemma.
+reify_lemma reify_vst writable_share_top.
+Defined.
+
+(* Print writable_Tsh_lemma. *)
+
+Definition writable_Ews_lemma: my_lemma.
+reify_lemma reify_vst writable_Ews.
+Defined.
+
+(* Print writable_Ews_lemma. *)
 
 Section tbled.
 
@@ -149,6 +160,30 @@ Proof.
     unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
     unfold ILogicFunc.typ2_cast_quant in *. simpl in *.
     apply mpred_semax_post' with (R' := x4); auto.
+Qed.
+
+Lemma APPLY_sound_writable_Tsh: rtac_sound (APPLY typ func writable_Tsh_lemma).
+Proof.
+  apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
+  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+    unfold ExprDsimul.ExprDenote.exprT_App.
+    simpl.
+    unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
+    apply writable_share_top.
+Qed.
+
+Lemma APPLY_sound_writable_Ews: rtac_sound (APPLY typ func writable_Ews_lemma).
+Proof.
+  apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
+  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+    unfold ExprDsimul.ExprDenote.exprT_App.
+    simpl.
+    unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
+    apply writable_Ews.
 Qed.
 
 End tbled.

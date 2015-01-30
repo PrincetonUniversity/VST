@@ -78,7 +78,7 @@ Lemma semax_max_path_field_cast_load_37':
       (t t_root: type) (efs: list efield) (gfs: list gfield) (tts: list type)
       (v : val) (v' : reptype (nested_field_type2 t_root gfs)) lr,
       typeof_temp Delta id = Some t ->
-      type_is_by_value (typeof (nested_efield e1 efs tts)) ->
+      type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
       repinject _ v' = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
@@ -140,7 +140,7 @@ Lemma semax_max_path_field_store_nth:
     forall Delta sh e n P Q R Rn (e1 e2 : expr)
       (t t_root: type) (efs: list efield) (gfs: list gfield) (tts: list type) lr,
       typeof (nested_efield e1 efs tts) = t ->
-      type_is_by_value t ->
+      type_is_by_value t = true ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
       nth_error R n = Some Rn ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--

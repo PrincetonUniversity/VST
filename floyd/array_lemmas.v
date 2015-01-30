@@ -932,7 +932,7 @@ Proof.
 Qed.
 
 Lemma valinject_repinject: forall t v,
-  type_is_by_value t ->
+  type_is_by_value t = true ->
   (valinject t (repinject t v)) = v.
 Proof.
   intros.

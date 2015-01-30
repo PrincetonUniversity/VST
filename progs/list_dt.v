@@ -1,4 +1,26 @@
-Require Import floyd.proofauto.
+(* Require Import floyd.proofauto.
+   TEMPORARILY replace "floyd.proofauto" 
+   with all the imports in the list below.
+   This reduces makefile-based recompilation
+   when changing things in (e.g.) forward.v
+*)
+Require Import floyd.base.
+Require Import floyd.client_lemmas.
+Require Import floyd.assert_lemmas.
+Require Import floyd.closed_lemmas.
+Require Import floyd.nested_field_lemmas.
+Require Import floyd.type_id_env.
+Require Import floyd.efield_lemmas.
+Require Import floyd.mapsto_memory_block.
+Require Import floyd.rangespec_lemmas.
+Require Import floyd.data_at_lemmas.
+Require Import floyd.field_at.
+Require Import floyd.nested_field_re_lemmas.
+Require Import floyd.nested_loadstore.
+Require Import floyd.unfold_data_at.
+Require Import floyd.entailer.
+(*  End TEMPORARILY *)
+
 Require Import msl.is_prop_lemma.
 
 Local Open Scope logic.
@@ -428,7 +450,7 @@ Proof.
 Qed.
 
 Lemma uncompomized_valinject_repinject: forall e t (v : reptype t),
-  type_is_by_value (uncompomize e t) -> valinject t (repinject t v) = v.
+  type_is_by_value (uncompomize e t) = true -> valinject t (repinject t v) = v.
 Proof.
   intros.
   destruct t; try inversion H; reflexivity.
@@ -448,7 +470,7 @@ Proof.
 intros.
 assert (type_is_by_value
         (uncompomize (PTree.empty type)
-           (nested_field_type2 list_struct (StructField list_link :: nil)))).
+           (nested_field_type2 list_struct (StructField list_link :: nil))) = true).
   rewrite list_link_type; simpl; auto.
 pose proof uncompomized_valinject_repinject (PTree.empty _) (nested_field_type2 list_struct (StructField list_link :: nil)) w H.
 remember (repinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) as w'.

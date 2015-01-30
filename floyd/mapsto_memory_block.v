@@ -293,7 +293,7 @@ To prove memory_block_mapsto_
 (*** This part are totally written on a lower leverl. So, It might be better to 
 move to somewhere else ***)
 
-Lemma access_mode_by_value: forall t, type_is_by_value t -> exists ch, access_mode t = By_value ch.
+Lemma access_mode_by_value: forall t, type_is_by_value t = true -> exists ch, access_mode t = By_value ch.
 Proof.
   intros.
   assert (forall ch', exists ch, By_value ch' = By_value ch).
@@ -616,7 +616,7 @@ Qed.
 
 Lemma memory_block_mapsto__aux:
   forall n sh t b i_ofs,
-   type_is_by_value t ->
+   type_is_by_value t = true ->
    type_is_volatile t = false ->
    legal_alignas_type t = true ->
    (alignof t | Int.unsigned i_ofs) ->
@@ -644,7 +644,7 @@ Qed.
 
 Lemma memory_block_mapsto_:
   forall n sh t p, 
-   type_is_by_value t ->
+   type_is_by_value t = true ->
    type_is_volatile t = false ->
    legal_alignas_type t = true ->
    Int.unsigned n = sizeof t ->
@@ -710,7 +710,7 @@ Proof.
     normalize.
 Qed.
 
-Lemma mapsto_by_value: forall sh t p v, mapsto sh t p v = !! (type_is_by_value t) && mapsto sh t p v.
+Lemma mapsto_by_value: forall sh t p v, mapsto sh t p v = !! (type_is_by_value t = true) && mapsto sh t p v.
 Proof.
   intros.
   apply pred_ext; normalize.
@@ -719,7 +719,7 @@ Proof.
   destruct t; simpl; normalize; try (apply prop_right; auto).
 Qed.
 
-Lemma mapsto_size_compatible_aux: forall t, type_is_by_value t -> legal_alignas_type t = true -> alignof t < Int.modulus.
+Lemma mapsto_size_compatible_aux: forall t, type_is_by_value t = true -> legal_alignas_type t = true -> alignof t < Int.modulus.
 Proof.
   unfold legal_alignas_type.
   intros. 

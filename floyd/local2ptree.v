@@ -3,9 +3,6 @@ Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.canonicalize.
-Require Import floyd.forward_lemmas.
-Require Import floyd.call_lemmas.
-Require Import floyd.extcall_lemmas.
 Require Import floyd.type_id_env.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.efield_lemmas.

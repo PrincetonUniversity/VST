@@ -1774,13 +1774,13 @@ Qed.
 
 Hint Rewrite @resubst : subst.
 
-Definition type_is_by_value t :=
+Definition type_is_by_value t : bool :=
   match t with
-  | Tint _ _ a => True
-  | Tlong _ a => True
-  | Tfloat _ a => True
-  | Tpointer _ a => True
-  | _ => False
+  | Tint _ _ _
+  | Tlong _ _
+  | Tfloat _ _
+  | Tpointer _ _ => true
+  | _ => false
   end.
 
 Lemma unsigned_eq_eq: forall i j, Int.unsigned i = Int.unsigned j -> i = j.
