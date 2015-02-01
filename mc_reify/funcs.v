@@ -574,8 +574,8 @@ Inductive smx :=
 | fdenote_tc_assert_b_norho
 | ftc_expr_b_norho
 | ftc_temp_id_b_norho : positive -> type ->  smx
-| fmsubst_eval_expr
-| fmsubst_eval_lvalue
+(*| fmsubst_eval_expr_norho*)
+(*| fmsubst_eval_lvalue_norho*)
 | flater
 | flater_lift
 | fnested_field_type2
@@ -618,8 +618,8 @@ match t with
 | fdenote_tc_assert_b_norho => tyArr tytc_assert tybool
 | ftc_expr_b_norho => tyArr tytycontext (tyArr tyc_expr tybool)
 | ftc_temp_id_b_norho _ _  => tyArr tytycontext (tyArr tyc_expr tybool)
-| fmsubst_eval_expr => tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))
-| fmsubst_eval_lvalue =>  tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))
+(*| fmsubst_eval_expr_norho => tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))*)
+(*| fmsubst_eval_lvalue_norho =>  tyArr (typtree tyval) (tyArr (typtree (typrod tyc_type tyval)) (tyArr tyc_expr (tyoption tyval)))*)
 | flater => tyArr tympred tympred
 | flater_lift => tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred)
 | fnested_field_type2 => tyArr tyc_type (tyArr (tylist tygfield) tyc_type)
@@ -671,8 +671,8 @@ match t with
 | fdenote_tc_assert_b_norho => (denote_tc_assert_b_norho : typD (typeof_smx fdenote_tc_assert_b_norho))
 | ftc_expr_b_norho => tc_expr_b_norho
 | ftc_temp_id_b_norho id ty  => tc_temp_id_b_norho id ty 
-| fmsubst_eval_expr => msubst_eval_expr
-| fmsubst_eval_lvalue => msubst_eval_lvalue
+(*| fmsubst_eval_expr_norho => msubst_eval_expr*)
+(*| fmsubst_eval_lvalue_norho => msubst_eval_lvalue*)
 | flater => later
 | flater_lift => later
 | fnested_field_type2 => nested_field_type2

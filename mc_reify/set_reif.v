@@ -6,14 +6,13 @@ Require Import MirrorCore.Lambda.ExprCore.
 Require Import mc_reify.get_set_reif.
 Require Import mc_reify.func_defs.
 
-Definition as_option e :
-option ((typ * expr typ func)  + typ):=
+Definition match_reif_option {B: Type} (e: expr typ func) (somef : typ -> expr typ func -> B)
+           (nonef : typ -> B) (d : B) := 
 match e with 
-| (App (Inj (inr (Other (fsome t)))) e) => Some (inl (t, e))
-| (Inj (inr (Other (fnone t)))) => Some (inr t)
-| _ => None
+| (App (Inj (inr (Other (fsome t)))) e) => somef t e
+| (Inj (inr (Other (fnone t)))) => nonef t
+| _ => d
 end.
-
 
 Inductive val_e :=
     Vundef : val_e
@@ -26,8 +25,7 @@ Inductive val_e :=
   | Vbinop : Cop.binary_operation -> type -> type -> val_e -> val_e -> val_e
   | Veval_cast : type -> type -> val_e -> val_e
   | Vforce_ptr : val_e -> val_e
-  | Veval_field : type -> ident -> val_e -> val_e
-  | Vfail : val_e.
+  | Veval_field : type -> ident -> val_e -> val_e.
 
 Definition Vderef_noload (t: type) (e: val_e) : val_e :=
   match access_mode t with
@@ -60,40 +58,31 @@ Definition val_e_binarith op ty1 ty2 e1 e2 :=
                                          ty1 ty2)) e1) e2
   end.
 
-Fixpoint val_e_to_expr (v : val_e) : option (expr typ func) :=
+Fixpoint val_e_to_expr (v : val_e) : (expr typ func) :=
 match v with
-  | Vundef => Some  (injR (Value fVundef))
-  | Vlong l => Some (appR (Value fVlong) (injR (Const (fint64 l))))
-  | Vint i => Some (appR (Value fVint) (injR (Const (fint i))))
-  | Vfloat f => Some (appR (Value fVfloat) (injR (Const (ffloat f))))
-  | Vsingle f => Some (appR (Value fVsingle) (injR (Const (ffloat32 f))))
-  | Vexpr e => Some e
-  | Vunop op ty e => 
-    option_map (appR (Eval_f (feval_unop op ty))) (val_e_to_expr e)
-  | Vbinop op ty1 ty2 e1 e2 => 
-    match (val_e_to_expr e1), (val_e_to_expr e2) with
-      | Some e1', Some e2' => Some (val_e_binarith op ty1 ty2 e1' e2')
-      | _, _ => None
-    end
-  | Veval_cast ty1 ty2 v =>
-    option_map (appR (Eval_f (feval_cast ty1 ty2))) (val_e_to_expr v)
-  | Vforce_ptr v => 
-    option_map (appR (Other (fforce_ptr))) (val_e_to_expr v)
-  | Veval_field t id v => 
-    option_map (appR (Eval_f (feval_field t id))) (val_e_to_expr v)
-  | Vfail => None
+  | Vundef => injR (Value fVundef)
+  | Vlong l => (appR (Value fVlong) (injR (Const (fint64 l))))
+  | Vint i => (appR (Value fVint) (injR (Const (fint i))))
+  | Vfloat f => (appR (Value fVfloat) (injR (Const (ffloat f))))
+  | Vsingle f => (appR (Value fVsingle) (injR (Const (ffloat32 f))))
+  | Vexpr e => e
+  | Vunop op ty e => appR (Eval_f (feval_unop op ty)) (val_e_to_expr e)
+  | Vbinop op ty1 ty2 e1 e2 => val_e_binarith op ty1 ty2 (val_e_to_expr e1) (val_e_to_expr e2)
+  | Veval_cast ty1 ty2 v => (appR (Eval_f (feval_cast ty1 ty2))) (val_e_to_expr v) 
+  | Vforce_ptr v => (appR (Other (fforce_ptr))) (val_e_to_expr v)
+  | Veval_field t id v => (appR (Eval_f (feval_field t id))) (val_e_to_expr v)
 end.
 
 Definition msubst_var id T2 ty :=
-match as_option (get_reif id T2 (typrod tyc_type tyval)) with
-  | Some (inl (t, (App (App (Inj (inr (Data (fpair t1 t2))))
+match get_reif id T2 (typrod tyc_type tyval) with
+  | App (Inj (inr (Other (fsome t)))) 
+        (App (App (Inj (inr (Data (fpair t1 t2))))
                   (Inj (inr (Const (fCtype ty')))))
-             v))) =>
+             v) =>
     if eqb_type ty ty'
     then Some (Vexpr v)
     else None
-  | Some (inr _) => None
-  | _ => Some (Vfail)
+  | _ => None
 end.
 
 Fixpoint msubst_eval_expr_reif (T1: ExprCore.expr typ func) (T2: ExprCore.expr typ func) (e: Clight.expr) : option (val_e) :=
@@ -102,28 +91,27 @@ Fixpoint msubst_eval_expr_reif (T1: ExprCore.expr typ func) (T2: ExprCore.expr t
   | Econst_long i ty => Some (Vlong i)
   | Econst_float f ty => Some (Vfloat f)
   | Econst_single f ty => Some (Vsingle f)
-  | Etempvar id ty => match as_option (get_reif id T1 tyval) with
-                        | Some (inl (t, v)) => Some (Vexpr v)
-                        | Some (inr t) => None
-                        | None => Some (Vfail)
+  | Etempvar id ty => match get_reif id T1 tyval with
+                        | (App (Inj (inr (Other (fsome t)))) v) => Some (Vexpr v)
+                        | _ => None
                       end
-  | Eaddrof a ty => msubst_eval_lvalue_reif T1 T2 a  
-  | Eunop op a ty =>  option_map (Vunop op (typeof a)) (msubst_eval_expr_reif T1 T2 a ) 
-  | Ebinop op a1 a2 ty => match (msubst_eval_expr_reif T1 T2 a1 ), (msubst_eval_expr_reif T1 T2 a2 ) with
+  | Eaddrof a ty => msubst_eval_lvalue_reif T1 T2 a 
+  | Eunop op a ty =>  option_map (Vunop op (typeof a)) (msubst_eval_expr_reif T1 T2 a) 
+  | Ebinop op a1 a2 ty => match (msubst_eval_expr_reif T1 T2 a1), (msubst_eval_expr_reif T1 T2 a2) with
                             | Some v1, Some v2 => Some (Vbinop op (typeof a1) (typeof a2) v1 v2) 
                             | _, _ => None
                           end
-  | Ecast a ty => option_map (Veval_cast (typeof a) ty) (msubst_eval_expr_reif T1 T2 a )
-  | Evar id ty => option_map (Vderef_noload ty) (msubst_var id T2 ty )
-  | Ederef a ty => option_map (Vderef_noload ty) (option_map Vforce_ptr (msubst_eval_expr_reif T1 T2 a ))
-  | Efield a i ty => option_map (Vderef_noload ty) (option_map (Veval_field (typeof a) i) (msubst_eval_lvalue_reif T1 T2 a ))
+  | Ecast a ty => option_map (Veval_cast (typeof a) ty) (msubst_eval_expr_reif T1 T2 a)
+  | Evar id ty => option_map (Vderef_noload ty) (msubst_var id T2 ty)
+  | Ederef a ty => option_map (Vderef_noload ty) (option_map Vforce_ptr (msubst_eval_expr_reif T1 T2 a))
+  | Efield a i ty => option_map (Vderef_noload ty) (option_map (Veval_field (typeof a) i) (msubst_eval_lvalue_reif T1 T2 a))
   end
 with
-msubst_eval_lvalue_reif (T1: ExprCore.expr typ func) (T2: ExprCore.expr typ func) (e: Clight.expr)  : option val_e := 
+msubst_eval_lvalue_reif (T1: ExprCore.expr typ func) (T2: ExprCore.expr typ func) (e: Clight.expr) : option val_e := 
   match e with 
-  | Evar id ty => (msubst_var id T2 ty )
-  | Ederef a ty => option_map Vforce_ptr (msubst_eval_expr_reif T1 T2 a )
-  | Efield a i ty => option_map (Veval_field (typeof a) i) (msubst_eval_lvalue_reif T1 T2 a )
+  | Evar id ty => (msubst_var id T2 ty)
+  | Ederef a ty => option_map Vforce_ptr (msubst_eval_expr_reif T1 T2 a)
+  | Efield a i ty => option_map (Veval_field (typeof a) i) (msubst_eval_lvalue_reif T1 T2 a)
   | _  => Some Vundef
   end.
   
