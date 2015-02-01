@@ -24,8 +24,9 @@ Require Import func_defs.
 Require Import funcs.
 Require Import types.
 
-Ltac cbv_denote :=
-          cbv [
+Ltac cbv_denote g' e :=
+eval cbv [
+              g'
           reflect_prop reflect Expr_expr_fs RType_typ Typ2_tyArr RSym_sym 
                       RSym_Func'
           
@@ -293,9 +294,9 @@ reptyp_unionlist
  exportclight.Clightdefs.tarray 
 
 
-          ].
+          ] in e.
 (*Tactic Notation "cbv_denote" "in" ident(H) := cbv_denote_in H.*)
-Locate goalD_Prop.
+(*Locate goalD_Prop.
 
 Require Import reify.
 Require Import floyd.proofauto.
@@ -314,4 +315,4 @@ cbv_denote.
 Locate elem_ctor.
  cbv [elem_ctor].
 Abort.
-
+*) 

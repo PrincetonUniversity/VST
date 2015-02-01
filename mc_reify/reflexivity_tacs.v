@@ -133,22 +133,20 @@ simpl in H4.
 solve_exprD.
 unfold exprT_App. simpl.
 destruct (pctxD_substD H1 H3).
-destruct H6.
+destruct H4.
 edestruct H2; eauto. 
 forward_reason.
-destruct (substD_pctxD _ H0 H3 H10).
-destruct H12.
+destruct (substD_pctxD _ H0 H3 H6).
+forward_reason.
 forward. inv_some.
 split. admit. (*what is this*)
-intros. 
-eapply Pure_pctxD. apply H12.
-intros. simpl in *. 
-specialize (H11 us0 vs0).
-cut (x0 us0 vs0). intros. specialize (H11 H14).
-destruct H11. specialize (H15 HList.Hnil).
-apply H15. 
-admit. 
-Admitted. (*Qed.*)
+intros.  gather_facts.
+eapply Pure_pctxD. eauto. 
+intros. simpl in *.
+edestruct H7; eauto.
+specialize (H11 HList.Hnil).
+apply H11. 
+Admitted.
 
 Definition REFLEXIVITY := REFLEXIVITYTAC.
 
@@ -242,7 +240,7 @@ subst. simpl. intros.
 split.
 unfold func_defs.reflect, exprD in *. simpl in *.
 solve_exprD. 
-forward. split. admit. 
+forward. split. reflexivity.
 intros. 
 unfold propD, exprD'_typ0 in *.  simpl in H4.
 solve_exprD.
@@ -252,6 +250,8 @@ intros.
 unfold func_defs.reflect, exprD in *. simpl in *.
 forward. inv_some.
 inversion H0. rewrite rel_dec_correct in Heqb.
+generalize (ExprFacts.exprD'_weaken).
+intros.
 admit. (*exprD' with nil same as with any environment?*)
 Qed.
 
