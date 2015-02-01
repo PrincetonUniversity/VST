@@ -527,19 +527,37 @@ assert (semax (remove_global_spec Delta)
                  (tptr tuint)) tuint)) POSTCONDITION).
 + 
 *)
+
 match goal with
-| |- semax ?D ?Pre ?st ?Post => assert (semax (remove_global_spec D) Pre st Post); [| admit]
+| |- semax ?D ?Pre ?st ?Post => assert (semax (remove_global_spec D) Pre st
+  (*Ssequence
+    (Sset _T1 (Ederef
+        (Ebinop Oadd (Evar _X (tarray tuint 16))
+           (Ebinop Oand
+              (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
+                 tint) (Econst_int (Int.repr 15) tint) tint) 
+           (tptr tuint)) tuint))
+    (Sassign
+                          (Ederef
+                             (Ebinop Oadd (Evar _X (tarray tuint 16))
+                                (Ebinop Oand (Etempvar _i tint)
+                                   (Econst_int (Int.repr 15) tint) tint)
+                                (tptr tuint)) tuint) 
+                          (Etempvar _T1 tuint))*)
+    Post); [| admit]
 end.
+
+unfold K_vector.
+change (Zlength K256) with 64%Z.
 unfold remove_global_spec.
-unfold abbreviate in Delta, MORE_COMMANDS, POSTCONDITION.
-subst Delta MORE_COMMANDS POSTCONDITION.
+unfold abbreviate in Delta, (*MORE_COMMANDS,*) POSTCONDITION.
+subst Delta (*MORE_COMMANDS*) POSTCONDITION.
 match goal with
 | |- semax _ _ _ (normal_ret_assert ?M) => set (POSTCONDITION := M)
 end.
 
 prepare_reify.
 unfold PTree.set, PTree.prev, tarray, tint; simpl.
-
 (*
 Check local2ptree_soundness.
 Check set_reif.LocalD_to_localD.
@@ -556,22 +574,21 @@ Ltac canonicalize :=
 
 canonicalize.
 *)
-(* Set Printing Depth 4. *)
-Time run_rtac reify_vst term_table (SYMEXE_sound 20). (* 3.9 seconds *)
+
+
+Set Printing Depth 4.
+
+Time rforward. (* 8.0 seconds. *)
+
+Set Printing Depth 30.
+
+repeat eexists;
 repeat (split; repeat eexists).
-Print _X.
-Print _T1.
-admit.
-Time Qed.
-repeat split.
-Focus 5.
 
 
-rforward.
 
-repeat split.
-Focus 2.
-Check semax_load_localD.
+
+
 match goal with
 | |- forall x, !! ?P x && ?Q x |-- !! ?A && !! ?B =>
    assert (local P && Q |-- !! A && !! B) as HH; [| simpl; exact HH]

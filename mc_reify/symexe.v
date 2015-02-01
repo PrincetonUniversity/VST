@@ -415,6 +415,7 @@ Definition FORWARD_SET Delta Pre s :=
            (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl;
                         REFLEXIVITY_MSUBST tbl; 
                         REFLEXIVITY_BOOL tbl;
+                        AFTER_SET_LOAD tbl;
                         REFLEXIVITY tbl]))
   | _ => FAIL
   end in
@@ -432,6 +433,7 @@ Definition FORWARD_LOAD Struct_env Delta Pre s :=
             (THEN (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl;
                                REFLEXIVITY_BOOL tbl;
                                REFLEXIVITY_CEXPR tbl;
+                               AFTER_SET_LOAD tbl;
                                REFLEXIVITY tbl;
                                REFLEXIVITY_MSUBST tbl;
                                REFLEXIVITY_MSUBST_EFIELD tbl;
@@ -455,6 +457,7 @@ Definition FORWARD_STORE Struct_env Delta Pre s :=
             (THEN (TRY (FIRST [REFLEXIVITY_CTYPE tbl;
                                REFLEXIVITY_BOOL tbl;
                                REFLEXIVITY_CEXPR tbl;
+                               AFTER_STORE tbl;
                                REFLEXIVITY tbl;
                                FIRST [APPLY typ func writable_Tsh_lemma; APPLY typ func writable_Ews_lemma];
                                REFLEXIVITY_MSUBST tbl;
@@ -470,7 +473,6 @@ Definition FORWARD_STORE Struct_env Delta Pre s :=
 Definition SYMEXE_STEP Struct_env
 : rtac typ (expr typ func)  :=
   THEN' (INSTANTIATE typ func)
-  (THEN SIMPL_SET
   (AT_GOAL
     (fun c s e => 
          match (get_arguments e) with
@@ -484,7 +486,7 @@ Definition SYMEXE_STEP Struct_env
            | _ => FAIL
            end
          | _ => FAIL
-         end))).
+         end)).
 
 Existing Instance func_defs.Expr_ok_fs.
 

@@ -109,6 +109,7 @@ Proof.
       * apply REFLEXIVITY_OP_CTYPE_sound.
       * admit (*reflexivity msusbst_sound*).
       * apply REFLEXIVITY_BOOL_sound.
+      * admit (*after_set*).
       * apply REFLEXIVITYTAC_sound.
 Qed.
 
@@ -126,6 +127,7 @@ Proof.
       * apply REFLEXIVITY_OP_CTYPE_sound.
       * apply REFLEXIVITY_BOOL_sound.
       * apply REFLEXIVITY_CEXPR_sound.
+      * admit (*after_load*).
       * apply REFLEXIVITYTAC_sound.
       * admit (*reflexivity msusbst_sound*).
       * admit (*reflexivity msusbst_efield_sound*).
@@ -134,14 +136,39 @@ Proof.
       * apply APPLY_sound_prop_right.
       * apply REFLEXIVITYTAC_sound.
 Qed.
-  
+
+Lemma FORWARD_STORE_sound: forall Struct_env Delta Pre s, rtac_sound (FORWARD_STORE tbl Struct_env Delta Pre s).
+Proof.
+  intros.
+  unfold FORWARD_STORE.
+  apply THEN_sound.
+  + destruct (compute_hlip_arg (Delta, Pre, s)) as [[[[[? ?] ?] ?] ?] ?].
+    apply HLIP_sound.
+  + destruct (compute_store_arg (Delta, Pre, s)) as [[[[[[[[[[[[[? ?] ?] ?] ?] ?] ?] ?] ?] ?] ?] ?] ?]|]; [| apply FAIL_sound].
+    apply THEN_sound.
+    - apply APPLY_sound_store_lemma.
+    - apply THEN_sound; apply TRY_sound; [apply FIRST_sound; repeat constructor | repeat apply THEN_sound].
+      * apply REFLEXIVITY_CTYPE_sound.
+      * apply REFLEXIVITY_BOOL_sound.
+      * apply REFLEXIVITY_CEXPR_sound.
+      * admit (*after_store*).
+      * apply REFLEXIVITYTAC_sound.
+      * apply FIRST_sound; repeat constructor.
+        apply APPLY_sound_writable_Tsh.
+        apply APPLY_sound_writable_Ews.
+      * admit (*reflexivity msusbst_sound*).
+      * admit (*reflexivity msusbst_efield_sound*).
+      * admit (*reflexivity nth_error_sound*).
+      * admit. (* INTROS *)
+      * apply APPLY_sound_prop_right.
+      * apply REFLEXIVITYTAC_sound.
+Qed.
+
 Lemma SYMEXE_STEP_sound: forall Struct_env, rtac_sound (SYMEXE_STEP tbl Struct_env).
 Proof.
 intros.
 unfold SYMEXE_STEP.
-apply Then.THEN_sound; [apply INSTANTIATE_sound |].
-apply runOnGoals_sound.
-apply THEN_sound; [apply SIMPL_SET_sound |].
+apply Then.THEN_sound; [apply INSTANTIATE_sound | apply runOnGoals_sound].
 eapply AT_GOAL_sound.
 intros.
 destruct (get_arguments e);
@@ -151,6 +178,7 @@ repeat match goal with
        end.
 + apply FORWARD_SET_sound.
 + apply FORWARD_LOAD_sound.
++ apply FORWARD_STORE_sound.
 + unfold APPLY_SEQ.
   apply THEN_sound.
   unfold APPLY_SEQ'.
@@ -175,24 +203,22 @@ Qed.
 
 Theorem SYMEXE_sound : rtac_sound (SYMEXE_TAC_n n tbl).
 Proof.
-
-Admitted.
-(*
-  repeat apply THEN_sound.
-  + admit. (*jesper*)
-  + apply APPLY_sound_semax_post'.
-  + apply TRY_sound.
-    eapply AT_GOAL_sound.
-    intros.
-    destruct (get_arguments e) as [[[[[[[? ?] ?] ?] ?]|] ?] ?]; [| apply FAIL_sound].
-    apply REPEAT_sound.
-    apply SYMEXE_STEP_sound.
-  + apply TRY_sound.
-    apply THEN_sound.
-    - admit. (* INTROS *)
-    - apply APPLY_sound_derives_refl.
+  apply Then.THEN_sound.
+  + repeat apply THEN_sound.
+    - admit. (*jesper*)
+    - apply APPLY_sound_semax_post'.
+    - apply TRY_sound.
+      eapply AT_GOAL_sound.
+      intros.
+      destruct (get_arguments e) as [[[[[[[? ?] ?] ?] ?]|] ?] ?]; [| apply FAIL_sound].
+      apply REPEAT_sound.
+      apply SYMEXE_STEP_sound.
+    - apply TRY_sound.
+      apply THEN_sound.
+      * admit. (* INTROS *)
+      * apply APPLY_sound_derives_refl.
+  + admit (* MINIFY *).
 Qed.
-*)
 
 End tbled.
 
@@ -390,6 +416,31 @@ unfold remove_global_spec,Delta. simpl PTree.set.
 rforward.
 intros.
 apply derives_refl.
+Qed.
+
+Goal
+forall {Espec : OracleKind} (contents : list val) (v: val) ,  
+   (semax
+     (remove_global_spec Delta) (*empty_tycontext*)
+     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+       [data_at Tsh t_struct_list (Values.Vundef, Values.Vint Int.zero) (force_ptr v)])
+     (Sassign 
+            (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
+              _tail (tptr t_struct_list))
+          (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
+     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+       [data_at Tsh t_struct_list (Vundef, Vint Int.zero) (force_ptr v)])
+)).
+intros.
+unfold empty_tycontext, Delta, remove_global_spec.
+unfold t_struct_list.
+rforward.
+split.
++ unfold reptype_reptyp. simpl.
+  auto.
++ intros.
+  apply prop_right.
+  solve_legal_nested_field.
 Qed.
 
 (*
