@@ -530,23 +530,19 @@ assert (semax (remove_global_spec Delta)
 
 match goal with
 | |- semax ?D ?Pre ?st ?Post => assert (semax (remove_global_spec D) Pre st
-  (*Ssequence
-    (Sset _T1 (Ederef
+   (*Sset _T1 (Ederef
         (Ebinop Oadd (Evar _X (tarray tuint 16))
            (Ebinop Oand
               (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
                  tint) (Econst_int (Int.repr 15) tint) tint) 
-           (tptr tuint)) tuint))
-    (Sassign
-                          (Ederef
-                             (Ebinop Oadd (Evar _X (tarray tuint 16))
-                                (Ebinop Oand (Etempvar _i tint)
-                                   (Econst_int (Int.repr 15) tint) tint)
-                                (tptr tuint)) tuint) 
-                          (Etempvar _T1 tuint))*)
+           (tptr tuint)) tuint)*)
+ 
     Post); [| admit]
 end.
-
+(*
+Time forward.forward.
+simpl.
+*)
 unfold K_vector.
 change (Zlength K256) with 64%Z.
 unfold remove_global_spec.
@@ -575,19 +571,31 @@ Ltac canonicalize :=
 canonicalize.
 *)
 
+Clear Timing Profile.
 
 Set Printing Depth 4.
 
+rforward.
+
+Print Timing Profile.
+
+(*
 Time rforward. (* 8.0 seconds. *)
 
 Set Printing Depth 30.
+*)
 
+Set Printing Depth 50.
 repeat eexists;
 repeat (split; repeat eexists).
+SearchAbout Xarray.
+Focus 2.
 
+simpl typeof.
 
+unfold proj_val, proj_reptype; simpl.
 
-
+Locate rmsubst_efield_denote.
 
 match goal with
 | |- forall x, !! ?P x && ?Q x |-- !! ?A && !! ?B =>
@@ -693,138 +701,3 @@ simpl.
 f_equal. rewrite Int.add_commut. f_equal.
 Qed.
 
-Lemma sha256_block_data_order_loop2_proof:
-  forall (Espec : OracleKind)
-     (b: list int) ctx (regs: list int) kv Xv
-     (Hregs: length regs = 8%nat),
-     Zlength b = LBLOCKz ->
-     semax  Delta_loop1
- (PROP ()
-   LOCAL (temp _ctx ctx; temp _i (Vint (Int.repr 16));
-               temp _a (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 0));
-               temp _b (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 1));
-               temp _c (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 2));
-               temp _d (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 3));
-               temp _e (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 4));
-               temp _f (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 5));
-               temp _g (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 6));
-               temp _h (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                var  _K256 (tarray tuint CBLOCKz) kv)
-   SEP ( `(K_vector kv);
-           `(data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv)))
-  block_data_order_loop2
-  (normal_ret_assert
-    (PROP () 
-     LOCAL(temp _ctx ctx; 
-                temp _a (Vint (nthi (Round regs (nthi b) 63) 0));
-                temp _b (Vint (nthi (Round regs (nthi b) 63) 1));
-                temp _c (Vint (nthi (Round regs (nthi b) 63) 2));
-                temp _d (Vint (nthi (Round regs (nthi b) 63) 3));
-                temp _e (Vint (nthi (Round regs (nthi b) 63) 4));
-                temp _f (Vint (nthi (Round regs (nthi b) 63) 5));
-                temp _g (Vint (nthi (Round regs (nthi b) 63) 6));
-                temp _h (Vint (nthi (Round regs (nthi b) 63) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                var  _K256 (tarray tuint CBLOCKz) kv)
-     SEP (`(K_vector kv);
-           `(data_at_ Tsh (tarray tuint LBLOCKz) Xv)))).
-Proof.
-intros.
-unfold block_data_order_loop2; simpl nth.
-fold rearrange_regs2c.
-fold rearrange_regs2b.
-fold bdo_loop2_body.
-abbreviate_semax.
-name a_ _a.
-name b_ _b.
-name c_ _c.
-name d_ _d.
-name e_ _e.
-name f_ _f.
-name g_ _g.
-name h_ _h.
-name t_ _t.
-name Ki _Ki.
-name ctx_ _ctx.
-name i_ _i.
-change 16%nat with LBLOCK.
-
-Definition loop2_inv (rg0: list int) (b: list int) ctx kv Xv (delta: Z) (i: nat) :=
-    PROP ( (LBLOCK <= i <= c64)%nat )
-    LOCAL  (temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i - delta)));
-                  temp _a (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 0));
-                  temp _b (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 1));
-                  temp _c (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 2));
-                  temp _d (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 3));
-                  temp _e (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 4));
-                  temp _f (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 5));
-                  temp _g (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 6));
-                  temp _h (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                var  _K256 (tarray tuint CBLOCKz) kv)
-     SEP (`(K_vector kv);
-   `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b i)) Xv)).
-
-apply semax_pre with (EX i:nat, loop2_inv regs b ctx kv Xv 0 i).
-clear -H.
-abstract (
- unfold loop2_inv;  apply exp_right with LBLOCK;
- change LBLOCKz with 16%Z;
-  change (Z.of_nat LBLOCK) with LBLOCKz;
- rewrite Xarray_simpl
- by (apply Zlength_length in H; auto);
-  entailer!;
-  change LBLOCK with 16%nat; change c64 with 64%nat; clear; omega
-).
-
-apply semax_post' with (loop2_inv regs b ctx kv Xv 0 c64). 
-clear POSTCONDITION;
-abstract (unfold loop2_inv;  entailer!).
-
-apply (semax_loop _ _ (EX i:nat, loop2_inv regs b ctx kv Xv 1 i)).
-2: abstract (
-apply extract_exists_pre; intro i;
-forward;  (*  i += 1; *)
-apply exp_right with i;
- unfold loop2_inv;  entailer! ; f_equal; omega).
-
-apply extract_exists_pre; intro i.
-unfold loop2_inv.
-repeat rewrite Z.sub_0_r.
-
-forward_if (
-   PROP  ((LBLOCK <= i < c64)%nat)
-   LOCAL  (temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i)));
-               temp _a (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0));
-               temp _b (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1));
-               temp _c (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2));
-               temp _d (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3));
-               temp _e (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4));
-               temp _f (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5));
-               temp _g (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6));
-               temp _h (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                var  _K256 (tarray tuint CBLOCKz) kv)
-   SEP  (`(K_vector kv);
-   `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b i)) Xv))).
- forward; (* skip *)
-   assert (LBE : LBLOCKz=16%Z) by reflexivity; change c64 with 64%nat in *; entailer. 
-   apply semax_extract_PROP; intro;
-   assert (LBE : LBLOCKz=16%Z) by reflexivity; change c64 with 64%nat in *;
-   forward; (* break; *)
-   cbv beta.
-  change 64%nat with c64.
-  entailer.
-   assert (i=64)%nat by omega; subst i;
-   apply andp_right; [ apply prop_right | cancel].
- split; auto. change (16<=64)%nat; clear; omega.
- repeat split; reflexivity.
-unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-make_sequential. rewrite loop1_ret_assert_normal.
-normalize.
-replace Delta with Delta_loop1 by (simplify_Delta; reflexivity).
-simple apply bdo_loop2_body_proof; auto.
-Qed.
-
--

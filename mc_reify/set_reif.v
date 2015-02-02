@@ -62,7 +62,7 @@ Fixpoint val_e_to_expr (v : val_e) : (expr typ func) :=
 match v with
   | Vundef => injR (Value fVundef)
   | Vlong l => (appR (Value fVlong) (injR (Const (fint64 l))))
-  | Vint i => (appR (Value fVint) (injR (Const (fint i))))
+  | Vint i => (appR (Value fVint) (appR (Intop fint_repr) (injR (Const (fZ (Int.unsigned i))))))
   | Vfloat f => (appR (Value fVfloat) (injR (Const (ffloat f))))
   | Vsingle f => (appR (Value fVsingle) (injR (Const (ffloat32 f))))
   | Vexpr e => e
@@ -149,10 +149,18 @@ Fixpoint msubst_efield_denote_reif (T1: ExprCore.expr typ func) (T2: ExprCore.ex
       | Tint _ _ _,
         App (Inj (inr (Other (fsome _))))
          (App (Inj (inr (Value fVint))) i) =>
+          match i with
+          | App (Inj (inr (Intop fint_repr))) i' =>
+                             option_map (App
+                                (appR (Data (fcons tygfield))
+                                      (appR (Smx farray_subsc) i')))
+                                 (msubst_efield_denote_reif T1 T2 efs0)
+          | _ =>
                              option_map (App
                                 (appR (Data (fcons tygfield))
                                       (appR (Smx farray_subsc) (appR (Intop fint_unsigned) i))))
                                  (msubst_efield_denote_reif T1 T2 efs0)
+          end
       | _, _ => None
       end
   end.

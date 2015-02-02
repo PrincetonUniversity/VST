@@ -736,7 +736,7 @@ split.
 + intros.
   admit.
 + intros.
-  cbv_denote.
+  simpl.
   simpl typeof.
   unfold proj_val, proj_reptype.
   simpl.
@@ -847,3 +847,5 @@ unfold Delta, remove_global_spec.
 intros.
 rforward. 
 Abort.
+*)
+
