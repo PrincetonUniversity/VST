@@ -1,8 +1,6 @@
 Require Import floyd.proofauto.
 Require Import mc_reify.bool_funcs.
 Require Import Coq.Logic.JMeq.
-Local Open Scope logic.
-
 Require Export mc_reify.reify.
 Require Import mc_reify.set_reif.
 Require Import MirrorCore.Lemma.
@@ -29,6 +27,9 @@ Require Import mc_reify.func_defs.
 Require Import mc_reify.typ_eq.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.rtac_base.
+
+Local Open Scope logic.
+
 
 Lemma semax_set_localD:
     forall temp var ret gt 
@@ -311,12 +312,11 @@ Lemma APPLY_sound_store_lemma: forall (temp : PTree.t (type * bool)) (var : PTre
   (ret : type) (gt : PTree.t type) (t t_root : type)
   (e0 e1 e2 : Clight.expr) (efs : list efield) (tts : list type)
   (e : type_id_env) (lr : LLRR) (n : nat), 
-  rtac_sound (EAPPLY typ func (store_lemma temp var ret gt t t_root e0 e1 e2 efs tts e lr n)).
+  rtac_sound (EAPPLY tbl (store_lemma temp var ret gt t t_root e0 e1 e2 efs tts e lr n)).
 Proof.
-  intros.
-  apply EAPPLY_sound; auto with typeclass_instances.
-  + apply APPLY_condition1.
-  + apply APPLY_condition2.
+  intros. Locate EAPPLY_sound.
+Check rtac_base.EAPPLY_sound.
+  apply rtac_base.EAPPLY_sound; auto with typeclass_instances.
   + unfold Lemma.lemmaD, split_env, Lemma.lemmaD'. simpl.
     unfold exprD'_typ0. simpl.
     unfold exprD'. simpl.
@@ -375,12 +375,10 @@ Lemma APPLY_sound_load_lemma: forall (temp : PTree.t (type * bool)) (var : PTree
   (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type)
   (e0 e1 : Clight.expr) (efs : list efield) (tts : list type)
   (e : type_id_env) (lr : LLRR) (n : nat), 
-  rtac_sound (EAPPLY typ func (load_lemma temp var ret gt id t t_root e0 e1 efs tts e lr n)).
+  rtac_sound (EAPPLY tbl (load_lemma temp var ret gt id t t_root e0 e1 efs tts e lr n)).
 Proof.
   intros.
   apply EAPPLY_sound; auto with typeclass_instances.
-  + apply APPLY_condition1.
-  + apply APPLY_condition2.
   + unfold Lemma.lemmaD, split_env, Lemma.lemmaD'. simpl.
 (* Set Printing Depth 200. *)
     unfold exprD'_typ0. simpl.
