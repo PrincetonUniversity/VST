@@ -15,6 +15,50 @@ Require Import juicy_safety.
 Require Import pos.
 Require Import linking. 
 
+Section minus_defs.
+  Context {N : nat} {Z : Type}.
+  Variable spec : juicy_ext_spec Z.
+  Variable plt : ident -> option 'I_N.
+
+  Definition minus_defs' :=
+  {| ext_spec_type := ext_spec_type spec
+   ; ext_spec_pre := fun ef x gx tys args z m => 
+                       match LinkerSem.fun_id ef with
+                         | None => ext_spec_pre spec ef x gx tys args z m 
+                         | Some id => 
+                           match plt id with
+                             | None => ext_spec_pre spec ef x gx tys args z m 
+                             | Some _ => False
+                           end
+                       end
+   ; ext_spec_post := fun ef x gx ty ret z m => 
+                       match LinkerSem.fun_id ef with
+                         | None => ext_spec_post spec ef x gx ty ret z m 
+                         | Some id => 
+                           match plt id with
+                             | None => ext_spec_post spec ef x gx ty ret z m 
+                             | Some _ => False
+                           end
+                       end
+   ; ext_spec_exit := ext_spec_exit spec |}.
+
+  Program Definition minus_defs := Build_juicy_ext_spec _ minus_defs' _ _ _.
+  Next Obligation. 
+    intros. 
+    destruct (LinkerSem.fun_id e); try eapply JE_pre_hered; eauto. 
+    destruct (plt i); try eapply JE_pre_hered; eauto. 
+    unfold predicates_hered.hereditary; intros; auto.
+  Qed.
+  Next Obligation. 
+    intros. 
+    destruct (LinkerSem.fun_id e); try eapply JE_post_hered; eauto. 
+    destruct (plt i); try eapply JE_post_hered; eauto. 
+    unfold predicates_hered.hereditary; intros; auto.
+  Qed.
+  Next Obligation. intros. eapply JE_exit_hered; eauto. Qed.
+
+End minus_defs.
+
 Section safety.
 
 Variable N : pos.
@@ -478,7 +522,7 @@ Lemma linker_safe n x z m main_idx main_b args
   ext_spec_pre spec main_ef x (Genv.genv_symb ge) (sig_args (ef_sig main_ef)) args z m ->
   exists l, 
   [/\ initial_core linked_sem ge (Vptr main_b Int.zero) args = Some l  
-    & safeN linked_sem (upd_exit spec x (Genv.genv_symb ge)) ge n z l m].
+    & safeN linked_sem (minus_defs (upd_exit spec x (Genv.genv_symb ge)) plt) ge n z l m].
 Proof.
 move=> Hfid Hplt Hfind Hpre.
 have Hfind': Genv.find_symbol ge main_id = Some main_b.
@@ -565,17 +609,39 @@ by move: (JMeq_eq Eqxx')=> ->; rewrite H in Hhlt; case: Hhlt=> <-.
 
 { (* at_external *)
 case=> ef []sig []args []Hat []x' []Hpre Hpost. 
-eapply safeN_external; eauto=> ret m' z' n' Hlev' Hrel' Hpost'.
+case Hid: (LinkerSem.fun_id ef)=> [id|]. 
+have Hplt: plt id = None. 
+{  move: Hat; rewrite /LinkerSem.at_external.
+  case: (LinkerSem.at_external0 _)=> // [][][]ef'?? H.
+  have Heq: ef'=ef. { 
+    move: H; case: (LinkerSem.fun_id ef').
+    by move=> ?; case: (Linker.fn_tbl _ _)=> //; case=> ?; subst.
+    by case=> ?; subst. }
+  by move: H; rewrite Heq Hid; case Hfn: (Linker.fn_tbl _ _)=> //; case=> ??; subst.
+}
+eapply safeN_external; eauto; first by simpl; rewrite Hid Hplt; eauto.
+move=> ret m' z' n' Hlev' Hrel' Hpost'.
 case: Hrel'=> Hag'' []Hx Hy.
 have Hag''': (n' <= ageable.level m') by rewrite Hag''.
 have Hag'''': (n' <= ageable.level m')%coq_nat by rewrite Hag''.
 have Hrel'': Hrel (ageable.level m') m m' by split.
-case: (Hpost ret m' z' _  Hag''' Hrel'' Hpost')=> l' []Hplt Haft Hall. 
-exists l'; split=> //.
-case: Hrel''=> _ []Hz _.
+simpl in Hpost'; rewrite Hid Hplt in Hpost'.
+case: (Hpost ret m' z' _  Hag''' Hrel'' Hpost')=> l' []Hplt' Haft Hall. 
+exists l'; split=> //. case: Hrel''=> _ []Hz _.
 have Hlev'': (ageable.level m' < n.+1)%coq_nat by omega.
-move: (IH _ Hlev'' _ _ _ Hplt Hall erefl).
-by apply: safe_downward.
+by move: (IH _ Hlev'' _ _ _ Hplt' Hall erefl); apply: safe_downward.
+
+eapply safeN_external; eauto; first by simpl; rewrite Hid; eauto.
+move=> ret m' z' n' Hlev' Hrel' Hpost'.
+case: Hrel'=> Hag'' []Hx Hy.
+have Hag''': (n' <= ageable.level m') by rewrite Hag''.
+have Hag'''': (n' <= ageable.level m')%coq_nat by rewrite Hag''.
+have Hrel'': Hrel (ageable.level m') m m' by split.
+simpl in Hpost'; rewrite Hid in Hpost'.
+case: (Hpost ret m' z' _  Hag''' Hrel'' Hpost')=> l' []Hplt' Haft Hall. 
+exists l'; split=> //. case: Hrel''=> _ []Hz _.
+have Hlev'': (ageable.level m' < n.+1)%coq_nat by omega.
+by move: (IH _ Hlev'' _ _ _ Hplt' Hall erefl); apply: safe_downward.
 }
 Qed.
 
@@ -663,7 +729,7 @@ Lemma linker_preserves_safety :
       initial_core (LinkerSem.coresem juicy_mem_ageable N sems plt) ge
                    (Vptr main_b Int.zero) args = Some l /\
       safeN (LinkerSem.coresem juicy_mem_ageable N sems plt)
-            (upd_exit (ef:=main_ef main_id) spec x (Genv.genv_symb ge))
+            (minus_defs (upd_exit (ef:=main_ef main_id) spec x (Genv.genv_symb ge)) plt)
             ge n0 z l m.
 Proof.
 move=> N plt Fs Vs Cs ges sems0 *; apply: linker_safe=> //=.
