@@ -121,22 +121,22 @@ Existing Instance RSym_sym.
 
 Definition solve_hd_in_hlip (hd: expr typ func) : rtac typ (expr typ func) :=
   match hd with
-  | App (Inj (inr (Smx flater))) _ => EAPPLY tbl reify_derives_refl
-  | _ => EAPPLY tbl reify_now_later
+  | App (Inj (inr (Smx flater))) _ => EAPPLY typ func reify_derives_refl
+  | _ => EAPPLY typ func reify_now_later
   end.
 
 Fixpoint solve_strip_1_later (R: expr typ func) : rtac typ (expr typ func) :=
   match R with
-  | Inj (inr (Data (fnil tympred))) => EAPPLY tbl reify_now_later
+  | Inj (inr (Data (fnil tympred))) => EAPPLY typ func reify_now_later
   | App (App (Inj (inr (Data (fcons tympred)))) hd) tl =>
-    THEN (EAPPLY tbl reify_hlip_ind)
+    THEN (EAPPLY typ func reify_hlip_ind)
      (THEN (TRY (REFLEXIVITY tbl))
            (FIRST [solve_hd_in_hlip hd; solve_strip_1_later tl]))
   | _ => FAIL
   end.
 
 Definition HLIP temp var ret gt R s :=
-  THEN (EAPPLY tbl (reify_hlip_base temp var ret gt s))
+  THEN (EAPPLY typ func (reify_hlip_base temp var ret gt s))
        (TRY (solve_strip_1_later R)).
 
 Let Expr_expr_fs := Expr_expr_fs tbl.
@@ -152,10 +152,12 @@ Existing Instance MA.
 
 Existing Instance rtac_base.MentionsAnyOk.
 
-Lemma HLIP_sound_aux0: forall temp var ret gt s, rtac_sound (EAPPLY tbl (reify_hlip_base temp var ret gt s)).
+Lemma HLIP_sound_aux0: forall temp var ret gt s, rtac_sound (EAPPLY typ func (reify_hlip_base temp var ret gt s)).
 Proof.
   intros.
   apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
   + unfold Lemma.lemmaD, split_env. simpl. intros. 
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
@@ -164,9 +166,11 @@ Proof.
     eapply hoist_later_in_pre_aux; eauto.
 Qed.
 
-Lemma HLIP_sound_aux1: rtac_sound (EAPPLY tbl reify_hlip_ind).
+Lemma HLIP_sound_aux1: rtac_sound (EAPPLY typ func reify_hlip_ind).
 Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
   + unfold Lemma.lemmaD, split_env. simpl. intros. 
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
@@ -178,14 +182,15 @@ Qed.
 Definition HLIP_sound_aux2 (hd: expr typ func): rtac_sound (solve_hd_in_hlip hd) :=
     match hd as hd'
       return rtac_sound match hd' with
-                        | App (Inj (inr (Smx flater))) _ => EAPPLY tbl reify_derives_refl
-                        | _ => EAPPLY tbl reify_now_later
+                        | App (Inj (inr (Smx flater))) _ => EAPPLY typ func reify_derives_refl
+                        | _ => EAPPLY typ func reify_now_later
                         end
     with
     | App (Inj (inr (Smx flater))) _ => APPLY_sound_derives_refl tbl
     | _ => APPLY_sound_now_later tbl
     end.
 
+Print Forall_cons.
 Lemma tttt: Forall (fun x => In x [1; 3; 4]) [1; 3; 4].
 constructor; [| constructor; [| constructor; [| constructor]]].
 + left. reflexivity.
@@ -195,9 +200,9 @@ Qed.
 
 Lemma solve_strip_1_later_def: forall R,
   match R with
-  | Inj (inr (Data (fnil tympred))) => EAPPLY tbl reify_now_later
+  | Inj (inr (Data (fnil tympred))) => EAPPLY typ func reify_now_later
   | App (App (Inj (inr (Data (fcons tympred)))) hd) tl =>
-    THEN (EAPPLY tbl reify_hlip_ind)
+    THEN (EAPPLY typ func reify_hlip_ind)
      (THEN (TRY (REFLEXIVITY tbl))
            (FIRST [solve_hd_in_hlip hd; solve_strip_1_later tl]))
   | _ => FAIL
@@ -215,9 +220,9 @@ Fixpoint solve_strip_1_later_sound (R: expr typ func) : rtac_sound (solve_strip_
   let res :=
   match R as R'
     return rtac_sound match R' with
-                      | Inj (inr (Data (fnil tympred))) => EAPPLY tbl reify_now_later
+                      | Inj (inr (Data (fnil tympred))) => EAPPLY typ func reify_now_later
                       | App (App (Inj (inr (Data (fcons tympred)))) hd) tl =>
-                        THEN (EAPPLY tbl reify_hlip_ind)
+                        THEN (EAPPLY typ func reify_hlip_ind)
                          (THEN (TRY (REFLEXIVITY tbl))
                                (FIRST [solve_hd_in_hlip hd; solve_strip_1_later tl]))
                       | _ => FAIL

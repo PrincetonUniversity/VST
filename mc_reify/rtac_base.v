@@ -13,8 +13,6 @@ Require Import mc_reify.func_defs.
 Require Import MirrorCore.LemmaApply.
 Require Import ExtLib.Tactics.
 Require Import MirrorCore.Util.ListMapT.
-Require Import MirrorCharge.RTac.Apply.
-Require Import MirrorCharge.RTac.EApply.
 
 Definition rtacP := sigT (fun tac: rtac typ (expr typ func) =>
   forall tbl: SymEnv.functions RType_typ, rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) tac).
@@ -64,15 +62,47 @@ apply INSTANTIATE_sound.
 apply runOnGoals_sound. auto.
 Qed.
 
-Definition APPLY lemma := Then.THEN (Apply.APPLY typ func lemma) (@RTac.Minify.MINIFY typ (expr typ func) _).
+Definition APPLY_sound := (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ ). 
+(*Definition APPLY_sound := 
+  (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ _
+ (fun (subst : Type)
+                                 (SS : Subst subst (expr typ func))
+                                 (SU : SubstUpdate subst (expr typ func))
+                                 (tus tvs : tenv typ) 
+                                 (n : nat) (l r : expr typ func) 
+                                 (t3 : typ) (s1 : subst) =>
+                               @ExprUnify_simul.exprUnify subst typ func
+                                 RType_typ (_)
+                                 Typ2_tyArr SS SU
+                                 (S (S (S (S (S (S (S (S (S (S O))))))))))
+                                 tus tvs n l r t3 s1) _ (ExprLift.vars_to_uvars_exprD')).*)
+(*
 
-Definition EAPPLY lemma := Then.THEN (EApply.EAPPLY typ func lemma) (@RTac.Minify.MINIFY typ (expr typ func) _).
+ (fun (subst : Type)
+                                 (SS : Subst subst (expr typ func))
+                                 (SU : SubstUpdate subst (expr typ func))
+                                 (tus tvs : tenv typ) 
+                                 (n : nat) (l r : expr typ func) 
+                                 (t3 : typ) (s1 : subst) =>
+                               @ExprUnify_simul.exprUnify subst typ func
+                                 RType_typ (_)
+                                 Typ2_tyArr SS SU
+                                 (S (S (S (S (S (S (S (S (S (S O))))))))))
+                                 tus tvs n l r t3 s1) _ (* (ExprLift.vars_to_uvars_exprD')*)).*)
 
+Definition EAPPLY_sound := 
+  (@EAPPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _). (*_ _ (fun (subst : Type)
+                                 (SS : Subst subst (expr typ func))
+                                 (SU : SubstUpdate subst (expr typ func))
+                                 (tus tvs : tenv typ) 
+                                 (n : nat) (l r : expr typ func) 
+                                 (t3 : typ) (s1 : subst) =>
+                               @ExprUnify_simul.exprUnify subst typ func
+                                 RType_typ (func_defs.RSym_sym symexe.tbl)
+                                 Typ2_tyArr SS SU
+                                 (S (S (S (S (S (S (S (S (S (S O))))))))))
+                                 tus tvs n l r t3 s1) (ExprLift.vars_to_uvars_exprD')).*)
 
-Definition APPLY_sound' := (@APPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _ _ ). 
-
-Definition EAPPLY_sound' := 
-  (@EAPPLY_sound _ (expr typ func) _ _ _ _ _ _ _ _ _ _). 
 
 Lemma APPLY_condition1: vars_to_uvars_spec vars_to_uvars.
 apply vars_to_uvars_exprD'.
@@ -91,27 +121,6 @@ unfold UnifyI.unify_sound.
 generalize (exprUnify_sound).
 unfold ExprUnify_common.unify_sound, ExprUnify_common.unify_sound_ind. intros. forward_reason. 
 Admitted. (*new version!*)
-
-
-Lemma EAPPLY_sound : forall lem,
-lemmaD (exprD'_typ0 (T := Prop)) nil nil lem ->
-rtac_sound (EAPPLY lem).
-intros.
-unfold EAPPLY. 
-apply Then.THEN_sound. apply EAPPLY_sound'; auto. apply _. 
-apply APPLY_condition1. apply APPLY_condition2.
-admit. (*minify sound*)
-Qed.
-
-Lemma APPLY_sound : forall lem,
-lemmaD (exprD'_typ0 (T := Prop)) nil nil lem ->
-rtac_sound (APPLY lem).
-intros.
-apply Then.THEN_sound. apply APPLY_sound'; auto.  
-apply APPLY_condition1. apply APPLY_condition2.
-admit. (*minify sound*)
-Qed.
-
 
 End tbled.
 

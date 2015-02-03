@@ -387,7 +387,7 @@ SIMPLIFY (fun _ _ _ _=>beta_all update_tycon_tac).
 
 Definition INTROS := (REPEAT 10 (INTRO typ func)).
 
-Definition APPLY_SKIP :=  (APPLY tbl  skip_lemma).
+Definition APPLY_SKIP :=  (APPLY typ func  skip_lemma).
 
 Definition run_tac (t: rtac typ (ExprCore.expr typ func)) e := 
   t nil nil 0%nat 0%nat (CTop nil nil) (ctx_empty (expr := expr typ func)) e.
@@ -395,7 +395,7 @@ Definition run_tac (t: rtac typ (ExprCore.expr typ func)) e :=
 Definition run_tac_intros e :=
 run_tac (THEN INTROS e).
 
-Definition APPLY_SEQ' s1 s2 := (EAPPLY tbl (seq_lemma s1 s2)).
+Definition APPLY_SEQ' s1 s2 := (EAPPLY typ func (seq_lemma s1 s2)).
 
 Definition APPLY_SEQ s1 s2 := THEN (APPLY_SEQ' s1 s2) (SIMPL_DELTA).
 (*
@@ -411,7 +411,7 @@ Definition FORWARD_SET Delta Pre s :=
   let _APPLY_SET :=
   match compute_set_arg (Delta, Pre, s) with
   | Some (temp, var, ret, gt, i, e0, ty) =>
-      THEN (EAPPLY tbl (set_lemma temp var ret gt i e0 ty))
+      THEN (EAPPLY typ func (set_lemma temp var ret gt i e0 ty))
            (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl;
                         REFLEXIVITY_MSUBST tbl; 
                         REFLEXIVITY_BOOL tbl;
@@ -428,7 +428,7 @@ Definition FORWARD_LOAD Struct_env Delta Pre s :=
   let _APPLY_LOAD :=
   match compute_load_arg (Delta, Pre, s) with
   | Some (t, v, r, gt, i, ty, t_root, e0, e1, efs, tts, lr, n) =>
-            (THEN (EAPPLY tbl (load_lemma t v r gt i ty t_root e0 e1 efs tts Struct_env lr n))
+            (THEN (EAPPLY typ func (load_lemma t v r gt i ty t_root e0 e1 efs tts Struct_env lr n))
             (THEN (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl;
                                REFLEXIVITY_BOOL tbl;
                                REFLEXIVITY_CEXPR tbl;
@@ -437,7 +437,7 @@ Definition FORWARD_LOAD Struct_env Delta Pre s :=
                                REFLEXIVITY_MSUBST_EFIELD tbl;
                                REFLEXIVITY_NTH_ERROR tbl]))
                   (TRY (THEN INTROS
-                       (THEN (EAPPLY tbl reify_prop_right)
+                       (THEN (EAPPLY typ func reify_prop_right)
                              (REFLEXIVITY tbl))))))
   | _ => FAIL
   end in
@@ -451,17 +451,17 @@ Definition FORWARD_STORE Struct_env Delta Pre s :=
   let _APPLY_STORE :=
   match compute_store_arg (Delta, Pre, s) with
   | Some (t, v, r, gt, ty, t_root, e0, e1, e2, efs, tts, lr, n) =>
-            (THEN (EAPPLY tbl (store_lemma t v r gt ty t_root e0 e1 e2 efs tts Struct_env lr n))
+            (THEN (EAPPLY typ func (store_lemma t v r gt ty t_root e0 e1 e2 efs tts Struct_env lr n))
             (THEN (TRY (FIRST [REFLEXIVITY_CTYPE tbl;
                                REFLEXIVITY_BOOL tbl;
                                REFLEXIVITY_CEXPR tbl;
                                REFLEXIVITY tbl;
-                               FIRST [APPLY tbl writable_Tsh_lemma; APPLY tbl writable_Ews_lemma];
+                               FIRST [APPLY typ func writable_Tsh_lemma; APPLY typ func writable_Ews_lemma];
                                REFLEXIVITY_MSUBST tbl;
                                REFLEXIVITY_MSUBST_EFIELD tbl;
                                REFLEXIVITY_NTH_ERROR tbl]))
                   (TRY (THEN INTROS
-                       (THEN (EAPPLY tbl reify_prop_right)
+                       (THEN (EAPPLY typ func reify_prop_right)
                              (REFLEXIVITY tbl))))))
   | _ => FAIL
   end in
@@ -492,7 +492,7 @@ Definition SYMEXE_TAC_n :=
   Then.THEN (
   THEN
    (THEN INTROS
-   (THEN (EAPPLY tbl reify_semax_post')
+   (THEN (EAPPLY typ func reify_semax_post')
          (TRY (AT_GOAL
                 (fun c s e =>
                    match (get_arguments e) with
@@ -500,7 +500,7 @@ Definition SYMEXE_TAC_n :=
                      (REPEAT n (SYMEXE_STEP (compute_type_id_env (mk_tycontext A B C D (PTree.empty funspec)))))
                    | _ => FAIL
                    end)))))
-   (TRY (THEN INTROS (EAPPLY tbl reify_derives_refl)))) (@RTac.Minify.MINIFY typ (expr typ func) _).
+   (TRY (THEN INTROS (EAPPLY typ func reify_derives_refl)))) (@RTac.Minify.MINIFY typ (expr typ func) _).
 
 (*Definition SYMEXE_TAC := SYMEXE_TAC_n 1000.
 

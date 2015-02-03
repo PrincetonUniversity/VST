@@ -113,11 +113,11 @@ Existing Instance MA.
 
 Existing Instance rtac_base.MentionsAnyOk.
 
-
-
-Lemma APPLY_sound_prop_right: rtac_sound (EAPPLY tbl  reify_prop_right).
-Proof. 
+Lemma APPLY_sound_prop_right: rtac_sound (EAPPLY typ func reify_prop_right).
+Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
   + unfold Lemma.lemmaD, split_env. simpl. intros. 
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
@@ -125,9 +125,11 @@ Proof.
     apply prop_right; auto.
 Qed.
 
-Lemma APPLY_sound_now_later: rtac_sound (EAPPLY tbl reify_now_later).
+Lemma APPLY_sound_now_later: rtac_sound (EAPPLY typ func reify_now_later).
 Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
   + unfold Lemma.lemmaD, split_env. simpl. intros. 
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
@@ -135,9 +137,11 @@ Proof.
     apply now_later; auto.
 Qed.
 
-Lemma APPLY_sound_derives_refl: rtac_sound (EAPPLY tbl reify_derives_refl).
+Lemma APPLY_sound_derives_refl: rtac_sound (EAPPLY typ func reify_derives_refl).
 Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
   + unfold Lemma.lemmaD, split_env. simpl. intros. 
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
@@ -145,9 +149,11 @@ Proof.
     apply derives_refl; auto.
 Qed.
 
-Lemma APPLY_sound_semax_post': rtac_sound (EAPPLY tbl reify_semax_post').
+Lemma APPLY_sound_semax_post': rtac_sound (EAPPLY typ func reify_semax_post').
 Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
   + unfold Lemma.lemmaD, split_env. simpl. intros. 
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
@@ -156,9 +162,11 @@ Proof.
     apply mpred_semax_post' with (R' := x4); auto.
 Qed.
 
-Lemma APPLY_sound_writable_Tsh: rtac_sound (APPLY tbl writable_Tsh_lemma).
+Lemma APPLY_sound_writable_Tsh: rtac_sound (APPLY typ func writable_Tsh_lemma).
 Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
   + unfold Lemma.lemmaD, split_env. simpl. intros. 
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
@@ -166,9 +174,11 @@ Proof.
     apply writable_share_top.
 Qed.
 
-Lemma APPLY_sound_writable_Ews: rtac_sound (APPLY tbl writable_Ews_lemma).
+Lemma APPLY_sound_writable_Ews: rtac_sound (APPLY typ func writable_Ews_lemma).
 Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
+  + apply APPLY_condition1.
+  + apply APPLY_condition2.
   + unfold Lemma.lemmaD, split_env. simpl. intros. 
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
