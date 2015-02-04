@@ -187,7 +187,6 @@ Lemma semax_store_localD:
       msubst_eval_LR T1 T2 (Ecast e2 t) RRRR = Some v0 ->
       legal_nested_efield e t_root e1 gfs tts lr = true ->
 
-      writable_share sh ->
       (@eq (option mpred)) (nth_error R n) (Some (data_at sh t_root v' p')) ->
   (forall rho, 
       !!(tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |-- !! (p = p')) ->
@@ -198,6 +197,7 @@ Lemma semax_store_localD:
                   (replace_nth n R
                     (data_at sh t_root
                       (upd_val t_root gfs v' v0) p))) = Post -> (* need to add replace_nth *)
+      writable_share sh ->
   nested_efield e1 efs tts = e0 ->
 
       semax (mk_tycontext temp var ret gt gs) (|>assertD P (localD T1 T2) R) 
@@ -209,9 +209,9 @@ Proof.
           (replace_nth n R
              (field_at sh t_root []
                 (upd_reptype (nested_field_type2 t_root nil) gfs v'
-                   (valinject _ v0)) p))); [| clear H12].
+                   (valinject _ v0)) p))); [| clear H11].
   Focus 1. {
-    unfold upd_val in H12.
+    unfold upd_val in H11.
     rewrite <- data_at_field_at.
     subst Post.
     f_equal.
@@ -220,9 +220,9 @@ Proof.
   eapply semax_extract_later_prop'.
   Focus 1. {
     rewrite <- insert_local.
-    exact H10.
+    exact H9.
   } Unfocus.
-  intro; subst; clear H10.
+  intro; subst; clear H9.
   unfold upd_val.
   eapply semax_PTree_store with (gfs2 := gfs) (gfs0 := nil) (gfs1 := gfs) (t_root0 := t_root) (sh0 := sh);  eauto.
   + rewrite app_nil_r; reflexivity.
