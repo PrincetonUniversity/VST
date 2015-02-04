@@ -31,8 +31,8 @@ Fixpoint legal_nested_efield_rec t_root e (gfs: list gfield) (tts: list type) lr
 
 Definition legal_nested_efield env t_root e gfs tts lr :=
   match gfs, tts, lr with
-  | nil, nil, RRRR => eqb_type (uncompomize env t_root) (typeof e)
-  | nil, nil, LLLL => false
+  | nil, nil, RRRR => false
+  | nil, nil, LLLL => eqb_type (uncompomize env t_root) (typeof e)
   | nil, _, _ => false
   | _ , nil, _ => false
   | gf :: gfs0, t0 :: tts0, _ => 
