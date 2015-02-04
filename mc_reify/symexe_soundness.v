@@ -109,6 +109,7 @@ Proof.
       * apply REFLEXIVITY_OP_CTYPE_sound.
       * admit (*reflexivity msusbst_sound*).
       * apply REFLEXIVITY_BOOL_sound.
+      * admit (*after_set*).
       * admit. (*apply REFLEXIVITYTAC_sound.*)
 Qed.
 
@@ -126,6 +127,7 @@ Proof.
       * apply REFLEXIVITY_OP_CTYPE_sound.
       * apply REFLEXIVITY_BOOL_sound.
       * apply REFLEXIVITY_CEXPR_sound.
+      * admit (*after_load*).
       * apply REFLEXIVITYTAC_sound.
       * admit (*reflexivity msusbst_sound*).
       * admit (*reflexivity msusbst_efield_sound*).
@@ -134,7 +136,34 @@ Proof.
       * apply APPLY_sound_prop_right.
       * apply REFLEXIVITYTAC_sound.
 Qed.
-  
+
+Lemma FORWARD_STORE_sound: forall Struct_env Delta Pre s, rtac_sound (FORWARD_STORE tbl Struct_env Delta Pre s).
+Proof.
+  intros.
+  unfold FORWARD_STORE.
+  apply THEN_sound.
+  + destruct (compute_hlip_arg (Delta, Pre, s)) as [[[[[? ?] ?] ?] ?] ?].
+    apply HLIP_sound.
+  + destruct (compute_store_arg (Delta, Pre, s)) as [[[[[[[[[[[[[? ?] ?] ?] ?] ?] ?] ?] ?] ?] ?] ?] ?]|]; [| apply FAIL_sound].
+    apply THEN_sound.
+    - apply APPLY_sound_store_lemma.
+    - apply THEN_sound; apply TRY_sound; [apply FIRST_sound; repeat constructor | repeat apply THEN_sound].
+      * apply REFLEXIVITY_CTYPE_sound.
+      * apply REFLEXIVITY_BOOL_sound.
+      * apply REFLEXIVITY_CEXPR_sound.
+      * admit (*after_store*).
+      * apply REFLEXIVITYTAC_sound.
+      * apply FIRST_sound; repeat constructor.
+        apply APPLY_sound_writable_Tsh.
+        apply APPLY_sound_writable_Ews.
+      * admit (*reflexivity msusbst_sound*).
+      * admit (*reflexivity msusbst_efield_sound*).
+      * admit (*reflexivity nth_error_sound*).
+      * admit. (* INTROS *)
+      * apply APPLY_sound_prop_right.
+      * apply REFLEXIVITYTAC_sound.
+Qed.
+
 Lemma SYMEXE_STEP_sound: forall Struct_env, rtac_sound (SYMEXE_STEP tbl Struct_env).
 Proof.
 intros.
@@ -142,7 +171,6 @@ unfold SYMEXE_STEP.
 apply Then.THEN_sound; [apply INSTANTIATE_sound |].
 apply runOnGoals_sound.
 apply Then.THEN_sound.
-(*apply THEN_sound; [apply SIMPL_SET_sound |].*)
 eapply AT_GOAL_sound.
 intros.
 destruct (get_arguments e);
@@ -152,7 +180,7 @@ repeat match goal with
        end.
 + apply FORWARD_SET_sound.
 + apply FORWARD_LOAD_sound.
-+ admit.
++ apply FORWARD_STORE_sound.
 + unfold APPLY_SEQ.
   apply THEN_sound.
   unfold APPLY_SEQ'.
@@ -178,24 +206,22 @@ Qed.
 
 Theorem SYMEXE_sound : rtac_sound (SYMEXE_TAC_n n tbl).
 Proof.
-
-Admitted.
-(*
-  repeat apply THEN_sound.
-  + admit. (*jesper*)
-  + apply APPLY_sound_semax_post'.
-  + apply TRY_sound.
-    eapply AT_GOAL_sound.
-    intros.
-    destruct (get_arguments e) as [[[[[[[? ?] ?] ?] ?]|] ?] ?]; [| apply FAIL_sound].
-    apply REPEAT_sound.
-    apply SYMEXE_STEP_sound.
-  + apply TRY_sound.
-    apply THEN_sound.
-    - admit. (* INTROS *)
-    - apply APPLY_sound_derives_refl.
+  apply Then.THEN_sound.
+  + repeat apply THEN_sound.
+    - admit. (*jesper*)
+    - apply APPLY_sound_semax_post'.
+    - apply TRY_sound.
+      eapply AT_GOAL_sound.
+      intros.
+      destruct (get_arguments e) as [[[[[[[? ?] ?] ?] ?]|] ?] ?]; [| apply FAIL_sound].
+      apply REPEAT_sound.
+      apply SYMEXE_STEP_sound.
+    - apply TRY_sound.
+      apply THEN_sound.
+      * admit. (* INTROS *)
+      * apply APPLY_sound_derives_refl.
+  + admit (* MINIFY *).
 Qed.
-*)
 
 End tbled.
 
@@ -342,7 +368,7 @@ forall post v sh,  (semax
      (normal_ret_assert  post)).
 
 
-Definition sets := 100%nat.
+Definition sets := 1%nat.
 Definition temps_tycon := sets.
 Definition temps_local := 0%nat.
 Definition vars_local := temps_local.
@@ -459,8 +485,6 @@ Print Timing Profile.
   12 exact:	(total:0.326034, mean:0.326034, runs:1, sigma2:0.000000)
 13 VM_CAST:	(total:0.255638, mean:0.255638, runs:1, sigma2:0.000000)
      total:	(total:4.307944, mean:4.307944, runs:1, sigma2:0.000000) *)
-
-Show Proof.
 
 (* for a small goal:
 (fun (post : environ -> mpred) (v : val) (sh : Share.t) =>
@@ -693,7 +717,7 @@ Show Proof.
                            (Var 0%nat)))
                      (App (Inj (inl (inl (inl 2%positive)))) (Var 0%nat)))))))
     H) ?139) *)
-
+(*
 admit.
 Time Qed. (*109 seconds with change for 100 vars
             123 seconds without change for 100 vars
@@ -807,7 +831,7 @@ split.
 + intros.
   admit.
 + intros.
-  cbv_denote.
+  simpl.
   simpl typeof.
   unfold proj_val, proj_reptype.
   simpl.
@@ -848,6 +872,47 @@ intros.
 apply derives_refl.
 Qed.
 
+Goal
+forall {Espec : OracleKind} (contents : list val) (v: val) ,  
+   (semax
+     (remove_global_spec Delta) (*empty_tycontext*)
+     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+       [data_at Tsh t_struct_list (Values.Vundef, Values.Vint Int.zero) (force_ptr v)])
+     (Sassign 
+            (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
+              _tail (tptr t_struct_list))
+          (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
+     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+       [data_at Tsh t_struct_list (Vundef, Vint Int.zero) (force_ptr v)])
+)).
+intros.
+unfold empty_tycontext, Delta, remove_global_spec.
+unfold t_struct_list.
+rforward.
+split.
++ unfold reptype_reptyp. simpl.
+  auto.
++ intros.
+  apply prop_right.
+  solve_legal_nested_field.
+Qed.
+
+(*
+Fixpoint lots_temps' n p :=
+match n with 
+| O => PTree.set p (tptr t_struct_list, true) (PTree.empty _)
+| S n' =>  PTree.set p (tptr t_struct_list, true) (lots_temps' n' (Psucc p))
+end.
+
+Definition lots_temps (n : nat) : PTree.t (type * bool) := lots_temps' (S n) (1%positive).
+
+Fixpoint lots_of_sets' n p :=
+match n with 
+| O => (Sset p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+| S n' => Ssequence (Sset p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))) (lots_of_sets' n' (Psucc p))
+end.
+
+Definition lots_of_sets n := lots_of_sets' n 1%positive.
 
 Goal
 forall  (contents : list val), exists PO, 
@@ -877,3 +942,6 @@ unfold Delta, remove_global_spec.
 intros.
 rforward. 
 Abort.
+*)
+
+*)

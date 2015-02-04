@@ -295,6 +295,11 @@ reptyp_unionlist
 
 
           ] in e.
+
+Ltac cbv_denote_goal :=
+match goal with
+[ |- ?G] => let x := cbv_denote hd G in change x
+end.
 (*Tactic Notation "cbv_denote" "in" ident(H) := cbv_denote_in H.*)
 (*Locate goalD_Prop.
 

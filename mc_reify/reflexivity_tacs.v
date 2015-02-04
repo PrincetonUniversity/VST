@@ -1,5 +1,6 @@
 Require Import mc_reify.func_defs.
 Require Import mc_reify.list_ctype_eq.
+Require Import mc_reify.get_set_reif.
 Require Import MirrorCore.Lambda.ExprUnify_simul.
 Require Import MirrorCore.RTac.RTac.
 Require Import MirrorCore.Lemma.
@@ -37,6 +38,59 @@ Instance MentionsAnyOk : MentionsAnyOk MA _ _.
 Admitted.
 
 Ltac solve_exprD := solve_exprD.solve_exprD tbl.
+
+Definition AFTER_SET_LOAD : rtac typ (expr typ func) :=
+fun tus tvs n m c s e => 
+  match e with 
+| (App (App (Inj (inr (Other (feq ty)))) l) r) =>
+  match l with
+  | App
+      (App (App (Inj (inr (Smx fassertD))) P)
+         (App
+            (App (Inj (inr (Smx flocalD)))
+               (App
+                  (App (Inj (inr (Data (fset tyval id))))
+                     v) T1)) T2)) R =>
+    let l' :=
+    App
+      (App (App (Inj (inr (Smx fassertD))) P)
+         (App
+            (App (Inj (inr (Smx flocalD)))
+                  (set_reif id v T1 tyval)) T2)) R
+    in
+    match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
+                                 tus tvs 0 l' r ty s with
+    | Some s => RTac.Core.Solved s 
+    | None =>  RTac.Core.Fail
+    end
+  | _ => RTac.Core.Fail
+  end
+| _ => RTac.Core.Fail
+end.
+
+Definition AFTER_STORE : rtac typ (expr typ func) :=
+fun tus tvs n m c s e => 
+  match e with 
+| (App (App (Inj (inr (Other (feq ty)))) l) r) =>
+  match l with
+  | App
+      (App (App (Inj (inr (Smx fassertD))) P) Q)
+      (App
+         (App (Inj (inr (Data (freplace_nth tympred n)))) R) Rn) =>
+    let l' :=
+    App
+      (App (App (Inj (inr (Smx fassertD))) P) Q)
+      (rreplace_nth tympred n R Rn)
+    in
+    match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
+                                 tus tvs 0 l' r ty s with
+    | Some s => RTac.Core.Solved s 
+    | None =>  RTac.Core.Fail
+    end
+  | _ => RTac.Core.Fail
+  end
+| _ => RTac.Core.Fail
+end.
 
 Definition REFLEXIVITYTAC : rtac typ (expr typ func) :=
 fun tus tvs n m c s e => 
