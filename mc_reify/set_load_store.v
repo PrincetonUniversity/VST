@@ -367,8 +367,8 @@ Proof.
     unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
     unfold ModularFunc.ILogicFunc.typ2_cast_quant, ModularFunc.ILogicFunc.typ2_cast_bin in *; simpl in *.
     eapply semax_store_localD; eauto.
-    rewrite reptyp_reptype_reptype_reptyp in H12.
-    exact H12.
+    rewrite reptyp_reptype_reptype_reptyp in H11.
+    exact H11.
 Qed.
 
 Lemma APPLY_sound_load_lemma: forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
