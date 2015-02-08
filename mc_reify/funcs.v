@@ -384,6 +384,57 @@ match s with
                   (tyArr tyval (reptyp t)))
 end.
 
+Definition proj1T {A} {B} (x: A /\ B) :=
+  match x with
+  | conj y z => y
+  end.
+
+Definition proj2T {A} {B} (x: A /\ B) :=
+  match x with
+  | conj y z => z
+  end.
+
+Definition typD_reptyp_reptype: forall t, typD  (reptyp t) = reptype t.
+Proof.
+  intros.
+  apply (type_mut (fun t => typD (reptyp t) = reptype t)
+                  (fun tl => True)
+                  (fun fld => typD (reptyp_structlist fld) = reptype_structlist fld /\
+                              typD (reptyp_unionlist fld) = reptype_unionlist fld));
+  try reflexivity; intros.
+  + simpl.
+    rewrite H.
+    reflexivity.
+  + simpl.
+    apply (proj1T H).
+  + simpl.
+    apply (proj2T H).
+  + split; reflexivity.
+  + split; simpl.
+    - destruct (is_Fnil f); simpl; rewrite H; try rewrite (proj1T H0); reflexivity.
+    - destruct (is_Fnil f); simpl; rewrite H; try rewrite (proj2T H0); reflexivity.
+Defined.
+
+Definition reptyp_reptype ty (v: typD  (reptyp ty)): reptype ty :=
+  eq_rect_r (fun x => x) v (eq_sym (typD_reptyp_reptype ty)).
+
+Definition reptype_reptyp ty (v: reptype ty): typD  (reptyp ty) :=
+  eq_rect_r (fun x => x) v (typD_reptyp_reptype ty).
+
+Lemma reptyp_reptype_reptype_reptyp: forall t v, reptyp_reptype t (reptype_reptyp t v) = v.
+Proof.
+  intros.
+  unfold reptyp_reptype, reptype_reptyp.
+  unfold eq_rect_r.
+  generalize (typD_reptyp_reptype t).
+  revert v.
+  rewrite (typD_reptyp_reptype t).
+  intros.
+  rewrite <- !eq_rect_eq.
+  reflexivity.
+Qed.
+
+(*
 Fixpoint reptyp_reptype  ty {struct ty} : typD  (reptyp ty) -> reptype ty :=
   match ty as ty0 return (typD  (reptyp ty0) -> reptype ty0) with
     | Tvoid => fun x : unit => x
@@ -531,7 +582,7 @@ Proof.
       rewrite (proj2 H0).
       reflexivity.
 Qed.
-
+*)
 Definition sepD  (s : sep) : typD  (typeof_sep s).
 refine
 match s with
