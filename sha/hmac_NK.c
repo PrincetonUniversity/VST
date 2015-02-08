@@ -96,7 +96,9 @@ void HMAC_Init(HMAC_CTX *ctx, unsigned char *key, int len)
 {
      int i,j,reset=0;
      unsigned char pad[HMAC_MAX_MD_CBLOCK];
-   
+
+     unsigned char aux; //tmporary, for the initialization loops
+
      //unsigned int ctx_key_length;
      unsigned char ctx_key[HMAC_MAX_MD_CBLOCK];
 
@@ -138,8 +140,11 @@ void HMAC_Init(HMAC_CTX *ctx, unsigned char *key, int len)
      
      if (reset)	
        {
-	 for (i=0; i<HMAC_MAX_MD_CBLOCK; i++)
-	 	pad[i]=0x36^ctx_key[i];
+	 for (i=0; i<HMAC_MAX_MD_CBLOCK; i++) {
+           aux = ctx_key[i];
+	   aux = 0x36^aux;
+           pad[i]=aux; 
+         }
 
          //Initialize inner SHA structure, and hash ipad 
 	 //EVP_DigestInit(&ctx->i_ctx,md);

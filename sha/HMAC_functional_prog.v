@@ -21,16 +21,17 @@ Module Type HMAC_Module.
 End HMAC_Module.
 
 Module HMAC_FUN (HF:HASH_FUNCTION)  <: HMAC_Module.
+(*
 Fixpoint Nlist {A} (i:A) n: list A:=
   match n with O => nil
   | S m => i :: Nlist i m
   end.
-
-Definition sixtyfour {A} (i:A): list A:= Nlist i HF.BlockSize.
+*)
+Definition sixtyfour {A} (i:A): list A:= list_repeat HF.BlockSize i.
 
 (*Reading rfc4231 reveals that padding happens on the right*)
 Definition zeroPad (k: list Z) : list Z :=
-  k ++ Nlist Z0 (HF.BlockSize-length k).
+  k ++ list_repeat (HF.BlockSize-length k) Z0.
 
 Definition mkKey (l:list Z) : list Z :=
   if Z.gtb (Zlength l) (Z.of_nat HF.BlockSize)

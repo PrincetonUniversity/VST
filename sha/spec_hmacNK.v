@@ -207,7 +207,7 @@ Definition hmacstate_PreInitNull key (h: hmacabs) (c: val) : mpred :=
     !!  hmac_relate_PreInitNull key h r && 
 
     data_at Tsh t_struct_hmac_ctx_st 
-       (upd_reptype t_struct_hmac_ctx_st [_md_ctx] r v) c.
+       (upd_reptype t_struct_hmac_ctx_st [StructField _md_ctx] r v) c.
 
 Definition initPre (c:val) (k: val) h key : mpred:=
   match k with
@@ -282,7 +282,7 @@ Definition hmacstate_PostFinal (h: hmacabs) (c: val) : mpred :=
    EX r:hmacstate, 
     !!  hmac_relate_PostFinal h r && 
     data_at Tsh t_struct_hmac_ctx_st 
-       (upd_reptype t_struct_hmac_ctx_st [_md_ctx] r  (default_val t_struct_SHA256state_st)) c.
+       (upd_reptype t_struct_hmac_ctx_st [StructField _md_ctx] r  (default_val t_struct_SHA256state_st)) c.
 
 Definition HMAC_Final_spec :=
   DECLARE _HMAC_Final
@@ -315,7 +315,7 @@ Definition HMAC_Cleanup_spec :=
           PROP (size_compatible t_struct_hmac_ctx_st c /\
                 align_compatible t_struct_hmac_ctx_st c) 
           LOCAL ()
-          SEP(`(data_block Tsh (HMAC_SHA256.Nlist 0 (Z.to_nat(sizeof t_struct_hmac_ctx_st))) c)).
+          SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) 0) c)).
 
 Record DATA := { LEN:Z; CONT: list Z}.
 

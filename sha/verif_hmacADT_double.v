@@ -11,7 +11,9 @@ Require Import sha.HMAC_functional_prog.
 Require Import sha.hmac_NK.
 
 Require Import sha.spec_hmacADT.
-Require Import HMAC_lemmas.
+Require Import vst_lemmas.
+Require Import hmac_pure_lemmas.
+Require Import hmac_common_lemmas.
 
 Lemma body_hmac_double: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC2 HMAC_Double_spec.
@@ -58,7 +60,7 @@ forward_if POSTCOND.
 subst POSTCOND.
 apply extract_exists_pre. intros c. normalize. rename H into isPtrC.
 eapply semax_seq'. 
-frame_SEP 0 1 3.
+myframe_SEP'' [0; 1; 3].
 remember (HMACabs init_s256abs init_s256abs init_s256abs) as initHMA.
 remember (c, k, Vint (Int.repr kl), key, KV, initHMA) as WITNESS.
 forward_call WITNESS.
@@ -71,28 +73,22 @@ forward_call WITNESS.
    apply (exp_right (default_val t_struct_hmac_ctx_st)); entailer.
    
 after_call.
-subst WITNESS. normalize. simpl. (*rewrite elim_globals_only'. normalize.*)
+subst WITNESS. normalize. simpl. 
 apply semax_pre with (P':=
       EX  x : hmacabs,
-  (PROP  ()
+  (PROP  (hmacInit key x)
    LOCAL  (tc_environ Delta; `(eq md) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-   (`(fun a : environ =>
-      (PROP  (hmacInit key x)
-       LOCAL  (`(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-       SEP  (`(hmacstate_ x c); `(initPostKey k key); `(K_vector KV))) a)
-      globals_only; `(data_block Tsh data d);
-   `(memory_block shmd (Int.repr 64) md)))).
-  entailer. rename x into h0. 
-     apply exp_right with (x:=h0). entailer.
-apply extract_exists_pre. intros h0. normalize. simpl. normalize. rename H into HmacInit.
+   SEP (`(hmacstate_ x c); `(initPostKey k key); `(K_vector KV);
+        `(data_block Tsh data d); `(memory_block shmd (Int.repr 64) md)))).
+  entailer. apply (exp_right x). entailer.
+apply extract_exists_pre. intros h0. normalize. simpl. rename H into HmacInit.
 
 eapply semax_seq'. 
-frame_SEP 0 2 3.
+myframe_SEP'' [0; 2; 3].
 remember (h0, c, d, dl, data, KV) as WITNESS.
 (*Remark on confusing error messages: if the spec of HMAC_update includes _len OF tuint
   instead of _len OF tint, the following forward_call fails, complaining that
@@ -109,270 +105,218 @@ forward_call WITNESS.
     Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
              rewrite HH; assumption. 
     destruct h0; simpl in *. 
-    destruct H2 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
+    destruct H1 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion HmacInit; clear HmacInit.
-    destruct H2 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
+    destruct H1 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst. assumption.
 after_call.
 subst WITNESS. normalize.
-unfold update_tycon. simpl. normalize.
 
 (**** It's not quite clear to me why we need to use semax_pre here - 
   ie why normalize can't figure this out (at least partially).
   It seems exp doesn't distribute over liftx, but it should *)
 eapply semax_pre with (P':= EX  x : hmacabs, 
-   PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta; `(eq md) (eval_id _md);
+   PROP  (hmacUpdate data h0 x)
+   LOCAL  (tc_environ Delta; `(eq md) (eval_id _md);
    `(eq k) (eval_id _key); `(eq (Vint (Int.repr kl))) (eval_id _key_len);
    `(eq d) (eval_id _d); `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP (`(fun a : environ =>
-      (PROP  (hmacUpdate data h0 x)
-       LOCAL ()
-       SEP  (`(K_vector KV); `(hmacstate_ x c); `(data_block Tsh data d))) a)
-      globals_only; `(initPostKey k key); `(memory_block shmd (Int.repr 64) md))).
-  entailer. rename x into h1. apply exp_right with (x:=h1).
-  entailer. 
-(********************************************************)
-apply extract_exists_pre. intros h1. normalize. simpl. normalize.
-rename H into HmacUpdate.
+   SEP (`(K_vector KV); `(hmacstate_ x c); `(data_block Tsh data d);
+        `(initPostKey k key); `(memory_block shmd (Int.repr 64) md))).
+  entailer. apply (exp_right x). entailer. 
+apply extract_exists_pre. intros h1. normalize. simpl. rename H into HmacUpdate.
 
-rewrite (split_memory_block 32). 2: omega. 2: trivial. simpl. 
+
+(*XXX: was: rewrite (split_memory_block 32). 2: omega. 2: trivial. simpl. 
 normalize. rename H into OIR_0_md. rename H0 into OIR_64_md.
- 
+Look what we now need to do:*)
+destruct md; try contradiction; clear isPtrMD.
+assert (GTmod64: 64 < Int.modulus).
+  rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
+specialize (memory_block_size_compatible shmd (tarray tuint 16)). simpl; intros.
+rewrite (H _ GTmod64); clear H.
+normalize. unfold size_compatible in H. simpl in H; rename H into SizeCompat64.
+specialize (memory_block_split shmd b (Int.unsigned i) 32 32); intros XX.
+  rewrite Int.repr_unsigned in XX. 
+  assert (32 + 32 = 64) by omega. rewrite H in XX; clear H.
+  rewrite XX; clear XX.
+2: omega. 2: trivial. 2: trivial. 
+Focus 2. split; try omega. specialize (Int.unsigned_range i). omega.
+normalize. (*GTmad64 and SizeCompat play the roles of the earlier OIR_0_md and OIR_64_md*)
+
 eapply semax_seq'. 
-frame_SEP 3 2 0.
-remember (h1, c, md, shmd, KV) as WITNESS.
+myframe_SEP'' [3; 2; 0].
+remember (h1, c, Vptr b i, shmd, KV) as WITNESS.
 forward_call WITNESS.
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
   subst WITNESS. entailer.
 after_call.
-subst WITNESS. normalize.
-unfold update_tycon. simpl. normalize. 
+subst WITNESS. normalize. simpl. 
 
 (**** Again, distribute EX over lift*)
 eapply semax_pre with (P':=
-      EX dig : list Z,
-  (PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta; tc_environ Delta;
-   `(eq md) (eval_id _md); `(eq k) (eval_id _key);
+      EX dig : list Z, EX  h2 : hmacabs,
+  (PROP  (hmacFinal h1 dig h2)
+   LOCAL  (tc_environ Delta; 
+   `(eq (Vptr b i)) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-   (`(fun a : environ =>
-      (EX  h2 : hmacabs,
-       (PROP  (hmacFinal h1 dig h2)
-        LOCAL ()
-        SEP  (`(K_vector KV); `(hmacstate_PostFinal h2 c);
-        `(data_block shmd dig md))) a)) globals_only;
-   `(memory_block shmd (Int.repr 32) (offset_val (Int.repr 32) md));
-   `(data_block Tsh data d); `(initPostKey k key)))).
+   SEP (`(K_vector KV); `(hmacstate_PostFinal h2 c);
+        `(data_block shmd dig (Vptr b i));
+        `(memory_block shmd (Int.repr 32)
+           (Vptr b (Int.repr (Int.unsigned i + 32)))); `(data_block Tsh data d);
+       `(initPostKey k key)))).
    entailer.
-   apply exp_right with (x1:=x). entailer. 
-   apply exp_right with (x1:=x0). entailer. 
-apply extract_exists_pre. intros dig. normalize.
-eapply semax_pre with (P':=
-      EX h2 : hmacabs,
-  (PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta; tc_environ Delta;
-   `(eq md) (eval_id _md); `(eq k) (eval_id _key);
-   `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
-   `(eq (Vint (Int.repr dl))) (eval_id _n);
-   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-   (`(fun a : environ =>
-      (PROP  (hmacFinal h1 dig h2)
-       LOCAL ()
-       SEP  (`(K_vector KV); `(hmacstate_PostFinal h2 c);
-       `(data_block shmd dig md))) a) globals_only;
-   `(memory_block shmd (Int.repr 32) (offset_val (Int.repr 32) md));
-   `(data_block Tsh data d); `(initPostKey k key)))).
-   entailer. 
-   apply exp_right with (x0:=x). entailer. 
-apply extract_exists_pre. intros h2. normalize. simpl. normalize.
+   apply (exp_right x).
+   apply (exp_right x0). entailer. 
+apply extract_exists_pre. intros dig.
+apply extract_exists_pre. intros h2. normalize. simpl.
 rename H into Round1Final.
 
+Lemma hmacstate_PostFinal_PreInitNull key h0 data h1 dig h2 v:
+      forall (HmacInit : hmacInit key h0)
+             (HmacUpdate : hmacUpdate data h0 h1)
+             (Round1Final : hmacFinal h1 dig h2),
+      hmacstate_PostFinal h2 v (* (eval_var _c t_struct_hmac_ctx_st rho)*)
+  |-- hmacstate_PreInitNull key h2 v.
+Proof. intros. 
+  unfold hmacstate_PostFinal, hmac_relate_PostFinal, hmacstate_PreInitNull; normalize.
+  unfold hmac_relate_PreInitNull; simpl.
+  apply exp_right with (x:=r).
+  apply exp_right with (x:=([], (Vundef, (Vundef, ([], Vundef))))).
+  apply andp_right. 
+    destruct h2. destruct h1. simpl in *.
+    destruct Round1Final as [oSA [UPDO [XX FinDig]]]. inversion XX; subst; clear XX.
+    destruct h0. simpl in *. destruct HmacUpdate as [ctx2 [UpdI XX]]. inversion XX; subst; clear XX.
+    unfold  hmacInit in HmacInit. simpl in *. 
+    destruct HmacInit as [IS [OS [ISHA [OSHA XX]]]].  inversion XX; subst; clear XX. 
+    apply prop_right; intuition.
+  cancel.
+Qed.
 (**************Round 2*******************************)
 eapply semax_pre with (P':=
   (PROP  ()
    LOCAL  (tc_environ Delta; 
-   `(eq md) (eval_id _md); `(eq k) (eval_id _key);
+   `(eq (Vptr b i)) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP  (`(K_vector KV);
    `(initPre (Vint (Int.repr kl)) c nullval h2 key);
-   `(data_block shmd dig md);
-   `(memory_block shmd (Int.repr 32) (offset_val (Int.repr 32) md));
+   `(data_block shmd dig (Vptr b i));
+   `(memory_block shmd (Int.repr 32) (Vptr b (Int.repr (Int.unsigned i + 32))));
    `(data_block Tsh data d); `(initPostKey k key)))).
-{ entailer. cancel. 
-  unfold hmacstate_PostFinal, hmac_relate_PostFinal, hmacstate_PreInitNull; normalize.
-  unfold hmac_relate_PreInitNull; simpl.
-  apply exp_right with (x:=r).
-  apply exp_right with (x:=([], (Vundef, (Vundef, ([], Vundef))))).
-  apply andp_right. 
-  { destruct h2. destruct h1. simpl in *.
-    destruct Round1Final as [oSA [UPDO [XX FinDig]]]. inversion XX; subst; clear XX.
-    destruct h0. simpl in *. destruct HmacUpdate as [ctx2 [UpdI XX]]. inversion XX; subst; clear XX.
-    unfold  hmacInit in HmacInit. simpl in *. 
-    destruct HmacInit as [IS [OS [ISHA [OSHA XX]]]].  inversion XX; subst; clear XX. 
-    apply prop_right; intuition.     
-(*    destruct H8 as [i [I1 [I2 I3]]]. exists i; intuition.*)
+  { entailer. cancel. eapply hmacstate_PostFinal_PreInitNull; eassumption. 
   }
-  cancel.
-}
 
 eapply semax_seq'. 
-frame_SEP 0 1.
-remember (c, nullval, Vint (Int.repr kl), key, KV, h2) as WITNESS.
-forward_call WITNESS.
+myframe_SEP'' [0; 1].
+forward_call (c, nullval, Vint (Int.repr kl), key, KV, h2).
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
-  subst WITNESS. entailer. 
+  entailer. 
 after_call.
-subst WITNESS. normalize. simpl. (*rewrite elim_globals_only'. normalize.*)
+normalize. simpl.
+
 apply semax_pre with (P':=
       EX  x : hmacabs,
-  (PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta; `(eq md) (eval_id _md);
+  (PROP  (hmacInit key x)
+   LOCAL  (tc_environ Delta; `(eq (Vptr b i)) (eval_id _md);
    `(eq k) (eval_id _key); `(eq (Vint (Int.repr kl))) (eval_id _key_len);
    `(eq d) (eval_id _d); `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-   (`(fun a : environ =>
-      (PROP  (hmacInit key x)
-       LOCAL  (`(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-       SEP  (`(hmacstate_ x c); `(!!(Int.zero = Int.zero) && emp);
-       `(K_vector KV))) a) globals_only; `(data_block shmd dig md);
-   `(memory_block shmd (Int.repr 32) (offset_val (Int.repr 32) md));
-   `(data_block Tsh data d); `(initPostKey k key)))).
-  entailer. rename x into h3. apply exp_right with (x:=h3). entailer.
-apply extract_exists_pre. intros h3. normalize. simpl. normalize. rename H into h3_init.
+   SEP (`(hmacstate_ x c);  `(K_vector KV); `(data_block shmd dig (Vptr b i));
+      `(memory_block shmd (Int.repr 32)  (Vptr b (Int.repr (Int.unsigned i + 32))));
+     `(data_block Tsh data d); `(initPostKey k key)))).
+  entailer. apply (exp_right x). entailer.
+apply extract_exists_pre. intros h3. normalize. simpl. rename H into h3_init.
 
 eapply semax_seq'. 
-frame_SEP 0 2 5.
-remember (h3, c, d, dl, data, KV) as WITNESS.
-forward_call WITNESS.
+myframe_SEP'' [0; 1; 4].
+forward_call (h3, c, d, dl, data, KV).
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
-  subst WITNESS. entailer.
+  entailer.
   apply andp_right. 2: cancel.
     unfold hmacstate_. normalize. apply prop_right. 
     assert (HH: s256a_len (absCtxt h3) = 512).
     Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
              rewrite HH; assumption. 
     destruct h3; simpl in *. 
-    destruct H2 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
+    destruct H1 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion h3_init; clear h3_init.
-    destruct H2 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
+    destruct H1 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst. assumption.
 after_call.
-subst WITNESS. normalize.
-unfold update_tycon. simpl. normalize.
+normalize. simpl.
 
 eapply semax_pre with (P':=EX  x : hmacabs, 
-  (PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta; tc_environ Delta;
-   `(eq md) (eval_id _md); `(eq k) (eval_id _key);
+  (PROP  (hmacUpdate data h3 x)
+   LOCAL  (tc_environ Delta; 
+   `(eq (Vptr b i)) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-   (`(fun a : environ =>
-      (PROP  (hmacUpdate data h3 x)
-       LOCAL ()
-       SEP  (`(K_vector KV); `(hmacstate_ x c); `(data_block Tsh data d))) a)
-      globals_only; `(data_block shmd dig md);
-   `(memory_block shmd (Int.repr 32) (offset_val (Int.repr 32) md));
-   `(initPostKey k key)))).
-  entailer. rename x into h4. apply exp_right with (x:=h4).
-  entailer. 
-(********************************************************)
-apply extract_exists_pre. intros h4. normalize. simpl. normalize.
-rename H into h4_update.
+   SEP (`(K_vector KV); `(hmacstate_ x c); `(data_block Tsh data d);
+        `(data_block shmd dig (Vptr b i));
+        `(memory_block shmd (Int.repr 32) (Vptr b (Int.repr (Int.unsigned i + 32))));
+       `(initPostKey k key)))).
+  entailer. apply (exp_right x). entailer. 
+apply extract_exists_pre. intros h4. normalize. rename H into h4_update.
 
 eapply semax_seq'. 
-frame_SEP 0 1 4.
-remember (h4, c, offset_val (Int.repr 32) md, shmd, KV) as WITNESS.
-forward_call WITNESS.
+myframe_SEP'' [0; 1; 4].
+forward_call (h4, c, Vptr b (Int.repr (Int.unsigned i + 32)), shmd, KV).
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
-  subst WITNESS. entailer. cancel.
+  entailer. cancel.
 after_call.
-subst WITNESS. normalize.
-unfold update_tycon. simpl. normalize. 
+normalize. simpl.
 
 (**** Again, distribute EX over lift*)
 eapply semax_pre with (P':=
-      EX dig2 : list Z,
-  (PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta; tc_environ Delta;
-   tc_environ Delta; `(eq md) (eval_id _md); `(eq k) (eval_id _key);
+      EX dig2 : list Z, EX h5 : hmacabs,
+  (PROP  (hmacFinal h4 dig2 h5)
+   LOCAL  (tc_environ Delta; 
+   `(eq (Vptr b i)) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-   (`(fun a : environ =>
-      (EX  x0 : hmacabs,
-       (PROP  (hmacFinal h4 dig2 x0)
-        LOCAL ()
-        SEP  (`(K_vector KV); `(hmacstate_PostFinal x0 c);
-        `(data_block shmd dig2 (offset_val (Int.repr 32) md)))) a)) globals_only;
-   `(data_block Tsh data d); `(data_block shmd dig md); `(initPostKey k key)))).
+   SEP  (`(K_vector KV); `(hmacstate_PostFinal h5 c);
+        `(data_block shmd dig2 (Vptr b (Int.repr (Int.unsigned i + 32))));
+   `(data_block Tsh data d); `(data_block shmd dig (Vptr b i)); `(initPostKey k key)))).
    entailer.
-   apply exp_right with (x1:=x). entailer. 
+   apply exp_right with (x1:=x). 
    apply exp_right with (x1:=x0). entailer. 
-apply extract_exists_pre. intros dig2. normalize.
-eapply semax_pre with (P':=
-      EX h5 : hmacabs,
-  (PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta; tc_environ Delta;
-   tc_environ Delta; `(eq md) (eval_id _md); `(eq k) (eval_id _key);
-   `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
-   `(eq (Vint (Int.repr dl))) (eval_id _n);
-   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-   (`(fun a : environ =>
-      (PROP  (hmacFinal h4 dig2 h5)
-       LOCAL ()
-       SEP  (`(K_vector KV); `(hmacstate_PostFinal h5 c);
-       `(data_block shmd dig2 (offset_val (Int.repr 32) md)))) a)
-      globals_only; `(data_block Tsh data d); `(data_block shmd dig md);
-   `(initPostKey k key)))).
-   entailer. 
-   apply exp_right with (x0:=x). entailer. 
-apply extract_exists_pre. intros h5. normalize. simpl. normalize.
+apply extract_exists_pre. intros dig2. 
+apply extract_exists_pre. intros h5. normalize. simpl. 
 rename H into Round2Final.
 
 eapply semax_seq'.
-frame_SEP 1.
-remember (h5,c, KV) as WITNESS.
-forward_call WITNESS.
+myframe_SEP'' [1].
+forward_call (h5,c, KV).
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
-  subst WITNESS. entailer.
+  entailer.
 after_call.
-subst WITNESS. normalize.
-unfold update_tycon. simpl. normalize. simpl. normalize.
-  rename H into SCc. rename H0 into ACc.
+simpl. normalize. simpl. normalize. 
+rename H into SCc. rename H0 into ACc.
 
 forward.
-apply exp_right with (x:=dig).
+apply (exp_right dig).
 simpl_stackframe_of. normalize. clear H0. 
 assert (HS: hmacSimple key data dig).
     exists h0, h1. 
@@ -397,7 +341,8 @@ apply sepcon_derives.
   2: subst dig; rewrite app_length, HMAC_length; omega.
   entailer.
   rewrite initial_world.Zlength_app, HMAC_Zlength. 
-   apply andp_right. apply prop_right; assumption. 
+   apply andp_right. apply prop_right; simpl. 
+    specialize (Int.unsigned_range i). omega. 
 
   rewrite firstn_app1. 2: rewrite HMAC_length; trivial.
   rewrite firstn_precise.  2: rewrite HMAC_length; trivial.
@@ -409,9 +354,21 @@ apply sepcon_derives.
 unfold data_block.
   rewrite Zlength_correct; simpl.
 rewrite <- memory_block_data_at_; try reflexivity. 
-rewrite memory_block_array_tuchar. 
-normalize. clear H1. 
+(*XXX: WAS: rewrite memory_block_array_tuchar. 
+  normalize. clear H0. 
   apply andp_right.
     apply prop_right. trivial. cancel.
-simpl; omega.
+  simpl; omega.
+NOW:*)
+normalize.
+rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))).
+  apply data_at_data_at_.
+  trivial.
+  trivial.
+  trivial.
+  unfold align_compatible. destruct (eval_var _c t_struct_hmac_ctx_st rho); trivial.
+   simpl. apply Z.divide_1_l.
+  simpl. rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
+ 
+unfold align_compatible. destruct (eval_var _c t_struct_hmac_ctx_st rho); trivial.
 Qed.

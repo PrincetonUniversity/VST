@@ -261,7 +261,7 @@ Definition hmacstate_PreInitNull key (h: hmacabs) (c: val) : mpred :=
     !!  hmac_relate_PreInitNull key h r && 
 
     data_at Tsh t_struct_hmac_ctx_st 
-       (upd_reptype t_struct_hmac_ctx_st [_md_ctx] r v) c.
+       (upd_reptype t_struct_hmac_ctx_st [StructField _md_ctx] r v) c.
 (*
     data_at Tsh t_struct_hmac_ctx_st r c.*)
 
@@ -342,7 +342,7 @@ Definition hmacstate_PostFinal (h: hmacabs) (c: val) : mpred :=
    EX r:hmacstate, 
     !!  hmac_relate_PostFinal h r && 
     data_at Tsh t_struct_hmac_ctx_st 
-       (upd_reptype t_struct_hmac_ctx_st [_md_ctx] r  (default_val t_struct_SHA256state_st)) c.
+       (upd_reptype t_struct_hmac_ctx_st [StructField _md_ctx] r  (default_val t_struct_SHA256state_st)) c.
 (*
 Definition HMAC_FinalSimple_spec :=
   DECLARE _HMAC_Final
@@ -395,7 +395,7 @@ Definition HMAC_Cleanup_spec :=
           PROP (size_compatible t_struct_hmac_ctx_st c /\
                 align_compatible t_struct_hmac_ctx_st c) 
           LOCAL ()
-          SEP(`(data_block Tsh (HMAC_SHA256.Nlist 0 (Z.to_nat(sizeof t_struct_hmac_ctx_st))) c)).
+          SEP(`(data_block Tsh (list_repeat (Z.to_nat(sizeof t_struct_hmac_ctx_st)) 0) c)).
 
 Record DATA := { LEN:Z; CONT: list Z}.
 
@@ -499,6 +499,28 @@ Definition HMAC_Double_spec :=
               `(data_block shmd (digest++digest) md);
               `(initPostKey keyVal (CONT KEY) );
               `(data_block Tsh (CONT MSG) msgVal)).
+
+Lemma hmacstate_PostFinal_PreInitNull key h0 data h1 dig h2 v:
+      forall (HmacInit : hmacInit key h0)
+             (HmacUpdate : hmacUpdate data h0 h1)
+             (Round1Final : hmacFinal h1 dig h2),
+      hmacstate_PostFinal h2 v (* (eval_var _c t_struct_hmac_ctx_st rho)*)
+  |-- hmacstate_PreInitNull key h2 v.
+Proof. intros. 
+  unfold hmacstate_PostFinal, hmac_relate_PostFinal, hmacstate_PreInitNull; normalize.
+  unfold hmac_relate_PreInitNull; simpl.
+  apply exp_right with (x:=r).
+  apply exp_right with (x:=([], (Vundef, (Vundef, ([], Vundef))))).
+  apply andp_right. 
+    destruct h2. destruct h1. simpl in *.
+    destruct Round1Final as [oSA [UPDO [XX FinDig]]]. inversion XX; subst; clear XX.
+    destruct h0. simpl in *. destruct HmacUpdate as [ctx2 [UpdI XX]]. inversion XX; subst; clear XX.
+    unfold  hmacInit in HmacInit. simpl in *. 
+    destruct HmacInit as [IS [OS [ISHA [OSHA XX]]]].  inversion XX; subst; clear XX. 
+    apply prop_right; intuition.     
+    destruct H5 as [ii [I1 [I2 I3]]]. exists ii; intuition.
+  cancel.
+Qed.
 
 (*Definition SHA256_spec := (_SHA256, snd spec_sha.SHA256_spec). *)
 Definition sha256init_spec := (_SHA256_Init, snd SHA256_Init_spec).
