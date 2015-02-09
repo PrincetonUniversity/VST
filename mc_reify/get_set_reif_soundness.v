@@ -236,13 +236,14 @@ match goal with
     unfold node, leaf, some_reif, none_reif in *;  
 
     destruct_as_tree; solve_exprD.
-    + solve_exprD. unfold exprT_App. simpl. 
-      erewrite <- IHi in Heqo10; auto. inversion Heqo10. auto.  auto. auto.
-    + solve_exprD. unfold exprT_App. simpl.
-      erewrite <- IHi in *; eauto. inversion Heqo2. clear H2 Heqo2.
+    + pose_exprD'.
+      solve_exprD. unfold exprT_App. simpl. 
+      erewrite <- IHi in *; auto. inversion Heqo10. auto.  auto. auto.
+    + pose_exprD'. solve_exprD. unfold exprT_App. simpl.
+      erewrite <- IHi in *; eauto. inversion Heqo2. 
       Focus 2. solve_exprD. simpl. auto. 
-    + solve_exprD. erewrite <- IHi in *; eauto. inv Heqo11. auto.
-    + solve_exprD. unfold exprT_App. simpl. erewrite <- IHi in *; eauto.
+    + pose_exprD'. solve_exprD. erewrite <- IHi in *; eauto. inv Heqo11. auto.
+    + pose_exprD'. solve_exprD. unfold exprT_App. simpl. erewrite <- IHi in *; eauto.
       inversion Heqo6. Focus 2. solve_exprD. auto.
   - set_reif_tac.
   - set_reif_tac.

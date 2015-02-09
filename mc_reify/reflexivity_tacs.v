@@ -11,6 +11,7 @@ Require Import mc_reify.set_reif.
 Require Import mc_reify.solve_exprD.
 Require Import ExtLib.Tactics.
 Require Import MirrorCore.Lambda.ExprDsimul.
+Require Import get_set_reif_soundness.
 Import ExprDenote.
 
 
@@ -38,6 +39,8 @@ Instance MentionsAnyOk : MentionsAnyOk MA _ _.
 Admitted.
 
 Ltac solve_exprD := solve_exprD.solve_exprD tbl.
+Opaque type_cast.
+
 
 Definition AFTER_SET_LOAD : rtac typ (expr typ func) :=
 fun tus tvs n m c s e => 
@@ -68,6 +71,59 @@ fun tus tvs n m c s e =>
 | _ => RTac.Core.Fail
 end.
 
+Lemma AFTER_SET_LOAD_sound : rtac_sound AFTER_SET_LOAD.
+Proof.
+unfold rtac_sound.
+intros.
+unfold AFTER_SET_LOAD in *.
+repeat (destruct_match H; try solve [subst; apply rtac_spec_Fail]; try congruence).
+pose proof (exprUnify_sound).
+specialize (H0 (ctx_subst ctx) typ func  _ _ _ _ _ _ _ _ 
+
+_ _ 3).
+subst.
+red in H0. red in H0.
+unfold rtac_spec. simpl. intros.
+apply H0 with (tv' := nil) in Heqo1; auto. clear H0.
+destruct Heqo1.
+
+split. auto.
+forward. simpl in *.
+unfold propD in H4. unfold exprD'_typ0 in H4. 
+simpl in H4.
+solve_exprD.
+unfold exprT_App. simpl.
+destruct (pctxD_substD H1 H3).
+destruct H4.
+edestruct (H2 ( (fun (us0 : HList.hlist types.typD (getUVars ctx))
+             (vs0 : HList.hlist types.typD (getVars ctx)) =>
+           local2ptree.assertD (e14 us0 vs0)
+             (local2ptree.localD
+                (Maps.PTree.set p (e13 us0 vs0) (e11 us0 vs0)) 
+                (e8 us0 vs0)) (e5 us0 vs0)))); eauto. 
+
+solve_exprD. 
+edestruct set_reif_exprD. apply Heqo14.
+eauto. 
+instantiate (1 := p) in H6.
+pose_types tbl. fold func in *. unfold RSym_sym in *.
+ progress_match. solve_funcAs.
+solve_exprD. unfold exprT_App. simpl. 
+erewrite <- set_reif_eq2 in H6; eauto.
+solve_exprD.
+forward_reason.
+destruct (substD_pctxD _ H0 H3 H6).
+forward_reason.
+forward. inv_some.
+split. admit. (*what is this*)
+intros.  gather_facts.
+eapply Pure_pctxD. eauto. 
+intros. simpl in *.
+edestruct H7; eauto.
+specialize (H11 HList.Hnil).
+apply H11. 
+Admitted.
+
 Definition AFTER_STORE : rtac typ (expr typ func) :=
 fun tus tvs n m c s e => 
   match e with 
@@ -92,6 +148,48 @@ fun tus tvs n m c s e =>
 | _ => RTac.Core.Fail
 end.
 
+Lemma AFTER_STORE_sound : rtac_sound AFTER_STORE. 
+Proof.
+unfold rtac_sound.
+intros.
+unfold AFTER_STORE in *.
+repeat (destruct_match H; try solve [subst; apply rtac_spec_Fail]; try congruence).
+pose proof (exprUnify_sound).
+specialize (H0 (ctx_subst ctx) typ func  _ _ _ _ _ _ _ _ 
+
+_ _ 3).
+subst.
+red in H0. red in H0.
+unfold rtac_spec. simpl. intros.
+apply H0 with (tv' := nil) in Heqo1; auto. clear H0.
+destruct Heqo1.
+
+split. auto.
+forward. simpl in *.
+unfold propD in H4. unfold exprD'_typ0 in H4. 
+simpl in H4.
+solve_exprD.
+unfold exprT_App. simpl.
+destruct (pctxD_substD H1 H3).
+destruct H4.
+edestruct (H2 ( (fun (us0 : HList.hlist types.typD (getUVars ctx))
+             (vs0 : HList.hlist types.typD (getVars ctx)) =>
+           local2ptree.assertD (e11 us0 vs0) (e9 us0 vs0)
+             (canon.replace_nth n (e7 us0 vs0) (e6 us0 vs0))))); eauto. 
+admit.
+forward_reason.
+destruct (substD_pctxD _ H0 H3 H6).
+forward_reason.
+forward. inv_some.
+split. admit. (*what is this*)
+intros.  gather_facts.
+eapply Pure_pctxD. eauto. 
+intros. simpl in *.
+edestruct H7; eauto.
+specialize (H11 HList.Hnil).
+apply H11. 
+Admitted.
+
 Definition REFLEXIVITYTAC : rtac typ (expr typ func) :=
 fun tus tvs n m c s e => 
   match e with 
@@ -103,7 +201,6 @@ fun tus tvs n m c s e =>
   end
 | _ => RTac.Core.Fail
 end.
-Opaque type_cast.
 
 Lemma REFLEXIVITYTAC_sound  :
 rtac_sound (Expr_expr := func_defs.Expr_expr_fs tbl) REFLEXIVITYTAC.
@@ -250,9 +347,16 @@ intros.
 unfold func_defs.reflect, exprD in *. simpl in *.
 forward. inv_some.
 inversion H0. rewrite rel_dec_correct in Heqb.
-generalize (ExprFacts.exprD'_weaken).
+generalize (ExprFacts.exprD'_weaken    _ _ _ (getUVars ctx) (getVars ctx)  H4).
+generalize (ExprFacts.exprD'_weaken    _ _ _ (getUVars ctx) (getVars ctx)  H5).
 intros.
-admit. (*exprD' with nil same as with any environment?*)
+destruct H6, H7. simpl  in *. destruct H6, H7.
+fold func in *. unfold RSym_sym in *.
+solve_exprD. 
+specialize (H8 HList.Hnil HList.Hnil). 
+specialize (H9 HList.Hnil HList.Hnil).
+simpl in *.
+solve_exprD.
 Qed.
 
 Definition REFLEXIVITY_BOOL := REFLEXIVITY_DENOTE tybool.
