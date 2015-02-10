@@ -3,6 +3,7 @@ Require Import compcert.lib.Maps.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.get_set_reif.
 Require Import ExtLib.Tactics.
+Require Import floyd.client_lemmas.
 
 Ltac destruct_match H :=
 match type of H with
@@ -142,8 +143,8 @@ Qed.
 
 End tbled.
 
- 
-Ltac inv H := inversion H; subst; clear H.
+
+Ltac inv H := inversion H; first [subst | subst_any]; clear H.
 
 Ltac inv_some :=
 repeat 
@@ -164,7 +165,7 @@ end.
 Ltac destruct_match_oneres :=
 repeat match goal with
 [ H : context[match ?x with _ => _ end] |- _] =>
-  (destruct x eqn:?; try congruence; auto); [ idtac ]
+  (destruct x eqn:?; try congruence); [ idtac ]
 end.
 
 Ltac progress_match :=
@@ -310,14 +311,17 @@ Ltac pose_types tbl :=
 
 
 Ltac solve_exprD tbl :=
-repeat ( p_exprD_app tbl; p_exprD_inj tbl;
-         autorewrite with exprD_rw; cautious_simpl; solve_funcAs; 
-         try solve [auto with typeclass_instances | reflexivity | apply _]; 
-         try congruence; pose_types tbl; pose_exprD'; fold func in *; 
-         progress_match; 
-         try (rewrite type_cast_refl in *; apply _; 
-               unfold Rcast, Relim; cautious_simpl); try solve[simpl;eauto | apply _]). 
+repeat ( 
+    p_exprD_app tbl;
+    p_exprD_inj tbl;
+    autorewrite with exprD_rw; cautious_simpl; solve_funcAs;
+    try solve [auto with typeclass_instances | reflexivity | apply _]; 
+    try congruence; pose_types tbl; (*pose_exprD';*) fold func in *; 
+                                                 progress_match; 
+    try (rewrite type_cast_refl in *; apply _; 
+         unfold Rcast, Relim; cautious_simpl);
+    try solve [unfold exprT_App in *; simpl; eauto];
+    try apply _).
 
-Opaque type_cast.
 
 

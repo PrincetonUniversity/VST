@@ -9,6 +9,53 @@ Require Import floyd.efield_lemmas.
 
 Local Open Scope logic.
 
+(* START of some definitions that will soon (but not yet)
+    be used in localD *)
+Definition lvar (i: ident) (t: type) (v: val) (rho: environ) : Prop :=
+     (* local variable *)
+   match Map.get (ve_of rho) i with
+   | Some (b, ty') => if eqb_type t ty' then v = Vptr b Int.zero else True
+   | None => False
+   end.
+
+Definition gvar (i: ident) (v: val) (rho: environ) : Prop :=
+    (* visible global variable *)
+   match Map.get (ve_of rho) i with
+   | Some (b, ty') => False
+   | None =>
+       match ge_of rho i with
+       | Some b => v = Vptr b Int.zero
+       | None => False
+       end
+   end.
+
+Definition sgvar (i: ident) (v: val) (rho: environ) : Prop := 
+    (* (possibly) shadowed global variable *)
+   match ge_of rho i with
+       | Some b => v = Vptr b Int.zero
+       | None => False
+   end.
+
+Inductive vardesc : Type :=
+| vardesc_local_global: type -> val -> val -> vardesc
+| vardesc_local: type -> val -> vardesc
+| vardesc_visible_global: val -> vardesc
+| vardesc_shadowed_global: val -> vardesc.
+
+Definition denote_vardesc (i: ident) (vd: vardesc) : list (environ -> Prop) :=
+  match vd with
+  |  vardesc_local_global t v v' =>  lvar i t v :: sgvar i v' :: nil
+  |  vardesc_local t v => lvar i t v :: nil
+  |  vardesc_visible_global v => gvar i v :: nil
+  |  vardesc_shadowed_global v => sgvar i v :: nil
+  end. 
+
+(* END of some definitions that will soon (but not yet)
+    be used in localD *)
+
+Definition pTree_from_elements {A} (el: list (positive * A)) : PTree.t A :=
+ fold_right (fun ia t => PTree.set (fst ia) (snd ia) t) (PTree.empty _) el.
+
 Inductive local2ptree:
   list (environ -> Prop) -> PTree.t val -> PTree.t (type * val)
     -> list Prop -> list (environ -> Prop) -> Prop :=
@@ -907,5 +954,53 @@ Transparent andp.
       apply andp_derives; [| auto].
       simpl; intros; normalize.
 Qed.
+
+Fixpoint explicit_cast_exprlist (et: list type) (el: list expr) {struct et} : list expr :=
+ match et, el with
+ | t::et', e::el' => Ecast e t :: explicit_cast_exprlist et' el'
+ | _, _ => nil
+ end.
+
+Fixpoint force_list {A} (al: list (option A)) : option (list A) :=
+ match al with 
+ | Some a :: al' => match force_list al' with Some bl => Some (a::bl) | _ => None end
+ | nil => Some nil
+ | _ => None
+ end.
+
+Lemma msubst_eval_exprlist_eq:
+  forall P T1 T2 Q R tys el vl,
+  force_list
+           (map (msubst_eval_expr T1 T2)
+              (explicit_cast_exprlist tys el)) = Some vl ->
+ PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- 
+   local (`(eq vl) (eval_exprlist tys el)).
+Proof.
+intros.
+revert tys vl H; induction el; destruct tys, vl; intros; 
+  try solve [inv H];
+  try solve [go_lowerx;  apply prop_right; reflexivity].
+ simpl map in H.
+ unfold force_list in H; fold (@force_list val) in H.
+ destruct (msubst_eval_expr T1 T2 a) eqn:?.
+ simpl in H.
+ destruct (force_list
+        (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el))); inv H.
+ simpl in H. inv H.
+ simpl in H.
+ destruct (option_map (force_val1 (sem_cast (typeof a) t))
+        (msubst_eval_expr T1 T2 a)) eqn:?; inv H.
+  destruct ( force_list
+         (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el))) eqn:?; inv H1.
+  specialize (IHel _ _ Heqo0).
+  simpl eval_exprlist.
+  destruct (msubst_eval_expr T1 T2 a) eqn:?; inv Heqo.
+  apply msubst_eval_expr_eq with (P:=P)(Q:=Q)(R:=R) in Heqo1.
+  apply derives_trans with (local (`(eq v0) (eval_expr a)) && local (`(eq vl) (eval_exprlist tys el))).
+  apply andp_right; auto.
+  go_lowerx. intros. apply prop_right.
+  rewrite <- H. rewrite <- H0.
+ auto.
+Qed. 
 
 

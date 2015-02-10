@@ -57,10 +57,8 @@ unfold SIMPL_DELTA.
 apply SIMPLIFY_sound.
 intros.
 forward.
-SearchAbout RedAll.beta_all.
 admit.
 Qed.
-Check propD.
 
 Lemma replace_set_sound : forall tus tvs e,
 exprD' tus tvs typrop e = exprD' tus tvs typrop (replace_set e). 
@@ -109,8 +107,8 @@ Proof.
       * apply REFLEXIVITY_OP_CTYPE_sound.
       * admit (*reflexivity msusbst_sound*).
       * apply REFLEXIVITY_BOOL_sound.
-      * admit (*after_set*).
-      * admit. (*apply REFLEXIVITYTAC_sound.*)
+      * apply AFTER_SET_LOAD_sound (*after_set*).
+      * apply REFLEXIVITYTAC_sound.
 Qed.
 
 Lemma FORWARD_LOAD_sound: forall Struct_env Delta Pre s, rtac_sound (FORWARD_LOAD tbl Struct_env Delta Pre s).
@@ -127,7 +125,7 @@ Proof.
       * apply REFLEXIVITY_OP_CTYPE_sound.
       * apply REFLEXIVITY_BOOL_sound.
       * apply REFLEXIVITY_CEXPR_sound.
-      * admit (*after_load*).
+      * apply AFTER_SET_LOAD_sound.
       * apply REFLEXIVITYTAC_sound.
       * admit (*reflexivity msusbst_sound*).
       * admit (*reflexivity msusbst_efield_sound*).
@@ -260,7 +258,7 @@ start_timer "02 match_tactic";
                   start_timer "06 match result";
 	          match result with
 	            | More_ ?s ?g =>
-                      let g' := g in 
+                      set (g' := g);
                       set (sv := s);
                       stop_timer "06 match result";
                       start_timer "07 goalD";
@@ -269,14 +267,14 @@ start_timer "02 match_tactic";
                       stop_timer "07 goalD";
                       start_timer "08 reduce";
                       let gd' := 
-                        reduce hd gd_prop in
+                        reduce g' gd_prop in
                       stop_timer "08 reduce";
                       start_timer "09 cut1";
 	              cut (gd');  [ stop_timer "09 cut1";
                                     start_timer "10 change";
-(*                          change (gd_prop -> 
+                          change (gd_prop -> 
                                   exprD_Prop tbl nil nil namee);
-*)
+
                           stop_timer "10 change";
                           start_timer "11 cut2";
 	                  cut (goal_result = More_ sv g');
@@ -370,13 +368,14 @@ forall post v sh,  (semax
 
 Definition sets := 1%nat.
 Definition temps_tycon := sets.
-Definition temps_local := 0%nat.
+Definition temps_local := 10%nat.
 Definition vars_local := temps_local.
 Definition seps := vars_local.
 
 Clear Timing Profile.
 Ltac forward := start_timer "LTac"; repeat forward.forward; stop_timer "LTac".
-Goal test_semax sets temps_tycon temps_local vars_local seps.
+
+(*Goal test_semax sets temps_tycon temps_local vars_local seps.
 cbv [ sets temps_tycon temps_local vars_local seps
       test_semax lots_temps lots_temps' PTree.empty
       lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
@@ -384,7 +383,7 @@ cbv [ sets temps_tycon temps_local vars_local seps
 cbv [localD LocalD assertD PTree.fold PTree.xfold map liftx].
 intros. 
 forward.
-Abort.
+Abort.*)
 
 Goal test_semax sets temps_tycon temps_local vars_local seps.
 cbv [ sets temps_tycon temps_local vars_local seps
@@ -393,83 +392,13 @@ cbv [ sets temps_tycon temps_local vars_local seps
       lots_locals lots_locals' lots_vars lots_vars' pred]. 
 intros. 
 rforward.
-Abort.
-
-Goal test_semax sets temps_tycon temps_local vars_local seps.
-cbv [ sets temps_tycon temps_local vars_local seps
-      test_semax lots_temps lots_temps' PTree.empty
-      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
-      lots_locals lots_locals' lots_vars lots_vars' pred]. 
-intros. 
-rforward.
-Abort.
-
-Goal test_semax sets temps_tycon temps_local vars_local seps.
-cbv [ sets temps_tycon temps_local vars_local seps
-      test_semax lots_temps lots_temps' PTree.empty
-      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
-      lots_locals lots_locals' lots_vars lots_vars' pred]. 
-intros. 
-rforward.
-Abort.
-
-Goal test_semax sets temps_tycon temps_local vars_local seps.
-cbv [ sets temps_tycon temps_local vars_local seps
-      test_semax lots_temps lots_temps' PTree.empty
-      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
-      lots_locals lots_locals' lots_vars lots_vars' pred]. 
-intros. 
-rforward.
-Abort.
-
-Goal test_semax sets temps_tycon temps_local vars_local seps.
-cbv [ sets temps_tycon temps_local vars_local seps
-      test_semax lots_temps lots_temps' PTree.empty
-      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
-      lots_locals lots_locals' lots_vars lots_vars' pred]. 
-intros. 
-rforward.
-Abort.
-
-Goal test_semax sets temps_tycon temps_local vars_local seps.
-cbv [ sets temps_tycon temps_local vars_local seps
-      test_semax lots_temps lots_temps' PTree.empty
-      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
-      lots_locals lots_locals' lots_vars lots_vars' pred]. 
-intros. 
-rforward.
-Abort.
-
-Goal test_semax sets temps_tycon temps_local vars_local seps.
-cbv [ sets temps_tycon temps_local vars_local seps
-      test_semax lots_temps lots_temps' PTree.empty
-      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
-      lots_locals lots_locals' lots_vars lots_vars' pred]. 
-intros. 
-rforward.
-Abort.
-
-Goal test_semax sets temps_tycon temps_local vars_local seps.
-cbv [ sets temps_tycon temps_local vars_local seps
-      test_semax lots_temps lots_temps' PTree.empty
-      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
-      lots_locals lots_locals' lots_vars lots_vars' pred]. 
-intros. 
-rforward.
-Abort.
-
-Goal test_semax sets temps_tycon temps_local vars_local seps.
-cbv [ sets temps_tycon temps_local vars_local seps
-      test_semax lots_temps lots_temps' PTree.empty
-      lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
-      lots_locals lots_locals' lots_vars lots_vars' pred]. 
-intros. 
-rforward.
-Abort.
+admit.
+Time Qed. (*33 s original*)
+(* 36s change*)
 
 Print Timing Profile. 
 
-
+(*
 
 
 (* 02 match_tactic:	(total:0.003328, mean:0.003328, runs:1, sigma2:0.000000)
@@ -944,4 +873,4 @@ rforward.
 Abort.
 *)
 
-*)
+*) *)
