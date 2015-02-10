@@ -16,7 +16,7 @@ Require Import sha.spec_hmacADT.
 Require Import sha.HMAC_functional_prog.
 
 Lemma body_hmac_simple: semax_body HmacVarSpecs HmacFunSpecs 
-      f_HMAC HMAC_Simple_spec.
+      f_HMAC HMAC_spec.
 Proof.
 start_function.
 name key' _key.
@@ -198,6 +198,7 @@ assert (HS: hmacSimple key data dig).
 assert (Size: sizeof t_struct_hmac_ctx_st <= Int.max_unsigned).
   rewrite int_max_unsigned_eq; simpl. omega.
 apply andp_right. apply prop_right. split; trivial.
+  rewrite hmac_hmacSimple in HS. destruct HS. eapply hmac_sound; eassumption.
 apply andp_right. apply prop_right. trivial. cancel.
 unfold data_block.
   rewrite Zlength_correct; simpl.

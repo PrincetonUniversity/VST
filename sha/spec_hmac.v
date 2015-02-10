@@ -227,20 +227,6 @@ Definition HMAC_Init_spec :=
                              (hmacstate_ h c) * 
                              (data_block Tsh key k) * (K_vector KV)).
 *)
-(*later: use this:
-Definition hmac_relate_core (h:hmacabs ) (r: hmacstate) : Prop :=
-  match h with HMACabs ctx iS oS klen k =>
-    (*no clause for ctx*)
-    s256_relate iS (iCtx r) /\
-    s256_relate oS (oCtx r) /\
-    s256a_len iS = 512 /\ s256a_len oS = 512
-    (*no clauses for keylen and key*)
-  end.
-
-Definition hmacstate_core (h: hmacabs) (c: val) : mpred :=
-   EX r:hmacstate, 
-    !!  hmac_relate_core h r && data_at Tsh t_struct_hmac_ctx_st r c.
-*)
 
 Definition hmac_relate_PreInitNull (key:list Z) (h:hmacabs ) (r: hmacstate) : Prop :=
   match h with HMACabs ctx iS oS klen k =>
@@ -399,7 +385,7 @@ Definition HMAC_Cleanup_spec :=
 
 Record DATA := { LEN:Z; CONT: list Z}.
 
-Definition HMAC_Simple_spec :=
+Definition HMAC_spec :=
   DECLARE _HMAC
    WITH keyVal: val, KEY:DATA,
         msgVal: val, MSG:DATA,
@@ -423,10 +409,8 @@ Definition HMAC_Simple_spec :=
              `(K_vector KV);
              `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
-         EX digest:_, EX c:val,
-          PROP (hmacSimple (CONT KEY)
-                           (CONT MSG) 
-                           digest)
+         EX digest:_, 
+          PROP (digest = HMAC256 (CONT MSG) (CONT KEY))
           LOCAL ()
           SEP(`(K_vector KV);
               `(data_block shmd digest md);
@@ -490,10 +474,8 @@ Definition HMAC_Double_spec :=
              `(K_vector KV);
              `(memory_block shmd (Int.repr 64) md))
   POST [ tvoid ] 
-         EX digest:_, EX c:val,
-          PROP (hmacSimple (CONT KEY)
-                           (CONT MSG) 
-                           digest)
+         EX digest:_, 
+          PROP (digest = HMAC256 (CONT MSG) (CONT KEY))
           LOCAL ()
           SEP(`(K_vector KV);
               `(data_block shmd (digest++digest) md);
@@ -536,7 +518,7 @@ Definition HmacFunSpecs : funspecs :=
   sha256init_spec::sha256update_spec::sha256final_spec::(*SHA256_spec::*)
   HMAC_Init_spec:: HMAC_Update_spec::HMAC_Cleanup_spec::
   (*HMAC_FinalSimple_spec *) HMAC_Final_spec::
-  HMAC_Simple_spec (*alternative:HMAC_spec*)::
+  HMAC_spec::
   HMAC_Double_spec::nil.
 
 

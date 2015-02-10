@@ -390,7 +390,7 @@ Definition HMAC_Cleanup_spec :=
 
 Record DATA := { LEN:Z; CONT: list Z}.
 
-Definition HMAC_Simple_spec :=
+Definition HMAC_spec :=
   DECLARE _HMAC
    WITH keyVal: val, KEY:DATA,
         msgVal: val, MSG:DATA,
@@ -414,10 +414,8 @@ Definition HMAC_Simple_spec :=
              `(K_vector KV);
              `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
-         EX digest:_, EX c:val,
-          PROP (hmacSimple (CONT KEY)
-                           (CONT MSG) 
-                           digest)
+         EX digest:_, 
+          PROP (digest = HMAC256 (CONT MSG) (CONT KEY))
           LOCAL (`(eq KV) (eval_var sha._K256 (tarray tuint 64)))
           SEP(`(K_vector KV);
               `(data_block shmd digest md);
@@ -448,10 +446,8 @@ Definition HMAC_Double_spec :=
              `(K_vector KV);
              `(memory_block shmd (Int.repr 64) md))
   POST [ tvoid ] 
-         EX digest:_, EX c:val,
-          PROP (hmacSimple (CONT KEY)
-                           (CONT MSG) 
-                           digest)
+         EX digest:_, 
+          PROP (digest = HMAC256 (CONT MSG) (CONT KEY))
           LOCAL (`(eq KV) (eval_var sha._K256 (tarray tuint 64)))
           SEP(`(K_vector KV);
               `(data_block shmd (digest++digest) md);
@@ -472,7 +468,7 @@ Definition HmacFunSpecs : funspecs :=
   sha256init_spec::sha256update_spec::sha256final_spec::(*SHA256_spec::*)
   HMAC_Init_spec:: HMAC_Update_spec::HMAC_Cleanup_spec::
   (*HMAC_FinalSimple_spec *) HMAC_Final_spec::
-  HMAC_Simple_spec (*alternative:HMAC_spec*)::
+  HMAC_spec::
   HMAC_Double_spec::nil.
 
 

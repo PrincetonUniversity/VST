@@ -296,6 +296,7 @@ assert (HS: hmacSimple key data dig).
 assert (Size: sizeof t_struct_hmac_ctx_st <= Int.max_unsigned).
   rewrite int_max_unsigned_eq; simpl. omega.
 apply andp_right. apply prop_right. split; trivial.
+  rewrite hmac_hmacSimple in HS. destruct HS. eapply hmac_sound; eassumption.
 apply andp_right. apply prop_right. trivial. cancel.
 rewrite sepcon_assoc. rewrite sepcon_comm.
 apply sepcon_derives.
