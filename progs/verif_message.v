@@ -10,7 +10,7 @@ Local Open Scope logic.
 
 Definition natural_alignment := 8.
 
-Lemma natural_alignment_enough: forall t, type_is_by_value t -> legal_alignas_type t = true -> (alignof t | 8).
+Lemma natural_alignment_enough: forall t, type_is_by_value t = true -> legal_alignas_type t = true -> (alignof t | 8).
 Proof.
   intros.
   assert (1 | 8). exists 8. reflexivity.

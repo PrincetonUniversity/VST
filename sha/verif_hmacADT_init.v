@@ -8,7 +8,9 @@ Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
 Require Import sha.spec_hmacADT.
-Require Import HMAC_lemmas.
+Require Import vst_lemmas.
+Require Import hmac_pure_lemmas.
+Require Import hmac_common_lemmas.
 
 Require Import sha.hmac_NK.
 

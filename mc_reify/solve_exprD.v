@@ -3,7 +3,7 @@ Require Import compcert.lib.Maps.
 Require Import mc_reify.func_defs.
 Require Import mc_reify.get_set_reif.
 Require Import ExtLib.Tactics.
-
+Require Import floyd.client_lemmas.
 
 Ltac destruct_match H :=
 match type of H with
@@ -143,8 +143,8 @@ Qed.
 
 End tbled.
 
- 
-Ltac inv H := inversion H; subst; clear H.
+
+Ltac inv H := inversion H; first [subst | subst_any]; clear H.
 
 Ltac inv_some :=
 repeat 
@@ -153,15 +153,56 @@ match goal with
 | [ H : None = None |- _ ] => clear H
 end. 
 
+Ltac rewrite_in_match :=
+repeat
+match goal with 
+| [ H : ?x = _ |- context[match ?x with _ => _ end]] => 
+   rewrite H
+| [ H : ?x = _, H1 : context[match ?x with _ => _ end] |- _] => 
+   rewrite H in H1
+end.
+
+Ltac destruct_match_oneres :=
+repeat match goal with
+[ H : context[match ?x with _ => _ end] |- _] =>
+  (destruct x eqn:?; try congruence); [ idtac ]
+end.
+
+Ltac progress_match :=
+repeat (rewrite_in_match; destruct_match_oneres).
+
+Ltac try_simpl_typeof :=
+try
+match goal with 
+| [ |- context [typeof_expr ?tus ?tvs ?e] ] => 
+   let simpd := eval hnf in (typeof_expr tus tvs e) in
+   match simpd with
+     | Some _ => change (typeof_expr tus tvs e) with simpd; cbv beta iota
+   end
+| [ H : context [typeof_expr ?tus ?tvs ?e] |- _ ] => 
+   let simpd := eval hnf in (typeof_expr tus tvs e) in
+   match simpd with
+     | Some _ => change (typeof_expr tus tvs e) with simpd in H; cbv beta iota in H
+   end
+end.
+
+
+Ltac cautious_simpl :=
+repeat (
+cbv [Monad.bind Monad.ret OptionMonad.Monad_option 
+(*Rsym eq_sym Rrefl exprT_App typ2_cast typ2 Typ2_tyArr*)] in *;
+try_simpl_typeof).
+
 
 Ltac p_exprD H1 :=
-autorewrite with exprD_rw in H1;
-simpl in H1; repeat (forward; inv_some); try apply _.
+autorewrite with exprD_rw in H1; try apply _;
+cautious_simpl; repeat (progress_match; inv_some).
 
 Ltac cleanup_dups :=             
   repeat
     match goal with
-        [ H : ?x = Some _, H2 : ?x = Some _ |- _ ] => rewrite H in H2; inv_some
+      | [ H : ?x = Some _, H2 : ?x = Some _ |- _ ] => rewrite H in H2; inv_some
+      | [ H : ?x = ?x |- _] => clear H
     end.
 
 Ltac remove_no_cast :=
@@ -182,7 +223,7 @@ repeat
 match goal with
  [ H : exprD' ?tus ?tvs ?t1 ?e = Some ?v1,
    H1 : exprD' ?tus ?tvs ?t2 ?e = Some ?v2 |- _] => 
-let N := fresh "H" in assert (N := exprD'_one_type tbl tus tvs t1 t2 e v1 v2 H H1); subst; try inv N
+let N := fresh "H" in assert (N := exprD'_one_type tbl tus tvs t1 t2 e v1 v2 H H1); subst; try inv N; cleanup_dups
 end.
 
 Ltac p_exprD_app tbl :=
@@ -197,9 +238,13 @@ Ltac p_exprD_app tbl :=
 Ltac solve_funcAs :=
 repeat
 match goal with 
-| [ H : context [funcAs _ _] |- _ ]  =>  unfold funcAs in H; simpl in H;  rewrite type_cast_refl in H; unfold Rcast, Relim in H; simpl in H
-| [ |- context [funcAs _ _ ] ]=> unfold funcAs; simpl; try rewrite type_cast_refl; unfold Rcast, Relim; simpl
-end.
+| [ H : context [funcAs _ _] |- _ ]  =>  
+  unfold funcAs in H; simpl in H;  
+repeat (rewrite type_cast_refl in H; try apply _; unfold Rcast, Relim in H; simpl in H)
+| [ |- context [funcAs _ _ ] ]=> unfold funcAs; simpl; 
+repeat (try rewrite type_cast_refl; try apply _; unfold Rcast, Relim; simpl)
+end;
+repeat (try rewrite type_cast_refl; try apply _; unfold Rcast, Relim; simpl).
 
 Ltac solve_funcAs_f H :=
   p_exprD H;
@@ -211,6 +256,8 @@ Ltac solve_funcAs_f H :=
       (destruct f as [v | ]; try congruence); 
         clear H; unfold Rty in v; inversion v; subst; try clear v
   end.
+
+
 
 
 
@@ -226,7 +273,7 @@ let X := fresh "X" in
        p_exprD H; ( solve_funcAs || fail)
 | [ H : exprD' ?tus ?tvs ?t (Inj ?e ) = _ |- _ ] =>
        p_exprD H; ( solve_funcAs || fail)
-end; unfold Rcast in *; simpl in *; inv_some; subst_rty);
+end; unfold Rcast in *; cautious_simpl; inv_some; subst_rty);
 cleanup_dups; try apply _; inv_some.
 
 
@@ -262,10 +309,19 @@ Ltac pose_types tbl :=
                    end
              end.  
 
-Ltac solve_exprD tbl :=
-repeat ( p_exprD_app tbl; p_exprD_inj tbl;
-         autorewrite with exprD_rw; simpl; solve_funcAs; try solve [auto with typeclass_instances | reflexivity]; try congruence; pose_types tbl; pose_exprD'; fold func in *; forward; try (rewrite type_cast_refl in *; unfold Rcast, Relim; simpl in *)). 
 
-Opaque type_cast.
+Ltac solve_exprD tbl :=
+repeat ( 
+    p_exprD_app tbl;
+    p_exprD_inj tbl;
+    autorewrite with exprD_rw; cautious_simpl; solve_funcAs;
+    try solve [auto with typeclass_instances | reflexivity | apply _]; 
+    try congruence; pose_types tbl; (*pose_exprD';*) fold func in *; 
+                                                 progress_match; 
+    try (rewrite type_cast_refl in *; apply _; 
+         unfold Rcast, Relim; cautious_simpl);
+    try solve [unfold exprT_App in *; simpl; eauto];
+    try apply _).
+
 
 

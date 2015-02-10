@@ -118,7 +118,7 @@ LINKING_FILES= \
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
   lift.v expr.v environ_lemmas.v binop_lemmas.v \
-  expr_lemmas.v expr_lemmas2.v expr_lemmas3.v \
+  expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_sim.v \
   slice.v res_predicates.v seplog.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
@@ -156,20 +156,21 @@ SHA_FILES= \
   verif_addlength.v verif_SHA256.v
 
 HMAC_FILES= \
-  HMAC_functional_prog.v HMAC_lemmas.v \
+  HMAC_functional_prog.v vst_lemmas.v hmac_pure_lemmas.v hmac_common_lemmas.v \
   hmac091c.v spec_hmac.v verif_hmac_cleanup.v \
-  verif_hmac_init_part1.v verif_hmac_init.v \
+  verif_hmac_init_part1.v \
   verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
   verif_hmac_double.v \
   hmac_NK.v spec_hmacNK.v verif_hmacNK_cleanup.v \
-  verif_hmacNK_init_part1.v verif_hmacNK_init.v \
+  verif_hmacNK_init_part1.v \
   verif_hmacNK_update.v verif_hmacNK_final.v verif_hmacNK_simple.v \
   verif_hmacNK_double.v \
   spec_hmacADT.v verif_hmacADT_cleanup.v \
-  verif_hmacADT_init_part1.v verif_hmacADT_init.v \
+  verif_hmacADT_init_part1.v \
   verif_hmacADT_update.v verif_hmacADT_final.v verif_hmacADT_simple.v \
-  verif_hmacADT_double.v
-#  HMAC_refined_fp.v hmac_sha256.v HMAC_definitions.v \
+  verif_hmacADT_double.v 
+#  verif_hmac_init.v verif_hmacADT_init.v verif_hmacNK_init.v 
+#  HMAC_lemmas.v HMAC_refined_fp.v hmac_sha256.v HMAC_definitions.v \
 #  HMAC_part2GT.v HMAC_part2LE.v \
 #  HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \
 #  HMAC_proofLE.v HMAC_proof.v

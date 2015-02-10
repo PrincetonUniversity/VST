@@ -21,7 +21,7 @@ Load/store lemmas about data_at:
 
 Lemma is_neutral_cast_by_value: forall t t', 
   is_neutral_cast t t' = true ->
-  type_is_by_value t.
+  type_is_by_value t = true.
 Proof.
   intros.
   destruct t, t'; try inversion H; simpl; auto.
@@ -119,7 +119,7 @@ Lemma semax_data_cast_load_37':
     forall Delta sh id P Q R (e1: expr)
     (t: type) (v: val) (v' : reptype (typeof e1)),
     typeof_temp Delta id = Some t ->
-    type_is_by_value (typeof e1) ->
+    type_is_by_value (typeof e1) = true ->
     JMeq v' v ->
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
       local (tc_lvalue Delta e1) &&
@@ -146,7 +146,7 @@ Lemma semax_data_store_nth:
     forall Delta sh n P Q R Rn (e1 e2 : expr)
       (t : type),
       typeof e1 = t ->
-      type_is_by_value t ->
+      type_is_by_value t = true ->
       nth_error R n = Some Rn ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (Rn :: nil))) |--
         `(data_at_ sh t) (eval_lvalue e1) ->
@@ -241,7 +241,7 @@ Proof.
   eapply is_neutral_cast_by_value, H0.
 Qed.
 
-Lemma repinject_JMeq: forall e t v, type_is_by_value (uncompomize e t) -> JMeq v (repinject t v).
+Lemma repinject_JMeq: forall e t v, type_is_by_value (uncompomize e t) = true -> JMeq v (repinject t v).
 Proof.
   intros.
   destruct t; try inversion H; try reflexivity.
@@ -337,7 +337,7 @@ Lemma semax_ucdata_cast_load_37':
     forall Delta sh e id P Q R (e1: expr)
       (t1 t2: type) (v: val) (v' : reptype t2),
       typeof_temp Delta id = Some t1 ->
-      type_is_by_value (typeof e1) ->
+      type_is_by_value (typeof e1) = true ->
       repinject _ v' = v ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_lvalue Delta e1) &&
@@ -371,7 +371,7 @@ Lemma semax_ucdata_store_nth:
     forall Delta sh e n P Q R Rn (e1 e2 : expr)
       (t1 t2: type),
       typeof e1 = t1 ->
-      type_is_by_value t1 ->
+      type_is_by_value t1 = true ->
       nth_error R n = Some Rn ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |-- `(data_at_ sh t2) (eval_lvalue e1) ->
       writable_share sh ->

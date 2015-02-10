@@ -286,8 +286,34 @@ Definition compute_load_arg (arg:
     end
   end.
 
-Section tbled.
+Definition compute_store_arg (arg: 
+         (PTree.t (type * bool) * PTree.t type * type * PTree.t type *
+          expr typ func) *
+       (expr typ func * expr typ func * expr typ func * expr typ func * expr typ func) *
+       statement) :=
+  match arg with
+  | ((t, v, r, gt, _), (_, T1, T2, _, R'), s) =>
+    match s with
+    | Sassign e0 e2 =>
+      match compute_nested_efield e0 with
+      | (e1, efs, tts) =>
+        let ty := typeof e0 in
+        let lr := compute_lr e1 efs in
+        match rmsubst_eval_LR T1 T2 e1 lr with
+        | App (Inj (inr (Other (fsome tyval)))) p =>
+          match nth_solver R' p with
+          | Some (t_root, n) =>
+              Some (t, v, r, gt, ty, t_root, e0, e1, e2, efs, tts, lr, n)
+          | _ => None
+          end
+        | _ => None
+        end
+      end
+    | _ => None
+    end
+  end.
 
+Section tbled.
 
 Variable n : nat.
 Variable tbl : SymEnv.functions RType_typ.
@@ -389,6 +415,7 @@ Definition FORWARD_SET Delta Pre s :=
            (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl;
                         REFLEXIVITY_MSUBST tbl; 
                         REFLEXIVITY_BOOL tbl;
+                        AFTER_SET_LOAD tbl;
                         REFLEXIVITY tbl]))
   | _ => FAIL
   end in
@@ -406,6 +433,7 @@ Definition FORWARD_LOAD Struct_env Delta Pre s :=
             (THEN (TRY (FIRST [REFLEXIVITY_OP_CTYPE tbl;
                                REFLEXIVITY_BOOL tbl;
                                REFLEXIVITY_CEXPR tbl;
+                               AFTER_SET_LOAD tbl;
                                REFLEXIVITY tbl;
                                REFLEXIVITY_MSUBST tbl;
                                REFLEXIVITY_MSUBST_EFIELD tbl;
@@ -417,11 +445,35 @@ Definition FORWARD_LOAD Struct_env Delta Pre s :=
   end in
   THEN _HLIP _APPLY_LOAD.
 
+Definition FORWARD_STORE Struct_env Delta Pre s :=
+  let _HLIP :=
+  match compute_hlip_arg (Delta, Pre, s) with
+  | (temp, var, ret, gt, s, R) => HLIP tbl temp var ret gt R s
+  end in
+  let _APPLY_STORE :=
+  match compute_store_arg (Delta, Pre, s) with
+  | Some (t, v, r, gt, ty, t_root, e0, e1, e2, efs, tts, lr, n) =>
+            (THEN (EAPPLY typ func (store_lemma t v r gt ty t_root e0 e1 e2 efs tts Struct_env lr n))
+            (THEN (TRY (FIRST [REFLEXIVITY_CTYPE tbl;
+                               REFLEXIVITY_BOOL tbl;
+                               REFLEXIVITY_CEXPR tbl;
+                               AFTER_STORE tbl;
+                               REFLEXIVITY tbl;
+                               FIRST [APPLY typ func writable_Tsh_lemma; APPLY typ func writable_Ews_lemma];
+                               REFLEXIVITY_MSUBST tbl;
+                               REFLEXIVITY_MSUBST_EFIELD tbl;
+                               REFLEXIVITY_NTH_ERROR tbl]))
+                  (TRY (THEN INTROS
+                       (THEN (EAPPLY typ func reify_prop_right)
+                             (REFLEXIVITY tbl))))))
+  | _ => FAIL
+  end in
+  THEN _HLIP _APPLY_STORE.
+
 Definition SYMEXE_STEP Struct_env
 : rtac typ (expr typ func)  :=
   THEN' (INSTANTIATE typ func)
-  (THEN SIMPL_SET
-  (AT_GOAL
+  (Then.THEN (AT_GOAL
     (fun c s e => 
          match (get_arguments e) with
          | (Some Delta, Some Pre, Some s) =>  
@@ -430,10 +482,11 @@ Definition SYMEXE_STEP Struct_env
            | Some (ForwardSeq s1 s2) => APPLY_SEQ s1 s2 
            | Some ForwardSet => FORWARD_SET Delta Pre s
            | Some ForwardLoad => FORWARD_LOAD Struct_env Delta Pre s
+           | Some ForwardStore => FORWARD_STORE Struct_env Delta Pre s
            | _ => FAIL
            end
          | _ => FAIL
-         end))).
+         end)) (@RTac.Minify.MINIFY typ (expr typ func) _)).
 
 Existing Instance func_defs.Expr_ok_fs.
 
@@ -538,7 +591,64 @@ run_tac (SYMEXE_TAC_n 1000 tbl) e .
 
 Definition symexe1 tbl e  :=
 run_tac (SYMEXE_TAC_n 1 tbl ) e.
+(*
+Require Import reverse_defs.
+Existing Instance NullExtension.Espec.
 
+Notation "'NOTATION_T1' v" := (PTree.Node PTree.Leaf None
+         (PTree.Node PTree.Leaf None
+            (PTree.Node
+               (PTree.Node PTree.Leaf None
+                  (PTree.Node
+                     (PTree.Node PTree.Leaf
+                        (Some v)
+                        PTree.Leaf) None PTree.Leaf)) None PTree.Leaf))) (at level 50).
+
+Goal
+forall {Espec : OracleKind} (contents : list val) (v: val) ,  
+   (semax
+     (remove_global_spec Delta) (*empty_tycontext*)
+     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+       [data_at Tsh t_struct_list (Values.Vundef, Values.Vint Int.zero) (force_ptr v)])
+     (Sassign 
+            (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
+              _tail (tptr t_struct_list))
+          (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
+     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+       [data_at Tsh t_struct_list (default_val _) (force_ptr v)])
+)).
+intros.
+unfold empty_tycontext, Delta, remove_global_spec.
+unfold t_struct_list.
+
+(*
+hoist_later_in_pre.
+eapply semax_post'.
+Focus 2.
+Check semax_store_localD.
+eapply semax_store_localD with (lr := LLLL) (e1 := Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
+  (efs := [eStructField _tail]) (tts := [tptr t_struct_list]) (e := Struct_env) (t_root := t_struct_list)
+ (gfs := [StructField _tail]) (sh := Tsh).
+reflexivity.
+reflexivity.
+reflexivity.
+reflexivity.
+reflexivity.
+reflexivity.
+reflexivity.
+reflexivity.
+reflexivity.
+*)
+reify_expr_tac.
+Set Printing Depth 200.
+Set Printing All.
+Eval vm_compute in (run_tac 
+        (match (get_arguments e) with
+         | (Some Delta, Some Pre, Some s) => 
+             THEN (INTROS) (FORWARD_STORE tbl Struct_env Delta Pre s)
+         | _ => FAIL
+         end) e).
+*)
 
 Goal forall (sh : share) (v1 v2 : val), False.
 intros.
@@ -593,40 +703,3 @@ reify_expr_tac.
 Eval vm_compute in run_tac (THEN INTROS (REFLEXIVITYTAC tbl)) e.
 Abort.
 
-Require Import denote_tac.
-(*
-Ltac run_rtac reify term_table tac_sound :=
-  match type of tac_sound with
-    | rtac_sound ?tac =>
-	  let name := fresh "e" in
-	  match goal with
-	    | |- ?P => 
-	      reify_aux reify term_table P name;
-	      let t := eval vm_compute in (typeof_expr nil nil name) in
-	      let goal := eval unfold name in name in
-	      match t with
-	        | Some ?t =>
-	          let goal_result := constr:(run_tac' tac (GGoal name)) in 
-	          let result := eval vm_compute in goal_result in
-	          match result with
-	            | More_ ?s ?g => 
-	              cut (goalD_Prop nil nil g); [
-	                let goal_resultV := g in
-	               (* change (goalD_Prop nil nil goal_resultV -> exprD_Prop nil nil name);*)
-	                exact_no_check (@run_rtac_More tac _ _ _ tac_sound
-	                	(@eq_refl (Result (CTop nil nil)) (More_ s goal_resultV) <:
-	                	   run_tac' tac (GGoal goal) = (More_ s goal_resultV)))
-	                | cbv_denote
-	              ]
-	            | Solved ?s =>
-	              exact_no_check (@run_rtac_Solved tac s name tac_sound 
-	                (@eq_refl (Result (CTop nil nil)) (Solved s) <: run_tac' tac (GGoal goal) = Solved s))
-	            | Fail => idtac "Tactic" tac "failed."
-	            | _ => idtac "Error: run_rtac could not resolve the result from the tactic :" tac
-	          end
-	        | None => idtac "expression " goal "is ill typed" t
-	      end
-	  end
-	| _ => idtac tac_sound "is not a soudness theorem."
-  end.
-*)

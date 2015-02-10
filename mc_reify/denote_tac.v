@@ -24,8 +24,9 @@ Require Import func_defs.
 Require Import funcs.
 Require Import types.
 
-Ltac cbv_denote :=
-          cbv [
+Ltac cbv_denote g' e :=
+eval cbv [
+              g'
           reflect_prop reflect Expr_expr_fs RType_typ Typ2_tyArr RSym_sym 
                       RSym_Func'
           
@@ -269,8 +270,11 @@ ILogicOps_mpred
 ILogic.land
 
 reptyp_reptype
-reptyp_structlist_reptype
-reptyp_unionlist_reptype
+reptype_reptyp
+typD_reptyp_reptype
+data_at_lemmas.type_mut
+proj1T
+proj2T
 data_at_lemmas.is_Fnil
 ModularFunc.ILogicFunc.typeof_func
 reptyp
@@ -292,10 +296,32 @@ reptyp_unionlist
  exportclight.Clightdefs.tptr
  exportclight.Clightdefs.tarray 
 
+eq_ind_r
+eq_ind
+          ] in e.
 
-          ].
+Ltac cbv_denote_goal :=
+match goal with
+[ |- ?G] => let x := cbv_denote hd G in change x
+end.
+
+Require Import floyd.proofauto.
+
+(*
+Definition t_struct_a :=
+   (Tstruct 5%positive (Fcons 3%positive tint (Fcons 1%positive tint Fnil)) noattr).
+
+Goal forall n, n = reptyp_reptype t_struct_a (Vint Int.zero, Vint Int.zero).
+intros.
+unfold t_struct_a.
+cbv_denote_goal.
+unfold type_mut, proj1T, proj2T.
+unfold eq_ind_r, eq_ind.
+cbv_denote_goal.
+*)
+
 (*Tactic Notation "cbv_denote" "in" ident(H) := cbv_denote_in H.*)
-Locate goalD_Prop.
+(*Locate goalD_Prop.
 
 Require Import reify.
 Require Import floyd.proofauto.
@@ -314,4 +340,4 @@ cbv_denote.
 Locate elem_ctor.
  cbv [elem_ctor].
 Abort.
-
+*) 

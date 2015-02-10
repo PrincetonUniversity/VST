@@ -6,12 +6,14 @@ Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha_lemmas.
-Require Import sha.HMAC_functional_prog.
+Require Import sha.vst_lemmas.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.hmac_common_lemmas.
 
 Require Import sha.hmac_NK.
 
 Require Import sha.spec_hmacADT.
-Require Import HMAC_lemmas.
+Require Import sha.HMAC_functional_prog.
 
 Lemma body_hmac_simple: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC HMAC_Simple_spec.
@@ -71,29 +73,22 @@ forward_call WITNESS.
    apply exp_right with (x:=kl). unfold data_at_. 
    apply (exp_right (default_val t_struct_hmac_ctx_st)); entailer. 
 after_call.
-subst WITNESS. normalize. simpl. (* rewrite elim_globals_only'. normalize.
-simpl. *)
+subst WITNESS. normalize. simpl. 
 apply semax_pre with (P':=EX  x : hmacabs, 
-  (PROP  ()
+  (PROP  (hmacInit key x)
    LOCAL  (`(eq md) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP 
-   (`(fun a : environ =>
-      (PROP  (hmacInit key x)
-       LOCAL  (`(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-       SEP  (`(hmacstate_ x c); `(initPostKey k key); `(K_vector KV))) a)
-      globals_only; `(data_block Tsh data d);
-   `(memory_block shmd (Int.repr 32) md)))).
-   simpl. intros rho. normalize. rename x into h.
-     apply exp_right with (x:=h). entailer.
-apply extract_exists_pre. intros h0. normalize. simpl.
-  normalize. rename H into HmacInit. simpl.
+   (`(hmacstate_ x c); `(initPostKey k key); `(K_vector KV);
+    `(data_block Tsh data d); `(memory_block shmd (Int.repr 32) md)))).
+   entailer. apply (exp_right x). entailer.
+apply extract_exists_pre. intros h0. normalize. simpl. rename H into HmacInit.
 
 eapply semax_seq'. 
-frame_SEP 0 2 3.
+myframe_SEP'' [0; 2; 3].
 remember (h0, c, d, dl, data, KV) as WITNESS.
 (*Remark on confusing error messages: if the spec of HMAC_update includes _len OF tuint
   instead of _len OF tint, the following forward_call fails, complaining that
@@ -110,29 +105,28 @@ forward_call WITNESS.
     Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
              rewrite HH; assumption. 
     destruct h0; simpl in *. 
-    destruct H2 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
+    destruct H1 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion HmacInit; clear HmacInit.
-    destruct H2 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
+    destruct H1 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst.
       unfold innerShaInit in InnSHA. inversion InnSHA; clear InnSHA.
-      simpl in *. subst. unfold HMAC_SHA256.mkArgZ, HMAC_SHA256.mkArg in H10.
+      simpl in *. subst. unfold HMAC_SHA256.mkArgZ, HMAC_SHA256.mkArg in H9.
       assert (Zlength (map Byte.unsigned
         (map (fun p : byte * byte => Byte.xor (fst p) (snd p))
            (combine (map Byte.repr (HMAC_SHA256.mkKey key)) (HMAC_SHA256.sixtyfour Ipad))))
         = Zlength (SHA256.intlist_to_Zlist blocks ++ newfrag)).
-        rewrite H10; reflexivity.
-     clear H10.
-     rewrite Zlength_correct in *. rewrite map_length in H2. 
-     rewrite Zlength_correct in *. rewrite map_length, combine_length in H2.
-     rewrite app_length in H2.
-     rewrite map_length, mkKey_length in H2.
-     unfold SHA256.BlockSize, HMAC_SHA256.sixtyfour in H2.
-     rewrite length_Nlist, length_intlist_to_Zlist in H2. unfold WORD.
-     rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z.mul_comm in H2. simpl in H2.
-     rewrite <- H2. simpl. trivial. 
+        rewrite H9; reflexivity.
+     clear H9.
+     rewrite Zlength_correct in *. rewrite map_length in H1. 
+     rewrite Zlength_correct in *. rewrite map_length, combine_length in H1.
+     rewrite app_length in H1.
+     rewrite map_length, mkKey_length in H1.
+     unfold SHA256.BlockSize, HMAC_SHA256.sixtyfour in H1.
+     rewrite length_list_repeat, length_intlist_to_Zlist in H1. unfold WORD.
+     rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z.mul_comm in H1. simpl in H1.
+     unfold bitlength. repeat rewrite Zlength_correct. unfold WORD. rewrite <- H1. simpl. trivial.
 after_call.
-subst WITNESS. normalize.
-unfold update_tycon. simpl. normalize.
+subst WITNESS. normalize. simpl.
 (*rewrite firstn_same.
 Focus 2. destruct DL as [DL1 [DL2 DL3]]; subst. 
          rewrite Zlength_correct, Nat2Z.id. omega.*)
@@ -141,92 +135,59 @@ Focus 2. destruct DL as [DL1 [DL2 DL3]]; subst.
   ie why normalize can't figure this out (at least partially).
   It seems exp doesn't distribute over liftx, but it should *)
 eapply semax_pre with (P':=EX  x : hmacabs, 
-   PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta; `(eq md) (eval_id _md);
+   PROP  (hmacUpdate data h0 x)
+   LOCAL  (tc_environ Delta; `(eq md) (eval_id _md);
    `(eq k) (eval_id _key); `(eq (Vint (Int.repr kl))) (eval_id _key_len);
    `(eq d) (eval_id _d); `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP (`(fun a : environ =>(PROP  (hmacUpdate data h0 x)
-       LOCAL ()
-       SEP  (`(K_vector KV); `(hmacstate_ x c); `(data_block Tsh data d))) a)
-      globals_only; `(initPostKey k key); `(memory_block shmd (Int.repr 32) md))).
-  entailer. rename x into h1. apply exp_right with (x:=h1).
-  entailer. 
-(********************************************************)
-apply extract_exists_pre. intros h1. normalize. simpl. normalize.
-rename H into HmacUpdate.
+   SEP (`(K_vector KV); `(hmacstate_ x c); `(data_block Tsh data d);
+        `(initPostKey k key); `(memory_block shmd (Int.repr 32) md))).
+  entailer. apply (exp_right x). entailer.
+apply extract_exists_pre. intros h1. normalize. rename H into HmacUpdate.
 
 eapply semax_seq'. 
-frame_SEP 0 1 4.
-remember (h1, c, md, shmd, KV) as WITNESS.
-forward_call WITNESS.
+myframe_SEP'' [0; 1; 4].
+forward_call (h1, c, md, shmd, KV).
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
-  subst WITNESS. entailer.
-    cancel. 
+  entailer. cancel. 
 after_call.
-subst WITNESS. normalize.
-unfold update_tycon. simpl. normalize.
+simpl. 
 
 (**** Again, distribute EX over lift*)
 eapply semax_pre with (P':=
-      EX  x : list Z,
-  (PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta; tc_environ Delta;
+      EX  x : list Z, EX  x0 : hmacabs,
+  (PROP  (hmacFinal h1 x x0)
+   LOCAL  (tc_environ Delta; 
    `(eq md) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-   (`(fun a : environ =>
-      (EX  x0 : hmacabs,
-       (PROP  (hmacFinal h1 x x0)
-        LOCAL ()
-        SEP  (`(K_vector KV); `(hmacstate_PostFinal x0 c);
-        `(data_block shmd x md))) a)) globals_only; `(data_block Tsh data d);
-   `(initPostKey k key)))).
-   entailer. rename x into dig. rename x0 into h2.
-   apply exp_right with (x:=dig). entailer. 
-   apply exp_right with (x:=h2). entailer. 
-apply extract_exists_pre. intros dig. normalize.
-eapply semax_pre with (P':=EX  x0 : hmacabs,
-  (PROP  ()
-   LOCAL  (tc_environ Delta; tc_environ Delta; tc_environ Delta;
-   `(eq md) (eval_id _md); `(eq k) (eval_id _key);
-   `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
-   `(eq (Vint (Int.repr dl))) (eval_id _n);
-   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-   (`(fun a : environ =>
-      (PROP  (hmacFinal h1 dig x0)
-       LOCAL ()
-       SEP  (`(K_vector KV); `(hmacstate_PostFinal x0 c);
-       `(data_block shmd dig md))) a) globals_only; `(data_block Tsh data d);
-   `(initPostKey k key)))).
-   entailer. rename x into h2. apply exp_right with (x:=h2). entailer.
-apply extract_exists_pre. intros h2. normalize. simpl. normalize.
-(********************************************************)
+   SEP (`(K_vector KV); `(hmacstate_PostFinal x0 c);
+        `(data_block shmd x md); `(data_block Tsh data d);
+        `(initPostKey k key)))).
+   entailer.
+   apply (exp_right x). 
+   apply (exp_right x0). entailer. 
+apply extract_exists_pre. intros dig.
+apply extract_exists_pre. intros h2. normalize. rename H into HmacFinalSimple.
 
-rename H into HmacFinalSimple.
 eapply semax_seq'. 
-frame_SEP 1.
-remember (h2,c, KV) as WITNESS.
-forward_call WITNESS.
+myframe_SEP'' [1]. 
+forward_call (h2,c,KV).
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
      rewrite FR. clear FR Frame. 
-  subst WITNESS. entailer.
+  entailer.
 after_call.
-subst WITNESS. normalize.
-unfold update_tycon. simpl. normalize. simpl. normalize.
-  rename H into SCc. rename H0 into ACc.
+simpl. normalize. simpl. normalize.
+rename H into SCc. rename H0 into ACc.
 
 forward.
-apply exp_right with (x:=dig).
+apply (exp_right dig).
 simpl_stackframe_of. normalize. clear H0. 
 assert (HS: hmacSimple key data dig).
     exists h0, h1. 
@@ -241,9 +202,21 @@ apply andp_right. apply prop_right. trivial. cancel.
 unfold data_block.
   rewrite Zlength_correct; simpl.
 rewrite <- memory_block_data_at_; try reflexivity. 
-rewrite memory_block_array_tuchar. 
-normalize. clear H1. 
+(*XXX: WAS: rewrite memory_block_array_tuchar. 
+  normalize. clear H1. 
   apply andp_right.
     apply prop_right. trivial. cancel.
-simpl; omega.
+  simpl; omega.
+Now need this:*)
+normalize.
+rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))).
+  apply data_at_data_at_.
+  trivial.
+  trivial.
+  trivial.
+  unfold align_compatible. destruct (eval_var _c t_struct_hmac_ctx_st rho); trivial.
+   simpl. apply Z.divide_1_l.
+  simpl. rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
+ 
+unfold align_compatible. destruct (eval_var _c t_struct_hmac_ctx_st rho); trivial.
 Qed.

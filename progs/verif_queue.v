@@ -13,7 +13,7 @@ Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
 Definition natural_alignment := 8.
 
 Lemma natural_alignment_enough: forall t,
-     type_is_by_value t ->
+     type_is_by_value t = true ->
      legal_alignas_type t = true -> 
      (alignof t | 8).
 Proof.

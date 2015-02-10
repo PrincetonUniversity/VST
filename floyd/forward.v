@@ -2202,7 +2202,7 @@ match goal with
       | appcontext [field_at] =>
         eapply (semax_SC_field_store Delta sh SE n) 
           with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-        [reflexivity | simpl; auto | reflexivity
+        [reflexivity | reflexivity | reflexivity
         | reflexivity | exact Heq | exact HLE
         | exact HRE | exact H_Denote | exact H | auto
         | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
@@ -2212,7 +2212,7 @@ match goal with
       | appcontext [field_at_] =>
         eapply (semax_SC_field_store Delta sh SE n)
           with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-        [reflexivity | simpl; auto | reflexivity
+        [reflexivity | reflexivity | reflexivity
         | reflexivity | exact Heq | exact HLE
         | exact HRE | exact H_Denote | exact H | auto 
         | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
@@ -2223,7 +2223,7 @@ match goal with
         eapply semax_post'; [ |
           eapply (semax_SC_field_store Delta sh SE n)
             with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-            [reflexivity | simpl; auto | reflexivity
+            [reflexivity | reflexivity | reflexivity
             | reflexivity | exact Heq | exact HLE 
             | exact HRE | exact H_Denote | exact H | auto | | ]];
         [ match goal with

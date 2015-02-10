@@ -1,4 +1,4 @@
-Require Import floyd.proofauto. 
+Require Import floyd.proofauto.
 Require Import mc_reify.funcs.
 Require Import mc_reify.types.
 Require Import mc_reify.bool_funcs.
@@ -24,29 +24,57 @@ Inductive val_e :=
   | Vunop : Cop.unary_operation -> type ->  val_e -> val_e
   | Vbinop : Cop.binary_operation -> type -> type -> val_e -> val_e -> val_e
   | Veval_cast : type -> type -> val_e -> val_e
-  | Vderef_noload : type -> val_e -> val_e
   | Vforce_ptr : val_e -> val_e
   | Veval_field : type -> ident -> val_e -> val_e.
+
+Definition Vderef_noload (t: type) (e: val_e) : val_e :=
+  match access_mode t with
+  | By_reference => e
+  | _ => Vundef
+  end.
+
+
+Definition val_e_binarith op ty1 ty2 e1 e2 :=
+  match op, ty1, ty2, e1, e2 with
+  | Oand, Tint _ _ _, Tint _ _ _,
+    App (Inj (inr (Value fVint))) e1',
+    App (Inj (inr (Value fVint))) e2' =>
+      match e1', e2' with
+      | App (Inj (inr (Intop fint_repr))) e1'',
+        App (Inj (inr (Intop fint_repr))) e2'' =>
+                appR (Value fVint) (appR (Intop fint_repr) (App (appR (Zop fZ_land) e1'') e2''))
+      | _, _ => appR (Value fVint) (App (appR (Intop fint_and) e1') e2')
+      end
+  | Oadd, Tint _ _ _, Tint _ _ _,
+    App (Inj (inr (Value fVint))) e1',
+    App (Inj (inr (Value fVint))) e2' =>
+      match e1', e2' with
+      | App (Inj (inr (Intop fint_repr))) e1'',
+        App (Inj (inr (Intop fint_repr))) e2'' =>
+                appR (Value fVint) (appR (Intop fint_repr) (App (appR (Zop fZ_add) e1'') e2''))
+      | _, _ => appR (Value fVint) (App (appR (Intop fint_add) e1') e2')
+      end
+  | _, _, _, _, _ => App (appR (Eval_f (feval_binop op 
+                                         ty1 ty2)) e1) e2
+  end.
 
 Fixpoint val_e_to_expr (v : val_e) : (expr typ func) :=
 match v with
   | Vundef => injR (Value fVundef)
   | Vlong l => (appR (Value fVlong) (injR (Const (fint64 l))))
-  | Vint i => (appR (Value fVint) (injR (Const (fint i))))
+  | Vint i => (appR (Value fVint) (appR (Intop fint_repr) (injR (Const (fZ (Int.unsigned i))))))
   | Vfloat f => (appR (Value fVfloat) (injR (Const (ffloat f))))
   | Vsingle f => (appR (Value fVsingle) (injR (Const (ffloat32 f))))
   | Vexpr e => e
   | Vunop op ty e => appR (Eval_f (feval_unop op ty)) (val_e_to_expr e)
-  | Vbinop op ty1 ty2 e1 e2 => (App (appR (Eval_f (feval_binop op 
-                                         ty1 ty2)) (val_e_to_expr e1)) (val_e_to_expr e2))
+  | Vbinop op ty1 ty2 e1 e2 => val_e_binarith op ty1 ty2 (val_e_to_expr e1) (val_e_to_expr e2)
   | Veval_cast ty1 ty2 v => (appR (Eval_f (feval_cast ty1 ty2))) (val_e_to_expr v) 
-  | Vderef_noload t v => (appR (Eval_f (fderef_noload t))) (val_e_to_expr v)
   | Vforce_ptr v => (appR (Other (fforce_ptr))) (val_e_to_expr v)
   | Veval_field t id v => (appR (Eval_f (feval_field t id))) (val_e_to_expr v)
 end.
 
 Definition msubst_var id T2 ty :=
-match get_reif id T2 tyval with
+match get_reif id T2 (typrod tyc_type tyval) with
   | App (Inj (inr (Other (fsome t)))) 
         (App (App (Inj (inr (Data (fpair t1 t2))))
                   (Inj (inr (Const (fCtype ty')))))
@@ -56,7 +84,6 @@ match get_reif id T2 tyval with
     else None
   | _ => None
 end.
-
 
 Fixpoint msubst_eval_expr_reif (T1: ExprCore.expr typ func) (T2: ExprCore.expr typ func) (e: Clight.expr) : option (val_e) :=
   match e with
@@ -118,11 +145,22 @@ Fixpoint msubst_efield_denote_reif (T1: ExprCore.expr typ func) (T2: ExprCore.ex
                                       (appR (Smx funion_field) (injR (Const (fident i))))))
                                  (msubst_efield_denote_reif T1 T2 efs0)
   | cons (eArraySubsc ei) efs0 =>
-      match typeof ei, msubst_eval_expr_reif T1 T2 ei with
-      | Tint _ _ _, Some e => option_map (App
+      match typeof ei, rmsubst_eval_expr T1 T2 ei with
+      | Tint _ _ _,
+        App (Inj (inr (Other (fsome _))))
+         (App (Inj (inr (Value fVint))) i) =>
+          match i with
+          | App (Inj (inr (Intop fint_repr))) i' =>
+                             option_map (App
                                 (appR (Data (fcons tygfield))
-                                      (appR (Smx farray_subsc) (val_e_to_expr e))))
+                                      (appR (Smx farray_subsc) i')))
                                  (msubst_efield_denote_reif T1 T2 efs0)
+          | _ =>
+                             option_map (App
+                                (appR (Data (fcons tygfield))
+                                      (appR (Smx farray_subsc) (appR (Intop fint_unsigned) i))))
+                                 (msubst_efield_denote_reif T1 T2 efs0)
+          end
       | _, _ => None
       end
   end.
@@ -142,6 +180,17 @@ Fixpoint rnth_error (ty: typ) (xs: expr typ func) (n: nat) : expr typ func :=
     | S n0 => rnth_error ty tl n0
     end
   | _ => none_reif ty
+  end.
+
+Fixpoint rreplace_nth (ty: typ) (n: nat) (xs: expr typ func) (x: expr typ func) : expr typ func :=
+  match xs with
+  | Inj (inr (Data (fnil _))) => xs
+  | App (App (Inj (inr (Data (fcons _)))) hd) tl => 
+    match n with
+    | O => App (App (Inj (inr (Data (fcons ty)))) x) tl
+    | S n0 => App (App (Inj (inr (Data (fcons ty)))) hd) (rreplace_nth ty n0 tl x)
+    end
+  | _ => xs
   end.
 
 Lemma Forall_reverse :

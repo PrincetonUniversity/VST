@@ -168,10 +168,9 @@ Lemma unpack_globvar_aux1:
                mapsto sh (Tpointer t noattr) (Vptr b i_ofs) v
                    |-- memory_block sh (Int.repr 4) (Vptr b i_ofs).
 Proof.
-intros.
+ intros.
  eapply derives_trans; [ apply mapsto_mapsto_ | ].
  rewrite (memory_block_mapsto_ _ _ (Tpointer t noattr)); auto.
- apply I.
  unfold size_compatible; unfold Int.max_unsigned in H; omega.
  admit. (* align_compatible can be FOUND inside mapsto *)
 Qed.

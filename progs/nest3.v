@@ -6,16 +6,20 @@ Definition _z1 : ident := 40%positive.
 Definition ___builtin_read32_reversed : ident := 32%positive.
 Definition ___compcert_va_int32 : ident := 16%positive.
 Definition _struct_b : ident := 38%positive.
-Definition _main : ident := 46%positive.
+Definition _p3 : ident := 46%positive.
+Definition _multi_command : ident := 54%positive.
 Definition ___builtin_fsqrt : ident := 24%positive.
 Definition ___builtin_clz : ident := 22%positive.
 Definition ___compcert_va_int64 : ident := 17%positive.
 Definition ___builtin_memcpy_aligned : ident := 8%positive.
 Definition ___builtin_subl : ident := 5%positive.
-Definition _i : ident := 43%positive.
+Definition _p7 : ident := 50%positive.
+Definition _p0 : ident := 43%positive.
 Definition ___builtin_va_start : ident := 12%positive.
+Definition _set : ident := 53%positive.
+Definition _p4 : ident := 47%positive.
 Definition ___builtin_annot_intval : ident := 10%positive.
-Definition _get : ident := 44%positive.
+Definition _p1 : ident := 44%positive.
 Definition ___builtin_negl : ident := 3%positive.
 Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
@@ -27,6 +31,7 @@ Definition ___builtin_fmin : ident := 26%positive.
 Definition ___builtin_bswap : ident := 19%positive.
 Definition _z2 : ident := 39%positive.
 Definition ___builtin_membar : ident := 11%positive.
+Definition _p6 : ident := 49%positive.
 Definition _y1 : ident := 37%positive.
 Definition ___builtin_addl : ident := 4%positive.
 Definition ___builtin_fmsub : ident := 28%positive.
@@ -35,18 +40,23 @@ Definition _p : ident := 42%positive.
 Definition ___builtin_bswap16 : ident := 21%positive.
 Definition ___compcert_va_float64 : ident := 18%positive.
 Definition ___builtin_annot : ident := 9%positive.
-Definition _set : ident := 45%positive.
+Definition _get : ident := 52%positive.
+Definition _p2 : ident := 45%positive.
 Definition _struct_c : ident := 41%positive.
 Definition ___builtin_va_arg : ident := 13%positive.
 Definition ___builtin_fmadd : ident := 27%positive.
 Definition _x2 : ident := 33%positive.
+Definition _main : ident := 56%positive.
 Definition ___builtin_fmax : ident := 25%positive.
 Definition ___builtin_va_end : ident := 15%positive.
 Definition _x1 : ident := 34%positive.
 Definition ___builtin_fnmadd : ident := 29%positive.
+Definition _multi_command_s : ident := 55%positive.
 Definition _struct_a : ident := 35%positive.
 Definition ___builtin_fnmsub : ident := 30%positive.
 Definition ___builtin_ctz : ident := 23%positive.
+Definition _i : ident := 51%positive.
+Definition _p5 : ident := 48%positive.
 Definition ___builtin_bswap32 : ident := 20%positive.
 
 Definition t_struct_a :=
@@ -83,6 +93,62 @@ Definition v_p := {|
   gvar_volatile := false
 |}.
 
+Definition v_p0 := {|
+  gvar_info := tint;
+  gvar_init := (Init_space 4 :: nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
+Definition v_p1 := {|
+  gvar_info := tint;
+  gvar_init := (Init_space 4 :: nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
+Definition v_p2 := {|
+  gvar_info := tint;
+  gvar_init := (Init_space 4 :: nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
+Definition v_p3 := {|
+  gvar_info := tint;
+  gvar_init := (Init_space 4 :: nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
+Definition v_p4 := {|
+  gvar_info := tint;
+  gvar_init := (Init_space 4 :: nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
+Definition v_p5 := {|
+  gvar_info := tint;
+  gvar_init := (Init_space 4 :: nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
+Definition v_p6 := {|
+  gvar_info := tint;
+  gvar_init := (Init_space 4 :: nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
+Definition v_p7 := {|
+  gvar_info := tint;
+  gvar_init := (Init_space 4 :: nil);
+  gvar_readonly := false;
+  gvar_volatile := false
+|}.
+
 Definition f_get := {|
   fn_return := tint;
   fn_callconv := cc_default;
@@ -109,6 +175,92 @@ Definition f_set := {|
   (Efield
     (Efield (Efield (Evar _p t_struct_c) _z2 t_struct_b) _y2 t_struct_a) _x2
     tint) (Etempvar _i tint))
+|}.
+
+Definition f_multi_command := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := nil;
+  fn_vars := nil;
+  fn_temps := ((_i, tint) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _i
+    (Efield
+      (Efield (Efield (Evar _p t_struct_c) _z1 t_struct_b) _y1 t_struct_a)
+      _x1 tint))
+  (Ssequence
+    (Sassign
+      (Efield
+        (Efield (Efield (Evar _p t_struct_c) _z2 t_struct_b) _y2 t_struct_a)
+        _x2 tint)
+      (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))
+    (Ssequence
+      (Sset _i
+        (Efield
+          (Efield (Efield (Evar _p t_struct_c) _z1 t_struct_b) _y1
+            t_struct_a) _x2 tint))
+      (Ssequence
+        (Sassign
+          (Efield
+            (Efield (Efield (Evar _p t_struct_c) _z2 t_struct_b) _y2
+              t_struct_a) _x1 tint)
+          (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 2) tint)
+            tint))
+        (Ssequence
+          (Sset _i
+            (Efield
+              (Efield (Efield (Evar _p t_struct_c) _z1 t_struct_b) _y2
+                t_struct_a) _x1 tint))
+          (Ssequence
+            (Sassign
+              (Efield
+                (Efield (Efield (Evar _p t_struct_c) _z2 t_struct_b) _y1
+                  t_struct_a) _x2 tint)
+              (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 3) tint)
+                tint))
+            (Ssequence
+              (Sset _i
+                (Efield
+                  (Efield (Efield (Evar _p t_struct_c) _z1 t_struct_b) _y2
+                    t_struct_a) _x2 tint))
+              (Sassign
+                (Efield
+                  (Efield (Efield (Evar _p t_struct_c) _z2 t_struct_b) _y1
+                    t_struct_a) _x1 tint)
+                (Ebinop Oadd (Etempvar _i tint)
+                  (Econst_int (Int.repr 4) tint) tint)))))))))
+|}.
+
+Definition f_multi_command_s := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := nil;
+  fn_vars := nil;
+  fn_temps := ((_i, tint) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _i (Evar _p0 tint))
+  (Ssequence
+    (Sassign (Evar _p7 tint)
+      (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))
+    (Ssequence
+      (Sset _i (Evar _p1 tint))
+      (Ssequence
+        (Sassign (Evar _p6 tint)
+          (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 2) tint)
+            tint))
+        (Ssequence
+          (Sset _i (Evar _p2 tint))
+          (Ssequence
+            (Sassign (Evar _p5 tint)
+              (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 3) tint)
+                tint))
+            (Ssequence
+              (Sset _i (Evar _p3 tint))
+              (Sassign (Evar _p4 tint)
+                (Ebinop Oadd (Etempvar _i tint)
+                  (Econst_int (Int.repr 4) tint) tint)))))))))
 |}.
 
 Definition prog : Clight.program := {|
@@ -250,8 +402,12 @@ prog_defs :=
    Gfun(External (EF_builtin ___builtin_write32_reversed
                    (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default)) (Tcons (tptr tuint) (Tcons tuint Tnil))
-     tvoid cc_default)) :: (_p, Gvar v_p) :: (_get, Gfun(Internal f_get)) ::
- (_set, Gfun(Internal f_set)) :: nil);
+     tvoid cc_default)) :: (_p, Gvar v_p) :: (_p0, Gvar v_p0) ::
+ (_p1, Gvar v_p1) :: (_p2, Gvar v_p2) :: (_p3, Gvar v_p3) ::
+ (_p4, Gvar v_p4) :: (_p5, Gvar v_p5) :: (_p6, Gvar v_p6) ::
+ (_p7, Gvar v_p7) :: (_get, Gfun(Internal f_get)) ::
+ (_set, Gfun(Internal f_set)) ::
+ (_multi_command, Gfun(Internal f_multi_command)) ::
+ (_multi_command_s, Gfun(Internal f_multi_command_s)) :: nil);
 prog_main := _main
 |}.
-
