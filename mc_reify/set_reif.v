@@ -303,3 +303,41 @@ intros. apply pred_ext.
 entailer.
 Qed.
 
+(****************************************************
+
+Standard and un-optimized msubst_eval
+
+****************************************************)
+
+Fixpoint val_e_to_expr_std (v : val_e) : (expr typ func) :=
+match v with
+  | Vundef => injR (Value fVundef)
+  | Vlong l => (appR (Value fVlong) (injR (Const (fint64 l))))
+  | Vint i => (appR (Value fVint) (injR (Const (fint i))))
+  | Vfloat f => (appR (Value fVfloat) (injR (Const (ffloat f))))
+  | Vsingle f => (appR (Value fVsingle) (injR (Const (ffloat32 f))))
+  | Vexpr e => e
+  | Vunop op ty e => appR (Eval_f (feval_unop op ty)) (val_e_to_expr_std e)
+  | Vbinop op ty1 ty2 e1 e2 => App (appR (Eval_f (feval_binop op ty1 ty2)) (val_e_to_expr_std e1)) (val_e_to_expr_std e2)
+  | Veval_cast ty1 ty2 v => (appR (Eval_f (feval_cast ty1 ty2))) (val_e_to_expr_std v) 
+  | Vforce_ptr v => (appR (Other (fforce_ptr))) (val_e_to_expr_std v)
+  | Veval_field t id v => (appR (Eval_f (feval_field t id))) (val_e_to_expr_std v)
+end.
+
+Definition rmsubst_eval_expr_std (T1: (ExprCore.expr typ func)) (T2: ExprCore.expr typ func) (e: Clight.expr) := 
+match msubst_eval_expr_reif T1 T2 e with
+| Some e => some_reif (val_e_to_expr_std e) tyval
+| None => none_reif tyval
+end.
+
+Definition rmsubst_eval_lvalue_std (T1: (ExprCore.expr typ func)) (T2: ExprCore.expr typ func) (e: Clight.expr) := 
+match msubst_eval_lvalue_reif T1 T2 e with
+| Some e => some_reif (val_e_to_expr_std e) tyval
+| None => none_reif tyval
+end.
+
+Definition rmsubst_eval_LR_std (T1: (ExprCore.expr typ func)) (T2: ExprCore.expr typ func) (e: Clight.expr) (lr : LLRR) := 
+match lr with
+| LLLL => rmsubst_eval_lvalue_std T1 T2 e
+| RRRR => rmsubst_eval_expr_std T1 T2 e
+end.
