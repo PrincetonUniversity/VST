@@ -1,6 +1,6 @@
 Set Implicit Arguments.
 
-Add LoadPath "../FCF".
+(*Add LoadPath "../FCF".*)
 
 Require Import FCF.
 Require Import PRF.

@@ -22,7 +22,7 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric floyd progs sha linking
+DIRS= msl sepcomp veric floyd progs sha linking fcf hmacfcf
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert 
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -175,6 +175,19 @@ HMAC_FILES= \
 #  HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \
 #  HMAC_proofLE.v HMAC_proof.v
 
+FCF_FILES= \
+  Limit.v Blist.v StdNat.v Rat.v Fold.v Comp.v DetSem.v DistSem.v \
+  DistRules.v DistTacs.v ProgTacs.v GenTacs.v Crypto.v SemEquiv.v \
+  ProgramLogic.v RndNat.v Bernoulli.v FCF.v HasDups.v CompFold.v \
+  RepeatCore.v PRF_Encryption_IND_CPA.v PRF.v Array.v Encryption.v \
+  Asymptotic.v Admissibility.v RndInList.v OTP.v RndGrpElem.v \
+  GroupTheory.v WC_PolyTime.v RndListElem.v RndPerm.v NoDup_gen.v \
+  Hybrid.v OracleCompFold.v PRF_Convert.v
+
+HMACFCF_FILES= \
+  splitVector.v cAU.v hF.v HMAC_spec.v NMAC_to_HMAC.v \
+  GNMAC_PRF.v GHMAC_PRF.v HMAC_PRF.v
+
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c
 
 FILES = \
@@ -184,7 +197,9 @@ FILES = \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) \
  $(SHA_FILES:%=sha/%) \
- $(HMAC_FILES:%=sha/%) 
+ $(HMAC_FILES:%=sha/%) \
+ $(FCF_FILES:%=fcf/%) \
+ $(HMACFCF_FILES:%=fhmaccf/%)
 
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
@@ -221,6 +236,8 @@ floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
 sha:     .loadpath $(SHA_FILES:%.v=sha/%.vo)
 hmac:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
+fcf:     .loadpath $(FCF_FILES:%.v=fcf/%.vo)
+hmacfcf: .loadpath $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
 
 CGFLAGS =  -DCOMPCERT
 
