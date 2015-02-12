@@ -121,6 +121,7 @@ VFILES:=app_lemmas.v\
   list_efield_eq.v\
   local2list.v\
   msubst_reif_soundness.v\
+  nth_reif.v\
   reflexivity_tacs.v\
   reified_ltac_lemmas.v\
   reify.v\
