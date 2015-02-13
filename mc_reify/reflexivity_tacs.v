@@ -8,6 +8,7 @@ Require Import MirrorCore.RTac.Core.
 (*Require Import MirrorCharge.RTac.ReifyLemma.*)
 Require Import mc_reify.update_tycon.
 Require Import mc_reify.set_reif.
+Require Import mc_reify.nth_reif.
 Require Import mc_reify.solve_exprD.
 Require Import ExtLib.Tactics.
 Require Import MirrorCore.Lambda.ExprDsimul.

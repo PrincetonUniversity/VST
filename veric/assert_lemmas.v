@@ -8,6 +8,7 @@ Require Import veric.expr veric.expr_lemmas.
 Require Import veric.seplog.
 Require Import veric.Clight_lemmas.
 Require Import msl.normalize.
+Require Import msl.corable.
 
 Local Open Scope pred.
 
@@ -256,76 +257,6 @@ Proof.
   rewrite core_PURE; rewrite level_core; auto.
 Qed.
 
-Lemma corable_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall P Q, corable P -> corable Q -> corable (P && Q).
-Proof.
- unfold corable; intros.
- apply prop_ext; split; intros [? ?]; split; congruence.
-Qed.
-Lemma corable_orp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall P Q, corable P -> corable Q -> corable (P || Q).
-Proof.
- unfold corable; intros.
- apply prop_ext; split; (intros [?|?]; [left|right]; congruence).
-Qed.
-Lemma corable_allp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall {B: Type} (P:  B -> pred A) , 
-      (forall b, corable (P b)) -> corable (allp P).
-Proof.
- unfold corable, allp; intros.
- apply prop_ext; split; simpl; intros.
- rewrite <- H; auto. rewrite H; auto.
-Qed.
-Lemma corable_exp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall {B: Type} (P:  B -> pred A) , 
-      (forall b, corable (P b)) -> corable (exp P).
-Proof.
- unfold corable, exp; intros.
- apply prop_ext; split; simpl; intros;  destruct H0 as [b ?]; exists b.
- rewrite <- H; auto. rewrite H; auto.
-Qed.
-Lemma corable_prop{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall P, corable (prop P).
-Proof.
- unfold corable, prop; intros.
- apply prop_ext; split; simpl; intros; auto.
-Qed.
-
-
-Lemma corable_imp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-  forall P Q, corable P -> corable Q -> corable (P --> Q).
-Proof.
- unfold corable; intros.
- apply prop_ext; split; intro.
- intros w' ? ?.
- destruct (nec_join (core_unit w) H2) as [y' [z' [? [? ?]]]]. 
- change (@join A JA w' y' z') in H4.
- assert (y'=z'). eapply necR_linear'; eauto. apply join_level in H4; destruct H4; congruence.
- subst z'; clear H6.
- assert (core y' = w').
- rewrite <- (join_core H4).
- apply unit_identity in H4.
- symmetry; apply unit_core. apply identity_unit_equiv in H4; auto.
- subst w'.
- specialize (H1 _ H5).
- rewrite <- H0. apply H1. rewrite H; auto.
- intros w' ? ?.
- destruct (nec_join2 (core_unit w) H2) as [y' [z' [? [? ?]]]]. 
- change (@join A JA y' z' w') in H4.
- assert (app_pred emp (core w)).
- do 3 red. apply core_identity.
- eapply pred_nec_hereditary in H7; try apply H5.
- do 3 red in H7.
- assert (y' = core y'). apply unit_core. apply identity_unit_equiv; auto.
- pose proof (join_core H4).
- rewrite H8 in H5; rewrite H9 in H5.
- rewrite H0.
- eapply H1; try apply H5. rewrite <- H; auto.
-Qed.
-
-Hint Resolve @corable_andp @corable_orp @corable_allp @corable_exp 
-                    @corable_imp @corable_prop.
-
 Lemma corable_funassert:
   forall G rho, corable (funassert G rho).
 Proof.
@@ -349,7 +280,6 @@ Proof.
 Qed.
 
 Hint Resolve corable_funassert.
-
 
 Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap), 
     (forall loc, corable (P loc)) -> 

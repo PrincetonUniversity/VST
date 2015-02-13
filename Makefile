@@ -65,7 +65,7 @@ MSL_FILES = \
   knot_hered.v knot_hered_sa.v \
   knot_full.v knot_shims.v \
   knot_sa_trivial.v \
-  is_prop_lemma.v \
+  corable.v \
   predicates_hered.v predicates_sl.v subtypes.v subtypes_sl.v \
   contractive.v predicates_rec.v \
   msl_direct.v msl_standard.v msl_classical.v \

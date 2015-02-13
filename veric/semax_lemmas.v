@@ -1,10 +1,10 @@
 Require Import veric.base.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
-Require Import msl.is_prop_lemma.
 Require Import veric.compcert_rmaps.
 Import Mem.
 Require Import msl.msl_standard.
+Require Import msl.corable.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.seplog.
@@ -348,7 +348,7 @@ Focus 2. {
   rewrite (sepcon_comm (F (construct_rho (filter_genv gx) ve te))
     (|>!!PP && |>P (construct_rho (filter_genv gx) ve te))).
 
- rewrite is_prop_andp_sepcon by (apply is_prop_later; apply prop_is_prop).
+ rewrite corable_andp_sepcon1 by (apply corable_later; apply corable_prop).
 
  rewrite sepcon_comm.
  reflexivity.

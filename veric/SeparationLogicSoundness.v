@@ -19,7 +19,6 @@ Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
 Require Import veric.initial_world.
-Require Import msl.normalize.
 Require Import veric.semax_call.
 Require Import veric.semax_straight.
 Require Import veric.semax_loop.
@@ -59,13 +58,7 @@ Definition func_ptr (f: funspec) : val -> mpred :=
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
 Proof.
-intros. destruct f;  unfold func_ptr, corable.
-intros.
-apply log_normalize.corable_andp_sepcon1.
-unfold corable.
-intros.
-simpl.
-apply normalize.corable_andp_sepcon1.
+intros. destruct f; unfold func_ptr.
 apply corable_fun_assert.
 Qed.
 
