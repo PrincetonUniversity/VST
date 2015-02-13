@@ -2491,7 +2491,7 @@ Proof.
 Opaque efield_denote.
       simpl.
 Transparent efield_denote.
-      apply corable_andp. [apply corable_andp; [apply corable_andp |] |].
+      apply corable_andp; [apply corable_andp; [apply corable_andp |] |].
             (* I dont know why this line takes pretty long time. Though it works. *)
       apply corable_prop.
       apply corable_prop.
