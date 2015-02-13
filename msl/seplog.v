@@ -131,7 +131,6 @@ Instance LiftIntuitionisticSep (A B: Type)  {NB: NatDed B}{SB: SepLog B}{IB: Int
  intros. intro. simpl. apply all_extensible.
 Qed.
 
-
 Class Indir (A: Type) {ND: NatDed A} := mkIndir {
   later: A -> A;
   now_later: forall P: A, P |-- later P;
@@ -144,7 +143,6 @@ Class Indir (A: Type) {ND: NatDed A} := mkIndir {
 }.
 
 Notation "'|>' e" := (later e) (at level 30, right associativity): logic.
-
 
 Instance LiftIndir (A: Type) (B: Type)  {NB: NatDed B}{IXB: Indir B} :
          @Indir (A -> B) (LiftNatDed A B).
@@ -172,4 +170,31 @@ Instance LiftSepIndir  (A: Type) (B: Type)  {NB: NatDed B} {SB: SepLog B}{IB: In
  intros; simpl. extensionality rho.  apply later_ewand.
 Qed.
 
+Class CorableIndir (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A} := mkCorableIndir {
+  corable: A -> Prop;
+  corable_prop: forall P, corable (!! P);
+  corable_andp: forall P Q, corable P -> corable Q -> corable (P && Q);
+  corable_orp: forall P Q, corable P -> corable Q -> corable (P || Q);
+  corable_imp: forall P Q, corable P -> corable Q -> corable (P --> Q);
+  corable_allp: forall {B: Type} (P:  B -> A), (forall b, corable (P b)) -> corable (allp P);
+  corable_exp: forall {B: Type} (P:  B -> A), (forall b, corable (P b)) -> corable (exp P);
+  corable_sepcon: forall P Q, corable P -> corable Q -> corable (P * Q);
+  corable_wand: forall P Q, corable P -> corable Q -> corable (P -* Q);
+  corable_later: forall P, corable P -> corable (|> P);
+  corable_andp_sepcon1: forall P Q R, corable P ->  (P && Q) * R = P && (Q * R)
+}.
 
+Instance LiftCorableIndir (A: Type) (B: Type) {NB: NatDed B} {SB: SepLog B} {IB: Indir B} {CB: CorableIndir B} : @CorableIndir (A -> B) (LiftNatDed A B) (LiftSepLog A B) (LiftIndir A B).
+  apply (@mkCorableIndir _ _ _ _ (fun P => forall b, corable (P b))); intros; simpl in *; intros.
+  + apply corable_prop.
+  + apply corable_andp; auto.
+  + apply corable_orp; auto.
+  + apply corable_imp; auto.
+  + apply corable_allp; auto.
+  + apply corable_exp; auto.
+  + apply corable_sepcon; auto.
+  + apply corable_wand; auto.
+  + apply corable_later; auto.
+  + extensionality b.
+    apply corable_andp_sepcon1; auto.
+Defined.

@@ -1960,30 +1960,30 @@ Proof.
     auto.
 Qed.
 
-Lemma efield_denote_is_prop: forall efs gfs rho, is_prop (efield_denote efs gfs rho).
+Lemma corable_efield_denote: forall efs gfs rho, corable (efield_denote efs gfs rho).
 Proof.
   intros.
   revert gfs; induction efs; destruct gfs; simpl; intros.
-  + apply prop_is_prop.
-  + apply prop_is_prop.
-  + destruct a; apply prop_is_prop.
-  + destruct a, g; try apply prop_is_prop.
+  + apply corable_prop.
+  + apply corable_prop.
+  + destruct a; apply corable_prop.
+  + destruct a, g; try apply corable_prop.
     - unfold local, lift1.
       unfold_lift.
-      repeat apply is_prop_andp.
-      apply prop_is_prop.
-      apply prop_is_prop.
+      repeat apply corable_andp.
+      apply corable_prop.
+      apply corable_prop.
       apply IHefs.
-    - apply is_prop_andp.
-      apply prop_is_prop.
+    - apply corable_andp.
+      apply corable_prop.
       apply IHefs.
-    - apply is_prop_andp.
-      apply prop_is_prop.
+    - apply corable_andp.
+      apply corable_prop.
       apply IHefs.
 Qed.
 
-Lemma insert_is_prop_sep: forall R1 P Q R,
-  (forall rho, is_prop (R1 rho)) ->
+Lemma insert_corable_sep: forall R1 P Q R,
+  (forall rho, corable (R1 rho)) ->
   R1 && PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx (R1 && emp :: R))).
 Proof.
   intros.
@@ -1996,9 +1996,7 @@ Proof.
   extensionality rho.
   simpl.
   rewrite andp_comm.
-  change (@andp mpred Nveric)
-    with (@predicates_hered.andp compcert_rmaps.RML.R.rmap compcert_rmaps.R.ag_rmap).
-  rewrite is_prop_andp_eq by auto.
+  rewrite andp_left_corable by auto.
   reflexivity.
 Qed.
 
@@ -2483,7 +2481,7 @@ Proof.
     } Unfocus.
     pose proof I as H1.
     intros.
-    assert (forall rho : environ, is_prop
+    assert (forall rho : environ, corable
       ((local (tc_LR Delta e1 lr) && local (tc_expr Delta (Ecast e2 t)) &&
         local (tc_efield Delta (ef :: efs)) &&
         efield_denote (ef :: efs) ((gf :: gfs1) ++ gfs0)) rho)).
@@ -2493,12 +2491,12 @@ Proof.
 Opaque efield_denote.
       simpl.
 Transparent efield_denote.
-      apply is_prop_andp; [apply is_prop_andp; [apply is_prop_andp |] |].
+      apply corable_andp. [apply corable_andp; [apply corable_andp |] |].
             (* I dont know why this line takes pretty long time. Though it works. *)
-      apply prop_is_prop.
-      apply prop_is_prop.
-      apply prop_is_prop.
-      apply efield_denote_is_prop.
+      apply corable_prop.
+      apply corable_prop.
+      apply corable_prop.
+      apply corable_efield_denote.
     } Unfocus.
     apply semax_pre_simple with (P' := |> PROPx P (LOCALx Q (SEPx 
       (local (tc_LR Delta e1 lr) && local (tc_expr Delta (Ecast e2 t)) &&
@@ -2509,7 +2507,7 @@ Transparent efield_denote.
       apply later_derives.
       rewrite insert_local.
       rewrite (add_andp _ _ H6).
-      rewrite <- insert_is_prop_sep by exact H9.
+      rewrite <- insert_corable_sep by exact H9.
       rewrite (andp_comm _ (PROPx P (LOCALx Q (SEPx R)))).
       rewrite <- insert_local.
       repeat apply andp_right; solve_andp_left.
@@ -2612,14 +2610,14 @@ Transparent efield_denote.
                     (`(proj_reptype (nested_field_type2 t_root gfs0)
                          (gf :: gfs1)) v))) (eval_LR e1 lr)); eauto].
     - unfold replace_nth at 1 3.
-      rewrite <- insert_is_prop_sep by exact H9.
+      rewrite <- insert_corable_sep by exact H9.
       rewrite <- insert_local.
       apply andp_left2.
       apply andp_left2.
       apply derives_refl.
     - simpl; intros; normalize.
       apply field_at_field_at_; auto.
-    - rewrite <- insert_is_prop_sep by exact H9.
+    - rewrite <- insert_corable_sep by exact H9.
       apply andp_left1.
       (repeat apply andp_right); solve_andp_left.
 Qed.

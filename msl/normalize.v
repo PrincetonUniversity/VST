@@ -1,4 +1,5 @@
 Require Import msl.msl_standard.
+Require Import msl.corable.
 
 Local Open Scope pred.
 
@@ -307,48 +308,6 @@ Proof.
 unfold derives, prop, andp; intuition; hnf in *; intuition.
 hnf in *; intuition. apply H1; auto.
 Qed.
-
-Definition corable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}
-         (P: pred A) := forall w, P w = P (core w).
-
-Lemma corable_andp_sepcon1{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-   forall P Q R, corable P ->  (P && Q) * R = P && (Q * R).
-Proof.
-intros.
-apply pred_ext.
-intros w [w1 [w2 [? [[? ?] ?]]]].
-split.
-apply join_core in H0.
-rewrite H in H1|-*. rewrite <- H0; auto.
-exists w1; exists w2; split; [| split]; auto.
-intros w [? [w1 [w2 [? [? ?]]]]].
-exists w1; exists w2; split; [|split]; auto.
-split; auto.
-apply join_core in H1.
-rewrite H in H0|-*. rewrite H1; auto.
-Qed.
-
-Lemma corable_andp_sepcon2{A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-   forall P Q R, corable P ->  (Q && P) * R = P && (Q * R).
-Proof.
-intros. rewrite andp_comm. apply corable_andp_sepcon1. auto.
-Qed.
-
-Lemma corable_sepcon_andp1 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-   forall P Q R, corable P ->  Q  * (P && R) = P && (Q * R).
-Proof.
-intros. rewrite sepcon_comm. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.
-Qed.
-
-Lemma corable_sepcon_andp2 {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
-   forall P Q R, corable P ->  Q  * (R && P) = P && (Q * R).
-Proof.
-intros. rewrite sepcon_comm. rewrite andp_comm. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.
-Qed.
-
-(* This hint doesn't work well, hence the extra clauses in normalize1 and normalize1_in *)
-Hint Rewrite @corable_andp_sepcon1 @corable_andp_sepcon2
-                    @corable_sepcon_andp1 @corable_sepcon_andp2 using solve [auto with normalize typeclass_instances].
 
 Ltac normalize1 := 
              match goal with

@@ -13,7 +13,6 @@ Require Export msl.shares.
 Require Export msl.seplog.
 Require Export msl.alg_seplog.
 Require Export msl.log_normalize.
-Require Export msl.is_prop_lemma.
 Require Export veric.expr.
 Require Export veric.expr_rel.
 Require veric.seplog.
@@ -27,6 +26,7 @@ Instance Cveric: ClassicalSep mpred := algClassicalSep compcert_rmaps.RML.R.rmap
 Instance Iveric: Indir mpred := algIndir compcert_rmaps.RML.R.rmap.
 Instance Rveric: RecIndir mpred := algRecIndir compcert_rmaps.RML.R.rmap.
 Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
+Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rmap.
 Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
 
 Instance LiftNatDed' T {ND: NatDed T}: NatDed (LiftEnviron T) := LiftNatDed _ _.
@@ -37,10 +37,12 @@ Instance LiftIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T} :
            Indir (LiftEnviron T) := LiftIndir _ _.
 Instance LiftSepIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T} :
            SepIndir (LiftEnviron T) := LiftSepIndir _ _.
+Instance LiftCorableIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T}{CI: CorableIndir T} :
+           CorableIndir (LiftEnviron T) := LiftCorableIndir _ _.
 
 Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 prop.
 
-Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
+Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CIveric SRveric.
 
 Hint Resolve any_environ : typeclass_instances.
 
