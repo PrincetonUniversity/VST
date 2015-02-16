@@ -17,6 +17,7 @@ Require Import veric.expr veric.expr_lemmas.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
+Require Import Coq.Classes.RelationClasses.
 (*Require Import veric.SeparationLogicSoundness. *)
 
 Open Local Scope pred.
@@ -34,16 +35,26 @@ Definition assert_safe_equiv c1 c2 :=
       assert_safe Espec gx vx tx (Kseq c1 :: k1) (construct_rho (filter_genv gx) vx tx) =
       assert_safe Espec gx vx tx (Kseq c2 :: k2) (construct_rho (filter_genv gx) vx tx)).
 
+Definition modifiedvars_equiv c1 c2 :=
+  forall S, modifiedvars' c1 S = modifiedvars' c2 S.
+
+Definition update_tycon_equiv c1 c2 :=
+  forall Delta, update_tycon Delta c1 = update_tycon Delta c2.
+
+Definition semax_equiv c1 c2 :=
+  assert_safe_equiv c1 c2 /\
+  modifiedvars_equiv c1 c2 /\
+  update_tycon_equiv c1 c2.
+
 Lemma safeN_step_jsem_spec: forall gx vx tx n k ora jm,
   @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
-    gx (S n) ora (State vx tx k) jm =
+    gx (S n) ora (State vx tx k) jm <->
   exists c' m', (cl_step gx (State vx tx k) (m_dry jm) c' (m_dry m') /\
   resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi m') /\
   level jm = S (level m') /\
   @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec gx n ora c' m').
 Proof.
   intros.
-  apply prop_ext.
   split; intros.
   - inversion H; subst.
     * exists c', m'.
@@ -78,21 +89,13 @@ Proof.
 Qed.
 
 Lemma pred_ext'': forall {A} {agA: ageable A} (P Q: pred A),
-  (forall w: A, P w = Q w) <-> P = Q.
+  (forall w: A, P w <-> Q w) <-> P = Q.
 Proof.
   intros.
   split; intros.
-  + apply pred_ext'.
-    extensionality w.
-    apply H.
+  + apply pred_ext; intro w; rewrite H; auto.
   + rewrite H.
     reflexivity.
-Qed.
-
-Lemma prop_ext_rev: forall P Q, (P = Q) -> (P <-> Q).
-Proof.
-  intros.
-  rewrite H; tauto.
 Qed.
 
 Lemma assert_safe_equiv_seq: forall c1 c2 c3 c4,
@@ -113,8 +116,7 @@ Proof.
 
   unfold assert_safe in H |- *.
   simpl in H |- *.
-  apply prop_ext_rev in H.
-  apply prop_ext; split; intros ? ? ? _ ?.
+  split; intros ? ? ? _ ?.
 
   + unfold jsafeN, juicy_safety.safeN in H, H0 |- *.
     destruct (level w) as [| n]; [apply safeN_0 |].
@@ -135,7 +137,69 @@ Proof.
     apply H0; auto.
 Qed.
 
+Lemma modifiedvars_equiv_seq: forall c1 c2 c3 c4,
+  modifiedvars_equiv c1 c2 ->
+  modifiedvars_equiv c3 c4 ->
+  modifiedvars_equiv (Ssequence c1 c3) (Ssequence c2 c4).
+Proof.
+  unfold modifiedvars_equiv.
+  intros.
+  simpl.
+  rewrite H0, H.
+  reflexivity.
+Qed.
+
+Lemma update_tycon_equiv_seq: forall c1 c2 c3 c4,
+  update_tycon_equiv c1 c2 ->
+  update_tycon_equiv c3 c4 ->
+  update_tycon_equiv (Ssequence c1 c3) (Ssequence c2 c4).
+Proof.
+  unfold update_tycon_equiv.
+  intros.
+  simpl.
+  rewrite H0, H.
+  reflexivity.
+Qed.
+
+Lemma semax_equiv_seq: forall c1 c2 c3 c4,
+  semax_equiv c1 c2 ->
+  semax_equiv c3 c4 ->
+  semax_equiv (Ssequence c1 c3) (Ssequence c2 c4).
+Proof.
+  unfold semax_equiv.
+  intros.
+  repeat split.
+  + apply assert_safe_equiv_seq; tauto.
+  + apply modifiedvars_equiv_seq; tauto.
+  + apply update_tycon_equiv_seq; tauto.
+Qed.
+
 (*
+
+Lemma semax_equiv_spec: forall c1 c2,
+  semax_equiv c1 c2 ->
+  (forall P Q Delta, semax Espec Delta P c1 Q -> semax Espec Delta P c2 Q).
+Proof.
+  rewrite semax_unfold.
+  unfold semax_equiv, assert_safe_equiv, modifiedvars_equiv, update_tycon_equiv.
+  intros ? ? [A_EQUIV [M_EQUIV T_EQUIV]] P Q Delta Hc1; intros.
+  specialize (Hc1 psi Delta' w TS Prog_OK k F).
+  spec Hc1.
+  Focus 1.
+  clear - HEQ Hc1.
+  unfold guard in Hc1 |- *.
+  intros te ve ? ? ? ? ?.
+  specialize (Hc1 te ve y H a' H0 H1).
+    (* This step uses that fact that current function has nothing to do with c1 and c2. *)
+  clear - HEQ Hc1.
+  specialize (HEQ k k (fun _ _ _ => eq_refl)).
+  rewrite <- HEQ.
+  auto.
+Qed.
+
+
+
+
 Definition semax_stronger c1 c2 :=
   (forall P Q Delta, semax Espec Delta P c1 Q -> semax Espec Delta P c2 Q) /\
   (forall F, closed_wrt_modvars c2 F -> closed_wrt_modvars c1 F).
