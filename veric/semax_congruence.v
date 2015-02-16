@@ -174,8 +174,6 @@ Proof.
   + apply update_tycon_equiv_seq; tauto.
 Qed.
 
-(*
-
 Lemma semax_equiv_spec: forall c1 c2,
   semax_equiv c1 c2 ->
   (forall P Q Delta, semax Espec Delta P c1 Q -> semax Espec Delta P c2 Q).
@@ -185,16 +183,30 @@ Proof.
   intros ? ? [A_EQUIV [M_EQUIV T_EQUIV]] P Q Delta Hc1; intros.
   specialize (Hc1 psi Delta' w TS Prog_OK k F).
   spec Hc1.
-  Focus 1.
-  clear - HEQ Hc1.
+  Focus 1. {
+    clear - H M_EQUIV.
+    unfold closed_wrt_modvars, modifiedvars in H |- *.
+    rewrite M_EQUIV.
+    assumption.
+  } Unfocus.
+  spec Hc1.
+  Focus 1. {
+    clear - H0 T_EQUIV.
+    replace (exit_tycon c1 Delta') with (exit_tycon c2 Delta'); [assumption |].
+    extensionality ek.
+    destruct ek; auto.
+    simpl.
+    rewrite T_EQUIV; reflexivity.
+  } Unfocus.
+  clear - A_EQUIV Hc1.
   unfold guard in Hc1 |- *.
   intros te ve ? ? ? ? ?.
   specialize (Hc1 te ve y H a' H0 H1).
     (* This step uses that fact that current function has nothing to do with c1 and c2. *)
-  clear - HEQ Hc1.
-  specialize (HEQ k k (fun _ _ _ => eq_refl)).
-  rewrite <- HEQ.
-  auto.
+  clear - A_EQUIV Hc1.
+  specialize (A_EQUIV k k (fun _ _ _ => eq_refl)).
+  rewrite <- A_EQUIV.
+  assumption.
 Qed.
 
 
