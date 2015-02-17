@@ -62,35 +62,8 @@ Proof.
     auto.
 Qed.
 
-(*
-(* Some attempts to build proofs on the level of safeN. It is woarkable. But as
-proofs on the level of jsafeN already existed, I will take use of that. *)
-Definition safeN__cont_stronger k1 k2 :=
-  forall gx vx tx w,
-   (forall ora jm, m_phi jm = w ->
-      @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
-        gx (level w) ora (State vx tx k1) jm) ->
-   (forall ora jm, m_phi jm = w ->
-      @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
-        gx (level w) ora (State vx tx k2) jm).
-
-Lemma safeN__cont_stronger_suffix: forall k k1 k2,
-  safeN__cont_stronger k1 k2 -> safeN__cont_stronger (k ++ k1) (k ++ k2).
-Proof.
-  intros; intros gx vx tx w.
-  remember (level w) as n eqn:LV.
-  revert gx vx tx w LV; induction n.
-  + intros; apply safeN_0.
-  + intros.
-    specialize (H0 ora jm H1).
-    rewrite safeN_step_jsem_spec in H0 |- *.
-    destruct H0 as [c' [m' [? [? [? ?]]]]].
-
-Lemma safeN__cont_stronger_suffix_aux: forall k1 k2,
-*)
-
 Definition jsafeN_equiv c1 c2 :=
-  forall k1 k2,
+  forall k1 k2, filter_seq k1 = filter_seq k2 ->
    (forall gx vx tx w,
      (forall ora jm, m_phi jm = w ->
          jsafeN OK_spec gx (level w) ora (State vx tx k1) jm) <->
@@ -102,41 +75,11 @@ Definition jsafeN_equiv c1 c2 :=
      (forall ora jm, m_phi jm = w ->
          jsafeN OK_spec gx (level w) ora (State vx tx (Kseq c2 :: k2)) jm)).
 
-(*
-Definition assert_safe_equiv c1 c2 :=
-  forall k1 k2,
-   (forall gx vx tx,
-      assert_safe Espec gx vx tx k1 (construct_rho (filter_genv gx) vx tx) =
-      assert_safe Espec gx vx tx k2 (construct_rho (filter_genv gx) vx tx)) ->
-   (forall gx vx tx,
-      assert_safe Espec gx vx tx (Kseq c1 :: k1) (construct_rho (filter_genv gx) vx tx) =
-      assert_safe Espec gx vx tx (Kseq c2 :: k2) (construct_rho (filter_genv gx) vx tx)).
-*)
-
 Definition closed_wrt_modvars_equiv c1 c2 :=
   forall F, closed_wrt_modvars c1 F <-> closed_wrt_modvars c2 F.
 
 Definition exit_tycon_equiv c1 c2 :=
   forall Delta, exit_tycon c1 Delta = exit_tycon c2 Delta.
-
-(*
-Definition safeN__equiv c1 c2 :=
-  forall k1 k2,
-   (forall gx vx tx w,
-     (forall ora jm, m_phi jm = w ->
-        @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
-          gx (level w) ora (State vx tx k1) jm) <->
-     (forall ora jm, m_phi jm = w ->
-        @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
-          gx (level w) ora (State vx tx k2) jm)) ->
-   (forall gx vx tx w,
-     (forall ora jm, m_phi jm = w ->
-        @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
-          gx (level w) ora (State vx tx (Kseq c1 :: k1)) jm) <->
-     (forall ora jm, m_phi jm = w ->
-        @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
-          gx (level w) ora (State vx tx (Kseq c2 :: k2)) jm)).
-*)
 
 Definition modifiedvars_equiv c1 c2 :=
   forall S, modifiedvars' c1 S = modifiedvars' c2 S.
@@ -148,42 +91,7 @@ Definition semax_equiv c1 c2 :=
   jsafeN_equiv c1 c2 /\
   modifiedvars_equiv c1 c2 /\
   update_tycon_equiv c1 c2.
-(*
-Lemma safeN__assert_safe_equiv: forall c1 c2,
-  safeN__equiv c1 c2 -> assert_safe_equiv c1 c2.
-Proof.
-  unfold safeN__equiv, assert_safe_equiv.
-  intros.
-  specialize (H k1 k2).
-  apply pred_ext''; intros.
-  assert (forall (gx : genv) (vx : env) (tx : temp_env) w,
-       assert_safe Espec gx vx tx k1 (construct_rho (filter_genv gx) vx tx) w <->
-       assert_safe Espec gx vx tx k2 (construct_rho (filter_genv gx) vx tx) w).
-  Focus 1. {
-    clear - H0.
-    intros gx vx tx; specialize (H0 gx vx tx).
-    rewrite H0; tauto.
-  } Unfocus.
-  clear H0.
 
-  unfold assert_safe in H1 |- *.
-  simpl in H1 |- *.
-  split.
-
-  + unfold jsafeN, juicy_safety.safeN in H, H1 |- *.
-    intros.
-    apply H; clear H; [| intros; apply H0; auto | auto].
-    clear - H1.
-    intros; specialize (H1 gx vx tx w).
-    split; intros; apply H1; auto.
-  + unfold jsafeN, juicy_safety.safeN in H, H1 |- *.
-    intros.
-    apply H; clear H; [| intros; apply H0; auto | auto].
-    clear - H1.
-    intros; specialize (H1 gx vx tx w).
-    split; intros; apply H1; auto.
-Qed.
-*)
 Lemma modifiedvars_closed_wrt_modvars_equiv: forall c1 c2,
   modifiedvars_equiv c1 c2 -> closed_wrt_modvars_equiv c1 c2.
 Proof.
@@ -228,7 +136,7 @@ Proof.
   specialize (Hc1 te ve y H a' H0 H1).
     (* This step uses that fact that current function has nothing to do with c1 and c2. *)
   clear - JS_EQUIV Hc1.
-  specialize (JS_EQUIV k k (fun _ _ _ _ => iff_refl _)).
+  specialize (JS_EQUIV k k eq_refl (fun _ _ _ _ => iff_refl _)).
   unfold assert_safe in Hc1 |- *; simpl in Hc1 |- *.
   intros ? ? _ ?.
   apply JS_EQUIV; [| assumption].
@@ -236,19 +144,20 @@ Proof.
   apply Hc1; auto.
 Qed.
 
-Lemma safeN_step_jsem_seq: forall gx vx tx n c1 c2 k ora jm,
-  @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
-    gx (S n) ora (State vx tx (Kseq (Ssequence c1 c2) :: k)) jm <->
-  @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
-    gx (S n) ora (State vx tx (Kseq c1 :: Kseq c2 :: k)) jm.
+Lemma jsafeN_step_jsem_seq: forall gx vx tx n c1 c2 k ora jm,
+  jsafeN OK_spec gx n ora (State vx tx (Kseq (Ssequence c1 c2) :: k)) jm <->
+  jsafeN OK_spec gx n ora (State vx tx (Kseq c1 :: Kseq c2 :: k)) jm.
 Proof.
+  unfold jsafeN, juicy_safety.safeN; simpl.
   intros.
-  rewrite !safeN_step_jsem_spec.
-  split; intros; destruct H as [c' [m' [? ?]]]; exists c', m'; (split; [| auto]); clear H0.
-  + inversion H; subst.
-    auto.
-  + apply step_seq.
-    auto.
+  destruct n.
+  + split; intros; apply safeN_0.
+  + rewrite !safeN_step_jsem_spec.
+    split; intros; destruct H as [c' [m' [? ?]]]; exists c', m'; (split; [| auto]); clear H0.
+    - inversion H; subst.
+      auto.
+    - apply step_seq.
+      auto.
 Qed.
 
 Lemma jsafeN_equiv_seq: forall c1 c2 c3 c4,
@@ -260,51 +169,22 @@ Proof.
   intros.
   specialize (H (Kseq c3 :: k1) (Kseq c4 :: k2)).
   specialize (H0 k1 k2).
-  specialize (H (H0 H1)); clear - H.
+  specialize (H H1 (H0 H1 H2)); clear - H.
   specialize (H gx vx tx w).
-  unfold jsafeN, juicy_safety.safeN in H |- *.
+
   split; intros.
-  + destruct (level w) as [| n]; [apply safeN_0 |].
-    rewrite safeN_step_jsem_seq.
+  + rewrite jsafeN_step_jsem_seq.
     apply H with (ora := ora) (jm := jm); auto; clear - H0.
     intros.
-    rewrite <- safeN_step_jsem_seq.
+    rewrite <- jsafeN_step_jsem_seq.
     apply H0; auto.
-  + destruct (level w) as [| n]; [apply safeN_0 |].
-    rewrite safeN_step_jsem_seq.
+  + rewrite jsafeN_step_jsem_seq.
     apply H with (ora := ora) (jm := jm); auto; clear - H0.
     intros.
-    rewrite <- safeN_step_jsem_seq.
+    rewrite <- jsafeN_step_jsem_seq.
     apply H0; auto.
 Qed.
 
-(*
-Lemma safeN__equiv_seq: forall c1 c2 c3 c4,
-  safeN__equiv c1 c2 ->
-  safeN__equiv c3 c4 ->
-  safeN__equiv (Ssequence c1 c3) (Ssequence c2 c4).
-Proof.
-  unfold safeN__equiv.
-  intros.
-  specialize (H (Kseq c3 :: k1) (Kseq c4 :: k2)).
-  specialize (H0 k1 k2).
-  specialize (H (H0 H1)); clear - H.
-  specialize (H gx vx tx w).
-  split; intros.
-  + destruct (level w) as [| n]; [apply safeN_0 |].
-    rewrite safeN_step_jsem_seq.
-    apply H with (ora := ora) (jm := jm); auto; clear - H0.
-    intros.
-    rewrite <- safeN_step_jsem_seq.
-    apply H0; auto.
-  + destruct (level w) as [| n]; [apply safeN_0 |].
-    rewrite safeN_step_jsem_seq.
-    apply H with (ora := ora) (jm := jm); auto; clear - H0.
-    intros.
-    rewrite <- safeN_step_jsem_seq.
-    apply H0; auto.
-Qed.
-*)
 Lemma modifiedvars_equiv_seq: forall c1 c2 c3 c4,
   modifiedvars_equiv c1 c2 ->
   modifiedvars_equiv c3 c4 ->
@@ -341,16 +221,44 @@ Proof.
   + apply modifiedvars_equiv_seq; tauto.
   + apply update_tycon_equiv_seq; tauto.
 Qed.
+
 (*
-Lemma Ssequence_assoc_assert_safe_equiv: forall c1 c2 c3,
-  safeN__equiv (Ssequence c1 (Ssequence c2 c3)) (Ssequence (Ssequence c1 c2) c3).
+Lemma control_as_safe_jsafeN_equiv: forall c1 c2,
+ (forall k1 k2,
+   (forall gx n, control_as_safe Espec gx n k1 k2) /\
+   (forall gx n, control_as_safe Espec gx n k2 k1) ->
+   (forall gx n, control_as_safe Espec gx n (Kseq c1 :: k1) (Kseq c2 :: k2)) /\
+   (forall gx n, control_as_safe Espec gx n (Kseq c2 :: k2) (Kseq c1 :: k1))) ->
+  jsafeN_equiv c1 c2.
+Admitted.
+*)
+
+(*
+Lemma Ssequence_assoc_jsafeN_equiv: forall c1 c2 c3,
+  jsafeN_equiv (Ssequence c1 (Ssequence c2 c3)) (Ssequence (Ssequence c1 c2) c3).
 Proof.
-  unfold safeN__equiv.
+  unfold jsafeN_equiv.
   intros.
   split; intros.
-  + destruct (level w) as [| n]; [apply safeN_0 |].
-    rewrite !safeN_step_jsem_seq.
-
+  + specialize (H1 ora jm H2).
+    rewrite !jsafeN_step_jsem_seq in H1.
+    rewrite !jsafeN_step_jsem_seq.
+    apply (control_suffix_safe Espec gx (level w)
+            (Kseq (Ssequence c2 c3) :: k1) (Kseq c2 :: Kseq c3 :: k2) (Kseq c1 :: nil));
+    [simpl; auto | | auto | simpl; auto].
+    unfold control_as_safe.
+    intros.
+    rewrite !jsafeN_step_jsem_seq in H4.
+    apply (control_suffix_safe Espec gx (level w) k1 k2 (Kseq c2 :: Kseq c3 :: nil));
+    [auto | | auto | simpl; auto].
+    clear - H0.
+    forget (level w) as n.
+Print control_as_safe.
+    intro; intros.
+SearchAbout jsafeN.
+    apply H0.
+      
+      
     
 Lemma Ssequence_assoc: forall c1 c2 c3,
   semax_equiv (Ssequence c1 (Ssequence c2 c3)) (Ssequence (Ssequence c1 c2) c3).
