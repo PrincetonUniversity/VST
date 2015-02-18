@@ -171,28 +171,6 @@ match msubst_efield_denote_reif T1 T2 efs with
 | None => none_reif (tylist tygfield)
 end.
 
-Fixpoint rnth_error (ty: typ) (xs: expr typ func) (n: nat) : expr typ func :=
-  match xs with
-  | Inj (inr (Data (fnil _))) => none_reif ty
-  | App (App (Inj (inr (Data (fcons _)))) hd) tl => 
-    match n with
-    | O => some_reif hd ty
-    | S n0 => rnth_error ty tl n0
-    end
-  | _ => none_reif ty
-  end.
-
-Fixpoint rreplace_nth (ty: typ) (n: nat) (xs: expr typ func) (x: expr typ func) : expr typ func :=
-  match xs with
-  | Inj (inr (Data (fnil _))) => xs
-  | App (App (Inj (inr (Data (fcons _)))) hd) tl => 
-    match n with
-    | O => App (App (Inj (inr (Data (fcons ty)))) x) tl
-    | S n0 => App (App (Inj (inr (Data (fcons ty)))) hd) (rreplace_nth ty n0 tl x)
-    end
-  | _ => xs
-  end.
-
 Lemma Forall_reverse :
 forall A P (l: list A),
 Forall P l <->
@@ -303,3 +281,41 @@ intros. apply pred_ext.
 entailer.
 Qed.
 
+(****************************************************
+
+Standard and un-optimized msubst_eval
+
+****************************************************)
+
+Fixpoint val_e_to_expr_std (v : val_e) : (expr typ func) :=
+match v with
+  | Vundef => injR (Value fVundef)
+  | Vlong l => (appR (Value fVlong) (injR (Const (fint64 l))))
+  | Vint i => (appR (Value fVint) (injR (Const (fint i))))
+  | Vfloat f => (appR (Value fVfloat) (injR (Const (ffloat f))))
+  | Vsingle f => (appR (Value fVsingle) (injR (Const (ffloat32 f))))
+  | Vexpr e => e
+  | Vunop op ty e => appR (Eval_f (feval_unop op ty)) (val_e_to_expr_std e)
+  | Vbinop op ty1 ty2 e1 e2 => App (appR (Eval_f (feval_binop op ty1 ty2)) (val_e_to_expr_std e1)) (val_e_to_expr_std e2)
+  | Veval_cast ty1 ty2 v => (appR (Eval_f (feval_cast ty1 ty2))) (val_e_to_expr_std v) 
+  | Vforce_ptr v => (appR (Other (fforce_ptr))) (val_e_to_expr_std v)
+  | Veval_field t id v => (appR (Eval_f (feval_field t id))) (val_e_to_expr_std v)
+end.
+
+Definition rmsubst_eval_expr_std (T1: (ExprCore.expr typ func)) (T2: ExprCore.expr typ func) (e: Clight.expr) := 
+match msubst_eval_expr_reif T1 T2 e with
+| Some e => some_reif (val_e_to_expr_std e) tyval
+| None => none_reif tyval
+end.
+
+Definition rmsubst_eval_lvalue_std (T1: (ExprCore.expr typ func)) (T2: ExprCore.expr typ func) (e: Clight.expr) := 
+match msubst_eval_lvalue_reif T1 T2 e with
+| Some e => some_reif (val_e_to_expr_std e) tyval
+| None => none_reif tyval
+end.
+
+Definition rmsubst_eval_LR_std (T1: (ExprCore.expr typ func)) (T2: ExprCore.expr typ func) (e: Clight.expr) (lr : LLRR) := 
+match lr with
+| LLLL => rmsubst_eval_lvalue_std T1 T2 e
+| RRRR => rmsubst_eval_expr_std T1 T2 e
+end.

@@ -1,4 +1,3 @@
-Require Import msl.is_prop_lemma.
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
@@ -372,7 +371,7 @@ Proof.
   intros.
   rewrite withspacer_spacer.
   simpl; rewrite sepcon_comm. 
-  apply (right_is_prop (!!isptr p) (P p) _); [apply prop_is_prop|].
+  apply (derives_left_sepcon_right_corable (!!isptr p) (P p) _); [apply corable_prop|].
   apply H.
 Qed.
 
@@ -937,9 +936,7 @@ Proof.
   + destruct H0. split; intros.
     - destruct (is_Fnil f).
       * apply withspacer_preserve_local_facts; intros. apply H.
-      * change derives with (@predicates_hered.derives compcert_rmaps.RML.R.rmap compcert_rmaps.R.ag_rmap).
-        change mpred with (@predicates_hered.pred compcert_rmaps.RML.R.rmap compcert_rmaps.R.ag_rmap).
-        eapply (right_is_prop (!!isptr p) _); [apply prop_is_prop|].
+      * eapply (derives_left_sepcon_right_corable (!!isptr p) _); [apply corable_prop|].
         apply withspacer_preserve_local_facts; intros. apply H.
     - destruct (is_Fnil f).
       * apply withspacer_preserve_local_facts; intros. apply H.

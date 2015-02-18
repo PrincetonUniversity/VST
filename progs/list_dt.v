@@ -21,8 +21,6 @@ Require Import floyd.unfold_data_at.
 Require Import floyd.entailer.
 (*  End TEMPORARILY *)
 
-Require Import msl.is_prop_lemma.
-
 Local Open Scope logic.
 
 Class listspec (list_struct: type) (list_link: ident) :=
@@ -1583,12 +1581,12 @@ Proof.
    normalize.
 Qed.
 
-Lemma is_prop_power_later: forall n P, is_prop P -> is_prop (power_later n P).
+Lemma corable_power_later: forall n P, corable P -> corable (power_later n P).
 Proof.
   intros.
   induction n; simpl.
   + exact H.
-  + exact (is_prop_later _ IHn).
+  + exact (corable_later _ IHn).
 Qed.
 
 Ltac power_normalize :=
@@ -1613,9 +1611,9 @@ Lemma power_prop_andp_sepcon:
   forall (n:nat) P Q R, ((power_later n (!! P)) && Q) * R = (power_later n (!! P)) && (Q * R).
 Proof.
   intros.
-  apply (is_prop_andp_sepcon (power_later n (!! P))).
-  apply is_prop_power_later.
-  exact (prop_is_prop P).
+  apply (corable_andp_sepcon1 (power_later n (!! P))).
+  apply corable_power_later.
+  exact (corable_prop P).
 Qed.
 
 Definition lseg_cell {list_struct : type} {list_link : ident} (ls : listspec list_struct list_link) (sh : share) (v: elemtype ls) (x y: val) := !!is_pointer_or_null y && list_cell ls sh v x * field_at sh list_struct (StructField list_link :: nil) (valinject (nested_field_type2 list_struct (StructField list_link :: nil)) y) x.
@@ -1658,7 +1656,7 @@ Proof.
       apply not_prop_right; intros.
       apply ptr_eq_e in H0; rewrite H0.
       apply derives_trans with (lseg_cell ls sh a tl x * P tl * TT); [cancel|].
-      apply (right_is_prop FF (lseg_cell ls sh a tl x * P tl)); [apply prop_is_prop | apply H].
+      apply (derives_left_sepcon_right_corable FF (lseg_cell ls sh a tl x * P tl)); [apply corable_prop | apply H].
     - power_normalize.
       repeat rewrite sepcon_assoc.
       apply sepcon_derives; [cancel|].
