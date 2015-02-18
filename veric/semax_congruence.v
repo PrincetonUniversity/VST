@@ -273,4 +273,151 @@ Proof.
   + apply Ssequence_assoc_update_tycon_equiv.
 Qed.
 
+Lemma semax_equiv_refl: forall c, semax_equiv c c.
+Proof.
+  intros.
+  split; [| split].
+  + intro; intros.
+    split.
+    - apply (control_suffix_safe Espec gx n k1 k2 (Kseq c :: nil)); auto.
+      intro; intros.
+      apply H0; auto.
+    - apply (control_suffix_safe Espec gx n k2 k1 (Kseq c :: nil)); auto.
+      intro; intros.
+      apply H0; auto.
+  + intro; intros.
+    reflexivity.
+  + intro; intros.
+    reflexivity.
+Qed.
+
+Lemma semax_equiv_sym: forall c1 c2, semax_equiv c1 c2 -> semax_equiv c2 c1.
+Proof.
+  intros.
+  destruct H as [? [? ?]].
+  split; [| split].
+  + intro; intros.
+    symmetry.
+    apply H; auto.
+    intros.
+    symmetry.
+    apply H3.
+  + intro; intros.
+    symmetry.
+    apply H0.
+  + intro; intros.
+    symmetry.
+    apply H1.
+Qed.
+
+Lemma semax_equiv_trans: forall c1 c2 c3, semax_equiv c1 c2 -> semax_equiv c2 c3 -> semax_equiv c1 c3.
+Proof.
+  intros.
+  destruct H as [? [? ?]].
+  destruct H0 as [? [? ?]].
+  split; [| split].
+  + intro; intros.
+    rewrite (H k1 k1), (H0 k1 k2); auto.
+    - reflexivity.
+    - intros; reflexivity.
+  + intro; intros.
+    rewrite H1, H3.
+    reflexivity.
+  + intro; intros.
+    rewrite H2, H4.
+    reflexivity.
+Qed.
+
+Fixpoint unfold_Ssequence c :=
+  match c with
+  | Ssequence c1 c2 => unfold_Ssequence c1 ++ unfold_Ssequence c2
+  | _ => c :: nil
+  end.
+
+Fixpoint fold_Ssequence lc :=
+  match lc with
+  | nil => Sskip
+  | c1 :: nil => c1
+  | c :: lc0 => Ssequence c (fold_Ssequence lc0)
+  end.
+
+Definition non_Sseq c :=
+  match c with
+  | Ssequence _ _ => False
+  | _ => True
+  end.
+
+Inductive unfold_Sseq_rel: statement -> list statement -> Prop :=
+  | singleton: forall c, non_Sseq c -> unfold_Sseq_rel c (c :: nil)
+  | tl_step: forall c1 c2 lc, non_Sseq c1 -> unfold_Sseq_rel c2 lc ->
+                 unfold_Sseq_rel (Ssequence c1 c2) (c1 :: lc)
+  | hd_step: forall c1 c2 c3 lc, unfold_Sseq_rel (Ssequence c1 (Ssequence c2 c3)) lc ->
+                 unfold_Sseq_rel (Ssequence (Ssequence c1 c2) c3) lc
+  .
+
+Lemma unfold_Sseq_rel_non_nil: forall {c} {P: Prop}, unfold_Sseq_rel c nil -> P.
+Proof.
+  intros.
+  remember nil as lc.
+  induction H.
+  + congruence.
+  + congruence.
+  + auto.
+Qed.
+
+Lemma unfold_Sseq_rel_sound: forall c lc,
+  unfold_Sseq_rel c lc -> semax_equiv (fold_Ssequence lc) c.
+Proof.
+  intros.
+  induction H.
+  + simpl.
+    apply semax_equiv_refl.
+  + simpl.
+    destruct lc; [apply (unfold_Sseq_rel_non_nil H0) |].
+    apply semax_equiv_seq; [apply semax_equiv_refl | assumption].
+  + eapply semax_equiv_trans; [eauto |].
+    apply Ssequence_assoc_semax_equiv.
+Qed.
+
+Lemma unfold_Ssequence_unfold_Sseq_rel: forall c, unfold_Sseq_rel c (unfold_Ssequence c).
+Proof.
+  intros.
+  induction c; try solve [apply singleton, I].
+  revert c2 IHc2.
+  clear IHc1.
+  induction c1; intros; try solve [apply tl_step; [apply I | auto]].
+  apply hd_step.
+  replace (unfold_Ssequence (Ssequence (Ssequence c1_1 c1_2) c2)) with
+    (unfold_Ssequence (Ssequence c1_1 (Ssequence c1_2 c2))).
+  Focus 2. {
+    simpl.
+    rewrite <- app_assoc.
+    reflexivity.
+  } Unfocus.
+  apply IHc1_1.
+  apply IHc1_2.
+  apply IHc2.
+Qed.
+
+Lemma unfold_Ssequence_sound: forall c, semax_equiv (fold_Ssequence (unfold_Ssequence c)) c.
+Proof.
+  intros.
+  apply unfold_Sseq_rel_sound.
+  apply unfold_Ssequence_unfold_Sseq_rel.
+Qed.
+
+Lemma semax_unfold_Ssequence: forall c1 c2,
+  unfold_Ssequence c1 = unfold_Ssequence c2 ->
+  (forall P Q Delta, semax Espec Delta P c1 Q -> semax Espec Delta P c2 Q).
+Proof.
+  intros.
+  eapply semax_equiv_spec; eauto.
+  eapply semax_equiv_trans.
+  + apply semax_equiv_sym.
+    apply unfold_Ssequence_sound.
+  + rewrite H.
+    apply unfold_Ssequence_sound.
+Qed.
+
+
 End extensions.
