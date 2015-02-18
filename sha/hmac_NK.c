@@ -97,7 +97,7 @@ void HMAC_Init(HMAC_CTX *ctx, unsigned char *key, int len)
      int i,j,reset=0;
      unsigned char pad[HMAC_MAX_MD_CBLOCK];
 
-     unsigned char aux; //tmporary, for the initialization loops
+     unsigned char aux; //temporary, for the initialization loops
 
      //unsigned int ctx_key_length;
      unsigned char ctx_key[HMAC_MAX_MD_CBLOCK];

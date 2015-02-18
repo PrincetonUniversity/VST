@@ -8,16 +8,16 @@ Definition _key : ident := 141%positive.
 
 Local Open Scope Z_scope.
 
-Definition _m__1 : ident := 65%positive.
+Definition _HMAC : ident := 65%positive.
 Definition _SHA256_Final : ident := 40%positive.
 Definition ___compcert_va_int64 : ident := 16%positive.
 Definition _SHA256_Init : ident := 38%positive.
 Definition _struct_hmac_ctx_st : ident := 46%positive.
-Definition _n : ident := 62%positive.
-Definition _HMAC_Update : ident := 54%positive.
+Definition _d : ident := 62%positive.
+Definition _HMAC_Init : ident := 54%positive.
 Definition ___builtin_fmax : ident := 22%positive.
 Definition ___builtin_va_arg : ident := 12%positive.
-Definition _c : ident := 63%positive.
+Definition _n : ident := 63%positive.
 Definition ___builtin_annot_intval : ident := 10%positive.
 Definition _i_ctx : ident := 44%positive.
 Definition ___builtin_negl : ident := 3%positive.
@@ -25,10 +25,11 @@ Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
 Definition _memset : ident := 31%positive.
 Definition _i : ident := 49%positive.
-Definition _HMAC2 : ident := 66%positive.
-Definition _m : ident := 59%positive.
+Definition _m__1 : ident := 66%positive.
+Definition _HMAC_cleanup : ident := 59%positive.
 Definition ___builtin_addl : ident := 4%positive.
-Definition _HMAC_cleanup : ident := 58%positive.
+Definition _main : ident := 68%positive.
+Definition _HMAC_Final : ident := 58%positive.
 Definition ___builtin_read16_reversed : ident := 28%positive.
 Definition ___builtin_fabs : ident := 7%positive.
 Definition ___builtin_fsqrt : ident := 21%positive.
@@ -37,39 +38,39 @@ Definition _md_ctx : ident := 45%positive.
 Definition ___builtin_va_copy : ident := 13%positive.
 Definition ___builtin_fnmsub : ident := 27%positive.
 Definition _data : ident := 33%positive.
-Definition _buf : ident := 56%positive.
+Definition _md : ident := 56%positive.
 Definition ___builtin_fmsub : ident := 25%positive.
 Definition ___compcert_va_int32 : ident := 15%positive.
-Definition _key_len : ident := 60%positive.
+Definition _m : ident := 60%positive.
 Definition ___builtin_bswap16 : ident := 20%positive.
 Definition _num : ident := 32%positive.
 Definition ___builtin_fmadd : ident := 24%positive.
-Definition _main : ident := 67%positive.
+Definition _HMAC2 : ident := 67%positive.
 Definition ___compcert_va_float64 : ident := 17%positive.
 Definition ___builtin_memcpy_aligned : ident := 8%positive.
 Definition ___builtin_subl : ident := 5%positive.
 Definition _j : ident := 50%positive.
 Definition _o_ctx : ident := 43%positive.
-Definition _HMAC_Init : ident := 53%positive.
+Definition _aux : ident := 53%positive.
 Definition _ctx : ident := 47%positive.
-Definition _HMAC_Final : ident := 57%positive.
+Definition _buf : ident := 57%positive.
 Definition _h : ident := 36%positive.
 Definition ___builtin_va_end : ident := 14%positive.
 Definition ___builtin_mull : ident := 6%positive.
 Definition ___builtin_fnmadd : ident := 26%positive.
 Definition ___builtin_bswap32 : ident := 19%positive.
 Definition _SHA256_Update : ident := 39%positive.
-Definition _d : ident := 61%positive.
+Definition _key_len : ident := 61%positive.
 Definition ___builtin_va_start : ident := 11%positive.
 Definition _struct_SHA256state_st : ident := 37%positive.
 Definition _key_length : ident := 42%positive.
 Definition ___builtin_annot : ident := 9%positive.
-Definition _HMAC : ident := 64%positive.
+Definition _c : ident := 64%positive.
 Definition _pad : ident := 52%positive.
 (*Definition _key : ident := 41%positive.*)
 Definition _Nh : ident := 34%positive.
 Definition ___builtin_read32_reversed : ident := 29%positive.
-Definition _md : ident := 55%positive.
+Definition _HMAC_Update : ident := 55%positive.
 Definition _Nl : ident := 35%positive.
 Definition _memcpy : ident := 30%positive.
 Definition ___builtin_fmin : ident := 23%positive.
@@ -116,7 +117,8 @@ Definition f_HMAC_Init := {|
   fn_params := ((_ctx, (tptr t_struct_hmac_ctx_st)) ::
                 (_key, (tptr tuchar)) :: (_len, tint) :: nil);
   fn_vars := ((_pad, (tarray tuchar 64)) :: nil);
-  fn_temps := ((_i, tint) :: (_j, tint) :: (_reset, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_j, tint) :: (_reset, tint) ::
+               (_aux, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _reset (Econst_int (Int.repr 0) tint))
@@ -239,17 +241,26 @@ Definition f_HMAC_Init := {|
                                (Econst_int (Int.repr 64) tint) tint)
                   Sskip
                   Sbreak)
-                (Sassign
-                  (Ederef
-                    (Ebinop Oadd (Evar _pad (tarray tuchar 64))
-                      (Etempvar _i tint) (tptr tuchar)) tuchar)
-                  (Ebinop Oxor (Econst_int (Int.repr 54) tint)
-                    (Ederef
-                      (Ebinop Oadd
-                        (Efield
-                          (Ederef (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
-                            t_struct_hmac_ctx_st) _key (tarray tuchar 64))
-                        (Etempvar _i tint) (tptr tuchar)) tuchar) tint)))
+                (Ssequence
+                  (Sset _aux
+                    (Ecast
+                      (Ederef
+                        (Ebinop Oadd
+                          (Efield
+                            (Ederef
+                              (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
+                              t_struct_hmac_ctx_st) _key (tarray tuchar 64))
+                          (Etempvar _i tint) (tptr tuchar)) tuchar) tuchar))
+                  (Ssequence
+                    (Sset _aux
+                      (Ecast
+                        (Ebinop Oxor (Econst_int (Int.repr 54) tint)
+                          (Etempvar _aux tuchar) tint) tuchar))
+                    (Sassign
+                      (Ederef
+                        (Ebinop Oadd (Evar _pad (tarray tuchar 64))
+                          (Etempvar _i tint) (tptr tuchar)) tuchar)
+                      (Etempvar _aux tuchar)))))
               (Sset _i
                 (Ebinop Oadd (Etempvar _i tint)
                   (Econst_int (Int.repr 1) tint) tint))))
@@ -286,19 +297,23 @@ Definition f_HMAC_Init := {|
                                      (Econst_int (Int.repr 64) tint) tint)
                         Sskip
                         Sbreak)
-                      (Sassign
-                        (Ederef
-                          (Ebinop Oadd (Evar _pad (tarray tuchar 64))
-                            (Etempvar _i tint) (tptr tuchar)) tuchar)
-                        (Ebinop Oxor (Econst_int (Int.repr 92) tint)
+                      (Ssequence
+                        (Sset _aux
+                          (Ecast
+                            (Ederef
+                              (Ebinop Oadd
+                                (Efield
+                                  (Ederef
+                                    (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
+                                    t_struct_hmac_ctx_st) _key
+                                  (tarray tuchar 64)) (Etempvar _i tint)
+                                (tptr tuchar)) tuchar) tuchar))
+                        (Sassign
                           (Ederef
-                            (Ebinop Oadd
-                              (Efield
-                                (Ederef
-                                  (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
-                                  t_struct_hmac_ctx_st) _key
-                                (tarray tuchar 64)) (Etempvar _i tint)
-                              (tptr tuchar)) tuchar) tint)))
+                            (Ebinop Oadd (Evar _pad (tarray tuchar 64))
+                              (Etempvar _i tint) (tptr tuchar)) tuchar)
+                          (Ebinop Oxor (Econst_int (Int.repr 92) tint)
+                            (Etempvar _aux tuchar) tint))))
                     (Sset _i
                       (Ebinop Oadd (Etempvar _i tint)
                         (Econst_int (Int.repr 1) tint) tint))))
