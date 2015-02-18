@@ -153,8 +153,10 @@ void HMAC_Init(HMAC_CTX *ctx, unsigned char *key, int len)
 	 SHA256_Update(&ctx->i_ctx,pad,HMAC_MAX_MD_CBLOCK);
 	 
 	 
-	 for (i=0; i<HMAC_MAX_MD_CBLOCK; i++)
-	 	pad[i]=0x5c^ctx_key[i];
+	 for (i=0; i<HMAC_MAX_MD_CBLOCK; i++) {
+           aux = ctx_key[i];
+	   pad[i]=0x5c^aux;
+         }
 
          //Initialize outer SHA structure, and hash opad 
 	 //EVP_DigestInit(&ctx->o_ctx,md);

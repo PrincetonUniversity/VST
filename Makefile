@@ -162,14 +162,14 @@ HMAC_FILES= \
   verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
   verif_hmac_double.v \
   hmac_NK.v spec_hmacNK.v verif_hmacNK_cleanup.v \
-  verif_hmacNK_init_part1.v \
+  verif_hmacNK_init_part1.v verif_hmacNK_init_part2.v verif_hmacNK_init.v\
   verif_hmacNK_update.v verif_hmacNK_final.v verif_hmacNK_simple.v \
   verif_hmacNK_double.v \
   spec_hmacADT.v verif_hmacADT_cleanup.v \
   verif_hmacADT_init_part1.v \
   verif_hmacADT_update.v verif_hmacADT_final.v verif_hmacADT_simple.v \
   verif_hmacADT_double.v 
-#  verif_hmac_init.v verif_hmacADT_init.v verif_hmacNK_init.v 
+#  verif_hmac_init.v verif_hmacADT_init.v 
 #  HMAC_lemmas.v HMAC_refined_fp.v hmac_sha256.v HMAC_definitions.v \
 #  HMAC_part2GT.v HMAC_part2LE.v \
 #  HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \
