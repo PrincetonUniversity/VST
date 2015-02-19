@@ -264,14 +264,19 @@ Definition f_HMAC_Init := {|
                                      (Econst_int (Int.repr 64) tint) tint)
                         Sskip
                         Sbreak)
-                      (Sassign
-                        (Ederef
-                          (Ebinop Oadd (Evar _pad (tarray tuchar 64))
-                            (Etempvar _i tint) (tptr tuchar)) tuchar)
-                        (Ebinop Oxor (Econst_int (Int.repr 92) tint)
+                      (Ssequence
+                        (Sset _aux
+                          (Ecast
+                            (Ederef
+                              (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
+                                (Etempvar _i tint) (tptr tuchar)) tuchar)
+                            tuchar))
+                        (Sassign
                           (Ederef
-                            (Ebinop Oadd (Evar _ctx_key (tarray tuchar 64))
-                              (Etempvar _i tint) (tptr tuchar)) tuchar) tint)))
+                            (Ebinop Oadd (Evar _pad (tarray tuchar 64))
+                              (Etempvar _i tint) (tptr tuchar)) tuchar)
+                          (Ebinop Oxor (Econst_int (Int.repr 92) tint)
+                            (Etempvar _aux tuchar) tint))))
                     (Sset _i
                       (Ebinop Oadd (Etempvar _i tint)
                         (Econst_int (Int.repr 1) tint) tint))))
