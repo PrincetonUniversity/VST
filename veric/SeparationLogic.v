@@ -727,8 +727,13 @@ Local Open Scope pred.
 Parameter semax: forall {Espec: OracleKind}, 
     tycontext -> (environ->mpred) -> statement -> ret_assert -> Prop.
 
-(***************** SEMAX_LEMMAS ****************)
+Fixpoint unfold_Ssequence c :=
+  match c with
+  | Ssequence c1 c2 => unfold_Ssequence c1 ++ unfold_Ssequence c2
+  | _ => c :: nil
+  end.
 
+(***************** SEMAX_LEMMAS ****************)
 
 Axiom extract_exists:
   forall  {Espec: OracleKind},
@@ -813,6 +818,12 @@ Axiom semax_func_cons_ext:
       semax_func V G fs G' ->
       semax_func V G ((id, External ef argsig retsig cc_default)::fs) 
            ((id, mk_funspec (argsig', retsig) A P Q)  :: G').
+
+(* THIS RULE FROM semax_congruence *)
+
+Axiom semax_unfold_Ssequence: forall Espec c1 c2,
+  unfold_Ssequence c1 = unfold_Ssequence c2 ->
+  (forall P Q Delta, @semax Espec Delta P c1 Q -> @semax Espec Delta P c2 Q).
 
 (* THESE RULES FROM semax_loop *)
 

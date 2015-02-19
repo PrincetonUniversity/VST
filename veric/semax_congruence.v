@@ -18,7 +18,6 @@ Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
 Require Import Coq.Classes.RelationClasses.
-(*Require Import veric.SeparationLogicSoundness. *)
 
 Open Local Scope pred.
 Open Local Scope nat_scope.
@@ -418,6 +417,5 @@ Proof.
   + rewrite H.
     apply unfold_Ssequence_sound.
 Qed.
-
 
 End extensions.
