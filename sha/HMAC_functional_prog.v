@@ -4,6 +4,8 @@ Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import List. Import ListNotations.
 
+Module HP.
+
 (*SHA256: blocksize = 64bytes 
     corresponds to 
     #define SHA_LBLOCK	16
@@ -21,12 +23,7 @@ Module Type HMAC_Module.
 End HMAC_Module.
 
 Module HMAC_FUN (HF:HASH_FUNCTION)  <: HMAC_Module.
-(*
-Fixpoint Nlist {A} (i:A) n: list A:=
-  match n with O => nil
-  | S m => i :: Nlist i m
-  end.
-*)
+
 Definition sixtyfour {A} (i:A): list A:= list_repeat HF.BlockSize i.
 
 (*Reading rfc4231 reveals that padding happens on the right*)
@@ -38,6 +35,8 @@ Definition mkKey (l:list Z) : list Z :=
   then (zeroPad (HF.Hash l)) 
   else zeroPad l.
 
+Definition KeyPreparation (l:list Z) : list byte := map Byte.repr (mkKey l).
+
 Definition mkArg (key:list byte) (pad:byte): list byte := 
        (map (fun p => Byte.xor (fst p) (snd p))
           (combine key (sixtyfour pad))).
@@ -48,6 +47,7 @@ Definition Ipad := P.Ipad.
 Definition Opad := P.Opad.
 *)
 (*innerArg to be applied to message, (map Byte.repr (mkKey password)))*)
+
 Definition innerArg IP (text: list Z) key : list Z :=
   (mkArgZ key IP) ++ text.
 
@@ -58,9 +58,19 @@ Definition outerArg OP (innerRes: list Z) key: list Z :=
 
 Definition OUTER OP k innerRes := HF.Hash (outerArg OP innerRes k).
 
+Definition HmacCore IP OP txt (key: list byte): list Z := OUTER OP key (INNER IP key txt).
+
+Definition APPLY a txt :=  HF.Hash (a ++ txt).
+
+Definition HmacCore' IP OP txt (key: list byte): list Z :=
+  APPLY (mkArgZ key OP) (APPLY (mkArgZ key IP) txt).
+
+Goal forall IP OP txt key, HmacCore IP OP txt key = HmacCore' IP OP txt key.
+Proof. intros. reflexivity. Qed.
+
 Definition HMAC IP OP txt password: list Z := 
-  let key := map Byte.repr (mkKey password) in
-  OUTER OP key (INNER IP key txt).
+  let key := KeyPreparation password in
+  HmacCore IP OP txt key.
 
 End HMAC_FUN.
 
@@ -123,3 +133,4 @@ Lemma RFC6868_exampleAUTH256_2:
   "167f928588c5cc2eef8e3093caa0e87c9ff566a14794aa61648d81621a2a40c6".
 vm_compute. reflexivity. Qed.
 
+End HP.

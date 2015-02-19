@@ -51,12 +51,12 @@ Definition absCtxt (h:hmacabs): s256abs :=
   match h with HMACabs ctx _ _ => ctx end.
 
 Definition innerShaInit (k: list byte) (s:s256abs):Prop :=
-  update_abs (HMAC_SHA256.mkArgZ k Ipad) init_s256abs s.
+  update_abs (HP.HMAC_SHA256.mkArgZ k HP.Ipad) init_s256abs s.
 Definition outerShaInit (k: list byte) (s:s256abs):Prop :=
-  update_abs (HMAC_SHA256.mkArgZ k Opad) init_s256abs s.
+  update_abs (HP.HMAC_SHA256.mkArgZ k HP.Opad) init_s256abs s.
 
 Definition hmacInit (k:list Z) (h:hmacabs):Prop :=  
-  let key := HMAC_SHA256.mkKey k in
+  let key := HP.HMAC_SHA256.mkKey k in
   let keyB := map Byte.repr key in
   exists iS oS, innerShaInit keyB iS /\ outerShaInit keyB oS /\
   h = HMACabs iS iS oS.
@@ -100,7 +100,7 @@ Definition hmacSimple (k:list Z) (data:list Z) (dig:list Z) :=
 
 Lemma hmacSimple_sound k data dig: 
       hmacSimple k data dig ->
-      dig = HMAC256 data k.
+      dig = HP.HMAC256 data k.
 Proof.
  unfold hmacSimple; intros [hInit [hUpd [HH1 [HH2 HH3]]]].
  unfold hmacInit in HH1. destruct HH1 as [iInit [oInit [HiInit [HoInit HINIT]]]]. subst.
@@ -108,15 +108,15 @@ Proof.
    rewrite Zlength_correct in *; simpl in *. subst.
  unfold outerShaInit in HoInit. inversion HoInit; clear HoInit.
    rewrite Zlength_correct in *; simpl in *. subst.
- unfold HMAC_SHA256.mkArgZ in *.
+ unfold HP.HMAC_SHA256.mkArgZ in *.
  destruct HH2 as [ctx2 [Hupd HU]]. subst.
  inversion Hupd; clear Hupd. subst.
  unfold hmacFinalSimple in HH3. destruct HH3 as [oS [Upd FINISH]]. subst.
  inversion Upd; clear Upd. subst.
- unfold HMAC256, HMAC_SHA256.HMAC, HMAC_SHA256.OUTER, HMAC_SHA256.INNER.
- unfold sha_finish, SHA256.Hash. rewrite functional_prog.SHA_256'_eq. f_equal.
- unfold HMAC_SHA256.innerArg, HMAC_SHA256.mkArgZ. rewrite H7. clear H7. 
- unfold HMAC_SHA256.outerArg, HMAC_SHA256.mkArgZ. rewrite H12. clear H12.
+ unfold HP.HMAC256, HP.HMAC_SHA256.HMAC, HP.HMAC_SHA256.HmacCore, HP.HMAC_SHA256.KeyPreparation, HP.HMAC_SHA256.OUTER, HP.HMAC_SHA256.INNER.
+ unfold sha_finish, HP.SHA256.Hash. rewrite functional_prog.SHA_256'_eq. f_equal.
+ unfold HP.HMAC_SHA256.innerArg, HP.HMAC_SHA256.mkArgZ. rewrite H7. clear H7. 
+ unfold HP.HMAC_SHA256.outerArg, HP.HMAC_SHA256.mkArgZ. rewrite H12. clear H12.
  unfold sha_finish in *. rewrite intlist_to_Zlist_app in *.
 rewrite <- app_assoc. rewrite <- H22; clear H22. 
 repeat rewrite <- app_assoc. rewrite H17. reflexivity. 
@@ -153,7 +153,7 @@ Qed.
 
 Lemma hmac_sound k data dig h: 
       hmac k data dig h ->
-      dig = HMAC256 data k.
+      dig = HP.HMAC256 data k.
 Proof.
  intros.
  eapply hmacSimple_sound.
@@ -198,7 +198,7 @@ Definition hmac_relate_PreInitNull (key:list Z) (h:hmacabs ) (r: hmacstate) : Pr
     s256_relate iS (iCtx r) /\
     s256_relate oS (oCtx r) /\
     s256a_len iS = 512 /\ s256a_len oS = 512 /\ 
-    let keyB := map Byte.repr (HMAC_SHA256.mkKey key) in
+    let keyB := map Byte.repr (HP.HMAC_SHA256.mkKey key) in
     innerShaInit keyB iS /\ outerShaInit keyB oS
   end.
 
@@ -344,7 +344,7 @@ Definition HMAC_spec :=
              `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
          EX digest:_,
-          PROP (digest = HMAC256 (CONT MSG) (CONT KEY))
+          PROP (digest = HP.HMAC256 (CONT MSG) (CONT KEY))
           LOCAL ()
           SEP(`(K_vector KV);
               `(data_block shmd digest md);
@@ -376,7 +376,7 @@ Definition HMAC_Double_spec :=
              `(memory_block shmd (Int.repr 64) md))
   POST [ tvoid ] 
          EX digest:_, 
-          PROP (digest = HMAC256 (CONT MSG) (CONT KEY))
+          PROP (digest = HP.HMAC256 (CONT MSG) (CONT KEY))
           LOCAL ()
           SEP(`(K_vector KV);
               `(data_block shmd (digest++digest) md);

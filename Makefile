@@ -188,6 +188,11 @@ HMACFCF_FILES= \
   splitVector.v cAU.v hF.v HMAC_spec.v NMAC_to_HMAC.v \
   GNMAC_PRF.v GHMAC_PRF.v HMAC_PRF.v
 
+HMACEQUIV_FILES= \
+  XorCorrespondence.v sha_padding_lemmas.v Bruteforce.v ByteBitRelations.v \
+  HMAC_common_defs.v HMAC_spec_pad.v HMAC_spec_concat.v HMAC_spec_list.v \
+  HMAC_equivalence.v
+
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c
 
 FILES = \
@@ -199,7 +204,8 @@ FILES = \
  $(SHA_FILES:%=sha/%) \
  $(HMAC_FILES:%=sha/%) \
  $(FCF_FILES:%=fcf/%) \
- $(HMACFCF_FILES:%=fhmaccf/%)
+ $(HMACFCF_FILES:%=fhmaccf/%) \
+ $(HMACEQUIV_FILES:%=sha/%)
 
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
@@ -236,6 +242,7 @@ floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
 sha:     .loadpath $(SHA_FILES:%.v=sha/%.vo)
 hmac:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
+hmacequiv:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 fcf:     .loadpath $(FCF_FILES:%.v=fcf/%.vo)
 hmacfcf: .loadpath $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
 
