@@ -17,6 +17,7 @@ Require Import veric.juicy_extspec.
 Require Import veric.expr.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
+Require Import veric.semax_congruence.
 Require Import veric.Clight_lemmas.
 Require Import veric.initial_world.
 Require Import veric.semax_call.
@@ -77,6 +78,7 @@ Qed.
 Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
 Definition semax := @semax.
+Definition unfold_Ssequence := unfold_Ssequence.
 Definition extract_exists := @extract_exists.
 Definition semax_body := @semax_body.
 Definition semax_func := @semax_func.
@@ -113,7 +115,7 @@ Definition semax_extensionality_Delta := @semax_extensionality_Delta.
 Definition semax_extract_prop := @semax_extract_prop.
 Definition semax_extract_later_prop := @semax_extract_later_prop.
 Definition semax_ptr_compare := @semax_ptr_compare.
-
+Definition semax_unfold_Ssequence := @semax_unfold_Ssequence.
 Definition semax_external {Espec: OracleKind} ids ef A P Q := 
   forall n, semax_external Espec ids ef A P Q n.
 
