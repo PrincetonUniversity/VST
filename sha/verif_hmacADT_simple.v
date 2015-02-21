@@ -110,10 +110,10 @@ forward_call WITNESS.
     destruct H1 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst.
       unfold innerShaInit in InnSHA. inversion InnSHA; clear InnSHA.
-      simpl in *. subst. unfold HMAC_SHA256.mkArgZ, HMAC_SHA256.mkArg in H9.
+      simpl in *. subst. unfold HP.HMAC_SHA256.mkArgZ, HP.HMAC_SHA256.mkArg in H9.
       assert (Zlength (map Byte.unsigned
         (map (fun p : byte * byte => Byte.xor (fst p) (snd p))
-           (combine (map Byte.repr (HMAC_SHA256.mkKey key)) (HMAC_SHA256.sixtyfour Ipad))))
+           (combine (map Byte.repr (HP.HMAC_SHA256.mkKey key)) (HP.HMAC_SHA256.sixtyfour HP.Ipad))))
         = Zlength (SHA256.intlist_to_Zlist blocks ++ newfrag)).
         rewrite H9; reflexivity.
      clear H9.
@@ -121,7 +121,7 @@ forward_call WITNESS.
      rewrite Zlength_correct in *. rewrite map_length, combine_length in H1.
      rewrite app_length in H1.
      rewrite map_length, mkKey_length in H1.
-     unfold SHA256.BlockSize, HMAC_SHA256.sixtyfour in H1.
+     unfold HP.SHA256.BlockSize, HP.HMAC_SHA256.sixtyfour in H1.
      rewrite length_list_repeat, length_intlist_to_Zlist in H1. unfold WORD.
      rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z.mul_comm in H1. simpl in H1.
      unfold bitlength. repeat rewrite Zlength_correct. unfold WORD. rewrite <- H1. simpl. trivial.

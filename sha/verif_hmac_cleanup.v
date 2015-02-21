@@ -43,7 +43,7 @@ forward_call (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
 after_call. subst retval0.
 forward.
 unfold data_block. rewrite Zlength_correct; simpl. entailer. 
-apply prop_right. assert (isByte0:  isbyteZ 0). unfold isbyteZ. omega.
-  specialize (isbyte_list_repeat 0 (Z.to_nat (sizeof t_struct_hmac_ctx_st)) isByte0).
-  intros HH; apply HH. 
+apply prop_right.
+assert (isByte0:  isbyteZ 0). unfold isbyteZ; omega.
+apply (Forall_list_repeat _ _ (Z.to_nat (sizeof t_struct_hmac_ctx_st)) _ isByte0). 
 Qed.

@@ -80,7 +80,7 @@ normalize. rename H into HC; rewrite HC. rename H0 into R.
 apply seq_assoc.
 
 remember (EX iSA:_, EX iS:_, EX oSA:_, EX oS:_,
-          PROP  (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)) iSA /\ s256_relate iSA iS /\
+          PROP  (innerShaInit (map Byte.repr (HP.HMAC_SHA256.mkKey key)) iSA /\ s256_relate iSA iS /\
                  outerShaInit (map Byte.repr (HP.HMAC_SHA256.mkKey key)) oSA /\ s256_relate oSA oS)
                  LOCAL  (
                  `(eq pad) (eval_var _pad (tarray tuchar 64));

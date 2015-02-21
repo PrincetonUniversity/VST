@@ -4,6 +4,7 @@ Require Import Integers.
 Require Import Coqlib.
 Require Import List. Import ListNotations.
 Require Import SHA256.
+Require Import sha.spec_sha.
 Require Import pure_lemmas.     (* sha *)
 Require Import hmac_pure_lemmas.
 
@@ -153,11 +154,9 @@ Lemma isbyte_hmac ipad opad m k:
    Forall isbyteZ (HMAC_functional_prog.HP.HMAC_SHA256.HMAC ipad opad m k).
 Proof. apply isbyte_sha. Qed.
 
-(* s256a_len from spec_sha *)
-(*
 Lemma updAbs_len: forall L s t, update_abs L s t -> s256a_len t = s256a_len s + Zlength L * 8.
 Proof. intros. inversion H; clear H.
-  unfold s256a_len. simpl.
+  unfold s256a_len, bitlength. simpl.
   rewrite Zlength_app. subst. 
   repeat rewrite Z.mul_add_distr_r.
   repeat rewrite <- Z.add_assoc.
@@ -171,7 +170,6 @@ Proof. intros. inversion H; clear H.
               rewrite (Z.mul_comm WORD). rewrite Z.mul_add_distr_r. trivial. 
   rewrite H; trivial.
 Qed.
-*)
 
 Lemma HMAC_length d k: length (HP.HMAC256 d k) = 32%nat.
 Proof.
