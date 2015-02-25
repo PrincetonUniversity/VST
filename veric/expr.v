@@ -536,19 +536,22 @@ Inductive tycontext : Type :=
                         (cenv: composite_env),
                              tycontext.
 
-Definition empty_tycontext : tycontext :=
-  mk_tycontext (PTree.empty _) (PTree.empty _) Tvoid  (PTree.empty _)  (PTree.empty _).
+Definition empty_tycontext cenv : tycontext :=
+  mk_tycontext (PTree.empty _) (PTree.empty _) Tvoid (PTree.empty _) (PTree.empty _) cenv.
 
 Definition temp_types (Delta: tycontext): PTree.t (type*bool) := 
-  match Delta with mk_tycontext a _ _ _ _ => a end.
+  match Delta with mk_tycontext a _ _ _ _ _ => a end.
 Definition var_types (Delta: tycontext) : PTree.t type := 
-  match Delta with mk_tycontext _ a _ _ _ => a end.
+  match Delta with mk_tycontext _ a _ _ _ _ => a end.
 Definition ret_type (Delta: tycontext) : type := 
-  match Delta with mk_tycontext _ _ a _ _ => a end.
+  match Delta with mk_tycontext _ _ a _ _ _ => a end.
 Definition glob_types (Delta: tycontext) : PTree.t type := 
-  match Delta with mk_tycontext _ _ _ a _ => a end.
+  match Delta with mk_tycontext _ _ _ a _ _ => a end.
 Definition glob_specs (Delta: tycontext) : PTree.t funspec := 
-  match Delta with mk_tycontext _ _ _ _ a => a end.
+  match Delta with mk_tycontext _ _ _ _ a _ => a end.
+Definition composite_types (Delta: tycontext) : composite_env := 
+  match Delta with mk_tycontext _ _ _ _ _ a => a end.
+
 
 (** Beginning of typechecking **)
 
@@ -663,21 +666,21 @@ Inductive tc_assert :=
 | tc_nodivover': expr -> expr -> tc_assert
 | tc_initialized: PTree.elt -> type -> tc_assert.
 
-Definition tc_iszero (cenv: composite_env) (e: expr) : tc_assert :=
-  match eval_expr cenv e any_environ with
+Definition tc_iszero (Delta: tycontext) (e: expr) : tc_assert :=
+  match eval_expr (composite_types Delta) e any_environ with
   | Vint i => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | Vlong i => if Int.eq (Int.repr (Int64.unsigned i)) Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | _ => tc_iszero' e
   end.
 
-Definition tc_nonzero (cenv: composite_env) (e: expr) : tc_assert :=
-  match eval_expr cenv e any_environ with
+Definition tc_nonzero (Delta: tycontext) (e: expr) : tc_assert :=
+  match eval_expr (composite_types Delta) e any_environ with
    | Vint i => if negb (Int.eq i Int.zero) then tc_TT else tc_nonzero' e
    | _ => tc_nonzero' e
    end.
 
-Definition tc_nodivover (cenv: composite_env) (e1 e2: expr) : tc_assert :=
- match eval_expr cenv e1 any_environ, eval_expr cenv e2 any_environ with
+Definition tc_nodivover (Delta: tycontext) (e1 e2: expr) : tc_assert :=
+ match eval_expr (composite_types Delta) e1 any_environ, eval_expr (composite_types Delta) e2 any_environ with
                            | Vint n1, Vint n2 => if (negb 
                                    (Int.eq n1 (Int.repr Int.min_signed) 
                                     && Int.eq n2 Int.mone))
@@ -710,18 +713,18 @@ end.
 Definition tc_bool (b : bool) (e: tc_error) :=
 if b then tc_TT else tc_FF e.
 
-Definition check_pp_int (cenv: composite_env) e1 e2 op t e :=
+Definition check_pp_int (Delta: tycontext) e1 e2 op t e :=
 match op with 
 | Cop.Oeq | Cop.One => tc_andp 
-                         (tc_orp (tc_iszero cenv e1) (tc_iszero cenv e2))
+                         (tc_orp (tc_iszero Delta e1) (tc_iszero Delta e2))
                          (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
 
-Definition check_pl_long (cenv: composite_env) e2 op t e :=
+Definition check_pl_long (Delta: tycontext) e2 op t e :=
 match op with 
 | Cop.Oeq | Cop.One => tc_andp 
-                         (tc_iszero cenv e2)
+                         (tc_iszero Delta e2)
                          (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
@@ -738,13 +741,13 @@ Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
 Definition is_numeric_type t :=
 match t with Tint _ _ _ | Tlong _ _ | Tfloat _ _ => true | _ => false end.
 
-Definition tc_ilt (cenv: composite_env) (e: expr) (j: int) :=
-    match eval_expr cenv e any_environ with
+Definition tc_ilt (Delta: tycontext) (e: expr) (j: int) :=
+    match eval_expr (composite_types Delta) e any_environ with
     | Vint i => if Int.ltu i j then tc_TT else tc_ilt' e j
     | _ => tc_ilt' e j
     end.
 
-Definition isBinOpResultType (cenv: composite_env) op a1 a2 ty : tc_assert :=
+Definition isBinOpResultType (Delta: tycontext) op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
 let reterr := op_result_type e in
 let deferr := arg_type e in 
@@ -762,39 +765,39 @@ match op with
                     | Cop.sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
                              tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
                              (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int32_type ty) reterr))
-			     (tc_bool (negb (Int.eq (Int.repr (sizeof cenv ty2)) Int.zero)) 
+			     (tc_bool (negb (Int.eq (Int.repr (sizeof (composite_types Delta) ty2)) Int.zero)) 
                                       (pp_compare_size_0 ty2) )
                     | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end 
   | Cop.Omul => binarithType (typeof a1) (typeof a2) ty deferr reterr
   | Cop.Omod => match Cop.classify_binarith (typeof a1) (typeof a2) with
                     | Cop.bin_case_i Unsigned => 
-                           tc_andp (tc_nonzero cenv a2) 
+                           tc_andp (tc_nonzero Delta a2) 
                            (tc_bool (is_int32_type ty) reterr)
                     | Cop.bin_case_l Unsigned => 
-                           tc_andp (tc_nonzero cenv a2) 
+                           tc_andp (tc_nonzero Delta a2) 
                            (tc_bool (is_long_type ty) reterr)
-                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero cenv a2) 
-                                                      (tc_nodivover cenv a1 a2))
+                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero Delta a2) 
+                                                      (tc_nodivover Delta a1 a2))
                                                      (tc_bool (is_int32_type ty) reterr)
-                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero cenv a2) 
-                                                      (tc_nodivover cenv a1 a2))
+                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero Delta a2) 
+                                                      (tc_nodivover Delta a1 a2))
                                                      (tc_bool (is_long_type ty) reterr)
                     | _ => tc_FF deferr
             end
   | Cop.Odiv => match Cop.classify_binarith (typeof a1) (typeof a2) with
-                    | Cop.bin_case_i Unsigned => tc_andp (tc_nonzero cenv a2) (tc_bool (is_int32_type ty) reterr)
-                    | Cop.bin_case_l Unsigned => tc_andp (tc_nonzero cenv a2) (tc_bool (is_long_type ty) reterr)
-                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero cenv a2) (tc_nodivover cenv a1 a2)) 
+                    | Cop.bin_case_i Unsigned => tc_andp (tc_nonzero Delta a2) (tc_bool (is_int32_type ty) reterr)
+                    | Cop.bin_case_l Unsigned => tc_andp (tc_nonzero Delta a2) (tc_bool (is_long_type ty) reterr)
+                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero Delta a2) (tc_nodivover Delta a1 a2)) 
                                                         (tc_bool (is_int32_type ty) reterr)
-                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero cenv a2) (tc_nodivover cenv a1 a2)) 
+                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero Delta a2) (tc_nodivover Delta a1 a2)) 
                                                         (tc_bool (is_long_type ty) reterr)
                     | Cop.bin_case_f  =>  tc_bool (is_float_type ty) reterr 
                     | Cop.bin_case_s  =>  tc_bool (is_single_type ty) reterr 
                     | Cop.bin_default => tc_FF deferr
             end
   | Cop.Oshl | Cop.Oshr => match Cop.classify_shift (typeof a1) (typeof a2) with
-                    | Cop.shift_case_ii _ =>  tc_andp (tc_ilt cenv a2 Int.iwordsize) (tc_bool (is_int32_type ty) 
+                    | Cop.shift_case_ii _ =>  tc_andp (tc_ilt Delta a2 Int.iwordsize) (tc_bool (is_int32_type ty) 
                                                                                          reterr)
                     (* NEED TO HANDLE OTHER SHIFT CASES *)
                     | _ => tc_FF deferr
@@ -812,14 +815,14 @@ match op with
                                          && is_numeric_type (typeof a2)
                                           && is_int_type ty)
                                              deferr
-		    | Cop.cmp_case_pp => check_pp_int cenv a1 a2 op ty e
-                    | Cop.cmp_case_pl => check_pl_long cenv a2 op ty e
-                    | Cop.cmp_case_lp => check_pl_long cenv a1 op ty e
+		    | Cop.cmp_case_pp => check_pp_int Delta a1 a2 op ty e
+                    | Cop.cmp_case_pl => check_pl_long Delta a2 op ty e
+                    | Cop.cmp_case_lp => check_pl_long Delta a1 op ty e
                    end
   end.
 
 
-Definition isCastResultType (cenv: composite_env) tfrom tto a : tc_assert :=
+Definition isCastResultType (Delta: tycontext) tfrom tto a : tc_assert :=
   (* missing casts from f2s and s2f *)
 match Cop.classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF (invalid_cast tfrom tto)
@@ -830,7 +833,7 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_neutral  => if eqb_type tfrom tto then tc_TT else 
                             (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom)) (andb (is_int_type tto) (is_int_type tfrom)) then tc_TT
-                                else tc_iszero cenv a)
+                                else tc_iszero Delta a)
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_void => tc_noproof
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
@@ -1033,9 +1036,9 @@ end.
 
 (** Main typechecking function, with work will typecheck both pure
 and non-pure expressions, for now mostly just works with pure expressions **)
-Check field_offset.
-Fixpoint typecheck_expr (cenv: composite_env) (Delta : tycontext) (e: expr) : tc_assert :=
-let tcr := typecheck_expr cenv Delta in
+
+Fixpoint typecheck_expr (Delta : tycontext) (e: expr) : tc_assert :=
+let tcr := typecheck_expr Delta in
 match e with
  | Econst_int _ (Tint I32 _ _) => tc_TT 
  | Econst_float _ (Tfloat F64 _) => tc_TT
@@ -1047,11 +1050,11 @@ match e with
                                        else tc_FF (mismatch_context_type ty (fst ty'))
 		         | None => tc_FF (var_not_in_tycontext Delta id)
                        end
- | Eaddrof a ty => tc_andp (typecheck_lvalue cenv Delta a) (tc_bool (is_pointer_type ty)
+ | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty)
                                                       (op_result_type e))
  | Eunop op a ty => tc_andp (tc_bool (isUnOpResultType op a ty) (op_result_type e)) (tcr a)
- | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType cenv op a1 a2 ty)  (tcr a1)) (tcr a2)
- | Ecast a ty => tc_andp (tcr a) (isCastResultType cenv (typeof a) ty a)
+ | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType Delta op a1 a2 ty)  (tcr a1)) (tcr a2)
+ | Ecast a ty => tc_andp (tcr a) (isCastResultType Delta (typeof a) ty a)
  | Evar id ty => match access_mode ty with
                          | By_reference => 
                             match get_var_type Delta id with 
@@ -1063,18 +1066,18 @@ match e with
                         end
  | Efield a i ty => match access_mode ty with
                          | By_reference => 
-                            tc_andp (typecheck_lvalue cenv Delta a) (match typeof a with
+                            tc_andp (typecheck_lvalue Delta a) (match typeof a with
                             | Tstruct id att =>
-                               match cenv ! id with
+                               match (composite_types Delta) ! id with
                                | Some co =>
-                                  match field_offset cenv i (co_members co) with 
+                                  match field_offset (composite_types Delta) i (co_members co) with 
                                   | Errors.OK delta => tc_TT
                                   | _ => tc_FF (invalid_struct_field i id)
                                   end
                                | _ => tc_FF (invalid_composite_name id)
                                end
                             | Tunion id att =>
-                               match cenv ! id with
+                               match (composite_types Delta) ! id with
                                | Some co => tc_TT
                                | _ => tc_FF (invalid_composite_name id)
                                end
@@ -1085,7 +1088,7 @@ match e with
  | Ederef a ty => match access_mode ty with
                   | By_reference => tc_andp 
                        (tc_andp 
-                          (typecheck_expr cenv Delta a) 
+                          (typecheck_expr Delta a) 
                           (tc_bool (is_pointer_type (typeof a))(op_result_type e)))
                        (tc_isptr a)
                   | _ => tc_FF (deref_byvalue ty)
@@ -1093,7 +1096,7 @@ match e with
  | _ => tc_FF (invalid_expression e)
 end
 
-with typecheck_lvalue (cenv: composite_env) (Delta: tycontext) (e: expr) : tc_assert :=
+with typecheck_lvalue (Delta: tycontext) (e: expr) : tc_assert :=
 match e with
  | Evar id ty => match get_var_type Delta id with 
                   | Some ty' => tc_bool (eqb_type ty ty') 
@@ -1102,23 +1105,23 @@ match e with
                  end
  | Ederef a ty => tc_andp 
                        (tc_andp 
-                          (typecheck_expr cenv Delta a) 
+                          (typecheck_expr Delta a) 
                           (tc_bool (is_pointer_type (typeof a))(op_result_type e)))
                        (tc_isptr a)
  | Efield a i ty => tc_andp 
-                         (typecheck_lvalue cenv Delta a) 
+                         (typecheck_lvalue Delta a) 
                          (match typeof a with
                             | Tstruct id att =>
-                              match cenv ! id with
+                              match (composite_types Delta) ! id with
                               | Some co =>
-                                   match field_offset cenv i (co_members co) with 
+                                   match field_offset (composite_types Delta) i (co_members co) with 
                                      | Errors.OK delta => tc_TT
                                      | _ => tc_FF (invalid_struct_field i id)
                                    end
                               | _ => tc_FF (invalid_composite_name id)
                               end
                             | Tunion id att =>
-                              match cenv ! id with
+                              match (composite_types Delta) ! id with
                               | Some co => tc_TT
                               | _ => tc_FF (invalid_composite_name id)
                               end
@@ -1133,11 +1136,11 @@ Definition implicit_deref (t: type) : type :=
   | _ => t
   end.
 
-Definition typecheck_temp_id cenv id ty Delta a : tc_assert :=
+Definition typecheck_temp_id id ty Delta a : tc_assert :=
   match (temp_types Delta)!id with
   | Some (t,_) => 
       tc_andp (tc_bool (is_neutral_cast (implicit_deref ty) t) (invalid_cast ty t)) 
-                  (isCastResultType cenv (implicit_deref ty) t a)
+                  (isCastResultType Delta (implicit_deref ty) t a)
   | None => tc_FF (var_not_in_tycontext Delta id)
  end.
 
@@ -1157,19 +1160,12 @@ end.
 
 (* A more standard typechecker, should approximate the c typechecker,
 might need to add a tc_noproof for nested loads*)
-Definition typecheck_b cenv Delta e :=  tc_might_be_true (typecheck_expr cenv Delta e).
+Definition typecheck_b Delta e :=  tc_might_be_true (typecheck_expr Delta e).
 
 (*Definition of the original *pure* typechecker where true means the expression
 will always evaluate, may not be useful since tc_denote will just compute to true
 on these assertions*)
-Definition typecheck_pure_b cenv Delta e := tc_always_true (typecheck_expr cenv Delta e).
-
-Print environ.
-Print genviron.
-Print Genv.
-Print genv.
-Print Genv.t.
-
+Definition typecheck_pure_b Delta e := tc_always_true (typecheck_expr Delta e).
 
 Fixpoint typecheck_exprlist (Delta : tycontext) (tl : list type) (el : list expr) : tc_assert :=
 match tl,el with
@@ -1199,13 +1195,12 @@ Definition typecheck_val (v: val) (ty: type) : bool :=
  | Vlong i, Tlong _ _ => true
  | Vfloat v, Tfloat F64 _ => true  
  | Vsingle v, Tfloat F32 _ => true  
- | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) => 
+ | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => 
                     (Int.eq i Int.zero) 
 (* | Vlong i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) => 
                     (Int64.eq i Int64.zero)  *)
  | Vptr b z,  (Tpointer _ _ | Tarray _ _ _ 
-                   | Tfunction _ _ _ | Tstruct _ _ _ 
-                   | Tunion _ _ _ | Tcomp_ptr _ _) => true
+                   | Tfunction _ _ _ | Tstruct _ _ | Tunion _ _) => true
  | Vundef, _ => false
  | _, _ => false
  end.
@@ -1216,7 +1211,6 @@ Fixpoint typecheck_vals (v: list val) (ty: list type) : bool :=
  | nil, nil => true
  | _, _ => false
 end.
-
 
 (** Environment typechecking functions **)
 
@@ -1351,22 +1345,22 @@ match v1, v2 with
 Definition denote_tc_initialized id ty rho := exists v, Map.get (te_of rho) id = Some v
                                             /\ is_true (typecheck_val v ty).
 
-Fixpoint denote_tc_assert (a: tc_assert) : environ -> Prop :=
+Fixpoint denote_tc_assert (cenv: composite_env) (a: tc_assert) : environ -> Prop :=
   match a with
   | tc_FF _ => `False
   | tc_noproof => `False
   | tc_TT => `True
-  | tc_andp' b c => `and (denote_tc_assert b) (denote_tc_assert c)
-  | tc_orp' b c => `or (denote_tc_assert b) (denote_tc_assert c)
-  | tc_nonzero' e => `denote_tc_nonzero (eval_expr e)
-  | tc_isptr e => `isptr (eval_expr e)
-  | tc_ilt' e i => `(denote_tc_igt i) (eval_expr e)
-  | tc_Zle e z => `(denote_tc_Zge z) (eval_expr e)
-  | tc_Zge e z => `(denote_tc_Zle z) (eval_expr e)
-  | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr e1) (eval_expr e2)
-  | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr v1) (eval_expr v2)
+  | tc_andp' b c => `and (denote_tc_assert cenv b) (denote_tc_assert cenv c)
+  | tc_orp' b c => `or (denote_tc_assert cenv b) (denote_tc_assert cenv c)
+  | tc_nonzero' e => `denote_tc_nonzero (eval_expr cenv e)
+  | tc_isptr e => `isptr (eval_expr cenv e)
+  | tc_ilt' e i => `(denote_tc_igt i) (eval_expr cenv e)
+  | tc_Zle e z => `(denote_tc_Zge z) (eval_expr cenv e)
+  | tc_Zge e z => `(denote_tc_Zle z) (eval_expr cenv e)
+  | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr cenv e1) (eval_expr cenv e2)
+  | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr cenv v1) (eval_expr cenv v2)
   | tc_initialized id ty => denote_tc_initialized id ty
-  | tc_iszero' e => `denote_tc_iszero (eval_expr e)
+  | tc_iszero' e => `denote_tc_iszero (eval_expr cenv e)
  end.
 
 Lemma and_False: forall x, (x /\ False) = False.
@@ -1390,7 +1384,7 @@ intros; apply prop_ext; intuition.
 Qed.
 
 
-Lemma tc_andp_sound : forall a1 a2 rho, denote_tc_assert (tc_andp a1 a2) rho <->  denote_tc_assert (tc_andp' a1 a2) rho. 
+Lemma tc_andp_sound : forall cenv a1 a2 rho, denote_tc_assert cenv (tc_andp a1 a2) rho <->  denote_tc_assert cenv (tc_andp' a1 a2) rho. 
 Proof.
 intros.
  unfold tc_andp.
@@ -1403,8 +1397,8 @@ intros.
 Qed. 
 
 Lemma denote_tc_assert_andp: 
-  forall a b rho, denote_tc_assert (tc_andp a b) rho =
-             (denote_tc_assert a rho /\ denote_tc_assert b rho).
+  forall cenv a b rho, denote_tc_assert cenv (tc_andp a b) rho =
+             (denote_tc_assert cenv a rho /\ denote_tc_assert cenv b rho).
 Proof.
  intros. apply prop_ext. rewrite tc_andp_sound.
  simpl; apply iff_refl.
@@ -1414,10 +1408,9 @@ Qed.
 Definition initialized id (Delta: tycontext) : tycontext :=
 match (temp_types Delta) ! id with
 | Some (ty, _) => mk_tycontext (PTree.set id (ty,true) (temp_types Delta))
-                       (var_types Delta) (ret_type Delta) (glob_types Delta) (glob_specs Delta)
+                       (var_types Delta) (ret_type Delta) (glob_types Delta) (glob_specs Delta) (composite_types Delta)
 | None => Delta (*Shouldn't happen *)
 end.
-
 
 Definition join_te'  (te2 te : PTree.t (type * bool)) (id: positive) (val: type * bool) := 
    let (ty, assn) := val in
@@ -1430,11 +1423,10 @@ Definition join_te te1 te2 : PTree.t (type * bool):=
 PTree.fold (join_te' te2) te1 (PTree.empty (type * bool)).
 
 Definition join_tycon (tycon1: tycontext) (tycon2 : tycontext) : tycontext :=
-match tycon1 with  mk_tycontext te1 ve1 r vl1 g1  =>
-match tycon2 with  mk_tycontext te2 _ _ _ _ =>
-  mk_tycontext (join_te te1 te2) ve1 r vl1 g1
-end end.              
-
+match tycon1 with  mk_tycontext te1 ve1 r vl1 g1 cenv1 =>
+match tycon2 with  mk_tycontext te2 _ _ _ _ _ =>
+  mk_tycontext (join_te te1 te2) ve1 r vl1 g1 cenv1
+end end.
 
 (** Strictly for updating the type context... no typechecking here **)
 Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tycontext :=
@@ -1485,19 +1477,19 @@ Definition make_tycontext_s (G: funspecs) :=
 
 Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type)) (vars: list (ident*type))
                        (return_ty: type)
-                       (V: varspecs) (G: funspecs) :  tycontext :=
+                       (V: varspecs) (G: funspecs) (cenv: composite_env):  tycontext :=
  mk_tycontext 
    (make_tycontext_t params temps)
    (make_tycontext_v vars)
    return_ty
    (make_tycontext_g V G)
-   (make_tycontext_s G).
+   (make_tycontext_s G) cenv.
 
-Definition func_tycontext (func: function) (V: varspecs) (G: funspecs) : tycontext :=
-  make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G.
+Definition func_tycontext (func: function) (V: varspecs) (G: funspecs) (cenv: composite_env): tycontext :=
+  make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G cenv.
 
-Definition nofunc_tycontext (V: varspecs) (G: funspecs) : tycontext :=
-   make_tycontext nil nil nil Tvoid V G.
+Definition nofunc_tycontext (V: varspecs) (G: funspecs) (cenv: composite_env): tycontext :=
+   make_tycontext nil nil nil Tvoid V G cenv.
 
 (** Type-checking of function parameters **)
 
@@ -1574,15 +1566,15 @@ Proof.
 Qed.
 
 
-Definition expr_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
+Definition expr_closed_wrt_vars (cenv: composite_env) (S: ident -> Prop) (e: expr) : Prop := 
   forall rho te',  
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
-     eval_expr e rho = eval_expr e (mkEnviron (ge_of rho) (ve_of rho) te').
+     eval_expr cenv e rho = eval_expr cenv e (mkEnviron (ge_of rho) (ve_of rho) te').
 
-Definition lvalue_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
+Definition lvalue_closed_wrt_vars (cenv: composite_env) (S: ident -> Prop) (e: expr) : Prop := 
   forall rho te',  
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
-     eval_lvalue e rho = eval_lvalue e (mkEnviron (ge_of rho) (ve_of rho) te').
+     eval_lvalue cenv e rho = eval_lvalue cenv e (mkEnviron (ge_of rho) (ve_of rho) te').
 
 Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
   mkEnviron (ge_of rho) (ve_of rho) (Map.set x v (te_of rho)).
@@ -1736,7 +1728,7 @@ Lemma tc_val_eq: tc_val = fun t v => typecheck_val v t = true.
 Proof.
 extensionality t v.
 unfold tc_val.
-destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ] , v; try reflexivity;
+destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ] , v; try reflexivity;
 apply prop_ext; intuition; try apply I;
 simpl in *; subst;
 try apply Int.eq_true;
@@ -1753,13 +1745,13 @@ Lemma tc_val_eq':
 Proof. intros. rewrite tc_val_eq. auto. Qed.
 
 Lemma neutral_isCastResultType:
-  forall t t' v rho,
+  forall Delta t t' v rho,
    is_neutral_cast t' t = true ->
-   denote_tc_assert (isCastResultType t' t v) rho.
+   denote_tc_assert (composite_types Delta) (isCastResultType Delta t' t v) rho.
 Proof.
 intros.
   unfold isCastResultType;
-  destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ];
+  destruct t'  as [ | [ | | | ] [ | ] | | [ | ] | | | | |], t  as [ | [ | | | ] [ | ] | | [ | ] | | | | |];
      inv H; try apply I;
     simpl; if_tac; apply I.
 Qed.
@@ -1831,22 +1823,22 @@ end.
 Definition isptr_b v := 
    match v with | Vptr _ _ => true | _ => false end.
 
-Fixpoint denote_tc_assert_b (a: tc_assert) : environ -> bool :=
+Fixpoint denote_tc_assert_b (cenv: composite_env) (a: tc_assert) : environ -> bool :=
   match a with
   | tc_FF _ => `false
   | tc_noproof => `false
   | tc_TT => `true
-  | tc_andp' b c => `andb (denote_tc_assert_b b) (denote_tc_assert_b c)
-  | tc_orp' b c => `orb (denote_tc_assert_b b) (denote_tc_assert_b c)
-  | tc_nonzero' e => `denote_tc_nonzero_b (eval_expr e)
-  | tc_isptr e => `isptr_b (eval_expr e)
-  | tc_ilt' e i => `(denote_tc_igt_b i) (eval_expr e)
-  | tc_Zle e z => `(denote_tc_Zge_b z) (eval_expr e)
-  | tc_Zge e z => `(denote_tc_Zle_b z) (eval_expr e)
-  | tc_samebase e1 e2 => `denote_tc_samebase_b (eval_expr e1) (eval_expr e2)
-  | tc_nodivover' v1 v2 => `denote_tc_nodivover_b (eval_expr v1) (eval_expr v2)
+  | tc_andp' b c => `andb (denote_tc_assert_b cenv b) (denote_tc_assert_b cenv c)
+  | tc_orp' b c => `orb (denote_tc_assert_b cenv b) (denote_tc_assert_b cenv c)
+  | tc_nonzero' e => `denote_tc_nonzero_b (eval_expr cenv e)
+  | tc_isptr e => `isptr_b (eval_expr cenv e)
+  | tc_ilt' e i => `(denote_tc_igt_b i) (eval_expr cenv e)
+  | tc_Zle e z => `(denote_tc_Zge_b z) (eval_expr cenv e)
+  | tc_Zge e z => `(denote_tc_Zle_b z) (eval_expr cenv e)
+  | tc_samebase e1 e2 => `denote_tc_samebase_b (eval_expr cenv e1) (eval_expr cenv e2)
+  | tc_nodivover' v1 v2 => `denote_tc_nodivover_b (eval_expr cenv v1) (eval_expr cenv v2)
   | tc_initialized id ty => denote_tc_initialized_b id ty
-  | tc_iszero' e => `denote_tc_iszero_b (eval_expr e)
+  | tc_iszero' e => `denote_tc_iszero_b (eval_expr cenv e)
  end.
 
 Lemma false_true : False <-> false=true.
@@ -1863,7 +1855,7 @@ Qed.
 
 Lemma false_false : True <-> false = false.
 intuition.
-Qed. 
+Qed.
 
 Hint Rewrite <- false_true : bool.
 Hint Rewrite <- true_false : bool.
@@ -1894,19 +1886,19 @@ bool_n H.
 Tactic Notation "bool_r" "in" "*" :=
 bool_s.
 
-Definition denote_te_assert_b_eq : forall a rho, 
-denote_tc_assert a rho <-> is_true (denote_tc_assert_b a rho).
+Definition denote_te_assert_b_eq : forall cenv a rho, 
+denote_tc_assert cenv a rho <-> is_true (denote_tc_assert_b cenv a rho).
 Proof. intros. split; intros.
 induction a; simpl in *; super_unfold_lift; bool_r in *; intuition;
 simpl in *;
-try destruct (eval_expr e); simpl in *;
+try destruct (eval_expr cenv e); simpl in *;
 try match goal with 
 | [ H : if ?e then True else False |- _ ] => destruct e; simpl; inv H
 | [ H : match ?e with | _ => _  end |- _ ] => destruct e; simpl in *; inv H
 end; auto; try congruence;
 unfold denote_tc_initialized, denote_tc_initialized_b in *.
-destruct (denote_tc_assert_b a1 rho); try contradiction; apply I.
-destruct (denote_tc_assert_b a1 rho); try contradiction; apply I.
+destruct (denote_tc_assert_b cenv a1 rho); try contradiction; apply I.
+destruct (denote_tc_assert_b cenv a1 rho); try contradiction; apply I.
 destruct (Zoffloat f); try contradiction.
 destruct (z >=? z0); try contradiction; auto.
 destruct (Zofsingle f); try contradiction.
@@ -1915,23 +1907,23 @@ destruct (Zoffloat f); try contradiction.
 destruct (z <=? z0); try contradiction; auto.
 destruct (Zofsingle f); try contradiction.
 destruct (z <=? z0); try contradiction; auto.
-destruct (eval_expr e0 rho); try contradiction.
+destruct (eval_expr cenv e0 rho); try contradiction.
 destruct (peq b b0); try contradiction; auto.
-destruct (eval_expr e0 rho); try contradiction.
+destruct (eval_expr cenv e0 rho); try contradiction.
 destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)); try contradiction; auto.
 destruct H. destruct H; rewrite H. auto.
 
 induction a; simpl in *; super_unfold_lift; bool_r in *; intuition; try congruence;
 simpl in *;
-try destruct (eval_expr e); simpl in *; try congruence;
+try destruct (eval_expr cenv e); simpl in *; try congruence;
 try match goal with 
 | [ H : (if ?e then true else false) = true |- _ ] => destruct e; simpl; inv H
 | [ H : (match ?e with | _ => _ end) = true |- _ ] => destruct e; simpl in *; inv H
 end; auto; try congruence.
 unfold denote_tc_initialized, denote_tc_initialized_b in *.
-destruct (denote_tc_assert_b a1 rho); try contradiction; auto.
-destruct (denote_tc_assert_b a1 rho); try contradiction; auto.
-destruct (denote_tc_assert_b a1 rho); try contradiction; auto.
+destruct (denote_tc_assert_b cenv a1 rho); try contradiction; auto.
+destruct (denote_tc_assert_b cenv a1 rho); try contradiction; auto.
+destruct (denote_tc_assert_b cenv a1 rho); try contradiction; auto.
 destruct (negb (Int.eq i Int.zero)); try contradiction; auto.
 destruct (Zoffloat f); try contradiction.
 destruct (z >=? z0); try contradiction; auto.
@@ -1941,9 +1933,9 @@ destruct (Zoffloat f); try contradiction.
 destruct (z <=? z0); try contradiction; auto.
 destruct (Zofsingle f); try contradiction.
 destruct (z <=? z0); try contradiction; auto.
-destruct (eval_expr e0 rho); try contradiction.
+destruct (eval_expr cenv e0 rho); try contradiction.
 destruct (peq b b0); try contradiction; auto.
-destruct (eval_expr e0 rho); try contradiction.
+destruct (eval_expr cenv e0 rho); try contradiction.
 destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)); try contradiction; auto.
 unfold denote_tc_initialized_b in H.
 destruct (Map.get (te_of rho) e) eqn:?; try contradiction.
