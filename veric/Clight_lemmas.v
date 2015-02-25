@@ -262,3 +262,67 @@ Ltac fun_tac :=
        apply (eventval_list_match_fun H) in H'; inv H'
  end. 
 
+(* Lemmas about ident lists *)
+
+Fixpoint id_in_list (id: ident) (ids: list ident) : bool :=
+ match ids with i::ids' => orb (Peqb id i) (id_in_list id ids') | _ => false end. 
+
+Fixpoint compute_list_norepet (ids: list ident) : bool :=
+ match ids with
+ | id :: ids' => if id_in_list id ids' then false else compute_list_norepet ids'
+ | nil => true
+ end.
+
+Lemma id_in_list_true: forall i ids, id_in_list i ids = true -> In i ids.
+Proof.
+ induction ids; simpl; intros. inv H. apply orb_true_iff in H; destruct H; auto.
+ apply Peqb_true_eq in H. subst; auto.
+Qed.
+
+Lemma id_in_list_false: forall i ids, id_in_list i ids = false -> ~In i ids.
+Proof.
+ induction ids; simpl; intros; auto.
+ apply orb_false_iff in H. destruct H.
+ intros [?|?]. subst.
+ rewrite Peqb_refl in H; inv H.
+ apply IHids; auto.
+Qed.
+
+Lemma compute_list_norepet_e: forall ids, 
+     compute_list_norepet ids = true -> list_norepet ids.
+Proof.
+ induction ids; simpl; intros.
+ constructor.
+ revert H; case_eq (id_in_list a ids); intros.
+ inv H0.
+ constructor; auto.
+ apply id_in_list_false in H.
+ auto.
+Qed.
+
+Lemma list_norepet_rev:
+  forall A (l: list A), list_norepet (rev l) = list_norepet l.
+Proof.
+induction l; simpl; auto.
+apply prop_ext; split; intros.
+apply list_norepet_app in H.
+destruct H as [? [? ?]].
+rewrite IHl in H.
+constructor; auto.
+eapply list_disjoint_notin with (a::nil).
+apply list_disjoint_sym; auto.
+intros x y ? ? ?; subst.
+contradiction (H1 y y); auto.
+rewrite <- In_rev; auto.
+simpl; auto.
+rewrite list_norepet_app.
+inv H.
+split3; auto.
+rewrite IHl; auto.
+repeat constructor.
+intro Hx. inv Hx.
+intros x y ? ? ?; subst.
+inv H0.
+rewrite <- In_rev in H; contradiction.
+auto.
+Qed.

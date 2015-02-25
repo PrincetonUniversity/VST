@@ -3,6 +3,7 @@ Require Import veric.base.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
+Require Import veric.tycontext.
 Require Import veric.Clight_lemmas.
 Require Export veric.lift.
 Require Export veric.Cop2.
@@ -31,192 +32,6 @@ Arguments force_signed_int !v / .
 Lemma force_Vint:  forall i, force_int (Vint i) = i.
 Proof.  reflexivity. Qed.
 Hint Rewrite force_Vint : norm.
-
-(** GENERAL KV-Maps **)
-
-Set Implicit Arguments.
-Module Map. Section map.
-Variables (B : Type).
-
-Definition t := positive -> option B.
-
-Definition get (h: t) (a:positive) : option B := h a.
-
-Definition set (a:positive) (v: B) (h: t) : t :=
-  fun i => if ident_eq i a then Some v else h i.   
-
-Definition remove (a: positive) (h: t) : t :=
-  fun i => if ident_eq i a then None else h i.
-
-Definition empty : t := fun _ => None.
-
-(** MAP Axioms **)
-
-Lemma gss h x v : get (set x v h) x = Some v.
-unfold get, set; if_tac; intuition.
-Qed.
-
-Lemma gso h x y v : x<>y -> get (set x v h) y = get h y.
-unfold get, set; intros; if_tac; intuition.
-Qed.
-
-Lemma grs h x : get (remove x h) x = None.
-unfold get, remove; intros; if_tac; intuition.
-Qed.
-
-Lemma gro h x y : x<>y -> get (remove x h) y = get h y.
-unfold get, remove; intros; if_tac; intuition.
-Qed.
-
-Lemma ext h h' : (forall x, get h x = get h' x) -> h=h'.
-Proof.
-intros. extensionality x. apply H. 
-Qed. 
-
-Lemma override (a: positive) (b b' : B) h : set a b' (set a b h) = set a b' h.
-Proof.
-apply ext; intros; unfold get, set; if_tac; intuition. Qed.
-
-Lemma gsspec:
-    forall (i j: positive) (x: B) (m: t),
-    get (set j x m) i = if ident_eq i j then Some x else get m i. 
-Proof.
-intros. unfold get; unfold set; if_tac; intuition.
-Qed.
-
-Lemma override_same : forall id t (x:B), get t id = Some x -> set id x t = t.
-Proof.
-intros. unfold set. unfold get in H.  apply ext. intros. unfold get.
-if_tac; subst; auto.
-Qed.
-
-End map. 
-
-
-End Map.
-Unset Implicit Arguments.
-
-(** Environment Definitions **)
-
-Definition genviron := Map.t block.
-
-Definition venviron := Map.t (block * type).
-
-Definition tenviron := Map.t val.
-
-Inductive environ : Type :=
- mkEnviron: forall (ge: genviron) (ve: venviron) (te: tenviron), environ.
-
-Definition ge_of (rho: environ) : genviron :=
-  match rho with mkEnviron ge ve te => ge end.
-
-Definition ve_of (rho: environ) : venviron :=
-  match rho with mkEnviron ge ve te => ve end.
-
-Definition te_of (rho: environ) : tenviron :=
-  match rho with mkEnviron ge ve te => te end.
-
-Definition opt2list (A: Type) (x: option A) :=
-  match x with Some a => a::nil | None => nil end.
-Implicit Arguments opt2list.
-
-Fixpoint typelist2list (tl: typelist) : list type :=
- match tl with Tcons t r => t::typelist2list r | Tnil => nil end.
-
-Definition idset := PTree.t unit.
-
-Definition idset0 : idset := PTree.empty _.
-Definition idset1 (id: ident) : idset := PTree.set id tt idset0.
-Definition insert_idset (id: ident) (S: idset) : idset :=
-         PTree.set id tt S.
-
-Fixpoint modifiedvars' (c: statement) (S: idset) : idset :=
- match c with
- | Sset id e => insert_idset id S
- | Sifthenelse _ c1 c2 => modifiedvars' c1 (modifiedvars' c2 S)
- | Scall (Some id) _ _ => insert_idset id S
- | Sbuiltin (Some id) _ _ _ => insert_idset id S
- | Ssequence c1 c2 =>  modifiedvars' c1 (modifiedvars' c2 S)
- | Sloop c1 c2 => modifiedvars' c1 (modifiedvars' c2 S)
- | Sswitch e cs => modifiedvars_ls cs S
- | Slabel _ c => modifiedvars' c S
- | _ => S
- end
- with
- modifiedvars_ls (cs: labeled_statements) (S: idset) : idset := 
- match cs with
- | LSnil => S
- | LScons _ c ls => modifiedvars' c (modifiedvars_ls ls S)
- end.
-
-Definition isSome {A} (o: option A) := match o with Some _ => True | None => False end.
-Definition isOK {A} (P: Errors.res A) := match P with Errors.OK _ => true | _ => false end.
-
-Definition isSome_dec: forall {A} (P: option A), isSome P + ~ isSome P.
-Proof.
-  intros.
-  destruct P; simpl; auto.
-Defined.
-
-Lemma modifiedvars'_union:
- forall id c S,
-  isSome ((modifiedvars' c S) ! id) <->
-  (isSome ((modifiedvars' c idset0) ! id ) \/ isSome (S ! id))
-with modifiedvars_ls_union:
- forall id c S,
-  isSome ((modifiedvars_ls c S) ! id) <->
-  (isSome ((modifiedvars_ls c idset0) ! id ) \/ isSome (S ! id)).
-Proof.
-intro id.
- assert (IS0: ~ isSome (idset0 ! id)). unfold idset0, isSome.
- rewrite PTree.gempty; auto.
- induction c; try destruct o; simpl; intros;
- try solve [clear - IS0; intuition];
- try solve [unfold insert_idset; destruct (eq_dec i id); 
-  [subst; repeat rewrite PTree.gss; simpl; clear; intuition 
-  |  repeat rewrite PTree.gso by auto; simpl; clear - IS0; intuition ]];
- try solve [rewrite IHc1; rewrite IHc1 with (S := modifiedvars' c2 idset0);
-                rewrite IHc2; clear - IS0; intuition].
- apply modifiedvars_ls_union.
- apply IHc.
-
-intro id.
- assert (IS0: ~ isSome (idset0 ! id)). unfold idset0, isSome.
- rewrite PTree.gempty; auto.
- induction c; simpl; intros.
- clear - IS0; intuition.
- rewrite modifiedvars'_union.
- rewrite modifiedvars'_union with (S := modifiedvars_ls _ _).
- rewrite IHc. clear; intuition.
-Qed.
-
-Definition modifiedvars (c: statement) (id: ident) :=
-   isSome ((modifiedvars' c idset0) ! id).
-
-Definition type_of_global (ge: Clight.genv) (b: block) : option type :=
-  match Genv.find_var_info ge b with
-  | Some gv => Some gv.(gvar_info)
-  | None =>
-      match Genv.find_funct_ptr ge b with
-      | Some fd => Some(type_of_fundef fd)
-      | None => None
-      end
-  end.
-
-Definition filter_genv (ge: Clight.genv) : genviron :=
-    Genv.find_symbol ge.
-
-Definition make_tenv (te : Clight.temp_env) : tenviron := fun id => PTree.get id te.
-
-Definition make_venv (te : Clight.env) : venviron := fun id => PTree.get id te.
-
-Definition construct_rho ge ve te:= mkEnviron ge (make_venv ve) (make_tenv te) . 
-
-Definition empty_environ (ge: Clight.genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
-
-Definition test := true.
-Definition any_environ : environ :=
-  mkEnviron (fun _ => None)  (Map.empty _) (Map.empty _).
 
 (* TWO ALTERNATE WAYS OF DOING LIFTING *)
 (* LIFTING METHOD ONE: *)
@@ -433,19 +248,19 @@ Definition offset_val (ofs: int) (v: val) : val :=
   | _ => Vundef
  end.
 
-Definition eval_field (cenv: composite_env) (ty: type) (fld: ident) : val -> val :=
+Definition eval_field (Delta: tycontext) (ty: type) (fld: ident) : val -> val :=
           match ty with
              | Tstruct id att =>
-                 match cenv ! id with
+                 match (composite_types Delta) ! id with
                  | Some co =>
-                         match field_offset cenv id (co_members co) with 
+                         match field_offset (composite_types Delta) id (co_members co) with 
                          | Errors.OK delta => offset_val (Int.repr delta)
                          | _ => always Vundef
                          end
                  | _ => always Vundef
                  end
              | Tunion id att =>
-                 match cenv ! id with
+                 match (composite_types Delta) ! id with
                  | Some co => force_ptr
                  | _ => always Vundef
                  end
@@ -470,88 +285,42 @@ Definition deref_noload (ty: type) : val -> val :=
  | _ => always Vundef
  end.
 
-Fixpoint eval_expr (cenv: composite_env) (e: expr) : environ -> val :=
+Fixpoint eval_expr (Delta: tycontext) (e: expr) : environ -> val :=
  match e with
  | Econst_int i ty => `(Vint i)
  | Econst_long i ty => `(Vlong i)
  | Econst_float f ty => `(Vfloat f)
  | Econst_single f ty => `(Vsingle f)
  | Etempvar id ty => eval_id id 
- | Eaddrof a ty => eval_lvalue cenv a 
- | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr cenv a) 
+ | Eaddrof a ty => eval_lvalue Delta a 
+ | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr Delta a) 
  | Ebinop op a1 a2 ty =>  
-                  `(eval_binop cenv op (typeof a1) (typeof a2)) (eval_expr cenv a1) (eval_expr cenv a2)
- | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr cenv a)
+                  `(eval_binop Delta op (typeof a1) (typeof a2)) (eval_expr Delta a1) (eval_expr Delta a2)
+ | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr Delta a)
  | Evar id ty => `(deref_noload ty) (eval_var id ty)
- | Ederef a ty => `(deref_noload ty) (`force_ptr (eval_expr cenv a))
- | Efield a i ty => `(deref_noload ty) (`(eval_field cenv (typeof a) i) (eval_lvalue cenv a))
- | Esizeof t ty => `(Vint (Int.repr (sizeof cenv t)))
- | Ealignof t ty => `(Vint (Int.repr (alignof cenv t)))
+ | Ederef a ty => `(deref_noload ty) (`force_ptr (eval_expr Delta a))
+ | Efield a i ty => `(deref_noload ty) (`(eval_field Delta (typeof a) i) (eval_lvalue Delta a))
+ | Esizeof t ty => `(Vint (Int.repr (sizeof (composite_types Delta) t)))
+ | Ealignof t ty => `(Vint (Int.repr (alignof (composite_types Delta) t)))
  end
 
- with eval_lvalue (cenv: composite_env) (e: expr) : environ -> val := 
+ with eval_lvalue (Delta: tycontext) (e: expr) : environ -> val := 
  match e with 
  | Evar id ty => eval_var id ty
- | Ederef a ty => `force_ptr (eval_expr cenv a)
- | Efield a i ty => `(eval_field cenv (typeof a) i) (eval_lvalue cenv a)
+ | Ederef a ty => `force_ptr (eval_expr Delta a)
+ | Efield a i ty => `(eval_field Delta (typeof a) i) (eval_lvalue Delta a)
  | _  => `Vundef
  end.
 
-Fixpoint eval_exprlist (cenv: composite_env) (et: list type) (el:list expr) : environ -> list val :=
+Fixpoint eval_exprlist (Delta: tycontext) (et: list type) (el:list expr) : environ -> list val :=
  match et, el with
  | t::et', e::el' =>
-    `(@cons val) (`force_val (`(sem_cast (typeof e) t) (eval_expr cenv e))) (eval_exprlist cenv et' el')
+    `(@cons val) (`force_val (`(sem_cast (typeof e) t) (eval_expr Delta e))) (eval_exprlist Delta et' el')
  | _, _ => `nil
  end.
 
-Definition eval_expropt (cenv: composite_env) (e: option expr) : environ -> option val :=
- match e with Some e' => `(@Some val) (eval_expr cenv e')  | None => `None end.
-
-(** Definitions related to function specifications and return assertions **)
-Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
-
-Instance EqDec_exitkind: EqDec exitkind.
-Proof.
-hnf. intros.
-decide equality.
-Defined.
-
-Definition mpred := pred rmap.
-
-Inductive funspec :=
-   mk_funspec: funsig -> forall A: Type, (A -> environ->mpred) -> (A -> environ->mpred) -> funspec.
-
-Definition funspecs := list (ident * funspec).
-
-Definition type_of_funspec (fs: funspec) : type :=  
-  match fs with mk_funspec fsig _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default end.
-
-(** Declaration of type context for typechecking **)
-Inductive tycontext : Type := 
-  mk_tycontext : forall (tyc_temps: PTree.t (type * bool))
-                        (tyc_vars: PTree.t type)
-                        (tyc_ret: type)
-                        (tyc_globty: PTree.t type)
-                        (tyc_globsp: PTree.t funspec)
-                        (cenv: composite_env),
-                             tycontext.
-
-Definition empty_tycontext cenv : tycontext :=
-  mk_tycontext (PTree.empty _) (PTree.empty _) Tvoid (PTree.empty _) (PTree.empty _) cenv.
-
-Definition temp_types (Delta: tycontext): PTree.t (type*bool) := 
-  match Delta with mk_tycontext a _ _ _ _ _ => a end.
-Definition var_types (Delta: tycontext) : PTree.t type := 
-  match Delta with mk_tycontext _ a _ _ _ _ => a end.
-Definition ret_type (Delta: tycontext) : type := 
-  match Delta with mk_tycontext _ _ a _ _ _ => a end.
-Definition glob_types (Delta: tycontext) : PTree.t type := 
-  match Delta with mk_tycontext _ _ _ a _ _ => a end.
-Definition glob_specs (Delta: tycontext) : PTree.t funspec := 
-  match Delta with mk_tycontext _ _ _ _ a _ => a end.
-Definition composite_types (Delta: tycontext) : composite_env := 
-  match Delta with mk_tycontext _ _ _ _ _ a => a end.
-
+Definition eval_expropt (Delta: tycontext) (e: option expr) : environ -> option val :=
+ match e with Some e' => `(@Some val) (eval_expr Delta e')  | None => `None end.
 
 (** Beginning of typechecking **)
 
@@ -667,20 +436,20 @@ Inductive tc_assert :=
 | tc_initialized: PTree.elt -> type -> tc_assert.
 
 Definition tc_iszero (Delta: tycontext) (e: expr) : tc_assert :=
-  match eval_expr (composite_types Delta) e any_environ with
+  match eval_expr Delta e any_environ with
   | Vint i => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | Vlong i => if Int.eq (Int.repr (Int64.unsigned i)) Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | _ => tc_iszero' e
   end.
 
 Definition tc_nonzero (Delta: tycontext) (e: expr) : tc_assert :=
-  match eval_expr (composite_types Delta) e any_environ with
+  match eval_expr Delta e any_environ with
    | Vint i => if negb (Int.eq i Int.zero) then tc_TT else tc_nonzero' e
    | _ => tc_nonzero' e
    end.
 
 Definition tc_nodivover (Delta: tycontext) (e1 e2: expr) : tc_assert :=
- match eval_expr (composite_types Delta) e1 any_environ, eval_expr (composite_types Delta) e2 any_environ with
+ match eval_expr Delta e1 any_environ, eval_expr Delta e2 any_environ with
                            | Vint n1, Vint n2 => if (negb 
                                    (Int.eq n1 (Int.repr Int.min_signed) 
                                     && Int.eq n2 Int.mone))
@@ -742,7 +511,7 @@ Definition is_numeric_type t :=
 match t with Tint _ _ _ | Tlong _ _ | Tfloat _ _ => true | _ => false end.
 
 Definition tc_ilt (Delta: tycontext) (e: expr) (j: int) :=
-    match eval_expr (composite_types Delta) e any_environ with
+    match eval_expr Delta e any_environ with
     | Vint i => if Int.ltu i j then tc_TT else tc_ilt' e j
     | _ => tc_ilt' e j
     end.
@@ -1345,22 +1114,22 @@ match v1, v2 with
 Definition denote_tc_initialized id ty rho := exists v, Map.get (te_of rho) id = Some v
                                             /\ is_true (typecheck_val v ty).
 
-Fixpoint denote_tc_assert (cenv: composite_env) (a: tc_assert) : environ -> Prop :=
+Fixpoint denote_tc_assert (Delta: tycontext) (a: tc_assert) : environ -> Prop :=
   match a with
   | tc_FF _ => `False
   | tc_noproof => `False
   | tc_TT => `True
-  | tc_andp' b c => `and (denote_tc_assert cenv b) (denote_tc_assert cenv c)
-  | tc_orp' b c => `or (denote_tc_assert cenv b) (denote_tc_assert cenv c)
-  | tc_nonzero' e => `denote_tc_nonzero (eval_expr cenv e)
-  | tc_isptr e => `isptr (eval_expr cenv e)
-  | tc_ilt' e i => `(denote_tc_igt i) (eval_expr cenv e)
-  | tc_Zle e z => `(denote_tc_Zge z) (eval_expr cenv e)
-  | tc_Zge e z => `(denote_tc_Zle z) (eval_expr cenv e)
-  | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr cenv e1) (eval_expr cenv e2)
-  | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr cenv v1) (eval_expr cenv v2)
+  | tc_andp' b c => `and (denote_tc_assert Delta b) (denote_tc_assert Delta c)
+  | tc_orp' b c => `or (denote_tc_assert Delta b) (denote_tc_assert Delta c)
+  | tc_nonzero' e => `denote_tc_nonzero (eval_expr Delta e)
+  | tc_isptr e => `isptr (eval_expr Delta e)
+  | tc_ilt' e i => `(denote_tc_igt i) (eval_expr Delta e)
+  | tc_Zle e z => `(denote_tc_Zge z) (eval_expr Delta e)
+  | tc_Zge e z => `(denote_tc_Zle z) (eval_expr Delta e)
+  | tc_samebase e1 e2 => `denote_tc_samebase (eval_expr Delta e1) (eval_expr Delta e2)
+  | tc_nodivover' v1 v2 => `denote_tc_nodivover (eval_expr Delta v1) (eval_expr Delta v2)
   | tc_initialized id ty => denote_tc_initialized id ty
-  | tc_iszero' e => `denote_tc_iszero (eval_expr cenv e)
+  | tc_iszero' e => `denote_tc_iszero (eval_expr Delta e)
  end.
 
 Lemma and_False: forall x, (x /\ False) = False.
@@ -1384,7 +1153,7 @@ intros; apply prop_ext; intuition.
 Qed.
 
 
-Lemma tc_andp_sound : forall cenv a1 a2 rho, denote_tc_assert cenv (tc_andp a1 a2) rho <->  denote_tc_assert cenv (tc_andp' a1 a2) rho. 
+Lemma tc_andp_sound : forall Delta a1 a2 rho, denote_tc_assert Delta (tc_andp a1 a2) rho <->  denote_tc_assert Delta (tc_andp' a1 a2) rho. 
 Proof.
 intros.
  unfold tc_andp.
@@ -1397,99 +1166,12 @@ intros.
 Qed. 
 
 Lemma denote_tc_assert_andp: 
-  forall cenv a b rho, denote_tc_assert cenv (tc_andp a b) rho =
-             (denote_tc_assert cenv a rho /\ denote_tc_assert cenv b rho).
+  forall Delta a b rho, denote_tc_assert Delta (tc_andp a b) rho =
+             (denote_tc_assert Delta a rho /\ denote_tc_assert Delta b rho).
 Proof.
  intros. apply prop_ext. rewrite tc_andp_sound.
  simpl; apply iff_refl.
 Qed.
-
-(** Functions that modify type environments **)
-Definition initialized id (Delta: tycontext) : tycontext :=
-match (temp_types Delta) ! id with
-| Some (ty, _) => mk_tycontext (PTree.set id (ty,true) (temp_types Delta))
-                       (var_types Delta) (ret_type Delta) (glob_types Delta) (glob_specs Delta) (composite_types Delta)
-| None => Delta (*Shouldn't happen *)
-end.
-
-Definition join_te'  (te2 te : PTree.t (type * bool)) (id: positive) (val: type * bool) := 
-   let (ty, assn) := val in
-        match (te2 ! id) with
-        | Some (ty2, assn2) => PTree.set id (ty, assn && assn2) te
-        | None => te
-        end.
-
-Definition join_te te1 te2 : PTree.t (type * bool):=
-PTree.fold (join_te' te2) te1 (PTree.empty (type * bool)).
-
-Definition join_tycon (tycon1: tycontext) (tycon2 : tycontext) : tycontext :=
-match tycon1 with  mk_tycontext te1 ve1 r vl1 g1 cenv1 =>
-match tycon2 with  mk_tycontext te2 _ _ _ _ _ =>
-  mk_tycontext (join_te te1 te2) ve1 r vl1 g1 cenv1
-end end.
-
-(** Strictly for updating the type context... no typechecking here **)
-Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tycontext :=
- match c with
- | Sskip | Scontinue | Sbreak => Delta
- | Sassign e1 e2 => Delta (*already there?*)
- | Sset id e2 => (initialized id Delta)
- | Ssequence s1 s2 => let Delta' := update_tycon Delta s1 in
-                      update_tycon Delta' s2
- | Sifthenelse b s1 s2 => join_tycon (update_tycon Delta s1) (update_tycon Delta s2)
- | Sloop _ _ => Delta
- | Sswitch e ls => join_tycon_labeled ls Delta
- | Scall (Some id) _ _ => (initialized id Delta)
- | _ => Delta  (* et cetera *)
-end
-
-with join_tycon_labeled ls Delta :=
-match ls with
-| LSnil => Delta
-| LScons int s ls' => join_tycon (update_tycon Delta s) 
-                      (join_tycon_labeled ls' Delta)
-end.
-
-
-(** Creates a typecontext from a function definition **)
-(* NOTE:  params start out initialized, temps do not! *)
-
-Definition varspecs : Type := list (ident * type).
-
-Definition make_tycontext_t (params: list (ident*type)) (temps : list(ident*type)) :=
-fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param, true))
- (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in PTree.set id (ty,false) tenv) 
-  (PTree.empty (type * bool)) temps) params.
-
-Definition make_tycontext_v (vars : list (ident * type)) :=
- fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv) 
-   (PTree.empty type) vars. 
-
-Definition make_tycontext_g (V: varspecs) (G: funspecs) :=
- (fold_right (fun (var : ident * funspec) => PTree.set (fst var) (type_of_funspec (snd var))) 
-      (fold_right (fun (v: ident * type) => PTree.set (fst v) (snd v))
-         (PTree.empty _) V)
-            G).
-
-Definition make_tycontext_s (G: funspecs) :=
- (fold_right (fun (var : ident * funspec) => PTree.set (fst var) (snd var)) 
-            (PTree.empty _) G).
-
-Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type)) (vars: list (ident*type))
-                       (return_ty: type)
-                       (V: varspecs) (G: funspecs) (cenv: composite_env):  tycontext :=
- mk_tycontext 
-   (make_tycontext_t params temps)
-   (make_tycontext_v vars)
-   return_ty
-   (make_tycontext_g V G)
-   (make_tycontext_s G) cenv.
-
-Definition func_tycontext (func: function) (V: varspecs) (G: funspecs) (cenv: composite_env): tycontext :=
-  make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G cenv.
-
-Definition nofunc_tycontext (V: varspecs) (G: funspecs) (cenv: composite_env): tycontext :=
-   make_tycontext nil nil nil Tvoid V G cenv.
 
 (** Type-checking of function parameters **)
 
@@ -1529,52 +1211,15 @@ Proof.
  destruct (snd fsig); destruct ret; intuition congruence.
 Qed.
 
-Fixpoint id_in_list (id: ident) (ids: list ident) : bool :=
- match ids with i::ids' => orb (Peqb id i) (id_in_list id ids') | _ => false end. 
-
-Fixpoint compute_list_norepet (ids: list ident) : bool :=
- match ids with
- | id :: ids' => if id_in_list id ids' then false else compute_list_norepet ids'
- | nil => true
- end.
-
-Lemma id_in_list_true: forall i ids, id_in_list i ids = true -> In i ids.
-Proof.
- induction ids; simpl; intros. inv H. apply orb_true_iff in H; destruct H; auto.
- apply Peqb_true_eq in H. subst; auto.
-Qed.
-
-Lemma id_in_list_false: forall i ids, id_in_list i ids = false -> ~In i ids.
-Proof.
- induction ids; simpl; intros; auto.
- apply orb_false_iff in H. destruct H.
- intros [?|?]. subst.
- rewrite Peqb_refl in H; inv H.
- apply IHids; auto.
-Qed.
-
-Lemma compute_list_norepet_e: forall ids, 
-     compute_list_norepet ids = true -> list_norepet ids.
-Proof.
- induction ids; simpl; intros.
- constructor.
- revert H; case_eq (id_in_list a ids); intros.
- inv H0.
- constructor; auto.
- apply id_in_list_false in H.
- auto.
-Qed.
-
-
-Definition expr_closed_wrt_vars (cenv: composite_env) (S: ident -> Prop) (e: expr) : Prop := 
+Definition expr_closed_wrt_vars (Delta: tycontext) (S: ident -> Prop) (e: expr) : Prop := 
   forall rho te',  
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
-     eval_expr cenv e rho = eval_expr cenv e (mkEnviron (ge_of rho) (ve_of rho) te').
+     eval_expr Delta e rho = eval_expr Delta e (mkEnviron (ge_of rho) (ve_of rho) te').
 
-Definition lvalue_closed_wrt_vars (cenv: composite_env) (S: ident -> Prop) (e: expr) : Prop := 
+Definition lvalue_closed_wrt_vars (Delta: tycontext) (S: ident -> Prop) (e: expr) : Prop := 
   forall rho te',  
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
-     eval_lvalue cenv e rho = eval_lvalue cenv e (mkEnviron (ge_of rho) (ve_of rho) te').
+     eval_lvalue Delta e rho = eval_lvalue Delta e (mkEnviron (ge_of rho) (ve_of rho) te').
 
 Definition env_set (rho: environ) (x: ident) (v: val) : environ :=
   mkEnviron (ge_of rho) (ve_of rho) (Map.set x v (te_of rho)).
@@ -1623,104 +1268,6 @@ remember (b&&c). destruct b0; symmetry in Heqb0; try rewrite andb_true_iff in *;
 destruct c; auto; intuition.
 Qed.
 
-Lemma list_norepet_rev:
-  forall A (l: list A), list_norepet (rev l) = list_norepet l.
-Proof.
-induction l; simpl; auto.
-apply prop_ext; split; intros.
-apply list_norepet_app in H.
-destruct H as [? [? ?]].
-rewrite IHl in H.
-constructor; auto.
-eapply list_disjoint_notin with (a::nil).
-apply list_disjoint_sym; auto.
-intros x y ? ? ?; subst.
-contradiction (H1 y y); auto.
-rewrite <- In_rev; auto.
-simpl; auto.
-rewrite list_norepet_app.
-inv H.
-split3; auto.
-rewrite IHl; auto.
-repeat constructor.
-intro Hx. inv Hx.
-intros x y ? ? ?; subst.
-inv H0.
-rewrite <- In_rev in H; contradiction.
-auto.
-Qed.
-
-Definition sub_option {A} (x y: option A) :=
- match x with Some x' => y = Some x' | None => True end.
-
-Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
- (forall id, match (temp_types Delta) ! id,  (temp_types Delta') ! id with
-                 | None, _ => True
-                 | Some (t,b), None => False
-                 | Some (t,b), Some (t',b') => t=t' /\ orb (negb b) b' = true
-                end)
- /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
- /\ ret_type Delta = ret_type Delta'
- /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id))
- /\ (forall id, sub_option ((glob_specs Delta) ! id) ((glob_specs Delta') ! id)).               
-
-Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
- (forall id, (temp_types Delta) ! id = (temp_types Delta') ! id)
- /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
- /\ ret_type Delta = ret_type Delta'
- /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id)
- /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id).
-                
-Lemma join_tycon_same: forall Delta, tycontext_eqv (join_tycon Delta Delta) Delta.
-Proof.
- intros.
- destruct Delta.
- unfold join_tycon.
- repeat split; auto.
- intros. unfold temp_types. simpl.
- unfold join_te.
- rewrite PTree.fold_spec.
- rewrite <- fold_left_rev_right.
- case_eq (tyc_temps ! id); intros.
- pose proof (PTree.elements_correct _ _ H).
- pose proof (PTree.elements_keys_norepet tyc_temps).
- rewrite in_rev in H0.
- rewrite <- list_norepet_rev in H1. rewrite <- map_rev in H1.
- change PTree.elt with positive in *.
- revert H0 H1; induction (rev (PTree.elements tyc_temps)); intros.
- inv H0.
- inv H1.
- simpl in H0. destruct H0. subst a.
- simpl. unfold join_te'. destruct p. rewrite H. rewrite andb_diag.
- rewrite PTree.gss.
- destruct b; simpl ;auto.
- simpl. unfold join_te' at 1. destruct a. simpl. destruct p1. simpl in H4.
- case_eq (tyc_temps ! p0);intros. destruct p1.
- rewrite PTree.gso. auto.
- intro; subst p0. apply H4. change id with (fst (id,p)). apply in_map; auto.
- auto.
- assert (~ In id (map fst (PTree.elements tyc_temps))).
- intro. apply in_map_iff in H0. destruct H0 as [[id' v] [? ?]]. simpl in *; subst id'.
- apply PTree.elements_complete in H1. congruence.
- rewrite in_rev in H0. rewrite <- map_rev in H0.
- revert H0; induction (rev (PTree.elements tyc_temps)); intros. simpl. rewrite PTree.gempty; auto.
- simpl. destruct a. simpl. unfold join_te' at 1. destruct p0.
- destruct (eq_dec p id). subst p. rewrite  H. apply IHl; auto.
- contradict H0; simpl; auto.
- case_eq (tyc_temps ! p); intros. destruct p0. 
- rewrite PTree.gso.
- apply IHl. contradict H0;simpl; auto.
- intro; subst p; congruence.
- apply IHl. contradict H0;simpl; auto.
-Qed.
-
-Lemma tycontext_eqv_symm:
-  forall Delta Delta', tycontext_eqv Delta Delta' ->  tycontext_eqv Delta' Delta.
-Proof.
-intros.
-destruct H as [? [? [? [? ?]]]]; repeat split; auto.
-Qed.
-
 Lemma int_eq_e: forall i j, Int.eq i j = true -> i=j.
 Proof. intros. pose proof (Int.eq_spec i j); rewrite H in H0; auto. Qed.
 
@@ -1747,7 +1294,7 @@ Proof. intros. rewrite tc_val_eq. auto. Qed.
 Lemma neutral_isCastResultType:
   forall Delta t t' v rho,
    is_neutral_cast t' t = true ->
-   denote_tc_assert (composite_types Delta) (isCastResultType Delta t' t v) rho.
+   denote_tc_assert Delta (isCastResultType Delta t' t v) rho.
 Proof.
 intros.
   unfold isCastResultType;
@@ -1823,22 +1370,22 @@ end.
 Definition isptr_b v := 
    match v with | Vptr _ _ => true | _ => false end.
 
-Fixpoint denote_tc_assert_b (cenv: composite_env) (a: tc_assert) : environ -> bool :=
+Fixpoint denote_tc_assert_b (Delta: tycontext) (a: tc_assert) : environ -> bool :=
   match a with
   | tc_FF _ => `false
   | tc_noproof => `false
   | tc_TT => `true
-  | tc_andp' b c => `andb (denote_tc_assert_b cenv b) (denote_tc_assert_b cenv c)
-  | tc_orp' b c => `orb (denote_tc_assert_b cenv b) (denote_tc_assert_b cenv c)
-  | tc_nonzero' e => `denote_tc_nonzero_b (eval_expr cenv e)
-  | tc_isptr e => `isptr_b (eval_expr cenv e)
-  | tc_ilt' e i => `(denote_tc_igt_b i) (eval_expr cenv e)
-  | tc_Zle e z => `(denote_tc_Zge_b z) (eval_expr cenv e)
-  | tc_Zge e z => `(denote_tc_Zle_b z) (eval_expr cenv e)
-  | tc_samebase e1 e2 => `denote_tc_samebase_b (eval_expr cenv e1) (eval_expr cenv e2)
-  | tc_nodivover' v1 v2 => `denote_tc_nodivover_b (eval_expr cenv v1) (eval_expr cenv v2)
+  | tc_andp' b c => `andb (denote_tc_assert_b Delta b) (denote_tc_assert_b Delta c)
+  | tc_orp' b c => `orb (denote_tc_assert_b Delta b) (denote_tc_assert_b Delta c)
+  | tc_nonzero' e => `denote_tc_nonzero_b (eval_expr Delta e)
+  | tc_isptr e => `isptr_b (eval_expr Delta e)
+  | tc_ilt' e i => `(denote_tc_igt_b i) (eval_expr Delta e)
+  | tc_Zle e z => `(denote_tc_Zge_b z) (eval_expr Delta e)
+  | tc_Zge e z => `(denote_tc_Zle_b z) (eval_expr Delta e)
+  | tc_samebase e1 e2 => `denote_tc_samebase_b (eval_expr Delta e1) (eval_expr Delta e2)
+  | tc_nodivover' v1 v2 => `denote_tc_nodivover_b (eval_expr Delta v1) (eval_expr Delta v2)
   | tc_initialized id ty => denote_tc_initialized_b id ty
-  | tc_iszero' e => `denote_tc_iszero_b (eval_expr cenv e)
+  | tc_iszero' e => `denote_tc_iszero_b (eval_expr Delta e)
  end.
 
 Lemma false_true : False <-> false=true.
@@ -1886,19 +1433,19 @@ bool_n H.
 Tactic Notation "bool_r" "in" "*" :=
 bool_s.
 
-Definition denote_te_assert_b_eq : forall cenv a rho, 
-denote_tc_assert cenv a rho <-> is_true (denote_tc_assert_b cenv a rho).
+Definition denote_te_assert_b_eq : forall Delta a rho, 
+denote_tc_assert Delta a rho <-> is_true (denote_tc_assert_b Delta a rho).
 Proof. intros. split; intros.
 induction a; simpl in *; super_unfold_lift; bool_r in *; intuition;
 simpl in *;
-try destruct (eval_expr cenv e); simpl in *;
+try destruct (eval_expr Delta e); simpl in *;
 try match goal with 
 | [ H : if ?e then True else False |- _ ] => destruct e; simpl; inv H
 | [ H : match ?e with | _ => _  end |- _ ] => destruct e; simpl in *; inv H
 end; auto; try congruence;
 unfold denote_tc_initialized, denote_tc_initialized_b in *.
-destruct (denote_tc_assert_b cenv a1 rho); try contradiction; apply I.
-destruct (denote_tc_assert_b cenv a1 rho); try contradiction; apply I.
+destruct (denote_tc_assert_b Delta a1 rho); try contradiction; apply I.
+destruct (denote_tc_assert_b Delta a1 rho); try contradiction; apply I.
 destruct (Zoffloat f); try contradiction.
 destruct (z >=? z0); try contradiction; auto.
 destruct (Zofsingle f); try contradiction.
@@ -1907,23 +1454,23 @@ destruct (Zoffloat f); try contradiction.
 destruct (z <=? z0); try contradiction; auto.
 destruct (Zofsingle f); try contradiction.
 destruct (z <=? z0); try contradiction; auto.
-destruct (eval_expr cenv e0 rho); try contradiction.
+destruct (eval_expr Delta e0 rho); try contradiction.
 destruct (peq b b0); try contradiction; auto.
-destruct (eval_expr cenv e0 rho); try contradiction.
+destruct (eval_expr Delta e0 rho); try contradiction.
 destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)); try contradiction; auto.
 destruct H. destruct H; rewrite H. auto.
 
 induction a; simpl in *; super_unfold_lift; bool_r in *; intuition; try congruence;
 simpl in *;
-try destruct (eval_expr cenv e); simpl in *; try congruence;
+try destruct (eval_expr Delta e); simpl in *; try congruence;
 try match goal with 
 | [ H : (if ?e then true else false) = true |- _ ] => destruct e; simpl; inv H
 | [ H : (match ?e with | _ => _ end) = true |- _ ] => destruct e; simpl in *; inv H
 end; auto; try congruence.
 unfold denote_tc_initialized, denote_tc_initialized_b in *.
-destruct (denote_tc_assert_b cenv a1 rho); try contradiction; auto.
-destruct (denote_tc_assert_b cenv a1 rho); try contradiction; auto.
-destruct (denote_tc_assert_b cenv a1 rho); try contradiction; auto.
+destruct (denote_tc_assert_b Delta a1 rho); try contradiction; auto.
+destruct (denote_tc_assert_b Delta a1 rho); try contradiction; auto.
+destruct (denote_tc_assert_b Delta a1 rho); try contradiction; auto.
 destruct (negb (Int.eq i Int.zero)); try contradiction; auto.
 destruct (Zoffloat f); try contradiction.
 destruct (z >=? z0); try contradiction; auto.
@@ -1933,9 +1480,9 @@ destruct (Zoffloat f); try contradiction.
 destruct (z <=? z0); try contradiction; auto.
 destruct (Zofsingle f); try contradiction.
 destruct (z <=? z0); try contradiction; auto.
-destruct (eval_expr cenv e0 rho); try contradiction.
+destruct (eval_expr Delta e0 rho); try contradiction.
 destruct (peq b b0); try contradiction; auto.
-destruct (eval_expr cenv e0 rho); try contradiction.
+destruct (eval_expr Delta e0 rho); try contradiction.
 destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)); try contradiction; auto.
 unfold denote_tc_initialized_b in H.
 destruct (Map.get (te_of rho) e) eqn:?; try contradiction.

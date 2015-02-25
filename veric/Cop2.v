@@ -16,6 +16,7 @@
 (** Arithmetic and logical operators for the Compcert C and Clight languages *)
 
 Require Import veric.base.
+Require Import veric.tycontext.
 
 (** * Type classification and semantics of operators. *)
 
@@ -490,32 +491,32 @@ Definition sem_binarith
 
 (** *** Addition *)
 
-Definition sem_add_pi (cenv: composite_env) ty (v1 v2 : val) : option val :=
+Definition sem_add_pi (Delta: tycontext) ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vptr b1 ofs1, Vint n2 => 
-        Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof cenv ty)) n2)))
+        Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof (composite_types Delta) ty)) n2)))
       | _,  _ => None
       end.
-Definition sem_add_ip (cenv: composite_env) ty (v1 v2 : val) : option val :=
+Definition sem_add_ip (Delta: tycontext) ty (v1 v2 : val) : option val :=
  match v1,v2 with
       | Vint n1, Vptr b2 ofs2 => 
-        Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof cenv ty)) n1)))
+        Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof (composite_types Delta) ty)) n1)))
       | _,  _ => None
       end.
  
-Definition sem_add_pl (cenv: composite_env) ty (v1 v2 : val) : option val :=
+Definition sem_add_pl (Delta: tycontext) ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vptr b1 ofs1, Vlong n2 => 
         let n2 := Int.repr (Int64.unsigned n2) in
-        Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof cenv ty)) n2)))
+        Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof (composite_types Delta) ty)) n2)))
       | _,  _ => None
       end.
 
-Definition sem_add_lp (cenv: composite_env) ty (v1 v2 : val) : option val :=
+Definition sem_add_lp (Delta: tycontext) ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vlong n1, Vptr b2 ofs2 => 
         let n1 := Int.repr (Int64.unsigned n1) in
-        Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof cenv ty)) n1)))
+        Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof (composite_types Delta) ty)) n1)))
       | _,  _ => None
       end.
 
@@ -527,38 +528,38 @@ sem_binarith
         (fun n1 n2 => Some(Vsingle(Float32.add n1 n2)))
         t1 t2 v1 v2.
 
-Definition sem_add (cenv: composite_env) (t1:type) (t2:type) :  val->val->option val :=
+Definition sem_add (Delta: tycontext) (t1:type) (t2:type) :  val->val->option val :=
   match Cop.classify_add t1 t2 with 
-  | Cop.add_case_pi ty =>  sem_add_pi cenv ty
-  | Cop.add_case_ip ty => sem_add_ip cenv ty   (**r integer plus pointer *)
-  | Cop.add_case_pl ty => sem_add_pl cenv ty   (**r pointer plus long *)
-  | Cop.add_case_lp ty => sem_add_lp cenv ty   (**r long plus pointer *)
+  | Cop.add_case_pi ty =>  sem_add_pi Delta ty
+  | Cop.add_case_ip ty => sem_add_ip Delta ty   (**r integer plus pointer *)
+  | Cop.add_case_pl ty => sem_add_pl Delta ty   (**r pointer plus long *)
+  | Cop.add_case_lp ty => sem_add_lp Delta ty   (**r long plus pointer *)
   | add_default => sem_add_default t1 t2      
   end.
 
 (** *** Subtraction *)
 
-Definition sem_sub_pi (cenv: composite_env) ty (v1 v2 : val) : option val :=
+Definition sem_sub_pi (Delta: tycontext) ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vptr b1 ofs1, Vint n2 => 
-          Some (Vptr b1 (Int.sub ofs1 (Int.mul (Int.repr (sizeof cenv ty)) n2)))
+          Some (Vptr b1 (Int.sub ofs1 (Int.mul (Int.repr (sizeof (composite_types Delta) ty)) n2)))
       | _,  _ => None
       end.
 
-Definition sem_sub_pl (cenv: composite_env) ty (v1 v2 : val) : option val :=
+Definition sem_sub_pl (Delta: tycontext) ty (v1 v2 : val) : option val :=
  match v1,v2 with
       | Vptr b1 ofs1, Vlong n2 => 
           let n2 := Int.repr (Int64.unsigned n2) in
-          Some (Vptr b1 (Int.sub ofs1 (Int.mul (Int.repr (sizeof cenv ty)) n2)))
+          Some (Vptr b1 (Int.sub ofs1 (Int.mul (Int.repr (sizeof (composite_types Delta) ty)) n2)))
       | _,  _ => None
       end.
 
-Definition sem_sub_pp (cenv: composite_env) ty (v1 v2 : val) : option val :=
+Definition sem_sub_pp (Delta: tycontext) ty (v1 v2 : val) : option val :=
 match v1,v2 with
       | Vptr b1 ofs1, Vptr b2 ofs2 =>
           if eq_block b1 b2 then
-            if Int.eq (Int.repr (sizeof cenv ty)) Int.zero then None
-            else Some (Vint (Int.divu (Int.sub ofs1 ofs2) (Int.repr (sizeof cenv ty))))
+            if Int.eq (Int.repr (sizeof (composite_types Delta) ty)) Int.zero then None
+            else Some (Vint (Int.divu (Int.sub ofs1 ofs2) (Int.repr (sizeof (composite_types Delta) ty))))
           else None
       | _, _ => None
       end.
@@ -570,11 +571,11 @@ Definition sem_sub_default t1 t2 (v1 v2 : val) : option val :=
         (fun n1 n2 => Some(Vfloat(Float.sub n1 n2)))
         (fun n1 n2 => Some(Vsingle(Float32.sub n1 n2)))
         t1 t2 v1 v2.
-Definition sem_sub (cenv: composite_env) (t1:type) (t2:type) : val -> val -> option val :=
+Definition sem_sub (Delta: tycontext) (t1:type) (t2:type) : val -> val -> option val :=
   match Cop.classify_sub t1 t2 with
-  | Cop.sub_case_pi ty => sem_sub_pi cenv ty  (**r pointer minus integer *)
-  | Cop.sub_case_pl ty => sem_sub_pl cenv ty  (**r pointer minus long *)
-  | Cop.sub_case_pp ty => sem_sub_pp cenv ty       (**r pointer minus pointer *)
+  | Cop.sub_case_pi ty => sem_sub_pi Delta ty  (**r pointer minus integer *)
+  | Cop.sub_case_pl ty => sem_sub_pl Delta ty  (**r pointer minus long *)
+  | Cop.sub_case_pp ty => sem_sub_pp Delta ty       (**r pointer minus pointer *)
   | sub_default => sem_sub_default t1 t2     
   end.
  
@@ -782,11 +783,11 @@ Definition sem_unary_operation
 
 (*Removed memory from sem_cmp calls/args*)
 Definition sem_binary_operation'
-    (cenv: composite_env) (op: Cop.binary_operation)
+    (Delta: tycontext) (op: Cop.binary_operation)
     (t1:type) (t2: type) (valid_pointer : block -> Z -> bool) : val -> val -> option val :=
   match op with
-  | Cop.Oadd => sem_add cenv t1 t2
-  | Cop.Osub => sem_sub cenv t1 t2
+  | Cop.Oadd => sem_add Delta t1 t2
+  | Cop.Osub => sem_sub Delta t1 t2
   | Cop.Omul => sem_mul t1 t2
   | Cop.Omod => sem_mod t1 t2
   | Cop.Odiv => sem_div t1 t2 
@@ -803,14 +804,14 @@ Definition sem_binary_operation'
   | Cop.Oge => sem_cmp Cge t1 t2 valid_pointer
   end.
 
-Definition sem_binary_operation (cenv: composite_env) (op: Cop.binary_operation)
+Definition sem_binary_operation (Delta: tycontext) (op: Cop.binary_operation)
     (t1:type) (t2: type) (m : mem) : val -> val -> option val :=
-sem_binary_operation' cenv op t1 t2 (Mem.valid_pointer m).
+sem_binary_operation' Delta op t1 t2 (Mem.valid_pointer m).
 
-Definition sem_incrdecr (cenv: composite_env) (id: Cop.incr_or_decr) (ty: type) (v: val)  :=
+Definition sem_incrdecr (Delta: tycontext) (id: Cop.incr_or_decr) (ty: type) (v: val)  :=
   match id with
-  | Cop.Incr => sem_add cenv ty type_int32s v (Vint Int.one) 
-  | Decr => sem_sub cenv ty type_int32s v (Vint Int.one) 
+  | Cop.Incr => sem_add Delta ty type_int32s v (Vint Int.one) 
+  | Decr => sem_sub Delta ty type_int32s v (Vint Int.one) 
   end.
 
 (*We can always simplify if the types are known *)
@@ -829,15 +830,15 @@ Arguments bool_val t / v  : simpl nomatch.
 Arguments sem_notbool t / v  : simpl nomatch.
 Arguments sem_neg t / v : simpl nomatch.
 Arguments sem_notint t / v : simpl nomatch.
-Arguments sem_add cenv t1 t2 / v1 v2 : simpl nomatch.
-Arguments sem_sub cenv t1 t2 / v1 v2 : simpl nomatch.
+Arguments sem_add Delta t1 t2 / v1 v2 : simpl nomatch.
+Arguments sem_sub Delta t1 t2 / v1 v2 : simpl nomatch.
 Arguments sem_shift t1 t2 _ _  / v1 v2 : simpl nomatch.
 Arguments sem_shl t1 t2  / v1 v2 : simpl nomatch.
 Arguments sem_shr t1 t2  / v1 v2 : simpl nomatch.
 Arguments sem_cmp c t1 t2 / _ v1 v2 : simpl nomatch.
 Arguments sem_unary_operation op ty / v : simpl nomatch.
-Arguments sem_binary_operation' cenv op t1 t2 / valid_pointer v1 v2 : simpl nomatch.
-Arguments sem_binary_operation cenv op t1 t2 / m v1 v2 : simpl nomatch.
+Arguments sem_binary_operation' Delta op t1 t2 / valid_pointer v1 v2 : simpl nomatch.
+Arguments sem_binary_operation Delta op t1 t2 / m v1 v2 : simpl nomatch.
 Arguments sem_cmp_default c t1 t2 / v1 v2 : simpl nomatch.
 Arguments sem_binarith sem_int sem_long sem_float sem_single t1 t2 / v1 v2 : simpl nomatch.
 Arguments Cop.sem_cast v !t1 !t2 / .
