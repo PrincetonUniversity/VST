@@ -529,10 +529,11 @@ Definition type_of_funspec (fs: funspec) : type :=
 (** Declaration of type context for typechecking **)
 Inductive tycontext : Type := 
   mk_tycontext : forall (tyc_temps: PTree.t (type * bool))
-                                    (tyc_vars: PTree.t type)
-                                    (tyc_ret: type)
-                                    (tyc_globty: PTree.t type)
-                                    (tyc_globsp: PTree.t funspec),
+                        (tyc_vars: PTree.t type)
+                        (tyc_ret: type)
+                        (tyc_globty: PTree.t type)
+                        (tyc_globsp: PTree.t funspec)
+                        (cenv: composite_env),
                              tycontext.
 
 Definition empty_tycontext : tycontext :=
@@ -641,7 +642,8 @@ Inductive tc_error :=
 | deref_byvalue : type -> tc_error
 | volatile_load : type -> tc_error
 | invalid_field_access : expr -> tc_error
-| invalid_struct_field : ident -> members -> tc_error
+| invalid_composite_name: ident -> tc_error
+| invalid_struct_field : ident (* field name *) -> ident (* struct name *) -> tc_error
 | invalid_lvalue : expr -> tc_error
 | wrong_signature : tc_error.
 
@@ -1021,16 +1023,6 @@ match (var_types Delta) ! id with
            end
 end.
 
-(*
-
-Definition is_neutral_cast tfrom tto : bool :=
-match Cop.classify_cast tfrom tto with
-| Cop.cast_case_neutral => true
-| _ => false
-end. 
-*)
-
-
 Definition same_base_type t1 t2 : bool :=
 match t1, t2 with
 | (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _), 
@@ -1039,11 +1031,11 @@ match t1, t2 with
 | _, _ => false
 end.
 
-
 (** Main typechecking function, with work will typecheck both pure
 and non-pure expressions, for now mostly just works with pure expressions **)
-Fixpoint typecheck_expr (Delta : tycontext) (e: expr) : tc_assert :=
-let tcr := typecheck_expr Delta in
+Check field_offset.
+Fixpoint typecheck_expr (cenv: composite_env) (Delta : tycontext) (e: expr) : tc_assert :=
+let tcr := typecheck_expr cenv Delta in
 match e with
  | Econst_int _ (Tint I32 _ _) => tc_TT 
  | Econst_float _ (Tfloat F64 _) => tc_TT
@@ -1055,11 +1047,11 @@ match e with
                                        else tc_FF (mismatch_context_type ty (fst ty'))
 		         | None => tc_FF (var_not_in_tycontext Delta id)
                        end
- | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty)
+ | Eaddrof a ty => tc_andp (typecheck_lvalue cenv Delta a) (tc_bool (is_pointer_type ty)
                                                       (op_result_type e))
  | Eunop op a ty => tc_andp (tc_bool (isUnOpResultType op a ty) (op_result_type e)) (tcr a)
- | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType op a1 a2 ty)  (tcr a1)) (tcr a2)
- | Ecast a ty => tc_andp (tcr a) (isCastResultType (typeof a) ty a)
+ | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType cenv op a1 a2 ty)  (tcr a1)) (tcr a2)
+ | Ecast a ty => tc_andp (tcr a) (isCastResultType cenv (typeof a) ty a)
  | Evar id ty => match access_mode ty with
                          | By_reference => 
                             match get_var_type Delta id with 
@@ -1071,13 +1063,21 @@ match e with
                         end
  | Efield a i ty => match access_mode ty with
                          | By_reference => 
-                            tc_andp (typecheck_lvalue Delta a) (match typeof a with
-                            | Tstruct id fList att =>
-                                  match field_offset i fList with 
+                            tc_andp (typecheck_lvalue cenv Delta a) (match typeof a with
+                            | Tstruct id att =>
+                               match cenv ! id with
+                               | Some co =>
+                                  match field_offset cenv i (co_members co) with 
                                   | Errors.OK delta => tc_TT
-                                  | _ => tc_FF (invalid_struct_field i fList)
+                                  | _ => tc_FF (invalid_struct_field i id)
                                   end
-                            | Tunion id fList att => tc_TT
+                               | _ => tc_FF (invalid_composite_name id)
+                               end
+                            | Tunion id att =>
+                               match cenv ! id with
+                               | Some co => tc_TT
+                               | _ => tc_FF (invalid_composite_name id)
+                               end
                             | _ => tc_FF (invalid_field_access e)
                             end)
                          | _ => tc_FF (deref_byvalue ty)
@@ -1085,7 +1085,7 @@ match e with
  | Ederef a ty => match access_mode ty with
                   | By_reference => tc_andp 
                        (tc_andp 
-                          (typecheck_expr Delta a) 
+                          (typecheck_expr cenv Delta a) 
                           (tc_bool (is_pointer_type (typeof a))(op_result_type e)))
                        (tc_isptr a)
                   | _ => tc_FF (deref_byvalue ty)
@@ -1093,7 +1093,7 @@ match e with
  | _ => tc_FF (invalid_expression e)
 end
 
-with typecheck_lvalue (Delta: tycontext) (e: expr) : tc_assert :=
+with typecheck_lvalue (cenv: composite_env) (Delta: tycontext) (e: expr) : tc_assert :=
 match e with
  | Evar id ty => match get_var_type Delta id with 
                   | Some ty' => tc_bool (eqb_type ty ty') 
@@ -1102,18 +1102,26 @@ match e with
                  end
  | Ederef a ty => tc_andp 
                        (tc_andp 
-                          (typecheck_expr Delta a) 
+                          (typecheck_expr cenv Delta a) 
                           (tc_bool (is_pointer_type (typeof a))(op_result_type e)))
                        (tc_isptr a)
  | Efield a i ty => tc_andp 
-                         (typecheck_lvalue Delta a) 
+                         (typecheck_lvalue cenv Delta a) 
                          (match typeof a with
-                            | Tstruct id fList att =>
-                              match field_offset i fList with 
-                                | Errors.OK delta => tc_TT
-                                | _ => tc_FF (invalid_struct_field i fList)
+                            | Tstruct id att =>
+                              match cenv ! id with
+                              | Some co =>
+                                   match field_offset cenv i (co_members co) with 
+                                     | Errors.OK delta => tc_TT
+                                     | _ => tc_FF (invalid_struct_field i id)
+                                   end
+                              | _ => tc_FF (invalid_composite_name id)
                               end
-                            | Tunion id fList att => tc_TT
+                            | Tunion id att =>
+                              match cenv ! id with
+                              | Some co => tc_TT
+                              | _ => tc_FF (invalid_composite_name id)
+                              end
                             | _ => tc_FF (invalid_field_access e)
                           end)
  | _  => tc_FF (invalid_lvalue e)
@@ -1125,11 +1133,11 @@ Definition implicit_deref (t: type) : type :=
   | _ => t
   end.
 
-Definition typecheck_temp_id id ty Delta a : tc_assert :=
+Definition typecheck_temp_id cenv id ty Delta a : tc_assert :=
   match (temp_types Delta)!id with
   | Some (t,_) => 
       tc_andp (tc_bool (is_neutral_cast (implicit_deref ty) t) (invalid_cast ty t)) 
-                  (isCastResultType (implicit_deref ty) t a)
+                  (isCastResultType cenv (implicit_deref ty) t a)
   | None => tc_FF (var_not_in_tycontext Delta id)
  end.
 
@@ -1147,16 +1155,21 @@ match asn with
  | _ => false
 end.
 
-
-
 (* A more standard typechecker, should approximate the c typechecker,
 might need to add a tc_noproof for nested loads*)
-Definition typecheck_b Delta e :=  tc_might_be_true (typecheck_expr Delta e).
+Definition typecheck_b cenv Delta e :=  tc_might_be_true (typecheck_expr cenv Delta e).
 
 (*Definition of the original *pure* typechecker where true means the expression
 will always evaluate, may not be useful since tc_denote will just compute to true
 on these assertions*)
-Definition typecheck_pure_b Delta e := tc_always_true (typecheck_expr Delta e). 
+Definition typecheck_pure_b cenv Delta e := tc_always_true (typecheck_expr cenv Delta e).
+
+Print environ.
+Print genviron.
+Print Genv.
+Print genv.
+Print Genv.t.
+
 
 Fixpoint typecheck_exprlist (Delta : tycontext) (tl : list type) (el : list expr) : tc_assert :=
 match tl,el with
