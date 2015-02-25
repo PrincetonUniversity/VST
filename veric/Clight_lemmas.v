@@ -242,14 +242,14 @@ Ltac fun_tac :=
   | H: Clight.eval_lvalue ?ge ?e ?le ?m ?A _ _,
     H': Clight.eval_lvalue ?ge ?e ?le ?m ?A _ _ |- _ =>
         apply (eval_lvalue_fun H) in H'; inv H'
-  | H: Clight.assign_loc ?ge ?ty ?m ?b ?ofs ?v _ _,
-    H': Clight.assign_loc ?ge ?ty ?m ?b ?ofs ?v _ _ |- _ =>
+  | H: Clight.assign_loc ?ge ?ty ?m ?b ?ofs ?v _,
+    H': Clight.assign_loc ?ge ?ty ?m ?b ?ofs ?v _ |- _ =>
         apply (assign_loc_fun H) in H'; inv H'
-  | H: Clight.deref_loc ?ge ?ty ?m ?b ?ofs ?t _,
-    H': Clight.deref_loc ?ge ?ty ?m ?b ?ofs ?t _ |- _ =>
+  | H: Clight.deref_loc ?ty ?m ?b ?ofs _,
+    H': Clight.deref_loc ?ty ?m ?b ?ofs _ |- _ =>
         apply (deref_loc_fun H) in H'; inv H'
-  | H: Clight.alloc_variables ?e ?m ?vl _ _,
-    H': Clight.alloc_variables ?e ?m ?vl _ _ |- _ =>
+  | H: Clight.alloc_variables ?ge ?e ?m ?vl _ _,
+    H': Clight.alloc_variables ?ge ?e ?m ?vl _ _ |- _ =>
         apply (alloc_variables_fun H) in H'; inv H'
   | H: Clight.bind_parameters ?ge ?e ?m ?p ?vl _,
     H': Clight.bind_parameters ?ge ?e ?m ?p ?vl _ |- _ =>

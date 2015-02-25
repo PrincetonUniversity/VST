@@ -293,24 +293,14 @@ Fixpoint eqb_type (a b: type) {struct a} : bool :=
                                                                    (andb (Zeq_bool sa sb) (eqb_attr aa ab))
  | Tfunction sa ta ca, Tfunction sb tb cb => 
        andb (andb (eqb_typelist sa sb) (eqb_type ta tb)) (eqb_calling_convention ca cb)
- | Tstruct ia fa aa, Tstruct ib fb ab => andb (eqb_ident ia ib) 
-                                                                  (andb (eqb_fieldlist fa fb) (eqb_attr aa ab))
- | Tunion ia fa aa, Tunion ib fb ab => andb (eqb_ident ia ib) 
-                                                                  (andb (eqb_fieldlist fa fb) (eqb_attr aa ab))
- | Tcomp_ptr ia aa, Tcomp_ptr ib ab => andb (eqb_ident ia ib) (eqb_attr aa ab)
+ | Tstruct ia aa, Tstruct ib ab => andb (eqb_ident ia ib) (eqb_attr aa ab)
+ | Tunion ia aa, Tunion ib ab => andb (eqb_ident ia ib) (eqb_attr aa ab)
  | _, _ => false
  end
 with eqb_typelist (a b: typelist)  {struct a}: bool :=
   match a, b with
   | Tcons ta ra, Tcons tb rb => andb (eqb_type ta tb) (eqb_typelist ra rb)
   | Tnil, Tnil => true
-  | _ , _ => false
-  end
-with eqb_fieldlist (a b: fieldlist)  {struct a}: bool :=
-  match a, b with
-  | Fcons ia ta ra, Fcons ib tb rb =>  andb (eqb_ident ia ib) 
-                                                             (andb (eqb_type ta tb) (eqb_fieldlist ra rb))
-  | Fnil, Fnil => true
   | _ , _ => false
   end.
 
@@ -333,15 +323,13 @@ Qed.
 
 
 Scheme eqb_type_sch := Induction for type Sort Prop
-  with eqb_typelist_sch := Induction for  typelist Sort Prop
-  with eqb_fieldlist_sch := Induction for  fieldlist Sort Prop.
+  with eqb_typelist_sch := Induction for  typelist Sort Prop.
 
 Lemma eqb_type_spec: forall a b, eqb_type a b = true <-> a=b.
 Proof.
 apply (eqb_type_sch 
            (fun a => forall b, eqb_type a b = true <-> a=b)
-          (fun a => forall b, eqb_typelist a b = true <-> a=b)
-           (fun a => forall b, eqb_fieldlist a b = true <-> a=b));
+          (fun a => forall b, eqb_typelist a b = true <-> a=b));
   destruct b; simpl;
    split; intro; 
    repeat rewrite andb_true_iff in *;
@@ -363,17 +351,7 @@ apply (eqb_type_sch
    inv H1; apply H0; auto.
    inv H1; destruct c0 as [[|] [|]]; reflexivity.
    apply H; auto.
-   inv H0; apply H; auto.
-   inv H1; apply H; auto.
-   apply H; auto.
-   inv H0; apply H; auto.
-   apply H; auto.
-   inv H1; apply H; auto.
-   inv H2; apply H0; auto.
-   inv H1; apply H; auto.
-   inv H1; apply H0; auto.
-   inv H2; apply H; auto.
-   inv H3; apply H0; auto.
+   apply H0; auto.
    inv H1; apply H; auto.
    inv H1; apply H0; auto.
 Qed.
@@ -407,9 +385,9 @@ Definition strict_bool_val (v: val) (t: type) : option bool :=
    match v, t with
    | Vint n, Tint _ _ _ => Some (negb (Int.eq n Int.zero))
    | Vlong n, Tlong _ _ => Some (negb (Int64.eq n Int64.zero))
-   | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) =>
+   | (Vint n), (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
              if Int.eq n Int.zero then Some false else None
-   | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) => Some true
+   | Vptr b ofs, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) => Some true
    | Vfloat f, Tfloat F64 _ => Some (negb(Float.cmp Ceq f Float.zero))
    | Vsingle f, Tfloat F32 _ => Some (negb(Float32.cmp Ceq f Float32.zero))
    | _, _ => None
@@ -436,9 +414,9 @@ end.
 
 Definition true2 (b : block) (i : Z) := true.
 
-Definition eval_binop (op: Cop.binary_operation) (t1 t2 : type) :=
-       force_val2 (Cop2.sem_binary_operation' op t1 t2 true2).
-Arguments eval_binop op t1 t2 / v1 v2.
+Definition eval_binop cenv (op: Cop.binary_operation) (t1 t2 : type) :=
+       force_val2 (Cop2.sem_binary_operation' cenv op t1 t2 true2).
+Arguments eval_binop cenv op t1 t2 / v1 v2.
 
 Definition eval_cast (t1 t2 : type) :=
   force_val1 (sem_cast t1 t2).
@@ -455,14 +433,22 @@ Definition offset_val (ofs: int) (v: val) : val :=
   | _ => Vundef
  end.
 
-Definition eval_field (ty: type) (fld: ident) : val -> val :=
+Definition eval_field (cenv: composite_env) (ty: type) (fld: ident) : val -> val :=
           match ty with
-             | Tstruct id fList att =>
-                         match field_offset fld fList with 
+             | Tstruct id att =>
+                 match cenv ! id with
+                 | Some co =>
+                         match field_offset cenv id (co_members co) with 
                          | Errors.OK delta => offset_val (Int.repr delta)
                          | _ => always Vundef
-                        end
-             | Tunion id fList att => force_ptr
+                         end
+                 | _ => always Vundef
+                 end
+             | Tunion id att =>
+                 match cenv ! id with
+                 | Some co => force_ptr
+                 | _ => always Vundef
+                 end
              | _ => always Vundef
           end.
 
@@ -484,39 +470,42 @@ Definition deref_noload (ty: type) : val -> val :=
  | _ => always Vundef
  end.
 
-Fixpoint eval_expr (e: expr) : environ -> val :=
+Fixpoint eval_expr (cenv: composite_env) (e: expr) : environ -> val :=
  match e with
  | Econst_int i ty => `(Vint i)
  | Econst_long i ty => `(Vlong i)
  | Econst_float f ty => `(Vfloat f)
  | Econst_single f ty => `(Vsingle f)
  | Etempvar id ty => eval_id id 
- | Eaddrof a ty => eval_lvalue a 
- | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr a) 
+ | Eaddrof a ty => eval_lvalue cenv a 
+ | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr cenv a) 
  | Ebinop op a1 a2 ty =>  
-                  `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2)
- | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr a)
+                  `(eval_binop cenv op (typeof a1) (typeof a2)) (eval_expr cenv a1) (eval_expr cenv a2)
+ | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr cenv a)
  | Evar id ty => `(deref_noload ty) (eval_var id ty)
- | Ederef a ty => `(deref_noload ty) (`force_ptr (eval_expr a))
- | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (eval_lvalue a))
+ | Ederef a ty => `(deref_noload ty) (`force_ptr (eval_expr cenv a))
+ | Efield a i ty => `(deref_noload ty) (`(eval_field cenv (typeof a) i) (eval_lvalue cenv a))
+ | Esizeof t ty => `(Vint (Int.repr (sizeof cenv t)))
+ | Ealignof t ty => `(Vint (Int.repr (alignof cenv t)))
  end
 
- with eval_lvalue (e: expr) : environ -> val := 
+ with eval_lvalue (cenv: composite_env) (e: expr) : environ -> val := 
  match e with 
  | Evar id ty => eval_var id ty
- | Ederef a ty => `force_ptr (eval_expr a)
- | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a)
+ | Ederef a ty => `force_ptr (eval_expr cenv a)
+ | Efield a i ty => `(eval_field cenv (typeof a) i) (eval_lvalue cenv a)
  | _  => `Vundef
  end.
 
-Fixpoint eval_exprlist (et: list type) (el:list expr) : environ -> list val :=
+Fixpoint eval_exprlist (cenv: composite_env) (et: list type) (el:list expr) : environ -> list val :=
  match et, el with
- | t::et', e::el' => `(@cons val) (`force_val (`(sem_cast (typeof e) t) (eval_expr e))) (eval_exprlist et' el')
+ | t::et', e::el' =>
+    `(@cons val) (`force_val (`(sem_cast (typeof e) t) (eval_expr cenv e))) (eval_exprlist cenv et' el')
  | _, _ => `nil
  end.
 
-Definition eval_expropt (e: option expr) : environ -> option val :=
- match e with Some e' => `(@Some val) (eval_expr e')  | None => `None end.
+Definition eval_expropt (cenv: composite_env) (e: option expr) : environ -> option val :=
+ match e with Some e' => `(@Some val) (eval_expr cenv e')  | None => `None end.
 
 (** Definitions related to function specifications and return assertions **)
 Inductive exitkind : Type := EK_normal | EK_break | EK_continue | EK_return.
@@ -609,8 +598,8 @@ end.
 Definition is_pointer_type ty :=
 match ty with
 | (Tpointer _ _ | Tarray _ _ _ 
-                   | Tfunction _ _ _ | Tstruct _ _ _ 
-                   | Tunion _ _ _) => true
+                   | Tfunction _ _ _ | Tstruct _ _ 
+                   | Tunion _ _) => true
 | _ => false
 end.
 
@@ -652,7 +641,7 @@ Inductive tc_error :=
 | deref_byvalue : type -> tc_error
 | volatile_load : type -> tc_error
 | invalid_field_access : expr -> tc_error
-| invalid_struct_field : ident -> fieldlist -> tc_error
+| invalid_struct_field : ident -> members -> tc_error
 | invalid_lvalue : expr -> tc_error
 | wrong_signature : tc_error.
 
@@ -672,21 +661,21 @@ Inductive tc_assert :=
 | tc_nodivover': expr -> expr -> tc_assert
 | tc_initialized: PTree.elt -> type -> tc_assert.
 
-Definition tc_iszero (e: expr) : tc_assert :=
-  match eval_expr e any_environ with
+Definition tc_iszero (cenv: composite_env) (e: expr) : tc_assert :=
+  match eval_expr cenv e any_environ with
   | Vint i => if Int.eq i Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | Vlong i => if Int.eq (Int.repr (Int64.unsigned i)) Int.zero then tc_TT else tc_FF (pp_compare_size_0 Tvoid)
   | _ => tc_iszero' e
   end.
 
-Definition tc_nonzero (e: expr) : tc_assert :=
-  match eval_expr e any_environ with
+Definition tc_nonzero (cenv: composite_env) (e: expr) : tc_assert :=
+  match eval_expr cenv e any_environ with
    | Vint i => if negb (Int.eq i Int.zero) then tc_TT else tc_nonzero' e
    | _ => tc_nonzero' e
    end.
 
-Definition tc_nodivover (e1 e2: expr) : tc_assert :=
- match eval_expr e1 any_environ, eval_expr e2 any_environ with
+Definition tc_nodivover (cenv: composite_env) (e1 e2: expr) : tc_assert :=
+ match eval_expr cenv e1 any_environ, eval_expr cenv e2 any_environ with
                            | Vint n1, Vint n2 => if (negb 
                                    (Int.eq n1 (Int.repr Int.min_signed) 
                                     && Int.eq n2 Int.mone))
@@ -719,23 +708,21 @@ end.
 Definition tc_bool (b : bool) (e: tc_error) :=
 if b then tc_TT else tc_FF e.
 
-Definition check_pp_int e1 e2 op t e :=
+Definition check_pp_int (cenv: composite_env) e1 e2 op t e :=
 match op with 
 | Cop.Oeq | Cop.One => tc_andp 
-                         (tc_orp (tc_iszero e1) (tc_iszero e2))
+                         (tc_orp (tc_iszero cenv e1) (tc_iszero cenv e2))
                          (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
 
-
-Definition check_pl_long e2 op t e :=
+Definition check_pl_long (cenv: composite_env) e2 op t e :=
 match op with 
 | Cop.Oeq | Cop.One => tc_andp 
-                         (tc_iszero e2)
+                         (tc_iszero cenv e2)
                          (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
-
 
 Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
  match Cop.classify_binarith t1 t2 with
@@ -749,13 +736,13 @@ Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
 Definition is_numeric_type t :=
 match t with Tint _ _ _ | Tlong _ _ | Tfloat _ _ => true | _ => false end.
 
-Definition tc_ilt (e: expr) (j: int) :=
-    match eval_expr e any_environ with
+Definition tc_ilt (cenv: composite_env) (e: expr) (j: int) :=
+    match eval_expr cenv e any_environ with
     | Vint i => if Int.ltu i j then tc_TT else tc_ilt' e j
     | _ => tc_ilt' e j
     end.
 
-Definition isBinOpResultType op a1 a2 ty : tc_assert :=
+Definition isBinOpResultType (cenv: composite_env) op a1 a2 ty : tc_assert :=
 let e := (Ebinop op a1 a2 ty) in
 let reterr := op_result_type e in
 let deferr := arg_type e in 
@@ -773,39 +760,39 @@ match op with
                     | Cop.sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
                              tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
                              (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int32_type ty) reterr))
-			     (tc_bool (negb (Int.eq (Int.repr (sizeof ty2)) Int.zero)) 
+			     (tc_bool (negb (Int.eq (Int.repr (sizeof cenv ty2)) Int.zero)) 
                                       (pp_compare_size_0 ty2) )
                     | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end 
   | Cop.Omul => binarithType (typeof a1) (typeof a2) ty deferr reterr
   | Cop.Omod => match Cop.classify_binarith (typeof a1) (typeof a2) with
                     | Cop.bin_case_i Unsigned => 
-                           tc_andp (tc_nonzero a2) 
+                           tc_andp (tc_nonzero cenv a2) 
                            (tc_bool (is_int32_type ty) reterr)
                     | Cop.bin_case_l Unsigned => 
-                           tc_andp (tc_nonzero a2) 
+                           tc_andp (tc_nonzero cenv a2) 
                            (tc_bool (is_long_type ty) reterr)
-                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero a2) 
-                                                      (tc_nodivover a1 a2))
+                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero cenv a2) 
+                                                      (tc_nodivover cenv a1 a2))
                                                      (tc_bool (is_int32_type ty) reterr)
-                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero a2) 
-                                                      (tc_nodivover a1 a2))
+                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero cenv a2) 
+                                                      (tc_nodivover cenv a1 a2))
                                                      (tc_bool (is_long_type ty) reterr)
                     | _ => tc_FF deferr
             end
   | Cop.Odiv => match Cop.classify_binarith (typeof a1) (typeof a2) with
-                    | Cop.bin_case_i Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_int32_type ty) reterr)
-                    | Cop.bin_case_l Unsigned => tc_andp (tc_nonzero a2) (tc_bool (is_long_type ty) reterr)
-                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) 
+                    | Cop.bin_case_i Unsigned => tc_andp (tc_nonzero cenv a2) (tc_bool (is_int32_type ty) reterr)
+                    | Cop.bin_case_l Unsigned => tc_andp (tc_nonzero cenv a2) (tc_bool (is_long_type ty) reterr)
+                    | Cop.bin_case_i Signed => tc_andp (tc_andp (tc_nonzero cenv a2) (tc_nodivover cenv a1 a2)) 
                                                         (tc_bool (is_int32_type ty) reterr)
-                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero a2) (tc_nodivover a1 a2)) 
+                    | Cop.bin_case_l Signed => tc_andp (tc_andp (tc_nonzero cenv a2) (tc_nodivover cenv a1 a2)) 
                                                         (tc_bool (is_long_type ty) reterr)
                     | Cop.bin_case_f  =>  tc_bool (is_float_type ty) reterr 
                     | Cop.bin_case_s  =>  tc_bool (is_single_type ty) reterr 
                     | Cop.bin_default => tc_FF deferr
             end
   | Cop.Oshl | Cop.Oshr => match Cop.classify_shift (typeof a1) (typeof a2) with
-                    | Cop.shift_case_ii _ =>  tc_andp (tc_ilt a2 Int.iwordsize) (tc_bool (is_int32_type ty) 
+                    | Cop.shift_case_ii _ =>  tc_andp (tc_ilt cenv a2 Int.iwordsize) (tc_bool (is_int32_type ty) 
                                                                                          reterr)
                     (* NEED TO HANDLE OTHER SHIFT CASES *)
                     | _ => tc_FF deferr
@@ -823,14 +810,14 @@ match op with
                                          && is_numeric_type (typeof a2)
                                           && is_int_type ty)
                                              deferr
-		    | Cop.cmp_case_pp => check_pp_int a1 a2 op ty e
-                    | Cop.cmp_case_pl => check_pl_long a2 op ty e
-                    | Cop.cmp_case_lp => check_pl_long a1 op ty e
+		    | Cop.cmp_case_pp => check_pp_int cenv a1 a2 op ty e
+                    | Cop.cmp_case_pl => check_pl_long cenv a2 op ty e
+                    | Cop.cmp_case_lp => check_pl_long cenv a1 op ty e
                    end
   end.
 
 
-Definition isCastResultType tfrom tto a : tc_assert :=
+Definition isCastResultType (cenv: composite_env) tfrom tto a : tc_assert :=
   (* missing casts from f2s and s2f *)
 match Cop.classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF (invalid_cast tfrom tto)
@@ -841,7 +828,7 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_neutral  => if eqb_type tfrom tto then tc_TT else 
                             (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom)) (andb (is_int_type tto) (is_int_type tfrom)) then tc_TT
-                                else tc_iszero a)
+                                else tc_iszero cenv a)
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_void => tc_noproof
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
@@ -892,9 +879,9 @@ Definition tc_val (ty: type) : val -> Prop :=
  | Tlong _ _ => is_long 
  | Tfloat F64 _ => is_float
  | Tfloat F32 _ => is_single
- | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _ => is_pointer_or_null
- | Tstruct _ _ _ => isptr
- | Tunion _ _ _ => isptr
+ | Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ => is_pointer_or_null
+ | Tstruct _ _ => isptr
+ | Tunion _ _ => isptr
  | _ => fun _ => False
  end.
 
@@ -979,8 +966,8 @@ assert (two_p 16 > Byte.max_unsigned) by (compute; congruence).
 assert (- two_p (8-1) = Byte.min_signed) by reflexivity.
 assert (two_p (8-1) - 1 = Byte.max_signed) by reflexivity.
 assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
- destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ],
- t2 as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ];
+ destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
+ t2 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
  inversion H; clear H; try reflexivity;
  destruct v; unfold tc_val, is_int in H0; try contradiction;
  simpl; f_equal;
@@ -1008,8 +995,8 @@ assert (two_p 16 > Byte.max_unsigned) by (compute; congruence).
 assert (- two_p (8-1) = Byte.min_signed) by reflexivity.
 assert (two_p (8-1) - 1 = Byte.max_signed) by reflexivity.
 assert (two_p 8 - 1 = Byte.max_unsigned) by reflexivity.
-destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ],
- t2   as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ]; inv H;
+destruct t1 as [ | [ | | | ] [ | ] | | [ | ] | | | | | ],
+ t2   as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H;
  destruct v; try solve [contradiction H0]; try apply I;
  unfold tc_val, is_int in *;
   auto;
@@ -1048,7 +1035,7 @@ Definition same_base_type t1 t2 : bool :=
 match t1, t2 with
 | (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _), 
    (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _) => true
-| (Tstruct _ _ _ | Tunion _ _ _), (Tstruct _ _ _ | Tunion _ _ _ ) => true
+| (Tstruct _ _ | Tunion _ _), (Tstruct _ _ | Tunion _ _ ) => true
 | _, _ => false
 end.
 
