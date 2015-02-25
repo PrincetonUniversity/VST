@@ -138,8 +138,8 @@ Proof.
    apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
    apply H0 in H. inv H.  eapply deref_loc_fun; eauto.
  * inv H1. apply H0 in H6. congruence.
- * inv H3. apply H0 in H7. congruence. congruence.
- * inv H2. apply H0 in H6. congruence. apply H0 in H8. congruence.
+ * inv H4. apply H0 in H8. congruence. congruence.
+ * inv H3. apply H0 in H7. congruence. apply H0 in H7. congruence.
 
  * split; intros; [apply (H _ _ H1 _ H2) | apply (H0 _ _ _ H1 _ _ H2)].
 Qed.
@@ -169,30 +169,32 @@ Qed.
 
 
 Lemma inv_find_symbol_fun:
-  forall {F V ge id id' b},
-    @Genv.find_symbol F V ge id = Some b ->
-    @Genv.find_symbol F V ge id' = Some b -> 
+  forall {ge id id' b},
+    Senv.find_symbol ge id = Some b ->
+    Senv.find_symbol ge id' = Some b -> 
     id=id'.
 Proof.
- intros.
- destruct (ident_eq id id'); auto.
-  contradiction (Genv.global_addresses_distinct ge n H H0); auto.
-Qed.
+  intros.
+  apply Senv.find_invert_symbol in H.
+  apply Senv.find_invert_symbol in H0.
+  rewrite H0 in H.
+  inversion H.
+  reflexivity.
+Qed. 
 
 Lemma assign_loc_fun: 
-  forall {ty m b ofs v m1 m2},
-   assign_loc ty m b ofs v m1 ->
-   assign_loc ty m b ofs v m2 ->
+  forall {cenv ty m b ofs v m1 m2},
+   assign_loc cenv ty m b ofs v m1 ->
+   assign_loc cenv ty m b ofs v m2 ->
    m1=m2.
 Proof.
  intros. inv H; inv H0; try congruence.
 Qed.
 
-
 Lemma alloc_variables_fun: 
-  forall {e m vl e1 m1 e2 m2},
-     Clight.alloc_variables e m vl e1 m1 ->
-     Clight.alloc_variables e m vl e2 m2 ->
+  forall {ge e m vl e1 m1 e2 m2},
+     Clight.alloc_variables ge e m vl e1 m1 ->
+     Clight.alloc_variables ge e m vl e2 m2 ->
      (e1,m1)=(e2,m2).
 Proof.
  intros until vl; revert e m;
@@ -202,9 +204,9 @@ Proof.
 Qed.
 
 Lemma bind_parameters_fun:
-  forall {e m p v m1 m2}, 
-    Clight.bind_parameters e m p v m1 ->
-    Clight.bind_parameters e m p v m2 ->
+  forall {ge e m p v m1 m2}, 
+    Clight.bind_parameters ge e m p v m1 ->
+    Clight.bind_parameters ge e m p v m2 ->
     m1=m2.
 Proof.
 intros until p. revert e m; induction p; intros; inv H; inv H0; auto.
@@ -213,9 +215,9 @@ intros until p. revert e m; induction p; intros; inv H; inv H0; auto.
 Qed.
 
 Lemma eventval_list_match_fun:
-  forall {F V ge a a' t v}, 
-    @Events.eventval_list_match F V ge a t v ->
-    @Events.eventval_list_match F V ge a' t v ->
+  forall {se a a' t v}, 
+    Events.eventval_list_match se a t v ->
+    Events.eventval_list_match se a' t v ->
     a=a'.
 Proof.
  intros.
@@ -224,7 +226,7 @@ Proof.
  inv H1.
  f_equal. clear - H6 H.
  inv H; inv H6; auto.
- apply (inv_find_symbol_fun H0) in H3; subst; auto.
+ apply (inv_find_symbol_fun H1) in H5; subst; auto.
  eauto.
 Qed.
 
@@ -252,8 +254,8 @@ Ltac fun_tac :=
   | H: Clight.bind_parameters ?ge ?e ?m ?p ?vl _,
     H': Clight.bind_parameters ?ge ?e ?m ?p ?vl _ |- _ =>
         apply (bind_parameters_fun H) in H'; inv H'
-  | H: Genv.find_symbol ?ge _ = Some ?b,
-    H': Genv.find_symbol ?ge _ = Some ?b |- _ => 
+  | H: Senv.find_symbol ?ge _ = Some ?b,
+    H': Senv.find_symbol ?ge _ = Some ?b |- _ => 
        apply (inv_find_symbol_fun H) in H'; inv H'
   | H: Events.eventval_list_match ?ge _ ?t ?v,
     H': Events.eventval_list_match ?ge _ ?t ?v |- _ =>

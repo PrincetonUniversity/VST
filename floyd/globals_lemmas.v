@@ -812,6 +812,42 @@ Qed.
 Definition Ers (* Extern read share *) := 
     Share.splice extern_retainer Share.Lsh.
 
+
+Print init_data.
+
+Definition is_Tint sz t :=
+  match t with 
+  | Tint s _ _ => s = sz
+  | _ => False
+  end.
+
+Inductive init_rep : list init_data -> forall {t}, reptype t -> Prop :=
+  | IRi8: forall {t} i, is_Tint I8 t -> init_rep (Init_int8 i :: nil) (valinject t (Vint i))
+  | IRi16: forall {t} i, is_Tint I16 t -> init_rep (Init_int16 i :: nil) (valinject t (Vint i))
+  | IRi32: forall {t} i, is_Tint I32 t -> init_rep (Init_int32 i :: nil) (valinject t (Vint i))
+
+.
+
+Print tvolatile.
+Print tattr.
+Print globvar2pred.
+Print init_data_list2pred.
+Print init_data2pred.
+Print  veric.Clight_new.cl_step.
+Print sem_binary_operation.
+Print sem_binary_operation'.
+Print sem_sub.
+Print sem_sub_pi.
+Print sizeof.
+Print classify_sub.
+Locate OrderedType.
+
+Print Memory.Mem.mem'.
+Print Clight.eval_expr.
+Print deref_loc.
+Print access_mode.
+Print type_is_volatile.
+
 Ltac expand_main_pre :=
  rewrite start_main_pre, main_pre_eq; simpl map; 
   unfold fold_right_sepcon'; repeat flatten_sepcon_in_SEP;

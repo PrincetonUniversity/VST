@@ -20,6 +20,7 @@ Require Import Integers.
 Require Import Floats.
 Require Import Values.
 Require Import AST.
+Require Import Errors.
 Require Import Ctypes.
 Require Import Cop.
 
@@ -61,7 +62,7 @@ Inductive expr : Type :=
                                                  (**r builtin function call *)
   | Eloc (b: block) (ofs: int) (ty: type)
                        (**r memory location, result of evaluating a l-value *)
-  | Eparen (r: expr) (ty: type)                   (**r marked subexpression *)
+  | Eparen (r: expr) (tycast: type) (ty: type)   (**r marked subexpression *)
 
 with exprlist : Type :=
   | Enil
@@ -87,7 +88,8 @@ but appear during reduction.  These forms are:
 - [Eval v] where [v] is a pointer or [Vundef].  ([Eval] of an integer or 
   float value can occur in a source term and represents a numeric literal.)
 - [Eloc b ofs], which appears during reduction of l-values.
-- [Eparen r], which appears during reduction of conditionals [r1 ? r2 : r3].
+- [Eparen r tycast ty], which appears during reduction of conditionals
+  [r1 ? r2 : r3] as well as sequential `and' / `or'.
 
 Some C expressions are derived forms.  Array access [r1[r2]] is expressed
 as [*(r1 + r2)].
@@ -128,7 +130,7 @@ Definition typeof (a: expr) : type :=
   | Ecomma _ _ ty => ty
   | Ecall _ _ ty => ty
   | Ebuiltin _ _ _ ty => ty
-  | Eparen _ ty => ty
+  | Eparen _ _ ty => ty
   end.
 
 (** ** Statements *)
@@ -206,8 +208,44 @@ Definition type_of_fundef (f: fundef) : type :=
 
 (** ** Programs *)
 
-(** A program is a collection of named functions, plus a collection
-  of named global variables, carrying their types and optional initialization 
-  data.  See module [AST] for more details. *)
+(** A program is composed of:
+- a list of definitions of functions and global variables;
+- the names of functions and global variables that are public (not static);
+- the name of the function that acts as entry point ("main" function).
+- a list of definitions for structure and union names;
+- the corresponding composite environment;
+*)
 
-Definition program : Type := AST.program fundef type.
+Record program : Type := {
+  prog_defs: list (ident * globdef fundef type);
+  prog_public: list ident;
+  prog_main: ident;
+  prog_types: list composite_definition;
+  prog_comp_env: composite_env;
+  prog_comp_env_eq: build_composite_env prog_types = OK prog_comp_env
+}.
+
+Definition program_of_program (p: program) : AST.program fundef type :=
+  {| AST.prog_defs := p.(prog_defs);
+     AST.prog_public := p.(prog_public);
+     AST.prog_main := p.(prog_main) |}.
+
+Coercion program_of_program: program >-> AST.program.
+
+Program Definition make_program (types: list composite_definition)
+                                (defs: list (ident * globdef fundef type))
+                                (public: list ident)
+                                (main: ident): res program :=
+  match build_composite_env types with
+  | OK env =>
+      OK {| prog_defs := defs;
+            prog_public := public;
+            prog_main := main;
+            prog_types := types;
+            prog_comp_env := env;
+            prog_comp_env_eq := _ |}
+  | Error msg =>
+      Error msg
+  end.
+
+
