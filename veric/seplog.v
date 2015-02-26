@@ -4,6 +4,7 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.res_predicates.
+Require Import veric.tycontext.
 Require Import veric.expr.
 
 Definition assert := environ -> mpred.  (* Unfortunately
@@ -37,7 +38,6 @@ Lemma address_mapsto_VALspec_range:
 Proof.  exact address_mapsto_VALspec_range. Qed.
 
 Open Local Scope pred.
-
 
 Definition func_at (f: funspec): address -> pred rmap :=
   match f with
@@ -84,9 +84,9 @@ Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t
 Definition typed_false (t: type)(v: val) : Prop := strict_bool_val v t =
 Some false.
 
-Definition expr_true e := lift1 (typed_true (typeof e)) (eval_expr e).
+Definition expr_true Delta e := lift1 (typed_true (typeof e)) (eval_expr Delta e).
 
-Definition expr_false e := lift1 (typed_false (typeof e)) (eval_expr e).
+Definition expr_false Delta e := lift1 (typed_false (typeof e)) (eval_expr Delta e).
 
 Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x v).
@@ -520,32 +520,32 @@ Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
  | _ => FF
  end.
 
-Definition align_compatible t p :=
+Definition align_compatible Delta t p :=
   match p with
-  | Vptr b i_ofs => (alignof t | Int.unsigned i_ofs)
+  | Vptr b i_ofs => (alignof (composite_types Delta) t | Int.unsigned i_ofs)
   | _ => True
   end.
 
-Definition lvalue_block (sh: Share.t) (e: Clight.expr) (rho: environ) : mpred :=
-  !! (sizeof (Clight.typeof e) <= Int.max_unsigned) &&
-  !! (align_compatible (Clight.typeof e) (eval_lvalue e rho)) &&
-  (memory_block sh (Int.repr (sizeof (Clight.typeof e))))
-             (eval_lvalue e rho).
+Definition lvalue_block (sh: Share.t) (Delta: tycontext) (e: Clight.expr) (rho: environ) : mpred :=
+  !! (sizeof (composite_types Delta) (Clight.typeof e) <= Int.max_unsigned) &&
+  !! (align_compatible Delta (Clight.typeof e) (eval_lvalue Delta e rho)) &&
+  (memory_block sh (Int.repr (sizeof (composite_types Delta) (Clight.typeof e))))
+             (eval_lvalue Delta e rho).
 
-Definition var_block (rsh: Share.t) (idt: ident * type) : assert :=
-         lvalue_block rsh (Clight.Evar (fst idt) (snd idt)).
+Definition var_block (rsh: Share.t) (Delta: tycontext) (idt: ident * type) : assert :=
+         lvalue_block rsh Delta (Clight.Evar (fst idt) (snd idt)).
 
 Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A} {AgeA: Age_alg A}
    (p: list (pred A)) : pred A :=
  match p with nil => emp | h::t => h * sepcon_list t end.
 
+Definition stackframe_of (Delta: tycontext) (f: Clight.function) : assert :=
+  fold_right (fun P Q rho => P rho * Q rho) (fun rho => emp) (map (fun idt => var_block Share.top Delta idt) (Clight.fn_vars f)).
 
-Definition stackframe_of (f: Clight.function) : assert :=
-  fold_right (fun P Q rho => P rho * Q rho) (fun rho => emp) (map (fun idt => var_block Share.top idt) (Clight.fn_vars f)).
-
-Lemma stackframe_of_eq : stackframe_of = 
-        fun f rho => fold_right sepcon emp (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
+Lemma stackframe_of_eq : forall Delta, stackframe_of Delta = 
+        fun f rho => fold_right sepcon emp (map (fun idt => var_block Share.top Delta idt rho) (Clight.fn_vars f)).
 Proof.
+  intros.
  extensionality f rho.
  unfold stackframe_of.
  forget (fn_vars f) as vl.
@@ -767,13 +767,13 @@ Definition function_body_ret_assert (ret: type) (Q: assert) : ret_assert :=
      end.
 
 Definition tc_expr (Delta: tycontext) (e: expr) : assert:= 
-  fun rho => !! denote_tc_assert (typecheck_expr Delta e) rho.
+  fun rho => !! denote_tc_assert Delta (typecheck_expr Delta e) rho.
 
 Definition tc_exprlist (Delta: tycontext) (t : list type) (e: list expr) : assert := 
-      fun rho => !! denote_tc_assert (typecheck_exprlist Delta t e) rho.
+      fun rho => !! denote_tc_assert Delta (typecheck_exprlist Delta t e) rho.
 
 Definition tc_lvalue (Delta: tycontext) (e: expr) : assert := 
-     fun rho => !! denote_tc_assert (typecheck_lvalue Delta e) rho.
+     fun rho => !! denote_tc_assert Delta (typecheck_lvalue Delta e) rho.
 
 Definition allowedValCast v tfrom tto :=
 match Cop.classify_cast tfrom tto with 
@@ -795,7 +795,7 @@ end.
 
 Definition tc_temp_id (id : positive) (ty : type) 
   (Delta : tycontext) (e : expr) : assert  :=
-     fun rho => !! denote_tc_assert (typecheck_temp_id id ty Delta e) rho.  
+     fun rho => !! denote_tc_assert Delta (typecheck_temp_id id ty Delta e) rho.  
 
 Definition tc_temp_id_load id tfrom Delta v : assert  :=
 fun rho => !! (exists tto, exists x, (temp_types Delta) ! id = Some (tto, x) 
@@ -842,8 +842,6 @@ unfold tc_lvalue.
   induction e; simpl;
   destruct t; simpl; auto.
 Qed.
-
-
 
 Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_lvalue.
 Hint Resolve (@extendM_refl rmap _ _ _ _ _).
