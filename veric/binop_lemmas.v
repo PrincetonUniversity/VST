@@ -101,7 +101,7 @@ Proof.
 * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
    simpl in *; unfold always; auto.
    destruct ((composite_types Delta) ! i0) as [co |]; auto.
-   destruct (field_offset (composite_types Delta) i0 (co_members co)); auto.
+   destruct (field_offset (composite_types Delta) i (co_members co)); auto.
    f_equal.
    apply eval_lvalue_any; auto.
    intro. rewrite H in H0. apply H0; reflexivity.
@@ -124,7 +124,7 @@ Proof.
   * destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
     simpl in *; unfold always; auto.
     destruct ((composite_types Delta) ! i0) as [co |]; auto.
-    destruct (field_offset (composite_types Delta) i0 (co_members co)); auto.
+    destruct (field_offset (composite_types Delta) i (co_members co)); auto.
     f_equal.
     apply IHe; auto.
     intro. rewrite H in H0. apply H0; reflexivity.
@@ -813,11 +813,6 @@ crunchp;
 try rewrite E1 in *; 
 try rewrite E2 in *;
 try contradiction H;
-
-
-
-
-
 
 try match goal with H: is_int32_type ?t = true |- _ =>
  destruct t  as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; 

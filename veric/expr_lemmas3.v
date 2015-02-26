@@ -7,7 +7,7 @@ Require Import veric.Clight_lemmas.
 Require Import veric.tycontext.
 Require Import veric.expr.
 Require Export veric.environ_lemmas. 
-Require Import veric.binop_lemmas. 
+Require Import veric.binop_lemmas.
 Require Import veric.expr_lemmas2.
 Import Cop.
 Import Cop2.
@@ -20,16 +20,16 @@ Proof. intros. destruct (type_eq a b). auto. simpl in H. inv H.
 Qed.
 
 (** Definitions of some environments **)
-Definition empty_genv := (Globalenvs.Genv.empty_genv fundef type).
+Definition empty_genv cenv := Build_genv (Globalenvs.Genv.empty_genv fundef type nil) cenv.
 Definition empty_tenv := PTree.empty val.
 
-Definition empty_environ : environ :=
-mkEnviron (filter_genv empty_genv) (Map.empty _) (Map.empty _).
+Definition empty_environ cenv : environ :=
+mkEnviron (filter_genv (empty_genv cenv)) (Map.empty _) (Map.empty _).
 
-Definition Delta1 : tycontext := 
+Definition Delta1 cenv: tycontext := 
  mk_tycontext (PTree.set 1%positive (type_int32s, false) 
                                  (PTree.empty (type * bool)))
-    (PTree.empty _) Tvoid (PTree.empty _) (PTree.empty _).
+    (PTree.empty _) Tvoid (PTree.empty _) (PTree.empty _) cenv.
 
 Lemma Zle_bool_rev: forall x y, Zle_bool x y = Zge_bool y x.
 Proof.
@@ -37,8 +37,6 @@ intros. pose proof (Zle_cases x y). pose proof (Zge_cases y x).
 destruct (Zle_bool x y); destruct (Zge_bool y x); auto;
 elimtype False; omega.
 Qed.
-
-
 
 (** Typechecking soundness **)
 
@@ -48,9 +46,9 @@ Transparent Float32.to_int.
 Transparent Float32.to_intu.
 
 
-Lemma isCastR: forall tfrom tto a, 
-  denote_tc_assert (isCastResultType tfrom tto a) =
- denote_tc_assert
+Lemma isCastR: forall Delta tfrom tto a, 
+  denote_tc_assert Delta (isCastResultType Delta tfrom tto a) =
+ denote_tc_assert Delta
 match Cop.classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF  (invalid_cast tfrom tto)
 | Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
@@ -108,15 +106,16 @@ Lemma single_to_intu_ok:
     0 <= z <= Int.max_unsigned ->
     Float32.to_intu f = Some (Int.repr z).
 Admitted.
-
+(* not necessary if rewrite denote_tc_assert_andp *)
+(*
 Lemma denote_tc_assert_andp_e:
-  forall a b rho, denote_tc_assert (tc_andp a b) rho ->
-         denote_tc_assert a rho /\ denote_tc_assert b rho.
+  forall a b rho, denote_tc_assert Delta (tc_andp a b) rho ->
+         denote_tc_assert Delta a rho /\ denote_tc_assert Delta b rho.
 Proof.
 intros.
 rewrite denote_tc_assert_andp in H; auto.
 Qed.
-
+*)
 Lemma andb_zleb:
  forall i j k : Z,  i <= j <= k ->
       (i <=? j) && (j <=? k) = true.
@@ -145,13 +144,13 @@ Qed.
 Lemma typecheck_cast_sound: 
  forall Delta rho e t,
  typecheck_environ Delta rho ->
-(denote_tc_assert (typecheck_expr Delta e) rho ->
- typecheck_val (eval_expr e rho) (typeof e) = true) /\
+(denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+ typecheck_val (eval_expr Delta e rho) (typeof e) = true) /\
 (forall pt : type,
- denote_tc_assert (typecheck_lvalue Delta e) rho ->
- is_pointer_type pt = true -> typecheck_val (eval_lvalue e rho) pt = true) ->
-denote_tc_assert (typecheck_expr Delta (Ecast e t)) rho ->
-typecheck_val (eval_expr (Ecast e t) rho) (typeof (Ecast e t)) = true.
+ denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+ is_pointer_type pt = true -> typecheck_val (eval_lvalue Delta e rho) pt = true) ->
+denote_tc_assert Delta (typecheck_expr Delta (Ecast e t)) rho ->
+typecheck_val (eval_expr Delta (Ecast e t) rho) (typeof (Ecast e t)) = true.
 Proof.
 intros until t; intros H IHe H0.
 simpl in *. unfold_lift.
@@ -165,14 +164,14 @@ destruct (classify_cast (typeof e) t)
      as [ | | | | | | | | sz [ | ] | sz [ | ] | | | | | | [ | ] | [ | ] | | | | | | | |  ]
    eqn:H3;
    try contradiction;
- destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+ destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
     simpl in H3; try discriminate H3; try contradiction;
- destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ];
+ destruct (typeof e) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
     simpl in H3; try discriminate H3; try contradiction;
   simpl in H2; unfold_lift in H2; simpl in H2;
-  try (apply denote_tc_assert_andp_e in H2;
+  try (rewrite denote_tc_assert_andp in H2;
         destruct H2 as [H2a H2b]; hnf in H2a,H2b);
-  destruct (eval_expr e rho); simpl in H1; try discriminate H1;
+  destruct (eval_expr Delta e rho); simpl in H1; try discriminate H1;
   try contradiction H2;
   try reflexivity; try assumption;
   try (apply (is_true_e _ H2));
