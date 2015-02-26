@@ -191,7 +191,7 @@ HMACFCF_FILES= \
 HMACEQUIV_FILES= \
   XorCorrespondence.v sha_padding_lemmas.v Bruteforce.v ByteBitRelations.v \
   HMAC_common_defs.v HMAC_spec_pad.v HMAC_spec_concat.v HMAC_spec_list.v \
-  HMAC_equivalence.v
+  HMAC_spec_abstract.v HMAC_equivalence.v HMAC_isPRF.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c
 
@@ -204,7 +204,7 @@ FILES = \
  $(SHA_FILES:%=sha/%) \
  $(HMAC_FILES:%=sha/%) \
  $(FCF_FILES:%=fcf/%) \
- $(HMACFCF_FILES:%=fhmaccf/%) \
+ $(HMACFCF_FILES:%=hmacfcf/%) \
  $(HMACEQUIV_FILES:%=sha/%)
 
 %_stripped.v: %.v

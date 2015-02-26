@@ -60,10 +60,10 @@ Definition OUTER OP k innerRes := HF.Hash (outerArg OP innerRes k).
 
 Definition HmacCore IP OP txt (key: list byte): list Z := OUTER OP key (INNER IP key txt).
 
-Definition APPLY a txt :=  HF.Hash (a ++ txt).
+Definition HASH a txt :=  HF.Hash (a ++ txt).
 
 Definition HmacCore' IP OP txt (key: list byte): list Z :=
-  APPLY (mkArgZ key OP) (APPLY (mkArgZ key IP) txt).
+  HASH (mkArgZ key OP) (HASH (mkArgZ key IP) txt).
 
 Goal forall IP OP txt key, HmacCore IP OP txt key = HmacCore' IP OP txt key.
 Proof. intros. reflexivity. Qed.
