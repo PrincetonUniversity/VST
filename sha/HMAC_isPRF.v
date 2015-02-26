@@ -112,6 +112,18 @@ Proof. unfold pad_inc.
   apply isbyte_intlist_to_Zlist.
 Qed.
 
+Lemma bitsToBytes_injective8 b1 b2 (B: bitsToBytes b1 = bitsToBytes b2)
+       (L1: NPeano.divide 8 (length b1))
+       (L2: NPeano.divide 8 (length b2)): b1 = b2.
+Proof. intros.
+  assert (bytesToBits (bitsToBytes b1) = bytesToBits (bitsToBytes b2)).
+    rewrite B; trivial.
+  rewrite bits_bytes_bits_id in H.
+    rewrite bits_bytes_bits_id in H. trivial.
+    apply InBlocks_len; assumption.
+  apply InBlocks_len; assumption.
+Qed.
+
 Lemma splitAndPad_1to1 b1 b2: splitAndPad_v b1 = splitAndPad_v b2 -> b1 = b2.
 Proof. intros.
   apply splitAndPad_v_eq_inverse in H.
@@ -119,7 +131,8 @@ Proof. intros.
   apply toBlocks_injective in H; try apply sha_splitandpad_inc_InBlocks.
   unfold sha_splitandpad_inc in H.
   apply bytesToBits_injective in H. 
-    apply pad_inc_injective in H. admit. (*Hole: injectivity of bitsToBytes!!*)
+    apply pad_inc_injective in H.
+    apply (bitsToBytes_injective8 _ _ H). admit. admit. (*Hole: injectivity of bitsToBytes!!*)
   apply isbyteZ_pad_inc. eapply HMAC_spec_pad.HMAC_Pad.bitsToBytes_isbyteZ. reflexivity.
   apply isbyteZ_pad_inc. eapply HMAC_spec_pad.HMAC_Pad.bitsToBytes_isbyteZ. reflexivity.
 Qed.
