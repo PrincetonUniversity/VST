@@ -253,7 +253,7 @@ Definition eval_field (Delta: tycontext) (ty: type) (fld: ident) : val -> val :=
              | Tstruct id att =>
                  match (composite_types Delta) ! id with
                  | Some co =>
-                         match field_offset (composite_types Delta) id (co_members co) with 
+                         match field_offset (composite_types Delta) fld (co_members co) with 
                          | Errors.OK delta => offset_val (Int.repr delta)
                          | _ => always Vundef
                          end

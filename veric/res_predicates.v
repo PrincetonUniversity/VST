@@ -4,6 +4,7 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.Clight_lemmas.
+Require Import veric.tycontext.
 Require Import veric.expr.
 
 Import RML. Import R. 

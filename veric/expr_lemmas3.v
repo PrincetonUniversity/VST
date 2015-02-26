@@ -4,6 +4,7 @@ Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
+Require Import veric.tycontext.
 Require Import veric.expr.
 Require Export veric.environ_lemmas. 
 Require Import veric.binop_lemmas. 
