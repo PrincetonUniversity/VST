@@ -376,6 +376,28 @@ match ty with
 | _ => false
 end.
 
+Fixpoint complete_type Delta ty : bool :=
+  match ty with
+  | Tvoid => true
+  | Tint _ _ _ => true
+  | Tlong _ _ => true
+  | Tfloat _ _ => true
+  | Tpointer _ _ => true
+  | Tarray ty0 _ _ => complete_type Delta ty0
+  | Tfunction _ _ _ => false
+  | Tstruct id _ | Tunion id _ =>
+      match (composite_types Delta) ! id with
+      | Some _ => true
+      | _ => false
+      end
+  end.
+
+Definition is_complete_pointer_type Delta ty :=
+match typeconv ty with
+| Tpointer t _ => complete_type Delta t
+| _ => false
+end.
+
 Definition isUnOpResultType op a ty := 
 match op with 
   | Cop.Onotbool => match Cop.classify_bool (typeof a) with
@@ -522,20 +544,21 @@ let reterr := op_result_type e in
 let deferr := arg_type e in 
 match op with
   | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with 
-                    | Cop.add_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
-                    | Cop.add_case_ip _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_case_pl _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr) 
-                    | Cop.add_case_lp _ => tc_andp (tc_isptr a2) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.add_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_complete_pointer_type Delta ty) reterr) 
+                    | Cop.add_case_ip _ => tc_andp (tc_isptr a2) (tc_bool (is_complete_pointer_type Delta ty) reterr)
+                    | Cop.add_case_pl _ => tc_andp (tc_isptr a1) (tc_bool (is_complete_pointer_type Delta ty) reterr) 
+                    | Cop.add_case_lp _ => tc_andp (tc_isptr a2) (tc_bool (is_complete_pointer_type Delta ty) reterr)
                     | Cop.add_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with 
-                    | Cop.sub_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.sub_case_pl _ => tc_andp (tc_isptr a1) (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.sub_case_pi _ => tc_andp (tc_isptr a1) (tc_bool (is_complete_pointer_type Delta ty) reterr)
+                    | Cop.sub_case_pl _ => tc_andp (tc_isptr a1) (tc_bool (is_complete_pointer_type Delta ty) reterr)
                     | Cop.sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
                              tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
                              (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int32_type ty) reterr))
-			     (tc_bool (negb (Int.eq (Int.repr (sizeof (composite_types Delta) ty2)) Int.zero)) 
-                                      (pp_compare_size_0 ty2) )
+			     (tc_andp (tc_bool (negb (Int.eq (Int.repr (sizeof (composite_types Delta) ty2)) Int.zero)) 
+                                      (pp_compare_size_0 ty2))
+                                      (tc_bool (is_complete_pointer_type Delta ty) reterr))
                     | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end 
   | Cop.Omul => binarithType (typeof a1) (typeof a2) ty deferr reterr
@@ -589,7 +612,6 @@ match op with
                     | Cop.cmp_case_lp => check_pl_long Delta a1 op ty e
                    end
   end.
-
 
 Definition isCastResultType (Delta: tycontext) tfrom tto a : tc_assert :=
   (* missing casts from f2s and s2f *)
@@ -862,6 +884,8 @@ match e with
                        (tc_isptr a)
                   | _ => tc_FF (deref_byvalue ty)
                   end
+ | Esizeof ty _ => tc_bool (complete_type Delta ty) (invalid_expression e)
+ | Ealignof ty _ => tc_bool (complete_type Delta ty) (invalid_expression e)
  | _ => tc_FF (invalid_expression e)
 end
 
@@ -1035,9 +1059,10 @@ same_env rho Delta.
 (** Denotation functions for each of the assertions that can be produced by the typechecker **)
 
 Definition denote_tc_iszero v :=
-         match v with Vint i => is_true (Int.eq i Int.zero) 
-                            | Vlong i => is_true (Int.eq (Int.repr (Int64.unsigned i)) Int.zero)
-                            | _ => False 
+         match v with
+         | Vint i => is_true (Int.eq i Int.zero) 
+         | Vlong i => is_true (Int.eq (Int.repr (Int64.unsigned i)) Int.zero)
+         | _ => False 
          end.
 
 Definition denote_tc_nonzero v := 
@@ -1045,9 +1070,10 @@ Definition denote_tc_nonzero v :=
                                                | _ => False end.
 
 Definition denote_tc_igt i v :=
-     match v with | Vint i1 => is_true (Int.ltu i1 i)
-                     | _ => False
-                  end.
+     match v with
+     | Vint i1 => is_true (Int.ltu i1 i)
+     | _ => False
+     end.
 
 Definition Zoffloat (f:float): option Z := (**r conversion to Z *)
   match f with

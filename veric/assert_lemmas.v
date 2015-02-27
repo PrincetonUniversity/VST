@@ -4,7 +4,9 @@ Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.res_predicates.
-Require Import veric.expr veric.expr_lemmas.
+Require Import veric.tycontext.
+Require Import veric.expr.
+Require Import veric.expr_lemmas.
 Require Import veric.seplog.
 Require Import veric.Clight_lemmas.
 Require Import msl.normalize.
@@ -150,8 +152,8 @@ exists sh3; exists p3; auto.
 Qed.
 
 
-Definition Dbool (e: Clight.expr) : assert := 
-  fun rho =>  EX b: bool, !! (bool_of_valf (eval_expr e rho) = Some b).
+Definition Dbool (Delta: tycontext) (e: Clight.expr) : assert := 
+  fun rho =>  EX b: bool, !! (bool_of_valf (eval_expr Delta e rho) = Some b).
 
 Lemma assert_truth:  forall {A} `{ageable A} (P:  Prop), P -> forall (Q: pred A), Q |-- (!! P) && Q.
 Proof.
@@ -316,18 +318,33 @@ Proof.
 intros. intros w ?; apply H0; auto.
 Qed.
 
+Print eval_expr.
+Print eval_binop.
+Print sem_binary_operation'.
+Print sem_add.
+Print Cop.classify_add.
+Print eval_field.
+Print typecheck_lvalue.
+Print isBinOpResultType.
+Locate is_pointer_type.
+Print type.
+(*
+Lemma eval_expr_lvalue_sub:
+  forall Delta
+*)
 Lemma tc_expr_lvalue_sub:
   forall Delta Delta', 
     tycontext_sub Delta Delta' ->
   forall rho e, (tc_expr Delta e rho |-- tc_expr Delta' e rho /\
                       tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho).
 Proof.
-induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
- simpl; auto.
+  induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
+  simpl; auto;
+  try solve [destruct t as [  | [| | |] |  | [|] | | | | |]; auto].
 * destruct (access_mode t) eqn:?; auto.
   destruct (get_var_type Delta i) eqn:?; [ | contradiction].
   destruct H as [_ [? [_ [? _]]]].
-  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; auto].
+  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; unfold tc_bool; if_tac; auto].
   unfold get_var_type in *. rewrite <- H.
   destruct ((var_types Delta)!i); auto.
   destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
@@ -335,40 +352,49 @@ induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
   auto.
 * destruct (get_var_type Delta i) eqn:?; [ | contradiction].
   destruct H as [_ [? [_ [? _]]]].
-  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; auto].
+  assert (H8: get_var_type Delta' i = Some t0); [ | rewrite H8; unfold tc_bool; if_tac; auto].
   unfold get_var_type in *. rewrite <- H.
   destruct ((var_types Delta)!i); auto.
   destruct ((glob_types Delta) ! i) eqn:?; inv Heqo.
   specialize (H0 i). hnf in H0. rewrite Heqo0 in H0. rewrite H0.
   auto.
-*
-  destruct ((temp_types Delta)!i) as [[? ?]|] eqn:H1; [ | contradiction].
+* destruct ((temp_types Delta)!i) as [[? ?]|] eqn:H1; [ | contradiction].
   destruct H as [H _]. specialize (H i); hnf in H. rewrite H1 in H.
   destruct ((temp_types Delta')!i) as [[? ?]|] eqn:H2; [ | contradiction].
   simpl @fst; simpl @snd. destruct H; subst t1; auto.
-  destruct b; simpl in H0; subst; auto.
+  destruct b; simpl in H0; subst; try solve [if_tac; auto].
   if_tac; intros; try contradiction.
   destruct b0; auto. apply I.
 * destruct (access_mode t) eqn:?H; intro HH; try inversion HH.
   rewrite !denote_tc_assert_andp in HH |- *.
-  repeat split; try tauto.
-  destruct IHe as [? _].
-  unfold tc_expr in H1.
-  apply (H1 w).
-  simpl.
-  tauto.
+  repeat split; [| unfold tc_bool in HH |- *; if_tac; tauto |].
+  + destruct IHe as [? _].
+    unfold tc_expr in H1.
+    apply (H1 w).
+    simpl.
+    tauto.
+  + unfold_lift.
+    admit.
 * destruct IHe.
   repeat rewrite denote_tc_assert_andp.
-  intros [[? ?] ?]; repeat split; auto.
-  unfold tc_expr in H0.
-  apply (H0 w); unfold prop; auto.
-*   repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
- destruct IHe. apply (H3 w); auto.
-* repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
- destruct IHe. apply (H2 w); auto.
-* repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split; auto.
- destruct IHe1 as [H8 _]; apply (H8 w); auto.
- destruct IHe2 as [H8 _]; apply (H8 w); auto.
+  intros [[? ?] ?]; repeat split; [| unfold tc_bool in *; if_tac; tauto |].
+  + unfold tc_expr in H0.
+    apply (H0 w); unfold prop; auto.
+  + admit.
+* repeat rewrite denote_tc_assert_andp; intros [? ?]; split.
+  + destruct IHe. apply (H3 w); auto.
+  + unfold tc_bool in *; if_tac; tauto.
+* repeat rewrite denote_tc_assert_andp; intros [? ?]; split.
+  + unfold tc_bool in *; if_tac; tauto.
+  + destruct IHe. apply (H2 w); auto.
+* repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split.
+  + admit. 
+Print isBinOpResultType.
+Print denote_tc_assert.
+Print denote_tc_nodivover.
+Print sizeof.
+  + estruct IHe1 as [H8 _]; apply (H8 w); auto.
+    destruct IHe2 as [H8 _]; apply (H8 w); auto.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
    destruct IHe as [H8 _]; apply (H8 w); auto.
 * destruct (access_mode t) eqn:?; auto.

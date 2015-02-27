@@ -916,35 +916,6 @@ edestruct typecheck_ls_update_te. apply H.
 rewrite temp_types_update_dist. erewrite join_te_eqv; eauto.
 Qed.
 
-Lemma set_temp_ve : forall Delta i,
-var_types (initialized i Delta) = var_types (Delta).
-Proof.
-intros. destruct Delta. unfold var_types. unfold initialized.
-simpl. unfold temp_types. simpl. destruct (tyc_temps ! i); auto. destruct p; auto.
-Qed. 
-
-Lemma set_temp_ge : forall Delta i,
-glob_types (initialized i Delta) = glob_types (Delta).
-Proof.
-intros. destruct Delta. unfold var_types. unfold initialized.
-simpl. unfold temp_types. simpl. destruct (tyc_temps ! i); auto. destruct p; auto.
-Qed. 
-
-Lemma set_temp_gs : forall Delta i,
-glob_specs (initialized i Delta) = glob_specs (Delta).
-Proof.
-intros. destruct Delta. unfold var_types. unfold initialized.
-simpl. unfold temp_types. simpl. destruct (tyc_temps ! i); auto. destruct p; auto.
-Qed.
- 
-Lemma set_temp_ret : forall Delta i,
-ret_type (initialized i Delta) = ret_type (Delta).
-intros. 
-destruct Delta. unfold var_types. unfold initialized.
-simpl. unfold temp_types. simpl. destruct (tyc_temps ! i); auto. destruct p; auto.
-Qed.
-
-
 Lemma update_tycon_eqv_ve : forall Delta c id,
 (var_types (update_tycon Delta c)) ! id = (var_types (Delta)) ! id
 
@@ -1457,83 +1428,6 @@ specialize (H id).
 destruct ((temp_types Delta) ! id) as [[? ?]|]; try discriminate.
 destruct ((temp_types Delta') ! id) as [[? ?]|]; try contradiction.
  destruct H; subst; auto.
-Qed.
-
-
-Lemma tycontext_sub_refl:
- forall Delta, tycontext_sub Delta Delta.
-Proof.
-intros. destruct Delta as [T V r G S].
-unfold tycontext_sub.
-intuition.
- + unfold sub_option. unfold temp_types. simpl. 
-   destruct (T ! id) as [[? ?]|]; split; auto; destruct b; auto.
- + unfold sub_option, glob_types. simpl. 
-   destruct (G ! id); auto.
- + unfold sub_option, glob_specs. simpl. 
-   destruct (S ! id); auto.
-Qed.
-
-
-Lemma initialized_ne : forall Delta id1 id2,
-id1 <> id2 ->
-(temp_types Delta) ! id1 = (temp_types (initialized id2 Delta)) ! id1.
-
-intros.
-destruct Delta. unfold temp_types; simpl.
-unfold initialized. simpl. unfold temp_types; simpl.
-destruct (tyc_temps ! id2). destruct p. simpl.  rewrite PTree.gso; auto.
-auto.
-Qed.
-
-(*
-Lemma initialized_sub_temp :
-forall id Delta i Delta',
-(forall id, sub_option (temp_types Delta) ! id (temp_types Delta') ! id) ->
- sub_option (temp_types (initialized i Delta)) ! id
-     (temp_types (initialized i Delta')) ! id.
-Proof.
-intros.
-   destruct (eq_dec id i).
-     - subst. destruct Delta as [[[? ?] ?] ?].
-       destruct Delta' as [[[? ?] ?] ?].
-       unfold initialized, temp_types  in *. 
-       simpl in *. specialize (H i). unfold sub_option in *.
-       remember (t ! i). destruct o. 
-         * destruct p. simpl in *.
-           rewrite PTree.gss. rewrite H. simpl. rewrite PTree.gss.
-           auto.
-         * simpl. rewrite <- Heqo. auto.
-     - repeat rewrite <- initialized_ne by auto. auto.
-Qed.
-*)
-
-Lemma initialized_sub :
-  forall Delta Delta' i ,
-    tycontext_sub Delta Delta' ->
-    tycontext_sub (initialized i Delta) (initialized i Delta').
-Proof.
-intros.
-unfold tycontext_sub in *. 
-destruct H as [? [? [? [? ?]]]].
-repeat split; intros.
- + specialize (H id); clear - H.
-        destruct (eq_dec  i id).
-        -  unfold initialized. subst.
-           destruct ((temp_types Delta)!id) as [[? ?] |] eqn:?.
-         unfold temp_types at 1; simpl; rewrite PTree.gss.
-        destruct ((temp_types Delta')!id) as [[? ?] |]. destruct H; subst t0.
-         unfold temp_types at 1. simpl. rewrite PTree.gss. auto. contradiction.
-         rewrite Heqo. auto.
-        -   rewrite <- initialized_ne by auto.
-           destruct ((temp_types Delta)!id) as [[? ?] |] eqn:?; auto.
-           rewrite <- initialized_ne by auto.
-        destruct ((temp_types Delta')!id) as [[? ?] |]; [| contradiction].
-         auto.
- + repeat rewrite set_temp_ve; auto.
- + repeat rewrite set_temp_ret; auto. 
- + repeat rewrite set_temp_ge; auto.
- + repeat rewrite set_temp_gs; auto.
 Qed.
 
 
