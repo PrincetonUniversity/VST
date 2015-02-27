@@ -113,57 +113,6 @@ End HMAC_Abstract.
 *)
 
 
-
-(* Can't directly prove equality here, just equivalence via length preservation.
-
------
-
-1. 
-Prove the following functions are equivalent when Vector is converted to List:
-
-Rewritten functions:
-Vector.append ~ ++
-BVxor ~ BLxor
-splitVector ~ splitList
-
-TODO: May need to admit the equivalence of these three functions.
-Need more lemmas that relate vectors and lists.
-
-Functions changed mostly just in type:
-h_star <-- correct if h is
-hash_words <-- correct if h_star is
-app_fpad <-- correct if ++ and fpad are 
-h_star_pad (not used in HMAC)
-GNMAC (not used in HMAC)
-GHMAC (not used in HMAC)
-GHMAC_2K <-- correct if splitList, app_fpad, and hash_words are 
-HMAC_2K <-- correct if GHMAC_2K and splitAndPad are 
-HMAC <-- correct if HMAC_2K, BLxor, and ++ are 
-
-TODO: does this compose correctly if the three functions above are admitted?
-
-Primitives: BLxor, ++, splitList, splitAndPad, h, app_fpad (and the constants)
-
-Let f_l ~. f_v := 
-    l ~ v -> f_l l ~ f_v v
-(function equivalence given input equivalence)
-where l ~ v :=
-      l = Vector.to_list v.
-
------
-
-2. Prove that the given parameters (e.g. fpad) have the right type. Correctness isn't needed; there's no vector specification to check the list version against.
-
-> For all parameters, prove that given an input of the right size, they will give an output of the right size. Then, prove that the initial input is of the right size. 
-
-constants: c, p, iv, opad, ipad
-functions: h, splitAndPad, fpad
-
------
-
-This should be informally equal to HMAC_Abstract, though I don't think there is a formal way to do and check module equivalence in Coq. *)
-
-
 Theorem xor_eq' : forall (n : nat) (v1 v2 : Bvector n),
                    BLxor (Vector.to_list v1) (Vector.to_list v2) = 
                    Vector.to_list (BVxor n v1 v2).

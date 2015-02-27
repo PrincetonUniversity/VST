@@ -295,114 +295,7 @@ bytes_bits_lists (BLxor k xpad) (HP.HMAC_SHA256.mkArgZ K (Byte.repr XPAD)).
 Proof. intros.  apply inner_general_mapByte; try assumption.
        rewrite <- SF_ByteRepr; trivial.
 Qed.
-(*      unfold HP.HMAC_SHA256.sixtyfour. 
-  intros xpad XPAD k K.
-  intros xpad_equiv len_k (*zlen_k*) k_equiv.
-  unfold HP.HMAC_SHA256.mkArgZ, HP.HMAC_SHA256.mkArg, HP.HMAC_SHA256.mkKey.
-  apply inner_general_mapByte. assumption.
-  unfold HP.HMAC_SHA256.sixtyfour.
-  apply inner_general_mapByte.
-  simpl. (*rewrite zlen_k. simpl.*) unfold HP.HMAC_SHA256.zeroPad.
-  assert (byte_key_length_blocksize: length K = 64%nat).
-    * unfold p, c in *. simpl in *. omega.
-  *
-    rewrite byte_key_length_blocksize.  simpl.  rewrite app_nil_r.
-    apply inner_general_map.
 
-  - apply xpad_equiv.
-  - apply k_equiv.
-Qed.*)
-
-(*
-Lemma xor_equiv_Z : forall (xpad  : Blist) (XPAD : Z)
-                                           (k : Blist) (K : list Z),
-                          bytes_bits_lists xpad (HP.HMAC_SHA256.sixtyfour XPAD) ->
-                          ((length K) * 8)%nat = (c + p)%nat ->
-                          Zlength K = Z.of_nat HP.SHA256.BlockSize ->
-                          (* TODO: first implies this *)
-                          bytes_bits_lists k K ->
-                          bytes_bits_lists (BLxor k xpad)
-       (HP.HMAC_SHA256.mkArgZ (map Byte.repr (HP.HMAC_SHA256.mkKey K)) (Byte.repr XPAD)).
-Proof.
-  intros xpad XPAD k K.
-  intros xpad_equiv len_k zlen_k k_equiv.
-  unfold HP.HMAC_SHA256.mkArgZ, HP.HMAC_SHA256.mkArg, HP.HMAC_SHA256.mkKey.
-  Opaque HP.HMAC_SHA256.sixtyfour.
-  simpl. rewrite zlen_k. simpl. unfold HP.HMAC_SHA256.zeroPad.
-  assert (byte_key_length_blocksize: length K = 64%nat).
-    * unfold p, c in *. simpl in *. omega.
-  *
-    rewrite byte_key_length_blocksize.  simpl.  rewrite app_nil_r.
-    apply inner_general_map.
-
-  - apply xpad_equiv.
-  - apply k_equiv.
-Qed.*)
-
-(* ------------------------------------------------------ *)
-(* Lemma 3 *)
-
-(* --- abstract version *)
-
-Parameter A B : Type.
-Parameter convert_BA : B -> A.
-Parameter convert_AB : A -> B.
-
-Fixpoint iterate {A : Type} (n : nat) (f : A -> A) (x : A) :=
-  match n with
-    | O => x
-    | S n' => f (iterate n' f x) (* or [iterate n' f (f x)] *)
-  end.
-
-Definition id {X : A} (x : A) : A := x.
-Definition wrap (F : B -> B) : A -> A :=
-  convert_BA ∘ F ∘ convert_AB.
-Definition roundtrip : B -> B :=
-  convert_AB ∘ convert_BA.
-
-Lemma roundtrip_id :
-  forall (X : B), convert_AB (convert_BA X) = X.
-Proof. Admitted. (* Axiom *)
-
-Lemma once_eq :
-    forall (x : A) (X : B) (f : A -> A) (F : B -> B),
-      x = convert_BA X ->
-      f = wrap F ->
-      X = roundtrip X ->
-      f x = convert_BA (F X).
-Proof.
-  intros x X f F inputs_eq f_def roundtrip_id.
-  unfold roundtrip in *.
-  rewrite -> inputs_eq.
-  rewrite -> f_def.
-  unfold wrap in *.
-  change ((convert_BA ∘ F ∘ convert_AB) (convert_BA X)) with
-    (convert_BA (F ((convert_AB ∘ convert_BA) X))).
-  rewrite <- roundtrip_id.
-  reflexivity.
-Qed.
-
-(* a simplified version of fold_equiv *)
-Lemma iterate_equiv :
-  forall (x : A) (X : B) (f : A -> A) (F : B -> B) (n : nat),
-    x = convert_BA X ->
-    f = wrap F ->
-    X = roundtrip X ->
-    iterate n f x = convert_BA (iterate n F X).
-Proof.
-  intros. revert x X f F H H0 H1.
-  induction n as [ | n']; intros x X f F input_eq func_wrap roundtrip';
-  unfold wrap in *; unfold roundtrip in *.
-  -
-    simpl. apply input_eq.
-  -
-    simpl.
-    pose proof once_eq as once_eq.
-    apply once_eq.
-    apply IHn'; assumption.
-    * unfold wrap. apply func_wrap.
-    * symmetry. apply roundtrip_id.
-Qed.
 
 (* ----- concrete version *)
 
@@ -528,7 +421,7 @@ Qed.
 
 (* Front/back equivalence theorems *)
 
-(*NEW proof*) Lemma front_equiv :
+Lemma front_equiv :
   forall (back : Blist) (BACK : list int) (front : Blist) (FRONT : list int),
     (length front)%nat = 512%nat ->
     (length FRONT)%nat = 16%nat ->
@@ -581,7 +474,6 @@ Qed.
 Lemma fold_equiv_blocks :
   forall (l : Blist) (acc : Blist)
          (L : list int) (ACC : list int),
-    (* length assumptions about list *)
       InBlocks 512 l ->
       InBlocks 16 L ->
       l = convert L ->

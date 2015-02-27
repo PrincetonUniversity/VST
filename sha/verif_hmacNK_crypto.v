@@ -6,13 +6,13 @@ Local Open Scope logic.
 
 Require Import sha.spec_sha.
 Require Import sha_lemmas.
+Require Import sha.vst_lemmas.
+Require Import sha.hmac_pure_lemmas.
+Require Import sha.hmac_common_lemmas.
 
-Require Import sha.hmac091c.
+Require Import sha.hmac_NK.
 
-Require Import sha.spec_hmac.
-Require Import vst_lemmas.
-Require Import hmac_pure_lemmas.
-Require Import hmac_common_lemmas.
+Require Import sha.spec_hmacNK.
 Require Import sha.HMAC_functional_prog.
 
 Lemma body_hmac_simple: semax_body HmacVarSpecs HmacFunSpecs 
@@ -42,8 +42,9 @@ apply semax_pre with (P':=PROP  (Forall isbyteZ key)
    `(memory_block shmd (Int.repr 32) md))).
   entailer. normalize. rename H2 into isbyteZ_Key.
 rename H into isPtrMD. rename H0 into KL. rename H1 into DL. 
-forward_if  (EX c:_,
-  PROP  (isptr c)
+remember (
+EX c:_,
+PROP  (isptr c)
    LOCAL  (`(eq md) (eval_id _md); `(eq k) (eval_id _key);
    `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
    `(eq (Vint (Int.repr dl))) (eval_id _n);
@@ -52,19 +53,26 @@ forward_if  (EX c:_,
    SEP 
    (`(data_at_ Tsh t_struct_hmac_ctx_st c);
    `(data_block Tsh key k); `(data_block Tsh data d); `(K_vector KV);
-   `(memory_block shmd (Int.repr 32) md))).
-  apply isptrD in isPtrMD. destruct isPtrMD as [b [i HH]]; rewrite HH in *.
-    forward; entailer.
+   `(memory_block shmd (Int.repr 32) md))) as POSTCOND.
+forward_if POSTCOND.
+  normalize. forward.
+  simpl; intros rho. entailer.
+    apply isptrD in isPtrMD. destruct isPtrMD as [b [i HH]]; rewrite HH in *.
+    simpl in *. inversion H0.
+  simpl in *. apply isptrD in isPtrMD. destruct isPtrMD as [b [i HH]]; subst. 
+   intros rho. 
+   entailer.
    
-  forward. entailer.
-   rewrite data_at__isptr. 
+  forward. subst POSTCOND. simpl. intros rho. entailer.
+   rewrite data_at__isptr. normalize.
    apply exp_right with (x:=eval_var _c t_struct_hmac_ctx_st rho).
    entailer.
-apply extract_exists_pre. intros c. normalize. rename H into isPtrC.
 
+subst POSTCOND.
+apply extract_exists_pre. intros c. normalize. rename H into isPtrC.
 eapply semax_seq'. 
 myframe_SEP'' [0; 1; 3].
-remember (HMACabs init_s256abs init_s256abs init_s256abs Z0 nil) as dummyHMA.
+remember (HMACabs init_s256abs init_s256abs init_s256abs) as dummyHMA.
 remember (c, k, kl, key, KV, dummyHMA) as WITNESS.
 forward_call WITNESS.
   assert (FR: Frame =nil).
@@ -74,21 +82,8 @@ forward_call WITNESS.
    apply isptrD in Pkey'. destruct Pkey' as [kb [kofs HK]]. subst key'.
    cancel.
 after_call.
-subst WITNESS. normalize. simpl.
-
-apply semax_pre with (P':= EX  h : hmacabs,
-  (PROP  (hmacInit key h)
-   LOCAL  (tc_environ Delta; `(eq md) (eval_id _md); `(eq k) (eval_id _key);
-   `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
-   `(eq (Vint (Int.repr dl))) (eval_id _n);
-   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-   (`(hmacstate_ h c); `(initPostKey k key); `(K_vector KV);
-    `(data_block Tsh data d);
-    `(memory_block shmd (Int.repr 32) md)))).
-  entailer. apply (exp_right h); entailer.
-apply extract_exists_pre; intros h0. normalize. rename H into HmacInit.
+subst WITNESS. normalize. simpl. rewrite elim_globals_only'. normalize.
+intros h0. normalize. rename H into HmacInit.
 
 eapply semax_seq'. 
 myframe_SEP'' [0; 2; 3].
@@ -108,18 +103,18 @@ forward_call WITNESS.
     Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
              rewrite HH; assumption. 
     destruct h0; simpl in *. 
-    destruct H1 as [reprMD [reprI [reprO [iShaLen [oShaLen [K [i [KL1 [KL2 KL3]]]]]]]]].
+    destruct H1 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
     inversion HmacInit; clear HmacInit.
     destruct H1 as [oS [InnSHA [OntSHA XX]]]. inversion XX; clear XX.
     subst.
       unfold innerShaInit in InnSHA. inversion InnSHA; clear InnSHA.
-      simpl in *. subst. unfold HP.HMAC_SHA256.mkArgZ, HP.HMAC_SHA256.mkArg in H10.
+      simpl in *. subst. unfold HP.HMAC_SHA256.mkArgZ, HP.HMAC_SHA256.mkArg in H9.
       assert (Zlength (map Byte.unsigned
         (map (fun p : byte * byte => Byte.xor (fst p) (snd p))
            (combine (map Byte.repr (HP.HMAC_SHA256.mkKey key)) (HP.HMAC_SHA256.sixtyfour HP.Ipad))))
         = Zlength (SHA256.intlist_to_Zlist blocks ++ newfrag)).
-        rewrite H10; reflexivity.
-     clear H10.
+        rewrite H9; reflexivity.
+     clear H9.
      rewrite Zlength_correct in *. rewrite map_length in H1. 
      rewrite Zlength_correct in *. rewrite map_length, combine_length in H1.
      rewrite app_length in H1.
@@ -127,23 +122,23 @@ forward_call WITNESS.
      unfold HP.SHA256.BlockSize, HP.HMAC_SHA256.sixtyfour in H1.
      rewrite length_list_repeat, length_intlist_to_Zlist in H1. unfold WORD.
      rewrite Nat2Z.inj_add, Nat2Z.inj_mul, Z.mul_comm in H1. simpl in H1.
-     unfold bitlength. repeat rewrite Zlength_correct. unfold WORD. rewrite <- H1. simpl. trivial. 
+     unfold bitlength. repeat rewrite Zlength_correct. unfold WORD. rewrite <- H1. simpl. trivial.
 after_call.
 subst WITNESS. normalize. simpl.
 
-eapply semax_pre with (P':=EX  x : hmacabs,
-  (PROP  (hmacUpdate data h0 x)
+eapply semax_pre with (P':=EX  x : hmacabs, 
+   PROP  (hmacUpdate data h0 x)
    LOCAL  (tc_environ Delta; `(eq md) (eval_id _md);
    `(eq k) (eval_id _key); `(eq (Vint (Int.repr kl))) (eval_id _key_len);
    `(eq d) (eval_id _d); `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
    SEP (`(K_vector KV); `(hmacstate_ x c); `(data_block Tsh data d);
-        `(initPostKey k key); `(memory_block shmd (Int.repr 32) md)))).
-   entailer. apply (exp_right x); entailer.
-apply extract_exists_pre; intros h1. normalize. rename H into HmacUpdate.
+     `(initPostKey k key); `(memory_block shmd (Int.repr 32) md))).
+  entailer. apply (exp_right x). entailer. 
+apply extract_exists_pre. intros h1. normalize. rename H into HmacUpdate.
 
-eapply semax_seq'. 
+eapply semax_seq'.
 myframe_SEP'' [0; 1; 4].
 forward_call (h1, c, md, shmd, KV).
   assert (FR: Frame =nil).
@@ -151,29 +146,28 @@ forward_call (h1, c, md, shmd, KV).
      rewrite FR. clear FR Frame. 
   entailer. cancel. 
 after_call.
-simpl.
+simpl. 
 
+(**** Again, distribute EX over lift*)
 eapply semax_pre with (P':=
       EX  x : list Z, EX  x0 : hmacabs,
-       (PROP  (hmacFinal h1 x x0)
-   LOCAL  (tc_environ Delta; 
-   `(eq md) (eval_id _md); `(eq k) (eval_id _key);
-   `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
-   `(eq (Vint (Int.repr dl))) (eval_id _n);
+  (PROP  (hmacFinal h1 x x0)
+   LOCAL  (tc_environ Delta; `(eq md) (eval_id _md);
+   `(eq k) (eval_id _key); `(eq (Vint (Int.repr kl))) (eval_id _key_len);
+   `(eq d) (eval_id _d); `(eq (Vint (Int.repr dl))) (eval_id _n);
    `(eq c) (eval_var _c t_struct_hmac_ctx_st);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-    (`(K_vector KV); `(hmacstate_PostFinal x0 c);
-     `(data_block shmd x md); `(data_block Tsh data d);
-     `(initPostKey k key)))).
-   entailer.
-   apply (exp_right x).
-   apply (exp_right x0). entailer.
+   SEP  (`(K_vector KV); `(hmacstate_PostFinal x0 c);
+        `(data_block shmd x md); `(data_block Tsh data d);
+       `(initPostKey k key)))).
+   entailer. 
+   apply (exp_right x). 
+   apply (exp_right x0). entailer. 
 apply extract_exists_pre. intros dig.
 apply extract_exists_pre. intros h2. normalize. rename H into HmacFinalSimple.
 
-eapply semax_seq'. 
-myframe_SEP'' [1].
+eapply semax_seq'.
+myframe_SEP'' [1]. 
 forward_call (h2,c).
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
@@ -185,7 +179,7 @@ rename H into SCc. rename H0 into ACc.
 
 forward.
 apply (exp_right dig).
-simpl_stackframe_of. normalize. clear H0.
+simpl_stackframe_of. normalize. clear H0. 
 assert (HS: hmacSimple key data dig).
     exists h0, h1. 
     split. destruct KL as [KL1 [KLb KLc]].
@@ -228,3 +222,4 @@ rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))
  
 unfold align_compatible. destruct (eval_var _c t_struct_hmac_ctx_st rho); trivial.
 Qed.
+

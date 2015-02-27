@@ -405,3 +405,64 @@ Definition emptySha:s256state := (nil, (Vundef, (Vundef, (nil, Vundef)))).
  
 Definition keyedHMS: hmacstate :=
   (emptySha, (emptySha, emptySha)).
+
+
+Require Import HMAC_equivalence.
+Require Import ByteBitRelations.
+Require Import HMAC_isPRF.
+
+Lemma key_vector l:
+  length (bytesToBits (HP.HMAC_SHA256.mkKey l)) = 
+  HMAC_spec.b HMAC_common_defs.c HMAC_common_defs.p.
+Proof. rewrite bytesToBits_len, hmac_common_lemmas.mkKey_length; reflexivity. Qed.
+
+Definition bitspec KEY MSG :=
+  Vector.to_list ( HMAC_spec.HMAC h_v iv_v splitAndPad_v
+                      fpad_v opad_v ipad_v
+                      (of_list_length _ _ _ (key_vector (CONT KEY)))
+                      (bytesToBits (CONT MSG))).
+
+Definition CRYPTO (A : Comp.OracleComp Blist.Blist (Bvector.Bvector HMAC_common_defs.c) bool) 
+                  (A_wf : DistSem.well_formed_oc A):=
+           forall tau eps sig, h_PRF A tau ->
+                               h_star_WCR A eps ->
+                               dual_h_RKA A sig ->
+  isPRF (Comp.Rnd (HMAC_PRF.b HMAC_common_defs.c HMAC_common_defs.p))
+    (Comp.Rnd HMAC_common_defs.c)
+    (HMAC_PRF.HMAC h_v iv_v splitAndPad_v fpad_v opad_v ipad_v)
+    (EqDec.list_EqDec EqDec.bool_EqDec)
+    (EqDec.Bvector_EqDec HMAC_common_defs.c)
+    (Rat.ratAdd (Rat.ratAdd tau eps) sig) A.
+
+Definition HMAC_bitspec :=
+  DECLARE _HMAC
+   WITH keyVal: val, KEY:DATA,
+        msgVal: val, MSG:DATA,
+        KV:val, shmd: share, md: val
+   PRE [ _key OF tptr tuchar,
+         _key_len OF tint,
+         _d OF tptr tuchar,
+         _n OF tint,
+         _md OF tptr tuchar ]
+         PROP (writable_share shmd; 
+               has_lengthK (LEN KEY) (CONT KEY);
+               has_lengthD 512 (LEN MSG) (CONT MSG))
+         LOCAL (`(eq md) (eval_id _md); 
+                `(eq keyVal) (eval_id _key);
+                `(eq (Vint (Int.repr (LEN KEY)))) (eval_id _key_len);
+                `(eq msgVal) (eval_id _d);
+                `(eq (Vint (Int.repr (LEN MSG)))) (eval_id _n);
+                `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+         SEP(`(data_block Tsh (CONT KEY) keyVal);
+             `(data_block Tsh (CONT MSG) msgVal);
+             `(K_vector KV);
+             `(memory_block shmd (Int.repr 32) md))
+  POST [ tvoid ] 
+         EX digest:_,
+          PROP (bytesToBits digest = bitspec KEY MSG /\ 
+                forall A Awf, CRYPTO A Awf)
+          LOCAL ()
+          SEP(`(K_vector KV);
+              `(data_block shmd digest md);
+              `(initPostKey keyVal (CONT KEY) );
+              `(data_block Tsh (CONT MSG) msgVal)).

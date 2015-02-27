@@ -586,9 +586,8 @@ Definition HMAC_bitspec :=
              `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
          EX digest:_, 
-          PROP ((*digest = HP.HMAC256 (CONT MSG) (CONT KEY)*)
-                 bytesToBits digest = bitspec KEY MSG /\ 
-                 forall A Awf, CRYPTO A Awf)
+          PROP (bytesToBits digest = bitspec KEY MSG /\ 
+                forall A Awf, CRYPTO A Awf)
           LOCAL ()
           SEP(`(K_vector KV);
               `(data_block shmd digest md);
