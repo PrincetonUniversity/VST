@@ -5,8 +5,6 @@ Require Import Bvector.
 Require Import List.
 Require Import Arith.
 
-Definition Blist := list bool.
-
 Fixpoint splitVector(A : Set)(n m : nat) : Vector.t A (n + m) -> (Vector.t A n * Vector.t A m) :=
   match n with
     | 0 => 
@@ -32,7 +30,8 @@ Section HMAC.
   (* The composition of the keyed hash function with the IV gives a hash function on lists of words. *)
   Definition hash_words := h_star iv.
 
-  Variable splitAndPad : Blist -> list (Bvector b).
+  Variable Message : Set.
+  Variable splitAndPad : Message -> list (Bvector b).
   Hypothesis splitAndPad_1_1 : 
     forall b1 b2,
       splitAndPad b1 = splitAndPad b2 ->
@@ -55,7 +54,7 @@ Section HMAC.
       let h_in := (hash_words (k_In :: m)) in 
         hash_words (k_Out :: (app_fpad h_in) :: nil).
   
-  Definition HMAC_2K (k : Bvector (b + b)) (m : Blist) :=
+  Definition HMAC_2K (k : Bvector (b + b)) (m : Message) :=
     GHMAC_2K k (splitAndPad m).
 
   (* opad and ipad are constants defined in the HMAC spec. *)

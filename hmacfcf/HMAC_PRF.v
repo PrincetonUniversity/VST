@@ -15,7 +15,9 @@ Section HMAC_PRF.
   Variable h : Bvector c -> Bvector b -> Bvector c.
   Variable iv : Bvector c.
 
-  Variable splitAndPad : Blist -> list (Bvector b).
+  Variable Message : Set.
+  Hypothesis Message_EqDec : EqDec Message.
+  Variable splitAndPad : Message -> list (Bvector b).
   Hypothesis splitAndPad_1_1 : 
     forall b1 b2,
       splitAndPad b1 = splitAndPad b2 ->
@@ -29,7 +31,7 @@ Section HMAC_PRF.
   Definition HMAC := HMAC h iv splitAndPad fpad opad ipad.
   Definition GHMAC := GHMAC h iv fpad opad ipad.
 
-  Variable A : OracleComp Blist (Bvector c) bool.
+  Variable A : OracleComp Message (Bvector c) bool.
   Hypothesis A_wf : well_formed_oc A.
 
   Definition A_GHMAC : OracleComp (list (Bvector b)) (Bvector c) bool :=
@@ -87,9 +89,7 @@ Section HMAC_PRF.
     inline_first.
     unfold RndR_func, randomFunc.
     rewrite H.
-    case_eq (
-       @arrayLookup Blist (Bvector c) (@list_EqDec bool bool_EqDec) x1 a
-       ); intuition.
+    case_eq (arrayLookup Message_EqDec x1 a ); intuition.
     comp_simp.
     inline_first.
     comp_simp.
