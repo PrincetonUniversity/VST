@@ -162,32 +162,33 @@ Definition isPRF {D R Key:Set} (RndKey:Comp Key) (RndR: Comp R) (f: Key -> D -> 
                          (ED:EqDec D) (ER:EqDec R) advantage adversary :=
         PRF_Advantage RndKey RndR f _ _ adversary <= advantage.
 (*Section HMAC_is_PRF.*)
-Variable tau : Rat.
+(*Variable tau : Rat.
 Variable epsilon : Rat.
 Variable sigma : Rat.
 Variable A : OracleComp Blist (Bvector c) bool. (*I seem to need this variable here, too*)
 (*Hypothesis*)
-Parameter A_wf : well_formed_oc A.
+Parameter A_wf : well_formed_oc A.*)
 
 (* Assume h is a tau-PRF against adversary (PRF_h_A h_star_pad A_GHMAC) *)
 (*Hypothesis*)
-Definition h_PRF := isPRF ({ 0 , 1 }^c) ({ 0 , 1 }^c) h_v (Bvector_EqDec (b c p)) (Bvector_EqDec c) tau 
+Definition h_PRF (A : OracleComp Blist (Bvector c) bool) tau := 
+           isPRF ({ 0 , 1 }^c) ({ 0 , 1 }^c) h_v (Bvector_EqDec (b c p)) (Bvector_EqDec c) tau 
                          (PRF_h_A (h_star_pad h_v fpad_v) 
                                   (HMAC_PRF.A_GHMAC p splitAndPad_v A)).
 
 (* We could make similar predicates for the other definitions, or just
 assume the inequalities*)
-(*Hypothesis*)
-Definition h_star_WCR := cAU.Adv_WCR (list_EqDec (Bvector_EqDec (b c p)))
+Definition h_star_WCR (A : OracleComp Blist (Bvector c) bool) epsilon := 
+       cAU.Adv_WCR (list_EqDec (Bvector_EqDec (b c p)))
              (Bvector_EqDec (b c p)) (h_star_pad h_v fpad_v)
        ({ 0 , 1 }^c) (au_F_A (A_GHMAC p splitAndPad_v A)) <= epsilon.
 
-(*Hypothesis*)
-Definition dual_h_RKA :=
+Definition dual_h_RKA (A : OracleComp Blist (Bvector c) bool) sigma:=
     RKA_Advantage _ _ _ ({ 0 , 1 }^b c p) ({ 0 , 1 }^c) (dual_f h_v) (BVxor (b c p))
       (HMAC_RKA_A h_v iv_v fpad_v opad_v ipad_v (A_GHMAC p splitAndPad_v A)) <= sigma.
 
-Theorem HMAC_isPRF (HH1: h_PRF) (HH2: h_star_WCR) (HH3: dual_h_RKA):
+Theorem HMAC_isPRF A (A_wf : well_formed_oc A) tau epsilon sigma 
+        (HH1: h_PRF A tau) (HH2: h_star_WCR A epsilon) (HH3: dual_h_RKA A sigma):
         isPRF (Rnd (b c p)) (Rnd c) 
               (HMAC h_v iv_v splitAndPad_v
                               fpad_v opad_v ipad_v)

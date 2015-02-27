@@ -147,8 +147,33 @@ Proof. unfold HP.HMAC_SHA256.mkKey. rewrite Zlength_correct.
   apply app_nil_r.  
 Qed.
 
+Lemma isbyteZ_xor a b: isbyteZ a -> isbyteZ b -> isbyteZ (Z.lxor a b).
+Proof. intros. rewrite xor_inrange.
+        apply Z_mod_lt. omega.
+        symmetry; apply Zmod_small. apply H.
+        symmetry; apply Zmod_small. apply H0.
+Qed.
+
+Lemma unsigned_repr_isbyte x:
+  isbyteZ x -> Int.unsigned (Int.repr x) = x.
+Proof. intros; apply Int.unsigned_repr. 
+  rewrite int_max_unsigned_eq. destruct H; omega. 
+Qed.
+
+Lemma isbyteZ_range q: isbyteZ q -> 0 <= q <= Byte.max_unsigned. 
+Proof. intros B; destruct B. unfold Byte.max_unsigned, Byte.modulus; simpl. omega. Qed.
+
 Lemma isbyte_sha x: Forall isbyteZ (functional_prog.SHA_256' x).
 Proof. apply isbyte_intlist_to_Zlist. Qed.
+
+Lemma isbyteZ_mkKey: forall l, Forall isbyteZ l -> Forall isbyteZ (HP.HMAC_SHA256.mkKey l).
+Proof. intros.
+  unfold HP.HMAC_SHA256.mkKey.
+  remember (Zlength l >? Z.of_nat HP.SHA256.BlockSize).
+  destruct b.
+    apply zeropad_isbyteZ. unfold HP.SHA256.Hash. apply isbyte_sha.
+    apply zeropad_isbyteZ; trivial.
+Qed.
 
 Lemma isbyte_hmac ipad opad m k: 
    Forall isbyteZ (HMAC_functional_prog.HP.HMAC_SHA256.HMAC ipad opad m k).
@@ -179,11 +204,4 @@ Qed.
 Lemma HMAC_Zlength d k: Zlength (HP.HMAC256 d k) = 32.
 Proof.
   rewrite Zlength_correct, HMAC_length. reflexivity.
-Qed.
-
-Lemma isbyteZ_xor a b: isbyteZ a -> isbyteZ b -> isbyteZ (Z.lxor a b).
-Proof. intros. rewrite xor_inrange.
-        apply Z_mod_lt. omega.
-        symmetry; apply Zmod_small. apply H.
-        symmetry; apply Zmod_small. apply H0.
 Qed.

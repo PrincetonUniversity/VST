@@ -15,51 +15,10 @@ Require Import hmac_common_lemmas.
 Require Import sha.hmac_NK.
 Require Import sha.verif_hmacNK_init_part1.
 
-(*From Katherine's HMAC_functional_prog_Z*)
-Theorem xor_inrange : forall (x y : Z),
-                        x = x mod Byte.modulus
-                        -> y = y mod Byte.modulus
-                        -> Z.lxor x y = (Z.lxor x y) mod Byte.modulus.
-Proof.
-  intros. symmetry. apply Byte.equal_same_bits. intros.
-  assert (ZZ: Z.lxor x y mod Byte.modulus =
-        Z.lxor x y mod two_p (Z.of_nat Byte.wordsize)).
-        rewrite Byte.modulus_power. reflexivity.
-  rewrite ZZ; clear ZZ.     
-  rewrite Byte.Ztestbit_mod_two_p; trivial.
-  destruct (zlt i (Z.of_nat Byte.wordsize)). trivial. 
-  symmetry. rewrite Z.lxor_spec.
-  assert (BB: Byte.modulus = two_p (Z.of_nat Byte.wordsize)).
-    apply Byte.modulus_power. 
-  rewrite BB in H, H0.
-
-  rewrite H; clear H; rewrite H0; clear H0 BB.
-   rewrite Byte.Ztestbit_mod_two_p; try omega.
-   rewrite Byte.Ztestbit_mod_two_p; try omega.
-   destruct (zlt i (Z.of_nat Byte.wordsize)); trivial. omega.
-Qed.
-
-
-Lemma isbyteZ_xor a b: isbyteZ a -> isbyteZ b -> isbyteZ (Z.lxor a b).
-Proof. intros. rewrite xor_inrange.
-        apply Z_mod_lt. omega.
-        symmetry; apply Zmod_small. apply H.
-        symmetry; apply Zmod_small. apply H0.
-Qed.
-
-Lemma unsigned_repr_isbyte x:
-  isbyteZ x -> Int.unsigned (Int.repr x) = x.
-Proof. intros; apply Int.unsigned_repr. 
-  rewrite int_max_unsigned_eq. destruct H; omega. 
-Qed.
-
-Lemma isbyte_mkKey: forall l, Forall isbyteZ l -> Forall isbyteZ (HP.HMAC_SHA256.mkKey l).
-Proof. intros.
-  unfold HP.HMAC_SHA256.mkKey.
-  remember (Zlength l >? Z.of_nat HP.SHA256.BlockSize).
-  destruct b.
-    apply zeropad_isbyteZ. unfold HP.SHA256.Hash. apply isbyte_sha.
-    apply zeropad_isbyteZ; trivial.
+Lemma force_lengthn_long {A}: forall n (l:list A) d, (n <= length l)%nat -> force_lengthn n l d = firstn n l.
+Proof. induction n; simpl; intros. trivial.
+  destruct l; simpl in H. omega.
+  rewrite IHn; trivial. omega.
 Qed.
 
 Lemma isbyte_zeroExt8: forall x, isbyteZ x -> Int.repr x = (Int.zero_ext 8 (Int.repr x)).
@@ -67,14 +26,12 @@ Proof. intros. rewrite zero_ext_inrange. trivial.
   simpl.  unfold isbyteZ in H. rewrite Int.unsigned_repr. omega.
   split. omega. rewrite int_max_unsigned_eq. omega.
 Qed. 
+
 Lemma isbyte_zeroExt8': forall x, isbyteZ x -> x = Int.unsigned (Int.zero_ext 8 (Int.repr x)).
 Proof. intros. rewrite <- isbyte_zeroExt8; trivial.
   rewrite Int.unsigned_repr; trivial. unfold isbyteZ in H. 
   split. omega. rewrite int_max_unsigned_eq. omega.
 Qed. 
-
-Lemma isbyteZ_range q: isbyteZ q -> 0 <= q <= Byte.max_unsigned. 
-Proof. intros B; destruct B. unfold Byte.max_unsigned, Byte.modulus; simpl. omega. Qed.
 
 Lemma eval_cast_tuchar_of_isbyteZ q: isbyteZ q ->
       eval_cast tuchar tuchar (Vint (Int.repr q)) = Vint (Int.repr q). 
@@ -133,21 +90,6 @@ Proof. unfold SKIPN. intros. apply skipn_short.
        rewrite Zlength_correct in H. rewrite <- (Nat2Z.id (length al)). 
        rewrite (Z2Nat.inj_le _ n) in H. omega. specialize (Zlength_nonneg al); rewrite Zlength_correct. trivial.
        specialize (Zlength_nonneg al); rewrite Zlength_correct. intros; omega. 
-Qed.
-
-Lemma nth_mapIn: forall i (l:list Z) d (Hi: (0 <= i < length l)%nat),
-  exists n, nth i l d = n /\ In n l.
-Proof. intros i. 
-  induction i; simpl; intros.
-    destruct l; simpl in *. omega. exists z. split; trivial. left; trivial.
-    destruct l; simpl in *. omega.
-      destruct (IHi l d) as [? [? ?]]. omega. rewrite H. exists x; split; trivial. right; trivial.
-Qed.
-
-Lemma force_lengthn_long {A}: forall n (l:list A) d, (n <= length l)%nat -> force_lengthn n l d = firstn n l.
-Proof. induction n; simpl; intros. trivial.
-  destruct l; simpl in H. omega.
-  rewrite IHn; trivial. omega.
 Qed.
 
 Lemma UPD_IPAD: forall
@@ -623,7 +565,7 @@ forward_if PostResetBranch.
           { destruct (nth_mapIn (Z.to_nat i) (HP.HMAC_SHA256.mkKey key) 0) as [? [? ?]].
              rewrite mkKey_length.
               split. apply (Z2Nat.inj_le 0); omega. apply (Z2Nat.inj_lt _ 64); omega.
-            exists x; split; trivial. eapply Forall_forall. apply isbyte_mkKey. eassumption. eassumption.
+            exists x; split; trivial. eapply Forall_forall. apply isbyteZ_mkKey. eassumption. eassumption.
           }
         destruct Xb as [qb [Qb isbyteZQb]].
         assert (X: Znth i (map Vint (map Int.repr (HP.HMAC_SHA256.mkKey key))) Vundef
@@ -638,7 +580,7 @@ forward_if PostResetBranch.
                apply (isbyteZ_range _ isbyteZQb). 
         unfold force_val. rewrite sem_cast_i2i_correct_range.
             Focus 2. apply Znth_map_Vint_is_int_I8.
-                     apply isbyte_mkKey. assumption.
+                     apply isbyteZ_mkKey. assumption.
                      rewrite Zlength_correct, mkKey_length. unfold HP.SHA256.BlockSize; simpl; assumption.
         rewrite X.
         forward.
@@ -822,7 +764,7 @@ myframe_SEP'' [0].
           { destruct (nth_mapIn (Z.to_nat i) (HP.HMAC_SHA256.mkKey key) 0) as [? [? ?]].
              rewrite mkKey_length.
               split. apply (Z2Nat.inj_le 0); omega. apply (Z2Nat.inj_lt _ 64); omega.
-            exists x; split; trivial. eapply Forall_forall. apply isbyte_mkKey. eassumption. eassumption.
+            exists x; split; trivial. eapply Forall_forall. apply isbyteZ_mkKey. eassumption. eassumption.
           }
         destruct Xb as [qb [Qb isbyteZQb]].
         assert (X: Znth i (map Vint (map Int.repr (HP.HMAC_SHA256.mkKey key))) Vundef
@@ -837,7 +779,7 @@ myframe_SEP'' [0].
                apply (isbyteZ_range _ isbyteZQb). 
         unfold force_val. rewrite sem_cast_i2i_correct_range.
         Focus 2. apply Znth_map_Vint_is_int_I8.
-                     apply isbyte_mkKey. assumption.
+                     apply isbyteZ_mkKey. assumption.
                      rewrite Zlength_correct, mkKey_length. unfold HP.SHA256.BlockSize; simpl; assumption.
         rewrite X.
         forward.

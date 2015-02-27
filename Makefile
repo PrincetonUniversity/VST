@@ -160,7 +160,7 @@ HMAC_FILES= \
   hmac091c.v spec_hmac.v verif_hmac_cleanup.v \
   verif_hmac_init_part1.v verif_hmac_init_part2.v verif_hmac_init.v \
   verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
-  verif_hmac_double.v \
+  verif_hmac_double.v verif_hmac_crypto.v \
   hmac_NK.v spec_hmacNK.v verif_hmacNK_cleanup.v \
   verif_hmacNK_init_part1.v verif_hmacNK_init_part2.v verif_hmacNK_init.v\
   verif_hmacNK_update.v verif_hmacNK_final.v verif_hmacNK_simple.v \

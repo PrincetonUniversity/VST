@@ -6,8 +6,16 @@ Require Import Coqlib.
 
 Import ListNotations.
 
+Lemma nth_mapIn: forall i (l:list Z) d (Hi: (0 <= i < length l)%nat),
+  exists n, nth i l d = n /\ In n l.
+Proof. intros i. 
+  induction i; simpl; intros.
+    destruct l; simpl in *. omega. exists z. split; trivial. left; trivial.
+    destruct l; simpl in *. omega.
+      destruct (IHi l d) as [? [? ?]]. omega. rewrite H. exists x; split; trivial. right; trivial.
+Qed.
 
-  Lemma skipn_list_repeat:
+Lemma skipn_list_repeat:
    forall A k n (a: A),
      (k <= n)%nat -> skipn k (list_repeat n a) = list_repeat (n-k) a.
 Proof.
