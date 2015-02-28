@@ -393,8 +393,9 @@ Fixpoint complete_type Delta ty : bool :=
   end.
 
 Definition is_complete_pointer_type Delta ty :=
-match typeconv ty with
+match ty with
 | Tpointer t _ => complete_type Delta t
+| Tarray _ _ _ | Tfunction _ _ _ | Tstruct _ _ | Tunion _ _ => complete_type Delta ty
 | _ => false
 end.
 
