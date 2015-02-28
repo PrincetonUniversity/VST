@@ -6,6 +6,7 @@ Require Import BinNums.
 (*Require Import Arith.*)
 Require Import common_lemmas.
 Require Import HMAC_functional_prog.
+Require Import sha_padding_lemmas.
 Require Import ByteBitRelations.
 Require Import hmac_pure_lemmas.
 Require Import hmac_common_lemmas.
@@ -13,70 +14,15 @@ Require Import HMAC_spec_list.
 Require Import HMAC_spec_abstract.
 Require Import HMAC_common_defs.
 
-
-(* TODO Duplicates the definition in Blist.v - could eliminate this after merging with FCF*)
-Definition of_list_length (A : Set)(m : nat)(ls : list A)(pf : length ls = m) : Vector.t A m :=
-  match pf with
-    | eq_refl => Vector.of_list ls
-  end. 
+Require Import Blist.
 
 Lemma of_length_proof_irrel n a: forall M, 
-      Vector.to_list (of_list_length bool n a M) = a.
+      Vector.to_list (@of_list_length bool n a M) = a.
 Proof. intros.
   unfold of_list_length. destruct M. apply Vector.to_list_of_list_opp. 
 Qed.
 
-(***** TODO: move the following lemmas to hmac_purelemmas, or to some Coqlib file*******)
-Lemma app_inv_length1 {A}: forall (l1 m1 l2 m2:list A),
-  l1++l2 = m1++m2 -> length l1 = length m1 -> l1=m1 /\ l2=m2.
-Proof.
-induction l1; simpl; intros.
-{ destruct m1; simpl in *. split; trivial. omega. }
-{ destruct m1; simpl in *. discriminate.
-  inversion H; clear H; subst a0.
-  destruct (IHl1 _ _ _ H3). omega.
-  subst. split; trivial. }
-Qed.
-
-Lemma app_inv_length2 {A}: forall (l1 m1 l2 m2:list A),
-  l1++l2 = m1++m2 -> length l2 = length m2 -> l1=m1 /\ l2=m2.
-Proof.
-induction l1; simpl; intros.
-{ destruct m1; simpl in *. split; trivial.
-  assert (length l2 = length (a :: m1 ++ m2)). rewrite <- H; trivial.
-  rewrite H1 in H0; clear H H1. simpl in H0. rewrite app_length in H0. omega. }
-{ assert (length (a :: l1 ++ l2) = length (m1 ++ m2)). rewrite <- H; trivial.
-  simpl in H1. do 2 rewrite app_length in H1. rewrite H0 in H1.
-  destruct m1; simpl in *. omega.
-  inversion H; clear H. subst a0.
-  destruct (IHl1 _ _ _ H4 H0). subst. split; trivial. }
-Qed.
-
-Lemma cons_inv {A}: forall (a1 a2:A) t1 t2, a1::t1 = a2::t2 -> a1=a2 /\ t1=t2.
-  intros. inversion H; split; trivial. Qed.
-
-Lemma mod_exists a b c: a mod b = c -> b<> 0 -> exists k, k*b+c=a.
-Proof. intros. specialize (Zmod_eq_full a b H0). intros.
-  exists (a/b). rewrite H in H1; clear H H0. subst c. omega. Qed.
-
-Lemma Forall2_map {A B} (f:A -> B): forall l m, 
-      Forall2 (fun x y => y = f x) l m -> map f l = m.
-Proof. intros.
-  induction H; simpl. reflexivity.
-  subst y. f_equal. trivial.
-Qed.
-
-Lemma app_inj1 {A} l2 m2: forall (l1 m1:list A) (H:l1++l2=m1++m2),
-      length l1=length m1 -> l1=m1 /\ l2=m2.
-Proof. induction l1.
-  destruct m1; simpl; intros. split; trivial. discriminate.
-  destruct m1; simpl; intros. discriminate.
-  inversion H; subst. 
-  destruct (IHl1 _ H3). omega.
-  subst. split; trivial.
-Qed.
-
-(********************************************************************************)
+(*******Injectivity of pad_inc*************************)
 
 Lemma pad_injective_aux (l1 l2: list Z) k 
      (K : k * Int.modulus + (BlockSize + Zlength l1) * 8 =
@@ -220,12 +166,12 @@ destruct b.
           rewrite Z.mul_sub_distr_r; omega.
           omega. } } } }
 Qed.
-  
+(********************************************************************)  
 
 Section EQUIV.
 
 Definition h_v (iv:Bvector c) (blk:Bvector b): Bvector c :=
-  of_list_length _ _ _
+  of_list_length _
    (sha_h_length (Vector.to_list iv) (Vector.to_list blk) (VectorToList_length _)
                (VectorToList_length _)).
 
@@ -252,14 +198,14 @@ Lemma opad_length:
                        (Integers.Byte.unsigned HP.Opad))) = b.
 Proof. rewrite bytesToBits_len, length_SF. reflexivity. Qed. 
  
-Definition opad_v: Bvector b := of_list_length _ _ _ opad_length.
+Definition opad_v: Bvector b := of_list_length _ opad_length.
 
 Lemma ipad_length:
   length (bytesToBits (HP.HMAC_SHA256.sixtyfour
                        (Integers.Byte.unsigned HP.Ipad))) = b.
 Proof. rewrite bytesToBits_len, length_SF. reflexivity. Qed. 
  
-Definition ipad_v: Bvector b := of_list_length _ _ _ ipad_length.
+Definition ipad_v: Bvector b := of_list_length _ ipad_length.
 
 Lemma fpad_length (v:Bvector c): length (fpad (Vector.to_list v)) = p.
 Proof. unfold fpad, fpad_inner. rewrite bytesToBits_len.
@@ -270,7 +216,7 @@ Proof. unfold fpad, fpad_inner. rewrite bytesToBits_len.
     apply VectorToList_length.
 Qed. 
 
-Definition fpad_v (v:Bvector c): Bvector p := of_list_length _ _ _ (fpad_length v).
+Definition fpad_v (v:Bvector c): Bvector p := of_list_length _ (fpad_length v).
   
 Lemma fpad_eq : forall (v : Bvector c) (l : Blist),
                   l = Vector.to_list v ->
@@ -285,13 +231,13 @@ Fixpoint splitAndPad_aux (m:list Blist) (M: Forall (fun x => length x = 512%nat)
            list (Bvector b) :=
 (match m as l return (Forall (fun x => length x = 512%nat) l) -> list (Bvector b) with
   nil => fun F => nil
-|  cons h t => fun F => cons (of_list_length _ _ h (Forall_inv F)) 
+|  cons h t => fun F => cons (of_list_length h (Forall_inv F)) 
                     (splitAndPad_aux t (Forall_tl _ _ _ _ F))
  end) M.
 
 Lemma splitAndPad_aux_consD h t M: 
       splitAndPad_aux (cons h t) M
-      = (of_list_length _ _ h (Forall_inv M)) 
+      = (of_list_length h (Forall_inv M)) 
          :: (splitAndPad_aux t (Forall_tl _ _ _ _ M)).
 Proof. reflexivity. Qed. 
 
@@ -331,7 +277,7 @@ Defined.
 
 Lemma splitAndPad_nil: exists pf,
   splitAndPad_v nil = 
-  cons (of_list_length bool 512 (sha_splitandpad_inc nil) pf) nil. 
+  cons (@of_list_length bool 512 (sha_splitandpad_inc nil) pf) nil. 
 Proof. unfold splitAndPad_v, sha_splitandpad_blocks.
   remember (InBlocks_Forall_512 (sha_splitandpad_inc_InBlocks nil)). clear Heqf.
   remember (toBlocks (sha_splitandpad_inc nil)).
@@ -360,16 +306,15 @@ Proof. apply length_splitandpad_inner_aux. Qed.
 
 (* Note implicit assumption that the key is of the right length
    is now OK, since we're comapring to HP.HMAC_SHA256.HmacCore, not HMAC. *)
-
-Lemma Equivalence : forall (kv : Bvector b) (m : Blist),
-      NPeano.divide 8 (length m) ->
-      Vector.to_list (HMAC_spec.HMAC h_v iv_v splitAndPad_v
+Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.divide 8 (length msg))
+      (kv : Bvector b) (m : Message P):
+      Vector.to_list (HMAC_spec.HMAC h_v iv_v (wrappedSAP splitAndPad_v)
                       fpad_v opad_v ipad_v kv m) = 
       bytesToBits (HP.HMAC_SHA256.HmacCore (Integers.Byte.repr 54) (Integers.Byte.repr 92)
-                              (bitsToBytes m)
+                              (bitsToBytes (Message2Blist m))
                               (map Integers.Byte.repr (bitsToBytes (Vector.to_list kv)))).
 Proof.
-  intros kv m LM.
+  (*intros kv msg LM*)
   assert (LK : length (Vector.to_list kv) = b).
     { apply VectorToList_length. }
   erewrite <- HMAC_eq; try reflexivity.
@@ -413,7 +358,8 @@ Proof.
   { apply bytes_bits_comp_ind.
     eapply HMAC_spec_pad.HMAC_Pad.bitsToBytes_isbyteZ; reflexivity.
     rewrite bits_bytes_bits_id; trivial. 
-    apply sha_padding_lemmas.InBlocks_len; trivial. }
+    apply sha_padding_lemmas.InBlocks_len. 
+    apply HP. destruct m. simpl; trivial. }
 
   (* opad *)
   { apply bytes_bits_comp_ind.
@@ -427,3 +373,4 @@ Proof.
 
 Qed.
 End EQUIV.
+Print Assumptions Equivalence.

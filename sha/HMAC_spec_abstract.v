@@ -165,7 +165,24 @@ Definition b := hmacfcf.HMAC_spec.b c p.
 (* *** TODO: need to prove that the list equivalents have this type *** *)
 Variable h_v : Bvector c -> Bvector b -> Bvector c.
 Variable iv_v : Bvector c.
+Variable P : Blist -> Prop. (*example: P m := NPeano.divide 8 (length m)*)
+Definition Message : Set := {m: Blist | P m}.
+Definition Message2Blist(msg:Message):Blist := let (m,_) := msg in m.
+
 Variable splitAndPad_v : Blist -> list (Bvector b).
+Definition wrappedSAP (msg:Message): list (Bvector b) :=
+  splitAndPad_v (Message2Blist msg).
+
+Variable splitAndPad_inj: forall b1 b2, splitAndPad_v b1 = splitAndPad_v b2 ->
+  P b1 -> P b2 -> b1=b2.
+
+Definition wrappedSAP_1_1: forall msg1 msg2, wrappedSAP msg1=wrappedSAP msg2 -> msg1=msg2.
+Proof. intros. unfold wrappedSAP in H. destruct msg1. destruct msg2.
+unfold Message2Blist in H.
+apply splitAndPad_inj in H; trivial.
+apply Extensionality.exist_ext. trivial.
+Qed.
+
 Variable fpad_v : Bvector c -> Bvector p. 
 Variable opad_v ipad_v : Bvector b.
 
@@ -213,28 +230,33 @@ Proof.
     rewrite fold_left_cons. apply IHbls. apply h_eq; trivial.
 Qed.
 
-
 (* TODO: Here, need lemma relating sha_splitandpad_blocks and sha_splitandpad_inc
 such that the below is true *)
 
 Hypothesis length_splitandpad_inner : forall (m : Blist),
    Forall2
-     (fun (bv : Vector.t bool b) (bl : list bool) => bl = Vector.to_list bv)
+     (fun (bv : Vector.t bool b) bl => bl = Vector.to_list bv)
      (splitAndPad_v m) (sha_splitandpad_blocks m).
+
+Definition wrappedSAP_inner (msg: Message):
+Forall2
+  (fun (bv : Vector.t bool b) (bl : list bool) => bl = Vector.to_list bv)
+  (wrappedSAP msg) (sha_splitandpad_blocks (Message2Blist msg)).
+Proof. destruct msg as [m LM]. apply length_splitandpad_inner. Qed.
 
 (* TODO: opad and ipad should be in HMAC_common_parameters (factor out of all spec) *)
 (* also, op and opad_v, etc. are related -- make explicit *)
 
-Theorem HMAC_eq : forall (kv : Bvector b) (kl m op ip : Blist),
+Theorem HMAC_eq : forall (kv : Bvector b) (kl:Blist) (msg:Message) (op ip : Blist),
                     kl = Vector.to_list kv ->
                     op = Vector.to_list opad_v ->
                     ip = Vector.to_list ipad_v ->
-                    HMAC_List.HMAC c p sha_h sha_iv sha_splitandpad_blocks fpad op ip kl m
+                    HMAC_List.HMAC c p sha_h sha_iv sha_splitandpad_blocks fpad op ip kl (Message2Blist msg)
                     = Vector.to_list
-                        (HMAC_spec.HMAC h_v iv_v splitAndPad_v
-                                            fpad_v opad_v ipad_v kv m).
+                        (HMAC_spec.HMAC h_v iv_v wrappedSAP(*splitAndPad_v*)
+                                            fpad_v opad_v ipad_v kv msg).
 Proof.
-  intros kv kl m op ip keys_eq op_eq ip_eq.
+  intros kv kl msg op ip keys_eq op_eq ip_eq.
   unfold HMAC_List.HMAC. unfold hmacfcf.HMAC_spec.HMAC.
   unfold HMAC_List.HMAC_2K. unfold hmacfcf.HMAC_spec.HMAC_2K.
   unfold HMAC_List.GHMAC_2K. unfold hmacfcf.HMAC_spec.GHMAC_2K.
@@ -260,7 +282,7 @@ Proof.
     constructor.
       apply xor_eq. trivial.
       reflexivity.
-      apply length_splitandpad_inner.
+      apply wrappedSAP_inner. (*apply length_splitandpad_inner.*)
     apply iv_eq.
 Qed.
 

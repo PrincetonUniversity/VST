@@ -310,4 +310,3 @@ or, if one-to-one property is desired (for HMAC), only need to prove that
 the padded messages differ
 *)
 
-(* Unproven *)

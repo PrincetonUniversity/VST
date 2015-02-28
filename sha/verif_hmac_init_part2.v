@@ -15,12 +15,6 @@ Require Import hmac_common_lemmas.
 Require Import sha.hmac091c.
 Require Import sha.verif_hmac_init_part1.
 
-Lemma force_lengthn_long {A}: forall n (l:list A) d, (n <= length l)%nat -> force_lengthn n l d = firstn n l.
-Proof. induction n; simpl; intros. trivial.
-  destruct l; simpl in H. omega.
-  rewrite IHn; trivial. omega.
-Qed.
-
 Lemma isbyte_zeroExt8: forall x, isbyteZ x -> Int.repr x = (Int.zero_ext 8 (Int.repr x)).
 Proof. intros. rewrite zero_ext_inrange. trivial.
   simpl.  unfold isbyteZ in H. rewrite Int.unsigned_repr. omega.

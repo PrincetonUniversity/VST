@@ -191,13 +191,15 @@ assert (Size: sizeof t_struct_hmac_ctx_st <= Int.max_unsigned).
 apply andp_right. apply prop_right.
   rewrite hmac_hmacSimple in HS. destruct HS as [hh HH]. 
   specialize (hmac_sound _ _ _ _ HH). intros D; subst dig.
-  split. unfold bitspec. rewrite HMAC_equivalence.Equivalence.
-         f_equal. rewrite ByteBitRelations.bytes_bits_bytes_id.
+  split. unfold bitspec. simpl. rewrite HMAC_equivalence.Equivalence.
+         f_equal. unfold HMAC_spec_abstract.Message2Blist.
+       remember (mkCont data) as dd. destruct dd. destruct a; subst x.
+         rewrite ByteBitRelations.bytes_bits_bytes_id.
          rewrite HMAC_equivalence.of_length_proof_irrel.
          rewrite ByteBitRelations.bytes_bits_bytes_id. reflexivity.
            apply isbyteZ_mkKey. assumption.   
-           apply H2.
-           rewrite ByteBitRelations.bytesToBits_len. exists (length data); reflexivity.
+           apply H2. 
+           intros ? X; eapply X. 
   split; trivial.
   unfold CRYPTO; intros. apply sha.HMAC_isPRF.HMAC_isPRF; assumption.
 apply andp_right. apply prop_right. trivial. cancel.

@@ -31,6 +31,7 @@ Section HMAC.
   Definition hash_words := h_star iv.
 
   Variable splitAndPad : Blist -> list (Blist).
+
   Hypothesis splitAndPad_1_1 : 
     forall b1 b2,
       splitAndPad b1 = splitAndPad b2 ->
@@ -336,7 +337,6 @@ Proof.
   * unfold HMAC_Concat.app_fpad.
     unfold fpad.
 
-    (*NEW2*)
     constructor. 2: constructor.
     rewrite app_length, fold_hash_blocks_eq.
       2: apply BLxor_length; trivial. 

@@ -10,6 +10,55 @@ Require Import hmac_pure_lemmas.
 
 Require Import HMAC_functional_prog.
 
+Lemma app_inv_length1 {A}: forall (l1 m1 l2 m2:list A),
+  l1++l2 = m1++m2 -> length l1 = length m1 -> l1=m1 /\ l2=m2.
+Proof.
+induction l1; simpl; intros.
+{ destruct m1; simpl in *. split; trivial. omega. }
+{ destruct m1; simpl in *. discriminate.
+  inversion H; clear H; subst a0.
+  destruct (IHl1 _ _ _ H3). omega.
+  subst. split; trivial. }
+Qed.
+
+Lemma app_inv_length2 {A}: forall (l1 m1 l2 m2:list A),
+  l1++l2 = m1++m2 -> length l2 = length m2 -> l1=m1 /\ l2=m2.
+Proof.
+induction l1; simpl; intros.
+{ destruct m1; simpl in *. split; trivial.
+  assert (length l2 = length (a :: m1 ++ m2)). rewrite <- H; trivial.
+  rewrite H1 in H0; clear H H1. simpl in H0. rewrite app_length in H0. omega. }
+{ assert (length (a :: l1 ++ l2) = length (m1 ++ m2)). rewrite <- H; trivial.
+  simpl in H1. do 2 rewrite app_length in H1. rewrite H0 in H1.
+  destruct m1; simpl in *. omega.
+  inversion H; clear H. subst a0.
+  destruct (IHl1 _ _ _ H4 H0). subst. split; trivial. }
+Qed.
+
+Lemma cons_inv {A}: forall (a1 a2:A) t1 t2, a1::t1 = a2::t2 -> a1=a2 /\ t1=t2.
+  intros. inversion H; split; trivial. Qed.
+
+Lemma mod_exists a b c: a mod b = c -> b<> 0 -> exists k, k*b+c=a.
+Proof. intros. specialize (Zmod_eq_full a b H0). intros.
+  exists (a/b). rewrite H in H1; clear H H0. subst c. omega. Qed.
+
+Lemma Forall2_map {A B} (f:A -> B): forall l m, 
+      Forall2 (fun x y => y = f x) l m -> map f l = m.
+Proof. intros.
+  induction H; simpl. reflexivity.
+  subst y. f_equal. trivial.
+Qed.
+
+Lemma app_inj1 {A} l2 m2: forall (l1 m1:list A) (H:l1++l2=m1++m2),
+      length l1=length m1 -> l1=m1 /\ l2=m2.
+Proof. induction l1.
+  destruct m1; simpl; intros. split; trivial. discriminate.
+  destruct m1; simpl; intros. discriminate.
+  inversion H; subst. 
+  destruct (IHl1 _ H3). omega.
+  subst. split; trivial.
+Qed.
+
 Lemma str_to_Z_length: forall k, 
       String.length k = length (str_to_Z k).
 Proof. intros. induction k; simpl; auto. Qed.

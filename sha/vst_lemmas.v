@@ -4,6 +4,12 @@ Require Import floyd.proofauto.
 Require Import common_lemmas.
 Local Open Scope logic.
 
+Lemma force_lengthn_long {A}: forall n (l:list A) d, (n <= length l)%nat -> force_lengthn n l d = firstn n l.
+Proof. induction n; simpl; intros. trivial.
+  destruct l; simpl in H. omega.
+  rewrite IHn; trivial. omega.
+Qed.
+
 Lemma data_at_triv sh t v v': v=v' -> data_at sh t v |-- data_at sh t v'.
 Proof. intros; subst. cancel. Qed.
 

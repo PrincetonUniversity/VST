@@ -406,7 +406,7 @@ Definition emptySha:s256state := (nil, (Vundef, (Vundef, (nil, Vundef)))).
 Definition keyedHMS: hmacstate :=
   (emptySha, (emptySha, emptySha)).
 
-
+Require Import Blist.
 Require Import HMAC_equivalence.
 Require Import ByteBitRelations.
 Require Import HMAC_isPRF.
@@ -416,21 +416,27 @@ Lemma key_vector l:
   HMAC_spec.b HMAC_common_defs.c HMAC_common_defs.p.
 Proof. rewrite bytesToBits_len, hmac_common_lemmas.mkKey_length; reflexivity. Qed.
 
-Definition bitspec KEY MSG :=
-  Vector.to_list ( HMAC_spec.HMAC h_v iv_v splitAndPad_v
-                      fpad_v opad_v ipad_v
-                      (of_list_length _ _ _ (key_vector (CONT KEY)))
-                      (bytesToBits (CONT MSG))).
+Definition mkCont (l:list Z) : HMAC_spec_abstract.Message (fun x => x=bytesToBits l /\ NPeano.divide 8 (length x)).
+eapply exist. split. reflexivity. 
+rewrite bytesToBits_len. exists (length l). trivial.
+Qed.
 
-Definition CRYPTO (A : Comp.OracleComp Blist.Blist (Bvector.Bvector HMAC_common_defs.c) bool) 
+Definition bitspec KEY MSG :=
+  Vector.to_list ( HMAC_spec.HMAC h_v iv_v (HMAC_spec_abstract.wrappedSAP splitAndPad_v)
+                      fpad_v opad_v ipad_v
+                      (of_list_length _ (key_vector (CONT KEY)))
+                      (mkCont (CONT MSG))).
+
+Definition CRYPTO (A : Comp.OracleComp (HMAC_spec_abstract.Message P)
+                                       (Bvector.Bvector HMAC_common_defs.c) bool) 
                   (A_wf : DistSem.well_formed_oc A):=
            forall tau eps sig, h_PRF A tau ->
                                h_star_WCR A eps ->
                                dual_h_RKA A sig ->
   isPRF (Comp.Rnd (HMAC_PRF.b HMAC_common_defs.c HMAC_common_defs.p))
     (Comp.Rnd HMAC_common_defs.c)
-    (HMAC_PRF.HMAC h_v iv_v splitAndPad_v fpad_v opad_v ipad_v)
-    (EqDec.list_EqDec EqDec.bool_EqDec)
+    (HMAC_PRF.HMAC h_v iv_v (HMAC_spec_abstract.wrappedSAP splitAndPad_v) fpad_v opad_v ipad_v)
+    Message_eqdec 
     (EqDec.Bvector_EqDec HMAC_common_defs.c)
     (Rat.ratAdd (Rat.ratAdd tau eps) sig) A.
 
