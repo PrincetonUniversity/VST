@@ -885,8 +885,8 @@ match e with
                        (tc_isptr a)
                   | _ => tc_FF (deref_byvalue ty)
                   end
- | Esizeof ty _ => tc_bool (complete_type Delta ty) (invalid_expression e)
- | Ealignof ty _ => tc_bool (complete_type Delta ty) (invalid_expression e)
+ | Esizeof ty t => tc_bool (andb (complete_type Delta ty) (eqb_type t (Tint I32 Unsigned noattr))) (invalid_expression e)
+ | Ealignof ty t => tc_bool (andb (complete_type Delta ty) (eqb_type t (Tint I32 Unsigned noattr))) (invalid_expression e)
  | _ => tc_FF (invalid_expression e)
 end
 

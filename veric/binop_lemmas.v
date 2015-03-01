@@ -742,8 +742,6 @@ Lemma is_true_e: forall b, is_true b -> b=true.
 Proof. intros. destruct b; try contradiction; auto.
 Qed.
 
-Print is_complete_pointer_type.
-
 Ltac crunchp := 
 repeat (
  unfold is_true in *; simpl;

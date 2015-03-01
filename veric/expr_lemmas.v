@@ -100,6 +100,24 @@ eapply typecheck_cast_sound; eauto.
 eapply typecheck_expr_sound_Efield; eauto.
 *
 eapply typecheck_lvalue_sound_Efield; eauto.
+* (* Esizeof *)
+simpl in H0 |- *.
+unfold tc_bool in H0.
+destruct (complete_type Delta t && eqb_type t0 (Tint I32 Unsigned noattr)) eqn:?H; inv H0.
+rewrite andb_true_iff in H1.
+destruct H1.
+rewrite eqb_type_spec in H1.
+subst.
+reflexivity.
+* (* Ealignof *)
+simpl in H0 |- *.
+unfold tc_bool in H0.
+destruct (complete_type Delta t && eqb_type t0 (Tint I32 Unsigned noattr)) eqn:?H; inv H0.
+rewrite andb_true_iff in H1.
+destruct H1.
+rewrite eqb_type_spec in H1.
+subst.
+reflexivity.
 Qed. 
 
 Lemma typecheck_expr_sound : forall Delta rho e,
@@ -576,6 +594,28 @@ eapply Clight.eval_Elvalue; eauto.
 rewrite <- Heqt0. apply Clight.deref_loc_copy.
 auto.
 rewrite HH; eauto.
+*
+simpl in H1.
+unfold tc_bool in H1.
+destruct (complete_type Delta t && eqb_type t0 (Tint I32 Unsigned noattr)) eqn:?H; inv H1.
+rewrite andb_true_iff in H2.
+destruct H2.
+rewrite eqb_type_spec in H1.
+simpl eval_expr.
+unfold_lift; simpl.
+rewrite <- HH.
+constructor.
+*
+simpl in H1.
+unfold tc_bool in H1.
+destruct (complete_type Delta t && eqb_type t0 (Tint I32 Unsigned noattr)) eqn:?H; inv H1.
+rewrite andb_true_iff in H2.
+destruct H2.
+rewrite eqb_type_spec in H1.
+simpl eval_expr.
+unfold_lift; simpl.
+rewrite <- HH.
+constructor.
 Qed.
 
 Lemma eval_expr_relate:
