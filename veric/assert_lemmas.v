@@ -318,6 +318,12 @@ Proof.
 intros. intros w ?; apply H0; auto.
 Qed.
 
+
+
+
+SearchAbout tycontext_sub.
+Print typecheck_tid_ptr_compare.
+
 Lemma tc_expr_lvalue_sub:
   forall Delta Delta', 
     tycontext_sub Delta Delta' ->
@@ -360,13 +366,13 @@ Proof.
     simpl.
     tauto.
   + unfold_lift.
-    admit.
+    admit. (* preserved by expr *)
 * destruct IHe.
   repeat rewrite denote_tc_assert_andp.
   intros [[? ?] ?]; repeat split; [| unfold tc_bool in *; if_tac; tauto |].
   + unfold tc_expr in H0.
     apply (H0 w); unfold prop; auto.
-  + admit.
+  + admit. (* preserved by expr *)
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; split.
   + destruct IHe. apply (H3 w); auto.
   + unfold tc_bool in *; if_tac; tauto.
@@ -374,27 +380,27 @@ Proof.
   + unfold tc_bool in *; if_tac; tauto.
   + destruct IHe. apply (H2 w); auto.
 * repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split.
-  + admit. 
+  + admit. (* preserve isBinOpResultType *)
   + destruct IHe1 as [H8 _]; apply (H8 w); auto.
   + destruct IHe2 as [H8 _]; apply (H8 w); auto.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
    destruct IHe as [H8 _]; apply (H8 w); auto.
-  admit.
+  admit. (* preserve isCastResultType *)
 * destruct (access_mode t) eqn:?; auto.
  repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
   + destruct IHe. apply (H3 w); auto.
   + destruct (typeof e); auto;
     destruct ((composite_types Delta) ! i0) as [co |] eqn:?; try inv H1.
-    admit. admit.
+    admit. admit. (* preserve composite_types look_up and field_offset *)
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
   + destruct IHe as [_ H8]; apply (H8 w); auto.
   + destruct (typeof e); auto;
     destruct ((composite_types Delta) ! i0) as [co |] eqn:?; try inv H1.
-    admit. admit.
+    admit. admit. (* preserve composite_types look_up and field_offset *)
 * unfold tc_bool; simpl.
-  admit.
+  admit. (* preserve complete_type *)
 * unfold tc_bool; simpl.
-  admit.
+  admit. (* preserve complete_type *)
 Qed.
 
 Lemma tc_expr_sub:

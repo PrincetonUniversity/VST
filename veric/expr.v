@@ -376,22 +376,6 @@ match ty with
 | _ => false
 end.
 
-Fixpoint complete_type Delta ty : bool :=
-  match ty with
-  | Tvoid => true
-  | Tint _ _ _ => true
-  | Tlong _ _ => true
-  | Tfloat _ _ => true
-  | Tpointer _ _ => true
-  | Tarray ty0 _ _ => complete_type Delta ty0
-  | Tfunction _ _ _ => false
-  | Tstruct id _ | Tunion id _ =>
-      match (composite_types Delta) ! id with
-      | Some _ => true
-      | _ => false
-      end
-  end.
-
 Definition is_complete_pointer_type Delta ty :=
 match ty with
 | Tpointer t _ => complete_type Delta t
