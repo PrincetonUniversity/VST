@@ -318,20 +318,6 @@ Proof.
 intros. intros w ?; apply H0; auto.
 Qed.
 
-Print eval_expr.
-Print eval_binop.
-Print sem_binary_operation'.
-Print sem_add.
-Print Cop.classify_add.
-Print eval_field.
-Print typecheck_lvalue.
-Print isBinOpResultType.
-Locate is_pointer_type.
-Print type.
-(*
-Lemma eval_expr_lvalue_sub:
-  forall Delta
-*)
 Lemma tc_expr_lvalue_sub:
   forall Delta Delta', 
     tycontext_sub Delta Delta' ->
@@ -389,19 +375,26 @@ Proof.
   + destruct IHe. apply (H2 w); auto.
 * repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split.
   + admit. 
-Print isBinOpResultType.
-Print denote_tc_assert.
-Print denote_tc_nodivover.
-Print sizeof.
-  + estruct IHe1 as [H8 _]; apply (H8 w); auto.
-    destruct IHe2 as [H8 _]; apply (H8 w); auto.
+  + destruct IHe1 as [H8 _]; apply (H8 w); auto.
+  + destruct IHe2 as [H8 _]; apply (H8 w); auto.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; split; auto.
    destruct IHe as [H8 _]; apply (H8 w); auto.
+  admit.
 * destruct (access_mode t) eqn:?; auto.
  repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
- destruct IHe. apply (H3 w); auto.
+  + destruct IHe. apply (H3 w); auto.
+  + destruct (typeof e); auto;
+    destruct ((composite_types Delta) ! i0) as [co |] eqn:?; try inv H1.
+    admit. admit.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
- destruct IHe as [_ H8]; apply (H8 w); auto.
+  + destruct IHe as [_ H8]; apply (H8 w); auto.
+  + destruct (typeof e); auto;
+    destruct ((composite_types Delta) ! i0) as [co |] eqn:?; try inv H1.
+    admit. admit.
+* unfold tc_bool; simpl.
+  admit.
+* unfold tc_bool; simpl.
+  admit.
 Qed.
 
 Lemma tc_expr_sub:
