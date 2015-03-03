@@ -26,11 +26,6 @@ Definition empty_tenv := PTree.empty val.
 Definition empty_environ cenv : environ :=
 mkEnviron (filter_genv (empty_genv cenv)) (Map.empty _) (Map.empty _).
 
-Definition Delta1 cenv: tycontext := 
- mk_tycontext (PTree.set 1%positive (type_int32s, false) 
-                                 (PTree.empty (type * bool)))
-    (PTree.empty _) Tvoid (PTree.empty _) (PTree.empty _) cenv.
-
 Lemma Zle_bool_rev: forall x y, Zle_bool x y = Zge_bool y x.
 Proof.
 intros. pose proof (Zle_cases x y). pose proof (Zge_cases y x).

@@ -461,21 +461,36 @@ let deferr := arg_type e in
 denote_tc_assert Delta 
 match op with
   | Cop.Oadd => match classify_add' (typeof a1) (typeof a2) with 
-                    | Cop.add_case_pi _ => tc_andp' (tc_isptr a1) (tc_bool (is_complete_pointer_type Delta ty) reterr)
-                    | Cop.add_case_ip _ => tc_andp' (tc_isptr a2) (tc_bool (is_complete_pointer_type Delta ty) reterr)
-                    | Cop.add_case_pl _ => tc_andp' (tc_isptr a1) (tc_bool (is_complete_pointer_type Delta ty) reterr)
-                    | Cop.add_case_lp _ => tc_andp' (tc_isptr a2) (tc_bool (is_complete_pointer_type Delta ty) reterr)
+                    | Cop.add_case_pi t => tc_andp' (tc_andp' (tc_isptr a1)
+                                           (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                            (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.add_case_ip t => tc_andp' (tc_andp' (tc_isptr a2)
+                                           (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                            (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.add_case_pl t => tc_andp' (tc_andp' (tc_isptr a1)
+                                           (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                            (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.add_case_lp t => tc_andp' (tc_andp' (tc_isptr a2)
+                                           (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                            (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match classify_sub' (typeof a1) (typeof a2) with 
-                    | Cop.sub_case_pi _ => tc_andp' (tc_isptr a1) (tc_bool (is_complete_pointer_type Delta ty) reterr)
-                    | Cop.sub_case_pl _ => tc_andp' (tc_isptr a1) (tc_bool (is_complete_pointer_type Delta ty) reterr)
-                    | Cop.sub_case_pp ty2 =>  (*tc_isptr may be redundant here*)
-                             tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_samebase a1 a2)
-                             (tc_isptr a1)) (tc_isptr a2)) (tc_bool (is_int32_type ty) reterr))
-			     (tc_andp' (tc_bool (negb (Int.eq (Int.repr (sizeof (composite_types Delta) ty2)) Int.zero)) 
-                                      (pp_compare_size_0 ty2) )
-                                      (tc_bool (is_complete_pointer_type Delta ty) reterr))
+                    | Cop.sub_case_pi t => tc_andp' (tc_andp' (tc_isptr a1)
+                                           (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                            (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.sub_case_pl t => tc_andp' (tc_andp' (tc_isptr a1)
+                                           (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                            (tc_bool (is_pointer_type ty) reterr)
+                    | Cop.sub_case_pp t =>  (*tc_isptr may be redundant here*)
+                             tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_samebase a1 a2)
+                             (tc_isptr a1))
+                              (tc_isptr a2))
+                               (tc_bool (is_int32_type ty) reterr))
+			        (tc_bool (negb (Int.eq (Int.repr (sizeof (composite_types Delta) t)) Int.zero)) 
+                                      (pp_compare_size_0 t)))
+                                 (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                  (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end 
   | Cop.Omul => binarithType (typeof a1) (typeof a2) ty deferr reterr
@@ -806,6 +821,7 @@ rewrite den_isBinOpR in IBR; simpl in IBR;
  destruct (typeof e2) as [ | i2 s2 ? | s2 ? | [ | ] ? | | | | | ];
  try solve [inv IBR];
  destruct (eval_expr Delta e2 rho) eqn:E2;  try discriminate TV2;
+
 rewrite tc_val_eq' in TV1,TV2;
 unfold eval_binop, Cop2.sem_binary_operation', force_val2;
 
@@ -814,6 +830,7 @@ unfold classify_cmp',classify_add',classify_sub',classify_shift',stupid_typeconv
  rewrite <- denote_tc_assert'_eq in IBR;
 
 crunchp;
+
 try rewrite E1 in *; 
 try rewrite E2 in *;
 try contradiction H;
@@ -822,6 +839,7 @@ try match goal with H: is_int32_type ?t = true |- _ =>
  destruct t  as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; 
   inv H; auto
 end;
+
 simpl in *; crunchp; try rewrite Int.eq_true;
 cbv beta;
 first [ apply typecheck_val_sem_cmp; apply I
@@ -829,6 +847,7 @@ first [ apply typecheck_val_sem_cmp; apply I
        |  apply typecheck_sem_mod_sound; assumption
        | destruct s1; try destruct s2; simpl; apply typecheck_val_of_bool
        | idtac];
+
 try match goal with
 | |- context [Cop2.sem_add] =>
   unfold Cop2.sem_add; rewrite classify_add_eq; unfold classify_add', stupid_typeconv; 
