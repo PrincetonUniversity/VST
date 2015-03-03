@@ -8,7 +8,9 @@ Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.seplog.
 Require Import veric.assert_lemmas.
-Require Import veric.expr veric.expr_lemmas.
+Require Import veric.tycontext.
+Require Import veric.expr.
+Require Import veric.expr_lemmas.
 
 Open Local Scope pred.
 
@@ -549,14 +551,14 @@ Qed.
 Lemma find_symbol_add_globals_nil:
   forall {F V} i g id p,
      (Genv.find_symbol
-        (Genv.add_globals (Genv.empty_genv F V) ((i, g) :: nil)) id =
+        (Genv.add_globals (Genv.empty_genv F V nil) ((i, g) :: nil)) id =
            Some p <-> (i = id /\ 1%positive = p)).
 Proof. intros. simpl.
        unfold Genv.find_symbol, Genv.add_global in *; simpl.
       destruct (eq_dec i id); subst.
         rewrite PTree.gss. intuition. congruence. congruence.
         rewrite PTree.gso by auto. split; intro Hx.
-           apply  Genv.empty_genv_obligation_1 in Hx. xomega.
+        rewrite PTree.gempty in Hx; inv Hx.
          inv Hx. congruence.
 Qed.
 
@@ -564,13 +566,13 @@ Lemma find_symbol_add_globals_cons:
   forall {F V} i g id dl (HD: 0 < Zlength dl), 
    ~ In i (map fst dl) -> list_norepet (map fst dl) -> 
      (Genv.find_symbol
-        (Genv.add_globals (Genv.empty_genv F V) (dl ++ (i, g) :: nil)) id =
+        (Genv.add_globals (Genv.empty_genv F V nil) (dl ++ (i, g) :: nil)) id =
            Some (1 + (Z.to_pos (Zlength dl)))%positive <-> i = id).
 Proof.
 intros.
-  assert (Genv.genv_next (Genv.empty_genv F V) = 1%positive)  by reflexivity.
-  assert (Genv.find_symbol (Genv.empty_genv F V)  id = None) by (intros; apply PTree.gempty).
- forget (Genv.empty_genv F V) as ge.
+  assert (Genv.genv_next (Genv.empty_genv F V nil) = 1%positive)  by reflexivity.
+  assert (Genv.find_symbol (Genv.empty_genv F V nil)  id = None) by (intros; apply PTree.gempty).
+ forget (Genv.empty_genv F V nil) as ge.
  forget (1%positive) as n. 
   revert ge n H H0 H1 H2 HD; induction dl; intros.
   (*base case*)
@@ -646,11 +648,11 @@ Lemma find_symbol_add_globals:
   match dl with
     nil => forall p,
       (Genv.find_symbol
-        (Genv.add_globals (Genv.empty_genv F V) ((i, g) :: nil)) id =
+        (Genv.add_globals (Genv.empty_genv F V nil) ((i, g) :: nil)) id =
            Some p <-> (i = id /\ 1%positive = p))
   | _ =>
      (Genv.find_symbol
-        (Genv.add_globals (Genv.empty_genv F V) (dl ++ (i, g) :: nil)) id =
+        (Genv.add_globals (Genv.empty_genv F V nil) (dl ++ (i, g) :: nil)) id =
            Some (1 + (Z.to_pos (Zlength dl)))%positive <-> i = id)
   end.
 Proof.
@@ -668,12 +670,12 @@ Lemma find_symbol_add_globals':
   match dl with
     nil => forall p,
       (Genv.find_symbol
-        (Genv.add_globals (Genv.empty_genv F V) ((i, g) :: nil)) id =
+        (Genv.add_globals (Genv.empty_genv F V nil) ((i, g) :: nil)) id =
            Some p <-> (i = id /\ 1%positive = p))
   | _ =>
      ~ In i (map fst dl) -> list_norepet (map fst dl) -> 
      (Genv.find_symbol
-        (Genv.add_globals (Genv.empty_genv F V) (dl ++ (i, g) :: nil)) id =
+        (Genv.add_globals (Genv.empty_genv F V nil) (dl ++ (i, g) :: nil)) id =
            Some (1 + (Z.to_pos (Zlength dl)))%positive <-> i = id)
   end.
 Proof.
@@ -789,7 +791,7 @@ Qed.
 (*Partial attempt at porting add_globales_hack*) 
 Lemma add_globals_hack_nil:
    forall gev,
-    gev = Genv.add_globals (Genv.empty_genv fundef type) (rev nil) ->
+    gev = Genv.add_globals (Genv.empty_genv fundef type nil) (rev nil) ->
    forall id, Genv.find_symbol gev id = None.
 Proof. simpl; intros; subst.
   unfold Genv.find_symbol, Genv.empty_genv. simpl. apply PTree.gempty.
@@ -797,7 +799,7 @@ Qed.
 
 Lemma add_globals_hack_single:
    forall v gev,
-    gev = Genv.add_globals (Genv.empty_genv fundef type) (cons v nil) ->
+    gev = Genv.add_globals (Genv.empty_genv fundef type nil) (cons v nil) ->
    forall id b, (Genv.find_symbol gev id = Some b <-> fst v = id /\ b = 1%positive).
 Proof. simpl; intros; subst.
   unfold Genv.find_symbol, Genv.empty_genv. simpl.
@@ -827,7 +829,7 @@ Qed.
 Lemma add_globals_hack:
    forall vl gev,
     list_norepet (map fst vl) ->
-    gev = Genv.add_globals (Genv.empty_genv fundef type) (rev vl) ->
+    gev = Genv.add_globals (Genv.empty_genv fundef type nil) (rev vl) ->
 
    (forall id b, 0 <= Zpos b - 1 < Zlength vl ->
                            (Genv.find_symbol gev id = Some b <->
@@ -868,7 +870,7 @@ Focus 2. {
         rewrite nth_error_app. 
         apply iff_trans with (i=id); [ | simpl; split; intro; subst; auto; inv H; auto].
         rewrite In_rev in H2. rewrite <- map_rev in H2.
-       rewrite <- list_norepet_rev in H3. rewrite <- map_rev in H3.
+       rewrite <- Clight_lemmas.list_norepet_rev in H3. rewrite <- map_rev in H3.
          forget (rev vl) as dl.
     assert (FSA := find_symbol_add_globals i g  id _ H2 H3).
         destruct dl.

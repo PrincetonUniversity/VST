@@ -13,6 +13,13 @@ Require Export veric.expr_lemmas3.
 Import Cop.
 Import Cop2.
 
+Lemma denote_tc_assert_tc_bool: forall Delta b rho err,
+  denote_tc_assert Delta (tc_bool b err) rho -> b = true.
+Proof.
+  intros.
+  destruct b; auto.
+Qed.
+
 (** Main soundness result for the typechecker **)
 
 Lemma typecheck_both_sound: 
@@ -101,22 +108,20 @@ eapply typecheck_expr_sound_Efield; eauto.
 *
 eapply typecheck_lvalue_sound_Efield; eauto.
 * (* Esizeof *)
-simpl in H0 |- *.
-unfold tc_bool in H0.
-destruct (complete_type (composite_types Delta) t &&
-             eqb_type t0 (Tint I32 Unsigned noattr)) eqn:?H; inv H0.
-rewrite andb_true_iff in H1.
-destruct H1.
+simpl in H0.
+repeat rewrite denote_tc_assert_andp in H0.
+destruct H0.
+apply denote_tc_assert_tc_bool in H0.
+apply denote_tc_assert_tc_bool in H1.
 rewrite eqb_type_spec in H1.
 subst.
 reflexivity.
 * (* Ealignof *)
-simpl in H0 |- *.
-unfold tc_bool in H0.
-destruct (complete_type (composite_types Delta) t &&
-             eqb_type t0 (Tint I32 Unsigned noattr)) eqn:?H; inv H0.
-rewrite andb_true_iff in H1.
-destruct H1.
+simpl in H0.
+repeat rewrite denote_tc_assert_andp in H0.
+destruct H0.
+apply denote_tc_assert_tc_bool in H0.
+apply denote_tc_assert_tc_bool in H1.
 rewrite eqb_type_spec in H1.
 subst.
 reflexivity.
@@ -598,24 +603,24 @@ auto.
 rewrite HH; eauto.
 *
 simpl in H1.
-unfold tc_bool in H1.
-destruct (complete_type (composite_types Delta) t &&
-             eqb_type t0 (Tint I32 Unsigned noattr)) eqn:?H; inv H1.
-rewrite andb_true_iff in H2.
-destruct H2.
-rewrite eqb_type_spec in H1.
+repeat rewrite denote_tc_assert_andp in H1.
+destruct H1.
+apply denote_tc_assert_tc_bool in H1.
+apply denote_tc_assert_tc_bool in H2.
+rewrite eqb_type_spec in H2.
+subst.
 simpl eval_expr.
 unfold_lift; simpl.
 rewrite <- HH.
 constructor.
 *
 simpl in H1.
-unfold tc_bool in H1.
-destruct (complete_type (composite_types Delta) t &&
-             eqb_type t0 (Tint I32 Unsigned noattr)) eqn:?H; inv H1.
-rewrite andb_true_iff in H2.
-destruct H2.
-rewrite eqb_type_spec in H1.
+repeat rewrite denote_tc_assert_andp in H1.
+destruct H1.
+apply denote_tc_assert_tc_bool in H1.
+apply denote_tc_assert_tc_bool in H2.
+rewrite eqb_type_spec in H2.
+subst.
 simpl eval_expr.
 unfold_lift; simpl.
 rewrite <- HH.

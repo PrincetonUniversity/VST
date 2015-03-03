@@ -318,9 +318,45 @@ Proof.
 intros. intros w ?; apply H0; auto.
 Qed.
 
+Lemma complete_pointer_type_complete_type: forall Delta t,
+  is_complete_pointer_type Delta t = true ->
+  complete_type (composite_types Delta) t = true.
+Proof.
+  intros.
+  destruct t;
+  try inv H;
+  simpl;
+  try reflexivity.
+  symmetry.
+  assumption.
+Qed.
+
 Section STABILITY.
 Variables Delta Delta': tycontext.
 Hypothesis extends: tycontext_sub Delta Delta'.
+
+Lemma is_complete_pointer_type_sub: forall t,
+  is_complete_pointer_type Delta t = true ->
+  is_complete_pointer_type Delta' t = true.
+Proof.
+  intros.
+Opaque complete_type.
+  destruct t;
+  simpl in H |- *; auto;
+  eapply complete_type_sub; eauto.
+Transparent complete_type.
+Qed.
+
+Lemma denote_tc_assert_tc_bool_sub: forall b b' err rho,
+  (b = true -> b' = true) ->
+  denote_tc_assert Delta (tc_bool b err) rho -> denote_tc_assert Delta' (tc_bool b' err) rho.
+Proof.
+  intros.
+  destruct b.
+  + specialize (H eq_refl); subst.
+    simpl; exact I.
+  + inversion H0.
+Qed.
 
 Lemma sem_binary_operation'_sub: forall b e1 e2 v1 v2 v t rho,
   denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho ->
@@ -332,46 +368,249 @@ Proof.
   + simpl in H0 |- *.
     unfold sem_add in H0 |- *.
     unfold isBinOpResultType in H.
+    destruct (Cop.classify_add (typeof e1) (typeof e2)); auto; simpl;
+    rewrite !denote_tc_assert_andp in H;
+    destruct H as [[_ ?] _];
+    apply denote_tc_assert_tc_bool, complete_pointer_type_complete_type in H;
 
-    destruct (Cop.classify_add (typeof e1) (typeof e2)); auto; simpl.
-    match goal with |- ?S _ _ _ _ = _ => unfold S end.
-    erewrite <- sizeof_sub. by eauto.
-    
+    match goal with |- ?S _ _ _ _ = _ => unfold S in H0 |- *end;
+    (erewrite <- sizeof_sub; [exact H0 | auto | auto]).
+  + simpl in H0 |- *.
+    unfold sem_sub in H0 |- *.
+    unfold isBinOpResultType in H.
+    destruct (Cop.classify_sub (typeof e1) (typeof e2)); auto; simpl;
+    rewrite !denote_tc_assert_andp in H;
+    destruct H as [[_ ?] _];
+    apply denote_tc_assert_tc_bool, complete_pointer_type_complete_type in H;
 
+    match goal with |- ?S _ _ _ _ = _ => unfold S in H0 |- *end;
+    (erewrite <- sizeof_sub; [exact H0 | auto | auto]).
+Qed.
+
+Lemma isBinOpResultType_sub: forall b e1 e2 t rho
+  (eqe1: eval_expr Delta e1 rho = eval_expr Delta' e1 rho)
+  (eqe2: eval_expr Delta e2 rho = eval_expr Delta' e2 rho),
+  denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho ->
+  denote_tc_assert Delta' (isBinOpResultType Delta' b e1 e2 t) rho.
+Proof.
+  intros.
+  destruct b;
+  unfold isBinOpResultType in H |- *;
+  unfold binarithType in H |- *;
+  repeat
+  match goal with
+  | |- appcontext [match ?CLASSIFY (typeof e1) (typeof e2) with _ => _ end] =>
+         destruct (CLASSIFY (typeof e1) (typeof e2))
+  end;
+  try
+  match goal with
+  | |- appcontext [match ?s with | Signed => _ | Unsigned => _ end] =>
+         destruct s
+  end;
+  try unfold check_pp_int in H |- *;
+  try unfold check_pl_long in H |- *;
+  repeat rewrite denote_tc_assert_andp in H;
+  repeat rewrite denote_tc_assert_andp;
+  repeat rewrite binop_lemmas.denote_tc_assert_orp in H;
+  repeat rewrite binop_lemmas.denote_tc_assert_orp;
+  try rewrite binop_lemmas.denote_tc_assert_nonzero' in H |- *;
+  try rewrite binop_lemmas.denote_tc_assert_nodivover' in H |- *;
+  repeat rewrite binop_lemmas.denote_tc_assert_ilt' in H |- *;
+  repeat rewrite binop_lemmas.denote_tc_assert_iszero' in H |- *;
+  simpl in H |- *;
+  unfold_lift in H;
+  unfold_lift;
+  try rewrite <- eqe1; try rewrite <- eqe2;
+  repeat split; try tauto;
+  try
+  match goal with
+  | |- denote_tc_assert _ (tc_bool ?b _) _ =>
+     match b with
+     | is_complete_pointer_type Delta' ?t =>
+         apply (denote_tc_assert_tc_bool_sub _ _ _ _ (is_complete_pointer_type_sub t)); tauto
+     | _ =>
+         apply (denote_tc_assert_tc_bool_sub _ _ _ _ (@id (b = true))); tauto
+     end
+  end.
+  erewrite <- sizeof_sub; [| eauto |].
+  eapply denote_tc_assert_tc_bool_sub; [exact (@id _) | tauto].
+  apply complete_pointer_type_complete_type.
+  destruct H as [[_ ?] _].
+  eapply denote_tc_assert_tc_bool; eauto.
+Qed.
+
+Lemma eval_field_expr_sub: forall e i t p rho,
+  denote_tc_assert Delta (typecheck_expr Delta (Efield e i t)) rho ->
+  eval_field Delta (typeof e) i p = eval_field Delta' (typeof e) i p.
+Proof.
+  intros.
+  simpl in H.
+  destruct (access_mode t); try inv H.
+  rewrite !denote_tc_assert_andp in H.
+  destruct H.
+  destruct (typeof e); try inv H0;
+  simpl eval_field;
+  destruct ((composite_types Delta) ! i0) as [co |] eqn:HH; try inv H0;
+  pose proof composite_types_get_sub _ _ extends _ _ HH as HH';
+  rewrite HH'; auto.
+  destruct (field_offset (composite_types Delta) i (co_members co)) eqn:?; inv H0.
+  eapply field_offset_sub in Heqr; [| exact extends | exact HH].
+  rewrite Heqr.
+  reflexivity.
+Qed.
+
+Lemma isCastResultType_sub: forall e t0 t rho,
+  eval_expr Delta e rho = eval_expr Delta' e rho ->
+  denote_tc_assert Delta (isCastResultType Delta t0 t e) rho ->
+  denote_tc_assert Delta' (isCastResultType Delta' t0 t e) rho.
+Proof.
+  unfold isCastResultType.
+  intros ? ? ? ? HH H.
+  destruct (Cop.classify_cast t0 t);
+  repeat if_tac;
+  try rewrite binop_lemmas.denote_tc_assert_nonzero' in H |- *;
+  try rewrite binop_lemmas.denote_tc_assert_nodivover' in H |- *;
+  repeat rewrite binop_lemmas.denote_tc_assert_ilt' in H |- *;
+  repeat rewrite binop_lemmas.denote_tc_assert_iszero' in H |- *;
+  simpl in H |- *;
+  unfold_lift in H;
+  unfold_lift;
+  try rewrite <- HH;
+  repeat
+  match goal with
+  | |- context [match ?t with _ => _ end] => destruct t
+  end;
+  repeat split; try tauto;
+  try
+  match goal with
+  | |- denote_tc_assert _ (tc_bool ?b _) _ =>
+     match b with
+     | is_complete_pointer_type Delta' ?t =>
+         apply (denote_tc_assert_tc_bool_sub _ _ _ _ (is_complete_pointer_type_sub t)); tauto
+     | _ =>
+         apply (denote_tc_assert_tc_bool_sub _ _ _ _ (@id (b = true))); tauto
+     end
+  end.
+Qed.
+
+Lemma eval_field_lvalue_sub: forall e i t p rho,
+  denote_tc_assert Delta (typecheck_lvalue Delta (Efield e i t)) rho ->
+  eval_field Delta (typeof e) i p = eval_field Delta' (typeof e) i p.
+Proof.
+  intros.
+  simpl in H.
+  rewrite !denote_tc_assert_andp in H.
+  destruct H.
+  destruct (typeof e); try inv H0;
+  simpl eval_field;
+  destruct ((composite_types Delta) ! i0) as [co |] eqn:HH; try inv H0;
+  pose proof composite_types_get_sub _ _ extends _ _ HH as HH';
+  rewrite HH'; auto.
+  destruct (field_offset (composite_types Delta) i (co_members co)) eqn:?; inv H0.
+  eapply field_offset_sub in Heqr; [| exact extends | exact HH].
+  rewrite Heqr.
+  reflexivity.
+Qed.
 
 Lemma eval_expr_lvalue_sub: forall e,
-  (forall rho w, tc_expr Delta e rho w -> eval_expr Delta e rho = eval_expr Delta' e rho) /\
-  (forall rho w, tc_lvalue Delta e rho w -> eval_lvalue Delta e rho = eval_lvalue Delta' e rho).
+  (forall rho w, typecheck_environ Delta rho -> tc_expr Delta e rho w -> eval_expr Delta e rho = eval_expr Delta' e rho) /\
+  (forall rho w, typecheck_environ Delta rho -> tc_lvalue Delta e rho w -> eval_lvalue Delta e rho = eval_lvalue Delta' e rho).
 Proof.
   unfold tc_expr, tc_lvalue.
-  induction e; intros; split; intros; try reflexivity; simpl; unfold_lift.
+  induction e; intros; split; intros ? ? HH H; try reflexivity; simpl; unfold_lift; simpl.
   + simpl in H.
     destruct (access_mode t); try inv H.
     rewrite !denote_tc_assert_andp in H.
-    erewrite (proj1 IHe) by tauto.
+    erewrite (proj1 IHe) with (w := w) by tauto.
     reflexivity.
   + simpl in H.
     rewrite !denote_tc_assert_andp in H.
-    erewrite (proj1 IHe) by tauto.
+    erewrite (proj1 IHe) with (w := w) by tauto.
     reflexivity.
   + simpl in H.
     rewrite !denote_tc_assert_andp in H.
-    eapply (proj2 IHe); tauto.
+    eapply (proj2 IHe) with (w := w); tauto.
   + simpl in H.
     rewrite !denote_tc_assert_andp in H.
-    erewrite (proj1 IHe) by tauto.
+    erewrite (proj1 IHe) with (w := w) by tauto.
     reflexivity.
   + simpl in H.
     rewrite !denote_tc_assert_andp in H.
-    Print isBinOpResultType.
-Check sem_binary_operation'.
-Lemma tc_expr_lvalue_sub:
-  forall Delta Delta', 
-    tycontext_sub Delta Delta' ->
-  forall rho e,
-   (tc_expr Delta e rho |-- tc_expr Delta' e rho && !! (eval_expr Delta e rho = eval_expr Delta' e rho) /\
-    tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho && !! (eval_lvalue Delta e rho = eval_lvalue Delta' e rho)).
+    destruct H as [[? ?] ?].
+    pose proof typecheck_expr_sound _ _ _ HH H0.
+    pose proof typecheck_expr_sound _ _ _ HH H1.
+    rewrite tc_val_eq in H2, H3.
+    pose proof binop_lemmas.typecheck_binop_sound _ _ _ _ _ _ H H3 H2.
+    simpl in H4.
+    unfold force_val2.
+    destruct (sem_binary_operation' Delta b (typeof e1) 
+               (typeof e2) true2 (eval_expr Delta e1 rho)
+               (eval_expr Delta e2 rho)) eqn:?.
+    - eapply sem_binary_operation'_sub in Heqo; [| eauto].
+      erewrite <- (proj1 IHe1) with (w := w) by eauto.
+      erewrite <- (proj1 IHe2) with (w := w) by eauto.
+      rewrite Heqo.
+      reflexivity.
+    - destruct t; inv H4.
+  + simpl in H.
+    rewrite !denote_tc_assert_andp in H.
+    erewrite (proj1 IHe) with (w := w) by tauto.
+    reflexivity.
+Opaque typecheck_expr.
+  + simpl in H.
+Transparent typecheck_expr.
+    erewrite eval_field_expr_sub by eauto.
+    simpl in H.
+    destruct (access_mode t); try inv H.
+    rewrite !denote_tc_assert_andp in H.
+    destruct H as [? _].
+    erewrite (proj2 IHe) with (w := w) by tauto.
+    reflexivity.
+Opaque typecheck_lvalue.
+  + simpl in H.
+Transparent typecheck_lvalue.
+    erewrite eval_field_lvalue_sub by eauto.
+    simpl in H.
+    rewrite !denote_tc_assert_andp in H.
+    destruct H as [? _].
+    erewrite (proj2 IHe) with (w := w) by tauto.
+    reflexivity.
+  + simpl in H.
+    rewrite !denote_tc_assert_andp in H.
+    destruct H.
+    apply denote_tc_assert_tc_bool in H.
+    erewrite sizeof_sub by eauto.
+    reflexivity.
+  + simpl in H.
+    rewrite !denote_tc_assert_andp in H.
+    destruct H.
+    apply denote_tc_assert_tc_bool in H.
+    erewrite alignof_sub by eauto.
+    reflexivity.
+Qed.
+
+Lemma eval_expr_sub: forall e rho w,
+  typecheck_environ Delta rho -> tc_expr Delta e rho w -> eval_expr Delta e rho = eval_expr Delta' e rho.
 Proof.
+  intros.
+  eapply (proj1 (eval_expr_lvalue_sub e)); eauto.
+Qed.
+
+Lemma eval_lvalue_sub: forall e rho w,
+  typecheck_environ Delta rho -> tc_lvalue Delta e rho w -> eval_lvalue Delta e rho = eval_lvalue Delta' e rho.
+Proof.
+  intros.
+  eapply (proj2 (eval_expr_lvalue_sub e)); eauto.
+Qed.
+
+Lemma tc_expr_lvalue_sub: forall rho,
+  typecheck_environ Delta rho ->
+  forall e,
+    tc_expr Delta e rho |-- tc_expr Delta' e rho /\
+    tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho.
+Proof.
+  rename extends into H.
+  intros rho HHH.
   induction e; unfold tc_expr, tc_lvalue; split; intro w; unfold prop;
   simpl; auto;
   try solve [destruct t as [  | [| | |] |  | [|] | | | | |]; auto].
@@ -398,7 +637,7 @@ Proof.
   simpl @fst; simpl @snd. destruct H; subst t1; auto.
   destruct b; simpl in H0; subst; try solve [if_tac; auto].
   if_tac; intros; try contradiction.
-  destruct b0; auto. exact (conj I eq_refl).
+  destruct b0; auto. exact I.
 * destruct (access_mode t) eqn:?H; intro HH; try inversion HH.
   rewrite !denote_tc_assert_andp in HH |- *.
   destruct HH as [[? ?] ?].
@@ -409,17 +648,11 @@ Proof.
     simpl.
     tauto.
   + unfold tc_bool in H2 |- *; if_tac; tauto.
-  + destruct (H4 w H1) as [? ?].
-    simpl in H6.
+  + pose proof (H4 w H1).
     simpl in H3 |- *.
     unfold_lift in H3; unfold_lift.
-    rewrite <- H6.
+    rewrite <- eval_expr_sub with (w := w) by auto.
     exact H3.
-  + destruct (H4 w H1) as [? ?].
-    simpl in H6.
-    simpl; unfold_lift.
-    rewrite H6.
-    reflexivity.
 * destruct IHe.
   repeat rewrite denote_tc_assert_andp.
   intros [[? ?] ?].
@@ -427,46 +660,26 @@ Proof.
   + unfold tc_expr in H0.
     apply (H0 w); unfold prop; auto.
   + unfold tc_bool in *; if_tac; tauto.
-  + destruct (H0 w H2) as [? ?].
-    simpl in H6.
+  + pose proof (H0 w H2).
     simpl in H4 |- *.
     unfold_lift in H4; unfold_lift.
-    rewrite <- H6.
+    rewrite <- eval_expr_sub with (w := w) by auto.
     exact H4.
-  + destruct (H0 w H2) as [? ?].
-    simpl in H6.
-    unfold_lift.
-    rewrite H6.
-    reflexivity.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split.
   + destruct IHe. apply (H3 w); auto.
   + unfold tc_bool in *; if_tac; tauto.
-  + destruct IHe as [_ ?].
-    destruct (H2 w H0).
-    exact H4.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split.
   + unfold tc_bool in *; if_tac; tauto.
   + destruct IHe. apply (H2 w); auto.
-  + destruct IHe as [? _].
-    destruct (H2 w H1).
-    simpl in H4.
-    unfold_lift.
-    rewrite H4.
-    reflexivity.
 * repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split.
-  + admit. (* preserve isBinOpResultType *)
+  + eapply isBinOpResultType_sub; eauto;
+    apply eval_expr_sub with (w := w); auto.
   + destruct IHe1 as [H8 _]; apply (H8 w); auto.
   + destruct IHe2 as [H8 _]; apply (H8 w); auto.
-  + unfold_lift.
-    destruct (proj1 IHe1 w H1).
-    destruct (proj1 IHe2 w H2).
-    simpl in H4, H6.
-    rewrite H4, H6.
-    admit. (* preserve sem_binary_operation' *)
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
   + destruct IHe as [H8 _]; apply (H8 w); auto.
-  + admit. (* preserve isCastResultType *)
-  + admit. (* preserve sem_cast *)
+  + apply isCastResultType_sub; auto.
+    apply eval_expr_sub with (w := w); auto.
 * destruct (access_mode t) eqn:?; try solve [intro HH; inv HH].
   repeat rewrite denote_tc_assert_andp. intros [? ?]; repeat split; auto.
   + destruct IHe. apply (H3 w); auto.
@@ -476,8 +689,6 @@ Proof.
     destruct (field_offset (composite_types Delta) i (co_members co)) eqn: ?H; inv H1.
     erewrite field_offset_sub by eauto.
     exact I.
-  + unfold_lift.
-    admit. (* preserve eval_field *)
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
   + destruct IHe as [_ H8]; apply (H8 w); auto.
   + destruct (typeof e); auto;
@@ -486,61 +697,59 @@ Proof.
     destruct (field_offset (composite_types Delta) i (co_members co)) eqn: ?H; inv H1.
     erewrite field_offset_sub by eauto.
     exact I.
-  + unfold_lift.
-    admit. (* preserve eval_field *)
-* unfold tc_bool; simpl.
-  intro.
-  split.
-  + destruct (complete_or_function_type (composite_types Delta) t &&
-            eqb_type t0 (Tint I32 Unsigned noattr))%bool eqn:?; inv H0.
-    rewrite andb_true_iff in Heqb.
-    destruct Heqb.
-    rewrite H1; clear H1.
-    erewrite complete_or_function_type_sub; eauto.
-    exact I.
-  + unfold_lift.
-    simpl.
-Print sizeof_stable.
-    erewrite sizeof_sub. by eauto.
-  admit. (* preserve complete_type *)
-* unfold tc_bool; simpl.
-  admit. (* preserve complete_type *)
-Qed.
+* rewrite !denote_tc_assert_andp.
+  intros [? ?].
+  split; [clear H1 | clear H0].
+  + eapply denote_tc_assert_tc_bool_sub; [| eauto].
+    apply complete_type_sub.
+    auto.
+  + eapply denote_tc_assert_tc_bool_sub; [| eauto].
+    exact (@id _).
+* rewrite !denote_tc_assert_andp.
+  intros [? ?].
+  split; [clear H1 | clear H0].
+  + eapply denote_tc_assert_tc_bool_sub; [| eauto].
+    apply complete_type_sub.
+    auto.
+  + eapply denote_tc_assert_tc_bool_sub; [| eauto].
+    exact (@id _).
+Qed.    
 
 Lemma tc_expr_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall e rho, tc_expr Delta e rho |-- tc_expr Delta' e rho.
+    forall e rho, typecheck_environ Delta rho -> tc_expr Delta e rho |-- tc_expr Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
 Lemma tc_lvalue_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall e rho, tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho.
+    forall e rho, typecheck_environ Delta rho -> tc_lvalue Delta e rho |-- tc_lvalue Delta' e rho.
 Proof. intros. apply tc_expr_lvalue_sub; auto. Qed.
 
 Lemma tc_temp_id_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall id t e rho, 
+    forall id t e rho,
    tc_temp_id id t Delta e rho |-- tc_temp_id id t Delta' e rho.
 Proof.
+rename extends into H.
 unfold tc_temp_id; intros.
 unfold typecheck_temp_id.
 intros w ?.  hnf in H0|-*.
 destruct H as [? _]. specialize (H id).
 destruct ((temp_types Delta)! id) as [[? ?]|]; try contradiction.
 destruct ((temp_types Delta')! id) as [[? ?]|]; try contradiction.
-destruct H; subst; auto.
+destruct H; subst.
+rewrite !denote_tc_assert_andp in H0 |- *.
+split.
++ eapply denote_tc_assert_tc_bool_sub; [| exact (proj1 H0)].
+  exact (fun x => x).
++ destruct H0 as [? _].
+  apply denote_tc_assert_tc_bool in H.
+  eapply neutral_isCastResultType.
+  exact H.
 Qed.
-
   
 Lemma tc_temp_id_load_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall id t v rho, 
+   forall id t v rho, 
    tc_temp_id_load id t Delta v rho |--    tc_temp_id_load id t Delta' v rho.  
 Proof.
+rename extends into H.
 unfold tc_temp_id_load; simpl; intros.
 intros w [tto [x [? ?]]]; exists tto.
 destruct H as [H _].
@@ -552,19 +761,20 @@ exists b; auto.
 Qed.
 
 Lemma tc_exprlist_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall e t rho, tc_exprlist Delta e t rho |-- tc_exprlist Delta' e t rho.
+  forall e t rho, typecheck_environ Delta rho -> tc_exprlist Delta e t rho |-- tc_exprlist Delta' e t rho.
 Proof.
-intros.
-revert t; induction e; destruct t;  simpl; auto.
-specialize (IHe t).
-unfold tc_exprlist.
-intro w; unfold prop.
-simpl.
-repeat rewrite denote_tc_assert_andp.
-intros [[? ?] ?]; repeat split; auto.
-apply (tc_expr_sub _ _ H e0 rho w); auto.
-apply (IHe w); auto.
+  intros.
+  revert t; induction e; destruct t;  simpl; auto.
+  specialize (IHe t).
+  unfold tc_exprlist.
+  intro w; unfold prop.
+  simpl.
+  repeat rewrite denote_tc_assert_andp.
+  intros [[? ?] ?]; repeat split; auto.
+  + apply (tc_expr_sub _ _ H w H0); auto.
+  + apply isCastResultType_sub; auto.
+    apply eval_expr_sub with w; auto.
+  + apply (IHe w); auto.
 Qed.
 
+End STABILITY.
