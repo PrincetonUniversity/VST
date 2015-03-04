@@ -9,7 +9,9 @@ Require Import veric.res_predicates.
 Require Import veric.seplog.
 Require Import veric.assert_lemmas.
 Require Import veric.Clight_new.
-Require Import veric.expr veric.expr_lemmas.
+Require Import veric.tycontext.
+Require Import veric.expr.
+Require Import veric.expr_lemmas.
 Require Import veric.Clight_lemmas.
 Require Import veric.initial_world.
 
@@ -582,7 +584,7 @@ Qed.
 *)
 
 Lemma init_data_lem:
-forall ge (v : globvar type) (b : block) (m1 : mem')
+forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
   (m3 m4 : Memory.mem) (phi0 : rmap) (a : init_data) (z : Z) (rho: environ)
   (w1 wf : rmap),
    load_store_init_data1 ge m3 b z a ->
@@ -855,7 +857,7 @@ Proof.
 Qed.
 
 Lemma init_data_list_lem:
-  forall ge m0 (v: globvar type) m1 b m2 m3 m4  phi0 rho,
+  forall (ge: genv) m0 (v: globvar type) m1 b m2 m3 m4  phi0 rho,
      alloc m0 0 (Genv.init_data_list_size (gvar_init v)) = (m1,b) ->
      store_zeros m1 b 0 (Genv.init_data_list_size (gvar_init v)) = Some m2 ->
      Genv.store_init_data_list ge m2 b 0 (gvar_init v) = Some m3 ->
@@ -1038,7 +1040,7 @@ assert (forall loc, fst loc <> b -> identity (phi @ loc)).
   induction dl'; simpl; intros; try omega.
 Qed.
 
-Definition all_initializers_aligned (prog: AST.program fundef type) := 
+Definition all_initializers_aligned (prog: program) := 
   forallb (fun idv => andb (initializers_aligned 0 (gvar_init (snd idv)))
                                  (Zlt_bool (Genv.init_data_list_size (gvar_init (snd idv))) Int.modulus))
                       (prog_vars prog) = true.
@@ -1647,11 +1649,11 @@ Proof. intros. simpl; pose proof (Pos2Nat.is_pos b); omega.
 Qed.
 
 Lemma global_initializers:
-  forall prog G m n rho,
+  forall (prog: program) G m n rho,
      list_norepet (prog_defs_names prog) ->
      all_initializers_aligned prog ->
     match_fdecs (prog_funct prog) G ->
-    ge_of rho = filter_genv (Genv.globalenv prog) ->
+    ge_of rho = filter_genv (globalenv prog) ->
     Genv.init_mem prog = Some m ->
      app_pred (globvars2pred (prog_vars prog) rho)
   (inflate_initial_mem m (initial_core (Genv.globalenv prog) G n)).
@@ -1659,15 +1661,19 @@ Proof.
  intros until rho. intros ? AL SAME_IDS RHO ?. 
  unfold all_initializers_aligned in AL.
   unfold Genv.init_mem in H0.
-  unfold Genv.globalenv in *.
-  destruct prog as [fl main vl].
+  unfold globalenv, Genv.globalenv in *.
+  unfold prog_vars, prog_funct in *.
+  change (prog_defs prog) with (AST.prog_defs prog) in AL, SAME_IDS |- *.
+  destruct (program_of_program prog) as [fl prog_pub main].
+  forget (prog_comp_env prog) as cenv.
+  clear prog.
   simpl in *.
-  remember (Genv.add_globals (Genv.empty_genv fundef type) fl) as gev.
+  remember (Genv.add_globals (Genv.empty_genv fundef type prog_pub) fl) as gev.
   rewrite <- (rev_involutive fl) in *.
   rewrite alloc_globals_rev_eq in H0.
   forget (rev fl) as vl'. clear fl; rename vl' into vl.
   unfold prog_defs_names in H. simpl in  H.  
-  unfold prog_vars, prog_funct in *.  simpl in *.
+
   rewrite <- rev_prog_vars' in AL|-*.
   rewrite <- rev_prog_funct' in SAME_IDS.
   rewrite globvars2pred_rev.
@@ -1681,7 +1687,7 @@ Focus 2. {
   rewrite initial_core_rev with (vl:=vl); auto.
    rewrite map_rev in H. rewrite list_norepet_rev in H.
    forget (rev G) as G'; clear G; rename G' into G.
-   pose proof (add_globals_hack _ _ H Heqgev).
+   pose proof (add_globals_hack _ _ prog_pub H Heqgev).
   rename H into H2. rename H1 into H.
  assert (forall j, In j (map (@fst _ _) G) -> ~ In j (map (@fst _ _) (prog_vars' vl))). {
   intros.
@@ -1823,11 +1829,12 @@ rewrite Pos_to_nat_eq_S.
  intro. unfold initial_core. rewrite resource_at_make_rmap. unfold initial_core'.
   simpl. if_tac; auto.
  rewrite (Genv.find_invert_symbol gev i FS). rewrite FI; auto.
+ simpl genv_genv.
  rewrite FS.
- assert (H99: exists t, match type_of_global gev (nextblock m0) with
+ assert (H99: exists t, match type_of_global {| genv_genv := gev; genv_cenv := cenv |} (nextblock m0) with
   | Some t => Some (Vptr (nextblock m0) Int.zero, t)
   | None => Some (Vptr (nextblock m0) Int.zero, Tvoid)
-  end = Some (Vptr (nextblock m0) Int.zero, t)) by (destruct (type_of_global gev (nextblock m0)); eauto).
+  end = Some (Vptr (nextblock m0) Int.zero, t)) by (destruct (type_of_global {| genv_genv := gev; genv_cenv := cenv |} (nextblock m0)); eauto).
 (* destruct H99 as [t H99]; rewrite H99; clear t H99.*)
  case_eq (gvar_volatile v); intros; auto. rename H5 into H10.
 
@@ -1857,7 +1864,7 @@ rewrite Pos_to_nat_eq_S.
  rewrite Z2Nat.id by (pose proof (Pos2Z.is_pos b); omega).
  auto.
   
-pose proof (init_data_list_lem gev m0 v m1 b m2 m3 m (initial_core gev (G0 ++ G) n) rho
+pose proof (init_data_list_lem {| genv_genv := gev; genv_cenv := cenv |} m0 v m1 b m2 m3 m (initial_core gev (G0 ++ G) n) rho
      H3 H5 H8 H9) .
  spec H11.
  clear - AL. simpl in AL. apply andb_true_iff in AL; destruct AL; auto.

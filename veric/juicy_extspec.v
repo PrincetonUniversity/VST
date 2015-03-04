@@ -61,7 +61,7 @@ Qed.
 Record jm_init_package: Type := {
   jminit_m: Memory.mem;
   jminit_prog: program;
-  jminit_G: expr.funspecs;
+  jminit_G: tycontext.funspecs;
   jminit_lev: nat;
   jminit_init_mem: Genv.init_mem jminit_prog = Some jminit_m;
   jminit_defs_no_dups:   list_norepet (prog_defs_names jminit_prog);
