@@ -549,9 +549,9 @@ exists fd; split; auto.
 Qed.
 
 Lemma find_symbol_add_globals_nil:
-  forall {F V} i g id p,
+  forall {F V} i g id p prog_pub,
      (Genv.find_symbol
-        (Genv.add_globals (Genv.empty_genv F V nil) ((i, g) :: nil)) id =
+        (Genv.add_globals (Genv.empty_genv F V prog_pub) ((i, g) :: nil)) id =
            Some p <-> (i = id /\ 1%positive = p)).
 Proof. intros. simpl.
        unfold Genv.find_symbol, Genv.add_global in *; simpl.
@@ -563,16 +563,16 @@ Proof. intros. simpl.
 Qed.
 
 Lemma find_symbol_add_globals_cons:
-  forall {F V} i g id dl (HD: 0 < Zlength dl), 
+  forall {F V} i g id dl prog_pub (HD: 0 < Zlength dl), 
    ~ In i (map fst dl) -> list_norepet (map fst dl) -> 
      (Genv.find_symbol
-        (Genv.add_globals (Genv.empty_genv F V nil) (dl ++ (i, g) :: nil)) id =
+        (Genv.add_globals (Genv.empty_genv F V prog_pub) (dl ++ (i, g) :: nil)) id =
            Some (1 + (Z.to_pos (Zlength dl)))%positive <-> i = id).
 Proof.
 intros.
-  assert (Genv.genv_next (Genv.empty_genv F V nil) = 1%positive)  by reflexivity.
-  assert (Genv.find_symbol (Genv.empty_genv F V nil)  id = None) by (intros; apply PTree.gempty).
- forget (Genv.empty_genv F V nil) as ge.
+  assert (Genv.genv_next (Genv.empty_genv F V prog_pub) = 1%positive)  by reflexivity.
+  assert (Genv.find_symbol (Genv.empty_genv F V prog_pub)  id = None) by (intros; apply PTree.gempty).
+ forget (Genv.empty_genv F V prog_pub) as ge.
  forget (1%positive) as n. 
   revert ge n H H0 H1 H2 HD; induction dl; intros.
   (*base case*)
@@ -643,22 +643,22 @@ intros.
 Qed.
 
 Lemma find_symbol_add_globals:
-  forall {F V} i g id dl , 
+  forall {F V} i g id dl prog_pub, 
    ~ In i (map fst dl) -> list_norepet (map fst dl) -> 
   match dl with
     nil => forall p,
       (Genv.find_symbol
-        (Genv.add_globals (Genv.empty_genv F V nil) ((i, g) :: nil)) id =
+        (Genv.add_globals (Genv.empty_genv F V prog_pub) ((i, g) :: nil)) id =
            Some p <-> (i = id /\ 1%positive = p))
   | _ =>
      (Genv.find_symbol
-        (Genv.add_globals (Genv.empty_genv F V nil) (dl ++ (i, g) :: nil)) id =
+        (Genv.add_globals (Genv.empty_genv F V prog_pub) (dl ++ (i, g) :: nil)) id =
            Some (1 + (Z.to_pos (Zlength dl)))%positive <-> i = id)
   end.
 Proof.
 intros.
 destruct dl.
-  apply find_symbol_add_globals_nil.
+  intros; apply find_symbol_add_globals_nil.
   apply find_symbol_add_globals_cons; trivial.
     rewrite Zlength_correct. simpl.
     rewrite Pos.of_nat_succ. apply Pos2Z.is_pos.
@@ -666,22 +666,22 @@ Qed.
 
 
 Lemma find_symbol_add_globals':
-  forall {F V} i g id dl, 
+  forall {F V} i g id dl prog_pub, 
   match dl with
     nil => forall p,
       (Genv.find_symbol
-        (Genv.add_globals (Genv.empty_genv F V nil) ((i, g) :: nil)) id =
+        (Genv.add_globals (Genv.empty_genv F V prog_pub) ((i, g) :: nil)) id =
            Some p <-> (i = id /\ 1%positive = p))
   | _ =>
      ~ In i (map fst dl) -> list_norepet (map fst dl) -> 
      (Genv.find_symbol
-        (Genv.add_globals (Genv.empty_genv F V nil) (dl ++ (i, g) :: nil)) id =
+        (Genv.add_globals (Genv.empty_genv F V prog_pub) (dl ++ (i, g) :: nil)) id =
            Some (1 + (Z.to_pos (Zlength dl)))%positive <-> i = id)
   end.
 Proof.
 intros.
 destruct dl.
-  apply find_symbol_add_globals_nil.
+  intros; apply find_symbol_add_globals_nil.
   apply find_symbol_add_globals_cons; trivial.
     rewrite Zlength_correct. simpl.
     rewrite Pos.of_nat_succ. apply Pos2Z.is_pos.
@@ -790,16 +790,16 @@ Qed.
 
 (*Partial attempt at porting add_globales_hack*) 
 Lemma add_globals_hack_nil:
-   forall gev,
-    gev = Genv.add_globals (Genv.empty_genv fundef type nil) (rev nil) ->
+   forall gev prog_pub,
+    gev = Genv.add_globals (Genv.empty_genv fundef type prog_pub) (rev nil) ->
    forall id, Genv.find_symbol gev id = None.
 Proof. simpl; intros; subst.
   unfold Genv.find_symbol, Genv.empty_genv. simpl. apply PTree.gempty.
 Qed.
 
 Lemma add_globals_hack_single:
-   forall v gev,
-    gev = Genv.add_globals (Genv.empty_genv fundef type nil) (cons v nil) ->
+   forall v gev prog_pub,
+    gev = Genv.add_globals (Genv.empty_genv fundef type prog_pub) (cons v nil) ->
    forall id b, (Genv.find_symbol gev id = Some b <-> fst v = id /\ b = 1%positive).
 Proof. simpl; intros; subst.
   unfold Genv.find_symbol, Genv.empty_genv. simpl.
@@ -810,7 +810,7 @@ Proof. simpl; intros; subst.
   rewrite PTree.gso.
     split; intros. rewrite PTree.gempty in H. inv H.
     destruct H; subst. congruence.
-  auto. 
+  auto.
 Qed.
 
 Instance EqDec_Z : EqDec Z := zeq.
@@ -827,9 +827,9 @@ Proof.
 Qed.
 
 Lemma add_globals_hack:
-   forall vl gev,
+   forall vl gev prog_pub,
     list_norepet (map fst vl) ->
-    gev = Genv.add_globals (Genv.empty_genv fundef type nil) (rev vl) ->
+    gev = Genv.add_globals (Genv.empty_genv fundef type prog_pub) (rev vl) ->
 
    (forall id b, 0 <= Zpos b - 1 < Zlength vl ->
                            (Genv.find_symbol gev id = Some b <->
@@ -872,7 +872,7 @@ Focus 2. {
         rewrite In_rev in H2. rewrite <- map_rev in H2.
        rewrite <- Clight_lemmas.list_norepet_rev in H3. rewrite <- map_rev in H3.
          forget (rev vl) as dl.
-    assert (FSA := find_symbol_add_globals i g  id _ H2 H3).
+    assert (FSA := find_symbol_add_globals i g  id _ prog_pub H2 H3).
         destruct dl.
       rewrite (FSA (Z.to_pos (1 + Zlength (@nil (ident * globdef fundef type))))).
       simpl. intuition.
@@ -964,6 +964,8 @@ Lemma find_symbol_globalenv:
 Proof.
 intros.
 unfold Genv.globalenv in H0.
+change (AST.prog_public prog) with (prog_public prog) in H0.
+change (AST.prog_defs prog) with (prog_defs prog) in H0.
 assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))).
  rewrite <- (rev_involutive (prog_defs prog)) in H0.
  clear - H0.
@@ -982,7 +984,7 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))).
  rewrite Zlength_cons. simpl Z.pos. rewrite Genv.add_globals_app.
    simpl Genv.genv_next.
  forget (Genv.genv_next
-           (Genv.add_globals (Genv.empty_genv fundef type) (rev l))) as j.
+           (Genv.add_globals (Genv.empty_genv fundef type (prog_public prog)) (rev l))) as j.
  clear - IHl. replace (Z.pos (Pos.succ j) - 1) with (Z.succ (Z.pos j - 1)). omega.
   unfold Z.succ.  rewrite Pos2Z.inj_succ.  omega.
  unfold Genv.add_global, Genv.find_symbol in IHl, H0. simpl in H0.
@@ -993,7 +995,8 @@ assert (RANGE: 0 <= Z.pos b - 1 < Zlength (rev (prog_defs prog))).
  split.
  rewrite Zlength_correct in RANGE.
  rewrite rev_length in RANGE. omega.
- rewrite <- list_norepet_rev in H. unfold prog_defs_names in H.
+ rewrite <- Clight_lemmas.list_norepet_rev in H. unfold prog_defs_names in H.
+ change (AST.prog_defs prog) with (prog_defs prog) in H.
 rewrite <- map_rev in H.
 rewrite add_globals_hack in H0; [ | apply H | rewrite rev_involutive; auto | auto ].
 rewrite map_rev in H0.
@@ -1228,6 +1231,7 @@ destruct (find_symbol_globalenv _ _ _ H H2) as [RANGE [d ?]].
 assert (d = Gfun fd).
 clear - H H5 H1.
 unfold prog_defs_names in H.
+change (AST.prog_defs prog) with (prog_defs prog) in H.
 forget (prog_defs prog) as dl. forget (nat_of_Z (Z.pos b-1)) as n.
 revert dl H H5 H1; induction n; simpl; intros.
 destruct dl; inv H1.
@@ -1245,6 +1249,7 @@ clear H5.
 clear - RANGE H2 H1 H Hm.
 unfold Genv.init_mem in Hm.
 forget (Genv.globalenv prog) as ge.
+change (AST.prog_defs prog) with (prog_defs prog) in Hm.
 forget (prog_defs prog) as dl.
 rewrite <- (rev_involutive dl) in H1,Hm.
 rewrite nth_error_rev in H1.

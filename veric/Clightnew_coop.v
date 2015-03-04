@@ -4,8 +4,8 @@ Require Import veric.base.
 Require Import veric.Clight_new.
 
 Lemma assign_loc_forward: 
-      forall t m b ofs v m' 
-      (A: assign_loc t m b ofs v m'),
+      forall cenv t m b ofs v m' 
+      (A: assign_loc cenv t m b ofs v m'),
       mem_forward m m'.
 Proof.
 intros.
@@ -15,8 +15,8 @@ induction A.
  eapply storebytes_forward; eassumption.
 Qed.
 
-Lemma alloc_variables_forward: forall vars m e e2 m'
-      (M: alloc_variables e m vars e2 m'),
+Lemma alloc_variables_forward: forall cenv vars m e e2 m'
+      (M: alloc_variables cenv e m vars e2 m'),
       mem_forward m m'.
 Proof. intros.
   induction M.
@@ -25,7 +25,7 @@ Proof. intros.
   eapply mem_forward_trans; eassumption. 
 Qed.
 
-Lemma cln_forward: forall (g : Genv.t fundef type) (c : corestate) 
+Lemma cln_forward: forall (g : genv) (c : corestate) 
   (m : mem) (c' : corestate) (m' : mem), 
   corestep cl_core_sem g c m c' m' -> mem_forward m m'.
 Proof.

@@ -1,9 +1,9 @@
-
 Require Export veric.base.
 Require Import msl.rmaps.
 Require Import msl.rmaps_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.res_predicates.
+Require Import veric.tycontext.
 Require Import veric.expr.
 
 Definition GHOSTspec (A: Type) (x: A) : spec :=
