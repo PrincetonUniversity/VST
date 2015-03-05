@@ -9,22 +9,13 @@ Require Import hmac_pure_lemmas.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Program.Tactics.
 Require Import Bruteforce.
+Require Import hmac_pure_lemmas.
 Require Import sha_padding_lemmas.
+Require Import hmac_common_lemmas.
 
 Open Scope Z_scope.
 
 (* ----- Inductive *)
-
-(* In XorCorrespondence *)
-(* Definition asZ (x : bool) : Z := if x then 1 else 0. *)
-
-(*
-Definition convertByteBits (bits : Blist) (byte : Z) : Prop :=
-  exists (b0 b1 b2 b3 b4 b5 b6 b7 : bool),
-   bits = [b0; b1; b2; b3; b4; b5; b6; b7] /\
-   byte =  (1 * (asZ b0) + 2 * (asZ b1) + 4 * (asZ b2) + 8 * (asZ b3)
-         + 16 * (asZ b4) + 32 * (asZ b5) + 64 * (asZ b6) + 128 * (asZ b7)).
-*)
 
 Inductive bytes_bits_lists : Blist -> list Z -> Prop :=
   | eq_empty : bytes_bits_lists nil nil
@@ -237,13 +228,6 @@ Qed.
 (* ----------------------------- *)
 (* Relating bits to bytes *)
 
-Lemma list_nil : forall {A : Type} (l : list A),
-                   length l = 0%nat -> l = nil.
-Proof.
-  intros A l len.
-  induction l. reflexivity. inversion len.
-Qed.
-
 Lemma bitsToBytes_app : forall (l m : Blist),
                           InBlocks 8 l ->
                           bitsToBytes (l ++ m) = bitsToBytes l ++ bitsToBytes m.
@@ -345,4 +329,69 @@ Proof.
     
     destruct x0; destruct x1; destruct x2; destruct x3;
     destruct x4; destruct x5; destruct x6; destruct x7; reflexivity.
+Qed.
+
+Lemma bytes_bits_lists_append:
+  forall (l1 : Blist) (l2 : list Z) (m1 : Blist) (m2 : list Z),
+    bytes_bits_lists l1 l2
+    -> bytes_bits_lists m1 m2
+    -> bytes_bits_lists (l1 ++ m1) (l2 ++ m2).
+Proof.
+  intros l1 l2 m1 m2.
+  intros fst_eq snd_eq.
+  generalize dependent m1. generalize dependent m2.
+  induction fst_eq; intros.
+  - repeat rewrite app_nil_l.
+    apply snd_eq.
+  - simpl.
+    apply eq_cons.
+    + apply IHfst_eq.
+      apply snd_eq.
+    + apply H.
+Qed.
+
+
+Lemma bytesToBits_nil_inv l: nil = bytesToBits l -> l = nil.
+Proof. destruct l; trivial. simpl; intros. discriminate. Qed.  
+
+Lemma bytesToBits_cons b l:
+      bytesToBits (b::l) = byteToBits b ++ bytesToBits l.
+Proof. reflexivity. Qed.
+
+Lemma byteToBits_injective: forall a b,
+      byteToBits a = byteToBits b ->
+      SHA256.isbyteZ a -> SHA256.isbyteZ b -> a = b. 
+Proof. intros. unfold SHA256.isbyteZ in *. 
+assert (bitsToByte (byteToBits a) = bitsToByte (byteToBits b)).
+  rewrite H; trivial.
+clear H.
+rewrite byte_bit_byte_id in H2; trivial.
+rewrite byte_bit_byte_id in H2; trivial.
+Qed.
+  
+Lemma bytesToBits_injective: forall b1 b2, bytesToBits b1 = bytesToBits b2 -> 
+      Forall SHA256.isbyteZ b1 -> Forall SHA256.isbyteZ b2 -> b1=b2.
+Proof. induction b1.
+  intros; destruct b2; trivial. discriminate.
+  destruct b2. discriminate.
+  do 2 rewrite bytesToBits_cons.
+  intros. destruct (app_inj1 _ _ _ _ H). reflexivity.
+  rewrite (IHb1 _ H3).
+  rewrite (byteToBits_injective _ _ H2). trivial.
+    eapply Forall_inv; eassumption.
+    eapply Forall_inv; eassumption.
+    eapply Forall_tl; eassumption. 
+    eapply Forall_tl; eassumption. 
+Qed.
+
+Lemma bitsToBytes_injective8 b1 b2 (B: bitsToBytes b1 = bitsToBytes b2)
+       (L1: NPeano.divide 8 (length b1))
+       (L2: NPeano.divide 8 (length b2)): b1 = b2.
+Proof. intros.
+  assert (bytesToBits (bitsToBytes b1) = bytesToBits (bitsToBytes b2)).
+    rewrite B; trivial.
+  rewrite bits_bytes_bits_id in H.
+    rewrite bits_bytes_bits_id in H. trivial.
+    apply InBlocks_len; assumption.
+  apply InBlocks_len; assumption.
 Qed.

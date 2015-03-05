@@ -13,9 +13,6 @@ Require Import sha_padding_lemmas.
 Module HMAC_Concat.
 
 Section HMAC.
-
-  Variable c p : nat.
-  Definition b := (c + p)%nat.
   
   (* The compression function *)
   Variable h : Blist -> Blist -> Blist.
@@ -75,11 +72,6 @@ Lemma h_star_eq :
   HMAC_Pad.h_star = HMAC_Concat.h_star.
 Proof. reflexivity. Qed.
 
-Lemma block_8 : forall (l : Blist), length l = b -> InBlocks 8 l.
-Proof.
-  intros l len. apply InBlocks_len. exists 64%nat. apply len. 
-Qed.
-
 Lemma splitandpad_eq : forall (l m : Blist),
                          length l = b ->
                          sha_splitandpad (l ++ m) = l ++ sha_splitandpad_inc m.
@@ -128,18 +120,12 @@ Proof.
   * apply block_8. apply len.
 Qed. 
 
-Lemma NPeano_divide_trans a b c: NPeano.divide a b -> 
-      NPeano.divide b c -> NPeano.divide a c.
-Proof. intros. destruct H; destruct H0. subst.
-  exists (x0 * x)%nat. apply mult_assoc.
-Qed. 
-
 Theorem HMAC_concat_pad : forall (k m : Blist) (op ip : Blist),
                             length k = b ->
                             length ip = b ->
                             length op = b -> 
-  HMAC_Pad.HMAC c p sha_h sha_iv sha_splitandpad op ip k m =
-  HMAC_Concat.HMAC c p sha_h sha_iv sha_splitandpad_inc fpad op ip k m.
+  HMAC_Pad.HMAC sha_h sha_iv sha_splitandpad op ip k m =
+  HMAC_Concat.HMAC sha_h sha_iv sha_splitandpad_inc fpad op ip k m.
 Proof.
   intros k m op ip len_k len_ip len_op.
   unfold c, p in *. simpl in *.
@@ -173,8 +159,6 @@ Proof.
                  apply BLxor_length. apply len_k. apply len_ip.
                  apply sha_splitandpad_inc_InBlocks.
                  apply BLxor_length. apply len_k. apply len_ip.
-  * apply BLxor_length. apply len_k. apply len_ip.
-  * apply BLxor_length. apply len_k. apply len_op.
   * apply BLxor_length. apply len_k. apply len_ip.
   * apply BLxor_length. apply len_k. apply len_op.
   * apply BLxor_length. apply len_k. apply len_ip.

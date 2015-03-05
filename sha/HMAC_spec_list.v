@@ -17,8 +17,8 @@ Module HMAC_List.
 
 Section HMAC.
 
-  Variable c p : nat.
-  Definition b := c + p.
+  (*Variable c p : nat.
+  Definition b := c + p.*)
   
   (* The compression function *)
   Variable h : Blist -> Blist -> Blist.
@@ -87,13 +87,47 @@ Proof.
   rewrite skipn_length; omega.
 Qed.
 
+Lemma toBlocks_injective: forall l1 l2 (BLKS: toBlocks l1 = toBlocks l2)
+     (F1: InBlocks 512 l1)
+     (F2: InBlocks 512 l2), l1 = l2.
+Proof.
+ intros l1. 
+  remember (toBlocks l1). generalize dependent l1.
+  induction l. simpl; intros.
+    rewrite toBlocks_equation in *.
+    destruct l1.
+      destruct l2; trivial.
+      destruct (Compare_dec.leb (length (b :: l2)) 511); discriminate.
+    destruct (Compare_dec.leb (length (b :: l1)) 511); discriminate.
+
+  intros.
+    rewrite toBlocks_equation in Heql, BLKS.
+    destruct l1; try discriminate. destruct l2; try discriminate.
+    inversion F1; clear F1. rewrite H0 in Heql.
+    assert (L1: (511 < length (front ++ back))%nat).
+      rewrite app_length, H. omega.
+    rewrite leb_correct_conv in Heql; trivial.
+    rewrite firstn_exact in Heql; trivial.
+    rewrite skipn_exact in Heql; trivial.
+    inversion Heql; clear Heql. subst a l.
+
+    inversion F2; clear F2. rewrite H4 in BLKS. 
+    assert (L2: (511 < length (front0 ++ back0))%nat).
+      rewrite app_length, H3. omega.
+    rewrite leb_correct_conv in BLKS; trivial.
+    rewrite firstn_exact in BLKS; trivial.
+    rewrite skipn_exact in BLKS; trivial.
+    inversion BLKS; clear BLKS. subst front0 full0 full.
+    specialize (IHl _ H9 _ (eq_refl _) H5 H1). subst back0.
+    rewrite <- H4 in H0. assumption.
+Qed.
+
 Definition sha_splitandpad_blocks (msg : Blist) : list Blist :=
   toBlocks (sha_splitandpad_inc msg).
 
 Definition sha_splitandpad_inc' (msg : Blist) : Blist :=
   concat (sha_splitandpad_blocks msg).
 
-(* TODO can use either toBlocks or toBlocks' *)
 Lemma concat_toBlocks_id : forall (l : Blist),
                              InBlocks 512 l ->
                              concat (toBlocks l) = l.
@@ -117,32 +151,6 @@ Proof.
     unfold id.
     reflexivity.
 Qed.
-(*
-Lemma concat_toBlocks_id : forall (l : Blist),
-                             InBlocks 512 l ->
-                             concat (toBlocks l) = l.
-Proof.
-  intros l len.
-  unfold concat.
-  induction len.
-
-  * rewrite -> toBlocks_equation. reflexivity.
-  *
-    rewrite -> toBlocks_equation.
-    rewrite -> H0.
-    rewrite -> firstn_exact. rewrite -> skipn_exact.
-    rewrite -> length_not_emp.
-    simpl.
-    rewrite -> IHlen.
-    unfold id.
-    reflexivity.
-  -
-    rewrite -> app_length. rewrite -> H. omega.
-  - apply H.
-  - apply H.
-Qed.
-*)
-
 
 Lemma InBlocks_Forall_512 b: (InBlocks 512 b) ->
       Forall (fun x : list bool => length x = 512%nat) (toBlocks b).
@@ -165,11 +173,9 @@ Proof. apply InBlocks_Forall_512. apply sha_splitandpad_inc_InBlocks.
 Qed.
 
 (* since sha_splitandpad_inc is used instead of the modified version in the Concat-Pad proof *)
-(* TODO: go through and verify that all the proofs chain *)
-Lemma sha_splitandpad_inc_eq : forall (msg : Blist),
-                                 sha_splitandpad_inc msg = sha_splitandpad_inc' msg.
+Lemma sha_splitandpad_inc_eq : sha_splitandpad_inc = sha_splitandpad_inc'.
 Proof.
-  intros msg.
+  extensionality msg.
   unfold sha_splitandpad_inc'. unfold sha_splitandpad_blocks.
   rewrite toBlocks_equation. 
   remember (sha_splitandpad_inc msg). 
@@ -187,23 +193,6 @@ Proof.
   rewrite HH. apply concat_toBlocks_id.
   apply InBlocks_len. rewrite HK. exists k. omega.
 Qed.
-
-
-Lemma saP_eq: sha_splitandpad_inc = sha_splitandpad_inc'.
-Proof. extensionality m.
-  apply sha_splitandpad_inc_eq. 
-Qed.
-
-Lemma length_mul_split A k (K:(0<k)%nat) n (N:(0<n)%nat): forall (l:list A), length l = (k * n)%nat -> 
-      exists l1, exists l2, l=l1++l2 /\ length l1=n /\ length l2 = ((k-1) * n)%nat.
-Proof.
-  intros. 
-  assert ((k * n = n + (k-1) * n)%nat). rewrite mult_minus_distr_r. simpl. rewrite plus_0_r.  
-      rewrite NPeano.Nat.add_sub_assoc. rewrite minus_plus. trivial.
-      specialize (mult_le_compat_r 1 k n). simpl; rewrite plus_0_r. simpl; intros. apply H0. omega.
-  rewrite H0 in H; clear H0. 
-  apply (list_splitLength _ _ _ H).
-Qed.   
 
 Lemma concat_length {A}: forall L (l:list A), In l L -> (length (concat L) >= length l)%nat.
 Proof.  unfold concat. induction L; simpl; intros. contradiction.
@@ -300,16 +289,14 @@ Lemma mult_triv x : forall y, y=2%nat -> (x * y = x*2)%nat.
 Proof. intros. subst. omega. Qed.
 
 Theorem HMAC_list_concat : forall (k m : Blist) (op ip : Blist),
-                             (* assumption on length m? TODO *)
                              length k = b ->
-                             True ->
                              length op = b ->
                              length ip = b ->
-  HMAC_List.HMAC c p sha_h sha_iv sha_splitandpad_blocks fpad op ip k m =
+  HMAC_List.HMAC sha_h sha_iv sha_splitandpad_blocks fpad op ip k m =
   (* Note use of sha_splitandpad_blocks and sha_splitandpad_inc' (= concat the blocks) *)
-  HMAC_Concat.HMAC c p sha_h sha_iv sha_splitandpad_inc' fpad op ip k m.
+  HMAC_Concat.HMAC sha_h sha_iv sha_splitandpad_inc' fpad op ip k m.
 Proof.
-  intros k m op ip k_len m_len op_len ip_len.
+  intros k m op ip k_len op_len ip_len.
   unfold c, p in *. simpl in *.
   unfold HMAC_List.HMAC. unfold HMAC_Concat.HMAC.
   unfold HMAC_List.HMAC_2K. unfold HMAC_Concat.HMAC_2K.
@@ -362,8 +349,6 @@ Proof.
   (*  Forall (fun x : list bool => length x = 512%nat)
      (sha_splitandpad_blocks m) *)
     apply sha_splitandpad_blocks_512.
-  * apply BLxor_length. apply k_len. apply op_len.
-  * apply BLxor_length. apply k_len. apply ip_len.
   * apply BLxor_length. apply k_len. apply op_len.
   * apply BLxor_length. apply k_len. apply ip_len.
 Qed.  

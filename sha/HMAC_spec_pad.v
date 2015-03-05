@@ -5,16 +5,17 @@ Require Import Arith.
 
 Require Import Integers.
 Require Import Coqlib.
-Require Import sha_padding_lemmas.
-Require Import functional_prog.
 Require Import Coq.Numbers.Natural.Peano.NPeano.
-Require Import SHA256.
-Require Import ByteBitRelations.
 Require Import XorCorrespondence.
+Require Import functional_prog.
+Require Import SHA256.
 Require Import HMAC_functional_prog. 
-Require Import HMAC_common_defs.
-Require Import hmac_common_lemmas.
 Require Import hmac_pure_lemmas.
+Require Import hmac_common_lemmas.
+Require Import sha_padding_lemmas.
+Require Import ByteBitRelations.
+
+Require Import HMAC_common_defs.
 (* TODO remove useless imports *)
 
 Require Import Coq.Program.Basics. (* for function composition: ∘ *)
@@ -28,8 +29,8 @@ Section HMAC.
 (* b = block size
    c = digest (output) size
    p = padding = b - c (fixed) *)
-  Variable c p : nat.
-  Definition b := (c + p)%nat.
+(*  Variable c p : nat.
+  Definition b := (c + p)%nat.*)
 
   (* The compression function *)
   Variable h : Blist -> Blist -> Blist.
@@ -90,12 +91,7 @@ Definition HMAC (k : Blist) :=
 End HMAC.
 
 (* ----------------------------------------------- *)
-
-(*Definition c:nat := (HMAC_progZ.SHA256_.DigestLength * 8)%nat.*)
-Definition c:nat := (HP.SHA256.DigestLength * 8)%nat.
-Definition p:=(32 * 8)%nat.
-
-Definition sha_iv : Blist :=
+(*Definition sha_iv : Blist :=
   bytesToBits (SHA256.intlist_to_Zlist SHA256.init_registers).
 
 Definition sha_h (regs : Blist) (block : Blist) : Blist :=
@@ -103,7 +99,7 @@ Definition sha_h (regs : Blist) (block : Blist) : Blist :=
                  (SHA256.hash_block (SHA256.Zlist_to_intlist (bitsToBytes regs))
                                      (SHA256.Zlist_to_intlist (bitsToBytes block))
               )).
-
+*)
 Definition sha_splitandpad (msg : Blist) : Blist :=
   bytesToBits (sha_padding_lemmas.pad (bitsToBytes msg)).
 
@@ -115,8 +111,6 @@ Definition convert (l : list int) : list bool :=
 (* Neat conversion functions (TODO move rest of spec over *)
 
 (*
-Definition c := (HMAC_progZ.SHA256.DigestLength * 8)%nat.
-Definition p := (32 * 8)%nat.
 
 Definition intsToBits (l : list int) : list bool :=
   bytesToBits (SHA256.intlist_to_Zlist l).
@@ -140,112 +134,13 @@ Definition sha_splitandpad (msg : Blist) : Blist :=
 (* Lemma 1: ++ equivalence on list *)
 (* Lemma 2: xor equivalence on list *)
 (* Lemma 3: SHA (iterated hash) equivalence on list *)
-
-Lemma concat_equiv :
-  forall (l1 : Blist) (l2 : list Z) (m1 : Blist) (m2 : list Z),
-    bytes_bits_lists l1 l2
-    -> bytes_bits_lists m1 m2
-    -> bytes_bits_lists (l1 ++ m1) (l2 ++ m2).
-Proof.
-  intros l1 l2 m1 m2.
-  intros fst_eq snd_eq.
-  generalize dependent m1. generalize dependent m2.
-  induction fst_eq; intros.
-  - repeat rewrite app_nil_l.
-    apply snd_eq.
-  - simpl.
-    apply eq_cons.
-    + apply IHfst_eq.
-      apply snd_eq.
-    + apply H.
-Qed.
+(*Lennart: moved Lemma concat_equiv to ByteBitRelations, and renamed it to
+  bytes_bits_lists_append to avoid confusion with fucntion "concat"*)
 
 (* --------------------------------- *)
 
 (* Lemma 2 *)
 
-(* Prove that the inner xor lemma is true on at least one example *)
-Section XOR_Example.
-
- Definition k:Blist := concat (list_repeat 64 [true; true; false; false; true; false; true; true]).
- Definition K:list Z := list_repeat 64 211.
-
- Lemma conv : convertByteBits [true; true; false; false; true; false; true; true] 211.
-   repeat eexists.
-  (* eexists; eexists; eexists; eexists; eexists; eexists; eexists; eexists. *)
-  (* split. reflexivity. simpl. reflexivity. *)
- Qed.
- Lemma kKcorrect: bytes_bits_lists k K.
-   unfold K, k. simpl.
-   repeat constructor; try apply conv.
-  Qed.
-
-
- Definition ip:Blist := concat (list_repeat 64 [false; true; false; false; true; false; true; true]).
- Definition IP:Z := 210.
- Transparent Byte.repr.
-
-Definition byte_to_64list (byte : byte) : list Z :=
-   (*map Byte.unsigned (HMAC_progZ.HMAC_SHA256.sixtyfour byte).*)
-   map Byte.unsigned (HP.HMAC_SHA256.sixtyfour byte).
-
- Lemma ip_conv : convertByteBits [false; true; false; false; true; false; true; true] 210.
-   repeat eexists.
- Qed.
- Lemma ipcorrect: bytes_bits_lists ip (HP.HMAC_SHA256.sixtyfour IP).
-   unfold ip, IP. simpl. unfold byte_to_64list, HP.HMAC_SHA256.sixtyfour. simpl.
-   repeat constructor; try apply ip_conv.
-  Qed.
-
-Lemma ONE: convertByteBits [true; false; false; false; false; false; false; false] 1.
-  repeat eexists. Qed.
-
-Lemma inner_fst_equiv_example : exists k (ip  : Blist) K (IP : Z),
-                          ((length K) * 8)%nat = (c + p)%nat /\
-                          Zlength K = Z.of_nat HP.SHA256.BlockSize /\
-                          (* TODO: first implies this *)
-                          bytes_bits_lists k K /\
-                          bytes_bits_lists ip (HP.HMAC_SHA256.sixtyfour IP) /\
-                          bytes_bits_lists (BLxor k ip)
-                                           ((HP.HMAC_SHA256.mkArgZ (map Byte.repr (HP.HMAC_SHA256.mkKey K)) (Byte.repr IP))).
-
-Proof.
-  exists k, ip, K, IP. repeat split.
-   apply kKcorrect. apply ipcorrect.
-  unfold k, K, ip, IP. simpl. unfold BLxor. simpl.
-  repeat constructor; apply ONE.
-Qed.
-
-End XOR_Example.
-
-(* See XorCorrespondence.v *)
-
-(*
-Lemma inner_general_map : forall (ip : Blist) (IP_list : list Z) (k : Blist) (K : list Z),
-                            bytes_bits_lists ip IP_list ->
-                            bytes_bits_lists k K ->
-     bytes_bits_lists (BLxor k ip)
-                      (map (fun p0 : Z * Z => Z.lxor (fst p0) (snd p0))
-                           (combine K IP_list)).
-Proof.
-  intros ip IP_list k K ip_eq k_eq.
-  unfold BLxor. simpl.
-  generalize dependent ip. generalize dependent IP_list.
-  induction k_eq; intros.
-  - simpl. constructor.
-  -
-    induction ip_eq.
-    +
-      simpl. constructor.
-    +
-      simpl.
-      constructor.
-      * apply IHk_eq.
-        apply ip_eq.
-      *
-        apply xor_correspondence.
-        apply H. apply H0.
-Qed.*)
 Lemma inner_general_mapByte : forall (ip : Blist) (IP_list : list byte) (k : Blist) (K : list byte),
                             bytes_bits_lists ip (map Byte.unsigned IP_list) ->
                             bytes_bits_lists k (map Byte.unsigned K) ->
@@ -259,13 +154,13 @@ Proof.
   remember (map Byte.unsigned IP_list). remember (map Byte.unsigned K) as KL.
   generalize dependent K. generalize dependent IP_list. generalize dependent ip. generalize dependent l.
   induction k_eq.
-  - simpl; intros. destruct K0; simpl in *. constructor. discriminate.
+  - simpl; intros. destruct K; simpl in *. constructor. discriminate.
   - intros l ip ip_eq.
     induction ip_eq; simpl; intros.
     + destruct IP_list; simpl in *. 2: discriminate.
-      destruct K0; simpl in *. discriminate. constructor.
+      destruct K; simpl in *. discriminate. constructor.
     + destruct IP_list. discriminate. simpl in Heql. inversion Heql; clear Heql. subst byte0 bytes0.
-      destruct K0; simpl in HeqKL. discriminate. inversion HeqKL; clear HeqKL; subst.
+      destruct K; simpl in HeqKL. discriminate. inversion HeqKL; clear HeqKL; subst.
       simpl.
       constructor.
       * eapply IHk_eq; try reflexivity.
@@ -276,15 +171,6 @@ Proof.
         apply isByte_ByteUnsigned.
         apply isByte_ByteUnsigned. 
         assert (BMU: Byte.max_unsigned = 255). reflexivity. omega.
-Qed.
-
-Lemma SF_ByteRepr x: isbyteZ x ->
-                     HP.HMAC_SHA256.sixtyfour x = 
-                     map Byte.unsigned (HP.HMAC_SHA256.sixtyfour (Byte.repr x)).
-Proof. intros. unfold HP.HMAC_SHA256.sixtyfour.
- rewrite pure_lemmas.map_list_repeat.
- rewrite Byte.unsigned_repr; trivial. destruct H. 
- assert (BMU: Byte.max_unsigned = 255). reflexivity. omega.
 Qed.
 
 Lemma xor_equiv_byte: forall xpad XPAD k K, isbyteZ XPAD ->
@@ -320,8 +206,6 @@ Proof. intros.
   split. reflexivity.
   split; reflexivity.
 Qed.
-
-(* Lemmas stating that various operations result in bytes in range *)
 
 Lemma bitsToByte_isbyteZ b0 b1 b2 b3 b4 b5 b6 b7:
       isbyteZ (bitsToByte [b0; b1; b2; b3; b4; b5; b6; b7]).
@@ -370,8 +254,6 @@ Proof. intros. unfold pad.
   apply pure_lemmas.isbyte_intlist_to_Zlist.
 Qed.  
 
-(* --------------------------- end bytes/bits proofs *)
-
 Lemma splitandpad_equiv : forall (bits : Blist) (bytes : list Z),
                             bytes_bits_lists bits bytes ->
                             bytes_bits_lists
@@ -406,12 +288,14 @@ Lemma hash_block_equiv :
 Proof.
   intros bits bytes regs REGS bytes_inrange bits_blocksize bytes_blocksize regs_eq input_eq.
   unfold sha_h.
+unfold intsToBits.
   apply f_equal.
   apply f_equal.
 
-  rewrite -> regs_eq.
-  rewrite -> input_eq.
-  rewrite -> bytes_bits_bytes_id.
+  rewrite -> regs_eq; clear regs_eq.
+  rewrite -> input_eq; clear input_eq.
+  unfold bitsToInts.
+  rewrite bytes_bits_bytes_id.
   rewrite -> bytes_bits_bytes_id.
   rewrite -> pure_lemmas.intlist_to_Zlist_to_intlist.
   reflexivity.
@@ -647,8 +531,8 @@ Qed.
 
 (* MAIN THEOREM *)
 
-(* Relates the HMAC padded spec to the HMAC functional program (version that uses Z) *)
-Theorem HMAC_Pad_Concrete_equiv : forall
+(* Relates the HMAC padded spec to the HMAC functional program *)
+Theorem HMAC_pad_concrete : forall
                             (K : list byte) (M H : list Z) (OP IP : Z)
                             (k m h : Blist) (op ip : Blist) (ipByte: isbyteZ IP) (opByte: isbyteZ OP),
   ((length K) * 8)%nat = (c + p)%nat ->
@@ -658,7 +542,7 @@ Theorem HMAC_Pad_Concrete_equiv : forall
   bytes_bits_lists m M ->
   bytes_bits_lists op (HP.HMAC_SHA256.sixtyfour OP) ->
   bytes_bits_lists ip (HP.HMAC_SHA256.sixtyfour IP) ->
-  HMAC c p sha_h sha_iv sha_splitandpad op ip k m = h ->
+  HMAC (*c p*) sha_h sha_iv sha_splitandpad op ip k m = h ->
   HP.HMAC_SHA256.HmacCore (Byte.repr IP) (Byte.repr OP) M K = H ->
   bytes_bits_lists h H.
 Proof.
@@ -681,76 +565,42 @@ Proof.
   
   (* Major lemmas *)
   apply SHA_equiv_pad.
-  apply concat_equiv.
+  apply bytes_bits_lists_append.
   apply xor_equiv_byte; trivial. 
 
   *
     apply SHA_equiv_pad.
-    apply concat_equiv.
+  apply bytes_bits_lists_append.
 
   - apply xor_equiv_byte; trivial.
   - assumption.
-    (* xors preserve length : TODO factor this out*)
-    *
-      (* Locate padded_keys_eq. *)
-      unfold b in *. simpl. unfold BLxor. rewrite -> list_length_map.
-      rewrite -> combine_length.
-      erewrite bytes_bits_length; try eassumption. rewrite map_length, padded_key_len.
-      apply Min.min_l. erewrite bytes_bits_length; try eassumption.
-      unfold HP.HMAC_SHA256.sixtyfour.
-      rewrite -> length_list_repeat. unfold HP.SHA256.BlockSize; simpl; omega.
-(*      pose proof bytes_bits_length op (HP.HMAC_SHA256.sixtyfour OP) as ops_len.
-      rewrite -> ops_len.
-      pose proof bytes_bits_length k (map Byte.unsigned K) as keys_len.
-      (*rewrite -> keys_len. *)
-      rewrite -> padded_key_len.
-      Transparent HMAC_progZ.HMAC_SHA256.sixtyfour.
-      unfold HMAC_progZ.HMAC_SHA256.sixtyfour.
-      rewrite -> length_list_repeat.
-      reflexivity.
-      apply padded_keys_eq.     (* given: bytes_bits_lists k K *)
-      apply ops_eq.             (* given: bytes_bits_lists op (64 OP) *)
-*)
-    *
-      unfold b in *. simpl. unfold BLxor. rewrite -> list_length_map.
-      rewrite -> combine_length.
-      erewrite bytes_bits_length; try eassumption. rewrite map_length, padded_key_len.
-      apply Min.min_l. erewrite bytes_bits_length; try eassumption.
-      unfold HP.HMAC_SHA256.sixtyfour.
-      rewrite -> length_list_repeat. unfold HP.SHA256.BlockSize; simpl; omega.
-(*
-      unfold b in *. simpl. unfold BLxor. rewrite -> list_length_map.
-      rewrite -> combine_length.
-      pose proof bytes_bits_length ip (HMAC_progZ.HMAC_SHA256.sixtyfour IP) as ips_len.
-      rewrite -> ips_len.
-      pose proof bytes_bits_length k K as keys_len.
-      rewrite -> keys_len.
-      rewrite -> padded_key_len.
-      unfold HMAC_progZ.HMAC_SHA256.sixtyfour.
-      rewrite -> length_list_repeat.
-      reflexivity.
-      apply padded_keys_eq.
-      apply ips_eq.*)
+    * apply BLxor_length; erewrite bytes_bits_length; try eassumption.
+         rewrite map_length, padded_key_len. reflexivity.
+         unfold HP.HMAC_SHA256.sixtyfour.
+          rewrite -> length_list_repeat. reflexivity.
+    * apply BLxor_length; erewrite bytes_bits_length; try eassumption.
+         rewrite map_length, padded_key_len. reflexivity.
+         unfold HP.HMAC_SHA256.sixtyfour.
+          rewrite -> length_list_repeat. reflexivity.
 Qed.
 
 Lemma isbyte_hmaccore ipad opad m k: 
    Forall isbyteZ (HP.HMAC_SHA256.HmacCore (Byte.repr ipad) (Byte.repr opad) m k).
 Proof. apply isbyte_sha. Qed.
 
-Theorem HMAC_Pad_Concrete_equiv' : forall
+Theorem HMAC_pad_concrete' : forall
                             (K : list byte) (M : list Z) (OP IP : Z)
                             (k m : Blist) (op ip : Blist) (ipByte: isbyteZ IP) (opByte: isbyteZ OP),
   ((length K) * 8)%nat = (c + p)%nat ->
   Zlength K = Z.of_nat HP.SHA256.BlockSize ->
-  (* TODO: first implies this *)
   bytes_bits_lists k (map Byte.unsigned K) ->
   bytes_bits_lists m M ->
   bytes_bits_lists op (HP.HMAC_SHA256.sixtyfour OP) ->
   bytes_bits_lists ip (HP.HMAC_SHA256.sixtyfour IP) ->
-  HMAC c p sha_h sha_iv sha_splitandpad op ip k m = 
+  HMAC (*c p*) sha_h sha_iv sha_splitandpad op ip k m = 
   bytesToBits (HP.HMAC_SHA256.HmacCore (Byte.repr IP) (Byte.repr OP) M K).
 Proof. intros.  
-  exploit HMAC_Pad_Concrete_equiv. apply ipByte. apply opByte.
+  exploit HMAC_pad_concrete. apply ipByte. apply opByte.
       apply H. assumption. apply H1. apply H2. apply H3. apply H4.
   reflexivity. reflexivity.
   intros.

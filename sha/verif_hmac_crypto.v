@@ -15,8 +15,76 @@ Require Import hmac_pure_lemmas.
 Require Import hmac_common_lemmas.
 Require Import sha.HMAC_functional_prog.
 
+Require Import Blist.
+Require Import HMAC_equivalence.
+Require Import ByteBitRelations.
+Require Import HMAC_isPRF.
+
+Lemma key_vector l:
+  length (bytesToBits (HP.HMAC_SHA256.mkKey l)) = 
+  HMAC_spec.b HMAC_common_defs.c HMAC_common_defs.p.
+Proof. rewrite bytesToBits_len, hmac_common_lemmas.mkKey_length; reflexivity. Qed.
+
+Definition mkCont (l:list Z) : HMAC_spec_abstract.Message (fun x => x=bytesToBits l /\ NPeano.divide 8 (length x)).
+eapply exist. split. reflexivity. 
+rewrite bytesToBits_len. exists (length l). trivial.
+Qed.
+
+Definition bitspec KEY MSG :=
+  Vector.to_list ( HMAC_spec.HMAC h_v iv_v (HMAC_spec_abstract.wrappedSAP splitAndPad_v)
+                      fpad_v opad_v ipad_v
+                      (of_list_length _ (key_vector (CONT KEY)))
+                      (mkCont (CONT MSG))).
+
+Definition CRYPTO P (A : Comp.OracleComp (HMAC_spec_abstract.Message P)
+                                       (Bvector.Bvector HMAC_common_defs.c) bool) 
+                  (A_wf : DistSem.well_formed_oc A):=
+           forall (HypP:forall m : Blist, P m -> NPeano.divide 8 (length m))
+                  tau eps sig, h_PRF A tau ->
+                               h_star_WCR A eps ->
+                               dual_h_RKA A sig ->
+  isPRF (Comp.Rnd (HMAC_PRF.b HMAC_common_defs.c HMAC_common_defs.p))
+    (Comp.Rnd HMAC_common_defs.c)
+    (HMAC_PRF.HMAC h_v iv_v (HMAC_spec_abstract.wrappedSAP splitAndPad_v) fpad_v opad_v ipad_v)
+    (Message_eqdec P)
+    (EqDec.Bvector_EqDec HMAC_common_defs.c)
+    (Rat.ratAdd (Rat.ratAdd tau eps) sig) A.
+
+Definition HMAC_crypto :=
+  DECLARE _HMAC
+   WITH keyVal: val, KEY:DATA,
+        msgVal: val, MSG:DATA,
+        KV:val, shmd: share, md: val
+   PRE [ _key OF tptr tuchar,
+         _key_len OF tint,
+         _d OF tptr tuchar,
+         _n OF tint,
+         _md OF tptr tuchar ]
+         PROP (writable_share shmd; 
+               has_lengthK (LEN KEY) (CONT KEY);
+               has_lengthD 512 (LEN MSG) (CONT MSG))
+         LOCAL (`(eq md) (eval_id _md); 
+                `(eq keyVal) (eval_id _key);
+                `(eq (Vint (Int.repr (LEN KEY)))) (eval_id _key_len);
+                `(eq msgVal) (eval_id _d);
+                `(eq (Vint (Int.repr (LEN MSG)))) (eval_id _n);
+                `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+         SEP(`(data_block Tsh (CONT KEY) keyVal);
+             `(data_block Tsh (CONT MSG) msgVal);
+             `(K_vector KV);
+             `(memory_block shmd (Int.repr 32) md))
+  POST [ tvoid ] 
+         EX digest:_, 
+          PROP (bytesToBits digest = bitspec KEY MSG /\ 
+                forall P A Awf, CRYPTO P A Awf)
+          LOCAL ()
+          SEP(`(K_vector KV);
+              `(data_block shmd digest md);
+              `(initPostKey keyVal (CONT KEY) );
+              `(data_block Tsh (CONT MSG) msgVal)).
+
 Lemma body_hmac_simple: semax_body HmacVarSpecs HmacFunSpecs 
-      f_HMAC HMAC_bitspec.
+      f_HMAC HMAC_crypto.
 Proof.
 start_function.
 name key' _key.
@@ -63,7 +131,7 @@ forward_if  (EX c:_,
 apply extract_exists_pre. intros c. normalize. rename H into isPtrC.
 
 eapply semax_seq'. 
-myframe_SEP'' [0; 1; 3].
+myframe_SEP'' (cons 0 (cons 1 (cons 3 (@nil Z)))).
 remember (HMACabs init_s256abs init_s256abs init_s256abs Z0 nil) as dummyHMA.
 remember (c, k, kl, key, KV, dummyHMA) as WITNESS.
 forward_call WITNESS.
@@ -91,7 +159,7 @@ apply semax_pre with (P':= EX  h : hmacabs,
 apply extract_exists_pre; intros h0. normalize. rename H into HmacInit.
 
 eapply semax_seq'. 
-myframe_SEP'' [0; 2; 3].
+myframe_SEP'' (cons 0 (cons 2 (cons 3 (@nil Z)))). 
 remember (h0, c, d, dl, data, KV) as WITNESS.
 (*Remark on confusing error messages: if the spec of HMAC_update includes _len OF tuint
   instead of _len OF tint, the following forward_call fails, complaining that
@@ -144,7 +212,7 @@ eapply semax_pre with (P':=EX  x : hmacabs,
 apply extract_exists_pre; intros h1. normalize. rename H into HmacUpdate.
 
 eapply semax_seq'. 
-myframe_SEP'' [0; 1; 4].
+myframe_SEP'' (cons 0 (cons 1 (cons 4 (@nil Z)))).
 forward_call (h1, c, md, shmd, KV).
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
@@ -173,7 +241,7 @@ apply extract_exists_pre. intros dig.
 apply extract_exists_pre. intros h2. normalize. rename H into HmacFinalSimple.
 
 eapply semax_seq'. 
-myframe_SEP'' [1].
+myframe_SEP'' (cons 1 (@nil Z)).
 forward_call (h2,c).
   assert (FR: Frame =nil).
        subst Frame. reflexivity.
@@ -207,7 +275,7 @@ apply andp_right. apply prop_right.
            apply H2. 
            intros ? X; eapply X.
   split; trivial.
-  unfold CRYPTO; intros. apply sha.HMAC_isPRF.HMAC_isPRF; assumption.
+  unfold CRYPTO; intros. apply sha.HMAC_isPRF.HMAC_isPRF; try assumption.
 apply andp_right. apply prop_right. trivial. cancel.
 unfold data_block.
   rewrite Zlength_correct; simpl.

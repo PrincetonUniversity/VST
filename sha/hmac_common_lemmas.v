@@ -10,6 +10,35 @@ Require Import hmac_pure_lemmas.
 
 Require Import HMAC_functional_prog.
 
+Lemma SF_ByteRepr x: isbyteZ x ->
+                     HP.HMAC_SHA256.sixtyfour x = 
+                     map Byte.unsigned (HP.HMAC_SHA256.sixtyfour (Byte.repr x)).
+Proof. intros. unfold HP.HMAC_SHA256.sixtyfour.
+ rewrite pure_lemmas.map_list_repeat.
+ rewrite Byte.unsigned_repr; trivial. destruct H. 
+ assert (BMU: Byte.max_unsigned = 255). reflexivity. omega.
+Qed.
+
+Lemma NPeano_divide_trans a b c: NPeano.divide a b -> 
+      NPeano.divide b c -> NPeano.divide a c.
+Proof. intros. destruct H; destruct H0. subst.
+  exists (x0 * x)%nat. apply mult_assoc.
+Qed. 
+
+Lemma isByte_mono: forall x y, 0<=y<=x -> isbyteZ x -> isbyteZ y.
+Proof. intros. destruct H0. split; omega. Qed.
+
+Lemma length_mul_split A k (K:(0<k)%nat) n (N:(0<n)%nat): forall (l:list A), length l = (k * n)%nat -> 
+      exists l1, exists l2, l=l1++l2 /\ length l1=n /\ length l2 = ((k-1) * n)%nat.
+Proof.
+  intros. 
+  assert ((k * n = n + (k-1) * n)%nat). rewrite mult_minus_distr_r. simpl. rewrite plus_0_r.  
+      rewrite NPeano.Nat.add_sub_assoc. rewrite minus_plus. trivial.
+      specialize (mult_le_compat_r 1 k n). simpl; rewrite plus_0_r. simpl; intros. apply H0. omega.
+  rewrite H0 in H; clear H0. 
+  apply (list_splitLength _ _ _ H).
+Qed.   
+
 Lemma app_inv_length1 {A}: forall (l1 m1 l2 m2:list A),
   l1++l2 = m1++m2 -> length l1 = length m1 -> l1=m1 /\ l2=m2.
 Proof.

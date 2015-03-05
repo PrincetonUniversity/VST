@@ -6,6 +6,21 @@ Require Import Coqlib.
 
 Import ListNotations.
 
+Lemma max_unsigned_modulus: Int.max_unsigned + 1 = Int.modulus.
+Proof. reflexivity. Qed.
+
+Lemma int_max_unsigned_eq: Int.max_unsigned = 4294967295.
+Proof. reflexivity. Qed.
+
+Lemma IntModulus32: Int.modulus = 2^32. reflexivity. Qed.
+
+Lemma Intsize_monotone a b: 0 <= Int.unsigned (Int.repr a) <= Int.unsigned (Int.repr b) -> 
+                          Int.size (Int.repr a) <= Int.size (Int.repr b).
+Proof. apply Int.Zsize_monotone. Qed.
+  
+Lemma list_nil {A} l (L:@length A l = 0%nat): l = nil.
+Proof. destruct l; simpl in *; eauto. inv L. Qed.
+
 Lemma nth_mapIn: forall i (l:list Z) d (Hi: (0 <= i < length l)%nat),
   exists n, nth i l d = n /\ In n l.
 Proof. intros i. 
@@ -22,6 +37,19 @@ Proof.
  induction k; destruct n; simpl; intros; auto.
  apply IHk; auto. omega.
 Qed.
+
+Lemma skipn_length:
+  forall {A} n (al: list A), 
+    (length al >= n)%nat -> 
+    (length (skipn n al) = length al - n)%nat.
+Proof.
+ induction n; destruct al; simpl; intros; auto.
+ apply IHn. omega.
+Qed.
+
+Lemma fold_left_cons {A B} (f: A -> B -> A) l b x: 
+      fold_left f (x :: l) b = fold_left f l (f b x).
+Proof. reflexivity. Qed.
 
 Definition Forall_tl (A : Type) (P : A -> Prop) (a : A) (l : list A) 
            (H : Forall P (a :: l)): Forall P l.
@@ -227,3 +255,36 @@ Proof.
    rewrite Byte.Ztestbit_mod_two_p; try omega.
    destruct (zlt i (Z.of_nat Byte.wordsize)); trivial. omega.
 Qed.
+
+Require Import Vector. 
+
+Definition Vector_0_is_nil (T : Type) (v : Vector.t T 0) : v = Vector.nil T := 
+  match v with Vector.nil => eq_refl end.
+
+Lemma VectorToList_cons A n: forall (a:A) l,
+      Vector.to_list (Vector.cons A a n l) =
+      List.cons a (Vector.to_list l).
+Proof. intros. reflexivity. Qed. 
+
+Lemma VectorToList_length {A}: forall n (v: Vector.t A n), length (Vector.to_list v) = n.
+Proof.
+  apply Vector.t_rec. reflexivity.
+  intros. rewrite VectorToList_cons. simpl. rewrite H. trivial.
+Qed.
+
+Lemma VectorToList_combine A n: forall (a:A) b v1 v2,
+     combine (Vector.to_list (Vector.cons A a n v1))
+             (Vector.to_list (Vector.cons A b n v2))
+   = (a,b) :: combine (Vector.to_list v1) (Vector.to_list v2).
+Proof. intros. simpl. f_equal. Qed.
+
+Theorem VectorToList_append {A}: 
+        forall (m:nat) (v2:Vector.t A m) (n : nat) (v1 : Vector.t A n),
+                   (Vector.to_list v1) ++ (Vector.to_list v2) = 
+                   Vector.to_list (Vector.append v1 v2).
+Proof. intros m v2.
+  eapply Vector.t_rec.
+  reflexivity.
+  intros. simpl. rewrite (VectorToList_cons _ _ h). f_equal. rewrite <- H. f_equal.
+Qed.
+   

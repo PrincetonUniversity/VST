@@ -199,6 +199,7 @@ Proof. intros.
            do 2 rewrite map_length. rewrite ZLO'. 
            do 2 rewrite map_length. rewrite ZLI', Min.min_l. 2: apply Z2Nat.inj_le; omega.
               rewrite le_plus_minus_r; apply Z2Nat.inj_le; omega. 
+           do 2 rewrite map_length. unfold HP.HMAC_SHA256.mkArgZ in ZLI'; rewrite ZLI'. apply Z2Nat.inj_le; omega.
            rewrite common_lemmas.firstn_app1.
            Focus 2. rewrite firstn_length, Min.min_l. omega.   
               do 2 rewrite map_length. unfold HP.HMAC_SHA256.mkArgZ in ZLO'; rewrite ZLO'. apply Z2Nat.inj_le; omega.

@@ -1,20 +1,14 @@
 Require Import pure_lemmas.
 Require Import Coqlib.
 Require Import Integers.
-(* Require Import HMAC_spec_harvard_concat. *)
 Require Import SHA256.
 Require Import functional_prog.
 Require Import hmac_pure_lemmas.
+Require Import List. Import ListNotations.
 
 (* Lemma 1: M = Prefix(Pad(M)) *)
 
 Require Import List. Import ListNotations.
-Inductive Prefix {X : Type} : list X -> list X -> Prop :=
-  | p_nil : forall (l : list X), Prefix [] l
-  | p_self : forall (l : list X), Prefix l l
-  | p_cons : forall (l1 l2 : list X) (x : X), Prefix l1 l2 -> Prefix (x :: l1) (x :: l2)
-  | p_append : forall (l1 l2 : list X) (l3 : list X), Prefix l1 l2 -> Prefix l1 (l2 ++ l3).
-  (* | p_trans : forall (l1 l2 l3 : list X), Prefix l1 l2 -> Prefix l2 l3 -> Prefix l1 l2. *)
 
 (* TODO: replace InWords with InBlocks 4? *)
 Inductive InWords : list Z -> Prop :=
@@ -34,20 +28,14 @@ Definition generate_and_pad' (msg : list Z) : list int :=
 
 (* TODO: total_pad_len_Zlist  *)
 Inductive InBlocks {A : Type} (n : nat) : list A -> Prop :=
-  | list_nil : InBlocks n []
-  | list_block : forall (front back full : list A),
+  | InBlocks_nil : InBlocks n []
+  | InBlocks_block : forall (front back full : list A),
                    length front = n ->
                    full = front ++ back ->
                    InBlocks n back ->
                    InBlocks n full. 
 
 (* ----------------- ^ Definitions *)
-(*
-Check NPeano.divide.
-Print NPeano.divide.
-Check list_repeat.
-Print list_repeat.
-*)
 
 Lemma fstpad_len :
   forall (msg : list Z),
@@ -96,7 +84,7 @@ Proof.
   - destruct l; simpl in *. constructor. inversion H.
   - destruct (list_splitLength _ _ _ H) as [l1 [l2 [L [L1 L2]]]]. clear H; subst.
     apply IHx in L2. clear IHx. 
-    apply (list_block _ l1 l2); trivial.
+    apply (InBlocks_block _ l1 l2); trivial.
 Qed. 
 
 (* TODO: clear out the SearchAbouts / clean up proof *)
@@ -117,7 +105,6 @@ Proof.
       (length (list_repeat (Z.to_nat (- (Zlength msg + 9) mod 64)) 0%Z) + 9))%nat) by omega.
   rewrite -> H. clear H.
 
-(*  SearchAbout generate_and_pad.*)
   rewrite -> Zlength_correct.
   rewrite -> length_list_repeat.
 
@@ -275,16 +262,6 @@ Proof.
     apply f_equal.
     apply IHpad_inwords.
 Qed.    
-
-(* Proof easy with pad definition *)
-Theorem prefix : forall (msg : list Z),
-                   Prefix msg (pad msg).
-Proof.
-  intros msg.
-  unfold pad.
-  apply p_append.
-  apply p_self.
-Qed.  
   
   
 (* ------------------------------------------------ *)

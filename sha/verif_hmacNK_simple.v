@@ -167,8 +167,7 @@ simpl. normalize. simpl. normalize.
 rename H into SCc. rename H0 into ACc.
 
 forward.
-apply (exp_right dig).
-simpl_stackframe_of. normalize. clear H0. 
+simpl_stackframe_of. normalize.
 assert (HS: hmacSimple key data dig).
     exists h0, h1. 
     split. destruct KL as [KL1 [KLb KLc]].
@@ -177,20 +176,20 @@ assert (HS: hmacSimple key data dig).
     rewrite hmacFinal_hmacFinalSimple. exists h2; trivial.
 assert (Size: sizeof t_struct_hmac_ctx_st <= Int.max_unsigned).
   rewrite int_max_unsigned_eq; simpl. omega.
-apply andp_right. apply prop_right. split; trivial.
-  rewrite hmac_hmacSimple in HS. destruct HS. eapply hmac_sound; eassumption.
-apply andp_right. apply prop_right. trivial. cancel.
+  rewrite hmac_hmacSimple in HS. destruct HS. 
+eapply hmac_sound in H3. subst dig.
+cancel.
 unfold data_block.
   rewrite Zlength_correct; simpl.
 rewrite <- memory_block_data_at_; try reflexivity. 
-(*XXX: WAS: rewrite memory_block_array_tuchar. 
-  normalize. clear H1. 
-  apply andp_right.
-    apply prop_right. trivial. cancel.
-  simpl; omega.
-Now need this:*)
-normalize.
-rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))).
+  (*XXX: WAS: rewrite memory_block_array_tuchar. 
+    normalize. clear H1. 
+    apply andp_right.
+      apply prop_right. trivial. cancel.
+    simpl; omega.
+  Now need this:*)
+  normalize.
+  rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))).
   apply data_at_data_at_.
   trivial.
   trivial.
@@ -201,4 +200,3 @@ rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))
  
 unfold align_compatible. destruct (eval_var _c t_struct_hmac_ctx_st rho); trivial.
 Qed.
-

@@ -1,3 +1,8 @@
+(*In this file, we verify the additional function hmac2, that we added to the c file
+  in order to exercise the reuse of a key for several messages. The function calls 
+  hmac twice, (on the same message, using the same key) and puts the resulting 
+  (identical) digests side by side in a suitably large array.*)
+
 Require Import floyd.proofauto.
 Import ListNotations.
 Require sha.sha.
@@ -14,6 +19,60 @@ Require Import sha.spec_hmac.
 Require Import vst_lemmas.
 Require Import hmac_pure_lemmas.
 Require Import hmac_common_lemmas.
+
+Definition HMAC_Double_spec :=
+  DECLARE _HMAC
+   WITH keyVal: val, KEY:DATA,
+        msgVal: val, MSG:DATA,
+        KV:val, shmd: share, md: val
+   PRE [ _key OF tptr tuchar,
+         _key_len OF tint,
+         _d OF tptr tuchar,
+         _n OF tint,
+         _md OF tptr tuchar ]
+         PROP (writable_share shmd; 
+               has_lengthK (LEN KEY) (CONT KEY);
+               has_lengthD 512 (LEN MSG) (CONT MSG))
+         LOCAL (`(eq md) (eval_id _md); 
+                `(eq keyVal) (eval_id _key);
+                `(eq (Vint (Int.repr (LEN KEY)))) (eval_id _key_len);
+                `(eq msgVal) (eval_id _d);
+                `(eq (Vint (Int.repr (LEN MSG)))) (eval_id _n);
+                `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+         SEP(`(data_block Tsh (CONT KEY) keyVal);
+             `(data_block Tsh (CONT MSG) msgVal);
+             `(K_vector KV);
+             `(memory_block shmd (Int.repr 64) md))
+  POST [ tvoid ] 
+         EX digest:_, 
+          PROP (digest = HP.HMAC256 (CONT MSG) (CONT KEY))
+          LOCAL ()
+          SEP(`(K_vector KV);
+              `(data_block shmd (digest++digest) md);
+              `(initPostKey keyVal (CONT KEY) );
+              `(data_block Tsh (CONT MSG) msgVal)).
+
+Lemma hmacstate_PostFinal_PreInitNull key h0 data h1 dig h2 v:
+      forall (HmacInit : hmacInit key h0)
+             (HmacUpdate : hmacUpdate data h0 h1)
+             (Round1Final : hmacFinal h1 dig h2),
+      hmacstate_PostFinal h2 v
+  |-- hmacstate_PreInitNull key h2 v.
+Proof. intros. 
+  unfold hmacstate_PostFinal, hmac_relate_PostFinal, hmacstate_PreInitNull; normalize.
+  unfold hmac_relate_PreInitNull; simpl.
+  apply exp_right with (x:=r).
+  apply exp_right with (x:=([], (Vundef, (Vundef, ([], Vundef))))).
+  apply andp_right. 
+    destruct h2. destruct h1. simpl in *.
+    destruct Round1Final as [oSA [UPDO [XX FinDig]]]. inversion XX; subst; clear XX.
+    destruct h0. simpl in *. destruct HmacUpdate as [ctx2 [UpdI XX]]. inversion XX; subst; clear XX.
+    unfold  hmacInit in HmacInit. simpl in *. 
+    destruct HmacInit as [IS [OS [ISHA [OSHA XX]]]].  inversion XX; subst; clear XX. 
+    apply prop_right; intuition.     
+    destruct H5 as [ii [I1 [I2 I3]]]. exists ii; intuition.
+  cancel.
+Qed.
 
 Lemma body_hmac_double: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC2 HMAC_Double_spec.
