@@ -322,12 +322,27 @@ Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type))
    (make_tycontext_g V G)
    (make_tycontext_s G) cenv cc.
 
+Definition func_tycontext' (func: function) (Delta: tycontext) : tycontext :=
+ mk_tycontext
+   (make_tycontext_t (fn_params func) (fn_temps func))
+   (make_tycontext_v (fn_vars func))
+   (fn_return func)
+   (glob_types Delta)
+   (glob_specs Delta)
+   (composite_types Delta)
+   (composite_types_consistent Delta).
+
 Definition func_tycontext (func: function) (V: varspecs) (G: funspecs) cenv cc : tycontext :=
   make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G cenv cc.
 
 Definition nofunc_tycontext (V: varspecs) (G: funspecs) cenv cc : tycontext :=
    make_tycontext nil nil nil Tvoid V G cenv cc.
 
+Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
+  match ek with 
+  | EK_normal => update_tycon Delta c 
+  | _ => Delta 
+  end.
 
 Lemma join_te_eqv :forall te1 te2 id b1 b2 t1,
 te1 ! id = Some (t1, b1) -> te2 ! id = Some (t1, b2) ->
@@ -758,6 +773,47 @@ Qed.
 Definition sub_option {A} (x y: option A) :=
  match x with Some x' => y = Some x' | None => True end.
 
+Lemma sub_option_eqv: forall {A} (x y: option A),
+  x = y <-> sub_option x y /\ sub_option y x.
+Proof.
+  intros.
+  destruct x, y; split; intros; try congruence.
+  + inversion H.
+    simpl.
+    split; reflexivity.
+  + simpl in H; destruct H.
+    inversion H.
+    reflexivity.
+  + simpl in H; destruct H.
+    inversion H.
+  + simpl in H; destruct H.
+    inversion H0.
+  + simpl.
+    tauto.
+Qed.
+
+Lemma sub_option_refl: forall {A} (x: option A), sub_option x x.
+Proof.
+  intros.
+  destruct x; simpl.
+  + reflexivity.
+  + exact I.
+Qed.
+
+Lemma sub_option_trans: forall {A} (x y z: option A), sub_option x y -> sub_option y z -> sub_option x z.
+Proof.
+  intros.
+  destruct x, y, z;
+  inversion H;
+  subst;
+  inversion H0;
+  subst.
+  + reflexivity.
+  + exact I.
+  + exact I.
+  + exact I.
+Qed.  
+
 Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
  (forall id, match (temp_types Delta) ! id,  (temp_types Delta') ! id with
                  | None, _ => True
@@ -821,29 +877,79 @@ Proof.
  apply IHl. contradict H0;simpl; auto.
 Qed.
 
-Lemma tycontext_eqv_symm:
-  forall Delta Delta', tycontext_eqv Delta Delta' ->  tycontext_eqv Delta' Delta.
+Lemma tycontext_eqv_spec: forall Delta Delta',
+  tycontext_eqv Delta Delta' <-> tycontext_sub Delta Delta' /\ tycontext_sub Delta' Delta.
 Proof.
-intros.
-destruct H as [? [? [? [? [? ?]]]]]; repeat split; auto.
+  intros.
+  unfold tycontext_sub, tycontext_eqv.
+  split; [intros [? [? [? [? [? ?]]]]] | intros [[? [? [? [? [? ?]]]]] [? [? [? [? [? ?]]]]]]];
+  repeat split; intros;
+  try assumption;
+  try (symmetry; assumption);
+  try
+  solve [
+    apply sub_option_eqv;
+    try split;
+    try rewrite H; try rewrite H0; try rewrite H1; try rewrite H2; try rewrite H3; try rewrite H4;
+    try apply sub_option_refl; try reflexivity;
+    auto
+    ].
+  + clear - H.
+    specialize (H id).
+    destruct ((temp_types Delta) ! id) as [[? ?] |], ((temp_types Delta') ! id) as [[? ?] |];
+    inversion H.
+    destruct b0; split; simpl; auto.
+    exact I.
+  + clear - H.
+    specialize (H id).
+    destruct ((temp_types Delta) ! id) as [[? ?] |], ((temp_types Delta') ! id) as [[? ?] |];
+    inversion H.
+    destruct b0; split; simpl; auto.
+    exact I.
+  + clear - H H5.
+    specialize (H id).
+    specialize (H5 id).
+    destruct ((temp_types Delta) ! id) as [[? ?] |], ((temp_types Delta') ! id) as [[? ?] |];
+    inversion H; inversion H5.
+    - clear H2; subst.
+      destruct b, b0; try inversion H1; try inversion H3; reflexivity.
+    - reflexivity.
 Qed.
 
 Lemma tycontext_sub_refl:
  forall Delta, tycontext_sub Delta Delta.
 Proof.
-intros. destruct Delta as [T V r G S].
-unfold tycontext_sub.
-intuition.
- + unfold sub_option. unfold temp_types. simpl. 
-   destruct (T ! id) as [[? ?]|]; split; auto; destruct b; auto.
- + unfold sub_option, glob_types. simpl. 
-   destruct (G ! id); auto.
- + unfold sub_option, glob_specs. simpl. 
-   destruct (S ! id); auto.
- + unfold sub_option, composite_types. simpl. 
-   destruct (cenv ! id); auto. 
+  intros. destruct Delta as [T V r G S].
+  unfold tycontext_sub.
+  intuition.
+  + unfold sub_option. unfold temp_types. simpl. 
+    destruct (T ! id) as [[? ?]|]; split; auto; destruct b; auto.
+  + apply sub_option_refl.
+  + apply sub_option_refl.
+  + apply sub_option_refl.
 Qed.
 
+Lemma tycontext_sub_trans:
+ forall Delta1 Delta2 Delta3,
+  tycontext_sub Delta1 Delta2 -> tycontext_sub Delta2 Delta3 ->
+  tycontext_sub Delta1 Delta3.
+Proof.
+  intros ? ? ? [G1 [G2 [G3 [G4 [G5 G6]]]]] [H1 [H2 [H3 [H4 [H5 H6]]]]].
+  repeat split.
+  * intros. specialize (G1 id); specialize (H1 id).
+    destruct ((temp_types Delta1) ! id); auto.
+    destruct p. destruct ((temp_types Delta2) ! id); 
+      try contradiction. destruct p.
+    destruct ((temp_types Delta3) ! id); try contradiction. 
+    destruct p. destruct G1, H1; split; subst; auto.
+    destruct (negb  b); inv H0; simpl; auto.
+    destruct b0; inv H; simpl in H5. auto.
+  * intros. specialize (G2 id); specialize (H2 id); congruence.
+  * congruence.
+  * intros. eapply sub_option_trans; eauto.
+  * intros. eapply sub_option_trans; eauto.
+  * intros. eapply sub_option_trans; eauto.
+Qed.
 
 Lemma initialized_ne : forall Delta id1 id2,
 id1 <> id2 ->
@@ -855,36 +961,6 @@ unfold initialized. simpl. unfold temp_types; simpl.
 destruct (tyc_temps ! id2). destruct p. simpl.  rewrite PTree.gso; auto.
 auto.
 Qed.
-
-Lemma initialized_sub :
-  forall Delta Delta' i ,
-    tycontext_sub Delta Delta' ->
-    tycontext_sub (initialized i Delta) (initialized i Delta').
-Proof.
-intros.
-unfold tycontext_sub in *. 
-destruct H as [? [? [? [? [? ?]]]]].
-repeat split; intros.
- + specialize (H id); clear - H.
-        destruct (eq_dec  i id).
-        -  unfold initialized. subst.
-           destruct ((temp_types Delta)!id) as [[? ?] |] eqn:?.
-         unfold temp_types at 1; simpl; rewrite PTree.gss.
-        destruct ((temp_types Delta')!id) as [[? ?] |]. destruct H; subst t0.
-         unfold temp_types at 1. simpl. rewrite PTree.gss. auto. contradiction.
-         rewrite Heqo. auto.
-        -   rewrite <- initialized_ne by auto.
-           destruct ((temp_types Delta)!id) as [[? ?] |] eqn:?; auto.
-           rewrite <- initialized_ne by auto.
-        destruct ((temp_types Delta')!id) as [[? ?] |]; [| contradiction].
-         auto.
- + repeat rewrite set_temp_ve; auto.
- + repeat rewrite set_temp_ret; auto. 
- + repeat rewrite set_temp_ge; auto.
- + repeat rewrite set_temp_gs; auto.
- + repeat rewrite set_temp_ct; auto.
-Qed.
-
 
 Definition te_one_denote (v1 v2 : option (type * bool)):=
 match v1, v2 with 
@@ -948,35 +1024,6 @@ destruct (d1 ! id) as [[t b] | ] eqn:?; auto.
  contradict H1. left; auto.
  apply IHl. contradict H1. right; auto.
 Qed.
-  
-Lemma tycontext_sub_join:
- forall Delta1 Delta2 Delta1' Delta2',
-  tycontext_sub Delta1 Delta1' -> tycontext_sub Delta2 Delta2' ->
-  tycontext_sub (join_tycon Delta1 Delta2) (join_tycon Delta1' Delta2').
-Proof.
-intros [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
-          [A1' B1' C1' D1' E1'] [A2' B2' C2' D2' E2']
-  [? [? [? ?]]] [? [? [? ?]]].
-simpl in *.
-unfold join_tycon.
-split; [ | split; [ | split]]; simpl; auto.
-intro id; specialize (H id); specialize (H3 id).
-unfold temp_types in *.
-simpl in *.
-clear - H H3.
-unfold sub_option in *.
-repeat rewrite join_te_denote2.
-unfold te_one_denote.
-destruct (A1 ! id) as [[? b1] |].
-destruct (A1' ! id) as [[? b1'] |]; [ | contradiction].
-destruct H; subst t0.
-destruct (A2 ! id) as [[? b2] |].
-destruct (A2' ! id) as [[? b2'] |]; [ | contradiction].
-destruct H3; subst t1.
-split; auto. destruct b1,b1'; inv H0; simpl; auto.
-destruct (A2' ! id) as [[? b2'] |]; split; auto.
-auto.
-Qed.
 
 Lemma temp_types_same_type' : forall i (Delta: tycontext),
  (temp_types (initialized i Delta)) ! i =
@@ -990,28 +1037,6 @@ unfold initialized.
 destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?.
 unfold temp_types at 1. simpl. rewrite PTree.gss. auto.
 auto.
-Qed.
-
-Lemma update_tycon_sub:
-  forall Delta Delta', tycontext_sub Delta Delta' ->
-   forall h, tycontext_sub (update_tycon Delta h) (update_tycon Delta' h)
-with join_tycon_labeled_sub: 
- forall Delta Delta', tycontext_sub Delta Delta' ->
-    forall ls, tycontext_sub (join_tycon_labeled ls Delta)
-                         (join_tycon_labeled ls Delta').
-Proof.
-* clear update_tycon_sub.
-  rename join_tycon_labeled_sub into J.
-  intros.
- revert Delta Delta' H; induction h; intros;
-   try (apply H); simpl update_tycon; auto.
- + apply initialized_sub; auto.
- + destruct o; auto. apply initialized_sub; auto.
- + apply tycontext_sub_join; auto.
-* clear join_tycon_labeled_sub.
- intros.
- revert Delta Delta' H; induction ls; simpl; intros; auto.
- apply tycontext_sub_join; auto.
 Qed.
 
 Section STABILITY.
@@ -1108,5 +1133,176 @@ Proof.
       rewrite <- sizeof_sub by tauto.
       apply IHm; try tauto.
 Qed.
-  
+
+Lemma initialized_sub: forall i,
+  tycontext_sub (initialized i Delta) (initialized i Delta').
+Proof.
+intros.
+unfold tycontext_sub in *. 
+destruct extends as [? [? [? [? [? ?]]]]].
+repeat split; intros.
+ + specialize (H id); clear - H.
+        destruct (eq_dec  i id).
+        -  unfold initialized. subst.
+           destruct ((temp_types Delta)!id) as [[? ?] |] eqn:?.
+         unfold temp_types at 1; simpl; rewrite PTree.gss.
+        destruct ((temp_types Delta')!id) as [[? ?] |]. destruct H; subst t0.
+         unfold temp_types at 1. simpl. rewrite PTree.gss. auto. contradiction.
+         rewrite Heqo. auto.
+        -   rewrite <- initialized_ne by auto.
+           destruct ((temp_types Delta)!id) as [[? ?] |] eqn:?; auto.
+           rewrite <- initialized_ne by auto.
+        destruct ((temp_types Delta')!id) as [[? ?] |]; [| contradiction].
+         auto.
+ + repeat rewrite set_temp_ve; auto.
+ + repeat rewrite set_temp_ret; auto. 
+ + repeat rewrite set_temp_ge; auto.
+ + repeat rewrite set_temp_gs; auto.
+ + repeat rewrite set_temp_ct; auto.
+Qed.
+
+Lemma func_tycontext'_sub: forall f,
+  tycontext_sub (func_tycontext' f Delta) (func_tycontext' f Delta').
+Proof.
+  intros.
+  unfold func_tycontext'.
+  unfold tycontext_sub in *.
+  destruct extends as [? [? [? [? [? ?]]]]].
+  repeat split; simpl.
+  + intros.
+    destruct ((make_tycontext_t (fn_params f) (fn_temps f)) ! id) as [[? ?] |].
+    - destruct b; split; reflexivity.
+    - exact I.
+  + auto.
+  + auto.
+  + auto.
+Qed.
+
 End STABILITY.
+
+Lemma tycontext_sub_join:
+ forall Delta1 Delta2 Delta1' Delta2',
+  tycontext_sub Delta1 Delta1' -> tycontext_sub Delta2 Delta2' ->
+  tycontext_sub (join_tycon Delta1 Delta2) (join_tycon Delta1' Delta2').
+Proof.
+intros [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
+          [A1' B1' C1' D1' E1'] [A2' B2' C2' D2' E2']
+  [? [? [? ?]]] [? [? [? ?]]].
+simpl in *.
+unfold join_tycon.
+split; [ | split; [ | split]]; simpl; auto.
+intro id; specialize (H id); specialize (H3 id).
+unfold temp_types in *.
+simpl in *.
+clear - H H3.
+unfold sub_option in *.
+repeat rewrite join_te_denote2.
+unfold te_one_denote.
+destruct (A1 ! id) as [[? b1] |].
+destruct (A1' ! id) as [[? b1'] |]; [ | contradiction].
+destruct H; subst t0.
+destruct (A2 ! id) as [[? b2] |].
+destruct (A2' ! id) as [[? b2'] |]; [ | contradiction].
+destruct H3; subst t1.
+split; auto. destruct b1,b1'; inv H0; simpl; auto.
+destruct (A2' ! id) as [[? b2'] |]; split; auto.
+auto.
+Qed.
+
+Lemma update_tycon_sub:
+  forall Delta Delta', tycontext_sub Delta Delta' ->
+   forall h, tycontext_sub (update_tycon Delta h) (update_tycon Delta' h)
+with join_tycon_labeled_sub: 
+ forall Delta Delta', tycontext_sub Delta Delta' ->
+    forall ls, tycontext_sub (join_tycon_labeled ls Delta)
+                         (join_tycon_labeled ls Delta').
+Proof.
+* clear update_tycon_sub.
+  rename join_tycon_labeled_sub into J.
+  intros.
+ revert Delta Delta' H; induction h; intros;
+   try (apply H); simpl update_tycon; auto.
+ + apply initialized_sub; auto.
+ + destruct o; auto. apply initialized_sub; auto.
+ + apply tycontext_sub_join; auto.
+* clear join_tycon_labeled_sub.
+ intros.
+ revert Delta Delta' H; induction ls; simpl; intros; auto.
+ apply tycontext_sub_join; auto.
+Qed.
+
+Lemma exit_tycon_sub: forall c ek,
+  forall Delta Delta', tycontext_sub Delta Delta' ->
+  tycontext_sub (exit_tycon c Delta ek) (exit_tycon c Delta' ek).
+Proof.
+intros.
+destruct ek; simpl; auto.
+apply update_tycon_sub; auto.
+Qed.
+
+Section TYCON_EQUIV.
+
+Variable Delta Delta': tycontext.
+Hypothesis equiv: tycontext_eqv Delta Delta'.
+
+Lemma func_tycontext'_eqv: forall f,
+  tycontext_eqv (func_tycontext' f Delta) (func_tycontext' f Delta').
+Proof.
+  intro.
+  rewrite tycontext_eqv_spec in *.
+  split; apply func_tycontext'_sub; tauto.
+Qed.
+
+Lemma initialized_tycontext_eqv: forall i,
+  tycontext_eqv (initialized i Delta) (initialized i Delta').
+Proof.
+  intro.
+  rewrite tycontext_eqv_spec in *.
+  split; apply initialized_sub; tauto.
+Qed.
+
+Lemma update_tycontext_eqv: forall c,
+  tycontext_eqv (update_tycon Delta c) (update_tycon Delta' c).
+Proof.
+  intro.
+  rewrite tycontext_eqv_spec in *.
+  split; apply update_tycon_sub; tauto.
+Qed.
+
+Lemma join_tycon_labeled_eqv: forall l,
+  tycontext_eqv (join_tycon_labeled l Delta) (join_tycon_labeled l Delta').
+Proof.
+  intros.
+  rewrite tycontext_eqv_spec in *.
+  split; apply join_tycon_labeled_sub; tauto.
+Qed.
+
+Lemma exit_tycontext_eqv: forall c b,
+  tycontext_eqv (exit_tycon c Delta b) (exit_tycon c Delta' b).
+Proof.
+  intros.
+  rewrite tycontext_eqv_spec in *.
+  split; apply exit_tycon_sub; tauto.
+Qed.
+
+End TYCON_EQUIV.
+
+Lemma join_tycontext_eqv:
+  forall Delta1 Delta1' Delta2 Delta2',
+     tycontext_eqv Delta1 Delta1' ->
+     tycontext_eqv Delta2 Delta2' ->
+    tycontext_eqv (join_tycon Delta1 Delta2)  (join_tycon Delta1' Delta2').
+Proof.
+  intros ? ? ? ?.
+  rewrite ! tycontext_eqv_spec.
+  intros [? ?] [? ?].
+  split; apply tycontext_sub_join; auto.
+Qed.
+
+Lemma tycontext_eqv_symm:
+  forall Delta Delta', tycontext_eqv Delta Delta' ->  tycontext_eqv Delta' Delta.
+Proof.
+intros.
+destruct H as [? [? [? [? [? ?]]]]]; repeat split; auto.
+Qed.
+

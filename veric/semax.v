@@ -90,12 +90,6 @@ Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : cont :=
          end
    end.
 
-Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
-  match ek with 
-  | EK_normal => update_tycon Delta c 
-  | _ => Delta 
-  end.
-
 Definition r_update_tenv (tx:Clight.temp_env) id vl := 
 match vl, id with 
 | v::_, Some ret => PTree.set ret v tx  

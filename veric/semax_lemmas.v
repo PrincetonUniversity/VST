@@ -12,7 +12,9 @@ Require Import veric.assert_lemmas.
 Require Import veric.Clight_new.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
-Require Import veric.expr veric.expr_lemmas.
+Require Import veric.tycontext.
+Require Import veric.expr.
+Require Import veric.expr_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.semax.
 Require Import veric.Clight_lemmas.
@@ -114,6 +116,7 @@ intros. constructor 1; auto.
 Qed.
 Hint Resolve @age_laterR.
 
+(*
 Lemma tycontext_sub_update_c:
  forall c (Delta Delta' : tycontext),
     tycontext_sub Delta Delta' -> tycontext_sub (update_tycon Delta c) (update_tycon Delta' c)
@@ -133,17 +136,7 @@ clear tycontext_sub_update_l.
 induction l; simpl; intros; auto.
 apply tycontext_sub_join; auto.
 Qed.
-
-Lemma exit_tycon_sub:
-  forall Delta Delta' c ek,  tycontext_sub Delta Delta' ->
-      tycontext_sub (exit_tycon c Delta ek)
-                        (exit_tycon c Delta' ek).
-Proof.
-intros.
-revert Delta Delta' H;
-destruct ek; simpl; auto.
-apply tycontext_sub_update_c.
-Qed.
+*)
 
 Lemma typecheck_environ_sub:
   forall Delta Delta', tycontext_sub Delta Delta' ->
@@ -504,8 +497,8 @@ Qed.
 
 Definition G0: funspecs := nil.
 
-Definition empty_genv : Clight.genv :=
-  Genv.globalenv (AST.mkprogram (F:=Clight.fundef)(V:=type) nil ( 1%positive)).
+Definition empty_genv prog_pub cenv: Clight.genv :=
+   Build_genv (Genv.globalenv (AST.mkprogram (F:=Clight.fundef)(V:=type) nil prog_pub (1%positive))) cenv.
 
 Lemma empty_program_ok: forall Delta ge w, 
     glob_specs Delta = PTree.empty _ -> 
@@ -547,17 +540,6 @@ intros.
 intros n ?. eapply H; eauto.
 Qed.
 
-Lemma func_tycontext'_eqv:
-  forall f Delta Delta', tycontext_eqv Delta Delta' ->
-        tycontext_eqv (func_tycontext' f Delta) (func_tycontext' f Delta').
-Proof.
-intros.
-unfold func_tycontext'.
-split; auto. split; auto. split; auto.
-simpl. destruct H as [? [? [? ?]]]; auto.
-Qed.
-
-
 Lemma same_glob_funassert:
   forall Delta1 Delta2,
      (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
@@ -577,78 +559,18 @@ extensionality rho.
 apply pred_ext; apply H; intros; auto.
 Qed.
 
-Lemma initialized_tycontext_eqv:
-  forall i Delta Delta',
-    tycontext_eqv Delta Delta' ->
-    tycontext_eqv (initialized i Delta) (initialized i Delta').
-Proof.
-intros. unfold tycontext_eqv, initialized in *.
-destruct H as [? [? [? [? ?]]]].
-rewrite (H i).
-destruct ((temp_types Delta') ! i); auto.
-destruct p.
-repeat split; intros; auto.
-unfold temp_types at 1 3. simpl. destruct (eq_dec id i).
-subst; repeat rewrite PTree.gss; auto.
-repeat rewrite PTree.gso by auto; auto.
-Qed.
-
-Lemma join_tycontext_eqv:
-  forall Delta1 Delta1' Delta2 Delta2',
-     tycontext_eqv Delta1 Delta1' ->
-     tycontext_eqv Delta2 Delta2' ->
-    tycontext_eqv (join_tycon Delta1 Delta2)  (join_tycon Delta1' Delta2').
+Lemma guard_environ_sub:
+  forall {Delta Delta' f rho},
+   tycontext_sub Delta Delta' ->
+   guard_environ Delta' f rho ->
+   guard_environ Delta f rho.
 Proof.
 intros.
-destruct H as [? [? [? [? ?]]]].
-destruct H0 as [? [? [? [? ?]]]].
-destruct Delta1, Delta2, Delta1', Delta2'.
-unfold join_tycon; simpl in *; repeat split; auto.
-unfold temp_types in *; simpl in *.
-clear - H H0.
-intro id.
-unfold join_te.
-repeat rewrite PTree.fold_spec.
-replace (PTree.elements tyc_temps1) with (PTree.elements tyc_temps) by (apply PTree.elements_extensional; auto).
-repeat rewrite <- fold_left_rev_right.
-induction (rev (PTree.elements tyc_temps)); simpl; intros; auto.
-unfold join_te' at 1 3. destruct a. simpl.
-destruct p0.
-rewrite <- (H0 p).
-destruct (tyc_temps0 ! p); auto.
-destruct p0.
-destruct (eq_dec p id). subst. repeat rewrite PTree.gss; auto.
-repeat rewrite (PTree.gso); auto.
-Qed.
-
-Lemma update_tycontext_eqv:
-  forall c Delta Delta',
-    tycontext_eqv Delta Delta' ->
-    tycontext_eqv (update_tycon Delta c) (update_tycon Delta' c)
-with join_tycon_labeled_eqv:
-  forall l Delta Delta',
-    tycontext_eqv Delta Delta' ->
-  tycontext_eqv (join_tycon_labeled l Delta) (join_tycon_labeled l Delta').
-Proof.
-induction c; simpl; intros; auto.
-apply initialized_tycontext_eqv; auto.
-destruct o; auto; apply initialized_tycontext_eqv; auto.
-apply join_tycontext_eqv; auto.
-
-induction l; simpl; intros; auto.
-apply join_tycontext_eqv; auto.
-Qed.
-
-Lemma exit_tycontext_eqv: forall c Delta Delta' b,
-    tycontext_eqv Delta Delta' ->
-    tycontext_eqv (exit_tycon c Delta b) (exit_tycon c Delta' b).
-Proof.
- unfold exit_tycon;  induction c; simpl; intros; destruct b; auto.
- apply initialized_tycontext_eqv; auto.
- destruct o; auto; apply initialized_tycontext_eqv; auto.
- repeat apply update_tycontext_eqv; auto.
- apply join_tycontext_eqv; apply update_tycontext_eqv; auto.
- apply join_tycon_labeled_eqv; auto.
+destruct H0; split; auto.
+eapply typecheck_environ_sub; eauto.
+destruct f; auto.
+destruct H1; split; auto.
+destruct H as [? [? [? ?]]]. rewrite H4; auto.
 Qed.
 
 Lemma guard_environ_eqv:
@@ -656,49 +578,10 @@ Lemma guard_environ_eqv:
   tycontext_eqv Delta Delta' ->
   guard_environ Delta f rho -> guard_environ Delta' f rho.
 Proof.
-unfold guard_environ; intros.
- destruct H0; split. 
- clear H1.
- unfold typecheck_environ in *.
-unfold tycontext_eqv in *. 
-destruct H0 as [? [? [? ?]]].
- destruct H as [? [? [? [? Hs]]]].
-intuition; auto. unfold typecheck_temp_environ in *. 
-intros. 
-rewrite <- H in *. eauto. 
-unfold typecheck_var_environ in *. intros. rewrite <- H4 in *; eauto. 
-unfold typecheck_glob_environ in *. intros. rewrite <- H6 in *; eauto. 
-unfold same_env in *. intros.  rewrite <- H6 in *.  edestruct H3; eauto. 
-destruct H8. right. exists x.  rewrite <- H4. auto. 
- destruct H as [? [? [? ?]]].
-rewrite H3 in *. auto. 
-Qed.
-
-Lemma tycontext_sub_trans:
- forall Delta1 Delta2 Delta3,
-  tycontext_sub Delta1 Delta2 -> tycontext_sub Delta2 Delta3 ->
-  tycontext_sub Delta1 Delta3.
-Proof.
-intros ? ? ? [G1 [G2 [G3 [G4 G5]]]] [H1 [H2 [H3 [H4 H5]]]].
-repeat split.
-* intros. specialize (G1 id); specialize (H1 id).
- destruct ((temp_types Delta1) ! id); auto.
- destruct p. destruct ((temp_types Delta2) ! id); 
-   try contradiction. destruct p.
-  destruct ((temp_types Delta3) ! id); try contradiction. 
- destruct p. destruct G1, H1; split; subst; auto.
-  destruct (negb  b); inv H0; simpl; auto.
- destruct b0; inv H; simpl in H5. auto.
-* intros. specialize (G2 id); specialize (H2 id); congruence.
-* congruence.
-* intros. specialize (G4 id); specialize (H4 id).
-  clear - G4 H4. hnf in G4, H4 |- *.
-  destruct ( (glob_types Delta1) ! id); auto.
-  rewrite G4 in H4. auto.
-* intros. specialize (G5 id); specialize (H5 id).
-  clear - G5 H5. hnf in G5, H5 |- *.
-  destruct ( (glob_specs Delta1) ! id); auto.
-  rewrite G5 in H5. auto.
+  intros.
+  rewrite tycontext_eqv_spec in H.
+  eapply guard_environ_sub; eauto.
+  tauto.
 Qed.
 
 Lemma semax_extensionality0:
@@ -1648,15 +1531,15 @@ Definition Cnot (e: Clight.expr) : Clight.expr :=
    Clight.Eunop Cop.Onotbool e type_bool.
 
 Lemma bool_val_Cnot:
-  forall rho a b, 
+  forall Delta rho a b, 
     bool_type (typeof a) = true ->
-    strict_bool_val (eval_expr a rho) (typeof a) = Some b ->
-    strict_bool_val (eval_expr (Cnot a) rho) (typeof (Cnot a)) = Some (negb b).
+    strict_bool_val (eval_expr Delta a rho) (typeof a) = Some b ->
+    strict_bool_val (eval_expr Delta (Cnot a) rho) (typeof (Cnot a)) = Some (negb b).
 Proof.
  intros.
  unfold Cnot. simpl.
  unfold eval_unop, force_val1; super_unfold_lift; simpl.
- destruct (eval_expr a rho); simpl in *; try congruence.
+ destruct (eval_expr Delta a rho); simpl in *; try congruence.
  destruct (typeof a); simpl in *; try congruence.
  inv H0.  rewrite  negb_involutive.
  unfold Cop.sem_notbool, Cop.classify_bool, Val.of_bool.
@@ -1679,19 +1562,6 @@ Proof.
  rewrite Int.eq_true; reflexivity.
 Qed.
 
-Lemma guard_environ_sub:
-  forall {Delta Delta' f rho},
-   tycontext_sub Delta Delta' ->
-   guard_environ Delta' f rho ->
-   guard_environ Delta f rho.
-Proof.
-intros.
-destruct H0; split; auto.
-eapply typecheck_environ_sub; eauto.
-destruct f; auto.
-destruct H1; split; auto.
-destruct H as [? [? [? ?]]]. rewrite H4; auto.
-Qed.
 
 (*Is it ok to force store into int? seems fine, result will always be int. any cast seems silly*)
 Definition typecheck_tid_ptr_compare
