@@ -192,12 +192,12 @@ unfold rmap in *.
  apply (necR_NO _ _ l Share.bot H4). auto.
 Qed.
 
-Lemma age_safe {F V C}
-  (csem: CoreSemantics (Genv.t F V) C mem){Z}  (Hspec : juicy_ext_spec Z):
+Lemma age_safe {G C}
+  (csem: CoreSemantics G C mem) {Z} (genv_symb: G -> PTree.t block) (Hspec : juicy_ext_spec Z):
   forall jm jm0, age jm0 jm -> 
   forall ge ora c, 
-   safeN (juicy_core_sem csem) Hspec ge (level jm0) ora c jm0 ->
-   safeN (juicy_core_sem csem) Hspec ge (level jm) ora c jm.
+   safeN genv_symb (juicy_core_sem csem) Hspec ge (level jm0) ora c jm0 ->
+   safeN genv_symb (juicy_core_sem csem) Hspec ge (level jm) ora c jm.
 Proof.
   intros. rename H into H2. 
    rewrite (age_level _ _ H2) in H0.

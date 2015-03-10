@@ -14,7 +14,9 @@ Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_safety.
 Require Import veric.juicy_extspec.
-Require Import veric.expr veric.expr_lemmas.
+Require Import tycontext.
+Require Import veric.expr.
+Require Import veric.expr_lemmas.
 
 Local Open Scope nat_scope.
 Local Open Scope pred.
@@ -23,7 +25,7 @@ Definition closed_wrt_modvars c (F: assert) : Prop :=
     closed_wrt_vars (modifiedvars c) F.
 
 Definition jsafeN {Z} (Hspec : juicy_ext_spec Z)  :=
-  safeN (juicy_core_sem cl_core_sem) Hspec.
+  safeN (fun ge: genv => Genv.genv_symb ge) (juicy_core_sem cl_core_sem) Hspec.
 
 Program Definition assert_safe 
      (Espec : OracleKind)
@@ -188,16 +190,8 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
 
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
-Definition func_tycontext' (func: function) (Delta: tycontext) : tycontext :=
- mk_tycontext
-   (make_tycontext_t (fn_params func) (fn_temps func))
-   (make_tycontext_v (fn_vars func))
-   (fn_return func)
-   (glob_types Delta)
-   (glob_specs Delta).
-
-Definition var_sizes_ok (vars: list (ident*type)) := 
-   Forall (fun var : ident * type => sizeof (snd var) <= Int.max_unsigned)%Z vars.
+Definition var_sizes_ok Delta (vars: list (ident*type)) := 
+   Forall (fun var : ident * type => sizeof (composite_types Delta) (snd var) <= Int.max_unsigned)%Z vars.
 
 Definition believe_internal_ 
   (semax:semaxArg -> pred nat)
@@ -205,13 +199,13 @@ Definition believe_internal_
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (f.(fn_vars))
+                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok Delta (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
   && ALL x : A, |> semax (SemaxArg  (func_tycontext' f Delta)
-                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of f rho)
+                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of Delta f rho)
                                              && funassert (func_tycontext' f Delta) rho)
                               (Ssequence f.(fn_body) (Sreturn None))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f)))).
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of Delta f)))).
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
@@ -247,13 +241,13 @@ Definition believe_internal (Espec:  OracleKind)
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (f.(fn_vars))
+                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok Delta (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
   && ALL x : A, |> semax' Espec (func_tycontext' f Delta)
-                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of f rho)
+                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of Delta f rho)
                                              && funassert (func_tycontext' f Delta) rho)
                                (Ssequence f.(fn_body) (Sreturn None))  
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))).
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of Delta f))).
 
 Definition believe (Espec:OracleKind)
               (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=

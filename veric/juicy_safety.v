@@ -1,4 +1,6 @@
 Require Import AST.
+Require Import Values.
+Require Import compcert.lib.Maps.
 Require Import Globalenvs.
 
 Require Import msl.ageable.
@@ -19,12 +21,13 @@ Definition pures_sub (jm jm' : juicy_mem) :=
   end.
 
 Section juicy_safety.
-  Context {F V C Z:Type}.
-  Context (Hcore:CoreSemantics (Genv.t F V) C juicy_mem).
+  Context {G C Z:Type}.
+  Context (genv_symb: G -> PTree.t block).
+  Context (Hcore:CoreSemantics G C juicy_mem).
   Variable (Hspec:external_specification juicy_mem external_function Z).
   Definition Hrel n' m m' :=
     n' = level m' /\
     (level m' < level m)%nat /\ 
     pures_sub m m'.
-  Definition safeN := @safeN_ F V C juicy_mem Z Hrel Hcore Hspec.
+  Definition safeN := @safeN_ G C juicy_mem Z genv_symb Hrel Hcore Hspec.
 End juicy_safety.

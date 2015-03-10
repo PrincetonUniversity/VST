@@ -1,18 +1,19 @@
 Require Import AST.
 Require Import Coqlib.
-Require Import Globalenvs.
-
+Require Import Values.
+Require Import compcert.lib.Maps.
 Require Import extspec.
 Require Import core_semantics.
 Require Import core_semantics_lemmas.
 
 Section safety.
-  Context {F V C M Z:Type}.
+  Context {G C M Z:Type}.
+  Context {genv_symb: G -> PTree.t block}.
   Context {Hrel: nat -> M -> M -> Prop}.
-  Context (Hcore:CoreSemantics (Genv.t F V) C M).
+  Context (Hcore:CoreSemantics G C M).
   Variable (Hspec:external_specification M external_function Z).
 
-  Variable ge : Genv.t F V.
+  Variable ge : G.
 
   Inductive safeN_ : nat -> Z -> C -> M -> Prop :=
   | safeN_0: forall z c m, safeN_ O z c m
@@ -24,11 +25,11 @@ Section safety.
   | safeN_external:
       forall n z c m e sig args x,
       at_external Hcore c = Some (e,sig,args) ->
-      ext_spec_pre Hspec e x (Genv.genv_symb ge) (sig_args sig) args z m ->
+      ext_spec_pre Hspec e x (genv_symb ge) (sig_args sig) args z m ->
       (forall ret m' z' n',
          (n' <= n)%nat -> 
          Hrel n' m m' -> 
-         ext_spec_post Hspec e x (Genv.genv_symb ge) (sig_res sig) ret z' m' ->
+         ext_spec_post Hspec e x (genv_symb ge) (sig_res sig) ret z' m' ->
          exists c',
            after_external Hcore ret c = Some c' /\
            safeN_ n' z' c' m') -> 
@@ -171,8 +172,9 @@ Section safety.
 End safety.
 
 Section dry_safety.
-  Context {F V C M Z:Type}.
-  Context (Hcore:CoreSemantics (Genv.t F V) C M).
+  Context {G C M Z:Type}.
+  Context {genv_symb: G -> PTree.t block}.
+  Context (Hcore:CoreSemantics G C M).
   Variable (Hspec:external_specification M external_function Z).
-  Definition dry_safeN := @safeN_ F V C M Z (fun n' m m' => True) Hcore Hspec.
+  Definition dry_safeN := @safeN_ G C M Z genv_symb (fun n' m m' => True) Hcore Hspec.
 End dry_safety.
