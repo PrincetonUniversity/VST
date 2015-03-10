@@ -27,12 +27,15 @@ name in_ _in.
 name ctx_ _ctx.
 name i_ _i.
 name data_ _data.
-simpl_stackframe_of.
 unfold POSTCONDITION, abbreviate.
+simpl_stackframe_of.
 apply (remember_value (eval_var _X (tarray tuint 16))); intro Xv.
+(*assert_LOCAL (lvar _X (tarray tuint 16) Xv).
+entailer!. hnf.
+*)
+replace_SEP 0 (`(data_at_ Tsh (tarray tuint 16) Xv)) .
 change (`(eq Xv) (eval_var _X (tarray tuint 16))) 
     with (var _X (tarray tuint 16) Xv).
-replace_SEP 0 (`(data_at_ Tsh (tarray tuint 16) Xv)) .
 entailer!.
 remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
 assert (Lregs: length regs = 8%nat) 

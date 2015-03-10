@@ -687,23 +687,30 @@ Lemma local_True_right:
 Proof. intros. intro rho; apply TT_right.
 Qed.
 
+Ltac try_solve_Forall_pTree_from_elements :=
+  match goal with |- _ |-- !! Forall ?A _ =>
+   let ptf := fresh "ptf" in set (ptf := A);
+ unfold pTree_from_elements in ptf; simpl in ptf; subst ptf;
+ try solve [apply prop_right; repeat constructor];
+ entailer;
+ try solve [apply prop_right; repeat constructor]
+ end.
+
 Ltac forward_call_id1_x_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  eapply (semax_call_id1_x_wow witness Frame);
  [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
- | apply I | reflexivity
- | repeat constructor | repeat constructor 
+ | apply I | apply I | reflexivity 
+ | (clear; let H := fresh in intro H; inversion H)
+ | reflexivity
+ | prove_local2ptree | repeat constructor 
  | entailer!
  | reflexivity
- | repeat constructor | repeat constructor 
+ | prove_local2ptree | repeat constructor 
  | reflexivity | reflexivity
- | first [solve [apply prop_right; repeat constructor]
-           | solve [entailer!; repeat constructor]
-           | entailer]
- | first [solve [apply prop_right; repeat constructor]
-           | solve [entailer!; repeat constructor]
-           | entailer]
+ | try_solve_Forall_pTree_from_elements
+ | try_solve_Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -711,6 +718,7 @@ let Frame := fresh "Frame" in
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
+ | repeat constructor; auto with closed
  | repeat constructor; auto with closed
  | reflexivity
  | unfold fold_right_and; repeat rewrite and_True; auto
@@ -721,18 +729,16 @@ let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  eapply (semax_call_id1_y_wow witness Frame);
  [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
- | apply I | reflexivity
- | repeat constructor | repeat constructor 
+ | apply I | apply I | reflexivity 
+ | (clear; let H := fresh in intro H; inversion H)
+ | reflexivity
+ | prove_local2ptree | repeat constructor 
  | entailer!
  | reflexivity
- | repeat constructor | repeat constructor 
+ | prove_local2ptree | repeat constructor 
  | reflexivity | reflexivity
- | first [solve [apply prop_right; repeat constructor]
-           | solve [entailer!; repeat constructor]
-           | entailer]
- | first [solve [apply prop_right; repeat constructor]
-           | solve [entailer!; repeat constructor]
-           | entailer]
+ | try_solve_Forall_pTree_from_elements
+ | try_solve_Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -740,6 +746,7 @@ let Frame := fresh "Frame" in
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
+ | repeat constructor; auto with closed
  | repeat constructor; auto with closed
  | reflexivity
  | unfold fold_right_and; repeat rewrite and_True; auto
@@ -751,18 +758,14 @@ let Frame := fresh "Frame" in
  eapply (semax_call_id1_wow witness Frame);
  [ reflexivity | reflexivity | reflexivity | reflexivity
  | apply I | reflexivity
- | repeat constructor | repeat constructor 
-(* | reflexivity    don't need this? *)
+ | prove_local2ptree
+ | repeat constructor 
  | try apply local_True_right; entailer!
  | reflexivity
- | repeat constructor | repeat constructor 
+ | prove_local2ptree | repeat constructor 
  | reflexivity | reflexivity
- | first [solve [apply prop_right; repeat constructor]
-           | solve [entailer!; repeat constructor]
-           | entailer]
- | first [solve [apply prop_right; repeat constructor]
-           | solve [entailer!; repeat constructor]
-           | entailer]
+ | try_solve_Forall_pTree_from_elements
+ | try_solve_Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -780,17 +783,13 @@ let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  eapply (semax_call_id01_wow witness Frame);
  [ reflexivity | reflexivity | reflexivity | apply I | reflexivity
- | repeat constructor | repeat constructor 
+ | prove_local2ptree | repeat constructor 
  | try apply local_True_right; entailer!
  | reflexivity
- | repeat constructor | repeat constructor 
+ | prove_local2ptree | repeat constructor 
  | reflexivity | reflexivity
- | first [solve [apply prop_right; repeat constructor]
-           | solve [entailer!; repeat constructor]
-           | entailer]
- | first [solve [apply prop_right; repeat constructor]
-           | solve [entailer!; repeat constructor]
-           | entailer]
+ | try_solve_Forall_pTree_from_elements
+ | try_solve_Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -808,17 +807,13 @@ let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
  eapply (semax_call_id00_wow witness Frame);
  [ reflexivity | reflexivity | reflexivity | reflexivity
- | repeat constructor | repeat constructor 
+ | prove_local2ptree | repeat constructor 
  | try apply local_True_right; entailer!
  | reflexivity
- | repeat constructor | repeat constructor 
+ | prove_local2ptree | repeat constructor 
  | reflexivity | reflexivity
- | first [solve [apply prop_right; repeat constructor]
-           | solve [entailer!; repeat constructor]
-           | entailer]
- | first [solve [apply prop_right; repeat constructor]
-           | solve [entailer!; repeat constructor]
-           | entailer]
+ | try_solve_Forall_pTree_from_elements
+ | try_solve_Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | reflexivity
  | try match goal with  |- extract_trivial_liftx ?A _ =>

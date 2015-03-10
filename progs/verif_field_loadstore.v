@@ -36,23 +36,25 @@ Definition sub_spec (sub_id: ident) :=
   WITH v : reptype t_struct_b, p: val
   PRE  [] 
         PROP  (is_int I8 Signed (snd (nth 1%nat (snd v) (Vundef, Vundef))))
-        LOCAL (`(eq p) (eval_var _p t_struct_b))
+        LOCAL (gvar _p p)
         SEP   (`(data_at Ews t_struct_b v p))
   POST [ tint ]
-        `(data_at Ews t_struct_b (snd (nth 1%nat (snd v) (Vundef, Vundef)), snd v) p).
+        PROP() LOCAL()
+        SEP(`(data_at Ews t_struct_b (snd (nth 1%nat (snd v) (Vundef, Vundef)), snd v) p)).
 
 Definition sub_spec' (sub_id: ident) :=
  DECLARE sub_id
   WITH v : reptype t_struct_b, p: val
   PRE  [] 
         PROP  (is_int I8 Signed (proj_reptype _ (StructField _x2 :: ArraySubsc 1 :: StructField _y2 :: nil) v))
-        LOCAL (`(eq p) (eval_var _p t_struct_b))
+        LOCAL (gvar _p p)
         SEP   (`(data_at Ews t_struct_b v p))
   POST [ tint ]
-        `(data_at Ews t_struct_b 
+        PROP() LOCAL()
+        SEP(`(data_at Ews t_struct_b 
            (upd_reptype t_struct_b (StructField _y1 :: nil) v 
              (proj_reptype t_struct_b (StructField _x2 :: ArraySubsc 1 :: StructField _y2 :: nil) v))
-           p).
+           p)).
 
 Lemma spec_coincide: sub_spec' = sub_spec.
 Proof. reflexivity. Qed.

@@ -50,7 +50,7 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd kv:=
    (temp _n (Vint (Int.repr (Zlength dd')));
     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _md md; temp _c c;
-    var _K256 (tarray tuint CBLOCKz) kv)
+    gvar _K256 kv)
    SEP  (`(data_at Tsh t_struct_SHA256state_st 
            (map Vint (hash_blocks init_registers hashed'),
             (Vint (lo_part (bitlength hashed dd)),
@@ -71,6 +71,12 @@ Admitted.  (* Temporary, less-strict form of field_compatible_cons_Tarray,
     until we figure out better treatment of zero-length arrays
     as members of structures. *)
 
+Lemma sizeof_Tarray:
+  forall t (n:Z) a, n >= 0 ->
+      sizeof (Tarray t n a) = (sizeof t * n)%Z.
+Proof.
+intros; simpl. rewrite Z.max_r; omega.
+Qed.
 
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
@@ -91,7 +97,7 @@ Lemma ifbody_final_if1:
     temp _n (Vint (Int.repr (Zlength dd + 1)));
     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _md md; temp _c c;
-    var _K256 (tarray tuint CBLOCKz) kv)
+    gvar _K256 kv)
    SEP 
    (`(data_at Tsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers hashed),
@@ -130,69 +136,58 @@ Focus 2. {
 } Unfocus.
 erewrite array_seg_reroot_lemma with (gfs := [StructField _data]) (lo := ddlen + 1) (hi := 64);
   [| omega | (*omega*) | reflexivity | omega | reflexivity | reflexivity | | ].
-2: admit.  (* array_seg_reroot_lemma too strict? *)
+2: omega.
   2: rewrite Zlength_app, !Zlength_map; reflexivity.
   2: rewrite Zlength_correct, length_list_repeat; rewrite Z2Nat.id by omega; reflexivity.
 normalize.
-forward_call (* memset (p+n,0,SHA_CBLOCK-n); *)
+assert_PROP (ddlen+1 > 16*4-8);
+  [entailer!; apply ltu_repr in H1; normalize in H1; repable_signed | ].
+drop_LOCAL 0%nat.
+change (64-(ddlen+1)) with (CBLOCKz-(ddlen+1)).
+forward_call' (* memset (p+n,0,SHA_CBLOCK-n); *)
    ((Tsh,
      (field_address t_struct_SHA256state_st
        [ArraySubsc (ddlen + 1); StructField _data] c),
      (CBLOCKz - (ddlen + 1)))%Z,
      Int.zero).
-{
-  remember (data_at Tsh (Tarray tuchar (64 - (ddlen + 1)) noattr)
-       (list_repeat (Z.to_nat (64 - (ddlen + 1))) Vundef)
-       (field_address t_struct_SHA256state_st
-       [ArraySubsc (ddlen + 1); StructField _data] c))
-     as A.
-  change 64 with CBLOCKz.
-  entailer!.
-  + change CBLOCKz with 64%Z; assert (Int.max_unsigned > 64%Z) by computable; omega.
-  + 
-    repeat rewrite field_address_clarify; auto.
-    normalize.
-    erewrite nested_field_offset2_Tarray; [ |reflexivity].
-    change (sizeof tuchar) with 1.
-    rewrite Z.mul_1_l.
-   normalize.
-     unfold field_address in *. if_tac in TC0; try solve [inv TC0].
-     rewrite if_true.
-     destruct c; try contradiction; apply I.
-     eapply field_compatible_cons_Tarray'; try reflexivity; auto.
-     omega.
-  + change CBLOCKz with 64%Z.
-    normalize.
-    repeat rewrite <- sepcon_assoc.
-    pull_left (data_at Tsh (Tarray tuchar (64 - (ddlen + 1)) noattr)
+
+  apply prop_right; repeat constructor.
+  hnf; simpl.
+  repeat rewrite field_address_clarify; auto.
+  normalize.
+  erewrite nested_field_offset2_Tarray; [ |reflexivity].
+  change (sizeof tuchar) with 1.
+  rewrite Z.mul_1_l.
+  normalize.
+
+  change CBLOCKz with 64%Z.
+  normalize.
+  repeat rewrite <- sepcon_assoc.
+  pull_left (data_at Tsh (Tarray tuchar (64 - (ddlen + 1)) noattr)
      (list_repeat (Z.to_nat (64 - (ddlen + 1))) Vundef)
      (field_address t_struct_SHA256state_st
      [ArraySubsc (ddlen + 1); StructField _data] c)).
-    repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
+  repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
   eapply derives_trans; [apply data_at_data_at_; reflexivity |].
-
-Lemma sizeof_Tarray:
-  forall t (n:Z) a, n >= 0 ->
-      sizeof (Tarray t n a) = (sizeof t * n)%Z.
-Proof.
-intros; simpl. rewrite Z.max_r; omega.
-Qed.
-
   assert (sizeof (Tarray tuchar (64 - (ddlen + 1)) noattr) = 64 - (ddlen + 1)).
-    rewrite sizeof_Tarray by omega.
-    apply Z.mul_1_l.
-    rewrite data_at__memory_block; try reflexivity.
-2: rewrite sizeof_Tarray by omega;
- simpl sizeof; rewrite Z.mul_1_l;
- change Int.modulus with 4294967296; omega.
-    apply andp_left2.
-    apply derives_refl'.
-    f_equal.
-    f_equal.
-   rewrite sizeof_Tarray by omega.
-   apply Z.mul_1_l.
-}
-after_call.
+  rewrite sizeof_Tarray by omega.
+  apply Z.mul_1_l.
+  rewrite data_at__memory_block; try reflexivity.
+  2: rewrite sizeof_Tarray by omega;
+    simpl sizeof; rewrite Z.mul_1_l;
+     change Int.modulus with 4294967296; omega.
+  apply andp_left2.
+  apply derives_refl'.
+  f_equal.
+  f_equal.
+  rewrite sizeof_Tarray by omega.
+  apply Z.mul_1_l.
+
+  split; auto.
+  change CBLOCKz with 64%Z. repable_signed.
+
+  simpl map.
+
 gather_SEP 1%Z 0%Z 2%Z.
 pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ list_repeat (Z.to_nat (CBLOCKz-(ddlen+1))) Int.zero)).
 replace_SEP 0%Z (`(field_at Tsh t_struct_SHA256state_st [StructField _data] (map Vint ddz) c)).
@@ -207,7 +202,7 @@ replace_SEP 0%Z (`(field_at Tsh t_struct_SHA256state_st [StructField _data] (map
   erewrite array_seg_reroot_lemma with (gfs := [StructField _data]) (lo := ddlen + 1) (hi := 64);
   [ | omega | (*omega*) | reflexivity | omega | reflexivity 
   | reflexivity | | ].
-2: admit.  (* array_seg_reroot_lemma too strict? *)
+ 2: omega.
     2: rewrite map_app, Zlength_app, !Zlength_map; reflexivity.
     2: rewrite map_list_repeat, Zlength_correct, length_list_repeat;
        rewrite Z2Nat.id by omega; reflexivity.
@@ -250,25 +245,15 @@ assert (HU: map Int.unsigned ddz = intlist_to_Zlist ddzw). {
 clear H0'.
 clearbody ddzw.
 forward.  (* n=0; *)
-match goal with
-| |- semax _ (PROPx nil (LOCALx (?A :: _ :: _ :: ?L) (SEPx ?B))) _ _ => 
-       eapply semax_pre0 with (PROPx nil (LOCALx (A ::
-     `(Int.ltu (Int.sub (Int.mul (Int.repr 16) (Int.repr 4)) (Int.repr 8))
-         (Int.repr (ddlen + 1)) = true) :: L) (SEPx B)))
-end.
-Focus 1. { entailer!. } Unfocus.
-  (* if directly do normalize here. typed true cannot be solved correctedly. *)
 erewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
-(*rewrite at_offset'_eq by (rewrite <- data_at_offset_zero; reflexivity).*)
 normalize.
-clear n0.
-forward_call (* sha256_block_data_order (c,p); *)
+clear n0 H2.
+rewrite semax_seq_skip.
+forward_call' (* sha256_block_data_order (c,p); *)
   (hashed, ddzw, c,
     field_address t_struct_SHA256state_st [StructField _data] c,
     Tsh, kv).
 {
-  entailer!.
-  apply Zlength_length; auto.
   repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
   unfold data_block.
   simpl. apply andp_right.
@@ -287,17 +272,16 @@ forward_call (* sha256_block_data_order (c,p); *)
   rewrite map_id.
   reflexivity.
 }
-after_call.
-unfold invariant_after_if1.
+ split; auto.
+ rewrite Zlength_length. assumption. change LBLOCKz with 16%Z; computable.
+ fold (map Vint). fold (app hashed). simpl map.
+ forward. (* Sskip *)
+ unfold invariant_after_if1.
  apply exp_right with (hashed ++ ddzw).
 set (pad := (CBLOCKz - (ddlen+1))%Z) in *.
  apply exp_right with (@nil Z).
  apply exp_right with pad.
 entailer.
-normalize in H1.
-apply ltu_repr in H1; [ | split; computable 
-  | change CBLOCKz with 64 in Hddlen; Omega1].
-simpl in H1.
 assert (0 <= pad < 8)%Z.
   unfold pad.
   change CBLOCKz with 64.

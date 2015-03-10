@@ -222,8 +222,8 @@ Lemma sha256_block_data_order_loop1_proof:
                temp _f (Vint (nthi regs 5)); 
                temp _g (Vint (nthi regs 6)); 
                temp _h (Vint (nthi regs 7)); 
-               var _X (tarray tuint LBLOCKz) Xv;
-               var _K256 (tarray tuint CBLOCKz) kv)
+               lvar _X (tarray tuint LBLOCKz) Xv;
+               gvar _K256 kv)
    SEP ( `(K_vector kv);
            `(data_at_ Tsh (tarray tuint LBLOCKz) Xv);
            `(data_block sh (intlist_to_Zlist b) data)))
@@ -239,8 +239,8 @@ Lemma sha256_block_data_order_loop1_proof:
                 temp _f (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 5));
                 temp _g (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 6));
                 temp _h (Vint (nthi (Round regs (nthi b) (LBLOCKz - 1)) 7));
-                var _X (tarray tuint LBLOCKz) Xv;
-                var _K256 (tarray tuint CBLOCKz) kv)
+                lvar _X (tarray tuint LBLOCKz) Xv;
+                gvar _K256 kv)
      SEP (`(K_vector kv);
            `(data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv);
            `(data_block sh (intlist_to_Zlist b) data))) ).
@@ -278,8 +278,8 @@ Definition loop1_inv (rg0: list int) (sh: share) (b: list int) ctx (data: val) k
                  temp _f (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 5));
                  temp _g (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 6));
                  temp _h (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                 var _K256 (tarray tuint CBLOCKz) kv)
+                 lvar _X (tarray tuint LBLOCKz) Xv;
+                 gvar _K256 kv)
      SEP (`(K_vector kv);
        `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (firstn i b)) Xv);
    `(data_block sh (intlist_to_Zlist b) data)).
@@ -322,8 +322,8 @@ forward_if (
                  temp _f (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5));
                  temp _g (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6));
                  temp _h (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                 var _K256 (tarray tuint CBLOCKz) kv)
+                 lvar _X (tarray tuint LBLOCKz) Xv;
+                 gvar _K256 kv)
    SEP 
    (`(K_vector kv);
     `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (firstn i b)) Xv);
@@ -370,8 +370,8 @@ eapply (semax_frame_seq nil)
                  temp _f (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5));
                  temp _g (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6));
                  temp _h (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                 var _K256 (tarray tuint CBLOCKz) kv])
+                 lvar _X (tarray tuint LBLOCKz) Xv;
+                 gvar _K256 kv])
          (Frame := [`(K_vector kv);
                            `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (firstn i b)) Xv)]);
 (**{
@@ -439,6 +439,13 @@ assert (Hi: 0 <= Z.of_nat i * 4 <= Int.max_unsigned). {
 }
 
 unfold bei; clear bei.
+set (zz := (big_endian_integer
+                   (firstn (Z.to_nat WORD)
+                      (skipn
+                         (Z.to_nat (Int.unsigned (Int.repr (Z.of_nat i * 4))))
+                         (map Int.repr (intlist_to_Zlist b)))))).
+simpl.
+subst zz.
 rewrite loop1_aux_lemma1; auto;
 [ | omega
  | rewrite Int.unsigned_repr by auto;
@@ -506,8 +513,8 @@ apply semax_pre with
                  temp _f (Vint (nthi (Round regs M (Z.of_nat i - 1)) 5));
                  temp _g (Vint (nthi (Round regs M (Z.of_nat i - 1)) 6));
                  temp _h (Vint (nthi (Round regs M (Z.of_nat i - 1)) 7));
-                 var _X (tarray tuint 16) Xv; 
-                 var _K256 (tarray tuint CBLOCKz) kv)
+                 lvar _X (tarray tuint 16) Xv; 
+                 gvar _K256 kv)
    SEP()).
 { 
 entailer!.

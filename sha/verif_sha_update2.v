@@ -75,7 +75,7 @@ Definition inv_at_inner_if sh hashed len c d dd data kv :=
        temp _n (Vint (Int.repr (Zlength dd)));
        temp _c c; temp _data d;
        temp _len (Vint (Int.repr (Z.of_nat len)));
-       var  _K256 (tarray tuint CBLOCKz) kv)
+       gvar  _K256 kv)
    SEP  (`(data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + (Z.of_nat len)*8)),
@@ -95,7 +95,7 @@ Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data]  c); temp _c c; 
                 temp _data (offset_val (Int.repr (Z.of_nat (length blocks*4-length dd))) d);
                 temp _len (Vint (Int.repr (Z.of_nat (len- (length blocks*4 - length dd)))));
-                var  _K256 (tarray tuint CBLOCKz) kv)
+                gvar  _K256 kv)
    SEP  (`(K_vector kv);
            `(data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers (hashed++blocks)),
@@ -200,20 +200,6 @@ rewrite <- Z2Nat.inj_add by omega.
 unfold ge.
 rewrite <- Z2Nat.inj_le; try omega.
 Qed.
-
-(*
-Lemma JMeq_nil_cons:
-  forall {ta tb b lb}, @JMeq (list ta) nil (list tb) (b::lb) -> False.
-Proof.
-intros.
-
-Admitted.
-
-Lemma JMeq_cons:
- forall {ta tb} {a: ta} {la} {b: tb} {lb},
-   JMeq (a::la) (b::lb) <-> JMeq a b /\ JMeq la lb.
-Admitted.
-*)
 
 Lemma JMeq_skipn:
   forall ta tb n (la: list ta) (lb: list tb),
@@ -541,7 +527,9 @@ eapply semax_post_flipped'.
  replace (loq+len-loq)%Z with len by omega.
  rewrite map_firstn, <- skipn_map.
  cancel.
-clear witness Frame. subst x. clear H10 H11 H12 H9 H8 H7 rho.
+clear witness Frame.
+ hnf in H13. normalize in H13.
+ subst x. clear H10 H11 H12 H9 H8 H7 rho.
 assert (exists (vpy : list (reptype (nested_field_type2 tp (ArraySubsc 0 :: pathp)))),
                   JMeq vpy vp'').
  rewrite H99. eauto.
@@ -764,7 +752,7 @@ semax Delta_update_inner_if
     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _n (Vint (Int.repr (Zlength dd)));
     temp _c c; temp _data d; temp _len (Vint (Int.repr (Z.of_nat len)));
-    var  _K256 (tarray tuint CBLOCKz) kv)
+    gvar  _K256 kv)
    SEP 
    (`(data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
@@ -897,7 +885,6 @@ normalize.
  }
  apply andp_right; [apply prop_right |].
  rewrite Zlength_correct, H10. reflexivity.
- repeat rewrite firstn_map. repeat rewrite <- map_app.
 rewrite Zlist_to_intlist_to_Zlist;
   [ 
   | rewrite H9; exists LBLOCK; reflexivity
@@ -905,11 +892,13 @@ rewrite Zlist_to_intlist_to_Zlist;
  cancel.
 }
  after_call.
+ 
  rewrite Zlist_to_intlist_to_Zlist;
  [
  | rewrite app_length, firstn_length;
    rewrite min_l 
-    by (apply Nat2Z.inj_le; rewrite Z2Nat.id by omega; rewrite <- Zlength_correct; omega);
+    by (apply Nat2Z.inj_le; rewrite Z2Nat.id by omega; 
+     rewrite <- Zlength_correct; omega);
    exists LBLOCK; unfold k;
    apply Nat2Z.inj; transitivity 64%Z; [ | reflexivity];
    rewrite Nat2Z.inj_add; rewrite Z2Nat.id by (fold k; omega);
@@ -929,7 +918,6 @@ rewrite Zlist_to_intlist_to_Zlist;
 forward. (* data  += fragment; *)
 forward. (* len -= fragment; *)
   normalize_postcondition.
-
 eapply semax_post_flipped3.
 evar (Frame: list (LiftEnviron mpred)).
   eapply(call_memset_tuchar

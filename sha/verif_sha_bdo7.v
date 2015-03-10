@@ -411,8 +411,8 @@ semax Delta_loop1
                  temp _f  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5));
                  temp _g  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6));
                  temp _h  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                 var  _K256 (tarray tuint CBLOCKz) kv)
+                 lvar _X (tarray tuint LBLOCKz) Xv;
+                 gvar  _K256 kv)
    SEP  (`(K_vector kv);
    `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b i)) Xv)))
   bdo_loop2_body
@@ -428,8 +428,8 @@ semax Delta_loop1
                  temp _f  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 5));
                  temp _g  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 6));
                  temp _h  (Vint (nthi (Round regs (nthi b) (Z.of_nat i0 - 1)) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                 var  _K256 (tarray tuint CBLOCKz) kv)
+                 lvar _X (tarray tuint LBLOCKz) Xv;
+                 gvar  _K256 kv)
       SEP  (`(K_vector kv);
       `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b i0)) Xv)))).
 Proof.
@@ -498,6 +498,7 @@ clear x.
 
 forward. (* X[i&0xf] = T1; *)
 rewrite Zland_15.
+simpl.
 rewrite Xarray_update by assumption.
 unfold K_vector.
 change CBLOCKz with 64%Z.
@@ -562,8 +563,8 @@ Lemma sha256_block_data_order_loop2_proof:
                temp _f (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 5));
                temp _g (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 6));
                temp _h (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                var  _K256 (tarray tuint CBLOCKz) kv)
+               lvar _X (tarray tuint LBLOCKz) Xv;
+               gvar  _K256 kv)
    SEP ( `(K_vector kv);
            `(data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv)))
   block_data_order_loop2
@@ -578,8 +579,8 @@ Lemma sha256_block_data_order_loop2_proof:
                 temp _f (Vint (nthi (Round regs (nthi b) 63) 5));
                 temp _g (Vint (nthi (Round regs (nthi b) 63) 6));
                 temp _h (Vint (nthi (Round regs (nthi b) 63) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                var  _K256 (tarray tuint CBLOCKz) kv)
+                lvar _X (tarray tuint LBLOCKz) Xv;
+                gvar  _K256 kv)
      SEP (`(K_vector kv);
            `(data_at_ Tsh (tarray tuint LBLOCKz) Xv)))).
 Proof.
@@ -614,8 +615,8 @@ Definition loop2_inv (rg0: list int) (b: list int) ctx kv Xv (delta: Z) (i: nat)
                   temp _f (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 5));
                   temp _g (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 6));
                   temp _h (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                var  _K256 (tarray tuint CBLOCKz) kv)
+                  lvar _X (tarray tuint LBLOCKz) Xv;
+                  gvar  _K256 kv)
      SEP (`(K_vector kv);
    `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b i)) Xv)).
 
@@ -657,8 +658,8 @@ forward_if (
                temp _f (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5));
                temp _g (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6));
                temp _h (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7));
-                 var _X (tarray tuint LBLOCKz) Xv;
-                var  _K256 (tarray tuint CBLOCKz) kv)
+               lvar _X (tarray tuint LBLOCKz) Xv;
+               gvar  _K256 kv)
    SEP  (`(K_vector kv);
    `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b i)) Xv))).
  forward; (* skip *)

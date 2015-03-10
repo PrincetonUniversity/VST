@@ -8,11 +8,11 @@ Definition get_spec :=
   WITH v : reptype' t_struct_c, p: val
   PRE  [] 
         PROP  ()
-        LOCAL (var _p t_struct_c p)
+        LOCAL (gvar _p p)
         SEP   (`(data_at Ews t_struct_c (repinj _ v) p))
   POST [ tint ]
         PROP  ()
-        LOCAL (var _p t_struct_c p; temp 1%positive (Vint (snd (snd (snd v)))))
+        LOCAL (temp 1%positive (Vint (snd (snd (snd v)))))
         SEP   (`(data_at Ews t_struct_c (repinj _ v) p)).
 
 Definition update222 (i: int) (v: reptype' t_struct_c) : reptype' t_struct_c :=
@@ -23,45 +23,10 @@ Definition set_spec :=
   WITH i : int, v : reptype' t_struct_c, p : val
   PRE  [ _i OF tint ] 
         PROP ()
-        LOCAL(temp _i (Vint i); var _p t_struct_c p)
+        LOCAL(temp _i (Vint i); gvar _p p)
         SEP(`(data_at Ews t_struct_c (repinj _ v) p))
   POST [ tvoid ]
         `(data_at Ews t_struct_c (repinj _ (update222 i v)) p).
-
-(* The following specs are not in super canonical form. *)
-Definition get_spec2 :=
- DECLARE _get
-  WITH v : reptype' t_struct_c, p: val
-  PRE  [] 
-        PROP  ()
-        LOCAL (var _p t_struct_c p)
-        SEP   (`(data_at Ews t_struct_c (repinj _ v)) (eval_var _p t_struct_c))
-  POST [ tint ]
-        PROP  ()
-        LOCAL (`(eq p) (eval_var _p t_struct_c); 
-               `(eq (Vint (snd (snd (snd v))))) (eval_id 1%positive))
-        SEP   (`(data_at Ews t_struct_c (repinj _ v)) (eval_var _p t_struct_c)).
-
-Definition get_spec3 :=
- DECLARE _get
-  WITH v : reptype' t_struct_c, p: val
-  PRE  [] 
-        PROP  ()
-        LOCAL ()
-        SEP   (`(data_at Ews t_struct_c (repinj _ v)) (eval_var _p t_struct_c))
-  POST [ tint ]
-        PROP  ()
-        LOCAL (`(eq (Vint (snd (snd (snd v))))) (eval_id 1%positive))
-        SEP   (`(data_at Ews t_struct_c (repinj _ v)) (eval_var _p t_struct_c)).
-
-Definition set_spec2 :=
- DECLARE _set
-  WITH i : int, v : reptype' t_struct_c
-  PRE  [ _i OF tint ] 
-         PROP () LOCAL(temp _i (Vint i))
-        SEP(`(data_at Ews t_struct_c (repinj _ v)) (eval_var _p t_struct_c))
-  POST [ tvoid ]
-        `(data_at Ews t_struct_c (repinj _ (update222 i v))) (eval_var _p t_struct_c).
 
 Definition Vprog : varspecs := (_p, t_struct_c)::nil.
 
@@ -71,10 +36,8 @@ Definition Gprog : funspecs :=
 Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
 Proof.
  start_function.
-
-  forward.
-forward.
-cancel.
+ forward.
+ forward.
 Qed.
 
 Lemma body_get':  semax_body Vprog Gprog f_get get_spec.

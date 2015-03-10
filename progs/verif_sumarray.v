@@ -17,9 +17,9 @@ Definition sumarray_spec :=
                  forall i, 0 <= i < size -> is_int I32 Signed (Znth i (map Vint contents) Vundef))
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
           SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))
-  POST [ tint ]  
-        (local (`(eq (Vint (sum_int contents))) retval)
-                 && (`(data_at sh (tarray tint size) (map Vint contents) a0))).
+  POST [ tint ]
+        PROP () LOCAL(temp ret_temp  (Vint (sum_int contents)))
+           SEP (`(data_at sh (tarray tint size) (map Vint contents) a0)).
 
 Definition main_spec :=
  DECLARE _main
@@ -229,18 +229,16 @@ Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-start_function.
 name s _s.
-apply (remember_value (eval_var _four (tarray tint 4))); intro a0.
-forward_call (*  r = sumarray(four,4); *)
-  (a0,Ews,four_contents,4).
- entailer!.
-   intros. unfold four_contents.
+start_function.
+normalize. intro four. normalize.
+forward_call' (*  r = sumarray(four,4); *)
+  (four,Ews,four_contents,4).
+ split3. computable. reflexivity.
+ intros. unfold four_contents.
    apply forall_Forall; [| auto].
    intros.
-   repeat (destruct H4; [subst; simpl; auto|]); inversion H4.
- auto with closed.
- after_call.
+   repeat (destruct H0; [subst; simpl; auto|]); inversion H0.
  forward. (* return s; *)
  unfold main_post. entailer!.
 Qed.
