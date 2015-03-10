@@ -14,7 +14,9 @@ Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_safety.
 Require Import veric.juicy_extspec.
-Require Import veric.expr veric.expr_lemmas.
+Require Import veric.tycontext.
+Require Import veric.expr.
+Require Import veric.expr_lemmas.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
@@ -139,7 +141,7 @@ Lemma semax_fun_id:
     (glob_specs Delta) ! id = Some (mk_funspec fsig A P' Q') ->
     (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec fsig A P' Q')) ->
        semax Espec Delta (fun rho => P rho 
-                                && fun_assert  fsig A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default)) rho))
+                                && fun_assert  fsig A P' Q' (eval_lvalue Delta (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default)) rho))
                               c Q ->
        semax Espec Delta P c Q.
 Proof.
@@ -152,20 +154,20 @@ replace ((var_types Delta) ! id) with ((var_types Delta')!id) in GLBL
   by (destruct TS as [_ [? _]]; symmetry; auto).
 assert (H': (glob_specs Delta') ! id = Some (mk_funspec fsig A P' Q')).
 clear - H HT TS.
-destruct TS as [_ [_ [_ [SUB SUBsp]]]].
+destruct TS as [_ [_ [_ [SUB [SUBsp _]]]]].
 specialize (SUBsp id); hnf in SUBsp.  rewrite HT in SUBsp; auto.
 assert (H'': (glob_types Delta') ! id = Some (type_of_funspec (mk_funspec fsig A P' Q'))).
 clear - H HT TS.
 destruct TS as [_ [_ [_ [SUB SUBsp]]]]. specialize (SUB id).
  hnf in SUB; rewrite H in SUB; auto.
-clear H HT TS Delta. rename H'' into H. rename Delta' into Delta.
+clear H HT TS. rename H'' into H.
 intros te ve w' ? w'' ? ?.
 apply (H1 te ve w' H4 w'' H5); clear H1.
 destruct H6; split; auto.
 destruct H1 as [H1 ?]; split; auto.
 normalize.
 split; auto.
-assert (app_pred (believe Espec Delta psi Delta) (level w'')).
+assert (app_pred (believe Espec Delta' psi Delta') (level w'')).
 apply pred_nec_hereditary with (level w'); eauto.
 apply nec_nat; apply necR_level; auto.
 apply pred_nec_hereditary with w; eauto.
@@ -218,8 +220,8 @@ Qed.
 Import JuicyMemOps.
 
 Lemma alloc_juicy_variables_match_venv:
-  forall jm vl ve' jm',
-     alloc_juicy_variables empty_env jm vl = (ve',jm') ->
+  forall ge jm vl ve' jm',
+     alloc_juicy_variables ge empty_env jm vl = (ve',jm') ->
      match_venv (make_venv ve') vl.
 Proof.
 intros.
@@ -352,45 +354,46 @@ Proof. induction vl; try destruct a; simpl; auto.
  destruct (split vl); simpl in *; auto.
 Qed.
 
-
+SearchAbout (genv_cenv _ = composite_types _).
 
 Lemma exprlist_eval :
   forall (Delta : tycontext) (fsig : funsig) 
      (bl : list expr) (psi : genv) (vx : env) (tx : temp_env) 
      (rho : environ) m,
-   denote_tc_assert (typecheck_exprlist Delta (snd (split (fst fsig))) bl) rho ->
+   denote_tc_assert Delta (typecheck_exprlist Delta (snd (split (fst fsig))) bl) rho ->
    typecheck_environ Delta rho ->
+   genv_cenv psi = composite_types Delta ->
    rho = construct_rho (filter_genv psi) vx tx ->
    forall f : function,
    fsig = fn_funsig f ->
    Clight.eval_exprlist psi vx tx m bl
      (type_of_params (fn_params f))
-     (eval_exprlist (snd (split (fst fsig))) bl rho). 
+     (eval_exprlist Delta (snd (split (fst fsig))) bl rho). 
 Proof.
- intros until m. intro. assert True; auto. intros.  
-destruct fsig. unfold fn_funsig in *. inversion H3; clear H3; subst l t. simpl in *.
- forget (fn_params f) as vl.
- forget (fn_temps f) as tl.
- clear f.
- clear - H1 H2 H.
+  intros.
+  destruct fsig. unfold fn_funsig in *. inversion H3; clear H3; subst l t. simpl in *.
+  forget (fn_params f) as vl.
+  forget (fn_temps f) as tl.
+  clear f.
+  clear - H0 H1 H2 H.
 
  rewrite snd_split. rewrite snd_split in H.
  assert (length (map snd vl) = length bl). 
  apply tc_exprlist_length in H; auto. 
- revert vl H H0; induction bl; destruct vl; intros; inv H0; simpl.
+ revert vl H H3; induction bl; destruct vl; intros; inv H3; simpl.
  constructor.
  destruct p. simpl in *; subst.
  repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
  destruct H as [[? ?] ?].
- pose proof (typecheck_expr_sound _ _ _ H1 H).
- specialize (IHbl _ H2 H4).
- clear - IHbl H1 H H0 H3.
- constructor 2 with  (eval_expr  a (construct_rho (filter_genv psi) vx tx)); auto.
- apply eval_expr_relate with Delta; auto.
- pose proof  (cast_exists Delta a _ _ H1 H H0).
+ pose proof (typecheck_expr_sound _ _ _ H0 H).
+ specialize (IHbl _ H3 H5).
+ clear - IHbl H3 H H0 H1 H2 H4.
+ constructor 2 with (eval_expr Delta a (construct_rho (filter_genv psi) vx tx)); auto.
+ apply eval_expr_relate; auto.
+ pose proof  (cast_exists Delta a _ _ H0 H H2).
 
 rewrite cop2_sem_cast.
- apply (cast_exists Delta a _ _ H1 H H0).
+ apply (cast_exists Delta a _ _ H0 H H2).
 Qed.
 
 
@@ -481,10 +484,10 @@ Qed.
 
 
 Lemma alloc_vars_lookup : 
-forall id m1 l ve m2 e ,
+forall ge id m1 l ve m2 e ,
 list_norepet (map fst l) ->
 (forall i, In i (map fst l) -> e ! i = None) ->
-Clight.alloc_variables (e) m1 l ve m2 ->
+Clight.alloc_variables ge (e) m1 l ve m2 ->
 (exists v, e ! id = Some v) -> 
 ve ! id = e ! id. 
 Proof.
@@ -506,11 +509,11 @@ apply H0. auto.
 rewrite PTree.gso; auto. eauto. 
 Qed. 
 
-Lemma alloc_vars_lemma : forall id l m1 m2 ve ve'
+Lemma alloc_vars_lemma : forall ge id l m1 m2 ve ve'
 (SD : forall i, In i (map fst l) -> ve ! i = None),
 list_norepet (map fst l) ->
 
-Clight.alloc_variables ve m1 l ve' m2 ->
+Clight.alloc_variables ge ve m1 l ve' m2 ->
 (In id (map fst l) ->
 exists v, ve' ! id = Some v).
 Proof.
@@ -536,7 +539,7 @@ Lemma semax_call_typecheck_environ:
      (H17' : list_norepet (map fst (fn_vars f)))
      (H16 : Genv.find_funct_ptr psi b = Some (Internal f))
      (ve' : env) (jm' : juicy_mem) (te' : temp_env) 
-     (H15 : alloc_variables empty_env (m_dry jm) (fn_vars f) ve' (m_dry jm'))
+     (H15 : alloc_variables psi empty_env (m_dry jm) (fn_vars f) ve' (m_dry jm'))
     (TC3 : typecheck_temp_environ (make_tenv tx) (temp_types Delta))
     (TC4 : typecheck_var_environ (make_venv vx) (var_types Delta))
     (TC5 : typecheck_glob_environ (filter_genv psi) (glob_types Delta))
@@ -555,10 +558,10 @@ Lemma semax_call_typecheck_environ:
        (exists fs : funspec, (glob_specs Delta) ! b1 = Some fs))
    (l : list ident) (l0 : list type) 
     (Heqp : (l, l0) = split (fn_params f))
-   (TC2 : denote_tc_assert (typecheck_exprlist Delta l0 bl)
+   (TC2 : denote_tc_assert Delta (typecheck_exprlist Delta l0 bl)
         (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
    (H21 : bind_parameter_temps (fn_params f)
-        (eval_exprlist l0 bl
+        (eval_exprlist Delta l0 bl
            (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
         (create_undef_temps (fn_temps f)) = Some te')
    (TE : typecheck_environ
@@ -567,7 +570,8 @@ Lemma semax_call_typecheck_environ:
     (mk_tycontext
       (make_tycontext_t (fn_params f) (fn_temps f))
       (make_tycontext_v (fn_vars f))
-      (fn_return f)  (glob_types Delta) (glob_specs Delta))
+      (fn_return f)  (glob_types Delta) (glob_specs Delta)
+      (composite_types Delta) (composite_types_consistent Delta))
      (mkEnviron (filter_genv psi) (make_venv ve') (make_tenv te')).
 Proof.
  intros.
@@ -599,7 +603,7 @@ generalize dependent bl. generalize dependent te'.
         rewrite PTree.gss.
         exists (force_val
           (Cop.sem_cast
-             (eval_expr e
+             (eval_expr Delta e
                 (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
              (typeof e) ty)).
         split. rewrite cop2_sem_cast. auto.
@@ -608,7 +612,7 @@ generalize dependent bl. generalize dependent te'.
         repeat (rewrite tc_andp_sound in TC2; simpl in TC2; super_unfold_lift).
         destruct TC2 as [[? ?] ?]. assert (i <> id). intro. subst.
         apply H2. apply in_or_app. left. apply in_map with (f := fst) in H. apply H.
-        remember (eval_exprlist (t :: l3) (e :: bl)
+        remember (eval_exprlist Delta (t :: l3) (e :: bl)
             (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx))).
         destruct l0; inv H21. simpl in Heql0.
         super_unfold_lift. inv Heql0.  
@@ -997,12 +1001,15 @@ Proof.
 Qed.
 
 Lemma stackframe_of_freeable_blocks:
-  forall Delta f rho ve,
+  forall Delta f rho ge ve,
+      genv_cenv ge = composite_types Delta ->
       list_norepet (map fst (fn_vars f)) ->
-        ve_of rho = make_venv ve ->
+      ve_of rho = make_venv ve ->
       guard_environ (func_tycontext' f Delta) (Some f) rho ->
-       stackframe_of f rho |-- freeable_blocks (blocks_of_env ve).
+       stackframe_of Delta f rho |-- freeable_blocks (blocks_of_env ge ve).
 Proof.
+  intros until ve.
+  intro HH.
  intros.
  destruct H1. destruct H2 as [H7 _].
  unfold stackframe_of.

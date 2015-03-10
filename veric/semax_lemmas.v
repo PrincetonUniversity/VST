@@ -229,7 +229,8 @@ apply allp_derives; intro ve.
 intros ? ?.
 intros ? ? ? ? ?.
 eapply H0; eauto.
-destruct H3 as [[? ?] ?].
+destruct H3 as [[[? ?] ?] ?].
+split; auto.
 split; auto.
 split; auto.
 eapply sepcon_derives; try apply H; auto.
@@ -276,9 +277,11 @@ simpl exit_cont in H0.
 simpl in H0'. clear n H1. remember ((construct_rho (filter_genv psi) ve te)) as rho.
 revert w H0. 
 apply imp_derives; auto.
-rewrite andp_assoc.
+rewrite !andp_assoc.
 apply andp_derives; auto.
 repeat intro. simpl exit_tycon.
+rewrite <- andp_assoc in H0.
+destruct H0; auto.
 unfold frame_ret_assert.
 rewrite sepcon_comm.
 eapply andp_derives; try apply H0; auto.
@@ -307,7 +310,7 @@ rewrite semax_fold_unfold.
 intros gx Delta'.
 apply prop_imp_i; intro TS.
 intros w' ? ? k F w'' ? ?.
-intros te ve w''' ? w4 ? [[? ?] ?].
+intros te ve w''' ? w4 ? [[[? ?] ?] ?].
 rewrite sepcon_andp_prop in H7.
 destruct H7.
 specialize (H H7); clear PP H7.
@@ -315,7 +318,9 @@ hnf in H. rewrite semax_fold_unfold in H.
 eapply H; try apply TS.
 apply necR_refl.
 apply H0. auto. apply H2. apply H3. apply H4. auto.
-split; auto. split; auto.
+split; auto.
+split; auto.
+split; auto.
 Qed.
 
 Lemma semax_extract_later_prop:
@@ -329,7 +334,7 @@ rewrite semax_fold_unfold.
 intros gx Delta'.
 apply prop_imp_i; intro TS.
 intros w' ? ? k F w'' ? ?.
-intros te ve w''' ? w4 ? [[? ?] ?].
+intros te ve w''' ? w4 ? [[[? ?] ?] ?].
 
 rewrite later_andp in H7.
 
@@ -357,10 +362,12 @@ destruct (age1 w4) eqn:?H.
   eapply H; try apply TS.
   apply necR_refl.
   apply H0. auto. apply H2. apply H3. apply H4. auto.
-  split; auto. split; auto.
+  split; auto.
+  split; auto.
+  split; auto.
 + simpl.
-  apply af_level1 in H10; [| apply compcert_rmaps.R.ag_rmap].
-  rewrite H10.
+  apply af_level1 in H11; [| apply compcert_rmaps.R.ag_rmap].
+  rewrite H11.
   constructor.
 Qed.
 
@@ -460,7 +467,7 @@ intros.
 intros.
 intros te ve ?w ? ?w ? ?.
 rewrite exp_sepcon2 in H4.
-destruct H4 as [[TC [x H5]] ?].
+destruct H4 as [[[TC [x H5]] ?] ?].
 specialize (H x).
 specialize (H psi Delta' w TS Prog_OK k F H0).
 spec H.
@@ -477,6 +484,7 @@ apply sepcon_derives; auto.
 intros ? ?.
 exists x; auto.
 eapply H; eauto.
+split; auto.
 split; auto.
 split; auto.
 Qed.
@@ -627,8 +635,9 @@ do 7 intro.
 apply (H5 b b0 y H8 _ H9).
 destruct H10; split; auto.
 destruct H10; split; auto.
-clear H10 H11.
-revert a' H9 H12.
+destruct H10; split; auto.
+clear H10 H11 H12.
+revert a' H9 H13.
 apply sepcon_subp' with (level w2); auto.
 apply necR_level in H6.
 apply necR_level in Hw4.

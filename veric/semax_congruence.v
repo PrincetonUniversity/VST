@@ -13,7 +13,9 @@ Require Import veric.Clight_new.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_extspec.
-Require Import veric.expr veric.expr_lemmas.
+Require Import veric.tycontext.
+Require Import veric.expr.
+Require Import veric.expr_lemmas.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
@@ -36,12 +38,12 @@ Section extensions.
 Context (Espec : OracleKind).
 
 Lemma safeN_step_jsem_spec: forall gx vx tx n k ora jm,
-  @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
+  @safeN_ _ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec
     gx (S n) ora (State vx tx k) jm <->
   exists c' m', (cl_step gx (State vx tx k) (m_dry jm) c' (m_dry m') /\
   resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi m') /\
   level jm = S (level m') /\
-  @safeN_ _ _ _ _ _ juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec gx n ora c' m').
+  @safeN_ _ _ _ _ (fun x => Genv.genv_symb (genv_genv x)) juicy_safety.Hrel (juicy_core_sem cl_core_sem) OK_spec gx n ora c' m').
 Proof.
   intros.
   split; intros.
