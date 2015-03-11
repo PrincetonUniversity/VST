@@ -109,12 +109,12 @@ Require Import veric.expr_lemmas.
 
 Lemma rel_expr_relate:
   forall Delta ge te ve rho e jm v,
-           genv_cenv ge = composite_types Delta ->
+           guard_genv Delta ge ->
            rho = construct_rho (filter_genv ge) ve te ->
            rel_expr Delta e v rho (m_phi jm) ->
            Clight.eval_expr ge ve te (m_dry jm) e v.
 Proof.
-intros until v. intro HH; intros.
+intros until v. intro HGG; intros.
 hnf in H0.
 apply (rel_expr'_sch Delta rho (m_phi jm)
      (Clight.eval_expr ge ve te (m_dry jm))
@@ -123,7 +123,11 @@ apply (rel_expr'_sch Delta rho (m_phi jm)
  intros; subst rho; try solve [econstructor; try rewrite HH; eauto].
 * (* Eaddrof *)
    destruct v0; try contradiction. constructor; auto.
+* (* Ebinop *)
+  econstructor; eauto.
+  erewrite <- Cop_sem_binary_operation_guard_genv; eauto.
 * (* lvalue *)
+
   destruct v1; try contradiction.
   eapply Clight.eval_Elvalue; eauto.
   destruct H4 as [m1 [m2 [? [? _]]]].

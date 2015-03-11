@@ -71,7 +71,8 @@ Definition guard  (Espec : OracleKind)
      ALL tx : Clight.temp_env, ALL vx : env,
           let rho := construct_rho (filter_genv gx) vx tx in 
           !! guard_environ Delta (current_function ctl) rho
-                  && P rho && funassert Delta rho && (!! (genv_cenv gx = composite_types Delta))
+                  && P rho && funassert Delta rho
+                  && (!! (guard_genv Delta gx))
              >=> assert_safe Espec gx vx tx ctl rho.
 
 Definition zap_fn_return (f: function) : function :=

@@ -812,7 +812,17 @@ Proof.
   + exact I.
   + exact I.
   + exact I.
-Qed.  
+Qed.
+
+Lemma sub_option_spec: forall {A} (T1 T2: PTree.t A),
+  (forall id, sub_option (T1 ! id) (T2 ! id)) ->
+  forall id co, T1 ! id = Some co -> T2 ! id = Some co.
+Proof.
+  intros.
+  specialize (H id).
+  destruct (T1 ! id), (T2 ! id); inversion H; inversion H0.
+  reflexivity.
+Qed.
 
 Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
  (forall id, match (temp_types Delta) ! id,  (temp_types Delta') ! id with
@@ -1040,6 +1050,96 @@ auto.
 Qed.
 
 Section STABILITY.
+
+Variables env env': composite_env.
+Hypothesis extends: forall id co, env!id = Some co -> env'!id = Some co.
+
+Lemma field_offset_stable: forall i id co ofs,
+  composite_env_consistent env ->
+  env ! i = Some co ->
+  field_offset env id (co_members co) = Errors.OK ofs ->
+  field_offset env' id (co_members co) = Errors.OK ofs.
+Proof.
+  unfold field_offset.
+  generalize 0.
+  intros.
+  destruct (H i co H0) as [HH _ _ _].
+  revert z H1.
+  clear H H0.
+  induction (co_members co); intros.
+  + simpl in H1 |- *.
+    inversion H1.
+  + simpl in H1 |- *.
+    destruct a.
+    simpl in HH.
+    rewrite andb_true_iff in HH.
+    if_tac.
+    - rewrite alignof_stable with (env := env) by tauto. assumption.
+    - rewrite alignof_stable with (env := env) by tauto.
+      rewrite sizeof_stable with (env := env) by tauto.
+      apply IHm; try tauto.
+Qed.
+
+End STABILITY.
+
+Definition guard_genv Delta ge :=
+  forall id, sub_option ((composite_types Delta) ! id) ((genv_cenv ge) ! id).
+
+Section GGENV.
+
+Variable Delta: tycontext.
+Variable ge: genv.
+Hypothesis gg: guard_genv Delta ge.
+
+Lemma guard_genv_spec: forall id co, (composite_types Delta) ! id = Some co -> (genv_cenv ge) ! id = Some co.
+Proof.
+  intros.
+  specialize (gg id).
+  destruct ((composite_types Delta) ! id), ((genv_cenv ge) ! id);
+  try inversion gg; try inversion H.
+  reflexivity.
+Qed.
+
+Lemma sizeof_guard_genv: forall t, complete_type (composite_types Delta) t = true ->
+  sizeof (composite_types Delta) t = sizeof ge t.
+Proof.
+  intros.
+  symmetry.
+  apply sizeof_stable; [| auto].
+  apply guard_genv_spec.
+Qed.
+
+Lemma alignof_guard_genv: forall t, complete_type (composite_types Delta) t = true ->
+  alignof (composite_types Delta) t = alignof ge t.
+Proof.
+  intros.
+  symmetry.
+  apply alignof_stable; [| auto].
+  apply guard_genv_spec.
+Qed.
+
+Lemma complete_type_guard_genv: forall t,
+  complete_type (composite_types Delta) t = true ->
+  complete_type ge t = true.
+Proof.
+  apply complete_type_stable.
+  apply guard_genv_spec.
+Qed.
+
+Lemma field_offset_guard_genv: forall i id co ofs,
+  (composite_types Delta) ! i = Some co ->
+  field_offset (composite_types Delta) id (co_members co) = Errors.OK ofs ->
+  field_offset ge id (co_members co) = Errors.OK ofs.
+Proof.
+  intros.
+  apply field_offset_stable with (i := i) (env := composite_types Delta); auto.
+  + apply guard_genv_spec.
+  + apply composite_types_consistent.
+Qed.
+
+End GGENV.
+
+Section TYCON_SUB.
 Variables Delta Delta': tycontext.
 Hypothesis extends: tycontext_sub Delta Delta'.
 
@@ -1047,29 +1147,17 @@ Lemma composite_types_get_sub: forall i co,
   (composite_types Delta) ! i = Some co ->
   (composite_types Delta') ! i = Some co.
 Proof.
-  intros.
   destruct extends as [_ [_ [_ [_ [_ ?]]]]].
-  specialize (H0 i).
-  destruct ((composite_types Delta) ! i); inversion H.
-  destruct ((composite_types Delta') ! i); inversion H0.
-  subst; reflexivity.
+  apply sub_option_spec.
+  auto.
 Qed.
 
 Lemma complete_type_sub: forall t,
   complete_type (composite_types Delta) t = true ->
   complete_type (composite_types Delta') t = true.
 Proof.
-  intros.
-  destruct extends as [_ [_ [_ [_ [_ ?]]]]].
-  induction t; simpl in H |- *; auto.
-  + specialize (H0 i).
-    destruct ((composite_types Delta) ! i); inversion H.
-    destruct ((composite_types Delta') ! i); inversion H0.
-    reflexivity.
-  + specialize (H0 i).
-    destruct ((composite_types Delta) ! i); inversion H.
-    destruct ((composite_types Delta') ! i); inversion H0.
-    reflexivity.
+  apply complete_type_stable.
+  apply composite_types_get_sub.
 Qed.
 
 Lemma sizeof_sub: forall t,
@@ -1077,17 +1165,9 @@ Lemma sizeof_sub: forall t,
   sizeof (composite_types Delta) t = sizeof (composite_types Delta') t.
 Proof.
   intros.
-  destruct extends as [_ [_ [_ [_ [_ ?]]]]].
-  induction t; simpl in H |- *; auto.
-  + rewrite (IHt H); reflexivity.
-  + specialize (H0 i).
-    destruct ((composite_types Delta) ! i); inversion H.
-    destruct ((composite_types Delta') ! i); inversion H0.
-    reflexivity.
-  + specialize (H0 i).
-    destruct ((composite_types Delta) ! i); inversion H.
-    destruct ((composite_types Delta') ! i); inversion H0.
-    reflexivity.
+  symmetry.
+  apply sizeof_stable; auto.
+  apply composite_types_get_sub.
 Qed.
 
 Lemma alignof_sub: forall t,
@@ -1095,17 +1175,9 @@ Lemma alignof_sub: forall t,
   alignof (composite_types Delta) t = alignof (composite_types Delta') t.
 Proof.
   intros.
-  destruct extends as [_ [_ [_ [_ [_ ?]]]]].
-  induction t; simpl in H |- *; auto.
-  + rewrite (IHt H); reflexivity.
-  + specialize (H0 i).
-    destruct ((composite_types Delta) ! i); inversion H.
-    destruct ((composite_types Delta') ! i); inversion H0.
-    reflexivity.
-  + specialize (H0 i).
-    destruct ((composite_types Delta) ! i); inversion H.
-    destruct ((composite_types Delta') ! i); inversion H0.
-    reflexivity.
+  symmetry.
+  apply alignof_stable; auto.
+  apply composite_types_get_sub.
 Qed.
 
 Lemma field_offset_sub: forall i id co ofs,
@@ -1113,26 +1185,21 @@ Lemma field_offset_sub: forall i id co ofs,
   field_offset (composite_types Delta) id (co_members co) = Errors.OK ofs ->
   field_offset (composite_types Delta') id (co_members co) = Errors.OK ofs.
 Proof.
-  unfold field_offset.
-  generalize 0.
   intros.
-  pose proof composite_types_get_sub _ _ H.
-  destruct (composite_types_consistent _ _ _ H) as [HH _ _ _].
-  revert z H0.
-  clear H H1.
-  induction (co_members co); intros.
-  + simpl in H0 |- *.
-    inversion H0.
-  + simpl in H0 |- *.
-    destruct a.
-    simpl in HH.
-    rewrite andb_true_iff in HH.
-    if_tac.
-    - rewrite <- alignof_sub by tauto. assumption.
-    - rewrite <- alignof_sub by tauto.
-      rewrite <- sizeof_sub by tauto.
-      apply IHm; try tauto.
+  apply field_offset_stable with (i := i) (env := composite_types Delta); auto.
+  + apply composite_types_get_sub.
+  + apply composite_types_consistent.
 Qed.
+
+Lemma guard_genv_sub: forall ge,
+  guard_genv Delta' ge -> guard_genv Delta ge.
+Proof.
+  destruct extends as [_ [_ [_ [_ [_ ?]]]]].
+  unfold guard_genv.
+  intros.
+  specialize (H id).
+  eapply sub_option_trans; eauto.
+Qed.  
 
 Lemma initialized_sub: forall i,
   tycontext_sub (initialized i Delta) (initialized i Delta').
@@ -1178,7 +1245,7 @@ Proof.
   + auto.
 Qed.
 
-End STABILITY.
+End TYCON_SUB.
 
 Lemma tycontext_sub_join:
  forall Delta1 Delta2 Delta1' Delta2',

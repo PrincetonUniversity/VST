@@ -334,9 +334,35 @@ destruct (classify_cast t1 t2);
 destruct v; destruct t1; destruct t2; auto.
 Qed.
 
+Lemma Cop_sem_binary_operation_guard_genv: forall Delta ge,
+  guard_genv Delta ge ->
+  forall b v1 e1 v2 e2 t m rho,
+  denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho ->
+  Cop.sem_binary_operation (composite_types Delta) b v1 (typeof e1) v2 (typeof e2) m =
+    Cop.sem_binary_operation ge b v1 (typeof e1) v2 (typeof e2) m.
+Proof.
+  intros.
+  unfold isBinOpResultType in H0.
+  destruct b; try auto.
+  + simpl.
+    unfold Cop.sem_add.
+    destruct (classify_add (typeof e1) (typeof e2)), v1, v2;
+    try rewrite sizeof_guard_genv with (ge := ge); auto;
+    rewrite !denote_tc_assert_andp in H0;
+    destruct H0 as [[_ ?] _];
+    eapply denote_tc_assert_tc_bool; eauto.
+  + simpl.
+    unfold Cop.sem_sub.
+    destruct (classify_sub (typeof e1) (typeof e2)), v1, v2;
+    try rewrite sizeof_guard_genv with (ge := ge); auto;
+    rewrite !denote_tc_assert_andp in H0;
+    destruct H0 as [[_ ?] _];
+    eapply denote_tc_assert_tc_bool; eauto.
+Qed.
+
 Lemma eval_both_relate:
   forall Delta ge te ve rho e m,
-           genv_cenv ge = composite_types Delta ->
+           guard_genv Delta ge ->
            rho = construct_rho (filter_genv ge) ve te ->
            typecheck_environ Delta rho ->
            (denote_tc_assert Delta (typecheck_expr Delta e) rho ->
@@ -348,7 +374,7 @@ Lemma eval_both_relate:
               eval_lvalue Delta e rho = Vptr b ofs).
 Proof. 
 intros until m.
-intro HH; intros.
+intro HGG; intros.
 generalize dependent ge. induction e; intros;
 try solve[intuition; constructor; auto | subst; inv H1]; intuition.
 
@@ -502,16 +528,15 @@ remember (sem_binary_operation' Delta b (typeof e1) (typeof e2) true2 (eval_expr
 { destruct o. 
   + eapply Clight.eval_Ebinop. eapply IHe1; eauto.
     eapply IHe2. assumption. apply H. apply H3.
-
+    rewrite <- Cop_sem_binary_operation_guard_genv with (Delta := Delta) (t := t) (rho := rho) by auto.
     remember (eval_expr Delta e1 rho); remember (eval_expr Delta e2 rho);
     destruct v0; destruct v1; simpl;
     rewrite Heqv0 at 1; rewrite Heqv1;
     rewrite Heqv0 in Heqo at 1;
     rewrite Heqv1 in Heqo;
-    rewrite HH in *;
+    (*rewrite HH in *;*)
     try rewrite Heqo;
     try apply tc_binaryop_relate with (t:=t); auto.
-    
   + specialize (IHe1 ge). specialize (IHe2 ge). intuition.
          clear H7 H8. 
     remember (eval_expr Delta e1 rho). remember (eval_expr Delta e2 rho).
@@ -536,7 +561,7 @@ destruct (Cop.sem_cast (eval_expr Delta e rho) (typeof e) t). auto.
 inv TC. } 
 
 * (*Field*)
-specialize (IHe ge HH H). assert (TC := typecheck_expr_sound _ _ _ H0 H1). 
+specialize (IHe ge HGG H). assert (TC := typecheck_expr_sound _ _ _ H0 H1). 
 simpl in H1. remember (access_mode t). destruct m0; try solve [inv H1]. 
   repeat rewrite tc_andp_sound in *. 
 simpl in H1. 
@@ -555,8 +580,8 @@ destruct ((composite_types Delta) ! i0) as [co |] eqn:Hco; try solve [inv H2].
   eapply Clight.eval_Elvalue; auto. apply H4.
   rewrite <- Heqt0.
   apply Clight.deref_loc_copy. auto.
-  rewrite HH. eauto.
-  rewrite HH. eauto.
+  eapply guard_genv_spec; eauto.
+  erewrite field_offset_guard_genv; eauto.
   unfold Datatypes.id; simpl. 
   rewrite H5, Hco, <- Heqr. apply Clight.deref_loc_reference. auto. 
    
@@ -566,7 +591,7 @@ destruct ((composite_types Delta) ! i0) as [co |] eqn:Hco; try solve [inv H2].
   eapply Clight.eval_Elvalue; eauto.
   apply Clight.deref_loc_copy.
   rewrite <- Heqt0. auto. eauto.
-  rewrite HH. eauto.
+  eapply guard_genv_spec; eauto.
   unfold Datatypes.id; simpl.
   rewrite H5, Hco. simpl. apply Clight.deref_loc_reference; auto.
 
@@ -590,8 +615,8 @@ intuition. inv H6.
 eapply Clight.eval_Elvalue in H5. apply H5.
 rewrite <- Heqt0. auto. apply Clight.deref_loc_copy. simpl; auto.
 rewrite <- Heqt0; reflexivity. auto.
-rewrite HH. eauto.
-rewrite HH. eauto.  
+eapply guard_genv_spec; eauto.
+erewrite field_offset_guard_genv; eauto.
 inv H6; auto.
 +
 subst v.
@@ -600,7 +625,7 @@ eapply Clight.eval_Efield_union; eauto.
 eapply Clight.eval_Elvalue; eauto.
 rewrite <- Heqt0. apply Clight.deref_loc_copy.
 auto.
-rewrite HH; eauto.
+eapply guard_genv_spec; eauto.
 *
 simpl in H1.
 repeat rewrite denote_tc_assert_andp in H1.
@@ -611,7 +636,7 @@ rewrite eqb_type_spec in H2.
 subst.
 simpl eval_expr.
 unfold_lift; simpl.
-rewrite <- HH.
+erewrite sizeof_guard_genv by eauto.
 constructor.
 *
 simpl in H1.
@@ -623,13 +648,13 @@ rewrite eqb_type_spec in H2.
 subst.
 simpl eval_expr.
 unfold_lift; simpl.
-rewrite <- HH.
+erewrite alignof_guard_genv by eauto.
 constructor.
 Qed.
 
 Lemma eval_expr_relate:
   forall Delta ge te ve rho e m,
-           genv_cenv ge = composite_types Delta ->
+           guard_genv Delta ge ->
            rho = construct_rho (filter_genv ge) ve te ->
            typecheck_environ Delta rho ->
            (denote_tc_assert Delta (typecheck_expr Delta e) rho ->
@@ -641,7 +666,7 @@ Qed.
 
 Lemma eval_lvalue_relate:
   forall Delta ge te ve rho e m,
-           genv_cenv ge = composite_types Delta ->
+           guard_genv Delta ge ->
            rho = construct_rho (filter_genv ge) ve te->
            typecheck_environ Delta rho ->
            (denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->

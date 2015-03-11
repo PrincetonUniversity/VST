@@ -375,14 +375,14 @@ match ty with
                    | Tunion _ _) => true
 | _ => false
 end.
-
+(*
 Definition is_complete_pointer_type Delta ty :=
 match ty with
 | Tpointer t _ => complete_type (composite_types Delta) t
 | Tarray _ _ _ | Tfunction _ _ _ | Tstruct _ _ | Tunion _ _ => complete_type (composite_types Delta) ty
 | _ => false
 end.
-
+*)
 Definition isUnOpResultType op a ty := 
 match op with 
   | Cop.Onotbool => match Cop.classify_bool (typeof a) with
@@ -530,25 +530,25 @@ let deferr := arg_type e in
 match op with
   | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with 
                     | Cop.add_case_pi t => tc_andp (tc_andp (tc_isptr a1)
-                                           (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_case_ip t => tc_andp (tc_andp (tc_isptr a2)
-                                           (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_case_pl t => tc_andp (tc_andp (tc_isptr a1)
-                                           (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_case_lp t => tc_andp (tc_andp (tc_isptr a2)
-                                           (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.add_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with 
                     | Cop.sub_case_pi t => tc_andp (tc_andp (tc_isptr a1)
-                                           (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pl t => tc_andp (tc_andp (tc_isptr a1)
-                                           (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                           (tc_bool (complete_type (composite_types Delta) t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_case_pp t =>  (*tc_isptr may be redundant here*)
                              tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
@@ -557,7 +557,7 @@ match op with
                                (tc_bool (is_int32_type ty) reterr))
 			        (tc_bool (negb (Int.eq (Int.repr (sizeof (composite_types Delta) t)) Int.zero)) 
                                       (pp_compare_size_0 t)))
-                                 (tc_bool (is_complete_pointer_type Delta t) reterr))
+                                 (tc_bool (complete_type (composite_types Delta) t) reterr))
                                   (tc_bool (is_pointer_type ty) reterr)
                     | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end 

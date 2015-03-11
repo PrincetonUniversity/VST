@@ -2575,7 +2575,10 @@ rewrite CORE. apply age_core. apply age_jm_phi; auto.
 }
 specialize (H19 te' ve' _ H22 _ (necR_refl _)).
 spec H19; [clear H19|]. {
-split; [split; [split|] |]; auto. 
+split; [split; [split|] |]; auto.
+Focus 4.
+{
+  
 Focus 3. 
 {
 unfold rho3 in H23. unfold construct_rho. rewrite H0 in H23.
