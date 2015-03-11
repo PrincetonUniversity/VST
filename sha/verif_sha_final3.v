@@ -48,7 +48,7 @@ semax
   (PROP  (Forall isbyteZ (intlist_to_Zlist lastblock))
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
            temp _md md; temp _c c;
-           var _K256 (tarray tuint CBLOCKz) kv)
+           gvar _K256 kv)
    SEP 
    (`(data_at Tsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers hashed),
@@ -87,21 +87,26 @@ Proof.
     reflexivity.
   } Unfocus.
   intros; subst X.
-  
-  forward_call (* sha256_block_data_order (c,p); *)
+
+  forward_call' (* sha256_block_data_order (c,p); *)
     (hashed, lastblock, c,
       field_address t_struct_SHA256state_st [StructField _data] c,
        Tsh, kv).
   {
     unfold data_block.
-    entailer!.
+    unfold Frame.
+    instantiate (1:= [field_at Tsh t_struct_SHA256state_st [StructField _num] Vundef c ;
+       field_at Tsh t_struct_SHA256state_st [StructField _Nh] Vundef c ;
+       field_at Tsh t_struct_SHA256state_st [StructField _Nl] Vundef c ;
+       memory_block shmd (Int.repr 32) md]).
+   entailer.
   }
-  after_call.
+  fold (map Vint). fold (app hashed). simpl map.
   unfold data_block.
   simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
   rewrite <- H1.
   forward. (* c->num=0; *)
-  forward_call (* memset (p,0,SHA_CBLOCK); *) 
+  forward_call' (* memset (p,0,SHA_CBLOCK); *) 
     (Tsh, (field_address t_struct_SHA256state_st [StructField _data] c), 64%Z, Int.zero).
   {
     entailer!.
@@ -120,7 +125,7 @@ Proof.
       [| reflexivity | change Int.modulus with 4294967296; simpl; omega].
     entailer!.
   }
-  after_call.
+  simpl map.
   replace Delta with
     (initialized _cNl (initialized _cNh Delta_final_if1))
     by (simplify_Delta; reflexivity).
@@ -178,7 +183,7 @@ semax Delta_final_if1
       (temp _p 
          (field_address t_struct_SHA256state_st [ArraySubsc (Z.of_nat CBLOCK - 8); StructField _data] c);
       temp _n (Vint (Int.repr (Zlength dd'))); 
-      temp _md md; temp _c c; var _K256 (tarray tuint CBLOCKz) kv)
+      temp _md md; temp _c c; gvar _K256 kv)
       SEP 
       (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
            (map Vint (map Int.repr dd') ++
@@ -189,7 +194,7 @@ semax Delta_final_if1
       `(field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part bitlen)) c);
       `(field_at Tsh t_struct_SHA256state_st [StructField _h]
           (map Vint (hash_blocks init_registers hashed')) c);
-      `K_vector (eval_var _K256 (tarray tuint CBLOCKz));
+      `(K_vector kv);
       `(memory_block shmd (Int.repr 32) md)))
   (Ssequence
      (Sset _cNh
@@ -308,37 +313,32 @@ Proof.
     reflexivity.
   } Unfocus.
   normalize.
-
-  forward_call (* (void)HOST_l2c(cNh,p); *)
+  rewrite <- seq_assoc.  (* shouldn't be necessary *)
+  forward_call' (* (void)HOST_l2c(cNh,p); *)
      (field_address t_struct_SHA256state_st
                     [ArraySubsc 56; StructField _data] c,
       Tsh, hibytes).
-  {
-    entailer!.
-    + unfold hibytes.
-      rewrite !Zlength_map.
-      rewrite Zlength_intlist_to_Zlist.
-      change (WORD * Zlength [hi_part bitlen])%Z with 4.
-      omega.
-    + rewrite field_address_clarify by auto.
-       rewrite field_address_clarify by auto.
-       destruct c; try contradiction; normalize.
-    + unfold hibytes.
-      symmetry; rewrite (nth_big_endian_integer 0 [hi_part bitlen] (hi_part bitlen)) at 1 by reflexivity.
-      f_equal.
-    + pull_left
-       (data_at Tsh (Tarray tuchar 4 noattr) [Vundef; Vundef; Vundef; Vundef]
+     apply prop_right; repeat constructor; hnf; simpl.
+  unfold hibytes.
+  rewrite (nth_big_endian_integer 0 [hi_part bitlen] (hi_part bitlen)) at 1 by reflexivity.
+  reflexivity.
+  
+  rewrite field_address_clarify by auto.
+  rewrite field_address_clarify by auto.
+  destruct c_; try contradiction; normalize.
+  pull_left
+       (data_at Tsh (Tarray tuchar (60 - 56) noattr) (list_repeat 4 Vundef)
          (field_address t_struct_SHA256state_st
                     [ArraySubsc 56; StructField _data] c)) .
-      repeat rewrite sepcon_assoc.
-      apply sepcon_derives; [ | cancel_frame].
-      change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).
-      eapply derives_trans; [apply data_at_data_at_; reflexivity |].
+  repeat rewrite sepcon_assoc.
+  apply sepcon_derives; [ | cancel_frame].
+  change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).
+  eapply derives_trans; [apply data_at_data_at_; reflexivity |].
       erewrite data_at__memory_block;
         [| reflexivity | change Int.modulus with 4294967296; simpl; omega].
       entailer.
-  }
-  after_call.
+  split; auto. change (Zlength hibytes) with 4. clear; omega.
+  fold (map Vint).  unfold map at 2.
   gather_SEP 0 1 2.
   replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
     ((map Vint (map Int.repr dd') ++
@@ -378,25 +378,26 @@ Proof.
     omega.
   } Unfocus.
   normalize.
-  forward_call (* (void)HOST_l2c(cNl,p); *)
+  rewrite <- seq_assoc. (* shouldn't need this *)
+  forward_call' (* (void)HOST_l2c(cNl,p); *)
     (field_address t_struct_SHA256state_st
                     [ArraySubsc 60; StructField _data] c,
      Tsh, lobytes).
   {
-    entailer!.
-    + change (Zlength lobytes) with 4. omega.
-    + destruct c; try (contradiction Pc); simpl.
-        rewrite field_address_clarify by auto.
-        rewrite field_address_clarify. simpl.
-        normalize.
-        clear - TC0.
-        unfold field_address in *; simpl in *.
-        if_tac; try contradiction. apply I.
-    + unfold lobytes.
-      symmetry; rewrite (nth_big_endian_integer 0 [lo_part bitlen] (lo_part bitlen)) at 1 by reflexivity.
-      f_equal.
-    + pull_left
-        (data_at Tsh (Tarray tuchar 4 noattr) [Vundef; Vundef; Vundef; Vundef]
+  apply prop_right; repeat constructor; hnf; simpl; auto.
+  rewrite (nth_big_endian_integer 0 [lo_part bitlen] (lo_part bitlen)) at 1 by reflexivity;
+  reflexivity.
+  destruct c_; try (contradiction Pc_); simpl.
+  symmetry.
+  rewrite field_address_clarify by auto.
+  rewrite field_address_clarify. simpl.
+  normalize.
+  clear - TC0.
+  unfold field_address in *; simpl in *.
+  if_tac; try contradiction. apply I.
+ }
+  pull_left
+        (data_at Tsh (Tarray tuchar (64-60) noattr) [Vundef; Vundef; Vundef; Vundef]
           (field_address t_struct_SHA256state_st
                     [ArraySubsc 60; StructField _data] c)).
       repeat rewrite sepcon_assoc.
@@ -406,8 +407,11 @@ Proof.
       erewrite data_at__memory_block;
         [| reflexivity | change Int.modulus with  4294967296; simpl; omega].
       entailer.
-  }
-  after_call.
+
+  split; auto.
+  compute; congruence.
+  fold (map Vint).
+  simpl map.
   gather_SEP 0 1 2.
   replace_SEP 0
     (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
@@ -460,7 +464,7 @@ Proof.
     entailer!.
     rewrite <- H8.
     unfold field_address.
-    destruct (eval_id _c rho); try solve [inversion H10].
+    destruct (eval_id _c rho); try solve [inversion H11].
     simpl.
     if_tac; [rewrite if_true | rewrite if_false]; auto.
     unfold offset_val, force_val; simpl.

@@ -54,7 +54,7 @@ Lemma update_inner_if_else_proof:
      temp _n (Vint (Int.repr (Zlength dd)));
      temp _c c; temp _data d;
      temp _len (Vint (Int.repr (Z.of_nat len)));
-     var _K256 (tarray tuint CBLOCKz) kv)
+     gvar _K256 kv)
    SEP (`(data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + (Z.of_nat len)*8)),
@@ -182,7 +182,7 @@ apply semax_pre with
    temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
    temp _n (Vint (Int.repr (Zlength dd))); temp _c c; temp _data d;
    temp _len (Vint (Int.repr (Z.of_nat len)));
-   var _K256 (tarray tuint CBLOCKz) kv)
+   gvar _K256 kv)
    SEP 
    (`(data_at Tsh t_struct_SHA256state_st
          (map Vint (hash_blocks init_registers hashed),

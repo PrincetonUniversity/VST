@@ -1020,7 +1020,7 @@ Proof.
   (map (fun idt : ident * type => var_block Share.top idt) (fn_vars f)) rho) 
   with (fold_right (@sepcon _ _ _ _ _) emp (map (fun idt => var_block Share.top idt rho) (fn_vars f))).
  2: clear; induction (fn_vars f); simpl; f_equal; auto.
- unfold var_block. unfold lvalue_block; simpl. unfold eval_var.
+ unfold var_block. simpl. unfold eval_lvar.
   rewrite H0. unfold make_venv. forget (ge_of rho) as ZZ. rewrite H0 in H7; clear rho H0.
  revert ve H1 H7; induction (fn_vars f); simpl; intros.
  case_eq (PTree.elements ve); simpl; intros; auto.
@@ -1238,12 +1238,12 @@ apply in_map; auto.
 pose (H0:=True).
 destruct H1 as [phi1 [phi2 [? [? ?]]]].
 
-unfold var_block, lvalue_block in H3.
+unfold var_block, eval_lvar in H3.
 normalize in H3.
 simpl in H3.
 assert (0 <= sizeof t) by (pose proof (sizeof_pos t); omega).
 simpl in H5.
-unfold eval_var, Map.get in H3. simpl in H3.
+unfold Map.get in H3. simpl in H3.
 unfold make_venv in H3.
 rewrite (Hve id (b,t)) in H3 by (left; auto).
 rewrite eqb_type_refl in H3.
@@ -2169,9 +2169,9 @@ inv H.
 eapply IHvars; eauto. clear IHvars.
 (* pose proof (juicy_mem_alloc_succeeds _ _ _ _ _ H2). *)
 pose proof I.
-unfold var_block, lvalue_block.
-simpl sizeof; simpl typeof. simpl eval_lvalue.
- unfold eval_var. simpl Map.get. simpl ge_of.
+unfold var_block, eval_lvar.
+simpl sizeof; simpl typeof.
+simpl Map.get. simpl ge_of.
 assert (Map.get (make_venv ve) id = Some (b,ty)). {
  clear - H0 H5.
  unfold Map.get, make_venv.

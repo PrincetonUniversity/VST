@@ -14,8 +14,8 @@ Lemma sha256_block_data_order_return:
   regs = hash_blocks init_registers hashed ->
   semax (initialized _t Delta_loop1)
   (PROP  ()
-   LOCAL  (temp _ctx ctx; var _K256 (tarray tuint CBLOCKz) kv;
-                var _X (tarray tuint 16) Xv)
+   LOCAL  (temp _ctx ctx; gvar _K256 kv;
+                lvar _X (tarray tuint 16) Xv)
    SEP 
    (`(field_at Tsh t_struct_SHA256state_st [StructField _h]
            (map Vint (hash_block regs b)) ctx);
@@ -23,13 +23,15 @@ Lemma sha256_block_data_order_return:
    `(data_at_ Tsh (tarray tuint LBLOCKz) Xv);
    `(data_block sh (intlist_to_Zlist b) data)))
   (Sreturn None)
-  (frame_ret_assert
+ (frame_ret_assert
      (function_body_ret_assert tvoid
-          (`(field_at Tsh t_struct_SHA256state_st  [StructField _h] 
-                 (map Vint (hash_blocks init_registers (hashed++b))) ctx) *
-          `(data_block sh (intlist_to_Zlist b) data) *
-          `(K_vector kv)))
-     (stackframe_of f_sha256_block_data_order)).
+        (PROP  ()
+         LOCAL ()
+         SEP 
+         (`(field_at Tsh t_struct_SHA256state_st [StructField _h]
+              (map Vint (hash_blocks init_registers (hashed ++ b))) ctx);
+         `(data_block sh (intlist_to_Zlist b) data); `(K_vector kv))))
+   (`(data_at_ Tsh (tarray tuint 16)) (eval_lvar _X (tarray tuint 16)))).
 Proof.
 intros.
 unfold Delta_loop1; simplify_Delta.
@@ -38,10 +40,15 @@ unfold frame_ret_assert; simpl.
 unfold sha256state_.
 set (regs := hash_block (hash_blocks init_registers hashed) b).
 unfold_lift.
-simpl_stackframe_of.
 unfold data_at_.
 unfold tarray.
 unfold regs; clear regs.
 rewrite hash_blocks_last; auto.
+cancel.
+unfold eval_lvar. unfold_lift. hnf in H4.
+destruct (Map.get (ve_of rho) _X) as [[? ?] |]; try contradiction.
+fold (tarray tuint 16).
+destruct (eqb_type (tarray tuint 16) t); try contradiction.
+subst.
 cancel.
 Qed.
