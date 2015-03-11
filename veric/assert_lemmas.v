@@ -603,6 +603,24 @@ Proof.
   eapply (proj2 (eval_expr_lvalue_sub e)); eauto.
 Qed.
 
+Lemma eval_exprlist_sub: forall tl el rho w,
+  typecheck_environ Delta rho ->
+  tc_exprlist Delta tl el rho w ->
+  eval_exprlist Delta tl el rho = eval_exprlist Delta' tl el rho.
+Proof.
+  intros.
+  revert tl H0; induction el; intros; destruct tl; try solve [inversion H0].
+  + reflexivity.
+  + simpl in H0.
+    rewrite !denote_tc_assert_andp in H0.
+    destruct H0 as [[? ?] ?].
+    simpl.
+    unfold_lift.
+    rewrite (IHel tl H2).
+    rewrite eval_expr_sub with (w := w) by auto.
+    reflexivity.
+Qed.
+
 Lemma tc_expr_lvalue_sub: forall rho,
   typecheck_environ Delta rho ->
   forall e,
