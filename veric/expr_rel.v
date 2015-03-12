@@ -11,6 +11,26 @@ Require Import veric.expr.
 Require Import veric.res_predicates.
 Require Import veric.seplog.
 
+Definition isBinOpResultType_weak (Delta: tycontext) op a1 a2 : bool :=
+match op with
+  | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with 
+                    | Cop.add_case_pi t => complete_type (composite_types Delta) t
+                    | Cop.add_case_ip t => complete_type (composite_types Delta) t 
+                    | Cop.add_case_pl t => complete_type (composite_types Delta) t 
+                    | Cop.add_case_lp t => complete_type (composite_types Delta) t 
+                    | Cop.add_default => true
+            end
+  | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with 
+                    | Cop.sub_case_pi t => complete_type (composite_types Delta) t
+                    | Cop.sub_case_pl t => complete_type (composite_types Delta) t 
+                    | Cop.sub_case_pp t => 
+                        andb (negb (Int.eq (Int.repr (sizeof (composite_types Delta) t)) Int.zero)) 
+                             (complete_type (composite_types Delta) t)
+                    | Cop.sub_default => true
+            end 
+  | _ => true
+  end.
+
 Inductive rel_expr' (Delta: tycontext) (rho: environ) (phi: rmap): expr -> val -> Prop :=
  | rel_expr'_const_int: forall i ty, 
                  rel_expr' Delta rho phi (Econst_int i ty) (Vint i)
@@ -33,12 +53,19 @@ Inductive rel_expr' (Delta: tycontext) (rho: environ) (phi: rmap): expr -> val -
  | rel_expr'_binop: forall a1 a2 v1 v2 v ty op,
                  rel_expr' Delta rho phi a1 v1 ->
                  rel_expr' Delta rho phi a2 v2 ->
+                 isBinOpResultType_weak Delta op a1 a2 = true ->
                  (forall m, Cop.sem_binary_operation (composite_types Delta) op v1 (typeof a1) v2 (typeof a2) m = Some v) ->
                  rel_expr' Delta rho phi (Ebinop op a1 a2 ty) v
  | rel_expr'_cast: forall a v1 v ty,
                  rel_expr' Delta rho phi a v1 ->
                  Cop.sem_cast v1 (typeof a) ty = Some v ->
                  rel_expr' Delta rho phi (Ecast a ty) v
+ | rel_expr'_sizeof: forall t ty,
+                 complete_type (composite_types Delta) t = true ->
+                 rel_expr' Delta rho phi (Esizeof t ty) (Vint (Int.repr (sizeof (composite_types Delta) t)))
+ | rel_expr'_alignof: forall t ty,
+                 complete_type (composite_types Delta) t = true ->
+                 rel_expr' Delta rho phi (Ealignof t ty) (Vint (Int.repr (alignof (composite_types Delta) t)))
  | rel_expr'_lvalue_By_value: forall a ch sh v1 v2,
                  access_mode (typeof a) = By_value ch ->
                  rel_lvalue' Delta rho phi a v1 ->
@@ -107,32 +134,74 @@ Next Obligation. intros. apply rel_lvalue'_hered. Defined.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.expr_lemmas.
 
-Lemma rel_expr_relate:
-  forall Delta ge te ve rho e jm v,
-           guard_genv Delta ge ->
-           rho = construct_rho (filter_genv ge) ve te ->
-           rel_expr Delta e v rho (m_phi jm) ->
-           Clight.eval_expr ge ve te (m_dry jm) e v.
+Lemma Cop_sem_binary_operation_guard_genv: forall Delta ge,
+       guard_genv Delta ge ->
+       forall b v1 e1 v2 e2 m,
+       isBinOpResultType_weak Delta b e1 e2 = true ->
+       Cop.sem_binary_operation (composite_types Delta) b v1 
+         (typeof e1) v2 (typeof e2) m =
+       Cop.sem_binary_operation ge b v1 (typeof e1) v2 (typeof e2) m.
 Proof.
-intros until v. intro HGG; intros.
-hnf in H0.
-apply (rel_expr'_sch Delta rho (m_phi jm)
+  intros.
+  unfold Cop.sem_binary_operation.
+  unfold isBinOpResultType_weak in H0.
+  destruct b; auto.
+  + unfold Cop.sem_add.
+    destruct (Cop.classify_add (typeof e1) (typeof e2)), v1, v2; auto;
+    erewrite sizeof_guard_genv; eauto.
+  + unfold Cop.sem_sub.
+    destruct (Cop.classify_sub (typeof e1) (typeof e2)), v1, v2; auto;
+    erewrite sizeof_guard_genv; eauto.
+    rewrite andb_true_iff in H0.
+    tauto.
+Qed.
+
+Definition rel_lvalue'_expr'_sch Delta rho phi P P0 :=
+  fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17 =>
+  conj (rel_expr'_sch Delta rho phi P P0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17)
+       (rel_lvalue'_sch Delta rho phi P P0 H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17).
+
+Lemma rel_lvalue_expr_relate:
+  forall Delta ge te ve rho jm,
+    guard_genv Delta ge ->
+    rho = construct_rho (filter_genv ge) ve te ->
+    (forall e v,
+           rel_expr Delta e v rho (m_phi jm) ->
+           Clight.eval_expr ge ve te (m_dry jm) e v) /\
+    (forall e v,
+           rel_lvalue Delta e v rho (m_phi jm) ->
+           match v with
+           | Vptr b z => Clight.eval_lvalue ge ve te (m_dry jm) e b z
+           | _ => False
+           end).
+Proof.
+intros.
+unfold rel_expr, rel_lvalue.
+simpl.
+apply (rel_lvalue'_expr'_sch Delta rho (m_phi jm)
      (Clight.eval_expr ge ve te (m_dry jm))
-     (fun e v => match v with Vptr b z => Clight.eval_lvalue ge ve te (m_dry jm) e b z
-                        | _ => False end));
- intros; subst rho; try solve [econstructor; try rewrite HH; eauto].
+     (fun e v =>
+      match v with
+      | Vptr b z => Clight.eval_lvalue ge ve te (m_dry jm) e b z
+      | _ => False end));
+ intros; subst rho; try solve [econstructor; eauto].
 * (* Eaddrof *)
-   destruct v0; try contradiction. constructor; auto.
+   destruct v; try contradiction. constructor; auto.
 * (* Ebinop *)
   econstructor; eauto.
   erewrite <- Cop_sem_binary_operation_guard_genv; eauto.
+* (* Esizeof *)
+  erewrite sizeof_guard_genv by eauto.
+  constructor.
+* (* Ealignof *)
+  erewrite alignof_guard_genv by eauto.
+  constructor.
 * (* lvalue *)
-
   destruct v1; try contradiction.
   eapply Clight.eval_Elvalue; eauto.
   destruct H4 as [m1 [m2 [? [? _]]]].
   unfold mapsto in H4.
- rewrite H1 in *.
+  rewrite H1 in *.
   destruct (type_is_volatile (typeof a)) eqn:?; try contradiction.
   eapply deref_loc_value; try eassumption.
   unfold Mem.loadv.
@@ -144,9 +213,9 @@ apply (rel_expr'_sch Delta rho (m_phi jm)
   intro b'; specialize (H4 b'). hnf in H4|-*.
   if_tac; auto. destruct H4 as [p ?].
   hnf in H4. rewrite preds_fmap_NoneP in H4.
-  apply (resource_at_join _ _ _ b') in H.  
-  rewrite H4 in H; clear H4.
-  inv H.
+  apply (resource_at_join _ _ _ b') in H0.  
+  rewrite H4 in H0; clear H4.
+  inv H0.
   symmetry in H12.
   exists rsh3, (Share.unrel Share.Rsh sh), p; assumption.
   symmetry in H12.
@@ -162,29 +231,34 @@ apply (rel_expr'_sch Delta rho (m_phi jm)
   unfold Map.get, make_venv, filter_genv in H1,H2.
   destruct (Genv.find_symbol ge id) eqn:?; try discriminate.
   destruct (type_of_global ge b) eqn:?; inv H2;  apply Clight.eval_Evar_global; auto.
-* auto.
+* (* Efield *)
+  econstructor; eauto.
+  + eapply guard_genv_spec; eauto.
+  + eapply field_offset_guard_genv; eauto.
+Qed.
+
+Lemma rel_expr_relate:
+  forall Delta ge te ve rho e jm v,
+           guard_genv Delta ge ->
+           rho = construct_rho (filter_genv ge) ve te ->
+           rel_expr Delta e v rho (m_phi jm) ->
+           Clight.eval_expr ge ve te (m_dry jm) e v.
+Proof.
+  intros.
+  apply (proj1 (rel_lvalue_expr_relate Delta ge te ve rho jm H H0)).
+  auto.
 Qed.
 
 Lemma rel_lvalue_relate:
   forall Delta ge te ve rho e jm b z,
-           genv_cenv ge = composite_types Delta ->
+           guard_genv Delta ge ->
            rho = construct_rho (filter_genv ge) ve te ->
            rel_lvalue Delta e (Vptr b z) rho (m_phi jm) ->
            Clight.eval_lvalue ge ve te (m_dry jm) e b z.
 Proof.
-intros until z; intro HH; intros.
-hnf in H0.
-remember (Vptr b z) as v.
-revert b z Heqv; induction H0; subst rho; simpl in *; intros; inv Heqv.
-  unfold Map.get, make_venv, filter_genv in H0.
-eapply Clight.eval_Evar_local; auto.
-  unfold Map.get, make_venv, filter_genv in H0,H1.
-  destruct (Genv.find_symbol ge id) eqn:?; try discriminate.
-  destruct (type_of_global ge b0) eqn:?; inv H1;
-  apply Clight.eval_Evar_global; auto.
-constructor. eapply rel_expr_relate; eauto.
-eapply Clight.eval_Efield_struct; try rewrite HH; eauto.
-eapply rel_expr_relate; eauto.
+  intros.
+  apply ((proj2 (rel_lvalue_expr_relate Delta ge te ve rho jm H H0)) e (Vptr b z)).
+  auto.
 Qed.
 
 Lemma sem_cast_load_result:
@@ -270,13 +344,13 @@ apply (rel_expr'_sch Delta rho phi
    auto; intros;
    try match goal with H : _ |- _ => inv H; auto; try congruence end;
    try match goal with H: rel_lvalue' _ _ _ _ _ |- _ => solve [inv H] end.
-*
+* (* Eunop *)
    specialize (H1 _ H0 H9). congruence.
-*
-   specialize (H1 _ H0 H12). specialize (H3 _ H2 H13).
-   specialize (H4 Mem.empty). specialize (H14 Mem.empty).
+* (* Ebinnop *)
+   specialize (H1 _ H0 H12). specialize (H3 _ H2 H14).
+   specialize (H5 Mem.empty). specialize (H16 Mem.empty).
    congruence.
-*
+* (* Ecast *)
    specialize (H1 _ H0 H7). congruence.
 *
    inversion2 H0 H7.
