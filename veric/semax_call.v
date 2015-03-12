@@ -355,13 +355,13 @@ Proof. induction vl; try destruct a; simpl; auto.
  destruct (split vl); simpl in *; auto.
 Qed.
 
-Lemma exprlist_eval :
+Lemma eval_exprlist_relate :
   forall (Delta : tycontext) (fsig : funsig) 
      (bl : list expr) (psi : genv) (vx : env) (tx : temp_env) 
      (rho : environ) m,
    denote_tc_assert Delta (typecheck_exprlist Delta (snd (split (fst fsig))) bl) rho ->
    typecheck_environ Delta rho ->
-   genv_cenv psi = composite_types Delta ->
+   guard_genv Delta psi ->
    rho = construct_rho (filter_genv psi) vx tx ->
    forall f : function,
    fsig = fn_funsig f ->
@@ -394,7 +394,6 @@ Proof.
 rewrite cop2_sem_cast.
  apply (cast_exists Delta a _ _ H0 H H2).
 Qed.
-
 
 Lemma bind_parameter_temps_excludes :
 forall l1 l2 t id t1,
@@ -998,17 +997,18 @@ Proof.
     apply PTree.elements_correct.
     auto.
 Qed.
-
+Print Forall.
 Lemma stackframe_of_freeable_blocks:
   forall Delta f rho ge ve,
-      genv_cenv ge = composite_types Delta ->
+      guard_genv Delta ge ->
+      Forall (fun t => complete_type (composite_types Delta) t = true) (map snd (fn_vars f)) ->
       list_norepet (map fst (fn_vars f)) ->
       ve_of rho = make_venv ve ->
       guard_environ (func_tycontext' f Delta) (Some f) rho ->
        stackframe_of Delta f rho |-- freeable_blocks (blocks_of_env ge ve).
 Proof.
   intros until ve.
-  intro HH.
+  intros HGG COMPLETE.
  intros.
  destruct H1. destruct H2 as [H7 _].
  unfold stackframe_of.
@@ -1036,7 +1036,9 @@ Proof.
  destruct p; inv H7.
  inv H.
  destruct a as [id ty]. simpl in *.
- specialize (IHl H4 (PTree.remove id ve)).
+ simpl in COMPLETE. inversion COMPLETE; subst.
+ clear COMPLETE; rename H5 into COMPLETE; rename H2 into COMPLETE_HD.
+ specialize (IHl COMPLETE H4 (PTree.remove id ve)).
  assert (exists b, ve ! id = Some (b,ty)).
  unfold typecheck_var_environ in *. 
   specialize (H1 id ty).
@@ -1077,9 +1079,10 @@ Proof.
  unfold memory_block'_alt.
  rewrite Share.contains_Rsh_e by apply top_correct'.
  rewrite Share.contains_Lsh_e by apply top_correct'.
- rewrite Coqlib.nat_of_Z_eq, HH; auto. 
- pose proof (sizeof_pos (composite_types Delta) ty); omega.
- split; auto.  pose proof (sizeof_pos (composite_types Delta) ty); omega.
+ rewrite Coqlib.nat_of_Z_eq.
+ + erewrite sizeof_guard_genv; eauto.
+ + pose proof (sizeof_pos (composite_types Delta) ty); omega.
+ + split; auto.  pose proof (sizeof_pos (composite_types Delta) ty); omega.
 }
  eapply derives_trans; [ | apply IHl]; clear IHl.
  clear - H3.
@@ -1156,7 +1159,8 @@ Qed.
 Lemma can_free_list:
   forall Delta F f jm ge ve te
   (NOREP: list_norepet (map (@fst _ _) (fn_vars f)))
-  (HH: genv_cenv ge = composite_types Delta),
+  (COMPLETE: Forall (fun t => complete_type (composite_types Delta) t = true) (map snd (fn_vars f)))
+  (HGG : guard_genv Delta ge),
    guard_environ (func_tycontext' f Delta) (Some f)
         (construct_rho (filter_genv ge) ve te) ->
     (F * stackframe_of Delta f (construct_rho (filter_genv ge)ve te))%pred (m_phi jm) ->
@@ -1166,7 +1170,7 @@ Proof.
   destruct H0 as [? [? [? [_ ?]]]].
   unfold stackframe_of in H1.
   unfold blocks_of_env in *.
-  destruct H as [_ [H _]]; clear - NOREP HH H H0 H1. simpl in H.
+  destruct H as [_ [H _]]; clear - NOREP COMPLETE HGG H H0 H1. simpl in H.
   pose (F vl := (fold_right
           (fun (P Q : environ -> pred rmap) (rho : environ) => P rho * Q rho)
           (fun _ : environ => emp)
@@ -1190,7 +1194,7 @@ Proof.
   econstructor; eauto.
   clear H0.
   forget (fn_vars f) as vl.
-  revert vl phi jm H H1 H2 Hve NOREP NOREPe; induction el; intros;
+  revert vl phi jm H H1 H2 Hve NOREP NOREPe COMPLETE; induction el; intros;
     [ solve [simpl; eauto] | ].
   simpl in H2.
   destruct a as [id [b t]]. simpl in NOREPe,H2|-*.
@@ -1334,7 +1338,8 @@ Proof.
     destruct (eqb_ident (fst a0) id); simpl in *; auto.
     destruct H2; auto.
   + inv NOREPe; auto.
-  + rewrite HH, H8.
+  + SearchAbout Forall filter.
+  + rewrite <- sizeof_guard_genv with (Delta := Delta), H8. by eauto.
     exists m4; auto.
 Qed.
 

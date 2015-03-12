@@ -375,14 +375,7 @@ match ty with
                    | Tunion _ _) => true
 | _ => false
 end.
-(*
-Definition is_complete_pointer_type Delta ty :=
-match ty with
-| Tpointer t _ => complete_type (composite_types Delta) t
-| Tarray _ _ _ | Tfunction _ _ _ | Tstruct _ _ | Tunion _ _ => complete_type (composite_types Delta) ty
-| _ => false
-end.
-*)
+
 Definition isUnOpResultType op a ty := 
 match op with 
   | Cop.Onotbool => match Cop.classify_bool (typeof a) with

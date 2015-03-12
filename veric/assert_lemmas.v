@@ -318,34 +318,9 @@ Proof.
 intros. intros w ?; apply H0; auto.
 Qed.
 
-Lemma complete_pointer_type_complete_type: forall Delta t,
-  is_complete_pointer_type Delta t = true ->
-  complete_type (composite_types Delta) t = true.
-Proof.
-  intros.
-  destruct t;
-  try inv H;
-  simpl;
-  try reflexivity.
-  symmetry.
-  assumption.
-Qed.
-
 Section STABILITY.
 Variables Delta Delta': tycontext.
 Hypothesis extends: tycontext_sub Delta Delta'.
-
-Lemma is_complete_pointer_type_sub: forall t,
-  is_complete_pointer_type Delta t = true ->
-  is_complete_pointer_type Delta' t = true.
-Proof.
-  intros.
-Opaque complete_type.
-  destruct t;
-  simpl in H |- *; auto;
-  eapply complete_type_sub; eauto.
-Transparent complete_type.
-Qed.
 
 Lemma denote_tc_assert_tc_bool_sub: forall b b' err rho,
   (b = true -> b' = true) ->
@@ -371,7 +346,7 @@ Proof.
     destruct (Cop.classify_add (typeof e1) (typeof e2)); auto; simpl;
     rewrite !denote_tc_assert_andp in H;
     destruct H as [[_ ?] _];
-    apply denote_tc_assert_tc_bool, complete_pointer_type_complete_type in H;
+    apply denote_tc_assert_tc_bool in H;
 
     match goal with |- ?S _ _ _ _ = _ => unfold S in H0 |- *end;
     (erewrite <- sizeof_sub; [exact H0 | auto | auto]).
@@ -381,7 +356,7 @@ Proof.
     destruct (Cop.classify_sub (typeof e1) (typeof e2)); auto; simpl;
     rewrite !denote_tc_assert_andp in H;
     destruct H as [[_ ?] _];
-    apply denote_tc_assert_tc_bool, complete_pointer_type_complete_type in H;
+    apply denote_tc_assert_tc_bool in H;
 
     match goal with |- ?S _ _ _ _ = _ => unfold S in H0 |- *end;
     (erewrite <- sizeof_sub; [exact H0 | auto | auto]).
@@ -426,15 +401,14 @@ Proof.
   match goal with
   | |- denote_tc_assert _ (tc_bool ?b _) _ =>
      match b with
-     | is_complete_pointer_type Delta' ?t =>
-         apply (denote_tc_assert_tc_bool_sub _ _ _ _ (is_complete_pointer_type_sub t)); tauto
+     | complete_type (composite_types Delta') ?t =>
+         apply (denote_tc_assert_tc_bool_sub _ _ _ _ (complete_type_sub _ _ extends t)); tauto
      | _ =>
          apply (denote_tc_assert_tc_bool_sub _ _ _ _ (@id (b = true))); tauto
      end
   end.
   erewrite <- sizeof_sub; [| eauto |].
   eapply denote_tc_assert_tc_bool_sub; [exact (@id _) | tauto].
-  apply complete_pointer_type_complete_type.
   destruct H as [[_ ?] _].
   eapply denote_tc_assert_tc_bool; eauto.
 Qed.
@@ -485,8 +459,8 @@ Proof.
   match goal with
   | |- denote_tc_assert _ (tc_bool ?b _) _ =>
      match b with
-     | is_complete_pointer_type Delta' ?t =>
-         apply (denote_tc_assert_tc_bool_sub _ _ _ _ (is_complete_pointer_type_sub t)); tauto
+     | complete_type (composite_types Delta') ?t =>
+         apply (denote_tc_assert_tc_bool_sub _ _ _ _ (complete_type_sub _ _ extends t)); tauto
      | _ =>
          apply (denote_tc_assert_tc_bool_sub _ _ _ _ (@id (b = true))); tauto
      end
