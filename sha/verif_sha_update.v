@@ -289,7 +289,6 @@ forward_call' (* SHA256_addlength(c, len); *)
   (len, c, s256a_len (S256abs hashed dd)).
 simpl in HBOUND.
 repeat split; simpl; try omega.
-fold (map Vint); fold (map (Int.repr)).
 forward. (* n = c->num; *)
 forward. (* p=c->data; *)
 fold update_outer_if.

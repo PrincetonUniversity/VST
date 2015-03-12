@@ -143,6 +143,7 @@ forward_call' (* sha256_block_data_order (c,data); *)
 entailer!.
 split; auto.
 apply divide_length_app; auto.
+ simpl map.
 
  forward. (* data += SHA_CBLOCK; *)
  forward. (* len  -= SHA_CBLOCK; *)
@@ -150,19 +151,7 @@ apply divide_length_app; auto.
  unfold sha_update_inv.
  apply exp_right with (blocks++ bl).
  entailer.
- fold (map Vint); fold (app hashed). fold (app (hashed ++ blocks)).
  clear TC1 TC.
-(*
- rewrite negb_true_iff in H4.
- unfold Int.ltu in H4.
- if_tac in H4; inv H4.
- change (Int.unsigned (Int.mul (Int.repr 16) (Int.repr 4)))
-     with 64%Z in H0.
- rewrite Int.unsigned_repr in H0
-  by (clear - Hlen; split; [omega | ];
-        rewrite Nat2Z.inj_sub_max;
-        apply Z.max_lub; omega).
-*)
  assert (Hblocks' := Hblocks_lem Hblocks).
  unfold_data_at 1.
  apply andp_right; [ apply prop_right; repeat split | cancel].

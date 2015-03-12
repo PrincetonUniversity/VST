@@ -862,14 +862,8 @@ end;
  | reflexivity
  ].
 normalize.
- forward_call (* sha256_block_data_order (c,p); *)
-   (hashed, Zlist_to_intlist (dd++(firstn (Z.to_nat k) data)), c,
-     (field_address t_struct_SHA256state_st [StructField _data] c),
-      Tsh, kv). {
- entailer.
- unfold k in *|-.
  assert (length (dd ++ firstn (Z.to_nat k) data) = 64). {
-  unfold k.
+  unfold k in *.
   rewrite app_length.
   rewrite firstn_length, min_l.
   apply Nat2Z.inj. rewrite Nat2Z.inj_add.
@@ -877,22 +871,27 @@ normalize.
   change (Z.of_nat 64) with 64%Z.
   rewrite <- Zlength_correct; omega.
   omega.
-  apply Nat2Z.inj_le.  rewrite Z2Nat.id.  rewrite <- Zlength_correct; omega.
+  apply Nat2Z.inj_le.  rewrite Z2Nat.id.
+  rewrite <- Zlength_correct; omega.
   omega.
  }
  assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK). {
   apply length_Zlist_to_intlist. assumption.
  }
- apply andp_right; [apply prop_right |].
- rewrite Zlength_correct, H10. reflexivity.
-rewrite Zlist_to_intlist_to_Zlist;
-  [ 
-  | rewrite H9; exists LBLOCK; reflexivity
-  | rewrite Forall_app; split; auto; apply Forall_firstn; auto].
+ forward_call' (* sha256_block_data_order (c,p); *)
+   (hashed, Zlist_to_intlist (dd++(firstn (Z.to_nat k) data)), c,
+     (field_address t_struct_SHA256state_st [StructField _data] c),
+      Tsh, kv). {
+ entailer.
+ unfold k in *|-.
+ rewrite Zlist_to_intlist_to_Zlist.
  cancel.
+ unfold k; rewrite H5;  exists LBLOCK; reflexivity.
+ rewrite Forall_app; split; auto; apply Forall_firstn; auto.
 }
- after_call.
- 
+ split; auto.
+ rewrite Zlength_correct; rewrite H6; reflexivity.
+ simpl map.
  rewrite Zlist_to_intlist_to_Zlist;
  [
  | rewrite app_length, firstn_length;
@@ -934,6 +933,7 @@ entailer!.
  rewrite overridePost_normal'.
  unfold sha_update_inv.
  apply exp_right with (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)).
+(*
 assert (LL: length (dd ++ firstn (Z.to_nat k) data) = CBLOCK). {
  rewrite app_length. rewrite firstn_length. rewrite min_l.
  unfold k in *; 
@@ -947,6 +947,7 @@ assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK). {
  apply length_Zlist_to_intlist. change (4*LBLOCK)%nat with CBLOCK.
  apply LL.
 }
+*)
  assert (KK: k = Z.of_nat (LBLOCK * 4 - length dd)). {
  unfold k.
  rewrite Nat2Z.inj_sub. rewrite Zlength_correct; reflexivity.
@@ -958,7 +959,7 @@ assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK). {
 }
 
  rewrite (Zlength_correct (Zlist_to_intlist _)).
- rewrite H5.
+ rewrite H6.
  rewrite Zlist_to_intlist_to_Zlist;
  [
  | rewrite app_length, firstn_length;
@@ -975,7 +976,7 @@ assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK). {
  rewrite splice_into_list_simplify0;
  [ 
  | rewrite Zlength_correct, length_list_repeat; reflexivity
- | rewrite Zlength_correct, map_length, map_length, LL; reflexivity].
+ | rewrite Zlength_correct, map_length, map_length, H5; reflexivity].
 unfold_data_at 2%nat.
 change (Z.to_nat 64) with CBLOCK.
 entailer!.

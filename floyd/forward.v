@@ -687,13 +687,68 @@ Lemma local_True_right:
 Proof. intros. intro rho; apply TT_right.
 Qed.
 
+Lemma normalize_lvar:
+  forall v i t rho,  isptr (eval_lvar i t rho) ->
+        v  = (eval_lvar i t rho) -> lvar i t v rho.
+Proof.
+unfold_lift.
+unfold lvar, eval_lvar.
+intros.
+destruct (Map.get (ve_of rho) i) as [[? ?] | ].
+destruct (eqb_type t t0); inv H; auto.
+inv H.
+Qed.
+
+Lemma lvar_isptr:
+  forall i t v rho, lvar i t v rho -> isptr v.
+Proof.
+unfold lvar; intros.
+destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+destruct (eqb_type t t0); try contradiction; subst; apply I.
+Qed.
+
+Lemma lvar_eval_lvar:
+  forall i t v rho, lvar i t v rho -> eval_lvar i t rho = v.
+Proof.
+unfold lvar, eval_lvar; intros.
+destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+destruct (eqb_type t t0); try contradiction; subst; auto.
+Qed.
+
+Lemma force_val_sem_cast_neutral_isptr:
+  forall v,
+  isptr v ->
+  Some (force_val (sem_cast_neutral v)) = Some v.
+Proof.
+intros.
+ destruct v; try contradiction; reflexivity.
+Qed.
+
+Lemma force_val_sem_cast_neutral_lvar:
+  forall i t v rho,
+  lvar i t v rho ->
+  Some (force_val (sem_cast_neutral v)) = Some v.
+Proof.
+intros.
+ apply lvar_isptr in H; destruct v; try contradiction; reflexivity.
+Qed.
+
 Ltac try_solve_Forall_pTree_from_elements :=
   match goal with |- _ |-- !! Forall ?A _ =>
    let ptf := fresh "ptf" in set (ptf := A);
- unfold pTree_from_elements in ptf; simpl in ptf; subst ptf;
- try solve [apply prop_right; repeat constructor];
+ unfold pTree_from_elements, check_one_temp_spec, check_one_var_spec in ptf; 
+   simpl in ptf; cbv beta iota in ptf; subst ptf;
+ try solve [apply prop_right; repeat constructor; hnf; simpl;
+       first [eapply force_val_sem_cast_neutral_lvar; eassumption
+             | apply force_val_sem_cast_neutral_isptr; auto
+            ]
+     ];
  entailer;
- try solve [apply prop_right; repeat constructor]
+ try solve [apply prop_right; repeat constructor; hnf; simpl;
+       first [eapply force_val_sem_cast_neutral_lvar; eassumption
+             | apply force_val_sem_cast_neutral_isptr; auto
+            ]
+     ]
  end.
 
 Ltac forward_call_id1_x_wow witness :=
@@ -801,7 +856,6 @@ let Frame := fresh "Frame" in
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
-
 Ltac forward_call_id00_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
@@ -815,8 +869,9 @@ let Frame := fresh "Frame" in
  | try_solve_Forall_pTree_from_elements
  | try_solve_Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | reflexivity
- | try match goal with  |- extract_trivial_liftx ?A _ =>
+ | cbv beta iota; try rewrite no_post_exists0; 
+    first [reflexivity | extensionality; simpl; reflexivity]
+ | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
  | reflexivity
@@ -831,6 +886,28 @@ try match goal with |- context [strong_cast ?t1 ?t2 ?v] =>
           ]
 end.
 
+Ltac unfold_map_liftx_etc := 
+change (@map (lift_T (LiftEnviron mpred)) (LiftEnviron mpred)
+                 (@liftx (LiftEnviron mpred)))
+ with (fix map (l : list (lift_T (LiftEnviron mpred))) : list (LiftEnviron mpred) :=
+  match l with
+  | nil => nil 
+  | cons a t => cons (liftx a) (map t)
+  end); 
+change (@app mpred)
+  with (fix app (l m : list mpred) {struct l} : list mpred :=
+  match l with
+  | nil => m
+  | cons a l1 => cons a (app l1 m)
+  end);
+change (@app Prop)
+  with (fix app (l m : list Prop) {struct l} : list Prop :=
+  match l with
+  | nil => m
+  | cons a l1 => cons a (app l1 m)
+  end);
+cbv beta iota.
+
 Ltac forward_call' witness :=
  first [
     let Pst := fresh "Pst" in
@@ -841,7 +918,8 @@ Ltac forward_call' witness :=
           | forward_call_id1_y_wow witness
           | forward_call_id01_wow witness ]
     | apply extract_exists_pre; intros ?vret;
-      unfold map,app;
+      cbv beta iota; 
+      unfold_map_liftx_etc;
       fold (@map (lift_T (LiftEnviron mpred)) (LiftEnviron mpred) liftx); 
       simpl_strong_cast;
       abbreviate_semax;
@@ -849,11 +927,14 @@ Ltac forward_call' witness :=
    ]
  |  eapply semax_seq';
     [forward_call_id00_wow witness
-    | unfold map,app;
+    | cbv beta iota; 
+      try rewrite <- no_post_exists0;
+      unfold_map_liftx_etc;
       fold (@map (lift_T (LiftEnviron mpred)) (LiftEnviron mpred) liftx); 
       abbreviate_semax;
       repeat (apply semax_extract_PROP; intro)
      ]
+  | rewrite <- seq_assoc; forward_call' witness
  ].
 
 Lemma semax_call_id1_x_alt:

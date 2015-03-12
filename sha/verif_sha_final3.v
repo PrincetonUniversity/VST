@@ -101,7 +101,7 @@ Proof.
        memory_block shmd (Int.repr 32) md]).
    entailer.
   }
-  fold (map Vint). fold (app hashed). simpl map.
+  simpl map.
   unfold data_block.
   simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
   rewrite <- H1.
@@ -313,7 +313,7 @@ Proof.
     reflexivity.
   } Unfocus.
   normalize.
-  rewrite <- seq_assoc.  (* shouldn't be necessary *)
+(*  rewrite <- seq_assoc.  shouldn't be necessary *)
   forward_call' (* (void)HOST_l2c(cNh,p); *)
      (field_address t_struct_SHA256state_st
                     [ArraySubsc 56; StructField _data] c,
@@ -338,7 +338,7 @@ Proof.
         [| reflexivity | change Int.modulus with 4294967296; simpl; omega].
       entailer.
   split; auto. change (Zlength hibytes) with 4. clear; omega.
-  fold (map Vint).  unfold map at 2.
+  unfold map at 2.
   gather_SEP 0 1 2.
   replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
     ((map Vint (map Int.repr dd') ++
@@ -378,7 +378,7 @@ Proof.
     omega.
   } Unfocus.
   normalize.
-  rewrite <- seq_assoc. (* shouldn't need this *)
+ (* rewrite <- seq_assoc.  shouldn't need this *)
   forward_call' (* (void)HOST_l2c(cNl,p); *)
     (field_address t_struct_SHA256state_st
                     [ArraySubsc 60; StructField _data] c,
@@ -410,7 +410,6 @@ Proof.
 
   split; auto.
   compute; congruence.
-  fold (map Vint).
   simpl map.
   gather_SEP 0 1 2.
   replace_SEP 0

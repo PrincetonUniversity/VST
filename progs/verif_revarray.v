@@ -281,17 +281,19 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
 normalize; intro a; normalize.
+
 forward_call'  (*  revarray(four,4); *)
   (a, Ews, map Vint four_contents, 4).
-repeat split; try computable; auto.
-intros. unfold four_contents.
+   repeat split; try computable; auto.
+   intros. unfold four_contents.
    apply forall_Forall; [| auto].
    intros.
    repeat (destruct H0; [subst; simpl; auto|]); inversion H0.
+
 forward_call'  (*  revarray(four,4); *)
     (a,Ews, rev (map Vint four_contents),4).
-repeat split; try computable; auto.
-intros. unfold four_contents.
+   repeat split; try computable; auto.
+   intros. unfold four_contents.
    apply forall_Forall; [| auto].
    intros.
    repeat (destruct H0; [subst; simpl; auto|]); inversion H0.

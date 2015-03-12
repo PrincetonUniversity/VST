@@ -274,7 +274,7 @@ forward_call' (* sha256_block_data_order (c,p); *)
 }
  split; auto.
  rewrite Zlength_length. assumption. change LBLOCKz with 16%Z; computable.
- fold (map Vint). fold (app hashed). simpl map.
+ simpl map.
  forward. (* Sskip *)
  unfold invariant_after_if1.
  apply exp_right with (hashed ++ ddzw).

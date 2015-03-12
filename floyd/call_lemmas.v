@@ -829,10 +829,12 @@ Lemma semax_call_id1_wow:
              (Qpre Qnew: list (environ -> Prop))
              (Qtemp Qactuals Qpre_temp : PTree.t _)
              (Qvar Qpre_var: PTree.t vardesc)
-             (Ppost: val -> list Prop)
+             (B: Type) 
+             (Ppost: B -> list Prop)
+             (F: B -> val)
              (Rpre: list (environ -> mpred))
-             (Rpost: val -> list (environ -> mpred))
-             (Rpost': val -> list mpred)
+             (Rpost: B -> list (environ -> mpred))
+             (Rpost': B -> list mpred)
              (R' Rpre' : list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
@@ -857,12 +859,12 @@ Lemma semax_call_id1_wow:
    (CHECKVAR: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
            |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
    (FRAME: fold_right sepcon emp R' |-- fold_right sepcon emp Rpre' * fold_right sepcon emp Frame)
-   (POST1: Post witness = EX vret:val, PROPx (Ppost vret)
-                              (LOCALx (temp ret_temp vret :: nil) 
+   (POST1: Post witness = EX vret:B, PROPx (Ppost vret)
+                              (LOCALx (temp ret_temp (F vret) :: nil) 
                               (SEPx (Rpost vret))))
    (EXTRACT'': forall vret, extract_trivial_liftx (Rpost vret) (Rpost' vret))
    (DELETE: delete_temp_from_locals ret Q Qnew)
-   (H0: Post2 = EX vret:val, PROPx (P++ Ppost vret) (LOCALx (temp ret vret :: Qnew)
+   (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret) (LOCALx (temp ret (F vret) :: Qnew)
              (SEPx (map liftx (Rpost' vret ++ Frame)))))
    (PPRE: fold_right_and True Ppre),
    @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
@@ -970,12 +972,12 @@ apply andp_left2. apply andp_left1.
  unfold normal_ret_assert. normalize.
  simpl exit_tycon. rewrite POST1; clear POST1.
  apply derives_trans with
-  (EX vret: val,
+  (EX vret: B,
   PROPx (P ++ Ppost vret)
   (LOCALx (tc_environ (initialized ret Delta) :: map (subst ret `old) Q)
      (SEPx
         (`(PROPx nil
-             LOCAL  (temp ret_temp vret)  (SEPx (Rpost vret)))
+             LOCAL  (temp ret_temp (F vret))  (SEPx (Rpost vret)))
            (get_result1 ret) :: map (subst ret `old) (map liftx Frame))))).
  clear.
  go_lowerx. normalize. apply exp_right with x; normalize.
@@ -1014,7 +1016,7 @@ change  (@map mpred (environ -> mpred))
  unfold_lift in H0. unfold temp, get_result1 in H0.
  normalize in H0. subst.
  split.
- reflexivity.
+ rewrite H0; hnf; reflexivity.
  clear - DELETE H.
  induction DELETE.
  + apply I.
@@ -1044,10 +1046,12 @@ Lemma semax_call_id1_x_wow:
              (Qpre Qnew: list (environ -> Prop))
              (Qtemp Qactuals Qpre_temp : PTree.t _)
              (Qvar Qpre_var: PTree.t vardesc)
-             (Ppost: val -> list Prop)
+             (B: Type) 
+             (Ppost: B -> list Prop)
+             (F: B -> val)
              (Rpre: list (environ -> mpred))
-             (Rpost: val -> list (environ -> mpred))
-             (Rpost': val -> list mpred)
+             (Rpost: B -> list (environ -> mpred))
+             (Rpost': B -> list mpred)
              (R' Rpre' : list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
@@ -1075,14 +1079,14 @@ Lemma semax_call_id1_x_wow:
    (CHECKVAR: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
        |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
    (FRAME: fold_right sepcon emp R' |-- fold_right sepcon emp Rpre' * fold_right sepcon emp Frame)
-   (POST1: Post witness = EX vret:val, PROPx (Ppost vret)
-                              (LOCALx (temp ret_temp vret :: nil) 
+   (POST1: Post witness = EX vret:B, PROPx (Ppost vret)
+                              (LOCALx (temp ret_temp (F vret) :: nil) 
                               (SEPx (Rpost vret))))
    (EXTRACT'': forall vret, extract_trivial_liftx (Rpost vret) (Rpost' vret))
    (DELETE: delete_temp_from_locals ret Q Qnew)
    (DELETE' : delete_temp_from_locals ret' Q Q)
-   (H0: Post2 = EX vret:val, PROPx (P++ Ppost vret)
-                   (LOCALx (temp ret vret :: Qnew)
+   (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
+                   (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (map liftx (Rpost' vret ++ Frame)))))
    (PPRE: fold_right_and True Ppre),
    @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
@@ -1104,7 +1108,7 @@ eapply semax_call_id1_wow; try eassumption; auto;
  +
  eapply derives_trans; [ | apply now_later ].
  instantiate (1:= (PROPx (P ++ Ppost vret)
-  (LOCALx (temp ret' vret :: Qnew) (SEPx (map liftx (Rpost' vret ++ Frame)))))).
+  (LOCALx (temp ret' (F vret) :: Qnew) (SEPx (map liftx (Rpost' vret ++ Frame)))))).
  go_lowerx.
  normalize.
  apply andp_right; auto.
@@ -1171,10 +1175,12 @@ Lemma semax_call_id1_y_wow:
              (Qpre Qnew: list (environ -> Prop))
              (Qtemp Qactuals Qpre_temp : PTree.t _)
              (Qvar Qpre_var: PTree.t vardesc)
-             (Ppost: val -> list Prop)
+             (B: Type)
+             (Ppost: B -> list Prop)
+             (F: B -> val)
              (Rpre: list (environ -> mpred))
-             (Rpost: val -> list (environ -> mpred))
-             (Rpost': val -> list mpred)
+             (Rpost: B -> list (environ -> mpred))
+             (Rpost': B -> list mpred)
              (R' Rpre' : list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
@@ -1202,14 +1208,14 @@ Lemma semax_call_id1_y_wow:
    (CHECKVAR: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
        |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
    (FRAME: fold_right sepcon emp R' |-- fold_right sepcon emp Rpre' * fold_right sepcon emp Frame)
-   (POST1: Post witness = EX vret:val, PROPx (Ppost vret)
-                              (LOCALx (temp ret_temp vret :: nil) 
+   (POST1: Post witness = EX vret:B, PROPx (Ppost vret)
+                              (LOCALx (temp ret_temp (F vret) :: nil) 
                               (SEPx (Rpost vret))))
    (EXTRACT'': forall vret, extract_trivial_liftx (Rpost vret) (Rpost' vret))
    (DELETE: delete_temp_from_locals ret Q Qnew)
    (DELETE' : delete_temp_from_locals ret' Q Q)
-   (H0: Post2 = EX vret:val, PROPx (P++ Ppost vret)
-                   (LOCALx (temp ret vret :: Qnew)
+   (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
+                   (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (map liftx (Rpost' vret ++ Frame)))))
    (PPRE: fold_right_and True Ppre),
    @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
@@ -1231,7 +1237,7 @@ eapply semax_call_id1_wow; try eassumption; auto;
  +
  eapply derives_trans; [ | apply now_later ].
  instantiate (1:= (PROPx (P ++ Ppost vret)
-  (LOCALx (temp ret' vret :: Qnew) (SEPx (map liftx (Rpost' vret ++ Frame)))))).
+  (LOCALx (temp ret' (F vret) :: Qnew) (SEPx (map liftx (Rpost' vret ++ Frame)))))).
  go_lowerx.
  normalize.
  apply andp_right; auto.
@@ -1289,10 +1295,12 @@ Lemma semax_call_id01_wow:
              (Qpre: list (environ -> Prop))
              (Qtemp Qactuals Qpre_temp : PTree.t _)
              (Qvar Qpre_var: PTree.t vardesc)
-             (Ppost: val -> list Prop)
+             (B: Type)
+             (Ppost: B -> list Prop)
+             (F: B -> val)
              (Rpre: list (environ -> mpred))
-             (Rpost: val -> list (environ -> mpred))
-             (Rpost': val -> list mpred)
+             (Rpost: B -> list (environ -> mpred))
+             (Rpost': B -> list mpred)
              (R' Rpre' : list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
@@ -1317,11 +1325,11 @@ Lemma semax_call_id01_wow:
    (CHECKVAR: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
            |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
    (FRAME: fold_right sepcon emp R' |-- fold_right sepcon emp Rpre' * fold_right sepcon emp Frame)
-   (POST1: Post witness = EX vret:val, PROPx (Ppost vret)
-                              (LOCALx (temp ret_temp vret :: nil) 
+   (POST1: Post witness = EX vret:B, PROPx (Ppost vret)
+                              (LOCALx (temp ret_temp (F vret) :: nil) 
                               (SEPx (Rpost vret))))
    (EXTRACT'': forall vret, extract_trivial_liftx (Rpost vret) (Rpost' vret))
-   (POST2: Post2 = EX vret:val, PROPx (P++ Ppost vret) (LOCALx Q
+   (POST2: Post2 = EX vret:B, PROPx (P++ Ppost vret) (LOCALx Q
              (SEPx (map liftx (Rpost' vret ++ Frame)))))
    (PPRE: fold_right_and True Ppre),
    @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
@@ -1459,10 +1467,11 @@ Lemma semax_call_id00_wow:
              (Qpre: list (environ -> Prop))
              (Qtemp Qactuals Qpre_temp : PTree.t _)
              (Qvar Qpre_var: PTree.t vardesc)
-             (Ppost: list Prop)
+             (B: Type)
+             (Ppost: B -> list Prop)
              (Rpre: list (environ -> mpred))
-             (Rpost: list (environ -> mpred))
-             (Rpost': list mpred)
+             (Rpost: B -> list (environ -> mpred))
+             (Rpost': B -> list mpred)
              (R' Rpre' : list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
@@ -1485,10 +1494,10 @@ Lemma semax_call_id00_wow:
    (CHECKVAR: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
            |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
    (FRAME: fold_right sepcon emp R' |-- fold_right sepcon emp Rpre' * fold_right sepcon emp Frame)
-   (POST1: Post witness = PROPx Ppost (LOCALx nil (SEPx (Rpost))))
-   (EXTRACT'': extract_trivial_liftx Rpost Rpost')
-   (POST2: Post2 = PROPx (P++ Ppost) (LOCALx Q
-             (SEPx (map liftx (Rpost' ++ Frame)))))
+   (POST1: Post witness = (EX vret:B, PROPx (Ppost vret) (LOCALx nil (SEPx (Rpost vret)))))
+   (EXTRACT'': forall vret, extract_trivial_liftx (Rpost vret) (Rpost' vret))
+   (POST2: Post2 = EX vret:B, PROPx (P++ Ppost vret ) (LOCALx Q
+             (SEPx (map liftx (Rpost' vret ++ Frame)))))
    (PPRE: fold_right_and True Ppre),
    @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
     (Scall None
@@ -1591,10 +1600,14 @@ apply andp_left2. apply andp_left1.
  simpl exit_tycon. rewrite POST1; clear POST1.
  unfold ifvoid.
  go_lowerx. normalize.
+ apply exp_right with x.
  apply andp_right.
  apply prop_right.
  split; auto.
- rewrite fold_right_and_app_low. split; auto.
+ normalize.
+ rewrite fold_right_and_app_low.
+ rewrite prop_true_andp by (split; auto).
+ specialize (EXTRACT'' x).
  apply extract_trivial_liftx_e in EXTRACT''. rewrite EXTRACT''.
  clear EXTRACT''.
  clear.
@@ -1623,4 +1636,16 @@ normalize.
 destruct H. subst x.
 apply andp_right; auto.
 apply prop_right; auto.
+Qed.
+
+Lemma no_post_exists0:
+ forall P Q R,
+   PROPx P (LOCALx Q (SEPx R)) =
+   EX x:unit, PROPx ((fun _ => P) x) (LOCALx Q (SEPx ((fun _ => R) x))).
+Proof.
+intros.
+apply pred_ext.
+apply exp_right with tt.
+apply andp_derives; auto.
+apply exp_left; auto.
 Qed.
