@@ -633,7 +633,7 @@ forward_for
         with (gfs := []) (lo := (Z.of_nat i * 4)%Z) (hi := (Z.of_nat i * 4 + 4)%Z);
         [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | ].
       Focus 2. {
-        rewrite !common_lemmas.Zlength_map.
+        rewrite !Zlength_map.
         rewrite Zlength_intlist_to_Zlist.
         rewrite Zlength_correct, firstn_length.
         rewrite min_l by omega.
@@ -641,7 +641,7 @@ forward_for
         omega.
       } Unfocus.
       Focus 2. {
-        rewrite !common_lemmas.Zlength_map.
+        rewrite !Zlength_map.
         rewrite Zlength_intlist_to_Zlist.
         change (WORD * Zlength [w])%Z with 4.
         omega.

@@ -96,7 +96,7 @@ Lemma update_abs' X Y: forall (msg : list Z) (hashed blocks : list int)
                  Zlength newfrag < SHA256.CBLOCKz ->
                  (SHA256.LBLOCKz | Zlength hashed) ->
                  (SHA256.LBLOCKz | Zlength blocks) ->
-                 oldfrag ++ msg = SHA256.intlist_to_Zlist blocks ++ newfrag ->
+                 oldfrag ++ msg = intlist_to_Zlist blocks ++ newfrag ->
                  X = S256abs hashed oldfrag ->
                  Y = S256abs (hashed ++ blocks) newfrag ->
                  update_abs msg X Y.

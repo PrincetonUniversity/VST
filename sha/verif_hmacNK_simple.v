@@ -101,7 +101,7 @@ forward_call WITNESS.
       assert (Zlength (map Byte.unsigned
         (map (fun p : byte * byte => Byte.xor (fst p) (snd p))
            (combine (map Byte.repr (HP.HMAC_SHA256.mkKey key)) (HP.HMAC_SHA256.sixtyfour HP.Ipad))))
-        = Zlength (SHA256.intlist_to_Zlist blocks ++ newfrag)).
+        = Zlength (intlist_to_Zlist blocks ++ newfrag)).
         rewrite H9; reflexivity.
      clear H9.
      rewrite Zlength_correct in *. rewrite map_length in H1. 

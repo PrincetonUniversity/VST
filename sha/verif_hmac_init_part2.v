@@ -65,7 +65,7 @@ is_int I8 Unsigned
   (Znth i (map Vint (map Int.repr (map Byte.unsigned l))) Vundef).
 Proof. intros. apply Znth_map_Vint_is_int_I8.
   apply isbyte_map_ByteUnsigned.
-  rewrite common_lemmas.Zlength_map; trivial.
+  rewrite Zlength_map; trivial.
 Qed.
 
 Definition FIRSTN {A} i (l:list A) := firstn (Z.to_nat i) l.
@@ -200,7 +200,7 @@ Proof. intros.
            do 2 rewrite map_length. rewrite ZLI', Min.min_l. 2: apply Z2Nat.inj_le; omega.
               rewrite le_plus_minus_r; apply Z2Nat.inj_le; omega. 
            do 2 rewrite map_length. unfold HP.HMAC_SHA256.mkArgZ in ZLI'; rewrite ZLI'. apply Z2Nat.inj_le; omega.
-           rewrite common_lemmas.firstn_app1.
+           rewrite firstn_app1.
            Focus 2. rewrite firstn_length, Min.min_l. omega.   
               do 2 rewrite map_length. unfold HP.HMAC_SHA256.mkArgZ in ZLO'; rewrite ZLO'. apply Z2Nat.inj_le; omega.
            rewrite firstn_precise. 
@@ -532,7 +532,7 @@ forward_if PostResetBranch.
       }
       { unfold normal_ret_assert. simpl. intros rho. entailer. cancel.
         rewrite FIRSTN_precise. cancel.
-         do 2 rewrite common_lemmas.Zlength_map. apply ZLI. 
+         do 2 rewrite Zlength_map. apply ZLI. 
       }
       { (*unfold_data_at 2%nat. normalize. 
         rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _key]).
@@ -757,8 +757,8 @@ forward_if PostResetBranch.
         rewrite FIRSTN_precise.
          rewrite SKIPn_short. rewrite app_nil_r.
          cancel.
-         do 2 rewrite common_lemmas.Zlength_map. unfold HP.HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI. omega. 
-         do 2 rewrite common_lemmas.Zlength_map. unfold HP.HMAC_SHA256.mkArgZ in ZLO; rewrite ZLO; trivial. 
+         do 2 rewrite Zlength_map. unfold HP.HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI. omega. 
+         do 2 rewrite Zlength_map. unfold HP.HMAC_SHA256.mkArgZ in ZLO; rewrite ZLO; trivial. 
       }
       { (*unfold_data_at 3%nat. normalize. 
         rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _key]); try reflexivity.

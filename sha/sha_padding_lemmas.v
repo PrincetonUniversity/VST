@@ -1,14 +1,13 @@
-Require Import pure_lemmas.
 Require Import Coqlib.
 Require Import Integers.
-Require Import SHA256.
-Require Import functional_prog.
-Require Import hmac_pure_lemmas.
 Require Import List. Import ListNotations.
+Require Import general_lemmas.
+Require Import hmac_pure_lemmas.
+Require Import SHA256.
+Require Import pure_lemmas.
+Require Import functional_prog.
 
 (* Lemma 1: M = Prefix(Pad(M)) *)
-
-Require Import List. Import ListNotations.
 
 (* TODO: replace InWords with InBlocks 4? *)
 Inductive InWords : list Z -> Prop :=
@@ -26,14 +25,6 @@ Definition pad (msg : list Z) : list Z :=
 Definition generate_and_pad' (msg : list Z) : list int :=
   Zlist_to_intlist (pad msg).
 
-(* TODO: total_pad_len_Zlist  *)
-Inductive InBlocks {A : Type} (n : nat) : list A -> Prop :=
-  | InBlocks_nil : InBlocks n []
-  | InBlocks_block : forall (front back full : list A),
-                   length front = n ->
-                   full = front ++ back ->
-                   InBlocks n back ->
-                   InBlocks n full. 
 
 (* ----------------- ^ Definitions *)
 
@@ -73,19 +64,6 @@ Proof.
       simpl in H. inversion H.
       simpl. apply H1.
 Qed.  
-
-Lemma InBlocks_len : forall {A : Type} (l : list A) (n : nat),
-                       NPeano.divide (n) (length l) -> InBlocks n l.
-Proof. 
-  intros A l n div.
-  destruct div.
-  revert A l n H.
-  induction x; intros; simpl in *.
-  - destruct l; simpl in *. constructor. inversion H.
-  - destruct (list_splitLength _ _ _ H) as [l1 [l2 [L [L1 L2]]]]. clear H; subst.
-    apply IHx in L2. clear IHx. 
-    apply (InBlocks_block _ l1 l2); trivial.
-Qed. 
 
 (* TODO: clear out the SearchAbouts / clean up proof *)
 Lemma pad_len_64_mod : forall (msg : list Z), 

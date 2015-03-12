@@ -147,7 +147,7 @@ PROGS_FILES= \
   even.v verif_even.v odd.v verif_odd.v
 
 SHA_FILES= \
-  SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
+  general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
   sha.v spec_sha.v verif_sha_init.v \
   verif_sha_update.v verif_sha_update2.v verif_sha_update3.v verif_sha_update4.v \
   bdo_lemmas.v verif_sha_bdo.v verif_sha_bdo2.v \
@@ -189,8 +189,11 @@ HMACFCF_FILES= \
   GNMAC_PRF.v GHMAC_PRF.v HMAC_PRF.v
 
 HMACEQUIV_FILES= \
-  XorCorrespondence.v sha_padding_lemmas.v Bruteforce.v ByteBitRelations.v \
-  HMAC_common_defs.v HMAC_spec_pad.v HMAC_spec_concat.v HMAC_spec_list.v \
+  ShaInstantiation.v XorCorrespondence.v sha_padding_lemmas.v \
+  Bruteforce.v ByteBitRelations.v \
+  HMAC_common_defs.v HMAC_spec_pad.v HMAC256_spec_pad.v \
+  HMAC_spec_concat.v HMAC256_spec_concat.v \
+  HMAC_spec_list.v HMAC256_spec_list.v \
   HMAC_spec_abstract.v HMAC_equivalence.v HMAC_isPRF.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c

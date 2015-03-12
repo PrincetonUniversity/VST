@@ -19,35 +19,35 @@ Require Import Blist.
 Require Import HMAC_equivalence.
 Require Import ByteBitRelations.
 Require Import HMAC_isPRF.
+Require Import ShaInstantiation.
 
 Lemma key_vector l:
-  length (bytesToBits (HP.HMAC_SHA256.mkKey l)) = 
-  HMAC_spec.b HMAC_common_defs.c HMAC_common_defs.p.
+  length (bytesToBits (HP.HMAC_SHA256.mkKey l)) = b.
 Proof. rewrite bytesToBits_len, hmac_common_lemmas.mkKey_length; reflexivity. Qed.
 
-Definition mkCont (l:list Z) : HMAC_spec_abstract.Message (fun x => x=bytesToBits l /\ NPeano.divide 8 (length x)).
+Definition mkCont (l:list Z) : HMAC_spec_abstract.HMAC_Abstract.Message (fun x => x=bytesToBits l /\ NPeano.divide 8 (length x)).
 eapply exist. split. reflexivity. 
 rewrite bytesToBits_len. exists (length l). trivial.
 Qed.
 
 Definition bitspec KEY MSG :=
-  Vector.to_list ( HMAC_spec.HMAC h_v iv_v (HMAC_spec_abstract.wrappedSAP splitAndPad_v)
+  Vector.to_list ( HMAC_spec.HMAC h_v iv_v (HMAC_spec_abstract.HMAC_Abstract.wrappedSAP _ _ splitAndPad_v)
                       fpad_v opad_v ipad_v
                       (of_list_length _ (key_vector (CONT KEY)))
                       (mkCont (CONT MSG))).
 
-Definition CRYPTO P (A : Comp.OracleComp (HMAC_spec_abstract.Message P)
-                                       (Bvector.Bvector HMAC_common_defs.c) bool) 
+Definition CRYPTO P (A : Comp.OracleComp (HMAC_spec_abstract.HMAC_Abstract.Message P)
+                                       (Bvector.Bvector c) bool) 
                   (A_wf : DistSem.well_formed_oc A):=
            forall (HypP:forall m : Blist, P m -> NPeano.divide 8 (length m))
                   tau eps sig, h_PRF A tau ->
                                h_star_WCR A eps ->
                                dual_h_RKA A sig ->
-  isPRF (Comp.Rnd (HMAC_PRF.b HMAC_common_defs.c HMAC_common_defs.p))
-    (Comp.Rnd HMAC_common_defs.c)
-    (HMAC_PRF.HMAC h_v iv_v (HMAC_spec_abstract.wrappedSAP splitAndPad_v) fpad_v opad_v ipad_v)
+  isPRF (Comp.Rnd (HMAC_PRF.b c p))
+    (Comp.Rnd c)
+    (HMAC_PRF.HMAC h_v iv_v (HMAC_spec_abstract.HMAC_Abstract.wrappedSAP _ _ splitAndPad_v) fpad_v opad_v ipad_v)
     (Message_eqdec P)
-    (EqDec.Bvector_EqDec HMAC_common_defs.c)
+    (EqDec.Bvector_EqDec c)
     (Rat.ratAdd (Rat.ratAdd tau eps) sig) A.
 
 Definition HMAC_crypto :=
@@ -185,7 +185,7 @@ forward_call WITNESS.
       assert (Zlength (map Byte.unsigned
         (map (fun p : byte * byte => Byte.xor (fst p) (snd p))
            (combine (map Byte.repr (HP.HMAC_SHA256.mkKey key)) (HP.HMAC_SHA256.sixtyfour HP.Ipad))))
-        = Zlength (SHA256.intlist_to_Zlist blocks ++ newfrag)).
+        = Zlength (intlist_to_Zlist blocks ++ newfrag)).
         rewrite H10; reflexivity.
      clear H10.
      rewrite Zlength_correct in *. rewrite map_length in H1. 
@@ -266,7 +266,7 @@ apply andp_right. apply prop_right.
   rewrite hmac_hmacSimple in HS. destruct HS as [hh HH]. 
   specialize (hmac_sound _ _ _ _ HH). intros D; subst dig.
   split. unfold bitspec. simpl. rewrite HMAC_equivalence.Equivalence.
-         f_equal. unfold HMAC_spec_abstract.Message2Blist.
+         f_equal. unfold HMAC_spec_abstract.HMAC_Abstract.Message2Blist.
        remember (mkCont data) as dd. destruct dd. destruct a; subst x.
          rewrite ByteBitRelations.bytes_bits_bytes_id.
          rewrite HMAC_equivalence.of_length_proof_irrel.
