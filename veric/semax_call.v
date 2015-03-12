@@ -997,11 +997,11 @@ Proof.
     apply PTree.elements_correct.
     auto.
 Qed.
-Print Forall.
+
 Lemma stackframe_of_freeable_blocks:
   forall Delta f rho ge ve,
       guard_genv Delta ge ->
-      Forall (fun t => complete_type (composite_types Delta) t = true) (map snd (fn_vars f)) ->
+      Forall (fun it => complete_type (composite_types Delta) (snd it) = true) (fn_vars f) ->
       list_norepet (map fst (fn_vars f)) ->
       ve_of rho = make_venv ve ->
       guard_environ (func_tycontext' f Delta) (Some f) rho ->
@@ -1156,10 +1156,23 @@ rewrite perm_of_sh_fullshare. constructor.
 symmetry; apply top_pfullshare; reflexivity.
 Qed.
 
+Lemma Forall_filter: forall {A} P (l: list A) f, Forall P l -> Forall P (filter f l).
+Proof.
+  intros.
+  induction l.
+  + constructor.
+  + inversion H; subst.
+    apply IHl in H3.
+    simpl.
+    if_tac.
+    - constructor; auto.
+    - auto.
+Qed.
+
 Lemma can_free_list:
   forall Delta F f jm ge ve te
   (NOREP: list_norepet (map (@fst _ _) (fn_vars f)))
-  (COMPLETE: Forall (fun t => complete_type (composite_types Delta) t = true) (map snd (fn_vars f)))
+  (COMPLETE: Forall (fun it => complete_type (composite_types Delta) (snd it) = true) (fn_vars f))
   (HGG : guard_genv Delta ge),
    guard_environ (func_tycontext' f Delta) (Some f)
         (construct_rho (filter_genv ge) ve te) ->
@@ -1338,8 +1351,10 @@ Proof.
     destruct (eqb_ident (fst a0) id); simpl in *; auto.
     destruct H2; auto.
   + inv NOREPe; auto.
-  + SearchAbout Forall filter.
-  + rewrite <- sizeof_guard_genv with (Delta := Delta), H8. by eauto.
+  + apply Forall_filter; auto.
+  + pose proof (proj1 (Forall_forall _ _) COMPLETE (id, t) H2').
+    simpl in H11.
+    rewrite <- sizeof_guard_genv with (Delta := Delta), H8 by eauto.
     exists m4; auto.
 Qed.
 
@@ -1491,7 +1506,7 @@ forall (Delta : tycontext) (A : Type)
      (fun rho0 : environ =>
       EX  old : val,
       substopt ret old F rho0 * maybe_retval (Q x) retty ret rho0))
- (HH : genv_cenv psi = composite_types Delta)
+ (HGG : guard_genv Delta psi)
  (H0 : rho = construct_rho (filter_genv psi) vx tx)
  (H3 : eval_expr Delta a rho = Vptr b Int.zero)
  (H4 : (funassert Delta rho) (m_phi jm))
@@ -1513,8 +1528,8 @@ Proof.
 intros.
 destruct TC3 as [TC3 TC3'].
 rewrite <- snd_split in TC2.
-assert (H21 := exprlist_eval Delta (params,retty) bl psi vx tx _ 
-      (m_dry jm) TC2 TC3 HH H0
+assert (H21 := eval_exprlist_relate Delta (params,retty) bl psi vx tx _ 
+      (m_dry jm) TC2 TC3 HGG H0
       (mkfunction retty cc_default params nil nil Sskip)
       (eq_refl _)). simpl in H21.
 rewrite snd_split in TC2.
@@ -2167,14 +2182,15 @@ Qed.
 
 Lemma alloc_juicy_variables_lem2:
   forall Delta jm f (ge: genv) ve te jm' (F: pred rmap)
-      (HH: genv_cenv ge = composite_types Delta),
-      Forall (fun var => sizeof ge (snd var) <= Int.max_unsigned) (fn_vars f) ->
+      (HGG: guard_genv Delta ge)
+      (COMPLETE: Forall (fun it => complete_type (composite_types Delta) (snd it) = true) (fn_vars f))
+      (Hsize: Forall (fun var => sizeof ge (snd var) <= Int.max_unsigned) (fn_vars f)),
       list_norepet (map fst (fn_vars f)) ->
       alloc_juicy_variables ge empty_env jm (fn_vars f) = (ve, jm') ->
       app_pred F (m_phi jm) ->
       app_pred (F * stackframe_of Delta f (construct_rho (filter_genv ge) ve te)) (m_phi jm').
 Proof.
-intros until F; intros HH Hsize; intros.
+intros.
 unfold stackframe_of.
 forget (fn_vars f) as vars. clear f.
 (*assert (Hmatch := alloc_juicy_variables_match_venv _ _ _ _ H0). *)
@@ -2189,6 +2205,9 @@ destruct a as [id ty].
 destruct (juicy_mem_alloc jm 0 (sizeof ge ty)) eqn:?H.
 rewrite <- sepcon_assoc.
 inv H.
+simpl in COMPLETE; inversion COMPLETE; subst.
+rename H7 into COMPLETE'.
+rename H4 into COMPLETE_HD.
 eapply IHvars; eauto. clear IHvars.
 (* pose proof (juicy_mem_alloc_succeeds _ _ _ _ _ H2). *)
 pose proof I.
@@ -2212,7 +2231,8 @@ assert (Map.get (make_venv ve) id = Some (b,ty)). {
 }
 rewrite H3. rewrite eqb_type_refl.
 simpl in Hsize'.
-rewrite <- HH, prop_true_andp by auto.
+erewrite sizeof_guard_genv by eauto.
+rewrite prop_true_andp by auto.
 rewrite (prop_true_andp (align_compatible _ _ _))
   by (exists 0; apply Int.unsigned_zero).
 assert (0 <= sizeof ge ty <= Int.max_unsigned) by (pose proof (sizeof_pos ge ty); omega).
@@ -2237,7 +2257,8 @@ Lemma semax_call_aux:
     (snd fsig=Tvoid -> ret=None) ->
     closed_wrt_modvars (Scall ret a bl) F0 ->
     R EK_normal None = (fun rho0 : environ => EX old:val, substopt ret old F rho0 * maybe_retval (Q x) (snd fsig) ret rho0) ->
-    genv_cenv psi = composite_types Delta ->
+(*    Forall (fun it => complete_type (composite_types Delta) (snd it) = true) (fn_vars (snd fsig)) ->*)
+    guard_genv Delta psi ->
     rho = construct_rho (filter_genv psi) vx tx ->
     (*filter_genv psi = ge_of rho ->*)
     eval_expr Delta a rho = Vptr b Int.zero ->
@@ -2255,7 +2276,7 @@ Lemma semax_call_aux:
      (State (vx) (tx) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
 intros Delta A P Q Q' x F F0 ret fsig a bl R psi vx tx k rho ora jm b id.
-intros TC0 TCret TC1 TC2 TC3 TC5 H HR HCE H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
+intros TC0 TCret TC1 TC2 TC3 TC5 H HR HGG H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
 pose (H6:=True); pose (H9 := True); pose (H16:=True);
 pose (H12:=True); pose (H10 := True); pose (H5:=True).
 (*************************************************)
@@ -2288,7 +2309,7 @@ econstructor; eauto.
 simpl. constructor; auto.
 }
 specialize (H14 _ (age_laterR H13)).
-destruct H15 as [b' [f [[? [? [? ?]]] ?]]].
+destruct H15 as [b' [f [[? [? [COMPLETE [? ?]]]] ?]]].
 destruct H18 as [H17' [Hvars [H18 H18']]].
 inversion H15; clear H15; subst b'.
 specialize (H19 x n LATER).
@@ -2339,7 +2360,7 @@ spec H19 ; [clear H19 |]. {
  destruct H22 as [H22 _].
  rewrite (sepcon_comm (stackframe_of Delta f _)) in H22.
  repeat rewrite <- sepcon_assoc in H22.
- clear - HCE H17' H22 H15.
+ clear - COMPLETE HGG H17' H22 H15.
  eapply can_free_list; try eassumption.
 }
 destruct FL as [m2 FL2].
@@ -2443,7 +2464,7 @@ apply sepcon_derives.
  apply H1; clear H1.
  eapply free_list_juicy_mem_lem; eauto.
  eapply sepcon_derives; try apply H22a; auto.
- apply (stackframe_of_freeable_blocks (func_tycontext' f Delta) _ _ _ _ HCE H17'); auto.
+ apply (stackframe_of_freeable_blocks (func_tycontext' f Delta) _ _ _ _ HGG COMPLETE H17'); auto.
  subst rho'; reflexivity.
  rewrite VR in H22b; clear - FL H22b. {
  unfold te2; clear te2.
@@ -2554,7 +2575,7 @@ eapply step_call_internal with (vargs:=eval_exprlist Delta (snd (split (fst fsig
 rewrite <- H3.  
 eapply eval_expr_relate; try solve[rewrite H0; auto]; auto. destruct TC3; eassumption. auto.
 destruct (fsig). unfold fn_funsig in *. inv H18.
-eapply exprlist_eval; try eassumption; auto.
+eapply eval_exprlist_relate; try eassumption; auto.
 destruct TC3 ; auto.
 unfold type_of_function.
 rewrite H18'; destruct fsig; inv H18; auto. 
@@ -2581,9 +2602,6 @@ rewrite CORE. apply age_core. apply age_jm_phi; auto.
 specialize (H19 te' ve' _ H22 _ (necR_refl _)).
 spec H19; [clear H19|]. {
 split; [split; [split|] |]; auto.
-Focus 4.
-{
-  
 Focus 3. 
 {
 unfold rho3 in H23. unfold construct_rho. rewrite H0 in H23.
@@ -2674,7 +2692,7 @@ simpl @fst in *.
  apply (alloc_juicy_variables_age H18 H20x) in AJV.
  forget (fn_params f) as params.
  forget (eval_exprlist Delta (map snd params) bl rho) as args.
- clear - H21 H14 AJV H17 H17' H0 Hvars HCE.
+ clear - H21 H14 AJV H17 H17' H0 Hvars HGG COMPLETE.
  assert (app_pred (Frame * close_precondition params (fn_vars f) (P x)
                                (construct_rho (filter_genv psi) ve' te')) (m_phi jmx)).
  eapply sepcon_derives; try apply H14; auto.
@@ -2685,9 +2703,15 @@ simpl @fst in *.
  forget (Frame *
      close_precondition params (fn_vars f) (P x)
        (construct_rho (filter_genv psi) ve' te')) as Frame2.
- clear - H17' H21 AJV H Hvars HCE.
+ clear - H17' H21 AJV H Hvars HGG COMPLETE.
  eapply alloc_juicy_variables_lem2; eauto.
- rewrite HCE; eauto.
+ unfold var_sizes_ok in Hvars;
+ rewrite Forall_forall in Hvars, COMPLETE |- *.
+ intros.
+ specialize (COMPLETE x H0).
+ specialize (Hvars x H0).
+ erewrite <- sizeof_guard_genv by eauto.
+ eauto.
 }
 (* end   "spec H19" *)
 }
@@ -2734,7 +2758,7 @@ rewrite semax_unfold. intros ? ? ? ? ? ? ? ? ? ? ? TCF TC5 TC7.
 intros.
 rename H0 into H1.
 intros tx vx.
-intros ? ? ? ? [[[TC3 ?] ?] HCE].
+intros ? ? ? ? [[[TC3 ?] ?] HGG].
 assert (H0': necR w (level a')).
 apply nec_nat. apply necR_level in H2. apply le_trans with (level y); auto.
 eapply pred_nec_hereditary in H1; [ | apply H0'].
@@ -2867,7 +2891,7 @@ specialize (H2 psi Delta' w TS Prog_OK k F H3 H4).
 intros tx vx; specialize (H2 tx vx).
 intros ? ? ? ? ?.
 specialize (H2 y H5 a'0 H6 H7).
-destruct H7 as [[[? ?] _] HCE].
+destruct H7 as [[[? ?] _] HGG].
 hnf in H7.
 pose proof I.
 hnf in H2|-*; intros.
@@ -2881,24 +2905,25 @@ destruct H8 as [w1 [w2 [_ [_ ?]]]].
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 assert (H7': typecheck_environ Delta rho).
 destruct H7; eapply typecheck_environ_sub; eauto.
+destruct H7 as [H7 _].
 specialize (H0 rho w2 (conj H7' H8)).
 destruct H0 as [[[[TCa TCbl] TCa'] TCbl'] [? ?]].
 assert (forall vf, Clight.eval_expr psi vx tx (m_dry jm) a vf
                -> Clight.eval_expr psi vx tx (m_dry jm) a' vf). {
-destruct H7 as [H7 _].
-clear - TCa TCa' H7 H7' H0 Heqrho HCE TS. forget (m_dry jm) as m.
+clear - TCa TCa' H7 H7' H0 Heqrho HGG TS. forget (m_dry jm) as m.
 intros.
 rewrite eval_expr_sub with (Delta := Delta) (Delta' := Delta') (w := w2) in H0 by auto.
 eapply tc_expr_sub in TCa; [| eauto | eauto].
-pose proof (eval_expr_relate _ _ _ _ _ _ m HCE Heqrho H7 TCa).
+pose proof (eval_expr_relate _ _ _ _ _ _ m HGG Heqrho H7 TCa).
 pose proof (eval_expr_fun H H1). subst vf.
 rewrite H0.
 eapply eval_expr_relate; eauto.
+eapply guard_genv_sub; eauto.
 }
 assert (forall tyargs vargs, 
              Clight.eval_exprlist psi vx tx (m_dry jm) bl tyargs vargs ->
              Clight.eval_exprlist psi vx tx (m_dry jm) bl' tyargs vargs). {
-clear - IF_ONLY TCbl TCbl' Hbl H7' H13 Heqrho. forget (m_dry jm) as m.
+clear - TS IF_ONLY TCbl TCbl' Hbl H7 H7' H13 Heqrho HGG. forget (m_dry jm) as m.
 revert bl bl' Hbl TCbl TCbl' H13; induction tl; destruct bl, bl'; simpl; intros; auto;
  try (clear IF_ONLY; contradiction).
 unfold_lift in H13; simpl in H13.
@@ -2908,11 +2933,12 @@ destruct TCbl as [[TCe ?] ?].
 destruct TCbl' as [[TCe0 ?] ?].
 inversion H; clear H. subst a0 bl0 tyargs vargs.
 inversion Hbl; clear Hbl. rewrite <- H6 in *.
-pose proof (eval_expr_relate _ _ _ _ _ _ m Heqrho H7' TCe).
-pose proof (eval_expr_fun H H8).
+eapply (tc_expr_sub _ _ TS e rho H7' w2) in TCe.
+pose proof (eval_expr_relate _ _ _ _ _ _ m HGG Heqrho H7 TCe).
+pose proof (eval_expr_fun H H9).
 repeat rewrite <- cop2_sem_cast in *.
 unfold force_val in H1.
-rewrite H10 in *. 
+rewrite H11 in *. 
 contradiction IF_ONLY.  (* this needs plenty of work. *)
 }
 destruct H12; split; auto.
@@ -2929,8 +2955,8 @@ reflexivity.
 destruct a; simpl; auto.
 Qed.
 
-Definition cast_expropt (e: option expr) t : environ -> option val :=
- match e with Some e' => `Some (eval_expr (Ecast e' t))  | None => `None end.
+Definition cast_expropt Delta (e: option expr) t : environ -> option val :=
+ match e with Some e' => `Some (eval_expr Delta (Ecast e' t))  | None => `None end.
 
 Lemma call_cont_current_function:
   forall {k i f e t l}, call_cont k = Kcall i f e t :: l -> current_function k = Some f.
@@ -2939,150 +2965,167 @@ Qed.
 
 Definition tc_expropt Delta (e: option expr) (t: type) : environ -> Prop :=
    match e with None => `(t=Tvoid)
-                     | Some e' => denote_tc_assert (typecheck_expr Delta (Ecast e' t))
+                     | Some e' => denote_tc_assert Delta (typecheck_expr Delta (Ecast e' t))
    end.
  
 Lemma  semax_return :
    forall Delta R ret,
       semax Espec Delta 
                 (fun rho => !! tc_expropt Delta ret (ret_type Delta) rho && 
-                             R EK_return (cast_expropt ret (ret_type Delta) rho) rho)
+                             R EK_return (cast_expropt Delta ret (ret_type Delta) rho) rho)
                 (Sreturn ret)
                 R.
 Proof.
-intros.
-hnf; intros.
-rewrite semax_fold_unfold.
-intros psi Delta'.
-apply prop_imp_i. intro TS.
-replace (ret_type Delta) with (ret_type Delta') 
- by (destruct TS as [_ [_ [? _]]]; auto).
-apply derives_imp.
-clear n.
-intros w ? k F.
-intros w' ? ?.
-clear H.
-clear w H0.
-rename w' into w.
-destruct H1.
-do 3 red in H.
-intros te ve.
-intros n ? w' ? ?.
-assert (necR w (level w')).
-apply nec_nat.
-apply necR_level in H2.
-apply le_trans with (level n); auto.
-apply (pred_nec_hereditary _ _ _ H4) in H0.
-clear w n H2 H1 H4.
-destruct H3 as [[H3 ?] ?].
-pose proof I. 
-remember ((construct_rho (filter_genv psi) ve te)) as rho.
-assert (H1': ((F rho * R EK_return (cast_expropt ret (ret_type Delta') rho) rho))%pred w').
-eapply sepcon_derives; try apply H1; auto.
-apply andp_left2; auto.
-assert (TC: forall w, (!! tc_expropt Delta ret (ret_type Delta') rho) w).
-clear - H1. destruct H1 as [w1 [w2 [? [? [? ?]]]]]. intros. 
- destruct ret; apply H1.
-clear H1; rename H1' into H1.
-specialize (H0 EK_return (cast_expropt ret (ret_type Delta') rho) te ve).
-specialize (H0 _ (le_refl _) _ (necR_refl _)).
-spec H0.
-rewrite <- Heqrho.
-unfold frame_ret_assert.
-split; auto.
-split; auto.
-rewrite sepcon_comm; auto.
-intros ? ? ? ?.
-specialize (H0 ora jm (eq_refl _) H6).
-eapply convergent_controls_safe; try apply H0.
-simpl; auto.
-intros ? ?; simpl.
-unfold cl_after_external.
-auto.
-simpl; auto.
-intros.
-simpl in H7.
-destruct H7; split; auto.
-revert H7; simpl.
-destruct ret; specialize (TC jm);
-   unfold tc_expropt in TC; do 3 red in TC; unfold_lift in TC; red in TC.
-simpl.
-unfold_lift.
-case_eq (call_cont k); intros.
-inv H9.
-inv H14.
-destruct c.
-elimtype False; clear - H7.
- revert l H7; induction k; try destruct a; simpl; intros; try discriminate; eauto.
-elimtype False; clear - H7.
- revert l H7; induction k; try destruct a; simpl; intros; try discriminate; eauto.
-elimtype False; clear - H7.
- revert l H7; induction k; try destruct a; simpl; intros; try discriminate; eauto.
-elimtype False; clear - H7.
- revert l H7; induction k; try destruct a; simpl; intros; try discriminate; eauto.
-destruct l0.
-clear H0 H2 H8.
-inv H9. fold denote_tc_assert in TC.
-inv H11.
-destruct H17.
-econstructor; try eassumption; simpl.
-2: split; [congruence | eassumption].
-exists (eval_expr e (construct_rho (filter_genv psi) ve te)).
-assert (TCe: denote_tc_assert (typecheck_expr Delta' e)  (construct_rho (filter_genv psi) ve te)).
-eapply tc_expr_sub; try apply TS. instantiate (1:=m_phi jm).
-hnf.
-simpl in *. 
- repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-destruct TC; auto.
-split.
-apply eval_expr_relate with (Delta := Delta'); auto.
-destruct H3; auto.
-destruct H3.
-simpl in H6; rewrite (call_cont_current_function H7) in H6.
-destruct H6 as [_ ?].
-rewrite H6.
-super_unfold_lift.
-rewrite cop2_sem_cast.
-apply cast_exists with Delta'; auto.
-
-auto.
-rewrite <- H6.
-simpl in TC. 
- repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-destruct TC; auto.
-
-fold denote_tc_assert in TC.
-inv H9.
-symmetry in H14; inv H14.
-destruct H20.
-subst te''. clear H6.
-econstructor; try eassumption.
-exists (eval_expr e (construct_rho (filter_genv psi) ve te)).
-assert (TCe: denote_tc_assert (typecheck_expr Delta' e)  (construct_rho (filter_genv psi) ve te)).
-eapply tc_expr_sub; try apply TS. instantiate (1:=m_phi jm).
-hnf.
-simpl in *. 
- repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
-destruct TC; auto.
-split.
-apply eval_expr_relate with (Delta := Delta'); auto.
-destruct H3; auto.
-rewrite cop2_sem_cast.
-apply cast_exists with Delta'; auto.
-destruct H3; auto.
-destruct H3. simpl in H6.
-rewrite (call_cont_current_function H7) in H6.
-destruct H6 as [_ H6]; rewrite <- H6.
-clear - TC.
-simpl in TC.
-rewrite denote_tc_assert_andp in TC; destruct TC; auto.
-simpl. auto.
-
-intro.
-inv H7.
-rewrite call_cont_idem in H13; auto.
-econstructor; try eassumption.
-auto.
+  intros.
+  hnf; intros.
+  rewrite semax_fold_unfold.
+  intros psi Delta'.
+  apply prop_imp_i. intro TS.
+  replace (ret_type Delta) with (ret_type Delta') 
+    by (destruct TS as [_ [_ [? _]]]; auto).
+  apply derives_imp.
+  clear n.
+  intros w ? k F.
+  intros w' ? ?.
+  clear H.
+  clear w H0.
+  rename w' into w.
+  destruct H1.
+  do 3 red in H.
+  intros te ve.
+  intros n ? w' ? ?.
+  assert (necR w (level w')).
+  Focus 1. {
+    apply nec_nat.
+    apply necR_level in H2.
+    apply le_trans with (level n); auto.
+  } Unfocus. 
+  apply (pred_nec_hereditary _ _ _ H4) in H0.
+  clear w n H2 H1 H4.
+  destruct H3 as [[[H3 ?] ?] HGG].
+  pose proof I. 
+  remember ((construct_rho (filter_genv psi) ve te)) as rho.
+  assert (H1': ((F rho * R EK_return (cast_expropt Delta ret (ret_type Delta') rho) rho))%pred w').
+  Focus 1. {
+    eapply sepcon_derives; try apply H1; auto.
+    apply andp_left2; auto.
+  } Unfocus.
+  assert (TC: forall w, (!! tc_expropt Delta ret (ret_type Delta') rho) w).
+  Focus 1. {
+    clear - H1. destruct H1 as [w1 [w2 [? [? [? ?]]]]]. intros. 
+    destruct ret; apply H1.
+  } Unfocus.
+  clear H1; rename H1' into H1.
+  specialize (H0 EK_return (cast_expropt Delta ret (ret_type Delta') rho) te ve).
+  specialize (H0 _ (le_refl _) _ (necR_refl _)).
+  spec H0.
+  Focus 1. {
+    rewrite <- Heqrho.
+    unfold frame_ret_assert.
+    split; auto.
+    split; auto.
+    rewrite sepcon_comm; auto.
+  } Unfocus.
+  intros ? ? ? ?.
+  specialize (H0 ora jm (eq_refl _) H6).
+  eapply convergent_controls_safe; try apply H0.
+  1: simpl; auto.
+  1: intros ? ?; simpl; unfold cl_after_external; auto.
+  1: simpl; auto.
+  intros.
+  simpl in H7.
+  destruct H7; split; auto.
+  revert H7; simpl.
+  destruct ret; specialize (TC jm);
+     unfold tc_expropt in TC; do 3 red in TC; unfold_lift in TC; red in TC.
+  + simpl.
+    unfold_lift.
+    case_eq (call_cont k); intros.
+    - inv H9.
+      inv H14.
+    - destruct c.
+      elimtype False; clear - H7.
+       revert l H7; induction k; try destruct a; simpl; intros; try discriminate; eauto.
+      elimtype False; clear - H7.
+       revert l H7; induction k; try destruct a; simpl; intros; try discriminate; eauto.
+      elimtype False; clear - H7.
+       revert l H7; induction k; try destruct a; simpl; intros; try discriminate; eauto.
+      elimtype False; clear - H7.
+       revert l H7; induction k; try destruct a; simpl; intros; try discriminate; eauto.
+      destruct l0.
+      * clear H0 H2 H8.
+        inv H9. fold denote_tc_assert in TC.
+        inv H11.
+        destruct H17.
+        econstructor; try eassumption; simpl.
+        2: split; [congruence | eassumption].
+        exists (eval_expr Delta e (construct_rho (filter_genv psi) ve te)).
+        destruct H3 as [H3' H6].
+        assert (typecheck_environ Delta (construct_rho (filter_genv psi) ve te)) as H3
+          by (eapply typecheck_environ_sub; eauto).
+        assert (TCe: denote_tc_assert Delta (typecheck_expr Delta e)  (construct_rho (filter_genv psi) ve te)).
+        Focus 1. {
+          hnf.
+          simpl in *. 
+          repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+          destruct TC; auto.
+        } Unfocus.
+        pose proof tc_expr_sub _ _ TS _ _ H3 (m_phi jm) TCe as TCe'.
+        split.
+        {
+          erewrite eval_expr_sub with (w := m_phi jm); eauto.
+          apply eval_expr_relate with (Delta := Delta'); auto.
+        }
+        {
+          simpl in H6; rewrite (call_cont_current_function H7) in H6.
+          destruct H6 as [_ ?].
+          rewrite H6.
+          super_unfold_lift.
+          rewrite cop2_sem_cast.
+          apply cast_exists with (Delta := Delta); auto.
+          rewrite <- H6.
+          simpl in TC. 
+          repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+          destruct TC; auto.
+        }
+      * fold denote_tc_assert in TC.
+        inv H9.
+        symmetry in H14; inv H14.
+        destruct H20.
+        subst te''. clear H6.
+        econstructor; try eassumption; [| simpl; auto].
+        exists (eval_expr Delta e (construct_rho (filter_genv psi) ve te)).
+        destruct H3 as [H3' H6].
+        assert (typecheck_environ Delta (construct_rho (filter_genv psi) ve te)) as H3
+          by (eapply typecheck_environ_sub; eauto).
+        assert (TCe: denote_tc_assert Delta (typecheck_expr Delta e)  (construct_rho (filter_genv psi) ve te)).
+        Focus 1. {
+          hnf.
+          simpl in *. 
+          repeat (rewrite tc_andp_sound in *; simpl in *; super_unfold_lift).
+          destruct TC; auto.
+        } Unfocus.
+        pose proof tc_expr_sub _ _ TS _ _ H3 (m_phi jm) TCe as TCe'.
+        split.
+        {
+          apply eval_expr_relate with (Delta := Delta); auto.
+          eapply guard_genv_sub; eauto.
+        }
+        {
+          rewrite cop2_sem_cast.
+          apply cast_exists with (Delta := Delta); auto.
+          destruct H3. simpl in H6.
+          rewrite (call_cont_current_function H7) in H6.
+          destruct H6 as [_ H6]; rewrite <- H6.
+          clear - TC.
+          simpl in TC.
+          rewrite denote_tc_assert_andp in TC; destruct TC; auto.
+        }
+  + intro.
+    inv H7.
+    rewrite call_cont_idem in H13; auto.
+    econstructor; try eassumption.
+    auto.
 Qed.
  
 End extensions.

@@ -193,6 +193,7 @@ Definition believe_internal_
   (gx: genv) (Delta: tycontext) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
+                 /\ Forall (fun it => complete_type (composite_types Delta) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok Delta (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
@@ -235,6 +236,7 @@ Definition believe_internal (Espec:  OracleKind)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) A (P Q: A -> assert) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
+                 /\ Forall (fun it => complete_type (composite_types Delta) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok Delta (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
