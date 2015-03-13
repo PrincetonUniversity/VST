@@ -134,6 +134,31 @@ apply tycontext_evolve_refl.
 apply tycontext_evolve_join; auto.
 Qed.
 
+Lemma join_tycon_guard_genv: forall Delta Delta' ge,
+  guard_genv (join_tycon Delta Delta') ge = guard_genv Delta ge.
+Proof.
+  intros.
+  unfold guard_genv, join_tycon in *.
+  destruct Delta, Delta'.
+  auto.
+Qed.
+
+Lemma update_tycon_guard_genv: forall c Delta ge,
+  guard_genv (update_tycon Delta c) ge = guard_genv Delta ge.
+Proof.
+  intros.
+  unfold guard_genv in *.
+  rewrite composite_types_update_tycon.
+  auto.
+Qed.
+
+Lemma exit_tycon_guard_genv: forall c ek Delta ge,
+  guard_genv (exit_tycon c Delta ek) ge = guard_genv Delta ge.
+Proof.
+  intros.
+  destruct ek; simpl; auto.
+  apply update_tycon_guard_genv.
+Qed.
 
 Lemma semax_ifthenelse : 
    forall Delta P (b: expr) c d R,
@@ -165,6 +190,14 @@ intros ek vl tx vx; specialize (H3 ek vl tx vx).
 cbv beta in H3.
 eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
+Focus 2. {
+  unfold exit_tycon; destruct ek; auto; simpl.
+  intro; simpl.
+  rewrite join_tycon_guard_genv.
+  auto.
+} Unfocus.
+apply andp_derives; auto.
+apply andp_derives; auto.
 unfold exit_tycon; simpl. destruct ek; simpl; auto.
 intros ? [? ?]; split; auto.
 apply typecheck_environ_join1; auto.
@@ -179,6 +212,15 @@ clear - H3.
 intros ek vl tx vx; specialize (H3 ek vl tx vx).
 eapply subp_trans'; [ | apply H3].
 apply derives_subp; apply andp_derives; auto.
+Focus 2. {
+  unfold exit_tycon; destruct ek; auto; simpl.
+  intro; simpl.
+  rewrite join_tycon_guard_genv.
+  rewrite !update_tycon_guard_genv.
+  auto.
+} Unfocus.
+apply andp_derives; auto.
+apply andp_derives; auto.
 unfold exit_tycon; simpl. destruct ek; simpl; auto. 
 intros ? [? ?]; split; auto.
 apply typecheck_environ_join2 with Delta'; auto;
@@ -317,7 +359,7 @@ do 2 econstructor. auto.
 simpl in H1. congruence.
 simpl in H0. unfold cl_halted in H0. congruence.
 Qed.
-
+*)
 Ltac inv_safe H := 
   inv H;
   try solve[match goal with 
@@ -326,7 +368,7 @@ Ltac inv_safe H :=
     | H : core_semantics.halted _ _ = _ |- _ => 
       simpl in H; unfold cl_halted in H; congruence
   end].
-
+(*
 Lemma seq_assoc2:  
    forall Delta P s1 s2 s3 R,
         semax Espec Delta P (Ssequence (Ssequence s1 s2) s3) R ->
@@ -483,7 +525,6 @@ if_tac.
 subst.
 unfold exit_cont.
 unfold guard in H0.
-rewrite <- andp_assoc.
 remember (construct_rho (filter_genv psi) vx tx) as rho.
 assert (app_pred
 (!!guard_environ (update_tycon Delta' h) (current_function k) rho &&
@@ -503,6 +544,13 @@ clear - H2.
 intros ek vl te ve; specialize (H2 ek vl te ve).
 eapply subp_trans'; [ | apply H2].
 apply derives_subp. apply andp_derives; auto.
+Focus 2. {
+  rewrite !exit_tycon_guard_genv.
+  rewrite update_tycon_guard_genv.
+  auto.
+} Unfocus.
+apply andp_derives; auto.
+apply andp_derives; auto.
 simpl.
 intros ? [? ?]; hnf in H,H0|-*; split; auto.
 clear - H.
@@ -516,7 +564,7 @@ specialize (H0 tx vx). cbv beta in H0.
 rewrite funassert_update_tycon in H0.
 apply H0.
 eapply subp_trans'; [ | apply H].
-apply derives_subp. apply andp_derives; auto. apply andp_derives; auto.
+apply derives_subp. apply andp_derives; auto. apply andp_derives; auto. apply andp_derives; auto.
 rewrite sepcon_comm;
 apply sepcon_derives; auto.
 apply andp_left2; auto.
@@ -636,223 +684,237 @@ forall Delta Q Q' incr body R,
      semax Espec Delta Q' incr (loop2_ret_assert Q R) ->
      semax Espec Delta Q (Sloop body incr) R.
 Proof.
-intros ? ? ? ? ?  POST H H0.
-rewrite semax_unfold.
-intros until 3.
-rename H1 into H2.
-assert (CLO_body: closed_wrt_modvars body F).
-  clear - H2. intros rho te ?. apply (H2 rho te). simpl.
- intro; destruct (H i); auto. left; unfold modifiedvars in H0|-*; simpl;
-   apply modifiedvars'_union; auto.
-assert (CLO_incr:  closed_wrt_modvars incr F).
-  clear - H2. intros rho te ?. apply (H2 rho te). simpl.
- intro; destruct (H i); auto. left; unfold modifiedvars in H0|-*; simpl;
-   apply modifiedvars'_union; auto.
-revert Prog_OK; induction w using (well_founded_induction lt_wf); intros.
-intros tx vx.
-intros ? ? ? ? [[? ?] ?]. hnf in H6.
-simpl update_tycon in H3.
-apply assert_safe_last; intros a2 LEVa2.
-assert (NEC2: necR w (level a2)).
-  apply age_level in LEVa2. apply necR_nat in H5. apply nec_nat in H5. 
-  change w with (level w) in H4|-*. apply nec_nat. clear - H4 H5 LEVa2.
-  change compcert_rmaps.R.rmap with rmap in *; omega.
-assert (LT: level a2 < level w).
-  apply age_level in LEVa2. apply necR_nat in H5. 
- clear - H4 H5 LEVa2.
-   change w with (level w) in H4.
-  change R.rmap with rmap in *.  rewrite LEVa2 in *.  clear LEVa2. 
-  apply nec_nat in H5. omega.
-assert (Prog_OK2: (believe Espec Delta' psi Delta') (level a2)) 
-  by (apply pred_nec_hereditary with w; auto).
-generalize (pred_nec_hereditary _ _ _ NEC2 H3); intro H3'.
-remember (construct_rho (filter_genv psi) vx tx) as rho.
-pose proof I.
-intros ora jm RE H11.
-pose (H10:=True).
-replace (level a') with (S (level a2)) 
- by (apply age_level in LEVa2;  rewrite LEVa2; apply minus_n_O).
-subst a'.
-destruct (can_age1_juicy_mem _ _ LEVa2) as [jm' LEVa2'].
-unfold age in LEVa2.
-assert (a2 = m_phi jm').
-  generalize (age_jm_phi LEVa2'); unfold age; change R.rmap with rmap; 
-           change R.ag_rmap with ag_rmap;  rewrite LEVa2; intro Hx; inv Hx; auto.
-subst a2.
-clear LEVa2; rename LEVa2' into LEVa2.
-apply safe_corestep_backward
- with (State vx tx (Kseq body :: Kseq Scontinue :: Kloop1 body incr :: k))
-        jm'.
-split3.
-rewrite (age_jm_dry LEVa2); econstructor.
-apply age1_resource_decay; auto.
-apply age_level; auto.
-eapply semax_extensionality_Delta in H; try apply TS; auto.
-eapply semax_extensionality_Delta in H0; try apply TS; auto.
-clear Delta TS.
-assert (w >= level (m_phi jm)).
-apply necR_nat in H5. apply nec_nat in H5. 
- change R.rmap with rmap in *; omega. 
-clear y H5 H4. rename H11 into H5. pose (H4:=True).
-generalize H; rewrite semax_unfold; intros H'.
-change ((believe Espec Delta' psi Delta') (level jm')) in Prog_OK2.
-specialize (H' psi Delta' (level jm') (tycontext_sub_refl _) Prog_OK2 (Kseq Scontinue :: Kloop1 body incr :: k) F CLO_body).
-spec H'.
-intros ek vl.
-destruct ek.
-simpl exit_cont.
-rewrite semax_unfold in H0.
-specialize (H0 psi _ (level jm') (tycontext_sub_refl _)  Prog_OK2 (Kloop2 body incr :: k) F CLO_incr).
-spec H0.
-intros ek2 vl2 tx2 vx2; unfold loop2_ret_assert.
-destruct ek2; simpl exit_tycon in *.
-unfold exit_cont.
-apply (assert_safe_adj' Espec) with (k:=Kseq (Sloop body incr) :: k); auto.
-repeat intro. eapply convergent_controls_safe; try apply H12; simpl; auto.
-  intros q' m' [? [? ?]]; split3; auto. inv H13; econstructor; eauto.
- eapply subp_trans'; [ |  eapply (H1 _ LT Prog_OK2 H3' tx2 vx2)].
- apply derives_subp.
-rewrite andp_assoc.
-rewrite funassert_update_tycon; 
-apply andp_derives; auto.
-intros ? [? ?]; split; auto.
-hnf in H11|-*.
-eapply typecheck_environ_update; eauto.
-simpl in H12|-*. rewrite ret_type_update_tycon in H12; auto.
-simpl exit_cont.
-unfold frame_ret_assert. normalize.
-rewrite sepcon_comm. auto.
-unfold frame_ret_assert. normalize.
-unfold frame_ret_assert. normalize.
-unfold frame_ret_assert. 
-change (exit_cont EK_return vl2 (Kloop2 body incr :: k))
-  with (exit_cont EK_return vl2 k).
-eapply subp_trans'; [ | apply H3'].
-auto.
-intros tx2 vx2.
-apply (assert_safe_adj' Espec) with (k:= Kseq incr :: Kloop2 body incr :: k); auto.
-intros ? ? ? ? ? ? ?.
-eapply convergent_controls_safe; simpl; eauto.
-intros q' m' [? [? ?]]; split3; auto. constructor. simpl. auto.
-eapply subp_trans'; [ | apply H0].
-apply derives_subp.
-rewrite andp_assoc.
-unfold frame_ret_assert.
-rewrite funassert_exit_tycon; 
-apply andp_derives; auto.
-simpl exit_tycon.
-intros ? [? ?]; split.
-hnf in H11|-*.
-eapply typecheck_environ_update; eauto.
-simpl in H12|-*; rewrite ret_type_update_tycon in H12; auto.
-simpl exit_cont.
-simpl exit_tycon.
-rewrite sepcon_comm.
-unfold loop1_ret_assert.
-intros tx3 vx3.
-auto.
-intros tx3 vx3.
-unfold loop1_ret_assert, frame_ret_assert.
-eapply subp_trans'; [ | apply (H3' EK_normal None tx3 vx3)].
-simpl exit_tycon.
-apply derives_subp.
-auto.
-simpl exit_tycon. simpl exit_cont.
-unfold loop1_ret_assert, frame_ret_assert.
-rewrite semax_unfold in H0.
-intros tx2 vx2.
-eapply subp_trans'; [ | apply (H0 _ _ _ (tycontext_sub_refl _) Prog_OK2 (Kloop2 body incr :: k) F CLO_incr)].
-apply derives_subp.
-rewrite andp_assoc. rewrite sepcon_comm.
-apply andp_derives; auto.
-clear tx2 vx2.
-intros ek2 vl2 tx2 vx2.
-destruct ek2.
-unfold exit_cont.
-apply (assert_safe_adj' Espec) with (k:=Kseq (Sloop body incr) :: k); auto.
-intros ? ? ? ? ? ? ?.
-eapply convergent_controls_safe; simpl; eauto.
-intros q' m' [? [? ?]]; split3; auto. inv H12; econstructor; eauto.
-eapply subp_trans'; [ | eapply H1; eauto].
-apply derives_subp.
-rewrite andp_assoc.
-rewrite funassert_exit_tycon; 
-apply andp_derives; auto.
-simpl exit_tycon.
-intros ? [? ?]; split.
-hnf in H11|-*.
-eapply typecheck_environ_update; eauto.
-simpl in H12|-*; rewrite ret_type_update_tycon in H12; auto.
-unfold exit_cont, loop2_ret_assert; normalize.
-unfold exit_cont, loop2_ret_assert; normalize.
-
-
- change (exit_cont EK_return vl2 (Kloop2 body incr :: k))
-  with (exit_cont EK_return vl2 k).
- specialize (H3' EK_return vl2 tx2 vx2). simpl exit_tycon in H3'.
- simpl exit_tycon. auto.
-change (exit_cont EK_return vl (Kseq Scontinue :: Kloop1 body incr :: k))
-    with (exit_cont EK_return vl k).
-intros tx4 vx4.
-unfold frame_ret_assert in H3', vx4.
-rewrite sepcon_comm; auto.
-intros tx4 vx4.
-unfold frame_ret_assert in H3', vx4|-*.
-unfold loop2_ret_assert. normalize.
-repeat intro; normalize.
-unfold frame_ret_assert in H3'|-*.
-unfold loop2_ret_assert. normalize.
-unfold frame_ret_assert in H3'|-*.
-unfold loop2_ret_assert.
- simpl exit_tycon.
-specialize (H3' EK_return vl2).
-eapply subp_trans'; [ | eapply H3'; eauto].
-auto.
-unfold frame_ret_assert, loop1_ret_assert.
-
-intros tx4 vx4.
-eapply subp_trans'; [ | eapply (H3' EK_return) ; eauto].
- simpl exit_tycon.
-unfold loop1_ret_assert.
-auto.
-
-apply (H' tx vx _ (le_refl _) (m_phi jm') (necR_refl _)); try solve[subst; auto].
-apply pred_hereditary with (m_phi jm); auto.
-apply age_jm_phi; auto.
-subst.
-split; auto.
-split; auto.
+  intros ? ? ? ? ?  POST H H0.
+  rewrite semax_unfold.
+  intros until 3.
+  rename H1 into H2.
+  assert (CLO_body: closed_wrt_modvars body F).
+  Focus 1. {
+    clear - H2. intros rho te ?. apply (H2 rho te). simpl.
+    intro; destruct (H i); auto. left; unfold modifiedvars in H0|-*; simpl;
+    apply modifiedvars'_union; auto.
+  } Unfocus.
+  assert (CLO_incr:  closed_wrt_modvars incr F).
+  Focus 1. {
+    clear - H2. intros rho te ?. apply (H2 rho te). simpl.
+    intro; destruct (H i); auto. left; unfold modifiedvars in H0|-*; simpl;
+    apply modifiedvars'_union; auto.
+  } Unfocus.
+  revert Prog_OK; induction w using (well_founded_induction lt_wf); intros.
+  intros tx vx.
+  intros ? ? ? ? [[? ?] ?]. hnf in H6.
+  simpl update_tycon in H3.
+  apply assert_safe_last; intros a2 LEVa2.
+  assert (NEC2: necR w (level a2)).
+  Focus 1. {
+    apply age_level in LEVa2. apply necR_nat in H5. apply nec_nat in H5. 
+    change w with (level w) in H4|-*. apply nec_nat. clear - H4 H5 LEVa2.
+    change compcert_rmaps.R.rmap with rmap in *; omega.
+  } Unfocus.
+  assert (LT: level a2 < level w).
+  Focus 1. {
+    apply age_level in LEVa2. apply necR_nat in H5. 
+    clear - H4 H5 LEVa2.
+    change w with (level w) in H4.
+    change R.rmap with rmap in *.  rewrite LEVa2 in *.  clear LEVa2. 
+    apply nec_nat in H5. omega.
+  } Unfocus.
+  assert (Prog_OK2: (believe Espec Delta' psi Delta') (level a2)) 
+    by (apply pred_nec_hereditary with w; auto).
+  generalize (pred_nec_hereditary _ _ _ NEC2 H3); intro H3'.
+  remember (construct_rho (filter_genv psi) vx tx) as rho.
+  pose proof I.
+  intros ora jm RE H11.
+  pose (H10:=True).
+  replace (level a') with (S (level a2)) 
+    by (apply age_level in LEVa2;  rewrite LEVa2; apply minus_n_O).
+  subst a'.
+  destruct (can_age1_juicy_mem _ _ LEVa2) as [jm' LEVa2'].
+  unfold age in LEVa2.
+  assert (a2 = m_phi jm').
+  Focus 1. {
+    generalize (age_jm_phi LEVa2'); unfold age; change R.rmap with rmap.
+    change R.ag_rmap with ag_rmap; rewrite LEVa2.
+    intro Hx; inv Hx; auto.
+  } Unfocus.
+  subst a2.
+  clear LEVa2; rename LEVa2' into LEVa2.
+  apply safe_corestep_backward
+   with (State vx tx (Kseq body :: Kseq Scontinue :: Kloop1 body incr :: k))
+          jm'.
+  Focus 1. {
+    split3.
+    + rewrite (age_jm_dry LEVa2); econstructor.
+    + apply age1_resource_decay; auto.
+    + apply age_level; auto.
+  } Unfocus.
+  eapply semax_extensionality_Delta in H; try apply TS; auto.
+  eapply semax_extensionality_Delta in H0; try apply TS; auto.
+  clear Delta TS.
+  assert (w >= level (m_phi jm)).
+  Focus 1. {
+    apply necR_nat in H5. apply nec_nat in H5. 
+    change R.rmap with rmap in *; omega.
+  } Unfocus.
+  clear y H5 H4. rename H11 into H5. pose (H4:=True).
+  generalize H; rewrite semax_unfold; intros H'.
+  change ((believe Espec Delta' psi Delta') (level jm')) in Prog_OK2.
+  specialize (H' psi Delta' (level jm') (tycontext_sub_refl _) Prog_OK2 (Kseq Scontinue :: Kloop1 body incr :: k) F CLO_body).
+  spec H'.
+  Focus 2. {
+    apply (H' tx vx _ (le_refl _) (m_phi jm') (necR_refl _)); try solve[subst; auto].
+    apply pred_hereditary with (m_phi jm); auto.
+    + apply age_jm_phi; auto.
+    + subst.
+      split; auto.
+      split; auto.
+  } Unfocus.
+  intros ek vl.
+  destruct ek.
+  + simpl exit_cont.
+    rewrite semax_unfold in H0.
+    specialize (H0 psi _ (level jm') (tycontext_sub_refl _)  Prog_OK2 (Kloop2 body incr :: k) F CLO_incr).
+    spec H0.
+    Focus 1. {
+      intros ek2 vl2 tx2 vx2; unfold loop2_ret_assert.
+      destruct ek2; simpl exit_tycon in *.
+      + unfold exit_cont.
+        apply (assert_safe_adj' Espec) with (k:=Kseq (Sloop body incr) :: k); auto.
+        - repeat intro. eapply convergent_controls_safe; try apply H12; simpl; auto.
+          intros q' m' [? [? ?]]; split3; auto. inv H13; econstructor; eauto.
+        - eapply subp_trans'; [ |  eapply (H1 _ LT Prog_OK2 H3' tx2 vx2)].
+          apply derives_subp.
+          apply andp_derives; auto; [| rewrite update_tycon_guard_genv; auto].
+          rewrite funassert_update_tycon.
+          apply andp_derives; auto.
+          apply andp_derives; auto.
+          * intros ? [? ?]; split; auto.
+            hnf in H11|-*.
+            eapply typecheck_environ_update; eauto.
+            simpl in H12|-*. rewrite ret_type_update_tycon in H12; auto.
+          * simpl exit_cont.
+            unfold frame_ret_assert. normalize.
+            rewrite sepcon_comm. auto.
+      + unfold frame_ret_assert. normalize.
+      + unfold frame_ret_assert. normalize.
+      + unfold frame_ret_assert. 
+        change (exit_cont EK_return vl2 (Kloop2 body incr :: k))
+          with (exit_cont EK_return vl2 k).
+        eapply subp_trans'; [ | apply H3'].
+        auto.
+    } Unfocus.
+    intros tx2 vx2.
+    apply (assert_safe_adj' Espec) with (k:= Kseq incr :: Kloop2 body incr :: k); auto.
+    intros ? ? ? ? ? ? ?.
+    eapply convergent_controls_safe; simpl; eauto.
+    intros q' m' [? [? ?]]; split3; auto. constructor. simpl. auto.
+    eapply subp_trans'; [ | apply H0].
+    apply derives_subp.
+    apply andp_derives; [| rewrite exit_tycon_guard_genv; auto].
+    unfold frame_ret_assert.
+    rewrite funassert_exit_tycon.
+    apply andp_derives; auto.
+    apply andp_derives; auto.
+    - simpl exit_tycon.
+      intros ? [? ?]; split.
+      * hnf in H11|-*.
+        eapply typecheck_environ_update; eauto.
+      * simpl in H12|-*; rewrite ret_type_update_tycon in H12; auto.
+    - simpl exit_cont.
+      simpl exit_tycon.
+      rewrite sepcon_comm.
+      unfold loop1_ret_assert.
+      intros tx3 vx3.
+      auto.
+  + intros tx3 vx3.
+    unfold loop1_ret_assert, frame_ret_assert.
+    eapply subp_trans'; [ | apply (H3' EK_normal None tx3 vx3)].
+    simpl exit_tycon.
+    apply derives_subp.
+    auto.
+  + simpl exit_tycon. simpl exit_cont.
+    unfold loop1_ret_assert, frame_ret_assert.
+    rewrite semax_unfold in H0.
+    intros tx2 vx2.
+    eapply subp_trans'; [ | apply (H0 _ _ _ (tycontext_sub_refl _) Prog_OK2 (Kloop2 body incr :: k) F CLO_incr)].
+    Focus 1. {
+      apply derives_subp.
+      apply andp_derives; auto.
+      rewrite sepcon_comm.
+      apply andp_derives; auto.
+    } Unfocus.
+    clear tx2 vx2.
+    intros ek2 vl2 tx2 vx2.
+    destruct ek2.
+    unfold exit_cont.
+    apply (assert_safe_adj' Espec) with (k:=Kseq (Sloop body incr) :: k); auto.
+    - intros ? ? ? ? ? ? ?.
+      eapply convergent_controls_safe; simpl; eauto.
+      intros q' m' [? [? ?]]; split3; auto. inv H12; econstructor; eauto.
+    - eapply subp_trans'; [ | eapply H1; eauto].
+      apply derives_subp.
+      apply andp_derives; [| rewrite exit_tycon_guard_genv; auto].
+      rewrite funassert_exit_tycon; 
+      apply andp_derives; auto.
+      apply andp_derives; auto.
+      * simpl exit_tycon.
+        intros ? [? ?]; split.
+        hnf in H11|-*.
+        eapply typecheck_environ_update; eauto.
+        simpl in H12|-*; rewrite ret_type_update_tycon in H12; auto.
+      * unfold exit_cont, loop2_ret_assert; normalize.
+        specialize (H3' EK_return vl2 tx2 vx2). simpl exit_tycon in H3'.
+        intros tx4 vx4.
+        unfold frame_ret_assert in H3', vx4.
+        rewrite sepcon_comm; auto.
+    - intros tx4 vx4.
+      unfold frame_ret_assert in H3', vx4|-*.
+      unfold loop2_ret_assert. normalize.
+      repeat intro; normalize.
+    - unfold frame_ret_assert in H3'|-*.
+      unfold loop2_ret_assert. normalize.
+    - unfold frame_ret_assert in H3'|-*.
+      unfold loop2_ret_assert.
+      simpl exit_tycon.
+      specialize (H3' EK_return vl2).
+      eapply subp_trans'; [ | eapply H3'; eauto].
+      auto.
+  + unfold frame_ret_assert, loop1_ret_assert.
+    intros tx4 vx4.
+    eapply subp_trans'; [ | eapply (H3' EK_return) ; eauto].
+     simpl exit_tycon.
+    unfold loop1_ret_assert.
+    auto.
 Qed.
-
+   
 Lemma semax_break:
    forall Delta Q,        semax Espec Delta (Q EK_break None) Sbreak Q.
 Proof.
- intros.
- rewrite semax_unfold; intros.  clear Prog_OK. rename w into n.
- intros te ve w ?.
- specialize (H0 EK_break None te ve w H1).
- simpl exit_cont in H0.
- clear n H1.
- remember ((construct_rho (filter_genv psi) ve te)) as rho.
- revert w H0.
-apply imp_derives; auto.
-rewrite andp_assoc.
-apply andp_derives; auto.
-repeat intro. simpl exit_tycon.
-unfold frame_ret_assert.
-rewrite sepcon_comm.
-eapply andp_derives; try apply H0; auto.
-repeat intro.
-specialize (H0 ora jm H1 H2).
-destruct (@level rmap _ a). constructor.
-apply convergent_controls_safe with (State ve te (break_cont k)); auto.
-simpl.
-
-intros. 
-destruct H3 as [? [? ?]].
-split3; auto.
-
-econstructor; eauto.
+  intros.
+  rewrite semax_unfold; intros.  clear Prog_OK. rename w into n.
+  intros te ve w ?.
+  specialize (H0 EK_break None te ve w H1).
+  simpl exit_cont in H0.
+  clear n H1.
+  remember ((construct_rho (filter_genv psi) ve te)) as rho.
+  revert w H0.
+  apply imp_derives; auto.
+  apply andp_derives; auto.
+  repeat intro. simpl exit_tycon.
+  unfold frame_ret_assert.
+  rewrite sepcon_comm.
+  eapply andp_derives; try apply H0; auto.
+  repeat intro.
+  specialize (H0 ora jm H1 H2).
+  destruct (@level rmap _ a). constructor.
+  apply convergent_controls_safe with (State ve te (break_cont k)); auto.
+  simpl.
+   
+  intros. 
+  destruct H3 as [? [? ?]].
+  split3; auto.
+   
+  econstructor; eauto.
 Qed.
 
 Lemma semax_continue:
@@ -867,7 +929,6 @@ Proof.
  remember ((construct_rho (filter_genv psi) ve te)) as rho.
  revert w H0.
 apply imp_derives; auto.
-rewrite andp_assoc.
 apply andp_derives; auto.
 repeat intro. simpl exit_tycon.
 unfold frame_ret_assert.
