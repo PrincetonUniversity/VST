@@ -431,6 +431,13 @@ Proof.
 intros. destruct d1. destruct d2.  simpl. auto.
 Qed. 
  
+Lemma composite_types_update_dist :
+forall d1 d2, 
+(composite_types (join_tycon (d1) (d2))) =
+(composite_types (d1)).
+Proof.
+intros. destruct d1. destruct d2.  simpl. auto.
+Qed.
 
 Lemma var_types_update_tycon:
   forall c Delta, var_types (update_tycon Delta c) = var_types Delta
@@ -509,6 +516,29 @@ simpl in *. rewrite glob_specs_update_dist.
 auto. 
 Qed.
 
+Lemma composite_types_update_tycon:
+  forall c Delta, composite_types (update_tycon Delta c) = composite_types Delta
+ with
+composite_types_join_labeled : forall Delta e l,
+composite_types (update_tycon Delta (Sswitch e l)) = composite_types Delta. 
+Proof.
++ clear composite_types_update_tycon.
+  assert (forall i Delta, composite_types (initialized i Delta) = composite_types Delta).
+  intros; unfold initialized.
+  destruct ((temp_types Delta)!i); try destruct p; reflexivity.  
+  induction c; intros; try apply H; try reflexivity. 
+  simpl. destruct o. apply H. auto. 
+  simpl. 
+  rewrite IHc2. 
+  auto. 
+  simpl.  rewrite composite_types_update_dist. auto. 
+  auto.
++ clear composite_types_join_labeled.
+  intros. simpl. 
+  destruct l. simpl. auto. 
+  simpl in *. rewrite composite_types_update_dist. 
+  auto. 
+Qed.
 
 Ltac try_false :=
 try  solve[exists false; rewrite orb_false_r; eauto]. 
@@ -1373,3 +1403,10 @@ intros.
 destruct H as [? [? [? [? [? ?]]]]]; repeat split; auto.
 Qed.
 
+Lemma guard_genv_initialized: forall i Delta ge,
+  guard_genv Delta ge -> guard_genv (initialized i Delta) ge.
+Proof.
+  intros.
+  unfold initialized, guard_genv in *.
+  destruct ((temp_types Delta) ! i) as [[? ?]|]; simpl; auto.
+Qed.

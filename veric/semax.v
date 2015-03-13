@@ -102,7 +102,7 @@ Definition rguard  (Espec : OracleKind)
      ALL ek: exitkind, ALL vl: option val, ALL tx: Clight.temp_env, ALL vx : env,
            let rho := construct_rho (filter_genv gx) vx tx in 
            !! guard_environ (Delta ek) (current_function ctl) rho && 
-         (R ek vl rho && funassert (Delta ek) rho) >=> 
+         R ek vl rho && funassert (Delta ek) rho && (!! (guard_genv (Delta ek) gx)) >=> 
                assert_safe Espec gx vx tx (exit_cont ek vl ctl) rho.
 
 Record semaxArg :Type := SemaxArg {
@@ -111,7 +111,6 @@ Record semaxArg :Type := SemaxArg {
  sa_c: statement;
  sa_R: ret_assert
 }.
-
 
 Definition ext_spec_pre' (Espec: OracleKind) (ef: external_function) 
    (x': ext_spec_type OK_spec ef) (ge_s: PTree.t block) 

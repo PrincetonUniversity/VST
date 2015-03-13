@@ -195,7 +195,8 @@ intros ? ?.
 intros ? ? ? ? ?.
 specialize (H0 _ H1 _ H2).
 apply H0.
-destruct H3 as [? [? ?]].
+destruct H3 as [[[? ?] ?] HGG].
+split; auto.
 split; auto.
 split; auto.
 specialize (H ek vl (construct_rho (filter_genv psi) ve te)).
@@ -277,11 +278,10 @@ simpl exit_cont in H0.
 simpl in H0'. clear n H1. remember ((construct_rho (filter_genv psi) ve te)) as rho.
 revert w H0. 
 apply imp_derives; auto.
+apply andp_derives; auto.
 rewrite !andp_assoc.
 apply andp_derives; auto.
 repeat intro. simpl exit_tycon.
-rewrite <- andp_assoc in H0.
-destruct H0; auto.
 unfold frame_ret_assert.
 rewrite sepcon_comm.
 eapply andp_derives; try apply H0; auto.
@@ -479,6 +479,7 @@ eapply subp_trans'; [| apply H1 ].
 apply derives_subp.
 apply andp_derives; auto.
 apply andp_derives; auto.
+apply andp_derives; auto.
 (* apply later_derives. *)
 apply sepcon_derives; auto.
 intros ? ?.
@@ -617,11 +618,12 @@ specialize (H5 k F w4 Hw4).
 assert ((rguard Espec gx (exit_tycon c Delta'') (frame_ret_assert R F) k) w4).
 do 9 intro.
 apply (H9 b b0 b1 b2 y H10 a' H11).
+destruct H12; split; auto; clear H13.
 destruct H12; split; auto.
-destruct H13; split; auto.
-unfold frame_ret_assert in H13|-*.
-clear H12 H14.
-revert a' H11 H13.
+destruct H12; split; auto.
+unfold frame_ret_assert in H14|-*.
+clear H12 H13.
+revert a' H11 H14.
 apply sepcon_subp' with (level w2).
 apply H3.
 auto.
