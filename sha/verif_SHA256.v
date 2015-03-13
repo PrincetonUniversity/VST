@@ -6,10 +6,6 @@ Require Import sha.sha_lemmas.
 
 Local Open Scope logic.
 
-(* BEGIN move these to floyd *)
-
-(* END move these to floyd *)
-
 Lemma body_SHA256: semax_body Vprog Gtot f_SHA256 SHA256_spec.
 Proof.
 start_function.
@@ -30,7 +26,6 @@ drop_LOCAL 1%nat.
 
 forward_call' (* SHA256_Init(&c); *)
    (c).
- repeat split; try repable_signed.
 
 forward_call' (* SHA256_Update(&c,d,n); *)
   (init_s256abs,data,c,d,dsh, Zlength data, kv).

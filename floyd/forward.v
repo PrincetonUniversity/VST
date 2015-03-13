@@ -707,6 +707,23 @@ destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
 destruct (eqb_type t t0); try contradiction; subst; apply I.
 Qed.
 
+Lemma gvar_isptr:
+  forall i v rho, gvar i v rho -> isptr v.
+Proof.
+unfold gvar; intros.
+destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+destruct (ge_of rho i); try contradiction.
+subst; apply I.
+Qed.
+
+Lemma sgvar_isptr:
+  forall i v rho, sgvar i v rho -> isptr v.
+Proof.
+unfold sgvar; intros.
+destruct (ge_of rho i); try contradiction.
+subst; apply I.
+Qed.
+
 Lemma lvar_eval_lvar:
   forall i t v rho, lvar i t v rho -> eval_lvar i t rho = v.
 Proof.
@@ -733,22 +750,106 @@ intros.
  apply lvar_isptr in H; destruct v; try contradiction; reflexivity.
 Qed.
 
+Lemma force_val_sem_cast_neutral_gvar:
+  forall i v rho,
+  gvar i v rho ->
+  Some (force_val (sem_cast_neutral v)) = Some v.
+Proof.
+intros.
+ apply gvar_isptr in H; destruct v; try contradiction; reflexivity.
+Qed.
+
+Lemma force_val_sem_cast_neutral_sgvar:
+  forall i v rho,
+  sgvar i v rho ->
+  Some (force_val (sem_cast_neutral v)) = Some v.
+Proof.
+intros.
+ apply sgvar_isptr in H; destruct v; try contradiction; reflexivity.
+Qed.
+
+Lemma prop_Forall_cons:
+ forall {B}{A} {NB: NatDed B} (P: B) F (a:A) b,
+  P |-- !! F a && !! Forall F b ->
+  P |-- !! Forall F (a::b).
+Proof.
+intros. eapply derives_trans; [apply H |].
+normalize.
+Qed.
+
+Lemma prop_Forall_cons':
+ forall {B}{A} {NB: NatDed B} (P: B) P1 F (a:A) b,
+  P |-- !! (P1 /\ F a) && !! Forall F b ->
+  P |-- !! P1 && !! Forall F (a::b).
+Proof.
+intros. eapply derives_trans; [apply H |].
+normalize. destruct H0; normalize.
+Qed.
+
+Lemma prop_Forall_nil:
+ forall {B}{A} {NB: NatDed B} (P: B)  (F: A -> Prop),
+  P |-- !! Forall F nil.
+Proof.
+intros. apply prop_right; constructor.
+Qed.
+
+Lemma prop_Forall_nil':
+ forall {B}{A} {NB: NatDed B} (P: B)  P1 (F: A -> Prop),
+  P |-- !! P1->
+  P |-- !! P1 && !! Forall F nil.
+Proof.
+intros. eapply derives_trans; [apply H |].
+normalize.
+Qed.
+
+Lemma prop_Forall_cons1:
+ forall {B}{A} {NB: NatDed B} (P: B) (F: A -> Prop) (a:A) b,
+  F a ->
+  P |-- !! Forall F b ->
+  P |-- !! Forall F (a::b).
+Proof.
+intros. eapply derives_trans; [apply H0 |].
+normalize.
+Qed.
+
+Ltac Forall_pTree_from_elements :=
+ cbv beta;
+ entailer;
+ repeat first
+   [ apply prop_Forall_cons1;
+     [unfold check_one_temp_spec, check_one_var_spec; 
+     simpl; auto;
+     solve [eapply force_val_sem_cast_neutral_lvar; eassumption
+              | eapply force_val_sem_cast_neutral_gvar; eassumption
+              | eapply force_val_sem_cast_neutral_sgvar; eassumption
+              | apply force_val_sem_cast_neutral_isptr; auto
+              ]
+     | ]
+   | apply prop_Forall_cons'
+   | apply prop_Forall_cons
+   | apply prop_Forall_nil'
+   | apply prop_Forall_nil
+   ];
+ unfold check_one_temp_spec;
+ simpl PTree.get; 
+ change (@snd ident val) with (fun p: ident*val => let (_,y) := p in y);
+  cbv beta iota; simpl force_val.
+
+Ltac Forall_check_spec :=
+ apply prop_right; repeat constructor; hnf; simpl;
+       first [eapply force_val_sem_cast_neutral_lvar; eassumption
+             | apply force_val_sem_cast_neutral_isptr; auto
+             | idtac
+             ].
+
 Ltac try_solve_Forall_pTree_from_elements :=
   match goal with |- _ |-- !! Forall ?A _ =>
    let ptf := fresh "ptf" in set (ptf := A);
- unfold pTree_from_elements, check_one_temp_spec, check_one_var_spec in ptf; 
+ unfold pTree_from_elements in ptf; 
    simpl in ptf; cbv beta iota in ptf; subst ptf;
- try solve [apply prop_right; repeat constructor; hnf; simpl;
-       first [eapply force_val_sem_cast_neutral_lvar; eassumption
-             | apply force_val_sem_cast_neutral_isptr; auto
-            ]
-     ];
+ try solve [Forall_check_spec];
  entailer;
- try solve [apply prop_right; repeat constructor; hnf; simpl;
-       first [eapply force_val_sem_cast_neutral_lvar; eassumption
-             | apply force_val_sem_cast_neutral_isptr; auto
-            ]
-     ]
+ try solve [Forall_check_spec]
  end.
 
 Ltac forward_call_id1_x_wow witness :=
@@ -764,8 +865,8 @@ let Frame := fresh "Frame" in
  | reflexivity
  | prove_local2ptree | repeat constructor 
  | reflexivity | reflexivity
- | try_solve_Forall_pTree_from_elements
- | try_solve_Forall_pTree_from_elements
+ | Forall_pTree_from_elements
+ | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -792,8 +893,8 @@ let Frame := fresh "Frame" in
  | reflexivity
  | prove_local2ptree | repeat constructor 
  | reflexivity | reflexivity
- | try_solve_Forall_pTree_from_elements
- | try_solve_Forall_pTree_from_elements
+ | Forall_pTree_from_elements
+ | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -819,8 +920,8 @@ let Frame := fresh "Frame" in
  | reflexivity
  | prove_local2ptree | repeat constructor 
  | reflexivity | reflexivity
- | try_solve_Forall_pTree_from_elements
- | try_solve_Forall_pTree_from_elements
+ | Forall_pTree_from_elements
+ | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -843,8 +944,8 @@ let Frame := fresh "Frame" in
  | reflexivity
  | prove_local2ptree | repeat constructor 
  | reflexivity | reflexivity
- | try_solve_Forall_pTree_from_elements
- | try_solve_Forall_pTree_from_elements
+ | Forall_pTree_from_elements
+ | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -866,8 +967,8 @@ let Frame := fresh "Frame" in
  | reflexivity
  | prove_local2ptree | repeat constructor 
  | reflexivity | reflexivity
- | try_solve_Forall_pTree_from_elements
- | try_solve_Forall_pTree_from_elements
+ | Forall_pTree_from_elements
+ | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta iota; try rewrite no_post_exists0; 
     first [reflexivity | extensionality; simpl; reflexivity]

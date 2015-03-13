@@ -215,20 +215,6 @@ Proof.
   forward_call' (Int.repr 8). (* Q = mallocN(sizeof ( *Q)); *)
   computable.
   rename vret into q.
-(*
-  forward_call (* Q' = mallocN(sizeof ( *Q)); *) 
-    (Int.repr 8).
-  (* goal_2 *)
-  entailer!.
-  after_call. (* This expression was strange; better now with clean_up_app_carefully called from after_call *)
-  clear Q'0.
-  apply (remember_value  (eval_id _Q')); intro q.
-  apply semax_pre with
-    (PROP (natural_align_compatible q; isptr q) LOCAL (`(eq q) (eval_id _Q')) 
-    SEP (`(memory_block Tsh (Int.repr 8) q))); [entailer | ].
-  normalize.
-  forward.  (* Q = (struct fifo * ) Q'; *)
-*)
   rewrite memory_block_fifo by auto.
   forward. (* Q->head = NULL; *)
   (* goal_4 *)
@@ -380,71 +366,24 @@ name p _p.
 
 forward_call' (* Q = fifo_new(); *)  tt.
 rename vret into q.
-(*
-forward_call (* Q = fifo_new(); *) tt.
-entailer!.
-auto with closed.
-after_call.
-apply (remember_value (eval_id _Q)); intro q.
-*)
 
 forward_call'  (*  p = make_elem(1,10); *)
      (Int.repr 1, Int.repr 10).
 rename vret into p'.
-(*
-forward_call (*  p = make_elem(1,10); *)
-   (Int.repr 1, Int.repr 10).
-entailer!.
-auto with closed.
-after_call.
-apply (remember_value (eval_id _p)); intro p'.
-*)
 unfold elemrep; normalize.
 
 forward_call' (* fifo_put(Q,p);*) 
     ((q, @nil val),p').
-(*
-forward_call (* fifo_put(Q,p);*)
-    ((q, @nil val),p').
-unfold elemrep; entailer!.
-after_call.
-simpl.
-*)
 forward_call'  (*  p = make_elem(2,20); *)
      (Int.repr 2, Int.repr 20).
 rename vret into p2.
-(*
-forward_call (*  p = make_elem(2,20); *)
-    (Int.repr 2, Int.repr 20).
-unfold elemrep; entailer!.
-auto with closed.
-after_call.
- apply (remember_value (eval_id _p)); intro p2.
-*)
-
  forward_call'  (* fifo_put(Q,p); *)
     ((q,(p':: nil)),p2).
  unfold elemrep; entailer; cancel.
 simpl.
-(*
- forward_call  (* fifo_put(Q,p); *)
-    ((q,(p':: nil)),p2).
- unfold elemrep; entailer!.
-after_call.
-simpl.
-*)
 forward_call'  (*   p' = fifo_get(Q); p = p'; *)
     ((q,(p2 :: nil)),p').
 subst vret.
-(*
-forward_call (*   p' = fifo_get(Q); p = p'; *)
-  ((q,(p2 :: nil)),p').
- entailer!.
- auto 50 with closed.
-after_call.
-normalize.
- subst p1 p3.
-*)
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
 
@@ -458,24 +397,6 @@ forward_call' (*  freeN(p, sizeof( *p)); *)
  rewrite data_at__memory_block by reflexivity. entailer.
 }
 unfold map.
-(*
-forward_call (*  freeN(p, sizeof( *p)); *)
-   (p', Int.repr (sizeof t_struct_elem)).
- {
-  entailer.
-  change 12 with (sizeof t_struct_elem).
-  eapply derives_trans; [ | apply sepcon_derives; [| apply derives_refl]].
-
-  instantiate (1:= field_at_ Tsh t_struct_elem [StructField _next] p' *
-   field_at Tsh t_struct_elem [StructField _a] (Vint (Int.repr 1)) p' *
-   field_at Tsh t_struct_elem [StructField _b] (Vint (Int.repr 10)) p'). cancel.
-
-  apply derives_trans with (data_at_ Tsh t_struct_elem p'). unfold data_at_. 
-  unfold_data_at 1%nat; cancel.
-  rewrite data_at__memory_block by reflexivity.
-  apply andp_left2; apply derives_refl.
-} after_call.
-*)
 forward. (* return i+j; *)
 unfold main_post.
 entailer!.
