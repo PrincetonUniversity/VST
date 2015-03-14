@@ -439,6 +439,14 @@ Proof.
 intros. destruct d1. destruct d2.  simpl. auto.
 Qed.
 
+Lemma func_tycontext'_update_dist :
+forall f d1 d2, 
+(func_tycontext' f (join_tycon (d1) (d2))) =
+(func_tycontext' f (d1)).
+Proof.
+  intros. destruct d1. destruct d2.  simpl. auto.
+Qed.
+
 Lemma var_types_update_tycon:
   forall c Delta, var_types (update_tycon Delta c) = var_types Delta
 with
@@ -538,6 +546,54 @@ Proof.
   destruct l. simpl. auto. 
   simpl in *. rewrite composite_types_update_dist. 
   auto. 
+Qed.
+
+Lemma ret_type_join_tycon:
+  forall Delta Delta', ret_type (join_tycon Delta Delta') = ret_type Delta.
+Proof.
+ intros; destruct Delta, Delta'; reflexivity.
+Qed.
+
+Lemma ret_type_update_tycon:
+  forall Delta c, ret_type (update_tycon Delta c) = ret_type Delta
+with ret_type_join_tycon_labeled: forall l Delta,
+  ret_type (join_tycon_labeled l Delta) = ret_type Delta.
+Proof.
+  intros. revert Delta; induction c; simpl; intros; try destruct o; auto;
+ try (unfold initialized;  destruct ((temp_types Delta)!i); try destruct p; auto).
+ rewrite IHc2; auto.
+ rewrite ret_type_join_tycon. auto.
+
+ induction l; simpl; intros; auto. rewrite ret_type_join_tycon. auto. 
+Qed.
+
+Lemma func_tycontext'_update_tycon: forall Delta c f,
+  func_tycontext' f (update_tycon Delta c) = func_tycontext' f Delta
+with func_tycontext'_join_labeled: forall Delta l f,
+  func_tycontext' f (join_tycon_labeled l Delta) = func_tycontext' f Delta.
+Proof.
++ clear func_tycontext'_update_tycon.
+  assert (forall i f Delta, func_tycontext' f (initialized i Delta) = func_tycontext' f Delta).
+  intros; unfold initialized.
+  destruct ((temp_types Delta)!i); try destruct p; reflexivity.  
+  intros; revert Delta; induction c; intros; try apply H; try reflexivity. 
+  simpl. destruct o. apply H. auto. 
+  simpl. 
+  rewrite IHc2. 
+  auto. 
+  simpl.  rewrite func_tycontext'_update_dist. auto.
+  apply func_tycontext'_join_labeled.
++ clear func_tycontext'_join_labeled.
+  intros. simpl. 
+  destruct l. simpl. auto. 
+  simpl in *. rewrite func_tycontext'_update_dist. 
+  auto. 
+Qed.
+
+Lemma ret_type_exit_tycon:
+  forall c Delta ek, ret_type (exit_tycon c Delta ek) = ret_type Delta.
+Proof. 
+ destruct ek; try reflexivity. unfold exit_tycon. apply ret_type_update_tycon.
 Qed.
 
 Ltac try_false :=
@@ -1410,3 +1466,30 @@ Proof.
   unfold initialized, guard_genv in *.
   destruct ((temp_types Delta) ! i) as [[? ?]|]; simpl; auto.
 Qed.
+
+Lemma join_tycon_guard_genv: forall Delta Delta' ge,
+  guard_genv (join_tycon Delta Delta') ge = guard_genv Delta ge.
+Proof.
+  intros.
+  unfold guard_genv, join_tycon in *.
+  destruct Delta, Delta'.
+  auto.
+Qed.
+
+Lemma update_tycon_guard_genv: forall c Delta ge,
+  guard_genv (update_tycon Delta c) ge = guard_genv Delta ge.
+Proof.
+  intros.
+  unfold guard_genv in *.
+  rewrite composite_types_update_tycon.
+  auto.
+Qed.
+
+Lemma exit_tycon_guard_genv: forall c ek Delta ge,
+  guard_genv (exit_tycon c Delta ek) ge = guard_genv Delta ge.
+Proof.
+  intros.
+  destruct ek; simpl; auto.
+  apply update_tycon_guard_genv.
+Qed.
+

@@ -362,6 +362,25 @@ Proof.
     (erewrite <- sizeof_sub; [exact H0 | auto | auto]).
 Qed.
 
+Lemma force_val2_sem_binary_operation'_sub: forall b e1 e2 t rho,
+  typecheck_val (eval_expr Delta e1 rho) (typeof e1) = true ->
+  typecheck_val (eval_expr Delta e2 rho) (typeof e2) = true ->
+  denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho ->
+  force_val2 (sem_binary_operation' Delta b (typeof e1) (typeof e2) true2) (eval_expr Delta e1 rho) (eval_expr Delta e2 rho) =
+  force_val2 (sem_binary_operation' Delta' b (typeof e1) (typeof e2) true2) (eval_expr Delta e1 rho) (eval_expr Delta e2 rho).
+Proof.
+  intros.
+  unfold force_val2.
+  pose proof binop_lemmas.typecheck_binop_sound _ _ _ _ _ _ H1 H0 H.
+  simpl in H2.
+  destruct (sem_binary_operation' Delta b (typeof e1) 
+             (typeof e2) true2 (eval_expr Delta e1 rho) (eval_expr Delta e2 rho)) eqn:?.
+  - eapply sem_binary_operation'_sub in Heqo; [| eauto].
+    rewrite Heqo.
+    reflexivity.
+  - destruct t; inv H2.
+Qed.
+
 Lemma isBinOpResultType_sub: forall b e1 e2 t rho
   (eqe1: eval_expr Delta e1 rho = eval_expr Delta' e1 rho)
   (eqe2: eval_expr Delta e2 rho = eval_expr Delta' e2 rho),
@@ -514,18 +533,9 @@ Proof.
     pose proof typecheck_expr_sound _ _ _ HH H0.
     pose proof typecheck_expr_sound _ _ _ HH H1.
     rewrite tc_val_eq in H2, H3.
-    pose proof binop_lemmas.typecheck_binop_sound _ _ _ _ _ _ H H3 H2.
-    simpl in H4.
-    unfold force_val2.
-    destruct (sem_binary_operation' Delta b (typeof e1) 
-               (typeof e2) true2 (eval_expr Delta e1 rho)
-               (eval_expr Delta e2 rho)) eqn:?.
-    - eapply sem_binary_operation'_sub in Heqo; [| eauto].
-      erewrite <- (proj1 IHe1) with (w := w) by eauto.
-      erewrite <- (proj1 IHe2) with (w := w) by eauto.
-      rewrite Heqo.
-      reflexivity.
-    - destruct t; inv H4.
+    erewrite <- (proj1 IHe1) with (w := w) by eauto.
+    erewrite <- (proj1 IHe2) with (w := w) by eauto.
+    apply force_val2_sem_binary_operation'_sub with (t := t); auto.
   + simpl in H.
     rewrite !denote_tc_assert_andp in H.
     erewrite (proj1 IHe) with (w := w) by tauto.

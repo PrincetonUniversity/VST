@@ -37,6 +37,7 @@ Lemma semax_straight_simple:
               rho = construct_rho (filter_genv ge) ve te  ->
               age jm jm1 ->
               ((F rho * |>P rho) && funassert Delta' rho) (m_phi jm) ->
+              guard_genv Delta' ge ->
               exists jm', exists te', exists rho',
                 rho' = mkEnviron (ge_of rho) (ve_of rho) (make_tenv te') /\
                 level jm = S (level jm') /\
@@ -47,7 +48,7 @@ Lemma semax_straight_simple:
   semax Espec Delta (fun rho => B rho && |> P rho) c (normal_ret_assert Q).
 Proof.
 intros until Q; intros EB Hc.
-rewrite semax_unfold. 
+rewrite semax_unfold.
 intros psi Delta' n TS _ k F Hcl Hsafe te ve w Hx w0 H Hglob.
 apply nec_nat in Hx.
 apply (pred_nec_hereditary _ _ _ Hx) in Hsafe.
@@ -57,14 +58,12 @@ clear H w.
 rename w0 into w.
 apply assert_safe_last'; intro Hage.
 intros ora jm _ H2. subst w.
-rewrite andp_assoc in Hglob.
-destruct Hglob as [TC'  Hglob].
+destruct Hglob as [[[TC' Hglob] Hglob'] HGG].
 apply can_age_jm in Hage; destruct Hage as [jm1 Hage].
-destruct Hglob as [Hglob Hglob'].
 apply extend_sepcon_andp in Hglob; auto.
 destruct Hglob as [TC2 Hglob].
 specialize (Hc jm jm1 Delta' psi ve te _ k F TS TC2 TC' Hcl (eq_refl _) Hage).
-specialize (Hc (conj Hglob Hglob')); clear Hglob Hglob'.
+specialize (Hc (conj Hglob Hglob') HGG); clear Hglob Hglob'.
 destruct Hc as [jm' [te' [rho' [H9 [H2 [TC'' [H3 H4]]]]]]].
 change (@level rmap _  (m_phi jm) = S (level (m_phi jm'))) in H2.
 rewrite H2 in Hsafe.
@@ -78,17 +77,21 @@ change R.rmap with rmap; omega.
 specialize (Hsafe _ (necR_refl _)).
 spec Hsafe.
 split; auto.
+split; auto.
+split; auto.
 subst rho'; auto.
-destruct H4; split; auto.
+destruct H4.
 subst rho'.
 unfold normal_ret_assert.
 unfold frame_ret_assert in *.
 rewrite prop_true_andp by auto.
 rewrite prop_true_andp by auto.
 rewrite sepcon_comm; auto.
+destruct H4.
 replace (funassert (exit_tycon c Delta' EK_normal)) with (funassert Delta'); auto.
 apply same_glob_funassert; simpl; auto.
 rewrite glob_specs_update_tycon; auto.
+rewrite exit_tycon_guard_genv. auto.
 subst rho'. 
 hnf in Hsafe.
 change R.rmap with rmap in *.
@@ -162,10 +165,8 @@ simpl in H3.
 unfold nonunit in x5. 
 destruct (x5 sh). auto. 
 destruct H4.  repeat split. omega. 
-destruct m; simpl; omega.  
-
+destruct m; simpl; omega.
 Qed. 
-
 
 Lemma mapsto_is_pointer : forall sh t m v,
 mapsto_ sh t v m ->
@@ -185,16 +186,16 @@ Lemma pointer_cmp_eval :
    forall (jm : juicy_mem) (rho : environ),
    (tc_expr Delta e1 rho) (m_phi jm) ->
    (tc_expr Delta e2 rho) (m_phi jm) ->
-   blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) ->
+   blocks_match cmp (eval_expr Delta e1 rho) (eval_expr Delta e2 rho) ->
    typecheck_environ Delta rho ->
-   (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT)%pred (m_phi jm) ->
-   (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT)%pred (m_phi jm) ->
-   Cop.sem_binary_operation cmp (eval_expr e1 rho) 
-     (typeof e1) (eval_expr e2 rho) (typeof e2) (m_dry jm) =
+   (mapsto_ sh1 (typeof e1) (eval_expr Delta e1 rho) * TT)%pred (m_phi jm) ->
+   (mapsto_ sh2 (typeof e2) (eval_expr Delta e2 rho) * TT)%pred (m_phi jm) ->
+   Cop.sem_binary_operation (composite_types Delta) cmp (eval_expr Delta e1 rho) 
+     (typeof e1) (eval_expr Delta e2 rho) (typeof e2) (m_dry jm) =
   Some
      (force_val
-        (sem_binary_operation' cmp (typeof e1) (typeof e2) true2 
-           (eval_expr e1 rho) (eval_expr e2 rho))). 
+        (sem_binary_operation' Delta cmp (typeof e1) (typeof e2) true2 
+           (eval_expr Delta e1 rho) (eval_expr Delta e2 rho))). 
 Proof.
 intros until rho. intros ? ? BM.  intros.
 unfold Cop.sem_binary_operation, sem_cmp.  
@@ -251,21 +252,21 @@ Lemma pointer_cmp_no_mem_bool_type :
    forall (Delta : tycontext) cmp (e1 e2 : expr) sh1 sh2 x1 x b1 o1 b2 o2 i3 s3,
    is_comparison cmp = true->
    forall (rho : environ),
-   eval_expr e1 rho = Vptr b1 o1 ->
-   eval_expr e2 rho = Vptr b2 o2 ->
-   blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) ->
-   denote_tc_assert (typecheck_expr Delta e1) rho ->
-   denote_tc_assert (typecheck_expr Delta e2) rho ->
+   eval_expr Delta e1 rho = Vptr b1 o1 ->
+   eval_expr Delta e2 rho = Vptr b2 o2 ->
+   blocks_match cmp (eval_expr Delta e1 rho) (eval_expr Delta e2 rho) ->
+   denote_tc_assert Delta (typecheck_expr Delta e1) rho ->
+   denote_tc_assert Delta (typecheck_expr Delta e2) rho ->
    (mapsto_ sh1 (typeof e1)
-      (eval_expr e1 rho)) x ->
+      (eval_expr Delta e1 rho)) x ->
    (mapsto_ sh2 (typeof e2)
-      (eval_expr e2 rho)) x1 ->
+      (eval_expr Delta e2 rho)) x1 ->
    typecheck_environ Delta rho ->
     is_int i3 s3
      (force_val
-        (sem_binary_operation' cmp (typeof e1) (typeof e2) true2
-           (eval_expr e1 rho)
-           (eval_expr e2 rho))).
+        (sem_binary_operation' Delta cmp (typeof e1) (typeof e2) true2
+           (eval_expr Delta e1 rho)
+           (eval_expr Delta e2 rho))).
 Proof.
 intros. 
 apply typecheck_both_sound in H4; auto. 
@@ -274,8 +275,8 @@ rewrite tc_val_eq' in *.
 rewrite H0 in *. 
 rewrite H1 in *. 
 unfold sem_binary_operation'.
-destruct (typeof e1) as [ | | | [ | ] | | | | | | ]; try solve[simpl in *; try contradiction; try congruence]; 
-destruct (typeof e2) as [ | | | [ | ] | | | | | | ]; try solve[simpl in *; try contradiction; try congruence].
+destruct (typeof e1) as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence]; 
+destruct (typeof e2) as [ | | | [ | ] | | | | | ]; try solve[simpl in *; try contradiction; try congruence].
 unfold sem_cmp. unfold sem_cmp_pp.
 destruct cmp; inv H;
 unfold sem_cmp; simpl;
@@ -290,8 +291,8 @@ compute; try split; congruence.
 Opaque Int.repr.
 Qed.
  
-Definition weak_mapsto_ sh e rho :=
-match (eval_expr e rho) with
+Definition weak_mapsto_ Delta sh e rho :=
+match (eval_expr Delta e rho) with
 | Vptr b o => (mapsto_ sh (typeof e) (Vptr b o)) || 
               (mapsto_ sh (typeof e) (Vptr b o))
 | _ => FF
@@ -308,6 +309,33 @@ Proof. intros. hnf.
  exists x; exists c; split; auto.
 Qed.
 
+Lemma cmp_sem_binary_operation'_sub: forall Delta Delta' e1 e2 cmp v1 v2,
+  is_comparison cmp = true  ->
+  force_val2
+    (sem_binary_operation' Delta cmp (typeof e1) (typeof e2) true2)
+    v1 v2 =
+  force_val2
+    (sem_binary_operation' Delta' cmp (typeof e1) (typeof e2) true2)
+    v1 v2.
+Proof.
+  intros.
+  unfold force_val2.
+  destruct cmp; try solve [inversion H];
+  simpl; auto.
+Qed.
+
+Lemma cmp_Cop_sem_binary_operation_guard_genv: forall Delta ge,
+  guard_genv Delta ge ->
+  forall cmp v1 e1 v2 e2 m,
+  is_comparison cmp = true  ->
+  Cop.sem_binary_operation (composite_types Delta) cmp v1 (typeof e1) v2 (typeof e2) m =
+    Cop.sem_binary_operation ge cmp v1 (typeof e1) v2 (typeof e2) m.
+Proof.
+  intros.
+  destruct cmp; try solve [inversion H0];
+  simpl; auto.
+Qed.
+
 Lemma semax_ptr_compare : 
 forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
     is_comparison cmp = true  ->
@@ -316,164 +344,181 @@ forall (Delta: tycontext) (P: assert) id cmp e1 e2 ty sh1 sh2,
         (fun rho => 
           |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  && 
           
-          !!(blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho)) &&
-          (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) && 
-          (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) && 
+          !!(blocks_match cmp (eval_expr Delta e1 rho) (eval_expr Delta e2 rho)) &&
+          (mapsto_ sh1 (typeof e1) (eval_expr Delta e1 rho) * TT) && 
+          (mapsto_ sh2 (typeof e2) (eval_expr Delta e2 rho) * TT) && 
           P rho)) 
           (Sset id (Ebinop cmp e1 e2 ty)) 
         (normal_ret_assert 
           (fun rho => (EX old:val, 
                  !!(eval_id id rho =  subst id old 
-                     (eval_expr (Ebinop cmp e1 e2 ty)) rho) &&
+                     (eval_expr Delta (Ebinop cmp e1 e2 ty)) rho) &&
                             subst id old P rho))).
 Proof. 
-intros until sh2.
-replace (fun rho : environ =>
-   |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  && 
-           !!blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) &&
-          (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) && 
-          (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) && 
-          P rho)) 
- with (fun rho : environ =>
-     (|> tc_expr Delta e1 rho &&
-      |> tc_expr Delta e2 rho &&
-      |> !!blocks_match cmp (eval_expr e1 rho) (eval_expr e2 rho) &&
-      |> (mapsto_ sh1 (typeof e1) (eval_expr e1 rho) * TT) && 
-      |> (mapsto_ sh2 (typeof e2) (eval_expr e2 rho) * TT) && 
-      |> P rho)) 
-  by (extensionality rho;  repeat rewrite later_andp; auto).
-intros CMP TC2. 
-apply semax_straight_simple; auto.
-intros; repeat apply boxy_andp; auto;  apply extend_later'; apply extend_sepcon_TT.
-intros jm jm' Delta' ge vx tx rho k F TS [[[[TC3 TC1]  TC4] MT1] MT2] TC' Hcl Hge ? ?.
-specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
-specialize (TC1 (m_phi jm') (age_laterR (age_jm_phi H))).
-specialize (TC4 (m_phi jm') (age_laterR (age_jm_phi H))). 
-specialize (MT1 (m_phi jm') (age_laterR (age_jm_phi H))). 
-specialize (MT2 (m_phi jm') (age_laterR (age_jm_phi H))).
-apply (typecheck_tid_ptr_compare_sub _ _ TS) in TC2.
-apply (tc_expr_sub _ _ TS) in TC3.
-apply (tc_expr_sub _ _ TS) in TC1.
-clear Delta TS.
-exists jm', (PTree.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) (tx)).
-econstructor.
-split.
-reflexivity.
-split3; auto.
-apply age_level; auto.
-normalize in H0.
-
-clear H H0. 
-simpl. rewrite <- map_ptree_rel.
-
-apply guard_environ_put_te'; auto. subst. simpl.
-unfold construct_rho in *; auto.
-
-intros. 
-
-
-simpl in TC2. unfold typecheck_tid_ptr_compare in *.
-rewrite H in TC2.
-destruct t as [t b].
-unfold guard_environ in *. 
-destruct TC' as [TC' TC''].
-
-
-destruct MT1 as [? [? [J1 [MT1 _]]]]. 
-destruct MT2 as [? [? [J2 [MT2 _]]]]. 
-destruct (mapsto_is_pointer _ _ _ _ MT1) as [? [? ?]]. 
-destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]]. 
-
-
-
-destruct t; inv TC2.  
-simpl. super_unfold_lift.
-simpl.
-rewrite tc_val_eq'.
-eapply  pointer_cmp_no_mem_bool_type; eauto. 
-apply TC3. 
-apply TC1.  
-
-destruct H0.
-split; auto.
-simpl.
-split3; auto.
-destruct (age1_juicy_mem_unpack _ _ H).
-rewrite <- H3.
-econstructor; eauto.
-
-(*start new proof*)
-rewrite Hge in *. 
-destruct TC'; simpl in H4, TC3, TC1.
-rewrite <- Hge in *.
-eapply Clight.eval_Ebinop.
-eapply eval_expr_relate; eauto. 
-eapply eval_expr_relate; eauto.
-rewrite H3. 
-super_unfold_lift.
-destruct MT1 as [? [? [J1 [MT1 _]]]]. 
-destruct MT2 as [? [? [J2 [MT2 _]]]]. 
-destruct (mapsto_is_pointer _ _ _ _ MT1) as [? [? ?]]. 
-destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]]. 
-rewrite H6. rewrite H7. unfold eval_binop. 
-rewrite <- H6. rewrite <- H7. clear H6 H7.
-
-apply (pointer_cmp_eval Delta' cmp e1 e2 sh1 sh2); eauto; simpl; eauto.
-
-apply age1_resource_decay; auto.
-apply age_level; auto.
-
-split.
-2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
-
-assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
-rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto.
-assert (laterR (m_phi jm) (m_phi jm')).
-constructor 1.
-destruct (age1_juicy_mem_unpack _ _ H); auto.
-specialize (H2 _ H3).
-eapply sepcon_derives; try  apply H2; auto.
-clear - Hcl Hge.
-rewrite <- map_ptree_rel. 
-specialize (Hcl rho (Map.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) (make_tenv tx))).
-rewrite <- Hcl; auto.
-intros.
-destruct (eq_dec id i).
-subst.
-left. unfold modifiedvars. simpl.
- unfold insert_idset; rewrite PTree.gss; hnf; auto.
-right.
-rewrite Map.gso; auto. subst; auto.
-apply exp_right with (eval_id id rho).
-rewrite <- map_ptree_rel.
-assert (env_set
-         (mkEnviron (ge_of rho) (ve_of rho)
-            (Map.set id (eval_expr (Ebinop cmp e1 e2 ty) rho) (make_tenv tx))) id (eval_id id rho) = rho).
-  unfold env_set; 
-  f_equal.
-  unfold eval_id; simpl.
-  rewrite Map.override.
-  rewrite Map.override_same. subst; auto.
-  rewrite Hge in TC'. 
-  destruct TC' as [TC' _].    
-  destruct TC' as [TC' _]. unfold typecheck_temp_environ in *.
-  simpl in TC2. unfold typecheck_tid_ptr_compare in *. remember ((temp_types Delta') ! id).
-  destruct o; [ | inv TC2]. symmetry in Heqo. destruct p.
-  specialize (TC' _ _ _ Heqo). destruct TC'. destruct H4. 
-simpl in H4. 
-rewrite H4. simpl.
-  f_equal. rewrite Hge; simpl. rewrite H4. reflexivity.
-apply andp_right.
-intros ? _. simpl.
-unfold subst.
-simpl in H4. super_unfold_lift.
-rewrite H4.
-unfold eval_id at 1. unfold force_val; simpl.
-rewrite Map.gss. auto. 
-simpl. simpl in H4. super_unfold_lift.
-unfold subst. 
-rewrite H4.
-auto. 
+  intros until sh2.
+  replace (fun rho : environ =>
+     |> (tc_expr Delta e1 rho && tc_expr Delta e2 rho  && 
+             !!blocks_match cmp (eval_expr Delta e1 rho) (eval_expr Delta e2 rho) &&
+            (mapsto_ sh1 (typeof e1) (eval_expr Delta e1 rho) * TT) && 
+            (mapsto_ sh2 (typeof e2) (eval_expr Delta e2 rho) * TT) && 
+            P rho)) 
+    with (fun rho : environ =>
+       (|> tc_expr Delta e1 rho &&
+        |> tc_expr Delta e2 rho &&
+        |> !!blocks_match cmp (eval_expr Delta e1 rho) (eval_expr Delta e2 rho) &&
+        |> (mapsto_ sh1 (typeof e1) (eval_expr Delta e1 rho) * TT) && 
+        |> (mapsto_ sh2 (typeof e2) (eval_expr Delta e2 rho) * TT) && 
+        |> P rho)) 
+    by (extensionality rho;  repeat rewrite later_andp; auto).
+  intros CMP TC2.
+  apply semax_straight_simple; auto.
+  intros; repeat apply boxy_andp; auto;  apply extend_later'; apply extend_sepcon_TT.
+  intros jm jm' Delta' ge vx tx rho k F TS [[[[TC3 TC1]  TC4] MT1] MT2] TC' Hcl Hge ? ? HGG.
+  specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
+  specialize (TC1 (m_phi jm') (age_laterR (age_jm_phi H))).
+  specialize (TC4 (m_phi jm') (age_laterR (age_jm_phi H))). 
+  specialize (MT1 (m_phi jm') (age_laterR (age_jm_phi H))). 
+  specialize (MT2 (m_phi jm') (age_laterR (age_jm_phi H))).
+  apply (typecheck_tid_ptr_compare_sub _ _ TS) in TC2.
+  pose proof TC1 as TC1'.
+  pose proof TC3 as TC3'.
+  assert (typecheck_environ Delta rho) as TYCON_ENV
+    by (destruct TC' as [TC' TC'']; eapply typecheck_environ_sub; eauto).
+  apply (tc_expr_sub _ _ TS) in TC3'; [| auto].
+  apply (tc_expr_sub _ _ TS) in TC1'; [| auto].
+  exists jm', (PTree.set id (eval_expr Delta (Ebinop cmp e1 e2 ty) rho) (tx)).
+  econstructor.
+  split; [reflexivity |].
+  split3; auto.
+  + apply age_level; auto.
+  + normalize in H0.
+    clear H H0. 
+    simpl. rewrite <- map_ptree_rel.
+    
+    apply guard_environ_put_te'; auto. subst. simpl.
+    unfold construct_rho in *; auto.
+   
+    intros. 
+     
+    destruct TC' as [TC' TC'']. 
+    simpl in TC2. unfold typecheck_tid_ptr_compare in *.
+    rewrite H in TC2.
+    destruct t as [t b].
+    unfold guard_environ in *. 
+   
+   
+    destruct MT1 as [? [? [J1 [MT1 _]]]]. 
+    destruct MT2 as [? [? [J2 [MT2 _]]]]. 
+    destruct (mapsto_is_pointer _ _ _ _ MT1) as [? [? ?]]. 
+    destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]]. 
+     
+     
+     
+    destruct t; inv TC2.  
+    simpl. super_unfold_lift.
+    simpl.
+    rewrite tc_val_eq'.
+    eapply  pointer_cmp_no_mem_bool_type; eauto. 
+  + destruct H0.
+    split; auto.
+    - simpl.
+      split3; auto.
+      Focus 2. {
+        apply age1_resource_decay; auto.
+      } Unfocus.
+      Focus 2. {
+        apply age_level; auto.      
+      } Unfocus.
+      destruct (age1_juicy_mem_unpack _ _ H).
+      rewrite <- H3.
+      econstructor; eauto.
+      
+      (*start new proof*)
+      rewrite Hge in *.
+      destruct TC'; simpl in H4, TC3, TC1.
+      rewrite <- Hge in *.
+      eapply Clight.eval_Ebinop.
+      1: eapply eval_expr_relate; eauto.
+      1: eapply eval_expr_relate; eauto.
+      rewrite H3. 
+      super_unfold_lift.
+      destruct MT1 as [? [? [J1 [MT1 _]]]]. 
+      destruct MT2 as [? [? [J2 [MT2 _]]]]. 
+      destruct (mapsto_is_pointer _ _ _ _ MT1) as [? [? ?]]. 
+      destruct (mapsto_is_pointer _ _ _ _ MT2) as [? [? ?]]. 
+      rewrite H6. rewrite H7. unfold eval_binop. 
+      rewrite <- H6. rewrite <- H7. clear H6 H7.
+      rewrite <- !eval_expr_sub with (Delta := Delta) (Delta' := Delta') (w := x) by eauto.
+      erewrite cmp_sem_binary_operation'_sub with (Delta' := Delta') by eauto.
+      erewrite <- cmp_Cop_sem_binary_operation_guard_genv by eauto.
+      rewrite !eval_expr_sub with (Delta := Delta) (Delta' := Delta') (w := x) by eauto.
+      apply (pointer_cmp_eval Delta' cmp e1 e2 sh1 sh2); auto;
+      rewrite <- !eval_expr_sub with (Delta := Delta) (Delta' := Delta') (w := x) by eauto;
+      eauto; simpl; eauto.
+    - split.
+      2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
+      assert (app_pred (|>  (F rho * P rho)) (m_phi jm)).
+      Focus 1. {
+        rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto.
+      } Unfocus.
+      assert (laterR (m_phi jm) (m_phi jm')).
+      Focus 1. {
+        constructor 1.
+        destruct (age1_juicy_mem_unpack _ _ H); auto.
+      } Unfocus.
+      specialize (H2 _ H3).
+      eapply sepcon_derives; try  apply H2; auto.
+      * clear - Hcl Hge.
+        rewrite <- map_ptree_rel. 
+        specialize (Hcl rho (Map.set id (eval_expr Delta (Ebinop cmp e1 e2 ty) rho) (make_tenv tx))).
+        rewrite <- Hcl; auto.
+        intros.
+        destruct (eq_dec id i).
+        {
+          subst.
+          left. unfold modifiedvars. simpl.
+          unfold insert_idset; rewrite PTree.gss; hnf; auto.
+        }
+        {
+          right.
+          rewrite Map.gso; auto. subst; auto.
+        }
+      * apply exp_right with (eval_id id rho).
+        rewrite <- map_ptree_rel.
+        assert (env_set
+                 (mkEnviron (ge_of rho) (ve_of rho)
+                    (Map.set id (eval_expr Delta (Ebinop cmp e1 e2 ty) rho) (make_tenv tx))) id (eval_id id rho) = rho).
+        Focus 1. {
+          unfold env_set; 
+          f_equal.
+          unfold eval_id; simpl.
+          rewrite Map.override.
+          rewrite Map.override_same. subst; auto.
+          rewrite Hge in TC'. 
+          destruct TC' as [TC' _].    
+          destruct TC' as [TC' _]. unfold typecheck_temp_environ in *.
+          simpl in TC2. unfold typecheck_tid_ptr_compare in *. remember ((temp_types Delta') ! id).
+          destruct o; [ | inv TC2]. symmetry in Heqo. destruct p.
+          specialize (TC' _ _ _ Heqo). destruct TC'. destruct H4. 
+          simpl in H4. 
+          rewrite H4. simpl.
+            f_equal. rewrite Hge; simpl. rewrite H4. reflexivity.
+        } Unfocus.
+        apply andp_right.
+        {
+          intros ? _. simpl.
+          unfold subst.
+          simpl in H4. super_unfold_lift.
+          rewrite H4.
+          unfold eval_id at 1. unfold force_val; simpl.
+          rewrite Map.gss. auto.
+        }
+        {
+          simpl. simpl in H4. super_unfold_lift.
+          unfold subst. 
+          rewrite H4.
+          auto.
+        }
 Qed.
 
 Lemma semax_set_forward : 
@@ -484,7 +529,7 @@ forall (Delta: tycontext) (P: assert) id e,
           (Sset id e) 
         (normal_ret_assert 
           (fun rho => (EX old:val, 
-                 !! (eval_id id rho =  subst id old (eval_expr e) rho) &&
+                 !! (eval_id id rho =  subst id old (eval_expr Delta e) rho) &&
                             subst id old P rho))).
 Proof.
 intros until e.
@@ -502,8 +547,7 @@ specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
 specialize (TC2 (m_phi jm') (age_laterR (age_jm_phi H))). 
 apply (tc_expr_sub _ _ TS) in TC3.
 apply (tc_temp_id_sub _ _ TS) in TC2.
-clear Delta TS.
-exists jm', (PTree.set id (eval_expr e rho) (tx)).
+exists jm', (PTree.set id (eval_expr Delta e rho) (tx)).
 econstructor.
 split.
 reflexivity.

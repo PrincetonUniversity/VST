@@ -549,25 +549,6 @@ intros.
 intros n ?. eapply H; eauto.
 Qed.
 
-Lemma same_glob_funassert:
-  forall Delta1 Delta2,
-     (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
-              funassert Delta1 = funassert Delta2.
-Proof.
-assert (forall Delta Delta' rho, 
-             (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id) ->
-             funassert Delta rho |-- funassert Delta' rho).
-intros.
-unfold funassert.
-intros w [? ?]; split.
-clear H1; intro id. rewrite <- (H id); auto.
-intros loc fs w' Hw' H4; destruct (H1 loc fs w' Hw' H4)  as [id H3].
-exists id; rewrite <- (H id); auto.
-intros.
-extensionality rho.
-apply pred_ext; apply H; intros; auto.
-Qed.
-
 Lemma guard_environ_sub:
   forall {Delta Delta' f rho},
    tycontext_sub Delta Delta' ->

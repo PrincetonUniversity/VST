@@ -846,6 +846,49 @@ Qed.
 Hint Resolve extend_tc_expr extend_tc_temp_id extend_tc_temp_id_load extend_tc_exprlist extend_tc_lvalue.
 Hint Resolve (@extendM_refl rmap _ _ _ _ _).
 
+Lemma same_glob_funassert:
+  forall Delta1 Delta2,
+     (forall id, (glob_specs Delta1) ! id = (glob_specs Delta2) ! id) ->
+              funassert Delta1 = funassert Delta2.
+Proof.
+assert (forall Delta Delta' rho, 
+             (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id) ->
+             funassert Delta rho |-- funassert Delta' rho).
+intros.
+unfold funassert.
+intros w [? ?]; split.
+clear H1; intro id. rewrite <- (H id); auto.
+intros loc fs w' Hw' H4; destruct (H1 loc fs w' Hw' H4)  as [id H3].
+exists id; rewrite <- (H id); auto.
+intros.
+extensionality rho.
+apply pred_ext; apply H; intros; auto.
+Qed.
+
+Lemma funassert_exit_tycon: forall c Delta ek,
+     funassert (exit_tycon c Delta ek) = funassert Delta.
+Proof.
+intros.
+apply same_glob_funassert.
+intro.
+unfold exit_tycon; simpl. destruct ek; auto.
+rewrite glob_specs_update_tycon. auto.
+Qed.
+
+Lemma strict_bool_val_sub : forall v t b, 
+ strict_bool_val v t = Some b ->
+  Cop.bool_val v t = Some b.
+Proof.
+  intros. destruct v; destruct t; simpl in *; auto; try congruence; 
+   unfold Cop.bool_val, Cop.classify_bool; simpl.
+  destruct i0; auto.
+  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
+  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
+  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
+  destruct f0; inv  H; auto.
+  destruct f0; inv  H; auto.
+Qed.
+
 
 
 

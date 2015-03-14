@@ -27,56 +27,6 @@ Open Local Scope nat_scope.
 Section extensions.
 Context (Espec : OracleKind).
 
-Lemma funassert_exit_tycon: forall c Delta ek,
-     funassert (exit_tycon c Delta ek) = funassert Delta.
-Proof.
-intros.
-apply same_glob_funassert.
-intro.
-unfold exit_tycon; simpl. destruct ek; auto.
-rewrite glob_specs_update_tycon. auto.
-Qed.
-
-Lemma strict_bool_val_sub : forall v t b, 
- strict_bool_val v t = Some b ->
-  Cop.bool_val v t = Some b.
-Proof.
-  intros. destruct v; destruct t; simpl in *; auto; try congruence; 
-   unfold Cop.bool_val, Cop.classify_bool; simpl.
-  destruct i0; auto.
-  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
-  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
-  f_equal. destruct (Int.eq i Int.zero); try congruence. inv H. reflexivity.
-  destruct f0; inv  H; auto.
-  destruct f0; inv  H; auto.
-Qed.
-
-
-Lemma ret_type_join_tycon:
-  forall Delta Delta', ret_type (join_tycon Delta Delta') = ret_type Delta.
-Proof.
- intros; destruct Delta, Delta'; reflexivity.
-Qed.
-
-Lemma ret_type_update_tycon:
-  forall Delta c, ret_type (update_tycon Delta c) = ret_type Delta
-with ret_type_join_tycon_labeled: forall l Delta,
-  ret_type (join_tycon_labeled l Delta) = ret_type Delta.
-Proof.
-  intros. revert Delta; induction c; simpl; intros; try destruct o; auto;
- try (unfold initialized;  destruct ((temp_types Delta)!i); try destruct p; auto).
- rewrite IHc2; auto.
- rewrite ret_type_join_tycon. auto.
-
- induction l; simpl; intros; auto. rewrite ret_type_join_tycon. auto. 
-Qed.
-
-Lemma ret_type_exit_tycon:
-  forall c Delta ek, ret_type (exit_tycon c Delta ek) = ret_type Delta.
-Proof. 
- destruct ek; try reflexivity. unfold exit_tycon. apply ret_type_update_tycon.
-Qed.
-
 Lemma funassert_update_tycon:
   forall Delta h, funassert (update_tycon Delta h) = funassert Delta.
 intros; apply same_glob_funassert. rewrite glob_specs_update_tycon. auto.
@@ -132,32 +82,6 @@ clear tycontext_evolve_join_labeled.
 induction l; simpl; auto; intros.
 apply tycontext_evolve_refl.
 apply tycontext_evolve_join; auto.
-Qed.
-
-Lemma join_tycon_guard_genv: forall Delta Delta' ge,
-  guard_genv (join_tycon Delta Delta') ge = guard_genv Delta ge.
-Proof.
-  intros.
-  unfold guard_genv, join_tycon in *.
-  destruct Delta, Delta'.
-  auto.
-Qed.
-
-Lemma update_tycon_guard_genv: forall c Delta ge,
-  guard_genv (update_tycon Delta c) ge = guard_genv Delta ge.
-Proof.
-  intros.
-  unfold guard_genv in *.
-  rewrite composite_types_update_tycon.
-  auto.
-Qed.
-
-Lemma exit_tycon_guard_genv: forall c ek Delta ge,
-  guard_genv (exit_tycon c Delta ek) ge = guard_genv Delta ge.
-Proof.
-  intros.
-  destruct ek; simpl; auto.
-  apply update_tycon_guard_genv.
 Qed.
 
 Lemma semax_ifthenelse : 
@@ -436,37 +360,6 @@ Proof.
   unfold align_compatible.
   rewrite composite_types_update_tycon by auto.
   auto.
-Qed.
-
-Lemma func_tycontext'_update_dist :
-forall f d1 d2, 
-(func_tycontext' f (join_tycon (d1) (d2))) =
-(func_tycontext' f (d1)).
-Proof.
-  intros. destruct d1. destruct d2.  simpl. auto.
-Qed.
-
-Lemma func_tycontext'_update_tycon: forall Delta c f,
-  func_tycontext' f (update_tycon Delta c) = func_tycontext' f Delta
-with func_tycontext'_join_labeled: forall Delta l f,
-  func_tycontext' f (join_tycon_labeled l Delta) = func_tycontext' f Delta.
-Proof.
-+ clear func_tycontext'_update_tycon.
-  assert (forall i f Delta, func_tycontext' f (initialized i Delta) = func_tycontext' f Delta).
-  intros; unfold initialized.
-  destruct ((temp_types Delta)!i); try destruct p; reflexivity.  
-  intros; revert Delta; induction c; intros; try apply H; try reflexivity. 
-  simpl. destruct o. apply H. auto. 
-  simpl. 
-  rewrite IHc2. 
-  auto. 
-  simpl.  rewrite func_tycontext'_update_dist. auto.
-  apply func_tycontext'_join_labeled.
-+ clear func_tycontext'_join_labeled.
-  intros. simpl. 
-  destruct l. simpl. auto. 
-  simpl in *. rewrite func_tycontext'_update_dist. 
-  auto. 
 Qed.
 
 Lemma semax_seq:
