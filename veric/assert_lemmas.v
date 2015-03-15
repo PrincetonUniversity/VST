@@ -506,26 +506,32 @@ Proof.
 Qed.
 
 Lemma eval_expr_lvalue_sub: forall e,
-  (forall rho w, typecheck_environ Delta rho -> tc_expr Delta e rho w -> eval_expr Delta e rho = eval_expr Delta' e rho) /\
-  (forall rho w, typecheck_environ Delta rho -> tc_lvalue Delta e rho w -> eval_lvalue Delta e rho = eval_lvalue Delta' e rho).
+  (forall rho,
+  typecheck_environ Delta rho ->
+  denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+  eval_expr Delta e rho = eval_expr Delta' e rho) /\
+  (forall rho,
+  typecheck_environ Delta rho ->
+  denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+  eval_lvalue Delta e rho = eval_lvalue Delta' e rho).
 Proof.
   unfold tc_expr, tc_lvalue.
-  induction e; intros; split; intros ? ? HH H; try reflexivity; simpl; unfold_lift; simpl.
+  induction e; intros; split; intros ? HH H; try reflexivity; simpl; unfold_lift; simpl.
   + simpl in H.
     destruct (access_mode t); try inv H.
     rewrite !denote_tc_assert_andp in H.
-    erewrite (proj1 IHe) with (w := w) by tauto.
+    rewrite (proj1 IHe) by tauto.
     reflexivity.
   + simpl in H.
     rewrite !denote_tc_assert_andp in H.
-    erewrite (proj1 IHe) with (w := w) by tauto.
+    rewrite (proj1 IHe) by tauto.
     reflexivity.
   + simpl in H.
     rewrite !denote_tc_assert_andp in H.
-    eapply (proj2 IHe) with (w := w); tauto.
+    apply (proj2 IHe); tauto.
   + simpl in H.
     rewrite !denote_tc_assert_andp in H.
-    erewrite (proj1 IHe) with (w := w) by tauto.
+    rewrite (proj1 IHe) by tauto.
     reflexivity.
   + simpl in H.
     rewrite !denote_tc_assert_andp in H.
@@ -533,12 +539,12 @@ Proof.
     pose proof typecheck_expr_sound _ _ _ HH H0.
     pose proof typecheck_expr_sound _ _ _ HH H1.
     rewrite tc_val_eq in H2, H3.
-    erewrite <- (proj1 IHe1) with (w := w) by eauto.
-    erewrite <- (proj1 IHe2) with (w := w) by eauto.
+    rewrite <- (proj1 IHe1) by eauto.
+    rewrite <- (proj1 IHe2) by eauto.
     apply force_val2_sem_binary_operation'_sub with (t := t); auto.
   + simpl in H.
     rewrite !denote_tc_assert_andp in H.
-    erewrite (proj1 IHe) with (w := w) by tauto.
+    rewrite (proj1 IHe) by tauto.
     reflexivity.
 Opaque typecheck_expr.
   + simpl in H.
@@ -548,7 +554,7 @@ Transparent typecheck_expr.
     destruct (access_mode t); try inv H.
     rewrite !denote_tc_assert_andp in H.
     destruct H as [? _].
-    erewrite (proj2 IHe) with (w := w) by tauto.
+    rewrite (proj2 IHe) by tauto.
     reflexivity.
 Opaque typecheck_lvalue.
   + simpl in H.
@@ -557,7 +563,7 @@ Transparent typecheck_lvalue.
     simpl in H.
     rewrite !denote_tc_assert_andp in H.
     destruct H as [? _].
-    erewrite (proj2 IHe) with (w := w) by tauto.
+    rewrite (proj2 IHe) by tauto.
     reflexivity.
   + simpl in H.
     rewrite !denote_tc_assert_andp in H.
@@ -573,23 +579,27 @@ Transparent typecheck_lvalue.
     reflexivity.
 Qed.
 
-Lemma eval_expr_sub: forall e rho w,
-  typecheck_environ Delta rho -> tc_expr Delta e rho w -> eval_expr Delta e rho = eval_expr Delta' e rho.
+Lemma eval_expr_sub: forall e rho,
+  typecheck_environ Delta rho ->
+  denote_tc_assert Delta (typecheck_expr Delta e) rho ->
+  eval_expr Delta e rho = eval_expr Delta' e rho.
 Proof.
   intros.
   eapply (proj1 (eval_expr_lvalue_sub e)); eauto.
 Qed.
 
-Lemma eval_lvalue_sub: forall e rho w,
-  typecheck_environ Delta rho -> tc_lvalue Delta e rho w -> eval_lvalue Delta e rho = eval_lvalue Delta' e rho.
+Lemma eval_lvalue_sub: forall e rho,
+  typecheck_environ Delta rho ->
+  denote_tc_assert Delta (typecheck_lvalue Delta e) rho ->
+  eval_lvalue Delta e rho = eval_lvalue Delta' e rho.
 Proof.
   intros.
   eapply (proj2 (eval_expr_lvalue_sub e)); eauto.
 Qed.
 
-Lemma eval_exprlist_sub: forall tl el rho w,
+Lemma eval_exprlist_sub: forall tl el rho,
   typecheck_environ Delta rho ->
-  tc_exprlist Delta tl el rho w ->
+  denote_tc_assert Delta (typecheck_exprlist Delta tl el) rho ->
   eval_exprlist Delta tl el rho = eval_exprlist Delta' tl el rho.
 Proof.
   intros.
@@ -601,7 +611,7 @@ Proof.
     simpl.
     unfold_lift.
     rewrite (IHel tl H2).
-    rewrite eval_expr_sub with (w := w) by auto.
+    rewrite eval_expr_sub by auto.
     reflexivity.
 Qed.
 
@@ -653,7 +663,7 @@ Proof.
   + pose proof (H4 w H1).
     simpl in H3 |- *.
     unfold_lift in H3; unfold_lift.
-    rewrite <- eval_expr_sub with (w := w) by auto.
+    rewrite <- eval_expr_sub by auto.
     exact H3.
 * destruct IHe.
   repeat rewrite denote_tc_assert_andp.
@@ -665,7 +675,7 @@ Proof.
   + pose proof (H0 w H2).
     simpl in H4 |- *.
     unfold_lift in H4; unfold_lift.
-    rewrite <- eval_expr_sub with (w := w) by auto.
+    rewrite <- eval_expr_sub by auto.
     exact H4.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split.
   + destruct IHe. apply (H3 w); auto.
@@ -675,13 +685,13 @@ Proof.
   + destruct IHe. apply (H2 w); auto.
 * repeat rewrite denote_tc_assert_andp; intros [[? ?] ?]; repeat split.
   + eapply isBinOpResultType_sub; eauto;
-    apply eval_expr_sub with (w := w); auto.
+    apply eval_expr_sub; auto.
   + destruct IHe1 as [H8 _]; apply (H8 w); auto.
   + destruct IHe2 as [H8 _]; apply (H8 w); auto.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
   + destruct IHe as [H8 _]; apply (H8 w); auto.
   + apply isCastResultType_sub; auto.
-    apply eval_expr_sub with (w := w); auto.
+    apply eval_expr_sub; auto.
 * destruct (access_mode t) eqn:?; try solve [intro HH; inv HH].
   repeat rewrite denote_tc_assert_andp. intros [? ?]; repeat split; auto.
   + destruct IHe. apply (H3 w); auto.
@@ -775,7 +785,7 @@ Proof.
   intros [[? ?] ?]; repeat split; auto.
   + apply (tc_expr_sub _ _ H w H0); auto.
   + apply isCastResultType_sub; auto.
-    apply eval_expr_sub with w; auto.
+    apply eval_expr_sub; auto.
   + apply (IHe w); auto.
 Qed.
 
