@@ -3,6 +3,7 @@ Require Import Coqlib.
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import List. Import ListNotations.
+Require Import general_lemmas.
 
 Module HP.
 
@@ -15,6 +16,7 @@ Module Type HASH_FUNCTION.
   Parameter BlockSize:nat. (*measured in bytes; 64 in SHA256*)
   Parameter DigestLength: nat. (*measured in bytes; 32 in SHA256*)
   Parameter Hash : list Z -> list Z.
+  Parameter Hash_isbyteZ: forall m, Forall isbyteZ (Hash m).
 End HASH_FUNCTION.
 
 
@@ -72,6 +74,22 @@ Definition HMAC IP OP txt password: list Z :=
   let key := KeyPreparation password in
   HmacCore IP OP txt key.
 
+Lemma SF_ByteRepr x: isbyteZ x ->
+                     sixtyfour x = 
+                     map Byte.unsigned (sixtyfour (Byte.repr x)).
+Proof. intros. unfold sixtyfour.
+ rewrite map_list_repeat.
+ rewrite Byte.unsigned_repr; trivial. destruct H. 
+ assert (BMU: Byte.max_unsigned = 255). reflexivity. omega.
+Qed.
+
+Lemma length_SF {A} (a:A) :length (sixtyfour a) = HF.BlockSize.
+Proof. apply length_list_repeat. Qed. 
+
+Lemma isbyte_hmaccore ipad opad m k: 
+   Forall isbyteZ (HmacCore (Byte.repr ipad) (Byte.repr opad) m k).
+Proof. apply HF.Hash_isbyteZ. Qed.
+
 End HMAC_FUN.
 
 Require Import sha.SHA256.
@@ -81,6 +99,8 @@ Module SHA256 <: HASH_FUNCTION.
   Definition BlockSize:= 64%nat.
   Definition DigestLength:= 32%nat.
   Definition Hash : list Z -> list Z := SHA_256'.
+  Lemma Hash_isbyteZ m: Forall isbyteZ (SHA_256' m).
+    apply isbyte_intlist_to_Zlist. Qed.
 End SHA256.
 
 Module HMAC_SHA256 := HMAC_FUN SHA256.

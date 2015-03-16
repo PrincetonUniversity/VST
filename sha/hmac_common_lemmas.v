@@ -122,21 +122,18 @@ Proof. unfold HP.HMAC_SHA256.mkKey. rewrite Zlength_correct.
   apply app_nil_r.  
 Qed.
 
-Lemma isbyte_sha x: Forall isbyteZ (functional_prog.SHA_256' x).
-Proof. apply isbyte_intlist_to_Zlist. Qed.
-
 Lemma isbyteZ_mkKey: forall l, Forall isbyteZ l -> Forall isbyteZ (HP.HMAC_SHA256.mkKey l).
 Proof. intros.
   unfold HP.HMAC_SHA256.mkKey.
   remember (Zlength l >? Z.of_nat HP.SHA256.BlockSize).
   destruct b.
-    apply zeropad_isbyteZ. unfold HP.SHA256.Hash. apply isbyte_sha.
+    apply zeropad_isbyteZ. apply HP.SHA256.Hash_isbyteZ. 
     apply zeropad_isbyteZ; trivial.
 Qed.
 
 Lemma isbyte_hmac ipad opad m k: 
    Forall isbyteZ (HMAC_functional_prog.HP.HMAC_SHA256.HMAC ipad opad m k).
-Proof. apply isbyte_sha. Qed.
+Proof. apply HP.SHA256.Hash_isbyteZ.  Qed.
 
 Lemma updAbs_len: forall L s t, update_abs L s t -> s256a_len t = s256a_len s + Zlength L * 8.
 Proof. intros. inversion H; clear H.

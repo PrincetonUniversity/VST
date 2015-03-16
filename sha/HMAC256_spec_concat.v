@@ -8,7 +8,7 @@ Require Import HMAC_spec_pad.
 Require Import sha_padding_lemmas. (*for pad.*)
 Require Import ShaInstantiation.
 
-Lemma fpad_eq : forall (l m : Blist),
+Lemma sha_splitandpad_fpad : forall (l m : Blist),
                   length l = b ->
                   InBlocks 8 m ->
                   sha_splitandpad (l ++ m) = l ++ HMAC_Concat.app_fpad fpad m.
@@ -37,13 +37,13 @@ Theorem HMAC_concat_pad_sap_instantiated
         h (HH: forall x y, length x = c -> length y = b -> length (h x y)  = c) 
         iv (IV: length iv = c) (op ip : Blist) (IL: length ip = b) (OL: length op = b)
         : forall (k m : Blist), length k = b ->
-  HMAC_Pad.HMAC c p B h iv sha_splitandpad op ip k m =
+  sha.HMAC_spec_pad.HMAC c p B h iv sha_splitandpad op ip k m =
   HMAC_Concat.HMAC c p B h iv sha_splitandpad_inc fpad op ip k m.
 Proof. intros.
   apply HMAC_Concat.HMAC_concat_pad; trivial.
   exists 32%nat. reflexivity.
-  apply splitandpad_eq.
-  apply fpad_eq.
+  apply sha_splitandpad_app.
+  apply sha_splitandpad_fpad.
   apply sha_splitandpad_inc_InBlocks.
 Qed.
 
@@ -51,7 +51,7 @@ Theorem HMAC_concat_pad_explicit : forall (k m : Blist) (op ip : Blist),
                             length k = b ->
                             length ip = b ->
                             length op = b -> 
-  HMAC_Pad.HMAC c p B sha_h sha_iv sha_splitandpad op ip k m =
+  sha.HMAC_spec_pad.HMAC c p B sha_h sha_iv sha_splitandpad op ip k m =
   HMAC_Concat.HMAC c p B sha_h sha_iv sha_splitandpad_inc fpad op ip k m.
 Proof.
   intros k m op ip len_k len_ip len_op.

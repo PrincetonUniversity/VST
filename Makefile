@@ -194,7 +194,8 @@ HMACEQUIV_FILES= \
   HMAC_common_defs.v HMAC_spec_pad.v HMAC256_spec_pad.v \
   HMAC_spec_concat.v HMAC256_spec_concat.v \
   HMAC_spec_list.v HMAC256_spec_list.v \
-  HMAC_spec_abstract.v HMAC_equivalence.v HMAC_isPRF.v
+  HMAC_spec_abstract.v HMAC_equivalence.v HMAC256_equivalence.v \
+  HMAC_isPRF.v HMAC256_isPRF.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c
 

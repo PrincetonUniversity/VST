@@ -115,16 +115,15 @@ Proof.
     rewrite app_length. rewrite <- FOLD_hash_blocks_eq.
       2: apply BLxor_length; trivial. 
       2: apply sap_b.
-    assert (C: length (fold_left h (BLxor k ip :: sap m) iv) =c). admit.
+    assert (C: length (fold_left h (BLxor k ip :: sap m) iv) =c). 
+      rewrite FOLD_hash_blocks_eq; trivial.
+        apply hash_blocks_bits_len; trivial.
+        econstructor. 2: reflexivity.
+         erewrite BLxor_length. reflexivity. assumption. assumption.
+         apply concat_InBlocks; apply sap_b.
+         erewrite BLxor_length. reflexivity. assumption. assumption.
     rewrite fpad_length; trivial. f_equal. rewrite <- C. reflexivity. 
 
-    (*assert (IB: InBlocks (HMAC_Concat.b c p) (BLxor k ip ++ concat (sap m))).
-      econstructor.
-        2: reflexivity.
-        apply BLxor_length; trivial.
-        apply concat_InBlocks. apply sap_b.
-    rewrite bytesToBits_len. 
-    rewrite fpad_inner_length; rewrite hash_blocks_bits_len; trivial.*)
   * apply BLxor_length; trivial.
   * apply BLxor_length; trivial.
   * apply BLxor_length; trivial.

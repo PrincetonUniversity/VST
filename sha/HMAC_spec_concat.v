@@ -74,9 +74,8 @@ Section HMAC.
 
 End HMAC.
 
-
 Lemma h_star_eq :
-  HMAC_Pad.h_star = h_star.
+  sha.HMAC_spec_pad.h_star = h_star.
 Proof. reflexivity. Qed.
 
 Theorem HMAC_concat_pad c p (C: NPeano.divide 8 c) B sap sap' fp
@@ -90,18 +89,18 @@ Theorem HMAC_concat_pad c p (C: NPeano.divide 8 c) B sap sap' fp
         h (HH: forall x y, length x = c -> length y = (c+p)%nat -> length (h x y)  = c) 
         iv (IV: length iv = c) (op ip : Blist) (IL: length ip = (c+p)%nat) (OL: length op = (c+p)%nat)
         : forall (k m : Blist), length k = (c+p)%nat ->
-  HMAC_Pad.HMAC c p B h iv sap op ip k m =
+  sha.HMAC_spec_pad.HMAC c p B h iv sap op ip k m =
   HMAC_Concat.HMAC c p B h iv sap' fp op ip k m.
 Proof.
   intros k m len_k.
-  unfold HMAC_Pad.HMAC. unfold HMAC.
-  unfold HMAC_Pad.HMAC_2K. unfold HMAC_2K.
-  unfold HMAC_Pad.GHMAC_2K. unfold GHMAC_2K.
+  unfold sha.HMAC_spec_pad.HMAC. unfold HMAC.
+  unfold sha.HMAC_spec_pad.HMAC_2K. unfold HMAC_2K.
+  unfold sha.HMAC_spec_pad.GHMAC_2K. unfold GHMAC_2K.
 
   repeat rewrite -> split_append_id; try apply BLxor_length; trivial.
-  unfold HMAC_Pad.hash_words_padded. unfold Basics.compose.
+  unfold sha.HMAC_spec_pad.hash_words_padded. unfold Basics.compose.
   unfold hash_words.
-  unfold HMAC_Pad.hash_words.
+  unfold sha.HMAC_spec_pad.hash_words.
   rewrite -> h_star_eq.
   f_equal.
 

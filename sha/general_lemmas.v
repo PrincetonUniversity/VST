@@ -102,6 +102,12 @@ inv H.
 apply IHi; omega.
 Qed.
 
+Lemma list_repeat_injective {A} (a a':A) n: (0<n)%nat -> 
+      list_repeat n a = list_repeat n a' -> a=a'.
+  Proof. intros.
+    destruct n. omega. simpl in H0. inversion H0. trivial.
+  Qed.
+
 Local Open Scope Z.
 
 Definition roundup (a b : Z) := (a + (b-1))/b*b.

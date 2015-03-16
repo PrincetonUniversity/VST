@@ -1,5 +1,11 @@
 Require Import floyd.proofauto.
 Import ListNotations.
+Require Import Blist.
+
+Require Import sha.vst_lemmas.
+Require Import sha.hmac_pure_lemmas.
+Require Import ByteBitRelations.
+
 Require sha.sha.
 Require Import sha.SHA256.
 Local Open Scope logic.
@@ -7,19 +13,14 @@ Local Open Scope logic.
 Require Import sha.spec_sha.
 Require Import sha_lemmas.
 
-Require Import sha.hmac_NK.
-
-Require Import sha.spec_hmacNK.
-Require Import sha.vst_lemmas.
-Require Import sha.hmac_pure_lemmas.
-Require Import sha.hmac_common_lemmas.
 Require Import sha.HMAC_functional_prog.
-
-Require Import Blist.
-Require Import HMAC_equivalence.
-Require Import ByteBitRelations.
-Require Import HMAC_isPRF.
+Require Import sha.hmac_common_lemmas.
 Require Import ShaInstantiation.
+Require Import HMAC256_equivalence.
+Require Import HMAC256_isPRF.
+
+Require Import sha.hmac_NK.
+Require Import sha.spec_hmacNK.
 
 Lemma key_vector l:
   length (bytesToBits (HP.HMAC_SHA256.mkKey l)) = b.
@@ -31,22 +32,22 @@ rewrite bytesToBits_len. exists (length l). trivial.
 Qed.
 
 Definition bitspec KEY MSG :=
-  Vector.to_list ( HMAC_spec.HMAC h_v iv_v (HMAC_spec_abstract.HMAC_Abstract.wrappedSAP _ _ splitAndPad_v)
-                      fpad_v opad_v ipad_v
+  Vector.to_list ( HMAC_spec.HMAC EQ.h_v iv_v (HMAC_spec_abstract.HMAC_Abstract.wrappedSAP _ _ splitAndPad_v)
+                      fpad_v EQ.opad_v EQ.ipad_v
                       (of_list_length _ (key_vector (CONT KEY)))
                       (mkCont (CONT MSG))).
 
-Definition CRYPTO P (A : Comp.OracleComp (HMAC_spec_abstract.HMAC_Abstract.Message P)
+Definition CRYPTO (A : Comp.OracleComp (HMAC_spec_abstract.HMAC_Abstract.Message PARS256.P)
                                        (Bvector.Bvector c) bool) 
                   (A_wf : DistSem.well_formed_oc A):=
-           forall (HypP:forall m : Blist, P m -> NPeano.divide 8 (length m))
-                  tau eps sig, h_PRF A tau ->
-                               h_star_WCR A eps ->
-                               dual_h_RKA A sig ->
-  isPRF (Comp.Rnd (HMAC_PRF.b c p))
+           forall tau eps sig, PRFMod.h_PRF A tau ->
+                               PRFMod.h_star_WCR A eps ->
+                               PRFMod.dual_h_RKA A sig ->
+  PRFMod.isPRF (Comp.Rnd (HMAC_PRF.b c p))
     (Comp.Rnd c)
-    (HMAC_PRF.HMAC h_v iv_v (HMAC_spec_abstract.HMAC_Abstract.wrappedSAP _ _ splitAndPad_v) fpad_v opad_v ipad_v)
-    (Message_eqdec P)
+    (HMAC_PRF.HMAC PRFMod.M.h_v EQ256.iv_v
+      (HMAC_spec_abstract.HMAC_Abstract.wrappedSAP _ _ splitAndPad_v) EQ256.fpad_v PRFMod.M.opad_v PRFMod.M.ipad_v)
+    PRFMod.Message_eqdec
     (EqDec.Bvector_EqDec c)
     (Rat.ratAdd (Rat.ratAdd tau eps) sig) A.
 
@@ -76,14 +77,14 @@ Definition HMAC_crypto :=
   POST [ tvoid ] 
          EX digest:_,
           PROP (bytesToBits digest = bitspec KEY MSG /\ 
-                forall P A Awf, CRYPTO P A Awf)
+                forall A Awf, CRYPTO A Awf)
           LOCAL ()
           SEP(`(K_vector KV);
               `(data_block shmd digest md);
               `(initPostKey keyVal (CONT KEY) );
               `(data_block Tsh (CONT MSG) msgVal)).
 
-Lemma body_hmac_simple: semax_body HmacVarSpecs HmacFunSpecs 
+Lemma body_hmacNK_crypto: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC HMAC_crypto.
 Proof.
 start_function.
@@ -259,7 +260,7 @@ assert (Size: sizeof t_struct_hmac_ctx_st <= Int.max_unsigned).
 apply andp_right. apply prop_right.
   rewrite hmac_hmacSimple in HS. destruct HS as [hh HH]. 
   specialize (hmac_sound _ _ _ _ HH). intros D; subst dig.
-  split. unfold bitspec. simpl. rewrite HMAC_equivalence.Equivalence.
+  split. unfold bitspec. simpl. rewrite Equivalence.
          f_equal. unfold HMAC_spec_abstract.HMAC_Abstract.Message2Blist.
        remember (mkCont data) as dd. destruct dd. destruct a; subst x.
          rewrite ByteBitRelations.bytes_bits_bytes_id.
@@ -269,7 +270,7 @@ apply andp_right. apply prop_right.
            apply H2. 
            intros ? X; eapply X. 
   split; trivial.
-  unfold CRYPTO; intros. apply sha.HMAC_isPRF.HMAC_isPRF; assumption.
+  unfold CRYPTO; intros. apply HMAC256_isPRF; assumption.
 apply andp_right. apply prop_right. trivial. cancel.
 unfold data_block.
   rewrite Zlength_correct; simpl.
@@ -292,4 +293,3 @@ rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))
  
 unfold align_compatible. destruct (eval_var _c t_struct_hmac_ctx_st rho); trivial.
 Qed.
-

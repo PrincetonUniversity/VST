@@ -364,7 +364,7 @@ Proof.
   intros len. apply InBlocks_len. exists 64%nat. apply len. 
 Qed.
 
-Lemma splitandpad_eq : forall (l m : Blist),
+Lemma sha_splitandpad_app : forall (l m : Blist),
                          length l = b ->
                          sha_splitandpad (l ++ m) = l ++ sha_splitandpad_inc m.
 Proof.
@@ -400,7 +400,7 @@ Qed.
 
 Lemma isbyte_hmaccore ipad opad m k: 
    Forall isbyteZ (HP.HMAC_SHA256.HmacCore (Byte.repr ipad) (Byte.repr opad) m k).
-Proof. apply isbyte_sha. Qed.
+Proof. apply HP.SHA256.Hash_isbyteZ. Qed.
 
 
 (*
