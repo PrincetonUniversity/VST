@@ -2927,7 +2927,7 @@ assert (forall vf, Clight.eval_expr psi vx tx (m_dry jm) a vf
                -> Clight.eval_expr psi vx tx (m_dry jm) a' vf). {
 clear - TCa TCa' H7 H7' H0 Heqrho HGG TS. forget (m_dry jm) as m.
 intros.
-rewrite eval_expr_sub with (Delta := Delta) (Delta' := Delta') (w := w2) in H0 by auto.
+rewrite eval_expr_sub with (Delta := Delta) (Delta' := Delta') in H0 by auto.
 eapply tc_expr_sub in TCa; [| eauto | eauto].
 pose proof (eval_expr_relate _ _ _ _ _ _ m HGG Heqrho H7 TCa).
 pose proof (eval_expr_fun H H1). subst vf.
@@ -3089,7 +3089,7 @@ Proof.
         pose proof tc_expr_sub _ _ TS _ _ H3 (m_phi jm) TCe as TCe'.
         split.
         {
-          erewrite eval_expr_sub with (w := m_phi jm); eauto.
+          erewrite eval_expr_sub; eauto.
           apply eval_expr_relate with (Delta := Delta'); auto.
         }
         {

@@ -675,24 +675,31 @@ replace (fun rho : environ =>
      (|> tc_expr Delta e rho && |> P rho))
   by (extensionality rho;  repeat rewrite later_andp; auto).
 apply semax_straight_simple; auto.
-intros jm jm' Delta' ge vx tx rho k F TS TC3 TC' Hcl Hge ? ?.
+intros jm jm' Delta' ge vx tx rho k F TS TC3 TC' Hcl Hge ? ? HGG'.
 specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
-apply (tc_expr_sub _ _ TS) in TC3.
+assert (typecheck_environ Delta rho) as TC.
+Focus 1. {
+  destruct TC'.
+  eapply typecheck_environ_sub; eauto.
+} Unfocus.
+pose proof guard_genv_sub _ _ TS _ HGG' as HGG.
+pose proof TC3 as TC3'.
+apply (tc_expr_sub _ _ TS) in TC3'; [| auto].
 assert (typeof_temp Delta' id = Some t) as H97.
   unfold typeof_temp in *.
   unfold tycontext_sub in TS. destruct TS as [?TS _]. specialize (TS id).
   destruct ((temp_types Delta) ! id) as [[? ?] |]; inversion H99.
   destruct ((temp_types Delta') ! id) as [[? ?] |]; inversion TS.
   subst; auto.
-clear Delta TS H99.
-exists jm', (PTree.set id (eval_expr e rho) (tx)).
+clear H99.
+exists jm', (PTree.set id (eval_expr Delta e rho) (tx)).
 econstructor.
 split.
 reflexivity.
 split3; auto.
 + apply age_level; auto.
 + normalize in H0.
-  clear - TC' H98 H97 TC3 Hge.
+  clear - TS TC TC' H98 H97 TC3 TC3' HGG Hge.
   simpl in *. simpl. rewrite <- map_ptree_rel.
   apply guard_environ_put_te'; auto. subst; simpl in *.
   unfold construct_rho in *; auto.
@@ -705,6 +712,7 @@ split3; auto.
   subst.
   assert (is_neutral_cast (implicit_deref (typeof e)) t = true).
     destruct (typeof e), t; inversion H98; reflexivity.
+  erewrite eval_expr_sub by eauto.
   apply neutral_cast_typecheck_val with (Delta := Delta'); auto. 
   apply neutral_isCastResultType; auto.
   unfold guard_environ in *. destruct TC'; auto. 
@@ -716,7 +724,7 @@ split3; auto.
   destruct (age1_juicy_mem_unpack _ _ H).
   rewrite <- H3.
   econstructor; eauto.
-  eapply eval_expr_relate; auto. destruct TC'; eassumption. auto.
+  eapply eval_expr_relate; auto.
   apply age1_resource_decay; auto.
   apply age_level; auto.
 
@@ -732,7 +740,7 @@ specialize (H2 _ H3).
 eapply sepcon_derives; try  apply H2; auto.
 clear - Hcl Hge.
 rewrite <- map_ptree_rel. 
-specialize (Hcl rho (Map.set id (eval_expr e rho) (make_tenv tx))).
+specialize (Hcl rho (Map.set id (eval_expr Delta e rho) (make_tenv tx))).
 rewrite <- Hcl; auto.
 intros.
 destruct (eq_dec id i).
@@ -745,7 +753,7 @@ apply exp_right with (eval_id id rho).
 rewrite <- map_ptree_rel.
 assert (env_set
          (mkEnviron (ge_of rho) (ve_of rho)
-            (Map.set id (eval_expr e rho) (make_tenv tx))) id (eval_id id rho) = rho).
+            (Map.set id (eval_expr Delta e rho) (make_tenv tx))) id (eval_id id rho) = rho).
   unfold env_set; 
   f_equal.
   unfold eval_id; simpl.
@@ -781,7 +789,7 @@ forall (Delta: tycontext) (P: assert) id e t,
           (Sset id (Ecast e t)) 
         (normal_ret_assert 
           (fun rho => (EX old:val, 
-                 !! (eval_id id rho = subst id old (eval_expr (Ecast e t)) rho) &&
+                 !! (eval_id id rho = subst id old (eval_expr Delta (Ecast e t)) rho) &&
                             subst id old P rho))).
 Proof.
 intros until e.
@@ -792,24 +800,31 @@ replace (fun rho : environ =>
      (|> tc_expr Delta (Ecast e t) rho && |> P rho))
   by (extensionality rho;  repeat rewrite later_andp; auto).
 apply semax_straight_simple; auto.
-intros jm jm' Delta' ge vx tx rho k F TS TC3 TC' Hcl Hge ? ?.
+intros jm jm' Delta' ge vx tx rho k F TS TC3 TC' Hcl Hge ? ? HGG'.
 specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
-apply (tc_expr_sub _ _ TS) in TC3.
+assert (typecheck_environ Delta rho) as TC.
+Focus 1. {
+  destruct TC'.
+  eapply typecheck_environ_sub; eauto.
+} Unfocus.
+pose proof guard_genv_sub _ _ TS _ HGG' as HGG.
+pose proof TC3 as TC3'.
+apply (tc_expr_sub _ _ TS) in TC3'; [| auto].
 assert (typeof_temp Delta' id = Some t) as H97.
   unfold typeof_temp in *.
   unfold tycontext_sub in TS. destruct TS as [?TS _]. specialize (TS id).
   destruct ((temp_types Delta) ! id) as [[? ?] |]; inversion H99.
   destruct ((temp_types Delta') ! id) as [[? ?] |]; inversion TS.
   subst; auto.
-clear Delta TS H99.
-exists jm', (PTree.set id (eval_expr (Ecast e t) rho) (tx)).
+clear H99.
+exists jm', (PTree.set id (eval_expr Delta (Ecast e t) rho) (tx)).
 econstructor.
 split.
 reflexivity.
 split3; auto.
 + apply age_level; auto.
 + normalize in H0.
-  clear - TC' H97 TC3 Hge.
+  clear - TS TC' TC H97 TC3 TC3' Hge HGG.
   simpl in *. simpl. rewrite <- map_ptree_rel.
   apply guard_environ_put_te'; auto. subst; simpl in *.
   unfold construct_rho in *; auto.
@@ -821,6 +836,8 @@ split3; auto.
   super_unfold_lift. inversion H97.
   subst.
   rewrite denote_tc_assert_andp in TC3. destruct TC3.
+  erewrite eval_expr_sub by eauto.
+  rewrite denote_tc_assert_andp in TC3'. destruct TC3'.
   apply typecheck_val_sem_cast with (Delta := Delta'); auto. 
   eapply guard_environ_e1; eauto.
 +
@@ -831,8 +848,8 @@ split3; auto.
   destruct (age1_juicy_mem_unpack _ _ H).
   rewrite <- H3.
   econstructor; eauto.
-  change ((`(force_val1 (sem_cast (typeof e) t)) (eval_expr e) rho)) with (eval_expr (Ecast e t) rho).
-  eapply eval_expr_relate; auto. destruct TC'; eassumption. auto.
+  change ((`(force_val1 (sem_cast (typeof e) t)) (eval_expr Delta e) rho)) with (eval_expr Delta (Ecast e t) rho).
+  eapply eval_expr_relate; auto.
   apply age1_resource_decay; auto.
   apply age_level; auto.
 
@@ -848,7 +865,7 @@ specialize (H2 _ H3).
 eapply sepcon_derives; try  apply H2; auto.
 clear - Hcl Hge.
 rewrite <- map_ptree_rel. 
-specialize (Hcl rho (Map.set id (eval_expr (Ecast e t) rho) (make_tenv tx))).
+specialize (Hcl rho (Map.set id (eval_expr Delta (Ecast e t) rho) (make_tenv tx))).
 rewrite <- Hcl; auto.
 intros.
 destruct (eq_dec id i).
@@ -861,7 +878,7 @@ apply exp_right with (eval_id id rho).
 rewrite <- map_ptree_rel.
 assert (env_set
          (mkEnviron (ge_of rho) (ve_of rho)
-            (Map.set id (eval_expr (Ecast e t) rho) (make_tenv tx))) id (eval_id id rho) = rho).
+            (Map.set id (eval_expr Delta (Ecast e t) rho) (make_tenv tx))) id (eval_id id rho) = rho).
   unfold env_set; 
   f_equal.
   unfold eval_id; simpl.
@@ -881,7 +898,7 @@ rewrite H4. simpl.
 apply andp_right.
 intros ? _. simpl.
 unfold subst.
-change ((`(force_val1 (sem_cast (typeof e) t)) (eval_expr e) rho)) with (eval_expr (Ecast e t) rho).
+change ((`(force_val1 (sem_cast (typeof e) t)) (eval_expr Delta e) rho)) with (eval_expr Delta (Ecast e t) rho).
 rewrite H4.
 unfold eval_id at 1. unfold force_val; simpl.
 rewrite Map.gss. auto.
@@ -894,33 +911,39 @@ forall (Delta: tycontext) (P: assert) id e,
     semax Espec Delta 
         (fun rho => 
           |> (tc_expr Delta e rho  && (tc_temp_id id (typeof e) Delta e rho) && 
-              subst id (eval_expr e rho) P rho))
+              subst id (eval_expr Delta e rho) P rho))
           (Sset id e) (normal_ret_assert P).
 Proof.
 intros until e. 
 replace (fun rho : environ =>
    |>(tc_expr Delta e rho && (tc_temp_id id (typeof e) Delta e rho) &&
-      subst id (eval_expr e rho) P rho))
+      subst id (eval_expr Delta e rho) P rho))
  with (fun rho : environ =>
      (|> tc_expr Delta e rho && 
       |> (tc_temp_id id (typeof e) Delta e rho) &&
-      |> subst id (eval_expr e rho) P rho))
+      |> subst id (eval_expr Delta e rho) P rho))
   by (extensionality rho;  repeat rewrite later_andp; auto).
 apply semax_straight_simple. auto. 
-intros jm jm' Delta' ge ve te rho k F TS [TC3 TC2] TC' Hcl Hge ? ?.
+intros jm jm' Delta' ge ve te rho k F TS [TC3 TC2] TC' Hcl Hge ? ? HGG'.
 specialize (TC3 (m_phi jm') (age_laterR (age_jm_phi H))).
 specialize (TC2 (m_phi jm') (age_laterR (age_jm_phi H))).
-apply (tc_expr_sub _ _ TS) in TC3.
+assert (typecheck_environ Delta rho) as TC.
+Focus 1. {
+  destruct TC'.
+  eapply typecheck_environ_sub; eauto.
+} Unfocus.
+pose proof guard_genv_sub _ _ TS _ HGG' as HGG.
+pose proof TC3 as TC3'.
+apply (tc_expr_sub _ _ TS) in TC3'; [| auto].
 apply (tc_temp_id_sub _ _ TS) in TC2.
-clear Delta TS.
-exists jm', (PTree.set id (eval_expr e rho) te).
+exists jm', (PTree.set id (eval_expr Delta e rho) te).
 econstructor.
 split.
 reflexivity.
 split3; auto.
 apply age_level; auto.
 normalize in H0.
-clear - TC' TC2 TC3 Hge.
+clear - TS TC TC' TC2 TC3 TC3' Hge.
 unfold construct_rho in *.
 simpl in *. rewrite Hge. simpl. rewrite <- Hge.
 rewrite <- map_ptree_rel.  
@@ -932,7 +955,8 @@ rewrite tc_andp_sound in *; simpl in *.
 super_unfold_lift. destruct TC2; simpl in *. 
 unfold tc_bool in *. remember (is_neutral_cast (implicit_deref (typeof e)) t).
 destruct b0; inv H0. 
-destruct TC'. 
+destruct TC'.
+erewrite eval_expr_sub by eauto.
 apply neutral_cast_typecheck_val with (Delta := Delta'); auto. 
 destruct H0.
 split; auto.
@@ -949,7 +973,7 @@ apply age_level; auto.
 split.
 2: eapply pred_hereditary; try apply H1; destruct (age1_juicy_mem_unpack _ _ H); auto.
 
-assert (app_pred (|>  (F rho * subst id (eval_expr e rho) P rho)) (m_phi jm)).
+assert (app_pred (|>  (F rho * subst id (eval_expr Delta e rho) P rho)) (m_phi jm)).
 rewrite later_sepcon. eapply sepcon_derives; try apply H0; auto.
 assert (laterR (m_phi jm) (m_phi jm')).
 constructor 1.
@@ -957,7 +981,7 @@ destruct (age1_juicy_mem_unpack _ _ H); auto.
 specialize (H2 _ H3).
 eapply sepcon_derives; try apply H2; try solve[rewrite <- map_ptree_rel; subst; auto].  
 clear - Hcl Hge. 
-specialize (Hcl rho  (Map.set id (eval_expr e rho) (make_tenv te))).
+specialize (Hcl rho  (Map.set id (eval_expr Delta e rho) (make_tenv te))).
 rewrite <- map_ptree_rel.
 rewrite <- Hcl; auto.
 intros.
@@ -1001,8 +1025,8 @@ Lemma neutral_cast_lemma2: forall t1 t2 v,
   tc_val t1 v -> tc_val t2 v.
 Proof.
 intros.
-destruct t1  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ];
-destruct t2  as [ | [ | | | ] [ | ] | | [ | ] | | | | | | ]; inv H;
+destruct t1  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
+destruct t2  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; inv H;
 try solve [destruct i; discriminate];
  try solve [destruct v; apply H0];
  hnf in H0|-*; destruct v; auto;
@@ -1025,7 +1049,7 @@ Lemma semax_load :
 forall (Delta: tycontext) sh id P e1 t2 v2,
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
-   (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT) ->
+   (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue Delta e1 rho) (v2 rho) * TT) ->
     semax Espec Delta 
        (fun rho => |>
         (tc_lvalue Delta e1 rho  
@@ -1052,20 +1076,27 @@ rewrite tc_val_eq'. reflexivity.
 unfold mapsto.
 apply semax_straight_simple. 
 intro. apply boxy_andp; auto.
-intros jm jm1 Delta' ge ve te rho k F TS [TC2 TC3] TC' Hcl Hge ? ?.
+intros jm jm1 Delta' ge ve te rho k F TS [TC2 TC3] TC' Hcl Hge ? ? HGG'.
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi H))).
 specialize (TC3 (m_phi jm1) (age_laterR (age_jm_phi H))).
-apply (tc_lvalue_sub _ _ TS) in TC2.
+assert (typecheck_environ Delta rho) as TC.
+Focus 1. {
+  destruct TC'.
+  eapply typecheck_environ_sub; eauto.
+} Unfocus.
+pose proof guard_genv_sub _ _ TS _ HGG' as HGG.
+pose proof TC2 as TC2'.
+apply (tc_lvalue_sub _ _ TS) in TC2'; [| auto].
 hnf in TC3.
 apply (typeof_temp_sub _ _ TS) in Hid.
 assert (H99': forall rho : environ,
       !!typecheck_environ Delta' rho && P rho
-      |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT).
+      |-- mapsto sh (typeof e1) (eval_lvalue Delta e1 rho) (v2 rho) * TT).
 intro; eapply derives_trans; [ | apply H99]; apply andp_derives; auto.
 intros ? ?; do 3 red.
 eapply typecheck_environ_sub; eauto.
-clear Delta TS H99.
-destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
+clear H99.
+destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
 exists jm1.
 exists (PTree.set id (v2 rho) te).
 econstructor; split; [reflexivity | ].
@@ -1094,7 +1125,7 @@ split; [split3 | ].
    eapply sepcon_derives; try apply H0; auto.
    specialize (H3 _ (age_laterR (age_jm_phi H))).
    rewrite sepcon_comm in H3.
-   assert ((mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT)%pred (m_phi jm1)).
+   assert ((mapsto sh (typeof e1) (eval_lvalue Delta e1 rho) (v2 rho) * TT)%pred (m_phi jm1)).
    rewrite <- TT_sepcon_TT. rewrite <- sepcon_assoc.
    eapply sepcon_derives; try apply H3; auto.
    eapply derives_trans; [ | apply H99'].
@@ -1104,6 +1135,7 @@ split; [split3 | ].
    unfold mapsto in H4. 
    revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
    rename m into ch.
+   erewrite eval_lvalue_sub in H5 by eauto.
    rewrite H2 in H5.
    destruct (type_is_volatile (typeof e1)); try contradiction.
    destruct H5 as [[H5' H5] | [H5 _]]; [ | rewrite H5 in TC3; inv TC3].
@@ -1153,7 +1185,7 @@ Qed.
 Lemma semax_cast_load : 
 forall (Delta: tycontext) sh id P e1 t1 v2,
     typeof_temp Delta id = Some t1 ->
-   (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT) ->
+   (forall rho, !! typecheck_environ Delta rho && P rho |-- mapsto sh (typeof e1) (eval_lvalue Delta e1 rho) (v2 rho) * TT) ->
     semax Espec Delta 
        (fun rho => |>
         (tc_lvalue Delta e1 rho  
@@ -1182,21 +1214,28 @@ rewrite tc_val_eq'. reflexivity.
 unfold mapsto.
 apply semax_straight_simple. 
 intro. apply boxy_andp; auto.
-intros jm jm1 Delta' ge ve te rho k F TS [TC2 TC3] TC' Hcl Hge ? ?.
+intros jm jm1 Delta' ge ve te rho k F TS [TC2 TC3] TC' Hcl Hge ? ? HGG'.
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi H))).
 specialize (TC3 (m_phi jm1) (age_laterR (age_jm_phi H))).
-apply (tc_lvalue_sub _ _ TS) in TC2.
+assert (typecheck_environ Delta rho) as TC.
+Focus 1. {
+  destruct TC'.
+  eapply typecheck_environ_sub; eauto.
+} Unfocus.
+pose proof guard_genv_sub _ _ TS _ HGG' as HGG.
+pose proof TC2 as TC2'.
+apply (tc_lvalue_sub _ _ TS) in TC2'; [| auto].
 hnf in TC3.
 apply (typeof_temp_sub _ _ TS) in Hid.
 assert (H99': forall rho : environ,
       !!typecheck_environ Delta' rho && P rho
-      |-- mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT).
+      |-- mapsto sh (typeof e1) (eval_lvalue Delta e1 rho) (v2 rho) * TT).
 intros.
 intro; eapply derives_trans; [ | apply H99]; apply andp_derives; auto.
 intros ? ?; do 3 red.
 eapply typecheck_environ_sub; eauto.
-clear Delta TS H99.
-destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
+clear H99.
+destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC')) as [b [ofs [? ?]]]; auto.
 exists jm1.
 exists (PTree.set id (eval_cast (typeof e1) t1 (v2 rho)) (te)).
 econstructor.
@@ -1230,7 +1269,7 @@ split; [split3 | ].
    eapply sepcon_derives; try apply H0; auto.
    specialize (H3 _ (age_laterR (age_jm_phi H))).
    rewrite sepcon_comm in H3.
-   assert ((mapsto sh (typeof e1) (eval_lvalue e1 rho) (v2 rho) * TT)%pred (m_phi jm1)).
+   assert ((mapsto sh (typeof e1) (eval_lvalue Delta e1 rho) (v2 rho) * TT)%pred (m_phi jm1)).
    rewrite <- TT_sepcon_TT. rewrite <- sepcon_assoc.
    eapply sepcon_derives; try apply H3; auto.
    eapply derives_trans; [ | apply H99'].
@@ -1241,6 +1280,7 @@ split; [split3 | ].
    revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
    rename m into ch.
    destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
+   erewrite eval_lvalue_sub in H5 by eauto.
    rewrite H2 in H5.
    destruct H5 as [[H5' H5] | [H5 _]];
     [ | hnf in TC3; rewrite H5, eval_cast_Vundef in TC3; inv TC3 ].
@@ -1415,21 +1455,21 @@ end.
 
 
 Lemma load_cast : 
- forall (e1 : expr) (e2 : expr) (ch : memory_chunk) rho,
-   tc_val (typeof e2) (eval_expr e2 rho) ->
-   denote_tc_assert (isCastResultType (typeof e2) (typeof e1) e2)
+ forall Delta (e1 : expr) (e2 : expr) (ch : memory_chunk) rho,
+   tc_val (typeof e2) (eval_expr Delta e2 rho) ->
+   denote_tc_assert Delta (isCastResultType Delta (typeof e2) (typeof e1) e2)
      rho ->
    access_mode (typeof e1) = By_value ch ->
    Val.load_result ch
-     (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))) =
-   force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)). 
+     (force_val (Cop.sem_cast (eval_expr Delta e2 rho) (typeof e2) (typeof e1))) =
+   force_val (Cop.sem_cast (eval_expr Delta e2 rho) (typeof e2) (typeof e1)). 
 Proof.
 intros. 
 destruct ch; 
- destruct (typeof  e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; try solve [inv H1]; 
-simpl in *; (*try destruct i; try destruct s; try destruct f;*)
- try solve [inv H1]; clear H1; destruct (eval_expr e2 rho);
- destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | | ]; 
+ destruct (typeof  e1) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; try solve [inv H1]; 
+simpl in *; (*try destruct i; try destruct s; try destruct f;*)       
+ try solve [inv H1]; clear H1; destruct (eval_expr Delta e2 rho);           
+ destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; 
  try solve [inv H]; 
 unfold Cop.sem_cast; simpl;
 try destruct (Float.to_int f); 
@@ -1452,31 +1492,41 @@ Lemma semax_store:
    semax Espec Delta 
           (fun rho =>
           |> (tc_lvalue Delta e1 rho && tc_expr Delta (Ecast e2 (typeof e1)) rho  && 
-             (mapsto_ sh (typeof e1) (eval_lvalue e1 rho) * P rho)))
+             (mapsto_ sh (typeof e1) (eval_lvalue Delta e1 rho) * P rho)))
           (Sassign e1 e2) 
-          (normal_ret_assert (fun rho => mapsto sh (typeof e1) (eval_lvalue e1 rho) 
-                                           (force_val (sem_cast  (typeof e2) (typeof e1) (eval_expr e2 rho))) * P rho)).
+          (normal_ret_assert (fun rho => mapsto sh (typeof e1) (eval_lvalue Delta e1 rho) 
+                                           (force_val (sem_cast  (typeof e2) (typeof e1) (eval_expr Delta e2 rho))) * P rho)).
 Proof.
 intros until P. intros WS.
 apply semax_pre with
   (fun rho : environ =>
    EX v3: val, 
       |> tc_lvalue Delta e1 rho && |> tc_expr Delta (Ecast e2 (typeof e1)) rho &&
-      |> (mapsto sh (typeof e1) (eval_lvalue e1 rho) v3 * P rho)).
+      |> (mapsto sh (typeof e1) (eval_lvalue Delta e1 rho) v3 * P rho)).
 intro. apply andp_left2. 
 unfold mapsto_. apply exp_right with Vundef.
 repeat rewrite later_andp; auto.
 apply extract_exists_pre; intro v3.
 apply semax_straight_simple; auto.
-intros jm jm1 Delta' ge ve te rho k F TS [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'].
+intros jm jm1 Delta' ge ve te rho k F TS [TC1 TC2] TC4 Hcl Hge Hage [H0 H0'] HGG'.
 specialize (TC1 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
 specialize (TC2 (m_phi jm1) (age_laterR (age_jm_phi Hage))).
-apply (tc_lvalue_sub _ _ TS) in TC1.
-apply (tc_expr_sub _ _ TS) in TC2.
-clear Delta TS.
-simpl in TC2. 
-rewrite tc_andp_sound in *; simpl in TC2; super_unfold_lift. 
+assert (typecheck_environ Delta rho) as TC.
+Focus 1. {
+  destruct TC4.
+  eapply typecheck_environ_sub; eauto.
+} Unfocus.
+pose proof guard_genv_sub _ _ TS _ HGG' as HGG.
+pose proof TC1 as TC1'.
+pose proof TC2 as TC2'.
+apply (tc_lvalue_sub _ _ TS) in TC1'; [| auto].
+apply (tc_expr_sub _ _ TS) in TC2'; [| auto].
+simpl in TC2.
+rewrite tc_andp_sound in *; simpl in TC2; super_unfold_lift.
 destruct TC2 as [TC2 TC3].
+simpl in TC2'.
+rewrite tc_andp_sound in *; simpl in TC2'; super_unfold_lift. 
+destruct TC2' as [TC2' TC3'].
 apply later_sepcon2 in H0.
 specialize (H0 _ (age_laterR (age_jm_phi Hage))).
 pose proof I.
@@ -1484,7 +1534,8 @@ destruct H0 as [?w [?w [? [? [?w [?w [H3 [H4 H5]]]]]]]].
 unfold mapsto in H4.
 revert H4; case_eq (access_mode (typeof e1)); intros; try contradiction.
 rename H2 into Hmode. rename m into ch.
-destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) Hge (guard_environ_e1 _ _ _ TC4)) as [b0 [i [He1 He1']]]; auto.
+destruct (eval_lvalue_relate _ _ _ _ _ e1 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC4)) as [b0 [i [He1 He1']]]; auto.
+erewrite <- eval_lvalue_sub in He1' by eauto.
 rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 rewrite writable_share_right in H4 by auto.
@@ -1505,17 +1556,18 @@ spec H2; [ eauto with typeclass_instances| ].
 spec H2; [ eauto with typeclass_instances | ].
 subst m7.
 exists w1; exists w3; split3; auto. hnf. apply necR_refl.
-apply address_mapsto_can_store with (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))))) in H11.
+apply address_mapsto_can_store with (v':=((force_val (Cop.sem_cast (eval_expr Delta e2 rho) (typeof e2) (typeof e1))))) in H11.
 Focus 2.
 
-clear - WS TC2 TC4 TC3 TC1 Hmode.
+clear - TS TC HGG HGG' WS TC2 TC2' TC4 TC3 TC3' TC1 Hmode.
 unfold typecheck_store in *.
 destruct TC4 as [TC4 _].
-simpl in TC2. apply typecheck_expr_sound in TC2; auto.
-remember (eval_expr e2 rho).
+simpl in TC2'. apply typecheck_expr_sound in TC2'; auto.
+remember (eval_expr Delta e2 rho).
 dec_enc. rewrite DE. clear DE. subst. 
-apply load_cast; auto. 
-
+apply load_cast; auto.
+erewrite eval_expr_sub by eauto.
+eauto.
 
 destruct H11 as [m' [H11 AM]].
 exists (store_juicy_mem _ _ _ _ _ _ H11).
@@ -1525,11 +1577,11 @@ rewrite level_store_juicy_mem. apply age_level; auto.
 split; auto.
 split.
 split3; auto.
-generalize (eval_expr_relate _ _ _ _ _ e2 (m_dry jm) Hge (guard_environ_e1 _ _ _ TC4)); intro.
+generalize (eval_expr_relate _ _ _ _ _ e2 (m_dry jm) HGG' Hge (guard_environ_e1 _ _ _ TC4)); intro.
 econstructor; try eassumption. 
 unfold tc_lvalue in TC1. simpl in TC1. 
 auto.
-instantiate (1:=(force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1)))).
+instantiate (1:=(force_val (Cop.sem_cast (eval_expr Delta' e2 rho) (typeof e2) (typeof e1)))).
 rewrite cop2_sem_cast.
 eapply cast_exists; eauto. destruct TC4; auto.
 eapply Clight.assign_loc_value.
@@ -1538,7 +1590,9 @@ unfold tc_lvalue in TC1. simpl in TC1.
 auto. 
 unfold Mem.storev.
 simpl m_dry.
-rewrite (age_jm_dry Hage); auto.
+rewrite (age_jm_dry Hage).
+erewrite <- eval_expr_sub by eauto.
+auto.
 apply (resource_decay_trans _ (nextblock (m_dry jm1)) _ (m_phi jm1)).
 rewrite (age_jm_dry Hage); xomega.
 apply (age1_resource_decay _ _ Hage).
@@ -1552,7 +1606,7 @@ replace (core  (m_phi (store_juicy_mem _ _ _ _ _ _ H11))) with (core (m_phi jm1)
 rewrite <- corable_funassert.
 eapply pred_hereditary; eauto. apply age_jm_phi; auto.
 symmetry.
-forget (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))) as v.
+forget (force_val (Cop.sem_cast (eval_expr Delta e2 rho) (typeof e2) (typeof e1))) as v.
 apply rmap_ext.
 do 2 rewrite level_core.
 rewrite <- level_juice_level_phi; rewrite level_store_juicy_mem.
