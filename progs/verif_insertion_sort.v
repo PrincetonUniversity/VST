@@ -315,12 +315,14 @@ entailer!.
 entailer.
 
 (*invariant implies post *)
+destruct a as [[[sorted_list unsorted_list] ?p] i]; simpl @snd in *; simpl @fst in *.
 apply (exp_right p0).
 entailer!.
 destruct unsorted_list; inv H0.
 rewrite <- app_nil_end. auto.
 
 (*invariant across body *)
+destruct a as [[[sorted_list unsorted_list] ?p] i]; simpl @snd in *; simpl @fst in *.
 focus_SEP 1. 
 normalize.
 apply semax_lseg_nonnull.
@@ -345,16 +347,13 @@ clear H1.
 apply semax_pre with
 (EX v : val,  
  PROP  ()
-   LOCAL  (temp _next y;  temp _sorted v; temp _index i;
-   `(typed_true (typeof (Etempvar _index (tptr t_struct_list))))
-     (eval_expr (Etempvar _index (tptr t_struct_list))))
+   LOCAL  (temp _next y;  temp _sorted v; temp _index i)
    SEP 
    (`(data_at sh t_struct_list (Vint insert_val, nullval) i);
    `(lseg LS sh (map Vint unsorted_list) y nullval);
    `(lseg LS sh (map Vint (insertion_sort sorted_list)) v nullval))).
 apply (exp_right p0).
 go_lower. ent_iter. apply andp_right. apply prop_right; repeat split; auto.
-destruct index; inv Pindex; reflexivity.
 unfold_data_at 1%nat.
 entailer.
  
@@ -367,10 +366,8 @@ after_call.
 forward. (* index = next;*)
 unfold body_invariant.
 entailer.
-apply (exp_right (sorted_list ++ [insert_val])).
-apply (exp_right (unsorted_list)).
-apply (exp_right sorted).
-apply (exp_right next).
+apply (exp_right (sorted_list ++ [insert_val],
+                           unsorted_list, sorted, next)).
 entailer.
 apply andp_right.
 apply prop_right. rewrite app_ass; reflexivity.

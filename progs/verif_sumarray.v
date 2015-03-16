@@ -175,22 +175,20 @@ entailer!.
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
-entailer!. f_equal.
-assert (i0 = Zlength contents) by omega; subst.
+entailer!.
+assert (a1 = Zlength contents) by omega; subst.
 rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
 reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
+normalize.
 forward. (* x = a[i] *)
+  entailer!. apply H1. omega.
 forward. (* s += x; *)
 forward. (* i++; *)
-  unfold sumarray_Inv.
-  apply exp_right with (Zsucc i0).
+  apply exp_right with (Zsucc a1).
   entailer!.
-  rewrite H5 in H4.
-  simpl in H4.
-  erewrite add_one_more_to_sum by eauto.
-  inversion H4.
-  reflexivity.
+ rewrite H5 in H4. inv H4. 
+  erewrite add_one_more_to_sum; eauto. omega.
 (* After the loop *)
 forward.  (* return s; *)
 Qed.

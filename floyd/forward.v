@@ -84,403 +84,6 @@ Ltac forward_seq :=
   first [eapply semax_seq'; [  | abbreviate_semax ]
          | eapply semax_post_flipped' ].
 
-(*
-Definition denote_local_ptree (P: PTree.t val) rho :=
-  forall i v, PTree.get i P = Some v -> eval_id i rho = v.
-
-Fixpoint msubst_eval_expr (P: PTree.t val) (e: expr) : environ -> val :=
- match e with
- | Econst_int i ty => `(Vint i)
- | Econst_long i ty => `(Vlong i)
- | Econst_float f ty => `(Vfloat f)
- | Econst_single f ty => `(Vsingle f)
- | Etempvar id ty => match PTree.get id P with
-                                 | Some v => `v
-                                 | None => eval_id id 
-                                 end
- | Eaddrof a ty => msubst_eval_lvalue P a 
- | Eunop op a ty =>  `(eval_unop op (typeof a)) (msubst_eval_expr P a) 
- | Ebinop op a1 a2 ty =>  
-                  `(eval_binop op (typeof a1) (typeof a2)) (msubst_eval_expr P a1) (msubst_eval_expr P a2)
- | Ecast a ty => `(eval_cast (typeof a) ty) (msubst_eval_expr P a)
- | Evar id ty => `(deref_noload ty) (eval_var id ty)
- | Ederef a ty => `(deref_noload ty) (`force_ptr (msubst_eval_expr P a))
- | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (msubst_eval_lvalue P a))
- end
-
- with msubst_eval_lvalue (P: PTree.t val) (e: expr) : environ -> val := 
- match e with 
- | Evar id ty => eval_var id ty
- | Ederef a ty => `force_ptr (msubst_eval_expr P a)
- | Efield a i ty => `(eval_field (typeof a) i) (msubst_eval_lvalue P a)
- | _  => `Vundef
- end.
-
-Lemma msubst_eval_expr_eq:
-    forall P e rho, 
-   denote_local_ptree P rho ->
-   msubst_eval_expr P e rho = eval_expr e rho
-with msubst_eval_lvalue_eq: 
-    forall P e rho, 
-      denote_local_ptree P rho ->
-      msubst_eval_lvalue P e rho = eval_lvalue e rho.
-Proof.
-clear msubst_eval_expr_eq.
-induction e; intros; simpl; try auto.
-destruct (P ! i) eqn:?; auto.
-apply H in Heqo.
-unfold_lift; simpl.  auto.
-unfold_lift. rewrite <- IHe; auto.
-unfold_lift. rewrite <- IHe; auto.
-unfold_lift. rewrite <- IHe1, <- IHe2; auto.
-unfold_lift. rewrite <- IHe; auto.
-unfold_lift. rewrite <- (msubst_eval_lvalue_eq P); auto.
-
-clear msubst_eval_lvalue_eq.
-induction e; intros; simpl; try auto.
-unfold_lift. rewrite <- (msubst_eval_expr_eq P); auto.
-unfold_lift. rewrite <- IHe; auto.
-Qed.
-
-
-Inductive local2ptree0 (j: ident) :
-     list (environ -> Prop) -> PTree.t val -> list (environ -> Prop) -> Prop :=
-| local2ptree0_nil:
-       local2ptree0 j nil (PTree.empty _) nil
-| local2ptree0_cons: forall i v Q P Q',
-       i <> j ->
-       local2ptree0 j Q P Q' ->
-       local2ptree0 j (`(eq v) (eval_id i) :: Q) (PTree.set i v P) (`(eq v) (eval_id i):: Q')
-| local2ptree0_var: forall i t v Q P Q',
-       local2ptree0 j Q P Q' ->
-       local2ptree0 j (`(eq v) (eval_var i t) :: Q) P (`(eq v) (eval_var i t):: Q').
-
-Inductive local2ptree (j: ident):
-     list (environ -> Prop) -> PTree.t val -> list (environ -> Prop) -> Prop :=
-| local2ptree_nil: 
-       local2ptree j nil (PTree.empty _) nil
-| local2ptree_same: forall v Q P Q',
-       local2ptree0 j Q P Q'->
-       local2ptree j (`(eq v) (eval_id j) :: Q) (PTree.set j v P) Q'
-| local2ptree_other: forall i v Q P Q',
-       i <> j ->
-       local2ptree j Q P Q' ->
-       local2ptree j (`(eq v) (eval_id i) :: Q) (PTree.set i v P) (`(eq v) (eval_id i):: Q')
-| local2ptree_var: forall i t v Q P Q',
-       local2ptree j Q P Q' ->
-       local2ptree j (`(eq v) (eval_var i t) :: Q) P (`(eq v) (eval_var i t):: Q').
-
-Lemma ptree_empty_some:
-  forall {A i x}, 
-    PTree.get i (PTree.empty A) = Some x -> False.
-Proof.
-intros. rewrite PTree.gempty in H; inv H.
-Qed.
-
-Lemma local2ptree_e:
- forall i v Q S Q',
-   local2ptree i Q S Q' ->
-    S ! i = Some v ->
-     (fold_right `and `True Q = fold_right `and `True (`(eq v) (eval_id i) :: Q')) /\
-     (forall j v' rho, fold_right `and `True Q rho ->
-                            PTree.get j S = Some v' -> eval_id j rho = v') /\
-       Forall (closed_wrt_vars (eq i)) Q'.
-Proof.
-intros.
-split3.
-*
-extensionality rho.
-assert (fold_right `and `True Q rho -> v = eval_id i rho). {
-revert H0; induction H; simpl; intros.
- + contradiction (ptree_empty_some H0).
- + rewrite PTree.gss in H0; inv H0. destruct H1.
-     apply H0.
- + rewrite PTree.gso in H1 by auto. destruct H2.
-   auto.
- + destruct H1; apply IHlocal2ptree; auto.
-}
-revert H0 H1; induction H; simpl; intros.
-+ contradiction (ptree_empty_some H0).
-+ f_equal. rewrite PTree.gss in H0; inv H0.
-   auto.
-   clear - H; induction H; auto.
-   - simpl; f_equal; auto.
-   - simpl; f_equal ; auto.
-+ rewrite PTree.gso in H1 by auto.
-   unfold_lift. apply prop_ext; intuition.
-   apply H2; auto.
-   unfold_lift. split; auto.
-  spec H3. intro; apply H2. unfold_lift. split; auto.
-  unfold_lift in H3. simpl in H3.
-  rewrite H3 in H6. destruct H6; auto.
-  unfold_lift in H6; simpl in H6; rewrite H6.
-  split; auto.
-+ specialize (IHlocal2ptree H0).
-   unfold_lift. apply prop_ext; intuition.
-   apply H1; auto.
-   unfold_lift. split; auto.
-   unfold_lift in IHlocal2ptree; rewrite IHlocal2ptree in H4.
-   destruct H4; auto. intros; apply H1.
-   unfold_lift; auto.
-   unfold_lift in H4; rewrite H4; auto.
-   split; auto.
-*
-intros.
-clear H0.
-revert H1 H2; induction H; simpl; intros.
-+ contradiction (ptree_empty_some H2).
-+ destruct (ident_eq i j).
-  subst. rewrite PTree.gss in H2. inv H2.
-  destruct H1.
-  unfold_lift in H0. auto.
-  rewrite PTree.gso in H2 by auto.
-  destruct H1.
-  unfold_lift in H1. 
-  clear - n H1 H2 H.
-  revert n H1 H2; induction H; simpl; intros.
-  - contradiction (ptree_empty_some H2).
-  - destruct H1.
-     destruct (ident_eq i0 j). subst.
-     rewrite PTree.gss in H2. inv H2.
-     unfold_lift in H1; auto.
-     rewrite PTree.gso in H2 by auto.
-     apply IHlocal2ptree0; auto.
-   -  apply IHlocal2ptree0; auto.
-       destruct H1; auto.
-+
-   destruct H1. 
-   destruct (ident_eq i0 j). subst.
-   rewrite PTree.gss in H2. inv H2. unfold_lift in H1; auto.
-   rewrite PTree.gso in H2 by auto.
-   apply IHlocal2ptree; auto.
-+ 
-   apply IHlocal2ptree; auto.  destruct H1; auto.
-*
-clear H0.
-induction H; auto with closed.
-induction H; auto with closed.
-Qed.
- 
-Lemma local2ptree_e0:
- forall i Q S Q',
-   local2ptree i Q S Q' ->
-    S ! i = None ->
-     (Q = Q') /\
-     (forall j v' rho, fold_right `and `True Q rho ->
-                            PTree.get j S = Some v' -> eval_id j rho = v') /\
-       Forall (closed_wrt_vars (eq i)) Q'.
-Proof.
-intros.
-split3.
-*
-revert H0; induction H; simpl; intros; auto.
- + rewrite PTree.gss in H0; inv H0.
- + rewrite PTree.gso in H1 by auto. f_equal; auto.
- + f_equal; auto.
-*
-intros.
-clear H0.
-revert H1 H2; induction H; simpl; intros.
- + contradiction (ptree_empty_some H2).
- + destruct (ident_eq i j).
-    subst. rewrite PTree.gss in H2. inv H2.
-    destruct H1.
-    unfold_lift in H0. auto.
-    rewrite PTree.gso in H2 by auto.
-    destruct H1.
-    unfold_lift in H1.
-    clear - n H1 H2 H.
-    revert n H1 H2; induction H; simpl; intros.
-   - contradiction (ptree_empty_some H2).
-   - destruct H1.
-      destruct (ident_eq i0 j). subst. 
-      rewrite PTree.gss in H2. inv H2.
-      unfold_lift in H1; auto.
-     rewrite PTree.gso in H2 by auto.
-     apply IHlocal2ptree0; auto.
-   - destruct H1; auto.
- + destruct H1.
-   destruct (ident_eq i0 j). subst.
-   rewrite PTree.gss in H2. inv H2. unfold_lift in H1; auto.
-   rewrite PTree.gso in H2 by auto.
-   apply IHlocal2ptree; auto.
- + destruct H1; auto.
-*
-clear H0.
-induction H; auto with closed.
-induction H; auto with closed.
-Qed.
-
-Lemma msubst_expr:
-    forall S i v e rho, 
-    S ! i = Some v ->
-   msubst_eval_expr S e rho = msubst_eval_expr S e (env_set rho i v)
-with msubst_lvalue: 
-    forall S i v e rho, 
-    S ! i = Some v ->
-    msubst_eval_lvalue S e rho = msubst_eval_lvalue S e (env_set rho i v).
-Proof.
-clear msubst_expr.
-induction e; intros; simpl; try auto.
-destruct (ident_eq i0 i). subst. rewrite H. reflexivity.
-destruct (S ! i0) eqn:?; auto.
-unfold eval_id; simpl. rewrite Map.gso; auto.
-unfold_lift. rewrite <- IHe; auto.
-unfold_lift. rewrite <- IHe; auto.
-unfold_lift. rewrite <- IHe1, <- IHe2; auto.
-unfold_lift. rewrite <- IHe; auto.
-unfold_lift. rewrite <- (msubst_lvalue S); auto.
-
-clear msubst_lvalue.
-induction e; intros; simpl; try auto.
-unfold_lift. rewrite <- (msubst_expr S); auto.
-unfold_lift. rewrite <- IHe; auto.
-Qed.
-*)
-(*
-Lemma forward_setx_wow:
-  forall S (v: val) Q' Espec Delta P Q R i e,
-  Forall (closed_wrt_vars (eq i)) R ->
-  local2ptree i Q S Q' ->
-  match S ! i with Some _ => True | None => closed_eval_expr i e = true end ->
-  msubst_eval_expr S e = `v ->
-  (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-          local (tc_expr Delta e) && local (tc_temp_id i (typeof e) Delta e) ) ->
-  @semax Espec Delta
-             (PROPx P (LOCALx Q (SEPx R)))
-             (Sset i e)
-             (normal_ret_assert
-              (PROPx P (LOCALx (`(eq v) (eval_id i) :: Q') (SEPx R)))).
-Proof.
-intros.
-eapply semax_post; [ | apply forward_setx; auto].
-intros.
-apply andp_left2.
-apply normal_ret_assert_derives'.
-apply exp_left; intro old.
-clear H3.
-apply andp_derives; auto.
-apply andp_derives;
- [ | unfold SEPx; rewrite closed_wrt_map_subst; auto].
-unfold local,lift1. intro rho; apply prop_derives.
-change (`(eq v)) with (`eq `v).
-forget (`v) as e'. clear v.
-subst e'.
-intros [? ?].
-destruct (S!i) eqn:H4; [clear H1 | rename H1 into H9].
-*
-apply (local2ptree_e i v) in H0; auto.
-destruct H0 as [? [? ?]].
-assert (fold_right `and `True Q (env_set rho i old)). {
- clear - H3.
- induction Q; destruct H3; simpl; split; auto.
-}
-split.
-Focus 2. {
-rewrite H0 in H6.
-destruct H6.
-clear - H5 H7.
-induction Q'; auto.
-inv H5.
-destruct H7; split; auto.
-clear - H1 H.
-unfold env_set in H.
-hnf in H1.
-rewrite (H1 rho (Map.set i old (te_of rho))); auto.
-intros.
-destruct (ident_eq i i0); auto. right.
-rewrite Map.gso; auto.
-} Unfocus.
-unfold_lift.
-unfold_lift in H2.
-rewrite H2. unfold subst.
-assert (old = v).
-specialize (H1 i v _ H6 H4).
-unfold eval_id, env_set in H1; simpl in H1. rewrite Map.gss in H1.
-inv H1. reflexivity.
-subst old.
-rewrite <- (msubst_eval_expr_eq S e).
-Focus 2. {
-hnf; intros. destruct (ident_eq i i0). subst. unfold eval_id. simpl. rewrite Map.gss.
-simpl; congruence.
-unfold eval_id; simpl. rewrite Map.gso by auto.
-specialize (H1 _ _ _ H6 H7).
-unfold eval_id in H1; simpl in H1; rewrite Map.gso in H1 by auto.
-auto.
-} Unfocus.
-apply msubst_expr; auto.
-*
-apply (local2ptree_e0 i) in H0; auto.
-destruct H0 as [? [? ?]].
-subst Q'.
-split.
-Focus 2. {
-clear - H5 H3.
-induction Q; auto.
-inv H5.
-destruct H3; split; auto.
-clear - H1 H.
-unfold subst, env_set in H.
-hnf in H1.
-rewrite (H1 rho (Map.set i old (te_of rho))); auto.
-intros.
-destruct (ident_eq i i0); auto. right.
-rewrite Map.gso; auto.
-} Unfocus.
-unfold_lift.
-unfold_lift in H2.
-rewrite msubst_eval_expr_eq; auto.
-apply closed_eval_expr_e in H9.
-rewrite H2.
-autorewrite with subst.
-auto.
-hnf; intros; apply H1; auto.
-clear - H3 H5.
-induction Q; auto.
-inv H5; destruct H3; split; auto.
-autorewrite with subst in H; auto.
-Qed.
-
-Lemma forward_setx_wow_seq:
-  forall S (v: val) Q' Delta' Espec Delta P Q R i e c Post,
-  Forall (closed_wrt_vars (eq i)) R ->
-  local2ptree i Q S Q' ->
-  match S ! i with Some _ => True | None => closed_eval_expr i e = true end ->
-  msubst_eval_expr S e = `v ->
-  initialized i Delta = Delta' ->
-  (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-          local (tc_expr Delta e) && local (tc_temp_id i (typeof e) Delta e) ) ->
-  @semax Espec Delta'  (PROPx P (LOCALx (`(eq v) (eval_id i) :: Q') (SEPx R)))
-                          c Post ->
-  @semax Espec Delta
-             (PROPx P (LOCALx Q (SEPx R)))
-             (Ssequence (Sset i e) c)
-             Post.
-Proof.
-intros.
-eapply semax_seq'.
-eapply forward_setx_wow; eassumption.
-subst Delta'; simpl; apply H5.
-Qed.
-
-Ltac simpl_lift := 
- repeat 
- match goal with
- | |- context [@liftx (Tarrow val (LiftEnviron val)) ?f
-                                                         (@liftx (LiftEnviron val) ?v1)] =>
-   change (@liftx (Tarrow val (LiftEnviron val)) f
-                                                         (@liftx (LiftEnviron val) v1))
-   with (`(f v1)); simpl force_val1; simpl eval_unop
- | |- context [@liftx (Tarrow val (Tarrow val (LiftEnviron val))) ?f
-                                                         (@liftx (LiftEnviron val) ?v1)
-                                                         (@liftx (LiftEnviron val) ?v2)] =>
-   change (@liftx (Tarrow val (Tarrow val (LiftEnviron val))) f
-                                                         (@liftx (LiftEnviron val) v1)
-                                                         (@liftx (LiftEnviron val) v2))
-   with (`(f v1 v2)); simpl force_val2; simpl eval_binop
- end.
-*)
-
 Ltac simpl_stackframe_of := 
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
   repeat rewrite var_block_data_at_ by reflexivity;
@@ -1218,65 +821,41 @@ Ltac quick_typecheck :=
             | apply local_True_right
             | idtac ].
 
-Ltac forward_while Inv Postcond :=
-  repeat (apply -> seq_assoc; abbreviate_semax);
-  first [ignore (Inv: environ->mpred) 
-         | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
-  first [ignore (Postcond: environ->mpred)
-         | fail 1 "Postcondition (second argument to forward_while) must have type (environ->mpred)"];
-  apply semax_pre with Inv;
-    [  unfold_function_derives_right 
-    | (apply semax_seq with Postcond;
-       [ first 
-          [ apply semax_while' 
-          | apply semax_while
-          ]; 
-          [ compute; auto 
-          | unfold_and_local_derives
-          | unfold_and_local_derives
-          | unfold_and_local_semax
-          ] 
-       | simpl update_tycon 
-       ])
-    ]; abbreviate_semax; autorewrite with ret_assert.
+Ltac do_compute_expr_helper Delta Q v :=
+   try assumption;
+   eapply derives_trans; [| apply msubst_eval_expr_eq];
+    [apply derives_refl'; apply local2ptree_soundness; try assumption;
+     let HH := fresh "H" in
+     construct_local2ptree (tc_environ Delta :: Q) HH;
+     exact HH |
+     unfold v;
+     simpl;
+     try unfold force_val2; try unfold force_val1;
+     autorewrite with norm;
+     simpl;
+     reflexivity].
 
-Ltac forward_for_simple_bound n Pre :=
- repeat match goal with |-
-      semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
-      apply -> seq_assoc; abbreviate_semax
- end;
- first [ 
-     simple eapply semax_seq'; 
-    [forward_for_simple_bound' n Pre 
-    | cbv beta; simpl update_tycon; abbreviate_semax  ]
-  | eapply semax_post_flipped'; 
-     [forward_for_simple_bound' n Pre 
-     | ]
-  ].
-
-Ltac forward_for Inv PreIncr Postcond :=
-  repeat (apply -> seq_assoc; abbreviate_semax);
-  first [ignore (Inv: environ->mpred) 
-         | fail 1 "Invariant (first argument to forward_for) must have type (environ->mpred)"];
-  first [ignore (Postcond: environ->mpred)
-         | fail 1 "Postcondition (last argument to forward_for) must have type (environ->mpred)"];
-  apply semax_pre with Inv;
-    [  unfold_function_derives_right 
-    | (apply semax_seq with Postcond;
-       [ first 
-          [ apply semax_for' with PreIncr
-          | apply semax_for with PreIncr
-          ]; 
-          [ compute; auto 
-          | unfold_and_local_derives
-          | unfold_and_local_derives
-          | unfold_and_local_semax
-          | unfold_and_local_semax
-          ] 
-       | simpl update_tycon 
-       ])
-    ]; abbreviate_semax; autorewrite with ret_assert.
-
+Ltac do_compute_expr1 Delta Pre e :=
+ match Pre with
+ | @exp _ _ ?A ?Pre1 =>
+  let P := fresh "P" in let Q := fresh "Q" in let R := fresh "R" in
+  let H8 := fresh "DCE" in let H9 := fresh "DCE" in
+  evar (P: A -> list Prop);
+  evar (Q: A -> list (environ -> Prop));
+  evar (R: A -> list (environ -> mpred));
+  assert (H8: Pre1 =  (fun a => PROPx (P a) (LOCALx (Q a) (SEPx (R a)))))
+    by (extensionality; unfold P,Q,R; reflexivity);
+  let v := fresh "v" in evar (v: A -> val);
+  assert (H9: forall a, PROPx (P a) (LOCALx (tc_environ Delta :: (Q a)) (SEPx (R a))) |--
+                       local (`(eq (v a)) (eval_expr e)))
+     by (let a := fresh "a" in intro a; do_compute_expr_helper Delta (Q a) v)
+ | PROPx ?P (LOCALx ?Q (SEPx ?R)) =>
+  let H9 := fresh "H" in
+  let v := fresh "v" in evar (v: val);
+  assert (H9:  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))|-- 
+                     local (`(eq v) (eval_expr e)))
+   by (do_compute_expr_helper Delta Q v) 
+ end.
 
 Lemma typed_true_nullptr3:
   forall p, 
@@ -1369,10 +948,28 @@ match type of H with
     try (rewrite (Int.unsigned_repr A) in H by repable_signed)
 end.
 
+Lemma typed_true_ptr_e:
+ forall t v, typed_true (tptr t) v -> isptr v.
+Proof.
+ intros. destruct v; inv H; try apply I.
+ destruct (Int.eq i Int.zero); inv H1.
+Qed.
+
+Lemma typed_false_ptr_e:
+ forall t v, typed_false (tptr t) v -> v=nullval.
+Proof.
+ intros. destruct v; inv H; try apply I.
+ destruct (Int.eq i Int.zero) eqn:?; inv H1.
+apply int_eq_e in Heqb. subst; reflexivity.
+Qed.
+
 Ltac do_repr_inj H :=
    simpl typeof in H;
-   try apply typed_true_of_bool in H;
-   try apply typed_false_of_bool in H;
+  try first [apply typed_true_of_bool in H
+               |apply typed_false_of_bool in H
+               | apply typed_true_ptr_e in H
+               | apply typed_false_ptr_e in H
+               ];
    repeat (rewrite -> negb_true_iff in H || rewrite -> negb_false_iff in H);
    try apply int_eq_e in H;
    match type of H with _ <> _ => apply int_eq_false_e in H | _ => idtac end;
@@ -1381,7 +978,7 @@ Ltac do_repr_inj H :=
          | simple apply repr_inj_signed' in H; [ | repable_signed | repable_signed ]
          | simple apply repr_inj_unsigned' in H; [ | repable_signed | repable_signed ]
          | apply typed_true_nullptr3 in H
-         | apply typed_false_nullptr3 in H
+         | match type of H with _ <> _ => apply typed_false_nullptr3 in H end
          | simple apply ltu_repr in H; [ | repable_signed | repable_signed]
          | simple apply ltu_repr_false in H; [ | repable_signed | repable_signed]
          | simple apply ltu_inv in H; cleanup_repr H
@@ -1392,6 +989,83 @@ Ltac do_repr_inj H :=
          | simple apply lt_false_inv in H; cleanup_repr H
          | idtac
          ].
+
+Ltac forward_while Inv Postcond :=
+  repeat (apply -> seq_assoc; abbreviate_semax);
+  first [ignore (Inv: environ->mpred) 
+         | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
+  first [ignore (Postcond: environ->mpred)
+         | fail 1 "Postcondition (second argument to forward_while) must have type (environ->mpred)"];
+  apply semax_pre with Inv;
+    [  unfold_function_derives_right 
+    | apply semax_seq with Postcond;
+      [repeat match goal with
+       | |- semax _ (exp _) _ _ => fail 1
+       | |- semax _ (PROPx _ _) _ _ => fail 1
+       | |- semax _ ?Pre _ _ => match Pre with context [ ?F ] => unfold F end
+       end;
+       match goal with |- semax _ ?Pre _ _ =>
+          let p := fresh "Pre" in let Hp := fresh "HPre" in 
+          remember Pre as p eqn:Hp;
+          repeat rewrite exp_uncurry in Hp; subst p
+       end;
+       match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
+        first [eapply semax_while'_new | eapply semax_while'_new1]; 
+        simpl typeof;
+       [ reflexivity 
+       | intros
+       | do_compute_expr1 Delta Pre e; eassumption
+       | intros; autorewrite with ret_assert;
+         let HRE := fresh "HRE" in apply derives_extract_PROP; intro HRE;
+         repeat (apply derives_extract_PROP; intro); 
+         do_repr_inj HRE; normalize in HRE
+       | intros;
+          let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
+          repeat (apply semax_extract_PROP; intro); 
+          do_repr_inj HRE; normalize in HRE
+        ]
+       end
+       | simpl update_tycon 
+       ]
+     ]; abbreviate_semax; autorewrite with ret_assert.
+
+Ltac forward_for_simple_bound n Pre :=
+ repeat match goal with |-
+      semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+      apply -> seq_assoc; abbreviate_semax
+ end;
+ first [ 
+     simple eapply semax_seq'; 
+    [forward_for_simple_bound' n Pre 
+    | cbv beta; simpl update_tycon; abbreviate_semax  ]
+  | eapply semax_post_flipped'; 
+     [forward_for_simple_bound' n Pre 
+     | ]
+  ].
+
+Ltac forward_for Inv PreIncr Postcond :=
+  repeat (apply -> seq_assoc; abbreviate_semax);
+  first [ignore (Inv: environ->mpred) 
+         | fail 1 "Invariant (first argument to forward_for) must have type (environ->mpred)"];
+  first [ignore (Postcond: environ->mpred)
+         | fail 1 "Postcondition (last argument to forward_for) must have type (environ->mpred)"];
+  apply semax_pre with Inv;
+    [  unfold_function_derives_right 
+    | (apply semax_seq with Postcond;
+       [ first 
+          [ apply semax_for' with PreIncr
+          | apply semax_for with PreIncr
+          ]; 
+          [ compute; auto 
+          | unfold_and_local_derives
+          | unfold_and_local_derives
+          | unfold_and_local_semax
+          | unfold_and_local_semax
+          ] 
+       | simpl update_tycon 
+       ])
+    ]; abbreviate_semax; autorewrite with ret_assert.
+
 
 Ltac forward_if' := 
 match goal with 

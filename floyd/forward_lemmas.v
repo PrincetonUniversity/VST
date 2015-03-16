@@ -337,6 +337,73 @@ eapply semax_pre_simple; [ | apply H3].
  auto. 
 Qed.
 
+Lemma semax_while'_new1 : 
+ forall Espec {A} (v: A -> val) Delta P Q R test body Post,
+     bool_type (typeof test) = true ->
+     (forall a, PROPx (P a) (LOCALx (tc_environ Delta :: Q a) (SEPx (R a))) |-- local (tc_expr Delta test)) ->
+     (forall a, PROPx (P a) (LOCALx (tc_environ Delta :: Q a) (SEPx (R a))) |-- local (`(eq (v a)) (eval_expr test))) ->
+     (forall a, PROPx (typed_false (typeof test) (v a) :: (P a)) (LOCALx (tc_environ Delta :: (Q a)) (SEPx (R a))) 
+                       |-- Post EK_normal None) ->
+     (forall a, @semax Espec Delta (PROPx (typed_true (typeof test) (v a) :: (P a)) (LOCALx (Q a) (SEPx (R a))))
+                 body (loop1_ret_assert (EX a:A, PROPx (P a) (LOCALx (Q a) (SEPx (R a)))) Post)) ->
+     @semax Espec Delta (EX a:A, PROPx (P a) (LOCALx (Q a) (SEPx (R a)))) (Swhile test body) Post.
+Proof.
+intros.
+apply semax_while; auto.
+rewrite exp_andp2. apply exp_left; intro a.
+eapply derives_trans; [ | apply H0].
+normalize.
+repeat rewrite exp_andp2. apply exp_left; intro a.
+eapply derives_trans; [ | apply (H2 a)].
+ apply derives_trans with (local (`(eq (v a)) (eval_expr test)) &&
+     PROPx (P a)
+      (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: (Q a)) (SEPx (R a)))).
+ apply andp_right. 
+ rewrite (andp_comm (local (tc_environ _))). 
+ rewrite andp_assoc. apply andp_left2. rewrite insert_local; auto.
+ rewrite andp_assoc; repeat rewrite insert_local.
+ go_lowerx.
+ apply andp_right; auto. apply prop_right.
+ split3; auto.
+ rewrite insert_local.
+ go_lowerx. rewrite H5 in *; clear H5.
+ apply andp_right; auto. apply prop_right.
+ split; auto.
+ apply andp_right; auto. apply prop_right.
+ split; auto.
+ repeat rewrite exp_andp2. apply extract_exists_pre; intro a.
+eapply semax_pre_simple; [ | apply (H3 a)]. clear - H1.
+ rewrite <- andp_assoc.
+ apply derives_trans with (local (`(eq (v a)) (eval_expr test)) &&
+     PROPx (P a)
+      (LOCALx (tc_environ Delta :: `(typed_true (typeof test)) (eval_expr test) :: (Q a)) (SEPx (R a)))).
+ apply andp_right. 
+ rewrite (andp_comm (local (tc_environ _))). 
+ rewrite andp_assoc. apply andp_left2. rewrite insert_local; auto.
+ rewrite andp_assoc; repeat rewrite insert_local.
+ go_lowerx.
+ apply andp_right; auto. apply prop_right.
+ split3; auto.
+ rewrite insert_local.
+ go_lowerx.
+ apply andp_right; auto. apply prop_right.
+ split; auto. rewrite H0; auto.
+ apply andp_right; auto. apply prop_right.
+ auto. 
+Qed.
+
+Lemma exp_uncurry:
+  forall {T} {ND: NatDed T} A B F, (@exp T ND A (fun a => @exp T ND B (fun b => F a b)))
+   = @exp T ND (A*B) (fun ab => F (fst ab) (snd ab)).
+Proof.
+intros.
+apply pred_ext.
+apply exp_left; intro a. apply exp_left; intro b. apply exp_right with (a,b).
+apply derives_refl.
+apply exp_left; intro ab. apply exp_right with (fst ab). apply exp_right with (snd ab).
+apply derives_refl.
+Qed.
+
 Lemma semax_while' : 
  forall Espec Delta P Q R test body Post,
      bool_type (typeof test) = true ->

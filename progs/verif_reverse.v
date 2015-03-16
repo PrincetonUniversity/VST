@@ -126,6 +126,7 @@ name s _s.
 name h _h.
 forward.  (* s = 0; *) 
 forward.  (* t = p; *)
+
 forward_while (sumlist_Inv sh contents)
     (PROP() LOCAL (`((fun v => sum_int contents = force_int v) : val->Prop) (eval_id _s)) SEP(TT)).
 (* Prove that current precondition implies loop invariant *)
@@ -135,26 +136,25 @@ entailer!.
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
+destruct a as [?cts ?t]. simpl in HRE; subst t0.
 entailer!.
-destruct H0 as [H0 _]; specialize (H0 (eq_refl _)).
+destruct H as [H0 _]; specialize (H0 (eq_refl _)).
 destruct cts; inv H0; normalize.
 (* Prove that loop body preserves invariant *)
-assert_PROP (isptr t0); [entailer | ].
-drop_LOCAL 0%nat.
+destruct a as [?cts ?t].
+simpl in HRE. simpl @fst; simpl @snd.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
 simpl valinject.
 unfold POSTCONDITION, abbreviate.
-destruct cts; inv H0.
+destruct cts; inv H.
 rewrite list_cell_eq.
 forward.  (* h = t->head; *)
 forward.  (*  t = t->tail; *)
 normalize. subst t0.
 forward.  (* s = s + h; *)
 (* Prove postcondition of loop body implies loop invariant *)
-unfold sumlist_Inv.
-apply exp_right with cts.
-apply exp_right with y.
+apply exp_right with (cts,y).
 entailer!.
    rewrite Int.sub_add_r, Int.add_assoc, (Int.add_commut (Int.neg h)),
              Int.add_neg_zero, Int.add_zero; auto.
@@ -183,7 +183,6 @@ forward_while (reverse_Inv sh contents)
       PROP() LOCAL (temp _w w)
       SEP( `(lseg LS sh (rev contents) w nullval))).
 (* precondition implies loop invariant *)
-unfold reverse_Inv.
 apply exp_right with nil.
 apply exp_right with contents.
 apply exp_right with (Vint (Int.repr 0)).
@@ -192,11 +191,12 @@ entailer!.
 (* loop invariant implies typechecking of loop condition *)
 entailer!.
 (* loop invariant (and not loop condition) implies loop postcondition *)
+destruct a as [[[cts1 cts2] w] v]. simpl @fst in *. simpl @snd in *.
 apply exp_right with w.
 entailer!. 
 rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
-assert_PROP (isptr v). entailer. drop_LOCAL 0%nat.
+destruct a as [[[cts1 cts2] w] v]. simpl @fst in *. simpl @snd in *.
 normalize.
 focus_SEP 1; apply semax_lseg_nonnull;
         [entailer | intros h r y ? ?].
@@ -209,10 +209,8 @@ entailer.
 forward.  (*  w = v; *)
 forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)
-apply exp_right with (h::cts1).
-apply exp_right with r.
-apply exp_right with v.
-apply exp_right with y.
+apply exp_right with (h::cts1,r,v,y).
+simpl @fst; simpl @snd.
 entailer!.
  * rewrite app_ass. auto.
  * rewrite (lseg_unroll _ sh (h::cts1)).
