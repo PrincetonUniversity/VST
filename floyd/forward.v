@@ -69,7 +69,7 @@ Ltac semax_func_cons_ext :=
     [reflexivity | reflexivity | reflexivity | reflexivity 
     | semax_func_cons_ext_tc 
     | solve[ eapply semax_ext; 
-          [ compute; eauto 
+          [ repeat first [reflexivity | left; reflexivity | right]
           | apply compute_funspecs_norepeat_e; reflexivity 
           | reflexivity 
           | reflexivity ]] 
@@ -1094,6 +1094,42 @@ Qed.
 (* END HORRIBLE1 *)
 
 
+Ltac do_compute_lvalue Delta P Q R e v H :=
+  let rho := fresh "rho" in
+  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+    local (`(eq v) (eval_lvalue e))) as H by
+  (first [ assumption |
+    eapply derives_trans; [| apply msubst_eval_lvalue_eq];
+    [apply derives_refl'; apply local2ptree_soundness; try assumption;
+     let HH := fresh "H" in
+     construct_local2ptree (tc_environ Delta :: Q) HH;
+     exact HH |
+     unfold v;
+     simpl;
+     try unfold force_val2; try unfold force_val1;
+     autorewrite with norm;
+     simpl;
+     reflexivity]
+  ]).
+
+Ltac do_compute_expr Delta P Q R e v H :=
+  let rho := fresh "rho" in
+  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
+    local (`(eq v) (eval_expr e))) as H by
+  (first [ assumption |
+    eapply derives_trans; [| apply msubst_eval_expr_eq];
+    [apply derives_refl'; apply local2ptree_soundness; try assumption;
+     let HH := fresh "H" in
+     construct_local2ptree (tc_environ Delta :: Q) HH;
+     exact HH |
+     unfold v;
+     simpl;
+     try unfold force_val2; try unfold force_val1;
+     autorewrite with norm;
+     simpl;
+     reflexivity]
+  ]).
+
 Ltac ignore x := idtac.
 
 (*start tactics for forward_while unfolding *)
@@ -1241,6 +1277,122 @@ Ltac forward_for Inv PreIncr Postcond :=
        ])
     ]; abbreviate_semax; autorewrite with ret_assert.
 
+
+Lemma typed_true_nullptr3:
+  forall p, 
+  typed_true tint (force_val (sem_cmp_pp Ceq true2 p nullval)) ->
+  p=nullval.
+Proof.
+intros.
+hnf in H.
+destruct p; inversion H.
+destruct (Int.eq i Int.zero) eqn:?; inv H1.
+apply int_eq_e in Heqb. subst; reflexivity.
+Qed.
+
+Lemma typed_false_nullptr3:
+  forall p, 
+  typed_false tint (force_val (sem_cmp_pp Ceq true2 p nullval)) ->
+  p<>nullval.
+Proof.
+intros.
+hnf in H.
+destruct p; inversion H.
+destruct (Int.eq i Int.zero) eqn:?; inv H1.
+apply int_eq_false_e in Heqb. contradict Heqb. inv Heqb; auto.
+unfold nullval; congruence.
+Qed.
+
+Lemma ltu_inv:
+ forall x y, Int.ltu x y = true -> Int.unsigned x < Int.unsigned y.
+Proof.
+intros.
+apply Int.ltu_inv in H; destruct H; auto.
+Qed.
+
+Lemma ltu_false_inv:
+ forall x y, Int.ltu x y = false -> Int.unsigned x >= Int.unsigned y.
+Proof.
+intros.
+unfold Int.ltu in H. if_tac in H; inv H; auto.
+Qed.
+
+Lemma lt_repr:
+     forall i j : Z,
+       repable_signed i ->
+       repable_signed j ->
+       Int.lt (Int.repr i) (Int.repr j) = true -> (i < j)%Z.
+Proof.
+intros.
+unfold Int.lt in H1. if_tac in H1; inv H1.
+normalize in H2.
+Qed.
+
+Lemma lt_repr_false:
+     forall i j : Z,
+       repable_signed i ->
+       repable_signed j ->
+       Int.lt (Int.repr i) (Int.repr j) = false -> (i >= j)%Z.
+Proof.
+intros.
+unfold Int.lt in H1. if_tac in H1; inv H1.
+normalize in H2.
+Qed.
+
+Lemma lt_inv:
+ forall i j,
+   Int.lt i j = true -> (Int.signed i < Int.signed j)%Z.
+Proof.
+intros.
+unfold Int.lt in H. if_tac in H; inv H. auto.
+Qed.
+
+Lemma lt_false_inv:
+ forall i j,
+   Int.lt i j = false -> (Int.signed i >= Int.signed j)%Z.
+Proof.
+intros.
+unfold Int.lt in H. if_tac in H; inv H. auto.
+Qed.
+
+Ltac cleanup_repr H :=
+match type of H with
+ | _ (Int.signed (Int.repr ?A)) (Int.signed (Int.repr ?B)) => 
+    try (rewrite (Int.signed_repr A) in H by repable_signed);
+    try (rewrite (Int.signed_repr B) in H by repable_signed)
+ | _ (Int.unsigned (Int.repr ?A)) (Int.unsigned (Int.repr ?B)) => 
+    try (rewrite (Int.unsigned_repr A) in H by repable_signed);
+    try (rewrite (Int.unsigned_repr B) in H by repable_signed)
+ | context [Int.signed (Int.repr ?A)] =>
+    try (rewrite (Int.signed_repr A) in H by repable_signed)
+ | context [Int.unsigned (Int.repr ?A)] =>
+    try (rewrite (Int.unsigned_repr A) in H by repable_signed)
+end.
+
+Ltac do_repr_inj H :=
+   simpl typeof in H;
+   try apply typed_true_of_bool in H;
+   try apply typed_false_of_bool in H;
+   repeat (rewrite -> negb_true_iff in H || rewrite -> negb_false_iff in H);
+   try apply int_eq_e in H;
+   match type of H with _ <> _ => apply int_eq_false_e in H | _ => idtac end;
+  first [ simple apply repr_inj_signed in H; [ | repable_signed | repable_signed ]
+         | simple apply repr_inj_unsigned in H; [ | repable_signed | repable_signed ]
+         | simple apply repr_inj_signed' in H; [ | repable_signed | repable_signed ]
+         | simple apply repr_inj_unsigned' in H; [ | repable_signed | repable_signed ]
+         | apply typed_true_nullptr3 in H
+         | apply typed_false_nullptr3 in H
+         | simple apply ltu_repr in H; [ | repable_signed | repable_signed]
+         | simple apply ltu_repr_false in H; [ | repable_signed | repable_signed]
+         | simple apply ltu_inv in H; cleanup_repr H
+         | simple apply ltu_false_inv in H; cleanup_repr H
+         | simple apply lt_repr in H; [ | repable_signed | repable_signed]
+         | simple apply lt_repr_false in H; [ | repable_signed | repable_signed]
+         | simple apply lt_inv in H; cleanup_repr H
+         | simple apply lt_false_inv in H; cleanup_repr H
+         | idtac
+         ].
+
 Ltac forward_if' := 
 match goal with 
 | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
@@ -1249,21 +1401,36 @@ match goal with
   || fail 2 "semax_ifthenelse_PQR did not match"
 end.
 
+Ltac forward_if'_new := 
+match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
+   let HRE := fresh "H" in let v := fresh "v" in
+    evar (v: val);
+    do_compute_expr Delta P Q R e v HRE;
+    simpl in v;
+    apply semax_ifthenelse_PQR' with (v:=v);
+     [ reflexivity | entailer | assumption 
+     | clear HRE; subst v; apply semax_extract_PROP; intro HRE; 
+       do_repr_inj HRE
+     | clear HRE; subst v; apply semax_extract_PROP; intro HRE; 
+       do_repr_inj HRE
+     ]
+end.
+
 Ltac forward_if post :=
   repeat (apply -> seq_assoc; abbreviate_semax);
 first [ignore (post: environ->mpred) 
       | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
 match goal with
  | |- semax _ _ (Sifthenelse _ _ _) (overridePost post _) =>
-       forward_if' 
+       forward_if'_new 
  | |- semax _ _ (Sifthenelse _ _ _) ?P =>
       apply (semax_post_flipped (overridePost post P)); 
-      [ forward_if'
+      [ forward_if'_new
       | try solve [normalize]
       ]
    | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ =>
      apply semax_seq with post;
-      [forward_if' | abbreviate_semax; autorewrite with ret_assert]
+      [forward_if'_new | abbreviate_semax; autorewrite with ret_assert]
 end.
 
 Ltac normalize :=
@@ -1683,42 +1850,6 @@ first [eapply forward_ptr_compare_closed_now;
                                 | solve [subst;cancel]])]
           | reflexivity ]
        | eapply forward_ptr_compare'; try reflexivity; auto].
-
-Ltac do_compute_lvalue Delta P Q R e v H :=
-  let rho := fresh "rho" in
-  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-    local (`(eq v) (eval_lvalue e))) as H by
-  (first [ assumption |
-    eapply derives_trans; [| apply msubst_eval_lvalue_eq];
-    [apply derives_refl'; apply local2ptree_soundness; try assumption;
-     let HH := fresh "H" in
-     construct_local2ptree (tc_environ Delta :: Q) HH;
-     exact HH |
-     unfold v;
-     simpl;
-     try unfold force_val2; try unfold force_val1;
-     autorewrite with norm;
-     simpl;
-     reflexivity]
-  ]).
-
-Ltac do_compute_expr Delta P Q R e v H :=
-  let rho := fresh "rho" in
-  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-    local (`(eq v) (eval_expr e))) as H by
-  (first [ assumption |
-    eapply derives_trans; [| apply msubst_eval_expr_eq];
-    [apply derives_refl'; apply local2ptree_soundness; try assumption;
-     let HH := fresh "H" in
-     construct_local2ptree (tc_environ Delta :: Q) HH;
-     exact HH |
-     unfold v;
-     simpl;
-     try unfold force_val2; try unfold force_val1;
-     autorewrite with norm;
-     simpl;
-     reflexivity]
-  ]).
 
 Ltac forward_setx :=
 first [(*forward_setx_wow

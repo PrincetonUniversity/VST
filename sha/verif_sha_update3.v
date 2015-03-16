@@ -42,14 +42,12 @@ Lemma update_inner_if_else_proof:
   let k := (64 - Zlength dd)%Z in
   forall (H0: (0 < k <= 64)%Z)
        (H1: (64 < Int.max_unsigned)%Z)
+       (H2 : (Z.of_nat len < k)%Z)
        (DBYTES: Forall isbyteZ data),
  semax Delta_update_inner_if
   (PROP  ()
    LOCAL 
-   (`(typed_false tint)
-      (eval_expr
-         (Ebinop Oge (Etempvar _len tuint) (Etempvar _fragment tuint) tint));
-     temp _fragment (Vint (Int.repr k)); 
+   (temp _fragment (Vint (Int.repr k)); 
      temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
      temp _n (Vint (Int.repr (Zlength dd)));
      temp _c c; temp _data d;
@@ -76,14 +74,6 @@ Proof.
   intros.
   unfold update_inner_if_else;
   simplify_Delta; abbreviate_semax.
-
-(* get rid of typed_false *)
-assert_PROP (Z.of_nat len < k)%Z. {
-  entailer!.
-  rewrite negb_false_iff in H5;
-  apply ltu_repr in H5; [auto | repable_signed | omega].
-}
-drop_LOCAL 0.
 
  assert_PROP (field_address (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d). {
   entailer.
@@ -281,6 +271,8 @@ apply Nat2Z.inj_le in H; rewrite <- Zlength_correct in H.
 unfold data_block; simpl. normalize.
 rename H2 into DBYTES.
 forward_if (sha_update_inv sh hashed len c d dd data kv false).
+try (rewrite -> negb_true_iff in H2;
+      do_repr_inj H2).  (* delete me *)
  + replace Delta with (initialized _fragment (initialized _p (initialized _n (initialized _data
                      (func_tycontext f_SHA256_Update Vprog Gtot)))))
  by (simplify_Delta; reflexivity).

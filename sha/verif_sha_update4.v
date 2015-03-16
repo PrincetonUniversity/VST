@@ -277,7 +277,6 @@ intros.
 unfold update_outer_if.
 simplify_Delta; abbreviate_semax.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-
 forward_if (sha_update_inv sh hashed len c d dd data kv false).
 * (* then clause *)
 forward.  (* fragment = SHA_CBLOCK-n; *)
@@ -299,21 +298,19 @@ forward.  (* skip; *)
 rewrite overridePost_normal'.
 apply exp_right with nil. rewrite <- app_nil_end.
 entailer.
- rewrite negb_false_iff in H1;  apply int_eq_e in H1.
 assert (Int.unsigned (Int.repr (Zlength dd)) = Int.unsigned (Int.repr 0)) by (f_equal; auto).
 rewrite (Int.unsigned_repr 0) in H6 by repable_signed.
 rewrite Int.unsigned_repr in H6
  by (clear - H3; change CBLOCKz with 64%Z in H3;
   rewrite Zlength_correct in *; repable_signed).
-rewrite Zlength_correct in H6; destruct dd; inv H6.
- apply andp_right; [apply prop_right; repeat split | ].
- + exists 0%Z; reflexivity.
- +  rewrite NPeano.Nat.sub_0_r; auto.
- + rewrite <- app_nil_end.
+ rewrite Zlength_correct in H6;  destruct dd; inv H6; auto.
+ entailer!.
+ exists 0%Z; auto.
+ rewrite NPeano.Nat.sub_0_r; auto.
+ rewrite <- app_nil_end.
+ unfold_data_at 1.
+ unfold_data_at 1.
  cancel.
-   unfold_data_at 1.
-   unfold_data_at 1.
-   cancel.
 Qed.
 
 Lemma update_while_proof:

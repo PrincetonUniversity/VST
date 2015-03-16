@@ -741,14 +741,12 @@ Lemma update_inner_if_then_proof:
   let k := (64 - Zlength dd)%Z in
   forall (H0: (0 < k <= 64)%Z)
        (H1: (64 < Int.max_unsigned)%Z)
+       (H2: (Z.of_nat len >= k)%Z)
        (DBYTES: Forall isbyteZ data),
 semax Delta_update_inner_if
   (PROP  ()
    LOCAL 
-   (`(typed_true tint)
-      (eval_expr
-         (Ebinop Oge (Etempvar _len tuint) (Etempvar _fragment tuint) tint));
-    temp _fragment (Vint (Int.repr k));
+   (temp _fragment (Vint (Int.repr k));
     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _n (Vint (Int.repr (Zlength dd)));
     temp _c c; temp _data d; temp _len (Vint (Int.repr (Z.of_nat len)));
@@ -778,13 +776,6 @@ Proof.
 assert_PROP (fragment = Vint (Int.repr k)).
   entailer!.
 drop_LOCAL 0. subst fragment.
-assert_PROP ((Z.of_nat len >= k)%Z). {
-  entailer!.
-  rewrite negb_true_iff in H5. 
-  apply ltu_repr_false in H5; [ | repable_signed | omega].
-  auto.
-}
-drop_LOCAL 0.
 match goal with |- semax ?D (PROP() (LOCALx ?Q (SEPx _))) _ _ =>
  apply semax_seq'
  with (PROP() (LOCALx Q 

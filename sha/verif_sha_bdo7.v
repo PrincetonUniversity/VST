@@ -646,9 +646,9 @@ apply exp_right with i;
 apply extract_exists_pre; intro i.
 unfold loop2_inv.
 repeat rewrite Z.sub_0_r.
-
+apply semax_extract_PROP; intro.
 forward_if (
-   PROP  ((LBLOCK <= i < c64)%nat)
+   PROP  (LBLOCK <= i < c64)
    LOCAL  (temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i)));
                temp _a (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0));
                temp _b (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1));
@@ -662,18 +662,24 @@ forward_if (
                gvar  _K256 kv)
    SEP  (`(K_vector kv);
    `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (Xarray b i)) Xv))).
- forward; (* skip *)
-   assert (LBE : LBLOCKz=16%Z) by reflexivity; change c64 with 64%nat in *; entailer. 
-   apply semax_extract_PROP; intro;
-   assert (LBE : LBLOCKz=16%Z) by reflexivity; change c64 with 64%nat in *;
+*
+  rewrite Int.signed_repr in H1
+   by (  split; [repable_signed | clear - H0; destruct H0; change c64 with 64 in H0; repable_signed]).
+  forward; (* skip *)
+   assert (LBE : LBLOCKz=16%Z) by reflexivity; change c64 with 64%nat in *; entailer!. 
+*   
+  rewrite Int.signed_repr in H1
+   by (  split; [repable_signed | clear - H0; destruct H0; change c64 with 64 in H0; repable_signed]).
    forward; (* break; *)
    cbv beta.
   change 64%nat with c64.
   entailer.
-   assert (i=64)%nat by omega; subst i;
+   assert (i=64)%nat by (change c64 with 64 in H0; omega);
+   subst i;
    apply andp_right; [ apply prop_right | cancel].
- split; auto. change (16<=64)%nat; clear; omega.
+ split; auto.
  repeat split; reflexivity.
+*
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 make_sequential. rewrite loop1_ret_assert_normal.
 normalize.

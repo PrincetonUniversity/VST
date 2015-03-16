@@ -83,18 +83,12 @@ Lemma ifbody_final_if1:
   (dd : list Z) (kv: val)
  (H4: (LBLOCKz  | Zlength hashed))
  (H3: Zlength dd < CBLOCKz)
+ (H0 : Zlength dd + 1 > 16 * 4 - 8)
  (DDbytes: Forall isbyteZ dd),
   semax Delta_final_if1
   (PROP  ()
    LOCAL 
-   (`(typed_true tint)
-      (eval_expr
-         (Ebinop Ogt (Etempvar _n tuint)
-            (Ebinop Osub
-               (Ebinop Omul (Econst_int (Int.repr 16) tint)
-                  (Econst_int (Int.repr 4) tint) tint)
-               (Econst_int (Int.repr 8) tint) tint) tint));
-    temp _n (Vint (Int.repr (Zlength dd + 1)));
+   (temp _n (Vint (Int.repr (Zlength dd + 1)));
     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _md md; temp _c c;
     gvar _K256 kv)
@@ -140,9 +134,6 @@ erewrite array_seg_reroot_lemma with (gfs := [StructField _data]) (lo := ddlen +
   2: rewrite Zlength_app, !Zlength_map; reflexivity.
   2: rewrite Zlength_correct, length_list_repeat; rewrite Z2Nat.id by omega; reflexivity.
 normalize.
-assert_PROP (ddlen+1 > 16*4-8);
-  [entailer!; apply ltu_repr in H1; normalize in H1; repable_signed | ].
-drop_LOCAL 0%nat.
 change (64-(ddlen+1)) with (CBLOCKz-(ddlen+1)).
 forward_call' (* memset (p+n,0,SHA_CBLOCK-n); *)
    ((Tsh,

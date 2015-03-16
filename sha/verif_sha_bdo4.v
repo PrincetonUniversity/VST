@@ -328,23 +328,23 @@ forward_if (
    (`(K_vector kv);
     `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (firstn i b)) Xv);
    `(data_block sh (intlist_to_Zlist b) data))).
+rewrite Z.sub_0_r in H0.
 (* 587,640  592,608 *)
 (* 613,416  655,716 *)
-abstract (forward; (* skip; *)
-(* 619,968  655,716 *)
-   entailer; apply prop_right; rewrite Z.sub_0_r; auto).
+forward. (* skip; *)
+entailer!. normalize in H0.
+  change 16 with (Z.of_nat 16) in H0; apply Nat2Z.inj_lt; auto.
+  rewrite Z.sub_0_r; auto.
 (* 726,056  709,784 *) 
-abstract (
-   apply semax_extract_PROP; intro;
-   forward; (* break; *)
+  apply semax_extract_PROP; intro.
+  normalize in H0. rewrite Z.sub_0_r in H0.
+  assert (i=LBLOCK)%nat by omega. subst i.
+  forward; (* break; *)
    cbv beta;
    rewrite overridePost_EK_break,
        loop1_ret_assert_EK_break,
-        normal_ret_assert_elim;
-   entailer;
-   assert (i=LBLOCK)%nat by omega; subst i;
-   apply andp_right; [ apply prop_right | cancel];
-   repeat split; auto).
+        normal_ret_assert_elim.
+   entailer!.
 (* 854,860 750,176 *)
 unfold MORE_COMMANDS, POSTCONDITION, abbreviate;
  clear MORE_COMMANDS POSTCONDITION.

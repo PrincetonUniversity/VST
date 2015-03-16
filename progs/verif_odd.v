@@ -11,26 +11,15 @@ Proof.
 start_function.
 change even._n with _n.
 name n _n.
-forward_if (PROP (z > 0) LOCAL (temp _n v) SEP ()).
+forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
 *
- simpl typeof.
- assert_PROP (v= Vint (Int.repr 0)).
- entailer!. apply int_eq_e in H0; f_equal; auto.
- drop_LOCAL 0%nat.
- forward. entailer!. eapply repr0_not_odd in H; eauto. rewrite H; auto. 
+ forward.
 *
- assert_PROP (v <> Vint (Int.repr 0)).
- entailer!.
- apply int_eq_false_e in H0. congruence.
- drop_LOCAL 0%nat.
  forward. entailer!.
- inv H.
-  assert (z <> 0) by congruence. omega.
 * 
   normalize. 
-  forward_call' (z-1,Vint (Int.sub (Int.repr z) (Int.repr 1))).
-  entailer!. inv H. normalize.
-  normalize. inv H; constructor; omega.
+  forward_call' (z-1).
+  omega.
   subst vret.
   forward.
   entailer!.

@@ -244,8 +244,9 @@ forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
- simpl typeof.
 * (* then clause *)
+(*  try apply typed_true_nullptr3 in H1. delete me *)
+  subst.
   (* goal 9 *)
   forward. (* Q->head=p; *)
   forward. (* Q->tail=p; *)
@@ -262,6 +263,7 @@ forward_if
   +  normalize.
       destruct prefix; normalize; entailer!; elim_hyps; inv H1.
 * (* else clause *)
+(*  try apply typed_false_nullptr3 in H1.  delete me *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
   + apply semax_pre with FF; [ | apply semax_ff].

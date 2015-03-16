@@ -100,8 +100,9 @@ match goal with |- semax _ _ ?c _ => change c with Body_final_if1 end.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
  make_sequential. rewrite overridePost_normal'.
 unfold ddlen in *; clear ddlen.
+assert (Zlength dd + 1 > 16 * 4 - 8) by omega.
 eapply semax_pre0; 
-  [|apply (ifbody_final_if1 Espec hashed md c shmd dd kv H4 H3 DDbytes)].
+  [|apply (ifbody_final_if1 Espec hashed md c shmd dd kv H4 H3 H2 DDbytes)].
 entailer!.
 unfold_data_at 2%nat.
 rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
@@ -116,17 +117,15 @@ apply exp_right with hashed.
 apply exp_right with (dd ++ [128]).
 apply exp_right with 0%Z.
 entailer.
-rewrite mul_repr, sub_repr in H2; apply ltu_repr_false in H2.
-2: split; computable.
-2: assert (64 < Int.max_unsigned)%Z by computable; unfold ddlen in *;
-   split; try omega.
-clear H5.
-change (16*4)%Z with (Z.of_nat CBLOCK) in H2.
+(*clear H5.*)
+(*change (16*4)%Z with (Z.of_nat CBLOCK) in H2.*)
 apply andp_right; [apply prop_right; repeat split | cancel].
 rewrite Forall_app; split; auto.
 repeat constructor; omega.
 rewrite app_length; simpl. apply Nat2Z.inj_ge.
-repeat rewrite Nat2Z.inj_add; unfold ddlen in H2; rewrite Zlength_correct in H2.
+change (Z.of_nat CBLOCK) with 64; unfold ddlen in H0; 
+  rewrite Zlength_correct in H0.
+repeat rewrite Nat2Z.inj_add. 
 change (Z.of_nat 1) with 1%Z; change (Z.of_nat 8) with 8%Z.
 omega.
 f_equal. unfold ddlen; repeat rewrite Zlength_correct; f_equal.
