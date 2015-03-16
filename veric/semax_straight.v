@@ -1642,7 +1642,7 @@ Require Import veric.expr_rel.
 Lemma semax_set_forward_nl:
 forall (Delta: tycontext) (P: assert) id e v t,
     typeof_temp Delta id = Some t ->
-    (forall rho, P rho |-- rel_expr e v rho) ->
+    (forall rho, P rho |-- rel_expr Delta e v rho) ->
     tc_val t v ->
     semax Espec Delta 
         (fun rho => |> (P rho)) 
@@ -1654,9 +1654,8 @@ intros until 1; pose proof I. intros H2 H1.
 apply semax_pre with (fun rho => (fun _ => TT) rho && |> P rho).
 intros; normalize.
 apply semax_straight_simple; auto. 
-intros jm jm' Delta' ge vx tx rho k F TS _ TC' Hcl Hge ? ?.
+intros jm jm' Delta' ge vx tx rho k F TS _ TC' Hcl Hge ? ? HGG'.
 apply (typeof_temp_sub _ _ TS) in H.
-clear Delta TS.
 exists jm', (PTree.set id v (tx)).
 econstructor.
 split.
@@ -1682,8 +1681,8 @@ apply later_sepcon2 in H4.
 specialize (H4 _ (age_laterR H5)).
 destruct H4 as [w1 [w2 [? [_ ?]]]].
 specialize (H2 _ _ H7). rewrite H6.
-pose proof (boxy_e _ _ (rel_expr_extend e v rho) w2 (m_phi jm')).
-eapply rel_expr_relate; [eassumption | apply H8; auto].
+pose proof (boxy_e _ _ (rel_expr_extend Delta e v rho) w2 (m_phi jm')).
+eapply rel_expr_relate; [eassumption | | apply H8; auto].
 exists w1; auto.
 apply age1_resource_decay; auto.
 apply age_level; auto.

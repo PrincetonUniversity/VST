@@ -334,30 +334,24 @@ destruct (classify_cast t1 t2);
 destruct v; destruct t1; destruct t2; auto.
 Qed.
 
-Lemma Cop_sem_binary_operation_guard_genv: forall Delta ge,
-  guard_genv Delta ge ->
-  forall b v1 e1 v2 e2 t m rho,
+Lemma isBinOpResultType_binop_stable: forall Delta b e1 e2 t rho,
   denote_tc_assert Delta (isBinOpResultType Delta b e1 e2 t) rho ->
-  Cop.sem_binary_operation (composite_types Delta) b v1 (typeof e1) v2 (typeof e2) m =
-    Cop.sem_binary_operation ge b v1 (typeof e1) v2 (typeof e2) m.
+  binop_stable (composite_types Delta) b e1 e2 = true.
 Proof.
   intros.
-  unfold isBinOpResultType in H0.
-  destruct b; try auto.
-  + simpl.
-    unfold Cop.sem_add.
-    destruct (classify_add (typeof e1) (typeof e2)), v1, v2;
-    try rewrite sizeof_guard_genv with (ge := ge); auto;
-    rewrite !denote_tc_assert_andp in H0;
-    destruct H0 as [[_ ?] _];
-    eapply denote_tc_assert_tc_bool; eauto.
-  + simpl.
-    unfold Cop.sem_sub.
-    destruct (classify_sub (typeof e1) (typeof e2)), v1, v2;
-    try rewrite sizeof_guard_genv with (ge := ge); auto;
-    rewrite !denote_tc_assert_andp in H0;
-    destruct H0 as [[_ ?] _];
-    eapply denote_tc_assert_tc_bool; eauto.
+  destruct b; auto;
+  unfold isBinOpResultType in H;
+  unfold binop_stable.
+  + destruct (classify_add (typeof e1) (typeof e2));
+    try rewrite !denote_tc_assert_andp in H;
+    try destruct H as [[_ ?] _];
+    try solve [eapply denote_tc_assert_tc_bool; eauto].
+    auto.
+  + destruct (classify_sub (typeof e1) (typeof e2));
+    try rewrite !denote_tc_assert_andp in H;
+    try destruct H as [[_ ?] _];
+    try solve [eapply denote_tc_assert_tc_bool; eauto].
+    auto.
 Qed.
 
 Lemma eval_both_relate:
@@ -528,7 +522,8 @@ remember (sem_binary_operation' Delta b (typeof e1) (typeof e2) true2 (eval_expr
 { destruct o. 
   + eapply Clight.eval_Ebinop. eapply IHe1; eauto.
     eapply IHe2. assumption. apply H. apply H3.
-    rewrite <- Cop_sem_binary_operation_guard_genv with (Delta := Delta) (t := t) (rho := rho) by auto.
+    rewrite <- Cop_sem_binary_operation_guard_genv with (Delta := Delta);
+      [| auto | eapply isBinOpResultType_binop_stable; eauto].
     remember (eval_expr Delta e1 rho); remember (eval_expr Delta e2 rho);
     destruct v0; destruct v1; simpl;
     rewrite Heqv0 at 1; rewrite Heqv1;

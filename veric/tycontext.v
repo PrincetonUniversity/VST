@@ -1135,10 +1135,59 @@ unfold temp_types at 1. simpl. rewrite PTree.gss. auto.
 auto.
 Qed.
 
+Definition binop_stable cenv op a1 a2 : bool :=
+match op with
+  | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with 
+                    | Cop.add_case_pi t => complete_type cenv t
+                    | Cop.add_case_ip t => complete_type cenv t 
+                    | Cop.add_case_pl t => complete_type cenv t 
+                    | Cop.add_case_lp t => complete_type cenv t 
+                    | Cop.add_default => true
+            end
+  | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with 
+                    | Cop.sub_case_pi t => complete_type cenv t
+                    | Cop.sub_case_pl t => complete_type cenv t 
+                    | Cop.sub_case_pp t => complete_type cenv t
+                    | Cop.sub_default => true
+            end 
+  | _ => true
+  end.
+
 Section STABILITY.
 
 Variables env env': composite_env.
 Hypothesis extends: forall id co, env!id = Some co -> env'!id = Some co.
+
+Lemma binop_stable_stable: forall b e1 e2,
+  binop_stable env b e1 e2 = true ->
+  binop_stable env' b e1 e2 = true.
+Proof.
+  intros.
+  destruct b; unfold binop_stable in H |- *; auto.
+  + destruct (Cop.classify_add (typeof e1) (typeof e2));
+    try eapply complete_type_stable; eauto.
+  + destruct (Cop.classify_sub (typeof e1) (typeof e2));
+    try eapply complete_type_stable; eauto.
+Qed.
+
+Lemma Cop_sem_binary_operation_stable:
+  forall b v1 e1 v2 e2 m,
+  binop_stable env b e1 e2 = true ->
+  Cop.sem_binary_operation env b v1 (typeof e1) v2 (typeof e2) m =
+    Cop.sem_binary_operation env' b v1 (typeof e1) v2 (typeof e2) m.
+Proof.
+  intros.
+  unfold binop_stable in H.
+  destruct b; try auto.
+  + simpl.
+    unfold Cop.sem_add.
+    destruct (Cop.classify_add (typeof e1) (typeof e2)), v1, v2;
+    try erewrite <- sizeof_stable; eauto.
+  + simpl.
+    unfold Cop.sem_sub.
+    destruct (Cop.classify_sub (typeof e1) (typeof e2)), v1, v2;
+    try erewrite <- sizeof_stable; eauto.
+Qed.
 
 Lemma field_offset_stable: forall i id co ofs,
   composite_env_consistent env ->
@@ -1223,6 +1272,17 @@ Proof.
   + apply composite_types_consistent.
 Qed.
 
+Lemma Cop_sem_binary_operation_guard_genv:
+  forall b v1 e1 v2 e2 m,
+  binop_stable (composite_types Delta) b e1 e2 = true ->
+  Cop.sem_binary_operation (composite_types Delta) b v1 (typeof e1) v2 (typeof e2) m =
+    Cop.sem_binary_operation ge b v1 (typeof e1) v2 (typeof e2) m.
+Proof.
+  intros.
+  apply Cop_sem_binary_operation_stable; auto.
+  apply guard_genv_spec.
+Qed.
+
 End GGENV.
 
 Section TYCON_SUB.
@@ -1275,6 +1335,28 @@ Proof.
   apply field_offset_stable with (i := i) (env := composite_types Delta); auto.
   + apply composite_types_get_sub.
   + apply composite_types_consistent.
+Qed.
+
+Lemma binop_stable_sub: forall b e1 e2,
+  binop_stable (composite_types Delta) b e1 e2 = true ->
+  binop_stable (composite_types Delta') b e1 e2 = true.
+Proof.
+  intros.
+  eapply binop_stable_stable.
+  apply composite_types_get_sub.
+  auto.
+Qed.
+
+Lemma Cop_sem_binary_operation_sub:
+  forall b v1 e1 v2 e2 m,
+  binop_stable (composite_types Delta) b e1 e2 = true ->
+  Cop.sem_binary_operation (composite_types Delta) b v1 (typeof e1) v2 (typeof e2) m =
+  Cop.sem_binary_operation (composite_types Delta') b v1 (typeof e1) v2 (typeof e2) m.
+Proof.
+  intros.
+  apply Cop_sem_binary_operation_stable.
+  + apply composite_types_get_sub.
+  + auto.
 Qed.
 
 Lemma guard_genv_sub: forall ge,

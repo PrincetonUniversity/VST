@@ -11,26 +11,6 @@ Require Import veric.expr.
 Require Import veric.res_predicates.
 Require Import veric.seplog.
 
-Definition isBinOpResultType_weak (Delta: tycontext) op a1 a2 : bool :=
-match op with
-  | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with 
-                    | Cop.add_case_pi t => complete_type (composite_types Delta) t
-                    | Cop.add_case_ip t => complete_type (composite_types Delta) t 
-                    | Cop.add_case_pl t => complete_type (composite_types Delta) t 
-                    | Cop.add_case_lp t => complete_type (composite_types Delta) t 
-                    | Cop.add_default => true
-            end
-  | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with 
-                    | Cop.sub_case_pi t => complete_type (composite_types Delta) t
-                    | Cop.sub_case_pl t => complete_type (composite_types Delta) t 
-                    | Cop.sub_case_pp t => 
-                        andb (negb (Int.eq (Int.repr (sizeof (composite_types Delta) t)) Int.zero)) 
-                             (complete_type (composite_types Delta) t)
-                    | Cop.sub_default => true
-            end 
-  | _ => true
-  end.
-
 Inductive rel_expr' (Delta: tycontext) (rho: environ) (phi: rmap): expr -> val -> Prop :=
  | rel_expr'_const_int: forall i ty, 
                  rel_expr' Delta rho phi (Econst_int i ty) (Vint i)
@@ -53,7 +33,7 @@ Inductive rel_expr' (Delta: tycontext) (rho: environ) (phi: rmap): expr -> val -
  | rel_expr'_binop: forall a1 a2 v1 v2 v ty op,
                  rel_expr' Delta rho phi a1 v1 ->
                  rel_expr' Delta rho phi a2 v2 ->
-                 isBinOpResultType_weak Delta op a1 a2 = true ->
+                 binop_stable (composite_types Delta) op a1 a2 = true ->
                  (forall m, Cop.sem_binary_operation (composite_types Delta) op v1 (typeof a1) v2 (typeof a2) m = Some v) ->
                  rel_expr' Delta rho phi (Ebinop op a1 a2 ty) v
  | rel_expr'_cast: forall a v1 v ty,
@@ -133,28 +113,6 @@ Next Obligation. intros. apply rel_lvalue'_hered. Defined.
 
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.expr_lemmas.
-
-Lemma Cop_sem_binary_operation_guard_genv: forall Delta ge,
-       guard_genv Delta ge ->
-       forall b v1 e1 v2 e2 m,
-       isBinOpResultType_weak Delta b e1 e2 = true ->
-       Cop.sem_binary_operation (composite_types Delta) b v1 
-         (typeof e1) v2 (typeof e2) m =
-       Cop.sem_binary_operation ge b v1 (typeof e1) v2 (typeof e2) m.
-Proof.
-  intros.
-  unfold Cop.sem_binary_operation.
-  unfold isBinOpResultType_weak in H0.
-  destruct b; auto.
-  + unfold Cop.sem_add.
-    destruct (Cop.classify_add (typeof e1) (typeof e2)), v1, v2; auto;
-    erewrite sizeof_guard_genv; eauto.
-  + unfold Cop.sem_sub.
-    destruct (Cop.classify_sub (typeof e1) (typeof e2)), v1, v2; auto;
-    erewrite sizeof_guard_genv; eauto.
-    rewrite andb_true_iff in H0.
-    tauto.
-Qed.
 
 Definition rel_lvalue'_expr'_sch Delta rho phi P P0 :=
   fun H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 H11 H12 H13 H14 H15 H16 H17 =>
@@ -415,4 +373,57 @@ apply (boxy_e _ _ H0 _ _ H); auto.
 econstructor; eauto.
 apply (boxy_e _ _ (rel_expr_extend Delta a (Vptr b z) rho) _ _ H); auto.
 Qed.
+
+Section TYCON_SUB.
+Variables Delta Delta': tycontext.
+Hypothesis extends: tycontext_sub Delta Delta'.
+
+Lemma rel_lvalue_expr_sub:
+  forall rho phi,
+  (forall e v, rel_expr' Delta rho phi e v -> rel_expr' Delta' rho phi e v) /\  
+  (forall e v, rel_lvalue' Delta rho phi e v -> rel_lvalue' Delta' rho phi e v).
+Proof.
+  intros.
+  apply (rel_lvalue'_expr'_sch Delta rho phi
+     (rel_expr' Delta' rho phi)
+     (rel_lvalue' Delta' rho phi));
+  intros; try solve [econstructor; eauto].
+  + (* Ebinop *)
+    econstructor; eauto.
+    - eapply binop_stable_sub; eauto.
+    - intro m; specialize (H4 m).
+      erewrite <- Cop_sem_binary_operation_sub; eauto.
+  + (* Esizeof *)
+    erewrite sizeof_sub by eauto.
+    econstructor; eauto.
+    eapply complete_type_sub; eauto.
+  + (* Ealignof *)
+    erewrite alignof_sub by eauto.
+    econstructor; eauto.
+    eapply complete_type_sub; eauto.
+  + (* lvalue By_reference *)
+    apply rel_expr'_lvalue_By_reference; auto.
+  + (* global *)
+    apply rel_expr'_global; auto.
+  + (* Struct Field *)
+    eapply rel_lvalue'_field_struct; eauto.
+    - eapply composite_types_get_sub; eauto.
+    - eapply field_offset_sub; eauto.
+Qed.
+
+Lemma rel_lvalue_sub: forall rho e v, rel_lvalue Delta e v rho |-- rel_lvalue Delta' e v rho.
+Proof.
+  intros.
+  intro w.
+  eapply (proj2 (rel_lvalue_expr_sub rho w) e v).
+Qed.
+
+Lemma rel_expr_sub: forall rho e v, rel_expr Delta e v rho |-- rel_expr Delta' e v rho.
+Proof.
+  intros.
+  intro w.
+  eapply (proj1 (rel_lvalue_expr_sub rho w) e v).
+Qed.
+
+End TYCON_SUB.
 
