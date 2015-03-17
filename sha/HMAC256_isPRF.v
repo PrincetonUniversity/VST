@@ -1,14 +1,15 @@
 Require Import List.
 Require Import ByteBitRelations.
 Require Import hmac_pure_lemmas.
+Require Import HMAC_functional_prog.
 Require Import HMAC_spec_abstract.
 Require Import HMAC_equivalence.
 
 Require Import HMAC_isPRF.
 
-Require Import HMAC_functional_prog.
 Require Import SHA256.
 Require Import pure_lemmas.
+Require Import HMAC256_functional_prog.
 Require Import sha_padding_lemmas.
 Require Import ShaInstantiation.
 Require Import hmac_common_lemmas.
@@ -51,7 +52,7 @@ Lemma opad_ne_ipad : EQ.opad_v <> EQ.ipad_v.
 Qed.
 *)
 
-Module PARS256 <: HMAC_is_PRF_Parameters HP.SHA256 EQ256.
+Module PARS256 <: HMAC_is_PRF_Parameters SHA256 EQ256.
 
   Parameter P : Blist -> Prop.
   Parameter HP: forall m, P m -> NPeano.divide 8 (length m).
@@ -72,7 +73,7 @@ Require Import NMAC_to_HMAC.
 Require Import hF.
 Require Import HMAC_PRF.
 
-Module PRFMod := HMAC_is_PRF HP.SHA256 EQ256 PARS256.
+Module PRFMod := HMAC_is_PRF SHA256 EQ256 PARS256.
 
 Theorem HMAC256_isPRF A (A_wf : well_formed_oc A) tau epsilon sigma 
         (HH1: PRFMod.h_PRF A tau) (HH2: PRFMod.h_star_WCR A epsilon) (HH3: PRFMod.dual_h_RKA A sigma):

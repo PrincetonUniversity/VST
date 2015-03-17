@@ -10,6 +10,7 @@ Require Import HMAC_spec_pad.
 (*The sha-specific imports*)
 Require Import SHA256. 
 Require Import HMAC_functional_prog. 
+Require Import HMAC256_functional_prog.
 Require Import hmac_common_lemmas.
 Require Import sha_padding_lemmas. (*for pad_len_64_nat*)
 Require Import ShaInstantiation.
@@ -90,7 +91,7 @@ Definition HBS_eq : forall r msg : list int,
          end := hash_blocks_equation.
 End I256.
 
-Module PAD := HMAC_Pad HP.SHA256 I256.
+Module PAD := HMAC_Pad SHA256 I256.
 
 (* Relates the HMAC padded spec to the HMAC functional program *)
 Theorem HMAC_pad_concrete (K : list byte) (M H : list Z) (OP IP : Z)
@@ -98,10 +99,10 @@ Theorem HMAC_pad_concrete (K : list byte) (M H : list Z) (OP IP : Z)
   ((length K) * 8)%nat = (c + p)%nat ->
   bytes_bits_lists k (map Byte.unsigned K) ->
   bytes_bits_lists m M ->
-  bytes_bits_lists op (HP.HMAC_SHA256.sixtyfour OP) ->
-  bytes_bits_lists ip (HP.HMAC_SHA256.sixtyfour IP) ->
+  bytes_bits_lists op (HMAC_SHA256.sixtyfour OP) ->
+  bytes_bits_lists ip (HMAC_SHA256.sixtyfour IP) ->
   sha.HMAC_spec_pad.HMAC c p B sha_h sha_iv sha_splitandpad op ip k m = h ->
-  HP.HMAC_SHA256.HmacCore (Byte.repr IP) (Byte.repr OP) M K = H ->
+  HMAC_SHA256.HmacCore (Byte.repr IP) (Byte.repr OP) M K = H ->
   bytes_bits_lists h H.
 Proof. intros.
 assert (sha_splitandpad =
@@ -117,22 +118,22 @@ rewrite H7 in H5; clear H7.
 eapply PAD.HMAC_pad_concrete with (c:=c)(p:=p)(IP:=IP)(OP:=OP)(B:=B)(ip:=ip)(op:=op)(m:=m)(K:=K)
   (ir:=SHA256.init_registers)(gap:=generate_and_pad); try reflexivity; try eassumption.
 - intros. rewrite <- pad_compose_equal. apply gap_divide16.
-- intros; unfold HP.SHA256.Hash.
+- intros; unfold SHA256.Hash.
   rewrite functional_prog.SHA_256'_eq; reflexivity.
-- unfold HP.SHA256.BlockSize. 
+- unfold SHA256.BlockSize. 
   unfold c, p in H0. omega.
 Qed.
 
 Theorem HMAC_pad_concrete' (K : list byte) (M : list Z) (OP IP : Z)
                            (k m : Blist) (op ip : Blist) (ipByte: isbyteZ IP) (opByte: isbyteZ OP):
   ((length K) * 8)%nat = (c + p)%nat ->
-  Zlength K = Z.of_nat HP.SHA256.BlockSize ->
+  Zlength K = Z.of_nat SHA256.BlockSize ->
   bytes_bits_lists k (map Byte.unsigned K) ->
   bytes_bits_lists m M ->
-  bytes_bits_lists op (HP.HMAC_SHA256.sixtyfour OP) ->
-  bytes_bits_lists ip (HP.HMAC_SHA256.sixtyfour IP) ->
+  bytes_bits_lists op (HMAC_SHA256.sixtyfour OP) ->
+  bytes_bits_lists ip (HMAC_SHA256.sixtyfour IP) ->
   sha.HMAC_spec_pad.HMAC c p B sha_h sha_iv sha_splitandpad op ip k m = 
-  bytesToBits (HP.HMAC_SHA256.HmacCore (Byte.repr IP) (Byte.repr OP) M K).
+  bytesToBits (HMAC_SHA256.HmacCore (Byte.repr IP) (Byte.repr OP) M K).
 Proof. intros.  
   eapply bits_bytes_ind_comp.
     apply isbyte_hmaccore.

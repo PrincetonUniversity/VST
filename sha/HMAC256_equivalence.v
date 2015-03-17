@@ -3,26 +3,26 @@ Require Import Bvector.
 Require Import List.
 Require Import Integers.
 Require Import BinNums.
+Require Import msl.Axioms. 
+Require Import Blist.
 
 Require Import ByteBitRelations.
 Require Import hmac_pure_lemmas.
 Require Import general_lemmas.
+Require Import HMAC_functional_prog.
 Require Import HMAC_common_defs.
 Require Import HMAC_spec_abstract.
-
-Require Import msl.Axioms. 
-Require Import Blist.
+Require Import HMAC_equivalence.
 
 (*SHA256-specific Modules*)
 Require Import common_lemmas.
-Require Import HMAC_functional_prog.
+Require Import HMAC256_functional_prog.
 Require Import sha_padding_lemmas.
+Require Import ShaInstantiation.
 Require Import hmac_common_lemmas.
 Require Import HMAC256_spec_pad.
 Require Import HMAC256_spec_concat.
 Require Import HMAC256_spec_list. (*for toBlocks*)
-Require Import HMAC_equivalence.
-Require Import ShaInstantiation.
 
 (*
 Lemma of_length_proof_irrel {A:Set} n (l: list A) M: 
@@ -166,13 +166,13 @@ Lemma C: NPeano.divide 8 c.
   exists 32%nat. reflexivity.
 Qed.
 
-Module EQ256 <: EQUIV_Inst HP.SHA256.
+Module EQ256 <: EQUIV_Inst SHA256.
   Definition c := c.
   Definition C := C.
   Definition p := p.
   Definition b := b.
   Definition B := B.
-  Definition BS: (HP.SHA256.BlockSize * 8)%nat = b. reflexivity. Qed. 
+  Definition BS: (SHA256.BlockSize * 8)%nat = b. reflexivity. Qed. 
   Definition h := sha_h.
   Definition h_length := sha_h_length.
 (*  Definition h_v := h_v.
@@ -242,8 +242,8 @@ Module EQ256 <: EQUIV_Inst HP.SHA256.
     apply pad_isbyteZ. eapply bitsToBytes_isbyteZ. reflexivity.
   Qed.
 
-  Lemma HASH m: HP.SHA256.Hash m = intlist_to_Zlist (hashblocks ir (gap m)).
-     unfold HP.SHA256.Hash.
+  Lemma HASH m: SHA256.Hash m = intlist_to_Zlist (hashblocks ir (gap m)).
+     unfold SHA256.Hash.
      rewrite functional_prog.SHA_256'_eq; reflexivity.
   Qed.
 
@@ -265,14 +265,14 @@ Module EQ256 <: EQUIV_Inst HP.SHA256.
 
 End EQ256.
 
-Module EQ := HMAC_Equiv HP.SHA256 EQ256.
+Module EQ := HMAC_Equiv SHA256 EQ256.
 
 (* Note we're comparing to HP.HMAC_SHA256.HmacCore, not HMAC. *)
 Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.divide 8 (length msg))
       (kv : Bvector b) (m : HMAC_Abstract.Message P):
       Vector.to_list (HMAC_spec.HMAC EQ.h_v iv_v (HMAC_Abstract.wrappedSAP _ _ splitAndPad_v)
                       fpad_v EQ.opad_v EQ.ipad_v kv m) = 
-      bytesToBits (HP.HMAC_SHA256.HmacCore (Byte.repr EQ.ipd) (Byte.repr EQ.opd)
+      bytesToBits (HMAC_SHA256.HmacCore (Byte.repr EQ.ipd) (Byte.repr EQ.opd)
                               (bitsToBytes (HMAC_Abstract.Message2Blist m))
                               (map Integers.Byte.repr (bitsToBytes (Vector.to_list kv)))).
 Proof.

@@ -156,7 +156,8 @@ SHA_FILES= \
   verif_addlength.v verif_SHA256.v
 
 HMAC_FILES= \
-  HMAC_functional_prog.v vst_lemmas.v hmac_pure_lemmas.v hmac_common_lemmas.v \
+  HMAC_functional_prog.v HMAC256_functional_prog.v \
+  vst_lemmas.v hmac_pure_lemmas.v hmac_common_lemmas.v \
   hmac091c.v spec_hmac.v verif_hmac_cleanup.v \
   verif_hmac_init_part1.v verif_hmac_init_part2.v verif_hmac_init.v \
   verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
@@ -189,8 +190,8 @@ HMACFCF_FILES= \
   GNMAC_PRF.v GHMAC_PRF.v HMAC_PRF.v
 
 HMACEQUIV_FILES= \
-  ShaInstantiation.v XorCorrespondence.v sha_padding_lemmas.v \
-  Bruteforce.v ByteBitRelations.v \
+  HMAC256_functional_prog.v ShaInstantiation.v XorCorrespondence.v \
+  sha_padding_lemmas.v Bruteforce.v ByteBitRelations.v \
   HMAC_common_defs.v HMAC_spec_pad.v HMAC256_spec_pad.v \
   HMAC_spec_concat.v HMAC256_spec_concat.v \
   HMAC_spec_list.v HMAC256_spec_list.v \

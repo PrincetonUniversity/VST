@@ -7,6 +7,7 @@ Local Open Scope logic.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.HMAC_functional_prog.
+Require Import sha.HMAC256_functional_prog.
 
 Require Import sha.hmac091c.
 Require Import sha.vst_lemmas.
@@ -543,15 +544,15 @@ forward_if PostKeyNull.
          rewrite nth_indep with (d:=(default_val tuchar))(d':=Vint (Int.repr 0)).
          rewrite nth_indep with (d:=(default_val tuchar))(d':=Vint (Int.repr 0)).
          repeat rewrite map_nth. f_equal. f_equal. unfold sha_finish. destruct ctxSha.
-         unfold HP.HMAC_SHA256.mkKey. simpl. 
+         unfold HMAC_SHA256.mkKey. simpl. 
               assert (Z6: Zlength key > 64) by omega. 
               apply Zgt_is_gt_bool in Z6; rewrite Z6.
-              unfold HP.HMAC_SHA256.zeroPad.
+              unfold HMAC_SHA256.zeroPad.
               rewrite <- functional_prog.SHA_256'_eq.
               rewrite app_nth1. inversion updAbs. subst. clear updAbs. simpl in *.
                       rewrite <- H13. trivial.
               rewrite length_SHA256'; trivial.
-              repeat rewrite map_length. rewrite mkKey_length; unfold HP.SHA256.BlockSize; simpl. omega.
+              repeat rewrite map_length. rewrite mkKey_length; unfold SHA256.BlockSize; simpl. omega.
               repeat rewrite map_length. unfold sha_finish. inversion updAbs. rewrite <- functional_prog.SHA_256'_eq, length_SHA256'. trivial.
        }
      }
@@ -562,15 +563,15 @@ forward_if PostKeyNull.
        assert (Z32: (Z.to_nat i < 32)%nat).
                   clear - H2; destruct H2 as [XX YY]. rewrite Z2Nat.inj_lt in YY.
                   apply YY. omega. omega.
-       unfold HP.HMAC_SHA256.mkKey. 
-               assert (Kgt: Zlength key > Z.of_nat HP.SHA256.BlockSize).  simpl; omega.
+       unfold HMAC_SHA256.mkKey. 
+               assert (Kgt: Zlength key > Z.of_nat SHA256.BlockSize).  simpl; omega.
                apply Zgt_is_gt_bool in Kgt.
-               rewrite Kgt. unfold HP.HMAC_SHA256.zeroPad. repeat rewrite map_app.
+               rewrite Kgt. unfold HMAC_SHA256.zeroPad. repeat rewrite map_app.
                rewrite app_nth2; repeat rewrite map_length; rewrite length_SHA256'.
-                 assert (Z.to_nat 32 - HP.SHA256.DigestLength = 0)%nat.                   
-                            unfold HP.SHA256.DigestLength. simpl; omega.
+                 assert (Z.to_nat 32 - SHA256.DigestLength = 0)%nat.                   
+                            unfold SHA256.DigestLength. simpl; omega.
                  rewrite H3.
-                 assert (SHA32: (HP.SHA256.BlockSize - HP.SHA256.DigestLength)%nat = 32%nat) by reflexivity.
+                 assert (SHA32: (SHA256.BlockSize - SHA256.DigestLength)%nat = 32%nat) by reflexivity.
                  rewrite SHA32; clear SHA32.
                  rewrite nth_map' with (d':=Int.zero).
                    rewrite nth_map' with (d':=Z0).
@@ -578,17 +579,17 @@ forward_if PostKeyNull.
                  assert (X: (nat_of_Z (32 + 1) = 1 + 32)%nat) by reflexivity.
                  rewrite X; clear X. rewrite <- skipn_drop.
                  rewrite skipn_app2.
-                   repeat rewrite map_length. unfold  HP.SHA256.Hash. rewrite length_SHA256'.
-                   assert (32 - HP.SHA256.DigestLength = 0)%nat by reflexivity. rewrite H4.
+                   repeat rewrite map_length. unfold  SHA256.Hash. rewrite length_SHA256'.
+                   assert (32 - SHA256.DigestLength = 0)%nat by reflexivity. rewrite H4.
                  rewrite skipn_0.
                  do 2 rewrite skipn_map.
                 rewrite skipn_list_repeat. do 2 rewrite map_list_repeat. reflexivity.
                 omega.
-                repeat rewrite map_length. unfold  HP.SHA256.Hash. rewrite length_SHA256'. 
-                   unfold HP.SHA256.DigestLength. omega. 
+                repeat rewrite map_length. unfold  SHA256.Hash. rewrite length_SHA256'. 
+                   unfold SHA256.DigestLength. omega. 
                 rewrite length_list_repeat. omega. 
                 rewrite map_length, length_list_repeat. omega. 
-                unfold HP.SHA256.DigestLength. simpl; omega.
+                unfold SHA256.DigestLength. simpl; omega.
          }
    } 
 
@@ -798,8 +799,8 @@ forward_if PostKeyNull.
                   clear - I; destruct I as [XX YY]. rewrite Z2Nat.inj_lt in YY.
                   rewrite Nat2Z.id in YY; trivial. trivial. omega. 
          apply eq_sym.
-         assert (L1: (Z.to_nat i < length (HP.HMAC_SHA256.mkKey key))%nat).
-           rewrite mkKey_length; unfold HP.SHA256.BlockSize.
+         assert (L1: (Z.to_nat i < length (HMAC_SHA256.mkKey key))%nat).
+           rewrite mkKey_length; unfold SHA256.BlockSize.
            assert (Zlength key <= 64) by omega.  apply Z2Nat.inj_le in H. simpl in H.
            rewrite Zlength_correct, Nat2Z.id in H. omega.
            omega. omega.
@@ -824,8 +825,8 @@ forward_if PostKeyNull.
          rewrite nth_map' with (d':=Int.zero).
          rewrite nth_map' with (d':=Z0); trivial. f_equal. f_equal.    
          rewrite mkKey_right; trivial. rewrite Zlength_correct. omega.
-         rewrite mkKey_length, Nat2Z.id. unfold HP.SHA256.BlockSize. omega.
-         rewrite map_length, mkKey_length, Nat2Z.id. unfold HP.SHA256.BlockSize. omega.
+         rewrite mkKey_length, Nat2Z.id. unfold SHA256.BlockSize. omega.
+         rewrite map_length, mkKey_length, Nat2Z.id. unfold SHA256.BlockSize. omega.
         rewrite nth_skipn. 
          assert (K + Z.to_nat (Z.of_nat (length key) + 1) = Z.to_nat (Z.of_nat (length key) + i))%nat.
             rewrite Z2Nat.inj_add. rewrite Z2Nat.inj_add. rewrite <- HeqK.
@@ -838,8 +839,8 @@ forward_if PostKeyNull.
          rewrite nth_map' with (d':=Int.zero).
          rewrite nth_map' with (d':=Z0); trivial. f_equal. f_equal. 
          rewrite mkKey_right; trivial. rewrite Zlength_correct. omega.
-         rewrite mkKey_length. unfold HP.SHA256.BlockSize. apply (Z2Nat.inj_lt _ 64). omega. omega. omega. 
-         rewrite map_length. rewrite mkKey_length. unfold HP.SHA256.BlockSize. apply (Z2Nat.inj_lt _ 64). omega. omega. omega. 
+         rewrite mkKey_length. unfold SHA256.BlockSize. apply (Z2Nat.inj_lt _ 64). omega. omega. omega. 
+         rewrite map_length. rewrite mkKey_length. unfold SHA256.BlockSize. apply (Z2Nat.inj_lt _ 64). omega. omega. omega. 
       }
   }
 

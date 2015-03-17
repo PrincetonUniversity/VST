@@ -10,6 +10,7 @@ Require Import HMAC_common_defs.
 
 Require Import SHA256.
 Require Import HMAC_functional_prog.
+Require Import HMAC256_functional_prog.
 Require Import hmac_common_lemmas.
 
 Require Import pure_lemmas.
@@ -56,14 +57,13 @@ apply M. (*we're exploiting the fact that c=p here*)
 Qed.
 
 (* --------------- *)
-
 Lemma xor_equiv_byte: forall xpad XPAD k K, isbyteZ XPAD ->
-                          bytes_bits_lists xpad (HP.HMAC_SHA256.sixtyfour XPAD) ->
+                          bytes_bits_lists xpad (HMAC_SHA256.sixtyfour XPAD) ->
                           ((length K) * 8)%nat = (c + p)%nat ->
                           bytes_bits_lists k (map Byte.unsigned K) ->
-bytes_bits_lists (BLxor k xpad) (HP.HMAC_SHA256.mkArgZ K (Byte.repr XPAD)).
+bytes_bits_lists (BLxor k xpad) (HMAC_SHA256.mkArgZ K (Byte.repr XPAD)).
 Proof. intros.  apply inner_general_mapByte; try assumption.
-       rewrite <- SF_ByteRepr; trivial.
+       rewrite <- HMAC_SHA256.SF_ByteRepr; trivial.
 Qed.
 
 
@@ -399,8 +399,8 @@ Proof. intros. unfold pad.
 Qed.  
 
 Lemma isbyte_hmaccore ipad opad m k: 
-   Forall isbyteZ (HP.HMAC_SHA256.HmacCore (Byte.repr ipad) (Byte.repr opad) m k).
-Proof. apply HP.SHA256.Hash_isbyteZ. Qed.
+   Forall isbyteZ (HMAC_SHA256.HmacCore (Byte.repr ipad) (Byte.repr opad) m k).
+Proof. apply SHA256.Hash_isbyteZ. Qed.
 
 
 (*
