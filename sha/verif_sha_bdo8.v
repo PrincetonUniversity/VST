@@ -459,7 +459,7 @@ Lemma add_them_back_proof:
      (regs regs': list int) (ctx: val) kv,
      length regs = 8%nat ->
      length regs' = 8%nat ->
-     semax  Delta_loop1
+     semax  (initialized _i Delta_loop1)
    (PROP  ()
    LOCAL  (temp _ctx ctx;
                 temp _a  (Vint (nthi regs' 0));
@@ -494,13 +494,13 @@ rename regs' into atoh.
 
 assert (forall j : nat,
    (j < 8)%nat ->
-   (temp_types Delta_loop1)
+   (temp_types (initialized _i Delta_loop1))
     ! (nth j [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive) = Some (tuint, true)).
  intros; destruct j as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try reflexivity; omega.
 
 assert (forall j : nat,
    (j < 8)%nat ->
-   (temp_types (initialized _t Delta_loop1))
+   (temp_types (initialized _t (initialized _i Delta_loop1)))
     ! (nth j [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive) = Some (tuint, true)).
  intros; destruct j as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try reflexivity; omega.
 

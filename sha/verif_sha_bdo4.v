@@ -30,34 +30,39 @@ Qed.
 
 Lemma loop1_aux_lemma1:
   forall i v b,
-  (i < length b)%nat ->
-  0 <= Z.of_nat i * 4 <= Int.max_unsigned ->
-  v = nthi b (Z.of_nat i) ->
-  upd_reptype_array tuint (Z.of_nat i) (map Vint (firstn i b))
+  (i < Zlength b) ->
+  0 <= i * 4 <= Int.max_unsigned ->
+  v = nthi b i ->
+  upd_reptype_array tuint i (map Vint (firstn (Z.to_nat i) b))
           (Vint v)
-  =  map Vint (firstn (i+1) b).
+  =  map Vint (firstn (Z.to_nat (i+1)) b).
 Proof.
 intros.
+assert (Z.to_nat i < length b)%nat.
+  apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega. rewrite <- Zlength_correct; auto.
 unfold upd_reptype_array.
-rewrite Nat2Z.id.
-rewrite Z2Nat.inj_add by omega. rewrite Nat2Z.id.
+repeat rewrite Z2Nat.inj_add by omega.
 change (Z.to_nat 1) with 1%nat.
-replace (i+1)%nat with (S i) by (clear; omega).
+replace (Z.to_nat i +1)%nat with (S (Z.to_nat i)) by (clear; omega).
 rewrite force_lengthn_same
-  by (rewrite map_length, firstn_length, min_l; omega).
+  by (rewrite map_length, firstn_length, min_l; auto; omega).
 subst v.
-clear H0.
+replace (nthi b i) with (nthi b (Z.of_nat (Z.to_nat i)))
+ by (rewrite Z2Nat.id by omega; auto).
+clear H0 H. rename H2 into H.
 revert b H.
-induction i; destruct b; simpl length; intros; try omega.
+induction (Z.to_nat i); destruct b; simpl length; intros; try omega.
 reflexivity.
-f_equal.
+clear i; rename n into i.
 simpl map at 1.
 change (map Vint (firstn (S (S i)) (i0 :: b)))
   with (Vint i0 :: map Vint (firstn (S i) b)).
 rewrite <- app_comm_cons.
 f_equal.
 replace (nthi (i0::b) (Z.of_nat (S i))) with  (nthi b (Z.of_nat i)).
-apply IHi.
+change (skipn (S (S i)) (map Vint (firstn (S i) (i0 :: b))))
+ with (skipn (S i) (map Vint (firstn i b))).
+apply IHn.
 omega.
 unfold nthi.
 repeat rewrite Nat2Z.id. reflexivity.
@@ -201,9 +206,185 @@ auto.
 Qed.
 
 *)
-
 Definition block_data_order_loop1 := 
+  Sfor (Sset _i (Econst_int (Int.repr 0) tint))
+         (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 16) tint) tint)
+         (Ssequence
+          (Ssequence
+            (Ssequence
+              (Scall (Some _l')
+                                  (Evar ___builtin_read32_reversed (Tfunction
+                                                                    (Tcons
+                                                                    (tptr tuint)
+                                                                    Tnil)
+                                                                    tuint
+                                                                    cc_default))
+                                  ((Ecast (Etempvar _data (tptr tuchar))
+                                     (tptr tuint)) :: nil))
+                 (Sset _l (Ecast (Etempvar _l' tuint) tuint)))
+                (Sset _data
+                    (Ebinop Oadd (Etempvar _data (tptr tuchar))
+                        (Econst_int (Int.repr 4) tint)
+                                  (tptr tuchar))))
+                          (Ssequence
+                              (Sassign
+                      (Ederef
+                        (Ebinop Oadd (Evar _X (tarray tuint 16))
+                          (Etempvar _i tint) (tptr tuint)) tuint)
+                      (Etempvar _l tuint))
+                    (Ssequence
+                      (Sset _Ki
+                        (Ederef
+                          (Ebinop Oadd
+                            (Evar _K256 (tarray tuint 64))
+                            (Etempvar _i tint) (tptr tuint)) tuint))
+                      (Ssequence
+                        (Sset _T1
+                          (Ebinop Oadd
+                            (Ebinop Oadd
+                              (Ebinop Oadd
+                                (Ebinop Oadd (Etempvar _l tuint)
+                                  (Etempvar _h tuint) tuint)
+                                (Ebinop Oxor
+                                  (Ebinop Oxor
+                                    (Ebinop Oor
+                                      (Ebinop Oshl
+                                        (Etempvar _e tuint)
+                                        (Econst_int (Int.repr 26) tint)
+                                        tuint)
+                                      (Ebinop Oshr
+                                        (Ebinop Oand
+                                          (Etempvar _e tuint)
+                                          (Econst_int (Int.repr (-1)) tuint)
+                                          tuint)
+                                        (Ebinop Osub
+                                          (Econst_int (Int.repr 32) tint)
+                                          (Econst_int (Int.repr 26) tint)
+                                          tint) tuint) tuint)
+                                    (Ebinop Oor
+                                      (Ebinop Oshl
+                                        (Etempvar _e tuint)
+                                        (Econst_int (Int.repr 21) tint)
+                                        tuint)
+                                      (Ebinop Oshr
+                                        (Ebinop Oand
+                                          (Etempvar _e tuint)
+                                          (Econst_int (Int.repr (-1)) tuint)
+                                          tuint)
+                                        (Ebinop Osub
+                                          (Econst_int (Int.repr 32) tint)
+                                          (Econst_int (Int.repr 21) tint)
+                                          tint) tuint) tuint)
+                                    tuint)
+                                  (Ebinop Oor
+                                    (Ebinop Oshl
+                                      (Etempvar _e tuint)
+                                      (Econst_int (Int.repr 7) tint)
+                                      tuint)
+                                    (Ebinop Oshr
+                                      (Ebinop Oand
+                                        (Etempvar _e tuint)
+                                        (Econst_int (Int.repr (-1)) tuint)
+                                        tuint)
+                                      (Ebinop Osub
+                                        (Econst_int (Int.repr 32) tint)
+                                        (Econst_int (Int.repr 7) tint)
+                                        tint) tuint) tuint) tuint)
+                                tuint)
+                              (Ebinop Oxor
+                                (Ebinop Oand (Etempvar _e tuint)
+                                  (Etempvar _f tuint) tuint)
+                                (Ebinop Oand
+                                  (Eunop Onotint
+                                    (Etempvar _e tuint) tuint)
+                                  (Etempvar _g tuint) tuint) tuint)
+                              tuint) (Etempvar _Ki tuint) tuint))
+                        (Ssequence
+                          (Sset _T2
+                            (Ebinop Oadd
+                              (Ebinop Oxor
+                                (Ebinop Oxor
+                                  (Ebinop Oor
+                                    (Ebinop Oshl
+                                      (Etempvar _a tuint)
+                                      (Econst_int (Int.repr 30) tint)
+                                      tuint)
+                                    (Ebinop Oshr
+                                      (Ebinop Oand
+                                        (Etempvar _a tuint)
+                                        (Econst_int (Int.repr (-1)) tuint)
+                                        tuint)
+                                      (Ebinop Osub
+                                        (Econst_int (Int.repr 32) tint)
+                                        (Econst_int (Int.repr 30) tint)
+                                        tint) tuint) tuint)
+                                  (Ebinop Oor
+                                    (Ebinop Oshl
+                                      (Etempvar _a tuint)
+                                      (Econst_int (Int.repr 19) tint)
+                                      tuint)
+                                    (Ebinop Oshr
+                                      (Ebinop Oand
+                                        (Etempvar _a tuint)
+                                        (Econst_int (Int.repr (-1)) tuint)
+                                        tuint)
+                                      (Ebinop Osub
+                                        (Econst_int (Int.repr 32) tint)
+                                        (Econst_int (Int.repr 19) tint)
+                                        tint) tuint) tuint) tuint)
+                                (Ebinop Oor
+                                  (Ebinop Oshl (Etempvar _a tuint)
+                                    (Econst_int (Int.repr 10) tint)
+                                    tuint)
+                                  (Ebinop Oshr
+                                    (Ebinop Oand
+                                      (Etempvar _a tuint)
+                                      (Econst_int (Int.repr (-1)) tuint)
+                                      tuint)
+                                    (Ebinop Osub
+                                      (Econst_int (Int.repr 32) tint)
+                                      (Econst_int (Int.repr 10) tint)
+                                      tint) tuint) tuint) tuint)
+                              (Ebinop Oxor
+                                (Ebinop Oxor
+                                  (Ebinop Oand (Etempvar _a tuint)
+                                    (Etempvar _b tuint) tuint)
+                                  (Ebinop Oand (Etempvar _a tuint)
+                                    (Etempvar _c tuint) tuint)
+                                  tuint)
+                                (Ebinop Oand (Etempvar _b tuint)
+                                  (Etempvar _c tuint) tuint) tuint)
+                              tuint))
+                          (Ssequence
+                            (Sset _h (Etempvar _g tuint))
+                            (Ssequence
+                              (Sset _g (Etempvar _f tuint))
+                              (Ssequence
+                                (Sset _f (Etempvar _e tuint))
+                                (Ssequence
+                                  (Sset _e
+                                    (Ebinop Oadd
+                                      (Etempvar _d tuint)
+                                      (Etempvar _T1 tuint) tuint))
+                                  (Ssequence
+                                    (Sset _d (Etempvar _c tuint))
+                                    (Ssequence
+                                      (Sset _c (Etempvar _b tuint))
+                                      (Ssequence
+                                        (Sset _b
+                                          (Etempvar _a tuint))
+                                        (Sset _a
+                                          (Ebinop Oadd
+                                            (Etempvar _T1 tuint)
+                                            (Etempvar _T2 tuint)
+                                            tuint))))))))))))))
+              (Sset _i
+                (Ebinop Oadd (Etempvar _i tint)
+                  (Econst_int (Int.repr 1) tint) tint)).
+
+(*Definition block_data_order_loop1 := 
    nth 0 (loops (fn_body f_sha256_block_data_order)) Sskip.
+*)
 
 Lemma sha256_block_data_order_loop1_proof:
   forall (Espec : OracleKind) (sh: share)
@@ -213,7 +394,7 @@ Lemma sha256_block_data_order_loop1_proof:
      length b = LBLOCK ->
      semax Delta_loop1
   (PROP ()
-   LOCAL (temp _ctx ctx; temp _i (Vint (Int.repr 0)); temp _data data;
+   LOCAL (temp _ctx ctx; temp _data data;
                temp _a (Vint (nthi regs 0)); 
                temp _b (Vint (nthi regs 1)); 
                temp _c (Vint (nthi regs 2)); 
@@ -266,119 +447,56 @@ name i_ _i.
 name data_ _data.
 assert (LBE := LBLOCK_zeq).
 
-Definition loop1_inv (rg0: list int) (sh: share) (b: list int) ctx (data: val) kv Xv (delta: Z) (i: nat) :=
-    PROP ( (i <= LBLOCK)%nat )
-    LOCAL  (temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i - delta)));
-                 temp _data  (offset_val (Int.repr ((Z.of_nat i)*4)) data);
-                 temp _a (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 0));
-                 temp _b (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 1));
-                 temp _c (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 2));
-                 temp _d (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 3));
-                 temp _e (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 4));
-                 temp _f (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 5));
-                 temp _g (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 6));
-                 temp _h (Vint (nthi (Round rg0 (nthi b) (Z.of_nat i - 1)) 7));
+forward_for_simple_bound 16
+   (EX i:Z,
+    PROP ( (i <= LBLOCKz) )
+    LOCAL  (temp _ctx ctx;
+                 temp _data  (offset_val (Int.repr (i*4)) data);
+                 temp _a (Vint (nthi (Round regs (nthi b) (i - 1)) 0));
+                 temp _b (Vint (nthi (Round regs (nthi b) (i - 1)) 1));
+                 temp _c (Vint (nthi (Round regs (nthi b) (i - 1)) 2));
+                 temp _d (Vint (nthi (Round regs (nthi b) (i - 1)) 3));
+                 temp _e (Vint (nthi (Round regs (nthi b) (i - 1)) 4));
+                 temp _f (Vint (nthi (Round regs (nthi b) (i - 1)) 5));
+                 temp _g (Vint (nthi (Round regs (nthi b) (i - 1)) 6));
+                 temp _h (Vint (nthi (Round regs (nthi b) (i - 1)) 7));
                  lvar _X (tarray tuint LBLOCKz) Xv;
                  gvar _K256 kv)
      SEP (`(K_vector kv);
-       `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (firstn i b)) Xv);
-   `(data_block sh (intlist_to_Zlist b) data)).
-
-apply semax_pre with (EX i:nat, loop1_inv regs sh b ctx data kv Xv 0 i). 
-(* 345,184   326,392*) {
- apply exp_right with 0%nat.
- unfold loop1_inv.
- replace (Round regs (nthi b) (Z.of_nat 0 - 1)) with regs.
+       `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (firstn (Z.to_nat i) b)) Xv);
+   `(data_block sh (intlist_to_Zlist b) data))).
+{
+ replace (Round regs (nthi b) (0 - 1)) with regs.
  entailer!.
  rewrite Round_equation. rewrite if_true by (compute; auto). auto.
 }
-(* 419,452   431,980 *)
-apply semax_post' with (loop1_inv regs sh b ctx data kv Xv 0 LBLOCK).
-(* 419,452  431,980 *)
-  unfold loop1_inv. entailer!.
-  rewrite firstn_same by omega; auto.
-(* 445,728  479,964 *)
-clear POSTCONDITION.
-apply (semax_loop _ _ (EX i:nat, loop1_inv regs sh b ctx data kv Xv 1 i)).
-2: abstract (
-apply extract_exists_pre; intro i;
-forward;  (*  i += 1; *)
-apply exp_right with i;
-(* 452,280  481,476 *)
- unfold loop1_inv;  entailer! ; f_equal; omega).
-(* 561,900  574,392 *)
-
-apply extract_exists_pre; intro i.
-unfold loop1_inv.
-forward_if (
-   PROP  ((i < LBLOCK)%nat)
-   LOCAL  (temp _ctx ctx; temp _i  (Vint (Int.repr (Z.of_nat (0 + i))));
-                temp _data (offset_val (Int.repr ((Z.of_nat i)*WORD)) data);
-                 temp _a (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0));
-                 temp _b (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1));
-                 temp _c (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2));
-                 temp _d (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3));
-                 temp _e (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4));
-                 temp _f (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5));
-                 temp _g (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6));
-                 temp _h (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7));
-                 lvar _X (tarray tuint LBLOCKz) Xv;
-                 gvar _K256 kv)
-   SEP 
-   (`(K_vector kv);
-    `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (firstn i b)) Xv);
-   `(data_block sh (intlist_to_Zlist b) data))).
-rewrite Z.sub_0_r in H0.
-(* 587,640  592,608 *)
-(* 613,416  655,716 *)
-forward. (* skip; *)
-entailer!. normalize in H0.
-  change 16 with (Z.of_nat 16) in H0; apply Nat2Z.inj_lt; auto.
-  rewrite Z.sub_0_r; auto.
-(* 726,056  709,784 *) 
-  apply semax_extract_PROP; intro.
-  normalize in H0. rewrite Z.sub_0_r in H0.
-  assert (i=LBLOCK)%nat by omega. subst i.
-  forward; (* break; *)
-   cbv beta;
-   rewrite overridePost_EK_break,
-       loop1_ret_assert_EK_break,
-        normal_ret_assert_elim.
-   entailer!.
-(* 854,860 750,176 *)
-unfold MORE_COMMANDS, POSTCONDITION, abbreviate;
- clear MORE_COMMANDS POSTCONDITION.
-make_sequential.
-unfold loop1_ret_assert.
-apply extract_exists_post with (S i).
-rewrite inj_S.
-simpl plus.
-normalize.
+{
+ normalize.
 
 (* 945,760 834,556 *)
 do 2 apply -> seq_assoc.
 unfold data_block.
 eapply (semax_frame_seq nil)
  with (P1 := [])
-         (Q1 :=  [temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i)));
-                      temp _data (offset_val (Int.repr (Z.of_nat i * 4)) data);
-                 temp _a (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0));
-                 temp _b (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 1));
-                 temp _c (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 2));
-                 temp _d (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 3));
-                 temp _e (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 4));
-                 temp _f (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 5));
-                 temp _g (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 6));
-                 temp _h (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 7));
+         (Q1 :=  [temp _ctx ctx; temp _i (Vint (Int.repr i));
+                      temp _data (offset_val (Int.repr (i * 4)) data);
+                 temp _a (Vint (nthi (Round regs (nthi b) (i - 1)) 0));
+                 temp _b (Vint (nthi (Round regs (nthi b) (i - 1)) 1));
+                 temp _c (Vint (nthi (Round regs (nthi b) (i - 1)) 2));
+                 temp _d (Vint (nthi (Round regs (nthi b) (i - 1)) 3));
+                 temp _e (Vint (nthi (Round regs (nthi b) (i - 1)) 4));
+                 temp _f (Vint (nthi (Round regs (nthi b) (i - 1)) 5));
+                 temp _g (Vint (nthi (Round regs (nthi b) (i - 1)) 6));
+                 temp _h (Vint (nthi (Round regs (nthi b) (i - 1)) 7));
                  lvar _X (tarray tuint LBLOCKz) Xv;
                  gvar _K256 kv])
          (Frame := [`(K_vector kv);
-                           `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (firstn i b)) Xv)]);
+                           `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (firstn (Z.to_nat i) b)) Xv)]);
 (**{
 apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) data _ sh 
                      (map Int.repr (intlist_to_Zlist b))).
 *)
-   [apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) data _ sh 
+   [apply (read32_reversed_in_bytearray _ (Int.repr (i * 4)) data _ sh 
                      (map Int.repr (intlist_to_Zlist b)));
     [ reflexivity |  reflexivity | reflexivity | reflexivity | reflexivity
     | auto 50 with closed 
@@ -406,7 +524,7 @@ unfold app.
 fold (data_block sh (intlist_to_Zlist b) data).
 set (bei :=  big_endian_integer
             (firstn (Z.to_nat WORD)
-               (skipn (Z.to_nat (Int.unsigned (Int.repr (Z.of_nat i * 4))))
+               (skipn (Z.to_nat (Int.unsigned (Int.repr (i * 4))))
                   (map Int.repr (intlist_to_Zlist b))))).
 forward. (* l := l'; *)
 forward. (* data := data + 4; *)
@@ -417,68 +535,67 @@ change LBLOCKz with 16. (* this shouldn't be necessary *)
 forward. (* X[i]=l; *)
 change 16 with LBLOCKz.
 
- assert_LOCAL (temp _l (Vint (nthi b (Z.of_nat i)))). {
-  drop_LOCAL 6%nat. drop_LOCAL 5%nat. drop_LOCAL 4%nat.
+ assert_LOCAL (temp _l (Vint (nthi b i))). {
+(*  drop_LOCAL 6%nat. drop_LOCAL 5%nat. drop_LOCAL 4%nat. *)
   entailer!.
   unfold nthi.
-  rewrite Nat2Z.id.
-  rewrite Z2Nat.inj_mul by omega. rewrite Nat2Z.id.
+  rewrite Z2Nat.inj_mul by omega.
   apply nth_big_endian_integer. 
   apply nth_error_nth; rewrite H; auto.
+  apply Z2Nat.inj_lt; try omega. apply H0.
  }
-drop_LOCAL 2%nat; drop_LOCAL 2%nat.
+(*drop_LOCAL 2%nat; drop_LOCAL 2%nat.
+*)
 
 change LBLOCKz with (Z.of_nat LBLOCK).
 
-assert (Hi: 0 <= Z.of_nat i * 4 <= Int.max_unsigned). {
+assert (Hi: 0 <= i * 4 <= Int.max_unsigned). {
    clear - H0;
-   assert (0 <= Z.of_nat i * 4 < 64); [split; [omega |] | repable_signed ];
+   assert (0 <= i * 4 < 64); [split; [omega |] | repable_signed ];
    change 64 with (Z.of_nat LBLOCK *4)%Z;
    apply Zmult_lt_compat_r; [computable | ];
-   apply Nat2Z.inj_lt; auto.
+   (*apply Nat2Z.inj_lt;*) auto.
+   apply H0.
 }
 
 unfold bei; clear bei.
 set (zz := (big_endian_integer
                    (firstn (Z.to_nat WORD)
                       (skipn
-                         (Z.to_nat (Int.unsigned (Int.repr (Z.of_nat i * 4))))
+                         (Z.to_nat (Int.unsigned (Int.repr (i * 4))))
                          (map Int.repr (intlist_to_Zlist b)))))).
 simpl.
 subst zz.
 rewrite loop1_aux_lemma1; auto;
-[ | omega
+[ | rewrite Zlength_correct, H; omega
  | rewrite Int.unsigned_repr by auto;
-   rewrite Z2Nat.inj_mul by omega; rewrite Nat2Z.id;
+   rewrite Z2Nat.inj_mul by omega;
    symmetry;
    apply nth_big_endian_integer;
-   rewrite nth_error_nth with (d:=Int.zero) by omega;
-   unfold nthi; rewrite Nat2Z.id; auto].
+   rewrite nth_error_nth with (d:=Int.zero)
+    by (apply Nat2Z.inj_lt;
+         rewrite Z2Nat.id by omega;
+         rewrite H, LBLOCK_eq;
+         apply H0);
+    reflexivity].
 
 (* 1,506,948 1,110,852 *)
 (* 1,506,948 1,134,576 *)
 
 unfold K_vector.
 
-(*
-assert (is_int I32 Unsigned (nthi K256 (Z.of_nat i)))
- by (clear - H0; apply ZnthV_map_Vint_is_int;
-       split; [ omega | ];
-       apply Z.lt_trans with (Z.of_nat LBLOCK);
-      [omega | compute; auto]).
-*)
-assert (Z.of_nat i < Zlength K256) 
-  by (change (Zlength K256) with (Z.of_nat (LBLOCK + 48));
-       apply Nat2Z.inj_lt; omega).
+assert (i < Zlength K256)
+  by (change (Zlength K256) with (LBLOCKz + 48); omega).
   change (Zlength K256) with 64 in *.
   change (Z.of_nat LBLOCK) with 16. change CBLOCKz with 64.
 (*   change (tarray tuint (Zlength K256)) with (tarray tuint 64).*) 
 forward.  (* Ki=K256[i]; *)
 (* 1,689,280 1,212,872 *)
 entailer!.
-unfold Znth. rewrite if_false by omega. rewrite Nat2Z.id.
+unfold Znth. rewrite if_false by omega.
 rewrite (nth_map' Vint Vundef Int.zero). apply I.
-change (length K256) with (LBLOCK  + 48)%nat; omega.
+apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
+change (Z.of_nat (length K256)) with (LBLOCKz  + 48); omega.
 (* 1,811,028 1,406,332 *)
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 
@@ -491,7 +608,6 @@ match goal with
    [ | rewrite <- app_nil_end; apply derives_refl]
    ]
 end.
- replace (S i) with (i+1)%nat by omega.
  entailer!.
  unfold data_block.
  rewrite prop_true_andp by (apply isbyte_intlist_to_Zlist).
@@ -502,17 +618,17 @@ forget (nthi b) as M.
 apply semax_pre with
  (PROP  ()
    LOCAL 
-   (temp _ctx ctx; temp _data (offset_val (Int.repr (Zsucc (Z.of_nat i) * WORD)) data);
-    temp _l (Vint (W M (Z.of_nat i))); temp _Ki (Vint (nthi K256 (Z.of_nat i)));
-    temp _i (Vint (Int.repr (Z.of_nat i)));
-                 temp _a (Vint (nthi (Round regs M (Z.of_nat i - 1)) 0));
-                 temp _b (Vint (nthi (Round regs M (Z.of_nat i - 1)) 1));
-                 temp _c (Vint (nthi (Round regs M (Z.of_nat i - 1)) 2));
-                 temp _d (Vint (nthi (Round regs M (Z.of_nat i - 1)) 3));
-                 temp _e (Vint (nthi (Round regs M (Z.of_nat i - 1)) 4));
-                 temp _f (Vint (nthi (Round regs M (Z.of_nat i - 1)) 5));
-                 temp _g (Vint (nthi (Round regs M (Z.of_nat i - 1)) 6));
-                 temp _h (Vint (nthi (Round regs M (Z.of_nat i - 1)) 7));
+   (temp _ctx ctx; temp _data (offset_val (Int.repr (Zsucc i * WORD)) data);
+    temp _l (Vint (W M i)); temp _Ki (Vint (nthi K256 i));
+    temp _i (Vint (Int.repr i));
+                 temp _a (Vint (nthi (Round regs M (i - 1)) 0));
+                 temp _b (Vint (nthi (Round regs M (i - 1)) 1));
+                 temp _c (Vint (nthi (Round regs M (i - 1)) 2));
+                 temp _d (Vint (nthi (Round regs M (i - 1)) 3));
+                 temp _e (Vint (nthi (Round regs M (i - 1)) 4));
+                 temp _f (Vint (nthi (Round regs M (i - 1)) 5));
+                 temp _g (Vint (nthi (Round regs M (i - 1)) 6));
+                 temp _h (Vint (nthi (Round regs M (i - 1)) 7));
                  lvar _X (tarray tuint 16) Xv; 
                  gvar _K256 kv)
    SEP()).
@@ -523,27 +639,27 @@ rewrite W_equation.
 rewrite if_true; auto.
 omega.
 
-clear - H0 H4. rename H4 into H2.
+clear - H0 H5. rename H5 into H2.
 unfold Znth in H2.
 
 rewrite if_false in H2 by omega.
 unfold nthi.
-rewrite Nat2Z.id in *.
 rewrite (nth_map' _ _ Int.zero) in H2.
 congruence.
 clear H2.
 change (length K256) with 64%nat.
-pose proof LBLOCK_eq; omega.
+apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega. 
+change (Z.of_nat 64) with 64. omega.
 }
 {clear b H.
-replace (Z.succ (Z.of_nat i) - 1)%Z with (Z.of_nat i) by omega.
-rewrite (Round_equation _ _ (Z.of_nat i)).
+replace (i + 1 - 1)%Z with i by omega.
+rewrite (Round_equation _ _ i).
 rewrite if_false by omega.
-forget (nthi K256 (Z.of_nat i)) as k.
-forget (W M (Z.of_nat i)) as w.
-assert (length (Round regs M (Z.of_nat i - 1)) = 8)%nat.
+forget (nthi K256 i) as k.
+forget (W M i) as w.
+assert (length (Round regs M (i - 1)) = 8)%nat.
 apply length_Round; auto.
-forget (Round regs M (Z.of_nat i - 1)) as regs'.
+forget (Round regs M (i - 1)) as regs'.
 change 16%nat with LBLOCK.
 destruct regs' as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; inv H.
 unfold rearrange_regs.
@@ -562,6 +678,7 @@ forward.
 forward.
 simplify_Delta.
  entailer!. 
+ clear - H0. change LBLOCKz with 16. omega.
 unfold rnd_function, nthi; simpl.
 f_equal.
  rewrite <- rearrange_aux. symmetry. rewrite (rearrange_aux Ki).
@@ -573,5 +690,12 @@ symmetry. do 2 rewrite Int.add_assoc.
 rewrite Int.add_commut. rewrite <- Int.add_assoc. f_equal.
 f_equal. rewrite Int.add_assoc. reflexivity.
 }
+}
+
+drop_LOCAL 1%nat.
+change 16 with LBLOCKz.
+entailer!.
+rewrite firstn_same. auto.
+rewrite H. change (Z.to_nat LBLOCKz) with LBLOCK. clear; omega.
 }
 Qed.

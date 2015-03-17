@@ -63,8 +63,6 @@ assert_PROP (isptr data); [  entailer | ].
 *
 abbreviate_semax.
 simpl.
-forward.  (* i = 0; *)
-
 eapply (semax_frame_seq [ lvar _X (tarray tuint 16) Xv ]
               [`(field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs)
         ctx)]).
@@ -101,7 +99,7 @@ entailer!.
 auto 50 with closed.
 simpl; abbreviate_semax.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-replace Delta with (initialized _t Delta_loop1) 
+replace Delta with (initialized _t (initialized _i Delta_loop1)) 
  by (simplify_Delta; reflexivity).
 clear Delta.
 fold (hash_block regs b).

@@ -400,7 +400,7 @@ Lemma bdo_loop2_body_proof:
    (Hregs: length regs = 8%nat)
    (H : Zlength b = LBLOCKz)
    (H0 : (LBLOCK <= i < c64)%nat),
-semax Delta_loop1
+semax (initialized _i Delta_loop1)
   (PROP  ()
    LOCAL  (temp _ctx ctx; temp _i (Vint (Int.repr (Z.of_nat i)));
                  temp _a  (Vint (nthi (Round regs (nthi b) (Z.of_nat i - 1)) 0));
@@ -552,7 +552,7 @@ Lemma sha256_block_data_order_loop2_proof:
      (b: list int) ctx (regs: list int) kv Xv
      (Hregs: length regs = 8%nat),
      Zlength b = LBLOCKz ->
-     semax  Delta_loop1
+     semax (initialized _i Delta_loop1)
  (PROP ()
    LOCAL (temp _ctx ctx; temp _i (Vint (Int.repr 16));
                temp _a (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 0));
@@ -683,7 +683,7 @@ forward_if (
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 make_sequential. rewrite loop1_ret_assert_normal.
 normalize.
-replace Delta with Delta_loop1 by (simplify_Delta; reflexivity).
+replace Delta with (initialized _i Delta_loop1) by (simplify_Delta; reflexivity).
 simple apply bdo_loop2_body_proof; auto.
 Qed.
 

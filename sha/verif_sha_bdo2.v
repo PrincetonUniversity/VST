@@ -12,7 +12,7 @@ Lemma sha256_block_data_order_return:
   Zlength b = LBLOCKz ->
   (LBLOCKz | Zlength hashed) ->
   regs = hash_blocks init_registers hashed ->
-  semax (initialized _t Delta_loop1)
+  semax (initialized _t (initialized _i Delta_loop1))
   (PROP  ()
    LOCAL  (temp _ctx ctx; gvar _K256 kv;
                 lvar _X (tarray tuint 16) Xv)

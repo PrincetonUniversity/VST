@@ -324,16 +324,12 @@ Proof.
 Qed.
 
 Definition final_loop :=
- (Ssequence (Sset _xn (Econst_int (Int.repr 0) tint))
-                 (Sloop
-                    (Ssequence
-                       (Sifthenelse
-                          (Ebinop Olt (Etempvar _xn tuint)
-                             (Ebinop Odiv (Econst_int (Int.repr 32) tint)
-                                (Econst_int (Int.repr 4) tint) tint) tint)
-                          Sskip Sbreak)
-                       (Ssequence
-                          (Sset _ll
+ Sfor (Sset _xn (Econst_int (Int.repr 0) tint))
+        (Ebinop Olt (Etempvar _xn tuint)
+          (Ebinop Odiv (Econst_int (Int.repr 32) tint)
+            (Econst_int (Int.repr 4) tint) tint) tint)
+        (Ssequence
+          (Sset _ll
                              (Ederef
                                 (Ebinop Oadd
                                    (Efield
@@ -354,10 +350,10 @@ Definition final_loop :=
                              (Sset _md
                                 (Ebinop Oadd (Etempvar _md (tptr tuchar))
                                    (Econst_int (Int.repr 4) tint)
-                                   (tptr tuchar))))))
-                    (Sset _xn
-                       (Ebinop Oadd (Etempvar _xn tuint)
-                          (Econst_int (Int.repr 1) tint) tuint)))).
+                                   (tptr tuchar)))))
+      (Sset _xn
+         (Ebinop Oadd (Etempvar _xn tuint)
+          (Econst_int (Int.repr 1) tint) tuint)).
 
 Lemma nth_intlist_to_Zlist_first_hack:
   forall  j i al, 
@@ -395,18 +391,6 @@ intros.
  revert al; induction j; simpl; intros; auto.
 Qed.
 
-Definition part4_inv  c shmd hashedmsg md kv delta (i: nat) :=
-   (PROP  ((i <= 8)%nat)
-   LOCAL  (temp _xn (Vint (Int.repr (Z.of_nat i - delta)));
-                temp _md (offset_val (Int.repr (Z.of_nat i * 4)) md);
-                temp _c c)
-   SEP 
-   (`(data_at Tsh t_struct_SHA256state_st
-       (map Vint hashedmsg, (Vundef, (Vundef, (list_repeat 64%nat (Vint Int.zero), Vint Int.zero))))
-      c);
-    `(K_vector kv);
-    `(data_at shmd (tarray tuchar 32) (map Vint (map Int.repr (intlist_to_Zlist (firstn i hashedmsg)))) md))).
-
 Lemma final_part4:
  forall (Espec: OracleKind) md c shmd hashedmsg kv,
  length hashedmsg = 8%nat ->
@@ -433,67 +417,45 @@ intros.
 unfold final_loop; abbreviate_semax.
 rewrite memory_block_isptr.
 normalize. rename H1 into Hmd.
-forward.  (* xn=0; *)
-forward_for 
-   (EX i:_, part4_inv c shmd hashedmsg md kv 0 i) 
-   (EX i:_, part4_inv c shmd hashedmsg md kv 1 i) 
-   (part4_inv c shmd hashedmsg md kv 0 8).
-{
-  apply exp_right with 0%nat. unfold part4_inv; rewrite Z.sub_0_r.
-  entailer!.
+
+forward_for_simple_bound 8 
+  (EX i:Z, 
+   PROP  ()
+   LOCAL  (temp _md (offset_val (Int.repr (i * 4)) md);
+                temp _c c)
+   SEP 
+   (`(data_at Tsh t_struct_SHA256state_st
+       (map Vint hashedmsg, (Vundef, (Vundef, (list_repeat 64%nat (Vint Int.zero), Vint Int.zero))))
+      c);
+    `(K_vector kv);
+    `(data_at shmd (tarray tuchar 32) (map Vint (map Int.repr (intlist_to_Zlist (firstn (Z.to_nat i) hashedmsg)))) md)
+     )).
+*
+ entailer!.
   change 32%Z with (sizeof (tarray tuchar 32)).
   rewrite align_1_memory_block_data_at_ by (eauto; change Int.modulus with 4294967296; simpl; omega).
   auto.
-}
-{
-  quick_typecheck.
-}
-{
-  unfold part4_inv.  repeat rewrite Z.sub_0_r.
-  rewrite (firstn_same _ 8) by omega.
-  entailer.
-  rewrite <- H2 in *.
-  simpl in H5.
-  simpl_compare.
-  change (Int.divs (Int.repr 32) (Int.repr 4)) with (Int.repr 8) in H5.
-  apply ltu_repr_false in H5; try repable_signed; try omega.
-  assert (i=8)%nat by omega.
-  subst i. change (Z.of_nat 8) with 8%Z.
-  entailer!.
-  rewrite (firstn_same _ 8) by omega. auto.
-}
-  unfold part4_inv.
-  rewrite insert_local.
-  match goal with |- semax _ (PROPx _ (LOCALx (_:: ?Q) ?R)) _ _ =>
-    apply semax_pre with (PROP ((i<8)%nat) (LOCALx Q R))
-  end.
-  Focus 1. {
-    rewrite Z.sub_0_r.
-    entailer!.
-    change (Int.divs (Int.repr 32) (Int.repr 4)) with (Int.repr 8) in H2.
-    apply ltu_repr in H2; try repable_signed; try omega.
-  } Unfocus.
-  normalize.
-  rewrite Z.sub_0_r.
+*
+  drop_LOCAL 1%nat. (* shouldn't need this *)
+  assert (H1': (Z.to_nat i < 8)%nat)
+    by (apply Nat2Z.inj_lt; rewrite Z2Nat.id by omega; apply H1).
   forward. (* ll=(c)->h[xn]; *)
   {
     entailer!.
     unfold Znth. rewrite if_false by omega.
-    rewrite Nat2Z.id.
     rewrite (nth_map' Vint _ Int.zero).
-    apply I.
-    omega.
+    apply I. omega.
   }
-  pose (w := nth i hashedmsg Int.zero).
+  pose (w := nth (Z.to_nat i) hashedmsg Int.zero).
   pose (bytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [w])))).
 
   (* split (data_at shmd (tarray tuchar 32)
           (map Vint (map Int.repr (intlist_to_Zlist (firstn i hashedmsg)))) md)
      into 3 segment *)
       replace (data_at shmd (tarray tuchar 32)
-        (map Vint (map Int.repr (intlist_to_Zlist (firstn i hashedmsg)))) md) with
+        (map Vint (map Int.repr (intlist_to_Zlist (firstn (Z.to_nat i) hashedmsg)))) md) with
         (data_at shmd (tarray tuchar 32)
-          (map Vint (map Int.repr (intlist_to_Zlist (firstn i hashedmsg))) ++
+          (map Vint (map Int.repr (intlist_to_Zlist (firstn (Z.to_nat i) hashedmsg))) ++
              list_repeat 4 Vundef ++ []) md).
       Focus 2. {
         rewrite app_nil_r.
@@ -503,7 +465,7 @@ forward_for
       } Unfocus.
       rewrite data_at_field_at with (t := tarray tuchar 32).
       erewrite array_seg_reroot_lemma
-        with (gfs := []) (lo := (Z.of_nat i * 4)%Z) (hi := (Z.of_nat i * 4 + 4)%Z);
+        with (gfs := []) (lo := (i * 4)%Z) (hi := (i * 4 + 4)%Z);
         [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | ].
       Focus 2. {
         rewrite Zlength_correct.
@@ -512,6 +474,7 @@ forward_for
         rewrite firstn_length.
         rewrite min_l by omega.
         rewrite Nat2Z.inj_mul.
+        rewrite Z2Nat.id by omega.
         change (Z.of_nat 4) with 4; omega.
       } Unfocus.
       Focus 2. {
@@ -520,10 +483,9 @@ forward_for
         omega.
       } Unfocus.
       normalize.
-
   forward_call (* builtin_write32_reversed *)
      (field_address (tarray tuchar 32)
-              [ArraySubsc (Z.of_nat i * 4)] md, shmd, bytes).
+              [ArraySubsc (i * 4)] md, shmd, bytes).
   {
     entailer!.
     + rewrite Zlength_correct; subst bytes.
@@ -540,7 +502,6 @@ forward_for
       reflexivity.
     + unfold Znth in H3.
       rewrite if_false in H3 by omega.
-      rewrite Nat2Z.id in H3.
       rewrite (nth_map' _ _ Int.zero) in H3 by omega.
       inv H3.
       symmetry; unfold bytes, Basics.compose.
@@ -556,10 +517,10 @@ forward_for
         unfold align_compatible; simpl;
         destruct md; simpl; auto; apply Z.divide_1_l.
       simpl sizeof.
-      replace (Z.of_nat i * 4 + 4 - Z.of_nat i * 4) with 4 by omega.
+      replace (i * 4 + 4 - i * 4) with 4 by omega.
       pull_left (data_at shmd (Tarray tuchar 4 noattr)
          [Vundef; Vundef; Vundef; Vundef]
-        (field_address (tarray tuchar 32) [ArraySubsc (Z.of_nat i * 4)] md)).
+        (field_address (tarray tuchar 32) [ArraySubsc (i * 4)] md)).
       repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel_frame].
       apply data_at_data_at_; auto.
   }
@@ -567,31 +528,24 @@ forward_for
   normalize.
   forward. (* md += 4; *)
   {
-    unfold part4_inv. 
-    unfold loop1_ret_assert;  simpl update_tycon.
     entailer!.
-    apply exp_right with (S i). rewrite inj_S.
-    entailer!.
-    + f_equal; f_equal; omega.
-    + destruct md; try (contradiction Hmd); simpl; f_equal.
-      f_equal. f_equal.
-      omega.
-    + replace (data_at shmd (tarray tuchar 32)
-        (map Vint (map Int.repr (intlist_to_Zlist (firstn (S i) hashedmsg)))) md) with
+    f_equal. f_equal. omega.
+    replace (data_at shmd (tarray tuchar 32)
+        (map Vint (map Int.repr (intlist_to_Zlist (firstn (Z.to_nat (i+1)) hashedmsg)))) md) with
         (data_at shmd (tarray tuchar 32)
-        (map Vint (map Int.repr (intlist_to_Zlist (firstn i hashedmsg) ++ intlist_to_Zlist [w] ++ []))) md).
+        (map Vint (map Int.repr (intlist_to_Zlist (firstn (Z.to_nat i) hashedmsg) ++ intlist_to_Zlist [w] ++ []))) md).
       Focus 2. {
         assert (forall i0 : Z, 0 <= i0 < 32 ->
           Znth i0 (map Vint (map Int.repr
-           (intlist_to_Zlist (firstn i hashedmsg) ++ intlist_to_Zlist [w]))) (default_val tuchar) =
-          Znth i0 (map Vint (map Int.repr (intlist_to_Zlist (firstn (S i) hashedmsg))))
+           (intlist_to_Zlist (firstn (Z.to_nat i) hashedmsg) ++ intlist_to_Zlist [w]))) (default_val tuchar) =
+          Znth i0 (map Vint (map Int.repr (intlist_to_Zlist (firstn (Z.to_nat (i+1)) hashedmsg))))
            (default_val tuchar)).
         Focus 1. {
           intros.
           f_equal.
           f_equal.
           f_equal.
-          replace (S i) with (i + 1)%nat by omega.
+          rewrite Z2Nat.inj_add by omega. change (Z.to_nat 1) with 1%nat.  
           rewrite <- firstn_app.
           rewrite intlist_to_Zlist_app.
           f_equal; f_equal.
@@ -605,7 +559,7 @@ forward_for
       rewrite data_at_field_at with (t := tarray tuchar 32).
       rewrite !map_app.
       erewrite array_seg_reroot_lemma
-        with (gfs := []) (lo := (Z.of_nat i * 4)%Z) (hi := (Z.of_nat i * 4 + 4)%Z);
+        with (gfs := []) (lo := (i * 4)%Z) (hi := (i * 4 + 4)%Z);
         [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | ].
       Focus 2. {
         rewrite !common_lemmas.Zlength_map.
@@ -613,7 +567,7 @@ forward_for
         rewrite Zlength_correct, firstn_length.
         rewrite min_l by omega.
         change WORD with 4; rewrite Z.mul_comm.
-        omega.
+        rewrite Z2Nat.id by omega. auto.
       } Unfocus.
       Focus 2. {
         rewrite !common_lemmas.Zlength_map.
@@ -621,23 +575,12 @@ forward_for
         change (WORD * Zlength [w])%Z with 4.
         omega.
       } Unfocus.
-      replace (Z.of_nat i * 4 + 4 - Z.of_nat i * 4) with 4 by omega.
+      replace (i * 4 + 4 - i * 4) with 4 by omega.
       entailer!.
-}
- (* for-loop increment *)
-{
-  unfold part4_inv. apply extract_exists_pre; intro i.
-  normalize.
-  forward. (* xn++; *)
-  apply exp_right with i.
-  unfold part4_inv.
-  rewrite Z.sub_0_r.
-  entailer.
-  apply prop_right. f_equal. omega.
-}
-  (* after the loop *)
-  unfold part4_inv. 
-   rewrite (firstn_same _ 8) by omega.
+ }
+*
+  drop_LOCAL 0%nat. (* shouldn't need this *)
+  rewrite (firstn_same _ 8) by omega.
   forward. (* return; *)
   unfold data_at_.
   unfold data_block.

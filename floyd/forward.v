@@ -2592,6 +2592,15 @@ Ltac start_function :=
  match goal with |- @semax _ (func_tycontext ?F ?V ?G) _ _ _ => 
    set (Delta := func_tycontext F V G); unfold_Delta
  end;
+ repeat match goal with 
+ | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>
+       fold (Swhile e s)
+ | |- context [Ssequence ?s1 (Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s2) ?s3)] =>
+      match s3 with
+      | Sset ?i _ => match s1 with Sset ?i' _ => unify i i' | Sskip => idtac end
+      end;
+      fold (Sfor s1 e s2 s3)
+ end;
  try expand_main_pre;
  try match goal with |- context [stackframe_of ?F] => 
             change (stackframe_of F) with (@emp (environ->mpred) _ _);
