@@ -1682,7 +1682,7 @@ specialize (H4 _ (age_laterR H5)).
 destruct H4 as [w1 [w2 [? [_ ?]]]].
 specialize (H2 _ _ H7). rewrite H6.
 pose proof (boxy_e _ _ (rel_expr_extend Delta e v rho) w2 (m_phi jm')).
-eapply rel_expr_relate; [eassumption | | apply H8; auto].
+eapply rel_expr_relate; [eassumption | eauto | eapply rel_expr_sub; [eauto | apply H8; auto]].
 exists w1; auto.
 apply age1_resource_decay; auto.
 apply age_level; auto.
@@ -1735,13 +1735,12 @@ unfold subst. rewrite H7.
 auto.
 Qed.
 
-
 Lemma semax_loadstore:
  forall v0 v1 v2 (Delta: tycontext) e1 e2 sh P P', 
    writable_share sh ->
    (forall rho, P rho |-- !! (tc_val (typeof e1) v2)
-                                    && rel_lvalue e1 v1 rho
-                                    && rel_expr (Ecast e2 (typeof e1)) v2 rho
+                                    && rel_lvalue Delta e1 v1 rho
+                                    && rel_expr Delta (Ecast e2 (typeof e1)) v2 rho
                                     && (mapsto sh (typeof e1) v1 v0 * P' rho)) ->
    semax Espec Delta (fun rho => |> P rho) (Sassign e1 e2) 
           (normal_ret_assert (fun rho => mapsto sh (typeof e1) v1 v2 * P' rho)).
@@ -1752,17 +1751,16 @@ apply semax_pre with (fun rho => TT && |> P rho).
 intros. apply andp_left2; apply andp_right; auto.
 apply semax_straight_simple; auto.
 
-intros jm jm1 Delta' ge ve te rho k F TS _ TC4 Hcl Hge Hage [H0 H0'].
-clear Delta TS.
+intros jm jm1 Delta' ge ve te rho k F TS _ TC4 Hcl Hge Hage [H0 H0'] HGG'.
 apply later_sepcon2 in H0.
 specialize (H0 _ (age_laterR (age_jm_phi Hage))).
 destruct H0 as [?w [?w [? [? ?]]]].
 specialize (E _ _ H2).
 destruct E as [[[E4 E1] E2] E3].
 do 3 red in E4.
-apply (boxy_e _ _ (rel_lvalue_extend e1 v1 rho) _ (m_phi jm1) )  in E1;
+apply (boxy_e _ _ (rel_lvalue_extend Delta e1 v1 rho) _ (m_phi jm1) )  in E1;
  [ | econstructor; eauto].
-apply (boxy_e _ _ (rel_expr_extend _ _ rho) _ (m_phi jm1) )  in E2;
+apply (boxy_e _ _ (rel_expr_extend Delta _ _ rho) _ (m_phi jm1) )  in E2;
  [ | econstructor; eauto].
 destruct E3 as [?w [?w [H3 [H4 H5]]]].
 clear P H2.
@@ -1777,9 +1775,10 @@ assert (exists v, address_mapsto ch v (Share.unrel Share.Lsh sh) Share.top
         (b0, Int.unsigned z) w1)
   by (destruct H4 as [[? H4] | [_ [? ?]]]; eauto).
 clear v0 H4; destruct H2 as [v3 H4].
-assert (He1 := rel_lvalue_relate ge te ve rho e1 _ _ _ Hge E1).
+pose proof guard_genv_sub _ _ TS _ HGG' as HGG.
+assert (He1 := rel_lvalue_relate Delta ge te ve rho e1 _ _ _ HGG Hge E1).
 rename z into i.
-assert (He2 := rel_expr_relate ge te ve rho _ _ _ Hge E2).
+assert (He2 := rel_expr_relate Delta ge te ve rho _ _ _ HGG Hge E2).
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 
 assert (H11': (res_predicates.address_mapsto ch v3 (Share.unrel Share.Lsh sh) Share.top
@@ -1838,7 +1837,7 @@ replace (core  (m_phi (store_juicy_mem _ _ _ _ _ _ H11))) with (core (m_phi jm1)
 rewrite <- corable_funassert.
 eapply pred_hereditary; eauto. apply age_jm_phi; auto.
 symmetry.
-forget (force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1))) as v.
+forget (force_val (Cop.sem_cast (eval_expr Delta e2 rho) (typeof e2) (typeof e1))) as v.
 apply rmap_ext.
 do 2 rewrite level_core.
 rewrite <- level_juice_level_phi; rewrite level_store_juicy_mem.
