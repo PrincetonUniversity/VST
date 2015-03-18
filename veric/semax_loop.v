@@ -351,13 +351,13 @@ rewrite app_assoc; auto.
 Qed.
 
 Lemma stackframe_of_update_tycon: forall Delta c f,
-  stackframe_of (update_tycon Delta c) f = stackframe_of Delta f.
+  @stackframe_of (cs_tycon (update_tycon Delta c)) f = @stackframe_of (cs_tycon Delta) f.
 Proof.
   intros.
   unfold stackframe_of.
-  unfold var_block, lvalue_block.
+  unfold var_block.
   simpl eval_lvalue.
-  unfold align_compatible.
+  unfold cenv_cs, cs_tycon; simpl.
   rewrite composite_types_update_tycon by auto.
   auto.
 Qed.
@@ -387,8 +387,9 @@ destruct Prog_OK; [ left; auto | right].
 destruct H1 as [b [f ?]]; exists b,f.
 destruct H1; split; auto.
 + clear - H1.
-  hnf in H1 |- *.
   unfold var_sizes_ok in *.
+  unfold cs_tycon, cenv_cs in *.
+  hnf in H1 |- *.
   rewrite composite_types_update_tycon; auto.
 +
 intro x; specialize (H2 x).

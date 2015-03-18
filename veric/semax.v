@@ -184,8 +184,10 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
 
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
-Definition var_sizes_ok Delta (vars: list (ident*type)) := 
-   Forall (fun var : ident * type => sizeof (composite_types Delta) (snd var) <= Int.max_unsigned)%Z vars.
+Definition var_sizes_ok {C: compspecs} (vars: list (ident*type)) := 
+   Forall (fun var : ident * type => sizeof cenv_cs (snd var) <= Int.max_unsigned)%Z vars.
+
+Definition cs_tycon Delta := mkcompspecs (composite_types Delta) (composite_types_consistent Delta).
 
 Definition believe_internal_ 
   (semax:semaxArg -> pred nat)
@@ -194,13 +196,13 @@ Definition believe_internal_
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type (composite_types Delta) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok Delta (f.(fn_vars))
+                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ @var_sizes_ok (cs_tycon Delta) (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
   && ALL x : A, |> semax (SemaxArg  (func_tycontext' f Delta)
-                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of Delta f rho)
+                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * @stackframe_of (cs_tycon Delta) f rho)
                                              && funassert (func_tycontext' f Delta) rho)
                               (Ssequence f.(fn_body) (Sreturn None))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of Delta f)))).
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (@stackframe_of (cs_tycon Delta) f)))).
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
@@ -237,13 +239,13 @@ Definition believe_internal (Espec:  OracleKind)
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type (composite_types Delta) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
-                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok Delta (f.(fn_vars))
+                 /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ @var_sizes_ok (cs_tycon Delta) (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc_default)
   && ALL x : A, |> semax' Espec (func_tycontext' f Delta)
-                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of Delta f rho)
+                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * @stackframe_of (cs_tycon Delta) f rho)
                                              && funassert (func_tycontext' f Delta) rho)
                                (Ssequence f.(fn_body) (Sreturn None))  
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of Delta f))).
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (@stackframe_of (cs_tycon Delta) f))).
 
 Definition believe (Espec:OracleKind)
               (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=

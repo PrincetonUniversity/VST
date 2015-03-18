@@ -206,7 +206,20 @@ Definition mpred := pred rmap.
 Inductive funspec :=
    mk_funspec: funsig -> forall A: Type, (A -> environ->mpred) -> (A -> environ->mpred) -> funspec.
 
+Definition varspecs : Type := list (ident * type).
+
 Definition funspecs := list (ident * funspec).
+
+Class compspecs := mkcompspecs {
+  cenv_cs: composite_env;
+  cenv_consistent_cs: composite_env_consistent cenv_cs
+}.
+
+Definition compspecs_program (p: program): compspecs.
+  apply (mkcompspecs (prog_comp_env p)).
+  eapply build_composite_env_consistent.
+  apply (prog_comp_env_eq p).
+Defined.
 
 Definition type_of_funspec (fs: funspec) : type :=  
   match fs with mk_funspec fsig _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default end.
@@ -291,8 +304,6 @@ end.
 (** Creates a typecontext from a function definition **)
 (* NOTE:  params start out initialized, temps do not! *)
 
-Definition varspecs : Type := list (ident * type).
-
 Definition make_tycontext_t (params: list (ident*type)) (temps : list(ident*type)) :=
 fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param, true))
  (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in PTree.set id (ty,false) tenv) 
@@ -332,11 +343,11 @@ Definition func_tycontext' (func: function) (Delta: tycontext) : tycontext :=
    (composite_types Delta)
    (composite_types_consistent Delta).
 
-Definition func_tycontext (func: function) (V: varspecs) (G: funspecs) cenv cc : tycontext :=
-  make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G cenv cc.
+Definition func_tycontext (func: function) (V: varspecs) (G: funspecs) {C: compspecs} : tycontext :=
+  make_tycontext (func.(fn_params)) (func.(fn_temps)) (func.(fn_vars)) (func.(fn_return)) V G cenv_cs cenv_consistent_cs.
 
-Definition nofunc_tycontext (V: varspecs) (G: funspecs) cenv cc : tycontext :=
-   make_tycontext nil nil nil Tvoid V G cenv cc.
+Definition nofunc_tycontext (V: varspecs) (G: funspecs) {C: compspecs} : tycontext :=
+   make_tycontext nil nil nil Tvoid V G cenv_cs cenv_consistent_cs.
 
 Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
   match ek with 

@@ -520,30 +520,19 @@ Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
  | _ => FF
  end.
 
-Definition align_compatible Delta t p :=
-  match p with
-  | Vptr b i_ofs => (alignof (composite_types Delta) t | Int.unsigned i_ofs)
-  | _ => True
-  end.
-
-Definition lvalue_block (sh: Share.t) (Delta: tycontext) (e: Clight.expr) (rho: environ) : mpred :=
-  !! (sizeof (composite_types Delta) (Clight.typeof e) <= Int.max_unsigned) &&
-  !! (align_compatible Delta (Clight.typeof e) (eval_lvalue Delta e rho)) &&
-  (memory_block sh (Int.repr (sizeof (composite_types Delta) (Clight.typeof e))))
-             (eval_lvalue Delta e rho).
-
-Definition var_block (rsh: Share.t) (Delta: tycontext) (idt: ident * type) : assert :=
-         lvalue_block rsh Delta (Clight.Evar (fst idt) (snd idt)).
+Definition var_block (rsh: Share.t) {cs: compspecs} (idt: ident * type) (rho: environ): mpred :=
+  !! (sizeof cenv_cs (snd idt) <= Int.max_unsigned) &&
+  (memory_block rsh (Int.repr (sizeof cenv_cs (snd idt))) (eval_var (fst idt) (snd idt) rho)).
 
 Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A} {AgeA: Age_alg A}
    (p: list (pred A)) : pred A :=
  match p with nil => emp | h::t => h * sepcon_list t end.
 
-Definition stackframe_of (Delta: tycontext) (f: Clight.function) : assert :=
-  fold_right (fun P Q rho => P rho * Q rho) (fun rho => emp) (map (fun idt => var_block Share.top Delta idt) (Clight.fn_vars f)).
+Definition stackframe_of {cs: compspecs} (f: Clight.function) : assert :=
+  fold_right (fun P Q rho => P rho * Q rho) (fun rho => emp) (map (fun idt => var_block Share.top idt) (Clight.fn_vars f)).
 
-Lemma stackframe_of_eq : forall Delta, stackframe_of Delta = 
-        fun f rho => fold_right sepcon emp (map (fun idt => var_block Share.top Delta idt rho) (Clight.fn_vars f)).
+Lemma stackframe_of_eq : forall {cs: compspecs}, stackframe_of = 
+        fun f rho => fold_right sepcon emp (map (fun idt => var_block Share.top idt rho) (Clight.fn_vars f)).
 Proof.
   intros.
  extensionality f rho.
