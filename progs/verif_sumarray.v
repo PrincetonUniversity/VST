@@ -183,11 +183,11 @@ reflexivity.
 normalize.
 forward. (* x = a[i] *)
   entailer!. apply H1. omega.
-forward. (* s += x; *)
-forward. (* i++; *)
+forward s_old. (* s += x; *)
+forward i_old. (* i++; *)
   apply exp_right with (Zsucc a1).
   entailer!.
- rewrite H5 in H4. inv H4. 
+ rewrite H7 in H6. inv H6. 
   erewrite add_one_more_to_sum; eauto. omega.
 (* After the loop *)
 forward.  (* return s; *)

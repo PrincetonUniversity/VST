@@ -235,10 +235,9 @@ assert (HU: map Int.unsigned ddz = intlist_to_Zlist ddzw). {
 }
 clear H0'.
 clearbody ddzw.
-forward.  (* n=0; *)
+forward n_old.  (* n=0; *)
 erewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
-normalize.
-clear n0 H2.
+clear n_old H2.
 rewrite semax_seq_skip.
 forward_call' (* sha256_block_data_order (c,p); *)
   (hashed, ddzw, c,
@@ -526,7 +525,7 @@ forward_for_simple_bound 8
   }
   after_call.
   normalize.
-  forward. (* md += 4; *)
+  forward md_old. (* md += 4; *)
   {
     entailer!.
     f_equal. f_equal. omega.
@@ -554,7 +553,7 @@ forward_for_simple_bound 8
         } Unfocus.
         apply pred_ext;
         apply stronger_array_ext;
-           intros; rewrite H4 by auto; apply stronger_refl.      
+           intros; rewrite H2 by auto; apply stronger_refl.      
       } Unfocus.
       rewrite data_at_field_at with (t := tarray tuchar 32).
       rewrite !map_app.

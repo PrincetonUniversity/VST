@@ -1336,7 +1336,8 @@ Ltac normalize_postcondition :=
      unfold P, abbreviate; clear P; normalize_postcondition
  | |- semax _ _ _ (normal_ret_assert _) => idtac
  | |- _ => apply sequential
-  end.
+  end;
+ autorewrite with ret_assert.
 
 Lemma elim_useless_retval:
  forall Espec Delta P Q (F: val -> Prop) (G: mpred) R c Post,
@@ -2483,7 +2484,93 @@ end.
   of "fail 1".
 *)
 
-Ltac forward := forward_with forward1; try unfold repinject.
+Ltac forward' := forward_with forward1; try unfold repinject.
+
+
+Lemma revert_unit: forall (P: Prop), (forall u: unit, P) -> P.
+Proof. intros. apply (H tt).
+Qed.
+
+Ltac fwd_result :=
+  unfold replace_nth, repinject; cbv beta;
+  first
+   [ simple apply extract_exists_pre;
+     let v := fresh "v" in intros v;
+     autorewrite with subst;
+     simpl_first_temp;
+     repeat extract_prop_from_LOCAL;
+     revert v
+   | apply revert_unit
+   ].
+
+Lemma seq_assoc2:
+  forall (Espec: OracleKind)  Delta P c1 c2 c3 c4 Q,
+  semax Delta P (Ssequence (Ssequence c1 c2) (Ssequence c3 c4)) Q ->
+  semax Delta P (Ssequence (Ssequence (Ssequence c1 c2) c3) c4) Q.
+Proof.
+intros.
+ rewrite <- seq_assoc. auto.
+Qed.
+
+Ltac fwd_skip :=
+ match goal with |- semax _ _ Sskip _ =>
+   normalize_postcondition;
+   (* autorewrite with ret_assert; *)
+   first [eapply semax_pre | eapply semax_pre_simple]; 
+      [ | apply semax_skip]
+ end.
+
+Ltac fwd' :=
+ match goal with
+ | |- semax _ _ (Ssequence (Ssequence _ _) _) _ => 
+             rewrite <- seq_assoc; fwd'
+ | |- semax _ _ (Ssequence ?c _) _ => 
+      eapply semax_seq'; [forward1 c | fwd_result]
+ | |- semax _ _ ?c _ =>
+      rewrite -> semax_seq_skip; 
+      eapply semax_seq'; [ forward1 c | fwd_result]
+ end.
+
+Ltac fwd_last :=
+  try rewrite <- seq_assoc;
+  match goal with 
+  | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
+            apply semax_seq with FF; [ | apply semax_ff];
+            forward_return
+  | |- semax _ _ (Sreturn _) _ =>  forward_return
+  | |- semax _ _ (Ssequence Sbreak _) _ =>
+            apply semax_seq with FF; [ | apply semax_ff];
+            forward_break
+  | |- semax _ _ Sbreak _ => forward_break
+  end.
+
+Definition In_the_previous_'forward'_use_an_intro_pattern_of_type (t: Type) := False.
+
+
+Tactic Notation "forward" :=
+ repeat simple apply seq_assoc2;
+ first
+ [ fwd_last
+ | fwd_skip
+ | fwd';
+  [ .. |
+  first [intros _
+    | match goal with |- ?t -> _ => 
+          elimtype False; fold (In_the_previous_'forward'_use_an_intro_pattern_of_type t)
+      end
+    ];
+   repeat (apply semax_extract_PROP; intro);
+   abbreviate_semax;
+   try fwd_skip]
+ ].
+
+Tactic Notation "forward" simple_intropattern(v1) :=
+  fwd';
+  [ .. 
+  | intros v1;
+  repeat (apply semax_extract_PROP; intro);
+  abbreviate_semax;
+  try fwd_skip].
 
 Lemma start_function_aux1:
   forall Espec Delta R1 P Q R c Post,

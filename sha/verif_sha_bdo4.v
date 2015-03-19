@@ -527,7 +527,7 @@ set (bei :=  big_endian_integer
                (skipn (Z.to_nat (Int.unsigned (Int.repr (i * 4))))
                   (map Int.repr (intlist_to_Zlist b))))).
 forward. (* l := l'; *)
-forward. (* data := data + 4; *)
+forward data_old. (* data := data + 4; *)
 (* 1,194,800 849,172 *)
 normalize.
 (* 1,291,784 894,136 *)
@@ -668,14 +668,14 @@ forward. (* T1 = l + h + Sigma1(e) + Ch(e,f,g) + Ki; *)
 rewrite <- Sigma_1_eq, <- Ch_eq, rearrange_aux.
 forward. (* T2 = Sigma0(a) + Maj(a,b,c); *)
  rewrite <- Sigma_0_eq, <- Maj_eq.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
-forward.
+forward h_old.
+forward g_old.
+forward f_old.
+forward e_old.
+forward d_old.
+forward c_old.
+forward b_old.
+forward a_old.
 simplify_Delta.
  entailer!. 
  clear - H0. change LBLOCKz with 16. omega.

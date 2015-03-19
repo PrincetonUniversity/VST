@@ -363,7 +363,7 @@ forward_call  (* sorted = insert(index, sorted); *)
 entailer!.
 auto with closed.
 after_call.
-forward. (* index = next;*)
+forward index_old. (* index = next;*)
 unfold body_invariant.
 entailer.
 apply (exp_right (sorted_list ++ [insert_val],

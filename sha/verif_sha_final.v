@@ -85,7 +85,7 @@ Focus 2.
   + rewrite !Zlength_map. reflexivity.
 } Unfocus.
 
-forward. (* n++; *)
+forward n_old. (* n++; *)
 simpl. normalize. 
 subst r_h. simpl.
 set (ddlen :=  Zlength dd).
@@ -112,13 +112,10 @@ entailer!.
 * (* else-clause *)
 forward. (* skip; *)
 unfold invariant_after_if1.
-normalize. rewrite overridePost_normal'. 
 apply exp_right with hashed.
 apply exp_right with (dd ++ [128]).
 apply exp_right with 0%Z.
 entailer.
-(*clear H5.*)
-(*change (16*4)%Z with (Z.of_nat CBLOCK) in H2.*)
 apply andp_right; [apply prop_right; repeat split | cancel].
 rewrite Forall_app; split; auto.
 repeat constructor; omega.
@@ -193,19 +190,6 @@ forward_call' (* memset (p+n,0,SHA_CBLOCK-8-n); *)
   change (sizeof tuchar) with 1.
  rewrite Z.mul_1_l.
  normalize.
-
-(* 
-{
-  entailer!.
-  + Omega1.
-  + rewrite field_address_clarify by auto.
-      rewrite field_address_clarify by auto.
-      erewrite nested_field_offset2_Tarray by reflexivity.
-      change (sizeof tuchar) with 1.
-      rewrite Z.mul_1_l.
-      normalize.
-  +
-*)
  {pull_left (data_at Tsh (Tarray tuchar (Z.of_nat CBLOCK - 8 - Zlength dd') noattr)
      (list_repeat (CBLOCK - 8 - length dd') Vundef)
      (field_address t_struct_SHA256state_st
@@ -242,7 +226,7 @@ Transparent tuchar.
  
 normalize.
 clear vret H7.
-forward.  (* p += SHA_CBLOCK-8; *)
+forward p_old.  (* p += SHA_CBLOCK-8; *)
 
 gather_SEP 0 1 2.
 replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
@@ -258,7 +242,7 @@ replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
       rewrite Nat2Z.inj_add in H0.
       rewrite Zlength_correct.
       change 8 with (Z.of_nat 8).
-    admit.  (* array_seg_reroot_lemma too strict? *)
+    omega.
     } Unfocus.
     2: change (Z.of_nat CBLOCK) with 64; omega.
     2: rewrite !Zlength_map; reflexivity.
@@ -280,7 +264,7 @@ replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
   Focus 1. {
     clear POSTCONDITION.
     entailer!.
-    clear rho H7 H8.
+    clear rho H9 H8.
     (* this proof should be nicer. *)
     rewrite field_address_clarify.
     rewrite field_address_clarify.
@@ -294,8 +278,7 @@ replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
     destruct c_; try contradiction. apply I.
     eapply field_compatible_cons_Tarray; try reflexivity; auto.
   } Unfocus.
-  subst n0.
-  drop_LOCAL 2%nat; clear p0.
+  subst n_old p_old.
   replace Delta with Delta_final_if1 by (simplify_Delta; reflexivity).
   eapply semax_pre; [ | apply final_part2 with pad; try eassumption; try reflexivity].
   entailer!.

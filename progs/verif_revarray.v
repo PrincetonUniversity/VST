@@ -135,10 +135,12 @@ name lo' _lo.
 name hi' _hi.
 name s _s.
 name t _t.
-forward.  (* lo = 0; *) 
-forward.  (* hi = n; *)
+
 rename H2 into POP.
 assert_PROP (isptr a0). entailer!. rename H2 into TCa0.
+
+forward.  (* lo = 0; *)
+forward _. (* hi = n; *)
 
 forward_while (reverse_Inv a0 sh contents size)
     (PROP  () LOCAL  (temp _a a0)
@@ -158,7 +160,8 @@ apply derives_refl'.
 f_equal.
 apply flip_fact_1; omega.
 (* Prove that loop body preserves invariant *)
-forward.  (* t = a[lo]; *)
+
+forward. (* t = a[lo]; *)
 {
   entailer!.
   rewrite flip_fact_2 by omega.
@@ -172,11 +175,11 @@ forward.  (* s = a[hi-1]; *)
   apply POP.
   omega.
 }
-normalize.
 forward. (*  a[hi-1] = t ; *)
-forward. (*  a[lo] = s; *) 
-forward. (* lo++; *)
-forward. (* hi--; *)
+forward. (*  a[lo] = s; *)
+forward lo'0. (* lo++; *)
+forward hi'0. (* hi--; *)
+
 (* Prove postcondition of loop body implies loop invariant *)
 {
   apply exp_right with (Zsucc a1).

@@ -43,7 +43,7 @@ assert (Lregs: length regs = 8%nat)
   by (subst regs; apply length_hash_blocks; auto).
 assert (Zregs: Zlength regs = 8%Z)
  by (rewrite Zlength_correct; rewrite Lregs; reflexivity).
-forward. (* data = in; *)
+forward data_old. (* data = in; *)
 assert_PROP (isptr data); [  entailer | ].
  match goal with |- semax _ _ ?c _ =>
   eapply seq_assocN with (cs := sequenceN 8 c)

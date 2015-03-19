@@ -145,8 +145,8 @@ split; auto.
 apply divide_length_app; auto.
  simpl map.
 
- forward. (* data += SHA_CBLOCK; *)
- forward. (* len  -= SHA_CBLOCK; *)
+ forward data_old. (* data += SHA_CBLOCK; *)
+ forward len_old. (* len  -= SHA_CBLOCK; *)
  unfold loop1_ret_assert.
  unfold sha_update_inv.
  apply exp_right with (blocks++ bl).
@@ -292,10 +292,9 @@ autorewrite with norm.
 simple apply (update_inner_if_proof Espec hashed dd data c d sh len kv);
   try assumption.
 forward. 
-rewrite overridePost_normal'. apply andp_left2; auto.
+apply andp_left2; auto.
 * (* else clause *)
 forward.  (* skip; *)
-rewrite overridePost_normal'.
 apply exp_right with nil. rewrite <- app_nil_end.
 entailer.
 assert (Int.unsigned (Int.repr (Zlength dd)) = Int.unsigned (Int.repr 0)) by (f_equal; auto).

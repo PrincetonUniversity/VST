@@ -97,7 +97,6 @@ abbreviate_semax.
 assert (H5': Zlength r_h = 8%Z).
 rewrite Zlength_correct; rewrite H5; reflexivity.
 do 8 (forward; [ entailer!; apply Znth_is_int; omega | ]).
-forward.  (* skip; *)
 entailer. apply prop_right.
 revert H0 H1 H2 H3 H4 H6 H7 H8.
 clear - H5.

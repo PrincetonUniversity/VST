@@ -360,7 +360,7 @@ Proof.
     } Unfocus.
     entailer!.
   } Unfocus.
-  forward. (* p += 4; *)
+  forward p_old. (* p += 4; *)
   forward. (* cNl=c->Nl; *)
   erewrite array_seg_reroot_lemma with (lo := 60) (hi := 64);
     [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | reflexivity].
@@ -436,12 +436,12 @@ Proof.
     entailer!.
   }
   rewrite app_nil_r.
-  forward. (* p += 4; *)
+  forward p1. (* p += 4; *)
     entailer!. rewrite field_address_clarify. normalize.
     clear - TC0.
      unfold field_address in *. if_tac; try contradiction.
       destruct c_; simpl in *; try contradiction. auto.
-  forward. (* p -= SHA_CBLOCK; *)
+  forward p2. (* p -= SHA_CBLOCK; *)
   {
     entailer!. rewrite field_address_clarify.
           destruct c_; simpl in *; try contradiction; auto.
@@ -449,8 +449,7 @@ Proof.
      unfold field_address in *. if_tac; try contradiction.
       destruct c_; simpl in *; try contradiction. auto.
   }
-  drop_LOCAL 1%nat; clear p2. (* drop p2 *)
-  drop_LOCAL 2%nat; clear p1. (* drop p1 *)
+ clear p2 H9. clear p1 H8.
   drop_LOCAL 1%nat. (* drop cNl *)
   drop_LOCAL 1%nat. (* drop cNh *)
   match goal with

@@ -150,9 +150,10 @@ unfold POSTCONDITION, abbreviate.
 destruct cts; inv H.
 rewrite list_cell_eq.
 forward.  (* h = t->head; *)
-forward.  (*  t = t->tail; *)
-normalize. subst t0.
-forward.  (* s = s + h; *)
+forward t_old.  (*  t = t->tail; *)
+subst t_old.
+forward s_old.  (* s = s + h; *)
+subst s_old.
 (* Prove postcondition of loop body implies loop invariant *)
 apply exp_right with (cts,y).
 entailer!.
@@ -197,17 +198,18 @@ entailer!.
 rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 destruct a as [[[cts1 cts2] w] v]. simpl @fst in *. simpl @snd in *.
-normalize.
 focus_SEP 1; apply semax_lseg_nonnull;
         [entailer | intros h r y ? ?].
 simpl valinject.
 subst cts2.
 forward.  (* t = v->tail; *)
 forward. (*  v->tail = w; *)
+simpl upd_reptype.
 replace_SEP 1 (`(field_at sh t_struct_list [StructField _tail] w v)).
 entailer.
-forward.  (*  w = v; *)
-forward.  (* v = t; *)
+forward w_old.  (*  w = v; *)
+forward v_old.  (* v = t; *)
+subst w_old v_old.
 (* at end of loop body, re-establish invariant *)
 apply exp_right with (h::cts1,r,v,y).
 simpl @fst; simpl @snd.
@@ -218,10 +220,10 @@ entailer!.
    unfold lseg_cons.
    apply andp_right.
    + apply prop_right.
-      destruct v_0; try contradiction; intro Hx; inv Hx.
+      destruct w_; try contradiction; intro Hx; inv Hx.
    + apply exp_right with h.
       apply exp_right with cts1.
-      apply exp_right with w_0.
+      apply exp_right with w.
       entailer!.
 * (* after the loop *)
 apply extract_exists_pre; intro w.

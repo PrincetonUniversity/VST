@@ -68,7 +68,7 @@ split.
 forward.
 forward.
 forward.
-forward.
+forward y1_old.
 forward.
 unfold main_post.
 entailer!.

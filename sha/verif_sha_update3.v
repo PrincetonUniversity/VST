@@ -292,7 +292,7 @@ try (rewrite -> negb_true_iff in H2;
  unfold POSTCONDITION, abbreviate.
  rewrite overridePost_overridePost. 
  eapply update_inner_if_else_proof; assumption.
- + forward. (* bogus skip *)
-    rewrite overridePost_normal'.
-    apply andp_left2; auto.
+ +
+   forward. (* bogus skip *)
+   apply andp_left2; auto.
 Qed.

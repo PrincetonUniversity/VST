@@ -905,8 +905,8 @@ normalize.
    | apply Nat2Z.inj_le;
      rewrite Z2Nat.id; [rewrite <- Zlength_correct; omega | omega ]]
  ].
-forward. (* data  += fragment; *)
-forward. (* len -= fragment; *)
+forward data_old. (* data  += fragment; *)
+forward len_old. (* len -= fragment; *)
   normalize_postcondition.
 eapply semax_post_flipped3.
 evar (Frame: list (LiftEnviron mpred)).
@@ -921,7 +921,6 @@ entailer!.
  rewrite field_address_clarify by auto.
  auto.
 
- rewrite overridePost_normal'.
  unfold sha_update_inv.
  apply exp_right with (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)).
 (*
