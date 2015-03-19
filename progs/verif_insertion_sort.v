@@ -295,7 +295,10 @@ PROP ()
 LOCAL (temp _sorted p)
 SEP (`(lseg LS sh (map Vint (insertion_sort contents)) p nullval)).
 
-forward_while (body_invariant sh contents) (body_post sh contents).
+forward_while 
+    (body_invariant sh contents)
+    (body_post sh contents)
+     [[[sorted_list unsorted_list] p0] i].
 
 (*pre implies invariant*)
 apply (exp_right nil).
@@ -308,14 +311,12 @@ entailer!.
 entailer.
 
 (*invariant implies post *)
-destruct a as [[[sorted_list unsorted_list] ?p] i]; simpl @snd in *; simpl @fst in *.
 apply (exp_right p0).
 entailer!.
 destruct unsorted_list; inv H0.
 rewrite <- app_nil_end. auto.
 
 (*invariant across body *)
-destruct a as [[[sorted_list unsorted_list] ?p] i]; simpl @snd in *; simpl @fst in *.
 focus_SEP 1. 
 normalize.
 apply semax_lseg_nonnull.
