@@ -81,7 +81,8 @@ Definition __builtin_write32_reversed_spec :=
                temp _x (Vint(big_endian_integer contents)))
         SEP   (`(memory_block sh (Int.repr 4) p))
   POST [ tvoid ] 
-     `(data_at sh (tarray tuchar 4) (map Vint contents)  p).
+     PROP() LOCAL() 
+     SEP(`(data_at sh (tarray tuchar 4) (map Vint contents)  p)).
 
 Definition memcpy_spec :=
   DECLARE _memcpy
@@ -92,9 +93,9 @@ Definition memcpy_spec :=
        SEP (`(data_at (fst sh) (tarray tuchar n) (map Vint contents) q);
               `(memory_block (snd sh) (Int.repr n) p))
     POST [ tptr tvoid ]
-         local (`(eq p) retval) &&
-       (`(data_at (fst sh) (tarray tuchar n) (map Vint contents) q) *
-        `(data_at (snd sh) (tarray tuchar n) (map Vint contents) p)).
+       PROP() LOCAL(temp ret_temp p)
+       SEP(`(data_at (fst sh) (tarray tuchar n) (map Vint contents) q);
+             `(data_at (snd sh) (tarray tuchar n) (map Vint contents) p)).
 
 Definition memset_spec :=
   DECLARE _memset
@@ -105,8 +106,8 @@ Definition memset_spec :=
                    temp 3%positive (Vint (Int.repr n)))
        SEP (`(memory_block sh (Int.repr n) p))
     POST [ tptr tvoid ]
-         local (`(eq p) retval) &&
-       (`(data_at sh (tarray tuchar n) (list_repeat (Z.to_nat n) (Vint c)) p)).
+       PROP() LOCAL(temp ret_temp p)
+       SEP(`(data_at sh (tarray tuchar n) (list_repeat (Z.to_nat n) (Vint c)) p)).
 
 Definition K_vector : val -> mpred :=
   data_at Tsh (tarray tuint (Zlength K256)) (map Vint K256).
@@ -116,15 +117,15 @@ Definition sha256_block_data_order_spec :=
     WITH hashed: list int, b: list int, ctx : val, data: val, sh: share, kv : val
    PRE [ _ctx OF tptr t_struct_SHA256state_st, _in OF tptr tvoid ]
          PROP(Zlength b = LBLOCKz; (LBLOCKz | Zlength hashed)) 
-         LOCAL (temp _ctx ctx; temp _in data; 
-                     var _K256 (tarray tuint CBLOCKz) kv)
+         LOCAL (temp _ctx ctx; temp _in data; gvar _K256 kv)
          SEP (`(field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint (hash_blocks init_registers hashed)) ctx);
                 `(data_block sh (intlist_to_Zlist b) data);
                  `(K_vector kv))
    POST [ tvoid ]
-          (`(field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint (hash_blocks init_registers (hashed++b))) ctx) *
-          `(data_block sh (intlist_to_Zlist b) data) *
-          `(K_vector kv)).
+       PROP() LOCAL()
+       SEP(`(field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint (hash_blocks init_registers (hashed++b))) ctx);
+             `(data_block sh (intlist_to_Zlist b) data);
+             `(K_vector kv)).
 
 Definition SHA256_addlength_spec :=
  DECLARE _SHA256_addlength
@@ -135,6 +136,7 @@ Definition SHA256_addlength_spec :=
    SEP (`(field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part n)) c);
           `(field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part n)) c))
  POST [ tvoid ]
+   PROP() LOCAL()
    SEP (`(field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part (n+len*8))) c);
           `(field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part (n+len*8))) c)).
 
@@ -145,7 +147,7 @@ Definition SHA256_Init_spec :=
          PROP () LOCAL (temp _c c)
          SEP(`(data_at_ Tsh t_struct_SHA256state_st c))
   POST [ tvoid ] 
-          (`(sha256state_ init_s256abs c)).
+         PROP() LOCAL() SEP(`(sha256state_ init_s256abs c)).
 
 Inductive update_abs: list Z -> s256abs -> s256abs -> Prop :=
  Update_abs:
@@ -165,7 +167,7 @@ Definition SHA256_Update_spec :=
          PROP (len <= Zlength data; 0 <= len <= Int.max_unsigned;
                    (s256a_len a + len * 8 < two_p 64)%Z)
          LOCAL (temp _c c; temp _data_ d; temp _len (Vint (Int.repr len));
-                     var _K256 (tarray tuint CBLOCKz) kv)
+                     gvar _K256 kv)
          SEP(`(K_vector kv);
                `(sha256state_ a c); `(data_block sh data d))
   POST [ tvoid ] 
@@ -181,7 +183,7 @@ Definition SHA256_Final_spec :=
    PRE [ _md OF tptr tuchar, _c OF tptr t_struct_SHA256state_st ]
          PROP (writable_share shmd) 
          LOCAL (temp _md md; temp _c c;
-                      var _K256 (tarray tuint CBLOCKz) kv)
+                      gvar _K256 kv)
          SEP(`(K_vector kv);
                `(sha256state_ a c);
                `(memory_block shmd (Int.repr 32) md))
@@ -198,10 +200,11 @@ Definition SHA256_spec :=
          PROP (writable_share msh; Zlength data * 8 < two_p 64; Zlength data <= Int.max_unsigned) 
          LOCAL (temp _d d; temp _n (Vint (Int.repr (Zlength data)));
                      temp _md md;
-                      var _K256 (tarray tuint CBLOCKz) kv)
+                      gvar _K256 kv)
          SEP(`(K_vector kv);
                `(data_block dsh data d); `(memory_block msh (Int.repr 32) md))
   POST [ tvoid ] 
+         PROP () LOCAL ()
          SEP(`(K_vector kv);
                `(data_block dsh data d); `(data_block msh (SHA_256 data) md)).
 
@@ -225,9 +228,3 @@ Fixpoint do_builtins (n: nat) (defs : list (ident * globdef fundef type)) : funs
  end.
 
 Definition Gtot := do_builtins 3 (prog_defs prog) ++ Gprog.
-
-
-
-
-
-

@@ -8,7 +8,7 @@ Definition get_spec :=
   WITH v : reptype' t_struct_b, p : val
   PRE  [] 
         PROP ()
-        LOCAL(var _p t_struct_b p)
+        LOCAL(gvar _p p)
         SEP(`(data_at Ews t_struct_b (repinj _ v) p))
   POST [ tint ]
          PROP() 
@@ -23,7 +23,7 @@ Definition set_spec :=
   WITH i : int, v : reptype' t_struct_b, p : val
   PRE  [ _i OF tint ] 
          PROP  ()
-         LOCAL (var _p t_struct_b p; 
+         LOCAL (gvar _p p; 
                 temp _i (Vint i))
          SEP   (`(data_at Ews t_struct_b (repinj _ v) p))
   POST [ tvoid ]

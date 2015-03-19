@@ -526,14 +526,17 @@ Definition align_compatible t p :=
   | _ => True
   end.
 
-Definition lvalue_block (sh: Share.t) (e: Clight.expr) (rho: environ) : mpred :=
-  !! (sizeof (Clight.typeof e) <= Int.max_unsigned) &&
-  !! (align_compatible (Clight.typeof e) (eval_lvalue e rho)) &&
-  (memory_block sh (Int.repr (sizeof (Clight.typeof e))))
-             (eval_lvalue e rho).
+Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
+ match Map.get (ve_of rho) id with
+| Some (b, ty') => if eqb_type ty ty' then Vptr b Int.zero else Vundef
+| None => Vundef
+end.
 
-Definition var_block (rsh: Share.t) (idt: ident * type) : assert :=
-         lvalue_block rsh (Clight.Evar (fst idt) (snd idt)).
+Definition var_block (sh: Share.t) (idt: ident * type) (rho: environ): mpred :=
+  !! (sizeof (snd idt) <= Int.max_unsigned) &&
+  !! (align_compatible (snd idt) (eval_lvar (fst idt) (snd idt) rho)) &&
+  (memory_block sh (Int.repr (sizeof (snd idt))))
+             (eval_lvar (fst idt) (snd idt) rho).
 
 Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A} {AgeA: Age_alg A}
    (p: list (pred A)) : pred A :=

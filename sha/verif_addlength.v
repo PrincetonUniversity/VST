@@ -149,19 +149,17 @@ forward_if (
    SEP  (`(field_at Tsh t_struct_SHA256state_st [StructField _Nl] (Vint (lo_part n)) c);
    `(field_at Tsh t_struct_SHA256state_st [StructField _Nh] (Vint (hi_part n)) c))).
 * (* then-clause *)
- forward.
+ rewrite <- add_repr in H1.
+ rewrite Int.repr_unsigned in H1.
+ forward cNh_old.
  entailer!.
  rewrite <- (Int.repr_unsigned (hi_part n)) at 2.
  rewrite add_repr.
  f_equal.
  f_equal.
  unfold carry.
- unfold Int.ltu in H1.
- rewrite <- add_repr in H1.
- rewrite Int.repr_unsigned in H1.
- if_tac in H1; [clear H1 | discriminate].
   
- clear - MN H2 H. rename H2 into H0.
+ clear - MN H1 H. rename H1 into H0.
  destruct (Int.unsigned_add_either (lo_part n) (Int.repr (len*8))) as [H9|H9].
  elimtype False; rewrite H9 in H0; clear H9.
  destruct (Int.unsigned_range (Int.repr (len*8))) as [? _]; omega.
@@ -180,14 +178,12 @@ forward_if (
    with Int.modulus by omega.
  apply Z.div_same; assumption.
 * (* else clause *)
+ rewrite <- add_repr in H1.
+ rewrite Int.repr_unsigned in H1.
  forward.  (* skip; *)
  entailer!.
  unfold carry; clear carry.
- clear H0; rename H1 into H0.
- unfold Int.ltu in H0.
- rewrite <- add_repr in H0.
- rewrite Int.repr_unsigned in H0.
- if_tac in H0; [ discriminate |].
+ clear H0.
  clear - MN H1 H.
  destruct (Int.unsigned_add_either (lo_part n) (Int.repr (len*8))) as [H9|H9];
   [ | destruct (Int.unsigned_range (Int.repr (len*8))); omega].
@@ -202,7 +198,7 @@ forward_if (
  rewrite Z.add_0_r.
  apply Int.repr_unsigned.
 * (* after the if *)
- forward. (* cNh += (len>>29); *)
+ forward cNh_old. (* cNh += (len>>29); *)
  forward. (* c->Nl=l; *)
  forward. (* c->Nh=cNh; *)
  forward. (* return; *)

@@ -258,20 +258,19 @@ Definition initPostKey k key:mpred :=
 
 Definition HMAC_Init_spec :=
   DECLARE _HMAC_Init
-   WITH c : val, k:val, l:Z, key:list Z, KV:val, h1:hmacabs
+   WITH c : val, k:val, l:Z, key:list Z, kv:val, h1:hmacabs
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
          PROP (has_lengthK l key)
-         LOCAL (`(eq c) (eval_id _ctx);
-                `(eq k) (eval_id _key);
-                `(eq (Vint (Int.repr l))) (eval_id _len);
-                `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-         SEP (`(K_vector KV); `(initPre c k h1 key))
+         LOCAL (temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
+                gvar sha._K256 kv)
+         SEP (`(K_vector kv); `(initPre c k h1 key))
   POST [ tvoid ] 
-           `(EX h:hmacabs, !!hmacInit key h &&
-                             (hmacstate_ h c) * 
-                             (initPostKey k key) * (K_vector KV)).
+     EX h:hmacabs, PROP (hmacInit key h)
+                     LOCAL ()
+                      SEP (`(hmacstate_ h c);
+                           `(initPostKey k key); `(K_vector kv)).
 
 (************************ Specification of HMAC_update *******************************************************)
 
@@ -281,22 +280,20 @@ Definition has_lengthD (k l:Z) (data:list Z) :=
 
 Definition HMAC_Update_spec :=
   DECLARE _HMAC_Update
-   WITH h1: hmacabs, c : val, d:val, len:Z, data:list Z, KV:val
+   WITH h1: hmacabs, c : val, d:val, len:Z, data:list Z, kv:val
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st, 
          _data OF tptr tvoid, 
          _len OF tuint]
          PROP (has_lengthD (s256a_len (absCtxt h1)) len data) 
-         LOCAL (`(eq c) (eval_id _ctx);
-                `(eq d) (eval_id _data);
-                `(eq (Vint (Int.repr len))) (eval_id _len);
-                `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-         SEP(`(K_vector KV);
+         LOCAL (temp _ctx c; temp _data d; temp  _len (Vint (Int.repr len));
+                gvar sha._K256 kv)
+         SEP(`(K_vector kv);
              `(hmacstate_ h1 c); `(data_block Tsh data d))
   POST [ tvoid ] 
          EX h2:hmacabs, 
           PROP (hmacUpdate data h1 h2) 
           LOCAL ()
-          SEP(`(K_vector KV);
+          SEP(`(K_vector kv);
               `(hmacstate_ h2 c); `(data_block Tsh data d)).
 
 (************************ Specification of HMAC_final *******************************************************)
@@ -320,21 +317,19 @@ Definition hmacstate_PostFinal (h: hmacabs) (c: val) : mpred :=
 
 Definition HMAC_Final_spec :=
   DECLARE _HMAC_Final
-   WITH h1: hmacabs, c : val, md:val, shmd: share, KV:val
+   WITH h1: hmacabs, c : val, md:val, shmd: share, kv:val
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _md OF tptr tuchar ]
        PROP (writable_share shmd) 
-         LOCAL (`(eq md) (eval_id _md); 
-                `(eq c) (eval_id _ctx);
-                `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-         SEP(`(hmacstate_ h1 c);
-             `(K_vector KV);
-             `(memory_block shmd (Int.repr 32) md))
+       LOCAL (temp _md md; temp _ctx c;
+              gvar sha._K256 kv)
+       SEP(`(hmacstate_ h1 c); `(K_vector kv);
+           `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
          EX digest:list Z, EX h2:hmacabs, 
           PROP (hmacFinal h1 digest h2) 
           LOCAL ()
-          SEP(`(K_vector KV);
+          SEP(`(K_vector kv);
               `(hmacstate_PostFinal h2 c);
               `(data_block shmd digest md)).
 
@@ -345,7 +340,7 @@ Definition HMAC_Cleanup_spec :=
    WITH h: hmacabs, c : val
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st ]
          PROP () 
-         LOCAL (`(eq c) (eval_id _ctx))
+         LOCAL (temp _ctx c)
          SEP(`(hmacstate_PostFinal h c))
   POST [ tvoid ]  
           PROP (size_compatible t_struct_hmac_ctx_st c /\
@@ -361,7 +356,7 @@ Definition HMAC_spec :=
   DECLARE _HMAC
    WITH keyVal: val, KEY:DATA,
         msgVal: val, MSG:DATA,
-        KV:val, shmd: share, md: val
+        kv:val, shmd: share, md: val
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,
@@ -370,20 +365,19 @@ Definition HMAC_spec :=
          PROP (writable_share shmd; 
                has_lengthK (LEN KEY) (CONT KEY);
                has_lengthD 512 (LEN MSG) (CONT MSG))
-         LOCAL (`(eq md) (eval_id _md); 
-                `(eq keyVal) (eval_id _key);
-                `(eq (Vint (Int.repr (LEN KEY)))) (eval_id _key_len);
-                `(eq msgVal) (eval_id _d);
-                `(eq (Vint (Int.repr (LEN MSG)))) (eval_id _n);
-                `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+         LOCAL (temp _md md; temp _key keyVal;
+                temp _key_len (Vint (Int.repr (LEN KEY)));
+                temp _d msgVal;
+                temp _n (Vint (Int.repr (LEN MSG)));
+                gvar sha._K256 kv)
          SEP(`(data_block Tsh (CONT KEY) keyVal);
              `(data_block Tsh (CONT MSG) msgVal);
-             `(K_vector KV);
+             `(K_vector kv);
              `(memory_block shmd (Int.repr 32) md))
   POST [ tvoid ] 
           PROP ()
           LOCAL ()
-          SEP(`(K_vector KV);
+          SEP(`(K_vector kv);
               `(data_block shmd (HMAC256 (CONT MSG) (CONT KEY)) md);
               `(initPostKey keyVal (CONT KEY) );
               `(data_block Tsh (CONT MSG) msgVal)).

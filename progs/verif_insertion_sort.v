@@ -227,13 +227,6 @@ assert (X := @list_cell_eq). entailer.
 cancel.
 Qed.
 
-Ltac intro_ex_semax :=
-(match goal with 
-   | |- semax _ (exp (fun y => _)) _ _  =>
-       apply extract_exists_pre; let y':=fresh y in intro y'
-end).
-
-
 Lemma eval_id_initialized : forall v id rho t,
 is_true (typecheck_val v t) ->
 v = eval_id id rho ->
@@ -315,12 +308,14 @@ entailer!.
 entailer.
 
 (*invariant implies post *)
+destruct a as [[[sorted_list unsorted_list] ?p] i]; simpl @snd in *; simpl @fst in *.
 apply (exp_right p0).
 entailer!.
 destruct unsorted_list; inv H0.
 rewrite <- app_nil_end. auto.
 
 (*invariant across body *)
+destruct a as [[[sorted_list unsorted_list] ?p] i]; simpl @snd in *; simpl @fst in *.
 focus_SEP 1. 
 normalize.
 apply semax_lseg_nonnull.
@@ -345,16 +340,13 @@ clear H1.
 apply semax_pre with
 (EX v : val,  
  PROP  ()
-   LOCAL  (temp _next y;  temp _sorted v; temp _index i;
-   `(typed_true (typeof (Etempvar _index (tptr t_struct_list))))
-     (eval_expr (Etempvar _index (tptr t_struct_list))))
+   LOCAL  (temp _next y;  temp _sorted v; temp _index i)
    SEP 
    (`(data_at sh t_struct_list (Vint insert_val, nullval) i);
    `(lseg LS sh (map Vint unsorted_list) y nullval);
    `(lseg LS sh (map Vint (insertion_sort sorted_list)) v nullval))).
 apply (exp_right p0).
 go_lower. ent_iter. apply andp_right. apply prop_right; repeat split; auto.
-destruct index; inv Pindex; reflexivity.
 unfold_data_at 1%nat.
 entailer.
  
@@ -364,13 +356,11 @@ forward_call  (* sorted = insert(index, sorted); *)
 entailer!.
 auto with closed.
 after_call.
-forward. (* index = next;*)
+forward index_old. (* index = next;*)
 unfold body_invariant.
 entailer.
-apply (exp_right (sorted_list ++ [insert_val])).
-apply (exp_right (unsorted_list)).
-apply (exp_right sorted).
-apply (exp_right next).
+apply (exp_right (sorted_list ++ [insert_val],
+                           unsorted_list, sorted, next)).
 entailer.
 apply andp_right.
 apply prop_right. rewrite app_ass; reflexivity.
@@ -399,10 +389,8 @@ rewrite insert_reorder. rewrite IHl. auto.
 Qed.
 
 rewrite insert_insertion_sort. cancel.
-
-unfold body_invariant.
-
-apply extract_exists_pre. intro sorted_list.
+unfold body_post.
+forward_intro sorted_list.
 forward.
 Qed.
 

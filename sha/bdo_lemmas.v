@@ -280,7 +280,6 @@ Definition rearrange_regs :=
 
 Definition Delta_loop1 : tycontext.
 simplify_Delta_from
- (initialized _i
           (initialized _h
            (initialized _g
               (initialized _f
@@ -290,7 +289,7 @@ simplify_Delta_from
                           (initialized _b
                              (initialized _a
                                 (initialized _data
-     (func_tycontext f_sha256_block_data_order Vprog Gtot))))))))))).
+     (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))).
 Defined.
 
 Definition c64 := 64%nat.  Global Opaque c64.

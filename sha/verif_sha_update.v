@@ -54,7 +54,7 @@ semax
                 temp _c c;
                 temp _data (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length dd))) d);
                 temp _len (Vint (Int.repr (Z.of_nat (len - (length blocks * 4 - length dd)))));
-                var  _K256 (tarray tuint CBLOCKz) kv)
+                gvar  _K256 kv)
    SEP  (`(K_vector kv);
            `(data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers (hashed++blocks)),
@@ -68,7 +68,7 @@ semax
   (normal_ret_assert
      (EX  a' : s256abs,
       PROP  (update_abs (firstn len data) (S256abs hashed dd) a')
-      LOCAL (var  _K256 (tarray tuint CBLOCKz) kv)
+      LOCAL (gvar  _K256 kv)
       SEP  (`(K_vector kv);
              `(sha256state_ a' c); `(data_block sh data d)))).
 Proof.
@@ -177,7 +177,7 @@ assert (bitlength hashed dd + Z.of_nat len * 8 =
     rewrite (Z.mul_add_distr_r _ _ WORD).
     omega.
 }
- rewrite H5.
+ rewrite H6.
  entailer!.
  -
  apply Update_abs; auto.
@@ -285,12 +285,10 @@ subst.
 unfold_data_at 1%nat.
 simpl in LEN.
 
-forward_call  (* SHA256_addlength(c, len); *)
+forward_call' (* SHA256_addlength(c, len); *)
   (len, c, s256a_len (S256abs hashed dd)).
-unfold s256a_len.
-entailer!.
-after_call.
-cbv beta iota. normalize.
+simpl in HBOUND.
+repeat split; simpl; try omega.
 forward. (* n = c->num; *)
 forward. (* p=c->data; *)
 fold update_outer_if.
@@ -326,7 +324,7 @@ forward.    (* c->num=len; *)
 
 apply semax_seq with (EX  a' : s256abs,
                     PROP  (update_abs (firstn (Z.to_nat len) data) (S256abs hashed dd) a')
-                    LOCAL (var  _K256 (tarray tuint CBLOCKz) kv)
+                    LOCAL (gvar  _K256 kv)
                     SEP 
                     (`(K_vector kv);
                      `(sha256state_ a' c); `(data_block sh data d))).
@@ -340,6 +338,7 @@ make_sequential.
 rewrite overridePost_normal'.
 fold update_last_if.
 rewrite <- data_at_offset_zero.
+simpl upd_reptype.
 simple apply update_last_if_proof; try assumption.
 rewrite <- ZtoNat_Zlength. apply Z2Nat.inj_le; auto; omega.
 rewrite Z2Nat.id by omega; auto.

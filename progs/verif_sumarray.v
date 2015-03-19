@@ -17,9 +17,9 @@ Definition sumarray_spec :=
                  forall i, 0 <= i < size -> is_int I32 Signed (Znth i (map Vint contents) Vundef))
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
           SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))
-  POST [ tint ]  
-        (local (`(eq (Vint (sum_int contents))) retval)
-                 && (`(data_at sh (tarray tint size) (map Vint contents) a0))).
+  POST [ tint ]
+        PROP () LOCAL(temp ret_temp  (Vint (sum_int contents)))
+           SEP (`(data_at sh (tarray tint size) (map Vint contents) a0)).
 
 Definition main_spec :=
  DECLARE _main
@@ -106,20 +106,6 @@ auto.
 Qed.
 *)
 
-Lemma derives_extract_PROP:
-  forall (PP : Prop) (P : list Prop) Q R Post,
-  (PP -> (PROPx P (LOCALx Q (SEPx R))) |-- Post) -> (PROPx (PP :: P) (LOCALx Q (SEPx R))) |-- Post.
-Proof.
-  intros.
-  rewrite <- move_prop_from_LOCAL, <- insert_local.
-  unfold local, lift1, lift0.
-  intro rho.
-  simpl.
-  apply derives_extract_prop.
-  intro.
-  apply (H H0).
-Qed.
-
 Lemma add_one_more_to_sum: forall contents i x,
   Znth i (map Vint contents) Vundef = Vint x ->
   0 <= i ->
@@ -162,35 +148,30 @@ name s _s.
 name x _x.
 forward.  (* i = 0; *) 
 forward.  (* s = 0; *)
-unfold MORE_COMMANDS, abbreviate.
 forward_while (sumarray_Inv a0 sh contents size)
     (PROP  () 
      LOCAL (temp _a a0;
             temp _s (Vint (sum_int contents)))
      SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))).
 (* Prove that current precondition implies loop invariant *)
-unfold sumarray_Inv.
 apply exp_right with 0.
 entailer!.
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
-entailer!. f_equal.
-assert (i0 = Zlength contents) by omega; subst.
+entailer!.
+assert (a1 = Zlength contents) by omega; subst.
 rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
 reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
 forward. (* x = a[i] *)
-forward. (* s += x; *)
-forward. (* i++; *)
-  unfold sumarray_Inv.
-  apply exp_right with (Zsucc i0).
+  entailer!. apply H1. omega.
+forward s_old. (* s += x; *)
+forward i_old. (* i++; *)
+  apply exp_right with (Zsucc a1).
   entailer!.
-  rewrite H5 in H4.
-  simpl in H4.
-  erewrite add_one_more_to_sum by eauto.
-  inversion H4.
-  reflexivity.
+ rewrite H7 in H6. inv H6. 
+  erewrite add_one_more_to_sum; eauto. omega.
 (* After the loop *)
 forward.  (* return s; *)
 Qed.
@@ -229,18 +210,16 @@ Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-start_function.
 name s _s.
-apply (remember_value (eval_var _four (tarray tint 4))); intro a0.
-forward_call (*  r = sumarray(four,4); *)
-  (a0,Ews,four_contents,4).
- entailer!.
-   intros. unfold four_contents.
+start_function.
+forward_intro four. normalize.
+forward_call' (*  r = sumarray(four,4); *)
+  (four,Ews,four_contents,4) vret.
+ split3. computable. reflexivity.
+ intros. unfold four_contents.
    apply forall_Forall; [| auto].
    intros.
-   repeat (destruct H4; [subst; simpl; auto|]); inversion H4.
- auto with closed.
- after_call.
+   repeat (destruct H0; [subst; simpl; auto|]); inversion H0.
  forward. (* return s; *)
  unfold main_post. entailer!.
 Qed.

@@ -15,28 +15,60 @@ Definition Vprog : varspecs := (_s, t_struct_foo)::nil.
 Definition Gprog : funspecs := 
      main_spec::nil.
 
+Lemma gvar_size_compatible:
+  forall i s rho t, 
+    gvar i s rho -> 
+    sizeof t <= Int.modulus ->
+    size_compatible t s.
+Proof.
+intros.
+hnf in H. destruct (Map.get (ve_of rho) i) as [[? ? ] | ]; try contradiction.
+destruct (ge_of rho i); try contradiction.
+subst s.
+simpl; auto.
+Qed.
+
+
+Lemma gvar_align_compatible:
+  forall i s rho t, 
+    gvar i s rho -> 
+    align_compatible t s.
+Proof.
+intros.
+hnf in H. destruct (Map.get (ve_of rho) i) as [[? ? ] | ]; try contradiction.
+destruct (ge_of rho i); try contradiction.
+subst s.
+simpl; auto.
+exists 0. reflexivity.
+Qed.
+
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
-start_function.
 name x1 _x1.
 name y1 _y1.
 name y2 _y2.
-unfold v_s.
-
-apply semax_pre with  (PROP() LOCAL ()
-  SEP(`(mapsto Ews tuint) (`(offset_val (Int.repr 0)) (eval_var _s t_struct_foo))
-        `(Vint (Int.repr 5));
-      `(mapsto Ews tfloat) (`(offset_val (Int.repr 4)) (eval_var _s t_struct_foo))
-        `(Vsingle (Float32.of_bits (Int.repr 14302577)));
-     `(mapsto Ews tdouble) (`(offset_val (Int.repr 8)) (eval_var _s t_struct_foo))
-         `(Vfloat (Float.of_bits (Int64.repr 0))))).
-go_lower. apply andp_derives; auto. apply andp_derives; auto.
+name s _s.
+start_function.
+apply semax_pre with
+ (PROP  ()
+   LOCAL  (gvar _s s)
+   SEP 
+   (`(data_at Ews t_struct_foo (Vint (Int.repr 5), 
+          (Vsingle (Float32.of_bits (Int.repr 14302577)),
+           Vfloat (Float.of_bits (Int64.repr 0)))) s))). {
+simpl_data_at.
+entailer.
+rewrite prop_true_andp.
+fold tfloat. fold tint. fold tdouble.
 cancel.
-
+split.
+  eapply gvar_size_compatible; eauto; simpl; computable.
+  eapply gvar_align_compatible; eauto.
+}
 forward.
 forward.
 forward.
-forward.
+forward y1_old.
 forward.
 unfold main_post.
 entailer!.
