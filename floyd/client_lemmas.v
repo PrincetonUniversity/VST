@@ -730,9 +730,9 @@ intros.
  rewrite tc_val_eq in H2.
  destruct (eval_id id  rho); inv H2.
  pose proof (Int.eq_spec i Int.zero). rewrite H4 in H2. subst. clear H4.
- destruct t1 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | | ]; 
- destruct t3 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | | ]; inv H0; try reflexivity.
- destruct t1 as [ | | | [ | ] |  | | | | | ]; destruct t3 as [ | | | [ | ] |  | | | | | ]; inv H0; 
+ destruct t1 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ]; 
+ destruct t3 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ]; inv H0; try reflexivity.
+ destruct t1 as [ | | | [ | ] |  | | | | ]; destruct t3 as [ | | | [ | ] |  | | | | ]; inv H0; 
   try (destruct i0; inv H3); try (destruct i1; inv H2); try reflexivity.
 Qed.
 
@@ -1445,11 +1445,11 @@ Hint Rewrite prop_and1 using solve [auto 3 with typeclass_instances] : norm.
 
 
 Lemma subst_make_args':
-  forall id v (P: environ->mpred) fsig tl el,
+  forall Delta id v (P: environ->mpred) fsig tl el,
   length tl = length el ->
   length (fst fsig) = length el ->
-  subst id v (`P (make_args' fsig (eval_exprlist tl el))) = 
-           (`P (make_args' fsig (subst id v (eval_exprlist tl el)))).
+  subst id v (`P (make_args' fsig (eval_exprlist Delta tl el))) = 
+           (`P (make_args' fsig (subst id v (eval_exprlist Delta tl el)))).
 Proof.
 intros. unfold_lift. extensionality rho; unfold subst.
 f_equal. unfold make_args'.
@@ -1520,7 +1520,7 @@ Qed.
 Hint Rewrite subst_PROP : subst.
 
 Lemma subst_stackframe_of:
-  forall i v f, subst i v (stackframe_of f) = stackframe_of f.
+  forall {cs: compspecs} i v f, subst i v (stackframe_of f) = stackframe_of f.
 Proof.
 unfold stackframe_of; simpl; intros.
 unfold subst.
@@ -1530,7 +1530,7 @@ simpl map. repeat rewrite fold_right_cons.
 f_equal.
 apply IHl.
 Qed.
-Hint Rewrite subst_stackframe_of : subst.
+Hint Rewrite @subst_stackframe_of : subst.
 
 Fixpoint iota_formals (i: ident) (tl: typelist) := 
  match tl with

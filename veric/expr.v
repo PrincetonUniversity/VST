@@ -1232,13 +1232,13 @@ Proof.
  destruct (snd fsig); destruct ret; intuition congruence.
 Qed.
 
-Definition expr_closed_wrt_vars (Delta: tycontext) (S: ident -> Prop) (e: expr) : Prop := 
-  forall rho te',  
+Definition expr_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
+  forall Delta rho te',  
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
      eval_expr Delta e rho = eval_expr Delta e (mkEnviron (ge_of rho) (ve_of rho) te').
 
-Definition lvalue_closed_wrt_vars (Delta: tycontext) (S: ident -> Prop) (e: expr) : Prop := 
-  forall rho te',  
+Definition lvalue_closed_wrt_vars (S: ident -> Prop) (e: expr) : Prop := 
+  forall Delta rho te',  
      (forall i, S i \/ Map.get (te_of rho) i = Map.get te' i) ->
      eval_lvalue Delta e rho = eval_lvalue Delta e (mkEnviron (ge_of rho) (ve_of rho) te').
 

@@ -17,8 +17,8 @@ Proof.
 Qed.
 
 Lemma typed_true_nullptr':
-  forall t t' v,
-    typed_true tint (eval_binop Oeq (tptr t) (tptr t') v nullval) -> v=nullval.
+  forall Delta t t' v,
+    typed_true tint (eval_binop Delta Oeq (tptr t) (tptr t') v nullval) -> v=nullval.
 Proof.
  intros. unfold eval_binop, typed_true in H.
  destruct v; inv H; auto.
@@ -28,8 +28,8 @@ Proof.
 Qed.
 
 Lemma typed_true_Oeq_nullval:
- forall v t t',
-   local (`(typed_true tint) (`(eval_binop Oeq (tptr t) (tptr t')) v `nullval)) |--
+ forall Delta v t t',
+   local (`(typed_true tint) (`(eval_binop Delta Oeq (tptr t) (tptr t')) v `nullval)) |--
    local (`(eq nullval) v).
 Proof.
 intros.
@@ -60,18 +60,18 @@ Lemma typed_true_binop_int:
    (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- local (tc_expr Delta e1) ->
    (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- local (tc_expr Delta e2) ->
   @semax Espec Delta (PROPx P (LOCALx 
-      (`op' (`force_signed_int (eval_expr e1)) (`force_signed_int (eval_expr e2))
+      (`op' (`force_signed_int (eval_expr Delta e1)) (`force_signed_int (eval_expr Delta e2))
           :: Q) (SEPx R))) c Post ->
   @semax Espec Delta (PROPx P (LOCALx 
       (`(typed_true
           (typeof (Ebinop op e1 e2 tint)))
-          (eval_expr (Ebinop op e1 e2 tint)) :: Q) (SEPx R))) c Post.
+          (eval_expr Delta (Ebinop op e1 e2 tint)) :: Q) (SEPx R))) c Post.
 Proof.
 intros.
 eapply semax_pre; [clear H4 | apply H4].
 eapply derives_trans with
  (local (tc_expr Delta e1) && (local (tc_expr Delta e2)
-   && PROPx P (LOCALx (tc_environ Delta :: `(typed_true (typeof (Ebinop op e1 e2 tint)))(eval_expr (Ebinop op e1 e2 tint)) :: Q) (SEPx R)))).
+   && PROPx P (LOCALx (tc_environ Delta :: `(typed_true (typeof (Ebinop op e1 e2 tint)))(eval_expr Delta (Ebinop op e1 e2 tint)) :: Q) (SEPx R)))).
 rewrite <- andp_assoc.
 apply andp_right; auto.
 do 2 rewrite <- insert_local.
@@ -96,8 +96,8 @@ apply expr_lemmas.typecheck_expr_sound in H2; auto.
 apply expr_lemmas.typecheck_expr_sound in H3; auto.
 rewrite H0 in *; rewrite H1 in *.
 clear H0 H1 H4.
-destruct (eval_expr e1 rho); inv H2.
-destruct (eval_expr e2 rho); inv H3.
+destruct (eval_expr Delta e1 rho); inv H2.
+destruct (eval_expr Delta e2 rho); inv H3.
 unfold force_signed_int, force_int.
 unfold typed_true, eval_binop in H5.
 destruct op; inv H; simpl in H5.
@@ -136,18 +136,18 @@ Lemma typed_false_binop_int:
    (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- local (tc_expr Delta e1) ->
    (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))) |-- local (tc_expr Delta e2) ->
   @semax Espec Delta (PROPx P (LOCALx 
-      (`op' (`force_signed_int (eval_expr e1)) (`force_signed_int (eval_expr e2))
+      (`op' (`force_signed_int (eval_expr Delta e1)) (`force_signed_int (eval_expr Delta e2))
           :: Q) (SEPx R))) c Post ->
   @semax Espec Delta (PROPx P (LOCALx 
       (`(typed_false
           (typeof (Ebinop op e1 e2 tint)))
-          (eval_expr (Ebinop op e1 e2 tint)) :: Q) (SEPx R))) c Post.
+          (eval_expr Delta (Ebinop op e1 e2 tint)) :: Q) (SEPx R))) c Post.
 Proof.
 intros.
 eapply semax_pre; [clear H4 | apply H4].
 eapply derives_trans with
  (local (tc_expr Delta e1) && (local (tc_expr Delta e2)
-   && PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof (Ebinop op e1 e2 tint)))(eval_expr (Ebinop op e1 e2 tint)) :: Q) (SEPx R)))).
+   && PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof (Ebinop op e1 e2 tint)))(eval_expr Delta (Ebinop op e1 e2 tint)) :: Q) (SEPx R)))).
 rewrite <- andp_assoc.
 apply andp_right; auto.
 do 2 rewrite <- insert_local.
@@ -172,8 +172,8 @@ apply expr_lemmas.typecheck_expr_sound in H2; auto.
 apply expr_lemmas.typecheck_expr_sound in H3; auto.
 rewrite H0 in *; rewrite H1 in *.
 clear H0 H1 H4.
-destruct (eval_expr e1 rho); inv H2.
-destruct (eval_expr e2 rho); inv H3.
+destruct (eval_expr Delta e1 rho); inv H2.
+destruct (eval_expr Delta e2 rho); inv H3.
 unfold force_signed_int, force_int.
 unfold typed_true, eval_binop in H5.
 destruct op; inv H; simpl in H5.
@@ -194,8 +194,8 @@ destruct (zlt (Int.signed i) (Int.signed i0)); inv H5; omega.
 Qed.
 
 Lemma typed_false_One_nullval:
- forall v t t',
-   local (`(typed_false tint) (`(eval_binop One (tptr t) (tptr t')) v `nullval)) |--
+ forall Delta v t t',
+   local (`(typed_false tint) (`(eval_binop Delta One (tptr t) (tptr t')) v `nullval)) |--
     local (`(eq nullval) v).
 Proof.
 intros. 
@@ -208,8 +208,8 @@ intros.
 Qed. 
 
 Lemma typed_true_One_nullval:
- forall v t t',
-   local (`(typed_true tint) (`(eval_binop One (tptr t) (tptr t')) v `nullval)) |--
+ forall Delta v t t',
+   local (`(typed_true tint) (`(eval_binop Delta One (tptr t) (tptr t')) v `nullval)) |--
    local (`(ptr_neq nullval) v).
 Proof.
 intros.
@@ -223,8 +223,8 @@ Qed.
 
 
 Lemma typed_false_Oeq_nullval:
- forall v t t',
-   local (`(typed_false tint) (`(eval_binop Oeq (tptr t) (tptr t')) v `nullval)) |--
+ forall Delta v t t',
+   local (`(typed_false tint) (`(eval_binop Delta Oeq (tptr t) (tptr t')) v `nullval)) |--
    local (`(ptr_neq nullval) v).
 Proof.
 intros. subst.
