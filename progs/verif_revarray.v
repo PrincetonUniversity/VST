@@ -144,7 +144,8 @@ forward _. (* hi = n; *)
 
 forward_while (reverse_Inv a0 sh contents size)
     (PROP  () LOCAL  (temp _a a0)
-   SEP (`(data_at sh (tarray tint size) (rev contents) a0))).
+   SEP (`(data_at sh (tarray tint size) (rev contents) a0)))
+   j.
 (* Prove that current precondition implies loop invariant *)
 apply exp_right with 0.
 entailer!; try omega.
@@ -182,7 +183,7 @@ forward hi'0. (* hi--; *)
 
 (* Prove postcondition of loop body implies loop invariant *)
 {
-  apply exp_right with (Zsucc a1).
+  apply exp_right with (Zsucc j).
   entailer.
   rewrite !flip_fact_2 by omega.
   rewrite !sem_cast_neutral_int by (exists I32, Signed; apply POP; omega).

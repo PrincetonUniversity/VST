@@ -663,18 +663,20 @@ Ltac fwd_skip :=
       [ | apply semax_skip]
  end.
 
-Definition In_the_previous_'forward_call'_use_an_intro_pattern_of_type (t: Type) := False.
+Definition In_the_previous_'forward'_use_an_intro_pattern_of_type (t: Type) := False.
 
+Ltac no_intros :=
+     match goal with
+     | |- ?t -> _ => 
+         elimtype False; fold (In_the_previous_'forward'_use_an_intro_pattern_of_type t)
+     end.
+ 
 Tactic Notation "forward_call'" constr(witness) :=
     fwd_call' witness;
    [ .. | 
-    first [intros _
-    | match goal with |- ?t -> _ => 
-          elimtype False; fold (In_the_previous_'forward_call'_use_an_intro_pattern_of_type t)
-      end
-    ];
-   repeat (apply semax_extract_PROP; intro);
-   try fwd_skip
+    first [intros _ | no_intros];
+    repeat (apply semax_extract_PROP; intro);
+    try fwd_skip
    ].
 
 Tactic Notation "forward_call'" constr(witness) simple_intropattern(v1) :=
@@ -1043,7 +1045,13 @@ Ltac do_repr_inj H :=
          | idtac
          ].
 
-Ltac forward_while Inv Postcond :=
+Ltac simpl_fst_snd := 
+repeat match goal with 
+| |- context [fst (?a,?b)] => change (fst (a,b)) with a 
+| |- context [snd (?a,?b)] => change (snd (a,b)) with b 
+end.
+
+Tactic Notation "forward_while" constr(Inv) constr (Postcond) :=
   repeat (apply -> seq_assoc; abbreviate_semax);
   first [ignore (Inv: environ->mpred) 
          | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
@@ -1066,13 +1074,54 @@ Ltac forward_while Inv Postcond :=
         first [eapply semax_while'_new | eapply semax_while'_new1]; 
         simpl typeof;
        [ reflexivity 
-       | intros
+       | no_intros || idtac
        | do_compute_expr1 Delta Pre e; eassumption
-       | intros; autorewrite with ret_assert;
+       | no_intros || (autorewrite with ret_assert;
+         let HRE := fresh "HRE" in apply derives_extract_PROP; intro HRE;
+         repeat (apply derives_extract_PROP; intro); 
+         do_repr_inj HRE; normalize in HRE)
+       | no_intros || (let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
+          repeat (apply semax_extract_PROP; intro); 
+          do_repr_inj HRE; normalize in HRE)
+        ]
+       end
+       | simpl update_tycon 
+       ]
+     ]; abbreviate_semax; autorewrite with ret_assert.
+
+
+Tactic Notation "forward_while" constr(Inv) constr (Postcond) 
+     simple_intropattern(pat) :=
+  repeat (apply -> seq_assoc; abbreviate_semax);
+  first [ignore (Inv: environ->mpred) 
+         | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
+  first [ignore (Postcond: environ->mpred)
+         | fail 1 "Postcondition (second argument to forward_while) must have type (environ->mpred)"];
+  apply semax_pre with Inv;
+    [  unfold_function_derives_right 
+    | apply semax_seq with Postcond;
+      [repeat match goal with
+       | |- semax _ (exp _) _ _ => fail 1
+       | |- semax _ (PROPx _ _) _ _ => fail 1
+       | |- semax _ ?Pre _ _ => match Pre with context [ ?F ] => unfold F end
+       end;
+       match goal with |- semax _ ?Pre _ _ =>
+          let p := fresh "Pre" in let Hp := fresh "HPre" in 
+          remember Pre as p eqn:Hp;
+          repeat rewrite exp_uncurry in Hp; subst p
+       end;
+       match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
+        first [eapply semax_while'_new | eapply semax_while'_new1]; 
+        simpl typeof;
+       [ reflexivity 
+       | intros pat; simpl_fst_snd
+       | do_compute_expr1 Delta Pre e; eassumption
+       | intros pat; simpl_fst_snd; 
+         autorewrite with ret_assert;
          let HRE := fresh "HRE" in apply derives_extract_PROP; intro HRE;
          repeat (apply derives_extract_PROP; intro); 
          do_repr_inj HRE; normalize in HRE
-       | intros;
+       | intros pat; simpl_fst_snd;
           let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
           repeat (apply semax_extract_PROP; intro); 
           do_repr_inj HRE; normalize in HRE
@@ -2571,9 +2620,6 @@ Ltac fwd_last :=
   | |- semax _ _ Sbreak _ => forward_break
   end.
 
-Definition In_the_previous_'forward'_use_an_intro_pattern_of_type (t: Type) := False.
-
-
 Tactic Notation "forward" :=
  repeat simple apply seq_assoc2;
  first
@@ -2581,11 +2627,7 @@ Tactic Notation "forward" :=
  | fwd_skip
  | fwd';
   [ .. |
-  first [intros _
-    | match goal with |- ?t -> _ => 
-          elimtype False; fold (In_the_previous_'forward'_use_an_intro_pattern_of_type t)
-      end
-    ];
+  first [intros _ | no_intros ];
    repeat (apply semax_extract_PROP; intro);
    abbreviate_semax;
    try fwd_skip]

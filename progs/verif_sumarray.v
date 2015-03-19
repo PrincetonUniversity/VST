@@ -152,7 +152,8 @@ forward_while (sumarray_Inv a0 sh contents size)
     (PROP  () 
      LOCAL (temp _a a0;
             temp _s (Vint (sum_int contents)))
-     SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))).
+     SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0)))
+     a1.
 (* Prove that current precondition implies loop invariant *)
 apply exp_right with 0.
 entailer!.

@@ -126,9 +126,9 @@ name s _s.
 name h _h.
 forward.  (* s = 0; *) 
 forward.  (* t = p; *)
-
 forward_while (sumlist_Inv sh contents)
-    (PROP() LOCAL (`((fun v => sum_int contents = force_int v) : val->Prop) (eval_id _s)) SEP(TT)).
+    (PROP() LOCAL (temp _s (Vint (sum_int contents))) SEP (TT))
+    [cts t0].
 (* Prove that current precondition implies loop invariant *)
 apply exp_right with contents.
 apply exp_right with p.
@@ -136,13 +136,11 @@ entailer!.
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
-destruct a as [?cts ?t]. simpl in HRE; subst t0.
 entailer!.
-destruct H as [H0 _]; specialize (H0 (eq_refl _)).
-destruct cts; inv H0; normalize.
+destruct H1 as [H1 _]; specialize (H1 (eq_refl _)).
+destruct cts; inv H1; normalize.
 (* Prove that loop body preserves invariant *)
-destruct a as [?cts ?t].
-simpl in HRE. simpl @fst; simpl @snd.
+simpl in HRE.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
 simpl valinject.
@@ -181,7 +179,8 @@ forward.  (* v = p; *)
 forward_while (reverse_Inv sh contents)
      (EX w: val, 
       PROP() LOCAL (temp _w w)
-      SEP( `(lseg LS sh (rev contents) w nullval))).
+      SEP( `(lseg LS sh (rev contents) w nullval)))
+      [[[cts1 cts2] w] v].
 (* precondition implies loop invariant *)
 apply exp_right with nil.
 apply exp_right with contents.
@@ -191,12 +190,10 @@ entailer!.
 (* loop invariant implies typechecking of loop condition *)
 entailer!.
 (* loop invariant (and not loop condition) implies loop postcondition *)
-destruct a as [[[cts1 cts2] w] v]. simpl @fst in *. simpl @snd in *.
 apply exp_right with w.
 entailer!. 
 rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
-destruct a as [[[cts1 cts2] w] v]. simpl @fst in *. simpl @snd in *.
 focus_SEP 1; apply semax_lseg_nonnull;
         [entailer | intros h r y ? ?].
 simpl valinject.
