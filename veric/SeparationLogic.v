@@ -4,7 +4,7 @@ Require Export AST.
 Require Export Integers.
 Require Export Floats.
 Require Export compcert.common.Values.
-Require Export Maps.
+Require Export compcert.lib.Maps.
 Require Export Ctypes.
 Require Export Clight.
 Require Export sepcomp.Address.
@@ -13,8 +13,10 @@ Require Export msl.shares.
 Require Export msl.seplog.
 Require Export msl.alg_seplog.
 Require Export msl.log_normalize.
+Require Export veric.tycontext.
 Require Export veric.expr.
 Require Export veric.expr_rel.
+Require Export veric.Clight_lemmas.
 Require veric.seplog.
 Require veric.assert_lemmas. 
 Require Import msl.Coqlib2.
@@ -92,8 +94,8 @@ Definition substopt {A} (ret: option ident) (v: environ -> val) (P: environ -> A
    | None => P
    end.
 
-Definition cast_expropt (e: option expr) t : environ -> option val :=
- match e with Some e' => `Some (eval_expr (Ecast e' t))  | None => `None end.
+Definition cast_expropt Delta (e: option expr) t : environ -> option val :=
+ match e with Some e' => `Some (eval_expr Delta (Ecast e' t))  | None => `None end.
 
 Definition typecheck_tid_ptr_compare
 Delta id := 
@@ -297,25 +299,23 @@ Proof.
     - apply sepcon_derives; apply andp_left2; apply derives_refl.
 Qed.
 
-Definition align_compatible t p :=
+Definition align_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => (alignof t | Int.unsigned i_ofs)
+  | Vptr b i_ofs => (alignof cenv_cs t | Int.unsigned i_ofs)
   | _ => True
   end.
 
-Definition size_compatible t p :=
+Definition size_compatible {C: compspecs} t p :=
   match p with
-  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof t <= Int.modulus
+  | Vptr b i_ofs => Int.unsigned i_ofs + sizeof cenv_cs t <= Int.modulus
   | _ => True
   end.
 
-Definition var_block (sh: Share.t) (idt: ident * type) : environ->mpred :=
-      !! (sizeof  (snd idt) <= Int.max_unsigned) &&
-  local (` (align_compatible (snd idt)) (eval_var (fst idt) (snd idt))) &&
- `(memory_block sh (Int.repr (sizeof (snd idt))))
-             (eval_var (fst idt) (snd idt)).
+Definition var_block (rsh: Share.t) {cs: compspecs} (idt: ident * type) (rho: environ): mpred :=
+  !! (sizeof cenv_cs (snd idt) <= Int.max_unsigned) &&
+  (memory_block rsh (Int.repr (sizeof cenv_cs (snd idt))) (eval_var (fst idt) (snd idt) rho)).
 
-Definition stackframe_of (f: Clight.function) : environ->mpred :=
+Definition stackframe_of {cs: compspecs} (f: Clight.function) : environ->mpred :=
   fold_right sepcon emp (map (var_block Tsh) (fn_vars f)).
 
 Lemma  subst_extens {A}{NA: NatDed A}: 
@@ -408,7 +408,7 @@ Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globva
 
 Definition prog_vars (p: program) := prog_vars' (prog_defs p).
 
-Definition all_initializers_aligned (prog: AST.program fundef type) := 
+Definition all_initializers_aligned (prog: program) := 
   forallb (fun idv => andb (initializers_aligned 0 (gvar_init (snd idv)))
                                  (Zlt_bool (init_data_list_size (gvar_init (snd idv))) Int.modulus))
                       (prog_vars prog) = true.
@@ -446,7 +446,7 @@ Definition tc_environ (Delta: tycontext) : environ -> Prop :=
 
 Definition tc_temp_id  (id: ident)  (ty: type) (Delta: tycontext) 
                        (e:expr): environ -> Prop := 
-      denote_tc_assert (typecheck_temp_id id ty Delta e).
+      denote_tc_assert Delta (typecheck_temp_id id ty Delta e).
 
 Definition typeof_temp (Delta: tycontext) (id: ident) : option type :=
  match (temp_types Delta) ! id with
@@ -455,13 +455,13 @@ Definition typeof_temp (Delta: tycontext) (id: ident) : option type :=
  end.
 
 Definition tc_expr (Delta: tycontext) (e: expr) : environ -> Prop := 
-    denote_tc_assert (typecheck_expr Delta e).
+    denote_tc_assert Delta (typecheck_expr Delta e).
 
 Definition tc_exprlist (Delta: tycontext) (t: list type) (e: list expr)  : environ -> Prop := 
-      denote_tc_assert (typecheck_exprlist Delta t e).
+      denote_tc_assert Delta (typecheck_exprlist Delta t e).
 
 Definition tc_lvalue (Delta: tycontext) (e: expr) : environ -> Prop := 
-     denote_tc_assert (typecheck_lvalue Delta e).
+     denote_tc_assert Delta (typecheck_lvalue Delta e).
 
 Definition tc_expropt Delta (e: option expr) (t: type) : environ -> Prop :=
    match e with None => `(t=Tvoid)
@@ -561,8 +561,8 @@ Definition semax_body_params_ok f : bool :=
         (compute_list_norepet (map (@fst _ _) (fn_params f) ++ map (@fst _ _) (fn_temps f)))
         (compute_list_norepet (map (@fst _ _) (fn_vars f))).
 
-Definition var_sizes_ok (vars: list (ident*type)) := 
-   Forall (fun var : ident * type => sizeof (snd var) <= Int.max_unsigned)%Z vars.
+Definition var_sizes_ok {cs: compspecs} (vars: list (ident*type)) := 
+   Forall (fun var : ident * type => sizeof cenv_cs (snd var) <= Int.max_unsigned)%Z vars.
 
 Definition make_ext_rval  (gx: genviron) (v: option val):=
   match v with
@@ -615,67 +615,68 @@ Definition funsig2signature (s : funsig) : signature :=
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
-Lemma rel_expr_const_int: forall i ty P rho, 
-              P |-- rel_expr (Econst_int i ty) (Vint i) rho.
+Lemma rel_expr_const_int: forall Delta i ty P rho, 
+              P |-- rel_expr Delta (Econst_int i ty) (Vint i) rho.
 Proof. intros. intros ? ?; constructor. Qed.
 
-Lemma rel_expr_const_float: forall f ty P rho, 
-              P |-- rel_expr (Econst_float f ty) (Vfloat f) rho.
+Lemma rel_expr_const_float: forall Delta f ty P rho, 
+              P |-- rel_expr Delta (Econst_float f ty) (Vfloat f) rho.
 Proof. intros. intros ? ?; constructor. Qed.
 
-Lemma rel_expr_const_single: forall f ty P rho, 
-              P |-- rel_expr (Econst_single f ty) (Vsingle f) rho.
+Lemma rel_expr_const_single: forall Delta  f ty P rho, 
+              P |-- rel_expr Delta (Econst_single f ty) (Vsingle f) rho.
 Proof. intros. intros ? ?; constructor. Qed.
 
-Lemma rel_expr_const_long: forall i ty P rho, 
-             P |--  rel_expr (Econst_long i ty) (Vlong i) rho.
+Lemma rel_expr_const_long: forall Delta i ty P rho, 
+             P |--  rel_expr Delta (Econst_long i ty) (Vlong i) rho.
 Proof. intros. intros ? ?; constructor. Qed.
 
-Lemma rel_expr_tempvar: forall id ty v P rho,
+Lemma rel_expr_tempvar: forall Delta id ty v P rho,
           Map.get (te_of rho) id = Some v ->
-          P |-- rel_expr (Etempvar id ty) v rho.
+          P |-- rel_expr Delta (Etempvar id ty) v rho.
 Proof. intros. intros ? ?. constructor; auto. Qed.
 
-Lemma rel_expr_addrof: forall a ty v P rho,
-               P |-- rel_lvalue a v rho ->
-               P |-- rel_expr (Eaddrof a ty) v rho.
+Lemma rel_expr_addrof: forall Delta a ty v P rho,
+               P |-- rel_lvalue Delta a v rho ->
+               P |-- rel_expr Delta (Eaddrof a ty) v rho.
 Proof. intros. intros ? ?. constructor; auto. apply H; auto. Qed.
 
-Lemma rel_expr_unop: forall P a1 v1 v ty op rho,
-                 P |-- rel_expr a1 v1 rho ->
+Lemma rel_expr_unop: forall Delta P a1 v1 v ty op rho,
+                 P |-- rel_expr Delta a1 v1 rho ->
                  Cop.sem_unary_operation op v1 (typeof a1) = Some v ->
-                 P |-- rel_expr (Eunop op a1 ty) v rho.
+                 P |-- rel_expr Delta (Eunop op a1 ty) v rho.
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H; auto. Qed.
 
-Lemma rel_expr_binop: forall a1 a2 v1 v2 v ty op P rho,
-                 P |-- rel_expr a1 v1 rho ->
-                 P |-- rel_expr a2 v2 rho ->
-                 (forall m, Cop.sem_binary_operation op v1 (typeof a1) v2 (typeof a2) m = Some v) ->
-                 P |-- rel_expr (Ebinop op a1 a2 ty) v rho.
+Lemma rel_expr_binop: forall Delta a1 a2 v1 v2 v ty op P rho,
+                 P |-- rel_expr Delta a1 v1 rho ->
+                 P |-- rel_expr Delta a2 v2 rho ->
+                 binop_stable (composite_types Delta) op a1 a2 = true ->
+                 (forall m, Cop.sem_binary_operation (composite_types Delta) op v1 (typeof a1) v2 (typeof a2) m = Some v) ->
+                 P |-- rel_expr Delta (Ebinop op a1 a2 ty) v rho.
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H; auto. apply H0; auto. Qed.
 
-Lemma rel_expr_cast: forall a1 v1 v ty P rho,
-                 P |-- rel_expr a1 v1 rho ->
+Lemma rel_expr_cast: forall Delta a1 v1 v ty P rho,
+                 P |-- rel_expr Delta a1 v1 rho ->
                  Cop.sem_cast v1 (typeof a1) ty = Some v ->
-                 P |-- rel_expr (Ecast a1 ty) v rho.
+                 P |-- rel_expr Delta (Ecast a1 ty) v rho.
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H; auto. Qed. 
 
-Lemma rel_expr_lvalue_By_value: forall ch a sh v1 v2 P rho,
+Lemma rel_expr_lvalue_By_value: forall Delta ch a sh v1 v2 P rho,
            access_mode (typeof a) = By_value ch ->
-           P |-- rel_lvalue a v1 rho ->
+           P |-- rel_lvalue Delta a v1 rho ->
            P |-- mapsto sh (typeof a) v1 v2 * TT  ->
            v2 <> Vundef ->
-           P |-- rel_expr a v2 rho.
+           P |-- rel_expr Delta a v2 rho.
 Proof.
 intros. intros ? ?. econstructor; eauto. apply H0; auto. apply H1; auto. Qed.
 
-Lemma rel_expr_lvalue_By_reference: forall a v1 P rho,
+Lemma rel_expr_lvalue_By_reference: forall Delta a v1 P rho,
            access_mode (typeof a) = By_reference ->
-           P |-- rel_lvalue a v1 rho ->
-           P |-- rel_expr a v1 rho.
+           P |-- rel_lvalue Delta a v1 rho ->
+           P |-- rel_expr Delta a v1 rho.
 Proof.
 intros. intros ? ?.
 hnf.
@@ -683,31 +684,32 @@ eapply rel_expr'_lvalue_By_reference; eauto.
 apply H0; auto.
  Qed.
 
-Lemma rel_lvalue_local: forall id ty b P rho,
+Lemma rel_lvalue_local: forall Delta id ty b P rho,
                  P |-- !! (Map.get (ve_of rho) id = Some (b,ty)) ->
-                 P |-- rel_lvalue (Evar id ty) (Vptr  b Int.zero) rho.
+                 P |-- rel_lvalue Delta (Evar id ty) (Vptr  b Int.zero) rho.
 Proof.
 intros. intros ? ?. constructor.  specialize (H _ H0). apply H. Qed.
 
-Lemma rel_lvalue_global: forall id ty b P rho,
+Lemma rel_lvalue_global: forall Delta id ty b P rho,
               P |-- !! (Map.get (ve_of rho) id = None /\ Map.get (ge_of rho) id = Some b) ->
-              P |-- rel_lvalue (Evar id ty) (Vptr b Int.zero) rho.
+              P |-- rel_lvalue Delta (Evar id ty) (Vptr b Int.zero) rho.
 Proof.
 intros. intros ? ?. specialize (H _ H0). destruct H. constructor 2; auto.
 Qed.
 
-Lemma rel_lvalue_deref: forall a b z ty P rho,
-              P |-- rel_expr a (Vptr b z) rho->
-              P |-- rel_lvalue (Ederef a ty) (Vptr b z) rho.
+Lemma rel_lvalue_deref: forall Delta a b z ty P rho,
+              P |-- rel_expr Delta a (Vptr b z) rho->
+              P |-- rel_lvalue Delta (Ederef a ty) (Vptr b z) rho.
 Proof. intros. intros ? ?. constructor. apply H. auto. Qed.
 
-Lemma rel_lvalue_field_struct: forall i ty a b z id fList att delta P rho,
-               typeof a = Tstruct id fList att ->
-               field_offset i fList = Errors.OK delta ->
-               P |-- rel_expr a (Vptr b z) rho ->
-               P |-- rel_lvalue (Efield a i ty) (Vptr b (Int.add z (Int.repr delta))) rho.
+Lemma rel_lvalue_field_struct: forall Delta i ty a b z id att delta co P rho,
+               typeof a = Tstruct id att ->
+               (composite_types Delta) ! id = Some co ->
+               field_offset (composite_types Delta) i (co_members co) = Errors.OK delta ->
+               P |-- rel_expr Delta a (Vptr b z) rho ->
+               P |-- rel_lvalue Delta (Efield a i ty) (Vptr b (Int.add z (Int.repr delta))) rho.
 Proof.
-intros. intros ? ?. econstructor; eauto. apply H1; auto. Qed.
+intros. intros ? ?. econstructor; eauto. apply H2; auto. Qed.
 
 Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 Global Opaque rel_expr.
@@ -750,7 +752,7 @@ Axiom semax_extensionality_Delta:
 (** THESE RULES FROM semax_prog **)
 
 Definition semax_body
-       (V: varspecs) (G: funspecs) (f: function) (spec: ident * funspec) : Prop :=
+       (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec) : Prop :=
   match spec with (_, mk_funspec _ A P Q) =>
     forall Espec x,
       @semax Espec (func_tycontext f V G)
@@ -761,32 +763,36 @@ Definition semax_body
 
 Parameter semax_func: 
     forall {Espec: OracleKind},
-    forall (V: varspecs) (G: funspecs) (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
+    forall (V: varspecs) (G: funspecs) {C: compspecs} (fdecs: list (ident * fundef)) (G1: funspecs), Prop.
 
 Definition semax_prog 
     {Espec: OracleKind}
      (prog: program) (V: varspecs) (G: funspecs) : Prop :=
   compute_list_norepet (prog_defs_names prog) = true /\
   all_initializers_aligned prog /\ 
-  @semax_func Espec V G (prog_funct prog) G /\
+  @semax_func Espec V G (compspecs_program prog) (prog_funct prog) G /\
    match_globvars (prog_vars prog) V = true /\
     In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
 Axiom semax_func_nil:   forall {Espec: OracleKind}, 
-        forall V G, @semax_func Espec V G nil nil.
+        forall V G C, @semax_func Espec V G C nil nil.
 
 Axiom semax_func_cons: 
   forall {Espec: OracleKind},
-     forall fs id f A P Q (V: varspecs)  (G G': funspecs),
+     forall fs id f A P Q (V: varspecs) (G G': funspecs) {C: compspecs},
       andb (id_in_list id (map (@fst _ _) G)) 
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
+       Forall
+         (fun it : ident * type =>
+          complete_type (composite_types (nofunc_tycontext V G)) (snd it) =
+          true) (fn_vars f) ->
        var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc_default ->
        precondition_closed f P ->
       semax_body V G f (id, mk_funspec (fn_funsig f) A P Q ) ->
-      @semax_func Espec V G fs G' ->
-      @semax_func Espec V G ((id, Internal f)::fs) 
+      @semax_func Espec V G C fs G' ->
+      @semax_func Espec V G C ((id, Internal f)::fs) 
            ((id, mk_funspec (fn_funsig f) A P Q ) :: G').
 
 Parameter semax_external:
@@ -797,13 +803,13 @@ Parameter semax_external:
 Axiom semax_func_skip: 
   forall {Espec: OracleKind},
    forall 
-        V (G: funspecs) fs idf (G': funspecs),
+        V (G: funspecs) {C: compspecs} fs idf (G': funspecs),
       semax_func V G fs G' ->
       semax_func V G (idf::fs) G'.
 
 Axiom semax_func_cons_ext: 
   forall {Espec: OracleKind},
-   forall (V: varspecs) (G: funspecs) fs id ef argsig retsig A P Q 
+   forall (V: varspecs) (G: funspecs) {C: compspecs} fs id ef argsig retsig A P Q 
           argsig'
           (G': funspecs) (ids: list ident),
       ids = map fst argsig' -> (* redundant but useful for the client,
@@ -831,8 +837,8 @@ Axiom semax_ifthenelse :
   forall {Espec: OracleKind},
    forall Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->
-     @semax Espec Delta (P && local (`(typed_true (typeof b)) (eval_expr b))) c R -> 
-     @semax Espec Delta (P && local (`(typed_false (typeof b)) (eval_expr b))) d R -> 
+     @semax Espec Delta (P && local (`(typed_true (typeof b)) (eval_expr Delta b))) c R -> 
+     @semax Espec Delta (P && local (`(typed_false (typeof b)) (eval_expr Delta b))) d R -> 
      @semax Espec Delta (local (tc_expr Delta b) && P) (Sifthenelse b c d) R.
 
 Axiom semax_seq:
@@ -887,8 +893,8 @@ Axiom semax_call :
           tc_fn_return Delta ret retsig ->
   @semax Espec Delta
           (local (tc_expr Delta a) && local (tc_exprlist Delta (snd (split argsig)) bl)  && 
-         (`(func_ptr (mk_funspec  (argsig,retsig) A P Q)) (eval_expr a) &&   
-          (F * `(P x) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+         (`(func_ptr (mk_funspec  (argsig,retsig) A P Q)) (eval_expr Delta a) &&   
+          (F * `(P x) (make_args' (argsig,retsig) (eval_exprlist Delta (snd (split argsig)) bl)))))
          (Scall ret a bl)
          (normal_ret_assert  
           (EX old:val, substopt ret (`old) F * maybe_retval (Q x) retsig ret)).
@@ -898,7 +904,7 @@ Axiom  semax_return :
    forall Delta (R: ret_assert) ret ,
       @semax Espec Delta  
                 (local (tc_expropt Delta ret (ret_type Delta)) &&
-                `(R EK_return : option val -> environ -> mpred) (cast_expropt ret (ret_type Delta)) (@id environ))
+                `(R EK_return : option val -> environ -> mpred) (cast_expropt Delta ret (ret_type Delta)) (@id environ))
                 (Sreturn ret)
                 R.
 
@@ -920,7 +926,7 @@ forall (Delta: tycontext) (P: environ->mpred) id e,
     @semax Espec Delta 
         (|> (local (tc_expr Delta e) && 
             local (tc_temp_id id (typeof e) Delta e) &&
-             subst id (eval_expr e) P))
+             subst id (eval_expr Delta e) P))
           (Sset id e) (normal_ret_assert P).
 
 Axiom semax_set_forward :
@@ -932,7 +938,7 @@ forall (Delta: tycontext) (P: environ->mpred) id e,
           P))
           (Sset id e) 
         (normal_ret_assert 
-          (EX old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr e))) &&
+          (EX old:val, local (`eq (eval_id id) (subst id (`old) (eval_expr Delta e))) &&
                             subst id (`old) P)).
 
 Axiom semax_ptr_compare : 
@@ -944,15 +950,15 @@ forall (Delta: tycontext) P id cmp e1 e2 ty sh1 sh2,
         ( |> (local (tc_expr Delta e1) &&
              local (tc_expr Delta e2)  && 
            
-          local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1 ) * TT) && 
-          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2 ) * TT) && 
+          local (`(blocks_match cmp) (eval_expr Delta e1) (eval_expr Delta e2)) &&
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr Delta e1) * TT) && 
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr Delta e2) * TT) && 
           P))
           (Sset id (Ebinop cmp e1 e2 ty)) 
         (normal_ret_assert 
           (EX old:val, 
                  local (`eq (eval_id id)  (subst id `old 
-                     (eval_expr (Ebinop cmp e1 e2 ty)))) &&
+                     (eval_expr Delta (Ebinop cmp e1 e2 ty)))) &&
                             subst id `old P)).
 
 Axiom semax_load : 
@@ -960,7 +966,7 @@ Axiom semax_load :
 forall (Delta: tycontext) sh id P e1 t2 (v2: environ -> val),
     typeof_temp Delta id = Some t2 ->
     is_neutral_cast (typeof e1) t2 = true ->
-      local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
+      local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue Delta e1) v2 * TT ->
     @semax Espec Delta 
        (|> (local (tc_lvalue Delta e1) && 
        local (`(tc_val (typeof e1)) v2) &&
@@ -973,7 +979,7 @@ Axiom semax_cast_load :
   forall {Espec: OracleKind},
 forall (Delta: tycontext) sh id P e1 t1 (v2: environ -> val),
     typeof_temp Delta id = Some t1 ->
-      local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue e1) v2 * TT ->
+      local (tc_environ Delta) && P |-- `(mapsto sh (typeof e1)) (eval_lvalue Delta e1) v2 * TT ->
     @semax Espec Delta 
        (|> (local (tc_lvalue Delta e1) && 
        local (`(tc_val t1) (`(eval_cast (typeof e1) t1) v2)) &&
@@ -988,16 +994,16 @@ Axiom semax_store:
    writable_share sh ->
    @semax Espec Delta 
           (|> (local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 (typeof e1)))  && 
-             (`(mapsto_ sh (typeof e1)) (eval_lvalue e1) * P)))
+             (`(mapsto_ sh (typeof e1)) (eval_lvalue Delta e1) * P)))
           (Sassign e1 e2) 
           (normal_ret_assert 
-               (`(mapsto sh (typeof e1)) (eval_lvalue e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr e2))) * P)).
+               (`(mapsto sh (typeof e1)) (eval_lvalue Delta e1) (`force_val (`(sem_cast (typeof e2) (typeof e1)) (eval_expr Delta e2))) * P)).
 
 Axiom semax_set_forward_nl:
   forall {Espec: OracleKind},
 forall (Delta: tycontext) P id e v t,
     typeof_temp Delta id = Some t ->
-    P |-- rel_expr e v ->
+    P |-- rel_expr Delta e v ->
     tc_val t v ->
     @semax Espec Delta 
         ( |> P ) (Sset id e) 
@@ -1008,8 +1014,8 @@ Axiom semax_loadstore:
  forall v0 v1 v2 (Delta: tycontext) e1 e2 sh P P', 
    writable_share sh ->
    P |-- !! (tc_val (typeof e1) v2)
-           && rel_lvalue e1 v1 
-           && rel_expr (Ecast e2 (typeof e1)) v2 
+           && rel_lvalue Delta e1 v1 
+           && rel_expr Delta (Ecast e2 (typeof e1)) v2 
            && (`(mapsto sh (typeof e1) v1 v0) * P') ->
    @semax Espec Delta (|> P) (Sassign e1 e2) 
           (normal_ret_assert (`(mapsto sh (typeof e1) v1 v2) * P')).

@@ -82,10 +82,10 @@ Definition main_post (prog: program) : unit -> assert :=
   (fun tt _ => TT).
 
 Definition semax_prog 
-     (prog: program)  (V: varspecs) (G: funspecs) {C: compspecs} : Prop :=
+     (prog: program)  (V: varspecs) (G: funspecs) : Prop :=
   compute_list_norepet (prog_defs_names prog) = true  /\
   all_initializers_aligned prog /\ 
-  semax_func V G (prog_funct prog) G /\
+  @semax_func V G (compspecs_program prog) (prog_funct prog) G /\
    match_globvars (prog_vars prog) V = true /\
     In (prog.(prog_main), mk_funspec (nil,Tvoid) unit (main_pre prog ) (main_post prog)) G.
 
@@ -357,7 +357,7 @@ Qed.
 
 Lemma semax_func_skip: 
    forall 
-        V (G: funspecs) fs idf (G': funspecs) {C: compspecs},
+        V (G: funspecs) {C: compspecs} fs idf (G': funspecs),
       semax_func V G fs G' ->
       semax_func V G (idf::fs) G'.
 Proof.
@@ -483,7 +483,7 @@ unfold prog_vars. intros ? ? ?.
 induction (prog_defs prog); intros. inv H. simpl in *. 
 destruct a; destruct g. auto. simpl in H. destruct H; auto. left; congruence.
 Qed.
-SearchAbout program genv.
+
 Lemma funassert_initial_core:
   forall (prog: program) ve te V G {C: compspecs} n, 
       list_norepet (prog_defs_names prog) ->
@@ -980,7 +980,7 @@ Qed.
 
 Lemma semax_prog_rule :
   forall z V G prog m,
-     @semax_prog prog V G (compspecs_program prog)->
+     @semax_prog prog V G ->
      Genv.init_mem prog = Some m ->
      exists b, exists q, 
        Genv.find_symbol (globalenv prog) (prog_main prog) = Some b /\

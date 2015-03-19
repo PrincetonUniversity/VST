@@ -6,6 +6,7 @@ Require Import msl.msl_standard.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import sepcomp.extspec.
 Require Import veric.juicy_extspec.
+Require Import veric.tycontext. 
 Require Import veric.expr. 
 Require Import veric.semax.
 Require Import veric.semax_call.
@@ -65,7 +66,7 @@ Local Open Scope pred.
 Definition wf_funspec (f : funspec) :=
   match f with
     | mk_funspec sig A P Q => 
-        forall a ge ge' n args, 
+        forall a (ge ge': genv) n args, 
           Genv.genv_symb ge = Genv.genv_symb ge' ->
           P a (make_ext_args (filter_genv ge) n args) |-- P a (make_ext_args (filter_genv ge') n args)
   end.
@@ -84,7 +85,6 @@ Qed.
 Lemma all_funspecs_wf f : wf_funspec f.
 Proof.
 destruct f; simpl; intros a ge ge' n args H.
-unfold filter_genv.
 erewrite make_ext_args_symb; eauto.
 Qed.
 
