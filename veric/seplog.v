@@ -520,9 +520,29 @@ Definition memory_block (sh: share) (n: int) (v: val) : mpred :=
  | _ => FF
  end.
 
+<<<<<<< HEAD
 Definition var_block (rsh: Share.t) {cs: compspecs} (idt: ident * type) (rho: environ): mpred :=
   !! (sizeof cenv_cs (snd idt) <= Int.max_unsigned) &&
   (memory_block rsh (Int.repr (sizeof cenv_cs (snd idt))) (eval_var (fst idt) (snd idt) rho)).
+=======
+Definition align_compatible t p :=
+  match p with
+  | Vptr b i_ofs => (alignof t | Int.unsigned i_ofs)
+  | _ => True
+  end.
+
+Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
+ match Map.get (ve_of rho) id with
+| Some (b, ty') => if eqb_type ty ty' then Vptr b Int.zero else Vundef
+| None => Vundef
+end.
+
+Definition var_block (sh: Share.t) (idt: ident * type) (rho: environ): mpred :=
+  !! (sizeof (snd idt) <= Int.max_unsigned) &&
+  !! (align_compatible (snd idt) (eval_lvar (fst idt) (snd idt) rho)) &&
+  (memory_block sh (Int.repr (sizeof (snd idt))))
+             (eval_lvar (fst idt) (snd idt) rho).
+>>>>>>> master
 
 Fixpoint sepcon_list {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AG: ageable A} {AgeA: Age_alg A}
    (p: list (pred A)) : pred A :=

@@ -16,40 +16,33 @@ name n_ _n.
 name md_ _md.
 name c_ _c.
 normalize.
-apply (remember_value (eval_var _c t_struct_SHA256state_st)); intro c.
-forward_call (* SHA256_Init(&c); *)
+apply (remember_value (eval_lvar _c t_struct_SHA256state_st)); intro c.
+
+replace_SEP 0 (`(data_at_ Tsh t_struct_SHA256state_st c)).
+entailer!.
+assert_LOCAL (lvar _c t_struct_SHA256state_st c).
+ entailer!. apply normalize_lvar; auto.
+drop_LOCAL 1%nat.
+
+forward_call' (* SHA256_Init(&c); *)
    (c).
-entailer!. 
 
-after_call.
-forward_call (* SHA256_Update(&c,d,n); *)
+forward_call' (* SHA256_Update(&c,d,n); *)
   (init_s256abs,data,c,d,dsh, Zlength data, kv).
-entailer!.
-pose proof (Zlength_nonneg data); omega.
-after_call.
-replace_SEP 0 (
- EX  x : s256abs,
-      (PROP  (update_abs (firstn (length data) data) init_s256abs x)
-       LOCAL ()
-       SEP  (`(K_vector kv);
-               `(sha256state_ x c); `(data_block dsh data d)))).
-entailer.
-apply exp_right with x.
-entailer.
-normalize. intro a.
-simpl.
+ repeat split; try repable_signed.
+ pose proof (Zlength_nonneg data); omega.
+ simpl. apply H0.
+ apply extract_exists_pre; intro a.
+ normalize.
 
-forward_call (* SHA256_Final(md,&c); *)
+forward_call' (* SHA256_Final(md,&c); *)
     (a,md,c,msh,kv).
-entailer!.
-after_call.
-simpl.
+
 forward. (* return; *)
-unfold frame_ret_assert; simpl.
-entailer!.
-replace (SHA_256 data) with (sha_finish a); auto.
-clear - H3.
-inv H3.
+rewrite (lvar_eval_lvar _ _ _ _ H4).
+replace (SHA_256 data) with (sha_finish a); [cancel |].
+clear - H2.
+inv H2.
 simpl in *.
 rewrite <- H8.
 rewrite firstn_same by (clear; omega).

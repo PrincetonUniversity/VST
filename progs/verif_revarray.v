@@ -13,7 +13,9 @@ Definition reverse_spec :=
                 forall i, 0 <= i < size -> is_int I32 Signed (Znth i contents Vundef))
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
           SEP (`(data_at sh (tarray tint size) contents a0))
-  POST [ tvoid ]  `(data_at sh (tarray tint size) (rev contents) a0).
+  POST [ tvoid ]
+     PROP() LOCAL()
+     SEP(`(data_at sh (tarray tint size) (rev contents) a0)).
 
 Definition main_spec :=
  DECLARE _main
@@ -137,11 +139,11 @@ forward.  (* lo = 0; *)
 forward.  (* hi = n; *)
 rename H2 into POP.
 assert_PROP (isptr a0). entailer!. rename H2 into TCa0.
+
 forward_while (reverse_Inv a0 sh contents size)
     (PROP  () LOCAL  (temp _a a0)
    SEP (`(data_at sh (tarray tint size) (rev contents) a0))).
 (* Prove that current precondition implies loop invariant *)
-unfold reverse_Inv.
 apply exp_right with 0.
 entailer!; try omega.
 f_equal; omega.
@@ -152,91 +154,38 @@ apply flip_fact_0; auto.
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
 entailer!.
-rewrite Int.sub_signed in H4.
-normalize in H4.
-simpl_compare.
 apply derives_refl'.
 f_equal.
 apply flip_fact_1; omega.
 (* Prove that loop body preserves invariant *)
 forward.  (* t = a[lo]; *)
 {
-  entailer.
-  rewrite Int.sub_signed in H4.
-  rewrite Int.signed_repr in H4 by repable_signed.
-  rewrite Int.signed_repr in H4 by repable_signed.
-  simpl_compare.
   entailer!.
   rewrite flip_fact_2 by omega.
   apply POP.
-  omega.
-}
-{
-  entailer!.
-  rewrite Int.sub_signed in H4.
-  rewrite Int.signed_repr in H4 by repable_signed.
-  rewrite Int.signed_repr in H4 by repable_signed.
-  simpl_compare.
   omega.
 }
 forward.  (* s = a[hi-1]; *)
 {
-  entailer.
-  rewrite Int.sub_signed in H5.
-  rewrite Int.signed_repr in H5 by repable_signed.
-  rewrite Int.signed_repr in H5 by repable_signed.
-  simpl_compare.
   entailer!.
   rewrite flip_fact_2 by omega.
   apply POP.
   omega.
 }
-{
-  entailer!.
-  rewrite Int.sub_signed in H5.
-  rewrite Int.signed_repr in H5 by repable_signed.
-  rewrite Int.signed_repr in H5 by repable_signed.
-  simpl_compare.
-  omega.
-}
 normalize.
 forward. (*  a[hi-1] = t ; *)
-{
-  entailer!.
-  rewrite Int.sub_signed in H6.
-  rewrite Int.signed_repr in H6 by repable_signed.
-  rewrite Int.signed_repr in H6 by repable_signed.
-  simpl_compare.
-  omega.
-}
-normalize.
 forward. (*  a[lo] = s; *) 
-{
-  entailer!.
-  rewrite Int.sub_signed in H6.
-  rewrite Int.signed_repr in H6 by repable_signed.
-  rewrite Int.signed_repr in H6 by repable_signed.
-  simpl_compare.
-  omega.
-}
-normalize.
 forward. (* lo++; *)
 forward. (* hi--; *)
 (* Prove postcondition of loop body implies loop invariant *)
 {
-  unfold reverse_Inv.
-  apply exp_right with (Zsucc j).
+  apply exp_right with (Zsucc a1).
   entailer.
-  rewrite Int.sub_signed in H6.
-  rewrite Int.signed_repr in H6 by repable_signed.
-  rewrite Int.signed_repr in H6 by repable_signed.
-  simpl_compare.
   rewrite !flip_fact_2 by omega.
   rewrite !sem_cast_neutral_int by (exists I32, Signed; apply POP; omega).
   simpl force_val.
   apply andp_right.
   + apply prop_right.
-    split; [omega |].
     f_equal; omega.
   + admit.
 }
@@ -278,23 +227,23 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 start_function.
-eapply (remember_value (eval_var _four (tarray tint 4))); intro a.
-forward_call  (*  revarray(four,4); *)
+normalize; intro a; normalize.
+
+forward_call'  (*  revarray(four,4); *)
   (a, Ews, map Vint four_contents, 4).
-entailer!.
-intros. unfold four_contents.
+   repeat split; try computable; auto.
+   intros. unfold four_contents.
    apply forall_Forall; [| auto].
    intros.
-   repeat (destruct H4; [subst; simpl; auto|]); inversion H4.
-after_call.
-forward_call  (*  revarray(four,4); *)
+   repeat (destruct H0; [subst; simpl; auto|]); inversion H0.
+
+forward_call'  (*  revarray(four,4); *)
     (a,Ews, rev (map Vint four_contents),4).
-entailer!.
-intros. unfold four_contents.
+   repeat split; try computable; auto.
+   intros. unfold four_contents.
    apply forall_Forall; [| auto].
    intros.
-   repeat (destruct H4; [subst; simpl; auto|]); inversion H4.
-after_call.
+   repeat (destruct H0; [subst; simpl; auto|]); inversion H0.
 rewrite rev_involutive.
 forward. (* return s; *)
 unfold main_post. entailer.

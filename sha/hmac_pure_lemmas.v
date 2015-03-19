@@ -3,22 +3,115 @@
 Require Import Integers.
 Require Import List. 
 Require Import Coqlib.
-Require Import common_lemmas. 
 
 Import ListNotations.
 
-Lemma length_nonneg {A} (l:list A): (0 <= length l)%nat.
- Proof. destruct l; omega. Qed.
+Lemma max_unsigned_modulus: Int.max_unsigned + 1 = Int.modulus.
+Proof. reflexivity. Qed.
 
-Lemma skipn_0 {A} (l:list A): skipn 0 l = l. reflexivity. Qed.
+Lemma int_max_unsigned_eq: Int.max_unsigned = 4294967295.
+Proof. reflexivity. Qed.
 
-Lemma skipn_list_repeat {A}(a:A): forall m n, skipn n (list_repeat m a) = list_repeat (m-n) a.
-Proof. induction m; simpl; intros. apply skipn_nil.
-  simpl. 
-  destruct n. simpl. trivial. 
-  simpl.  apply IHm.
-Qed.
+Lemma IntModulus32: Int.modulus = 2^32. reflexivity. Qed.
+
+Lemma Intsize_monotone a b: 0 <= Int.unsigned (Int.repr a) <= Int.unsigned (Int.repr b) -> 
+                          Int.size (Int.repr a) <= Int.size (Int.repr b).
+Proof. apply Int.Zsize_monotone. Qed.
   
+Lemma list_nil {A} l (L:@length A l = 0%nat): l = nil.
+Proof. destruct l; simpl in *; eauto. inv L. Qed.
+
+Lemma nth_mapIn: forall i (l:list Z) d (Hi: (0 <= i < length l)%nat),
+  exists n, nth i l d = n /\ In n l.
+Proof. intros i. 
+  induction i; simpl; intros.
+    destruct l; simpl in *. omega. exists z. split; trivial. left; trivial.
+    destruct l; simpl in *. omega.
+      destruct (IHi l d) as [? [? ?]]. omega. rewrite H. exists x; split; trivial. right; trivial.
+Qed.
+
+Lemma skipn_list_repeat:
+   forall A k n (a: A),
+     (k <= n)%nat -> skipn k (list_repeat n a) = list_repeat (n-k) a.
+Proof.
+ induction k; destruct n; simpl; intros; auto.
+ apply IHk; auto. omega.
+Qed.
+
+Lemma skipn_length:
+  forall {A} n (al: list A), 
+    (length al >= n)%nat -> 
+    (length (skipn n al) = length al - n)%nat.
+Proof.
+ induction n; destruct al; simpl; intros; auto.
+ apply IHn. omega.
+Qed.
+
+Lemma fold_left_cons {A B} (f: A -> B -> A) l b x: 
+      fold_left f (x :: l) b = fold_left f l (f b x).
+Proof. reflexivity. Qed.
+
+Definition Forall_tl (A : Type) (P : A -> Prop) (a : A) (l : list A) 
+           (H : Forall P (a :: l)): Forall P l.
+Proof. inversion H. assumption. Defined. 
+
+Lemma Zlength_length:
+  forall A (al: list A) (n: Z),
+    0 <= n ->
+    (Zlength al = n <-> length al = Z.to_nat n).
+Proof.
+intros. rewrite Zlength_correct.
+split; intro.
+rewrite <- (Z2Nat.id n) in H0 by omega.
+apply Nat2Z.inj in H0; auto.
+rewrite H0.
+apply Z2Nat.inj; try omega.
+rewrite Nat2Z.id; auto.
+Qed.
+
+Lemma firstn_exact : 
+  forall {A : Type} (l1 l2 : list A) (n : nat),
+    (length l1 = n)%nat -> firstn n (l1 ++ l2) = l1.
+Proof.
+  induction l1; destruct n; intros; simpl; try reflexivity; inversion H.
+  * f_equal. apply IHl1. reflexivity.
+Qed.    
+
+Lemma skipn_exact :
+  forall {A : Type} (l1 l2 : list A) (n : nat),
+    (length l1 = n)%nat -> skipn n (l1 ++ l2) = l2.
+Proof.
+  induction l1; destruct n; intros; simpl; try reflexivity; inversion H.
+  * apply IHl1. reflexivity.
+Qed.
+
+Lemma length_not_emp :
+  forall {A B : Type} (l : list A) (z y : B),
+    (Datatypes.length l > 0)%nat -> match l with [] => z | _ => y end = y.
+Proof.
+  intros.
+  induction l as [ | x xs].
+  - inversion H.
+  - reflexivity.
+Qed.
+
+Lemma list_splitLength {A}: forall n (l:list A) m, 
+      length l = (n + m)%nat -> exists l1 l2, l = l1 ++ l2 /\ length l1 = n /\ length l2 = m.
+Proof. intros n.
+  induction n; simpl; intros.
+  exists [], l; eauto.
+  destruct l; simpl in H; inversion H. clear H.
+  destruct (IHn _ _ H1) as [l1 [l2 [L [L1 L2]]]]. clear IHn H1. subst.
+  exists (a :: l1), l2; auto.
+Qed.
+
+Lemma skipn_short {A}: forall n (l:list A), (length l <= n)%nat -> skipn n l = nil.
+Proof. induction n; simpl; intros. 
+  destruct l; trivial. simpl in H. omega.
+  destruct l; trivial.
+  apply IHn. simpl in H. omega.
+Qed.
+
 Lemma skipn_app2:
  forall A n (al bl: list A),
   (n >= length al)%nat ->
@@ -139,3 +232,59 @@ Qed.
 Lemma Zlength_max_zero {A} (l:list A): Z.max 0 (Zlength l) = Zlength l.
 Proof. rewrite Z.max_r. trivial. apply Zlength_nonneg. Qed.
 
+
+Theorem xor_inrange : forall (x y : Z),
+                        x = x mod Byte.modulus
+                        -> y = y mod Byte.modulus
+                        -> Z.lxor x y = (Z.lxor x y) mod Byte.modulus.
+Proof.
+  intros. symmetry. apply Byte.equal_same_bits. intros.
+  assert (ZZ: Z.lxor x y mod Byte.modulus =
+        Z.lxor x y mod two_p (Z.of_nat Byte.wordsize)).
+        rewrite Byte.modulus_power. reflexivity.
+  rewrite ZZ; clear ZZ.     
+  rewrite Byte.Ztestbit_mod_two_p; try omega.
+  destruct (zlt i (Z.of_nat Byte.wordsize)); trivial. 
+  symmetry. rewrite Z.lxor_spec.
+  assert (BB: Byte.modulus = two_p (Z.of_nat Byte.wordsize)).
+    apply Byte.modulus_power. 
+  rewrite BB in H, H0.
+
+  rewrite H; clear H; rewrite H0; clear H0 BB.
+   rewrite Byte.Ztestbit_mod_two_p; try omega.
+   rewrite Byte.Ztestbit_mod_two_p; try omega.
+   destruct (zlt i (Z.of_nat Byte.wordsize)); trivial. omega.
+Qed.
+
+Require Import Vector. 
+
+Definition Vector_0_is_nil (T : Type) (v : Vector.t T 0) : v = Vector.nil T := 
+  match v with Vector.nil => eq_refl end.
+
+Lemma VectorToList_cons A n: forall (a:A) l,
+      Vector.to_list (Vector.cons A a n l) =
+      List.cons a (Vector.to_list l).
+Proof. intros. reflexivity. Qed. 
+
+Lemma VectorToList_length {A}: forall n (v: Vector.t A n), length (Vector.to_list v) = n.
+Proof.
+  apply Vector.t_rec. reflexivity.
+  intros. rewrite VectorToList_cons. simpl. rewrite H. trivial.
+Qed.
+
+Lemma VectorToList_combine A n: forall (a:A) b v1 v2,
+     combine (Vector.to_list (Vector.cons A a n v1))
+             (Vector.to_list (Vector.cons A b n v2))
+   = (a,b) :: combine (Vector.to_list v1) (Vector.to_list v2).
+Proof. intros. simpl. f_equal. Qed.
+
+Theorem VectorToList_append {A}: 
+        forall (m:nat) (v2:Vector.t A m) (n : nat) (v1 : Vector.t A n),
+                   (Vector.to_list v1) ++ (Vector.to_list v2) = 
+                   Vector.to_list (Vector.append v1 v2).
+Proof. intros m v2.
+  eapply Vector.t_rec.
+  reflexivity.
+  intros. simpl. rewrite (VectorToList_cons _ _ h). f_equal. rewrite <- H. f_equal.
+Qed.
+   

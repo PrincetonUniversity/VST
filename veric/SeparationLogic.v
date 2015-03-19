@@ -311,9 +311,23 @@ Definition size_compatible {C: compspecs} t p :=
   | _ => True
   end.
 
+<<<<<<< HEAD
 Definition var_block (rsh: Share.t) {cs: compspecs} (idt: ident * type) (rho: environ): mpred :=
   !! (sizeof cenv_cs (snd idt) <= Int.max_unsigned) &&
   (memory_block rsh (Int.repr (sizeof cenv_cs (snd idt))) (eval_var (fst idt) (snd idt) rho)).
+=======
+Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
+ match Map.get (ve_of rho) id with
+| Some (b, ty') => if eqb_type ty ty' then Vptr b Int.zero else Vundef
+| None => Vundef
+end.
+
+Definition var_block (sh: Share.t) (idt: ident * type) : environ -> mpred :=
+  !! (sizeof (snd idt) <= Int.max_unsigned) &&
+  local (`(align_compatible (snd idt)) (eval_lvar (fst idt) (snd idt))) &&
+  `(memory_block sh (Int.repr (sizeof (snd idt))))
+             (eval_lvar (fst idt) (snd idt)).
+>>>>>>> master
 
 Definition stackframe_of {cs: compspecs} (f: Clight.function) : environ->mpred :=
   fold_right sepcon emp (map (var_block Tsh) (fn_vars f)).

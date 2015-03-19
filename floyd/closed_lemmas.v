@@ -4,6 +4,17 @@ Require Import floyd.client_lemmas.
 
 Local Open Scope logic.
 
+Lemma gvar_globals_only:
+  forall i v rho, gvar i v rho -> gvar i v (globals_only rho).
+Proof.
+unfold gvar; intros.
+unfold Map.get in *.
+destruct (ve_of rho i) as [[? ?]|] eqn:?; try contradiction.
+unfold globals_only.
+simpl. auto.
+Qed.
+Hint Resolve gvar_globals_only.
+
 Ltac safe_auto_with_closed := 
    (* won't instantiate evars by accident *)
  match goal with |- ?A => 
@@ -492,6 +503,60 @@ Proof.
 unfold var; intros; auto with closed.
 Qed.
 Hint Resolve closed_wrtl_var : closed.
+
+Lemma closed_wrt_lvar:
+  forall S id t v, closed_wrt_vars S (lvar id t v).
+Proof.
+unfold lvar; intros.
+hnf; intros; simpl.
+destruct (Map.get (ve_of rho) id); auto.
+Qed.
+Hint Resolve closed_wrt_lvar : closed.
+
+Lemma closed_wrt_gvar:
+  forall S id v, closed_wrt_vars S (gvar id v).
+Proof.
+unfold gvar; intros.
+hnf; intros; simpl. auto.
+Qed.
+Hint Resolve closed_wrt_gvar : closed.
+
+Lemma closed_wrt_sgvar:
+  forall S id v, closed_wrt_vars S (sgvar id v).
+Proof.
+unfold sgvar; intros.
+hnf; intros; simpl. auto.
+Qed.
+Hint Resolve closed_wrt_sgvar : closed.
+
+
+Lemma closed_wrtl_lvar:
+ forall S id t v, ~ S id -> closed_wrt_lvars S (lvar id t v).
+Proof.
+unfold lvar; intros.
+hnf; intros; simpl.
+destruct (H0 id); try contradiction.
+rewrite H1; auto.
+Qed.
+Hint Resolve closed_wrtl_lvar : closed.
+
+Lemma closed_wrtl_gvar:
+ forall S id v,   ~ S id -> closed_wrt_lvars S (gvar id v).
+Proof.
+unfold gvar; intros.
+hnf; intros; simpl.
+destruct (H0 id); try contradiction.
+rewrite H1; auto.
+Qed.
+Hint Resolve closed_wrtl_gvar : closed.
+
+Lemma closed_wrtl_sgvar:
+ forall S id v,  closed_wrt_lvars S (sgvar id v).
+Proof.
+unfold sgvar; intros.
+hnf; intros; simpl. auto.
+Qed.
+Hint Resolve closed_wrtl_sgvar : closed.
 
 Definition expr_closed_wrt_lvars (S: ident -> Prop) (e: expr) : Prop := 
   forall rho ve',  

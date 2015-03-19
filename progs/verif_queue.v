@@ -41,18 +41,21 @@ Definition mallocN_spec :=
      LOCAL (temp 1%positive (Vint n))
      SEP ()
   POST [ tptr tvoid ] 
-     PROP () 
-     LOCAL (`natural_align_compatible retval) 
-     SEP (`(memory_block Tsh n) retval).
+     EX v: val,
+     PROP (natural_align_compatible v; isptr v) 
+          (* the isptr is redundant, just there to test the tactics *)
+     LOCAL (temp ret_temp v) 
+     SEP (`(memory_block Tsh n v)).
 
 Definition freeN_spec :=
  DECLARE _freeN
-  WITH u: unit
+  WITH p : val , n : int
   PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]  
      (* we should also require natural_align_compatible (eval_id 1) *)
-      PROP() LOCAL ()
-      SEP (`(memory_block Tsh) (`force_int (eval_id 2%positive)) (eval_id 1%positive))
-  POST [ tvoid ]  emp.
+      PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint n))
+      SEP (`(memory_block Tsh n p))
+  POST [ tvoid ]  
+    PROP () LOCAL () SEP ().
 
 Definition elemrep (rep: elemtype QS) (p: val) : mpred :=
   field_at Tsh t_struct_elem [StructField _a] (fst rep) p * 
@@ -72,8 +75,10 @@ Definition fifo (contents: list val) (p: val) : mpred:=
 Definition fifo_new_spec :=
  DECLARE _fifo_new
   WITH u : unit
-  PRE  [  ] emp
-  POST [ (tptr t_struct_fifo) ] `(fifo nil) retval.
+  PRE  [  ]
+       PROP() LOCAL() SEP ()
+  POST [ (tptr t_struct_fifo) ] 
+    EX v:val, PROP() LOCAL(temp ret_temp v) SEP (`(fifo nil v)).
 
 Definition fifo_put_spec :=
  DECLARE _fifo_put
@@ -81,14 +86,18 @@ Definition fifo_put_spec :=
   PRE  [ _Q OF (tptr t_struct_fifo) , _p OF (tptr t_struct_elem) ]
           PROP () LOCAL (temp _Q q; temp _p p) 
           SEP (`(fifo contents q); `(field_at_ Tsh t_struct_elem [StructField _next] p))
-  POST [ tvoid ] `(fifo (contents++(p :: nil)) q).
+  POST [ tvoid ]
+          PROP() LOCAL() SEP (`(fifo (contents++(p :: nil)) q)).
 
 Definition fifo_empty_spec :=
  DECLARE _fifo_empty
   WITH q: val, contents: list val
   PRE  [ _Q OF (tptr t_struct_fifo) ]
      PROP() LOCAL (temp _Q q) SEP(`(fifo contents q))
-  POST [ tint ] local (`(eq (if isnil contents then Vtrue else Vfalse)) retval) && `(fifo (contents) q).
+  POST [ tint ]
+      PROP ()
+      LOCAL(temp ret_temp (if isnil contents then Vtrue else Vfalse)) 
+      SEP (`(fifo (contents) q)).
 
 Definition fifo_get_spec :=
  DECLARE _fifo_get
@@ -96,14 +105,19 @@ Definition fifo_get_spec :=
   PRE  [ _Q OF (tptr t_struct_fifo) ]
        PROP() LOCAL (temp _Q q) SEP (`(fifo (p :: contents) q)) 
   POST [ (tptr t_struct_elem) ] 
-        local (`(eq p) retval) && `(fifo contents q) * `(field_at_ Tsh t_struct_elem [StructField _next]) retval.
+       PROP ()
+       LOCAL(temp ret_temp p) 
+       SEP (`(fifo contents q);
+              `(field_at_ Tsh t_struct_elem [StructField _next] p)).
 
 Definition make_elem_spec :=
  DECLARE _make_elem
   WITH a: int, b: int
   PRE  [ _a OF tint, _b OF tint ] 
         PROP() LOCAL(temp _a (Vint a); temp _b (Vint b)) SEP()
-  POST [ (tptr t_struct_elem) ] `(elemrep (Vint a, Vint b)) retval.
+  POST [ (tptr t_struct_elem) ]
+      EX v:val, PROP() LOCAL (temp ret_temp v) 
+       SEP (`(elemrep (Vint a, Vint b) v)).
 
 Definition main_spec := 
  DECLARE _main
@@ -137,6 +151,14 @@ Lemma list_cell_eq: forall sh elem,
    field_at sh t_struct_elem [StructField _a] (fst elem) * 
    field_at sh t_struct_elem [StructField _b] (snd elem). 
 Proof. admit. Qed.
+
+Lemma fifo_isptr: forall al q, fifo al q |-- !! isptr q.
+Proof.
+intros.
+ unfold fifo. if_tac; entailer; destruct ht; entailer!.
+Qed.
+
+Hint Resolve fifo_isptr : saturate_local.
 
 Lemma body_fifo_empty: semax_body Vprog Gprog f_fifo_empty fifo_empty_spec.
 Proof.
@@ -179,24 +201,20 @@ auto.
 Qed.
 Hint Resolve natural_align_compatible_t_struct_fifo.
 
+Lemma natural_align_compatible_isptr:
+  forall p, natural_align_compatible p -> isptr p.
+Proof. intros; destruct p; simpl; intuition. Qed.
+Hint Resolve natural_align_compatible_isptr : norm.
+
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
   start_function.
   name Q _Q.
   name Q' _Q'.
-  forward_call (* Q' = mallocN(sizeof ( *Q)); *) 
-    (Int.repr 8).
-  (* goal_2 *)
-  entailer!.
-  after_call. (* This expression was strange; better now with clean_up_app_carefully called from after_call *)
-  clear Q'0.
-  apply (remember_value  (eval_id _Q')); intro q.
-  apply semax_pre with
-    (PROP (natural_align_compatible q; isptr q) LOCAL (`(eq q) (eval_id _Q')) 
-    SEP (`(memory_block Tsh (Int.repr 8) q))); [entailer! | ].
-  normalize.
-  forward. (* Q = (struct fifo * )Q'; *)
-  normalize.
+ 
+  forward_call' (Int.repr 8). (* Q = mallocN(sizeof ( *Q)); *)
+  computable.
+  rename vret into q.
   rewrite memory_block_fifo by auto.
   forward. (* Q->head = NULL; *)
   (* goal_4 *)
@@ -204,6 +222,7 @@ Proof.
   forward. (* Q->tail = NULL; *)
   forward. (* return Q; *)
   (* goal_5 *)
+  apply exp_right with Q; normalize.
   unfold fifo.
   apply exp_right with (nullval,nullval).
   rewrite if_true by auto.
@@ -225,8 +244,9 @@ forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
 forward_if 
   (PROP() LOCAL () SEP (`(fifo (contents ++ p :: nil) q))).
- simpl typeof.
 * (* then clause *)
+(*  try apply typed_true_nullptr3 in H1. delete me *)
+  subst.
   (* goal 9 *)
   forward. (* Q->head=p; *)
   forward. (* Q->tail=p; *)
@@ -243,6 +263,7 @@ forward_if
   +  normalize.
       destruct prefix; normalize; entailer!; elim_hyps; inv H1.
 * (* else clause *)
+(*  try apply typed_false_nullptr3 in H1.  delete me *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
   + apply semax_pre with FF; [ | apply semax_ff].
@@ -314,16 +335,11 @@ name a _a.
 name b _b.
 name p _p.
 name p' _p'.
-forward_call (*  p = mallocN(sizeof ( *p));  *) 
+forward_call' (*  p = mallocN(sizeof ( *p));  *) 
   (Int.repr 12).
-entailer!.
-auto 50 with closed.
-after_call.
-simpl.
-change 12 with (sizeof (t_struct_elem)).
-clear p0.
-apply (remember_value (eval_id _p)); intro p0.
-eapply semax_pre0 with (PROP  (natural_align_compatible p0)
+computable.
+rename vret into p0.
+eapply semax_pre0 with (PROP  ()
       LOCAL  (temp _a (Vint a0); temp _b (Vint b0); temp _p p0)
       SEP 
       (`(data_at_ Tsh t_struct_elem p0))).
@@ -336,6 +352,7 @@ rewrite data_at_field_at.
 forward.  (*  p->a=a; *)
 forward.  (*  p->b=b; *)
 forward.  (* return p; *)
+apply exp_right with p.
 unfold elemrep.
 unfold_field_at 1%nat.
 entailer!.
@@ -348,57 +365,40 @@ name i _i.
 name j _j.
 name Q _Q.
 name p _p.
-forward_call (* Q = fifo_new(); *) tt.
-entailer!.
-auto with closed.
-after_call.
-apply (remember_value (eval_id _Q)); intro q.
-forward_call (*  p = make_elem(1,10); *)
-   (Int.repr 1, Int.repr 10).
-entailer!.
-auto with closed.
-after_call.
-apply (remember_value (eval_id _p)); intro p'.
-forward_call (* fifo_put(Q,p);*)
+
+forward_call' (* Q = fifo_new(); *)  tt.
+rename vret into q.
+
+forward_call'  (*  p = make_elem(1,10); *)
+     (Int.repr 1, Int.repr 10).
+rename vret into p'.
+unfold elemrep; normalize.
+
+forward_call' (* fifo_put(Q,p);*) 
     ((q, @nil val),p').
-unfold elemrep; entailer!.
-after_call.
-simpl.
-forward_call (*  p = make_elem(2,20); *)
-    (Int.repr 2, Int.repr 20).
-unfold elemrep; entailer!.
-auto with closed.
-after_call.
- apply (remember_value (eval_id _p)); intro p2.
- forward_call  (* fifo_put(Q,p); *)
+forward_call'  (*  p = make_elem(2,20); *)
+     (Int.repr 2, Int.repr 20).
+rename vret into p2.
+ forward_call'  (* fifo_put(Q,p); *)
     ((q,(p':: nil)),p2).
- unfold elemrep; entailer!.
-after_call.
+ unfold elemrep; entailer; cancel.
 simpl.
-forward_call (*   p' = fifo_get(Q); p = p'; *)
-  ((q,(p2 :: nil)),p').
- entailer!.
- auto 50 with closed.
-after_call.
-normalize.
- subst p1 p3.
+forward_call'  (*   p' = fifo_get(Q); p = p'; *)
+    ((q,(p2 :: nil)),p').
+subst vret.
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
-forward_call (*  freeN(p, sizeof( *p)); *)
-   tt. {
-  entailer.
-  change 12 with (sizeof t_struct_elem).
-  eapply derives_trans; [ | apply sepcon_derives; [| apply derives_refl]].
 
-  instantiate (1:= field_at_ Tsh t_struct_elem [StructField _next] p' *
-   field_at Tsh t_struct_elem [StructField _a] (Vint (Int.repr 1)) p' *
-   field_at Tsh t_struct_elem [StructField _b] (Vint (Int.repr 10)) p'). cancel.
-
-  apply derives_trans with (data_at_ Tsh t_struct_elem p'). unfold data_at_. 
-  unfold_data_at 1%nat; cancel.
-  rewrite data_at__memory_block by reflexivity.
-  apply andp_left2; apply derives_refl.
-} after_call.
+forward_call' (*  freeN(p, sizeof( *p)); *)
+   (p', Int.repr (sizeof t_struct_elem)).
+{apply derives_trans with
+   (data_at_ Tsh t_struct_elem p' * fold_right sepcon emp Frame).
+ unfold data_at_.
+ unfold_data_at 1%nat.
+ cancel.
+ rewrite data_at__memory_block by reflexivity. entailer.
+}
+unfold map.
 forward. (* return i+j; *)
 unfold main_post.
 entailer!.
@@ -411,17 +411,33 @@ Parameter body_mallocN:
   (1%positive ::nil)
   (EF_external _mallocN
      {| sig_args := AST.Tint :: nil; sig_res := Some AST.Tint; sig_cc := cc_default |}) int
-  (fun n : int => PROP (4 <= Int.unsigned n) LOCAL (`(eq (Vint n)) (eval_id 1%positive)) SEP ())
-  (fun n : int => PROP () LOCAL (`natural_align_compatible retval) SEP (`(memory_block Tsh n) retval)).
+  (fun n : int =>
+   PROP  (4 <= Int.unsigned n)  LOCAL  (temp 1%positive (Vint n))  SEP())
+  (fun n : int =>
+   EX  v : val,
+   PROP  (natural_align_compatible v; isptr v)
+   LOCAL  (temp ret_temp v)  SEP  (`(memory_block Tsh n v))).
 
 Parameter body_freeN:
 semax_external
   (1%positive::2%positive ::nil)
   (EF_external _freeN
-     {| sig_args := AST.Tint :: AST.Tint :: nil; sig_res := None; sig_cc := cc_default |}) unit
-  (fun _ : unit =>
-      PROP() LOCAL () SEP (`(memory_block Tsh) (`force_int (eval_id 2%positive)) (eval_id 1%positive)))
- (fun _ : unit => emp).
+     {| sig_args := AST.Tint :: AST.Tint :: nil; sig_res := None; sig_cc := cc_default |}) (val*int)
+  (fun pn : val*int => let (p,n) := pn in
+      PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint n))
+      SEP (`(memory_block Tsh n p)))
+  (fun pn => let (p,n) := pn in
+    PROP () LOCAL () SEP ()).
+
+Lemma ret_temp_make_ext_rval:
+  forall gx ret p,  
+   temp ret_temp p (make_ext_rval gx ret) -> 
+    p = force_val ret.
+Proof.
+  intros.
+  unfold temp in H; unfold_lift in H.
+  rewrite retval_ext_rval in H. auto.
+Qed.
 
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
@@ -429,7 +445,7 @@ Proof.
 unfold Gprog, prog, prog_funct; simpl.
 semax_func_skipn.
 semax_func_cons body_mallocN.
-  entailer.
+ apply ret_temp_make_ext_rval in H1; subst; entailer.
 semax_func_cons body_freeN.
   admit.  (* yuck *)
 semax_func_cons body_fifo_new.

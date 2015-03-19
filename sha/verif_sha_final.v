@@ -7,6 +7,25 @@ Require Import sha.verif_sha_final2.
 Require Import sha.verif_sha_final3.
 Local Open Scope logic.
 
+
+Lemma upd_reptype_array_append:
+ forall t len dd v, 
+   len = Zlength dd ->
+   upd_reptype_array t len dd v =
+    dd ++ [v].
+Proof.
+intros. subst.
+unfold upd_reptype_array.
+normalize.
+rewrite force_lengthn_id by auto.
+rewrite skipn_short; auto.
+change nat_of_Z with Z.to_nat.
+rewrite Z2Nat.inj_add; try omega.
+rewrite Zlength_correct. rewrite Nat2Z.id.
+omega.
+apply Zlength_nonneg.
+Qed.
+
 Lemma body_SHA256_Final: semax_body Vprog Gtot f_SHA256_Final SHA256_Final_spec.
 Proof.
 start_function.
@@ -81,12 +100,14 @@ match goal with |- semax _ _ ?c _ => change c with Body_final_if1 end.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
  make_sequential. rewrite overridePost_normal'.
 unfold ddlen in *; clear ddlen.
+assert (Zlength dd + 1 > 16 * 4 - 8) by omega.
 eapply semax_pre0; 
-  [|apply (ifbody_final_if1 Espec hashed md c shmd dd kv H4 H3 DDbytes)].
+  [|apply (ifbody_final_if1 Espec hashed md c shmd dd kv H4 H3 H2 DDbytes)].
 entailer!.
 unfold_data_at 2%nat.
 rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
-rewrite !map_app.
+rewrite upd_reptype_array_append
+  by (rewrite !Zlength_map; auto).
 entailer!.
 * (* else-clause *)
 forward. (* skip; *)
@@ -96,17 +117,15 @@ apply exp_right with hashed.
 apply exp_right with (dd ++ [128]).
 apply exp_right with 0%Z.
 entailer.
-rewrite mul_repr, sub_repr in H2; apply ltu_repr_false in H2.
-2: split; computable.
-2: assert (64 < Int.max_unsigned)%Z by computable; unfold ddlen in *;
-   split; try omega.
-clear H5.
-change (16*4)%Z with (Z.of_nat CBLOCK) in H2.
+(*clear H5.*)
+(*change (16*4)%Z with (Z.of_nat CBLOCK) in H2.*)
 apply andp_right; [apply prop_right; repeat split | cancel].
 rewrite Forall_app; split; auto.
 repeat constructor; omega.
 rewrite app_length; simpl. apply Nat2Z.inj_ge.
-repeat rewrite Nat2Z.inj_add; unfold ddlen in H2; rewrite Zlength_correct in H2.
+change (Z.of_nat CBLOCK) with 64; unfold ddlen in H0; 
+  rewrite Zlength_correct in H0.
+repeat rewrite Nat2Z.inj_add. 
 change (Z.of_nat 1) with 1%Z; change (Z.of_nat 8) with 8%Z.
 omega.
 f_equal. unfold ddlen; repeat rewrite Zlength_correct; f_equal.
@@ -114,6 +133,8 @@ rewrite app_length; simpl. rewrite Nat2Z.inj_add; reflexivity.
 unfold_data_at 2%nat.
 rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
 rewrite !map_app.
+rewrite upd_reptype_array_append
+  by (rewrite !Zlength_map; auto).
 entailer!.
 * unfold invariant_after_if1.
 apply extract_exists_pre; intro hashed'.
@@ -147,7 +168,7 @@ unfold SHA_256.
       rewrite Nat2Z.inj_add in H0.
       rewrite Zlength_correct.
       change 8 with (Z.of_nat 8).
-    admit.  (* array_seg_reroot_lemma too strict? *)
+    omega.
     } Unfocus.
     2: change (Z.of_nat CBLOCK) with 64; omega.
     2: rewrite !Zlength_map; reflexivity.
@@ -159,12 +180,21 @@ unfold SHA_256.
     } Unfocus.
     normalize.
 
-forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
+forward_call' (* memset (p+n,0,SHA_CBLOCK-8-n); *)
   (Tsh,
      field_address t_struct_SHA256state_st
          [ArraySubsc (Zlength dd'); StructField _data] c, 
      (Z.of_nat CBLOCK - 8 - Zlength dd')%Z,
      Int.zero).
+ apply prop_right; repeat constructor; hnf; simpl; auto.
+ rewrite field_address_clarify by auto.
+ rewrite field_address_clarify by auto.
+ erewrite nested_field_offset2_Tarray by reflexivity.
+  change (sizeof tuchar) with 1.
+ rewrite Z.mul_1_l.
+ normalize.
+
+(* 
 {
   entailer!.
   + Omega1.
@@ -174,7 +204,9 @@ forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
       change (sizeof tuchar) with 1.
       rewrite Z.mul_1_l.
       normalize.
-  + pull_left (data_at Tsh (Tarray tuchar (Z.of_nat CBLOCK - 8 - Zlength dd') noattr)
+  +
+*)
+ {pull_left (data_at Tsh (Tarray tuchar (Z.of_nat CBLOCK - 8 - Zlength dd') noattr)
      (list_repeat (CBLOCK - 8 - length dd') Vundef)
      (field_address t_struct_SHA256state_st
               [ArraySubsc (Zlength dd'); StructField _data] c)).
@@ -202,12 +234,14 @@ Transparent tuchar.
        pose proof Zlength_correct dd'.
        omega.
     } Unfocus.
-    rewrite H10.
+    rewrite H7.
     entailer!.
-}
-after_call.
+ }
+ split; auto.
+ Omega1.
+ 
 normalize.
-clear retval0 H7.
+clear vret H7.
 forward.  (* p += SHA_CBLOCK-8; *)
 
 gather_SEP 0 1 2.
@@ -246,7 +280,7 @@ replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
   Focus 1. {
     clear POSTCONDITION.
     entailer!.
-    clear rho H7.
+    clear rho H7 H8.
     (* this proof should be nicer. *)
     rewrite field_address_clarify.
     rewrite field_address_clarify.

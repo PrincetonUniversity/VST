@@ -1150,6 +1150,31 @@ Definition temp (i: ident) (v: val) : environ -> Prop :=
 Definition var (i: ident) (t: type) (v: val) : environ -> Prop :=
    `(eq v) (eval_var i t).
 
+Definition lvar (i: ident) (t: type) (v: val) (rho: environ) : Prop :=
+     (* local variable *)
+   match Map.get (ve_of rho) i with
+   | Some (b, ty') => if eqb_type t ty' then v = Vptr b Int.zero else False
+   | None => False
+   end.
+
+Definition gvar (i: ident) (v: val) (rho: environ) : Prop :=
+    (* visible global variable *)
+   match Map.get (ve_of rho) i with
+   | Some (b, ty') => False
+   | None =>
+       match ge_of rho i with
+       | Some b => v = Vptr b Int.zero
+       | None => False
+       end
+   end.
+
+Definition sgvar (i: ident) (v: val) (rho: environ) : Prop := 
+    (* (possibly) shadowed global variable *)
+   match ge_of rho i with
+       | Some b => v = Vptr b Int.zero
+       | None => False
+   end.
+
 Lemma PROP_LOCAL_SEP_f:
   forall P Q R f, `(PROPx P (LOCALx Q (SEPx R))) f =
      PROPx P (LOCALx (map (fun q : environ -> Prop => `q f) Q)

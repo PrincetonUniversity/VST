@@ -48,7 +48,7 @@ Lemma sha256_block_load8:
          (func_tycontext f_sha256_block_data_order Vprog Gtot))
   (PROP  ()
    LOCAL  (temp _data data; temp _ctx ctx; temp _in data; 
-                var  _K256 (tarray tuint CBLOCKz) kv)
+                gvar  _K256 kv)
    SEP  (`(field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx)))
    (Ssequence (load8 _a 0)
      (Ssequence (load8 _b 1)
@@ -70,7 +70,7 @@ Lemma sha256_block_load8:
                 temp _g (Vint (nthi r_h 6));
                 temp _h (Vint (nthi r_h 7));
                 temp _data data; temp _ctx ctx; temp _in data; 
-                var  _K256 (tarray tuint CBLOCKz) kv)
+                gvar  _K256 kv)
    SEP  (`(field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint r_h) ctx)))).
 Proof.
 intros.
@@ -219,7 +219,7 @@ Lemma add_one_back:
                 temp _f  (Vint (nthi atoh 5));
                 temp _g  (Vint (nthi atoh 6));
                 temp _h  (Vint (nthi atoh 7));
-                var  _K256 (tarray tuint CBLOCKz) kv)
+                gvar  _K256 kv)
    SEP  (`(field_at Tsh t_struct_SHA256state_st  [StructField _h]
                       (map Vint (add_upto (S i) regs atoh)) ctx)))
     more
@@ -235,7 +235,7 @@ Lemma add_one_back:
                 temp _f  (Vint (nthi atoh 5));
                 temp _g  (Vint (nthi atoh 6));
                 temp _h  (Vint (nthi atoh 7));
-                var  _K256 (tarray tuint CBLOCKz) kv)
+                gvar  _K256 kv)
    SEP  (`(field_at Tsh t_struct_SHA256state_st  [StructField _h]
                  (map Vint (add_upto i regs atoh)) ctx)))
    (Ssequence (get_h (Z.of_nat i)) (Ssequence (add_h (Z.of_nat i) i') more))
@@ -270,17 +270,19 @@ change  (Ederef
              [eArraySubsc (Econst_int (Int.repr (Z.of_nat i)) tint);
               eStructField _h]
              [tuint; tarray tuint 8]).
-eapply (semax_SC_field_load Delta Tsh type_id_env.empty_ti
-      0 _t _ _ _ _ _ tuint t_struct_SHA256state_st 
-     [eStructField _h]
-     [eArraySubsc (Econst_int (Int.repr (Z.of_nat i)) tint)]
+
+eapply (
+ semax_SC_field_load Delta Tsh type_id_env.empty_ti
+      0 _t _ _ _ _ _ tuint t_struct_SHA256state_st
+     [eArraySubsc (Econst_int (Int.repr (Z.of_nat i)) tint); eStructField _h]
      [StructField _h]
      [ArraySubsc (Z.of_nat i)]
-     [tarray tuint 8] [tuint]
+     _
+     _
      ctx (Znth (Z.of_nat i) (map Vint (add_upto i regs atoh)) Vundef)
      (map Vint (add_upto i regs atoh))  LLLL
  );
- try reflexivity; auto.
+  try reflexivity; auto.
  +
     entailer!.
  + simpl efield_denote.
@@ -320,19 +322,33 @@ eapply semax_seq'.
 ensure_normal_ret_assert;
  hoist_later_in_pre.
 {
+
+
+change  (Ederef
+        (Ebinop Oadd
+           (Efield
+              (Ederef (Etempvar _ctx (tptr t_struct_SHA256state_st))
+                 t_struct_SHA256state_st) _h (tarray tuint 8))
+           (Econst_int (Int.repr (Z.of_nat i)) tint) (tptr tuint)) tuint)
+  with (nested_efield  (Ederef (Etempvar _ctx (tptr t_struct_SHA256state_st))
+                 t_struct_SHA256state_st)
+             [eArraySubsc (Econst_int (Int.repr (Z.of_nat i)) tint);
+              eStructField _h]
+             [tuint; tarray tuint 8]).
+
 eapply (semax_SC_field_store (initialized _t Delta) Tsh type_id_env.empty_ti
-              0  _ _ _ _ 
+              0 _ _ _ _
       (Ederef (Etempvar _ctx (tptr t_struct_SHA256state_st))
                  t_struct_SHA256state_st)
       (Ebinop Oadd (Etempvar _t tuint)
         (Etempvar (nth i [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive) tuint)
         tuint)
      tuint t_struct_SHA256state_st 
-     [eStructField _h]
-     [eArraySubsc (Econst_int (Int.repr (Z.of_nat i)) tint)]
-     [StructField _h]
-     [ArraySubsc (Z.of_nat i)]
-     [tarray tuint 8] [tuint]
+     [eArraySubsc (Econst_int (Int.repr (Z.of_nat i)) tint); eStructField _h]
+[StructField _h]
+[ArraySubsc (Z.of_nat i)]
+[ArraySubsc (Z.of_nat i); StructField _h]
+     [tuint; tarray tuint 8]  
      ctx 
      (Vint (Int.add (nthi (add_upto i regs atoh) (Z.of_nat i)) (nthi atoh (Z.of_nat i))))
      (map Vint (add_upto i regs atoh))
@@ -443,7 +459,7 @@ Lemma add_them_back_proof:
      (regs regs': list int) (ctx: val) kv,
      length regs = 8%nat ->
      length regs' = 8%nat ->
-     semax  Delta_loop1
+     semax  (initialized _i Delta_loop1)
    (PROP  ()
    LOCAL  (temp _ctx ctx;
                 temp _a  (Vint (nthi regs' 0));
@@ -454,12 +470,12 @@ Lemma add_them_back_proof:
                 temp _f  (Vint (nthi regs' 5));
                 temp _g  (Vint (nthi regs' 6));
                 temp _h  (Vint (nthi regs' 7));
-                var  _K256 (tarray tuint CBLOCKz) kv)
+                gvar  _K256 kv)
    SEP 
    (`(field_at Tsh t_struct_SHA256state_st  [StructField _h] (map Vint regs) ctx)))
    (sequence add_them_back Sskip)
   (normal_ret_assert
-   (PROP() LOCAL(temp _ctx ctx; var _K256 (tarray tuint CBLOCKz) kv)
+   (PROP() LOCAL(temp _ctx ctx; gvar _K256 kv)
     SEP (`(field_at Tsh t_struct_SHA256state_st  [StructField _h]
                 (map Vint (map2 Int.add regs regs')) ctx)))).
 Proof.
@@ -478,13 +494,13 @@ rename regs' into atoh.
 
 assert (forall j : nat,
    (j < 8)%nat ->
-   (temp_types Delta_loop1)
+   (temp_types (initialized _i Delta_loop1))
     ! (nth j [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive) = Some (tuint, true)).
  intros; destruct j as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try reflexivity; omega.
 
 assert (forall j : nat,
    (j < 8)%nat ->
-   (temp_types (initialized _t Delta_loop1))
+   (temp_types (initialized _t (initialized _i Delta_loop1)))
     ! (nth j [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive) = Some (tuint, true)).
  intros; destruct j as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try reflexivity; omega.
 

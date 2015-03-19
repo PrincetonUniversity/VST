@@ -1932,18 +1932,18 @@ Lemma var_block_data_at_:
   Z.ltb (sizeof t) Int.modulus = true ->
   var_block sh (id, t) = 
    !!(sizeof t <= Int.max_unsigned) &&
-            `(data_at_ sh t) (eval_var id t).
+            `(data_at_ sh t) (eval_lvar id t).
 Proof.
   intros; extensionality rho.
+ unfold var_block.
   unfold_lift.
   simpl.
   apply Zlt_is_lt_bool in H2.
   rewrite data_at__memory_block by auto.
-  unfold var_block.
-  simpl. unfold local, lift1. unfold_lift.
   rewrite memory_block_isptr.
+  unfold local, lift1; unfold_lift.
   unfold align_compatible.
-  destruct (eval_var id t rho); simpl in *; normalize.
+  destruct (eval_lvar id t rho); simpl in *; normalize.
   apply pred_ext; normalize.
 Qed.
 

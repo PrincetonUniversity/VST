@@ -27,13 +27,17 @@ name in_ _in.
 name ctx_ _ctx.
 name i_ _i.
 name data_ _data.
-simpl_stackframe_of.
 unfold POSTCONDITION, abbreviate.
-apply (remember_value (eval_var _X (tarray tuint 16))); intro Xv.
-change (`(eq Xv) (eval_var _X (tarray tuint 16))) 
-    with (var _X (tarray tuint 16) Xv).
+simpl_stackframe_of.
+apply (remember_value (eval_lvar _X (tarray tuint 16))); intro Xv.
+assert_LOCAL (lvar _X (tarray tuint 16) Xv). {
+  entailer!.
+  unfold lvar, eval_lvar in H3|-*.
+  destruct (Map.get (ve_of rho) _X) as [[? ?]|]; try contradiction; auto.
+  destruct (eqb_type (tarray tuint 16) t); try contradiction; auto.
+}
 replace_SEP 0 (`(data_at_ Tsh (tarray tuint 16) Xv)) .
-entailer!.
+ entailer!.
 remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
 assert (Lregs: length regs = 8%nat) 
   by (subst regs; apply length_hash_blocks; auto).
@@ -46,7 +50,7 @@ assert_PROP (isptr data); [  entailer | ].
  end.
 *
  eapply (semax_frame1 
-             [ var _X (tarray tuint 16) Xv ] 
+             [ lvar _X (tarray tuint 16) Xv ] 
              [`(data_at_ Tsh (tarray tuint 16) Xv);
                          `(data_block sh (intlist_to_Zlist b) data);
                          `(K_vector kv)]).
@@ -59,9 +63,7 @@ assert_PROP (isptr data); [  entailer | ].
 *
 abbreviate_semax.
 simpl.
-forward.  (* i = 0; *)
-
-eapply (semax_frame_seq [ var _X (tarray tuint 16) Xv ]
+eapply (semax_frame_seq [ lvar _X (tarray tuint 16) Xv ]
               [`(field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs)
         ctx)]).
 + replace Delta with Delta_loop1
@@ -85,7 +87,7 @@ entailer!.
 auto 50 with closed.
 abbreviate_semax.
 eapply seq_assocN with (cs := add_them_back).
-eapply (semax_frame1  [  var _X (tarray tuint 16) Xv ]
+eapply (semax_frame1  [  lvar _X (tarray tuint 16) Xv ]
              [`(K_vector kv);
              `(data_at_ Tsh (tarray tuint LBLOCKz) Xv);
              `(data_block sh (intlist_to_Zlist b) data)]).
@@ -97,7 +99,7 @@ entailer!.
 auto 50 with closed.
 simpl; abbreviate_semax.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-replace Delta with (initialized _t Delta_loop1) 
+replace Delta with (initialized _t (initialized _i Delta_loop1)) 
  by (simplify_Delta; reflexivity).
 clear Delta.
 fold (hash_block regs b).

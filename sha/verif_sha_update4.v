@@ -91,7 +91,7 @@ Lemma update_loop_body_proof:
     temp _data (offset_val (Int.repr (Z.of_nat (length blocks * 4 - length frag))) d);
     temp _len (Vint
           (Int.repr (Z.of_nat (len - (length blocks * 4 - length frag)))));
-    var _K256 (tarray tuint CBLOCKz) kv)
+    gvar _K256 kv)
    SEP 
    (`(K_vector kv);
     `(data_at Tsh t_struct_SHA256state_st
@@ -123,15 +123,27 @@ normalize.
   apply Nat2Z.inj_lt in H3.
  rewrite H6.
 rename H2 into H98; rename H4 into H99.
+assert_PROP (
+  (Z.of_nat (len - (length blocks * 4 - length frag))) >= 16*4)%Z. {
+ entailer!.
+ normalize in H4.
+ rewrite negb_true_iff in H4.
+ apply ltu_repr_false in H4; try repable_signed.
+ split; try repable_signed.
+ clear - Hlen.
+ assert (Z.of_nat (len - (length blocks * 4 - length frag)) <= Z.of_nat len)%Z; [ | omega].
+ rewrite <- Nat2Z.inj_le; omega.
+} drop_LOCAL 0.
 
-forward_call (* sha256_block_data_order (c,data); *)
+forward_call' (* sha256_block_data_order (c,data); *)
  (hashed++ blocks,  bl, c, 
   offset_val (Int.repr (Z.of_nat (length blocks * 4 - length frag))) d,
   sh, kv).
  unfold_data_at 1.
 entailer!.
+split; auto.
 apply divide_length_app; auto.
-after_call.
+ simpl map.
 
  forward. (* data += SHA_CBLOCK; *)
  forward. (* len  -= SHA_CBLOCK; *)
@@ -140,16 +152,6 @@ after_call.
  apply exp_right with (blocks++ bl).
  entailer.
  clear TC1 TC.
- rewrite negb_true_iff in H4.
- unfold Int.ltu in H4.
- if_tac in H4; inv H4.
- change (Int.unsigned (Int.mul (Int.repr 16) (Int.repr 4)))
-     with 64%Z in H0.
- rewrite Int.unsigned_repr in H0
-  by (clear - Hlen; split; [omega | ];
-        rewrite Nat2Z.inj_sub_max;
-        apply Z.max_lub; omega).
-
  assert (Hblocks' := Hblocks_lem Hblocks).
  unfold_data_at 1.
  apply andp_right; [ apply prop_right; repeat split | cancel].
@@ -159,9 +161,9 @@ after_call.
  rewrite plus_comm.
  rewrite <- NPeano.Nat.add_sub_assoc by (clear - Hblocks'; omega).
  apply Zlength_length in H7; auto. rewrite H7.
- clear - H0.
- rewrite Nat2Z.inj_sub_max in H0.
- rewrite Zmax_spec in H0. if_tac in H0; try omega.
+ clear - H2.
+ rewrite Nat2Z.inj_sub_max in H2.
+ rewrite Zmax_spec in H2. if_tac in H2; try omega.
  clear H.
  apply Nat2Z.inj_ge.
  rewrite Nat2Z.inj_add.
@@ -192,11 +194,11 @@ rewrite NPeano.Nat.add_sub_swap by auto.
  f_equal.
  rewrite app_length. rewrite mult_plus_distr_r. 
  apply Zlength_length in H7; auto. rewrite H7.
- clear - Hblocks' H0 Hlen_ge Hlen .
+ clear - Hblocks' H2 Hlen_ge Hlen . rename H2 into H0.
  change (Z.to_nat LBLOCKz * 4)%nat with (Z.to_nat 64).
  assert (length blocks * 4 - length frag + 64 <= len).
   { 
-   change 64%Z with (Z.of_nat 64) in H0.
+   change (16*4)%Z with (Z.of_nat 64) in H0.
    apply Nat2Z.inj_ge in H0. clear - H0; omega.
  }
  change (Z.to_nat 64) with 64.
@@ -253,7 +255,7 @@ semax
     temp _n (Vint (Int.repr (Zlength dd)));
     temp _data d; temp _c c; temp _data_ d;
     temp _len (Vint (Int.repr (Z.of_nat len)));
-   var _K256 (tarray tuint CBLOCKz) kv)
+    gvar _K256 kv)
    SEP  (`(data_at Tsh t_struct_SHA256state_st
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + (Z.of_nat len)*8)),
@@ -275,7 +277,6 @@ intros.
 unfold update_outer_if.
 simplify_Delta; abbreviate_semax.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-
 forward_if (sha_update_inv sh hashed len c d dd data kv false).
 * (* then clause *)
 forward.  (* fragment = SHA_CBLOCK-n; *)
@@ -297,21 +298,19 @@ forward.  (* skip; *)
 rewrite overridePost_normal'.
 apply exp_right with nil. rewrite <- app_nil_end.
 entailer.
- rewrite negb_false_iff in H1;  apply int_eq_e in H1.
 assert (Int.unsigned (Int.repr (Zlength dd)) = Int.unsigned (Int.repr 0)) by (f_equal; auto).
-rewrite (Int.unsigned_repr 0) in H5 by repable_signed.
-rewrite Int.unsigned_repr in H5
+rewrite (Int.unsigned_repr 0) in H6 by repable_signed.
+rewrite Int.unsigned_repr in H6
  by (clear - H3; change CBLOCKz with 64%Z in H3;
   rewrite Zlength_correct in *; repable_signed).
-rewrite Zlength_correct in H5; destruct dd; inv H5.
- apply andp_right; [apply prop_right; repeat split | ].
- + exists 0%Z; reflexivity.
- +  rewrite NPeano.Nat.sub_0_r; auto.
- + rewrite <- app_nil_end.
+ rewrite Zlength_correct in H6;  destruct dd; inv H6; auto.
+ entailer!.
+ exists 0%Z; auto.
+ rewrite NPeano.Nat.sub_0_r; auto.
+ rewrite <- app_nil_end.
+ unfold_data_at 1.
+ unfold_data_at 1.
  cancel.
-   unfold_data_at 1.
-   unfold_data_at 1.
-   cancel.
 Qed.
 
 Lemma update_while_proof:
