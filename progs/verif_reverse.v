@@ -167,6 +167,40 @@ Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
             SEP (`(lseg LS sh cts1 w nullval);
                    `(lseg LS sh cts2 v nullval))).
 
+Definition reverse_Post sh contents := (EX w: val, 
+      PROP() LOCAL (temp _w w)
+      SEP( `(lseg LS sh (rev contents) w nullval))).
+
+Inductive FWD : Type :=
+| FWD_end: FWD
+| FWD_straight0: FWD -> FWD
+| FWD_straight1: forall {A: Type}, (A -> FWD) -> FWD
+| FWD_intro: forall {A: Type}, (A -> FWD) -> FWD
+| FWD_while0: forall (P Q: environ->mpred), FWD -> FWD -> FWD
+| FWD_while1: forall (P Q: environ->mpred) {A: Type}, (A -> FWD) -> FWD -> FWD.
+
+Ltac go_FWD f :=  
+  match f with
+  | FWD_end => idtac
+  | FWD_straight0 ?f' => forward; [ .. | go_FWD f']
+  | FWD_straight1 ?f1 =>
+         let x := fresh "x" in forward x; [ .. |
+         let y := constr:(f1 x) in let y' := (eval cbv beta in y) in
+         go_FWD y']  
+  | FWD_intro ?f1 => 
+         let x := fresh "x" in forward_intro x;
+         let y := constr:(f1 x) in let y' := (eval cbv beta in y) in
+         go_FWD y'  
+  | FWD_while0 ?P ?Q ?f1 ?f2 => 
+          forward_while P Q; [ | | | go_FWD f1 | go_FWD f2] 
+  | FWD_while1 ?P ?Q ?f1 ?f2 => 
+            let x := fresh "x" in forward_while P Q x;
+             [ | |
+             |  let y := constr:(f1 x) in let y' := (eval cbv beta in y) in
+                 go_FWD y' 
+             | go_FWD f2]
+  end.
+
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
 start_function.
@@ -176,10 +210,7 @@ name w_ _w.
 name t_ _t.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
-forward_while (reverse_Inv sh contents)
-     (EX w: val, 
-      PROP() LOCAL (temp _w w)
-      SEP( `(lseg LS sh (rev contents) w nullval)))
+forward_while (reverse_Inv sh contents) (reverse_Post sh contents)
       [[[cts1 cts2] w] v].
 (* precondition implies loop invariant *)
 apply exp_right with nil.
@@ -195,8 +226,7 @@ entailer!.
 rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull;
-        [entailer | intros h r y ? ?].
-simpl valinject.
+        [entailer | intros h r y ? ?; simpl valinject].
 subst cts2.
 forward.  (* t = v->tail; *)
 forward. (*  v->tail = w; *)

@@ -630,23 +630,6 @@ Ltac after_forward_call :=
           | after_forward_call2; apply revert_unit
           ].
 
-Ltac fwd_call' witness :=
- first [
-    let Pst := fresh "Pst" in
-    evar (Pst: val -> environ -> mpred);
-    apply semax_seq' with (exp Pst); unfold Pst; clear Pst;
-    [first [forward_call_id1_wow witness
-          | forward_call_id1_x_wow witness
-          | forward_call_id1_y_wow witness
-          | forward_call_id01_wow witness ]
-    | after_forward_call
-   ]
- |  eapply semax_seq'; [forward_call_id00_wow witness 
-          | after_forward_call ]
-  | rewrite <- seq_assoc; fwd_call' witness
- ].
-
-
 Ltac normalize_postcondition :=
  match goal with 
  | P := _ |- semax _ _ _ ?P =>
@@ -661,6 +644,31 @@ Ltac fwd_skip :=
    normalize_postcondition;
    first [eapply semax_pre | eapply semax_pre_simple]; 
       [ | apply semax_skip]
+ end.
+
+Ltac fwd_call' witness :=
+match goal with
+| |- semax _ _ (Scall _ _ _) _ =>
+      rewrite -> semax_seq_skip; [fwd_call' witness | try fwd_skip]
+| |- _ => revert witness; 
+              match goal with |- let _ := ?A in _ => intro;
+                      fwd_call' A 
+              end
+| |- _ =>
+ first [
+     let Pst := fresh "Pst" in
+     evar (Pst: val -> environ -> mpred);
+     apply semax_seq' with (exp Pst); unfold Pst; clear Pst;
+     [first [forward_call_id1_wow witness
+           | forward_call_id1_x_wow witness
+           | forward_call_id1_y_wow witness
+           | forward_call_id01_wow witness ]
+     | after_forward_call
+     ]
+  |  eapply semax_seq'; [forward_call_id00_wow witness 
+          | after_forward_call ]
+  | rewrite <- seq_assoc; fwd_call' witness
+  ]
  end.
 
 Definition In_the_previous_'forward'_use_an_intro_pattern_of_type (t: Type) := False.
