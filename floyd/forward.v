@@ -612,7 +612,25 @@ change (@app Prop)
   end);
 cbv beta iota.
 
-Ltac forward_call' witness :=
+Lemma revert_unit: forall (P: Prop), (forall u: unit, P) -> P.
+Proof. intros. apply (H tt).
+Qed.
+
+Ltac after_forward_call2 :=
+      cbv beta iota; 
+      try rewrite <- no_post_exists0;
+      unfold_map_liftx_etc;
+      fold (@map (lift_T (LiftEnviron mpred)) (LiftEnviron mpred) liftx); 
+      simpl_strong_cast;
+      abbreviate_semax.
+
+Ltac after_forward_call :=
+  first [apply extract_exists_pre; 
+             let v := fresh "v" in intro v; after_forward_call2; revert v
+          | after_forward_call2; apply revert_unit
+          ].
+
+Ltac fwd_call' witness :=
  first [
     let Pst := fresh "Pst" in
     evar (Pst: val -> environ -> mpred);
@@ -621,25 +639,60 @@ Ltac forward_call' witness :=
           | forward_call_id1_x_wow witness
           | forward_call_id1_y_wow witness
           | forward_call_id01_wow witness ]
-    | apply extract_exists_pre; intros ?vret;
-      cbv beta iota; 
-      unfold_map_liftx_etc;
-      fold (@map (lift_T (LiftEnviron mpred)) (LiftEnviron mpred) liftx); 
-      simpl_strong_cast;
-      abbreviate_semax;
-      repeat (apply semax_extract_PROP; intro)
+    | after_forward_call
    ]
- |  eapply semax_seq';
-    [forward_call_id00_wow witness
-    | cbv beta iota; 
-      try rewrite <- no_post_exists0;
-      unfold_map_liftx_etc;
-      fold (@map (lift_T (LiftEnviron mpred)) (LiftEnviron mpred) liftx); 
-      abbreviate_semax;
-      repeat (apply semax_extract_PROP; intro)
-     ]
-  | rewrite <- seq_assoc; forward_call' witness
+ |  eapply semax_seq'; [forward_call_id00_wow witness 
+          | after_forward_call ]
+  | rewrite <- seq_assoc; fwd_call' witness
  ].
+
+
+Ltac normalize_postcondition :=
+ match goal with 
+ | P := _ |- semax _ _ _ ?P =>
+     unfold P, abbreviate; clear P; normalize_postcondition
+ | |- semax _ _ _ (normal_ret_assert _) => idtac
+ | |- _ => apply sequential
+  end;
+ autorewrite with ret_assert.
+
+Ltac fwd_skip :=
+ match goal with |- semax _ _ Sskip _ =>
+   normalize_postcondition;
+   first [eapply semax_pre | eapply semax_pre_simple]; 
+      [ | apply semax_skip]
+ end.
+
+Definition In_the_previous_'forward_call'_use_an_intro_pattern_of_type (t: Type) := False.
+
+Tactic Notation "forward_call'" constr(witness) :=
+    fwd_call' witness;
+   [ .. | 
+    first [intros _
+    | match goal with |- ?t -> _ => 
+          elimtype False; fold (In_the_previous_'forward_call'_use_an_intro_pattern_of_type t)
+      end
+    ];
+   repeat (apply semax_extract_PROP; intro);
+   try fwd_skip
+   ].
+
+Tactic Notation "forward_call'" constr(witness) simple_intropattern(v1) :=
+    fwd_call' witness;
+  [ .. 
+  | intros v1;
+  repeat (apply semax_extract_PROP; intro);
+  abbreviate_semax;
+  try fwd_skip].
+
+Lemma seq_assoc2:
+  forall (Espec: OracleKind)  Delta P c1 c2 c3 c4 Q,
+  semax Delta P (Ssequence (Ssequence c1 c2) (Ssequence c3 c4)) Q ->
+  semax Delta P (Ssequence (Ssequence (Ssequence c1 c2) c3) c4) Q.
+Proof.
+intros.
+ rewrite <- seq_assoc. auto.
+Qed.
 
 Lemma semax_call_id1_x_alt:
  forall Espec Delta P Q R ret ret' id (paramty: typelist) (retty retty': type) (bl: list expr)
@@ -1124,6 +1177,11 @@ Ltac normalize :=
     floyd.client_lemmas.normalize
   end.
 
+Tactic Notation "forward_intro" simple_intropattern(v) :=
+ match goal with |- _ -> _ => idtac | |- _ => normalize end;
+ first [apply extract_exists_pre | apply exp_left | idtac];
+ intros v.
+
 Lemma eqb_ident_true: forall i, eqb_ident i i = true.
 Proof.
 intros; apply Pos.eqb_eq. auto.
@@ -1329,15 +1387,6 @@ Ltac forward_call_complain W :=
  | |- semax ?Delta _ (Scall _ (Evar ?id ?ty) _) _ =>
        forward_call_complain' Delta id ty W
   end.
-
-Ltac normalize_postcondition :=
- match goal with 
- | P := _ |- semax _ _ _ ?P =>
-     unfold P, abbreviate; clear P; normalize_postcondition
- | |- semax _ _ _ (normal_ret_assert _) => idtac
- | |- _ => apply sequential
-  end;
- autorewrite with ret_assert.
 
 Lemma elim_useless_retval:
  forall Espec Delta P Q (F: val -> Prop) (G: mpred) R c Post,
@@ -2486,11 +2535,6 @@ end.
 
 Ltac forward' := forward_with forward1; try unfold repinject.
 
-
-Lemma revert_unit: forall (P: Prop), (forall u: unit, P) -> P.
-Proof. intros. apply (H tt).
-Qed.
-
 Ltac fwd_result :=
   unfold replace_nth, repinject; cbv beta;
   first
@@ -2502,23 +2546,6 @@ Ltac fwd_result :=
      revert v
    | apply revert_unit
    ].
-
-Lemma seq_assoc2:
-  forall (Espec: OracleKind)  Delta P c1 c2 c3 c4 Q,
-  semax Delta P (Ssequence (Ssequence c1 c2) (Ssequence c3 c4)) Q ->
-  semax Delta P (Ssequence (Ssequence (Ssequence c1 c2) c3) c4) Q.
-Proof.
-intros.
- rewrite <- seq_assoc. auto.
-Qed.
-
-Ltac fwd_skip :=
- match goal with |- semax _ _ Sskip _ =>
-   normalize_postcondition;
-   (* autorewrite with ret_assert; *)
-   first [eapply semax_pre | eapply semax_pre_simple]; 
-      [ | apply semax_skip]
- end.
 
 Ltac fwd' :=
  match goal with

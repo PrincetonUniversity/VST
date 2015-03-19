@@ -146,7 +146,6 @@ simpl in HRE. simpl @fst; simpl @snd.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
 simpl valinject.
-unfold POSTCONDITION, abbreviate.
 destruct cts; inv H.
 rewrite list_cell_eq.
 forward.  (* h = t->head; *)
@@ -226,7 +225,7 @@ entailer!.
       apply exp_right with w.
       entailer!.
 * (* after the loop *)
-apply extract_exists_pre; intro w.
+forward_intro w.
 forward.  (* return w; *)
 apply exp_right with w_; entailer!.
 Qed.
@@ -385,18 +384,17 @@ Proof.
 name r _r.
 name s _s.
 start_function.
-normalize; intro x'; normalize; intro x''; normalize. (* shouldn't be necessary - fix Ltac simpl_main_pre' *)
+forward_intro x'; forward_intro x''.  (* shouldn't be necessary - fix Ltac simpl_main_pre' *)
+normalize.
 assert_PROP (x''=x); [entailer!; eapply gvar_uniq; eauto | drop_LOCAL 0%nat; subst x''].
 assert_PROP (x'=x); [entailer!; eapply gvar_uniq; eauto | drop_LOCAL 0%nat; subst x'].
 eapply semax_pre; [
   eapply derives_trans; [ | apply (setup_globals x) ] | ].
  entailer!.
 forward_call' (*  r = reverse(three); *)
-  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], x).
-rename vret into r'.
+  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], x) r'.
 forward_call'  (* s = sumlist(r); *)
-   (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r').
-rename vret into s'.
+   (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r') s'.
 forward.  (* return s; *)
 Qed.
 

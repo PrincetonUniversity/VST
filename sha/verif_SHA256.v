@@ -28,12 +28,10 @@ forward_call' (* SHA256_Init(&c); *)
    (c).
 
 forward_call' (* SHA256_Update(&c,d,n); *)
-  (init_s256abs,data,c,d,dsh, Zlength data, kv).
+  (init_s256abs,data,c,d,dsh, Zlength data, kv) a.
  repeat split; try repable_signed.
  pose proof (Zlength_nonneg data); omega.
  simpl. apply H0.
- apply extract_exists_pre; intro a.
- normalize.
 
 forward_call' (* SHA256_Final(md,&c); *)
     (a,md,c,msh,kv).
@@ -45,6 +43,6 @@ clear - H2.
 inv H2.
 simpl in *.
 rewrite <- H8.
-rewrite firstn_same by (clear; omega).
-auto.
+rewrite firstn_same; auto.
+rewrite Zlength_correct. rewrite Nat2Z.id. omega.
 Qed.

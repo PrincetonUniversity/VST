@@ -107,7 +107,8 @@ Proof.
   rewrite <- H1.
   forward. (* c->num=0; *)
   forward_call' (* memset (p,0,SHA_CBLOCK); *) 
-    (Tsh, (field_address t_struct_SHA256state_st [StructField _data] c), 64%Z, Int.zero).
+    (Tsh, (field_address t_struct_SHA256state_st [StructField _data] c), 64%Z, Int.zero)
+    vret.
   {
     entailer!.
     pull_left (data_at Tsh (tarray tuchar (Zlength (intlist_to_Zlist lastblock)))

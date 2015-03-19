@@ -227,13 +227,6 @@ assert (X := @list_cell_eq). entailer.
 cancel.
 Qed.
 
-Ltac intro_ex_semax :=
-(match goal with 
-   | |- semax _ (exp (fun y => _)) _ _  =>
-       apply extract_exists_pre; let y':=fresh y in intro y'
-end).
-
-
 Lemma eval_id_initialized : forall v id rho t,
 is_true (typecheck_val v t) ->
 v = eval_id id rho ->
@@ -396,10 +389,8 @@ rewrite insert_reorder. rewrite IHl. auto.
 Qed.
 
 rewrite insert_insertion_sort. cancel.
-
-unfold body_invariant.
-
-apply extract_exists_pre. intro sorted_list.
+unfold body_post.
+forward_intro sorted_list.
 forward.
 Qed.
 

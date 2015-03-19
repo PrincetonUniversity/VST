@@ -35,16 +35,15 @@ name p _p.
 name n _n.
 name cNl _cNl.
 name cNh _cNh.
-unfold sha256state_; normalize.
-intros [r_h [r_Nl [r_Nh [r_data r_num]]]].
+unfold sha256state_.
+forward_intro [r_h [r_Nl [r_Nh [r_data r_num]]]].
 unfold_data_at 1%nat.
 normalize.
 unfold s256_relate in H0.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
-destruct a as [hashed data].
-destruct H0 as [H0 [H1 [H2 [[H3 DDbytes] [H4 H5]]]]].
-destruct H1.
-subst r_Nh r_Nl r_num r_data. rename data into dd.
+destruct a as [hashed dd].
+destruct H0 as [H0 [[H1 H6] [H2 [[H3 DDbytes] [H4 H5]]]]].
+subst r_Nh r_Nl r_num r_data.
 assert (H3': (Zlength dd < 64)%Z) by assumption.
 forward. (* p = c->data;  *)
 (* This proof should be a lot nicer. *)
@@ -96,9 +95,8 @@ forward_if   (invariant_after_if1 hashed dd c md shmd kv).
 * (* then-clause *)
  change Delta with Delta_final_if1.
 match goal with |- semax _ _ ?c _ => change c with Body_final_if1 end.
- simpl typeof.
-unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
- make_sequential. rewrite overridePost_normal'.
+  make_sequential.
+  normalize_postcondition.
 unfold ddlen in *; clear ddlen.
 assert (Zlength dd + 1 > 16 * 4 - 8) by omega.
 eapply semax_pre0; 
@@ -134,16 +132,15 @@ rewrite upd_reptype_array_append
   by (rewrite !Zlength_map; auto).
 entailer!.
 * unfold invariant_after_if1.
-apply extract_exists_pre; intro hashed'.
-apply extract_exists_pre; intro dd'.
-apply extract_exists_pre; intro pad.
+forward_intro hashed'.
+forward_intro dd'.
+forward_intro pad.
 apply semax_extract_PROP; intro DDbytes'.
 apply semax_extract_PROP; intro PAD.
 normalize.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 unfold sha_finish.
 unfold SHA_256.
-(* clear ddlen Hddlen. *)
 
     unfold_data_at 1%nat.
     replace (field_at Tsh t_struct_SHA256state_st [StructField _data]
@@ -182,7 +179,7 @@ forward_call' (* memset (p+n,0,SHA_CBLOCK-8-n); *)
      field_address t_struct_SHA256state_st
          [ArraySubsc (Zlength dd'); StructField _data] c, 
      (Z.of_nat CBLOCK - 8 - Zlength dd')%Z,
-     Int.zero).
+     Int.zero) vret.
  apply prop_right; repeat constructor; hnf; simpl; auto.
  rewrite field_address_clarify by auto.
  rewrite field_address_clarify by auto.

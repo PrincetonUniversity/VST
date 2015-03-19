@@ -166,7 +166,8 @@ start_function.
 name Q _Q.
 name h _h.
 unfold fifo.
-normalize. intros [hd tl]. normalize.
+forward_intro [hd tl].
+normalize.
 forward. (* h = Q->head; *)
 forward. (* return (h == NULL); *)
 
@@ -179,15 +180,6 @@ destruct (isnil contents).
 * normalize.
  destruct prefix; entailer; elim_hyps; simpl; apply prop_right; auto.
 Qed.
-
-(*
-Lemma A: forall v, is_int v \/ isptr v -> force_val (sem_cast tint tint v) = v.
-intros.
-simpl sem_cast.
-unfold sem_cast_neutral.
-destruct v; simpl in H; try tauto.
-Qed.
-*)
 
 Lemma natural_align_compatible_t_struct_fifo:
   forall q, natural_align_compatible q -> align_compatible t_struct_fifo q.
@@ -212,9 +204,9 @@ Proof.
   name Q _Q.
   name Q' _Q'.
  
-  forward_call' (Int.repr 8). (* Q = mallocN(sizeof ( *Q)); *)
-  computable.
-  rename vret into q.
+  forward_call' (* Q = mallocN(sizeof ( *Q)); *)
+     (Int.repr 8) q.
+    computable.
   rewrite memory_block_fifo by auto.
   forward. (* Q->head = NULL; *)
   (* goal_4 *)
@@ -237,7 +229,7 @@ name p' _p.
 name h _h.
 name t _t.
 unfold fifo at 1.
-normalize. intros [hd tl]. normalize.
+forward_intro [hd tl]. normalize.
 (* goal_7 *)
 
 forward. (* p->next = NULL; *)
@@ -295,9 +287,9 @@ name Q _Q.
 name h _h.
 name n _n.
 unfold fifo at 1.
-normalize. intros [hd tl].
+forward_intro [hd tl].
 rewrite if_false by congruence.
-normalize. intro prefix. normalize.
+forward_intro prefix. normalize.
 forward. (*   p = Q->head; *)
 destruct prefix; inversion H1; clear H1.
 + subst_any.
@@ -313,8 +305,7 @@ destruct prefix; inversion H1; clear H1.
    rewrite if_true by congruence.
    entailer!.
 + rewrite links_cons_eq.
-    normalize. intro.
-    normalize.
+    forward_intro x. normalize.
     simpl valinject. (* can we make this automatic? *)
     subst_any.
     forward. (*  n=h->next; *)
@@ -336,13 +327,9 @@ name b _b.
 name p _p.
 name p' _p'.
 forward_call' (*  p = mallocN(sizeof ( *p));  *) 
-  (Int.repr 12).
-computable.
-rename vret into p0.
-eapply semax_pre0 with (PROP  ()
-      LOCAL  (temp _a (Vint a0); temp _b (Vint b0); temp _p p0)
-      SEP 
-      (`(data_at_ Tsh t_struct_elem p0))).
+  (Int.repr 12) p0.
+ computable.
+replace_SEP 0 (`(data_at_ Tsh t_struct_elem p0)).
   entailer!.
   rewrite <- memory_block_data_at_;
    [auto | reflexivity  | reflexivity | reflexivity
@@ -366,26 +353,22 @@ name j _j.
 name Q _Q.
 name p _p.
 
-forward_call' (* Q = fifo_new(); *)  tt.
-rename vret into q.
+forward_call' (* Q = fifo_new(); *)  tt q.
 
 forward_call'  (*  p = make_elem(1,10); *)
-     (Int.repr 1, Int.repr 10).
-rename vret into p'.
+     (Int.repr 1, Int.repr 10) p'.
 unfold elemrep; normalize.
 
 forward_call' (* fifo_put(Q,p);*) 
     ((q, @nil val),p').
 forward_call'  (*  p = make_elem(2,20); *)
-     (Int.repr 2, Int.repr 20).
-rename vret into p2.
+     (Int.repr 2, Int.repr 20) p2.
  forward_call'  (* fifo_put(Q,p); *)
     ((q,(p':: nil)),p2).
  unfold elemrep; entailer; cancel.
 simpl.
 forward_call'  (*   p' = fifo_get(Q); p = p'; *)
-    ((q,(p2 :: nil)),p').
-subst vret.
+    ((q,(p2 :: nil)),p') vret.
 forward. (*   i = p->a;  *)
 forward. (*   j = p->b; *)
 
