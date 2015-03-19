@@ -1026,11 +1026,7 @@ Proof.
   (map (fun idt : ident * type => @var_block Share.top (cs_tycon Delta) idt) (fn_vars f)) rho) 
   with (fold_right (@sepcon _ _ _ _ _) emp (map (fun idt : ident * type => @var_block Share.top (cs_tycon Delta) idt rho) (fn_vars f))).
  2: clear; induction (fn_vars f); simpl; f_equal; auto.
-<<<<<<< HEAD
- unfold var_block; simpl. unfold eval_var.
-=======
  unfold var_block. simpl. unfold eval_lvar.
->>>>>>> master
   rewrite H0. unfold make_venv. forget (ge_of rho) as ZZ. rewrite H0 in H7; clear rho H0.
  revert ve H1 H7; induction (fn_vars f); simpl; intros.
  case_eq (PTree.elements ve); simpl; intros; auto.
@@ -1183,7 +1179,6 @@ Lemma can_free_list:
     (F * @stackframe_of (cs_tycon Delta) f (construct_rho (filter_genv ge)ve te))%pred (m_phi jm) ->
    exists m2, free_list (m_dry jm) (blocks_of_env ge ve) = Some m2.
 Proof.
-<<<<<<< HEAD
   intros.
   destruct H0 as [? [? [? [_ ?]]]].
   unfold stackframe_of in H1.
@@ -1273,7 +1268,7 @@ Proof.
   simpl in H3.
   assert (0 <= sizeof (composite_types Delta) t) by (pose proof (sizeof_pos (composite_types Delta) t); omega).
   simpl in H5.
-  unfold eval_var, Map.get in H3. simpl in H3.
+  unfold eval_lvar, Map.get in H3. simpl in H3.
   unfold make_venv in H3.
   rewrite (Hve id (b,t)) in H3 by (left; auto).
   rewrite eqb_type_refl in H3.
@@ -1359,175 +1354,6 @@ Proof.
     simpl in H11.
     rewrite <- sizeof_guard_genv with (Delta := Delta), H8 by eauto.
     exists m4; auto.
-=======
-intros.
-destruct H0 as [? [? [? [_ ?]]]].
-unfold stackframe_of in H1.
-unfold blocks_of_env in *.
-destruct H as [_ [H _]]; clear - NOREP H H0 H1. simpl in H.
-pose (F vl := (fold_right
-        (fun (P Q : environ -> pred rmap) (rho : environ) => P rho * Q rho)
-        (fun _ : environ => emp)
-        (map (fun idt : ident * type => var_block Share.top idt) vl))).
-change ((F (fn_vars f)  (construct_rho psi ve te)) x0) in H1.
-assert (forall id b t, In (id,(b,t)) (PTree.elements ve) -> 
-              In (id,t) (fn_vars f)). { 
- intros.
-  apply PTree.elements_complete in  H2.
-  specialize (H id); unfold make_venv in H; rewrite H2 in H.
-   apply H.
-}
-clear H.
-assert (Hve: forall i bt, In (i,bt) (PTree.elements ve) -> ve ! i = Some bt).
-apply PTree.elements_complete.
-assert (NOREPe: list_norepet (map (@fst _ _) (PTree.elements ve)))
-  by apply PTree.elements_keys_norepet.
-forget (PTree.elements ve) as el. 
-rename x0 into phi.
-assert (join_sub phi (m_phi jm)).
-econstructor; eauto.
-clear H0.
-forget (fn_vars f) as vl.
-revert vl phi jm H H1 H2 Hve NOREP NOREPe; induction el; intros;
-  [ solve [simpl; eauto] | ].
-simpl in H2.
-destruct a as [id [b t]]. simpl in NOREPe,H2|-*.
-assert (H2': In (id,t) vl).
-apply H2 with b. auto.
-specialize (IHel (filter (fun idt => negb (eqb_ident (fst idt) id)) vl)).
-replace (F vl (construct_rho psi ve te))
- with  (var_block Share.top (id,t)  (construct_rho psi ve te) 
-               * F (filter (fun idt => negb (eqb_ident (fst idt) id)) vl) (construct_rho psi ve te)) in H1.
-Focus 2. {
-clear - H2' NOREP.
-induction vl; inv H2'.
-simpl in NOREP.
-inv NOREP.
-unfold F; simpl fold_right.
-f_equal.
-f_equal.
-f_equal.
-replace (eqb_ident id id) with true
-  by (symmetry; apply (eqb_ident_spec id id); auto).
-simpl.
-clear - H1.
-induction vl; simpl; auto.
-replace (negb (eqb_ident (fst a) id)) with true.
-f_equal.
-apply IHvl.
-contradict H1. right; auto.
-pose proof (eqb_ident_spec (fst a) id).
-destruct (eqb_ident (fst a) id) eqn:?; auto.
-elimtype False; apply H1. left. rewrite <- H; auto.
-transitivity 
- (var_block Share.top a (construct_rho psi ve te) * 
-     F vl (construct_rho psi ve te)); [ | reflexivity].
-inv NOREP.
-rewrite <- IHvl; auto.
-repeat rewrite <- sepcon_assoc.
-simpl filter.
-replace (eqb_ident (fst a) id) with false.
-simpl.
-unfold F at 1.
-simpl.
-symmetry; 
-rewrite (sepcon_comm (var_block _ _ _ )).
-repeat rewrite sepcon_assoc.
-reflexivity.
-pose proof (eqb_ident_spec (fst a) id).
-destruct (eqb_ident (fst a) id); auto.
-assert (fst a = id) by (apply H0; auto).
-subst id.
-contradiction H2.
-replace (fst a) with (fst (fst a, t)) by reflexivity.
-apply in_map; auto.
-} Unfocus.
-pose (H0:=True).
-destruct H1 as [phi1 [phi2 [? [? ?]]]].
-
-unfold var_block, eval_lvar in H3.
-normalize in H3.
-simpl in H3.
-assert (0 <= sizeof t) by (pose proof (sizeof_pos t); omega).
-simpl in H5.
-unfold Map.get in H3. simpl in H3.
-unfold make_venv in H3.
-rewrite (Hve id (b,t)) in H3 by (left; auto).
-rewrite eqb_type_refl in H3.
-(*destruct (type_is_volatile t) eqn:?; try (simpl in H3; tauto).*)
-simpl in H3; destruct H3 as [[H99 H98] H3].
-rewrite Int.unsigned_repr in H3 by omega.
-change nat_of_Z with Z.to_nat in H3.
-rewrite memory_block'_eq in H3; 
- try rewrite Int.unsigned_zero; try omega.
-2: rewrite Z.add_0_r; rewrite Z2Nat.id by omega; auto.
-unfold memory_block'_alt in H3.
-rewrite Int.unsigned_zero in H3.
-rewrite Share.contains_Lsh_e in H3 by apply top_correct'.
-rewrite Share.contains_Rsh_e in H3 by apply top_correct'.
-rewrite Z2Nat.id in H3 by omega.
-destruct H3 as [_ ?H].
-assert (join_sub phi1 (m_phi jm)) as H7
- by ( apply join_sub_trans with phi; auto; eexists; eauto).
-pose I as H6.
-destruct (VALspec_range_free _ _ _ _ H3 H7)
- as [m3 ?H].
-pose (jm3 := free_juicy_mem _ _ _ _ _ H8).
-destruct H7 as [phi3 H7].
-assert (phi3 = m_phi jm3).
-apply join_comm in H7.
-eapply join_canc. apply H7.
-apply join_comm.
-apply (@juicy_free_lemma _ _ _ _ _ phi1 H8).
-rewrite Z.sub_0_r; auto.
-apply join_comm in H7. apply join_core in H7; auto.
-intros.
-apply (resource_at_join _ _ _ l) in H7.
-rewrite H9 in H7.
-clear - H7.
-inv H7. do 3 eexists; split3; eauto. eexists; eauto. apply join_sub_refl.
-do 3 eexists; split3; eauto. eexists; eauto. eexists; eauto.
-subst phi3.
-assert (join_sub phi2 (m_phi jm3)).
-destruct H as [phix H].
-destruct (join_assoc (join_comm H1) H) as [phi7 [? ?]].
-eapply crosssplit_wkSplit.
-apply H7. apply H10.
-exists phi; auto.
-destruct (IHel phi2 jm3 H9) as [m4 ?]; auto; clear IHel.
-intros. 
-specialize (H2 id0 b0 t0).
-spec H2; [ auto |].
-assert (id0 <> id).
-clear - NOREPe H10.
-inv NOREPe. intro; subst.
-apply H1. change id with (fst (id,(b0,t0))); apply in_map; auto.
-clear - H2 H11.
-induction vl; simpl in *; auto.
-destruct H2. subst a. simpl.
-replace (eqb_ident id0 id) with false; simpl; auto.
-pose proof (eqb_ident_spec id0 id); destruct (eqb_ident id0 id); simpl in *; auto.
-contradiction H11; apply H; auto.
-pose proof (eqb_ident_spec (fst a) id); destruct (eqb_ident (fst a) id); simpl in *; auto.
-intros; eapply Hve; eauto.
-right; auto.
-clear - NOREP.
-induction vl; simpl; auto.
-pose proof (eqb_ident_spec (fst a) id); destruct (eqb_ident (fst a) id); simpl in *; auto.
-assert (fst a = id) by ( apply H; auto); subst.
-apply IHvl; inv NOREP; auto.
-inv NOREP.
-constructor; auto.
-clear - H2.
-contradict H2.
-induction vl; simpl in *; auto.
-destruct (eqb_ident (fst a0) id); simpl in *; auto.
-destruct H2; auto.
-inv NOREPe; auto.
-rewrite H8.
-exists m4; auto.
-change (Int.unsigned Int.zero) with 0 in H3. omega.
->>>>>>> master
 Qed.
 
 Lemma necR_m_dry':
@@ -2384,15 +2210,9 @@ rename H4 into COMPLETE_HD.
 eapply IHvars; eauto. clear IHvars.
 (* pose proof (juicy_mem_alloc_succeeds _ _ _ _ _ H2). *)
 pose proof I.
-<<<<<<< HEAD
-unfold var_block.
-simpl sizeof; simpl typeof. simpl eval_lvalue.
- unfold eval_var. simpl Map.get. simpl ge_of.
-=======
 unfold var_block, eval_lvar.
 simpl sizeof; simpl typeof.
 simpl Map.get. simpl ge_of.
->>>>>>> master
 assert (Map.get (make_venv ve) id = Some (b,ty)). {
  clear - H0 H5.
  unfold Map.get, make_venv.
