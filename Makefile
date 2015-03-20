@@ -153,7 +153,7 @@ SHA_FILES= \
   bdo_lemmas.v verif_sha_bdo.v verif_sha_bdo2.v \
   verif_sha_bdo4.v verif_sha_bdo7.v verif_sha_bdo8.v \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
-  verif_addlength.v verif_SHA256.v
+  verif_addlength.v verif_SHA256.v call_memcpy.v
 
 HMAC_FILES= \
   HMAC_functional_prog.v vst_lemmas.v hmac_pure_lemmas.v hmac_common_lemmas.v \
