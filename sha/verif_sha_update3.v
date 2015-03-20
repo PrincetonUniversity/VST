@@ -3,6 +3,7 @@ Require Import sha.sha.
 Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
+Require Import sha.call_memcpy.
 Require Import sha.verif_sha_update2.
 Local Open Scope nat.
 Local Open Scope logic.
