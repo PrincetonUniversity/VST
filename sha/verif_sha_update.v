@@ -6,6 +6,7 @@ Require Import sha.sha_lemmas.
 Require Import sha.verif_sha_update2.
 Require Import sha.verif_sha_update3.
 Require Import sha.verif_sha_update4.
+Require Import sha.call_memcpy.
 Local Open Scope nat.
 Local Open Scope logic.
 
