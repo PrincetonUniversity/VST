@@ -7,6 +7,7 @@ Local Open Scope logic.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.HMAC_functional_prog.
+Require Import sha.HMAC256_functional_prog.
 Require Import sha.spec_hmac.
 Require Import vst_lemmas.
 Require Import hmac_pure_lemmas.
@@ -80,8 +81,8 @@ normalize. rename H into HC; rewrite HC. rename H0 into R.
 apply seq_assoc.
 
 remember (EX iSA:_, EX iS:_, EX oSA:_, EX oS:_,
-          PROP  (innerShaInit (map Byte.repr (HP.HMAC_SHA256.mkKey key)) iSA /\ s256_relate iSA iS /\
-                 outerShaInit (map Byte.repr (HP.HMAC_SHA256.mkKey key)) oSA /\ s256_relate oSA oS)
+          PROP  (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)) iSA /\ s256_relate iSA iS /\
+                 outerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)) oSA /\ s256_relate oSA oS)
                  LOCAL  (
                  `(eq pad) (eval_var _pad (tarray tuchar 64));
                  `(eq (Vptr cb cofs)) (eval_id _ctx);
@@ -150,7 +151,7 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
    (`(field_at Tsh t_struct_hmac_ctx_st [StructField _key_length] (Vint ii)
         (Vptr cb cofs));
    `(field_at Tsh t_struct_hmac_ctx_st [StructField _key]
-       (map Vint (map Int.repr (HP.HMAC_SHA256.mkKey key))) (Vptr cb cofs));
+       (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr cb cofs));
    `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
    `(data_at Tsh
        (nested_field_type2 t_struct_hmac_ctx_st [StructField _i_ctx]) iS
@@ -187,7 +188,7 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
      { assert (FR: Frame = [
           `(field_at Tsh t_struct_hmac_ctx_st [StructField _key_length] (Vint ii) (Vptr cb cofs)); 
           `(field_at Tsh t_struct_hmac_ctx_st [StructField _key]
-               (map Vint (map Int.repr (HP.HMAC_SHA256.mkKey key))) (Vptr cb cofs));
+               (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr cb cofs));
           `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
           `(data_at_ Tsh (tarray tuchar 64) pad); `(K_vector KV)]).
           subst Frame. reflexivity.
@@ -226,7 +227,7 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
             else Vint (Int.repr (Zlength key))) as kl.
       normalize.
       apply exp_right with
-        (x:=(iS, (iS, (oS, (kl, map Vint (map Int.repr (HP.HMAC_SHA256.mkKey key))))))).
+        (x:=(iS, (iS, (oS, (kl, map Vint (map Int.repr (HMAC_SHA256.mkKey key))))))).
       simpl.
       apply andp_right. apply prop_right. repeat split; trivial.
       destruct (zlt 64 (Zlength key)); simpl in *.
@@ -272,7 +273,7 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
             else Vint (Int.repr (Zlength key))) (Vptr cb cofs));
           `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
           `(field_at Tsh t_struct_hmac_ctx_st [StructField _key]
-              (map Vint (map Int.repr (HP.HMAC_SHA256.mkKey key))) (Vptr cb cofs));
+              (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr cb cofs));
           `(field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] iS (Vptr cb cofs));
           `(data_at_ Tsh (tarray tuchar 64) pad);
           `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
@@ -314,7 +315,7 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
               else Vint (Int.repr (Zlength key))) (Vptr cb cofs));
         `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
         `(field_at Tsh t_struct_hmac_ctx_st [StructField _key]
-            (map Vint (map Int.repr (HP.HMAC_SHA256.mkKey key))) (Vptr cb cofs));
+            (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr cb cofs));
         `(data_at Tsh
             (nested_field_type2 t_struct_hmac_ctx_st [StructField _i_ctx]) iS
             (field_address t_struct_hmac_ctx_st [StructField _i_ctx]
@@ -350,7 +351,7 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
              else Vint (Int.repr (Zlength key))) (Vptr cb cofs));
          `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
          `(field_at Tsh t_struct_hmac_ctx_st [StructField _key]
-            (map Vint (map Int.repr (HP.HMAC_SHA256.mkKey key))) (Vptr cb cofs));
+            (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr cb cofs));
          `(data_at_ Tsh (tarray tuchar 64) pad);
          `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
             (Vptr kb kofs)); `(K_vector KV)]).
@@ -375,7 +376,7 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
               else Vint (Int.repr (Zlength key))) as kl.
     normalize.
     apply exp_right with
-      (x:=(iS, (iS, (oS, (kl, map Vint (map Int.repr (HP.HMAC_SHA256.mkKey key))))))).
+      (x:=(iS, (iS, (oS, (kl, map Vint (map Int.repr (HMAC_SHA256.mkKey key))))))).
     simpl. entailer.
     apply andp_right. apply prop_right.
       split. rewrite (updAbs_len _ _ _ INNER), Zlength_mkArgZ,

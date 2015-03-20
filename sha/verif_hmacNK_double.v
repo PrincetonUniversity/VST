@@ -12,6 +12,7 @@ Local Open Scope logic.
 Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
+Require Import sha.HMAC256_functional_prog.
 
 Require Import sha.hmac_NK.
 
@@ -46,7 +47,7 @@ Definition HMAC_Double_spec :=
              `(memory_block shmd (Int.repr 64) md))
   POST [ tvoid ] 
          EX digest:_, 
-          PROP (digest = HP.HMAC256 (CONT MSG) (CONT KEY))
+          PROP (digest = HMAC256 (CONT MSG) (CONT KEY))
           LOCAL ()
           SEP(`(K_vector KV);
               `(data_block shmd (digest++digest) md);
@@ -369,10 +370,10 @@ apply andp_right. apply prop_right. split; trivial.
 apply andp_right. apply prop_right. trivial. cancel.
 rewrite sepcon_assoc. rewrite sepcon_comm.
 apply sepcon_derives.
-  assert (D1: dig = HP.HMAC256 data key).
+  assert (D1: dig = HMAC256 data key).
      apply hmac_sound with (h:=h2).
      exists h0, h1. auto.
-  assert (D2: dig2 = HP.HMAC256 data key).
+  assert (D2: dig2 = HMAC256 data key).
      eapply hmac_sound with (h:=h5).
      exists h3, h4. auto.
 

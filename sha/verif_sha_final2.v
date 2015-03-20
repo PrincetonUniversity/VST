@@ -560,7 +560,7 @@ forward_for_simple_bound 8
         with (gfs := []) (lo := (i * 4)%Z) (hi := (i * 4 + 4)%Z);
         [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | ].
       Focus 2. {
-        rewrite !common_lemmas.Zlength_map.
+        rewrite !Zlength_map.
         rewrite Zlength_intlist_to_Zlist.
         rewrite Zlength_correct, firstn_length.
         rewrite min_l by omega.
@@ -568,7 +568,7 @@ forward_for_simple_bound 8
         rewrite Z2Nat.id by omega. auto.
       } Unfocus.
       Focus 2. {
-        rewrite !common_lemmas.Zlength_map.
+        rewrite !Zlength_map.
         rewrite Zlength_intlist_to_Zlist.
         change (WORD * Zlength [w])%Z with 4.
         omega.

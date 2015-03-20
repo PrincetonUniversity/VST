@@ -1,19 +1,15 @@
-
 Require Import Arith.
-
 Require Import Integers.
 Require Import Coqlib.
 Require Import List.
 Require Import List. Import ListNotations.
-Definition Blist := list bool.
 
 Definition asZ (x : bool) : Z := if x then 1 else 0.
 
 Lemma asZT: asZ true = 1. reflexivity. Qed.
 Lemma asZF: asZ false = 0. reflexivity. Qed.
 
-
-Definition convertByteBits (bits : Blist) (byte : Z) : Prop :=
+Definition convertByteBits bits (byte : Z) : Prop :=
   exists (b0 b1 b2 b3 b4 b5 b6 b7 : bool),
    bits = [b0; b1; b2; b3; b4; b5; b6; b7] /\
    byte =  (1 * (asZ b0) + 2 * (asZ b1) + 4 * (asZ b2) + 8 * (asZ b3)
@@ -160,7 +156,6 @@ Proof.
         }
       }
 Qed.
-
 
 Lemma xor_correspondence :
   forall (b0 b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15 : bool)

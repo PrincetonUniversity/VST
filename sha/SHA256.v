@@ -8,6 +8,7 @@ Require Import Coqlib.
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
 Require Import List. 
+Require Import general_lemmas.
 
 (* THIS BLOCK OF STUFF is not needed to define SHA256,
   but is useful for reasoning about it *)
@@ -16,7 +17,6 @@ Definition WORD : Z := 4.  (* length of a word, in bytes *)
 Definition CBLOCKz : Z := (LBLOCKz * WORD)%Z. (* length of a block, in characters *)
 Definition hi_part (z: Z) := Int.repr (z / Int.modulus).
 Definition lo_part (z: Z) := Int.repr z.
-Definition isbyteZ (i: Z) := (0 <= i < 256)%Z.
 
 Fixpoint little_endian_integer (contents: list int) : int :=
  match contents with 
@@ -48,17 +48,6 @@ Fixpoint str_to_Z (str : string) : list Z :=
     |EmptyString => nil
     |String c s => Z.of_N (N_of_ascii c) :: str_to_Z s
     end.
-
-(*combining four Z into a Integer*)
-Definition Z_to_Int (a b c d : Z) : Int.int :=
-  Int.or (Int.or (Int.or (Int.shl (Int.repr a) (Int.repr 24)) (Int.shl (Int.repr b) (Int.repr 16)))
-            (Int.shl (Int.repr c) (Int.repr 8))) (Int.repr d).
-
-Fixpoint Zlist_to_intlist (nl: list Z) : list int :=
-  match nl with
-  | h1::h2::h3::h4::t => Z_to_Int h1 h2 h3 h4 :: Zlist_to_intlist t
-  | _ => nil
-  end.
 
 Definition generate_and_pad msg := 
   let n := Zlength msg in
@@ -95,7 +84,6 @@ Definition Maj (x y z : int) : int :=
   Int.xor (Int.xor (Int.and x z) (Int.and y z) ) (Int.and x y).
 
 Definition Rotr b x := Int.ror x (Int.repr b).
-Definition Shr b x := Int.shru x (Int.repr b).
 
 Definition Sigma_0 (x : int) : int := 
           Int.xor (Int.xor (Rotr 2 x) (Rotr 13 x)) (Rotr 22 x).
@@ -121,12 +109,6 @@ Qed.
 
 (*registers that represent intermediate and final hash values*)
 Definition registers := list int.
-
-Fixpoint map2 {A B C: Type} (f: A -> B -> C) (al: list A) (bl: list B) : list C :=
- match al, bl with
-  | a::al', b::bl' => f a b :: map2 f al' bl'
-  | _, _ => nil
-  end.
 
 (*initializing the values of registers, first thirty-two bits of the fractional
     parts of the square roots of the first eight prime numbers*)
@@ -166,17 +148,6 @@ Proof. intros.
  rewrite <- teq; auto.
  rewrite skipn_length. simpl; omega.
 Qed.
-
-Fixpoint intlist_to_Zlist (l: list int) : list Z :=
- match l with
- | nil => nil
- | i::r =>
-     Int.unsigned (Shr 24 i) ::
-     Int.unsigned (Int.and (Shr 16 i) (Int.repr 255)) ::
-     Int.unsigned (Int.and (Shr 8 i) (Int.repr 255)) ::
-     Int.unsigned (Int.and i (Int.repr 255)) ::
-     intlist_to_Zlist r
- end.
 
 Definition SHA_256 (str : list Z) : list Z :=
     intlist_to_Zlist (hash_blocks init_registers (generate_and_pad str)).

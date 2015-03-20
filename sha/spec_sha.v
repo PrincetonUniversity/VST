@@ -1,6 +1,7 @@
 Require Import floyd.proofauto.
 Import ListNotations.
 Require Import sha.sha.
+Require Import general_lemmas.
 Require Import sha.SHA256.
 Local Open Scope logic.
 
@@ -227,9 +228,3 @@ Fixpoint do_builtins (n: nat) (defs : list (ident * globdef fundef type)) : funs
  end.
 
 Definition Gtot := do_builtins 3 (prog_defs prog) ++ Gprog.
-
-
-
-
-
-

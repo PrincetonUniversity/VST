@@ -3,19 +3,24 @@ Require Import Bvector.
 Require Import List.
 Require Import Integers.
 Require Import BinNums.
-(*Require Import Arith.*)
 Require Import common_lemmas.
 Require Import HMAC_functional_prog.
 Require Import ByteBitRelations.
 Require Import hmac_pure_lemmas.
-Require Import hmac_common_lemmas.
+Require Import HMAC_common_defs.
 Require Import HMAC_spec_list.
 Require Import HMAC_spec_abstract.
-Require Import HMAC_common_defs.
-Require Import sha_padding_lemmas.
+Require Import HMAC_equivalence.
+
+(*SHA_specific stuff
 Require Import SHA256.
 Require Import pure_lemmas.
-Require Import HMAC_equivalence.
+Require Import sha_padding_lemmas.
+Require Import ShaInstantiation.
+Require Import hmac_common_lemmas.
+Require Import HMAC256_spec_pad.
+Require Import HMAC256_spec_list.
+Require Import HMAC256_equivalence.
 
 Lemma splitAndPad_v_to_sha_splitandpad_blocks l:
    map Vector.to_list (splitAndPad_v l) = sha_splitandpad_blocks l.
@@ -38,19 +43,20 @@ Proof. intros.
   apply bytesToBits_injective in B. 
     apply pad_inc_injective in B.
     apply (bitsToBytes_injective8 _ _ B L1 L2).
-  apply isbyteZ_pad_inc. eapply HMAC_spec_pad.HMAC_Pad.bitsToBytes_isbyteZ. reflexivity.
-  apply isbyteZ_pad_inc. eapply HMAC_spec_pad.HMAC_Pad.bitsToBytes_isbyteZ. reflexivity.
+  apply isbyteZ_pad_inc. eapply bitsToBytes_isbyteZ. reflexivity.
+  apply isbyteZ_pad_inc. eapply bitsToBytes_isbyteZ. reflexivity.
 Qed.
-
-Lemma opad_ne_ipad : opad_v <> ipad_v.
+(*longer proof now in HAMC_equivalence
+Lemma opad_ne_ipad : EQ.opad_v <> EQ.ipad_v.
   intros N. 
-  assert (Vector.to_list opad_v = Vector.to_list ipad_v). rewrite N; trivial.
-  unfold opad_v, ipad_v in H. 
+  assert (Vector.to_list EQ.opad_v = Vector.to_list EQ.ipad_v). rewrite N; trivial.
+  unfold EQ.opad_v, EQ.ipad_v in H. 
   repeat rewrite of_length_proof_irrel in H.
   unfold HP.Opad, HP.Ipad in H. simpl in H.
   discriminate.
 Qed.
-
+*)
+*)
 (* A definition of a PRF in the form of a predicate. *)
 Set Implicit Arguments.
 
@@ -60,28 +66,42 @@ Require Import NMAC_to_HMAC.
 Require Import hF.
 Require Import HMAC_PRF.
 
-Section HMAC_is_PRF.
+Module Type HMAC_is_PRF_Parameters (HF:HP.HASH_FUNCTION) (EQ: EQUIV_Inst HF).
+  Parameter P : Blist -> Prop.
+  Parameter HP: forall m, P m -> NPeano.divide 8 (length m).
+
+  Parameter splitAndPad_1to1: forall b1 b2 (B:EQ.splitAndPad_v b1 = EQ.splitAndPad_v b2)
+       (L1: NPeano.divide 8 (length b1))
+       (L2: NPeano.divide 8 (length b2)), b1 = b2.
+End HMAC_is_PRF_Parameters.
+
+Module HMAC_is_PRF (HF:HP.HASH_FUNCTION) (EQ: EQUIV_Inst HF) (PARS:HMAC_is_PRF_Parameters HF EQ).
+
 Definition isPRF {D R Key:Set} (RndKey:Comp Key) (RndR: Comp R) (f: Key -> D -> R) 
                          (ED:EqDec D) (ER:EqDec R) advantage adversary :=
         PRF_Advantage RndKey RndR f _ _ adversary <= advantage.
+(*
+Parameter P : Blist -> Prop.
+Parameter HP: forall m, P m -> NPeano.divide 8 (length m).
 
-Variable P : Blist -> Prop.
-Variable HP: forall m, P m -> NPeano.divide 8 (length m).
-
-Lemma wrappedSAP_1_1_local (msg1 msg2 : Message P):
-      wrappedSAP splitAndPad_v msg1 = wrappedSAP splitAndPad_v msg2 -> msg1 = msg2.
-Proof. apply wrappedSAP_1_1. intros.
-  apply HP in H0; apply HP in H1.
-  apply splitAndPad_1to1; trivial.
+Parameter splitAndPad_1to1: forall b1 b2 (B:EQ.splitAndPad_v b1 = EQ.splitAndPad_v b2)
+       (L1: NPeano.divide 8 (length b1))
+       (L2: NPeano.divide 8 (length b2)), b1 = b2.
+*)
+Lemma wrappedSAP_1_1_local (msg1 msg2 : HMAC_Abstract.Message PARS.P):
+      HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v msg1 = HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v msg2 -> msg1 = msg2.
+Proof. apply HMAC_Abstract.wrappedSAP_1_1. intros.
+  apply PARS.HP in H0; apply PARS.HP in H1.
+  apply PARS.splitAndPad_1to1; trivial.
 Qed. 
 
-Definition msg_eqb (msg1 msg2:Message P): bool.
+Definition msg_eqb (msg1 msg2:HMAC_Abstract.Message PARS.P): bool.
 destruct msg1 as [m1 M1].
 destruct msg2 as [m2 M2].
 apply (list_EqDec bool_EqDec). apply m1. apply m2.
 Defined.
 
-Lemma Message_eqdec: EqDec (Message P).
+Lemma Message_eqdec: EqDec (HMAC_Abstract.Message PARS.P).
 apply (Build_EqDec msg_eqb). 
 intros; unfold msg_eqb. destruct x as [m1 M1]. destruct y as [m2 M2].
 destruct (eqb_leibniz m1 m2). 
@@ -90,63 +110,38 @@ split; intros.
   apply H0; clear H H0. apply EqdepFacts.eq_sig_fst in H1. trivial.
 Qed.
 
+Module M := HMAC_Equiv HF EQ.
+
 (* Assume h is a tau-PRF against adversary (PRF_h_A h_star_pad A_GHMAC) *)
-Definition h_PRF (A : OracleComp (Message P) (Bvector c) bool) tau := 
-           isPRF ({ 0 , 1 }^c) ({ 0 , 1 }^c) h_v (Bvector_EqDec (b c p)) (Bvector_EqDec c) tau 
-                         (PRF_h_A (h_star_pad h_v fpad_v) 
-                                  (HMAC_PRF.A_GHMAC p Message_eqdec (wrappedSAP splitAndPad_v) A)).
+Definition h_PRF (A : OracleComp (HMAC_Abstract.Message PARS.P) (Bvector EQ.c) bool) tau := 
+           isPRF ({ 0 , 1 }^EQ.c) ({ 0 , 1 }^EQ.c) M.h_v (Bvector_EqDec (b EQ.c EQ.p)) (Bvector_EqDec EQ.c) tau 
+                         (PRF_h_A (h_star_pad M.h_v EQ.fpad_v) 
+                                  (HMAC_PRF.A_GHMAC EQ.p Message_eqdec (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v) A)).
 
 (* We could make similar predicates for the other definitions, or just
 assume the inequalities*)
-Definition h_star_WCR (A : OracleComp (Message P) (Bvector c) bool) epsilon := 
-       cAU.Adv_WCR (list_EqDec (Bvector_EqDec (b c p)))
-             (Bvector_EqDec (b c p)) (h_star_pad h_v fpad_v)
-       ({ 0 , 1 }^c) (au_F_A (A_GHMAC p Message_eqdec (wrappedSAP splitAndPad_v) A)) <= epsilon.
+Definition h_star_WCR (A : OracleComp (HMAC_Abstract.Message PARS.P) (Bvector EQ.c) bool) epsilon := 
+       cAU.Adv_WCR (list_EqDec (Bvector_EqDec (b EQ.c EQ.p)))
+             (Bvector_EqDec (b EQ.c EQ.p)) (h_star_pad M.h_v EQ.fpad_v)
+       ({ 0 , 1 }^EQ.c) (au_F_A (A_GHMAC EQ.p Message_eqdec (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v) A)) <= epsilon.
 
-Definition dual_h_RKA (A : OracleComp (Message P) (Bvector c) bool) sigma:=
-    RKA_Advantage _ _ _ ({ 0 , 1 }^b c p) ({ 0 , 1 }^c) (dual_f h_v) (BVxor (b c p))
-      (HMAC_RKA_A h_v iv_v fpad_v opad_v ipad_v (A_GHMAC p Message_eqdec (wrappedSAP splitAndPad_v) A)) <= sigma.
+Definition dual_h_RKA (A : OracleComp (HMAC_Abstract.Message PARS.P) (Bvector EQ.c) bool) sigma:=
+    RKA_Advantage _ _ _ ({ 0 , 1 }^b EQ.c EQ.p) ({ 0 , 1 }^EQ.c) (dual_f M.h_v) (BVxor (b EQ.c EQ.p))
+      (HMAC_RKA_A M.h_v EQ.iv_v EQ.fpad_v M.opad_v M.ipad_v (A_GHMAC EQ.p Message_eqdec (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v) A)) <= sigma.
 
 Theorem HMAC_isPRF A (A_wf : well_formed_oc A) tau epsilon sigma 
         (HH1: h_PRF A tau) (HH2: h_star_WCR A epsilon) (HH3: dual_h_RKA A sigma):
-        isPRF (Rnd (b c p)) (Rnd c) 
-              (HMAC h_v iv_v (wrappedSAP splitAndPad_v)
-                              fpad_v opad_v ipad_v)
+        isPRF (Rnd (b EQ.c EQ.p)) (Rnd EQ.c) 
+              (HMAC M.h_v EQ.iv_v (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v)
+                              EQ.fpad_v M.opad_v M.ipad_v)
               Message_eqdec _ (tau + epsilon + sigma) A.
 Proof. unfold isPRF.
-  specialize (HMAC_PRF h_v iv_v Message_eqdec (wrappedSAP splitAndPad_v) wrappedSAP_1_1_local
-                              fpad_v opad_ne_ipad A_wf).
-  intros.
-  eapply leRat_trans. apply H. clear H. 
-  unfold h_PRF, isPRF in HH1.
-  unfold HMAC_common_defs.b in *. unfold HMAC_spec.b in *. unfold b in *. 
-    unfold GHMAC_PRF.b in *. unfold GNMAC_PRF.b in *.  unfold HMAC_spec.b in *.
-  remember (@PRF_Advantage (Bvector (c + p)) (Bvector c) (Bvector c) ({ 0 , 1 }^c)
-        ({ 0 , 1 }^c) h_v (Bvector_EqDec (c + p)) (Bvector_EqDec c)
-        (@PRF_h_A (c + p) c c (@h_star_pad c p h_v fpad_v)
-           (@A_GHMAC c p (Message P) Message_eqdec
-              (@wrappedSAP P splitAndPad_v) A))). clear Heqr.
-  unfold h_star_WCR in HH2.
-  unfold HMAC_common_defs.b in *. unfold HMAC_spec.b in *. unfold b in *.
-    unfold GHMAC_PRF.b in *. unfold GNMAC_PRF.b in *.  unfold HMAC_spec.b in *.
-  remember (@cAU.Adv_WCR (Bvector c) (list (Bvector (c + p))) (Bvector (c + p))
-        (@list_EqDec (Bvector (c + p)) (Bvector_EqDec (c + p)))
-        (Bvector_EqDec (c + p)) (@h_star_pad c p h_v fpad_v) ({ 0 , 1 }^c)
-        (@au_F_A (c + p) c
-           (@A_GHMAC c p (Message P) Message_eqdec
-              (@wrappedSAP P splitAndPad_v) A))). clear Heqr0.
-  unfold dual_h_RKA in HH3.
-  unfold HMAC_common_defs.b in *. unfold HMAC_spec.b in *. unfold b in *.
-    unfold GHMAC_PRF.b in *. unfold GNMAC_PRF.b in *.  unfold HMAC_spec.b in *.
-  remember (@RKA_Advantage (Bvector (c + p)) (Bvector c) (Bvector c)
-        (Bvector (c + p)) (Bvector_EqDec (c + p)) (Bvector_EqDec c)
-        (Bvector_EqDec c) ({ 0 , 1 }^c + p) ({ 0 , 1 }^c)
-        (@dual_f (Bvector c) (Bvector (c + p)) (Bvector c) h_v)
-        (BVxor (c + p))
-        (@HMAC_RKA_A c p h_v iv_v fpad_v opad_v ipad_v
-           (@A_GHMAC c p (Message P) Message_eqdec
-              (@wrappedSAP P splitAndPad_v) A))). clear Heqr1.
+  eapply leRat_trans. 
+    apply (HMAC_PRF M.h_v EQ.iv_v Message_eqdec (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v) wrappedSAP_1_1_local
+                              EQ.fpad_v M.opad_ne_ipad A_wf).
   rewrite ratAdd_comm. 
-  apply ratAdd_leRat_compat; trivial. apply ratAdd_leRat_compat; trivial. (*What's the "omega" tactic for Rat?*)
+  apply ratAdd_leRat_compat.
+    apply ratAdd_leRat_compat. apply HH1. apply HH2.
+    apply HH3.
 Qed.
 End HMAC_is_PRF. 

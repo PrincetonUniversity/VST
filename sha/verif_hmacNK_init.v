@@ -7,6 +7,7 @@ Local Open Scope logic.
 Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
+Require Import sha.HMAC256_functional_prog.
 Require Import sha.spec_hmacNK.
 Require Import vst_lemmas.
 Require Import hmac_pure_lemmas.
@@ -61,7 +62,7 @@ Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
   | Vptr b ofs => if zeq r 0 then FF 
                   else !!(Forall isbyteZ key) &&
                     ((data_at Tsh t_struct_hmac_ctx_st keyedHMS c) *
-                     (data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HP.HMAC_SHA256.mkKey key)))
+                     (data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_SHA256.mkKey key)))
                       ctxkey)  *
                      (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
 (*                   (array_at tuchar Tsh (tuchars (map Int.repr key)) 0 (Zlength key))*)
@@ -99,8 +100,8 @@ normalize. rename H into HC; rewrite HC. rename H0 into R.
 apply seq_assoc.
 
 remember (EX iSA:_, EX iS:_, EX oSA:_, EX oS:_,
-          PROP  (innerShaInit (map Byte.repr (HP.HMAC_SHA256.mkKey key)) iSA /\ s256_relate iSA iS /\
-                 outerShaInit (map Byte.repr (HP.HMAC_SHA256.mkKey key)) oSA /\ s256_relate oSA oS)
+          PROP  (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)) iSA /\ s256_relate iSA iS /\
+                 outerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)) oSA /\ s256_relate oSA oS)
                  LOCAL  (
                  `(eq pad) (eval_var _pad (tarray tuchar 64));
                  `(eq (Vptr cb cofs)) (eval_id _ctx);

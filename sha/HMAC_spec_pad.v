@@ -1,59 +1,39 @@
 Set Implicit Arguments.
 
-Require Import List. Import ListNotations.
-Require Import Arith.
-
-Require Import Integers.
 Require Import Coqlib.
-Require Import Coq.Numbers.Natural.Peano.NPeano.
-Require Import XorCorrespondence.
-Require Import functional_prog.
-Require Import SHA256.
-Require Import HMAC_functional_prog. 
-Require Import hmac_pure_lemmas.
-Require Import hmac_common_lemmas.
-Require Import sha_padding_lemmas.
-Require Import ByteBitRelations.
-
-Require Import HMAC_common_defs.
-(* TODO remove useless imports *)
-
 Require Import Coq.Program.Basics. (* for function composition: ∘ *)
-
-Module HMAC_Pad.
+Require Import List. Import ListNotations.
+Require Import Integers.
+Require Import general_lemmas.
+Require Import hmac_pure_lemmas.
+Require Import ByteBitRelations.
+Require Import HMAC_common_defs.
 
 Local Open Scope program_scope.
 
 Section HMAC.
-
-(* b = block size
-   c = digest (output) size
-   p = padding = b - c (fixed) *)
-(*  Variable c p : nat.
-  Definition b := (c + p)%nat.*)
+  Variable c:nat.
+  Variable p:nat.
+  Definition b := (c+p)%nat.
+  Variable B: (0<b)%nat.
 
   (* The compression function *)
   Variable h : Blist -> Blist -> Blist.
+
   (* The initialization vector is part of the spec of the hash function. *)
   Variable iv : Blist.
-  (* The iteration of the compression function gives a keyed hash function on lists of words. *)
 
+  (* The iteration of the compression function gives a keyed hash function on lists of words. *)
   Definition h_star k (m : Blist) :=
-    hash_blocks_bits h k m.
-  (* The composition of the keyed hash function with the IV gives a hash function on lists of words. *)
+    hash_blocks_bits b B h k m.
+
+  (* The composition of the keyed hash function with the IV. *)
   Definition hash_words := h_star iv.
 
   Variable splitAndPad : Blist -> Blist.
 
   Definition hash_words_padded : Blist -> Blist :=
     hash_words ∘ splitAndPad.
-
-  (* ----- *)
-
-  Hypothesis splitAndPad_1_1 :
-    forall b1 b2,
-      splitAndPad b1 = splitAndPad b2 ->
-      b1 = b2.
 
   (* constant-length padding. *)
   Variable fpad : Blist.
@@ -62,11 +42,6 @@ Section HMAC.
     x ++ fpad.
   Definition h_star_pad k x :=
     app_fpad (h_star k x).
-
-  (* TODO fix this -- not used by HAMC *)
-  Definition GNMAC k m :=
-    let (k_Out, k_In) := splitList c k in
-    h k_Out (h_star_pad k_In m).
 
   (* The "two-key" version of GHMAC and HMAC. *)
   (* Concatenate (K xor opad) and (K xor ipad) *)
@@ -79,269 +54,70 @@ Section HMAC.
     (* GHMAC_2K k (splitAndPad m). *)
     GHMAC_2K k m.
 
-(* opad and ipad are constants defined in the HMAC spec. *)
-Variable opad ipad : Blist.
+  (* opad and ipad are constants defined in the HMAC spec. *)
+  Variable opad ipad : Blist.
 
-Definition GHMAC (k : Blist) :=
-  GHMAC_2K (BLxor k opad ++ BLxor k ipad).
+  Definition HMAC (k : Blist) :=
+    HMAC_2K (BLxor k opad ++ BLxor k ipad).
 
-Definition HMAC (k : Blist) :=
-  HMAC_2K (BLxor k opad ++ BLxor k ipad).
+  (*The following hypotheses and constructions from the abstract spec
+    do not need to be enforced/repeated here
 
+  Hypothesis splitAndPad_1_1 :
+    forall b1 b2,
+      splitAndPad b1 = splitAndPad b2 -> b1 = b2.
+
+  Definition GNMAC k m :=
+    let (k_Out, k_In) := splitList c k in
+    h k_Out (h_star_pad k_In m).
+
+  Definition GHMAC (k : Blist) :=
+    GHMAC_2K (BLxor k opad ++ BLxor k ipad).
+  *)
 End HMAC.
 
-(* ----------------------------------------------- *)
-(*Definition sha_iv : Blist :=
-  bytesToBits (SHA256.intlist_to_Zlist SHA256.init_registers).
-
-Definition sha_h (regs : Blist) (block : Blist) : Blist :=
-  bytesToBits (SHA256.intlist_to_Zlist
-                 (SHA256.hash_block (SHA256.Zlist_to_intlist (bitsToBytes regs))
-                                     (SHA256.Zlist_to_intlist (bitsToBytes block))
-              )).
-*)
-Definition sha_splitandpad (msg : Blist) : Blist :=
-  bytesToBits (sha_padding_lemmas.pad (bitsToBytes msg)).
-
 Definition convert (l : list int) : list bool :=
-  bytesToBits (SHA256.intlist_to_Zlist l).
-
-
-(* ------------------------------------------------- *)
-(* Neat conversion functions (TODO move rest of spec over *)
-
-(*
-
-Definition intsToBits (l : list int) : list bool :=
-  bytesToBits (SHA256.intlist_to_Zlist l).
-
-Definition bitsToInts (l : Blist) : list int :=
-  SHA256.Zlist_to_intlist (bitsToBytes l).
-
-Definition sha_iv : Blist :=
-  intsToBits SHA256.init_registers.
-
-Definition sha_h (regs : Blist) (block : Blist) : Blist :=
-  intsToBits (SHA256.hash_block (bitsToInts regs) (bitsToInts block)).
-
-Definition sha_splitandpad (msg : Blist) : Blist :=
-  bytesToBits (sha_padding_lemmas.pad (bitsToBytes msg)).
-*)
-
-
-(* -------------------------------------------------------- LEMMAS *)
-
-(* Lemma 1: ++ equivalence on list *)
-(* Lemma 2: xor equivalence on list *)
-(* Lemma 3: SHA (iterated hash) equivalence on list *)
-(*Lennart: moved Lemma concat_equiv to ByteBitRelations, and renamed it to
-  bytes_bits_lists_append to avoid confusion with fucntion "concat"*)
-
-(* --------------------------------- *)
-
-(* Lemma 2 *)
-
-Lemma inner_general_mapByte : forall (ip : Blist) (IP_list : list byte) (k : Blist) (K : list byte),
-                            bytes_bits_lists ip (map Byte.unsigned IP_list) ->
-                            bytes_bits_lists k (map Byte.unsigned K) ->
-     bytes_bits_lists (BLxor k ip)
-                      (map Byte.unsigned
-                           (map (fun p0 : byte * byte => Byte.xor (fst p0) (snd p0))
-                                (combine K IP_list))).
-Proof.
-  intros ip IP_list k K ip_eq k_eq.
-  unfold BLxor. simpl.
-  remember (map Byte.unsigned IP_list). remember (map Byte.unsigned K) as KL.
-  generalize dependent K. generalize dependent IP_list. generalize dependent ip. generalize dependent l.
-  induction k_eq.
-  - simpl; intros. destruct K; simpl in *. constructor. discriminate.
-  - intros l ip ip_eq.
-    induction ip_eq; simpl; intros.
-    + destruct IP_list; simpl in *. 2: discriminate.
-      destruct K; simpl in *. discriminate. constructor.
-    + destruct IP_list. discriminate. simpl in Heql. inversion Heql; clear Heql. subst byte0 bytes0.
-      destruct K; simpl in HeqKL. discriminate. inversion HeqKL; clear HeqKL; subst.
-      simpl.
-      constructor.
-      * eapply IHk_eq; try reflexivity.
-        apply ip_eq.
-      * unfold Byte.xor. rewrite Byte.unsigned_repr.
-        apply xor_correspondence. apply H. apply H0.
-        destruct (@isbyteZ_xor (Byte.unsigned i0) (Byte.unsigned i)).
-        apply isByte_ByteUnsigned.
-        apply isByte_ByteUnsigned. 
-        assert (BMU: Byte.max_unsigned = 255). reflexivity. omega.
-Qed.
-
-Lemma xor_equiv_byte: forall xpad XPAD k K, isbyteZ XPAD ->
-                          bytes_bits_lists xpad (HP.HMAC_SHA256.sixtyfour XPAD) ->
-                          ((length K) * 8)%nat = (c + p)%nat ->
-                          bytes_bits_lists k (map Byte.unsigned K) ->
-bytes_bits_lists (BLxor k xpad) (HP.HMAC_SHA256.mkArgZ K (Byte.repr XPAD)).
-Proof. intros.  apply inner_general_mapByte; try assumption.
-       rewrite <- SF_ByteRepr; trivial.
-Qed.
-
-
-(* ----- concrete version *)
-
-(* Definition of InBlocks in sha_padding_lemmas *)
-
-Lemma bitsToByte_cons: forall bits h t, (h::t) = bitsToBytes bits -> 
-      exists b0, exists b1, exists b2, exists b3, 
-      exists b4, exists b5, exists b6, exists b7, exists xs,
-      bits = b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: xs /\
-      h = bitsToByte [b0; b1; b2; b3; b4; b5; b6; b7] /\
-      t = bitsToBytes xs.
-Proof. intros.
-  destruct bits. inv H.
-  destruct bits. inv H.
-  destruct bits. inv H.
-  destruct bits. inv H.
-  destruct bits. inv H.
-  destruct bits. inv H.
-  destruct bits. inv H.
-  destruct bits; inv H.
-  eexists; eexists; eexists; eexists; eexists; eexists; eexists; eexists; eexists.
-  split. reflexivity.
-  split; reflexivity.
-Qed.
-
-Lemma bitsToByte_isbyteZ b0 b1 b2 b3 b4 b5 b6 b7:
-      isbyteZ (bitsToByte [b0; b1; b2; b3; b4; b5; b6; b7]).
-Proof. simpl. unfold asZ, isbyteZ.
-  destruct b0; destruct b1; destruct b2; destruct b3;
-  destruct b4; destruct b5; destruct b6; destruct b7; simpl; omega.
-Qed.
-
-Lemma bitsToBytes_isbyteZ: forall bytes bits,
-                             bytes = bitsToBytes bits -> Forall isbyteZ bytes.
-Proof. intros bytes.
-  induction bytes; simpl; intros.
-     constructor.
-  apply bitsToByte_cons in H.
-  destruct H as [b0 [b1 [b2 [b3 [b4 [b5 [b6 [b7 [xs [BITS [A BYTES]]]]]]]]]]].
-  constructor.
-     subst. apply bitsToByte_isbyteZ.
-     eauto. 
-Qed.
-
-Lemma convertByteBits_isbyteZ b0 b1 b2 b3 b4 b5 b6 b7 byte:
-      convertByteBits [b0; b1; b2; b3; b4; b5; b6; b7] byte ->
-      isbyteZ byte.
-Proof. intros.
-  destruct H as [b8 [b9 [b10 [b11 [b12 [b13 [b14 [b15 [BITS ZZ]]]]]]]]].
-  inversion BITS. subst. clear BITS.
-  unfold asZ, isbyteZ.
-  destruct b8; destruct b9; destruct b10; destruct b11;
-  destruct b12; destruct b13; destruct b14; destruct b15; simpl; omega.
-Qed.
-
-Lemma bytesBitsLists_isbyteZ bytes bits: bytes_bits_lists bits bytes -> Forall isbyteZ bytes.
-Proof. intros.
-  induction H. constructor.
-  constructor; trivial. eapply convertByteBits_isbyteZ. apply H0. 
-Qed.
-
-Lemma pad_isbyteZ: forall l, Forall isbyteZ l -> Forall isbyteZ (pad l).
-Proof. intros. unfold pad.
-  apply pure_lemmas.Forall_app.
-  split; trivial.
-  apply pure_lemmas.Forall_app.
-  split. constructor. unfold isbyteZ; omega. constructor. 
-  apply pure_lemmas.Forall_app.
-  split. apply pure_lemmas.Forall_list_repeat. unfold isbyteZ; omega.
-  apply pure_lemmas.isbyte_intlist_to_Zlist.
-Qed.  
-
-Lemma splitandpad_equiv : forall (bits : Blist) (bytes : list Z),
-                            bytes_bits_lists bits bytes ->
-                            bytes_bits_lists
-                              (sha_splitandpad bits)
-                              (sha_padding_lemmas.pad bytes).
-Proof.
-  intros bits bytes inputs_eq.
-  unfold concat.
-  unfold sha_splitandpad.
-  specialize (bytesBitsLists_isbyteZ inputs_eq). intros isbyteZ_Bytes.
-
-  apply bytes_bits_ind_comp in inputs_eq. 2: apply isbyteZ_Bytes.
-  rewrite inputs_eq.
-  apply bytes_bits_def_eq.
-  rewrite <- inputs_eq. apply pad_isbyteZ. trivial.
-Qed.
-
-Lemma hash_block_equiv :
-  forall (bits : Blist) (bytes : list Z)
-         (regs : Blist) (REGS : SHA256.registers),
-    Forall isbyteZ bytes ->
-    (length bits)%nat = 512%nat ->
-    (length bytes)%nat = 64%nat -> (* removes firstn 16 (Zlist->intlist bytes) *)
-
-    regs = bytesToBits (SHA256.intlist_to_Zlist REGS) ->
-    bits = bytesToBits bytes ->
-
-    sha_h regs bits =
-    bytesToBits (SHA256.intlist_to_Zlist
-                   (SHA256.hash_block REGS
-                                      (SHA256.Zlist_to_intlist bytes))).
-Proof.
-  intros bits bytes regs REGS bytes_inrange bits_blocksize bytes_blocksize regs_eq input_eq.
-  unfold sha_h.
-unfold intsToBits.
-  apply f_equal.
-  apply f_equal.
-
-  rewrite -> regs_eq; clear regs_eq.
-  rewrite -> input_eq; clear input_eq.
-  unfold bitsToInts.
-  rewrite bytes_bits_bytes_id.
-  rewrite -> bytes_bits_bytes_id.
-  rewrite -> pure_lemmas.intlist_to_Zlist_to_intlist.
-  reflexivity.
-  * apply bytes_inrange.
-  * apply pure_lemmas.isbyte_intlist_to_Zlist. 
-Qed.
+  bytesToBits (intlist_to_Zlist l).
 
 (* Front/back equivalence theorems *)
 
-Lemma front_equiv :
+Lemma front_equiv b d (DB32: (d*32)%nat = b):
   forall (back : Blist) (BACK : list int) (front : Blist) (FRONT : list int),
-    (length front)%nat = 512%nat ->
-    (length FRONT)%nat = 16%nat ->
+    (length front)%nat = b ->
+    (length FRONT)%nat = d ->
     front ++ back = convert (FRONT ++ BACK) ->
     front = convert FRONT.
 Proof.
   intros back BACK front FRONT f_len F_len concat_eq.
   unfold convert in *.
-  rewrite -> pure_lemmas.intlist_to_Zlist_app in concat_eq.
+  rewrite -> intlist_to_Zlist_app in concat_eq.
   rewrite -> bytesToBits_app in concat_eq.
 
-  assert (back = skipn 512 (front ++ back)).
+  assert (back = skipn b (front ++ back)).
     rewrite skipn_exact; trivial.
-  assert (bytesToBits (intlist_to_Zlist BACK) = skipn 512 (front ++ back)).
+  assert (bytesToBits (intlist_to_Zlist BACK) = skipn b (front ++ back)).
     rewrite concat_eq; clear concat_eq. 
     rewrite skipn_exact; trivial.
-    rewrite bytesToBits_len, pure_lemmas.length_intlist_to_Zlist, F_len; omega.
+    rewrite bytesToBits_len, length_intlist_to_Zlist, F_len. omega.
   rewrite H, H0 in concat_eq; clear H H0.
   eapply app_inv_tail. eassumption.
 Qed. 
 
-Lemma back_equiv :
+Lemma back_equiv b d (DB32: (d*32)%nat = b):
   forall (back : Blist) (BACK : list int) (front : Blist) (FRONT : list int),
-    (length front)%nat = 512%nat ->
-    (length FRONT)%nat = 16%nat ->
+    (length front)%nat = b ->
+    (length FRONT)%nat = d ->
     front ++ back = convert (FRONT ++ BACK) ->
     back = convert BACK.
 Proof.
   intros back BACK front FRONT f_len F_len concat_eq.
   assert (front ++ back = convert (FRONT ++ BACK)) as concat_eq'. apply concat_eq.
   unfold convert in *.
-  rewrite -> pure_lemmas.intlist_to_Zlist_app in concat_eq.
+  rewrite -> intlist_to_Zlist_app in concat_eq.
   rewrite -> bytesToBits_app in concat_eq.
 
   assert (front_eq : front = convert FRONT).
-    pose proof front_equiv back BACK front FRONT.
+    pose proof front_equiv DB32 back BACK front FRONT.
     apply H.
     * assumption.
     * assumption.
@@ -351,19 +127,96 @@ Proof.
       eapply app_inv_head. eassumption.
 Qed.
 
-(* --------- *)
-    
-(* it's more of an iteration theorem than a fold theorem *)
-(* conversion function: bytesToBits @ SHA256.intlist_to_Zlist *)
-Lemma fold_equiv_blocks :
+Module Type INST.
+Parameter shah : Blist -> Blist ->  Blist.
+Parameter hashblock : list int -> list int -> list int.
+Parameter HHB : shah =
+      (fun rgs bl : Blist =>
+       intsToBits (hashblock (bitsToInts rgs) (bitsToInts bl))).
+
+Parameter hashblocks: list int -> list int -> list int.
+Parameter d:nat.
+
+Parameter HBS_eq : forall r msg : list int,
+         hashblocks r msg =
+         match msg with
+         | [] => r
+         | _ :: _ => hashblocks (hashblock r (firstn d msg)) (skipn d msg)
+         end.
+End INST.
+
+Require Import HMAC_functional_prog. (*Just for HMAC_FUN*)
+
+
+Module HMAC_Pad (HF:HP.HASH_FUNCTION) (I:INST).
+(*Module HMAC_Pad.Declare Module HF:HP.HASH_FUNCTION.*)
+Module HM:= HP.HMAC_FUN HF.
+
+(*Module PadConcrete (HF:HP.HASH_FUNCTION).*)
+
+(*From hmac_common_lemmas TODO: Isolate*)
+(*Lemma SF_ByteRepr x: isbyteZ x ->
+                     HM.sixtyfour x = 
+                     map Byte.unsigned (HM.sixtyfour (Byte.repr x)).
+Proof. intros. unfold HM.sixtyfour.
+ rewrite map_list_repeat.
+ rewrite Byte.unsigned_repr; trivial. destruct H. 
+ assert (BMU: Byte.max_unsigned = 255). reflexivity. omega.
+Qed.
+*)
+(*From hmac_common_lemmas TODO: Isolate*)
+(*Lemma length_SF {A} (a:A) :length (HM.sixtyfour a) = HF.BlockSize.
+Proof. apply length_list_repeat. Qed. 
+*)
+(*From SHaInstantiation -- TODO: Isolate*)
+Lemma xor_equiv_byte: forall xpad XPAD k K, isbyteZ XPAD ->
+                          bytes_bits_lists xpad (HM.sixtyfour XPAD) ->
+                          length K= HF.BlockSize ->
+                          bytes_bits_lists k (map Byte.unsigned K) ->
+bytes_bits_lists (BLxor k xpad) (HM.mkArgZ K (Byte.repr XPAD)).
+Proof. intros. apply inner_general_mapByte; try assumption.
+       rewrite <- HM.SF_ByteRepr; trivial.
+Qed.
+(*
+Lemma isbyte_hmaccore ipad opad m k: 
+   Forall isbyteZ (HM.HmacCore (Byte.repr ipad) (Byte.repr opad) m k).
+Proof. apply HF.Hash_isbyteZ. Qed. *)
+
+(*Parameter *)
+Lemma hash_block_equiv:
+  forall (bits : Blist) (bytes : list Z)
+         (regs : Blist) REGS,
+    Forall isbyteZ bytes ->
+    regs = bytesToBits (intlist_to_Zlist REGS) ->
+    bits = bytesToBits bytes ->
+    I.shah regs bits =
+    bytesToBits (intlist_to_Zlist
+                   (I.hashblock REGS (Zlist_to_intlist bytes))).
+Proof.
+  intros bits bytes regs REGS bytes_inrange regs_eq input_eq.
+  rewrite I.HHB. unfold intsToBits.
+  apply f_equal.
+  apply f_equal.
+  rewrite -> regs_eq; clear regs_eq.
+  rewrite -> input_eq; clear input_eq.
+  unfold bitsToInts.
+  rewrite bytes_bits_bytes_id.
+  rewrite -> bytes_bits_bytes_id.
+  rewrite -> intlist_to_Zlist_to_intlist.
+  reflexivity.
+  * apply bytes_inrange.
+  * apply isbyte_intlist_to_Zlist. 
+Qed.
+
+Lemma fold_equiv_blocks b (B:(0<b)%nat) (DB32: (I.d*32)%nat=b):
   forall (l : Blist) (acc : Blist)
          (L : list int) (ACC : list int),
-      InBlocks 512 l ->
-      InBlocks 16 L ->
+      InBlocks b l ->
+      InBlocks I.d L ->
       l = convert L ->
       acc = convert ACC ->
-      hash_blocks_bits sha_h acc l = convert (SHA256.hash_blocks ACC L).
-Proof.
+      hash_blocks_bits b B I.shah acc l = convert (I.hashblocks ACC L).
+Proof. 
   intros l acc L ACC bit_blocks bytes_blocks inputs_eq acc_eq.
   
   revert acc ACC L inputs_eq acc_eq bytes_blocks.
@@ -372,241 +225,177 @@ Proof.
     revert acc ACC inputs_eq acc_eq.
     induction bytes_blocks; intros.
 
-    -                             (* both empty *)
-      rewrite -> SHA256.hash_blocks_equation.
+    - rewrite I.HBS_eq.
       rewrite -> hash_blocks_bits_equation.
-      apply acc_eq.
-
-    -
-      rewrite -> H0 in *.
+      apply acc_eq. 
+    - rewrite -> H0 in *.
       unfold convert in inputs_eq. 
       destruct front.
-      { inversion H. }
+      { simpl in H. rewrite <- H in *; omega. }
       { simpl in inputs_eq. inversion inputs_eq. }
 
   *
     revert front back full H H0 bit_blocks IHbit_blocks acc ACC
            inputs_eq acc_eq.
     induction bytes_blocks; intros.
-    (* TODO: clear IHbytes_blocks *)
 
     -
       simpl in inputs_eq.
       rewrite -> H0 in inputs_eq.
       unfold convert in inputs_eq.
       destruct front.
-      { inversion H. }
+      { simpl in H. subst b. omega. }
       { simpl in inputs_eq. inversion inputs_eq. }
 
-    - 
-      rewrite -> SHA256.hash_blocks_equation.
+    - clear IHbytes_blocks. intros. rewrite I.HBS_eq.
       rewrite -> hash_blocks_bits_equation.
       repeat rewrite -> length_not_emp.
-
       rewrite -> H0.
       rewrite -> H2.
-      (* TODO: generalize these (it's true by hyp) *)
-      assert (H_first_512 : firstn 512 (front0 ++ back0) = front0).
-        apply firstn_exact. assumption.
-      assert (H_skip_512 : skipn 512 (front0 ++ back0) = back0).
-        apply skipn_exact. assumption.
-      assert (H_first_16 : firstn 16 (front ++ back) = front).
-        apply firstn_exact. assumption.
-      assert (H_skip_16 : skipn 16 (front ++ back) = back).
-        apply skipn_exact. assumption.
-
-      rewrite -> H_first_512.
-      rewrite -> H_skip_512.
-      rewrite -> H_first_16.
-      rewrite -> H_skip_16.
-
-      apply IHbit_blocks; auto; clear IHbytes_blocks IHbit_blocks.
-      +
-        rewrite -> H0 in inputs_eq.
+      rewrite firstn_exact; trivial.
+      rewrite firstn_exact; trivial.
+      rewrite skipn_exact; trivial.
+      rewrite skipn_exact; trivial. 
+      apply IHbit_blocks; auto; clear  IHbit_blocks.
+      + rewrite -> H0 in inputs_eq.
         rewrite -> H2 in inputs_eq.
-        apply (back_equiv back0 back front0 front H1 H inputs_eq).
-      + 
-        pose proof hash_block_equiv as hash_block_equiv.
-        specialize (hash_block_equiv front0 (SHA256.intlist_to_Zlist front) acc ACC).
-        rewrite -> hash_block_equiv; auto. clear hash_block_equiv.
-        rewrite -> pure_lemmas.intlist_to_Zlist_to_intlist.
+        eapply (back_equiv DB32); eassumption. 
+      + rewrite (@hash_block_equiv front0 (intlist_to_Zlist front) acc ACC); auto.
+        rewrite -> intlist_to_Zlist_to_intlist.
         reflexivity.
-        { apply pure_lemmas.isbyte_intlist_to_Zlist. }
-        {
-          rewrite -> pure_lemmas.length_intlist_to_Zlist.
-          rewrite -> H.
-          omega.
-        }
-        {
-          rewrite -> H0 in inputs_eq.
+        { apply isbyte_intlist_to_Zlist. }
+        { rewrite -> H0 in inputs_eq.
           rewrite -> H2 in inputs_eq.
-
-          (*NEW*) apply (front_equiv back0 back front0 front H1 H inputs_eq).
-        }
-     +
-       rewrite -> H0. rewrite -> app_length. rewrite -> H. omega.
-     +
-       rewrite -> H2. rewrite -> app_length. rewrite -> H1. omega.
+          apply (front_equiv DB32 back0 back front0 front H1 H inputs_eq). }
+     + rewrite -> H0. rewrite -> app_length. rewrite -> H. omega.
+     + rewrite -> H2. rewrite -> app_length. rewrite -> H1. omega.
 Qed.
 
-Lemma SHA_equiv_pad : forall (bits : Blist) (bytes : list Z),
+Lemma equiv_pad shaiv shasplitandpad c p (B: (0< b c p)%nat) (DB32: (I.d*32 =b c p)%nat)
+     ir (IVIR: shaiv = convert ir)
+       gap (GAP: forall bits, NPeano.divide I.d (length (gap (bitsToBytes bits))))
+       (sap_gap: forall bits, shasplitandpad bits = bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))))
+       HASH
+       (HSH: forall (m:list Z), HASH m = intlist_to_Zlist (I.hashblocks ir (gap m))):
+       forall (bits : Blist) (bytes : list Z),
                     bytes_bits_lists bits bytes ->
                     bytes_bits_lists
-                      (hash_words_padded sha_h sha_iv sha_splitandpad bits)
-                      (HP.SHA256.Hash bytes).
-
+                      (hash_words_padded c p B I.shah shaiv shasplitandpad bits)
+                      (HASH bytes).
 Proof.
   intros bits bytes input_eq.
-  unfold HP.SHA256.Hash.
-  rewrite -> functional_prog.SHA_256'_eq.
-  unfold SHA256.SHA_256.
   unfold hash_words_padded.
-  change ((hash_words sha_h sha_iv ∘ sha_splitandpad) bits) with
-  (hash_words sha_h sha_iv (sha_splitandpad bits)).
-
-  -
-    repeat rewrite <- sha_padding_lemmas.pad_compose_equal in *.
-    unfold sha_padding_lemmas.generate_and_pad' in *.
+  change ((hash_words c p B I.shah shaiv ∘ shasplitandpad) bits) with
+  (hash_words c p B I.shah shaiv (shasplitandpad bits)).
     unfold hash_words.
-    unfold h_star.
-
-    pose proof splitandpad_equiv as splitandpad_equiv.
-    specialize (splitandpad_equiv bits bytes input_eq).
-
-      apply bytes_bits_comp_ind.
-      pose proof fold_equiv_blocks as fold_equiv_blocks.
-      apply pure_lemmas.isbyte_intlist_to_Zlist. 
-      (* TODO: in-range preserved by hash_blocks and intlist_to_Zlist *)
-      apply fold_equiv_blocks.
-      *                         (* padding -> blocks of 512 *)
-        unfold sha_splitandpad in *.
-        apply bytes_bits_length in input_eq.
-        pose proof pad_len_64_nat (bitsToBytes bits) as pad_len_64.
-        apply InBlocks_len.
-        rewrite -> bytesToBits_len.
-        (* eexists. *)
-        destruct pad_len_64.
-        rewrite -> H.
-        exists x.
-        omega.
-      *
-        pose proof pad_len_64_nat bytes as pad_len_64.
-        apply InBlocks_len.
-        destruct pad_len_64.
-
-        assert (H' : length (pad bytes) = (Z.to_nat WORD * (16 * x))%nat).
-          rewrite -> H.
-          assert (Z.to_nat WORD = 4%nat) by reflexivity.
-          rewrite -> H0.
-          omega.
-
-        apply pure_lemmas.length_Zlist_to_intlist in H'.
-        rewrite H'.
-        eexists x.
-        omega.
-
-      * unfold sha_splitandpad.
-        unfold convert.
-        rewrite -> pure_lemmas.Zlist_to_intlist_to_Zlist.
-        f_equal.
-        apply bytes_bits_ind_comp in input_eq.
-        rewrite -> input_eq.
-        reflexivity.
-        + 
-          eapply bytesBitsLists_isbyteZ. eassumption.
-        +
-          pose proof pad_len_64_nat bytes as pad_len_64.
-          destruct pad_len_64.
-          rewrite -> H.
-          assert (four : Z.to_nat WORD = 4%nat) by reflexivity.
-          rewrite -> four.
-          exists (x * 16)%nat.
-          omega.
-        + apply pad_isbyteZ. eapply bytesBitsLists_isbyteZ. eassumption.
-
-     * unfold sha_iv. reflexivity.
+    unfold h_star. rewrite HSH; clear HSH. 
+    apply bytes_bits_comp_ind.
+    { apply isbyte_intlist_to_Zlist. }
+    { apply bytes_bits_ind_comp in input_eq.
+        { subst bytes. rewrite sap_gap; clear sap_gap.
+          eapply (fold_equiv_blocks B DB32).
+          3: reflexivity.
+          3: assumption.
+          apply InBlocks_len. rewrite bytesToBits_len, length_intlist_to_Zlist.
+             rewrite <- DB32. destruct (GAP bits). rewrite H. exists x.
+             rewrite mult_comm, mult_assoc.
+             assert ((8*4= 32)%nat) by omega. rewrite H0. rewrite mult_comm, <- mult_assoc. trivial.
+          apply InBlocks_len. apply GAP.
+        } 
+        apply (bytesBitsLists_isbyteZ _ _ input_eq).
+    }
 Qed.
 
-(* --------------------------------------- *)
-
-(* MAIN THEOREM *)
-
-(* Relates the HMAC padded spec to the HMAC functional program *)
-Theorem HMAC_pad_concrete : forall
-                            (K : list byte) (M H : list Z) (OP IP : Z)
-                            (k m h : Blist) (op ip : Blist) (ipByte: isbyteZ IP) (opByte: isbyteZ OP),
-  ((length K) * 8)%nat = (c + p)%nat ->
-  Zlength K = Z.of_nat HP.SHA256.BlockSize ->
-  (* TODO: first implies this *)
+Theorem HMAC_pad_concrete splitandpad c p (B: (0< b c p)%nat) (BS: (HF.BlockSize * 8)%nat = b c p)
+        (DB32: (I.d*32 =b c p)%nat)
+         ir (*ie initial_regs*) gap (*ie generate_and_pad*)
+         (GAP: forall bits, NPeano.divide I.d (length (gap (bitsToBytes bits))))
+         (sap_gap: forall bits, splitandpad bits = bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))))
+         (HSH: forall (m:list Z), HF.Hash m = intlist_to_Zlist (I.hashblocks ir (gap m)))
+         (K : list byte) (M H : list Z) (OP IP : Z)
+                          (k m h : Blist) (op ip : Blist) (ipByte: isbyteZ IP) (opByte: isbyteZ OP):
+  length K = HF.BlockSize ->
   bytes_bits_lists k (map Byte.unsigned K) ->
   bytes_bits_lists m M ->
-  bytes_bits_lists op (HP.HMAC_SHA256.sixtyfour OP) ->
-  bytes_bits_lists ip (HP.HMAC_SHA256.sixtyfour IP) ->
-  HMAC (*c p*) sha_h sha_iv sha_splitandpad op ip k m = h ->
-  HP.HMAC_SHA256.HmacCore (Byte.repr IP) (Byte.repr OP) M K = H ->
+  bytes_bits_lists op (HM.sixtyfour OP) ->
+  bytes_bits_lists ip (HM.sixtyfour IP) ->
+  HMAC c p B I.shah (convert ir) splitandpad op ip k m = h ->
+  HM.HmacCore (Byte.repr IP) (Byte.repr OP) M K = H ->
   bytes_bits_lists h H.
 Proof.
-  intros K M H OP IP k m h op ip ipByte opByte.
-  intros padded_key_len padded_key_len_byte padded_keys_eq msgs_eq ops_eq ips_eq.
-  intros HMAC_abstract HMAC_concrete.
-
-  intros.
-  unfold p, c in *.
-  simpl in *.
-
+  intros padded_key_len padded_keys_eq msgs_eq ops_eq ips_eq HMAC_abstract HMAC_concrete.
   rewrite <- HMAC_abstract. rewrite <- HMAC_concrete.
-
-  unfold HMAC. unfold HP.HMAC_SHA256.HmacCore. unfold HP.HMAC_SHA256.OUTER. unfold HP.HMAC_SHA256.INNER.
-  unfold HP.HMAC_SHA256.outerArg. unfold HP.HMAC_SHA256.innerArg.
+  unfold HMAC. unfold HM.HmacCore. unfold HM.OUTER. unfold HM.INNER.
+  unfold HM.outerArg. unfold HM.innerArg.
 
   unfold HMAC_2K. unfold GHMAC_2K. rewrite -> split_append_id.
 
-  simpl.
-  
-  (* Major lemmas *)
-  apply SHA_equiv_pad.
-  apply bytes_bits_lists_append.
-  apply xor_equiv_byte; trivial. 
+  { eapply equiv_pad.
+    apply DB32. reflexivity. apply GAP. assumption. assumption.
+    apply bytes_bits_lists_append.
+    apply xor_equiv_byte; trivial. 
 
-  *
-    apply SHA_equiv_pad.
-  apply bytes_bits_lists_append.
+    eapply equiv_pad. 
+    apply DB32. reflexivity. apply GAP. assumption. assumption.
+    apply bytes_bits_lists_append.
+    - apply xor_equiv_byte; trivial.
+    - assumption. }
 
-  - apply xor_equiv_byte; trivial.
-  - assumption.
-    * apply BLxor_length; erewrite bytes_bits_length; try eassumption.
-         rewrite map_length, padded_key_len. reflexivity.
-         unfold HP.HMAC_SHA256.sixtyfour.
-          rewrite -> length_list_repeat. reflexivity.
-    * apply BLxor_length; erewrite bytes_bits_length; try eassumption.
-         rewrite map_length, padded_key_len. reflexivity.
-         unfold HP.HMAC_SHA256.sixtyfour.
-          rewrite -> length_list_repeat. reflexivity.
+  { apply BLxor_length; erewrite bytes_bits_length; try eassumption.
+         rewrite map_length, padded_key_len. apply BS.
+         rewrite HM.length_SF. apply BS. }
+
+  { apply BLxor_length; erewrite bytes_bits_length; try eassumption.
+         rewrite map_length, padded_key_len. apply BS.
+         rewrite HM.length_SF. apply BS. }
 Qed.
 
-Lemma isbyte_hmaccore ipad opad m k: 
-   Forall isbyteZ (HP.HMAC_SHA256.HmacCore (Byte.repr ipad) (Byte.repr opad) m k).
-Proof. apply isbyte_sha. Qed.
-
-Theorem HMAC_pad_concrete' : forall
-                            (K : list byte) (M : list Z) (OP IP : Z)
-                            (k m : Blist) (op ip : Blist) (ipByte: isbyteZ IP) (opByte: isbyteZ OP),
-  ((length K) * 8)%nat = (c + p)%nat ->
-  Zlength K = Z.of_nat HP.SHA256.BlockSize ->
+Theorem HMAC_pad_concrete' splitandpad c p (B: (0< b c p)%nat) (BS: (HF.BlockSize * 8)%nat =b c p)
+        (DB32: (I.d*32 =b c p)%nat)
+         ir (*ie initial_regs*) gap (*ie generate_and_pad*)
+         (GAP: forall bits, NPeano.divide I.d (length (gap (bitsToBytes bits))))
+         (sap_gap: splitandpad = fun bits => bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))))
+         (HSH: forall (m:list Z), HF.Hash m = intlist_to_Zlist (I.hashblocks ir (gap m)))
+         (K : list byte) (M : list Z) (OP IP : Z)
+                          (k m : Blist) (op ip : Blist) (ipByte: isbyteZ IP) (opByte: isbyteZ OP):
+  length K = HF.BlockSize ->
   bytes_bits_lists k (map Byte.unsigned K) ->
   bytes_bits_lists m M ->
-  bytes_bits_lists op (HP.HMAC_SHA256.sixtyfour OP) ->
-  bytes_bits_lists ip (HP.HMAC_SHA256.sixtyfour IP) ->
-  HMAC (*c p*) sha_h sha_iv sha_splitandpad op ip k m = 
-  bytesToBits (HP.HMAC_SHA256.HmacCore (Byte.repr IP) (Byte.repr OP) M K).
-Proof. intros.  
-  exploit HMAC_pad_concrete. apply ipByte. apply opByte.
-      apply H. assumption. apply H1. apply H2. apply H3. apply H4.
-  reflexivity. reflexivity.
-  intros.
-  apply bits_bytes_ind_comp. 2: assumption.
-  apply isbyte_hmaccore.
+  bytes_bits_lists op (HM.sixtyfour OP) ->
+  bytes_bits_lists ip (HM.sixtyfour IP) ->
+  bytes_bits_lists
+     (HMAC c p B I.shah (convert ir) splitandpad op ip k m)
+     (HM.HmacCore (Byte.repr IP) (Byte.repr OP) M K).
+Proof.
+  intros. eapply HMAC_pad_concrete; try reflexivity.
+  eassumption. eassumption. eassumption. eassumption. eassumption. eassumption.
+  eassumption. eassumption. eassumption. eassumption. eassumption. rewrite sap_gap. trivial.
 Qed.
 
-End HMAC_Pad.
-(* TODO move this End to the end of the spec definition + rename and recompile things *)
+End HMAC_Pad. 
+(*
+Lemma equiv_pad_SHA256 HASH c p B sap h iv: forall (bits : Blist) (bytes : list Z),
+                    bytes_bits_lists bits bytes ->
+                    bytes_bits_lists
+                      (HMAC_Pad.hash_words_padded c p B h iv sap bits)
+                      (HASH bytes).
+Proof. intros.
+  eapply HMAC_Pad.equiv_pad (*with (gap:=generate_and_pad')*).
+  2: reflexivity.
+  2: apply hash_blocks_equation.
+  reflexivity. reflexivity.
+  apply gap_divide16.
+  intros. unfold sha_splitandpad. f_equal. 
+    apply bytes_bits_ind_comp in H.
+    { subst bytes. unfold generate_and_pad'.
+      rewrite pure_lemmas.Zlist_to_intlist_to_Zlist; trivial.
+        destruct (pad_len_64_nat (bitsToBytes bits0)). rewrite H.
+          exists ((x*16)%nat). rewrite mult_comm, <- mult_assoc. reflexivity.
+        apply pad_isbyteZ. eapply bitsToBytes_isbyteZ. reflexivity. }
+    apply (bytesBitsLists_isbyteZ _ _ H).
+  intros; unfold HP.SHA256.Hash.
+    rewrite -> functional_prog.SHA_256'_eq. unfold SHA256.SHA_256.
+    rewrite <- pad_compose_equal; reflexivity.
+  assumption.
+Qed.
+*)

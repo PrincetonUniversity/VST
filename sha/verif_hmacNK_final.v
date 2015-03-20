@@ -7,6 +7,7 @@ Local Open Scope logic.
 Require Import sha.spec_sha.
 Require Import sha_lemmas.
 Require Import sha.HMAC_functional_prog.
+Require Import sha.HMAC256_functional_prog.
 
 Require Import sha.hmac_NK.
 Require Import sha.spec_hmacNK.
@@ -173,7 +174,7 @@ assert (SFL: Zlength (sha_finish ctx) = 32).
 (*eapply semax_seq'.
 frame_SEP 0 5 6.
 *)
-remember (oSha, sha_finish ctx, Vptr b0 i, b, Tsh, Z.of_nat HP.SHA256.DigestLength, KV) as WITNESS.
+remember (oSha, sha_finish ctx, Vptr b0 i, b, Tsh, Z.of_nat SHA256.DigestLength, KV) as WITNESS.
 forward_call WITNESS.
   { assert (FR: Frame = [
        `(data_at Tsh t_struct_SHA256state_st oCTX
@@ -183,7 +184,7 @@ forward_call WITNESS.
        subst Frame. reflexivity.
     rewrite FR. clear FR Frame. 
     subst WITNESS. entailer. 
-    apply andp_right. (*rewrite SFL.*) unfold HP.SHA256.DigestLength. entailer.
+    apply andp_right. (*rewrite SFL.*) unfold SHA256.DigestLength. entailer.
      rewrite oShaLen. simpl. entailer.
     cancel.
     unfold sha256state_. apply exp_right with (x:=oCTX).
@@ -191,7 +192,7 @@ forward_call WITNESS.
   }
 after_call. subst WITNESS. normalize. remember (sha_finish ctx) as SF. 
 apply semax_pre with (P':=EX  x : s256abs,
-  (PROP  (update_abs (firstn HP.SHA256.DigestLength SF) oSha x)
+  (PROP  (update_abs (firstn SHA256.DigestLength SF) oSha x)
    LOCAL  (`(eq b) (eval_var _buf (tarray tuchar 32));
    `(eq md) (eval_id _md); `(eq (Vptr b0 i)) (eval_id _ctx);
    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
@@ -206,7 +207,7 @@ apply semax_pre with (P':=EX  x : s256abs,
   normalize.
   apply extract_exists_pre. intros updSha. 
   rewrite firstn_precise. 
-  Focus 2. unfold  HP.SHA256.DigestLength. simpl. subst SF. 
+  Focus 2. unfold  SHA256.DigestLength. simpl. subst SF. 
         unfold sha_finish. destruct ctx.
         rewrite <- functional_prog.SHA_256'_eq,length_SHA256'. trivial.
   unfold sha256state_. normalize. intros updShaST. normalize. rename H into UPDSHA; rename H0 into updShaREL.

@@ -21,7 +21,7 @@ unfold hmacstate_PostFinal, hmac_relate_PostFinal. normalize. intros hst. normal
 apply semax_pre with (P':=
   PROP (size_compatible t_struct_hmac_ctx_st c /\
         align_compatible t_struct_hmac_ctx_st c)
-   LOCAL  (`(eq c) (eval_id _ctx))
+   LOCAL  (temp _ctx c)
    SEP 
    (`(data_at Tsh t_struct_hmac_ctx_st
         (upd_reptype t_struct_hmac_ctx_st [StructField _md_ctx] hst
@@ -29,7 +29,7 @@ apply semax_pre with (P':=
   entailer. unfold data_at. simpl. normalize.
 normalize.
 
-forward_call (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
+forward_call' (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero) rv.
   { assert (FR: Frame = nil).  
       subst Frame. reflexivity.
     rewrite FR. clear FR Frame.
@@ -40,7 +40,7 @@ forward_call (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
     entailer. 
     assumption.
   }
-after_call. subst retval0.
+(*after_call.*) subst rv. normalize.
 forward.
 unfold data_block. rewrite Zlength_correct; simpl. entailer. 
 apply prop_right.
