@@ -37,13 +37,15 @@ Definition memcpy_spec_data_at :=
    WITH sh : share*share, p: val, q: val, T:TREP
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
        PROP (writable_share (snd sh); 0 <= sizeof  (tp_of T) <= Int.max_unsigned)
-       LOCAL (`(eq p) (eval_id 1%positive); `(eq q) (eval_id 2%positive);
-                    `(eq (Vint (Int.repr (sizeof (tp_of T))))) (eval_id 3%positive))
-       SEP (`(data_at (fst sh)  (tp_of T) (v_of T) q);
-              `(memory_block (snd sh) (Int.repr (sizeof  (tp_of T))) p))
+       LOCAL (temp 1%positive p; temp 2%positive q;
+              temp 3%positive (Vint (Int.repr (sizeof (tp_of T)))))
+       SEP (`(data_at (fst sh) (tp_of T) (v_of T) q);
+            `(memory_block (snd sh) (Int.repr (sizeof  (tp_of T))) p))
     POST [ tptr tvoid ]
-         local (`(eq p) retval) &&
-       (`(data_at (snd sh) (tp_of T) (v_of T) p) *`(data_at (fst sh) (tp_of T) (v_of T) q)).
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP (`(data_at (snd sh) (tp_of T) (v_of T) p);
+            `(data_at (fst sh) (tp_of T) (v_of T) q)).
 
 (****** Coq-representation of hmac states, and predicates characterizing the incremental functions.
 
@@ -314,7 +316,7 @@ Definition hmacstate_PostFinal (h: hmacabs) (c: val) : mpred :=
     !!  hmac_relate_PostFinal h r && 
     data_at Tsh t_struct_hmac_ctx_st 
        (upd_reptype t_struct_hmac_ctx_st [StructField _md_ctx] r  (default_val t_struct_SHA256state_st)) c.
-
+(*
 Definition HMAC_Final_spec :=
   DECLARE _HMAC_Final
    WITH h1: hmacabs, c : val, md:val, shmd: share, kv:val
@@ -331,7 +333,24 @@ Definition HMAC_Final_spec :=
           LOCAL ()
           SEP(`(K_vector kv);
               `(hmacstate_PostFinal h2 c);
-              `(data_block shmd digest md)).
+              `(data_block shmd digest md)).*)
+Definition HMAC_Final_spec :=
+  DECLARE _HMAC_Final
+   WITH h1: hmacabs, c : val, md:val, shmd: share, kv:val
+   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
+         _md OF tptr tuchar ]
+       PROP (writable_share shmd) 
+       LOCAL (temp _md md; temp _ctx c;
+              gvar sha._K256 kv)
+       SEP(`(hmacstate_ h1 c); `(K_vector kv);
+           `(memory_block shmd (Int.repr 32) md))
+  POST [ tvoid ] 
+         EX digestH2:_, 
+          PROP (hmacFinal h1 (fst digestH2) (snd digestH2)) 
+          LOCAL ()
+          SEP(`(K_vector kv);
+              `(hmacstate_PostFinal (snd digestH2) c);
+              `(data_block shmd (fst digestH2) md)).
 
 (************************ Specification of HMAC_cleanup *******************************************************)
 
