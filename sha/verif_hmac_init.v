@@ -15,8 +15,9 @@ Require Import hmac_common_lemmas.
 
 Require Import sha.hmac091c.
 
-Require Import sha.verif_hmac_init_part1.
+(*Require Import sha.verif_hmac_init_part1.
 Require Import sha.verif_hmac_init_part2.
+*)
 
 (*
 Lemma Tarray_emp_field_compatible b ofs: field_compatible (Tarray tuchar 0 noattr) [] (Vptr b ofs).
@@ -57,7 +58,7 @@ remember (EX  cb : block,
                    (EX  r : Z,
                     PROP  (c = Vptr cb cofs/\ (r=0 \/ r=1))
                     LOCAL  (`(eq (Vint (Int.repr r))) (eval_id _reset);
-                    `(eq pad) (eval_var _pad (tarray tuchar 64));
+                    `(eq pad) (eval_lvar _pad (tarray tuchar 64));
                     `(eq c) (eval_id _ctx); `(eq k) (eval_id _key);
                     `(eq (Vint (Int.repr l))) (eval_id _len);
                     `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
