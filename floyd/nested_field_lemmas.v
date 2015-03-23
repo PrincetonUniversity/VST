@@ -16,6 +16,13 @@ not included.
 
 Section COMPOSITE_ENV.
 Context {cs: compspecs}.
+Check func_type.
+Definition nested_pred (atom_pred: type -> bool) (t: type): bool :=
+  func_type
+    (fun _ => bool)
+    (fun t => atom_pred t)
+    (fun t n a b => (atom_pred (Tarray t n a) && b)%bool)
+    (fun id a co bl => 
 
 Fixpoint nested_pred_rec (n: nat) (atom_pred: type -> bool) (t: type) :=
   match n with
