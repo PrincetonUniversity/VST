@@ -470,10 +470,10 @@ Ltac helper1 :=
 (*** End of Omega stuff *)
 
 Lemma offset_val_sizeof_hack:
- forall t i p,
+ forall cenv t i p,
    isptr p ->
    i=0 ->
-   (offset_val (Int.repr (sizeof t * i)) p = p) = True.
+   (offset_val (Int.repr (sizeof cenv t * i)) p = p) = True.
 Proof.
 intros.
 subst.
@@ -485,10 +485,10 @@ Qed.
 Hint Rewrite offset_val_sizeof_hack : norm.
 
 Lemma offset_val_sizeof_hack2:
- forall t i j p,
+ forall cenv t i j p,
    isptr p ->
    i=j ->
-   (offset_val (Int.repr (sizeof t * i)) p = offset_val (Int.repr (sizeof t * j)) p) = True.
+   (offset_val (Int.repr (sizeof cenv t * i)) p = offset_val (Int.repr (sizeof cenv t * j)) p) = True.
 Proof.
 intros.
 subst.
@@ -497,10 +497,10 @@ Qed.
 Hint Rewrite offset_val_sizeof_hack2 : norm.
 
 Lemma offset_val_sizeof_hack3:
- forall t i p,
+ forall cenv t i p,
    isptr p ->
    i=1 ->
-   (offset_val (Int.repr (sizeof t * i)) p = offset_val (Int.repr (sizeof t)) p) = True.
+   (offset_val (Int.repr (sizeof cenv t * i)) p = offset_val (Int.repr (sizeof cenv t)) p) = True.
 Proof.
 intros.
 subst.

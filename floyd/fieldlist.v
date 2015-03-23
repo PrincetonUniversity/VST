@@ -7,19 +7,18 @@ Local Open Scope logic.
 Arguments align !n !amount / .
 Arguments Z.max !n !m / .
 
-Fixpoint fieldlist_no_replicate (f: fieldlist) : bool :=
-  match f with
-  | Fnil => true
-  | Fcons i _ f' => 
-    andb (negb (isOK (field_type i f'))) (fieldlist_no_replicate f')
-  end.
+Definition id_in_members id (m: members): bool :=
+  id_in_list id (map fst m).
+
+Definition members_no_replicate (m: members) : bool :=
+  compute_list_norepet (map fst m).
 
 (************************************************
 
 Lemmas about fieldlist_app
 
 ************************************************)
-
+(*
 Lemma fieldlist_app_Fnil: forall f, fieldlist_app f Fnil = f.
 Proof.
   intros.
@@ -28,44 +27,43 @@ Proof.
   + simpl. rewrite IHf. reflexivity.
 Defined.
 
-Lemma fieldlist_app_Fcons: forall f1 i t f2, fieldlist_app f1 (Fcons i t f2) = fieldlist_app (fieldlist_app f1 (Fcons i t Fnil)) f2.
+Lemma fieldlist_app_Fcons: forall m1 i t f2, fieldlist_app m1 (Fcons i t f2) = fieldlist_app (fieldlist_app m1 (Fcons i t Fnil)) f2.
 Proof.
   intros.
-  induction f1.
+  induction m1.
   + reflexivity.
   + simpl.
-    rewrite IHf1.
+    rewrite IHm1.
     reflexivity.
 Defined.
 
-Lemma fieldlist_app_field_type_isOK: forall i f1 f2, isOK (field_type i (fieldlist_app f1 f2)) = (isOK (field_type i f1) || isOK (field_type i f2)) %bool.
+Lemma id_in_members_app: forall i (m1 m2: members),
+  id_in_members i (m1 ++ m2) = (id_in_members i m1 || id_in_members i m2)%bool.
 Proof.
   intros.
-  induction f1; simpl.
+  induction m1 as [| [? ?] ?]; simpl.
   + reflexivity.
   + if_tac.
     - reflexivity.
-    - exact IHf1.
+    - exact IHm1.
 Qed.
 
-Lemma fieldlist_no_replicate_fact:
-  forall f1 f2 i, fieldlist_no_replicate (fieldlist_app f1 f2) = true ->
-  isOK (field_type i f1) = true -> isOK (field_type i f2) = true -> False.
+Lemma members_no_replicate_fact:
+  forall m1 m2 i, members_no_replicate (app m1 m2) = true ->
+  isOK (field_type i m1) = true -> isOK (field_type i m2) = true -> False.
 Proof.
   intros.
-  induction f1.
+  induction m1 as [| [? ?] ?].
   + inversion H0.
-  + simpl in H0, H.
-    apply andb_true_iff in H.
+  + unfold members_no_replicate in H; simpl in H0, H.
     if_tac in H0.
-    - destruct H as [? _].
-      rewrite fieldlist_app_field_type_isOK in H.
+    - rewrite members_app_field_type_isOK in H.
       rewrite negb_true_iff, orb_false_iff in H.
       destruct H as [_ ?].
       subst.
       congruence.
     - destruct H as [_ ?].
-      apply IHf1; auto.
+      apply IHm1; auto.
 Qed.
 
 (************************************************
@@ -194,10 +192,10 @@ Proof.
     - apply Zmax_bound_r, IHfld, H.
 Qed.
 
-Lemma eqb_fieldlist_true: forall f1 f2, eqb_fieldlist f1 f2 = true -> f1 = f2.
+Lemma eqb_fieldlist_true: forall m1 m2, eqb_fieldlist m1 m2 = true -> m1 = m2.
 Proof.
   intros.
-  revert f2 H; induction f1; intros; destruct f2; simpl in *.
+  revert m2 H; induction m1; intros; destruct m2; simpl in *.
   + reflexivity.
   + inversion H.
   + inversion H.
@@ -205,7 +203,7 @@ Proof.
     destruct H.
     apply andb_true_iff in H0.
     destruct H0.
-    apply IHf1 in H1.
+    apply IHm1 in H1.
     apply eqb_type_true in H0.
     apply eqb_ident_spec in H.
     subst; reflexivity.
@@ -238,3 +236,4 @@ Ltac solve_field_offset_type i f :=
   destruct (field_offset i f) as [ofs|?] eqn:Hofs, (field_type i f) as [t|?] eqn:Hty;
     [clear H | inversion H | inversion H | clear H].
 
+*)

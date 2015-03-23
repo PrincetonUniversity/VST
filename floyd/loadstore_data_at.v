@@ -2,7 +2,6 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
-Require Import floyd.type_id_env.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.loadstore_mapsto.

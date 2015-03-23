@@ -5,7 +5,6 @@ Require Import floyd.fieldlist.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.rangespec_lemmas.
-Require Import floyd.type_id_env.
 Require Import Coq.Logic.JMeq.
 Opaque alignof.
 

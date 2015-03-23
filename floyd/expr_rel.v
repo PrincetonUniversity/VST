@@ -10,7 +10,6 @@ Require Import floyd.array_lemmas.
 Require Import floyd.unfold_data_at.
 Require Import floyd.entailer.
 Require Import floyd.globals_lemmas.
-Require Import floyd.type_id_env.
 Require Import floyd.semax_tactics.
 
 Lemma rel_lvalue_var:

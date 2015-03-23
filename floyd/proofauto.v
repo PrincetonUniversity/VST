@@ -9,7 +9,6 @@ Require Export floyd.call_lemmas.
 Require Export floyd.forward_lemmas.
 Require Export floyd.for_lemmas.
 Require Export floyd.nested_field_lemmas.
-Require Export floyd.type_id_env.
 Require Export floyd.efield_lemmas.
 Require Export floyd.mapsto_memory_block.
 Require Export floyd.rangespec_lemmas.

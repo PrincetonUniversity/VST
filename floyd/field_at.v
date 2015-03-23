@@ -6,7 +6,6 @@ Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.rangespec_lemmas.
 Require Import floyd.data_at_lemmas.
-Require Import floyd.type_id_env.
 Require Import floyd.jmeq_lemmas.
 Require Import Coq.Logic.JMeq.
 

@@ -2,7 +2,7 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.fieldlist.
-Require Import floyd.type_id_env.
+Require Import floyd.type_induction.
 
 (************************************************
 
@@ -14,24 +14,61 @@ not included.
 
 ************************************************)
 
-Fixpoint nested_pred (atom_pred: type -> bool) (t: type) : bool :=
+Section COMPOSITE_ENV.
+Context {cs: compspecs}.
+
+Fixpoint nested_pred_rec (n: nat) (atom_pred: type -> bool) (t: type) :=
+  match n with
+  | O => atom_pred t
+  | S n' =>
+    match t with
+    | Tarray t0 n _ => (atom_pred t && nested_pred_rec n' atom_pred t0)%bool
+    | Tstruct id _
+    | Tunion id _ =>
+      match cenv_cs ! id with
+      | Some co => atom_pred t &&
+                   fold_right (fun it b => (nested_pred_rec n' atom_pred (snd it) && b)%bool)
+                     true (co_members co)
+      | _ => atom_pred t
+      end
+    | _ => atom_pred t
+    end
+  end.
+
+Definition nested_pred atom_pred t := nested_pred_rec (rank_type cenv_cs t) atom_pred t.
+
+Lemma nested_pred_ind: forall atom_pred t,
+  complete_type cenv_cs t = true ->
+  nested_pred atom_pred t = 
   match t with
   | Tarray t0 n _ => (atom_pred t && nested_pred atom_pred t0)%bool
-  | Tstruct _ flds _ => (atom_pred t && nested_fields_pred atom_pred flds)%bool
-  | Tunion _ flds _ => (atom_pred t && nested_fields_pred atom_pred flds)%bool
+  | Tstruct id _
+  | Tunion id _ =>
+    match cenv_cs ! id with
+    | Some co => atom_pred t &&
+                 fold_right (fun it b => (nested_pred atom_pred (snd it) && b)%bool)
+                   true (co_members co)
+    | _ => atom_pred t
+    end
   | _ => atom_pred t
-  end
-with nested_fields_pred (atom_pred: type -> bool) (f: fieldlist) : bool :=
-  match f with 
-  | Fnil => true 
-  | Fcons _ t f' => (nested_pred atom_pred t && nested_fields_pred atom_pred f')%bool
   end.
+Proof.
+  intros ?.
+  apply type_ind; intros; destruct t; try solve [simpl; auto].
+  + (* Tstruct *)
+    simpl in H.
+    destruct (cenv_cs ! i) as [co |] eqn:HH; [| inv H]; simpl.
+    unfold nested_pred at 1; simpl.
+    rewrite HH; simpl; rewrite HH.
+ reflexivity.
 
 Lemma nested_pred_atom_pred: forall {atom_pred: type -> bool} (t: type),
   nested_pred atom_pred t = true -> atom_pred t = true.
 Proof.
   intros.
-  destruct t; simpl in *; try apply andb_true_iff in H; try tauto.
+  destruct t; simpl in *;
+   try (destruct (cenv_cs ! i) eqn:HH; simpl in H; try rewrite HH in H);
+   try apply andb_true_iff in H; try tauto.
 Defined.
 
 Lemma nested_pred_Tarray: forall {atom_pred: type -> bool} t n a,

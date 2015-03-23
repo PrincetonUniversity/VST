@@ -4,7 +4,6 @@ Require Import floyd.client_lemmas.
 Require Import floyd.fieldlist.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.efield_lemmas.
-Require Import floyd.type_id_env.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
