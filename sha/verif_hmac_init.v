@@ -16,7 +16,8 @@ Require Import hmac_common_lemmas.
 Require Import sha.hmac091c.
 
 Require Import sha.verif_hmac_init_part1.
-Require Import sha.verif_hmac_init_part2.
+(*Require Import sha.verif_hmac_init_part2.
+*)
 
 (*
 Lemma Tarray_emp_field_compatible b ofs: field_compatible (Tarray tuchar 0 noattr) [] (Vptr b ofs).
@@ -44,7 +45,7 @@ name len' _len.
 simpl_stackframe_of.
 destruct H as [KL1 [KL2 KL3]]. normalize.
 (*Sset _reset (Econst_int (Int.repr 0) tint)*)
-forward.
+forward v.
 
 (*unfold data_block.*) normalize. 
 
@@ -55,15 +56,14 @@ remember (EX  cb : block,
                  (EX  cofs : int,
                   (EX  pad : val,
                    (EX  r : Z,
-                    PROP  (c = Vptr cb cofs/\ (r=0 \/ r=1))
-                    LOCAL  (`(eq (Vint (Int.repr r))) (eval_id _reset);
-                    `(eq pad) (eval_var _pad (tarray tuchar 64));
-                    `(eq c) (eval_id _ctx); `(eq k) (eval_id _key);
-                    `(eq (Vint (Int.repr l))) (eval_id _len);
-                    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+                    PROP  (c = Vptr cb cofs /\ (r=0 \/ r=1))
+                    LOCAL  (temp _reset (Vint (Int.repr r));
+                      lvar _pad (tarray tuchar 64) pad; temp _ctx c; temp _key k;
+                      temp _len (Vint (Int.repr l));
+                      gvar sha._K256 kv)
                     SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
                     `(initPostKeyNullConditional r c k h1 key);
-                    `(K_vector KV)))))) as PostKeyNull. 
+                    `(K_vector kv)))))) as PostKeyNull. 
 forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
 { assert (DD: Delta = initialized _reset 
                (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs)) by reflexivity.
