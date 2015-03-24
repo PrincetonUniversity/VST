@@ -14,95 +14,109 @@ not included.
 
 ************************************************)
 
+Lemma fold_right_map: forall {A B C} (f: B -> A -> A) (g: C -> B) (e: A) (l: list C),
+  fold_right f e (map g l) = fold_right (fun c a => f (g c) a) e l.
+Proof.
+  intros.
+  induction l.
+  + reflexivity.
+  + simpl.
+    rewrite IHl.
+    reflexivity.
+Qed.
+
 Section COMPOSITE_ENV.
 Context {cs: compspecs}.
-Check func_type.
-Definition nested_pred (atom_pred: type -> bool) (t: type): bool :=
+
+Definition nested_pred (atom_pred: type -> bool): type -> bool :=
   func_type
     (fun _ => bool)
     (fun t => atom_pred t)
     (fun t n a b => (atom_pred (Tarray t n a) && b)%bool)
-    (fun id a co bl => 
+    (fun id a co bl => (atom_pred (Tstruct id a) && fold_right andb true (decay bl))%bool)
+    (fun id a co bl => (atom_pred (Tunion id a) && fold_right andb true (decay bl))%bool).
 
-Fixpoint nested_pred_rec (n: nat) (atom_pred: type -> bool) (t: type) :=
-  match n with
-  | O => atom_pred t
-  | S n' =>
-    match t with
-    | Tarray t0 n _ => (atom_pred t && nested_pred_rec n' atom_pred t0)%bool
-    | Tstruct id _
-    | Tunion id _ =>
-      match cenv_cs ! id with
-      | Some co => atom_pred t &&
-                   fold_right (fun it b => (nested_pred_rec n' atom_pred (snd it) && b)%bool)
-                     true (co_members co)
-      | _ => atom_pred t
-      end
-    | _ => atom_pred t
-    end
-  end.
-
-Definition nested_pred atom_pred t := nested_pred_rec (rank_type cenv_cs t) atom_pred t.
+Definition nested_fields_pred (atom_pred: type -> bool) (m: members) : bool :=
+  fold_right (fun it b => (nested_pred atom_pred (snd it) && b)%bool) true m.
 
 Lemma nested_pred_ind: forall atom_pred t,
   complete_type cenv_cs t = true ->
   nested_pred atom_pred t = 
   match t with
-  | Tarray t0 n _ => (atom_pred t && nested_pred atom_pred t0)%bool
+  | Tarray t0 _ _ => (atom_pred t && nested_pred atom_pred t0)%bool
   | Tstruct id _
   | Tunion id _ =>
-    match cenv_cs ! id with
-    | Some co => atom_pred t &&
-                 fold_right (fun it b => (nested_pred atom_pred (snd it) && b)%bool)
-                   true (co_members co)
-    | _ => atom_pred t
-    end
+      match cenv_cs ! id with
+      | Some co => atom_pred t && nested_fields_pred atom_pred (co_members co)
+      | _ => atom_pred t
+      end
   | _ => atom_pred t
   end.
 Proof.
-  intros ?.
-  apply type_ind; intros; destruct t; try solve [simpl; auto].
-  + (* Tstruct *)
-    simpl in H.
-    destruct (cenv_cs ! i) as [co |] eqn:HH; [| inv H]; simpl.
-    unfold nested_pred at 1; simpl.
-    rewrite HH; simpl; rewrite HH.
- reflexivity.
+  unfold nested_fields_pred.
+  intros.
+  unfold nested_pred.
+  rewrite func_type_ind with (t0 := t) at 1 by auto.
+  destruct t; auto.
+  + destruct (cenv_cs ! i); auto.
+    f_equal.
+    rewrite decay_spec.
+    rewrite map_map.
+    rewrite fold_right_map.
+    reflexivity.
+  + destruct (cenv_cs ! i); auto.
+    f_equal.
+    rewrite decay_spec.
+    rewrite map_map.
+    rewrite fold_right_map.
+    reflexivity.
+Defined.
 
-Lemma nested_pred_atom_pred: forall {atom_pred: type -> bool} (t: type),
+Lemma nested_pred_atom_pred: forall {atom_pred: type -> bool} (t: type)
+  (COMPLETE: complete_type cenv_cs t = true),
   nested_pred atom_pred t = true -> atom_pred t = true.
 Proof.
   intros.
+  rewrite nested_pred_ind in H by auto.
   destruct t; simpl in *;
    try (destruct (cenv_cs ! i) eqn:HH; simpl in H; try rewrite HH in H);
    try apply andb_true_iff in H; try tauto.
 Defined.
 
-Lemma nested_pred_Tarray: forall {atom_pred: type -> bool} t n a,
+Lemma nested_pred_Tarray: forall {atom_pred: type -> bool} t n a
+  (COMPLETE: complete_type cenv_cs (Tarray t n a) = true),
   nested_pred atom_pred (Tarray t n a) = true -> nested_pred atom_pred t = true.
 Proof.
   intros.
-  simpl in H.
+  rewrite nested_pred_ind in H by auto.
   apply andb_true_iff in H.
   tauto.
 Defined.
 
-Lemma nested_pred_Tstruct: forall {atom_pred: type -> bool} i f a, nested_pred atom_pred (Tstruct i f a) = true -> nested_fields_pred atom_pred f = true.
+Lemma nested_pred_Tstruct: forall {atom_pred: type -> bool} id a co
+  (COMPLETE: complete_type cenv_cs (Tstruct id a) = true)
+  (CO: cenv_cs ! id = Some co),
+  nested_pred atom_pred (Tstruct id a) = true -> nested_fields_pred atom_pred (co_members co) = true.
 Proof.
   intros.
-  simpl in H.
+  rewrite nested_pred_ind in H by auto.
+  rewrite CO in H.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_pred_Tunion: forall {atom_pred: type -> bool} i f a, nested_pred atom_pred (Tunion i f a) = true -> nested_fields_pred atom_pred f = true.
+Lemma nested_pred_Tunion: forall {atom_pred: type -> bool} id a co
+  (COMPLETE: complete_type cenv_cs (Tunion id a) = true)
+  (CO: cenv_cs ! id = Some co),
+  nested_pred atom_pred (Tunion id a) = true -> nested_fields_pred atom_pred (co_members co) = true.
 Proof.
   intros.
-  simpl in H.
+  rewrite nested_pred_ind in H by auto.
+  rewrite CO in H.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_fields_pred_hd: forall {atom_pred: type -> bool} i t f,
-  nested_fields_pred atom_pred (Fcons i t f) = true ->
+Lemma nested_fields_pred_hd: forall {atom_pred: type -> bool} i t m,
+  nested_fields_pred atom_pred ((i, t) :: m) = true ->
   nested_pred atom_pred t = true.
 Proof.
   intros.
@@ -110,19 +124,19 @@ Proof.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_fields_pred_tl: forall {atom_pred: type -> bool} i t f,
-  nested_fields_pred atom_pred (Fcons i t f) = true ->
-  nested_fields_pred atom_pred f = true.
+Lemma nested_fields_pred_tl: forall {atom_pred: type -> bool} i t m,
+  nested_fields_pred atom_pred ((i, t) :: m) = true ->
+  nested_fields_pred atom_pred m = true.
 Proof.
   intros.
   simpl in H.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_fields_pred_nested_pred: forall {atom_pred: type -> bool} i t f, field_type i f = Errors.OK t -> nested_fields_pred atom_pred f = true -> nested_pred atom_pred t = true.
+Lemma nested_fields_pred_nested_pred: forall {atom_pred: type -> bool} i t m, field_type i m = Errors.OK t -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred t = true.
 Proof.
   intros.
-  induction f.
+  induction m as [| [i0 t0] m].
   + inversion H.
   + simpl in H.
     if_tac in H; simpl in H0.
@@ -132,7 +146,7 @@ Proof.
       tauto.
     - apply andb_true_iff in H0.
       destruct H0.
-      apply IHf; assumption.
+      apply IHm; assumption.
 Defined.
 
 (******* Samples : array_never_empty **************)
@@ -156,17 +170,24 @@ Definition local_legal_alignas_type (t: type): bool :=
   | Tpointer _ a     => match attr_alignas a with | None => true | _ => false end
   | Tfunction _ _ _  => true
   | Tarray t _ a     => match attr_alignas a with | None => true | _ => false end
-  | Tstruct _ flds a => 
-      match attr_alignas a with
-      | None => true 
-      | Some l => Z.leb (alignof_fields flds) (two_p (Z.of_N l))
+  | Tstruct id a => 
+      match cenv_cs ! id with
+      | Some co =>
+        match attr_alignas a with
+        | None => true 
+        | Some l => Z.leb (co_alignof co) (two_p (Z.of_N l))
+        end
+      | _ => true
       end
-  | Tunion _ flds a  =>
-      match attr_alignas a with
-      | None => true 
-      | Some l => Z.leb (alignof_fields flds) (two_p (Z.of_N l))
+  | Tunion id a  =>
+      match cenv_cs ! id with
+      | Some co =>
+        match attr_alignas a with
+        | None => true 
+        | Some l => Z.leb (co_alignof co) (two_p (Z.of_N l))
+        end
+      | _ => true
       end
-  | Tcomp_ptr _ a    => match attr_alignas a with | None => true | _ => false end
   end.
 
 Definition legal_alignas_type := nested_pred local_legal_alignas_type.
@@ -175,82 +196,106 @@ Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
 
 Lemma local_legal_alignas_type_Tarray: forall t z a,
   local_legal_alignas_type (Tarray t z a) = true ->
-  alignof (Tarray t z a) = alignof t.
+  alignof cenv_cs (Tarray t z a) = alignof cenv_cs t.
 Proof.
   intros.
   simpl.
   simpl in H.
+  unfold align_attr.
   destruct (attr_alignas a).
   + inversion H.
   + reflexivity.
 Qed.
 
-Lemma local_legal_alignas_type_Tstruct: forall i f a,
-  local_legal_alignas_type (Tstruct i f a) = true ->
-  (alignof_fields f | alignof (Tstruct i f a)).
+Lemma local_legal_alignas_type_Tstruct: forall id a co
+  (CO: cenv_cs ! id = Some co),
+  local_legal_alignas_type (Tstruct id a) = true ->
+  (co_alignof co | alignof cenv_cs (Tstruct id a)).
 Proof.
   intros.
   simpl.
   simpl in H.
+  rewrite CO in *.
+  unfold align_attr.
   destruct (attr_alignas a).
   + apply Zle_is_le_bool in H.
     rewrite <- N_nat_Z in *.
     rewrite <- two_power_nat_two_p in *.
-    destruct (alignof_fields_two_p f).
+    destruct (co_alignof_two_p co).
     rewrite H0 in *; clear H0.
     apply (power_nat_divide _ _ H).
   + apply Z.divide_refl.
 Qed.
 
-Lemma local_legal_alignas_type_Tunion: forall i f a,
-  local_legal_alignas_type (Tunion i f a) = true ->
-  (alignof_fields f | alignof (Tunion i f a)).
+Lemma local_legal_alignas_type_Tunion: forall id a co
+  (CO: cenv_cs ! id = Some co),
+  local_legal_alignas_type (Tunion id a) = true ->
+  (co_alignof co | alignof cenv_cs (Tunion id a)).
 Proof.
   intros.
   simpl.
   simpl in H.
+  rewrite CO in *.
+  unfold align_attr.
   destruct (attr_alignas a).
   + apply Zle_is_le_bool in H.
     rewrite <- N_nat_Z in *.
     rewrite <- two_power_nat_two_p in *.
-    destruct (alignof_fields_two_p f).
+    destruct (co_alignof_two_p co).
     rewrite H0 in *; clear H0.
     apply (power_nat_divide _ _ H).
   + apply Z.divide_refl.
 Qed.
 
-Lemma legal_alignas_type_Tarray: forall t z a,
+Lemma legal_alignas_type_Tarray: forall t z a
+  (COMPLETE: complete_type cenv_cs (Tarray t z a) = true),
   legal_alignas_type (Tarray t z a) = true ->
-  alignof (Tarray t z a) = alignof t.
+  alignof cenv_cs (Tarray t z a) = alignof cenv_cs t.
 Proof.
   intros.
-  apply nested_pred_atom_pred in H.
+  unfold legal_alignas_type in H.
+  apply nested_pred_atom_pred in H; [| auto].
   apply local_legal_alignas_type_Tarray.
   exact H.
 Qed.
 
-Lemma legal_alignas_type_Tstruct: forall i f a,
-  legal_alignas_type (Tstruct i f a) = true ->
-  (alignof_fields f | alignof (Tstruct i f a)).
+Lemma legal_alignas_type_Tstruct: forall id a co
+  (COMPLETE: complete_type cenv_cs (Tstruct id a) = true)
+  (CO: cenv_cs ! id = Some co),
+  legal_alignas_type (Tstruct id a) = true ->
+  (co_alignof co | alignof cenv_cs (Tstruct id a)).
 Proof.
   intros.
-  apply nested_pred_atom_pred in H.
-  apply local_legal_alignas_type_Tstruct.
-  exact H.
+  unfold legal_alignas_type in H.
+  apply nested_pred_atom_pred in H; [| auto].
+  apply local_legal_alignas_type_Tstruct; auto.
 Qed.
 
-Lemma legal_alignas_type_Tunion: forall i f a,
-  legal_alignas_type (Tunion i f a) = true ->
-  (alignof_fields f | alignof (Tunion i f a)).
+Lemma legal_alignas_type_Tunion: forall id a co
+  (COMPLETE: complete_type cenv_cs (Tunion id a) = true)
+  (CO: cenv_cs ! id = Some co),
+  legal_alignas_type (Tunion id a) = true ->
+  (co_alignof co | alignof cenv_cs (Tunion id a)).
 Proof.
   intros.
-  apply nested_pred_atom_pred in H.
-  apply local_legal_alignas_type_Tunion.
-  exact H.
+  unfold legal_alignas_type in H.
+  apply nested_pred_atom_pred in H; [| auto].
+  apply local_legal_alignas_type_Tunion; auto.
 Qed.
 
+Print alignof.
+Print align_attr.
+Print co_consistent_alignof.
+Print composite_consistent.
+Print composite.
+SearchAbout co_attr.
+Print build_composite_env.
+Print add_composite_definitions.
+Print composite_of_def.
+Check Errors.bind.
+Check Tstruct.
 Lemma legal_alignas_sizeof_alignof_compat: forall t : type,
-  legal_alignas_type t = true -> (alignof t | sizeof t).
+  legal_alignas_type t = true -> (alignof cenv_cs t | sizeof cenv_cs t).
 Proof.
   intros.
   induction t; pose proof nested_pred_atom_pred _ H; simpl in *;
