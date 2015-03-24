@@ -282,78 +282,68 @@ Lemma init_part2: forall
 (ctx' : name _ctx)
 (key' : name _key)
 (len' : name _len)
+(pad : val)
 (Delta := initialized _reset 
        (func_tycontext f_HMAC_Init HmacVarSpecs HmacFunSpecs))
 (cb : block)
 (cofs : int)
-(pad : val)
 (r : Z)
-(HC: c = Vptr cb cofs)
+(HC : c = Vptr cb cofs)
 (R : r = 0 \/ r = 1)
 (PostResetBranch : environ -> mpred)
 (HeqPostResetBranch : PostResetBranch =
-                     EX shaStates:_ (* (iSA, (iS, (oSA, oS))) where
-                     EX  iSA : s256abs,
-                     (EX  iS : s256state,
-                      (EX  oSA : s256abs,
-                       (EX  oS : s256state*),
-                        PROP 
-                        (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key))
-                           (fst shaStates) /\
-                         s256_relate (fst shaStates) (fst (snd shaStates)) /\
-                         outerShaInit (map Byte.repr (HMAC_SHA256.mkKey key))
-                           (fst (snd (snd shaStates))) /\ s256_relate (fst (snd (snd shaStates))) (snd (snd (snd shaStates))))
-                        LOCAL  (lvar _pad (tarray tuchar 64) pad; 
-                                temp _ctx (Vptr cb cofs); temp _key k;
-                                temp _len (Vint (Int.repr l));
-                                gvar sha._K256 kv)
-                        SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
-                        `(initPostResetConditional r c k h1 key (fst (snd shaStates)) (snd (snd (snd shaStates))));
-                        `(K_vector kv)))
-,
-@semax Espec Delta
+                     EX  shaStates
+                     : s256abs * (s256state * (s256abs * s256state)),
+                     PROP 
+                     (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key))
+                        (fst shaStates) /\
+                      s256_relate (fst shaStates) (fst (snd shaStates)) /\
+                      outerShaInit (map Byte.repr (HMAC_SHA256.mkKey key))
+                        (fst (snd (snd shaStates))) /\
+                      s256_relate (fst (snd (snd shaStates)))
+                        (snd (snd (snd shaStates))))
+                     LOCAL  (lvar _pad (tarray tuchar 64) pad;
+                     temp _ctx (Vptr cb cofs); temp _key k;
+                     temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
+                     SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
+                     `(initPostResetConditional r c k h1 key
+                         (fst (snd shaStates)) (snd (snd (snd shaStates))));
+                     `(K_vector kv))),
+semax Delta
   (PROP  ()
-   LOCAL  (temp _reset (Vint (Int.repr r));
-           lvar _pad (tarray tuchar 64) pad; 
-           temp _ctx (Vptr cb cofs); temp _key k;
-           temp _len (Vint (Int.repr l));
-           gvar sha._K256 kv)
+   LOCAL  (temp _reset (Vint (Int.repr r)); lvar _pad (tarray tuchar 64) pad;
+   temp _ctx (Vptr cb cofs); temp _key k; temp _len (Vint (Int.repr l));
+   gvar sha._K256 kv)
    SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
    `(initPostKeyNullConditional r (Vptr cb cofs) k h1 key); `(K_vector kv)))
-
   (Sifthenelse (Etempvar _reset tint)
      (Ssequence
-        (Ssequence (Sset _i (Econst_int (Int.repr 0) tint))
-           (Sloop
+        (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
+           (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 64) tint)
+              tint)
+           (Ssequence
+              (Sset _aux
+                 (Ecast
+                    (Ederef
+                       (Ebinop Oadd
+                          (Efield
+                             (Ederef
+                                (Etempvar _ctx (tptr t_struct_hmac_ctx_st))
+                                t_struct_hmac_ctx_st) _key (tarray tuchar 64))
+                          (Etempvar _i tint) (tptr tuchar)) tuchar) tuchar))
               (Ssequence
-                 (Sifthenelse
-                    (Ebinop Olt (Etempvar _i tint)
-                       (Econst_int (Int.repr 64) tint) tint) Sskip Sbreak)
-                 (Ssequence
-                    (Sset _aux
-                       (Ecast
-                          (Ederef
-                             (Ebinop Oadd
-                                (Efield
-                                   (Ederef
-                                      (Etempvar _ctx
-                                         (tptr t_struct_hmac_ctx_st))
-                                      t_struct_hmac_ctx_st) _key
-                                   (tarray tuchar 64)) (Etempvar _i tint)
-                                (tptr tuchar)) tuchar) tuchar))
-                    (Ssequence
-                       (Sset _aux
-                          (Ecast
-                             (Ebinop Oxor (Econst_int (Int.repr 54) tint)
-                                (Etempvar _aux tuchar) tint) tuchar))
-                       (Sassign
-                          (Ederef
-                             (Ebinop Oadd (Evar _pad (tarray tuchar 64))
-                                (Etempvar _i tint) (tptr tuchar)) tuchar)
-                          (Etempvar _aux tuchar)))))
-              (Sset _i
-                 (Ebinop Oadd (Etempvar _i tint)
-                    (Econst_int (Int.repr 1) tint) tint))))
+                 (Sset _aux
+                    (Ecast
+                       (Ebinop Oxor (Econst_int (Int.repr 54) tint)
+                          (Etempvar _aux tuchar) tint) tuchar))
+                 (Sassign
+                    (Ederef
+                       (Ebinop Oadd (Evar _pad (tarray tuchar 64))
+                          (Etempvar _i tint) (tptr tuchar)) tuchar)
+                    (Etempvar _aux tuchar))))
+           (Sset _i
+              (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
+                 tint)))
         (Ssequence
            (Scall None
               (Evar _SHA256_Init
@@ -379,37 +369,30 @@ Lemma init_part2: forall
                     (tptr t_struct_SHA256state_st);
                  Evar _pad (tarray tuchar 64); Econst_int (Int.repr 64) tint])
               (Ssequence
-                 (Ssequence (Sset _i (Econst_int (Int.repr 0) tint))
-                    (Sloop
-                       (Ssequence
-                          (Sifthenelse
-                             (Ebinop Olt (Etempvar _i tint)
-                                (Econst_int (Int.repr 64) tint) tint) Sskip
-                             Sbreak)
-                          (Ssequence
-                             (Sset _aux
-                                (Ecast
-                                   (Ederef
-                                      (Ebinop Oadd
-                                         (Efield
-                                            (Ederef
-                                               (Etempvar _ctx
-                                                  (tptr t_struct_hmac_ctx_st))
-                                               t_struct_hmac_ctx_st) _key
-                                            (tarray tuchar 64))
-                                         (Etempvar _i tint) (tptr tuchar))
-                                      tuchar) tuchar))
-                             (Sassign
-                                (Ederef
-                                   (Ebinop Oadd
-                                      (Evar _pad (tarray tuchar 64))
-                                      (Etempvar _i tint) (tptr tuchar))
-                                   tuchar)
-                                (Ebinop Oxor (Econst_int (Int.repr 92) tint)
-                                   (Etempvar _aux tuchar) tint))))
-                       (Sset _i
-                          (Ebinop Oadd (Etempvar _i tint)
-                             (Econst_int (Int.repr 1) tint) tint))))
+                 (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
+                    (Ebinop Olt (Etempvar _i tint)
+                       (Econst_int (Int.repr 64) tint) tint)
+                    (Ssequence
+                       (Sset _aux
+                          (Ecast
+                             (Ederef
+                                (Ebinop Oadd
+                                   (Efield
+                                      (Ederef
+                                         (Etempvar _ctx
+                                            (tptr t_struct_hmac_ctx_st))
+                                         t_struct_hmac_ctx_st) _key
+                                      (tarray tuchar 64)) (Etempvar _i tint)
+                                   (tptr tuchar)) tuchar) tuchar))
+                       (Sassign
+                          (Ederef
+                             (Ebinop Oadd (Evar _pad (tarray tuchar 64))
+                                (Etempvar _i tint) (tptr tuchar)) tuchar)
+                          (Ebinop Oxor (Econst_int (Int.repr 92) tint)
+                             (Etempvar _aux tuchar) tint)))
+                    (Sset _i
+                       (Ebinop Oadd (Etempvar _i tint)
+                          (Econst_int (Int.repr 1) tint) tint)))
                  (Ssequence
                     (Scall None
                        (Evar _SHA256_Init
@@ -441,9 +424,11 @@ Lemma init_part2: forall
   (overridePost PostResetBranch
      (frame_ret_assert
         (function_body_ret_assert tvoid
-           `(EX  h : hmacabs,
-             !!hmacInit key h && hmacstate_ h c * initPostKey k key *
-             K_vector kv)) (stackframe_of f_HMAC_Init))).
+           (EX  h : hmacabs,
+            PROP  (hmacInit key h)
+            LOCAL ()
+            SEP  (`(hmacstate_ h c); `(initPostKey k key); `(K_vector kv))))
+        (stackframe_of f_HMAC_Init))).
 Proof. intros.
 forward_if PostResetBranch. 
   { (* THEN*)
@@ -489,7 +474,7 @@ forward_if PostResetBranch.
     rename H0 into isbyte_key.
     apply isptrD in H1; destruct H1 as [kb [kofs HK]]; rewrite HK in *. clear r_true.
     
-    eapply semax_seq'. (* USING forward_seq here introduces another Delta0 in goal2 - but 
+    eapply semax_seq'. (*TODO: using forward_seq here introduces another Delta0 in goal2 - but 
                           it worked fine before I split this off into file XXX_part2.v *)
     instantiate (1:= 
       (PROP  ()
@@ -564,9 +549,7 @@ forward_if PostResetBranch.
     (*continuation after ipad-loop*)   
     unfold_data_at 2%nat. normalize.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]); try reflexivity. normalize.
-    (*was: rewrite at_offset'_eq.
-           2: simpl; rewrite Int.add_zero; reflexivity.*)
-    (*now: extract field-address info before doing anything else*)
+    (*extract field-address info before doing anything else*)
        assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _i_ctx]
           (Vptr cb cofs))). entailer.
        apply isptrD in H. destruct H as [? [? PT]]; rewrite PT.
@@ -580,6 +563,7 @@ forward_if PostResetBranch.
     forward_call' (Vptr cb (Int.add cofs (Int.repr 108))).
 
     (*Call to _SHA256_Update*)
+    Opaque firstn. 
     forward_call' (init_s256abs, 
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad,
             Vptr cb (Int.add cofs (Int.repr 108)),
@@ -607,18 +591,17 @@ forward_if PostResetBranch.
         rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. 
         unfold SHA256.BlockSize; simpl. rewrite int_max_unsigned_eq.
         unfold two_power_pos, shift_pos. simpl. omega.
-      } 
-    (*TODO: prevent tactic from unfolding firstn*)
-    assert (update_abs (firstn (Z.to_nat 64) (HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad))
-           init_s256abs ipadSHAabs).  apply H. 
-    clear H. rename H0 into ipadAbs_def.
+      }
+    rename H into ipadAbs_def.
     normalize.
     rewrite firstn_precise in ipadAbs_def.
-    Focus 2. apply Zlength_length. omega. 
-             rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. reflexivity.
+    Focus 2. specialize (Zlength_mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad); intros. 
+            apply coqlib3.Zlength_length in H. rewrite H. repeat rewrite map_length. rewrite mkKey_length. reflexivity.
+            repeat rewrite map_length. rewrite mkKey_length. simpl. omega. 
+    Transparent firstn. 
 
     (*essentially the same for opad*) 
-    eapply semax_seq'. (* USING forward_seq here introduces another Delta0 in goal2 - but 
+    eapply semax_seq'. (* TOSO: using forward_seq here introduces another Delta0 in goal2 - but 
                           it worked fine before I split this off into file XXX_part2.v *)
 
     instantiate (1:=  (PROP  ()
@@ -727,7 +710,7 @@ forward_if PostResetBranch.
     forward_call' (Vptr cb (Int.add cofs (Int.repr 216))).
 
     (* Call to sha_update*)
-    (*Andrew: the old proof started like this:
+    (*TODO: Andrew, the old proof started like this:
       forward_call (init_s256abs, 
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad,
             Vptr cb (Int.add cofs (Int.repr 216)),
@@ -736,8 +719,9 @@ forward_if PostResetBranch.
       such a semax_seq_skip is already contained in fwd_call', and we should be
       in the semax _ _(Scall _ _ _ ) _ case.*)
  (* adding sth like this does not help  simpl; normalize. unfold POSTCONDITION, abbreviate. simpl; normalize.
-    Also: just call forward_call' worked fine at the corresponding place after the ipad loop (line 581 above)*)
+    Also: just call forward_call' worked fine at the corresponding place after the ipad loop (line 565 above)*)
    rewrite -> semax_seq_skip.
+   Opaque firstn. 
    forward_call' (init_s256abs, 
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad,
             Vptr cb (Int.add cofs (Int.repr 216)),
@@ -767,14 +751,13 @@ forward_if PostResetBranch.
       unfold SHA256.BlockSize; simpl. rewrite int_max_unsigned_eq.
       unfold two_power_pos, shift_pos. simpl. omega.
     } 
-    (*TODO: prevent tactic from unfolding firstn*)
-    assert (update_abs (firstn (Z.to_nat 64) (HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad))
-           init_s256abs opadSHAabs).  apply H. 
-    clear H. rename H0 into opadAbs_def.
+    rename H into opadAbs_def.
     normalize.
     rewrite firstn_precise in opadAbs_def.
-    Focus 2. apply Zlength_length. omega. 
-             rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. reflexivity.
+    Focus 2. specialize (Zlength_mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad); intros. 
+            apply coqlib3.Zlength_length in H. rewrite H. repeat rewrite map_length. rewrite mkKey_length. reflexivity.
+            repeat rewrite map_length. rewrite mkKey_length. simpl. omega. 
+    Transparent firstn. 
 
     subst PostResetBranch; entailer. unfold sha256state_; normalize. rename r into iUpd. rename x into oUpd.
         apply (exp_right (ipadSHAabs,(iUpd,(opadSHAabs,oUpd)))). entailer.
