@@ -28,5 +28,6 @@ Require Export floyd.array_lemmas.
 Require Export floyd.unfold_data_at.
 Require Export floyd.entailer.
 Require Export floyd.globals_lemmas.
+Require Export floyd.diagnosis.
 Export ListNotations.
 

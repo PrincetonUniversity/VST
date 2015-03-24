@@ -28,7 +28,9 @@ Definition insert_spec :=
         SEP (`(lseg LS sh (map Vint contents) sorted_ptr nullval);
              `(data_at sh t_struct_list (Vint insert_val, nullval) insert_ptr))
     POST [tptr t_struct_list]
-        `(lseg LS sh (map Vint (insert insert_val contents))) retval `nullval.
+      EX v: val,
+        PROP() LOCAL(temp ret_temp v)
+        SEP(`(lseg LS sh (map Vint (insert insert_val contents)) v nullval)).
 
 Definition insertionsort_spec :=
   DECLARE  _insertionsort
@@ -38,7 +40,9 @@ Definition insertionsort_spec :=
         LOCAL (temp _p list_ptr)
         SEP (`(lseg LS sh (map Vint contents) list_ptr nullval))
     POST [tptr t_struct_list]
-        `(lseg LS sh (map Vint (insertion_sort contents))) retval `nullval.
+      EX v: val,
+        PROP() LOCAL(temp ret_temp v)
+        SEP(`(lseg LS sh (map Vint (insertion_sort contents)) v nullval)).
 
 Definition main_spec := 
  DECLARE _main
@@ -352,11 +356,9 @@ unfold_data_at 1%nat.
 entailer.
  
 apply extract_exists_pre. intros sorted_val.
-forward_call  (* sorted = insert(index, sorted); *)
-  (sh, (insertion_sort sorted_list), insert_val, sorted_val, i).
-entailer!.
-auto with closed.
-after_call.
+forward_call'  (* sorted = insert(index, sorted); *)
+  (sh, (insertion_sort sorted_list), insert_val, sorted_val, i)
+  vret.
 forward index_old. (* index = next;*)
 unfold body_invariant.
 entailer.
@@ -393,6 +395,8 @@ rewrite insert_insertion_sort. cancel.
 unfold body_post.
 forward_intro sorted_list.
 forward.
+apply exp_right with sorted.
+entailer!.
 Qed.
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.

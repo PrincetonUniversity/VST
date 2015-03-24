@@ -1,6 +1,18 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Lemma exp_uncurry:
+  forall {T} {ND: NatDed T} A B F, (@exp T ND A (fun a => @exp T ND B (fun b => F a b)))
+   = @exp T ND (A*B) (fun ab => F (fst ab) (snd ab)).
+Proof.
+intros.
+apply pred_ext.
+apply exp_left; intro a. apply exp_left; intro b. apply exp_right with (a,b).
+apply derives_refl.
+apply exp_left; intro ab. apply exp_right with (fst ab). apply exp_right with (snd ab).
+apply derives_refl.
+Qed.
+
 Lemma nth_map':
   forall {A B} (f: A -> B) d d' i al,
   (i < length al)%nat ->

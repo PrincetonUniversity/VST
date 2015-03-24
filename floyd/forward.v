@@ -23,6 +23,7 @@ Require Import floyd.globals_lemmas.
 Require Import floyd.type_id_env.
 Require Import floyd.semax_tactics.
 Require Import floyd.for_lemmas.
+Require Import floyd.diagnosis.
 Import Cop.
 
 Local Open Scope logic.
@@ -680,6 +681,7 @@ Ltac no_intros :=
      end.
  
 Tactic Notation "forward_call'" constr(witness) :=
+    check_canonical_call;
     fwd_call' witness;
    [ .. | 
     first [intros _ | no_intros];
@@ -2742,7 +2744,15 @@ destruct ek; normalize.
 Qed.
 
 Ltac start_function := 
- match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
+ match goal with |- semax_body _ _ _ ?spec => 
+          try unfold spec 
+ end;
+ match goal with
+ | |- semax_body _ _ _ (DECLARE _ WITH u : unit
+               PRE  [] main_pre _ u
+               POST [ tint ] main_post _ u) => idtac
+ | |- semax_body _ _ _ ?spec => check_canonical_funspec spec
+ end;
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
    match Pre with 
    | (fun x => match x with (a,b) => _ end) => intros Espec [a b] 
