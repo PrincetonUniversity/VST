@@ -68,8 +68,8 @@ Definition __builtin_read32_reversed_spec :=
         LOCAL (temp _ptr p)
         SEP   (`(data_at sh (tarray tuchar 4) (map Vint (rev contents)) p))
   POST [ tuint ] 
-     local (`(eq (Vint (big_endian_integer contents))) retval) &&
-     `(data_at sh (tarray tuchar 4) (map Vint contents) p).
+     PROP() LOCAL (temp ret_temp  (Vint (big_endian_integer contents)))
+     SEP (`(data_at sh (tarray tuchar 4) (map Vint contents) p)).
 
 Definition __builtin_write32_reversed_spec :=
  DECLARE ___builtin_write32_reversed

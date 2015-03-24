@@ -47,7 +47,7 @@ Definition sumlist_spec :=
      PROP() LOCAL (temp _p p)
      SEP (`(lseg LS sh (map Vint contents) p nullval))
   POST [ tint ]  
-     PROP() LOCAL(temp ret_temp (Vint (sum_int contents))) SEP(TT).
+     PROP() LOCAL(temp ret_temp (Vint (sum_int contents))) SEP(`TT).
 (** This specification has an imprecise and leaky postcondition:
  ** it neglects to say that the original list [p] is still there.
  ** Because the postcondition has no spatial part, it makes no
@@ -104,7 +104,7 @@ Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
             PROP () 
             LOCAL (temp _t t; 
                         temp _s (Vint (Int.sub (sum_int contents) (sum_int cts))))
-            SEP ( TT ; `(lseg LS sh (map Vint cts) t nullval))).
+            SEP ( `TT ; `(lseg LS sh (map Vint cts) t nullval))).
 
 (** For every function definition in the C program, prove that the
  ** function-body (in this case, f_sumlist) satisfies its specification

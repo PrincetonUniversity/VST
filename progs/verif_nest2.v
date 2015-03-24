@@ -27,7 +27,8 @@ Definition set_spec :=
                 temp _i (Vint i))
          SEP   (`(data_at Ews t_struct_b (repinj _ v) p))
   POST [ tvoid ]
-        `(data_at Ews t_struct_b (repinj _ (update22 i v)) p).
+         PROP() LOCAL()
+        SEP(`(data_at Ews t_struct_b (repinj _ (update22 i v)) p)).
 
 Definition Vprog : varspecs := (_p, t_struct_b)::nil.
 
