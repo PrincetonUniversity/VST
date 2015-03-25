@@ -336,6 +336,34 @@ destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
 destruct (eqb_type t t0); try contradiction; subst; auto.
 Qed.
 
+Lemma lvar_eval_lvar':
+  forall i t rho, 
+   isptr (eval_lvar i t rho) ->
+   lvar i t (eval_lvar i t rho) rho.
+Proof.
+ intros.
+  unfold lvar, eval_lvar in *.
+  destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction; auto.
+  destruct (eqb_type t t0); try contradiction; auto.
+Qed.
+
+Ltac fixup_local_var  :=  (* this tactic is needed only until start_function
+                                           handles lvars in a better way *)
+ match goal with |- semax _ ?Pre0 _ _ => match Pre0 with 
+    context [@liftx (Tarrow val (LiftEnviron mpred)) ?F (eval_lvar ?i ?t)] =>
+     let v := fresh "v" in 
+    apply (remember_value (eval_lvar i t)); intro v;
+    assert_LOCAL (lvar i t v);
+      [entailer!; apply lvar_eval_lvar'; auto | ];
+    drop_LOCAL 1%nat;
+    match goal with |- semax _ ?Pre _ _ =>
+    match Pre with context C [@liftx (Tarrow val (LiftEnviron mpred)) F (eval_lvar i t)] =>
+     let D := context C[ (@liftx (LiftEnviron mpred) (F v))  ]   in
+        apply semax_pre with D; [ entailer!; rewrite (lvar_eval_lvar i t v) by auto; auto | ] 
+    end end;
+    revert v
+ end end.
+
 Lemma force_val_sem_cast_neutral_isptr:
   forall v,
   isptr v ->
