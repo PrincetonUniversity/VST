@@ -456,6 +456,37 @@ Ltac try_solve_Forall_pTree_from_elements :=
  try solve [Forall_check_spec]
  end.
 
+Lemma exp_uncurry2:
+  forall {T} {ND: NatDed T} A B C F,
+    @exp T ND A (fun a => @exp T ND B (fun b => @exp T ND C
+           (fun c => F a b c)))
+   = @exp T ND (A*B*C) (fun x => F (fst (fst x)) (snd (fst x)) (snd x)).
+Proof.
+intros.
+repeat rewrite exp_uncurry; auto.
+Qed.
+
+Lemma exp_uncurry3:
+  forall {T} {ND: NatDed T} A B C D F,
+    @exp T ND A (fun a => @exp T ND B (fun b => @exp T ND C
+           (fun c => @exp T ND D (fun d => F a b c d))))
+   = @exp T ND (A*B*C*D) 
+        (fun x => F (fst (fst (fst x))) (snd (fst (fst x))) (snd (fst x)) (snd x)).
+Proof.
+intros.
+repeat rewrite exp_uncurry; auto.
+Qed.
+
+Ltac  unify_postcondition_exps :=
+first [ reflexivity
+  | rewrite exp_uncurry;
+     apply exp_congr; intros [? ?]; simpl; reflexivity
+  | rewrite exp_uncurry2; 
+     apply exp_congr; intros [[? ?] ?]; simpl; reflexivity
+  | rewrite exp_uncurry3; 
+     apply exp_congr; intros [[[? ?] ?] ?]; simpl; reflexivity
+  ].
+
 Ltac forward_call_id1_x_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
@@ -473,6 +504,7 @@ let Frame := fresh "Frame" in
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
+   repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    apply exp_congr; intros ?vret; reflexivity
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
@@ -480,7 +512,7 @@ let Frame := fresh "Frame" in
      end
  | repeat constructor; auto with closed
  | repeat constructor; auto with closed
- | reflexivity
+ | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
@@ -501,6 +533,7 @@ let Frame := fresh "Frame" in
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
+   repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    apply exp_congr; intros ?vret; reflexivity
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
@@ -508,7 +541,7 @@ let Frame := fresh "Frame" in
      end
  | repeat constructor; auto with closed
  | repeat constructor; auto with closed
- | reflexivity
+ | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
@@ -528,13 +561,14 @@ let Frame := fresh "Frame" in
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
+   repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    apply exp_congr; intros ?vret; reflexivity
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
  | repeat constructor; auto with closed
- | reflexivity
+ | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
@@ -552,12 +586,13 @@ let Frame := fresh "Frame" in
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
+   repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    apply exp_congr; intros ?vret; reflexivity
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
- | reflexivity
+ | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
@@ -574,12 +609,14 @@ let Frame := fresh "Frame" in
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | cbv beta iota; try rewrite no_post_exists0; 
+ | cbv beta iota; 
+    repeat rewrite exp_uncurry;
+    try rewrite no_post_exists0; 
     first [reflexivity | extensionality; simpl; reflexivity]
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
- | reflexivity
+ | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
@@ -627,8 +664,8 @@ Ltac after_forward_call2 :=
 
 Ltac after_forward_call :=
   first [apply extract_exists_pre; 
-             let v := fresh "v" in intro v; after_forward_call2; revert v
-          | after_forward_call2; apply revert_unit
+             let v := fresh "v" in intro v; after_forward_call; revert v
+          | after_forward_call2
           ].
 
 Ltac normalize_postcondition :=
@@ -679,7 +716,8 @@ Ltac no_intros :=
      | |- ?t -> _ => 
          elimtype False; fold (In_the_previous_'forward'_use_an_intro_pattern_of_type t)
      end.
- 
+
+(* 
 Tactic Notation "forward_call'" constr(witness) :=
     check_canonical_call;
     fwd_call' witness;
@@ -688,14 +726,43 @@ Tactic Notation "forward_call'" constr(witness) :=
     repeat (apply semax_extract_PROP; intro);
     try fwd_skip
    ].
+*)
 
-Tactic Notation "forward_call'" constr(witness) simple_intropattern(v1) :=
+Definition In_the_previous_forward_call'__use_intropatterns_to_intro_values_of_these_types := Stuck.
+
+Ltac complain_intros :=
+ first [let x := fresh "x" in intro x; complain_intros; revert x
+         | stuckwith In_the_previous_forward_call'__use_intropatterns_to_intro_values_of_these_types
+         ].
+
+Tactic Notation "uniform_intros" simple_intropattern_list(v) :=
+ (((assert True by (intros v; apply I);
+  assert (forall a: unit, True)
+   by (intros v; apply I);
+  fail 1) || intros v) || idtac).
+
+Tactic Notation "forward_call'" constr(witness) simple_intropattern_list(v) :=
+    check_canonical_call;
     fwd_call' witness;
   [ .. 
-  | intros v1;
-  repeat (apply semax_extract_PROP; intro);
-  abbreviate_semax;
-  try fwd_skip].
+  | first 
+      [ (* body of uniform_intros tactic *)
+         (((assert True by (intros v; apply I);
+            assert (forall a: unit, True) by (intros v; apply I);
+            fail 1)
+          || intros v) 
+        || idtac);
+        (* end body of uniform_intros tactic *)
+        match goal with
+        | |- semax _ _ _ _ => idtac 
+        | |- unit -> semax _ _ _ _ => intros _ 
+        end;
+        repeat (apply semax_extract_PROP; intro);
+       abbreviate_semax;
+       try fwd_skip
+     | complain_intros
+     ]  
+  ].
 
 Lemma seq_assoc2:
   forall (Espec: OracleKind)  Delta P c1 c2 c3 c4 Q,
