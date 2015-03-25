@@ -334,3 +334,22 @@ Proof.
 Qed.
 
 End COMPOSITE_ENV.
+
+Ltac type_induction t :=
+  pattern t;
+  match goal with
+  | H: complete_type _ t = true |- ?P t =>
+    apply type_ind; [| exact H]; clear t H;
+    let t := fresh "t" in
+    let COMPLETE := fresh "COMPLETE" in
+    intros t COMPLETE IH;
+    let id := fresh "id" in
+    let a := fresh "a" in
+    let co := fresh "co" in
+    let CO := fresh "CO" in
+    let tac_for_struct_union :=
+      (destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion IH])
+    in
+    destruct t as [| | | | | | | id a | id a];
+    [| | | | | | | tac_for_struct_union | tac_for_struct_union]
+  end.

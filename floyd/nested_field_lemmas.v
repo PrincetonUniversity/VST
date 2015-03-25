@@ -3,6 +3,26 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.fieldlist.
 Require Import floyd.type_induction.
+Open Scope Z.
+
+Definition composite_legal_alignas (env : composite_env) (co : composite) : Prop :=
+  (co_alignof co >=? alignof_composite env (co_members co)) = true.
+
+Definition composite_env_legal_alignas env :=
+  forall (id : positive) (co : composite),
+    env ! id = Some co -> composite_legal_alignas env co.
+
+Definition composite_legal_fieldlist (co: composite): Prop :=
+  compute_list_norepet (map fst (co_members co)) = true.
+
+Definition composite_env_legal_fieldlist env :=
+  forall (id : positive) (co : composite),
+    env ! id = Some co -> composite_legal_fieldlist co.
+
+Class compspecs_legal (C: compspecs) := mkCompspecsLegal {
+  cenv_legal_alignas: composite_env_legal_alignas cenv_cs;
+  cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs
+}.
 
 (************************************************
 
@@ -27,6 +47,7 @@ Qed.
 
 Section COMPOSITE_ENV.
 Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
 
 Definition nested_pred (atom_pred: type -> bool): type -> bool :=
   func_type
@@ -47,7 +68,7 @@ Lemma nested_pred_ind: forall atom_pred t,
   | Tstruct id _
   | Tunion id _ =>
       match cenv_cs ! id with
-      | Some co => atom_pred t && nested_fields_pred atom_pred (co_members co)
+      | Some co => (atom_pred t && nested_fields_pred atom_pred (co_members co))%bool
       | _ => atom_pred t
       end
   | _ => atom_pred t
@@ -72,7 +93,7 @@ Proof.
     reflexivity.
 Defined.
 
-Lemma nested_pred_atom_pred: forall {atom_pred: type -> bool} (t: type)
+Lemma nested_pred_atom_pred: forall (atom_pred: type -> bool) (t: type)
   (COMPLETE: complete_type cenv_cs t = true),
   nested_pred atom_pred t = true -> atom_pred t = true.
 Proof.
@@ -83,7 +104,7 @@ Proof.
    try apply andb_true_iff in H; try tauto.
 Defined.
 
-Lemma nested_pred_Tarray: forall {atom_pred: type -> bool} t n a
+Lemma nested_pred_Tarray: forall (atom_pred: type -> bool) t n a
   (COMPLETE: complete_type cenv_cs (Tarray t n a) = true),
   nested_pred atom_pred (Tarray t n a) = true -> nested_pred atom_pred t = true.
 Proof.
@@ -93,7 +114,7 @@ Proof.
   tauto.
 Defined.
 
-Lemma nested_pred_Tstruct: forall {atom_pred: type -> bool} id a co
+Lemma nested_pred_Tstruct: forall (atom_pred: type -> bool) id a co
   (COMPLETE: complete_type cenv_cs (Tstruct id a) = true)
   (CO: cenv_cs ! id = Some co),
   nested_pred atom_pred (Tstruct id a) = true -> nested_fields_pred atom_pred (co_members co) = true.
@@ -104,7 +125,7 @@ Proof.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_pred_Tunion: forall {atom_pred: type -> bool} id a co
+Lemma nested_pred_Tunion: forall (atom_pred: type -> bool) id a co
   (COMPLETE: complete_type cenv_cs (Tunion id a) = true)
   (CO: cenv_cs ! id = Some co),
   nested_pred atom_pred (Tunion id a) = true -> nested_fields_pred atom_pred (co_members co) = true.
@@ -115,7 +136,7 @@ Proof.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_fields_pred_hd: forall {atom_pred: type -> bool} i t m,
+Lemma nested_fields_pred_hd: forall (atom_pred: type -> bool) i t m,
   nested_fields_pred atom_pred ((i, t) :: m) = true ->
   nested_pred atom_pred t = true.
 Proof.
@@ -124,7 +145,7 @@ Proof.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_fields_pred_tl: forall {atom_pred: type -> bool} i t m,
+Lemma nested_fields_pred_tl: forall (atom_pred: type -> bool) i t m,
   nested_fields_pred atom_pred ((i, t) :: m) = true ->
   nested_fields_pred atom_pred m = true.
 Proof.
@@ -133,7 +154,7 @@ Proof.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_fields_pred_nested_pred: forall {atom_pred: type -> bool} i t m, field_type i m = Errors.OK t -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred t = true.
+Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i t m, field_type i m = Errors.OK t -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred t = true.
 Proof.
   intros.
   induction m as [| [i0 t0] m].
@@ -163,88 +184,79 @@ Definition array_never_empty := nested_pred local_array_never_empty.
 
 Definition local_legal_alignas_type (t: type): bool :=
   match t with
-  | Tvoid            => true
-  | Tint _ _ a       => match attr_alignas a with | None => true | _ => false end
-  | Tlong _ a        => match attr_alignas a with | None => true | _ => false end
-  | Tfloat _ a       => match attr_alignas a with | None => true | _ => false end
-  | Tpointer _ a     => match attr_alignas a with | None => true | _ => false end
-  | Tfunction _ _ _  => true
-  | Tarray t _ a     => match attr_alignas a with | None => true | _ => false end
-  | Tstruct id a => 
-      match cenv_cs ! id with
-      | Some co =>
-        match attr_alignas a with
-        | None => true 
-        | Some l => Z.leb (co_alignof co) (two_p (Z.of_N l))
-        end
-      | _ => true
-      end
-  | Tunion id a  =>
-      match cenv_cs ! id with
-      | Some co =>
-        match attr_alignas a with
-        | None => true 
-        | Some l => Z.leb (co_alignof co) (two_p (Z.of_N l))
-        end
-      | _ => true
-      end
+  | Tvoid
+  | Tfunction _ _ _ => true
+  | Tint _ _ a
+  | Tlong _ a
+  | Tfloat _ a
+  | Tpointer _ a 
+  | Tarray _ _ a
+  | Tstruct _ a
+  | Tunion _ a => match attr_alignas a with | Some _ => false | None => true end
   end.
 
 Definition legal_alignas_type := nested_pred local_legal_alignas_type.
 
 Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
 
+Lemma power_nat_divide': forall n m: Z,
+  (exists N, n = two_power_nat N) ->
+  (exists M, m = two_power_nat M) ->
+  n >=? m = true ->
+  (m | n).
+Proof.
+  intros.
+  destruct H, H0.
+  subst.
+  apply power_nat_divide.
+  pose proof Zge_cases (two_power_nat x) (two_power_nat x0).
+  destruct (two_power_nat x >=? two_power_nat x0); try omega.
+  inversion H1.
+Qed.
+
 Lemma local_legal_alignas_type_Tarray: forall t z a,
   local_legal_alignas_type (Tarray t z a) = true ->
   alignof cenv_cs (Tarray t z a) = alignof cenv_cs t.
 Proof.
   intros.
-  simpl.
-  simpl in H.
+  simpl in H |- *.
   unfold align_attr.
-  destruct (attr_alignas a).
-  + inversion H.
-  + reflexivity.
+  destruct (attr_alignas a); [inversion H |].
+  auto.
 Qed.
 
 Lemma local_legal_alignas_type_Tstruct: forall id a co
   (CO: cenv_cs ! id = Some co),
   local_legal_alignas_type (Tstruct id a) = true ->
-  (co_alignof co | alignof cenv_cs (Tstruct id a)).
+  (alignof_composite cenv_cs (co_members co) | alignof cenv_cs (Tstruct id a)).
 Proof.
   intros.
-  simpl.
-  simpl in H.
-  rewrite CO in *.
-  unfold align_attr.
-  destruct (attr_alignas a).
-  + apply Zle_is_le_bool in H.
-    rewrite <- N_nat_Z in *.
-    rewrite <- two_power_nat_two_p in *.
-    destruct (co_alignof_two_p co).
-    rewrite H0 in *; clear H0.
-    apply (power_nat_divide _ _ H).
-  + apply Z.divide_refl.
+  unfold local_legal_alignas_type in H.
+  unfold alignof, align_attr.
+  simpl attr_of_type.
+  destruct (attr_alignas a); [inversion H |].
+  rewrite CO.
+  apply power_nat_divide';
+  try apply alignof_composite_two_p;
+  try apply co_alignof_two_p.
+  exact (cenv_legal_alignas id co CO).
 Qed.
 
 Lemma local_legal_alignas_type_Tunion: forall id a co
   (CO: cenv_cs ! id = Some co),
   local_legal_alignas_type (Tunion id a) = true ->
-  (co_alignof co | alignof cenv_cs (Tunion id a)).
+  (alignof_composite cenv_cs (co_members co) | alignof cenv_cs (Tunion id a)).
 Proof.
   intros.
-  simpl.
-  simpl in H.
-  rewrite CO in *.
-  unfold align_attr.
-  destruct (attr_alignas a).
-  + apply Zle_is_le_bool in H.
-    rewrite <- N_nat_Z in *.
-    rewrite <- two_power_nat_two_p in *.
-    destruct (co_alignof_two_p co).
-    rewrite H0 in *; clear H0.
-    apply (power_nat_divide _ _ H).
-  + apply Z.divide_refl.
+  unfold local_legal_alignas_type in H.
+  unfold alignof, align_attr.
+  simpl attr_of_type.
+  destruct (attr_alignas a); [inversion H |].
+  rewrite CO.
+  apply power_nat_divide';
+  try apply alignof_composite_two_p;
+  try apply co_alignof_two_p.
+  exact (cenv_legal_alignas id co CO).
 Qed.
 
 Lemma legal_alignas_type_Tarray: forall t z a
@@ -263,7 +275,7 @@ Lemma legal_alignas_type_Tstruct: forall id a co
   (COMPLETE: complete_type cenv_cs (Tstruct id a) = true)
   (CO: cenv_cs ! id = Some co),
   legal_alignas_type (Tstruct id a) = true ->
-  (co_alignof co | alignof cenv_cs (Tstruct id a)).
+  (alignof_composite cenv_cs (co_members co) | alignof cenv_cs (Tstruct id a)).
 Proof.
   intros.
   unfold legal_alignas_type in H.
@@ -275,30 +287,23 @@ Lemma legal_alignas_type_Tunion: forall id a co
   (COMPLETE: complete_type cenv_cs (Tunion id a) = true)
   (CO: cenv_cs ! id = Some co),
   legal_alignas_type (Tunion id a) = true ->
-  (co_alignof co | alignof cenv_cs (Tunion id a)).
+  (alignof_composite cenv_cs (co_members co) | alignof cenv_cs (Tunion id a)).
 Proof.
   intros.
   unfold legal_alignas_type in H.
   apply nested_pred_atom_pred in H; [| auto].
   apply local_legal_alignas_type_Tunion; auto.
 Qed.
-
-Print alignof.
-Print align_attr.
-Print co_consistent_alignof.
-Print composite_consistent.
-Print composite.
-SearchAbout co_attr.
-Print build_composite_env.
-Print add_composite_definitions.
-Print composite_of_def.
-Check Errors.bind.
-Check Tstruct.
-Lemma legal_alignas_sizeof_alignof_compat: forall t : type,
+Print sizeof.
+Lemma legal_alignas_sizeof_alignof_compat: forall t
+  (COMPLETE: complete_type cenv_cs t = true),
   legal_alignas_type t = true -> (alignof cenv_cs t | sizeof cenv_cs t).
 Proof.
   intros.
-  induction t; pose proof nested_pred_atom_pred _ H; simpl in *;
+  revert H.
+  type_induction t; intros;
+  pose proof @nested_pred_atom_pred local_legal_alignas_type _ COMPLETE H as H0;
+  simpl in H, H0 |- *; unfold align_attr in *;
   try (destruct (attr_alignas a); inversion H0).
   - apply Z.divide_refl.
   - destruct i; apply Z.divide_refl.
@@ -306,65 +311,18 @@ Proof.
   - destruct f. apply Z.divide_refl.
     unfold Z.divide. exists 2. reflexivity.
   - apply Z.divide_refl.
-  - apply nested_pred_Tarray in H.
-    apply IHt in H.
+  - apply (nested_pred_Tarray local_legal_alignas_type) in H; [| auto].
+    apply IH in H.
     apply Z.divide_mul_l.
     exact H.
   - apply Z.divide_refl.
-  - apply align_divides, two_p_gt_ZERO, N2Z.is_nonneg.
-  - apply align_divides, alignof_fields_pos.
-  - apply align_divides, two_p_gt_ZERO, N2Z.is_nonneg.
-  - apply align_divides, alignof_fields_pos.
-  - apply Z.divide_refl.
+  - rewrite CO in *.
+    apply co_sizeof_alignof.
+  - rewrite CO in *.
+    apply co_sizeof_alignof.
 Qed.
 
 Opaque alignof.
-
-(******* Samples : fieldlist_no_replicate *************)
-
-Definition nested_legal_fieldlist := nested_pred (fun t => 
-  match t with
-  | Tstruct i f a => fieldlist_no_replicate f
-  | Tunion i f a => fieldlist_no_replicate f
-  | _ => true
-  end).
-
-(******* Samples : nested_non_volatile_type *************)
-
-Definition uncompomize_non_volatile t :=
-  match t with
-  | Tvoid => true
-  | Tint _ _ a => negb (attr_volatile a)
-  | Tlong _ a => negb (attr_volatile a)
-  | Tfloat _ a => negb (attr_volatile a)
-  | Tpointer _ a => negb (attr_volatile a)
-  | Tarray _ _ _ => true
-  | Tfunction _ _ _ => true
-  | Tstruct _ _ _ => true
-  | Tunion _ _ _ => true
-  | Tcomp_ptr _ a => negb (attr_volatile a)
-  end.
-
-Definition nested_non_volatile_type := nested_pred uncompomize_non_volatile.
-
-Lemma nested_non_volatile_type_fact: forall t,
-  nested_non_volatile_type t = true ->
-  match t with
-  | Tint _ _ _ => type_is_volatile t = false
-  | Tlong _ _ => type_is_volatile t = false
-  | Tfloat _ _ => type_is_volatile t = false
-  | Tpointer _ _ => type_is_volatile t = false
-  | Tcomp_ptr i a => type_is_volatile (Tpointer (look_up_ident_default i empty_ti) a) = false
-  | _ => True
-  end.
-Proof.
-  intros.
-  unfold nested_non_volatile_type in H.
-  destruct t; unfold type_is_volatile; simpl in *; auto;
-  rewrite negb_true_iff in H; auto.
-  + destruct i, s; auto.
-  + destruct f; auto.
-Qed.
 
 (************************************************
 
