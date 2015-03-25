@@ -706,11 +706,14 @@ forward_if PostResetBranch.
               (Vptr cb cofs)) as s.
     destruct s; simpl in *; inversion COffK. simpl in *. subst cbK cKoff.
 
-    (*Call to _SHA256_Init*)
+    (*Call to _SHA256_Init*) 
+    (*TODO: one of the most recent changes in floyd (or elsewhere?) meant
+    that I have to do the following unfold here t get forward_call' to apply*)
+    unfold MORE_COMMANDS, abbreviate. 
     forward_call' (Vptr cb (Int.add cofs (Int.repr 216))).
 
     (* Call to sha_update*)
-    (*TODO: Andrew, the old proof started like this:
+    (*TODO: the old proof started like this:
       forward_call (init_s256abs, 
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad,
             Vptr cb (Int.add cofs (Int.repr 216)),

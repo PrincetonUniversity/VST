@@ -73,7 +73,15 @@ rename H into HmacUpdate.
 
 (*Andrew: forward_call goes haywire here if the postcondition of HMAC_final starts
   with two existentials EX dig:_, EX h2:_, ... instead of the current EX digh2:_, ... *)
-forward_call' (h1, c, md, shmd, kv) [dig h2].
+(*Tactic Notation "forward_call'" constr(witness) simple_intropattern_list(v) :=
+    check_canonical_call;
+    fwd_call' witness.
+eapply semax_seq'.
+
+rewrite -> semax_seq_skip. 
+    fwd_call' (h1, c, md, shmd, kv).
+    check_canonical_call.*)
+forward_call' (h1, c, md, shmd, kv) [dig h2]. (*Andrew: I'm not permtted to just have the intro pattern digH2 here, ie i HAVE ot destruct???*)
 
 simpl in H; rename H into HmacFinalSimple.
 
