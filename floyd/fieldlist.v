@@ -2,17 +2,100 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 
-Local Open Scope logic.
-
 Arguments align !n !amount / .
 Arguments Z.max !n !m / .
 
-Definition id_in_members id (m: members): bool :=
-  id_in_list id (map fst m).
+Definition in_members i (m: members): Prop :=
+  In i (map fst m).
 
+Definition field_type2 i m :=
+  match field_type i m with
+  | Errors.OK t => t
+  | _ => Tvoid
+  end.
+
+Definition field_offset2 env i m :=
+  match field_offset env i m with
+  | Errors.OK ofs => ofs
+  | _ => 0
+  end.
+
+Definition compute_in_members id (m: members): bool :=
+  id_in_list id (map fst m).
+                                                                      
 Definition members_no_replicate (m: members) : bool :=
   compute_list_norepet (map fst m).
 
+Lemma compute_in_members_true_iff: forall i m, compute_in_members i m = true <-> in_members i m.
+Proof.
+  intros.
+  unfold compute_in_members.
+  destruct (id_in_list i (map fst m)) eqn:HH; 
+  [apply id_in_list_true in HH | apply id_in_list_false in HH].
+  + unfold in_members.
+    tauto.
+  + unfold in_members; split; [congruence | tauto].
+Qed.
+
+Lemma compute_in_members_false_iff: forall i m,
+  compute_in_members i m = false <-> ~ in_members i m.
+Proof.
+  intros.
+  pose proof compute_in_members_true_iff i m.
+  rewrite <- H; clear H.
+  destruct (compute_in_members i m); split; congruence.
+Qed.
+
+Ltac destruct_in_members i m :=
+  let H := fresh "H" in
+  destruct (compute_in_members i m) eqn:H;
+    [apply compute_in_members_true_iff in H |
+     apply compute_in_members_false_iff in H].
+
+Lemma in_members_dec: forall i m, {in_members i m} + {~ in_members i m}.
+Proof.
+  intros.
+  destruct_in_members i m; [left | right]; auto.
+Qed.
+
+Lemma in_members_field_type2: forall i m,
+  in_members i m ->
+  In (i, field_type2 i m) m.
+Proof.
+  intros.
+  unfold field_type2.
+  induction m as [|[i0 t0] m].
+  + inversion H.
+  + unfold in_members in H; simpl in H.
+    destruct (ident_eq i0 i).
+    - subst.
+      simpl.
+      if_tac; [| congruence].
+      left. auto.
+    - simpl.
+      right.
+      destruct H; [congruence |].
+      specialize (IHm H).
+      if_tac; [congruence |].
+      exact IHm.
+Qed.
+ 
+Section COMPOSITE_ENV.
+Context {cs: compspecs}.
+
+Lemma complete_type_field_type2: forall id i co,
+  cenv_cs ! id = Some co ->
+  in_members i (co_members co) ->
+  complete_type cenv_cs (field_type2 i (co_members co)) = true.
+Proof.
+  intros.
+  apply in_members_field_type2 in H0.
+  eapply complete_member; eauto.
+  apply co_consistent_complete.
+  exact (cenv_consistent_cs id co H).
+Qed.
+
+End COMPOSITE_ENV.
 (************************************************
 
 Lemmas about fieldlist_app

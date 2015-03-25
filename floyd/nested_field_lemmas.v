@@ -61,7 +61,6 @@ Definition nested_fields_pred (atom_pred: type -> bool) (m: members) : bool :=
   fold_right (fun it b => (nested_pred atom_pred (snd it) && b)%bool) true m.
 
 Lemma nested_pred_ind: forall atom_pred t,
-  complete_type cenv_cs t = true ->
   nested_pred atom_pred t = 
   match t with
   | Tarray t0 _ _ => (atom_pred t && nested_pred atom_pred t0)%bool
@@ -93,8 +92,7 @@ Proof.
     reflexivity.
 Defined.
 
-Lemma nested_pred_atom_pred: forall (atom_pred: type -> bool) (t: type)
-  (COMPLETE: complete_type cenv_cs t = true),
+Lemma nested_pred_atom_pred: forall (atom_pred: type -> bool) (t: type),
   nested_pred atom_pred t = true -> atom_pred t = true.
 Proof.
   intros.
@@ -104,8 +102,7 @@ Proof.
    try apply andb_true_iff in H; try tauto.
 Defined.
 
-Lemma nested_pred_Tarray: forall (atom_pred: type -> bool) t n a
-  (COMPLETE: complete_type cenv_cs (Tarray t n a) = true),
+Lemma nested_pred_Tarray: forall (atom_pred: type -> bool) t n a,
   nested_pred atom_pred (Tarray t n a) = true -> nested_pred atom_pred t = true.
 Proof.
   intros.
@@ -115,7 +112,6 @@ Proof.
 Defined.
 
 Lemma nested_pred_Tstruct: forall (atom_pred: type -> bool) id a co
-  (COMPLETE: complete_type cenv_cs (Tstruct id a) = true)
   (CO: cenv_cs ! id = Some co),
   nested_pred atom_pred (Tstruct id a) = true -> nested_fields_pred atom_pred (co_members co) = true.
 Proof.
@@ -126,7 +122,6 @@ Proof.
 Defined.
 
 Lemma nested_pred_Tunion: forall (atom_pred: type -> bool) id a co
-  (COMPLETE: complete_type cenv_cs (Tunion id a) = true)
   (CO: cenv_cs ! id = Some co),
   nested_pred atom_pred (Tunion id a) = true -> nested_fields_pred atom_pred (co_members co) = true.
 Proof.
@@ -154,20 +149,21 @@ Proof.
   apply andb_true_iff in H; tauto.
 Defined.
 
-Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i t m, field_type i m = Errors.OK t -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred t = true.
+Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i m, in_members i m -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred (field_type2 i m) = true.
 Proof.
   intros.
   induction m as [| [i0 t0] m].
   + inversion H.
-  + simpl in H.
-    if_tac in H; simpl in H0.
+  + unfold in_members in H; unfold field_type2 in *.
+    simpl in H |- *.
+    if_tac; simpl in H0.
     - apply andb_true_iff in H0.
-      inversion H.
       subst.
       tauto.
     - apply andb_true_iff in H0.
-      destruct H0.
-      apply IHm; assumption.
+      destruct H; [congruence |].
+      apply IHm; auto.
+      tauto.
 Defined.
 
 (******* Samples : array_never_empty **************)
@@ -259,50 +255,46 @@ Proof.
   exact (cenv_legal_alignas id co CO).
 Qed.
 
-Lemma legal_alignas_type_Tarray: forall t z a
-  (COMPLETE: complete_type cenv_cs (Tarray t z a) = true),
+Lemma legal_alignas_type_Tarray: forall t z a,
   legal_alignas_type (Tarray t z a) = true ->
   alignof cenv_cs (Tarray t z a) = alignof cenv_cs t.
 Proof.
   intros.
   unfold legal_alignas_type in H.
-  apply nested_pred_atom_pred in H; [| auto].
+  apply nested_pred_atom_pred in H.
   apply local_legal_alignas_type_Tarray.
   exact H.
 Qed.
 
 Lemma legal_alignas_type_Tstruct: forall id a co
-  (COMPLETE: complete_type cenv_cs (Tstruct id a) = true)
   (CO: cenv_cs ! id = Some co),
   legal_alignas_type (Tstruct id a) = true ->
   (alignof_composite cenv_cs (co_members co) | alignof cenv_cs (Tstruct id a)).
 Proof.
   intros.
   unfold legal_alignas_type in H.
-  apply nested_pred_atom_pred in H; [| auto].
+  apply nested_pred_atom_pred in H.
   apply local_legal_alignas_type_Tstruct; auto.
 Qed.
 
 Lemma legal_alignas_type_Tunion: forall id a co
-  (COMPLETE: complete_type cenv_cs (Tunion id a) = true)
   (CO: cenv_cs ! id = Some co),
   legal_alignas_type (Tunion id a) = true ->
   (alignof_composite cenv_cs (co_members co) | alignof cenv_cs (Tunion id a)).
 Proof.
   intros.
   unfold legal_alignas_type in H.
-  apply nested_pred_atom_pred in H; [| auto].
+  apply nested_pred_atom_pred in H.
   apply local_legal_alignas_type_Tunion; auto.
 Qed.
-Print sizeof.
-Lemma legal_alignas_sizeof_alignof_compat: forall t
-  (COMPLETE: complete_type cenv_cs t = true),
+
+Lemma legal_alignas_sizeof_alignof_compat: forall t,
   legal_alignas_type t = true -> (alignof cenv_cs t | sizeof cenv_cs t).
 Proof.
   intros.
   revert H.
   type_induction t; intros;
-  pose proof @nested_pred_atom_pred local_legal_alignas_type _ COMPLETE H as H0;
+  pose proof @nested_pred_atom_pred local_legal_alignas_type _ H as H0;
   simpl in H, H0 |- *; unfold align_attr in *;
   try (destruct (attr_alignas a); inversion H0).
   - apply Z.divide_refl.
@@ -311,15 +303,17 @@ Proof.
   - destruct f. apply Z.divide_refl.
     unfold Z.divide. exists 2. reflexivity.
   - apply Z.divide_refl.
-  - apply (nested_pred_Tarray local_legal_alignas_type) in H; [| auto].
+  - apply (nested_pred_Tarray local_legal_alignas_type) in H.
     apply IH in H.
     apply Z.divide_mul_l.
     exact H.
   - apply Z.divide_refl.
   - rewrite CO in *.
     apply co_sizeof_alignof.
+  - rewrite CO. exists 0; auto.
   - rewrite CO in *.
     apply co_sizeof_alignof.
+  - rewrite CO. exists 0; auto.
 Qed.
 
 Opaque alignof.
@@ -327,6 +321,9 @@ Opaque alignof.
 (************************************************
 
 Definition of nested_field_type2, nested_field_offset2
+
+The principle of this part is only exposing nft2 and nfo2 to users 
+and hide the implimentation of nf_rec
 
 ************************************************)
 
@@ -353,33 +350,29 @@ Fixpoint nested_field_rec (t: type) (gfs: list gfield) : option (prod Z type) :=
     match nested_field_rec t tl with
     | Some (pos, t') => 
       match t', hd with
-      | Tarray t'' n _, ArraySubsc i => Some(pos + sizeof t'' * i, t'')
-      | Tstruct _ f _, StructField i => 
-        match field_offset i f, field_type i f with
-        | Errors.OK ofs, Errors.OK t'' => Some (pos + ofs, t'')
-        | _, _ => None
+      | Tarray t'' n _, ArraySubsc i => Some(pos + sizeof cenv_cs t'' * i, t'')
+      | Tstruct id _, StructField i =>
+        match cenv_cs ! id with
+        | Some co =>
+           if compute_in_members i (co_members co) then
+             Some (pos + field_offset2 cenv_cs i (co_members co), field_type2 i (co_members co))
+           else
+             None
+        | None => None
         end
-      | Tunion _ f _, UnionField i =>
-        match field_type i f with
-        | Errors.OK t'' => Some (pos, t'')
-        | _ => None
+      | Tunion id _, UnionField i =>
+        match cenv_cs ! id with
+        | Some co =>
+           if compute_in_members i (co_members co) then
+             Some (pos, field_type2 i (co_members co))
+           else
+             None
+        | None => None
         end
       | _, _ => None
       end
     | None => None
     end
-  end.
-
-Definition nested_field_offset (t: type) (gfs: list gfield) : option Z :=
-  match nested_field_rec t gfs with
-  | Some (pos, _) => Some pos
-  | _ => None
-  end.
-
-Definition nested_field_type (t: type) (gfs: list gfield) : option type :=
-  match nested_field_rec t gfs with
-  | Some (_, t0) => Some t0
-  | _ => None
   end.
 
 Definition nested_field_offset2 (t: type) (gfs: list gfield) : Z :=
@@ -449,9 +442,17 @@ Lemma legal_nested_field_cons_lemma: forall t gf gfs,
   legal_nested_field t (gf :: gfs) <->
   legal_nested_field t gfs /\ 
   match gf, nested_field_type2 t gfs with
-  | ArraySubsc i0, Tarray t0 n a => 0 <= i0 < n
-  | StructField i0, Tstruct i f a => isOK (field_type i0 f) = true
-  | UnionField i0, Tunion i f a => isOK (field_type i0 f) = true
+  | ArraySubsc i, Tarray t0 n a => 0 <= i < n
+  | StructField i, Tstruct id a =>
+    match cenv_cs ! id with
+    | Some co => in_members i (co_members co)
+    | None => False
+    end
+  | UnionField i, Tunion id a =>
+    match cenv_cs ! id with
+    | Some co => in_members i (co_members co)
+    | None => False
+    end
   | _, _ => False
   end.
 Proof.
@@ -467,53 +468,20 @@ Proof.
    try solve[inversion H | inversion H0 | inversion H1 | inversion H2 | inversion H3]]).
   + simpl; tauto.
   + simpl; tauto.
-  + solve_field_offset_type i0 f; [| inversion HH0].
+  + destruct (cenv_cs ! i); [| inversion HH0].
+    destruct_in_members i0 (co_members c); [| inversion HH0].
     simpl; tauto.
-  + solve_field_offset_type i0 f; [| inversion H1].
+  + destruct (cenv_cs ! i); [| inversion H1].
+    apply compute_in_members_true_iff in H1.
+    rewrite H1.
     simpl; tauto.
-  + solve_field_offset_type i0 f; [| inversion HH0].
+  + destruct (cenv_cs ! i); [| inversion HH0].
+    destruct_in_members i0 (co_members c); [| inversion HH0].
     simpl; tauto.
-  + solve_field_offset_type i0 f; [| inversion H1].
+  + destruct (cenv_cs ! i); [| inversion H1].
+    apply compute_in_members_true_iff in H1.
+    rewrite H1.
     simpl; tauto.
-Qed.
-
-Lemma nested_field_rec_cons_legal_eq_Some_lemma: forall t gf gfs ofs0 t0, 
-  nested_field_rec t (gf :: gfs) = Some (ofs0, t0) /\ legal_nested_field t (gf :: gfs)
-  <->
-  match gf, nested_field_rec t gfs with
-  | ArraySubsc i0, Some (ofs, Tarray t1 n a) =>
-      0 <= i0 < n /\ ofs0 = ofs + sizeof t0 * i0 /\ t0 = t1
-  | StructField i0, Some (ofs, Tstruct i f a) =>
-      field_type i0 f = Errors.OK t0 /\ field_offset i0 f = Errors.OK (ofs0 - ofs)
-  | UnionField i0, Some (ofs, Tunion i f a) =>
-      field_type i0 f = Errors.OK t0 /\ ofs0 = ofs
-  | _, _ => False
-  end /\ legal_nested_field t gfs.
-Proof.
-  intros.
-  unfold legal_nested_field.
-  simpl (nested_array_subsc_in_range t (gf :: gfs)).
-  simpl (nested_field_rec t (gf :: gfs)).
-  unfold nested_field_type2.
-  destruct (nested_field_rec t gfs) as [[? tt]| ]; [destruct tt; destruct gf |];
-  (split; intro H; auto_destruct_above_line);
-  try solve[inversion H | inversion H0 | inversion H1 | inversion H2 | inversion H3].
-  + inversion H0.
-    simpl; auto.
-  + subst.
-    simpl; auto.
-  + solve_field_offset_type i0 f; inversion H; subst.
-    inversion H0.
-    simpl; repeat split; auto.
-    f_equal; omega.
-  + rewrite H1, H3.
-    simpl; repeat split; auto.
-    f_equal; f_equal. omega.
-  + solve_field_offset_type i0 f; inversion H; subst.
-    inversion H0.
-    simpl; auto.
-  + rewrite H1, H3.
-    simpl; auto.
 Qed.
 
 Lemma nested_field_rec_cons_eq_Some_lemma: forall t gf gfs ofs0 t0, 
@@ -521,33 +489,47 @@ Lemma nested_field_rec_cons_eq_Some_lemma: forall t gf gfs ofs0 t0,
   <->
   match gf, nested_field_rec t gfs with
   | ArraySubsc i0, Some (ofs, Tarray t1 n a) =>
-      ofs0 = ofs + sizeof t0 * i0 /\ t0 = t1
-  | StructField i0, Some (ofs, Tstruct i f a) =>
-      field_type i0 f = Errors.OK t0 /\ field_offset i0 f = Errors.OK (ofs0 - ofs)
-  | UnionField i0, Some (ofs, Tunion i f a) =>
-      field_type i0 f = Errors.OK t0 /\ ofs0 = ofs
+      ofs0 = ofs + sizeof cenv_cs t0 * i0 /\ t0 = t1
+  | StructField i, Some (ofs, Tstruct id a) =>
+      match cenv_cs ! id with
+      | Some co => in_members i (co_members co) /\ t0 = field_type2 i (co_members co) /\ ofs0 = ofs + field_offset2 cenv_cs i (co_members co)
+      | None => False
+      end
+  | UnionField i, Some (ofs, Tunion id a) =>
+      match cenv_cs ! id with
+      | Some co => in_members i (co_members co) /\ t0 = field_type2 i (co_members co) /\ ofs0 = ofs
+      | None => False
+      end
   | _, _ => False
   end.
 Proof.
   intros.
   simpl (nested_field_rec t (gf :: gfs)).
   unfold nested_field_type2.
-  destruct (nested_field_rec t gfs) as [[? tt]| ]; [destruct tt; destruct gf |];
+  destruct (nested_field_rec t gfs) as [[? tt]| ]; [destruct tt |]; destruct gf;
   (split; intro H; auto_destruct_above_line);
   try solve[inversion H | inversion H0 | inversion H1 | inversion H2].
   + inversion H; subst.
     auto.
   + subst. auto.
-  + solve_field_offset_type i0 f; inversion H; subst.
-    repeat split; auto.
-    f_equal; omega.
-  + rewrite H0, H1.
-    f_equal; f_equal. omega.
-  + solve_field_offset_type i0 f; inversion H; subst.
+  + destruct (cenv_cs ! i); [| inversion H].
+    destruct_in_members i0 (co_members c); [| inversion H].
+    inversion H.
     auto.
-  + rewrite H0, H1.
+  + destruct (cenv_cs ! i); [| inversion H].
+    auto_destruct_above_line.
+    apply compute_in_members_true_iff in H0.
+    rewrite H0.
+    subst; auto.
+  + destruct (cenv_cs ! i); [| inversion H].
+    destruct_in_members i0 (co_members c); [| inversion H].
+    inversion H.
     auto.
-  + destruct gf; inversion H.
+  + destruct (cenv_cs ! i); [| inversion H].
+    auto_destruct_above_line.
+    apply compute_in_members_true_iff in H0.
+    rewrite H0.
+    subst; auto.
 Qed.
 
 Ltac solve_legal_nested_field_cons H :=
@@ -568,34 +550,6 @@ Ltac solve_legal_nested_field_cons H :=
   |try solve [inversion Heq]; destruct HH as [H1 H2]
   |try solve [inversion Heq]; destruct HH as [H1 H2]].
 
-(*
-Ltac solve_nested_field_rec_cons_legal_eq_Some H :=
-  let HH := fresh "HH" in
-  let Heq := fresh "Heq" in
-  let H1 := fresh "H" in
-  let H2 := fresh "H" in
-  let H3 := fresh "H" in
-  let H4 := fresh "H" in
-  let _i := fresh "i" in
-  let i := fresh "i" in
-  let f := fresh "f" in
-  let a := fresh "a" in
-  let t := fresh "t" in
-  let n := fresh "n" in
-  let ofs := fresh "ofs" in
-  match type of H with
-  | (nested_field_rec ?T (?A :: ?GFS) = Some (?OFS, ?T0)) => 
-    destruct (nested_field_rec_cons_legal_eq_Some_lemma T A GFS OFS T0) as [HH _];
-    match goal with
-    | H0 : legal_nested_field T (A :: GFS) |- _ => specialize (HH (conj H H0))
-    end;
-    destruct A eqn:Heq
-  end;
-  [try solve [inversion Heq]; destruct HH as [[ofs [n [a [H1 [H2 H3]]]]] H4]
-  |try solve [inversion Heq]; destruct HH as [[ofs [i [f [a [H1 [H2 H3]]]]]] H4]
-  |try solve [inversion Heq]; destruct HH as [[i [f [a [H1 H2]]]] H4]].
-*)
-
 Ltac solve_nested_field_rec_cons_eq_Some H :=
   let HH := fresh "HH" in
   let HeqA := fresh "Heq" in
@@ -603,17 +557,20 @@ Ltac solve_nested_field_rec_cons_eq_Some H :=
   let H1 := fresh "H" in
   let H2 := fresh "H" in
   let ofs := fresh "ofs" in
+  let id := fresh "id" in
+  let co := fresh "co" in
+  let CO := fresh "CO" in
   match type of H with
   | (nested_field_rec ?T (?A :: ?GFS) = Some (?OFS, ?T0)) => 
     destruct (nested_field_rec_cons_eq_Some_lemma T A GFS OFS T0) as [HH _];
     specialize (HH H);
     destruct A eqn:HeqA;
-    destruct (nested_field_rec T GFS) as [[ofs [ | | | | | | | | | ]]|] eqn:HeqNFT;
+    destruct (nested_field_rec T GFS) as [[ofs [ | | | | | | | id ? | id ? ]]|] eqn:HeqNFT;
     try solve [inversion HH]
   end;
   [try solve [inversion HeqA]; destruct HH as [H1 H2]
-  |try solve [inversion HeqA]; destruct HH as [H1 H2]
-  |try solve [inversion HeqA]; destruct HH as [H1 H2]].
+  |try solve [inversion HeqA]; destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion HH]; destruct HH as [H1 H2]
+  |try solve [inversion HeqA]; destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion HH]; destruct HH as [H1 H2]].
 
 Ltac solve_legal_nested_field :=
   first [
@@ -652,15 +609,16 @@ Proof.
     - apply sumbool_dec_and; auto.
       apply sumbool_dec_and; [apply Z_le_dec | apply Z_lt_dec].
     - apply sumbool_dec_and; auto.
-      destruct (isOK (field_type i f)) eqn:?H; [left; eauto | right; congruence].
+      destruct (cenv_cs ! i0) as [co |]; [| right; auto].
+      apply in_members_dec.
     - apply sumbool_dec_and; auto.
-      destruct (isOK (field_type i f)) eqn:?H; [left; eauto | right; congruence].
+      destruct (cenv_cs ! i0) as [co |]; [| right; auto].
+      apply in_members_dec.
 Qed.
 
 Definition field_compatible t gfs p :=
   isptr p /\
   legal_alignas_type t = true /\
-  nested_legal_fieldlist t = true /\
   size_compatible t p /\
   align_compatible t p /\
   legal_nested_field t gfs.
@@ -673,15 +631,14 @@ Proof.
   repeat apply sumbool_dec_and.
   + destruct p; simpl; try (left; tauto); try (right; tauto).
   + destruct legal_alignas_type; [left | right]; congruence.
-  + destruct nested_legal_fieldlist; [left | right]; congruence.
   + destruct p; simpl; try solve [left; auto].
-    destruct (zle (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
+    destruct (zle (Int.unsigned i + sizeof cenv_cs t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
     apply Zdivide_dec.
     apply alignof_pos.
   + apply legal_nested_field_dec.
-Qed.  
-
+Qed.
+(*
 Lemma field_compatible_cons_Tarray:
   forall k t n a gfs p t' ofs,
   nested_field_rec t gfs = Some (ofs, Tarray t' n a) ->
@@ -694,7 +651,7 @@ apply <- (nested_field_rec_cons_legal_eq_Some_lemma).
 rewrite H.
 split; auto.
 Qed.
-
+*)
 Definition field_address t gfs p :=
   if (field_compatible_dec t gfs p)
   then offset_val (Int.repr (nested_field_offset2 t gfs)) p
@@ -720,47 +677,82 @@ Qed.
 Hint Resolve field_address_isptr.
 Hint Resolve is_pointer_or_null_field_compatible.
 
-Lemma nested_field_rec_nest_pred: forall {atom_pred: type -> bool} (t: type) (gfs: list gfield) pos t', nested_pred atom_pred t = true -> nested_field_rec t gfs = Some (pos, t') -> nested_pred atom_pred t' = true.
+Lemma nested_field_rec_complete_type: forall t gfs pos t',
+  nested_field_rec t gfs = Some (pos, t') ->
+  complete_type cenv_cs t = true ->
+  complete_type cenv_cs t' = true.
+Proof.
+  intros.
+  revert pos t' H; induction gfs; intros.
+  + inversion H; subst.
+    exact H0.
+  + solve_nested_field_rec_cons_eq_Some H.
+    - (* Tarray case *)
+      specialize (IHgfs _ _ eq_refl).
+      subst.
+      simpl in IHgfs.
+      exact IHgfs.
+    - (* Tstruct case *)
+      specialize (IHgfs _ _ eq_refl).
+      destruct H2.
+      subst.
+      eapply complete_type_field_type2; eauto.
+    - (* Tunion case *)
+      specialize (IHgfs _ _ eq_refl).
+      destruct H2.
+      subst.
+      eapply complete_type_field_type2; eauto.
+Qed.
+
+Lemma nested_field_type2_complete_type: forall t gfs,
+  legal_nested_field t gfs ->
+  complete_type cenv_cs t = true ->
+  complete_type cenv_cs (nested_field_type2 t gfs) = true.
+Proof.
+  intros.
+  unfold nested_field_type2.
+  destruct (nested_field_rec t gfs) as [[? ?]|] eqn:?.
+  + eapply nested_field_rec_complete_type; eauto.
+  + eapply legal_nested_field_nested_field_rec_None_conflict; eauto.
+Qed.
+
+Lemma nested_field_rec_nest_pred: forall (atom_pred: type -> bool) (t: type) (gfs: list gfield) pos t',
+  nested_pred atom_pred t = true -> nested_field_rec t gfs = Some (pos, t') -> nested_pred atom_pred t' = true.
 Proof.
   intros.
   revert pos t' H0; induction gfs; intros.
   + inversion H0.
     subst.
     exact H.
-  + solve_nested_field_rec_cons_eq_Some H0. 
+  + solve_nested_field_rec_cons_eq_Some H0.
     - (* Tarray case *)
       specialize (IHgfs _ _ eq_refl).
       subst.
       eapply nested_pred_Tarray, IHgfs.
     - (* Tstruct case *)
       specialize (IHgfs _ _ eq_refl).
+      destruct H2; subst.
       eapply nested_fields_pred_nested_pred; [exact H1 |].
-      eapply nested_pred_Tstruct, IHgfs.
+      eapply nested_pred_Tstruct, IHgfs; auto.
     - (* Tunion case *)
       specialize (IHgfs _ _ eq_refl).
+      destruct H2; subst.
       eapply nested_fields_pred_nested_pred; [exact H1 |].
-      eapply nested_pred_Tunion, IHgfs.
+      eapply nested_pred_Tunion, IHgfs; auto.
 Defined.
 
-Lemma nested_field_type_nest_pred: forall {atom_pred: type -> bool}, atom_pred Tvoid = true -> forall (t t': type) (gfs: list gfield), nested_pred atom_pred t = true -> nested_field_type t gfs = Some t' -> nested_pred atom_pred t' = true.
-Proof.
-  intros.
-  unfold nested_field_type in *.
-  valid_nested_field_rec t gfs H1.
-  inversion H1; subst t0; clear H1.
-  eapply nested_field_rec_nest_pred. exact H0.
-  exact H2.
-Defined.
-
-Lemma nested_field_type2_nest_pred: forall {atom_pred: type -> bool}, atom_pred Tvoid = true -> forall (t: type) (gfs: list gfield), nested_pred atom_pred t = true -> nested_pred atom_pred (nested_field_type2 t gfs) = true.
+Lemma nested_field_type2_nest_pred: forall {atom_pred: type -> bool}, atom_pred Tvoid = true -> forall (t: type) (gfs: list gfield),
+  nested_pred atom_pred t = true -> nested_pred atom_pred (nested_field_type2 t gfs) = true.
 Proof.
   intros.
   unfold nested_field_type2.
   valid_nested_field_rec t gfs H0.
   eapply nested_field_rec_nest_pred. exact H0. exact H1.
-  simpl; rewrite H, H0; reflexivity.
+  rewrite nested_pred_ind.
+  rewrite H, H0; reflexivity.
 Defined.
 
+(*
 Lemma nested_field_type2_field_type: forall i f a id t, nested_field_type2 (Tstruct i f a) (StructField id :: nil) = t /\ t <> Tvoid -> field_type id f = Errors.OK t.
 Proof.
   unfold nested_field_type2.
@@ -770,7 +762,7 @@ Proof.
   - subst; reflexivity.
   - congruence.
 Defined.
-
+*)
 (*
 Lemma nested_field_type2_Tarray_nested_field_rec_isSome: forall t gfs t0 n a,
   nested_field_type2 t gfs = Tarray t0 n a -> isSome (nested_field_rec t gfs).
@@ -810,26 +802,25 @@ Lemma nested_field_type2_cons: forall t gf gfs0,
   nested_field_type2 t (gf :: gfs0) = 
   match gf, nested_field_type2 t gfs0 with
   | ArraySubsc i, Tarray t0 n a => t0
-  | StructField i, Tstruct i0 f a => match field_offset i f, field_type i f with
-                                     | Errors.OK _, Errors.OK t0 => t0
-                                     | _, _ => Tvoid
-                                     end
-  | UnionField i, Tunion i0 f a => match field_type i f with
-                                    | Errors.OK t0 => t0
-                                    | _ => Tvoid
-                                    end
+  | StructField i, Tstruct id a
+  | UnionField i, Tunion id a =>
+    match cenv_cs ! id with
+    | Some co => if compute_in_members i (co_members co) then field_type2 i (co_members co) else Tvoid
+    | _ => Tvoid
+    end
   | _, _ => Tvoid
   end.
 Proof.
   intros.
   unfold nested_field_type2 in *.
   simpl.
-  destruct (nested_field_rec t gfs0) eqn:HH; try reflexivity.
-  destruct p.
-  destruct t0, gf; try reflexivity.
-  + destruct (field_offset i0 f), (field_type i0 f); reflexivity.
-  + destruct (field_type i0 f); reflexivity.
-  + destruct gf; reflexivity.
+  destruct (nested_field_rec t gfs0) as [[ofs0 t0]|] eqn:HH; [destruct t0 |]; destruct gf; try reflexivity.
+  + rename i into id.
+    destruct (cenv_cs ! id) as [co |]; [| auto].
+    destruct_in_members i0 (co_members co); auto.
+  + rename i into id.
+    destruct (cenv_cs ! id) as [co |]; [| auto].
+    destruct_in_members i0 (co_members co); auto.
 Defined.
 
 Lemma nested_field_rec_divide: forall t gfs pos t', nested_field_rec t gfs = Some (pos, t') -> legal_alignas_type t = true -> Z.divide (alignof t') pos.

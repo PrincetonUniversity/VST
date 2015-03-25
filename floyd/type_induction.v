@@ -120,83 +120,76 @@ Section COMPOSITE_ENV.
 Context {cs: compspecs}.
 
 Lemma type_ind: forall P,
-  (forall t, complete_type cenv_cs t = true ->
+  (forall t,
   match t with
   | Tarray t0 _ _ => P t0
   | Tstruct id _
   | Tunion id _ =>
     match cenv_cs ! id with
     | Some co => Forall (fun it => P (snd it)) (co_members co)
-    | _ => False
+    | _ => True
     end
   | _ => True
   end -> P t) ->
-  forall t, complete_type cenv_cs t = true -> P t.
+  forall t, P t.
 Proof.
   intros P IH_TYPE.
   intros.
   remember (rank_type cenv_cs t) as n eqn: RANK'.
   assert (rank_type cenv_cs t <= n)%nat as RANK by omega; clear RANK'.
-  revert t H RANK.
+  revert t RANK.
   induction n;
   intros;
-  specialize (IH_TYPE t H); destruct t;
+  specialize (IH_TYPE t); destruct t;
   try solve [specialize (IH_TYPE I); auto].
   + (* Tarray level 0 *)
     simpl in RANK. omega.
   + (* Tstruct level 0 *)
-    simpl in H, RANK.
-    destruct (cenv_cs ! i); [omega | inversion H].
+    simpl in RANK.
+    destruct (cenv_cs ! i); [omega | tauto].
   + (* Tunion level 0 *)
-    simpl in H, RANK.
-    destruct (cenv_cs ! i); [omega | inversion H].
+    simpl in RANK.
+    destruct (cenv_cs ! i); [omega | tauto].
   + (* Tarray level positive *)
-    simpl in H, RANK.
-    specialize (IHn t H).
+    simpl in RANK.
+    specialize (IHn t).
     apply IH_TYPE, IHn.
     omega.
   + (* Tstruct level positive *)
-    simpl in H, RANK.
-    destruct (cenv_cs ! i) as [co |] eqn:CO; [| inversion H].
+    simpl in RANK.
+    destruct (cenv_cs ! i) as [co |] eqn:CO; [| tauto].
     apply IH_TYPE.
     apply Forall_forall.
     intros [id t] ?; simpl.
     apply IHn.
-    - eapply complete_member; eauto.
-      apply co_consistent_complete.
-      exact (cenv_consistent_cs i co CO).
-    - apply rank_type_members with (ce := cenv_cs) in H0.
-      rewrite <- co_consistent_rank in H0; [omega |].
-      exact (cenv_consistent_cs i co CO).
+    apply rank_type_members with (ce := cenv_cs) in H.
+    rewrite <- co_consistent_rank in H; [omega |].
+    exact (cenv_consistent_cs i co CO).
   + (* Tunion level positive *)
-    simpl in H, RANK.
-    destruct (cenv_cs ! i) as [co |] eqn:CO; [| inversion H].
+    simpl in RANK.
+    destruct (cenv_cs ! i) as [co |] eqn:CO; [| tauto].
     apply IH_TYPE.
     apply Forall_forall.
     intros [id t] ?; simpl.
     apply IHn.
-    - eapply complete_member; eauto.
-      apply co_consistent_complete.
-      exact (cenv_consistent_cs i co CO).
-    - apply rank_type_members with (ce := cenv_cs) in H0.
-      rewrite <- co_consistent_rank in H0; [omega |].
-      exact (cenv_consistent_cs i co CO).
+    apply rank_type_members with (ce := cenv_cs) in H.
+    rewrite <- co_consistent_rank in H; [omega |].
+    exact (cenv_consistent_cs i co CO).
 Qed.
 
 Ltac type_induction t :=
   pattern t;
   match goal with
-  | H: complete_type _ t = true |- ?P t =>
-    apply type_ind; [| exact H]; clear t H;
+  | |- ?P t =>
+    apply type_ind; clear t;
     let t := fresh "t" in
-    let COMPLETE := fresh "COMPLETE" in
-    intros t COMPLETE IH;
+    intros t IH;
     let id := fresh "id" in
     let a := fresh "a" in
     let co := fresh "co" in
     let CO := fresh "CO" in
     let tac_for_struct_union :=
-      (destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion IH])
+      (destruct (cenv_cs ! id) as [co |] eqn:CO)
     in
     destruct t as [| | | | | | | id a | id a];
     [| | | | | | | tac_for_struct_union | tac_for_struct_union]
@@ -235,52 +228,53 @@ Fixpoint func_type_rec (n: nat) (t: type): A t :=
 Definition func_type t := func_type_rec (rank_type cenv_cs t) t.
 
 Lemma func_type_rec_rank_irrelevent: forall t n n0,
-  complete_type cenv_cs t = true ->
   n >= rank_type cenv_cs t ->
   n0 >= rank_type cenv_cs t ->
   func_type_rec n t = func_type_rec n0 t.
 Proof.
-  intros.
-  revert n n0 H0 H1.
+  intros t.
   type_induction t;
   intros; try solve [destruct n, n0; simpl; auto].
   + (* Tarray *)
-    destruct n; simpl in H0; [omega |].
-    destruct n0; simpl in H1; [omega |].
+    destruct n; simpl in H; [omega |].
+    destruct n0; simpl in H0; [omega |].
     specialize (IH n n0); do 2 (spec IH; [omega |]).
     simpl.
     rewrite IH.
     reflexivity.
   + (* Tstruct *)
-    destruct n, n0; simpl in H0, H1 |- *; rewrite CO in *; try omega.
+    destruct n, n0; simpl in H, H0 |- *; rewrite CO in *; try omega.
     f_equal.
     apply ListTypeGen_preserve.
     intros.
     rewrite Forall_forall in IH.
-    rewrite in_map_iff in H.
-    destruct H as [[i t] [? Hin]]; subst a0; specialize (IH (i, t) Hin n n0).
+    rewrite in_map_iff in H1.
+    destruct H1 as [[i t] [? Hin]]; subst a0; specialize (IH (i, t) Hin n n0).
     simpl in IH |- *.
     pose proof rank_type_members cenv_cs i t (co_members co) Hin.
+    rewrite co_consistent_rank with (env := cenv_cs) in H by exact (cenv_consistent_cs id co CO).
     rewrite co_consistent_rank with (env := cenv_cs) in H0 by exact (cenv_consistent_cs id co CO).
-    rewrite co_consistent_rank with (env := cenv_cs) in H1 by exact (cenv_consistent_cs id co CO).
     apply IH; omega.
+  + (* Tstruct incomplete *)
+    destruct n, n0; simpl; try rewrite CO; auto.
   + (* Tunion *)
-    destruct n, n0; simpl in H0, H1 |- *; rewrite CO in *; try omega.
+    destruct n, n0; simpl in H, H0 |- *; rewrite CO in *; try omega.
     f_equal.
     apply ListTypeGen_preserve.
     intros.
     rewrite Forall_forall in IH.
-    rewrite in_map_iff in H.
-    destruct H as [[i t] [? Hin]]; subst a0; specialize (IH (i, t) Hin n n0).
+    rewrite in_map_iff in H1.
+    destruct H1 as [[i t] [? Hin]]; subst a0; specialize (IH (i, t) Hin n n0).
     simpl in IH |- *.
     pose proof rank_type_members cenv_cs i t (co_members co) Hin.
+    rewrite co_consistent_rank with (env := cenv_cs) in H by exact (cenv_consistent_cs id co CO).
     rewrite co_consistent_rank with (env := cenv_cs) in H0 by exact (cenv_consistent_cs id co CO).
-    rewrite co_consistent_rank with (env := cenv_cs) in H1 by exact (cenv_consistent_cs id co CO).
     apply IH; omega.
+  + (* Tunion incomplete *)
+    destruct n, n0; simpl; try rewrite CO; auto.
 Qed.
 
 Lemma func_type_ind: forall t, 
-  complete_type cenv_cs t = true ->
   func_type t = 
   match t as t0 return A t0 with
   | Tarray t0 n a => F_Tarray t0 n a (func_type t0)
@@ -301,7 +295,7 @@ Proof.
   type_induction t; try solve [simpl; auto].
   + (* Tstruct *)
     unfold func_type in *.
-    simpl in COMPLETE |- *.
+    simpl.
     rewrite CO; simpl; rewrite CO.
     f_equal.
     apply ListTypeGen_preserve.
@@ -310,14 +304,17 @@ Proof.
     destruct H as [[i t] [? Hin]]; subst a0; simpl.
     pose proof cenv_consistent_cs id co CO.
     apply func_type_rec_rank_irrelevent.
-    - eapply complete_member; eauto.
-      apply co_consistent_complete; auto.
     - rewrite co_consistent_rank with (env := cenv_cs) by auto.
       eapply rank_type_members; eauto.
     - omega.
+  + (* Tstruct incomplete *)
+    unfold func_type.
+    simpl.
+    rewrite CO.
+    reflexivity.
   + (* Tunion *)
     unfold func_type in *.
-    simpl in COMPLETE |- *.
+    simpl.
     rewrite CO; simpl; rewrite CO.
     f_equal.
     apply ListTypeGen_preserve.
@@ -326,11 +323,14 @@ Proof.
     destruct H as [[i t] [? Hin]]; subst a0; simpl.
     pose proof cenv_consistent_cs id co CO.
     apply func_type_rec_rank_irrelevent.
-    - eapply complete_member; eauto.
-      apply co_consistent_complete; auto.
     - rewrite co_consistent_rank with (env := cenv_cs) by auto.
       eapply rank_type_members; eauto.
     - omega.
+  + (* Tunion incomplete *)
+    unfold func_type.
+    simpl.
+    rewrite CO.
+    reflexivity.
 Qed.
 
 End COMPOSITE_ENV.
@@ -338,17 +338,16 @@ End COMPOSITE_ENV.
 Ltac type_induction t :=
   pattern t;
   match goal with
-  | H: complete_type _ t = true |- ?P t =>
-    apply type_ind; [| exact H]; clear t H;
+  | |- ?P t =>
+    apply type_ind; clear t;
     let t := fresh "t" in
-    let COMPLETE := fresh "COMPLETE" in
-    intros t COMPLETE IH;
+    intros t IH;
     let id := fresh "id" in
     let a := fresh "a" in
     let co := fresh "co" in
     let CO := fresh "CO" in
     let tac_for_struct_union :=
-      (destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion IH])
+      (destruct (cenv_cs ! id) as [co |] eqn:CO)
     in
     destruct t as [| | | | | | | id a | id a];
     [| | | | | | | tac_for_struct_union | tac_for_struct_union]
