@@ -66,7 +66,7 @@ Definition __builtin_read32_reversed_spec :=
   PRE [ _ptr OF tptr tuint ] 
         PROP  (Zlength contents >= 4)
         LOCAL (temp _ptr p)
-        SEP   (`(data_at sh (tarray tuchar 4) (map Vint (rev contents)) p))
+        SEP   (`(data_at sh (tarray tuchar 4) (map Vint contents) p))
   POST [ tuint ] 
      PROP() LOCAL (temp ret_temp  (Vint (big_endian_integer contents)))
      SEP (`(data_at sh (tarray tuchar 4) (map Vint contents) p)).

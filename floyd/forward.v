@@ -2088,7 +2088,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  match goal with
  | Struct_env := @abbreviate type_id_env _ |- _ => idtac
  | |- _ => let Struct_env := fresh "Struct_env" in
-     pose (Struct env := @abbreviate _ empty_ti)
+     pose (Struct_env := @abbreviate _ empty_ti)
  end; 
  match goal with   
 | SE := @abbreviate type_id_env _ 

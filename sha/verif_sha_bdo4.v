@@ -68,6 +68,32 @@ unfold nthi.
 repeat rewrite Nat2Z.id. reflexivity.
 Qed.
 
+Lemma semax_call_id1'':
+ forall Espec Delta P Q R ret id retty bl argsig A x Pre Post fs tl
+   (GLBL: (var_types Delta) ! id = None),
+       (glob_specs Delta) ! id = Some fs ->
+       (glob_types Delta) ! id = Some (type_of_funspec fs) ->
+   fs = mk_funspec (argsig, retty) A Pre Post ->
+   match retty with
+   | Tvoid => False
+   | _ => True
+   end ->
+   tc_fn_return Delta (Some ret) retty ->
+   tl = type_of_params argsig ->
+  forall 
+   (CLOSQ: Forall (closed_wrt_vars (eq ret)) Q)
+   (CLOSR: Forall (closed_wrt_vars (eq ret)) R),
+  @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: Q)
+            (SEPx (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) :: R))))
+    (Scall (Some ret)
+             (Evar id (Tfunction tl retty cc_default))
+             bl)
+    (normal_ret_assert 
+       (PROPx P (LOCALx Q   (SEPx (`(Post x) (get_result1 ret) ::  R))))).
+Proof.
+intros; subst  fs tl; eapply semax_call_id1'; eauto.
+Qed.
+
 Lemma read32_reversed_in_bytearray:
  forall {Espec: OracleKind} Delta (ofs: int) base e sh (contents: list int) i P Q
  (VS:  (var_types Delta) ! ___builtin_read32_reversed = None) 
@@ -82,20 +108,25 @@ Lemma read32_reversed_in_bytearray:
          PROP ((0 <= Int.unsigned ofs <= Zlength contents - 4 )%Z)
          LOCAL (tc_expr Delta e; `(eq (offset_val ofs base)) (eval_expr e))
          SEP  (TT) ->
- semax Delta  (PROPx P (LOCALx Q (SEP (`(data_at sh (tarray tuchar (Zlength contents)) (map Vint contents) base)))))
+ semax Delta  (PROPx P (LOCALx Q 
+                        (SEP (`(data_at sh (tarray tuchar (Zlength contents)) 
+                                    (map Vint contents) base)))))
         (Scall (Some i)
            (Evar ___builtin_read32_reversed
               (Tfunction (Tcons (tptr tuint) Tnil) tuint cc_default))
            [e])
         (normal_ret_assert
          (PROP () 
-          (LOCALx (temp i (Vint (big_endian_integer (firstn (Z.to_nat WORD) (skipn (Z.to_nat (Int.unsigned ofs)) contents))))
+          (LOCALx (temp i (Vint (big_endian_integer
+                               (firstn (Z.to_nat WORD) (skipn (Z.to_nat (Int.unsigned ofs)) contents))))
                         :: Q)                 
          SEP (`(data_at sh (tarray tuchar (Zlength contents)) (map Vint contents) base))))).
 Proof.
 intros.
 apply semax_pre with
- (PROP  ((0 <= Int.unsigned ofs <= Zlength contents - 4)%Z)
+ (PROP  ((0 <= Int.unsigned ofs <= Zlength contents - 4)%Z;
+             field_compatible (tarray tuchar (Zlength contents))
+                 [ArraySubsc (Int.unsigned ofs)] base)
         (LOCALx (tc_expr Delta e :: `(eq (offset_val ofs base)) (eval_expr e) :: Q)
          (SEP(`(data_at sh (tarray tuchar (Zlength contents)) (map Vint contents)
              base))))).
@@ -111,101 +142,138 @@ instantiate (1:= PROPx nil (LOCALx Q (SEP  (`(data_at sh (tarray tuchar (Zlength
              base))))).
 go_lowerx. entailer.
 go_lowerx; entailer.
+rewrite data_at_field_at.
+eapply derives_trans; [apply field_at_compatible | ].
+apply prop_derives; intro.
+hnf in H6|-*.
+decompose [and] H6; clear H6; repeat split; auto.
+omega. omega.
 normalize.
-clear H.
-normalize.
-Admitted. (*   Qinxiang: can you look at this?  ... 
-rewrite (split_array_at (Int.unsigned ofs + 4)%Z) with (hi:=hi) by omega.
-rewrite split_offset_array_at with (lo := Int.unsigned ofs) (hi := Int.unsigned ofs + 4);
-  [| omega | simpl; omega | reflexivity].
-normalize.
+clear H. rename H1 into COMPAT.
+rewrite data_at_field_at.
 
-match goal with |- semax _ _ _ (normal_ret_assert (PROPx _ (LOCALx _ ?A))) =>
- replace A  with (SEPx( [
-         `(array_at tuchar sh
-             (fun i0 : Z => contents (i0 + Int.unsigned ofs)) 0
-             (Int.unsigned ofs + 4 - Int.unsigned ofs)
-             (offset_val (Int.repr (Int.unsigned ofs)) base))] ++
-               [`(array_at tuchar sh contents lo (Int.unsigned ofs) base);
-         `(array_at tuchar sh contents (Int.unsigned ofs + 4) hi base)]))
- by (simpl app; apply pred_ext; go_lowerx; normalize; cancel)
+erewrite (array_seg_reroot_lemma sh (tarray tuchar (Zlength contents)) 
+               nil tuchar (Zlength contents) noattr
+                (Int.unsigned ofs) (Int.unsigned ofs + 4)
+     (firstn (Z.to_nat (Int.unsigned ofs)) (map Vint contents))
+     (firstn 4 (skipn (Z.to_nat (Int.unsigned ofs)) (map Vint contents)))
+     (skipn (Z.to_nat (Int.unsigned ofs+ 4)) (map Vint contents))
+); try reflexivity; auto; try omega.
+
+2: rewrite Z2Nat.inj_add, <- !skipn_skipn, !firstn_skipn by omega; reflexivity.
+Focus 2.
+rewrite Zlength_correct, firstn_length, min_l.
+rewrite Z2Nat.id by omega; omega.
+rewrite map_length. apply Nat2Z.inj_le. rewrite Z2Nat.id by omega.
+rewrite <- Zlength_correct; omega.
+Focus 2.
+rewrite Zlength_correct, firstn_length, min_l.
+change (Z.of_nat 4) with 4; omega.
+rewrite skipn_length. rewrite map_length.
+apply Nat2Z.inj_le. 
+rewrite Nat2Z.inj_sub.
+rewrite <- Zlength_correct. rewrite Z2Nat.id by omega.
+change (Z.of_nat 4) with 4; omega.
+apply Nat2Z.inj_le. 
+rewrite <- Zlength_correct. rewrite Z2Nat.id by omega.
+omega.
+normalize.
+match goal with |- semax _ (PROPx ?P (LOCALx ?Q  (SEP (?A; ?B; ?C)))) _ _ =>
+eapply semax_pre_post;
+ [ | | eapply (semax_frame1 nil [A;C]); try reflexivity ]
 end.
-
-match goal with |- semax _ (PROPx _ (LOCALx _ ?A)) _ _ =>
- replace A  with (SEPx( [
-         `(array_at tuchar sh
-             (fun i0 : Z => contents (i0 + Int.unsigned ofs)) 0
-             (Int.unsigned ofs + 4 - Int.unsigned ofs)
-             (offset_val (Int.repr (Int.unsigned ofs)) base))] ++
-               [`(array_at tuchar sh contents lo (Int.unsigned ofs) base);
-         `(array_at tuchar sh contents (Int.unsigned ofs + 4) hi base)]))
- by (simpl app; apply pred_ext; go_lowerx; normalize; cancel)
-end.
-
-eapply semax_frame1; try reflexivity;
- [ |  apply derives_refl | auto 50 with closed].
-eapply semax_pre_post.
-
-Focus 3.
-evar (tl: typelist).
-replace (Tcons (tptr tuint) Tnil) with tl.
-unfold tl.
-eapply semax_call_id1'; try eassumption.
-2: reflexivity.
-apply GS.
-2: reflexivity.
-Unfocus.
-
-instantiate (3:=nil).
-apply andp_left2.
-instantiate (2:=(offset_val ofs base, sh, fun z => force_int (contents (z + Int.unsigned ofs)%Z))).
-cbv beta iota.
-instantiate (1:=nil).
-unfold split; simpl @snd.
-go_lowerx.
-entailer.
-apply andp_right; [apply prop_right; repeat split; auto | ].
-hnf. simpl.
-rewrite TE.
-repeat rewrite denote_tc_assert_andp; repeat split; auto.
-rewrite <- H5.
-rewrite TE.
-destruct base; inv Pbase; reflexivity.
-pattern ofs at 4;
- replace ofs with (Int.repr (sizeof tuchar * Int.unsigned ofs))%Z
- by (simpl sizeof; rewrite Z.mul_1_l; apply Int.repr_unsigned).
-apply derives_refl'.
-rewrite Int.repr_unsigned.
-replace (Int.unsigned ofs + 4 - Int.unsigned ofs) with 4 by omega.
-simpl sizeof. rewrite Zmult_1_l. rewrite Int.repr_unsigned.
-apply equal_f. apply array_at_ext.
-intros. unfold cVint.
-
-specialize (Hcontents (i0 + Int.unsigned ofs)).
-destruct (contents (i0 + Int.unsigned ofs)); 
-  try solve [elimtype False; apply Hcontents; omega]. reflexivity.
-
+apply andp_left2; apply derives_refl.
 intros; apply andp_left2.
 apply normal_ret_assert_derives'.
-go_lowerx.
-entailer.
-apply derives_refl'.
-pattern ofs at 2;
- replace ofs with (Int.repr (sizeof tuchar * Int.unsigned ofs))%Z
- by (simpl sizeof; rewrite Z.mul_1_l; apply Int.repr_unsigned).
-rewrite Int.repr_unsigned.
+match goal with |- _ |-- PROP() (LOCALx ?Q (SEP ( _ ; ?B; _))) =>
+   instantiate (1:=[B]);
+   instantiate (1:=Q);
+   instantiate (1:=nil)
+end.
+rewrite <- app_nil_end. entailer!.
+
+Focus 2.
+drop_LOCAL 0%nat.
+match goal with |-  PROP() (LOCALx ?Q (SEP ( _ ; ?B; _))) |-- _ =>
+   instantiate (1:=[B]);
+   instantiate (1:=Q);
+   instantiate (1:=nil)
+end.
+rewrite <- app_nil_end. entailer!.
+2: auto 50 with closed.
+
 replace (Int.unsigned ofs + 4 - Int.unsigned ofs) with 4 by omega.
-simpl sizeof. rewrite Zmult_1_l. rewrite Int.repr_unsigned.
-apply equal_f. 
-apply array_at_ext; intros.
-unfold cVint.
-specialize (Hcontents (i0 + Int.unsigned ofs)).
-destruct (contents (i0 + Int.unsigned ofs)); 
-  try reflexivity;  contradiction Hcontents; omega.
-auto.
+
+pose (witness := 
+            (offset_val ofs base, sh, 
+             firstn 4 (skipn (Z.to_nat (Int.unsigned ofs)) contents))).
+
+eapply semax_pre;
+ [ | eapply semax_post'; 
+     [ | eapply semax_call_id1'' with (x := witness); 
+         try eassumption; try reflexivity; auto ]].
+instantiate (1:=nil).
+unfold witness.
+rewrite skipn_map, firstn_map.
+set (cts := firstn 4 (skipn (Z.to_nat (Int.unsigned ofs)) contents)).
+rewrite data_at_isptr.
+go_lowerx.
+normalize.
+rewrite prop_true_andp; auto.
+rewrite field_address_clarify; auto.
+erewrite nested_field_offset2_Tarray; try reflexivity.
+change (nested_field_offset2 (tarray tuchar (Zlength contents)) []) with 0%Z.
+rewrite Z.add_0_l.
+normalize.
+rewrite Int.repr_unsigned.
+apply derives_refl.
+repeat split; auto.
+hnf;  simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
+rewrite TE; simpl. apply I.
+unfold cts.
+rewrite Zlength_correct.
+rewrite firstn_length, min_l.
+compute; clear; congruence.
+rewrite skipn_length. 
+clear - H0.
+apply Nat2Z.inj_le.
+rewrite Nat2Z.inj_sub.
+rewrite <- Zlength_correct. change (Z.of_nat 4) with 4.
+rewrite Z2Nat.id by omega. omega.
+apply Nat2Z.inj_le.
+rewrite Z2Nat.id by omega. 
+rewrite <- Zlength_correct. omega.
+hnf. rewrite TE. rewrite <- H3.
+unfold eval_id, env_set. simpl.
+clear - H5.
+unfold field_address in H5.
+if_tac in H5; try contradiction.
+destruct base; try contradiction H5.
+reflexivity.
+
+unfold witness.
+change (Z.to_nat WORD) with 4%nat.
+rewrite skipn_map, firstn_map.
+set (cts :=  firstn 4 (skipn (Z.to_nat (Int.unsigned ofs)) contents)).
+fold (tarray tuchar 4).
+normalize.
+rewrite data_at_isptr.
+go_lowerx.
+normalize.
+rewrite fold_right_and_app_lifted in H1.
+destruct H1 as [? [? ?]].
+rewrite prop_true_andp.
+unfold field_address.
+rewrite if_true by auto.
+erewrite nested_field_offset2_Tarray; try reflexivity.
+change (nested_field_offset2 (tarray tuchar (Zlength contents)) []) with 0%Z.
+rewrite Z.add_0_l.
+normalize.
+rewrite Int.repr_unsigned by omega.
+ auto.
+split; auto.
 Qed.
 
-*)
 Definition block_data_order_loop1 := 
   Sfor (Sset _i (Econst_int (Int.repr 0) tint))
          (Ebinop Olt (Etempvar _i tint) (Econst_int (Int.repr 16) tint) tint)
@@ -492,10 +560,6 @@ eapply (semax_frame_seq nil)
                  gvar _K256 kv])
          (Frame := [`(K_vector kv);
                            `(data_at Tsh (tarray tuint LBLOCKz) (map Vint (firstn (Z.to_nat i) b)) Xv)]);
-(**{
-apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) data _ sh 
-                     (map Int.repr (intlist_to_Zlist b))).
-*)
    [apply (read32_reversed_in_bytearray _ (Int.repr (i * 4)) data _ sh 
                      (map Int.repr (intlist_to_Zlist b)));
     [ reflexivity |  reflexivity | reflexivity | reflexivity | reflexivity
@@ -503,7 +567,7 @@ apply (read32_reversed_in_bytearray _ (Int.repr (Z.of_nat i * 4)) data _ sh
       (* intros; apply ZnthV_map_Vint_is_int; rewrite Zlength_correct, map_length;
           rewrite Zlength_correct in H1; apply H1 *)
       | ]
-   | | | ].
+   | | auto 50 with closed | ].
 (* 945,760 834,556 *)
 abstract solve [entailer!;
 rewrite Zlength_correct, map_length, length_intlist_to_Zlist, H;
@@ -519,7 +583,6 @@ unfold data_block.
 rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
 abstract solve [rewrite Zlength_map; entailer!].
 (* 1,078,128 849,172 *)
-auto 50 with closed.
 unfold app.
 fold (data_block sh (intlist_to_Zlist b) data).
 set (bei :=  big_endian_integer
@@ -535,18 +598,18 @@ change LBLOCKz with 16. (* this shouldn't be necessary *)
 forward. (* X[i]=l; *)
 change 16 with LBLOCKz.
 
- assert_LOCAL (temp _l (Vint (nthi b i))). {
-(*  drop_LOCAL 6%nat. drop_LOCAL 5%nat. drop_LOCAL 4%nat. *)
+ assert_PROP (bei = nthi b i). {
   entailer!.
   unfold nthi.
   rewrite Z2Nat.inj_mul by omega.
+  symmetry.
   apply nth_big_endian_integer. 
   apply nth_error_nth; rewrite H; auto.
   apply Z2Nat.inj_lt; try omega. apply H0.
  }
-(*drop_LOCAL 2%nat; drop_LOCAL 2%nat.
-*)
-
+ rewrite H3.
+ clear bei H3.
+ 
 change LBLOCKz with (Z.of_nat LBLOCK).
 
 assert (Hi: 0 <= i * 4 <= Int.max_unsigned). {
@@ -558,7 +621,6 @@ assert (Hi: 0 <= i * 4 <= Int.max_unsigned). {
    apply H0.
 }
 
-unfold bei; clear bei.
 set (zz := (big_endian_integer
                    (firstn (Z.to_nat WORD)
                       (skipn
@@ -567,18 +629,7 @@ set (zz := (big_endian_integer
 simpl.
 subst zz.
 rewrite loop1_aux_lemma1; auto;
-[ | rewrite Zlength_correct, H; omega
- | rewrite Int.unsigned_repr by auto;
-   rewrite Z2Nat.inj_mul by omega;
-   symmetry;
-   apply nth_big_endian_integer;
-   rewrite nth_error_nth with (d:=Int.zero)
-    by (apply Nat2Z.inj_lt;
-         rewrite Z2Nat.id by omega;
-         rewrite H, LBLOCK_eq;
-         apply H0);
-    reflexivity].
-
+[ | rewrite Zlength_correct, H; omega].
 (* 1,506,948 1,110,852 *)
 (* 1,506,948 1,134,576 *)
 
@@ -588,7 +639,6 @@ assert (i < Zlength K256)
   by (change (Zlength K256) with (LBLOCKz + 48); omega).
   change (Zlength K256) with 64 in *.
   change (Z.of_nat LBLOCK) with 16. change CBLOCKz with 64.
-(*   change (tarray tuint (Zlength K256)) with (tarray tuint 64).*) 
 forward.  (* Ki=K256[i]; *)
 (* 1,689,280 1,212,872 *)
 entailer!.
@@ -634,21 +684,19 @@ apply semax_pre with
    SEP()).
 { 
 entailer!.
-f_equal. f_equal. unfold Z.succ; rewrite Z.mul_add_distr_r; reflexivity.
-rewrite W_equation.
-rewrite if_true; auto.
-omega.
-
-clear - H0 H5. rename H5 into H2.
-unfold Znth in H2.
-
-rewrite if_false in H2 by omega.
-unfold nthi.
-rewrite (nth_map' _ _ Int.zero) in H2.
-congruence.
-clear H2.
-change (length K256) with 64%nat.
-apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega. 
+*
+ f_equal. f_equal. unfold Z.succ; rewrite Z.mul_add_distr_r; reflexivity.
+*
+ rewrite W_equation. rewrite if_true; auto. omega.
+* 
+ clear - H0 H5. rename H5 into H2. unfold Znth in H2.
+ rewrite if_false in H2 by omega.
+ unfold nthi.
+ rewrite (nth_map' _ _ Int.zero) in H2.
+ congruence.
+ clear H2.
+ change (length K256) with 64%nat.
+ apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega. 
 change (Z.of_nat 64) with 64. omega.
 }
 {clear b H.
