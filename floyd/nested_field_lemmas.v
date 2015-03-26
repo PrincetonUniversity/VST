@@ -823,10 +823,10 @@ Proof.
     destruct_in_members i0 (co_members co); auto.
 Defined.
 
-Lemma nested_field_rec_divide: forall t gfs pos t', nested_field_rec t gfs = Some (pos, t') -> legal_alignas_type t = true -> Z.divide (alignof t') pos.
+Lemma nested_field_rec_divide: forall t gfs pos t', nested_field_rec t gfs = Some (pos, t') -> legal_alignas_type t = true -> Z.divide (alignof cenv_cs t') pos.
 Proof.
   intros.
-  assert ((alignof t' | pos) /\ legal_alignas_type t' = true); [| tauto].
+  assert ((alignof cenv_cs t' | pos) /\ legal_alignas_type t' = true); [| tauto].
   revert pos t' H; induction gfs; intros.
   + inversion H. split; [apply Z.divide_0_r | inversion H; subst; exact H0].
   + solve_nested_field_rec_cons_eq_Some H.
@@ -843,25 +843,27 @@ Proof.
     - (* Tstruct Case *)
       subst.
       destruct (IHgfs _ _ eq_refl).
-      pose proof field_offset_aligned i f _ t' H2 H1.
-      assert (alignof_fields f | ofs) by
-        (eapply Zdivides_trans; [apply legal_alignas_type_Tstruct; exact H4 | exact H3]).
+      destruct H2; subst.
+      pose proof field_offset2_aligned i (co_members co).
       split.
-      * replace pos with ((pos - ofs) + ofs) by omega.
-        apply Z.divide_add_r; try assumption.
-        eapply Z.divide_trans. eapply alignof_type_divide_whole_fl. exact H1. exact H6.
-      * eapply nested_fields_pred_nested_pred. exact H1. eapply nested_pred_Tstruct. exact H4.
+      * apply Z.divide_add_r; auto.
+        eapply Z.divide_trans; [| exact H3].
+        eapply Z.divide_trans; [| apply legal_alignas_type_Tstruct; eauto].
+        apply alignof_field_type2; auto.
+      * eapply nested_fields_pred_nested_pred. exact H1. eapply nested_pred_Tstruct; eauto.
     - (* Tunion Case *)
       subst.
       destruct (IHgfs _ _ eq_refl).
-      assert (alignof_fields f | ofs) by
-        (eapply Zdivides_trans; [apply legal_alignas_type_Tunion; exact H3 | exact H2]).
+      destruct H2; subst.
       split.
-      * eapply Z.divide_trans. eapply alignof_type_divide_whole_fl. exact H1. exact H4.
-      * eapply nested_fields_pred_nested_pred. exact H1. eapply nested_pred_Tunion. exact H3.
+      * eapply Z.divide_trans; [| exact H3].
+        eapply Z.divide_trans; [| apply legal_alignas_type_Tunion; eauto].
+        apply alignof_field_type2; auto.
+      * eapply nested_fields_pred_nested_pred. exact H1. eapply nested_pred_Tunion; eauto.
 Defined.
 
-Lemma nested_field_offset2_type2_divide: forall gfs t, legal_alignas_type t = true -> Z.divide (alignof (nested_field_type2 t gfs)) (nested_field_offset2 t gfs).
+Lemma nested_field_offset2_type2_divide: forall gfs t, legal_alignas_type t = true ->
+  (alignof cenv_cs (nested_field_type2 t gfs) | nested_field_offset2 t gfs).
 Proof.
   intros.
   unfold nested_field_type2, nested_field_offset2.
@@ -882,7 +884,7 @@ nested_field_rec_Tunion_mid
 
 Lemma nested_field_rec_Tarray: forall t0 n a gfs t ofs i,
   nested_field_rec t gfs = Some (ofs, Tarray t0 n a) ->
-  nested_field_rec t (ArraySubsc i :: gfs) = Some (ofs + sizeof t0 * i, t0).
+  nested_field_rec t (ArraySubsc i :: gfs) = Some (ofs + sizeof cenv_cs t0 * i, t0).
 Proof.
   intros.
   simpl.
@@ -890,29 +892,34 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma nested_field_rec_Tstruct: forall gfs t i0 t0 i f a ofs ofs0,
-  nested_field_rec t gfs = Some (ofs, Tstruct i f a) ->
-  field_offset i0 f = Errors.OK ofs0 ->
-  field_type i0 f = Errors.OK t0 ->
-  nested_field_rec t (StructField i0 :: gfs) = Some (ofs + ofs0, t0).
-Proof.
-  intros.
-  simpl.
-  rewrite H, H0, H1.
-  reflexivity.
-Qed.
-
-Lemma nested_field_rec_Tunion: forall gfs t i0 t0 i f a ofs,
-  nested_field_rec t gfs = Some (ofs, Tunion i f a) ->
-  field_type i0 f = Errors.OK t0 ->
-  nested_field_rec t (UnionField i0 :: gfs) = Some (ofs, t0).
+Lemma nested_field_rec_Tstruct: forall gfs t id i co a ofs,
+  nested_field_rec t gfs = Some (ofs, Tstruct id a) ->
+  cenv_cs ! id = Some co ->
+  in_members i (co_members co) ->
+  nested_field_rec t (StructField i :: gfs) =
+    Some (ofs + field_offset2 cenv_cs i (co_members co), field_type2 i (co_members co)).
 Proof.
   intros.
   simpl.
   rewrite H, H0.
+  destruct_in_members i (co_members co); [| tauto].
   reflexivity.
 Qed.
 
+Lemma nested_field_rec_Tunion: forall gfs t id i co a ofs,
+  nested_field_rec t gfs = Some (ofs, Tunion id a) ->
+  cenv_cs ! id = Some co ->
+  in_members i (co_members co) ->
+  nested_field_rec t (UnionField i :: gfs) = Some (ofs, field_type2 i (co_members co)).
+Proof.
+  intros.
+  simpl.
+  rewrite H, H0.
+  destruct_in_members i (co_members co); [| tauto].
+  reflexivity.
+Qed.
+
+(*
 Lemma nested_field_rec_Tstruct_hd: forall i0 t0 gfs t i f a ofs,
   nested_field_rec t gfs = Some (ofs, Tstruct i (Fcons i0 t0 f) a) ->
   nested_field_rec t (StructField i0 :: gfs) = Some (ofs, t0).
@@ -980,10 +987,10 @@ Proof.
   rewrite (field_type_mid i0 t0 _ _ H2).
   reflexivity.
 Qed.
-
+*)
 Lemma nested_field_offset2_Tarray: forall t0 n a gfs t i,
   nested_field_type2 t gfs = Tarray t0 n a ->
-  nested_field_offset2 t (ArraySubsc i :: gfs) = nested_field_offset2 t gfs + sizeof t0 * i.
+  nested_field_offset2 t (ArraySubsc i :: gfs) = nested_field_offset2 t gfs + sizeof cenv_cs t0 * i.
 Proof.
   intros.
   unfold nested_field_type2 in H.
