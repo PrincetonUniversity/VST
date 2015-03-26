@@ -7,6 +7,40 @@ Require Import Integers.
 Require Import List.
 Require Import msl.Coqlib2.
 
+Lemma power_nat_one_divede_other: forall n m : nat,
+  (two_power_nat n | two_power_nat m) \/ (two_power_nat m | two_power_nat n).
+Proof.
+  intros.
+  pose proof Zle_0_nat n.
+  pose proof Zle_0_nat m.
+  rewrite !two_power_nat_two_p.
+  destruct (zle (Z.of_nat n) (Z.of_nat m)).
+  + left.
+    exists (two_p (Z.of_nat m - Z.of_nat n)).
+    rewrite <- two_p_is_exp by omega.
+    f_equal.
+    omega.
+  + right.
+    exists (two_p (Z.of_nat n - Z.of_nat m)).
+    rewrite <- two_p_is_exp by omega.
+    f_equal.
+    omega.
+Qed.
+
+Lemma multiple_divide_mod: forall a b c, b > 0 -> ((a | b) \/ (b | a)) -> (a | (c * a mod b)).
+Proof.
+  intros.
+  destruct H0.
+  + apply Z.divide_add_cancel_r with (b * (c * a / b))%Z.
+    apply Z.divide_mul_l; auto.
+    rewrite <- Z_div_mod_eq; auto.
+    apply Z.divide_mul_r, Z.divide_refl.
+  + destruct H0.
+    subst.
+    rewrite Z.mul_assoc, Z_mod_mult.
+    apply Z.divide_0_r.
+Qed.
+
 (**************************************************
 
 List lemmas

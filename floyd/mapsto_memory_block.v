@@ -7,120 +7,6 @@ Local Open Scope logic.
 
 (******************************************
 
-Lemmas of size_compatible and align_compatible
-
-******************************************)
-
-Lemma size_1_compatible: forall t, sizeof t = 1 -> forall p, size_compatible t p.
-Proof.
-  intros.
-  destruct p; simpl; auto.
-  rewrite H.
-  destruct (Int.unsigned_range i).
-  omega.
-Qed.
-
-Lemma size_0_compatible: forall t, sizeof t = 0 -> forall p, size_compatible t p.
-Proof.
-  intros.
-  destruct p; simpl; auto.
-  rewrite H.
-  destruct (Int.unsigned_range i).
-  omega.
-Qed.
-
-Lemma align_1_compatible: forall t, alignof t = 1 -> forall p, align_compatible t p.
-Proof.
-  intros.
-  destruct p; simpl; auto.
-  rewrite H.
-  apply Z.divide_1_l.
-Qed.
-
-Lemma size_compatible_nested_field: forall t gfs p,
-  legal_nested_field t gfs ->
-  size_compatible t p ->
-  size_compatible (nested_field_type2 t gfs) (offset_val (Int.repr (nested_field_offset2 t gfs)) p).
-Proof.
-  intros.
-  destruct p; simpl; try tauto.
-  unfold Int.unsigned; simpl.
-  unfold Int.unsigned; simpl.
-  repeat rewrite Int.Z_mod_modulus_eq.
-  rewrite Zplus_mod_idemp_r.
-  assert (0 < Int.modulus) by (cbv; reflexivity).
-  assert (0 <= Int.unsigned i + nested_field_offset2 t gfs) by (pose proof nested_field_offset2_in_range t gfs H; pose proof Int.unsigned_range i; omega).
-  pose proof Zmod_le (Int.unsigned i + nested_field_offset2 t gfs) (Int.modulus) H1 H2.
-  destruct (nested_field_offset2_in_range t gfs H).
-  unfold size_compatible in H0.
-  unfold Int.unsigned in *.
-  omega.
-Qed.
-
-Lemma power_nat_one_divede_other: forall n m : nat,
-  (two_power_nat n | two_power_nat m) \/ (two_power_nat m | two_power_nat n).
-Proof.
-  intros.
-  pose proof Zle_0_nat n.
-  pose proof Zle_0_nat m.
-  rewrite !two_power_nat_two_p.
-  destruct (zle (Z.of_nat n) (Z.of_nat m)).
-  + left.
-    exists (two_p (Z.of_nat m - Z.of_nat n)).
-    rewrite <- two_p_is_exp by omega.
-    f_equal.
-    omega.
-  + right.
-    exists (two_p (Z.of_nat n - Z.of_nat m)).
-    rewrite <- two_p_is_exp by omega.
-    f_equal.
-    omega.
-Qed.
-
-Lemma multiple_divide_mod: forall a b c, b > 0 -> ((a | b) \/ (b | a)) -> (a | (c * a mod b)).
-Proof.
-  intros.
-  destruct H0.
-  + apply Z.divide_add_cancel_r with (b * (c * a / b))%Z.
-    apply Z.divide_mul_l; auto.
-    rewrite <- Z_div_mod_eq; auto.
-    apply Z.divide_mul_r, Z.divide_refl.
-  + destruct H0.
-    subst.
-    rewrite Z.mul_assoc, Z_mod_mult.
-    apply Z.divide_0_r.
-Qed.
-
-Lemma align_compatible_nested_field: forall t gfs p,
-  legal_nested_field t gfs ->
-  legal_alignas_type t = true ->
-  align_compatible t p ->
-  align_compatible (nested_field_type2 t gfs) (offset_val (Int.repr (nested_field_offset2 t gfs)) p).
-Proof.
-  intros.
-  destruct p; simpl in *; try tauto.
-  unfold Int.unsigned; simpl. 
-  unfold Int.unsigned; simpl.
-  repeat rewrite Int.Z_mod_modulus_eq.
-  rewrite Zplus_mod_idemp_r.
-  assert (alignof (nested_field_type2 t gfs) | Int.unsigned i + nested_field_offset2 t gfs).
-  - apply Z.divide_add_r; auto.
-    eapply Z.divide_trans; [| eauto].
-    apply alignof_nested_field_type2_divide; auto.
-    apply nested_field_offset2_type2_divide; auto.
-  - unfold Int.modulus.
-    destruct (alignof_two_p (nested_field_type2 t gfs)).
-    rewrite H3 in *.
-    destruct H2.
-    unfold Int.unsigned in H2; rewrite H2.
-    rewrite !two_power_nat_two_p in *.
-    apply multiple_divide_mod.
-    * apply two_p_gt_ZERO, Zle_0_nat.
-    * rewrite <- !two_power_nat_two_p in *. apply power_nat_one_divede_other.
-Qed.
-
-(******************************************
-
 Basic lemmas about local_facts, isptr, offset_zero
 
 ******************************************)
@@ -335,7 +221,7 @@ Proof.
   unfold mapsto_, mapsto.
   rewrite H.
   assert (!!(tc_val t Vundef) = @FF mpred Nveric)
-    by (destruct t as [ | | | [ | ] |  | | | | | ]; reflexivity).
+    by (destruct t as [ | | | [ | ] |  | | | | ]; reflexivity).
   rewrite H1.
   rewrite FF_andp, FF_orp.
   assert (!!(Vundef = Vundef) = @TT mpred Nveric) by (apply pred_ext; normalize).
@@ -580,31 +466,125 @@ Proof.
       unfold Int.unsigned; simpl; rewrite H; apply derives_refl.
 Qed.
 
-Lemma align_chunk_alignof: forall t ch, access_mode t = By_value ch -> legal_alignas_type t = true -> alignof t = Memdata.align_chunk ch.
+Lemma mapsto_by_value: forall sh t p v, mapsto sh t p v = !! (type_is_by_value t = true) && mapsto sh t p v.
+Proof.
+  intros.
+  apply pred_ext; normalize.
+  apply andp_right; [|cancel].
+  unfold mapsto.
+  destruct t; simpl; normalize; try (apply prop_right; auto).
+Qed.
+
+(******************************************
+
+Lemmas of size_compatible and align_compatible
+
+******************************************)
+
+Section COMPSPECS.
+
+Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
+
+Lemma size_1_compatible: forall t, sizeof cenv_cs t = 1 -> forall p, size_compatible t p.
+Proof.
+  intros.
+  destruct p; simpl; auto.
+  rewrite H.
+  destruct (Int.unsigned_range i).
+  omega.
+Qed.
+
+Lemma size_0_compatible: forall t, sizeof cenv_cs t = 0 -> forall p, size_compatible t p.
+Proof.
+  intros.
+  destruct p; simpl; auto.
+  rewrite H.
+  destruct (Int.unsigned_range i).
+  omega.
+Qed.
+
+Lemma align_1_compatible: forall t, alignof cenv_cs t = 1 -> forall p, align_compatible t p.
+Proof.
+  intros.
+  destruct p; simpl; auto.
+  rewrite H.
+  apply Z.divide_1_l.
+Qed.
+
+Lemma size_compatible_nested_field: forall t gfs p,
+  legal_nested_field t gfs ->
+  size_compatible t p ->
+  size_compatible (nested_field_type2 t gfs) (offset_val (Int.repr (nested_field_offset2 t gfs)) p).
+Proof.
+  intros.
+  destruct p; simpl; try tauto.
+  unfold Int.unsigned; simpl.
+  unfold Int.unsigned; simpl.
+  repeat rewrite Int.Z_mod_modulus_eq.
+  rewrite Zplus_mod_idemp_r.
+  assert (0 < Int.modulus) by (cbv; reflexivity).
+  assert (0 <= Int.unsigned i + nested_field_offset2 t gfs) by (pose proof nested_field_offset2_in_range t gfs H; pose proof Int.unsigned_range i; omega).
+  pose proof Zmod_le (Int.unsigned i + nested_field_offset2 t gfs) (Int.modulus) H1 H2.
+  destruct (nested_field_offset2_in_range t gfs H).
+  unfold size_compatible in H0.
+  unfold Int.unsigned in *.
+  omega.
+Qed.
+
+Lemma align_compatible_nested_field: forall t gfs p,
+  legal_nested_field t gfs ->
+  legal_alignas_type t = true ->
+  align_compatible t p ->
+  align_compatible (nested_field_type2 t gfs) (offset_val (Int.repr (nested_field_offset2 t gfs)) p).
+Proof.
+  intros.
+  destruct p; simpl in *; try tauto.
+  unfold Int.unsigned; simpl. 
+  unfold Int.unsigned; simpl.
+  repeat rewrite Int.Z_mod_modulus_eq.
+  rewrite Zplus_mod_idemp_r.
+  assert (alignof cenv_cs (nested_field_type2 t gfs) | Int.unsigned i + nested_field_offset2 t gfs).
+  - apply Z.divide_add_r; auto.
+    eapply Z.divide_trans; [| eauto].
+    apply alignof_nested_field_type2_divide; auto.
+    apply nested_field_offset2_type2_divide; auto.
+  - unfold Int.modulus.
+    destruct (alignof_two_p cenv_cs (nested_field_type2 t gfs)).
+    rewrite H3 in *.
+    destruct H2.
+    unfold Int.unsigned in H2; rewrite H2.
+    rewrite !two_power_nat_two_p in *.
+    apply multiple_divide_mod.
+    * apply two_p_gt_ZERO, Zle_0_nat.
+    * rewrite <- !two_power_nat_two_p in *. apply power_nat_one_divede_other.
+Qed.
+
+Lemma align_chunk_alignof: forall t ch, access_mode t = By_value ch -> legal_alignas_type t = true -> alignof cenv_cs t = Memdata.align_chunk ch.
 Proof.
 Transparent alignof.
   intros.
   destruct t; inversion H.
   - unfold legal_alignas_type in H0.
     simpl in H0.
-    destruct i, s; inversion H2; simpl;
+    destruct i, s; inversion H2; simpl; rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
     destruct (attr_alignas a); try inversion H0; reflexivity.
   - unfold legal_alignas_type in H0.
     simpl in H0.
-    destruct s; inversion H2; simpl;
+    destruct s; inversion H2; simpl; rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
     destruct (attr_alignas a); try inversion H0; admit. (* Tlong uncompatible problem *)
   - unfold legal_alignas_type in H0.
     simpl in H0.
-    destruct f; inversion H2; simpl;
+    destruct f; inversion H2; simpl; rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
     destruct (attr_alignas a); try inversion H0; reflexivity.
   - unfold legal_alignas_type in H0.
     simpl in H0.
-    inversion H2; simpl;
+    inversion H2; simpl; rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
     destruct (attr_alignas a); try inversion H0; reflexivity.
 Opaque alignof.
 Qed.
 
-Lemma size_chunk_sizeof: forall t ch, access_mode t = By_value ch -> sizeof t = Memdata.size_chunk ch.
+Lemma size_chunk_sizeof: forall t ch, access_mode t = By_value ch -> sizeof cenv_cs t = Memdata.size_chunk ch.
 Proof.
   intros.
   destruct t; inversion H.
@@ -619,9 +599,9 @@ Lemma memory_block_mapsto__aux:
    type_is_by_value t = true ->
    type_is_volatile t = false ->
    legal_alignas_type t = true ->
-   (alignof t | Int.unsigned i_ofs) ->
-   Int.unsigned n = sizeof t ->
-   sizeof t + Int.unsigned i_ofs <= Int.modulus ->
+   (alignof cenv_cs t | Int.unsigned i_ofs) ->
+   Int.unsigned n = sizeof cenv_cs t ->
+   sizeof cenv_cs t + Int.unsigned i_ofs <= Int.modulus ->
    memory_block sh n (Vptr b i_ofs) = mapsto_ sh t (Vptr b i_ofs).
 Proof.
   intros.
@@ -647,7 +627,7 @@ Lemma memory_block_mapsto_:
    type_is_by_value t = true ->
    type_is_volatile t = false ->
    legal_alignas_type t = true ->
-   Int.unsigned n = sizeof t ->
+   Int.unsigned n = sizeof cenv_cs t ->
    size_compatible t p ->
    align_compatible t p ->
    memory_block sh n p = mapsto_ sh t p.
@@ -666,15 +646,15 @@ Qed.
 
 Lemma memory_block_size_compatible:
   forall sh t p,
-  sizeof t < Int.modulus ->
-  memory_block sh (Int.repr (sizeof t)) p = 
-  !! (size_compatible t p) && memory_block sh (Int.repr (sizeof t)) p.
+  sizeof cenv_cs t < Int.modulus ->
+  memory_block sh (Int.repr (sizeof cenv_cs t)) p = 
+  !! (size_compatible t p) && memory_block sh (Int.repr (sizeof cenv_cs t)) p.
 Proof.
   intros.
   unfold memory_block, size_compatible.
-  replace (Int.unsigned (Int.repr (sizeof t))) with (sizeof t).
+  replace (Int.unsigned (Int.repr (sizeof cenv_cs t))) with (sizeof cenv_cs t).
   apply pred_ext; destruct p; normalize.
-  pose proof sizeof_pos t. 
+  pose proof sizeof_pos cenv_cs t. 
   rewrite Int.unsigned_repr; [reflexivity|].
   unfold Int.max_unsigned.
   omega.
@@ -710,31 +690,30 @@ Proof.
     normalize.
 Qed.
 
-Lemma mapsto_by_value: forall sh t p v, mapsto sh t p v = !! (type_is_by_value t = true) && mapsto sh t p v.
-Proof.
-  intros.
-  apply pred_ext; normalize.
-  apply andp_right; [|cancel].
-  unfold mapsto.
-  destruct t; simpl; normalize; try (apply prop_right; auto).
-Qed.
-
-Lemma mapsto_size_compatible_aux: forall t, type_is_by_value t = true -> legal_alignas_type t = true -> alignof t < Int.modulus.
+Lemma mapsto_size_compatible_aux: forall t, type_is_by_value t = true -> legal_alignas_type t = true -> alignof cenv_cs t < Int.modulus.
 Proof.
   unfold legal_alignas_type.
   intros. 
   destruct t; inversion H.
 Transparent alignof.
-  + destruct i, s; unfold alignof; simpl in *; destruct (attr_alignas a); try inversion H0; try reflexivity.
-  + destruct s; unfold alignof; simpl in *; destruct (attr_alignas a); try inversion H0; try reflexivity.
-  + destruct f; unfold alignof; simpl in *; destruct (attr_alignas a); try inversion H0; try reflexivity.
-  + unfold alignof; simpl in *; destruct (attr_alignas a); try inversion H0; try reflexivity.
+  + destruct i, s; unfold alignof; simpl in *;
+    rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
+    destruct (attr_alignas a); try inversion H0; try reflexivity.
+  + destruct s; unfold alignof; simpl in *;
+    rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
+    destruct (attr_alignas a); try inversion H0; try reflexivity.
+  + destruct f; unfold alignof; simpl in *;
+    rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
+    destruct (attr_alignas a); try inversion H0; try reflexivity.
+  + unfold alignof; simpl in *;
+    rewrite nested_pred_ind in H0; simpl in H0; unfold align_attr;
+    destruct (attr_alignas a); try inversion H0; try reflexivity.
 Opaque alignof.
 Qed.
 
 Lemma mapsto_size_compatible:
   forall sh t p v, legal_alignas_type t = true ->
-  sizeof t = alignof t ->
+  sizeof cenv_cs t = alignof cenv_cs t ->
   mapsto sh t p v = !!(size_compatible t p) && mapsto sh t p v.
 Proof.
   intros.
@@ -742,11 +721,11 @@ Proof.
   apply andp_right; [|cancel].
   rewrite mapsto_align_compatible by assumption.
   unfold size_compatible, align_compatible.
-  pose proof alignof_pos t.
+  pose proof alignof_pos cenv_cs t.
   rewrite mapsto_by_value.
   normalize; apply prop_right.
   destruct p; auto.
-  destruct (alignof_two_p t).
+  destruct (alignof_two_p cenv_cs t).
   rewrite H0.
   pose proof mapsto_size_compatible_aux t H3 H.
   rewrite H4 in *.
@@ -775,6 +754,7 @@ Qed.
 
 Global Opaque memory_block.
 
+End COMPSPECS.
 (******************************************
 
 Other lemmas
@@ -929,18 +909,6 @@ Proof.
  reflexivity.
 Qed.
 
-Lemma replace_nth_replace_nth: forall {A: Type} R n {Rn Rn': A},
-  replace_nth n (replace_nth n R Rn) Rn' = replace_nth n R Rn'.
-Proof.
-  intros.
-  revert R; induction n; destruct R; simpl in *.
-  + reflexivity.
-  + reflexivity.
-  + reflexivity.
-  + rewrite IHn.
-    reflexivity.
-Qed.
-
 Lemma local_andp_lemma:
   forall P Q, P |-- local Q -> P = local Q && P.
 Proof.
@@ -1042,33 +1010,6 @@ Proof.
   exact H.
 Qed.
 
-Lemma replace_nth_nth_error: forall {A:Type} R n (Rn:A), 
-  nth_error R n = Some Rn ->
-  R = replace_nth n R Rn.
-Proof.
-  intros.
-  revert R H; induction n; intros; destruct R.
-  + reflexivity.
-  + simpl. inversion H. reflexivity.
-  + inversion H.
-  + inversion H. simpl.
-    rewrite (IHn R) at 1; simpl; [reflexivity|exact H1].
-Qed.
-
-Lemma nth_error_replace_nth: forall {A:Type} R n (Rn Rn':A), 
-  nth_error R n = Some Rn ->
-  nth_error (replace_nth n R Rn') n = Some Rn'.
-Proof.
-  intros.
-  revert R H; induction n; intros; destruct R; simpl.
-  + inversion H.
-  + inversion H.
-    reflexivity.
-  + inversion H.
-  + inversion H.
-    apply IHn, H1.
-Qed.
-
 Lemma LOCAL_2_hd: forall P Q R Q1 Q2,
   (PROPx P (LOCALx (Q1 :: Q2 :: Q) (SEPx R))) = 
   (PROPx P (LOCALx (Q2 :: Q1 :: Q) (SEPx R))).
@@ -1117,42 +1058,3 @@ Proof.
   apply pred_ext; normalize; apply (exp_right old);
   rewrite eq_sym_LOCAL'; apply derives_refl.
 Qed.
-
-Lemma map_replace_nth:
-  forall {A B} (f: A -> B) n R X, map f (replace_nth n R X) = 
-       replace_nth n (map f R) (f X).
-Proof.
-intros.
- revert R; induction n; destruct R; simpl; auto.
- f_equal; auto.
-Qed.
-
-Lemma replace_nth_commute:
-  forall {A} i j R (a b: A),
-   i <> j ->
-   replace_nth i (replace_nth j R b) a =
-   replace_nth j (replace_nth i R a) b.
-Proof.
-intros.
-rename i into i'. rename j into j'. rename R into R'.
-assert (forall i j R (a b: A),
-             (i<j)%nat -> 
-              replace_nth i (replace_nth j R b) a = replace_nth j (replace_nth i R a) b). {
-induction i; destruct j, R; simpl; intros; auto; try omega.
-f_equal. apply IHi. omega.
-}
-assert (i'<j' \/ i'>j')%nat by omega.
-clear H.
-destruct H1.
-apply H0; auto.
-symmetry; apply H0; auto.
-Qed.
-
-Lemma nth_error_replace_nth':
-  forall {A} i j R (a:A),
-  (i <> j)%nat -> nth_error (replace_nth i R a) j = nth_error R j.
-Proof.
-induction i; destruct j,R; intros; simpl; auto.
-contradiction H; auto.
-Qed.
-

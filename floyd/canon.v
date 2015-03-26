@@ -626,6 +626,83 @@ match n, al with
 | _, nil => default
 end.
 
+Lemma replace_nth_replace_nth: forall {A: Type} R n {Rn Rn': A},
+  replace_nth n (replace_nth n R Rn) Rn' = replace_nth n R Rn'.
+Proof.
+  intros.
+  revert R; induction n; destruct R; simpl in *.
+  + reflexivity.
+  + reflexivity.
+  + reflexivity.
+  + rewrite IHn.
+    reflexivity.
+Qed.
+
+Lemma replace_nth_nth_error: forall {A:Type} R n (Rn:A), 
+  nth_error R n = Some Rn ->
+  R = replace_nth n R Rn.
+Proof.
+  intros.
+  revert R H; induction n; intros; destruct R.
+  + reflexivity.
+  + simpl. inversion H. reflexivity.
+  + inversion H.
+  + inversion H. simpl.
+    rewrite (IHn R) at 1; simpl; [reflexivity|exact H1].
+Qed.
+
+Lemma nth_error_replace_nth: forall {A:Type} R n (Rn Rn':A), 
+  nth_error R n = Some Rn ->
+  nth_error (replace_nth n R Rn') n = Some Rn'.
+Proof.
+  intros.
+  revert R H; induction n; intros; destruct R; simpl.
+  + inversion H.
+  + inversion H.
+    reflexivity.
+  + inversion H.
+  + inversion H.
+    apply IHn, H1.
+Qed.
+
+Lemma map_replace_nth:
+  forall {A B} (f: A -> B) n R X, map f (replace_nth n R X) = 
+       replace_nth n (map f R) (f X).
+Proof.
+intros.
+ revert R; induction n; destruct R; simpl; auto.
+ f_equal; auto.
+Qed.
+
+Lemma replace_nth_commute:
+  forall {A} i j R (a b: A),
+   i <> j ->
+   replace_nth i (replace_nth j R b) a =
+   replace_nth j (replace_nth i R a) b.
+Proof.
+intros.
+rename i into i'. rename j into j'. rename R into R'.
+assert (forall i j R (a b: A),
+             (i<j)%nat -> 
+              replace_nth i (replace_nth j R b) a = replace_nth j (replace_nth i R a) b). {
+induction i; destruct j, R; simpl; intros; auto; try omega.
+f_equal. apply IHi. omega.
+}
+assert (i'<j' \/ i'>j')%nat by omega.
+clear H.
+destruct H1.
+apply H0; auto.
+symmetry; apply H0; auto.
+Qed.
+
+Lemma nth_error_replace_nth':
+  forall {A} i j R (a:A),
+  (i <> j)%nat -> nth_error (replace_nth i R a) j = nth_error R j.
+Proof.
+induction i; destruct j,R; intros; simpl; auto.
+contradiction H; auto.
+Qed.
+
 Lemma replace_SEP':
  forall n R' Espec Delta P Q Rs c Post,
  (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (my_nth n Rs TT ::  nil)))) |-- R' ->
