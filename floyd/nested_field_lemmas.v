@@ -354,19 +354,27 @@ Fixpoint nested_field_rec (t: type) (gfs: list gfield) : option (prod Z type) :=
       | Tstruct id _, StructField i =>
         match cenv_cs ! id with
         | Some co =>
-           if compute_in_members i (co_members co) then
-             Some (pos + field_offset2 cenv_cs i (co_members co), field_type2 i (co_members co))
-           else
-             None
+           match co_su co with
+           | Struct =>
+             if compute_in_members i (co_members co) then
+               Some (pos + field_offset2 cenv_cs i (co_members co), field_type2 i (co_members co))
+             else
+               None
+           | _ => None
+           end
         | None => None
         end
       | Tunion id _, UnionField i =>
         match cenv_cs ! id with
         | Some co =>
-           if compute_in_members i (co_members co) then
-             Some (pos, field_type2 i (co_members co))
-           else
-             None
+           match co_su co with
+           | Union =>
+             if compute_in_members i (co_members co) then
+               Some (pos, field_type2 i (co_members co))
+             else
+               None
+           | Struct => None
+           end
         | None => None
         end
       | _, _ => None
@@ -445,12 +453,12 @@ Lemma legal_nested_field_cons_lemma: forall t gf gfs,
   | ArraySubsc i, Tarray t0 n a => 0 <= i < n
   | StructField i, Tstruct id a =>
     match cenv_cs ! id with
-    | Some co => in_members i (co_members co)
+    | Some co => in_members i (co_members co) /\ co_su co = Struct
     | None => False
     end
   | UnionField i, Tunion id a =>
     match cenv_cs ! id with
-    | Some co => in_members i (co_members co)
+    | Some co => in_members i (co_members co) /\ co_su co = Union
     | None => False
     end
   | _, _ => False
@@ -469,18 +477,24 @@ Proof.
   + simpl; tauto.
   + simpl; tauto.
   + destruct (cenv_cs ! i); [| inversion HH0].
+    destruct (co_su c);  [| inversion HH0].
     destruct_in_members i0 (co_members c); [| inversion HH0].
     simpl; tauto.
   + destruct (cenv_cs ! i); [| inversion H1].
-    apply compute_in_members_true_iff in H1.
+    destruct H1.
     rewrite H1.
+    apply compute_in_members_true_iff in H0.
+    rewrite H0.
     simpl; tauto.
   + destruct (cenv_cs ! i); [| inversion HH0].
+    destruct (co_su c);  [inversion HH0 |].
     destruct_in_members i0 (co_members c); [| inversion HH0].
     simpl; tauto.
   + destruct (cenv_cs ! i); [| inversion H1].
-    apply compute_in_members_true_iff in H1.
+    destruct H1.
     rewrite H1.
+    apply compute_in_members_true_iff in H0.
+    rewrite H0.
     simpl; tauto.
 Qed.
 
@@ -492,12 +506,12 @@ Lemma nested_field_rec_cons_eq_Some_lemma: forall t gf gfs ofs0 t0,
       ofs0 = ofs + sizeof cenv_cs t0 * i0 /\ t0 = t1
   | StructField i, Some (ofs, Tstruct id a) =>
       match cenv_cs ! id with
-      | Some co => in_members i (co_members co) /\ t0 = field_type2 i (co_members co) /\ ofs0 = ofs + field_offset2 cenv_cs i (co_members co)
+      | Some co => in_members i (co_members co) /\ co_su co = Struct /\ t0 = field_type2 i (co_members co) /\ ofs0 = ofs + field_offset2 cenv_cs i (co_members co)
       | None => False
       end
   | UnionField i, Some (ofs, Tunion id a) =>
       match cenv_cs ! id with
-      | Some co => in_members i (co_members co) /\ t0 = field_type2 i (co_members co) /\ ofs0 = ofs
+      | Some co => in_members i (co_members co) /\ co_su co = Union /\ t0 = field_type2 i (co_members co) /\ ofs0 = ofs
       | None => False
       end
   | _, _ => False
@@ -513,22 +527,24 @@ Proof.
     auto.
   + subst. auto.
   + destruct (cenv_cs ! i); [| inversion H].
+    destruct (co_su c); [| inversion H].
     destruct_in_members i0 (co_members c); [| inversion H].
     inversion H.
     auto.
   + destruct (cenv_cs ! i); [| inversion H].
     auto_destruct_above_line.
     apply compute_in_members_true_iff in H0.
-    rewrite H0.
+    rewrite H, H0.
     subst; auto.
   + destruct (cenv_cs ! i); [| inversion H].
+    destruct (co_su c); [inversion H |].
     destruct_in_members i0 (co_members c); [| inversion H].
     inversion H.
     auto.
   + destruct (cenv_cs ! i); [| inversion H].
     auto_destruct_above_line.
     apply compute_in_members_true_iff in H0.
-    rewrite H0.
+    rewrite H, H0.
     subst; auto.
 Qed.
 
@@ -538,17 +554,25 @@ Ltac solve_legal_nested_field_cons H :=
   let HeqNFT := fresh "Heq" in
   let H1 := fresh "H" in
   let H2 := fresh "H" in
+  let H3 := fresh "H" in
+  let id := fresh "id" in
+  let co := fresh "co" in
+  let CO := fresh "CO" in
   match type of H with
   | (legal_nested_field ?T (?A :: ?GFS)) =>
     destruct (legal_nested_field_cons_lemma T A GFS) as [HH _];
     specialize (HH H);
     destruct A eqn:Heq;
-    destruct (nested_field_type2 T GFS) eqn:HeqNFT;
+    destruct (nested_field_type2 T GFS) as [ | | | | | | | id ? | id ? ] eqn:HeqNFT;
     try solve [destruct HH as [_ HH]; inversion HH]
   end;
   [try solve [inversion Heq]; destruct HH as [H1 H2]
-  |try solve [inversion Heq]; destruct HH as [H1 H2]
-  |try solve [inversion Heq]; destruct HH as [H1 H2]].
+  |try solve [inversion Heq]; destruct HH as [H1 H2];
+   destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion H2];
+   destruct H2 as [H2 H3]
+  |try solve [inversion Heq]; destruct HH as [H1 H2];
+   destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion H2];
+   destruct H2 as [H2 H3]].
 
 Ltac solve_nested_field_rec_cons_eq_Some H :=
   let HH := fresh "HH" in
@@ -556,6 +580,8 @@ Ltac solve_nested_field_rec_cons_eq_Some H :=
   let HeqNFT := fresh "Heq" in
   let H1 := fresh "H" in
   let H2 := fresh "H" in
+  let H3 := fresh "H" in
+  let H4 := fresh "H" in
   let ofs := fresh "ofs" in
   let id := fresh "id" in
   let co := fresh "co" in
@@ -569,8 +595,10 @@ Ltac solve_nested_field_rec_cons_eq_Some H :=
     try solve [inversion HH]
   end;
   [try solve [inversion HeqA]; destruct HH as [H1 H2]
-  |try solve [inversion HeqA]; destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion HH]; destruct HH as [H1 H2]
-  |try solve [inversion HeqA]; destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion HH]; destruct HH as [H1 H2]].
+  |try solve [inversion HeqA]; destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion HH];
+   destruct HH as [H1 [H2 [H3 H4]]]
+  |try solve [inversion HeqA]; destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion HH];
+   destruct HH as [H1 [H2 [H3 H4]]]].
 
 Ltac solve_legal_nested_field :=
   first [
@@ -610,9 +638,11 @@ Proof.
       apply sumbool_dec_and; [apply Z_le_dec | apply Z_lt_dec].
     - apply sumbool_dec_and; auto.
       destruct (cenv_cs ! i0) as [co |]; [| right; auto].
+      apply sumbool_dec_and; [| destruct (co_su co); [left; auto | right; congruence]].
       apply in_members_dec.
     - apply sumbool_dec_and; auto.
       destruct (cenv_cs ! i0) as [co |]; [| right; auto].
+      apply sumbool_dec_and; [| destruct (co_su co); [right; congruence | left; auto]].
       apply in_members_dec.
 Qed.
 
@@ -694,12 +724,10 @@ Proof.
       exact IHgfs.
     - (* Tstruct case *)
       specialize (IHgfs _ _ eq_refl).
-      destruct H2.
       subst.
       eapply complete_type_field_type2; eauto.
     - (* Tunion case *)
       specialize (IHgfs _ _ eq_refl).
-      destruct H2.
       subst.
       eapply complete_type_field_type2; eauto.
 Qed.
@@ -731,12 +759,12 @@ Proof.
       eapply nested_pred_Tarray, IHgfs.
     - (* Tstruct case *)
       specialize (IHgfs _ _ eq_refl).
-      destruct H2; subst.
+      subst.
       eapply nested_fields_pred_nested_pred; [exact H1 |].
       eapply nested_pred_Tstruct, IHgfs; auto.
     - (* Tunion case *)
       specialize (IHgfs _ _ eq_refl).
-      destruct H2; subst.
+      subst.
       eapply nested_fields_pred_nested_pred; [exact H1 |].
       eapply nested_pred_Tunion, IHgfs; auto.
 Defined.
@@ -802,10 +830,22 @@ Lemma nested_field_type2_cons: forall t gf gfs0,
   nested_field_type2 t (gf :: gfs0) = 
   match gf, nested_field_type2 t gfs0 with
   | ArraySubsc i, Tarray t0 n a => t0
-  | StructField i, Tstruct id a
+  | StructField i, Tstruct id a =>
+    match cenv_cs ! id with
+    | Some co =>
+      match co_su co with
+      | Struct => if compute_in_members i (co_members co) then field_type2 i (co_members co) else Tvoid
+      | Union => Tvoid
+      end
+    | _ => Tvoid
+    end
   | UnionField i, Tunion id a =>
     match cenv_cs ! id with
-    | Some co => if compute_in_members i (co_members co) then field_type2 i (co_members co) else Tvoid
+    | Some co =>
+      match co_su co with
+      | Union => if compute_in_members i (co_members co) then field_type2 i (co_members co) else Tvoid
+      | Struct => Tvoid
+      end 
     | _ => Tvoid
     end
   | _, _ => Tvoid
@@ -817,9 +857,11 @@ Proof.
   destruct (nested_field_rec t gfs0) as [[ofs0 t0]|] eqn:HH; [destruct t0 |]; destruct gf; try reflexivity.
   + rename i into id.
     destruct (cenv_cs ! id) as [co |]; [| auto].
+    destruct (co_su co); [| auto].
     destruct_in_members i0 (co_members co); auto.
   + rename i into id.
     destruct (cenv_cs ! id) as [co |]; [| auto].
+    destruct (co_su co); [auto |].
     destruct_in_members i0 (co_members co); auto.
 Defined.
 
@@ -843,7 +885,7 @@ Proof.
     - (* Tstruct Case *)
       subst.
       destruct (IHgfs _ _ eq_refl).
-      destruct H2; subst.
+      subst.
       pose proof field_offset2_aligned i (co_members co).
       split.
       * apply Z.divide_add_r; auto.
@@ -854,7 +896,7 @@ Proof.
     - (* Tunion Case *)
       subst.
       destruct (IHgfs _ _ eq_refl).
-      destruct H2; subst.
+      subst.
       split.
       * eapply Z.divide_trans; [| exact H3].
         eapply Z.divide_trans; [| apply legal_alignas_type_Tunion; eauto].
@@ -895,13 +937,14 @@ Qed.
 Lemma nested_field_rec_Tstruct: forall gfs t id i co a ofs,
   nested_field_rec t gfs = Some (ofs, Tstruct id a) ->
   cenv_cs ! id = Some co ->
+  co_su co = Struct ->
   in_members i (co_members co) ->
   nested_field_rec t (StructField i :: gfs) =
     Some (ofs + field_offset2 cenv_cs i (co_members co), field_type2 i (co_members co)).
 Proof.
   intros.
   simpl.
-  rewrite H, H0.
+  rewrite H, H0, H1.
   destruct_in_members i (co_members co); [| tauto].
   reflexivity.
 Qed.
@@ -909,12 +952,13 @@ Qed.
 Lemma nested_field_rec_Tunion: forall gfs t id i co a ofs,
   nested_field_rec t gfs = Some (ofs, Tunion id a) ->
   cenv_cs ! id = Some co ->
+  co_su co = Union ->
   in_members i (co_members co) ->
   nested_field_rec t (UnionField i :: gfs) = Some (ofs, field_type2 i (co_members co)).
 Proof.
   intros.
   simpl.
-  rewrite H, H0.
+  rewrite H, H0, H1.
   destruct_in_members i (co_members co); [| tauto].
   reflexivity.
 Qed.
@@ -1015,64 +1059,68 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma nested_field_offset2_Tstruct: forall t gfs i0 i f a ofs,
-  nested_field_type2 t gfs = Tstruct i f a ->
-  field_offset i0 f = Errors.OK ofs ->
-  nested_field_offset2 t (StructField i0 :: gfs) = nested_field_offset2 t gfs + ofs.
+Lemma nested_field_offset2_Tstruct: forall t gfs id i a co,
+  nested_field_type2 t gfs = Tstruct id a ->
+  cenv_cs ! id = Some co ->
+  co_su co = Struct ->
+  in_members i (co_members co) ->
+  nested_field_offset2 t (StructField i :: gfs) = nested_field_offset2 t gfs + field_offset2 cenv_cs i (co_members co).
 Proof.
   intros.
   unfold nested_field_type2 in H.
   unfold nested_field_offset2.
   valid_nested_field_rec t gfs H.
-  solve_field_offset_type i0 f; [| inversion H0].
-  inversion H0; subst ofs1 t0.
+  subst.
   erewrite nested_field_rec_Tstruct by eauto.
   reflexivity.
 Qed.
 
-Lemma nested_field_type2_Tstruct: forall t gfs i0 i f a t0,
-  nested_field_type2 t gfs = Tstruct i f a ->
-  field_type i0 f = Errors.OK t0 ->
-  nested_field_type2 t (StructField i0 :: gfs) = t0.
+Lemma nested_field_type2_Tstruct: forall t gfs id i a co,
+  nested_field_type2 t gfs = Tstruct id a ->
+  cenv_cs ! id = Some co ->
+  co_su co = Struct ->
+  in_members i (co_members co) ->
+  nested_field_type2 t (StructField i :: gfs) = field_type2 i (co_members co).
 Proof.
   intros.
   unfold nested_field_type2 in H |- *.
   valid_nested_field_rec t gfs H.
-  solve_field_offset_type i0 f; [| inversion H0].
-  inversion H0; subst t2 t1.
+  subst.
   erewrite nested_field_rec_Tstruct by eauto.
   reflexivity.
 Qed.
 
-Lemma nested_field_offset2_Tunion: forall t gfs i0 i f a,
-  nested_field_type2 t gfs = Tunion i f a ->
-  isOK (field_offset i0 f) = true->
-  nested_field_offset2 t (UnionField i0 :: gfs) = nested_field_offset2 t gfs.
+Lemma nested_field_offset2_Tunion: forall t gfs id i a co,
+  nested_field_type2 t gfs = Tunion id a ->
+  cenv_cs ! id = Some co ->
+  co_su co = Union ->
+  in_members i (co_members co) ->
+  nested_field_offset2 t (UnionField i :: gfs) = nested_field_offset2 t gfs.
 Proof.
   intros.
   unfold nested_field_type2 in H.
   unfold nested_field_offset2.
   valid_nested_field_rec t gfs H.
-  solve_field_offset_type i0 f; [| inversion H0].
-  subst t0.
+  subst.
   erewrite nested_field_rec_Tunion by eauto.
   reflexivity.
 Qed.
 
-Lemma nested_field_type2_Tunion: forall t gfs i0 i f a t0,
-  nested_field_type2 t gfs = Tunion i f a ->
-  field_type i0 f = Errors.OK t0 ->
-  nested_field_type2 t (UnionField i0 :: gfs) = t0.
+Lemma nested_field_type2_Tunion: forall t gfs id i a co,
+  nested_field_type2 t gfs = Tunion id a ->
+  cenv_cs ! id = Some co ->
+  co_su co = Union ->
+  in_members i (co_members co) ->
+  nested_field_type2 t (UnionField i :: gfs) = field_type2 i (co_members co).
 Proof.
   intros.
   unfold nested_field_type2 in H |- *.
   valid_nested_field_rec t gfs H.
-  solve_field_offset_type i0 f; [| inversion H0].
-  inversion H0; subst t2 t1.
+  subst.
   erewrite nested_field_rec_Tunion by eauto.
   reflexivity.
 Qed.
-
+(*
 Lemma nested_field_offset2_Tstruct_hd: forall i0 t0 t gfs i f a, nested_field_type2 t gfs = Tstruct i (Fcons i0 t0 f) a -> nested_field_offset2 t (StructField i0 :: gfs) = nested_field_offset2 t gfs.
 Proof.
   intros.
@@ -1219,7 +1267,7 @@ Proof.
   + rewrite field_type_mid in H2; [|exact H0].
     inversion H2.
 Qed.
-
+*)
 (************************************************
 
 nested_field_offset_app
@@ -1252,7 +1300,8 @@ Proof.
       subst.
       simpl.
       rewrite (IHgfs1 _ _ eq_refl).
-      rewrite H1, H2.
+      rewrite CO, H2.
+      destruct_in_members i (co_members co); [| tauto].
       f_equal.
       f_equal.
       omega.
@@ -1260,7 +1309,8 @@ Proof.
       subst.
       simpl.
       rewrite (IHgfs1 _ _ eq_refl).
-      rewrite H1.
+      rewrite CO, H2.
+      destruct_in_members i (co_members co); [| tauto].
       reflexivity.
 Qed.
 
@@ -1285,16 +1335,17 @@ Proof.
       rewrite (IHgfs1 eq_refl).
       split; [f_equal; f_equal; omega | auto].
     - (* Tstruct *)
-      specialize (IHgfs1 (ofs - ofs0) (Tstruct i0 f a0)).
+      specialize (IHgfs1 (ofs - ofs0) (Tstruct id a0)).
       replace (ofs0 + (ofs - ofs0)) with ofs in IHgfs1 by omega.
       rewrite (IHgfs1 eq_refl).
-      rewrite H1, H2.
-      split; [auto | f_equal; omega].
+      rewrite CO.
+      repeat split; auto.
+      omega.
     - (* Tunion *)
-      specialize (IHgfs1 ofs1 (Tunion i0 f a0)).
+      specialize (IHgfs1 ofs1 (Tunion id a0)).
       subst ofs.
       rewrite (IHgfs1 eq_refl).
-      rewrite H1.
+      rewrite CO.
       auto.
 Qed.
 
@@ -1359,7 +1410,8 @@ Proof.
     apply legal_nested_field_cons_lemma;
     (split; [auto |]);
     rewrite nested_field_type2_nested_field_type2;
-    rewrite Heq0; eauto.
+    rewrite Heq0; eauto;
+    rewrite CO; auto.
 Qed.
 
 Lemma nested_field_offset2_app: forall t gfs0 gfs1,
@@ -1390,7 +1442,7 @@ Other lemmas
 Lemma nested_field_offset2_in_range: forall t gfs,
   legal_nested_field t gfs ->
   0 <= nested_field_offset2 t gfs /\
-  (nested_field_offset2 t gfs) + sizeof (nested_field_type2 t gfs) <= sizeof t.
+  (nested_field_offset2 t gfs) + sizeof cenv_cs (nested_field_type2 t gfs) <= sizeof cenv_cs t.
 Proof.
   intros.
   induction gfs.
@@ -1402,34 +1454,59 @@ Proof.
       erewrite nested_field_type2_Tarray by eauto.
       specialize (IHgfs H0).
       destruct IHgfs.
-      assert (0 <= sizeof t0) by (pose proof sizeof_pos t0; omega).
-      assert (0 <= sizeof t0 * i) by (apply Z.mul_nonneg_nonneg; [exact H4 | omega]).        
-      assert (sizeof t0 * i + sizeof t0 <= sizeof t0 * Z.max 0 z).
+      assert (0 <= sizeof cenv_cs t0) by (pose proof sizeof_pos cenv_cs t0; omega).
+      assert (0 <= sizeof cenv_cs t0 * i) by (apply Z.mul_nonneg_nonneg; [exact H4 | omega]).
+      assert (sizeof cenv_cs t0 * i + sizeof cenv_cs t0 <= sizeof cenv_cs t0 * Z.max 0 z).
+      Focus 1. {
         rewrite Zred_factor3.
         apply Zmult_le_compat_l; [apply Zmax_bound_r; omega | exact H4].
+      } Unfocus.
       simpl in H3 |- *.
       split; omega.
     - (* Tstruct *)
-      solve_field_offset_type i f; try solve [inversion H1].
       erewrite nested_field_offset2_Tstruct by eauto.
       erewrite nested_field_type2_Tstruct by eauto.
-      pose proof field_offset_in_range i0 f a0 _ ofs t0 H4 H3.
+      pose proof field_offset2_in_range i (co_members co) H1.
       specialize (IHgfs H0).
+      simpl in IHgfs.
+      rewrite CO in IHgfs.
+      rewrite co_consistent_sizeof with (env := cenv_cs) in IHgfs by exact (cenv_consistent_cs id co CO).
+      rewrite H2 in IHgfs.
+      simpl sizeof_composite in IHgfs.
+      pose proof align_le (sizeof_struct cenv_cs 0 (co_members co)) (co_alignof co).
+      spec H4.
+      Focus 1. {
+        clear - co.
+        destruct (co_alignof_two_p co).
+        pose proof two_power_nat_pos x.
+        omega.
+      } Unfocus.
       omega.
     - (* Tunion *)
-      solve_field_offset_type i f; try solve [inversion H1].
-      erewrite nested_field_offset2_Tunion; eauto.
-      Focus 2. rewrite H4; simpl; reflexivity.
+      erewrite nested_field_offset2_Tunion by eauto.
       erewrite nested_field_type2_Tunion by eauto.
-      pose proof field_offset_in_range' i0 f a0 _ t0 H3.
       specialize (IHgfs H0).
+      simpl in IHgfs.
+      rewrite CO in IHgfs.
+      rewrite co_consistent_sizeof with (env := cenv_cs) in IHgfs by exact (cenv_consistent_cs id co CO).
+      rewrite H2 in IHgfs.
+      simpl sizeof_composite in IHgfs.
+     pose proof sizeof_union_in_members i (co_members co) H1.
+     pose proof align_le (sizeof_union cenv_cs (co_members co)) (co_alignof co).
+      spec H4.
+      Focus 1. {
+        clear - co.
+        destruct (co_alignof_two_p co).
+        pose proof two_power_nat_pos x.
+        omega.
+      } Unfocus.
       omega.
 Qed.
   
 Lemma alignof_nested_field_type2_divide: forall t gfs,
   legal_alignas_type t = true ->
   legal_nested_field t gfs ->
-  (alignof (nested_field_type2 t gfs) | alignof t).
+  (alignof cenv_cs (nested_field_type2 t gfs) | alignof cenv_cs t).
 Proof.
   intros.
   induction gfs.
@@ -1443,18 +1520,17 @@ Proof.
       erewrite nested_field_type2_Tarray by eauto.
       rewrite legal_alignas_type_Tarray in IHgfs; auto.
     - (* Tstruct *)
-      solve_field_offset_type i f; try solve [inversion H3].
       erewrite nested_field_type2_Tstruct by eauto.
-      pose proof alignof_type_divide_whole_fl _ _ _ H5.
-      pose proof legal_alignas_type_Tstruct i f a0 H1.
+      pose proof alignof_field_type2 i (co_members co) H3.
+      pose proof legal_alignas_type_Tstruct id a0 co CO H1.
       repeat (eapply Z.divide_trans; [eassumption|]).
       apply Z.divide_refl.
     - (* Tunion *)
-      solve_field_offset_type i f; try solve [inversion H3].
       erewrite nested_field_type2_Tunion by eauto.
-      pose proof alignof_type_divide_whole_fl _ _ _ H5.
-      pose proof legal_alignas_type_Tunion i f a0 H1.
+      pose proof alignof_field_type2 i (co_members co) H3.
+      pose proof legal_alignas_type_Tunion id a0 co CO H1.
       repeat (eapply Z.divide_trans; [eassumption|]).
       apply Z.divide_refl.
 Qed.
 
+End COMPOSITE_ENV.

@@ -97,6 +97,24 @@ Proof.
     - apply IHm.
 Defined.
 
+Lemma field_type_in_members: forall i m,
+  match field_type i m with
+  | Errors.Error _ => ~ in_members i m
+  | _ => in_members i m
+  end.
+Proof.
+  intros.
+  unfold in_members.
+  induction m as [| [i0 t0] m].
+  + simpl; tauto.
+  + simpl.
+    destruct (ident_eq i i0).
+    - left; subst; auto.
+    - if_tac.
+      * right; auto.
+      * intro HH; destruct HH; [congruence | tauto].
+Qed.
+
 Section COMPOSITE_ENV.
 Context {cs: compspecs}.
 
@@ -170,6 +188,38 @@ Proof.
       * apply IHm.
         destruct H; [congruence | auto].
       * apply alignof_composite_tl_divide.
+Qed.
+
+Lemma field_offset2_in_range: forall i m,
+  in_members i m ->
+  0 <= field_offset2 cenv_cs i m /\ field_offset2 cenv_cs i m + sizeof cenv_cs (field_type2 i m) <= sizeof_struct cenv_cs 0 m.
+Proof.
+  intros.
+  unfold field_offset2, field_type2.
+  solve_field_offset_type i m.
+  + eapply field_offset_in_range; eauto.
+  + pose proof field_type_in_members i m.
+    rewrite H1 in H0.
+    tauto.
+Qed.
+
+Lemma sizeof_union_in_members: forall i m,
+  in_members i m ->
+  sizeof cenv_cs (field_type2 i m) <= sizeof_union cenv_cs m.
+(* field_offset2_in_range union's version *)
+Proof.
+  intros.
+  unfold in_members in H.
+  unfold field_type2.
+  induction m as [|[i0 t0] m].
+  + inversion H.
+  + simpl.
+    destruct (ident_eq i i0).
+    - apply Z.le_max_l.
+    - simpl in H; destruct H; [congruence |].
+     specialize (IHm H).
+     pose proof Z.le_max_r (sizeof cenv_cs t0) (sizeof_union cenv_cs m).
+     omega.
 Qed.
 
 End COMPOSITE_ENV.
