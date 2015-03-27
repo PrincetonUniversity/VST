@@ -155,6 +155,7 @@ remember (EX shaStates:_ ,
          exploit (align_compatible_nested_field t_struct_hmac_ctx_st [StructField _md_ctx]); try apply f.
          unfold nested_field_offset2; simpl. trivial.
      }
+     subst rv. simpl.
 
      forward. (*return*)
      unfold hmacInit. 
@@ -181,7 +182,7 @@ remember (EX shaStates:_ ,
          rewrite Heqkl, HH1. exists (Int.repr (Int.unsigned ii)).
          rewrite Int.repr_unsigned; eauto.
 
-      (*TODO: this line is new - maybe it can be put into automation?*) unfold tarray in H1. rewrite (lvar_eval_lvar _ _ _ _ H1).
+      (*TODO: this line is new - maybe it can be put into automation?*) unfold tarray in H0. rewrite (lvar_eval_lvar _ _ _ _ H0).
       unfold_data_at 3%nat. cancel.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]); try reflexivity.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]); try reflexivity.
@@ -263,7 +264,7 @@ remember (EX shaStates:_ ,
         rewrite FR. clear FR Frame. 
         simpl. entailer!. rewrite CIOff; simpl. unfold nested_field_type2; simpl. cancel.
       }
-    normalize. simpl. 
+    subst rv; simpl. 
 
     forward. (*return*)
     remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
@@ -294,7 +295,7 @@ remember (EX shaStates:_ ,
       rewrite int_max_signed_eq  in KL2. rewrite int_max_unsigned_eq.
       destruct (zlt 64 (Zlength key)); omega.
 
-    (*TODO: this line is new - maybe it can be put into automation?*) rewrite (lvar_eval_lvar _ _ _ _ H1).
+    (*TODO: this line is new - maybe it can be put into automation?*) rewrite (lvar_eval_lvar _ _ _ _ H0).
     unfold_data_at 3%nat. cancel.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]); try reflexivity.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]); try reflexivity.

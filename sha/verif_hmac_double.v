@@ -90,12 +90,14 @@ replace_SEP 0 (`(data_at_ Tsh t_struct_hmac_ctx_st c)).
 assert_LOCAL (lvar _c t_struct_hmac_ctx_st c).
  entailer!. apply normalize_lvar; auto.
 drop_LOCAL 1%nat.
+
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl in *.
 rename H into WrshMD. 
 rewrite memory_block_isptr. normalize.
 rename H into isPtrMD. rename H0 into KL. rename H1 into DL.
+
 forward_if  (
   PROP  (isptr c)
    LOCAL  (lvar _c t_struct_hmac_ctx_st c; temp _md md; temp _key k;
@@ -182,7 +184,7 @@ apply (exp_right dig).
 simpl_stackframe_of. normalize. clear H2. 
 assert (HS: hmacSimple key data dig).
     exists h0, h1. 
-    split. destruct KL as [KL1 [KLb KLc]]. assumption.
+    split. assumption.
     split; try assumption.
     rewrite hmacFinal_hmacFinalSimple. exists h2; assumption.
 assert (Size: sizeof t_struct_hmac_ctx_st <= Int.max_unsigned).

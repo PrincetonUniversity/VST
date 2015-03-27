@@ -464,16 +464,12 @@ forward_if PostResetBranch.
           simpl in TC0. subst i. simpl. if_tac. subst r. inversion r_true. 
           apply andp_right. entailer. entailer.
       (*key == Vptr*)
-       if_tac. subst r.
-          unfold typed_true in r_true.  inversion r_true.
+       if_tac. subst r. inversion r_true.
           entailer. cancel.
     } 
-    rewrite data_at_isptr with (p:=k). normalize.
-
-    destruct R; subst r. omega. clear H. 
-    rename H0 into isbyte_key.
-    apply isptrD in H1; destruct H1 as [kb [kofs HK]]; rewrite HK in *. clear r_true.
-    
+    normalize. destruct R; subst r. omega. clear H. rename H0 into isbyte_key.
+    assert_PROP (isptr k). entailer. apply isptrD in H; destruct H as [kb [kofs HK]]. subst k.
+     
     eapply semax_seq'. (*TODO: using forward_seq here introduces another Delta0 in goal2 - but 
                           it worked fine before I split this off into file XXX_part2.v *)
     instantiate (1:= 
@@ -582,12 +578,12 @@ forward_if PostResetBranch.
            data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
               (Vptr kb kofs)]).
           subst Frame; reflexivity.
-        rewrite FR. clear FR Frame. 
+        rewrite FR; clear FR Frame. 
         unfold data_block, tarray. rewrite ZLI. simpl. normalize.
         apply andp_right. apply prop_right. apply isbyte_map_ByteUnsigned.
         subst IPADcont. cancel. 
       }
-      { clear Frame HeqPostResetBranch HeqOPADcont; subst IPADcont k.
+      { clear Frame HeqPostResetBranch HeqOPADcont; subst IPADcont.
         rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. 
         unfold SHA256.BlockSize; simpl. rewrite int_max_unsigned_eq.
         unfold two_power_pos, shift_pos. simpl. omega.
@@ -601,7 +597,7 @@ forward_if PostResetBranch.
     Transparent firstn. 
 
     (*essentially the same for opad*) 
-    eapply semax_seq'. (* TOSO: using forward_seq here introduces another Delta0 in goal2 - but 
+    eapply semax_seq'. (* TODO: using forward_seq here introduces another Delta0 in goal2 - but 
                           it worked fine before I split this off into file XXX_part2.v *)
 
     instantiate (1:=  (PROP  ()
@@ -749,7 +745,7 @@ forward_if PostResetBranch.
         simpl. apply prop_right. apply isbyte_map_ByteUnsigned.
       cancel.
     }
-    { clear Frame HeqPostResetBranch HeqIPADcont; subst OPADcont k.
+    { clear Frame HeqPostResetBranch HeqIPADcont; subst OPADcont.
       rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. 
       unfold SHA256.BlockSize; simpl. rewrite int_max_unsigned_eq.
       unfold two_power_pos, shift_pos. simpl. omega.
@@ -786,7 +782,7 @@ forward_if PostResetBranch.
     apply (exp_right (iSha, (iCtx r, (oSha, oCtx r)))).
     entailer. cancel.
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
-    apply exp_right with (x:= r). apply exp_right with (x:=v).
+    apply (exp_right r). apply (exp_right v).
     entailer. apply prop_right. exists ii; eauto.  
    } 
 Qed.

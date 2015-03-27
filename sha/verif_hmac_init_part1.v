@@ -237,13 +237,15 @@ forward_if PostKeyNull.
       normalize.
 
       (*new: extract info from field_address as early as possible*)
-      rewrite data_at_isptr; normalize.
+      assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
+                          (Vptr cb cofs))).
+      { entailer. }
       apply isptrD in H; destruct H as [? [? PT]]; rewrite PT.
       unfold field_address in PT.
       destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
-           (Vptr cb cofs)); inversion PT. 
-      subst x x0; clear PT.
-
+           (Vptr cb cofs)); inversion PT; clear PT. 
+      subst x x0.
+      rename f into FC.
       subst PAD. normalize.
 
       forward_call' (Vptr cb cofs).
@@ -321,7 +323,6 @@ forward_if PostKeyNull.
             rewrite SOA; try reflexivity; simpl; clear SOA.
                2: rewrite Zlength_correct; simpl; omega.
                2: omega.
-
    normalize. rename H into BND1; rename H0 into BND2; rename H1 into BND3.
 
    (*Call to _SHA256_Final*)

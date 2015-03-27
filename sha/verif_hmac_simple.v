@@ -90,7 +90,7 @@ forward.
 simpl_stackframe_of. normalize.
 assert (HS: hmacSimple key data dig).
     exists h0, h1. 
-    split. destruct KL as [KL1 [KLb KLc]]. assumption.
+    split. assumption.
     split; try assumption.
     rewrite hmacFinal_hmacFinalSimple. exists h2; trivial.
 assert (Size: sizeof t_struct_hmac_ctx_st <= Int.max_unsigned).

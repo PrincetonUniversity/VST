@@ -17,30 +17,22 @@ Lemma body_hmac_cleanup: semax_body HmacVarSpecs HmacFunSpecs
 Proof.
 start_function.
 name ctx' _ctx.
-unfold hmacstate_PostFinal, hmac_relate_PostFinal. normalize. intros hst. normalize. 
-apply semax_pre with (P':=
-  PROP (size_compatible t_struct_hmac_ctx_st c /\
-        align_compatible t_struct_hmac_ctx_st c)
-   LOCAL  (`(eq c) (eval_id _ctx))
-   SEP 
-   (`(data_at Tsh t_struct_hmac_ctx_st
-        (upd_reptype t_struct_hmac_ctx_st [StructField _md_ctx] hst
-           (default_val t_struct_SHA256state_st)) c))).
-  entailer. unfold data_at. simpl. normalize.
-normalize.
+unfold hmacstate_PostFinal, hmac_relate_PostFinal. normalize. intros hst. normalize.
+assert_PROP (size_compatible t_struct_hmac_ctx_st c /\
+        align_compatible t_struct_hmac_ctx_st c).
+{ unfold data_at. entailer. } 
+destruct H0 as [SC AC].
 
-forward_call (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero).
+forward_call' (Tsh, c, sizeof t_struct_hmac_ctx_st, Int.zero) rv.
   { assert (FR: Frame = nil).  
       subst Frame. reflexivity.
     rewrite FR. clear FR Frame.
     entailer.
     eapply derives_trans. apply data_at_data_at_.
-       (*reflexivity.*)
     rewrite <- memory_block_data_at_; try reflexivity.
     entailer.
     assumption. 
   }
-after_call. subst retval0.
 forward.
 unfold data_block. rewrite Zlength_correct; simpl. entailer. 
 apply prop_right.
