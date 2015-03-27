@@ -45,8 +45,6 @@ remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
              c) as s.
 destruct s; simpl in *; inversion BOff. simpl in *. clear BOff.
 
-(*remember (ctx, data, c, d, Tsh, len, kv) as WITNESS.*)
-
 forward_call' (ctx, data, c, d, Tsh, len, kv) s.
   { unfold sha256state_. normalize. apply (exp_right (mdCtx ST)). 
     assert (FR: Frame = (field_at Tsh t_struct_hmac_ctx_st [StructField _key_length]

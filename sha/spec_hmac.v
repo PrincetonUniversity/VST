@@ -316,24 +316,8 @@ Definition hmacstate_PostFinal (h: hmacabs) (c: val) : mpred :=
     !!  hmac_relate_PostFinal h r && 
     data_at Tsh t_struct_hmac_ctx_st 
        (upd_reptype t_struct_hmac_ctx_st [StructField _md_ctx] r  (default_val t_struct_SHA256state_st)) c.
-(*
-Definition HMAC_Final_spec :=
-  DECLARE _HMAC_Final
-   WITH h1: hmacabs, c : val, md:val, shmd: share, kv:val
-   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
-         _md OF tptr tuchar ]
-       PROP (writable_share shmd) 
-       LOCAL (temp _md md; temp _ctx c;
-              gvar sha._K256 kv)
-       SEP(`(hmacstate_ h1 c); `(K_vector kv);
-           `(memory_block shmd (Int.repr 32) md))
-  POST [ tvoid ] 
-         EX digest:list Z, EX h2:hmacabs, 
-          PROP (hmacFinal h1 digest h2) 
-          LOCAL ()
-          SEP(`(K_vector kv);
-              `(hmacstate_PostFinal h2 c);
-              `(data_block shmd digest md)).*)
+
+(*Spec with a sinlge EX in postcondition:*)
 Definition HMAC_Final_spec :=
   DECLARE _HMAC_Final
    WITH h1: hmacabs, c : val, md:val, shmd: share, kv:val
@@ -351,6 +335,24 @@ Definition HMAC_Final_spec :=
           SEP(`(K_vector kv);
               `(hmacstate_PostFinal (snd digestH2) c);
               `(data_block shmd (fst digestH2) md)).
+(*Spec with two EX's in postcondition:
+Definition HMAC_Final_spec :=
+  DECLARE _HMAC_Final
+   WITH h1: hmacabs, c : val, md:val, shmd: share, kv:val
+   PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
+         _md OF tptr tuchar ]
+       PROP (writable_share shmd) 
+       LOCAL (temp _md md; temp _ctx c;
+              gvar sha._K256 kv)
+       SEP(`(hmacstate_ h1 c); `(K_vector kv);
+           `(memory_block shmd (Int.repr 32) md))
+  POST [ tvoid ] 
+         EX digest:_, EX h2:_, 
+          PROP (hmacFinal h1 digest h2) 
+          LOCAL ()
+          SEP(`(K_vector kv);
+              `(hmacstate_PostFinal h2 c);
+              `(data_block shmd digest md)).*)
 
 (************************ Specification of HMAC_cleanup *******************************************************)
 

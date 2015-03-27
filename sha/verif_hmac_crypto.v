@@ -124,7 +124,6 @@ forward_if  (
 normalize. rename H into isptrC.
 
 remember (HMACabs init_s256abs init_s256abs init_s256abs Z0 nil) as dummyHMA.
-
 forward_call' (c, k, kl, key, kv, dummyHMA) h.
   { unfold initPre. entailer.
     apply isptrD in Pk. destruct Pk as [kb [kofs HK]]. rewrite HK.
@@ -132,7 +131,7 @@ forward_call' (c, k, kl, key, kv, dummyHMA) h.
   }
 normalize. rename H into HmacInit.
 
-forward_call' (h, c, d, dl, data,kv) h1.
+forward_call' (h, c, d, dl, data, kv) h1.
   { assert (HH: s256a_len (absCtxt h) = 512).
     Focus 2. destruct DL as [DL1 [DL2 DL3]]. split; trivial. split; trivial.
              rewrite HH; assumption. 
@@ -160,37 +159,6 @@ forward_call' (h, c, d, dl, data,kv) h1.
 rename H into HmacUpdate.
 
 (* Call to HMAC_Final*)
-(*Andrew: having a double-existential in the POST of the sepc
-   only works with forward_call, not with forward_call'
-eapply semax_seq'.
-myframe_SEP'' (cons 0 (cons 1 (cons 4 (@nil Z)))).
-forward_call (h1, c, md, shmd, kv).
-  assert (FR: Frame =nil).
-       subst Frame. reflexivity.
-     rewrite FR. clear FR Frame. 
-  entailer. cancel. 
-after_call.
-simpl. 
-eapply semax_pre with (P':=
-      EX  x : list Z, EX  x0 : hmacabs,
-       (PROP  (hmacFinal h1 x x0)
-   LOCAL  (tc_environ Delta; 
-   `(eq md) (eval_id _md); `(eq k) (eval_id _key);
-   `(eq (Vint (Int.repr kl))) (eval_id _key_len); `(eq d) (eval_id _d);
-   `(eq (Vint (Int.repr dl))) (eval_id _n);
-   `(eq c) (eval_var _c t_struct_hmac_ctx_st);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-    (`(K_vector KV); `(hmacstate_PostFinal x0 c);
-     `(data_block shmd x md); `(data_block Tsh data d);
-     `(initPostKey k key)))).
-   entailer.
-   apply (exp_right x).
-   apply (exp_right x0). entailer.
-apply extract_exists_pre. intros dig.
-apply extract_exists_pre. intros h2. normalize. rename H into HmacFinalSimple.
-*)
-
 forward_call' (h1, c, md, shmd, kv) [dig h2].
 simpl in H; rename H into HmacFinalSimple.
 
@@ -226,15 +194,8 @@ apply andp_right. apply prop_right. trivial. cancel.
 unfold data_block.
   rewrite Zlength_correct; simpl.
 rewrite <- memory_block_data_at_; try reflexivity. 
-2: rewrite lvar_eval_lvar with (v:=c); trivial. 
-(*Qinxiang: the following owrked for old-style data_at-predicates:
-  rewrite memory_block_array_tuchar. 
-  normalize. clear H1. 
-  apply andp_right.
-    apply prop_right. trivial. cancel.
-  simpl; omega.
-Now we need this:*)
-  normalize. rewrite lvar_eval_lvar with (v:=c); trivial. 
+  2: rewrite lvar_eval_lvar with (v:=c); trivial. 
+normalize. rewrite lvar_eval_lvar with (v:=c); trivial. 
   rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))).
   apply data_at_data_at_.
   trivial.

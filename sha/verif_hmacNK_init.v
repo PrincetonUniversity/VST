@@ -15,7 +15,7 @@ Require Import hmac_common_lemmas.
 
 Require Import sha.hmac_NK.
 
-Require Import sha.verif_hmacNK_init_part1.
+Require Import sha.verif_hmacNK_init_part1. 
 Require Import sha.verif_hmacNK_init_part2.
 
 (*
@@ -43,11 +43,25 @@ start_function.
 name ctx' _ctx.
 name key' _key.
 name len' _len.
-simpl_stackframe_of.
+simpl_stackframe_of. normalize.
+apply (remember_value (eval_lvar _pad (tarray tuchar 64))). intro pad.
+replace_SEP 0 (`(data_at_ Tsh (tarray tuchar 64) pad)).
+  entailer!.
+assert_LOCAL (lvar _pad (tarray tuchar 64) pad).
+ entailer!. apply normalize_lvar; auto.
+drop_LOCAL 1%nat.
+apply (remember_value (eval_lvar _ctx_key (tarray tuchar 64))). intro ctxkey.
+replace_SEP 1 (`(data_at_ Tsh (tarray tuchar 64) ctxkey)).
+  entailer!.
+assert_LOCAL (lvar _ctx_key (tarray tuchar 64) ctxkey).
+ entailer!. apply normalize_lvar; auto.
+drop_LOCAL 1%nat.
 destruct H as [KL1 [KL2 KL3]]. normalize.
 forward.
 
 unfold data_block. normalize. 
+assert_PROP (isptr ctxkey). entailer.
+apply isptrD in H; destruct H as [ckb [ckoff X]]; subst ctxkey.
 
 (*isolate branch if (key != NULL) *)
 apply seq_assoc.
@@ -65,71 +79,84 @@ Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
                      (data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_SHA256.mkKey key)))
                       ctxkey)  *
                      (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-(*                   (array_at tuchar Tsh (tuchars (map Int.repr key)) 0 (Zlength key))*)
                       (Vptr b ofs)))
   | _ => FF
   end.*)
 remember (EX  cb : block,
                  (EX  cofs : int,
-                  (EX  pad : val,
-                   (EX  r : Z, EX ctxkey:val,
+                   (EX  r : Z, 
                     PROP  (c = Vptr cb cofs /\ (r=0 \/ r=1))
-                    LOCAL  (`(eq (Vint (Int.repr r))) (eval_id _reset);
-                    `(eq pad) (eval_var _pad (tarray tuchar 64));
-                    `(eq c) (eval_id _ctx); `(eq k) (eval_id _key);
-                    `(eq (Vint (Int.repr l))) (eval_id _len);
-                    `(eq ctxkey) (eval_var _ctx_key (tarray tuchar 64));
-                    `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+                    LOCAL  (temp _reset (Vint (Int.repr r));
+                      lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff); 
+                      lvar _pad (tarray tuchar 64) pad;
+                      temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
+                      gvar sha._K256 kv)
                     SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
-                    `(initPostKeyNullConditional r c k h1 key ctxkey);
-                    `(K_vector KV)))))) as PostKeyNull. 
-forward_seq. instantiate (1:= PostKeyNull). (*eapply semax_seq.*)
+                    `(initPostKeyNullConditional r c k h1 key (Vptr ckb ckoff));
+                    `(K_vector kv))))) as PostKeyNull. 
+forward_seq. instantiate (1:= PostKeyNull). 
 {  assert (DD: Delta= initialized _reset Delta) by reflexivity.
    rewrite DD.
-   eapply hmac_init_part1; eassumption. 
+   eapply hmac_init_part1; eassumption.
 }
 subst PostKeyNull. normalize.
 apply extract_exists_pre; intros cb. 
 apply extract_exists_pre; intros cofs. 
-apply extract_exists_pre; intros pad. 
 apply extract_exists_pre; intros r.
-apply extract_exists_pre; intros ctxkey.
-normalize. rename H into HC; rewrite HC. rename H0 into R.
+normalize. unfold POSTCONDITION, abbreviate. subst c.
+ (*rename H into HC; rewrite HC.*) rename H0 into R.
 
 (*isolate branch if (reset) *)
 apply seq_assoc.
+(*from init_part2:
+Definition postResetHMS (iS oS: s256state): hmacstate :=
+  (emptySha, (iS, oS)).
 
-remember (EX iSA:_, EX iS:_, EX oSA:_, EX oS:_,
-          PROP  (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)) iSA /\ s256_relate iSA iS /\
-                 outerShaInit (map Byte.repr (HMAC_SHA256.mkKey key)) oSA /\ s256_relate oSA oS)
-                 LOCAL  (
-                 `(eq pad) (eval_var _pad (tarray tuchar 64));
-                 `(eq (Vptr cb cofs)) (eval_id _ctx);
-                 `(eq ctxkey) (eval_var _ctx_key (tarray tuchar 64));
-                 `(eq k) (eval_id _key);
-                 `(eq (Vint (Int.repr l))) (eval_id _len);
-                 `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-
-                 SEP  (
-                 `(data_at_ Tsh (tarray tuchar 64) pad); (*was:`(array_at_ tuchar Tsh 0 64 pad); *)
-                 `(data_at_ Tsh (tarray tuchar 64) ctxkey);
-                 `(initPostResetConditional r c k h1 key iS oS); `(K_vector KV)))
+Definition initPostResetConditional r (c:val) (k: val) h key iS oS: mpred:=
+  match k with
+    Vint z => if Int.eq z Int.zero
+              then if zeq r Z0 then hmacstate_PreInitNull key h c else FF
+              else FF
+  | Vptr b ofs => if zeq r 0 then FF
+                  else !!(Forall isbyteZ key) &&
+                       ((data_at Tsh t_struct_hmac_ctx_st (postResetHMS iS oS) c) *
+                        (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr b ofs)))
+  | _ => FF
+  end.*)
+remember (EX shaStates:_ ,
+          PROP  (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key))
+                           (fst shaStates) /\
+                  s256_relate (fst shaStates) (fst (snd shaStates)) /\
+                  outerShaInit (map Byte.repr (HMAC_SHA256.mkKey key))
+                           (fst (snd (snd shaStates))) /\ 
+                  s256_relate (fst (snd (snd shaStates))) (snd (snd (snd shaStates))))
+          LOCAL  (lvar _pad (tarray tuchar 64) pad; 
+                  lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff); 
+                  temp _ctx (Vptr cb cofs); temp _key k;
+                  temp _len (Vint (Int.repr l));
+                  gvar sha._K256 kv)
+          SEP  (`(data_at_ Tsh (tarray tuchar 64) pad);
+                `(data_at_ Tsh (Tarray tuchar 64 noattr) (Vptr ckb ckoff)); 
+                `(initPostResetConditional r (Vptr cb cofs) k h1 key (fst (snd shaStates)) (snd (snd (snd shaStates))));
+                `(K_vector kv)))
   as PostResetBranch.
 (*forward_seq. instantiate (1:= PostResetBranch).*)
 eapply semax_seq. instantiate (1:=PostResetBranch).
-{ apply init_part2; assumption. }
+{  apply init_part2; assumption. }
+
 { (*Continuation after if (reset*)
   subst PostResetBranch.
-simpl update_tycon.
-apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_refl.
-  apply extract_exists_pre; intros iSA. 
+  simpl update_tycon.
+  apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_refl.
+  apply extract_exists_pre; intros [iSA [iS [oSA oS]]]. 
+(*  apply extract_exists_pre; intros iSA. 
   apply extract_exists_pre; intros iS. 
   apply extract_exists_pre; intros oSA. 
-  apply extract_exists_pre; intros oS. unfold initPostResetConditional.
+  apply extract_exists_pre; intros oS.*) unfold initPostResetConditional.
   normalize. 
   rename H into INNER. rename H0 into InnerRelate.
   rename H1 into OUTER. rename H2 into OuterRelate.
-  unfold initPostResetConditional; rewrite HC.
+  unfold initPostResetConditional.
   destruct k;
     try solve [apply semax_pre with (P':=FF); try entailer; try apply semax_ff].
   { (*k is integer, ie key==null*)
@@ -145,8 +172,7 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
      destruct Hs as [IREL [OREL [ILEN [OLEN [ISHA OSHA]]]]].
      destruct s as [mdS [iS oS]]. simpl in *.
      unfold_data_at 1%nat.
-     (* eapply semax_seq'.
-     frame_SEP 3 4.*)
+
      rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
      simpl.       
      rewrite (data_at_isptr Tsh
@@ -159,60 +185,31 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
      destruct s; simpl in *; inversion CMDOff. simpl in *. subst cbmd. rewrite CMDOff. clear H1.
      rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
      simpl.       
-     apply semax_pre with (P':= 
-        (PROP (isptr
+     assert_PROP (isptr
           (field_address t_struct_hmac_ctx_st [StructField _i_ctx]
-             (Vptr cb cofs)))
-   LOCAL  (`(eq pad) (eval_var _pad (tarray tuchar 64));
-   `(eq (Vptr cb cofs)) (eval_id _ctx);
-   `(eq ctxkey) (eval_var _ctx_key (tarray tuchar 64));
-   `(eq (Vint i)) (eval_id _key); `(eq (Vint (Int.repr l))) (eval_id _len);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP (
-     `(data_at Tsh
-        (nested_field_type2 t_struct_hmac_ctx_st [StructField _i_ctx]) iS
-        (field_address t_struct_hmac_ctx_st [StructField _i_ctx]
-           (Vptr cb cofs)));
-   `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
-   `(data_at Tsh
-       (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx]) v
-       (Vptr cb cmdoff)); `(data_at_ Tsh (tarray tuchar 64) pad);
-   `(data_at_ Tsh (tarray tuchar 64) ctxkey); `(K_vector KV)))).
+             (Vptr cb cofs))).
      { entailer. } 
-     remember (isptr
-      (field_address t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs))) as PTR.
-     normalize.
-     subst PTR. 
      apply isptrD in H. destruct H as [cbI [cIoff CIOff]]. rewrite CIOff in *.
      unfold field_address in CIOff.
      remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _i_ctx]
                (Vptr cb cofs)) as s.
      destruct s; simpl in *; inversion CIOff. simpl in *. subst cbI. rewrite CIOff. clear H1.
-(*     normalize.
-     rename H into SCc. rename H0 into ACc.
-     rewrite at_offset'_eq.
-     2: simpl; rewrite Int.add_zero; reflexivity.*)
-     remember ((Tsh, Tsh),
+
+     simpl.
+     forward_call' ((Tsh, Tsh),
              Vptr cb cofs,
              offset_val
               (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _i_ctx]))
               (Vptr cb cofs),
-             mkTrep t_struct_SHA256state_st iS) as  WITNESS.
-     forward_call WITNESS.
+             mkTrep t_struct_SHA256state_st iS) rv.
      { assert (FR: Frame = [
-          `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
-          `(data_at_ Tsh (tarray tuchar 64) ctxkey);
-          `(data_at_ Tsh (tarray tuchar 64) pad); `(K_vector KV)]).
-          subst Frame. reflexivity.
-       rewrite FR. clear FR Frame. 
-       subst WITNESS. entailer. cancel.
-       apply sepcon_derives. rewrite CIOff. cancel. (*
-         rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
-         rewrite data_at_isptr. normalize.
-         unfold field_address. 
-         remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)).
-         destruct s. simpl in *. cancel.
-         rewrite data_at_isptr; entailer.*)
+          (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
+          (data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff));
+          (data_at_ Tsh (tarray tuchar 64) pad); (K_vector kv)]).
+          subst Frame; reflexivity.
+       rewrite FR; clear FR Frame. 
+       entailer. cancel. simpl.
+       apply sepcon_derives. simpl. rewrite CIOff. cancel.
        unfold field_compatible in f.
        inversion CMDOff. subst cmdoff; simpl. clear CMDOff. (* unfold nested_field_offset2; simpl. rewrite Int.add_zero.*)
         eapply derives_trans. 
@@ -223,149 +220,99 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
          exploit (align_compatible_nested_field t_struct_hmac_ctx_st [StructField _md_ctx]); try apply f.
          simpl. trivial.
      }
-     after_call. subst WITNESS. normalize. subst retval0. simpl. 
+     subst rv. simpl.
 
      forward. (*return*)
-     unfold hmacInit. (**)
+     unfold hmacInit. 
      remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
      apply exp_right with (x:=HMACabs iSha iSha oSha).   
      entailer.
      apply andp_right. 
-       apply prop_right. exists iSha, oSha. auto. (*
-       rewrite Int.unsigned_repr. auto.
-       rewrite int_max_signed_eq  in KL2. rewrite int_max_unsigned_eq.
-       destruct (zlt 64 (Zlength key)); omega.     *)
-     simpl_stackframe_of. unfold tarray. (* 
-     rewrite <- data_at__array_at_ with (a:=noattr).
-     2: omega. 2: reflexivity.*)
+       apply prop_right. exists iSha, oSha. auto. 
+     simpl_stackframe_of. unfold tarray.
      cancel.
      unfold hmacstate_, hmac_relate.
-(*      remember (if zlt 64 (Zlength key) then Vint (Int.repr 32)
-            else Vint (Int.repr (Zlength key))) as kl.*)
       normalize.
       apply exp_right with (x:=(iS, (iS, oS))).
       simpl. entailer. cancel.
-(*      apply andp_right. apply prop_right.
-      destruct (zlt 64 (Zlength key)); simpl in *. trivial.
-          rewrite Int.unsigned_repr. trivial. 
-           rewrite int_max_unsigned_eq. rewrite int_max_signed_eq in KL2. omega.*)
 
       unfold_data_at 3%nat. cancel.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       unfold field_address. rewrite <- Heqs, <- Heqs0; simpl.
-        unfold nested_field_offset2, nested_field_type2; simpl. rewrite Int.add_zero. cancel.
+        unfold nested_field_offset2, nested_field_type2; simpl. rewrite Int.add_zero. 
+      unfold tarray in *. rewrite (lvar_eval_lvar _ _ _ _ H0). 
+      rewrite (lvar_eval_lvar _ _ _ _ H1). cancel.
   }
 
   { (*k is Vptr, key!=NULL*)
     destruct R; subst r; simpl. 
     apply semax_pre with (P':=FF); try entailer; try apply semax_ff.
-    normalize. 
+    normalize. rename H into isbyteKey. 
     unfold postResetHMS. simpl. unfold_data_at 1%nat.
-    (* eapply semax_seq'.
-    frame_SEP 3 4.*)
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
-     simpl.       
-     rewrite (data_at_isptr Tsh
-       (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])).
-     normalize. 
-     apply isptrD in H0. destruct H0 as [cbmd [cmdoff CMDOff]]. rewrite CMDOff in *.
-     unfold field_address in CMDOff.
-     remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
-               (Vptr cb cofs)) as s.
-     destruct s; simpl in *; inversion CMDOff. simpl in *. subst cbmd. rewrite CMDOff. clear H2.
+    simpl.
+    assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
+            (Vptr cb cofs))).
+    { entailer. }
+    apply isptrD in H; destruct H as [? [? PT]]. 
+    rewrite PT; unfold field_address in PT.
+    remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
+                  (Vptr cb cofs)) as s.
+    destruct s; inversion PT; clear PT. subst x x0.
 
-(*    normalize.
-    rename H into SCc. rename H0 into ACc.
-    rewrite at_offset'_eq.
-    2: simpl; rewrite Int.add_zero; reflexivity.*)
     rename b into kb; rename i into kofs.
     eapply semax_pre with (P':=PROP  ()
-      LOCAL  (`(eq pad) (eval_var _pad (tarray tuchar 64));
-       `(eq (Vptr cb cofs)) (eval_id _ctx);
-       `(eq ctxkey) (eval_var _ctx_key (tarray tuchar 64));
-       `(eq (Vptr kb kofs)) (eval_id _key); `(eq (Vint (Int.repr l))) (eval_id _len);
-       `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
+      LOCAL  (lvar _pad (tarray tuchar 64) pad;
+        lvar _ctx_key (tarray tuchar 64) (Vptr ckb ckoff); temp _ctx (Vptr cb cofs);
+        temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l));
+        gvar sha._K256 kv)
       SEP  (
           `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
           `(field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] iS (Vptr cb cofs));
           `(data_at_ Tsh (tarray tuchar 64) pad);
           `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs));
-          `(data_at_ Tsh (tarray tuchar 64) ctxkey); `(K_vector KV);
+          `(data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff)); `(K_vector kv);
           `(memory_block Tsh (Int.repr (sizeof (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])))
              (offset_val
                 (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _md_ctx]))
              (Vptr cb cofs))))).
     { entailer. cancel.
-(*      unfold tarray. erewrite data_at__array_at_. 2: omega. 2: reflexivity. 
-      cancel.*)
-       unfold field_compatible in f.
-       inversion CMDOff. subst cmdoff; simpl. clear CMDOff.
+      unfold field_compatible in f.
         eapply derives_trans. 
          apply data_at_data_at_. 
          rewrite <- memory_block_data_at_; try reflexivity.
-         unfold nested_field_offset2; simpl. rewrite Int.add_zero. trivial.
+         unfold nested_field_offset2; simpl. trivial.
 
          exploit (align_compatible_nested_field t_struct_hmac_ctx_st [StructField _md_ctx]); try apply f.
-         simpl. trivial.
+         unfold nested_field_offset2; simpl. rewrite Int.add_zero. trivial.
     }
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
-    simpl.
-     apply semax_pre with (P':= 
-        (PROP (isptr
-          (field_address t_struct_hmac_ctx_st [StructField _i_ctx]
-             (Vptr cb cofs)))
-   LOCAL  (`(eq pad) (eval_var _pad (tarray tuchar 64));
-   `(eq (Vptr cb cofs)) (eval_id _ctx);
-   `(eq ctxkey) (eval_var _ctx_key (tarray tuchar 64));
-   `(eq (Vptr kb kofs)) (eval_id _key);
-   `(eq (Vint (Int.repr l))) (eval_id _len);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-   (`(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS
-        (Vptr cb cofs));
-   `(data_at Tsh
-       (nested_field_type2 t_struct_hmac_ctx_st [StructField _i_ctx]) iS
-       (field_address t_struct_hmac_ctx_st [StructField _i_ctx]
-          (Vptr cb cofs))); `(data_at_ Tsh (tarray tuchar 64) pad);
-   `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-       (Vptr kb kofs)); `(data_at_ Tsh (tarray tuchar 64) ctxkey);
-   `(K_vector KV);
-   `(memory_block Tsh (Int.repr 108)
-       (Vptr cb
-          (Int.add cofs
-             (Int.repr
-                (nested_field_offset2 t_struct_hmac_ctx_st
-                   [StructField _md_ctx])))))))).
-     { entailer. }
-     remember (isptr
-      (field_address t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs))) as PTR.
-     normalize.
-     subst PTR. 
-     apply isptrD in H0. destruct H0 as [cbI [cIoff CIOff]]. rewrite CIOff in *.
-     unfold field_address in CIOff.
-     remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _i_ctx]
+    assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs))).
+      entailer!.
+    apply isptrD in H; destruct H as [cbI [cIoff CIOff]]. rewrite CIOff in *.
+    unfold field_address in CIOff.
+    remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _i_ctx]
                (Vptr cb cofs)) as s.
-     destruct s; simpl in *; inversion CIOff. simpl in *. subst cbI. rewrite CIOff. clear H2.
+    destruct s; simpl in *; inversion CIOff. simpl in *. subst cbI. rewrite CIOff. clear H1.
 
-    remember ((Tsh, Tsh),
+    forward_call' ((Tsh, Tsh),
              Vptr cb cofs,
              offset_val
               (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _i_ctx]))
               (Vptr cb cofs),
-             mkTrep t_struct_SHA256state_st iS) as  WITNESS.
-    forward_call WITNESS.
+             mkTrep t_struct_SHA256state_st iS) rv.
     { assert (FR: Frame = [
-         `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
-         `(data_at_ Tsh (tarray tuchar 64) ctxkey);
-         `(data_at_ Tsh (tarray tuchar 64) pad);
-         `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs));
-         `(K_vector KV)]).
-        subst Frame. reflexivity.
-      rewrite FR. clear FR Frame. 
-      subst WITNESS. entailer. cancel. rewrite CIOff. unfold  nested_field_type2; simpl. cancel.
+         (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
+         (data_at_ Tsh (tarray tuchar 64) (Vptr ckb ckoff));
+         (data_at_ Tsh (tarray tuchar 64) pad);
+         (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs));
+         (K_vector kv)]).
+        subst Frame; reflexivity.
+      rewrite FR; clear FR Frame. 
+      entailer. simpl. rewrite CIOff. unfold  nested_field_type2; simpl. cancel.
     }
-    after_call. subst WITNESS. normalize. subst retval0. simpl. 
+    subst rv; simpl. 
 
     forward. (*return*)
     apply exp_right with (x:=HMACabs iSA iSA oSA). 
@@ -374,6 +321,7 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
       apply prop_right. unfold hmacInit. exists iSA, oSA. auto.
     unfold data_block. simpl_stackframe_of. entailer. cancel.
     unfold hmacstate_, hmac_relate.
+    normalize.
     apply exp_right with (x:=(iS, (iS, oS))).
     simpl. entailer.
     apply andp_right. apply prop_right.
@@ -386,8 +334,11 @@ apply semax_extensionality_Delta with (Delta). apply expr_lemmas.tycontext_sub_r
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
     unfold field_address. rewrite <- Heqs, <- Heqs0. unfold nested_field_type2; simpl.
-    inversion CMDOff. inversion CIOff. rewrite H4, H5. unfold nested_field_offset2 in H4; simpl in H4.
-    rewrite Int.add_zero in H4. subst cmdoff; cancel.
+    inversion CIOff. rewrite H4. unfold nested_field_offset2 in H4; simpl in H4.
+      unfold tarray in *. rewrite (lvar_eval_lvar _ _ _ _ H0). 
+      rewrite (lvar_eval_lvar _ _ _ _ H1). cancel.
+    
+    unfold nested_field_offset2; simpl. rewrite Int.add_zero. cancel.
   }
 } 
 Qed.
