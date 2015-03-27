@@ -161,22 +161,17 @@ forward_call' (* memset (p+n,0,SHA_CBLOCK-n); *)
   repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
   eapply derives_trans; [apply data_at_data_at_; reflexivity |].
   assert (sizeof (Tarray tuchar (64 - (ddlen + 1)) noattr) = 64 - (ddlen + 1)).
-  rewrite sizeof_Tarray by omega.
-  apply Z.mul_1_l.
+  rewrite sizeof_Tarray by omega. simpl sizeof. omega.
   rewrite data_at__memory_block; try reflexivity.
   2: rewrite sizeof_Tarray by omega;
-    simpl sizeof; rewrite Z.mul_1_l;
+    simpl sizeof; 
      change Int.modulus with 4294967296; omega.
   apply andp_left2.
   apply derives_refl'.
   f_equal.
   f_equal.
-  rewrite sizeof_Tarray by omega.
-  apply Z.mul_1_l.
-
-  split; auto.
-  change CBLOCKz with 64%Z. repable_signed.
-
+  rewrite sizeof_Tarray by omega. simpl sizeof. MyOmega.
+  split; auto. MyOmega.
   simpl map.
 
 gather_SEP 1%Z 0%Z 2%Z.
@@ -191,9 +186,8 @@ replace_SEP 0%Z (`(field_at Tsh t_struct_SHA256state_st [StructField _data] (map
             map Vint (list_repeat (Z.to_nat (CBLOCKz - (ddlen + 1))) Int.zero) ++ [])
     by (rewrite app_nil_r; reflexivity).
   erewrite array_seg_reroot_lemma with (gfs := [StructField _data]) (lo := ddlen + 1) (hi := 64);
-  [ | omega | (*omega*) | reflexivity | omega | reflexivity 
+  [ | omega | omega | reflexivity | omega | reflexivity 
   | reflexivity | | ].
- 2: omega.
     2: rewrite map_app, Zlength_app, !Zlength_map; reflexivity.
     2: rewrite map_list_repeat, Zlength_correct, length_list_repeat;
        rewrite Z2Nat.id by omega; reflexivity.
@@ -204,19 +198,10 @@ replace_SEP 0%Z (`(field_at Tsh t_struct_SHA256state_st [StructField _data] (map
 }
 pose (ddzw := Zlist_to_intlist (map Int.unsigned ddz)).
 assert (H0': length ddz = CBLOCK). {
-  unfold ddz; repeat rewrite app_length.
-  rewrite length_list_repeat by omega.
-  rewrite Z2Nat.inj_sub by omega.
-  rewrite Z2Nat.inj_add by omega.
-  change (Z.to_nat CBLOCKz) with CBLOCK.
-  unfold ddlen; rewrite Zlength_correct. 
-  rewrite (Nat2Z.id).
-  rewrite map_length; simpl length; change (Z.to_nat 1) with 1%nat.
-  clear - Hddlen. unfold ddlen in Hddlen.
-  destruct Hddlen. 
-  rewrite Zlength_correct in H0.
-  change 64 with (Z.of_nat CBLOCK) in H0.
-  apply Nat2Z.inj_lt in H0. omega.
+  subst ddz ddlen. clear - Hddlen H3.
+  repeat rewrite app_length. simpl.
+   apply Nat2Z.inj.   (* Maybe build this into Omega or MyOmega? *)
+   MyOmega.
 }
 assert (H1': length ddzw = LBLOCK). {
   unfold ddzw.
@@ -271,15 +256,8 @@ forward_call' (* sha256_block_data_order (c,p); *)
  apply exp_right with (@nil Z).
  apply exp_right with pad.
  entailer.
-assert (0 <= pad < 8)%Z.
-  unfold pad.
-  change CBLOCKz with 64.
-  omega.
-assert (length (list_repeat (Z.to_nat pad) 0) < 8)%nat.
-  rewrite length_list_repeat.
-  apply Nat2Z.inj_lt.
-  rewrite Z2Nat.id by omega.
-  Omega1.
+assert (0 <= pad < 8)%Z by MyOmega.
+assert (length (list_repeat (Z.to_nat pad) 0) < 8)%nat by MyOmega.
 unfold_data_at 1%nat.
 entailer!.
 * clear; Omega1.
@@ -435,8 +413,7 @@ forward_for_simple_bound 8
   auto.
 *
   drop_LOCAL 1%nat. (* shouldn't need this *)
-  assert (H1': (Z.to_nat i < 8)%nat)
-    by (apply Nat2Z.inj_lt; rewrite Z2Nat.id by omega; apply H1).
+  assert (H1': (Z.to_nat i < 8)%nat) by Omega1.
   forward. (* ll=(c)->h[xn]; *)
   {
     entailer!.
@@ -465,25 +442,14 @@ forward_for_simple_bound 8
       erewrite array_seg_reroot_lemma
         with (gfs := []) (lo := (i * 4)%Z) (hi := (i * 4 + 4)%Z);
         [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | ].
-      Focus 2. {
-        rewrite Zlength_correct.
-        rewrite !map_length.
-        rewrite length_intlist_to_Zlist.
-        rewrite firstn_length.
-        rewrite min_l by omega.
-        rewrite Nat2Z.inj_mul.
-        rewrite Z2Nat.id by omega.
-        change (Z.of_nat 4) with 4; omega.
-      } Unfocus.
-      Focus 2. {
-        rewrite Zlength_correct, length_list_repeat.
-        change (Z.of_nat 4) with 4.
-        omega.
-      } Unfocus.
+      2:  rewrite Zlength_correct,
+             !map_length, length_intlist_to_Zlist,
+             firstn_length, min_l; Omega1.
+      2: rewrite Zlength_correct, length_list_repeat; Omega1.  
+      replace (i * 4 + 4 - i * 4) with 4 by omega.
       normalize.
   forward_call' (* builtin_write32_reversed *)
-     (field_address (tarray tuchar 32)
-              [ArraySubsc (i * 4)] md, shmd, bytes).
+     (field_address (tarray tuchar 32) [ArraySubsc (i*4)] md, shmd, bytes).
  +
    entailer!.
    unfold bytes, Basics.compose.
@@ -505,7 +471,6 @@ forward_for_simple_bound 8
       destruct md; try contradiction; reflexivity.
  +
     entailer!.
-      replace (i * 4 + 4 - i * 4) with 4 by omega.
       pull_left (data_at shmd (Tarray tuchar 4 noattr) (list_repeat 4 Vundef)
         (field_address (tarray tuchar 32) [ArraySubsc (i * 4)] md)).
       repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel_frame].
@@ -560,16 +525,13 @@ forward_for_simple_bound 8
         with (gfs := []) (lo := (i * 4)%Z) (hi := (i * 4 + 4)%Z);
         [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | ].
       Focus 2. {
-        rewrite !Zlength_map.
-        rewrite Zlength_intlist_to_Zlist.
-        rewrite Zlength_correct, firstn_length.
-        rewrite min_l by omega.
-        change WORD with 4; rewrite Z.mul_comm.
+        rewrite !Zlength_map, Zlength_intlist_to_Zlist,
+               Zlength_correct, firstn_length.
+        rewrite min_l by omega. rewrite Z.mul_comm.
         rewrite Z2Nat.id by omega. auto.
       } Unfocus.
       Focus 2. {
-        rewrite !Zlength_map.
-        rewrite Zlength_intlist_to_Zlist.
+        rewrite !Zlength_map, Zlength_intlist_to_Zlist.
         change (WORD * Zlength [w])%Z with 4.
         omega.
       } Unfocus.
@@ -577,7 +539,8 @@ forward_for_simple_bound 8
       entailer!.
  }
 *
-  drop_LOCAL 0%nat. (* shouldn't need this *)
+  drop_LOCAL 0%nat.
+  drop_LOCAL 0%nat.
   rewrite (firstn_same _ 8) by omega.
   forward. (* return; *)
   unfold data_at_.
