@@ -4,7 +4,6 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.bdo_lemmas.
-Require Import sha.verif_sha_bdo2.
 Require Import sha.verif_sha_bdo4.
 Require Import sha.verif_sha_bdo7.
 Require Import sha.verif_sha_bdo8.
@@ -29,15 +28,7 @@ name i_ _i.
 name data_ _data.
 unfold POSTCONDITION, abbreviate.
 simpl_stackframe_of.
-apply (remember_value (eval_lvar _X (tarray tuint 16))); intro Xv.
-assert_LOCAL (lvar _X (tarray tuint 16) Xv). {
-  entailer!.
-  unfold lvar, eval_lvar in H3|-*.
-  destruct (Map.get (ve_of rho) _X) as [[? ?]|]; try contradiction; auto.
-  destruct (eqb_type (tarray tuint 16) t); try contradiction; auto.
-}
-replace_SEP 0 (`(data_at_ Tsh (tarray tuint 16) Xv)) .
- entailer!.
+fixup_local_var; intro Xv.
 remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
 assert (Lregs: length regs = 8%nat) 
   by (subst regs; apply length_hash_blocks; auto).
@@ -98,12 +89,11 @@ simplify_Delta; reflexivity.
 entailer!.
 auto 50 with closed.
 simpl; abbreviate_semax.
-unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-replace Delta with (initialized _t (initialized _i Delta_loop1)) 
- by (simplify_Delta; reflexivity).
-clear Delta.
-fold (hash_block regs b).
-simple apply sha256_block_data_order_return; auto.
+forward. (* return; *)
+fold (hash_block  (hash_blocks init_registers hashed) b).
+rewrite hash_blocks_last by auto.
+rewrite (lvar_eval_lvar _ _ _ _ H4).
+entailer!.
 Qed.
 
 

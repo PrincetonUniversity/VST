@@ -150,7 +150,7 @@ SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
   sha.v spec_sha.v verif_sha_init.v \
   verif_sha_update.v verif_sha_update2.v verif_sha_update3.v verif_sha_update4.v \
-  bdo_lemmas.v verif_sha_bdo.v verif_sha_bdo2.v \
+  bdo_lemmas.v verif_sha_bdo.v  \
   verif_sha_bdo4.v verif_sha_bdo7.v verif_sha_bdo8.v \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
   verif_addlength.v verif_SHA256.v call_memcpy.v
