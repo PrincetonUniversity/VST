@@ -440,18 +440,21 @@ repeat match goal with
    intros; omega).
 
 Ltac Omega'' L :=
- first [ apply Nat2Z.inj_ge | apply Nat2Z.inj_gt
-        | apply Nat2Z.inj_le | apply Nat2Z.inj_lt
-        | idtac];
+  match goal with
+  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
+  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
+  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
+  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
+  | |- @eq nat _ _ => apply Nat2Z.inj
+  | |- _ => idtac
+  end;
  repeat first
      [ simpl_const
      | rewrite Nat2Z.id
      | rewrite Nat2Z.inj_add
+     | rewrite Nat2Z.inj_mul
      | rewrite Z2Nat.id by Omega'' L
-     | rewrite Nat2Z.inj_sub
-       by (apply Nat2Z.inj_le; 
-             repeat rewrite Nat2Z.inj_add; 
-             rewrite Z2Nat.id by Omega'' L; Omega'' L)
+     | rewrite Nat2Z.inj_sub by Omega'' L
      | rewrite Z2Nat.inj_sub by Omega'' L
      | rewrite Z2Nat.inj_add by Omega'' L
      ];

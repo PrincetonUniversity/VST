@@ -1132,7 +1132,11 @@ Ltac do_repr_inj H :=
                ];
    repeat (rewrite -> negb_true_iff in H || rewrite -> negb_false_iff in H);
    try apply int_eq_e in H;
-   match type of H with _ <> _ => apply int_eq_false_e in H | _ => idtac end;
+   match type of H with
+          | _ <> _ => apply int_eq_false_e in H 
+          | Int.eq _ _ = false => apply int_eq_false_e in H 
+          | _ => idtac 
+  end;
   first [ simple apply repr_inj_signed in H; [ | repable_signed | repable_signed ]
          | simple apply repr_inj_unsigned in H; [ | repable_signed | repable_signed ]
          | simple apply repr_inj_signed' in H; [ | repable_signed | repable_signed ]
@@ -1297,7 +1301,7 @@ match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e
      ]
 end.
 
-Ltac forward_if post :=
+Ltac forward_if_tac post :=
   repeat (apply -> seq_assoc; abbreviate_semax);
 first [ignore (post: environ->mpred) 
       | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
@@ -1313,6 +1317,12 @@ match goal with
      apply semax_seq with post;
       [forward_if'_new | abbreviate_semax; autorewrite with ret_assert]
 end.
+
+Tactic Notation "forward_if" constr(post) :=
+  forward_if_tac post.
+
+Tactic Notation "forward_if" :=
+  forward_if'_new.
 
 Ltac normalize :=
  try match goal with |- context[subst] =>  autorewrite with subst typeclass_instances end;

@@ -47,8 +47,7 @@ assert_PROP (isptr data); [  entailer | ].
                          `(K_vector kv)]).
  + eapply sha256_block_load8 with (ctx:=ctx); eassumption.
  + simplify_Delta; reflexivity.
- +
-    instantiate (1:=kv). instantiate (1:=data). (* this line should not be necessary *)
+ + instantiate (1:=kv). instantiate (1:=data).
     entailer!.
  + auto 50 with closed.
 *
@@ -61,33 +60,33 @@ eapply (semax_frame_seq [ lvar _X (tarray tuint 16) Xv ]
     by (simplify_Delta; reflexivity).
     apply (sha256_block_data_order_loop1_proof _ sh b ctx data regs kv Xv); auto.
     apply Zlength_length in H; auto.
- +
-    entailer!.
+ + entailer!.
  + auto 50 with closed.
  +  simpl; abbreviate_semax.
  eapply (semax_frame_seq [ ]
         [`(field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx);
          `(data_block sh (intlist_to_Zlist b) data)]).
-match goal with |- semax _ _ ?c _ =>
-  change c with block_data_order_loop2
-end.
-apply sha256_block_data_order_loop2_proof
-              with (regs:=regs)(b:=b); eassumption.
- instantiate (1:=Xv).  instantiate (1:=kv). instantiate (1:=ctx). (* should not be necessary *)
-entailer!.
-auto 50 with closed.
-abbreviate_semax.
-eapply seq_assocN with (cs := add_them_back).
-eapply (semax_frame1  [  lvar _X (tarray tuint 16) Xv ]
+  match goal with |- semax _ _ ?c _ =>
+    change c with block_data_order_loop2
+  end.
+  apply sha256_block_data_order_loop2_proof
+              with (regs:=regs)(b:=b);
+    eassumption.
+  instantiate (1:=Xv).  instantiate (1:=kv). instantiate (1:=ctx). (* should not be necessary *)
+  entailer!.
+  auto 50 with closed.
+  abbreviate_semax.
+  subst MORE_COMMANDS; unfold abbreviate.
+  eapply seq_assocN with (cs := add_them_back).
+  eapply (semax_frame1  [  lvar _X (tarray tuint 16) Xv ]
              [`(K_vector kv);
              `(data_at_ Tsh (tarray tuint LBLOCKz) Xv);
              `(data_block sh (intlist_to_Zlist b) data)]).
-apply (add_them_back_proof _ regs (Round regs (nthi b) 63) ctx); try assumption.
-apply length_Round; auto.
-simplify_Delta; reflexivity.
-        instantiate (1:=kv).
-entailer!.
-auto 50 with closed.
+  apply (add_them_back_proof _ regs (Round regs (nthi b) 63) ctx); try assumption.
+  apply length_Round; auto.
+  simplify_Delta; reflexivity.
+  instantiate (1:=kv). entailer!.
+  auto 50 with closed.
 simpl; abbreviate_semax.
 forward. (* return; *)
 fold (hash_block  (hash_blocks init_registers hashed) b).
