@@ -25,19 +25,14 @@ start_function.
 name ctx' _ctx.
 name key' _key.
 name len' _len.
-simpl_stackframe_of.
-apply (remember_value (eval_lvar _pad (tarray tuchar 64))). intro pad.
-replace_SEP 0 (`(data_at_ Tsh (tarray tuchar 64) pad)).
-  entailer!.
-assert_LOCAL (lvar _pad (tarray tuchar 64) pad).
- entailer!. apply normalize_lvar; auto.
-drop_LOCAL 1%nat.
+simpl_stackframe_of. fixup_local_var; intro pad.
+
 destruct H as [KL1 [KL2 KL3]]. normalize.
 
 (*Sset _reset (Econst_int (Int.repr 0) tint)*)
 forward v. clear v. (*TODO: if we don't do the remember_value (eval_lvar _pad above, 
-   we can't clear v here, although it's actually NOT used in the conclusion (which is claimed by the tactic.
-   I suspect it's again some binding issue*)
+   we can't clear v here, although it's actually NOT used in the conclusion (contrary to what's claimed by the tactic.
+   I suspect it's some binding issue*)
 
 normalize. 
 

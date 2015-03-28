@@ -317,7 +317,7 @@ Definition hmacstate_PostFinal (h: hmacabs) (c: val) : mpred :=
     data_at Tsh t_struct_hmac_ctx_st 
        (upd_reptype t_struct_hmac_ctx_st [StructField _md_ctx] r  (default_val t_struct_SHA256state_st)) c.
 
-(*Spec with a sinlge EX in postcondition:*)
+(*Spec with a single EX in postcondition:*)
 Definition HMAC_Final_spec :=
   DECLARE _HMAC_Final
    WITH h1: hmacabs, c : val, md:val, shmd: share, kv:val

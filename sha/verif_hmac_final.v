@@ -26,13 +26,9 @@ Proof.
 start_function.
 name ctx' _ctx.
 name md' _md.
-simpl_stackframe_of. normalize. rename H into WrshMD. 
-apply (remember_value (eval_lvar _buf (tarray tuchar 32))). intro b.
-replace_SEP 0 (`(data_at_ Tsh (tarray tuchar 32) b)).
-  entailer!.
-assert_LOCAL (lvar _buf (tarray tuchar 32) b). 
- entailer!. apply normalize_lvar; auto.
-drop_LOCAL 1%nat.
+simpl_stackframe_of. fixup_local_var; intro b.
+
+rename H into WrshMD. 
 rewrite memory_block_isptr. unfold hmacstate_. normalize.
 rename H into isptrMD.
 intros ST. normalize.
@@ -159,7 +155,7 @@ Focus 2. eapply Zlength_length in SFL. apply SFL. omega.
 unfold sha256state_. normalize. intros updShaST. normalize. rename H into updShaREL. 
 
 (*Call SHA_Final*) 
-forward_call'  (updSha, md, Vptr b0 i, shmd, kv). (*Andrew: This line now takes > 5mins. But in the corresponding place in verif_hmacNK_final, it takes about 30secs*)
+forward_call'  (updSha, md, Vptr b0 i, shmd, kv). (*TODO: This line now takes > 5mins. In the corresponding place in verif_hmacNK_final, it takes about 30secs*)
   { assert (FR: Frame = [ (data_block Tsh (sha_finish ctx) b);
       (data_at Tsh t_struct_SHA256state_st oCTX
          (offset_val (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _o_ctx])) (Vptr b0 i)));
@@ -182,7 +178,7 @@ simpl_stackframe_of. simpl. normalize.
 apply andp_right. apply prop_right. split; trivial.
   exists updSha; eauto.
   auto.
-cancel. (*Andrew: this simple cancel now takes > 5mins. Again in verif_hmac_nk_final it's much faster*)
+cancel. (*TODO: this cancel now takes > 5mins. Again in verif_hmacNK_final it's much faster*)
 unfold data_block.
 normalize.
 apply derives_trans with (Q:= hmacstate_PostFinal (HMACabs updSha iSha oSha (Int.unsigned l) key)

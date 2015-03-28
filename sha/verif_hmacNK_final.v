@@ -26,14 +26,9 @@ Proof.
 start_function.
 name ctx' _ctx.
 name md' _md.
-simpl_stackframe_of. normalize. rename H into WrshMD. 
-(*fixup_local_var; intro b.*)
-apply (remember_value (eval_lvar _buf (tarray tuchar 32))). intro b.
-replace_SEP 0 (`(data_at_ Tsh (tarray tuchar 32) b)).
-  entailer!.
-assert_LOCAL (lvar _buf (tarray tuchar 32) b). 
- entailer!. apply normalize_lvar; auto.
-drop_LOCAL 1%nat.
+simpl_stackframe_of. fixup_local_var; intro b.
+
+rename H into WrshMD. 
 rewrite memory_block_isptr. unfold hmacstate_. normalize.
 rename H into isptrMD.
 intros ST. normalize.

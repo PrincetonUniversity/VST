@@ -25,13 +25,8 @@ name keylen' _key_len.
 name d' _d.
 name n' _n.
 name md' _md.
-simpl_stackframe_of.
-apply (remember_value (eval_lvar _c t_struct_hmac_ctx_st)). intro c.
-replace_SEP 0 (`(data_at_ Tsh t_struct_hmac_ctx_st c)).
-  entailer!.
-assert_LOCAL (lvar _c t_struct_hmac_ctx_st c).
- entailer!. apply normalize_lvar; auto.
-drop_LOCAL 1%nat.
+simpl_stackframe_of. fixup_local_var; intro c.
+
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl in *.

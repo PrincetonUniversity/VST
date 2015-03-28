@@ -280,7 +280,7 @@ forward_if PostKeyNull.
           subst Frame; reflexivity.
           rewrite FR; clear FR Frame.
           unfold data_block. rewrite Zlength_correct. 
-          entailer. (*TODO: If we don't instantiate the Frame explxitly here,
+          entailer. (*TODO: If we don't instantiate the Frame explicitly here,
                         the call to entailer raises "Anomaly: undefined_evars_of_term: evar not found. Please report."*)
       }
       { clear Frame HeqPostIf_j_Len HeqPostKeyNull.

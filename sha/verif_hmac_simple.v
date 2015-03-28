@@ -25,13 +25,8 @@ name keylen' _key_len.
 name d' _d.
 name n' _n.
 name md' _md.
-simpl_stackframe_of.
-apply (remember_value (eval_lvar _c t_struct_hmac_ctx_st)). intro c.
-replace_SEP 0 (`(data_at_ Tsh t_struct_hmac_ctx_st c)).
-  entailer!.
-assert_LOCAL (lvar _c t_struct_hmac_ctx_st c).
- entailer!. apply normalize_lvar; auto.
-drop_LOCAL 1%nat.
+simpl_stackframe_of. fixup_local_var; intro c. 
+
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl in *.
@@ -71,17 +66,10 @@ forward_call' (h0, c, d, dl, data, kv) h1.
   { rewrite H0_len512. assumption. } 
 rename H into HmacUpdate. 
 
-(*Andrew: forward_call goes haywire here if the postcondition of HMAC_final starts
-  with two existentials EX dig:_, EX h2:_, ... instead of the current EX digh2:_, ... *)
-(*Tactic Notation "forward_call'" constr(witness) simple_intropattern_list(v) :=
-    check_canonical_call;
-    fwd_call' witness.
-eapply semax_seq'.
-
-rewrite -> semax_seq_skip. 
-    fwd_call' (h1, c, md, shmd, kv).
-    check_canonical_call.*)
-forward_call' (h1, c, md, shmd, kv) [dig h2]. (*Andrew: I'm not permtted to just have the intro pattern digH2 here, ie i HAVE ot destruct???*)
+(*TODO: forward_call' fails if the postcondition of 
+  HMAC_final starts with two existentials EX dig:_, EX h2:_, ... 
+  instead of the current EX digh2:_, ... *)
+forward_call' (h1, c, md, shmd, kv) [dig h2].
 
 simpl in H; rename H into HmacFinalSimple.
 

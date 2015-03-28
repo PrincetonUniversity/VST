@@ -43,24 +43,12 @@ start_function.
 name ctx' _ctx.
 name key' _key.
 name len' _len.
-simpl_stackframe_of. normalize.
-apply (remember_value (eval_lvar _pad (tarray tuchar 64))). intro pad.
-replace_SEP 0 (`(data_at_ Tsh (tarray tuchar 64) pad)).
-  entailer!.
-assert_LOCAL (lvar _pad (tarray tuchar 64) pad).
- entailer!. apply normalize_lvar; auto.
-drop_LOCAL 1%nat.
-apply (remember_value (eval_lvar _ctx_key (tarray tuchar 64))). intro ctxkey.
-replace_SEP 1 (`(data_at_ Tsh (tarray tuchar 64) ctxkey)).
-  entailer!.
-assert_LOCAL (lvar _ctx_key (tarray tuchar 64) ctxkey).
- entailer!. apply normalize_lvar; auto.
-drop_LOCAL 1%nat.
-destruct H as [KL1 [KL2 KL3]]. normalize.
-forward.
+simpl_stackframe_of. fixup_local_var; intro pad. fixup_local_var; intro ctxkey. 
 
-unfold data_block. normalize. 
-assert_PROP (isptr ctxkey). entailer.
+destruct H as [KL1 [KL2 KL3]]. 
+forward.
+ 
+assert_PROP (isptr ctxkey). { entailer. }
 apply isptrD in H; destruct H as [ckb [ckoff X]]; subst ctxkey.
 
 (*isolate branch if (key != NULL) *)
@@ -96,8 +84,10 @@ remember (EX  cb : block,
                     `(K_vector kv))))) as PostKeyNull. 
 forward_seq. instantiate (1:= PostKeyNull). 
 {  assert (DD: Delta= initialized _reset Delta) by reflexivity.
-   rewrite DD.
-   eapply hmac_init_part1; eassumption.
+   rewrite DD.  
+   eapply semax_pre_simple.
+   2: eapply hmac_init_part1; eassumption.
+   entailer.
 }
 subst PostKeyNull. normalize.
 apply extract_exists_pre; intros cb. 
