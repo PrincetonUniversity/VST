@@ -1,6 +1,7 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
+Require Import floyd.type_induction.
 Require Import floyd.fieldlist.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
@@ -17,81 +18,129 @@ Arguments Z.max !n !m / .
 
 Definition of reptype.
 
-reptype is not defined in a quite beautiful way now. However, there seems no
-better choice. The situation is explained at the end of this file. When Coq
-releases a new version in the future, maybe we can rewrite it in a better way.
-
 ******************************************)
 
-Scheme type_mut := Induction for type Sort Prop
-with typelist_mut := Induction for typelist Sort Prop
-with fieldlist_mut := Induction for fieldlist Sort Prop.
+Section CENV.
+Print func_type.
 
-Fixpoint is_Fnil (fld: fieldlist) : bool :=
-  match fld with
-  | Fnil => true
-  | Fcons id ty fld' => false
-  end.
+Print type_is_by_value.
+Context {cs: compspecs}. 
 
-Fixpoint reptype (ty: type) : Type :=
-  match ty with
-  | Tvoid => unit
-  | Tint _ _ _ => val
-  | Tlong _ _ => val
-  | Tfloat _ _ => val
-  | Tpointer t1 a => val
-  | Tarray t1 sz a => list (reptype t1)
-  | Tfunction t1 t2 _ => unit
-  | Tstruct id fld a => reptype_structlist fld
-  | Tunion id fld a => reptype_unionlist fld
-  | Tcomp_ptr id a => val
-  end
-with reptype_structlist (fld: fieldlist) : Type :=
-  match fld with
-  | Fnil => unit
-  | Fcons id ty fld' => 
-    if is_Fnil fld' 
-      then reptype ty
-      else prod (reptype ty) (reptype_structlist fld')
-  end
-with reptype_unionlist (fld: fieldlist) : Type :=
-  match fld with
-  | Fnil => unit
-  | Fcons id ty fld' => 
-    if is_Fnil fld' 
-      then reptype ty
-      else sum (reptype ty) (reptype_unionlist fld')
-  end.
+Definition reptype: type -> Type :=
+  func_type (fun _ => Type)
+  (fun t =>
+     if ((type_is_by_value t) && negb (type_is_volatile t))%bool
+     then val
+     else unit)
+  (fun t n a T => list T)
+  (fun id a co T => compact_prod (decay T))
+  (fun id a co T => compact_sum (decay T)).
 
-Fixpoint reptype' (ty: type) : Type :=
-  match ty with
-  | Tvoid => unit
-  | Tint _ _ _ => int
-  | Tlong _ _ => Int64.int
-  | Tfloat _ _ => float
-  | Tpointer t1 a => val
-  | Tarray t1 sz a => list (reptype' t1)
-  | Tfunction t1 t2 _ => unit
-  | Tstruct id fld a => reptype'_structlist fld
-  | Tunion id fld a => reptype'_unionlist fld
-  | Tcomp_ptr id a => val
-  end
-with reptype'_structlist (fld: fieldlist) : Type :=
-  match fld with
-  | Fnil => unit
-  | Fcons id ty fld' => 
-    if is_Fnil fld' 
-      then reptype' ty
-      else prod (reptype' ty) (reptype'_structlist fld')
-  end
-with reptype'_unionlist (fld: fieldlist) : Type :=
-  match fld with
-  | Fnil => unit
-  | Fcons id ty fld' => 
-    if is_Fnil fld' 
-      then reptype' ty
-      else sum (reptype' ty) (reptype'_unionlist fld')
+Lemma reptype_ind: forall t,
+  reptype t = 
+  match t with
+  | Tarray t0 _ _ => list (reptype t0)
+  | Tstruct id _ =>
+      match cenv_cs ! id with
+      | Some co => compact_prod (map reptype (map snd (co_members co)))
+      | _ => unit
+      end
+  | Tunion id _ =>
+      match cenv_cs ! id with
+      | Some co => compact_sum (map reptype (map snd (co_members co)))
+      | _ => unit
+      end
+  | _ => if ((type_is_by_value t) && negb (type_is_volatile t))%bool
+      then val
+      else unit
   end.
+Proof.
+  intros.
+  unfold reptype.
+  rewrite func_type_ind with (t0 := t) at 1 by auto.
+  destruct t; auto.
+  + destruct (cenv_cs ! i); auto.
+    f_equal.
+    rewrite decay_spec.
+    rewrite map_map.
+    rewrite map_map.
+    reflexivity.
+  + destruct (cenv_cs ! i); auto.
+    f_equal.
+    rewrite decay_spec.
+    rewrite map_map.
+    rewrite map_map.
+    reflexivity.
+Qed.
+
+Definition reptype': type -> Type :=
+  func_type (fun _ => Type)
+  (fun t =>
+     if ((type_is_by_value t) && negb (type_is_volatile t))%bool
+     then match t with
+          | Tint _ _ _ => int
+          | Tlong _ _ => Int64.int
+          | Tfloat _ _ => float
+          | _ => val
+          end
+     else unit)
+  (fun t n a T => list T)
+  (fun id a co T => compact_prod (decay T))
+  (fun id a co T => compact_sum (decay T)).
+
+Lemma reptype'_ind: forall t, 
+  reptype' t = 
+  match t with
+  | Tarray t0 _ _ => list (reptype' t0)
+  | Tstruct id _ =>
+      match cenv_cs ! id with
+      | Some co => compact_prod (map reptype' (map snd (co_members co)))
+      | _ => unit
+      end
+  | Tunion id _ =>
+      match cenv_cs ! id with
+      | Some co => compact_sum (map reptype' (map snd (co_members co)))
+      | _ => unit
+      end
+  | _ => if ((type_is_by_value t) && negb (type_is_volatile t))%bool
+      then match t with
+           | Tint _ _ _ => int
+           | Tlong _ _ => Int64.int
+           | Tfloat _ _ => float
+           | _ => val
+           end
+      else unit
+  end.
+Proof.
+  intros.
+  unfold reptype'.
+  rewrite func_type_ind with (t0 := t) at 1 by auto.
+  destruct t; auto.
+  + destruct (cenv_cs ! i); auto.
+    f_equal.
+    rewrite decay_spec.
+    rewrite map_map.
+    rewrite map_map.
+    reflexivity.
+  + destruct (cenv_cs ! i); auto.
+    f_equal.
+    rewrite decay_spec.
+    rewrite map_map.
+    rewrite map_map.
+    reflexivity.
+Qed.
+
+Definition repinj: forall t: type, reptype' t -> reptype t :=
+  func_type (fun t => reptype' t -> reptype t)
+  (fun t => if ((type_is_by_value t) && negb (type_is_volatile t))%bool
+      then match t with
+            | Tint _ _ _ => Vint
+            | Tlong _ _ => Vlong
+            | Tfloat _ _ => Vfloat
+            | _ => id
+            end)
+  (fun t n a f v => map f v)
+  (fun id a co F
 
 Fixpoint repinj (t: type): reptype' t -> reptype t :=
   match t as t0 return (reptype' t0 -> reptype t0) with

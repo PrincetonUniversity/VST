@@ -46,24 +46,7 @@ Fixpoint decay'' {X} {F: Type} (l0 : list Type) (v: ListType l0) :
   | Cons A B a b =>
     fun (l1 : list X) (E0 : A :: B = map (fun _ : X => F) l1) =>
     match l1 as l2 return (A :: B = map (fun _ : X => F) l2 -> list F) with
-    | nil =>
-       fun E1 : A :: B = map (fun _ : X => F) nil =>
-       (fun
-          X0 : map (fun _ : X => F) nil = map (fun _ : X => F) nil -> list F =>
-        X0 eq_refl)
-         match
-           E1 in (_ = y) return (y = map (fun _ : X => F) nil -> list F)
-         with
-         | eq_refl =>
-             fun H0 : A :: B = map (fun _ : X => F) nil =>
-              False_rect (list F)
-                (eq_ind (A :: B)
-                   (fun e : list Type =>
-                    match e with
-                    | nil => False
-                    | _ :: _ => True
-                    end) I (map (fun _ : X => F) nil) H0)
-         end
+    | nil => fun _ => nil (* impossible case *)
     | x :: l2 =>
        fun E1 : A :: B = map (fun _ : X => F) (x :: l2) =>
        (fun
@@ -76,18 +59,14 @@ Fixpoint decay'' {X} {F: Type} (l0 : list Type) (v: ListType l0) :
          with
          | eq_refl =>
              fun H0 : A :: B = map (fun _ : X => F) (x :: l2) =>
-              (fun H1 : B = map (fun _ : X => F) l2 =>
-               (fun (H3 : A = F) (H4 : B = map (fun _ : X => F) l2) =>
-                 (fun IHv0 : list F =>
-                  (fun a0 : F => a0 :: IHv0)
-                    (eq_rect A (fun A0 : Type => A0) a F H3)) 
-                   (decay'' B b l2 H4))
+              (fun (H3 : A = F) (H4 : B = map (fun _ : X => F) l2) =>
+                  (eq_rect A (fun A0 : Type => A0) a F H3) :: (decay'' B b l2 H4))
                  (f_equal
                     (fun e : list Type =>
                      match e with
                      | nil => A
                      | T :: _ => T
-                     end) H0) H1)
+                     end) H0)
                 (f_equal
                    (fun e : list Type =>
                     match e with
@@ -114,6 +93,106 @@ Proof.
   + simpl.
     f_equal.
     auto.
+Qed.
+
+Fixpoint compact_prod (T: list Type): Type :=
+  match T with 
+  | nil => unit
+  | t :: nil => t
+  | t :: T0 => (t * compact_prod T0)%type
+  end.
+
+Fixpoint compact_sum (T: list Type): Type :=
+  match T with 
+  | nil => unit
+  | t :: nil => t
+  | t :: T0 => (t + compact_sum T0)%type
+  end.
+
+Definition compact_prod_map {X: Type} {F F0: X -> Type} (l: list X)
+  (f: ListType (map (fun x => F x -> F0 x) l)): compact_prod (map F l) -> compact_prod (map F0 l).
+Proof.
+  intros.
+  destruct l; [exact tt |].
+  revert x f X0; induction l; intros; simpl in *.
+  + inversion f; subst.
+    exact (a X0).
+  + remember ((F a -> F0 a) :: map (fun x0 : X => F x0 -> F0 x0) l) as L;
+    inversion f; subst.
+    exact (a0 (fst X0), IHl a b (snd X0)).
+Defined.
+
+Lemma compact_prod_map_nil: forall {X: Type} {F F0: X -> Type},
+  @compact_prod_map X F F0 nil Nil tt = tt.
+Proof.
+  intros.
+  reflexivity.
+Qed.
+
+Lemma compact_prod_map_single: forall {X: Type} {F F0: X -> Type} (x: X)
+  (f: F x -> F0 x) (v: F x),
+  compact_prod_map (x :: nil) (Cons f Nil) v = f v.
+Proof.
+  intros.
+  reflexivity.
+Qed.
+
+Lemma compact_prod_map_cons: forall {X: Type} {F F0: X -> Type} (x x0: X) (l: list X)
+  (f: F x -> F0 x) (fl: ListType (map (fun x => F x -> F0 x) (x0 :: l)))
+  (v: F x) (vl: compact_prod (map F (x0 :: l))),
+  compact_prod_map (x :: x0 :: l) (Cons f fl) (v, vl) = (f v, compact_prod_map _ fl vl).
+Proof.
+  intros.
+  reflexivity.
+Qed.
+
+Definition compact_sum_map {X: Type} {F F0: X -> Type} (l: list X)
+  (f: ListType (map (fun x => F x -> F0 x) l)): compact_sum (map F l) -> compact_sum (map F0 l).
+Proof.
+  intros.
+  destruct l; [exact tt |].
+  revert x f X0; induction l; intros; simpl in *.
+  + inversion f; subst.
+    exact (a X0).
+  + remember ((F a -> F0 a) :: map (fun x0 : X => F x0 -> F0 x0) l) as L;
+    inversion f; subst.
+    exact match X0 with
+          | inl X0_l => inl (a0 X0_l)
+          | inr X0_r => inr (IHl a b X0_r)
+          end.
+Defined.
+
+Lemma compact_sum_map_nil: forall {X: Type} {F F0: X -> Type},
+  @compact_sum_map X F F0 nil Nil tt = tt.
+Proof.
+  intros.
+  reflexivity.
+Qed.
+
+Lemma compact_sum_map_single: forall {X: Type} {F F0: X -> Type} (x: X)
+  (f: F x -> F0 x) (v: F x),
+  compact_sum_map (x :: nil) (Cons f Nil) v = f v.
+Proof.
+  intros.
+  reflexivity.
+Qed.
+
+Lemma compact_sum_map_cons_inl: forall {X: Type} {F F0: X -> Type} (x x0: X) (l: list X)
+  (f: F x -> F0 x) (fl: ListType (map (fun x => F x -> F0 x) (x0 :: l)))
+  (v: F x),
+  compact_sum_map (x :: x0 :: l) (Cons f fl) (inl v) = inl (f v).
+Proof.
+  intros.
+  reflexivity.
+Qed.
+
+Lemma compact_sum_map_cons_inr: forall {X: Type} {F F0: X -> Type} (x x0: X) (l: list X)
+  (f: F x -> F0 x) (fl: ListType (map (fun x => F x -> F0 x) (x0 :: l)))
+  (vl: compact_sum (map F (x0 :: l))),
+  compact_sum_map (x :: x0 :: l) (Cons f fl) (inr vl) = inr (compact_sum_map _ fl vl).
+Proof.
+  intros.
+  reflexivity.
 Qed.
 
 Section COMPOSITE_ENV.
