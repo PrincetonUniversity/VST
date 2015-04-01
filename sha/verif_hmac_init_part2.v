@@ -468,7 +468,8 @@ forward_if PostResetBranch.
           entailer. cancel.
     } 
     normalize. destruct R; subst r. omega. clear H. rename H0 into isbyte_key.
-    assert_PROP (isptr k). entailer. apply isptrD in H; destruct H as [kb [kofs HK]]. subst k.
+    assert_PROP (isptr k). entailer. apply isptrD in H; destruct H as [kb [kofs HK]]. 
+    subst k.
 
     eapply semax_seq'. (*TODO: using forward_seq here introduces another Delta0 in goal2 - but 
                           it worked fine before I split this off into file XXX_part2.v *)

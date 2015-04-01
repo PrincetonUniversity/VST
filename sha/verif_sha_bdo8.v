@@ -284,19 +284,6 @@ name h_ _h.
 name t_ _t.
 name ctx_ _ctx.
 rename regs' into atoh.
-
-assert (forall j : nat,
-   (j < 8)%nat ->
-   (temp_types (initialized _i Delta_loop1))
-    ! (nth j [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive) = Some (tuint, true)).
- intros; destruct j as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try reflexivity; omega.
-
-assert (forall j : nat,
-   (j < 8)%nat ->
-   (temp_types (initialized _t (initialized _i Delta_loop1)))
-    ! (nth j [_a; _b; _c; _d; _e; _f; _g; _h] 1%positive) = Some (tuint, true)).
- intros; destruct j as [ | [ | [ | [ | [ | [ | [ | [ | ]]]]]]]]; try reflexivity; omega.
-
 unfold sequence, add_them_back.
 change regs with  (add_upto 0 regs atoh) at 1.
 
@@ -316,7 +303,7 @@ assert (INT_ADD_UPTO:
  rewrite nth_map' with (d' := Int.zero).
   apply I.
   rewrite length_add_upto by omega; rewrite H. apply Nat2Z.inj_lt.
-  rewrite Z2Nat.id by omega. apply H4.
+  rewrite Z2Nat.id by omega. apply H2.
 }
 
 assert (ADD_S:
@@ -339,7 +326,7 @@ subst i'.
 rewrite add_upto_S; try omega.
 f_equal.
 destruct (Znth (Z.of_nat i) (map Vint (add_upto i regs atoh)) Vundef) eqn:?;
-   try contradiction H5.
+   try contradiction H3.
 simpl.
 f_equal. f_equal.
 unfold Znth in Heqv.
@@ -353,30 +340,29 @@ clear; omega.
 }
 
 Opaque add_upto.
-
 forward.
 entailer!. apply INT_ADD_UPTO; auto; computable.
 forward.
 simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H3].
+forward t; [entailer! | clear t H1].
 forward.
 simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H3].
+forward t; [entailer! | clear t H1].
 forward.
 simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H3].
+forward t; [entailer! | clear t H1].
 forward.
 simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H3].
+forward t; [entailer! | clear t H1].
 forward.
 simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H3].
+forward t; [entailer! | clear t H1].
 forward.
 simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H3].
+forward t; [entailer! | clear t H1].
 forward.
 simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
-forward t; [entailer! | clear t H3].
+forward t; [entailer! | clear t H1].
 forward.
 simpl upd_reptype; rewrite ADD_S by (try reflexivity; clear; try omega).
 replace (add_upto 8 regs atoh) with  (map2 Int.add regs atoh).

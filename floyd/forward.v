@@ -785,6 +785,7 @@ Tactic Notation "uniform_intros" simple_intropattern_list(v) :=
 
 Tactic Notation "forward_call'" constr(witness) simple_intropattern_list(v) :=
     check_canonical_call;
+    check_Delta;
     fwd_call' witness;
   [ .. 
   | first 
@@ -1175,6 +1176,7 @@ repeat match goal with
 end.
 
 Tactic Notation "forward_while" constr(Inv) constr (Postcond) :=
+  check_Delta;
   repeat (apply -> seq_assoc; abbreviate_semax);
   first [ignore (Inv: environ->mpred) 
          | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
@@ -1255,6 +1257,7 @@ Tactic Notation "forward_while" constr(Inv) constr (Postcond)
      ]; abbreviate_semax; autorewrite with ret_assert.
 
 Ltac forward_for_simple_bound n Pre :=
+  check_Delta;
  repeat match goal with |-
       semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
       apply -> seq_assoc; abbreviate_semax
@@ -1269,6 +1272,7 @@ Ltac forward_for_simple_bound n Pre :=
   ].
 
 Ltac forward_for Inv PreIncr Postcond :=
+  check_Delta;
   repeat (apply -> seq_assoc; abbreviate_semax);
   first [ignore (Inv: environ->mpred) 
          | fail 1 "Invariant (first argument to forward_for) must have type (environ->mpred)"];
@@ -1293,6 +1297,7 @@ Ltac forward_for Inv PreIncr Postcond :=
 
 
 Ltac forward_if' := 
+  check_Delta;
 match goal with 
 | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                                  (Sifthenelse ?e _ _) _ => 
@@ -1301,6 +1306,7 @@ match goal with
 end.
 
 Ltac forward_if'_new := 
+  check_Delta;
 match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
     evar (v: val);
@@ -1316,6 +1322,7 @@ match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e
 end.
 
 Ltac forward_if_tac post :=
+  check_Delta;
   repeat (apply -> seq_assoc; abbreviate_semax);
 first [ignore (post: environ->mpred) 
       | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
@@ -1631,6 +1638,7 @@ Ltac normalize_make_args :=
   | unfold R'; clear R'].
 
 Ltac forward_call W := 
+  check_Delta;
  let witness := fresh "witness" in
  pose (witness := W);   (* faster this way, for some reason *)
 match goal with
@@ -1739,6 +1747,7 @@ match e with
 end.
 
 Ltac forward_ptr_cmp := 
+  check_Delta;
 first [eapply forward_ptr_compare_closed_now;
        [    solve [auto 50 with closed] 
           | solve [auto 50 with closed] 
@@ -2750,6 +2759,7 @@ Ltac fwd_last :=
   end.
 
 Tactic Notation "forward" :=
+  check_Delta;
  repeat simple apply seq_assoc2;
  first
  [ fwd_last
@@ -2763,6 +2773,7 @@ Tactic Notation "forward" :=
  ].
 
 Tactic Notation "forward" simple_intropattern(v1) :=
+  check_Delta;
   fwd';
   [ .. 
   | intros v1;
