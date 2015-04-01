@@ -148,6 +148,7 @@ match c with
     | Some ?fs => check_canonical_funspec fs
     end 
 | Ssequence ?c1 _ => check_canonical_call' Delta c1
+| _ => let d := eval hnf in c in check_canonical_call' Delta d
 end.
 
 Ltac check_canonical_call :=

@@ -1828,7 +1828,11 @@ Proof.
   + exact H0.
 Qed.
 
-Hint Resolve data_at_data_at_: cancel.
+(* We do these as Hint Extern, instead of Hint Resolve,
+  to limit their application and make them fail faster *)
+
+Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
+    (apply data_at_data_at_) : cancel.
 
 Lemma data_at_Tarray_ext_derives: forall sh t n a v v',
   (forall i, 0 <= i < n ->

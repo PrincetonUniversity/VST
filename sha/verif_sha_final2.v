@@ -135,6 +135,7 @@ erewrite array_seg_reroot_lemma with (gfs := [StructField _data]) (lo := ddlen +
   2: rewrite Zlength_correct, length_list_repeat; rewrite Z2Nat.id by omega; reflexivity.
 normalize.
 change (64-(ddlen+1)) with (CBLOCKz-(ddlen+1)).
+
 forward_call' (* memset (p+n,0,SHA_CBLOCK-n); *)
    ((Tsh,
      (field_address t_struct_SHA256state_st
@@ -142,14 +143,10 @@ forward_call' (* memset (p+n,0,SHA_CBLOCK-n); *)
      (CBLOCKz - (ddlen + 1)))%Z,
      Int.zero) vret.
 
-  apply prop_right; repeat constructor.
-  hnf; simpl.
+  apply prop_right.
   repeat rewrite field_address_clarify; auto.
-  normalize.
   erewrite nested_field_offset2_Tarray; [ |reflexivity].
-  change (sizeof tuchar) with 1.
-  rewrite Z.mul_1_l.
-  normalize.
+  change (sizeof tuchar) with 1. normalize.
 
   change CBLOCKz with 64%Z.
   normalize.

@@ -155,6 +155,14 @@ Definition zero_of_type (t: type) : val :=
   | _ => Vint Int.zero
  end.
 
+
+Definition eval_sgvar (id: ident) (ty: type) (rho: environ) :=
+ match Map.get (ge_of rho) id with
+| Some b => Vptr b Int.zero
+| None => Vundef
+end.
+
+
 Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: type) (v: val) : environ -> mpred :=
  match d with
   | Init_int8 i => `(mapsto sh tuchar v (Vint (Int.zero_ext 8 i)))
@@ -172,7 +180,7 @@ Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: 
       | None, Some (Tarray t n' att) =>
          EX s:val, local (gvar symb s) && `(mapsto sh (Tpointer t noattr) v (offset_val ofs s))
       | None, Some Tvoid => TT
-      | None, Some t => `(mapsto sh (Tpointer t noattr) v) (`(offset_val ofs) (eval_var symb t))
+      | None, Some t => `(mapsto sh (Tpointer t noattr) v) (`(offset_val ofs) (eval_sgvar symb t))
       | Some _, Some (Tarray t _ att) => `(memory_block sh (Int.repr 4) v)
       | Some _, Some Tvoid => TT
       | Some _, Some (Tpointer (Tfunction _ _ _) _) => `(memory_block sh (Int.repr 4) v) 
@@ -307,11 +315,9 @@ intros H1 HH H1' H6' H6 H7 H8 H1''.
     auto.
  +
    destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
-    assert (eval_var i t0 rho = Vptr b' Int.zero).
-    {destruct (globvar_eval_var _ _ _ _ H7 Hv Hg) as [bx [? ?]].
-      rewrite H15 in H0. symmetry in H0; inv H0.
-      rewrite <- H. reflexivity.
-     }
+    assert (eval_sgvar i t0 rho = Vptr b' Int.zero).
+    {unfold eval_sgvar, Map.get. rewrite H15. auto.
+    }
     destruct t0; simpl; try apply TT_right; try rewrite H8; try rewrite H;
      unfold offset_val; simpl; try rewrite Int.add_zero_l;
     try apply derives_refl.

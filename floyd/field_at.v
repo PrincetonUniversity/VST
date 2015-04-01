@@ -678,8 +678,6 @@ Lemma field_at_data_at_cancel:
   forall sh t v p, field_at sh t nil v p |-- data_at sh t v p.
 Proof. intros; rewrite data_at_field_at; auto. Qed.
 
-Hint Resolve data_at_field_at_cancel field_at_data_at_cancel : cancel.
-
 Lemma field_at_data_at: forall sh t gfs v p,
   field_at sh t gfs v p =
   data_at sh (nested_field_type2 t gfs) v (field_address t gfs p).
@@ -802,8 +800,25 @@ Hint Rewrite <- field_at__offset_zero: norm.
 Hint Rewrite <- field_at_offset_zero: cancel.
 Hint Rewrite <- field_at__offset_zero: cancel.
 
-Hint Extern 2 (field_at _ _ _ _ _ |-- _) => 
-   (apply field_at_field_at_; solve [auto]) : cancel.
+(* We do these as Hint Extern, instead of Hint Resolve,
+  to limit their application and make them fail faster *)
+
+Hint Extern 1 (data_at _ _ _ _ |-- field_at _ _ nil _ _) =>
+    (apply data_at_field_at_cancel) : cancel.
+
+Hint Extern 1 (field_at _ _ nil _ _ |-- data_at _ _ _ _) =>
+    (apply field_at_data_at_cancel) : cancel.
+
+Hint Extern 2 (field_at _ _ _ _ _ |-- field_at_ _ _ _ _) => 
+   (apply field_at_field_at_) : cancel.
+
+Hint Extern 2 (field_at _ _ _ _ _ |-- field_at ?sh ?t ?gfs ?v _) => 
+   (change (field_at sh t gfs v) with (field_at_ sh t gfs);
+    apply field_at_field_at_) : cancel.
+
+Hint Extern 2 (field_at ?sh ?t ?gfs ?v _ |-- field_at_ _ _ _ _) => 
+   (change (field_at sh t gfs v) with (field_at_ sh t gfs);
+    apply derives_refl) : cancel.
 
 (*
 Lemma field_at_field_at: forall sh t gfs0 gfs1 v v' p,

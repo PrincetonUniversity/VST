@@ -313,39 +313,21 @@ forward_if PostKeyNull.
        rewrite data_at__memory_block. entailer.
        reflexivity. simpl. omega.
      }
-     forward_call (Tsh, offset_val (Int.repr 32) (Vptr ckb ckoff), 32, Int.zero).
-     { assert (FR: Frame = [ `(K_vector kv);
-         `(data_at_ Tsh sha.t_struct_SHA256state_st (Vptr cb cofs));
-         `(data_block Tsh (sha_finish ctxSha) (Vptr ckb ckoff));
-         `(data_block Tsh key (Vptr kb kofs));
-         `(field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]
-           ([], (Vundef, (Vundef, ([], Vundef)))) (Vptr cb cofs));
-         `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]
-           ([], (Vundef, (Vundef, ([], Vundef)))) (Vptr cb cofs));
-         `(data_at_ Tsh (Tarray tuchar 64 noattr) pad)]).
-         subst Frame; reflexivity.
-       rewrite FR; clear FR Frame.
-       entailer. apply andp_right. 2: cancel.
-      (*TODO here we see why forward_call' fails -- we've got to prove
-         something about eval_var _ctx_key here, but have 
-         lvar _ctx_key in the proof context*) admit. (*TODO!!*)
-     }
-     after_call. subst PostIf_j_Len. entailer. cancel.
-     unfold data_block. simpl; normalize.
+     forward_call' (Tsh, offset_val (Int.repr 32) (Vptr ckb ckoff), 32, Int.zero)
+        vret.
+     {subst PostIf_j_Len.
+      unfold data_block.
+      entailer!.
+    unfold_data_at 3%nat. cancel.
      assert (SFL: Zlength  (sha_finish ctxSha) = 32).
         destruct ctxSha. simpl. rewrite <- functional_prog.SHA_256'_eq, Zlength_correct, length_SHA256'. reflexivity. 
-     rewrite SFL.     
-   unfold data_at_.
-   unfold_data_at 5%nat.
-   destruct (zlt 64 (Zlength key)). 2: omega.
-   cancel. 
-   rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]); try reflexivity.
-      simpl. unfold nested_field_type2. simpl. unfold field_address; simpl.
-   destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
-            (Vptr cb cofs)).
-   2: elim (n FC).
-   unfold nested_field_offset2; simpl. rewrite Int.add_zero. cancel.
-     unfold tarray. rewrite (data_at_Tarray_split3 Tsh tuchar 64 noattr 32). 2: omega.
+     rewrite SFL.   
+     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]); try reflexivity.
+      simpl. 
+     rewrite field_address_clarify by auto.
+     unfold nested_field_type2, nested_field_offset2. simpl.
+     normalize. cancel.
+     unfold tarray. rewrite (data_at_Tarray_split3 Tsh tuchar 64 noattr 32) by omega.
      specialize (split_offset_array_at 32). unfold tarray; intros SOA.
      rewrite SOA with (len :=64)(v:=Vptr ckb ckoff); try reflexivity; clear SOA.
        Focus 2. rewrite Zlength_correct, app_length, force_lengthn_length_n, Nat2Z.inj_add, nat_of_Z_eq.
@@ -370,7 +352,7 @@ forward_if PostKeyNull.
      { apply data_at_Tarray_ext_derives. intros. 
               unfold Znth. if_tac. omega.
               assert (Z32: (Z.to_nat i < 32)%nat).
-                  clear - H4; destruct H4 as [XX YY]. rewrite Z2Nat.inj_lt in YY.
+                  clear - H; destruct H as [XX YY]. rewrite Z2Nat.inj_lt in YY.
                   apply YY. omega. omega.
          apply data_at_triv.
          rewrite nth_force_lengthn. 2: simpl; omega.
@@ -392,7 +374,7 @@ forward_if PostKeyNull.
        unfold Znth. if_tac. omega. if_tac. omega. clear H5 H6. 
        apply data_at_triv.
        assert (Z32: (Z.to_nat i < 32)%nat).
-                  clear - H4; destruct H4 as [XX YY]. rewrite Z2Nat.inj_lt in YY.
+                  clear - H; destruct H as [XX YY]. rewrite Z2Nat.inj_lt in YY.
                   apply YY. omega. omega.
        unfold HMAC_SHA256.mkKey. 
                assert (Kgt: Zlength key > Z.of_nat SHA256.BlockSize).  simpl; omega.
@@ -422,7 +404,8 @@ forward_if PostKeyNull.
                 rewrite map_length, length_list_repeat. omega. 
                 unfold SHA256.DigestLength. simpl; omega.
          }
-   } 
+   }
+}
    { (* j >= len*)
      rename H into ge_64_l. 
 
@@ -496,43 +479,33 @@ forward_if PostKeyNull.
           rewrite int_max_unsigned_eq.
           rewrite int_max_signed_eq in KL2. omega. }
      simpl. subst v. remember (map Vint (map Int.repr key)) as KCONT.
-
      (*call memset*)
-     forward_call (Tsh, Vptr ckb (Int.add ckoff (Int.repr (Zlength key))), l64, Int.zero).
-     { assert (FR: Frame = [
-            `(data_at Tsh (Tarray tuchar (Zlength key) noattr) KCONT (Vptr ckb ckoff));
-            `(data_at Tsh (Tarray tuchar (Zlength key) noattr) KCONT (Vptr kb kofs));
-            `(data_at_ Tsh t_struct_hmac_ctx_st (Vptr cb cofs));
-            `(data_at_ Tsh (Tarray tuchar 64 noattr) pad); `(K_vector kv)]).
-         subst Frame; reflexivity.
-       rewrite FR; clear FR Frame.   
-       entailer. 
-       apply andp_right. apply prop_right. admit. (*TODO: same issue as above*)
-        (* split; trivial.
-         split; trivial.
-         clear - KL2; split.
-           specialize (initial_world.zlength_nonneg _ key); intros.
-           rewrite int_max_unsigned_eq. omega.
-         unfold offset_val. simpl. rewrite Int.add_zero, Int.mul_commut, Int.mul_one. trivial.*)
-       cancel. 
-       eapply derives_trans; try apply data_at_data_at_.
+     clear HH.
+     forward_call' (Tsh, Vptr ckb (Int.add ckoff (Int.repr (Zlength key))), l64, Int.zero)
+       vret.
+     rewrite <- KL1.
+     match goal with |- _ * _ * ?A * _ * _ * _ |-- _ => 
+                  pull_left A end.
+     repeat rewrite sepcon_assoc. apply sepcon_derives; [ | cancel].
+     eapply derives_trans; try apply data_at_data_at_.
                rewrite data_at__memory_block. 
                rewrite sizeof_Tarray. entailer.
-         assert (64 - Zlength key >= 0). omega.
-         rewrite Zmax_spec. destruct (zlt (64 - Zlength key) 0); trivial. omega.
-         reflexivity.
-         rewrite  sizeof_Tarray. 
-         assert (64 - Zlength key <= 64) by omega.
-         assert (64 < Int.modulus).
-         2: omega.
-         rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
-         rewrite Zmax_spec. destruct (zlt (64 - Zlength key) 0); trivial. omega.
-     } 
-     after_call. 
-   subst PostIf_j_Len. entailer. cancel. unfold tarray.
+     rewrite Zmax_spec.
+     rewrite if_false by omega; auto.
+     reflexivity.
+     subst l64.
+     rewrite  sizeof_Tarray.
+     change Int.modulus with (Int.max_unsigned+1).
+     repable_signed. 
+     apply Z.max_r. omega.
+     split; auto. repable_signed.
+
+     subst PostIf_j_Len.
+   entailer!.
+   cancel. unfold tarray.
 
    destruct (zlt 64 (Zlength key)). omega. rewrite Zlength_correct in g. apply (Nat2Z.inj_ge 64) in g.
-   clear H TC0 h1.
+   clear H0 TC0 h1.
      remember (64 - Zlength key) as ZK64.
      rewrite (data_at_Tarray_split3a Tsh tuchar 64 noattr (Zlength key)). 2: omega.
               simpl. unfold nat_of_Z. rewrite Zlength_correct, Nat2Z.id.

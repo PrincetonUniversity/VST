@@ -347,6 +347,24 @@ Proof.
   destruct (eqb_type t t0); try contradiction; auto.
 Qed.
 
+Lemma lvar_eval_var:
+ forall i t v rho, lvar i t v rho -> eval_var i t rho = v.
+Proof.
+intros.
+unfold eval_var. hnf in H. destruct (Map.get (ve_of rho) i) as [[? ?]|]; try inv H.
+destruct (eqb_type t t0); try inv H. auto.
+Qed.
+
+Lemma lvar_isptr_eval_var:
+ forall i t v rho, lvar i t v rho -> isptr (eval_var i t rho).
+Proof.
+intros.
+erewrite lvar_eval_var; eauto.
+eapply lvar_isptr; eauto.
+Qed.
+
+Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumption).
+
 Ltac fixup_local_var  :=  (* this tactic is needed only until start_function
                                            handles lvars in a better way *)
  match goal with |- semax _ ?Pre0 _ _ => match Pre0 with 
@@ -446,7 +464,7 @@ Qed.
 
 Ltac Forall_pTree_from_elements :=
  cbv beta;
- entailer;
+ go_lower; ent_iter;
  repeat first
    [ apply prop_Forall_cons1;
      [unfold check_one_temp_spec, check_one_var_spec; 
@@ -465,7 +483,8 @@ Ltac Forall_pTree_from_elements :=
  unfold check_one_temp_spec;
  simpl PTree.get; 
  change (@snd ident val) with (fun p: ident*val => let (_,y) := p in y);
-  cbv beta iota; simpl force_val.
+  cbv beta iota; simpl force_val;
+ entailer.
 
 Ltac Forall_check_spec :=
  apply prop_right; repeat constructor; hnf; simpl;
@@ -713,18 +732,14 @@ Ltac fwd_skip :=
  end.
 
 Ltac fwd_call' witness :=
-match goal with
-| |- semax _ _ (Scall _ _ _) _ =>
-      rewrite -> semax_seq_skip; [fwd_call' witness | try fwd_skip]
-| |- _ => revert witness; 
-              match goal with |- let _ := ?A in _ => intro;
-                      fwd_call' A 
-              end
-| |- _ =>
+ try match goal with
+      | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
+      end;
  first [
-     let Pst := fresh "Pst" in
-     evar (Pst: val -> environ -> mpred);
-     apply semax_seq' with (exp Pst); unfold Pst; clear Pst;
+     revert witness; 
+     match goal with |- let _ := ?A in _ => intro; fwd_call' A 
+     end
+   | eapply semax_seq';
      [first [forward_call_id1_wow witness
            | forward_call_id1_x_wow witness
            | forward_call_id1_y_wow witness
@@ -734,8 +749,7 @@ match goal with
   |  eapply semax_seq'; [forward_call_id00_wow witness 
           | after_forward_call ]
   | rewrite <- seq_assoc; fwd_call' witness
-  ]
- end.
+  ].
 
 Definition In_the_previous_'forward'_use_an_intro_pattern_of_type (t: Type) := False.
 

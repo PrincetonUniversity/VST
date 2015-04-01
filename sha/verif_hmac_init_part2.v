@@ -469,7 +469,7 @@ forward_if PostResetBranch.
     } 
     normalize. destruct R; subst r. omega. clear H. rename H0 into isbyte_key.
     assert_PROP (isptr k). entailer. apply isptrD in H; destruct H as [kb [kofs HK]]. subst k.
-     
+
     eapply semax_seq'. (*TODO: using forward_seq here introduces another Delta0 in goal2 - but 
                           it worked fine before I split this off into file XXX_part2.v *)
     instantiate (1:= 
@@ -705,7 +705,6 @@ forward_if PostResetBranch.
     (*Call to _SHA256_Init*) 
     (*TODO: one of the most recent changes in floyd (or elsewhere?) meant
     that I have to do the following unfold here t get forward_call' to apply*)
-    unfold MORE_COMMANDS, abbreviate. 
     forward_call' (Vptr cb (Int.add cofs (Int.repr 216))).
 
     (* Call to sha_update*)

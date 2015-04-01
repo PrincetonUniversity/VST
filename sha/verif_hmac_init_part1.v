@@ -565,46 +565,29 @@ forward_if PostKeyNull.
 Opaque Z.sub. 
    remember (map Vint (map Int.repr key)) as CONT. 
    forward_call' (Tsh, offset_val (Int.repr (Zlength key + 328)) (Vptr cb cofs), l64, Int.zero) v.
-   { apply prop_right. clear.
-     split. rewrite Zplus_comm. reflexivity. reflexivity.
+   { apply prop_right. f_equal. f_equal. f_equal. f_equal.
+     rewrite Zplus_comm. reflexivity. 
    }
-   { assert (FR: Frame = [
-        (data_at Tsh (Tarray tuchar (Zlength key) noattr)
-              CONT (Vptr cb (Int.add cofs (Int.repr 328))));
-        (data_at Tsh (Tarray tuchar (Zlength key) noattr)
-              CONT (Vptr kb kofs));
-         (field_at Tsh t_struct_hmac_ctx_st [StructField _key_length] Vundef (Vptr cb cofs));
-         (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]
-             ([], (Vundef, (Vundef, ([], Vundef)))) (Vptr cb cofs));
-         (field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]
-             ([], (Vundef, (Vundef, ([], Vundef)))) (Vptr cb cofs));
-         (field_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]
-             ([], (Vundef, (Vundef, ([], Vundef)))) (Vptr cb cofs));
-         (data_at_ Tsh (Tarray tuchar 64 noattr) pad);
-         (K_vector kv)]).
-         subst Frame; reflexivity.
-       rewrite FR. clear FR Frame.   
-       entailer; cancel.
-       eapply derives_trans; try apply data_at_data_at_.
-               rewrite data_at__memory_block. entailer.
-               rewrite sizeof_Tarray, Zplus_comm. cancel.
-Transparent Z.sub. 
+   match goal with |- _ * _ * ?A * _ * _ * _ * _ * _ * _ |-- _ => pull_left A end.
+   repeat rewrite sepcon_assoc; apply sepcon_derives.
+        eapply derives_trans; try apply data_at_data_at_.
+        rewrite data_at__memory_block. entailer.
+        rewrite sizeof_Tarray, Zplus_comm. cancel.
+   Transparent Z.sub. 
                apply Zmax_right. omega. 
                reflexivity.
                rewrite sizeof_Tarray, <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
                apply Zmax_right; omega.
-   }
-   { subst l64 l. split; trivial. split. omega. clear - ge_64_l KL2; destruct KL2. assert (64 <= Int.max_unsigned). 2: omega.
-      rewrite int_max_unsigned_eq. omega.
-   }
-   subst v; normalize.
+    cancel.
+    split; auto. repable_signed.
+    simpl map.
 
    forward. (*ctx->key_length=len*)
    subst PostIf_j_Len. entailer. cancel.
    unfold_data_at 3%nat. entailer.
    cancel.
    destruct (zlt 64 (Zlength key)). omega. cancel. rewrite Zlength_correct in g. apply (Nat2Z.inj_ge 64) in g.
-   clear H H0 TC0 h1.
+   clear H0 TC0 h1.
    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _key]); try reflexivity.
    remember (64 - Zlength key) as ZK64. 
      unfold nested_field_offset2, nested_field_type2; simpl.
