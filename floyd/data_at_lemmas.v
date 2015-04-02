@@ -4,8 +4,10 @@ Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
 Require Import floyd.fieldlist.
 Require Import floyd.nested_field_lemmas.
+(*
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.rangespec_lemmas.
+*)
 Require Import Coq.Logic.JMeq.
 Opaque alignof.
 
@@ -29,44 +31,53 @@ Context {cs: compspecs}.
 Definition reptype: type -> Type :=
   func_type (fun _ => Type)
   (fun t =>
-     if ((type_is_by_value t) && negb (type_is_volatile t))%bool
+     if (type_is_by_value t)
      then val
      else unit)
   (fun t n a T => list T)
-  (fun id a co T => compact_prod (decay T))
-  (fun id a co T => compact_sum (decay T)).
+  (fun id a T => compact_prod (decay T))
+  (fun id a T => compact_sum (decay T)).
 
-Lemma reptype_ind: forall t,
-  reptype t = 
-  match t with
+Notation REPTYPE t :=
+ (match t return Type with
+  | Tvoid
+  | Tfunction _ _ _ => unit
+  | Tint _ _ a
+  | Tlong _ a
+  | Tfloat _ a
+  | Tpointer _ a => val
   | Tarray t0 _ _ => list (reptype t0)
-  | Tstruct id _ =>
-      match cenv_cs ! id with
-      | Some co => compact_prod (map reptype (map snd (co_members co)))
-      | _ => unit
-      end
-  | Tunion id _ =>
-      match cenv_cs ! id with
-      | Some co => compact_sum (map reptype (map snd (co_members co)))
-      | _ => unit
-      end
-  | _ => if ((type_is_by_value t) && negb (type_is_volatile t))%bool
-      then val
-      else unit
+  | Tstruct id _ => compact_prod (map reptype (map snd (co_members (get_co id))))
+  | Tunion id _ => compact_sum (map reptype (map snd (co_members (get_co id))))
+  end: Type).
+
+Lemma type_is_volatile_spec: forall t,
+  type_is_volatile t =
+  match t with
+  | Tint _ _ a
+  | Tlong _ a
+  | Tfloat _ a
+  | Tpointer _ a => attr_volatile a
+  | _ => false
   end.
 Proof.
   intros.
-  unfold reptype.
-  rewrite func_type_ind with (t0 := t) at 1 by auto.
+  destruct t as [| [| | |] [|] | | [|] | | | | |]; try reflexivity.
+Defined.
+
+Lemma reptype_ind: forall t,
+  reptype t = REPTYPE t.
+Proof.
+  intros.
+  unfold reptype at 1.
+  rewrite func_type_ind.
   destruct t; auto.
-  + destruct (cenv_cs ! i); auto.
-    f_equal.
+  + f_equal.
     rewrite decay_spec.
     rewrite map_map.
     rewrite map_map.
     reflexivity.
-  + destruct (cenv_cs ! i); auto.
-    f_equal.
+  + f_equal.
     rewrite decay_spec.
     rewrite map_map.
     rewrite map_map.
@@ -76,7 +87,7 @@ Qed.
 Definition reptype': type -> Type :=
   func_type (fun _ => Type)
   (fun t =>
-     if ((type_is_by_value t) && negb (type_is_volatile t))%bool
+     if (type_is_by_value t)
      then match t with
           | Tint _ _ _ => int
           | Tlong _ _ => Int64.int
@@ -85,62 +96,190 @@ Definition reptype': type -> Type :=
           end
      else unit)
   (fun t n a T => list T)
-  (fun id a co T => compact_prod (decay T))
-  (fun id a co T => compact_sum (decay T)).
+  (fun id a T => compact_prod (decay T))
+  (fun id a T => compact_sum (decay T)).
+
+Notation REPTYPE' t :=
+  match t return Type with
+  | Tvoid
+  | Tfunction _ _ _ => unit
+  | Tint _ _ a => int
+  | Tlong _ a => Int64.int
+  | Tfloat _ a => float
+  | Tpointer _ a => val
+  | Tarray t0 _ _ => list (reptype' t0)
+  | Tstruct id _ => compact_prod (map reptype' (map snd (co_members (get_co id))))
+  | Tunion id _ => compact_sum (map reptype' (map snd (co_members (get_co id))))
+  end.
 
 Lemma reptype'_ind: forall t, 
-  reptype' t = 
-  match t with
-  | Tarray t0 _ _ => list (reptype' t0)
-  | Tstruct id _ =>
-      match cenv_cs ! id with
-      | Some co => compact_prod (map reptype' (map snd (co_members co)))
-      | _ => unit
-      end
-  | Tunion id _ =>
-      match cenv_cs ! id with
-      | Some co => compact_sum (map reptype' (map snd (co_members co)))
-      | _ => unit
-      end
-  | _ => if ((type_is_by_value t) && negb (type_is_volatile t))%bool
-      then match t with
-           | Tint _ _ _ => int
-           | Tlong _ _ => Int64.int
-           | Tfloat _ _ => float
-           | _ => val
-           end
-      else unit
-  end.
+  reptype' t = REPTYPE' t.
 Proof.
   intros.
   unfold reptype'.
   rewrite func_type_ind with (t0 := t) at 1 by auto.
   destruct t; auto.
-  + destruct (cenv_cs ! i); auto.
-    f_equal.
+  + f_equal.
     rewrite decay_spec.
     rewrite map_map.
     rewrite map_map.
     reflexivity.
-  + destruct (cenv_cs ! i); auto.
-    f_equal.
+  + f_equal.
     rewrite decay_spec.
     rewrite map_map.
     rewrite map_map.
     reflexivity.
 Qed.
 
+Definition unfold_reptype {t} (v: reptype t): REPTYPE t :=
+  @eq_rect Type (reptype t) (fun x: Type => x) v (REPTYPE t) (reptype_ind t).
+
+Definition fold_reptype {t} (v: REPTYPE t): reptype t :=
+  @eq_rect_r Type (REPTYPE t) (fun x: Type => x) v (reptype t) (reptype_ind t).
+
+Definition unfold_reptype' {t} (v: reptype' t): REPTYPE' t :=
+  @eq_rect Type (reptype' t) (fun x: Type => x) v (REPTYPE' t) (reptype'_ind t).
+
+Definition fold_reptype' {t} (v: REPTYPE' t): reptype' t :=
+  @eq_rect_r Type (REPTYPE' t) (fun x: Type => x) v (reptype' t) (reptype'_ind t).
+
+Require Import jmeq_lemmas.
+
+Lemma fold_unfold_reptype: forall t (v: reptype t),
+  fold_reptype (unfold_reptype v) = v.
+Proof.
+  intros.
+  unfold fold_reptype, unfold_reptype.
+  apply JMeq_eq.
+  match goal with
+  | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_r_JMeq A x y F v H)
+  end.
+  match goal with
+  | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_JMeq A x y F v H)
+  end.
+  reflexivity.
+Defined.
+
+Lemma unfold_fold_reptype: forall t (v: REPTYPE t),
+  unfold_reptype (fold_reptype v) = v.
+Proof.
+  intros.
+  unfold fold_reptype, unfold_reptype.
+  apply JMeq_eq.
+  match goal with
+  | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_JMeq A x y F v H)
+  end.
+  match goal with
+  | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_r_JMeq A x y F v H)
+  end.
+  reflexivity.
+Defined.
+
+Lemma fold_unfold_reptype': forall t (v: reptype' t),
+  fold_reptype' (unfold_reptype' v) = v.
+Proof.
+  intros.
+  unfold fold_reptype', unfold_reptype'.
+  apply JMeq_eq.
+  match goal with
+  | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_r_JMeq A x y F v H)
+  end.
+  match goal with
+  | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_JMeq A x y F v H)
+  end.
+  reflexivity.
+Defined.
+
+Lemma unfold_fold_reptype': forall t (v: REPTYPE' t),
+  unfold_reptype' (fold_reptype' v) = v.
+Proof.
+  intros.
+  unfold fold_reptype', unfold_reptype'.
+  apply JMeq_eq.
+  match goal with
+  | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_JMeq A x y F v H)
+  end.
+  match goal with
+  | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_r_JMeq A x y F v H)
+  end.
+  reflexivity.
+Defined.
+
+Variable V1: forall l, compact_prod l.
+Variable V2: forall l, compact_sum l.
+
+Definition repinj_bv (t: type): reptype' t -> reptype t :=
+  fun v =>
+  fold_reptype
+  (match t as t' return (REPTYPE' t' -> REPTYPE t': Type)
+   with
+   | Tvoid
+   | Tfunction _ _ _ => @id unit
+   | Tint _ _ a => Vint
+   | Tlong _ a => Vlong
+   | Tfloat _ a => Vfloat
+   | Tpointer _ a => id
+   | Tarray t0 n a => fun _ => nil
+   | Tstruct id a => fun _ => V1 _
+   | Tunion id a => fun _ => V2 _
+   end (unfold_reptype' v)).
+
+
+Definition repinj_aux_s (id: ident) (a: attr) (F: ListType (map (fun x => reptype' x -> reptype x) (map snd (co_members (get_co id))))): reptype' (Tstruct id a) -> reptype (Tstruct id a) :=
+  fun v => @fold_reptype (Tstruct id a) (compact_prod_map _ F (unfold_reptype' v)).
+
+
+Definition repinj_aux_u (id: ident) (a: attr) (F: ListType (map (fun x => reptype' x -> reptype x) (map snd (co_members (get_co id))))): reptype' (Tunion id a) -> reptype (Tunion id a) :=
+  fun v => @fold_reptype (Tunion id a) (compact_sum_map _ F (unfold_reptype' v)).
+
 Definition repinj: forall t: type, reptype' t -> reptype t :=
   func_type (fun t => reptype' t -> reptype t)
-  (fun t => if ((type_is_by_value t) && negb (type_is_volatile t))%bool
-      then match t with
-            | Tint _ _ _ => Vint
-            | Tlong _ _ => Vlong
-            | Tfloat _ _ => Vfloat
-            | _ => id
-            end)
-  (fun t n a f v => map f v)
-  (fun id a co F
+  repinj_bv
+  (fun t n a f => map f)
+  repinj_aux_s
+  repinj_aux_u.
+
+Lemma repinj_ind: forall t v,
+  repinj t v =
+  fold_reptype
+  (match t as t' return REPTYPE' t' -> REPTYPE t' with
+   | Tvoid
+   | Tfunction _ _ _ => @id unit
+   | Tint _ _ a => Vint
+   | Tlong _ a => Vlong
+   | Tfloat _ a => Vfloat
+   | Tpointer _ a => id
+   | Tarray t0 _ _ => map (repinj t0)
+   | Tstruct id a => compact_prod_map _ (ListTypeGen _ repinj (map snd (co_members (get_co id))))
+   | Tunion id a => compact_sum_map _ (ListTypeGen _ repinj (map snd (co_members (get_co id))))
+   end (unfold_reptype' v)).
+Proof.
+  intros.
+  unfold repinj.
+  rewrite func_type_ind.
+  destruct t; auto.
+  + apply JMeq_eq.
+    unfold fold_reptype, unfold_reptype'.
+    match goal with
+    | |- JMeq _ (@eq_rect_r ?A ?x ?F ?v ?y ?H) =>
+      rewrite (eq_rect_r_JMeq A x y F v H)
+    end.
+    apply JMeq_func; [reflexivity | reflexivity | | reflexivity].
+    match goal with
+    | |- JMeq _ (@eq_rect ?A ?x ?F ?v ?y ?H) =>
+      rewrite (eq_rect_JMeq A x y F v H)
+    end.
+    reflexivity.
+Qed.
+
 
 Fixpoint repinj (t: type): reptype' t -> reptype t :=
   match t as t0 return (reptype' t0 -> reptype t0) with

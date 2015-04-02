@@ -198,16 +198,44 @@ Qed.
 Section COMPOSITE_ENV.
 Context {cs: compspecs}.
 
+Definition co_default (s: struct_or_union): composite.
+  apply (Build_composite s nil noattr 0 1 0).
+  + omega.
+  + exists 0; auto.
+  + exists 0%Z; auto.
+Defined.
+
+Definition get_co id :=
+  match cenv_cs ! id with
+  | Some co => co
+  | _ => co_default Struct
+  end.
+
+Lemma co_default_consistent: forall su, composite_consistent cenv_cs (co_default su).
+Proof.
+  intros.
+  split.
+  + reflexivity.
+  + reflexivity.
+  + destruct su; reflexivity.
+  + reflexivity.
+Qed.
+
+Lemma get_co_consistent: forall id, composite_consistent cenv_cs (get_co id).
+Proof.
+  intros.
+  unfold get_co.
+  destruct (cenv_cs ! id) as [co |] eqn:CO.
+  + exact (cenv_consistent_cs id co CO).
+  + apply co_default_consistent.
+Qed.
+
 Lemma type_ind: forall P,
   (forall t,
   match t with
   | Tarray t0 _ _ => P t0
-  | Tstruct id _
-  | Tunion id _ =>
-    match cenv_cs ! id with
-    | Some co => Forall (fun it => P (snd it)) (co_members co)
-    | _ => True
-    end
+  | Tstruct id _ => Forall (fun it => P (snd it)) (co_members (get_co id))
+  | Tunion id _ => Forall (fun it => P (snd it)) (co_members (get_co id))
   | _ => True
   end -> P t) ->
   forall t, P t.
@@ -225,10 +253,14 @@ Proof.
     simpl in RANK. omega.
   + (* Tstruct level 0 *)
     simpl in RANK.
-    destruct (cenv_cs ! i); [omega | tauto].
+    unfold get_co in IH_TYPE.
+    destruct (cenv_cs ! i); [omega | apply IH_TYPE].
+    simpl; constructor.
   + (* Tunion level 0 *)
     simpl in RANK.
-    destruct (cenv_cs ! i); [omega | tauto].
+    unfold get_co in IH_TYPE.
+    destruct (cenv_cs ! i); [omega | apply IH_TYPE].
+    simpl; constructor.
   + (* Tarray level positive *)
     simpl in RANK.
     specialize (IHn t).
@@ -236,7 +268,8 @@ Proof.
     omega.
   + (* Tstruct level positive *)
     simpl in RANK.
-    destruct (cenv_cs ! i) as [co |] eqn:CO; [| tauto].
+    unfold get_co in IH_TYPE.
+    destruct (cenv_cs ! i) as [co |] eqn:CO; [| apply IH_TYPE; simpl; constructor].
     apply IH_TYPE.
     apply Forall_forall.
     intros [id t] ?; simpl.
@@ -246,7 +279,8 @@ Proof.
     exact (cenv_consistent_cs i co CO).
   + (* Tunion level positive *)
     simpl in RANK.
-    destruct (cenv_cs ! i) as [co |] eqn:CO; [| tauto].
+    unfold get_co in IH_TYPE.
+    destruct (cenv_cs ! i) as [co |] eqn:CO; [| apply IH_TYPE; simpl; constructor].
     apply IH_TYPE.
     apply Forall_forall.
     intros [id t] ?; simpl.
@@ -265,46 +299,57 @@ Ltac type_induction t :=
     intros t IH;
     let id := fresh "id" in
     let a := fresh "a" in
-    let co := fresh "co" in
-    let CO := fresh "CO" in
-    let tac_for_struct_union :=
-      (destruct (cenv_cs ! id) as [co |] eqn:CO)
-    in
-    destruct t as [| | | | | | | id a | id a];
-    [| | | | | | | tac_for_struct_union | tac_for_struct_union]
+    destruct t as [| | | | | | | id a | id a]
   end.
 
 Variable A: type -> Type.
 Variable F_ByValue: forall t: type, A t.
 Variable F_Tarray: forall t n a, A t -> A (Tarray t n a).
-Variable F_Tstruct:
-  forall id a co, (* cenv_cs ! id = Some co *)
-    ListType (map A (map snd (co_members co))) -> A (Tstruct id a).
-Variable F_Tunion:
-  forall id a co, (* cenv_cs ! id = Some co *)
-    ListType (map A (map snd (co_members co))) -> A (Tunion id a).
+Variable F_Tstruct: forall id a, ListType (map A (map snd (co_members (get_co id)))) -> A (Tstruct id a).
+Variable F_Tunion: forall id a, ListType (map A (map snd (co_members (get_co id)))) -> A (Tunion id a).
 
 Fixpoint func_type_rec (n: nat) (t: type): A t :=
   match n with
-  | 0 => F_ByValue t
+  | 0 =>
+    match t as t0 return A t0 with
+    | Tstruct id a =>
+       match cenv_cs ! id with
+       | None => F_Tstruct id a (ListTypeGen A F_ByValue (map snd (co_members (get_co id))))
+       | _ => F_ByValue (Tstruct id a)
+       end
+    | Tunion id a =>
+       match cenv_cs ! id with
+       | None => F_Tunion id a (ListTypeGen A F_ByValue (map snd (co_members (get_co id))))
+       | _ => F_ByValue (Tunion id a)
+       end
+    | t' => F_ByValue t'
+    end
   | S n' =>
     match t as t0 return A t0 with
     | Tarray t0 n a => F_Tarray t0 n a (func_type_rec n' t0)
-    | Tstruct id a =>
-      match cenv_cs ! id with
-      | Some co => F_Tstruct id a co (ListTypeGen A (func_type_rec n') (map snd (co_members co)))
-      | _ => F_ByValue (Tstruct id a)
-      end
-    | Tunion id a => 
-      match cenv_cs ! id with
-      | Some co => F_Tunion id a co (ListTypeGen A (func_type_rec n') (map snd (co_members co)))
-      | _ => F_ByValue (Tunion id a)
-      end
+    | Tstruct id a => F_Tstruct id a (ListTypeGen A (func_type_rec n') (map snd (co_members (get_co id))))
+    | Tunion id a => F_Tunion id a (ListTypeGen A (func_type_rec n') (map snd (co_members (get_co id))))
     | t' => F_ByValue t'
     end
   end.
 
 Definition func_type t := func_type_rec (rank_type cenv_cs t) t.
+
+Lemma rank_type_Tstruct: forall id a co, cenv_cs ! id = Some co ->
+  rank_type cenv_cs (Tstruct id a) = S (co_rank (get_co id)).
+Proof.
+  intros.
+  unfold get_co; simpl.
+  destruct (cenv_cs ! id); auto; congruence.
+Qed.
+
+Lemma rank_type_Tunion: forall id a co, cenv_cs ! id = Some co ->
+  rank_type cenv_cs (Tunion id a) = S (co_rank (get_co id)).
+Proof.
+  intros.
+  unfold get_co; simpl.
+  destruct (cenv_cs ! id); auto; congruence.
+Qed.
 
 Lemma func_type_rec_rank_irrelevent: forall t n n0,
   n >= rank_type cenv_cs t ->
@@ -322,51 +367,55 @@ Proof.
     rewrite IH.
     reflexivity.
   + (* Tstruct *)
-    destruct n, n0; simpl in H, H0 |- *; rewrite CO in *; try omega.
-    f_equal.
-    apply ListTypeGen_preserve.
-    intros.
-    rewrite Forall_forall in IH.
-    rewrite in_map_iff in H1.
-    destruct H1 as [[i t] [? Hin]]; subst a0; specialize (IH (i, t) Hin n n0).
-    simpl in IH |- *.
-    pose proof rank_type_members cenv_cs i t (co_members co) Hin.
-    rewrite co_consistent_rank with (env := cenv_cs) in H by exact (cenv_consistent_cs id co CO).
-    rewrite co_consistent_rank with (env := cenv_cs) in H0 by exact (cenv_consistent_cs id co CO).
-    apply IH; omega.
-  + (* Tstruct incomplete *)
-    destruct n, n0; simpl; try rewrite CO; auto.
+    destruct (cenv_cs ! id) as [co |] eqn: CO.
+    - erewrite rank_type_Tstruct in H by eauto.
+      erewrite rank_type_Tstruct in H0 by eauto.
+      clear co CO.
+      destruct n, n0; try omega.
+      simpl.
+      f_equal.
+      apply ListTypeGen_preserve.
+      intros.
+      rewrite Forall_forall in IH.
+      rewrite in_map_iff in H1.
+      destruct H1 as [[i t] [? Hin]]; subst a0; specialize (IH (i, t) Hin n n0).
+      simpl in IH |- *.
+      pose proof rank_type_members cenv_cs i t _ Hin.
+      rewrite co_consistent_rank with (env := cenv_cs) in H by apply get_co_consistent.
+      rewrite co_consistent_rank with (env := cenv_cs) in H0 by apply get_co_consistent.
+      apply IH; omega.
+    - destruct n, n0; simpl;
+      generalize (F_Tstruct id a) as FF; unfold get_co;
+      rewrite CO; intros; auto.
   + (* Tunion *)
-    destruct n, n0; simpl in H, H0 |- *; rewrite CO in *; try omega.
-    f_equal.
-    apply ListTypeGen_preserve.
-    intros.
-    rewrite Forall_forall in IH.
-    rewrite in_map_iff in H1.
-    destruct H1 as [[i t] [? Hin]]; subst a0; specialize (IH (i, t) Hin n n0).
-    simpl in IH |- *.
-    pose proof rank_type_members cenv_cs i t (co_members co) Hin.
-    rewrite co_consistent_rank with (env := cenv_cs) in H by exact (cenv_consistent_cs id co CO).
-    rewrite co_consistent_rank with (env := cenv_cs) in H0 by exact (cenv_consistent_cs id co CO).
-    apply IH; omega.
-  + (* Tunion incomplete *)
-    destruct n, n0; simpl; try rewrite CO; auto.
+    destruct (cenv_cs ! id) as [co |] eqn: CO.
+    - erewrite rank_type_Tunion in H by eauto.
+      erewrite rank_type_Tunion in H0 by eauto.
+      clear co CO.
+      destruct n, n0; try omega.
+      simpl.
+      f_equal.
+      apply ListTypeGen_preserve.
+      intros.
+      rewrite Forall_forall in IH.
+      rewrite in_map_iff in H1.
+      destruct H1 as [[i t] [? Hin]]; subst a0; specialize (IH (i, t) Hin n n0).
+      simpl in IH |- *.
+      pose proof rank_type_members cenv_cs i t _ Hin.
+      rewrite co_consistent_rank with (env := cenv_cs) in H by apply get_co_consistent.
+      rewrite co_consistent_rank with (env := cenv_cs) in H0 by apply get_co_consistent.
+      apply IH; omega.
+    - destruct n, n0; simpl;
+      generalize (F_Tunion id a) as FF; unfold get_co;
+      rewrite CO; intros; auto.
 Qed.
 
 Lemma func_type_ind: forall t, 
   func_type t = 
   match t as t0 return A t0 with
   | Tarray t0 n a => F_Tarray t0 n a (func_type t0)
-  | Tstruct id a =>
-    match cenv_cs ! id with
-    | Some co => F_Tstruct id a co (ListTypeGen A func_type (map snd (co_members co)))
-    | _ => F_ByValue (Tstruct id a)
-    end
-  | Tunion id a => 
-    match cenv_cs ! id with
-    | Some co => F_Tunion id a co (ListTypeGen A func_type (map snd (co_members co)))
-    | _ => F_ByValue (Tunion id a)
-    end
+  | Tstruct id a => F_Tstruct id a (ListTypeGen A func_type (map snd (co_members (get_co id))))
+  | Tunion id a => F_Tunion id a (ListTypeGen A func_type (map snd (co_members (get_co id))))
   | t' => F_ByValue t'
   end.
 Proof.
@@ -375,41 +424,41 @@ Proof.
   + (* Tstruct *)
     unfold func_type in *.
     simpl.
-    rewrite CO; simpl; rewrite CO.
-    f_equal.
-    apply ListTypeGen_preserve.
-    intros.
-    apply in_map_iff in H.
-    destruct H as [[i t] [? Hin]]; subst a0; simpl.
-    pose proof cenv_consistent_cs id co CO.
-    apply func_type_rec_rank_irrelevent.
-    - rewrite co_consistent_rank with (env := cenv_cs) by auto.
-      eapply rank_type_members; eauto.
-    - omega.
-  + (* Tstruct incomplete *)
-    unfold func_type.
-    simpl.
-    rewrite CO.
-    reflexivity.
+    destruct (cenv_cs ! id) as [co |] eqn:CO; simpl.
+    - f_equal.
+      apply ListTypeGen_preserve.
+      unfold get_co; rewrite CO.
+      intros.
+      apply in_map_iff in H.
+      destruct H as [[i t] [? Hin]]; subst a0; simpl.
+      pose proof cenv_consistent_cs id co CO.
+      apply func_type_rec_rank_irrelevent.
+      * rewrite co_consistent_rank with (env := cenv_cs) by auto.
+        eapply rank_type_members; eauto.
+      * omega.
+    - rewrite CO.
+      f_equal.
+      unfold get_co; rewrite CO.
+      reflexivity.
   + (* Tunion *)
     unfold func_type in *.
     simpl.
-    rewrite CO; simpl; rewrite CO.
-    f_equal.
-    apply ListTypeGen_preserve.
-    intros.
-    apply in_map_iff in H.
-    destruct H as [[i t] [? Hin]]; subst a0; simpl.
-    pose proof cenv_consistent_cs id co CO.
-    apply func_type_rec_rank_irrelevent.
-    - rewrite co_consistent_rank with (env := cenv_cs) by auto.
-      eapply rank_type_members; eauto.
-    - omega.
-  + (* Tunion incomplete *)
-    unfold func_type.
-    simpl.
-    rewrite CO.
-    reflexivity.
+    destruct (cenv_cs ! id) as [co |] eqn:CO; simpl.
+    - f_equal.
+      apply ListTypeGen_preserve.
+      unfold get_co; rewrite CO.
+      intros.
+      apply in_map_iff in H.
+      destruct H as [[i t] [? Hin]]; subst a0; simpl.
+      pose proof cenv_consistent_cs id co CO.
+      apply func_type_rec_rank_irrelevent.
+      * rewrite co_consistent_rank with (env := cenv_cs) by auto.
+        eapply rank_type_members; eauto.
+      * omega.
+    - rewrite CO.
+      f_equal.
+      unfold get_co; rewrite CO.
+      reflexivity.
 Qed.
 
 End COMPOSITE_ENV.
@@ -423,11 +472,5 @@ Ltac type_induction t :=
     intros t IH;
     let id := fresh "id" in
     let a := fresh "a" in
-    let co := fresh "co" in
-    let CO := fresh "CO" in
-    let tac_for_struct_union :=
-      (destruct (cenv_cs ! id) as [co |] eqn:CO)
-    in
-    destruct t as [| | | | | | | id a | id a];
-    [| | | | | | | tac_for_struct_union | tac_for_struct_union]
+    destruct t as [| | | | | | | id a | id a]
   end.

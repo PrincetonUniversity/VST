@@ -5,6 +5,14 @@ Local Open Scope logic.
 
 Arguments sem_cmp c !t1 !t2 valid_pointer / v1 v2.  
 
+Lemma co_alignof_pos: forall co, co_alignof co > 0.
+Proof.
+  intros.
+  destruct (co_alignof_two_p co).
+  pose proof two_power_nat_pos x.
+  omega.
+Qed.
+
 Lemma add_andp: forall {A: Type} `{NatDed A} (P Q: A), P |-- Q -> P = P && Q.
 Proof.
   intros.

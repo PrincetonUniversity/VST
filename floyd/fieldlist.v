@@ -172,7 +172,7 @@ Proof.
   exact (power_nat_divide N M H1).
 Qed.
 
-Lemma alignof_field_type2: forall i m,
+Lemma alignof_field_type2_divide_alignof: forall i m,
   in_members i m ->
   (alignof cenv_cs (field_type2 i m) | alignof_composite cenv_cs m).
 Proof.
@@ -190,6 +190,7 @@ Proof.
       * apply alignof_composite_tl_divide.
 Qed.
 
+(* if sizeof Tvoid = 0, this lemma can be nicer. *)
 Lemma field_offset2_in_range: forall i m,
   in_members i m ->
   0 <= field_offset2 cenv_cs i m /\ field_offset2 cenv_cs i m + sizeof cenv_cs (field_type2 i m) <= sizeof_struct cenv_cs 0 m.
@@ -203,6 +204,7 @@ Proof.
     tauto.
 Qed.
 
+(* if sizeof Tvoid = 0, this lemma can be nicer. *)
 Lemma sizeof_union_in_members: forall i m,
   in_members i m ->
   sizeof cenv_cs (field_type2 i m) <= sizeof_union cenv_cs m.
@@ -222,7 +224,125 @@ Proof.
      omega.
 Qed.
 
+(* if sizeof Tvoid = 0, this lemma can be nicer. *)
+Lemma field_offset2_no_overlap:
+  forall i1 i2 m,
+  i1 <> i2 ->
+  in_members i1 m ->
+  in_members i2 m ->
+  field_offset2 cenv_cs i1 m + sizeof cenv_cs (field_type2 i1 m) <= field_offset2 cenv_cs i2 m \/
+  field_offset2 cenv_cs i2 m + sizeof cenv_cs (field_type2 i2 m) <= field_offset2 cenv_cs i1 m.
+Proof.
+  intros.
+  unfold field_offset2, field_type2.
+  pose proof field_type_in_members i1 m.
+  pose proof field_type_in_members i2 m.
+  solve_field_offset_type i1 m;
+  solve_field_offset_type i2 m; try tauto.
+  eapply field_offset_no_overlap; eauto.
+Qed.
+
+Lemma not_in_members_field_type2: forall i m,
+  ~ in_members i m ->
+  field_type2 i m = Tvoid.
+Proof.
+  unfold in_members, field_type2.
+  intros.
+  induction m as [| [i0 t0] m].
+  + reflexivity.
+  + simpl in H.
+    simpl.
+    destruct (ident_eq i i0) as [HH | HH]; pose proof (@eq_sym ident i i0); tauto.
+Qed.
+
+Lemma not_in_members_field_offset2: forall i m,
+  ~ in_members i m ->
+  field_offset2 cenv_cs i m = 0.
+Proof.
+  unfold in_members, field_offset2, field_offset.
+  intros.
+  generalize 0 at 1.
+  induction m as [| [i0 t0] m]; intros.
+  + reflexivity.
+  + simpl in H.
+    simpl.
+    destruct (ident_eq i i0) as [HH | HH]; pose proof (@eq_sym ident i i0); [tauto |].
+    apply IHm. tauto.
+Qed.
+
 End COMPOSITE_ENV.
+
+Module fieldlist.
+
+Definition field_type := @field_type2.
+Definition field_offset := @field_offset2.
+
+Definition field_offset_in_range:
+  forall {cs: compspecs},
+  forall i m,
+  in_members i m ->
+  0 <= field_offset cenv_cs i m /\ field_offset cenv_cs i m + sizeof cenv_cs (field_type i m) <= sizeof_struct cenv_cs 0 m
+:= @field_offset2_in_range.
+
+Definition sizeof_union_in_members:
+  forall {cs: compspecs},
+  forall i m,
+  in_members i m ->
+  sizeof cenv_cs (field_type i m) <= sizeof_union cenv_cs m
+:= @sizeof_union_in_members.
+(* field_offset_in_range union's version *)
+
+Definition field_offset_no_overlap:
+  forall {cs: compspecs},
+  forall i1 i2 m,
+  i1 <> i2 ->
+  in_members i1 m ->
+  in_members i2 m ->
+  field_offset cenv_cs i1 m + sizeof cenv_cs (field_type i1 m) <= field_offset cenv_cs i2 m \/
+  field_offset cenv_cs i2 m + sizeof cenv_cs (field_type i2 m) <= field_offset cenv_cs i1 m
+:= @field_offset2_no_overlap.
+  
+Definition complete_type_field_type:
+  forall {cs: compspecs},
+  forall id i co,
+  cenv_cs ! id = Some co ->
+  in_members i (co_members co) ->
+  complete_type cenv_cs (field_type i (co_members co)) = true
+:= @complete_type_field_type2.
+
+Definition field_offset_aligned:
+  forall {cs: compspecs},
+  forall i m,
+  (alignof cenv_cs (field_type i m) | field_offset cenv_cs i m)
+:= @field_offset2_aligned.
+
+Definition alignof_field_type_divide_alignof:
+  forall {cs: compspecs},
+  forall i m,
+  in_members i m ->
+  (alignof cenv_cs (field_type i m) | alignof_composite cenv_cs m)
+:= @alignof_field_type2_divide_alignof.
+
+Definition in_members_field_type:
+  forall i m,
+  in_members i m ->
+  In (i, field_type i m) m
+:= @in_members_field_type2.
+
+Definition not_in_members_field_type:
+  forall i m,
+  ~ in_members i m ->
+  field_type i m = Tvoid
+:= @not_in_members_field_type2.
+
+Definition not_in_members_field_offset:
+  forall {cs: compspecs},
+  forall i m,
+  ~ in_members i m ->
+  field_offset2 cenv_cs i m = 0
+:= @not_in_members_field_offset2.
+
+End fieldlist.
 
 (************************************************
 

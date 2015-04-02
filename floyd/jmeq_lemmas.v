@@ -109,3 +109,12 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma JMeq_func: forall A B C D (f: A -> B) (g: C -> D) x y,
+  A = C -> B = D ->
+  JMeq x y -> JMeq f g -> JMeq (f x) (g y).
+Proof.
+  intros.
+  subst.
+  rewrite H1, H2.
+  reflexivity.
+Qed.
