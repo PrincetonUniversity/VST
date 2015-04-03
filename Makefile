@@ -22,7 +22,7 @@ COMPCERT=compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric floyd progs sha linking fcf hmacfcf
+DIRS= msl sepcomp veric floyd progs sha linking fcf hmacfcf boringhmac
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert 
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -198,6 +198,9 @@ HMACEQUIV_FILES= \
   HMAC_spec_abstract.v HMAC_equivalence.v HMAC256_equivalence.v \
   HMAC_isPRF.v HMAC256_isPRF.v
 
+BORINGHMAC_FILES= \
+  mem.v digest.v digests.v spec_digest.v verif_mem.v verif_digest.v
+
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c
 
 FILES = \
@@ -210,7 +213,8 @@ FILES = \
  $(HMAC_FILES:%=sha/%) \
  $(FCF_FILES:%=fcf/%) \
  $(HMACFCF_FILES:%=hmacfcf/%) \
- $(HMACEQUIV_FILES:%=sha/%)
+ $(HMACEQUIV_FILES:%=sha/%) \
+ $(BORINGHMAC_FILES:%=boringhmac/%)
 
 %_stripped.v: %.v
 # e.g., 'make progs/verif_reverse_stripped.v will remove the tutorial comments
@@ -250,6 +254,7 @@ hmac:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 hmacequiv:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 fcf:     .loadpath $(FCF_FILES:%.v=fcf/%.vo)
 hmacfcf: .loadpath $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
+boringhmac:     .loadpath $(BORINGHMAC_FILES:%.v=boringhmac/%.vo)
 
 CGFLAGS =  -DCOMPCERT
 
