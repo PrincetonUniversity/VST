@@ -236,16 +236,25 @@ end;
   rewrite Zlength_map. omega.
   unfold_data_at 1%nat.
   entailer!.
+  rewrite field_address0_clarify; auto.
   rewrite field_address_clarify; auto.
   normalize.
   erewrite nested_field_offset2_Tarray; try reflexivity. 
-  rewrite sizeof_tuchar, Z.mul_1_l.
-  unfold field_address in *.
-  if_tac in TC; try contradiction. normalize.
-  apply isptr_is_pointer_or_null.
-  apply field_address_isptr; auto.
-  eapply field_compatible_cons_Tarray; try reflexivity; auto.
+  rewrite sizeof_tuchar, Z.mul_1_l. auto.
+
+
+  unfold field_address, field_address0 in *.
+  if_tac in TC; try contradiction.
+  rewrite if_true. destruct c; try contradiction; apply I.
+  eapply field_compatible0_cons_Tarray; try reflexivity; auto.
   Omega1.
+
+  unfold field_address, field_address0 in *.
+  if_tac in TC; try contradiction.
+  if_tac in Hd; try (subst; contradiction).
+  rewrite if_true. normalize.
+
+  apply field_compatible_field_compatible0; auto.
 *
   rewrite skipn_0.
   rewrite (data_at_field_at sh).
@@ -312,15 +321,14 @@ evar (Frame: list (LiftEnviron mpred)).
         Frame); try reflexivity; auto.
  rewrite !Zlength_map. rewrite Zlength_correct, H5. compute; split; congruence.
  entailer!.
- rewrite !field_address_clarify. reflexivity.
- (apply isptr_is_pointer_or_null; apply field_address_isptr; auto).
- (apply isptr_is_pointer_or_null; apply field_address_isptr; auto).
+ clear Frame Delta H9.
+ rewrite field_address_clarify, field_address0_clarify; auto.
+ (apply isptr_is_pointer_or_null; apply field_address0_isptr; auto).
  clear - TC. unfold field_address in TC. if_tac in TC; try contradiction. clear TC.
  hnf in H; decompose [and] H; clear H.
  split; auto. split; auto. split; auto. split3; auto.
- inv H6.
- constructor; auto. split; auto. omega.
-  
+ hnf.
+ do 5 eexists. split3. reflexivity. reflexivity. split; auto. omega.
  apply exp_right with (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)).
  assert (KK: k = Z.of_nat (LBLOCK * 4 - length dd)). {
  subst k.

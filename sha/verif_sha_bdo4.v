@@ -220,7 +220,7 @@ rewrite data_at_isptr.
 go_lowerx.
 normalize.
 rewrite prop_true_andp; auto.
-rewrite field_address_clarify; auto.
+rewrite field_address0_clarify; auto.
 erewrite nested_field_offset2_Tarray; try reflexivity.
 change (nested_field_offset2 (tarray tuchar (Zlength contents)) []) with 0%Z.
 rewrite Z.add_0_l.
@@ -246,7 +246,7 @@ rewrite <- Zlength_correct. omega.
 hnf. rewrite TE. rewrite <- H3.
 unfold eval_id, env_set. simpl.
 clear - H5.
-unfold field_address in H5.
+unfold field_address0 in H5.
 if_tac in H5; try contradiction.
 destruct base; try contradiction H5.
 reflexivity.
@@ -263,8 +263,8 @@ normalize.
 rewrite fold_right_and_app_lifted in H1.
 destruct H1 as [? [? ?]].
 rewrite prop_true_andp.
-unfold field_address.
-rewrite if_true by auto.
+unfold field_address0.
+rewrite if_true by (apply field_compatible_field_compatible0; auto).
 erewrite nested_field_offset2_Tarray; try reflexivity.
 change (nested_field_offset2 (tarray tuchar (Zlength contents)) []) with 0%Z.
 rewrite Z.add_0_l.

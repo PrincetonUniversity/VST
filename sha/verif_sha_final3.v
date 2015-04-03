@@ -316,7 +316,7 @@ Proof.
   normalize.
 (*  rewrite <- seq_assoc.  shouldn't be necessary *)
   forward_call' (* (void)HOST_l2c(cNh,p); *)
-     (field_address t_struct_SHA256state_st
+     (field_address0 t_struct_SHA256state_st
                     [ArraySubsc 56; StructField _data] c,
       Tsh, hibytes).
      apply prop_right; repeat constructor; hnf; simpl.
@@ -325,11 +325,11 @@ Proof.
   reflexivity.
   
   rewrite field_address_clarify by auto.
-  rewrite field_address_clarify by auto.
+  rewrite field_address0_clarify by auto.
   destruct c_; try contradiction; normalize.
   pull_left
        (data_at Tsh (Tarray tuchar (60 - 56) noattr) (list_repeat 4 Vundef)
-         (field_address t_struct_SHA256state_st
+         (field_address0 t_struct_SHA256state_st
                     [ArraySubsc 56; StructField _data] c)) .
   repeat rewrite sepcon_assoc.
   apply sepcon_derives; [ | cancel_frame].
@@ -379,9 +379,8 @@ Proof.
     omega.
   } Unfocus.
   normalize.
- (* rewrite <- seq_assoc.  shouldn't need this *)
   forward_call' (* (void)HOST_l2c(cNl,p); *)
-    (field_address t_struct_SHA256state_st
+    (field_address0 t_struct_SHA256state_st
                     [ArraySubsc 60; StructField _data] c,
      Tsh, lobytes).
   {
@@ -390,7 +389,7 @@ Proof.
   reflexivity.
   destruct c_; try (contradiction Pc_); simpl.
   symmetry.
-  rewrite field_address_clarify by auto.
+  rewrite field_address0_clarify by auto.
   rewrite field_address_clarify. simpl.
   normalize.
   clear - TC0.
@@ -399,7 +398,7 @@ Proof.
  }
   pull_left
         (data_at Tsh (Tarray tuchar (64-60) noattr) [Vundef; Vundef; Vundef; Vundef]
-          (field_address t_struct_SHA256state_st
+          (field_address0 t_struct_SHA256state_st
                     [ArraySubsc 60; StructField _data] c)).
       repeat rewrite sepcon_assoc.
       apply sepcon_derives; [ | cancel_frame].

@@ -188,7 +188,6 @@ rewrite <- Z2Nat.inj_add; try omega.
 apply Zlength_nonneg.
 Qed.
 
-
 Lemma call_memcpy_tuchar:
   forall (shp : share) (tp: type) (pathp: list gfield) (lop: Z) (vp': list val) (p: val)
            (shq: share) (tq: type) (pathq: list gfield) (loq: Z) (contents: list int) (q: val)
@@ -218,8 +217,8 @@ Lemma call_memcpy_tuchar:
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
          PROP () (LOCALx
                 (tc_exprlist Delta [tptr tvoid; tptr tvoid; tuint] [e_p; e_q; e_n] ::
-                 `(eq (field_address tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p) ::
-                 `(eq (field_address tq (ArraySubsc loq :: pathq) q)) (eval_expr e_q) ::
+                 `(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p) ::
+                 `(eq (field_address0 tq (ArraySubsc loq :: pathq) q)) (eval_expr e_q) ::
                  `(eq (Vint (Int.repr len))) (eval_expr e_n) ::
                  Q)
          (SEPx (`(field_at shp tp pathp vp p) :: 
@@ -358,8 +357,8 @@ rewrite <- sepcon_comm.
 rewrite flatten_sepcon_in_SEP.
 rewrite flatten_sepcon_in_SEP.
 pose (witness := ((shq,shp),
-                              field_address tp (ArraySubsc lop :: pathp) p,
-                              field_address tq (ArraySubsc loq :: pathq) q,
+                              field_address0 tp (ArraySubsc lop :: pathp) p,
+                              field_address0 tq (ArraySubsc loq :: pathq) q,
                               len,  (firstn (Z.to_nat len)
                  (skipn (Z.to_nat loq) contents)))).
 pose (Frame := 
@@ -394,18 +393,18 @@ eapply semax_post_flipped'.
  rewrite TCp, TCq, TCn.
  simpl.
  split.
- unfold field_address.
+ unfold field_address0.
  if_tac; [ |  reflexivity].
  destruct H14 as [? _]; destruct p; try contradiction; reflexivity.
  split.
- unfold field_address.
+ unfold field_address0.
  if_tac; [ |  reflexivity].
  destruct H14 as [? _]; destruct q; try contradiction; reflexivity.
  split; auto.
  } Unfocus.
  rewrite map_firstn, <- skipn_map.
  cancel.
- apply derives_trans with (data_at_ shp (tarray tuchar len) (field_address tp (ArraySubsc lop :: pathp) p)).
+ apply derives_trans with (data_at_ shp (tarray tuchar len) (field_address0 tp (ArraySubsc lop :: pathp) p)).
  cancel.
  rewrite data_at__memory_block; try reflexivity.
  normalize.
@@ -582,7 +581,7 @@ Lemma call_memset_tuchar:
    (H5: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
          PROP () (LOCALx
                 (tc_exprlist Delta [tptr tvoid; tint; tuint] [e_p; e_c; e_n] ::
-                 `(eq (field_address tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p) ::
+                 `(eq (field_address0 tp (ArraySubsc lop :: pathp) p)) (eval_expr e_p) ::
                  `(eq (Vint c)) (eval_expr e_c) ::
                  `(eq (Vint (Int.repr len))) (eval_expr e_n) ::
                  Q)
@@ -680,7 +679,7 @@ rewrite <- sepcon_comm.
 rewrite flatten_sepcon_in_SEP.
 rewrite flatten_sepcon_in_SEP.
 pose (witness := (shp,
-                              field_address tp (ArraySubsc lop :: pathp) p,
+                              field_address0 tp (ArraySubsc lop :: pathp) p,
                               len,  c)).
 pose (Frame := 
          `(array_at shp tp pathp (lop + len) np
@@ -714,7 +713,7 @@ eapply semax_post_flipped'.
  rewrite TCp, TCc, TCn.
  simpl.
  split.
- unfold field_address.
+ unfold field_address0.
  if_tac; [ |  reflexivity].
  destruct H14 as [? _]; destruct p; try contradiction; reflexivity.
  split.
@@ -722,7 +721,7 @@ eapply semax_post_flipped'.
  split; auto.
  } Unfocus.
  cancel.
- apply derives_trans with (data_at_ shp (tarray tuchar len) (field_address tp (ArraySubsc lop :: pathp) p)).
+ apply derives_trans with (data_at_ shp (tarray tuchar len) (field_address0 tp (ArraySubsc lop :: pathp) p)).
  cancel.
  rewrite data_at__memory_block; try reflexivity.
  normalize.
