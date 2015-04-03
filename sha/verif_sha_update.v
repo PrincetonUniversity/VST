@@ -88,12 +88,13 @@ Proof.
  by (unfold dd'; rewrite Zlength_correct, firstn_length, min_l; MyOmega).
 eapply semax_post_flipped3.
 *
- assert_PROP (field_compatible (tarray tuchar (Zlength data)) [ArraySubsc b4d] d). {
+ assert_PROP (field_compatible0 (tarray tuchar (Zlength data)) [ArraySubsc b4d] d). {
    entailer.
     rewrite (data_at_field_at sh  (tarray tuchar (Zlength data))).
     rewrite (field_at_compatible' sh).
     entailer!.
-    admit.  (* field_compatible_cons *)
+    eapply field_compatible0_cons_Tarray.
+    reflexivity. auto. omega.
   }   
  evar (Frame: list (LiftEnviron mpred)).
   eapply(call_memcpy_tuchar
@@ -106,14 +107,15 @@ eapply semax_post_flipped3.
  - 
   unfold_data_at 1. entailer!.
   destruct c; try contradiction.
-  unfold field_address.
+  unfold field_address, field_address0.
   rewrite if_true; auto.
   rewrite if_true; auto.
-  admit.  (* field_compatible_cons *)
-  rewrite field_address_clarify.
+  eapply field_compatible0_cons_Tarray.
+    reflexivity. auto. omega.
+  rewrite field_address0_clarify.
   erewrite nested_field_offset2_Tarray; try reflexivity.
   normalize.
-  unfold field_address.
+  unfold field_address0.
   rewrite if_true. destruct d; try contradiction; apply I.
   auto.
 * 

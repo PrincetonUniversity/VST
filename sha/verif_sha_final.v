@@ -176,20 +176,20 @@ unfold SHA_256.
 
 forward_call' (* memset (p+n,0,SHA_CBLOCK-8-n); *)
   (Tsh,
-     field_address t_struct_SHA256state_st
+     field_address0 t_struct_SHA256state_st
          [ArraySubsc (Zlength dd'); StructField _data] c, 
      (Z.of_nat CBLOCK - 8 - Zlength dd')%Z,
      Int.zero) vret.
  apply prop_right; repeat constructor; hnf; simpl; auto.
  rewrite field_address_clarify by auto.
- rewrite field_address_clarify by auto.
+ rewrite field_address0_clarify by auto.
  erewrite nested_field_offset2_Tarray by reflexivity.
   change (sizeof tuchar) with 1.
  rewrite Z.mul_1_l.
  normalize.
  {pull_left (data_at Tsh (Tarray tuchar (Z.of_nat CBLOCK - 8 - Zlength dd') noattr)
      (list_repeat (CBLOCK - 8 - length dd') Vundef)
-     (field_address t_struct_SHA256state_st
+     (field_address0 t_struct_SHA256state_st
               [ArraySubsc (Zlength dd'); StructField _data] c)).
     repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
     eapply derives_trans; [apply data_at_data_at_; reflexivity |].

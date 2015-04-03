@@ -795,21 +795,6 @@ Proof.
   rewrite ge_of_make_args. auto.
 Qed.
 
-(*
-Lemma lvar_make_args:
-  forall i t v rho fl vl, lvar i t v rho -> lvar i t v (make_args fl vl rho).
-Proof.
-induction fl; destruct vl; simpl.
-unfold lvar.
-simpl.
-destr
- clear - H0.
- revert rho vl H0; unfold var; unfold_lift; induction fl; destruct vl; simpl; intros; auto.
- admit.  (* problem with globals_only *)
- apply (IHfl _ vl H0).
-Qed.
-*)
-
 Lemma derives_extract_PROP : 
   forall (P1: Prop) P QR S, 
      (P1 -> PROPx P QR |-- S) ->

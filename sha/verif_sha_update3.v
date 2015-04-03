@@ -77,15 +77,22 @@ Proof.
   unfold update_inner_if_else;
   simplify_Delta; abbreviate_semax.
 
- assert_PROP (field_address (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d). {
+
+
+ assert_PROP (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d). {
   entailer.
+  match goal with |- (?A*?B)*_ |-- _ => forget (A*B) as AB end.
   rewrite (data_at_field_at sh  (tarray tuchar (Zlength data))).
-    rewrite (field_at_compatible' sh).
-    entailer!.
-    unfold field_address; rewrite if_true.
-    unfold nested_field_offset2; simpl. normalize.
-    admit.  (* field_compatible_cons *)
-  }
+  erewrite field_at_Tarray; try reflexivity.
+  erewrite (field_compatible0_array 0); try omega.
+ 2: apply Z.le_refl.
+ 2: reflexivity.
+normalize.
+unfold field_address0.
+rewrite if_true by auto.
+apply prop_right.
+unfold nested_field_offset2; simpl. normalize.
+}
  rename H5 into Hd.
  eapply semax_seq'.
  evar (Frame: list (LiftEnviron mpred)).
@@ -103,19 +110,20 @@ Proof.
  unfold_data_at 1%nat.
  entailer!.
 
-auto.
  rewrite field_address_clarify; auto.
  normalize.
- rewrite field_address_clarify; auto.
+ rewrite field_address0_clarify; auto.
  normalize.
  f_equal.
  erewrite nested_field_offset2_Tarray; try reflexivity.
  normalize. 
  unfold field_address in TC; destruct c; try contradiction;
   if_tac in TC; try contradiction.
- unfold field_address; rewrite if_true; auto.
+ unfold field_address0; rewrite if_true; auto.
  clear - H7 H0; unfold k in *.
- admit.  (* field_compatible_cons *)
+ eapply field_compatible0_cons_Tarray; try reflexivity; auto.
+ omega.
+
 
 rewrite (field_at_data_equal Tsh t_struct_SHA256state_st [StructField _data] 
                  _ (map Vint (map Int.repr dd)++ firstn (Z.to_nat len) (map Vint (map Int.repr data)))).

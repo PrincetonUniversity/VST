@@ -175,7 +175,8 @@ Proof.
 intros.
 apply pred_ext; intros.
 apply andp_right; auto.
-admit. (*  apply array_at_local_facts. *)
+unfold array_at. simpl.
+normalize.
 normalize.
 Qed.
 

@@ -61,16 +61,6 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd kv:=
          `(K_vector kv);
          `(memory_block shmd (Int.repr 32) md))).
 
-Lemma field_compatible_cons_Tarray'
-     : forall (k : Z) (t : type) (n : Z) (a : attr) (gfs : list gfield)
-         (p : val) (t' : type) (ofs : Z),
-       nested_field_rec t gfs = Some (ofs, Tarray t' n a) ->
-       field_compatible t gfs p ->
-       0 <= k <= n -> field_compatible t (ArraySubsc k :: gfs) p.
-Admitted.  (* Temporary, less-strict form of field_compatible_cons_Tarray,
-    until we figure out better treatment of zero-length arrays
-    as members of structures. *)
-
 Lemma sizeof_Tarray:
   forall t (n:Z) a, n >= 0 ->
       sizeof (Tarray t n a) = (sizeof t * n)%Z.
@@ -138,22 +128,23 @@ change (64-(ddlen+1)) with (CBLOCKz-(ddlen+1)).
 
 forward_call' (* memset (p+n,0,SHA_CBLOCK-n); *)
    ((Tsh,
-     (field_address t_struct_SHA256state_st
+     (field_address0 t_struct_SHA256state_st
        [ArraySubsc (ddlen + 1); StructField _data] c),
      (CBLOCKz - (ddlen + 1)))%Z,
      Int.zero) vret.
 
   apply prop_right.
-  repeat rewrite field_address_clarify; auto.
+  rewrite field_address_clarify; auto.
+  rewrite field_address0_clarify; auto.
   erewrite nested_field_offset2_Tarray; [ |reflexivity].
-  change (sizeof tuchar) with 1. normalize.
+  change (sizeof tuchar) with 1. normalize. 
 
   change CBLOCKz with 64%Z.
   normalize.
   repeat rewrite <- sepcon_assoc.
   pull_left (data_at Tsh (Tarray tuchar (64 - (ddlen + 1)) noattr)
      (list_repeat (Z.to_nat (64 - (ddlen + 1))) Vundef)
-     (field_address t_struct_SHA256state_st
+     (field_address0 t_struct_SHA256state_st
      [ArraySubsc (ddlen + 1); StructField _data] c)).
   repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
   eapply derives_trans; [apply data_at_data_at_; reflexivity |].
@@ -446,7 +437,7 @@ forward_for_simple_bound 8
       replace (i * 4 + 4 - i * 4) with 4 by omega.
       normalize.
   forward_call' (* builtin_write32_reversed *)
-     (field_address (tarray tuchar 32) [ArraySubsc (i*4)] md, shmd, bytes).
+     (field_address0 (tarray tuchar 32) [ArraySubsc (i*4)] md, shmd, bytes).
  +
    entailer!.
    unfold bytes, Basics.compose.
@@ -459,7 +450,7 @@ forward_for_simple_bound 8
            (firstn (Z.to_nat WORD) (skipn (0%nat * Z.to_nat WORD)
              (map Int.repr (intlist_to_Zlist [w])))).
    apply nth_big_endian_integer; reflexivity.
-      rewrite field_address_clarify by auto.
+      rewrite field_address0_clarify by auto.
       erewrite nested_field_offset2_Tarray by reflexivity.
       change (nested_field_offset2 (tarray tuchar 32) []) with 0.
       change (sizeof tuchar) with 1.
@@ -469,13 +460,13 @@ forward_for_simple_bound 8
  +
     entailer!.
       pull_left (data_at shmd (Tarray tuchar 4 noattr) (list_repeat 4 Vundef)
-        (field_address (tarray tuchar 32) [ArraySubsc (i * 4)] md)).
+        (field_address0 (tarray tuchar 32) [ArraySubsc (i * 4)] md)).
       repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel_frame].
        change 4 with (sizeof (tarray tuchar 4)).
       rewrite memory_block_data_at_; try reflexivity.
       cancel.
       clear - H2.
-     unfold field_address in *;
+     unfold field_address0 in *;
      simpl sizeof; if_tac; try contradiction; auto;
         unfold align_compatible; simpl;
         destruct md; simpl; auto; apply Z.divide_1_l.
