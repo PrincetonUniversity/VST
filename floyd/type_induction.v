@@ -474,3 +474,4 @@ Ltac type_induction t :=
     let a := fresh "a" in
     destruct t as [| | | | | | | id a | id a]
   end.
+

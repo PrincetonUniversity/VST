@@ -87,6 +87,14 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma JMeq_pair: forall A B C D (a: A) (b: B) (c: C) (d: D), JMeq a b -> JMeq c d -> JMeq (a, c) (b, d).
+Proof.
+  intros.
+  inversion H; subst.
+  inversion H0; subst.
+  reflexivity.
+Qed.
+
 Lemma eq_rect_r_eq_rect_r_eq_sym: forall {T} {A B: T} F x (H: A = B),
   eq_rect_r F (eq_rect_r F x H) (eq_sym H) = x.
 Proof.

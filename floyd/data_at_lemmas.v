@@ -8,6 +8,7 @@ Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.rangespec_lemmas.
 *)
+Require Import floyd.jmeq_lemmas.
 Require Import Coq.Logic.JMeq.
 Opaque alignof.
 
@@ -22,66 +23,260 @@ Definition of reptype.
 
 ******************************************)
 
+Notation sigTT P := (fun tv => match tv with existT t v => P t end).
+
+Definition compact_prod_sigT_type {A} {P: A -> Type} (l: list (sigT P)): Type :=
+  compact_prod (map (sigTT P) l).
+
+Definition compact_prod_sigT_value: forall {A} {P: A -> Type} (l: list (sigT P)), compact_prod (map (sigTT P) l).
+Proof.
+  intros.
+  destruct l as [| [t0 v0] l]; [exact tt |].
+  revert t0 v0; induction l as [| [t v] l]; intros.
+  + exact v0.
+  + exact (v0, IHl t v).
+Defined.
+
+Definition compact_sum_sigT_type {A} {P: A -> Type} (l: list (sigT P)): Type :=
+  compact_sum (map (sigTT P) l).
+
+Definition compact_sum_sigT_value: forall {A} {P: A -> Type} (l: list (sigT P)), compact_sum (map (sigTT P) l).
+Proof.
+  intros.
+  destruct l as [| [t0 v0] l]; [exact tt |].
+  revert t0 v0; destruct l as [| [t v] l]; intros.
+  + exact v0.
+  + exact (inl v0).
+Defined.
+
 Section CENV.
-Print func_type.
 
-Print type_is_by_value.
-Context {cs: compspecs}. 
+Context {cs: compspecs}.
 
-Definition reptype: type -> Type :=
-  func_type (fun _ => Type)
+Definition reptype_gen: type -> (sigT (fun x => x)) :=
+  func_type (fun _ => (sigT (fun x => x)))
   (fun t =>
      if (type_is_by_value t)
-     then val
-     else unit)
-  (fun t n a T => list T)
-  (fun id a T => compact_prod (decay T))
-  (fun id a T => compact_sum (decay T)).
+     then existT (fun x => x) val Vundef
+     else existT (fun x => x) unit tt)
+  (fun t n a TV => match TV with existT T V => existT (fun x => x) (list T) nil end)
+  (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
+  (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
 
-Notation REPTYPE t :=
- (match t return Type with
-  | Tvoid
-  | Tfunction _ _ _ => unit
-  | Tint _ _ a
-  | Tlong _ a
-  | Tfloat _ a
-  | Tpointer _ a => val
-  | Tarray t0 _ _ => list (reptype t0)
-  | Tstruct id _ => compact_prod (map reptype (map snd (co_members (get_co id))))
-  | Tunion id _ => compact_sum (map reptype (map snd (co_members (get_co id))))
-  end: Type).
+Definition reptype t: Type := match reptype_gen t with existT t _ => t end.
+Definition default_val t: reptype t :=
+  match reptype_gen t as tv
+    return match tv with existT t _ => t end
+  with existT t v => v end.
 
-Lemma type_is_volatile_spec: forall t,
-  type_is_volatile t =
+Lemma reptype_gen_ind: forall t,
+  reptype_gen t =
   match t with
-  | Tint _ _ a
-  | Tlong _ a
-  | Tfloat _ a
-  | Tpointer _ a => attr_volatile a
-  | _ => false
+  | Tarray t0 _ _ => match reptype_gen t0 with existT T V => existT (fun x => x) (list T) nil end
+  | Tstruct id _ => existT (fun x => x)
+                     (compact_prod_sigT_type (map reptype_gen (map snd (co_members (get_co id)))))
+                     (compact_prod_sigT_value (map reptype_gen (map snd (co_members (get_co id)))))
+  | Tunion id _ => existT (fun x => x)
+                     (compact_sum_sigT_type (map reptype_gen (map snd (co_members (get_co id)))))
+                     (compact_sum_sigT_value (map reptype_gen (map snd (co_members (get_co id)))))
+  | _ => if (type_is_by_value t)
+         then existT (fun x => x) val Vundef
+         else existT (fun x => x) unit tt
   end.
 Proof.
   intros.
-  destruct t as [| [| | |] [|] | | [|] | | | | |]; try reflexivity.
-Defined.
+  unfold reptype_gen at 1.
+  rewrite func_type_ind.
+  destruct t; auto.
+  + rewrite decay_spec.
+    rewrite map_map.
+    rewrite map_map.
+    reflexivity.
+  + rewrite decay_spec.
+    rewrite map_map.
+    rewrite map_map.
+    reflexivity.
+Qed.
+
+Definition reptype_structlist (m: members) := compact_prod (map reptype (map snd m)).
+Definition reptype_unionlist (m: members) := compact_sum (map reptype (map snd m)).
+
+Notation REPTYPE t :=
+  match t return Type with
+  | Tvoid
+  | Tfunction _ _ _ => unit
+  | Tint _ _ _
+  | Tlong _ _
+  | Tfloat _ _
+  | Tpointer _ _ => val
+  | Tarray t0 _ _ => list (reptype t0)
+  | Tstruct id _ => reptype_structlist (co_members (get_co id))
+  | Tunion id _ => reptype_unionlist (co_members (get_co id))
+  end.
 
 Lemma reptype_ind: forall t,
   reptype t = REPTYPE t.
 Proof.
   intros.
+  unfold reptype.
+  rewrite reptype_gen_ind at 1.
+  destruct t as [| | | | | | | id ? | id ?]; auto.
+  + destruct (reptype_gen t).
+    reflexivity.
+  + unfold compact_prod_sigT_type.
+    forget (co_members (get_co id)) as m.
+    rewrite map_map.
+    reflexivity.
+  + unfold compact_sum_sigT_type.
+    forget (co_members (get_co id)) as m.
+    rewrite map_map.
+    reflexivity.
+Qed.
+
+Definition unfold_reptype {t} (v: reptype t): REPTYPE t :=
+  @eq_rect Type (reptype t) (fun x: Type => x) v (REPTYPE t) (reptype_ind t).
+
+Definition fold_reptype {t} (v: REPTYPE t): reptype t :=
+  @eq_rect_r Type (REPTYPE t) (fun x: Type => x) v (reptype t) (reptype_ind t).
+
+Lemma fold_unfold_reptype: forall t (v: reptype t),
+  fold_reptype (unfold_reptype v) = v.
+Proof.
+  intros.
+  unfold fold_reptype, unfold_reptype.
+  apply JMeq_eq.
+  match goal with
+  | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_r_JMeq A x y F v H)
+  end.
+  match goal with
+  | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_JMeq A x y F v H)
+  end.
+  reflexivity.
+Defined.
+
+Lemma unfold_fold_reptype: forall t (v: REPTYPE t),
+  unfold_reptype (fold_reptype v) = v.
+Proof.
+  intros.
+  unfold fold_reptype, unfold_reptype.
+  apply JMeq_eq.
+  match goal with
+  | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_JMeq A x y F v H)
+  end.
+  match goal with
+  | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_r_JMeq A x y F v H)
+  end.
+  reflexivity.
+Defined.
+
+Definition compact_prod_gen {A} {F} (gen: forall a: A, F a) (l: list A): compact_prod (map F l).
+Proof.
+  destruct l; [exact tt |].
+  revert a; induction l; intros.
+  + exact (gen a).
+  + exact (gen a0, IHl a).
+Defined.
+
+Definition compact_sum_gen {A} {F} (gen: forall a: A, F a) (l: list A): compact_sum (map F l).
+Proof.
+  destruct l; [exact tt |].
+  destruct l.
+  + exact (gen a).
+  + exact (inl (gen a)).
+Defined.
+
+Definition struct_default_val (m : members) := compact_prod_gen default_val (map snd m).
+Definition union_default_val (m : members) := compact_sum_gen default_val (map snd m).
+
+Lemma compact_prod_sigT_compact_prod_gen:
+  forall {A B} {P: A -> Type} (genT: B -> A) (genV: forall b: B, P (genT b)) (gen: B -> sigT P) (l: list B),
+    (forall b, gen b = existT P (genT b) (genV b)) ->
+    JMeq (compact_prod_sigT_value (map gen l)) (compact_prod_gen genV l).
+Proof.
+  intros.
+  assert (gen = fun b => existT P (genT b) (genV b)) by (extensionality; apply H).
+  rewrite H0; clear H H0 gen.
+  destruct l; [reflexivity |].
+  revert b; induction l; intros.
+  + reflexivity.
+  + simpl map.
+    change (compact_prod_gen genV (b :: a :: l)) with (genV b, compact_prod_gen genV (a :: l)).
+    change (compact_prod_sigT_value
+        (existT P (genT b) (genV b)
+         :: existT P (genT a) (genV a)
+            :: map (fun b0 : B => existT P (genT b0) (genV b0)) l)) with
+      (genV b, compact_prod_sigT_value (existT P (genT a) (genV a) :: map (fun b0 : B => existT P (genT b0) (genV b0)) l)).
+    apply JMeq_pair; [auto |].
+    exact (IHl a).
+Qed.
+
+Lemma compact_sum_sigT_compact_sum_gen:
+  forall {A B} {P: A -> Type} (genT: B -> A) (genV: forall b: B, P (genT b)) (gen: B -> sigT P) (l: list B),
+    (forall b, gen b = existT P (genT b) (genV b)) ->
+    JMeq (compact_sum_sigT_value (map gen l)) (compact_sum_gen genV l).
+Proof.
+  intros.
+  assert (gen = fun b => existT P (genT b) (genV b)) by (extensionality; apply H).
+  rewrite H0; clear H H0 gen.
+  destruct l; [reflexivity |].
+  destruct l.
+  + reflexivity.
+  + change (compact_sum_gen genV (b :: b0 :: l)) with
+      (@inl (P (genT b)) (compact_sum (map (fun b1 : B => P (genT b1)) (b0 :: l))) (genV b)).
+    change (compact_sum_sigT_value
+        (map (fun b1 : B => existT P (genT b1) (genV b1)) (b :: b0 :: l))) with
+  (@inl (P (genT b)) (compact_sum (map (fun tv => match tv with existT t _ => P t end) (map (fun b1 : B => @existT A P (genT b1) (genV b1)) (b0 :: l)))) (genV b)).
+    change (compact_sum (map (fun tv => match tv with existT t _ => P t end) (map (fun b1 : B => @existT A P (genT b1) (genV b1)) (b :: b0 :: l)))) with
+      (P (genT b) + compact_sum (map (fun tv => match tv with existT t _ => P t end) (map (fun b1 : B => @existT A P (genT b1) (genV b1)) (b0 :: l))))%type.
+  match goal with
+  | |- @JMeq _ (@inl _ ?A _) _ (@inl _ ?B _) =>
+       replace A with B; [auto |]
+  end.
+  rewrite map_map; reflexivity.
+Qed.
+
+Lemma default_val_ind: forall t,
+  default_val t =
+  fold_reptype
+  match t as t' return REPTYPE t'
+  with
+  | Tvoid
+  | Tfunction _ _ _ => tt
+  | Tint _ _ _
+  | Tlong _ _
+  | Tfloat _ _
+  | Tpointer _ _ => Vundef
+  | Tarray t0 _ _ => nil
+  | Tstruct id _ => struct_default_val (co_members (get_co id))
+  | Tunion id _ => union_default_val (co_members (get_co id))
+  end.
+Proof.
+  intros.
+  unfold fold_reptype.
+  apply JMeq_eq.
+  match goal with
+  | |- JMeq _ (@eq_rect_r ?A ?x ?F ?v ?y ?H) =>
+    rewrite (eq_rect_r_JMeq A x y F v H)
+  end.
+  unfold default_val.
   unfold reptype at 1.
-  rewrite func_type_ind.
+  rewrite reptype_gen_ind.
   destruct t; auto.
-  + f_equal.
-    rewrite decay_spec.
-    rewrite map_map.
-    rewrite map_map.
+  + unfold reptype.
+    destruct (reptype_gen t).
     reflexivity.
-  + f_equal.
-    rewrite decay_spec.
-    rewrite map_map.
-    rewrite map_map.
-    reflexivity.
+  + unfold struct_default_val.
+    apply (compact_prod_sigT_compact_prod_gen reptype default_val reptype_gen); intros.
+    unfold reptype, default_val.
+    destruct (reptype_gen b); reflexivity.
+  + unfold union_default_val.
+    apply (compact_sum_sigT_compact_sum_gen reptype default_val reptype_gen); intros.
+    unfold reptype, default_val.
+    destruct (reptype_gen b); reflexivity.
 Qed.
 
 Definition reptype': type -> Type :=
@@ -131,53 +326,11 @@ Proof.
     reflexivity.
 Qed.
 
-Definition unfold_reptype {t} (v: reptype t): REPTYPE t :=
-  @eq_rect Type (reptype t) (fun x: Type => x) v (REPTYPE t) (reptype_ind t).
-
-Definition fold_reptype {t} (v: REPTYPE t): reptype t :=
-  @eq_rect_r Type (REPTYPE t) (fun x: Type => x) v (reptype t) (reptype_ind t).
-
 Definition unfold_reptype' {t} (v: reptype' t): REPTYPE' t :=
   @eq_rect Type (reptype' t) (fun x: Type => x) v (REPTYPE' t) (reptype'_ind t).
 
 Definition fold_reptype' {t} (v: REPTYPE' t): reptype' t :=
   @eq_rect_r Type (REPTYPE' t) (fun x: Type => x) v (reptype' t) (reptype'_ind t).
-
-Require Import jmeq_lemmas.
-
-Lemma fold_unfold_reptype: forall t (v: reptype t),
-  fold_reptype (unfold_reptype v) = v.
-Proof.
-  intros.
-  unfold fold_reptype, unfold_reptype.
-  apply JMeq_eq.
-  match goal with
-  | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
-    rewrite (eq_rect_r_JMeq A x y F v H)
-  end.
-  match goal with
-  | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
-    rewrite (eq_rect_JMeq A x y F v H)
-  end.
-  reflexivity.
-Defined.
-
-Lemma unfold_fold_reptype: forall t (v: REPTYPE t),
-  unfold_reptype (fold_reptype v) = v.
-Proof.
-  intros.
-  unfold fold_reptype, unfold_reptype.
-  apply JMeq_eq.
-  match goal with
-  | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
-    rewrite (eq_rect_JMeq A x y F v H)
-  end.
-  match goal with
-  | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
-    rewrite (eq_rect_r_JMeq A x y F v H)
-  end.
-  reflexivity.
-Defined.
 
 Lemma fold_unfold_reptype': forall t (v: reptype' t),
   fold_reptype' (unfold_reptype' v) = v.
@@ -213,9 +366,6 @@ Proof.
   reflexivity.
 Defined.
 
-Variable V1: forall l, compact_prod l.
-Variable V2: forall l, compact_sum l.
-
 Definition repinj_bv (t: type): reptype' t -> reptype t :=
   fun v =>
   fold_reptype
@@ -228,10 +378,9 @@ Definition repinj_bv (t: type): reptype' t -> reptype t :=
    | Tfloat _ a => Vfloat
    | Tpointer _ a => id
    | Tarray t0 n a => fun _ => nil
-   | Tstruct id a => fun _ => V1 _
-   | Tunion id a => fun _ => V2 _
+   | Tstruct id a => fun _ => struct_default_val _
+   | Tunion id a => fun _ => union_default_val _
    end (unfold_reptype' v)).
-
 
 Definition repinj_aux_s (id: ident) (a: attr) (F: ListType (map (fun x => reptype' x -> reptype x) (map snd (co_members (get_co id))))): reptype' (Tstruct id a) -> reptype (Tstruct id a) :=
   fun v => @fold_reptype (Tstruct id a) (compact_prod_map _ F (unfold_reptype' v)).
@@ -243,7 +392,7 @@ Definition repinj_aux_u (id: ident) (a: attr) (F: ListType (map (fun x => reptyp
 Definition repinj: forall t: type, reptype' t -> reptype t :=
   func_type (fun t => reptype' t -> reptype t)
   repinj_bv
-  (fun t n a f => map f)
+  (fun t n a f v => @fold_reptype (Tarray t n a) (map f (unfold_reptype' v)))
   repinj_aux_s
   repinj_aux_u.
 
@@ -266,102 +415,7 @@ Proof.
   unfold repinj.
   rewrite func_type_ind.
   destruct t; auto.
-  + apply JMeq_eq.
-    unfold fold_reptype, unfold_reptype'.
-    match goal with
-    | |- JMeq _ (@eq_rect_r ?A ?x ?F ?v ?y ?H) =>
-      rewrite (eq_rect_r_JMeq A x y F v H)
-    end.
-    apply JMeq_func; [reflexivity | reflexivity | | reflexivity].
-    match goal with
-    | |- JMeq _ (@eq_rect ?A ?x ?F ?v ?y ?H) =>
-      rewrite (eq_rect_JMeq A x y F v H)
-    end.
-    reflexivity.
 Qed.
-
-
-Fixpoint repinj (t: type): reptype' t -> reptype t :=
-  match t as t0 return (reptype' t0 -> reptype t0) with
-  | Tvoid => id
-  | Tint _ _ _ => Vint
-  | Tlong _ _ => Vlong
-  | Tfloat _ _ => Vfloat
-  | Tpointer _ _ => id
-  | Tarray t0 _ _ => (map (repinj t0))
-  | Tfunction _ _ _ => id
-  | Tstruct _ f _ => (repinj_structlist f)
-  | Tunion _ f _ => (repinj_unionlist f)
-  | Tcomp_ptr _ _ => id
-  end
-with repinj_structlist (fld: fieldlist) : reptype'_structlist fld -> reptype_structlist fld :=
-  match fld as f return (reptype'_structlist f -> reptype_structlist f) with
-  | Fnil => id
-  | Fcons _ t fld0 =>
-    (if is_Fnil fld0  as b0
-      return
-        (is_Fnil fld0 = b0 ->
-         (if b0
-          then reptype' t
-          else (reptype' t * reptype'_structlist fld0)%type) ->
-         if b0 then reptype t else (reptype t * reptype_structlist fld0)%type)
-     then fun _ : is_Fnil fld0 = true => repinj t
-     else
-      fun (_ : is_Fnil fld0 = false)
-        (v : reptype' t * reptype'_structlist fld0) =>
-      (repinj t (fst v), repinj_structlist fld0 (snd v))) eq_refl
-  end
-with repinj_unionlist (fld: fieldlist) : reptype'_unionlist fld -> reptype_unionlist fld :=
-  match fld as f return (reptype'_unionlist f -> reptype_unionlist f) with
-  | Fnil => id
-  | Fcons _ t fld0 =>
-    (if is_Fnil fld0  as b0
-      return
-        (is_Fnil fld0 = b0 ->
-         (if b0
-          then reptype' t
-          else sum (reptype' t) (reptype'_unionlist fld0)) ->
-         if b0 then reptype t else sum (reptype t) (reptype_unionlist fld0))
-     then fun _ : is_Fnil fld0 = true => repinj t
-     else
-      fun (_ : is_Fnil fld0 = false) (v : sum (reptype' t) (reptype'_unionlist fld0)) =>
-      match v with
-      | inl v1 => inl (repinj t v1)
-      | inr v2 => inr (repinj_unionlist fld0 v2)
-      end) eq_refl
-  end.
-
-Fixpoint default_val (t: type) : reptype t :=
-  match t as t0 return (reptype t0) with
-  | Tvoid => tt
-  | Tint _ _ _ => Vundef
-  | Tlong _ _ => Vundef
-  | Tfloat _ _ => Vundef
-  | Tpointer _ _ => Vundef
-  | Tarray t0 _ _ => nil
-  | Tfunction _ _ _ => tt
-  | Tstruct _ f _ => struct_default_val f
-  | Tunion _ f _ => union_default_val f
-  | Tcomp_ptr _ _ => Vundef
-  end
-with struct_default_val flds : reptype_structlist flds :=
-  match flds as f return (reptype_structlist f) with
-  | Fnil => tt
-  | Fcons _ t flds0 =>
-     if is_Fnil flds0 as b
-      return  (if b then reptype t else (reptype t * reptype_structlist flds0)%type)
-     then default_val t
-     else (default_val t, struct_default_val flds0)
-  end
-with union_default_val flds : reptype_unionlist flds :=
-  match flds as f return (reptype_unionlist f) with
-  | Fnil => tt
-  | Fcons _ t flds0 =>
-     if is_Fnil flds0 as b
-      return  (if b then reptype t else (reptype t + reptype_unionlist flds0)%type)
-     then default_val t
-     else inl (default_val t)
-  end.
 
 Lemma int_add_repr_0_l: forall i, Int.add (Int.repr 0) i = i.
 Proof. intros. apply Int.add_zero_l. Qed.
