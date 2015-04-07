@@ -715,15 +715,6 @@ Ltac after_forward_call :=
           | after_forward_call2
           ].
 
-Ltac normalize_postcondition :=
- match goal with 
- | P := _ |- semax _ _ _ ?P =>
-     unfold P, abbreviate; clear P; normalize_postcondition
- | |- semax _ _ _ (normal_ret_assert _) => idtac
- | |- _ => apply sequential
-  end;
- autorewrite with ret_assert.
-
 Ltac fwd_skip :=
  match goal with |- semax _ _ Sskip _ =>
    normalize_postcondition;

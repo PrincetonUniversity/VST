@@ -52,7 +52,7 @@ Lemma update_inner_if_else_proof:
    (temp _fragment (Vint (Int.repr k)); 
      temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
      temp _n (Vint (Int.repr (Zlength dd)));
-     temp _c c; temp _data d;
+     temp _data d; temp _c c; 
      temp _len (Vint (Int.repr (len)));
      gvar _K256 kv)
    SEP (`(data_at Tsh t_struct_SHA256state_st
@@ -76,8 +76,6 @@ Proof.
   intros.
   unfold update_inner_if_else;
   simplify_Delta; abbreviate_semax.
-
-
 
  assert_PROP (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d). {
   entailer.
@@ -123,7 +121,6 @@ unfold nested_field_offset2; simpl. normalize.
  clear - H7 H0; unfold k in *.
  eapply field_compatible0_cons_Tarray; try reflexivity; auto.
  omega.
-
 
 rewrite (field_at_data_equal Tsh t_struct_SHA256state_st [StructField _data] 
                  _ (map Vint (map Int.repr dd)++ firstn (Z.to_nat len) (map Vint (map Int.repr data)))).
@@ -236,7 +233,6 @@ name data' _data.
 name p _p.
 name n _n.
 name fragment_ _fragment.
-simplify_Delta.
 unfold sha_update_inv, inv_at_inner_if, update_inner_if.
 abbreviate_semax.
 rewrite semax_seq_skip.
@@ -246,26 +242,17 @@ pose proof I.
 unfold data_block; simpl. normalize.
 rename H2 into DBYTES.
 forward_if (sha_update_inv sh hashed len c d dd data kv false).
- + replace Delta with (initialized _fragment (initialized _p (initialized _n (initialized _data
-                     (func_tycontext f_SHA256_Update Vprog Gtot)))))
- by (simplify_Delta; reflexivity).
- simpl typeof.
- unfold POSTCONDITION, abbreviate.
- rewrite overridePost_overridePost.
- unfold k. 
- match goal with |- semax ?D _ _ _ =>
-  change D with Delta_update_inner_if
- end.
+ +
+  change Delta with Delta_update_inner_if.
+ normalize_postcondition.
+ unfold k.
  simple eapply update_inner_if_then_proof; try eassumption.
   omega. Omega1.
  + (* else clause: len < fragment *)
- replace Delta with (initialized _fragment (initialized _p (initialized _n (initialized _data
-                     (func_tycontext f_SHA256_Update Vprog Gtot)))))
- by (simplify_Delta; reflexivity).
- simpl typeof.
- unfold POSTCONDITION, abbreviate.
- rewrite overridePost_overridePost. 
- eapply update_inner_if_else_proof; try assumption; Omega1.
+  change Delta with Delta_update_inner_if.
+  weak_normalize_postcondition.
+  unfold k.
+  simple eapply update_inner_if_else_proof; try assumption; Omega1.
  +
    forward. (* bogus skip *)
    apply andp_left2; auto.

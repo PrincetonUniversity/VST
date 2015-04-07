@@ -197,7 +197,7 @@ unfold overridePost.
 extensionality ek vl; simpl.
 if_tac; auto.
 Qed.
-Hint Rewrite overridePost_overridePost : norm.
+Hint Rewrite overridePost_overridePost : ret_assert.
 
 Lemma overridePost_normal':
   forall P R, overridePost P R EK_normal None = P.

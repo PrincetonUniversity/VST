@@ -47,13 +47,12 @@ Lemma update_last_if_proof:
    (DONE : (len - (Zlength blocks * 4 - Zlength dd) < CBLOCKz)%Z)
    (Hblocks' : (Zlength blocks * 4 >= Zlength dd)%Z),
 semax
-  (initialized _p
-     (initialized _n
-        (initialized _data (func_tycontext f_SHA256_Update Vprog Gtot))))
+  (initialized_list [_p; _n; _data]
+     (func_tycontext f_SHA256_Update Vprog Gtot))
   (PROP  ()
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
-                temp _c c;
                 temp _data (offset_val (Int.repr (Zlength blocks * 4 - Zlength dd)) d);
+                temp _c c;
                 temp _len (Vint (Int.repr (len - (Zlength blocks * 4 - Zlength dd))));
                 gvar  _K256 kv)
    SEP  (`(K_vector kv);
@@ -74,10 +73,9 @@ semax
              `(sha256state_ a' c); `(data_block sh data d)))).
 Proof.
   intros.
-  unfold update_last_if; simplify_Delta; abbreviate_semax.
+  unfold update_last_if; abbreviate_semax.
  forward_if. 
   + (* then-clause *)
-(* try (apply int_eq_false_e in H0). delete me after recompile *)
     unfold data_block; simpl; normalize.
     rename H1 into Dbytes.
 
@@ -257,6 +255,7 @@ rename H1 into HBOUND.
 fold update_inner_if_then in *.
 fold update_inner_if_else in *.
 fold update_inner_if in *.
+fold update_outer_if in *.
 fold sha_update_loop_body in *.
 forward.  (* data=data_; *)
 assert (LEN: (0 <= s256a_len a)%Z). {
@@ -272,42 +271,51 @@ intros [r_h [lo' [hi' [r_data r_num]]]].
 normalize.
 unfold s256_relate in H0.
 destruct a as [hashed dd].
+simpl in LEN, HBOUND.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
 destruct H0 as [H0 [H1 [H8 [[H3 H3'] [H4 H5]]]]].
 destruct H1 as [H1 H6].
 subst.
-unfold_data_at 1%nat.
-simpl in LEN.
 
+unfold_data_at 1%nat.
 forward_call' (* SHA256_addlength(c, len); *)
   (len, c, s256a_len (S256abs hashed dd)).
-simpl in HBOUND.
-repeat split; simpl; try omega.
+  repeat split; simpl; omega.
+(* TODO:  need a fold_data_at tactic; the next few lines do that here *)
+gather_SEP' [4;0;1;2;3]%Z;
+match goal with |- context [SEPx (?A::_)] =>
+ replace A with (`(data_at Tsh t_struct_SHA256state_st
+    (map Vint (hash_blocks init_registers hashed),
+        (Vint (lo_part (bitlength hashed dd + len * 8)),
+        (Vint (hi_part (bitlength hashed dd + len * 8)),
+        (map Vint (map Int.repr dd), Vint (Int.repr (Zlength dd)))))) c))
+   by (unfold_data_at 1%nat; reflexivity)
+end.
+(* end of TODO *)
+
 forward. (* n = c->num; *)
 forward. (* p=c->data; *)
-fold update_outer_if.
+    (* TODO: should this produce field_address instead of (Int.repr 40) ? *)
+assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c
+          = offset_val (Int.repr 40) c).
+  unfold_data_at 1%nat; rewrite (field_at_compatible' _ _ [StructField _data]).
+  entailer!. (* should field_at_compatible' be part of 
+                       saturate_locals? *)
+  apply field_address_clarify; auto.
+rewrite <- H0; clear H0.
 apply semax_seq with (sha_update_inv sh hashed len c d dd data kv false).
-* unfold POSTCONDITION, abbreviate.
- eapply semax_pre; [ | simple apply update_outer_if_proof; try assumption].
- - unfold_data_at 1%nat.
-   rewrite (field_at_compatible' _ _ [StructField _data]) at 1.
-  entailer!.
-      apply field_address_clarify; auto.
- - omega.
- - omega.
+*
+ semax_subcommand Vprog Gtot  f_SHA256_Update.
+ simple apply update_outer_if_proof; try assumption; omega.
 * (* after if (n!=0) *)
-eapply semax_seq' with
+ eapply semax_seq' with
      (sha_update_inv sh hashed len c d dd data kv true).
-replace (update_tycon Delta update_outer_if)
-   with (initialized _p (initialized _n (initialized _data
-                     (func_tycontext f_SHA256_Update Vprog Gtot))))
- by (simplify_Delta; reflexivity).
-clear POSTCONDITION MORE_COMMANDS Delta.
+ semax_subcommand Vprog Gtot  f_SHA256_Update.
 simple apply update_while_proof; try assumption.
 omega.
 omega.
 
-simplify_Delta; abbreviate_semax.
+abbreviate_semax.
 unfold sha_update_inv.   apply extract_exists_pre; intro blocks.
 normalize.
 forward.    (* c->num=len; *)
@@ -319,13 +327,8 @@ apply semax_seq with (EX  a' : s256abs,
                     (`(K_vector kv);
                      `(sha256state_ a' c); `(data_block sh data d))).
 
-replace Delta with (initialized _p (initialized _n (initialized _data
-                     (func_tycontext f_SHA256_Update Vprog Gtot))))
- by (simplify_Delta; reflexivity).
- unfold POSTCONDITION, abbreviate; clear POSTCONDITION Delta MORE_COMMANDS.
-
 make_sequential.
-rewrite overridePost_normal'.
+ semax_subcommand Vprog Gtot  f_SHA256_Update.
 fold update_last_if.
 rewrite <- data_at_offset_zero.
 simpl upd_reptype.
