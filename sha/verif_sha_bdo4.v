@@ -141,13 +141,10 @@ apply TT_right.
 instantiate (1:= PROPx nil (LOCALx Q (SEP  (`(data_at sh (tarray tuchar (Zlength contents)) (map Vint contents)
              base))))).
 go_lowerx. entailer.
-go_lowerx; entailer.
-rewrite data_at_field_at.
-eapply derives_trans; [apply field_at_compatible | ].
-apply prop_derives; intro.
-hnf in H6|-*.
-decompose [and] H6; clear H6; repeat split; auto.
-omega. omega.
+go_lowerx. entailer.
+apply prop_right.
+eapply field_compatible_cons_Tarray; eauto.
+reflexivity. omega.
 normalize.
 clear H. rename H1 into COMPAT.
 rewrite data_at_field_at.

@@ -959,19 +959,18 @@ Lemma data_at'_offset_zero:
   forall sh e t pos v p, data_at' sh e t pos v p = data_at' sh e t pos v (offset_val Int.zero p).
 Proof. intros. rewrite <- local_facts_offset_zero. reflexivity. apply data_at'_local_facts. Qed.
 
-Lemma data_at_local_facts: forall sh t v p, data_at sh t v p |-- !!(isptr p).
-Proof. intros. unfold data_at. simpl. apply andp_left2. apply data_at'_local_facts. Qed.
-Hint Resolve data_at_local_facts : saturate_local.
-
 Lemma data_at_isptr: forall sh t v p, data_at sh t v p = !!(isptr p) && data_at sh t v p.
-Proof. intros. rewrite <- local_facts_isptr. reflexivity. apply data_at_local_facts. Qed.
+Proof. intros.
+ apply pred_ext; normalize.
+ apply andp_right; auto.
+ unfold data_at. simpl.
+ rewrite data_at'_isptr;  normalize.
+Qed.
 
 Lemma data_at_offset_zero: forall sh t v p, data_at sh t v p = data_at sh t v (offset_val Int.zero p).
-Proof. intros. rewrite <- local_facts_offset_zero. reflexivity. apply data_at_local_facts. Qed.
-
-Lemma data_at__local_facts: forall sh t p, data_at_ sh t p |-- !!(isptr p).
-Proof. intros. unfold data_at_. apply data_at_local_facts. Qed.
-Hint Resolve data_at__local_facts : saturate_local.
+Proof. intros. rewrite <- local_facts_offset_zero. reflexivity.
+    intros; rewrite data_at_isptr; normalize.  
+Qed.
 
 Lemma data_at__isptr: forall sh t p, data_at_ sh t p = !!(isptr p) && data_at_ sh t p.
 Proof. intros. unfold data_at_. apply data_at_isptr. Qed.

@@ -364,9 +364,8 @@ unfold body_invariant.
 entailer.
 apply (exp_right (sorted_list ++ [insert_val],
                            unsorted_list, sorted, next)).
-entailer.
-apply andp_right.
-apply prop_right. rewrite app_ass; reflexivity.
+entailer!.
+rewrite app_ass; reflexivity.
 
 Lemma insert_reorder : forall v1 v2 l,
 insert v1 (insert v2 (l)) = insert v2 (insert v1 l).

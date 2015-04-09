@@ -246,8 +246,8 @@ forward.  (* skip; *)
 apply exp_right with nil. rewrite <- app_nil_end.
 entailer.
 assert (Int.unsigned (Int.repr (Zlength dd)) = Int.unsigned (Int.repr 0)) by (f_equal; auto).
-repeat rewrite Int.unsigned_repr in H6 by Omega1.
-rewrite Zlength_correct in H6;  destruct dd; inv H6.
+repeat rewrite Int.unsigned_repr in H7 by Omega1.
+rewrite Zlength_correct in H7;  destruct dd; inv H7.
 rewrite Zlength_nil.
  entailer!.
  apply Z.divide_0_r.

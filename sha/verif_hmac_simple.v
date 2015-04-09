@@ -41,7 +41,7 @@ forward_if  (
    SEP  (`(data_at_ Tsh t_struct_hmac_ctx_st c); `(data_block Tsh key k);
    `(data_block Tsh data d); `(K_vector kv);
    `(memory_block shmd (Int.repr 32) md))).
-  { (*Branch1*) exfalso. subst md. contradiction.  }
+  { (*Branch1*) inv H.  }
   { (* Branch2 *) forward. entailer. } 
 normalize. rename H into isptrC.
 remember (HMACabs init_s256abs init_s256abs init_s256abs Z0 nil) as dummyHMA.
@@ -66,9 +66,6 @@ forward_call' (h0, c, d, dl, data, kv) h1.
   { rewrite H0_len512. assumption. } 
 rename H into HmacUpdate. 
 
-(*TODO: forward_call' fails if the postcondition of 
-  HMAC_final starts with two existentials EX dig:_, EX h2:_, ... 
-  instead of the current EX digh2:_, ... *)
 forward_call' (h1, c, md, shmd, kv) [dig h2].
 
 simpl in H; rename H into HmacFinalSimple.

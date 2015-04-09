@@ -104,7 +104,7 @@ eapply semax_post_flipped3.
         Frame); try reflexivity; auto; try MyOmega.
  - 
   unfold_data_at 1. entailer!.
-  destruct c; try contradiction.
+  make_Vptr c.
   unfold field_address, field_address0.
   rewrite if_true; auto.
   rewrite if_true; auto.
@@ -114,7 +114,9 @@ eapply semax_post_flipped3.
   erewrite nested_field_offset2_Tarray; try reflexivity.
   normalize.
   unfold field_address0.
-  rewrite if_true. destruct d; try contradiction; apply I.
+  rewrite if_true.
+  make_Vptr d.
+  apply I.
   auto.
 * 
  simpl tc_environ; rewrite insert_local.
@@ -168,7 +170,7 @@ assert (bitlength hashed dd + len * 8 =
     rewrite (Z.mul_add_distr_r _ _ WORD).
     omega.        
 }
- rewrite H6.
+ rewrite H8.
  entailer!.
  -
  apply Update_abs; auto.

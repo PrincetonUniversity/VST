@@ -188,10 +188,8 @@ forward hi'0. (* hi--; *)
   rewrite !flip_fact_2 by omega.
   rewrite !sem_cast_neutral_int by (exists I32, Signed; apply POP; omega).
   simpl force_val.
-  apply andp_right.
-  + apply prop_right.
-    f_equal; omega.
-  + admit.
+  entailer!. f_equal; omega.
+  admit.
 }
 forward. (* return; *)
 Qed.

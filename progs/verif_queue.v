@@ -178,7 +178,7 @@ entailer.
 destruct (isnil contents).
 * entailer!.
 * normalize.
- destruct prefix; entailer; elim_hyps; simpl; apply prop_right; auto.
+ destruct prefix; entailer.
 Qed.
 
 Lemma natural_align_compatible_t_struct_fifo:
@@ -244,6 +244,7 @@ forward_if
   forward. (* Q->tail=p; *)
   (* goal 10 *)
   entailer.
+  entailer.
   destruct (isnil contents).
   + subst. apply exp_right with (p',p').  
       simpl.
@@ -253,9 +254,10 @@ forward_if
       rewrite links_nil_eq.
       entailer!. 
   +  normalize.
-      destruct prefix; normalize; entailer!; elim_hyps; inv H1.
+      destruct prefix; normalize; entailer!.
+      destruct H5 as [H5 _]; contradiction H5.
+      destruct H7 as [H7 _]; contradiction H7.
 * (* else clause *)
-(*  try apply typed_false_nullptr3 in H1.  delete me *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
   + apply semax_pre with FF; [ | apply semax_ff].
