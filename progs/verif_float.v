@@ -57,11 +57,7 @@ apply semax_pre with
           (Vsingle (Float32.of_bits (Int.repr 14302577)),
            Vfloat (Float.of_bits (Int64.repr 0)))) s))). {
 simpl_data_at.
-entailer.
-rewrite prop_true_andp.
-fold tfloat. fold tint. fold tdouble.
-cancel.
-split.
+entailer!.
   eapply gvar_size_compatible; eauto; simpl; computable.
   eapply gvar_align_compatible; eauto.
 }

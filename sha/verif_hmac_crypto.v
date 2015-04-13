@@ -106,16 +106,17 @@ rename H2 into isbyteZ_Key.
 rename H into isPtrMD. rename H0 into KL. rename H1 into DL.
 
 forward_if  (
-  PROP  (isptr c)
+  PROP  ()
    LOCAL  (lvar _c t_struct_hmac_ctx_st c; temp _md md; temp _key k;
    temp _key_len (Vint (Int.repr kl)); temp _d d;
    temp _n (Vint (Int.repr dl)); gvar sha._K256 kv)
    SEP  (`(data_at_ Tsh t_struct_hmac_ctx_st c); `(data_block Tsh key k);
    `(data_block Tsh data d); `(K_vector kv);
    `(memory_block shmd (Int.repr 32) md))).
-  { (* Branch1 *) exfalso. subst md. contradiction.  }
+  { (* Branch1 *) inv H.  }
   { (* Branch2 *) forward. entailer. } 
-normalize. rename H into isptrC.
+normalize.
+assert_PROP (isptr c); [entailer | rename H into isptrC].
 
 remember (HMACabs init_s256abs init_s256abs init_s256abs Z0 nil) as dummyHMA.
 forward_call' (c, k, kl, key, kv, dummyHMA) h.

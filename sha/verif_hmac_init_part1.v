@@ -417,7 +417,7 @@ forward_if PostKeyNull.
        { apply data_at_Tarray_ext_derives. intros. 
               unfold Znth. if_tac. omega.
               assert (Z32: (Z.to_nat i < 32)%nat).
-                  clear - H3; destruct H3 as [XX YY]. rewrite Z2Nat.inj_lt in YY.
+                  clear - H8; destruct H8 as [XX YY]. rewrite Z2Nat.inj_lt in YY.
                   apply YY. omega. omega.
          apply data_at_triv.
          rewrite nth_force_lengthn. 2: simpl; omega.
@@ -430,7 +430,7 @@ forward_if PostKeyNull.
               unfold HMAC_SHA256.zeroPad.
               rewrite <- functional_prog.SHA_256'_eq.
               rewrite app_nth1. inversion updAbs. subst. clear updAbs. simpl in *.
-                      rewrite <- H14.
+                      rewrite <- H19.
                   assert (XX: Z.to_nat (Zlength key) = length key). rewrite Zlength_correct. rewrite Nat2Z.id. trivial.
                   rewrite XX. rewrite firstn_precise; trivial.
               rewrite length_SHA256'; trivial.
@@ -443,7 +443,7 @@ forward_if PostKeyNull.
        unfold Znth. if_tac. omega. if_tac. omega. clear H4 H5. 
        apply data_at_triv.
        assert (Z32: (Z.to_nat i < 32)%nat).
-                  clear - H3; destruct H3 as [XX YY]. rewrite Z2Nat.inj_lt in YY.
+                  clear - H8; destruct H8 as [XX YY]. rewrite Z2Nat.inj_lt in YY.
                   apply YY. omega. omega.
        unfold HMAC_SHA256.mkKey. 
                assert (Kgt: Zlength key > Z.of_nat SHA256.BlockSize).  simpl; omega.
@@ -678,20 +678,23 @@ Opaque Z.sub.
   { (*key == NULL*)
      forward. rewrite HeqPostKeyNull; clear HeqPostKeyNull. normalize.
      unfold initPre, initPostKeyNullConditional. entailer.
-     destruct key'; try contradiction; simpl in *; subst; simpl in *.
+     destruct key'; inv H.
+     simpl in *; subst; simpl in *.
      (*integer*)
         unfold hmacstate_PreInitNull. normalize. rewrite data_at_isptr.
-        normalize. apply isptrD in Pctx'. destruct Pctx' as [cb [cofs CTX']].
-        subst; simpl in *. 
-        apply isptrD in Ppad. destruct Ppad as [pb [pofs PAD]].
+        normalize.
+        apply isptrD in Pctx'. destruct Pctx' as [cb [cofs CTX']].
+        subst; simpl in *.
+        apply field_compatible_isptr in H3.
+        apply isptrD in H3. destruct H3 as [pb [pofs PAD]].
         apply (exp_right cb).
         apply (exp_right cofs).
         apply (exp_right 0). simpl. entailer.
         apply (exp_right r). cancel. apply (exp_right v). entailer.
-     inversion H.
   }
   { (*side condition of forward_if key != NULL*)
-    intros. entailer. unfold overridePost, normal_ret_assert; simpl. 
+    intros. entailer.
+    unfold overridePost, normal_ret_assert; simpl. 
     if_tac. simpl. unfold POSTCONDITION, abbreviate, normal_ret_assert.
        entailer. trivial.
   }

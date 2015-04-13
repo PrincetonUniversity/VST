@@ -715,15 +715,6 @@ Ltac after_forward_call :=
           | after_forward_call2
           ].
 
-Ltac normalize_postcondition :=
- match goal with 
- | P := _ |- semax _ _ _ ?P =>
-     unfold P, abbreviate; clear P; normalize_postcondition
- | |- semax _ _ _ (normal_ret_assert _) => idtac
- | |- _ => apply sequential
-  end;
- autorewrite with ret_assert.
-
 Ltac fwd_skip :=
  match goal with |- semax _ _ Sskip _ =>
    normalize_postcondition;
@@ -2873,16 +2864,7 @@ unfold overridePost, frame_ret_assert, function_body_ret_assert.
 destruct ek; normalize.
 Qed.
 
-Ltac start_function := 
- match goal with |- semax_body _ _ _ ?spec => 
-          try unfold spec 
- end;
- match goal with
- | |- semax_body _ _ _ (DECLARE _ WITH u : unit
-               PRE  [] main_pre _ u
-               POST [ tint ] main_post _ u) => idtac
- | |- semax_body _ _ _ ?spec => check_canonical_funspec spec
- end;
+Ltac start_function' :=
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
    match Pre with 
    | (fun x => match x with (a,b) => _ end) => intros Espec [a b] 
@@ -2921,6 +2903,22 @@ Ltac start_function :=
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
  abbreviate_semax.
+
+
+Ltac start_function := 
+ match goal with |- semax_body _ _ _ ?spec =>
+          try unfold spec 
+ end;
+ match goal with
+ | |- semax_body _ _ _ (DECLARE _ WITH u : unit
+               PRE  [] main_pre _ u
+               POST [ tint ] main_post _ u) => idtac
+ | |- semax_body _ _ _ ?spec => 
+        check_canonical_funspec spec
+ end;
+ match goal with |- semax_body _ _ _ _ => start_function' 
+   | _ => idtac
+ end.
 
 Opaque sepcon.
 Opaque emp.

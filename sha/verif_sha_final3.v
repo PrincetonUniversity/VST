@@ -387,7 +387,7 @@ Proof.
   apply prop_right; repeat constructor; hnf; simpl; auto.
   rewrite (nth_big_endian_integer 0 [lo_part bitlen] (lo_part bitlen)) at 1 by reflexivity;
   reflexivity.
-  destruct c_; try (contradiction Pc_); simpl.
+  make_Vptr c_; simpl.
   symmetry.
   rewrite field_address0_clarify by auto.
   rewrite field_address_clarify. simpl.
@@ -444,7 +444,7 @@ Proof.
   forward p2. (* p -= SHA_CBLOCK; *)
   {
     entailer!. rewrite field_address_clarify.
-          destruct c_; simpl in *; try contradiction; auto.
+          make_Vptr c_; simpl in *; auto.
     clear - TC0.
      unfold field_address in *. if_tac; try contradiction.
       destruct c_; simpl in *; try contradiction. auto.
@@ -462,7 +462,7 @@ Proof.
     entailer!.
     rewrite <- H8.
     unfold field_address.
-    destruct (eval_id _c rho); try solve [inversion H11].
+    make_Vptr (eval_id _c rho).
     simpl.
     if_tac; [rewrite if_true | rewrite if_false]; auto.
     unfold offset_val, force_val; simpl.
@@ -470,8 +470,6 @@ Proof.
     rewrite !Int.add_assoc.
     f_equal. normalize.
     rewrite Int.neg_repr. normalize.
-    hnf in H6|-*; decompose [and] H6; repeat split; auto.
-    contradict H6.
     hnf in H6|-*; decompose [and] H6; repeat split; auto.
   } Unfocus.
   change (map Vint hibytes) with (map Vint (map Int.repr (intlist_to_Zlist [hi_part bitlen]))).

@@ -75,7 +75,7 @@ Definition inv_at_inner_if sh hashed len c d dd data kv :=
       (temp _fragment (Vint (Int.repr (64- Zlength dd)));
        temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
        temp _n (Vint (Int.repr (Zlength dd)));
-       temp _c c; temp _data d;
+       temp _data d; temp _c c; 
        temp _len (Vint (Int.repr len));
        gvar  _K256 kv)
    SEP  (`(data_at Tsh t_struct_SHA256state_st
@@ -94,8 +94,9 @@ Definition sha_update_inv sh hashed len c d (dd: list Z) (data: list Z) kv (done
               (LBLOCKz | Zlength blocks);
               intlist_to_Zlist blocks = dd ++ firstn (length blocks * 4 - length dd) data;
              if done then (len-(Zlength blocks*4 - Zlength dd) < CBLOCKz)%Z else True)
-   LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data]  c); temp _c c; 
+   LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data]  c);
                 temp _data (offset_val (Int.repr (Z.of_nat (length blocks*4-length dd))) d);
+                temp _c c; 
                 temp _len (Vint (Int.repr (len- (Zlength blocks*4 - Zlength dd))));
                 gvar  _K256 kv)
    SEP  (`(K_vector kv);
@@ -170,7 +171,7 @@ semax Delta_update_inner_if
    (temp _fragment (Vint (Int.repr k));
     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _n (Vint (Int.repr (Zlength dd)));
-    temp _c c; temp _data d; temp _len (Vint (Int.repr (len)));
+    temp _data d; temp _c c; temp _len (Vint (Int.repr (len)));
     gvar  _K256 kv)
    SEP 
    (`(data_at Tsh t_struct_SHA256state_st
@@ -183,20 +184,11 @@ semax Delta_update_inner_if
    `(K_vector kv);
    `(data_at sh (tarray tuchar (Zlength data)) (map Vint (map Int.repr data)) d)))
   update_inner_if_then
-  (overridePost (sha_update_inv sh hashed len c d dd data kv false)
-     (function_body_ret_assert tvoid
-        (EX  a' : s256abs,
-         PROP  (update_abs (firstn (Z.to_nat len) data) (S256abs hashed dd) a')
-         LOCAL ()
-         SEP  (`(K_vector kv); `(sha256state_ a' c); `(data_block sh data d))))).
+  (normal_ret_assert (sha_update_inv sh hashed len c d dd data kv false)).
 Proof.
  intros.
- simplify_Delta; abbreviate_semax.
+ abbreviate_semax.
   unfold update_inner_if_then.
-  apply (remember_value (eval_id _fragment)); intro fragment.
-assert_PROP (fragment = Vint (Int.repr k)).
-  entailer!.
-drop_LOCAL 0. subst fragment.
 match goal with |- semax ?D (PROP() (LOCALx ?Q (SEPx _))) _ _ =>
  apply semax_seq'
  with (PROP() (LOCALx Q 
@@ -242,7 +234,6 @@ end;
   erewrite nested_field_offset2_Tarray; try reflexivity. 
   rewrite sizeof_tuchar, Z.mul_1_l. auto.
 
-
   unfold field_address, field_address0 in *.
   if_tac in TC; try contradiction.
   rewrite if_true. destruct c; try contradiction; apply I.
@@ -276,7 +267,6 @@ end;
    firstn_length, min_l; MyOmega
  | reflexivity
  ].
-normalize.
  assert (length (dd ++ firstn (Z.to_nat k) data) = 64)
    by (rewrite app_length, firstn_length, min_l; Omega1).
  assert (length (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)) = LBLOCK)
@@ -285,9 +275,8 @@ normalize.
    (hashed, Zlist_to_intlist (dd++(firstn (Z.to_nat k) data)), c,
      (field_address t_struct_SHA256state_st [StructField _data] c),
       Tsh, kv). {
- entailer.
  rewrite Zlist_to_intlist_to_Zlist.
- cancel.
+ entailer!.
  rewrite H5;  exists LBLOCK; reflexivity.
  rewrite Forall_app; split; auto; apply Forall_firstn; auto.
 }

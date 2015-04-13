@@ -444,6 +444,7 @@ intros.
 apply pred_ext; [ | normalize].
 apply andp_right; auto.
 saturate_local.
+destruct H as [Pv _].
 revert v Pv dd; induction n; intros.
 simpl. apply prop_right; constructor.
 rewrite inj_S. unfold Z.succ.
