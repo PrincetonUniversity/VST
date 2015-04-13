@@ -2,14 +2,13 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
-Require Import floyd.fieldlist.
 Require Import floyd.nested_field_lemmas.
-(*
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.rangespec_lemmas.
-*)
 Require Import floyd.jmeq_lemmas.
 Require Import Coq.Logic.JMeq.
+Import floyd.fieldlist.fieldlist.
+
 Opaque alignof.
 
 Local Open Scope logic.
@@ -90,16 +89,14 @@ Proof.
   destruct t; auto.
   + rewrite decay_spec.
     rewrite map_map.
-    rewrite map_map.
     reflexivity.
   + rewrite decay_spec.
-    rewrite map_map.
     rewrite map_map.
     reflexivity.
 Qed.
 
-Definition reptype_structlist (m: members) := compact_prod (map reptype (map snd m)).
-Definition reptype_unionlist (m: members) := compact_sum (map reptype (map snd m)).
+Definition reptype_structlist (m: members) := compact_prod (map (fun it => reptype (snd it)) m).
+Definition reptype_unionlist (m: members) := compact_sum (map (fun it => reptype (snd it)) m).
 
 Notation REPTYPE t :=
   match t return Type with
@@ -126,9 +123,11 @@ Proof.
   + unfold compact_prod_sigT_type.
     forget (co_members (get_co id)) as m.
     rewrite map_map.
+    rewrite map_map.
     reflexivity.
   + unfold compact_sum_sigT_type.
     forget (co_members (get_co id)) as m.
+    rewrite map_map.
     rewrite map_map.
     reflexivity.
 Qed.
@@ -189,8 +188,8 @@ Proof.
   + exact (inl (gen a)).
 Defined.
 
-Definition struct_default_val (m : members) := compact_prod_gen default_val (map snd m).
-Definition union_default_val (m : members) := compact_sum_gen default_val (map snd m).
+Definition struct_default_val (m : members) := compact_prod_gen (fun it => default_val (snd it)) m.
+Definition union_default_val (m : members) := compact_sum_gen (fun it => default_val (snd it)) m.
 
 Lemma compact_prod_sigT_compact_prod_gen:
   forall {A B} {P: A -> Type} (genT: B -> A) (genV: forall b: B, P (genT b)) (gen: B -> sigT P) (l: list B),
@@ -270,13 +269,21 @@ Proof.
     destruct (reptype_gen t).
     reflexivity.
   + unfold struct_default_val.
-    apply (compact_prod_sigT_compact_prod_gen reptype default_val reptype_gen); intros.
+    rewrite map_map.
+    apply (compact_prod_sigT_compact_prod_gen
+      (fun it => reptype (snd it))
+      (fun it => default_val (snd it))
+      (fun it => reptype_gen(snd it))); intros.
     unfold reptype, default_val.
-    destruct (reptype_gen b); reflexivity.
+    destruct (reptype_gen (snd b)); reflexivity.
   + unfold union_default_val.
-    apply (compact_sum_sigT_compact_sum_gen reptype default_val reptype_gen); intros.
+    rewrite map_map.
+    apply (compact_sum_sigT_compact_sum_gen
+      (fun it => reptype (snd it))
+      (fun it => default_val (snd it))
+      (fun it => reptype_gen(snd it))); intros.
     unfold reptype, default_val.
-    destruct (reptype_gen b); reflexivity.
+    destruct (reptype_gen (snd b)); reflexivity.
 Qed.
 
 Definition reptype': type -> Type :=
@@ -303,8 +310,8 @@ Notation REPTYPE' t :=
   | Tfloat _ a => float
   | Tpointer _ a => val
   | Tarray t0 _ _ => list (reptype' t0)
-  | Tstruct id _ => compact_prod (map reptype' (map snd (co_members (get_co id))))
-  | Tunion id _ => compact_sum (map reptype' (map snd (co_members (get_co id))))
+  | Tstruct id _ => compact_prod (map (fun it => reptype' (snd it)) (co_members (get_co id)))
+  | Tunion id _ => compact_sum (map (fun it => reptype' (snd it)) (co_members (get_co id)))
   end.
 
 Lemma reptype'_ind: forall t, 
@@ -316,13 +323,9 @@ Proof.
   destruct t; auto.
   + f_equal.
     rewrite decay_spec.
-    rewrite map_map.
-    rewrite map_map.
     reflexivity.
   + f_equal.
     rewrite decay_spec.
-    rewrite map_map.
-    rewrite map_map.
     reflexivity.
 Qed.
 
@@ -382,11 +385,11 @@ Definition repinj_bv (t: type): reptype' t -> reptype t :=
    | Tunion id a => fun _ => union_default_val _
    end (unfold_reptype' v)).
 
-Definition repinj_aux_s (id: ident) (a: attr) (F: ListType (map (fun x => reptype' x -> reptype x) (map snd (co_members (get_co id))))): reptype' (Tstruct id a) -> reptype (Tstruct id a) :=
+Definition repinj_aux_s (id: ident) (a: attr) (F: ListType (map (fun it => reptype' (snd it) -> reptype (snd it)) (co_members (get_co id)))): reptype' (Tstruct id a) -> reptype (Tstruct id a) :=
   fun v => @fold_reptype (Tstruct id a) (compact_prod_map _ F (unfold_reptype' v)).
 
 
-Definition repinj_aux_u (id: ident) (a: attr) (F: ListType (map (fun x => reptype' x -> reptype x) (map snd (co_members (get_co id))))): reptype' (Tunion id a) -> reptype (Tunion id a) :=
+Definition repinj_aux_u (id: ident) (a: attr) (F: ListType (map (fun it => reptype' (snd it) -> reptype (snd it)) (co_members (get_co id)))): reptype' (Tunion id a) -> reptype (Tunion id a) :=
   fun v => @fold_reptype (Tunion id a) (compact_sum_map _ F (unfold_reptype' v)).
 
 Definition repinj: forall t: type, reptype' t -> reptype t :=
@@ -407,8 +410,8 @@ Lemma repinj_ind: forall t v,
    | Tfloat _ a => Vfloat
    | Tpointer _ a => id
    | Tarray t0 _ _ => map (repinj t0)
-   | Tstruct id a => compact_prod_map _ (ListTypeGen _ repinj (map snd (co_members (get_co id))))
-   | Tunion id a => compact_sum_map _ (ListTypeGen _ repinj (map snd (co_members (get_co id))))
+   | Tstruct id a => compact_prod_map _ (ListTypeGen (fun it => reptype' (snd it) -> reptype (snd it)) (fun it => repinj (snd it)) (co_members (get_co id)))
+   | Tunion id a => compact_sum_map _ (ListTypeGen (fun it => reptype' (snd it) -> reptype (snd it)) (fun it => repinj (snd it)) (co_members (get_co id)))
    end (unfold_reptype' v)).
 Proof.
   intros.
@@ -429,7 +432,6 @@ Definition repinject (t: type) : reptype t -> val :=
   | Tlong _ _ => fun v => v
   | Tfloat _ _ => fun v => v
   | Tpointer _ _ => fun v => v
-  | Tcomp_ptr _ _ => fun v => v
   | _ => fun _ => Vundef
  end.
 
@@ -439,7 +441,6 @@ Definition valinject (t: type) : val -> reptype t :=
   | Tlong _ _ => fun v => v
   | Tfloat _ _ => fun v => v
   | Tpointer _ _ => fun v => v
-  | Tcomp_ptr _ _ => fun v => v
   | t => fun _ => default_val t
  end.
 
@@ -447,6 +448,21 @@ Lemma valinject_JMeq: forall t v, type_is_by_value t = true -> JMeq (valinject t
 Proof.
   intros.
   destruct t; simpl in *; try congruence; try tauto.
+Qed.
+
+Lemma repinject_unfold_reptype: forall t v,
+  match t as t' return REPTYPE t' -> Prop with
+  | Tint _ _ _
+  | Tfloat _ _
+  | Tlong _ _
+  | Tpointer _ _ => fun vv => repinject t v = vv
+  | _ => fun _ => True
+  end (unfold_reptype v).
+Proof.
+  intros; destruct t; auto;
+  unfold repinject;
+  unfold unfold_reptype;
+  rewrite <- eq_rect_eq; auto.
 Qed.
 
 (******************************************
@@ -538,25 +554,23 @@ Definition spacer (sh: share) (be: Z) (ed: Z) : val -> mpred :=
   if Z.eq_dec (ed - be) 0
   then fun _ => emp
   else
-   at_offset' (memory_block sh (Int.repr (ed - be))) be.
+    at_offset' (memory_block sh (Int.repr (ed - be))) be.
+(* Arguments spacer sh be ed / _ . *)
 
-Arguments spacer sh be ed / _ .
+Definition withspacer sh (lo mid hi: Z) : (val -> mpred) -> val -> mpred :=
+  if Z.eq_dec (hi - mid) 0
+  then fun P => at_offset' P lo
+  else fun P => spacer sh mid hi * at_offset' P lo.
 
-Definition withspacer sh (be: Z) (ed: Z) : (val -> mpred) -> val -> mpred :=
-   match (ed - be) with
-   | Z0 => fun P => P
-   | _ => fun P => spacer sh be ed * P
-   end.
-
-Lemma withspacer_spacer: forall sh be ed P,
-   withspacer sh be ed P = spacer sh be ed * P.
+Lemma withspacer_spacer: forall sh lo mid hi P,
+   withspacer sh lo mid hi P = spacer sh mid hi * at_offset' P lo.
 Proof.
   intros.
   extensionality v.
   unfold withspacer, spacer.
-  destruct (ed - be); auto.
-  rewrite if_true by auto.
-  simpl. rewrite emp_sepcon. auto.
+  if_tac; simpl.
+  + normalize.
+  + auto.
 Qed.
 
 Lemma spacer_offset_zero:
@@ -570,7 +584,7 @@ Proof.
   rewrite <- memory_block_offset_zero.
   reflexivity.
 Qed.
-
+(*
 Lemma withspacer_add:
   forall sh pos be ed P p,
   withspacer sh (pos + be) (pos + ed) (fun p0 => P (offset_val (Int.repr pos) p)) p = 
@@ -590,14 +604,14 @@ Proof.
   rewrite int_add_assoc1.
   reflexivity.
 Qed.
-
+*)
 Lemma offset_val_preserve_isptr: forall p pos, !! (isptr (offset_val pos p)) |-- !! (isptr p).
 Proof.
   intros.
   destruct p; simpl; apply derives_refl.
 Qed.
 
-Lemma at_offset'_preserve_local_facts: forall {A: Type} P pos, (forall p, P p |-- !!(isptr p)) -> (forall p, at_offset' P pos p |-- !!(isptr p)).
+Lemma at_offset'_preserve_local_facts: forall P pos, (forall p, P p |-- !!(isptr p)) -> (forall p, at_offset' P pos p |-- !!(isptr p)).
 Proof.
   intros.
   unfold at_offset', at_offset.
@@ -607,12 +621,13 @@ Proof.
   + eapply derives_trans. exact (H _). apply offset_val_preserve_isptr.
 Qed.
 
-Lemma withspacer_preserve_local_facts: forall sh be ed P, (forall p, P p |-- !! (isptr p)) -> (forall p, withspacer sh be ed P p |-- !! (isptr p)).
+Lemma withspacer_preserve_local_facts: forall sh lo mid hi P, (forall p, P p |-- !! (isptr p)) -> (forall p, withspacer sh lo mid hi P p |-- !! (isptr p)).
 Proof.
   intros.
   rewrite withspacer_spacer.
   simpl; rewrite sepcon_comm. 
-  apply (derives_left_sepcon_right_corable (!!isptr p) (P p) _); [apply corable_prop|].
+  apply (derives_left_sepcon_right_corable (!!isptr p) (at_offset' P lo p) _); [apply corable_prop|].
+  eapply at_offset'_preserve_local_facts.
   apply H.
 Qed.
 
@@ -631,8 +646,8 @@ Proof.
   destruct be; auto.
   unfold offset_val; rewrite Int.add_zero; auto.
 Qed.
-
-Lemma withspacer_memory_block: forall sh be ed p,
+(*
+Lemma withspacer_memory_block: forall sh lo mid hi p,
   0 <= be <= ed ->
   ed < Int.modulus ->
   offset_in_range ed p ->
@@ -655,6 +670,7 @@ Proof.
     rewrite <- memory_block_split by omega.
     f_equal; f_equal; omega.
 Qed.
+*)
 Opaque memory_block.
 
 (************************************************
@@ -676,6 +692,188 @@ from previous version.
 
 ************************************************)
 
+Lemma divide_align: forall x y: Z, x > 0 -> Zdivide x y -> align y x = y.
+Proof.
+  intros.
+  unfold align.
+  destruct H0.
+  rewrite H0.
+  pose proof Zdiv_unique (x0 * x + x - 1) x x0 (x - 1).
+  assert (x0 * x + x - 1 = x0 * x + (x - 1)) by omega.
+  assert (0 <= x - 1 < x) by omega.
+  rewrite (H1 H2 H3).
+  reflexivity.
+Qed.
+
+Section WITH_SHARE.
+
+Variable sh: share.
+
+Fixpoint field_offset_next_rec i m ofs sz :=
+  match m with
+  | nil => 0
+  | (i0, t0) :: nil => sz
+  | (i0, t0) :: m0 =>
+    if ident_eq i i0
+    then (align ofs (alignof cenv_cs t0) + sizeof cenv_cs t0)
+    else field_offset_next_rec i m0 (align ofs (alignof cenv_cs t0) + sizeof cenv_cs t0) sz
+  end.
+
+Definition field_offset_next i m sz := field_offset_next_rec i m 0 sz.
+
+Definition array_at' (t: type) (lo hi: Z) (P: reptype t -> val -> mpred) (v: list (reptype t)) (p: val): mpred :=
+  rangespec lo hi (fun i => at_offset' (P (Znth (i - lo) v (default_val _))) (sizeof cenv_cs t * i)) p.
+
+Definition struct_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (snd it) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (snd it)) m)) : (val -> mpred).
+Proof.
+  destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
+  revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
+  + simpl in v, P.
+    inversion P; subst.
+    exact (withspacer sh
+            (field_offset cenv_cs i0 m0)
+            (field_offset cenv_cs i0 m0 + sizeof cenv_cs t0)
+            (field_offset_next i0 m0 sz)
+            (a v)).
+  + simpl in v, P.
+    inversion P; subst.
+    exact (withspacer sh
+            (field_offset cenv_cs i1 m0)
+            (field_offset cenv_cs i1 m0 + sizeof cenv_cs t1)
+            (field_offset_next i1 m0 sz)
+            (a (fst v)) * IHm i0 t0 (snd v) b).
+Defined.
+
+Definition union_data_at'_aux (m: members) (sz: Z) (P: ListType (map (fun it => reptype (snd it) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (snd it)) m)) : (val -> mpred).
+Proof.
+  destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
+  revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
+  + simpl in v, P.
+    inversion P; subst.
+    exact (withspacer sh 0 (sizeof cenv_cs t0) sz (a v)).
+  + simpl in v, P.
+    inversion P; subst.
+    destruct v as [v | v].
+    - exact (withspacer sh 0 (sizeof cenv_cs t1) sz (a v)).
+    - exact (IHm i0 t0 v b).
+Defined.
+
+Definition data_at': forall t, reptype t -> val -> mpred :=
+  func_type (fun t => reptype t -> val -> mpred)
+    (fun t v p => mapsto sh t p (repinject t v))
+    (fun t n a P v => array_at' t 0 n P (unfold_reptype v))
+    (fun id a P v => struct_data_at'_aux (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
+    (fun id a P v => union_data_at'_aux (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
+
+Definition struct_pred (m: members) (A: ident * type -> Type) (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)): val -> mpred.
+Proof.
+  destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
+  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
+  + simpl in v.
+    exact (P _ v).
+  + simpl in v.
+    exact ((P _ (fst v)) * IHm i0 t0 (snd v)).
+Defined.
+
+(* when unfold, do cbv [struct_pred list_rect]. *)
+
+Definition union_pred (m: members) (A: ident * type -> Type) (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)): val -> mpred.
+Proof.
+  destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
+  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
+  + simpl in v.
+    exact (P _ v).
+  + simpl in v.
+    destruct v as [v | v].
+    - exact (P _ v).
+    - exact (IHm i0 t0 v).
+Defined.
+
+Lemma struct_data_at'_aux_spec: forall m m0 sz v P,
+  struct_data_at'_aux m m0 sz
+   (ListTypeGen
+     (fun it => reptype (snd it) -> val -> mpred)
+     P m) v =
+  struct_pred m (fun it => reptype (snd it))
+   (fun it v =>
+      withspacer sh
+       (field_offset cenv_cs (fst it) m0)
+       (field_offset cenv_cs (fst it) m0 + sizeof cenv_cs (snd it))
+       (field_offset_next (fst it) m0 sz)
+       (P it v)) v.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [reflexivity |].
+  revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
+  + simpl; reflexivity.
+  + change
+     (struct_data_at'_aux ((i1, t1) :: (i0, t0) :: m) m0 sz
+       (ListTypeGen (fun it => reptype (snd it) -> val -> mpred) P ((i1, t1) :: (i0, t0) :: m)) v) with
+     (withspacer sh (field_offset cenv_cs i1 m0)
+       (field_offset cenv_cs i1 m0 + sizeof cenv_cs t1)
+         (field_offset_next i1 m0 sz) (P (i1, t1) (fst v)) *
+      struct_data_at'_aux ((i0, t0) :: m) m0 sz
+       (ListTypeGen (fun it => reptype (snd it) -> val -> mpred) P ((i0, t0) :: m)) (snd v)).
+    rewrite IHm.
+    reflexivity.
+Qed.
+
+Lemma union_data_at'_aux_spec: forall m sz v P,
+  union_data_at'_aux m sz
+   (ListTypeGen
+     (fun it => reptype (snd it) -> val -> mpred)
+     P m) v =
+  union_pred m (fun it => reptype (snd it))
+   (fun it v =>
+      withspacer sh
+       0
+       (sizeof cenv_cs (snd it))
+       sz
+       (P it v)) v.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [reflexivity |].
+  revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
+  + simpl; reflexivity.
+  + destruct v as [v | v].
+    - reflexivity.
+    - apply IHm.
+Qed.
+
+Lemma data_at'_ind: forall t v,
+  data_at' t v =
+  match t return REPTYPE t -> val -> mpred with
+  | Tvoid
+  | Tfunction _ _ _ => fun _ _ => FF
+  | Tint _ _ _
+  | Tfloat _ _
+  | Tlong _ _
+  | Tpointer _ _ => fun v p => mapsto sh t p v
+  | Tarray t0 n a => array_at' t0 0 n (data_at' t0)
+  | Tstruct id a => struct_pred (co_members (get_co id)) (fun it => reptype (snd it)) (fun it v => withspacer sh (field_offset cenv_cs (fst it) (co_members (get_co id)))
+                      (field_offset cenv_cs (fst it) (co_members (get_co id)) + sizeof cenv_cs (snd it))
+                      (field_offset_next (fst it) (co_members (get_co id)) (co_sizeof (get_co id)))
+                      (data_at' (snd it) v))
+  | Tunion id a => union_pred (co_members (get_co id)) (fun it => reptype (snd it)) (fun it v => withspacer sh 0
+                      (sizeof cenv_cs (snd it))
+                      (co_sizeof (get_co id))
+                      (data_at' (snd it) v))
+  end (unfold_reptype v).
+Proof.
+  intros.
+  unfold data_at' at 1.
+  rewrite func_type_ind.
+  destruct t; auto;
+  try solve [
+  match goal with
+  | |- appcontext [repinject ?tt] => 
+    rewrite (repinject_unfold_reptype tt); auto
+  end].
+  + rewrite <- struct_data_at'_aux_spec; reflexivity.
+  + rewrite <- union_data_at'_aux_spec; reflexivity.
+Qed.
+
+(*
 Definition alignof_hd (fld: fieldlist) : Z :=
   match fld with
   | Fnil => 1
@@ -696,19 +894,6 @@ Proof.
   destruct f; simpl.
   omega.
   apply alignof_pos.
-Qed.
-
-Lemma divide_align: forall x y: Z, x > 0 -> Zdivide x y -> align y x = y.
-Proof.
-  intros.
-  unfold align.
-  destruct H0.
-  rewrite H0.
-  pose proof Zdiv_unique (x0 * x + x - 1) x x0 (x - 1).
-  assert (x0 * x + x - 1 = x0 * x + (x - 1)) by omega.
-  assert (0 <= x - 1 < x) by omega.
-  rewrite (H1 H2 H3).
-  reflexivity.
 Qed.
 
 Fixpoint tl_ofs pos alignment fld :=
@@ -796,9 +981,7 @@ Proof.
     pose proof align_le (pos + sizeof t) _ (alignof_hd_pos f).
     omega.
 Qed.
-
-Definition array_at' (sh: Share.t) (t: type) (lo hi: Z) (P: Z -> reptype t -> val -> mpred) (pos: Z) (v: list (reptype t)) (p: val): mpred :=
-  !! isptr p && rangespec lo hi (fun i => P (pos + sizeof t * i) (Znth (i - lo) v (default_val _))) p.
+*)
 
 Fixpoint data_at' (sh: Share.t) (e: type_id_env) (t1: type): Z -> reptype t1 -> val -> mpred :=
   match t1 as t return (Z -> reptype t -> val -> mpred) with

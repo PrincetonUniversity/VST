@@ -305,8 +305,8 @@ Ltac type_induction t :=
 Variable A: type -> Type.
 Variable F_ByValue: forall t: type, A t.
 Variable F_Tarray: forall t n a, A t -> A (Tarray t n a).
-Variable F_Tstruct: forall id a, ListType (map A (map snd (co_members (get_co id)))) -> A (Tstruct id a).
-Variable F_Tunion: forall id a, ListType (map A (map snd (co_members (get_co id)))) -> A (Tunion id a).
+Variable F_Tstruct: forall id a, ListType (map (fun it => A (snd it)) (co_members (get_co id))) -> A (Tstruct id a).
+Variable F_Tunion: forall id a, ListType (map (fun it => A (snd it)) (co_members (get_co id))) -> A (Tunion id a).
 
 Fixpoint func_type_rec (n: nat) (t: type): A t :=
   match n with
@@ -314,12 +314,12 @@ Fixpoint func_type_rec (n: nat) (t: type): A t :=
     match t as t0 return A t0 with
     | Tstruct id a =>
        match cenv_cs ! id with
-       | None => F_Tstruct id a (ListTypeGen A F_ByValue (map snd (co_members (get_co id))))
+       | None => F_Tstruct id a (ListTypeGen (fun it => A (snd it)) (fun it => F_ByValue (snd it)) (co_members (get_co id)))
        | _ => F_ByValue (Tstruct id a)
        end
     | Tunion id a =>
        match cenv_cs ! id with
-       | None => F_Tunion id a (ListTypeGen A F_ByValue (map snd (co_members (get_co id))))
+       | None => F_Tunion id a (ListTypeGen (fun it => A (snd it)) (fun it => F_ByValue (snd it)) (co_members (get_co id)))
        | _ => F_ByValue (Tunion id a)
        end
     | t' => F_ByValue t'
@@ -327,8 +327,8 @@ Fixpoint func_type_rec (n: nat) (t: type): A t :=
   | S n' =>
     match t as t0 return A t0 with
     | Tarray t0 n a => F_Tarray t0 n a (func_type_rec n' t0)
-    | Tstruct id a => F_Tstruct id a (ListTypeGen A (func_type_rec n') (map snd (co_members (get_co id))))
-    | Tunion id a => F_Tunion id a (ListTypeGen A (func_type_rec n') (map snd (co_members (get_co id))))
+    | Tstruct id a => F_Tstruct id a (ListTypeGen (fun it => A (snd it)) (fun it => func_type_rec n' (snd it)) (co_members (get_co id)))
+    | Tunion id a => F_Tunion id a (ListTypeGen (fun it => A (snd it)) (fun it => func_type_rec n' (snd it)) (co_members (get_co id)))
     | t' => F_ByValue t'
     end
   end.
@@ -375,10 +375,9 @@ Proof.
       simpl.
       f_equal.
       apply ListTypeGen_preserve.
-      intros.
+      intros [i t] Hin.
       rewrite Forall_forall in IH.
-      rewrite in_map_iff in H1.
-      destruct H1 as [[i t] [? Hin]]; subst a0; specialize (IH (i, t) Hin n n0).
+      specialize (IH (i, t) Hin n n0).
       simpl in IH |- *.
       pose proof rank_type_members cenv_cs i t _ Hin.
       rewrite co_consistent_rank with (env := cenv_cs) in H by apply get_co_consistent.
@@ -396,10 +395,9 @@ Proof.
       simpl.
       f_equal.
       apply ListTypeGen_preserve.
-      intros.
+      intros [i t] Hin.
       rewrite Forall_forall in IH.
-      rewrite in_map_iff in H1.
-      destruct H1 as [[i t] [? Hin]]; subst a0; specialize (IH (i, t) Hin n n0).
+      specialize (IH (i, t) Hin n n0).
       simpl in IH |- *.
       pose proof rank_type_members cenv_cs i t _ Hin.
       rewrite co_consistent_rank with (env := cenv_cs) in H by apply get_co_consistent.
@@ -414,8 +412,8 @@ Lemma func_type_ind: forall t,
   func_type t = 
   match t as t0 return A t0 with
   | Tarray t0 n a => F_Tarray t0 n a (func_type t0)
-  | Tstruct id a => F_Tstruct id a (ListTypeGen A func_type (map snd (co_members (get_co id))))
-  | Tunion id a => F_Tunion id a (ListTypeGen A func_type (map snd (co_members (get_co id))))
+  | Tstruct id a => F_Tstruct id a (ListTypeGen (fun it => A (snd it)) (fun it => func_type (snd it)) (co_members (get_co id)))
+  | Tunion id a => F_Tunion id a (ListTypeGen (fun it => A (snd it)) (fun it => func_type (snd it)) (co_members (get_co id)))
   | t' => F_ByValue t'
   end.
 Proof.
@@ -428,9 +426,8 @@ Proof.
     - f_equal.
       apply ListTypeGen_preserve.
       unfold get_co; rewrite CO.
-      intros.
-      apply in_map_iff in H.
-      destruct H as [[i t] [? Hin]]; subst a0; simpl.
+      intros [i t] Hin.
+      rewrite Forall_forall in IH.
       pose proof cenv_consistent_cs id co CO.
       apply func_type_rec_rank_irrelevent.
       * rewrite co_consistent_rank with (env := cenv_cs) by auto.
@@ -447,9 +444,7 @@ Proof.
     - f_equal.
       apply ListTypeGen_preserve.
       unfold get_co; rewrite CO.
-      intros.
-      apply in_map_iff in H.
-      destruct H as [[i t] [? Hin]]; subst a0; simpl.
+      intros [i t] Hin.
       pose proof cenv_consistent_cs id co CO.
       apply func_type_rec_rank_irrelevent.
       * rewrite co_consistent_rank with (env := cenv_cs) by auto.

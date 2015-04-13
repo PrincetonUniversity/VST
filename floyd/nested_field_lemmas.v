@@ -77,12 +77,10 @@ Proof.
   destruct t; auto.
   + f_equal.
     rewrite decay_spec.
-    rewrite map_map.
     rewrite fold_right_map.
     reflexivity.
   + f_equal.
     rewrite decay_spec.
-    rewrite map_map.
     rewrite fold_right_map.
     reflexivity.
 Defined.

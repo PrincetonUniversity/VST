@@ -547,7 +547,7 @@ Proof.
   assert (alignof cenv_cs (nested_field_type2 t gfs) | Int.unsigned i + nested_field_offset2 t gfs).
   - apply Z.divide_add_r; auto.
     eapply Z.divide_trans; [| eauto].
-    apply alignof_nested_field_type2_divide; auto.
+    apply alignof_nested_field_type2_divide_alignof; auto.
     apply nested_field_offset2_type2_divide; auto.
   - unfold Int.modulus.
     destruct (alignof_two_p cenv_cs (nested_field_type2 t gfs)).
