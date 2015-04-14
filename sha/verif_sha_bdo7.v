@@ -558,8 +558,7 @@ Lemma sha256_block_data_order_loop2_proof:
                temp _f (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 5));
                temp _g (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 6));
                temp _h (Vint (nthi (Round regs (nthi b) (LBLOCKz-1)) 7));
-               lvar _X (tarray tuint LBLOCKz) Xv;
-               gvar  _K256 kv)
+               gvar  _K256 kv; lvar _X (tarray tuint LBLOCKz) Xv)
    SEP ( `(K_vector kv);
            `(data_at Tsh (tarray tuint LBLOCKz) (map Vint b) Xv)))
   block_data_order_loop2
@@ -574,8 +573,7 @@ Lemma sha256_block_data_order_loop2_proof:
                 temp _f (Vint (nthi (Round regs (nthi b) 63) 5));
                 temp _g (Vint (nthi (Round regs (nthi b) 63) 6));
                 temp _h (Vint (nthi (Round regs (nthi b) 63) 7));
-                lvar _X (tarray tuint LBLOCKz) Xv;
-                gvar  _K256 kv)
+                gvar  _K256 kv; lvar _X (tarray tuint LBLOCKz) Xv)
      SEP (`(K_vector kv);
            `(data_at_ Tsh (tarray tuint LBLOCKz) Xv)))).
 Proof.
