@@ -169,8 +169,8 @@ HMAC_FILES= \
   spec_hmacADT.v verif_hmacADT_cleanup.v \
   verif_hmacADT_init_part1.v \
   verif_hmacADT_update.v verif_hmacADT_final.v verif_hmacADT_simple.v \
-  verif_hmacADT_double.v 
-#  verif_hmacADT_init.v 
+  verif_hmacADT_double.v  verif_hmacADT_init_part1_5.v \
+  verif_hmacADT_init_part1.v  verif_hmacADT_init_part2.v verif_hmacADT_init.v 
 #  HMAC_lemmas.v HMAC_refined_fp.v hmac_sha256.v HMAC_definitions.v \
 #  HMAC_part2GT.v HMAC_part2LE.v \
 #  HMAC_LoopBodyGT.v HMAC_LoopBodyLE.v \

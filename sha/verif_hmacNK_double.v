@@ -100,11 +100,11 @@ forward_if  (
    SEP  (`(data_at_ Tsh t_struct_hmac_ctx_st c); `(data_block Tsh key k);
    `(data_block Tsh data d); `(K_vector kv);
    `(memory_block shmd (Int.repr 64) md))).
-  { (* Branch1 *) exfalso. subst md. contradiction.  }
-  { (* Branch2 *) forward. entailer. } 
+  { (* Branch1 *) inv H. }
+  { (* Branch2 *) forward. entailer!. } 
 normalize. rename H into isptrC.
 
-assert_PROP (isptr k). entailer. 
+assert_PROP (isptr k). entailer!. 
 rename H into isPtrK. 
 remember (HMACabs init_s256abs init_s256abs init_s256abs) as dummyHMA.
 forward_call' (c, k, kl, key, kv, dummyHMA) h0.
@@ -150,7 +150,7 @@ simpl in H; rename H into Round1Final.
 (**************Round 2*******************************)
 
 replace_SEP 1 (`(initPre c nullval h2 key)). 
-  { entailer. eapply hmacstate_PostFinal_PreInitNull; eassumption.
+  { entailer!. eapply hmacstate_PostFinal_PreInitNull; eassumption.
   }
 
 forward_call' (c, nullval, kl, key, kv, h2) h3. rename H into h3_init.
@@ -189,7 +189,7 @@ apply andp_right. apply prop_right. split; trivial.
 apply andp_right. apply prop_right. trivial. cancel.
 rewrite sepcon_assoc. rewrite sepcon_comm.
 apply sepcon_derives.
-  assert (D1: dig = HMAC256 data key).
+{ assert (D1: dig = HMAC256 data key).
      apply hmac_sound with (h:=h2).
      exists h0, h1. auto.
   assert (D2: dig2 = HMAC256 data key).
@@ -208,18 +208,17 @@ apply sepcon_derives.
   cancel.
 
   rewrite skipn_app2; rewrite HMAC_length. 2: omega. 
-  simpl. cancel.
-
-unfold data_block.
+  simpl. cancel. }
+{ unfold data_block.
   rewrite Zlength_correct; simpl.
-rewrite <- memory_block_data_at_; try reflexivity. 
+  rewrite <- memory_block_data_at_; try reflexivity. 
   2: rewrite lvar_eval_lvar with (v:=c); trivial. 
-normalize. rewrite lvar_eval_lvar with (v:=c); trivial. 
+  normalize. rewrite lvar_eval_lvar with (v:=c); trivial. 
   rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))).
   apply data_at_data_at_.
   trivial.
   trivial.
   trivial. 
   destruct c; trivial. unfold align_compatible. simpl. apply Z.divide_1_l. 
-  simpl. rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
+  simpl. rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega. }
 Qed.

@@ -101,10 +101,10 @@ forward_if  (
    `(data_block Tsh data d); `(K_vector kv);
    `(memory_block shmd (Int.repr 64) md))).
   { (* Branch1 *) inv H. }
-  { (* Branch2 *) forward. entailer. } 
+  { (* Branch2 *) forward. entailer!. } 
 normalize. rename H into isptrC.
 
-assert_PROP (isptr k). entailer. 
+assert_PROP (isptr k). entailer!. 
 rename H into isPtrK. 
 remember (HMACabs init_s256abs init_s256abs init_s256abs Z0 nil) as dummyHMA.
 forward_call' (c, k, kl, key, kv, dummyHMA) h0.
@@ -150,7 +150,7 @@ simpl in H; rename H into Round1Final.
 (**************Round 2*******************************)
 
 replace_SEP 1 (`(initPre c nullval h2 key)). 
-  { entailer. eapply hmacstate_PostFinal_PreInitNull; eassumption.
+  { entailer!. eapply hmacstate_PostFinal_PreInitNull; eassumption.
   }
 
 forward_call' (c, nullval, kl, key, kv, h2) h3. rename H into h3_init.

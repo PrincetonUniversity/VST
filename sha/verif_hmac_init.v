@@ -155,7 +155,7 @@ remember (EX shaStates:_ ,
      forward. (*return*)
      unfold hmacInit. 
      remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
-     apply exp_right with (x:=HMACabs iSha iSha oSha KL key).   
+     apply (exp_right (HMACabs iSha iSha oSha KL key)).   
      entailer.
      apply andp_right. 
        apply prop_right. exists iSha, oSha. 
@@ -168,8 +168,8 @@ remember (EX shaStates:_ ,
       remember (if zlt 64 (Zlength key) then Vint (Int.repr 32)
             else Vint (Int.repr (Zlength key))) as kl.
       normalize.
-      apply exp_right with
-        (x:=(iS, (iS, (oS, (kl, map Vint (map Int.repr (HMAC_SHA256.mkKey key))))))).
+      apply (exp_right 
+        (iS, (iS, (oS, (kl, map Vint (map Int.repr (HMAC_SHA256.mkKey key))))))).
       simpl; normalize.
       apply andp_right. apply prop_right.
         destruct (zlt 64 (Zlength key)); simpl in *.
@@ -263,7 +263,7 @@ remember (EX shaStates:_ ,
 
     forward. (*return*)
     remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
-    apply exp_right with (x:=HMACabs iSA iSA oSA KL key). 
+    apply (exp_right (HMACabs iSA iSA oSA KL key)). 
     entailer.
     apply andp_right. 
       apply prop_right. unfold hmacInit. exists iSA, oSA.
@@ -275,8 +275,8 @@ remember (EX shaStates:_ ,
     remember (if zlt 64 (Zlength key) then Vint (Int.repr 32)
               else Vint (Int.repr (Zlength key))) as kl.
     normalize.
-    apply exp_right with
-      (x:=(iS, (iS, (oS, (kl, map Vint (map Int.repr (HMAC_SHA256.mkKey key))))))).
+    apply (exp_right 
+      (iS, (iS, (oS, (kl, map Vint (map Int.repr (HMAC_SHA256.mkKey key))))))).
     simpl. entailer.
     apply andp_right. apply prop_right.
       split. rewrite (updAbs_len _ _ _ INNER), Zlength_mkArgZ,

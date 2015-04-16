@@ -192,7 +192,7 @@ forward_if PostKeyNull.
     simpl. 
     unfold force_val2, force_val1 in H; simpl in H.
     unfold initPre. 
-    destruct k; try solve [eapply semax_pre; try eapply semax_ff; entailer].
+    destruct k; try solve [eapply semax_pre; try eapply semax_ff; entailer!].
     (*key' is integer, ie Null*)
       remember (Int.eq i Int.zero) as d.
       destruct d; try solve [eapply semax_pre; try eapply semax_ff; entailer].
@@ -200,13 +200,14 @@ forward_if PostKeyNull.
       unfold Int.zero in *. simpl in *. inversion H.
     (*key' is ptr*)
     normalize. clear H.
-    assert_PROP (isptr c). entailer. apply isptrD in H. destruct H as [cb [cofs CC]]; subst c.
+    assert_PROP (isptr c). { entailer!. }
+    apply isptrD in H. destruct H as [cb [cofs CC]]; subst c.
     rename b into kb; rename i into kofs.
     assert_PROP (Forall isbyteZ key).
-      { unfold data_block. entailer. }
+      { unfold data_block. entailer!. }
     rename H into isbyte_key. 
     replace_SEP 1 (`(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs))).
-       unfold data_block. entailer.
+       unfold data_block. entailer!.
 
     forward v. subst v. 
     forward. (*j=HMAC_MAX_MD_CBLOCK*)
@@ -239,7 +240,7 @@ forward_if PostKeyNull.
       (*new: extract info from field_address as early as possible*)
       assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
                           (Vptr cb cofs))).
-      { entailer. }
+      { entailer!. }
       apply isptrD in H; destruct H as [? [? PT]]; rewrite PT.
       unfold field_address in PT.
       destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
@@ -280,8 +281,8 @@ forward_if PostKeyNull.
           subst Frame; reflexivity.
           rewrite FR; clear FR Frame.
           unfold data_block. rewrite Zlength_correct. 
-          entailer. (*TODO: If we don't instantiate the Frame explicitly here,
-                        the call to entailer raises "Anomaly: undefined_evars_of_term: evar not found. Please report."*)
+          entailer!. (*TODO: If we don't instantiate the Frame explicitly here,
+                        the call to entailer! raises "Anomaly: undefined_evars_of_term: evar not found. Please report."*)
       }
       { clear Frame HeqPostIf_j_Len HeqPostKeyNull.
         subst l. split. omega. 
@@ -291,13 +292,13 @@ forward_if PostKeyNull.
 
       simpl.
       replace_SEP 3 (`emp). 
-      { entailer.
+      { entailer!.
         assert (L: length key = length (map Vint (map Int.repr key))).
            repeat rewrite map_length. trivial.
         rewrite L, skipn_exact_length, Z.sub_diag.
         eapply derives_trans; try eapply data_at_data_at_.
              rewrite data_at__memory_block.
-               rewrite memory_block_zero_Vptr. entailer.
+               rewrite memory_block_zero_Vptr. entailer!.
                reflexivity. simpl; omega.
       }
       rename H into updAbs.
@@ -307,7 +308,7 @@ forward_if PostKeyNull.
    
       (*new: extract info from field_address as early as possible*)
       assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _key] (Vptr cb cofs))).
-         entailer.
+         entailer!.
       apply isptrD in H; destruct H as [? [? PT]]; rewrite PT.
       unfold field_address in PT.
       destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _key]
@@ -341,9 +342,9 @@ forward_if PostKeyNull.
        data_at_ Tsh (Tarray tuchar 64 noattr) pad]).
        subst Frame; reflexivity.
      rewrite FR; clear FR Frame.   
-     entailer. cancel.
+     entailer!. cancel.
      eapply derives_trans; try apply data_at_data_at_.
-               rewrite data_at__memory_block. entailer.
+               rewrite data_at__memory_block. entailer!.
                reflexivity. simpl; omega.
    }
    normalize.
@@ -362,9 +363,9 @@ forward_if PostKeyNull.
          (data_at_ Tsh (Tarray tuchar 64 noattr) pad)]).
          subst Frame; reflexivity.
        rewrite FR; clear FR Frame.   
-       entailer. cancel. 
+       entailer!. cancel. 
        eapply derives_trans; try apply data_at_data_at_.
-               rewrite data_at__memory_block. entailer.
+               rewrite data_at__memory_block. entailer!.
                reflexivity. simpl; omega.
      }
    normalize. subst v.
@@ -372,9 +373,9 @@ forward_if PostKeyNull.
    forward. (*ctx->key_length=32*)
 
    subst PostIf_j_Len. subst PostKeyNull.
-   entailer. 
+   entailer!. 
    cancel.
-   unfold data_block. entailer. cancel. 
+   unfold data_block. entailer!. cancel. 
    unfold data_at_.
    unfold_data_at 4%nat.
    destruct (zlt 64 (Zlength key)). 2: omega.
@@ -417,7 +418,7 @@ forward_if PostKeyNull.
        { apply data_at_Tarray_ext_derives. intros. 
               unfold Znth. if_tac. omega.
               assert (Z32: (Z.to_nat i < 32)%nat).
-                  clear - H8; destruct H8 as [XX YY]. rewrite Z2Nat.inj_lt in YY.
+                  clear - H7; destruct H7 as [XX YY]. rewrite Z2Nat.inj_lt in YY.
                   apply YY. omega. omega.
          apply data_at_triv.
          rewrite nth_force_lengthn. 2: simpl; omega.
@@ -430,7 +431,7 @@ forward_if PostKeyNull.
               unfold HMAC_SHA256.zeroPad.
               rewrite <- functional_prog.SHA_256'_eq.
               rewrite app_nth1. inversion updAbs. subst. clear updAbs. simpl in *.
-                      rewrite <- H19.
+                      rewrite <- H18.
                   assert (XX: Z.to_nat (Zlength key) = length key). rewrite Zlength_correct. rewrite Nat2Z.id. trivial.
                   rewrite XX. rewrite firstn_precise; trivial.
               rewrite length_SHA256'; trivial.
@@ -443,7 +444,7 @@ forward_if PostKeyNull.
        unfold Znth. if_tac. omega. if_tac. omega. clear H4 H5. 
        apply data_at_triv.
        assert (Z32: (Z.to_nat i < 32)%nat).
-                  clear - H8; destruct H8 as [XX YY]. rewrite Z2Nat.inj_lt in YY.
+                  clear - H7; destruct H7 as [XX YY]. rewrite Z2Nat.inj_lt in YY.
                   apply YY. omega. omega.
        unfold HMAC_SHA256.mkKey. 
                assert (Kgt: Zlength key > Z.of_nat SHA256.BlockSize).  simpl; omega.
@@ -484,7 +485,7 @@ forward_if PostKeyNull.
      unfold_data_at 1%nat.
      rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _key]); try reflexivity.
      assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _key] (Vptr cb cofs))).
-        entailer. 
+        entailer!. 
      apply isptrD in H; destruct H as [? [? PT]]; rewrite PT.
      unfold field_address in PT.
      destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _key]
@@ -532,7 +533,7 @@ forward_if PostKeyNull.
          (data_at Tsh (Tarray tuchar 64 noattr) [] pad); (K_vector kv)]).
          subst Frame. reflexivity.
        rewrite FR. clear FR Frame.  
-       entailer. cancel.
+       entailer!. cancel.
        simpl. rewrite Zlength_max_zero.
          assert (HH: match Zlength key with
                      | 0 => 0
@@ -542,12 +543,12 @@ forward_if PostKeyNull.
             destruct (Zlength key); reflexivity.
        rewrite HH (*was: clear HH*).
        eapply derives_trans; try apply data_at_data_at_.
-               rewrite data_at__memory_block. entailer.
+               rewrite data_at__memory_block. entailer!.
                simpl.
                rewrite Zlength_max_zero, HH. cancel.
                reflexivity.
                simpl. rewrite Zlength_max_zero, HH. 
-               rewrite <- initialize.max_unsigned_modulus. specialize Int.max_signed_unsigned; omega.         
+               rewrite <- initialize.max_unsigned_modulus. specialize Int.max_signed_unsigned; omega.
      }
      { simpl. split. trivial.
        rewrite Zlength_max_zero.
@@ -571,7 +572,7 @@ Opaque Z.sub.
    match goal with |- _ * _ * ?A * _ * _ * _ * _ * _ * _ |-- _ => pull_left A end.
    repeat rewrite sepcon_assoc; apply sepcon_derives.
         eapply derives_trans; try apply data_at_data_at_.
-        rewrite data_at__memory_block. entailer.
+        rewrite data_at__memory_block. entailer!.
         rewrite sizeof_Tarray, Zplus_comm. cancel.
    Transparent Z.sub. 
                apply Zmax_right. omega. 
@@ -583,8 +584,8 @@ Opaque Z.sub.
     simpl map.
 
    forward. (*ctx->key_length=len*)
-   subst PostIf_j_Len. entailer. cancel.
-   unfold_data_at 3%nat. entailer.
+   subst PostIf_j_Len. entailer!. cancel.
+   unfold_data_at 3%nat. entailer!.
    cancel.
    destruct (zlt 64 (Zlength key)). omega. cancel. rewrite Zlength_correct in g. apply (Nat2Z.inj_ge 64) in g.
    clear H0 TC0 h1.
@@ -603,7 +604,7 @@ Opaque Z.sub.
               rewrite SOA; try reflexivity; clear SOA.
       2: rewrite Zlength_correct, app_length, force_lengthn_length_n, Nat2Z.inj_add; omega.
       2: rewrite Zlength_correct in ge_64_l; omega.
-      apply andp_right. entailer.
+      apply andp_right. entailer!.
      assert (F64: false = (Zlength key >? 64)). 
        rewrite Z.gtb_ltb. symmetry. apply Fcore_Zaux.Zlt_bool_false. omega.
       rewrite sepcon_comm.
@@ -665,19 +666,18 @@ Opaque Z.sub.
   }
 
   intros. 
-   entailer. unfold POSTCONDITION, abbreviate; simpl. entailer.
+   entailer!. unfold POSTCONDITION, abbreviate; simpl. entailer!.
    unfold overridePost, initPostKeyNullConditional. 
    if_tac; trivial.
-   entailer.
-     apply exp_right with (x:=cb). apply andp_right. entailer.
-   entailer.
-     apply exp_right with (x:=cofs). 
-     rewrite data_at__isptr. normalize. clear H.
-     apply exp_right with (x:=1). simpl. entailer.
+   entailer!.
+     apply (exp_right cb). apply andp_right. entailer!.
+   entailer!.
+     apply (exp_right cofs). normalize. clear H.
+     apply (exp_right 1). simpl. entailer!.
   }
   { (*key == NULL*)
      forward. rewrite HeqPostKeyNull; clear HeqPostKeyNull. normalize.
-     unfold initPre, initPostKeyNullConditional. entailer.
+     unfold initPre, initPostKeyNullConditional. entailer!.
      destruct key'; inv H.
      simpl in *; subst; simpl in *.
      (*integer*)
@@ -689,14 +689,14 @@ Opaque Z.sub.
         apply isptrD in H3. destruct H3 as [pb [pofs PAD]].
         apply (exp_right cb).
         apply (exp_right cofs).
-        apply (exp_right 0). simpl. entailer.
-        apply (exp_right r). cancel. apply (exp_right v). entailer.
+        apply (exp_right 0). simpl. entailer!.
+        apply (exp_right r). cancel. apply (exp_right v). entailer!.
   }
   { (*side condition of forward_if key != NULL*)
-    intros. entailer.
+    intros. entailer!.
     unfold overridePost, normal_ret_assert; simpl. 
     if_tac. simpl. unfold POSTCONDITION, abbreviate, normal_ret_assert.
-       entailer. trivial.
+       entailer!. trivial.
   }
 Qed.
 

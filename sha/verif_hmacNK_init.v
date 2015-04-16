@@ -18,24 +18,6 @@ Require Import sha.hmac_NK.
 Require Import sha.verif_hmacNK_init_part1. 
 Require Import sha.verif_hmacNK_init_part2.
 
-(*
-Lemma Tarray_emp_field_compatible b ofs: field_compatible (Tarray tuchar 0 noattr) [] (Vptr b ofs).
-        Proof. split; simpl. trivial. split. reflexivity. split. reflexivity.
-          split. apply (size_0_compatible (Tarray tuchar 0 noattr) (eq_refl _) (Vptr b ofs)).
-          split. apply Z.divide_1_l.
-          constructor; simpl; trivial.
-        Qed. 
-        
-Lemma data_Tarray_array_at_emp C b ofs: data_at Tsh (Tarray tuchar 0 noattr) C (Vptr b ofs)
-                  = !!field_compatible (Tarray tuchar 0 noattr) [] (Vptr b ofs) && emp.
-        Proof.
-          rewrite data_at_field_at.
-          erewrite field_at_Tarray. 2: reflexivity. 2: apply JMeq.JMeq_refl.
-          rewrite array_at_emp; trivial. omega.
-        Qed.
-*)
-
-
 Lemma body_hmac_init: semax_body HmacVarSpecs HmacFunSpecs 
        f_HMAC_Init HMAC_Init_spec.
 Proof.
@@ -48,28 +30,11 @@ simpl_stackframe_of. fixup_local_var; intro pad. fixup_local_var; intro ctxkey.
 destruct H as [KL1 [KL2 KL3]]. 
 forward.
  
-assert_PROP (isptr ctxkey). { entailer. }
+assert_PROP (isptr ctxkey). { entailer!. }
 apply isptrD in H; destruct H as [ckb [ckoff X]]; subst ctxkey.
 
 (*isolate branch if (key != NULL) *)
 apply seq_assoc.
-(*from init_part1:
-Definition initPostKeyNullConditional r (c:val) (k: val) h key ctxkey: mpred:=
-  match k with
-    Vint z => if Int.eq z Int.zero
-              then if zeq r Z0 
-                   then (hmacstate_PreInitNull key h c) * (data_at_ Tsh (tarray tuchar 64) ctxkey)
-                   else FF
-              else FF
-  | Vptr b ofs => if zeq r 0 then FF 
-                  else !!(Forall isbyteZ key) &&
-                    ((data_at Tsh t_struct_hmac_ctx_st keyedHMS c) *
-                     (data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_SHA256.mkKey key)))
-                      ctxkey)  *
-                     (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-                      (Vptr b ofs)))
-  | _ => FF
-  end.*)
 remember (EX  cb : block,
                  (EX  cofs : int,
                    (EX  r : Z, 
@@ -87,32 +52,17 @@ forward_seq. instantiate (1:= PostKeyNull).
    rewrite DD.  
    eapply semax_pre_simple.
    2: eapply hmac_init_part1; eassumption.
-   entailer.
+   entailer!.
 }
 subst PostKeyNull. normalize.
 apply extract_exists_pre; intros cb. 
 apply extract_exists_pre; intros cofs. 
 apply extract_exists_pre; intros r.
 normalize. unfold POSTCONDITION, abbreviate. subst c.
- (*rename H into HC; rewrite HC.*) rename H0 into R.
+rename H0 into R.
 
 (*isolate branch if (reset) *)
 apply seq_assoc.
-(*from init_part2:
-Definition postResetHMS (iS oS: s256state): hmacstate :=
-  (emptySha, (iS, oS)).
-
-Definition initPostResetConditional r (c:val) (k: val) h key iS oS: mpred:=
-  match k with
-    Vint z => if Int.eq z Int.zero
-              then if zeq r Z0 then hmacstate_PreInitNull key h c else FF
-              else FF
-  | Vptr b ofs => if zeq r 0 then FF
-                  else !!(Forall isbyteZ key) &&
-                       ((data_at Tsh t_struct_hmac_ctx_st (postResetHMS iS oS) c) *
-                        (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr b ofs)))
-  | _ => FF
-  end.*)
 remember (EX shaStates:_ ,
           PROP  (innerShaInit (map Byte.repr (HMAC_SHA256.mkKey key))
                            (fst shaStates) /\
@@ -130,7 +80,6 @@ remember (EX shaStates:_ ,
                 `(initPostResetConditional r (Vptr cb cofs) k h1 key (fst (snd shaStates)) (snd (snd (snd shaStates))));
                 `(K_vector kv)))
   as PostResetBranch.
-(*forward_seq. instantiate (1:= PostResetBranch).*)
 eapply semax_seq. instantiate (1:=PostResetBranch).
 {  apply init_part2; assumption. }
 
@@ -148,7 +97,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
   rename H1 into OUTER. rename H2 into OuterRelate.
   unfold initPostResetConditional.
   destruct k;
-    try solve [apply semax_pre with (P':=FF); try entailer; try apply semax_ff].
+    try solve [apply semax_pre with (P':=FF); try entailer!; try apply semax_ff].
   { (*k is integer, ie key==null*)
      destruct (Int.eq i Int.zero). 
      Focus 2. apply semax_pre with (P':=FF); try entailer; try apply semax_ff.
@@ -178,7 +127,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      assert_PROP (isptr
           (field_address t_struct_hmac_ctx_st [StructField _i_ctx]
              (Vptr cb cofs))).
-     { entailer. } 
+     { entailer!. } 
      apply isptrD in H. destruct H as [cbI [cIoff CIOff]]. rewrite CIOff in *.
      unfold field_address in CIOff.
      remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _i_ctx]
@@ -198,7 +147,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
           (data_at_ Tsh (tarray tuchar 64) pad); (K_vector kv)]).
           subst Frame; reflexivity.
        rewrite FR; clear FR Frame. 
-       entailer. cancel. simpl.
+       entailer!. cancel. simpl.
        apply sepcon_derives. simpl. rewrite CIOff. cancel.
        unfold field_compatible in f.
        inversion CMDOff. subst cmdoff; simpl. clear CMDOff. (* unfold nested_field_offset2; simpl. rewrite Int.add_zero.*)
@@ -215,16 +164,15 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      forward. (*return*)
      unfold hmacInit. 
      remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
-     apply exp_right with (x:=HMACabs iSha iSha oSha).   
-     entailer.
-     apply andp_right. 
-       apply prop_right. exists iSha, oSha. auto. 
+     apply (exp_right (HMACabs iSha iSha oSha)).   
+     entailer!.
+     exists iSha, oSha. auto. 
      simpl_stackframe_of. unfold tarray.
      cancel.
      unfold hmacstate_, hmac_relate.
       normalize.
-      apply exp_right with (x:=(iS, (iS, oS))).
-      simpl. entailer. cancel.
+      apply (exp_right (iS, (iS, oS))).
+      simpl. entailer!. cancel.
 
       unfold_data_at 3%nat. cancel.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
@@ -244,7 +192,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     simpl.
     assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx]
             (Vptr cb cofs))).
-    { entailer. }
+    { entailer!. }
     apply isptrD in H; destruct H as [? [? PT]]. 
     rewrite PT; unfold field_address in PT.
     remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
@@ -267,7 +215,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
              (offset_val
                 (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _md_ctx]))
              (Vptr cb cofs))))).
-    { entailer. cancel.
+    { entailer!. cancel.
       unfold field_compatible in f.
         eapply derives_trans. 
          apply data_at_data_at_. 
@@ -300,22 +248,20 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
          (K_vector kv)]).
         subst Frame; reflexivity.
       rewrite FR; clear FR Frame. 
-      entailer. simpl. rewrite CIOff. unfold  nested_field_type2; simpl. cancel.
+      entailer!. simpl. rewrite CIOff. unfold  nested_field_type2; simpl. cancel.
     }
     subst rv; simpl. 
 
     forward. (*return*)
-    apply exp_right with (x:=HMACabs iSA iSA oSA). 
-    entailer.
-    apply andp_right. 
-      apply prop_right. unfold hmacInit. exists iSA, oSA. auto.
-    unfold data_block. simpl_stackframe_of. entailer. cancel.
+    apply (exp_right (HMACabs iSA iSA oSA)). 
+    entailer!.
+    unfold hmacInit. exists iSA, oSA. auto.
+    unfold data_block. simpl_stackframe_of. entailer!. cancel.
     unfold hmacstate_, hmac_relate.
     normalize.
-    apply exp_right with (x:=(iS, (iS, oS))).
-    simpl. entailer.
-    apply andp_right. apply prop_right.
-      split. rewrite (updAbs_len _ _ _ INNER), Zlength_mkArgZ,
+    apply (exp_right (iS, (iS, oS))).
+    simpl. entailer!.
+      rewrite (updAbs_len _ _ _ INNER), Zlength_mkArgZ,
            map_length, mkKey_length; reflexivity.
       rewrite (updAbs_len _ _ _ OUTER), Zlength_mkArgZ,
            map_length, mkKey_length; reflexivity.
@@ -324,7 +270,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
     unfold field_address. rewrite <- Heqs, <- Heqs0. unfold nested_field_type2; simpl.
-    inversion CIOff. rewrite H4. unfold nested_field_offset2 in H4; simpl in H4.
+    inversion CIOff. rewrite H9. unfold nested_field_offset2 in H4; simpl in H4.
       unfold tarray in *. rewrite (lvar_eval_lvar _ _ _ _ H0). 
       rewrite (lvar_eval_lvar _ _ _ _ H1). cancel.
     

@@ -30,24 +30,24 @@ simpl_stackframe_of. fixup_local_var; intro c.
 rename keyVal into k. rename msgVal into d.
 destruct KEY as [kl key].
 destruct MSG as [dl data]. simpl in *.
-rename H into WrshMD. 
-assert_PROP (isptr md). entailer. 
+rename H into WrshMD.
+assert_PROP (isptr md). entailer!. 
 rename H into isPtrMD. rename H0 into KL. rename H1 into DL. 
-forward_if  (
-  PROP  (isptr c)
-   LOCAL  (lvar _c t_struct_hmac_ctx_st c; temp _md md; temp _key k;
-   temp _key_len (Vint (Int.repr kl)); temp _d d;
-   temp _n (Vint (Int.repr dl)); gvar sha._K256 kv)
-   SEP  (`(data_at_ Tsh t_struct_hmac_ctx_st c); `(data_block Tsh key k);
-   `(data_block Tsh data d); `(K_vector kv);
-   `(memory_block shmd (Int.repr 32) md))).
-  { (*Branch1*) exfalso. subst md. contradiction.  }
-  { (* Branch2 *) forward. entailer. } 
+forward_if  
+ ( PROP (isptr c)
+   LOCAL (lvar _c t_struct_hmac_ctx_st c; temp _md md; temp _key k;
+     temp _key_len (Vint (Int.repr kl)); temp _d d;
+     temp _n (Vint (Int.repr dl)); gvar sha._K256 kv)
+   SEP (`(data_at_ Tsh t_struct_hmac_ctx_st c); `(data_block Tsh key k);
+     `(data_block Tsh data d); `(K_vector kv);
+     `(memory_block shmd (Int.repr 32) md))).
+  { (*Branch1*) inv H. }
+  { (* Branch2 *) forward. entailer!. } 
 normalize. rename H into isptrC.
-remember (HMACabs init_s256abs init_s256abs init_s256abs) as dummyHMA.
-assert_PROP (isptr k). entailer. 
+remember (HMACabs init_s256abs init_s256abs init_s256abs) as initHMA.
+assert_PROP (isptr k). entailer!. 
 rename H into isPtrK. 
-forward_call' (c, k, kl, key, kv, dummyHMA) h0. 
+forward_call' (c, k, kl, key, kv, initHMA) h0. 
  { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
    unfold initPre. cancel.
  }

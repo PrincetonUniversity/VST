@@ -45,52 +45,36 @@ remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
              c) as s.
 destruct s; simpl in *; inversion BOff. simpl in *. clear BOff.
 
-eapply semax_seq'. 
-myframe_SEP'' [2; 3; 4].
-remember (ctx, data, c, d, Tsh, len, KV) as WITNESS.
-forward_call WITNESS.
-  { assert (FR: Frame =nil).
-       subst Frame. reflexivity.
+forward_call' (ctx, data, c, d, Tsh, len, kv) s.
+  { unfold sha256state_. 
+    assert (FR: Frame = 
+        (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] (snd (snd ST)) c) ::
+        (field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] (fst (snd ST)) c) :: nil).
+       subst Frame. reflexivity. 
     rewrite FR. clear FR Frame. 
-    subst WITNESS. entailer.
-    cancel. 
-    unfold sha256state_. apply exp_right with (x:= mdCtx ST). entailer.
-    (*rewrite field_at_data_at; try reflexivity. simpl. entailer.*)
+    entailer!. cancel.
+    apply (exp_right (mdCtx ST)). entailer!. 
   }
-after_call. subst WITNESS. normalize. simpl. (* normalize.*)
+  { intuition. }
 
+rename H into HmacUpdate.
+normalize. simpl. 
 assert (FF: firstn (Z.to_nat len) data = data). 
     rewrite DL1 in *. 
     apply firstn_same. rewrite Zlength_correct, Nat2Z.id. omega.
 rewrite FF in *. 
 
-(**** Again, distribute EX over lift*)
-apply semax_pre with (P' :=EX  x : s256abs,
-  (PROP  (update_abs data ctx x)
-   LOCAL  (tc_environ Delta; `(eq c) (eval_id _ctx); `(eq d) (eval_id _data);
-   `(eq (Vint (Int.repr len))) (eval_id _len);
-   `(eq KV) (eval_var sha._K256 (tarray tuint 64)))
-   SEP 
-   (`(K_vector KV); `(sha256state_ x c); `(data_block Tsh data d);
-   `(field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] (fst (snd ST)) c);
-   `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] (snd (snd ST)) c)))).
-  entailer. apply (exp_right x). entailer.
-apply extract_exists_pre. intros s. normalize.
-(********************************************************)
-rename H into HmacUpdate.
-
-(*WHY IS THIS NEEDED?*) unfold MORE_COMMANDS, abbreviate.
 forward.
-apply (exp_right (HMACabs s iSha oSha)). entailer.
-apply andp_right. apply prop_right. exists s; eauto.
+apply (exp_right (HMACabs s iSha oSha)). entailer!.
+  exists s; eauto.
 cancel. 
 unfold hmacstate_, sha256state_, hmac_relate. normalize.
 apply (exp_right (r, (iCtx ST, oCtx ST))). 
-simpl. entailer.
+simpl. entailer!.
 (*apply andp_right. apply prop_right. exists l; eauto.*)
 unfold_data_at 2%nat.
 destruct ST as [ST1 [ST2 ST3]]. simpl in *. cancel.
 rewrite field_at_data_at. 
     unfold nested_field_type2, field_address; simpl.
-    rewrite <- Heqs. entailer. 
+    rewrite <- Heqs. entailer!. 
 Qed.
