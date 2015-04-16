@@ -1442,6 +1442,7 @@ Ltac AUTO_IND :=
 Lemma memory_block_array_at': forall sh t b ofs lo hi,
   0 <= ofs + sizeof cenv_cs t * lo /\ ofs + sizeof cenv_cs t * hi <= Int.modulus ->
   0 <= lo <= hi ->
+  sizeof cenv_cs t * (hi - lo) < Int.modulus ->
   array_at' t lo hi
     (fun _ : reptype t => memory_block sh (Int.repr (sizeof cenv_cs t))) nil
     (Vptr b (Int.repr ofs)) =
@@ -1450,120 +1451,55 @@ Proof.
   intros.
   unfold array_at'.
   unfold rangespec.
-  remember (nat_of_Z (hi - lo)) as n eqn:HH; revert lo HH H H0; induction n; intros.
+  remember (nat_of_Z (hi - lo)) as n eqn:HH; revert lo HH H H0 H1; induction n; intros.
   + simpl.
     pose proof arith_aux00 _ _ (proj2 H0) HH.
-    rewrite H1, Z.mul_0_r, memory_block_zero_Vptr.
+    rewrite H2, Z.mul_0_r, memory_block_zero_Vptr.
     reflexivity.
   + simpl.
     pose proof arith_aux01 _ _ _ HH.
     rewrite at_offset_eq.
-    rewrite IHn.
-    Focus 2. apply arith_aux02; auto.
-    replace (at_offset (P (Znth (lo - lo) nil (default_val t)))
-      (sizeof cenv_cs t * lo) (Vptr b (Int.repr ofs))) with
-      (memory_block sh (Int.repr (sizeof cenv_cs t)) (Vptr b (Int.repr (ofs + sizeof cenv_cs t * lo)))).
-    Focus 2. {
-      rewrite Znth_nil.
-      symmetry. apply H4.
-      omega.
-    } Unfocus.
-    replace (rangespec' (Z.succ lo) n
-     (fun i : Z =>
-      at_offset (P (Znth (i - lo) nil (default_val t)))
-        (sizeof cenv_cs t * i)) (Vptr b (Int.repr ofs))) with
-      (memory_block sh (Int.repr (sizeof cenv_cs t * (hi - Z.succ lo)))
-        (Vptr b (Int.repr (ofs + sizeof cenv_cs t * Z.succ lo)))).
-    Focus 2. {
-      assert (0 <= sizeof cenv_cs t) by (pose proof sizeof_pos cenv_cs t; omega).
-      rewrite <- IHn.
-      + f_equal.
-        clear.
-        extensionality i.
-        rewrite !Znth_nil.
-        auto.
-      + apply arith_aux02; auto.
-      + omega.
-      + split; [| omega].
-        apply arith_aux03; omega.
-      + pose proof Zmult_le_compat_l (hi - Z.succ lo) (hi - lo) (sizeof cenv_cs t).
-        spec H7; [omega |].
-        spec H7; [pose proof sizeof_pos cenv_cs t; omega |].
-        omega.
-      + intros; apply H4; omega.
-    } Unfocus.
-    replace (ofs + sizeof cenv_cs t * Z.succ lo) with
-      (ofs + sizeof cenv_cs t * lo + sizeof cenv_cs t).
-    Focus 2. {
-      rewrite <- Z.add_assoc.
-      rewrite Zred_factor3.
-      f_equal.
-      f_equal.
-      omega.
-    } Unfocus.
-    assert (0 <= sizeof cenv_cs t) by (pose proof sizeof_pos cenv_cs t; omega).
-    rewrite <- memory_block_split; auto.
+    pose_size_mult cenv_cs t (0 :: hi - Z.succ lo :: hi - lo :: nil).
+    rewrite IHn; [| apply arith_aux02; auto | omega | omega | omega].
+    replace (ofs + sizeof cenv_cs t * Z.succ lo) with (ofs + sizeof cenv_cs t * lo + sizeof cenv_cs t) by omega.
+    unfold offset_val.
+    solve_mod_modulus.
+    rewrite <- memory_block_split by (auto; omega).
     f_equal.
-    - rewrite Zred_factor2.
-      f_equal.
-      f_equal.
-      omega.
-    - apply Z.mul_nonneg_nonneg; auto.
-      omega.
-    - rewrite Zred_factor2.
-      replace (1 + (hi - Z.succ lo)) with (hi - lo) by omega.
-      auto.
-    - rewrite !Zred_factor2.
-      split; [omega |].
-      rewrite Z.add_comm.
-      rewrite <- Z.add_assoc.
-      rewrite Zred_factor4.
-      replace ((lo + (1 + (hi - Z.succ lo)))) with hi by omega.
-      omega.
+    f_equal.
+    omega.
 Qed.
 
-Lemma memory_block_data_at'_default_val_array_aux: forall sh t z a P b ofs,
-  legal_alignas_type (Tarray t z a) = true ->
+Lemma memory_block_data_at'_default_val_array_aux: forall sh t z a b ofs,
   0 <= ofs /\ ofs + sizeof cenv_cs (Tarray t z a) <= Int.modulus ->
   sizeof cenv_cs (Tarray t z a) < Int.modulus ->
-  (alignof cenv_cs (Tarray t z a) | ofs) ->
-  (forall n : Z,
-       0 <= n < z ->
-       at_offset (P (default_val t)) (sizeof cenv_cs t * n) (Vptr b (Int.repr ofs)) =
-       memory_block sh (Int.repr (sizeof cenv_cs t)) (Vptr b (Int.repr (ofs + sizeof cenv_cs t * n)))) ->
-  array_at' t 0 z P nil (Vptr b (Int.repr ofs)) =
+  array_at' t 0 z
+    (fun _ : reptype t => memory_block sh (Int.repr (sizeof cenv_cs t))) nil
+    (Vptr b (Int.repr ofs)) =
   memory_block sh (Int.repr (sizeof cenv_cs (Tarray t z a))) (Vptr b (Int.repr ofs)).
 Proof.
   intros.
-  simpl sizeof.
   destruct (zlt z 0).
-  + rewrite Z.max_l by omega.
-    rewrite Z.mul_0_r.
-    unfold array_at', rangespec.
-    rewrite Z2Nat_neg by omega.
+  + unfold array_at', rangespec.
     simpl.
+    rewrite Z2Nat_neg by omega.
+    rewrite Z.max_l by omega.
+    rewrite Z.mul_0_r.
     rewrite memory_block_zero.
-    normalize.
-  + rewrite memory_block_array_at'_nil with (sh := sh).
-    - rewrite Z.sub_0_r.
-      rewrite Z.max_r by omega.
-      rewrite Z.mul_0_r.
-      rewrite Z.add_0_r.
-      reflexivity.
+    simpl; normalize.
+  + rewrite memory_block_array_at'.
+    - rewrite Z.mul_0_r, Z.sub_0_r, Z.add_0_r.
+      f_equal; f_equal.
+      simpl.
+      f_equal.
+      rewrite Z.max_r by omega; auto.
+    - rewrite Z.mul_0_r, Z.add_0_r.
+      simpl in H.
+      rewrite Z.max_r in H by omega; auto.
     - omega.
-    - simpl in H0.
-      rewrite Z.max_r in H0 by omega.
-      rewrite Z.mul_0_r.
-      rewrite Z.add_0_r.
-      auto.
-    - AUTO_IND.
-    - rewrite legal_alignas_type_Tarray in H2 by auto.
-      auto.
     - rewrite Z.sub_0_r.
-      simpl in H1.
-      rewrite Z.max_r in H1 by omega.
-      auto.
-    - auto.
+      simpl in H0.
+      rewrite Z.max_r in H0 by omega; auto.
 Qed.
 
 Lemma memory_block_data_at'_default_val: forall sh t b i,
@@ -1588,7 +1524,8 @@ Proof.
       intros.
       rewrite Znth_nil.
       rewrite !at_offset_eq.
-      simpl sizeof in H1, H2; unfold offset_val.
+      unfold offset_val.
+      simpl sizeof in H1, H2;
       rewrite Z.max_r in H1, H2 by omega.
       apply IH; try AUTO_IND;
       pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil).
@@ -1605,43 +1542,8 @@ Proof.
           apply legal_alignas_sizeof_alignof_compat.
           AUTO_IND.
     } Unfocus.
-      Check at_offset.
-      Check at_offset.
-SearchAbout at_offset .
-    assert (0 <= sizeof cenv_cs t) by (pose proof sizeof_pos cenv_cs t; omega).
-    apply memory_block_data_at'_default_val_array_aux with (a := a); auto; [omega |].
-    intros.
-    assert (0 <= sizeof cenv_cs t * n) by (apply Z.mul_nonneg_nonneg; omega).
-    assert (sizeof cenv_cs t * n + sizeof cenv_cs t <= sizeof cenv_cs (Tarray t z a)).
-    Focus 1. {
-      rewrite Zred_factor3.
-      simpl sizeof.
-      rewrite Z.max_r by omega.
-      apply Zmult_le_compat_l; omega.
-    } Unfocus.
-    rewrite at_offset_eq by (rewrite offset_val_zero_Vptr; auto).
-    unfold offset_val.
-    rewrite add_repr.
-    apply IH.
-    - AUTO_IND.
-    - AUTO_IND.
-    - pose proof (Int_unsigned_repr_le (ofs + sizeof cenv_cs t * n)).
-      spec H9; [omega |].
-      omega.
-    - assert (sizeof cenv_cs t <= sizeof cenv_cs (Tarray t z a)); [| omega].
-      replace (sizeof cenv_cs t) with (sizeof cenv_cs t * 1)%Z by (rewrite Z.mul_1_r; auto).
-      simpl sizeof; rewrite Z.max_r by omega.
-      apply Zmult_le_compat_l; omega.
-    - rewrite Int.unsigned_repr_eq.
-      apply arith_aux04; [omega |].
-      apply Z.divide_add_r.
-      * rewrite legal_alignas_type_Tarray in H3 by auto.
-        auto.
-      * apply Z.divide_mul_l.
-        apply legal_alignas_sizeof_alignof_compat.
-        AUTO_IND.
-  +
-
+    apply memory_block_data_at'_default_val_array_aux; [omega | auto].
+  + 
 Lemma memory_block_data_at'_default_val_struct_aux: forall sh b i (P: forall t, reptype t -> val -> mpred) F m m0 sz,
   m = m0 ->
   sizeof_struct cenv_cs 0 m0 <= sz ->

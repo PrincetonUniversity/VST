@@ -123,6 +123,14 @@ Proof.
   apply Int.modulus_pos.
 Qed.
 
+Definition reprm := Int.repr.
+
+Lemma modm_repr_eq: forall x y, Int.eqmod Int.modulus x y -> Int.repr x = reprm y.
+Proof.
+  intros.
+  apply Int.eqm_samerepr; auto.
+Qed.
+
 Ltac simpl_mod A H :=
   let H0 := fresh "H" in
   let H1 := fresh "H" in
@@ -156,15 +164,20 @@ Ltac simpl_mod A H :=
   end.
 
 Ltac solve_mod_modulus :=
-  unfold Int.add; rewrite !Int.unsigned_repr_eq;
+  try unfold Int.add; try rewrite !Int.unsigned_repr_eq;
   repeat
   match goal with
   | |- context [?A mod Int.modulus] =>
          let H := fresh "H" in simpl_mod A H;
          rewrite (modm_mod_eq A _ H);
          clear H
+  | |- context [Int.repr ?A] =>
+         let H := fresh "H" in simpl_mod A H;
+         rewrite (modm_repr_eq A _ H);
+         clear H
   end;
-  unfold modm.
+  try unfold modm;
+  try unfold reprm.
 
 Ltac pose_mod_le A :=
   let H := fresh "H" in
@@ -176,11 +189,16 @@ Ltac pose_mul_distr_l l r :=
   | (?A + ?B)%Z => pose proof Z.mul_add_distr_l l A B;
                    pose_mul_distr_l l A;
                    pose_mul_distr_l l B
+  | Z.succ ?A => let H := fresh "H" in
+                 pose proof Z.mul_add_distr_l l A 1 as H;
+                 replace (A + 1) with (Z.succ A) in H by omega;
+                 pose_mul_distr_l l A
   | (?A - ?B)%Z => pose proof Z.mul_sub_distr_l l A B;
                    pose_mul_distr_l l A;
                    pose_mul_distr_l l B
   | _ => idtac
   end.
+
 
 Ltac pose_size_mult' env t l :=
   match l with
