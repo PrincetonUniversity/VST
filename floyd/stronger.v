@@ -110,13 +110,6 @@ Proof.
   apply H.
 Qed.
 
-Lemma Z2Nat_neg: forall i, i < 0 -> Z.to_nat i = 0%nat.
-Proof.
-  intros.
-  destruct i; try reflexivity.
-  pose proof Zgt_pos_0 p; omega.
-Qed.
-
 Lemma stronger_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
   (forall i, 0 <= i < n -> Znth i v0 (default_val _) >>> Znth i v1 (default_val _)) ->
   v0 >>> v1.

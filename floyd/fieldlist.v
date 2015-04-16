@@ -20,6 +20,18 @@ Definition field_offset2 env i m :=
   | _ => 0
   end.
 
+Fixpoint field_offset_next_rec env i m ofs sz :=
+  match m with
+  | nil => 0
+  | (i0, t0) :: nil => sz
+  | (i0, t0) :: m0 =>
+    if ident_eq i i0
+    then (align ofs (alignof env t0) + sizeof env t0)
+    else field_offset_next_rec env i m0 (align ofs (alignof env t0) + sizeof env t0) sz
+  end.
+
+Definition field_offset_next env i m sz := field_offset_next_rec env i m 0 sz.
+
 Definition compute_in_members id (m: members): bool :=
   id_in_list id (map fst m).
                                                                       
@@ -270,12 +282,65 @@ Proof.
     apply IHm. tauto.
 Qed.
 
+Lemma field_offset_next_in_range: forall i m sz,
+  in_members i m ->
+  sizeof_struct cenv_cs 0 m <= sz ->
+  field_offset2 cenv_cs i m + sizeof cenv_cs (field_type2 i m) <=
+  field_offset_next cenv_cs i m sz <= sz.
+Proof.
+  intros.
+  unfold field_offset2, field_offset, field_offset_next, field_type2.
+  match goal with
+  | |- ?A => assert (A /\
+                     match field_offset_rec cenv_cs i m 0 with
+                     | Errors.OK _ => True
+                     | _ => False
+                     end /\
+                     match field_type i m with
+                     | Errors.OK _ => True
+                     | _ => False
+                     end); [| tauto]
+  end.
+  revert H0; generalize 0; induction m as [| [i0 t0] m]; intros.
+  + inversion H.
+  + simpl in H0 |- *.
+    destruct (ident_eq i i0).
+    - split; [| split]; auto.
+      pose proof sizeof_struct_incr cenv_cs m (align z (alignof cenv_cs t0) + sizeof cenv_cs t0).
+      destruct m; omega.
+    - destruct H as [H | H]; simpl in H; [congruence |].
+      specialize (IHm H (align z (alignof cenv_cs t0) + sizeof cenv_cs t0) H0).
+      destruct (field_offset_rec cenv_cs i m (align z (alignof cenv_cs t0) + sizeof cenv_cs t0)),
+               (field_type i m);
+      try tauto.
+      split; [| split]; auto.
+      destruct IHm as [? _].
+      destruct m; omega.
+Qed.
+
+Lemma field_offset_next_is_next: forall m m0 i t m1 sz,
+  members_no_replicate m = true ->
+  m = m0 ++ (i, t) :: m1 ->
+  field_offset_next cenv_cs i m sz = 
+  match m1 with
+  | nil => sz
+  | (i0, _)::_ => field_offset2 cenv_cs i0 m
+  end.
+Proof.
+  intros.
+  unfold field_offset_next, field_offset2, field_offset.
+  revert m0 m1 t H0; generalize 0; induction m.
+Abort.
+
 End COMPOSITE_ENV.
 
 Module fieldlist.
 
+Definition in_members := @in_members.
+Definition members_no_replicate := @members_no_replicate.
 Definition field_type := @field_type2.
 Definition field_offset := @field_offset2.
+Definition field_offset_next := @field_offset_next.
 
 Definition field_offset_in_range:
   forall {cs: compspecs},
@@ -341,6 +406,15 @@ Definition not_in_members_field_offset:
   ~ in_members i m ->
   field_offset2 cenv_cs i m = 0
 := @not_in_members_field_offset2.
+
+Definition field_offset_next_in_range:
+  forall {cs: compspecs},
+  forall i m sz,
+  in_members i m ->
+  sizeof_struct cenv_cs 0 m <= sz ->
+  field_offset cenv_cs i m + sizeof cenv_cs (field_type i m) <=
+  field_offset_next cenv_cs i m sz <= sz
+:= @field_offset_next_in_range.
 
 End fieldlist.
 

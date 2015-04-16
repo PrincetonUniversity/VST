@@ -127,7 +127,7 @@ VERIC_FILES= \
   NullExtension.v SequentialClight.v superprecise.v jstep.v
 
 FLOYD_FILES= \
-   coqlib3.v base.v proofauto.v type_induction.v \
+   coqlib3.v base.v proofauto.v type_induction.v arith_lemmas.v\
    client_lemmas.v canon.v canonicalize.v assert_lemmas.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v rangespec_lemmas.v array_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_data_at.v loadstore_field_at.v nested_loadstore.v \
