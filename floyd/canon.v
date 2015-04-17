@@ -1091,8 +1091,21 @@ apply semax_extract_prop.
 auto.
 Qed.
 
+Lemma assert_PROP':
+ forall P Pre (Post: environ -> mpred),
+   Pre |-- !! P ->
+   (P -> Pre |-- Post) ->
+   Pre |-- Post.
+Proof.
+intros.
+apply derives_trans with (!!P && Pre).
+apply andp_right; auto.
+apply derives_extract_prop. auto.
+Qed.
+
 Ltac assert_PROP A :=
- apply (assert_PROP A); [ | intro].
+ first [apply (assert_PROP A); [ | intro]
+         | apply (assert_PROP' A); [ | intro]].
 
 Lemma assert_LOCAL:
  forall Q1 Espec Delta P Q R c Post,

@@ -250,6 +250,7 @@ hmac:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 hmacequiv:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 fcf:     .loadpath $(FCF_FILES:%.v=fcf/%.vo)
 hmacfcf: .loadpath $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
+hmac0: .loadpath sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
 
 CGFLAGS =  -DCOMPCERT
 

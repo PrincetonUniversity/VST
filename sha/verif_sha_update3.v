@@ -107,20 +107,13 @@ unfold nested_field_offset2; simpl. normalize.
  rewrite (data_at_field_at sh).
  unfold_data_at 1%nat.
  entailer!.
-
- rewrite field_address_clarify; auto.
- normalize.
- rewrite field_address0_clarify; auto.
- normalize.
- f_equal.
+ unfold field_address, field_address0.
+ rewrite !if_true.
  erewrite nested_field_offset2_Tarray; try reflexivity.
- normalize. 
- unfold field_address in TC; destruct c; try contradiction;
-  if_tac in TC; try contradiction.
- unfold field_address0; rewrite if_true; auto.
- clear - H7 H0; unfold k in *.
- eapply field_compatible0_cons_Tarray; try reflexivity; auto.
- omega.
+ normalize.
+ auto.
+ clear - H7 H0; subst k.
+ eapply field_compatible0_cons_Tarray; [reflexivity | auto | omega].
 
 rewrite (field_at_data_equal Tsh t_struct_SHA256state_st [StructField _data] 
                  _ (map Vint (map Int.repr dd)++ firstn (Z.to_nat len) (map Vint (map Int.repr data)))).

@@ -106,15 +106,7 @@ unfold nested_field_type2; simpl.
 unfold nested_field_offset2; simpl. clear OCTX.
 
 replace_SEP 4 `(memory_block Tsh (Int.repr (sizeof (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx]))) ((Vptr b0 i))).
-  { entailer. cancel.
-    eapply derives_trans. apply data_at_data_at_.
-    rewrite <- (memory_block_data_at_ Tsh (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])).
-    unfold nested_field_type2; simpl. cancel.
-    reflexivity. reflexivity. reflexivity.
-    unfold nested_field_offset2; simpl. apply f. 
-    unfold nested_field_offset2; simpl. rewrite <- initialize.max_unsigned_modulus.
-       rewrite int_max_unsigned_eq. omega. 
-  }
+   entailer!.
 
 destruct ST as [MD [iCTX [oCTX [KEYLENST KEYST]]]]. simpl in *.
 forward_call' (Tsh, Tsh, Vptr b0 i, offset_val

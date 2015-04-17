@@ -133,57 +133,46 @@ remember (EX shaStates:_ ,
               (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _i_ctx]))
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS)) rv.
-     { assert (FR: Frame = [
-          (field_at Tsh t_struct_hmac_ctx_st [StructField _key_length] (Vint ii) (Vptr cb cofs)); 
-          (field_at Tsh t_struct_hmac_ctx_st [StructField _key]
-               (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr cb cofs));
-          (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
-          (data_at_ Tsh (tarray tuchar 64) pad); (K_vector kv)]).
-          subst Frame. reflexivity.
-       rewrite FR. clear FR Frame. 
-       simpl; rewrite CIOff. cancel. 
-       unfold field_compatible in f.
-       eapply derives_trans. 
-         apply data_at_data_at_. 
-         rewrite <- memory_block_data_at_; try reflexivity; trivial.
-         unfold nested_field_type2; simpl. unfold nested_field_offset2; simpl. rewrite Int.add_zero; trivial.
-         exploit (align_compatible_nested_field t_struct_hmac_ctx_st [StructField _md_ctx]); try apply f.
-         unfold nested_field_offset2; simpl. trivial.
+     { simpl. rewrite CIOff.
+       change (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])
+             with  t_struct_SHA256state_st.
+       change (nested_field_offset2 t_struct_hmac_ctx_st [StructField _md_ctx])
+               with 0%Z.
+       normalize. cancel.
      }
      subst rv. simpl.
 
      forward. (*return*)
      unfold hmacInit. 
      remember (Int.unsigned (Int.repr (if zlt 64 (Zlength key) then 32 else Zlength key)))as KL.
-     apply exp_right with (x:=HMACabs iSha iSha oSha KL key).   
-     entailer.
-     apply andp_right. 
-       apply prop_right. exists iSha, oSha. 
+     apply exp_right with (x:=HMACabs iSha iSha oSha KL key). 
+     simpl_stackframe_of. 
+     entailer!.
+       exists iSha, oSha. 
        rewrite Int.unsigned_repr. auto.
        rewrite int_max_signed_eq  in KL2. rewrite int_max_unsigned_eq.
        destruct (zlt 64 (Zlength key)); omega.     
-     simpl_stackframe_of. unfold tarray. 
-     cancel.
+     rewrite (lvar_eval_lvar _ _ _ _ H0).
+     simpl sizeof.
+     entailer!.
      unfold hmacstate_, hmac_relate.
       remember (if zlt 64 (Zlength key) then Vint (Int.repr 32)
             else Vint (Int.repr (Zlength key))) as kl.
-      normalize.
       apply exp_right with
         (x:=(iS, (iS, (oS, (kl, map Vint (map Int.repr (HMAC_SHA256.mkKey key))))))).
-      simpl; normalize.
-      apply andp_right. apply prop_right.
-        destruct (zlt 64 (Zlength key)); simpl in *.
+      simpl.
+      entailer!.
+         destruct (zlt 64 (Zlength key)); simpl in *.
          exists (Int.repr 32); eauto.
-         rewrite Heqkl, HH1. exists (Int.repr (Int.unsigned ii)).
+         rewrite HH1. exists (Int.repr (Int.unsigned ii)).
          rewrite Int.repr_unsigned; eauto.
 
-      (*TODO: this line is new - maybe it can be put into automation?*) unfold tarray in H0. rewrite (lvar_eval_lvar _ _ _ _ H0).
       unfold_data_at 3%nat. cancel.
-      rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]); try reflexivity.
-      rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]); try reflexivity.
-      unfold field_address. rewrite <- Heqs, <- Heqs0; simpl.
-        unfold nested_field_offset2, nested_field_type2; simpl. rewrite Int.add_zero. cancel.
-        subst kl. destruct (zlt 64 (Zlength key)); rewrite HH1, Int.repr_unsigned; trivial.
+      rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]) by reflexivity.
+      rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]) by reflexivity.
+      unfold field_address. repeat rewrite if_true by auto.
+      unfold nested_field_offset2, nested_field_type2; simpl. rewrite Int.add_zero. cancel.
+      destruct (zlt 64 (Zlength key)); rewrite HH1, Int.repr_unsigned; trivial.
     inversion PT.
   }
 
@@ -193,72 +182,25 @@ remember (EX shaStates:_ ,
     normalize. rename H into isbyteKey. 
     unfold postResetHMS. simpl. unfold_data_at 1%nat.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]); try reflexivity.
-    assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs))).
-      entailer!.
-    apply isptrD in H; destruct H as [? [? PT]]. 
-             rewrite PT; unfold field_address in PT.
-             destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
-                  (Vptr cb cofs)); inversion PT. subst x x0; clear PT.
-
     rename b into kb; rename i into kofs.
-    eapply semax_pre with (P':=PROP  ()
-      LOCAL  (lvar _pad (tarray tuchar 64) pad; temp _ctx (Vptr cb cofs);
-        temp _key (Vptr kb kofs); temp _len (Vint (Int.repr l));
-        gvar sha._K256 kv)
-      SEP  (`(field_at Tsh t_struct_hmac_ctx_st [StructField _key_length]
-            (if zlt 64 (Zlength key)
-            then Vint (Int.repr 32)
-            else Vint (Int.repr (Zlength key))) (Vptr cb cofs));
-          `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
-          `(field_at Tsh t_struct_hmac_ctx_st [StructField _key]
-              (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr cb cofs));
-          `(field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] iS (Vptr cb cofs));
-          `(data_at_ Tsh (tarray tuchar 64) pad);
-          `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-              (Vptr kb kofs));
-          `(K_vector kv);
-          `(memory_block Tsh (Int.repr (sizeof (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])))
-             (offset_val
-                (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _md_ctx]))
-             (Vptr cb cofs))))).
-    { entailer. cancel.
-      unfold nested_field_type2; simpl.
-      eapply derives_trans.
-        apply data_at_data_at_.
-        rewrite <- memory_block_data_at_; try reflexivity. cancel.
-        apply f. 
-    }
+    replace_SEP 4 
+      (`(memory_block Tsh (Int.repr (sizeof (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])))
+           (field_address t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)))).
+       entailer!.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]); try reflexivity.
-    assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs))).
-      entailer!.
-    apply isptrD in H; destruct H as [cbI [cIoff CIOff]]. rewrite CIOff in *.
-     unfold field_address in CIOff.
-     remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _i_ctx]
-               (Vptr cb cofs)) as s.
-     destruct s; simpl in *; inversion CIOff. simpl in *. subst cbI. rewrite CIOff. clear H1.
 
     (*Call to _memcpy*)
     forward_call' ((Tsh, Tsh),
              Vptr cb cofs,
-             offset_val
-              (Int.repr (nested_field_offset2 t_struct_hmac_ctx_st [StructField _i_ctx]))
-              (Vptr cb cofs),
+             field_address t_struct_hmac_ctx_st [StructField _i_ctx]  (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS) rv.
-      { assert (FR: Frame = [
-         (field_at Tsh t_struct_hmac_ctx_st [StructField _key_length]
-            (if zlt 64 (Zlength key)
-             then Vint (Int.repr 32)
-             else Vint (Int.repr (Zlength key))) (Vptr cb cofs));
-         (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] oS (Vptr cb cofs));
-         (field_at Tsh t_struct_hmac_ctx_st [StructField _key]
-            (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr cb cofs));
-         (data_at_ Tsh (tarray tuchar 64) pad);
-         (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-            (Vptr kb kofs)); (K_vector kv)]).
-        subst Frame. reflexivity.
-        rewrite FR. clear FR Frame. 
-        simpl. entailer!. rewrite CIOff; simpl. unfold nested_field_type2; simpl. cancel.
-      }
+       entailer!; unfold field_address; rewrite if_true by auto; reflexivity.
+       {simpl. unfold field_address.
+        destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
+            (Vptr cb cofs)); [ | solve [entailer]].
+        unfold nested_field_offset2. simpl Int.repr. normalize.
+        cancel.
+       }
     subst rv; simpl. 
 
     forward. (*return*)
@@ -291,14 +233,18 @@ remember (EX shaStates:_ ,
       destruct (zlt 64 (Zlength key)); omega.
 
     (*TODO: this line is new - maybe it can be put into automation?*) rewrite (lvar_eval_lvar _ _ _ _ H0).
-    unfold_data_at 3%nat. cancel.
-      rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]); try reflexivity.
-      rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]); try reflexivity.
-      unfold field_address. rewrite <- Heqs; simpl.
-        unfold nested_field_offset2, nested_field_type2; simpl. rewrite Int.add_zero. cancel.
-             destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
-                  (Vptr cb cofs)); try contradiction. 
-             unfold nested_field_offset2; simpl. cancel. 
+    unfold_data_at 3%nat. 
+    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]) by reflexivity.
+    rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]) by reflexivity.
+    change (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])
+              with sha.t_struct_SHA256state_st.
+    change (nested_field_type2 t_struct_hmac_ctx_st [StructField _i_ctx])
+              with sha.t_struct_SHA256state_st.
+   cancel.
+    unfold field_address; rewrite if_true by auto.
+   change (nested_field_offset2 t_struct_hmac_ctx_st [StructField _md_ctx])
+           with 0.
+   normalize.
   }
 } 
 Qed.
