@@ -501,8 +501,8 @@ forward_if PostResetBranch.
       { (*precondition implies "invariant"*) 
         clear HeqPostResetBranch. entailer!. 
       }
-      { unfold normal_ret_assert. simpl. intros rho. entailer!. cancel.
-        rewrite FIRSTN_precise. cancel.
+      {  rewrite normal_ret_assert_elim.
+        entailer. rewrite FIRSTN_precise. cancel.
          do 2 rewrite Zlength_map. apply ZLI. 
       }
       { rename H into I. 
@@ -645,10 +645,10 @@ forward_if PostResetBranch.
         `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs))))).
       { (*precondition implies "invariant"*)
         clear HeqPostResetBranch.
-        unfold data_block. entailer!. cancel. 
+        unfold data_block. entailer. 
         unfold SKIPN; simpl. rewrite ZLI; cancel.            
       }
-      { unfold normal_ret_assert. simpl. intros rho. entailer!. cancel.
+      { rewrite normal_ret_assert_elim. entailer.
         rewrite FIRSTN_precise.
          rewrite SKIPn_short. rewrite app_nil_r.
          cancel.
@@ -681,7 +681,7 @@ forward_if PostResetBranch.
                      rewrite Zlength_correct, mkKey_length. unfold SHA256.BlockSize; simpl; assumption.
         rewrite X.
         forward.
-        entailer!. cancel. 
+        entailer. 
         rewrite UPD_OPAD; try assumption. cancel.
       }
     }

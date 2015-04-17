@@ -1271,6 +1271,142 @@ Hint Rewrite split_first_PROP using not_conj_notation : norm.
 
 
 
+Require Import Permutation.
+
+Lemma perm_derives:
+  forall P Q R P' Q' R',
+    Permutation P P' ->
+    Permutation Q Q' ->
+    Permutation R R' ->
+    PROPx P (LOCALx Q (SEPx R)) |-- PROPx P' (LOCALx Q' (SEPx R')).
+Proof.
+intros.
+apply andp_derives.
+apply prop_derives.
+clear - H.
+induction H; simpl; intuition.
+apply andp_derives.
+clear- H0.
+intro rho.
+unfold local,lift1.
+apply prop_derives.
+induction H0; simpl; intuition.
+destruct H; split; auto.
+destruct H as [? [? ?]]. split3; auto.
+clear- H1.
+unfold SEPx.
+induction H1; intuition.
+unfold fold_right; fold fold_right. apply sepcon_derives; auto.
+unfold fold_right; fold fold_right.
+rewrite <- sepcon_assoc.
+rewrite (sepcon_comm y).
+rewrite sepcon_assoc; auto.
+eapply derives_trans; eassumption.
+Qed.
+
+Lemma perm_search:
+  forall {A} (a b: A) r s t,
+     Permutation (a::t) s ->
+     Permutation (b::t) r ->
+     Permutation (a::r) (b::s).
+Proof.
+intros.
+eapply perm_trans.
+apply perm_skip.
+apply Permutation_sym.
+apply H0.
+eapply perm_trans.
+apply perm_swap.
+apply perm_skip.
+apply H.
+Qed.
+
+
+Lemma Permutation_app_comm_trans:
+ forall (A: Type) (a b c : list A), 
+   Permutation (b++a) c ->
+   Permutation (a++b) c.
+Proof.
+intros.
+eapply Permutation_trans.
+apply Permutation_app_comm.
+auto.
+Qed.
+
+Ltac solve_perm :=
+    (* solves goals of the form (R ++ ?i = S)
+          where R and S are lists, and ?i is a unification variable *)
+  try match goal with
+       | |-  Permutation (?A ++ ?B) _ =>
+            is_evar A; first [is_evar B; fail 1| idtac];
+            apply Permutation_app_comm_trans
+       end;
+  repeat first [ apply Permutation_refl
+       | apply perm_skip
+       | eapply perm_search
+       ].
+
+Goal exists e, Permutation ((1::2::nil)++e) (3::2::1::5::nil).
+eexists.
+solve_perm.
+Qed.
+ 
+Lemma semax_frame_perm:
+forall (Qframe : list (environ -> Prop))
+         (Rframe : list (environ -> mpred))
+         (Espec : OracleKind)
+         (Delta : tycontext)
+         (P : list Prop) (Q : list (environ -> Prop)) (c : statement)
+         (R : list (environ -> mpred))
+         (Q1 : list (environ -> Prop)) (R1 : list (environ -> mpred))
+         (P2 : list Prop) (Q2 : list (environ -> Prop))
+         (R2 : list (environ -> mpred)),
+       closed_wrt_modvars c (LOCALx Qframe (SEPx Rframe)) ->
+       Permutation (Qframe ++ Q1) Q ->
+       Permutation (Rframe ++ R1)  R ->
+       semax Delta (PROPx P (LOCALx Q1 (SEPx R1))) c
+         (normal_ret_assert (PROPx P2 (LOCALx Q2 (SEPx R2)))) ->
+       semax Delta (PROPx P (LOCALx Q (SEPx R))) c
+         (normal_ret_assert
+            (PROPx P2 (LOCALx (Q2 ++ Qframe) (SEPx (R2 ++ Rframe))))).
+Proof.
+ intros.
+ eapply (semax_frame1 Qframe Rframe); try eassumption; auto.
+ rewrite <- insert_local.
+ apply andp_left2.
+ apply perm_derives.
+ apply Permutation_refl.
+ eapply perm_trans; [apply Permutation_sym; eassumption | apply Permutation_app_comm].
+ eapply perm_trans; [apply Permutation_sym; eassumption | apply Permutation_app_comm].
+Qed.
+
+Lemma semax_post_flipped' : 
+   forall (R': environ->mpred) Espec (Delta: tycontext) (R P: environ->mpred) c,
+       @semax Espec Delta P c (normal_ret_assert R') ->
+       R' |-- R ->
+       @semax Espec Delta P c (normal_ret_assert R).
+ Proof. intros; eapply semax_post'; eauto. Qed.
+
+Tactic Notation "semax_frame" constr(Qframe) constr(Rframe) :=
+ first
+    [ simple eapply (semax_frame_perm Qframe Rframe);
+          [auto 50 with closed | solve_perm | solve_perm | unfold app; fold @app ]
+    | eapply semax_post_flipped';
+      [simple eapply (semax_frame_perm Qframe Rframe);
+        [auto 50 with closed | solve_perm | solve_perm | unfold app; fold @app ]
+      | try solve [apply perm_derives; solve_perm]]
+  ].
+
+Tactic Notation "semax_frame" "[" "]" constr(Rframe) :=
+ first
+    [ simple eapply (semax_frame_perm nil Rframe);
+          [auto 50 with closed | solve_perm | solve_perm | unfold app; fold @app ]
+    | eapply semax_post_flipped';
+      [simple eapply (semax_frame_perm nil Rframe);
+        [auto 50 with closed | solve_perm | solve_perm | unfold app; fold @app ]
+      | try solve [apply perm_derives; solve_perm]]
+  ].
+
 
 
 
