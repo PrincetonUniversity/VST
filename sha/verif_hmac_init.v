@@ -134,10 +134,6 @@ remember (EX shaStates:_ ,
               (Vptr cb cofs),
              mkTrep t_struct_SHA256state_st iS)) rv.
      { simpl. rewrite CIOff.
-       change (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])
-             with  t_struct_SHA256state_st.
-       change (nested_field_offset2 t_struct_hmac_ctx_st [StructField _md_ctx])
-               with 0%Z.
        normalize. cancel.
      }
      subst rv. simpl.
@@ -171,7 +167,7 @@ remember (EX shaStates:_ ,
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]) by reflexivity.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]) by reflexivity.
       unfold field_address. repeat rewrite if_true by auto.
-      unfold nested_field_offset2, nested_field_type2; simpl. rewrite Int.add_zero. cancel.
+      simpl. rewrite Int.add_zero. cancel.
       destruct (zlt 64 (Zlength key)); rewrite HH1, Int.repr_unsigned; trivial.
     inversion PT.
   }
@@ -198,7 +194,7 @@ remember (EX shaStates:_ ,
        {simpl. unfold field_address.
         destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
             (Vptr cb cofs)); [ | solve [entailer]].
-        unfold nested_field_offset2. simpl Int.repr. normalize.
+        simpl. normalize.
         cancel.
        }
     subst rv; simpl. 
@@ -236,14 +232,9 @@ remember (EX shaStates:_ ,
     unfold_data_at 3%nat. 
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]) by reflexivity.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]) by reflexivity.
-    change (nested_field_type2 t_struct_hmac_ctx_st [StructField _md_ctx])
-              with sha.t_struct_SHA256state_st.
-    change (nested_field_type2 t_struct_hmac_ctx_st [StructField _i_ctx])
-              with sha.t_struct_SHA256state_st.
    cancel.
     unfold field_address; rewrite if_true by auto.
-   change (nested_field_offset2 t_struct_hmac_ctx_st [StructField _md_ctx])
-           with 0.
+    simpl.
    normalize.
   }
 } 

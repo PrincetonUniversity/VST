@@ -88,8 +88,7 @@ Proof.
 normalize.
 unfold field_address0.
 rewrite if_true by auto.
-apply prop_right.
-unfold nested_field_offset2; simpl. normalize.
+apply prop_right. simpl. normalize.
 }
  rename H5 into Hd.
  eapply semax_seq'.

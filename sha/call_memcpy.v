@@ -188,6 +188,8 @@ rewrite <- Z2Nat.inj_add; try omega.
 apply Zlength_nonneg.
 Qed.
 
+Local Arguments nested_field_type2 t gfs : simpl never.
+
 Lemma call_memcpy_tuchar:
   forall (shp : share) (tp: type) (pathp: list gfield) (lop: Z) (vp': list val) (p: val)
            (shq: share) (tq: type) (pathq: list gfield) (loq: Z) (contents: list int) (q: val)
@@ -424,7 +426,8 @@ rewrite (array_seg_reroot_lemma shp tp pathp tuchar np
                   (firstn (Z.to_nat len) (skipn (Z.to_nat loq) (map Vint contents)))
                   ); auto; try omega.
 + replace (lop+len-lop)%Z with len by omega.
-    replace (firstn (Z.to_nat lop) vpx) with (firstn (Z.to_nat lop) vpy).
+    replace (firstn (Z.to_nat lop) vpx) 
+         with (firstn (Z.to_nat lop) vpy).
     replace (skipn (Z.to_nat lop + Z.to_nat len) vpx) 
      with (skipn (Z.to_nat lop + Z.to_nat len) vpy).
     cancel.
