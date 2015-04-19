@@ -176,8 +176,8 @@ Ltac solve_mod_modulus :=
          rewrite (modm_repr_eq A _ H);
          clear H
   end;
-  try unfold modm;
-  try unfold reprm.
+  try unfold modm in *;
+  try unfold reprm in *.
 
 Ltac pose_mod_le A :=
   let H := fresh "H" in
@@ -217,3 +217,43 @@ Ltac pose_size_mult env t l :=
   pose_size_mult' env t l;
   try rewrite !Z.mul_0_r in *;
   try rewrite !Z.mul_1_r in *.
+
+Definition align_alignof a b := align a b.
+
+Definition sizeof_struct_le := sizeof_struct.
+
+Ltac pose_align_le :=
+  repeat
+  match goal with
+  | |- context [align ?A (alignof ?env ?t)] =>
+         assert (A <= align A (alignof env t)) by (apply align_le, alignof_pos);
+         change (align A (alignof env t)) with (align_alignof A (alignof env t))
+  | |- context [sizeof_struct ?env ?A ?m] =>
+         pose proof sizeof_struct_incr env m A;
+         change (sizeof_struct env A m) with (sizeof_struct_le env A m)
+  end;
+  try unfold align_alignof in *;
+  try unfold sizeof_struct_le in *.
+
+Definition sizeofp := sizeof.
+
+Ltac pose_sizeof_pos :=
+  repeat
+  match goal with
+  | |- context [sizeof ?env ?t] =>
+         pose proof sizeof_pos env t;
+         change (sizeof env t) with (sizeofp env t)
+  end;
+  unfold sizeofp in *.
+
+Lemma align_0: forall z, 
+    z > 0 -> align 0 z = 0.
+Proof. unfold align; intros. rewrite Zdiv_small; omega.
+Qed.
+Hint Rewrite align_0 using omega : norm.
+
+Lemma align_1: forall n, align n 1 = n.
+Proof.  intros; unfold align. rewrite Z.div_1_r. rewrite Z.mul_1_r. omega.
+Qed.
+Hint Rewrite align_1 using omega : norm.
+

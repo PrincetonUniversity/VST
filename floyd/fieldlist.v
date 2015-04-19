@@ -23,11 +23,14 @@ Definition field_offset2 env i m :=
 Fixpoint field_offset_next_rec env i m ofs sz :=
   match m with
   | nil => 0
-  | (i0, t0) :: nil => sz
   | (i0, t0) :: m0 =>
-    if ident_eq i i0
-    then (align ofs (alignof env t0) + sizeof env t0)
-    else field_offset_next_rec env i m0 (align ofs (alignof env t0) + sizeof env t0) sz
+    match m0 with
+    | nil => sz
+    | (_, t1) :: _ =>
+      if ident_eq i i0
+      then align (ofs + sizeof env t0) (alignof env t1)
+      else field_offset_next_rec env i m0 (align (ofs + sizeof env t0) (alignof env t1)) sz
+    end
   end.
 
 Definition field_offset_next env i m sz := field_offset_next_rec env i m 0 sz.
@@ -289,48 +292,93 @@ Lemma field_offset_next_in_range: forall i m sz,
   field_offset_next cenv_cs i m sz <= sz.
 Proof.
   intros.
+  destruct m as [| [i0 t0] m]; [inversion H |].
   unfold field_offset2, field_offset, field_offset_next, field_type2.
+  pattern 0 at 3 4; replace 0 with (align 0 (alignof cenv_cs t0)) by (apply align_0, alignof_pos).
   match goal with
   | |- ?A => assert (A /\
-                     match field_offset_rec cenv_cs i m 0 with
+                     match field_offset_rec cenv_cs i ((i0, t0) :: m) 0 with
                      | Errors.OK _ => True
                      | _ => False
                      end /\
-                     match field_type i m with
+                     match field_type i ((i0, t0) :: m) with
                      | Errors.OK _ => True
                      | _ => False
                      end); [| tauto]
   end.
-  revert H0; generalize 0; induction m as [| [i0 t0] m]; intros.
-  + inversion H.
-  + simpl in H0 |- *.
+  revert i0 t0 H H0; generalize 0; induction m as [| [i1 t1] m]; intros.
+  + destruct (ident_eq i i0); [| destruct H; simpl in H; try congruence; tauto].
+    subst; simpl.
+    if_tac; [| congruence].
+    split; [| split]; auto.
+    simpl in H0.
+    omega.
+  + remember ((i1, t1) :: m) as m0. simpl in H0 |- *. subst m0.
     destruct (ident_eq i i0).
     - split; [| split]; auto.
-      pose proof sizeof_struct_incr cenv_cs m (align z (alignof cenv_cs t0) + sizeof cenv_cs t0).
-      destruct m; omega.
-    - destruct H as [H | H]; simpl in H; [congruence |].
-      specialize (IHm H (align z (alignof cenv_cs t0) + sizeof cenv_cs t0) H0).
-      destruct (field_offset_rec cenv_cs i m (align z (alignof cenv_cs t0) + sizeof cenv_cs t0)),
-               (field_type i m);
+      split.
+      * apply align_le, alignof_pos.
+      * pose proof sizeof_struct_incr cenv_cs m (align (align z (alignof cenv_cs t0) + sizeof cenv_cs t0)
+            (alignof cenv_cs t1) + sizeof cenv_cs t1).
+        pose proof sizeof_pos cenv_cs t1.
+        simpl in H0; omega.
+    - destruct H as [H | H]; [simpl in H; congruence |].
+      specialize (IHm (align z (alignof cenv_cs t0) + sizeof cenv_cs t0) i1 t1 H H0).
+      destruct (field_offset_rec cenv_cs i ((i1, t1) :: m) (align z (alignof cenv_cs t0) + sizeof cenv_cs t0)),
+               (field_type i ((i1, t1) :: m));
       try tauto.
-      split; [| split]; auto.
-      destruct IHm as [? _].
-      destruct m; omega.
 Qed.
 
-Lemma field_offset_next_is_next: forall m m0 i t m1 sz,
-  members_no_replicate m = true ->
-  m = m0 ++ (i, t) :: m1 ->
-  field_offset_next cenv_cs i m sz = 
-  match m1 with
-  | nil => sz
-  | (i0, _)::_ => field_offset2 cenv_cs i0 m
+Lemma members_no_replicate_ind: forall m,
+  (members_no_replicate m = true) <->
+  match m with
+  | nil => True
+  | (i0, _) :: m0 => ~ in_members i0 m0 /\ members_no_replicate m0 = true
   end.
 Proof.
   intros.
-  unfold field_offset_next, field_offset2, field_offset.
-  revert m0 m1 t H0; generalize 0; induction m.
-Abort.
+  unfold members_no_replicate.
+  destruct m as [| [i t] m]; simpl.
+  + assert (true = true) by auto; tauto.
+  + destruct (id_in_list i (map fst m)) eqn:HH.
+    - apply id_in_list_true in HH.
+      assert (~ false = true) by congruence; tauto.
+    - apply id_in_list_false in HH.
+      tauto.
+Qed.
+
+Lemma im_members_tail_no_replicate: forall i i0 t0 m,
+  members_no_replicate ((i0, t0) :: m) = true ->
+  in_members i m ->
+  i <> i0.
+Proof.
+  intros.
+  rewrite members_no_replicate_ind in H.
+  intro.
+  subst; tauto.
+Qed.
+
+Lemma neq_field_offset_rec_cons: forall env i i0 t0 m z,
+  i <> i0 ->
+  field_offset_rec env i ((i0, t0) :: m) z =
+  field_offset_rec env i m (align z (alignof env t0) + sizeof env t0).
+Proof.
+  intros.
+  simpl.
+  if_tac; [congruence |].
+  auto.
+Qed.
+
+Lemma neq_field_offset_next_rec_cons: forall env i i0 t0 i1 t1 m z sz,
+  i <> i0 ->
+  field_offset_next_rec env i ((i0, t0) :: (i1, t1) :: m) z sz =
+  field_offset_next_rec env i ((i1, t1) :: m) (align (z + sizeof env t0) (alignof env t1)) sz.
+Proof.
+  intros.
+  simpl.
+  if_tac; [congruence |].
+  auto.
+Qed.
 
 End COMPOSITE_ENV.
 

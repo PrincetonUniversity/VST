@@ -666,17 +666,6 @@ Proof.
   apply (two_p_is_exp (Z.of_nat m - Z.of_nat n) (Z.of_nat n)); omega.
 Qed.
 
-Lemma align_0: forall z, 
-    z > 0 -> align 0 z = 0.
-Proof. unfold align; intros. rewrite Zdiv_small; omega.
-Qed.
-Hint Rewrite align_0 using omega : norm.
-
-Lemma align_1: forall n, align n 1 = n.
-Proof.  intros; unfold align. rewrite Z.div_1_r. rewrite Z.mul_1_r. omega.
-Qed.
-Hint Rewrite align_1 using omega : norm.
-
 Lemma divide_add_align: forall a b c, Z.divide b a -> a + (align c b) = align (a + c) b.
 Proof.
   intros.
