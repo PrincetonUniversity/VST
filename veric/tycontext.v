@@ -215,6 +215,31 @@ Class compspecs := mkcompspecs {
   cenv_consistent_cs: composite_env_consistent cenv_cs
 }.
 
+Definition in_members i (m: members): Prop :=
+  In i (map fst m).
+
+Definition members_no_replicate (m: members) : bool :=
+  compute_list_norepet (map fst m).
+
+Definition composite_legal_alignas (env : composite_env) (co : composite) : Prop :=
+  (co_alignof co >=? alignof_composite env (co_members co)) = true.
+
+Definition composite_env_legal_alignas env :=
+  forall (id : positive) (co : composite),
+    env ! id = Some co -> composite_legal_alignas env co.
+
+Definition composite_legal_fieldlist (co: composite): Prop :=
+  members_no_replicate (co_members co) = true.
+
+Definition composite_env_legal_fieldlist env :=
+  forall (id : positive) (co : composite),
+    env ! id = Some co -> composite_legal_fieldlist co.
+
+Class compspecs_legal (C: compspecs) := mkCompspecsLegal {
+  cenv_legal_alignas: composite_env_legal_alignas cenv_cs;
+  cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs
+}.
+
 Definition compspecs_program (p: program): compspecs.
   apply (mkcompspecs (prog_comp_env p)).
   eapply build_composite_env_consistent.

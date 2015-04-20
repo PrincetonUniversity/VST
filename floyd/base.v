@@ -96,3 +96,85 @@ Proof.
  apply andp_derives; auto.
  apply prop_derives; intuition.
 Qed.
+
+Lemma co_alignof_pos: forall co, (co_alignof co > 0)%Z.
+Proof.
+  intros.
+  destruct (co_alignof_two_p co).
+  pose proof two_power_nat_pos x.
+  omega.
+Qed.
+
+Section GET_CO.
+
+Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
+
+Open Scope Z.
+
+Definition co_default (s: struct_or_union): composite.
+  apply (Build_composite s nil noattr 0 1 0).
+  + omega.
+  + exists 0%nat; auto.
+  + exists 0; auto.
+Defined.
+
+Definition get_co id :=
+  match cenv_cs ! id with
+  | Some co => co
+  | _ => co_default Struct
+  end.
+
+Lemma co_default_consistent: forall su, composite_consistent cenv_cs (co_default su).
+Proof.
+  intros.
+  split.
+  + reflexivity.
+  + reflexivity.
+  + destruct su; reflexivity.
+  + reflexivity.
+Qed.
+
+Lemma get_co_consistent: forall id, composite_consistent cenv_cs (get_co id).
+Proof.
+  intros.
+  unfold get_co.
+  destruct (cenv_cs ! id) as [co |] eqn:CO.
+  + exact (cenv_consistent_cs id co CO).
+  + apply co_default_consistent.
+Qed.
+
+Lemma get_co_members_nil_sizeof_0: forall id,
+  co_members (get_co id) = nil -> co_sizeof (get_co id) = 0%Z.
+Proof.
+  unfold get_co.
+  intros.
+  destruct (cenv_cs ! id) as [co |] eqn:?H; [destruct (co_su co) eqn:?H |].
+  + pose proof co_consistent_sizeof cenv_cs co (cenv_consistent_cs id co H0).
+    unfold sizeof_composite in H2.
+    rewrite H1 in H2; clear H1.
+    rewrite H in H2; clear H.
+    simpl in H2.
+    rewrite align_0 in H2 by apply co_alignof_pos.
+    auto.
+  + pose proof co_consistent_sizeof cenv_cs co (cenv_consistent_cs id co H0).
+    unfold sizeof_composite in H2.
+    rewrite H1 in H2; clear H1.
+    rewrite H in H2; clear H.
+    simpl in H2.
+    rewrite align_0 in H2 by apply co_alignof_pos.
+    auto.
+  + reflexivity.
+Qed.
+
+Lemma get_co_members_no_replicate: forall id,
+  members_no_replicate (co_members (get_co id)) = true.
+Proof.
+  intros.
+  unfold get_co.
+  destruct (cenv_cs ! id) as [co |] eqn:?H.
+  + exact (cenv_legal_fieldlist id co H).
+  + reflexivity.
+Qed.
+
+End GET_CO.

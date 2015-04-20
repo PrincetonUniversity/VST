@@ -4,10 +4,12 @@ Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
-Require Import floyd.rangespec_lemmas.
+Require Import floyd.aggregate_pred.
+Require Import floyd.reptype_lemmas.
 Require Import floyd.jmeq_lemmas.
+Require Import floyd.fieldlist.
 Require Import Coq.Logic.JMeq.
-Import floyd.fieldlist.fieldlist.
+(* Import floyd.fieldlist.fieldlist. *)
 
 Opaque alignof.
 
@@ -15,7 +17,6 @@ Local Open Scope logic.
 
 Arguments align !n !amount / .
 Arguments Z.max !n !m / .
-
 
 Definition offset_in_range ofs p :=
   match p with
@@ -174,12 +175,14 @@ from previous version.
 
 ************************************************)
 
+Section CENV.
+
+Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
+
 Section WITH_SHARE.
 
 Variable sh: share.
-
-Definition array_at' (t: type) (lo hi: Z) (P: reptype t -> val -> mpred) (v: list (reptype t)) (p: val): mpred :=
-  rangespec lo hi (fun i => at_offset (P (Znth (i - lo) v (default_val _))) (sizeof cenv_cs t * i)) p.
 
 Definition struct_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (snd it) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (snd it)) m)) : (val -> mpred).
 Proof.
@@ -188,15 +191,15 @@ Proof.
   + simpl in v, P.
     inversion P; subst.
     exact (withspacer sh
-            (field_offset cenv_cs i0 m0 + sizeof cenv_cs t0)
+            (field_offset2 cenv_cs i0 m0 + sizeof cenv_cs t0)
             (field_offset_next cenv_cs i0 m0 sz)
-            (at_offset (a v) (field_offset cenv_cs i0 m0))).
+            (at_offset (a v) (field_offset2 cenv_cs i0 m0))).
   + simpl in v, P.
     inversion P; subst.
     exact (withspacer sh
-            (field_offset cenv_cs i1 m0 + sizeof cenv_cs t1)
+            (field_offset2 cenv_cs i1 m0 + sizeof cenv_cs t1)
             (field_offset_next cenv_cs i1 m0 sz)
-            (at_offset (a (fst v)) (field_offset cenv_cs i1 m0)) * IHm i0 t0 (snd v) b).
+            (at_offset (a (fst v)) (field_offset2 cenv_cs i1 m0)) * IHm i0 t0 (snd v) b).
 Defined.
 
 Definition union_data_at'_aux (m: members) (sz: Z) (P: ListType (map (fun it => reptype (snd it) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (snd it)) m)) : (val -> mpred).
@@ -219,7 +222,7 @@ Definition data_at': forall t, reptype t -> val -> mpred :=
        if type_is_volatile t
        then memory_block sh (Int.repr (sizeof cenv_cs t)) p
        else mapsto sh t p (repinject t v))
-    (fun t n a P v => array_at' t 0 n P (unfold_reptype v))
+    (fun t n a P v => array_pred t 0 n P (unfold_reptype v))
     (fun id a P v => struct_data_at'_aux (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
     (fun id a P v => union_data_at'_aux (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
 
@@ -228,12 +231,12 @@ Lemma struct_data_at'_aux_spec: forall m m0 sz v P,
    (ListTypeGen
      (fun it => reptype (snd it) -> val -> mpred)
      P m) v =
-  struct_pred m (fun it => reptype (snd it))
+  struct_pred m 
    (fun it v =>
       withspacer sh
-       (field_offset cenv_cs (fst it) m0 + sizeof cenv_cs (snd it))
+       (field_offset2 cenv_cs (fst it) m0 + sizeof cenv_cs (snd it))
        (field_offset_next cenv_cs (fst it) m0 sz)
-       (at_offset (P it v) (field_offset cenv_cs (fst it) m0))) v.
+       (at_offset (P it v) (field_offset2 cenv_cs (fst it) m0))) v.
 Proof.
   intros.
   destruct m as [| (i0, t0) m]; [reflexivity |].
@@ -244,9 +247,9 @@ Proof.
      (ListTypeGen (fun it : ident * type => reptype (snd it) -> val -> mpred)
         P ((i1, t1) :: (i0, t0) :: m)) v) with
      (withspacer sh
-       (field_offset cenv_cs i1 m0 + sizeof cenv_cs t1)
+       (field_offset2 cenv_cs i1 m0 + sizeof cenv_cs t1)
          (field_offset_next cenv_cs i1 m0 sz)
-           (at_offset (P (i1, t1) (fst v)) (field_offset cenv_cs i1 m0)) *
+           (at_offset (P (i1, t1) (fst v)) (field_offset2 cenv_cs i1 m0)) *
       struct_data_at'_aux ((i0, t0) :: m) m0 sz
      (ListTypeGen (fun it : ident * type => reptype (snd it) -> val -> mpred)
         P ((i0, t0) :: m)) (snd v)).
@@ -259,7 +262,7 @@ Lemma union_data_at'_aux_spec: forall m sz v P,
    (ListTypeGen
      (fun it => reptype (snd it) -> val -> mpred)
      P m) v =
-  union_pred m (fun it => reptype (snd it))
+  union_pred m
    (fun it v =>
       withspacer sh
        (sizeof cenv_cs (snd it))
@@ -275,6 +278,19 @@ Proof.
     - apply IHm.
 Qed.
 
+Notation REPTYPE t :=
+  match t return Type with
+  | Tvoid
+  | Tfunction _ _ _ => unit
+  | Tint _ _ _
+  | Tlong _ _
+  | Tfloat _ _
+  | Tpointer _ _ => val
+  | Tarray t0 _ _ => list (reptype t0)
+  | Tstruct id _ => reptype_structlist (co_members (get_co id))
+  | Tunion id _ => reptype_unionlist (co_members (get_co id))
+  end.
+
 Lemma data_at'_ind: forall t v,
   data_at' t v =
   match t return REPTYPE t -> val -> mpred with
@@ -287,13 +303,14 @@ Lemma data_at'_ind: forall t v,
                       if type_is_volatile t
                       then memory_block sh (Int.repr (sizeof cenv_cs t)) p
                       else mapsto sh t p v
-  | Tarray t0 n a => array_at' t0 0 n (data_at' t0)
-  | Tstruct id a => struct_pred (co_members (get_co id)) (fun it => reptype (snd it))
+  | Tarray t0 n a => array_pred t0 0 n (data_at' t0)
+  | Tstruct id a => struct_pred (co_members (get_co id))
                       (fun it v => withspacer sh
-                        (field_offset cenv_cs (fst it) (co_members (get_co id)) + sizeof cenv_cs (snd it))
+                        (field_offset2 cenv_cs (fst it) (co_members (get_co id)) + sizeof cenv_cs (snd it))
                         (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)))
-                        (at_offset (data_at' (snd it) v) (field_offset cenv_cs (fst it) (co_members (get_co id)))))
-  | Tunion id a => union_pred (co_members (get_co id)) (fun it => reptype (snd it)) (fun it v => withspacer sh
+                        (at_offset (data_at' (snd it) v) (field_offset2 cenv_cs (fst it) (co_members (get_co id)))))
+  | Tunion id a => union_pred (co_members (get_co id))
+                     (fun it v => withspacer sh
                       (sizeof cenv_cs (snd it))
                       (co_sizeof (get_co id))
                       (data_at' (snd it) v))
@@ -639,21 +656,21 @@ Ltac AUTO_IND :=
 Lemma memory_block_data_at'_default_val_array_aux: forall sh t z a b ofs,
   0 <= ofs /\ ofs + sizeof cenv_cs (Tarray t z a) <= Int.modulus ->
   sizeof cenv_cs (Tarray t z a) < Int.modulus ->
-  array_at' t 0 z
+  array_pred t 0 z
     (fun _ : reptype t => memory_block sh (Int.repr (sizeof cenv_cs t))) nil
     (Vptr b (Int.repr ofs)) =
   memory_block sh (Int.repr (sizeof cenv_cs (Tarray t z a))) (Vptr b (Int.repr ofs)).
 Proof.
   intros.
   destruct (zlt z 0).
-  + unfold array_at', rangespec.
+  + unfold array_pred, rangespec.
     simpl.
     rewrite Z2Nat_neg by omega.
     rewrite Z.max_l by omega.
     rewrite Z.mul_0_r.
     rewrite memory_block_zero.
     simpl; normalize.
-  + rewrite memory_block_array_at'.
+  + rewrite memory_block_array_pred.
     - rewrite Z.mul_0_r, Z.sub_0_r, Z.add_0_r.
       f_equal; f_equal.
       simpl.
@@ -685,7 +702,7 @@ Proof.
   + rewrite default_val_ind.
     rewrite unfold_fold_reptype.
     inv_int i.
-    rewrite array_at'_ext with (P1 := fun _ => memory_block sh (Int.repr (sizeof cenv_cs t))) (v1 := nil).
+    rewrite array_pred_ext with (P1 := fun _ => memory_block sh (Int.repr (sizeof cenv_cs t))) (v1 := nil).
     Focus 2. {
       intros.
       rewrite Znth_nil.
@@ -709,7 +726,24 @@ Proof.
           AUTO_IND.
     } Unfocus.
     apply memory_block_data_at'_default_val_array_aux; [omega | auto].
-  + 
+  + rewrite struct_pred_ext with
+     (P1 := fun it _ => memory_block sh (Int.repr (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)) - field_offset2 cenv_cs (fst it) (co_members (get_co id)))))
+     (v1 := unfold_reptype (default_val (Tstruct id a))).
+SearchAbout fieldlist.members_no_replicate.
+Print compspecs_legal.
+Print composite_env_legal_fieldlist.
+Print composite_legal_fieldlist.
+SearchAbout members_no_replicate.
+SearchAbout get_co.
+
+
+Locate get_co_members_nil_sizeof_0.
+Locate get_co.
+
+
+
+
+
 Lemma memory_block_data_at'_default_val_struct_aux: forall sh b i (P: forall t, reptype t -> val -> mpred) F m m0 sz,
   m = m0 ->
   sizeof_struct cenv_cs 0 m0 <= sz ->

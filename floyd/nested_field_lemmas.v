@@ -6,25 +6,6 @@ Import floyd.fieldlist.fieldlist.
 Require Import floyd.type_induction.
 Open Scope Z.
 
-Definition composite_legal_alignas (env : composite_env) (co : composite) : Prop :=
-  (co_alignof co >=? alignof_composite env (co_members co)) = true.
-
-Definition composite_env_legal_alignas env :=
-  forall (id : positive) (co : composite),
-    env ! id = Some co -> composite_legal_alignas env co.
-
-Definition composite_legal_fieldlist (co: composite): Prop :=
-  compute_list_norepet (map fst (co_members co)) = true.
-
-Definition composite_env_legal_fieldlist env :=
-  forall (id : positive) (co : composite),
-    env ! id = Some co -> composite_legal_fieldlist co.
-
-Class compspecs_legal (C: compspecs) := mkCompspecsLegal {
-  cenv_legal_alignas: composite_env_legal_alignas cenv_cs;
-  cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs
-}.
-
 (************************************************
 
 Definition, lemmas and useful samples of nested_pred
@@ -1399,3 +1380,4 @@ End COMPOSITE_ENV.
 Arguments nested_field_offset2 {cs} t gfs /.
 Arguments nested_field_type2 {cs} t gfs /.
 *)
+ 

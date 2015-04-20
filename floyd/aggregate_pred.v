@@ -5,7 +5,7 @@ Require Import floyd.type_induction.
 Require Import floyd.fieldlist.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
-Require Import floyd.rangespec_lemmas.
+Require Export floyd.rangespec_lemmas.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.jmeq_lemmas.
 Require Import Coq.Logic.JMeq.

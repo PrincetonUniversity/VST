@@ -5,9 +5,6 @@ Require Import floyd.client_lemmas.
 Arguments align !n !amount / .
 Arguments Z.max !n !m / .
 
-Definition in_members i (m: members): Prop :=
-  In i (map fst m).
-
 Definition field_type2 i m :=
   match field_type i m with
   | Errors.OK t => t
@@ -38,9 +35,6 @@ Definition field_offset_next env i m sz := field_offset_next_rec env i m 0 sz.
 Definition compute_in_members id (m: members): bool :=
   id_in_list id (map fst m).
                                                                       
-Definition members_no_replicate (m: members) : bool :=
-  compute_list_norepet (map fst m).
-
 Lemma compute_in_members_true_iff: forall i m, compute_in_members i m = true <-> in_members i m.
 Proof.
   intros.
