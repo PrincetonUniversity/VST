@@ -32,6 +32,63 @@ Definition offset_strict_in_range ofs p :=
 
 (******************************************
 
+Definition of at_offset.
+
+at_offset is the elementary definition. All useful lemmas about at_offset' will be proved here. 
+
+******************************************)
+
+Definition at_offset (P: val -> mpred) (z: Z): val -> mpred :=
+ fun v => P (offset_val (Int.repr z) v).
+
+Arguments at_offset P z v : simpl never.
+
+Lemma at_offset_eq: forall P z v,
+  at_offset P z v = P (offset_val (Int.repr z) v).
+Proof.
+intros; auto.
+Qed.
+
+Lemma lifted_at_offset_eq: forall (P: val -> mpred) z v,
+  `(at_offset P z) v = `P (`(offset_val (Int.repr z)) v).
+Proof.
+  intros.
+  unfold liftx, lift in *. simpl in *.
+  extensionality p.
+  apply at_offset_eq.
+Qed.
+
+Lemma at_offset_eq2: forall pos pos' P, 
+  forall p, at_offset P (pos + pos') p = at_offset P pos' (offset_val (Int.repr pos) p).
+Proof.
+  intros.
+  rewrite at_offset_eq.
+  rewrite at_offset_eq. 
+  unfold offset_val.
+  destruct p; auto.
+  rewrite int_add_assoc1.
+  reflexivity.
+Qed.
+
+Lemma at_offset_eq3: forall P z b ofs,
+  at_offset P z (Vptr b (Int.repr ofs)) = P (Vptr b (Int.repr (ofs + z))).
+Proof.
+  intros.
+  rewrite at_offset_eq.
+  unfold offset_val.
+  solve_mod_modulus.
+  reflexivity.
+Qed.
+
+Lemma at_offset_derives: forall P Q p , (forall p, P p |-- Q p) -> forall pos, at_offset P pos p |-- at_offset Q pos p.
+Proof.
+  intros.
+  rewrite !at_offset_eq.
+  apply H.
+Qed.
+
+(******************************************
+
 Definitions of spacer and withspacer
 
 Comment: spacer only has offset_zero property but does not have local_facts
@@ -222,7 +279,7 @@ Definition data_at': forall t, reptype t -> val -> mpred :=
        if type_is_volatile t
        then memory_block sh (Int.repr (sizeof cenv_cs t)) p
        else mapsto sh t p (repinject t v))
-    (fun t n a P v => array_pred t 0 n P (unfold_reptype v))
+    (fun t n a P v => array_pred 0 n (default_val t) (fun i v => at_offset (P v) (sizeof cenv_cs t * i)) (unfold_reptype v))
     (fun id a P v => struct_data_at'_aux (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
     (fun id a P v => union_data_at'_aux (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
 
@@ -303,7 +360,7 @@ Lemma data_at'_ind: forall t v,
                       if type_is_volatile t
                       then memory_block sh (Int.repr (sizeof cenv_cs t)) p
                       else mapsto sh t p v
-  | Tarray t0 n a => array_pred t0 0 n (data_at' t0)
+  | Tarray t0 n a => array_pred 0 n (default_val t0) (fun i v => at_offset (data_at' t0 v) (sizeof cenv_cs t0 * i))
   | Tstruct id a => struct_pred (co_members (get_co id))
                       (fun it v => withspacer sh
                         (field_offset2 cenv_cs (fst it) (co_members (get_co id)) + sizeof cenv_cs (snd it))
@@ -653,10 +710,11 @@ Ltac AUTO_IND :=
     simpl in H; auto
   end.
 
+(*
 Lemma memory_block_data_at'_default_val_array_aux: forall sh t z a b ofs,
   0 <= ofs /\ ofs + sizeof cenv_cs (Tarray t z a) <= Int.modulus ->
   sizeof cenv_cs (Tarray t z a) < Int.modulus ->
-  array_pred t 0 z
+  array_pred 0 z
     (fun _ : reptype t => memory_block sh (Int.repr (sizeof cenv_cs t))) nil
     (Vptr b (Int.repr ofs)) =
   memory_block sh (Int.repr (sizeof cenv_cs (Tarray t z a))) (Vptr b (Int.repr ofs)).
@@ -684,7 +742,7 @@ Proof.
       simpl in H0.
       rewrite Z.max_r in H0 by omega; auto.
 Qed.
-
+*)
 Lemma memory_block_data_at'_default_val: forall sh t b i,
   legal_alignas_type t = true ->
   complete_type cenv_cs t = true ->
@@ -699,15 +757,19 @@ Proof.
   try solve [inversion H0];
   try solve [apply by_value_data_at'_default_val; auto];
   rewrite data_at'_ind.
-  + rewrite default_val_ind.
+  + rewrite (default_val_ind (Tarray t z a)).
     rewrite unfold_fold_reptype.
     inv_int i.
-    rewrite array_pred_ext with (P1 := fun _ => memory_block sh (Int.repr (sizeof cenv_cs t))) (v1 := nil).
+    rewrite array_pred_ext with
+     (P1 := fun i _ p => memory_block sh (Int.repr (sizeof cenv_cs t))
+                          (offset_val (Int.repr (sizeof cenv_cs t * i)) p))
+     (v1 := nil).
     Focus 2. {
       intros.
       rewrite Znth_nil.
-      rewrite !at_offset_eq.
+      rewrite at_offset_eq3.
       unfold offset_val.
+      solve_mod_modulus.
       simpl sizeof in H1, H2;
       rewrite Z.max_r in H1, H2 by omega.
       apply IH; try AUTO_IND;
@@ -725,7 +787,7 @@ Proof.
           apply legal_alignas_sizeof_alignof_compat.
           AUTO_IND.
     } Unfocus.
-    apply memory_block_data_at'_default_val_array_aux; [omega | auto].
+    rewrite memory_block_data_at'_default_val_array_aux; [omega | auto].
   + rewrite struct_pred_ext with
      (P1 := fun it _ => memory_block sh (Int.repr (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)) - field_offset2 cenv_cs (fst it) (co_members (get_co id)))))
      (v1 := unfold_reptype (default_val (Tstruct id a))).
@@ -1240,190 +1302,4 @@ Proof.
   destruct (eval_lvar id t rho); simpl in *; normalize.
   apply pred_ext; normalize.
 Qed.
-
-(*
-Lemma array_at_local_facts:
- forall t sh f lo hi v,
-    array_at t sh f lo hi v |-- !! isptr v.
-Proof.
- intros.
- unfold array_at; normalize.
-Qed.
-
-Hint Resolve array_at_local_facts : saturate_local.
-
-Lemma array_at_isptr:
-  forall t sh f lo hi v, array_at t sh f lo hi v = array_at t sh f lo hi v && !!isptr v.
-Proof.
-intros.
-apply pred_ext; intros.
-apply andp_right; auto. apply array_at_local_facts.
-normalize.
-Qed.
-
-Lemma array_at__local_facts:
- forall t sh lo hi v,
-    array_at_ t sh lo hi v |-- !! isptr v.
-Proof.
- intros.
- apply array_at_local_facts; auto.
-Qed.
-
-Hint Resolve array_at__local_facts : saturate_local.
-*)
-(************************************************
-
-reptype is not defined in a quite beautiful way because of the if operation 
-inside it. However, due to the following limitations, the current definition
-is the best available choice.
-
-1. We want a compact representation of reptype result and a compact form of
-expansion of data_at, i.e. no unit in reptype result of non-empty struct and
-no emp clause existing in the expansion of data_at. So, vst does not use the
-following simplest approach.
-
-  match fld with
-  | Fnil => unit
-  | Fcons id ty fld' => prod (reptype ty) (reptype_structlist fld')
-  end
-
-2. If using struct recursive definition in reptype like this, in which reptype
-recursively is called on 1st level match variable fld' but not any 2nd level 
-stuff.
-
-  match fld with
-  | Fnil => unit
-  | Fcons id ty fld' => 
-    match fld' as fld0 return Type with
-    | Fnil => reptype ty
-    | Fcons id0 ty0 fld0' => prod (reptype ty) (reptype_structlist fld')
-    end
-  end
-
-or like this
-
-  match fld with
-  | Fnil => unit
-  | Fcons id ty Fnil => reptype ty
-  | Fcons id ty fld' => prod (reptype ty) (reptype_structlist fld')
-  end
-
-Then, we would be forced to do type casting when defining data_at. In detail,
-match command will destruct a fieldlist into "Fnil", "Fcons _ Fnil _" and
-"Fcons _ (Fcons i t f) _", then an equivalence between (Fcons i t f) and fld'
-is needed.
-
-3. If reptype is recursively called on (Fcons i t f), we have to use well-found
-recursive but not structure recursive. However, Coq does not allow users to use 
-well-found recursive on manual recursive functions.
-
-4. If reptype is defined in a well-type recursive style (thus, it has to be non-
-manually recursive) (this definition code is long; thus I put it afterwards), 
-a match command does not do enough type calculation. As a result, explicit type
-casting is needed again, i.e. the following piece of code does not compile. 
-
-  Function test (t: type) (v: reptype t) {measure hry t}: nat :=
-    match t as t0 return reptype t0 -> nat with
-    | Tvoid => fun (v: unit) => 0%nat
-    | Tarray t1 sz a => fun (v: list (reptype t1)) => 2%nat
-    | _ => fun _ => 1%nat
-    end v.
-
-Though, computation by "Eval compute in" or "simpl" works quite well.
-
-5. Another choice is start induction from the 2nd element but not the 1st
-element. However, neither one of the following definition works. The former 
-choice requires explicit type casting when defining data_at. The latter choice
-does not compile itself.
-
-  Fixpoint reptype (ty: type) : Type :=
-    match ty with
-    | ...
-    | Tstruct id Fnil a => unit
-    | Tstruct id (Fcons i t fld) a => reptype_structlist_cons (reptype t) fld
-    end
-  with reptype_structlist_cons (T: Type) (fld: fieldlist): Type :=
-    match fld with
-    | Fnil => T
-    | Fcons i t fld' => prod T (reptype_structlist_cons (reptype t) fld')
-    end.
-
-  Fixpoint reptype (ty: type) : Type :=
-    match ty with
-    | ...
-    | Tstruct id Fnil a => unit
-    | Tstruct id (Fcons i t fld) a => reptype_structlist_cons t fld
-    end
-  with reptype_structlist_cons (t: type) (fld: fieldlist): Type :=
-    match fld with
-    | Fnil => T
-    | Fcons i ty fld' => prod (reptype t) (reptype_structlist_cons ty fld')
-    end.
-
-
-(* (**** Code of Choice 4 ****)
-Open Scope nat.
-
-Fixpoint hry (t: type) : nat :=
-  match t with
-  | Tvoid => 0
-  | Tint _ _ _ => 0
-  | Tlong _ _ => 0
-  | Tfloat _ _ => 0
-  | Tpointer t1 a => 0
-  | Tarray t1 sz a => (hry t1) + 1
-  | Tfunction t1 t2 => 0
-  | Tstruct id fld a => (hry_fields fld) + 1
-  | Tunion id fld a => (hry_fields fld) + 1
-  | Tcomp_ptr id a => 0
-  end
-with hry_fields (fld: fieldlist): nat :=
-  match fld with
-  | Fnil => 0
-  | Fcons i t fld' => (hry t) + (hry_fields fld') + 1
-  end.
-
-Close Scope nat.
-
-Function reptype (ty: type) {measure hry ty}: Type :=
-  match ty with
-  | Tvoid => unit
-  | Tint _ _ _ => val
-  | Tlong _ _ => val
-  | Tfloat _ _ => val
-  | Tpointer t1 a => val
-  | Tarray t1 sz a => list (reptype t1)
-  | Tfunction t1 t2 => unit
-  | Tstruct id Fnil a => unit
-  | Tstruct id (Fcons i t Fnil) a => reptype t
-  | Tstruct id (Fcons i t fld) a => prod (reptype t) (reptype (Tstruct id fld a))
-  | Tunion id fld a => unit
-  | Tcomp_ptr id a => val
-  end
-.
-Proof.
-  + intros. 
-    simpl.
-    omega.
-  + intros.
-    simpl.
-    omega.
-  + intros.
-    simpl.
-    omega.
-  + intros. 
-    simpl.
-    omega.
-Defined.
-
-Eval compute in (reptype (Tstruct 2%positive (Fcons 1%positive Tvoid (Fcons 1%positive Tvoid Fnil)) noattr)).
-
-Lemma foo: (reptype (Tstruct 2%positive (Fcons 1%positive Tvoid (Fcons 1%positive Tvoid Fnil)) noattr)) = (unit * unit)%type.
-Proof.
-  reflexivity.
-Qed.
-*)
-
-
-************************************************)
 

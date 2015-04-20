@@ -1,7 +1,7 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
-Require Import floyd.fieldlist.
+Require floyd.fieldlist.
 Import floyd.fieldlist.fieldlist.
 Require Import floyd.type_induction.
 Open Scope Z.
@@ -597,9 +597,9 @@ Proof.
     unfold legal_field.
     - apply sumbool_dec_and; [apply Z_le_dec | apply Z_lt_dec].
     - apply sumbool_dec_and; [destruct (co_su (get_co id)); [left; auto | right; congruence] |].
-      apply in_members_dec.
+      destruct_in_members i (co_members (get_co id)); auto.
     - apply sumbool_dec_and; [destruct (co_su (get_co id)); [right; congruence | left; auto] |].
-      apply in_members_dec.
+      destruct_in_members i (co_members (get_co id)); auto.
 Qed.
 
 Definition field_compatible t gfs p :=
@@ -810,7 +810,7 @@ Proof.
     apply Z.divide_mul_l.
     apply legal_alignas_sizeof_alignof_compat; auto.
   + simpl.
-    apply field_offset2_aligned.
+    apply field_offset_aligned.
 Qed.
 
 Lemma nested_field_offset2_type2_divide: forall gfs t,

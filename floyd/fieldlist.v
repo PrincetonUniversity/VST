@@ -379,10 +379,24 @@ End COMPOSITE_ENV.
 Module fieldlist.
 
 Definition in_members := @in_members.
+Definition compute_in_members := @compute_in_members.
 Definition members_no_replicate := @members_no_replicate.
 Definition field_type := @field_type2.
 Definition field_offset := @field_offset2.
 Definition field_offset_next := @field_offset_next.
+
+Definition compute_in_members_true_iff: forall i m, compute_in_members i m = true <-> in_members i m
+  := @compute_in_members_true_iff.
+
+Definition compute_in_members_false_iff: forall i m,
+  compute_in_members i m = false <-> ~ in_members i m
+:= @compute_in_members_false_iff.
+
+Ltac destruct_in_members i m :=
+  let H := fresh "H" in
+  destruct (compute_in_members i m) eqn:H;
+    [apply compute_in_members_true_iff in H |
+     apply compute_in_members_false_iff in H].
 
 Definition field_offset_in_range:
   forall {cs: compspecs},
