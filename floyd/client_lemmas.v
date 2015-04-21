@@ -1802,3 +1802,22 @@ Ltac solve_mod_eq :=
   repeat rewrite Zplus_mod_idemp_r).
 
 
+Lemma prop_false_andp {A}{NA :NatDed A}:
+ forall P Q, ~P -> !! P && Q = FF.
+Proof.
+intros.
+apply pred_ext; normalize.
+Qed.
+
+Lemma orp_FF {A}{NA: NatDed A}:
+ forall Q, Q || FF = Q.
+Proof.
+intros. apply pred_ext. apply orp_left; normalize. apply orp_right1; auto.
+Qed.
+
+Lemma FF_orp {A}{NA: NatDed A}:
+ forall Q, FF || Q = Q.
+Proof.
+intros. apply pred_ext. apply orp_left; normalize. apply orp_right2; auto.
+Qed.
+

@@ -5,9 +5,6 @@ Require Import floyd.client_lemmas.
 Arguments align !n !amount / .
 Arguments Z.max !n !m / .
 
-Definition in_members i (m: members): Prop :=
-  In i (map fst m).
-
 Definition field_type2 i m :=
   match field_type i m with
   | Errors.OK t => t
@@ -38,9 +35,6 @@ Definition field_offset_next env i m sz := field_offset_next_rec env i m 0 sz.
 Definition compute_in_members id (m: members): bool :=
   id_in_list id (map fst m).
                                                                       
-Definition members_no_replicate (m: members) : bool :=
-  compute_list_norepet (map fst m).
-
 Lemma compute_in_members_true_iff: forall i m, compute_in_members i m = true <-> in_members i m.
 Proof.
   intros.
@@ -385,10 +379,24 @@ End COMPOSITE_ENV.
 Module fieldlist.
 
 Definition in_members := @in_members.
+Definition compute_in_members := @compute_in_members.
 Definition members_no_replicate := @members_no_replicate.
 Definition field_type := @field_type2.
 Definition field_offset := @field_offset2.
 Definition field_offset_next := @field_offset_next.
+
+Definition compute_in_members_true_iff: forall i m, compute_in_members i m = true <-> in_members i m
+  := @compute_in_members_true_iff.
+
+Definition compute_in_members_false_iff: forall i m,
+  compute_in_members i m = false <-> ~ in_members i m
+:= @compute_in_members_false_iff.
+
+Ltac destruct_in_members i m :=
+  let H := fresh "H" in
+  destruct (compute_in_members i m) eqn:H;
+    [apply compute_in_members_true_iff in H |
+     apply compute_in_members_false_iff in H].
 
 Definition field_offset_in_range:
   forall {cs: compspecs},

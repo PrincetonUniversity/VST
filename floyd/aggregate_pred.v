@@ -3,70 +3,162 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
 Require Import floyd.fieldlist.
-Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
-Require Import floyd.rangespec_lemmas.
-Require Import floyd.reptype_lemmas.
 Require Import floyd.jmeq_lemmas.
 Require Import Coq.Logic.JMeq.
 
+Open Scope Z.
 Open Scope logic.
 
 (******************************************
 
-Definition of at_offset.
-
-at_offset is the elementary definition. All useful lemmas about at_offset' will be proved here. 
+Definition and lemmas about list and Z
 
 ******************************************)
 
-Definition at_offset (P: val -> mpred) (z: Z): val -> mpred :=
- fun v => P (offset_val (Int.repr z) v).
+Definition Znth {X} n (xs: list X) (default: X) :=
+  if (zlt n 0) then default else nth (Z.to_nat n) xs default.
 
-Arguments at_offset P z v : simpl never.
-
-Lemma at_offset_eq: forall P z v,
-  at_offset P z v = P (offset_val (Int.repr z) v).
-Proof.
-intros; auto.
-Qed.
-
-Lemma lifted_at_offset_eq: forall (P: val -> mpred) z v,
-  `(at_offset P z) v = `P (`(offset_val (Int.repr z)) v).
+Lemma Znth_succ: forall {A} i lo (v: list A), Z.succ lo <= i -> Znth (i - lo) v = Znth (i - (Z.succ lo)) (skipn 1 v).
 Proof.
   intros.
-  unfold liftx, lift in *. simpl in *.
-  extensionality p.
-  apply at_offset_eq.
+  extensionality default.
+  unfold Znth.
+  if_tac; [omega |].
+  if_tac; [omega |].
+  rewrite nth_skipn.
+  f_equal.
+  change 1%nat with (Z.to_nat 1).
+  rewrite <- Z2Nat.inj_add by omega.
+  f_equal.
+  omega.
 Qed.
 
-Lemma at_offset_eq2: forall pos pos' P, 
-  forall p, at_offset P (pos + pos') p = at_offset P pos' (offset_val (Int.repr pos) p).
+Lemma Znth_skipn: forall {A} n xs (default: A),
+  0 <= n ->
+  Znth 0 (skipn (nat_of_Z n) xs) default = Znth n xs default.
 Proof.
   intros.
-  rewrite at_offset_eq.
-  rewrite at_offset_eq. 
-  unfold offset_val.
-  destruct p; auto.
-  rewrite int_add_assoc1.
+  unfold Znth.
+  if_tac; [omega |].
+  if_tac; [omega |].
+  rewrite nth_skipn.
   reflexivity.
 Qed.
 
-Lemma at_offset_eq3: forall P z b ofs,
-  at_offset P z (Vptr b (Int.repr ofs)) = P (Vptr b (Int.repr (ofs + z))).
+Lemma split3_full_length_list: forall {A} lo mid hi (ct: list A) d,
+  lo <= mid < hi ->
+  Zlength ct = hi - lo ->
+  ct = firstn (Z.to_nat (mid - lo)) ct ++
+       (Znth (mid - lo) ct d :: nil) ++
+       skipn (Z.to_nat (mid - lo + 1)) ct.
 Proof.
   intros.
-  rewrite at_offset_eq.
-  unfold offset_val.
-  solve_mod_modulus.
-  reflexivity.
+  rewrite <- firstn_skipn with (l := ct) (n := Z.to_nat (mid - lo)) at 1.
+  f_equal.
+  rewrite Z2Nat.inj_add by omega.
+  rewrite <- skipn_skipn.
+  replace (Znth (mid - lo) ct d :: nil) with (firstn (Z.to_nat 1) (skipn (Z.to_nat (mid - lo)) ct)).
+  + rewrite firstn_skipn; reflexivity.
+  + unfold Znth.
+    if_tac; [omega |].
+    rewrite firstn_1_skipn; [reflexivity |].
+    rewrite <- (Nat2Z.id (length ct)).
+    apply Z2Nat.inj_lt.
+    - omega.
+    - omega.
+    - rewrite Zlength_correct in H0.
+      omega.
 Qed.
 
-Lemma at_offset_derives: forall P Q p , (forall p, P p |-- Q p) -> forall pos, at_offset P pos p |-- at_offset Q pos p.
+(******************************************
+
+Definition and lemmas about rangespec
+
+******************************************)
+
+Fixpoint rangespec (lo: Z) (n: nat) (P: Z -> val -> mpred): val -> mpred :=
+  match n with
+  | O => fun _ => emp
+  | S n' => P lo * rangespec (Zsucc lo) n' P
+ end.
+
+Fixpoint fold_range' {A: Type} (f: Z -> A -> A) (zero: A) (lo: Z) (n: nat) : A :=
+ match n with
+  | O => zero
+  | S n' => f lo (fold_range' f  zero (Zsucc lo) n')
+ end.
+
+Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
+  fold_range' f zero lo (nat_of_Z (hi-lo)).
+
+Lemma rangespec_shift_derives: forall lo lo' len P P' p p',
+  (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p |-- P' i' p') -> 
+  rangespec lo len P p |-- rangespec lo' len P' p'.
 Proof.
   intros.
-  rewrite !at_offset_eq.
+  revert lo lo' H; 
+  induction len; intros.
+  + simpl. auto.
+  + simpl.
+    apply sepcon_derives.
+    - apply H; [| omega].
+      rewrite Nat2Z.inj_succ.
+      rewrite <- Z.add_1_r.
+      omega.
+    - apply IHlen. intros.
+      apply H; [| omega].
+      rewrite Nat2Z.inj_succ.
+      rewrite <- Z.add_1_r.
+      pose proof Zle_0_nat (S len).
+      omega.
+Qed.
+
+Lemma rangespec_ext_derives: forall lo len P P' p,
+  (forall i, lo <= i < lo + Z_of_nat len -> P i p |-- P' i p) -> 
+  rangespec lo len P p |-- rangespec lo len P' p.
+Proof.
+  intros.
+  apply rangespec_shift_derives.
+  intros.
+  assert (i = i') by omega.
+  subst.
   apply H.
+  auto.
+Qed.
+
+Lemma rangespec_shift: forall lo lo' len P P' p p',
+  (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p = P' i' p') -> 
+  rangespec lo len P p = rangespec lo' len P' p'.
+Proof.
+  intros; apply pred_ext; apply rangespec_shift_derives;
+  intros.
+  + erewrite H; eauto.
+  + erewrite H; eauto.
+    omega.
+Qed.
+
+Lemma rangespec_ext: forall lo len P P' p,
+  (forall i, lo <= i < lo + Z_of_nat len -> P i p = P' i p) -> 
+  rangespec lo len P p = rangespec lo len P' p.
+Proof.
+  intros; apply pred_ext; apply rangespec_ext_derives;
+  intros; rewrite H; auto.
+Qed.
+
+Lemma rangespec_elim: forall lo len P i,
+  lo <= i < lo + Z_of_nat len -> rangespec lo len P |-- P i * TT.
+Proof.
+  intros. revert lo i H; induction len; intros.
+  + simpl in H. omega.
+  + simpl. intros; destruct (Z.eq_dec i lo).
+    - subst. cancel.
+    - replace (P i x * !!True) with (TT * (P i x * TT)) by (apply pred_ext; cancel).
+      apply sepcon_derives; [cancel |].
+      apply IHlen.
+      rewrite Nat2Z.inj_succ in H.
+      rewrite <- Z.add_1_l in *.
+      omega.
 Qed.
 
 (******************************************
@@ -79,8 +171,8 @@ Section CENV.
 
 Context {cs: compspecs}.
 
-Definition array_pred (t: type) (lo hi: Z) (P: reptype t -> val -> mpred) (v: list (reptype t)) (p: val): mpred :=
-  rangespec lo hi (fun i => at_offset (P (Znth (i - lo) v (default_val _))) (sizeof cenv_cs t * i)) p.
+Definition array_pred {A: Type} (lo hi: Z) (d: A) (P: Z -> A -> val -> mpred) (v: list A): val -> mpred :=
+  rangespec lo (nat_of_Z (hi-lo)) (fun i => P i (Znth (i - lo) v d)).
 
 Definition struct_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)): val -> mpred.
 Proof.
@@ -112,42 +204,44 @@ Properties
 
 ******************************************)
 
-Lemma array_pred_ext_derives: forall t lo hi P0 P1 v0 v1 p,
-  (forall i, lo <= i < hi ->
-     at_offset (P0 (Znth (i - lo) v0 (default_val t))) (sizeof cenv_cs t * i) p |--
-     at_offset (P1 (Znth (i - lo) v1 (default_val t))) (sizeof cenv_cs t * i) p) ->
-  array_pred t lo hi P0 v0 p |-- array_pred t lo hi P1 v1 p.
+Lemma array_pred_ext_derives: forall A lo hi (d: A) P0 P1 v0 v1 p,
+  (forall i, lo <= i < hi -> P0 i (Znth (i - lo) v0 d) p |-- P1 i (Znth (i - lo) v1 d) p) -> 
+  array_pred lo hi d P0 v0 p |-- array_pred lo hi d P1 v1 p.
 Proof.
   intros.
   unfold array_pred.
-  unfold rangespec.
-  apply rangespec_ext_derives; auto.
-Qed.
-
-Lemma array_pred_ext: forall t lo hi P0 P1 v0 v1 p,
-  (forall i, lo <= i < hi ->
-     at_offset (P0 (Znth (i - lo) v0 (default_val t))) (sizeof cenv_cs t * i) p =
-     at_offset (P1 (Znth (i - lo) v1 (default_val t))) (sizeof cenv_cs t * i) p) ->
-  array_pred t lo hi P0 v0 p = array_pred t lo hi P1 v1 p.
-Proof.
+  apply rangespec_ext_derives.
   intros.
-  unfold array_pred.
-  unfold rangespec.
-  apply rangespec_ext; auto.
+  destruct (zlt lo hi).
+  + apply H.
+    rewrite nat_of_Z_max in H0.
+    rewrite Z.max_l in H0 by omega.
+    omega.
+  + rewrite nat_of_Z_max in H0.
+    rewrite Z.max_r in H0 by omega.
+    omega.
 Qed.
 
-Lemma memory_block_array_pred: forall sh t b ofs lo hi,
+Lemma array_pred_ext: forall A lo hi (d: A) P0 P1 v0 v1 p,
+  (forall i, lo <= i < hi -> P0 i (Znth (i - lo) v0 d) p = P1 i (Znth (i - lo) v1 d) p) -> 
+  array_pred lo hi d P0 v0 p = array_pred lo hi d P1 v1 p.
+Proof.
+  intros; apply pred_ext; apply array_pred_ext_derives;
+  intros; rewrite H; auto.
+Qed.
+
+Lemma memory_block_array_pred: forall sh t A lo hi (d: A) v b ofs,
   0 <= ofs + sizeof cenv_cs t * lo /\ ofs + sizeof cenv_cs t * hi <= Int.modulus ->
   0 <= lo <= hi ->
   sizeof cenv_cs t * (hi - lo) < Int.modulus ->
-  array_pred t lo hi
-    (fun _ : reptype t => memory_block sh (Int.repr (sizeof cenv_cs t))) nil
+  array_pred lo hi d
+    (fun i _ p => memory_block sh (Int.repr (sizeof cenv_cs t))
+                   (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) v
     (Vptr b (Int.repr ofs)) =
   memory_block sh (Int.repr (sizeof cenv_cs t * (hi - lo))) (Vptr b (Int.repr (ofs + sizeof cenv_cs t * lo))).
 Proof.
   intros.
   unfold array_pred.
-  unfold rangespec.
   remember (nat_of_Z (hi - lo)) as n eqn:HH; revert lo HH H H0 H1; induction n; intros.
   + simpl.
     pose proof arith_aux00 _ _ (proj2 H0) HH.
@@ -155,7 +249,7 @@ Proof.
     reflexivity.
   + simpl.
     pose proof arith_aux01 _ _ _ HH.
-    rewrite at_offset_eq3.
+    solve_mod_modulus.
     pose_size_mult cenv_cs t (0 :: hi - Z.succ lo :: hi - lo :: nil).
     rewrite IHn; [| apply arith_aux02; auto | omega | omega | omega].
     replace (ofs + sizeof cenv_cs t * Z.succ lo) with (ofs + sizeof cenv_cs t * lo + sizeof cenv_cs t) by omega.
@@ -263,11 +357,9 @@ Lemma memory_block_struct_pred: forall sh m sz {A} (v: compact_prod (map A m)) b
   sizeof_struct cenv_cs 0 m <= sz < Int.modulus ->
   0 <= ofs /\ ofs + sz <= Int.modulus ->
   struct_pred m
-   (fun it _ =>
-      at_offset
-        (memory_block sh (Int.repr (field_offset_next cenv_cs (fst it) m sz -
-                                    field_offset2 cenv_cs (fst it) m)))
-        (field_offset2 cenv_cs (fst it) m)) v (Vptr b (Int.repr ofs)) =
+   (fun it _ p =>
+     (memory_block sh (Int.repr (field_offset_next cenv_cs (fst it) m sz - field_offset2 cenv_cs (fst it) m)))
+     (offset_val (Int.repr (field_offset2 cenv_cs (fst it) m)) p)) v (Vptr b (Int.repr ofs)) =
   memory_block sh (Int.repr sz) (Vptr b (Int.repr ofs)).
 Proof.
   unfold field_offset2, field_offset, field_offset_next.
@@ -283,7 +375,8 @@ Proof.
   induction m as [| (i1, t1) m]; intros.
   + simpl.
     if_tac; [| congruence].
-    apply at_offset_eq3.
+    solve_mod_modulus.
+    reflexivity.
   + match goal with
     | |- struct_pred ((i0, t0) :: (i1, t1) :: m) ?P v ?p = _ =>
            change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p) with
@@ -291,7 +384,7 @@ Proof.
            simpl (P (i0, t0) (fst v) p)
     end.
     if_tac; [| congruence].
-    rewrite at_offset_eq3.
+    solve_mod_modulus.
     erewrite struct_pred_ext.
     - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
       rewrite IHm with (z := align z (alignof cenv_cs t0) + sizeof cenv_cs t0);
@@ -308,13 +401,13 @@ Proof.
     - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
       auto.
     - intros. instantiate (1 := (snd v)).
-      rewrite !at_offset_eq3.
+      solve_mod_modulus.
       unfold fst.
       pose proof im_members_tail_no_replicate _ _ _ _ NO_REPLI H2.
       rewrite (neq_field_offset_rec_cons cenv_cs i i0 t0) by auto.
       rewrite (neq_field_offset_next_rec_cons cenv_cs i i0 t0) by auto.
       reflexivity.
-Qed.   
+Qed.
 
 Definition members_union_inj {m: members} {A} (v: compact_sum (map A m)) : ident * type.
 Proof.

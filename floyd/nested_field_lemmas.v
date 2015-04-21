@@ -1,29 +1,10 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
-Require Import floyd.fieldlist.
+Require floyd.fieldlist.
 Import floyd.fieldlist.fieldlist.
 Require Import floyd.type_induction.
 Open Scope Z.
-
-Definition composite_legal_alignas (env : composite_env) (co : composite) : Prop :=
-  (co_alignof co >=? alignof_composite env (co_members co)) = true.
-
-Definition composite_env_legal_alignas env :=
-  forall (id : positive) (co : composite),
-    env ! id = Some co -> composite_legal_alignas env co.
-
-Definition composite_legal_fieldlist (co: composite): Prop :=
-  compute_list_norepet (map fst (co_members co)) = true.
-
-Definition composite_env_legal_fieldlist env :=
-  forall (id : positive) (co : composite),
-    env ! id = Some co -> composite_legal_fieldlist co.
-
-Class compspecs_legal (C: compspecs) := mkCompspecsLegal {
-  cenv_legal_alignas: composite_env_legal_alignas cenv_cs;
-  cenv_legal_fieldlist: composite_env_legal_fieldlist cenv_cs
-}.
 
 (************************************************
 
@@ -616,9 +597,9 @@ Proof.
     unfold legal_field.
     - apply sumbool_dec_and; [apply Z_le_dec | apply Z_lt_dec].
     - apply sumbool_dec_and; [destruct (co_su (get_co id)); [left; auto | right; congruence] |].
-      apply in_members_dec.
+      destruct_in_members i (co_members (get_co id)); auto.
     - apply sumbool_dec_and; [destruct (co_su (get_co id)); [right; congruence | left; auto] |].
-      apply in_members_dec.
+      destruct_in_members i (co_members (get_co id)); auto.
 Qed.
 
 Definition field_compatible t gfs p :=
@@ -829,7 +810,7 @@ Proof.
     apply Z.divide_mul_l.
     apply legal_alignas_sizeof_alignof_compat; auto.
   + simpl.
-    apply field_offset2_aligned.
+    apply field_offset_aligned.
 Qed.
 
 Lemma nested_field_offset2_type2_divide: forall gfs t,
@@ -1399,3 +1380,4 @@ End COMPOSITE_ENV.
 Arguments nested_field_offset2 {cs} t gfs /.
 Arguments nested_field_type2 {cs} t gfs /.
 *)
+ 
