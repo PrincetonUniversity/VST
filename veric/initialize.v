@@ -319,31 +319,40 @@ Proof. induction dl; simpl; intros. omega.
  pose proof (Genv.init_data_size_pos a); omega.
 Qed.
 
+Fixpoint zeros (n : nat) : list memval :=
+  match n with
+    | O => nil
+    | S n' => Byte Byte.zero :: zeros n'
+  end.
+
+Lemma load_zeros_read_as_zero m b z N :
+  (forall z',
+     z <= z' < z + N ->
+     load Mint8unsigned m b z' = Some (Vint Int.zero)) ->
+  Genv.read_as_zero m b z N.
+Proof.
+unfold Genv.read_as_zero.
+intros H ch p H2 H3 H4. 
+assert (H5: forall ch p0,
+  size_chunk ch > 0 -> z <= p0 -> p0 + size_chunk ch <= z + N -> 
+  getN (size_chunk_nat ch) p0 ((mem_contents m) !! b) = zeros (size_chunk_nat ch)
+  /\ valid_access m ch b p0 Readable).
+{ admit. (*TODO, but should be provable*) }
+Transparent load.
+unfold load.
+destruct (H5 ch p (size_chunk_pos _) H2 H3) as [-> H6].
+destruct (valid_access_dec m ch b p Readable); [|contradiction].
+f_equal.
+destruct ch; simpl; auto.
+Qed.
 
 Lemma load_store_zeros:
   forall m b z N m', store_zeros m b z N = Some m' ->
          forall z', z <= z' < z + N -> load Mint8unsigned m' b z' = Some (Vint Int.zero).
 Proof.
  intros.
- symmetry in H; apply R_store_zeros_correct in H.
-  remember (Some m') as m1.
-  revert z'  m' Heqm1 H0; induction H; intros. omegaContradiction.
-  subst res.
- destruct (Z.eq_dec z' p). 
- Focus 2. apply IHR_store_zeros; auto. 
-   clear - H0 n0.  destruct H0. omega.
-  subst z'.
-  destruct (load_store_similar _ _ _ _ _ _ e0) with Mint8unsigned; simpl; auto.
-  omega.
-  destruct H1. 
- simpl in H2. subst x.
-  replace (Int.zero_ext 8 Int.zero) with (Int.zero) in H1 by reflexivity.
-  rewrite <- H1.
-  clear - H. apply R_store_zeros_complete in H.
- symmetry.
- symmetry in H; symmetry; eapply Genv.store_zeros_load_outside; eauto.
-  right. simpl; omega.
-  inv Heqm1.
+ eapply Genv.store_zeros_read_as_zero; eauto.
+ omega. simpl. omega. simpl. apply Z.divide_1_l.
 Qed.
 
 Lemma load_store_init_data_lem1:
@@ -368,8 +377,7 @@ Proof.
   simpl in H0.
   invSome.
   spec H2. {
-    clear - H1.
-    admit. (* need a proof about read_as_zero *)
+    apply load_zeros_read_as_zero; auto.
   }
   destruct a; simpl in H2|-*; try solve [destruct H2; auto]; intros.
   rewrite (Genv.store_init_data_list_outside ge dl _ H4) by (right; simpl; omega).
@@ -407,8 +415,7 @@ Proof.
   omega.
   simpl app in H2.
   spec H2. {
-     clear - H1.
-     admit.  (* read_as_zero, seems fine. *)
+    apply load_zeros_read_as_zero; auto.
   }
   clear - H2.
   forget (dl'++a::dl) as D.
