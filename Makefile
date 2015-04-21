@@ -143,7 +143,7 @@ PROGS_FILES= \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
   revarray.v verif_revarray.v insertionsort.v verif_insertion_sort.v \
   verif_float.v verif_dotprod.v \
-  verif_nest3.v verif_nest2.v prod.v \
+  verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v
 
@@ -251,7 +251,7 @@ CGFLAGS =  -DCOMPCERT
 
 CVFILES = progs/revarray.v progs/reverse.v progs/queue.v progs/sumarray.v \
          progs/message.v progs/insertionsort.v progs/float.v progs/logical_compare.v \
-         progs/nest2.v progs/nest3.v progs/dotprod.v
+         progs/nest2.v progs/nest3.v progs/dotprod.v progs/string.v progs/even.v progs/odd.v
 
 cvfiles: $(CVFILES)
 
@@ -287,6 +287,12 @@ progs/nest2.v: progs/nest2.c
 progs/nest3.v: progs/nest3.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/dotprod.v: progs/dotprod.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/string.v: progs/string.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/even.v: progs/even.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/odd.v: progs/odd.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
