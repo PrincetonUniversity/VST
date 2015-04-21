@@ -228,6 +228,11 @@ Ltac pose_align_le :=
   | |- context [align ?A (alignof ?env ?t)] =>
          assert (A <= align A (alignof env t)) by (apply align_le, alignof_pos);
          change (align A (alignof env t)) with (align_alignof A (alignof env t))
+  | |- context [align ?A (co_alignof ?co)] =>
+         let x := fresh "x" in
+         assert (A <= align A (co_alignof co)) by (apply align_le; destruct (co_alignof_two_p co) as [x ?];
+           pose proof two_power_nat_pos x; omega);
+         change (align A (co_alignof co)) with (align_alignof A (co_alignof co))
   | |- context [sizeof_struct ?env ?A ?m] =>
          pose proof sizeof_struct_incr env m A;
          change (sizeof_struct env A m) with (sizeof_struct_le env A m)

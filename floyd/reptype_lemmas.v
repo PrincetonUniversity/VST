@@ -1,10 +1,8 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
-Require Import floyd.nested_field_lemmas.
 Require Import floyd.jmeq_lemmas.
 Require Import Coq.Logic.JMeq.
-Import floyd.fieldlist.fieldlist.
 
 (******************************************
 

@@ -177,4 +177,20 @@ Proof.
   + reflexivity.
 Qed.
 
+Lemma sizeof_Tstruct: forall id a,
+  sizeof cenv_cs (Tstruct id a) = co_sizeof (get_co id).
+Proof.
+  intros.
+  simpl sizeof. unfold get_co.
+  destruct (cenv_cs ! id); auto.
+Qed.
+
+Lemma sizeof_Tunion: forall id a,
+  sizeof cenv_cs (Tunion id a) = co_sizeof (get_co id).
+Proof.
+  intros.
+  simpl sizeof. unfold get_co.
+  destruct (cenv_cs ! id); auto.
+Qed.
+
 End GET_CO.

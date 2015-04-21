@@ -403,7 +403,7 @@ Proof.
     - intros. instantiate (1 := (snd v)).
       solve_mod_modulus.
       unfold fst.
-      pose proof im_members_tail_no_replicate _ _ _ _ NO_REPLI H2.
+      pose proof in_members_tail_no_replicate _ _ _ _ NO_REPLI H2.
       rewrite (neq_field_offset_rec_cons cenv_cs i i0 t0) by auto.
       rewrite (neq_field_offset_next_rec_cons cenv_cs i i0 t0) by auto.
       reflexivity.

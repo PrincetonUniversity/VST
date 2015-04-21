@@ -341,7 +341,7 @@ Proof.
       tauto.
 Qed.
 
-Lemma im_members_tail_no_replicate: forall i i0 t0 m,
+Lemma in_members_tail_no_replicate: forall i i0 t0 m,
   members_no_replicate ((i0, t0) :: m) = true ->
   in_members i m ->
   i <> i0.
