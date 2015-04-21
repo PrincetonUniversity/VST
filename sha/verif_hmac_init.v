@@ -156,7 +156,7 @@ remember (EX shaStates:_ ,
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]) by reflexivity.
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]) by reflexivity.
       unfold field_address. repeat rewrite if_true by auto.
-      unfold nested_field_offset2, nested_field_type2; simpl. rewrite Int.add_zero. cancel.
+      simpl. rewrite Int.add_zero. cancel.
       destruct (zlt 64 (Zlength key)); rewrite HH1, Int.repr_unsigned; trivial.
   }
 
@@ -186,7 +186,7 @@ remember (EX shaStates:_ ,
     { entailer!; unfold field_address; rewrite if_true by auto; reflexivity. }
     { simpl. unfold field_address. rewrite if_true by auto. entailer!.
       (*Again, entailer leaves a subgoal*) }
-    (* old proof of the previsou subgoal:
+    (* old proof of the previous subgoal:
     { simpl. unfold field_address.
       destruct (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
             (Vptr cb cofs)); [ | solve [entailer]].
@@ -227,10 +227,8 @@ remember (EX shaStates:_ ,
         rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
         cancel.
         unfold field_address; rewrite if_true by auto.
-        change (nested_field_offset2 t_struct_hmac_ctx_st [StructField _md_ctx])
-             with 0.
-        normalize.
-      } 
+        simpl. normalize.
+      }
     }
   }
 } 

@@ -341,7 +341,7 @@ Proof. intros.
       unfold tarray.
       assert (LL: Zlength key = Z.of_nat (Z.to_nat l)). 
        { subst l. rewrite nat_of_Z_eq; trivial. omega. }
-      remember (`(data_at Tsh (Tarray tuchar 64 noattr) [] pad)) as ZZ.
+      remember (`(data_at Tsh (Tarray tuchar 64 noattr) (default_val (Tarray tuchar 64 noattr)) pad)) as ZZ.
       rewrite (data_at_Tarray_split3a Tsh tuchar 64 noattr l). 2: omega.
       simpl.
       specialize (split_offset_array_at (Z.to_nat l)). unfold tarray; intros SOA.

@@ -1173,13 +1173,16 @@ Ltac do_repr_inj H :=
          | simple apply repr_inj_unsigned in H; [ | repable_signed | repable_signed ]
          | simple apply repr_inj_signed' in H; [ | repable_signed | repable_signed ]
          | simple apply repr_inj_unsigned' in H; [ | repable_signed | repable_signed ]
-         | apply typed_true_nullptr3 in H
-         | apply typed_true_nullptr4 in H
          | match type of H with
-            | _ <> _ => apply typed_false_nullptr3 in H
-            | typed_false _  (force_val (sem_cmp_pp Ceq true2 _ _)) => apply typed_false_nullptr3 in H
+            | typed_true _  (force_val (sem_cmp_pp Ceq true2 _ _)) =>
+                                    apply typed_true_nullptr3 in H
+            | typed_true _  (force_val (sem_cmp_pp Cne true2 _ _)) =>
+                                    apply typed_true_nullptr4 in H
+            | typed_false _  (force_val (sem_cmp_pp Ceq true2 _ _)) =>
+                                    apply typed_false_nullptr3 in H
+            | typed_false _  (force_val (sem_cmp_pp Cne true2 _ _)) =>
+                                    apply typed_false_nullptr4 in H
           end
-(*         | apply typed_false_nullptr3 in H *)
          | apply typed_false_nullptr4 in H
          | simple apply ltu_repr in H; [ | repable_signed | repable_signed]
          | simple apply ltu_repr_false in H; [ | repable_signed | repable_signed]
