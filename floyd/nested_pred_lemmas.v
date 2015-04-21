@@ -1,0 +1,334 @@
+Require Import floyd.base.
+Require Import floyd.assert_lemmas.
+Require Import floyd.client_lemmas.
+Require Import floyd.fieldlist.
+Require Import floyd.type_induction.
+
+Open Scope Z.
+
+(************************************************
+
+Definition, lemmas and useful samples of nested_pred
+
+nested_pred only ensure the specific property to be true on nested types with
+memory assigned, i.e. inside structure of pointer, function, empty array are
+not included.
+
+************************************************)
+
+Lemma fold_right_map: forall {A B C} (f: B -> A -> A) (g: C -> B) (e: A) (l: list C),
+  fold_right f e (map g l) = fold_right (fun c a => f (g c) a) e l.
+Proof.
+  intros.
+  induction l.
+  + reflexivity.
+  + simpl.
+    rewrite IHl.
+    reflexivity.
+Qed.
+
+Section NESTED_PRED.
+Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
+
+Definition nested_pred (atom_pred: type -> bool): type -> bool :=
+  func_type
+    (fun _ => bool)
+    (fun t => atom_pred t)
+    (fun t n a b => (atom_pred (Tarray t n a) && b)%bool)
+    (fun id a bl => (atom_pred (Tstruct id a) && fold_right andb true (decay bl))%bool)
+    (fun id a bl => (atom_pred (Tunion id a) && fold_right andb true (decay bl))%bool).
+
+Definition nested_fields_pred (atom_pred: type -> bool) (m: members) : bool :=
+  fold_right (fun it b => (nested_pred atom_pred (snd it) && b)%bool) true m.
+
+Lemma nested_pred_ind: forall atom_pred t,
+  nested_pred atom_pred t = 
+  match t with
+  | Tarray t0 _ _ => (atom_pred t && nested_pred atom_pred t0)%bool
+  | Tstruct id _
+  | Tunion id _ => (atom_pred t && nested_fields_pred atom_pred (co_members (get_co id)))%bool
+  | _ => atom_pred t
+  end.
+Proof.
+  unfold nested_fields_pred.
+  intros.
+  unfold nested_pred.
+  rewrite func_type_ind with (t0 := t) at 1 by auto.
+  destruct t; auto.
+  + f_equal.
+    rewrite decay_spec.
+    rewrite fold_right_map.
+    reflexivity.
+  + f_equal.
+    rewrite decay_spec.
+    rewrite fold_right_map.
+    reflexivity.
+Defined.
+
+Lemma nested_pred_atom_pred: forall (atom_pred: type -> bool) (t: type),
+  nested_pred atom_pred t = true -> atom_pred t = true.
+Proof.
+  intros.
+  rewrite nested_pred_ind in H by auto.
+  destruct t; simpl in *;
+   try (destruct (cenv_cs ! i) eqn:HH; simpl in H; try rewrite HH in H);
+   try apply andb_true_iff in H; try tauto.
+Defined.
+
+Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i m, in_members i m -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred (field_type2 i m) = true.
+Proof.
+  intros.
+  unfold nested_fields_pred in H0.
+  rewrite <- fold_right_map in H0.
+  eapply fold_right_andb; [exact H0 |].
+  clear - H.
+  rewrite <- map_map.
+  apply in_map.
+  change (field_type2 i m) with (snd (i, field_type2 i m)).
+  apply in_map.
+  apply in_members_field_type2.
+  auto.
+Defined.
+
+Lemma nested_pred_Tarray: forall (atom_pred: type -> bool) t n a,
+  nested_pred atom_pred (Tarray t n a) = true -> nested_pred atom_pred t = true.
+Proof.
+  intros.
+  rewrite nested_pred_ind in H by auto.
+  apply andb_true_iff in H.
+  tauto.
+Defined.
+
+Lemma nested_pred_Tstruct: forall (atom_pred: type -> bool) id a,
+  nested_pred atom_pred (Tstruct id a) = true -> nested_fields_pred atom_pred (co_members (get_co id)) = true.
+Proof.
+  intros.
+  rewrite nested_pred_ind in H by auto.
+  apply andb_true_iff in H; tauto.
+Defined.
+
+Lemma nested_pred_Tstruct2: forall (atom_pred: type -> bool) id a i,
+  nested_pred atom_pred (Tstruct id a) = true ->
+  in_members i (co_members (get_co id)) ->
+  nested_pred atom_pred (field_type2 i (co_members (get_co id))) = true.
+Proof.
+  intros.
+  apply nested_pred_Tstruct in H.
+  apply nested_fields_pred_nested_pred; auto.
+Qed.  
+
+Lemma nested_pred_Tunion: forall (atom_pred: type -> bool) id a,
+  nested_pred atom_pred (Tunion id a) = true -> nested_fields_pred atom_pred (co_members (get_co id)) = true.
+Proof.
+  intros.
+  rewrite nested_pred_ind in H by auto.
+  apply andb_true_iff in H; tauto.
+Defined.
+
+Lemma nested_pred_Tunion2: forall (atom_pred: type -> bool) id a i,
+  nested_pred atom_pred (Tunion id a) = true ->
+  in_members i (co_members (get_co id)) ->
+  nested_pred atom_pred (field_type2 i (co_members (get_co id))) = true.
+Proof.
+  intros.
+  apply nested_pred_Tunion in H.
+  apply nested_fields_pred_nested_pred; auto.
+Qed.  
+
+Lemma nested_fields_pred_hd: forall (atom_pred: type -> bool) i t m,
+  nested_fields_pred atom_pred ((i, t) :: m) = true ->
+  nested_pred atom_pred t = true.
+Proof.
+  intros.
+  simpl in H.
+  apply andb_true_iff in H; tauto.
+Defined.
+
+Lemma nested_fields_pred_tl: forall (atom_pred: type -> bool) i t m,
+  nested_fields_pred atom_pred ((i, t) :: m) = true ->
+  nested_fields_pred atom_pred m = true.
+Proof.
+  intros.
+  simpl in H.
+  apply andb_true_iff in H; tauto.
+Defined.
+
+(******* Samples : legal_alignas_type *************)
+
+Definition local_legal_alignas_type (t: type): bool :=
+  match t with
+  | Tvoid
+  | Tfunction _ _ _ => true
+  | Tint _ _ a
+  | Tlong _ a
+  | Tfloat _ a
+  | Tpointer _ a 
+  | Tarray _ _ a
+  | Tstruct _ a
+  | Tunion _ a => match attr_alignas a with | Some _ => false | None => true end
+  end.
+
+Definition legal_alignas_type := nested_pred local_legal_alignas_type.
+
+Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
+
+Lemma power_nat_divide': forall n m: Z,
+  (exists N, n = two_power_nat N) ->
+  (exists M, m = two_power_nat M) ->
+  n >=? m = true ->
+  (m | n).
+Proof.
+  intros.
+  destruct H, H0.
+  subst.
+  apply power_nat_divide.
+  pose proof Zge_cases (two_power_nat x) (two_power_nat x0).
+  destruct (two_power_nat x >=? two_power_nat x0); try omega.
+  inversion H1.
+Qed.
+
+Lemma local_legal_alignas_type_Tarray: forall t z a,
+  local_legal_alignas_type (Tarray t z a) = true ->
+  alignof cenv_cs (Tarray t z a) = alignof cenv_cs t.
+Proof.
+  intros.
+  simpl in H |- *.
+  unfold align_attr.
+  destruct (attr_alignas a); [inversion H |].
+  auto.
+Qed.
+
+Lemma local_legal_alignas_type_Tstruct: forall id a,
+  local_legal_alignas_type (Tstruct id a) = true ->
+  (alignof_composite cenv_cs (co_members (get_co id)) | alignof cenv_cs (Tstruct id a)).
+Proof.
+  intros.
+  unfold local_legal_alignas_type in H.
+  unfold alignof, align_attr.
+  simpl attr_of_type.
+  destruct (attr_alignas a); [inversion H |].
+  unfold get_co; destruct (cenv_cs ! id) as [co |] eqn:CO; [| exists 1; auto].
+  apply power_nat_divide';
+  try apply alignof_composite_two_p;
+  try apply co_alignof_two_p.
+  exact (cenv_legal_alignas id co CO).
+Qed.
+
+Lemma local_legal_alignas_type_Tunion: forall id a,
+  local_legal_alignas_type (Tunion id a) = true ->
+  (alignof_composite cenv_cs (co_members (get_co id)) | alignof cenv_cs (Tunion id a)).
+Proof.
+  intros.
+  unfold local_legal_alignas_type in H.
+  unfold alignof, align_attr.
+  simpl attr_of_type.
+  destruct (attr_alignas a); [inversion H |].
+  unfold get_co; destruct (cenv_cs ! id) as [co |] eqn:CO; [| exists 1; auto].
+  apply power_nat_divide';
+  try apply alignof_composite_two_p;
+  try apply co_alignof_two_p.
+  exact (cenv_legal_alignas id co CO).
+Qed.
+
+Lemma legal_alignas_type_Tarray: forall t z a,
+  legal_alignas_type (Tarray t z a) = true ->
+  alignof cenv_cs (Tarray t z a) = alignof cenv_cs t.
+Proof.
+  intros.
+  unfold legal_alignas_type in H.
+  apply nested_pred_atom_pred in H.
+  apply local_legal_alignas_type_Tarray.
+  exact H.
+Qed.
+
+Lemma legal_alignas_type_Tstruct: forall id a,
+  legal_alignas_type (Tstruct id a) = true ->
+  (alignof_composite cenv_cs (co_members (get_co id)) | alignof cenv_cs (Tstruct id a)).
+Proof.
+  intros.
+  unfold legal_alignas_type in H.
+  apply nested_pred_atom_pred in H.
+  apply local_legal_alignas_type_Tstruct; auto.
+Qed.
+
+Lemma legal_alignas_type_Tunion: forall id a,
+  legal_alignas_type (Tunion id a) = true ->
+  (alignof_composite cenv_cs (co_members (get_co id)) | alignof cenv_cs (Tunion id a)).
+Proof.
+  intros.
+  unfold legal_alignas_type in H.
+  apply nested_pred_atom_pred in H.
+  apply local_legal_alignas_type_Tunion; auto.
+Qed.
+
+Lemma legal_alignas_sizeof_alignof_compat: forall t,
+  legal_alignas_type t = true -> (alignof cenv_cs t | sizeof cenv_cs t).
+Proof.
+  intros.
+  revert H.
+  type_induction t; intros;
+  pose proof @nested_pred_atom_pred local_legal_alignas_type _ H as H0;
+  simpl in H, H0 |- *; unfold align_attr in *;
+  try (destruct (attr_alignas a); inversion H0).
+  - apply Z.divide_refl.
+  - destruct i; apply Z.divide_refl.
+  - unfold Z.divide. exists 2. reflexivity.
+  - destruct f. apply Z.divide_refl.
+    unfold Z.divide. exists 2. reflexivity.
+  - apply Z.divide_refl.
+  - apply (nested_pred_Tarray local_legal_alignas_type) in H.
+    apply IH in H.
+    apply Z.divide_mul_l.
+    exact H.
+  - apply Z.divide_refl.
+  - destruct (cenv_cs ! id) as [co |] eqn:CO.
+    * apply co_sizeof_alignof.
+    * exists 0; auto.
+  - destruct (cenv_cs ! id) as [co |] eqn:CO.
+    * apply co_sizeof_alignof.
+    * exists 0; auto.
+Qed.
+
+Global Opaque alignof.
+
+(******* Samples : legal_cosu_type *************)
+
+Definition local_legal_cosu_type t :=
+  match t with
+  | Tstruct id _ => match co_su (get_co id) with
+                    | Struct => true
+                    | Union => false
+                    end
+  | Tunion id _ => match co_su (get_co id) with
+                    | Struct => false
+                    | Union => true
+                    end
+  | _ => true
+  end.
+
+Definition legal_cosu_type := nested_pred local_legal_cosu_type.
+
+Lemma legal_cosu_type_Tstruct: forall id a,
+  legal_cosu_type (Tstruct id a) = true ->
+  co_su (get_co id) = Struct.
+Proof.
+  intros.
+  unfold legal_cosu_type in H.
+  apply nested_pred_atom_pred in H.
+  simpl in H.
+  destruct (co_su (get_co id)); congruence.
+Qed.
+
+Lemma legal_cosu_type_Tunion: forall id a,
+  legal_cosu_type (Tunion id a) = true ->
+  co_su (get_co id) = Union.
+Proof.
+  intros.
+  unfold legal_cosu_type in H.
+  apply nested_pred_atom_pred in H.
+  simpl in H.
+  destruct (co_su (get_co id)); congruence.
+Qed.
+
+End NESTED_PRED.
