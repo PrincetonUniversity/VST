@@ -127,9 +127,6 @@ forward_call' (h0, c, d, dl, data, kv) h1.
   { rewrite H0_len512. assumption. } 
 rename H into HmacUpdate. 
 
-(*XXX: was: rewrite (split_memory_block 32). 2: omega. 2: trivial. simpl. 
-normalize. rename H into OIR_0_md. rename H0 into OIR_64_md.
-Look what we now need to do:*)
 destruct md; try contradiction; clear isPtrMD.
 assert (GTmod64: 64 < Int.modulus).
   rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
@@ -188,7 +185,7 @@ apply andp_right. apply prop_right. split; trivial.
 apply andp_right. apply prop_right. trivial. cancel.
 rewrite sepcon_assoc. rewrite sepcon_comm.
 apply sepcon_derives.
-  assert (D1: dig = HMAC256 data key).
+{ assert (D1: dig = HMAC256 data key).
      apply hmac_sound with (h:=h2).
      exists h0, h1. auto.
   assert (D2: dig2 = HMAC256 data key).
@@ -207,19 +204,18 @@ apply sepcon_derives.
   cancel.
 
   rewrite skipn_app2; rewrite HMAC_length. 2: omega. 
-  simpl. cancel.
-
-unfold data_block.
+  simpl. cancel. }
+{ unfold data_block.
   rewrite Zlength_correct; simpl.
-rewrite <- memory_block_data_at_; try reflexivity. 
-2: rewrite lvar_eval_lvar with (v:=c); trivial. 
+  rewrite <- memory_block_data_at_; try reflexivity. 
+  2: rewrite lvar_eval_lvar with (v:=c); trivial. 
 
-normalize. rewrite lvar_eval_lvar with (v:=c); trivial. 
+  normalize. rewrite lvar_eval_lvar with (v:=c); trivial. 
   rewrite (memory_block_data_at_ Tsh (tarray tuchar (sizeof t_struct_hmac_ctx_st))).
   apply data_at_data_at_.
   trivial.
   trivial.
   trivial. 
   destruct c; trivial. unfold align_compatible. simpl. apply Z.divide_1_l. 
-  simpl. rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
+  simpl. rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega. }
 Qed.

@@ -24,27 +24,18 @@ unfold hmacstate_. normalize. intros ST. normalize.
 destruct H as [DL1 [DL2 DL3]].
 destruct h1; simpl in *.
 destruct H0 as [reprMD [reprI [reprO [iShaLen oShaLen]]]].
-simpl. 
 
 unfold_data_at 1%nat.
 rewrite field_at_data_at with (gfs:=[StructField _md_ctx]).
-rewrite data_at_isptr. normalize. 
-apply isptrD in H. destruct H as [b [off BOff]]. rewrite BOff in *.
-unfold field_address in BOff.
-remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _md_ctx]
-             c) as s.
-destruct s; simpl in *; inversion BOff. simpl in *. clear BOff.
+assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] c).
+  { entailer!. } 
+rename H into FC.
+make_Vptr c. 
 
-forward_call' (ctx, data, c, d, Tsh, len, kv) s.
-  { unfold sha256state_. normalize. apply (exp_right (mdCtx ST)). 
-    assert (FR: Frame = 
-        (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] (snd (snd ST)) c) ::
-        (field_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx] (fst (snd ST)) c) :: nil).
-       subst Frame. reflexivity.
-    rewrite FR; clear FR Frame. entailer. cancel. 
-  }
+forward_call' (ctx, data, Vptr b i, d, Tsh, len, kv) s.
+  { unfold sha256state_, field_address; normalize.
+    rewrite if_true by eauto. apply (exp_right (mdCtx ST)). entailer!. }
   { intuition. }
-
 rename H into HmacUpdate.
 normalize. simpl. 
 assert (FF: firstn (Z.to_nat len) data = data). 
@@ -63,6 +54,6 @@ simpl. entailer.
 unfold_data_at 2%nat.
 destruct ST as [ST1 [ST2 ST3]]. simpl in *. cancel.
 rewrite field_at_data_at. 
-    unfold nested_field_type2, field_address; simpl.
-    rewrite <- Heqs. entailer. 
+unfold nested_field_type2, field_address; simpl.
+rewrite if_true by eauto. entailer!.
 Qed.

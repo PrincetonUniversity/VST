@@ -61,13 +61,6 @@ Definition invariant_after_if1 hashed (dd: list Z) c md shmd kv:=
          `(K_vector kv);
          `(memory_block shmd (Int.repr 32) md))).
 
-Lemma sizeof_Tarray:
-  forall t (n:Z) a, n >= 0 ->
-      sizeof (Tarray t n a) = (sizeof t * n)%Z.
-Proof.
-intros; simpl. rewrite Z.max_r; omega.
-Qed.
-
 Lemma ifbody_final_if1:
   forall (Espec : OracleKind) (hashed : list int) (md c : val) (shmd : share)
   (dd : list Z) (kv: val)
@@ -119,12 +112,14 @@ Focus 2. {
   apply data_equal_sym, data_equal_list_repeat_default.
 } Unfocus.
 erewrite array_seg_reroot_lemma with (gfs := [StructField _data]) (lo := ddlen + 1) (hi := 64);
-  [| omega | (*omega*) | reflexivity | omega | reflexivity | reflexivity | | ].
-2: omega.
-  2: rewrite Zlength_app, !Zlength_map; reflexivity.
-  2: rewrite Zlength_correct, length_list_repeat; rewrite Z2Nat.id by omega; reflexivity.
+  [| omega | omega | reflexivity | omega | reflexivity | reflexivity 
+   | rewrite Zlength_app, !Zlength_map; reflexivity
+   | rewrite Zlength_correct, length_list_repeat; rewrite Z2Nat.id by omega; reflexivity ].
 normalize.
 change (64-(ddlen+1)) with (CBLOCKz-(ddlen+1)).
+
+
+ assert (CBEQ := CBLOCKz_eq).
 
 forward_call' (* memset (p+n,0,SHA_CBLOCK-n); *)
    ((Tsh,
@@ -134,33 +129,11 @@ forward_call' (* memset (p+n,0,SHA_CBLOCK-n); *)
      Int.zero) vret.
 
   apply prop_right.
-  rewrite field_address_clarify; auto.
-  rewrite field_address0_clarify; auto.
-  erewrite nested_field_offset2_Tarray; [ |reflexivity].
-  change (sizeof tuchar) with 1. normalize. 
-
-  change CBLOCKz with 64%Z.
+  unfold field_address, field_address0; rewrite !if_true; auto.
+  erewrite nested_field_offset2_Tarray by reflexivity.
   normalize.
-  repeat rewrite <- sepcon_assoc.
-  pull_left (data_at Tsh (Tarray tuchar (64 - (ddlen + 1)) noattr)
-     (list_repeat (Z.to_nat (64 - (ddlen + 1))) Vundef)
-     (field_address0 t_struct_SHA256state_st
-     [ArraySubsc (ddlen + 1); StructField _data] c)).
-  repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
-  eapply derives_trans; [apply data_at_data_at_; reflexivity |].
-  assert (sizeof (Tarray tuchar (64 - (ddlen + 1)) noattr) = 64 - (ddlen + 1)).
-  rewrite sizeof_Tarray by omega. simpl sizeof. omega.
-  rewrite data_at__memory_block; try reflexivity.
-  2: rewrite sizeof_Tarray by omega;
-    simpl sizeof; 
-     change Int.modulus with 4294967296; omega.
-  apply andp_left2.
-  apply derives_refl'.
-  f_equal.
-  f_equal.
-  rewrite sizeof_Tarray by omega. simpl sizeof. MyOmega.
-  split; auto. MyOmega.
-  simpl map.
+  eapply field_compatible0_cons_Tarray; [reflexivity | auto | Omega1].
+  split; auto. repable_signed.
 
 gather_SEP 1%Z 0%Z 2%Z.
 pose (ddz := ((map Int.repr dd ++ [Int.repr 128]) ++ list_repeat (Z.to_nat (CBLOCKz-(ddlen+1))) Int.zero)).
@@ -450,33 +423,19 @@ forward_for_simple_bound 8
            (firstn (Z.to_nat WORD) (skipn (0%nat * Z.to_nat WORD)
              (map Int.repr (intlist_to_Zlist [w])))).
    apply nth_big_endian_integer; reflexivity.
-      rewrite field_address0_clarify by auto.
+    unfold field_address0; rewrite if_true; auto.
       erewrite nested_field_offset2_Tarray by reflexivity.
       change (nested_field_offset2 (tarray tuchar 32) []) with 0.
-      change (sizeof tuchar) with 1.
-      rewrite Z.mul_1_l.
-      rewrite Z.add_0_l.
+      normalize.
       destruct md; try contradiction; reflexivity.
- +
-    entailer!.
-      pull_left (data_at shmd (Tarray tuchar 4 noattr) (list_repeat 4 Vundef)
-        (field_address0 (tarray tuchar 32) [ArraySubsc (i * 4)] md)).
-      repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel_frame].
-       change 4 with (sizeof (tarray tuchar 4)).
-      rewrite memory_block_data_at_; try reflexivity.
-      cancel.
-      clear - H2.
-     unfold field_address0 in *;
-     simpl sizeof; if_tac; try contradiction; auto;
-        unfold align_compatible; simpl;
-        destruct md; simpl; auto; apply Z.divide_1_l.
+      unfold field_address0 in H3.
+      if_tac in H3; auto; destruct H3; contradiction.
  +
      split; auto.
       rewrite Zlength_correct; subst bytes.
       simpl.
       omega.
  +
-  unfold map at 3.  (* why didn't forward_call' do this? *)
   forward md_old. (* md += 4; *)
   {
     entailer!.
@@ -527,22 +486,13 @@ forward_for_simple_bound 8
       entailer!.
  }
 *
-  drop_LOCAL 0%nat.
-  drop_LOCAL 0%nat.
   rewrite (firstn_same _ 8) by omega.
+  change 64%nat with CBLOCK.
   forward. (* return; *)
-  unfold data_at_.
   unfold data_block.
   rewrite prop_true_andp with (P:= Forall isbyteZ (intlist_to_Zlist hashedmsg))
     by apply isbyte_intlist_to_Zlist.
   entailer.
-  replace (Zlength (intlist_to_Zlist hashedmsg)) with 32%Z.
-  Focus 2. {
-    rewrite Zlength_intlist_to_Zlist.
-    rewrite Zlength_correct.
-    rewrite H.
-    reflexivity.
-  } Unfocus.
+    rewrite Zlength_intlist_to_Zlist, Zlength_correct, H.
   cancel.
-  apply data_at_data_at_.
 Qed.

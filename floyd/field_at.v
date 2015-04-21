@@ -1205,3 +1205,26 @@ Qed.
 Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption).
 Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption).
 
+Lemma is_pointer_or_null_field_address_lemma:
+ forall t path p,
+   is_pointer_or_null (field_address t path p) =
+   field_compatible t path p.
+Proof.
+intros.
+unfold field_address.
+if_tac; apply prop_ext; intuition.
+Qed.
+
+Lemma isptr_field_address_lemma:
+ forall t path p,
+   isptr (field_address t path p) =
+   field_compatible t path p.
+Proof.
+intros.
+unfold field_address.
+if_tac; apply prop_ext; intuition.
+Qed.
+
+Hint Rewrite is_pointer_or_null_field_address_lemma : entailer_rewrite.
+Hint Rewrite isptr_field_address_lemma : entailer_rewrite.
+

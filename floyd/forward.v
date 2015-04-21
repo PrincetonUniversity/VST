@@ -1048,6 +1048,32 @@ apply int_eq_false_e in Heqb. contradict Heqb. inv Heqb; auto.
 unfold nullval; congruence.
 Qed.
 
+Lemma typed_true_nullptr4:
+  forall p, 
+  typed_true tint (force_val (sem_cmp_pp Cne true2 p nullval)) ->
+  p <> nullval.
+Proof.
+intros.
+hnf in H.
+destruct p; inversion H.
+destruct (Int.eq i Int.zero) eqn:?; inv H1.
+apply int_eq_false_e in Heqb. unfold nullval; congruence.
+intro Hx; inv Hx.
+Qed.
+
+Lemma typed_false_nullptr4:
+  forall p, 
+  typed_false tint (force_val (sem_cmp_pp Cne true2 p nullval)) ->
+  p=nullval.
+Proof.
+intros.
+hnf in H.
+destruct p; inversion H.
+destruct (Int.eq i Int.zero) eqn:?; inv H1.
+apply int_eq_e in Heqb. subst; reflexivity.
+Qed.
+
+
 Lemma ltu_inv:
  forall x y, Int.ltu x y = true -> Int.unsigned x < Int.unsigned y.
 Proof.
@@ -1148,7 +1174,13 @@ Ltac do_repr_inj H :=
          | simple apply repr_inj_signed' in H; [ | repable_signed | repable_signed ]
          | simple apply repr_inj_unsigned' in H; [ | repable_signed | repable_signed ]
          | apply typed_true_nullptr3 in H
-         | match type of H with _ <> _ => apply typed_false_nullptr3 in H end
+         | apply typed_true_nullptr4 in H
+         | match type of H with
+            | _ <> _ => apply typed_false_nullptr3 in H
+            | typed_false _  (force_val (sem_cmp_pp Ceq true2 _ _)) => apply typed_false_nullptr3 in H
+          end
+(*         | apply typed_false_nullptr3 in H *)
+         | apply typed_false_nullptr4 in H
          | simple apply ltu_repr in H; [ | repable_signed | repable_signed]
          | simple apply ltu_repr_false in H; [ | repable_signed | repable_signed]
          | simple apply ltu_inv in H; cleanup_repr H

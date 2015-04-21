@@ -404,15 +404,6 @@ eapply semax_post_flipped'.
  } Unfocus.
  rewrite map_firstn, <- skipn_map.
  cancel.
- apply derives_trans with (data_at_ shp (tarray tuchar len) (field_address0 tp (ArraySubsc lop :: pathp) p)).
- cancel.
- rewrite data_at__memory_block; try reflexivity.
- normalize.
- rewrite sizeof_tarray_tuchar by omega.
- auto.
- rewrite sizeof_tarray_tuchar by omega.
- change (Int.modulus) with (Int.max_unsigned + 1)%Z.
- omega.
 *
  go_lowerx.
  normalize.
@@ -721,15 +712,6 @@ eapply semax_post_flipped'.
  split; auto.
  } Unfocus.
  cancel.
- apply derives_trans with (data_at_ shp (tarray tuchar len) (field_address0 tp (ArraySubsc lop :: pathp) p)).
- cancel.
- rewrite data_at__memory_block; try reflexivity.
- normalize.
- rewrite sizeof_tarray_tuchar by omega.
- auto.
- rewrite sizeof_tarray_tuchar by omega.
- change (Int.modulus) with (Int.max_unsigned + 1)%Z.
- omega.
 *
  pose (H10 := True).
  pose (H11 := True).

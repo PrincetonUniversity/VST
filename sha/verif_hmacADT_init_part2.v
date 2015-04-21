@@ -540,18 +540,16 @@ Proof. intros.
     (*continuation after ipad-loop*)   
     unfold_data_at 2%nat. normalize.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]). 
-    (*extract field-address info before doing anything else*)
-       assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _i_ctx]
-          (Vptr cb cofs))). entailer!.
-       apply isptrD in H. destruct H as [cbI [cIoff COffI]]. rewrite COffI in *.
-    unfold field_address in COffI.
-    remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _i_ctx]
-              (Vptr cb cofs)) as s.
-    destruct s; simpl in *; inversion COffI. simpl in *. subst cbI. rewrite COffI. clear COffI. 
+    assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)).
+         entailer!.
+    rename H into FCI.
+    unfold field_address; rewrite if_true by auto.
+    abbreviate_semax. 
 
     (*Call to _SHA256_Init*)
-    forward_call' (Vptr cb cIoff).
-    { (*rewrite <- H1 in *; clear H1. entailer. cIoff.*)
+    forward_call' (field_address t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)).
+    { unfold field_address; rewrite if_true by auto. entailer!. } 
+    { unfold field_address; rewrite if_true by auto. 
        assert (FR: Frame = [
           (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] (snd (snd CONT)) (Vptr cb cofs));
           (field_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx] (fst CONT) (Vptr cb cofs));
@@ -575,24 +573,24 @@ Proof. intros.
     Opaque firstn.
     forward_call' (init_s256abs, 
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Ipad,
-            Vptr cb cIoff, Vptr pb pofs, Tsh, 64, kv) ipadSHAabs.
+            field_address t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs),
+            Vptr pb pofs, Tsh, 64, kv) ipadSHAabs.
     { assert (FR: Frame = [
         (field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] emptySha (Vptr cb cofs));
         (field_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx] emptySha (Vptr cb cofs));
         (data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff));
         data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs) ]).
         subst Frame; reflexivity.
-      rewrite FR; clear FR Frame. 
-      entailer!.
-      unfold data_block. rewrite Zlength_correct. rewrite ZLI. entailer!. 
-      apply andp_right. 
-        simpl. apply prop_right. apply isbyte_map_ByteUnsigned. cancel. 
+      entailer!. unfold field_address; rewrite if_true by auto; reflexivity. }
+    { unfold data_block. repeat rewrite Zlength_correct. rewrite ZLI.
+      rewrite prop_true_andp by  apply isbyte_map_ByteUnsigned.
+      rewrite HeqIPADcont. unfold HMAC_SHA256.mkArgZ. 
+      subst Frame. simpl. rewrite Zlength_correct. cancel. }
+    { clear Frame HeqOPADcont; subst IPADcont.
+      rewrite Zlength_mkArgZ, !map_length, mkKey_length. 
+      unfold SHA256.BlockSize; simpl. rewrite int_max_unsigned_eq.
+      unfold two_power_pos, shift_pos. simpl. omega.
     }
-      { clear Frame HeqPostResetBranch HeqOPADcont; subst IPADcont.
-        rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. 
-        unfold SHA256.BlockSize; simpl. rewrite int_max_unsigned_eq.
-        unfold two_power_pos, shift_pos. simpl. omega.
-      }
     rename H into ipadAbs_def.
     normalize.
     rewrite firstn_precise in ipadAbs_def.
@@ -602,23 +600,22 @@ Proof. intros.
     Transparent firstn. 
 
     (*essentially the same for opad*)
-    forward_seq.
-    instantiate (1:= 
-  (PROP  ()
-   LOCAL  (temp _reset (Vint (Int.repr 1));
+    eapply semax_seq
+    with  (PROP  ()
+     LOCAL  (temp _reset (Vint (Int.repr 1));
       lvar _ctx_key (Tarray tuchar 64 noattr) (Vptr ckb ckoff);
       lvar _pad (Tarray tuchar 64 noattr) (Vptr pb pofs);
       temp _ctx (Vptr cb cofs); temp _key (Vptr kb kofs);
       temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
         SEP  (`(K_vector kv);
-         `(sha256state_ ipadSHAabs (Vptr cb cIoff));
+         `(sha256state_ ipadSHAabs (field_address t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)));
          `(data_at Tsh (Tarray tuchar 64 noattr) OPADcont (Vptr pb pofs));
          `(field_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx] emptySha (Vptr cb cofs));
          `(field_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx] emptySha (Vptr cb cofs));
          `(data_at Tsh (tarray tuchar 64)
             (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff));
          `(data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
-            (Vptr kb kofs))))).
+            (Vptr kb kofs)))).
     { (*opad loop*) 
      Opaque firstn. Opaque skipn.
       forward_for_simple_bound' 64 (EX i:Z, 
@@ -629,8 +626,7 @@ Proof. intros.
             temp _ctx (Vptr cb cofs); temp _key (Vptr kb kofs);
             temp _len (Vint (Int.repr l)); gvar sha._K256 kv)
          SEP  (`(K_vector kv);
-           `(sha256state_ ipadSHAabs (Vptr cb (Int.add cofs (Int.repr 108))));
-  
+           `(sha256state_ ipadSHAabs (field_address t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)));  
            `(data_at Tsh (Tarray tuchar 64 noattr) ((firstn (Z.to_nat i) OPADcont)++(skipn (Z.to_nat i) IPADcont)) (Vptr pb pofs));
            `(data_at Tsh (tarray tuchar 64)
               (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff));
@@ -646,7 +642,7 @@ Proof. intros.
         rewrite firstn_precise.
          rewrite skipn_short. rewrite app_nil_r.
          cancel.
-         do 2 rewrite map_length. unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI. omega. 
+         do 2 rewrite map_length. unfold HMAC_SHA256.mkArgZ in ZLI; rewrite ZLI.  apply (Z2Nat.inj_le _ 64); omega.
          do 2 rewrite map_length. unfold HMAC_SHA256.mkArgZ in ZLO; rewrite ZLO; trivial. 
       }
       { (*unfold_data_at 1%nat. normalize.*)
@@ -682,35 +678,27 @@ Proof. intros.
 
     (*continuation after opad-loop*)
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
-    assert_PROP (isptr (field_address t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr cb cofs))).
-    { entailer!. }
-    apply isptrD in H; destruct H as [cbO [cOoff COffO]]. rewrite COffO in *.
-    unfold field_address in COffO.
-    remember (field_compatible_dec t_struct_hmac_ctx_st [StructField _o_ctx]
-              (Vptr cb cofs)) as s.
-    destruct s; simpl in *; inversion COffO; clear COffO. simpl in *. subst cbO cOoff.
-   
+    assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr cb cofs)).
+    { entailer. }
+    rename H into FCO.
+
     (*Call to _SHA256_Init*)  
-    forward_call' (Vptr cb (Int.add cofs (Int.repr 216))).
+    forward_call' (field_address t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr cb cofs)).
+    { entailer!. unfold field_address; rewrite if_true by auto; reflexivity. }
     
     (* Call to sha_update*)
     Opaque firstn.  
     forward_call' (init_s256abs, 
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad,
-            Vptr cb (Int.add cofs (Int.repr 216)),
+            field_address t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr cb cofs),
             Vptr pb pofs, Tsh, 64, kv)  opadSHAabs.
-    { assert (FR: Frame = [(sha256state_ ipadSHAabs (Vptr cb cIoff));
-         (field_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx] emptySha (Vptr cb cofs));
-         (data_at Tsh (tarray tuchar 64) (map Vint (map Int.repr (HMAC_SHA256.mkKey key))) (Vptr ckb ckoff));
-         (data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr kb kofs))]).
-        subst Frame; reflexivity.
-      rewrite FR; clear FR Frame. 
-      cancel. unfold data_block.
-      entailer!. rewrite Zlength_correct, ZLO. simpl; normalize.
-      entailer!. apply isbyte_map_ByteUnsigned.
+    { entailer!. unfold field_address; rewrite if_true by auto; reflexivity. }
+    { unfold data_block. 
+      rewrite prop_true_andp by  apply isbyte_map_ByteUnsigned.
+      repeat rewrite Zlength_correct. rewrite ZLO. rewrite HeqOPADcont. cancel.
     }
-    { clear Frame HeqPostResetBranch HeqIPADcont; subst OPADcont.
-      rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. 
+    { clear Frame HeqIPADcont; subst OPADcont.
+      rewrite Zlength_mkArgZ, !map_length, mkKey_length. 
       unfold SHA256.BlockSize; simpl. rewrite int_max_unsigned_eq.
       unfold two_power_pos, shift_pos. simpl. omega.
     } 
@@ -719,7 +707,7 @@ Proof. intros.
     rewrite firstn_precise in opadAbs_def.
     Focus 2. specialize (Zlength_mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad); intros. 
             apply coqlib3.Zlength_length in H. rewrite H. repeat rewrite map_length. rewrite mkKey_length. reflexivity.
-            repeat rewrite map_length. rewrite mkKey_length. simpl. omega. 
+            rewrite !map_length, mkKey_length. simpl. omega. 
     Transparent firstn. 
 
     subst PostResetBranch; entailer. unfold sha256state_; normalize.
@@ -731,12 +719,12 @@ Proof. intros.
         unfold data_block, initPostResetConditional. simpl.
         apply (exp_right emptySha).
         (*rewrite ZLO.*) normalize.
-        apply (exp_right l). entailer. cancel.
-        unfold_data_at 4%nat. cancel.
+        apply (exp_right l). entailer. cancel. repeat rewrite Zlength_correct. rewrite ZLO.
+           rewrite Z2Nat.id. 2: omega. cancel.
+        unfold_data_at 3%nat. cancel.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
-    unfold field_address. rewrite <- Heqs, <- Heqs0. simpl. cancel.
-    rewrite Zlength_correct, ZLO. cancel.
+    entailer!.
   }
   { (*ELSE*) 
     forward. subst. unfold initPostKeyNullConditional. entailer!. 

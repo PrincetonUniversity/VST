@@ -111,20 +111,9 @@ Proof.
     vret.
   {
     entailer!.
-    pull_left (data_at Tsh (tarray tuchar (Zlength (intlist_to_Zlist lastblock)))
-     (map Vint (map Int.repr (intlist_to_Zlist lastblock)))
-     (field_address t_struct_SHA256state_st [StructField _data] c)).
-    rewrite !sepcon_assoc.
-    apply sepcon_derives; [ | cancel_frame].
-    eapply derives_trans; [apply data_at_data_at_; reflexivity |].
-    replace (Zlength (intlist_to_Zlist lastblock)) with 64.
-    Focus 2. {
-      rewrite Zlength_intlist_to_Zlist, H0.
-      reflexivity.
-    } Unfocus.
-    rewrite data_at__memory_block;
-      [| reflexivity | change Int.modulus with 4294967296; simpl; omega].
-    entailer!.
+    replace (Zlength (intlist_to_Zlist lastblock)) with 64
+        by (rewrite Zlength_intlist_to_Zlist, H0; reflexivity).
+    cancel.
   }
   simpl map.
   replace Delta with
@@ -327,17 +316,6 @@ Proof.
   rewrite field_address_clarify by auto.
   rewrite field_address0_clarify by auto.
   destruct c_; try contradiction; normalize.
-  pull_left
-       (data_at Tsh (Tarray tuchar (60 - 56) noattr) (list_repeat 4 Vundef)
-         (field_address0 t_struct_SHA256state_st
-                    [ArraySubsc 56; StructField _data] c)) .
-  repeat rewrite sepcon_assoc.
-  apply sepcon_derives; [ | cancel_frame].
-  change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).
-  eapply derives_trans; [apply data_at_data_at_; reflexivity |].
-      erewrite data_at__memory_block;
-        [| reflexivity | change Int.modulus with 4294967296; simpl; omega].
-      entailer.
   split; auto. change (Zlength hibytes) with 4. clear; omega.
   unfold map at 2.
   gather_SEP 0 1 2.
@@ -396,18 +374,6 @@ Proof.
   unfold field_address in *; simpl in *.
   if_tac; try contradiction. apply I.
  }
-  pull_left
-        (data_at Tsh (Tarray tuchar (64-60) noattr) [Vundef; Vundef; Vundef; Vundef]
-          (field_address0 t_struct_SHA256state_st
-                    [ArraySubsc 60; StructField _data] c)).
-      repeat rewrite sepcon_assoc.
-      apply sepcon_derives; [ | cancel_frame].
-      change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).
-      eapply derives_trans; [apply data_at_data_at_; reflexivity |].
-      erewrite data_at__memory_block;
-        [| reflexivity | change Int.modulus with  4294967296; simpl; omega].
-      entailer.
-
   split; auto.
   compute; congruence.
   simpl map.

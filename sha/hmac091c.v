@@ -1,90 +1,79 @@
 Require Import Clightdefs.
 
-Require Import sha.sha.
-Definition t_struct_SHA256state_st := sha.t_struct_SHA256state_st.
-
-(*Definition _key : ident := 41%positive.*)
-Definition _key : ident := 141%positive.
-
 Local Open Scope Z_scope.
 
-Definition _HMAC : ident := 65%positive.
-Definition _SHA256_Final : ident := 40%positive.
-Definition ___compcert_va_int64 : ident := 16%positive.
-Definition _SHA256_Init : ident := 38%positive.
-Definition _struct_hmac_ctx_st : ident := 46%positive.
-Definition _d : ident := 62%positive.
-Definition _HMAC_Init : ident := 54%positive.
-Definition ___builtin_fmax : ident := 22%positive.
-Definition ___builtin_va_arg : ident := 12%positive.
-Definition _n : ident := 63%positive.
+Definition _d : ident := 47%positive.
+Definition _struct_SHA256state_st : ident := 40%positive.
+Definition ___compcert_va_int32 : ident := 16%positive.
+Definition _Nl : ident := 38%positive.
+Definition _o_ctx : ident := 146%positive.
+Definition _m__1 : ident := 69%positive.
+Definition _HMAC_cleanup : ident := 162%positive.
+Definition _reset : ident := 54%positive.
+Definition ___builtin_clz : ident := 22%positive.
+Definition ___builtin_va_start : ident := 12%positive.
+Definition _m : ident := 63%positive.
 Definition ___builtin_annot_intval : ident := 10%positive.
-Definition _i_ctx : ident := 44%positive.
+Definition _key : ident := 44%positive.
 Definition ___builtin_negl : ident := 3%positive.
 Definition ___builtin_write32_reversed : ident := 2%positive.
 Definition ___builtin_write16_reversed : ident := 1%positive.
-Definition _memset : ident := 31%positive.
-Definition _i : ident := 49%positive.
-Definition _m__1 : ident := 66%positive.
-Definition _HMAC_cleanup : ident := 59%positive.
+Definition ___builtin_read16_reversed : ident := 31%positive.
+Definition _struct_hmac_ctx_st : ident := 49%positive.
+Definition _n : ident := 68%positive.
+Definition _md : ident := 71%positive.
 Definition ___builtin_addl : ident := 4%positive.
-Definition _main : ident := 68%positive.
-Definition _HMAC_Final : ident := 58%positive.
-Definition ___builtin_read16_reversed : ident := 28%positive.
+Definition _HMAC : ident := 68%positive.
+Definition _HMAC_Update : ident := 58%positive.
+Definition ___builtin_fmsub : ident := 28%positive.
 Definition ___builtin_fabs : ident := 7%positive.
-Definition ___builtin_fsqrt : ident := 21%positive.
-Definition ___builtin_bswap : ident := 18%positive.
-Definition _md_ctx : ident := 45%positive.
-Definition ___builtin_va_copy : ident := 13%positive.
-Definition ___builtin_fnmsub : ident := 27%positive.
-Definition _data : ident := 33%positive.
-Definition _md : ident := 56%positive.
-Definition ___builtin_fmsub : ident := 25%positive.
-Definition ___compcert_va_int32 : ident := 15%positive.
-Definition _m : ident := 60%positive.
-Definition ___builtin_bswap16 : ident := 20%positive.
-Definition _num : ident := 32%positive.
-Definition ___builtin_fmadd : ident := 24%positive.
-Definition _HMAC2 : ident := 67%positive.
-Definition ___compcert_va_float64 : ident := 17%positive.
+Definition ___builtin_bswap16 : ident := 21%positive.
+Definition ___compcert_va_float64 : ident := 18%positive.
+Definition _key_length : ident := 45%positive.
+Definition ___builtin_va_arg : ident := 13%positive.
+Definition ___builtin_fmadd : ident := 27%positive.
+Definition _memcpy : ident := 33%positive.
+Definition _aux : ident := 56%positive.
+Definition ___builtin_fmax : ident := 25%positive.
+Definition ___builtin_va_end : ident := 15%positive.
+Definition _buf : ident := 60%positive.
+Definition ___builtin_bswap32 : ident := 20%positive.
+Definition ___builtin_read32_reversed : ident := 32%positive.
+Definition _HMAC2 : ident := 170%positive.
+Definition ___builtin_fsqrt : ident := 24%positive.
+Definition _c : ident := 46%positive.
+Definition ___compcert_va_int64 : ident := 17%positive.
 Definition ___builtin_memcpy_aligned : ident := 8%positive.
 Definition ___builtin_subl : ident := 5%positive.
-Definition _j : ident := 50%positive.
-Definition _o_ctx : ident := 43%positive.
-Definition _aux : ident := 53%positive.
-Definition _ctx : ident := 47%positive.
-Definition _buf : ident := 57%positive.
-Definition _h : ident := 36%positive.
-Definition ___builtin_va_end : ident := 14%positive.
+Definition _ctx : ident := 42%positive.
+Definition _SHA256_Final : ident := 74%positive.
+Definition _j : ident := 53%positive.
+Definition _i_ctx : ident := 147%positive.
+Definition _HMAC_Init : ident := 57%positive.
+Definition _data : ident := 36%positive.
+Definition ___builtin_va_copy : ident := 14%positive.
 Definition ___builtin_mull : ident := 6%positive.
-Definition ___builtin_fnmadd : ident := 26%positive.
-Definition ___builtin_bswap32 : ident := 19%positive.
-Definition _SHA256_Update : ident := 39%positive.
-Definition _key_len : ident := 61%positive.
-Definition ___builtin_va_start : ident := 11%positive.
-Definition _struct_SHA256state_st : ident := 37%positive.
-Definition _key_length : ident := 42%positive.
+Definition ___builtin_fmin : ident := 26%positive.
+Definition ___builtin_bswap : ident := 19%positive.
+Definition _h : ident := 39%positive.
+Definition _HMAC_Final : ident := 161%positive.
+Definition ___builtin_membar : ident := 11%positive.
+Definition _Nh : ident := 37%positive.
+Definition _SHA256_Update : ident := 70%positive.
 Definition ___builtin_annot : ident := 9%positive.
-Definition _c : ident := 64%positive.
-Definition _pad : ident := 52%positive.
-(*Definition _key : ident := 41%positive.*)
-Definition _Nh : ident := 34%positive.
-Definition ___builtin_read32_reversed : ident := 29%positive.
-Definition _HMAC_Update : ident := 55%positive.
-Definition _Nl : ident := 35%positive.
-Definition _memcpy : ident := 30%positive.
-Definition ___builtin_fmin : ident := 23%positive.
-Definition _reset : ident := 51%positive.
-Definition _len : ident := 48%positive.
-(*
-Definition t_struct_SHA256state_st :=
-   (Tstruct _struct_SHA256state_st
-     (Fcons _h (tarray tuint 8)
-       (Fcons _Nl tuint
-         (Fcons _Nh tuint
-           (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
-     noattr).
-*)
+Definition _key_len : ident := 64%positive.
+Definition _i : ident := 59%positive.
+Definition _SHA256_Init : ident := 61%positive.
+Definition _main : ident := 76%positive.
+Definition _memset : ident := 34%positive.
+Definition ___builtin_fnmadd : ident := 29%positive.
+Definition _pad : ident := 55%positive.
+Definition _num : ident := 35%positive.
+Definition ___builtin_fnmsub : ident := 30%positive.
+Definition ___builtin_ctz : ident := 23%positive.
+Definition _len : ident := 62%positive.
+Definition _md_ctx : ident := 48%positive.
+
 Definition t_struct_hmac_ctx_st :=
    (Tstruct _struct_hmac_ctx_st
      (Fcons _md_ctx
@@ -109,6 +98,13 @@ Definition t_struct_hmac_ctx_st :=
                    (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
              noattr)
            (Fcons _key_length tuint (Fcons _key (tarray tuchar 64) Fnil)))))
+     noattr).
+Definition t_struct_SHA256state_st :=
+   (Tstruct _struct_SHA256state_st
+     (Fcons _h (tarray tuint 8)
+       (Fcons _Nl tuint
+         (Fcons _Nh tuint
+           (Fcons _data (tarray tuchar 64) (Fcons _num tuint Fnil)))))
      noattr).
 
 Definition f_HMAC_Init := {|
@@ -627,6 +623,9 @@ prog_defs :=
                    (mksignature (AST.Tint :: AST.Tint :: nil) (Some AST.Tint)
                      cc_default)) (Tcons (tptr tschar) (Tcons tint Tnil))
      tint cc_default)) ::
+ (___builtin_membar,
+   Gfun(External (EF_builtin ___builtin_membar
+                   (mksignature nil None cc_default)) Tnil tvoid cc_default)) ::
  (___builtin_va_start,
    Gfun(External (EF_builtin ___builtin_va_start
                    (mksignature (AST.Tint :: nil) None cc_default))
@@ -671,6 +670,14 @@ prog_defs :=
    Gfun(External (EF_builtin ___builtin_bswap16
                    (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
      (Tcons tushort Tnil) tushort cc_default)) ::
+ (___builtin_clz,
+   Gfun(External (EF_builtin ___builtin_clz
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) tuint cc_default)) ::
+ (___builtin_ctz,
+   Gfun(External (EF_builtin ___builtin_ctz
+                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
+     (Tcons tuint Tnil) tuint cc_default)) ::
  (___builtin_fsqrt,
    Gfun(External (EF_builtin ___builtin_fsqrt
                    (mksignature (AST.Tfloat :: nil) (Some AST.Tfloat)

@@ -107,14 +107,10 @@ assert_PROP (isptr k). entailer!.
 rename H into isPtrK. 
 remember (HMACabs init_s256abs init_s256abs init_s256abs) as dummyHMA.
 forward_call' (c, k, Vint(Int.repr kl), key, kv, dummyHMA) h0.
-  { assert (FR: Frame = [(data_block Tsh data d); (memory_block shmd (Int.repr 64) md)]).
-      subst Frame; reflexivity.
-    rewrite FR; clear FR Frame.
-    unfold initPre, data_at_.
+  { unfold initPre.
     destruct k; try contradiction.
-    entailer!. apply (exp_right kl). entailer!.
-    apply (exp_right (default_val t_struct_hmac_ctx_st)). entailer!. 
-  }
+    normalize. apply (exp_right kl). entailer!.
+    apply (exp_right (default_val t_struct_hmac_ctx_st)). entailer!. }
 rename H into HmacInit. normalize.
 
 assert_PROP (s256a_len (absCtxt h0) = 512).

@@ -206,14 +206,10 @@ end;
  [ eapply semax_post_flipped' | ].
 *
   assert_PROP (field_address (tarray tuchar (Zlength data)) [ArraySubsc 0] d = d). {
-    entailer.
     rewrite (data_at_field_at sh  (tarray tuchar (Zlength data))).
-    rewrite (field_at_compatible' sh).
     entailer!.
-    unfold field_address; rewrite if_true.
-    unfold nested_field_offset2; simpl. normalize.
-  eapply field_compatible_cons_Tarray; try reflexivity; auto.
- omega.
+    unfold field_address; rewrite if_true; normalize.
+    eapply field_compatible_cons_Tarray; try reflexivity; auto; omega.
   }
  rename H5 into Hd.
   evar (Frame: list (LiftEnviron mpred)).
@@ -228,24 +224,14 @@ end;
   rewrite Zlength_map. omega.
   unfold_data_at 1%nat.
   entailer!.
-  rewrite field_address0_clarify; auto.
-  rewrite field_address_clarify; auto.
+  unfold field_address0, field_address.
+  rewrite !if_true; auto.
+  erewrite nested_field_offset2_Tarray by reflexivity.
   normalize.
-  erewrite nested_field_offset2_Tarray; try reflexivity. 
-  rewrite sizeof_tuchar, Z.mul_1_l. auto.
-
-  unfold field_address, field_address0 in *.
-  if_tac in TC; try contradiction.
-  rewrite if_true. destruct c; try contradiction; apply I.
-  eapply field_compatible0_cons_Tarray; try reflexivity; auto.
-  Omega1.
-
-  unfold field_address, field_address0 in *.
-  if_tac in TC; try contradiction.
-  if_tac in Hd; try (subst; contradiction).
+  eapply field_compatible0_cons_Tarray; [reflexivity | auto | Omega1 ].
+  unfold field_address0.
   rewrite if_true. normalize.
-
-  apply field_compatible_field_compatible0; auto.
+  eapply field_compatible0_cons_Tarray; [reflexivity | auto | Omega1 ].
 *
   rewrite skipn_0.
   rewrite (data_at_field_at sh).
@@ -311,13 +297,8 @@ evar (Frame: list (LiftEnviron mpred)).
  rewrite !Zlength_map. rewrite Zlength_correct, H5. compute; split; congruence.
  entailer!.
  clear Frame Delta H9.
- rewrite field_address_clarify, field_address0_clarify; auto.
- (apply isptr_is_pointer_or_null; apply field_address0_isptr; auto).
- clear - TC. unfold field_address in TC. if_tac in TC; try contradiction. clear TC.
- hnf in H; decompose [and] H; clear H.
- split; auto. split; auto. split; auto. split3; auto.
- hnf.
- do 5 eexists. split3. reflexivity. reflexivity. split; auto. omega.
+ unfold field_address, field_address0; rewrite !if_true; auto.
+ eapply field_compatible0_cons_Tarray; [reflexivity | auto | Omega1 ].
  apply exp_right with (Zlist_to_intlist (dd ++ firstn (Z.to_nat k) data)).
  assert (KK: k = Z.of_nat (LBLOCK * 4 - length dd)). {
  subst k.

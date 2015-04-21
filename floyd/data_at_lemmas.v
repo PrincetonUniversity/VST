@@ -1676,6 +1676,21 @@ Proof.
   normalize.
 Qed.
 
+Lemma data_at__memory_block_cancel:
+   forall sh t p sz, 
+       nested_non_volatile_type t = true ->
+       sizeof t <= Int.max_unsigned ->
+       sz = Int.repr (sizeof t) ->
+       data_at_ sh t p |-- memory_block sh sz p.
+Proof.
+intros.
+ subst.
+ rewrite data_at__memory_block; auto.
+ apply andp_left2. auto.
+ change (Int.modulus) with (Int.max_unsigned + 1).
+ omega.
+Qed.
+
 Lemma align_1_memory_block_data_at_: forall (sh : share) (t : type),
   legal_alignas_type t = true ->
   nested_legal_fieldlist t = true ->
@@ -1832,6 +1847,64 @@ Qed.
 
 Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
     (apply data_at_data_at_) : cancel.
+
+Lemma data_at_memory_block:
+   forall sh t v p sz, 
+       nested_non_volatile_type t = true ->
+       sizeof t <= Int.max_unsigned ->
+       sz = Int.repr (sizeof t) ->
+       data_at sh t v p |-- memory_block sh sz p.
+Proof.
+intros.
+ subst.
+ eapply derives_trans; [apply data_at_data_at_; reflexivity |].
+ rewrite data_at__memory_block; auto.
+ apply andp_left2. auto.
+ change (Int.modulus) with (Int.max_unsigned + 1).
+ omega.
+Qed.
+
+
+Lemma f_equal_Int_repr:
+  forall i j, i=j -> Int.repr i = Int.repr j.
+Proof. intros; congruence. Qed.
+
+Lemma sizeof_Tarray:
+  forall t (n:Z) a, n >= 0 ->
+      sizeof (Tarray t n a) = (sizeof t * n)%Z.
+Proof.
+intros; simpl. rewrite Z.max_r; omega.
+Qed.
+
+Hint Extern 1 (data_at_ _ _ _ |-- memory_block _ _ _) =>
+    (simple apply data_at__memory_block_cancel;
+       [reflexivity 
+       | rewrite ?sizeof_Tarray by omega;
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl; 
+         repable_signed 
+       | try apply f_equal_Int_repr;
+         rewrite ?sizeof_Tarray by omega;
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; repable_signed
+       ])
+    : cancel.
+
+Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
+    (simple apply data_at_memory_block; 
+       [reflexivity 
+       | rewrite ?sizeof_Tarray by omega;
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl; 
+         repable_signed 
+       | try apply f_equal_Int_repr;
+         rewrite ?sizeof_Tarray by omega;
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; repable_signed
+       ])
+    : cancel.
+
+
+Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
+    (simple apply data_at_memory_block; [reflexivity | simpl; repable_signed | reflexivity])
+    : cancel.
+
 
 Lemma data_at_Tarray_ext_derives: forall sh t n a v v',
   (forall i, 0 <= i < n ->
