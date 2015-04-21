@@ -472,11 +472,11 @@ Proof.
   + tauto.
 Qed.
 
-Lemma union_pred_ext_derives: forall m {A0 A1} (d0: forall it, A0 it) (d1: forall it, A1 it) (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
+Lemma union_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   members_union_inj v0 = members_union_inj v1 ->
-  (forall i, in_members i m ->
-     P0 _ (proj_union i m v0 (d0 _)) p |-- P1 _ (proj_union i m v1 (d1 _)) p) ->
+  (forall i d0 d1, in_members i m ->
+     P0 _ (proj_union i m v0 d0) p |-- P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p |-- union_pred m P1 v1 p.
 Proof.
   unfold field_type2.
@@ -484,18 +484,20 @@ Proof.
   destruct m as [| (i0, t0) m]; [simpl; auto |].
   revert i0 t0 v0 v1 H H0 H1; induction m as [| (i1, t1) m]; intros.
   + specialize (H1 i0).
-    spec H1; [left; reflexivity |].
     simpl in H1.
     if_tac in H1; [| congruence].
+    specialize (H1 v0 v1).
+    spec H1; [left; reflexivity |].
     unfold eq_rect_r in H1; rewrite <- !eq_rect_eq in H1.
     simpl.
     exact H1.
   + rewrite members_unions_inj_eq_spec in H0 by auto.
     destruct v0 as [v0 | v0], v1 as [v1 | v1]; try solve [inversion H0].
     - specialize (H1 i0).
-      spec H1; [left; reflexivity |].
       simpl in H1.
       if_tac in H1; [| congruence].
+      specialize (H1 v0 v1).
+      spec H1; [left; reflexivity |].
       unfold eq_rect_r in H1; rewrite <- !eq_rect_eq in H1.
       simpl.
       exact H1.
@@ -503,25 +505,26 @@ Proof.
       apply IHm; [tauto | tauto |].
       intros.
       specialize (H1 i).
-      spec H1; [right; auto |].
       simpl in H1.
       if_tac in H1.
       * clear - H H1 H2.
         subst.
         tauto.
-      * exact H1.
+      * specialize (H1 d0 d1).
+        spec H1; [right; auto |].
+        exact H1.
 Qed.
 
-Lemma union_pred_ext: forall m {A0 A1} (d0: forall it, A0 it) (d1: forall it, A1 it) (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
+Lemma union_pred_ext: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   members_union_inj v0 = members_union_inj v1 ->
-  (forall i, in_members i m ->
-     P0 _ (proj_union i m v0 (d0 _)) p = P1 _ (proj_union i m v1 (d1 _)) p) ->
+  (forall i d0 d1, in_members i m ->
+     P0 _ (proj_union i m v0 d0) p = P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p = union_pred m P1 v1 p.
 Proof.
   intros.
   apply pred_ext; eapply union_pred_ext_derives; eauto;
-  intros; rewrite H1 by auto; auto.
+  intros; erewrite H1 by eauto; auto.
 Qed.
 
 Lemma memory_block_union_pred: forall sh m sz {A} (v: compact_sum (map A m)) b ofs,

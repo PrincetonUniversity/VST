@@ -9,7 +9,6 @@ Require Import floyd.reptype_lemmas.
 Require Import floyd.jmeq_lemmas.
 Require Import floyd.fieldlist.
 Require Import Coq.Logic.JMeq.
-(* Import floyd.fieldlist.fieldlist. *)
 
 Opaque alignof.
 
@@ -756,7 +755,64 @@ Ltac AUTO_IND :=
     exact H
   | H: complete_type ?env (Tarray ?t ?n ?a) = true |- complete_type ?env ?t = true =>
     simpl in H; auto
+  | H: (alignof cenv_cs (Tarray ?t ?z ?a) | ?ofs)
+    |- (alignof cenv_cs ?t | ?ofs + _) =>
+    apply Z.divide_add_r;
+    [ rewrite <- legal_alignas_type_Tarray with (a0 := a) (z0 := z) by auto; auto
+    | apply Z.divide_mul_l;
+      apply legal_alignas_sizeof_alignof_compat; AUTO_IND]
+  | H: legal_alignas_type (Tstruct ?id ?a) = true |-
+    legal_alignas_type (field_type2 ?i (co_members (get_co ?id))) = true =>
+    unfold legal_alignas_type in H;
+    apply nested_pred_Tstruct2 with (i0 := i) in H;
+    [exact H | auto]
+  | H: legal_cosu_type (Tstruct ?id ?a) = true |-
+    legal_cosu_type (field_type2 ?i (co_members (get_co ?id))) = true =>
+    unfold legal_cosu_type in H;
+    apply nested_pred_Tstruct2 with (i0 := i) in H;
+    [exact H | auto]
+  | |- complete_type ?env (field_type2 ?i (co_members (get_co ?id))) = true =>
+    apply complete_type_field_type2; auto
+  | H: (alignof cenv_cs (Tstruct ?id ?a) | ?ofs)
+    |- (alignof cenv_cs (field_type2 ?i (co_members (get_co ?id))) | ?ofs + _) =>
+    apply Z.divide_add_r;
+    [ eapply Z.divide_trans; [apply alignof_field_type2_divide_alignof; auto |];
+      eapply Z.divide_trans; [apply legal_alignas_type_Tstruct; eauto | auto] 
+    | apply field_offset2_aligned]
   end.
+
+Ltac pose_sizeof_co t :=
+  match t with
+  | Tstruct ?id ?a =>
+    pose proof sizeof_Tstruct id a;
+    assert (sizeof_struct cenv_cs 0 (co_members (get_co id)) <= co_sizeof (get_co id)); [
+      rewrite co_consistent_sizeof with (env := cenv_cs) by (apply get_co_consistent);
+      rewrite legal_cosu_type_Tstruct with (a0 := a) by auto;
+      apply align_le, co_alignof_pos
+       |]
+  end.
+
+Ltac pose_field :=
+  match goal with
+  | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
+    context [sizeof cenv_cs (field_type2 ?i (co_members (get_co ?id)))] =>
+      pose_sizeof_co (Tstruct id a);
+      let H := fresh "H" in
+      pose proof field_offset2_in_range i (co_members (get_co id)) as H;
+      spec H; [solve [auto] |];
+      pose proof sizeof_pos cenv_cs (field_type2 i (co_members (get_co id)))
+  | _ => idtac
+  end;
+  match goal with
+  | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
+    context [field_offset_next cenv_cs ?i (co_members (get_co ?id)) (co_sizeof (get_co ?id))] =>
+      let H := fresh "H" in
+      pose proof field_offset_next_in_range i (co_members (get_co id)) (co_sizeof (get_co id));
+      spec H; [solve [auto] |];
+      spec H; [solve [auto | pose_sizeof_co (Tstruct id a); auto] |]
+  | _ => idtac
+  end
+.
 
 Lemma memory_block_data_at'_default_val_array_aux: forall sh t z a b ofs,
   0 <= ofs /\ ofs + sizeof cenv_cs (Tarray t z a) <= Int.modulus ->
@@ -826,13 +882,6 @@ Proof.
       + pose_mod_le (ofs + sizeof cenv_cs t * i).
         omega.
       + omega.
-      + solve_mod_modulus.
-        apply Z.divide_add_r.
-        - rewrite legal_alignas_type_Tarray in H1 by auto.
-          auto.
-        - apply Z.divide_mul_l.
-          apply legal_alignas_sizeof_alignof_compat.
-          AUTO_IND.
     } Unfocus.
     apply memory_block_data_at'_default_val_array_aux; [omega | auto].
   + rewrite struct_pred_ext with
@@ -861,19 +910,21 @@ Proof.
       rewrite spacer_memory_block by (simpl; auto).
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
-      pose proof (proj1 (Forall_forall  _ _ ) IH) as IH0; clear IH.
-      specialize (IH0 (i, field_type2 i (co_members (get_co id)))).
-      spec IH0; [apply in_members_field_type2; auto |].
-      specialize (IH0 b (ofs + field_offset2 cenv_cs i (co_members (get_co id)))).
-      unfold snd in IH0.
       rewrite default_val_ind.
       rewrite unfold_fold_reptype.
       rewrite proj_struct_default by auto.
-SearchAbout nested_pred field_type2.
-      rewrite IH0.
-      rewrite Z.add_assoc, sepcon_comm, <- memory_block_split.
+      pose proof (proj1 (Forall_forall  _ _ ) IH) as IH0; clear IH.
+      specialize (IH0 (i, field_type2 i (co_members (get_co id)))).
+      spec IH0; [apply in_members_field_type2; auto |].
+      unfold snd in IH0.
+      rewrite IH0 by (try AUTO_IND; try (pose_field; omega)).
+      rewrite Z.add_assoc, sepcon_comm, <- memory_block_split by (pose_field; omega).
       f_equal; f_equal; omega.
-
+  + rewrite union_pred_ext with
+     (P1 := fun it _ =>
+              memory_block sh (Int.repr (co_sizeof (get_co id))))
+     (v1 := unfold_reptype (default_val (Tunion id a)));
+    [| apply get_co_members_no_replicate | reflexivity |].
 
 
 

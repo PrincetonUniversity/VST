@@ -137,16 +137,18 @@ Ltac solve_field_offset_type i m :=
   destruct (field_offset cenv_cs i m) as [ofs|?] eqn:Hofs, (field_type i m) as [t|?] eqn:Hty;
     [clear H | inversion H | inversion H | clear H].
 
-Lemma complete_type_field_type2: forall id i co,
-  cenv_cs ! id = Some co ->
-  in_members i (co_members co) ->
-  complete_type cenv_cs (field_type2 i (co_members co)) = true.
+Lemma complete_type_field_type2: forall id i,
+  in_members i (co_members (get_co id)) ->
+  complete_type cenv_cs (field_type2 i (co_members (get_co id))) = true.
 Proof.
+  unfold get_co.
   intros.
-  apply in_members_field_type2 in H0.
-  eapply complete_member; eauto.
-  apply co_consistent_complete.
-  exact (cenv_consistent_cs id co H).
+  destruct (cenv_cs ! id) as [co |] eqn:CO.
+  + apply in_members_field_type2 in H.
+    eapply complete_member; eauto.
+    apply co_consistent_complete.
+    exact (cenv_consistent_cs id co CO).
+  + inversion H.
 Qed.
 
 Lemma field_offset2_aligned: forall i m,
@@ -425,10 +427,9 @@ Definition field_offset_no_overlap:
   
 Definition complete_type_field_type:
   forall {cs: compspecs},
-  forall id i co,
-  cenv_cs ! id = Some co ->
-  in_members i (co_members co) ->
-  complete_type cenv_cs (field_type i (co_members co)) = true
+  forall id i,
+  in_members i (co_members (get_co id)) ->
+  complete_type cenv_cs (field_type2 i (co_members (get_co id))) = true
 := @complete_type_field_type2.
 
 Definition field_offset_aligned:

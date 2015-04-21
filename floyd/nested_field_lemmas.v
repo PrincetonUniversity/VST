@@ -12,21 +12,6 @@ Section COMPOSITE_ENV.
 Context {cs: compspecs}.
 Context {csl: compspecs_legal cs}.
 
-Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i m, in_members i m -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred (field_type i m) = true.
-Proof.
-  intros.
-  unfold nested_fields_pred in H0.
-  rewrite <- fold_right_map in H0.
-  eapply fold_right_andb; [exact H0 |].
-  clear - H.
-  rewrite <- map_map.
-  apply in_map.
-  change (field_type i m) with (snd (i, field_type i m)).
-  apply in_map.
-  apply in_members_field_type.
-  auto.
-Defined.
-
 (************************************************
 
 Definition of nested_field_type2, nested_field_offset2

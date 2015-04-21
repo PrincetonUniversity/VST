@@ -184,6 +184,20 @@ Proof.
       tauto.
 Qed.
 
+Lemma fold_right_andb: forall bl b, fold_right andb b bl = true -> forall b0, In b0 bl -> b0 = true.
+Proof.
+  intros.
+  induction bl.
+  + inversion H0.
+  + destruct H0.
+    - simpl in H.
+      rewrite andb_true_iff in H.
+      subst; tauto.
+    - simpl in H.
+      rewrite andb_true_iff in H.
+      tauto.
+Qed.
+
 (**************************************************
 
 Int type lemmas

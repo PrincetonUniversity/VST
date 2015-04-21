@@ -1,6 +1,6 @@
 Require Import Clightdefs.
 Require Import msl.Extensionality.
-Require Import Coqlib msl.Coqlib2 floyd.coqlib3.
+Require Import Coqlib msl.Coqlib2.
 
 Lemma divide_align: forall x y: Z, x > 0 -> Zdivide x y -> align y x = y.
 Proof.
