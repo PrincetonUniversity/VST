@@ -475,7 +475,7 @@ Qed.
 Lemma union_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   members_union_inj v0 = members_union_inj v1 ->
-  (forall i d0 d1, in_members i m ->
+  (forall i d0 d1, i = fst (members_union_inj v0) -> i = fst (members_union_inj v1) ->
      P0 _ (proj_union i m v0 d0) p |-- P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p |-- union_pred m P1 v1 p.
 Proof.
@@ -487,7 +487,8 @@ Proof.
     simpl in H1.
     if_tac in H1; [| congruence].
     specialize (H1 v0 v1).
-    spec H1; [left; reflexivity |].
+    spec H1; [reflexivity |].
+    spec H1; [reflexivity |].
     unfold eq_rect_r in H1; rewrite <- !eq_rect_eq in H1.
     simpl.
     exact H1.
@@ -497,7 +498,8 @@ Proof.
       simpl in H1.
       if_tac in H1; [| congruence].
       specialize (H1 v0 v1).
-      spec H1; [left; reflexivity |].
+      spec H1; [reflexivity |].
+      spec H1; [reflexivity |].
       unfold eq_rect_r in H1; rewrite <- !eq_rect_eq in H1.
       simpl.
       exact H1.
@@ -507,18 +509,22 @@ Proof.
       specialize (H1 i).
       simpl in H1.
       if_tac in H1.
-      * clear - H H1 H2.
+      * clear - H H2 H4.
+        pose proof members_union_inj_in_members _ _ v0.
+        spec H0; [congruence |].
         subst.
+        rewrite <- H2 in H0.
         tauto.
       * specialize (H1 d0 d1).
-        spec H1; [right; auto |].
+        spec H1; [auto |].
+        spec H1; [auto |].
         exact H1.
 Qed.
 
 Lemma union_pred_ext: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   members_union_inj v0 = members_union_inj v1 ->
-  (forall i d0 d1, in_members i m ->
+  (forall i d0 d1, i = fst (members_union_inj v0) -> i = fst (members_union_inj v1) ->
      P0 _ (proj_union i m v0 d0) p = P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p = union_pred m P1 v1 p.
 Proof.
