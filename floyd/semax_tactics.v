@@ -1,7 +1,7 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
-Require Import floyd.data_at_lemmas.
-Require Import floyd.type_id_env.
+(*Require Import floyd.data_at_lemmas.*)
+(*Require Import floyd.type_id_env.*)
 
 (* Bug: abbreviate replaces _ALL_ instances, when sometimes
   we only want just one. *)
@@ -99,6 +99,7 @@ Ltac simplify_Delta :=
      simplify_Delta_at A; simplify_Delta_at B; reflexivity
 end.
 
+(*
 Ltac build_Struct_env :=
  match goal with
  | SE := @abbreviate type_id_env _ |- _ => idtac
@@ -106,6 +107,7 @@ Ltac build_Struct_env :=
     pose (Struct_env := @abbreviate _ (type_id_env.compute_type_id_env Delta));
     simpl type_id_env.compute_type_id_env in Struct_env
  end.
+*)
 
 Ltac abbreviate_semax :=
  match goal with
@@ -134,5 +136,5 @@ Ltac abbreviate_semax :=
  | |- _ => idtac
  end;
  clear_abbrevs;
- build_Struct_env;
+ (*build_Struct_env;*)
  simpl typeof.

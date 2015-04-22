@@ -157,18 +157,6 @@ Hint Resolve @TT_right.
 
 Hint Rewrite Int.sub_idem Int.sub_zero_l  Int.add_neg_zero : norm.
 
-Lemma temp_types_init_same:
- forall Delta id t b, (temp_types Delta)!id = Some (t,b) ->
-                         (temp_types (initialized id Delta)) ! id = Some (t,true).
-Proof.
-intros.
-destruct Delta; simpl in *.
-unfold initialized; simpl. rewrite H.
-unfold temp_types; simpl.
-rewrite PTree.gss; auto.
-Qed.
-
-
 Lemma type_eq_refl:
  forall t, proj_sumbool (type_eq t t) = true.
 Proof.

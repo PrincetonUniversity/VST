@@ -136,7 +136,7 @@ FLOYD_FILES= \
    entailer.v globals_lemmas.v local2ptree.v fieldlist.v mapsto_memory_block.v\
    nested_field_lemmas.v efield_lemmas.v nested_field_re_lemmas.v \
    data_at_lemmas.v field_at.v stronger.v unfold_data_at.v \
-   for_lemmas.v semax_tactics.v
+   for_lemmas.v semax_tactics.v expr_lemmas.v 
 
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \

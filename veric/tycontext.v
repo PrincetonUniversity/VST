@@ -1577,6 +1577,21 @@ intros.
 destruct H as [? [? [? [? [? ?]]]]]; repeat split; auto.
 Qed.
 
+Lemma tycontext_eqv_sub:
+  forall Delta Delta', tycontext_eqv Delta Delta' ->
+         tycontext_sub Delta Delta'.
+Proof.
+intros.
+destruct H as [? [? [? [? [? ?]]]]].
+repeat split; intros; auto.
+rewrite H; auto.
+destruct ((temp_types Delta') ! id); auto.
+destruct p. split; auto. destruct b; reflexivity.
+rewrite H2. destruct ((glob_types Delta') ! id); simpl; auto.
+rewrite H3. destruct ((glob_specs Delta') ! id); simpl; auto.
+rewrite H4. destruct ((composite_types Delta') ! id); simpl; auto.
+Qed.
+
 Lemma guard_genv_initialized: forall i Delta ge,
   guard_genv Delta ge -> guard_genv (initialized i Delta) ge.
 Proof.

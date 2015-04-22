@@ -285,37 +285,6 @@ intros.
  destruct a as [a Ha]. destruct b as [b Hb].
  simpl in *.
  assert (a=b); [ | subst a; f_equal; apply Axioms.proof_irr].
- rewrite Zpos_P_of_succ_nat in *.
- apply Z.ltb_lt in Ha.
- apply Z.ltb_lt in Hb.
- assert (Z.of_nat (Fcore_digits.digits2_Pnat a) <= k-2)%Z by omega.
- assert (Z.of_nat (Fcore_digits.digits2_Pnat b) <= k-2)%Z by omega.
- clear Ha Hb.
- set (k':= (k-2)%Z) in *;  clearbody k'; clear k. rename k' into k.
- pose proof (Fcore_digits.digits2_Pnat_correct a).
- set (da := Fcore_digits.digits2_Pnat a) in *.
- pose proof (Fcore_digits.digits2_Pnat_correct b).
- set (db := Fcore_digits.digits2_Pnat b) in *.
- assert (Hk: (0 <= k)%Z) by omega.
- simpl in H3,H4.
- destruct H3 as [_ H3]; destruct H4 as [_ H4].
- rewrite Zpower_nat_Z in *.
- rewrite Z2Nat.id in H by omega.
- rewrite inj_S in *.
- rewrite Z.pow_succ_r in * by omega.
- assert (Z.pos a < 2 * Z.pos N)%Z.
- eapply Z.lt_le_trans; [eassumption | rewrite <- H].
- apply Z.mul_le_mono_pos_l;  try omega.
- apply Z.pow_le_mono_r; try omega.
- clear H3 H1 da.
- assert (Z.pos b < 2 * Z.pos N)%Z.
- eapply Z.lt_le_trans; [eassumption | rewrite <- H].
- apply Z.mul_le_mono_pos_l;  try omega.
- apply Z.pow_le_mono_r; try omega.
- clear H4 db H2.
- change (a < 2*N)%positive in H5.
- change (b < 2*N)%positive in H1.
- simpl in *.
 Abort.
 
 Inductive wishes_eq_horses := .
