@@ -325,6 +325,122 @@ Fixpoint zeros (n : nat) : list memval :=
     | S n' => Byte Byte.zero :: zeros n'
   end.
 
+Lemma intval_inj i i' : Int.intval i = Int.intval i' -> i = i'.
+Proof. destruct i, i'. simpl. intros; subst. f_equal; auto. Qed.
+
+Lemma intmod_inj z z' : 
+  0 <= z < Int.modulus -> 
+  0 <= z' < Int.modulus -> 
+  Int.Z_mod_modulus z = Int.Z_mod_modulus z' ->
+  z = z'.
+Proof. 
+  intros A B; rewrite !Int.Z_mod_modulus_eq, !Z.mod_small; auto.
+Qed.
+
+Lemma intrepr_inj z z' : 
+  0 <= z < Int.modulus -> 
+  0 <= z' < Int.modulus -> 
+  Int.repr z = Int.repr z' -> z = z'.
+Proof.
+  Transparent Int.repr. unfold Int.repr. Opaque Int.repr. intros A B. intros H. inversion H.
+  apply intmod_inj; auto.
+Qed.
+
+Lemma unsigned_inj i i' : 
+  Int.unsigned i = Int.unsigned i' -> i = i'.
+Proof.
+  unfold Int.unsigned. destruct i, i'. simpl. intros; subst. f_equal; auto.
+Qed.
+
+Lemma zero_ext_zero n i : 
+  Int.unsigned i < two_p n -> 
+  Int.zero_ext n i = Int.zero -> i = Int.zero.
+Proof.
+  intros H0 H.
+  apply Int.same_bits_eq. intros i0 [H2 H3]. 
+  rewrite <-H.
+  rewrite Int.bits_zero_ext; auto.
+  destruct (zlt i0 n) eqn:H4; auto.
+  rewrite zero_ext_inrange in H; [|omega].
+  subst i.
+  rewrite Int.bits_zero; auto.
+Qed.
+
+Lemma decode_int_zero i : decode_int (i::nil) = 0 -> i = Byte.zero.
+Proof. 
+  unfold decode_int. 
+  rewrite rev_if_be_singleton.
+  simpl.
+  intros.
+  destruct i; simpl in H. 
+   Transparent Byte.repr.
+   unfold Byte.zero, Byte.repr. simpl. 
+   Opaque Byte.repr.
+   rewrite Zplus_0_r in H. subst intval. f_equal. apply proof_irr.
+Qed.
+
+Lemma int_of_byte_lt_mod l : length l = 1%nat -> 0 <= int_of_bytes l < Byte.modulus.
+Proof. 
+  destruct l. inversion 1. simpl. destruct l; try solve[inversion 1]. intros _.
+  split. simpl. destruct (Byte.unsigned_range i); omega.
+  simpl. destruct (Byte.unsigned_range i). 
+  cut (Byte.modulus <= Int.modulus). intros H2. omega.
+  unfold Byte.modulus, Byte.wordsize, Int.modulus, Int.wordsize. 
+  unfold Wordsize_8.wordsize, Wordsize_32.wordsize. 
+  clear - i. unfold two_power_nat. rewrite !shift_nat_correct. simpl. omega.
+Qed.
+
+Lemma decode_byte_lt_mod i : 0 <= decode_int (i::nil) < Byte.modulus.
+Proof.
+  unfold decode_int.
+  case (int_of_byte_lt_mod (rev_if_be (i::nil))).
+  solve[rewrite rev_if_be_length; auto].
+  auto.
+Qed.
+
+Lemma load_zero_getN_zeros ch p0 b m z N :
+  (forall p0,
+     z <= p0 < z + N -> load Mint8unsigned m b p0 = Some (Vint Int.zero)) ->
+  z <= p0 -> p0 + Z_of_nat (size_chunk_nat ch) <= z + N -> 
+  getN (size_chunk_nat ch) p0 ((mem_contents m) !! b) = zeros (size_chunk_nat ch)
+  /\ range_perm m b p0 (p0 + Z_of_nat (size_chunk_nat ch)) Cur Readable.
+Proof.
+unfold valid_access.
+generalize (size_chunk_nat ch); intros n. revert z N p0.
+induction n; simpl; intros; split; auto. 
+{ intros ofs [H2 H3]. omega. }
+f_equal. 
+{ spec H p0. spec H. split. omega. rewrite Zpos_P_of_succ_nat in H1. omega.
+  Transparent load. revert H. unfold load. Opaque load.
+  destruct (valid_access_dec m Mint8unsigned b p0 Readable); try solve[inversion 1].
+  inversion 1; subst. clear H. revert H3. unfold decode_val.
+  simpl. destruct (ZMap.get p0 (mem_contents m) !! b); try solve[intros; congruence].
+  inversion 1. clear H3. revert H2.
+  change (Int.intval (Int.zero_ext 8 (Int.repr (decode_int (i :: nil)))) = Int.intval Int.zero ->
+          Byte i = Byte Byte.zero).
+  assert (BI: Byte.modulus <= Int.modulus). 
+  { unfold Byte.modulus, Int.modulus. unfold two_power_nat, shift_nat; simpl. omega. }
+  intros H2; apply intval_inj in H2.
+  apply zero_ext_zero in H2. unfold Int.zero in H2. apply intrepr_inj in H2.
+  apply decode_int_zero in H2. subst i. auto.
+  destruct (decode_byte_lt_mod i). split. omega. 
+  cut (Byte.modulus <= Int.modulus). intros H4. omega.
+  unfold Byte.modulus, Int.modulus. unfold two_power_nat, shift_nat; simpl. omega.
+  split. omega. generalize Int.modulus_pos. omega.
+  Transparent Int.repr. simpl. rewrite Int.Z_mod_modulus_eq, Zmod_small. Opaque Int.repr.
+  destruct (decode_byte_lt_mod i). 
+  cut (Byte.modulus = two_power_pos 8). intros <-. auto.
+  { unfold Byte.modulus, two_power_nat, two_power_pos, shift_nat, shift_pos in H3|-*; auto. }
+  destruct (decode_byte_lt_mod i). split; omega.    
+}
+exploit (IHn z N (p0+1)); eauto. omega. rewrite Zpos_P_of_succ_nat in H1. omega.
+solve[intros [? ?]; auto].
+unfold range_perm. intros ofs [H2 H3].
+spec H ofs. spec H. omega. 
+apply load_valid_access in H. destruct H as [H _].
+spec H ofs. apply H. split. omega. generalize (size_chunk_pos Mint8unsigned); omega.
+Qed.
+
 Lemma load_zeros_read_as_zero m b z N :
   (forall z',
      z <= z' < z + N ->
@@ -334,13 +450,23 @@ Proof.
 unfold Genv.read_as_zero.
 intros H ch p H2 H3 H4. 
 assert (H5: forall ch p0,
-  size_chunk ch > 0 -> z <= p0 -> p0 + size_chunk ch <= z + N -> 
+  (align_chunk ch | p0) ->
+  (forall p0,
+      z <= p0 < z + N -> load Mint8unsigned m b p0 = Some (Vint Int.zero)) ->
+  z <= p0 -> p0 + size_chunk ch <= z + N -> 
   getN (size_chunk_nat ch) p0 ((mem_contents m) !! b) = zeros (size_chunk_nat ch)
   /\ valid_access m ch b p0 Readable).
-{ admit. (*TODO, but should be provable*) }
-Transparent load.
-unfold load.
-destruct (H5 ch p (size_chunk_pos _) H2 H3) as [-> H6].
+{ 
+unfold valid_access.
+intros.
+rewrite <-and_assoc. split.
+rewrite size_chunk_conv.
+eapply load_zero_getN_zeros; eauto. 
+rewrite <-size_chunk_conv; omega.
+auto.
+}
+Transparent load. unfold load. Opaque load.
+destruct (H5 ch p H4 H H2 H3) as [-> H6].
 destruct (valid_access_dec m ch b p Readable); [|contradiction].
 f_equal.
 destruct ch; simpl; auto.
