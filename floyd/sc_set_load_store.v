@@ -18,6 +18,81 @@ Require Import Coq.Logic.JMeq.
 
 Local Open Scope logic.
 
+Definition msubst_eval_LR Delta T1 T2 e (lr: LLRR) :=
+  match lr with
+  | LLLL => msubst_eval_lvalue Delta T1 T2 e
+  | RRRR => msubst_eval_expr Delta T1 T2 e
+  end.
+
+Lemma msubst_eval_LR_eq: forall P T1 T2 Q R e v lr,
+  msubst_eval_LR T1 T2 e lr = Some v ->
+  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    local (`(eq v) (eval_LR e lr)).
+Proof.
+  intros.
+  destruct lr.
+  + apply msubst_eval_lvalue_eq; auto.
+  + apply msubst_eval_expr_eq; auto.
+Qed.
+
+Fixpoint msubst_efield_denote T1 T2 (efs: list efield) : option (list gfield) :=
+  match efs with
+  | nil => Some nil
+  | eArraySubsc ei :: efs' =>
+    match typeof ei, msubst_eval_expr T1 T2 ei with
+    | Tint _ _ _, Some (Vint i) =>
+      option_map (cons (ArraySubsc (Int.unsigned i))) (msubst_efield_denote T1 T2 efs')
+    | _, _ => None
+    end
+  | eStructField i :: efs' =>
+    option_map (cons (StructField i)) (msubst_efield_denote T1 T2 efs')
+  | eUnionField i :: efs' =>
+    option_map (cons (UnionField i)) (msubst_efield_denote T1 T2 efs')
+  end.
+
+Lemma msubst_efield_denote_equiv: forall Delta P T1 T2 R efs gfs,
+  msubst_efield_denote T1 T2 efs = Some gfs ->
+  (local (tc_environ Delta)) && assertD P (localD T1 T2) R |-- efield_denote efs gfs.
+Proof.
+  intros.
+  revert gfs H; induction efs; intros.
+  + simpl in H.
+    inversion H.
+    apply prop_right.
+    auto.
+Opaque andp.
+  + destruct a;
+    simpl in H;
+    simpl efield_denote.
+Transparent andp.
+    - destruct (typeof i); try solve [inversion H].
+      destruct (msubst_eval_expr T1 T2 i) eqn:?H; [| inversion H].
+      destruct v; try solve [inversion H].
+      apply msubst_eval_expr_eq with (P := P) (Q := nil) (R := map liftx R) in H0.
+      destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
+      inversion H.
+      rewrite (add_andp _ _ (IHefs l eq_refl)).
+      unfold assertD, localD.
+      rewrite (add_andp _ _ H0).
+      apply andp_derives; [| auto].
+      apply andp_left2.
+      apply andp_left2.
+      rewrite Int.repr_unsigned.
+      repeat apply andp_right; auto.
+      simpl; intros; normalize.
+    - destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
+      inversion H. 
+      rewrite (add_andp _ _ (IHefs l eq_refl)).
+      apply andp_derives; [| auto].
+      simpl; intros; normalize.
+    - destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
+      inversion H. 
+      rewrite (add_andp _ _ (IHefs l eq_refl)).
+      apply andp_derives; [| auto].
+      simpl; intros; normalize.
+Qed.
+
+
 (************************************************
 
 The set, load, cast-load and store rules used before Dec 3. 2014

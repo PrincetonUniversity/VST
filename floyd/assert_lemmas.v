@@ -1,6 +1,18 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Lemma exp_uncurry:
+  forall {T} {ND: NatDed T} A B F, (@exp T ND A (fun a => @exp T ND B (fun b => F a b)))
+   = @exp T ND (A*B) (fun ab => F (fst ab) (snd ab)).
+Proof.
+intros.
+apply pred_ext.
+apply exp_left; intro a. apply exp_left; intro b. apply exp_right with (a,b).
+apply derives_refl.
+apply exp_left; intro ab. apply exp_right with (fst ab). apply exp_right with (snd ab).
+apply derives_refl.
+Qed.
+
 Lemma nth_map':
   forall {A B} (f: A -> B) d d' i al,
   (i < length al)%nat ->
@@ -157,18 +169,6 @@ Hint Resolve @TT_right.
 
 Hint Rewrite Int.sub_idem Int.sub_zero_l  Int.add_neg_zero : norm.
 
-Lemma temp_types_init_same:
- forall Delta id t b, (temp_types Delta)!id = Some (t,b) ->
-                         (temp_types (initialized id Delta)) ! id = Some (t,true).
-Proof.
-intros.
-destruct Delta; simpl in *.
-unfold initialized; simpl. rewrite H.
-unfold temp_types; simpl.
-rewrite PTree.gss; auto.
-Qed.
-
-
 Lemma type_eq_refl:
  forall t, proj_sumbool (type_eq t t) = true.
 Proof.
@@ -185,7 +185,7 @@ unfold overridePost.
 extensionality ek vl; simpl.
 if_tac; auto.
 Qed.
-Hint Rewrite overridePost_overridePost : norm.
+Hint Rewrite overridePost_overridePost : ret_assert.
 
 Lemma overridePost_normal':
   forall P R, overridePost P R EK_normal None = P.

@@ -27,5 +27,9 @@ Require Export floyd.array_lemmas.
 Require Export floyd.unfold_data_at.
 Require Export floyd.entailer.
 Require Export floyd.globals_lemmas.
+Require Export floyd.diagnosis.
 Export ListNotations.
+
+Arguments nested_field_type2 t gfs / .
+Arguments nested_field_offset2 t gfs / .
 

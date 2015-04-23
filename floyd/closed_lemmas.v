@@ -1416,6 +1416,27 @@ Qed.
 Hint Resolve closed_wrt_tc_expr : closed.
 Hint Resolve closed_wrt_tc_lvalue : closed.
 
+
+Lemma closed_wrt_lift1':
+      forall (A B : Type) (S : ident -> Prop) (f : A -> B)
+         (P : environ -> A),
+       closed_wrt_vars S P -> closed_wrt_vars S (`f P).
+Proof.
+intros.
+apply closed_wrt_lift1.
+hnf; intros. simpl. f_equal.
+apply H. auto.
+Qed.
+Hint Resolve closed_wrt_lift1' : closed.
+
+Lemma closed_wrt_Econst_int:
+  forall S Delta i t, closed_wrt_vars S (eval_expr Delta (Econst_int i t)).
+Proof.
+simpl; intros.
+auto with closed.
+Qed.
+Hint Resolve closed_wrt_Econst_int : closed.
+
 Lemma closed_wrt_PROPx:
  forall S P Q, closed_wrt_vars S Q -> closed_wrt_vars S (PROPx P Q).
 Proof.

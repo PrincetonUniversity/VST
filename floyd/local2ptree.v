@@ -3,9 +3,6 @@ Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.canonicalize.
-Require Import floyd.type_id_env.
-Require Import floyd.nested_field_lemmas.
-Require Import floyd.efield_lemmas.
 
 Local Open Scope logic.
 
@@ -1079,48 +1076,55 @@ Definition eval_vardesc (ty: type) (vd: option vardesc) : option val :=
                     | None => None
                     end.
 
-Fixpoint msubst_eval_expr (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val :=
+Fixpoint msubst_eval_expr (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val :=
   match e with
   | Econst_int i ty => Some (Vint i)
   | Econst_long i ty => Some (Vlong i)
   | Econst_float f ty => Some (Vfloat f)
   | Econst_single f ty => Some (Vsingle f)
   | Etempvar id ty => PTree.get id T1
-  | Eaddrof a ty => msubst_eval_lvalue T1 T2 a 
-  | Eunop op a ty => option_map (eval_unop op (typeof a)) (msubst_eval_expr T1 T2 a) 
+  | Eaddrof a ty => msubst_eval_lvalue Delta T1 T2 a 
+  | Eunop op a ty => option_map (eval_unop op (typeof a))
+                                        (msubst_eval_expr Delta T1 T2 a) 
   | Ebinop op a1 a2 ty =>
-      match (msubst_eval_expr T1 T2 a1), (msubst_eval_expr T1 T2 a2) with
-      | Some v1, Some v2 => Some (eval_binop op (typeof a1) (typeof a2) v1 v2) 
+      match (msubst_eval_expr Delta T1 T2 a1), (msubst_eval_expr Delta T1 T2 a2) with
+      | Some v1, Some v2 => Some (eval_binop Delta op (typeof a1) (typeof a2) v1 v2) 
       | _, _ => None
       end
-  | Ecast a ty => option_map (eval_cast (typeof a) ty) (msubst_eval_expr T1 T2 a)
+  | Ecast a ty => option_map (eval_cast (typeof a) ty) (msubst_eval_expr Delta T1 T2 a)
   | Evar id ty => option_map (deref_noload ty) (eval_vardesc ty (PTree.get id T2))
 
-  | Ederef a ty => option_map (deref_noload ty) (option_map force_ptr (msubst_eval_expr T1 T2 a))
-  | Efield a i ty => option_map (deref_noload ty) (option_map (eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a))
+  | Ederef a ty => option_map (deref_noload ty)
+                              (option_map force_ptr (msubst_eval_expr Delta T1 T2 a))
+  | Efield a i ty => option_map (deref_noload ty) 
+                                (option_map (eval_field Delta (typeof a) i)
+                                    (msubst_eval_lvalue Delta T1 T2 a))
+  | Esizeof t _ => Some (Vint (Int.repr (sizeof (composite_types Delta) t)))
+  | Ealignof t _ => Some (Vint (Int.repr (alignof (composite_types Delta) t)))
   end
-  with msubst_eval_lvalue (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val := 
+  with msubst_eval_lvalue (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (e: Clight.expr) : option val := 
   match e with 
   | Evar id ty => eval_vardesc ty (PTree.get id T2)
-  | Ederef a ty => option_map force_ptr (msubst_eval_expr T1 T2 a)
-  | Efield a i ty => option_map (eval_field (typeof a) i) (msubst_eval_lvalue T1 T2 a)
+  | Ederef a ty => option_map force_ptr (msubst_eval_expr Delta T1 T2 a)
+  | Efield a i ty => option_map (eval_field Delta (typeof a) i)
+                              (msubst_eval_lvalue Delta T1 T2 a)
   | _  => Some Vundef
   end.
 
 Lemma msubst_eval_expr_eq_aux:
-  forall (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
+  forall Delta (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
     (forall i v, T1 ! i = Some v -> eval_id i rho = v) ->
     (forall i t v,
      eval_vardesc t T2 ! i = Some v -> eval_var i t rho = v) ->
-    msubst_eval_expr T1 T2 e = Some v ->
-    eval_expr e rho = v
+    msubst_eval_expr Delta T1 T2 e = Some v ->
+    eval_expr Delta e rho = v
 with msubst_eval_lvalue_eq_aux: 
-  forall (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
+  forall Delta (T1: PTree.t val) (T2: PTree.t vardesc) e rho v,
     (forall i v, T1 ! i = Some v -> eval_id i rho = v) ->
     (forall i t v,
      eval_vardesc t T2 ! i = Some v -> eval_var i t rho = v) ->
-    msubst_eval_lvalue T1 T2 e = Some v ->
-    eval_lvalue e rho = v.
+    msubst_eval_lvalue Delta T1 T2 e = Some v ->
+    eval_lvalue Delta e rho = v.
 Proof.
   + clear msubst_eval_expr_eq_aux.
     induction e; intros; simpl in H1 |- *; try solve [inversion H1; auto].
@@ -1130,42 +1134,42 @@ Proof.
       destruct (eval_vardesc t T2 ! i) eqn:?; inv H1.
       rewrite (H0 v0); reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr Delta T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe with (v := v0) by auto.
       reflexivity.
     - erewrite msubst_eval_lvalue_eq_aux; eauto.
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr Delta T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe with (v := v0) by auto.
       reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr T1 T2 e1) eqn:?; [| inversion H1].
-      destruct (msubst_eval_expr T1 T2 e2) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr Delta T1 T2 e1) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr Delta T1 T2 e2) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe1 with (v := v0) by auto.
       rewrite IHe2 with (v := v1) by auto.
       reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr Delta T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe with (v := v0) by auto.
       reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_lvalue T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_lvalue Delta T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       erewrite msubst_eval_lvalue_eq_aux by eauto.
       reflexivity.
   + clear msubst_eval_lvalue_eq_aux.
     induction e; intros; simpl in H1 |- *; try solve [inversion H1; auto].
     - unfold_lift; simpl.
-      destruct (msubst_eval_expr T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_expr Delta T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       erewrite msubst_eval_expr_eq_aux by eauto;
       reflexivity.
     - unfold_lift; simpl.
-      destruct (msubst_eval_lvalue T1 T2 e) eqn:?; [| inversion H1].
+      destruct (msubst_eval_lvalue Delta T1 T2 e) eqn:?; [| inversion H1].
       inversion H1.
       rewrite IHe with (v := v0) by auto.
       reflexivity.
@@ -1231,10 +1235,10 @@ Proof.
      - inv H0.
 Qed.
 
-Lemma msubst_eval_expr_eq: forall P T1 T2 Q R e v,
-  msubst_eval_expr T1 T2 e = Some v ->
+Lemma msubst_eval_expr_eq: forall Delta P T1 T2 Q R e v,
+  msubst_eval_expr Delta T1 T2 e = Some v ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    local (`(eq v) (eval_expr e)).
+    local (`(eq v) (eval_expr Delta e)).
 Proof.
   intros.
   apply andp_left2.
@@ -1246,10 +1250,10 @@ Proof.
   apply eq_sym, msubst_eval_expr_eq_aux with (T1 := T1) (T2 := T2); auto.
 Qed.
 
-Lemma msubst_eval_lvalue_eq: forall P T1 T2 Q R e v,
-  msubst_eval_lvalue T1 T2 e = Some v ->
+Lemma msubst_eval_lvalue_eq: forall P Delta T1 T2 Q R e v,
+  msubst_eval_lvalue Delta T1 T2 e = Some v ->
   PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    local (`(eq v) (eval_lvalue e)).
+    local (`(eq v) (eval_lvalue Delta e)).
 Proof.
   intros.
   apply andp_left2.
@@ -1261,85 +1265,11 @@ Proof.
   apply eq_sym, msubst_eval_lvalue_eq_aux with (T1 := T1) (T2 := T2); auto.
 Qed.
 
-Definition msubst_eval_LR T1 T2 e lr :=
-  match lr with
-  | LLLL => msubst_eval_lvalue T1 T2 e
-  | RRRR => msubst_eval_expr T1 T2 e
-  end.
-
-Lemma msubst_eval_LR_eq: forall P T1 T2 Q R e v lr,
-  msubst_eval_LR T1 T2 e lr = Some v ->
-  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    local (`(eq v) (eval_LR e lr)).
-Proof.
-  intros.
-  destruct lr.
-  + apply msubst_eval_lvalue_eq; auto.
-  + apply msubst_eval_expr_eq; auto.
-Qed.
-
-Fixpoint msubst_efield_denote T1 T2 (efs: list efield) : option (list gfield) :=
-  match efs with
-  | nil => Some nil
-  | eArraySubsc ei :: efs' =>
-    match typeof ei, msubst_eval_expr T1 T2 ei with
-    | Tint _ _ _, Some (Vint i) =>
-      option_map (cons (ArraySubsc (Int.unsigned i))) (msubst_efield_denote T1 T2 efs')
-    | _, _ => None
-    end
-  | eStructField i :: efs' =>
-    option_map (cons (StructField i)) (msubst_efield_denote T1 T2 efs')
-  | eUnionField i :: efs' =>
-    option_map (cons (UnionField i)) (msubst_efield_denote T1 T2 efs')
-  end.
-
 Definition localD (temps : PTree.t val) (locals : PTree.t vardesc) :=
 LocalD temps locals nil.
 
 Definition assertD (P : list Prop) (Q : list (environ -> Prop)) (sep : list mpred) := 
 PROPx P (LOCALx Q (SEPx (map (liftx) sep))).
-
-Lemma msubst_efield_denote_equiv: forall Delta P T1 T2 R efs gfs,
-  msubst_efield_denote T1 T2 efs = Some gfs ->
-  (local (tc_environ Delta)) && assertD P (localD T1 T2) R |-- efield_denote efs gfs.
-Proof.
-  intros.
-  revert gfs H; induction efs; intros.
-  + simpl in H.
-    inversion H.
-    apply prop_right.
-    auto.
-Opaque andp.
-  + destruct a;
-    simpl in H;
-    simpl efield_denote.
-Transparent andp.
-    - destruct (typeof i); try solve [inversion H].
-      destruct (msubst_eval_expr T1 T2 i) eqn:?H; [| inversion H].
-      destruct v; try solve [inversion H].
-      apply msubst_eval_expr_eq with (P := P) (Q := nil) (R := map liftx R) in H0.
-      destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
-      inversion H.
-      rewrite (add_andp _ _ (IHefs l eq_refl)).
-      unfold assertD, localD.
-      rewrite (add_andp _ _ H0).
-      apply andp_derives; [| auto].
-      apply andp_left2.
-      apply andp_left2.
-      rewrite Int.repr_unsigned.
-      repeat apply andp_right; auto.
-      simpl; intros; normalize.
-    - destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
-      inversion H. 
-      rewrite (add_andp _ _ (IHefs l eq_refl)).
-      apply andp_derives; [| auto].
-      simpl; intros; normalize.
-    - destruct (msubst_efield_denote T1 T2 efs) eqn:?H; [| inversion H].
-      inversion H. 
-      rewrite (add_andp _ _ (IHefs l eq_refl)).
-      apply andp_derives; [| auto].
-      simpl; intros; normalize.
-Qed.
 
 Fixpoint explicit_cast_exprlist (et: list type) (el: list expr) {struct et} : list expr :=
  match et, el with
@@ -1355,12 +1285,12 @@ Fixpoint force_list {A} (al: list (option A)) : option (list A) :=
  end.
 
 Lemma msubst_eval_exprlist_eq:
-  forall P T1 T2 Q R tys el vl,
+  forall P Delta T1 T2 Q R tys el vl,
   force_list
-           (map (msubst_eval_expr T1 T2)
+           (map (msubst_eval_expr Delta T1 T2)
               (explicit_cast_exprlist tys el)) = Some vl ->
  PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- 
-   local (`(eq vl) (eval_exprlist tys el)).
+   local (`(eq vl) (eval_exprlist Delta tys el)).
 Proof.
 intros.
 revert tys vl H; induction el; destruct tys, vl; intros; 
@@ -1368,25 +1298,24 @@ revert tys vl H; induction el; destruct tys, vl; intros;
   try solve [go_lowerx;  apply prop_right; reflexivity].
  simpl map in H.
  unfold force_list in H; fold (@force_list val) in H.
- destruct (msubst_eval_expr T1 T2 a) eqn:?.
+ destruct (msubst_eval_expr Delta T1 T2 a) eqn:?.
  simpl in H.
  destruct (force_list
-        (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el))); inv H.
+        (map (msubst_eval_expr Delta T1 T2) (explicit_cast_exprlist tys el))); inv H.
  simpl in H. inv H.
  simpl in H.
  destruct (option_map (force_val1 (sem_cast (typeof a) t))
-        (msubst_eval_expr T1 T2 a)) eqn:?; inv H.
+        (msubst_eval_expr Delta T1 T2 a)) eqn:?; inv H.
   destruct ( force_list
-         (map (msubst_eval_expr T1 T2) (explicit_cast_exprlist tys el))) eqn:?; inv H1.
+         (map (msubst_eval_expr Delta T1 T2) (explicit_cast_exprlist tys el))) eqn:?; inv H1.
   specialize (IHel _ _ Heqo0).
   simpl eval_exprlist.
-  destruct (msubst_eval_expr T1 T2 a) eqn:?; inv Heqo.
+  destruct (msubst_eval_expr Delta T1 T2 a) eqn:?; inv Heqo.
   apply msubst_eval_expr_eq with (P:=P)(Q:=Q)(R:=R) in Heqo1.
-  apply derives_trans with (local (`(eq v0) (eval_expr a)) && local (`(eq vl) (eval_exprlist tys el))).
+  apply derives_trans with (local (`(eq v0) (eval_expr Delta a)) && local (`(eq vl) (eval_exprlist Delta tys el))).
   apply andp_right; auto.
   go_lowerx. intros. apply prop_right.
   rewrite <- H. rewrite <- H0.
  auto.
 Qed. 
-
 

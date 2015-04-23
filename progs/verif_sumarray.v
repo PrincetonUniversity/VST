@@ -106,20 +106,6 @@ auto.
 Qed.
 *)
 
-Lemma derives_extract_PROP:
-  forall (PP : Prop) (P : list Prop) Q R Post,
-  (PP -> (PROPx P (LOCALx Q (SEPx R))) |-- Post) -> (PROPx (PP :: P) (LOCALx Q (SEPx R))) |-- Post.
-Proof.
-  intros.
-  rewrite <- move_prop_from_LOCAL, <- insert_local.
-  unfold local, lift1, lift0.
-  intro rho.
-  simpl.
-  apply derives_extract_prop.
-  intro.
-  apply (H H0).
-Qed.
-
 Lemma add_one_more_to_sum: forall contents i x,
   Znth i (map Vint contents) Vundef = Vint x ->
   0 <= i ->
@@ -162,14 +148,13 @@ name s _s.
 name x _x.
 forward.  (* i = 0; *) 
 forward.  (* s = 0; *)
-unfold MORE_COMMANDS, abbreviate.
 forward_while (sumarray_Inv a0 sh contents size)
     (PROP  () 
      LOCAL (temp _a a0;
             temp _s (Vint (sum_int contents)))
-     SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))).
+     SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0)))
+     a1.
 (* Prove that current precondition implies loop invariant *)
-unfold sumarray_Inv.
 apply exp_right with 0.
 entailer!.
 (* Prove that loop invariant implies typechecking condition *)
@@ -180,14 +165,13 @@ assert (a1 = Zlength contents) by omega; subst.
 rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
 reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
-normalize.
 forward. (* x = a[i] *)
   entailer!. apply H1. omega.
-forward. (* s += x; *)
-forward. (* i++; *)
+forward s_old. (* s += x; *)
+forward i_old. (* i++; *)
   apply exp_right with (Zsucc a1).
   entailer!.
- rewrite H5 in H4. inv H4. 
+ rewrite H7 in H6. inv H6. 
   erewrite add_one_more_to_sum; eauto. omega.
 (* After the loop *)
 forward.  (* return s; *)
@@ -229,9 +213,9 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name s _s.
 start_function.
-normalize. intro four. normalize.
+forward_intro four. normalize.
 forward_call' (*  r = sumarray(four,4); *)
-  (four,Ews,four_contents,4).
+  (four,Ews,four_contents,4) vret.
  split3. computable. reflexivity.
  intros. unfold four_contents.
    apply forall_Forall; [| auto].

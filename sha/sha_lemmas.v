@@ -3,6 +3,7 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha.
 Require Export sha.pure_lemmas.
+Require Export general_lemmas.
 Export ListNotations.
 
 Local Open Scope logic.
@@ -174,7 +175,8 @@ Proof.
 intros.
 apply pred_ext; intros.
 apply andp_right; auto.
-admit. (*  apply array_at_local_facts. *)
+unfold array_at. simpl.
+normalize.
 normalize.
 Qed.
 
@@ -390,15 +392,36 @@ Qed.
 
 (*** Application of Omega stuff ***)
 
+Lemma CBLOCKz_eq : CBLOCKz = 64%Z.
+Proof. reflexivity. Qed.
+Lemma LBLOCKz_eq : LBLOCKz = 16%Z.
+Proof. reflexivity. Qed.
+
 Ltac helper2 := 
  match goal with
    | |- context [CBLOCK] => add_nonredundant (CBLOCK_eq)
    | |- context [LBLOCK] => add_nonredundant (LBLOCK_eq)
+   | |- context [CBLOCKz] => add_nonredundant (CBLOCKz_eq)
+   | |- context [LBLOCKz] => add_nonredundant (LBLOCKz_eq)
+   | H: context [CBLOCK] |- _ => add_nonredundant (CBLOCK_eq)
+   | H: context [LBLOCK] |- _ => add_nonredundant (LBLOCK_eq)
+   | H: context [CBLOCKz] |- _ => add_nonredundant (CBLOCKz_eq)
+   | H: context [LBLOCKz] |- _ => add_nonredundant (LBLOCKz_eq)
   end.
 
 (*** End Omega stuff ***)
 
 Ltac Omega1 := Omega (helper1 || helper2).
+
+Ltac MyOmega :=
+  rewrite ?length_list_repeat, ?skipn_length, ?map_length, 
+   ?Zlength_map, ?Zlength_nil;
+  pose proof CBLOCK_eq;
+  pose proof CBLOCKz_eq;
+  pose proof LBLOCK_eq;
+  pose proof LBLOCKz_eq;
+  Omega1.
+(*  Omega OmegaHelper1.*)
 
 Local Open Scope Z.
 
@@ -421,6 +444,7 @@ intros.
 apply pred_ext; [ | normalize].
 apply andp_right; auto.
 saturate_local.
+destruct H as [Pv _].
 revert v Pv dd; induction n; intros.
 simpl. apply prop_right; constructor.
 rewrite inj_S. unfold Z.succ.

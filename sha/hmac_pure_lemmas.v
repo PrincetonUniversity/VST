@@ -1,11 +1,140 @@
 (* Lemmas that DO NOT depend on CompCert or Verifiable C *)
 
 Require Import Integers.
-Require Import List. 
 Require Import Coqlib.
+Require Import Vector.  
+Require Import List. Import ListNotations.
+Require Import general_lemmas.
 
-Import ListNotations.
+Definition Vector_0_is_nil (T : Type) (v : Vector.t T 0) : v = Vector.nil T := 
+  match v with Vector.nil => eq_refl end.
 
+Lemma VectorToList_cons A n: forall (a:A) l,
+      Vector.to_list (Vector.cons A a n l) =
+      List.cons a (Vector.to_list l).
+Proof. intros. reflexivity. Qed. 
+
+Lemma VectorToList_length {A}: forall n (v: Vector.t A n), length (Vector.to_list v) = n.
+Proof.
+  apply Vector.t_rec. reflexivity.
+  intros. rewrite VectorToList_cons. simpl. rewrite H. trivial.
+Qed.
+
+Lemma VectorToList_combine A n: forall (a:A) b v1 v2,
+     combine (Vector.to_list (Vector.cons A a n v1))
+             (Vector.to_list (Vector.cons A b n v2))
+   = (a,b) :: combine (Vector.to_list v1) (Vector.to_list v2).
+Proof. intros. simpl. f_equal. Qed.
+
+Theorem VectorToList_append {A}: 
+        forall (m:nat) (v2:Vector.t A m) (n : nat) (v1 : Vector.t A n),
+                   (Vector.to_list v1) ++ (Vector.to_list v2) = 
+                   Vector.to_list (Vector.append v1 v2).
+Proof. intros m v2.
+  eapply Vector.t_rec.
+  reflexivity.
+  intros. simpl. rewrite (VectorToList_cons _ _ h). f_equal. rewrite <- H. f_equal.
+Qed.
+
+Lemma Forall2_map {A B} (f:A -> B): forall l m, 
+      Forall2 (fun x y => y = f x) l m -> map f l = m.
+Proof. intros.
+  induction H; simpl. reflexivity.
+  subst y. f_equal. trivial.
+Qed.
+
+Lemma isByte_mono: forall x y, 0<=y<=x -> isbyteZ x -> isbyteZ y.
+Proof. intros. destruct H0. split; omega. Qed.
+
+Lemma unsigned_Brepr_isbyte z: isbyteZ z -> Byte.unsigned (Byte.repr z) = z.
+Proof. intros. 
+      unfold isbyteZ in H. apply Byte.unsigned_repr.
+      unfold Byte.max_unsigned, Byte.modulus. simpl. omega.
+Qed.  
+
+Lemma isByte_ByteUnsigned b: isbyteZ (Byte.unsigned b).
+Proof.
+  unfold Byte.unsigned, Byte.intval. destruct b.
+  unfold Byte.modulus, Byte.wordsize, Wordsize_8.wordsize in intrange.
+  rewrite two_power_nat_correct in intrange.
+  unfold Zpower_nat in intrange. simpl in intrange. unfold isbyteZ. omega.
+Qed.
+
+Lemma unsigned_repr_isbyte x:
+  isbyteZ x -> Int.unsigned (Int.repr x) = x.
+Proof. intros; apply Int.unsigned_repr. 
+  rewrite int_max_unsigned_eq. destruct H; omega. 
+Qed.
+
+Lemma map_unsigned_Brepr_isbyte: forall l, List.Forall isbyteZ l ->
+      List.map Byte.unsigned (map Byte.repr l) = l.
+Proof. intros. induction l; simpl in *. trivial.
+   rewrite IHl. rewrite Forall_forall in H. 
+   assert (In a (a::l)). left. trivial. 
+   specialize (H _ H0); clear H0.
+   rewrite unsigned_Brepr_isbyte; trivial.
+   rewrite Forall_forall in *. intros. apply H. right; trivial.
+Qed.
+
+Lemma isbyte_map_ByteUnsigned l: Forall isbyteZ (map Byte.unsigned l).
+Proof. 
+  rewrite Forall_forall. intros. 
+  apply list_in_map_inv in H. destruct H as [b [B1 _]]. subst x.
+  apply isByte_ByteUnsigned.
+Qed.
+
+Lemma isbyteZ_range q: isbyteZ q -> 0 <= q <= Byte.max_unsigned. 
+Proof. intros B; destruct B. unfold Byte.max_unsigned, Byte.modulus; simpl. omega. Qed.
+
+Lemma NPeano_divide_trans a b c: NPeano.divide a b -> 
+      NPeano.divide b c -> NPeano.divide a c.
+Proof. intros. destruct H; destruct H0. subst.
+  exists (x0 * x)%nat. apply mult_assoc.
+Qed. 
+
+Lemma app_inv_length1 {A}: forall (l1 m1 l2 m2:list A),
+  l1++l2 = m1++m2 -> length l1 = length m1 -> l1=m1 /\ l2=m2.
+Proof.
+induction l1; simpl; intros.
+{ destruct m1; simpl in *. split; trivial. omega. }
+{ destruct m1; simpl in *. discriminate.
+  inversion H; clear H; subst a0.
+  destruct (IHl1 _ _ _ H3). omega.
+  subst. split; trivial. }
+Qed.
+
+Lemma app_inv_length2 {A}: forall (l1 m1 l2 m2:list A),
+  l1++l2 = m1++m2 -> length l2 = length m2 -> l1=m1 /\ l2=m2.
+Proof.
+induction l1; simpl; intros.
+{ destruct m1; simpl in *. split; trivial.
+  assert (length l2 = length (a :: m1 ++ m2)). rewrite <- H; trivial.
+  rewrite H1 in H0; clear H H1. simpl in H0. rewrite app_length in H0. omega. }
+{ assert (length (a :: l1 ++ l2) = length (m1 ++ m2)). rewrite <- H; trivial.
+  simpl in H1. do 2 rewrite app_length in H1. rewrite H0 in H1.
+  destruct m1; simpl in *. omega.
+  inversion H; clear H. subst a0.
+  destruct (IHl1 _ _ _ H4 H0). subst. split; trivial. }
+Qed.
+
+Lemma cons_inv {A}: forall (a1 a2:A) t1 t2, a1::t1 = a2::t2 -> a1=a2 /\ t1=t2.
+  intros. inversion H; split; trivial. Qed.
+
+Lemma mod_exists a b c: a mod b = c -> b<> 0 -> exists k, k*b+c=a.
+Proof. intros. specialize (Zmod_eq_full a b H0). intros.
+  exists (a/b). rewrite H in H1; clear H H0. subst c. omega. Qed.
+
+
+
+Lemma app_inj1 {A} l2 m2: forall (l1 m1:list A) (H:l1++l2=m1++m2),
+      length l1=length m1 -> l1=m1 /\ l2=m2.
+Proof. induction l1.
+  destruct m1; simpl; intros. split; trivial. discriminate.
+  destruct m1; simpl; intros. discriminate.
+  inversion H; subst. 
+  destruct (IHl1 _ H3). omega.
+  subst. split; trivial.
+Qed.
 Lemma max_unsigned_modulus: Int.max_unsigned + 1 = Int.modulus.
 Proof. reflexivity. Qed.
 
@@ -17,7 +146,7 @@ Lemma IntModulus32: Int.modulus = 2^32. reflexivity. Qed.
 Lemma Intsize_monotone a b: 0 <= Int.unsigned (Int.repr a) <= Int.unsigned (Int.repr b) -> 
                           Int.size (Int.repr a) <= Int.size (Int.repr b).
 Proof. apply Int.Zsize_monotone. Qed.
-  
+
 Lemma list_nil {A} l (L:@length A l = 0%nat): l = nil.
 Proof. destruct l; simpl in *; eauto. inv L. Qed.
 
@@ -256,35 +385,21 @@ Proof.
    destruct (zlt i (Z.of_nat Byte.wordsize)); trivial. omega.
 Qed.
 
-Require Import Vector. 
-
-Definition Vector_0_is_nil (T : Type) (v : Vector.t T 0) : v = Vector.nil T := 
-  match v with Vector.nil => eq_refl end.
-
-Lemma VectorToList_cons A n: forall (a:A) l,
-      Vector.to_list (Vector.cons A a n l) =
-      List.cons a (Vector.to_list l).
-Proof. intros. reflexivity. Qed. 
-
-Lemma VectorToList_length {A}: forall n (v: Vector.t A n), length (Vector.to_list v) = n.
+Lemma length_mul_split A k (K:(0<k)%nat) n (N:(0<n)%nat): forall (l:list A), length l = (k * n)%nat -> 
+      exists l1, exists l2, l=l1++l2 /\ length l1=n /\ length l2 = ((k-1) * n)%nat.
 Proof.
-  apply Vector.t_rec. reflexivity.
-  intros. rewrite VectorToList_cons. simpl. rewrite H. trivial.
-Qed.
+  intros. 
+  assert ((k * n = n + (k-1) * n)%nat). rewrite mult_minus_distr_r. simpl. rewrite plus_0_r.  
+      rewrite NPeano.Nat.add_sub_assoc. rewrite minus_plus. trivial.
+      specialize (mult_le_compat_r 1 k n). simpl; rewrite plus_0_r. simpl; intros. apply H0. omega.
+  rewrite H0 in H; clear H0. 
+  apply (list_splitLength _ _ _ H).
+Qed.   
 
-Lemma VectorToList_combine A n: forall (a:A) b v1 v2,
-     combine (Vector.to_list (Vector.cons A a n v1))
-             (Vector.to_list (Vector.cons A b n v2))
-   = (a,b) :: combine (Vector.to_list v1) (Vector.to_list v2).
-Proof. intros. simpl. f_equal. Qed.
-
-Theorem VectorToList_append {A}: 
-        forall (m:nat) (v2:Vector.t A m) (n : nat) (v1 : Vector.t A n),
-                   (Vector.to_list v1) ++ (Vector.to_list v2) = 
-                   Vector.to_list (Vector.append v1 v2).
-Proof. intros m v2.
-  eapply Vector.t_rec.
-  reflexivity.
-  intros. simpl. rewrite (VectorToList_cons _ _ h). f_equal. rewrite <- H. f_equal.
+Lemma isbyteZ_xor a b: isbyteZ a -> isbyteZ b -> isbyteZ (Z.lxor a b).
+Proof. intros. rewrite xor_inrange.
+        apply Z_mod_lt. omega.
+        symmetry; apply Zmod_small. apply H.
+        symmetry; apply Zmod_small. apply H0.
 Qed.
    

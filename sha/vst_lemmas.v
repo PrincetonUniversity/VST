@@ -1,6 +1,7 @@
 (* Additional lemmas / proof rules about VST stack *)
 
 Require Import floyd.proofauto.
+Require Export general_lemmas.
 Require Import common_lemmas.
 Local Open Scope logic.
 

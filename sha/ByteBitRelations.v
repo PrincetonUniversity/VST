@@ -1,19 +1,40 @@
+Require Import Coqlib.
 Require Import List. Import ListNotations.
 Require Import Coq.ZArith.BinInt. (* Z *)
 Require Import Coq.ZArith.Zcomplements. (* Zlength *)
-Require Import XorCorrespondence. (* Blist *)
 Require Import Integers.          (* byte *)
 Require Import Coq.Numbers.Natural.Peano.NPeano.
-Require Import hmac_pure_lemmas.
 
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Program.Tactics.
+Require Import XorCorrespondence. (* Blist *)
 Require Import Bruteforce.
+Require Import general_lemmas.
 Require Import hmac_pure_lemmas.
-Require Import sha_padding_lemmas.
-Require Import hmac_common_lemmas.
 
+Definition Blist := list bool.
 Open Scope Z_scope.
+
+Inductive InBlocks {A : Type} (n : nat) : list A -> Prop :=
+  | InBlocks_nil : InBlocks n []
+  | InBlocks_block : forall (front back full : list A),
+                   length front = n ->
+                   full = front ++ back ->
+                   InBlocks n back ->
+                   InBlocks n full. 
+
+Lemma InBlocks_len : forall {A : Type} (l : list A) (n : nat),
+                       NPeano.divide (n) (length l) -> InBlocks n l.
+Proof. 
+  intros A l n div.
+  destruct div.
+  revert A l n H.
+  induction x; intros; simpl in *.
+  - destruct l; simpl in *. constructor. inversion H.
+  - destruct (list_splitLength _ _ _ H) as [l1 [l2 [L [L1 L2]]]]. clear H; subst.
+    apply IHx in L2. clear IHx. 
+    apply (InBlocks_block _ l1 l2); trivial.
+Qed. 
 
 (* ----- Inductive *)
 
@@ -64,6 +85,13 @@ Fixpoint bitsToBytes (bits : Blist) : list Z :=
       bitsToByte [b0; b1; b2; b3; b4; b5; b6; b7] :: bitsToBytes xs
     | _ => []
   end.
+
+Lemma bitsToByte_isbyteZ b0 b1 b2 b3 b4 b5 b6 b7:
+      isbyteZ (bitsToByte [b0; b1; b2; b3; b4; b5; b6; b7]).
+Proof. simpl. unfold asZ, isbyteZ.
+  destruct b0; destruct b1; destruct b2; destruct b3;
+  destruct b4; destruct b5; destruct b6; destruct b7; simpl; omega.
+Qed.
 
 (* -------------------- Various theorems and lemmas *)
 
@@ -141,7 +169,6 @@ Proof.
     apply H. Transparent bytesToBits.
 Qed.
 
-Close Scope string_scope.
 
 (* ------------------ Theorems relating inductive and computational definitions *)
 
@@ -360,8 +387,8 @@ Proof. reflexivity. Qed.
 
 Lemma byteToBits_injective: forall a b,
       byteToBits a = byteToBits b ->
-      SHA256.isbyteZ a -> SHA256.isbyteZ b -> a = b. 
-Proof. intros. unfold SHA256.isbyteZ in *. 
+      isbyteZ a -> isbyteZ b -> a = b. 
+Proof. intros. unfold isbyteZ in *. 
 assert (bitsToByte (byteToBits a) = bitsToByte (byteToBits b)).
   rewrite H; trivial.
 clear H.
@@ -370,7 +397,7 @@ rewrite byte_bit_byte_id in H2; trivial.
 Qed.
   
 Lemma bytesToBits_injective: forall b1 b2, bytesToBits b1 = bytesToBits b2 -> 
-      Forall SHA256.isbyteZ b1 -> Forall SHA256.isbyteZ b2 -> b1=b2.
+      Forall isbyteZ b1 -> Forall isbyteZ b2 -> b1=b2.
 Proof. induction b1.
   intros; destruct b2; trivial. discriminate.
   destruct b2. discriminate.
@@ -394,4 +421,59 @@ Proof. intros.
     rewrite bits_bytes_bits_id in H. trivial.
     apply InBlocks_len; assumption.
   apply InBlocks_len; assumption.
+Qed.
+
+Lemma bitsToByte_cons: forall bits h t, (h::t) = bitsToBytes bits -> 
+      exists b0, exists b1, exists b2, exists b3, 
+      exists b4, exists b5, exists b6, exists b7, exists xs,
+      bits = b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: xs /\
+      h = bitsToByte [b0; b1; b2; b3; b4; b5; b6; b7] /\
+      t = bitsToBytes xs.
+Proof. intros.
+  destruct bits. inv H.
+  destruct bits. inv H.
+  destruct bits. inv H.
+  destruct bits. inv H.
+  destruct bits. inv H.
+  destruct bits. inv H.
+  destruct bits. inv H.
+  destruct bits; inv H.
+  eexists; eexists; eexists; eexists; eexists; eexists; eexists; eexists; eexists.
+  split. reflexivity.
+  split; reflexivity.
+Qed.
+
+Definition intsToBits (l : list int) : list bool :=
+  bytesToBits (intlist_to_Zlist l).
+
+Definition bitsToInts (l : Blist) : list int :=
+  Zlist_to_intlist (bitsToBytes l).
+
+Lemma bitsToBytes_isbyteZ: forall bytes bits,
+                             bytes = bitsToBytes bits -> Forall isbyteZ bytes.
+Proof. intros bytes.
+  induction bytes; simpl; intros.
+     constructor.
+  apply bitsToByte_cons in H.
+  destruct H as [b0 [b1 [b2 [b3 [b4 [b5 [b6 [b7 [xs [BITS [A BYTES]]]]]]]]]]].
+  constructor.
+     subst. apply bitsToByte_isbyteZ.
+     eauto. 
+Qed.
+
+Lemma convertByteBits_isbyteZ b0 b1 b2 b3 b4 b5 b6 b7 byte:
+      convertByteBits [b0; b1; b2; b3; b4; b5; b6; b7] byte ->
+      isbyteZ byte.
+Proof. intros.
+  destruct H as [b8 [b9 [b10 [b11 [b12 [b13 [b14 [b15 [BITS ZZ]]]]]]]]].
+  inversion BITS. subst. clear BITS.
+  unfold asZ, isbyteZ.
+  destruct b8; destruct b9; destruct b10; destruct b11;
+  destruct b12; destruct b13; destruct b14; destruct b15; simpl; omega.
+Qed.
+
+Lemma bytesBitsLists_isbyteZ bytes bits: bytes_bits_lists bits bytes -> Forall isbyteZ bytes.
+Proof. intros.
+  induction H. constructor.
+  constructor; trivial. eapply convertByteBits_isbyteZ. apply H0. 
 Qed.

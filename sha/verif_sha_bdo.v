@@ -4,7 +4,6 @@ Require Import sha.SHA256.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 Require Import sha.bdo_lemmas.
-Require Import sha.verif_sha_bdo2.
 Require Import sha.verif_sha_bdo4.
 Require Import sha.verif_sha_bdo7.
 Require Import sha.verif_sha_bdo8.
@@ -27,83 +26,59 @@ name in_ _in.
 name ctx_ _ctx.
 name i_ _i.
 name data_ _data.
-unfold POSTCONDITION, abbreviate.
+subst POSTCONDITION; unfold abbreviate.
 simpl_stackframe_of.
-apply (remember_value (eval_lvar _X (tarray tuint 16))); intro Xv.
-assert_LOCAL (lvar _X (tarray tuint 16) Xv). {
-  entailer!.
-  unfold lvar, eval_lvar in H3|-*.
-  destruct (Map.get (ve_of rho) _X) as [[? ?]|]; try contradiction; auto.
-  destruct (eqb_type (tarray tuint 16) t); try contradiction; auto.
-}
-replace_SEP 0 (`(data_at_ Tsh (tarray tuint 16) Xv)) .
- entailer!.
+fixup_local_var; intro Xv.
 remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
 assert (Lregs: length regs = 8%nat) 
   by (subst regs; apply length_hash_blocks; auto).
 assert (Zregs: Zlength regs = 8%Z)
  by (rewrite Zlength_correct; rewrite Lregs; reflexivity).
-forward. (* data = in; *)
-assert_PROP (isptr data); [  entailer | ].
+forward data_old. (* data = in; *)
  match goal with |- semax _ _ ?c _ =>
   eapply seq_assocN with (cs := sequenceN 8 c)
  end.
 *
- eapply (semax_frame1 
-             [ lvar _X (tarray tuint 16) Xv ] 
+semax_frame
+             [ lvar _X (tarray tuint 16) Xv  ] 
              [`(data_at_ Tsh (tarray tuint 16) Xv);
                          `(data_block sh (intlist_to_Zlist b) data);
-                         `(K_vector kv)]).
- + eapply sha256_block_load8 with (ctx:=ctx); eassumption.
- + simplify_Delta; reflexivity.
- +
-    instantiate (1:=kv). instantiate (1:=data). (* this line should not be necessary *)
-    entailer!.
- + auto 50 with closed.
+                         `(K_vector kv)].
+apply sha256_block_load8 with (ctx:=ctx); eassumption.
 *
 abbreviate_semax.
-simpl.
-eapply (semax_frame_seq [ lvar _X (tarray tuint 16) Xv ]
-              [`(field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs)
-        ctx)]).
-+ replace Delta with Delta_loop1
-    by (simplify_Delta; reflexivity).
-    apply (sha256_block_data_order_loop1_proof _ sh b ctx data regs kv Xv); auto.
+eapply semax_seq'.
+semax_frame 
+      [  ]
+      [`(field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx)].
+replace Delta with Delta_loop1 by simplify_Delta.
+
+    fold block_data_order_loop1.
+    simple apply (sha256_block_data_order_loop1_proof _ sh b ctx data regs kv Xv); auto.
     apply Zlength_length in H; auto.
- +
-    entailer!.
- + auto 50 with closed.
- +  simpl; abbreviate_semax.
- eapply (semax_frame_seq [ ]
+simpl; abbreviate_semax.
+eapply semax_seq'.
+semax_frame  [ ]
         [`(field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx);
-         `(data_block sh (intlist_to_Zlist b) data)]).
-match goal with |- semax _ _ ?c _ =>
-  change c with block_data_order_loop2
-end.
-apply sha256_block_data_order_loop2_proof
-              with (regs:=regs)(b:=b); eassumption.
- instantiate (1:=Xv).  instantiate (1:=kv). instantiate (1:=ctx). (* should not be necessary *)
-entailer!.
-auto 50 with closed.
+         `(data_block sh (intlist_to_Zlist b) data)].
+ match goal with |- semax _ _ ?c _ => change c with block_data_order_loop2 end.
+ simple eapply sha256_block_data_order_loop2_proof; eassumption.
 abbreviate_semax.
+subst MORE_COMMANDS; unfold abbreviate.
 eapply seq_assocN with (cs := add_them_back).
-eapply (semax_frame1  [  lvar _X (tarray tuint 16) Xv ]
+semax_frame  [  lvar _X (tarray tuint 16) Xv ]
              [`(K_vector kv);
              `(data_at_ Tsh (tarray tuint LBLOCKz) Xv);
-             `(data_block sh (intlist_to_Zlist b) data)]).
-apply (add_them_back_proof _ regs (Round regs (nthi b) 63) ctx); try assumption.
-apply length_Round; auto.
-simplify_Delta; reflexivity.
-        instantiate (1:=kv).
-entailer!.
-auto 50 with closed.
+             `(data_block sh (intlist_to_Zlist b) data)].
+  replace Delta with (initialized _i Delta_loop1) by simplify_Delta.
+  simple apply (add_them_back_proof _ regs (Round regs (nthi b) 63) ctx); try assumption.
+  apply length_Round; auto.
 simpl; abbreviate_semax.
-unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
-replace Delta with (initialized _t (initialized _i Delta_loop1)) 
- by (simplify_Delta; reflexivity).
-clear Delta.
-fold (hash_block regs b).
-simple apply sha256_block_data_order_return; auto.
+forward. (* return; *)
+fold (hash_block  (hash_blocks init_registers hashed) b).
+rewrite hash_blocks_last by auto.
+rewrite (lvar_eval_lvar _ _ _ _ H3).
+cancel.
 Qed.
 
 

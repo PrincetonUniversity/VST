@@ -47,7 +47,7 @@ Definition sumlist_spec :=
      PROP() LOCAL (temp _p p)
      SEP (`(lseg LS sh (map Vint contents) p nullval))
   POST [ tint ]  
-     PROP() LOCAL(temp ret_temp (Vint (sum_int contents))) SEP(TT).
+     PROP() LOCAL(temp ret_temp (Vint (sum_int contents))) SEP(`TT).
 (** This specification has an imprecise and leaky postcondition:
  ** it neglects to say that the original list [p] is still there.
  ** Because the postcondition has no spatial part, it makes no
@@ -104,7 +104,7 @@ Definition sumlist_Inv (sh: share) (contents: list int) : environ->mpred :=
             PROP () 
             LOCAL (temp _t t; 
                         temp _s (Vint (Int.sub (sum_int contents) (sum_int cts))))
-            SEP ( TT ; `(lseg LS sh (map Vint cts) t nullval))).
+            SEP ( `TT ; `(lseg LS sh (map Vint cts) t nullval))).
 
 (** For every function definition in the C program, prove that the
  ** function-body (in this case, f_sumlist) satisfies its specification
@@ -126,9 +126,9 @@ name s _s.
 name h _h.
 forward.  (* s = 0; *) 
 forward.  (* t = p; *)
-
 forward_while (sumlist_Inv sh contents)
-    (PROP() LOCAL (`((fun v => sum_int contents = force_int v) : val->Prop) (eval_id _s)) SEP(TT)).
+    (PROP() LOCAL (temp _s (Vint (sum_int contents))) SEP (TT))
+    [cts t0].
 (* Prove that current precondition implies loop invariant *)
 apply exp_right with contents.
 apply exp_right with p.
@@ -136,23 +136,21 @@ entailer!.
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
-destruct a as [?cts ?t]. simpl in HRE; subst t0.
 entailer!.
-destruct H as [H0 _]; specialize (H0 (eq_refl _)).
-destruct cts; inv H0; normalize.
+destruct H1 as [H1 _]; specialize (H1 (eq_refl _)).
+destruct cts; inv H1; normalize.
 (* Prove that loop body preserves invariant *)
-destruct a as [?cts ?t].
-simpl in HRE. simpl @fst; simpl @snd.
+simpl in HRE.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
 simpl valinject.
-unfold POSTCONDITION, abbreviate.
 destruct cts; inv H.
 rewrite list_cell_eq.
 forward.  (* h = t->head; *)
-forward.  (*  t = t->tail; *)
-normalize. subst t0.
-forward.  (* s = s + h; *)
+forward t_old.  (*  t = t->tail; *)
+subst t_old.
+forward s_old.  (* s = s + h; *)
+subst s_old.
 (* Prove postcondition of loop body implies loop invariant *)
 apply exp_right with (cts,y).
 entailer!.
@@ -169,6 +167,10 @@ Definition reverse_Inv (sh: share) (contents: list val) : environ->mpred :=
             SEP (`(lseg LS sh cts1 w nullval);
                    `(lseg LS sh cts2 v nullval))).
 
+Definition reverse_Post sh contents := (EX w: val, 
+      PROP() LOCAL (temp _w w)
+      SEP( `(lseg LS sh (rev contents) w nullval))).
+
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
 start_function.
@@ -178,10 +180,8 @@ name w_ _w.
 name t_ _t.
 forward.  (* w = NULL; *)
 forward.  (* v = p; *)
-forward_while (reverse_Inv sh contents)
-     (EX w: val, 
-      PROP() LOCAL (temp _w w)
-      SEP( `(lseg LS sh (rev contents) w nullval))).
+forward_while (reverse_Inv sh contents) (reverse_Post sh contents)
+      [[[cts1 cts2] w] v].
 (* precondition implies loop invariant *)
 apply exp_right with nil.
 apply exp_right with contents.
@@ -191,23 +191,21 @@ entailer!.
 (* loop invariant implies typechecking of loop condition *)
 entailer!.
 (* loop invariant (and not loop condition) implies loop postcondition *)
-destruct a as [[[cts1 cts2] w] v]. simpl @fst in *. simpl @snd in *.
 apply exp_right with w.
 entailer!. 
 rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
-destruct a as [[[cts1 cts2] w] v]. simpl @fst in *. simpl @snd in *.
-normalize.
 focus_SEP 1; apply semax_lseg_nonnull;
-        [entailer | intros h r y ? ?].
-simpl valinject.
+        [entailer | intros h r y ? ?; simpl valinject].
 subst cts2.
 forward.  (* t = v->tail; *)
 forward. (*  v->tail = w; *)
+simpl upd_reptype.
 replace_SEP 1 (`(field_at sh t_struct_list [StructField _tail] w v)).
 entailer.
-forward.  (*  w = v; *)
-forward.  (* v = t; *)
+forward w_old.  (*  w = v; *)
+forward v_old.  (* v = t; *)
+subst w_old v_old.
 (* at end of loop body, re-establish invariant *)
 apply exp_right with (h::cts1,r,v,y).
 simpl @fst; simpl @snd.
@@ -218,13 +216,13 @@ entailer!.
    unfold lseg_cons.
    apply andp_right.
    + apply prop_right.
-      destruct v_0; try contradiction; intro Hx; inv Hx.
+      destruct w_; try contradiction; intro Hx; inv Hx.
    + apply exp_right with h.
       apply exp_right with cts1.
-      apply exp_right with w_0.
+      apply exp_right with w.
       entailer!.
 * (* after the loop *)
-apply extract_exists_pre; intro w.
+forward_intro w.
 forward.  (* return w; *)
 apply exp_right with w_; entailer!.
 Qed.
@@ -383,18 +381,17 @@ Proof.
 name r _r.
 name s _s.
 start_function.
-normalize; intro x'; normalize; intro x''; normalize. (* shouldn't be necessary - fix Ltac simpl_main_pre' *)
+forward_intro x'; forward_intro x''.  (* shouldn't be necessary - fix Ltac simpl_main_pre' *)
+normalize.
 assert_PROP (x''=x); [entailer!; eapply gvar_uniq; eauto | drop_LOCAL 0%nat; subst x''].
 assert_PROP (x'=x); [entailer!; eapply gvar_uniq; eauto | drop_LOCAL 0%nat; subst x'].
 eapply semax_pre; [
   eapply derives_trans; [ | apply (setup_globals x) ] | ].
  entailer!.
 forward_call' (*  r = reverse(three); *)
-  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], x).
-rename vret into r'.
+  (Ews, map Vint [Int.repr 1; Int.repr 2; Int.repr 3], x) r'.
 forward_call'  (* s = sumlist(r); *)
-   (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r').
-rename vret into s'.
+   (Ews, Int.repr 3 :: Int.repr 2 :: Int.repr 1 :: nil, r') s'.
 forward.  (* return s; *)
 Qed.
 

@@ -556,8 +556,6 @@ Lemma field_at_data_at_cancel:
   forall sh t v p, field_at sh t nil v p |-- data_at sh t v p.
 Proof. intros; rewrite data_at_field_at; auto. Qed.
 
-Hint Resolve data_at_field_at_cancel field_at_data_at_cancel : cancel.
-
 Lemma field_at_data_at: forall sh t gfs v p,
   field_at sh t gfs v p =
   data_at sh (nested_field_type2 t gfs) v (field_address t gfs p).
@@ -624,39 +622,80 @@ Proof.
   apply field_at__data_at_.
 Qed.
 
-Lemma field_at_local_facts: forall sh t gfs v p,
-  field_at sh t gfs v p |-- !! isptr p.
+Lemma field_at_compatible:
+  forall sh t path v c,
+     field_at sh t path v c |-- !! field_compatible t path c.
 Proof.
   intros.
-  unfold field_at. simpl. apply andp_left2.
-  apply data_at'_local_facts.
+  rewrite field_at_data_at.
+  rewrite data_at_isptr.
+  unfold field_address.
+  if_tac.
+  + normalize.
+  + normalize.
 Qed.
-Hint Resolve field_at_local_facts : saturate_local.
+
+Lemma field_at_compatible':
+ forall sh t path v c,
+     field_at sh t path v c =
+     !! field_compatible t path c && field_at sh t path v c.
+Proof.
+intros.
+apply pred_ext.
+apply andp_right.
+apply field_at_compatible.
+auto.
+normalize.
+Qed.
+
+Hint Resolve field_at_compatible : saturate_local.
+
+Lemma data_at_compatible: forall sh t v p, data_at sh t v p |-- !! field_compatible t nil p.
+Proof. intros.
+ rewrite data_at_field_at; apply field_at_compatible.
+Qed.
+Hint Resolve data_at_compatible : saturate_local.
+
+Lemma data_at__compatible: forall sh t p, data_at_ sh t p |-- !! field_compatible t nil p.
+Proof. intros.
+ unfold data_at_. apply data_at_compatible.
+Qed.
+Hint Resolve data_at__compatible : saturate_local.
 
 Lemma field_at_isptr: forall sh t gfs v p,
   field_at sh t gfs v p = (!! isptr p) && field_at sh t gfs v p.
-Proof. intros. apply local_facts_isptr. apply field_at_local_facts. Qed.
+Proof. intros. apply local_facts_isptr. 
+ eapply derives_trans; [ apply field_at_compatible | ].
+ apply prop_derives; intros [? ?]; auto.
+Qed.
 
 Lemma field_at_offset_zero: forall sh t gfs v p,
   field_at sh t gfs v p = field_at sh t gfs v (offset_val Int.zero p).
-Proof. intros. apply local_facts_offset_zero. apply field_at_local_facts. Qed.
+Proof. intros. apply local_facts_offset_zero.
+ intros. rewrite field_at_isptr; normalize.
+Qed.
 
-Lemma field_at__local_facts: forall sh t gfs p,
-  field_at_ sh t gfs p |-- !! isptr p.
+Lemma field_at__compatible: forall sh t gfs p,
+  field_at_ sh t gfs p |-- !! field_compatible t gfs p.
 Proof.
   intros.
   unfold field_at_.
-  apply field_at_local_facts.
+  apply field_at_compatible.
 Qed.
-Hint Resolve field_at__local_facts : saturate_local.
+Hint Resolve field_at__compatible : saturate_local.
 
 Lemma field_at__isptr: forall sh t gfs p,
   field_at_ sh t gfs p = (!! isptr p) && field_at_ sh t gfs p.
-Proof. intros. apply local_facts_isptr. apply field_at__local_facts. Qed.
+Proof. intros.
+ unfold field_at_. apply field_at_isptr.
+Qed.
 
 Lemma field_at__offset_zero: forall sh t gfs p,
   field_at_ sh t gfs p = field_at_ sh t gfs (offset_val Int.zero p).
-Proof. intros. apply local_facts_offset_zero. apply field_at__local_facts. Qed.
+Proof. intros.
+ unfold field_at_.
+ apply field_at_offset_zero.
+Qed.
 
 Lemma field_at_field_at_: forall sh t gfs v p, 
   field_at sh t gfs v p |-- field_at_ sh t gfs p.
@@ -680,8 +719,25 @@ Hint Rewrite <- field_at__offset_zero: norm.
 Hint Rewrite <- field_at_offset_zero: cancel.
 Hint Rewrite <- field_at__offset_zero: cancel.
 
-Hint Extern 2 (field_at _ _ _ _ _ |-- _) => 
-   (apply field_at_field_at_; solve [auto]) : cancel.
+(* We do these as Hint Extern, instead of Hint Resolve,
+  to limit their application and make them fail faster *)
+
+Hint Extern 1 (data_at _ _ _ _ |-- field_at _ _ nil _ _) =>
+    (apply data_at_field_at_cancel) : cancel.
+
+Hint Extern 1 (field_at _ _ nil _ _ |-- data_at _ _ _ _) =>
+    (apply field_at_data_at_cancel) : cancel.
+
+Hint Extern 2 (field_at _ _ _ _ _ |-- field_at_ _ _ _ _) => 
+   (apply field_at_field_at_) : cancel.
+
+Hint Extern 2 (field_at _ _ _ _ _ |-- field_at ?sh ?t ?gfs ?v _) => 
+   (change (field_at sh t gfs v) with (field_at_ sh t gfs);
+    apply field_at_field_at_) : cancel.
+
+Hint Extern 2 (field_at ?sh ?t ?gfs ?v _ |-- field_at_ _ _ _ _) => 
+   (change (field_at sh t gfs v) with (field_at_ sh t gfs);
+    apply derives_refl) : cancel.
 
 (*
 Lemma field_at_field_at: forall sh t gfs0 gfs1 v v' p,
@@ -727,42 +783,6 @@ Qed.
 Other lemmas
 
 ************************************************)
-
-Lemma field_at_compatible:
-  forall sh t path v c,
-     field_at sh t path v c |-- !! field_compatible t path c.
-Proof.
-  intros.
-  rewrite field_at_data_at.
-  rewrite data_at_isptr.
-  unfold field_address.
-  if_tac.
-  + normalize.
-  + normalize.
-Qed.
-
-Lemma field_at_compatible':
- forall sh t path v c,
-     field_at sh t path v c =
-     !! field_compatible t path c && field_at sh t path v c.
-Proof.
-intros.
-apply pred_ext.
-apply andp_right.
-apply field_at_compatible.
-auto.
-normalize.
-Qed.
-
-Lemma field_address_clarify:
- forall t path c,
-   is_pointer_or_null (field_address t path c) ->
-   field_address t path c = offset_val (Int.repr (nested_field_offset2 t path)) c.
-Proof.
- intros. unfold field_address in *.
-  if_tac; try contradiction.
-  auto.
-Qed.
 
 Lemma lower_andp_val:
   forall (P Q: val->mpred) v, 
@@ -1028,4 +1048,61 @@ Proof.
 intros.
 apply field_at_conflict; assumption.
 Qed.
+
+Lemma field_compatible_isptr :
+  forall t path p, field_compatible t path p -> isptr p.
+Proof.
+intros. destruct H; auto.
+Qed.
+
+Lemma field_compatible0_isptr :
+  forall t path p, field_compatible0 t path p -> isptr p.
+Proof.
+intros. destruct H; auto.
+Qed.
+
+Hint Extern 1 (isptr _) => (eapply field_compatible_isptr; eassumption).
+Hint Extern 1 (isptr _) => (eapply field_compatible0_isptr; eassumption).
+
+Lemma field_compatible_offset_isptr:
+forall t path n c, field_compatible t path (offset_val n c) ->
+          isptr c.
+Proof.
+intros.
+destruct H as [? _]. destruct c; try contradiction; auto.
+Qed.
+
+Lemma field_compatible0_offset_isptr:
+forall t path n c, field_compatible t path (offset_val n c) ->
+          isptr c.
+Proof.
+intros.
+destruct H as [? _]. destruct c; try contradiction; auto.
+Qed.
+
+Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption).
+Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption).
+
+Lemma is_pointer_or_null_field_address_lemma:
+ forall t path p,
+   is_pointer_or_null (field_address t path p) =
+   field_compatible t path p.
+Proof.
+intros.
+unfold field_address.
+if_tac; apply prop_ext; intuition.
+Qed.
+
+Lemma isptr_field_address_lemma:
+ forall t path p,
+   isptr (field_address t path p) =
+   field_compatible t path p.
+Proof.
+intros.
+unfold field_address.
+if_tac; apply prop_ext; intuition.
+Qed.
+
+Hint Rewrite is_pointer_or_null_field_address_lemma : entailer_rewrite.
+Hint Rewrite isptr_field_address_lemma : entailer_rewrite.
 

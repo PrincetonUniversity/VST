@@ -1,16 +1,18 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
+Require Import floyd.expr_lemmas.
 Require Import floyd.client_lemmas.
-Require Import floyd.nested_field_lemmas.
+(*Require Import floyd.nested_field_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
+*)
 Require Import floyd.closed_lemmas.
 Import Cop.
 Local Open Scope logic.
 
 Lemma semax_func_skip1: 
    forall {Espec: OracleKind} 
-        V (G: funspecs) fs i f j f' G',
+        V (G: funspecs) (cs: compspecs) fs i f j f' G',
       i <> j ->
       semax_func V G fs ((j,f')::G') ->
       semax_func V G ((i,f)::fs) ((j,f')::G').
@@ -21,7 +23,7 @@ Qed.
 
 Lemma semax_func_nil': 
    forall {Espec: OracleKind} 
-        V (G: funspecs) fs,
+        V (G: funspecs)  (cs: compspecs) fs,
       semax_func V G fs nil.
 Proof.
 intros.
@@ -34,9 +36,9 @@ Lemma semax_ifthenelse_PQR :
    forall Espec Delta P Q R (b: expr) c d Post,
       bool_type (typeof b) = true ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta b) ->
-     @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof b)) (eval_expr b) :: Q) (SEPx R)))
+     @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof b)) (eval_expr Delta b) :: Q) (SEPx R)))
                         c Post -> 
-     @semax Espec Delta (PROPx P (LOCALx (`(typed_false (typeof b)) (eval_expr b) :: Q) (SEPx R)))
+     @semax Espec Delta (PROPx P (LOCALx (`(typed_false (typeof b)) (eval_expr Delta b) :: Q) (SEPx R)))
                         d Post -> 
      @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
                          (Sifthenelse b c d) Post.
@@ -108,7 +110,7 @@ Lemma semax_ifthenelse_PQR' :
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
         local (tc_expr Delta b)  ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
-        local (`(eq v) (eval_expr b)) ->
+        local (`(eq v) (eval_expr Delta b)) ->
      @semax Espec Delta (PROPx (typed_true (typeof b) v :: P) (LOCALx Q (SEPx R)))
                         c Post -> 
      @semax Espec Delta (PROPx (typed_false (typeof b) v :: P) (LOCALx Q (SEPx R)))
@@ -118,7 +120,7 @@ Lemma semax_ifthenelse_PQR' :
 Proof.
  intros.
  eapply semax_pre;  [ | apply semax_ifthenelse]; auto.
- instantiate (1:=(PROPx P (LOCALx (`(eq v) (eval_expr b) :: Q) (SEPx R)))).
+ instantiate (1:=(PROPx P (LOCALx (`(eq v) (eval_expr Delta b) :: Q) (SEPx R)))).
  apply andp_right; auto.
  rewrite <- (insert_local (`(eq v) _)).
  apply andp_right; auto.
@@ -188,31 +190,10 @@ Proof. intros.
 eapply semax_pre. apply H0. auto.
 Qed.
 
-Lemma tc_environ_init: forall Delta id rho,
-                         tc_environ (initialized id Delta) rho ->
-                         tc_environ Delta rho.
-Proof.  
-intros.
-unfold tc_environ in *. destruct Delta.
-unfold initialized in *. simpl in *. unfold temp_types in *.
-unfold var_types in *. unfold ret_type in *. simpl in *.
-remember (tyc_temps ! id). destruct o; auto.
-destruct p. unfold typecheck_environ in *. intuition.
-clear - H0 Heqo. unfold typecheck_temp_environ in *.
-intros. destruct (eq_dec id id0). subst.
-specialize (H0 id0 true t). spec H0.
-unfold temp_types in *. simpl in *. rewrite PTree.gss. auto.
-destruct H0. exists x. intuition. unfold temp_types in *.
-simpl in H. rewrite H in *. inv Heqo. auto.
-apply H0. 
-unfold temp_types in *. simpl in *.
-rewrite PTree.gso. auto. auto.
-Qed.
-
-Lemma bool_cast : forall e rho,
-   tc_val (typeof e) (eval_expr e rho) ->
-  force_val (Cop2.sem_cast tbool tint (force_val (Cop2.sem_cast (typeof e) tbool (eval_expr e rho)))) =
-   match strict_bool_val (eval_expr e rho) (typeof e) with
+Lemma bool_cast : forall Delta e rho,
+   tc_val (typeof e) (eval_expr Delta e rho) ->
+  force_val (Cop2.sem_cast tbool tint (force_val (Cop2.sem_cast (typeof e) tbool (eval_expr Delta e rho)))) =
+   match strict_bool_val (eval_expr Delta e rho) (typeof e) with
    | Some true => Vint Int.one
    | Some false => Vint Int.zero
    | None => Vundef
@@ -221,40 +202,26 @@ Proof.
 intros.
 rewrite tc_val_eq in H.
  simpl. unfold Cop2.sem_cast.
-remember (eval_expr e rho).
+remember (eval_expr Delta e rho).
 destruct v.
 * inv H.
-* destruct (typeof e) as [ | | | [ | ] |  | | | | | ]; inv H; simpl;
+* destruct (typeof e) as [ | | | [ | ] |  | | | | ]; inv H; simpl;
   remember (Int.eq i Int.zero); if_tac; auto; try congruence.
-* destruct (typeof e) as [ | | | [ | ] |  | | | | | ]; inv H; simpl;
+* destruct (typeof e) as [ | | | [ | ] |  | | | | ]; inv H; simpl;
   remember (Int64.eq i Int64.zero); if_tac; auto; try congruence.
-* destruct (typeof e) as [ | | | [ | ] |  | | | | | ]; inv H; simpl;
+* destruct (typeof e) as [ | | | [ | ] |  | | | | ]; inv H; simpl;
     if_tac; auto.
-*destruct (typeof e) as [ | | | [ | ] |  | | | | | ]; inv H; simpl;
+*destruct (typeof e) as [ | | | [ | ] |  | | | | ]; inv H; simpl;
     if_tac; auto.
-*destruct (typeof e) as [ | | | [ | ] |  | | | | | ]; inv H; auto.
-Qed.
-
-Lemma tycontext_eqv_sub:
-  forall Delta Delta', tycontext_eqv Delta Delta' ->
-         tycontext_sub Delta Delta'.
-Proof.
-intros.
-destruct H as [? [? [? [? ?]]]].
-repeat split; intros; auto.
-rewrite H; auto.
-destruct ((temp_types Delta') ! id); auto.
-destruct p. split; auto. destruct b; reflexivity.
-rewrite H2. destruct ((glob_types Delta') ! id); simpl; auto.
-rewrite H3. destruct ((glob_specs Delta') ! id); simpl; auto.
+*destruct (typeof e) as [ | | | [ | ] |  | | | | ]; inv H; auto.
 Qed.
 
 Lemma semax_while : 
  forall Espec Delta Q test body R,
      bool_type (typeof test) = true ->
      (local (tc_environ Delta) && Q |-- local (tc_expr Delta test)) ->
-     (local (tc_environ Delta) && local (lift1 (typed_false (typeof test)) (eval_expr test)) && Q |-- R EK_normal None) ->
-     @semax Espec Delta (local (`(typed_true (typeof test)) (eval_expr test)) && Q)  body (loop1_ret_assert Q R) ->
+     (local (tc_environ Delta) && local (lift1 (typed_false (typeof test)) (eval_expr Delta test)) && Q |-- R EK_normal None) ->
+     @semax Espec Delta (local (`(typed_true (typeof test)) (eval_expr Delta test)) && Q)  body (loop1_ret_assert Q R) ->
      @semax Espec Delta Q (Swhile test body) R.
 Proof.
 intros ? ? ? ? ? ? BT TC Post H.
@@ -266,7 +233,7 @@ Focus 2.
  go_lowerx; try discriminate.
 (* End Focus 2*)
 apply semax_seq with 
- (local (`(typed_true (typeof test)) (eval_expr test)) && Q).
+ (local (`(typed_true (typeof test)) (eval_expr Delta test)) && Q).
 apply semax_pre_simple with (local (tc_expr Delta test) && Q).
 apply andp_right. apply TC.
 apply andp_left2.
@@ -291,7 +258,7 @@ Lemma semax_while'_new :
  forall Espec (v: val) Delta P Q R test body Post,
      bool_type (typeof test) = true ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta test) ->
-     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr test)) ->
+     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (`(eq v) (eval_expr Delta test)) ->
      PROPx (typed_false (typeof test) v :: P) (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- Post EK_normal None ->
      @semax Espec Delta (PROPx (typed_true (typeof test) v :: P) (LOCALx Q (SEPx R)))  body (loop1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
      @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) (Swhile test body) Post.
@@ -301,9 +268,9 @@ apply semax_while; auto.
 eapply derives_trans; [ | apply H0].
 normalize.
 eapply derives_trans; [ | apply H2].
- apply derives_trans with (local (`(eq v) (eval_expr test)) &&
+ apply derives_trans with (local (`(eq v) (eval_expr Delta test)) &&
      PROPx P
-      (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: Q) (SEPx R))).
+      (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr Delta test) :: Q) (SEPx R))).
  apply andp_right. 
  rewrite (andp_comm (local (tc_environ _))). 
  rewrite andp_assoc. apply andp_left2. rewrite insert_local; auto.
@@ -319,9 +286,9 @@ eapply derives_trans; [ | apply H2].
  split; auto.
 eapply semax_pre_simple; [ | apply H3].
  rewrite <- andp_assoc.
- apply derives_trans with (local (`(eq v) (eval_expr test)) &&
+ apply derives_trans with (local (`(eq v) (eval_expr Delta test)) &&
      PROPx P
-      (LOCALx (tc_environ Delta :: `(typed_true (typeof test)) (eval_expr test) :: Q) (SEPx R))).
+      (LOCALx (tc_environ Delta :: `(typed_true (typeof test)) (eval_expr Delta test) :: Q) (SEPx R))).
  apply andp_right. 
  rewrite (andp_comm (local (tc_environ _))). 
  rewrite andp_assoc. apply andp_left2. rewrite insert_local; auto.
@@ -341,7 +308,7 @@ Lemma semax_while'_new1 :
  forall Espec {A} (v: A -> val) Delta P Q R test body Post,
      bool_type (typeof test) = true ->
      (forall a, PROPx (P a) (LOCALx (tc_environ Delta :: Q a) (SEPx (R a))) |-- local (tc_expr Delta test)) ->
-     (forall a, PROPx (P a) (LOCALx (tc_environ Delta :: Q a) (SEPx (R a))) |-- local (`(eq (v a)) (eval_expr test))) ->
+     (forall a, PROPx (P a) (LOCALx (tc_environ Delta :: Q a) (SEPx (R a))) |-- local (`(eq (v a)) (eval_expr Delta test))) ->
      (forall a, PROPx (typed_false (typeof test) (v a) :: (P a)) (LOCALx (tc_environ Delta :: (Q a)) (SEPx (R a))) 
                        |-- Post EK_normal None) ->
      (forall a, @semax Espec Delta (PROPx (typed_true (typeof test) (v a) :: (P a)) (LOCALx (Q a) (SEPx (R a))))
@@ -355,9 +322,9 @@ eapply derives_trans; [ | apply H0].
 normalize.
 repeat rewrite exp_andp2. apply exp_left; intro a.
 eapply derives_trans; [ | apply (H2 a)].
- apply derives_trans with (local (`(eq (v a)) (eval_expr test)) &&
+ apply derives_trans with (local (`(eq (v a)) (eval_expr Delta test)) &&
      PROPx (P a)
-      (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: (Q a)) (SEPx (R a)))).
+      (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr Delta test) :: (Q a)) (SEPx (R a)))).
  apply andp_right. 
  rewrite (andp_comm (local (tc_environ _))). 
  rewrite andp_assoc. apply andp_left2. rewrite insert_local; auto.
@@ -374,9 +341,9 @@ eapply derives_trans; [ | apply (H2 a)].
  repeat rewrite exp_andp2. apply extract_exists_pre; intro a.
 eapply semax_pre_simple; [ | apply (H3 a)]. clear - H1.
  rewrite <- andp_assoc.
- apply derives_trans with (local (`(eq (v a)) (eval_expr test)) &&
+ apply derives_trans with (local (`(eq (v a)) (eval_expr Delta test)) &&
      PROPx (P a)
-      (LOCALx (tc_environ Delta :: `(typed_true (typeof test)) (eval_expr test) :: (Q a)) (SEPx (R a)))).
+      (LOCALx (tc_environ Delta :: `(typed_true (typeof test)) (eval_expr Delta test) :: (Q a)) (SEPx (R a)))).
  apply andp_right. 
  rewrite (andp_comm (local (tc_environ _))). 
  rewrite andp_assoc. apply andp_left2. rewrite insert_local; auto.
@@ -392,24 +359,12 @@ eapply semax_pre_simple; [ | apply (H3 a)]. clear - H1.
  auto. 
 Qed.
 
-Lemma exp_uncurry:
-  forall {T} {ND: NatDed T} A B F, (@exp T ND A (fun a => @exp T ND B (fun b => F a b)))
-   = @exp T ND (A*B) (fun ab => F (fst ab) (snd ab)).
-Proof.
-intros.
-apply pred_ext.
-apply exp_left; intro a. apply exp_left; intro b. apply exp_right with (a,b).
-apply derives_refl.
-apply exp_left; intro ab. apply exp_right with (fst ab). apply exp_right with (snd ab).
-apply derives_refl.
-Qed.
-
 Lemma semax_while' : 
  forall Espec Delta P Q R test body Post,
      bool_type (typeof test) = true ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta test) ->
-     PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: Q) (SEPx R)) |-- Post EK_normal None ->
-     @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q) (SEPx R)))  body (loop1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
+     PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr Delta test) :: Q) (SEPx R)) |-- Post EK_normal None ->
+     @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr Delta test) :: Q) (SEPx R)))  body (loop1_ret_assert (PROPx P (LOCALx Q (SEPx R))) Post) ->
      @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) (Swhile test body) Post.
 Proof.
 intros.
@@ -428,9 +383,9 @@ Lemma semax_for :
      bool_type (typeof test) = true ->
      local (tc_environ Delta) && Q |-- local (tc_expr Delta test) ->
      local (tc_environ Delta) 
-      && local (`(typed_false (typeof test)) (eval_expr test)) 
+      && local (`(typed_false (typeof test)) (eval_expr Delta test)) 
       && Q |-- Post EK_normal None ->
-     @semax Espec Delta (local (`(typed_true (typeof test)) (eval_expr test)) && Q)
+     @semax Espec Delta (local (`(typed_true (typeof test)) (eval_expr Delta test)) && Q)
              body (loop1_ret_assert PreIncr Post) ->
      @semax Espec Delta PreIncr incr (normal_ret_assert Q) ->
      @semax Espec Delta Q
@@ -479,8 +434,8 @@ Lemma semax_for' :
  forall Espec Delta P Q R test body incr PreIncr Post,
      bool_type (typeof test) = true ->
      PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta test) ->
-     PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr test) :: Q) (SEPx R)) |-- Post EK_normal None ->
-     @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr test) :: Q) (SEPx R)))
+     PROPx P (LOCALx (tc_environ Delta :: `(typed_false (typeof test)) (eval_expr Delta test) :: Q) (SEPx R)) |-- Post EK_normal None ->
+     @semax Espec Delta (PROPx P (LOCALx (`(typed_true (typeof test)) (eval_expr Delta test) :: Q) (SEPx R)))
              body (loop1_ret_assert PreIncr Post) ->
      @semax Espec Delta PreIncr incr (normal_ret_assert (PROPx P (LOCALx Q (SEPx R)))) ->
      @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) 
@@ -498,11 +453,11 @@ Lemma forward_setx_closed_now':
   forall Espec Delta P (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e,
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
-  closed_wrt_vars (eq id) (eval_expr e) ->
+  closed_wrt_vars (eq id) (eval_expr Delta e) ->
   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e)  ->
   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
   @semax Espec Delta (PROPx P (LOCALx Q (SEPx R))) (Sset id e) 
-        (normal_ret_assert (PROPx P (LOCALx (`eq (eval_id id) (eval_expr e)::Q) (SEPx R)))).
+        (normal_ret_assert (PROPx P (LOCALx (`eq (eval_id id) (eval_expr Delta e)::Q) (SEPx R)))).
 Proof.
 intros.
 eapply semax_pre_simple; [ | apply semax_set].
@@ -524,10 +479,10 @@ Lemma forward_setx_closed_now:
   forall Espec Delta (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e PQR,
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
-  closed_wrt_vars (eq id) (eval_expr e) ->
+  closed_wrt_vars (eq id) (eval_expr Delta e) ->
   PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e)  ->
   PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
-  normal_ret_assert (PROPx nil (LOCALx (`eq (eval_id id) (eval_expr e)::Q) (SEPx R))) |-- PQR ->
+  normal_ret_assert (PROPx nil (LOCALx (`eq (eval_id id) (eval_expr Delta e)::Q) (SEPx R))) |-- PQR ->
   @semax Espec Delta (PROPx nil (LOCALx Q (SEPx R))) (Sset id e) PQR.
 Proof.
 intros.
@@ -542,17 +497,17 @@ forall Espec Delta P Q R id e1 e2 cmp ty sh1 sh2 PQR
 (TID : typecheck_tid_ptr_compare Delta id = true), 
 Forall (closed_wrt_vars (eq id)) Q ->
 Forall (closed_wrt_vars (eq id)) R ->
-closed_wrt_vars (eq id) (eval_expr ((Ebinop cmp e1 e2 ty))) ->
+closed_wrt_vars (eq id) (eval_expr Delta ((Ebinop cmp e1 e2 ty))) ->
 ( PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta (Ebinop cmp e1 e2 ty))  /\
   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- local (tc_temp_id id (ty) Delta (Ebinop cmp e1 e2 ty)))
 \/
 PROPx P (LOCALx ((tc_environ Delta)::Q) (SEPx R)) |-- (local (tc_expr Delta e1) && local (tc_expr Delta e2) &&
-      local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-      (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
-      (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT)) ->
+      local (`(blocks_match cmp) (eval_expr Delta e1) (eval_expr Delta e2)) &&
+      (`(mapsto_ sh1 (typeof e1)) (eval_expr Delta e1) * TT) &&
+      (`(mapsto_ sh2 (typeof e2)) (eval_expr Delta e2) * TT)) ->
 ((normal_ret_assert
      (PROPx P (LOCALx (`eq (eval_id id) 
-                     (eval_expr ((Ebinop cmp e1 e2 ty))) :: Q)
+                     (eval_expr Delta ((Ebinop cmp e1 e2 ty))) :: Q)
           (SEPx  R))))) |-- PQR ->
 is_comparison cmp = true ->
 @semax Espec Delta
@@ -582,11 +537,11 @@ Lemma forward_setx_closed_now_seq:
   forall Espec Delta (Q: list (environ -> Prop)) (R: list (environ->mpred)) id e c PQR,
   Forall (closed_wrt_vars (eq id)) Q ->
   Forall (closed_wrt_vars (eq id)) R ->
-  closed_wrt_vars (eq id) (eval_expr e) ->
+  closed_wrt_vars (eq id) (eval_expr Delta e) ->
   PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e)  ->
   PROPx nil (LOCALx (tc_environ Delta :: Q) (SEPx R))  |-- local (tc_temp_id id (typeof e) Delta e) ->
   semax (update_tycon Delta (Sset id e))
-           (PROPx nil (LOCALx (`eq (eval_id id) (eval_expr e)::Q) (SEPx R))) c PQR ->
+           (PROPx nil (LOCALx (`eq (eval_id id) (eval_expr Delta e)::Q) (SEPx R))) c PQR ->
   @semax Espec Delta (PROPx nil (LOCALx Q (SEPx R))) (Ssequence (Sset id e) c) PQR.
 Proof.
  intros.
@@ -596,6 +551,7 @@ Proof.
  apply H4.
 Qed.
 
+(*
 Lemma field_at_mapsto__at1:
   forall Espec Delta P Q sh ty fld e v R c Post,
     @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`(field_at_ sh ty fld) e :: R)))) c Post ->
@@ -626,6 +582,7 @@ intros.
  apply later_derives; auto.
  unfold_lift; apply field_at_field_at_.
 Qed.
+*)
 
 Lemma forward_setx':
   forall Espec Delta P id e,
@@ -634,7 +591,7 @@ Lemma forward_setx':
              P
              (Sset id e)
              (normal_ret_assert
-                  (EX old:val,  local (`eq (eval_id id) (subst id (`old) (eval_expr e))) &&
+                  (EX old:val,  local (`eq (eval_id id) (subst id (`old) (eval_expr Delta e))) &&
                             subst id (`old) P)).
 Proof.
 intros.
@@ -654,7 +611,7 @@ Lemma forward_setx:
              (normal_ret_assert
                   (EX old:val,  
                     PROPx P
-                     (LOCALx (`eq (eval_id id) (subst id (`old) (eval_expr e)) ::
+                     (LOCALx (`eq (eval_id id) (subst id (`old) (eval_expr Delta e)) ::
                                      map (subst id (`old)) Q)
                       (SEPx (map (subst id (`old)) R))))).
 Proof.
@@ -693,7 +650,7 @@ Lemma forward_setx_weak:
              (normal_ret_assert
                   (EX old:val,  
                     PROPx P
-                     (LOCALx (`eq (eval_id id) (subst id (`old) (eval_expr e)) ::
+                     (LOCALx (`eq (eval_id id) (subst id (`old) (eval_expr Delta e)) ::
                                      map (subst id (`old)) Q)
                       (SEPx (map (subst id (`old)) R))))).
 Proof.
@@ -710,9 +667,9 @@ Qed.
 Lemma forward_ptr_compare'': 
 forall Espec Delta P id e1 e2 sh1 sh2 cmp ty, 
 P |-- (local (tc_expr Delta e1) && local (tc_expr Delta e2) &&
-      local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-      (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
-      (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT)) ->
+      local (`(blocks_match cmp) (eval_expr Delta e1) (eval_expr Delta e2)) &&
+      (`(mapsto_ sh1 (typeof e1)) (eval_expr Delta e1) * TT) &&
+      (`(mapsto_ sh2 (typeof e2)) (eval_expr Delta e2) * TT)) ->
 is_comparison cmp = true ->
 typecheck_tid_ptr_compare Delta id = true ->
 @semax Espec Delta
@@ -720,7 +677,7 @@ typecheck_tid_ptr_compare Delta id = true ->
     (Sset id (Ebinop cmp e1 e2 ty))
   ((normal_ret_assert
      (EX  old : val,
-       (local (`eq (eval_id id) (subst id `old (eval_expr 
+       (local (`eq (eval_id id) (subst id `old (eval_expr Delta 
                                      (Ebinop cmp e1 e2 ty))))) &&
        (subst id (`old)) P))).
 Proof. 
@@ -745,14 +702,14 @@ forall (Delta: tycontext) P Q R id cmp e1 e2 ty sh1 sh2 PQR,
     PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))
          |-- local (tc_expr Delta e1) &&
              local (tc_expr Delta e2)  && 
-          local (`(SeparationLogic.blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-          (`(mapsto_ sh1 (typeof e1)) (eval_expr e1 ) * TT) && 
-          (`(mapsto_ sh2 (typeof e2)) (eval_expr e2 ) * TT) ->
+          local (`(SeparationLogic.blocks_match cmp) (eval_expr Delta e1) (eval_expr Delta e2)) &&
+          (`(mapsto_ sh1 (typeof e1)) (eval_expr Delta e1 ) * TT) && 
+          (`(mapsto_ sh2 (typeof e2)) (eval_expr Delta e2 ) * TT) ->
     (normal_ret_assert 
           (EX old:val, 
            PROPx P
            (LOCALx (`eq (eval_id id)  (subst id `old 
-                     (eval_expr (Ebinop cmp e1 e2 ty))) ::
+                     (eval_expr Delta (Ebinop cmp e1 e2 ty))) ::
                        map (subst id `old) Q)
            (SEPx (map (subst id `old) R))))) |-- PQR ->
    @semax Espec Delta 
@@ -783,9 +740,9 @@ Qed.
 Lemma forward_ptr_compare:
 forall Espec Delta P Q R id e1 e2 sh1 sh2 cmp ty, 
 PROPx P (LOCALx Q (SEPx R)) |-- (local (tc_expr Delta e1) && local (tc_expr Delta e2) &&
-      local (`(blocks_match cmp) (eval_expr e1) (eval_expr e2)) &&
-      (`(mapsto_ sh1 (typeof e1)) (eval_expr e1) * TT) &&
-      (`(mapsto_ sh2 (typeof e2)) (eval_expr e2) * TT)) ->
+      local (`(blocks_match cmp) (eval_expr Delta e1) (eval_expr Delta e2)) &&
+      (`(mapsto_ sh1 (typeof e1)) (eval_expr Delta e1) * TT) &&
+      (`(mapsto_ sh2 (typeof e2)) (eval_expr Delta e2) * TT)) ->
 is_comparison cmp = true ->
 typecheck_tid_ptr_compare Delta id = true ->
 @semax Espec Delta
@@ -795,7 +752,7 @@ typecheck_tid_ptr_compare Delta id = true ->
           (EX old:val, 
            PROPx P
            (LOCALx (`eq (eval_id id)  (subst id `old 
-                     (eval_expr (Ebinop cmp e1 e2 ty))) ::
+                     (eval_expr Delta (Ebinop cmp e1 e2 ty))) ::
                        map (subst id `old) Q)
            (SEPx (map (subst id `old) R))))). 
 Proof. 
@@ -876,59 +833,6 @@ Proof.
 destruct (split l); f_equal; auto.
 Qed.
 
-Opaque tc_andp.
-
-Lemma tc_expr_init:
-  forall i Delta rho e, tc_expr Delta e rho ->
-                 tc_expr (initialized i Delta) e rho
-with tc_lvalue_init:
-  forall i Delta rho e, tc_lvalue Delta e rho ->
-                 tc_lvalue (initialized i Delta) e rho.
-Proof.
-  clear tc_expr_init; induction e; intros; auto;
-  unfold tc_expr in *; simpl in *.
-  + destruct (access_mode t) eqn:?; auto.
-    unfold get_var_type in *.
-    rewrite expr_lemmas.set_temp_ve.
-    destruct ((var_types Delta) ! i0); auto.
-    rewrite expr_lemmas.set_temp_ge.
-    destruct ((glob_types Delta) ! i0); auto.
-  + (* destruct (negb (type_is_volatile t)); auto.*)
-    destruct ( (temp_types Delta) ! i0) eqn:?; [ | contradiction].
-    destruct p.  
-    destruct (eq_dec i i0). subst. 
-    - apply temp_types_init_same in Heqo. rewrite Heqo.
-      destruct b; [apply H | ]. simpl in *.
-      if_tac; auto. apply I.
-    - rewrite <- expr_lemmas.initialized_ne by auto.  rewrite Heqo.
-      auto.
-  + destruct (access_mode t) eqn:?H; try inversion H.
-    rewrite !denote_tc_assert_andp in H|-*.
-    destruct H as [[? ?] ?]; repeat split; auto.
-  + rewrite denote_tc_assert_andp in H|-*.
-    destruct H; split; auto. apply tc_lvalue_init; auto.
-  + rewrite denote_tc_assert_andp in H|-*.
-    destruct H; split; auto.
-  + repeat rewrite denote_tc_assert_andp in H|-*.
-    destruct H as [[? ?] ?]. split; auto.
-  + rewrite denote_tc_assert_andp in H|-*.
-    destruct H; split; auto.
-  + destruct (access_mode t); auto.
-    repeat rewrite denote_tc_assert_andp in H|-*.
-    destruct H. split; auto.
-    apply tc_lvalue_init; auto.
-  + clear tc_lvalue_init.
-    unfold tc_lvalue; induction e; simpl; auto; intro.
-    unfold get_var_type in *.  rewrite expr_lemmas.set_temp_ve.
-    destruct ((var_types Delta) ! i0); auto.
-    rewrite expr_lemmas.set_temp_ge.
-    destruct ((glob_types Delta) ! i0); auto.
-    repeat rewrite denote_tc_assert_andp in H|-*.
-    decompose [and] H; repeat split; auto.
-    apply tc_expr_init; auto.
-    repeat rewrite denote_tc_assert_andp in H|-*.
-    decompose [and] H; clear H; repeat split; auto.
-Qed.
 Transparent tc_andp.  (* ? should leave it opaque, maybe? *)
 
 Lemma semax_logical_or:
@@ -941,18 +845,18 @@ Lemma semax_logical_or:
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
   @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::
-              (`or (`(typed_true (typeof e1)) (eval_expr e1))  (tc_expr Delta e2))::
+              (`or (`(typed_true (typeof e1)) (eval_expr Delta e1))  (tc_expr Delta e2))::
               tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
    Q) (SEPx (R))))
     (logical_or tid e1 e2)
   (normal_ret_assert (PROPx P (LOCALx 
 ((`eq (eval_id tid) 
    (`logical_or_result 
-          `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R))))). 
+          `(typeof e1) (eval_expr Delta e1) `(typeof e2) (eval_expr Delta e2)))::Q) (SEPx (R))))). 
 Proof.
 intros.
-assert (CLOSE1' := closed_eval_expr_e _ _ CLOSE1).
-assert (CLOSE2' := closed_eval_expr_e _ _ CLOSE2).
+assert (CLOSE1' := closed_eval_expr_e Delta _ _ CLOSE1).
+assert (CLOSE2' := closed_eval_expr_e Delta _ _ CLOSE2).
 apply semax_ifthenelse_PQR. 
   - auto.
   - rewrite <- insert_local; apply andp_left2. 
@@ -972,7 +876,7 @@ apply semax_ifthenelse_PQR.
    go_lowerx. subst. apply andp_right; auto. apply prop_right; split; auto.
    rewrite H6.
    unfold logical_or_result.
- destruct (typeof e1) as [ | | | [ | ] |  | | | | | ], (eval_expr e1 rho); inv H; inv H8; simpl;
+ destruct (typeof e1) as [ | | | [ | ] |  | | | | ], (eval_expr Delta e1 rho); inv H; inv H8; simpl;
    try rewrite H3; auto.
   - eapply semax_seq'. 
       + eapply forward_setx_weak.
@@ -981,10 +885,10 @@ apply semax_ifthenelse_PQR.
          apply andp_right; apply prop_right; auto.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
         simpl. super_unfold_lift. split. auto. 
-         destruct (typeof e2) as [ | | | [ | ] |  | | | | | ] eqn:?;
+         destruct (typeof e2) as [ | | | [ | ] |  | | | | ] eqn:?;
                                         inv H0; try  apply I.
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
-          rewrite (@closed_wrt_subst _ tid _ (eval_expr (Ecast e2 tbool)))
+          rewrite (@closed_wrt_subst _ tid _ (eval_expr Delta (Ecast e2 tbool)))
     by (simpl; auto with closed).
     rewrite (closed_wrt_map_subst _ _ R) by auto.
    repeat rewrite map_cons. 
@@ -1014,8 +918,11 @@ apply semax_ifthenelse_PQR.
         unfold logical_or_result. rewrite H8.
         subst ek vl. simpl in  H2.
        apply bool_cast. destruct H10. congruence.
-      eapply expr_lemmas.typecheck_expr_sound. apply H2.
-      apply tc_expr_init. apply tc_expr_init. auto.
+      eapply expr_lemmas.typecheck_expr_sound.
+      apply tc_environ_init in H2.
+      apply tc_environ_init in H2.
+      apply H2.
+      apply H3.
 Qed.
 
 Lemma semax_logical_and:
@@ -1028,18 +935,18 @@ Lemma semax_logical_and:
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
   @semax Espec Delta (PROPx P (LOCALx ((tc_expr Delta e1)::
-    (`or (`(typed_false (typeof e1)) (eval_expr e1))  (tc_expr Delta e2))::tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
+    (`or (`(typed_false (typeof e1)) (eval_expr Delta e1))  (tc_expr Delta e2))::tc_temp_id tid tbool Delta (Ecast e2 tbool) ::
    Q) (SEPx (R))))
     (logical_and tid e1 e2)
   (normal_ret_assert (PROPx P (LOCALx 
 ((`eq (eval_id tid) 
    (`logical_and_result 
-          `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R)))))
+          `(typeof e1) (eval_expr Delta e1) `(typeof e2) (eval_expr Delta e2)))::Q) (SEPx (R)))))
   . 
 Proof.
 intros.
-assert (CLOSE1' := closed_eval_expr_e _ _ CLOSE1).
-assert (CLOSE2' := closed_eval_expr_e _ _ CLOSE2).
+assert (CLOSE1' := closed_eval_expr_e Delta _ _ CLOSE1).
+assert (CLOSE2' := closed_eval_expr_e Delta _ _ CLOSE2).
 apply semax_ifthenelse_PQR. 
   - auto. 
   - rewrite <- insert_local; apply andp_left2. 
@@ -1050,10 +957,10 @@ apply semax_ifthenelse_PQR.
         unfold tc_expr. simpl. rewrite tc_andp_sound.
         simpl. super_unfold_lift. split.
         destruct H5; auto; congruence.         
-        unfold isCastResultType. destruct (typeof e2) as [ | | | [ | ] |  | | | | | ]; 
+        unfold isCastResultType. destruct (typeof e2) as [ | | | [ | ] |  | | | | ]; 
                                         inv H0; simpl; apply I.
       + simpl update_tycon. apply extract_exists_pre. intro oldval.
-          rewrite (@closed_wrt_subst _ tid _ (eval_expr (Ecast e2 tbool)))
+          rewrite (@closed_wrt_subst _ tid _ (eval_expr Delta (Ecast e2 tbool)))
     by (simpl; auto with closed).
   autorewrite with subst.
     unfold tc_temp_id.
@@ -1079,8 +986,10 @@ apply semax_ifthenelse_PQR.
         subst ek vl. simpl in  H2.
         rewrite H8.
        apply bool_cast.  destruct H10. congruence.
-      eapply expr_lemmas.typecheck_expr_sound. apply H2.
-      apply tc_expr_init. apply tc_expr_init. auto.
+      eapply expr_lemmas.typecheck_expr_sound.
+      apply tc_environ_init in H2.
+      apply tc_environ_init in H2.
+      apply H2. auto.
 - eapply semax_pre. apply derives_refl.
      eapply semax_post_flipped.
      apply forward_setx. 
@@ -1108,9 +1017,9 @@ Lemma semax_logical_and_PQR:
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e1) &&
-         (local (`(typed_false (typeof e1)) (eval_expr e1)) || local (tc_expr Delta e2)) && local (tc_temp_id tid tbool Delta (Ecast e2 tbool)) ->
+         (local (`(typed_false (typeof e1)) (eval_expr Delta e1)) || local (tc_expr Delta e2)) && local (tc_temp_id tid tbool Delta (Ecast e2 tbool)) ->
   (normal_ret_assert (PROPx P (LOCALx ((`eq (eval_id tid) (`logical_and_result 
-          `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R))))) |-- PQR ->   
+          `(typeof e1) (eval_expr Delta e1) `(typeof e2) (eval_expr Delta e2)))::Q) (SEPx (R))))) |-- PQR ->   
    @semax Espec Delta (PROPx P (LOCALx (Q) (SEPx (R))))
     (logical_and tid e1 e2) PQR.
 Proof.
@@ -1137,9 +1046,9 @@ Lemma semax_logical_or_PQR:
  bool_type (typeof e2) = true ->
  (temp_types Delta) ! tid = Some (tint, b) ->
    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- local (tc_expr Delta e1) &&
-        (local (`(typed_true (typeof e1)) (eval_expr e1)) || local (tc_expr Delta e2)) && local (tc_temp_id tid tbool Delta (Ecast e2 tbool)) ->
+        (local (`(typed_true (typeof e1)) (eval_expr Delta e1)) || local (tc_expr Delta e2)) && local (tc_temp_id tid tbool Delta (Ecast e2 tbool)) ->
   (normal_ret_assert (PROPx P (LOCALx ((`eq (eval_id tid) (`logical_or_result 
-          `(typeof e1) (eval_expr e1) `(typeof e2) (eval_expr e2)))::Q) (SEPx (R))))) |-- PQR ->   
+          `(typeof e1) (eval_expr Delta e1) `(typeof e2) (eval_expr Delta e2)))::Q) (SEPx (R))))) |-- PQR ->   
    @semax Espec Delta (PROPx P (LOCALx (Q) (SEPx (R))))
     (logical_or tid e1 e2) PQR.
 Proof.

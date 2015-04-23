@@ -1538,13 +1538,6 @@ Fixpoint iota_formals (i: ident) (tl: typelist) :=
  | Tnil => nil
  end.
 
-Lemma semax_post_flipped' : 
-   forall (R': environ->mpred) Espec (Delta: tycontext) (R P: environ->mpred) c,
-       @semax Espec Delta P c (normal_ret_assert R') ->
-       R' |-- R ->
-       @semax Espec Delta P c (normal_ret_assert R).
- Proof. intros; eapply semax_post'; eauto. Qed.
-
 Ltac make_sequential :=
   match goal with
   | |- @semax _ _ _ _ (normal_ret_assert _) => idtac

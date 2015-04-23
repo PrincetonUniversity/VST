@@ -28,7 +28,9 @@ Definition insert_spec :=
         SEP (`(lseg LS sh (map Vint contents) sorted_ptr nullval);
              `(data_at sh t_struct_list (Vint insert_val, nullval) insert_ptr))
     POST [tptr t_struct_list]
-        `(lseg LS sh (map Vint (insert insert_val contents))) retval `nullval.
+      EX v: val,
+        PROP() LOCAL(temp ret_temp v)
+        SEP(`(lseg LS sh (map Vint (insert insert_val contents)) v nullval)).
 
 Definition insertionsort_spec :=
   DECLARE  _insertionsort
@@ -38,7 +40,9 @@ Definition insertionsort_spec :=
         LOCAL (temp _p list_ptr)
         SEP (`(lseg LS sh (map Vint contents) list_ptr nullval))
     POST [tptr t_struct_list]
-        `(lseg LS sh (map Vint (insertion_sort contents))) retval `nullval.
+      EX v: val,
+        PROP() LOCAL(temp ret_temp v)
+        SEP(`(lseg LS sh (map Vint (insertion_sort contents)) v nullval)).
 
 Definition main_spec := 
  DECLARE _main
@@ -227,13 +231,6 @@ assert (X := @list_cell_eq). entailer.
 cancel.
 Qed.
 
-Ltac intro_ex_semax :=
-(match goal with 
-   | |- semax _ (exp (fun y => _)) _ _  =>
-       apply extract_exists_pre; let y':=fresh y in intro y'
-end).
-
-
 Lemma eval_id_initialized : forall v id rho t,
 is_true (typecheck_val v t) ->
 v = eval_id id rho ->
@@ -302,7 +299,10 @@ PROP ()
 LOCAL (temp _sorted p)
 SEP (`(lseg LS sh (map Vint (insertion_sort contents)) p nullval)).
 
-forward_while (body_invariant sh contents) (body_post sh contents).
+forward_while 
+    (body_invariant sh contents)
+    (body_post sh contents)
+     [[[sorted_list unsorted_list] p0] i].
 
 (*pre implies invariant*)
 apply (exp_right nil).
@@ -315,14 +315,12 @@ entailer!.
 entailer.
 
 (*invariant implies post *)
-destruct a as [[[sorted_list unsorted_list] ?p] i]; simpl @snd in *; simpl @fst in *.
 apply (exp_right p0).
 entailer!.
 destruct unsorted_list; inv H0.
 rewrite <- app_nil_end. auto.
 
 (*invariant across body *)
-destruct a as [[[sorted_list unsorted_list] ?p] i]; simpl @snd in *; simpl @fst in *.
 focus_SEP 1. 
 normalize.
 apply semax_lseg_nonnull.
@@ -358,19 +356,16 @@ unfold_data_at 1%nat.
 entailer.
  
 apply extract_exists_pre. intros sorted_val.
-forward_call  (* sorted = insert(index, sorted); *)
-  (sh, (insertion_sort sorted_list), insert_val, sorted_val, i).
-entailer!.
-auto with closed.
-after_call.
-forward. (* index = next;*)
+forward_call'  (* sorted = insert(index, sorted); *)
+  (sh, (insertion_sort sorted_list), insert_val, sorted_val, i)
+  vret.
+forward index_old. (* index = next;*)
 unfold body_invariant.
 entailer.
 apply (exp_right (sorted_list ++ [insert_val],
                            unsorted_list, sorted, next)).
-entailer.
-apply andp_right.
-apply prop_right. rewrite app_ass; reflexivity.
+entailer!.
+rewrite app_ass; reflexivity.
 
 Lemma insert_reorder : forall v1 v2 l,
 insert v1 (insert v2 (l)) = insert v2 (insert v1 l).
@@ -396,11 +391,11 @@ rewrite insert_reorder. rewrite IHl. auto.
 Qed.
 
 rewrite insert_insertion_sort. cancel.
-
-unfold body_invariant.
-
-apply extract_exists_pre. intro sorted_list.
+unfold body_post.
+forward_intro sorted_list.
 forward.
+apply exp_right with sorted.
+entailer!.
 Qed.
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.

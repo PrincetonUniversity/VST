@@ -16,24 +16,16 @@ name n_ _n.
 name md_ _md.
 name c_ _c.
 normalize.
-apply (remember_value (eval_lvar _c t_struct_SHA256state_st)); intro c.
-
-replace_SEP 0 (`(data_at_ Tsh t_struct_SHA256state_st c)).
-entailer!.
-assert_LOCAL (lvar _c t_struct_SHA256state_st c).
- entailer!. apply normalize_lvar; auto.
-drop_LOCAL 1%nat.
+fixup_local_var; intro c.
 
 forward_call' (* SHA256_Init(&c); *)
    (c).
 
 forward_call' (* SHA256_Update(&c,d,n); *)
-  (init_s256abs,data,c,d,dsh, Zlength data, kv).
- repeat split; try repable_signed.
+  (init_s256abs,data,c,d,dsh, Zlength data, kv) a.
+ repeat split; try omega.
  pose proof (Zlength_nonneg data); omega.
  simpl. apply H0.
- apply extract_exists_pre; intro a.
- normalize.
 
 forward_call' (* SHA256_Final(md,&c); *)
     (a,md,c,msh,kv).
@@ -45,6 +37,6 @@ clear - H2.
 inv H2.
 simpl in *.
 rewrite <- H8.
-rewrite firstn_same by (clear; omega).
-auto.
+rewrite firstn_same; auto.
+rewrite Zlength_correct. rewrite Nat2Z.id. omega.
 Qed.

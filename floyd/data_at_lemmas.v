@@ -534,14 +534,17 @@ Proof. intros. unfold data_at. simpl. apply andp_left2. apply data_at'_local_fac
 Hint Resolve data_at_local_facts : saturate_local.
 
 Lemma data_at_isptr: forall sh t v p, data_at sh t v p = !!(isptr p) && data_at sh t v p.
-Proof. intros. rewrite <- local_facts_isptr. reflexivity. apply data_at_local_facts. Qed.
+Proof. intros.
+ apply pred_ext; normalize.
+ apply andp_right; auto.
+ unfold data_at. simpl.
+ rewrite data_at'_isptr;  normalize.
+Qed.
 
 Lemma data_at_offset_zero: forall sh t v p, data_at sh t v p = data_at sh t v (offset_val Int.zero p).
-Proof. intros. rewrite <- local_facts_offset_zero. reflexivity. apply data_at_local_facts. Qed.
-
-Lemma data_at__local_facts: forall sh t p, data_at_ sh t p |-- !!(isptr p).
-Proof. intros. unfold data_at_. apply data_at_local_facts. Qed.
-Hint Resolve data_at__local_facts : saturate_local.
+Proof. intros. rewrite <- local_facts_offset_zero. reflexivity.
+    intros; rewrite data_at_isptr; normalize.  
+Qed.
 
 Lemma data_at__isptr: forall sh t p, data_at_ sh t p = !!(isptr p) && data_at_ sh t p.
 Proof. intros. unfold data_at_. apply data_at_isptr. Qed.
@@ -1055,6 +1058,21 @@ Proof.
   normalize.
 Qed.
 
+Lemma data_at__memory_block_cancel:
+   forall sh t p sz, 
+       nested_non_volatile_type t = true ->
+       sizeof t <= Int.max_unsigned ->
+       sz = Int.repr (sizeof t) ->
+       data_at_ sh t p |-- memory_block sh sz p.
+Proof.
+intros.
+ subst.
+ rewrite data_at__memory_block; auto.
+ apply andp_left2. auto.
+ change (Int.modulus) with (Int.max_unsigned + 1).
+ omega.
+Qed.
+
 Lemma align_1_memory_block_data_at_: forall (sh : share) (t : type),
   legal_alignas_type t = true ->
   nested_legal_fieldlist t = true ->
@@ -1233,7 +1251,69 @@ Proof.
   + exact H0.
 Qed.
 
-Hint Resolve data_at_data_at_: cancel.
+(* We do these as Hint Extern, instead of Hint Resolve,
+  to limit their application and make them fail faster *)
+
+Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
+    (apply data_at_data_at_) : cancel.
+
+Lemma data_at_memory_block:
+   forall sh t v p sz, 
+       nested_non_volatile_type t = true ->
+       sizeof t <= Int.max_unsigned ->
+       sz = Int.repr (sizeof t) ->
+       data_at sh t v p |-- memory_block sh sz p.
+Proof.
+intros.
+ subst.
+ eapply derives_trans; [apply data_at_data_at_; reflexivity |].
+ rewrite data_at__memory_block; auto.
+ apply andp_left2. auto.
+ change (Int.modulus) with (Int.max_unsigned + 1).
+ omega.
+Qed.
+
+
+Lemma f_equal_Int_repr:
+  forall i j, i=j -> Int.repr i = Int.repr j.
+Proof. intros; congruence. Qed.
+
+Lemma sizeof_Tarray:
+  forall t (n:Z) a, n >= 0 ->
+      sizeof (Tarray t n a) = (sizeof t * n)%Z.
+Proof.
+intros; simpl. rewrite Z.max_r; omega.
+Qed.
+
+Hint Extern 1 (data_at_ _ _ _ |-- memory_block _ _ _) =>
+    (simple apply data_at__memory_block_cancel;
+       [reflexivity 
+       | rewrite ?sizeof_Tarray by omega;
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl; 
+         repable_signed 
+       | try apply f_equal_Int_repr;
+         rewrite ?sizeof_Tarray by omega;
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; repable_signed
+       ])
+    : cancel.
+
+Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
+    (simple apply data_at_memory_block; 
+       [reflexivity 
+       | rewrite ?sizeof_Tarray by omega;
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl; 
+         repable_signed 
+       | try apply f_equal_Int_repr;
+         rewrite ?sizeof_Tarray by omega;
+         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; repable_signed
+       ])
+    : cancel.
+
+
+Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
+    (simple apply data_at_memory_block; [reflexivity | simpl; repable_signed | reflexivity])
+    : cancel.
+
 
 Lemma data_at_Tarray_ext_derives: forall sh t n a v v',
   (forall i, 0 <= i < n ->
