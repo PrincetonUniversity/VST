@@ -817,52 +817,6 @@ Ltac AUTO_IND :=
     eapply Z.divide_trans; [apply legal_alignas_type_Tunion; eauto | auto]
   end.
 
-Ltac pose_sizeof_co t :=
-  match t with
-  | Tstruct ?id ?a =>
-    pose proof sizeof_Tstruct id a;
-    assert (sizeof_struct cenv_cs 0 (co_members (get_co id)) <= co_sizeof (get_co id)); [
-      rewrite co_consistent_sizeof with (env := cenv_cs) by (apply get_co_consistent);
-      rewrite legal_cosu_type_Tstruct with (a0 := a) by auto;
-      apply align_le, co_alignof_pos
-       |]
-  | Tunion ?id ?a =>
-    pose proof sizeof_Tunion id a;
-    assert (sizeof_union cenv_cs (co_members (get_co id)) <= co_sizeof (get_co id)); [
-      rewrite co_consistent_sizeof with (env := cenv_cs) by (apply get_co_consistent);
-      rewrite legal_cosu_type_Tunion with (a0 := a) by auto;
-      apply align_le, co_alignof_pos
-       |]
-  end.
-
-Ltac pose_field :=
-  match goal with
-  | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
-    context [sizeof cenv_cs (field_type2 ?i (co_members (get_co ?id)))] =>
-      pose_sizeof_co (Tstruct id a);
-      let H := fresh "H" in
-      pose proof field_offset2_in_range i (co_members (get_co id)) as H;
-      spec H; [solve [auto] |];
-      pose proof sizeof_pos cenv_cs (field_type2 i (co_members (get_co id)))
-  | _ : legal_cosu_type (Tunion ?id ?a) = true |-
-    context [sizeof cenv_cs (field_type2 ?i (co_members (get_co ?id)))] =>
-      pose_sizeof_co (Tunion id a);
-      let H := fresh "H" in
-      pose proof sizeof_union_in_members i (co_members (get_co id)) as H;
-      spec H; [solve [auto] |];
-      pose proof sizeof_pos cenv_cs (field_type2 i (co_members (get_co id)))
-  | _ => idtac
-  end;
-  match goal with
-  | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
-    context [field_offset_next cenv_cs ?i (co_members (get_co ?id)) (co_sizeof (get_co ?id))] =>
-      let H := fresh "H" in
-      pose proof field_offset_next_in_range i (co_members (get_co id)) (co_sizeof (get_co id));
-      spec H; [solve [auto] |];
-      spec H; [solve [auto | pose_sizeof_co (Tstruct id a); auto] |]
-  | _ => idtac
-  end
-.
 
 Lemma memory_block_data_at'_default_val_array_aux: forall sh t z a b ofs,
   0 <= ofs /\ ofs + sizeof cenv_cs (Tarray t z a) <= Int.modulus ->

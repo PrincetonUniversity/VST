@@ -332,3 +332,135 @@ Proof.
 Qed.
 
 End NESTED_PRED.
+
+(*Section ARITH.
+Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
+*)
+(************************************************
+
+Arithmetic properties with nested_pred assumption.
+
+************************************************)
+
+Ltac pose_mod_le A :=
+  let H := fresh "H" in
+  pose proof Z.mod_le A Int.modulus;
+  spec H; [try omega | spec H; [pose Int.modulus_pos; omega |]].
+
+Ltac pose_mul_distr_l l r :=
+  match r with
+  | (?A + ?B)%Z => pose proof Z.mul_add_distr_l l A B;
+                   pose_mul_distr_l l A;
+                   pose_mul_distr_l l B
+  | Z.succ ?A => let H := fresh "H" in
+                 pose proof Z.mul_add_distr_l l A 1 as H;
+                 replace (A + 1) with (Z.succ A) in H by omega;
+                 pose_mul_distr_l l A
+  | (?A - ?B)%Z => pose proof Z.mul_sub_distr_l l A B;
+                   pose_mul_distr_l l A;
+                   pose_mul_distr_l l B
+  | _ => idtac
+  end.
+
+
+Ltac pose_size_mult' env t l :=
+  match l with
+  | nil => idtac
+  | ?z :: ?l0 =>
+    match l0 with
+    | nil => pose_mul_distr_l (sizeof env t) z
+    | ?z0 :: _ => pose_mul_distr_l (sizeof env t) z;
+                  assert (sizeof env t * z <= sizeof env t * z0) by
+                    (pose proof sizeof_pos env t; apply Zmult_le_compat_l; omega);
+                  pose_size_mult' env t l0
+    end
+  end.
+
+Ltac pose_size_mult env t l :=
+  pose_size_mult' env t l;
+  try rewrite !Z.mul_0_r in *;
+  try rewrite !Z.mul_1_r in *.
+
+Definition align_alignof a b := align a b.
+
+Definition sizeof_struct_le := sizeof_struct.
+
+Ltac pose_align_le :=
+  repeat
+  match goal with
+  | |- context [align ?A (alignof ?env ?t)] =>
+         assert (A <= align A (alignof env t)) by (apply align_le, alignof_pos);
+         change (align A (alignof env t)) with (align_alignof A (alignof env t))
+  | |- context [align ?A (co_alignof ?co)] =>
+         let x := fresh "x" in
+         assert (A <= align A (co_alignof co)) by (apply align_le; destruct (co_alignof_two_p co) as [x ?];
+           pose proof two_power_nat_pos x; omega);
+         change (align A (co_alignof co)) with (align_alignof A (co_alignof co))
+  | |- context [sizeof_struct ?env ?A ?m] =>
+         pose proof sizeof_struct_incr env m A;
+         change (sizeof_struct env A m) with (sizeof_struct_le env A m)
+  end;
+  try unfold align_alignof in *;
+  try unfold sizeof_struct_le in *.
+
+Definition sizeofp := sizeof.
+
+Ltac pose_sizeof_pos :=
+  repeat
+  match goal with
+  | |- context [sizeof ?env ?t] =>
+         pose proof sizeof_pos env t;
+         change (sizeof env t) with (sizeofp env t)
+  end;
+  unfold sizeofp in *.
+
+
+Ltac pose_sizeof_co t :=
+  match t with
+  | Tstruct ?id ?a =>
+    pose proof sizeof_Tstruct id a;
+    assert (sizeof_struct cenv_cs 0 (co_members (get_co id)) <= co_sizeof (get_co id)); [
+      rewrite co_consistent_sizeof with (env := cenv_cs) by (apply get_co_consistent);
+      rewrite legal_cosu_type_Tstruct with (a0 := a) by auto;
+      apply align_le, co_alignof_pos
+       |]
+  | Tunion ?id ?a =>
+    pose proof sizeof_Tunion id a;
+    assert (sizeof_union cenv_cs (co_members (get_co id)) <= co_sizeof (get_co id)); [
+      rewrite co_consistent_sizeof with (env := cenv_cs) by (apply get_co_consistent);
+      rewrite legal_cosu_type_Tunion with (a0 := a) by auto;
+      apply align_le, co_alignof_pos
+       |]
+  end.
+
+Ltac pose_field :=
+  match goal with
+  | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
+    context [sizeof cenv_cs (field_type2 ?i (co_members (get_co ?id)))] =>
+      pose_sizeof_co (Tstruct id a);
+      let H := fresh "H" in
+      pose proof field_offset2_in_range i (co_members (get_co id)) as H;
+      spec H; [solve [auto] |];
+      pose proof sizeof_pos cenv_cs (field_type2 i (co_members (get_co id)))
+  | _ : legal_cosu_type (Tunion ?id ?a) = true |-
+    context [sizeof cenv_cs (field_type2 ?i (co_members (get_co ?id)))] =>
+      pose_sizeof_co (Tunion id a);
+      let H := fresh "H" in
+      pose proof sizeof_union_in_members i (co_members (get_co id)) as H;
+      spec H; [solve [auto] |];
+      pose proof sizeof_pos cenv_cs (field_type2 i (co_members (get_co id)))
+  | _ => idtac
+  end;
+  match goal with
+  | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
+    context [field_offset_next cenv_cs ?i (co_members (get_co ?id)) (co_sizeof (get_co ?id))] =>
+      let H := fresh "H" in
+      pose proof field_offset_next_in_range i (co_members (get_co id)) (co_sizeof (get_co id));
+      spec H; [solve [auto] |];
+      spec H; [solve [auto | pose_sizeof_co (Tstruct id a); auto] |]
+  | _ => idtac
+  end
+.
+
+(*End ARITH.*)

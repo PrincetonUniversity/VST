@@ -89,9 +89,17 @@ Definition gfield_offset t gf :=
   | _, _ => 0
   end.
 
-Definition legal_field t gf := (* use legal_composite_type instead of some expression here *)
+Definition legal_field t gf :=
   match t, gf with
   | Tarray _ n _, ArraySubsc i => 0 <= i < n
+  | Tstruct id _, StructField i => in_members i (co_members (get_co id))
+  | Tunion id _, UnionField i => in_members i (co_members (get_co id))
+  | _, _ => False
+  end.
+
+Definition legal_field0 t gf :=
+  match t, gf with
+  | Tarray _ n _, ArraySubsc i => 0 <= i <= n
   | Tstruct id _, StructField i => in_members i (co_members (get_co id))
   | Tunion id _, UnionField i => in_members i (co_members (get_co id))
   | _, _ => False
@@ -101,6 +109,12 @@ Fixpoint legal_nested_field (t: type) (gfs: list gfield) : Prop :=
   match gfs with
   | nil => True
   | gf :: gfs0 => legal_nested_field t gfs0 /\ legal_field (nested_field_type2 t gfs0) gf
+  end.
+
+Definition legal_nested_field0 t gfs :=
+  match gfs with
+  | nil => True
+  | gf :: gfs0 => legal_nested_field t gfs0 /\ legal_field0 (nested_field_type2 t gfs0) gf
   end.
 
 Lemma nested_field_type2_ind: forall t gfs,
@@ -147,14 +161,26 @@ Proof.
     simpl. omega.
 Qed.
 
-(* from master branch
-Definition legal_nested_field0 t gfs :=
-  (exists t', exists n, exists i, exists gfs', exists a',
-    gfs = ArraySubsc i :: gfs' /\
-    nested_field_type2 t gfs' = Tarray t' n a' /\ 
-    (0 <= i <= n)%Z /\    
-    legal_nested_field t gfs').
-*)
+Lemma nested_field0_offset2_ind: forall t gfs,
+  legal_nested_field0 t gfs ->
+  nested_field_offset2 t gfs =
+  match gfs with
+  | nil => 0
+  | gf :: gfs0 => nested_field_offset2 t gfs0 + gfield_offset (nested_field_type2 t gfs0) gf 
+  end.
+Proof.
+  intros.
+  destruct gfs as [| gf gfs]; [reflexivity |].
+  destruct H.
+  unfold nested_field_type2, nested_field_offset2 in *.
+  simpl.
+  destruct (nested_field_rec t gfs) as [[ofs0 t0] |] eqn:NFR; [| reflexivity].
+  destruct t0 as [| | | | | | | id ? | id ?]; destruct gf; try inversion H0; auto.
+  + destruct_in_members i (co_members (get_co id)); [| tauto].
+    reflexivity.
+  + destruct_in_members i (co_members (get_co id)); [| tauto].
+    simpl. omega.
+Qed.
 
 Ltac valid_nested_field_rec f a T :=
   let H := fresh "H" in 
@@ -173,7 +199,7 @@ repeat (
   | H: @ex _ _ |- _ => destruct H as [x H1]
   | H: sigT _ |- _ => destruct H as [x H1]
   end).
-
+(*
 Lemma legal_nested_field_nested_field_rec_None_conflict: forall t gfs P,
   legal_nested_field t gfs ->
   nested_field_rec t gfs = None ->
@@ -324,6 +350,21 @@ Proof.
     - destruct_in_members i (co_members (get_co id)); auto.
 Qed.
 
+Definition legal_nested_field0_dec: forall t gfs,
+  {legal_nested_field0 t gfs} + {~ legal_nested_field0 t gfs}.
+Proof.
+  intros.
+  destruct gfs as [| gf gfs].
+  + left. exact I.
+  + simpl.
+    apply sumbool_dec_and; [apply legal_nested_field_dec |].
+    destruct gf, (nested_field_type2 t gfs) as [| | | | | | | id ? | id ?]; try solve [right; tauto];
+    unfold legal_field0.
+    - apply sumbool_dec_and; [apply Z_le_dec | apply Z_le_dec].
+    - destruct_in_members i (co_members (get_co id)); auto.
+    - destruct_in_members i (co_members (get_co id)); auto.
+Qed.
+
 Definition field_compatible t gfs p :=
   isptr p /\
   legal_alignas_type t = true /\
@@ -335,7 +376,7 @@ Definition field_compatible t gfs p :=
 Definition field_compatible0 t gfs p :=
   isptr p /\
   legal_alignas_type t = true /\
-  nested_legal_fieldlist t = true /\
+  legal_cosu_type t = true /\
   size_compatible t p /\
   align_compatible t p /\
   legal_nested_field0 t gfs.
@@ -365,26 +406,13 @@ Proof.
   repeat apply sumbool_dec_and.
   + destruct p; simpl; try (left; tauto); try (right; tauto).
   + destruct legal_alignas_type; [left | right]; congruence.
-  + destruct nested_legal_fieldlist; [left | right]; congruence.
+  + destruct legal_cosu_type; [left | right]; congruence.
   + destruct p; simpl; try solve [left; auto].
-    destruct (zle (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
+    destruct (zle (Int.unsigned i + sizeof cenv_cs t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
     apply Zdivide_dec.
     apply alignof_pos.
-  + destruct gfs. right; intros [? [? [? [? [? [? ?]]]]]]. inv H.
-      destruct g; try solve [right; intros [? [? [? [? [? [? ?]]]]]]; inv H].
-      destruct (nested_field_type2 t gfs) eqn:H;
-      try solve [right;  intros [? [? [? [? [? [? [? ?]]]]]]]; inv H0; rewrite H in H1; inv H1].
-      rename z into n.
-      destruct (zle 0 i);
-       try solve [right; intros [? [? [? [? [? [? [? [? ?]]]]]]]]; inv H1; inv H; inv H0; omega].
-     destruct (zle i n);
-      try solve [right; intros [? [? [? [? [? [? [? [? ?]]]]]]]]; inv H0; inv H; rewrite H1 in H4; inv H4; omega].
-     destruct (legal_nested_field_dec t gfs).
-     destruct l1.
-      left; exists t0, n, i, gfs, a; repeat split; auto.
-      right. contradict n0.
-      destruct n0 as [t' [n' [i0' [gfs' [? [? [? [? ?]]]]]]]]. inv H0; auto.
+  + apply legal_nested_field0_dec.
 Qed.
 
 Lemma field_compatible_cons_Tarray:
@@ -402,29 +430,17 @@ auto.
 Qed.
 
 Lemma field_compatible0_cons_Tarray:
-  forall k t n a gfs p t' ofs,
-  nested_field_rec t gfs = Some (ofs, Tarray t' n a) ->
+  forall k t n a gfs p t',
+  nested_field_type2 t gfs = Tarray t' n a ->
   field_compatible t gfs p ->
   (0 <= k <= n)%Z ->
   field_compatible0 t (ArraySubsc k :: gfs) p.
 Proof.
 unfold field_compatible, field_compatible0; intros; intuition.
 unfold legal_nested_field0.
-exists t',n,k,gfs,a.
-repeat split; auto.
-unfold nested_field_type2. rewrite H; auto.
-rewrite H; apply I.
-clear H0 H4.
-clear dependent p.
-forget (Tarray t' n a) as t0.
-revert t t0 ofs H H1 H3 H8; induction gfs; intros.
-apply I.
+rewrite H.
 simpl.
-unfold nested_field_type2. 
-simpl in H.
-destruct H8. simpl in H0, H2.
-unfold nested_field_type2 in H2.
-destruct (nested_field_rec t gfs) as [[? ?]|]; try inv H; auto.
+auto.
 Qed.
 
 Definition field_address t gfs p :=
@@ -484,15 +500,9 @@ intuition.
 destruct H5.
 hnf.
 simpl in H4.
-destruct (nested_field_rec t gfs) as [[? ?]|] eqn:?H; try contradiction H4.
-destruct t0; try contradiction.
-simpl in H5.
-unfold nested_field_type2 in H5|-*.
-rewrite H6 in H5. destruct H5.
-do 5 econstructor; split3.
-reflexivity. rewrite H6. reflexivity. split; auto.
-omega.
-split; auto. rewrite H6; auto.
+destruct (nested_field_type2 t gfs); try contradiction H5.
+simpl in H5 |- *.
+split; auto; omega.
 Qed.
 
 Lemma is_pointer_or_null_field_compatible:
@@ -680,33 +690,41 @@ Lemma gfield_offset_in_range: forall t gf,
 Proof.
   intros.
   destruct t as [| | | | | | | id ? | id ?], gf; try solve [inversion H]; simpl in H.
-  + pose proof sizeof_pos cenv_cs t.
-    simpl.
+  + simpl.
     rewrite Z.max_r by omega.
-    split.
-    - apply Z.mul_nonneg_nonneg; omega.
-    - rewrite Zred_factor3.
-      apply Zmult_le_compat_l; omega.
-  + assert (sizeof_struct cenv_cs 0 (co_members (get_co id)) <= sizeof cenv_cs (Tstruct id a)).
-    Focus 1. {
-      rewrite sizeof_Tstruct.
-      rewrite co_consistent_sizeof with (env := cenv_cs) by apply get_co_consistent.
-      unfold sizeof_composite. erewrite legal_cosu_type_Tstruct by eauto.
-      apply align_le.
-      apply co_alignof_pos.
-    } Unfocus.
+    pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil).
+    omega.
+  + simpl gfield_type; simpl gfield_offset.
+    pose_sizeof_co (Tstruct id a).
     pose proof field_offset_in_range _ _ H.
-    simpl in *; omega.
-  + assert (sizeof_union cenv_cs (co_members (get_co id)) <= sizeof cenv_cs (Tunion id a)).
-    Focus 1. {
-      rewrite sizeof_Tunion.
-      rewrite co_consistent_sizeof with (env := cenv_cs) by apply get_co_consistent.
-      unfold sizeof_composite. erewrite legal_cosu_type_Tunion by eauto.
-      apply align_le.
-      apply co_alignof_pos.
-    } Unfocus.
+    omega.
+  + simpl gfield_type; simpl gfield_offset.
+    pose_sizeof_co (Tunion id a).
     pose proof sizeof_union_in_members _ _ H.
-    simpl in *. omega.
+    omega.
+Qed.
+
+Lemma gfield0_offset_in_range: forall t gf,
+  legal_field0 t gf ->
+  legal_cosu_type t = true ->
+  0 <= gfield_offset t gf /\ gfield_offset t gf <= sizeof cenv_cs t.
+Proof.
+  intros.
+  destruct t as [| | | | | | | id ? | id ?], gf; try solve [inversion H]; simpl in H.
+  + simpl.
+    rewrite Z.max_r by omega.
+    pose_size_mult cenv_cs t (0 :: i :: z :: nil).
+    omega.
+  + simpl gfield_type; simpl gfield_offset.
+    pose_sizeof_co (Tstruct id a).
+    pose proof field_offset_in_range _ _ H.
+    pose proof sizeof_pos cenv_cs (field_type i (co_members (get_co id))).
+    omega.
+  + simpl gfield_type; simpl gfield_offset.
+    pose_sizeof_co (Tunion id a).
+    pose proof sizeof_union_in_members _ _ H.
+    pose proof sizeof_pos cenv_cs (field_type i (co_members (get_co id))).
+    omega.
 Qed.
 
 Lemma nested_field_offset2_in_range: forall t gfs,
@@ -724,6 +742,21 @@ Proof.
     omega.
 Qed.
 
+Lemma nested_field0_offset2_in_range: forall (t : type) (gfs : list gfield),
+  legal_nested_field0 t gfs ->
+  legal_cosu_type t = true ->
+  0 <= nested_field_offset2 t gfs <= sizeof cenv_cs t.
+Proof.
+  intros.
+  destruct gfs as [| gf gfs]; rewrite nested_field0_offset2_ind by auto.
+  + pose proof sizeof_pos cenv_cs t; omega.
+  + pose proof gfield0_offset_in_range (nested_field_type2 t gfs) gf (proj2 H).
+    spec H1; [apply nested_field_type2_nest_pred; auto |].
+    pose proof nested_field_offset2_in_range t gfs.
+    spec H2; [destruct H; auto |].
+    spec H2; [auto |].
+    omega.
+Qed.
 
 (*
 (************************************************
@@ -1217,6 +1250,14 @@ Proof.
     omega.
 Qed.
 
+(* from master branch
+   should be proved here.
+Lemma alignof_nested_field_type2_divide: forall t gfs,
+  legal_alignas_type t = true ->
+  legal_nested_field t gfs ->
+  (alignof (nested_field_type2 t gfs) | alignof t).
+*)
+
 Lemma size_1_compatible: forall t, sizeof cenv_cs t = 1 -> forall p, size_compatible t p.
 Proof.
   intros.
@@ -1234,31 +1275,6 @@ Proof.
   destruct (Int.unsigned_range i).
   omega.
 Qed.
-
-Lemma nested_field0_offset2_in_range:
-    forall (t : type) (gfs : list gfield),
-       legal_nested_field0 t gfs ->
-       (0 <= nested_field_offset2 t gfs <= sizeof t)%Z.
-Proof.
- intros.
- destruct H as [t' [n [i [gfs' [a' [? [? [? ?]]]]]]]].
- destruct (nested_field_offset2_in_range _ _ H2).
- subst gfs.
- erewrite nested_field_offset2_Tarray; try eassumption.
- rewrite H0 in H4. simpl in H4. rewrite Z.max_r in H4 by omega.
- assert (0 <= sizeof t' * i <= sizeof t' * n)%Z; [ | omega].
- pose proof (sizeof_pos t').
- split. 
- apply Z.mul_nonneg_nonneg; try omega.
- apply Zmult_le_compat_l; try omega.
-Qed.
-
-(* from master branch
-Lemma alignof_nested_field_type2_divide: forall t gfs,
-  legal_alignas_type t = true ->
-  legal_nested_field t gfs ->
-  (alignof (nested_field_type2 t gfs) | alignof t).
-*)
 
 Lemma align_1_compatible: forall t, alignof cenv_cs t = 1 -> forall p, align_compatible t p.
 Proof.
