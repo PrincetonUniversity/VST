@@ -806,165 +806,6 @@ Proof.
  rewrite IHrho1. simpl. rewrite IHrho2; auto.
 Qed.
 
-(*
-Lemma elements_increasing:
-  forall {A} (m: PTree.t A) n1 n2 i1 i2 v1 v2,
-   (n1 < n2)%nat ->
-   nth_error (PTree.elements m) n1 = Some (i1,v1) ->
-   nth_error (PTree.elements m) n2 = Some (i2,v2) ->
-   (i1 < i2)%positive.
-Proof.
-Admitted.
-
-Lemma elements_remove:
-  forall {A} (id: positive) (v: A) (rho: PTree.t A),
-       PTree.get id rho = Some v ->
-       exists l1, exists l2, PTree.elements rho = l1 ++ (id,v) :: l2 /\ 
-                             PTree.elements (PTree.remove id rho) = l1++l2.
-Proof.
-intros.
-exists (filter (fun iv => Pos.ltb (fst iv) id) (PTree.elements rho)).
-exists (filter (fun iv => Pos.ltb id (fst iv)) (PTree.elements rho)).
-split.
-*
-pose proof (PTree.elements_correct _ _ H).
-pose proof (elements_increasing rho).
-forget (PTree.elements rho) as al.
-clear - H0 H1.
-induction al as [ | [j w]]; simpl.
-inv H0.
-simpl.
-destruct H0.
-+
- inv H. clear IHal.
- destruct (Pos.ltb_spec id id).
- xomega.
- clear H.
- assert (forall n i v, nth_error al n = Some (i,v) -> (id < i)%positive). {
-  intros.
-  apply (H1 O (S n) id i v v0).
-  omega. reflexivity. simpl. auto.
- }
-replace (filter (fun iv : positive * A => (fst iv <? id)%positive) al)
-  with (@nil (ident * A)).
- -
-  simpl.
-  f_equal.
-  clear - H.
-  induction al as [ | [? ?]]; simpl; auto.
-  destruct (Pos.ltb_spec id p).
-  f_equal; auto.
-  apply IHal.
-  intros; auto. apply (H (S n) i v); auto.
-  assert (id < p)%positive; [ | xomega].
-  apply (H O p a); auto.
- -
-  clear - H.
-  induction al as [ | [j w]]; simpl; auto.
-  destruct (Pos.ltb_spec j id).
-  assert (id < j)%positive;  [ | xomega].
-  apply (H O j w); auto.
-  apply IHal; auto.
-  intros.
-  apply (H (S n) i v); auto.
-+
- assert (j < id)%positive.
-Lemma In_nth_error:
-  forall {A} (v: A) al, In v al -> exists n, nth_error al n = Some v.
-Proof.
- induction al; intros. inv H.
- destruct H. subst. exists O; auto.
- destruct IHal as [n ?]; auto.
- exists (S n); auto.
-Qed.
- destruct (In_nth_error _ _ H) as [k ?].
- apply (H1 O (S k) j id w v); auto. omega.
- destruct (Pos.ltb_spec j id); try xomega.
- destruct (Pos.ltb_spec id j); try xomega.
- simpl. f_equal.
- apply IHal; auto.
- intros.
- apply (H1 (S n1) (S n2) i1 i2 v1 v2); auto.
- omega.
-*
- transitivity (filter (fun iv : positive * A => (fst iv <? id)%positive)
-  (PTree.elements (PTree.remove id rho)) ++
-filter (fun iv : positive * A => (id <? fst iv)%positive)
-  (PTree.elements (PTree.remove id rho))); [ | f_equal ].
- + 
-   admit.
- +
-  remember (PTree.elements rho) as al.
-  remember (PTree.elements (PTree.remove id rho)) as bl.
-  revert Heqbl al Heqal; induction bl as [ | [j w]]; intros.
-  admit.  (* OK *)
-  simpl.
-  destruct (Pos.ltb_spec j id).
-  destruct al as [ | [k u]].
-  elimtype False; clear - Heqal H; admit.
-  simpl.
-   revert (PTree.elements rho); 
-   
-   admit.
- +
-    admit.
-  SearchAbout PTree.elements.
-  SearchAbout PTree.remove.
- destruct (Pos.ltb_spec id j).
- clear H0.
- 
-
- replace (filter (fun iv : positive * A => (fst iv <? id)%positive) al) with (@nil (ident*A)).
- simpl.
-
- auto.
-; [ xomega | ].
-
-
-
-simpl.
-f_equal.
-assert
-
-
- eapply H; eauto.
-
-rewrite if_true.
-hnf.
-simpl in H1.
-specialize
-specialize (H1 O).
-simpl in H1.
-
-transitivity (
-destruct (Pos.ltb_spe
-
-f_equal.
-simpl.
-inv H.
-
-Print BoolSpec.
-inv H.
-
-
-hnf in H.
-
-destruct H0. subst.
-simpl.
-SearchAbout (Pos.ltb).
-rewrite if_false.
-
-SearchAbout (list _).
-
-intros.
-SearchAbout PTree.elements.
-unfold PTree.elements.
-unfold PTree.t in *.
-forget (@nil (positive * A)) as rest.
-SearchAbout PTree.elements.
-*)
-
-
 Lemma elements_remove:
   forall {A} (id: positive) (v: A) (rho: PTree.t A),
        PTree.get id rho = Some v ->
@@ -1451,6 +1292,31 @@ intros.
 apply pred_ext; apply H; intros; auto.
 Qed.
 
+Lemma pures_eq_func_at' m m' fs adr : 
+  pures_eq m m' ->
+  func_at' fs adr (m_phi m') -> 
+  func_at' fs adr (m_phi m).
+Proof.
+intros [H H2]. unfold func_at'. destruct fs. intros [pp]. unfold pureat. simpl.
+intros H3. spec H2 adr. rewrite H3 in H2. destruct H2 as [pp' H2]. 
+exists pp'.
+generalize H2 as H2'; intro.
+rewrite <-resource_at_approx in H2. 
+rewrite H2' in H2. simpl in H2. rewrite H2. auto.
+Qed.
+
+Lemma necR_func_at' m m' fs adr :
+  necR m m' -> 
+  func_at' fs adr m' -> 
+  func_at' fs adr m.
+Proof.
+intros Hnec. unfold func_at'. destruct fs. intros [pp]. unfold pureat. simpl.
+intros H3. eapply necR_PURE' in Hnec; eauto. destruct Hnec as [pp' Hnec']. 
+exists pp'. rewrite Hnec'. generalize Hnec' as H4. intro.
+rewrite <-resource_at_approx in Hnec'. rewrite H4 in Hnec'. simpl in Hnec'.
+rewrite <-Hnec'. auto.
+Qed.
+
 Lemma semax_call_external: 
 forall (Delta : tycontext) (A : Type)
   (P Q Q' : A -> assert) (x : A) (F : environ -> pred rmap) (F0 : assert)
@@ -1711,6 +1577,7 @@ split.
 specialize (H3 id fs (m_phi jm')). 
 specialize (H3 Hnec); spec H3; auto.
 destruct H3 as [b [? ?]].
+destruct H2 as [H2 H2'].
 specialize (H2 (b,0)).
 unfold func_at in H7. destruct fs; simpl in *.
 rewrite H7 in H2.
@@ -1721,10 +1588,11 @@ assert (Hlev1: (level (m_phi m') >= level a')%nat).
 { apply necR_level in H5; auto. }
 rewrite <-compose_assoc, approx_oo_approx'; auto.
 rewrite <-compose_assoc, approx_oo_approx'; auto. omega.
-* intros b fs ???.
+* intros b fs a' H5 H6.
 specialize (H4 b fs (m_phi jm')). 
 specialize (H4 Hnec); spec H4; auto.
-admit. (*pures_sub must go both ways*)
+apply (pures_eq_func_at' _ _ _ _ H2).
+eapply necR_func_at'; eauto.
 }
 match type of H4' with ?A => match goal with |- ?B => replace B with A; auto end end.
 f_equal.

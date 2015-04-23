@@ -18,6 +18,14 @@ Definition pures_sub (jm jm' : juicy_mem) :=
     | _ => True
   end.
 
+Definition pures_eq (jm jm' : juicy_mem) :=
+  pures_sub jm jm' /\ 
+  (forall adr, 
+   match resource_at (m_phi jm') adr with
+    | PURE k pp' => exists pp, resource_at (m_phi jm) adr = PURE k pp
+    | _ => True
+  end).
+
 Section juicy_safety.
   Context {F V C Z:Type}.
   Context (Hcore:CoreSemantics (Genv.t F V) C juicy_mem).
@@ -25,6 +33,6 @@ Section juicy_safety.
   Definition Hrel n' m m' :=
     n' = level m' /\
     (level m' < level m)%nat /\ 
-    pures_sub m m'.
+    pures_eq m m'.
   Definition safeN := @safeN_ F V C juicy_mem Z Hrel Hcore Hspec.
 End juicy_safety.
