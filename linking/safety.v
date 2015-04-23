@@ -207,12 +207,15 @@ Lemma Hrel_trans m0 m m' :
   Hrel (ageable.level m') m m' -> 
   Hrel (ageable.level m') m0 m'.
 Proof.
-rewrite /Hrel; case=> H1 []H2 H2a; case=> H3 []H4 H4a; split; first by omega.
+rewrite /Hrel; case=> H1 []H2 []H2a H2b; case=> H3 []H4 []H4a H4b; split; first by omega.
 split; first by omega.
+split.
 move=> loc; move: (H2a loc) (H4a loc); rewrite /pures_sub.
 case: (compcert_rmaps.RML.R.resource_at (m_phi m0) _)=> // k p -> ->.
-rewrite compcert_rmaps.RML.preds_fmap_fmap compcert_rmaps.RML.approx_oo_approx' //.
-omega.
+rewrite compcert_rmaps.RML.preds_fmap_fmap compcert_rmaps.RML.approx_oo_approx' //. omega.
+move=> adr; move: (H4b adr). 
+case: (compcert_rmaps.RML.R.resource_at _ _)=> // k H5 []pp H6.
+move: (H2b adr); rewrite H6 //.
 Qed.
 
 Lemma tail_safe_Hrel ef Hx efs l m m' (Hr: Hrel (ageable.level m') m m') :
@@ -229,11 +232,16 @@ Lemma age1_Hrel m m' : ageable.age1 m = Some m' -> Hrel (ageable.level m') m m'.
 Proof.
 move=> Hag; split=> //; split=> //.
 by apply ageable.age_level in Hag; rewrite Hag; omega.
-apply age1_juicy_mem_Some in Hag=> loc.
+apply age1_juicy_mem_Some in Hag.
+split=> loc.
 move: (compcert_rmaps.RML.age1_resource_at _ _ Hag loc).
 case Hres: (compcert_rmaps.RML.R.resource_at _ _)=> //= Heq.
 eapply compcert_rmaps.RML.necR_PURE in Hres; eauto.
 by constructor.
+case Heq: (compcert_rmaps.RML.R.resource_at _ _)=> //[k pp].
+have Hnec: @ageable.necR _ compcert_rmaps.R.ag_rmap (m_phi m) (m_phi m'). 
+{ by apply: Relation_Operators.rt_step. }
+by eapply necR_PURE' in Hnec; eauto.
 Qed.
 
 Lemma age_tail_safe ef Hx efs l m m' (Hag: ageable.age m m') : 
@@ -324,9 +332,9 @@ exists ef'', sig'', args''; split=> //; exists x; split=> //.
 by rewrite -genv_symbols_eq in Hpre.
 rewrite -genv_symbols_eq in Hpost.
 move=> ret m' z' n'' Hlev' Hrel' Hpost'. 
-have Hlev: ((ageable.level (m_phi m') <= n)%coq_nat).
+have Hlev: ((@ageable.level _ compcert_rmaps.R.ag_rmap (m_phi m') <= n)%coq_nat).
 { 
- case: Hrel'=> ->; case=> X _; rewrite -level_juice_level_phi in H.
+ case: Hrel' => <-; case=> X ?; rewrite -level_juice_level_phi in H.
  rewrite -H in X; omega.
 }
 case: (Hpost _ _ _ _ Hlev Hrel' Hpost')=> c' []Haft Hsafe.
@@ -344,7 +352,7 @@ case=> <- <- <-; exists e, sig, args; split=> //; exists x; split=> //.
 by rewrite -genv_symbols_eq in Hpre.
 rewrite -genv_symbols_eq in Hpost.
 move=> ret m' z' n'' Hlev' Hrel' Hpost'. 
-have Hlev: ((ageable.level (m_phi m') <= n)%coq_nat).
+have Hlev: ((@ageable.level _ compcert_rmaps.R.ag_rmap (m_phi m') <= n)%coq_nat).
 { 
  case: Hrel'=> ->; case=> X _; rewrite -level_juice_level_phi in H.
  rewrite -H in X; omega.
@@ -395,13 +403,13 @@ by rewrite Hhdl.
 
 { (* all_safe *)
 exists [:: e, ef & efs']; split=> //; exists x; split=> //; split=> //.
-move: (Hsafe); move/(_ (ageable.level m)).
+move: (Hsafe); move/(_ (@ageable.level _ juicy_mem_ageable m)).
 by rewrite -genv_symbols_eq; apply: age_safe.
 exists sig, args, z, m, Hx; split=> //. 
 by apply: age1_Hrel.
 by rewrite Hsg'.
 rewrite -!genv_symbols_eq in Hpost|-* => ret m'' z' Hrel' Hq'.
-have Hlev'': (((ageable.level m'') <= n)%coq_nat). 
+have Hlev'': (((@ageable.level _ juicy_mem_ageable m'') <= n)%coq_nat). 
 { case: Hrel'=> _ []Hag'' _. 
   by rewrite -level_juice_level_phi in H; omega. }
 case: (Hpost ret m'' z' _ Hlev'' Hrel' Hq')=> c' []Haft Hsafe'.
@@ -430,8 +438,7 @@ move: H0=> Hexit; case: l1 Hwf Htl.
 move=> Hwf; case: efs' LFM=> // LFM _; apply: Or32; exists i.
 rewrite /LinkerSem.halted /inContext /= /LinkerSem.halted0 /peekCore /= Hhlt.
 have Hty: val_casted.val_has_type_func i (proj_sig_res (ef_sig ef)).
-{ apply: rets_welltyped=> //; first by apply: (Genv.genv_symb ge).
-  by rewrite -genv_symbols_eq in Hexit. }
+{ simpl in Hexit; eapply rets_welltyped; eauto. }
 by rewrite Hsig Hty. 
 
 + (* l1 = [a2 :: l2] *)
@@ -488,7 +495,7 @@ by left; rewrite /LinkerSem.corestep0 /peekCore; exists c'.
 exists [:: ef & efs']; split=> //. 
 exists Hx; split=> //.
 split=> //; move: Hsafe.
-have ->: (n = (ageable.level (m_phi m'))). 
+have ->: (n = (@ageable.level _ compcert_rmaps.R.ag_rmap (m_phi m'))). 
 { 
  move: H; rewrite -!level_juice_level_phi.
  case: (corestep_hrel Hstep)=> _ -> ?; omega.
@@ -557,7 +564,7 @@ Require Import Arith.
 induction n using (well_founded_induction lt_wf).
 move: H=> IH; case: n IH; first by constructor.
 move=> n IH z m l fn_tbl all_safe Hag.
-have Hag': ((ageable.level m) > 0)%coq_nat. 
+have Hag': ((@ageable.level _ juicy_mem_ageable m) > 0)%coq_nat. 
 { 
  by rewrite -Hag; omega. 
 }
@@ -567,7 +574,8 @@ case: (all_safe_inv fn_tbl Hag' all_safe).
 case=> l' []m' []Hplt Hstep Hall_safe; econstructor; eauto.
 have Hlt: (n < n.+1)%coq_nat by omega.
 apply: (IH n Hlt z m' l' Hplt Hall_safe). 
-have Heq: ((ageable.level m').+1 = ageable.level m).
+have Heq: ((@ageable.level _ juicy_mem_ageable m').+1 
+           = @ageable.level _ juicy_mem_ageable m).
 {
  by apply linked_corestep_age1 in Hstep.
 }
@@ -622,25 +630,25 @@ have Hplt: plt id = None.
 eapply safeN_external; eauto; first by simpl; rewrite Hid Hplt; eauto.
 move=> ret m' z' n' Hlev' Hrel' Hpost'.
 case: Hrel'=> Hag'' []Hx Hy.
-have Hag''': (n' <= ageable.level m') by rewrite Hag''.
-have Hag'''': (n' <= ageable.level m')%coq_nat by rewrite Hag''.
-have Hrel'': Hrel (ageable.level m') m m' by split.
+have Hag''': (n' <= @ageable.level _ juicy_mem_ageable m') by rewrite Hag''.
+have Hag'''': (n' <= @ageable.level _ juicy_mem_ageable m')%coq_nat by rewrite Hag''.
+have Hrel'': Hrel (@ageable.level _ juicy_mem_ageable m') m m' by split.
 simpl in Hpost'; rewrite Hid Hplt in Hpost'.
 case: (Hpost ret m' z' _  Hag''' Hrel'' Hpost')=> l' []Hplt' Haft Hall. 
 exists l'; split=> //. case: Hrel''=> _ []Hz _.
-have Hlev'': (ageable.level m' < n.+1)%coq_nat by omega.
+have Hlev'': (@ageable.level _ juicy_mem_ageable m' < n.+1)%coq_nat by omega.
 by move: (IH _ Hlev'' _ _ _ Hplt' Hall erefl); apply: safe_downward.
 
 eapply safeN_external; eauto; first by simpl; rewrite Hid; eauto.
 move=> ret m' z' n' Hlev' Hrel' Hpost'.
 case: Hrel'=> Hag'' []Hx Hy.
-have Hag''': (n' <= ageable.level m') by rewrite Hag''.
-have Hag'''': (n' <= ageable.level m')%coq_nat by rewrite Hag''.
-have Hrel'': Hrel (ageable.level m') m m' by split.
+have Hag''': (n' <= @ageable.level _ juicy_mem_ageable m') by rewrite Hag''.
+have Hag'''': (n' <= @ageable.level _ juicy_mem_ageable m')%coq_nat by rewrite Hag''.
+have Hrel'': Hrel (@ageable.level _ juicy_mem_ageable m') m m' by split.
 simpl in Hpost'; rewrite Hid in Hpost'.
 case: (Hpost ret m' z' _  Hag''' Hrel'' Hpost')=> l' []Hplt' Haft Hall. 
 exists l'; split=> //. case: Hrel''=> _ []Hz _.
-have Hlev'': (ageable.level m' < n.+1)%coq_nat by omega.
+have Hlev'': (@ageable.level _ juicy_mem_ageable m' < n.+1)%coq_nat by omega.
 by move: (IH _ Hlev'' _ _ _ Hplt' Hall erefl); apply: safe_downward.
 }
 Qed.
@@ -649,9 +657,11 @@ End safety.
 
 Lemma jstep_hrel G C (sem : CoreSemantics G C mem) (ge : G) c m c' m' :
   jstep sem ge c m c' m' -> 
-  Hrel (ageable.level m') m m' /\ ageable.level m = (ageable.level m').+1.
+  Hrel (@ageable.level _ juicy_mem_ageable m') m m' 
+  /\ @ageable.level _ juicy_mem_ageable m 
+     = (@ageable.level _ juicy_mem_ageable m').+1.
 Proof.
-case=> _ []Hres Hag; split=> //; split=> //; split; first by rewrite Hag; omega.
+case=> _ []Hres Hag; split=> //; split=> //; split; first by rewrite Hag; omega. split.
 move=> loc; case: Hres=> _; case/(_ loc)=> _.
 Require Import compcert_rmaps.
 case Hres: (compcert_rmaps.RML.R.resource_at _ _)=> //; case; first by move=> <-.
@@ -660,6 +670,14 @@ case.
 case=> H; case=> ?; case: m Hag Hres H=> /= m phi ??? Hal ? Hres Hnb. 
 by rewrite Hal in Hres.
 by case=> ? []?; case; discriminate.
+move=> loc; case: Hres=> _; case/(_ loc)=> _; case.
+rewrite /resource_fmap; case: (m_phi m @ loc); case: (m_phi m' @ loc)=> // k pp k' pp'.
+by case=> <- H; exists pp'.
+case.
+{ by case=> rsh; case=> x; case=> y; case=> ? ->. }
+case.
+{ by case=> H; case=> v ->. }
+{ by case=> v; case=> pp; case=> ? ->. }
 Qed.
 
 Definition mk_modsem F V C 
@@ -719,7 +737,7 @@ Lemma linker_preserves_safety :
          (z : Ora) (m : juicy_mem) (main_idx : 'I_N) 
          (main_b : block) (args : list val),
     ext_spec_type spec (main_ef main_id) = unit ->
-    n0 = ageable.level m ->
+    n0 = @ageable.level _ juicy_mem_ageable m ->
     LinkerSem.fun_id (main_ef main_id) = Some main_id ->
     plt main_id = Some main_idx ->
     Genv.find_symbol (Modsem.ge (sems main_idx)) main_id = Some main_b ->
@@ -732,7 +750,7 @@ Lemma linker_preserves_safety :
             (minus_defs (upd_exit (ef:=main_ef main_id) spec x (Genv.genv_symb ge)) plt)
             ge n0 z l m.
 Proof.
-move=> N plt Fs Vs Cs ges sems0 *; apply: linker_safe=> //=.
+move=> N plt Fs Vs Cs ges sems0 *; apply: linker_safe; eauto => //=.
 by move=> ????? Hstep; apply: (jstep_hrel Hstep).
 move=> Z Hspec idx ?? m m' ?; rewrite -!level_juice_level_phi=> Hag Hsafe.
 by move: (@age_safe (Fs idx) (Vs idx) (Cs idx) (sems0 idx) Z Hspec m' m Hag); apply.

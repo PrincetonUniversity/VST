@@ -86,7 +86,7 @@ SEPCOMP_FILES= \
   forward_simulations_lemmas.v \
   safety_preservation.v \
   StructuredInjections.v \
-  effect_semantics.v effect_simulations.v \
+  effect_semantics.v effect_simulations.v effect_simulations_lemmas.v \
   rg_lemmas.v \
   effect_properties.v \
   arguments.v closed_safety.v compcert.v \
@@ -113,7 +113,10 @@ LINKING_FILES= \
   linking_spec.v \
   erase_juice.v \
   safety.v \
-  semax_linking.v
+  semax_linking.v \
+  cast.v \
+  tuple.v \
+  finfun.v
 
 VERIC_FILES= \
   base.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v\
