@@ -1,6 +1,7 @@
 Require Import floyd.proofauto.
 Import ListNotations.
 Require Import sha.sha.
+Require Import general_lemmas.
 Require Import sha.SHA256.
 Local Open Scope logic.
 
@@ -65,10 +66,10 @@ Definition __builtin_read32_reversed_spec :=
   PRE [ _ptr OF tptr tuint ] 
         PROP  (Zlength contents >= 4)
         LOCAL (temp _ptr p)
-        SEP   (`(data_at sh (tarray tuchar 4) (map Vint (rev contents)) p))
+        SEP   (`(data_at sh (tarray tuchar 4) (map Vint contents) p))
   POST [ tuint ] 
-     local (`(eq (Vint (big_endian_integer contents))) retval) &&
-     `(data_at sh (tarray tuchar 4) (map Vint contents) p).
+     PROP() LOCAL (temp ret_temp  (Vint (big_endian_integer contents)))
+     SEP (`(data_at sh (tarray tuchar 4) (map Vint contents) p)).
 
 Definition __builtin_write32_reversed_spec :=
  DECLARE ___builtin_write32_reversed
@@ -227,9 +228,3 @@ Fixpoint do_builtins (n: nat) (defs : list (ident * globdef fundef type)) : funs
  end.
 
 Definition Gtot := do_builtins 3 (prog_defs prog) ++ Gprog.
-
-
-
-
-
-

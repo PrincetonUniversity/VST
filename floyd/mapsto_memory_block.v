@@ -60,7 +60,7 @@ Proof. unfold mapsto_; intros.
   apply orp_right2. apply exp_right with v2'.
   normalize.
 Qed.
-Hint Resolve mapsto_mapsto_ : cancel.
+
 
 Lemma mapsto_local_facts:
   forall sh t v1 v2,  mapsto sh t v1 v2 |-- !! (isptr v1).
@@ -705,8 +705,6 @@ destruct s1,s2; fold tuint; fold tint;
   repeat rewrite mapsto_tuint_tint; auto.
 Qed.
 
-Hint Extern 2 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
-   (apply mapsto_mapsto__int32)  : cancel.
 
 Lemma mapsto_mapsto_int32:
   forall sh p v s1 s2,
@@ -717,7 +715,17 @@ destruct s1,s2; fold tuint; fold tint;
   repeat rewrite mapsto_tuint_tint; auto.
 Qed.
 
-Hint Extern 2 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
+
+(* We do these as Hint Extern, instead of Hint Resolve,
+  to limit their application and make them fail faster *)
+
+Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
+    (apply mapsto_mapsto_) : cancel.
+
+Hint Extern 1 (mapsto _ _ _ _ |-- mapsto_ _ _ _) =>
+   (apply mapsto_mapsto__int32)  : cancel.
+
+Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
    (apply mapsto_mapsto_int32)  : cancel.
 
 Lemma mapsto_null_mapsto_pointer:

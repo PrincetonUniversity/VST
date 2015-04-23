@@ -35,16 +35,15 @@ name p _p.
 name n _n.
 name cNl _cNl.
 name cNh _cNh.
-unfold sha256state_; normalize.
-intros [r_h [r_Nl [r_Nh [r_data r_num]]]].
+unfold sha256state_.
+forward_intro [r_h [r_Nl [r_Nh [r_data r_num]]]].
 unfold_data_at 1%nat.
 normalize.
 unfold s256_relate in H0.
 unfold s256_h, s256_Nh,s256_Nl, s256_num, s256_data, fst,snd in H0|-*.
-destruct a as [hashed data].
-destruct H0 as [H0 [H1 [H2 [[H3 DDbytes] [H4 H5]]]]].
-destruct H1.
-subst r_Nh r_Nl r_num r_data. rename data into dd.
+destruct a as [hashed dd].
+destruct H0 as [H0 [[H1 H6] [H2 [[H3 DDbytes] [H4 H5]]]]].
+subst r_Nh r_Nl r_num r_data.
 assert (H3': (Zlength dd < 64)%Z) by assumption.
 forward. (* p = c->data;  *)
 (* This proof should be a lot nicer. *)
@@ -85,7 +84,7 @@ Focus 2.
   + rewrite !Zlength_map. reflexivity.
 } Unfocus.
 
-forward. (* n++; *)
+forward n_old. (* n++; *)
 simpl. normalize. 
 subst r_h. simpl.
 set (ddlen :=  Zlength dd).
@@ -96,9 +95,8 @@ forward_if   (invariant_after_if1 hashed dd c md shmd kv).
 * (* then-clause *)
  change Delta with Delta_final_if1.
 match goal with |- semax _ _ ?c _ => change c with Body_final_if1 end.
- simpl typeof.
-unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
- make_sequential. rewrite overridePost_normal'.
+  make_sequential.
+  normalize_postcondition.
 unfold ddlen in *; clear ddlen.
 assert (Zlength dd + 1 > 16 * 4 - 8) by omega.
 eapply semax_pre0; 
@@ -112,13 +110,10 @@ entailer!.
 * (* else-clause *)
 forward. (* skip; *)
 unfold invariant_after_if1.
-normalize. rewrite overridePost_normal'. 
 apply exp_right with hashed.
 apply exp_right with (dd ++ [128]).
 apply exp_right with 0%Z.
 entailer.
-(*clear H5.*)
-(*change (16*4)%Z with (Z.of_nat CBLOCK) in H2.*)
 apply andp_right; [apply prop_right; repeat split | cancel].
 rewrite Forall_app; split; auto.
 repeat constructor; omega.
@@ -137,16 +132,15 @@ rewrite upd_reptype_array_append
   by (rewrite !Zlength_map; auto).
 entailer!.
 * unfold invariant_after_if1.
-apply extract_exists_pre; intro hashed'.
-apply extract_exists_pre; intro dd'.
-apply extract_exists_pre; intro pad.
+forward_intro hashed'.
+forward_intro dd'.
+forward_intro pad.
 apply semax_extract_PROP; intro DDbytes'.
 apply semax_extract_PROP; intro PAD.
 normalize.
 unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 unfold sha_finish.
 unfold SHA_256.
-(* clear ddlen Hddlen. *)
 
     unfold_data_at 1%nat.
     replace (field_at Tsh t_struct_SHA256state_st [StructField _data]
@@ -182,33 +176,20 @@ unfold SHA_256.
 
 forward_call' (* memset (p+n,0,SHA_CBLOCK-8-n); *)
   (Tsh,
-     field_address t_struct_SHA256state_st
+     field_address0 t_struct_SHA256state_st
          [ArraySubsc (Zlength dd'); StructField _data] c, 
      (Z.of_nat CBLOCK - 8 - Zlength dd')%Z,
-     Int.zero).
+     Int.zero) vret.
  apply prop_right; repeat constructor; hnf; simpl; auto.
  rewrite field_address_clarify by auto.
- rewrite field_address_clarify by auto.
+ rewrite field_address0_clarify by auto.
  erewrite nested_field_offset2_Tarray by reflexivity.
   change (sizeof tuchar) with 1.
  rewrite Z.mul_1_l.
  normalize.
-
-(* 
-{
-  entailer!.
-  + Omega1.
-  + rewrite field_address_clarify by auto.
-      rewrite field_address_clarify by auto.
-      erewrite nested_field_offset2_Tarray by reflexivity.
-      change (sizeof tuchar) with 1.
-      rewrite Z.mul_1_l.
-      normalize.
-  +
-*)
  {pull_left (data_at Tsh (Tarray tuchar (Z.of_nat CBLOCK - 8 - Zlength dd') noattr)
      (list_repeat (CBLOCK - 8 - length dd') Vundef)
-     (field_address t_struct_SHA256state_st
+     (field_address0 t_struct_SHA256state_st
               [ArraySubsc (Zlength dd'); StructField _data] c)).
     repeat rewrite sepcon_assoc; apply sepcon_derives; [ | cancel].
     eapply derives_trans; [apply data_at_data_at_; reflexivity |].
@@ -242,7 +223,7 @@ Transparent tuchar.
  
 normalize.
 clear vret H7.
-forward.  (* p += SHA_CBLOCK-8; *)
+forward p_old.  (* p += SHA_CBLOCK-8; *)
 
 gather_SEP 0 1 2.
 replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
@@ -258,7 +239,7 @@ replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
       rewrite Nat2Z.inj_add in H0.
       rewrite Zlength_correct.
       change 8 with (Z.of_nat 8).
-    admit.  (* array_seg_reroot_lemma too strict? *)
+    omega.
     } Unfocus.
     2: change (Z.of_nat CBLOCK) with 64; omega.
     2: rewrite !Zlength_map; reflexivity.
@@ -280,7 +261,7 @@ replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
   Focus 1. {
     clear POSTCONDITION.
     entailer!.
-    clear rho H7 H8.
+    clear rho H9 H8.
     (* this proof should be nicer. *)
     rewrite field_address_clarify.
     rewrite field_address_clarify.
@@ -294,8 +275,7 @@ replace_SEP 0 (`(field_at Tsh t_struct_SHA256state_st [StructField _data]
     destruct c_; try contradiction. apply I.
     eapply field_compatible_cons_Tarray; try reflexivity; auto.
   } Unfocus.
-  subst n0.
-  drop_LOCAL 2%nat; clear p0.
+  subst n_old p_old.
   replace Delta with Delta_final_if1 by (simplify_Delta; reflexivity).
   eapply semax_pre; [ | apply final_part2 with pad; try eassumption; try reflexivity].
   entailer!.

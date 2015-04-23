@@ -178,8 +178,10 @@ Lemma try_conjuncts_start: forall A B: Prop,
  Proof. intuition. Qed.
 
 Ltac try_conjuncts_solver :=
-    match goal with |- ?A => no_evars A end;
-    first [apply I | computable | solve [auto] | omega ].
+    match goal with H:_ |- ?A => 
+         no_evars A;
+         first [apply I | computable | omega | clear H; auto; fail 2 ]
+    end.
 
 Ltac try_conjuncts :=
  first [ simple eapply conj;
@@ -230,7 +232,8 @@ Ltac ent_iter :=
    saturate_local;
 (* subst_any; *)
    simpl_compare;
-   subst_any.
+   subst_any;
+   autorewrite with entailer_rewrite in *.
 
 Ltac prune_conjuncts :=
  repeat rewrite and_assoc';
@@ -309,7 +312,7 @@ Ltac entbang :=
 
 Tactic Notation "entailer" "!" := entbang.
 
-Ltac elim_hyps :=
+Ltac elim_hyps :=  (* not in use anywhere? *)
  repeat match goal with
  | H: isptr ?x |- _ =>
      let x1 := fresh x "_b" in let x2 := fresh x "_ofs" in
@@ -320,7 +323,7 @@ Ltac elim_hyps :=
 Ltac aggressive :=
   repeat split; auto; elim_hyps; simpl; (computable || auto).
 
-Ltac entailer1 :=
+Ltac entailer1 := (* not in use anywhere? *)
   entailer; 
     first [simple apply andp_right; 
                [apply prop_right; aggressive | cancel ]
@@ -440,18 +443,21 @@ repeat match goal with
    intros; omega).
 
 Ltac Omega'' L :=
- first [ apply Nat2Z.inj_ge | apply Nat2Z.inj_gt
-        | apply Nat2Z.inj_le | apply Nat2Z.inj_lt
-        | idtac];
+  match goal with
+  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
+  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
+  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
+  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
+  | |- @eq nat _ _ => apply Nat2Z.inj
+  | |- _ => idtac
+  end;
  repeat first
      [ simpl_const
      | rewrite Nat2Z.id
      | rewrite Nat2Z.inj_add
+     | rewrite Nat2Z.inj_mul
      | rewrite Z2Nat.id by Omega'' L
-     | rewrite Nat2Z.inj_sub
-       by (apply Nat2Z.inj_le; 
-             repeat rewrite Nat2Z.inj_add; 
-             rewrite Z2Nat.id by Omega'' L; Omega'' L)
+     | rewrite Nat2Z.inj_sub by Omega'' L
      | rewrite Z2Nat.inj_sub by Omega'' L
      | rewrite Z2Nat.inj_add by Omega'' L
      ];
@@ -509,3 +515,42 @@ apply prop_ext; intuition.
 Qed.
 Hint Rewrite offset_val_sizeof_hack3 : norm.
 
+Lemma cmpu_bool_ptr1: 
+  forall validptr c p, isptr p -> 
+     Val.cmpu_bool validptr c p (Vint Int.zero) = Val.cmp_different_blocks c.
+Proof.
+intros. destruct p; try contradiction. reflexivity.
+Qed.
+
+Lemma cmpu_bool_ptr2: 
+  forall validptr c p, isptr p -> 
+     Val.cmpu_bool validptr c (Vint Int.zero) p = Val.cmp_different_blocks c.
+Proof.
+intros. destruct p; try contradiction. reflexivity.
+Qed.
+Hint Rewrite cmpu_bool_ptr1 cmpu_bool_ptr2 using solve [auto] : norm.
+
+Lemma sem_cmp_pp_ptr1:
+  forall c p,  isptr p -> 
+   sem_cmp_pp c true2 p (Vint Int.zero) = 
+       option_map Val.of_bool (Val.cmp_different_blocks c).
+Proof.
+intros.
+unfold sem_cmp_pp; simpl. normalize.
+Qed.
+
+Lemma sem_cmp_pp_ptr2:
+  forall c p,  isptr p -> 
+   sem_cmp_pp c true2 (Vint Int.zero)  p= 
+       option_map Val.of_bool (Val.cmp_different_blocks c).
+Proof.
+intros.
+unfold sem_cmp_pp.
+normalize.
+Qed.
+
+Hint Rewrite sem_cmp_pp_ptr1 sem_cmp_pp_ptr2 using solve [auto] : norm.
+
+Ltac make_Vptr c :=
+  let H := fresh in assert (isptr c) by auto;
+  destruct c; try (contradiction H); clear H.

@@ -151,7 +151,7 @@ forward_if (
 * (* then-clause *)
  rewrite <- add_repr in H1.
  rewrite Int.repr_unsigned in H1.
- forward.
+ forward cNh_old.
  entailer!.
  rewrite <- (Int.repr_unsigned (hi_part n)) at 2.
  rewrite add_repr.
@@ -198,7 +198,7 @@ forward_if (
  rewrite Z.add_0_r.
  apply Int.repr_unsigned.
 * (* after the if *)
- forward. (* cNh += (len>>29); *)
+ forward cNh_old. (* cNh += (len>>29); *)
  forward. (* c->Nl=l; *)
  forward. (* c->Nh=cNh; *)
  forward. (* return; *)

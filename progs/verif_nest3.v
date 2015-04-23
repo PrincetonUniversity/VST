@@ -26,7 +26,8 @@ Definition set_spec :=
         LOCAL(temp _i (Vint i); gvar _p p)
         SEP(`(data_at Ews t_struct_c (repinj _ v) p))
   POST [ tvoid ]
-        `(data_at Ews t_struct_c (repinj _ (update222 i v)) p).
+        PROP() LOCAL()
+        SEP(`(data_at Ews t_struct_c (repinj _ (update222 i v)) p)).
 
 Definition Vprog : varspecs := (_p, t_struct_c)::nil.
 

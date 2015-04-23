@@ -136,7 +136,7 @@ FLOYD_FILES= \
    entailer.v globals_lemmas.v local2ptree.v fieldlist.v mapsto_memory_block.v\
    nested_field_lemmas.v efield_lemmas.v nested_field_re_lemmas.v \
    data_at_lemmas.v field_at.v stronger.v unfold_data_at.v \
-   for_lemmas.v semax_tactics.v expr_lemmas.v 
+   for_lemmas.v semax_tactics.v expr_lemmas.v real_forward.v diagnosis.v
 
 PROGS_FILES= \
   list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v verif_message.v \
@@ -148,16 +148,17 @@ PROGS_FILES= \
   even.v verif_even.v odd.v verif_odd.v
 
 SHA_FILES= \
-  SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
+  general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
   sha.v spec_sha.v verif_sha_init.v \
   verif_sha_update.v verif_sha_update2.v verif_sha_update3.v verif_sha_update4.v \
-  bdo_lemmas.v verif_sha_bdo.v verif_sha_bdo2.v \
+  bdo_lemmas.v verif_sha_bdo.v  \
   verif_sha_bdo4.v verif_sha_bdo7.v verif_sha_bdo8.v \
   verif_sha_final2.v verif_sha_final3.v verif_sha_final.v \
-  verif_addlength.v verif_SHA256.v
+  verif_addlength.v verif_SHA256.v call_memcpy.v
 
 HMAC_FILES= \
-  HMAC_functional_prog.v vst_lemmas.v hmac_pure_lemmas.v hmac_common_lemmas.v \
+  HMAC_functional_prog.v HMAC256_functional_prog.v \
+  vst_lemmas.v hmac_pure_lemmas.v hmac_common_lemmas.v \
   hmac091c.v spec_hmac.v verif_hmac_cleanup.v \
   verif_hmac_init_part1.v verif_hmac_init_part2.v verif_hmac_init.v \
   verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
@@ -190,9 +191,13 @@ HMACFCF_FILES= \
   GNMAC_PRF.v GHMAC_PRF.v HMAC_PRF.v
 
 HMACEQUIV_FILES= \
-  XorCorrespondence.v sha_padding_lemmas.v Bruteforce.v ByteBitRelations.v \
-  HMAC_common_defs.v HMAC_spec_pad.v HMAC_spec_concat.v HMAC_spec_list.v \
-  HMAC_spec_abstract.v HMAC_equivalence.v HMAC_isPRF.v
+  HMAC256_functional_prog.v ShaInstantiation.v XorCorrespondence.v \
+  sha_padding_lemmas.v Bruteforce.v ByteBitRelations.v \
+  HMAC_common_defs.v HMAC_spec_pad.v HMAC256_spec_pad.v \
+  HMAC_spec_concat.v HMAC256_spec_concat.v \
+  HMAC_spec_list.v HMAC256_spec_list.v \
+  HMAC_spec_abstract.v HMAC_equivalence.v HMAC256_equivalence.v \
+  HMAC_isPRF.v HMAC256_isPRF.v
 
 C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c
 
@@ -246,6 +251,7 @@ hmac:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 hmacequiv:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 fcf:     .loadpath $(FCF_FILES:%.v=fcf/%.vo)
 hmacfcf: .loadpath $(HMACFCF_FILES:%.v=hmacfcf/%.vo)
+hmac0: .loadpath sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
 
 CGFLAGS =  -DCOMPCERT
 

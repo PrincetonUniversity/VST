@@ -107,23 +107,13 @@ Proof.
   rewrite <- H1.
   forward. (* c->num=0; *)
   forward_call' (* memset (p,0,SHA_CBLOCK); *) 
-    (Tsh, (field_address t_struct_SHA256state_st [StructField _data] c), 64%Z, Int.zero).
+    (Tsh, (field_address t_struct_SHA256state_st [StructField _data] c), 64%Z, Int.zero)
+    vret.
   {
     entailer!.
-    pull_left (data_at Tsh (tarray tuchar (Zlength (intlist_to_Zlist lastblock)))
-     (map Vint (map Int.repr (intlist_to_Zlist lastblock)))
-     (field_address t_struct_SHA256state_st [StructField _data] c)).
-    rewrite !sepcon_assoc.
-    apply sepcon_derives; [ | cancel_frame].
-    eapply derives_trans; [apply data_at_data_at_; reflexivity |].
-    replace (Zlength (intlist_to_Zlist lastblock)) with 64.
-    Focus 2. {
-      rewrite Zlength_intlist_to_Zlist, H0.
-      reflexivity.
-    } Unfocus.
-    rewrite data_at__memory_block;
-      [| reflexivity | change Int.modulus with 4294967296; simpl; omega].
-    entailer!.
+    replace (Zlength (intlist_to_Zlist lastblock)) with 64
+        by (rewrite Zlength_intlist_to_Zlist, H0; reflexivity).
+    cancel.
   }
   simpl map.
   replace Delta with
@@ -315,7 +305,7 @@ Proof.
   normalize.
 (*  rewrite <- seq_assoc.  shouldn't be necessary *)
   forward_call' (* (void)HOST_l2c(cNh,p); *)
-     (field_address t_struct_SHA256state_st
+     (field_address0 t_struct_SHA256state_st
                     [ArraySubsc 56; StructField _data] c,
       Tsh, hibytes).
      apply prop_right; repeat constructor; hnf; simpl.
@@ -324,19 +314,8 @@ Proof.
   reflexivity.
   
   rewrite field_address_clarify by auto.
-  rewrite field_address_clarify by auto.
+  rewrite field_address0_clarify by auto.
   destruct c_; try contradiction; normalize.
-  pull_left
-       (data_at Tsh (Tarray tuchar (60 - 56) noattr) (list_repeat 4 Vundef)
-         (field_address t_struct_SHA256state_st
-                    [ArraySubsc 56; StructField _data] c)) .
-  repeat rewrite sepcon_assoc.
-  apply sepcon_derives; [ | cancel_frame].
-  change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).
-  eapply derives_trans; [apply data_at_data_at_; reflexivity |].
-      erewrite data_at__memory_block;
-        [| reflexivity | change Int.modulus with 4294967296; simpl; omega].
-      entailer.
   split; auto. change (Zlength hibytes) with 4. clear; omega.
   unfold map at 2.
   gather_SEP 0 1 2.
@@ -360,7 +339,7 @@ Proof.
     } Unfocus.
     entailer!.
   } Unfocus.
-  forward. (* p += 4; *)
+  forward p_old. (* p += 4; *)
   forward. (* cNl=c->Nl; *)
   erewrite array_seg_reroot_lemma with (lo := 60) (hi := 64);
     [| omega | omega | reflexivity | omega | reflexivity | reflexivity | | reflexivity].
@@ -378,36 +357,23 @@ Proof.
     omega.
   } Unfocus.
   normalize.
- (* rewrite <- seq_assoc.  shouldn't need this *)
   forward_call' (* (void)HOST_l2c(cNl,p); *)
-    (field_address t_struct_SHA256state_st
+    (field_address0 t_struct_SHA256state_st
                     [ArraySubsc 60; StructField _data] c,
      Tsh, lobytes).
   {
   apply prop_right; repeat constructor; hnf; simpl; auto.
   rewrite (nth_big_endian_integer 0 [lo_part bitlen] (lo_part bitlen)) at 1 by reflexivity;
   reflexivity.
-  destruct c_; try (contradiction Pc_); simpl.
+  make_Vptr c_; simpl.
   symmetry.
-  rewrite field_address_clarify by auto.
+  rewrite field_address0_clarify by auto.
   rewrite field_address_clarify. simpl.
   normalize.
   clear - TC0.
   unfold field_address in *; simpl in *.
   if_tac; try contradiction. apply I.
  }
-  pull_left
-        (data_at Tsh (Tarray tuchar (64-60) noattr) [Vundef; Vundef; Vundef; Vundef]
-          (field_address t_struct_SHA256state_st
-                    [ArraySubsc 60; StructField _data] c)).
-      repeat rewrite sepcon_assoc.
-      apply sepcon_derives; [ | cancel_frame].
-      change (Int.repr 4) with (Int.repr (sizeof (tarray tuchar 4))).
-      eapply derives_trans; [apply data_at_data_at_; reflexivity |].
-      erewrite data_at__memory_block;
-        [| reflexivity | change Int.modulus with  4294967296; simpl; omega].
-      entailer.
-
   split; auto.
   compute; congruence.
   simpl map.
@@ -436,21 +402,20 @@ Proof.
     entailer!.
   }
   rewrite app_nil_r.
-  forward. (* p += 4; *)
+  forward p1. (* p += 4; *)
     entailer!. rewrite field_address_clarify. normalize.
     clear - TC0.
      unfold field_address in *. if_tac; try contradiction.
       destruct c_; simpl in *; try contradiction. auto.
-  forward. (* p -= SHA_CBLOCK; *)
+  forward p2. (* p -= SHA_CBLOCK; *)
   {
     entailer!. rewrite field_address_clarify.
-          destruct c_; simpl in *; try contradiction; auto.
+          make_Vptr c_; simpl in *; auto.
     clear - TC0.
      unfold field_address in *. if_tac; try contradiction.
       destruct c_; simpl in *; try contradiction. auto.
   }
-  drop_LOCAL 1%nat; clear p2. (* drop p2 *)
-  drop_LOCAL 2%nat; clear p1. (* drop p1 *)
+ clear p2 H9. clear p1 H8.
   drop_LOCAL 1%nat. (* drop cNl *)
   drop_LOCAL 1%nat. (* drop cNh *)
   match goal with
@@ -463,7 +428,7 @@ Proof.
     entailer!.
     rewrite <- H8.
     unfold field_address.
-    destruct (eval_id _c rho); try solve [inversion H11].
+    make_Vptr (eval_id _c rho).
     simpl.
     if_tac; [rewrite if_true | rewrite if_false]; auto.
     unfold offset_val, force_val; simpl.
@@ -471,8 +436,6 @@ Proof.
     rewrite !Int.add_assoc.
     f_equal. normalize.
     rewrite Int.neg_repr. normalize.
-    hnf in H6|-*; decompose [and] H6; repeat split; auto.
-    contradict H6.
     hnf in H6|-*; decompose [and] H6; repeat split; auto.
   } Unfocus.
   change (map Vint hibytes) with (map Vint (map Int.repr (intlist_to_Zlist [hi_part bitlen]))).

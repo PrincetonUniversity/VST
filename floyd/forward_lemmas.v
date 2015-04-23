@@ -359,18 +359,6 @@ eapply semax_pre_simple; [ | apply (H3 a)]. clear - H1.
  auto. 
 Qed.
 
-Lemma exp_uncurry:
-  forall {T} {ND: NatDed T} A B F, (@exp T ND A (fun a => @exp T ND B (fun b => F a b)))
-   = @exp T ND (A*B) (fun ab => F (fst ab) (snd ab)).
-Proof.
-intros.
-apply pred_ext.
-apply exp_left; intro a. apply exp_left; intro b. apply exp_right with (a,b).
-apply derives_refl.
-apply exp_left; intro ab. apply exp_right with (fst ab). apply exp_right with (snd ab).
-apply derives_refl.
-Qed.
-
 Lemma semax_while' : 
  forall Espec Delta P Q R test body Post,
      bool_type (typeof test) = true ->

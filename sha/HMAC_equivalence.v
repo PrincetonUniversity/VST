@@ -3,15 +3,12 @@ Require Import Bvector.
 Require Import List.
 Require Import Integers.
 Require Import BinNums.
-(*Require Import Arith.*)
-Require Import common_lemmas.
-Require Import HMAC_functional_prog.
-Require Import sha_padding_lemmas.
+Require Import general_lemmas.
 Require Import ByteBitRelations.
 Require Import hmac_pure_lemmas.
-Require Import hmac_common_lemmas.
 Require Import HMAC_common_defs.
-Require Import HMAC_spec_list.
+Require Import HMAC_spec_pad.
+Require Import HMAC_spec_concat.
 Require Import HMAC_spec_abstract.
 
 Require Import Blist.
@@ -20,29 +17,254 @@ Lemma of_length_proof_irrel {A:Set} n (l: list A) M:
       Vector.to_list (@of_list_length _ n l M) = l.
 Proof. destruct M. apply Vector.to_list_of_list_opp. Qed.
 
-Section EQUIV.
+Require Import HMAC_functional_prog. (*Just for HMAC_FUN*)
 
-Definition h_v (iv:Bvector c) (blk:Bvector b): Bvector c :=
-  of_list_length _
-   (sha_h_length _ _ (VectorToList_length _ iv) (VectorToList_length _ blk)).
+Module Type EQUIV_Inst (HF:HP.HASH_FUNCTION).
 
-Lemma h_eq : forall (block_v : Bvector b) (block_l : Blist)
+(*Section EQUIV.*)
+  Parameter c:nat.
+  Parameter C: NPeano.divide 8 c.
+  Parameter p:nat.
+  Definition b := (c+p)%nat.
+  Parameter B: (0<b)%nat.
+  Parameter BS: (HF.BlockSize * 8)%nat = b.
+
+  Parameter h: Blist -> Blist -> Blist. (*To be instantiated to sha_h*)
+  Parameter h_length
+     : forall iv blk : list bool,
+       length iv = c -> length blk = b -> length (h iv blk) = c. (*instantiation: sha_h_length*)
+
+  Parameter ir: list int.
+(*  Definition iv: Blist := convert ir. (*sha_iv*)*)
+  Parameter iv_length: length (convert ir) = c. (*sha_iv_length*)
+  (*Definition iv_v : Bvector c := of_list_length _ iv_length. (*Vector.of_list iv.*)*)
+  Parameter iv_v : Bvector c.
+  Parameter iv_eq : convert ir = Vector.to_list iv_v.
+(*  Proof. unfold iv_v. rewrite of_length_proof_irrel. trivial.
+  Qed.*)
+
+  Parameter fpad_v : Bvector c -> Bvector p. 
+  Parameter fpad : Blist -> Blist.
+  Parameter fpad_length: forall msg, length msg = c -> length (fpad msg) = p.
+  Parameter fpad_eq: forall v l, l = Vector.to_list v ->
+                    fpad l = Vector.to_list (fpad_v v).
+
+  Parameter splitAndPad : Blist -> Blist.
+  Parameter splitAndPad_v : Blist -> list (Bvector b).
+
+
+  Parameter splitandpad_blocks: Blist -> list Blist.
+
+  Parameter sap_fpad: forall l m, length l = b ->
+                     InBlocks 8 m ->
+                     splitAndPad (l ++ m) = l ++ HMAC_Concat.app_fpad fpad m.
+
+  Parameter shasplitandpad_blocks_b:
+           forall m, Forall (fun x => length x = b) (splitandpad_blocks m).
+
+  Definition sap' (m:Blist):= concat (splitandpad_blocks m). (*plays role of sha_splitandpad_inc*)
+
+  Parameter sap_app : forall (l m : Blist),
+                         length l = b ->
+                         splitAndPad (l ++ m) = l ++ sap' m.
+
+  Parameter sap'_InBlocks: forall m, InBlocks b (sap' m).
+
+  Parameter hashblock : list int -> list int -> list int.
+  Parameter HHB : h =
+      (fun rgs bl : Blist =>
+       intsToBits (hashblock (bitsToInts rgs) (bitsToInts bl))).
+
+  Parameter hashblocks: list int -> list int -> list int.
+  Parameter d:nat.
+
+  Parameter HBS_eq : forall r msg : list int,
+         hashblocks r msg =
+         match msg with
+         | List.nil => r
+         | _ :: _ => hashblocks (hashblock r (firstn d msg)) (skipn d msg)
+         end.
+  Parameter D: (d * 32)%nat = b.
+
+  Parameter gap:list Z -> list int.
+  Parameter GAP: forall bits, NPeano.divide d (length (gap (bitsToBytes bits))).
+  Parameter sap_gap: splitAndPad = fun bits => bytesToBits (intlist_to_Zlist (gap (bitsToBytes bits))).
+
+  Parameter HASH: forall m, HF.Hash m = intlist_to_Zlist (hashblocks ir (gap m)).
+
+  Parameter FOLD_HB_eq: forall l ls, length l = (c + p)%nat ->
+     Forall (fun x => length x = (c + p)%nat) ls ->
+     fold_left h (l :: ls) (Vector.to_list iv_v) =
+          hash_blocks_bits (HMAC_spec_concat.HMAC_Concat.b c p) B h
+          (Vector.to_list iv_v) (l ++ concat ls).
+
+  Parameter length_splitandpad_inner: forall m,
+    Forall2
+     (fun (bv : Vector.t bool b) (bl : list bool) => bl = Vector.to_list bv)
+     (splitAndPad_v m) (splitandpad_blocks m).
+End EQUIV_Inst.
+
+Module HMAC_Equiv (HF:HP.HASH_FUNCTION) (EQ: EQUIV_Inst HF).
+Module I<:INST.
+  Definition shah : Blist -> Blist ->  Blist := EQ.h.
+  Definition hashblock : list int -> list int -> list int :=EQ.hashblock.
+  Definition HHB : shah =
+      (fun rgs bl : Blist =>
+       intsToBits (hashblock (bitsToInts rgs) (bitsToInts bl))) := EQ.HHB.
+  Definition hashblocks: list int -> list int -> list int := EQ.hashblocks.
+  Definition d:nat := EQ.d.
+
+  Definition HBS_eq : forall r msg : list int,
+         hashblocks r msg =
+         match msg with
+         | List.nil => r
+         | _ :: _ => hashblocks (hashblock r (firstn d msg)) (skipn d msg)
+         end := EQ.HBS_eq.
+End I.
+
+(*Module HM:= HP.HMAC_FUN HF.*)
+Module PAD := HMAC_Pad HF I.
+
+  Definition h_v (iv:Bvector EQ.c) (blk:Bvector EQ.b): Bvector EQ.c :=
+    of_list_length _
+       (EQ.h_length _ _ (VectorToList_length _ iv) (VectorToList_length _ blk)).
+
+  Lemma h_eq : forall (block_v : Bvector EQ.b) (block_l : Blist)
                (HVL: block_l = Vector.to_list block_v)
                ivA ivB (IV: ivA = Vector.to_list ivB),
-               sha_h ivA block_l = Vector.to_list (h_v ivB block_v).
-Proof. intros. unfold h_v, of_list_length. 
-  destruct (sha_h_length (Vector.to_list ivB) (Vector.to_list block_v)
-      (VectorToList_length c ivB) (VectorToList_length b block_v)). 
-  symmetry. subst. apply Vector.to_list_of_list_opp.
-Qed. 
+               EQ.h ivA block_l = Vector.to_list (h_v ivB block_v).
+  Proof. intros. unfold h_v, of_list_length. 
+    destruct (EQ.h_length (Vector.to_list ivB) (Vector.to_list block_v)
+      (VectorToList_length EQ.c ivB) (VectorToList_length EQ.b block_v)). 
+    symmetry. subst. apply Vector.to_list_of_list_opp.
+  Qed. 
 
-Definition iv_v : Bvector c := Vector.of_list sha_iv.
+  Definition ipd:Z := 54.
+  Definition opd:Z:=92.
+  Lemma isbyteZ_Ipad: isbyteZ ipd.
+    unfold ipd. split; omega. Qed.
+  Lemma isbyteZ_Opad: isbyteZ opd.
+    unfold opd. split; omega. Qed.
 
-Lemma iv_eq : sha_iv = Vector.to_list iv_v.
-Proof. unfold iv_v. 
-  rewrite <- Vector.to_list_of_list_opp.
-  reflexivity.
+  Definition IPAD:=bytesToBits (PAD.HM.sixtyfour ipd).
+  Definition OPAD:=bytesToBits (PAD.HM.sixtyfour opd).
+
+  Lemma IL: length IPAD = EQ.b.
+    unfold IPAD. rewrite bytesToBits_len, PAD.HM.length_SF, <- EQ.BS; trivial. 
+  Qed.
+  Lemma OL: length OPAD = EQ.b.
+    unfold OPAD. rewrite bytesToBits_len, PAD.HM.length_SF, <- EQ.BS; trivial. 
+  Qed.
+
+  Definition ipad_v: Bvector EQ.b := of_list_length _ IL.
+  Definition opad_v : Bvector EQ.b := of_list_length _ OL.
+  Lemma OPADX:bytes_bits_lists (Vector.to_list opad_v) (PAD.HM.sixtyfour opd).
+    apply bytes_bits_comp_ind.
+      unfold PAD.HM.sixtyfour. apply Forall_list_repeat. unfold opd. omega.
+    unfold opad_v. rewrite of_length_proof_irrel. reflexivity.
+  Qed.
+
+  Lemma IPADX:bytes_bits_lists (Vector.to_list ipad_v) (PAD.HM.sixtyfour ipd).
+    apply bytes_bits_comp_ind.
+      unfold PAD.HM.sixtyfour. apply Forall_list_repeat. unfold ipd. omega.
+    unfold ipad_v. rewrite of_length_proof_irrel. reflexivity.
+  Qed.
+
+Lemma BS_pos: (0< HF.BlockSize)%nat. 
+Proof. 
+  assert ((0 < HF.BlockSize * 8)%nat).
+    rewrite EQ.BS. apply EQ.B.
+  omega.
 Qed.
+
+  Lemma opad_ne_ipad : opad_v <> ipad_v.
+  intros N.
+  assert (BtO:isbyteZ opd). unfold opd. split; omega.
+  assert (FI: Forall isbyteZ (PAD.HM.sixtyfour ipd)).
+      rewrite PAD.HM.SF_ByteRepr; trivial. apply isbyte_map_ByteUnsigned.
+  assert (BtI:isbyteZ ipd). unfold ipd. split; omega.
+  assert (FO: Forall isbyteZ (PAD.HM.sixtyfour opd)).
+      rewrite PAD.HM.SF_ByteRepr; trivial. apply isbyte_map_ByteUnsigned.
+  assert ((Vector.to_list ipad_v)  = bytesToBits (PAD.HM.sixtyfour ipd)  ).
+    apply bits_bytes_ind_comp; trivial.
+    apply IPADX.
+  assert ((Vector.to_list opad_v)  = bytesToBits (PAD.HM.sixtyfour opd)  ).
+    apply bits_bytes_ind_comp; trivial.
+    apply OPADX.
+  rewrite N, H in H0; clear N H.
+  apply bytesToBits_injective in H0; trivial.
+  rewrite PAD.HM.SF_ByteRepr in H0; trivial.
+  rewrite PAD.HM.SF_ByteRepr in H0; trivial.
+  unfold PAD.HM.sixtyfour in H0. rewrite map_list_repeat in H0. rewrite map_list_repeat in H0.
+  apply list_repeat_injective in H0.
+    rewrite unsigned_Brepr_isbyte in H0; trivial.
+    rewrite unsigned_Brepr_isbyte in H0; trivial. unfold ipd, opd in H0; omega.
+  apply BS_pos.
+Qed.
+
+Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.divide 8 (length msg))
+      (kv : Bvector EQ.b) (m : HMAC_Abstract.Message P):
+      Vector.to_list (HMAC_spec.HMAC h_v EQ.iv_v (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v)
+                      EQ.fpad_v opad_v ipad_v kv m) = 
+      bytesToBits (PAD.HM.HmacCore (Byte.repr ipd) (Byte.repr opd)
+                     (bitsToBytes (HMAC_Abstract.Message2Blist m))
+                     (map Integers.Byte.repr (bitsToBytes (Vector.to_list kv)))).
+Proof.
+  assert (LK : length (Vector.to_list kv) = EQ.b).
+    { apply VectorToList_length. }
+  erewrite <- HMAC_Abstract.HMAC_abstract_list; try reflexivity.
+  2: apply h_eq.
+  2: apply EQ.fpad_eq.
+  2: apply EQ.length_splitandpad_inner.
+  erewrite HMAC_spec_list.HMAC_List.HMAC_list_concat with (B:=EQ.B)(sap':=EQ.sap'). 
+  2: apply EQ.fpad_length.
+  2: apply EQ.shasplitandpad_blocks_b.
+  2: reflexivity.
+  2: apply EQ.h_length.
+  2: apply VectorToList_length.
+  2: apply VectorToList_length.
+  2: apply VectorToList_length.
+  2: apply EQ.FOLD_HB_eq.
+  2: apply LK.
+
+  erewrite <- HMAC_spec_concat.HMAC_Concat.HMAC_concat_pad.
+  2: apply EQ.C.
+  5: apply EQ.h_length.
+  5: apply VectorToList_length.
+  5: apply VectorToList_length.
+  5: apply VectorToList_length.
+  5: apply VectorToList_length.
+  2: apply EQ.sap_app.
+  2: apply EQ.sap_fpad.
+  2: apply EQ.sap'_InBlocks.
+  rewrite <- EQ.iv_eq.
+  apply bits_bytes_ind_comp.
+    apply PAD.HM.isbyte_hmaccore.
+  eapply (PAD.HMAC_pad_concrete' _ _ EQ.B EQ.BS EQ.D EQ.ir _ EQ.GAP EQ.sap_gap EQ.HASH). 
+    apply isbyteZ_Ipad.
+    apply isbyteZ_Opad.
+    repeat rewrite map_length.
+            erewrite bitsToBytes_len_gen. reflexivity.
+            rewrite LK. rewrite EQ.BS; trivial.
+    rewrite map_unsigned_Brepr_isbyte.
+            apply bytes_bits_comp_ind. 
+              eapply bitsToBytes_isbyteZ. reflexivity.
+              rewrite bits_bytes_bits_id; trivial. 
+              apply InBlocks_len. rewrite LK, <- EQ.BS. eexists; reflexivity.
+            eapply bitsToBytes_isbyteZ. reflexivity.
+    apply bytes_bits_comp_ind. 
+              eapply bitsToBytes_isbyteZ. reflexivity.
+              rewrite bits_bytes_bits_id; trivial. 
+              apply InBlocks_len. destruct m. simpl. apply HP. assumption.
+    apply OPADX. apply IPADX. (*
+    apply bytes_bits_comp_ind. 
+             unfold PAD.HM.sixtyfour. apply Forall_list_repeat. apply EQ.isbyteZ_Ipad.
+             unfold opad_v. rewrite of_length_proof_irrel. reflexivity.
+    apply bytes_bits_comp_ind. 
+             unfold PAD.HM.sixtyfour. apply Forall_list_repeat. apply EQ.isbyteZ_Ipad. 
+             unfold ipad_v. rewrite of_length_proof_irrel. reflexivity.*)
+Qed.
+   (*
 
 Lemma opad_length: length (bytesToBits (HP.HMAC_SHA256.sixtyfour
                        (Integers.Byte.unsigned HP.Opad))) = b.
@@ -56,137 +278,42 @@ Proof. rewrite bytesToBits_len, length_SF. reflexivity. Qed.
  
 Definition ipad_v: Bvector b := of_list_length _ ipad_length.
 
-Lemma fpad_length (v:Bvector c): length (fpad (Vector.to_list v)) = p.
-Proof. unfold fpad, fpad_inner. rewrite bytesToBits_len.
-  repeat rewrite app_length. rewrite length_list_repeat, pure_lemmas.length_intlist_to_Zlist.
-  rewrite (mult_comm 4), plus_comm, Zlength_correct.
-  rewrite bitsToBytes_len_gen with (n:=32%nat).
-    reflexivity.
-    apply VectorToList_length.
-Qed. 
-
-Definition fpad_v (v:Bvector c): Bvector p := of_list_length _ (fpad_length v).
-  
-Lemma fpad_eq : forall (v : Bvector c) (l : Blist),
-                  l = Vector.to_list v ->
-                  fpad l = Vector.to_list (fpad_v v).
-Proof. intros. unfold fpad_v, of_list_length. 
-  destruct (fpad_length v).
-  rewrite Vector.to_list_of_list_opp.
-  subst; reflexivity.
-Qed.
-
-Fixpoint splitAndPad_aux (m:list Blist) (M: Forall (fun x => length x = 512%nat) m): 
-           list (Bvector b) :=
-(match m as l return (Forall (fun x => length x = 512%nat) l) -> list (Bvector b) with
-  nil => fun F => nil
-|  cons h t => fun F => cons (of_list_length h (Forall_inv F)) 
-                    (splitAndPad_aux t (Forall_tl _ _ _ _ F))
- end) M.
-
-Lemma splitAndPad_aux_consD h t M: 
-      splitAndPad_aux (cons h t) M
-      = (of_list_length h (Forall_inv M)) 
-         :: (splitAndPad_aux t (Forall_tl _ _ _ _ M)).
-Proof. reflexivity. Qed. 
-
-Lemma splitAndPad_aux_nil m M: m=nil -> splitAndPad_aux m M= nil.
-Proof. intros; subst. reflexivity. Qed.
-
-Lemma length_splitandpad_inner_aux: forall ssm pf,
-  Forall2
-  (fun (bv : Vector.t bool b) (bl : list bool) => bl = Vector.to_list bv)
-  (splitAndPad_aux (toBlocks ssm) pf)
-  (toBlocks ssm).
-Proof. 
-  intros ssm. remember (toBlocks ssm). generalize dependent ssm.
-  induction l.
-  { simpl; intros. constructor. }
-  { intros. rewrite toBlocks_equation in Heql.
-    destruct ssm. discriminate.
-    remember ( Compare_dec.leb (length (b :: ssm)) 511) as d.
-    destruct d. exfalso. 
-           rewrite Heql in pf. apply Forall_inv in pf.  clear Heql. 
-           rewrite firstn_length in pf.
-           symmetry in Heqd. apply leb_complete in Heqd. 
-           eapply NPeano.Nat.min_l_iff in pf. omega.
-    rewrite splitAndPad_aux_consD.
-    constructor.
-      rewrite of_length_proof_irrel. trivial.
-    eapply (IHl (skipn 512 (b :: ssm))).
-      remember (firstn 512 (b :: ssm)) as zz.
-      remember (toBlocks (skipn 512 (b :: ssm))) as yy.
-      clear - Heql. inversion Heql. trivial. }
-Qed.
-
-Definition splitAndPad_v (m: Blist): list (Bvector b).
-  apply (splitAndPad_aux (sha_splitandpad_blocks m)).
-  apply InBlocks_Forall_512. apply sha_splitandpad_inc_InBlocks.
-Defined.
-
-Lemma splitAndPad_nil: exists pf,
-  splitAndPad_v nil = 
-  cons (@of_list_length bool 512 (sha_splitandpad_inc nil) pf) nil. 
-Proof. unfold splitAndPad_v, sha_splitandpad_blocks.
-  remember (InBlocks_Forall_512 (sha_splitandpad_inc_InBlocks nil)). clear Heqf.
-  remember (toBlocks (sha_splitandpad_inc nil)).
-  rewrite toBlocks_equation in Heql.
-  remember (sha_splitandpad_inc nil) as m.
-  destruct m. exfalso. clear Heql f l.
-    unfold sha_splitandpad_inc in Heqm. 
-    assert (@length bool nil = length (bytesToBits (pad_inc (bitsToBytes nil)))).
-      rewrite <- Heqm; trivial.
-    simpl in H; clear Heqm. omega.
-  rewrite leb_correct_conv in Heql.
-    2: rewrite Heqm; simpl; omega.
-  rewrite firstn_same in Heql.
-    2: rewrite Heqm; simpl; omega.
-  rewrite skipn_short in Heql.
-    2: rewrite Heqm; simpl; omega.
-  rewrite toBlocks_equation in Heql. subst l.
-  simpl. eexists. reflexivity.
-Qed.
-
-Lemma length_splitandpad_inner m :
-   Forall2
-     (fun (bv : Vector.t bool b) (bl : list bool) => bl = Vector.to_list bv)
-     (splitAndPad_v m) (sha_splitandpad_blocks m).
-Proof. apply length_splitandpad_inner_aux. Qed.
-
-(* Note we're comapring to HP.HMAC_SHA256.HmacCore, not HMAC. *)
 Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.divide 8 (length msg))
-      (kv : Bvector b) (m : Message P):
-      Vector.to_list (HMAC_spec.HMAC h_v iv_v (wrappedSAP splitAndPad_v)
+      (kv : Bvector b) (m : HMAC_Abstract.Message P):
+      Vector.to_list (HMAC_spec.HMAC h_v iv_v (HMAC_Abstract.wrappedSAP _ _ splitAndPad_v)
                       fpad_v opad_v ipad_v kv m) = 
       bytesToBits (HP.HMAC_SHA256.HmacCore (Integers.Byte.repr 54) (Integers.Byte.repr 92)
-                              (bitsToBytes (Message2Blist m))
+                              (bitsToBytes (HMAC_Abstract.Message2Blist m))
                               (map Integers.Byte.repr (bitsToBytes (Vector.to_list kv)))).
 Proof.
   assert (LK : length (Vector.to_list kv) = b).
     { apply VectorToList_length. }
-  erewrite <- HMAC_abstract_list; try reflexivity.
-  2: apply fpad_eq.
+  erewrite <- HMAC_Abstract.HMAC_abstract_list; try reflexivity.
   2: apply h_eq.
+  2: apply fpad_eq.
   2: apply length_splitandpad_inner.
-  rewrite HMAC_spec_list.HMAC_list_concat; trivial.
+  rewrite HMAC256_spec_list.HMAC_list_concat_sap_instantiated; trivial.
+  2: apply sha_h_length.
   2: apply VectorToList_length.
   2: apply VectorToList_length.
-  rewrite <- HMAC_spec_list.sha_splitandpad_inc_eq.
-  rewrite <- HMAC_spec_concat.HMAC_concat_pad; trivial.
+  2: apply fold_hash_blocks_eq.
+(*  rewrite <- sha_splitandpad_inc_eq.*)
+  rewrite <- HMAC256_spec_concat.HMAC_concat_pad_sap_instantiated; trivial.
+  2: apply sha_h_length.
   2: apply VectorToList_length.
   2: apply VectorToList_length.
-  eapply HMAC_spec_pad.HMAC_Pad.HMAC_pad_concrete'.
+  eapply HMAC256_spec_pad.HMAC_pad_concrete'.
 
   split; omega.
   split; omega.
 
   (* key length *)
-  { rewrite map_length. rewrite bitsToBytes_len_gen with (n:=64%nat). 
+  { rewrite map_length, bitsToBytes_len_gen with (n:=64%nat). 
     reflexivity.
     rewrite LK; reflexivity. }
 
   (* key length *)
-  { rewrite Zlength_map. rewrite bitsToBytes_len. reflexivity. apply LK. }
+  { rewrite Zlength_map, bitsToBytes_len. reflexivity. apply LK. }
 
   (* TODO: maybe replace bytes_bits_lists with bytesToBits? Since bytes_bits_comp_ind
      is used a lot *)
@@ -194,27 +321,27 @@ Proof.
   (* key *)
   { rewrite map_unsigned_Brepr_isbyte.
       apply bytes_bits_comp_ind. 
-      eapply HMAC_spec_pad.HMAC_Pad.bitsToBytes_isbyteZ; reflexivity.
+      eapply bitsToBytes_isbyteZ; reflexivity.
       rewrite  bits_bytes_bits_id; trivial.
       apply block_8. assumption.
-      eapply HMAC_spec_pad.HMAC_Pad.bitsToBytes_isbyteZ. reflexivity. }
+      eapply bitsToBytes_isbyteZ. reflexivity. }
 
   (* uses fact that message is in blocks of 8 *)
   { apply bytes_bits_comp_ind.
-    eapply HMAC_spec_pad.HMAC_Pad.bitsToBytes_isbyteZ; reflexivity.
+    eapply bitsToBytes_isbyteZ; reflexivity.
     rewrite bits_bytes_bits_id; trivial. 
-    apply sha_padding_lemmas.InBlocks_len. 
+    apply InBlocks_len. 
     apply HP. destruct m. simpl; trivial. }
 
   (* opad *)
   { apply bytes_bits_comp_ind.
-    apply pure_lemmas.Forall_list_repeat. unfold HP.Opad. omega.
+    apply Forall_list_repeat. unfold HP.Opad. omega.
     apply of_length_proof_irrel. }
 
   (* ipad *)
   { apply bytes_bits_comp_ind. 
-    apply pure_lemmas.Forall_list_repeat. unfold HP.Ipad. omega.
+    apply Forall_list_repeat. unfold HP.Ipad. omega.
     apply of_length_proof_irrel. }
 
-Qed.
-End EQUIV. 
+Qed.*)
+End HMAC_Equiv. 

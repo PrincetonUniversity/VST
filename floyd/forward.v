@@ -23,6 +23,7 @@ Require Import floyd.globals_lemmas.
 Require Import floyd.type_id_env.
 Require Import floyd.semax_tactics.
 Require Import floyd.for_lemmas.
+Require Import floyd.diagnosis.
 Import Cop.
 
 Local Open Scope logic.
@@ -335,6 +336,52 @@ destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
 destruct (eqb_type t t0); try contradiction; subst; auto.
 Qed.
 
+Lemma lvar_eval_lvar':
+  forall i t rho, 
+   isptr (eval_lvar i t rho) ->
+   lvar i t (eval_lvar i t rho) rho.
+Proof.
+ intros.
+  unfold lvar, eval_lvar in *.
+  destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction; auto.
+  destruct (eqb_type t t0); try contradiction; auto.
+Qed.
+
+Lemma lvar_eval_var:
+ forall i t v rho, lvar i t v rho -> eval_var i t rho = v.
+Proof.
+intros.
+unfold eval_var. hnf in H. destruct (Map.get (ve_of rho) i) as [[? ?]|]; try inv H.
+destruct (eqb_type t t0); try inv H. auto.
+Qed.
+
+Lemma lvar_isptr_eval_var:
+ forall i t v rho, lvar i t v rho -> isptr (eval_var i t rho).
+Proof.
+intros.
+erewrite lvar_eval_var; eauto.
+eapply lvar_isptr; eauto.
+Qed.
+
+Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumption).
+
+Ltac fixup_local_var  :=  (* this tactic is needed only until start_function
+                                           handles lvars in a better way *)
+ match goal with |- semax _ ?Pre0 _ _ => match Pre0 with 
+    context [@liftx (Tarrow val (LiftEnviron mpred)) ?F (eval_lvar ?i ?t)] =>
+     let v := fresh "v" in 
+    apply (remember_value (eval_lvar i t)); intro v;
+    assert_LOCAL (lvar i t v);
+      [entailer!; apply lvar_eval_lvar'; auto | ];
+    drop_LOCAL 1%nat;
+    match goal with |- semax _ ?Pre _ _ =>
+    match Pre with context C [@liftx (Tarrow val (LiftEnviron mpred)) F (eval_lvar i t)] =>
+     let D := context C[ (@liftx (LiftEnviron mpred) (F v))  ]   in
+        apply semax_pre with D; [ entailer!; rewrite (lvar_eval_lvar i t v) by auto; auto | ] 
+    end end;
+    revert v
+ end end.
+
 Lemma force_val_sem_cast_neutral_isptr:
   forall v,
   isptr v ->
@@ -417,7 +464,7 @@ Qed.
 
 Ltac Forall_pTree_from_elements :=
  cbv beta;
- entailer;
+ go_lower; ent_iter;
  repeat first
    [ apply prop_Forall_cons1;
      [unfold check_one_temp_spec, check_one_var_spec; 
@@ -436,7 +483,8 @@ Ltac Forall_pTree_from_elements :=
  unfold check_one_temp_spec;
  simpl PTree.get; 
  change (@snd ident val) with (fun p: ident*val => let (_,y) := p in y);
-  cbv beta iota; simpl force_val.
+  cbv beta iota; simpl force_val;
+ entailer.
 
 Ltac Forall_check_spec :=
  apply prop_right; repeat constructor; hnf; simpl;
@@ -455,6 +503,37 @@ Ltac try_solve_Forall_pTree_from_elements :=
  try solve [Forall_check_spec]
  end.
 
+Lemma exp_uncurry2:
+  forall {T} {ND: NatDed T} A B C F,
+    @exp T ND A (fun a => @exp T ND B (fun b => @exp T ND C
+           (fun c => F a b c)))
+   = @exp T ND (A*B*C) (fun x => F (fst (fst x)) (snd (fst x)) (snd x)).
+Proof.
+intros.
+repeat rewrite exp_uncurry; auto.
+Qed.
+
+Lemma exp_uncurry3:
+  forall {T} {ND: NatDed T} A B C D F,
+    @exp T ND A (fun a => @exp T ND B (fun b => @exp T ND C
+           (fun c => @exp T ND D (fun d => F a b c d))))
+   = @exp T ND (A*B*C*D) 
+        (fun x => F (fst (fst (fst x))) (snd (fst (fst x))) (snd (fst x)) (snd x)).
+Proof.
+intros.
+repeat rewrite exp_uncurry; auto.
+Qed.
+
+Ltac  unify_postcondition_exps :=
+first [ reflexivity
+  | rewrite exp_uncurry;
+     apply exp_congr; intros [? ?]; simpl; reflexivity
+  | rewrite exp_uncurry2; 
+     apply exp_congr; intros [[? ?] ?]; simpl; reflexivity
+  | rewrite exp_uncurry3; 
+     apply exp_congr; intros [[[? ?] ?] ?]; simpl; reflexivity
+  ].
+
 Ltac forward_call_id1_x_wow witness :=
 let Frame := fresh "Frame" in
  evar (Frame: list (mpred));
@@ -472,6 +551,7 @@ let Frame := fresh "Frame" in
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
+   repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    apply exp_congr; intros ?vret; reflexivity
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
@@ -479,7 +559,7 @@ let Frame := fresh "Frame" in
      end
  | repeat constructor; auto with closed
  | repeat constructor; auto with closed
- | reflexivity
+ | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
@@ -500,6 +580,7 @@ let Frame := fresh "Frame" in
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
+   repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    apply exp_congr; intros ?vret; reflexivity
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
@@ -507,7 +588,7 @@ let Frame := fresh "Frame" in
      end
  | repeat constructor; auto with closed
  | repeat constructor; auto with closed
- | reflexivity
+ | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
@@ -527,13 +608,14 @@ let Frame := fresh "Frame" in
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
+   repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    apply exp_congr; intros ?vret; reflexivity
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
  | repeat constructor; auto with closed
- | reflexivity
+ | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
@@ -551,12 +633,13 @@ let Frame := fresh "Frame" in
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
  | cbv beta; extensionality rho; 
+   repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    apply exp_congr; intros ?vret; reflexivity
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
- | reflexivity
+ | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
@@ -573,12 +656,14 @@ let Frame := fresh "Frame" in
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | cbv beta iota; try rewrite no_post_exists0; 
+ | cbv beta iota; 
+    repeat rewrite exp_uncurry;
+    try rewrite no_post_exists0; 
     first [reflexivity | extensionality; simpl; reflexivity]
  | intros; try match goal with  |- extract_trivial_liftx ?A _ =>
         (has_evar A; fail 1) || (repeat constructor)
      end
- | reflexivity
+ | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
@@ -612,34 +697,115 @@ change (@app Prop)
   end);
 cbv beta iota.
 
-Ltac forward_call' witness :=
- first [
-    let Pst := fresh "Pst" in
-    evar (Pst: val -> environ -> mpred);
-    apply semax_seq' with (exp Pst); unfold Pst; clear Pst;
-    [first [forward_call_id1_wow witness
-          | forward_call_id1_x_wow witness
-          | forward_call_id1_y_wow witness
-          | forward_call_id01_wow witness ]
-    | apply extract_exists_pre; intros ?vret;
+Lemma revert_unit: forall (P: Prop), (forall u: unit, P) -> P.
+Proof. intros. apply (H tt).
+Qed.
+
+Ltac after_forward_call2 :=
       cbv beta iota; 
-      unfold_map_liftx_etc;
-      fold (@map (lift_T (LiftEnviron mpred)) (LiftEnviron mpred) liftx); 
-      simpl_strong_cast;
-      abbreviate_semax;
-      repeat (apply semax_extract_PROP; intro)
-   ]
- |  eapply semax_seq';
-    [forward_call_id00_wow witness
-    | cbv beta iota; 
       try rewrite <- no_post_exists0;
       unfold_map_liftx_etc;
       fold (@map (lift_T (LiftEnviron mpred)) (LiftEnviron mpred) liftx); 
-      abbreviate_semax;
-      repeat (apply semax_extract_PROP; intro)
+      simpl_strong_cast;
+      abbreviate_semax.
+
+Ltac after_forward_call :=
+  first [apply extract_exists_pre; 
+             let v := fresh "v" in intro v; after_forward_call; revert v
+          | after_forward_call2
+          ].
+
+Ltac fwd_skip :=
+ match goal with |- semax _ _ Sskip _ =>
+   normalize_postcondition;
+   first [eapply semax_pre | eapply semax_pre_simple]; 
+      [ | apply semax_skip]
+ end.
+
+Ltac fwd_call' witness :=
+ try match goal with
+      | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
+      end;
+ first [
+     revert witness; 
+     match goal with |- let _ := ?A in _ => intro; fwd_call' A 
+     end
+   | eapply semax_seq';
+     [first [forward_call_id1_wow witness
+           | forward_call_id1_x_wow witness
+           | forward_call_id1_y_wow witness
+           | forward_call_id01_wow witness ]
+     | after_forward_call
      ]
-  | rewrite <- seq_assoc; forward_call' witness
- ].
+  |  eapply semax_seq'; [forward_call_id00_wow witness 
+          | after_forward_call ]
+  | rewrite <- seq_assoc; fwd_call' witness
+  ].
+
+Definition In_the_previous_'forward'_use_an_intro_pattern_of_type (t: Type) := False.
+
+Ltac no_intros :=
+     match goal with
+     | |- ?t -> _ => 
+         elimtype False; fold (In_the_previous_'forward'_use_an_intro_pattern_of_type t)
+     end.
+
+(* 
+Tactic Notation "forward_call'" constr(witness) :=
+    check_canonical_call;
+    fwd_call' witness;
+   [ .. | 
+    first [intros _ | no_intros];
+    repeat (apply semax_extract_PROP; intro);
+    try fwd_skip
+   ].
+*)
+
+Definition In_the_previous_forward_call'__use_intropatterns_to_intro_values_of_these_types := Stuck.
+
+Ltac complain_intros :=
+ first [let x := fresh "x" in intro x; complain_intros; revert x
+         | stuckwith In_the_previous_forward_call'__use_intropatterns_to_intro_values_of_these_types
+         ].
+
+Tactic Notation "uniform_intros" simple_intropattern_list(v) :=
+ (((assert True by (intros v; apply I);
+  assert (forall a: unit, True)
+   by (intros v; apply I);
+  fail 1) || intros v) || idtac).
+
+Tactic Notation "forward_call'" constr(witness) simple_intropattern_list(v) :=
+    check_canonical_call;
+    check_Delta;
+    fwd_call' witness;
+  [ .. 
+  | first 
+      [ (* body of uniform_intros tactic *)
+         (((assert True by (intros v; apply I);
+            assert (forall a: unit, True) by (intros v; apply I);
+            fail 1)
+          || intros v) 
+        || idtac);
+        (* end body of uniform_intros tactic *)
+        match goal with
+        | |- semax _ _ _ _ => idtac 
+        | |- unit -> semax _ _ _ _ => intros _ 
+        end;
+        repeat (apply semax_extract_PROP; intro);
+       abbreviate_semax;
+       try fwd_skip
+     | complain_intros
+     ]  
+  ].
+
+Lemma seq_assoc2:
+  forall (Espec: OracleKind)  Delta P c1 c2 c3 c4 Q,
+  semax Delta P (Ssequence (Ssequence c1 c2) (Ssequence c3 c4)) Q ->
+  semax Delta P (Ssequence (Ssequence (Ssequence c1 c2) c3) c4) Q.
+Proof.
+intros.
+ rewrite <- seq_assoc. auto.
+Qed.
 
 Lemma semax_call_id1_x_alt:
  forall Espec Delta P Q R ret ret' id (paramty: typelist) (retty retty': type) (bl: list expr)
@@ -882,6 +1048,32 @@ apply int_eq_false_e in Heqb. contradict Heqb. inv Heqb; auto.
 unfold nullval; congruence.
 Qed.
 
+Lemma typed_true_nullptr4:
+  forall p, 
+  typed_true tint (force_val (sem_cmp_pp Cne true2 p nullval)) ->
+  p <> nullval.
+Proof.
+intros.
+hnf in H.
+destruct p; inversion H.
+destruct (Int.eq i Int.zero) eqn:?; inv H1.
+apply int_eq_false_e in Heqb. unfold nullval; congruence.
+intro Hx; inv Hx.
+Qed.
+
+Lemma typed_false_nullptr4:
+  forall p, 
+  typed_false tint (force_val (sem_cmp_pp Cne true2 p nullval)) ->
+  p=nullval.
+Proof.
+intros.
+hnf in H.
+destruct p; inversion H.
+destruct (Int.eq i Int.zero) eqn:?; inv H1.
+apply int_eq_e in Heqb. subst; reflexivity.
+Qed.
+
+
 Lemma ltu_inv:
  forall x y, Int.ltu x y = true -> Int.unsigned x < Int.unsigned y.
 Proof.
@@ -972,13 +1164,26 @@ Ltac do_repr_inj H :=
                ];
    repeat (rewrite -> negb_true_iff in H || rewrite -> negb_false_iff in H);
    try apply int_eq_e in H;
-   match type of H with _ <> _ => apply int_eq_false_e in H | _ => idtac end;
+   match type of H with
+          | _ <> _ => apply int_eq_false_e in H 
+          | Int.eq _ _ = false => apply int_eq_false_e in H 
+          | _ => idtac 
+  end;
   first [ simple apply repr_inj_signed in H; [ | repable_signed | repable_signed ]
          | simple apply repr_inj_unsigned in H; [ | repable_signed | repable_signed ]
          | simple apply repr_inj_signed' in H; [ | repable_signed | repable_signed ]
          | simple apply repr_inj_unsigned' in H; [ | repable_signed | repable_signed ]
-         | apply typed_true_nullptr3 in H
-         | match type of H with _ <> _ => apply typed_false_nullptr3 in H end
+         | match type of H with
+            | typed_true _  (force_val (sem_cmp_pp Ceq true2 _ _)) =>
+                                    apply typed_true_nullptr3 in H
+            | typed_true _  (force_val (sem_cmp_pp Cne true2 _ _)) =>
+                                    apply typed_true_nullptr4 in H
+            | typed_false _  (force_val (sem_cmp_pp Ceq true2 _ _)) =>
+                                    apply typed_false_nullptr3 in H
+            | typed_false _  (force_val (sem_cmp_pp Cne true2 _ _)) =>
+                                    apply typed_false_nullptr4 in H
+          end
+         | apply typed_false_nullptr4 in H
          | simple apply ltu_repr in H; [ | repable_signed | repable_signed]
          | simple apply ltu_repr_false in H; [ | repable_signed | repable_signed]
          | simple apply ltu_inv in H; cleanup_repr H
@@ -990,7 +1195,14 @@ Ltac do_repr_inj H :=
          | idtac
          ].
 
-Ltac forward_while Inv Postcond :=
+Ltac simpl_fst_snd := 
+repeat match goal with 
+| |- context [fst (?a,?b)] => change (fst (a,b)) with a 
+| |- context [snd (?a,?b)] => change (snd (a,b)) with b 
+end.
+
+Tactic Notation "forward_while" constr(Inv) constr (Postcond) :=
+  check_Delta;
   repeat (apply -> seq_assoc; abbreviate_semax);
   first [ignore (Inv: environ->mpred) 
          | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
@@ -1013,13 +1225,54 @@ Ltac forward_while Inv Postcond :=
         first [eapply semax_while'_new | eapply semax_while'_new1]; 
         simpl typeof;
        [ reflexivity 
-       | intros
+       | no_intros || idtac
        | do_compute_expr1 Delta Pre e; eassumption
-       | intros; autorewrite with ret_assert;
+       | no_intros || (autorewrite with ret_assert;
+         let HRE := fresh "HRE" in apply derives_extract_PROP; intro HRE;
+         repeat (apply derives_extract_PROP; intro); 
+         do_repr_inj HRE; normalize in HRE)
+       | no_intros || (let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
+          repeat (apply semax_extract_PROP; intro); 
+          do_repr_inj HRE; normalize in HRE)
+        ]
+       end
+       | simpl update_tycon 
+       ]
+     ]; abbreviate_semax; autorewrite with ret_assert.
+
+
+Tactic Notation "forward_while" constr(Inv) constr (Postcond) 
+     simple_intropattern(pat) :=
+  repeat (apply -> seq_assoc; abbreviate_semax);
+  first [ignore (Inv: environ->mpred) 
+         | fail 1 "Invariant (first argument to forward_while) must have type (environ->mpred)"];
+  first [ignore (Postcond: environ->mpred)
+         | fail 1 "Postcondition (second argument to forward_while) must have type (environ->mpred)"];
+  apply semax_pre with Inv;
+    [  unfold_function_derives_right 
+    | apply semax_seq with Postcond;
+      [repeat match goal with
+       | |- semax _ (exp _) _ _ => fail 1
+       | |- semax _ (PROPx _ _) _ _ => fail 1
+       | |- semax _ ?Pre _ _ => match Pre with context [ ?F ] => unfold F end
+       end;
+       match goal with |- semax _ ?Pre _ _ =>
+          let p := fresh "Pre" in let Hp := fresh "HPre" in 
+          remember Pre as p eqn:Hp;
+          repeat rewrite exp_uncurry in Hp; subst p
+       end;
+       match goal with |- semax ?Delta ?Pre (Swhile ?e _) _ =>
+        first [eapply semax_while'_new | eapply semax_while'_new1]; 
+        simpl typeof;
+       [ reflexivity 
+       | intros pat; simpl_fst_snd
+       | do_compute_expr1 Delta Pre e; eassumption
+       | intros pat; simpl_fst_snd; 
+         autorewrite with ret_assert;
          let HRE := fresh "HRE" in apply derives_extract_PROP; intro HRE;
          repeat (apply derives_extract_PROP; intro); 
          do_repr_inj HRE; normalize in HRE
-       | intros;
+       | intros pat; simpl_fst_snd;
           let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
           repeat (apply semax_extract_PROP; intro); 
           do_repr_inj HRE; normalize in HRE
@@ -1030,6 +1283,7 @@ Ltac forward_while Inv Postcond :=
      ]; abbreviate_semax; autorewrite with ret_assert.
 
 Ltac forward_for_simple_bound n Pre :=
+  check_Delta;
  repeat match goal with |-
       semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
       apply -> seq_assoc; abbreviate_semax
@@ -1044,6 +1298,7 @@ Ltac forward_for_simple_bound n Pre :=
   ].
 
 Ltac forward_for Inv PreIncr Postcond :=
+  check_Delta;
   repeat (apply -> seq_assoc; abbreviate_semax);
   first [ignore (Inv: environ->mpred) 
          | fail 1 "Invariant (first argument to forward_for) must have type (environ->mpred)"];
@@ -1068,6 +1323,7 @@ Ltac forward_for Inv PreIncr Postcond :=
 
 
 Ltac forward_if' := 
+  check_Delta;
 match goal with 
 | |- @semax _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                                  (Sifthenelse ?e _ _) _ => 
@@ -1076,6 +1332,7 @@ match goal with
 end.
 
 Ltac forward_if'_new := 
+  check_Delta;
 match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
     evar (v: val);
@@ -1090,7 +1347,8 @@ match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e
      ]
 end.
 
-Ltac forward_if post :=
+Ltac forward_if_tac post :=
+  check_Delta;
   repeat (apply -> seq_assoc; abbreviate_semax);
 first [ignore (post: environ->mpred) 
       | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
@@ -1106,6 +1364,12 @@ match goal with
      apply semax_seq with post;
       [forward_if'_new | abbreviate_semax; autorewrite with ret_assert]
 end.
+
+Tactic Notation "forward_if" constr(post) :=
+  forward_if_tac post.
+
+Tactic Notation "forward_if" :=
+  forward_if'_new.
 
 Ltac normalize :=
  try match goal with |- context[subst] =>  autorewrite with subst typeclass_instances end;
@@ -1123,6 +1387,11 @@ Ltac normalize :=
   | |- _  => 
     floyd.client_lemmas.normalize
   end.
+
+Tactic Notation "forward_intro" simple_intropattern(v) :=
+ match goal with |- _ -> _ => idtac | |- _ => normalize end;
+ first [apply extract_exists_pre | apply exp_left | idtac];
+ intros v.
 
 Lemma eqb_ident_true: forall i, eqb_ident i i = true.
 Proof.
@@ -1330,14 +1599,6 @@ Ltac forward_call_complain W :=
        forward_call_complain' Delta id ty W
   end.
 
-Ltac normalize_postcondition :=
- match goal with 
- | P := _ |- semax _ _ _ ?P =>
-     unfold P, abbreviate; clear P; normalize_postcondition
- | |- semax _ _ _ (normal_ret_assert _) => idtac
- | |- _ => apply sequential
-  end.
-
 Lemma elim_useless_retval:
  forall Espec Delta P Q (F: val -> Prop) (G: mpred) R c Post,
   @semax Espec Delta (PROPx P (LOCALx Q (SEPx (`G :: R)))) c Post ->
@@ -1403,6 +1664,7 @@ Ltac normalize_make_args :=
   | unfold R'; clear R'].
 
 Ltac forward_call W := 
+  check_Delta;
  let witness := fresh "witness" in
  pose (witness := W);   (* faster this way, for some reason *)
 match goal with
@@ -1511,6 +1773,7 @@ match e with
 end.
 
 Ltac forward_ptr_cmp := 
+  check_Delta;
 first [eapply forward_ptr_compare_closed_now;
        [    solve [auto 50 with closed] 
           | solve [auto 50 with closed] 
@@ -1884,7 +2147,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  match goal with
  | Struct_env := @abbreviate type_id_env _ |- _ => idtac
  | |- _ => let Struct_env := fresh "Struct_env" in
-     pose (Struct env := @abbreviate _ empty_ti)
+     pose (Struct_env := @abbreviate _ empty_ti)
  end; 
  match goal with   
 | SE := @abbreviate type_id_env _ 
@@ -2483,7 +2746,66 @@ end.
   of "fail 1".
 *)
 
-Ltac forward := forward_with forward1; try unfold repinject.
+Ltac forward' := forward_with forward1; try unfold repinject.
+
+Ltac fwd_result :=
+  unfold replace_nth, repinject; cbv beta;
+  first
+   [ simple apply extract_exists_pre;
+     let v := fresh "v" in intros v;
+     autorewrite with subst;
+     simpl_first_temp;
+     repeat extract_prop_from_LOCAL;
+     revert v
+   | apply revert_unit
+   ].
+
+Ltac fwd' :=
+ match goal with
+ | |- semax _ _ (Ssequence (Ssequence _ _) _) _ => 
+             rewrite <- seq_assoc; fwd'
+ | |- semax _ _ (Ssequence ?c _) _ => 
+      eapply semax_seq'; [forward1 c | fwd_result]
+ | |- semax _ _ ?c _ =>
+      rewrite -> semax_seq_skip; 
+      eapply semax_seq'; [ forward1 c | fwd_result]
+ end.
+
+Ltac fwd_last :=
+  try rewrite <- seq_assoc;
+  match goal with 
+  | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
+            apply semax_seq with FF; [ | apply semax_ff];
+            forward_return
+  | |- semax _ _ (Sreturn _) _ =>  forward_return
+  | |- semax _ _ (Ssequence Sbreak _) _ =>
+            apply semax_seq with FF; [ | apply semax_ff];
+            forward_break
+  | |- semax _ _ Sbreak _ => forward_break
+  end.
+
+Tactic Notation "forward" :=
+  check_Delta;
+ repeat simple apply seq_assoc2;
+ first
+ [ fwd_last
+ | fwd_skip
+ | fwd';
+  [ .. |
+  first [intros _ | no_intros ];
+   repeat (apply semax_extract_PROP; intro);
+   abbreviate_semax;
+   try fwd_skip]
+ ].
+
+Tactic Notation "forward" simple_intropattern(v1) :=
+  check_Delta;
+  fwd';
+  [ .. 
+  | intros v1;
+  repeat (apply semax_extract_PROP; intro);
+  abbreviate_semax;
+  try fwd_skip].
 
 Lemma start_function_aux1:
   forall Espec Delta R1 P Q R c Post,
@@ -2577,8 +2899,7 @@ unfold overridePost, frame_ret_assert, function_body_ret_assert.
 destruct ek; normalize.
 Qed.
 
-Ltac start_function := 
- match goal with |- semax_body _ _ _ ?spec => try unfold spec end;
+Ltac start_function' :=
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ ?Pre _)) =>
    match Pre with 
    | (fun x => match x with (a,b) => _ end) => intros Espec [a b] 
@@ -2617,6 +2938,22 @@ Ltac start_function :=
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
  abbreviate_semax.
+
+
+Ltac start_function := 
+ match goal with |- semax_body _ _ _ ?spec =>
+          try unfold spec 
+ end;
+ match goal with
+ | |- semax_body _ _ _ (DECLARE _ WITH u : unit
+               PRE  [] main_pre _ u
+               POST [ tint ] main_post _ u) => idtac
+ | |- semax_body _ _ _ ?spec => 
+        check_canonical_funspec spec
+ end;
+ match goal with |- semax_body _ _ _ _ => start_function' 
+   | _ => idtac
+ end.
 
 Opaque sepcon.
 Opaque emp.

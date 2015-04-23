@@ -147,7 +147,15 @@ Proof.
     simpl. omega.
 Qed.
 
-(*
+(* from master branch
+Definition legal_nested_field0 t gfs :=
+  (exists t', exists n, exists i, exists gfs', exists a',
+    gfs = ArraySubsc i :: gfs' /\
+    nested_field_type2 t gfs' = Tarray t' n a' /\ 
+    (0 <= i <= n)%Z /\    
+    legal_nested_field t gfs').
+*)
+
 Ltac valid_nested_field_rec f a T :=
   let H := fresh "H" in 
   let t := fresh "t" in
@@ -325,6 +333,14 @@ Definition field_compatible t gfs p :=
   align_compatible t p /\
   legal_nested_field t gfs.
 
+Definition field_compatible0 t gfs p :=
+  isptr p /\
+  legal_alignas_type t = true /\
+  nested_legal_fieldlist t = true /\
+  size_compatible t p /\
+  align_compatible t p /\
+  legal_nested_field0 t gfs.
+
 Lemma field_compatible_dec: forall t gfs p,
   {field_compatible t gfs p} + {~ field_compatible t gfs p}.
 Proof.
@@ -341,6 +357,36 @@ Proof.
   + apply legal_nested_field_dec.
 Qed.
 
+Lemma field_compatible0_dec: forall t gfs p,
+  {field_compatible0 t gfs p} + {~ field_compatible0 t gfs p}.
+Proof.
+  unfold field_compatible0.
+  intros.
+  repeat apply sumbool_dec_and.
+  + destruct p; simpl; try (left; tauto); try (right; tauto).
+  + destruct legal_alignas_type; [left | right]; congruence.
+  + destruct nested_legal_fieldlist; [left | right]; congruence.
+  + destruct p; simpl; try solve [left; auto].
+    destruct (zle (Int.unsigned i + sizeof t) Int.modulus); [left | right]; omega.
+  + destruct p; simpl; try solve [left; auto].
+    apply Zdivide_dec.
+    apply alignof_pos.
+  + destruct gfs. right; intros [? [? [? [? [? [? ?]]]]]]. inv H.
+      destruct g; try solve [right; intros [? [? [? [? [? [? ?]]]]]]; inv H].
+      destruct (nested_field_type2 t gfs) eqn:H;
+      try solve [right;  intros [? [? [? [? [? [? [? ?]]]]]]]; inv H0; rewrite H in H1; inv H1].
+      rename z into n.
+      destruct (zle 0 i);
+       try solve [right; intros [? [? [? [? [? [? [? [? ?]]]]]]]]; inv H1; inv H; inv H0; omega].
+     destruct (zle i n);
+      try solve [right; intros [? [? [? [? [? [? [? [? ?]]]]]]]]; inv H0; inv H; rewrite H1 in H4; inv H4; omega].
+     destruct (legal_nested_field_dec t gfs).
+     destruct l1.
+      left; exists t0, n, i, gfs, a; repeat split; auto.
+      right. contradict n0.
+      destruct n0 as [t' [n' [i0' [gfs' [? [? [? [? ?]]]]]]]]. inv H0; auto.
+Qed.
+
 Lemma field_compatible_cons_Tarray:
   forall i t t0 n a gfs p,
   nested_field_type2 t gfs = Tarray t0 n a ->
@@ -355,8 +401,39 @@ simpl.
 auto.
 Qed.
 
+Lemma field_compatible0_cons_Tarray:
+  forall k t n a gfs p t' ofs,
+  nested_field_rec t gfs = Some (ofs, Tarray t' n a) ->
+  field_compatible t gfs p ->
+  (0 <= k <= n)%Z ->
+  field_compatible0 t (ArraySubsc k :: gfs) p.
+Proof.
+unfold field_compatible, field_compatible0; intros; intuition.
+unfold legal_nested_field0.
+exists t',n,k,gfs,a.
+repeat split; auto.
+unfold nested_field_type2. rewrite H; auto.
+rewrite H; apply I.
+clear H0 H4.
+clear dependent p.
+forget (Tarray t' n a) as t0.
+revert t t0 ofs H H1 H3 H8; induction gfs; intros.
+apply I.
+simpl.
+unfold nested_field_type2. 
+simpl in H.
+destruct H8. simpl in H0, H2.
+unfold nested_field_type2 in H2.
+destruct (nested_field_rec t gfs) as [[? ?]|]; try inv H; auto.
+Qed.
+
 Definition field_address t gfs p :=
   if (field_compatible_dec t gfs p)
+  then offset_val (Int.repr (nested_field_offset2 t gfs)) p
+  else Vundef.
+
+Definition field_address0 t gfs p :=
+  if (field_compatible0_dec t gfs p)
   then offset_val (Int.repr (nested_field_offset2 t gfs)) p
   else Vundef.
 
@@ -366,6 +443,56 @@ Proof.
   intros.
   unfold field_address. rewrite if_true by auto.
   normalize.
+Qed.
+
+Lemma field_address0_isptr:
+  forall t path c, isptr c -> field_compatible0 t path c -> isptr (field_address0 t path c).
+Proof.
+ intros.
+ unfold field_address0. rewrite if_true by auto.
+ normalize.
+Qed.
+
+Lemma field_address_clarify:
+ forall t path c,
+   is_pointer_or_null (field_address t path c) ->
+   field_address t path c = offset_val (Int.repr (nested_field_offset2 t path)) c.
+Proof.
+ intros. unfold field_address in *.
+  if_tac; try contradiction.
+  auto.
+Qed.
+
+Lemma field_address0_clarify:
+ forall t path c,
+   is_pointer_or_null (field_address0 t path c) ->
+   field_address0 t path c = offset_val (Int.repr (nested_field_offset2 t path)) c.
+Proof.
+ intros. unfold field_address0 in *.
+  if_tac; try contradiction.
+  auto.
+Qed.
+
+Lemma field_compatible_field_compatible0:
+  forall t i gfs p, 
+                field_compatible t (ArraySubsc i :: gfs) p -> 
+                field_compatible0 t (ArraySubsc i :: gfs) p.
+Proof.
+intros.
+hnf in H|-*.
+intuition.
+destruct H5.
+hnf.
+simpl in H4.
+destruct (nested_field_rec t gfs) as [[? ?]|] eqn:?H; try contradiction H4.
+destruct t0; try contradiction.
+simpl in H5.
+unfold nested_field_type2 in H5|-*.
+rewrite H6 in H5. destruct H5.
+do 5 econstructor; split3.
+reflexivity. rewrite H6. reflexivity. split; auto.
+omega.
+split; auto. rewrite H6; auto.
 Qed.
 
 Lemma is_pointer_or_null_field_compatible:
@@ -1108,6 +1235,31 @@ Proof.
   destruct (Int.unsigned_range i).
   omega.
 Qed.
+
+Lemma nested_field0_offset2_in_range:
+    forall (t : type) (gfs : list gfield),
+       legal_nested_field0 t gfs ->
+       (0 <= nested_field_offset2 t gfs <= sizeof t)%Z.
+Proof.
+ intros.
+ destruct H as [t' [n [i [gfs' [a' [? [? [? ?]]]]]]]].
+ destruct (nested_field_offset2_in_range _ _ H2).
+ subst gfs.
+ erewrite nested_field_offset2_Tarray; try eassumption.
+ rewrite H0 in H4. simpl in H4. rewrite Z.max_r in H4 by omega.
+ assert (0 <= sizeof t' * i <= sizeof t' * n)%Z; [ | omega].
+ pose proof (sizeof_pos t').
+ split. 
+ apply Z.mul_nonneg_nonneg; try omega.
+ apply Zmult_le_compat_l; try omega.
+Qed.
+
+(* from master branch
+Lemma alignof_nested_field_type2_divide: forall t gfs,
+  legal_alignas_type t = true ->
+  legal_nested_field t gfs ->
+  (alignof (nested_field_type2 t gfs) | alignof t).
+*)
 
 Lemma align_1_compatible: forall t, alignof cenv_cs t = 1 -> forall p, align_compatible t p.
 Proof.
