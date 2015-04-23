@@ -89,11 +89,11 @@ Definition gfield_offset t gf :=
   | _, _ => 0
   end.
 
-Definition legal_field t gf :=.. (* use legal_composite_type instead of some expression here *)
+Definition legal_field t gf := (* use legal_composite_type instead of some expression here *)
   match t, gf with
   | Tarray _ n _, ArraySubsc i => 0 <= i < n
-  | Tstruct id _, StructField i => co_su (get_co id) = Struct /\ in_members i (co_members (get_co id))
-  | Tunion id _, UnionField i => co_su (get_co id) = Union /\ in_members i (co_members (get_co id))
+  | Tstruct id _, StructField i => in_members i (co_members (get_co id))
+  | Tunion id _, UnionField i => in_members i (co_members (get_co id))
   | _, _ => False
   end.
 
@@ -312,15 +312,14 @@ Proof.
     destruct a, (nested_field_type2 t gfs) as [| | | | | | | id ? | id ?]; try solve [right; tauto];
     unfold legal_field.
     - apply sumbool_dec_and; [apply Z_le_dec | apply Z_lt_dec].
-    - apply sumbool_dec_and; [destruct (co_su (get_co id)); [left; auto | right; congruence] |].
-      destruct_in_members i (co_members (get_co id)); auto.
-    - apply sumbool_dec_and; [destruct (co_su (get_co id)); [right; congruence | left; auto] |].
-      destruct_in_members i (co_members (get_co id)); auto.
+    - destruct_in_members i (co_members (get_co id)); auto.
+    - destruct_in_members i (co_members (get_co id)); auto.
 Qed.
 
 Definition field_compatible t gfs p :=
   isptr p /\
   legal_alignas_type t = true /\
+  legal_cosu_type t = true /\
   size_compatible t p /\
   align_compatible t p /\
   legal_nested_field t gfs.
@@ -333,6 +332,7 @@ Proof.
   repeat apply sumbool_dec_and.
   + destruct p; simpl; try (left; tauto); try (right; tauto).
   + destruct legal_alignas_type; [left | right]; congruence.
+  + destruct legal_cosu_type; [left | right]; congruence.
   + destruct p; simpl; try solve [left; auto].
     destruct (zle (Int.unsigned i + sizeof cenv_cs t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
@@ -386,7 +386,7 @@ Lemma gfield_type_complete_type: forall t gf,
   complete_type cenv_cs (gfield_type t gf) = true.
 Proof.
   intros.
-  destruct t as [| | | | | | | id ? | id ?], gf; inversion H; simpl in H0 |- *.
+  destruct t as [| | | | | | | id ? | id ?], gf; try inversion H; simpl in H0 |- *.
   + auto.
   + eapply complete_member.
     - apply in_members_field_type; auto.
@@ -548,10 +548,11 @@ Qed.
 
 Lemma gfield_offset_in_range: forall t gf,
   legal_field t gf ->
+  legal_cosu_type t = true ->
   0 <= gfield_offset t gf /\ gfield_offset t gf + sizeof cenv_cs (gfield_type t gf) <= sizeof cenv_cs t.
 Proof.
   intros.
-  destruct t as [| | | | | | | id ? | id ?], gf; inversion H.
+  destruct t as [| | | | | | | id ? | id ?], gf; try solve [inversion H]; simpl in H.
   + pose proof sizeof_pos cenv_cs t.
     simpl.
     rewrite Z.max_r by omega.
@@ -561,32 +562,29 @@ Proof.
       apply Zmult_le_compat_l; omega.
   + assert (sizeof_struct cenv_cs 0 (co_members (get_co id)) <= sizeof cenv_cs (Tstruct id a)).
     Focus 1. {
-      unfold get_co in *.
-      simpl.
-      destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion H1].
-      rewrite co_consistent_sizeof with (env := cenv_cs) by exact (cenv_consistent_cs id co CO).
-      rewrite H0.
+      rewrite sizeof_Tstruct.
+      rewrite co_consistent_sizeof with (env := cenv_cs) by apply get_co_consistent.
+      unfold sizeof_composite. erewrite legal_cosu_type_Tstruct by eauto.
       apply align_le.
       apply co_alignof_pos.
     } Unfocus.
-    pose proof field_offset_in_range _ _ H1.
+    pose proof field_offset_in_range _ _ H.
     simpl in *; omega.
   + assert (sizeof_union cenv_cs (co_members (get_co id)) <= sizeof cenv_cs (Tunion id a)).
     Focus 1. {
-      unfold get_co in *.
-      simpl.
-      destruct (cenv_cs ! id) as [co |] eqn:CO; [| inversion H1].
-      rewrite co_consistent_sizeof with (env := cenv_cs) by exact (cenv_consistent_cs id co CO).
-      rewrite H0.
+      rewrite sizeof_Tunion.
+      rewrite co_consistent_sizeof with (env := cenv_cs) by apply get_co_consistent.
+      unfold sizeof_composite. erewrite legal_cosu_type_Tunion by eauto.
       apply align_le.
       apply co_alignof_pos.
     } Unfocus.
-    pose proof sizeof_union_in_members _ _ H1.
+    pose proof sizeof_union_in_members _ _ H.
     simpl in *. omega.
 Qed.
 
 Lemma nested_field_offset2_in_range: forall t gfs,
   legal_nested_field t gfs ->
+  legal_cosu_type t = true ->
   0 <= nested_field_offset2 t gfs /\
   (nested_field_offset2 t gfs) + sizeof cenv_cs (nested_field_type2 t gfs) <= sizeof cenv_cs t.
 Proof.
@@ -595,6 +593,7 @@ Proof.
   + omega.
   + specialize (IHgfs (proj1 H)).
     pose proof gfield_offset_in_range (nested_field_type2 t gfs) gf (proj2 H).
+    spec H1; [apply nested_field_type2_nest_pred; auto |].
     omega.
 Qed.
 
@@ -1119,6 +1118,7 @@ Qed.
 
 Lemma size_compatible_nested_field: forall t gfs p,
   legal_nested_field t gfs ->
+  legal_cosu_type t = true ->
   size_compatible t p ->
   size_compatible (nested_field_type2 t gfs) (offset_val (Int.repr (nested_field_offset2 t gfs)) p).
 Proof.
@@ -1129,10 +1129,10 @@ Proof.
   repeat rewrite Int.Z_mod_modulus_eq.
   rewrite Zplus_mod_idemp_r.
   assert (0 < Int.modulus) by (cbv; reflexivity).
-  assert (0 <= Int.unsigned i + nested_field_offset2 t gfs) by (pose proof nested_field_offset2_in_range t gfs H; pose proof Int.unsigned_range i; omega).
-  pose proof Zmod_le (Int.unsigned i + nested_field_offset2 t gfs) (Int.modulus) H1 H2.
-  destruct (nested_field_offset2_in_range t gfs H).
-  unfold size_compatible in H0.
+  assert (0 <= Int.unsigned i + nested_field_offset2 t gfs) by (pose proof nested_field_offset2_in_range t gfs H H0; pose proof Int.unsigned_range i; omega).
+  pose proof Zmod_le (Int.unsigned i + nested_field_offset2 t gfs) (Int.modulus) H2 H3.
+  destruct (nested_field_offset2_in_range t gfs H H0).
+  unfold size_compatible in H1.
   unfold Int.unsigned in *.
   omega.
 Qed.

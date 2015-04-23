@@ -1,10 +1,14 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
-Require Import floyd.fieldlist.
+Require floyd.fieldlist.
+Import floyd.fieldlist.fieldlist.
+Require Import floyd.type_induction.
+Require Import floyd.nested_pred_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
-Require Import floyd.rangespec_lemmas.
+Require Import floyd.reptype_lemmas.
+Require Import floyd.aggregate_pred.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.jmeq_lemmas.
 Require Import Coq.Logic.JMeq.
@@ -13,30 +17,32 @@ Local Open Scope logic.
 
 (************************************************
 
-Definition of nested_reptype_structlist, field_at, nested_sfieldlist_at
+Definition of nested_reptype_structlist, field_at, array_at, nested_sfieldlist_at
 
 ************************************************)
 
-Fixpoint nested_reptype_structlist (t: type) (gfs: list gfield) (fld: fieldlist) : Type :=
-  match fld with
-  | Fnil => unit
-  | Fcons i _ fld' =>
-    if (is_Fnil fld')
-    then reptype (nested_field_type2 t (StructField i :: gfs))
-    else prod (reptype (nested_field_type2 t (StructField i :: gfs))) 
-         (nested_reptype_structlist t gfs fld')
-  end.
+Section CENV.
 
-Fixpoint nested_reptype_unionlist (t: type) (gfs: list gfield) (fld: fieldlist) : Type :=
-  match fld with
-  | Fnil => unit
-  | Fcons i _ fld' =>
-    if (is_Fnil fld')
-    then reptype (nested_field_type2 t (UnionField i :: gfs))
-    else sum (reptype (nested_field_type2 t (UnionField i :: gfs)))
-         (nested_reptype_unionlist t gfs fld')
-  end.
+Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
 
+Print field_compatible.
+
+Definition field_at (sh: Share.t) (t: type) (gfs: list gfield) (v: reptype (nested_field_type2 t gfs)) (p: val): mpred :=
+  (!! field_compatible t gfs p) && at_offset (data_at' sh (nested_field_type2 t gfs) v) (nested_field_offset2 t gfs) p.
+Arguments field_at sh t gfs v p : simpl never.
+
+Definition field_at_ (sh: Share.t) (t: type) (gfs: list gfield) : val -> mpred :=
+  field_at sh t gfs (default_val (nested_field_type2 t gfs)).
+Arguments field_at_ sh t gfs p : simpl never.
+
+Definition nested_reptype_structlist t gfs (m: members) := 
+  compact_prod (map (fun it => reptype (nested_field_type2 t (StructField (fst it) :: gfs))) m).
+
+Definition nested_reptype_unionlist t gfs (m: members) := 
+  compact_sum (map (fun it => reptype (nested_field_type2 t (UnionField (fst it) :: gfs))) m).
+
+(*
 Lemma nested_reptype_lemma: forall t gfs t0, nested_field_type t gfs = Some t0 -> reptype t0 = reptype (nested_field_type2 t gfs).
 Proof.
   unfold nested_field_type, nested_field_type2.
@@ -46,177 +52,50 @@ Proof.
     reflexivity.
   + inversion H.
 Defined.
+*)
 
-Lemma nested_reptype_structlist_lemma: forall t gfs i f' f a ofs,
-  nested_field_rec t gfs = Some (ofs, Tstruct i (fieldlist_app f' f) a) ->
-  nested_legal_fieldlist t = true ->
-  reptype_structlist f = nested_reptype_structlist t gfs f.
+Lemma map_members_ext: forall A (f f':ident * type -> A) (m: members),
+  members_no_replicate m = true ->
+  (forall i, in_members i m -> f (i, field_type i m) = f' (i, field_type i m)) ->
+  map f m = map f' m.
+Proof.
+Admitted.
+
+Lemma nested_reptype_structlist_lemma: forall t gfs id a,
+  nested_field_type2 t gfs = Tstruct id a ->
+  reptype (nested_field_type2 t gfs) = nested_reptype_structlist t gfs (co_members (get_co id)).
 Proof.
   intros.
-  assert (nested_field_type2 t gfs = Tstruct i (fieldlist_app f' f) a).
-    unfold nested_field_type2. rewrite H. reflexivity.
-  eapply (nested_field_type2_nest_pred eq_refl t gfs), nested_pred_atom_pred in H0.
-  rewrite H1 in H0; clear H1.
-  revert f' H H0; induction f; intros.
-  + reflexivity.
-  + simpl. pose proof field_type_mid _ _ _ _ H0.
-    destruct f.
-    - simpl. 
-      apply nested_reptype_lemma.
-      unfold nested_field_type.
-      simpl.
-      rewrite H.
-      solve_field_offset_type i0 (fieldlist_app f' (Fcons i0 t0 Fnil)); inversion H1.
-      reflexivity.
-    - destruct (is_Fnil (Fcons i1 t1 f)) eqn:Heq; [simpl in Heq; congruence| clear Heq].
-      rewrite (nested_reptype_lemma t (StructField i0 :: gfs) t0).
-      rewrite fieldlist_app_Fcons in H0, H.
-      rewrite (IHf _ H H0).
-      reflexivity.
-      * unfold nested_field_type.
-        simpl.
-        rewrite H.
-        solve_field_offset_type i0 (fieldlist_app f' (Fcons i0 t0 (Fcons i1 t1 f)));
-        inversion H1; reflexivity.
+  rewrite H, reptype_ind.
+  unfold reptype_structlist, nested_reptype_structlist.
+  f_equal.
+  apply map_members_ext; [apply get_co_members_no_replicate |].
+  intros.
+  rewrite nested_field_type2_ind, H.
+  simpl.
+  auto.
 Defined.
 
-Lemma nested_reptype_structlist_lemma2: forall t gfs i f a,
-  nested_field_type2 t gfs = Tstruct i f a ->
-  nested_legal_fieldlist t = true ->
-  reptype (nested_field_type2 t gfs) = nested_reptype_structlist t gfs f.
+Lemma nested_reptype_unionlist_lemma: forall t gfs id a,
+  nested_field_type2 t gfs = Tunion id a ->
+  reptype (nested_field_type2 t gfs) = nested_reptype_unionlist t gfs (co_members (get_co id)).
 Proof.
   intros.
-  rewrite H. simpl.
-  unfold nested_field_type2 in H.
-  valid_nested_field_rec t gfs H.
-  apply (nested_reptype_structlist_lemma _ _ i Fnil f a ofs); simpl; [|exact H0].
-  unfold nested_field_type2 in H.
-  unfold nested_field_type.
-  valid_nested_field_rec t gfs H; inversion H1.
-  subst.
-  reflexivity.
-Defined.
-
-Lemma nested_reptype_unionlist_lemma: forall t gfs i f' f a ofs,
-  nested_field_rec t gfs = Some (ofs, Tunion i (fieldlist_app f' f) a) ->
-  nested_legal_fieldlist t = true ->
-  reptype_unionlist f = nested_reptype_unionlist t gfs f.
-Proof.
+  rewrite H, reptype_ind.
+  unfold reptype_unionlist, nested_reptype_unionlist.
+  f_equal.
+  apply map_members_ext; [apply get_co_members_no_replicate |].
   intros.
-  assert (nested_field_type2 t gfs = Tunion i (fieldlist_app f' f) a).
-    unfold nested_field_type2. rewrite H. reflexivity.
-  eapply (nested_field_type2_nest_pred eq_refl t gfs), nested_pred_atom_pred in H0.
-  rewrite H1 in H0; clear H1.
-  revert f' H H0; induction f; intros.
-  + reflexivity.
-  + simpl. pose proof field_type_mid _ _ _ _ H0.
-    destruct f.
-    - simpl. 
-      apply nested_reptype_lemma.
-      unfold nested_field_type.
-      simpl.
-      rewrite H.
-      solve_field_offset_type i0 (fieldlist_app f' (Fcons i0 t0 Fnil)); inversion H1.
-      reflexivity.
-    - destruct (is_Fnil (Fcons i1 t1 f)) eqn:Heq; [simpl in Heq; congruence| clear Heq].
-      rewrite (nested_reptype_lemma t (UnionField i0 :: gfs) t0).
-      rewrite fieldlist_app_Fcons in H0, H.
-      rewrite (IHf _ H H0).
-      reflexivity.
-      * unfold nested_field_type.
-        simpl.
-        rewrite H.
-        solve_field_offset_type i0 (fieldlist_app f' (Fcons i0 t0 (Fcons i1 t1 f)));
-        inversion H1; reflexivity.
+  rewrite nested_field_type2_ind, H.
+  simpl.
+  auto.
 Defined.
 
-Lemma nested_reptype_unionlist_lemma2: forall t gfs i f a,
-  nested_field_type2 t gfs = Tunion i f a ->
-  nested_legal_fieldlist t = true ->
-  reptype (nested_field_type2 t gfs) = nested_reptype_unionlist t gfs f.
-Proof.
-  intros.
-  rewrite H. simpl.
-  unfold nested_field_type2 in H.
-  valid_nested_field_rec t gfs H.
-  apply (nested_reptype_unionlist_lemma _ _ i Fnil f a ofs); simpl; [|exact H0].
-  unfold nested_field_type2 in H.
-  unfold nested_field_type.
-  valid_nested_field_rec t gfs H; inversion H1.
-  subst.
-  reflexivity.
-Defined.
+Definition nested_sfieldlist_at sh t gfs m: nested_reptype_structlist t gfs m -> val -> mpred :=
+  struct_pred m (fun it => field_at sh t (StructField (fst it) :: gfs)).
 
-Definition field_at (sh: Share.t) (t: type) (gfs: list gfield) (v: reptype (nested_field_type2 t gfs)) : val -> mpred :=
-  (!! (legal_alignas_type t = true)) &&
-  (!! (nested_legal_fieldlist t = true)) &&
-  (fun p => (!! (size_compatible t p /\ align_compatible t p /\ legal_nested_field t gfs))) 
-  && data_at' sh empty_ti (nested_field_type2 t gfs) (nested_field_offset2 t gfs) v.
-Arguments field_at sh t gfs v p : simpl never.
-
-Definition field_at_ (sh: Share.t) (t: type) (gfs: list gfield) : val -> mpred :=
-  field_at sh t gfs (default_val (nested_field_type2 t gfs)).
-Arguments field_at_ sh t gfs p : simpl never.
-
-Fixpoint nested_sfieldlist_at (sh: Share.t) (t1: type) (gfs: list gfield) (flds: fieldlist) (v: nested_reptype_structlist t1 gfs flds) : val -> mpred := 
-  match flds as f return (nested_reptype_structlist t1 gfs f -> val -> mpred) with
-  | Fnil => fun _ p => (!! isptr p) && emp
-  | Fcons i t flds0 =>
-    fun (v : nested_reptype_structlist t1 gfs (Fcons i t flds0)) =>
-      (if is_Fnil flds0 as b
-        return
-          ((if b
-            then reptype (nested_field_type2 t1 (StructField i :: gfs))
-            else ((reptype (nested_field_type2 t1 (StructField i :: gfs)) *
-        nested_reptype_structlist t1 gfs flds0)%type)) -> val -> mpred)
-       then
-        fun (v0: reptype (nested_field_type2 t1 (StructField i :: gfs))) =>
-          withspacer sh (nested_field_offset2 t1 (StructField i :: gfs)
-          + sizeof (nested_field_type2 t1 (StructField i :: gfs))) 
-          (align (nested_field_offset2 t1 (StructField i :: gfs) + 
-          sizeof (nested_field_type2 t1 (StructField i :: gfs)))
-          (alignof (nested_field_type2 t1 gfs))) (field_at sh t1 (StructField i :: gfs) v0)
-       else
-        fun (v0: ((reptype (nested_field_type2 t1 (StructField i :: gfs)) *
-        nested_reptype_structlist t1 gfs flds0)%type)) =>
-          withspacer sh (nested_field_offset2 t1 (StructField i :: gfs) +
-          sizeof (nested_field_type2 t1 (StructField i :: gfs)))
-          (align (nested_field_offset2 t1 (StructField i :: gfs) +
-          sizeof (nested_field_type2 t1 (StructField i :: gfs))) (alignof_hd flds0))
-          (field_at sh t1 (StructField i :: gfs) (fst v0)) *
-          (nested_sfieldlist_at sh t1 gfs flds0 (snd v0)))
-    v
-  end v.
-
-Fixpoint nested_ufieldlist_at (sh: Share.t) (t1: type) (gfs: list gfield) (flds: fieldlist) (v: nested_reptype_unionlist t1 gfs flds) : val -> mpred := 
-  match flds as f return (nested_reptype_unionlist t1 gfs f -> val -> mpred) with
-  | Fnil => fun _ p => (!! isptr p) && emp
-  | Fcons i t flds0 =>
-    fun (v : nested_reptype_unionlist t1 gfs (Fcons i t flds0)) =>
-      (if is_Fnil flds0 as b
-        return
-          ((if b
-            then reptype (nested_field_type2 t1 (UnionField i :: gfs))
-            else ((reptype (nested_field_type2 t1 (UnionField i :: gfs)) +
-        nested_reptype_unionlist t1 gfs flds0)%type)) -> val -> mpred)
-       then
-         fun (v0: reptype (nested_field_type2 t1 (UnionField i :: gfs))) =>
-           withspacer sh (nested_field_offset2 t1 (UnionField i :: gfs) + 
-             sizeof (nested_field_type2 t1 (UnionField i :: gfs)))  
-             (nested_field_offset2 t1 gfs + sizeof (nested_field_type2 t1 gfs)) 
-             (field_at sh t1 (UnionField i :: gfs) v0)
-       else
-        fun (v0: ((reptype (nested_field_type2 t1 (UnionField i :: gfs)) +
-          nested_reptype_unionlist t1 gfs flds0)%type)) =>
-        match v0 with
-        | inl v0' => withspacer sh (nested_field_offset2 t1 (UnionField i :: gfs) + 
-            sizeof (nested_field_type2 t1 (UnionField i :: gfs))) 
-            (nested_field_offset2 t1 gfs + sizeof (nested_field_type2 t1 gfs))
-            (field_at sh t1 (UnionField i :: gfs) v0')
-        | inr v0' => nested_ufieldlist_at sh t1 gfs flds0 v0'
-        end)
-    v
-  end v.
+Definition nested_ufieldlist_at sh t gfs m: nested_reptype_unionlist t gfs m -> val -> mpred :=
+  union_pred m (fun it => field_at sh t (UnionField (fst it) :: gfs)).
 
 Lemma nested_field_type2_ArraySubsc: forall t gfs i j,
   nested_field_type2 t (ArraySubsc i :: gfs) = nested_field_type2 t (ArraySubsc j :: gfs).
