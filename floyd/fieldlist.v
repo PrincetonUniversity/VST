@@ -343,6 +343,29 @@ Proof.
       tauto.
 Qed.
 
+Lemma map_members_ext: forall A (f f':ident * type -> A) (m: members),
+  members_no_replicate m = true ->
+  (forall i, in_members i m -> f (i, field_type2 i m) = f' (i, field_type2 i m)) ->
+  map f m = map f' m.
+Proof.
+  intros.
+  induction m as [| (i0, t0) m].
+  + reflexivity.
+  + simpl.
+    rewrite members_no_replicate_ind in H.
+    f_equal.
+    - specialize (H0 i0).
+      unfold field_type2, in_members in H0.
+      simpl in H0; if_tac in H0; [| congruence].
+      apply H0; auto.
+    - apply IHm; [tauto |].
+      intros.
+      specialize (H0 i).
+      unfold field_type2, in_members in H0.
+      simpl in H0; if_tac in H0; [subst; tauto |].
+      apply H0; auto.
+Qed.
+
 Lemma in_members_tail_no_replicate: forall i i0 t0 m,
   members_no_replicate ((i0, t0) :: m) = true ->
   in_members i m ->
@@ -380,9 +403,7 @@ End COMPOSITE_ENV.
 
 Module fieldlist.
 
-Definition in_members := @in_members.
 Definition compute_in_members := @compute_in_members.
-Definition members_no_replicate := @members_no_replicate.
 Definition field_type := @field_type2.
 Definition field_offset := @field_offset2.
 Definition field_offset_next := @field_offset_next.
@@ -399,6 +420,12 @@ Ltac destruct_in_members i m :=
   destruct (compute_in_members i m) eqn:H;
     [apply compute_in_members_true_iff in H |
      apply compute_in_members_false_iff in H].
+
+Definition map_members_ext: forall A (f f':ident * type -> A) (m: members),
+  members_no_replicate m = true ->
+  (forall i, in_members i m -> f (i, field_type i m) = f' (i, field_type i m)) ->
+  map f m = map f' m
+:= map_members_ext.
 
 Definition field_offset_in_range:
   forall {cs: compspecs},

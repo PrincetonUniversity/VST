@@ -400,6 +400,61 @@ spec H0; [auto | ].
 destruct (skipn n al); inv H0; auto.
 Qed.
 
+Definition Znth {X} n (xs: list X) (default: X) :=
+  if (zlt n 0) then default else nth (Z.to_nat n) xs default.
+
+Lemma Znth_succ: forall {A} i lo (v: list A), Z.succ lo <= i -> Znth (i - lo) v = Znth (i - (Z.succ lo)) (skipn 1 v).
+Proof.
+  intros.
+  extensionality default.
+  unfold Znth.
+  if_tac; [omega |].
+  if_tac; [omega |].
+  rewrite nth_skipn.
+  f_equal.
+  change 1%nat with (Z.to_nat 1).
+  rewrite <- Z2Nat.inj_add by omega.
+  f_equal.
+  omega.
+Qed.
+
+Lemma Znth_skipn: forall {A} n xs (default: A),
+  0 <= n ->
+  Znth 0 (skipn (nat_of_Z n) xs) default = Znth n xs default.
+Proof.
+  intros.
+  unfold Znth.
+  if_tac; [omega |].
+  if_tac; [omega |].
+  rewrite nth_skipn.
+  reflexivity.
+Qed.
+
+Lemma split3_full_length_list: forall {A} lo mid hi (ct: list A) d,
+  lo <= mid < hi ->
+  Zlength ct = hi - lo ->
+  ct = firstn (Z.to_nat (mid - lo)) ct ++
+       (Znth (mid - lo) ct d :: nil) ++
+       skipn (Z.to_nat (mid - lo + 1)) ct.
+Proof.
+  intros.
+  rewrite <- firstn_skipn with (l := ct) (n := Z.to_nat (mid - lo)) at 1.
+  f_equal.
+  rewrite Z2Nat.inj_add by omega.
+  rewrite <- skipn_skipn.
+  replace (Znth (mid - lo) ct d :: nil) with (firstn (Z.to_nat 1) (skipn (Z.to_nat (mid - lo)) ct)).
+  + rewrite firstn_skipn; reflexivity.
+  + unfold Znth.
+    if_tac; [omega |].
+    rewrite firstn_1_skipn; [reflexivity |].
+    rewrite <- (Nat2Z.id (length ct)).
+    apply Z2Nat.inj_lt.
+    - omega.
+    - omega.
+    - rewrite Zlength_correct in H0.
+      omega.
+Qed.
+
 Lemma fold_right_andb: forall bl b, fold_right andb b bl = true -> forall b0, In b0 bl -> b0 = true.
 Proof.
   intros.

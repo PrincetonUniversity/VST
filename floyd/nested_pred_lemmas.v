@@ -1,9 +1,9 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
-Require Import floyd.fieldlist.
 Require Import floyd.type_induction.
-
+Require floyd.fieldlist.
+Import floyd.fieldlist.fieldlist.
 Open Scope Z.
 
 (************************************************
@@ -72,11 +72,10 @@ Proof.
   intros.
   rewrite nested_pred_ind in H by auto.
   destruct t; simpl in *;
-   try (destruct (cenv_cs ! i) eqn:HH; simpl in H; try rewrite HH in H);
-   try apply andb_true_iff in H; try tauto.
+  try apply andb_true_iff in H; try tauto.
 Defined.
 
-Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i m, in_members i m -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred (field_type2 i m) = true.
+Lemma nested_fields_pred_nested_pred: forall (atom_pred: type -> bool) i m, in_members i m -> nested_fields_pred atom_pred m = true -> nested_pred atom_pred (field_type i m) = true.
 Proof.
   intros.
   unfold nested_fields_pred in H0.
@@ -85,9 +84,9 @@ Proof.
   clear - H.
   rewrite <- map_map.
   apply in_map.
-  change (field_type2 i m) with (snd (i, field_type2 i m)).
+  change (field_type i m) with (snd (i, field_type i m)).
   apply in_map.
-  apply in_members_field_type2.
+  apply in_members_field_type.
   auto.
 Defined.
 
@@ -111,7 +110,7 @@ Defined.
 Lemma nested_pred_Tstruct2: forall (atom_pred: type -> bool) id a i,
   nested_pred atom_pred (Tstruct id a) = true ->
   in_members i (co_members (get_co id)) ->
-  nested_pred atom_pred (field_type2 i (co_members (get_co id))) = true.
+  nested_pred atom_pred (field_type i (co_members (get_co id))) = true.
 Proof.
   intros.
   apply nested_pred_Tstruct in H.
@@ -129,13 +128,13 @@ Defined.
 Lemma nested_pred_Tunion2: forall (atom_pred: type -> bool) id a i,
   nested_pred atom_pred (Tunion id a) = true ->
   in_members i (co_members (get_co id)) ->
-  nested_pred atom_pred (field_type2 i (co_members (get_co id))) = true.
+  nested_pred atom_pred (field_type i (co_members (get_co id))) = true.
 Proof.
   intros.
   apply nested_pred_Tunion in H.
   apply nested_fields_pred_nested_pred; auto.
 Qed.  
-
+(*
 Lemma nested_fields_pred_hd: forall (atom_pred: type -> bool) i t m,
   nested_fields_pred atom_pred ((i, t) :: m) = true ->
   nested_pred atom_pred t = true.
@@ -153,7 +152,7 @@ Proof.
   simpl in H.
   apply andb_true_iff in H; tauto.
 Defined.
-
+*)
 (******* Samples : legal_alignas_type *************)
 
 Definition local_legal_alignas_type (t: type): bool :=
@@ -333,10 +332,6 @@ Qed.
 
 End NESTED_PRED.
 
-(*Section ARITH.
-Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
-*)
 (************************************************
 
 Arithmetic properties with nested_pred assumption.
@@ -437,6 +432,36 @@ Ltac pose_sizeof_co t :=
 Ltac pose_field :=
   match goal with
   | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
+    context [sizeof cenv_cs (field_type ?i (co_members (get_co ?id)))] =>
+      pose_sizeof_co (Tstruct id a);
+      let H := fresh "H" in
+      pose proof field_offset_in_range i (co_members (get_co id)) as H;
+      spec H; [solve [auto] |];
+      pose proof sizeof_pos cenv_cs (field_type i (co_members (get_co id)))
+  | _ : legal_cosu_type (Tunion ?id ?a) = true |-
+    context [sizeof cenv_cs (field_type ?i (co_members (get_co ?id)))] =>
+      pose_sizeof_co (Tunion id a);
+      let H := fresh "H" in
+      pose proof sizeof_union_in_members i (co_members (get_co id)) as H;
+      spec H; [solve [auto] |];
+      pose proof sizeof_pos cenv_cs (field_type i (co_members (get_co id)))
+  | _ => idtac
+  end;
+  match goal with
+  | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
+    context [field_offset_next cenv_cs ?i (co_members (get_co ?id)) (co_sizeof (get_co ?id))] =>
+      let H := fresh "H" in
+      pose proof field_offset_next_in_range i (co_members (get_co id)) (co_sizeof (get_co id));
+      spec H; [solve [auto] |];
+      spec H; [solve [auto | pose_sizeof_co (Tstruct id a); auto] |]
+  | _ => idtac
+  end
+.
+
+(*
+Ltac pose_field :=
+  match goal with
+  | _ : legal_cosu_type (Tstruct ?id ?a) = true |-
     context [sizeof cenv_cs (field_type2 ?i (co_members (get_co ?id)))] =>
       pose_sizeof_co (Tstruct id a);
       let H := fresh "H" in
@@ -463,4 +488,4 @@ Ltac pose_field :=
   end
 .
 
-(*End ARITH.*)
+*)

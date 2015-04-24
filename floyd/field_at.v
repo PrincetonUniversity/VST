@@ -1,14 +1,12 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
-Require floyd.fieldlist.
-Import floyd.fieldlist.fieldlist.
 Require Import floyd.type_induction.
 Require Import floyd.nested_pred_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.reptype_lemmas.
-Require Import floyd.aggregate_pred.
+Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.jmeq_lemmas.
 Require Import Coq.Logic.JMeq.
@@ -25,8 +23,6 @@ Section CENV.
 
 Context {cs: compspecs}.
 Context {csl: compspecs_legal cs}.
-
-Print field_compatible.
 
 Definition field_at (sh: Share.t) (t: type) (gfs: list gfield) (v: reptype (nested_field_type2 t gfs)) (p: val): mpred :=
   (!! field_compatible t gfs p) && at_offset (data_at' sh (nested_field_type2 t gfs) v) (nested_field_offset2 t gfs) p.
@@ -53,13 +49,6 @@ Proof.
   + inversion H.
 Defined.
 *)
-
-Lemma map_members_ext: forall A (f f':ident * type -> A) (m: members),
-  members_no_replicate m = true ->
-  (forall i, in_members i m -> f (i, field_type i m) = f' (i, field_type i m)) ->
-  map f m = map f' m.
-Proof.
-Admitted.
 
 Lemma nested_reptype_structlist_lemma: forall t gfs id a,
   nested_field_type2 t gfs = Tstruct id a ->
@@ -97,44 +86,20 @@ Definition nested_sfieldlist_at sh t gfs m: nested_reptype_structlist t gfs m ->
 Definition nested_ufieldlist_at sh t gfs m: nested_reptype_unionlist t gfs m -> val -> mpred :=
   union_pred m (fun it => field_at sh t (UnionField (fst it) :: gfs)).
 
-Lemma nested_field_type2_ArraySubsc: forall t gfs i j,
-  nested_field_type2 t (ArraySubsc i :: gfs) = nested_field_type2 t (ArraySubsc j :: gfs).
-Proof.
-  intros.
-  unfold nested_field_type2.
-  destruct (nested_field_rec t (ArraySubsc i :: gfs)) as [[? ?]|] eqn:?H;
-  destruct (nested_field_rec t (ArraySubsc j :: gfs)) as [[? ?]|] eqn:?H; auto.
-  + simpl in H, H0.
-    destruct (nested_field_rec t gfs) as [[? tt]| ]; destruct tt; inversion H; inversion H0; subst.
-    auto.
-  + simpl in H, H0.
-    destruct (nested_field_rec t gfs) as [[? tt]| ]; destruct tt; inversion H; inversion H0; subst.
-  + simpl in H, H0.
-    destruct (nested_field_rec t gfs) as [[? tt]| ]; destruct tt; inversion H; inversion H0; subst.
-Qed.    
-
-Definition nested_Znth {t: type} {gfs: list gfield} (lo n: Z)
-  (v: list (reptype (nested_field_type2 t (ArraySubsc 0 :: gfs)))) :
-  reptype (nested_field_type2 t (ArraySubsc n :: gfs)) :=
-  eq_rect_r reptype (Znth (n - lo) v (default_val _)) (nested_field_type2_ArraySubsc t gfs n 0).
-
 Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
-  (v: list (reptype (nested_field_type2 t (ArraySubsc 0 :: gfs)))) : val -> mpred :=
-  (!! (legal_alignas_type t = true)) &&
-  (!! (nested_legal_fieldlist t = true)) &&
-  (fun p : val =>
-    !!(isptr p /\ size_compatible t p /\ align_compatible t p /\
-       legal_nested_field t gfs)) &&
-  rangespec lo hi 
-    (fun i => !! legal_nested_field t (ArraySubsc i :: gfs) &&
-    data_at' sh empty_ti (nested_field_type2 t (ArraySubsc i :: gfs))
-      (nested_field_offset2 t (ArraySubsc i :: gfs)) (nested_Znth lo i v)).
+  (v: list (reptype (nested_field_type2 t (ArraySubsc 0 :: gfs)))) (p: val) : mpred :=
+  (!! field_compatible0 t (ArraySubsc lo :: gfs) p) &&
+  (!! field_compatible0 t (ArraySubsc hi :: gfs) p) &&
+  array_pred lo hi (default_val _)
+    (fun i v => at_offset (data_at' sh (nested_field_type2 t (ArraySubsc 0 :: gfs)) v)
+       (nested_field_offset2 t (ArraySubsc i :: gfs))) v p.
 
 Definition array_at_ (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z) :=
-  array_at sh t gfs lo hi (list_repeat (Z.to_nat (hi-lo)) (default_val (nested_field_type2 t (ArraySubsc 0 :: gfs)))).
+  array_at sh t gfs lo hi nil.
 
 Opaque alignof.
 
+(*
 Lemma nested_Znth_app_l: forall {t gfs} lo i (ct1 ct2: list (reptype (nested_field_type2 t (ArraySubsc 0 :: gfs)))),
   0 <= i - lo < Zlength ct1 ->
   nested_Znth lo i ct1 = nested_Znth lo i (ct1 ++ ct2).
@@ -179,74 +144,43 @@ Proof.
     rewrite <- Zlength_correct.
     apply Z2Nat.inj_le; omega.
 Qed.
-
-Lemma field_at_Tarray: forall sh t gfs t0 n a v1 v2,
+*)
+Lemma field_at_Tarray: forall sh t gfs t0 n a v1 v2 p,
+  legal_nested_field t gfs ->
   nested_field_type2 t gfs = Tarray t0 n a ->
+  0 <= n ->
   JMeq v1 v2 ->
-  field_at sh t gfs v1 = array_at sh t gfs 0 n v2.
+  field_at sh t gfs v1 p = array_at sh t gfs 0 n v2 p.
 Proof.
-Opaque nested_field_rec.
   intros.
   unfold field_at, array_at.
-  extensionality p.
-  simpl.
-  revert v1 H0; rewrite H; intros.
-  simpl.
-  unfold array_at', field_at.
-  normalize.
-Transparent nested_field_rec.
-  assert (forall i, nested_field_rec t (ArraySubsc i :: gfs) =
-    Some (nested_field_offset2 t gfs + sizeof t0 * i, t0)).
-  Focus 1. {
-    unfold nested_field_type2 in H.
-    unfold nested_field_offset2.
-    valid_nested_field_rec t gfs H.
-    intros; simpl.
-    rewrite H1; subst.
-    reflexivity.
-  } Unfocus.
-  assert (forall i, JMeq (Znth i v1 (default_val t0)) (nested_Znth 0 i v2)).
-  Focus 1. {
+  unfold field_compatible0, field_compatible, legal_nested_field0.
+  revert v1 v2 H2;
+  rewrite (nested_field_type2_ind t (ArraySubsc 0 :: gfs)).
+  rewrite H0; unfold gfield_type.
+  intros.
+  rewrite data_at'_ind.
+  unfold legal_field0.
+  rewrite at_offset_array_pred.
+  f_equal.
+  + assert (0 <= 0 <= n /\ 0 <= n <= n) by omega; apply pred_ext; normalize; tauto.
+    (* pretty strange that normalize cannot solve it directly. *)
+  + apply array_pred_ext.
     intros.
-    unfold nested_Znth.
-    generalize (nested_field_type2_ArraySubsc t gfs i 0).
-    revert v2 H0.   
-    unfold nested_field_type2.
-    rewrite (H1 i), (H1 0).
-    intros.
-    rewrite Z.sub_0_r.
-    apply JMeq_sym.
-    rewrite eq_rect_r_JMeq, H0.
-    reflexivity.
-  } Unfocus.
-Opaque nested_field_rec.
-  apply pred_ext; normalize; apply rangespec_ext_derives; intros.
-  + assert (legal_nested_field t (ArraySubsc i :: gfs)).
-    Focus 1. {
-      apply legal_nested_field_cons_lemma.
-      rewrite H.
-      auto.
-    } Unfocus.
-    normalize.
-    specialize (H2 i).
-    revert H2; generalize (nested_Znth 0 i v2).
-    unfold nested_field_type2.
-    unfold nested_field_offset2 at 2.
-    rewrite (H1 i); intros.
-    rewrite <- H2.
-    rewrite Z.sub_0_r.
-    apply derives_refl.
-  + simpl.
-    normalize.
-    specialize (H2 i).
-    revert H2; generalize (nested_Znth 0 i v2).
-    unfold nested_field_type2.
-    unfold nested_field_offset2 at 1.
-    rewrite (H1 i); intros.
-    rewrite <- H2.
-    rewrite Z.sub_0_r.
-    apply derives_refl.
-Transparent nested_field_rec.
+    rewrite at_offset_eq.
+    rewrite <- at_offset_eq2.
+    rewrite !at_offset_eq.
+    rewrite (nested_field_offset2_ind t (ArraySubsc i :: gfs))
+      by (simpl; unfold legal_field; rewrite H0; auto).
+    f_equal; [| rewrite H0; reflexivity].
+    f_equal.
+    unfold unfold_reptype.
+    apply JMeq_eq.
+    match goal with
+    | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
+      rewrite (eq_rect_JMeq A x y F v H)
+    end.
+    auto.
 Qed.
 
 Lemma field_at_Tstruct: forall sh t gfs i f a v1 v2,

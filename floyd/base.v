@@ -193,4 +193,3 @@ Proof.
 Qed.
 
 End GET_CO.
-

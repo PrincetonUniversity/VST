@@ -4,10 +4,10 @@ Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
 Require Import floyd.nested_pred_lemmas.
 Require Import floyd.mapsto_memory_block.
-Require Import floyd.aggregate_pred.
+Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
+Import floyd.aggregate_pred.auxiliary_pred.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.jmeq_lemmas.
-Require Import floyd.fieldlist.
 Require Import Coq.Logic.JMeq.
 
 Opaque alignof.
@@ -29,205 +29,13 @@ Definition offset_strict_in_range ofs p :=
   | _ => True
   end.
 
-(******************************************
-
-Definition of at_offset.
-
-at_offset is the elementary definition. All useful lemmas about at_offset' will be proved here. 
-
-******************************************)
-
-Definition at_offset (P: val -> mpred) (z: Z): val -> mpred :=
- fun v => P (offset_val (Int.repr z) v).
-
-Arguments at_offset P z v : simpl never.
-
-Lemma at_offset_eq: forall P z v,
-  at_offset P z v = P (offset_val (Int.repr z) v).
-Proof.
-intros; auto.
-Qed.
-
-Lemma lifted_at_offset_eq: forall (P: val -> mpred) z v,
-  `(at_offset P z) v = `P (`(offset_val (Int.repr z)) v).
-Proof.
-  intros.
-  unfold liftx, lift in *. simpl in *.
-  extensionality p.
-  apply at_offset_eq.
-Qed.
-
-Lemma at_offset_eq2: forall pos pos' P, 
-  forall p, at_offset P (pos + pos') p = at_offset P pos' (offset_val (Int.repr pos) p).
-Proof.
-  intros.
-  rewrite at_offset_eq.
-  rewrite at_offset_eq. 
-  unfold offset_val.
-  destruct p; auto.
-  rewrite int_add_assoc1.
-  reflexivity.
-Qed.
-
-Lemma at_offset_eq3: forall P z b ofs,
-  at_offset P z (Vptr b (Int.repr ofs)) = P (Vptr b (Int.repr (ofs + z))).
-Proof.
-  intros.
-  rewrite at_offset_eq.
-  unfold offset_val.
-  solve_mod_modulus.
-  reflexivity.
-Qed.
-
-Lemma at_offset_derives: forall P Q p , (forall p, P p |-- Q p) -> forall pos, at_offset P pos p |-- at_offset Q pos p.
-Proof.
-  intros.
-  rewrite !at_offset_eq.
-  apply H.
-Qed.
-
-(******************************************
-
-Definitions of spacer and withspacer
-
-Comment: spacer only has offset_zero property but does not have local_facts
-and isptr property.
-
-******************************************)
-
-Definition spacer (sh: share) (be: Z) (ed: Z) : val -> mpred :=
-  if Z.eq_dec (ed - be) 0
-  then fun _ => emp
-  else
-    at_offset (memory_block sh (Int.repr (ed - be))) be.
-(* Arguments spacer sh be ed / _ . *)
-
-Definition withspacer sh (be: Z) (ed: Z) : (val -> mpred) -> val -> mpred :=
-   if Z.eq_dec (ed - be) 0
-   then fun P => P
-   else fun P => P * spacer sh be ed.
-
-Lemma withspacer_spacer: forall sh be ed P,
-   withspacer sh be ed P = spacer sh be ed * P.
-Proof.
-  intros.
-  extensionality v.
-  unfold withspacer, spacer.
-  if_tac.
-  + normalize.
-  + simpl; apply sepcon_comm.
-Qed.
-
-Lemma spacer_offset_zero:
-  forall sh be ed v, spacer sh be ed v = spacer sh be ed (offset_val Int.zero v).
-Proof.
-  intros;
-  unfold spacer.
-  destruct (Z.eq_dec (ed - be) 0);  auto.
-  repeat rewrite at_offset_eq;
-  try rewrite offset_offset_val; try  rewrite Int.add_zero_l; auto.
-Qed.
-
-Lemma withspacer_add:
-  forall sh pos be ed P p,
-  withspacer sh (pos + be) (pos + ed) (fun p0 => P (offset_val (Int.repr pos) p)) p = 
-  withspacer sh be ed P (offset_val (Int.repr pos) p).
-Proof.
-  intros.
-  rewrite !withspacer_spacer.
-  unfold spacer.
-  simpl.
-  replace (pos + ed - (pos + be)) with (ed - be) by omega.
-  if_tac; [reflexivity|].
-  rewrite !at_offset_eq.
-  replace (offset_val (Int.repr (pos + be)) p) with
-          (offset_val (Int.repr be) (offset_val (Int.repr pos) p)).
-  reflexivity.
-  destruct p; simpl; try reflexivity.
-  rewrite int_add_assoc1.
-  reflexivity.
-Qed.
-
-Lemma offset_val_preserve_isptr: forall p pos, !! (isptr (offset_val pos p)) |-- !! (isptr p).
-Proof.
-  intros.
-  destruct p; simpl; apply derives_refl.
-Qed.
-
-Lemma at_offset_preserve_local_facts: forall {A: Type} P pos, (forall p, P p |-- !!(isptr p)) -> (forall p, at_offset P pos p |-- !!(isptr p)).
-Proof.
-  intros.
-  rewrite at_offset_eq.
-  specialize (H (offset_val (Int.repr pos) p)).
-  eapply derives_trans; [exact H |]. 
-  apply offset_val_preserve_isptr.
-Qed.
-
-Lemma withspacer_preserve_local_facts: forall sh be ed P, (forall p, P p |-- !! (isptr p)) -> (forall p, withspacer sh be ed P p |-- !! (isptr p)).
-Proof.
-  intros.
-  rewrite withspacer_spacer.
-  simpl; rewrite sepcon_comm. 
-  apply (derives_left_sepcon_right_corable (!!isptr p) (P p) _); [apply corable_prop|].
-  apply H.
-Qed.
-
-Transparent memory_block.
-
-Lemma spacer_memory_block:
-  forall sh be ed v, isptr v -> 
- spacer sh be ed v = memory_block sh (Int.repr (ed - be)) (offset_val (Int.repr be) v).
-Proof.
-  intros.
-  destruct v; inv H.
-  unfold spacer.
-  destruct (Z.eq_dec (ed - be) 0);
-  try solve [rewrite e; simpl offset_val; rewrite memory_block_zero_Vptr; auto].
-  rewrite at_offset_eq.
-  destruct be; auto.
-Qed.
-
-Lemma withspacer_memory_block: forall sh be ed p,
-  0 <= be <= ed ->
-  ed < Int.modulus ->
-  offset_in_range ed p ->
-  withspacer sh be ed (memory_block sh (Int.repr be)) p = memory_block sh (Int.repr ed) p.
-Proof.
-  intros.
-  rewrite withspacer_spacer; unfold spacer; simpl.
-  if_tac.
-  + assert (ed = be) by omega; subst.
-    apply emp_sepcon.
-  + rewrite at_offset_eq.
-    destruct p; try solve [(simpl; apply FF_sepcon)].
-    unfold offset_val, Int.add.
-    pattern i at 2 3;  (* do it this way for compatibility with Coq 8.4pl3 *)
-    replace i with (Int.repr (Int.unsigned i)) by apply Int.repr_unsigned.
-    rewrite !Int.unsigned_repr by (unfold Int.max_unsigned; omega).
-    simpl in H1.
-    rewrite sepcon_comm.
-    pose proof Int.unsigned_range i.
-    rewrite <- memory_block_split by omega.
-    f_equal; f_equal; omega.
-Qed.
-Opaque memory_block.
-
 (************************************************
 
 Definition of data_at 
 
-************************************************)
-
-(************************************************
-
 Always assume in arguments of data_at', array_at', sfieldlist_at', ufieldlist_
 at' has argument pos with alignment criterian. So, spacers are only added after
 fields of structs or unions.
-
-A new array_at' could be used here. But it worths discussion which version is better.
-
-Personally, I don't know why "function" case looks like this. I just copy it
-from previous version.
 
 ************************************************)
 
@@ -236,28 +44,12 @@ Section CENV.
 Context {cs: compspecs}.
 Context {csl: compspecs_legal cs}.
 
+(*
 Lemma proj_struct_default: forall i m d,
   in_members i m ->
   members_no_replicate m = true ->
-  proj_struct i m (struct_default_val m) d = default_val (field_type2 i m).
+  proj_struct i m (struct_default_val m) d = default_val (field_type i m).
 Proof.
-  unfold field_type2.
-  intros.
-  destruct m as [| (i0, t0) m]; [inversion H |].
-  revert i0 t0 H H0 d; induction m as [| (i1, t1) m]; intros.
-  + destruct H; [| inversion H].
-    simpl in d, H |- *; subst.
-    if_tac; [| congruence].
-    unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
-  + destruct H.
-    - simpl in d, H |- *; subst.
-      if_tac; [| congruence].
-      unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
-    - pose proof in_members_tail_no_replicate _ _ _ _ H0 H.
-      simpl in d, H |- *; if_tac; [congruence |].
-      apply IHm; auto.
-      rewrite members_no_replicate_ind in H0.
-      tauto.
 Qed.
 
 Lemma proj_union_default: forall i m d,
@@ -278,42 +70,10 @@ Proof.
     if_tac; [| congruence].
     unfold eq_rect_r; rewrite <- eq_rect_eq; auto.
 Qed.
-
+*)
 Section WITH_SHARE.
 
 Variable sh: share.
-
-Definition struct_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (snd it) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (snd it)) m)) : (val -> mpred).
-Proof.
-  destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
-  revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
-  + simpl in v, P.
-    inversion P; subst.
-    exact (withspacer sh
-            (field_offset2 cenv_cs i0 m0 + sizeof cenv_cs t0)
-            (field_offset_next cenv_cs i0 m0 sz)
-            (at_offset (a v) (field_offset2 cenv_cs i0 m0))).
-  + simpl in v, P.
-    inversion P; subst.
-    exact (withspacer sh
-            (field_offset2 cenv_cs i1 m0 + sizeof cenv_cs t1)
-            (field_offset_next cenv_cs i1 m0 sz)
-            (at_offset (a (fst v)) (field_offset2 cenv_cs i1 m0)) * IHm i0 t0 (snd v) b).
-Defined.
-
-Definition union_data_at'_aux (m: members) (sz: Z) (P: ListType (map (fun it => reptype (snd it) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (snd it)) m)) : (val -> mpred).
-Proof.
-  destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
-  revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
-  + simpl in v, P.
-    inversion P; subst.
-    exact (withspacer sh (sizeof cenv_cs t0) sz (a v)).
-  + simpl in v, P.
-    inversion P; subst.
-    destruct v as [v | v].
-    - exact (withspacer sh (sizeof cenv_cs t1) sz (a v)).
-    - exact (IHm i0 t0 v b).
-Defined.
 
 Definition data_at': forall t, reptype t -> val -> mpred :=
   func_type (fun t => reptype t -> val -> mpred)
@@ -322,60 +82,8 @@ Definition data_at': forall t, reptype t -> val -> mpred :=
        then memory_block sh (Int.repr (sizeof cenv_cs t)) p
        else mapsto sh t p (repinject t v))
     (fun t n a P v => array_pred 0 n (default_val t) (fun i v => at_offset (P v) (sizeof cenv_cs t * i)) (unfold_reptype v))
-    (fun id a P v => struct_data_at'_aux (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
-    (fun id a P v => union_data_at'_aux (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
-
-Lemma struct_data_at'_aux_spec: forall m m0 sz v P,
-  struct_data_at'_aux m m0 sz
-   (ListTypeGen
-     (fun it => reptype (snd it) -> val -> mpred)
-     P m) v =
-  struct_pred m 
-   (fun it v =>
-      withspacer sh
-       (field_offset2 cenv_cs (fst it) m0 + sizeof cenv_cs (snd it))
-       (field_offset_next cenv_cs (fst it) m0 sz)
-       (at_offset (P it v) (field_offset2 cenv_cs (fst it) m0))) v.
-Proof.
-  intros.
-  destruct m as [| (i0, t0) m]; [reflexivity |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
-  + simpl; reflexivity.
-  + change
-     (struct_data_at'_aux ((i1, t1) :: (i0, t0) :: m) m0 sz
-     (ListTypeGen (fun it : ident * type => reptype (snd it) -> val -> mpred)
-        P ((i1, t1) :: (i0, t0) :: m)) v) with
-     (withspacer sh
-       (field_offset2 cenv_cs i1 m0 + sizeof cenv_cs t1)
-         (field_offset_next cenv_cs i1 m0 sz)
-           (at_offset (P (i1, t1) (fst v)) (field_offset2 cenv_cs i1 m0)) *
-      struct_data_at'_aux ((i0, t0) :: m) m0 sz
-     (ListTypeGen (fun it : ident * type => reptype (snd it) -> val -> mpred)
-        P ((i0, t0) :: m)) (snd v)).
-    rewrite IHm.
-    reflexivity.
-Qed.
-
-Lemma union_data_at'_aux_spec: forall m sz v P,
-  union_data_at'_aux m sz
-   (ListTypeGen
-     (fun it => reptype (snd it) -> val -> mpred)
-     P m) v =
-  union_pred m
-   (fun it v =>
-      withspacer sh
-       (sizeof cenv_cs (snd it))
-       sz
-       (P it v)) v.
-Proof.
-  intros.
-  destruct m as [| (i0, t0) m]; [reflexivity |].
-  revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
-  + simpl; reflexivity.
-  + destruct v as [v | v].
-    - reflexivity.
-    - apply IHm.
-Qed.
+    (fun id a P v => struct_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
+    (fun id a P v => union_data_at'_aux sh (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
 
 Notation REPTYPE t :=
   match t return Type with
@@ -405,9 +113,9 @@ Lemma data_at'_ind: forall t v,
   | Tarray t0 n a => array_pred 0 n (default_val t0) (fun i v => at_offset (data_at' t0 v) (sizeof cenv_cs t0 * i))
   | Tstruct id a => struct_pred (co_members (get_co id))
                       (fun it v => withspacer sh
-                        (field_offset2 cenv_cs (fst it) (co_members (get_co id)) + sizeof cenv_cs (snd it))
+                        (field_offset cenv_cs (fst it) (co_members (get_co id)) + sizeof cenv_cs (snd it))
                         (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)))
-                        (at_offset (data_at' (snd it) v) (field_offset2 cenv_cs (fst it) (co_members (get_co id)))))
+                        (at_offset (data_at' (snd it) v) (field_offset cenv_cs (fst it) (co_members (get_co id)))))
   | Tunion id a => union_pred (co_members (get_co id))
                      (fun it v => withspacer sh
                       (sizeof cenv_cs (snd it))
@@ -784,73 +492,38 @@ Ltac AUTO_IND :=
     | apply Z.divide_mul_l;
       apply legal_alignas_sizeof_alignof_compat; AUTO_IND]
   | H: legal_alignas_type (Tstruct ?id ?a) = true |-
-    legal_alignas_type (field_type2 ?i (co_members (get_co ?id))) = true =>
+    legal_alignas_type (field_type ?i (co_members (get_co ?id))) = true =>
     unfold legal_alignas_type in H;
     apply nested_pred_Tstruct2 with (i0 := i) in H;
     [exact H | auto]
   | H: legal_cosu_type (Tstruct ?id ?a) = true |-
-    legal_cosu_type (field_type2 ?i (co_members (get_co ?id))) = true =>
+    legal_cosu_type (field_type ?i (co_members (get_co ?id))) = true =>
     unfold legal_cosu_type in H;
     apply nested_pred_Tstruct2 with (i0 := i) in H;
     [exact H | auto]
-  | |- complete_type ?env (field_type2 ?i (co_members (get_co ?id))) = true =>
-    apply complete_type_field_type2; auto
+  | |- complete_type ?env (field_type ?i (co_members (get_co ?id))) = true =>
+    apply complete_type_field_type; auto
   | H: (alignof cenv_cs (Tstruct ?id ?a) | ?ofs)
-    |- (alignof cenv_cs (field_type2 ?i (co_members (get_co ?id))) | ?ofs + _) =>
+    |- (alignof cenv_cs (field_type ?i (co_members (get_co ?id))) | ?ofs + _) =>
     apply Z.divide_add_r;
-    [ eapply Z.divide_trans; [apply alignof_field_type2_divide_alignof; auto |];
+    [ eapply Z.divide_trans; [apply alignof_field_type_divide_alignof; auto |];
       eapply Z.divide_trans; [apply legal_alignas_type_Tstruct; eauto | auto] 
-    | apply field_offset2_aligned]
+    | apply field_offset_aligned]
   | H: legal_alignas_type (Tunion ?id ?a) = true |-
-    legal_alignas_type (field_type2 ?i (co_members (get_co ?id))) = true =>
+    legal_alignas_type (field_type ?i (co_members (get_co ?id))) = true =>
     unfold legal_alignas_type in H;
     apply nested_pred_Tunion2 with (i0 := i) in H;
     [exact H | auto]
   | H: legal_cosu_type (Tunion ?id ?a) = true |-
-    legal_cosu_type (field_type2 ?i (co_members (get_co ?id))) = true =>
+    legal_cosu_type (field_type ?i (co_members (get_co ?id))) = true =>
     unfold legal_cosu_type in H;
     apply nested_pred_Tunion2 with (i0 := i) in H;
     [exact H | auto]
   | H: (alignof cenv_cs (Tunion ?id ?a) | ?ofs)
-    |- (alignof cenv_cs (field_type2 ?i (co_members (get_co ?id))) | ?ofs) =>
-    eapply Z.divide_trans; [apply alignof_field_type2_divide_alignof; auto |];
+    |- (alignof cenv_cs (field_type ?i (co_members (get_co ?id))) | ?ofs) =>
+    eapply Z.divide_trans; [apply alignof_field_type_divide_alignof; auto |];
     eapply Z.divide_trans; [apply legal_alignas_type_Tunion; eauto | auto]
   end.
-
-
-Lemma memory_block_data_at'_default_val_array_aux: forall sh t z a b ofs,
-  0 <= ofs /\ ofs + sizeof cenv_cs (Tarray t z a) <= Int.modulus ->
-  sizeof cenv_cs (Tarray t z a) < Int.modulus ->
-  array_pred 0 z (default_val t)
-     (fun i _ p =>
-      memory_block sh (Int.repr (sizeof cenv_cs t))
-        (offset_val (Int.repr (sizeof cenv_cs t * i)) p)) nil
-     (Vptr b (Int.repr ofs))  =
-  memory_block sh (Int.repr (sizeof cenv_cs (Tarray t z a))) (Vptr b (Int.repr ofs)).
-Proof.
-  intros.
-  destruct (zlt z 0).
-  + unfold array_pred.
-    simpl.
-    rewrite Z2Nat_neg by omega.
-    rewrite Z.max_l by omega.
-    rewrite Z.mul_0_r.
-    rewrite memory_block_zero.
-    simpl; normalize.
-  + rewrite memory_block_array_pred.
-    - rewrite Z.mul_0_r, Z.sub_0_r, Z.add_0_r.
-      f_equal; f_equal.
-      simpl.
-      f_equal.
-      rewrite Z.max_r by omega; auto.
-    - rewrite Z.mul_0_r, Z.add_0_r.
-      simpl in H.
-      rewrite Z.max_r in H by omega; auto.
-    - omega.
-    - rewrite Z.sub_0_r.
-      simpl in H0.
-      rewrite Z.max_r in H0 by omega; auto.
-Qed.
 
 Lemma memory_block_data_at'_default_val: forall sh t b ofs
   (LEGAL_ALIGNAS: legal_alignas_type t = true)
@@ -884,15 +557,15 @@ Proof.
       apply IH; try AUTO_IND;
       pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil); omega.
     } Unfocus.
-    apply memory_block_data_at'_default_val_array_aux; [omega | auto].
+    apply memory_block_array_pred; [simpl in H; auto | auto].
   + rewrite default_val_ind.
     rewrite unfold_fold_reptype.
     rewrite struct_pred_ext with
      (P1 := fun it _ p =>
               memory_block sh (Int.repr 
                (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)) -
-                  field_offset2 cenv_cs (fst it) (co_members (get_co id))))
-               (offset_val (Int.repr (field_offset2 cenv_cs (fst it) (co_members (get_co id)))) p))
+                  field_offset cenv_cs (fst it) (co_members (get_co id))))
+               (offset_val (Int.repr (field_offset cenv_cs (fst it) (co_members (get_co id)))) p))
      (v1 := (struct_default_val (co_members (get_co id))));
     [| apply get_co_members_no_replicate |].
     - rewrite memory_block_struct_pred.
@@ -913,10 +586,11 @@ Proof.
       rewrite spacer_memory_block by (simpl; auto).
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
-      rewrite proj_struct_default by auto.
+      unfold struct_default_val.
+      rewrite proj_struct_gen by auto.
       rewrite Forall_forall in IH.
-      specialize (IH (i, field_type2 i (co_members (get_co id)))).
-      spec IH; [apply in_members_field_type2; auto |].
+      specialize (IH (i, field_type i (co_members (get_co id)))).
+      spec IH; [apply in_members_field_type; auto |].
       unfold snd in IH.
       rewrite IH by (try AUTO_IND; try (pose_field; omega)).
       rewrite Z.add_assoc, sepcon_comm, <- memory_block_split by (pose_field; omega).
@@ -950,10 +624,11 @@ Proof.
         simpl.
         rewrite spacer_memory_block by (simpl; auto).
         unfold offset_val; solve_mod_modulus.
-        rewrite proj_union_default by auto.
+        unfold union_default_val.
+        rewrite proj_union_gen by auto.
         rewrite Forall_forall in IH.
-        specialize (IH (i, field_type2 i (co_members (get_co id)))).
-        spec IH; [apply in_members_field_type2; auto |].
+        specialize (IH (i, field_type i (co_members (get_co id)))).
+        spec IH; [apply in_members_field_type; auto |].
         unfold snd in IH.
         rewrite IH; (try AUTO_IND; try (pose_field; omega)).
         rewrite sepcon_comm, <- memory_block_split by (pose_field; omega).
@@ -1144,10 +819,11 @@ Proof.
     apply sepcon_derives; [auto |].
     rewrite !at_offset_eq3.
     rewrite Forall_forall in IH.
-    specialize (IH (i, (field_type2 i (co_members (get_co id))))).
-    spec IH; [apply in_members_field_type2; auto |].
+    specialize (IH (i, (field_type i (co_members (get_co id))))).
+    spec IH; [apply in_members_field_type; auto |].
     unfold snd in IH.
-    rewrite proj_struct_default by auto.
+    unfold struct_default_val.
+    rewrite proj_struct_gen by auto.
     apply IH; try AUTO_IND; try (pose_field; omega).
   + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil)
       by (destruct (co_members (get_co id)); [left | right]; congruence).
@@ -1161,24 +837,24 @@ Proof.
       * assert (members_no_replicate (co_members (get_co id)) = true) as NO_REPLI
           by apply get_co_members_no_replicate.
         apply union_pred_ext_derives with
-          (P1 := fun _ _ => memory_block sh (Int.repr (sizeof cenv_cs (Tunion id a))))
-          (v1 := union_val (fst (members_union_inj (unfold_reptype v))) (default_val _) (fun it => default_val (snd it))); [auto | apply members_union_inj_union_val; auto | ].
+          (P1 := fun _ _ => memory_block sh (Int.repr (sizeof cenv_cs (Tunion id a))));
+          [auto | reflexivity | ].
         intros.
         clear H4.
         assert (in_members i (co_members (get_co id))) by (subst; apply members_union_inj_in_members; auto).
         rewrite withspacer_spacer, sizeof_Tunion.
         simpl.
         pattern (co_sizeof (get_co id)) at 2;
-        replace (co_sizeof (get_co id)) with (sizeof cenv_cs (field_type2 i (co_members (get_co id))) +
-          (co_sizeof (get_co id) - sizeof cenv_cs (field_type2 i (co_members (get_co id))))) by omega.
+        replace (co_sizeof (get_co id)) with (sizeof cenv_cs (field_type i (co_members (get_co id))) +
+          (co_sizeof (get_co id) - sizeof cenv_cs (field_type i (co_members (get_co id))))) by omega.
         rewrite sepcon_comm.
         rewrite memory_block_split by (pose_field; omega).
         apply sepcon_derives; [| rewrite spacer_memory_block by (simpl; auto);
                                  unfold offset_val; solve_mod_modulus; auto ].
         rewrite <- memory_block_data_at'_default_val by (try AUTO_IND; try (pose_field; omega)).
         rewrite Forall_forall in IH.
-        specialize (IH (i, (field_type2 i (co_members (get_co id))))).
-        spec IH; [apply in_members_field_type2; auto |].
+        specialize (IH (i, (field_type i (co_members (get_co id))))).
+        spec IH; [apply in_members_field_type; auto |].
         unfold snd in IH.
         apply IH; try AUTO_IND; try (pose_field; omega).
       * rewrite sizeof_Tunion.

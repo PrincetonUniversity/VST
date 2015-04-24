@@ -195,6 +195,22 @@ Proof.
   reflexivity.
 Qed.
 
+Definition compact_prod_gen {A} {F} (gen: forall a: A, F a) (l: list A): compact_prod (map F l).
+Proof.
+  destruct l; [exact tt |].
+  revert a; induction l; intros.
+  + exact (gen a).
+  + exact (gen a0, IHl a).
+Defined.
+
+Definition compact_sum_gen {A} {F} (gen: forall a: A, F a) (l: list A): compact_sum (map F l).
+Proof.
+  destruct l; [exact tt |].
+  destruct l.
+  + exact (gen a).
+  + exact (inl (gen a)).
+Defined.
+
 Section COMPOSITE_ENV.
 Context {cs: compspecs}.
 

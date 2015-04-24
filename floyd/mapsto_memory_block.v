@@ -992,3 +992,188 @@ Proof.
   apply pred_ext; normalize; apply (exp_right old);
   rewrite eq_sym_LOCAL'; apply derives_refl.
 Qed.
+
+(******************************************
+
+Definition of at_offset.
+
+at_offset is the elementary definition. All useful lemmas about at_offset will be proved here. 
+
+******************************************)
+
+Definition at_offset (P: val -> mpred) (z: Z): val -> mpred :=
+ fun v => P (offset_val (Int.repr z) v).
+
+Arguments at_offset P z v : simpl never.
+
+Lemma at_offset_eq: forall P z v,
+  at_offset P z v = P (offset_val (Int.repr z) v).
+Proof.
+intros; auto.
+Qed.
+
+Lemma lifted_at_offset_eq: forall (P: val -> mpred) z v,
+  `(at_offset P z) v = `P (`(offset_val (Int.repr z)) v).
+Proof.
+  intros.
+  unfold liftx, lift in *. simpl in *.
+  extensionality p.
+  apply at_offset_eq.
+Qed.
+
+Lemma at_offset_eq2: forall pos pos' P, 
+  forall p, at_offset P (pos + pos') p = at_offset P pos' (offset_val (Int.repr pos) p).
+Proof.
+  intros.
+  rewrite at_offset_eq.
+  rewrite at_offset_eq. 
+  unfold offset_val.
+  destruct p; auto.
+  rewrite int_add_assoc1.
+  reflexivity.
+Qed.
+
+Lemma at_offset_eq3: forall P z b ofs,
+  at_offset P z (Vptr b (Int.repr ofs)) = P (Vptr b (Int.repr (ofs + z))).
+Proof.
+  intros.
+  rewrite at_offset_eq.
+  unfold offset_val.
+  solve_mod_modulus.
+  reflexivity.
+Qed.
+
+Lemma at_offset_derives: forall P Q p , (forall p, P p |-- Q p) -> forall pos, at_offset P pos p |-- at_offset Q pos p.
+Proof.
+  intros.
+  rewrite !at_offset_eq.
+  apply H.
+Qed.
+
+(******************************************
+
+Definitions of spacer and withspacer
+
+Comment: spacer only has offset_zero property but does not have local_facts
+and isptr property.
+
+******************************************)
+
+Definition spacer (sh: share) (be: Z) (ed: Z) : val -> mpred :=
+  if Z.eq_dec (ed - be) 0
+  then fun _ => emp
+  else
+    at_offset (memory_block sh (Int.repr (ed - be))) be.
+(* Arguments spacer sh be ed / _ . *)
+
+Definition withspacer sh (be: Z) (ed: Z) : (val -> mpred) -> val -> mpred :=
+   if Z.eq_dec (ed - be) 0
+   then fun P => P
+   else fun P => P * spacer sh be ed.
+
+Lemma withspacer_spacer: forall sh be ed P,
+   withspacer sh be ed P = spacer sh be ed * P.
+Proof.
+  intros.
+  extensionality v.
+  unfold withspacer, spacer.
+  if_tac.
+  + normalize.
+  + simpl; apply sepcon_comm.
+Qed.
+
+Lemma spacer_offset_zero:
+  forall sh be ed v, spacer sh be ed v = spacer sh be ed (offset_val Int.zero v).
+Proof.
+  intros;
+  unfold spacer.
+  destruct (Z.eq_dec (ed - be) 0);  auto.
+  repeat rewrite at_offset_eq;
+  try rewrite offset_offset_val; try  rewrite Int.add_zero_l; auto.
+Qed.
+
+Lemma withspacer_add:
+  forall sh pos be ed P p,
+  withspacer sh (pos + be) (pos + ed) (fun p0 => P (offset_val (Int.repr pos) p)) p = 
+  withspacer sh be ed P (offset_val (Int.repr pos) p).
+Proof.
+  intros.
+  rewrite !withspacer_spacer.
+  unfold spacer.
+  simpl.
+  replace (pos + ed - (pos + be)) with (ed - be) by omega.
+  if_tac; [reflexivity|].
+  rewrite !at_offset_eq.
+  replace (offset_val (Int.repr (pos + be)) p) with
+          (offset_val (Int.repr be) (offset_val (Int.repr pos) p)).
+  reflexivity.
+  destruct p; simpl; try reflexivity.
+  rewrite int_add_assoc1.
+  reflexivity.
+Qed.
+
+Lemma offset_val_preserve_isptr: forall p pos, !! (isptr (offset_val pos p)) |-- !! (isptr p).
+Proof.
+  intros.
+  destruct p; simpl; apply derives_refl.
+Qed.
+
+Lemma at_offset_preserve_local_facts: forall {A: Type} P pos, (forall p, P p |-- !!(isptr p)) -> (forall p, at_offset P pos p |-- !!(isptr p)).
+Proof.
+  intros.
+  rewrite at_offset_eq.
+  specialize (H (offset_val (Int.repr pos) p)).
+  eapply derives_trans; [exact H |]. 
+  apply offset_val_preserve_isptr.
+Qed.
+
+Lemma withspacer_preserve_local_facts: forall sh be ed P, (forall p, P p |-- !! (isptr p)) -> (forall p, withspacer sh be ed P p |-- !! (isptr p)).
+Proof.
+  intros.
+  rewrite withspacer_spacer.
+  simpl; rewrite sepcon_comm. 
+  apply (derives_left_sepcon_right_corable (!!isptr p) (P p) _); [apply corable_prop|].
+  apply H.
+Qed.
+
+Transparent memory_block.
+
+Lemma spacer_memory_block:
+  forall sh be ed v, isptr v -> 
+ spacer sh be ed v = memory_block sh (Int.repr (ed - be)) (offset_val (Int.repr be) v).
+Proof.
+  intros.
+  destruct v; inv H.
+  unfold spacer.
+  destruct (Z.eq_dec (ed - be) 0);
+  try solve [rewrite e; simpl offset_val; rewrite memory_block_zero_Vptr; auto].
+  rewrite at_offset_eq.
+  destruct be; auto.
+Qed.
+(*
+Lemma withspacer_memory_block: forall sh be ed p,
+  0 <= be <= ed ->
+  ed < Int.modulus ->
+  offset_in_range ed p ->
+  withspacer sh be ed (memory_block sh (Int.repr be)) p = memory_block sh (Int.repr ed) p.
+Proof.
+  intros.
+  rewrite withspacer_spacer; unfold spacer; simpl.
+  if_tac.
+  + assert (ed = be) by omega; subst.
+    apply emp_sepcon.
+  + rewrite at_offset_eq.
+    destruct p; try solve [(simpl; apply FF_sepcon)].
+    unfold offset_val, Int.add.
+    pattern i at 2 3;  (* do it this way for compatibility with Coq 8.4pl3 *)
+    replace i with (Int.repr (Int.unsigned i)) by apply Int.repr_unsigned.
+    rewrite !Int.unsigned_repr by (unfold Int.max_unsigned; omega).
+    simpl in H1.
+    rewrite sepcon_comm.
+    pose proof Int.unsigned_range i.
+    rewrite <- memory_block_split by omega.
+    f_equal; f_equal; omega.
+Qed.
+*)
+Opaque memory_block.
+

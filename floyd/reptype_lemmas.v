@@ -160,22 +160,6 @@ Proof.
   reflexivity.
 Defined.
 
-Definition compact_prod_gen {A} {F} (gen: forall a: A, F a) (l: list A): compact_prod (map F l).
-Proof.
-  destruct l; [exact tt |].
-  revert a; induction l; intros.
-  + exact (gen a).
-  + exact (gen a0, IHl a).
-Defined.
-
-Definition compact_sum_gen {A} {F} (gen: forall a: A, F a) (l: list A): compact_sum (map F l).
-Proof.
-  destruct l; [exact tt |].
-  destruct l.
-  + exact (gen a).
-  + exact (inl (gen a)).
-Defined.
-
 Definition struct_default_val (m : members) := compact_prod_gen (fun it => default_val (snd it)) m.
 Definition union_default_val (m : members) := compact_sum_gen (fun it => default_val (snd it)) m.
 
@@ -375,7 +359,6 @@ Definition repinj_bv (t: type): reptype' t -> reptype t :=
 
 Definition repinj_aux_s (id: ident) (a: attr) (F: ListType (map (fun it => reptype' (snd it) -> reptype (snd it)) (co_members (get_co id)))): reptype' (Tstruct id a) -> reptype (Tstruct id a) :=
   fun v => @fold_reptype (Tstruct id a) (compact_prod_map _ F (unfold_reptype' v)).
-
 
 Definition repinj_aux_u (id: ident) (a: attr) (F: ListType (map (fun it => reptype' (snd it) -> reptype (snd it)) (co_members (get_co id)))): reptype' (Tunion id a) -> reptype (Tunion id a) :=
   fun v => @fold_reptype (Tunion id a) (compact_sum_map _ F (unfold_reptype' v)).
