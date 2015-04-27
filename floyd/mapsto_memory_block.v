@@ -1066,16 +1066,15 @@ Definition spacer (sh: share) (be: Z) (ed: Z) : val -> mpred :=
     at_offset (memory_block sh (Int.repr (ed - be))) be.
 (* Arguments spacer sh be ed / _ . *)
 
-Definition withspacer sh (be: Z) (ed: Z) : (val -> mpred) -> val -> mpred :=
+Definition withspacer sh (be: Z) (ed: Z) P (p: val): mpred :=
    if Z.eq_dec (ed - be) 0
-   then fun P => P
-   else fun P => P * spacer sh be ed.
+   then P p
+   else P p * spacer sh be ed p.
 
-Lemma withspacer_spacer: forall sh be ed P,
-   withspacer sh be ed P = spacer sh be ed * P.
+Lemma withspacer_spacer: forall sh be ed P p,
+   withspacer sh be ed P p = spacer sh be ed p * P p.
 Proof.
   intros.
-  extensionality v.
   unfold withspacer, spacer.
   if_tac.
   + normalize.
@@ -1118,7 +1117,7 @@ Proof.
   destruct p; simpl; apply derives_refl.
 Qed.
 
-Lemma at_offset_preserve_local_facts: forall {A: Type} P pos, (forall p, P p |-- !!(isptr p)) -> (forall p, at_offset P pos p |-- !!(isptr p)).
+Lemma at_offset_preserve_local_facts: forall P pos, (forall p, P p |-- !!(isptr p)) -> (forall p, at_offset P pos p |-- !!(isptr p)).
 Proof.
   intros.
   rewrite at_offset_eq.

@@ -111,27 +111,27 @@ Definition of aggregate predicates.
 Definition array_pred {A: Type} (lo hi: Z) (d: A) (P: Z -> A -> val -> mpred) (v: list A): val -> mpred :=
   rangespec lo (nat_of_Z (hi-lo)) (fun i => P i (Znth (i - lo) v d)).
 
-Definition struct_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)): val -> mpred.
+Definition struct_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)) (p: val): mpred.
 Proof.
-  destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
+  destruct m as [| (i0, t0) m]; [exact emp |].
   revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
   + simpl in v.
-    exact (P _ v).
+    exact (P _ v p).
   + simpl in v.
-    exact ((P _ (fst v)) * IHm i0 t0 (snd v)).
+    exact ((P _ (fst v) p) * IHm i0 t0 (snd v)).
 Defined.
 
 (* when unfold, do cbv [struct_pred list_rect]. *)
 
-Definition union_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)): val -> mpred.
+Definition union_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)) (p: val): mpred.
 Proof.
-  destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
+  destruct m as [| (i0, t0) m]; [exact emp |].
   revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
   + simpl in v.
-    exact (P _ v).
+    exact (P _ v p).
   + simpl in v.
     destruct v as [v | v].
-    - exact (P _ v).
+    - exact (P _ v p).
     - exact (IHm i0 t0 v).
 Defined.
 
@@ -249,7 +249,29 @@ Proof.
   + simpl.
     rewrite at_offset_eq.
     f_equal.
-    apply IHm.
+Qed.
+
+Lemma coreable_andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
+  corable Q ->
+  Q && struct_pred m P v p =
+  match m with
+  | nil => Q && emp
+  | _ => struct_pred m (fun it v p => Q && P it v p) v p
+  end.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [auto |].
+  revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
+  + simpl.
+    auto.
+  + change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p)
+      with (P (i0, t0) (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
+    pattern Q at 1; rewrite <- (andp_dup Q).
+    rewrite andp_assoc.
+    rewrite <- corable_sepcon_andp1 by auto.
+    rewrite IHm.
+    rewrite <- corable_andp_sepcon1 by auto.
+    reflexivity.
 Qed.
 
 Lemma union_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
@@ -328,6 +350,25 @@ Proof.
     - rewrite at_offset_eq.
       auto.
     - apply IHm.
+Qed.
+
+Lemma andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
+  Q && union_pred m P v p =
+  match m with
+  | nil => Q && emp
+  | _ => union_pred m (fun it v p => Q && P it v p) v p
+  end.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m]; [auto |].
+  revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
+  + simpl.
+    auto.
+  + destruct v.
+    - simpl.
+      auto.
+    - simpl.
+      apply IHm.
 Qed.
 
 Section MEMORY_BLOCK_AGGREGATE.
@@ -480,11 +521,27 @@ Export floyd.compact_prod_sum.compact_prod_sum.
 Definition array_pred: forall {A: Type} (lo hi: Z) (d: A) (P: Z -> A -> val -> mpred) (v: list A), val -> mpred
 := @array_pred.
 
-Definition struct_pred: forall (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)), val -> mpred
-:= @struct_pred.
+Definition struct_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_prod (map A m)) (p: val): mpred.
+Proof.
+  destruct m as [| (i0, t0) m]; [exact emp |].
+  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
+  + simpl in v.
+    exact (P _ v p).
+  + simpl in v.
+    exact ((P _ (fst v) p) * IHm i0 t0 (snd v)).
+Defined.
 
-Definition union_pred: forall (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)), val -> mpred
-:= @union_pred.
+Definition union_pred (m: members) {A: ident * type -> Type} (P: forall it, A it -> val -> mpred) (v: compact_sum (map A m)) (p: val): mpred.
+Proof.
+  destruct m as [| (i0, t0) m]; [exact emp |].
+  revert i0 t0 v; induction m as [| (i0, t0) m]; intros ? ? v.
+  + simpl in v.
+    exact (P _ v p).
+  + simpl in v.
+    destruct v as [v | v].
+    - exact (P _ v p).
+    - exact (IHm i0 t0 v).
+Defined.
 
 Definition array_pred_ext_derives:
   forall A lo hi (d: A) P0 P1 v0 v1 p,
@@ -522,6 +579,15 @@ Definition at_offset_struct_pred: forall m {A} (P: forall it, A it -> val -> mpr
   at_offset (struct_pred m P v) ofs p = struct_pred m (fun it v => at_offset (P it v) ofs) v p
 := @at_offset_struct_pred.
 
+Definition andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
+  corable Q ->
+  Q && struct_pred m P v p =
+  match m with
+  | nil => Q && emp
+  | _ => struct_pred m (fun it v p => Q && P it v p) v p
+  end
+:= @coreable_andp_struct_pred.
+
 Definition union_pred_ext_derives:
   forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
@@ -543,6 +609,14 @@ Definition union_pred_ext:
 Definition at_offset_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p ofs,
   at_offset (union_pred m P v) ofs p = union_pred m (fun it v => at_offset (P it v) ofs) v p
 := at_offset_union_pred.
+
+Definition andp_union_pred: forall m {A} (P: forall it, A it -> val -> mpred) v p Q,
+  Q && union_pred m P v p =
+  match m with
+  | nil => Q && emp
+  | _ => union_pred m (fun it v p => Q && P it v p) v p
+  end
+:= @andp_union_pred.
 
 End aggregate_pred.
 

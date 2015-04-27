@@ -415,6 +415,37 @@ Proof.
   + apply legal_nested_field0_dec.
 Qed.
 
+Lemma field_compatible_cons: forall t gf gfs p,
+  field_compatible t (gf :: gfs) p <->
+  match nested_field_type2 t gfs, gf with
+  | Tstruct id _, StructField i => in_members i (co_members (get_co id)) /\ field_compatible t gfs p
+  | Tunion id _, UnionField i => in_members i (co_members (get_co id)) /\ field_compatible t gfs p
+  | Tarray _ n _, ArraySubsc i => 0 <= i < n /\ field_compatible t gfs p
+  | _, _ => False
+  end.
+Proof.
+  intros.
+  unfold field_compatible.
+  simpl (legal_nested_field t (gf :: gfs)).
+  destruct (nested_field_type2 t gfs), gf; simpl; tauto.
+Qed.
+
+Lemma field_compatible0_cons: forall t gf gfs p,
+  field_compatible0 t (gf :: gfs) p <->
+  match nested_field_type2 t gfs, gf with
+  | Tstruct id _, StructField i => in_members i (co_members (get_co id)) /\ field_compatible t gfs p
+  | Tunion id _, UnionField i => in_members i (co_members (get_co id)) /\ field_compatible t gfs p
+  | Tarray _ n _, ArraySubsc i => 0 <= i <= n /\ field_compatible t gfs p
+  | _, _ => False
+  end.
+Proof.
+  intros.
+  unfold field_compatible, field_compatible0.
+  simpl (legal_nested_field0 t (gf :: gfs)).
+  destruct (nested_field_type2 t gfs), gf; simpl; tauto.
+Qed.
+
+(* The following two lemmas is covered by the previous two. Delete them some time. *)
 Lemma field_compatible_cons_Tarray:
   forall i t t0 n a gfs p,
   nested_field_type2 t gfs = Tarray t0 n a ->
@@ -1333,8 +1364,38 @@ Proof.
     * rewrite <- !two_power_nat_two_p in *. apply power_nat_one_divede_other.
 Qed.
 
+Lemma field_compatible_nested_field_type2: forall t gfs p,
+  field_compatible t gfs p ->
+  field_compatible (nested_field_type2 t gfs) nil (offset_val (Int.repr (nested_field_offset2 t gfs)) p).
+Proof.
+  intros.
+  unfold field_compatible in *.
+  repeat split.
+  + rewrite isptr_offset_val; tauto.
+  + apply nested_field_type2_nest_pred; auto. tauto.
+  + apply nested_field_type2_nest_pred; auto. tauto.
+  + apply size_compatible_nested_field; tauto.
+  + apply align_compatible_nested_field; tauto.
+Qed.
+
+Lemma field_compatible_isptr :
+  forall t path p, field_compatible t path p -> isptr p.
+Proof.
+intros. destruct H; auto.
+Qed.
+
+Lemma field_compatible0_isptr :
+  forall t path p, field_compatible0 t path p -> isptr p.
+Proof.
+intros. destruct H; auto.
+Qed.
+
+Hint Extern 1 (isptr _) => (eapply field_compatible_isptr; eassumption).
+Hint Extern 1 (isptr _) => (eapply field_compatible0_isptr; eassumption).
+
 End COMPOSITE_ENV.
 (*
 Arguments nested_field_offset2 {cs} t gfs /.
 Arguments nested_field_type2 {cs} t gfs /.
 *)
+
