@@ -1914,19 +1914,108 @@ rewrite Pos_to_nat_eq_S.
   apply IHvl.
   clear - HACK H3.
   destruct HACK as [? ? ].
-  split. rewrite <- H.
+
+unfold hackfun. split. 
+{ 
+  rewrite <-H.
   unfold inflate_initial_mem. repeat rewrite level_make_rmap. auto.
-  intro; specialize (H0 loc).
- destruct H0. split; auto.
- rewrite <- H0.
-  clear - H3.
-(* FIXME: don't need alloc_Gfun_inflate? *)
-  admit.  (* seems easy enough *)
-  intro.
-  rewrite <- H1.
-  admit.  (* seems probable enough *)
-  contradict H2.
-  admit.  (* seems probable enough *)
+}
+{ 
+  intros loc. spec H0 loc. destruct H0. split; auto.
+  { rewrite <-H0.
+
+Lemma alloc_global_inflate_initial_identity gev m0 i f m loc n G :
+  Genv.alloc_global gev m0 (i, Gfun f) = Some m ->
+  (identity (inflate_initial_mem m0 (initial_core gev G n) @ loc) <->
+   identity (inflate_initial_mem m (initial_core gev G n) @ loc)).
+Proof.
+intros H.
+unfold inflate_initial_mem, inflate_initial_mem'.
+rewrite !resource_at_make_rmap.
+destruct (access_at m0 loc) eqn:H2.
+{
+assert (H3: access_at m loc = Some p).
+{ 
+  clear - H H2.
+  assert (H4: (fst loc < nextblock m0)%positive). 
+  { 
+    destruct (Pos.ltb (fst loc) (nextblock m0)) eqn:H3.
+    apply Pos.ltb_lt in H3; auto.
+    apply Pos.ltb_nlt in H3.
+    apply nextblock_access_empty with (ofs:=snd loc) in H3.
+    destruct loc; simpl in *. unfold block in H2. rewrite H3 in H2. congruence.
+  }
+  eapply alloc_global_old in H; eauto.
+  destruct H as [<- _]; auto.
+}
+rewrite H3.
+destruct p; try solve[
+  split; let H := fresh "H" in intros H; apply YES_not_identity in H; inv H].
+destruct (initial_core gev G n @ loc) eqn:H4; try solve[split; auto].
+}
+destruct (Pos.ltb (fst loc) (nextblock m0)) eqn:H5.
+{ 
+  apply Pos.ltb_lt in H5. 
+  eapply alloc_global_old in H; eauto.
+  destruct H as [A [B C]]. 
+  rewrite <-A, H2; split; auto. 
+}
+{ 
+  rewrite Pos.ltb_nlt in H5.
+  destruct (Pos.eqb (fst loc) (nextblock m0)) eqn:H6.
+  { rewrite Pos.eqb_eq in H6. 
+    generalize H as H'. intro.
+    apply Genv.alloc_global_nextblock in H'. 
+    destruct loc as (b,z); simpl in H2,H5,H6,H'; subst.    
+    clear H5.
+    admit. (*not provable???*)
+  }
+  { assert (H7: (fst loc > nextblock m0)%positive).
+    { 
+      rewrite Pos.eqb_neq in H6.
+      apply Pos.lt_gt.
+      apply Pos.le_nlt in H5.
+      apply Pos.lt_eq_cases in H5. destruct H5; auto. rewrite H0 in H6. congruence.
+    }
+    eapply alloc_global_beyond2 in H; eauto.
+    rewrite H; split; auto.
+  }
+}
+Qed.
+
+eapply alloc_global_inflate_initial_identity; eauto. (*SHOULD NOT BE PROVABLE??*)
+}
+
+intros H2.
+revert H1 H2.
+unfold inflate_initial_mem.
+rewrite !resource_at_make_rmap.
+unfold inflate_initial_mem'.
+destruct (access_at m0 loc) eqn:H4.
+assert (H6: (fst loc < nextblock m0)%positive).
+{ 
+  rewrite Pos.lt_nle.
+  intros Contra.
+  apply Pos.le_ge in Contra.
+  apply nextblock_access_empty with (ofs:=snd loc) in Contra.
+  destruct loc; simpl in *; unfold block in *; rewrite H4 in Contra; congruence.
+}
+assert (H5: access_at m loc = Some p).
+{
+  eapply alloc_global_old in H3; eauto.
+  destruct H3 as [H3 _]; rewrite <-H3; auto.
+}
+assert (H7: contents_at m loc = contents_at m0 loc).
+{ 
+  eapply alloc_global_old in H3; eauto.
+  destruct H3 as [_ [_ H3]]; rewrite <-H3; auto.
+}
+rewrite !H7, H5.
+destruct p; auto.
+destruct (access_at m loc) eqn:H5; auto.
+intros. elimtype False; apply H2; apply NO_identity.
+}
+
 * (* Gvar case *)
   specialize (IHvl m0 G0 G). 
   spec IHvl. { clear - H2. apply list_norepet_app.  apply list_norepet_app in H2.
