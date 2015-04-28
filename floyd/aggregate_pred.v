@@ -141,6 +141,17 @@ Properties
 
 ******************************************)
 
+Lemma empty_array_pred: forall {A} lo hi (d: A) P v p,
+  hi <= lo ->
+  array_pred lo hi d P v p = emp.
+Proof.
+  intros.
+  unfold array_pred.
+  replace (nat_of_Z (hi - lo)) with 0%nat by (symmetry; apply nat_of_Z_neg; omega).
+  simpl.
+  auto.
+Qed.
+
 Lemma array_pred_ext_derives: forall A lo hi (d: A) P0 P1 v0 v1 p,
   (forall i, lo <= i < hi -> P0 i (Znth (i - lo) v0 d) p |-- P1 i (Znth (i - lo) v1 d) p) -> 
   array_pred lo hi d P0 v0 p |-- array_pred lo hi d P1 v1 p.
@@ -514,6 +525,54 @@ Qed.
 
 End MEMORY_BLOCK_AGGREGATE.
 
+Section EMPTY_AGGREGATE.
+
+Context {cs: compspecs}.
+
+Lemma emp_array_pred: forall A lo hi (d: A) v p,
+  array_pred lo hi d (fun _ _ _ => emp) v p = emp.
+Proof.
+  intros.
+  unfold array_pred.
+  forget (nat_of_Z (hi - lo)) as n.
+  revert lo; induction n; intros.
+  + simpl; auto.
+  + simpl.
+    rewrite IHn.
+    apply sepcon_emp.
+Qed.
+
+Lemma emp_struct_pred: forall m {A} (v: compact_prod (map A m)) p,
+  struct_pred m (fun _ _ _ => emp) v p = emp.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m].
+  + simpl. auto.
+  + revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
+    - simpl. auto.
+    - change (struct_pred ((i0, t0) :: (i1, t1) :: m) (fun _ _ _ => emp) v p) with
+        (emp * struct_pred ((i1, t1) :: m) (fun _ _ _ => emp) (snd v) p).
+      rewrite IHm.
+      apply sepcon_emp.
+Qed.
+
+Lemma emp_union_pred: forall m {A} (v: compact_sum (map A m)) p,
+  union_pred m (fun _ _ _ => emp) v p = emp.
+Proof.
+  intros.
+  destruct m as [| (i0, t0) m].
+  + simpl. auto.
+  + revert i0 t0 v; induction m as [| (i1, t1) m]; intros.
+    - simpl. auto.
+    - destruct v as [v | v].
+      * simpl. auto.
+      * change (union_pred ((i0, t0) :: (i1, t1) :: m) (fun _ _ _ => emp) (inr v) p) with
+          (union_pred ((i1, t1) :: m) (fun _ _ _ => emp) v p).
+        apply IHm.
+Qed.
+
+End EMPTY_AGGREGATE.
+
 Module aggregate_pred.
 
 Export floyd.compact_prod_sum.compact_prod_sum.
@@ -542,6 +601,11 @@ Proof.
     - exact (P _ v p).
     - exact (IHm i0 t0 v).
 Defined.
+
+Definition empty_array_pred: forall {A} lo hi (d: A) P v p,
+  hi <= lo ->
+  array_pred lo hi d P v p = emp
+:= @empty_array_pred.
 
 Definition array_pred_ext_derives:
   forall A lo hi (d: A) P0 P1 v0 v1 p,
@@ -789,5 +853,17 @@ Definition memory_block_union_pred:
   union_pred m (fun it _ => memory_block sh (Int.repr sz)) v (Vptr b (Int.repr ofs)) =
   memory_block sh (Int.repr sz) (Vptr b (Int.repr ofs))
 := @memory_block_union_pred.
+
+Definition emp_array_pred: forall A lo hi (d: A) v p,
+  array_pred lo hi d (fun _ _ _ => emp) v p = emp
+:= @emp_array_pred.
+
+Definition emp_struct_pred: forall m {A} (v: compact_prod (map A m)) p,
+  struct_pred m (fun _ _ _ => emp) v p = emp
+:= @emp_struct_pred.
+
+Definition emp_union_pred: forall m {A} (v: compact_sum (map A m)) p,
+  union_pred m (fun _ _ _ => emp) v p = emp
+:= @emp_union_pred.
 
 End auxiliary_pred.

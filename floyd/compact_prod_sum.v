@@ -216,39 +216,68 @@ Proof.
 Qed.
 
 Lemma proj_struct_JMeq: forall i m A1 A2 d1 d2 (v1: compact_prod (map A1 m)) (v2: compact_prod (map A2 m)),
-  A1 = A2 ->
+  (forall i, in_members i m -> A1 (i, field_type2 i m) = A2 (i, field_type2 i m)) ->
   in_members i m ->
+  members_no_replicate m = true ->
   JMeq v1 v2 ->
   JMeq (proj_struct i m v1 d1) (proj_struct i m v2 d2).
 Proof.
   unfold field_type2.
   intros.
-  subst.
   destruct m as [| (i0, t0) m]; [inversion H0 |].
-  revert i0 t0 d1 d2 v1 v2 H0 H1; induction m as [| (i1, t1) m]; intros.
-  + inversion H0; [simpl in H | inversion H].
+  revert i0 t0 d1 d2 v1 v2 H H0 H1 H2; induction m as [| (i1, t1) m]; intros.
+  + inversion H0; [simpl in H3 | inversion H3].
     subst.
-    revert d1 d2 v2; simpl.
+    revert d1 d2 v2 H1 H2; simpl.
     if_tac; [intros | congruence].
     unfold eq_rect_r; rewrite <- !eq_rect_eq.
     auto.
-  + destruct (ident_eq i i0).
+  + assert (A1 (i0, t0) = A2 (i0, t0)).
+    Focus 1. {
+      clear - H.
+      specialize (H i0).
+      spec H; [left; simpl; auto |].
+      simpl in H; if_tac in H; [| congruence].
+      auto.
+    } Unfocus.
+    assert (compact_prod (map A1 ((i1, t1) :: m)) = compact_prod (map A2 ((i1, t1) :: m))).
+    Focus 1. {
+      f_equal.
+      clear - H H1.
+      apply map_members_ext; [rewrite members_no_replicate_ind in H1; tauto |].
+      intros.
+      specialize (H i).
+      spec H; [right; auto |].
+      pose proof in_members_tail_no_replicate _ _ _ _ H1 H0.
+      simpl in H; if_tac in H; [congruence |].
+      auto.
+    } Unfocus.
+    destruct (ident_eq i i0).
     - subst.
       clear IHm.
-      revert d1 d2 v2; simpl.
+      revert d1 d2 v1 v2 H H2; simpl.
       if_tac; [intros | congruence].
       unfold eq_rect_r; rewrite <- !eq_rect_eq.
-      auto.
-    - inversion H0; [simpl in H; congruence |].
-      revert d1 d2 v1 v2 H1; simpl.
+      apply JMeq_fst; auto.
+    - inversion H0; [simpl in H5; congruence |].
+      revert d1 d2 v1 v2 H1 H2; simpl.
       if_tac; [congruence |].
       intros.
       apply (IHm i1 t1); auto.
-      apply JMeq_snd; auto.
+      * clear - H H2.
+        intros.
+        specialize (H i).
+        spec H; [right; auto |].
+        simpl in H.
+        pose proof in_members_tail_no_replicate _ _ _ _ H2 H0.
+        if_tac in H; [congruence |].
+        exact H.
+      * rewrite members_no_replicate_ind in H2; tauto.
+      * apply JMeq_snd; auto.
 Qed.
 
 Lemma proj_union_JMeq: forall i m A1 A2 d1 d2 (v1: compact_sum (map A1 m)) (v2: compact_sum (map A2 m)),
-  A1 = A2 ->
+  (forall i, in_members i m -> A1 (i, field_type2 i m) = A2 (i, field_type2 i m)) ->
   i = fst (members_union_inj v1) ->
   m <> nil ->
   members_no_replicate m = true ->
@@ -257,46 +286,105 @@ Lemma proj_union_JMeq: forall i m A1 A2 d1 d2 (v1: compact_sum (map A1 m)) (v2: 
 Proof.
   unfold field_type2.
   intros.
-  subst A2.
   destruct m as [| (i0, t0) m]; [congruence |].
   clear H1.
-  revert i0 t0 d1 d2 v1 v2 H0 H2 H3; induction m as [| (i1, t1) m]; intros.
+  revert i0 t0 d1 d2 v1 v2 H H0 H2 H3; induction m as [| (i1, t1) m]; intros.
   + simpl in H0.
     subst.
-    revert d1 d2 v2; simpl.
+    revert d1 d2 v1 v2 H3; simpl.
     if_tac; [intros | congruence].
     unfold eq_rect_r; rewrite <- !eq_rect_eq.
     auto.
-  + subst v1.
-    destruct v2 as [v | v].
+  + assert (A1 (i0, t0) = A2 (i0, t0)).
+    Focus 1. {
+      clear - H.
+      specialize (H i0).
+      spec H; [left; simpl; auto |].
+      simpl in H; if_tac in H; [| congruence].
+      auto.
+    } Unfocus.
+    assert (compact_sum (map A1 ((i1, t1) :: m)) = compact_sum (map A2 ((i1, t1) :: m))).
+    Focus 1. {
+      f_equal.
+      clear - H H2.
+      apply map_members_ext; [rewrite members_no_replicate_ind in H2; tauto |].
+      intros.
+      specialize (H i).
+      spec H; [right; auto |].
+      pose proof in_members_tail_no_replicate _ _ _ _ H2 H0.
+      simpl in H; if_tac in H; [congruence |].
+      auto.
+    } Unfocus.
+    simpl in H3.
+    solve_JMeq_sumtype H3.
     - simpl in H0.
       subst i0.
       revert d1 d2; simpl.
       if_tac; [intros | congruence].
       unfold eq_rect_r; rewrite <- !eq_rect_eq.
       auto.
-    - pose proof members_union_inj_in_members ((i1, t1) :: m) _ v.
-      spec H; [congruence |].
-      replace (fst (members_union_inj v)) with i in H by auto.
-      pose proof in_members_tail_no_replicate _ _ _ _ H2 H.
-      revert d1 d2 v H0 H1; simpl.
+    - pose proof members_union_inj_in_members ((i1, t1) :: m) _ c.
+      spec H5; [congruence |].
+      replace (fst (members_union_inj c)) with i in H5 by auto.
+      pose proof in_members_tail_no_replicate _ _ _ _ H2 H5.
+      revert d1 d2 c c0 H0 H1 H3; simpl.
       if_tac; [congruence |].
       intros.
       apply (IHm i1 t1); auto.
-      clear - H2.
-      rewrite members_no_replicate_ind in H2.
-      tauto.
+      * clear - H H2.
+        intros; specialize (H i).
+        spec H; [right; auto |].
+        pose proof in_members_tail_no_replicate _ _ _ _ H2 H0.
+        simpl in H; if_tac in H; [congruence |].
+        exact H.
+      * clear - H2.
+        rewrite members_no_replicate_ind in H2.
+        tauto.
 Qed.
 
 Lemma members_union_inj_JMeq: forall m A1 A2 (v1: compact_sum (map A1 m)) (v2: compact_sum (map A2 m)),
-  A1 = A2 ->
+  (forall i, in_members i m -> A1 (i, field_type2 i m) = A2 (i, field_type2 i m)) ->
+  members_no_replicate m = true ->
   JMeq v1 v2 ->
   members_union_inj v1 = members_union_inj v2.
 Proof.
+  unfold field_type2.
   intros.
-  subst.
-  subst.
-  auto.
+  destruct m as [| (i0, t0) m]; [auto |].
+  revert i0 t0 v1 v2 H H0 H1; induction m as [| (i1, t1) m]; intros.
+  + simpl.
+    auto.
+  + assert (A1 (i0, t0) = A2 (i0, t0)).
+    Focus 1. {
+      clear - H.
+      specialize (H i0).
+      spec H; [left; simpl; auto |].
+      simpl in H; if_tac in H; [| congruence].
+      auto.
+    } Unfocus.
+    assert (compact_sum (map A1 ((i1, t1) :: m)) = compact_sum (map A2 ((i1, t1) :: m))).
+    Focus 1. {
+      f_equal.
+      clear - H H0.
+      apply map_members_ext; [rewrite members_no_replicate_ind in H0; tauto |].
+      intros.
+      specialize (H i).
+      spec H; [right; auto |].
+      pose proof in_members_tail_no_replicate _ _ _ _ H0 H1.
+      simpl in H; if_tac in H; [congruence |].
+      auto.
+    } Unfocus.
+    simpl in H1.
+    solve_JMeq_sumtype H1.
+    simpl.
+    apply (IHm i1 t1); auto.
+    - clear - H H0.
+      intros; specialize (H i).
+      spec H; [right; auto |].
+      pose proof in_members_tail_no_replicate _ _ _ _ H0 H1.
+      simpl in H; if_tac in H; [congruence |].
+      exact H.
+    - rewrite members_no_replicate_ind in H0; tauto.
 Qed.
 
 Module compact_prod_sum.
@@ -333,14 +421,15 @@ Definition proj_union_gen:
 := @proj_union_gen.
 
 Definition proj_struct_JMeq: forall i m A1 A2 d1 d2 (v1: compact_prod (map A1 m)) (v2: compact_prod (map A2 m)),
-  A1 = A2 ->
+  (forall i, in_members i m -> A1 (i, field_type i m) = A2 (i, field_type i m)) ->
   in_members i m ->
+  members_no_replicate m = true ->
   JMeq v1 v2 ->
   JMeq (proj_struct i m v1 d1) (proj_struct i m v2 d2)
 := @proj_struct_JMeq.
 
 Definition proj_union_JMeq: forall i m A1 A2 d1 d2 (v1: compact_sum (map A1 m)) (v2: compact_sum (map A2 m)),
-  A1 = A2 ->
+  (forall i, in_members i m -> A1 (i, field_type i m) = A2 (i, field_type i m)) ->
   i = fst (members_union_inj v1) ->
   m <> nil ->
   members_no_replicate m = true ->
@@ -349,7 +438,8 @@ Definition proj_union_JMeq: forall i m A1 A2 d1 d2 (v1: compact_sum (map A1 m)) 
 := @proj_union_JMeq.
 
 Definition members_union_inj_JMeq: forall m A1 A2 (v1: compact_sum (map A1 m)) (v2: compact_sum (map A2 m)),
-  A1 = A2 ->
+  (forall i, in_members i m -> A1 (i, field_type i m) = A2 (i, field_type i m)) ->
+  members_no_replicate m = true ->
   JMeq v1 v2 ->
   members_union_inj v1 = members_union_inj v2
 := @members_union_inj_JMeq.

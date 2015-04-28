@@ -34,7 +34,7 @@ Arguments field_at_ sh t gfs p : simpl never.
 
 Definition data_at (sh: Share.t) (t: type) (v: reptype t) := field_at sh t nil v.
 
-Definition data_at_ (sh: Share.t) (t: type) := field_at_ sh t.
+Definition data_at_ (sh: Share.t) (t: type) := field_at_ sh t nil.
 
 Definition nested_reptype_structlist t gfs (m: members) := 
   compact_prod (map (fun it => reptype (nested_field_type2 t (StructField (fst it) :: gfs))) m).
@@ -297,9 +297,6 @@ Goal forall sh t gfs p, !! field_compatible t gfs (offset_val Int.zero p) && at_
 intros.
 destruct_ptr p.
 *)
-Hint Rewrite at_offset_eq3 : at_offset_db.
-Hint Rewrite withspacer_spacer : at_offset_db.
-Hint Rewrite spacer_memory_block using (simpl; auto): at_offset_db.
 
 Lemma field_at_Tstruct: forall sh t gfs id a v1 v2 p,
   nested_field_type2 t gfs = Tstruct id a ->
@@ -347,7 +344,15 @@ Proof.
       rewrite nested_field_type2_ind.
       simpl; rewrite H.
       auto.
-    - admit.
+    - apply (proj_struct_JMeq i (co_members (get_co id)) _ _ _ _ (unfold_reptype v1) v2); auto.
+      * clear - H.
+        intros.
+        unfold fst, snd.
+        rewrite nested_field_type2_ind, H.
+        reflexivity.
+      * apply get_co_members_no_replicate.
+      * clear - H0.
+        eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
 Qed.
 
 Lemma field_at_Tunion: forall sh t gfs id a v1 v2 p,
@@ -364,12 +369,31 @@ Proof.
   generalize (eq_refl (co_members (get_co id))).
   generalize (co_members (get_co id)) at 2 3 5; intro m; destruct m; [auto |].
   intro HH; assert (co_members (get_co id) <> nil) by congruence; clear HH.
-  apply union_pred_ext; [apply get_co_members_no_replicate | admit |].
-  
+
+  assert (
+   forall i : ident,
+   in_members i (co_members (get_co id)) ->
+   reptype (snd (i, field_type i (co_members (get_co id)))) =
+   reptype
+     (nested_field_type2 t
+        (UnionField (fst (i, field_type i (co_members (get_co id)))) :: gfs))).
+  Focus 1. {
+    clear - H.
+    intros.
+    unfold fst, snd.
+    rewrite nested_field_type2_ind, H.
+    reflexivity.
+  } Unfocus.
+  apply union_pred_ext; [apply get_co_members_no_replicate | |].
+  Focus 1. {
+    apply members_union_inj_JMeq; auto.
+    + apply get_co_members_no_replicate.
+    + eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
+  } Unfocus.
   intros.
   destruct_ptr p.
   assert (in_members i (co_members (get_co id)))
-    by (rewrite H2; apply members_union_inj_in_members; auto).
+    by (rewrite H4; apply members_union_inj_in_members; auto).
   unfold field_at, fst, snd.
   autorewrite with at_offset_db.
   unfold offset_val.
@@ -400,7 +424,9 @@ Proof.
       rewrite nested_field_type2_ind.
       simpl; rewrite H.
       auto.
-    - admit.
+    - apply (proj_union_JMeq _ _ _ _ _ _ (unfold_reptype v1) v2); auto.
+      * apply get_co_members_no_replicate.
+      * eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
 Qed.
   
 (*
@@ -447,42 +473,19 @@ Proof.
   + rewrite <- at_offset_eq.
     destruct_ptr p.
     autorewrite with at_offset_db.
-    unfold offset_val.
-    solve_mod_modulus.
     rewrite (nested_field_offset2_ind (nested_field_type2 t gfs) nil) by (simpl; tauto).
     rewrite Z.add_0_r.
+    generalize (field_compatible_nested_field t gfs (Vptr b (Int.repr ofs)));
+    unfold offset_val in *;
+    solve_mod_modulus;
+    intros.
     f_equal. (* It magically solved the potential second subgoal *)
     apply prop_ext.
-
-
-simpl.
-Check spacer_memory_block.
-unfold field_compatible in H.
-    destruct H as [? [? [? [? [? ?]]]]].
-    unfold data_at.
-    simpl.
-    rewrite <- at_offset'_eq by (rewrite <- data_at'_offset_zero; reflexivity).
-    rewrite <- data_at'_at_offset'; [ |
-      apply (nested_field_type2_nest_pred eq_refl), H0 |
-      apply nested_field_offset2_type2_divide, H0].
-    apply pred_ext; normalize.
-    apply andp_right; [| apply derives_refl].
-    apply prop_right.
-    repeat (try assumption; split).
-    - apply (nested_field_type2_nest_pred eq_refl), H1.
-    - apply size_compatible_nested_field; assumption.
-    - apply align_compatible_nested_field; assumption.
-    - apply (nested_field_type2_nest_pred eq_refl), H0.
-  + simpl.
-    rewrite data_at'_isptr.
-    normalize.
-    unfold field_compatible in H.
-    match goal with
-    | |- ?A && _ = _ => replace A with (@FF mpred Nveric) by (apply pred_ext; normalize; tauto)
-    end.
-    rewrite data_at_isptr.
-    simpl.
-    change (!!False) with FF.
+    tauto.
+  + replace (!!field_compatible (nested_field_type2 t gfs) nil Vundef: mpred) with FF
+      by (apply prop_ext; unfold field_compatible; simpl isptr; tauto).
+    replace (!!field_compatible t gfs p : mpred) with FF
+      by (apply prop_ext; tauto).
     normalize.
 Qed.
 
@@ -520,12 +523,8 @@ Lemma field_at_compatible:
      field_at sh t path v c |-- !! field_compatible t path c.
 Proof.
   intros.
-  rewrite field_at_data_at.
-  rewrite data_at_isptr.
-  unfold field_address.
-  if_tac.
-  + normalize.
-  + normalize.
+  unfold field_at.
+  normalize.
 Qed.
 
 Lemma field_at_compatible':
@@ -544,9 +543,7 @@ Qed.
 Hint Resolve field_at_compatible : saturate_local.
 
 Lemma data_at_compatible: forall sh t v p, data_at sh t v p |-- !! field_compatible t nil p.
-Proof. intros.
- rewrite data_at_field_at; apply field_at_compatible.
-Qed.
+Proof. intros. apply field_at_compatible. Qed.
 Hint Resolve data_at_compatible : saturate_local.
 
 Lemma data_at__compatible: forall sh t p, data_at_ sh t p |-- !! field_compatible t nil p.
@@ -594,18 +591,41 @@ Lemma field_at_field_at_: forall sh t gfs v p,
   field_at sh t gfs v p |-- field_at_ sh t gfs p.
 Proof.
   intros.
-  destruct p; try (rewrite field_at_isptr, field_at__isptr; normalize; reflexivity).
-  unfold field_at_, field_at.
-  simpl; fold size_compatible.
-  normalize.
-  apply data_at'_data_at'_.
-  + apply nested_field_type2_nest_pred; [reflexivity|exact H2].
-  + pose proof nested_field_offset2_in_range t gfs H1.
-    omega.
-  + apply nested_field_offset2_type2_divide, H2.
-  + eapply Zdivides_trans; [|exact H0].
-    apply alignof_nested_field_type2_divide; auto.
+  destruct (field_compatible_dec t gfs p).
+  + destruct_ptr p.
+    unfold field_at_, field_at.
+    apply andp_derives; auto.
+    pose proof field_compatible_nested_field _ _ _ f.
+    unfold field_compatible in H, f.
+    unfold offset_val in H.
+    autorewrite with at_offset_db in *.
+    destruct (zlt 0 (sizeof cenv_cs (nested_field_type2 t gfs))).
+    - unfold align_compatible, size_compatible in *.
+      revert H f; solve_mod_modulus; intros.
+      pose proof nested_field_offset2_in_range t gfs.
+      spec H1; [tauto |].
+      spec H1; [tauto |].
+      rewrite (Z.mod_small ofs) in * by omega.
+      rewrite (Z.mod_small (ofs + nested_field_offset2 t gfs) Int.modulus) in H by omega.
+      apply data_at'_data_at'_; try tauto; omega.
+    - assert (sizeof cenv_cs (nested_field_type2 t gfs) = 0)
+        by (pose proof sizeof_pos cenv_cs (nested_field_type2 t gfs); omega).
+      rewrite !empty_data_at' by tauto.
+      auto.
+  + unfold field_at_, field_at.
+    normalize.
 Qed.
+
+Lemma field_at__memory_block: forall sh t gfs p, 
+  field_at_ sh t gfs p =
+  memory_block sh (Int.repr (sizeof cenv_cs (nested_field_type2 t gfs))) (field_address t gfs p).
+Proof.
+  intros.
+  unfold field_address.
+  destruct (field_compatible_dec t gfs p).
+  + unfold field_at_, field_at.
+    destruct_ptr p.
+
 
 Hint Rewrite <- field_at_offset_zero: norm.
 Hint Rewrite <- field_at__offset_zero: norm.
@@ -984,3 +1004,4 @@ Qed.
 Hint Rewrite is_pointer_or_null_field_address_lemma : entailer_rewrite.
 Hint Rewrite isptr_field_address_lemma : entailer_rewrite.
 
+ 

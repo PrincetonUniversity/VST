@@ -160,6 +160,28 @@ Proof.
   reflexivity.
 Defined.
 
+Lemma unfold_reptype_JMeq: forall t (v: reptype t),
+  JMeq (unfold_reptype v) v.
+Proof.
+  intros.
+  unfold unfold_reptype.
+  match goal with
+  | |- JMeq (@eq_rect ?A ?x ?F ?v ?y ?H) _ =>
+    apply (eq_rect_JMeq A x y F v H)
+  end.
+Qed.
+
+Lemma fold_reptype_JMeq: forall t v,
+  JMeq (fold_reptype v : reptype t) v.
+Proof.
+  intros.
+  unfold fold_reptype.
+  match goal with
+  | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
+    apply (eq_rect_r_JMeq A x y F v H)
+  end.
+Qed.
+
 Definition struct_default_val (m : members) := compact_prod_gen (fun it => default_val (snd it)) m.
 Definition union_default_val (m : members) := compact_sum_gen (fun it => default_val (snd it)) m.
 

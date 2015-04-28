@@ -1149,6 +1149,11 @@ Proof.
   rewrite at_offset_eq.
   destruct be; auto.
 Qed.
+
+Hint Rewrite at_offset_eq3 : at_offset_db.
+Hint Rewrite withspacer_spacer : at_offset_db.
+Hint Rewrite spacer_memory_block using (simpl; auto): at_offset_db.
+
 (*
 Lemma withspacer_memory_block: forall sh be ed p,
   0 <= be <= ed ->

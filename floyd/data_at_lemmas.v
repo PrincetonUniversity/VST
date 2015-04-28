@@ -862,6 +862,63 @@ Proof.
         auto.
 Qed.
 
+Lemma empty_data_at': forall sh t v b ofs,
+  legal_cosu_type t = true ->
+  sizeof cenv_cs t = 0 ->
+  data_at' sh t v (Vptr b (Int.repr ofs)) = emp.
+Proof.
+  intros ? ?.
+  type_induction t; [| destruct i | | destruct f | | | | |]; intros; rewrite data_at'_ind;
+  try solve [inversion H0].
+  + apply Tarray_sizeof_0 in H0.
+    destruct H0.
+    - rewrite array_pred_ext with (P1 := fun _ _ _ => emp) (v1 := unfold_reptype v).
+      * apply emp_array_pred.
+      * intros.
+        rewrite at_offset_eq.
+        apply IH; auto.
+    - apply empty_array_pred; auto.
+  + pose proof Tstruct_sizeof_0 id a H H0.
+    rewrite struct_pred_ext with (P1 := fun _ _ _ => emp) (v1 := unfold_reptype v).
+    - apply emp_struct_pred.
+    - apply get_co_members_no_replicate.
+    - intros.
+      destruct (H1 i H2).
+      rewrite Forall_forall in IH.
+      specialize (IH (i, (field_type i (co_members (get_co id))))).
+      spec IH; [apply in_members_field_type; auto |].
+      autorewrite with at_offset_db.
+      unfold fst, snd in *.
+      rewrite H4, H3.
+      rewrite memory_block_zero.
+      rewrite IH by (auto; AUTO_IND).
+      unfold offset_val; normalize.
+  + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil) as HH
+      by (destruct (co_members (get_co id)); [left | right]; congruence).
+    destruct HH as [HH | HH].
+    - generalize (unfold_reptype v); rewrite HH; intros.
+      simpl; auto.
+    - pose proof Tunion_sizeof_0 id a H H0.
+      rewrite union_pred_ext with (P1 := fun _ _ _ => emp) (v1 := unfold_reptype v).
+      * apply emp_union_pred.
+      * apply get_co_members_no_replicate.
+      * auto.
+      * intros.
+        pose proof members_union_inj_in_members (co_members (get_co id)) _ (unfold_reptype v) HH.
+        rewrite <- H2 in H4.
+        specialize (H1 i H4).
+        rewrite Forall_forall in IH.
+        specialize (IH (i, (field_type i (co_members (get_co id))))).
+        spec IH; [apply in_members_field_type; auto |].
+        autorewrite with at_offset_db.
+        unfold fst, snd in *.
+        rewrite sizeof_Tunion in H0.
+        rewrite H1, H0.
+        rewrite memory_block_zero.
+        rewrite IH by (auto; AUTO_IND).
+        unfold offset_val; normalize.
+Qed.
+
 (*
 Lemma data_at_data_at_ : forall sh t v p, 
   data_at sh t v p |-- data_at_ sh t p.

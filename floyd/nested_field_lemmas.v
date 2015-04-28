@@ -369,6 +369,8 @@ Definition field_compatible t gfs p :=
   isptr p /\
   legal_alignas_type t = true /\
   legal_cosu_type t = true /\
+  complete_type cenv_cs t = true /\
+  sizeof cenv_cs t < Int.modulus /\
   size_compatible t p /\
   align_compatible t p /\
   legal_nested_field t gfs.
@@ -377,6 +379,8 @@ Definition field_compatible0 t gfs p :=
   isptr p /\
   legal_alignas_type t = true /\
   legal_cosu_type t = true /\
+  complete_type cenv_cs t = true /\
+  sizeof cenv_cs t < Int.modulus /\
   size_compatible t p /\
   align_compatible t p /\
   legal_nested_field0 t gfs.
@@ -390,6 +394,8 @@ Proof.
   + destruct p; simpl; try (left; tauto); try (right; tauto).
   + destruct legal_alignas_type; [left | right]; congruence.
   + destruct legal_cosu_type; [left | right]; congruence.
+  + destruct complete_type; [left | right]; congruence.
+  + destruct (zlt (sizeof cenv_cs t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
     destruct (zle (Int.unsigned i + sizeof cenv_cs t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
@@ -407,6 +413,8 @@ Proof.
   + destruct p; simpl; try (left; tauto); try (right; tauto).
   + destruct legal_alignas_type; [left | right]; congruence.
   + destruct legal_cosu_type; [left | right]; congruence.
+  + destruct complete_type; [left | right]; congruence.
+  + destruct (zlt (sizeof cenv_cs t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
     destruct (zle (Int.unsigned i + sizeof cenv_cs t) Int.modulus); [left | right]; omega.
   + destruct p; simpl; try solve [left; auto].
@@ -528,11 +536,11 @@ Proof.
 intros.
 hnf in H|-*.
 intuition.
-destruct H5.
+destruct H7.
 hnf.
-simpl in H4.
-destruct (nested_field_type2 t gfs); try contradiction H5.
-simpl in H5 |- *.
+simpl in H6.
+destruct (nested_field_type2 t gfs); try contradiction H7.
+simpl in H7 |- *.
 split; auto; omega.
 Qed.
 
@@ -1364,7 +1372,7 @@ Proof.
     * rewrite <- !two_power_nat_two_p in *. apply power_nat_one_divede_other.
 Qed.
 
-Lemma field_compatible_nested_field_type2: forall t gfs p,
+Lemma field_compatible_nested_field: forall t gfs p,
   field_compatible t gfs p ->
   field_compatible (nested_field_type2 t gfs) nil (offset_val (Int.repr (nested_field_offset2 t gfs)) p).
 Proof.
@@ -1374,6 +1382,11 @@ Proof.
   + rewrite isptr_offset_val; tauto.
   + apply nested_field_type2_nest_pred; auto. tauto.
   + apply nested_field_type2_nest_pred; auto. tauto.
+  + apply nested_field_type2_complete_type; tauto.
+  + pose proof nested_field_offset2_in_range t gfs.
+    spec H0; [tauto |].
+    spec H0; [tauto |].
+    omega.
   + apply size_compatible_nested_field; tauto.
   + apply align_compatible_nested_field; tauto.
 Qed.

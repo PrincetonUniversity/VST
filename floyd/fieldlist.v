@@ -399,6 +399,63 @@ Proof.
   auto.
 Qed.
 
+Lemma sizeof_struct_0: forall env i m,
+  sizeof_struct env 0 m = 0 ->
+  in_members i m ->
+  sizeof env (field_type2 i m) = 0 /\
+  field_offset_next env i m 0 - (field_offset2 env i m + sizeof env (field_type2 i m)) = 0.
+Proof.
+  intros.
+  unfold field_type2, field_offset2, field_offset, field_offset_next.
+  induction m as [| (i0, t0) m].
+  + inversion H0.
+  + simpl in H.
+    pose proof sizeof_struct_incr env m (align 0 (alignof env t0) + sizeof env t0).
+    pose proof align_le 0 (alignof env t0) (alignof_pos _ _).
+    pose proof sizeof_pos env t0.
+    destruct (ident_eq i i0).
+    - simpl in *.
+      if_tac; [| congruence].
+      replace (sizeof env t0) with 0 by omega.
+      destruct m as [| (?, ?) m];
+      rewrite !align_0 by apply alignof_pos;
+      omega.
+    - destruct H0; [simpl in H0; congruence |].
+      simpl.
+      if_tac; [congruence |].
+      replace (sizeof env t0) with 0 by omega.
+      destruct m as [| (?, ?) m]; [inversion H0 |].
+      rewrite !align_0 by apply alignof_pos.
+      apply IHm; [| auto].
+      replace (align 0 (alignof env t0) + sizeof env t0) with 0 in * by omega.
+      auto.
+Qed.
+
+Lemma sizeof_union_0: forall env i m,
+  sizeof_union env m = 0 ->
+  in_members i m ->
+  sizeof env (field_type2 i m) = 0.
+Proof.
+  intros.
+  unfold field_type2.
+  induction m as [| (i0, t0) m].
+  + inversion H0.
+  + simpl in H.
+    destruct (ident_eq i i0).
+    - simpl in *.
+      if_tac; [| congruence].
+      pose proof sizeof_pos env t0.
+      pose proof Z.le_max_l (sizeof env t0) (sizeof_union env m).
+      omega.
+    - destruct H0; [simpl in H0; congruence |].
+      simpl.
+      if_tac; [congruence |].
+      apply IHm; [| auto].
+      pose proof sizeof_union_pos env m.
+      pose proof Z.le_max_r (sizeof env t0) (sizeof_union env m).
+      omega.
+Qed.
+
 End COMPOSITE_ENV.
 
 Module fieldlist.
@@ -499,6 +556,19 @@ Definition field_offset_next_in_range:
   field_offset cenv_cs i m + sizeof cenv_cs (field_type i m) <=
   field_offset_next cenv_cs i m sz <= sz
 := @field_offset_next_in_range.
+
+Definition sizeof_struct_0: forall env i m,
+  sizeof_struct env 0 m = 0 ->
+  in_members i m ->
+  sizeof env (field_type i m) = 0 /\
+  field_offset_next env i m 0 - (field_offset env i m + sizeof env (field_type i m)) = 0
+:= @sizeof_struct_0.
+
+Definition sizeof_union_0: forall env i m,
+  sizeof_union env m = 0 ->
+  in_members i m ->
+  sizeof env (field_type i m) = 0
+:= @sizeof_union_0.
 
 End fieldlist.
 

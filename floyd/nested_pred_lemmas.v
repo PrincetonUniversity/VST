@@ -330,6 +330,60 @@ Proof.
   destruct (co_su (get_co id)); congruence.
 Qed.
 
+Lemma Tarray_sizeof_0: forall t n a,
+  sizeof cenv_cs (Tarray t n a) = 0 ->
+  sizeof cenv_cs t = 0 \/ n <= 0.
+Proof.
+  intros.
+  simpl in H.
+  apply Z.eq_mul_0 in H.
+  destruct H; auto.
+  right.
+  destruct (zlt 0 n); [| omega].
+  rewrite Z.max_r in H by omega.
+  omega.
+Qed.
+
+Lemma Tstruct_sizeof_0: forall id a,
+  legal_cosu_type (Tstruct id a) = true ->
+  sizeof cenv_cs (Tstruct id a) = 0 ->
+  forall i, in_members i (co_members (get_co id)) ->
+  sizeof cenv_cs (field_type i (co_members (get_co id))) = 0 /\
+  field_offset_next cenv_cs i (co_members (get_co id)) (co_sizeof (get_co id)) -
+   (field_offset cenv_cs i (co_members (get_co id)) +
+      sizeof cenv_cs (field_type i (co_members (get_co id)))) = 0.
+Proof.
+  intros.
+  rewrite sizeof_Tstruct in H0.
+  rewrite H0.
+  apply sizeof_struct_0; auto.
+  pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).
+  erewrite legal_cosu_type_Tstruct in H2 by eauto.
+  simpl in H2.
+  pose proof align_le (sizeof_struct cenv_cs 0 (co_members (get_co id)))
+     (co_alignof (get_co id)) (co_alignof_pos _).
+  pose proof sizeof_struct_incr cenv_cs (co_members (get_co id)) 0.
+  omega.
+Qed.
+
+Lemma Tunion_sizeof_0: forall id a,
+  legal_cosu_type (Tunion id a) = true ->
+  sizeof cenv_cs (Tunion id a) = 0 ->
+  forall i, in_members i (co_members (get_co id)) ->
+  sizeof cenv_cs (field_type i (co_members (get_co id))) = 0.
+Proof.
+  intros.
+  rewrite sizeof_Tunion in H0.
+  apply sizeof_union_0; auto.
+  pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).
+  erewrite legal_cosu_type_Tunion in H2 by eauto.
+  simpl in H2.
+  pose proof align_le (sizeof_union cenv_cs (co_members (get_co id)))
+     (co_alignof (get_co id)) (co_alignof_pos _).
+  pose proof sizeof_union_pos cenv_cs (co_members (get_co id)).
+  omega.
+Qed.
+
 End NESTED_PRED.
 
 (************************************************
