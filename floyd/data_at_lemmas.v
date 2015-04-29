@@ -136,15 +136,6 @@ Proof.
   + rewrite <- union_data_at'_aux_spec; reflexivity.
 Qed.
 
-(*
-Definition data_at (sh: Share.t) (t: type) :=
-  (!! (legal_alignas_type t = true)) && (!! (nested_legal_fieldlist t = true)) &&
-  (fun (_:reptype t) p => (!! (size_compatible t p /\ align_compatible t p))) 
-  && data_at' sh empty_ti t 0.
-
-Definition data_at_ (sh: Share.t) (t: type) := data_at sh t (default_val _).
-*)
-
 End WITH_SHARE.
 
 Lemma data_at'_type_changable: forall (sh: Share.t) (t1 t2: type) v1 v2,
@@ -178,93 +169,6 @@ Proof.
   destruct t; try inversion H; try tauto.
 Qed.
 
-(************************************************
-
-local_facts, isptr and offset_zero properties of array_at', data_at', data_at
-and data_at_.
-
-************************************************)
-(*
-(* not true now *)
-Lemma array_at'_local_facts: forall t lo hi P v p,
-  array_at' t lo hi P v p |-- !! (isptr p).
-Proof.
-  intros.
-  unfold array_at'.
-  unfold at_offset.
-  normalize.
-Qed.
-*)
-(*
-Lemma data_at'_local_facts:
-  forall sh t v p, data_at' sh t v p |-- !!(isptr p).
-Proof.
-  intros.
-  revert p.
-  apply (type_mut (fun (t: type) => forall pos v p, (data_at' sh e t pos v p |-- !!(isptr p))) (fun _ => True) (fun flds => (forall alignment pos v p, sfieldlist_at' sh e flds alignment pos v p |-- !!(isptr p)) /\ (forall alignment pos v p, ufieldlist_at' sh e flds alignment pos v p |-- !!(isptr p)))); intros; auto; simpl; 
-  try (unfold at_offset2; apply (@at_offset_preserve_local_facts val); intros; apply mapsto_local_facts);
-  try (unfold at_offset2; apply (@at_offset_preserve_local_facts val); intros; apply memory_block_local_facts).
-  + apply array_at'_local_facts.
-  + destruct H. apply H. (* struct case *)
-  + destruct H. apply H0. (* union case *)
-  + split; intros. (* Fnil case of fieldlist induction *)
-    - normalize.
-    - destruct (Zeq_bool alignment 0); normalize.
-  + destruct H0. split; intros.
-    - destruct (is_Fnil f).
-      * apply withspacer_preserve_local_facts; intros. apply H.
-      * eapply (derives_left_sepcon_right_corable (!!isptr p) _); [apply corable_prop|].
-        apply withspacer_preserve_local_facts; intros. apply H.
-    - destruct (is_Fnil f).
-      * apply withspacer_preserve_local_facts; intros. apply H.
-      * destruct v0; [apply withspacer_preserve_local_facts; intros; apply H | apply H1].
-Qed.
-Lemma array_at'_isptr: forall sh t lo hi P pos v p,
-  array_at' sh t lo hi P pos v p = !! (isptr p) && array_at' sh t lo hi P pos v p.
-Proof. intros. rewrite <- local_facts_isptr. reflexivity. apply array_at'_local_facts. Qed.
-
-Lemma array_at'_offset_zero: forall sh t lo hi P pos v p,
-  array_at' sh t lo hi P pos v p = array_at' sh t lo hi P pos v (offset_val Int.zero p).
-Proof. intros. rewrite <- local_facts_offset_zero. reflexivity. apply array_at'_local_facts. Qed.
-
-Lemma data_at'_isptr:
-  forall sh e t pos v p, data_at' sh e t pos v p = !!(isptr p) && data_at' sh e t pos v p.
-Proof. intros. rewrite <- local_facts_isptr. reflexivity. apply data_at'_local_facts. Qed.
-
-Lemma data_at'_offset_zero:
-  forall sh e t pos v p, data_at' sh e t pos v p = data_at' sh e t pos v (offset_val Int.zero p).
-Proof. intros. rewrite <- local_facts_offset_zero. reflexivity. apply data_at'_local_facts. Qed.
-*)
-
-(*
-Lemma data_at_local_facts: forall sh t v p, data_at sh t v p |-- !!(isptr p).
-Proof. intros. unfold data_at. simpl. apply andp_left2. apply data_at'_local_facts. Qed.
-Hint Resolve data_at_local_facts : saturate_local.
-
-Lemma data_at_isptr: forall sh t v p, data_at sh t v p = !!(isptr p) && data_at sh t v p.
-Proof. intros.
- apply pred_ext; normalize.
- apply andp_right; auto.
- unfold data_at. simpl.
- rewrite data_at'_isptr;  normalize.
-Qed.
-
-Lemma data_at_offset_zero: forall sh t v p, data_at sh t v p = data_at sh t v (offset_val Int.zero p).
-Proof. intros. rewrite <- local_facts_offset_zero. reflexivity.
-    intros; rewrite data_at_isptr; normalize.  
-Qed.
-
-Lemma data_at__isptr: forall sh t p, data_at_ sh t p = !!(isptr p) && data_at_ sh t p.
-Proof. intros. unfold data_at_. apply data_at_isptr. Qed.
-
-Lemma data_at__offset_zero: forall sh t p, data_at_ sh t p = data_at_ sh t (offset_val Int.zero p).
-Proof. intros. unfold data_at_. apply data_at_offset_zero. Qed.
-
-Hint Rewrite <- data_at__offset_zero: norm.
-Hint Rewrite <- data_at_offset_zero: norm.
-Hint Rewrite <- data_at__offset_zero: cancel.
-Hint Rewrite <- data_at_offset_zero: cancel.
-*)
 (************************************************
 
 Transformation between data_at/data_at_ and mapsto.
@@ -636,72 +540,6 @@ Proof.
 Qed.
 
 (*
-Lemma data_at__memory_block: forall (sh : share) (t : type) (p: val),
-  nested_non_volatile_type t = true ->
-  sizeof t < Int.modulus ->
-  data_at_ sh t p =
-  !! (legal_alignas_type t = true) &&
-  !! (nested_legal_fieldlist t = true) &&
-  !! (align_compatible t p) && memory_block sh (Int.repr (sizeof t)) p.
-Proof.
-  intros.
-  simpl.
-  destruct p;
-    try (rewrite memory_block_isptr;
-     rewrite data_at__isptr;
-     apply pred_ext; normalize; reflexivity).
-  unfold data_at_, data_at.
-  simpl.
-  rewrite memory_block_size_compatible by auto.
-  unfold size_compatible.
-  cut (legal_alignas_type t = true ->
-       Int.unsigned i + sizeof t <= Int.modulus ->
-      (alignof t | Int.unsigned i) -> 
-       data_at' sh empty_ti t 0 (default_val t) (Vptr b i) =
-       memory_block sh (Int.repr (sizeof t)) (Vptr b i)).
-  Focus 1. {
-    intros; apply pred_ext; normalize.
-    + rewrite H1 by auto.
-      cancel.
-    + rewrite H1 by auto.
-      cancel.
-  } Unfocus.
-  intros.
-  rewrite memory_block_offset_zero.
-  apply memory_block_data_at'_default_val; auto.
-  + omega.
-  + apply Z.divide_0_r.
-Qed.
-
-Lemma memory_block_data_at_:
-  forall (sh : share) (t : type) (p : val),
-  legal_alignas_type t = true ->
-  nested_legal_fieldlist t = true ->
-  nested_non_volatile_type t = true ->
-  align_compatible t p ->
-  sizeof t < Int.modulus ->
-  memory_block sh (Int.repr (sizeof t)) p = data_at_ sh t p.
-Proof.
-  intros.
-  rewrite data_at__memory_block by eauto.
-  normalize.
-Qed.
-
-Lemma data_at__memory_block_cancel:
-   forall sh t p sz, 
-       nested_non_volatile_type t = true ->
-       sizeof t <= Int.max_unsigned ->
-       sz = Int.repr (sizeof t) ->
-       data_at_ sh t p |-- memory_block sh sz p.
-Proof.
-intros.
- subst.
- rewrite data_at__memory_block; auto.
- apply andp_left2. auto.
- change (Int.modulus) with (Int.max_unsigned + 1).
- omega.
-Qed.
-
 Lemma align_1_memory_block_data_at_: forall (sh : share) (t : type),
   legal_alignas_type t = true ->
   nested_legal_fieldlist t = true ->
@@ -724,66 +562,8 @@ Proof.
   apply Z.divide_1_l.
 Qed.
 
-Lemma data_at_non_volatile: forall sh t v p, 
-  data_at sh t v p |-- !! (nested_non_volatile_type t = true).
-Proof.
-  admit.
-Qed.
 *)
-(*
-Lemma array_at'_array_at'_: forall sh t lo hi P v pos p,
-  lo < hi ->
-  (legal_alignas_type t = true) ->
-  (alignof t | pos) ->
-  (forall n : Z,
-       lo <= n < hi ->
-       forall v p,
-       P (pos + sizeof t * n) v p
-       |-- P (pos + sizeof t * n) (default_val t) p) ->
-  array_at' sh t lo hi P pos v p |-- array_at' sh t lo hi P pos nil p.
-Proof.
-  intros.
-  unfold array_at'.
-  unfold rangespec.
-  assert (lo <= hi) by omega; clear H.
-  apply andp_derives; [apply derives_refl |].
-  remember (nat_of_Z (hi - lo)) as n eqn:HH; revert lo v H3 H2 HH; induction n; intros.
-  + simpl.
-    apply derives_refl.
-  + simpl.
-    assert (nat_of_Z (hi - lo) >= 1)%nat by omega.
-    destruct (zlt 0 (hi - lo)); [| rewrite nat_of_Z_neg in H; omega].
-    apply sepcon_derives.
-    - unfold Znth. if_tac; [omega | rewrite Z.sub_diag].
-      simpl.
-      apply H2.
-      omega.
-    - erewrite rangespec'_ext.
-      Focus 2. {
-        intros.
-        rewrite Znth_succ by omega.
-        instantiate (1 := fun i => P (pos + sizeof t * i) (Znth (i - Z.succ lo)
-                     (skipn 1 v) (default_val t))).
-        reflexivity.
-      } Unfocus.
-      eapply derives_trans.
-      Focus 1. {
-        apply IHn; [omega | |].
-        + intros. apply H2. omega.
-        + rewrite (juicy_mem_lemmas.nat_of_Z_lem1 _ _ HH).
-          f_equal; omega.
-      } Unfocus.
-      erewrite rangespec'_ext.
-      Focus 2. {
-        intros.
-        change (@nil (reptype t)) with (skipn 1 (@nil (reptype t))).
-        rewrite <- Znth_succ by omega.
-        instantiate (1 := fun i => P (pos + sizeof t * i) (Znth (i - lo) nil (default_val t))).
-        reflexivity.
-      } Unfocus.
-      apply derives_refl.
-Qed.
-*)
+
 Lemma data_at'_data_at'_ : forall sh t v b ofs
   (LEGAL_ALIGNAS: legal_alignas_type t = true)
   (LEGAL_COSU: legal_cosu_type t = true)
@@ -920,47 +700,6 @@ Proof.
 Qed.
 
 (*
-Lemma data_at_data_at_ : forall sh t v p, 
-  data_at sh t v p |-- data_at_ sh t p.
-Proof.
-  intros.
-  destruct p;
-    try (rewrite data_at_isptr;
-     rewrite data_at__isptr;
-     normalize; reflexivity).
-  unfold data_at_, data_at.
-  simpl.
-  normalize.
-  apply data_at'_data_at'_.
-  + exact H1.
-  + omega.
-  + apply Z.divide_0_r.
-  + exact H0.
-Qed.
-
-(* We do these as Hint Extern, instead of Hint Resolve,
-  to limit their application and make them fail faster *)
-
-Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
-    (apply data_at_data_at_) : cancel.
-
-Lemma data_at_memory_block:
-   forall sh t v p sz, 
-       nested_non_volatile_type t = true ->
-       sizeof t <= Int.max_unsigned ->
-       sz = Int.repr (sizeof t) ->
-       data_at sh t v p |-- memory_block sh sz p.
-Proof.
-intros.
- subst.
- eapply derives_trans; [apply data_at_data_at_; reflexivity |].
- rewrite data_at__memory_block; auto.
- apply andp_left2. auto.
- change (Int.modulus) with (Int.max_unsigned + 1).
- omega.
-Qed.
-
-
 Lemma f_equal_Int_repr:
   forall i j, i=j -> Int.repr i = Int.repr j.
 Proof. intros; congruence. Qed.
@@ -971,36 +710,6 @@ Lemma sizeof_Tarray:
 Proof.
 intros; simpl. rewrite Z.max_r; omega.
 Qed.
-
-Hint Extern 1 (data_at_ _ _ _ |-- memory_block _ _ _) =>
-    (simple apply data_at__memory_block_cancel;
-       [reflexivity 
-       | rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl; 
-         repable_signed 
-       | try apply f_equal_Int_repr;
-         rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; repable_signed
-       ])
-    : cancel.
-
-Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
-    (simple apply data_at_memory_block; 
-       [reflexivity 
-       | rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l;simpl; 
-         repable_signed 
-       | try apply f_equal_Int_repr;
-         rewrite ?sizeof_Tarray by omega;
-         rewrite ?sizeof_tuchar, ?Z.mul_1_l; simpl; repable_signed
-       ])
-    : cancel.
-
-
-Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
-    (simple apply data_at_memory_block; [reflexivity | simpl; repable_signed | reflexivity])
-    : cancel.
-
 
 Lemma data_at_Tarray_ext_derives: forall sh t n a v v',
   (forall i, 0 <= i < n ->
@@ -1094,29 +803,6 @@ Proof.
     omega.
   } Unfocus.
   eapply orp_left; normalize; apply prop_right.
-Qed.
-
-Lemma var_block_data_at_:
-  forall  sh id t, 
-  legal_alignas_type t = true ->
-  nested_legal_fieldlist t = true ->
-  nested_non_volatile_type t = true ->
-  Z.ltb (sizeof t) Int.modulus = true ->
-  var_block sh (id, t) = 
-   !!(sizeof t <= Int.max_unsigned) &&
-            `(data_at_ sh t) (eval_lvar id t).
-Proof.
-  intros; extensionality rho.
- unfold var_block.
-  unfold_lift.
-  simpl.
-  apply Zlt_is_lt_bool in H2.
-  rewrite data_at__memory_block by auto.
-  rewrite memory_block_isptr.
-  unfold local, lift1; unfold_lift.
-  unfold align_compatible.
-  destruct (eval_lvar id t rho); simpl in *; normalize.
-  apply pred_ext; normalize.
 Qed.
 
 *)
