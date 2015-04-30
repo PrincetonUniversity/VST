@@ -918,11 +918,11 @@ Proof. intros. eexists; eexists; eexists.
              assert (MV:= Mem.mi_memval _ _ _ (Mem.mi_inj _ _ _ MInj) _ _ _ _ X H0). clear X.
              inv MV.
              + econstructor; try reflexivity.
-             + econstructor.
-                inv H3; econstructor; try reflexivity.
-                admit. (*
-                  auto. apply joinI.
-                   destruct (joinD_Some _ _ _ _ _ H3) as [FRG | [FRG LOC]]; clear H3; rewrite FRG.
+             + { econstructor.
+                 inv H3; econstructor; eauto.
+                  apply joinI.
+                  unfold locvisible_of in H4.
+                   destruct (joinD_Some _ _ _ _ _ H4) as [FRG | [FRG LOC]]; clear H4; rewrite FRG.
                      left; reflexivity.
                      right; split; trivial.
                       destruct (local_locBlocks _ WD _ _ _ LOC) as [? [? [? [? [? ?]]]]]. 
@@ -933,7 +933,8 @@ Proof. intros. eexists; eexists; eexists.
                           apply eq_sym in H1.
                           econstructor. constructor.
                             unfold exportedSrc. apply orb_true_iff; right.  
-                            apply sharedSrc_iff. unfold shared_of, join; simpl. rewrite FRG1. exists b2, delta; trivial.
+                            apply sharedSrc_iff. 
+                            unfold shared_of, join; simpl. rewrite FRG1. exists b2, delta; trivial.
                             assumption. apply H1. rewrite H. trivial. 
                       remember (locBlocksSrc mu b1 && REACH m1 (exportedSrc mu (v1 :: nil)) b1) as d.
                         destruct d; apply eq_sym in Heqd; inv LOC1.
@@ -943,7 +944,7 @@ Proof. intros. eexists; eexists; eexists.
                           eexists. eapply reach_cons. apply RL. 
                           eassumption. rewrite <- H1. reflexivity.
                           rewrite H11. trivial.
-               *)
+               }
              + constructor.
  * intros. rewrite replace_locals_shared.
             assert (LV:= Mem.mi_freeblocks _ _ _ MInj _ H).
@@ -962,7 +963,6 @@ Proof. intros. eexists; eexists; eexists.
             apply halted_loc_check_aux in H; trivial.
             eapply MInj; eassumption. 
 Qed.
-
   
 Lemma get_freelist:
   forall fbl m m' (FL: Mem.free_list m fbl = Some m') b
