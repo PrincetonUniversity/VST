@@ -81,7 +81,7 @@ Definition data_at': forall t, reptype t -> val -> mpred :=
        if type_is_volatile t
        then memory_block sh (Int.repr (sizeof cenv_cs t)) p
        else mapsto sh t p (repinject t v))
-    (fun t n a P v => array_pred 0 n (default_val t) (fun i v => at_offset (P v) (sizeof cenv_cs t * i)) (unfold_reptype v))
+    (fun t n a P v => array_pred 0 n (fun i v => at_offset (P v) (sizeof cenv_cs t * i)) (unfold_reptype v))
     (fun id a P v => struct_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
     (fun id a P v => union_data_at'_aux sh (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
 
@@ -93,7 +93,7 @@ Notation REPTYPE t :=
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => val
-  | Tarray t0 _ _ => list (reptype t0)
+  | Tarray t0 n _ => @zlist (reptype t0) (default_val t0) (list_zlist (reptype t0) (default_val t0)) 0 n
   | Tstruct id _ => reptype_structlist (co_members (get_co id))
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
@@ -110,7 +110,7 @@ Lemma data_at'_ind: forall t v,
                       if type_is_volatile t
                       then memory_block sh (Int.repr (sizeof cenv_cs t)) p
                       else mapsto sh t p v
-  | Tarray t0 n a => array_pred 0 n (default_val t0) (fun i v => at_offset (data_at' t0 v) (sizeof cenv_cs t0 * i))
+  | Tarray t0 n a => array_pred 0 n (fun i v => at_offset (data_at' t0 v) (sizeof cenv_cs t0 * i))
   | Tstruct id a => struct_pred (co_members (get_co id))
                       (fun it v => withspacer sh
                         (field_offset cenv_cs (fst it) (co_members (get_co id)) + sizeof cenv_cs (snd it))
@@ -449,10 +449,10 @@ Proof.
     rewrite array_pred_ext with
      (P1 := fun i _ p => memory_block sh (Int.repr (sizeof cenv_cs t))
                           (offset_val (Int.repr (sizeof cenv_cs t * i)) p))
-     (v1 := nil).
+     (v1 := zl_default _ _).
     Focus 2. {
       intros.
-      rewrite Znth_nil.
+      rewrite (@zl_default_correct _ _ _ (list_zlist_correct _ _)) by auto.
       rewrite at_offset_eq3.
       unfold offset_val.
       solve_mod_modulus.
@@ -583,7 +583,7 @@ Proof.
     intros.
     rewrite !at_offset_eq3.
     rewrite default_val_ind with (t0 := (Tarray t z a)), unfold_fold_reptype.
-    rewrite Znth_nil.
+    rewrite (@zl_default_correct _ _ _ (list_zlist_correct _ _)) by auto.
     simpl sizeof in H, H0;
     rewrite Z.max_r in H, H0 by omega.
     apply IH; try AUTO_IND;
@@ -657,7 +657,7 @@ Proof.
       * intros.
         rewrite at_offset_eq.
         apply IH; auto.
-    - apply empty_array_pred; auto.
+    - apply array_pred_len_0; auto.
   + pose proof Tstruct_sizeof_0 id a H H0.
     rewrite struct_pred_ext with (P1 := fun _ _ _ => emp) (v1 := unfold_reptype v).
     - apply emp_struct_pred.

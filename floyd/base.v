@@ -67,12 +67,6 @@ Hint Rewrite @sepcon_andp_prop @sepcon_andp_prop' : gather_prop.
 
 Hint Rewrite <- sepcon_assoc : gather_prop.
 
-Lemma prop_derives {A}{ND: NatDed A}: 
- forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
-Proof.
-intros; apply prop_left; intro; apply prop_right; auto.
-Qed.
-
 Lemma go_lower_lem1:
   forall (P1 P: Prop) (QR PQR: mpred),
       (P1 -> prop P && QR |-- PQR) ->

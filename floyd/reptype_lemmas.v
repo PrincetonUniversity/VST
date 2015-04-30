@@ -2,6 +2,7 @@ Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
 Require Import floyd.jmeq_lemmas.
+Require Import floyd.zlist.
 Require Import Coq.Logic.JMeq.
 
 (******************************************
@@ -46,7 +47,10 @@ Definition reptype_gen: type -> (sigT (fun x => x)) :=
      if (type_is_by_value t)
      then existT (fun x => x) val Vundef
      else existT (fun x => x) unit tt)
-  (fun t n a TV => match TV with existT T V => existT (fun x => x) (list T) nil end)
+  (fun t n a TV => match TV with existT T V =>
+                     existT (fun x => x)
+                      (@zlist T V (list_zlist T V) 0 n) (zl_default 0 n)
+                   end)
   (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
   (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
 
@@ -94,7 +98,7 @@ Notation REPTYPE t :=
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => val
-  | Tarray t0 _ _ => list (reptype t0)
+  | Tarray t0 n _ => @zlist (reptype t0) (default_val t0) (list_zlist (reptype t0) (default_val t0)) 0 n
   | Tstruct id _ => reptype_structlist (co_members (get_co id))
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
@@ -106,7 +110,8 @@ Proof.
   unfold reptype.
   rewrite reptype_gen_ind at 1.
   destruct t as [| | | | | | | id ? | id ?]; auto.
-  + destruct (reptype_gen t).
+  + unfold default_val.
+    destruct (reptype_gen t).
     reflexivity.
   + unfold compact_prod_sigT_type.
     forget (co_members (get_co id)) as m.
@@ -243,7 +248,7 @@ Lemma default_val_ind: forall t,
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => Vundef
-  | Tarray t0 _ _ => nil
+  | Tarray t0 n _ => zl_default 0 n
   | Tstruct id _ => struct_default_val (co_members (get_co id))
   | Tunion id _ => union_default_val (co_members (get_co id))
   end.
@@ -456,6 +461,20 @@ Proof.
   unfold repinject;
   unfold unfold_reptype;
   rewrite <- eq_rect_eq; auto.
+Qed.
+
+Lemma valinject_repinject: forall t v,
+  type_is_by_value t = true ->
+  (valinject t (repinject t v)) = v.
+Proof.
+  intros.
+  destruct t; inversion H; reflexivity.
+Qed.
+
+Lemma repinject_default_val:
+ forall t, repinject t (default_val t) = Vundef.
+Proof.
+destruct t; reflexivity.
 Qed.
 
 End CENV.

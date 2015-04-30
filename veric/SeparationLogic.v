@@ -1079,3 +1079,25 @@ Axiom semax_ext:
   @semax_external (add_funspecs Espec fs) ids (EF_external id sig') _ P Q.
 
 End CLIGHT_SEPARATION_LOGIC.
+
+Lemma prop_derives {A}{ND: NatDed A}: 
+ forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
+Proof.
+intros; apply prop_left; intro; apply prop_right; auto.
+Qed.
+
+Lemma seplog_prop_ext {A}{ND: NatDed A}: forall P Q, (P <-> Q) -> (@eq A) (prop P) (prop Q).
+Proof.
+  intros.
+  apply pred_ext; apply prop_derives; tauto.
+Qed.
+
+Require Import Morphisms.
+
+Instance prop_Proper:
+  Proper (iff ==> (@eq mpred)) (prop).
+Proof.
+  intros ? ? ?.
+  apply seplog_prop_ext.
+  auto.
+Defined.

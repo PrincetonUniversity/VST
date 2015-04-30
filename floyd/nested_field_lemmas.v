@@ -529,19 +529,30 @@ Proof.
 Qed.
 
 Lemma field_compatible_field_compatible0:
-  forall t i gfs p, 
-                field_compatible t (ArraySubsc i :: gfs) p -> 
-                field_compatible0 t (ArraySubsc i :: gfs) p.
+  forall (t : type) (gfs : list gfield) (p : val),
+  field_compatible t gfs p -> field_compatible0 t gfs p.
 Proof.
-intros.
-hnf in H|-*.
-intuition.
-destruct H7.
-hnf.
-simpl in H6.
-destruct (nested_field_type2 t gfs); try contradiction H7.
-simpl in H7 |- *.
-split; auto; omega.
+  intros.
+  destruct gfs as [| gf gfs]; [auto |].
+  rewrite field_compatible0_cons.
+  rewrite field_compatible_cons in H.
+  destruct (nested_field_type2 t gfs), gf; try tauto.
+  split; [| tauto].
+  omega.
+Qed.
+  
+Lemma field_compatible_field_compatible0':
+  forall (t : type) (i : Z) (gfs : list gfield) (p : val),
+  field_compatible t (ArraySubsc i :: gfs) p <->
+  field_compatible0 t (ArraySubsc i :: gfs) p /\
+  field_compatible0 t (ArraySubsc (i + 1) :: gfs) p.
+Proof.
+  intros.
+  rewrite !field_compatible0_cons.
+  rewrite field_compatible_cons.
+  destruct (nested_field_type2 t gfs); try tauto.
+  assert (0 <= i < z <-> 0 <= i <= z /\ 0 <= i + 1 <= z) by omega.
+  tauto.
 Qed.
 
 Lemma is_pointer_or_null_field_compatible:
