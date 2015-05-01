@@ -200,6 +200,30 @@ Lemma split_array_pred: forall {A d} `{Zlist A d} lo mid hi P v p,
   array_pred mid hi P (zl_sublist mid hi v) p.
 Admitted.
 
+Lemma array_pred_shift: forall {A d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} lo hi lo' hi' mv P' P v p,
+  lo - lo' = mv ->
+  hi - hi' = mv ->
+  (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (zl_nth i v) p = P i (zl_nth i v) p) -> 
+  array_pred lo' hi' P' (zl_shift lo' hi' v) p = array_pred lo hi P v p.
+Proof.
+  intros.
+  unfold array_pred.
+  replace (hi' - lo') with (hi - lo) by omega.
+  apply pred_ext; apply rangespec_shift_derives.
+  + intros i' i ? ?.
+    destruct (zle lo hi); [| rewrite Z2Nat_neg in H3 by omega; simpl in H3; omega].
+    rewrite Z2Nat.id in H3 by omega.
+    rewrite zl_shift_correct with (mv0 := mv) by omega.
+    replace (i' + mv) with i by omega.
+    rewrite H2 by omega; auto.
+  + intros i i' ? ?.
+    destruct (zle lo hi); [| rewrite Z2Nat_neg in H3 by omega; simpl in H3; omega].
+    rewrite Z2Nat.id in H3 by omega.
+    rewrite zl_shift_correct with (mv0 := mv) by omega.
+    replace (i' + mv) with i by omega.
+    rewrite H2 by omega; auto.
+Qed.
+
 Lemma array_pred_ext_derives: forall {A d} `{Zlist A d} lo hi P0 P1 v0 v1 p,
   (forall i, lo <= i < hi -> P0 i (zl_nth i v0) p |-- P1 i (zl_nth i v1) p) -> 
   array_pred lo hi P0 v0 p |-- array_pred lo hi P1 v1 p.
@@ -678,6 +702,13 @@ Definition split_array_pred: forall {A d} `{Zlist A d} lo mid hi P v p,
   array_pred lo mid P (zl_sublist lo mid v) p *
   array_pred mid hi P (zl_sublist mid hi v) p
 := @split_array_pred.
+
+Definition array_pred_shift: forall {A d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} lo hi lo' hi' mv P' P v p,
+  lo - lo' = mv ->
+  hi - hi' = mv ->
+  (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (zl_nth i v) p = P i (zl_nth i v) p) -> 
+  array_pred lo' hi' P' (zl_shift lo' hi' v) p = array_pred lo hi P v p
+:= @array_pred_shift.
 
 Definition array_pred_ext_derives:
   forall {A d} `{Zlist A d} lo hi P0 P1 v0 v1 p,

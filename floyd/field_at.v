@@ -103,7 +103,7 @@ Definition array_at (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z)
        (nested_field_offset2 t (ArraySubsc i :: gfs))) v p.
 
 Definition array_at_ (sh: Share.t) (t: type) (gfs: list gfield) (lo hi: Z) :=
-  array_at sh t gfs lo hi (zl_default _ _).
+  array_at sh t gfs lo hi (zl_default _ _).  
 
 (************************************************
 
@@ -445,6 +445,23 @@ intros.
 destruct_ptr p.
 *)
 
+Lemma data_at_data_at': forall sh t v p,
+  data_at sh t v p = !! field_compatible t nil p && data_at' sh t v p.
+Proof.
+  intros.
+  unfold data_at, field_at.
+  destruct_ptr p.
+  destruct (field_compatible_dec t nil (Vptr b (Int.repr ofs))); [|
+    replace (!!field_compatible t nil (Vptr b (Int.repr ofs)): mpred) with FF
+      by (apply seplog_prop_ext; tauto);
+    normalize].
+  f_equal.
+  rewrite at_offset_eq3.
+  rewrite nested_field_offset2_ind, Z.add_0_r by (unfold field_compatible in f; tauto).
+  change (nested_field_type2 t nil) with t.
+  auto.
+Qed.
+
 Lemma field_at_Tstruct: forall sh t gfs id a v1 v2 p,
   nested_field_type2 t gfs = Tstruct id a ->
   JMeq v1 v2 ->
@@ -748,26 +765,76 @@ Proof.
 Qed.
 
 Lemma array_at_data_at: forall sh t gfs lo hi v p,
-  field_compatible0 t (ArraySubsc hi :: gfs) p ->
   array_at sh t gfs lo hi v p =
-  data_at sh (nested_field_array_type t gfs lo hi) (@fold_reptype _ (nested_field_array_type t gfs lo hi)  (zl_shift 0 (hi - lo) v)) (field_address0 t (ArraySubsc lo :: gfs) p).
+  (!! field_compatible0 t (ArraySubsc lo :: gfs) p) &&
+  (!! field_compatible0 t (ArraySubsc hi :: gfs) p) &&
+  at_offset (data_at sh (nested_field_array_type t gfs lo hi) (@fold_reptype _ (nested_field_array_type t gfs lo hi)  (zl_shift 0 (hi - lo) v))) (nested_field_offset2 t (ArraySubsc lo :: gfs)) p.
 Proof.
   intros.
-  unfold array_at, data_at, field_at.
+  unfold array_at.
   rewrite at_offset_eq.
-  change (nested_field_type2 (nested_field_array_type t gfs lo hi) nil) with
-    (nested_field_array_type t gfs lo hi).
-  unfold nested_field_array_type.
+  rewrite data_at_data_at'.
+  unfold nested_field_array_type at 2.
   rewrite data_at'_ind.
+  rewrite <- at_offset_eq.
+  rewrite at_offset_array_pred.
+  destruct (field_compatible0_dec t (ArraySubsc lo :: gfs) p); [|
+    replace (!! field_compatible0 t (ArraySubsc lo :: gfs) p: mpred) with FF
+      by (apply seplog_prop_ext; tauto);
+    normalize].
+  destruct (field_compatible0_dec t (ArraySubsc hi :: gfs) p); [|
+    replace (!! field_compatible0 t (ArraySubsc hi :: gfs) p: mpred) with FF
+      by (apply seplog_prop_ext; tauto);
+    normalize].
+  pose proof field_compatible0_nested_field_array t gfs lo hi p f f0.
+  normalize.
+
+  rewrite unfold_fold_reptype.
+  symmetry; apply array_pred_shift with (mv := lo); [omega | omega |].
+  intros.
+  rewrite !at_offset_eq.
+  rewrite offset_offset_val.
+  rewrite add_repr.
   f_equal.
-  + normalize.
-    pose proof field_compatible0_nested_field_array t gfs lo hi p.
+  f_equal.
+  f_equal.
+  assert (field_compatible0 t (ArraySubsc i :: gfs) p).
+  Focus 1. {
+    unfold field_compatible0 in *.
+    simpl in f, f0 |- *.
+    destruct (nested_field_type2 t gfs); try tauto.
+    simpl in f, f0 |- *.
+    assert (0 <= i <= z) by omega.
+    tauto.
+  } Unfocus.
+  unfold field_compatible0 in *.
+  rewrite nested_field_type2_ind.
+  rewrite !nested_field0_offset2_ind with (gfs0 := _ :: gfs) by tauto.
+  simpl in f.
+  destruct (nested_field_type2 t gfs); try tauto.
+  simpl.
+  pose_size_mult cenv_cs t0 (i - i' :: lo :: i - i' :: nil).
+  omega.
+Qed.
+
+Lemma array_at_data_at_with_tl: forall sh t gfs lo mid hi v v' p,
+  array_at sh t gfs lo mid v p * array_at sh t gfs mid hi v' p =
+  data_at sh (nested_field_array_type t gfs lo mid) (@fold_reptype _ (nested_field_array_type t gfs lo mid)  (zl_shift 0 (mid - lo) v)) (field_address0 t (ArraySubsc lo :: gfs) p) *
+  array_at sh t gfs mid hi v' p.
+Proof.
+  intros.
+  rewrite (array_at_data_at sh t gfs lo mid).
+  rewrite at_offset_eq.
+  unfold field_address0.
+  destruct (field_compatible0_dec t (ArraySubsc lo :: gfs) p).
+  + unfold array_at; normalize.
+    f_equal.
+    apply seplog_prop_ext; tauto.
+  + replace (!! field_compatible0 t (ArraySubsc lo :: gfs) p: mpred) with FF
+      by (apply seplog_prop_ext; tauto).
+    rewrite data_at_isptr with (p := Vundef).
+    change (!!isptr Vundef: mpred) with FF.
     normalize.
-    apply seplog_prop_ext.
-  revert v; rewrite nested_field_type2_ind with (gfs0 := _ :: gfs); intros.
-  admit.
-  + 
-  admit.
 Qed.
 
 (************************************************
