@@ -1289,16 +1289,3 @@ intros. destruct p; reflexivity.
 Qed.
 Hint Rewrite isptr_force_ptr' : norm.
 
-Lemma semax_pre_later:
- forall P' Espec Delta P1 P2 P3 c R,
-     (PROPx P1 (LOCALx (tc_environ Delta :: P2) (SEPx P3))) |-- P' ->
-     @semax Espec Delta (|> P') c R  -> 
-     @semax Espec Delta (|> (PROPx P1 (LOCALx P2 (SEPx P3)))) c R.
-Proof.
-intros.
-eapply semax_pre_simple; try apply H0.
-eapply derives_trans; [ | apply later_derives; apply H ].
-eapply derives_trans.
-2: apply later_derives; rewrite <- insert_local; apply derives_refl.
-rewrite later_andp; apply andp_derives; auto; apply now_later.
-Qed.

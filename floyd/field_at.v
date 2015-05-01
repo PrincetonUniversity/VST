@@ -259,17 +259,6 @@ Ext lemmas of array_at
 
 ************************************************)
 
-(* aux *)
-Lemma nested_field_type2_ArraySubsc: forall t i j gfs p,
-  field_compatible0 t (ArraySubsc j :: gfs) p ->
-  nested_field_type2 t (ArraySubsc i :: gfs) = nested_field_type2 t (ArraySubsc 0 :: gfs).
-Proof.
-  intros.
-  rewrite field_compatible0_cons in H.
-  rewrite !nested_field_type2_ind with (gfs0 := _ :: gfs).
-  destruct (nested_field_type2 t gfs); try tauto.
-Qed.
-
 Lemma array_at_ext_derives: forall sh t gfs lo hi v0 v1 p,
   (forall i u0 u1,
      lo <= i < hi ->
@@ -758,21 +747,26 @@ Proof.
   apply field_at__data_at_.
 Qed.
 
-Lemma array_at_data_at: forall sh t gfs lo hi v v0 p,
-  JMeq v v0 ->
+Lemma array_at_data_at: forall sh t gfs lo hi v p,
+  field_compatible0 t (ArraySubsc hi :: gfs) p ->
   array_at sh t gfs lo hi v p =
-    data_at sh (Tarray (nested_field_type2 t (ArraySubsc 0 :: gfs)) (hi - lo) (attr_of_type (nested_field_type2 t gfs))) v0 (field_address0 t gfs p).
+  data_at sh (nested_field_array_type t gfs lo hi) (@fold_reptype _ (nested_field_array_type t gfs lo hi)  (zl_shift 0 (hi - lo) v)) (field_address0 t (ArraySubsc lo :: gfs) p).
 Proof.
   intros.
-  unfold array_at, data_at, field_at.  
+  unfold array_at, data_at, field_at.
   rewrite at_offset_eq.
-  change (nested_field_type2
-        (Tarray (nested_field_type2 t (ArraySubsc 0 :: gfs)) 
-           (hi - lo) (attr_of_type (nested_field_type2 t gfs))) nil) with
-    (Tarray (nested_field_type2 t (ArraySubsc 0 :: gfs)) 
-           (hi - lo) (attr_of_type (nested_field_type2 t gfs))).
+  change (nested_field_type2 (nested_field_array_type t gfs lo hi) nil) with
+    (nested_field_array_type t gfs lo hi).
+  unfold nested_field_array_type.
   rewrite data_at'_ind.
-  revert v v0 H; rewrite nested_field_type2_ind with (gfs0 := _ :: gfs); intros.
+  f_equal.
+  + normalize.
+    pose proof field_compatible0_nested_field_array t gfs lo hi p.
+    normalize.
+    apply seplog_prop_ext.
+  revert v; rewrite nested_field_type2_ind with (gfs0 := _ :: gfs); intros.
+  admit.
+  + 
   admit.
 Qed.
 
@@ -971,7 +965,7 @@ Proof.
   intros.
   destruct (field_compatible0_dec t (ArraySubsc i :: gfs) p).
   + rewrite zl_default_correct in H1 by auto.
-    revert u1 H1; erewrite <- nested_field_type2_ArraySubsc with (i := i) by eauto; intros.
+    revert u1 H1; erewrite <- nested_field_type2_ArraySubsc with (i0 := i) by eauto; intros.
     rewrite H1.
     apply field_at_field_at_.
   + unfold field_at.

@@ -21,7 +21,7 @@ forall {Espec: OracleKind} n Delta P Q R e1 e2 Rn sh t1,
   typeof e1 = t1 ->
   nth_error R n = Some Rn ->
   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (Rn :: nil))) |--
-    `(mapsto_ sh t1) (eval_lvalue e1) ->
+    `(mapsto_ sh t1) (eval_lvalue Delta e1) ->
   writable_share sh ->
   PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
     local (tc_lvalue Delta e1) && local (tc_expr Delta (Ecast e2 t1)) ->
@@ -30,7 +30,7 @@ forall {Espec: OracleKind} n Delta P Q R e1 e2 Rn sh t1,
       (Sassign e1 e2) 
       (normal_ret_assert
          (PROPx P (LOCALx Q (SEPx (replace_nth n R
-           (`(mapsto sh t1) (eval_lvalue e1) (eval_expr (Ecast e2 t1)) )))))).
+           (`(mapsto sh t1) (eval_lvalue Delta e1) (eval_expr Delta (Ecast e2 t1)) )))))).
 Proof.
   intros.
   subst t1.
@@ -67,7 +67,7 @@ forall (Delta: tycontext) sh id P Q R e1 t2 (v2: val),
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
          local (tc_lvalue Delta e1) &&
          local (`(tc_val (typeof e1) v2)) &&
-         (`(mapsto sh (typeof e1)) (eval_lvalue e1) `v2 * TT) ->
+         (`(mapsto sh (typeof e1)) (eval_lvalue Delta e1) `v2 * TT) ->
     @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
        (Sset id e1)
        (normal_ret_assert (EX old:val, 
@@ -112,7 +112,7 @@ forall (Delta: tycontext) sh id P Q R e1 t1 (v2: val),
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- 
          local (tc_lvalue Delta e1) &&
          local (`(tc_val t1 (eval_cast (typeof e1) t1 v2))) &&
-         (`(mapsto sh (typeof e1)) (eval_lvalue e1) `v2 * TT) ->
+         (`(mapsto sh (typeof e1)) (eval_lvalue Delta e1) `v2 * TT) ->
     @semax Espec Delta (|> PROPx P (LOCALx Q (SEPx R)))
        (Sset id (Ecast e1 t1))
        (normal_ret_assert (EX old:val, 

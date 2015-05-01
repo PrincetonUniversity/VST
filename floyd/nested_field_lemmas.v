@@ -37,6 +37,28 @@ Notation "@@u X" := (cons (UnionField X) nil) (at level 60).
 Notation "[( X )]" := (cons (ArraySubsc X) nil) (at level 60).
 *)
 
+Definition gfield_type t gf :=
+  match t, gf with
+  | Tarray t0 _ _, ArraySubsc _ => t0
+  | Tstruct id _, StructField i
+  | Tunion id _, UnionField i => field_type i (co_members (get_co id))
+  | _, _ => Tvoid
+  end.
+
+Definition gfield_offset t gf :=
+  match t, gf with
+  | Tarray t0 _ _, ArraySubsc i => sizeof cenv_cs t0 * i
+  | Tstruct id _, StructField i => field_offset cenv_cs i (co_members (get_co id))
+  | Tunion id _, UnionField i => 0
+  | _, _ => 0
+  end.
+
+Definition gfield_array_type t lo hi :=
+  match t with
+  | Tarray t0 _ a => Tarray t0 (hi - lo) a
+  | _ => Tarray Tvoid (hi - lo) (attr_of_type t)
+  end.
+
 Fixpoint nested_field_rec (t: type) (gfs: list gfield) : option (prod Z type) :=
   match gfs with
   | nil => Some (0, t)
@@ -73,21 +95,8 @@ Definition nested_field_type2 (t: type) (gfs: list gfield) : type :=
   | _ => Tvoid
   end.
 
-Definition gfield_type t gf :=
-  match t, gf with
-  | Tarray t0 _ _, ArraySubsc _ => t0
-  | Tstruct id _, StructField i
-  | Tunion id _, UnionField i => field_type i (co_members (get_co id))
-  | _, _ => Tvoid
-  end.
-
-Definition gfield_offset t gf :=
-  match t, gf with
-  | Tarray t0 _ _, ArraySubsc i => sizeof cenv_cs t0 * i
-  | Tstruct id _, StructField i => field_offset cenv_cs i (co_members (get_co id))
-  | Tunion id _, UnionField i => 0
-  | _, _ => 0
-  end.
+Definition nested_field_array_type t gfs lo hi :=
+  Tarray (nested_field_type2 t (ArraySubsc 0 :: gfs)) (hi - lo) (attr_of_type (nested_field_type2 t gfs)).
 
 Definition legal_field t gf :=
   match t, gf with
@@ -159,6 +168,16 @@ Proof.
     reflexivity.
   + destruct_in_members i (co_members (get_co id)); [| tauto].
     simpl. omega.
+Qed.
+
+Lemma nested_field_array_type_ind: forall t gfs lo hi,
+  nested_field_array_type t gfs lo hi =
+  gfield_array_type (nested_field_type2 t gfs) lo hi.
+Proof.
+  intros.
+  unfold nested_field_array_type.
+  rewrite nested_field_type2_ind.
+  destruct (nested_field_type2 t gfs); simpl; auto.
 Qed.
 
 Lemma nested_field0_offset2_ind: forall t gfs,
@@ -567,6 +586,16 @@ Qed.
 Hint Resolve field_address_isptr.
 Hint Resolve is_pointer_or_null_field_compatible.
 
+Lemma nested_field_type2_ArraySubsc: forall t i j gfs p,
+  field_compatible0 t (ArraySubsc j :: gfs) p ->
+  nested_field_type2 t (ArraySubsc i :: gfs) = nested_field_type2 t (ArraySubsc 0 :: gfs).
+Proof.
+  intros.
+  rewrite field_compatible0_cons in H.
+  rewrite !nested_field_type2_ind with (gfs := _ :: gfs).
+  destruct (nested_field_type2 t gfs); try tauto.
+Qed.
+
 Lemma gfield_type_complete_type: forall t gf,
   legal_field t gf ->
   complete_type cenv_cs t = true ->
@@ -585,6 +614,16 @@ Proof.
       apply get_co_consistent.
 Qed.
 
+Lemma gfield_array_type_complete_type: forall t lo hi,
+  legal_field0 t (ArraySubsc lo) ->
+  complete_type cenv_cs t = true ->
+  complete_type cenv_cs (gfield_array_type t lo hi) = true.
+Proof.
+  intros.
+  destruct t as [| | | | | | | id ? | id ?]; try inversion H; simpl in H0 |- *.
+  auto.
+Qed.
+
 Lemma nested_field_type2_complete_type: forall t gfs,
   legal_nested_field t gfs ->
   complete_type cenv_cs t = true ->
@@ -595,6 +634,19 @@ Proof.
   + exact H0.
   + destruct H.
     apply gfield_type_complete_type; auto.
+Qed.
+
+Lemma nested_field_array_type_complete_type: forall t gfs lo hi,
+  legal_nested_field0 t (ArraySubsc lo :: gfs) ->
+  complete_type cenv_cs t = true ->
+  complete_type cenv_cs (nested_field_array_type t gfs lo hi) = true.
+Proof.
+  intros.
+  rewrite nested_field_array_type_ind.
+  apply gfield_array_type_complete_type.
+  + simpl in H; tauto.
+  + apply nested_field_type2_complete_type; auto.
+    simpl in H; tauto.
 Qed.
 
 Lemma gfield_type_nested_pred: forall {atom_pred: type -> bool}, atom_pred Tvoid = true -> forall (t: type) (gf: gfield),
@@ -614,6 +666,19 @@ Proof.
     - rewrite not_in_members_field_type; auto.
 Qed.
 
+Lemma gfield_array_type_nested_pred: forall {atom_pred: type -> bool},
+  (forall t n m a, atom_pred (Tarray t n a) = atom_pred (Tarray t m a)) ->
+  forall (t: type) lo hi,
+  legal_field0 t (ArraySubsc lo) ->
+  nested_pred atom_pred t = true -> nested_pred atom_pred (gfield_array_type t lo hi) = true.
+Proof.
+  intros.
+  destruct t as [| | | | | | | id ? | id ?]; auto.
+  simpl in H1 |- *; rewrite nested_pred_ind in H1 |- *.
+  erewrite H.
+  exact H1.
+Qed.
+
 Lemma nested_field_type2_nest_pred: forall {atom_pred: type -> bool}, atom_pred Tvoid = true -> forall (t: type) (gfs: list gfield),
   nested_pred atom_pred t = true -> nested_pred atom_pred (nested_field_type2 t gfs) = true.
 Proof.
@@ -623,47 +688,22 @@ Proof.
   + apply gfield_type_nested_pred; auto.
 Qed.
 
-(*
-Lemma nested_field_type2_field_type: forall i f a id t, nested_field_type2 (Tstruct i f a) (StructField id :: nil) = t /\ t <> Tvoid -> field_type id f = Errors.OK t.
-Proof.
-  unfold nested_field_type2.
-  intros.
-  simpl in H.
-  solve_field_offset_type id f; destruct H.
-  - subst; reflexivity.
-  - congruence.
-Defined.
-*)
-(*
-Lemma nested_field_type2_Tarray_nested_field_rec_isSome: forall t gfs t0 n a,
-  nested_field_type2 t gfs = Tarray t0 n a -> isSome (nested_field_rec t gfs).
+Lemma nested_field_array_type_nest_pred: forall {atom_pred: type -> bool},
+  atom_pred Tvoid = true ->
+  (forall t n m a, atom_pred (Tarray t n a) = atom_pred (Tarray t m a)) ->
+  forall (t: type) gfs lo hi,
+  legal_nested_field0 t (ArraySubsc lo :: gfs) ->
+  nested_pred atom_pred t = true ->
+  nested_pred atom_pred (nested_field_array_type t gfs lo hi) = true.
 Proof.
   intros.
-  unfold nested_field_type2 in H.
-  valid_nested_field_rec t gfs H.
-  simpl; auto.
-Defined.
+  rewrite nested_field_array_type_ind.
+  simpl in H1.
+  apply gfield_array_type_nested_pred; [auto | tauto |].
+  apply nested_field_type2_nest_pred; auto.
+Qed.
 
-Lemma nested_field_type2_Tstruct_nested_field_rec_isSome: forall t gfs i f a,
-  nested_field_type2 t gfs = Tstruct i f a -> isSome (nested_field_rec t gfs).
-Proof.
-  intros.
-  unfold nested_field_type2 in H.
-  valid_nested_field_rec t gfs H.
-  simpl; auto.
-Defined.
-
-Lemma nested_field_type2_Tunion_nested_field_rec_isSome: forall t gfs i f a,
-  nested_field_type2 t gfs = Tunion i f a -> isSome (nested_field_rec t gfs).
-Proof.
-  intros.
-  unfold nested_field_type2 in H.
-  valid_nested_field_rec t gfs H.
-  simpl; auto.
-Defined.
-*)
-
-Lemma alignof_gfield_type_divide_alignof: forall gf t,
+Lemma alignof_gfield_type_divide_alignof: forall t gf,
   legal_alignas_type t = true ->
   (alignof cenv_cs (gfield_type t gf) | alignof cenv_cs t).
 Proof.
@@ -686,6 +726,19 @@ Proof.
       apply Z.divide_1_l.
 Qed.
 
+Lemma alignof_gfield_array_type_divide_alignof: forall t lo hi,
+  legal_alignas_type t = true ->
+  legal_field0 t (ArraySubsc lo) ->
+  (alignof cenv_cs (gfield_array_type t lo hi) | alignof cenv_cs t).
+Proof.
+  intros.
+  destruct t as [| | | | | | | id ? | id ?]; try solve [inversion H0].
+  simpl.
+  rewrite !legal_alignas_type_Tarray by auto.
+  apply Z.divide_refl.
+Qed.
+
+(* was called alignof_gfield_type_divide *)
 Lemma alignof_nested_field_type2_divide_alignof: forall t gfs,
   legal_alignas_type t = true ->
   legal_nested_field t gfs ->
@@ -698,6 +751,21 @@ Proof.
     eapply Z.divide_trans; [| eauto].
     apply alignof_gfield_type_divide_alignof.
     unfold legal_alignas_type; apply nested_field_type2_nest_pred; auto.
+Qed.
+
+Lemma alignof_nested_field_array_type_divide_alignof: forall t gfs lo hi,
+  legal_alignas_type t = true ->
+  legal_nested_field0 t (ArraySubsc lo :: gfs) ->
+  (alignof cenv_cs (nested_field_array_type t gfs lo hi) | alignof cenv_cs t).
+Proof.
+  intros.
+  rewrite nested_field_array_type_ind.
+  simpl in H0.
+  eapply Z.divide_trans.
+  + apply alignof_gfield_array_type_divide_alignof; [| tauto].
+    apply nested_field_type2_nest_pred; auto.
+  + apply alignof_nested_field_type2_divide_alignof; auto.
+    tauto.
 Qed.
 
 Lemma gfield_offset_type_divide: forall gf t, legal_alignas_type t = true ->
@@ -754,6 +822,24 @@ Proof.
     omega.
 Qed.
 
+Lemma gfield_array_offset_in_range: forall t lo hi,
+  legal_field0 t (ArraySubsc lo) ->
+  legal_field0 t (ArraySubsc hi) ->
+  legal_cosu_type t = true ->
+  0 <= gfield_offset t (ArraySubsc lo) /\
+  gfield_offset t (ArraySubsc lo) + sizeof cenv_cs (gfield_array_type t lo hi) <= sizeof cenv_cs t.
+Proof.
+  intros.
+  destruct t as [| | | | | | | id ? | id ?]; try solve [inversion H]; simpl in H.
+  simpl in *.
+  rewrite (Z.max_r 0 z) by omega.
+  assert (0 <= Z.max 0 (hi - lo) <= hi) by (apply arith_aux05; omega).
+  assert (0 <= lo + Z.max 0 (hi - lo) <= z) by (apply arith_aux06; omega).  
+  pose_size_mult cenv_cs t (0 :: Z.max 0 (hi - lo) :: hi :: nil).
+  pose_size_mult cenv_cs t (0 :: lo :: lo + Z.max 0 (hi - lo) :: z :: nil).
+  omega.
+Qed.
+
 Lemma gfield0_offset_in_range: forall t gf,
   legal_field0 t gf ->
   legal_cosu_type t = true ->
@@ -790,6 +876,22 @@ Proof.
     pose proof gfield_offset_in_range (nested_field_type2 t gfs) gf (proj2 H).
     spec H1; [apply nested_field_type2_nest_pred; auto |].
     omega.
+Qed.
+
+Lemma nested_field_array_offset2_in_range: forall t gfs lo hi,
+  legal_nested_field0 t (ArraySubsc lo :: gfs) ->
+  legal_nested_field0 t (ArraySubsc hi :: gfs) ->
+  legal_cosu_type t = true ->
+  0 <= nested_field_offset2 t (ArraySubsc lo :: gfs) /\
+  nested_field_offset2 t (ArraySubsc lo :: gfs) + sizeof cenv_cs (nested_field_array_type t gfs lo hi) <= sizeof cenv_cs t.
+Proof.
+  intros.
+  rewrite nested_field_array_type_ind.
+  rewrite nested_field0_offset2_ind by auto.
+  pose proof gfield_array_offset_in_range (nested_field_type2 t gfs) lo hi (proj2 H) (proj2 H0).
+  spec H2; [apply nested_field_type2_nest_pred; auto |].
+  pose proof nested_field_offset2_in_range t gfs (proj1 H) H1.
+  omega.
 Qed.
 
 Lemma nested_field0_offset2_in_range: forall (t : type) (gfs : list gfield),
@@ -1300,14 +1402,6 @@ Proof.
     omega.
 Qed.
 
-(* from master branch
-   should be proved here.
-Lemma alignof_nested_field_type2_divide: forall t gfs,
-  legal_alignas_type t = true ->
-  legal_nested_field t gfs ->
-  (alignof (nested_field_type2 t gfs) | alignof t).
-*)
-
 Lemma size_1_compatible: forall t, sizeof cenv_cs t = 1 -> forall p, size_compatible t p.
 Proof.
   intros.
@@ -1342,16 +1436,36 @@ Lemma size_compatible_nested_field: forall t gfs p,
 Proof.
   intros.
   destruct p; simpl; try tauto.
-  unfold Int.unsigned; simpl.
-  unfold Int.unsigned; simpl.
-  repeat rewrite Int.Z_mod_modulus_eq.
-  rewrite Zplus_mod_idemp_r.
-  assert (0 < Int.modulus) by (cbv; reflexivity).
-  assert (0 <= Int.unsigned i + nested_field_offset2 t gfs) by (pose proof nested_field_offset2_in_range t gfs H H0; pose proof Int.unsigned_range i; omega).
-  pose proof Zmod_le (Int.unsigned i + nested_field_offset2 t gfs) (Int.modulus) H2 H3.
-  destruct (nested_field_offset2_in_range t gfs H H0).
   unfold size_compatible in H1.
-  unfold Int.unsigned in *.
+  solve_mod_modulus.
+  inv_int i.
+  pose proof nested_field_offset2_in_range t gfs H H0.
+  pose proof Zmod_le (ofs + nested_field_offset2 t gfs) (Int.modulus).
+  spec H4; [pose proof Int.modulus_pos; omega |].
+  spec H4; [omega |].
+  pose proof nested_field_offset2_in_range t gfs.
+  omega.
+Qed.
+
+Lemma size_compatible_nested_field_array: forall t gfs lo hi p,
+  legal_nested_field0 t (ArraySubsc lo :: gfs) ->
+  legal_nested_field0 t (ArraySubsc hi :: gfs) ->
+  legal_cosu_type t = true ->
+  size_compatible t p ->
+  size_compatible (nested_field_array_type t gfs lo hi)
+   (offset_val (Int.repr (nested_field_offset2 t (ArraySubsc lo :: gfs))) p).
+Proof.
+  intros.
+  destruct p; simpl; try tauto.
+  unfold size_compatible in H2.
+  solve_mod_modulus.
+  inv_int i.
+  pose proof nested_field_array_offset2_in_range t gfs lo hi H H0 H1.
+  pose proof Zmod_le (ofs + nested_field_offset2 t (ArraySubsc lo :: gfs)) (Int.modulus).
+  spec H5; [pose proof Int.modulus_pos; omega |].
+  spec H5; [omega |].
+  pose proof nested_field_offset2_in_range t gfs (proj1 H) H1.
+  simpl in H3.
   omega.
 Qed.
 
@@ -1383,6 +1497,29 @@ Proof.
     * rewrite <- !two_power_nat_two_p in *. apply power_nat_one_divede_other.
 Qed.
 
+Lemma align_compatible_nested_field_array: forall t gfs lo hi p,
+  legal_nested_field0 t (ArraySubsc lo :: gfs) ->
+  legal_nested_field0 t (ArraySubsc hi :: gfs) ->
+  legal_alignas_type t = true ->
+  align_compatible t p ->
+  align_compatible (nested_field_array_type t gfs lo hi)
+   (offset_val (Int.repr (nested_field_offset2 t (ArraySubsc lo :: gfs))) p).
+Proof.
+  intros.
+  destruct p; simpl in *; try tauto.
+  inv_int i.
+  solve_mod_modulus.
+  apply arith_aux04.
+  + admit.
+  + apply Z.divide_add_r; auto.
+admit. admit.
+(*
+    eapply Z.divide_trans; [| eauto].
+    apply alignof_nested_field_type2_divide_alignof; auto.
+    apply nested_field_offset2_type2_divide; auto.
+*)
+Qed.
+
 Lemma field_compatible_nested_field: forall t gfs p,
   field_compatible t gfs p ->
   field_compatible (nested_field_type2 t gfs) nil (offset_val (Int.repr (nested_field_offset2 t gfs)) p).
@@ -1400,6 +1537,27 @@ Proof.
     omega.
   + apply size_compatible_nested_field; tauto.
   + apply align_compatible_nested_field; tauto.
+Qed.
+
+Lemma field_compatible0_nested_field_array: forall t gfs lo hi p,
+  field_compatible0 t (ArraySubsc lo :: gfs) p ->
+  field_compatible0 t (ArraySubsc hi :: gfs) p ->
+  field_compatible (nested_field_array_type t gfs lo hi) nil (offset_val (Int.repr (nested_field_offset2 t (ArraySubsc lo :: gfs))) p).
+Proof.
+  intros.
+  unfold field_compatible, field_compatible0 in *.
+  repeat split.
+  + rewrite isptr_offset_val; tauto.
+  + apply nested_field_array_type_nest_pred; tauto.
+  + apply nested_field_array_type_nest_pred; tauto.
+  + apply nested_field_array_type_complete_type; tauto.
+  + pose proof nested_field_array_offset2_in_range t gfs lo hi.
+    spec H1; [tauto |].
+    spec H1; [tauto |].
+    spec H1; [tauto |].
+    omega.
+  + apply size_compatible_nested_field_array; tauto.
+  + apply align_compatible_nested_field_array; tauto.
 Qed.
 
 Lemma field_compatible_isptr :

@@ -134,6 +134,27 @@ Proof.
     apply Z.divide_0_r.
 Qed.
 
+Lemma arith_aux05: forall lo hi, 0 <= lo -> 0 <= hi ->
+  0 <= Z.max 0 (hi - lo) <= hi.
+Proof.
+  intros.
+  destruct (zle lo hi).
+  + rewrite Z.max_r by omega.
+    omega.
+  + rewrite Z.max_l by omega.
+    omega.
+Qed.
+
+Lemma arith_aux06: forall lo hi n, 0 <= lo <= n -> 0 <= hi <= n -> 0 <= lo + Z.max 0 (hi - lo) <= n.
+Proof.
+  intros.
+  destruct (zle lo hi).
+  + rewrite Z.max_r by omega.
+    omega.
+  + rewrite Z.max_l by omega.
+    omega.
+Qed.
+
 Ltac inv_int i :=
   let ofs := fresh "ofs" in
   let H := fresh "H" in

@@ -130,7 +130,7 @@ FLOYD_FILES= \
    coqlib3.v base.v proofauto.v type_induction.v reptype_lemmas.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v zlist.v \
    client_lemmas.v canon.v canonicalize.v assert_lemmas.v closed_lemmas.v jmeq_lemmas.v \
-   compare_lemmas.v array_lemmas.v sc_set_load_store.v \
+   compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_data_at.v loadstore_field_at.v nested_loadstore.v \
    call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
    entailer.v globals_lemmas.v local2ptree.v fieldlist.v mapsto_memory_block.v\
