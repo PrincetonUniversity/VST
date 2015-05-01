@@ -126,3 +126,8 @@ Proof.
   rewrite H1, H2.
   reflexivity.
 Qed.
+
+Lemma eq_JMeq: forall A (x y: A), x=y -> JMeq x y.
+Proof. intros. subst. reflexivity.
+Qed.
+

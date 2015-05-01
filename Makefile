@@ -131,7 +131,7 @@ FLOYD_FILES= \
    nested_pred_lemmas.v compact_prod_sum.v zlist.v \
    client_lemmas.v canon.v canonicalize.v assert_lemmas.v closed_lemmas.v jmeq_lemmas.v \
    compare_lemmas.v sc_set_load_store.v \
-   loadstore_mapsto.v loadstore_data_at.v loadstore_field_at.v nested_loadstore.v \
+   loadstore_mapsto.v loadstore_field_at.v nested_loadstore.v \
    call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
    entailer.v globals_lemmas.v local2ptree.v fieldlist.v mapsto_memory_block.v\
    nested_field_lemmas.v efield_lemmas.v nested_field_re_lemmas.v \
