@@ -11,12 +11,19 @@ Fixpoint force_lengthn {A} n (xs: list A) (default: A) :=
   | S n0, hd :: tl => hd :: force_lengthn n0 tl default
   end.
 
+Fixpoint list_gen {A} lo (n: nat) (f: Z -> A) : list A :=
+  match n with
+  | O => nil
+  | S n0 => f lo :: list_gen (lo + 1) n0 f
+  end.
+
 Class Zlist (A: Type) (default: A) : Type := mkZlist {
   zlist: Z -> Z -> Type;
   zl_concat: forall {lo mid hi}, zlist lo mid -> zlist mid hi -> zlist lo hi;
   zl_sublist: forall {lo hi} lo' hi', zlist lo hi -> zlist lo' hi';
   zl_shift: forall {lo hi} lo' hi', zlist lo hi -> zlist lo' hi';
-  zl_singlton: forall i, A -> zlist i (i + 1);
+  zl_gen: forall lo hi (f: Z -> A), zlist lo hi;
+  zl_singleton: forall i, A -> zlist i (i + 1);
   zl_empty: forall i, zlist i i;
   zl_default: forall lo hi, zlist lo hi;
   zl_nth: forall {lo hi}, Z -> zlist lo hi -> A
@@ -26,9 +33,10 @@ Global Arguments zlist A {_} {_} _ _.
 
 Instance list_zlist (A: Type) (default: A) : Zlist A default.
   apply (mkZlist A default (fun _ _ => list A)).
-  + exact (fun lo mid hi l1 l2 => (force_lengthn (nat_of_Z (mid - lo)) l1 default) ++ l2).
+  + exact (fun lo mid hi l1 l2 => force_lengthn (nat_of_Z (mid - lo)) l1 default ++ l2).
   + exact (fun lo hi  lo' hi' l => if zle lo lo' then skipn (nat_of_Z (lo' - lo)) l else nil).
   + exact (fun lo hi  lo' hi' l => l).
+  + exact (fun lo hi f => list_gen lo (nat_of_Z (hi - lo)) f).
   + exact (fun i v => v :: nil).
   + exact (fun _ => nil).
   + exact (fun _ _ => nil).
@@ -58,6 +66,13 @@ Class Zlist_Correct {A d} `(Zlist A d) : Type := mkZlistCorrect {
     hi - hi' = mv ->
     lo' <= i < hi' ->
     zl_nth i (zl_shift lo' hi' l) = zl_nth (i + mv) l;
+  zl_gen_correct:
+    forall lo hi f i,
+    lo <= i < hi ->
+    zl_nth i (zl_gen lo hi f) = f i;
+  zl_singleton_correct:
+    forall i v,
+    zl_nth i (zl_singleton i v) = v;
   zl_default_correct:
     forall lo hi i,
     lo <= i < hi ->
@@ -90,5 +105,5 @@ Module Type Zlist.
 Parameter list : Z -> Z -> Type.
 Parameter app : forall {lo mid hi}, list lo mid -> list mid hi -> list lo hi.
 Parameter sublist: forall {lo hi} lo' hi', list lo hi -> list lo' hi'.
-Parameter singlton: forall i 
+Parameter singleton: forall i 
 *)

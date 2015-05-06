@@ -83,7 +83,7 @@ Definition data_at': forall t, reptype t -> val -> mpred :=
        else mapsto sh t p (repinject t v))
     (fun t n a P v => array_pred 0 n (fun i v => at_offset (P v) (sizeof cenv_cs t * i)) (unfold_reptype v))
     (fun id a P v => struct_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
-    (fun id a P v => union_data_at'_aux sh (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
+    (fun id a P v => union_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
 
 Notation REPTYPE t :=
   match t return Type with
@@ -113,14 +113,14 @@ Lemma data_at'_ind: forall t v,
   | Tarray t0 n a => array_pred 0 n (fun i v => at_offset (data_at' t0 v) (sizeof cenv_cs t0 * i))
   | Tstruct id a => struct_pred (co_members (get_co id))
                       (fun it v => withspacer sh
-                        (field_offset cenv_cs (fst it) (co_members (get_co id)) + sizeof cenv_cs (snd it))
+                        (field_offset cenv_cs (fst it) (co_members (get_co id)) + sizeof cenv_cs (field_type (fst it) (co_members (get_co id))))
                         (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)))
-                        (at_offset (data_at' (snd it) v) (field_offset cenv_cs (fst it) (co_members (get_co id)))))
+                        (at_offset (data_at' (field_type (fst it) (co_members (get_co id))) v) (field_offset cenv_cs (fst it) (co_members (get_co id)))))
   | Tunion id a => union_pred (co_members (get_co id))
                      (fun it v => withspacer sh
-                      (sizeof cenv_cs (snd it))
+                      (sizeof cenv_cs (field_type (fst it) (co_members (get_co id))))
                       (co_sizeof (get_co id))
-                      (data_at' (snd it) v))
+                      (data_at' (field_type (fst it) (co_members (get_co id))) v))
   end (unfold_reptype v).
 Proof.
   intros.
@@ -491,12 +491,13 @@ Proof.
       rewrite at_offset_eq3.
       unfold offset_val; solve_mod_modulus.
       unfold struct_default_val.
-      rewrite proj_struct_gen by auto.
+      unfold proj_struct.
+      rewrite compact_prod_proj_gen by (apply in_members_field_type; auto).
       rewrite Forall_forall in IH.
       specialize (IH (i, field_type i (co_members (get_co id)))).
       spec IH; [apply in_members_field_type; auto |].
       unfold snd in IH.
-      rewrite IH by (try AUTO_IND; try (pose_field; omega)).
+      rewrite IH by (try unfold fst; try AUTO_IND; try (pose_field; omega)).
       rewrite Z.add_assoc, sepcon_comm, <- memory_block_split by (pose_field; omega).
       f_equal; f_equal; omega.
   + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil)
@@ -522,19 +523,21 @@ Proof.
         auto.
       * intros.
         pose proof get_co_members_no_replicate id as NO_REPLI.
-        assert (in_members i (co_members (get_co id)))
-          by (rewrite H3; apply members_union_inj_in_members; auto).
+        pose proof @compact_sum_inj_in _ _ (co_members (get_co id)) (union_default_val (co_members (get_co id))) _ _ H3.
+        apply in_map with (f := fst) in H5; unfold fst in H5.
         rewrite withspacer_spacer.
         simpl.
         rewrite spacer_memory_block by (simpl; auto).
         unfold offset_val; solve_mod_modulus.
         unfold union_default_val.
-        rewrite proj_union_gen by auto.
+        unfold proj_union.
+        unfold members_union_inj in *.
+        rewrite compact_sum_proj_gen; [| auto].
         rewrite Forall_forall in IH.
         specialize (IH (i, field_type i (co_members (get_co id)))).
         spec IH; [apply in_members_field_type; auto |].
         unfold snd in IH.
-        rewrite IH; (try AUTO_IND; try (pose_field; omega)).
+        rewrite IH; (try unfold fst; try AUTO_IND; try (pose_field; omega)).
         rewrite sepcon_comm, <- memory_block_split by (pose_field; omega).
         f_equal; f_equal; omega.
 Qed.
@@ -603,8 +606,9 @@ Proof.
     spec IH; [apply in_members_field_type; auto |].
     unfold snd in IH.
     unfold struct_default_val.
-    rewrite proj_struct_gen by auto.
-    apply IH; try AUTO_IND; try (pose_field; omega).
+    unfold proj_struct.
+    rewrite compact_prod_proj_gen by (apply in_members_field_type; auto).
+    apply IH; try unfold fst; try AUTO_IND; try (pose_field; omega).
   + assert (co_members (get_co id) = nil \/ co_members (get_co id) <> nil)
       by (destruct (co_members (get_co id)); [left | right]; congruence).
     destruct H2.
@@ -621,7 +625,8 @@ Proof.
           [auto | reflexivity | ].
         intros.
         clear H4.
-        assert (in_members i (co_members (get_co id))) by (subst; apply members_union_inj_in_members; auto).
+        pose proof @compact_sum_inj_in _ _ (co_members (get_co id)) (unfold_reptype v) _ _ H3.
+        apply in_map with (f := fst) in H4; unfold fst in H4.
         rewrite withspacer_spacer, sizeof_Tunion.
         simpl.
         pattern (co_sizeof (get_co id)) at 2;
@@ -682,10 +687,11 @@ Proof.
       rewrite union_pred_ext with (P1 := fun _ _ _ => emp) (v1 := unfold_reptype v).
       * apply emp_union_pred.
       * apply get_co_members_no_replicate.
-      * auto.
+      * intros; tauto.
       * intros.
-        pose proof members_union_inj_in_members (co_members (get_co id)) _ (unfold_reptype v) HH.
-        rewrite <- H2 in H4.
+        pose proof compact_sum_inj_in (unfold_reptype v) _ _ H2.
+        unfold members_union_inj in *.
+        apply in_map with (f := fst) in H4.
         specialize (H1 i H4).
         rewrite Forall_forall in IH.
         specialize (IH (i, (field_type i (co_members (get_co id))))).

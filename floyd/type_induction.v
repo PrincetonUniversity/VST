@@ -1,5 +1,5 @@
 Require Import floyd.base.
-
+Require floyd.fieldlist. Import floyd.fieldlist.fieldlist.
 Open Scope nat.
 
 Inductive ListType: list Type -> Type :=
@@ -95,131 +95,16 @@ Proof.
     auto.
 Qed.
 
-Fixpoint compact_prod (T: list Type): Type :=
-  match T with 
-  | nil => unit
-  | t :: nil => t
-  | t :: T0 => (t * compact_prod T0)%type
-  end.
-
-Fixpoint compact_sum (T: list Type): Type :=
-  match T with 
-  | nil => unit
-  | t :: nil => t
-  | t :: T0 => (t + compact_sum T0)%type
-  end.
-
-Definition compact_prod_map {X: Type} {F F0: X -> Type} (l: list X)
-  (f: ListType (map (fun x => F x -> F0 x) l)): compact_prod (map F l) -> compact_prod (map F0 l).
-Proof.
-  intros.
-  destruct l; [exact tt |].
-  revert x f X0; induction l; intros; simpl in *.
-  + inversion f; subst.
-    exact (a X0).
-  + remember ((F a -> F0 a) :: map (fun x0 : X => F x0 -> F0 x0) l) as L;
-    inversion f; subst.
-    exact (a0 (fst X0), IHl a b (snd X0)).
-Defined.
-
-Lemma compact_prod_map_nil: forall {X: Type} {F F0: X -> Type},
-  @compact_prod_map X F F0 nil Nil tt = tt.
-Proof.
-  intros.
-  reflexivity.
-Qed.
-
-Lemma compact_prod_map_single: forall {X: Type} {F F0: X -> Type} (x: X)
-  (f: F x -> F0 x) (v: F x),
-  compact_prod_map (x :: nil) (Cons f Nil) v = f v.
-Proof.
-  intros.
-  reflexivity.
-Qed.
-
-Lemma compact_prod_map_cons: forall {X: Type} {F F0: X -> Type} (x x0: X) (l: list X)
-  (f: F x -> F0 x) (fl: ListType (map (fun x => F x -> F0 x) (x0 :: l)))
-  (v: F x) (vl: compact_prod (map F (x0 :: l))),
-  compact_prod_map (x :: x0 :: l) (Cons f fl) (v, vl) = (f v, compact_prod_map _ fl vl).
-Proof.
-  intros.
-  reflexivity.
-Qed.
-
-Definition compact_sum_map {X: Type} {F F0: X -> Type} (l: list X)
-  (f: ListType (map (fun x => F x -> F0 x) l)): compact_sum (map F l) -> compact_sum (map F0 l).
-Proof.
-  intros.
-  destruct l; [exact tt |].
-  revert x f X0; induction l; intros; simpl in *.
-  + inversion f; subst.
-    exact (a X0).
-  + remember ((F a -> F0 a) :: map (fun x0 : X => F x0 -> F0 x0) l) as L;
-    inversion f; subst.
-    exact match X0 with
-          | inl X0_l => inl (a0 X0_l)
-          | inr X0_r => inr (IHl a b X0_r)
-          end.
-Defined.
-
-Lemma compact_sum_map_nil: forall {X: Type} {F F0: X -> Type},
-  @compact_sum_map X F F0 nil Nil tt = tt.
-Proof.
-  intros.
-  reflexivity.
-Qed.
-
-Lemma compact_sum_map_single: forall {X: Type} {F F0: X -> Type} (x: X)
-  (f: F x -> F0 x) (v: F x),
-  compact_sum_map (x :: nil) (Cons f Nil) v = f v.
-Proof.
-  intros.
-  reflexivity.
-Qed.
-
-Lemma compact_sum_map_cons_inl: forall {X: Type} {F F0: X -> Type} (x x0: X) (l: list X)
-  (f: F x -> F0 x) (fl: ListType (map (fun x => F x -> F0 x) (x0 :: l)))
-  (v: F x),
-  compact_sum_map (x :: x0 :: l) (Cons f fl) (inl v) = inl (f v).
-Proof.
-  intros.
-  reflexivity.
-Qed.
-
-Lemma compact_sum_map_cons_inr: forall {X: Type} {F F0: X -> Type} (x x0: X) (l: list X)
-  (f: F x -> F0 x) (fl: ListType (map (fun x => F x -> F0 x) (x0 :: l)))
-  (vl: compact_sum (map F (x0 :: l))),
-  compact_sum_map (x :: x0 :: l) (Cons f fl) (inr vl) = inr (compact_sum_map _ fl vl).
-Proof.
-  intros.
-  reflexivity.
-Qed.
-
-Definition compact_prod_gen {A} {F} (gen: forall a: A, F a) (l: list A): compact_prod (map F l).
-Proof.
-  destruct l; [exact tt |].
-  revert a; induction l; intros.
-  + exact (gen a).
-  + exact (gen a0, IHl a).
-Defined.
-
-Definition compact_sum_gen {A} {F} (gen: forall a: A, F a) (l: list A): compact_sum (map F l).
-Proof.
-  destruct l; [exact tt |].
-  destruct l.
-  + exact (gen a).
-  + exact (inl (gen a)).
-Defined.
-
 Section COMPOSITE_ENV.
 Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
 
 Lemma type_ind: forall P,
   (forall t,
   match t with
   | Tarray t0 _ _ => P t0
-  | Tstruct id _ => Forall (fun it => P (snd it)) (co_members (get_co id))
-  | Tunion id _ => Forall (fun it => P (snd it)) (co_members (get_co id))
+  | Tstruct id _ => Forall (fun it => P (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id))
+  | Tunion id _ => Forall (fun it => P (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id))
   | _ => True
   end -> P t) ->
   forall t, P t.
@@ -252,25 +137,31 @@ Proof.
     omega.
   + (* Tstruct level positive *)
     simpl in RANK.
-    unfold get_co in IH_TYPE.
+    pose proof get_co_members_no_replicate i.
+    unfold get_co in *.
     destruct (cenv_cs ! i) as [co |] eqn:CO; [| apply IH_TYPE; simpl; constructor].
-    apply IH_TYPE.
+    apply IH_TYPE; clear IH_TYPE.
     apply Forall_forall.
-    intros [id t] ?; simpl.
+    intros [i0 t0] ?; simpl.
     apply IHn.
-    apply rank_type_members with (ce := cenv_cs) in H.
-    rewrite <- co_consistent_rank in H; [omega |].
+    pose proof In_field_type _ _ H H0.
+    simpl in H1; rewrite H1.
+    apply rank_type_members with (ce := cenv_cs) in H0.
+    rewrite <- co_consistent_rank in H0; [omega |].
     exact (cenv_consistent_cs i co CO).
   + (* Tunion level positive *)
     simpl in RANK.
-    unfold get_co in IH_TYPE.
+    pose proof get_co_members_no_replicate i.
+    unfold get_co in *.
     destruct (cenv_cs ! i) as [co |] eqn:CO; [| apply IH_TYPE; simpl; constructor].
-    apply IH_TYPE.
+    apply IH_TYPE; clear IH_TYPE.
     apply Forall_forall.
-    intros [id t] ?; simpl.
+    intros [i0 t0] ?; simpl.
     apply IHn.
-    apply rank_type_members with (ce := cenv_cs) in H.
-    rewrite <- co_consistent_rank in H; [omega |].
+    pose proof In_field_type _ _ H H0.
+    simpl in H1; rewrite H1.
+    apply rank_type_members with (ce := cenv_cs) in H0.
+    rewrite <- co_consistent_rank in H0; [omega |].
     exact (cenv_consistent_cs i co CO).
 Qed.
 
@@ -289,8 +180,8 @@ Ltac type_induction t :=
 Variable A: type -> Type.
 Variable F_ByValue: forall t: type, A t.
 Variable F_Tarray: forall t n a, A t -> A (Tarray t n a).
-Variable F_Tstruct: forall id a, ListType (map (fun it => A (snd it)) (co_members (get_co id))) -> A (Tstruct id a).
-Variable F_Tunion: forall id a, ListType (map (fun it => A (snd it)) (co_members (get_co id))) -> A (Tunion id a).
+Variable F_Tstruct: forall id a, ListType (map (fun it => A (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id))) -> A (Tstruct id a).
+Variable F_Tunion: forall id a, ListType (map (fun it => A (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id))) -> A (Tunion id a).
 
 Fixpoint func_type_rec (n: nat) (t: type): A t :=
   match n with
@@ -298,12 +189,12 @@ Fixpoint func_type_rec (n: nat) (t: type): A t :=
     match t as t0 return A t0 with
     | Tstruct id a =>
        match cenv_cs ! id with
-       | None => F_Tstruct id a (ListTypeGen (fun it => A (snd it)) (fun it => F_ByValue (snd it)) (co_members (get_co id)))
+       | None => F_Tstruct id a (ListTypeGen (fun it => A (field_type (fst it) (co_members (get_co id)))) (fun it => F_ByValue (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
        | _ => F_ByValue (Tstruct id a)
        end
     | Tunion id a =>
        match cenv_cs ! id with
-       | None => F_Tunion id a (ListTypeGen (fun it => A (snd it)) (fun it => F_ByValue (snd it)) (co_members (get_co id)))
+       | None => F_Tunion id a (ListTypeGen (fun it => A (field_type (fst it) (co_members (get_co id)))) (fun it => F_ByValue (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
        | _ => F_ByValue (Tunion id a)
        end
     | t' => F_ByValue t'
@@ -311,8 +202,8 @@ Fixpoint func_type_rec (n: nat) (t: type): A t :=
   | S n' =>
     match t as t0 return A t0 with
     | Tarray t0 n a => F_Tarray t0 n a (func_type_rec n' t0)
-    | Tstruct id a => F_Tstruct id a (ListTypeGen (fun it => A (snd it)) (fun it => func_type_rec n' (snd it)) (co_members (get_co id)))
-    | Tunion id a => F_Tunion id a (ListTypeGen (fun it => A (snd it)) (fun it => func_type_rec n' (snd it)) (co_members (get_co id)))
+    | Tstruct id a => F_Tstruct id a (ListTypeGen (fun it => A (field_type (fst it) (co_members (get_co id)))) (fun it => func_type_rec n' (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
+    | Tunion id a => F_Tunion id a (ListTypeGen (fun it => A (field_type (fst it) (co_members (get_co id)))) (fun it => func_type_rec n' (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
     | t' => F_ByValue t'
     end
   end.
@@ -362,6 +253,9 @@ Proof.
       intros [i t] Hin.
       rewrite Forall_forall in IH.
       specialize (IH (i, t) Hin n n0).
+      pose proof get_co_members_no_replicate id.
+      pose proof In_field_type (i, t) _ H1 Hin.
+      rewrite H2 in IH |- *.
       simpl in IH |- *.
       pose proof rank_type_members cenv_cs i t _ Hin.
       rewrite co_consistent_rank with (env := cenv_cs) in H by apply get_co_consistent.
@@ -382,6 +276,9 @@ Proof.
       intros [i t] Hin.
       rewrite Forall_forall in IH.
       specialize (IH (i, t) Hin n n0).
+      pose proof get_co_members_no_replicate id.
+      pose proof In_field_type (i, t) _ H1 Hin.
+      rewrite H2 in IH |- *.
       simpl in IH |- *.
       pose proof rank_type_members cenv_cs i t _ Hin.
       rewrite co_consistent_rank with (env := cenv_cs) in H by apply get_co_consistent.
@@ -396,8 +293,8 @@ Lemma func_type_ind: forall t,
   func_type t = 
   match t as t0 return A t0 with
   | Tarray t0 n a => F_Tarray t0 n a (func_type t0)
-  | Tstruct id a => F_Tstruct id a (ListTypeGen (fun it => A (snd it)) (fun it => func_type (snd it)) (co_members (get_co id)))
-  | Tunion id a => F_Tunion id a (ListTypeGen (fun it => A (snd it)) (fun it => func_type (snd it)) (co_members (get_co id)))
+  | Tstruct id a => F_Tstruct id a (ListTypeGen (fun it => A (field_type (fst it) (co_members (get_co id)))) (fun it => func_type (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
+  | Tunion id a => F_Tunion id a (ListTypeGen (fun it => A (field_type (fst it) (co_members (get_co id)))) (fun it => func_type (field_type (fst it) (co_members (get_co id)))) (co_members (get_co id)))
   | t' => F_ByValue t'
   end.
 Proof.
@@ -414,7 +311,11 @@ Proof.
       rewrite Forall_forall in IH.
       pose proof cenv_consistent_cs id co CO.
       apply func_type_rec_rank_irrelevent.
-      * rewrite co_consistent_rank with (env := cenv_cs) by auto.
+      * pose proof get_co_members_no_replicate id.
+        unfold get_co in H0; rewrite CO in H0.
+        pose proof In_field_type _ _ H0 Hin.
+        rewrite H1.
+        rewrite co_consistent_rank with (env := cenv_cs) by auto.
         eapply rank_type_members; eauto.
       * omega.
     - rewrite CO.
@@ -431,7 +332,11 @@ Proof.
       intros [i t] Hin.
       pose proof cenv_consistent_cs id co CO.
       apply func_type_rec_rank_irrelevent.
-      * rewrite co_consistent_rank with (env := cenv_cs) by auto.
+      * pose proof get_co_members_no_replicate id.
+        unfold get_co in H0; rewrite CO in H0.
+        pose proof In_field_type _ _ H0 Hin.
+        rewrite H1.
+        rewrite co_consistent_rank with (env := cenv_cs) by auto.
         eapply rank_type_members; eauto.
       * omega.
     - rewrite CO.

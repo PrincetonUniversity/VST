@@ -40,7 +40,7 @@ Definition nested_pred (atom_pred: type -> bool): type -> bool :=
     (fun id a bl => (atom_pred (Tunion id a) && fold_right andb true (decay bl))%bool).
 
 Definition nested_fields_pred (atom_pred: type -> bool) (m: members) : bool :=
-  fold_right (fun it b => (nested_pred atom_pred (snd it) && b)%bool) true m.
+  fold_right (fun it b => (nested_pred atom_pred (field_type (fst it) m) && b)%bool) true m.
 
 Lemma nested_pred_ind: forall atom_pred t,
   nested_pred atom_pred t = 
@@ -54,7 +54,7 @@ Proof.
   unfold nested_fields_pred.
   intros.
   unfold nested_pred.
-  rewrite func_type_ind with (t0 := t) at 1 by auto.
+  rewrite func_type_ind with (t0 := t) (A := (fun _ => bool)) at 1 by auto.
   destruct t; auto.
   + f_equal.
     rewrite decay_spec.
@@ -84,7 +84,7 @@ Proof.
   clear - H.
   rewrite <- map_map.
   apply in_map.
-  change (field_type i m) with (snd (i, field_type i m)).
+  change (field_type i m) with ((fun it => field_type (fst it) m) (i, field_type i m)).
   apply in_map.
   apply in_members_field_type.
   auto.

@@ -187,3 +187,10 @@ Proof.
 Qed.
 
 End GET_CO.
+
+Definition member_dec: forall (it0 it1: ident * type), {it0 = it1} + {it0 <> it1}.
+  intros.
+  destruct it0, it1.
+  destruct (ident_eq i i0), (type_eq t t0); [left | right | right | right]; congruence.
+Defined.
+

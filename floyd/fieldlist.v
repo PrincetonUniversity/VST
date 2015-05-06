@@ -456,6 +456,30 @@ Proof.
       omega.
 Qed.
 
+Lemma In_field_type2: forall it m,
+  members_no_replicate m = true ->
+  In it m ->
+  field_type2 (fst it) m = snd it.
+Proof.
+  unfold field_type2.
+  intros.
+  induction m.
+  + inversion H0.
+  + destruct a, it.
+    simpl.
+    if_tac.
+    - destruct H0; [inversion H0; auto |].
+      apply in_map with (f := fst) in H0.
+      simpl in H0.
+      pose proof in_members_tail_no_replicate _ _ _ _ H H0.
+      congruence.
+    - apply IHm.
+      * rewrite members_no_replicate_ind in H.
+        tauto.
+      * inversion H0; [| auto].
+        inversion H2; congruence.
+Qed.
+
 End COMPOSITE_ENV.
 
 Module fieldlist.
@@ -569,6 +593,12 @@ Definition sizeof_union_0: forall env i m,
   in_members i m ->
   sizeof env (field_type i m) = 0
 := @sizeof_union_0.
+
+Definition In_field_type: forall it m,
+  members_no_replicate m = true ->
+  In it m ->
+  field_type (fst it) m = snd it
+:= @In_field_type2.
 
 End fieldlist.
 

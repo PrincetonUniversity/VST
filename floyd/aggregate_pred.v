@@ -5,6 +5,7 @@ Require Import floyd.type_induction.
 Require Import floyd.fieldlist.
 Require Import floyd.zlist.
 Require Import floyd.compact_prod_sum.
+Require Import floyd.aggregate_type.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.nested_pred_lemmas.
 Require Import floyd.jmeq_lemmas.
@@ -273,13 +274,15 @@ Proof.
   auto.
 Qed.
 
+Opaque member_dec.
+
 Lemma struct_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
   (forall i d0 d1, in_members i m ->
      P0 _ (proj_struct i m v0 d0) p |-- P1 _ (proj_struct i m v1 d1) p) ->
   struct_pred m P0 v0 p |-- struct_pred m P1 v1 p.
 Proof.
-  unfold field_type2.
+  unfold proj_struct, field_type2.
   intros.
   destruct m as [| (i0, t0) m]; [simpl; auto |].
   revert i0 t0 v0 v1 H H0; induction m as [| (i1, t1) m]; intros.
@@ -288,6 +291,7 @@ Proof.
     if_tac in H0; [| congruence].
     specialize (H0 v0 v1).
     spec H0; [left; reflexivity |].
+    destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
     unfold eq_rect_r in H0; rewrite <- !eq_rect_eq in H0.
     simpl.
     exact H0.
@@ -301,6 +305,7 @@ Proof.
       if_tac in H0; [| congruence].
       specialize (H0 (fst v0) (fst v1)).
       spec H0; [left; reflexivity |].
+      destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
       unfold eq_rect_r in H0; rewrite <- !eq_rect_eq in H0.
       simpl.
       exact H0.
@@ -315,6 +320,15 @@ Proof.
         tauto.
       * specialize (H0 d0 d1).
         spec H0; [right; auto |].
+        change (if ident_eq i i1
+                then Errors.OK t1
+                else field_type i m) with (field_type i ((i1, t1) :: m)) in H0.
+        destruct (member_dec
+             (i,
+             match field_type i ((i1, t1) :: m) with
+             | Errors.OK t => t
+             | Errors.Error _ => Tvoid
+             end) (i0, t0)); [congruence |].
         exact H0.
 Qed.
 
@@ -367,14 +381,23 @@ Proof.
     reflexivity.
 Qed.
 
+Lemma compact_sum_inj_eq_spec: forall {A} a0 a1 (l: list A) F0 F1 (v0: compact_sum (map F0 (a0 :: a1 :: l))) (v1: compact_sum (map F1 (a0 :: a1 :: l))) H,
+  (forall a, compact_sum_inj v0 a H <-> compact_sum_inj v1 a H) <->
+  match v0, v1 with
+  | inl _, inl _ => True
+  | inr v0, inr v1 => forall a, compact_sum_inj (v0: compact_sum (map F0 (a1 :: l))) a H <-> compact_sum_inj (v1: compact_sum (map F1 (a1 :: l))) a H
+  | _, _ => False
+  end.
+Admitted.
+
 Lemma union_pred_ext_derives: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
-  members_union_inj v0 = members_union_inj v1 ->
-  (forall i d0 d1, i = fst (members_union_inj v0) -> i = fst (members_union_inj v1) ->
+  (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
+  (forall i d0 d1, members_union_inj v0 (i, field_type2 i m) -> members_union_inj v1 (i, field_type2 i m) ->
      P0 _ (proj_union i m v0 d0) p |-- P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p |-- union_pred m P1 v1 p.
 Proof.
-  unfold field_type2.
+  unfold members_union_inj, proj_union, field_type2.
   intros.
   destruct m as [| (i0, t0) m]; [simpl; auto |].
   revert i0 t0 v0 v1 H H0 H1; induction m as [| (i1, t1) m]; intros.
@@ -382,19 +405,21 @@ Proof.
     simpl in H1.
     if_tac in H1; [| congruence].
     specialize (H1 v0 v1).
-    spec H1; [reflexivity |].
-    spec H1; [reflexivity |].
+    spec H1; [if_tac; [auto | congruence] |].
+    spec H1; [if_tac; [auto | congruence] |].
+    destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
     unfold eq_rect_r in H1; rewrite <- !eq_rect_eq in H1.
     simpl.
     exact H1.
-  + rewrite members_unions_inj_eq_spec in H0 by auto.
+  + rewrite compact_sum_inj_eq_spec in H0.
     destruct v0 as [v0 | v0], v1 as [v1 | v1]; try solve [inversion H0].
     - specialize (H1 i0).
       simpl in H1.
       if_tac in H1; [| congruence].
       specialize (H1 v0 v1).
-      spec H1; [reflexivity |].
-      spec H1; [reflexivity |].
+      spec H1; [if_tac; [auto | congruence] |].
+      spec H1; [if_tac; [auto | congruence] |].
+      destruct (member_dec (i0, t0) (i0, t0)); [| congruence].
       unfold eq_rect_r in H1; rewrite <- !eq_rect_eq in H1.
       simpl.
       exact H1.
@@ -403,14 +428,24 @@ Proof.
       intros.
       specialize (H1 i).
       simpl in H1.
-      if_tac in H1.
-      * clear - H H2 H4.
-        pose proof members_union_inj_in_members _ _ v0.
-        spec H0; [congruence |].
+      if_tac in H1. (* i = i0 vs i <> i0 *)
+      * clear - H H2 H4 t0.
+        pose proof compact_sum_inj_in v0 (i, field_type2 i ((i1, t1) :: m)) member_dec.
+        spec H0; [exact H2 |].
         subst.
-        rewrite <- H2 in H0.
+        apply in_map with (f := fst) in H0.
+        unfold fst at 1 in H0.
         tauto.
       * specialize (H1 d0 d1).
+        change (if ident_eq i i1
+                then Errors.OK t1
+                else field_type i m) with (field_type i ((i1, t1) :: m)) in H1.
+        destruct (member_dec
+             (i,
+             match field_type i ((i1, t1) :: m) with
+             | Errors.OK t => t
+             | Errors.Error _ => Tvoid
+             end) (i0, t0)); [congruence |].
         spec H1; [auto |].
         spec H1; [auto |].
         exact H1.
@@ -418,13 +453,15 @@ Qed.
 
 Lemma union_pred_ext: forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
-  members_union_inj v0 = members_union_inj v1 ->
-  (forall i d0 d1, i = fst (members_union_inj v0) -> i = fst (members_union_inj v1) ->
+  (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
+  (forall i d0 d1, members_union_inj v0 (i, field_type2 i m) -> members_union_inj v1 (i, field_type2 i m) ->
      P0 _ (proj_union i m v0 d0) p = P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p = union_pred m P1 v1 p.
 Proof.
   intros.
-  apply pred_ext; eapply union_pred_ext_derives; eauto;
+  assert (forall it, members_union_inj v1 it <-> members_union_inj v0 it)
+    by (intro it; specialize (H0 it); tauto).
+  apply pred_ext; eapply union_pred_ext_derives; auto;
   intros; erewrite H1 by eauto; auto.
 Qed.
 
@@ -657,11 +694,9 @@ End EMPTY_AGGREGATE.
 
 Module aggregate_pred.
 
-Export floyd.compact_prod_sum.compact_prod_sum.
-Export floyd.zlist.
-
 Open Scope Z.
 Open Scope logic.
+Export floyd.aggregate_type.aggregate_type.
 
 Definition array_pred: forall {A: Type} `{Zlist A} (lo hi: Z) (P: Z -> A -> val -> mpred) (v: zlist A lo hi), val -> mpred := @array_pred.
 
@@ -763,8 +798,8 @@ Definition andp_struct_pred: forall m {A} (P: forall it, A it -> val -> mpred) v
 Definition union_pred_ext_derives:
   forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
-  members_union_inj v0 = members_union_inj v1 ->
-  (forall i d0 d1, i = fst (members_union_inj v0) -> i = fst (members_union_inj v1) ->
+  (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
+  (forall i d0 d1, members_union_inj v0 (i, field_type i m) -> members_union_inj v1 (i, field_type i m) ->
      P0 _ (proj_union i m v0 d0) p |-- P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p |-- union_pred m P1 v1 p
 := @union_pred_ext_derives.
@@ -772,8 +807,8 @@ Definition union_pred_ext_derives:
 Definition union_pred_ext:
   forall m {A0 A1} (P0: forall it, A0 it -> val -> mpred) (P1: forall it, A1 it -> val -> mpred) v0 v1 p,
   members_no_replicate m = true ->
-  members_union_inj v0 = members_union_inj v1 ->
-  (forall i d0 d1, i = fst (members_union_inj v0) -> i = fst (members_union_inj v1) ->
+  (forall it, members_union_inj v0 it <-> members_union_inj v1 it) ->
+  (forall i d0 d1, members_union_inj v0 (i, field_type i m) -> members_union_inj v1 (i, field_type i m) ->
      P0 _ (proj_union i m v0 d0) p = P1 _ (proj_union i m v1 d1) p) ->
   union_pred m P0 v0 p = union_pred m P1 v1 p
 := @union_pred_ext.
@@ -806,47 +841,48 @@ Context {cs: compspecs}.
 
 Variable sh: share.
 
-Definition struct_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (snd it) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (snd it)) m)) : (val -> mpred).
+Definition struct_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (field_type2 (fst it) m0)) m)) : (val -> mpred).
 Proof.
   destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
   revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
   + simpl in v, P.
     inversion P; subst.
     exact (withspacer sh
-            (field_offset2 cenv_cs i0 m0 + sizeof cenv_cs t0)
+            (field_offset2 cenv_cs i0 m0 + sizeof cenv_cs (field_type2 i0 m0))
             (field_offset_next cenv_cs i0 m0 sz)
             (at_offset (a v) (field_offset2 cenv_cs i0 m0))).
   + simpl in v, P.
+    destruct (ident_eq i1 i1); [| congruence].
     inversion P; subst.
     exact (withspacer sh
-            (field_offset2 cenv_cs i1 m0 + sizeof cenv_cs t1)
+            (field_offset2 cenv_cs i1 m0 + sizeof cenv_cs (field_type2 i1 m0))
             (field_offset_next cenv_cs i1 m0 sz)
             (at_offset (a (fst v)) (field_offset2 cenv_cs i1 m0)) * IHm i0 t0 (snd v) b).
 Defined.
 
-Definition union_data_at'_aux (m: members) (sz: Z) (P: ListType (map (fun it => reptype (snd it) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (snd it)) m)) : (val -> mpred).
+Definition union_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (field_type2 (fst it) m0)) m)) : (val -> mpred).
 Proof.
   destruct m as [| (i0, t0) m]; [exact (fun _ => emp) |].
   revert i0 t0 v P; induction m as [| (i0, t0) m]; intros ? ? v P.
   + simpl in v, P.
     inversion P; subst.
-    exact (withspacer sh (sizeof cenv_cs t0) sz (a v)).
+    exact (withspacer sh (sizeof cenv_cs (field_type2 i0 m0)) sz (a v)).
   + simpl in v, P.
     inversion P; subst.
     destruct v as [v | v].
-    - exact (withspacer sh (sizeof cenv_cs t1) sz (a v)).
+    - exact (withspacer sh (sizeof cenv_cs (field_type2 i1 m0)) sz (a v)).
     - exact (IHm i0 t0 v b).
 Defined.
 
 Lemma struct_data_at'_aux_spec: forall m m0 sz v P,
   struct_data_at'_aux m m0 sz
    (ListTypeGen
-     (fun it => reptype (snd it) -> val -> mpred)
+     (fun it => reptype (field_type2 (fst it) m0) -> val -> mpred)
      P m) v =
   struct_pred m 
    (fun it v =>
       withspacer sh
-       (field_offset2 cenv_cs (fst it) m0 + sizeof cenv_cs (snd it))
+       (field_offset2 cenv_cs (fst it) m0 + sizeof cenv_cs (field_type2 (fst it) m0))
        (field_offset_next cenv_cs (fst it) m0 sz)
        (at_offset (P it v) (field_offset2 cenv_cs (fst it) m0))) v.
 Proof.
@@ -854,37 +890,40 @@ Proof.
   destruct m as [| (i0, t0) m]; [reflexivity |].
   revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
   + simpl; reflexivity.
-  + change
+  + replace
      (struct_data_at'_aux ((i1, t1) :: (i0, t0) :: m) m0 sz
-     (ListTypeGen (fun it : ident * type => reptype (snd it) -> val -> mpred)
+     (ListTypeGen (fun it : ident * type => reptype (field_type2 (fst it) m0) -> val -> mpred)
         P ((i1, t1) :: (i0, t0) :: m)) v) with
      (withspacer sh
-       (field_offset2 cenv_cs i1 m0 + sizeof cenv_cs t1)
+       (field_offset2 cenv_cs i1 m0 + sizeof cenv_cs (field_type2 i1 m0))
          (field_offset_next cenv_cs i1 m0 sz)
            (at_offset (P (i1, t1) (fst v)) (field_offset2 cenv_cs i1 m0)) *
       struct_data_at'_aux ((i0, t0) :: m) m0 sz
-     (ListTypeGen (fun it : ident * type => reptype (snd it) -> val -> mpred)
+     (ListTypeGen (fun it : ident * type => reptype (field_type2 (fst it) m0) -> val -> mpred)
         P ((i0, t0) :: m)) (snd v)).
-    rewrite IHm.
-    reflexivity.
+    - rewrite IHm.
+      reflexivity.
+    - simpl.
+      destruct (ident_eq i1 i1); [| congruence].
+      reflexivity.
 Qed.
 
-Lemma union_data_at'_aux_spec: forall m sz v P,
-  union_data_at'_aux m sz
+Lemma union_data_at'_aux_spec: forall m m0 sz v P,
+  union_data_at'_aux m m0 sz
    (ListTypeGen
-     (fun it => reptype (snd it) -> val -> mpred)
+     (fun it => reptype (field_type2 (fst it) m0) -> val -> mpred)
      P m) v =
   union_pred m
    (fun it v =>
       withspacer sh
-       (sizeof cenv_cs (snd it))
+       (sizeof cenv_cs (field_type2 (fst it) m0))
        sz
        (P it v)) v.
 Proof.
   intros.
   destruct m as [| (i0, t0) m]; [reflexivity |].
   revert i0 t0 v; induction m as [| (i0, t0) m]; intros.
-  + simpl; reflexivity.
+  + simpl. unfold union_pred. simpl. reflexivity.
   + destruct v as [v | v].
     - reflexivity.
     - apply IHm.
@@ -897,35 +936,35 @@ Module auxiliary_pred.
 Import aggregate_pred.
 
 Definition struct_data_at'_aux:
-   forall {cs: compspecs} (sh: share) (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (snd it) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (snd it)) m)), (val -> mpred)
+   forall {cs: compspecs} (sh: share) (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_prod (map (fun it => reptype (field_type (fst it) m0)) m)), (val -> mpred)
 := @struct_data_at'_aux.
 
 Definition union_data_at'_aux:
-  forall {cs: compspecs} (sh: share) (m: members) (sz: Z) (P: ListType (map (fun it => reptype (snd it) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (snd it)) m)), (val -> mpred)
+  forall {cs: compspecs} (sh: share) (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)), (val -> mpred)
 := @union_data_at'_aux.
 
 Definition struct_data_at'_aux_spec: forall {cs: compspecs} (sh: share) m m0 sz v P,
   struct_data_at'_aux sh m m0 sz
    (ListTypeGen
-     (fun it => reptype (snd it) -> val -> mpred)
+     (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
      P m) v =
   struct_pred m 
    (fun it v =>
       withspacer sh
-       (field_offset cenv_cs (fst it) m0 + sizeof cenv_cs (snd it))
+       (field_offset2 cenv_cs (fst it) m0 + sizeof cenv_cs (field_type (fst it) m0))
        (field_offset_next cenv_cs (fst it) m0 sz)
-       (at_offset (P it v) (field_offset cenv_cs (fst it) m0))) v
+       (at_offset (P it v) (field_offset2 cenv_cs (fst it) m0))) v
 := @struct_data_at'_aux_spec.
 
-Definition union_data_at'_aux_spec: forall {cs: compspecs} sh m sz v P,
-  union_data_at'_aux sh m sz
+Definition union_data_at'_aux_spec: forall {cs: compspecs} sh m m0 sz v P,
+  union_data_at'_aux sh m m0 sz
    (ListTypeGen
-     (fun it => reptype (snd it) -> val -> mpred)
+     (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
      P m) v =
   union_pred m
    (fun it v =>
       withspacer sh
-       (sizeof cenv_cs (snd it))
+       (sizeof cenv_cs (field_type (fst it) m0))
        sz
        (P it v)) v
 := @union_data_at'_aux_spec.

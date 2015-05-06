@@ -1,16 +1,19 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
-Require Import floyd.fieldlist.
 Require Import floyd.nested_field_lemmas.
-Require Import floyd.mapsto_memory_block.
-Require Import floyd.rangespec_lemmas.
-Require Import floyd.data_at_lemmas.
-Require Import floyd.entailer.
-Require Import floyd.closed_lemmas.
+Require Import type_induction.
+Require Import floyd.reptype_lemmas.
+Require floyd.aggregate_type. Import floyd.aggregate_type.aggregate_type.
 Require Import floyd.jmeq_lemmas.
 Require Import Coq.Logic.JMeq.
 
+(*
+Require Import floyd.mapsto_memory_block.
+Require Import floyd.data_at_lemmas.
+Require Import floyd.entailer.
+Require Import floyd.closed_lemmas.
+*)
 Local Open Scope logic.
 
 (**********************************************
@@ -39,497 +42,9 @@ data_at_with_mexception * [field_at] = data_at
 
 **********************************************)
 
-Fixpoint force_lengthn {A} n (xs: list A) (default: A) :=
-  match n, xs with
-  | O, _ => nil
-  | S n0, nil => default :: force_lengthn n0 nil default
-  | S n0, hd :: tl => hd :: force_lengthn n0 tl default
-  end.
-
-(*** type level ***)
-
-Fixpoint all_fields_except_one (f: fieldlist) (id: ident) : option fieldlist :=
-  match f with
-  | Fnil => None
-  | Fcons i t f0 =>
-    if ident_eq id i
-    then Some f0
-    else match (all_fields_except_one f0 id) with
-         | None => None
-         | Some res => Some (Fcons i t res)
-         end
-  end.
-
-Fixpoint all_fields_except_one2 (f: fieldlist) (id: ident) : fieldlist :=
-  match f with
-  | Fnil => Fnil
-  | Fcons i t f0 =>
-    if ident_eq id i
-    then f0
-    else Fcons i t (all_fields_except_one2 f0 id)
-  end.
-
-Fixpoint all_fields_replace_one (f: fieldlist) (id: ident) (t0: type) : option fieldlist :=
-  match f with
-  | Fnil => None
-  | Fcons i t f0 =>
-    if ident_eq id i
-    then Some (Fcons i t0 f0)
-    else match (all_fields_replace_one f0 id t0) with
-         | None => None
-         | Some res => Some (Fcons i t res)
-         end
-  end.
-
-Fixpoint all_fields_replace_one2 (f: fieldlist) (id: ident) (t0: type) : fieldlist :=
-  match f with
-  | Fnil => Fnil
-  | Fcons i t f0 =>
-    if ident_eq id i
-    then Fcons i t0 f0
-    else Fcons i t (all_fields_replace_one2 f0 id t0)
-  end.
-
-Definition ArrayField t n a i t0:=
-  if (Z.eqb i 0)
-  then Fcons 1002%positive t0 (Fcons 1003%positive (Tarray t (n - 1) a) Fnil)
-  else if (Z.eqb i (n - 1))
-  then Fcons 1001%positive (Tarray t (n - 1) a) (Fcons 1002%positive t0 Fnil)
-  else Fcons 1001%positive (Tarray t i a)
-         (Fcons 1002%positive t0
-           (Fcons 1003%positive (Tarray t (n - i - 1) a) Fnil)).
-
-Fixpoint nf_replace t gfs t0: option type :=
-  match gfs with
-  | nil => Some t0
-  | gf :: gfs0 => 
-    match gf, nested_field_type2 t gfs0 with
-    | ArraySubsc i, Tarray t0 n a =>
-      nf_replace t gfs0 (Tstruct 1000%positive (ArrayField t n a i t0) noattr)
-    | StructField i, Tstruct i0 f a =>
-      match all_fields_replace_one f i t0 with
-      | Some f' => nf_replace t gfs0 (Tstruct i0 f' a)
-      | None => None
-      end
-    | UnionField i, Tunion i0 f a =>
-      match all_fields_replace_one f i t0 with
-      | Some _ => nf_replace t gfs0 (Tunion i0 (Fcons i t0 Fnil) a)
-      | None => None
-      end
-    | _, _ => None
-    end
-  end.
-
-Fixpoint nf_replace2 t gfs t0: type :=
-  match gfs with
-  | nil => t0
-  | gf :: gfs0 => 
-    match gf, nested_field_type2 t gfs0 with
-    | ArraySubsc i, Tarray t1 n a =>
-      nf_replace2 t gfs0 (Tstruct 1000%positive (ArrayField t1 n a i t0) noattr)
-    | StructField i, Tstruct i0 f a =>
-        nf_replace2 t gfs0 (Tstruct i0 (all_fields_replace_one2 f i t0) a)
-    | UnionField i, Tunion i0 f a =>
-        nf_replace2 t gfs0 (Tunion i0 (Fcons i t0 Fnil) a)
-    | _, _ => t
-    end
-  end.
-
-Definition nf_sub t gf gfs: option type :=
-  match gf, nested_field_type2 t gfs with
-  | ArraySubsc i, Tarray t0 n a =>
-    nf_replace t gfs (Tstruct 1000%positive
-     (all_fields_except_one2 (ArrayField t0 n a i Tvoid) 1002%positive) noattr)
-  | StructField i, Tstruct i0 f a =>
-    match all_fields_except_one f i with
-    | Some f' => nf_replace t gfs (Tstruct i0 f' a)
-    | None => None
-    end
-  | UnionField i, Tunion i0 f a =>
-    match all_fields_except_one f i with
-    | Some f' => nf_replace t gfs (Tunion i0 Fnil a)
-    | None => None
-    end
-  | _, _ => None
-  end.
-
-Definition nf_sub2 t gf gfs: type :=
-  match gf, nested_field_type2 t gfs with
-  | ArraySubsc i, Tarray t0 n a =>
-    nf_replace2 t gfs (Tstruct 1000%positive
-      (all_fields_except_one2 (ArrayField t0 n a i Tvoid) 1002%positive) noattr)
-  | StructField i, Tstruct i0 f a =>
-      nf_replace2 t gfs (Tstruct i0 (all_fields_except_one2 f i) a)
-  | UnionField i, Tunion i0 f a =>
-      nf_replace2 t gfs (Tunion i0 Fnil a)
-  | _, _ => t
-  end.
-
-Lemma is_Fnil_all_fields_replace_one2: forall f id t,
-  is_Fnil (all_fields_replace_one2 f id t) = is_Fnil f.
-Proof.
-  intros.
-  destruct f.
-  + reflexivity.
-  + simpl.
-    if_tac; reflexivity.
-Defined.
-
-(*
-Lemma all_fields_except_one_all_fields_except_one2: forall f id,
-  all_fields_except_one f id = Some (all_fields_except_one2 f id) \/
-  all_fields_except_one f id = None /\ all_fields_except_one2 f id = f.
-Proof.
-  intros.
-  induction f.
-  + auto.
-  + simpl; if_tac; [ |destruct IHf].
-    - auto.
-    - rewrite H0. auto.
-    - destruct H0; rewrite H0, H1. auto.
-Defined.
-
-Lemma all_fields_replace_one_all_fields_replace_one2: forall f id t,
-  all_fields_replace_one f id t = Some (all_fields_replace_one2 f id t) \/
-  all_fields_replace_one f id t = None /\ all_fields_replace_one2 f id t = f.
-Proof.
-  intros.
-  induction f.
-  + auto.
-  + simpl; if_tac; [ |destruct IHf].
-    - auto.
-    - rewrite H0. auto.
-    - destruct H0; rewrite H0, H1. auto.
-Defined.
-*)
-
-(*
-Lemma all_fields_replace_one2_identical: forall f i t,
-  (field_type i f = Errors.OK t \/ exists e, field_type i f = Errors.Error e) -> all_fields_replace_one2 f i t = f.
-Proof.
-  intros.
-  induction f.
-  + reflexivity.
-  + simpl in *.
-    if_tac in H.
-    - destruct H as [? | [? ?]]; inversion H; reflexivity.
-    - rewrite (IHf H). reflexivity.
-Defined.
-
-Lemma nf_replace2_identical: forall t gfs, t = nf_replace2 t gfs (nested_field_type2 t gfs).
-Proof.
-  intros.
-  induction gfs.
-  + reflexivity.
-  + simpl.
-    destruct (nested_field_type2 t gfs) eqn:?; auto.
-    - (* Tstruct *)
-      rewrite all_fields_replace_one2_identical; auto.
-      erewrite nested_field_type2_cons; eauto.
-      rewrite Heqt0.
-      change (field_offset_rec a f 0) with (field_offset a f).
-      solve_field_offset_type a f; eauto.
-    - (* Tunion *)
-      rewrite all_fields_replace_one2_identical; auto.
-      erewrite nested_field_type2_cons; eauto.
-      rewrite Heqt0.
-      change (field_offset_rec a f 0) with (field_offset a f).
-      solve_field_offset_type a f; eauto.
-Defined.
-*)
-(*
-Lemma nf_replace_nf_replace2: forall t gfs t0,
-  nf_replace t gfs t0 = Some (nf_replace2 t gfs t0) \/
-  nf_replace t gfs t0 = None /\ nf_replace2 t gfs t0 = t.
-Proof.
-  induction gfs; intros.
-  + auto.
-  + simpl. simpl; destruct (nested_field_type2 t gfs) eqn:?; auto.
-    - destruct (all_fields_replace_one_all_fields_replace_one2 f a t0) as [H | [H0 H1]].
-      * rewrite H; auto.
-      * rewrite H0, H1, <- Heqt1.
-        rewrite <- nf_replace2_identical.
-        auto.
-    - destruct (all_fields_replace_one_all_fields_replace_one2 f a t0) as [H | [H0 H1]].
-      * rewrite H; auto.
-      * rewrite H0, H1, <- Heqt1.
-        rewrite <- nf_replace2_identical.
-        auto.
-Defined.
-
-Lemma nf_sub_nf_sub2: forall t id gfs,
-  nf_sub t id gfs = Some (nf_sub2 t id gfs) \/
-  nf_sub t id gfs = None /\ nf_sub2 t id gfs = t.
-Proof.
-  intros.
-  unfold nf_sub2, nf_sub.
-  destruct (nested_field_type2 t gfs) eqn:?; auto.
-  + destruct (all_fields_except_one_all_fields_except_one2 f id) as [H | [H0 H1]].
-    - rewrite H; auto.
-      apply nf_replace_nf_replace2.
-    - rewrite H0, H1, <- Heqt0.
-      rewrite <- nf_replace2_identical.
-      auto.
-  + destruct (all_fields_except_one_all_fields_except_one2 f id) as [H | [H0 H1]].
-    - rewrite H; auto.
-      apply nf_replace_nf_replace2.
-    - rewrite H0, H1, <- Heqt0.
-      rewrite <- nf_replace2_identical.
-      auto.
-Defined.
-*)
-Lemma nested_field_type2_nf_replace2_aux:
-  forall i f t0,
-  isOK (field_type i f) = true ->
-   match field_offset i (all_fields_replace_one2 f i t0) with
-   | Errors.OK _ =>
-       match field_type i (all_fields_replace_one2 f i t0) with
-       | Errors.OK t1 => t1
-       | Errors.Error _ => Tvoid
-       end
-   | Errors.Error _ => Tvoid
-   end = t0.
-Proof.
-  intros.
-  unfold field_offset in *.
-  revert H; generalize 0.
-  induction f; intros.
-  + inversion H.
-  + unfold all_fields_replace_one. simpl in *.
-    destruct (ident_eq i i0).
-    - simpl; destruct (ident_eq i i0); [| congruence]; reflexivity.
-    - simpl; destruct (ident_eq i i0); [congruence |].
-      apply IHf, H.
-Defined.
-
-Lemma nested_field_type2_nf_replace2_aux':
-  forall i f t0,
-  isOK (field_type i f) = true ->
-  match field_type i (all_fields_replace_one2 f i t0) with
-  | Errors.OK t1 => t1
-  | Errors.Error _ => Tvoid
-  end = t0.
-Proof.
-  intros.
-  unfold field_offset in *.
-  revert H.
-  induction f; intros.
-  + inversion H.
-  + unfold all_fields_replace_one. simpl in *.
-    destruct (ident_eq i i0).
-    - simpl; destruct (ident_eq i i0); [| congruence]; reflexivity.
-    - simpl; destruct (ident_eq i i0); [congruence |].
-      apply IHf, H.
-Defined.
-
-(*
-Lemma nested_field_type2_nf_replace2: forall t gfs t0, isSome (nested_field_rec t gfs) -> nested_field_type2 (nf_replace2 t gfs t0) gfs = t0.
-Proof.
-  intros.
-  revert t0 H; induction gfs; intros.
-  + reflexivity.
-  + simpl.
-    solve_nested_field_rec_cons_isSome H.
-    - (* Tstruct *)
-      rewrite H2, nested_field_type2_cons, IHgfs by auto.
-      apply nested_field_type2_nf_replace2_aux, H1.
-    - (* Tunion *)
-      rewrite H2, nested_field_type2_cons, IHgfs by auto.
-      apply nested_field_type2_nf_replace2_aux', H1.
-Defined.
-*)
-Lemma all_fields_replace_one2_all_fields_replace_one2: forall f i t0 t1, all_fields_replace_one2 (all_fields_replace_one2 f i t0) i t1 = all_fields_replace_one2 f i t1.
-Proof.
-  intros.
-  induction f.
-  + reflexivity.
-  + simpl.
-    if_tac.
-    - simpl; if_tac; [| congruence]; reflexivity.
-    - simpl; if_tac; [congruence |].
-      f_equal. apply IHf.
-Defined.
-
-(*
-Lemma all_fields_replace_one_field_type_isSome_lemma: forall i f t0,
-  isSome (all_fields_replace_one f i t0) <-> isOK (field_type i f) = true.
-Proof.
-  intros.
-  induction f.
-  + simpl. split; intros; firstorder.
-  + simpl.
-    destruct (ident_eq i i0); [simpl; tauto |].
-    destruct (all_fields_replace_one f i t0), (field_type i f); simpl in *; congruence.
-Defined.
-*)
-(*
-Lemma nf_replace_nested_field_rec_isSome_lemma: forall t gfs t0, isSome (nf_replace t gfs t0) <-> isSome (nested_field_rec t gfs).
-Proof.
-  intros.
-  revert t0.
-  induction gfs; intros.
-  + simpl. tauto.
-  + eapply iff_trans; [| apply iff_sym, nested_field_rec_cons_isSome_lemma].
-    simpl nf_replace; unfold nested_field_type2.
-    destruct (nested_field_rec t gfs) as [[z1 t1] |]; [destruct t1|];
-    (split; intros; [try inversion H | destruct H as [? [? [? [? [? [? | ?]]]]]]]; try inversion H1).
-    - assert (isSome (all_fields_replace_one f a t0))
-        by (destruct (all_fields_replace_one f a t0); [simpl; exact I | inversion H]).
-      apply all_fields_replace_one_field_type_isSome_lemma in H0.
-      split; [exact I | exists i, f, a0; tauto].
-    - apply (iff_sym (all_fields_replace_one_field_type_isSome_lemma _ _ t0)) in H0.
-      destruct (all_fields_replace_one x0 a t0); [| inversion H0].
-      apply (iff_sym (IHgfs (Tstruct x f0 x1))).
-      simpl; auto.
-    - assert (isSome (all_fields_replace_one f a t0))
-        by (destruct (all_fields_replace_one f a t0); [simpl; exact I | inversion H]).
-      apply all_fields_replace_one_field_type_isSome_lemma in H0.
-      split; [exact I | exists i, f, a0; tauto].
-    - apply (iff_sym (all_fields_replace_one_field_type_isSome_lemma _ _ t0)) in H0.
-      destruct (all_fields_replace_one x0 a t0); [| inversion H0].
-      apply (iff_sym (IHgfs (Tunion x f0 x1))).
-      simpl; auto.
-Defined.
-*)
-(*
-Lemma nf_replace2_nf_replace2: forall t gfs t0 t1, nf_replace2 (nf_replace2 t gfs t0) gfs t1 = nf_replace2 t gfs t1.
-Proof.
-  intros.
-  destruct (isSome_dec (nested_field_rec t gfs)) as [H | H].
-  + revert t0 t1 H.
-    induction gfs; intros.
-    - reflexivity.
-    - simpl.
-      solve_nested_field_rec_cons_isSome H.
-      * (* Tstruct *)
-        rewrite H2, nested_field_type2_nf_replace2 by auto.
-        erewrite IHgfs by auto.
-        rewrite all_fields_replace_one2_all_fields_replace_one2.
-        reflexivity.
-      * (* Tunion *)
-        rewrite H2, nested_field_type2_nf_replace2 by auto.
-        erewrite IHgfs by auto.
-        rewrite all_fields_replace_one2_all_fields_replace_one2.
-        reflexivity.
-  + pose proof nf_replace_nested_field_rec_isSome_lemma t gfs t0.
-    destruct (isSome_dec (nf_replace t gfs t0)) as [H1 | H1];
-    destruct (nf_replace_nf_replace2 t gfs t0) as [? | [? ?]].
-    - tauto.
-    - tauto.
-    - rewrite H2 in H1. simpl in H1; tauto.
-    - rewrite H3 in *; reflexivity.
-Defined.
-
-Lemma nf_replace2_identical': forall t id gfs, t = nf_replace2 (nf_sub2 t id gfs) gfs (nested_field_type2 t gfs).
-Proof.
-  intros.
-  unfold nf_sub2.
-  pattern (nested_field_type2 t gfs) at 1.
-  destruct (nested_field_type2 t gfs); try apply nf_replace2_identical.
-  + rewrite nf_replace2_nf_replace2.
-    apply nf_replace2_identical.
-  + rewrite nf_replace2_nf_replace2.
-    apply nf_replace2_identical.
-Defined.
-*)
-Lemma all_fields_except_one2_all_fields_replace_one2: forall id f t0,
-  all_fields_except_one2 (all_fields_replace_one2 f id t0) id = all_fields_except_one2 f id.
-Proof.
-  intros.
-  induction f.
-  + reflexivity.
-  + simpl.
-    if_tac.
-    - simpl.
-      if_tac; [reflexivity | congruence].
-    - simpl.
-      if_tac; [congruence | ].
-      rewrite IHf.
-      reflexivity.
-Defined.
-
-(*
-Lemma nf_sub2_nf_replace2: forall t id gfs t0, nf_sub2 (nf_replace2 t (id :: gfs) t0) id gfs = nf_sub2 t id gfs.
-Proof.
-  intros.
-  simpl.
-  destruct (nested_field_type2 t gfs) eqn:?; auto.
-  + (* Tstruct *)
-    unfold nf_sub2.
-    destruct (nf_replace_nf_replace2 t gfs (Tstruct i (all_fields_replace_one2 f id t0) a)) as [? |[? ?]].
-    - rewrite nested_field_type2_nf_replace2; [ |eapply nested_field_type2_Tstruct_nested_field_rec_isSome; eauto].
-      rewrite nf_replace2_nf_replace2, Heqt1.
-      rewrite all_fields_except_one2_all_fields_replace_one2.
-      reflexivity.
-    - rewrite H0.
-      reflexivity.
-  + (* Tunion *)
-    unfold nf_sub2.
-    destruct (nf_replace_nf_replace2 t gfs (Tunion i (all_fields_replace_one2 f id t0) a)) as [? |[? ?]].
-    - rewrite nested_field_type2_nf_replace2;[ |eapply nested_field_type2_Tunion_nested_field_rec_isSome; eauto].
-      rewrite nf_replace2_nf_replace2, Heqt1.
-      rewrite all_fields_except_one2_all_fields_replace_one2.
-      reflexivity.
-    - rewrite H0.
-      reflexivity.
-Defined.
-
-Lemma nf_sub2_nf_sub2_cons: forall t id id0 gfs, nf_sub2 (nf_sub2 t id (id0 :: gfs)) id0 gfs = nf_sub2 t id0 gfs.
-Proof.
-  intros.
-  unfold nf_sub2 at 2.
-  destruct (nested_field_type2 t (id0 :: gfs)); auto.
-  rewrite nf_sub2_nf_replace2; reflexivity.
-  rewrite nf_sub2_nf_replace2; reflexivity.
-Defined.
-*)
-
-(*
-Lemma nested_field_type2_nf_sub2_Tstruct: forall t i gfs i0 f a, nested_field_type2 t gfs = Tstruct i0 f a -> nested_field_type2 (nf_sub2 t (StructField i) gfs) gfs = Tstruct i0 (all_fields_except_one2 f i) a.
-Proof.
-  intros.
-  unfold nf_sub2.
-  rewrite H.
-  rewrite nested_field_type2_nf_replace2
-    by (eapply nested_field_type2_Tstruct_nested_field_rec_isSome; eauto).
-  reflexivity.
-Defined.
-
-Lemma nested_field_type2_nf_sub2_Tunion: forall t id gfs i f a, nested_field_type2 t gfs = Tunion i f a -> nested_field_type2 (nf_sub2 t id gfs) gfs = Tunion i (all_fields_except_one2 f id) a.
-Proof.
-  intros.
-  unfold nf_sub2.
-  rewrite H.
-  rewrite nested_field_type2_nf_replace2
-    by (eapply nested_field_type2_Tunion_nested_field_rec_isSome; eauto).
-  reflexivity.
-Defined.
-*)
 (*** reptype level ***)
 
-Lemma nested_field_type2_ind: forall t gfs,
-  nested_field_type2 t gfs =
-  match gfs with
-  | nil => t
-  | gf :: gfs0 =>
-    match gf, nested_field_type2 t gfs0 with
-    | ArraySubsc i, Tarray t0 n a => t0
-    | StructField i, Tstruct i0 f a => match field_offset i f, field_type i f with
-                       | Errors.OK _, Errors.OK t0 => t0
-                       | _, _ => Tvoid
-                       end
-    | UnionField i, Tunion i0 f a  => match field_type i f with
-                       | Errors.OK t0 => t0
-                       | _ => Tvoid
-                       end
-    | _, _ => Tvoid
-    end
-  end.
-Proof.
-  intros.
-  destruct gfs; [apply nested_field_type2_nil | apply nested_field_type2_cons].
-Defined.
-
+(*
 Fixpoint proj_reptype_structlist id f ofs (v: reptype_structlist f) : 
   reptype (match field_offset_rec id f ofs, field_type id f with
            | Errors.OK _, Errors.OK t0 => t0
@@ -619,88 +134,112 @@ Fixpoint proj_reptype_unionlist id f (v: reptype_unionlist f) :
            | _ => default_val _
            end
   end v.
+*)
+
+Section PROJ_REPTYPE.
+
+Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
+
+Notation REPTYPE t :=
+  match t return Type with
+  | Tvoid
+  | Tfunction _ _ _ => unit
+  | Tint _ _ _
+  | Tlong _ _
+  | Tfloat _ _
+  | Tpointer _ _ => val
+  | Tarray t0 n _ => @zlist (reptype t0) (default_val t0) (list_zlist (reptype t0) (default_val t0)) 0 n
+  | Tstruct id _ => reptype_structlist (co_members (get_co id))
+  | Tunion id _ => reptype_unionlist (co_members (get_co id))
+  end.
+
+Definition proj_gfield_reptype (t: type) (gf: gfield) (v: reptype t): reptype (gfield_type t gf) :=
+  match t, gf return (REPTYPE t -> reptype (gfield_type t gf))
+  with
+  | Tarray _ _ _, ArraySubsc i => zl_nth i 
+  | Tstruct id _, StructField i => fun v => proj_struct i (co_members (get_co id)) v (default_val _)
+  | Tunion id _, UnionField i => fun v => proj_union i (co_members (get_co id)) v (default_val _)
+  | _, _ => fun _ => default_val _
+  end (unfold_reptype v).
 
 Fixpoint proj_reptype (t: type) (gfs: list gfield) (v: reptype t) : reptype (nested_field_type2 t gfs) :=
   let res :=
   match gfs as gfs'
     return reptype (match gfs' with
                     | nil => t
-                    | gf :: gfs0 =>
-                      match gf, nested_field_type2 t gfs0 with
-                      | ArraySubsc i, Tarray t0 n a => t0
-                      | StructField i, Tstruct i0 f a =>
-                        match field_offset_rec i f 0, field_type i f with
-                        | Errors.OK _, Errors.OK t0 => t0
-                        | _, _ => Tvoid
-                        end
-                      | UnionField i, Tunion i0 f a  => match field_type i f with
-                        | Errors.OK t0 => t0
-                        | _ => Tvoid
-                        end
-                      | _, _ => Tvoid
-                      end
+                    | gf :: gfs0 => gfield_type (nested_field_type2 t gfs0) gf
                     end)
   with
   | nil => v
-  | gf :: gfs0 =>
-    match gf as GF
-      return reptype (nested_field_type2 t gfs0) ->
-             reptype (match GF, nested_field_type2 t gfs0 with
-                      | ArraySubsc i, Tarray t0 n a => t0
-                      | StructField i, Tstruct i0 f a =>
-                        match field_offset_rec i f 0, field_type i f with
-                        | Errors.OK _, Errors.OK t0 => t0
-                        | _, _ => Tvoid
-                        end
-                      | UnionField i, Tunion i0 f a  => match field_type i f with
-                        | Errors.OK t0 => t0
-                        | _ => Tvoid
-                        end
-                      | _, _ => Tvoid
-                      end)
-    with
-    | ArraySubsc i =>
-       match nested_field_type2 t gfs0 as T
-         return reptype T ->
-                reptype (match T with
-                        | Tarray t0 n a => t0
-                        | _ => Tvoid
-                        end)
-       with
-       | Tarray t0 n a => fun v0 => Znth i v0 (default_val _)
-       | _ => fun _ => default_val _
-       end
-    | StructField i =>
-       match nested_field_type2 t gfs0 as T
-         return reptype T -> reptype (match T with
-                                      | Tstruct i0 f a =>
-                                        match field_offset_rec i f 0, field_type i f with
-                                        | Errors.OK _, Errors.OK t0 => t0
-                                        | _, _ => Tvoid
-                                        end
-                                      | _ => Tvoid
-                                      end)
-       with
-       | Tstruct i0 f a => fun v0 => proj_reptype_structlist i f 0 v0
-       | _ => fun _ => default_val _
-       end
-    | UnionField i =>
-       match nested_field_type2 t gfs0 as T
-         return reptype T -> reptype (match T with
-                                      | Tunion i0 f a =>
-                                        match field_type i f with
-                                        | Errors.OK t0 => t0
-                                        | _ => Tvoid
-                                        end
-                                      | _ => Tvoid
-                                      end)
-       with
-       | Tunion i0 f a => fun v0 => proj_reptype_unionlist i f v0
-       | _ => fun _ => default_val _
-       end
-    end (proj_reptype t gfs0 v)
+  | gf :: gfs0 => proj_gfield_reptype _ gf (proj_reptype t gfs0 v)
   end
   in eq_rect_r reptype res (nested_field_type2_ind t gfs).
+
+Inductive branch_status : Type :=
+  | FullUpdate
+  | SemiUpdate
+  | StableOrInvalid.
+
+Definition holes := (list gfield) -> branch_status.
+
+Definition legal_holes (h: holes) :=
+  (forall gf gfs, h (gf :: gfs) = FullUpdate -> h gfs = SemiUpdate) /\
+  (forall gf gfs, h (gf :: gfs) = SemiUpdate -> h gfs = SemiUpdate) /\
+  (forall gfs, h gfs = FullUpdate -> forall gf, h (gf :: gfs) = StableOrInvalid) /\
+  (forall gfs, h gfs = SemiUpdate -> exists gf, h (gf :: gfs) = SemiUpdate \/ h (gf :: gfs) = FullUpdate) /\
+  (forall gfs, h gfs = StableOrInvalid -> forall gf, h (gf :: gfs) = StableOrInvalid).
+
+Definition holes_subs := forall t gfs, reptype (nested_field_type2 t gfs).
+
+Definition gfield_holes (h: holes) (gf: gfield): holes := fun gfs => h (gf :: gfs).
+
+Definition reptype_with_holes (t: type) (h: holes): Type := reptype t.
+
+Definition reptype_with_holes_equiv {t: type} {h: holes} (v0 v1: reptype_with_holes t h): Prop :=
+  forall gfs, legal_nested_field t gfs -> h gfs = StableOrInvalid -> proj_reptype t gfs v0 = proj_reptype t gfs v1.
+
+Definition proj_except_holes (t: type) (h: holes) (v: reptype t) : reptype_with_holes t h := v.
+
+Definition zl_replace {A d} {ZL: Zlist A d} {lo hi} (filter: Z -> bool) (subs: Z -> A) (l: zlist A lo hi) :=
+  zl_gen lo hi (fun i => if filter i then subs i else zl_nth i l).
+
+Definition compact_prod_replace {A} {F: A -> Type} (l: list A) (filter: A -> bool) (subs: forall a, F a) (v: compact_prod (map F l)) H :=
+  compact_prod_gen (fun a => if filter a then subs a else proj_compact_prod a l v (subs a) H) l.
+
+Definition compact_sum_replace {A} {F: A -> Type} (l: list A) (filter: A -> bool) (subs: forall a, F a) (v: compact_sum (map F l)) :=
+  compact_sum_gen filter subs l.
+
+Lemma nested_field_type2_ArraySubsc: forall t i gfs,
+  nested_field_type2 t (ArraySubsc i :: gfs) = nested_field_type2 t (ArraySubsc 0 :: gfs).
+Proof.
+  intros.
+  rewrite !nested_field_type2_ind with (gfs0 := _ :: gfs).
+  destruct (nested_field_type2 t gfs); try tauto.
+Qed.
+
+Definition replace_gfield_reptype t (v: reptype t) (filter: gfield -> bool) (subs: forall gf, reptype (gfield_type t gf)) :=
+  fold_reptype 
+  (match t as t' return (forall gf, reptype (gfield_type t' gf)) -> REPTYPE t' -> REPTYPE t' with
+   | Tarray t0 n a => fun subs v =>
+                        zl_replace (fun i => filter (ArraySubsc i)) (fun i => subs (ArraySubsc i): reptype t0) v
+   | Tstruct id a => fun subs v =>
+                        compact_prod_replace (co_members (get_co id))
+                         (fun it => filter (StructField (fst it)))
+                         (fun it => subs (StructField (fst it)))
+                         v member_dec
+   | Tunion id a => fun subs v =>
+                        compact_sum_replace (co_members (get_co id))
+                         (fun it => filter (UnionField (fst it)))
+                         (fun it => subs (UnionField (fst it)))
+                         v
+   | _ => fun _ v => v
+   end subs (unfold_reptype v)).
+
+
+
+
+Definition proj_except_reptype (t: type) (g
 
 Lemma gupd_reptype_structlist_aux: forall f i0 t0,
   all_fields_replace_one2 f i0 t0 = match f with

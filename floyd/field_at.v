@@ -473,7 +473,7 @@ Proof.
   rewrite data_at'_ind.
   rewrite at_offset_struct_pred.
   rewrite andp_struct_pred by apply corable_prop.
-  generalize (co_members (get_co id)) at 1 6; intro m; destruct m; [auto |].
+  generalize (co_members (get_co id)) at 1 10; intro m; destruct m; [auto |].
   apply struct_pred_ext; [apply get_co_members_no_replicate |].
   
   intros.
@@ -508,13 +508,13 @@ Proof.
       rewrite nested_field_type2_ind.
       simpl; rewrite H.
       auto.
-    - apply (proj_struct_JMeq i (co_members (get_co id)) _ _ _ _ (unfold_reptype v1) v2); auto.
-      * clear - H.
-        intros.
-        unfold fst, snd.
+    - apply (proj_compact_prod_JMeq _ (i, field_type i _) (co_members (get_co id)) _ _ _ _ (unfold_reptype v1) v2); auto.
+      * intros.
         rewrite nested_field_type2_ind, H.
-        reflexivity.
-      * apply get_co_members_no_replicate.
+        simpl.
+        rewrite In_field_type; auto.
+        apply get_co_members_no_replicate.
+      * apply in_members_field_type; auto.
       * clear - H0.
         eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
 Qed.
@@ -531,7 +531,7 @@ Proof.
   rewrite at_offset_union_pred.
   rewrite andp_union_pred by apply corable_prop.
   generalize (eq_refl (co_members (get_co id))).
-  generalize (co_members (get_co id)) at 2 3 5; intro m; destruct m; [auto |].
+  generalize (co_members (get_co id)) at 2 3 9; intro m; destruct m; [auto |].
   intro HH; assert (co_members (get_co id) <> nil) by congruence; clear HH.
 
   assert (
@@ -550,14 +550,20 @@ Proof.
   } Unfocus.
   apply union_pred_ext; [apply get_co_members_no_replicate | |].
   Focus 1. {
-    apply members_union_inj_JMeq; auto.
-    + apply get_co_members_no_replicate.
+    apply compact_sum_inj_JMeq; auto.
+    + intros.
+      rewrite nested_field_type2_ind, H.
+      reflexivity.
     + eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
   } Unfocus.
   intros.
   destruct_ptr p.
-  assert (in_members i (co_members (get_co id)))
-    by (rewrite H4; apply members_union_inj_in_members; auto).
+  assert (in_members i (co_members (get_co id))).
+  Focus 1. {
+    change i with (fst (i, field_type i (co_members (get_co id)))).
+    apply in_map with (f := fst).
+    eapply compact_sum_inj_in; eauto.
+  } Unfocus.
   unfold field_at, fst, snd.
   autorewrite with at_offset_db.
   unfold offset_val.
@@ -588,8 +594,12 @@ Proof.
       rewrite nested_field_type2_ind.
       simpl; rewrite H.
       auto.
-    - apply (proj_union_JMeq _ _ _ _ _ _ (unfold_reptype v1) v2); auto.
-      * apply get_co_members_no_replicate.
+    - unfold proj_union.
+      apply (proj_compact_sum_JMeq _ (i, field_type i (co_members (get_co id))) (co_members (get_co id)) _ _ d0 d1 (unfold_reptype v1) v2); auto.
+      * intros (i0, t0) ?.
+        rewrite nested_field_type2_ind, H.
+        simpl.
+        auto.
       * eapply JMeq_trans; [apply (unfold_reptype_JMeq _ v1) | auto].
 Qed.
 
@@ -768,7 +778,7 @@ Lemma array_at_data_at: forall sh t gfs lo hi v p,
   array_at sh t gfs lo hi v p =
   (!! field_compatible0 t (ArraySubsc lo :: gfs) p) &&
   (!! field_compatible0 t (ArraySubsc hi :: gfs) p) &&
-  at_offset (data_at sh (nested_field_array_type t gfs lo hi) (@fold_reptype _ (nested_field_array_type t gfs lo hi)  (zl_shift 0 (hi - lo) v))) (nested_field_offset2 t (ArraySubsc lo :: gfs)) p.
+  at_offset (data_at sh (nested_field_array_type t gfs lo hi) (@fold_reptype _ _ (nested_field_array_type t gfs lo hi)  (zl_shift 0 (hi - lo) v))) (nested_field_offset2 t (ArraySubsc lo :: gfs)) p.
 Proof.
   intros.
   unfold array_at.
@@ -819,7 +829,7 @@ Qed.
 
 Lemma array_at_data_at_with_tl: forall sh t gfs lo mid hi v v' p,
   array_at sh t gfs lo mid v p * array_at sh t gfs mid hi v' p =
-  data_at sh (nested_field_array_type t gfs lo mid) (@fold_reptype _ (nested_field_array_type t gfs lo mid)  (zl_shift 0 (mid - lo) v)) (field_address0 t (ArraySubsc lo :: gfs) p) *
+  data_at sh (nested_field_array_type t gfs lo mid) (@fold_reptype _ _ (nested_field_array_type t gfs lo mid)  (zl_shift 0 (mid - lo) v)) (field_address0 t (ArraySubsc lo :: gfs) p) *
   array_at sh t gfs mid hi v' p.
 Proof.
   intros.
