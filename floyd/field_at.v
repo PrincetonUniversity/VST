@@ -292,7 +292,7 @@ Proof.
     assert (0 <= i < z) by omega.
     tauto.
   } Unfocus.
-  erewrite nested_field_type2_ArraySubsc by eauto.
+  erewrite nested_field_type2_ArraySubsc.
   intros.
   clear - H0 H1.
   specialize (H1 (zl_nth i v0) (zl_nth i v1) H0 JMeq_refl JMeq_refl).
@@ -1042,7 +1042,7 @@ Proof.
   intros.
   destruct (field_compatible0_dec t (ArraySubsc i :: gfs) p).
   + rewrite zl_default_correct in H1 by auto.
-    revert u1 H1; erewrite <- nested_field_type2_ArraySubsc with (i0 := i) by eauto; intros.
+    revert u1 H1; erewrite <- nested_field_type2_ArraySubsc with (i0 := i); intros.
     rewrite H1.
     apply field_at_field_at_.
   + unfold field_at.

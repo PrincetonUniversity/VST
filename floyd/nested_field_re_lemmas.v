@@ -136,11 +136,6 @@ Fixpoint proj_reptype_unionlist id f (v: reptype_unionlist f) :
   end v.
 *)
 
-Section PROJ_REPTYPE.
-
-Context {cs: compspecs}.
-Context {csl: compspecs_legal cs}.
-
 Notation REPTYPE t :=
   match t return Type with
   | Tvoid
@@ -153,6 +148,11 @@ Notation REPTYPE t :=
   | Tstruct id _ => reptype_structlist (co_members (get_co id))
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
+
+Section PROJ_REPTYPE.
+
+Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
 
 Definition proj_gfield_reptype (t: type) (gf: gfield) (v: reptype t): reptype (gfield_type t gf) :=
   match t, gf return (REPTYPE t -> reptype (gfield_type t gf))
@@ -176,68 +176,221 @@ Fixpoint proj_reptype (t: type) (gfs: list gfield) (v: reptype t) : reptype (nes
   end
   in eq_rect_r reptype res (nested_field_type2_ind t gfs).
 
-Inductive branch_status : Type :=
+End PROJ_REPTYPE.
+
+Section MULTI_HOLES.
+
+Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
+
+Inductive holes : Type :=
   | FullUpdate
-  | SemiUpdate
-  | StableOrInvalid.
+  | SemiUpdate: (gfield -> holes) -> holes
+  | Stable
+  | Invalid.
 
-Definition holes := (list gfield) -> branch_status.
+Fixpoint nested_field_type3 t gfs :=
+  match gfs with
+  | nil => t
+  | gf :: gfs0 => nested_field_type3 (gfield_type t gf) gfs0
+  end.
 
-Definition legal_holes (h: holes) :=
-  (forall gf gfs, h (gf :: gfs) = FullUpdate -> h gfs = SemiUpdate) /\
-  (forall gf gfs, h (gf :: gfs) = SemiUpdate -> h gfs = SemiUpdate) /\
-  (forall gfs, h gfs = FullUpdate -> forall gf, h (gf :: gfs) = StableOrInvalid) /\
-  (forall gfs, h gfs = SemiUpdate -> exists gf, h (gf :: gfs) = SemiUpdate \/ h (gf :: gfs) = FullUpdate) /\
-  (forall gfs, h gfs = StableOrInvalid -> forall gf, h (gf :: gfs) = StableOrInvalid).
+(* reverse gfs order *)
+Definition holes_subs t := forall gfs, reptype (nested_field_type3 t gfs).
 
-Definition holes_subs := forall t gfs, reptype (nested_field_type2 t gfs).
+Lemma nested_field_type2_ind': forall t gf gfs, nested_field_type2 t (gfs ++ gf :: nil) = nested_field_type2 (gfield_type t gf) gfs.
+Proof.
+  intros.
+  rewrite <- nested_field_type2_nested_field_type2.
+  rewrite nested_field_type2_ind with (gfs0 := gf :: nil).
+  reflexivity.
+Defined.
 
-Definition gfield_holes (h: holes) (gf: gfield): holes := fun gfs => h (gf :: gfs).
+Lemma nested_field_type3_spec: forall t gfs, nested_field_type3 t (rev gfs) = nested_field_type2 t gfs.
+Proof.
+  intros.
+  rewrite <- (rev_involutive gfs) at 2.
+  revert t; induction (rev gfs); intros.
+  + auto.
+  + simpl.
+    rewrite nested_field_type2_ind'.
+    rewrite IHl.
+    auto.
+Qed.
+
+Definition gfield_holes (h: holes) (gf: gfield): holes :=
+  match h with
+  | FullUpdate => Invalid
+  | SemiUpdate subl => subl gf
+  | Stable => Stable
+  | Invalid => Invalid
+  end.
+
+Fixpoint nested_field_holes (h: holes) (gfs: list gfield) : holes :=
+  match gfs with
+  | nil => h
+  | gf :: gfs0 => gfield_holes (nested_field_holes h gfs0) gf
+  end.
+
+Definition gfield_subs {t} (subs: holes_subs t) (gf: gfield): holes_subs (gfield_type t gf) :=
+  fun gfs => subs (gf :: gfs).
 
 Definition reptype_with_holes (t: type) (h: holes): Type := reptype t.
 
 Definition reptype_with_holes_equiv {t: type} {h: holes} (v0 v1: reptype_with_holes t h): Prop :=
-  forall gfs, legal_nested_field t gfs -> h gfs = StableOrInvalid -> proj_reptype t gfs v0 = proj_reptype t gfs v1.
+  forall gfs, legal_nested_field t gfs -> nested_field_holes h gfs = Stable -> proj_reptype t gfs v0 = proj_reptype t gfs v1.
 
 Definition proj_except_holes (t: type) (h: holes) (v: reptype t) : reptype_with_holes t h := v.
 
-Definition zl_replace {A d} {ZL: Zlist A d} {lo hi} (filter: Z -> bool) (subs: Z -> A) (l: zlist A lo hi) :=
-  zl_gen lo hi (fun i => if filter i then subs i else zl_nth i l).
-
-Definition compact_prod_replace {A} {F: A -> Type} (l: list A) (filter: A -> bool) (subs: forall a, F a) (v: compact_prod (map F l)) H :=
-  compact_prod_gen (fun a => if filter a then subs a else proj_compact_prod a l v (subs a) H) l.
-
-Definition compact_sum_replace {A} {F: A -> Type} (l: list A) (filter: A -> bool) (subs: forall a, F a) (v: compact_sum (map F l)) :=
-  compact_sum_gen filter subs l.
-
-Lemma nested_field_type2_ArraySubsc: forall t i gfs,
-  nested_field_type2 t (ArraySubsc i :: gfs) = nested_field_type2 t (ArraySubsc 0 :: gfs).
+Definition ListType_map {X: Type} {F F0: X -> Type} {l: list X}
+  (f: ListType (map (fun x => F x -> F0 x) l)): ListType (map F l) -> ListType (map F0 l).
 Proof.
   intros.
-  rewrite !nested_field_type2_ind with (gfs0 := _ :: gfs).
-  destruct (nested_field_type2 t gfs); try tauto.
-Qed.
+  induction l; simpl in *.
+  + exact Nil.
+  + inversion f; inversion X0; subst.
+    exact (Cons (a0 a1) (IHl b b0)).
+Defined.
 
-Definition replace_gfield_reptype t (v: reptype t) (filter: gfield -> bool) (subs: forall gf, reptype (gfield_type t gf)) :=
-  fold_reptype 
-  (match t as t' return (forall gf, reptype (gfield_type t' gf)) -> REPTYPE t' -> REPTYPE t' with
-   | Tarray t0 n a => fun subs v =>
-                        zl_replace (fun i => filter (ArraySubsc i)) (fun i => subs (ArraySubsc i): reptype t0) v
-   | Tstruct id a => fun subs v =>
-                        compact_prod_replace (co_members (get_co id))
-                         (fun it => filter (StructField (fst it)))
-                         (fun it => subs (StructField (fst it)))
-                         v member_dec
-   | Tunion id a => fun subs v =>
-                        compact_sum_replace (co_members (get_co id))
-                         (fun it => filter (UnionField (fst it)))
-                         (fun it => subs (UnionField (fst it)))
-                         v
-   | _ => fun _ v => v
-   end subs (unfold_reptype v)).
+Definition and1 (A: Prop * Prop) (B: Prop * Prop) : (Prop * Prop) :=
+  match A, B with
+  | (Acount, Adc), (B1, B0) => (B1 /\ Adc \/ B0 /\ Acount, B0 \/ Adc)
+  end.
 
+Definition legal_holes: forall (t: type) (h: holes), Prop :=
+  func_type (fun _ => holes -> Prop)
+    (fun t h =>
+       match h with
+       | FullUpdate | Stable => True
+       | SemiUpdate _ | Invalid => False
+       end)
+    (fun t n a F h => 
+       match h with
+       | FullUpdate | Stable => True
+       | SemiUpdate subl => forall i, 0 <= i < n -> F (subl (ArraySubsc i))
+       | Invalid => False
+       end)
+    (fun id a F h =>
+       match h with
+       | FullUpdate | Stable => True
+       | SemiUpdate subl =>
+          fold_right and True 
+           (decay (ListType_map F (ListTypeGen (fun _ => holes) (fun it => subl (StructField (fst it))) _)))
+       | Invalid => False
+       end)
+    (fun id a F h =>
+       match h with
+       | FullUpdate | Stable => True
+       | SemiUpdate subl =>
+          exists i,
+          fold_right and (in_members i (co_members (get_co id)))
+           (decay (ListType_map 
+             (ListTypeGen
+               (fun _ => (holes -> Prop) -> Prop)
+               (fun it F => if ident_eq i (fst it)
+                            then F (subl (UnionField (fst it)))
+                            else subl (UnionField (fst it)) = Invalid) _)
+             F))
+       | Invalid => False
+       end).
 
+Fixpoint get_union_field (subl: gfield -> holes) (m: members) (default: ident): ident :=
+  match m with
+  | nil => default
+  | (i, t) :: m0 => match subl (UnionField i) with | Invalid => get_union_field subl m0 default | _ => i end
+  end.
 
+Definition get_union_member subl m :=
+  let i := get_union_field subl m 1%positive in
+  (i, field_type i m).
+
+Definition reinitiate_compact_sum {A} {F: A -> Type} {l: list A} (v: compact_sum (map F l)) (a: A) (init: forall a, F a) (H: forall a0 a1: A, {a0 = a1} + {a0 <> a1}) :=
+  compact_sum_gen
+   (fun a0 => if H a a0 then true else false)
+   (fun a0 => proj_compact_sum a0 l v (init a0) H)
+  l.
+
+Definition replace_reptype: forall (t: type) (h: holes) (subs: holes_subs t) (v: reptype t), reptype t :=
+  func_type (fun t => holes -> holes_subs t -> reptype t -> reptype t)
+    (fun t h subs v =>
+       match h with
+       | FullUpdate => subs nil
+       | _ => v
+       end)
+    (fun t n a F h subs v =>
+       match h with
+       | FullUpdate => subs nil
+       | SemiUpdate subl =>
+         @fold_reptype _ _ (Tarray t n a) 
+           (zl_gen 0 n
+             (fun i => F (subl (ArraySubsc i))
+                         (fun gfs => subs (ArraySubsc i :: gfs))
+                         (zl_nth i (unfold_reptype v))))
+       | StableOrInvalid => v
+       end)
+    (fun id a F h subs v =>
+       match h with
+       | FullUpdate => subs nil
+       | SemiUpdate subl =>
+         @fold_reptype _ _ (Tstruct id a)
+           (compact_prod_map _
+             (ListType_map
+               (ListType_map F
+                 (ListTypeGen (fun _ => holes) (fun it => subl (StructField (fst it))) _))
+               (ListTypeGen (fun it => holes_subs (field_type (fst it) (co_members (get_co id))))
+                            (fun it gfs => subs (StructField (fst it) :: gfs)) _))
+             (unfold_reptype v))
+       | StableOrInvalid => v
+       end)
+    (fun id a F h subs v =>
+       match h with
+       | FullUpdate => subs nil
+       | SemiUpdate subl =>
+         @fold_reptype _ _ (Tunion id a)
+           (compact_sum_map _
+             (ListType_map
+               (ListType_map F
+                 (ListTypeGen (fun _ => holes) (fun it => subl (StructField (fst it))) _))
+               (ListTypeGen (fun it => holes_subs (field_type (fst it) (co_members (get_co id))))
+                            (fun it gfs => subs (UnionField (fst it) :: gfs)) _))
+             (reinitiate_compact_sum
+               (unfold_reptype v)
+               (get_union_member subl (co_members (get_co id)))
+               (fun _ => default_val _)
+               member_dec
+               ))
+       | StableOrInvalid => v
+       end).
+
+Definition refill_reptype {t h} (v: reptype_with_holes t h) (subs: holes_subs t) := replace_reptype t h subs v. 
+
+Lemma replace_stable: forall t h subs v gfs,
+  legal_holes t h ->
+  legal_nested_field t gfs ->
+  nested_field_holes h gfs = Stable ->
+  proj_reptype t gfs (replace_reptype t h subs v) = proj_reptype t gfs v.
+Admitted.
+
+Lemma replace_change: forall t h subs v gfs,
+  legal_holes t h ->
+  legal_nested_field t gfs ->
+  nested_field_holes h gfs = FullUpdate ->
+  proj_reptype t gfs (replace_reptype t h subs v) =
+  eq_rect_r reptype (subs (rev gfs)) (eq_sym (nested_field_type3_spec _ _)).
+Admitted.
+
+Lemma refill_proj_except: forall t h (v: reptype t) (v0: holes_subs t),
+  refill_reptype (proj_except_holes t h v) v0 = replace_reptype t h v0 v.
+Proof. auto. Qed.
+
+End MULTI_HOLES.
+
+Section SINGLE_HOLE.
+
+Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
+
+Definition singleton_hole (gfs: list gfields) : holes :=
 
 Definition proj_except_reptype (t: type) (g
 

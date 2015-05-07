@@ -586,12 +586,10 @@ Qed.
 Hint Resolve field_address_isptr.
 Hint Resolve is_pointer_or_null_field_compatible.
 
-Lemma nested_field_type2_ArraySubsc: forall t i j gfs p,
-  field_compatible0 t (ArraySubsc j :: gfs) p ->
+Lemma nested_field_type2_ArraySubsc: forall t i gfs,
   nested_field_type2 t (ArraySubsc i :: gfs) = nested_field_type2 t (ArraySubsc 0 :: gfs).
 Proof.
   intros.
-  rewrite field_compatible0_cons in H.
   rewrite !nested_field_type2_ind with (gfs := _ :: gfs).
   destruct (nested_field_type2 t gfs); try tauto.
 Qed.
