@@ -24,7 +24,7 @@ Proof.
     - reflexivity.
     - intros; apply H; simpl; tauto.
     - simpl; left; auto.
-Qed.
+Defined.
 
 Definition decay' {X} {F: Type} {l: list X} (v: ListType (map (fun _ => F) l)): list F.
   remember (map (fun _ : X => F) l) eqn:E.
@@ -93,7 +93,7 @@ Proof.
   + simpl.
     f_equal.
     auto.
-Qed.
+Defined.
 
 Section COMPOSITE_ENV.
 Context {cs: compspecs}.
@@ -163,7 +163,7 @@ Proof.
     apply rank_type_members with (ce := cenv_cs) in H0.
     rewrite <- co_consistent_rank in H0; [omega |].
     exact (cenv_consistent_cs i co CO).
-Qed.
+Defined.
 
 Ltac type_induction t :=
   pattern t;
@@ -216,7 +216,7 @@ Proof.
   intros.
   unfold get_co; simpl.
   destruct (cenv_cs ! id); auto; congruence.
-Qed.
+Defined.
 
 Lemma rank_type_Tunion: forall id a co, cenv_cs ! id = Some co ->
   rank_type cenv_cs (Tunion id a) = S (co_rank (get_co id)).
@@ -224,7 +224,7 @@ Proof.
   intros.
   unfold get_co; simpl.
   destruct (cenv_cs ! id); auto; congruence.
-Qed.
+Defined.
 
 Lemma func_type_rec_rank_irrelevent: forall t n n0,
   n >= rank_type cenv_cs t ->
@@ -287,7 +287,7 @@ Proof.
     - destruct n, n0; simpl;
       generalize (F_Tunion id a) as FF; unfold get_co;
       rewrite CO; intros; auto.
-Qed.
+Defined.
 
 Lemma func_type_ind: forall t, 
   func_type t = 
@@ -343,7 +343,7 @@ Proof.
       f_equal.
       unfold get_co; rewrite CO.
       reflexivity.
-Qed.
+Defined.
 
 End COMPOSITE_ENV.
 

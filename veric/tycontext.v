@@ -222,7 +222,7 @@ Definition members_no_replicate (m: members) : bool :=
   compute_list_norepet (map fst m).
 
 Definition composite_legal_alignas (env : composite_env) (co : composite) : Prop :=
-  (co_alignof co >=? alignof_composite env (co_members co)) = true.
+  (co_alignof co >= alignof_composite env (co_members co)).
 
 Definition composite_env_legal_alignas env :=
   forall (id : positive) (co : composite),

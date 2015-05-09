@@ -175,16 +175,14 @@ Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
 Lemma power_nat_divide': forall n m: Z,
   (exists N, n = two_power_nat N) ->
   (exists M, m = two_power_nat M) ->
-  n >=? m = true ->
+  n >= m ->
   (m | n).
 Proof.
   intros.
   destruct H, H0.
   subst.
   apply power_nat_divide.
-  pose proof Zge_cases (two_power_nat x) (two_power_nat x0).
-  destruct (two_power_nat x >=? two_power_nat x0); try omega.
-  inversion H1.
+  omega.
 Qed.
 
 Lemma local_legal_alignas_type_Tarray: forall t z a,

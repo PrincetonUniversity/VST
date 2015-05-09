@@ -1092,7 +1092,7 @@ Proof.
   apply pred_ext; apply prop_derives; tauto.
 Qed.
 
-Require Import Morphisms.
+Require Import Coq.Classes.Morphisms.
 
 Instance prop_Proper:
   Proper (iff ==> (@eq mpred)) (prop).

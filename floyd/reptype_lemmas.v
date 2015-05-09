@@ -8,6 +8,20 @@ Require floyd.fieldlist.
 Import floyd.fieldlist.fieldlist.
 Require Import Coq.Logic.JMeq.
 
+Definition 
+map_map: forall {A B C : Type} (f : A -> B) (g : B -> C) (l : list A),
+       map g (map f l) = map (fun x : A => g (f x)) l :=
+fun (A B C : Type) (f : A -> B) (g : B -> C) (l : list A) =>
+list_ind
+  (fun l0 : list A => map g (map f l0) = map (fun x : A => g (f x)) l0)
+  eq_refl
+  (fun (a : A) (l0 : list A)
+     (IHl : map g (map f l0) = map (fun x : A => g (f x)) l0) =>
+   eq_ind_r
+     (fun l1 : list C =>
+      g (f a) :: l1 = g (f a) :: map (fun x : A => g (f x)) l0) eq_refl IHl)
+  l.
+
 (******************************************
 
 Definition of reptype.
@@ -175,7 +189,7 @@ Proof.
   + rewrite decay_spec.
     rewrite map_map.
     reflexivity.
-Qed.
+Defined.
 
 Definition reptype_structlist (m: members) := compact_prod (map (fun it => reptype (field_type (fst it) m)) m).
 Definition reptype_unionlist (m: members) := compact_sum (map (fun it => reptype (field_type (fst it) m)) m).
@@ -198,7 +212,7 @@ Lemma reptype_ind: forall t,
 Proof.
   intros.
   unfold reptype.
-  rewrite reptype_gen_ind at 1.
+  rewrite reptype_gen_ind.
   destruct t as [| | | | | | | id ? | id ?]; auto.
   + unfold default_val.
     destruct (reptype_gen t).
@@ -217,8 +231,876 @@ Proof.
     rewrite map_map.
     unfold reptype_unionlist.
     f_equal.
-Qed.
+Defined.
 
+(*
+Definition reptype_ind : forall t, reptype t = REPTYPE t :=
+fun t : type =>
+(fun
+   H : @eq Type
+         match
+           match t return (@sigT Type (fun x : Type => x)) with
+           | Tvoid =>
+               match
+                 type_is_by_value t return (@sigT Type (fun x : Type => x))
+               with
+               | true => @existT Type (fun x : Type => x) val Vundef
+               | false => @existT Type (fun x : Type => x) unit tt
+               end
+           | Tint _ _ _ =>
+               match
+                 type_is_by_value t return (@sigT Type (fun x : Type => x))
+               with
+               | true => @existT Type (fun x : Type => x) val Vundef
+               | false => @existT Type (fun x : Type => x) unit tt
+               end
+           | Tlong _ _ =>
+               match
+                 type_is_by_value t return (@sigT Type (fun x : Type => x))
+               with
+               | true => @existT Type (fun x : Type => x) val Vundef
+               | false => @existT Type (fun x : Type => x) unit tt
+               end
+           | Tfloat _ _ =>
+               match
+                 type_is_by_value t return (@sigT Type (fun x : Type => x))
+               with
+               | true => @existT Type (fun x : Type => x) val Vundef
+               | false => @existT Type (fun x : Type => x) unit tt
+               end
+           | Tpointer _ _ =>
+               match
+                 type_is_by_value t return (@sigT Type (fun x : Type => x))
+               with
+               | true => @existT Type (fun x : Type => x) val Vundef
+               | false => @existT Type (fun x : Type => x) unit tt
+               end
+           | Tarray t0 _ _ =>
+               match
+                 reptype_gen t0 return (@sigT Type (fun x0 : Type => x0))
+               with
+               | existT T _ =>
+                   @existT Type (fun x : Type => x) (list T) (@nil T)
+               end
+           | Tfunction _ _ _ =>
+               match
+                 type_is_by_value t return (@sigT Type (fun x : Type => x))
+               with
+               | true => @existT Type (fun x : Type => x) val Vundef
+               | false => @existT Type (fun x : Type => x) unit tt
+               end
+           | Tstruct id _ =>
+               @existT Type (fun x : Type => x)
+                 (@compact_prod_sigT_type Type (fun x : Type => x)
+                    (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                       (@map (prod ident type) type
+                          (fun it : prod ident type =>
+                           field_type (@fst ident type it)
+                             (co_members (@get_co cs id)))
+                          (co_members (@get_co cs id)))))
+                 (@compact_prod_sigT_value Type (fun x : Type => x)
+                    (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                       (@map (prod ident type) type
+                          (fun it : prod ident type =>
+                           field_type (@fst ident type it)
+                             (co_members (@get_co cs id)))
+                          (co_members (@get_co cs id)))))
+           | Tunion id _ =>
+               @existT Type (fun x : Type => x)
+                 (@compact_sum_sigT_type Type (fun x : Type => x)
+                    (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                       (@map (prod ident type) type
+                          (fun it : prod ident type =>
+                           field_type (@fst ident type it)
+                             (co_members (@get_co cs id)))
+                          (co_members (@get_co cs id)))))
+                 (@compact_sum_sigT_value Type (fun x : Type => x)
+                    (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                       (@map (prod ident type) type
+                          (fun it : prod ident type =>
+                           field_type (@fst ident type it)
+                             (co_members (@get_co cs id)))
+                          (co_members (@get_co cs id)))))
+           end return Type
+         with
+         | existT t0 _ => t0
+         end
+         match t return Type with
+         | Tvoid => unit
+         | Tint _ _ _ => val
+         | Tlong _ _ => val
+         | Tfloat _ _ => val
+         | Tpointer _ _ => val
+         | Tarray t0 n _ =>
+             @zlist
+               match reptype_gen t0 return Type with
+               | existT t1 _ => t1
+               end (default_val t0)
+               (list_zlist
+                  match reptype_gen t0 return Type with
+                  | existT t1 _ => t1
+                  end (default_val t0)) Z0 n
+         | Tfunction _ _ _ => unit
+         | Tstruct id _ => reptype_structlist (co_members (@get_co cs id))
+         | Tunion id _ => reptype_unionlist (co_members (@get_co cs id))
+         end =>
+ (fun
+    lemma : @eq (@sigT Type (fun x : Type => x)) (reptype_gen t)
+              match t return (@sigT Type (fun x : Type => x)) with
+              | Tvoid =>
+                  match
+                    type_is_by_value t
+                    return (@sigT Type (fun x : Type => x))
+                  with
+                  | true => @existT Type (fun x : Type => x) val Vundef
+                  | false => @existT Type (fun x : Type => x) unit tt
+                  end
+              | Tint _ _ _ =>
+                  match
+                    type_is_by_value t
+                    return (@sigT Type (fun x : Type => x))
+                  with
+                  | true => @existT Type (fun x : Type => x) val Vundef
+                  | false => @existT Type (fun x : Type => x) unit tt
+                  end
+              | Tlong _ _ =>
+                  match
+                    type_is_by_value t
+                    return (@sigT Type (fun x : Type => x))
+                  with
+                  | true => @existT Type (fun x : Type => x) val Vundef
+                  | false => @existT Type (fun x : Type => x) unit tt
+                  end
+              | Tfloat _ _ =>
+                  match
+                    type_is_by_value t
+                    return (@sigT Type (fun x : Type => x))
+                  with
+                  | true => @existT Type (fun x : Type => x) val Vundef
+                  | false => @existT Type (fun x : Type => x) unit tt
+                  end
+              | Tpointer _ _ =>
+                  match
+                    type_is_by_value t
+                    return (@sigT Type (fun x : Type => x))
+                  with
+                  | true => @existT Type (fun x : Type => x) val Vundef
+                  | false => @existT Type (fun x : Type => x) unit tt
+                  end
+              | Tarray t0 _ _ =>
+                  match
+                    reptype_gen t0 return (@sigT Type (fun x0 : Type => x0))
+                  with
+                  | existT T _ =>
+                      @existT Type (fun x : Type => x) (list T) (@nil T)
+                  end
+              | Tfunction _ _ _ =>
+                  match
+                    type_is_by_value t
+                    return (@sigT Type (fun x : Type => x))
+                  with
+                  | true => @existT Type (fun x : Type => x) val Vundef
+                  | false => @existT Type (fun x : Type => x) unit tt
+                  end
+              | Tstruct id _ =>
+                  @existT Type (fun x : Type => x)
+                    (@compact_prod_sigT_type Type (fun x : Type => x)
+                       (@map type (@sigT Type (fun x : Type => x))
+                          reptype_gen
+                          (@map (prod ident type) type
+                             (fun it : prod ident type =>
+                              field_type (@fst ident type it)
+                                (co_members (@get_co cs id)))
+                             (co_members (@get_co cs id)))))
+                    (@compact_prod_sigT_value Type 
+                       (fun x : Type => x)
+                       (@map type (@sigT Type (fun x : Type => x))
+                          reptype_gen
+                          (@map (prod ident type) type
+                             (fun it : prod ident type =>
+                              field_type (@fst ident type it)
+                                (co_members (@get_co cs id)))
+                             (co_members (@get_co cs id)))))
+              | Tunion id _ =>
+                  @existT Type (fun x : Type => x)
+                    (@compact_sum_sigT_type Type (fun x : Type => x)
+                       (@map type (@sigT Type (fun x : Type => x))
+                          reptype_gen
+                          (@map (prod ident type) type
+                             (fun it : prod ident type =>
+                              field_type (@fst ident type it)
+                                (co_members (@get_co cs id)))
+                             (co_members (@get_co cs id)))))
+                    (@compact_sum_sigT_value Type (fun x : Type => x)
+                       (@map type (@sigT Type (fun x : Type => x))
+                          reptype_gen
+                          (@map (prod ident type) type
+                             (fun it : prod ident type =>
+                              field_type (@fst ident type it)
+                                (co_members (@get_co cs id)))
+                             (co_members (@get_co cs id)))))
+              end =>
+  @floyd.Morphisms.trans_co_eq_inv_impl_morphism 
+    Type (@eq Type) (@eq_Transitive Type)
+    match reptype_gen t return Type with
+    | existT t0 _ => t0
+    end
+    match
+      match t return (@sigT Type (fun x : Type => x)) with
+      | Tvoid =>
+          match
+            type_is_by_value t return (@sigT Type (fun x : Type => x))
+          with
+          | true => @existT Type (fun x : Type => x) val Vundef
+          | false => @existT Type (fun x : Type => x) unit tt
+          end
+      | Tint _ _ _ =>
+          match
+            type_is_by_value t return (@sigT Type (fun x : Type => x))
+          with
+          | true => @existT Type (fun x : Type => x) val Vundef
+          | false => @existT Type (fun x : Type => x) unit tt
+          end
+      | Tlong _ _ =>
+          match
+            type_is_by_value t return (@sigT Type (fun x : Type => x))
+          with
+          | true => @existT Type (fun x : Type => x) val Vundef
+          | false => @existT Type (fun x : Type => x) unit tt
+          end
+      | Tfloat _ _ =>
+          match
+            type_is_by_value t return (@sigT Type (fun x : Type => x))
+          with
+          | true => @existT Type (fun x : Type => x) val Vundef
+          | false => @existT Type (fun x : Type => x) unit tt
+          end
+      | Tpointer _ _ =>
+          match
+            type_is_by_value t return (@sigT Type (fun x : Type => x))
+          with
+          | true => @existT Type (fun x : Type => x) val Vundef
+          | false => @existT Type (fun x : Type => x) unit tt
+          end
+      | Tarray t0 _ _ =>
+          match reptype_gen t0 return (@sigT Type (fun x0 : Type => x0)) with
+          | existT T _ => @existT Type (fun x : Type => x) (list T) (@nil T)
+          end
+      | Tfunction _ _ _ =>
+          match
+            type_is_by_value t return (@sigT Type (fun x : Type => x))
+          with
+          | true => @existT Type (fun x : Type => x) val Vundef
+          | false => @existT Type (fun x : Type => x) unit tt
+          end
+      | Tstruct id _ =>
+          @existT Type (fun x : Type => x)
+            (@compact_prod_sigT_type Type (fun x : Type => x)
+               (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                  (@map (prod ident type) type
+                     (fun it : prod ident type =>
+                      field_type (@fst ident type it)
+                        (co_members (@get_co cs id)))
+                     (co_members (@get_co cs id)))))
+            (@compact_prod_sigT_value Type (fun x : Type => x)
+               (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                  (@map (prod ident type) type
+                     (fun it : prod ident type =>
+                      field_type (@fst ident type it)
+                        (co_members (@get_co cs id)))
+                     (co_members (@get_co cs id)))))
+      | Tunion id _ =>
+          @existT Type (fun x : Type => x)
+            (@compact_sum_sigT_type Type (fun x : Type => x)
+               (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                  (@map (prod ident type) type
+                     (fun it : prod ident type =>
+                      field_type (@fst ident type it)
+                        (co_members (@get_co cs id)))
+                     (co_members (@get_co cs id)))))
+            (@compact_sum_sigT_value Type (fun x : Type => x)
+               (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                  (@map (prod ident type) type
+                     (fun it : prod ident type =>
+                      field_type (@fst ident type it)
+                        (co_members (@get_co cs id)))
+                     (co_members (@get_co cs id)))))
+      end return Type
+    with
+    | existT t0 _ => t0
+    end
+    (@f_equal (@sigT Type (fun x : Type => x)) Type
+       (fun H0 : @sigT Type (fun x : Type => x) =>
+        match H0 return Type with
+        | existT t0 _ => t0
+        end) (reptype_gen t)
+       match t return (@sigT Type (fun x : Type => x)) with
+       | Tvoid =>
+           match
+             type_is_by_value t return (@sigT Type (fun x : Type => x))
+           with
+           | true => @existT Type (fun x : Type => x) val Vundef
+           | false => @existT Type (fun x : Type => x) unit tt
+           end
+       | Tint _ _ _ =>
+           match
+             type_is_by_value t return (@sigT Type (fun x : Type => x))
+           with
+           | true => @existT Type (fun x : Type => x) val Vundef
+           | false => @existT Type (fun x : Type => x) unit tt
+           end
+       | Tlong _ _ =>
+           match
+             type_is_by_value t return (@sigT Type (fun x : Type => x))
+           with
+           | true => @existT Type (fun x : Type => x) val Vundef
+           | false => @existT Type (fun x : Type => x) unit tt
+           end
+       | Tfloat _ _ =>
+           match
+             type_is_by_value t return (@sigT Type (fun x : Type => x))
+           with
+           | true => @existT Type (fun x : Type => x) val Vundef
+           | false => @existT Type (fun x : Type => x) unit tt
+           end
+       | Tpointer _ _ =>
+           match
+             type_is_by_value t return (@sigT Type (fun x : Type => x))
+           with
+           | true => @existT Type (fun x : Type => x) val Vundef
+           | false => @existT Type (fun x : Type => x) unit tt
+           end
+       | Tarray t0 _ _ =>
+           match
+             reptype_gen t0 return (@sigT Type (fun x0 : Type => x0))
+           with
+           | existT T _ => @existT Type (fun x : Type => x) (list T) (@nil T)
+           end
+       | Tfunction _ _ _ =>
+           match
+             type_is_by_value t return (@sigT Type (fun x : Type => x))
+           with
+           | true => @existT Type (fun x : Type => x) val Vundef
+           | false => @existT Type (fun x : Type => x) unit tt
+           end
+       | Tstruct id _ =>
+           @existT Type (fun x : Type => x)
+             (@compact_prod_sigT_type Type (fun x : Type => x)
+                (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                   (@map (prod ident type) type
+                      (fun it : prod ident type =>
+                       field_type (@fst ident type it)
+                         (co_members (@get_co cs id)))
+                      (co_members (@get_co cs id)))))
+             (@compact_prod_sigT_value Type (fun x : Type => x)
+                (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                   (@map (prod ident type) type
+                      (fun it : prod ident type =>
+                       field_type (@fst ident type it)
+                         (co_members (@get_co cs id)))
+                      (co_members (@get_co cs id)))))
+       | Tunion id _ =>
+           @existT Type (fun x : Type => x)
+             (@compact_sum_sigT_type Type (fun x : Type => x)
+                (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                   (@map (prod ident type) type
+                      (fun it : prod ident type =>
+                       field_type (@fst ident type it)
+                         (co_members (@get_co cs id)))
+                      (co_members (@get_co cs id)))))
+             (@compact_sum_sigT_value Type (fun x : Type => x)
+                (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                   (@map (prod ident type) type
+                      (fun it : prod ident type =>
+                       field_type (@fst ident type it)
+                         (co_members (@get_co cs id)))
+                      (co_members (@get_co cs id)))))
+       end lemma)
+    match t return Type with
+    | Tvoid => unit
+    | Tint _ _ _ => val
+    | Tlong _ _ => val
+    | Tfloat _ _ => val
+    | Tpointer _ _ => val
+    | Tarray t0 n _ =>
+        @zlist match reptype_gen t0 return Type with
+               | existT t1 _ => t1
+               end (default_val t0)
+          (list_zlist
+             match reptype_gen t0 return Type with
+             | existT t1 _ => t1
+             end (default_val t0)) Z0 n
+    | Tfunction _ _ _ => unit
+    | Tstruct id _ => reptype_structlist (co_members (@get_co cs id))
+    | Tunion id _ => reptype_unionlist (co_members (@get_co cs id))
+    end
+    match t return Type with
+    | Tvoid => unit
+    | Tint _ _ _ => val
+    | Tlong _ _ => val
+    | Tfloat _ _ => val
+    | Tpointer _ _ => val
+    | Tarray t0 n _ =>
+        @zlist match reptype_gen t0 return Type with
+               | existT t1 _ => t1
+               end (default_val t0)
+          (list_zlist
+             match reptype_gen t0 return Type with
+             | existT t1 _ => t1
+             end (default_val t0)) Z0 n
+    | Tfunction _ _ _ => unit
+    | Tstruct id _ => reptype_structlist (co_members (@get_co cs id))
+    | Tunion id _ => reptype_unionlist (co_members (@get_co cs id))
+    end
+    (floyd.Morphisms.eq_proper_proxy Type
+       match t return Type with
+       | Tvoid => unit
+       | Tint _ _ _ => val
+       | Tlong _ _ => val
+       | Tfloat _ _ => val
+       | Tpointer _ _ => val
+       | Tarray t0 n _ =>
+           @zlist
+             match reptype_gen t0 return Type with
+             | existT t1 _ => t1
+             end (default_val t0)
+             (list_zlist
+                match reptype_gen t0 return Type with
+                | existT t1 _ => t1
+                end (default_val t0)) Z0 n
+       | Tfunction _ _ _ => unit
+       | Tstruct id _ => reptype_structlist (co_members (@get_co cs id))
+       | Tunion id _ => reptype_unionlist (co_members (@get_co cs id))
+       end)) (reptype_gen_ind t) H)
+  match
+    t as t0
+    return
+      (@eq Type
+         match
+           match t0 return (@sigT Type (fun x : Type => x)) with
+           | Tvoid =>
+               match
+                 type_is_by_value t0 return (@sigT Type (fun x : Type => x))
+               with
+               | true => @existT Type (fun x : Type => x) val Vundef
+               | false => @existT Type (fun x : Type => x) unit tt
+               end
+           | Tint _ _ _ =>
+               match
+                 type_is_by_value t0 return (@sigT Type (fun x : Type => x))
+               with
+               | true => @existT Type (fun x : Type => x) val Vundef
+               | false => @existT Type (fun x : Type => x) unit tt
+               end
+           | Tlong _ _ =>
+               match
+                 type_is_by_value t0 return (@sigT Type (fun x : Type => x))
+               with
+               | true => @existT Type (fun x : Type => x) val Vundef
+               | false => @existT Type (fun x : Type => x) unit tt
+               end
+           | Tfloat _ _ =>
+               match
+                 type_is_by_value t0 return (@sigT Type (fun x : Type => x))
+               with
+               | true => @existT Type (fun x : Type => x) val Vundef
+               | false => @existT Type (fun x : Type => x) unit tt
+               end
+           | Tpointer _ _ =>
+               match
+                 type_is_by_value t0 return (@sigT Type (fun x : Type => x))
+               with
+               | true => @existT Type (fun x : Type => x) val Vundef
+               | false => @existT Type (fun x : Type => x) unit tt
+               end
+           | Tarray t1 _ _ =>
+               match
+                 reptype_gen t1 return (@sigT Type (fun x0 : Type => x0))
+               with
+               | existT T _ =>
+                   @existT Type (fun x : Type => x) (list T) (@nil T)
+               end
+           | Tfunction _ _ _ =>
+               match
+                 type_is_by_value t0 return (@sigT Type (fun x : Type => x))
+               with
+               | true => @existT Type (fun x : Type => x) val Vundef
+               | false => @existT Type (fun x : Type => x) unit tt
+               end
+           | Tstruct id _ =>
+               @existT Type (fun x : Type => x)
+                 (@compact_prod_sigT_type Type (fun x : Type => x)
+                    (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                       (@map (prod ident type) type
+                          (fun it : prod ident type =>
+                           field_type (@fst ident type it)
+                             (co_members (@get_co cs id)))
+                          (co_members (@get_co cs id)))))
+                 (@compact_prod_sigT_value Type (fun x : Type => x)
+                    (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                       (@map (prod ident type) type
+                          (fun it : prod ident type =>
+                           field_type (@fst ident type it)
+                             (co_members (@get_co cs id)))
+                          (co_members (@get_co cs id)))))
+           | Tunion id _ =>
+               @existT Type (fun x : Type => x)
+                 (@compact_sum_sigT_type Type (fun x : Type => x)
+                    (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                       (@map (prod ident type) type
+                          (fun it : prod ident type =>
+                           field_type (@fst ident type it)
+                             (co_members (@get_co cs id)))
+                          (co_members (@get_co cs id)))))
+                 (@compact_sum_sigT_value Type (fun x : Type => x)
+                    (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+                       (@map (prod ident type) type
+                          (fun it : prod ident type =>
+                           field_type (@fst ident type it)
+                             (co_members (@get_co cs id)))
+                          (co_members (@get_co cs id)))))
+           end return Type
+         with
+         | existT t1 _ => t1
+         end
+         match t0 return Type with
+         | Tvoid => unit
+         | Tint _ _ _ => val
+         | Tlong _ _ => val
+         | Tfloat _ _ => val
+         | Tpointer _ _ => val
+         | Tarray t1 n _ =>
+             @zlist
+               match reptype_gen t1 return Type with
+               | existT t2 _ => t2
+               end (default_val t1)
+               (list_zlist
+                  match reptype_gen t1 return Type with
+                  | existT t2 _ => t2
+                  end (default_val t1)) Z0 n
+         | Tfunction _ _ _ => unit
+         | Tstruct id _ => reptype_structlist (co_members (@get_co cs id))
+         | Tunion id _ => reptype_unionlist (co_members (@get_co cs id))
+         end)
+  with
+  | Tvoid => @eq_refl Type unit
+  | Tint _ _ _ => @eq_refl Type val
+  | Tlong _ _ => @eq_refl Type val
+  | Tfloat _ _ => @eq_refl Type val
+  | Tpointer _ _ => @eq_refl Type val
+  | Tarray t0 z _ =>
+      let s := reptype_gen t0 in
+      match
+        s as s0
+        return
+          (@eq Type
+             match
+               match s0 return (@sigT Type (fun x0 : Type => x0)) with
+               | existT T _ =>
+                   @existT Type (fun x : Type => x) (list T) (@nil T)
+               end return Type
+             with
+             | existT t1 _ => t1
+             end
+             (@zlist match s0 return Type with
+                     | existT t1 _ => t1
+                     end
+                match
+                  s0 as tv
+                  return match tv return Type with
+                         | existT t1 _ => t1
+                         end
+                with
+                | existT t1 v => v
+                end
+                (list_zlist match s0 return Type with
+                            | existT t1 _ => t1
+                            end
+                   match
+                     s0 as tv
+                     return match tv return Type with
+                            | existT t1 _ => t1
+                            end
+                   with
+                   | existT t1 v => v
+                   end) Z0 z))
+      with
+      | existT x p => @eq_refl Type (@zlist x p (list_zlist x p) Z0 z)
+      end
+  | Tfunction _ _ _ => @eq_refl Type unit
+  | Tstruct id _ =>
+      (fun
+         _ : @eq bool (members_no_replicate (co_members (@get_co cs id)))
+               true =>
+       let m := co_members (@get_co cs id) in
+       @eq_ind_r (list Type)
+         (@map type Type
+            (fun x : type =>
+             match reptype_gen x return Type with
+             | existT t0 _ => t0
+             end)
+            (@map (prod ident type) type
+               (fun it : prod ident type => field_type (@fst ident type it) m)
+               m))
+         (fun l : list Type =>
+          @eq Type (compact_prod l) (reptype_structlist m))
+         (@eq_ind_r (list Type)
+            (@map (prod ident type) Type
+               (fun x : prod ident type =>
+                match
+                  reptype_gen (field_type (@fst ident type x) m) return Type
+                with
+                | existT t0 _ => t0
+                end) m)
+            (fun l : list Type =>
+             @eq Type (compact_prod l) (reptype_structlist m))
+            ((fun
+                H0 : @eq (list Type)
+                       (@map (prod ident type) Type
+                          (fun x : prod ident type =>
+                           match
+                             reptype_gen (field_type (@fst ident type x) m)
+                             return Type
+                           with
+                           | existT t0 _ => t0
+                           end) m)
+                       (@map (prod ident type) Type
+                          (fun it : prod ident type =>
+                           reptype (field_type (@fst ident type it) m)) m) =>
+              (fun
+                 H1 : @eq (list Type)
+                        (@map (prod ident type) Type
+                           (fun x : prod ident type =>
+                            match
+                              reptype_gen (field_type (@fst ident type x) m)
+                              return Type
+                            with
+                            | existT t0 _ => t0
+                            end) m)
+                        (@map (prod ident type) Type
+                           (fun it : prod ident type =>
+                            reptype (field_type (@fst ident type it) m)) m) =>
+               @eq_trans Type
+                 (compact_prod
+                    (@map (prod ident type) Type
+                       (fun x : prod ident type =>
+                        match
+                          reptype_gen (field_type (@fst ident type x) m)
+                          return Type
+                        with
+                        | existT t0 _ => t0
+                        end) m))
+                 (compact_prod
+                    (@map (prod ident type) Type
+                       (fun x : prod ident type =>
+                        match
+                          reptype_gen (field_type (@fst ident type x) m)
+                          return Type
+                        with
+                        | existT t0 _ => t0
+                        end) m))
+                 (compact_prod
+                    (@map (prod ident type) Type
+                       (fun it : prod ident type =>
+                        reptype (field_type (@fst ident type it) m)) m))
+                 (@f_equal (list Type -> Type) Type
+                    (fun f : list Type -> Type =>
+                     f
+                       (@map (prod ident type) Type
+                          (fun x : prod ident type =>
+                           match
+                             reptype_gen (field_type (@fst ident type x) m)
+                             return Type
+                           with
+                           | existT t0 _ => t0
+                           end) m)) compact_prod compact_prod
+                    (@eq_refl (list Type -> Type) compact_prod))
+                 (@f_equal (list Type) Type compact_prod
+                    (@map (prod ident type) Type
+                       (fun x : prod ident type =>
+                        match
+                          reptype_gen (field_type (@fst ident type x) m)
+                          return Type
+                        with
+                        | existT t0 _ => t0
+                        end) m)
+                    (@map (prod ident type) Type
+                       (fun it : prod ident type =>
+                        reptype (field_type (@fst ident type it) m)) m) H1))
+                H0)
+               (@eq_refl (list Type)
+                  (@map (prod ident type) Type
+                     (fun it : prod ident type =>
+                      reptype (field_type (@fst ident type it) m)) m)))
+            (@map type Type
+               (fun x : type =>
+                match reptype_gen x return Type with
+                | existT t0 _ => t0
+                end)
+               (@map (prod ident type) type
+                  (fun it : prod ident type =>
+                   field_type (@fst ident type it) m) m))
+            (@map_map (prod ident type) type Type
+               (fun it : prod ident type => field_type (@fst ident type it) m)
+               (fun x : type =>
+                match reptype_gen x return Type with
+                | existT t0 _ => t0
+                end) m))
+         (@map (@sigT Type (fun x : Type => x)) Type
+            (fun tv : @sigT Type (fun x : Type => x) =>
+             match tv return Type with
+             | existT t0 _ => t0
+             end)
+            (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+               (@map (prod ident type) type
+                  (fun it : prod ident type =>
+                   field_type (@fst ident type it) m) m)))
+         (@map_map type (@sigT Type (fun x : Type => x)) 
+            Type reptype_gen
+            (fun tv : @sigT Type (fun x : Type => x) =>
+             match tv return Type with
+             | existT t0 _ => t0
+             end)
+            (@map (prod ident type) type
+               (fun it : prod ident type => field_type (@fst ident type it) m)
+               m))) (@get_co_members_no_replicate cs csl id)
+  | Tunion id _ =>
+      (fun
+         _ : @eq bool (members_no_replicate (co_members (@get_co cs id)))
+               true =>
+       let m := co_members (@get_co cs id) in
+       @eq_ind_r (list Type)
+         (@map type Type
+            (fun x : type =>
+             match reptype_gen x return Type with
+             | existT t0 _ => t0
+             end)
+            (@map (prod ident type) type
+               (fun it : prod ident type => field_type (@fst ident type it) m)
+               m))
+         (fun l : list Type => @eq Type (compact_sum l) (reptype_unionlist m))
+         (@eq_ind_r (list Type)
+            (@map (prod ident type) Type
+               (fun x : prod ident type =>
+                match
+                  reptype_gen (field_type (@fst ident type x) m) return Type
+                with
+                | existT t0 _ => t0
+                end) m)
+            (fun l : list Type =>
+             @eq Type (compact_sum l) (reptype_unionlist m))
+            ((fun
+                H0 : @eq (list Type)
+                       (@map (prod ident type) Type
+                          (fun x : prod ident type =>
+                           match
+                             reptype_gen (field_type (@fst ident type x) m)
+                             return Type
+                           with
+                           | existT t0 _ => t0
+                           end) m)
+                       (@map (prod ident type) Type
+                          (fun it : prod ident type =>
+                           reptype (field_type (@fst ident type it) m)) m) =>
+              (fun
+                 H1 : @eq (list Type)
+                        (@map (prod ident type) Type
+                           (fun x : prod ident type =>
+                            match
+                              reptype_gen (field_type (@fst ident type x) m)
+                              return Type
+                            with
+                            | existT t0 _ => t0
+                            end) m)
+                        (@map (prod ident type) Type
+                           (fun it : prod ident type =>
+                            reptype (field_type (@fst ident type it) m)) m) =>
+               @eq_trans Type
+                 (compact_sum
+                    (@map (prod ident type) Type
+                       (fun x : prod ident type =>
+                        match
+                          reptype_gen (field_type (@fst ident type x) m)
+                          return Type
+                        with
+                        | existT t0 _ => t0
+                        end) m))
+                 (compact_sum
+                    (@map (prod ident type) Type
+                       (fun x : prod ident type =>
+                        match
+                          reptype_gen (field_type (@fst ident type x) m)
+                          return Type
+                        with
+                        | existT t0 _ => t0
+                        end) m))
+                 (compact_sum
+                    (@map (prod ident type) Type
+                       (fun it : prod ident type =>
+                        reptype (field_type (@fst ident type it) m)) m))
+                 (@f_equal (list Type -> Type) Type
+                    (fun f : list Type -> Type =>
+                     f
+                       (@map (prod ident type) Type
+                          (fun x : prod ident type =>
+                           match
+                             reptype_gen (field_type (@fst ident type x) m)
+                             return Type
+                           with
+                           | existT t0 _ => t0
+                           end) m)) compact_sum compact_sum
+                    (@eq_refl (list Type -> Type) compact_sum))
+                 (@f_equal (list Type) Type compact_sum
+                    (@map (prod ident type) Type
+                       (fun x : prod ident type =>
+                        match
+                          reptype_gen (field_type (@fst ident type x) m)
+                          return Type
+                        with
+                        | existT t0 _ => t0
+                        end) m)
+                    (@map (prod ident type) Type
+                       (fun it : prod ident type =>
+                        reptype (field_type (@fst ident type it) m)) m) H1))
+                H0)
+               (@eq_refl (list Type)
+                  (@map (prod ident type) Type
+                     (fun it : prod ident type =>
+                      reptype (field_type (@fst ident type it) m)) m)))
+            (@map type Type
+               (fun x : type =>
+                match reptype_gen x return Type with
+                | existT t0 _ => t0
+                end)
+               (@map (prod ident type) type
+                  (fun it : prod ident type =>
+                   field_type (@fst ident type it) m) m))
+            (@map_map (prod ident type) type Type
+               (fun it : prod ident type => field_type (@fst ident type it) m)
+               (fun x : type =>
+                match reptype_gen x return Type with
+                | existT t0 _ => t0
+                end) m))
+         (@map (@sigT Type (fun x : Type => x)) Type
+            (fun tv : @sigT Type (fun x : Type => x) =>
+             match tv return Type with
+             | existT t0 _ => t0
+             end)
+            (@map type (@sigT Type (fun x : Type => x)) reptype_gen
+               (@map (prod ident type) type
+                  (fun it : prod ident type =>
+                   field_type (@fst ident type it) m) m)))
+         (@map_map type (@sigT Type (fun x : Type => x)) 
+            Type reptype_gen
+            (fun tv : @sigT Type (fun x : Type => x) =>
+             match tv return Type with
+             | existT t0 _ => t0
+             end)
+            (@map (prod ident type) type
+               (fun it : prod ident type => field_type (@fst ident type it) m)
+               m))) (@get_co_members_no_replicate cs csl id)
+  end.
+*)
 Definition unfold_reptype {t} (v: reptype t): REPTYPE t :=
   @eq_rect Type (reptype t) (fun x: Type => x) v (REPTYPE t) (reptype_ind t).
 
@@ -609,3 +1491,16 @@ destruct t; reflexivity.
 Qed.
 
 End CENV.
+
+Global Notation REPTYPE t :=
+  match t return Type with
+  | Tvoid
+  | Tfunction _ _ _ => unit
+  | Tint _ _ _
+  | Tlong _ _
+  | Tfloat _ _
+  | Tpointer _ _ => val
+  | Tarray t0 n _ => @zlist (reptype t0) (default_val t0) (list_zlist (reptype t0) (default_val t0)) 0 n
+  | Tstruct id _ => reptype_structlist (co_members (get_co id))
+  | Tunion id _ => reptype_unionlist (co_members (get_co id))
+  end.

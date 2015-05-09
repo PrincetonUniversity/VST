@@ -5,6 +5,7 @@ Require Import floyd.jmeq_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.reptype_lemmas.
+Require Import floyd.proj_reptype_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.entailer.
 Require Import floyd.closed_lemmas.
@@ -149,6 +150,13 @@ Proof.
   apply data_at_data_at_.
 Qed.
 
+Lemma stronger_proj_reptype: forall t v1 v2,
+  (v1 >>> v2) <->
+  (forall gfs, legal_nested_field t gfs -> type_is_by_value (nested_field_type2 t gfs) = true ->
+   proj_reptype t gfs v1 >>> proj_reptype t gfs v2).
+Proof.
+Admitted.
+
 Lemma data_equal_stronger: forall {t} (v1 v2: reptype t), (v1 === v2) <-> (v1 >>> v2) /\ (v2 >>> v1).
 Proof.
   intros.
@@ -235,6 +243,40 @@ Lemma nth_list_repeat: forall A i n (x :A),
     nth i (list_repeat n x) x = x.
 Proof.
  induction i; destruct n; simpl; auto.
+Qed.
+
+Lemma data_equal_proj_reptype: forall t v1 v2,
+  (v1 === v2) <->
+  (forall gfs, legal_nested_field t gfs -> type_is_by_value (nested_field_type2 t gfs) = true ->
+   proj_reptype t gfs v1 === proj_reptype t gfs v2).
+Proof.
+  intros.
+  rewrite data_equal_stronger.
+  assert ((forall gfs : list gfield,
+    legal_nested_field t gfs ->
+    type_is_by_value (nested_field_type2 t gfs) = true ->
+    proj_reptype t gfs v1 === proj_reptype t gfs v2) <->
+    (forall gfs : list gfield,
+    legal_nested_field t gfs ->
+    type_is_by_value (nested_field_type2 t gfs) = true ->
+    proj_reptype t gfs v1 >>> proj_reptype t gfs v2) /\
+    (forall gfs : list gfield,
+    legal_nested_field t gfs ->
+    type_is_by_value (nested_field_type2 t gfs) = true ->
+    proj_reptype t gfs v2 >>> proj_reptype t gfs v1)).
+  Focus 1. {
+    split; intros; [split; intros |].
+    + specialize (H gfs H0 H1).
+      rewrite data_equal_stronger in H.
+      tauto.
+    + specialize (H gfs H0 H1).
+      rewrite data_equal_stronger in H.
+      tauto.
+    + rewrite data_equal_stronger; split; apply H; auto.
+  } Unfocus.
+  pose proof stronger_proj_reptype t v1 v2.
+  pose proof stronger_proj_reptype t v2 v1.
+  tauto.
 Qed.
 
 End STRONGER.

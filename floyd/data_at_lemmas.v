@@ -85,19 +85,6 @@ Definition data_at': forall t, reptype t -> val -> mpred :=
     (fun id a P v => struct_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v))
     (fun id a P v => union_data_at'_aux sh (co_members (get_co id)) (co_members (get_co id)) (co_sizeof (get_co id)) P (unfold_reptype v)).
 
-Notation REPTYPE t :=
-  match t return Type with
-  | Tvoid
-  | Tfunction _ _ _ => unit
-  | Tint _ _ _
-  | Tlong _ _
-  | Tfloat _ _
-  | Tpointer _ _ => val
-  | Tarray t0 n _ => @zlist (reptype t0) (default_val t0) (list_zlist (reptype t0) (default_val t0)) 0 n
-  | Tstruct id _ => reptype_structlist (co_members (get_co id))
-  | Tunion id _ => reptype_unionlist (co_members (get_co id))
-  end.
-
 Lemma data_at'_ind: forall t v,
   data_at' t v =
   match t return REPTYPE t -> val -> mpred with
