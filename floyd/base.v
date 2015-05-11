@@ -126,7 +126,7 @@ Proof.
   + reflexivity.
   + destruct su; reflexivity.
   + reflexivity.
-Qed.
+Defined.
 
 Lemma get_co_consistent: forall id, composite_consistent cenv_cs (get_co id).
 Proof.
@@ -135,7 +135,7 @@ Proof.
   destruct (cenv_cs ! id) as [co |] eqn:CO.
   + exact (cenv_consistent_cs id co CO).
   + apply co_default_consistent.
-Qed.
+Defined.
 
 Lemma get_co_members_nil_sizeof_0: forall id,
   co_members (get_co id) = nil -> co_sizeof (get_co id) = 0%Z.
@@ -158,7 +158,7 @@ Proof.
     rewrite align_0 in H2 by apply co_alignof_pos.
     auto.
   + reflexivity.
-Qed.
+Defined.
 
 Lemma get_co_members_no_replicate: forall id,
   members_no_replicate (co_members (get_co id)) = true.
@@ -168,7 +168,7 @@ Proof.
   destruct (cenv_cs ! id) as [co |] eqn:?H.
   + exact (cenv_legal_fieldlist id co H).
   + reflexivity.
-Qed.
+Defined.
 
 Lemma sizeof_Tstruct: forall id a,
   sizeof cenv_cs (Tstruct id a) = co_sizeof (get_co id).

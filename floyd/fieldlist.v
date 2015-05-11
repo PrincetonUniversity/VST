@@ -341,7 +341,7 @@ Proof.
       assert (~ false = true) by congruence; tauto.
     - apply id_in_list_false in HH.
       tauto.
-Qed.
+Defined.
 
 Lemma map_members_ext: forall A (f f':ident * type -> A) (m: members),
   members_no_replicate m = true ->
@@ -364,7 +364,7 @@ Proof.
       unfold field_type2, in_members in H0.
       simpl in H0; if_tac in H0; [subst; tauto |].
       apply H0; auto.
-Qed.
+Defined.
 
 Lemma in_members_tail_no_replicate: forall i i0 t0 m,
   members_no_replicate ((i0, t0) :: m) = true ->
@@ -375,7 +375,7 @@ Proof.
   rewrite members_no_replicate_ind in H.
   intro.
   subst; tauto.
-Qed.
+Defined.
 
 Lemma neq_field_offset_rec_cons: forall env i i0 t0 m z,
   i <> i0 ->
@@ -478,7 +478,7 @@ Proof.
         tauto.
       * inversion H0; [| auto].
         inversion H2; congruence.
-Qed.
+Defined.
 
 End COMPOSITE_ENV.
 

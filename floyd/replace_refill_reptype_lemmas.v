@@ -93,6 +93,20 @@ Proof.
     exact (Cons (a0 a1) (IHl b b0)).
 Defined.
 
+Lemma ListType_map_ListTypeGen: forall A (F G: A -> Type) (g: forall a, G a) (fg: forall a, G a -> F a) (l: list A),
+  ListType_map
+   (ListTypeGen (fun a => G a -> F a) (fun a => fg a) l)
+   (ListTypeGen G (fun a => g a) l) =
+  ListTypeGen F (fun a => fg a (g a)) l.
+Proof.
+  intros.
+  induction l.
+  + reflexivity.
+  + simpl.
+    rewrite IHl.
+    reflexivity.
+Qed.
+
 Definition legal_holes: forall (t: type) (h: holes), Prop :=
   func_type (fun _ => holes -> Prop)
     (fun t h =>
@@ -186,7 +200,7 @@ Definition replace_reptype: forall (t: type) (h: holes) (subs: holes_subs t) (v:
            (compact_sum_map _
              (ListType_map
                (ListType_map F
-                 (ListTypeGen (fun _ => holes) (fun it => subl (StructField (fst it))) _))
+                 (ListTypeGen (fun _ => holes) (fun it => subl (UnionField (fst it))) _))
                (ListTypeGen (fun it => holes_subs (field_type (fst it) (co_members (get_co id))))
                             (fun it gfs => subs (UnionField (fst it) :: gfs)) _))
              (reinitiate_compact_sum
@@ -197,6 +211,84 @@ Definition replace_reptype: forall (t: type) (h: holes) (subs: holes_subs t) (v:
                ))
        | StableOrInvalid => v
        end).
+
+Lemma replace_reptype_ind: forall t h,
+  replace_reptype t h =
+  match t as t' return holes_subs t' -> reptype t' -> reptype t' with
+  | Tarray t0 n a =>
+    fun subs v =>
+       match h with
+       | FullUpdate => subs nil
+       | SemiUpdate subl =>
+         @fold_reptype _ _ (Tarray t0 n a) 
+           (zl_gen 0 n
+             (fun i => replace_reptype t0 (subl (ArraySubsc i))
+                         (fun gfs => subs (ArraySubsc i :: gfs))
+                         (zl_nth i (unfold_reptype v))))
+       | StableOrInvalid => v
+       end
+  | Tstruct id a =>
+    fun subs v =>
+       match h with
+       | FullUpdate => subs nil
+       | SemiUpdate subl =>
+         @fold_reptype _ _ (Tstruct id a)
+           (compact_prod_map _
+             (ListTypeGen
+               (fun it => reptype (field_type (fst it) (co_members (get_co id))) ->
+                          reptype (field_type (fst it) (co_members (get_co id))))
+               (fun it => replace_reptype
+                            (field_type (fst it) (co_members (get_co id)))
+                            (subl (StructField (fst it)))
+                            (fun gfs => subs (StructField (fst it) :: gfs)))
+               _)
+             (unfold_reptype v))
+       | StableOrInvalid => v
+       end
+  | Tunion id a => 
+    fun subs v =>
+       match h with
+       | FullUpdate => subs nil
+       | SemiUpdate subl =>
+         @fold_reptype _ _ (Tunion id a)
+           (compact_sum_map _
+             (ListTypeGen
+               (fun it => reptype (field_type (fst it) (co_members (get_co id))) ->
+                          reptype (field_type (fst it) (co_members (get_co id))))
+               (fun it => replace_reptype
+                            (field_type (fst it) (co_members (get_co id)))
+                            (subl (UnionField (fst it)))
+                            (fun gfs => subs (UnionField (fst it) :: gfs)))
+               _)
+             (reinitiate_compact_sum
+               (unfold_reptype v)
+               (get_union_member subl (co_members (get_co id)))
+               (fun _ => default_val _)
+               member_dec
+               ))
+       | StableOrInvalid => v
+       end
+  | _ => fun subs v =>
+       match h with
+       | FullUpdate => subs nil
+       | _ => v
+       end
+  end.
+Proof.
+  intros.
+  unfold replace_reptype.
+  rewrite func_type_ind.
+  destruct t; try auto.
+  + (* Tstruct case *)
+    destruct h; try auto.
+    extensionality subs v.
+    rewrite !ListType_map_ListTypeGen.
+    reflexivity.
+  + destruct h; try auto.
+    extensionality subs v.
+    rewrite !ListType_map_ListTypeGen.
+    reflexivity.
+Qed.
 
 Definition refill_reptype {t h} (v: reptype_with_holes t h) (subs: holes_subs t) := replace_reptype t h subs v. 
 
@@ -327,8 +419,25 @@ Definition singleton_subs t gfs (v: reptype (nested_field_type2 t gfs)): holes_s
   + subst.
     exact v.
   + exact (default_val _).
-Qed.
+Defined.
 
+Lemma singleton_subs_self: forall t gfs v,
+  JMeq (singleton_subs t gfs v (rev gfs)) v.
+Proof.
+  intros.
+  unfold singleton_subs.
+  destruct (rgfs_dec (rev gfs) (rev gfs)); [| congruence].
+  match goal with
+  | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_r_JMeq A x y F v H)
+  end.
+  match goal with
+  | |- JMeq (@eq_rect_r ?A ?x ?F ?v ?y ?H) _ =>
+    rewrite (eq_rect_r_JMeq A x y F v H)
+  end.
+  auto.
+Qed.
+  
 Definition proj_except_holes_1 t gfs v: reptype_with_holes t (singleton_hole gfs) :=
   proj_except_holes t (singleton_hole gfs) v.
 
@@ -380,16 +489,173 @@ Definition t1 := Tstruct 101%positive noattr.
 Definition t2 := Tstruct 102%positive noattr.
 Definition v1: reptype t1 := (Vint Int.zero, Vint Int.one).
 Definition v2: reptype t2 := ((Vint Int.zero, Vint Int.one), ((Vint Int.zero, Vint Int.one), Vundef)).
+
+Eval vm_compute in (reptype_gen t2).
 (*
-Eval vm_compute in (reptype t2).
 Eval vm_compute in (proj_reptype t1 (StructField 1%positive :: nil) v1).
 *)
 Goal proj_reptype t1 (StructField 1%positive :: nil) v1 = Vint Int.zero.
 reflexivity.
 Qed.
 
+Goal proj_reptype t2 (StructField 1%positive :: StructField 3%positive :: nil) v2 = Vint Int.zero.
+unfold proj_reptype.
+change (eq_rect_r reptype v2 (nested_field_type2_ind t2 nil)) with v2.
+change (eq_rect_r reptype
+           (proj_gfield_reptype (nested_field_type2 t2 nil)
+              (StructField 3%positive) v2)
+           (nested_field_type2_ind t2 (StructField 3%positive :: nil))) with
+   (proj_gfield_reptype (nested_field_type2 t2 nil)
+              (StructField 3%positive) v2).
+change (nested_field_type2 t2 nil) with t2.
+change (nested_field_type2 t2 (StructField 3%positive :: nil)) with (Tstruct 101%positive noattr).
+change (eq_rect_r reptype
+     (proj_gfield_reptype
+        (Tstruct 101%positive noattr)
+        (StructField 1%positive)
+        (proj_gfield_reptype t2 (StructField 3%positive) v2))
+     (nested_field_type2_ind t2
+        (StructField 1%positive :: StructField 3%positive :: nil))) with
+   (proj_gfield_reptype
+        (Tstruct 101%positive noattr)
+        (StructField 1%positive)
+        (proj_gfield_reptype t2 (StructField 3%positive) v2)).
+change t2 with (Tstruct 102%positive noattr).
+unfold proj_gfield_reptype.
+
+repeat
+match goal with
+| |- appcontext [@unfold_reptype _ _ ?t ?v] =>
+  let H := fresh "H" in
+  pose proof (unfold_reptype_JMeq t v) as H;
+  apply JMeq_eq in H;
+  rewrite H;
+  clear H
+end.
+
+reflexivity.
+(*
+Transparent peq.
+cbv.
+
+cbv [t2 cs csl proj_struct proj_compact_prod proj_union proj_compact_sum get_co
+field_type fieldlist.field_type2 Ctypes.field_type
+list_rect member_dec ident_eq peq Pos.eq_dec BinNums.positive_rec positive_rect 
+sumbool_rec sumbool_rect bool_dec bool_rec bool_rect option_rec option_rect
+eq_rect_r eq_rect eq_rec_r eq_rec eq_sym eq_trans f_equal
+type_eq type_rec type_rect typelist_eq typelist_rec typelist_rect
+intsize_rec intsize_rect signedness_rec signedness_rect floatsize_rec floatsize_rect attr_rec attr_rect
+tvoid tschar tuchar tshort tushort tint
+tuint tbool tlong tulong tfloat tdouble tptr tarray noattr].
+reflexivity.
+*)
+(*
+replace (proj_gfield_reptype t2 (StructField 3%positive) v2) with (Vint Int.zero, Vint Int.one).
+Focus 2.
+change t2 with (Tstruct 102%positive noattr).
+unfold proj_gfield_reptype.
+replace (unfold_reptype v2) with v2.
+reflexivity.
+(* *)
+unfold unfold_reptype, t2.
+replace (@reptype_ind cs csl (Tstruct 102%positive noattr)) with (@eq_refl Type ((val * val) * ((val * val) * val))%type).
+reflexivity.
+(* *)
+unfold reptype_ind.
+replace (@reptype_gen_ind cs csl (Tstruct 102%positive noattr)) with
+ (@eq_refl (@sigT Type (fun x : Type => x)) (@existT Type (fun x : Type => x) ((val * val) * ((val * val) * val))%type ((Vundef, Vundef), ((Vundef, Vundef) , Vundef)))).
+reflexivity.
+(* *)
+unfold reptype_gen_ind.
+Set Printing All.
+Check (func_type_ind (fun _ : type => {x : Type & x})
+        (fun t : type =>
+         if type_is_by_value t
+         then existT (fun x : Type => x) val Vundef
+         else existT (fun x : Type => x) unit tt)
+        (fun (_ : type) (n : Z) (_ : attr) (TV : {x : Type & x}) =>
+         let (T, V) := TV in
+         existT (fun x : Type => x) (zlist T 0 n) (zl_default 0 n))
+        (fun (id : positive) (_ : attr)
+           (TVs : ListType
+                    (map (fun _ : ident * type => {x : Type & x})
+                       (co_members (get_co id)))) =>
+         existT (fun x : Type => x) (compact_prod_sigT_type (decay TVs))
+           (compact_prod_sigT_value (decay TVs)))
+        (fun (id : positive) (_ : attr)
+           (TVs : ListType
+                    (map (fun _ : ident * type => {x : Type & x})
+                       (co_members (get_co id)))) =>
+         existT (fun x : Type => x) (compact_sum_sigT_type (decay TVs))
+           (compact_sum_sigT_value (decay TVs)))
+        (Tstruct 102%positive noattr)).
+
+replace (@func_type_ind cs csl (fun _ : type => {x : Type & x})
+        (fun t : type =>
+         if type_is_by_value t
+         then existT (fun x : Type => x) val Vundef
+         else existT (fun x : Type => x) unit tt)
+        (fun (_ : type) (n : Z) (_ : attr) (TV : {x : Type & x}) =>
+         let (T, V) := TV in
+         existT (fun x : Type => x) (zlist T 0 n) (zl_default 0 n))
+        (fun (id : positive) (_ : attr)
+           (TVs : ListType
+                    (map (fun _ : ident * type => {x : Type & x})
+                       (co_members (get_co id)))) =>
+         existT (fun x : Type => x) (compact_prod_sigT_type (decay TVs))
+           (compact_prod_sigT_value (decay TVs)))
+        (fun (id : positive) (_ : attr)
+           (TVs : ListType
+                    (map (fun _ : ident * type => {x : Type & x})
+                       (co_members (get_co id)))) =>
+         existT (fun x : Type => x) (compact_sum_sigT_type (decay TVs))
+           (compact_sum_sigT_value (decay TVs)))
+        (Tstruct 102%positive noattr)) with (@eq_refl  (@sigT Type (fun x : Type => x)) (@existT Type (fun x : Type => x) ((val * val) * ((val * val) * val))%type ((Vundef, Vundef), ((Vundef, Vundef) , Vundef)))).
+(* super slow *)
+reflexivity.
+*)
+Qed.
+
+
 Goal replace_reptype_1 t2 (StructField 3%positive :: nil) v2 (Vint Int.one, Vint Int.one) =
 ((Vint Int.one, Vint Int.one), ((Vint Int.zero, Vint Int.one), Vundef)).
+unfold replace_reptype_1.
+unfold t2; rewrite replace_reptype_ind.
+unfold singleton_hole.
+simpl singleton_hole_rec.
+cbv iota beta.
+match goal with
+| |- appcontext [@fold_reptype _ _ ?t ?v] =>
+  let H := fresh "H" in
+  pose proof (fold_reptype_JMeq t v) as H;
+  apply JMeq_eq in H;
+  rewrite H;
+  clear H
+end.
+match goal with
+| |- appcontext [@unfold_reptype _ _ ?t ?v] =>
+  let H := fresh "H" in
+  pose proof (unfold_reptype_JMeq t v) as H;
+  apply JMeq_eq in H;
+  rewrite H;
+  clear H
+end.
+simpl.
+unfold eq_rect_r; rewrite <- !eq_rect_eq.
+repeat
+match goal with
+| |- appcontext [replace_reptype ?t] =>
+  let t0 := eval vm_compute in t in
+  change t with t0;
+  rewrite (replace_reptype_ind t0)
+end.
+match goal with
+| |- appcontext [@singleton_subs ?cs ?t ?gfs ?v ?rgfs] =>
+  let H := fresh "H" in
+  pose proof singleton_subs_self t gfs v as H;
+  apply JMeq_eq in H;
+  replace (@singleton_subs cs t gfs v rgfs) with v by exact H
+end.
 reflexivity.
 
 (*
