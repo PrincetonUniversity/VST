@@ -1476,6 +1476,14 @@ Proof.
   rewrite <- eq_rect_eq; auto.
 Qed.
 
+Lemma repinject_valinject:
+  forall t v,
+    type_is_by_value t = true -> repinject t (valinject t v) = v.
+Proof.
+  intros.
+  destruct t; try inversion H; reflexivity.
+Qed.
+
 Lemma valinject_repinject: forall t v,
   type_is_by_value t = true ->
   (valinject t (repinject t v)) = v.

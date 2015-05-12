@@ -444,7 +444,7 @@ Definition proj_except_holes_1 t gfs v: reptype_with_holes t (singleton_hole gfs
 Definition refill_reptype_1 t gfs (v: reptype_with_holes t (singleton_hole gfs)) (v0: reptype (nested_field_type2 t gfs)) :=
   refill_reptype v (singleton_subs t gfs v0).
 
-Definition replace_reptype_1 t gfs (v: reptype t) (v0: reptype (nested_field_type2 t gfs)) :=
+Definition upd_reptype t gfs (v: reptype t) (v0: reptype (nested_field_type2 t gfs)) :=
   replace_reptype t (singleton_hole gfs) (singleton_subs t gfs v0) v.
 
 End SINGLE_HOLE.
@@ -490,8 +490,8 @@ Definition t2 := Tstruct 102%positive noattr.
 Definition v1: reptype t1 := (Vint Int.zero, Vint Int.one).
 Definition v2: reptype t2 := ((Vint Int.zero, Vint Int.one), ((Vint Int.zero, Vint Int.one), Vundef)).
 
-Eval vm_compute in (reptype_gen t2).
 (*
+Eval vm_compute in (reptype_gen t2).
 Eval vm_compute in (proj_reptype t1 (StructField 1%positive :: nil) v1).
 *)
 Goal proj_reptype t1 (StructField 1%positive :: nil) v1 = Vint Int.zero.
@@ -617,9 +617,9 @@ reflexivity.
 Qed.
 
 
-Goal replace_reptype_1 t2 (StructField 3%positive :: nil) v2 (Vint Int.one, Vint Int.one) =
+Goal upd_reptype t2 (StructField 3%positive :: nil) v2 (Vint Int.one, Vint Int.one) =
 ((Vint Int.one, Vint Int.one), ((Vint Int.zero, Vint Int.one), Vundef)).
-unfold replace_reptype_1.
+unfold upd_reptype.
 unfold t2; rewrite replace_reptype_ind.
 unfold singleton_hole.
 simpl singleton_hole_rec.
