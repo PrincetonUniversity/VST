@@ -157,12 +157,9 @@ Proof.
   rewrite subst_andp, subst_PROP.
   rewrite <- insert_local.
   rewrite subst_local.
-  rewrite subst_lift1C. 
-Admitted.
-(*
-  entailer!.
+  rewrite subst_lift1C.
+entailer!. 
 Qed.
-*)
 
 Lemma semax_SC_field_load:
   forall {Espec: OracleKind},

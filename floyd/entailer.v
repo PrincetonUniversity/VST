@@ -233,7 +233,7 @@ Ltac ent_iter :=
 (* subst_any; *)
    simpl_compare;
    subst_any;
-   autorewrite with entailer_rewrite in *.
+   try autorewrite with entailer_rewrite in *.
 
 Ltac prune_conjuncts :=
  repeat rewrite and_assoc';
