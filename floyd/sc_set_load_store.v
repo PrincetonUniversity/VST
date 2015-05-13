@@ -157,7 +157,7 @@ Proof.
   rewrite subst_andp, subst_PROP.
   rewrite <- insert_local.
   rewrite subst_local.
-  rewrite subst_lift1C. 
+  rewrite subst_lift1C.
 Admitted.
 (*
   entailer!.
@@ -201,6 +201,7 @@ Proof.
   rewrite (add_andp _ _ H4).
   eapply derives_trans; [apply andp_derives; [| apply derives_refl] |].
   eapply nth_error_SEP_sepcon_TT; eauto.
+  instantiate (1 := sh).
 Admitted.
 (*
   entailer!.
