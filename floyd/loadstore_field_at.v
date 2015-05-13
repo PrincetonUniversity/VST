@@ -23,7 +23,8 @@ Max length ids field_at load store:
 
 Section LOADSTORE_FIELD_AT.
 
-Context {cs: compspecs}.
+Context {cs: compspecs}
+      {csl: compspecs_legal cs}.
 
 Lemma semax_max_path_field_load_37':
   forall {Espec: OracleKind},

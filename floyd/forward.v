@@ -6,21 +6,18 @@ Require Import floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
 Require Import floyd.extcall_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.efield_lemmas.
-Require Import floyd.nested_field_re_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
-Require Import floyd.array_lemmas.
 Require Import floyd.loadstore_mapsto.
-Require Import floyd.loadstore_data_at.
 Require Import floyd.loadstore_field_at.
 Require Import floyd.nested_loadstore.
 Require Import floyd.sc_set_load_store.
 Require Import floyd.local2ptree.
-Require Import floyd.unfold_data_at.
+Require Import floyd.reptype_lemmas.
+(*Require Import floyd.unfold_data_at.*)
 Require Import floyd.entailer.
-Require Import floyd.globals_lemmas.
-Require Import floyd.type_id_env.
+(*Require Import floyd.globals_lemmas. need this... *) 
 Require Import floyd.semax_tactics.
 Require Import floyd.for_lemmas.
 Require Import floyd.diagnosis.
@@ -31,7 +28,7 @@ Local Open Scope logic.
 Definition tc_option_val' (t: type) : option val -> Prop :=
  match t with Tvoid => fun v => match v with None => True | _ => False end | _ => fun v => tc_val t (force_val v) end.
 Lemma tc_option_val'_eq: tc_option_val = tc_option_val'.
-Proof. extensionality t v. destruct t as [ | | | [ | ] |  | | | | | ] eqn:?,v eqn:?; simpl; try reflexivity.
+Proof. extensionality t v. destruct t as [ | | | [ | ] |  | | | | ] eqn:?,v eqn:?; simpl; try reflexivity.
 Qed.
 Hint Rewrite tc_option_val'_eq : norm.
 
@@ -149,7 +146,7 @@ Lemma semax_call_id1_x:
    (GLBL: (var_types Delta) ! id = None),
    (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') A Pre Post) ->
    (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') A Pre Post)) ->
-   match retty' with Tvoid => False | Tcomp_ptr _ _ => False | Tarray _ _ _ => False | _ => True end ->
+   match retty' with Tvoid => False | Tarray _ _ _ => False | _ => True end ->
   forall
    (CLOSQ: Forall (closed_wrt_vars (eq ret')) Q)
    (CLOSR: Forall (closed_wrt_vars (eq ret')) R),
@@ -157,7 +154,7 @@ Lemma semax_call_id1_x:
    is_neutral_cast retty' retty = true ->
    match (temp_types Delta) ! ret with Some (t,_) => eqb_type t retty | None => false end = true ->
   @semax Espec Delta (PROPx P (LOCALx (tc_exprlist Delta (argtypes argsig) bl :: Q) 
-                                     (SEPx (`(Pre x) (make_args' (argsig,retty') (eval_exprlist (argtypes argsig) bl)) :: R))))
+                                     (SEPx (`(Pre x) (make_args' (argsig,retty') (eval_exprlist Delta (argtypes argsig) bl)) :: R))))
     (Ssequence (Scall (Some ret')
              (Evar id (Tfunction (type_of_params argsig) retty' cc_default))
              bl)
@@ -196,7 +193,7 @@ PROP  ()
          (update_tycon Delta
             (Scall (Some ret') (Evar id (Tfunction (type_of_params argsig) retty' cc_default)) bl)))
     :: `eq (eval_id ret)
-         (subst ret (`x0) (eval_expr (Etempvar ret' retty')))
+         (subst ret (`x0) (eval_expr Delta (Etempvar ret' retty')))
        :: map (subst ret (`x0)) Q)
    (SEPx
       (map (subst ret (`x0)) (`(Post x) (get_result1 ret') :: R)))))).
@@ -216,7 +213,7 @@ PROP  ()
  unfold local; apply prop_right.
  simpl.
  clear - H5.
-  destruct retty as [ | [ | | | ] [ | ] | | [ | ] |  | | | | | ], retty' as [ |  [ | | | ] [ | ] | | [ | ] |  | | | | | ];
+  destruct retty as [ | [ | | | ] [ | ] | | [ | ] |  | | | | ], retty' as [ |  [ | | | ] [ | ] | | [ | ] |  | | | | ];
      simpl; try inv H5; try apply I.
  intro rho; apply prop_right; unfold tc_temp_id; simpl.
  unfold typecheck_temp_id.
@@ -815,7 +812,7 @@ Lemma semax_call_id1_x_alt:
    (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') A Pre Post) ->
    (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') A Pre Post)) ->
    typeof_temp Delta ret = Some retty -> 
-   match retty with Tvoid => False | Tcomp_ptr _ _ => False | Tarray _ _ _ => False | _ => True end ->
+   match retty with Tvoid => False | Tarray _ _ _ => False | _ => True end ->
    paramty = type_of_params argsig ->
    (temp_types Delta) ! ret' = Some (retty', false) ->
    is_neutral_cast retty' retty = true ->
@@ -823,7 +820,7 @@ Lemma semax_call_id1_x_alt:
    PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
     PROP () LOCAL (tc_exprlist Delta (argtypes argsig) bl) 
                 (SEPx (`(Pre witness)  (make_args' (argsig, retty)
-                               (eval_exprlist (argtypes argsig) bl)) :: Frame)) ->
+                               (eval_exprlist Delta (argtypes argsig) bl)) :: Frame)) ->
   forall
    (CLOSR: Forall (closed_wrt_vars (eq ret')) Frame),
    @semax Espec Delta (PROPx P (LOCALx Q (SEPx R)))
@@ -866,7 +863,7 @@ Qed.
 Ltac do_compute_lvalue Delta P Q R e v H :=
   let rho := fresh "rho" in
   assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-    local (`(eq v) (eval_lvalue e))) as H by
+    local (`(eq v) (eval_lvalue Delta e))) as H by
   (first [ assumption |
     eapply derives_trans; [| apply msubst_eval_lvalue_eq];
     [apply derives_refl'; apply local2ptree_soundness; try assumption;
@@ -884,7 +881,7 @@ Ltac do_compute_lvalue Delta P Q R e v H :=
 Ltac do_compute_expr Delta P Q R e v H :=
   let rho := fresh "rho" in
   assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
-    local (`(eq v) (eval_expr e))) as H by
+    local (`(eq v) (eval_expr Delta e))) as H by
   (first [ assumption |
     eapply derives_trans; [| apply msubst_eval_expr_eq];
     [apply derives_refl'; apply local2ptree_soundness; try assumption;
@@ -1013,13 +1010,13 @@ Ltac do_compute_expr1 Delta Pre e :=
     by (extensionality; unfold P,Q,R; reflexivity);
   let v := fresh "v" in evar (v: A -> val);
   assert (H9: forall a, PROPx (P a) (LOCALx (tc_environ Delta :: (Q a)) (SEPx (R a))) |--
-                       local (`(eq (v a)) (eval_expr e)))
+                       local (`(eq (v a)) (eval_expr Delta e)))
      by (let a := fresh "a" in intro a; do_compute_expr_helper Delta (Q a) v)
  | PROPx ?P (LOCALx ?Q (SEPx ?R)) =>
   let H9 := fresh "H" in
   let v := fresh "v" in evar (v: val);
   assert (H9:  PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R))|-- 
-                     local (`(eq v) (eval_expr e)))
+                     local (`(eq v) (eval_expr Delta e)))
    by (do_compute_expr_helper Delta Q v) 
  end.
 
@@ -1825,8 +1822,8 @@ Qed.
 
 Ltac solve_legal_nested_field_in_entailment' :=
   first
-  [ solve [(apply prop_right; apply legal_nested_field_nil_lemma)]
-  | eapply solve_legal_nested_field_in_entailment_aux; [apply legal_nested_field_cons_lemma |];
+  [ solve [(apply prop_right; fail (*apply legal_nested_field_nil_lemma*) )]
+  | eapply solve_legal_nested_field_in_entailment_aux; [fail (*apply legal_nested_field_cons_lemma*) |];
     rewrite prop_and; apply andp_right; [solve_legal_nested_field_in_entailment' | try solve [entailer!]]].
 
 Ltac solve_legal_nested_field_in_entailment :=
@@ -1850,14 +1847,14 @@ Ltac construct_nested_efield e e1 efs tts :=
     change e with (nested_efield e1 efs tts);
     clear pp.
 
-Lemma efield_denote_cons_array: forall P efs gfs ei i,
-  P |-- efield_denote efs gfs ->
-  P |-- local (`(eq (Vint (Int.repr i))) (eval_expr ei)) ->
+Lemma efield_denote_cons_array: forall Delta P efs gfs ei i,
+  P |-- efield_denote Delta efs gfs ->
+  P |-- local (`(eq (Vint (Int.repr i))) (eval_expr Delta ei)) ->
   match typeof ei with
   | Tint _ _ _ => True
   | _ => False
   end ->
-  P |-- efield_denote (eArraySubsc ei :: efs) (ArraySubsc i :: gfs).
+  P |-- efield_denote Delta (eArraySubsc ei :: efs) (ArraySubsc i :: gfs).
 Proof.
   intros.
   simpl efield_denote.
@@ -1866,9 +1863,9 @@ Proof.
   apply prop_right, H1.
 Qed.
 
-Lemma efield_denote_cons_struct: forall P efs gfs i,
-  P |-- efield_denote efs gfs ->
-  P |-- efield_denote (eStructField i :: efs) (StructField i :: gfs).
+Lemma efield_denote_cons_struct: forall Delta P efs gfs i,
+  P |-- efield_denote Delta efs gfs ->
+  P |-- efield_denote Delta (eStructField i :: efs) (StructField i :: gfs).
 Proof.
   intros.
   simpl efield_denote.
@@ -1876,9 +1873,9 @@ Proof.
   normalize.
 Qed.
 
-Lemma efield_denote_cons_union: forall P efs gfs i,
-  P |-- efield_denote efs gfs ->
-  P |-- efield_denote (eUnionField i :: efs) (UnionField i :: gfs).
+Lemma efield_denote_cons_union: forall Delta P efs gfs i,
+  P |-- efield_denote Delta efs gfs ->
+  P |-- efield_denote Delta (eUnionField i :: efs) (UnionField i :: gfs).
 Proof.
   intros.
   simpl efield_denote.
@@ -1886,15 +1883,15 @@ Proof.
   normalize.
 Qed.
 
-Ltac test_legal_nested_efield SE TY e gfs tts lr H_LEGAL :=
-  assert (legal_nested_efield SE TY e gfs tts lr = true) as H_LEGAL by reflexivity.
+Ltac test_legal_nested_efield TY e gfs tts lr H_LEGAL :=
+  assert (legal_nested_efield TY e gfs tts lr = true) as H_LEGAL by reflexivity.
 
 Ltac sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS TY V:=
       assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (R0 :: nil))) 
          |-- `(field_at sh t_root gfs0 v p)) as H;
       [unfold sh, t_root, gfs0, v, p;
-       try rewrite !(data_at_field_at SH);
-       try rewrite !(data_at__field_at_ SH);
+       unfold data_at_;
+       unfold data_at;
        instantiate (2 := GFS);
        instantiate (2 := TY);
        assert (GFS = skipn (length gfs - length GFS) gfs) as _ by reflexivity;
@@ -1910,31 +1907,31 @@ Ltac sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS T
        ]
       | pose N as n ].
 
-Ltac sc_new_instantiate SE P Q R Rnow Delta e gfs tts lr p sh t_root gfs0 v n N H H_LEGAL:=
+Ltac sc_new_instantiate P Q R Rnow Delta e gfs tts lr p sh t_root gfs0 v n N H H_LEGAL:=
   match Rnow with
   | ?R0 :: ?Rnow' => 
     match R0 with
     | `(data_at ?SH ?TY ?V _) => 
-      test_legal_nested_efield SE TY e gfs tts lr H_LEGAL;
+      test_legal_nested_efield TY e gfs tts lr H_LEGAL;
       sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH (@nil gfield) TY V
     | `(data_at_ ?SH ?TY _) => 
-      test_legal_nested_efield SE TY e gfs tts lr H_LEGAL;
+      test_legal_nested_efield TY e gfs tts lr H_LEGAL;
       sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH (@nil gfield) TY
       (default_val (nested_field_type2 TY nil))
     | `(field_at ?SH ?TY ?GFS ?V _) =>
-      test_legal_nested_efield SE TY e gfs tts lr H_LEGAL;
+      test_legal_nested_efield TY e gfs tts lr H_LEGAL;
       sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS TY V
     | `(field_at_ ?SH ?TY ?GFS _) =>
-      test_legal_nested_efield SE TY e gfs tts lr H_LEGAL;
+      test_legal_nested_efield TY e gfs tts lr H_LEGAL;
       sc_try_instantiate P Q R0 Delta e gfs tts p sh t_root gfs0 v n N H SH GFS TY
       (default_val (nested_field_type2 TY GFS))
-    | _ => sc_new_instantiate SE P Q R Rnow' Delta e gfs tts lr p sh t_root gfs0 v n (S N) H H_LEGAL
+    | _ => sc_new_instantiate P Q R Rnow' Delta e gfs tts lr p sh t_root gfs0 v n (S N) H H_LEGAL
     end
   end.
 
 Ltac solve_efield_denote Delta P Q R efs gfs H :=
   evar (gfs : list gfield);
-  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- efield_denote efs gfs) as H; 
+  assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |-- efield_denote Delta efs gfs) as H; 
   [
     unfold efs, gfs;
     match goal with
@@ -1986,7 +1983,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
           let HB := fresh "H" in
           assert (match typeof ei with | Tint _ _ _ => True | _ => False end) as HB by (simpl; auto);
           
-          apply (efield_denote_cons_array _ _ _ _ _ H0 HA HB)
+          apply (efield_denote_cons_array _ _ _ _ _ _ H0 HA HB)
 
         | eStructField ?i =>
           instantiate (1 := StructField i :: gfs0');
@@ -2003,7 +2000,7 @@ Ltac try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS V:=
       assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (R0 :: nil))) 
          |-- (`(field_at sh (typeof e) ids0 v) (eval_lvalue e))) as H;
       [unfold sh, ids0, v;
-       try rewrite !(data_at_field_at SH);
+       unfold data_at;
        instantiate (2 := IDS);
        assert (IDS = skipn (length ids - length IDS) ids) as _ by reflexivity;
        simpl skipn; subst e ids tts;
@@ -2047,7 +2044,7 @@ Ltac try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS V:=
       assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (R0 :: nil))) 
          |-- (`(field_at sh (typeof e) ids0) v (eval_lvalue e))) as H;
       [unfold sh, ids0, v;
-       try rewrite !data_at_field_at; (* move to somewhere later? *)
+       unfold data_at; (* move to somewhere later? *)
        instantiate (2 := IDS);
        assert (IDS = skipn (length ids - length IDS) ids) as _ by reflexivity;
        simpl skipn; subst e ids tts;
@@ -2133,9 +2130,9 @@ Ltac quick_load_equality :=
   idtac.
 
 Lemma sem_add_ptr_int:
- forall v t i, 
+ forall Delta v t i, 
    isptr v -> 
-   Cop2.sem_add (tptr t) tint v (Vint (Int.repr i)) = Some (add_ptr_int t v i).
+   Cop2.sem_add Delta (tptr t) tint v (Vint (Int.repr i)) = Some (add_ptr_int Delta t v i).
 Proof.
 intros. destruct v; inv H; reflexivity.
 Qed.
@@ -2144,14 +2141,8 @@ Hint Rewrite sem_add_ptr_int using assumption : norm.
 Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  ensure_normal_ret_assert;
  hoist_later_in_pre;
- match goal with
- | Struct_env := @abbreviate type_id_env _ |- _ => idtac
- | |- _ => let Struct_env := fresh "Struct_env" in
-     pose (Struct_env := @abbreviate _ empty_ti)
- end; 
  match goal with   
-| SE := @abbreviate type_id_env _ 
-    |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
  (* Super canonical cast load *)
     let e1 := fresh "e" in
     let efs := fresh "efs" in
@@ -2180,7 +2171,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     let n := fresh "n" in
     let H := fresh "H" in
     let H_LEGAL := fresh "H" in
-    sc_new_instantiate SE P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H H_LEGAL;
+    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H H_LEGAL;
     
     let gfs1 := fresh "gfs" in
     let len := fresh "len" in
@@ -2203,7 +2194,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
            |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
     end;
-    eapply (semax_SC_field_cast_load Delta sh SE n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
+    eapply (semax_SC_field_cast_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity
     | reflexivity | exact Heq | exact HLE | exact H_Denote 
     | exact H | reflexivity
@@ -2212,8 +2203,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n]
 
-| SE := @abbreviate type_id_env.type_id_env _ 
-    |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
  (* Super canonical load *)
     let e1 := fresh "e" in
     let efs := fresh "efs" in
@@ -2242,7 +2232,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     let n := fresh "n" in
     let H := fresh "H" in
     let H_LEGAL := fresh "H" in
-    sc_new_instantiate SE P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H H_LEGAL;
+    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H H_LEGAL;
     
     let gfs1 := fresh "gfs" in
     let len := fresh "len" in
@@ -2267,7 +2257,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
            |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
     end;
 
-    eapply (semax_SC_field_load Delta sh SE n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
+    eapply (semax_SC_field_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity
     | reflexivity | exact Heq | exact HLE | exact H_Denote 
     | exact H | reflexivity
@@ -2377,13 +2367,7 @@ Ltac new_store_tac :=
 ensure_open_normal_ret_assert;
 hoist_later_in_pre;
 match goal with
-| Struct_env := @abbreviate type_id_env _ |- _ => idtac
-| |- _ => let Struct_env := fresh "Struct_env" in
-   pose (Struct env := @abbreviate _ empty_ti)
-end; 
-match goal with
-| SE := @abbreviate type_id_env.type_id_env _ 
-    |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e ?e2) _ =>
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e ?e2) _ =>
   (* Super canonical field store *)
     let e1 := fresh "e" in
     let efs := fresh "efs" in
@@ -2416,7 +2400,7 @@ match goal with
     let n := fresh "n" in
     let H := fresh "H" in
     let H_LEGAL := fresh "H" in
-    sc_new_instantiate SE P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H H_LEGAL;
+    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H H_LEGAL;
 
     let gfs1 := fresh "gfs" in
     let len := fresh "len" in
@@ -2445,7 +2429,7 @@ match goal with
     | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) |-- _) =>
       match R0 with
       | appcontext [field_at] =>
-        eapply (semax_SC_field_store Delta sh SE n) 
+        eapply (semax_SC_field_store Delta sh n) 
           with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
         [reflexivity | reflexivity | reflexivity
         | reflexivity | exact Heq | exact HLE
@@ -2455,7 +2439,7 @@ match goal with
         | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n ]
       | appcontext [field_at_] =>
-        eapply (semax_SC_field_store Delta sh SE n)
+        eapply (semax_SC_field_store Delta sh n)
           with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
         [reflexivity | reflexivity | reflexivity
         | reflexivity | exact Heq | exact HLE
@@ -2466,7 +2450,7 @@ match goal with
           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n ]
       | _ =>
         eapply semax_post'; [ |
-          eapply (semax_SC_field_store Delta sh SE n)
+          eapply (semax_SC_field_store Delta sh n)
             with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
             [reflexivity | reflexivity | reflexivity
             | reflexivity | exact Heq | exact HLE 
@@ -2476,8 +2460,10 @@ match goal with
             let EQ := fresh "EQ" in
             let MM := fresh "MM" in
                remember M as MM eqn:EQ;
-               try rewrite <- data_at__field_at_ in EQ;
-               try rewrite <- data_at_field_at in EQ;
+               repeat match type of EQ with
+                          | appcontext [field_at_ ?sh ?t nil] => change (field_at_ sh t nil) with (data_at_ sh t)
+                          | appcontext [field_at ?sh ?t nil ?v] => change (field_at sh t nil v) with (data_at sh t v)
+                         end;
                subst MM;
                apply derives_refl
           end
@@ -2494,7 +2480,7 @@ match goal with
  let n := fresh "n" in evar (n: nat); 
   let sh := fresh "sh" in evar (sh: share);
   assert (PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
-     |-- (`(numbd n (mapsto_ sh (typeof e))) (eval_lvalue e)) * TT) as _;
+     |-- (`(numbd n (mapsto_ sh (typeof e))) (eval_lvalue Delta e)) * TT) as _;
   [ unfold number_list, n, sh; 
    repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
    unfold at_offset; solve [entailer; cancel]
@@ -2581,7 +2567,7 @@ Ltac forward_compound_call :=
       evar (x:A); evar (F: list (environ->mpred)); 
       apply semax_pre with (PROPx P
                 (LOCALx (tc_exprlist Delta (argtypes (fst fsig)) bl :: Q)
-                 (SEPx (`(Pre x)  (make_args' fsig (eval_exprlist (argtypes (fst fsig)) bl)) ::
+                 (SEPx (`(Pre x)  (make_args' fsig (eval_exprlist Delta (argtypes (fst fsig)) bl)) ::
                             F))));
        [
        | apply (semax_call_id1_x Espec Delta P Q F id id' f 
@@ -2922,7 +2908,7 @@ Ltac start_function' :=
       end;
       fold (Sfor s1 e s2 s3)
  end;
- try expand_main_pre;
+(* try expand_main_pre;*)  (* FIXME when global_lemmas is back in *)
  try match goal with |- context [stackframe_of ?F] => 
             change (stackframe_of F) with (@emp (environ->mpred) _ _);
             rewrite frame_ret_assert_emp;
@@ -2971,7 +2957,7 @@ match goal with |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (
   let sh := fresh "sh" in evar (sh: share);
   let H := fresh in 
   assert (H: PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx (number_list O R))) 
-     |-- (`(numbd n (field_at_ sh (typeof e) fld)) (eval_lvalue e)) * TT);
+     |-- (`(numbd n (field_at_ sh (typeof e) fld)) (eval_lvalue Delta e)) * TT);
   [unfold number_list;
    repeat rewrite numbd_lift1; repeat rewrite numbd_lift2;
    gather_entail

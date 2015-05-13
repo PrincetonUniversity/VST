@@ -9,15 +9,13 @@ Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.nested_field_lemmas.
-Require Import floyd.type_id_env.
 Require Import floyd.efield_lemmas.
 Require Import floyd.mapsto_memory_block.
-Require Import floyd.rangespec_lemmas.
+Require Import floyd.reptype_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
-Require Import floyd.nested_field_re_lemmas.
 Require Import floyd.nested_loadstore.
-Require Import floyd.unfold_data_at.
+(*Require Import floyd.unfold_data_at.*)
 Require Import floyd.entailer.
 (*  End TEMPORARILY *)
 

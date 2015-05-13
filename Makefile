@@ -300,6 +300,8 @@ progs/even.v: progs/even.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/odd.v: progs/odd.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/field_loadstore.v: progs/field_loadstore.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
 endif
 
 version.v:  $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)

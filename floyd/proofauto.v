@@ -11,25 +11,21 @@ Require Export floyd.for_lemmas.
 Require Export floyd.nested_field_lemmas.
 Require Export floyd.efield_lemmas.
 Require Export floyd.mapsto_memory_block.
-Require Export floyd.rangespec_lemmas.
+Require Export floyd.reptype_lemmas.
 Require Export floyd.data_at_lemmas.
 Require Export floyd.field_at.
-Require Export floyd.array_lemmas.
 Require Export floyd.stronger.
 Require Export floyd.loadstore_mapsto.
-Require Export floyd.loadstore_data_at.
 Require Export floyd.loadstore_field_at.
-Require Export floyd.nested_field_re_lemmas.
 Require Export floyd.nested_loadstore.
 Require Export floyd.local2ptree.
 Require Export floyd.sc_set_load_store.
-Require Export floyd.array_lemmas.
-Require Export floyd.unfold_data_at.
+(*Require Export floyd.unfold_data_at.*)
 Require Export floyd.entailer.
-Require Export floyd.globals_lemmas.
+(*Require Export floyd.globals_lemmas.*)
 Require Export floyd.diagnosis.
 Export ListNotations.
 
-Arguments nested_field_type2 t gfs / .
-Arguments nested_field_offset2 t gfs / .
+Arguments nested_field_type2 {cs} t gfs / .
+Arguments nested_field_offset2 {cs} t gfs / .
 
