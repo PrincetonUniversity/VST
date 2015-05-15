@@ -22,7 +22,7 @@ Require Export floyd.local2ptree.
 Require Export floyd.sc_set_load_store.
 (*Require Export floyd.unfold_data_at.*)
 Require Export floyd.entailer.
-(*Require Export floyd.globals_lemmas.*)
+Require Export floyd.globals_lemmas.
 Require Export floyd.diagnosis.
 Export ListNotations.
 

@@ -3,12 +3,11 @@ Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
-Require Import floyd.rangespec_lemmas.
+Require Import floyd.reptype_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
-Require Import floyd.array_lemmas.
 Require Import floyd.closed_lemmas.
-Require Import floyd.unfold_data_at.
+(*Require Import floyd.unfold_data_at.*)
 Local Open Scope logic.
 
 Fixpoint fold_right_sepcon' (l: list(environ->mpred)) : environ -> mpred :=
@@ -162,8 +161,8 @@ Definition eval_sgvar (id: ident) (ty: type) (rho: environ) :=
 | None => Vundef
 end.
 
-
-Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: type) (v: val) : environ -> mpred :=
+Definition init_data2pred' {cs: compspecs} {csl: compspecs_legal cs}
+     (Delta: tycontext)  (d: init_data)  (sh: share) (ty: type) (v: val) : environ -> mpred :=
  match d with
   | Init_int8 i => `(mapsto sh tuchar v (Vint (Int.zero_ext 8 i)))
   | Init_int16 i => `(mapsto sh tushort v (Vint (Int.zero_ext 16 i)))
@@ -171,7 +170,7 @@ Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: 
   | Init_int64 i => `(mapsto sh tulong v (Vlong i))
   | Init_float32 r =>  `(mapsto sh tfloat v (Vsingle r))
   | Init_float64 r =>  `(mapsto sh tdouble v (Vfloat r))
-  | Init_space n => if zeq n (sizeof ty)
+  | Init_space n => if zeq n (sizeof cenv_cs ty)
                                    then `(data_at_ sh ty v)
                                    else if zlt n 0 then TT
                                    else`(memory_block sh (Int.repr n) v)
@@ -188,32 +187,6 @@ Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: 
       end
  end.
 
-(*
-Definition init_data2pred' (Delta: tycontext)  (d: init_data)  (sh: share) (ty: type) (v: environ->val) : environ -> mpred :=
- match d with
-  | Init_int8 i => `(mapsto sh tuchar) v `(Vint (Int.zero_ext 8 i))
-  | Init_int16 i => `(mapsto sh tushort) v ` (Vint (Int.zero_ext 16 i))
-  | Init_int32 i => `(mapsto sh tuint) v ` (Vint i)
-  | Init_int64 i => `(mapsto sh tulong) v ` (Vlong i)
-  | Init_float32 r =>  `(mapsto sh tfloat) v ` (Vsingle r)
-  | Init_float64 r =>  `(mapsto sh tdouble) v ` (Vfloat r)
-  | Init_space n => if zeq n (sizeof ty)
-                                   then `(data_at_ sh ty) v
-                                   else if zlt n 0 then TT
-                                   else`(memory_block sh (Int.repr n)) v
-  | Init_addrof symb ofs => 
-      match (var_types Delta) ! symb, (glob_types Delta) ! symb with
-      | None, Some (Tarray t n' att) =>`(mapsto sh (Tpointer t noattr)) v (`(offset_val ofs) (eval_var symb (Tarray t n' att)))
-      | None, Some Tvoid => TT
-      | None, Some t => `(mapsto sh (Tpointer t noattr)) v (`(offset_val ofs) (eval_var symb t))
-      | Some _, Some (Tarray t _ att) => `(memory_block sh (Int.repr 4)) v
-      | Some _, Some Tvoid => TT
-      | Some _, Some (Tpointer (Tfunction _ _ _) _) => `(memory_block sh (Int.repr 4)) v 
-      | _, _ => TT
-      end
- end.
-*)
-
 Lemma unsigned_repr_le: forall i, 0 <= i -> Int.unsigned (Int.repr i) <= i.
 Proof.
   intros.
@@ -223,9 +196,9 @@ Proof.
   omega.
 Qed.
 
-Lemma unpack_globvar_aux1:
+Lemma unpack_globvar_aux1 {cs: compspecs} {csl: compspecs_legal cs}:
   forall sh t b v i_ofs, 
-  Int.unsigned i_ofs + sizeof (Tpointer t noattr) <= Int.max_unsigned ->
+  Int.unsigned i_ofs + sizeof cenv_cs (Tpointer t noattr) <= Int.max_unsigned ->
                mapsto sh (Tpointer t noattr) (Vptr b i_ofs) v
                    |-- memory_block sh (Int.repr 4) (Vptr b i_ofs).
 Proof.
@@ -236,15 +209,15 @@ Proof.
  admit. (* align_compatible can be FOUND inside mapsto *)
 Qed.
 
-Lemma sizeof_Tpointer: forall t, sizeof (Tpointer t noattr) = 4.
+Lemma sizeof_Tpointer {cs: compspecs} : forall t, sizeof cenv_cs (Tpointer t noattr) = 4.
 Proof.
 intros. reflexivity.
 Qed.
 
-Lemma init_data_size_space:
- forall t, init_data_size (Init_space (sizeof t)) = sizeof t.
+Lemma init_data_size_space {cs: compspecs}  {csl: compspecs_legal cs}:
+ forall t, init_data_size (Init_space (sizeof cenv_cs t)) = sizeof cenv_cs t.
 Proof. intros.
- pose proof (sizeof_pos t).
+ pose proof (sizeof_pos cenv_cs t).
  unfold init_data_size. rewrite Z.max_l; auto. omega.
 Qed.
 
@@ -257,17 +230,18 @@ extensionality v1 v2.
 simpl. auto.
 Qed.
 
-Lemma init_data2pred_rejigger:
+Lemma init_data2pred_rejigger {cs: compspecs}  {csl: compspecs_legal cs}:
   forall (Delta : tycontext) (t : type) (idata : init_data) (rho : environ)
      (sh : Share.t) (b : block) ofs v,
-  legal_alignas_type t = true -> 
-  nested_legal_fieldlist t = true -> 
-  nested_non_volatile_type t = true ->
+  field_compatible t nil (Vptr b (Int.repr ofs)) ->
+  (*legal_alignas_type t = true -> *) 
+  (*nested_legal_fieldlist t = true -> *) True ->
+  (*nested_non_volatile_type t = true -> *) True ->
   0 <= ofs ->
   ofs + init_data_size idata <= Int.max_unsigned ->
   tc_environ Delta rho ->
   v = Vptr b (Int.repr 0) ->
-  (alignof t | Int.unsigned (Int.repr ofs)) ->
+  (alignof cenv_cs t | Int.unsigned (Int.repr ofs)) ->
    init_data2pred idata sh (offset_val (Int.repr ofs) v) rho 
     |-- init_data2pred' Delta idata sh t (offset_val (Int.repr ofs) v) rho.
 Proof.
@@ -285,19 +259,15 @@ intros H1 HH H1' H6' H6 H7 H8 H1''.
      rewrite data_at__memory_block by (auto; unfold Int.max_unsigned in H6; omega).
      repeat apply andp_right.
      - apply prop_right. auto.
-     - apply prop_right. auto.
-     - apply prop_right.
-       unfold align_compatible.
-       exact H1''.
      - unfold Int.max_unsigned in H6.
        apply mapsto_zeros_memory_block; auto.
-       1: pose proof (sizeof_pos t); omega.
+       1: pose proof (sizeof_pos cenv_cs t); omega.
        1: pose proof unsigned_repr_range ofs H6'; omega.
    + simpl; apply TT_right.
    + unfold init_data_size in H6. rewrite Z.max_l in H6 by omega.
      unfold Int.max_unsigned in H6.
      apply mapsto_zeros_memory_block; auto.
-     - pose proof (sizeof_pos t); omega.
+     - pose proof (sizeof_pos cenv_cs t); omega.
      - pose proof unsigned_repr_range ofs H6'; omega.
 *  destruct ((var_types Delta) ! i) eqn:Hv;
    destruct ((glob_types Delta) ! i) eqn:Hg; 
@@ -330,17 +300,18 @@ intros H1 HH H1' H6' H6 H7 H8 H1''.
   rewrite H0. rewrite H15. auto.
 Qed.
 
-Lemma unpack_globvar:
+Lemma unpack_globvar  {cs: compspecs}  {csl: compspecs_legal cs}:
   forall Delta i t gv idata, 
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some t ->
-   (legal_alignas_type t = true /\ nested_legal_fieldlist t = true /\
-    nested_non_volatile_type t = true) ->
+  (nested_pred_lemmas.legal_alignas_type (gvar_info gv) = true /\
+   nested_pred_lemmas.legal_cosu_type (gvar_info gv) = true /\
+   complete_type cenv_cs (gvar_info gv) = true) ->
    gvar_volatile gv = false ->
    gvar_info gv = t ->
    gvar_init gv = idata :: nil ->
-   init_data_size idata <= sizeof t ->
-   sizeof t <= Int.max_unsigned ->  
+   init_data_size idata <= sizeof cenv_cs t ->
+   sizeof cenv_cs t <= Int.max_unsigned ->  
    local (tc_environ Delta) && globvar2pred(i, gv) |-- 
        EX s: val, local (gvar i s) &&
        init_data2pred' Delta idata (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) t s.
@@ -361,10 +332,16 @@ rewrite H10.
  unfold eval_var in H9.
  hnf in H8. destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
  destruct (ge_of rho i); try contradiction. 
- eapply derives_trans.
+ apply derives_trans with
+    (init_data2pred' Delta idata (Share.splice extern_retainer sh) t
+      (offset_val (Int.repr 0) x) rho).
  + eapply init_data2pred_rejigger; destruct H1; eauto.
-   - tauto.
-   - tauto.
+   - clear H10 H8 x. inv H9.
+      split; simpl; auto.
+       change Int.max_unsigned with (Int.modulus-1) in H6.
+       destruct H11.
+      split3; auto. split3; auto.
+      omega. split3; auto. omega. apply Z.divide_0_r.
    - omega.
    - omega.
    - apply Z.divide_0_r.
@@ -375,14 +352,15 @@ rewrite H10.
  try apply derives_refl.
 Qed.
 
-Fixpoint id2pred_star (Delta: tycontext) (sh: share) (t: type) (v: val) (ofs: Z) (dl: list init_data) : environ->mpred :=
+Fixpoint id2pred_star   {cs: compspecs}  {csl: compspecs_legal cs}
+   (Delta: tycontext) (sh: share) (t: type) (v: val) (ofs: Z) (dl: list init_data) : environ->mpred :=
  match dl with
  | d::dl' => init_data2pred' Delta d sh t (offset_val (Int.repr ofs) v)
                    * id2pred_star Delta sh t v (ofs + init_data_size d) dl'
  | nil => emp
  end.
 
-Arguments id2pred_star Delta sh t v ofs dl rho  / .
+Arguments id2pred_star cs csl Delta sh t v ofs dl rho  / .
 
 Lemma init_data_size_pos : forall a, init_data_size a >= 0.
 Proof. 
@@ -398,15 +376,15 @@ Proof.
  pose proof (init_data_size_pos a); omega.
 Qed.
 
-Lemma unpack_globvar_star:
+Lemma unpack_globvar_star  {cs: compspecs}  {csl: compspecs_legal cs}:
   forall Delta i gv, 
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (gvar_info gv) ->
-   (legal_alignas_type (gvar_info gv) = true /\
-    nested_legal_fieldlist (gvar_info gv) = true /\
-    nested_non_volatile_type (gvar_info gv) = true) -> 
+  (nested_pred_lemmas.legal_alignas_type (gvar_info gv) = true /\
+   nested_pred_lemmas.legal_cosu_type (gvar_info gv) = true /\
+   complete_type cenv_cs (gvar_info gv) = true) ->
    gvar_volatile gv = false ->
-   init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Int.max_unsigned ->
+   init_data_list_size (gvar_init gv) <= sizeof cenv_cs (gvar_info gv) <= Int.max_unsigned ->
    local (tc_environ Delta) && globvar2pred(i, gv) |-- 
       EX s:val, local (gvar i s) && 
        id2pred_star Delta (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) (gvar_info gv) s 0 (gvar_init gv).
@@ -424,7 +402,7 @@ forget (readonly2share (gvar_readonly gv)) as sh.
 (*rename H8 into H20. *)
 (* destruct (tc_eval_gvar_zero _ _ _ _ H7 H H0) as [b ?]. *)
 set (ofs:=0%Z).
-assert (alignof t | Int.unsigned (Int.repr ofs)) by (subst ofs; simpl; apply Z.divide_0_r).
+assert (alignof cenv_cs t | Int.unsigned (Int.repr ofs)) by (subst ofs; simpl; apply Z.divide_0_r).
 hnf in H8.  destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
 destruct (ge_of rho i); try contradiction.
 assert (H10: x = offset_val (Int.repr ofs) x) by (subst; reflexivity).
@@ -432,8 +410,8 @@ rewrite H10 at 1.
 (*replace (eval_var i t rho) with (offset_val (Int.repr ofs) (eval_var i t rho))
     by (rewrite H8; reflexivity). *)
 clear H10.
-assert (H11: init_data_list_size idata + ofs <= sizeof t)  by (unfold ofs; omega).
-assert (H12:  sizeof t <= Int.max_unsigned)  by omega.
+assert (H11: init_data_list_size idata + ofs <= sizeof cenv_cs t)  by (unfold ofs; omega).
+assert (H12:  sizeof cenv_cs t <= Int.max_unsigned)  by omega.
 assert (0 <= ofs) by (unfold ofs; omega).
 clearbody ofs.
 revert ofs H9 H10 H11 H12.
@@ -441,6 +419,10 @@ clear dependent gv. clear H H0 H6.
 induction idata; simpl; auto; intros.
 apply sepcon_derives.
 * eapply init_data2pred_rejigger; destruct H1; eauto; try tauto.
+  split3; simpl; auto. destruct H0; split3; auto.
+  change Int.max_unsigned with (Int.modulus-1) in H12.
+ split3; auto. omega.
+  admit. 
  pose proof (init_data_list_size_pos idata); omega.
 * specialize (IHidata (ofs + init_data_size a)).
 rewrite offset_offset_val.
@@ -448,19 +430,23 @@ rewrite add_repr.
  pose proof (init_data_list_size_pos idata).
 pose proof (init_data_size_pos a).
  apply IHidata; try omega.
+ rewrite Int.unsigned_repr by omega.
+ rewrite Int.unsigned_repr in H9 by omega.
+ apply Z.divide_add_r; auto.
  admit. (* alignment issue *)
 Qed.
 
-Lemma tc_globalvar_sound_space:
+Lemma tc_globalvar_sound_space {cs: compspecs}  {csl: compspecs_legal cs}:
   forall Delta i t gv rho, 
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some t ->
-   (legal_alignas_type t = true /\ nested_legal_fieldlist t = true /\
-    nested_non_volatile_type t = true) ->
+  (nested_pred_lemmas.legal_alignas_type (gvar_info gv) = true /\
+   nested_pred_lemmas.legal_cosu_type (gvar_info gv) = true /\
+   complete_type cenv_cs (gvar_info gv) = true) ->
    gvar_volatile gv = false ->
    gvar_info gv = t ->
-   gvar_init gv = Init_space (sizeof t) :: nil ->
-   sizeof t <= Int.max_unsigned ->
+   gvar_init gv = Init_space (sizeof cenv_cs t) :: nil ->
+   sizeof cenv_cs t <= Int.max_unsigned ->
    tc_environ Delta rho ->
    (!! ((align_compatible t) (eval_var i t rho))) && globvar2pred (i, gv) rho |-- 
    data_at_ (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) t (eval_var i t rho).
@@ -476,15 +462,18 @@ rewrite H8 in H7 |- *.
 unfold mapsto_zeros. rewrite sepcon_emp.
 rewrite Int.unsigned_zero.
 pose proof (mapsto_zeros_memory_block
-  (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) (sizeof t) b Int.zero).
+  (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) (sizeof cenv_cs t) b Int.zero).
 unfold mapsto_zeros in H9. change (Int.repr 0) with Int.zero in H9.
 rewrite Int.unsigned_zero in H9.
 apply andp_right.
 + normalize.
-  apply prop_right.
-  tauto.
+  apply prop_right. subst t.
+  destruct Hno as [? [? ?]]. split3; simpl; auto.
+  split3; auto.
+  change Int.max_unsigned with (Int.modulus-1) in H5.
+ split3. omega. omega. split; auto.
 + apply H9.
-  pose (sizeof_pos t).
+  pose (sizeof_pos cenv_cs t).
   - unfold Int.max_unsigned in H5. omega.
   - unfold Int.max_unsigned in H5. omega.
 Qed.
@@ -616,13 +605,13 @@ Proof.
  f_equal; auto.
 Qed.
 
-Lemma id2pred_star_ZnthV_Tint:
+Lemma id2pred_star_ZnthV_Tint  {cs: compspecs}  {csl: compspecs_legal cs}:
  forall Delta sh n (v: val) (data: list int) sz sign mdata
   (NBS: notboolsize sz),
   n = Zlength mdata -> 
   mdata = map (inttype2init_data sz) data ->
   !! isptr v && !! align_compatible (Tint sz sign noattr) v &&
-  !! (offset_in_range (sizeof (Tint sz sign noattr) * n)) v &&
+  !! (offset_in_range (sizeof cenv_cs (Tint sz sign noattr) * n)) v &&
   id2pred_star Delta sh (tarray (Tint sz sign noattr) n) v 0 mdata |--
   `(data_at sh (tarray (Tint sz sign noattr) n) 
            (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data) v).
@@ -633,10 +622,10 @@ Proof.
   set (ofs:=0%Z).
   unfold ofs at 1.
   go_lowerx.
-  assert (offset_in_range (sizeof (Tint sz sign noattr) * ofs) v) by
+  assert (offset_in_range (sizeof cenv_cs (Tint sz sign noattr) * ofs) v) by
     (unfold ofs, offset_in_range; destruct v; auto;
      pose proof Int.unsigned_range i; omega).
-  change 0 with (ofs* sizeof (Tint sz sign noattr))%Z.
+  change 0 with (ofs* sizeof cenv_cs (Tint sz sign noattr))%Z.
   set (N := Zlength data). unfold N at 2. clearbody N.
   replace (Zlength data) with (ofs + Zlength data) in * by (unfold ofs; omega).
 Admitted.
@@ -728,12 +717,12 @@ apply sepcon_derives; auto.
 Qed.
 *)
 
-Lemma id2pred_star_ZnthV_tint:
+Lemma id2pred_star_ZnthV_tint  {cs: compspecs}  {csl: compspecs_legal cs}:
  forall Delta sh n (v: val) (data: list int) mdata,
   n = Zlength mdata ->
   mdata = map Init_int32 data ->
   !! isptr v && !! align_compatible tint v &&
-  !! offset_in_range (sizeof tint * n) v &&
+  !! offset_in_range (sizeof cenv_cs tint * n) v &&
   id2pred_star Delta sh (tarray tint n) v 0 mdata |--
   `(data_at sh (tarray tint n) (map Vint data) v).
 Proof. intros; apply id2pred_star_ZnthV_Tint; auto; apply I.
@@ -748,7 +737,7 @@ destruct (ge_of rho i); try contradiction.
 subst; apply I.
 Qed.
 
-Lemma unpack_globvar_array:
+Lemma unpack_globvar_array  {cs: compspecs}  {csl: compspecs_legal cs}:
   forall t sz sign (data: list int)  n Delta i gv,
    (var_types Delta) ! i = None ->
    (glob_types Delta) ! i = Some (gvar_info gv) ->
@@ -758,7 +747,7 @@ Lemma unpack_globvar_array:
   forall    (NBS: notboolsize sz),
    n = Zlength (gvar_init gv) ->
    gvar_init gv = map (inttype2init_data sz) data ->
-   init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Int.max_unsigned ->
+   init_data_list_size (gvar_init gv) <= sizeof cenv_cs (gvar_info gv) <= Int.max_unsigned ->
    local (tc_environ Delta) && globvar2pred(i, gv) |-- 
    EX s:val, local (gvar i s) &&
       `(data_at (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
@@ -802,7 +791,7 @@ Transparent sizeof.
     simpl.
     apply Z.divide_0_r.
   } Unfocus.
-  assert (offset_in_range (sizeof (Tint sz sign noattr) * n)
+  assert (offset_in_range (sizeof cenv_cs (Tint sz sign noattr) * n)
            (eval_var i (tarray (Tint sz sign noattr) n) rho)).
   Focus 1. {
     rewrite H8.
@@ -912,12 +901,11 @@ Definition is_Tint sz t :=
   | _ => False
   end.
 
+(*
 Inductive init_rep : list init_data -> forall {t}, reptype t -> Prop :=
   | IRi8: forall {t} i, is_Tint I8 t -> init_rep (Init_int8 i :: nil) (valinject t (Vint i))
   | IRi16: forall {t} i, is_Tint I16 t -> init_rep (Init_int16 i :: nil) (valinject t (Vint i))
   | IRi32: forall {t} i, is_Tint I32 t -> init_rep (Init_int32 i :: nil) (valinject t (Vint i))
-
-(*
 
 Print tvolatile.
 Print tattr.

@@ -17,7 +17,7 @@ Require Import floyd.local2ptree.
 Require Import floyd.reptype_lemmas.
 (*Require Import floyd.unfold_data_at.*)
 Require Import floyd.entailer.
-(*Require Import floyd.globals_lemmas. need this... *) 
+Require Import floyd.globals_lemmas.
 Require Import floyd.semax_tactics.
 Require Import floyd.for_lemmas.
 Require Import floyd.diagnosis.
@@ -1820,12 +1820,6 @@ Proof.
   tauto.
 Qed.
 
-Ltac solve_legal_nested_field_in_entailment' :=
-  first
-  [ solve [(apply prop_right; fail (*apply legal_nested_field_nil_lemma*) )]
-  | eapply solve_legal_nested_field_in_entailment_aux; [fail (*apply legal_nested_field_cons_lemma*) |];
-    rewrite prop_and; apply andp_right; [solve_legal_nested_field_in_entailment' | try solve [entailer!]]].
-
 Ltac solve_legal_nested_field_in_entailment :=
 match goal with
 | |- _ |-- !! legal_nested_field ?t_root (?gfs1 ++ ?gfs0) =>
@@ -1834,7 +1828,7 @@ end;
 match goal with 
 | |- _ |-- !! ?M => simpl M
 end;
-solve_legal_nested_field_in_entailment'.
+ try solve [entailer!].
 
 Ltac construct_nested_efield e e1 efs tts :=
   let pp := fresh "pp" in
@@ -2200,8 +2194,10 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     | exact H | reflexivity
     | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
-    | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;
-      subst e1 gfs0 gfs1 efs tts t_root v sh lr n]
+    | solve_legal_nested_field_in_entailment;
+         try clear Heq HLE H_Denote H H_LEGAL;
+         subst e1 gfs0 gfs1 efs tts t_root v sh lr n
+    ]
 
 | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
  (* Super canonical load *)
@@ -2908,7 +2904,7 @@ Ltac start_function' :=
       end;
       fold (Sfor s1 e s2 s3)
  end;
-(* try expand_main_pre;*)  (* FIXME when global_lemmas is back in *)
+ try expand_main_pre;
  try match goal with |- context [stackframe_of ?F] => 
             change (stackframe_of F) with (@emp (environ->mpred) _ _);
             rewrite frame_ret_assert_emp;
@@ -2965,3 +2961,41 @@ match goal with |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign (
 end.
 
 Ltac debug_store := (forward0; [debug_store' | ]) || debug_store'.
+
+
+Lemma prove_CS_legal:
+  forall (C: compspecs),
+  (Forall
+    (fun x : ident * composite =>
+      composite_legal_alignas cenv_cs (snd x) /\
+      composite_legal_fieldlist (snd x))
+      (PTree.elements cenv_cs)) ->
+  compspecs_legal C.
+Proof.
+intros C Ha.
+split.
++ intros ? ? ?.
+    apply PTree.elements_correct in H.
+    revert H.
+    change co with (snd (id, co)) at 2.
+    forget (id, co) as ele.
+    revert ele.
+    apply Forall_forall. auto.
+    induction (PTree.elements cenv_cs). constructor.
+   inv Ha. constructor; auto.  destruct H1; auto.
++ intros ? ? ?.
+    apply PTree.elements_correct in H.
+    revert H.
+    change co with (snd (id, co)) at 2.
+    forget (id, co) as ele.
+    revert ele.
+    apply Forall_forall. auto.
+    induction (PTree.elements cenv_cs). constructor.
+   inv Ha. constructor; auto.  destruct H1; auto.
+Qed.
+
+Lemma Zge_refl: forall (n: Z), n >= n.
+Proof. intros. omega. Qed.
+
+Ltac prove_CS_legal :=
+  apply prove_CS_legal; repeat constructor; try apply Zge_refl.
