@@ -14,7 +14,7 @@ Definition sumarray_spec :=
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP  (0 <= size <= Int.max_signed;
                  Zlength contents = size;
-                 forall i, 0 <= i < size -> is_int I32 Signed (Znth i (map Vint contents) Vundef))
+                 forall i, 0 <= i < size -> is_int I32 Signed (zl_nth i (map Vint contents: reptype_array tint 0 size)))
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
           SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))
   POST [ tint ]

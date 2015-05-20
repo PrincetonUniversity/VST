@@ -199,11 +199,8 @@ Proof.
   eapply derives_trans; [apply andp_derives; [| apply derives_refl] |].
   eapply nth_error_SEP_sepcon_TT; eauto.
   instantiate (1 := sh).
-Admitted.
-(*
   entailer!.
 Qed.
-*)
 
 Lemma semax_SC_field_cast_load:
   forall {Espec: OracleKind},
@@ -242,11 +239,8 @@ Proof.
   rewrite (add_andp _ _ H4).
   eapply derives_trans; [apply andp_derives; [| apply derives_refl] |].
   eapply nth_error_SEP_sepcon_TT; eauto.
-Admitted.
-(*
   entailer!.
 Qed.
-*)
 
 Lemma semax_SC_field_store:
   forall {Espec: OracleKind},
@@ -305,21 +299,21 @@ Proof.
       apply andp_left2.
       apply derives_refl.
     } Unfocus.
-    admit.
+    entailer!.
   + do 3 rewrite <- insert_local.
     rewrite <- !andp_assoc.
     eapply derives_trans; [apply andp_derives; [apply derives_refl | exact H7] |].
-    admit.
+    entailer!.
   + rewrite (andp_comm _ (efield_denote Delta efs gfs)).
     rewrite andp_assoc.
     apply andp_right.
     - eapply derives_trans; [| exact H6].
-      admit.
+      entailer!.
     - rewrite andp_assoc.
       rewrite (andp_comm (local (tc_efield _ _))).
       rewrite <- andp_assoc.
       eapply derives_trans; [| exact H9].
-      admit.
+      entailer!.
 Qed.
 
 (************************************************
