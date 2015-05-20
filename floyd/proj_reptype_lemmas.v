@@ -4,6 +4,7 @@ Require Import floyd.client_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import type_induction.
 Require Import floyd.reptype_lemmas.
+Require Import floyd.zlist.
 Require floyd.aggregate_type. Import floyd.aggregate_type.aggregate_type.
 Require Import floyd.jmeq_lemmas.
 Require Import Coq.Logic.JMeq.
@@ -16,7 +17,7 @@ Context {csl: compspecs_legal cs}.
 Definition proj_gfield_reptype (t: type) (gf: gfield) (v: reptype t): reptype (gfield_type t gf) :=
   match t, gf return (REPTYPE t -> reptype (gfield_type t gf))
   with
-  | Tarray _ _ _, ArraySubsc i => zl_nth i 
+  | Tarray t0 hi a, ArraySubsc i => zl_nth i
   | Tstruct id _, StructField i => fun v => proj_struct i (co_members (get_co id)) v (default_val _)
   | Tunion id _, UnionField i => fun v => proj_union i (co_members (get_co id)) v (default_val _)
   | _, _ => fun _ => default_val _

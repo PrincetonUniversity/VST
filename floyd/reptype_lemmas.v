@@ -2,7 +2,7 @@ Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
 Require Import floyd.jmeq_lemmas.
-(*Require Export floyd.zlist.*)
+Require Export floyd.zlist.
 Require Export floyd.compact_prod_sum.
 Require floyd.fieldlist.
 Import floyd.fieldlist.fieldlist.
@@ -23,9 +23,7 @@ list_ind
   l.
 
 (******************************************
-
 Definition of reptype.
-
 ******************************************)
 
 Notation sigTT P := (fun tv => match tv with existT t v => P t end).
@@ -153,8 +151,7 @@ Definition reptype_gen: type -> (sigT (fun x => x)) :=
      else existT (fun x => x) unit tt)
   (fun t n a TV => match TV with existT T V =>
                      existT (fun x => x)
-(*                      (@zlist T V (list_zlist T V) 0 n) (zl_default 0 n) *)
-                         (list T) nil
+                      (@zlist T V (list_zlist T V) 0 n) (zl_default 0 n)
                    end)
   (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
   (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
@@ -203,7 +200,7 @@ Notation REPTYPE t :=
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => val
-  | Tarray t0 n _ => list (reptype t0)
+  | Tarray t0 n _ => @zlist (reptype t0) (default_val t0) (list_zlist (reptype t0) (default_val t0)) 0 n
   | Tstruct id _ => reptype_structlist (co_members (get_co id))
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
@@ -1260,7 +1257,7 @@ Lemma default_val_ind: forall t,
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => Vundef
-  | Tarray t0 n _ => nil
+  | Tarray t0 n _ => zl_default 0 n
   | Tstruct id _ => struct_default_val (co_members (get_co id))
   | Tunion id _ => union_default_val (co_members (get_co id))
   end.
@@ -1509,10 +1506,11 @@ Global Notation REPTYPE t :=
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => val
-  | Tarray t0 n _ => list (reptype t0)
+  | Tarray t0 n _ => @zlist (reptype t0) (default_val t0) (list_zlist (reptype t0) (default_val t0)) 0 n
   | Tstruct id _ => reptype_structlist (co_members (get_co id))
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
+
 
 Fixpoint force_lengthn {A} n (xs: list A) (default: A) :=
   match n, xs with

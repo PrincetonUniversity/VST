@@ -857,7 +857,7 @@ Proof.
     exact (withspacer sh
             (field_offset2 cenv_cs i1 m0 + sizeof cenv_cs (field_type2 i1 m0))
             (field_offset_next cenv_cs i1 m0 sz)
-            (at_offset (a (fst v)) (field_offset2 cenv_cs i1 m0)) * IHm i0 t0 (snd v) b).
+            (at_offset (a (fst v)) (field_offset2 cenv_cs i1 m0)) * IHm i0 t0 (snd v) b)%logic.
 Defined.
 
 Definition union_data_at'_aux (m m0: members) (sz: Z) (P: ListType (map (fun it => reptype (field_type2 (fst it) m0) -> (val -> mpred)) m)) (v: compact_sum (map (fun it => reptype (field_type2 (fst it) m0)) m)) : (val -> mpred).
@@ -900,7 +900,7 @@ Proof.
            (at_offset (P (i1, t1) (fst v)) (field_offset2 cenv_cs i1 m0)) *
       struct_data_at'_aux ((i0, t0) :: m) m0 sz
      (ListTypeGen (fun it : ident * type => reptype (field_type2 (fst it) m0) -> val -> mpred)
-        P ((i0, t0) :: m)) (snd v)).
+        P ((i0, t0) :: m)) (snd v))%logic.
     - rewrite IHm.
       reflexivity.
     - simpl.
