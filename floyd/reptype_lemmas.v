@@ -2,7 +2,7 @@ Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
 Require Import floyd.jmeq_lemmas.
-Require Export floyd.zlist.
+(*Require Export floyd.zlist.*)
 Require Export floyd.compact_prod_sum.
 Require floyd.fieldlist.
 Import floyd.fieldlist.fieldlist.
@@ -153,7 +153,8 @@ Definition reptype_gen: type -> (sigT (fun x => x)) :=
      else existT (fun x => x) unit tt)
   (fun t n a TV => match TV with existT T V =>
                      existT (fun x => x)
-                      (@zlist T V (list_zlist T V) 0 n) (zl_default 0 n)
+(*                      (@zlist T V (list_zlist T V) 0 n) (zl_default 0 n) *)
+                         (list T) nil
                    end)
   (fun id a TVs => existT (fun x => x) (compact_prod_sigT_type (decay TVs)) (compact_prod_sigT_value (decay TVs)))
   (fun id a TVs => existT (fun x => x) (compact_sum_sigT_type (decay TVs)) (compact_sum_sigT_value (decay TVs))).
@@ -202,7 +203,7 @@ Notation REPTYPE t :=
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => val
-  | Tarray t0 n _ => @zlist (reptype t0) (default_val t0) (list_zlist (reptype t0) (default_val t0)) 0 n
+  | Tarray t0 n _ => list (reptype t0)
   | Tstruct id _ => reptype_structlist (co_members (get_co id))
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
@@ -1259,7 +1260,7 @@ Lemma default_val_ind: forall t,
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => Vundef
-  | Tarray t0 n _ => zl_default 0 n
+  | Tarray t0 n _ => nil
   | Tstruct id _ => struct_default_val (co_members (get_co id))
   | Tunion id _ => union_default_val (co_members (get_co id))
   end.
@@ -1508,7 +1509,210 @@ Global Notation REPTYPE t :=
   | Tlong _ _
   | Tfloat _ _
   | Tpointer _ _ => val
-  | Tarray t0 n _ => @zlist (reptype t0) (default_val t0) (list_zlist (reptype t0) (default_val t0)) 0 n
+  | Tarray t0 n _ => list (reptype t0)
   | Tstruct id _ => reptype_structlist (co_members (get_co id))
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
+
+Fixpoint force_lengthn {A} n (xs: list A) (default: A) :=
+  match n, xs with
+  | O, _ => nil
+  | S n0, nil => default :: force_lengthn n0 nil default
+  | S n0, hd :: tl => hd :: force_lengthn n0 tl default
+  end.
+
+Lemma force_lengthn_length_n: forall {A} n (xs : list A) (default: A),
+  length (force_lengthn n xs default) = n.
+Proof.
+  intros.
+  revert xs; induction n; intros.
+  + reflexivity.
+  + simpl.
+    destruct xs; simpl; rewrite IHn; reflexivity.
+Qed.
+
+Lemma nth_force_lengthn_nil: forall {A} n i (default: A),
+  nth i (force_lengthn n nil default) default = default.
+Proof.
+  intros.
+  revert i; induction n; intros.
+  + simpl. destruct i; reflexivity.
+  + simpl. destruct i.
+    - reflexivity.
+    - rewrite IHn. reflexivity.
+Qed.
+
+Lemma nth_force_lengthn: forall {A} n i (xs : list A) (default: A),
+  (0 <= i < n) %nat ->
+  nth i (force_lengthn n xs default) default = nth i xs default.
+Proof.
+  intros.
+  revert i H xs; induction n; intros.
+  + omega.
+  + simpl.
+    destruct xs.
+    - simpl.
+      destruct i; [reflexivity |].
+      apply nth_force_lengthn_nil.
+    - simpl.
+      destruct i; [reflexivity |].
+      apply IHn.
+      omega.
+Qed.
+
+Lemma force_lengthn_id: forall {A} n ct (d: A), length ct = n -> force_lengthn n ct d = ct.
+Proof.
+  intros.
+  revert ct H; induction n; intros.
+  + destruct ct; try solve [inversion H].
+    reflexivity.
+  + destruct ct; try solve [inversion H].
+    simpl.
+    rewrite IHn by auto.
+    reflexivity.
+Qed.
+
+(* "replist" is an alternative to zlist, avoids mysterious typeclass *)
+
+Open Scope Z.
+
+Fixpoint replist' {A: Type} (d: A) (lo: Z) (n: nat) (al: list A) :=
+ match n with
+ | O => nil
+ | S n' =>  Znth lo al d :: replist' d (Z.succ lo) n' al
+ end.
+
+Definition replist {cs: compspecs} (t: type)  (lo hi: Z) (al: list (reptype t)) :=
+  replist' (default_val t) lo (Z.to_nat (hi-lo)) al.
+
+(* replist t lo hi al *)
+
+Lemma replist_replist {cs: compspecs}:
+ forall t (lo hi lo' hi': Z) al,
+   0 <= lo <= hi ->
+   0 <= lo' <= hi' ->
+   lo'+hi <= hi'  ->
+ replist t lo hi (replist t lo' hi' al) =
+   replist t (lo+lo') (hi+lo') al.
+Proof.
+intros.
+ unfold replist.
+ forget (default_val t) as d.
+ replace (hi + lo' - (lo + lo')) with (hi-lo) by omega.
+ remember (Z.to_nat (hi-lo)) as n.
+ assert (hi = lo + Z.of_nat n).
+  subst n. rewrite Z2Nat.id by omega. omega.
+ subst hi.
+ clear Heqn. destruct H as [? _].
+ rewrite Z.add_assoc in H1.
+  revert lo lo' H H0 H1; induction n; intros; simpl.
+   reflexivity.
+ f_equal.
++
+  clear - H H0 H1. destruct H0 as [? _].
+  remember (Z.to_nat (hi'-lo')) as k.
+  rewrite inj_S in H1.
+  replace hi' with (lo' + Z.of_nat k) in H1
+    by (subst k; rewrite Z2Nat.id by omega; omega).
+  clear hi' Heqk.
+  assert (lo < Z.of_nat k) by omega. clear H1.
+  revert lo lo' H H0 H2; induction k; intros. simpl in H2; omega.
+  unfold replist'; fold @replist'.
+  rewrite inj_S in H2.
+  simpl.
+  assert (lo=0 \/ 0<lo) by omega.
+  destruct H1. subst lo.
+  unfold Znth at 1. rewrite if_false by omega. simpl. auto.
+  clear H.
+  unfold Znth at 1. rewrite if_false by omega.
+  destruct (Z.to_nat lo) eqn:?. 
+  apply Z2Nat.inj_lt in H1; try omega.
+  simpl nth.
+  specialize (IHk (Z.of_nat n0) (Z.succ lo')).
+  replace (lo+lo') with (Z.of_nat n0 + Z.succ lo').
+Focus 2.
+  unfold Z.succ.
+  transitivity (Z.of_nat n0 + 1 + lo'); [ omega |].
+  f_equal. apply Z2Nat.inj; try omega.
+  rewrite Z2Nat.inj_add; try omega. rewrite Nat2Z.id.
+ rewrite Heqn0. change (Z.to_nat 1) with 1%nat.  omega.
+  etransitivity; [ | apply IHk]; try omega.
+Focus 2.
+  assert (lo = Z.of_nat (S n0)).  apply Z2Nat.inj; try omega.
+  rewrite Nat2Z.id. auto.
+   subst lo. clear - H2. rewrite inj_S in H2. omega.
+  unfold Znth. rewrite if_false by omega. rewrite Nat2Z.id. auto.
++
+  specialize (IHn (Z.succ lo) lo'). rewrite IHn; try omega.
+   f_equal; omega.
+   rewrite inj_S in H1.
+  omega.
+Qed.
+
+Lemma replist'_succ:
+ forall A (d:A) lo n r al,
+   (lo>=0) -> replist' d (Z.succ lo) n (r::al) = replist' d lo n al.
+Proof.
+intros.
+revert lo al H; induction n; simpl; intros.
+auto.
+f_equal.
+unfold Znth.
+ do 2 rewrite if_false by omega.
+ replace (Z.to_nat (Z.succ lo)) with (S (Z.to_nat lo)).
+ reflexivity. unfold Z.succ. rewrite Z2Nat.inj_add by omega.
+ change (Z.to_nat 1) with 1%nat; omega.
+ apply IHn. omega.
+Qed.
+
+Lemma replist_firstn_skipn {cs: compspecs}:
+ forall t lo hi al,
+  (lo <= hi <= length al)%nat ->
+  replist t (Z.of_nat lo) (Z.of_nat hi) al = firstn (hi-lo) (skipn lo al).
+Proof.
+intros.
+ unfold replist.
+ rewrite <- Nat2Z.inj_sub by omega.
+ rewrite Nat2Z.id.
+ assert (hi-lo <= length al - lo)%nat by omega.
+ clear H. 
+ forget (hi-lo)%nat as n. clear hi.
+ revert n al H0; induction lo; intros.
+ simpl.
+ assert (n <= length al)%nat by omega; clear H0.
+ revert al H; induction n; simpl; intros; auto.
+ destruct al; simpl in H. omega.
+ f_equal.
+ rewrite <- (IHn al) by omega. clear IHn.
+ rewrite <- (replist'_succ _ (default_val t) 0 n r al) by omega.
+ reflexivity.
+ rewrite inj_S. 
+  destruct al. simpl length in H0. assert (n=0)%nat by omega.
+  subst;   simpl. auto.
+  simpl length in H0. simpl in H0. simpl. rewrite <- (IHlo _ _ H0).
+  apply replist'_succ. omega.
+Qed. 
+
+Lemma skipn_0:
+ forall A (al: list A) n,
+  (n=0)%nat -> skipn n al = al.
+Proof.
+intros; subst; reflexivity.
+Qed.
+
+Lemma replist_elim {cs: compspecs}:
+  forall t lo hi al,
+    lo = 0 -> hi = Zlength al ->
+    replist t lo hi al = al.
+Proof.
+intros.
+subst.
+change 0 with (Z.of_nat 0).
+rewrite Zlength_correct.
+rewrite replist_firstn_skipn by omega.
+rewrite skipn_0 by auto.
+rewrite NPeano.Nat.sub_0_r.
+apply firstn_exact_length.
+Qed.
+
+(* Hint Rewrite skipn_0 using computable : norm. *)
