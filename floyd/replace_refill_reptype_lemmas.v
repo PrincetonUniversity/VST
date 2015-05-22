@@ -498,124 +498,75 @@ Goal proj_reptype t1 (StructField 1%positive :: nil) v1 = Vint Int.zero.
 reflexivity.
 Qed.
 
-Goal proj_reptype t2 (StructField 1%positive :: StructField 3%positive :: nil) v2 = Vint Int.zero.
-unfold proj_reptype.
-change (eq_rect_r reptype v2 (nested_field_type2_ind t2 nil)) with v2.
-change (eq_rect_r reptype
-           (proj_gfield_reptype (nested_field_type2 t2 nil)
-              (StructField 3%positive) v2)
-           (nested_field_type2_ind t2 (StructField 3%positive :: nil))) with
-   (proj_gfield_reptype (nested_field_type2 t2 nil)
-              (StructField 3%positive) v2).
-change (nested_field_type2 t2 nil) with t2.
-change (nested_field_type2 t2 (StructField 3%positive :: nil)) with (Tstruct 101%positive noattr).
-change (eq_rect_r reptype
-     (proj_gfield_reptype
-        (Tstruct 101%positive noattr)
-        (StructField 1%positive)
-        (proj_gfield_reptype t2 (StructField 3%positive) v2))
-     (nested_field_type2_ind t2
-        (StructField 1%positive :: StructField 3%positive :: nil))) with
-   (proj_gfield_reptype
-        (Tstruct 101%positive noattr)
-        (StructField 1%positive)
-        (proj_gfield_reptype t2 (StructField 3%positive) v2)).
-change t2 with (Tstruct 102%positive noattr).
-unfold proj_gfield_reptype.
-
-repeat
-match goal with
-| |- appcontext [@unfold_reptype _ _ ?t ?v] =>
-  let H := fresh "H" in
-  pose proof (unfold_reptype_JMeq t v) as H;
-  apply JMeq_eq in H;
-  rewrite H;
-  clear H
-end.
-
-reflexivity.
-(*
 Transparent peq.
-cbv.
 
-cbv [t2 cs csl proj_struct proj_compact_prod proj_union proj_compact_sum get_co
-field_type fieldlist.field_type2 Ctypes.field_type
-list_rect member_dec ident_eq peq Pos.eq_dec BinNums.positive_rec positive_rect 
-sumbool_rec sumbool_rect bool_dec bool_rec bool_rect option_rec option_rect
-eq_rect_r eq_rect eq_rec_r eq_rec eq_sym eq_trans f_equal
-type_eq type_rec type_rect typelist_eq typelist_rec typelist_rect
-intsize_rec intsize_rect signedness_rec signedness_rect floatsize_rec floatsize_rect attr_rec attr_rect
-tvoid tschar tuchar tshort tushort tint
-tuint tbool tlong tulong tfloat tdouble tptr tarray noattr].
-reflexivity.
-*)
-(*
-replace (proj_gfield_reptype t2 (StructField 3%positive) v2) with (Vint Int.zero, Vint Int.one).
-Focus 2.
-change t2 with (Tstruct 102%positive noattr).
-unfold proj_gfield_reptype.
-replace (unfold_reptype v2) with v2.
-reflexivity.
-(* *)
-unfold unfold_reptype, t2.
-replace (@reptype_ind cs csl (Tstruct 102%positive noattr)) with (@eq_refl Type ((val * val) * ((val * val) * val))%type).
-reflexivity.
-(* *)
-unfold reptype_ind.
-replace (@reptype_gen_ind cs csl (Tstruct 102%positive noattr)) with
- (@eq_refl (@sigT Type (fun x : Type => x)) (@existT Type (fun x : Type => x) ((val * val) * ((val * val) * val))%type ((Vundef, Vundef), ((Vundef, Vundef) , Vundef)))).
-reflexivity.
-(* *)
-unfold reptype_gen_ind.
-Set Printing All.
-Check (func_type_ind (fun _ : type => {x : Type & x})
-        (fun t : type =>
-         if type_is_by_value t
-         then existT (fun x : Type => x) val Vundef
-         else existT (fun x : Type => x) unit tt)
-        (fun (_ : type) (n : Z) (_ : attr) (TV : {x : Type & x}) =>
-         let (T, V) := TV in
-         existT (fun x : Type => x) (zlist T 0 n) (zl_default 0 n))
-        (fun (id : positive) (_ : attr)
-           (TVs : ListType
-                    (map (fun _ : ident * type => {x : Type & x})
-                       (co_members (get_co id)))) =>
-         existT (fun x : Type => x) (compact_prod_sigT_type (decay TVs))
-           (compact_prod_sigT_value (decay TVs)))
-        (fun (id : positive) (_ : attr)
-           (TVs : ListType
-                    (map (fun _ : ident * type => {x : Type & x})
-                       (co_members (get_co id)))) =>
-         existT (fun x : Type => x) (compact_sum_sigT_type (decay TVs))
-           (compact_sum_sigT_value (decay TVs)))
-        (Tstruct 102%positive noattr)).
+Ltac cbv_proj_struct H :=
+    cbv beta zeta iota delta
+    [proj_struct proj_compact_prod list_rect
+    member_dec field_type fieldlist.field_type2 Ctypes.field_type
+     ident_eq peq Pos.eq_dec BinNums.positive_rec positive_rect
+    sumbool_rec sumbool_rect bool_dec bool_rec bool_rect option_rec option_rect
+    eq_rect_r eq_rect eq_rec_r eq_rec eq_sym eq_trans f_equal
+    type_eq type_rec type_rect typelist_eq typelist_rec typelist_rect
+    intsize_rec intsize_rect signedness_rec signedness_rect floatsize_rec floatsize_rect attr_rec attr_rect
+    tvoid tschar tuchar tshort tushort tint
+    tuint tbool tlong tulong tfloat tdouble tptr tarray noattr
+    ] in H.
 
-replace (@func_type_ind cs csl (fun _ : type => {x : Type & x})
-        (fun t : type =>
-         if type_is_by_value t
-         then existT (fun x : Type => x) val Vundef
-         else existT (fun x : Type => x) unit tt)
-        (fun (_ : type) (n : Z) (_ : attr) (TV : {x : Type & x}) =>
-         let (T, V) := TV in
-         existT (fun x : Type => x) (zlist T 0 n) (zl_default 0 n))
-        (fun (id : positive) (_ : attr)
-           (TVs : ListType
-                    (map (fun _ : ident * type => {x : Type & x})
-                       (co_members (get_co id)))) =>
-         existT (fun x : Type => x) (compact_prod_sigT_type (decay TVs))
-           (compact_prod_sigT_value (decay TVs)))
-        (fun (id : positive) (_ : attr)
-           (TVs : ListType
-                    (map (fun _ : ident * type => {x : Type & x})
-                       (co_members (get_co id)))) =>
-         existT (fun x : Type => x) (compact_sum_sigT_type (decay TVs))
-           (compact_sum_sigT_value (decay TVs)))
-        (Tstruct 102%positive noattr)) with (@eq_refl  (@sigT Type (fun x : Type => x)) (@existT Type (fun x : Type => x) ((val * val) * ((val * val) * val))%type ((Vundef, Vundef), ((Vundef, Vundef) , Vundef)))).
-(* super slow *)
+Ltac unfold_proj_1 t gf v :=
+  let H := fresh "H" in
+  let H0 := fresh "H" in
+  let H1 := fresh "H" in
+  let V := fresh "v" in
+  let V0 := fresh "v" in
+  let t' := eval compute in t in
+  remember (proj_gfield_reptype t gf v) as V0 eqn:H0;
+  remember v as V eqn:H;
+  change t with t' in H0;
+  unfold proj_gfield_reptype in H0;
+  pose proof unfold_reptype_JMeq t' V as H1;
+  apply JMeq_eq in H1;
+  rewrite H1 in H0; clear H1;
+  match type of H0 with
+  | _ = proj_struct ?i ?m V ?d =>
+    let d' := eval vm_compute in d in change d with d' in H0;
+    let m' := eval vm_compute in m in change m with m' in H0(*;
+    cbv_proj_struct H0*)
+  | _ => idtac
+  end
+  ;
+  subst V; subst V0
+.
+
+Ltac unfold_proj t gfs v :=
+  match eval compute in gfs with
+  | nil =>
+      unfold proj_reptype; unfold eq_rect_r; rewrite <- eq_rect_eq
+  | ?gf :: ?gfs0 =>
+      match goal with
+      | |- appcontext [@proj_reptype ?cs ?csl t gfs v] =>
+      let HH := fresh "HH" in
+      let V := fresh "V" in
+      remember (@proj_reptype cs csl t gfs v) as V eqn:HH;
+      let H := fresh "H" in
+      assert
+       (proj_reptype t gfs v =
+        proj_gfield_reptype (nested_field_type2 t gfs0) gf
+          (proj_reptype t gfs0 v)) as H
+       by (unfold proj_reptype, eq_rect_r; apply eq_sym, eq_rect_eq);
+       rewrite H in HH; clear H;
+       subst V;
+       unfold_proj_1 (nested_field_type2 t gfs0) gf (proj_reptype t gfs0 v);
+       unfold_proj t gfs0 v
+     end
+  end.
+
+Goal proj_reptype t2 (StructField 2%positive :: StructField 3%positive :: nil) v2 = Vint Int.one.
+unfold v2.
+unfold_proj t2 (StructField 2%positive :: StructField 3%positive :: nil) (Vint Int.zero, Vint Int.one, (Vint Int.zero, Vint Int.one, Vundef)).
+fold noattr.
 reflexivity.
-*)
 Qed.
-
 
 Goal upd_reptype t2 (StructField 3%positive :: nil) v2 (Vint Int.one, Vint Int.one) =
 ((Vint Int.one, Vint Int.one), ((Vint Int.zero, Vint Int.one), Vundef)).
@@ -673,3 +624,63 @@ tuint tbool tlong tulong tfloat tdouble tptr tarray noattr].
 Qed.
 
 End Test.
+
+Transparent peq.
+
+Ltac cbv_proj_struct H :=
+    cbv beta zeta iota delta
+    [proj_struct proj_compact_prod list_rect
+    member_dec field_type fieldlist.field_type2 Ctypes.field_type
+     ident_eq peq Pos.eq_dec BinNums.positive_rec positive_rect
+    sumbool_rec sumbool_rect bool_dec bool_rec bool_rect option_rec option_rect
+    eq_rect_r eq_rect eq_rec_r eq_rec eq_sym eq_trans f_equal
+    type_eq type_rec type_rect typelist_eq typelist_rec typelist_rect
+    intsize_rec intsize_rect signedness_rec signedness_rect floatsize_rec floatsize_rect attr_rec attr_rect
+    tvoid tschar tuchar tshort tushort tint
+    tuint tbool tlong tulong tfloat tdouble tptr tarray noattr
+    ] in H.
+
+Ltac unfold_proj_1 t gf v :=
+  let H := fresh "H" in
+  let H0 := fresh "H" in
+  let H1 := fresh "H" in
+  let V := fresh "v" in
+  let V0 := fresh "v" in
+  let t' := eval compute in t in
+  remember (proj_gfield_reptype t gf v) as V0 eqn:H0;
+  remember v as V eqn:H;
+  change t with t' in H0;
+  unfold proj_gfield_reptype in H0;
+  pose proof unfold_reptype_JMeq t' V as H1;
+  apply JMeq_eq in H1;
+  rewrite H1 in H0; clear H1;
+  match type of H0 with
+  | _ = proj_struct ?i ?m V ?d =>
+    let d' := eval vm_compute in d in change d with d' in H0;
+    let m' := eval vm_compute in m in change m with m' in H0(*;
+    cbv_proj_struct H0*)
+  | _ => idtac
+  end
+  ;
+  subst V; subst V0
+.
+
+Ltac unfold_proj t gfs v :=
+  match eval compute in gfs with
+  | nil =>
+      unfold proj_reptype; unfold eq_rect_r; rewrite <- eq_rect_eq
+  | ?gf :: ?gfs0 =>
+      let HH := fresh "HH" in
+      let V := fresh "V" in
+      remember (proj_reptype t gfs v) as V eqn:HH;
+      let H := fresh "H" in
+      assert
+       (proj_reptype t gfs v =
+        proj_gfield_reptype (nested_field_type2 t gfs0) gf
+          (proj_reptype t gfs0 v)) as H
+       by (unfold proj_reptype, eq_rect_r; apply eq_sym, eq_rect_eq); 
+       rewrite H in HH; clear H;
+       subst V;
+       unfold_proj_1 (nested_field_type2 t gfs0) gf (proj_reptype t gfs0 v);
+       unfold_proj t gfs0 v
+  end.

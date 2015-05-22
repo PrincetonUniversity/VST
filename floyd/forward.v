@@ -15,6 +15,8 @@ Require Import floyd.nested_loadstore.
 Require Import floyd.sc_set_load_store.
 Require Import floyd.local2ptree.
 Require Import floyd.reptype_lemmas.
+Require Import floyd.proj_reptype_lemmas.
+Require Import floyd.replace_refill_reptype_lemmas.
 (*Require Import floyd.unfold_data_at.*)
 Require Import floyd.entailer.
 Require Import floyd.globals_lemmas.
@@ -2191,7 +2193,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_cast_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity
     | reflexivity | exact Heq | exact HLE | exact H_Denote 
-    | exact H | reflexivity
+    | exact H | unfold_proj (nested_field_type2 t_root gfs0) gfs1 v; reflexivity
     | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment;
@@ -2256,7 +2258,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity
     | reflexivity | exact Heq | exact HLE | exact H_Denote 
-    | exact H | reflexivity
+    | exact H | unfold_proj (nested_field_type2 t_root gfs0) gfs1 v; reflexivity
     | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;

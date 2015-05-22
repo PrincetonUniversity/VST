@@ -1,5 +1,6 @@
 Require Import floyd.proofauto.
 Require Import progs.sumarray.
+Require Import Coq.Logic.JMeq.
 
 Local Open Scope logic.
 
@@ -190,25 +191,41 @@ assert (a1 = Zlength contents) by omega; subst.
 rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
 reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
+
+Lemma zl_nth_LZ: forall {A d} i lo hi (l: @zlist A d (list_zlist _ _) lo hi),
+  lo <= i < hi ->
+  zl_nth i l = Znth (i - lo) l d.
+Proof.
+  intros.
+  simpl.
+  if_tac; [| omega].
+  reflexivity.
+Qed.
+
+Transparent peq.
+Opaque zl_nth.
+
 forward. (* x = a[i] *)
+
 entailer!.  (* FIXME this should not unfold like
 this, in such a way that it exposes the eq_rect_r *)
-match goal with |- is_int _ _ ?A  => 
- replace A with (Znth a1 (map Vint contents) Vundef)
-    by admit  (* FIXME *)
-end.
+rewrite zl_nth_LZ by omega.
 rewrite Znth_map with (d' := Int.zero) by omega.
 apply I.
 forward s_old. (* s += x; *)
-match goal with |- context [temp _x ?A] =>
- replace  A with (Znth a1 (map Vint contents) Vundef)
-end.  (* FIXME *)
+rewrite zl_nth_LZ at 1 by omega.
+rewrite Znth_map with (d' := Int.zero) by omega.
+unfold sem_add_default; simpl.
+
 forward i_old. (* i++; *)
   apply exp_right with (Zsucc a1).
   entailer!.
- rewrite H5 in H4. inv H4. 
-  erewrite add_one_more_to_sum; eauto. omega.
-admit. (* FIXME *)
+  erewrite add_one_more_to_sum; eauto.
+  rewrite Znth_map with (d' := Int.zero) by omega.
+  rewrite Z.sub_0_r.
+  auto.
+  omega.
+
 (* After the loop *)
 forward.  (* return s; *)
 Qed.
@@ -253,11 +270,14 @@ start_function.
 forward_intro four. normalize.
 forward_call' (*  r = sumarray(four,4); *)
   (four,Ews,four_contents,4) vret.
- split3. computable. reflexivity.
+ split3. computable. 
+(*
+reflexivity.
  intros. unfold four_contents.
    apply forall_Forall; [| auto].
    intros.
    repeat (destruct H0; [subst; simpl; auto|]); inversion H0.
+*)
  forward. (* return s; *)
  unfold main_post. entailer!.
 Qed.
