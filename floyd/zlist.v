@@ -97,6 +97,16 @@ Instance list_zlist_correct (A: Type) (default: A) : Zlist_Correct (list_zlist A
 admit.
 Defined.
 
+Lemma zl_nth_LZ: forall {A d} i lo hi (l: @zlist A d (list_zlist _ _) lo hi),
+  lo <= i < hi ->
+  zl_nth i l = Znth (i - lo) l d.
+Proof.
+  intros.
+  simpl.
+  if_tac; [| omega].
+  reflexivity.
+Qed.
+
 End ZLIST.
 
 (*

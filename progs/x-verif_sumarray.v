@@ -18,12 +18,7 @@ Definition sumarray_spec :=
   WITH a0: val, sh : share, contents : list int, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP  (0 <= size <= Int.max_signed;
-                 Zlength contents = size
-(*;
-                 forall i, 0 <= i < size -> 
-                     is_int I32 Signed (zl_nth i (map Vint contents : 
-                                        @zlist val Vundef (list_zlist val Vundef) 0 size))
-*))
+                 Zlength contents = size)
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
           SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))
   POST [ tint ]
@@ -43,11 +38,7 @@ Definition Gprog : funspecs :=
 
 Definition sumarray_Inv a0 sh contents size := 
  EX i: Z,
-   PROP  (0 <= i <= size
-(*;
-          forall j, 0 <= j < size -> is_int I32 Signed (Znth j (map Vint contents) Vundef)
-*)
-)
+   PROP  (0 <= i <= size)
    LOCAL (temp _a a0; 
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
@@ -192,23 +183,12 @@ rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
 reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
 
-Lemma zl_nth_LZ: forall {A d} i lo hi (l: @zlist A d (list_zlist _ _) lo hi),
-  lo <= i < hi ->
-  zl_nth i l = Znth (i - lo) l d.
-Proof.
-  intros.
-  simpl.
-  if_tac; [| omega].
-  reflexivity.
-Qed.
-
 Transparent peq.
 Opaque zl_nth.
 
 forward. (* x = a[i] *)
 
-entailer!.  (* FIXME this should not unfold like
-this, in such a way that it exposes the eq_rect_r *)
+entailer!.
 rewrite zl_nth_LZ by omega.
 rewrite Znth_map with (d' := Int.zero) by omega.
 apply I.

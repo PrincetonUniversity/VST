@@ -56,7 +56,7 @@ Ltac semax_func_cons L :=
  first [apply semax_func_cons; 
            [ reflexivity 
            | repeat apply Forall_cons; try apply Forall_nil; computable
-           | reflexivity | precondition_closed | apply L | 
+           | unfold var_sizes_ok; repeat constructor | reflexivity | precondition_closed | apply L | 
            ]
         | eapply semax_func_cons_ext;
              [reflexivity | reflexivity | reflexivity | reflexivity 

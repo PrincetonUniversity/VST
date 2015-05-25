@@ -3,14 +3,17 @@ Require Import progs.revarray.
 
 Local Open Scope logic.
 
+Instance CompSpecs : compspecs := compspecs_program prog.
+Instance CS_legal : compspecs_legal CompSpecs.
+Proof. prove_CS_legal. Qed.
+
 Definition reverse_spec :=
  DECLARE _reverse
   WITH a0: val, sh : share, contents : list val, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP (0 <= size <= Int.max_signed;
                 writable_share sh;
-                size = Zlength contents;
-                forall i, 0 <= i < size -> is_int I32 Signed (Znth i contents Vundef))
+                size = Zlength contents)
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
           SEP (`(data_at sh (tarray tint size) contents a0))
   POST [ tvoid ]
@@ -36,8 +39,7 @@ Definition flip_between {A} lo hi (contents: list A) :=
 Definition reverse_Inv a0 sh contents size := 
  EX j:Z,
   (PROP  (0 <= j; j <= size-j; isptr a0;
-                size = Zlength contents;
-           forall i, 0 <= i < size -> is_int I32 Signed (Znth i contents Vundef))
+                size = Zlength contents)
    LOCAL  (temp _a a0; temp _lo (Vint (Int.repr j)); temp _hi (Vint (Int.repr (size-j))))
    SEP (`(data_at sh (tarray tint size) (flip_between j (size-j) contents) a0))).
 
@@ -136,8 +138,11 @@ name hi' _hi.
 name s _s.
 name t _t.
 
-rename H2 into POP.
-assert_PROP (isptr a0). entailer!. rename H2 into TCa0.
+(*rename H2 into POP.*)
+Hint Resolve data_at_compatible : saturate_local.
+assert_PROP (isptr a0). entailer!.
+
+ rename H2 into TCa0.
 
 forward.  (* lo = 0; *)
 forward _. (* hi = n; *)
