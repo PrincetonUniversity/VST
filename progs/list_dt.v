@@ -8,10 +8,12 @@ Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
+Require Import floyd.nested_pred_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.efield_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.reptype_lemmas.
+Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.nested_loadstore.
@@ -21,13 +23,19 @@ Require Import floyd.entailer.
 
 Local Open Scope logic.
 
+Section CENV.
+
+Context {cs: compspecs}.
+Context {csl: compspecs_legal cs}.
+
 Class listspec (list_struct: type) (list_link: ident) :=
   mk_listspec {  
-   list_fields: fieldlist;
+   list_fields: members;
    list_structid: ident;
-   list_struct_eq: list_struct= Tstruct list_structid list_fields noattr;
+   list_struct_eq: list_struct = Tstruct list_structid noattr;
+   list_members_eq: list_fields = co_members (get_co list_structid);
    list_struct_alignas_legal: legal_alignas_type list_struct = true;
-   list_link_type: nested_field_type2 list_struct (StructField list_link :: nil) = Tcomp_ptr list_structid noattr
+   list_link_type: nested_field_type2 list_struct (StructField list_link :: nil) = Tpointer list_struct noattr
 }.
 
 Section LIST.
@@ -438,18 +446,11 @@ Lemma another_ewand_TT_lemma:
 Admitted.
 
 Lemma list_link_size_in_range (ls: listspec list_struct list_link):  
-  0 < sizeof (nested_field_type2 list_struct (StructField list_link :: nil)) < Int.modulus.
+  0 < sizeof cenv_cs (nested_field_type2 list_struct (StructField list_link :: nil)) < Int.modulus.
 Proof.
   rewrite list_link_type.
   cbv.
   split; reflexivity.
-Qed.
-
-Lemma uncompomized_valinject_repinject: forall e t (v : reptype t),
-  type_is_by_value (uncompomize e t) = true -> valinject t (repinject t v) = v.
-Proof.
-  intros.
-  destruct t; try inversion H; reflexivity.
 Qed.
 
 Lemma links_cons_right (ls: listspec list_struct list_link): forall (sh : Share.t) 
@@ -465,10 +466,9 @@ Lemma links_cons_right (ls: listspec list_struct list_link): forall (sh : Share.
 Proof.
 intros.
 assert (type_is_by_value
-        (uncompomize (PTree.empty type)
-           (nested_field_type2 list_struct (StructField list_link :: nil))) = true).
+           (nested_field_type2 list_struct (StructField list_link :: nil)) = true).
   rewrite list_link_type; simpl; auto.
-pose proof uncompomized_valinject_repinject (PTree.empty _) (nested_field_type2 list_struct (StructField list_link :: nil)) w H.
+pose proof valinject_repinject (nested_field_type2 list_struct (StructField list_link :: nil)) w H.
 remember (repinject (nested_field_type2 list_struct (StructField list_link :: nil)) w) as w'.
 subst w.
 clear H Heqw'.
@@ -608,25 +608,29 @@ Proof.
 Abort.  (* probably not true *)
 *)
 
-Fixpoint all_but_link (f: fieldlist) : fieldlist :=
+Fixpoint all_but_link (f: members) : members :=
  match f with
- | Fnil => Fnil
- | Fcons id t f' => if ident_eq id list_link
+ | nil => nil
+ | cons (i, t) f' => if ident_eq i list_link
                                then f' 
-                               else Fcons id t (all_but_link f')
- end.  
+                               else cons (i, t) (all_but_link f')
+ end.
+
+Print reptype_structlist.
 
 Definition elemtype (ls: listspec list_struct list_link) := reptype_structlist (all_but_link list_fields).
 
-Definition add_link_back {ls: listspec list_struct list_link} {f: fieldlist}
+Definition add_link_back {ls: listspec list_struct list_link} {f: members}
   (v: reptype_structlist (all_but_link f)): reptype_structlist f.
   unfold all_but_link in v.
-  induction f.
+  induction f as [| [i0 t0] f].
   + exact tt.
-  + simpl in *; destruct (is_Fnil f) eqn:? ; destruct (ident_eq i list_link).
-    - exact (default_val t).
-    - destruct f; inversion Heqb. exact v.
-    - exact (default_val t, v).
+  + simpl in *; destruct f as [| [i1 t1] f0] eqn:?; [| destruct (ident_eq i0 list_link)].
+    - exact (default_val _).
+    - unfold reptype_structlist.
+      simpl.
+Print reptype_structlist.
+exact (default_val _, v).
     - simpl in *.
       destruct (is_Fnil ((fix all_but_link (f : fieldlist) : fieldlist :=
                match f with

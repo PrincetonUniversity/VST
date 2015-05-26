@@ -13,7 +13,8 @@ Definition reverse_spec :=
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP (0 <= size <= Int.max_signed;
                 writable_share sh;
-                size = Zlength contents)
+                size = Zlength contents;
+                forall i, 0 <= i < size -> is_int I32 Signed (zl_nth i (contents: reptype_array tint 0 size)))
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
           SEP (`(data_at sh (tarray tint size) contents a0))
   POST [ tvoid ]
@@ -39,7 +40,8 @@ Definition flip_between {A} lo hi (contents: list A) :=
 Definition reverse_Inv a0 sh contents size := 
  EX j:Z,
   (PROP  (0 <= j; j <= size-j; isptr a0;
-                size = Zlength contents)
+          size = Zlength contents;
+          forall i, 0 <= i < size -> is_int I32 Signed (zl_nth i (contents: reptype_array tint 0 size)))
    LOCAL  (temp _a a0; temp _lo (Vint (Int.repr j)); temp _hi (Vint (Int.repr (size-j))))
    SEP (`(data_at sh (tarray tint size) (flip_between j (size-j) contents) a0))).
 
@@ -138,8 +140,7 @@ name hi' _hi.
 name s _s.
 name t _t.
 
-(*rename H2 into POP.*)
-Hint Resolve data_at_compatible : saturate_local.
+rename H2 into POP.
 assert_PROP (isptr a0). entailer!.
 
  rename H2 into TCa0.
@@ -166,20 +167,24 @@ apply derives_refl'.
 f_equal.
 apply flip_fact_1; omega.
 (* Prove that loop body preserves invariant *)
-
+Opaque zl_nth.
 forward. (* t = a[lo]; *)
 {
   entailer!.
+  specialize (POP j).
+  spec POP; [omega |].
+  rewrite zl_nth_LZ, Z.sub_0_r in POP |- * by omega.
   rewrite flip_fact_2 by omega.
-  apply POP.
-  omega.
+  exact POP.
 }
 forward.  (* s = a[hi-1]; *)
 {
   entailer!.
+  specialize (POP (Zlength contents - j - 1)).
+  spec POP; [omega |].
+  rewrite zl_nth_LZ, Z.sub_0_r in POP |- * by omega.
   rewrite flip_fact_2 by omega.
-  apply POP.
-  omega.
+  exact POP.
 }
 forward. (*  a[hi-1] = t ; *)
 forward. (*  a[lo] = s; *)

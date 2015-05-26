@@ -2134,6 +2134,11 @@ intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite sem_add_ptr_int using assumption : norm.
 
+Ltac unfold_proj' t gfs v :=
+match goal with
+| gfs := ?GFS |- _ => subst gfs; unfold_proj t GFS v
+end.
+
 Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  ensure_normal_ret_assert;
  hoist_later_in_pre;
@@ -2193,7 +2198,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_cast_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity
     | reflexivity | exact Heq | exact HLE | exact H_Denote 
-    | exact H | unfold_proj (nested_field_type2 t_root gfs0) gfs1 v; reflexivity
+    | exact H | unfold_proj' (nested_field_type2 t_root gfs0) gfs1 v; reflexivity
     | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment;
@@ -2258,7 +2263,7 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     eapply (semax_SC_field_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity
     | reflexivity | exact Heq | exact HLE | exact H_Denote 
-    | exact H | unfold_proj (nested_field_type2 t_root gfs0) gfs1 v; reflexivity
+    | exact H | unfold_proj' (nested_field_type2 t_root gfs0) gfs1 v; reflexivity
     | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;

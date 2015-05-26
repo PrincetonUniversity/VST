@@ -539,7 +539,7 @@ Ltac unfold_proj_1 t gf v :=
 .
 
 Ltac unfold_proj t gfs v :=
-  match eval compute in gfs with
+  match gfs with
   | nil =>
       unfold proj_reptype; unfold eq_rect_r; rewrite <- eq_rect_eq
   | ?gf :: ?gfs0 =>
@@ -666,7 +666,7 @@ Ltac unfold_proj_1 t gf v :=
 .
 
 Ltac unfold_proj t gfs v :=
-  match eval compute in gfs with
+  match gfs with
   | nil =>
       unfold proj_reptype; unfold eq_rect_r; rewrite <- eq_rect_eq
   | ?gf :: ?gfs0 =>

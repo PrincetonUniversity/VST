@@ -132,7 +132,6 @@ apply field_at_compatible.
 auto.
 normalize.
 Qed.
-Hint Resolve field_at_compatible : saturate_local.
 
 Lemma field_at__compatible: forall sh t gfs p,
   field_at_ sh t gfs p |-- !! field_compatible t gfs p.
@@ -141,17 +140,14 @@ Proof.
   unfold field_at_.
   apply field_at_compatible.
 Qed.
-Hint Resolve field_at__compatible : saturate_local.
 
 Lemma data_at_compatible: forall sh t v p, data_at sh t v p |-- !! field_compatible t nil p.
 Proof. intros. apply field_at_compatible. Qed.
-Hint Resolve data_at_compatible : saturate_local.
 
 Lemma data_at__compatible: forall sh t p, data_at_ sh t p |-- !! field_compatible t nil p.
 Proof. intros.
  unfold data_at_. apply data_at_compatible.
 Qed.
-Hint Resolve data_at__compatible : saturate_local.
 
 Lemma array_at_compatible: forall sh t gfs lo hi i v p,
   lo <= i <= hi ->
@@ -224,7 +220,7 @@ Qed.
 
 Lemma data_at_local_facts: forall sh t v p, data_at sh t v p |-- !!(isptr p).
 Proof. intros. unfold data_at. apply field_at_local_facts. Qed.
-Hint Resolve data_at_local_facts : saturate_local.
+(*Hint Resolve data_at_local_facts : saturate_local.*)
 
 Lemma data_at_isptr: forall sh t v p, data_at sh t v p = !!(isptr p) && data_at sh t v p.
 Proof. intros. apply local_facts_isptr. apply data_at_local_facts. Qed.
@@ -236,22 +232,13 @@ Qed.
 
 Lemma data_at__local_facts: forall sh t p, data_at_ sh t p |-- !!(isptr p).
 Proof. intros. unfold data_at_. apply data_at_local_facts. Qed.
-Hint Resolve data_at__local_facts : saturate_local.
+(*Hint Resolve data_at__local_facts : saturate_local.*)
 
 Lemma data_at__isptr: forall sh t p, data_at_ sh t p = !!(isptr p) && data_at_ sh t p.
 Proof. intros. unfold data_at_. apply data_at_isptr. Qed.
 
 Lemma data_at__offset_zero: forall sh t p, data_at_ sh t p = data_at_ sh t (offset_val Int.zero p).
 Proof. intros. unfold data_at_. apply data_at_offset_zero. Qed.
-
-Hint Rewrite <- field_at_offset_zero: norm.
-Hint Rewrite <- field_at__offset_zero: norm.
-Hint Rewrite <- field_at_offset_zero: cancel.
-Hint Rewrite <- field_at__offset_zero: cancel.
-Hint Rewrite <- data_at__offset_zero: norm.
-Hint Rewrite <- data_at_offset_zero: norm.
-Hint Rewrite <- data_at__offset_zero: cancel.
-Hint Rewrite <- data_at_offset_zero: cancel.
 
 (************************************************
 
@@ -920,20 +907,6 @@ Proof.
     normalize.
 Qed.
 
-(* We do these as Hint Extern, instead of Hint Resolve,
-  to limit their application and make them fail faster *)
-
-Hint Extern 2 (field_at _ _ _ _ _ |-- field_at_ _ _ _ _) => 
-   (apply field_at_field_at_) : cancel.
-
-Hint Extern 2 (field_at _ _ _ _ _ |-- field_at ?sh ?t ?gfs ?v _) => 
-   (change (field_at sh t gfs v) with (field_at_ sh t gfs);
-    apply field_at_field_at_) : cancel.
-
-Hint Extern 2 (field_at ?sh ?t ?gfs ?v _ |-- field_at_ _ _ _ _) => 
-   (change (field_at sh t gfs v) with (field_at_ sh t gfs);
-    apply derives_refl) : cancel.
-
 Lemma data_at_data_at_ : forall sh t v p, 
   data_at sh t v p |-- data_at_ sh t p.
 Proof.
@@ -951,12 +924,6 @@ Proof.
   unfold field_address.
   if_tac.
   + normalize.
-    destruct_ptr p.
-    f_equal.
-    unfold offset_val.
-    rewrite nested_field_offset2_ind by (simpl; auto).
-    solve_mod_modulus.
-    rewrite Z.add_0_r; auto.
   + unfold field_at_, field_at.
     rewrite memory_block_isptr.
     replace (!!field_compatible t nil p : mpred) with FF by (apply seplog_prop_ext; tauto).
@@ -1024,16 +991,6 @@ Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
     : cancel.
 *)
 
-(* We do these as Hint Extern, instead of Hint Resolve,
-  to limit their application and make them fail faster *)
-
-Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
-    (apply data_at_data_at_) : cancel.
-
-Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
-    (simple apply data_at__memory_block_cancel; [| simpl; repable_signed])
-    : cancel.
-
 Lemma array_at_array_at_: forall sh t gfs lo hi v p, 
   array_at sh t gfs lo hi v p |-- array_at_ sh t gfs lo hi p.
 Proof.
@@ -1050,9 +1007,6 @@ Proof.
     pose proof field_compatible_field_compatible0 t (ArraySubsc i :: gfs) p.
     apply seplog_prop_ext; tauto.
 Qed.
-
-Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- array_at_ _ _ _ _ _ _) =>
-  (apply array_at_array_at_) : cancel.
 
 (************************************************
 
@@ -1376,9 +1330,6 @@ intros.
 destruct H as [? _]. destruct c; try contradiction; auto.
 Qed.
 
-Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption).
-Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption).
-
 Lemma is_pointer_or_null_field_address_lemma:
  forall t path p,
    is_pointer_or_null (field_address t path p) <->
@@ -1387,10 +1338,6 @@ Proof.
 intros.
 unfold field_address.
 if_tac; intuition.
-apply field_compatible_isptr in H.
-destruct p; try solve [inversion H].
-simpl.
-auto.
 Qed.
 
 Lemma isptr_field_address_lemma:
@@ -1401,14 +1348,7 @@ Proof.
 intros.
 unfold field_address.
 if_tac; intuition.
-apply field_compatible_isptr in H.
-destruct p; try solve [inversion H].
-simpl.
-auto.
 Qed.
-
-Hint Rewrite is_pointer_or_null_field_address_lemma : entailer_rewrite.
-Hint Rewrite isptr_field_address_lemma : entailer_rewrite.
 
 Lemma eval_lvar_spec: forall id t rho,
   match eval_lvar id t rho with
@@ -1458,3 +1398,43 @@ Qed.
 
 End CENV.
 
+Hint Resolve field_at_compatible : saturate_local.
+Hint Resolve field_at__compatible : saturate_local.
+Hint Resolve data_at_compatible : saturate_local.
+Hint Resolve data_at__compatible : saturate_local.
+Hint Rewrite <- @field_at_offset_zero: norm.
+Hint Rewrite <- @field_at__offset_zero: norm.
+Hint Rewrite <- @field_at_offset_zero: cancel.
+Hint Rewrite <- @field_at__offset_zero: cancel.
+Hint Rewrite <- @data_at__offset_zero: norm.
+Hint Rewrite <- @data_at_offset_zero: norm.
+Hint Rewrite <- @data_at__offset_zero: cancel.
+Hint Rewrite <- @data_at_offset_zero: cancel.
+
+(* We do these as Hint Extern, instead of Hint Resolve,
+  to limit their application and make them fail faster *)
+
+Hint Extern 2 (field_at _ _ _ _ _ |-- field_at_ _ _ _ _) => 
+   (apply field_at_field_at_) : cancel.
+
+Hint Extern 2 (field_at _ _ _ _ _ |-- field_at ?sh ?t ?gfs ?v _) => 
+   (change (field_at sh t gfs v) with (field_at_ sh t gfs);
+    apply field_at_field_at_) : cancel.
+
+Hint Extern 2 (field_at ?sh ?t ?gfs ?v _ |-- field_at_ _ _ _ _) => 
+   (change (field_at sh t gfs v) with (field_at_ sh t gfs);
+    apply derives_refl) : cancel.
+
+Hint Extern 1 (data_at _ _ _ _ |-- data_at_ _ _ _) =>
+    (apply data_at_data_at_) : cancel.
+
+Hint Extern 1 (data_at _ _ _ _ |-- memory_block _ _ _) =>
+    (simple apply data_at__memory_block_cancel; [| simpl; repable_signed])
+    : cancel.
+
+Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- array_at_ _ _ _ _ _ _) =>
+  (apply array_at_array_at_) : cancel.
+Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption).
+Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption).
+Hint Rewrite @is_pointer_or_null_field_address_lemma : entailer_rewrite.
+Hint Rewrite @isptr_field_address_lemma : entailer_rewrite.

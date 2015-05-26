@@ -583,8 +583,6 @@ Proof.
  unfold field_address in H.
  if_tac in H; auto. inv H.
 Qed.
-Hint Resolve field_address_isptr.
-Hint Resolve is_pointer_or_null_field_compatible.
 
 Lemma nested_field_type2_ArraySubsc: forall t i gfs,
   nested_field_type2 t (ArraySubsc i :: gfs) = nested_field_type2 t (ArraySubsc 0 :: gfs).
@@ -1570,12 +1568,14 @@ Proof.
 intros. destruct H; auto.
 Qed.
 
-Hint Extern 1 (isptr _) => (eapply field_compatible_isptr; eassumption).
-Hint Extern 1 (isptr _) => (eapply field_compatible0_isptr; eassumption).
-
 End COMPOSITE_ENV.
 (*
 Arguments nested_field_offset2 {cs} t gfs /.
 Arguments nested_field_type2 {cs} t gfs /.
 *)
+
+(* Hint Resolve field_address_isptr. *)
+Hint Resolve is_pointer_or_null_field_compatible.
+Hint Extern 1 (isptr _) => (eapply field_compatible_isptr; eassumption).
+Hint Extern 1 (isptr _) => (eapply field_compatible0_isptr; eassumption).
 
