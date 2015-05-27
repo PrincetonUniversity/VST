@@ -35,6 +35,50 @@ Proof.
     - exact (inr (IHl a)).
 Defined.
 
+Definition compact_prod_upd {A} {F} (l: list A) (v: compact_prod (map F l)) (a: A) (v0: F a) (H: forall a b: A, {a = b} + {a <> b}) : compact_prod (map F l).
+Proof.
+  intros.
+  destruct l; [exact v |].
+  revert a0 v; induction l; intros.
+  + destruct (H a a0).
+    - subst.
+      exact v0.
+    - exact v.
+  + destruct (H a a1).
+    - subst.
+      exact (v0, (snd v)).
+    - exact ((fst v), IHl a0 (snd v)).
+Defined.
+
+Lemma aux0: forall {A} {a a0: A}, In a (a0 :: nil) -> a <> a0 -> False.
+Proof.
+  intros.
+  destruct H; [congruence | tauto].
+Defined. 
+
+Lemma aux1: forall {A} {a a0: A} {l}, In a (a0 :: l) -> a <> a0 -> In a l.
+Proof.
+  intros.
+  destruct H; [congruence | tauto].
+Defined.
+
+Definition compact_sum_upd {A} {F} (l: list A) (v: compact_sum (map F l)) (a: A) (v0: F a) (H: forall a b: A, {a = b} + {a <> b}) : compact_sum (map F l).
+Proof.
+  destruct (in_dec H a l); [| exact v].
+  clear v.
+  destruct l; [exact tt |].
+  revert a0 i; induction l; intros.
+  + destruct (H a a0).
+    - subst.
+      exact v0.
+    - pose proof aux0 i n.
+      inversion H0.
+  + destruct (H a a1).
+    - subst.
+      exact (inl v0).
+    - exact (inr (IHl a0 (aux1 i n))).
+Defined.
+
 Definition proj_compact_prod {A: Type} {F: A -> Type} (a: A) (l: list A) (v: compact_prod (map F l)) (default: F a) (H: forall a b: A, {a = b} + {a <> b}) : F a.
 Proof.
   destruct l; [exact default |].

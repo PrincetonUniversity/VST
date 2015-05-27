@@ -616,38 +616,33 @@ Fixpoint all_but_link (f: members) : members :=
                                else cons (i, t) (all_but_link f')
  end.
 
-Print reptype_structlist.
-
-Definition elemtype (ls: listspec list_struct list_link) := reptype_structlist (all_but_link list_fields).
-
-Definition add_link_back {ls: listspec list_struct list_link} {f: members}
-  (v: reptype_structlist (all_but_link f)): reptype_structlist f.
+Definition elemtype (ls: listspec list_struct list_link) :=
+  compact_prod
+  (map (fun it => reptype (field_type (fst it) list_fields)) (all_but_link list_fields)).
+     
+Definition add_link_back {ls: listspec list_struct list_link} {f F: members}
+  (v: compact_prod (map (fun it => reptype (field_type (fst it) F)) (all_but_link f))) :
+  compact_prod (map (fun it => reptype (field_type (fst it) F)) f).
   unfold all_but_link in v.
   induction f as [| [i0 t0] f].
   + exact tt.
   + simpl in *; destruct f as [| [i1 t1] f0] eqn:?; [| destruct (ident_eq i0 list_link)].
     - exact (default_val _).
-    - unfold reptype_structlist.
-      simpl.
-Print reptype_structlist.
-exact (default_val _, v).
-    - simpl in *.
-      destruct (is_Fnil ((fix all_but_link (f : fieldlist) : fieldlist :=
-               match f with
-               | Fnil => Fnil
-               | Fcons id t f' =>
-                   if ident_eq id list_link
-                   then f'
-                   else Fcons id t (all_but_link f')
-               end) f)).
-       * exact (v, struct_default_val f).
-       * destruct v as [v0 v1].
-         exact (v0, IHf v1).
+    - exact (default_val _, v).
+    - fold (all_but_link ((i1, t1) :: f0)) in IHf, v.
+      destruct (all_but_link ((i1, t1) :: f0)) eqn:?.
+      * simpl in Heqm. 
+        if_tac in Heqm; [| congruence].
+        subst f0.
+        exact (v, default_val _).
+      * exact (fst v, IHf (snd v)).
 Defined.
 
 Definition list_data {ls: listspec list_struct list_link} (v: elemtype ls): reptype list_struct.
   rewrite list_struct_eq.
-  exact (add_link_back v).
+  pose (add_link_back v: reptype_structlist _).
+  rewrite list_members_eq in r.
+  exact (@fold_reptype _ _ (Tstruct _ _) r).
 Defined.
 
 Definition list_cell (ls: listspec list_struct list_link) sh v p :=
@@ -1231,7 +1226,7 @@ Hint Rewrite @lseg_nil_eq : norm.
 
 Hint Rewrite @lseg_eq using reflexivity: norm.
 
-Ltac simpl_list_cell := unfold list_cell; simpl_data_at.
+(* Ltac simpl_list_cell := unfold list_cell; simpl_data_at. *)
 
 Hint Rewrite @links_nil_eq @links_cons_eq : norm.
 
@@ -1471,7 +1466,7 @@ Qed.
 *)
 
 Lemma field_at_ptr_neq: forall sh t fld p1 p2 v1 v2,
- 0 < sizeof (nested_field_type2 t (fld :: nil)) < Int.modulus ->
+ 0 < sizeof cenv_cs (nested_field_type2 t (fld :: nil)) < Int.modulus ->
  legal_alignas_type t = true ->
    field_at sh t (fld::nil) v1 p1 *
    field_at sh t (fld::nil) v2 p2
@@ -1485,7 +1480,7 @@ Proof.
 Qed.
 
 Lemma field_at_ptr_neq_andp_emp: forall sh t fld p1 p2 v1 v2,
- 0 < sizeof (nested_field_type2 t (fld :: nil)) < Int.modulus ->
+ 0 < sizeof cenv_cs (nested_field_type2 t (fld :: nil)) < Int.modulus ->
  legal_alignas_type t = true ->
    field_at sh t (fld::nil) v1 p1 *
    field_at sh t (fld::nil) v2 p2
@@ -1679,4 +1674,4 @@ Proof.
   exact H0.
 Qed.
 
-
+End CENV.

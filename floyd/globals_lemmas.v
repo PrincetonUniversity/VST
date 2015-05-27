@@ -932,7 +932,7 @@ Ltac simpl_main_pre' :=
   repeat match goal with
   | |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
         match R with
-        | context [(EX s:val, local (gvar ?i s) && id2pred_star _ _ _ _ _ _) :: ?R'] =>
+        | context [ (EX s:val, local (gvar ?i s) && id2pred_star _ _ _ _ _ _) :: ?R'] =>
             let n := length_of R in
             let n' := length_of R' in
             rewrite (grab_nth_SEP (n - S n')); simpl minus;

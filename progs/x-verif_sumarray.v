@@ -13,6 +13,8 @@ Instance CompSpecs : compspecs := compspecs_program prog.
 Instance CS_legal : compspecs_legal CompSpecs.
 Proof. prove_CS_legal. Qed.
 
+Print Zlist.
+
 Definition sumarray_spec :=
  DECLARE _sumarray
   WITH a0: val, sh : share, contents : list int, size: Z
@@ -20,7 +22,20 @@ Definition sumarray_spec :=
           PROP  (0 <= size <= Int.max_signed;
                  Zlength contents = size)
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
-          SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))
+          SEP   (`(data_at sh (tarray tint size) (slice tint 0 size (map Vint contents)) a0))
+  POST [ tint ]
+        PROP () LOCAL(temp ret_temp  (Vint (sum_int contents)))
+           SEP (`(data_at sh (tarray tint size) (map Vint contents) a0)).
+
+
+Definition sumarray_spec :=
+ DECLARE _sumarray
+  WITH a0: val, sh : share, contents : list int, size: Z
+  PRE [ _a OF (tptr tint), _n OF tint ]
+          PROP  (0 <= size <= Int.max_signed;
+                 Zlength contents = size)
+          LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
+          SEP   (`(data_at sh (tarray tint size) ((map Vint contents) AS tint [(0, size)]) a0))
   POST [ tint ]
         PROP () LOCAL(temp ret_temp  (Vint (sum_int contents)))
            SEP (`(data_at sh (tarray tint size) (map Vint contents) a0)).

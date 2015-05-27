@@ -191,6 +191,27 @@ forward. (*  a[lo] = s; *)
 forward lo'0. (* lo++; *)
 forward hi'0. (* hi--; *)
 
+assert (nil = upd_reptype (nested_field_type2 (tarray tint size) [])
+              [ArraySubsc (size - j - 1)]
+              (flip_between j (size - j) contents)
+              (valinject
+                 (nested_field_type2
+                    (nested_field_type2 (tarray tint size) [])
+                    [ArraySubsc (size - j - 1)])
+                 (force_val
+                    (sem_cast_neutral
+                       (zl_nth j (flip_between j (size - j) contents: reptype_array tint 0 size)))))).
+unfold upd_reptype.
+unfold singleton_hole; simpl singleton_hole_rec.
+unfold singleton_subs. 
+rewrite replace_reptype_ind.
+change (nested_field_type2 (tarray tint size) []) with (tarray tint size).
+unfold tarray.
+cbv zeta.
+rewrite (fold_reptype_JMeq (tarray tint size)).
+
+
+
 (* Prove postcondition of loop body implies loop invariant *)
 {
   apply exp_right with (Zsucc j).

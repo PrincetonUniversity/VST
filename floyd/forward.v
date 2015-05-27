@@ -367,14 +367,14 @@ Hint Extern 1 (isptr (eval_var _ _ _)) => (eapply lvar_isptr_eval_var; eassumpti
 Ltac fixup_local_var  :=  (* this tactic is needed only until start_function
                                            handles lvars in a better way *)
  match goal with |- semax _ ?Pre0 _ _ => match Pre0 with 
-    context [@liftx (Tarrow val (LiftEnviron mpred)) ?F (eval_lvar ?i ?t)] =>
+    context [@liftx (Tarrow val (LiftEnviron mpred)) ?F (eval_lvar ?i ?t) ] =>
      let v := fresh "v" in 
     apply (remember_value (eval_lvar i t)); intro v;
     assert_LOCAL (lvar i t v);
       [entailer!; apply lvar_eval_lvar'; auto | ];
     drop_LOCAL 1%nat;
     match goal with |- semax _ ?Pre _ _ =>
-    match Pre with context C [@liftx (Tarrow val (LiftEnviron mpred)) F (eval_lvar i t)] =>
+    match Pre with context C [@liftx (Tarrow val (LiftEnviron mpred)) F (eval_lvar i t) ] =>
      let D := context C[ (@liftx (LiftEnviron mpred) (F v))  ]   in
         apply semax_pre with D; [ entailer!; rewrite (lvar_eval_lvar i t v) by auto; auto | ] 
     end end;
@@ -1133,9 +1133,9 @@ match type of H with
  | _ (Int.unsigned (Int.repr ?A)) (Int.unsigned (Int.repr ?B)) => 
     try (rewrite (Int.unsigned_repr A) in H by repable_signed);
     try (rewrite (Int.unsigned_repr B) in H by repable_signed)
- | context [Int.signed (Int.repr ?A)] =>
+ | context [Int.signed (Int.repr ?A) ] =>
     try (rewrite (Int.signed_repr A) in H by repable_signed)
- | context [Int.unsigned (Int.repr ?A)] =>
+ | context [Int.unsigned (Int.repr ?A) ] =>
     try (rewrite (Int.unsigned_repr A) in H by repable_signed)
 end.
 
@@ -1196,8 +1196,8 @@ Ltac do_repr_inj H :=
 
 Ltac simpl_fst_snd := 
 repeat match goal with 
-| |- context [fst (?a,?b)] => change (fst (a,b)) with a 
-| |- context [snd (?a,?b)] => change (snd (a,b)) with b 
+| |- context [fst (?a,?b) ] => change (fst (a,b)) with a 
+| |- context [snd (?a,?b) ] => change (snd (a,b)) with b 
 end.
 
 Tactic Notation "forward_while" constr(Inv) constr (Postcond) :=
@@ -1783,12 +1783,12 @@ first [eapply forward_ptr_compare_closed_now;
                                 [ | solve [subst;cancel]];
                                 apply andp_right; 
                                 [ normalize 
-                                | solve [subst;cancel]])]
+                                | solve [subst;cancel]]) ]
           | reflexivity ]
        | eapply forward_ptr_compare'; try reflexivity; auto].
 
 Ltac forward_setx :=
-first [(*forward_setx_wow
+first [ (*forward_setx_wow
        |*) 
          ensure_normal_ret_assert;
          hoist_later_in_pre;
@@ -1799,7 +1799,7 @@ first [(*forward_setx_wow
                 do_compute_expr Delta P Q R e v HRE;
                 eapply semax_SC_set;
                   [reflexivity | reflexivity | exact HRE 
-                  | try solve [entailer!]; try (clear HRE; subst v)]
+                  | try solve [entailer!]; try (clear HRE; subst v) ]
          end
        | apply forward_setx_closed_now;
             [solve [auto 50 with closed] | solve [auto 50 with closed] | solve [auto 50 with closed]
@@ -2005,7 +2005,7 @@ Ltac try_instantiate_load P Q R0 Delta e ids tts sh ids0 v n N H SH IDS V:=
        try unfold field_at_;
        generalize V;
        intro;
-       solve [(entailer!; cancel)]
+       solve [ (entailer!; cancel) ]
       | pose N as n ].
 
 Ltac new_instantiate_load P Q R Rnow Delta e ids tts sh ids0 v n N H:=
@@ -2053,7 +2053,7 @@ Ltac try_instantiate_store P Q R0 Delta e ids tts sh ids0 v n N H SH TY IDS V:=
        simpl reptype;
        generalize V;
        intro;
-       solve [(entailer!; cancel)]
+       solve [ (entailer!; cancel) ]
       | pose N as n ].
 
 Ltac new_instantiate_store P Q R Rnow Delta e ids tts sh ids0 v n N H:=
@@ -2095,7 +2095,7 @@ Lemma go_lower_lem24:
 Proof.
    unfold LOCALx,local; super_unfold_lift; simpl; intros.
  normalize. 
- eapply derives_trans;  [ | apply (H H0)].
+ eapply derives_trans;  [ | apply (H H0) ].
  normalize.
 Qed.
 Definition force_eq ( x y: val) := force_ptr x = force_ptr y.
@@ -2905,7 +2905,7 @@ Ltac start_function' :=
  repeat match goal with 
  | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>
        fold (Swhile e s)
- | |- context [Ssequence ?s1 (Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s2) ?s3)] =>
+ | |- context [Ssequence ?s1 (Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s2) ?s3) ] =>
       match s3 with
       | Sset ?i _ => match s1 with Sset ?i' _ => unify i i' | Sskip => idtac end
       end;

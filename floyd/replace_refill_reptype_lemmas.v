@@ -447,6 +447,33 @@ Definition refill_reptype_1 t gfs (v: reptype_with_holes t (singleton_hole gfs))
 Definition upd_reptype t gfs (v: reptype t) (v0: reptype (nested_field_type2 t gfs)) :=
   replace_reptype t (singleton_hole gfs) (singleton_subs t gfs v0) v.
 
+Definition upd_gfield_reptype t gf (v: reptype t) (v0: reptype (gfield_type t gf)) : reptype t :=
+  fold_reptype 
+  (match t, gf return (REPTYPE t -> reptype (gfield_type t gf) -> REPTYPE t)
+  with
+  | Tarray t0 n a, ArraySubsc i =>
+      fun v v0 => zl_concat (zl_concat (zl_sublist 0 i v) (zl_singleton i v0)) (zl_sublist (i + 1) n v)
+  | Tstruct id _, StructField i =>
+      fun v v0 => compact_prod_upd _ v (i, field_type i (co_members (get_co id))) v0 member_dec
+  | Tunion id _, UnionField i =>
+      fun v v0 => compact_sum_upd _ v (i, field_type i (co_members (get_co id))) v0 member_dec
+  | _, _ => fun v _ => v
+  end (unfold_reptype v) v0).
+
+Fixpoint upd_reptype_rec (t: type) (gfs: list gfield) (v: reptype t) (v0: reptype (nested_field_type2 t gfs)): reptype t :=
+  match gfs as gfs'
+    return reptype (match gfs' with
+                    | nil => t
+                    | gf :: gfs0 => gfield_type (nested_field_type2 t gfs0) gf
+                    end) -> reptype t
+  with
+  | nil => fun v0 => v0
+  | gf :: gfs0 => fun v0 => upd_reptype_rec t gfs0 v (upd_gfield_reptype _ gf (proj_reptype t gfs0 v) v0)
+  end (eq_rect_r reptype v0 (eq_sym (nested_field_type2_ind t gfs))).
+
+Lemma upd_reptype_ind: forall t gfs v v0, upd_reptype t gfs v v0 = upd_reptype_rec t gfs v v0.
+Admitted.
+
 End SINGLE_HOLE.
 
 Section Test.
@@ -554,11 +581,11 @@ Ltac unfold_proj t gfs v :=
         proj_gfield_reptype (nested_field_type2 t gfs0) gf
           (proj_reptype t gfs0 v)) as H
        by (unfold proj_reptype, eq_rect_r; apply eq_sym, eq_rect_eq);
-       rewrite H in HH; clear H;
-       subst V;
-       unfold_proj_1 (nested_field_type2 t gfs0) gf (proj_reptype t gfs0 v);
-       unfold_proj t gfs0 v
-     end
+      rewrite H in HH; clear H;
+      subst V;
+      unfold_proj_1 (nested_field_type2 t gfs0) gf (proj_reptype t gfs0 v);
+      unfold_proj t gfs0 v
+      end
   end.
 
 Goal proj_reptype t2 (StructField 2%positive :: StructField 3%positive :: nil) v2 = Vint Int.one.

@@ -19,6 +19,7 @@ Fixpoint list_gen {A} lo (n: nat) (f: Z -> A) : list A :=
 
 Class Zlist (A: Type) (default: A) : Type := mkZlist {
   zlist: Z -> Z -> Type;
+  zl_constr': forall lo hi, list A -> zlist lo hi;
   zl_concat: forall {lo mid hi}, zlist lo mid -> zlist mid hi -> zlist lo hi;
   zl_sublist: forall {lo hi} lo' hi', zlist lo hi -> zlist lo' hi';
   zl_shift: forall {lo hi} lo' hi', zlist lo hi -> zlist lo' hi';
@@ -33,6 +34,7 @@ Global Arguments zlist A {_} {_} _ _.
 
 Instance list_zlist (A: Type) (default: A) : Zlist A default.
   apply (mkZlist A default (fun _ _ => list A)).
+  + exact (fun _ _ l => l).
   + exact (fun lo mid hi l1 l2 => force_lengthn (nat_of_Z (mid - lo)) l1 default ++ l2).
   + exact (fun lo hi  lo' hi' l => if zle lo lo' then skipn (nat_of_Z (lo' - lo)) l else nil).
   + exact (fun lo hi  lo' hi' l => l).
@@ -49,6 +51,10 @@ Definition zl_equiv {A d} `{Zlist A d} {lo hi} (l1 l2: zlist A lo hi) : Prop :=
 Notation "A '===' B" := (zl_equiv A B) (at level 80, no associativity).
 
 Class Zlist_Correct {A d} `(Zlist A d) : Type := mkZlistCorrect {
+  zl_constr'_correct:
+    forall lo hi i (l: list A),
+    lo <= i < hi ->
+    zl_nth i (zl_constr' lo hi l) = Znth (i - lo) l d;
   zl_concat_correct:
     forall lo mid hi i (l1: zlist A lo mid) (l2: zlist A mid hi),
     lo <= mid <= hi ->
@@ -94,7 +100,20 @@ Class Zlist_Correct {A d} `(Zlist A d) : Type := mkZlistCorrect {
 }.
 
 Instance list_zlist_correct (A: Type) (default: A) : Zlist_Correct (list_zlist A default).
-admit.
+split.
++ intros.
+  simpl.
+  if_tac; [| omega].
+  reflexivity.
++ admit.
++ admit.
++ admit.
++ admit.
++ admit.
++ admit.
++ admit.
++ admit.
++ admit.
 Defined.
 
 Lemma zl_nth_LZ: forall {A d} i lo hi (l: @zlist A d (list_zlist _ _) lo hi),

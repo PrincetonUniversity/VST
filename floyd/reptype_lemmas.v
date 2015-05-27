@@ -647,6 +647,12 @@ Global Notation REPTYPE t :=
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
 
+Module ZLIST_NOTATION.
+
+Notation "l 'AS' t [( lo , hi )]" := (@zl_constr' (reptype t) (default_val t) (list_zlist (reptype t) (default_val t)) lo hi l) (at level 80, no associativity).
+
+End ZLIST_NOTATION.
+
 Fixpoint force_lengthn {A} n (xs: list A) (default: A) :=
   match n, xs with
   | O, _ => nil
