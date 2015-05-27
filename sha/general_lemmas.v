@@ -112,21 +112,6 @@ Local Open Scope Z.
 
 Definition roundup (a b : Z) := (a + (b-1))/b*b.
 
-Lemma Zlength_app: forall T (al bl: list T),
-    Zlength (al++bl) = Zlength al + Zlength bl.
-Proof. induction al; intros. simpl app; rewrite Zlength_nil; omega.
- simpl app; repeat rewrite Zlength_cons; rewrite IHal; omega.
-Qed.
-
-Lemma Zlength_rev: forall T (vl: list T), Zlength (rev vl) = Zlength vl.
-Proof. induction vl; simpl; auto. rewrite Zlength_cons. rewrite <- IHvl.
-rewrite Zlength_app. rewrite Zlength_cons. rewrite Zlength_nil; omega.
-Qed.
-
-Lemma Zlength_map: forall A B (f: A -> B) l, Zlength (map f l) = Zlength l.
-Proof. induction l; simpl; auto. repeat rewrite Zlength_cons. f_equal; auto.
-Qed.
-
 Lemma roundup_minus:
    forall a b,  b > 0 -> roundup a b - a = (- a) mod b.
 Proof.
@@ -590,19 +575,6 @@ Lemma Forall_list_repeat:
      f x -> Forall f (list_repeat n x).
 Proof.
  intros; induction n; simpl; auto.
-Qed.
-
-Lemma ZtoNat_Zlength: 
- forall {A} (l: list A), Z.to_nat (Zlength l) = length l.
-Proof.
-intros. rewrite Zlength_correct. apply Nat2Z.id.
-Qed.
-Hint Rewrite @ZtoNat_Zlength : norm.
-
-Lemma Zlength_nonneg:
- forall {A} (l: list A), 0 <= Zlength l.
-Proof.
-intros. rewrite Zlength_correct. omega.
 Qed.
 
 

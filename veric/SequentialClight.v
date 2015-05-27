@@ -27,6 +27,8 @@ Definition dryspec : ext_spec unit :=
      (*ext_spec_exit*)
      (fun rv m z => False).
 
+Print dry_safeN.
+
  Lemma whole_program_sequential_safety:
    forall prog V G m,
      @semax_prog NullExtension.Espec prog V G ->
@@ -34,9 +36,10 @@ Definition dryspec : ext_spec unit :=
      exists b, exists q,
        Genv.find_symbol (Genv.globalenv prog) (prog_main prog) = Some b /\
        initial_core cl_core_sem
-                    (Genv.globalenv prog) (Vptr b Int.zero) nil = Some q /\
+           (Build_genv (Genv.globalenv prog) (prog_comp_env prog))
+ (Vptr b Int.zero) nil = Some q /\
        forall n, 
-        dry_safeN cl_core_sem dryspec (Genv.globalenv prog) n tt q m.
+        @dry_safeN _ _ _ _ (@Genv.genv_symb _ _) (coresem_extract_cenv cl_core_sem (prog_comp_env prog)) dryspec (Build_genv (Genv.globalenv prog) (prog_comp_env prog)) n tt q m.
 Proof.
  intros.
  destruct (@semax_prog_rule NullExtension.Espec tt _ _ _ _ H H0) as [b [q [? [? ?]]]].
@@ -51,7 +54,8 @@ Proof.
  revert jm q H4 H5; induction n; simpl; intros. constructor.
  inv H5.
  destruct H0 as (?&?&?).
- econstructor; eauto. 
+ econstructor.
+ red. red. fold (globalenv prog). eassumption.
  apply IHn; auto. 
  change (level (m_phi jm)) with (level jm) in H4. 
    rewrite H4 in H2; inv H2; auto.
@@ -65,7 +69,7 @@ Definition fun_id (ef: external_function) : option ident :=
   match ef with EF_external id sig => Some id | _ => None end.
 
 Axiom module_sequential_safety : (*TODO*)
-   forall prog (V: varspecs) (G: funspecs) ora m f f_id f_b f_body args,
+   forall (prog: program) (V: varspecs) (G: funspecs) ora m f f_id f_b f_body args,
      let ge := Genv.globalenv prog in
      let spec := add_funspecs NullExtension.Espec G in
      let tys := sig_args (ef_sig f) in
@@ -78,5 +82,7 @@ Axiom module_sequential_safety : (*TODO*)
      forall x : ext_spec_type (@OK_spec spec) f,
      ext_spec_pre (@OK_spec spec) f x (Genv.genv_symb ge) tys args ora m -> 
      exists q,
-       initial_core sem ge (Vptr f_b Int.zero) args = Some q /\
-       forall n, safeN sem (upd_exit (@OK_spec spec) x (Genv.genv_symb ge)) ge n ora q m.
+       initial_core sem (Build_genv ge (prog_comp_env prog))
+              (Vptr f_b Int.zero) args = Some q /\
+       forall n, safeN (@Genv.genv_symb _ _) (coresem_extract_cenv sem (prog_comp_env prog))
+(upd_exit (@OK_spec spec) x (Genv.genv_symb ge)) ge n ora q m.

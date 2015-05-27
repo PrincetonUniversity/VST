@@ -848,4 +848,34 @@ rewrite NPeano.Nat.sub_0_r.
 apply firstn_exact_length.
 Qed.
 
+Lemma replist_Zlength {cs: compspecs}:
+  forall t lo hi al, 
+    lo <= hi ->
+   Zlength (replist t lo hi al) = hi-lo.
+Proof.
+intros.
+rewrite <- (Z2Nat.id (hi-lo)) by omega.
+unfold replist.
+clear H.
+forget (Z.to_nat (hi-lo)) as n. clear hi.
+revert lo; induction n; intros.
+simpl. rewrite Zlength_nil. auto.
+rewrite inj_S.
+simpl. rewrite Zlength_cons.
+rewrite IHn. auto.
+Qed.
+
+Lemma replist_length {cs: compspecs}:
+  forall t lo hi al, 
+    lo <= hi ->
+   length (replist t lo hi al) = Z.to_nat (hi-lo).
+Proof.
+intros.
+rewrite <- (Nat2Z.id (length _)).
+f_equal.
+rewrite <- Zlength_correct.
+apply replist_Zlength; auto.
+Qed.
+
+
 (* Hint Rewrite skipn_0 using computable : norm. *)

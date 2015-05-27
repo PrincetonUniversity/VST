@@ -21,16 +21,20 @@ Require Import progs.list_dt.
  ** from reverse.c 
  **)
 Require Import progs.reverse.
+Instance CompSpecs : compspecs := compspecs_program prog.
+Instance CS_legal : compspecs_legal CompSpecs.
+Proof. prove_CS_legal. Qed.
 
-(** Open the notation scope containing  !! * && operators of separation logic *)
 Local Open Scope logic.
+(** Open the notation scope containing  !! * && operators of separation logic *)
+
 
 (** The reverse.c program uses the linked list structure [struct list].
  ** This satisfies the linked-list pattern, in that it has one self-reference
  ** field (in this case, called [tail]) and arbitrary other fields.  The [Instance]
  ** explains (and proves) how [struct list] satisfies the [listspec] pattern.
  **)
-Instance LS: listspec t_struct_list _tail.
+Instance LS: listspec _list _tail.
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 (**  An auxiliary definition useful in the specification of [sumlist] *)
@@ -40,10 +44,13 @@ Definition sum_int := fold_right Int.add Int.zero.
  ** defined in the file, AND extern functions imported by the .c file,
  ** must be declared in this way.
  **)
+
+Definition t_struct_list := Tstruct _list noattr.
+
 Definition sumlist_spec :=
  DECLARE _sumlist
   WITH sh : share, contents : list int, p: val
-  PRE [ _p OF (tptr t_struct_list)] 
+  PRE [ _p OF (tptr (t_struct_list))] 
      PROP() LOCAL (temp _p p)
      SEP (`(lseg LS sh (map Vint contents) p nullval))
   POST [ tint ]  

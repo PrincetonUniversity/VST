@@ -109,6 +109,8 @@ Qed.
 
 End ZLIST.
 
+Global Opaque zl_nth.
+
 (*
 Module Type Zlist.
 

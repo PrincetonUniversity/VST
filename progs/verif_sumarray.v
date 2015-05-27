@@ -1,5 +1,10 @@
 Require Import floyd.proofauto.
 Require Import progs.sumarray.
+Require Import Coq.Logic.JMeq.
+
+Instance CompSpecs : compspecs := compspecs_program prog.
+Instance CS_legal : compspecs_legal CompSpecs.
+Proof. prove_CS_legal. Qed.
 
 Local Open Scope logic.
 
@@ -13,8 +18,7 @@ Definition sumarray_spec :=
   WITH a0: val, sh : share, contents : list int, size: Z
   PRE [ _a OF (tptr tint), _n OF tint ]
           PROP  (0 <= size <= Int.max_signed;
-                 Zlength contents = size;
-                 forall i, 0 <= i < size -> is_int I32 Signed (zl_nth i (map Vint contents: reptype_array tint 0 size)))
+                 Zlength contents = size)
           LOCAL (temp _a a0; temp _n (Vint (Int.repr size)))
           SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0))
   POST [ tint ]
@@ -34,8 +38,7 @@ Definition Gprog : funspecs :=
 
 Definition sumarray_Inv a0 sh contents size := 
  EX i: Z,
-   PROP  (0 <= i <= size;
-          forall j, 0 <= j < size -> is_int I32 Signed (Znth j (map Vint contents) Vundef))
+   PROP  (0 <= i <= size)
    LOCAL (temp _a a0; 
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
@@ -138,6 +141,20 @@ Proof.
     apply Int.add_commut.
 Qed.
 
+Lemma Znth_map:
+  forall A B i (f: A -> B) (al: list A) (d': A) (b: B),
+  0 <= i < Zlength al ->
+  @Znth B i (map f al) b = f (Znth i al d').
+Proof.
+unfold Znth.
+intros.
+rewrite if_false by omega.
+rewrite if_false by omega.
+rewrite nth_map' with (d'0 := d'); auto.
+apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
+rewrite <- Zlength_correct; omega.
+Qed.
+
 Lemma body_sumarray: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
 start_function.
@@ -154,28 +171,41 @@ forward_while (sumarray_Inv a0 sh contents size)
             temp _s (Vint (sum_int contents)))
      SEP   (`(data_at sh (tarray tint size) (map Vint contents) a0)))
      a1.
-(* Prove that current precondition implies loop invariant *)
+* (* Prove that current precondition implies loop invariant *)
 apply exp_right with 0.
 entailer!.
-(* Prove that loop invariant implies typechecking condition *)
+* (* Prove that loop invariant implies typechecking condition *)
 entailer!.
-(* Prove that invariant && not loop-cond implies postcondition *)
+* (* Prove that invariant && not loop-cond implies postcondition *)
 entailer!.
 assert (a1 = Zlength contents) by omega; subst.
 rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
 reflexivity.
-(* Prove postcondition of loop body implies loop invariant *)
+* (* Prove postcondition of loop body implies loop invariant *)
 forward. (* x = a[i] *)
-  entailer!. apply H1. omega.
+entailer!.
+ rewrite zl_nth_LZ by omega.
+ rewrite Znth_map with (d' := Int.zero) by omega.
+ apply I.
+
 forward s_old. (* s += x; *)
+ rewrite zl_nth_LZ at 1 by omega.
+ rewrite Znth_map with (d' := Int.zero) by omega.
+
+unfold sem_add_default; simpl.
 forward i_old. (* i++; *)
   apply exp_right with (Zsucc a1).
   entailer!.
- rewrite H7 in H6. inv H6. 
-  erewrite add_one_more_to_sum; eauto. omega.
-(* After the loop *)
+  erewrite add_one_more_to_sum; eauto.
+  rewrite Znth_map with (d' := Int.zero) by omega.
+  rewrite Z.sub_0_r.
+  auto.
+  omega.
+
+* (* After the loop *)
 forward.  (* return s; *)
 Qed.
+
 
 Definition four_contents := [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4].
 
@@ -216,11 +246,7 @@ start_function.
 forward_intro four. normalize.
 forward_call' (*  r = sumarray(four,4); *)
   (four,Ews,four_contents,4) vret.
- split3. computable. reflexivity.
- intros. unfold four_contents.
-   apply forall_Forall; [| auto].
-   intros.
-   repeat (destruct H0; [subst; simpl; auto|]); inversion H0.
+ split. computable. reflexivity.
  forward. (* return s; *)
  unfold main_post. entailer!.
 Qed.

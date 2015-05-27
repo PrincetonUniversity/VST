@@ -402,6 +402,34 @@ apply Z2Nat.inj; try omega.
 rewrite Nat2Z.id; auto.
 Qed.
 
+Lemma Zlength_app: forall T (al bl: list T),
+    Zlength (al++bl) = Zlength al + Zlength bl.
+Proof. induction al; intros. simpl app; rewrite Zlength_nil; omega.
+ simpl app; repeat rewrite Zlength_cons; rewrite IHal; omega.
+Qed.
+
+Lemma Zlength_rev: forall T (vl: list T), Zlength (rev vl) = Zlength vl.
+Proof. induction vl; simpl; auto. rewrite Zlength_cons. rewrite <- IHvl.
+rewrite Zlength_app. rewrite Zlength_cons. rewrite Zlength_nil; omega.
+Qed.
+
+Lemma Zlength_map: forall A B (f: A -> B) l, Zlength (map f l) = Zlength l.
+Proof. induction l; simpl; auto. repeat rewrite Zlength_cons. f_equal; auto.
+Qed.
+
+Lemma ZtoNat_Zlength: 
+ forall {A} (l: list A), Z.to_nat (Zlength l) = length l.
+Proof.
+intros. rewrite Zlength_correct. apply Nat2Z.id.
+Qed.
+Hint Rewrite @ZtoNat_Zlength : norm.
+
+Lemma Zlength_nonneg:
+ forall {A} (l: list A), 0 <= Zlength l.
+Proof.
+intros. rewrite Zlength_correct. omega.
+Qed.
+
 Lemma skipn_length_short:
   forall {A} n (al: list A), 
     (length al <= n)%nat -> 
