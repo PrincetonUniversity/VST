@@ -128,11 +128,3 @@ Qed.
 
 End ZLIST.
 
-(*
-Module Type Zlist.
-
-Parameter list : Z -> Z -> Type.
-Parameter app : forall {lo mid hi}, list lo mid -> list mid hi -> list lo hi.
-Parameter sublist: forall {lo hi} lo' hi', list lo hi -> list lo' hi'.
-Parameter singleton: forall i 
-*)

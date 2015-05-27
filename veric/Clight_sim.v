@@ -1847,9 +1847,9 @@ Check cl_core_sem.
 Print genv.
 Print cl_core_sem.
 
-Definition coresem_extract_cenv {core} (CS: CoreSemantics genv core mem)
+Definition coresem_extract_cenv {M} {core} (CS: CoreSemantics genv core M)
                          (cenv: composite_env) :
-            CoreSemantics (Genv.t fundef type) core mem :=
+            CoreSemantics (Genv.t fundef type) core M :=
   Build_CoreSemantics _ _ _
              (fun ge => CS.(initial_core) (Build_genv ge cenv))
              CS.(at_external)
