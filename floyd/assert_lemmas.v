@@ -13,15 +13,6 @@ apply exp_left; intro ab. apply exp_right with (fst ab). apply exp_right with (s
 apply derives_refl.
 Qed.
 
-Lemma nth_map':
-  forall {A B} (f: A -> B) d d' i al,
-  (i < length al)%nat ->
-   nth i (map f al) d = f (nth i al d').
-Proof.
-induction i; destruct al; simpl; intros; try omega; auto.
-apply IHi; omega.
-Qed.
-
 Lemma isptr_offset_val':
  forall i p, isptr p -> isptr (offset_val i p).
 Proof. intros. destruct p; try contradiction; apply I. Qed.

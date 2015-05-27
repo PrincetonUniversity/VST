@@ -421,8 +421,31 @@ spec H0; [auto | ].
 destruct (skipn n al); inv H0; auto.
 Qed.
 
+Lemma nth_map':
+  forall {A B} (f: A -> B) d d' i al,
+  (i < length al)%nat ->
+   nth i (map f al) d = f (nth i al d').
+Proof.
+induction i; destruct al; simpl; intros; try omega; auto.
+apply IHi; omega.
+Qed.
+
 Definition Znth {X} n (xs: list X) (default: X) :=
   if (zlt n 0) then default else nth (Z.to_nat n) xs default.
+
+Lemma Znth_map:
+  forall A B i (f: A -> B) (al: list A) (d': A) (b: B),
+  0 <= i < Zlength al ->
+  @Znth B i (map f al) b = f (Znth i al d').
+Proof.
+unfold Znth.
+intros.
+rewrite if_false by omega.
+rewrite if_false by omega.
+rewrite nth_map' with (d'0 := d'); auto.
+apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
+rewrite <- Zlength_correct; omega.
+Qed.
 
 Lemma Znth_succ: forall {A} i lo (v: list A), Z.succ lo <= i -> Znth (i - lo) v = Znth (i - (Z.succ lo)) (skipn 1 v).
 Proof.

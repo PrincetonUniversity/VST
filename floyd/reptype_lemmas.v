@@ -632,6 +632,17 @@ Proof.
 destruct t; reflexivity.
 Qed.
 
+Definition zl_constr t lo hi l := @zl_constr' (reptype t) (default_val t) (list_zlist (reptype t) (default_val t)) lo hi l.
+
+Lemma zl_constr_correct: forall t lo hi i l,
+  lo <= i < hi -> zl_nth i (zl_constr t lo hi l) = Znth (i - lo) l (default_val _).
+Proof.
+  intros.
+  unfold zl_constr.
+  pose (list_zlist_correct (reptype t) (default_val t)).
+  apply zl_constr'_correct; auto.
+Qed.
+
 End CENV.
 
 Global Notation REPTYPE t :=

@@ -861,6 +861,26 @@ Qed.
 
 (* END HORRIBLE1 *)
 
+Module zlist_hint_db.
+
+Lemma Znth_sub_0_r: forall A i l (d: A), Znth (i - 0) l d = Znth i l d.
+  intros.
+  rewrite Z.sub_0_r by omega.
+  auto.
+Qed.
+
+Lemma Znth_map_Vint: forall (i : Z) (l : list int),
+  0 <= i < Zlength l -> Znth i (map Vint l) Vundef = Vint (Znth i l Int.zero).
+Proof.
+  intros i l.
+  apply Znth_map.
+Qed.
+
+End zlist_hint_db.
+
+Hint Rewrite @zl_constr_correct using solve [omega] : zlist_db.
+Hint Rewrite zlist_hint_db.Znth_sub_0_r : zlist_db.
+Hint Rewrite zlist_hint_db.Znth_map_Vint using solve [omega] : zlist_db.
 
 Ltac do_compute_lvalue Delta P Q R e v H :=
   let rho := fresh "rho" in
@@ -875,7 +895,7 @@ Ltac do_compute_lvalue Delta P Q R e v H :=
      unfold v;
      simpl;
      try unfold force_val2; try unfold force_val1;
-     autorewrite with norm;
+     autorewrite with norm zlist_db;
      simpl;
      reflexivity]
   ]).
@@ -893,7 +913,7 @@ Ltac do_compute_expr Delta P Q R e v H :=
      unfold v;
      simpl;
      try unfold force_val2; try unfold force_val1;
-     autorewrite with norm;
+     autorewrite with norm zlist_db;
      simpl;
      reflexivity]
   ]).
@@ -2197,8 +2217,8 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
     end;
     eapply (semax_SC_field_cast_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity
-    | reflexivity | exact Heq | exact HLE | exact H_Denote 
-    | exact H | unfold_proj' (nested_field_type2 t_root gfs0) gfs1 v; reflexivity
+    | reflexivity | exact Heq | exact HLE | exact H_Denote | exact H
+    | unfold_proj' (nested_field_type2 t_root gfs0) gfs1 v; subst v; autorewrite with zlist_db; reflexivity
     | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment;
@@ -2262,8 +2282,8 @@ Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
 
     eapply (semax_SC_field_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [reflexivity | reflexivity | reflexivity
-    | reflexivity | exact Heq | exact HLE | exact H_Denote 
-    | exact H | unfold_proj' (nested_field_type2 t_root gfs0) gfs1 v; reflexivity
+    | reflexivity | exact Heq | exact HLE | exact H_Denote | exact H
+    | unfold_proj' (nested_field_type2 t_root gfs0) gfs1 v; subst v; autorewrite with zlist_db; reflexivity
     | unfold tc_efield; try solve [entailer!]; try (clear Heq HLE H_Denote H H_LEGAL;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n; simpl app; simpl typeof)
     | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H H_LEGAL;
