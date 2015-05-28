@@ -165,7 +165,6 @@ simpl valinject.
 destruct cts; inv H.
 rewrite list_cell_eq.
 forward.  (* h = t->head; *)
-rewrite <- compute_in_members_true_iff.  (* Check whether we can do this *)
 forward t_old.  (*  t = t->tail; *)
 subst t_old.
 forward s_old.  (* s = s + h; *)
@@ -206,12 +205,15 @@ apply exp_right with nil.
 apply exp_right with contents.
 apply exp_right with (Vint (Int.repr 0)).
 apply exp_right with p.
+rewrite lseg_eq by (simpl; auto).
 entailer!.
 (* loop invariant implies typechecking of loop condition *)
 entailer!.
 (* loop invariant (and not loop condition) implies loop postcondition *)
 apply exp_right with w.
-entailer!. 
+subst.
+rewrite lseg_eq by (simpl; auto).
+entailer!.
 rewrite <- app_nil_end, rev_involutive. auto.
 (* loop body preserves invariant *)
 focus_SEP 1; apply semax_lseg_nonnull;

@@ -1834,23 +1834,21 @@ tac_if (ptr_compare e) ltac:forward_ptr_cmp ltac:forward_setx.
 
 (* BEGIN new semax_load and semax_store tactics *************************)
 
-Lemma solve_legal_nested_field_in_entailment_aux: forall (P: environ -> mpred) Q R, (Q <-> R) -> P |-- !!R -> P |-- !!Q.
-Proof.
-  intros.
-  eapply derives_trans; eauto.
-  normalize.
-  tauto.
-Qed.
-
 Ltac solve_legal_nested_field_in_entailment :=
-match goal with
-| |- _ |-- !! legal_nested_field ?t_root (?gfs1 ++ ?gfs0) =>
-  unfold t_root, gfs0, gfs1
-end;
-match goal with 
-| |- _ |-- !! ?M => simpl M
-end;
- try solve [entailer!].
+  match goal with
+  | |- _ |-- !! legal_nested_field ?t_root (?gfs1 ++ ?gfs0) =>
+    unfold t_root, gfs0, gfs1
+  end;
+  apply compute_legal_nested_field_spec;
+  match goal with
+  | |- Forall ?F _ =>
+      let F0 := fresh "F" in
+      remember F as F0;
+      simpl;
+      subst F0
+  end;
+  repeat constructor;
+  try solve [entailer!].
 
 Ltac construct_nested_efield e e1 efs tts :=
   let pp := fresh "pp" in

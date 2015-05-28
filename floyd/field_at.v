@@ -1018,6 +1018,47 @@ Lemma lower_andp_val:
   ((P && Q) v) = (P v && Q v).
 Proof. reflexivity. Qed.
 
+Lemma compute_legal_nested_field_spec: forall {A : Type} {ND : NatDed A} (P: A) t gfs,
+  Forall (fun Q => P |-- !!Q) (compute_legal_nested_field t gfs) ->
+  P |-- !! (legal_nested_field t gfs).
+Proof.
+  intros.
+  induction gfs as [| gf gfs].
+  + simpl.
+    apply prop_right; auto.
+  + simpl in H |- *.
+    unfold legal_field.
+    destruct (nested_field_type2 t gfs), gf; inversion H; subst;
+    try
+    match goal with
+    | HH : P |-- (prop False) |-
+           P |-- (prop (_)) => apply (derives_trans _ _ _ HH); apply prop_derives; tauto
+    end.
+    - apply IHgfs in H3.
+      rewrite (add_andp _ _ H2).
+      rewrite (add_andp _ _ H3).
+      normalize.
+      apply prop_right; tauto.
+    - destruct_in_members i0 (co_members (get_co i)).
+      * apply IHgfs in H. 
+        apply (derives_trans _ _ _ H), prop_derives; tauto.
+      * inversion H1.
+    - destruct_in_members i0 (co_members (get_co i)).
+      * apply IHgfs in H. 
+        apply (derives_trans _ _ _ H), prop_derives; tauto.
+      * inversion H.
+        apply (derives_trans _ _ _ H6), prop_derives; tauto.
+    - destruct_in_members i0 (co_members (get_co i)).
+      * apply IHgfs in H. 
+        apply (derives_trans _ _ _ H), prop_derives; tauto.
+      * inversion H1.
+    - destruct_in_members i0 (co_members (get_co i)).
+      * apply IHgfs in H. 
+        apply (derives_trans _ _ _ H), prop_derives; tauto.
+      * inversion H.
+        apply (derives_trans _ _ _ H6), prop_derives; tauto.
+Qed.
+
 (*
 Lemma field_at_field_at: forall sh t gfs0 gfs1 v v' p,
   legal_alignas_type t = true ->

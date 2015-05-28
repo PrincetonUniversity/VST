@@ -126,6 +126,21 @@ Definition legal_nested_field0 t gfs :=
   | gf :: gfs0 => legal_nested_field t gfs0 /\ legal_field0 (nested_field_type2 t gfs0) gf
   end.
 
+Fixpoint compute_legal_nested_field (t: type) (gfs: list gfield) : list Prop :=
+  match gfs with
+  | nil => nil
+  | gf :: gfs0 =>
+    match (nested_field_type2 t gfs0), gf with
+    | Tarray _ n _, ArraySubsc i =>
+       (0 <= i < n) :: compute_legal_nested_field t gfs0
+    | Tstruct id _, StructField i =>
+       if compute_in_members i (co_members (get_co id)) then compute_legal_nested_field t gfs0 else False :: nil
+    | Tunion id _, UnionField i =>
+       if compute_in_members i (co_members (get_co id)) then compute_legal_nested_field t gfs0 else False :: nil
+    | _, _ => False :: nil
+    end
+  end.
+
 Lemma nested_field_type2_ind: forall t gfs,
   nested_field_type2 t gfs =
   match gfs with
