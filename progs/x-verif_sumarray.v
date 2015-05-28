@@ -231,13 +231,6 @@ forward_intro four. normalize.
 forward_call' (*  r = sumarray(four,4); *)
   (four,Ews,four_contents,4) vret.
  split3. computable. 
-(*
-reflexivity.
- intros. unfold four_contents.
-   apply forall_Forall; [| auto].
-   intros.
-   repeat (destruct H0; [subst; simpl; auto|]); inversion H0.
-*)
  forward. (* return s; *)
  unfold main_post. entailer!.
 Qed.
