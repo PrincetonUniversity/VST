@@ -32,41 +32,6 @@ Fixpoint field_offset_next_rec env i m ofs sz :=
 
 Definition field_offset_next env i m sz := field_offset_next_rec env i m 0 sz.
 
-Definition compute_in_members id (m: members): bool :=
-  id_in_list id (map fst m).
-                                                                      
-Lemma compute_in_members_true_iff: forall i m, compute_in_members i m = true <-> in_members i m.
-Proof.
-  intros.
-  unfold compute_in_members.
-  destruct (id_in_list i (map fst m)) eqn:HH; 
-  [apply id_in_list_true in HH | apply id_in_list_false in HH].
-  + unfold in_members.
-    tauto.
-  + unfold in_members; split; [congruence | tauto].
-Qed.
-
-Lemma compute_in_members_false_iff: forall i m,
-  compute_in_members i m = false <-> ~ in_members i m.
-Proof.
-  intros.
-  pose proof compute_in_members_true_iff i m.
-  rewrite <- H; clear H.
-  destruct (compute_in_members i m); split; congruence.
-Qed.
-
-Ltac destruct_in_members i m :=
-  let H := fresh "H" in
-  destruct (compute_in_members i m) eqn:H;
-    [apply compute_in_members_true_iff in H |
-     apply compute_in_members_false_iff in H].
-
-Lemma in_members_dec: forall i m, {in_members i m} + {~ in_members i m}.
-Proof.
-  intros.
-  destruct_in_members i m; [left | right]; auto.
-Qed.
-
 Lemma in_members_field_type2: forall i m,
   in_members i m ->
   In (i, field_type2 i m) m.
@@ -484,23 +449,9 @@ End COMPOSITE_ENV.
 
 Module fieldlist.
 
-Definition compute_in_members := @compute_in_members.
 Definition field_type := @field_type2.
 Definition field_offset := @field_offset2.
 Definition field_offset_next := @field_offset_next.
-
-Definition compute_in_members_true_iff: forall i m, compute_in_members i m = true <-> in_members i m
-  := @compute_in_members_true_iff.
-
-Definition compute_in_members_false_iff: forall i m,
-  compute_in_members i m = false <-> ~ in_members i m
-:= @compute_in_members_false_iff.
-
-Ltac destruct_in_members i m :=
-  let H := fresh "H" in
-  destruct (compute_in_members i m) eqn:H;
-    [apply compute_in_members_true_iff in H |
-     apply compute_in_members_false_iff in H].
 
 Definition map_members_ext: forall A (f f':ident * type -> A) (m: members),
   members_no_replicate m = true ->

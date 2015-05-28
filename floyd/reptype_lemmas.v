@@ -1,12 +1,10 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
-Require Import floyd.jmeq_lemmas.
 Require Export floyd.zlist.
 Require Export floyd.compact_prod_sum.
 Require floyd.fieldlist.
 Import floyd.fieldlist.fieldlist.
-Require Import Coq.Logic.JMeq.
 
 Definition 
 map_map: forall {A B C : Type} (f : A -> B) (g : B -> C) (l : list A),

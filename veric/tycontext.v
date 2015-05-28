@@ -221,6 +221,41 @@ Definition in_members i (m: members): Prop :=
 Definition members_no_replicate (m: members) : bool :=
   compute_list_norepet (map fst m).
 
+Definition compute_in_members id (m: members): bool :=
+  id_in_list id (map fst m).
+                                                                      
+Lemma compute_in_members_true_iff: forall i m, compute_in_members i m = true <-> in_members i m.
+Proof.
+  intros.
+  unfold compute_in_members.
+  destruct (id_in_list i (map fst m)) eqn:HH; 
+  [apply id_in_list_true in HH | apply id_in_list_false in HH].
+  + unfold in_members.
+    tauto.
+  + unfold in_members; split; [congruence | tauto].
+Qed.
+
+Lemma compute_in_members_false_iff: forall i m,
+  compute_in_members i m = false <-> ~ in_members i m.
+Proof.
+  intros.
+  pose proof compute_in_members_true_iff i m.
+  rewrite <- H; clear H.
+  destruct (compute_in_members i m); split; congruence.
+Qed.
+
+Ltac destruct_in_members i m :=
+  let H := fresh "H" in
+  destruct (compute_in_members i m) eqn:H;
+    [apply compute_in_members_true_iff in H |
+     apply compute_in_members_false_iff in H].
+
+Lemma in_members_dec: forall i m, {in_members i m} + {~ in_members i m}.
+Proof.
+  intros.
+  destruct_in_members i m; [left | right]; auto.
+Qed.
+
 Definition composite_legal_alignas (env : composite_env) (co : composite) : Prop :=
   (co_alignof co >= alignof_composite env (co_members co)).
 

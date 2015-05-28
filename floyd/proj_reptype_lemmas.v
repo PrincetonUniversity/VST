@@ -6,8 +6,6 @@ Require Import type_induction.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.zlist.
 Require floyd.aggregate_type. Import floyd.aggregate_type.aggregate_type.
-Require Import floyd.jmeq_lemmas.
-Require Import Coq.Logic.JMeq.
 
 Section PROJ_REPTYPE.
 

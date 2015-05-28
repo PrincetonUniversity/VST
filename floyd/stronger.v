@@ -1,7 +1,6 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
-Require Import floyd.jmeq_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.reptype_lemmas.
@@ -9,7 +8,6 @@ Require Import floyd.proj_reptype_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.entailer.
 Require Import floyd.closed_lemmas.
-Require Import Coq.Logic.JMeq.
 
 Local Open Scope logic.
 

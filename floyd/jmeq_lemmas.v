@@ -1,5 +1,5 @@
 Require Import msl.Extensionality.
-Require Import Coq.Logic.JMeq.
+Require Export Coq.Logic.JMeq.
 
 Lemma eq_rect_JMeq: forall (A:Type) (x y: A) F (v: F x) (H: x = y), JMeq (eq_rect x F v y H) v.
 Proof.

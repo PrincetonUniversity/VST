@@ -1,7 +1,6 @@
 Require Import List.
 Require Import Coqlib msl.Coqlib2 floyd.coqlib3.
 Require Import floyd.jmeq_lemmas.
-Require Import Coq.Logic.JMeq.
 
 Fixpoint compact_prod (T: list Type): Type :=
   match T with 

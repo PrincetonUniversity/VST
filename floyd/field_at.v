@@ -9,7 +9,6 @@ Require Import floyd.reptype_lemmas.
 Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.jmeq_lemmas.
-Require Import Coq.Logic.JMeq.
 
 Local Open Scope logic.
 

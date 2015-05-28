@@ -8,7 +8,6 @@ Require Import floyd.reptype_lemmas.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.loadstore_mapsto.
-Require Import Coq.Logic.JMeq.
 
 Local Open Scope logic.
 

@@ -34,7 +34,7 @@ Local Open Scope logic.
  ** field (in this case, called [tail]) and arbitrary other fields.  The [Instance]
  ** explains (and proves) how [struct list] satisfies the [listspec] pattern.
  **)
-Instance LS: listspec _list _tail.
+Instance LS: listspec (Tstruct _list noattr) _tail.
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 (**  An auxiliary definition useful in the specification of [sumlist] *)
@@ -100,8 +100,17 @@ Lemma list_cell_eq: forall sh i,
 Proof.
   intros.
   unfold list_cell; extensionality p; simpl.
-  unfold_data_at 1%nat.
-  unfold field_at_; simpl.
+  unfold list_data.
+  unfold eq_rect_r; rewrite <- !eq_rect_eq.
+  match goal with
+  | |- appcontext [@fold_reptype _ _ ?t ?v] =>
+         pose proof fold_reptype_JMeq t v as HH;
+         apply JMeq_eq in HH;
+         rewrite HH;
+         clear HH
+  end.
+  unfold add_link_back, list_rect, default_val; simpl.
+  unfold eq_rect_r; rewrite <- !eq_rect_eq.
   admit.
 Qed.
 
@@ -143,9 +152,11 @@ entailer!.
 (* Prove that loop invariant implies typechecking condition *)
 entailer!.
 (* Prove that invariant && not loop-cond implies postcondition *)
+subst.
+rewrite lseg_eq by (simpl; auto).
 entailer!.
-destruct H1 as [H1 _]; specialize (H1 (eq_refl _)).
-destruct cts; inv H1; normalize.
+destruct cts; [| inversion H].
+normalize.
 (* Prove that loop body preserves invariant *)
 simpl in HRE.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
@@ -154,6 +165,7 @@ simpl valinject.
 destruct cts; inv H.
 rewrite list_cell_eq.
 forward.  (* h = t->head; *)
+rewrite <- compute_in_members_true_iff.  (* Check whether we can do this *)
 forward t_old.  (*  t = t->tail; *)
 subst t_old.
 forward s_old.  (* s = s + h; *)

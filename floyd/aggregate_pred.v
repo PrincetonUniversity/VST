@@ -9,7 +9,6 @@ Require Import floyd.aggregate_type.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.nested_pred_lemmas.
 Require Import floyd.jmeq_lemmas.
-Require Import Coq.Logic.JMeq.
 
 Open Scope Z.
 Open Scope logic.

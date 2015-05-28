@@ -8,7 +8,6 @@ Require floyd.aggregate_pred. Import floyd.aggregate_pred.aggregate_pred.
 Import floyd.aggregate_pred.auxiliary_pred.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.jmeq_lemmas.
-Require Import Coq.Logic.JMeq.
 
 Opaque alignof.
 

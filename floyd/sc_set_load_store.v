@@ -14,7 +14,6 @@ Require Import floyd.closed_lemmas.
 Require Import floyd.loadstore_mapsto.
 Require Import floyd.nested_loadstore.
 Require Import floyd.local2ptree.
-Require Import Coq.Logic.JMeq.
 
 Local Open Scope logic.
 
