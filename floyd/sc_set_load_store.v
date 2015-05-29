@@ -245,7 +245,7 @@ Lemma semax_SC_field_store:
   forall {Espec: OracleKind},
     forall Delta sh n P Q R Rn (e1 e2 : expr)
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v0: val) (v: reptype (nested_field_type2 t_root gfs0)) lr,
+      (p: val) (v0: val) (v v_new: reptype (nested_field_type2 t_root gfs0)) lr,
       typeof (nested_efield e1 efs tts) = t ->
       type_is_by_value t = true ->
       gfs = gfs1 ++ gfs0 ->
@@ -258,6 +258,7 @@ Lemma semax_SC_field_store:
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v p) ->
       writable_share sh ->
+      upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0) = v_new ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_LR Delta e1 lr) && 
         local (tc_expr Delta (Ecast e2 t)) &&
@@ -271,11 +272,12 @@ Lemma semax_SC_field_store:
               (LOCALx Q
                 (SEPx
                   (replace_nth n R
-                    (`(field_at sh t_root gfs0
-                      (upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0)) p)))
-                            )))).
+                    (`(field_at sh t_root gfs0 v_new p))))))).
 Proof.
   intros.
+  subst v_new.
+  rename H10 into H9.
+  rename H11 into H10.
   eapply semax_extract_later_prop'; [exact H10 | clear H10; intro H10].
   eapply semax_pre_simple.
   {
@@ -449,7 +451,7 @@ Lemma semax_PTree_store:
   forall {Espec: OracleKind},
     forall Delta sh n P T1 T2 R Rn (e1 e2 : expr)
       (t t_root: type) (efs: list efield) (gfs0 gfs1 gfs: list gfield) (tts: list type)
-      (p: val) (v0: val) (v: reptype (nested_field_type2 t_root gfs0)) lr,
+      (p: val) (v0: val) (v v_new: reptype (nested_field_type2 t_root gfs0)) lr,
       typeof (nested_efield e1 efs tts) = t ->
       type_is_by_value t = true ->
       gfs = gfs1 ++ gfs0 ->
@@ -461,6 +463,7 @@ Lemma semax_PTree_store:
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil))  |--
         `(field_at sh t_root gfs0 v p) ->
       writable_share sh ->
+      upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0) = v_new ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
         local (tc_LR Delta e1 lr) && 
         local (tc_expr Delta (Ecast e2 t)) &&
@@ -472,12 +475,11 @@ Lemma semax_PTree_store:
           (normal_ret_assert
             (assertD P (localD T1 T2)
                   (replace_nth n R
-                    (field_at sh t_root gfs0
-                      (upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0)) p)))).
+                    (field_at sh t_root gfs0 v_new p)))).
 Proof.
   intros.
   unfold assertD, localD in *.
-  rewrite insert_local in H7, H9, H10.
+  rewrite insert_local in H7, H10, H11.
   eapply semax_post'.
   Focus 2. {
     eapply semax_SC_field_store with (n0 := n); eauto.
