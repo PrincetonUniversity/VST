@@ -576,16 +576,16 @@ Ltac pose_proj_reptype CS CSL t gfs v H :=
          | nil => pose_proj_reptype_1 CS CSL t gf v0 H1
          | _ => pose_proj_reptype_1 CS CSL (nested_field_type2 t gfs0) gf v0 H1
          end;
-         match type of H1 with
-         | _ = ?v_res =>
-           assert (eq_pose (@proj_reptype CS CSL t gfs v) v_res) as H
-            by (unfold eq_pose in *; eapply eq_trans; [| exact H1];
-                rewrite <- H0; unfold proj_reptype, eq_rect_r; apply eq_sym, eq_rect_eq)
+         match gfs0 with
+         | nil => assert (eq_pose (@proj_reptype CS CSL t gfs v) (@proj_gfield_reptype CS CSL t gf v0)) as H
+         | _ => assert (eq_pose (@proj_reptype CS CSL t gfs v)
+                   (@proj_gfield_reptype CS CSL (nested_field_type2 t gfs0) gf v0)) as H
          end;
+         [unfold eq_pose in *; rewrite <- H0; unfold proj_reptype, eq_rect_r; apply eq_sym, eq_rect_eq |];
+         rewrite H1 in H;
          clear H1
      end
   end.
-Unset Ltac Debug.
 
 Ltac pose_upd_reptype_1 CS CSL t gf v v0 H :=
   let t' := eval compute in t in
@@ -619,7 +619,7 @@ Ltac pose_upd_reptype CS CSL t gfs v v0 H :=
                   pose_upd_reptype CS CSL t gfs0 v v1' H0;
                   match type of H0 with
                   | eq_pose _ ?v_res =>
-                      assert (eq_pose (@upd_reptype_rec CS CSL t gfs v v0) v_res); [| clear H_upd1]
+                      assert (eq_pose (@upd_reptype_rec CS CSL t gfs v v0) v_res) as H; [| clear H_upd1]
                   end
           end;
           [change (@upd_reptype_rec CS CSL t gfs v v0) with
@@ -679,195 +679,30 @@ Goal proj_reptype t1 (StructField 1%positive :: nil) v1 = Vint Int.zero.
 reflexivity.
 Qed.
 
-(*
-Ltac unfold_proj_1 t gf v :=
-  let H := fresh "H" in
-  let H0 := fresh "H" in
-  let H1 := fresh "H" in
-  let V := fresh "v" in
-  let V0 := fresh "v" in
-  let t' := eval compute in t in
-  remember (proj_gfield_reptype t gf v) as V0 eqn:H0;
-  remember v as V eqn:H;
-  change t with t' in H0;
-  unfold proj_gfield_reptype in H0;
-  pose proof unfold_reptype_JMeq t' V as H1;
-  apply JMeq_eq in H1;
-  rewrite H1 in H0; clear H1;
-  match type of H0 with
-  | _ = proj_struct ?i ?m V ?d =>
-    let d' := eval vm_compute in d in change d with d' in H0;
-    let m' := eval vm_compute in m in change m with m' in H0(*;
-    cbv_proj_struct H0*)
-  | _ => idtac
-  end
-  ;
-  subst V; subst V0
-.
-
-Ltac unfold_proj t gfs v :=
-  match gfs with
-  | nil =>
-      unfold proj_reptype; unfold eq_rect_r; rewrite <- eq_rect_eq
-  | ?gf :: ?gfs0 =>
-      match goal with
-      | |- appcontext [@proj_reptype ?cs ?csl t gfs v] =>
-      let HH := fresh "HH" in
-      let V := fresh "V" in
-      remember (@proj_reptype cs csl t gfs v) as V eqn:HH;
-      let H := fresh "H" in
-      assert
-       (proj_reptype t gfs v =
-        proj_gfield_reptype (nested_field_type2 t gfs0) gf
-          (proj_reptype t gfs0 v)) as H
-       by (unfold proj_reptype, eq_rect_r; apply eq_sym, eq_rect_eq);
-      rewrite H in HH; clear H;
-      subst V;
-      unfold_proj_1 (nested_field_type2 t gfs0) gf (proj_reptype t gfs0 v);
-      unfold_proj t gfs0 v
-      end
-  end.
-*)
 Goal proj_reptype t2 (StructField 2%positive :: StructField 3%positive :: nil) v2 = Vint Int.one.
 unfold v2.
-
-
-Set Ltac Debug.
-
 pose_proj_reptype cs csl (Tstruct 102%positive noattr)
   (StructField 2%positive :: StructField 3%positive :: nil) ((Vint Int.zero, Vint Int.one, (Vint Int.zero, Vint Int.one, Vundef)): reptype (Tstruct 102%positive noattr)) HH.
+eauto.
+Time Qed. (* Cut down from 10 seconds to 4 seconds, magically. *)
 
-
-Unset Ltac Debug.
-match type of H1 with
-| eq_pose _ (proj_gfield_reptype _ _ ?v) =>
-    pose_proj_reptype_1 cs csl (nested_field_type2 (Tstruct 102%positive noattr)
-               (StructField 3%positive :: nil)) (StructField 2%positive) v H2
-end.
-            (fst
-              ((Vint Int.zero, Vint Int.one,
-               (Vint Int.zero, Vint Int.one, Vundef)): reptype (Tstruct 102%positive noattr))) H1.
-
-cbv_proj_struct H1.
-
-unfold_proj t2 (StructField 2%positive :: StructField 3%positive :: nil) (Vint Int.zero, Vint Int.one, (Vint Int.zero, Vint Int.one, Vundef)).
-fold noattr.
-reflexivity.
+Goal forall n l, 0 < n -> proj_reptype (tarray tint n) (ArraySubsc 0 :: nil) (zl_constr tint 0 n l) = Znth 0 l Vundef.
+intros.
+pose_proj_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) (zl_constr tint 0 n l) HH.
+rewrite zl_constr_correct in HH by omega.
+exact HH.
 Qed.
 
 Goal upd_reptype t2 (StructField 3%positive :: nil) v2 (Vint Int.one, Vint Int.one) =
 ((Vint Int.one, Vint Int.one), ((Vint Int.zero, Vint Int.one), Vundef)).
-unfold upd_reptype.
-unfold t2; rewrite replace_reptype_ind.
-unfold singleton_hole.
-simpl singleton_hole_rec.
-cbv iota beta.
-match goal with
-| |- appcontext [@fold_reptype _ _ ?t ?v] =>
-  let H := fresh "H" in
-  pose proof (fold_reptype_JMeq t v) as H;
-  apply JMeq_eq in H;
-  rewrite H;
-  clear H
-end.
-match goal with
-| |- appcontext [@unfold_reptype _ _ ?t ?v] =>
-  let H := fresh "H" in
-  pose proof (unfold_reptype_JMeq t v) as H;
-  apply JMeq_eq in H;
-  rewrite H;
-  clear H
-end.
-simpl.
-unfold eq_rect_r; rewrite <- !eq_rect_eq.
-repeat
-match goal with
-| |- appcontext [replace_reptype ?t] =>
-  let t0 := eval vm_compute in t in
-  change t with t0;
-  rewrite (replace_reptype_ind t0)
-end.
-match goal with
-| |- appcontext [@singleton_subs ?cs ?t ?gfs ?v ?rgfs] =>
-  let H := fresh "H" in
-  pose proof singleton_subs_self t gfs v as H;
-  apply JMeq_eq in H;
-  replace (@singleton_subs cs t gfs v rgfs) with v by exact H
-end.
+set (v0 := (Vint Int.one, Vint Int.one)).
+change (val * val)%type with (reptype (Tstruct 101%positive noattr)) in v0.
+pose_proj_reptype cs csl (Tstruct 102%positive noattr) (StructField 3%positive :: nil) v2 H.
+pose_upd_reptype cs csl (Tstruct 102%positive noattr) (StructField 3%positive :: nil) v2 v0 H1.
+rewrite upd_reptype_ind.
+rewrite H1.
 reflexivity.
-
-(*
-Transparent peq.
-cbv [proj_struct proj_compact_prod proj_union proj_compact_sum get_co
-field_type fieldlist.field_type2 Ctypes.field_type
-list_rect member_dec ident_eq peq Pos.eq_dec BinNums.positive_rec positive_rect 
-sumbool_rec sumbool_rect bool_dec bool_rec bool_rect option_rec option_rect
-eq_rect_r eq_rect eq_rec_r eq_rec eq_sym eq_trans f_equal
-type_eq type_rec type_rect typelist_eq typelist_rec typelist_rect
-intsize_rec intsize_rect signedness_rec signedness_rect floatsize_rec floatsize_rect attr_rec attr_rect
-tvoid tschar tuchar tshort tushort tint
-tuint tbool tlong tulong tfloat tdouble tptr tarray noattr].
-*)
 Qed.
 
 End Test.
 
-Transparent peq.
-
-Ltac cbv_proj_struct H :=
-    cbv beta zeta iota delta
-    [proj_struct proj_compact_prod list_rect
-    member_dec field_type fieldlist.field_type2 Ctypes.field_type
-     ident_eq peq Pos.eq_dec BinNums.positive_rec positive_rect
-    sumbool_rec sumbool_rect bool_dec bool_rec bool_rect option_rec option_rect
-    eq_rect_r eq_rect eq_rec_r eq_rec eq_sym eq_trans f_equal
-    type_eq type_rec type_rect typelist_eq typelist_rec typelist_rect
-    intsize_rec intsize_rect signedness_rec signedness_rect floatsize_rec floatsize_rect attr_rec attr_rect
-    tvoid tschar tuchar tshort tushort tint
-    tuint tbool tlong tulong tfloat tdouble tptr tarray noattr
-    ] in H.
-
-Ltac unfold_proj_1 t gf v :=
-  let H := fresh "H" in
-  let H0 := fresh "H" in
-  let H1 := fresh "H" in
-  let V := fresh "v" in
-  let V0 := fresh "v" in
-  let t' := eval compute in t in
-  remember (proj_gfield_reptype t gf v) as V0 eqn:H0;
-  remember v as V eqn:H;
-  change t with t' in H0;
-  unfold proj_gfield_reptype in H0;
-  pose proof unfold_reptype_JMeq t' V as H1;
-  apply JMeq_eq in H1;
-  rewrite H1 in H0; clear H1;
-  match type of H0 with
-  | _ = proj_struct ?i ?m V ?d =>
-    let d' := eval vm_compute in d in change d with d' in H0;
-    let m' := eval vm_compute in m in change m with m' in H0(*;
-    cbv_proj_struct H0*)
-  | _ => idtac
-  end
-  ;
-  subst V; subst V0
-.
-
-Ltac unfold_proj t gfs v :=
-  match gfs with
-  | nil =>
-      unfold proj_reptype; unfold eq_rect_r; rewrite <- eq_rect_eq
-  | ?gf :: ?gfs0 =>
-      let HH := fresh "HH" in
-      let V := fresh "V" in
-      remember (proj_reptype t gfs v) as V eqn:HH;
-      let H := fresh "H" in
-      assert
-       (proj_reptype t gfs v =
-        proj_gfield_reptype (nested_field_type2 t gfs0) gf
-          (proj_reptype t gfs0 v)) as H
-       by (unfold proj_reptype, eq_rect_r; apply eq_sym, eq_rect_eq); 
-       rewrite H in HH; clear H;
-       subst V;
-       unfold_proj_1 (nested_field_type2 t gfs0) gf (proj_reptype t gfs0 v);
-       unfold_proj t gfs0 v
-  end.

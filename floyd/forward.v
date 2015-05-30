@@ -2152,6 +2152,8 @@ intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite sem_add_ptr_int using assumption : norm.
 
+Check semax_SC_field_cast_load.
+
 Ltac unfold_proj' t gfs v :=
 match goal with
 | gfs := ?GFS |- _ => subst gfs; unfold_proj t GFS v
