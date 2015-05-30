@@ -128,3 +128,4 @@ Qed.
 
 End ZLIST.
 
+Global Existing Instance list_zlist_correct.

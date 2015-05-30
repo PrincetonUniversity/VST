@@ -541,7 +541,7 @@ Ltac pose_proj_reptype_1 CS CSL t gf v H :=
   let t' := eval compute in t in
   remember v as V eqn:H0 in H at 2;
   match type of V with
-  | ?t_temp => change t_temp with (reptype t) in V
+  | ?t_temp => change t_temp with (@reptype CS t) in V
   end;
   change (@proj_gfield_reptype CS CSL t gf V) with (@proj_gfield_reptype CS CSL t' gf V) in H;
   unfold proj_gfield_reptype in H at 2;

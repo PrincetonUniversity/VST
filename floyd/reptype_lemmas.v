@@ -593,6 +593,12 @@ Proof.
   destruct t; simpl in *; try congruence; try tauto.
 Qed.
 
+Lemma repinject_JMeq: forall t v, type_is_by_value t = true -> JMeq (repinject t v) v.
+Proof.
+  intros.
+  destruct t; simpl in *; try congruence; try tauto.
+Qed.
+
 Lemma repinject_unfold_reptype: forall t v,
   match t as t' return REPTYPE t' -> Prop with
   | Tint _ _ _
