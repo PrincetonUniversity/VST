@@ -171,9 +171,6 @@ rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
 reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
 
-Transparent peq.
-Opaque zl_nth.
-
 forward. (* x = a[i] *)
 
 forward s_old. (* s += x; *)

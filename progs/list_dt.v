@@ -1222,14 +1222,6 @@ Abort.  (* not likely true *)
 *)
 End LIST.
 
-Hint Rewrite @lseg_nil_eq : norm.
-
-Hint Rewrite @lseg_eq using reflexivity: norm.
-
-(* Ltac simpl_list_cell := unfold list_cell; simpl_data_at. *)
-
-Hint Rewrite @links_nil_eq @links_cons_eq : norm.
-
 Lemma links_local_facts: 
   forall t fld LS sh contents p q, 
      @links t fld LS sh contents p q |--
@@ -1260,7 +1252,6 @@ split; intro.
 normalize.
 inv H1.
 Qed.
-Hint Resolve links_local_facts : saturate_local.
 
 Lemma lseg_local_facts: 
   forall t fld LS sh contents p q, 
@@ -1291,7 +1282,6 @@ split. intro; subst q.
 contradiction H. normalize.
 intros. inv H1.
 Qed.
-Hint Resolve lseg_local_facts : saturate_local.
 
 (* Some lemmas about a particular specialization of linked lists,
   with one int and one link.
@@ -1675,3 +1665,15 @@ Proof.
 Qed.
 
 End CENV.
+
+Hint Rewrite @lseg_nil_eq : norm.
+
+Hint Rewrite @lseg_eq using reflexivity: norm.
+
+(* Ltac simpl_list_cell := unfold list_cell; simpl_data_at. *)
+
+Hint Rewrite @links_nil_eq @links_cons_eq : norm.
+
+Hint Resolve links_local_facts : saturate_local.
+
+Hint Resolve lseg_local_facts : saturate_local.

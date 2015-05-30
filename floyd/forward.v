@@ -13,6 +13,7 @@ Require Import floyd.loadstore_mapsto.
 Require Import floyd.loadstore_field_at.
 Require Import floyd.nested_loadstore.
 Require Import floyd.sc_set_load_store.
+Require Import floyd.stronger.
 Require Import floyd.local2ptree.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.proj_reptype_lemmas.
