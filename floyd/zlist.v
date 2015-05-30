@@ -1,4 +1,5 @@
 Require Import floyd.base.
+Require Import Coq.Classes.RelationClasses.
 
 Open Scope Z.
 
@@ -91,12 +92,37 @@ Class Zlist_Correct {A d} `(Zlist A d) : Type := mkZlistCorrect {
     forall lo mid hi (l: zlist A lo hi),
     lo <= mid <= hi ->
     zl_concat (zl_sublist lo mid l) (zl_sublist mid hi l) === l;
+  zl_sub_self:
+    forall lo hi (l: zlist A lo hi),
+    lo <= hi ->
+    zl_sublist lo hi l === l;
   zl_sub_sub:
     forall lo hi lo' hi' lo'' hi'' (l: zlist A lo hi),
     lo <= lo' <= lo'' ->
     hi'' <= hi' <= hi ->
     lo'' <= hi'' ->
-    zl_sublist lo'' hi'' (zl_sublist lo' hi' l) === zl_sublist lo'' hi'' l
+    zl_sublist lo'' hi'' (zl_sublist lo' hi' l) === zl_sublist lo'' hi'' l;
+  zl_sub_concat_l:
+    forall lo mid hi lo' hi' (l1: zlist A lo mid) (l2: zlist A mid hi),
+    lo <= mid <= hi ->
+    lo' <= hi' ->
+    lo <= lo' ->
+    hi' <= mid ->
+    zl_sublist lo' hi' (zl_concat l1 l2) === zl_sublist lo' hi' l1;
+  zl_sub_concat_r:
+    forall lo mid hi lo' hi' (l1: zlist A lo mid) (l2: zlist A mid hi),
+    lo <= mid <= hi ->
+    lo' <= hi' ->
+    mid <= lo' ->
+    hi' <= hi ->
+    zl_sublist lo' hi' (zl_concat l1 l2) === zl_sublist lo' hi' l2;
+  zl_sub_concat_mid:
+    forall lo mid hi lo' hi' (l1: zlist A lo mid) (l2: zlist A mid hi),
+    lo <= mid <= hi ->
+    lo' <= hi' ->
+    lo <= lo' < mid->
+    mid < hi' <= hi ->
+    zl_sublist lo' hi' (zl_concat l1 l2) === zl_concat (zl_sublist lo' mid l1) (zl_sublist mid hi' l2)
 }.
 
 Instance list_zlist_correct (A: Type) (default: A) : Zlist_Correct (list_zlist A default).
@@ -105,6 +131,10 @@ split.
   simpl.
   if_tac; [| omega].
   reflexivity.
++ admit.
++ admit.
++ admit.
++ admit.
 + admit.
 + admit.
 + admit.
@@ -125,6 +155,55 @@ Proof.
   if_tac; [| omega].
   reflexivity.
 Qed.
+
+Instance Equiv_zl_equiv A d (ZL: Zlist A d) lo hi: Equivalence (@zl_equiv A d ZL lo hi).
+  unfold zl_equiv.
+  split.
+  + intro; intros.
+    reflexivity.
+  + intro; intros.
+    rewrite H by auto.
+    reflexivity.
+  + intro; intros.
+    rewrite H, H0 by auto.
+    reflexivity.
+Defined.
+
+Require Import Coq.Classes.Morphisms.
+
+Instance Proper_concat_l: forall A d (ZL: Zlist A d) `{@Zlist_Correct _ _ ZL} lo mid hi l2,
+  lo <= mid <= hi ->
+  Proper ((@zl_equiv A d ZL lo mid) ==> (@zl_equiv A d ZL lo hi)) (fun l1 => zl_concat l1 l2).
+Proof.
+  unfold zl_equiv.
+  intros; intro; intros.
+  rewrite !zl_concat_correct by auto.
+  if_tac.
+  + apply H1; omega.
+  + reflexivity.
+Defined.
+
+Instance Proper_concat_r: forall A d (ZL: Zlist A d) `{@Zlist_Correct _ _ ZL} lo mid hi l1,
+  lo <= mid <= hi ->
+  Proper ((@zl_equiv A d ZL mid hi) ==> (@zl_equiv A d ZL lo hi)) (fun l2 => zl_concat l1 l2).
+Proof.
+  unfold zl_equiv.
+  intros; intro; intros.
+  rewrite !zl_concat_correct by auto.
+  if_tac.
+  + reflexivity.
+  + apply H1; omega.
+Defined.
+
+(* Example *)
+Goal forall A d (ZL: Zlist A d) `{@Zlist_Correct _ _ ZL} (l1: zlist A 0 10) (l2: zlist A 10 20) (l3: zlist A 20 30),
+  zl_sublist 5 25 (zl_concat l1 (zl_concat l2 l3)) ===
+  zl_concat (zl_sublist 5 10 l1) (zl_concat l2 (zl_sublist 20 25 l3)).
+Proof.
+  intros.
+  rewrite zl_sub_concat_mid by omega.
+(*  rewrite zl_sub_concat_mid by omega. *)
+Abort.
 
 End ZLIST.
 

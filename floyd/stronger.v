@@ -182,6 +182,11 @@ Proof.
   intro sh; reflexivity.
 Qed.
 
+Lemma data_equal_refl': forall t (v v': reptype t), v = v' -> v === v'.
+Proof.
+  intros. subst. apply data_equal_refl.
+Qed.
+
 Lemma data_equal_sym: forall t (v1 v2: reptype t), v1 === v2 -> v2 === v1.
 Proof.
   intros.

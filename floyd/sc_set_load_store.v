@@ -9,6 +9,7 @@ Require Import floyd.replace_refill_reptype_lemmas.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
+Require Import floyd.stronger.
 Require Import floyd.entailer.
 Require Import floyd.closed_lemmas.
 Require Import floyd.loadstore_mapsto.
@@ -258,7 +259,7 @@ Lemma semax_SC_field_store:
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEP (Rn))) |--
         `(field_at sh t_root gfs0 v p) ->
       writable_share sh ->
-      upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0) = v_new ->
+      data_equal (upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
       PROPx P (LOCALx (tc_environ Delta :: Q) (SEPx R)) |--
         local (tc_LR Delta e1 lr) && 
         local (tc_expr Delta (Ecast e2 t)) &&
@@ -275,7 +276,8 @@ Lemma semax_SC_field_store:
                     (`(field_at sh t_root gfs0 v_new p))))))).
 Proof.
   intros.
-  subst v_new.
+  erewrite field_at_data_equal by (apply data_equal_sym, H9).
+  clear H9 v_new.
   rename H10 into H9.
   rename H11 into H10.
   eapply semax_extract_later_prop'; [exact H10 | clear H10; intro H10].
@@ -463,7 +465,7 @@ Lemma semax_PTree_store:
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) (Rn :: nil))  |--
         `(field_at sh t_root gfs0 v p) ->
       writable_share sh ->
-      upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0) = v_new ->
+      data_equal (upd_reptype (nested_field_type2 t_root gfs0) gfs1 v (valinject _ v0)) v_new ->
       (local (tc_environ Delta)) && (assertD P (localD T1 T2) R) |--
         local (tc_LR Delta e1 lr) && 
         local (tc_expr Delta (Ecast e2 t)) &&

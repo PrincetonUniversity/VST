@@ -876,7 +876,7 @@ Proof.
   apply Znth_map.
 Qed.
 
-Lemma zl_concat_correct_l: forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct _ _ ZL} i lo mid hi (l1 : zlist A lo mid) (l2: zlist A mid hi),
+Lemma zl_concat_correct_l: forall {A} {d} i lo mid hi (l1 : @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
   lo <= i < mid ->
   lo <= mid <= hi ->
   zl_nth i (zl_concat l1 l2) = zl_nth i l1.
@@ -887,7 +887,7 @@ Proof.
   omega.
 Qed.
 
-Lemma zl_concat_correct_r: forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct _ _ ZL} i lo mid hi (l1 : zlist A lo mid) (l2: zlist A mid hi),
+Lemma zl_concat_correct_r: forall {A} {d} i lo mid hi (l1 : @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
   mid <= i < hi ->
   lo <= mid <= hi ->
   zl_nth i (zl_concat l1 l2) = zl_nth i l2.
@@ -898,12 +898,59 @@ Proof.
   omega.
 Qed.
 
+Lemma zl_sublist_correct: forall {A} {d} i lo hi lo' hi' (l : @zlist A d (list_zlist A d) lo hi),
+  lo <= lo' ->
+  lo' <= i < hi' ->
+  hi' <= hi ->
+  zl_nth i (zl_sublist lo' hi' l) = zl_nth i l.
+Proof.
+  intros.
+  rewrite zl_sublist_correct by omega.
+  auto.
+Qed.
+
+Lemma zl_sub_concat_l:
+  forall {A} {d} lo mid hi lo' hi' (l1: @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
+  lo <= mid <= hi ->
+  lo' <= hi' ->
+  lo <= lo' ->
+  hi' <= mid ->
+  zl_equiv (zl_sublist lo' hi' (zl_concat l1 l2)) (zl_sublist lo' hi' l1).
+Proof.
+  intros;
+  apply zl_sub_concat_l; auto.
+Qed.
+
+Lemma zl_sub_concat_r:
+  forall {A} {d} lo mid hi lo' hi' (l1: @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
+  lo <= mid <= hi ->
+  lo' <= hi' ->
+  mid <= lo' ->
+  hi' <= hi ->
+  zl_equiv (zl_sublist lo' hi' (zl_concat l1 l2)) (zl_sublist lo' hi' l2).
+Proof.
+  intros.
+  apply zl_sub_concat_r; auto.
+Qed.
+
+Lemma zl_sub_concat_mid:
+  forall {A} {d} lo mid hi lo' hi' (l1: @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
+  lo <= mid <= hi ->
+  lo' <= hi' ->
+  lo <= lo' < mid->
+  mid < hi' <= hi ->
+  zl_equiv (zl_sublist lo' hi' (zl_concat l1 l2)) (zl_concat (zl_sublist lo' mid l1) (zl_sublist mid hi' l2)).
+Proof.
+  intros.
+  apply zl_sub_concat_mid; auto.
+Qed.
+
 End zlist_hint_db.
 
 Hint Rewrite @zl_constr_correct using solve [omega] : zlist_db.
-Hint Rewrite @zl_sublist_correct using solve [omega] : zlist_db.
 Hint Rewrite zlist_hint_db.Znth_sub_0_r : zlist_db.
 Hint Rewrite zlist_hint_db.Znth_map_Vint using solve [omega] : zlist_db.
+Hint Rewrite @zlist_hint_db.zl_sublist_correct using solve [omega] : zlist_db.
 Hint Rewrite @zlist_hint_db.zl_concat_correct_l using solve [omega] : zlist_db.
 Hint Rewrite @zlist_hint_db.zl_concat_correct_r using solve [omega] : zlist_db.
 
@@ -2181,16 +2228,29 @@ Ltac solve_load_rule_evaluation :=
   match goal with
   | |- repinject _ (@proj_reptype ?cs ?csl ?t ?gfs ?v) = _ =>
          rewrite (repinject_JMeq _ (@proj_reptype cs csl t gfs v)) by reflexivity;
-         match goal with
-         | gfs := ?gfs' |- _ =>
-           let t' := eval compute in t in
-           let H := fresh "H" in
-           pose_proj_reptype cs csl t' gfs' v H;
-           subst v; autorewrite with zlist_db in H;
-           exact H
-  | _ => idtac
-  end
-end.
+         let t' := eval compute in t in
+         let gfs' := eval cbv delta [gfs] in gfs in
+         let H := fresh "H" in
+         pose_proj_reptype cs csl t' gfs' v H;
+         subst v; autorewrite with zlist_db in H;
+         exact H
+  end.
+
+Ltac solve_store_rule_evaluation :=
+  apply data_equal_refl';
+  match goal with
+  | |- @upd_reptype ?cs ?csl ?t ?gfs ?v (valinject _ ?v0) = _ =>
+         rewrite (valinject_JMeq (nested_field_type2 t gfs) v0) by reflexivity;
+         let t' := eval compute in t in
+         let gfs' := eval cbv delta [gfs] in gfs in
+         let Hproj := fresh "H" in
+         pose_proj_reptype cs csl t' gfs' v Hproj;
+         let H := fresh "H" in
+         pose_upd_reptype cs csl t' gfs' v v0 H;
+         subst v; autorewrite with zlist_db in H;
+         rewrite upd_reptype_ind;
+         exact H
+  end.
 
 Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
  ensure_normal_ret_assert;
@@ -2489,7 +2549,8 @@ match goal with
           with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
         [reflexivity | reflexivity | reflexivity
         | reflexivity | exact Heq | exact HLE
-        | exact HRE | exact H_Denote | exact H | auto
+        | exact HRE | exact H_Denote | exact H | auto |
+        | solve_store_rule_evaluation
         | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
         | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
@@ -2500,6 +2561,7 @@ match goal with
         [reflexivity | reflexivity | reflexivity
         | reflexivity | exact Heq | exact HLE
         | exact HRE | exact H_Denote | exact H | auto 
+        | solve_store_rule_evaluation
         | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
         | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
@@ -2510,7 +2572,9 @@ match goal with
             with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
             [reflexivity | reflexivity | reflexivity
             | reflexivity | exact Heq | exact HLE 
-            | exact HRE | exact H_Denote | exact H | auto | | ]];
+            | exact HRE | exact H_Denote | exact H | auto 
+            | solve_store_rule_evaluation
+            | | ]];
         [ match goal with
           | |- appcontext [replace_nth _ _ ?M] => 
             let EQ := fresh "EQ" in
