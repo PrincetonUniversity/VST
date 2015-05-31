@@ -517,83 +517,14 @@ Proof.
   apply Znth_map.
 Qed.
 
-Lemma zl_concat_correct_l: forall {A} {d} i lo mid hi (l1 : @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
-  lo <= i < mid ->
-  lo <= mid <= hi ->
-  zl_nth i (zl_concat l1 l2) = zl_nth i l1.
-Proof.
-  intros.
-  rewrite zl_concat_correct by omega.
-  if_tac; auto.
-  omega.
-Qed.
-
-Lemma zl_concat_correct_r: forall {A} {d} i lo mid hi (l1 : @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
-  mid <= i < hi ->
-  lo <= mid <= hi ->
-  zl_nth i (zl_concat l1 l2) = zl_nth i l2.
-Proof.
-  intros.
-  rewrite zl_concat_correct by omega.
-  if_tac; auto.
-  omega.
-Qed.
-
-Lemma zl_sublist_correct: forall {A} {d} i lo hi lo' hi' (l : @zlist A d (list_zlist A d) lo hi),
-  lo <= lo' ->
-  lo' <= i < hi' ->
-  hi' <= hi ->
-  zl_nth i (zl_sublist lo' hi' l) = zl_nth i l.
-Proof.
-  intros.
-  rewrite zl_sublist_correct by omega.
-  auto.
-Qed.
-(*
-Lemma zl_sub_concat_l:
-  forall {A} {d} lo mid hi lo' hi' (l1: @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
-  lo <= mid <= hi ->
-  lo' <= hi' ->
-  lo <= lo' ->
-  hi' <= mid ->
-  zl_equiv (zl_sublist lo' hi' (zl_concat l1 l2)) (zl_sublist lo' hi' l1).
-Proof.
-  intros;
-  apply zl_sub_concat_l; auto.
-Qed.
-
-Lemma zl_sub_concat_r:
-  forall {A} {d} lo mid hi lo' hi' (l1: @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
-  lo <= mid <= hi ->
-  lo' <= hi' ->
-  mid <= lo' ->
-  hi' <= hi ->
-  zl_equiv (zl_sublist lo' hi' (zl_concat l1 l2)) (zl_sublist lo' hi' l2).
-Proof.
-  intros.
-  apply zl_sub_concat_r; auto.
-Qed.
-
-Lemma zl_sub_concat_mid:
-  forall {A} {d} lo mid hi lo' hi' (l1: @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
-  lo <= mid <= hi ->
-  lo' <= hi' ->
-  lo <= lo' <= mid->
-  mid <= hi' <= hi ->
-  zl_equiv (zl_sublist lo' hi' (zl_concat l1 l2)) (zl_concat (zl_sublist lo' mid l1) (zl_sublist mid hi' l2)).
-Proof.
-  intros.
-  apply zl_sub_concat_mid; auto.
-Qed.
-*)
 End zlist_hint_db.
 
 Hint Rewrite @zl_constr_correct using solve [omega] : zl_nth_db.
 Hint Rewrite zlist_hint_db.Znth_sub_0_r : zl_nth_db.
 Hint Rewrite zlist_hint_db.Znth_map_Vint using solve [omega] : zl_nth_db.
-Hint Rewrite @zlist_hint_db.zl_sublist_correct using solve [omega] : zl_nth_db.
-Hint Rewrite @zlist_hint_db.zl_concat_correct_l using solve [omega] : zl_nth_db.
-Hint Rewrite @zlist_hint_db.zl_concat_correct_r using solve [omega] : zl_nth_db.
+Hint Rewrite (fun A d => @zl_sublist_correct A d _ (list_zlist_correct _ _)) using solve [omega] : zl_nth_db.
+Hint Rewrite (fun A d => @zl_concat_correct_l A d _ (list_zlist_correct _ _)) using solve [omega] : zl_nth_db.
+Hint Rewrite (fun A d => @zl_concat_correct_r A d _ (list_zlist_correct _ _)) using solve [omega] : zl_nth_db.
 
 Hint Rewrite (fun A d => @zl_sub_concat_l A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
 Hint Rewrite (fun A d => @zl_sub_concat_r A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.

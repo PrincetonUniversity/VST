@@ -239,7 +239,7 @@ forward hi'0. (* hi--; *)
 {
   apply exp_right with (Zsucc j).
   rewrite !sem_cast_neutral_int by (exists I32, Signed; apply POP; omega).
-  erewrite field_at_data_equal.
+  erewrite field_at_data_equal. (* This should be more convenient.  - Qinxiang *)
   Focus 2. {
     apply data_equal_zl_equiv.
     rewrite !(unfold_reptype_JMeq (tarray tint size)).
