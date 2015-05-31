@@ -472,7 +472,137 @@ Fixpoint upd_reptype_rec (t: type) (gfs: list gfield) (v: reptype t) (v0: reptyp
 Lemma upd_reptype_ind: forall t gfs v v0, upd_reptype t gfs v v0 = upd_reptype_rec t gfs v v0.
 Admitted.
 
+Require Import floyd.stronger.
+
+Lemma upd_reptype_rec_data_equal: forall t gfs v v0 v1, data_equal v0 v1 -> data_equal (upd_reptype_rec t gfs v v0) (upd_reptype_rec t gfs v v1).
+Proof.
+  intros.
+  induction gfs as [| gf gfs].
+  + exact H.
+  + change (upd_reptype_rec t (gf :: gfs) v v0) with
+      (upd_reptype_rec t gfs v (upd_gfield_reptype _ gf (proj_reptype t gfs v)
+        (eq_rect_r reptype v0 (eq_sym (nested_field_type2_ind t (gf :: gfs)))))).
+    change (upd_reptype_rec t (gf :: gfs) v v1) with
+      (upd_reptype_rec t gfs v (upd_gfield_reptype _ gf (proj_reptype t gfs v)
+        (eq_rect_r reptype v1 (eq_sym (nested_field_type2_ind t (gf :: gfs)))))).
+    apply IHgfs.
+    assert (data_equal (eq_rect_r reptype v0 (eq_sym (nested_field_type2_ind t (gf :: gfs))))
+              (eq_rect_r reptype v1 (eq_sym (nested_field_type2_ind t (gf :: gfs)))))
+      by (apply eq_rect_r_data_equal; auto).
+    forget (eq_rect_r reptype v0 (eq_sym (nested_field_type2_ind t (gf :: gfs)))) as V0.
+    forget (eq_rect_r reptype v1 (eq_sym (nested_field_type2_ind t (gf :: gfs)))) as V1.
+    forget (proj_reptype t gfs v) as V.
+    clear - H0.
+    revert V0 V1 H0 V.
+    destruct (nested_field_type2 t gfs), gf; unfold upd_gfield_reptype; intros; try reflexivity.
+    - admit.
+    - admit.
+    - admit.
+Qed.
+
 End SINGLE_HOLE.
+
+Module zlist_hint_db.
+
+Lemma Znth_sub_0_r: forall A i l (d: A), Znth (i - 0) l d = Znth i l d.
+  intros.
+  rewrite Z.sub_0_r by omega.
+  auto.
+Qed.
+
+Lemma Znth_map_Vint: forall (i : Z) (l : list int),
+  0 <= i < Zlength l -> Znth i (map Vint l) Vundef = Vint (Znth i l Int.zero).
+Proof.
+  intros i l.
+  apply Znth_map.
+Qed.
+
+Lemma zl_concat_correct_l: forall {A} {d} i lo mid hi (l1 : @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
+  lo <= i < mid ->
+  lo <= mid <= hi ->
+  zl_nth i (zl_concat l1 l2) = zl_nth i l1.
+Proof.
+  intros.
+  rewrite zl_concat_correct by omega.
+  if_tac; auto.
+  omega.
+Qed.
+
+Lemma zl_concat_correct_r: forall {A} {d} i lo mid hi (l1 : @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
+  mid <= i < hi ->
+  lo <= mid <= hi ->
+  zl_nth i (zl_concat l1 l2) = zl_nth i l2.
+Proof.
+  intros.
+  rewrite zl_concat_correct by omega.
+  if_tac; auto.
+  omega.
+Qed.
+
+Lemma zl_sublist_correct: forall {A} {d} i lo hi lo' hi' (l : @zlist A d (list_zlist A d) lo hi),
+  lo <= lo' ->
+  lo' <= i < hi' ->
+  hi' <= hi ->
+  zl_nth i (zl_sublist lo' hi' l) = zl_nth i l.
+Proof.
+  intros.
+  rewrite zl_sublist_correct by omega.
+  auto.
+Qed.
+(*
+Lemma zl_sub_concat_l:
+  forall {A} {d} lo mid hi lo' hi' (l1: @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
+  lo <= mid <= hi ->
+  lo' <= hi' ->
+  lo <= lo' ->
+  hi' <= mid ->
+  zl_equiv (zl_sublist lo' hi' (zl_concat l1 l2)) (zl_sublist lo' hi' l1).
+Proof.
+  intros;
+  apply zl_sub_concat_l; auto.
+Qed.
+
+Lemma zl_sub_concat_r:
+  forall {A} {d} lo mid hi lo' hi' (l1: @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
+  lo <= mid <= hi ->
+  lo' <= hi' ->
+  mid <= lo' ->
+  hi' <= hi ->
+  zl_equiv (zl_sublist lo' hi' (zl_concat l1 l2)) (zl_sublist lo' hi' l2).
+Proof.
+  intros.
+  apply zl_sub_concat_r; auto.
+Qed.
+
+Lemma zl_sub_concat_mid:
+  forall {A} {d} lo mid hi lo' hi' (l1: @zlist A d (list_zlist A d) lo mid) (l2: @zlist A d (list_zlist A d) mid hi),
+  lo <= mid <= hi ->
+  lo' <= hi' ->
+  lo <= lo' <= mid->
+  mid <= hi' <= hi ->
+  zl_equiv (zl_sublist lo' hi' (zl_concat l1 l2)) (zl_concat (zl_sublist lo' mid l1) (zl_sublist mid hi' l2)).
+Proof.
+  intros.
+  apply zl_sub_concat_mid; auto.
+Qed.
+*)
+End zlist_hint_db.
+
+Hint Rewrite @zl_constr_correct using solve [omega] : zl_nth_db.
+Hint Rewrite zlist_hint_db.Znth_sub_0_r : zl_nth_db.
+Hint Rewrite zlist_hint_db.Znth_map_Vint using solve [omega] : zl_nth_db.
+Hint Rewrite @zlist_hint_db.zl_sublist_correct using solve [omega] : zl_nth_db.
+Hint Rewrite @zlist_hint_db.zl_concat_correct_l using solve [omega] : zl_nth_db.
+Hint Rewrite @zlist_hint_db.zl_concat_correct_r using solve [omega] : zl_nth_db.
+
+Hint Rewrite (fun A d => @zl_sub_concat_l A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_sub_concat_r A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_sub_concat_mid A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_sub_sub A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_sub_self A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_sub_empty A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_concat_empty_l A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
+Hint Rewrite (fun A d => @zl_concat_empty_r A d _ (list_zlist_correct _ _)) using solve [omega] : zl_sub_db.
 
 Section POSE_TAC.
 
@@ -556,10 +686,14 @@ Ltac pose_proj_reptype_1 CS CSL t gf v H :=
     let d' := eval vm_compute in d in change d with d' in H_eq;
     let m' := eval vm_compute in m in change m with m' in H_eq;
     cbv_proj_struct H_eq;
-    subst v_res
-  | _ => idtac
-  end;
-  subst V
+    subst v_res;
+    subst V
+  | _ = zl_nth ?i ?l =>
+    subst V;
+    autorewrite with zl_nth_db in H
+  | _ =>
+    subst V
+  end
 .
 
 Ltac pose_proj_reptype CS CSL t gfs v H :=
@@ -589,44 +723,45 @@ Ltac pose_proj_reptype CS CSL t gfs v H :=
 
 Ltac pose_upd_reptype_1 CS CSL t gf v v0 H :=
   let t' := eval compute in t in
-  assert (@upd_gfield_reptype CS CSL t gf v v0 = @upd_gfield_reptype CS CSL t' gf v v0) as H by reflexivity;
+  assert (data_equal (@upd_gfield_reptype CS CSL t gf v v0) (@upd_gfield_reptype CS CSL t' gf v v0)) as H
+    by reflexivity;
   unfold upd_gfield_reptype at 2 in H;
   let H0 := fresh "H" in
   pose proof unfold_reptype_JMeq t' v as H0;
   apply JMeq_eq in H0;
   rewrite H0 in H;
   clear H0;
+  match t' with
+  | Tarray _ _ _ => autorewrite with zl_sub_db in H
+  | _ => idtac
+  end;
   match type of H with
-  | _ = fold_reptype ?v_res =>
-    pose proof fold_reptype_JMeq t' v_res as H0;
-    apply JMeq_eq in H0;
-    rewrite H0 in H;
-    clear H0
+  | data_equal _ (fold_reptype ?v_res) =>
+    rewrite (JMeq_eq (fold_reptype_JMeq t' v_res)) in H
   end.
 
 Ltac pose_upd_reptype CS CSL t gfs v v0 H :=
   match gfs with
   | nil => 
-      assert (eq_pose (@upd_reptype_rec CS CSL t gfs v v0) v0) as H by reflexivity
+      assert (data_equal (@upd_reptype_rec CS CSL t gfs v v0) v0) as H by reflexivity
   | ?gf :: ?gfs0 =>
       match goal with
       | HH : eq_pose (proj_reptype t gfs0 v) ?v1 |- _ =>
           let H_upd1 := fresh "H" in
           pose_upd_reptype_1 CS CSL (nested_field_type2 t gfs0) gf v1 v0 H_upd1;
           match type of H_upd1 with
-          | _ = ?v1' =>
+          | data_equal _ ?v1' =>
                   let H0 := fresh "H" in
                   pose_upd_reptype CS CSL t gfs0 v v1' H0;
                   match type of H0 with
-                  | eq_pose _ ?v_res =>
-                      assert (eq_pose (@upd_reptype_rec CS CSL t gfs v v0) v_res) as H; [| clear H_upd1]
-                  end
-          end;
-          [change (@upd_reptype_rec CS CSL t gfs v v0) with
-            (@upd_reptype_rec CS CSL t gfs0 v (upd_gfield_reptype _ gf (proj_reptype t gfs0 v) v0));
-           unfold eq_pose in HH; rewrite HH;
-           rewrite H_upd1;
-           reflexivity |]
+                  | data_equal _ ?v_res =>
+                      assert (data_equal (@upd_reptype_rec CS CSL t gfs v v0) v_res) as H; [| clear H_upd1]
+                  end;
+                 [change (@upd_reptype_rec CS CSL t gfs v v0) with
+                   (@upd_reptype_rec CS CSL t gfs0 v (upd_gfield_reptype _ gf (proj_reptype t gfs0 v) v0));
+                  unfold eq_pose in HH; rewrite HH;
+                  eapply Equivalence.equiv_transitive; [apply upd_reptype_rec_data_equal; exact H_upd1 | exact H0] |]
+          end
       end
   end.
 
@@ -689,19 +824,25 @@ Time Qed. (* Cut down from 10 seconds to 4 seconds, magically. *)
 Goal forall n l, 0 < n -> proj_reptype (tarray tint n) (ArraySubsc 0 :: nil) (zl_constr tint 0 n l) = Znth 0 l Vundef.
 intros.
 pose_proj_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) (zl_constr tint 0 n l) HH.
-rewrite zl_constr_correct in HH by omega.
 exact HH.
 Qed.
 
-Goal upd_reptype t2 (StructField 3%positive :: nil) v2 (Vint Int.one, Vint Int.one) =
+Goal data_equal (upd_reptype t2 (StructField 3%positive :: nil) v2 (Vint Int.one, Vint Int.one))
 ((Vint Int.one, Vint Int.one), ((Vint Int.zero, Vint Int.one), Vundef)).
 set (v0 := (Vint Int.one, Vint Int.one)).
 change (val * val)%type with (reptype (Tstruct 101%positive noattr)) in v0.
 pose_proj_reptype cs csl (Tstruct 102%positive noattr) (StructField 3%positive :: nil) v2 H.
 pose_upd_reptype cs csl (Tstruct 102%positive noattr) (StructField 3%positive :: nil) v2 v0 H1.
 rewrite upd_reptype_ind.
-rewrite H1.
-reflexivity.
+exact H1.
+Qed.
+
+Goal forall n l, 0 < n -> data_equal (upd_reptype (tarray tint n) (ArraySubsc 0 :: nil) (zl_constr tint 0 n l) Vundef) (zl_concat (zl_singleton 0 Vundef) (zl_sublist 1 n (zl_constr tint 0 n l))).
+intros.
+pose_proj_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) (zl_constr tint 0 n l) HH.
+pose_upd_reptype cs csl (tarray tint n) (ArraySubsc 0 :: nil) (zl_constr tint 0 n l) Vundef HHH.
+rewrite upd_reptype_ind.
+exact HHH.
 Qed.
 
 End Test.

@@ -100,43 +100,88 @@ Proof.
   reflexivity.
 *)
 Qed.
-(*
-Lemma flip_fact_2: forall {A} (contents: list A) j k d,
-  0 <= j <= Zlength contents - j - 1 ->
-  j <= k < Zlength contents - j ->
-  Znth k (flip_between j (Zlength contents - j) contents) d = Znth k contents d.
+
+Lemma flip_fact_2_aux: forall t contents j size,
+  0 <= j ->
+  j + 1 <= size - j - 1 ->
+  Zlength contents = size ->
+  Znth j (rev contents) (default_val t) = Znth (size - j - 1) contents (default_val t).
 Proof.
   intros.
-  assert (Z.to_nat (Zlength contents) = length contents)
-    by (rewrite Zlength_correct, Nat2Z.id; reflexivity).
-  assert (Z.to_nat j <= length contents)%nat
-    by (rewrite <- H1; apply Z2Nat.inj_le; omega).
-  assert (Z.to_nat j <= Z.to_nat k)%nat by (apply Z2Nat.inj_le; omega).
-  unfold flip_between.
   unfold Znth.
   if_tac; [omega |].
-  rewrite app_nth2; rewrite rev_length, skipn_length; rewrite Z2Nat.inj_sub by omega; [| omega].
-  replace (Z.to_nat k - (length contents - (Z.to_nat (Zlength contents) - Z.to_nat j)))%nat
-    with (Z.to_nat k - Z.to_nat j)%nat by omega.
-  rewrite app_nth1.
-  Focus 2. {
-    rewrite skipn_length, firstn_length.
-    rewrite min_l by omega.
-    rewrite <- !Z2Nat.inj_sub by omega.
-    apply Z2Nat.inj_lt; omega.
-  } Unfocus.
-  rewrite nth_skipn.
-  simpl.
-  rewrite nth_firstn.
-  Focus 2. {
-    rewrite <- !Z2Nat.inj_sub by omega.
-    rewrite <- Z2Nat.inj_add by omega.
-    apply Z2Nat.inj_lt; omega.
-  } Unfocus.
-  f_equal.
-  omega.
+  if_tac; [omega |].
+  rewrite rev_nth.
+  + f_equal.
+    subst.
+    rewrite Zlength_correct in *.
+    rewrite Z2Nat.inj_sub by omega.
+    rewrite Z2Nat.inj_sub by omega.
+    rewrite Nat2Z.id.
+    change (Z.to_nat 1) with 1%nat; omega.
+  + rewrite <- (Nat2Z.id (length _)).
+    apply Z2Nat.inj_lt; try omega.
+    rewrite Zlength_correct in *.
+    omega.
 Qed.
-*)
+
+Lemma flip_fact_2_aux': forall t contents j size,
+  0 <= j ->
+  j + 1 <= size - j - 1 ->
+  Zlength contents = size ->
+  Znth (size - j - 1) (rev contents) (default_val t) = Znth j contents (default_val t).
+Proof.
+  intros.
+  rewrite <- flip_fact_2_aux by (auto; rewrite Zlength_rev; auto).
+  rewrite rev_involutive.
+  reflexivity.
+Qed.
+
+Lemma flip_fact_2: forall t contents j size,
+  0 <= j ->
+  j + 1 <= size - j - 1 ->
+  Zlength contents = size ->
+  zl_equiv
+  (zl_concat
+           (zl_concat (zl_sublist 0 j (zl_constr t 0 size (rev contents)))
+              (zl_singleton j
+                 (Znth (size - j - 1) contents (default_val t))))
+           (zl_concat
+              (zl_concat
+                 (zl_sublist (j + 1) (size - j - 1)
+                    (zl_constr t 0 size contents))
+                 (zl_singleton (size - j - 1)
+                    (Znth j contents (default_val t))))
+              (zl_sublist (size - j - 1 + 1) size
+                 (zl_constr t 0 size (rev contents)))))
+  (flip_between t (j + 1) (size - j - 1) size contents).
+Proof.
+  intros.
+  unfold flip_between.
+  rewrite <- (zl_concat_sub 0 j (j + 1) (zl_sublist 0 (j + 1) (zl_constr t 0 size (rev contents)))) by omega.
+  rewrite <- (zl_concat_sub (size - j - 1) (size - j) size (zl_sublist (size - j - 1) size
+              (zl_constr t 0 size (rev contents)))) by omega.
+  replace (zl_concat
+              (zl_sublist (size - j - 1) (size - j)
+                 (zl_sublist (size - j - 1) size
+                    (zl_constr t 0 size (rev contents))))
+              (zl_sublist (size - j) size
+                 (zl_sublist (size - j - 1) size
+                    (zl_constr t 0 size (rev contents))))) with
+          (zl_concat
+              (zl_sublist (size - j - 1) (size - j - 1 + 1)
+                 (zl_sublist (size - j - 1) size
+                    (zl_constr t 0 size (rev contents))))
+              (zl_sublist (size - j - 1 + 1) size
+                 (zl_sublist (size - j - 1) size
+                    (zl_constr t 0 size (rev contents)))))
+  by (replace  (size - j - 1 + 1) with (size - j) by omega; reflexivity).
+  rewrite !zl_sub_singleton by omega.
+  autorewrite with zl_nth_db zl_sub_db.
+  rewrite <- !zl_concat_assoc by omega.
+  rewrite flip_fact_2_aux with (size := size), flip_fact_2_aux' with (size := size) by omega.
+  reflexivity.
+Qed.
 
 Lemma body_reverse: semax_body Vprog Gprog f_reverse reverse_spec.
 Proof.
@@ -186,21 +231,25 @@ forward.  (* s = a[hi-1]; *)
   entailer!.
   apply POP; omega.
 }
-forward. (*  a[hi-1] = t ; *)
-forward. (*  a[lo] = s; *)
+forward. (*  a[hi-1] = t; *)
+forward. (* a[lo] = s; *)
 forward lo'0. (* lo++; *)
 forward hi'0. (* hi--; *)
 (* Prove postcondition of loop body implies loop invariant *)
 {
   apply exp_right with (Zsucc j).
-(*
-  entailer.
-  rewrite !flip_fact_2 by omega.
   rewrite !sem_cast_neutral_int by (exists I32, Signed; apply POP; omega).
-  simpl force_val.
-  entailer!. f_equal; omega.
-*)
-  admit.
+  erewrite field_at_data_equal.
+  Focus 2. {
+    apply data_equal_zl_equiv.
+    rewrite !(unfold_reptype_JMeq (tarray tint size)).
+    apply flip_fact_2; try omega.
+    subst; auto.
+  } Unfocus.
+  unfold data_at.
+  replace (size - Z.succ j) with (size - j - 1) by omega.
+  replace (Z.succ j) with (j + 1) by omega.
+  entailer.
 }
 forward. (* return; *)
 Qed.

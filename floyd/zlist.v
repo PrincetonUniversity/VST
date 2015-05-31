@@ -36,7 +36,10 @@ Global Arguments zlist A {_} {_} _ _.
 Instance list_zlist (A: Type) (default: A) : Zlist A default.
   apply (mkZlist A default (fun _ _ => list A)).
   + exact (fun _ _ l => l).
-  + exact (fun lo mid hi l1 l2 => force_lengthn (nat_of_Z (mid - lo)) l1 default ++ l2).
+  + exact (fun lo mid hi l1 l2 =>
+             if zle lo mid
+             then force_lengthn (nat_of_Z (mid - lo)) l1 default ++ l2
+             else skipn (nat_of_Z (mid - lo)) l2).
   + exact (fun lo hi  lo' hi' l => if zle lo lo' then skipn (nat_of_Z (lo' - lo)) l else nil).
   + exact (fun lo hi  lo' hi' l => l).
   + exact (fun lo hi f => list_gen lo (nat_of_Z (hi - lo)) f).
@@ -51,6 +54,9 @@ Definition zl_equiv {A d} `{Zlist A d} {lo hi} (l1 l2: zlist A lo hi) : Prop :=
 
 Notation "A '===' B" := (zl_equiv A B) (at level 80, no associativity).
 
+Definition zl_equiv1 {A d} `{Zlist A d} {lo hi lo' hi'} (f1 f2: zlist A lo' hi' -> zlist A lo hi) : Prop :=
+  forall l, f1 l === f2 l.
+
 Class Zlist_Correct {A d} `(Zlist A d) : Type := mkZlistCorrect {
   zl_constr'_correct:
     forall lo hi i (l: list A),
@@ -58,7 +64,6 @@ Class Zlist_Correct {A d} `(Zlist A d) : Type := mkZlistCorrect {
     zl_nth i (zl_constr' lo hi l) = Znth (i - lo) l d;
   zl_concat_correct:
     forall lo mid hi i (l1: zlist A lo mid) (l2: zlist A mid hi),
-    lo <= mid <= hi ->
     lo <= i < hi ->
     zl_nth i (zl_concat l1 l2) = if zlt i mid then zl_nth i l1 else zl_nth i l2;
   zl_sublist_correct:
@@ -120,8 +125,8 @@ Class Zlist_Correct {A d} `(Zlist A d) : Type := mkZlistCorrect {
     forall lo mid hi lo' hi' (l1: zlist A lo mid) (l2: zlist A mid hi),
     lo <= mid <= hi ->
     lo' <= hi' ->
-    lo <= lo' < mid->
-    mid < hi' <= hi ->
+    lo <= lo' <= mid->
+    mid <= hi' <= hi ->
     zl_sublist lo' hi' (zl_concat l1 l2) === zl_concat (zl_sublist lo' mid l1) (zl_sublist mid hi' l2)
 }.
 
@@ -156,6 +161,52 @@ Proof.
   reflexivity.
 Qed.
 
+Lemma zl_sub_singleton:
+  forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} i lo hi (l: zlist A lo hi),
+  lo <= i < hi ->
+  zl_equiv (zl_sublist i (i + 1) l) (zl_singleton i (zl_nth i l)).
+Proof.
+  intros.
+  intro; intros.
+  assert (i = i0) by omega; subst.
+  rewrite zl_sublist_correct by omega.
+  rewrite zl_singleton_correct by omega.
+  auto.
+Qed.
+
+Lemma zl_sub_empty:
+  forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} i lo hi (l: zlist A lo hi),
+  lo <= i <= hi ->
+  zl_equiv (zl_sublist i i l) (zl_empty i).
+Proof.
+  intros.
+  intro; intros; omega.
+Qed.
+
+Lemma zl_concat_empty_l:
+  forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} lo hi (l: zlist A lo hi),
+  lo <= hi ->
+  zl_equiv (zl_concat (zl_empty lo) l) l.
+Proof.
+  intros.
+  intro; intros.
+  rewrite zl_concat_correct by omega.
+  if_tac; [omega |].
+  auto.
+Qed.
+
+Lemma zl_concat_empty_r:
+  forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} lo hi (l: zlist A lo hi),
+  lo <= hi ->
+  zl_equiv (zl_concat l (zl_empty hi)) l.
+Proof.
+  intros.
+  intro; intros.
+  rewrite zl_concat_correct by omega.
+  if_tac; [| omega].
+  auto.
+Qed.
+
 Instance Equiv_zl_equiv A d (ZL: Zlist A d) lo hi: Equivalence (@zl_equiv A d ZL lo hi).
   unfold zl_equiv.
   split.
@@ -169,29 +220,17 @@ Instance Equiv_zl_equiv A d (ZL: Zlist A d) lo hi: Equivalence (@zl_equiv A d ZL
     reflexivity.
 Defined.
 
+
 Require Import Coq.Classes.Morphisms.
 
-Instance Proper_concat_l: forall A d (ZL: Zlist A d) `{@Zlist_Correct _ _ ZL} lo mid hi l2,
-  lo <= mid <= hi ->
-  Proper ((@zl_equiv A d ZL lo mid) ==> (@zl_equiv A d ZL lo hi)) (fun l1 => zl_concat l1 l2).
+Instance Proper_concat: forall A d (ZL: Zlist A d) `{@Zlist_Correct _ _ ZL} lo mid hi,
+  Proper ((@zl_equiv A d ZL lo mid) ==> (@zl_equiv A d ZL mid hi) ==> (@zl_equiv A d ZL lo hi)) zl_concat.
 Proof.
   unfold zl_equiv.
-  intros; intro; intros.
+  intros; intro; intros; intro; intros.
   rewrite !zl_concat_correct by auto.
   if_tac.
-  + apply H1; omega.
-  + reflexivity.
-Defined.
-
-Instance Proper_concat_r: forall A d (ZL: Zlist A d) `{@Zlist_Correct _ _ ZL} lo mid hi l1,
-  lo <= mid <= hi ->
-  Proper ((@zl_equiv A d ZL mid hi) ==> (@zl_equiv A d ZL lo hi)) (fun l2 => zl_concat l1 l2).
-Proof.
-  unfold zl_equiv.
-  intros; intro; intros.
-  rewrite !zl_concat_correct by auto.
-  if_tac.
-  + reflexivity.
+  + apply H0; omega.
   + apply H1; omega.
 Defined.
 
@@ -202,9 +241,12 @@ Goal forall A d (ZL: Zlist A d) `{@Zlist_Correct _ _ ZL} (l1: zlist A 0 10) (l2:
 Proof.
   intros.
   rewrite zl_sub_concat_mid by omega.
-(*  rewrite zl_sub_concat_mid by omega. *)
-Abort.
+  rewrite zl_sub_concat_mid by omega.
+  rewrite zl_sub_self by omega; reflexivity.
+Qed.
 
 End ZLIST.
 
 Global Existing Instance list_zlist_correct.
+Global Existing Instance Equiv_zl_equiv.
+Global Existing Instance Proper_concat.

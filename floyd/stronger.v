@@ -8,6 +8,8 @@ Require Import floyd.proj_reptype_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.entailer.
 Require Import floyd.closed_lemmas.
+Require Import Coq.Classes.RelationClasses.
+Require Import Coq.Classes.Morphisms.
 
 Local Open Scope logic.
 
@@ -28,6 +30,18 @@ Lemma stronger_refl: forall t (v: reptype t), v >>> v.
 Proof.
   intros t v sh p.
   auto.
+Qed.
+
+Lemma stronger_JMeq:
+  forall t t' a a' b b',
+    t=t' ->
+    @JMeq (reptype t) a (reptype t') a' ->
+    @JMeq (reptype t) b (reptype t') b' ->
+    a >>> b -> a' >>> b'.
+Proof.
+intros. subst t'.
+apply JMeq_eq in H0. apply JMeq_eq in H1.
+subst; auto.
 Qed.
 
 Lemma eq_rect_r_stronger: forall {t1 t2} v0 v1 (H: t1 = t2),
@@ -169,38 +183,40 @@ Lemma data_equal_JMeq:
     t=t' ->
     @JMeq (reptype t) a (reptype t') a' ->
     @JMeq (reptype t) b (reptype t') b' ->
-    data_equal a b -> data_equal a' b'.
+    a === b -> a' === b'.
 Proof.
 intros. subst t'.
 apply JMeq_eq in H0. apply JMeq_eq in H1.
 subst; auto.
 Qed.
 
-Lemma data_equal_refl: forall t (v: reptype t), v === v.
+Lemma eq_rect_r_data_equal: forall {t1 t2} v0 v1 (H: t1 = t2),
+  v0 === v1 ->
+  eq_rect_r reptype v0 H === eq_rect_r reptype v1 H.
 Proof.
   intros.
-  intro sh; reflexivity.
+  generalize H.
+  subst.
+  intros.
+  unfold eq_rect_r.
+  rewrite <- !eq_rect_eq.
+  auto.
 Qed.
+
+Instance Equiv_data_equal t: Equivalence (@data_equal t).
+Proof.
+  unfold data_equal; split.
+  + intro; intros.
+    reflexivity.
+  + intro; intros.
+    rewrite H; reflexivity.
+  + intro; intros.
+    rewrite H, H0; reflexivity.
+Defined.
 
 Lemma data_equal_refl': forall t (v v': reptype t), v = v' -> v === v'.
 Proof.
-  intros. subst. apply data_equal_refl.
-Qed.
-
-Lemma data_equal_sym: forall t (v1 v2: reptype t), v1 === v2 -> v2 === v1.
-Proof.
-  intros.
-  intro sh.
-  rewrite H.
-  reflexivity.
-Qed.
-
-Lemma data_equal_trans: forall t (v1 v2 v3: reptype t), v1 === v2 -> v2 === v3 -> v1 === v3.
-Proof.
-  intros.
-  intro sh.
-  rewrite H, H0.
-  reflexivity.
+  intros. subst. reflexivity.
 Qed.
 
 Lemma field_at_data_equal: forall sh t gfs v0 v1,
@@ -212,6 +228,14 @@ Proof.
   spec H0; [auto |].
   apply pred_ext; apply field_at_stronger; tauto.
 Qed.
+
+Instance Proper_field_at: forall sh t gfs,
+  Proper ((@data_equal _) ==> eq) (field_at sh t gfs).
+Proof.
+  intros.
+  intro; intros.
+  apply field_at_data_equal; auto.
+Defined.
 
 Lemma data_equal_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
   (forall i, 0 <= i < n -> zl_nth i (unfold_reptype v0) === zl_nth i (unfold_reptype v1)) ->
@@ -238,8 +262,27 @@ Proof.
   intros.
   specialize (H i H0).
   rewrite H.
-  apply data_equal_refl.
+  reflexivity.
 Qed.
+
+Lemma data_equal_zl_equiv': forall t n a v v',
+  zl_equiv v v' ->
+  @fold_reptype _ _ (Tarray t n a) v === @fold_reptype _ _ (Tarray t n a) v'.
+Proof.
+  intros.
+  apply data_equal_zl_equiv.
+  rewrite !unfold_fold_reptype.
+  auto.
+Qed.
+
+Instance Proper_fold_reptype_array: forall t n a,
+  Proper ((@zl_equiv (reptype t) (default_val _) (list_zlist _ _) 0 n) ==> (@data_equal (Tarray t n a))) (@fold_reptype _ _ (Tarray t n a)).
+Proof.
+  intros.
+  intro; intros.
+  apply data_equal_zl_equiv'.
+  auto.
+Defined.
 
 (* maybe not usefull any more *)
 Lemma nth_list_repeat: forall A i n (x :A),
@@ -289,3 +332,6 @@ Module DataCmpNotations.
   Notation "X '===' Y" := (data_equal X Y) (at level 60, no associativity).
 End DataCmpNotations.
 
+Global Existing Instance Equiv_data_equal.
+Global Existing Instance Proper_fold_reptype_array.
+Global Existing Instance Proper_field_at.

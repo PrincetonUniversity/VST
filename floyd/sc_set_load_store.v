@@ -276,7 +276,7 @@ Lemma semax_SC_field_store:
                     (`(field_at sh t_root gfs0 v_new p))))))).
 Proof.
   intros.
-  erewrite field_at_data_equal by (apply data_equal_sym, H9).
+  erewrite field_at_data_equal by (symmetry; apply H9).
   clear H9 v_new.
   rename H10 into H9.
   rename H11 into H10.
