@@ -592,7 +592,7 @@ Ltac cbv_proj_struct H :=
     intsize_rec intsize_rect signedness_rec signedness_rect floatsize_rec floatsize_rect attr_rec attr_rect
     tvoid tschar tuchar tshort tushort tint
     tuint tbool tlong tulong tfloat tdouble tptr tarray noattr
-    ] in H.
+    ] in H; simpl in H.
 
 Ltac pose_proj_reptype_1 CS CSL t gf v H :=
   assert (@proj_gfield_reptype CS CSL t gf v = @proj_gfield_reptype CS CSL t gf v) as H by reflexivity;
@@ -666,6 +666,7 @@ Ltac pose_upd_reptype_1 CS CSL t gf v v0 H :=
   | Tarray _ _ _ => autorewrite with zl_sub_db in H
   | _ => idtac
   end;
+  unfold compact_prod_upd, eq_rect_r in H; simpl in H;
   match type of H with
   | data_equal _ (fold_reptype ?v_res) =>
     rewrite (JMeq_eq (fold_reptype_JMeq t' v_res)) in H

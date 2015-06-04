@@ -34,7 +34,7 @@ Local Open Scope logic.
  ** field (in this case, called [tail]) and arbitrary other fields.  The [Instance]
  ** explains (and proves) how [struct list] satisfies the [listspec] pattern.
  **)
-Instance LS: listspec (Tstruct _list noattr) _tail.
+Instance LS: listspec _list _tail.
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 (**  An auxiliary definition useful in the specification of [sumlist] *)
@@ -161,8 +161,9 @@ normalize.
 simpl in HRE.
 focus_SEP 1; apply semax_lseg_nonnull; [ | intros h' r y ? ?].
 entailer!.
-pose proof (JMeq_eq (valinject_JMeq (nested_field_type2 (Tstruct _list noattr) [StructField _tail]) y eq_refl)) as HH.
+(*pose proof (JMeq_eq (valinject_JMeq (nested_field_type2 (Tstruct _list noattr) [StructField _tail]) y eq_refl)) as HH.
 rewrite HH; clear HH.
+*)
 destruct cts; inv H.
 rewrite list_cell_eq.
 forward.  (* h = t->head; *)

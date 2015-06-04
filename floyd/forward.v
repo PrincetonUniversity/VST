@@ -2147,16 +2147,22 @@ Ltac solve_load_rule_evaluation :=
 Ltac solve_store_rule_evaluation :=
   match goal with
   | |- data_equal (@upd_reptype ?cs ?csl ?t ?gfs ?v (valinject _ ?v0)) _ =>
-         rewrite (valinject_JMeq (nested_field_type2 t gfs) v0) by reflexivity;
+      let H := fresh "H" in 
+      assert (H := valinject_JMeq (nested_field_type2 t gfs) v0);
+      rewrite H by reflexivity; clear H;
          let t' := eval compute in t in
          let gfs' := eval cbv delta [gfs] in gfs in
          let v' := eval cbv delta [v] in v in
-         let Hproj := fresh "H" in
+         let Hproj := fresh "Hproj" in
          pose_proj_reptype cs csl t' gfs' v' Hproj;
-         let H := fresh "H" in
-         pose_upd_reptype cs csl t' gfs' v' v0 H;
+         let Hupd := fresh "Hupd" in
+         pose_upd_reptype cs csl t' gfs' v' v0 Hupd;
+         clear Hproj;
          rewrite upd_reptype_ind;
-         exact H
+         match goal with H: data_equal _ ?A |- data_equal _ ?B =>  unify A B end (*
+                 this line is to get around a bug in Coq 8.4; in Coq 8.5 maybe
+                 it won't be necessary; may be related to "Anomaly: undefined evars"*);
+         exact Hupd
   end.
 
 Ltac new_load_tac :=   (* matches:  semax _ _ (Sset _ (Efield _ _ _)) _  *)
@@ -2385,6 +2391,18 @@ Lemma local_lifted_reflexivity:
 forall A P (x: environ -> A), P |-- local (`eq x x).
 Proof. intros. intro rho. apply prop_right. hnf. reflexivity.
 Qed.
+
+(*
+Ltac simpl_fold_reptype :=
+ match goal with
+ |- context [@fold_reptype ?cs ?csl ?t ?A] => 
+    let G := fresh "G" in let Heq := fresh "Heq" in 
+     remember (@fold_reptype cs csl t A) as G eqn:Heq;
+     unfold fold_reptype, compact_prod_upd, eq_rect_r in Heq;
+     rewrite <- !eq_rect_eq in Heq; simpl in Heq;
+     subst G
+  end.
+*)
 
 Ltac new_store_tac := 
 ensure_open_normal_ret_assert;
@@ -2729,6 +2747,7 @@ Ltac forward_with F1 :=
              | unfold replace_nth; cbv beta;
                try (apply extract_exists_pre; intro_old_var c);
                simpl_first_temp;
+(*               try simpl_fold_reptype;*)
                abbreviate_semax
              ]) 
         ||  fail 0)  (* see comment FORWARD_FAILOVER below *)
@@ -2742,6 +2761,7 @@ Ltac forward_with F1 :=
              | try rewrite exp_andp2;
                try (apply exp_left; intro_old_var c);
                simpl_first_temp;
+(*               try simpl_fold_reptype;*)
                try rewrite insert_local
              ] 
 end.
@@ -2770,7 +2790,8 @@ Ltac fwd_result :=
      simpl_first_temp;
      repeat extract_prop_from_LOCAL;
      revert v
-   | apply revert_unit
+   | (* try simpl_fold_reptype;*)
+     apply revert_unit
    ].
 
 Ltac fwd' :=

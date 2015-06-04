@@ -198,7 +198,7 @@ Ltac unfold_data_at N :=
 The following part is for simpl_data_at tactic
 
 ********************************************)
-
+(*
 Ltac simpl_data_at' H := 
   unfold data_at_, data_at, data_at', withspacer, at_offset', at_offset2, align, Z.max in H.
 
@@ -230,3 +230,4 @@ Ltac simpl_data_at :=
            floyd_simpl T H MA simpl_data_at'
     end).
 
+*)

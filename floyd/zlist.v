@@ -340,3 +340,12 @@ End ZLIST.
 Global Existing Instance list_zlist_correct.
 Global Existing Instance Equiv_zl_equiv.
 Global Existing Instance Proper_concat.
+Global Opaque zl_concat. 
+Global Opaque zl_sublist. 
+Global Opaque zl_constr'.
+Global Opaque zl_shift.
+Global Opaque zl_gen.
+Global Opaque zl_singleton.
+Global Opaque zl_empty.
+Global Opaque zl_default.
+Global Opaque zl_nth.

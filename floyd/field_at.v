@@ -1478,3 +1478,42 @@ Hint Extern 1 (isptr _) => (eapply field_compatible_offset_isptr; eassumption).
 Hint Extern 1 (isptr _) => (eapply field_compatible0_offset_isptr; eassumption).
 Hint Rewrite @is_pointer_or_null_field_address_lemma : entailer_rewrite.
 Hint Rewrite @isptr_field_address_lemma : entailer_rewrite.
+
+Global Transparent alignof. (* MOVE ME *)
+
+Definition field_at_mark := @field_at.
+Definition field_at_hide := @field_at.
+
+Ltac find_field_at N :=
+ match N with
+ | S O =>  change @field_at with field_at_mark at 1;
+                 change @field_at with @field_at_hide;
+                 change field_at_mark with @field_at
+ | S ?k => change @field_at with field_at_hide at 1;
+                find_field_at k
+ end.
+
+Ltac unfold_field_at N :=
+ find_field_at N;
+ match goal with 
+ | |- context [@field_at ?cs ?csl ?sh ?t ?gfs ?v ?p] =>
+     let id := fresh "id" in evar (id: ident);
+     let Heq := fresh "Heq" in
+     assert (Heq: nested_field_type2 t gfs = Tstruct id noattr)
+           by (unfold id; reflexivity);
+     let H := fresh in 
+     assert (H:= @field_at_Tstruct cs csl sh t gfs id noattr
+                          v v p  Heq (JMeq_refl _));
+     unfold id in H; clear Heq id;
+     let FLD := fresh "FLD" in
+     forget (@field_at cs csl sh t gfs v p) as FLD;
+   cbv beta iota zeta delta 
+     [co_members cenv_cs get_co nested_sfieldlist_at
+      nested_field_offset2 nested_field_type2
+      nested_field_rec
+      alignof withspacer
+     ] in H;
+   simpl in H;
+   subst FLD;
+   change field_at_hide with @field_at in *
+ end.

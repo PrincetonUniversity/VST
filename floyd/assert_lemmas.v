@@ -747,9 +747,18 @@ Qed.
 
 Ltac cancel1 := 
  first [
-   simple apply cancel1_here; [solve [eauto with nocore cancel] | ]
+   simple apply cancel1_here; [
+    try match goal with H := _ : list mpred |- _ => clear H end; (*
+      this line is to work around Coq 8.4 bug,
+      Anomaly: undefined_evars_of_term *) 
+    solve [eauto with nocore cancel] 
+   | ]
  | simple apply cancel1_next; cancel1
- | simple apply cancel1_last; [solve [eauto with nocore cancel] | ]
+ | simple apply cancel1_last; [
+    try match goal with H := _ : list mpred |- _ => clear H end; (*
+      this line is to work around Coq 8.4 bug,
+      Anomaly: undefined_evars_of_term *)  
+    solve [eauto with nocore cancel] | ]
  ].
 
 Ltac cancel2 := 
