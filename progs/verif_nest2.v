@@ -48,6 +48,33 @@ name i _i.
 destruct v as [a [b c]]; simpl in *.
  unfold t_struct_b.
  repeat (rewrite repinj_ind; simpl; unfold fold_reptype, unfold_reptype', eq_rect_r; rewrite <- ?eq_rect_eq).
+forward.
+Abort.
+
+Ltac pose_fun n H :=
+  match n with
+  | 0%nat => assert (n = n) as H by reflexivity
+  | S ?n0 => let H0 := fresh "H" in
+             pose_fun n0 H0;
+             assert (n = n) as H by reflexivity
+  end.
+Goal False.
+pose_fun 0%nat HH.
+clear .
+pose_fun 1%nat HH.
+clear .
+pose_fun 2%nat HH.
+clear .
+try pose_fun 3%nat HH.
+Abort.
+
+Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
+Proof.
+start_function.
+name i _i.
+destruct v as [a [b c]]; simpl in *.
+ unfold t_struct_b.
+ repeat (rewrite repinj_ind; simpl; unfold fold_reptype, unfold_reptype', eq_rect_r; rewrite <- ?eq_rect_eq).
 unfold data_at.
 unfold_field_at 1%nat. (* THIS LINE SHOULD NOT BE NECESSARY *)
 (*unfold_field_at 2%nat.*)

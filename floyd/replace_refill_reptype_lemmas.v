@@ -632,6 +632,7 @@ Ltac pose_proj_reptype CS CSL t gfs v H :=
   | nil =>
       assert (eq_pose (@proj_reptype CS CSL t gfs v) v) as H by reflexivity
   | ?gf :: ?gfs0 =>
+     pose proof I as H;   (* *0* SEE LINE *1* *)
      let H0 := fresh "H" in
      pose_proj_reptype CS CSL t gfs0 v H0;
      match type of H0 with
@@ -641,6 +642,7 @@ Ltac pose_proj_reptype CS CSL t gfs v H :=
          | nil => pose_proj_reptype_1 CS CSL t gf v0 H1
          | _ => pose_proj_reptype_1 CS CSL (nested_field_type2 t gfs0) gf v0 H1
          end;
+         clear H;         (* *1* SEE LINE *0* *)
          match gfs0 with
          | nil => assert (eq_pose (@proj_reptype CS CSL t gfs v) (@proj_gfield_reptype CS CSL t gf v0)) as H
          | _ => assert (eq_pose (@proj_reptype CS CSL t gfs v)
@@ -669,7 +671,9 @@ Ltac pose_upd_reptype_1 CS CSL t gf v v0 H :=
   unfold compact_prod_upd, eq_rect_r in H; simpl in H;
   match type of H with
   | data_equal _ (fold_reptype ?v_res) =>
-    rewrite (JMeq_eq (fold_reptype_JMeq t' v_res)) in H
+    pose proof (JMeq_eq (fold_reptype_JMeq t' v_res)) as H0;
+    rewrite H0 in H;
+    clear H0
   end.
 
 Ltac pose_upd_reptype CS CSL t gfs v v0 H :=
@@ -677,6 +681,7 @@ Ltac pose_upd_reptype CS CSL t gfs v v0 H :=
   | nil => 
       assert (data_equal (@upd_reptype_rec CS CSL t gfs v v0) v0) as H by reflexivity
   | ?gf :: ?gfs0 =>
+      pose proof I as H;   (* *2* SEE LINE *3* *)
       match goal with
       | HH : eq_pose (proj_reptype t gfs0 v) ?v1 |- _ =>
           let H_upd1 := fresh "H" in
@@ -687,6 +692,7 @@ Ltac pose_upd_reptype CS CSL t gfs v v0 H :=
                   pose_upd_reptype CS CSL t gfs0 v v1' H0;
                   match type of H0 with
                   | data_equal _ ?v_res =>
+                      clear H;         (* *3* SEE LINE *2* *)
                       assert (data_equal (@upd_reptype_rec CS CSL t gfs v v0) v_res) as H; [| clear H_upd1]
                   end;
                  [change (@upd_reptype_rec CS CSL t gfs v v0) with
@@ -699,10 +705,15 @@ Ltac pose_upd_reptype CS CSL t gfs v v0 H :=
 
 Section Test.
 
-Definition cd1 := Composite 101%positive Struct ((1%positive, tint) :: (2%positive, tint) :: nil) noattr.
-Definition cd2 := Composite 102%positive Struct ((3%positive, Tstruct 101%positive noattr) ::
-                                 (4%positive, Tstruct 101%positive noattr) ::
-                                 (5%positive, Tpointer (Tstruct 101%positive noattr) noattr) :: nil) noattr.
+Definition _f1 := 1%positive.
+Definition _f2 := 2%positive.
+Definition _f3 := 3%positive.
+Definition _f4 := 4%positive.
+Definition _f5 := 5%positive.
+Definition cd1 := Composite 101%positive Struct ((_f1, tint) :: (_f2%positive, tint) :: nil) noattr.
+Definition cd2 := Composite 102%positive Struct ((_f3, Tstruct 101%positive noattr) ::
+                                 (_f4, Tstruct 101%positive noattr) ::
+                                 (_f5, Tpointer (Tstruct 101%positive noattr) noattr) :: nil) noattr.
 Definition cenv := match build_composite_env (cd1 :: cd2 :: nil) with Errors.OK env => env | _ => PTree.empty _ end.
 
 Instance cs: compspecs.
@@ -742,14 +753,14 @@ Definition v2: reptype t2 := ((Vint Int.zero, Vint Int.one), ((Vint Int.zero, Vi
 Eval vm_compute in (reptype_gen t2).
 Eval vm_compute in (proj_reptype t1 (StructField 1%positive :: nil) v1).
 *)
-Goal proj_reptype t1 (StructField 1%positive :: nil) v1 = Vint Int.zero.
+Goal proj_reptype t1 (StructField _f1 :: nil) v1 = Vint Int.zero.
 reflexivity.
 Qed.
 
-Goal proj_reptype t2 (StructField 2%positive :: StructField 3%positive :: nil) v2 = Vint Int.one.
+Goal proj_reptype t2 (StructField _f2 :: StructField _f3 :: nil) v2 = Vint Int.one.
 unfold v2.
-pose_proj_reptype cs csl (Tstruct 102%positive noattr)
-  (StructField 2%positive :: StructField 3%positive :: nil) ((Vint Int.zero, Vint Int.one, (Vint Int.zero, Vint Int.one, Vundef)): reptype (Tstruct 102%positive noattr)) HH.
+pose_proj_reptype cs csl t2
+  (StructField _f2 :: StructField _f3 :: nil) ((Vint Int.zero, Vint Int.one, (Vint Int.zero, Vint Int.one, Vundef)): reptype (Tstruct 102%positive noattr)) HH.
 eauto.
 Time Qed. (* Cut down from 10 seconds to 4 seconds, magically. *)
 
