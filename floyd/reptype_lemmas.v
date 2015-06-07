@@ -649,6 +649,8 @@ Qed.
 
 End CENV.
 
+Arguments reptype' {cs} t / .
+
 Global Notation REPTYPE t :=
   match t return Type with
   | Tvoid

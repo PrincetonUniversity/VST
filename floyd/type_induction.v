@@ -347,6 +347,8 @@ Defined.
 
 End COMPOSITE_ENV.
 
+Arguments func_type {cs} A F_ByValue F_Tarray F_Tstruct F_Tunion t / .
+
 Ltac type_induction t :=
   pattern t;
   match goal with
