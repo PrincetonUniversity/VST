@@ -662,6 +662,40 @@ Global Notation REPTYPE t :=
   | Tunion id _ => reptype_unionlist (co_members (get_co id))
   end.
 
+Ltac unfold_repinj' T := 
+  let G := fresh "G" in
+  match goal with |- ?A _ => set (G := A) end;
+  try unfold T;
+  repeat (
+    rewrite repinj_ind;
+    cbv beta iota zeta delta
+      [co_members
+       fold_reptype unfold_reptype' eq_rect_r
+       compact_prod_map compact_prod
+       list_rect
+    ];
+    rewrite <- ?eq_rect_eq;
+    cbv beta iota zeta delta
+     [ field_type fieldlist.field_type2 Ctypes.field_type];
+     simpl);
+  unfold G; clear G; cbv beta.
+
+Tactic Notation "unfold_repinj" := 
+match goal with |- context [repinj ?T ?V] =>
+  pattern (repinj T V);
+  unfold_repinj' T
+end.
+
+Tactic Notation "unfold_repinj" constr(T) :=
+ match goal with |- context [repinj T ?V] =>
+   pattern (repinj T V);
+  unfold_repinj' T
+end.
+  
+Tactic Notation "unfold_repinj" constr(T) constr(V) :=
+   pattern (repinj T V);
+  unfold_repinj' T.
+
 Module ZLIST_NOTATION.
 
 Notation "l 'AS' t [( lo , hi )]" := (@zl_constr' (reptype t) (default_val t) (list_zlist (reptype t) (default_val t)) lo hi l) (at level 80, no associativity).

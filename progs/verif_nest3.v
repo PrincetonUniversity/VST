@@ -1,7 +1,12 @@
 Require Import floyd.proofauto.
 Require Import progs.nest3.
+Instance CompSpecs : compspecs := compspecs_program prog.
+Instance CS_legal : compspecs_legal CompSpecs.
+Proof. prove_CS_legal. Qed.
 
 Local Open Scope logic.
+
+Definition t_struct_c := Tstruct _c noattr.
 
 Definition get_spec :=
  DECLARE _get
@@ -34,28 +39,44 @@ Definition Vprog : varspecs := (_p, t_struct_c)::nil.
 Definition Gprog : funspecs := 
     get_spec::set_spec::nil.
 
+Ltac unfold_repinj' T := 
+  let G := fresh "G" in
+  match goal with |- ?A _ => set (G := A) end;
+  try unfold T;
+  repeat (rewrite repinj_ind; simpl; 
+    unfold fold_reptype, unfold_reptype', eq_rect_r;
+    rewrite <- ?eq_rect_eq);
+  unfold G; clear G; cbv beta.
+
 Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
 Proof.
- start_function.
+start_function.
+ unfold_repinj.
  forward.
  forward.
-Qed.
+ unfold_repinj t_struct_c.
+ cancel.
+Qed.  (* This Qed is really slow! *)
 
 Lemma body_get':  semax_body Vprog Gprog f_get get_spec.
 Proof.
  start_function.
-name i _i.
-unfold_data_at 1%nat.
-forward.
-forward.
-unfold_data_at 1%nat.
-cancel.
+ unfold_repinj.
+ unfold data_at. unfold_field_at 1%nat.
+ normalize. (* this line shouldn't be necessary, should be taken care of by unfold_field_at *)
+ forward.
+ forward.
+ unfold_repinj.
+ unfold data_at. unfold_field_at 3%nat.
+ cancel.
 Qed.
 
 Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
 Proof.
 start_function.
-name i_ _i.
-forward.
-forward.
+ unfold_repinj.
+ forward.
+ forward.
+ unfold_repinj.
+ cancel.
 Qed.
