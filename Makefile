@@ -72,7 +72,7 @@ MSL_FILES = \
   predicates_sa.v \
   normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v op_classes.v \
-  seplog.v alg_seplog.v log_normalize.v
+  simple_CCC.v seplog.v alg_seplog.v log_normalize.v
 
 SEPCOMP_FILES= \
   Address.v \

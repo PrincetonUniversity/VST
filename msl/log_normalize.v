@@ -1,10 +1,158 @@
+Require Import msl.simple_CCC.
 Require Import msl.seplog.
 (* Require Import msl.alg_seplog. *)
 Require Import msl.Extensionality.
+Require Import Coq.Setoids.Setoid.
 
 Local Open Scope logic.
 
 Hint Resolve @derives_refl.
+
+Lemma TT_right {A}{NA: NatDed A}: forall P:A, P |-- TT.
+Proof. intros; apply prop_right; auto.
+Qed.
+
+Lemma FF_left {A}{NA: NatDed A}: forall P, FF |-- P.
+Proof.
+intros; apply prop_left. intuition.
+Qed.
+
+Hint Resolve @TT_right: norm.
+Hint Resolve @FF_left : norm.
+
+Ltac norm := auto with norm.
+
+Lemma andp_comm  {A}{NA: NatDed A}:
+  forall P Q: A,  P && Q = Q && P.
+Proof with norm.
+ intros.
+   apply pred_ext.
+   apply andp_right. apply andp_left2... apply andp_left1...
+    apply andp_right. apply andp_left2... apply andp_left1...
+Qed.
+
+Lemma andp_assoc {A} {NA: NatDed A} : forall P Q R : A,
+  (P && Q) && R = P && (Q && R).
+Proof.
+  intros; apply pred_ext;   repeat apply andp_right.
+  do 2 apply andp_left1; auto.
+  apply andp_left1; apply andp_left2; auto.
+  apply andp_left2; auto.
+  apply andp_left1; auto.
+  apply andp_left2; apply andp_left1; auto.
+  do 2 apply andp_left2; auto.
+Qed.
+
+Lemma andp_derives {A} {NA: NatDed A}:
+  forall P Q P' Q': A, P |-- P' -> Q |-- Q' -> P && Q |-- P' && Q'.
+Proof.
+intros.
+apply andp_right.
+apply andp_left1; apply H.
+apply andp_left2; apply H0.
+Qed.
+
+Class CCCviaNatDed (A: Type) (prod expo: A -> A -> A) {ND: NatDed A}: Prop :=
+  isCCC: CartesianClosedCat.CCC A derives eq prod expo.
+
+Lemma CCC_expo_derives: forall A prod expo {ND: NatDed A} {CCC: CCCviaNatDed A prod expo},
+  forall P P' Q Q', P' |-- P -> Q |-- Q' -> expo P Q |-- expo P' Q'.
+Proof.
+  intros.
+  pose proof isCCC.
+  eapply CartesianClosedCat.expo_UMP; eauto.
+  apply derives_trans.
+Qed.
+
+Lemma CCC_exp_prod1:
+  forall A prod expo {ND : NatDed A} {CCC: CCCviaNatDed A prod expo} B (P: B -> A) Q,
+  prod (exp P) Q = exp (fun x => prod (P x) Q).
+Proof.
+  intros.
+  pose proof isCCC.
+  apply pred_ext.
+  + apply (proj2 (CartesianClosedCat.adjoint _ _ _ _ _ _)).
+    apply exp_left; intro x.
+    apply (proj1 (CartesianClosedCat.adjoint _ _ _ _ _ _)).
+    apply (exp_right x).
+    apply derives_refl.
+  + apply exp_left; intro x.
+    eapply CartesianClosedCat.prod_UMP; eauto.
+    apply (exp_right x).
+    apply derives_refl.
+Qed.
+
+Lemma CCC_exp_prod2:
+  forall A prod expo {ND : NatDed A} {CCC: CCCviaNatDed A prod expo} B P (Q: B -> A),
+  prod P (exp Q) = exp (fun x => prod P (Q x)).
+Proof.
+  intros.
+  rewrite CartesianClosedCat.comm by eauto.
+  erewrite CCC_exp_prod1 by eauto.
+  f_equal. extensionality x.
+  rewrite CartesianClosedCat.comm by eauto.
+  reflexivity.
+Qed.
+
+Lemma CCC_distrib_orp_prod:
+  forall A prod expo {ND : NatDed A} {CCC: CCCviaNatDed A prod expo} P Q R,
+    prod (orp P Q) R = orp (prod P R) (prod Q R).
+Proof.
+  intros.
+  pose proof isCCC.
+  apply pred_ext.
+  + apply (proj2 (CartesianClosedCat.adjoint _ _ _ _ _ _)).
+    apply orp_left.
+    - apply (proj1 (CartesianClosedCat.adjoint _ _ _ _ _ _)).
+      apply orp_right1, derives_refl.
+    - apply (proj1 (CartesianClosedCat.adjoint _ _ _ _ _ _)).
+      apply orp_right2, derives_refl.
+  + apply orp_left; eapply CartesianClosedCat.prod_UMP; eauto.
+    - apply orp_right1, derives_refl.
+    - apply orp_right2, derives_refl.
+Qed.
+
+Lemma CCC_FF_prod:
+  forall A prod expo {ND : NatDed A} {CCC: CCCviaNatDed A prod expo} P,
+    prod FF P = FF.
+Proof.
+  intros.
+  pose proof isCCC.
+  apply pred_ext.
+  + apply (proj2 (CartesianClosedCat.adjoint _ _ _ _ _ _)).
+    apply FF_left.
+  + apply FF_left.
+Qed.
+
+Lemma CCC_prod_FF:
+  forall A prod expo {ND : NatDed A} {CCC: CCCviaNatDed A prod expo} P,
+    prod P FF = FF.
+Proof.
+  intros.
+  pose proof isCCC.
+  rewrite CartesianClosedCat.comm by eauto.
+  eapply CCC_FF_prod; eauto.
+Qed.
+
+Instance andp_imp_CCC: forall A {ND : NatDed A}, CCCviaNatDed A andp imp.
+Proof.
+  intros.
+  constructor.
+  apply andp_comm.
+  apply andp_assoc.
+  apply imp_andp_adjoint.
+  intros; apply andp_derives; auto.
+Qed.
+
+Instance sepcon_wand_CCC: forall A {ND : NatDed A} {SL: SepLog A}, CCCviaNatDed A sepcon wand.
+Proof.
+  intros.
+  constructor.
+  apply sepcon_comm.
+  apply sepcon_assoc.
+  apply wand_sepcon_adjoint.
+  intros; apply sepcon_derives; auto.
+Qed.
 
 Lemma andp_is_allp {A}{ND: NatDed A}:
    forall P Q, andp P Q = allp (fun x : bool => if x then P else Q).
@@ -44,94 +192,109 @@ intros.
   rewrite sepcon_comm.  apply wand_sepcon_adjoint. auto.
 Qed.
 
+Lemma sepcon_FF {A}{ND: NatDed A}{SL: SepLog A} :
+           forall P: A, sepcon P FF = FF.
+Proof.
+  intros.
+  eapply CCC_prod_FF.
+  apply sepcon_wand_CCC.
+Qed.
+
+Lemma FF_sepcon {A} {NA: NatDed A}{SA: SepLog A}: forall P: A, FF * P = FF.
+Proof.
+  intros.
+  eapply CCC_FF_prod.
+  apply sepcon_wand_CCC.
+Qed.
+
+Hint Rewrite @FF_sepcon @sepcon_FF : norm.
+
+Lemma FF_andp {A}{NA: NatDed A}:  forall P: A, FF && P = FF.
+Proof.
+  intros.
+  eapply CCC_FF_prod.
+  apply andp_imp_CCC.
+Qed.
+
+Lemma andp_FF {A}{NA: NatDed A}:  forall P: A, P && FF = FF.
+Proof.
+  intros.
+  eapply CCC_prod_FF.
+  apply andp_imp_CCC.
+Qed.
+Hint Rewrite @FF_andp @andp_FF : norm.
+
 Lemma wand_derives {A}{ND: NatDed A}{SL: SepLog A}:
     forall P P' Q Q': A , P' |-- P -> Q |-- Q' ->  P -* Q |-- P' -* Q'.
 Proof.
-intros.
- apply -> wand_sepcon_adjoint.
- eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply H] | ].
- eapply derives_trans; [ | apply H0].
- apply <- wand_sepcon_adjoint.
- auto.
-Qed.
-
-Lemma exp_andp1  {A}{ND: NatDed A}:  forall B (p: B -> A) q, andp (exp p) q = (exp (fun x => andp (p x) q)).
-Proof.
- intros. apply pred_ext.
- apply imp_andp_adjoint.
- apply exp_left; intro x.
- apply imp_andp_adjoint.
- apply exp_right with x.
- apply derives_refl.
- apply exp_left; intro x.
- apply andp_right; [apply andp_left1 | apply andp_left2].
- apply exp_right with x; apply derives_refl.
- apply derives_refl.
+  eapply CCC_expo_derives.
+  apply sepcon_wand_CCC.
 Qed.
 
 Lemma distrib_orp_andp {A}{ND: NatDed A}:  
    forall (P Q R : A), andp (orp P Q) R = orp (andp P R) (andp Q R).
 Proof.
- intros.
- apply pred_ext.
- apply imp_andp_adjoint.
- apply orp_left.
- apply imp_andp_adjoint. apply orp_right1; apply derives_refl.
- apply imp_andp_adjoint. apply orp_right2; apply derives_refl.
- apply orp_left.
- apply andp_right; [apply andp_left1 | apply andp_left2].
- apply orp_right1; apply derives_refl.
- apply derives_refl.
- apply andp_right. apply orp_right2; apply andp_left1; apply derives_refl.
- apply andp_left2; apply derives_refl.
+  intros.
+  eapply CCC_distrib_orp_prod.
+  apply andp_imp_CCC.
 Qed.
 
-Lemma sepcon_FF {A}{ND: NatDed A}{SL: SepLog A} :
-           forall P: A, sepcon P FF = FF.
+Lemma exp_andp1 {A}{ND: NatDed A}:  forall B (p: B -> A) q, andp (exp p) q = (exp (fun x => andp (p x) q)).
 Proof.
- intros; apply pred_ext.
-  rewrite sepcon_comm.
-  apply wand_sepcon_adjoint.
- apply prop_left; intro; contradiction.
-  apply prop_left; intro; contradiction.
+  eapply CCC_exp_prod1.
+  apply andp_imp_CCC.
 Qed.
 
-Lemma exp_sepcon1{A}{ND: NatDed A}{SL: SepLog A}:  
-       forall T (P: T ->  A) Q,  sepcon (exp P) Q = exp (fun x => sepcon (P x) Q).
+Lemma exp_sepcon1 {A}{ND: NatDed A} {SL: SepLog A}:  
+  forall T (P: T ->  A) Q, sepcon (exp P) Q = exp (fun x => sepcon (P x) Q).
 Proof.
- intros. apply pred_ext.
- apply wand_sepcon_adjoint.
- apply exp_left; intro x.
- apply wand_sepcon_adjoint.
- apply exp_right with x.
- apply derives_refl.
- apply exp_left; intro x.
- apply sepcon_derives.
- apply exp_right with x; apply derives_refl.
- apply derives_refl.
+  eapply CCC_exp_prod1.
+  apply sepcon_wand_CCC.
 Qed.
 
 Lemma  distrib_orp_sepcon {A}{ND: NatDed A}{SL: SepLog A}: 
       forall (P Q R : A), sepcon (P || Q) R = sepcon P R || sepcon Q R.
 Proof.
- intros. apply pred_ext.
- apply wand_sepcon_adjoint.
- apply orp_left.
- apply wand_sepcon_adjoint. apply orp_right1; apply derives_refl.
- apply wand_sepcon_adjoint. apply orp_right2; apply derives_refl.
- apply orp_left; (apply sepcon_derives; [ | apply derives_refl]).
- apply orp_right1; apply derives_refl.
- apply orp_right2; apply derives_refl.
-Qed. 
+  intros.
+  eapply CCC_distrib_orp_prod.
+  apply sepcon_wand_CCC.
+Qed.
+
+Lemma exp_sepcon2 {A}{NA: NatDed A}{SA: SepLog A}: 
+  forall T (P: A) (Q: T -> A),  P * exp Q = exp (fun x => P * Q x).
+Proof.
+  intros.
+  eapply CCC_exp_prod2.
+  apply sepcon_wand_CCC.
+Qed.
+
+Lemma exp_andp2  {A}{NA: NatDed A}:
+  forall B (p: A) (q: B -> A) , (p && exp q) = exp (fun x => p && q x).
+Proof.
+  intros.
+  eapply CCC_exp_prod2.
+  apply andp_imp_CCC.
+Qed.
+
+Lemma imp_derives {A} {NA: NatDed A}:
+  forall P P' Q Q' : A,
+    P' |-- P ->
+    Q |-- Q' -> 
+    P --> Q |-- P' --> Q'.
+Proof.
+  intros.
+  eapply CCC_expo_derives; auto.
+  apply andp_imp_CCC.
+Qed.
 
 Lemma  distrib_sepcon_andp {A}{ND: NatDed A}{SL: SepLog A}: 
      forall P Q R, sepcon P (andp Q R) |-- andp (sepcon P Q) (sepcon P R).
 Proof.
- intros.
- apply andp_right.
- apply sepcon_derives; [ apply derives_refl | ].
- apply andp_left1; apply derives_refl.
- apply sepcon_derives; [ apply derives_refl | ].
+  intros.
+  apply andp_right.
+  apply sepcon_derives; [ apply derives_refl | ].
+  apply andp_left1; apply derives_refl.
+  apply sepcon_derives; [ apply derives_refl | ].
   apply andp_left2; apply derives_refl.
 Qed.
 
@@ -166,27 +329,11 @@ Proof.
  destruct x; auto.
 Qed.
 
-
-Lemma TT_right {A}{NA: NatDed A}: forall P:A, P |-- TT.
-Proof. intros; apply prop_right; auto.
-Qed.
-
-Hint Resolve @TT_right: norm.
-
-Ltac norm := auto with norm.
-
 Lemma andp_dup {A}{ND: NatDed A}: forall P: A, P && P = P.
 Proof. intros. apply pred_ext.
 apply andp_left1; apply derives_refl.
 apply andp_right; apply derives_refl.
 Qed.
-
-
-Lemma FF_left {A}{NA: NatDed A}: forall P, FF |-- P.
-Proof.
-intros; apply prop_left. intuition.
-Qed.
-Hint Resolve @FF_left : norm.
 
 Lemma andp_TT {A}{NA: NatDed A}: forall (P: A), P && TT = P.
 Proof with norm.
@@ -232,79 +379,6 @@ Proof with norm.
   intros. apply pred_ext. apply andp_left2... apply andp_right...
 Qed.
 
-Lemma exp_sepcon2 {A}{NA: NatDed A}{SA: SepLog A}: 
-   forall T (P: A) (Q: T -> A),  P * exp Q = exp (fun x => P * Q x).
-Proof. intros.
- rewrite sepcon_comm. rewrite exp_sepcon1.
- f_equal. extensionality x. apply sepcon_comm.
-Qed.
-
-Lemma andp_comm  {A}{NA: NatDed A}:
-  forall P Q: A,  P && Q = Q && P.
-Proof with norm.
- intros.
-   apply pred_ext.
-   apply andp_right. apply andp_left2... apply andp_left1...
-    apply andp_right. apply andp_left2... apply andp_left1...
-Qed.
-
-Lemma andp_assoc {A} {NA: NatDed A} : forall P Q R : A,
-  (P && Q) && R = P && (Q && R).
-Proof.
-  intros; apply pred_ext;   repeat apply andp_right.
-  do 2 apply andp_left1; auto.
-  apply andp_left1; apply andp_left2; auto.
-  apply andp_left2; auto.
-  apply andp_left1; auto.
-  apply andp_left2; apply andp_left1; auto.
-  do 2 apply andp_left2; auto.
-Qed.
-
-Lemma exp_andp2  {A}{NA: NatDed A}:
- forall B (p: A) (q: B -> A) , (p && exp q) = exp (fun x => p && q x).
-Proof.
- intros. rewrite andp_comm; rewrite exp_andp1.
- f_equal. extensionality x. apply andp_comm.
-Qed.
-
-Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT 
-             @exp_sepcon1 @exp_sepcon2
-               @exp_andp1 @exp_andp2
-         @sepcon_andp_prop @sepcon_andp_prop'
-        : norm.
-
-
-Lemma andp_derives {A} {NA: NatDed A}:
-  forall P Q P' Q': A, P |-- P' -> Q |-- Q' -> P && Q |-- P' && Q'.
-Proof.
-intros.
-apply andp_right.
-apply andp_left1; apply H.
-apply andp_left2; apply H0.
-Qed.
-
-Lemma imp_derives {A} {NA: NatDed A}:
-  forall P P' Q Q' : A,
-    P' |-- P ->
-    Q |-- Q' -> 
-    P --> Q |-- P' --> Q'.
-Proof.
-intros.
-apply imp_andp_adjoint. 
-eapply derives_trans; try apply H0; clear H0.
-eapply derives_trans; [ apply andp_derives; try apply H | ]; clear H.
-apply derives_refl.
-rewrite andp_comm. apply modus_ponens.
-Qed.
-
-Lemma FF_sepcon {A} {NA: NatDed A}{SA: SepLog A}: forall P: A, FF * P = FF.
-Proof.
-intros.
-rewrite sepcon_comm. apply sepcon_FF.
-Qed.
-
-Hint Rewrite @FF_sepcon @sepcon_FF : norm.
-
 Lemma prop_true_andp {A} {NA: NatDed A}:
   forall (P: Prop) (Q: A),  P -> (!! P && Q = Q).
 Proof with norm.
@@ -323,18 +397,6 @@ intros. apply pred_ext...
 apply prop_right...
 Qed. 
 Hint Rewrite @true_eq using (solve [immediate]) : norm.
-
-Lemma FF_andp {A}{NA: NatDed A}:  forall P: A, FF && P = FF.
-Proof with norm.
-intros. apply pred_ext...
-apply andp_left1...
-Qed.
-
-Lemma andp_FF {A}{NA: NatDed A}:  forall P: A, P && FF = FF.
-Proof.
-intros. rewrite andp_comm. apply FF_andp.
-Qed.
-Hint Rewrite @FF_andp @andp_FF : norm.
 
 Hint Rewrite @andp_dup : norm.
 
@@ -364,6 +426,12 @@ Proof.
 intros.
 apply allp_right; intro x; apply allp_left with x; auto.
 Qed.
+
+Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT 
+             @exp_sepcon1 @exp_sepcon2
+               @exp_andp1 @exp_andp2
+         @sepcon_andp_prop @sepcon_andp_prop'
+        : norm.
 
 Lemma forall_pred_ext  {A}  {NA: NatDed A}: forall B (P Q: B -> A), 
  (ALL x : B, (P x <--> Q x)) |-- (ALL x : B, P x) <--> (ALL x: B, Q x) .
