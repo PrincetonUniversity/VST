@@ -684,7 +684,7 @@ Ltac pose_upd_reptype CS CSL t gfs v v0 H :=
       pose proof I as H;   (* *2* SEE LINE *3* *)
       match goal with
       | HH : eq_pose (proj_reptype t gfs0 v) ?v1 |- _ =>
-          let H_upd1 := fresh "H" in
+          let H_upd1 := fresh "H_upd1" in
           pose_upd_reptype_1 CS CSL (nested_field_type2 t gfs0) gf v1 v0 H_upd1;
           match type of H_upd1 with
           | data_equal _ ?v1' =>
@@ -693,12 +693,15 @@ Ltac pose_upd_reptype CS CSL t gfs v v0 H :=
                   match type of H0 with
                   | data_equal _ ?v_res =>
                       clear H;         (* *3* SEE LINE *2* *)
-                      assert (data_equal (@upd_reptype_rec CS CSL t gfs v v0) v_res) as H; [| clear H_upd1]
+                      assert (H: data_equal (@upd_reptype_rec CS CSL t gfs v v0) v_res);
+                          [| clear H_upd1 H0]
                   end;
                  [change (@upd_reptype_rec CS CSL t gfs v v0) with
                    (@upd_reptype_rec CS CSL t gfs0 v (upd_gfield_reptype _ gf (proj_reptype t gfs0 v) v0));
                   unfold eq_pose in HH; rewrite HH;
-                  eapply Equivalence.equiv_transitive; [apply upd_reptype_rec_data_equal; exact H_upd1 | exact H0] |]
+                  eapply Equivalence.equiv_transitive;
+                  [apply upd_reptype_rec_data_equal; exact H_upd1 | exact H0]
+                 | clear HH]
           end
       end
   end.

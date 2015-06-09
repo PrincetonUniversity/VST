@@ -6,6 +6,7 @@ Require Import floyd.canonicalize floyd.forward_lemmas floyd.call_lemmas.
 Require Import floyd.extcall_lemmas.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.efield_lemmas.
+Require Import floyd.type_induction.
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.data_at_lemmas.
 Require Import floyd.field_at.
@@ -18,7 +19,7 @@ Require Import floyd.local2ptree.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.proj_reptype_lemmas.
 Require Import floyd.replace_refill_reptype_lemmas.
-(*Require Import floyd.unfold_data_at.*)
+Require Import floyd.aggregate_type.
 Require Import floyd.entailer.
 Require Import floyd.globals_lemmas.
 Require Import floyd.semax_tactics.
@@ -2132,6 +2133,11 @@ intros. destruct v; inv H; reflexivity.
 Qed.
 Hint Rewrite sem_add_ptr_int using assumption : norm.
 
+Arguments field_type id fld / .
+Arguments fieldlist.field_type2 i m / .
+Arguments nested_field_type2 {cs} t gfs / .
+
+(* old, slow version
 Ltac solve_load_rule_evaluation :=
   match goal with
   | |- repinject _ (@proj_reptype ?cs ?csl ?t ?gfs ?v) = _ =>
@@ -2143,22 +2149,197 @@ Ltac solve_load_rule_evaluation :=
          pose_proj_reptype cs csl t' gfs' v' H;
          exact H
   end.
+*)
+
+
+Ltac really_simplify A :=
+  let aa := fresh "aa" in 
+  pose (aa := A); compute in aa; change A with aa; subst aa.
+
+Lemma eq_rect_r_eq:
+  forall (U: Type) (p: U) Q x h, 
+    @eq_rect_r U p Q x p h = x.
+Proof.
+ intros.
+ unfold eq_rect_r. symmetry; apply eq_rect_eq.
+Qed.
+
+Lemma data_equal_congr {cs: compspecs} {csl: compspecs_legal cs}:
+    forall T (v1 v2: reptype T),
+   v1 = v2 ->
+   data_equal v1 v2.
+Proof. intros. subst. intro. reflexivity.
+Qed.
+
+Lemma pair_congr: forall (A B: Type) (x x': A) (y y': B),
+  x=x' -> y=y' -> (x,y)=(x',y').
+Proof.
+intros; subst; auto.
+Qed.
+
+Ltac really_simplify_one_thing :=
+   match goal with |- ?GG = _ => match GG with
+    | (_,_) =>
+              eapply pair_congr
+    | _ =>
+          rewrite eq_rect_r_eq
+    | _ =>
+          rewrite eq_rect_eq
+    | compact_prod_upd _ _ _ _ _ =>
+       unfold compact_prod_upd at 1;
+         cbv delta [list_rect]
+    | context [fst (?A, ?B)] =>
+              change (fst (A, B)) with A
+    | context [snd (?A, ?B)] =>
+              change (snd (A, B)) with B
+    | context [ListTypeGen ?A ?B ?C] =>
+       let s := fresh "s" in set (s := ListTypeGen A B C);
+       unfold ListTypeGen in s; subst s
+    | context [nested_field_type2 ?A ?B] =>
+         really_simplify (nested_field_type2 A B)
+    | fold_reptype _  =>
+           unfold fold_reptype at 1; rewrite eq_rect_r_eq
+    | replace_reptype _ _ _ _ =>
+      rewrite replace_reptype_ind;
+      cbv delta [singleton_hole singleton_hole_rec rev app ]
+    | compact_prod_map _ _ _ =>
+        unfold compact_prod_map at 1; cbv beta iota zeta delta [list_rect]
+    | func_type _ _ _ _ _ _ _ _ _  => 
+             rewrite func_type_ind
+    | context [co_members (get_co ?i)] =>
+            really_simplify (co_members (get_co i))
+    | context [gfield_dec ?A ?B] =>
+         really_simplify (gfield_dec A B)
+    | context [member_dec ?A ?B] =>
+       really_simplify (member_dec A B)
+    | context [fieldlist.fieldlist.field_type ?A ?B] =>
+         really_simplify (fieldlist.fieldlist.field_type A B)
+    | context [field_type ?A ?B] =>
+         really_simplify (field_type A B)
+    | repinject _ _ =>
+       cbv delta [repinject proj_reptype]
+    | context [default_val ?A] =>
+       really_simplify (default_val A)
+    | context C [fst (unfold_reptype (?a,?b))] =>
+       let A' := context C [fst (a,b)] in
+        transitivity A'; 
+           [repeat f_equal; 
+            unfold unfold_reptype; rewrite <- eq_rect_eq;
+            reflexivity
+           | change (fst(a,b)) with a]
+    | context C [snd (unfold_reptype (?a,?b))] =>
+       let A' := context C [snd (a,b)] in
+        transitivity A'; 
+           [repeat f_equal; 
+            unfold unfold_reptype; rewrite <- eq_rect_eq;
+            reflexivity
+           | change (snd(a,b)) with b]
+     | singleton_subs _ _ _ _  =>
+        unfold singleton_subs; simpl rgfs_dec;
+        unfold eq_rec_r, eq_rec;
+        rewrite <- ?eq_rect_eq, ?eq_rect_r_eq
+    | appcontext [@zl_nth] =>
+              progress (autorewrite with zl_nth_db)
+     | context [@proj_reptype ?a ?b ?c ?d ?e] =>
+         let z := fresh "z" in set (z := @proj_reptype a b c d e);
+         cbv beta iota zeta delta [
+               proj_reptype proj_gfield_reptype
+         ] in z; subst z
+     | context [@proj_struct _ _ _ _ _] => 
+         cbv delta [
+             proj_struct proj_compact_prod list_rect
+         ]
+     | context [@aggregate_type.proj_struct _ _ _ _ _] => 
+         cbv delta [
+             aggregate_type.proj_struct proj_compact_prod list_rect
+         ]
+    end
+    | A := _ |- _ => subst A 
+  end; 
+    cbv beta iota zeta.
+
+(*
+Ltac really_simplify_one_thing :=
+   match goal with 
+    | |- eq_rect_r _ _ _ =>
+          rewrite eq_rect_r_eq
+    | |- context [nested_field_type2 ?A ?B] =>
+         really_simplify (nested_field_type2 A B)
+    | |- context [co_members ?A] =>
+       really_simplify (co_members A)
+    | |- context [member_dec ?A ?B] =>
+       really_simplify (member_dec A B)
+    | |- context [default_val ?A] =>
+       really_simplify (default_val A)
+    | |- _ =>
+          rewrite eq_rect_r_eq
+    | |- context [unfold_reptype _] =>
+          unfold unfold_reptype at 1; rewrite <- eq_rect_eq
+    | |- context [fst (?A, ?B)] =>
+              change (fst (A, B)) with A
+    | |- context [snd (?A, ?B)] =>
+              change (snd (A, B)) with B
+    | |- appcontext [@zl_nth] =>
+              progress (autorewrite with zl_nth_db)
+  end; 
+    cbv beta iota zeta.
+*)
+
+Ltac really_simplify_some_things := 
+   repeat really_simplify_one_thing.
+
+Ltac solve_load_rule_evaluation := (* faster version *)
+  clear;
+  repeat match goal with
+  | A := _ |- _ => clear A 
+  | A := _ : list gfield |- _ => subst A
+  end;
+  really_simplify_some_things;
+  cbv beta iota delta [proj_gfield_reptype]; 
+  really_simplify_some_things;
+  cbv beta iota delta [aggregate_type.proj_struct proj_struct proj_compact_prod list_rect]; 
+  really_simplify_some_things;
+  repeat match goal with A := _ |- _ => subst A end;
+  really_simplify_some_things;
+  simpl; apply eq_refl.
 
 Ltac solve_store_rule_evaluation :=
+  clear;
+  repeat match goal with
+  | A : _ |- _ => clear A 
+  | A := _ |- _ => clear A 
+  | A := _ : list gfield |- _ => subst A
+  end;
+  apply data_equal_congr;
+  match goal with |- context [valinject ?t ?v] =>
+     rewrite (valinject_JMeq t v (eq_refl _))
+ end;
+ rewrite upd_reptype_ind;
+ really_simplify_some_things;
+ cbv beta iota delta [upd_reptype_rec];
+ really_simplify_some_things;
+ cbv beta iota delta [upd_gfield_reptype];
+ really_simplify_some_things;
+ reflexivity.
+
+Ltac solve_store_rule_evaluation' :=
+  repeat match goal with
+  | A : _ |- _ => clear A 
+  | A := _ |- _ => clear A 
+  end;
   match goal with
-  | |- data_equal (@upd_reptype ?cs ?csl ?t ?gfs ?v (valinject _ ?v0)) _ =>
-      let H := fresh "H" in 
-      assert (H := valinject_JMeq (nested_field_type2 t gfs) v0);
-      rewrite H by reflexivity; clear H;
+  | |- data_equal (@upd_reptype ?cs ?csl ?t ?gfs ?v (valinject ?t0 ?v0)) _ =>
+         rewrite (valinject_JMeq t0 v0 (eq_refl _));
+         rewrite upd_reptype_ind;
+         let t2 := fresh "t2" in set (t2 := t) in *;
+         compute in t2; subst t2;
          let t' := eval compute in t in
          let gfs' := eval cbv delta [gfs] in gfs in
-         let v' := eval cbv delta [v] in v in
          let Hproj := fresh "Hproj" in
-         pose_proj_reptype cs csl t' gfs' v' Hproj;
+         pose_proj_reptype cs csl t' gfs' v Hproj;
          let Hupd := fresh "Hupd" in
-         pose_upd_reptype cs csl t' gfs' v' v0 Hupd;
+         pose_upd_reptype cs csl t' gfs' v v0 Hupd;
          clear Hproj;
-         rewrite upd_reptype_ind;
          match goal with H: data_equal _ ?A |- data_equal _ ?B =>  unify A B end (*
                  this line is to get around a bug in Coq 8.4; in Coq 8.5 maybe
                  it won't be necessary; may be related to "Anomaly: undefined evars"*);
@@ -2465,7 +2646,7 @@ match goal with
     | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
            |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
     end;
-
+(*
     match type of H with
     | (PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) |-- _) =>
       match R0 with
@@ -2492,32 +2673,20 @@ match goal with
         | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n ]
       | _ =>
-        eapply semax_post'; [ |
+*)
           eapply (semax_SC_field_store Delta sh n)
             with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
             [reflexivity | reflexivity | reflexivity
             | reflexivity | exact Heq | exact HLE 
-            | exact HRE | exact H_Denote | exact H | auto 
+            | exact HRE | exact H_Denote | exact H | solve [auto]
             | solve_store_rule_evaluation
-            | | ]];
-        [ match goal with
-          | |- appcontext [replace_nth _ _ ?M] => 
-            let EQ := fresh "EQ" in
-            let MM := fresh "MM" in
-               remember M as MM eqn:EQ;
-               repeat match type of EQ with
-                          | appcontext [field_at_ ?sh ?t nil] => change (field_at_ sh t nil) with (data_at_ sh t)
-                          | appcontext [field_at ?sh ?t nil ?v] => change (field_at sh t nil v) with (data_at sh t v)
-                         end;
-               subst MM;
-               apply derives_refl
-          end
-        | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
-          subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
-        | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
-          subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n ]
-      end
+            | unfold tc_efield; try solve[entailer!]; try (clear Heq HLE HRE H_Denote H H_LEGAL;
+              subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n; simpl app; simpl typeof)
+            | solve_legal_nested_field_in_entailment; try clear Heq HLE HRE H_Denote H H_LEGAL;
+           subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n ]
+(*      end
     end
+*)
 
   | |- @semax ?Espec ?Delta (|> PROPx ?P (LOCALx ?Q (SEPx ?R))) 
                      (Sassign ?e ?e2) _ =>

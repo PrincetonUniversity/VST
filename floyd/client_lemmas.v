@@ -1418,9 +1418,22 @@ Ltac hoist_later_left :=
          [ solve [ auto 50 with derives ] | ]
   end. 
 
+Lemma semax_later_trivial: forall Espec Delta P c Q,
+  @semax Espec Delta (|> P) c Q ->
+  @semax Espec Delta P c Q.
+Proof.
+ intros until Q.
+ apply semax_pre0.
+  apply now_later.
+Qed.
+
 Ltac hoist_later_in_pre :=
      match goal with |- semax _ ?P _ _ =>
-       let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]
+       match P with
+       | appcontext [@later] => 
+            let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]
+       | _ => apply semax_later_trivial
+       end
      end.
 
 Ltac type_of_field_tac :=

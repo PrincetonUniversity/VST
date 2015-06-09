@@ -138,8 +138,8 @@ Ltac build_Struct_env :=
 Ltac abbreviate_semax :=
  match goal with
  | |- semax _ _ _ _ => 
-        unfold_abbrev';
         simplify_Delta;
+        unfold_abbrev';
         match goal with |- semax ?D _ ?C ?P => 
             abbreviate D : tycontext as Delta;
             abbreviate P : ret_assert as POSTCONDITION;

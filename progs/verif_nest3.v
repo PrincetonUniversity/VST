@@ -39,44 +39,38 @@ Definition Vprog : varspecs := (_p, t_struct_c)::nil.
 Definition Gprog : funspecs := 
     get_spec::set_spec::nil.
 
-Ltac unfold_repinj' T := 
-  let G := fresh "G" in
-  match goal with |- ?A _ => set (G := A) end;
-  try unfold T;
-  repeat (rewrite repinj_ind; simpl; 
-    unfold fold_reptype, unfold_reptype', eq_rect_r;
-    rewrite <- ?eq_rect_eq);
-  unfold G; clear G; cbv beta.
-
 Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
 Proof.
 start_function.
  unfold_repinj.
- forward.
- forward.
+ simpl in v.
+Time forward.  (* 39.77 sec *)
+Time forward.
  unfold_repinj t_struct_c.
  cancel.
-Qed.  (* This Qed is really slow! *)
+Qed.  (* 84 sec *)
 
 Lemma body_get':  semax_body Vprog Gprog f_get get_spec.
 Proof.
  start_function.
  unfold_repinj.
+ simpl in v.
  unfold data_at. unfold_field_at 1%nat.
  normalize. (* this line shouldn't be necessary, should be taken care of by unfold_field_at *)
- forward.
- forward.
- unfold_repinj.
- unfold data_at. unfold_field_at 3%nat.
- cancel.
-Qed.
+Time forward. (* 18.88 sec *)
+Time forward. (* 13 sec *)
+Time unfold_repinj. (* 20.4 sec *)
+ unfold data_at.
+Time unfold_field_at 3%nat. (* 0.86 sec *)
+Time cancel. (* 1.875 sec *)
+Qed. (* 77 sec *)
 
 Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
 Proof.
 start_function.
  unfold_repinj.
- forward.
- forward.
- unfold_repinj.
- cancel.
+Time forward. (* 137 sec *)
+Time forward. (* 95 sec *)
+Time unfold_repinj. (* 25.5 sec *)
+Time cancel. (* 4.16 sec *)
 Qed.

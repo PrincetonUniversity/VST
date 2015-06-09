@@ -45,10 +45,10 @@ Lemma body_get:  semax_body Vprog Gprog f_get get_spec.
 Proof.
 start_function.
 name i _i.
-destruct v as [a [b c]]; simpl in *.
+simpl in v.
 unfold_repinj.
-forward.
-forward.
+Time forward. (* 5.989 sec  -> 2.6*)
+Time forward. (* 11.1118 sec -> 7.5 *)
 unfold_repinj.
 cancel.
 Qed.
@@ -57,11 +57,13 @@ Lemma body_set:  semax_body Vprog Gprog f_set set_spec.
 Proof.
  start_function.
 name i_ _i.
-destruct v as [a [b c]]; simpl in *.
+simpl in v.
+(*destruct v as [a [b c]]; simpl in *. *)
 unfold_repinj.
-forward.
-forward.
+Time forward. (* 10.17 -> 6.93 sec *)
+Time forward. (* 8.77 sec *)
 unfold update22. simpl.
 unfold_repinj.
 cancel.
-Qed.
+Qed.  (* approx 28 seconds *)
+
