@@ -12,7 +12,13 @@ Lemma TT_right {A}{NA: NatDed A}: forall P:A, P |-- TT.
 Proof. intros; apply prop_right; auto.
 Qed.
 
+Lemma FF_left {A}{NA: NatDed A}: forall P, FF |-- P.
+Proof.
+intros; apply prop_left. intuition.
+Qed.
+
 Hint Resolve @TT_right: norm.
+Hint Resolve @FF_left : norm.
 
 Ltac norm := auto with norm.
 
@@ -106,6 +112,28 @@ Proof.
     - apply orp_right2, derives_refl.
 Qed.
 
+Lemma CCC_FF_prod:
+  forall A prod expo {ND : NatDed A} {CCC: CCCviaNatDed A prod expo} P,
+    prod FF P = FF.
+Proof.
+  intros.
+  pose proof isCCC.
+  apply pred_ext.
+  + apply (proj2 (CartesianClosedCat.adjoint _ _ _ _ _ _)).
+    apply FF_left.
+  + apply FF_left.
+Qed.
+
+Lemma CCC_prod_FF:
+  forall A prod expo {ND : NatDed A} {CCC: CCCviaNatDed A prod expo} P,
+    prod P FF = FF.
+Proof.
+  intros.
+  pose proof isCCC.
+  rewrite CartesianClosedCat.comm by eauto.
+  eapply CCC_FF_prod; eauto.
+Qed.
+
 Instance andp_imp_CCC: forall A {ND : NatDed A}, CCCviaNatDed A andp imp.
 Proof.
   intros.
@@ -167,12 +195,34 @@ Qed.
 Lemma sepcon_FF {A}{ND: NatDed A}{SL: SepLog A} :
            forall P: A, sepcon P FF = FF.
 Proof.
- intros; apply pred_ext.
-  rewrite sepcon_comm.
-  apply wand_sepcon_adjoint.
- apply prop_left; intro; contradiction.
-  apply prop_left; intro; contradiction.
+  intros.
+  eapply CCC_prod_FF.
+  apply sepcon_wand_CCC.
 Qed.
+
+Lemma FF_sepcon {A} {NA: NatDed A}{SA: SepLog A}: forall P: A, FF * P = FF.
+Proof.
+  intros.
+  eapply CCC_FF_prod.
+  apply sepcon_wand_CCC.
+Qed.
+
+Hint Rewrite @FF_sepcon @sepcon_FF : norm.
+
+Lemma FF_andp {A}{NA: NatDed A}:  forall P: A, FF && P = FF.
+Proof.
+  intros.
+  eapply CCC_FF_prod.
+  apply andp_imp_CCC.
+Qed.
+
+Lemma andp_FF {A}{NA: NatDed A}:  forall P: A, P && FF = FF.
+Proof.
+  intros.
+  eapply CCC_prod_FF.
+  apply andp_imp_CCC.
+Qed.
+Hint Rewrite @FF_andp @andp_FF : norm.
 
 Lemma wand_derives {A}{ND: NatDed A}{SL: SepLog A}:
     forall P P' Q Q': A , P' |-- P -> Q |-- Q' ->  P -* Q |-- P' -* Q'.
@@ -285,12 +335,6 @@ apply andp_left1; apply derives_refl.
 apply andp_right; apply derives_refl.
 Qed.
 
-Lemma FF_left {A}{NA: NatDed A}: forall P, FF |-- P.
-Proof.
-intros; apply prop_left. intuition.
-Qed.
-Hint Resolve @FF_left : norm.
-
 Lemma andp_TT {A}{NA: NatDed A}: forall (P: A), P && TT = P.
 Proof with norm.
 intros.
@@ -335,14 +379,6 @@ Proof with norm.
   intros. apply pred_ext. apply andp_left2... apply andp_right...
 Qed.
 
-Lemma FF_sepcon {A} {NA: NatDed A}{SA: SepLog A}: forall P: A, FF * P = FF.
-Proof.
-intros.
-rewrite sepcon_comm. apply sepcon_FF.
-Qed.
-
-Hint Rewrite @FF_sepcon @sepcon_FF : norm.
-
 Lemma prop_true_andp {A} {NA: NatDed A}:
   forall (P: Prop) (Q: A),  P -> (!! P && Q = Q).
 Proof with norm.
@@ -361,18 +397,6 @@ intros. apply pred_ext...
 apply prop_right...
 Qed. 
 Hint Rewrite @true_eq using (solve [immediate]) : norm.
-
-Lemma FF_andp {A}{NA: NatDed A}:  forall P: A, FF && P = FF.
-Proof with norm.
-intros. apply pred_ext...
-apply andp_left1...
-Qed.
-
-Lemma andp_FF {A}{NA: NatDed A}:  forall P: A, P && FF = FF.
-Proof.
-intros. rewrite andp_comm. apply FF_andp.
-Qed.
-Hint Rewrite @FF_andp @andp_FF : norm.
 
 Hint Rewrite @andp_dup : norm.
 

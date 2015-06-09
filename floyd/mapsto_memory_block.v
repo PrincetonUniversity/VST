@@ -463,6 +463,7 @@ Proof.
       normalize.
       apply (exp_right v).
       simpl.
+      normalize.
       unfold Int.unsigned; simpl; rewrite H; apply derives_refl.
 Qed.
 
