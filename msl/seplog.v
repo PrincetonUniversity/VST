@@ -168,9 +168,9 @@ Instance LiftSepIndir  (A: Type) (B: Type)  {NB: NatDed B} {SB: SepLog B}{IB: In
  intros; simpl. extensionality rho.  apply later_sepcon.
  intros; simpl. extensionality rho.  apply later_wand.
  intros; simpl. extensionality rho.  apply later_ewand.
-Qed.
+Defined.
 
-Class CorableIndir (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A} := mkCorableIndir {
+Class CorableSepLog (A: Type) {ND: NatDed A}{SL: SepLog A}:= mkCorableSepLog {
   corable: A -> Prop;
   corable_prop: forall P, corable (!! P);
   corable_andp: forall P Q, corable P -> corable Q -> corable (P && Q);
@@ -180,12 +180,11 @@ Class CorableIndir (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A} := mkCora
   corable_exp: forall {B: Type} (P:  B -> A), (forall b, corable (P b)) -> corable (exp P);
   corable_sepcon: forall P Q, corable P -> corable Q -> corable (P * Q);
   corable_wand: forall P Q, corable P -> corable Q -> corable (P -* Q);
-  corable_later: forall P, corable P -> corable (|> P);
   corable_andp_sepcon1: forall P Q R, corable P ->  (P && Q) * R = P && (Q * R)
 }.
 
-Instance LiftCorableIndir (A: Type) (B: Type) {NB: NatDed B} {SB: SepLog B} {IB: Indir B} {CB: CorableIndir B} : @CorableIndir (A -> B) (LiftNatDed A B) (LiftSepLog A B) (LiftIndir A B).
-  apply (@mkCorableIndir _ _ _ _ (fun P => forall b, corable (P b))); intros; simpl in *; intros.
+Instance LiftCorableSepLog (A: Type) (B: Type) {NB: NatDed B} {SB: SepLog B} {CSL: CorableSepLog B} : @CorableSepLog (A -> B) (LiftNatDed A B) (LiftSepLog A B).
+  apply (@mkCorableSepLog _ _ _ (fun P => forall b, corable (P b))); intros; simpl in *; intros.
   + apply corable_prop.
   + apply corable_andp; auto.
   + apply corable_orp; auto.
@@ -194,7 +193,14 @@ Instance LiftCorableIndir (A: Type) (B: Type) {NB: NatDed B} {SB: SepLog B} {IB:
   + apply corable_exp; auto.
   + apply corable_sepcon; auto.
   + apply corable_wand; auto.
-  + apply corable_later; auto.
   + extensionality b.
     apply corable_andp_sepcon1; auto.
+Defined.
+
+Class CorableIndir (A: Type) {ND: NatDed A}{SL: SepLog A}{CSL: CorableSepLog A}{ID: Indir A} :=
+  corable_later: forall P, corable P -> corable (|> P).
+
+Instance LiftCorableIndir (A: Type) (B: Type) {NB: NatDed B} {SB: SepLog B} {CSL: CorableSepLog B} {ID: Indir B} {CI: CorableIndir B}: @CorableIndir (A -> B) (LiftNatDed A B) (LiftSepLog A B) (LiftCorableSepLog A B) (LiftIndir A B).
+  unfold CorableIndir; simpl; intros.
+  apply corable_later; auto.
 Defined.

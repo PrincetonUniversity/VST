@@ -22,6 +22,14 @@ Hint Resolve @FF_left : norm.
 
 Ltac norm := auto with norm.
 
+Lemma add_andp: forall {A: Type} `{NatDed A} (P Q: A), P |-- Q -> P = P && Q.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply andp_right; auto.
+  + apply andp_left1; apply derives_refl.
+Qed.
+
 Lemma andp_comm  {A}{NA: NatDed A}:
   forall P Q: A,  P && Q = Q && P.
 Proof with norm.
@@ -560,19 +568,19 @@ Lemma andp_assoc' {A}{NA: NatDed A}:
 Proof. intros. rewrite andp_comm. rewrite andp_assoc. f_equal. apply andp_comm. 
 Qed.
 
-Lemma corable_andp_sepcon2{A}{NA: NatDed A}{SA: SepLog A}{IA: Indir A}{CA: CorableIndir A}:
+Lemma corable_andp_sepcon2{A}{NA: NatDed A}{SA: SepLog A}{CA: CorableSepLog A}:
    forall P Q R : A, corable P ->  (Q && P) * R = P && (Q * R).
 Proof.
 intros. rewrite andp_comm. apply corable_andp_sepcon1. auto.
 Qed.
 
-Lemma corable_sepcon_andp1 {A}{NA: NatDed A}{SA: SepLog A}{IA: Indir A}{CA: CorableIndir A}:
+Lemma corable_sepcon_andp1 {A}{NA: NatDed A}{SA: SepLog A}{CA: CorableSepLog A}:
    forall P Q R : A, corable P ->  Q  * (P && R) = P && (Q * R).
 Proof.
 intros. rewrite sepcon_comm. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.
 Qed.
 
-Lemma corable_sepcon_andp2 {A}{NA: NatDed A}{SA: SepLog A}{IA: Indir A}{CA: CorableIndir A}:
+Lemma corable_sepcon_andp2 {A}{NA: NatDed A}{SA: SepLog A}{CA: CorableSepLog A}:
    forall P Q R : A, corable P ->  Q  * (R && P) = P && (Q * R).
 Proof.
 intros. rewrite sepcon_comm. rewrite andp_comm. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.
@@ -582,7 +590,7 @@ Hint Resolve @corable_prop : norm.
 
 (* The followings are not in auto-rewrite lib. *)
 
-Lemma sepcon_left_corable: forall {A}{NA: NatDed A}{SA: SepLog A}{IA: Indir A}{CA: CorableIndir A} (P Q: A), corable P -> (P * Q = (P && Q) * TT).
+Lemma sepcon_left_corable: forall {A}{NA: NatDed A}{SA: SepLog A}{CA: CorableSepLog A} (P Q: A), corable P -> (P * Q = (P && Q) * TT).
 Proof.
   intros.
   pattern P at 1.
@@ -592,7 +600,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma andp_left_corable: forall {A}{NA: NatDed A}{SA: SepLog A}{ClA: ClassicalSep A}{IA: Indir A}{CA: CorableIndir A} (P Q: A), corable P -> P && Q = (P && emp) * Q.
+Lemma andp_left_corable: forall {A}{NA: NatDed A}{SA: SepLog A}{ClA: ClassicalSep A}{CA: CorableSepLog A} (P Q: A), corable P -> P && Q = (P && emp) * Q.
 Proof.
   intros.
   pattern P at 1.
@@ -609,7 +617,7 @@ Proof.
   + apply sepcon_TT.
 Qed.
 
-Lemma corable_sepcon_TT: forall {A}{NA: NatDed A}{SA: SepLog A}{ClA: ClassicalSep A}{IA: Indir A}{CA: CorableIndir A} (P : A), corable P -> P * TT = P.
+Lemma corable_sepcon_TT: forall {A}{NA: NatDed A}{SA: SepLog A}{ClA: ClassicalSep A}{CA: CorableSepLog A} (P : A), corable P -> P * TT = P.
 Proof.
   intros.
   rewrite <- (andp_TT P).
@@ -618,7 +626,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma derives_left_sepcon_right_corable: forall {A}{NA: NatDed A}{SA: SepLog A}{ClA: ClassicalSep A}{IA: Indir A}{CA: CorableIndir A} (P Q R: A), corable P -> (Q |-- P) -> Q * R |-- P.
+Lemma derives_left_sepcon_right_corable: forall {A}{NA: NatDed A}{SA: SepLog A}{ClA: ClassicalSep A}{CA: CorableSepLog A} (P Q R: A), corable P -> (Q |-- P) -> Q * R |-- P.
 Proof.
   intros.
   rewrite <- corable_sepcon_TT by auto.
@@ -626,7 +634,7 @@ Proof.
   apply TT_right.
 Qed.
 
-Lemma later_prop_andp_sepcon: forall {A: Type} {A}{NA: NatDed A}{SA: SepLog A}{ClA: ClassicalSep A}{IA: Indir A}{CA: CorableIndir A} (P: Prop) (Q R: A), 
+Lemma later_prop_andp_sepcon: forall {A: Type} {A}{NA: NatDed A}{SA: SepLog A}{ClA: ClassicalSep A}{IA: Indir A}{CSL: CorableSepLog A} {CI: CorableIndir A} (P: Prop) (Q R: A), 
 ((|> !! P) && Q) * R = (|> !! P) && (Q * R).
 Proof.
   intros.

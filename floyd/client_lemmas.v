@@ -5,14 +5,6 @@ Local Open Scope logic.
 
 Arguments sem_cmp c !t1 !t2 valid_pointer / v1 v2.  
 
-Lemma add_andp: forall {A: Type} `{NatDed A} (P Q: A), P |-- Q -> P = P && Q.
-Proof.
-  intros.
-  apply pred_ext.
-  + apply andp_right; normalize.
-  + apply andp_left1; apply derives_refl.
-Qed.
-
 (**** BEGIN experimental normalize (to replace the one in msl/log_normalize.v ****)
 
 Lemma prop_true_andp' (P: Prop) {A} {NA: NatDed A}:
