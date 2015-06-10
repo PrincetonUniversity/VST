@@ -6,7 +6,7 @@ Definition ___builtin_fmadd : ident := 40%positive.
 Definition ___builtin_bswap : ident := 32%positive.
 Definition ___compcert_va_int32 : ident := 16%positive.
 Definition ___builtin_fmax : ident := 38%positive.
-Definition _even : ident := 46%positive.
+Definition _even : ident := 48%positive.
 Definition ___i64_utof : ident := 24%positive.
 Definition ___i64_utod : ident := 22%positive.
 Definition ___compcert_va_int64 : ident := 17%positive.
@@ -49,7 +49,7 @@ Definition ___i64_shl : ident := 29%positive.
 Definition ___builtin_clz : ident := 35%positive.
 Definition ___i64_shr : ident := 30%positive.
 Definition ___i64_stof : ident := 23%positive.
-Definition _odd : ident := 48%positive.
+Definition _odd : ident := 46%positive.
 Definition ___i64_dtou : ident := 20%positive.
 
 Definition f_odd := {|
