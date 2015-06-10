@@ -169,6 +169,44 @@ Proof.
     - auto.
 Qed.
 
+Lemma zl_sub_singleton':
+  forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} i i' lo hi (l: zlist A lo hi),
+  i = i' ->
+  lo <= i < hi ->
+  zl_equiv (zl_singleton i (zl_nth i' l))  (zl_sublist i (i + 1) l) .
+Proof.
+  intros.
+  intro; intros. subst i'.
+  assert (i = i0) by omega; subst.
+  rewrite zl_sublist_correct by omega.
+  rewrite zl_singleton_correct by omega.
+  auto.
+Qed.
+
+Lemma zl_sub_singleton'':
+  forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} i v,
+  zl_equiv (zl_sublist i (i+1) (zl_singleton i v)) (zl_singleton i v).
+Proof.
+  intros.
+  intro; intros.
+  assert (i = i0) by omega; subst i0.
+  rewrite zl_sublist_correct by omega. auto.
+Qed.
+
+Lemma zl_concat_sub:
+  forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} lo mid hi lo' hi' 
+     (l: zlist A lo' hi'),
+  lo' <= lo -> hi <= hi' ->
+  lo <= mid <= hi ->
+  zl_equiv (zl_concat (zl_sublist lo mid l) (zl_sublist mid hi l)) (zl_sublist lo hi l).
+Proof.
+  unfold zl_equiv.
+  intros.
+  rewrite zl_concat_correct by omega.
+  if_tac; rewrite !zl_sublist_correct by omega; auto.
+Qed.
+
+(* old version, less general 
 Lemma zl_concat_sub:
   forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} lo mid hi (l: zlist A lo hi),
   lo <= mid <= hi ->
@@ -179,6 +217,7 @@ Proof.
   rewrite zl_concat_correct by omega.
   if_tac; rewrite zl_sublist_correct by omega; auto.
 Qed.
+*)
 
 Lemma zl_sub_self:
   forall {A} {d} {ZL: Zlist A d} `{@Zlist_Correct A d ZL} lo hi (l: zlist A lo hi),

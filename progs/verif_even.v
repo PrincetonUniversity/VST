@@ -1,6 +1,8 @@
 Require Import floyd.proofauto.
-
 Require Import progs.even.
+Instance CompSpecs : compspecs := compspecs_program prog.
+Instance CS_legal : compspecs_legal CompSpecs.
+Proof. prove_CS_legal. Qed.
 Local Open Scope logic.
 
 Definition odd_spec :=

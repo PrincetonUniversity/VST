@@ -172,16 +172,21 @@ reflexivity.
 (* Prove postcondition of loop body implies loop invariant *)
 
 forward. (* x = a[i] *)
+entailer!.
+unfold unfold_reptype;simpl.
+autorewrite with zl_nth_db.
+apply I.
 
 forward s_old. (* s += x; *)
 
 forward i_old. (* i++; *)
   apply exp_right with (Zsucc a1).
   entailer!.
-  erewrite add_one_more_to_sum; eauto.
+  unfold unfold_reptype in H4; simpl in H4.
+  autorewrite with zl_nth_db in H4. simpl in H4. inv H4.
+  apply add_one_more_to_sum; try omega.
   rewrite Znth_map with (d' := Int.zero) by omega.
   auto.
-  omega.
 
 (* After the loop *)
 forward.  (* return s; *)
@@ -229,7 +234,6 @@ forward_call' (*  r = sumarray(four,4); *)
   (four,Ews,four_contents,4) vret.
  split3. computable. 
  forward. (* return s; *)
- unfold main_post. entailer!.
 Qed.
 
 Existing Instance NullExtension.Espec.

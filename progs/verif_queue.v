@@ -379,8 +379,6 @@ forward_call' (*  freeN(p, sizeof( *p)); *)
 }
 unfold map.
 forward. (* return i+j; *)
-unfold main_post.
-entailer!.
 Qed.
 
 Existing Instance NullExtension.Espec.
