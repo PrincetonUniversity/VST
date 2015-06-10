@@ -28,6 +28,7 @@ Instance Cveric: ClassicalSep mpred := algClassicalSep compcert_rmaps.RML.R.rmap
 Instance Iveric: Indir mpred := algIndir compcert_rmaps.RML.R.rmap.
 Instance Rveric: RecIndir mpred := algRecIndir compcert_rmaps.RML.R.rmap.
 Instance SIveric: SepIndir mpred := algSepIndir compcert_rmaps.RML.R.rmap.
+Instance CSLveric: CorableSepLog mpred := algCorableSepLog compcert_rmaps.RML.R.rmap.
 Instance CIveric: CorableIndir mpred := algCorableIndir compcert_rmaps.RML.R.rmap.
 Instance SRveric: SepRec mpred := algSepRec compcert_rmaps.RML.R.rmap.
 
@@ -39,12 +40,14 @@ Instance LiftIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T} :
            Indir (LiftEnviron T) := LiftIndir _ _.
 Instance LiftSepIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T} :
            SepIndir (LiftEnviron T) := LiftSepIndir _ _.
-Instance LiftCorableIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T}{CI: CorableIndir T} :
+Instance LiftCorableSepLog' T {ND: NatDed T}{SL: SepLog T}{CSL: CorableSepLog T} :
+           CorableSepLog (LiftEnviron T) := LiftCorableSepLog _ _.
+Instance LiftCorableIndir' T {ND: NatDed T}{SL: SepLog T}{IT: Indir T}{SI: SepIndir T}{CSL: CorableSepLog T}{CI: CorableIndir T} :
            CorableIndir (LiftEnviron T) := LiftCorableIndir _ _.
 
 Definition local:  (environ -> Prop) -> environ->mpred :=  lift1 prop.
 
-Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CIveric SRveric.
+Global Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric SRveric.
 
 Hint Resolve any_environ : typeclass_instances.
 

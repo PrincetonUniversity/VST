@@ -173,9 +173,9 @@ constructor.
  intros; simpl. apply subtypes_sl.unfash_sepcon_distrib.
 Qed.
 
-Instance algCorableIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
-         @CorableIndir (pred T) (algNatDed T) (algSepLog T) (algIndir T).
-  apply mkCorableIndir with (corable := corable.corable).
+Instance algCorableSepLog (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
+         @CorableSepLog (pred T) (algNatDed T) (algSepLog T).
+  apply mkCorableSepLog with (corable := corable.corable).
   + apply corable.corable_prop.
   + apply corable.corable_andp.
   + apply corable.corable_orp.
@@ -184,7 +184,12 @@ Instance algCorableIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_a
   + intros; apply corable.corable_exp; auto.
   + apply corable.corable_sepcon.
   + apply corable.corable_wand.
-  + apply corable.corable_later.
   + intros; simpl.
     apply corable.corable_andp_sepcon1; auto.
+Defined.
+
+Instance algCorableIndir (T: Type) {agT: ageable T}{JoinT: Join T}{PermT: Perm_alg T}{SepT: Sep_alg T}{AgeT: Age_alg T} :
+         @CorableIndir (pred T) (algNatDed T) (algSepLog T) (algCorableSepLog T) (algIndir T).
+  unfold CorableIndir; simpl.
+  apply corable.corable_later.
 Defined.
