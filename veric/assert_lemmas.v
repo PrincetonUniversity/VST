@@ -264,21 +264,19 @@ Lemma corable_funassert:
 Proof.
  intros.
  unfold funassert, func_at.
- apply corable_andp.
- apply corable_allp; intro.
- apply corable_allp; intro.
- apply corable_imp; auto.
- apply corable_exp; intro.
- apply corable_andp; auto.
- destruct b0.
- apply corable_pureat.
- apply corable_allp; intro.
- apply corable_allp; intro.
- apply corable_imp; auto.
- destruct b0.
- simpl.
- apply corable_exp; intro.
- apply corable_pureat.
+ repeat
+ first [
+   apply corable_andp|
+   apply corable_exp; intro|
+   apply corable_allp; intro|
+   apply corable_prop|
+   apply corable_imp].
+ + destruct b0.
+   apply corable_pureat.
+ + destruct b0.
+   simpl.
+   apply corable_exp; intro.
+   apply corable_pureat.
 Qed.
 
 Hint Resolve corable_funassert.

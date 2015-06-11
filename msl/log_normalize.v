@@ -586,6 +586,8 @@ Proof.
 intros. rewrite sepcon_comm. rewrite andp_comm. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.
 Qed.
 
+Hint Resolve @corable_andp @corable_orp @corable_allp @corable_exp 
+                    @corable_imp @corable_prop @corable_sepcon @corable_wand @corable_later.
 Hint Resolve @corable_prop : norm.
 
 (* The followings are not in auto-rewrite lib. *)
@@ -642,11 +644,6 @@ Proof.
   apply corable_later.
   apply corable_prop.
 Qed.
-
-(* This hint doesn't work well, hence the extra clauses in normalize1 and normalize1_in *)
-(*Hint Rewrite @corable_andp_sepcon1 @corable_andp_sepcon2
-                    @corable_sepcon_andp1 @corable_sepcon_andp2 using solve [auto with normalize typeclass_instances].
-*)
 
 Ltac normalize1 := 
          match goal with
