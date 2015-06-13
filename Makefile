@@ -47,7 +47,7 @@ endif
 endif
 
 
-COQFLAGS= $(INCLUDE)
+COQFLAGS= $(foreach d, $(DIRS), -R $(d) -as VST.$(d)) -R $(COMPCERT) -as compcert 
 DEPFLAGS= $(INCLUDE)
 COQC=coqc
 COQTOP=coqtop
@@ -69,7 +69,7 @@ MSL_FILES = \
   predicates_hered.v predicates_sl.v subtypes.v subtypes_sl.v \
   contractive.v predicates_rec.v \
   msl_direct.v msl_standard.v msl_classical.v \
-  predicates_sa.v \
+  predicates_sa.v alg_seplog_direct.v \
   normalize.v \
   env.v corec.v Coqlib2.v sepalg_list.v rmaps.v rmaps_lemmas.v op_classes.v \
   simple_CCC.v seplog.v alg_seplog.v log_normalize.v
@@ -227,7 +227,7 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION=8.4pl3 or-else 8.4pl4 or-else 8.4pl5
+COQVERSION=8.4pl3 or-else 8.4pl4 or-else 8.4pl5 or-else 8.4pl6
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))

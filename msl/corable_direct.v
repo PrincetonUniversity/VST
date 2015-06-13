@@ -1,4 +1,6 @@
-Require Import msl.msl_direct.
+Require Import msl.base.
+Require Import msl.sepalg.
+Require Import msl.predicates_sa.
 
 Local Open Scope pred.
 

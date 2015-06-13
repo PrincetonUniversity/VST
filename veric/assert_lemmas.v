@@ -10,7 +10,6 @@ Require Import veric.expr_lemmas.
 Require Import veric.seplog.
 Require Import veric.Clight_lemmas.
 Require Import msl.normalize.
-Require Import msl.corable.
 
 Local Open Scope pred.
 
