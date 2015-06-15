@@ -260,7 +260,7 @@ Proof.
   apply sepcon_wand_CCC.
 Qed.
 
-Lemma  distrib_orp_sepcon {A}{ND: NatDed A}{SL: SepLog A}: 
+Lemma distrib_orp_sepcon {A}{ND: NatDed A}{SL: SepLog A}: 
       forall (P Q R : A), sepcon (P || Q) R = sepcon P R || sepcon Q R.
 Proof.
   intros.
@@ -611,12 +611,39 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma TT_sepcon_TT: forall {A}{NA: NatDed A}{SA: SepLog A}{ClA: ClassicalSep A}, TT * TT = TT.
+Lemma TT_sepcon_TT: forall {A} `{ClassicalSep A}, TT * TT = TT.
 Proof.
   intros.
   apply pred_ext.
   + apply prop_right; auto.
   + apply sepcon_TT.
+Qed.
+
+Lemma prop_and {A} {NA: NatDed A}: 
+    forall P Q: Prop, prop (P /\ Q) = (prop P && prop Q).
+Proof.
+  intros. apply pred_ext.
+  + apply prop_left. intros [? ?].
+    apply andp_right; apply prop_right; auto.
+  + apply derives_extract_prop; intros.
+    apply prop_left; intros.
+    apply prop_right; auto.
+Qed.
+
+Lemma sepcon_prop_prop:
+  forall {A} `{ClassicalSep A} P Q, !! P * !! Q = !! (P /\ Q).
+Proof.
+  intros.
+  rewrite <- (andp_TT (!! Q)) at 1.
+  rewrite sepcon_andp_prop.
+  rewrite <- (andp_TT (!! P)) at 1.
+  rewrite sepcon_comm.
+  rewrite sepcon_andp_prop.
+  rewrite TT_sepcon_TT.
+  rewrite andp_TT.
+  rewrite andp_comm.
+  rewrite prop_and.
+  reflexivity.
 Qed.
 
 Lemma corable_sepcon_TT: forall {A}{NA: NatDed A}{SA: SepLog A}{ClA: ClassicalSep A}{CA: CorableSepLog A} (P : A), corable P -> P * TT = P.
@@ -643,6 +670,23 @@ Proof.
   apply corable_andp_sepcon1.
   apply corable_later.
   apply corable_prop.
+Qed.
+
+Lemma sepcon_corable_corable:
+  forall {A} `{CorableSepLog A} {ClS: ClassicalSep A} P Q, corable P -> corable Q -> P * Q = P && Q.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply andp_right.
+    - rewrite <- (andp_TT P) at 1.
+      rewrite corable_andp_sepcon1 by auto.
+      apply andp_left1; auto.
+    - rewrite <- (andp_TT Q) at 1.
+      rewrite corable_sepcon_andp1 by auto.
+      apply andp_left1; auto.
+  + rewrite andp_left_corable by auto.
+    apply sepcon_derives; auto.
+    apply andp_left1; auto.
 Qed.
 
 Ltac normalize1 := 

@@ -1626,30 +1626,6 @@ Ltac intro_if_new :=
           intro
   end.
 
-Lemma TT_sepcon_TT:   (* put this in MSL as an axiom of seplog *)
-     (@TT mpred _) * TT = TT.
-Proof.
-Transparent Nveric.
-Transparent Sveric.
-Transparent mpred.
-unfold Nveric, Sveric, mpred.
-simpl.
-apply msl.predicates_sl.TT_sepcon_TT.
-Opaque Nveric.
-Opaque Sveric.
-Opaque mpred.
-Qed.
-
-Lemma sepcon_prop_prop:
-  forall P Q,  @prop mpred _ P * !! Q = !! (P /\ Q).
-Proof.
-intros.
-rewrite <- (andp_TT (!!P)), <- (andp_TT (!!Q)).
-normalize.
-rewrite TT_sepcon_TT.
-normalize.
-Qed.
-
 Lemma saturate_aux20:
  forall (P Q: mpred) P' Q' ,
     P |-- !! P' ->
@@ -1687,7 +1663,7 @@ Ltac already_saturated :=
      fail 3
      end
 end || auto with nocore saturate_local)
- || simple apply prop_True_right.   
+ || simple apply prop_True_right.
 
 Ltac saturate_local := 
 simple eapply saturate_aux21;
