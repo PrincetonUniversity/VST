@@ -487,6 +487,7 @@ Section COMPSPECS.
 Context {cs: compspecs}.
 Context {csl: compspecs_legal cs}.
 
+(*
 Lemma align_chunk_alignof: forall t ch, access_mode t = By_value ch -> legal_alignas_type t = true -> alignof cenv_cs t = Memdata.align_chunk ch.
 Proof.
 Transparent alignof.
@@ -520,6 +521,29 @@ Proof.
   - destruct f; inversion H1; reflexivity.
   - inversion H1; reflexivity.
 Qed.
+*)
+
+Lemma legal_alignas_by_value: forall t,
+  legal_alignas_type t = true ->
+  type_is_by_value t = true ->
+  attr_alignas (attr_of_type t) = None.
+Proof.
+  intros.
+  destruct t; try inversion H0;
+  unfold legal_alignas_type in H; rewrite nested_pred_ind in H; simpl in *;
+  destruct (attr_alignas a); congruence.
+Qed.
+
+Lemma legal_alignas_access_by_value: forall t m,
+  legal_alignas_type t = true ->
+  access_mode t = By_value m ->
+  attr_alignas (attr_of_type t) = None.
+Proof.
+  intros.
+  destruct t; try inversion H0;
+  unfold legal_alignas_type in H; rewrite nested_pred_ind in H; simpl in *;
+  destruct (attr_alignas a); congruence.
+Qed.
 
 Lemma memory_block_mapsto__aux:
   forall n sh t b i_ofs,
@@ -537,7 +561,7 @@ Proof.
   destruct (access_mode_by_value t H) as [ch ?].
   erewrite mapsto__exp_address_mapsto; [|exact H5|exact H0].
   rewrite address_mapsto_list_address_mapsto_Mint8unsigned; 
-    [| erewrite align_chunk_alignof in H2; [exact H2| exact H5| exact H1] 
+    [| erewrite align_chunk_alignof in H2; [exact H2| exact H5| apply legal_alignas_by_value; auto] 
      | erewrite <- size_chunk_sizeof; [exact H4|exact H5]
      | destruct (Int.unsigned_range i_ofs); omega
     ].
@@ -545,7 +569,7 @@ Proof.
   erewrite size_chunk_sizeof in H3; [| exact H5].
   rewrite H3.
   assert (Int.unsigned i_ofs + Memdata.size_chunk ch <= Int.modulus) by 
-    (erewrite <- size_chunk_sizeof; [|exact H5]; omega).
+    (erewrite <- size_chunk_sizeof with (env := cenv_cs); [|exact H5]; omega).
   apply pred_ext; normalize; apply (exp_right vs); normalize.
 Qed.
 
@@ -597,7 +621,7 @@ Proof.
   apply pred_ext; normalize.
   unfold address_mapsto, res_predicates.address_mapsto.
   apply andp_right; [|cancel].
-  erewrite align_chunk_alignof by eassumption.
+  erewrite align_chunk_alignof; [| eassumption | eapply legal_alignas_access_by_value; eauto].
   apply orp_left.
   + change (@predicates_hered.exp compcert_rmaps.RML.R.rmap
         compcert_rmaps.R.ag_rmap (list Memdata.memval)) with (@exp mpred _ (list Memdata.memval)).

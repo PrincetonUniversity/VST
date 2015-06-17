@@ -1249,16 +1249,6 @@ apply field_at_nonvolatile.
 Qed.
 *)
 
-Lemma address_mapsto_overlap:
-  forall rsh sh ch1 v1 ch2 v2 a1 a2,
-     adr_range a1 (Memdata.size_chunk ch1) a2 ->
-     address_mapsto ch1 v1 rsh sh a1 * address_mapsto ch2 v2 rsh sh a2 |-- FF.
-Proof.
- intros.
- apply res_predicates.address_mapsto_overlap.
- auto.
-Qed.
-
 Lemma mapsto_conflict:
  forall sh t v v2 v3,
  mapsto sh t v v2 * mapsto sh t v v3 |-- FF.
@@ -1272,7 +1262,7 @@ destruct v; normalize.
 rewrite distrib_orp_sepcon.
 apply orp_left; normalize;
 try (rewrite sepcon_comm; rewrite distrib_orp_sepcon; apply orp_left; normalize;
-      apply address_mapsto_overlap; split; auto; omega).
+      apply res_predicates.address_mapsto_overlap; split; auto; omega).
 (*
 rewrite sepcon_comm; rewrite distrib_orp_sepcon; apply orp_left; normalize; intros;
 apply address_mapsto_overlap; split; auto; omega.
